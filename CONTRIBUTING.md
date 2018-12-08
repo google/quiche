@@ -20,7 +20,7 @@ again.
 All submissions, including submissions by project members, require review. We
 use Gerrit pull requests for this purpose.
 
-TODO: write up the Gerrit set up instructions.
+TODO: write up the contributing guidelines.
 
 ## Community Guidelines
 
