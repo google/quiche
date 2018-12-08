@@ -15,8 +15,8 @@ std::vector<HpackStringPair>* MakeStaticTable() {
   ptr->reserve(kFirstDynamicTableIndex);
   ptr->emplace_back("", "");
 
-#define STATIC_TABLE_ENTRY(name, value, index) \
-  DCHECK_EQ(ptr->size(), index);               \
+#define STATIC_TABLE_ENTRY(name, value, index)        \
+  DCHECK_EQ(ptr->size(), static_cast<size_t>(index)); \
   ptr->emplace_back(name, value)
 
 #include "net/third_party/quiche/src/http2/hpack/hpack_static_table_entries.inc"
