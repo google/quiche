@@ -15,7 +15,7 @@ void HpackBlockBuilder::AppendHighBitsAndVarint(uint8_t high_bits,
                                                 uint8_t prefix_length,
                                                 uint64_t varint) {
   EXPECT_LE(3, prefix_length);
-  EXPECT_LE(prefix_length, 7);
+  EXPECT_LE(prefix_length, 8);
 
   HpackVarintEncoder varint_encoder;
 

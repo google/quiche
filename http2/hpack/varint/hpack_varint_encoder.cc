@@ -17,7 +17,7 @@ unsigned char HpackVarintEncoder::StartEncoding(uint8_t high_bits,
   DCHECK(!encoding_in_progress_);
   DCHECK_EQ(0u, varint_);
   DCHECK_LE(1u, prefix_length);
-  DCHECK_LE(prefix_length, 7u);
+  DCHECK_LE(prefix_length, 8u);
 
   // prefix_mask defines the sequence of low-order bits of the first byte
   // that encode the prefix of the value. It is also the marker in those bits

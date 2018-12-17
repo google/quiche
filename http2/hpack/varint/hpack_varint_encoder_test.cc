@@ -147,10 +147,10 @@ struct {
   uint64_t value;
   uint8_t expected_encoding_first_byte;
 } kLastByteIsZeroTestData[] = {
-    {0b10110010, 1, 1, 0b10110011},  {0b10101100, 2, 3, 0b10101111},
-    {0b10101000, 3, 7, 0b10101111},  {0b10110000, 4, 15, 0b10111111},
-    {0b10100000, 5, 31, 0b10111111}, {0b11000000, 6, 63, 0b11111111},
-    {0b10000000, 7, 127, 0b11111111}};
+    {0b10110010, 1, 1, 0b10110011},   {0b10101100, 2, 3, 0b10101111},
+    {0b10101000, 3, 7, 0b10101111},   {0b10110000, 4, 15, 0b10111111},
+    {0b10100000, 5, 31, 0b10111111},  {0b11000000, 6, 63, 0b11111111},
+    {0b10000000, 7, 127, 0b11111111}, {0b00000000, 8, 255, 0b11111111}};
 
 // Make sure that the encoder outputs the last byte even when it is zero.  This
 // happens exactly when encoding  the value 2^prefix_length - 1.

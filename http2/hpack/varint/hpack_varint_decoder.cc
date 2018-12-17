@@ -13,7 +13,7 @@ DecodeStatus HpackVarintDecoder::Start(uint8_t prefix_value,
                                        uint8_t prefix_length,
                                        DecodeBuffer* db) {
   DCHECK_LE(3u, prefix_length);
-  DCHECK_LE(prefix_length, 7u);
+  DCHECK_LE(prefix_length, 8u);
 
   // |prefix_mask| defines the sequence of low-order bits of the first byte
   // that encode the prefix of the value. It is also the marker in those bits
@@ -35,7 +35,7 @@ DecodeStatus HpackVarintDecoder::Start(uint8_t prefix_value,
 DecodeStatus HpackVarintDecoder::StartExtended(uint8_t prefix_length,
                                                DecodeBuffer* db) {
   DCHECK_LE(3u, prefix_length);
-  DCHECK_LE(prefix_length, 7u);
+  DCHECK_LE(prefix_length, 8u);
 
   value_ = (1 << prefix_length) - 1;
   offset_ = 0;

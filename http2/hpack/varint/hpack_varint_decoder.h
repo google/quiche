@@ -74,7 +74,7 @@ class HTTP2_EXPORT_PRIVATE HpackVarintDecoder {
                      DecodeBuffer* db);
 
   // The caller has already determined that the encoding requires multiple
-  // bytes, i.e. that the 3 to 7 low-order bits (the number determined by
+  // bytes, i.e. that the 3 to 8 low-order bits (the number determined by
   // |prefix_length|) of the first byte are are all 1.  |db| is the rest of the
   // buffer,  that is, not including the first byte.
   DecodeStatus StartExtended(uint8_t prefix_length, DecodeBuffer* db);

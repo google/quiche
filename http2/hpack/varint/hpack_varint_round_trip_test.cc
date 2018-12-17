@@ -104,7 +104,7 @@ class HpackVarintRoundTripTest : public RandomDecoderTest,
 
   void EncodeNoRandom(uint64_t value, uint8_t prefix_length) {
     DCHECK_LE(3, prefix_length);
-    DCHECK_LE(prefix_length, 7);
+    DCHECK_LE(prefix_length, 8);
     prefix_length_ = prefix_length;
 
     HpackBlockBuilder bb;
@@ -275,7 +275,7 @@ INSTANTIATE_TEST_CASE_P(HpackVarintRoundTripTest,
 // To help me and future debuggers of varint encodings, this LOGs out the
 // transition points where a new extension byte is added.
 TEST_P(HpackVarintRoundTripTest, Encode) {
-  for (int prefix_length = 3; prefix_length <= 7; ++prefix_length) {
+  for (int prefix_length = 3; prefix_length <= 8; ++prefix_length) {
     const uint64_t a = HiValueOfExtensionBytes(0, prefix_length);
     const uint64_t b = HiValueOfExtensionBytes(1, prefix_length);
     const uint64_t c = HiValueOfExtensionBytes(2, prefix_length);
@@ -340,7 +340,7 @@ TEST_P(HpackVarintRoundTripTest, FromSpec1337) {
 
 // Test all the values that fit into the prefix (one less than the mask).
 TEST_P(HpackVarintRoundTripTest, ValidatePrefixOnly) {
-  for (int prefix_length = 3; prefix_length <= 7; ++prefix_length) {
+  for (int prefix_length = 3; prefix_length <= 8; ++prefix_length) {
     const uint8_t prefix_mask = (1 << prefix_length) - 1;
     EncodeAndDecodeValuesInRange(0, prefix_mask, prefix_length, 1);
   }
@@ -348,7 +348,7 @@ TEST_P(HpackVarintRoundTripTest, ValidatePrefixOnly) {
 
 // Test all values that require exactly 1 extension byte.
 TEST_P(HpackVarintRoundTripTest, ValidateOneExtensionByte) {
-  for (int prefix_length = 3; prefix_length <= 7; ++prefix_length) {
+  for (int prefix_length = 3; prefix_length <= 8; ++prefix_length) {
     const uint64_t start = HiValueOfExtensionBytes(0, prefix_length) + 1;
     EncodeAndDecodeValuesInRange(start, 128, prefix_length, 2);
   }
@@ -356,7 +356,7 @@ TEST_P(HpackVarintRoundTripTest, ValidateOneExtensionByte) {
 
 // Test *some* values that require exactly 2 extension bytes.
 TEST_P(HpackVarintRoundTripTest, ValidateTwoExtensionBytes) {
-  for (int prefix_length = 3; prefix_length <= 7; ++prefix_length) {
+  for (int prefix_length = 3; prefix_length <= 8; ++prefix_length) {
     const uint64_t start = HiValueOfExtensionBytes(1, prefix_length) + 1;
     const uint64_t range = 127 << 7;
 
@@ -366,7 +366,7 @@ TEST_P(HpackVarintRoundTripTest, ValidateTwoExtensionBytes) {
 
 // Test *some* values that require 3 extension bytes.
 TEST_P(HpackVarintRoundTripTest, ValidateThreeExtensionBytes) {
-  for (int prefix_length = 3; prefix_length <= 7; ++prefix_length) {
+  for (int prefix_length = 3; prefix_length <= 8; ++prefix_length) {
     const uint64_t start = HiValueOfExtensionBytes(2, prefix_length) + 1;
     const uint64_t range = 127 << 14;
 
@@ -376,7 +376,7 @@ TEST_P(HpackVarintRoundTripTest, ValidateThreeExtensionBytes) {
 
 // Test *some* values that require 4 extension bytes.
 TEST_P(HpackVarintRoundTripTest, ValidateFourExtensionBytes) {
-  for (int prefix_length = 3; prefix_length <= 7; ++prefix_length) {
+  for (int prefix_length = 3; prefix_length <= 8; ++prefix_length) {
     const uint64_t start = HiValueOfExtensionBytes(3, prefix_length) + 1;
     const uint64_t range = 127 << 21;
 
@@ -390,7 +390,7 @@ TEST_P(HpackVarintRoundTripTest, ValidateFiveExtensionBytes) {
     return;
   }
 
-  for (int prefix_length = 3; prefix_length <= 7; ++prefix_length) {
+  for (int prefix_length = 3; prefix_length <= 8; ++prefix_length) {
     const uint64_t start = HiValueOfExtensionBytes(4, prefix_length) + 1;
     const uint64_t range = 127llu << 28;
 
@@ -404,7 +404,7 @@ TEST_P(HpackVarintRoundTripTest, ValidateSixExtensionBytes) {
     return;
   }
 
-  for (int prefix_length = 3; prefix_length <= 7; ++prefix_length) {
+  for (int prefix_length = 3; prefix_length <= 8; ++prefix_length) {
     const uint64_t start = HiValueOfExtensionBytes(5, prefix_length) + 1;
     const uint64_t range = 127llu << 35;
 
@@ -418,7 +418,7 @@ TEST_P(HpackVarintRoundTripTest, ValidateSevenExtensionBytes) {
     return;
   }
 
-  for (int prefix_length = 3; prefix_length <= 7; ++prefix_length) {
+  for (int prefix_length = 3; prefix_length <= 8; ++prefix_length) {
     const uint64_t start = HiValueOfExtensionBytes(6, prefix_length) + 1;
     const uint64_t range = 127llu << 42;
 
@@ -432,7 +432,7 @@ TEST_P(HpackVarintRoundTripTest, ValidateEightExtensionBytes) {
     return;
   }
 
-  for (int prefix_length = 3; prefix_length <= 7; ++prefix_length) {
+  for (int prefix_length = 3; prefix_length <= 8; ++prefix_length) {
     const uint64_t start = HiValueOfExtensionBytes(7, prefix_length) + 1;
     const uint64_t range = 127llu << 49;
 
@@ -446,7 +446,7 @@ TEST_P(HpackVarintRoundTripTest, ValidateNineExtensionBytes) {
     return;
   }
 
-  for (int prefix_length = 3; prefix_length <= 7; ++prefix_length) {
+  for (int prefix_length = 3; prefix_length <= 8; ++prefix_length) {
     const uint64_t start = HiValueOfExtensionBytes(8, prefix_length) + 1;
     const uint64_t range = 127llu << 56;
 
@@ -460,7 +460,7 @@ TEST_P(HpackVarintRoundTripTest, ValidateTenExtensionBytes) {
     return;
   }
 
-  for (int prefix_length = 3; prefix_length <= 7; ++prefix_length) {
+  for (int prefix_length = 3; prefix_length <= 8; ++prefix_length) {
     const uint64_t start = HiValueOfExtensionBytes(9, prefix_length) + 1;
     const uint64_t range = std::numeric_limits<uint64_t>::max() - start;
 
@@ -476,7 +476,7 @@ TEST_P(HpackVarintRoundTripTest, ValueTooLarge) {
     return;
   }
 
-  for (prefix_length_ = 3; prefix_length_ <= 7; ++prefix_length_) {
+  for (prefix_length_ = 3; prefix_length_ <= 8; ++prefix_length_) {
     const uint64_t too_large = (1 << 28) + (1 << prefix_length_) - 1;
     const uint32_t expected_offset = 6;
     HpackBlockBuilder bb;
