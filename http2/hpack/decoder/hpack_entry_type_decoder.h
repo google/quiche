@@ -38,7 +38,7 @@ class HTTP2_EXPORT_PRIVATE HpackEntryTypeDecoder {
 
   // Returns the decoded variable length integer. Only call if the
   // preceding call to Start or Resume returned kDecodeDone.
-  uint32_t varint() const { return varint_decoder_.value(); }
+  uint64_t varint() const { return varint_decoder_.value(); }
 
   Http2String DebugString() const;
 
