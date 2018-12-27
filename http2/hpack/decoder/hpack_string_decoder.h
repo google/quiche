@@ -173,10 +173,8 @@ class HTTP2_EXPORT_PRIVATE HpackStringDecoder {
     const uint64_t value = length_decoder_.value();
     // |remaining_| is size_t.  Check for truncation on 32-bit platforms.
     // numeric_limits::max() is constexpr.  On platforms where size_t is at
-    // least 64 bit wide, the compiler optimizes away this branch.
-    if (std::numeric_limits<uint64_t>::max() >
-            std::numeric_limits<size_t>::max() &&
-        value > std::numeric_limits<size_t>::max()) {
+    // least 64 bit wide, the compiler should optimize away this branch.
+    if (value > std::numeric_limits<size_t>::max()) {
       *status = DecodeStatus::kDecodeError;
       return;
     }
