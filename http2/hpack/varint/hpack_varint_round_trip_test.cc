@@ -113,7 +113,8 @@ class HpackVarintRoundTripTest : public RandomDecoderTest,
     ASSERT_LT(0u, buffer_.size());
 
     const uint8_t prefix_mask = (1 << prefix_length_) - 1;
-    ASSERT_EQ(buffer_[0], buffer_[0] & prefix_mask);
+    ASSERT_EQ(static_cast<uint8_t>(buffer_[0]),
+              static_cast<uint8_t>(buffer_[0]) & prefix_mask);
   }
 
   void Encode(uint64_t value, uint8_t prefix_length) {
