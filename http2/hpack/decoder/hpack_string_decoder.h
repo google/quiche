@@ -168,7 +168,8 @@ class HTTP2_EXPORT_PRIVATE HpackStringDecoder {
   // false otherwise, in which case status set.
   template <class Listener>
   void OnStringStart(Listener* cb, DecodeStatus* status) {
-    remaining_ = length_decoder_.value();
+    // TODO(vasilvv): fail explicitly in case of truncation.
+    remaining_ = static_cast<size_t>(length_decoder_.value());
     // Make callback so consumer knows what is coming.
     cb->OnStringStart(huffman_encoded_, remaining_);
   }
