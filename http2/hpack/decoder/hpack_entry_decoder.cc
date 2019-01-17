@@ -192,7 +192,7 @@ DecodeStatus HpackEntryDecoder::Resume(DecodeBuffer* db,
 
 bool HpackEntryDecoder::DispatchOnType(HpackEntryDecoderListener* listener) {
   const HpackEntryType entry_type = entry_type_decoder_.entry_type();
-  const uint64_t varint = entry_type_decoder_.varint();
+  const uint32_t varint = static_cast<uint32_t>(entry_type_decoder_.varint());
   switch (entry_type) {
     case HpackEntryType::kIndexedHeader:
       // The entry consists solely of the entry type and varint. See:
