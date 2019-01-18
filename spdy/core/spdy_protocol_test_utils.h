@@ -130,7 +130,7 @@ template <class E>
   }
   VLOG(1) << "VerifySpdyFrameIREquals not null";
   VERIFY_EQ(actual->frame_type(), expected->frame_type());
-  const E* actual2 = down_cast<const E*>(actual);
+  const E* actual2 = static_cast<const E*>(actual);
   return VerifySpdyFrameIREquals(*expected, *actual2);
 }
 

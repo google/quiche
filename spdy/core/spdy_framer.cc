@@ -307,7 +307,7 @@ size_t SpdyFramer::SpdyFrameIterator::NextFrame(ZeroCopyOutputBuffer* output) {
 
   if (framer_->debug_visitor_ != nullptr) {
     const auto& header_block_frame_ir =
-        down_cast<const SpdyFrameWithHeaderBlockIR&>(frame_ir);
+        static_cast<const SpdyFrameWithHeaderBlockIR&>(frame_ir);
     const size_t header_list_size =
         GetUncompressedSerializedLength(header_block_frame_ir.header_block());
     framer_->debug_visitor_->OnSendCompressedFrame(
@@ -405,7 +405,7 @@ const SpdyFrameIR& SpdyFramer::SpdyControlFrameIterator::GetIR() const {
   return *(frame_ir_.get());
 }
 
-// TODO(yasong): remove all the down_casts.
+// TODO(yasong): remove all the static_casts.
 std::unique_ptr<SpdyFrameSequence> SpdyFramer::CreateIterator(
     SpdyFramer* framer,
     std::unique_ptr<const SpdyFrameIR> frame_ir) {
@@ -413,12 +413,12 @@ std::unique_ptr<SpdyFrameSequence> SpdyFramer::CreateIterator(
     case SpdyFrameType::HEADERS: {
       return SpdyMakeUnique<SpdyHeaderFrameIterator>(
           framer,
-          SpdyWrapUnique(down_cast<const SpdyHeadersIR*>(frame_ir.release())));
+          SpdyWrapUnique(static_cast<const SpdyHeadersIR*>(frame_ir.release())));
     }
     case SpdyFrameType::PUSH_PROMISE: {
       return SpdyMakeUnique<SpdyPushPromiseFrameIterator>(
           framer, SpdyWrapUnique(
-                      down_cast<const SpdyPushPromiseIR*>(frame_ir.release())));
+                      static_cast<const SpdyPushPromiseIR*>(frame_ir.release())));
     }
     case SpdyFrameType::DATA: {
       DVLOG(1) << "Serialize a stream end DATA frame for VTL";
