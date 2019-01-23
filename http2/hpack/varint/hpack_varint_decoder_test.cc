@@ -22,32 +22,13 @@ namespace http2 {
 namespace test {
 namespace {
 
-// Save previous value of flag and restore on destruction.
-class FlagSaver {
- public:
-  FlagSaver() = delete;
-  explicit FlagSaver(bool decode_64_bits)
-      : saved_value_(GetHttp2ReloadableFlag(http2_varint_decode_64_bits)) {
-    SetHttp2ReloadableFlag(http2_varint_decode_64_bits, decode_64_bits);
-  }
-  ~FlagSaver() {
-    SetHttp2ReloadableFlag(http2_varint_decode_64_bits, saved_value_);
-  }
-
- private:
-  const bool saved_value_;
-};
-
-class HpackVarintDecoderTest
-    : public RandomDecoderTest,
-      public ::testing::WithParamInterface<
-          ::testing::tuple<bool, uint8_t, const char*>> {
+class HpackVarintDecoderTest : public RandomDecoderTest,
+                               public ::testing::WithParamInterface<
+                                   ::testing::tuple<uint8_t, const char*>> {
  protected:
   HpackVarintDecoderTest()
-      : decode_64_bits_(::testing::get<0>(GetParam())),
-        high_bits_(::testing::get<1>(GetParam())),
-        suffix_(Http2HexDecode(::testing::get<2>(GetParam()))),
-        flag_saver_(decode_64_bits_),
+      : high_bits_(::testing::get<0>(GetParam())),
+        suffix_(Http2HexDecode(::testing::get<1>(GetParam()))),
         prefix_length_(0) {}
 
   void DecodeExpectSuccess(Http2StringPiece data,
@@ -80,8 +61,6 @@ class HpackVarintDecoderTest
 
     EXPECT_TRUE(Decode(data, prefix_length, validator));
   }
-
-  bool decode_64_bits() const { return decode_64_bits_; }
 
  private:
   AssertionResult Decode(Http2StringPiece data,
@@ -119,16 +98,11 @@ class HpackVarintDecoderTest
     return decoder_.Resume(b);
   }
 
-  // Test new or old behavior.
-  const bool decode_64_bits_;
   // Bits of the first byte not part of the prefix.
   const uint8_t high_bits_;
   // Extra bytes appended to the input.
   const Http2String suffix_;
 
-  // |flag_saver_| must preceed |decoder_| so that the flag is already set when
-  // |decoder_| is constructed.
-  FlagSaver flag_saver_;
   HpackVarintDecoder decoder_;
   uint8_t prefix_length_;
 };
@@ -137,15 +111,11 @@ INSTANTIATE_TEST_CASE_P(
     HpackVarintDecoderTest,
     HpackVarintDecoderTest,
     ::testing::Combine(
-        // Test both the new version (supporting 64 bit integers) and the old
-        // one (only supporting up to 2^28 + 2^prefix_length - 2.
-        ::testing::Bool(),
         // Bits of the first byte not part of the prefix should be ignored.
         ::testing::Values(0b00000000, 0b11111111, 0b10101010),
         // Extra bytes appended to the input should be ignored.
         ::testing::Values("", "00", "666f6f")));
 
-// Test data used when decode_64_bits() == true.
 struct {
   const char* data;
   uint32_t prefix_length;
@@ -289,124 +259,14 @@ struct {
     {"1f9a0a", 5, 1337},
 };
 
-// Test data used when decode_64_bits() == false.
-struct {
-  const char* data;
-  uint32_t prefix_length;
-  uint64_t expected_value;
-} kSuccessTestDataOld[] = {
-    // Zero value with different prefix lengths.
-    {"00", 3, 0},
-    {"00", 4, 0},
-    {"00", 5, 0},
-    {"00", 6, 0},
-    {"00", 7, 0},
-    // Small values that fit in the prefix.
-    {"06", 3, 6},
-    {"0d", 4, 13},
-    {"10", 5, 16},
-    {"29", 6, 41},
-    {"56", 7, 86},
-    // Values of 2^n-1, which have an all-zero extension byte.
-    {"0700", 3, 7},
-    {"0f00", 4, 15},
-    {"1f00", 5, 31},
-    {"3f00", 6, 63},
-    {"7f00", 7, 127},
-    // Values of 2^n-1, plus one extra byte of padding.
-    {"078000", 3, 7},
-    {"0f8000", 4, 15},
-    {"1f8000", 5, 31},
-    {"3f8000", 6, 63},
-    {"7f8000", 7, 127},
-    // Values requiring one extension byte.
-    {"0760", 3, 103},
-    {"0f2a", 4, 57},
-    {"1f7f", 5, 158},
-    {"3f02", 6, 65},
-    {"7f49", 7, 200},
-    // Values requiring one extension byte, plus one byte of padding.
-    {"07e000", 3, 103},
-    {"0faa00", 4, 57},
-    {"1fff00", 5, 158},
-    {"3f8200", 6, 65},
-    {"7fc900", 7, 200},
-    // Values requiring one extension byte, plus two bytes of padding.
-    {"07e08000", 3, 103},
-    {"0faa8000", 4, 57},
-    {"1fff8000", 5, 158},
-    {"3f828000", 6, 65},
-    {"7fc98000", 7, 200},
-    // Values requiring one extension byte, plus the maximum amount of padding.
-    {"07e080808000", 3, 103},
-    {"0faa80808000", 4, 57},
-    {"1fff80808000", 5, 158},
-    {"3f8280808000", 6, 65},
-    {"7fc980808000", 7, 200},
-    // Values requiring two extension bytes.
-    {"07b260", 3, 12345},
-    {"0f8a2a", 4, 5401},
-    {"1fa87f", 5, 16327},
-    {"3fd002", 6, 399},
-    {"7fff49", 7, 9598},
-    // Values requiring two extension bytes, plus one byte of padding.
-    {"07b2e000", 3, 12345},
-    {"0f8aaa00", 4, 5401},
-    {"1fa8ff00", 5, 16327},
-    {"3fd08200", 6, 399},
-    {"7fffc900", 7, 9598},
-    // Values requiring two extension bytes, plus the maximum amount of padding.
-    {"07b2e0808000", 3, 12345},
-    {"0f8aaa808000", 4, 5401},
-    {"1fa8ff808000", 5, 16327},
-    {"3fd082808000", 6, 399},
-    {"7fffc9808000", 7, 9598},
-    // Values requiring three extension bytes.
-    {"078ab260", 3, 1579281},
-    {"0fc18a2a", 4, 689488},
-    {"1fada87f", 5, 2085964},
-    {"3fa0d002", 6, 43103},
-    {"7ffeff49", 7, 1212541},
-    // Values requiring three extension bytes, plus one byte of padding.
-    {"078ab2e000", 3, 1579281},
-    {"0fc18aaa00", 4, 689488},
-    {"1fada8ff00", 5, 2085964},
-    {"3fa0d08200", 6, 43103},
-    {"7ffeffc900", 7, 1212541},
-    // Values requiring four extension bytes.
-    {"079f8ab260", 3, 202147110},
-    {"0fa2c18a2a", 4, 88252593},
-    {"1fd0ada87f", 5, 266999535},
-    {"3ff9a0d002", 6, 5509304},
-    {"7f9efeff49", 7, 155189149},
-    // Values requiring four extension bytes, plus one byte of padding.
-    {"079f8ab2e000", 3, 202147110},
-    {"0fa2c18aaa00", 4, 88252593},
-    {"1fd0ada8ff00", 5, 266999535},
-    {"3ff9a0d08200", 6, 5509304},
-    {"7f9efeffc900", 7, 155189149},
-    // Examples from RFC7541 C.1.
-    {"0a", 5, 10},
-    {"1f9a0a", 5, 1337},
-};
-
 TEST_P(HpackVarintDecoderTest, Success) {
-  if (decode_64_bits()) {
     for (size_t i = 0; i < HTTP2_ARRAYSIZE(kSuccessTestData); ++i) {
       DecodeExpectSuccess(Http2HexDecode(kSuccessTestData[i].data),
                           kSuccessTestData[i].prefix_length,
                           kSuccessTestData[i].expected_value);
     }
-  } else {
-    for (size_t i = 0; i < HTTP2_ARRAYSIZE(kSuccessTestDataOld); ++i) {
-      DecodeExpectSuccess(Http2HexDecode(kSuccessTestDataOld[i].data),
-                          kSuccessTestDataOld[i].prefix_length,
-                          kSuccessTestDataOld[i].expected_value);
-    }
-  }
 }
 
-// Test data used when decode_64_bits() == true.
 struct {
   const char* data;
   uint32_t prefix_length;
@@ -440,45 +300,11 @@ struct {
     {"7f80ffffffffffffffff8100", 7},
     {"ff80feffffffffffffff8100", 8}};
 
-// Test data used when decode_64_bits() == false.
-// In this mode, HpackVarintDecoder allows at most five extension bytes,
-// and fifth extension byte must be zero.
-struct {
-  const char* data;
-  uint32_t prefix_length;
-} kErrorTestDataOld[] = {
-    // Maximum number of extension bytes but last byte is non-zero.
-    {"078080808001", 3},
-    {"0f8080808001", 4},
-    {"1f8080808001", 5},
-    {"3f8080808001", 6},
-    {"7f8080808001", 7},
-    // Too many extension bytes, all 0s (except for extension bit in each byte).
-    {"078080808080", 3},
-    {"0f8080808080", 4},
-    {"1f8080808080", 5},
-    {"3f8080808080", 6},
-    {"7f8080808080", 7},
-    // Too many extension bytes, all 1s.
-    {"07ffffffffff", 3},
-    {"0fffffffffff", 4},
-    {"1fffffffffff", 5},
-    {"3fffffffffff", 6},
-    {"7fffffffffff", 7},
-};
-
 TEST_P(HpackVarintDecoderTest, Error) {
-  if (decode_64_bits()) {
     for (size_t i = 0; i < HTTP2_ARRAYSIZE(kErrorTestData); ++i) {
       DecodeExpectError(Http2HexDecode(kErrorTestData[i].data),
                         kErrorTestData[i].prefix_length);
     }
-  } else {
-    for (size_t i = 0; i < HTTP2_ARRAYSIZE(kErrorTestDataOld); ++i) {
-      DecodeExpectError(Http2HexDecode(kErrorTestDataOld[i].data),
-                        kErrorTestDataOld[i].prefix_length);
-    }
-  }
 }
 
 }  // namespace

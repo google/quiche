@@ -4,7 +4,6 @@
 
 #include "net/third_party/quiche/src/http2/hpack/varint/hpack_varint_decoder.h"
 
-#include "net/third_party/quiche/src/http2/platform/api/http2_flag_utils.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_utils.h"
 
 namespace http2 {
@@ -43,96 +42,67 @@ DecodeStatus HpackVarintDecoder::StartExtended(uint8_t prefix_length,
 }
 
 DecodeStatus HpackVarintDecoder::Resume(DecodeBuffer* db) {
-  if (decode_64_bits_) {
-    HTTP2_RELOADABLE_FLAG_COUNT(http2_varint_decode_64_bits);
-    // There can be at most 10 continuation bytes.  Offset is zero for the
-    // first one and increases by 7 for each subsequent one.
-    const uint8_t kMaxOffset = 63;
-    CheckNotDone();
-
-    // Process most extension bytes without the need for overflow checking.
-    while (offset_ < kMaxOffset) {
-      if (db->Empty()) {
-        return DecodeStatus::kDecodeInProgress;
-      }
-
-      uint8_t byte = db->DecodeUInt8();
-      uint64_t summand = byte & 0x7f;
-
-      // Shifting a 7 bit value to the left by at most 56 places can never
-      // overflow on uint64_t.
-      DCHECK_LE(offset_, 56);
-      DCHECK_LE(summand, std::numeric_limits<uint64_t>::max() >> offset_);
-
-      summand <<= offset_;
-
-      // At this point,
-      // |value_| is at most (2^prefix_length - 1) + (2^49 - 1), and
-      // |summand| is at most 255 << 56 (which is smaller than 2^63),
-      // so adding them can never overflow on uint64_t.
-      DCHECK_LE(value_, std::numeric_limits<uint64_t>::max() - summand);
-
-      value_ += summand;
-
-      // Decoding ends if continuation flag is not set.
-      if ((byte & 0x80) == 0) {
-        MarkDone();
-        return DecodeStatus::kDecodeDone;
-      }
-
-      offset_ += 7;
-    }
-
-    if (db->Empty()) {
-      return DecodeStatus::kDecodeInProgress;
-    }
-
-    DCHECK_EQ(kMaxOffset, offset_);
-
-    uint8_t byte = db->DecodeUInt8();
-    // No more extension bytes are allowed after this.
-    if ((byte & 0x80) == 0) {
-      uint64_t summand = byte & 0x7f;
-      // Check for overflow in left shift.
-      if (summand <= std::numeric_limits<uint64_t>::max() >> offset_) {
-        summand <<= offset_;
-        // Check for overflow in addition.
-        if (value_ <= std::numeric_limits<uint64_t>::max() - summand) {
-          value_ += summand;
-          MarkDone();
-          return DecodeStatus::kDecodeDone;
-        }
-      }
-    }
-
-    // Signal error if value is too large or there are too many extension bytes.
-    DLOG(WARNING) << "Variable length int encoding is too large or too long. "
-                  << DebugString();
-    MarkDone();
-    return DecodeStatus::kDecodeError;
-  }
-
-  // Old code path.  TODO(bnc): remove.
-  DCHECK(!decode_64_bits_);
-  const uint8_t kMaxOffset = 28;
+  // There can be at most 10 continuation bytes.  Offset is zero for the
+  // first one and increases by 7 for each subsequent one.
+  const uint8_t kMaxOffset = 63;
   CheckNotDone();
-  do {
+
+  // Process most extension bytes without the need for overflow checking.
+  while (offset_ < kMaxOffset) {
     if (db->Empty()) {
       return DecodeStatus::kDecodeInProgress;
     }
+
     uint8_t byte = db->DecodeUInt8();
-    if (offset_ == kMaxOffset && byte != 0)
-      break;
-    DCHECK(offset_ <= kMaxOffset - 7 || byte == 0);
-    // Shifting a 7 bit value to the left by at most 21 places can never
-    // overflow on uint32_t.  Shifting 0 to the left cannot overflow either.
-    value_ += (byte & 0x7f) << offset_;
+    uint64_t summand = byte & 0x7f;
+
+    // Shifting a 7 bit value to the left by at most 56 places can never
+    // overflow on uint64_t.
+    DCHECK_LE(offset_, 56);
+    DCHECK_LE(summand, std::numeric_limits<uint64_t>::max() >> offset_);
+
+    summand <<= offset_;
+
+    // At this point,
+    // |value_| is at most (2^prefix_length - 1) + (2^49 - 1), and
+    // |summand| is at most 255 << 56 (which is smaller than 2^63),
+    // so adding them can never overflow on uint64_t.
+    DCHECK_LE(value_, std::numeric_limits<uint64_t>::max() - summand);
+
+    value_ += summand;
+
+    // Decoding ends if continuation flag is not set.
     if ((byte & 0x80) == 0) {
       MarkDone();
       return DecodeStatus::kDecodeDone;
     }
+
     offset_ += 7;
-  } while (offset_ <= kMaxOffset);
+  }
+
+  if (db->Empty()) {
+    return DecodeStatus::kDecodeInProgress;
+  }
+
+  DCHECK_EQ(kMaxOffset, offset_);
+
+  uint8_t byte = db->DecodeUInt8();
+  // No more extension bytes are allowed after this.
+  if ((byte & 0x80) == 0) {
+    uint64_t summand = byte & 0x7f;
+    // Check for overflow in left shift.
+    if (summand <= std::numeric_limits<uint64_t>::max() >> offset_) {
+      summand <<= offset_;
+      // Check for overflow in addition.
+      if (value_ <= std::numeric_limits<uint64_t>::max() - summand) {
+        value_ += summand;
+        MarkDone();
+        return DecodeStatus::kDecodeDone;
+      }
+    }
+  }
+
+  // Signal error if value is too large or there are too many extension bytes.
   DLOG(WARNING) << "Variable length int encoding is too large or too long. "
                 << DebugString();
   MarkDone();
