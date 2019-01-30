@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <limits>
 
+#include "net/third_party/quiche/src/quic/core/qpack/qpack_encoder_test_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_fuzzed_data_provider.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
@@ -15,22 +16,12 @@
 namespace quic {
 namespace test {
 
-// A QpackEncoderStreamSender::Delegate implementation that ignores encoded
-// data.
-class NoOpDelegate : public QpackEncoderStreamSender::Delegate {
- public:
-  NoOpDelegate() = default;
-  ~NoOpDelegate() override = default;
-
-  void Write(QuicStringPiece data) override {}
-};
-
 // This fuzzer exercises QpackEncoderStreamSender.
 // TODO(bnc): Encoded data could be fed into QpackEncoderStreamReceiver and
 // decoded instructions directly compared to input.  Figure out how to get gMock
 // enabled for cc_fuzz_target target types.
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
-  NoOpDelegate delegate;
+  NoopEncoderStreamSenderDelegate delegate;
   QpackEncoderStreamSender sender(&delegate);
 
   QuicFuzzedDataProvider provider(data, size);
@@ -65,8 +56,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
         break;
       }
       case 3: {
-        uint64_t max_size = provider.ConsumeIntegral<uint64_t>();
-        sender.SendDynamicTableSizeUpdate(max_size);
+        uint64_t capacity = provider.ConsumeIntegral<uint64_t>();
+        sender.SendSetDynamicTableCapacity(capacity);
         break;
       }
     }

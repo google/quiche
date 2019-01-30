@@ -126,7 +126,7 @@ class QUIC_EXPORT_PRIVATE QuicServerSessionBase : public QuicSpdySession {
   QuicTime last_scup_time_;
 
   // Number of packets sent to the peer, at the time we last sent a SCUP.
-  int64_t last_scup_packet_number_;
+  QuicPacketNumber last_scup_packet_number_;
 
   // Converts QuicBandwidth to an int32 bytes/second that can be
   // stored in CachedNetworkParameters.  TODO(jokulik): This function

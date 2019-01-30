@@ -10,9 +10,9 @@
 #include <new>
 
 #include "base/logging.h"
-#include "net/third_party/quiche/src/spdy/core/spdy_bug_tracker.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
 #include "net/third_party/quiche/src/spdy/core/zero_copy_output_buffer.h"
+#include "net/third_party/quiche/src/spdy/platform/api/spdy_bug_tracker.h"
 
 namespace spdy {
 
@@ -90,7 +90,7 @@ bool SpdyFrameBuilder::BeginNewFrame(SpdyFrameType type,
   uint8_t raw_frame_type = SerializeFrameType(type);
   DCHECK(IsDefinedFrameType(raw_frame_type));
   DCHECK_EQ(0u, stream_id & ~kStreamIdMask);
-  SPDY_BUG_IF(length > spdy::kHttp2DefaultFramePayloadLimit)
+  SPDY_BUG_IF(length > kHttp2DefaultFramePayloadLimit)
       << "Frame length  " << length_ << " is longer than frame size limit.";
   return BeginNewFrameInternal(raw_frame_type, flags, stream_id, length);
 }

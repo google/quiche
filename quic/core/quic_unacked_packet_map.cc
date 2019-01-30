@@ -25,11 +25,7 @@ bool WillStreamFrameLengthSumWrapAround(QuicPacketLength lhs,
 }  // namespace
 
 QuicUnackedPacketMap::QuicUnackedPacketMap()
-    : largest_sent_packet_(0),
-      largest_sent_retransmittable_packet_(0),
-      largest_sent_largest_acked_(0),
-      largest_acked_(0),
-      least_unacked_(1),
+    : least_unacked_(FirstSendingPacketNumber()),
       bytes_in_flight_(0),
       pending_crypto_packet_count_(0),
       last_crypto_packet_sent_time_(QuicTime::Zero()),
@@ -49,7 +45,10 @@ void QuicUnackedPacketMap::AddSentPacket(SerializedPacket* packet,
                                          bool set_in_flight) {
   QuicPacketNumber packet_number = packet->packet_number;
   QuicPacketLength bytes_sent = packet->encrypted_length;
-  QUIC_BUG_IF(largest_sent_packet_ >= packet_number) << packet_number;
+  QUIC_BUG_IF(largest_sent_packet_.IsInitialized() &&
+              largest_sent_packet_ >= packet_number)
+      << "largest_sent_packet_: " << largest_sent_packet_
+      << ", packet_number: " << packet_number;
   DCHECK_GE(packet_number, least_unacked_ + unacked_packets_.size());
   while (least_unacked_ + unacked_packets_.size() < packet_number) {
     unacked_packets_.push_back(QuicTransmissionInfo());
@@ -62,9 +61,13 @@ void QuicUnackedPacketMap::AddSentPacket(SerializedPacket* packet,
       packet->encryption_level, packet->packet_number_length, transmission_type,
       sent_time, bytes_sent, has_crypto_handshake, packet->num_padding_bytes);
   info.largest_acked = packet->largest_acked;
-  largest_sent_largest_acked_ =
-      std::max(largest_sent_largest_acked_, packet->largest_acked);
-  if (old_packet_number > 0) {
+  if (packet->largest_acked.IsInitialized()) {
+    largest_sent_largest_acked_ =
+        largest_sent_largest_acked_.IsInitialized()
+            ? std::max(largest_sent_largest_acked_, packet->largest_acked)
+            : packet->largest_acked;
+  }
+  if (old_packet_number.IsInitialized()) {
     TransferRetransmissionInfo(old_packet_number, packet_number,
                                transmission_type, &info);
   }
@@ -78,7 +81,7 @@ void QuicUnackedPacketMap::AddSentPacket(SerializedPacket* packet,
   unacked_packets_.push_back(info);
   // Swap the retransmittable frames to avoid allocations.
   // TODO(ianswett): Could use emplace_back when Chromium can.
-  if (old_packet_number == kInvalidPacketNumber) {
+  if (!old_packet_number.IsInitialized()) {
     if (has_crypto_handshake) {
       ++pending_crypto_packet_count_;
       last_crypto_packet_sent_time_ = sent_time;
@@ -180,12 +183,12 @@ void QuicUnackedPacketMap::RemoveRetransmittability(
     QuicTransmissionInfo* info) {
   if (session_decides_what_to_write_) {
     DeleteFrames(&info->retransmittable_frames);
-    info->retransmission = kInvalidPacketNumber;
+    info->retransmission.Clear();
     return;
   }
-  while (info->retransmission != kInvalidPacketNumber) {
+  while (info->retransmission.IsInitialized()) {
     const QuicPacketNumber retransmission = info->retransmission;
-    info->retransmission = kInvalidPacketNumber;
+    info->retransmission.Clear();
     info = &unacked_packets_[retransmission - least_unacked_];
   }
 
@@ -209,7 +212,7 @@ void QuicUnackedPacketMap::RemoveRetransmittability(
 
 void QuicUnackedPacketMap::IncreaseLargestAcked(
     QuicPacketNumber largest_acked) {
-  DCHECK_LE(largest_acked_, largest_acked);
+  DCHECK(!largest_acked_.IsInitialized() || largest_acked_ <= largest_acked);
   largest_acked_ = largest_acked;
 }
 
@@ -218,7 +221,8 @@ bool QuicUnackedPacketMap::IsPacketUsefulForMeasuringRtt(
     const QuicTransmissionInfo& info) const {
   // Packet can be used for RTT measurement if it may yet be acked as the
   // largest observed packet by the receiver.
-  return QuicUtils::IsAckable(info.state) && packet_number > largest_acked_;
+  return QuicUtils::IsAckable(info.state) &&
+         (!largest_acked_.IsInitialized() || packet_number > largest_acked_);
 }
 
 bool QuicUnackedPacketMap::IsPacketUsefulForCongestionControl(
@@ -233,15 +237,16 @@ bool QuicUnackedPacketMap::IsPacketUsefulForRetransmittableData(
     // Packet may have retransmittable frames, or the data may have been
     // retransmitted with a new packet number.
     // Allow for an extra 1 RTT before stopping to track old packets.
-    return info.retransmission > largest_acked_ ||
+    return (info.retransmission.IsInitialized() &&
+            (!largest_acked_.IsInitialized() ||
+             info.retransmission > largest_acked_)) ||
            HasRetransmittableFrames(info);
   }
 
   // Wait for 1 RTT before giving up on the lost packet.
-  if (info.retransmission > largest_acked_) {
-    return true;
-  }
-  return false;
+  return info.retransmission.IsInitialized() &&
+         (!largest_acked_.IsInitialized() ||
+          info.retransmission > largest_acked_);
 }
 
 bool QuicUnackedPacketMap::IsPacketUseless(
@@ -472,7 +477,7 @@ void QuicUnackedPacketMap::NotifyAggregatedStreamFrameAcked(
 
 void QuicUnackedPacketMap::SetSessionDecideWhatToWrite(
     bool session_decides_what_to_write) {
-  if (largest_sent_packet_ > 0) {
+  if (largest_sent_packet_.IsInitialized()) {
     QUIC_BUG << "Cannot change session_decide_what_to_write with packets sent.";
     return;
   }

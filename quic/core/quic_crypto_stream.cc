@@ -111,19 +111,6 @@ bool QuicCryptoStream::ExportKeyingMaterial(QuicStringPiece label,
       result);
 }
 
-bool QuicCryptoStream::ExportTokenBindingKeyingMaterial(
-    QuicString* result) const {
-  if (!encryption_established()) {
-    QUIC_BUG << "ExportTokenBindingKeyingMaterial was called before initial"
-             << "encryption was established.";
-    return false;
-  }
-  return CryptoUtils::ExportKeyingMaterial(
-      crypto_negotiated_params().initial_subkey_secret,
-      "EXPORTER-Token-Binding",
-      /* context= */ "", 32, result);
-}
-
 void QuicCryptoStream::WriteCryptoData(EncryptionLevel level,
                                        QuicStringPiece data) {
   // TODO(nharper): This approach to writing data, by setting the encryption

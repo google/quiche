@@ -7,6 +7,7 @@
 #include "base/logging.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_buffer.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_status.h"
+#include "net/third_party/quiche/src/spdy/platform/api/spdy_estimate_memory_usage.h"
 
 using ::http2::DecodeBuffer;
 using ::http2::HpackEntryType;
@@ -105,6 +106,10 @@ void HpackDecoderAdapter::set_max_decode_buffer_size_bytes(
   DVLOG(2) << "HpackDecoderAdapter::set_max_decode_buffer_size_bytes";
   max_decode_buffer_size_bytes_ = max_decode_buffer_size_bytes;
   hpack_decoder_.set_max_string_size_bytes(max_decode_buffer_size_bytes);
+}
+
+size_t HpackDecoderAdapter::EstimateMemoryUsage() const {
+  return SpdyEstimateMemoryUsage(hpack_decoder_);
 }
 
 HpackDecoderAdapter::ListenerAdapter::ListenerAdapter() : handler_(nullptr) {}

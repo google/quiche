@@ -11,6 +11,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
 
+using ::testing::Eq;
 using ::testing::StrictMock;
 using ::testing::Values;
 
@@ -153,7 +154,7 @@ TEST_P(QpackEncoderTest, SimpleIndexed) {
 
 TEST_P(QpackEncoderTest, DecoderStreamError) {
   EXPECT_CALL(decoder_stream_error_delegate_,
-              OnError("Encoded integer too large."));
+              OnDecoderStreamError(Eq("Encoded integer too large.")));
 
   QpackEncoder encoder(&decoder_stream_error_delegate_,
                        &encoder_stream_sender_delegate_);

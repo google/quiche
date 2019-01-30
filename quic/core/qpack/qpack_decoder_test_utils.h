@@ -21,7 +21,7 @@ class NoopEncoderStreamErrorDelegate
  public:
   ~NoopEncoderStreamErrorDelegate() override = default;
 
-  void OnError(QuicStringPiece error_message) override;
+  void OnEncoderStreamError(QuicStringPiece error_message) override;
 };
 
 // Mock QpackDecoder::EncoderStreamErrorDelegate implementation.
@@ -30,7 +30,7 @@ class MockEncoderStreamErrorDelegate
  public:
   ~MockEncoderStreamErrorDelegate() override = default;
 
-  MOCK_METHOD1(OnError, void(QuicStringPiece error_message));
+  MOCK_METHOD1(OnEncoderStreamError, void(QuicStringPiece error_message));
 };
 
 // QpackDecoderStreamSender::Delegate implementation that does nothing.
@@ -39,7 +39,7 @@ class NoopDecoderStreamSenderDelegate
  public:
   ~NoopDecoderStreamSenderDelegate() override = default;
 
-  void Write(QuicStringPiece data) override;
+  void WriteDecoderStreamData(QuicStringPiece data) override;
 };
 
 // Mock QpackDecoderStreamSender::Delegate implementation.
@@ -48,7 +48,7 @@ class MockDecoderStreamSenderDelegate
  public:
   ~MockDecoderStreamSenderDelegate() override = default;
 
-  MOCK_METHOD1(Write, void(QuicStringPiece data));
+  MOCK_METHOD1(WriteDecoderStreamData, void(QuicStringPiece data));
 };
 
 // HeadersHandlerInterface implementation that collects decoded headers

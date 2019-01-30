@@ -24,8 +24,8 @@ class HybridSlowStartTest : public QuicTest {
 };
 
 TEST_F(HybridSlowStartTest, Simple) {
-  QuicPacketNumber packet_number = 1;
-  QuicPacketNumber end_packet_number = 3;
+  QuicPacketNumber packet_number(1);
+  QuicPacketNumber end_packet_number(3);
   slow_start_->StartReceiveRound(end_packet_number);
 
   EXPECT_FALSE(slow_start_->IsEndOfRound(packet_number++));
@@ -39,7 +39,7 @@ TEST_F(HybridSlowStartTest, Simple) {
   // Test without a new registered end_packet_number;
   EXPECT_TRUE(slow_start_->IsEndOfRound(packet_number++));
 
-  end_packet_number = 20;
+  end_packet_number = QuicPacketNumber(20);
   slow_start_->StartReceiveRound(end_packet_number);
   while (packet_number < end_packet_number) {
     EXPECT_FALSE(slow_start_->IsEndOfRound(packet_number++));
@@ -52,7 +52,7 @@ TEST_F(HybridSlowStartTest, Delay) {
   // RTT of 60ms the detection will happen at 67.5 ms.
   const int kHybridStartMinSamples = 8;  // Number of acks required to trigger.
 
-  QuicPacketNumber end_packet_number = 1;
+  QuicPacketNumber end_packet_number(1);
   slow_start_->StartReceiveRound(end_packet_number++);
 
   // Will not trigger since our lowest RTT in our burst is the same as the long

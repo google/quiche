@@ -20,8 +20,6 @@ namespace test {
 class QuicStreamSequencerPeer;
 }  // namespace test
 
-class QuicStream;
-
 // Buffers frames until we have something which can be passed
 // up to the next layer.
 class QUIC_EXPORT_PRIVATE QuicStreamSequencer {

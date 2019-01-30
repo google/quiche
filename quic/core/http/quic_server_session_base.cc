@@ -30,8 +30,7 @@ QuicServerSessionBase::QuicServerSessionBase(
       helper_(helper),
       bandwidth_resumption_enabled_(false),
       bandwidth_estimate_sent_to_client_(QuicBandwidth::Zero()),
-      last_scup_time_(QuicTime::Zero()),
-      last_scup_packet_number_(0) {}
+      last_scup_time_(QuicTime::Zero()) {}
 
 QuicServerSessionBase::~QuicServerSessionBase() {}
 
@@ -112,9 +111,15 @@ void QuicServerSessionBase::OnCongestionWindowChange(QuicTime now) {
   int64_t srtt_ms =
       sent_packet_manager.GetRttStats()->smoothed_rtt().ToMilliseconds();
   int64_t now_ms = (now - last_scup_time_).ToMilliseconds();
-  int64_t packets_since_last_scup =
-      connection()->sent_packet_manager().GetLargestSentPacket() -
-      last_scup_packet_number_;
+  int64_t packets_since_last_scup = 0;
+  const QuicPacketNumber largest_sent_packet =
+      connection()->sent_packet_manager().GetLargestSentPacket();
+  if (largest_sent_packet.IsInitialized()) {
+    packets_since_last_scup =
+        last_scup_packet_number_.IsInitialized()
+            ? largest_sent_packet - last_scup_packet_number_
+            : largest_sent_packet.ToUint64();
+  }
   if (now_ms < (kMinIntervalBetweenServerConfigUpdatesRTTs * srtt_ms) ||
       now_ms < kMinIntervalBetweenServerConfigUpdatesMs ||
       packets_since_last_scup < kMinPacketsBetweenServerConfigUpdates) {

@@ -59,7 +59,7 @@ void QuicTraceVisitor::OnPacketSent(const SerializedPacket& serialized_packet,
   quic_trace::Event* event = trace_.add_events();
   event->set_event_type(quic_trace::PACKET_SENT);
   event->set_time_us(ConvertTimestampToRecordedFormat(sent_time));
-  event->set_packet_number(serialized_packet.packet_number);
+  event->set_packet_number(serialized_packet.packet_number.ToUint64());
   event->set_packet_size(serialized_packet.encrypted_length);
   event->set_encryption_level(
       EncryptionLevelToProto(serialized_packet.encryption_level));
@@ -140,8 +140,8 @@ void QuicTraceVisitor::PopulateFrameInfo(const QuicFrame& frame,
         quic_trace::AckBlock* block = info->add_acked_packets();
         // We record intervals as [a, b], whereas the in-memory representation
         // we currently use is [a, b).
-        block->set_first_packet(interval.min());
-        block->set_last_packet(interval.max() - 1);
+        block->set_first_packet(interval.min().ToUint64());
+        block->set_last_packet(interval.max().ToUint64() - 1);
       }
       break;
     }
@@ -240,7 +240,7 @@ void QuicTraceVisitor::OnIncomingAck(
   quic_trace::Event* event = trace_.add_events();
   event->set_time_us(ConvertTimestampToRecordedFormat(ack_receive_time));
   event->set_packet_number(
-      connection_->received_packet_manager().GetLargestObserved());
+      connection_->received_packet_manager().GetLargestObserved().ToUint64());
   event->set_event_type(quic_trace::PACKET_RECEIVED);
 
   // TODO(vasilvv): consider removing this copy.
@@ -255,7 +255,7 @@ void QuicTraceVisitor::OnPacketLoss(QuicPacketNumber lost_packet_number,
   quic_trace::Event* event = trace_.add_events();
   event->set_time_us(ConvertTimestampToRecordedFormat(detection_time));
   event->set_event_type(quic_trace::PACKET_LOST);
-  event->set_packet_number(lost_packet_number);
+  event->set_packet_number(lost_packet_number.ToUint64());
   PopulateTransportState(event->mutable_transport_state());
 }
 
@@ -265,7 +265,7 @@ void QuicTraceVisitor::OnWindowUpdateFrame(const QuicWindowUpdateFrame& frame,
   event->set_time_us(ConvertTimestampToRecordedFormat(receive_time));
   event->set_event_type(quic_trace::PACKET_RECEIVED);
   event->set_packet_number(
-      connection_->received_packet_manager().GetLargestObserved());
+      connection_->received_packet_manager().GetLargestObserved().ToUint64());
 
   // TODO(vasilvv): consider removing this copy.
   QuicWindowUpdateFrame copy_of_update = frame;

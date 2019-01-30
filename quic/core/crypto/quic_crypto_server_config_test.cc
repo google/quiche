@@ -258,12 +258,12 @@ TEST_F(SourceAddressTokenTest, SourceAddressTokenWithNetworkParams) {
       NewSourceAddressToken(kPrimary, ip4_, &cached_network_params_input);
 
   CachedNetworkParameters cached_network_params_output;
-  EXPECT_NE(cached_network_params_output.DebugString(),
-            cached_network_params_input.DebugString());
+  EXPECT_NE(cached_network_params_output.SerializeAsString(),
+            cached_network_params_input.SerializeAsString());
   ValidateSourceAddressTokens(kPrimary, token4_with_cached_network_params, ip4_,
                               &cached_network_params_output);
-  EXPECT_EQ(cached_network_params_output.DebugString(),
-            cached_network_params_input.DebugString());
+  EXPECT_EQ(cached_network_params_output.SerializeAsString(),
+            cached_network_params_input.SerializeAsString());
 }
 
 // Test the ability for a source address token to be valid for multiple
@@ -454,6 +454,33 @@ TEST_F(CryptoServerConfigsTest, AdvancePrimary) {
   test_peer_.SelectNewPrimaryConfig(1000);
   test_peer_.CheckConfigs({{"a", true}, {"b", false}});
   test_peer_.SelectNewPrimaryConfig(1101);
+  test_peer_.CheckConfigs({{"a", false}, {"b", true}});
+}
+
+class ValidateCallback : public ValidateClientHelloResultCallback {
+ public:
+  void Run(QuicReferenceCountedPointer<Result> result,
+           std::unique_ptr<ProofSource::Details> /* details */) override {}
+};
+
+TEST_F(CryptoServerConfigsTest, AdvancePrimaryViaValidate) {
+  SetQuicReloadableFlag(quic_fix_config_rotation, true);
+  // Check that a new primary config is enabled at the right time.
+  SetConfigs({{"a", 900, 1}, {"b", 1100, 1}});
+  test_peer_.SelectNewPrimaryConfig(1000);
+  test_peer_.CheckConfigs({{"a", true}, {"b", false}});
+  CryptoHandshakeMessage client_hello;
+  QuicIpAddress client_ip;
+  QuicSocketAddress server_address;
+  QuicTransportVersion version = QUIC_VERSION_99;
+  MockClock clock;
+  QuicReferenceCountedPointer<QuicSignedServerConfig> signed_config(
+      new QuicSignedServerConfig);
+  std::unique_ptr<ValidateClientHelloResultCallback> done_cb(
+      new ValidateCallback);
+  clock.AdvanceTime(QuicTime::Delta::FromSeconds(1100));
+  config_.ValidateClientHello(client_hello, client_ip, server_address, version,
+                              &clock, signed_config, std::move(done_cb));
   test_peer_.CheckConfigs({{"a", false}, {"b", true}});
 }
 

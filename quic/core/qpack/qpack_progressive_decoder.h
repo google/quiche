@@ -56,14 +56,14 @@ class QUIC_EXPORT_PRIVATE QpackProgressiveDecoder
   QpackProgressiveDecoder& operator=(const QpackProgressiveDecoder&) = delete;
   ~QpackProgressiveDecoder() override = default;
 
-  // Calculate actual Largest Reference from largest reference value sent on
-  // wire, MaxEntries, and total number of dynamic table insertions according to
-  // https://quicwg.org/base-drafts/draft-ietf-quic-qpack.html#largest-reference
+  // Calculate Required Insert Count from Encoded Required Insert Count,
+  // MaxEntries, and total number of dynamic table insertions according to
+  // https://quicwg.org/base-drafts/draft-ietf-quic-qpack.html#ric.
   // Returns true on success, false on invalid input or overflow/underflow.
-  static bool DecodeLargestReference(uint64_t wire_largest_reference,
-                                     uint64_t max_entries,
-                                     uint64_t total_number_of_inserts,
-                                     uint64_t* largest_reference);
+  static bool DecodeRequiredInsertCount(uint64_t encoded_required_insert_count,
+                                        uint64_t max_entries,
+                                        uint64_t total_number_of_inserts,
+                                        uint64_t* required_insert_count);
 
   // Provide a data fragment to decode.
   void Decode(QuicStringPiece data);
@@ -84,19 +84,18 @@ class QUIC_EXPORT_PRIVATE QpackProgressiveDecoder
   bool DoLiteralHeaderFieldInstruction();
   bool DoPrefixInstruction();
 
-  // Calculates Base Index from |largest_reference_|, which must be set before
-  // calling this method, and sign bit and Delta Base Index in the Header Data
-  // Prefix, which are passed in as arguments.  Returns true on success, false
-  // on failure due to overflow/underflow.
-  bool DeltaBaseIndexToBaseIndex(bool sign,
-                                 uint64_t delta_base_index,
-                                 uint64_t* base_index);
+  // Calculates Base from |required_insert_count_|, which must be set before
+  // calling this method, and sign bit and Delta Base in the Header Data Prefix,
+  // which are passed in as arguments.  Returns true on success, false on
+  // failure due to overflow/underflow.
+  bool DeltaBaseToBase(bool sign, uint64_t delta_base, uint64_t* base);
 
   // The request stream can use relative index (but different from the kind of
   // relative index used on the encoder stream), and post-base index.
   // These methods convert relative index and post-base index to absolute index
   // (one based).  They return true on success, or false if conversion fails due
-  // to overflow/underflow.
+  // to overflow/underflow.  On success, |*absolute_index| is guaranteed to be
+  // strictly less than std::numeric_limits<uint64_t>::max().
   bool RequestStreamRelativeIndexToAbsoluteIndex(
       uint64_t relative_index,
       uint64_t* absolute_index) const;
@@ -115,14 +114,16 @@ class QUIC_EXPORT_PRIVATE QpackProgressiveDecoder
   QpackDecoderStreamSender* const decoder_stream_sender_;
   HeadersHandlerInterface* const handler_;
 
-  // Largest Reference and Base Index are parsed from the Header Data Prefix.
-  // They are both absolute indices, that is, one based.
-  uint64_t largest_reference_;
-  uint64_t base_index_;
+  // Required Insert Count and Base are decoded from the Header Data Prefix.
+  uint64_t required_insert_count_;
+  uint64_t base_;
 
-  // Keep track of largest reference seen in this header block.
-  // After decoding is completed, this can be compared to |largest_reference_|.
-  uint64_t largest_reference_seen_;
+  // Required Insert Count is one larger than the largest absolute index of all
+  // referenced dynamic table entries, or zero if no dynamic table entries are
+  // referenced.  |required_insert_count_so_far_| starts out as zero and keeps
+  // track of the Required Insert Count based on entries decoded so far.
+  // After decoding is completed, it is compared to |required_insert_count_|.
+  uint64_t required_insert_count_so_far_;
 
   // False until prefix is fully read and decoded.
   bool prefix_decoded_;

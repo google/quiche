@@ -87,8 +87,6 @@ BbrSender::BbrSender(const RttStats* rtt_stats,
       random_(random),
       mode_(STARTUP),
       round_trip_count_(0),
-      last_sent_packet_(0),
-      current_round_trip_end_(0),
       max_bandwidth_(kBandwidthWindowSize, QuicBandwidth::Zero(), 0),
       max_ack_height_(kBandwidthWindowSize, 0, 0),
       aggregation_epoch_start_time_(QuicTime::Zero()),
@@ -122,14 +120,12 @@ BbrSender::BbrSender(const RttStats* rtt_stats,
       has_non_app_limited_sample_(false),
       flexible_app_limited_(false),
       recovery_state_(NOT_IN_RECOVERY),
-      end_recovery_at_(0),
       recovery_window_(max_congestion_window_),
       is_app_limited_recovery_(false),
       slower_startup_(false),
       rate_based_startup_(false),
       startup_rate_reduction_multiplier_(0),
       startup_bytes_lost_(0),
-      initial_conservation_in_startup_(CONSERVATION),
       enable_ack_aggregation_during_startup_(false),
       expire_ack_aggregation_in_startup_(false),
       drain_to_target_(false),
@@ -262,12 +258,6 @@ void BbrSender::SetFromConfig(const QuicConfig& config,
   }
   if (config.HasClientRequestedIndependentOption(kBBS1, perspective)) {
     rate_based_startup_ = true;
-  }
-  if (config.HasClientRequestedIndependentOption(kBBS2, perspective)) {
-    initial_conservation_in_startup_ = MEDIUM_GROWTH;
-  }
-  if (config.HasClientRequestedIndependentOption(kBBS3, perspective)) {
-    initial_conservation_in_startup_ = GROWTH;
   }
   if (GetQuicReloadableFlag(quic_bbr_startup_rate_reduction) &&
       config.HasClientRequestedIndependentOption(kBBS4, perspective)) {
@@ -467,7 +457,8 @@ void BbrSender::DiscardLostPackets(const LostPacketVector& lost_packets) {
 }
 
 bool BbrSender::UpdateRoundTripCounter(QuicPacketNumber last_acked_packet) {
-  if (last_acked_packet > current_round_trip_end_) {
+  if (!current_round_trip_end_.IsInitialized() ||
+      last_acked_packet > current_round_trip_end_) {
     round_trip_count_++;
     current_round_trip_end_ = last_sent_packet_;
     return true;
@@ -677,9 +668,6 @@ void BbrSender::UpdateRecoveryState(QuicPacketNumber last_acked_packet,
       // Enter conservation on the first loss.
       if (has_losses) {
         recovery_state_ = CONSERVATION;
-        if (mode_ == STARTUP) {
-          recovery_state_ = initial_conservation_in_startup_;
-        }
         // This will cause the |recovery_window_| to be set to the correct
         // value in CalculateRecoveryWindow().
         recovery_window_ = 0;
@@ -695,7 +683,6 @@ void BbrSender::UpdateRecoveryState(QuicPacketNumber last_acked_packet,
       break;
 
     case CONSERVATION:
-    case MEDIUM_GROWTH:
       if (is_round_start) {
         recovery_state_ = GROWTH;
       }
@@ -759,7 +746,7 @@ void BbrSender::CalculatePacingRate() {
     return;
   }
   // Slow the pacing rate in STARTUP once loss has ever been detected.
-  const bool has_ever_detected_loss = end_recovery_at_ > 0;
+  const bool has_ever_detected_loss = end_recovery_at_.IsInitialized();
   if (slower_startup_ && has_ever_detected_loss &&
       has_non_app_limited_sample_) {
     pacing_rate_ = kStartupAfterLossGain * BandwidthEstimate();
@@ -848,11 +835,8 @@ void BbrSender::CalculateRecoveryWindow(QuicByteCount bytes_acked,
 
   // In CONSERVATION mode, just subtracting losses is sufficient.  In GROWTH,
   // release additional |bytes_acked| to achieve a slow-start-like behavior.
-  // In MEDIUM_GROWTH, release |bytes_acked| / 2 to split the difference.
   if (recovery_state_ == GROWTH) {
     recovery_window_ += bytes_acked;
-  } else if (recovery_state_ == MEDIUM_GROWTH) {
-    recovery_window_ += bytes_acked / 2;
   }
 
   // Sanity checks.  Ensure that we always allow to send at least an MSS or

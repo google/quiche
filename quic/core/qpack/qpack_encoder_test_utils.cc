@@ -9,9 +9,11 @@
 namespace quic {
 namespace test {
 
-void NoopDecoderStreamErrorDelegate::OnError(QuicStringPiece error_message) {}
+void NoopDecoderStreamErrorDelegate::OnDecoderStreamError(
+    QuicStringPiece error_message) {}
 
-void NoopEncoderStreamSenderDelegate::Write(QuicStringPiece data) {}
+void NoopEncoderStreamSenderDelegate::WriteEncoderStreamData(
+    QuicStringPiece data) {}
 
 QuicString QpackEncode(
     QpackEncoder::DecoderStreamErrorDelegate* decoder_stream_error_delegate,

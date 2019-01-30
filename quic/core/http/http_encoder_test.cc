@@ -18,11 +18,9 @@ class HttpEncoderTest : public QuicTest {
 };
 
 TEST_F(HttpEncoderTest, SerializeDataFrameHeader) {
-  DataFrame data;
-  data.data = "Data!";
   std::unique_ptr<char[]> buffer;
   uint64_t length =
-      encoder_.SerializeDataFrameHeader(data.data.length(), &buffer);
+      encoder_.SerializeDataFrameHeader(/* payload_length = */ 5, &buffer);
   char output[] = {// length
                    0x05,
                    // type (DATA)
@@ -33,10 +31,9 @@ TEST_F(HttpEncoderTest, SerializeDataFrameHeader) {
 }
 
 TEST_F(HttpEncoderTest, SerializeHeadersFrameHeader) {
-  HeadersFrame headers;
-  headers.headers = "Headers";
   std::unique_ptr<char[]> buffer;
-  uint64_t length = encoder_.SerializeHeadersFrameHeader(headers, &buffer);
+  uint64_t length =
+      encoder_.SerializeHeadersFrameHeader(/* payload_length = */ 7, &buffer);
   char output[] = {// length
                    0x07,
                    // type (HEADERS)
@@ -164,6 +161,23 @@ TEST_F(HttpEncoderTest, SerializeMaxPushIdFrame) {
   uint64_t length = encoder_.SerializeMaxPushIdFrame(max_push_id, &buffer);
   EXPECT_EQ(QUIC_ARRAYSIZE(output), length);
   CompareCharArraysWithHexError("MAX_PUSH_ID", buffer.get(), length, output,
+                                QUIC_ARRAYSIZE(output));
+}
+
+TEST_F(HttpEncoderTest, SerializeDuplicatePushFrame) {
+  DuplicatePushFrame duplicate_push;
+  duplicate_push.push_id = 0x1;
+  char output[] = {// length
+                   0x1,
+                   // type (DUPLICATE_PUSH)
+                   0x0E,
+                   // Push Id
+                   0x01};
+  std::unique_ptr<char[]> buffer;
+  uint64_t length =
+      encoder_.SerializeDuplicatePushFrame(duplicate_push, &buffer);
+  EXPECT_EQ(QUIC_ARRAYSIZE(output), length);
+  CompareCharArraysWithHexError("DUPLICATE_PUSH", buffer.get(), length, output,
                                 QUIC_ARRAYSIZE(output));
 }
 

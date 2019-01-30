@@ -56,9 +56,9 @@ class QUIC_EXPORT_PRIVATE QpackHeaderTable {
   // is larger than the capacity of the dynamic table.
   const QpackEntry* InsertEntry(QuicStringPiece name, QuicStringPiece value);
 
-  // Change dynamic table capacity to |max_size|.  Returns true on success.
-  // Returns false is |max_size| exceeds maximum dynamic table capacity.
-  bool UpdateTableSize(uint64_t max_size);
+  // Change dynamic table capacity to |capacity|.  Returns true on success.
+  // Returns false is |capacity| exceeds maximum dynamic table capacity.
+  bool SetDynamicTableCapacity(uint64_t capacity);
 
   // Set |maximum_dynamic_table_capacity_|.  The initial value is zero.  The
   // final value is determined by the decoder and is sent to the encoder as
@@ -68,7 +68,7 @@ class QUIC_EXPORT_PRIVATE QpackHeaderTable {
   // This method must only be called at most once.
   void SetMaximumDynamicTableCapacity(uint64_t maximum_dynamic_table_capacity);
 
-  // Used by request streams to decode Largest Reference.
+  // Used on request streams to encode and decode Required Insert Count.
   uint64_t max_entries() const { return max_entries_; }
 
   // The number of entries inserted to the dynamic table (including ones that

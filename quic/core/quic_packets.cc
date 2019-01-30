@@ -33,8 +33,8 @@ size_t GetPacketHeaderSize(
       // Long header.
       return kPacketHeaderTypeSize + kConnectionIdLengthSize +
              destination_connection_id_length + source_connection_id_length +
-             (version == QUIC_VERSION_99 ? packet_number_length
-                                         : PACKET_4BYTE_PACKET_NUMBER) +
+             (version > QUIC_VERSION_46 ? packet_number_length
+                                        : PACKET_4BYTE_PACKET_NUMBER) +
              kQuicVersionSize +
              (include_diversification_nonce ? kDiversificationNonceSize : 0);
     }
@@ -74,10 +74,8 @@ QuicPacketHeader::QuicPacketHeader()
       version_flag(false),
       has_possible_stateless_reset_token(false),
       packet_number_length(PACKET_4BYTE_PACKET_NUMBER),
-      version(
-          ParsedQuicVersion(PROTOCOL_UNSUPPORTED, QUIC_VERSION_UNSUPPORTED)),
+      version(UnsupportedQuicVersion()),
       nonce(nullptr),
-      packet_number(kInvalidPacketNumber),
       form(GOOGLE_QUIC_PACKET),
       long_packet_type(INITIAL),
       possible_stateless_reset_token(0) {}
@@ -294,9 +292,7 @@ SerializedPacket::SerializedPacket(QuicPacketNumber packet_number,
       encryption_level(ENCRYPTION_NONE),
       has_ack(has_ack),
       has_stop_waiting(has_stop_waiting),
-      transmission_type(NOT_RETRANSMISSION),
-      original_packet_number(kInvalidPacketNumber),
-      largest_acked(kInvalidPacketNumber) {}
+      transmission_type(NOT_RETRANSMISSION) {}
 
 SerializedPacket::SerializedPacket(const SerializedPacket& other) = default;
 
@@ -327,7 +323,7 @@ void ClearSerializedPacket(SerializedPacket* serialized_packet) {
   }
   serialized_packet->encrypted_buffer = nullptr;
   serialized_packet->encrypted_length = 0;
-  serialized_packet->largest_acked = kInvalidPacketNumber;
+  serialized_packet->largest_acked.Clear();
 }
 
 char* CopyBuffer(const SerializedPacket& packet) {

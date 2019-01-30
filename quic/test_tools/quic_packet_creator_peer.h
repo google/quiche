@@ -27,7 +27,8 @@ class QuicPacketCreatorPeer {
       QuicPacketNumberLength packet_number_length);
   static QuicPacketNumberLength GetPacketNumberLength(
       QuicPacketCreator* creator);
-  static void SetPacketNumber(QuicPacketCreator* creator, QuicPacketNumber s);
+  static void SetPacketNumber(QuicPacketCreator* creator, uint64_t s);
+  static void ClearPacketNumber(QuicPacketCreator* creator);
   static void FillPacketHeader(QuicPacketCreator* creator,
                                QuicPacketHeader* header);
   static void CreateStreamFrame(QuicPacketCreator* creator,

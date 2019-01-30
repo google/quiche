@@ -623,6 +623,39 @@ TEST_F(QuicIetfFramerTest, ZeroLengthStreamFrame) {
   }
 }
 
+TEST_F(QuicIetfFramerTest, CryptoFrame) {
+  SimpleDataProducer data_producer;
+  framer_.set_data_producer(&data_producer);
+  char packet_buffer[kNormalPacketBufferSize];
+
+  QuicStringPiece frame_data("This is a CRYPTO frame.");
+
+  QuicStreamOffset offsets[] = {kOffset8, kOffset4, kOffset2, kOffset1,
+                                kOffset0};
+  for (QuicStreamOffset offset : offsets) {
+    QuicCryptoFrame frame(ENCRYPTION_NONE, offset, frame_data.length());
+    data_producer.SaveCryptoData(ENCRYPTION_NONE, offset, frame_data);
+
+    QuicDataWriter writer(QUIC_ARRAYSIZE(packet_buffer), packet_buffer,
+                          NETWORK_BYTE_ORDER);
+
+    // Write the frame.
+    EXPECT_TRUE(QuicFramerPeer::AppendCryptoFrame(&framer_, frame, &writer));
+    EXPECT_NE(0u, writer.length());
+    // Read it back.
+    QuicDataReader reader(packet_buffer, writer.length(), NETWORK_BYTE_ORDER);
+    QuicCryptoFrame read_frame;
+    EXPECT_TRUE(
+        QuicFramerPeer::ProcessCryptoFrame(&framer_, &reader, &read_frame));
+
+    // Check that the frames match:
+    QuicStringPiece read_data(read_frame.data_buffer, read_frame.data_length);
+    EXPECT_EQ(read_frame.data_length, frame.data_length);
+    EXPECT_EQ(read_frame.offset, frame.offset);
+    EXPECT_EQ(read_data, frame_data);
+  }
+}
+
 TEST_F(QuicIetfFramerTest, ConnectionCloseEmptyString) {
   char packet_buffer[kNormalPacketBufferSize];
 
@@ -695,35 +728,187 @@ TEST_F(QuicIetfFramerTest, ApplicationCloseEmptyString) {
 // Testing for the IETF ACK framer.
 // clang-format off
 struct ack_frame ack_frame_variants[] = {
-  { 90000, false, 0, 0, 0, {{1000, 2001}}, IETF_ACK },
-  { 0, false, 0, 0, 0, {{1000, 2001}}, IETF_ACK },
-  { 1, false, 0, 0, 0, {{1, 2}, {5, 6}}, IETF_ACK },
-  { 63, false, 0, 0, 0, {{1, 2}, {5, 6}}, IETF_ACK },
-  { 64, false, 0, 0, 0, {{1, 2}, {3, 4}, {5, 6}, {7, 8}, {9, 10}, {11, 12}},
-    IETF_ACK},
-  { 10000, false, 0, 0, 0, {{1, 2}, {3, 4}, {5, 6}, {7, 8}, {9, 10}, {11, 12}},
-    IETF_ACK},
-  { 100000000, false, 0, 0, 0,
-    {{1, 2}, {3, 4}, {5, 6}, {7, 8}, {9, 10}, {11, 12}},
-    IETF_ACK},
-  { 0, false, 0, 0, 0, {{1, 65}}, IETF_ACK },
-  { 9223372036854775807, false, 0, 0, 0, {{1, 11}, {74, 138}}, IETF_ACK },
-  // This ack is for packets 60 & 125. There are 64 packets in the gap.
-  // The encoded value is gap_size - 1, or 63. Crosses a VarInt62 encoding
-  // boundary...
-  { 1, false, 0, 0, 0, {{60, 61}, {125, 126}}, IETF_ACK },
-  { 2, false, 0, 0, 0, {{ 1, 65}, {129, 130}}, IETF_ACK },
-  { 3, false, 0, 0, 0, {{ 1, 65}, {129, 195}}, IETF_ACK },
-  { 4, false, 0, 0, 0, {{ 1, 65}, {129, 194}}, IETF_ACK },
-  { 5, false, 0, 0, 0, {{ 1, 65}, {129, 193}}, IETF_ACK },
-  { 6, false, 0, 0, 0, {{ 1, 65}, {129, 192}}, IETF_ACK },
-  // declare some ack_ecn frames to try.
-  { 6, false, 100, 200, 300, {{ 1, 65}, {129, 192}}, IETF_ACK },
-  { 6, true, 100, 200, 300, {{ 1, 65}, {129, 192}}, IETF_ACK_ECN },
-  { 6, true, 100, 0, 0, {{ 1, 65}, {129, 192}}, IETF_ACK_ECN },
-  { 6, true, 0, 200, 0, {{ 1, 65}, {129, 192}}, IETF_ACK_ECN },
-  { 6, true, 0, 0, 300, {{ 1, 65}, {129, 192}}, IETF_ACK_ECN },
-  { 6, true, 0, 0, 0, {{ 1, 65}, {129, 192}}, IETF_ACK },
+    {90000,
+     false,
+     0,
+     0,
+     0,
+     {{QuicPacketNumber(1000), QuicPacketNumber(2001)}},
+     IETF_ACK},
+    {0,
+     false,
+     0,
+     0,
+     0,
+     {{QuicPacketNumber(1000), QuicPacketNumber(2001)}},
+     IETF_ACK},
+    {1,
+     false,
+     0,
+     0,
+     0,
+     {{QuicPacketNumber(1), QuicPacketNumber(2)},
+      {QuicPacketNumber(5), QuicPacketNumber(6)}},
+     IETF_ACK},
+    {63,
+     false,
+     0,
+     0,
+     0,
+     {{QuicPacketNumber(1), QuicPacketNumber(2)},
+      {QuicPacketNumber(5), QuicPacketNumber(6)}},
+     IETF_ACK},
+    {64,
+     false,
+     0,
+     0,
+     0,
+     {{QuicPacketNumber(1), QuicPacketNumber(2)},
+      {QuicPacketNumber(3), QuicPacketNumber(4)},
+      {QuicPacketNumber(5), QuicPacketNumber(6)},
+      {QuicPacketNumber(7), QuicPacketNumber(8)},
+      {QuicPacketNumber(9), QuicPacketNumber(10)},
+      {QuicPacketNumber(11), QuicPacketNumber(12)}},
+     IETF_ACK},
+    {10000,
+     false,
+     0,
+     0,
+     0,
+     {{QuicPacketNumber(1), QuicPacketNumber(2)},
+      {QuicPacketNumber(3), QuicPacketNumber(4)},
+      {QuicPacketNumber(5), QuicPacketNumber(6)},
+      {QuicPacketNumber(7), QuicPacketNumber(8)},
+      {QuicPacketNumber(9), QuicPacketNumber(10)},
+      {QuicPacketNumber(11), QuicPacketNumber(12)}},
+     IETF_ACK},
+    {100000000,
+     false,
+     0,
+     0,
+     0,
+     {{QuicPacketNumber(1), QuicPacketNumber(2)},
+      {QuicPacketNumber(3), QuicPacketNumber(4)},
+      {QuicPacketNumber(5), QuicPacketNumber(6)},
+      {QuicPacketNumber(7), QuicPacketNumber(8)},
+      {QuicPacketNumber(9), QuicPacketNumber(10)},
+      {QuicPacketNumber(11), QuicPacketNumber(12)}},
+     IETF_ACK},
+    {0,
+     false,
+     0,
+     0,
+     0,
+     {{QuicPacketNumber(1), QuicPacketNumber(65)}},
+     IETF_ACK},
+    {9223372036854775807,
+     false,
+     0,
+     0,
+     0,
+     {{QuicPacketNumber(1), QuicPacketNumber(11)},
+      {QuicPacketNumber(74), QuicPacketNumber(138)}},
+     IETF_ACK},
+    // This ack is for packets 60 & 125. There are 64 packets in the gap.
+    // The encoded value is gap_size - 1, or 63. Crosses a VarInt62 encoding
+    // boundary...
+    {1,
+     false,
+     0,
+     0,
+     0,
+     {{QuicPacketNumber(60), QuicPacketNumber(61)},
+      {QuicPacketNumber(125), QuicPacketNumber(126)}},
+     IETF_ACK},
+    {2,
+     false,
+     0,
+     0,
+     0,
+     {{QuicPacketNumber(1), QuicPacketNumber(65)},
+      {QuicPacketNumber(129), QuicPacketNumber(130)}},
+     IETF_ACK},
+    {3,
+     false,
+     0,
+     0,
+     0,
+     {{QuicPacketNumber(1), QuicPacketNumber(65)},
+      {QuicPacketNumber(129), QuicPacketNumber(195)}},
+     IETF_ACK},
+    {4,
+     false,
+     0,
+     0,
+     0,
+     {{QuicPacketNumber(1), QuicPacketNumber(65)},
+      {QuicPacketNumber(129), QuicPacketNumber(194)}},
+     IETF_ACK},
+    {5,
+     false,
+     0,
+     0,
+     0,
+     {{QuicPacketNumber(1), QuicPacketNumber(65)},
+      {QuicPacketNumber(129), QuicPacketNumber(193)}},
+     IETF_ACK},
+    {6,
+     false,
+     0,
+     0,
+     0,
+     {{QuicPacketNumber(1), QuicPacketNumber(65)},
+      {QuicPacketNumber(129), QuicPacketNumber(192)}},
+     IETF_ACK},
+    // declare some ack_ecn frames to try.
+    {6,
+     false,
+     100,
+     200,
+     300,
+     {{QuicPacketNumber(1), QuicPacketNumber(65)},
+      {QuicPacketNumber(129), QuicPacketNumber(192)}},
+     IETF_ACK},
+    {6,
+     true,
+     100,
+     200,
+     300,
+     {{QuicPacketNumber(1), QuicPacketNumber(65)},
+      {QuicPacketNumber(129), QuicPacketNumber(192)}},
+     IETF_ACK_ECN},
+    {6,
+     true,
+     100,
+     0,
+     0,
+     {{QuicPacketNumber(1), QuicPacketNumber(65)},
+      {QuicPacketNumber(129), QuicPacketNumber(192)}},
+     IETF_ACK_ECN},
+    {6,
+     true,
+     0,
+     200,
+     0,
+     {{QuicPacketNumber(1), QuicPacketNumber(65)},
+      {QuicPacketNumber(129), QuicPacketNumber(192)}},
+     IETF_ACK_ECN},
+    {6,
+     true,
+     0,
+     0,
+     300,
+     {{QuicPacketNumber(1), QuicPacketNumber(65)},
+      {QuicPacketNumber(129), QuicPacketNumber(192)}},
+     IETF_ACK_ECN},
+    {6,
+     true,
+     0,
+     0,
+     0,
+     {{QuicPacketNumber(1), QuicPacketNumber(65)},
+      {QuicPacketNumber(129), QuicPacketNumber(192)}},
+     IETF_ACK},
 };
 // clang-format on
 
@@ -749,7 +934,7 @@ TEST_F(QuicIetfFramerTest, AckFrameNoRanges) {
                         NETWORK_BYTE_ORDER);
 
   QuicAckFrame transmit_frame;
-  transmit_frame.largest_acked = 1;
+  transmit_frame.largest_acked = QuicPacketNumber(1);
   transmit_frame.ack_delay_time = QuicTime::Delta::FromMicroseconds(0);
 
   size_t expected_size =
@@ -759,7 +944,7 @@ TEST_F(QuicIetfFramerTest, AckFrameNoRanges) {
       &framer_, transmit_frame, &writer));
 
   uint8_t packet[] = {
-      0x1a,  // type
+      0x02,  // type, IETF_ACK
       0x01,  // largest_acked,
       0x00,  // delay
       0x00,  // count of additional ack blocks

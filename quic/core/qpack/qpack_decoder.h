@@ -31,7 +31,7 @@ class QUIC_EXPORT_PRIVATE QpackDecoder
    public:
     virtual ~EncoderStreamErrorDelegate() {}
 
-    virtual void OnError(QuicStringPiece error_message) = 0;
+    virtual void OnEncoderStreamError(QuicStringPiece error_message) = 0;
   };
 
   QpackDecoder(
@@ -79,18 +79,17 @@ class QUIC_EXPORT_PRIVATE QpackDecoder
   void OnInsertWithoutNameReference(QuicStringPiece name,
                                     QuicStringPiece value) override;
   void OnDuplicate(uint64_t index) override;
-  void OnDynamicTableSizeUpdate(uint64_t max_size) override;
+  void OnSetDynamicTableCapacity(uint64_t capacity) override;
   void OnErrorDetected(QuicStringPiece error_message) override;
 
  private:
   // The encoder stream uses relative index (but different from the kind of
-  // relative index used on a request stream).
-  // The spec describes how to convert these into absolute index (one based).
-  // QpackHeaderTable uses real index (zero based, one less than the absolute
-  // index).  This method converts relative index to real index.  It returns
-  // true on success, or false if conversion fails due to overflow/underflow.
-  bool EncoderStreamRelativeIndexToRealIndex(uint64_t relative_index,
-                                             uint64_t* real_index) const;
+  // relative index used on a request stream).  This method converts relative
+  // index to absolute index (zero based).  It returns true on success, or false
+  // if conversion fails due to overflow/underflow.
+  bool EncoderStreamRelativeIndexToAbsoluteIndex(
+      uint64_t relative_index,
+      uint64_t* absolute_index) const;
 
   EncoderStreamErrorDelegate* const encoder_stream_error_delegate_;
   QpackEncoderStreamReceiver encoder_stream_receiver_;

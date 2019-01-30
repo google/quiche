@@ -6,16 +6,19 @@
 #define QUICHE_SPDY_CORE_PRIORITY_WRITE_SCHEDULER_H_
 
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
-#include <deque>
 #include <tuple>
 #include <unordered_map>
 #include <utility>
+#include <vector>
 
 #include "base/logging.h"
-#include "net/third_party/quiche/src/spdy/core/spdy_bug_tracker.h"
+#include "net/third_party/quiche/src/http2/platform/api/http2_containers.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
 #include "net/third_party/quiche/src/spdy/core/write_scheduler.h"
+#include "net/third_party/quiche/src/spdy/platform/api/spdy_bug_tracker.h"
+#include "net/third_party/quiche/src/spdy/platform/api/spdy_macros.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_utils.h"
 
@@ -52,7 +55,8 @@ class PriorityWriteScheduler : public WriteScheduler<StreamIdType> {
     // parent_id not used here, but may as well validate it.  However,
     // parent_id may legitimately not be registered yet--see b/15676312.
     StreamIdType parent_id = precedence.parent_id();
-    VLOG_IF(1, parent_id != kHttp2RootStreamId && !StreamRegistered(parent_id))
+    SPDY_DVLOG_IF(
+        1, parent_id != kHttp2RootStreamId && !StreamRegistered(parent_id))
         << "Parent stream " << parent_id << " not registered";
 
     if (stream_id == kHttp2RootStreamId) {
@@ -88,7 +92,7 @@ class PriorityWriteScheduler : public WriteScheduler<StreamIdType> {
       StreamIdType stream_id) const override {
     auto it = stream_infos_.find(stream_id);
     if (it == stream_infos_.end()) {
-      VLOG(1) << "Stream " << stream_id << " not registered";
+      DVLOG(1) << "Stream " << stream_id << " not registered";
       return StreamPrecedenceType(kV3LowestPriority);
     }
     return StreamPrecedenceType(it->second.priority);
@@ -102,13 +106,14 @@ class PriorityWriteScheduler : public WriteScheduler<StreamIdType> {
     // parent_id not used here, but may as well validate it.  However,
     // parent_id may legitimately not be registered yet--see b/15676312.
     StreamIdType parent_id = precedence.parent_id();
-    VLOG_IF(1, parent_id != kHttp2RootStreamId && !StreamRegistered(parent_id))
+    SPDY_DVLOG_IF(
+        1, parent_id != kHttp2RootStreamId && !StreamRegistered(parent_id))
         << "Parent stream " << parent_id << " not registered";
 
     auto it = stream_infos_.find(stream_id);
     if (it == stream_infos_.end()) {
       // TODO(mpw): add to stream_infos_ on demand--see b/15676312.
-      VLOG(1) << "Stream " << stream_id << " not registered";
+      DVLOG(1) << "Stream " << stream_id << " not registered";
       return;
     }
     StreamInfo& stream_info = it->second;
@@ -278,8 +283,8 @@ class PriorityWriteScheduler : public WriteScheduler<StreamIdType> {
     bool ready;
   };
 
-  // 0(1) size lookup, 0(1) insert at front or back.
-  typedef std::deque<StreamInfo*> ReadyList;
+  // O(1) size lookup, O(1) insert at front or back (amortized).
+  using ReadyList = http2::Http2Deque<StreamInfo*>;
 
   // State kept for each priority level.
   struct PriorityInfo {

@@ -17,6 +17,7 @@ QuicSimpleCryptoServerStreamHelper::~QuicSimpleCryptoServerStreamHelper() =
 
 QuicConnectionId
 QuicSimpleCryptoServerStreamHelper::GenerateConnectionIdForReject(
+    QuicTransportVersion /*version*/,
     QuicConnectionId /*connection_id*/) const {
   return QuicUtils::CreateRandomConnectionId(random_, Perspective::IS_SERVER);
 }

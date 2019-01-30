@@ -88,10 +88,6 @@ void QuicSession::Initialize() {
   connection_->SetDataProducer(this);
   connection_->SetFromConfig(config_);
 
-  // Make sure connection and control frame manager latch the same flag values.
-  connection_->set_donot_retransmit_old_window_updates(
-      control_frame_manager_.donot_retransmit_old_window_updates());
-
   DCHECK_EQ(QuicUtils::GetCryptoStreamId(connection_->transport_version()),
             GetMutableCryptoStream()->id());
   RegisterStaticStream(
@@ -189,6 +185,10 @@ bool QuicSession::OnStopSendingFrame(const QuicStopSendingFrame& frame) {
     return false;
   }
 
+  if (visitor_) {
+    visitor_->OnStopSendingReceived(frame);
+  }
+
   // If stream is closed, ignore the frame
   if (IsClosedStream(stream_id)) {
     QUIC_DVLOG(1)
@@ -223,8 +223,15 @@ bool QuicSession::OnStopSendingFrame(const QuicStopSendingFrame& frame) {
     return true;
   }
   stream->OnStopSending(frame.application_error_code);
-  // TODO(fkastenholz): Add in code to start rst-stream in the opposite
-  // direction once we add IETF-QUIC semantics for rst-stream.
+
+  stream->set_stream_error(
+      static_cast<QuicRstStreamErrorCode>(frame.application_error_code));
+  SendRstStreamInner(
+      stream->id(),
+      static_cast<quic::QuicRstStreamErrorCode>(frame.application_error_code),
+      stream->stream_bytes_written(),
+      /*close_write_side_only=*/true);
+  stream->set_rst_sent(true);
 
   return true;
 }
@@ -561,26 +568,34 @@ bool QuicSession::WriteControlFrame(const QuicFrame& frame) {
 void QuicSession::SendRstStream(QuicStreamId id,
                                 QuicRstStreamErrorCode error,
                                 QuicStreamOffset bytes_written) {
-  if (QuicContainsKey(static_stream_map_, id)) {
-    QUIC_BUG << "Cannot send RST for a static stream with ID " << id;
-    return;
-  }
+  SendRstStreamInner(id, error, bytes_written, /*close_write_side_only=*/false);
+}
 
+void QuicSession::SendRstStreamInner(QuicStreamId id,
+                                     QuicRstStreamErrorCode error,
+                                     QuicStreamOffset bytes_written,
+                                     bool close_write_side_only) {
   if (connection()->connected()) {
-    // Only send a RST_STREAM frame if still connected.
-    // Send a RST_STREAM frame. If version 99, will include
-    // an IETF-QUIC STOP_SENDING frame in the packet so that
-    // the peer also shuts down and sends a RST_STREAM back.
-    QuicConnection::ScopedPacketFlusher* flusher =
-        (connection_->transport_version() == QUIC_VERSION_99)
-            ? new QuicConnection::ScopedPacketFlusher(
-                  connection(), QuicConnection::SEND_ACK_IF_QUEUED)
-            : nullptr;
-    control_frame_manager_.WriteOrBufferRstStreamStopSending(id, error,
-                                                             bytes_written);
-    if (flusher) {
-      delete flusher;
-      flusher = nullptr;
+    // Only send if still connected.
+    if (close_write_side_only) {
+      DCHECK_EQ(QUIC_VERSION_99, connection_->transport_version());
+      // Send a RST_STREAM frame.
+      control_frame_manager_.WriteOrBufferRstStream(id, error, bytes_written);
+    } else {
+      // Send a RST_STREAM frame plus, if version 99, an IETF
+      // QUIC STOP_SENDING frame. Both sre sent to emulate
+      // the two-way close that Google QUIC's RST_STREAM does.
+      QuicConnection::ScopedPacketFlusher* flusher =
+          (connection_->transport_version() == QUIC_VERSION_99)
+              ? new QuicConnection::ScopedPacketFlusher(
+                    connection(), QuicConnection::SEND_ACK_IF_QUEUED)
+              : nullptr;
+      control_frame_manager_.WriteOrBufferRstStreamStopSending(id, error,
+                                                               bytes_written);
+      if (flusher) {
+        delete flusher;
+        flusher = nullptr;
+      }
     }
     connection_->OnStreamReset(id, error);
   }
@@ -588,7 +603,18 @@ void QuicSession::SendRstStream(QuicStreamId id,
     OnStreamDoneWaitingForAcks(id);
     return;
   }
-  CloseStreamInner(id, true);
+  if (close_write_side_only) {
+    DCHECK_EQ(QUIC_VERSION_99, connection_->transport_version());
+    DynamicStreamMap::iterator it = dynamic_stream_map_.find(id);
+    if (it != dynamic_stream_map_.end()) {
+      QuicStream* stream = it->second.get();
+      if (stream) {
+        stream->CloseWriteSide();
+      }
+    }
+  } else {
+    CloseStreamInner(id, true);
+  }
 }
 
 void QuicSession::SendGoAway(QuicErrorCode error_code,
@@ -671,7 +697,6 @@ void QuicSession::CloseStreamInner(QuicStreamId stream_id, bool locally_reset) {
     InsertLocallyClosedStreamsHighestOffset(
         stream_id, stream->flow_controller()->highest_received_byte_offset());
   }
-
   dynamic_stream_map_.erase(it);
   if (IsIncomingStream(stream_id)) {
     --num_dynamic_incoming_streams_;
@@ -719,6 +744,7 @@ void QuicSession::ClosePendingStream(QuicStreamId stream_id) {
   if (pending_stream_map_.find(stream_id) != pending_stream_map_.end()) {
     pending_stream_map_.erase(stream_id);
   }
+
   --num_dynamic_incoming_streams_;
 
   if (connection_->transport_version() == QUIC_VERSION_99) {
@@ -952,10 +978,7 @@ void QuicSession::OnCryptoHandshakeEvent(CryptoHandshakeEvent event) {
       // Discard originally encrypted packets, since they can't be decrypted by
       // the peer.
       NeuterUnencryptedData();
-      if (GetQuicReloadableFlag(quic_optimize_encryption_established)) {
-        QUIC_RELOADABLE_FLAG_COUNT(quic_optimize_encryption_established);
-        is_handshake_confirmed_ = true;
-      }
+      is_handshake_confirmed_ = true;
       break;
 
     default:
@@ -1466,6 +1489,14 @@ WriteStreamDataResult QuicSession::WriteStreamData(QuicStreamId id,
     return WRITE_SUCCESS;
   }
   return WRITE_FAILED;
+}
+
+bool QuicSession::WriteCryptoData(EncryptionLevel level,
+                                  QuicStreamOffset offset,
+                                  QuicByteCount data_length,
+                                  QuicDataWriter* writer) {
+  QUIC_BUG << "QuicSession::WriteCryptoData is unimplemented";
+  return false;
 }
 
 QuicUint128 QuicSession::GetStatelessResetToken() const {

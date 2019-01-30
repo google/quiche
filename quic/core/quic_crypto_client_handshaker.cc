@@ -338,11 +338,10 @@ void QuicCryptoClientHandshaker::DoSendCHLO(
                                           "CHLO too large");
       return;
     }
-    // TODO(rch): Remove this when we remove quic_use_chlo_packet_size flag.
-    out.set_minimum_size(
-        static_cast<size_t>(max_packet_size - kFramingOverhead));
     next_state_ = STATE_RECV_REJ;
     CryptoUtils::HashHandshakeMessage(out, &chlo_hash_, Perspective::IS_CLIENT);
+    session()->connection()->set_fully_pad_crypto_hadshake_packets(
+        crypto_config_->pad_inchoate_hello());
     SendHandshakeMessage(out);
     return;
   }
@@ -377,6 +376,8 @@ void QuicCryptoClientHandshaker::DoSendCHLO(
         *cached->proof_verify_details());
   }
   next_state_ = STATE_RECV_SHLO;
+  session()->connection()->set_fully_pad_crypto_hadshake_packets(
+      crypto_config_->pad_full_hello());
   SendHandshakeMessage(out);
   // Be prepared to decrypt with the new server write key.
   session()->connection()->SetAlternativeDecrypter(

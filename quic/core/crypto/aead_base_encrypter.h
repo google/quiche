@@ -34,7 +34,7 @@ class QUIC_EXPORT_PRIVATE AeadBaseEncrypter : public QuicEncrypter {
   bool SetNoncePrefix(QuicStringPiece nonce_prefix) override;
   bool SetIV(QuicStringPiece iv) override;
   bool EncryptPacket(QuicTransportVersion version,
-                     QuicPacketNumber packet_number,
+                     uint64_t packet_number,
                      QuicStringPiece associated_data,
                      QuicStringPiece plaintext,
                      char* output,

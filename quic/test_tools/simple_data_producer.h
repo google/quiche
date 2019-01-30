@@ -21,26 +21,67 @@ class SimpleDataProducer : public QuicStreamFrameDataProducer {
   SimpleDataProducer();
   ~SimpleDataProducer() override;
 
+  // Saves data to be provided when WriteStreamData is called. Data of length
+  // |data_length| is buffered to be provided for stream |id|. Multiple calls to
+  // SaveStreamData for the same stream ID append to the buffer for that stream.
+  // The data to be buffered is provided in |iov_count| iovec structs, with
+  // |iov| pointing to the first, and |iov_offset| indicating how many bytes
+  // into the iovec structs the data starts.
   void SaveStreamData(QuicStreamId id,
                       const struct iovec* iov,
                       int iov_count,
                       size_t iov_offset,
-                      QuicStreamOffset offset,
                       QuicByteCount data_length);
+
+  void SaveCryptoData(EncryptionLevel level,
+                      QuicStreamOffset offset,
+                      QuicStringPiece data);
 
   // QuicStreamFrameDataProducer
   WriteStreamDataResult WriteStreamData(QuicStreamId id,
                                         QuicStreamOffset offset,
                                         QuicByteCount data_length,
                                         QuicDataWriter* writer) override;
+  bool WriteCryptoData(EncryptionLevel level,
+                       QuicStreamOffset offset,
+                       QuicByteCount data_length,
+                       QuicDataWriter* writer) override;
+
+  // TODO(wub): Allow QuicDefaultHasher to accept a pair. Then remove this.
+  class PairHash {
+   public:
+    template <class T1, class T2>
+    size_t operator()(const std::pair<T1, T2>& pair) const {
+      return std::hash<T1>()(pair.first) ^ std::hash<T2>()(pair.second);
+    }
+  };
 
  private:
   using SendBufferMap =
       QuicUnorderedMap<QuicStreamId, std::unique_ptr<QuicStreamSendBuffer>>;
 
+  using CryptoBufferMap =
+      QuicUnorderedMap<std::pair<EncryptionLevel, QuicStreamOffset>,
+                       QuicStringPiece,
+                       PairHash>;
+
   SimpleBufferAllocator allocator_;
 
   SendBufferMap send_buffer_map_;
+
+  // |crypto_buffer_map_| stores data provided by SaveCryptoData to later write
+  // in WriteCryptoData. The level and data passed into SaveCryptoData are used
+  // as the key to identify the data when WriteCryptoData is called.
+  // WriteCryptoData will only succeed if there is data in the map for the
+  // provided level and offset, and the data in the map matches the data_length
+  // passed into WriteCryptoData.
+  //
+  // Unlike SaveStreamData/WriteStreamData which uses a map of
+  // QuicStreamSendBuffers (for each stream ID), this map provides data for
+  // specific offsets. Using a QuicStreamSendBuffer requires that all data
+  // before an offset exist, whereas this allows providing data that exists at
+  // arbitrary offsets for testing.
+  CryptoBufferMap crypto_buffer_map_;
 };
 
 }  // namespace test

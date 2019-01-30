@@ -310,10 +310,9 @@ TEST_F(SimulatorTest, QueueBottleneck) {
   saturator.SetTxPort(&local_link);
   queue.set_tx_port(&bottleneck_link);
 
-  const QuicPacketCount packets_received = 1000;
-  simulator.RunUntil([&counter, packets_received]() {
-    return counter.packets() == packets_received;
-  });
+  static const QuicPacketCount packets_received = 1000;
+  simulator.RunUntil(
+      [&counter]() { return counter.packets() == packets_received; });
   const double loss_ratio = 1 - static_cast<double>(packets_received) /
                                     saturator.packets_transmitted();
   EXPECT_NEAR(loss_ratio, 0.9, 0.001);

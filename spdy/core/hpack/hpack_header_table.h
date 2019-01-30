@@ -14,8 +14,8 @@
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_entry.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_containers.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_export.h"
+#include "net/third_party/quiche/src/spdy/platform/api/spdy_macros.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_piece.h"
-#include "util/hash/hash.h"
 
 // All section references below are to http://tools.ietf.org/html/rfc7541.
 
@@ -54,10 +54,12 @@ class SPDY_EXPORT_PRIVATE HpackHeaderTable {
 
   // HpackHeaderTable takes advantage of the deque property that references
   // remain valid, so long as insertions & deletions are at the head & tail.
-  // If this changes (eg we start to drop entries from the middle of the table),
-  // this needs to be a std::list, in which case |*_index_| can be trivially
-  // extended to map to list iterators.
-  typedef std::deque<HpackEntry> EntryTable;
+  // This precludes the use of base::circular_deque.
+  //
+  // If this changes (we want to change to circular_deque or we start to drop
+  // entries from the middle of the table), this should to be a std::list, in
+  // which case |*_index_| can be trivially extended to map to list iterators.
+  using EntryTable = std::deque<HpackEntry>;
 
   struct SPDY_EXPORT_PRIVATE EntryHasher {
     size_t operator()(const HpackEntry* entry) const;
@@ -66,7 +68,8 @@ class SPDY_EXPORT_PRIVATE HpackHeaderTable {
     bool operator()(const HpackEntry* lhs, const HpackEntry* rhs) const;
   };
   using UnorderedEntrySet = SpdyHashSet<HpackEntry*, EntryHasher, EntriesEq>;
-  using NameToEntryMap = SpdyHashMap<SpdyStringPiece, const HpackEntry*>;
+  using NameToEntryMap =
+      SpdyHashMap<SpdyStringPiece, const HpackEntry*, SpdyStringPieceHash>;
 
   HpackHeaderTable();
   HpackHeaderTable(const HpackHeaderTable&) = delete;
@@ -117,7 +120,7 @@ class SPDY_EXPORT_PRIVATE HpackHeaderTable {
   // evicted and the empty table is of insufficent size for the representation.
   const HpackEntry* TryAddEntry(SpdyStringPiece name, SpdyStringPiece value);
 
-  void DebugLogTableState() const ABSL_ATTRIBUTE_UNUSED;
+  void DebugLogTableState() const SPDY_UNUSED;
 
   void set_debug_visitor(std::unique_ptr<DebugVisitorInterface> visitor) {
     debug_visitor_ = std::move(visitor);

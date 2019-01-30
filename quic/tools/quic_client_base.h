@@ -136,17 +136,6 @@ class QuicClientBase {
     crypto_config_.SetChannelIDSource(source);
   }
 
-  // UseTokenBinding enables token binding negotiation in the client.  This
-  // should only be called before the initial Connect().  The client will still
-  // need to check that token binding is negotiated with the server, and add
-  // token binding headers to requests if so.  server, and add token binding
-  // headers to requests if so.  The negotiated token binding parameters can be
-  // found on the QuicCryptoNegotiatedParameters object in
-  // token_binding_key_param.
-  void UseTokenBinding() {
-    crypto_config_.tb_key_params = QuicTagVector{kTB10};
-  }
-
   const ParsedQuicVersionVector& supported_versions() const {
     return supported_versions_;
   }

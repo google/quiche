@@ -4,6 +4,7 @@
 
 #include "net/third_party/quiche/src/quic/quartc/quartc_session.h"
 
+#include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/core/tls_client_handshaker.h"
 #include "net/third_party/quiche/src/quic/core/tls_server_handshaker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
@@ -104,8 +105,9 @@ class InsecureProofVerifier : public ProofVerifier {
 }  // namespace
 
 QuicConnectionId QuartcCryptoServerStreamHelper::GenerateConnectionIdForReject(
+    QuicTransportVersion version,
     QuicConnectionId connection_id) const {
-  return EmptyQuicConnectionId();
+  return QuicUtils::CreateZeroConnectionId(version);
 }
 
 bool QuartcCryptoServerStreamHelper::CanAcceptClientHello(
@@ -142,6 +144,8 @@ QuartcSession::QuartcSession(std::unique_ptr<QuicConnection> connection,
     std::unique_ptr<ProofVerifier> proof_verifier(new InsecureProofVerifier);
     quic_crypto_client_config_ = QuicMakeUnique<QuicCryptoClientConfig>(
         std::move(proof_verifier), TlsClientHandshaker::CreateSslCtx());
+    quic_crypto_client_config_->set_pad_inchoate_hello(false);
+    quic_crypto_client_config_->set_pad_full_hello(false);
   } else {
     std::unique_ptr<ProofSource> proof_source(new DummyProofSource);
     // Generate a random source address token secret. For long-running servers
@@ -154,6 +158,29 @@ QuartcSession::QuartcSession(std::unique_ptr<QuicConnection> connection,
         QuicString(source_address_token_secret, kInputKeyingMaterialLength),
         helper_->GetRandomGenerator(), std::move(proof_source),
         KeyExchangeSource::Default(), TlsServerHandshaker::CreateSslCtx());
+
+    // Effectively disables the anti-amplification measures (we don't need
+    // them because we use ICE, and we need to disable them because we disable
+    // padding of crypto packets).
+    // This multiplier must be large enough so that the crypto handshake packet
+    // (approx. 300 bytes) multiplied by this multiplier is larger than a fully
+    // sized packet (currently 1200 bytes).
+    // 1500 is a bit extreme: if you can imagine sending a 1 byte packet, and
+    // your largest MTU would be below 1500 bytes, 1500*1 >=
+    // any_packet_that_you_can_imagine_sending.
+    // (again, we hardcode packet size to 1200, so we are not dealing with jumbo
+    // frames).
+    quic_crypto_server_config_->set_chlo_multiplier(1500);
+
+    // We are sending small client hello, we must not validate its size.
+    quic_crypto_server_config_->set_validate_chlo_size(false);
+
+    // We run QUIC over ICE, and ICE is verifying remote side with STUN pings.
+    // We disable source address token validation in order to allow for 0-rtt
+    // setup (plus source ip addresses are changing even during the connection
+    // when ICE is used).
+    quic_crypto_server_config_->set_validate_source_address_token(false);
+
     // Provide server with serialized config string to prove ownership.
     QuicCryptoServerConfig::ConfigOptions options;
     // The |message| is used to handle the return value of AddDefaultConfig
@@ -161,6 +188,8 @@ QuartcSession::QuartcSession(std::unique_ptr<QuicConnection> connection,
     std::unique_ptr<CryptoHandshakeMessage> message(
         quic_crypto_server_config_->AddDefaultConfig(
             helper_->GetRandomGenerator(), helper_->GetClock(), options));
+    quic_crypto_server_config_->set_pad_rej(false);
+    quic_crypto_server_config_->set_pad_shlo(false);
   }
 }
 
@@ -257,12 +286,25 @@ void QuartcSession::OnCanWrite() {
 
 void QuartcSession::OnCryptoHandshakeEvent(CryptoHandshakeEvent event) {
   QuicSession::OnCryptoHandshakeEvent(event);
-  if (event == HANDSHAKE_CONFIRMED) {
-    DCHECK(IsEncryptionEstablished());
-    DCHECK(IsCryptoHandshakeConfirmed());
+  switch (event) {
+    case ENCRYPTION_FIRST_ESTABLISHED:
+    case ENCRYPTION_REESTABLISHED:
+      // 1-rtt setup triggers 'ENCRYPTION_REESTABLISHED' (after REJ, when the
+      // CHLO is sent).
+      DCHECK(IsEncryptionEstablished());
+      DCHECK(session_delegate_);
+      session_delegate_->OnConnectionWritable();
+      break;
+    case HANDSHAKE_CONFIRMED:
+      // On the server, handshake confirmed is the first time when you can start
+      // writing packets.
+      DCHECK(IsEncryptionEstablished());
+      DCHECK(IsCryptoHandshakeConfirmed());
 
-    DCHECK(session_delegate_);
-    session_delegate_->OnCryptoHandshakeComplete();
+      DCHECK(session_delegate_);
+      session_delegate_->OnConnectionWritable();
+      session_delegate_->OnCryptoHandshakeComplete();
+      break;
   }
 }
 

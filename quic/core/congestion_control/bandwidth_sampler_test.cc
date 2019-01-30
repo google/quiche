@@ -40,54 +40,55 @@ class BandwidthSamplerTest : public QuicTest {
   BandwidthSampler sampler_;
   QuicByteCount bytes_in_flight_;
 
-  void SendPacketInner(QuicPacketNumber packet_number,
+  void SendPacketInner(uint64_t packet_number,
                        QuicByteCount bytes,
                        HasRetransmittableData has_retransmittable_data) {
-    sampler_.OnPacketSent(clock_.Now(), packet_number, bytes, bytes_in_flight_,
-                          has_retransmittable_data);
+    sampler_.OnPacketSent(clock_.Now(), QuicPacketNumber(packet_number), bytes,
+                          bytes_in_flight_, has_retransmittable_data);
     if (has_retransmittable_data == HAS_RETRANSMITTABLE_DATA) {
       bytes_in_flight_ += bytes;
     }
   }
 
-  void SendPacket(QuicPacketNumber packet_number) {
+  void SendPacket(uint64_t packet_number) {
     SendPacketInner(packet_number, kRegularPacketSize,
                     HAS_RETRANSMITTABLE_DATA);
   }
 
-  BandwidthSample AckPacketInner(QuicPacketNumber packet_number) {
-    QuicByteCount size =
-        BandwidthSamplerPeer::GetPacketSize(sampler_, packet_number);
+  BandwidthSample AckPacketInner(uint64_t packet_number) {
+    QuicByteCount size = BandwidthSamplerPeer::GetPacketSize(
+        sampler_, QuicPacketNumber(packet_number));
     bytes_in_flight_ -= size;
-    return sampler_.OnPacketAcknowledged(clock_.Now(), packet_number);
+    return sampler_.OnPacketAcknowledged(clock_.Now(),
+                                         QuicPacketNumber(packet_number));
   }
 
   // Acknowledge receipt of a packet and expect it to be not app-limited.
-  QuicBandwidth AckPacket(QuicPacketNumber packet_number) {
+  QuicBandwidth AckPacket(uint64_t packet_number) {
     BandwidthSample sample = AckPacketInner(packet_number);
     EXPECT_FALSE(sample.is_app_limited);
     return sample.bandwidth;
   }
 
-  void LosePacket(QuicPacketNumber packet_number) {
-    QuicByteCount size =
-        BandwidthSamplerPeer::GetPacketSize(sampler_, packet_number);
+  void LosePacket(uint64_t packet_number) {
+    QuicByteCount size = BandwidthSamplerPeer::GetPacketSize(
+        sampler_, QuicPacketNumber(packet_number));
     bytes_in_flight_ -= size;
-    sampler_.OnPacketLost(packet_number);
+    sampler_.OnPacketLost(QuicPacketNumber(packet_number));
   }
 
   // Sends one packet and acks it.  Then, send 20 packets.  Finally, send
   // another 20 packets while acknowledging previous 20.
   void Send40PacketsAndAckFirst20(QuicTime::Delta time_between_packets) {
     // Send 20 packets at a constant inter-packet time.
-    for (QuicPacketNumber i = 1; i <= 20; i++) {
+    for (int i = 1; i <= 20; i++) {
       SendPacket(i);
       clock_.AdvanceTime(time_between_packets);
     }
 
     // Ack packets 1 to 20, while sending new packets at the same rate as
     // before.
-    for (QuicPacketNumber i = 1; i <= 20; i++) {
+    for (int i = 1; i <= 20; i++) {
       AckPacket(i);
       SendPacket(i + 20);
       clock_.AdvanceTime(time_between_packets);
@@ -102,7 +103,7 @@ TEST_F(BandwidthSamplerTest, SendAndWait) {
       QuicBandwidth::FromBytesPerSecond(kRegularPacketSize * 100);
 
   // Send packets at the constant bandwidth.
-  for (QuicPacketNumber i = 1; i < 20; i++) {
+  for (int i = 1; i < 20; i++) {
     SendPacket(i);
     clock_.AdvanceTime(time_between_packets);
     QuicBandwidth current_sample = AckPacket(i);
@@ -110,7 +111,7 @@ TEST_F(BandwidthSamplerTest, SendAndWait) {
   }
 
   // Send packets at the exponentially decreasing bandwidth.
-  for (QuicPacketNumber i = 20; i < 25; i++) {
+  for (int i = 20; i < 25; i++) {
     time_between_packets = time_between_packets * 2;
     expected_bandwidth = expected_bandwidth * 0.5;
 
@@ -135,7 +136,7 @@ TEST_F(BandwidthSamplerTest, SendPaced) {
 
   // Ack the packets 21 to 40, arriving at the correct bandwidth.
   QuicBandwidth last_bandwidth = QuicBandwidth::Zero();
-  for (QuicPacketNumber i = 21; i <= 40; i++) {
+  for (int i = 21; i <= 40; i++) {
     last_bandwidth = AckPacket(i);
     EXPECT_EQ(expected_bandwidth, last_bandwidth);
     clock_.AdvanceTime(time_between_packets);
@@ -152,14 +153,14 @@ TEST_F(BandwidthSamplerTest, SendWithLosses) {
       QuicBandwidth::FromKBytesPerSecond(kRegularPacketSize) * 0.5;
 
   // Send 20 packets, each 1 ms apart.
-  for (QuicPacketNumber i = 1; i <= 20; i++) {
+  for (int i = 1; i <= 20; i++) {
     SendPacket(i);
     clock_.AdvanceTime(time_between_packets);
   }
 
   // Ack packets 1 to 20, losing every even-numbered packet, while sending new
   // packets at the same rate as before.
-  for (QuicPacketNumber i = 1; i <= 20; i++) {
+  for (int i = 1; i <= 20; i++) {
     if (i % 2 == 0) {
       AckPacket(i);
     } else {
@@ -171,7 +172,7 @@ TEST_F(BandwidthSamplerTest, SendWithLosses) {
 
   // Ack the packets 21 to 40 with the same loss pattern.
   QuicBandwidth last_bandwidth = QuicBandwidth::Zero();
-  for (QuicPacketNumber i = 21; i <= 40; i++) {
+  for (int i = 21; i <= 40; i++) {
     if (i % 2 == 0) {
       last_bandwidth = AckPacket(i);
       EXPECT_EQ(expected_bandwidth, last_bandwidth);
@@ -196,7 +197,7 @@ TEST_F(BandwidthSamplerTest, NotCongestionControlled) {
 
   // Send 20 packets, each 1 ms apart. Every even packet is not congestion
   // controlled.
-  for (QuicPacketNumber i = 1; i <= 20; i++) {
+  for (int i = 1; i <= 20; i++) {
     SendPacketInner(
         i, kRegularPacketSize,
         i % 2 == 0 ? HAS_RETRANSMITTABLE_DATA : NO_RETRANSMITTABLE_DATA);
@@ -208,7 +209,7 @@ TEST_F(BandwidthSamplerTest, NotCongestionControlled) {
 
   // Ack packets 2 to 21, ignoring every even-numbered packet, while sending new
   // packets at the same rate as before.
-  for (QuicPacketNumber i = 1; i <= 20; i++) {
+  for (int i = 1; i <= 20; i++) {
     if (i % 2 == 0) {
       AckPacket(i);
     }
@@ -220,7 +221,7 @@ TEST_F(BandwidthSamplerTest, NotCongestionControlled) {
 
   // Ack the packets 22 to 41 with the same congestion controlled pattern.
   QuicBandwidth last_bandwidth = QuicBandwidth::Zero();
-  for (QuicPacketNumber i = 21; i <= 40; i++) {
+  for (int i = 21; i <= 40; i++) {
     if (i % 2 == 0) {
       last_bandwidth = AckPacket(i);
       EXPECT_EQ(expected_bandwidth, last_bandwidth);
@@ -251,7 +252,7 @@ TEST_F(BandwidthSamplerTest, CompressedAck) {
   QuicBandwidth last_bandwidth = QuicBandwidth::Zero();
   QuicTime::Delta ridiculously_small_time_delta =
       QuicTime::Delta::FromMicroseconds(20);
-  for (QuicPacketNumber i = 21; i <= 40; i++) {
+  for (int i = 21; i <= 40; i++) {
     last_bandwidth = AckPacket(i);
     clock_.AdvanceTime(ridiculously_small_time_delta);
   }
@@ -272,7 +273,7 @@ TEST_F(BandwidthSamplerTest, ReorderedAck) {
   // Ack the packets 21 to 40 in the reverse order, while sending packets 41 to
   // 60.
   QuicBandwidth last_bandwidth = QuicBandwidth::Zero();
-  for (QuicPacketNumber i = 0; i < 20; i++) {
+  for (int i = 0; i < 20; i++) {
     last_bandwidth = AckPacket(40 - i);
     EXPECT_EQ(expected_bandwidth, last_bandwidth);
     SendPacket(41 + i);
@@ -280,7 +281,7 @@ TEST_F(BandwidthSamplerTest, ReorderedAck) {
   }
 
   // Ack the packets 41 to 60, now in the regular order.
-  for (QuicPacketNumber i = 41; i <= 60; i++) {
+  for (int i = 41; i <= 60; i++) {
     last_bandwidth = AckPacket(i);
     EXPECT_EQ(expected_bandwidth, last_bandwidth);
     clock_.AdvanceTime(time_between_packets);
@@ -301,7 +302,7 @@ TEST_F(BandwidthSamplerTest, AppLimited) {
   // We are now app-limited. Ack 21 to 40 as usual, but do not send anything for
   // now.
   sampler_.OnAppLimited();
-  for (QuicPacketNumber i = 21; i <= 40; i++) {
+  for (int i = 21; i <= 40; i++) {
     QuicBandwidth current_sample = AckPacket(i);
     EXPECT_EQ(expected_bandwidth, current_sample);
     clock_.AdvanceTime(time_between_packets);
@@ -311,14 +312,14 @@ TEST_F(BandwidthSamplerTest, AppLimited) {
   clock_.AdvanceTime(QuicTime::Delta::FromSeconds(1));
 
   // Send packets 41 to 60, all of which would be marked as app-limited.
-  for (QuicPacketNumber i = 41; i <= 60; i++) {
+  for (int i = 41; i <= 60; i++) {
     SendPacket(i);
     clock_.AdvanceTime(time_between_packets);
   }
 
   // Ack packets 41 to 60, while sending packets 61 to 80.  41 to 60 should be
   // app-limited and underestimate the bandwidth due to that.
-  for (QuicPacketNumber i = 41; i <= 60; i++) {
+  for (int i = 41; i <= 60; i++) {
     BandwidthSample sample = AckPacketInner(i);
     EXPECT_TRUE(sample.is_app_limited);
     EXPECT_LT(sample.bandwidth, 0.7f * expected_bandwidth);
@@ -329,7 +330,7 @@ TEST_F(BandwidthSamplerTest, AppLimited) {
 
   // Run out of packets, and then ack packet 61 to 80, all of which should have
   // correct non-app-limited samples.
-  for (QuicPacketNumber i = 61; i <= 80; i++) {
+  for (int i = 61; i <= 80; i++) {
     QuicBandwidth last_bandwidth = AckPacket(i);
     EXPECT_EQ(expected_bandwidth, last_bandwidth);
     clock_.AdvanceTime(time_between_packets);
@@ -349,7 +350,7 @@ TEST_F(BandwidthSamplerTest, FirstRoundTrip) {
   const QuicBandwidth real_bandwidth =
       QuicBandwidth::FromBytesAndTimeDelta(num_bytes, rtt);
 
-  for (QuicPacketNumber i = 1; i <= 10; i++) {
+  for (int i = 1; i <= 10; i++) {
     SendPacket(i);
     clock_.AdvanceTime(time_between_packets);
   }
@@ -357,7 +358,7 @@ TEST_F(BandwidthSamplerTest, FirstRoundTrip) {
   clock_.AdvanceTime(rtt - num_packets * time_between_packets);
 
   QuicBandwidth last_sample = QuicBandwidth::Zero();
-  for (QuicPacketNumber i = 1; i <= 10; i++) {
+  for (int i = 1; i <= 10; i++) {
     QuicBandwidth sample = AckPacket(i);
     EXPECT_GT(sample, last_sample);
     last_sample = sample;
@@ -385,9 +386,9 @@ TEST_F(BandwidthSamplerTest, RemoveObsoletePackets) {
   clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(100));
 
   EXPECT_EQ(5u, BandwidthSamplerPeer::GetNumberOfTrackedPackets(sampler_));
-  sampler_.RemoveObsoletePackets(4);
+  sampler_.RemoveObsoletePackets(QuicPacketNumber(4));
   EXPECT_EQ(2u, BandwidthSamplerPeer::GetNumberOfTrackedPackets(sampler_));
-  sampler_.OnPacketLost(4);
+  sampler_.OnPacketLost(QuicPacketNumber(4));
   EXPECT_EQ(1u, BandwidthSamplerPeer::GetNumberOfTrackedPackets(sampler_));
   AckPacket(5);
   EXPECT_EQ(0u, BandwidthSamplerPeer::GetNumberOfTrackedPackets(sampler_));

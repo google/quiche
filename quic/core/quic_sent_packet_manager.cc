@@ -86,7 +86,6 @@ QuicSentPacketManager::QuicSentPacketManager(
       loss_algorithm_(&general_loss_algorithm_),
       general_loss_algorithm_(loss_type),
       n_connection_simulation_(false),
-      first_rto_transmission_(0),
       consecutive_rto_count_(0),
       consecutive_tlp_count_(0),
       consecutive_crypto_retransmission_count_(0),
@@ -103,10 +102,8 @@ QuicSentPacketManager::QuicSentPacketManager(
           QuicTime::Delta::FromMilliseconds(kMinRetransmissionTimeMs)),
       ietf_style_tlp_(false),
       ietf_style_2x_tlp_(false),
-      largest_newly_acked_(0),
       largest_mtu_acked_(0),
       handshake_confirmed_(false),
-      largest_packet_peer_knows_is_acked_(0),
       delayed_ack_time_(
           QuicTime::Delta::FromMilliseconds(kDefaultDelayedAckTimeMs)),
       rtt_updated_(false),
@@ -452,7 +449,7 @@ void QuicSentPacketManager::HandleRetransmission(
   } else {
     // Clear the recorded first packet sent after loss when version or
     // encryption changes.
-    transmission_info->retransmission = kInvalidPacketNumber;
+    transmission_info->retransmission.Clear();
   }
 }
 
@@ -479,7 +476,7 @@ void QuicSentPacketManager::RecordSpuriousRetransmissions(
     return;
   }
   QuicPacketNumber retransmission = info.retransmission;
-  while (retransmission != kInvalidPacketNumber) {
+  while (retransmission.IsInitialized()) {
     const QuicTransmissionInfo& retransmit_info =
         unacked_packets_.GetTransmissionInfo(retransmission);
     retransmission = retransmit_info.retransmission;
@@ -529,7 +526,7 @@ QuicPacketNumber QuicSentPacketManager::GetNewestRetransmission(
     return packet_number;
   }
   QuicPacketNumber retransmission = transmission_info.retransmission;
-  while (retransmission != kInvalidPacketNumber) {
+  while (retransmission.IsInitialized()) {
     packet_number = retransmission;
     retransmission =
         unacked_packets_.GetTransmissionInfo(retransmission).retransmission;
@@ -607,12 +604,12 @@ bool QuicSentPacketManager::OnPacketSent(
     TransmissionType transmission_type,
     HasRetransmittableData has_retransmittable_data) {
   QuicPacketNumber packet_number = serialized_packet->packet_number;
-  DCHECK_LT(0u, packet_number);
+  DCHECK_LE(FirstSendingPacketNumber(), packet_number);
   DCHECK(!unacked_packets_.IsUnacked(packet_number));
   QUIC_BUG_IF(serialized_packet->encrypted_length == 0)
       << "Cannot send empty packets.";
 
-  if (original_packet_number != kInvalidPacketNumber) {
+  if (original_packet_number.IsInitialized()) {
     pending_retransmissions_.erase(original_packet_number);
   }
 
@@ -758,7 +755,7 @@ void QuicSentPacketManager::RetransmitRtoPackets() {
     }
     // Abandon non-retransmittable data that's in flight to ensure it doesn't
     // fill up the congestion window.
-    bool has_retransmissions = it->retransmission != kInvalidPacketNumber;
+    bool has_retransmissions = it->retransmission.IsInitialized();
     if (session_decides_what_to_write()) {
       has_retransmissions = it->state != OUTSTANDING;
     }
@@ -1051,21 +1048,23 @@ void QuicSentPacketManager::OnAckFrameStart(QuicPacketNumber largest_acked,
   DCHECK_LE(largest_acked, unacked_packets_.largest_sent_packet());
   rtt_updated_ =
       MaybeUpdateRTT(largest_acked, ack_delay_time, ack_receive_time);
-  DCHECK_GE(largest_acked, unacked_packets_.largest_acked());
+  DCHECK(!unacked_packets_.largest_acked().IsInitialized() ||
+         largest_acked >= unacked_packets_.largest_acked());
   last_ack_frame_.ack_delay_time = ack_delay_time;
   acked_packets_iter_ = last_ack_frame_.packets.rbegin();
 }
 
 void QuicSentPacketManager::OnAckRange(QuicPacketNumber start,
                                        QuicPacketNumber end) {
-  if (end > last_ack_frame_.largest_acked + 1) {
+  if (!last_ack_frame_.largest_acked.IsInitialized() ||
+      end > last_ack_frame_.largest_acked + 1) {
     // Largest acked increases.
     unacked_packets_.IncreaseLargestAcked(end - 1);
     last_ack_frame_.largest_acked = end - 1;
   }
   // Drop ack ranges which ack packets below least_unacked.
   QuicPacketNumber least_unacked = unacked_packets_.GetLeastUnacked();
-  if (end <= least_unacked) {
+  if (least_unacked.IsInitialized() && end <= least_unacked) {
     return;
   }
   start = std::max(start, least_unacked);
@@ -1079,6 +1078,9 @@ void QuicSentPacketManager::OnAckRange(QuicPacketNumber start,
       // Check if end is above the current range. If so add newly acked packets
       // in descending order.
       packets_acked_.push_back(AckedPacket(acked, 0, QuicTime::Zero()));
+      if (acked == FirstSendingPacketNumber()) {
+        break;
+      }
     }
     if (acked_packets_iter_ == last_ack_frame_.packets.rend() ||
         start > acked_packets_iter_->min()) {
@@ -1125,9 +1127,13 @@ bool QuicSentPacketManager::OnAckFrameEnd(QuicTime ack_receive_time) {
     QUIC_DVLOG(1) << ENDPOINT << "Got an ack for packet "
                   << acked_packet.packet_number;
     last_ack_frame_.packets.Add(acked_packet.packet_number);
-    if (info->largest_acked > kInvalidPacketNumber) {
-      largest_packet_peer_knows_is_acked_ =
-          std::max(largest_packet_peer_knows_is_acked_, info->largest_acked);
+    if (info->largest_acked.IsInitialized()) {
+      if (largest_packet_peer_knows_is_acked_.IsInitialized()) {
+        largest_packet_peer_knows_is_acked_ =
+            std::max(largest_packet_peer_knows_is_acked_, info->largest_acked);
+      } else {
+        largest_packet_peer_knows_is_acked_ = info->largest_acked;
+      }
     }
     // If data is associated with the most recent transmission of this
     // packet, then inform the caller.

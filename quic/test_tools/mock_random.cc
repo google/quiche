@@ -4,6 +4,8 @@
 
 #include "net/third_party/quiche/src/quic/test_tools/mock_random.h"
 
+#include <string.h>
+
 namespace quic {
 namespace test {
 

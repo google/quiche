@@ -38,9 +38,6 @@ TcpCubicSenderBytes::TcpCubicSenderBytes(
       stats_(stats),
       reno_(reno),
       num_connections_(kDefaultNumConnections),
-      largest_sent_packet_number_(kInvalidPacketNumber),
-      largest_acked_packet_number_(kInvalidPacketNumber),
-      largest_sent_at_last_cutback_(kInvalidPacketNumber),
       min4_mode_(false),
       last_cutback_exited_slowstart_(false),
       slow_start_large_reduction_(false),
@@ -151,8 +148,12 @@ void TcpCubicSenderBytes::OnPacketAcked(QuicPacketNumber acked_packet_number,
                                         QuicByteCount acked_bytes,
                                         QuicByteCount prior_in_flight,
                                         QuicTime event_time) {
-  largest_acked_packet_number_ =
-      std::max(acked_packet_number, largest_acked_packet_number_);
+  if (largest_acked_packet_number_.IsInitialized()) {
+    largest_acked_packet_number_ =
+        std::max(acked_packet_number, largest_acked_packet_number_);
+  } else {
+    largest_acked_packet_number_ = acked_packet_number;
+  }
   if (InRecovery()) {
     if (!no_prr_) {
       // PRR is used when in recovery.
@@ -184,7 +185,8 @@ void TcpCubicSenderBytes::OnPacketSent(
     // PRR is used when in recovery.
     prr_.OnPacketSent(bytes);
   }
-  DCHECK_LT(largest_sent_packet_number_, packet_number);
+  DCHECK(!largest_sent_packet_number_.IsInitialized() ||
+         largest_sent_packet_number_ < packet_number);
   largest_sent_packet_number_ = packet_number;
   hybrid_slow_start_.OnPacketSent(packet_number);
 }
@@ -240,8 +242,9 @@ bool TcpCubicSenderBytes::IsCwndLimited(QuicByteCount bytes_in_flight) const {
 }
 
 bool TcpCubicSenderBytes::InRecovery() const {
-  return largest_acked_packet_number_ <= largest_sent_at_last_cutback_ &&
-         largest_acked_packet_number_ != kInvalidPacketNumber;
+  return largest_acked_packet_number_.IsInitialized() &&
+         largest_sent_at_last_cutback_.IsInitialized() &&
+         largest_acked_packet_number_ <= largest_sent_at_last_cutback_;
 }
 
 bool TcpCubicSenderBytes::ShouldSendProbingPacket() const {
@@ -249,7 +252,7 @@ bool TcpCubicSenderBytes::ShouldSendProbingPacket() const {
 }
 
 void TcpCubicSenderBytes::OnRetransmissionTimeout(bool packets_retransmitted) {
-  largest_sent_at_last_cutback_ = kInvalidPacketNumber;
+  largest_sent_at_last_cutback_.Clear();
   if (!packets_retransmitted) {
     return;
   }
@@ -298,7 +301,8 @@ void TcpCubicSenderBytes::OnPacketLost(QuicPacketNumber packet_number,
                                        QuicByteCount prior_in_flight) {
   // TCP NewReno (RFC6582) says that once a loss occurs, any losses in packets
   // already sent should be treated as a single loss event, since it's expected.
-  if (packet_number <= largest_sent_at_last_cutback_) {
+  if (largest_sent_at_last_cutback_.IsInitialized() &&
+      packet_number <= largest_sent_at_last_cutback_) {
     if (last_cutback_exited_slowstart_) {
       ++stats_->slowstart_packets_lost;
       stats_->slowstart_bytes_lost += lost_bytes;
@@ -414,9 +418,9 @@ void TcpCubicSenderBytes::HandleRetransmissionTimeout() {
 void TcpCubicSenderBytes::OnConnectionMigration() {
   hybrid_slow_start_.Restart();
   prr_ = PrrSender();
-  largest_sent_packet_number_ = kInvalidPacketNumber;
-  largest_acked_packet_number_ = kInvalidPacketNumber;
-  largest_sent_at_last_cutback_ = kInvalidPacketNumber;
+  largest_sent_packet_number_.Clear();
+  largest_acked_packet_number_.Clear();
+  largest_sent_at_last_cutback_.Clear();
   last_cutback_exited_slowstart_ = false;
   cubic_.ResetCubicState();
   num_acked_packets_ = 0;

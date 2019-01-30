@@ -95,7 +95,7 @@ TEST_F(ChaCha20Poly1305TlsEncrypterTest, EncryptThenDecrypt) {
   ASSERT_TRUE(encrypter.SetIV("abcdefghijkl"));
   ASSERT_TRUE(decrypter.SetIV("abcdefghijkl"));
 
-  QuicPacketNumber packet_number = UINT64_C(0x123456789ABC);
+  uint64_t packet_number = UINT64_C(0x123456789ABC);
   QuicString associated_data = "associated_data";
   QuicString plaintext = "plaintext";
   char encrypted[1024];

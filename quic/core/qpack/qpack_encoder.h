@@ -36,7 +36,7 @@ class QUIC_EXPORT_PRIVATE QpackEncoder
    public:
     virtual ~DecoderStreamErrorDelegate() {}
 
-    virtual void OnError(QuicStringPiece error_message) = 0;
+    virtual void OnDecoderStreamError(QuicStringPiece error_message) = 0;
   };
 
   QpackEncoder(
@@ -55,7 +55,7 @@ class QUIC_EXPORT_PRIVATE QpackEncoder
   void DecodeDecoderStreamData(QuicStringPiece data);
 
   // QpackDecoderStreamReceiver::Delegate implementation
-  void OnTableStateSynchronize(uint64_t insert_count) override;
+  void OnInsertCountIncrement(uint64_t increment) override;
   void OnHeaderAcknowledgement(QuicStreamId stream_id) override;
   void OnStreamCancellation(QuicStreamId stream_id) override;
   void OnErrorDetected(QuicStringPiece error_message) override;

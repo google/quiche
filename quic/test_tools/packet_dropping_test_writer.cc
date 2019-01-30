@@ -15,7 +15,7 @@ const int32_t kMaxConsecutivePacketLoss = 3;
 
 // An alarm that is scheduled if a blocked socket is simulated to indicate
 // it's writable again.
-class WriteUnblockedAlarm : public quic::QuicAlarm::Delegate {
+class WriteUnblockedAlarm : public QuicAlarm::Delegate {
  public:
   explicit WriteUnblockedAlarm(PacketDroppingTestWriter* writer)
       : writer_(writer) {}
@@ -31,7 +31,7 @@ class WriteUnblockedAlarm : public quic::QuicAlarm::Delegate {
 
 // An alarm that is scheduled every time a new packet is to be written at a
 // later point.
-class DelayAlarm : public quic::QuicAlarm::Delegate {
+class DelayAlarm : public QuicAlarm::Delegate {
  public:
   explicit DelayAlarm(PacketDroppingTestWriter* writer) : writer_(writer) {}
 
@@ -58,12 +58,12 @@ PacketDroppingTestWriter::PacketDroppingTestWriter()
       fake_bandwidth_(QuicBandwidth::Zero()),
       buffer_size_(0),
       num_consecutive_packet_lost_(0) {
-  uint32_t seed = RandomBase::WeakSeed32();
+  uint64_t seed = QuicRandom::GetInstance()->RandUint64();
   QUIC_LOG(INFO) << "Seeding packet loss with " << seed;
   simple_random_.set_seed(seed);
 }
 
-PacketDroppingTestWriter::~PacketDroppingTestWriter() {}
+PacketDroppingTestWriter::~PacketDroppingTestWriter() = default;
 
 void PacketDroppingTestWriter::Initialize(
     QuicConnectionHelperInterface* helper,

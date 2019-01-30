@@ -20,7 +20,7 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  size_t i;
+  int i;
   for (i = 0; 2 * i + 1 < argc; ++i) {
     const quic::QuicStringPiece input_filename(argv[2 * i + 1]);
     const quic::QuicStringPiece expected_headers_filename(argv[2 * i + 2]);

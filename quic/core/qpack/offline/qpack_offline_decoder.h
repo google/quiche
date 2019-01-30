@@ -5,6 +5,8 @@
 #ifndef QUICHE_QUIC_CORE_QPACK_OFFLINE_QPACK_OFFLINE_DECODER_H_
 #define QUICHE_QUIC_CORE_QPACK_OFFLINE_QPACK_OFFLINE_DECODER_H_
 
+#include <list>
+
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_decoder.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_decoder_test_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
@@ -30,7 +32,7 @@ class QpackOfflineDecoder : public QpackDecoder::EncoderStreamErrorDelegate {
                                   QuicStringPiece expected_headers_filename);
 
   // QpackDecoder::EncoderStreamErrorDelegate implementation:
-  void OnError(QuicStringPiece error_message) override;
+  void OnEncoderStreamError(QuicStringPiece error_message) override;
 
  private:
   // Parse decoder parameters from |input_filename| and set up |decoder_|

@@ -52,7 +52,7 @@ class ChloExtractorTest : public QuicTest {
     header_.version = AllSupportedVersions().front();
     header_.reset_flag = false;
     header_.packet_number_length = PACKET_4BYTE_PACKET_NUMBER;
-    header_.packet_number = 1;
+    header_.packet_number = QuicPacketNumber(1);
   }
 
   void MakePacket(const QuicStreamFrame& stream_frame) {

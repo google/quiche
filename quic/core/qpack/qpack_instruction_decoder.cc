@@ -4,6 +4,9 @@
 
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_instruction_decoder.h"
 
+#include <algorithm>
+#include <utility>
+
 #include "base/logging.h"
 
 namespace quic {

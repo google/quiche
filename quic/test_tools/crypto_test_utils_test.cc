@@ -135,11 +135,8 @@ TEST_F(CryptoTestUtilsTest, TestGenerateFullCHLO) {
   QuicStringPiece orbit;
   ASSERT_TRUE(msg->GetStringPiece(kORBT, &orbit));
   QuicString nonce;
-  CryptoUtils::GenerateNonce(
-      clock.WallNow(), QuicRandom::GetInstance(),
-      QuicStringPiece(reinterpret_cast<const char*>(orbit.data()),
-                      sizeof(static_cast<int64>(orbit.size()))),
-      &nonce);
+  CryptoUtils::GenerateNonce(clock.WallNow(), QuicRandom::GetInstance(), orbit,
+                             &nonce);
   QuicString nonce_hex = "#" + QuicTextUtils::HexEncode(nonce);
 
   char public_value[32];

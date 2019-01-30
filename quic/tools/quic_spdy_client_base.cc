@@ -27,7 +27,7 @@ QuicSpdyClientBase::QuicDataToResend::QuicDataToResend(
     bool fin)
     : headers_(std::move(headers)), body_(body), fin_(fin) {}
 
-QuicSpdyClientBase::QuicDataToResend::~QuicDataToResend() {}
+QuicSpdyClientBase::QuicDataToResend::~QuicDataToResend() = default;
 
 QuicSpdyClientBase::QuicSpdyClientBase(
     const QuicServerId& server_id,

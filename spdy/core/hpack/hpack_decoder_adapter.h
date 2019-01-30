@@ -80,6 +80,8 @@ class SPDY_EXPORT_PRIVATE HpackDecoderAdapter {
   // of individual transport buffers.
   void set_max_decode_buffer_size_bytes(size_t max_decode_buffer_size_bytes);
 
+  size_t EstimateMemoryUsage() const;
+
  private:
   class SPDY_EXPORT_PRIVATE ListenerAdapter
       : public http2::HpackDecoderListener,

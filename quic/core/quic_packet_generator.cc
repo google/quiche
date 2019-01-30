@@ -26,7 +26,8 @@ QuicPacketGenerator::QuicPacketGenerator(QuicConnectionId connection_id,
       flusher_attached_(false),
       should_send_ack_(false),
       should_send_stop_waiting_(false),
-      random_generator_(random_generator) {}
+      random_generator_(random_generator),
+      fully_pad_crypto_handshake_packets_(true) {}
 
 QuicPacketGenerator::~QuicPacketGenerator() {
   DeleteFrames(&queued_control_frames_);
@@ -93,10 +94,13 @@ QuicConsumedData QuicPacketGenerator::ConsumeData(QuicStreamId id,
                                HAS_RETRANSMITTABLE_DATA,
                                has_handshake ? IS_HANDSHAKE : NOT_HANDSHAKE)) {
     QuicFrame frame;
+    bool needs_full_padding =
+        has_handshake && fully_pad_crypto_handshake_packets_;
+
     if (!packet_creator_.ConsumeData(id, write_length, total_bytes_consumed,
                                      offset + total_bytes_consumed, fin,
-                                     has_handshake, next_transmission_type_,
-                                     &frame)) {
+                                     needs_full_padding,
+                                     next_transmission_type_, &frame)) {
       // The creator is always flushed if there's not enough room for a new
       // stream frame before ConsumeData, so ConsumeData should always succeed.
       QUIC_BUG << "Failed to ConsumeData, stream:" << id;

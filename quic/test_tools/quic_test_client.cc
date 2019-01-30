@@ -120,7 +120,7 @@ class MockableQuicClientEpollNetworkHelper
     : public QuicClientEpollNetworkHelper {
  public:
   using QuicClientEpollNetworkHelper::QuicClientEpollNetworkHelper;
-  ~MockableQuicClientEpollNetworkHelper() override {}
+  ~MockableQuicClientEpollNetworkHelper() override = default;
 
   void ProcessPacket(const QuicSocketAddress& self_address,
                      const QuicSocketAddress& peer_address,
@@ -172,7 +172,7 @@ MockableQuicClient::MockableQuicClient(
     QuicSocketAddress server_address,
     const QuicServerId& server_id,
     const ParsedQuicVersionVector& supported_versions,
-    gfe2::EpollServer* epoll_server)
+    QuicEpollServer* epoll_server)
     : MockableQuicClient(server_address,
                          server_id,
                          QuicConfig(),
@@ -184,7 +184,7 @@ MockableQuicClient::MockableQuicClient(
     const QuicServerId& server_id,
     const QuicConfig& config,
     const ParsedQuicVersionVector& supported_versions,
-    gfe2::EpollServer* epoll_server)
+    QuicEpollServer* epoll_server)
     : MockableQuicClient(server_address,
                          server_id,
                          config,
@@ -197,7 +197,7 @@ MockableQuicClient::MockableQuicClient(
     const QuicServerId& server_id,
     const QuicConfig& config,
     const ParsedQuicVersionVector& supported_versions,
-    gfe2::EpollServer* epoll_server,
+    QuicEpollServer* epoll_server,
     std::unique_ptr<ProofVerifier> proof_verifier)
     : QuicClient(
           server_address,
@@ -209,7 +209,8 @@ MockableQuicClient::MockableQuicClient(
                                                                this),
           QuicWrapUnique(
               new RecordingProofVerifier(std::move(proof_verifier)))),
-      override_connection_id_(EmptyQuicConnectionId()) {}
+      override_connection_id_(EmptyQuicConnectionId()),
+      connection_id_overridden_(false) {}
 
 MockableQuicClient::~MockableQuicClient() {
   if (connected()) {
@@ -230,12 +231,12 @@ MockableQuicClient::mockable_network_helper() const {
 }
 
 QuicConnectionId MockableQuicClient::GenerateNewConnectionId() {
-  return !override_connection_id_.IsEmpty()
-             ? override_connection_id_
-             : QuicClient::GenerateNewConnectionId();
+  return connection_id_overridden_ ? override_connection_id_
+                                   : QuicClient::GenerateNewConnectionId();
 }
 
 void MockableQuicClient::UseConnectionId(QuicConnectionId connection_id) {
+  connection_id_overridden_ = true;
   override_connection_id_ = connection_id;
 }
 
@@ -294,7 +295,7 @@ QuicTestClient::QuicTestClient(
   Initialize();
 }
 
-QuicTestClient::QuicTestClient() {}
+QuicTestClient::QuicTestClient() = default;
 
 QuicTestClient::~QuicTestClient() {
   for (std::pair<QuicStreamId, QuicSpdyClientStream*> stream : open_streams_) {
@@ -805,7 +806,7 @@ QuicTestClient::TestClientDataToResend::TestClientDataToResend(
       test_client_(test_client),
       ack_listener_(std::move(ack_listener)) {}
 
-QuicTestClient::TestClientDataToResend::~TestClientDataToResend() {}
+QuicTestClient::TestClientDataToResend::~TestClientDataToResend() = default;
 
 void QuicTestClient::TestClientDataToResend::Resend() {
   test_client_->GetOrCreateStreamAndSendRequest(headers_.get(), body_, fin_,
@@ -847,7 +848,7 @@ QuicTestClient::PerStreamState::PerStreamState(
       bytes_written(bytes_written),
       response_body_size(response_body_size) {}
 
-QuicTestClient::PerStreamState::~PerStreamState() {}
+QuicTestClient::PerStreamState::~PerStreamState() = default;
 
 bool QuicTestClient::PopulateHeaderBlockFromUrl(
     const QuicString& uri,

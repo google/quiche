@@ -407,7 +407,7 @@ int HandshakeWithFakeServer(QuicConfig* server_quic_config,
                                    testing::_, testing::_))
       .Times(testing::AnyNumber());
   EXPECT_CALL(*server_session.helper(),
-              GenerateConnectionIdForReject(testing::_))
+              GenerateConnectionIdForReject(testing::_, testing::_))
       .Times(testing::AnyNumber());
   EXPECT_CALL(*server_conn, OnCanWrite()).Times(testing::AnyNumber());
   EXPECT_CALL(*client_conn, OnCanWrite()).Times(testing::AnyNumber());
@@ -783,8 +783,6 @@ void CompareClientAndServerKeys(QuicCryptoClientStream* client,
   EXPECT_TRUE(server->ExportKeyingMaterial(kSampleLabel, kSampleContext,
                                            kSampleOutputLength,
                                            &server_key_extraction));
-  EXPECT_TRUE(client->ExportTokenBindingKeyingMaterial(&client_tb_ekm));
-  EXPECT_TRUE(server->ExportTokenBindingKeyingMaterial(&server_tb_ekm));
 
   CompareCharArraysWithHexError("client write key", client_encrypter_key.data(),
                                 client_encrypter_key.length(),
@@ -1002,11 +1000,8 @@ QuicString GenerateClientNonceHex(const QuicClock* clock,
   QuicStringPiece orbit;
   CHECK(msg->GetStringPiece(kORBT, &orbit));
   QuicString nonce;
-  CryptoUtils::GenerateNonce(
-      clock->WallNow(), QuicRandom::GetInstance(),
-      QuicStringPiece(reinterpret_cast<const char*>(orbit.data()),
-                      sizeof(static_cast<int64>(orbit.size()))),
-      &nonce);
+  CryptoUtils::GenerateNonce(clock->WallNow(), QuicRandom::GetInstance(), orbit,
+                             &nonce);
   return ("#" + QuicTextUtils::HexEncode(nonce));
 }
 

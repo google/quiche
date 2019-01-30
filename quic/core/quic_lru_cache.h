@@ -10,7 +10,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_lru_cache.h"
 
 namespace quic {
 
@@ -18,13 +17,12 @@ namespace quic {
 // This cache CANNOT be shared by multiple threads (even with locks) because
 // Value* returned by Lookup() can be invalid if the entry is evicted by other
 // threads.
-// TODO(vasilvv): rename this class when quic_new_lru_cache flag is deprecated.
 template <class K, class V>
-class QuicLRUCacheNew {
+class QuicLRUCache {
  public:
-  explicit QuicLRUCacheNew(size_t capacity) : capacity_(capacity) {}
-  QuicLRUCacheNew(const QuicLRUCacheNew&) = delete;
-  QuicLRUCacheNew& operator=(const QuicLRUCacheNew&) = delete;
+  explicit QuicLRUCache(size_t capacity) : capacity_(capacity) {}
+  QuicLRUCache(const QuicLRUCache&) = delete;
+  QuicLRUCache& operator=(const QuicLRUCache&) = delete;
 
   // Inserts one unit of |key|, |value| pair to the cache. Cache takes ownership
   // of inserted |value|.
@@ -45,7 +43,6 @@ class QuicLRUCacheNew {
   // value is guaranteed to be valid until Insert or Clear.
   // Else return nullptr.
   V* Lookup(const K& key) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_new_lru_cache);
     auto it = cache_.find(key);
     if (it == cache_.end()) {
       return nullptr;
@@ -70,63 +67,6 @@ class QuicLRUCacheNew {
  private:
   QuicLinkedHashMap<K, std::unique_ptr<V>> cache_;
   const size_t capacity_;
-};
-
-// TODO(vasilvv): remove this class when quic_new_lru_cache flag is deprecated.
-template <class K, class V>
-class QuicLRUCache {
- public:
-  explicit QuicLRUCache(size_t capacity)
-      : QuicLRUCache(capacity, GetQuicReloadableFlag(quic_new_lru_cache)) {}
-  QuicLRUCache(size_t capacity, bool use_new)
-      : new_(capacity), old_(capacity), use_new_(use_new) {}
-  QuicLRUCache(const QuicLRUCache&) = delete;
-  QuicLRUCache& operator=(const QuicLRUCache&) = delete;
-
-  void Insert(const K& key, std::unique_ptr<V> value) {
-    if (use_new_) {
-      new_.Insert(key, std::move(value));
-    } else {
-      old_.Insert(key, std::move(value));
-    }
-  }
-
-  V* Lookup(const K& key) {
-    if (use_new_) {
-      return new_.Lookup(key);
-    } else {
-      return old_.Lookup(key);
-    }
-  }
-
-  void Clear() {
-    if (use_new_) {
-      new_.Clear();
-    } else {
-      old_.Clear();
-    }
-  }
-
-  size_t MaxSize() const {
-    if (use_new_) {
-      return new_.MaxSize();
-    } else {
-      return old_.MaxSize();
-    }
-  }
-
-  size_t Size() const {
-    if (use_new_) {
-      return new_.Size();
-    } else {
-      return old_.Size();
-    }
-  }
-
- private:
-  QuicLRUCacheNew<K, V> new_;
-  QuicLRUCacheOld<K, V> old_;
-  bool use_new_;
 };
 
 }  // namespace quic

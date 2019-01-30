@@ -102,6 +102,8 @@ enum QuicTransportVersion {
   QUIC_VERSION_44 = 44,  // Use IETF header format.
   QUIC_VERSION_45 = 45,  // Added MESSAGE frame.
   QUIC_VERSION_46 = 46,  // Use CRYPTO frames for QuicCryptoStreams.
+  QUIC_VERSION_47 = 47,  // Use IETF draft-17 header format with demultiplexing
+                         // bit.
   QUIC_VERSION_99 = 99,  // Dumping ground for IETF QUIC changes which are not
                          // yet ready for production.
 };
@@ -164,8 +166,8 @@ using QuicVersionLabelVector = std::vector<QuicVersionLabel>;
 //
 // See go/new-quic-version for more details on how to roll out new versions.
 static const QuicTransportVersion kSupportedTransportVersions[] = {
-    QUIC_VERSION_99, QUIC_VERSION_46, QUIC_VERSION_45, QUIC_VERSION_44,
-    QUIC_VERSION_43, QUIC_VERSION_39, QUIC_VERSION_35};
+    QUIC_VERSION_99, QUIC_VERSION_47, QUIC_VERSION_46, QUIC_VERSION_45,
+    QUIC_VERSION_44, QUIC_VERSION_43, QUIC_VERSION_39, QUIC_VERSION_35};
 
 // This vector contains all crypto handshake protocols that are supported.
 static const HandshakeProtocol kSupportedHandshakeProtocols[] = {
@@ -206,8 +208,7 @@ QUIC_EXPORT_PRIVATE QuicTransportVersionVector
 VersionOfIndex(const QuicTransportVersionVector& versions, int index);
 
 // Returns QUIC version of |index| in result of |versions|. Returns
-// ParsedQuicVersion(PROTOCOL_UNSUPPORTED, QUIC_VERSION_UNSUPPORTED) if |index|
-// is out of bounds.
+// UnsupportedQuicVersion() if |index| is out of bounds.
 QUIC_EXPORT_PRIVATE ParsedQuicVersionVector
 ParsedVersionOfIndex(const ParsedQuicVersionVector& versions, int index);
 

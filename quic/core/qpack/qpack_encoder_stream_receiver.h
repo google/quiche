@@ -33,8 +33,8 @@ class QUIC_EXPORT_PRIVATE QpackEncoderStreamReceiver
                                               QuicStringPiece value) = 0;
     // 5.2.3. Duplicate
     virtual void OnDuplicate(uint64_t index) = 0;
-    // 5.2.4. Dynamic Table Size Update
-    virtual void OnDynamicTableSizeUpdate(uint64_t max_size) = 0;
+    // 5.2.4. Set Dynamic Table Capacity
+    virtual void OnSetDynamicTableCapacity(uint64_t capacity) = 0;
     // Decoding error
     virtual void OnErrorDetected(QuicStringPiece error_message) = 0;
   };

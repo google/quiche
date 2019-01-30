@@ -66,6 +66,8 @@ QuicVersionLabel CreateQuicVersionLabel(ParsedQuicVersion parsed_version) {
       return MakeVersionLabel(proto, '0', '4', '5');
     case QUIC_VERSION_46:
       return MakeVersionLabel(proto, '0', '4', '6');
+    case QUIC_VERSION_47:
+      return MakeVersionLabel(proto, '0', '4', '7');
     case QUIC_VERSION_99:
       return MakeVersionLabel(proto, '0', '9', '9');
     default:
@@ -103,7 +105,7 @@ ParsedQuicVersion ParseQuicVersionLabel(QuicVersionLabel version_label) {
   // Reading from the client so this should not be considered an ERROR.
   QUIC_DLOG(INFO) << "Unsupported QuicVersionLabel version: "
                   << QuicVersionLabelToString(version_label);
-  return ParsedQuicVersion(PROTOCOL_UNSUPPORTED, QUIC_VERSION_UNSUPPORTED);
+  return UnsupportedQuicVersion();
 }
 
 QuicTransportVersionVector AllSupportedTransportVersions() {
@@ -159,6 +161,15 @@ ParsedQuicVersionVector FilterSupportedVersions(
   for (ParsedQuicVersion version : versions) {
     if (version.transport_version == QUIC_VERSION_99) {
       if (GetQuicReloadableFlag(quic_enable_version_99) &&
+          GetQuicReloadableFlag(quic_enable_version_47) &&
+          GetQuicReloadableFlag(quic_enable_version_46) &&
+          GetQuicReloadableFlag(quic_enable_version_45) &&
+          GetQuicReloadableFlag(quic_enable_version_44) &&
+          GetQuicReloadableFlag(quic_enable_version_43)) {
+        filtered_versions.push_back(version);
+      }
+    } else if (version.transport_version == QUIC_VERSION_47) {
+      if (GetQuicReloadableFlag(quic_enable_version_47) &&
           GetQuicReloadableFlag(quic_enable_version_46) &&
           GetQuicReloadableFlag(quic_enable_version_45) &&
           GetQuicReloadableFlag(quic_enable_version_44) &&
@@ -219,8 +230,7 @@ ParsedQuicVersionVector ParsedVersionOfIndex(
   if (index >= 0 && index < version_count) {
     version.push_back(versions[index]);
   } else {
-    version.push_back(
-        ParsedQuicVersion(PROTOCOL_UNSUPPORTED, QUIC_VERSION_UNSUPPORTED));
+    version.push_back(UnsupportedQuicVersion());
   }
   return version;
 }
@@ -286,6 +296,7 @@ QuicString QuicVersionToString(QuicTransportVersion transport_version) {
     RETURN_STRING_LITERAL(QUIC_VERSION_44);
     RETURN_STRING_LITERAL(QUIC_VERSION_45);
     RETURN_STRING_LITERAL(QUIC_VERSION_46);
+    RETURN_STRING_LITERAL(QUIC_VERSION_47);
     RETURN_STRING_LITERAL(QUIC_VERSION_99);
     default:
       return "QUIC_VERSION_UNSUPPORTED";
@@ -327,9 +338,7 @@ QuicString ParsedQuicVersionVectorToString(
 }
 
 ParsedQuicVersion UnsupportedQuicVersion() {
-  static const ParsedQuicVersion kUnsupportedQuicVersion(
-      PROTOCOL_UNSUPPORTED, QUIC_VERSION_UNSUPPORTED);
-  return kUnsupportedQuicVersion;
+  return ParsedQuicVersion(PROTOCOL_UNSUPPORTED, QUIC_VERSION_UNSUPPORTED);
 }
 
 #undef RETURN_STRING_LITERAL  // undef for jumbo builds

@@ -221,6 +221,14 @@ class QUIC_EXPORT_PRIVATE QuicPacketGenerator {
 
   bool should_send_ack() const { return should_send_ack_; }
 
+  void set_fully_pad_crypto_hadshake_packets(bool new_value) {
+    fully_pad_crypto_handshake_packets_ = new_value;
+  }
+
+  bool fully_pad_crypto_handshake_packets() const {
+    return fully_pad_crypto_handshake_packets_;
+  }
+
  private:
   friend class test::QuicPacketGeneratorPeer;
 
@@ -265,6 +273,9 @@ class QUIC_EXPORT_PRIVATE QuicPacketGenerator {
   QuicStopWaitingFrame pending_stop_waiting_frame_;
 
   QuicRandom* random_generator_;
+
+  // Whether crypto handshake packets should be fully padded.
+  bool fully_pad_crypto_handshake_packets_;
 };
 
 }  // namespace quic

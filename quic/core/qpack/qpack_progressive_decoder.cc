@@ -4,6 +4,9 @@
 
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_progressive_decoder.h"
 
+#include <algorithm>
+#include <limits>
+
 #include "base/logging.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_constants.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_header_table.h"
@@ -23,21 +26,21 @@ QpackProgressiveDecoder::QpackProgressiveDecoder(
       header_table_(header_table),
       decoder_stream_sender_(decoder_stream_sender),
       handler_(handler),
-      largest_reference_(0),
-      base_index_(0),
-      largest_reference_seen_(0),
+      required_insert_count_(0),
+      base_(0),
+      required_insert_count_so_far_(0),
       prefix_decoded_(false),
       decoding_(true),
       error_detected_(false) {}
 
 // static
-bool QpackProgressiveDecoder::DecodeLargestReference(
-    uint64_t wire_largest_reference,
+bool QpackProgressiveDecoder::DecodeRequiredInsertCount(
+    uint64_t encoded_required_insert_count,
     uint64_t max_entries,
     uint64_t total_number_of_inserts,
-    uint64_t* largest_reference) {
-  if (wire_largest_reference == 0) {
-    *largest_reference = 0;
+    uint64_t* required_insert_count) {
+  if (encoded_required_insert_count == 0) {
+    *required_insert_count = 0;
     return true;
   }
 
@@ -45,37 +48,37 @@ bool QpackProgressiveDecoder::DecodeLargestReference(
   // precluding all calculations in this method from overflowing.
   DCHECK_LE(max_entries, std::numeric_limits<uint64_t>::max() / 32);
 
-  if (wire_largest_reference > 2 * max_entries) {
+  if (encoded_required_insert_count > 2 * max_entries) {
     return false;
   }
 
-  *largest_reference = wire_largest_reference - 1;
-  DCHECK_LT(*largest_reference, std::numeric_limits<uint64_t>::max() / 16);
+  *required_insert_count = encoded_required_insert_count - 1;
+  DCHECK_LT(*required_insert_count, std::numeric_limits<uint64_t>::max() / 16);
 
   uint64_t current_wrapped = total_number_of_inserts % (2 * max_entries);
   DCHECK_LT(current_wrapped, std::numeric_limits<uint64_t>::max() / 16);
 
-  if (current_wrapped >= *largest_reference + max_entries) {
-    // Largest Reference wrapped around 1 extra time.
-    *largest_reference += 2 * max_entries;
-  } else if (current_wrapped + max_entries < *largest_reference) {
+  if (current_wrapped >= *required_insert_count + max_entries) {
+    // Required Insert Count wrapped around 1 extra time.
+    *required_insert_count += 2 * max_entries;
+  } else if (current_wrapped + max_entries < *required_insert_count) {
     // Decoder wrapped around 1 extra time.
     current_wrapped += 2 * max_entries;
   }
 
-  if (*largest_reference >
+  if (*required_insert_count >
       std::numeric_limits<uint64_t>::max() - total_number_of_inserts) {
     return false;
   }
 
-  *largest_reference += total_number_of_inserts;
+  *required_insert_count += total_number_of_inserts;
 
-  // Prevent underflow, but also disallow invalid value 0 for Largest Reference.
-  if (current_wrapped >= *largest_reference) {
+  // Prevent underflow, also disallow invalid value 0 for Required Insert Count.
+  if (current_wrapped >= *required_insert_count) {
     return false;
   }
 
-  *largest_reference -= current_wrapped;
+  *required_insert_count -= current_wrapped;
 
   return true;
 }
@@ -118,8 +121,8 @@ void QpackProgressiveDecoder::EndHeaderBlock() {
     return;
   }
 
-  if (largest_reference_ != largest_reference_seen_) {
-    OnError("Largest Reference too large.");
+  if (required_insert_count_ != required_insert_count_so_far_) {
+    OnError("Required Insert Count too large.");
     return;
   }
 
@@ -164,17 +167,17 @@ bool QpackProgressiveDecoder::DoIndexedHeaderFieldInstruction() {
       return false;
     }
 
-    if (absolute_index > largest_reference_) {
-      OnError("Index larger than Largest Reference.");
+    if (absolute_index >= required_insert_count_) {
+      OnError("Absolute Index must be smaller than Required Insert Count.");
       return false;
     }
 
-    largest_reference_seen_ = std::max(largest_reference_seen_, absolute_index);
+    DCHECK_LT(absolute_index, std::numeric_limits<uint64_t>::max());
+    required_insert_count_so_far_ =
+        std::max(required_insert_count_so_far_, absolute_index + 1);
 
-    DCHECK_NE(0u, absolute_index);
-    const uint64_t real_index = absolute_index - 1;
     auto entry =
-        header_table_->LookupEntry(/* is_static = */ false, real_index);
+        header_table_->LookupEntry(/* is_static = */ false, absolute_index);
     if (!entry) {
       OnError("Dynamic table entry not found.");
       return false;
@@ -203,16 +206,17 @@ bool QpackProgressiveDecoder::DoIndexedHeaderFieldPostBaseInstruction() {
     return false;
   }
 
-  if (absolute_index > largest_reference_) {
-    OnError("Index larger than Largest Reference.");
+  if (absolute_index >= required_insert_count_) {
+    OnError("Absolute Index must be smaller than Required Insert Count.");
     return false;
   }
 
-  largest_reference_seen_ = std::max(largest_reference_seen_, absolute_index);
+  DCHECK_LT(absolute_index, std::numeric_limits<uint64_t>::max());
+  required_insert_count_so_far_ =
+      std::max(required_insert_count_so_far_, absolute_index + 1);
 
-  DCHECK_NE(0u, absolute_index);
-  const uint64_t real_index = absolute_index - 1;
-  auto entry = header_table_->LookupEntry(/* is_static = */ false, real_index);
+  auto entry =
+      header_table_->LookupEntry(/* is_static = */ false, absolute_index);
   if (!entry) {
     OnError("Dynamic table entry not found.");
     return false;
@@ -231,17 +235,17 @@ bool QpackProgressiveDecoder::DoLiteralHeaderFieldNameReferenceInstruction() {
       return false;
     }
 
-    if (absolute_index > largest_reference_) {
-      OnError("Index larger than Largest Reference.");
+    if (absolute_index >= required_insert_count_) {
+      OnError("Absolute Index must be smaller than Required Insert Count.");
       return false;
     }
 
-    largest_reference_seen_ = std::max(largest_reference_seen_, absolute_index);
+    DCHECK_LT(absolute_index, std::numeric_limits<uint64_t>::max());
+    required_insert_count_so_far_ =
+        std::max(required_insert_count_so_far_, absolute_index + 1);
 
-    DCHECK_NE(0u, absolute_index);
-    const uint64_t real_index = absolute_index - 1;
     auto entry =
-        header_table_->LookupEntry(/* is_static = */ false, real_index);
+        header_table_->LookupEntry(/* is_static = */ false, absolute_index);
     if (!entry) {
       OnError("Dynamic table entry not found.");
       return false;
@@ -270,16 +274,17 @@ bool QpackProgressiveDecoder::DoLiteralHeaderFieldPostBaseInstruction() {
     return false;
   }
 
-  if (absolute_index > largest_reference_) {
-    OnError("Index larger than Largest Reference.");
+  if (absolute_index >= required_insert_count_) {
+    OnError("Absolute Index must be smaller than Required Insert Count.");
     return false;
   }
 
-  largest_reference_seen_ = std::max(largest_reference_seen_, absolute_index);
+  DCHECK_LT(absolute_index, std::numeric_limits<uint64_t>::max());
+  required_insert_count_so_far_ =
+      std::max(required_insert_count_so_far_, absolute_index + 1);
 
-  DCHECK_NE(0u, absolute_index);
-  const uint64_t real_index = absolute_index - 1;
-  auto entry = header_table_->LookupEntry(/* is_static = */ false, real_index);
+  auto entry =
+      header_table_->LookupEntry(/* is_static = */ false, absolute_index);
   if (!entry) {
     OnError("Dynamic table entry not found.");
     return false;
@@ -299,17 +304,17 @@ bool QpackProgressiveDecoder::DoLiteralHeaderFieldInstruction() {
 bool QpackProgressiveDecoder::DoPrefixInstruction() {
   DCHECK(!prefix_decoded_);
 
-  if (!DecodeLargestReference(
+  if (!DecodeRequiredInsertCount(
           prefix_decoder_->varint(), header_table_->max_entries(),
-          header_table_->inserted_entry_count(), &largest_reference_)) {
-    OnError("Error decoding Largest Reference.");
+          header_table_->inserted_entry_count(), &required_insert_count_)) {
+    OnError("Error decoding Required Insert Count.");
     return false;
   }
 
   const bool sign = prefix_decoder_->s_bit();
-  const uint64_t delta_base_index = prefix_decoder_->varint2();
-  if (!DeltaBaseIndexToBaseIndex(sign, delta_base_index, &base_index_)) {
-    OnError("Error calculating Base Index.");
+  const uint64_t delta_base = prefix_decoder_->varint2();
+  if (!DeltaBaseToBase(sign, delta_base, &base_)) {
+    OnError("Error calculating Base.");
     return false;
   }
 
@@ -318,24 +323,23 @@ bool QpackProgressiveDecoder::DoPrefixInstruction() {
   return true;
 }
 
-bool QpackProgressiveDecoder::DeltaBaseIndexToBaseIndex(
-    bool sign,
-    uint64_t delta_base_index,
-    uint64_t* base_index) {
+bool QpackProgressiveDecoder::DeltaBaseToBase(bool sign,
+                                              uint64_t delta_base,
+                                              uint64_t* base) {
   if (sign) {
-    if (delta_base_index == std::numeric_limits<uint64_t>::max() ||
-        largest_reference_ < delta_base_index + 1) {
+    if (delta_base == std::numeric_limits<uint64_t>::max() ||
+        required_insert_count_ < delta_base + 1) {
       return false;
     }
-    *base_index = largest_reference_ - delta_base_index - 1;
+    *base = required_insert_count_ - delta_base - 1;
     return true;
   }
 
-  if (delta_base_index >
-      std::numeric_limits<uint64_t>::max() - largest_reference_) {
+  if (delta_base >
+      std::numeric_limits<uint64_t>::max() - required_insert_count_) {
     return false;
   }
-  *base_index = largest_reference_ + delta_base_index;
+  *base = required_insert_count_ + delta_base;
   return true;
 }
 
@@ -343,22 +347,22 @@ bool QpackProgressiveDecoder::RequestStreamRelativeIndexToAbsoluteIndex(
     uint64_t relative_index,
     uint64_t* absolute_index) const {
   if (relative_index == std::numeric_limits<uint64_t>::max() ||
-      relative_index + 1 > base_index_) {
+      relative_index + 1 > base_) {
     return false;
   }
 
-  *absolute_index = base_index_ - relative_index;
+  *absolute_index = base_ - 1 - relative_index;
   return true;
 }
 
 bool QpackProgressiveDecoder::PostBaseIndexToAbsoluteIndex(
     uint64_t post_base_index,
     uint64_t* absolute_index) const {
-  if (post_base_index >= std::numeric_limits<uint64_t>::max() - base_index_) {
+  if (post_base_index >= std::numeric_limits<uint64_t>::max() - base_) {
     return false;
   }
 
-  *absolute_index = base_index_ + post_base_index + 1;
+  *absolute_index = base_ + post_base_index;
   return true;
 }
 

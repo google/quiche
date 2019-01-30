@@ -22,6 +22,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_session.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_epoll.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_expect_bug.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
@@ -62,8 +63,6 @@
 #include "net/third_party/quiche/src/quic/tools/quic_simple_client_stream.h"
 #include "net/third_party/quiche/src/quic/tools/quic_simple_server_stream.h"
 
-using gfe2::EpollEvent;
-using gfe2::EpollServer;
 using spdy::kV3LowestPriority;
 using spdy::SETTINGS_MAX_HEADER_LIST_SIZE;
 using spdy::SpdyFramer;
@@ -260,7 +259,7 @@ class ClientDelegate : public PacketDroppingTestWriter::Delegate {
   explicit ClientDelegate(QuicClient* client) : client_(client) {}
   ~ClientDelegate() override = default;
   void OnCanWrite() override {
-    EpollEvent event(EPOLLOUT);
+    QuicEpollEvent event(EPOLLOUT);
     client_->epoll_network_helper()->OnEvent(client_->GetLatestFD(), &event);
   }
 
@@ -278,10 +277,11 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
         server_hostname_("test.example.com"),
         client_writer_(nullptr),
         server_writer_(nullptr),
-        negotiated_version_(PROTOCOL_UNSUPPORTED, QUIC_VERSION_UNSUPPORTED),
+        negotiated_version_(UnsupportedQuicVersion()),
         chlo_multiplier_(0),
         stream_factory_(nullptr),
-        support_server_push_(false) {
+        support_server_push_(false),
+        override_connection_id_(nullptr) {
     FLAGS_quic_supports_tls_handshake = true;
     SetQuicRestartFlag(quic_no_server_conn_ver_negotiation2, true);
     SetQuicReloadableFlag(quic_no_client_conn_ver_negotiation, true);
@@ -329,6 +329,9 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     client->UseWriter(writer);
     if (!pre_shared_key_client_.empty()) {
       client->client()->SetPreSharedKey(pre_shared_key_client_);
+    }
+    if (override_connection_id_ != nullptr) {
+      client->UseConnectionId(*override_connection_id_);
     }
     client->Connect();
     return client;
@@ -419,14 +422,14 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     }
 
     CreateClientWithWriter();
-    static EpollEvent event(EPOLLOUT);
+    static QuicEpollEvent event(EPOLLOUT);
     if (client_writer_ != nullptr) {
       client_writer_->Initialize(
           QuicConnectionPeer::GetHelper(
               client_->client()->client_session()->connection()),
           QuicConnectionPeer::GetAlarmFactory(
               client_->client()->client_session()->connection()),
-          absl::make_unique<ClientDelegate>(client_->client()));
+          QuicMakeUnique<ClientDelegate>(client_->client()));
     }
     initialized_ = true;
     return client_->client()->connected();
@@ -470,7 +473,7 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
 
     server_writer_->Initialize(QuicDispatcherPeer::GetHelper(dispatcher),
                                QuicDispatcherPeer::GetAlarmFactory(dispatcher),
-                               absl::make_unique<ServerDelegate>(dispatcher));
+                               QuicMakeUnique<ServerDelegate>(dispatcher));
     if (stream_factory_ != nullptr) {
       down_cast<QuicTestServer*>(server_thread_->server())
           ->SetSpdyStreamFactory(stream_factory_);
@@ -632,6 +635,7 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
   bool support_server_push_;
   QuicString pre_shared_key_client_;
   QuicString pre_shared_key_server_;
+  QuicConnectionId* override_connection_id_;
 };
 
 // Run all end to end tests with all supported versions.
@@ -722,6 +726,28 @@ TEST_P(EndToEndTest, SimpleRequestResponseVariableLengthConnectionIDClient) {
   }
   EXPECT_EQ(expected_num_client_hellos,
             client_->client()->GetNumSentClientHellos());
+}
+
+TEST_P(EndToEndTest, SimpleRequestResponseZeroConnectionID) {
+  QuicConnectionId connection_id = QuicUtils::CreateZeroConnectionId(
+      GetParam().negotiated_version.transport_version);
+  override_connection_id_ = &connection_id;
+  ASSERT_TRUE(Initialize());
+
+  EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
+  EXPECT_EQ("200", client_->response_headers()->find(":status")->second);
+  int expected_num_client_hellos = 2;
+  if (ServerSendsVersionNegotiation()) {
+    ++expected_num_client_hellos;
+    if (BothSidesSupportStatelessRejects()) {
+      ++expected_num_client_hellos;
+    }
+  }
+  EXPECT_EQ(expected_num_client_hellos,
+            client_->client()->GetNumSentClientHellos());
+  EXPECT_EQ(client_->client()->client_session()->connection()->connection_id(),
+            QuicUtils::CreateZeroConnectionId(
+                GetParam().negotiated_version.transport_version));
 }
 
 // TODO(dschinazi) remove this test once the flags are deprecated
@@ -1870,7 +1896,7 @@ TEST_P(EndToEndTest, ConnectionMigrationClientPortChanged) {
 
   // Register the new FD for epoll events.
   int new_fd = client_->client()->GetLatestFD();
-  EpollServer* eps = client_->epoll_server();
+  QuicEpollServer* eps = client_->epoll_server();
   eps->RegisterFD(new_fd, client_->client()->epoll_network_helper(),
                   EPOLLIN | EPOLLOUT | EPOLLET);
 
@@ -3132,13 +3158,13 @@ TEST_P(EndToEndTest, DISABLED_TestHugeResponseWithPacketLoss) {
   client->UseWriter(client_writer_);
   client->Connect();
   client_.reset(client);
-  static EpollEvent event(EPOLLOUT);
+  static QuicEpollEvent event(EPOLLOUT);
   client_writer_->Initialize(
       QuicConnectionPeer::GetHelper(
           client_->client()->client_session()->connection()),
       QuicConnectionPeer::GetAlarmFactory(
           client_->client()->client_session()->connection()),
-      absl::make_unique<ClientDelegate>(client_->client()));
+      QuicMakeUnique<ClientDelegate>(client_->client()));
   initialized_ = true;
   ASSERT_TRUE(client_->client()->connected());
 
@@ -3693,6 +3719,32 @@ TEST_P(EndToEndTest, SimpleStopSendingTest) {
   // Make sure we have the correct stream
   EXPECT_EQ(stream_id, client_stream->id());
   EXPECT_EQ(kStopSendingTestCode, client_stream->last_stop_sending_code());
+}
+
+TEST_P(EndToEndTest, SimpleStopSendingRstStreamTest) {
+  ASSERT_TRUE(Initialize());
+
+  // Send a request without a fin, to keep the stream open
+  SpdyHeaderBlock headers;
+  headers[":method"] = "POST";
+  headers[":path"] = "/foo";
+  headers[":scheme"] = "https";
+  headers[":authority"] = server_hostname_;
+  client_->SendMessage(headers, "", /*fin=*/false);
+  // Stream should be open
+  ASSERT_NE(nullptr, client_->latest_created_stream());
+  EXPECT_FALSE(
+      QuicStreamPeer::write_side_closed(client_->latest_created_stream()));
+  EXPECT_FALSE(
+      QuicStreamPeer::read_side_closed(client_->latest_created_stream()));
+
+  // Send a RST_STREAM+STOP_SENDING on the stream
+  // Code is not important.
+  client_->latest_created_stream()->Reset(QUIC_BAD_APPLICATION_PAYLOAD);
+  client_->WaitForResponse();
+
+  // Stream should be gone.
+  ASSERT_EQ(nullptr, client_->latest_created_stream());
 }
 
 }  // namespace

@@ -52,10 +52,10 @@ class QuicSentPacketManagerPeer {
 
   // Returns true if |packet_number| is a retransmission of a packet.
   static bool IsRetransmission(QuicSentPacketManager* sent_packet_manager,
-                               QuicPacketNumber packet_number);
+                               uint64_t packet_number);
 
   static void MarkForRetransmission(QuicSentPacketManager* sent_packet_manager,
-                                    QuicPacketNumber packet_number,
+                                    uint64_t packet_number,
                                     TransmissionType transmission_type);
 
   static QuicTime::Delta GetRetransmissionDelay(
@@ -93,11 +93,11 @@ class QuicSentPacketManagerPeer {
   static bool UsingPacing(const QuicSentPacketManager* sent_packet_manager);
 
   static bool IsUnacked(QuicSentPacketManager* sent_packet_manager,
-                        QuicPacketNumber packet_number);
+                        uint64_t packet_number);
 
   static bool HasRetransmittableFrames(
       QuicSentPacketManager* sent_packet_manager,
-      QuicPacketNumber packet_number);
+      uint64_t packet_number);
 
   static QuicUnackedPacketMap* GetUnackedPacketMap(
       QuicSentPacketManager* sent_packet_manager);

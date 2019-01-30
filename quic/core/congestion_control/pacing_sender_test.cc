@@ -50,7 +50,7 @@ class PacingSenderTest : public QuicTest {
     if (burst_size == 0) {
       EXPECT_CALL(*mock_sender_, OnCongestionEvent(_, _, _, _, _));
       LostPacketVector lost_packets;
-      lost_packets.push_back(LostPacket(1, kMaxPacketSize));
+      lost_packets.push_back(LostPacket(QuicPacketNumber(1), kMaxPacketSize));
       AckedPacketVector empty;
       pacing_sender_->OnCongestionEvent(true, 1234, clock_.Now(), empty,
                                         lost_packets);
@@ -320,7 +320,7 @@ TEST_F(PacingSenderTest, NoBurstEnteringRecovery) {
 
   // Losing a packet will set clear burst tokens.
   LostPacketVector lost_packets;
-  lost_packets.push_back(LostPacket(1, kMaxPacketSize));
+  lost_packets.push_back(LostPacket(QuicPacketNumber(1), kMaxPacketSize));
   AckedPacketVector empty_acked;
   EXPECT_CALL(*mock_sender_,
               OnCongestionEvent(true, kMaxPacketSize, _, IsEmpty(), _));

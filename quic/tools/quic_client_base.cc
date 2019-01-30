@@ -86,7 +86,7 @@ bool QuicClientBase::Connect() {
       // Resend any previously queued data.
       ResendSavedData();
     }
-    ParsedQuicVersion version(PROTOCOL_UNSUPPORTED, QUIC_VERSION_UNSUPPORTED);
+    ParsedQuicVersion version = UnsupportedQuicVersion();
     if (session() != nullptr &&
         session()->error() != QUIC_CRYPTO_HANDSHAKE_STATELESS_REJECT &&
         !CanReconnectWithDifferentVersion(&version)) {
@@ -110,8 +110,7 @@ void QuicClientBase::StartConnect() {
   DCHECK(initialized_);
   DCHECK(!connected());
   QuicPacketWriter* writer = network_helper_->CreateQuicPacketWriter();
-  ParsedQuicVersion mutual_version(PROTOCOL_UNSUPPORTED,
-                                   QUIC_VERSION_UNSUPPORTED);
+  ParsedQuicVersion mutual_version = UnsupportedQuicVersion();
   const bool can_reconnect_with_different_version =
       CanReconnectWithDifferentVersion(&mutual_version);
   if (connected_or_attempting_connect()) {
@@ -180,7 +179,7 @@ bool QuicClientBase::WaitForEvents() {
   network_helper_->RunEventLoop();
 
   DCHECK(session() != nullptr);
-  ParsedQuicVersion version(PROTOCOL_UNSUPPORTED, QUIC_VERSION_UNSUPPORTED);
+  ParsedQuicVersion version = UnsupportedQuicVersion();
   if (!connected() &&
       (session()->error() == QUIC_CRYPTO_HANDSHAKE_STATELESS_REJECT ||
        CanReconnectWithDifferentVersion(&version))) {

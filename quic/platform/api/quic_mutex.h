@@ -5,7 +5,6 @@
 #ifndef QUICHE_QUIC_PLATFORM_API_QUIC_MUTEX_H_
 #define QUICHE_QUIC_PLATFORM_API_QUIC_MUTEX_H_
 
-#include "base/macros.h"
 #include "net/quic/platform/impl/quic_mutex_impl.h"
 
 namespace quic {

@@ -8,16 +8,16 @@
 #include <vector>
 
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/absl/random/random.h"
+#include "net/third_party/quiche/src/http2/test_tools/http2_random.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_constants.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_decoder_adapter.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_encoder.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_test_utils.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string.h"
-#include "util/random/mt_random.h"
 
 namespace spdy {
 namespace test {
+
 namespace {
 
 // Supports testing with the input split at every byte boundary.
@@ -73,7 +73,7 @@ class HpackRoundTripTest : public ::testing::TestWithParam<InputSizeParam> {
                             sanity_bound);
   }
 
-  MTRandom random_;
+  http2::test::Http2Random random_;
   HpackEncoder encoder_;
   HpackDecoderAdapter decoder_;
 };
@@ -169,10 +169,6 @@ TEST_P(HpackRoundTripTest, RandomizedExamples) {
   values.push_back("");
   values.push_back("baz=bing; foo=bar; garbage");
   values.push_back("baz=bing; fizzle=fazzle; garbage");
-
-  uint32_t seed = absl::Uniform<uint32_t>(random_);
-  LOG(INFO) << "Seeding with " << seed << "";
-  random_.Reset(seed);
 
   for (size_t i = 0; i != 2000; ++i) {
     SpdyHeaderBlock headers;

@@ -15,6 +15,7 @@ namespace quic {
 QuicVersionManager::QuicVersionManager(
     ParsedQuicVersionVector supported_versions)
     : enable_version_99_(GetQuicReloadableFlag(quic_enable_version_99)),
+      enable_version_47_(GetQuicReloadableFlag(quic_enable_version_47)),
       enable_version_46_(GetQuicReloadableFlag(quic_enable_version_46)),
       enable_version_45_(GetQuicReloadableFlag(quic_enable_version_45)),
       enable_version_44_(GetQuicReloadableFlag(quic_enable_version_44)),
@@ -39,12 +40,14 @@ const ParsedQuicVersionVector& QuicVersionManager::GetSupportedVersions() {
 
 void QuicVersionManager::MaybeRefilterSupportedVersions() {
   if (enable_version_99_ != GetQuicReloadableFlag(quic_enable_version_99) ||
+      enable_version_47_ != GetQuicReloadableFlag(quic_enable_version_47) ||
       enable_version_46_ != GetQuicReloadableFlag(quic_enable_version_46) ||
       enable_version_45_ != GetQuicReloadableFlag(quic_enable_version_45) ||
       enable_version_44_ != GetQuicReloadableFlag(quic_enable_version_44) ||
       enable_version_43_ != GetQuicReloadableFlag(quic_enable_version_43) ||
       disable_version_35_ != GetQuicReloadableFlag(quic_disable_version_35)) {
     enable_version_99_ = GetQuicReloadableFlag(quic_enable_version_99);
+    enable_version_47_ = GetQuicReloadableFlag(quic_enable_version_47);
     enable_version_46_ = GetQuicReloadableFlag(quic_enable_version_46);
     enable_version_45_ = GetQuicReloadableFlag(quic_enable_version_45);
     enable_version_44_ = GetQuicReloadableFlag(quic_enable_version_44);

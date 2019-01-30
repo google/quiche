@@ -59,6 +59,10 @@ class QuicSpdyStream::HttpDecoderVisitor : public HttpDecoder::Visitor {
     CloseConnectionOnWrongFrame("Settings");
   }
 
+  void OnDuplicatePushFrame(const DuplicatePushFrame& frame) override {
+    CloseConnectionOnWrongFrame("Duplicate Push");
+  }
+
   void OnDataFrameStart(Http3FrameLengths frame_lengths) override {
     stream_->OnDataFrameStart(frame_lengths);
   }
@@ -176,19 +180,23 @@ void QuicSpdyStream::WriteOrBufferBody(
     QuicStringPiece data,
     bool fin,
     QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener) {
-  if (spdy_session_->connection()->transport_version() == QUIC_VERSION_99 &&
-      data.length() > 0) {
-    std::unique_ptr<char[]> buffer;
-    QuicByteCount header_length =
-        encoder_.SerializeDataFrameHeader(data.length(), &buffer);
-    WriteOrBufferData(QuicStringPiece(buffer.get(), header_length), false,
-                      nullptr);
-    QUIC_DLOG(INFO) << "Stream " << id() << " is writing header of length "
-                    << header_length;
-    total_header_bytes_written_ += header_length;
+  if (spdy_session_->connection()->transport_version() != QUIC_VERSION_99 ||
+      data.length() == 0) {
+    WriteOrBufferData(data, fin, std::move(ack_listener));
+    return;
   }
+  QuicConnection::ScopedPacketFlusher flusher(
+      spdy_session_->connection(), QuicConnection::SEND_ACK_IF_PENDING);
+  std::unique_ptr<char[]> buffer;
+  QuicByteCount header_length =
+      encoder_.SerializeDataFrameHeader(data.length(), &buffer);
+  WriteOrBufferData(QuicStringPiece(buffer.get(), header_length), false,
+                    nullptr);
+  QUIC_DLOG(INFO) << "Stream " << id() << " is writing header of length "
+                  << header_length;
+  total_header_bytes_written_ += header_length;
   WriteOrBufferData(data, fin, std::move(ack_listener));
-  QUIC_DLOG(INFO) << "Stream" << id() << " is writing body of length "
+  QUIC_DLOG(INFO) << "Stream " << id() << " is writing body of length "
                   << data.length();
 }
 
@@ -254,6 +262,8 @@ QuicConsumedData QuicSpdyStream::WriteBodySlices(QuicMemSliceSpan slices,
     return {0, false};
   }
 
+  QuicConnection::ScopedPacketFlusher flusher(
+      spdy_session_->connection(), QuicConnection::SEND_ACK_IF_PENDING);
   struct iovec header_iov = {static_cast<void*>(buffer.get()), header_length};
   QuicMemSliceStorage storage(
       &header_iov, 1,

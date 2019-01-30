@@ -107,7 +107,7 @@ class CryptoServerTest : public QuicTestWithParam<TestParams> {
   CryptoServerTest()
       : rand_(QuicRandom::GetInstance()),
         client_address_(QuicIpAddress::Loopback4(), 1234),
-        client_version_(PROTOCOL_UNSUPPORTED, QUIC_VERSION_UNSUPPORTED),
+        client_version_(UnsupportedQuicVersion()),
         config_(QuicCryptoServerConfig::TESTING,
                 rand_,
                 crypto_test_utils::ProofSourceForTesting(),
@@ -721,6 +721,26 @@ TEST_P(CryptoServerTest, CorruptSourceAddressToken) {
   const HandshakeFailureReason kRejectReasons[] = {
       SOURCE_ADDRESS_TOKEN_DECRYPTION_FAILURE};
   CheckRejectReasons(kRejectReasons, QUIC_ARRAYSIZE(kRejectReasons));
+}
+
+TEST_P(CryptoServerTest, CorruptSourceAddressTokenIsStillAccepted) {
+  // This tests corrupted source address token.
+  CryptoHandshakeMessage msg = crypto_test_utils::CreateCHLO(
+      {{"PDMD", "X509"},
+       {"AEAD", "AESG"},
+       {"KEXS", "C255"},
+       {"SCID", scid_hex_},
+       {"#004b5453", (QuicString(1, 'X') + srct_hex_)},
+       {"PUBS", pub_hex_},
+       {"NONC", nonce_hex_},
+       {"XLCT", XlctHexString()},
+       {"VER\0", client_version_string_}},
+      kClientHelloMinimumSize);
+
+  config_.set_validate_source_address_token(false);
+
+  ShouldSucceed(msg);
+  EXPECT_EQ(kSHLO, out_.tag());
 }
 
 TEST_P(CryptoServerTest, CorruptClientNonceAndSourceAddressToken) {

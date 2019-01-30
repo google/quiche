@@ -102,12 +102,6 @@ class QUIC_EXPORT_PRIVATE QuicControlFrameManager {
   // sent.
   bool WillingToWrite() const;
 
-  // TODO(wub): Remove this function once
-  // quic_donot_retransmit_old_window_update flag is deprecated.
-  bool donot_retransmit_old_window_updates() const {
-    return donot_retransmit_old_window_updates_;
-  }
-
  private:
   friend class test::QuicControlFrameManagerPeer;
 
@@ -158,9 +152,6 @@ class QUIC_EXPORT_PRIVATE QuicControlFrameManager {
 
   // Last sent window update frame for each stream.
   QuicSmallMap<QuicStreamId, QuicControlFrameId, 10> window_update_frames_;
-
-  // Latched value of quic_donot_retransmit_old_window_update2 flag.
-  const bool donot_retransmit_old_window_updates_;
 };
 
 }  // namespace quic

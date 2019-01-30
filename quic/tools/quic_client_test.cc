@@ -17,8 +17,6 @@
 #include "net/third_party/quiche/src/quic/test_tools/crypto_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_client_peer.h"
 
-using gfe2::EpollServer;
-
 namespace quic {
 namespace test {
 namespace {
@@ -51,7 +49,7 @@ size_t NumOpenSocketFDs() {
 
 // Creates a new QuicClient and Initializes it. Caller is responsible for
 // deletion.
-QuicClient* CreateAndInitializeQuicClient(EpollServer* eps, uint16_t port) {
+QuicClient* CreateAndInitializeQuicClient(QuicEpollServer* eps, uint16_t port) {
   QuicSocketAddress server_address(QuicSocketAddress(TestLoopback(), port));
   QuicServerId server_id("hostname", server_address.port(), false);
   ParsedQuicVersionVector versions = AllSupportedVersions();
@@ -69,7 +67,7 @@ TEST_F(QuicClientTest, DoNotLeakSocketFDs) {
   // port exhaustion in long running processes which repeatedly create clients.
 
   // Record initial number of FDs, after creation of EpollServer.
-  EpollServer eps;
+  QuicEpollServer eps;
   size_t number_of_open_fds = NumOpenSocketFDs();
 
   // Create a number of clients, initialize them, and verify this has resulted
@@ -88,7 +86,7 @@ TEST_F(QuicClientTest, DoNotLeakSocketFDs) {
 }
 
 TEST_F(QuicClientTest, CreateAndCleanUpUDPSockets) {
-  EpollServer eps;
+  QuicEpollServer eps;
   size_t number_of_open_fds = NumOpenSocketFDs();
 
   std::unique_ptr<QuicClient> client(

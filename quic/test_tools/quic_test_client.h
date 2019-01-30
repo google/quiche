@@ -15,6 +15,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_packet_creator.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_epoll.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_map_util.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 #include "net/third_party/quiche/src/quic/tools/quic_client.h"
@@ -34,19 +35,19 @@ class MockableQuicClient : public QuicClient {
   MockableQuicClient(QuicSocketAddress server_address,
                      const QuicServerId& server_id,
                      const ParsedQuicVersionVector& supported_versions,
-                     gfe2::EpollServer* epoll_server);
+                     QuicEpollServer* epoll_server);
 
   MockableQuicClient(QuicSocketAddress server_address,
                      const QuicServerId& server_id,
                      const QuicConfig& config,
                      const ParsedQuicVersionVector& supported_versions,
-                     gfe2::EpollServer* epoll_server);
+                     QuicEpollServer* epoll_server);
 
   MockableQuicClient(QuicSocketAddress server_address,
                      const QuicServerId& server_id,
                      const QuicConfig& config,
                      const ParsedQuicVersionVector& supported_versions,
-                     gfe2::EpollServer* epoll_server,
+                     QuicEpollServer* epoll_server,
                      std::unique_ptr<ProofVerifier> proof_verifier);
   MockableQuicClient(const MockableQuicClient&) = delete;
   MockableQuicClient& operator=(const MockableQuicClient&) = delete;
@@ -68,7 +69,9 @@ class MockableQuicClient : public QuicClient {
   const MockableQuicClientEpollNetworkHelper* mockable_network_helper() const;
 
  private:
-  QuicConnectionId override_connection_id_;  // ConnectionId to use, if nonzero
+  // ConnectionId to use, if connection_id_overridden_
+  QuicConnectionId override_connection_id_;
+  bool connection_id_overridden_;
   CachedNetworkParameters cached_network_paramaters_;
 };
 
@@ -253,7 +256,7 @@ class QuicTestClient : public QuicSpdyStream::Visitor,
 
   void WaitForWriteToFlush();
 
-  gfe2::EpollServer* epoll_server() { return &epoll_server_; }
+  QuicEpollServer* epoll_server() { return &epoll_server_; }
 
   size_t num_requests() const { return num_requests_; }
 
@@ -356,7 +359,7 @@ class QuicTestClient : public QuicSpdyStream::Visitor,
   // tracking its state.
   void SetLatestCreatedStream(QuicSpdyClientStream* stream);
 
-  gfe2::EpollServer epoll_server_;
+  QuicEpollServer epoll_server_;
   std::unique_ptr<MockableQuicClient> client_;  // The actual client
   QuicSpdyClientStream* latest_created_stream_;
   std::map<QuicStreamId, QuicSpdyClientStream*> open_streams_;

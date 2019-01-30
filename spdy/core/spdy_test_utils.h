@@ -5,21 +5,17 @@
 #ifndef QUICHE_SPDY_CORE_SPDY_TEST_UTILS_H_
 #define QUICHE_SPDY_CORE_SPDY_TEST_UTILS_H_
 
+#include <cstddef>
 #include <cstdint>
 
-#include "gfe/gfe2/test_tools/failure.h"
-#include "net/third_party/quiche/src/spdy/core/spdy_bug_tracker.h"
+#include "net/third_party/quiche/src/http2/platform/api/http2_test_helpers.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_header_block.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_headers_handler_interface.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
+#include "net/third_party/quiche/src/spdy/platform/api/spdy_bug_tracker.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_piece.h"
-
-// EXPECT_SPDY_BUG is like EXPECT_DFATAL, except it ensures that no DFATAL
-// logging is skipped due to exponential backoff.
-//
-// For external SPDY, EXPECT_SPDY_BUG should be #defined to EXPECT_DFATAL.
-#define EXPECT_SPDY_BUG EXPECT_GFE_BUG
+#include "net/third_party/quiche/src/spdy/platform/api/spdy_test_helpers.h"
 
 namespace spdy {
 

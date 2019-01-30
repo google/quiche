@@ -151,6 +151,19 @@ class QUIC_EXPORT_PRIVATE QuicUtils {
   static QuicConnectionId CreateRandomConnectionId(QuicRandom* random,
                                                    Perspective perspective);
 
+  // Returns true if the QUIC version allows variable length connection IDs.
+  static bool VariableLengthConnectionIdAllowedForVersion(
+      QuicTransportVersion version);
+
+  // Returns true if the connection ID is valid for this QUIC version.
+  static bool IsConnectionIdValidForVersion(QuicConnectionId connection_id,
+                                            QuicTransportVersion version);
+
+  // Returns a connection ID suitable for QUIC use-cases that do not need the
+  // connection ID for multiplexing. If the version allows variable lengths,
+  // a connection of length zero is returned, otherwise 64bits set to zero.
+  static QuicConnectionId CreateZeroConnectionId(QuicTransportVersion version);
+
   // Generates a 128bit stateless reset token based on a connection ID.
   static QuicUint128 GenerateStatelessResetToken(
       QuicConnectionId connection_id);

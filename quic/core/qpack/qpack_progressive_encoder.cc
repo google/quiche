@@ -48,8 +48,8 @@ void QpackProgressiveEncoder::Next(size_t max_encoded_bytes,
   DCHECK_LT(output->size(), max_length);
 
   if (!prefix_encoded_ && !instruction_encoder_.HasNext()) {
-    // TODO(bnc): Implement dynamic entries and set Largest Reference and
-    // Delta Base Index accordingly.
+    // TODO(bnc): Implement dynamic entries and set Required Insert Count and
+    // Delta Base accordingly.
     instruction_encoder_.set_varint(0);
     instruction_encoder_.set_varint2(0);
     instruction_encoder_.set_s_bit(false);

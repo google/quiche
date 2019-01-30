@@ -16,12 +16,8 @@ struct CachedItem {
   uint32_t value;
 };
 
-class QuicLRUCacheTest : public QuicTestWithParam<bool> {};
-
-INSTANTIATE_TEST_CASE_P(QuicLRUCacheTests, QuicLRUCacheTest, testing::Bool());
-
-TEST_P(QuicLRUCacheTest, InsertAndLookup) {
-  QuicLRUCache<int, CachedItem> cache(5, GetParam());
+TEST(QuicLRUCacheTest, InsertAndLookup) {
+  QuicLRUCache<int, CachedItem> cache(5);
   EXPECT_EQ(nullptr, cache.Lookup(1));
   EXPECT_EQ(0u, cache.Size());
   EXPECT_EQ(5u, cache.MaxSize());
@@ -48,8 +44,8 @@ TEST_P(QuicLRUCacheTest, InsertAndLookup) {
   EXPECT_EQ(0u, cache.Size());
 }
 
-TEST_P(QuicLRUCacheTest, Eviction) {
-  QuicLRUCache<int, CachedItem> cache(3, GetParam());
+TEST(QuicLRUCacheTest, Eviction) {
+  QuicLRUCache<int, CachedItem> cache(3);
 
   for (size_t i = 1; i <= 4; ++i) {
     std::unique_ptr<CachedItem> item(new CachedItem(10 + i));

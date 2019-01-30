@@ -5,7 +5,6 @@
 #ifndef QUICHE_QUIC_PLATFORM_API_QUIC_HOSTNAME_UTILS_H_
 #define QUICHE_QUIC_PLATFORM_API_QUIC_HOSTNAME_UTILS_H_
 
-#include "base/macros.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"

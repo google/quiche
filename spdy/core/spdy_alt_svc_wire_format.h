@@ -13,11 +13,10 @@
 #include <cstdint>
 #include <vector>
 
-#include "third_party/absl/container/inlined_vector.h"
+#include "net/third_party/quiche/src/spdy/platform/api/spdy_containers.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_export.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_piece.h"
-#include "util/gtl/inlined_vector.h"
 
 namespace spdy {
 
@@ -27,11 +26,12 @@ class SpdyAltSvcWireFormatPeer;
 
 class SPDY_EXPORT_PRIVATE SpdyAltSvcWireFormat {
  public:
-  using VersionVector = absl::InlinedVector<uint32_t, 8>;
+  using VersionVector = SpdyInlinedVector<uint32_t, 8>;
 
   struct SPDY_EXPORT_PRIVATE AlternativeService {
     SpdyString protocol_id;
     SpdyString host;
+
     // Default is 0: invalid port.
     uint16_t port = 0;
     // Default is one day.

@@ -24,6 +24,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_simple_buffer_allocator.h"
 #include "net/third_party/quiche/src/quic/core/quic_time.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
+#include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/core/quic_write_blocked_list.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_clock.h"
@@ -225,9 +226,10 @@ class QuartcStreamTest : public QuicTest, public QuicConnectionHelperInterface {
     alarm_factory_ = QuicMakeUnique<test::MockAlarmFactory>();
 
     connection_ = QuicMakeUnique<QuicConnection>(
-        EmptyQuicConnectionId(), QuicSocketAddress(ip, 0),
-        this /*QuicConnectionHelperInterface*/, alarm_factory_.get(),
-        new DummyPacketWriter(), owns_writer, perspective,
+        QuicUtils::CreateZeroConnectionId(
+            CurrentSupportedVersions()[0].transport_version),
+        QuicSocketAddress(ip, 0), this /*QuicConnectionHelperInterface*/,
+        alarm_factory_.get(), new DummyPacketWriter(), owns_writer, perspective,
         ParsedVersionOfIndex(CurrentSupportedVersions(), 0));
     clock_.AdvanceTime(QuicTime::Delta::FromSeconds(1));
     session_ = QuicMakeUnique<MockQuicSession>(connection_.get(), QuicConfig(),
@@ -589,16 +591,16 @@ TEST_F(QuartcStreamTest, TestBytesPendingRetransmission) {
   EXPECT_EQ("Foo bar", write_buffer_);
 
   stream_->OnStreamFrameLost(0, 4, false);
-  EXPECT_EQ(stream_->BytesPendingRetransmission(), 4);
-  EXPECT_EQ(mock_stream_delegate_->last_bytes_pending_retransmission(), 4);
+  EXPECT_EQ(stream_->BytesPendingRetransmission(), 4u);
+  EXPECT_EQ(mock_stream_delegate_->last_bytes_pending_retransmission(), 4u);
 
   stream_->OnStreamFrameLost(4, 3, false);
-  EXPECT_EQ(stream_->BytesPendingRetransmission(), 7);
-  EXPECT_EQ(mock_stream_delegate_->last_bytes_pending_retransmission(), 7);
+  EXPECT_EQ(stream_->BytesPendingRetransmission(), 7u);
+  EXPECT_EQ(mock_stream_delegate_->last_bytes_pending_retransmission(), 7u);
 
   stream_->OnCanWrite();
-  EXPECT_EQ(stream_->BytesPendingRetransmission(), 0);
-  EXPECT_EQ(mock_stream_delegate_->last_bytes_pending_retransmission(), 0);
+  EXPECT_EQ(stream_->BytesPendingRetransmission(), 0u);
+  EXPECT_EQ(mock_stream_delegate_->last_bytes_pending_retransmission(), 0u);
 
   EXPECT_EQ("Foo barFoo bar", write_buffer_);
   EXPECT_EQ(stream_->stream_error(), QUIC_STREAM_NO_ERROR);
@@ -615,16 +617,16 @@ TEST_F(QuartcStreamTest, TestBytesPendingRetransmissionWithCancelOnLoss) {
   EXPECT_EQ("Foo bar", write_buffer_);
 
   stream_->OnStreamFrameLost(0, 4, false);
-  EXPECT_EQ(stream_->BytesPendingRetransmission(), 0);
-  EXPECT_EQ(mock_stream_delegate_->last_bytes_pending_retransmission(), 0);
+  EXPECT_EQ(stream_->BytesPendingRetransmission(), 0u);
+  EXPECT_EQ(mock_stream_delegate_->last_bytes_pending_retransmission(), 0u);
 
   stream_->OnStreamFrameLost(4, 3, false);
-  EXPECT_EQ(stream_->BytesPendingRetransmission(), 0);
-  EXPECT_EQ(mock_stream_delegate_->last_bytes_pending_retransmission(), 0);
+  EXPECT_EQ(stream_->BytesPendingRetransmission(), 0u);
+  EXPECT_EQ(mock_stream_delegate_->last_bytes_pending_retransmission(), 0u);
 
   stream_->OnCanWrite();
-  EXPECT_EQ(stream_->BytesPendingRetransmission(), 0);
-  EXPECT_EQ(mock_stream_delegate_->last_bytes_pending_retransmission(), 0);
+  EXPECT_EQ(stream_->BytesPendingRetransmission(), 0u);
+  EXPECT_EQ(mock_stream_delegate_->last_bytes_pending_retransmission(), 0u);
 
   EXPECT_EQ("Foo bar", write_buffer_);
   EXPECT_EQ(stream_->stream_error(), QUIC_STREAM_CANCELLED);

@@ -20,13 +20,14 @@ class QuicSimpleCryptoServerStreamHelper
   ~QuicSimpleCryptoServerStreamHelper() override;
 
   QuicConnectionId GenerateConnectionIdForReject(
+      QuicTransportVersion /*version*/,
       QuicConnectionId /*connection_id*/) const override;
 
   bool CanAcceptClientHello(const CryptoHandshakeMessage& message,
                             const QuicSocketAddress& client_address,
                             const QuicSocketAddress& peer_address,
                             const QuicSocketAddress& self_address,
-                            string* error_details) const override;
+                            QuicString* error_details) const override;
 
  private:
   QuicRandom* random_;  // Unowned.

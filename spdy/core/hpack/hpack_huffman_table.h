@@ -51,6 +51,9 @@ class SPDY_EXPORT_PRIVATE HpackHuffmanTable {
   // Returns the encoded size of the input string.
   size_t EncodedSize(SpdyStringPiece in) const;
 
+  // Returns the estimate of dynamically allocated memory in bytes.
+  size_t EstimateMemoryUsage() const;
+
  private:
   // Expects symbols ordered on ID ascending.
   void BuildEncodeTable(const std::vector<Symbol>& symbols);

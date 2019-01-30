@@ -143,12 +143,12 @@ const QpackEntry* QpackHeaderTable::InsertEntry(QuicStringPiece name,
   return new_entry;
 }
 
-bool QpackHeaderTable::UpdateTableSize(uint64_t max_size) {
-  if (max_size > maximum_dynamic_table_capacity_) {
+bool QpackHeaderTable::SetDynamicTableCapacity(uint64_t capacity) {
+  if (capacity > maximum_dynamic_table_capacity_) {
     return false;
   }
 
-  dynamic_table_capacity_ = max_size;
+  dynamic_table_capacity_ = capacity;
   EvictDownToCurrentCapacity();
 
   DCHECK_LE(dynamic_table_size_, dynamic_table_capacity_);

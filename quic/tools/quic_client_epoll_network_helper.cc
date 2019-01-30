@@ -36,7 +36,7 @@ const int kEpollFlags = EPOLLIN | EPOLLOUT | EPOLLET;
 }  // namespace
 
 QuicClientEpollNetworkHelper::QuicClientEpollNetworkHelper(
-    gfe2::EpollServer* epoll_server,
+    QuicEpollServer* epoll_server,
     QuicClientBase* client)
     : epoll_server_(epoll_server),
       packets_dropped_(0),
@@ -120,14 +120,14 @@ void QuicClientEpollNetworkHelper::RunEventLoop() {
   epoll_server_->WaitForEventsAndExecuteCallbacks();
 }
 
-void QuicClientEpollNetworkHelper::OnRegistration(gfe2::EpollServer* eps,
+void QuicClientEpollNetworkHelper::OnRegistration(QuicEpollServer* eps,
                                                   int fd,
                                                   int event_mask) {}
 void QuicClientEpollNetworkHelper::OnModification(int fd, int event_mask) {}
 void QuicClientEpollNetworkHelper::OnUnregistration(int fd, bool replaced) {}
-void QuicClientEpollNetworkHelper::OnShutdown(gfe2::EpollServer* eps, int fd) {}
+void QuicClientEpollNetworkHelper::OnShutdown(QuicEpollServer* eps, int fd) {}
 
-void QuicClientEpollNetworkHelper::OnEvent(int fd, gfe2::EpollEvent* event) {
+void QuicClientEpollNetworkHelper::OnEvent(int fd, QuicEpollEvent* event) {
   DCHECK_EQ(fd, GetLatestFD());
 
   if (event->in_events & EPOLLIN) {

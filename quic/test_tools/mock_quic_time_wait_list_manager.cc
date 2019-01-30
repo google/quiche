@@ -26,7 +26,7 @@ MockTimeWaitListManager::MockTimeWaitListManager(
                            QuicTimeWaitListManager_AddConnectionIdToTimeWait));
 }
 
-MockTimeWaitListManager::~MockTimeWaitListManager() {}
+MockTimeWaitListManager::~MockTimeWaitListManager() = default;
 
 }  // namespace test
 }  // namespace quic

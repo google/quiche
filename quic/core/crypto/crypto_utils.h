@@ -90,6 +90,7 @@ class QUIC_EXPORT_PRIVATE CryptoUtils {
   // decrypter (put in |*crypters|) to use for this packet protection, as well
   // as setting the key and IV on those crypters.
   static void CreateTlsInitialCrypters(Perspective perspective,
+                                       QuicTransportVersion version,
                                        QuicConnectionId connection_id,
                                        CrypterPair* crypters);
 

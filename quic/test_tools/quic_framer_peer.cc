@@ -12,11 +12,11 @@ namespace quic {
 namespace test {
 
 // static
-QuicPacketNumber QuicFramerPeer::CalculatePacketNumberFromWire(
+uint64_t QuicFramerPeer::CalculatePacketNumberFromWire(
     QuicFramer* framer,
     QuicPacketNumberLength packet_number_length,
     QuicPacketNumber last_packet_number,
-    QuicPacketNumber packet_number) {
+    uint64_t packet_number) {
   return framer->CalculatePacketNumberFromWire(
       packet_number_length, last_packet_number, packet_number);
 }
@@ -336,6 +336,13 @@ size_t QuicFramerPeer::ComputeFrameLength(
     QuicPacketNumberLength packet_number_length) {
   return framer->ComputeFrameLength(frame, last_frame_in_packet,
                                     packet_number_length);
+}
+
+// static
+void QuicFramerPeer::SetFirstSendingPacketNumber(QuicFramer* framer,
+                                                 uint64_t packet_number) {
+  *const_cast<QuicPacketNumber*>(&framer->first_sending_packet_number_) =
+      QuicPacketNumber(packet_number);
 }
 
 }  // namespace test

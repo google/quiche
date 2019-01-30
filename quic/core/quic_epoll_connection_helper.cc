@@ -16,7 +16,7 @@
 namespace quic {
 
 QuicEpollConnectionHelper::QuicEpollConnectionHelper(
-    gfe2::EpollServer* epoll_server,
+    QuicEpollServer* epoll_server,
     QuicAllocator type)
     : clock_(epoll_server),
       random_generator_(QuicRandom::GetInstance()),

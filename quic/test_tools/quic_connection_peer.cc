@@ -275,9 +275,8 @@ void QuicConnectionPeer::SetAckDecimationDelay(QuicConnection* connection,
 }
 
 // static
-bool QuicConnectionPeer::HasRetransmittableFrames(
-    QuicConnection* connection,
-    QuicPacketNumber packet_number) {
+bool QuicConnectionPeer::HasRetransmittableFrames(QuicConnection* connection,
+                                                  uint64_t packet_number) {
   return QuicSentPacketManagerPeer::HasRetransmittableFrames(
       GetSentPacketManager(connection), packet_number);
 }

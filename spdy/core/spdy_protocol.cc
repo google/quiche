@@ -6,7 +6,7 @@
 
 #include <ostream>
 
-#include "net/third_party/quiche/src/spdy/core/spdy_bug_tracker.h"
+#include "net/third_party/quiche/src/spdy/platform/api/spdy_bug_tracker.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_ptr_util.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_utils.h"
 

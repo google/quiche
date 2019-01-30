@@ -14,7 +14,12 @@ TEST_F(QuicSimpleCryptoServerStreamHelperTest, GenerateConnectionIdForReject) {
   QuicSimpleCryptoServerStreamHelper helper(&random);
 
   EXPECT_EQ(QuicUtils::CreateRandomConnectionId(&random),
-            helper.GenerateConnectionIdForReject(test::TestConnectionId()));
+            helper.GenerateConnectionIdForReject(QUIC_VERSION_35,
+                                                 test::TestConnectionId()));
+
+  EXPECT_EQ(QuicUtils::CreateRandomConnectionId(&random),
+            helper.GenerateConnectionIdForReject(QUIC_VERSION_99,
+                                                 test::TestConnectionId()));
 }
 
 }  // namespace quic

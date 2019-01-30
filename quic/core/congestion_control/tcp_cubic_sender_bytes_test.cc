@@ -69,8 +69,9 @@ class TcpCubicSenderBytesTest : public QuicTest {
     int packets_sent = 0;
     bool can_send = sender_->CanSend(bytes_in_flight_);
     while (can_send) {
-      sender_->OnPacketSent(clock_.Now(), bytes_in_flight_, packet_number_++,
-                            kDefaultTCPMSS, HAS_RETRANSMITTABLE_DATA);
+      sender_->OnPacketSent(clock_.Now(), bytes_in_flight_,
+                            QuicPacketNumber(packet_number_++), kDefaultTCPMSS,
+                            HAS_RETRANSMITTABLE_DATA);
       ++packets_sent;
       bytes_in_flight_ += kDefaultTCPMSS;
       can_send = sender_->CanSend(bytes_in_flight_);
@@ -87,7 +88,8 @@ class TcpCubicSenderBytesTest : public QuicTest {
     for (int i = 0; i < n; ++i) {
       ++acked_packet_number_;
       acked_packets.push_back(
-          AckedPacket(acked_packet_number_, kDefaultTCPMSS, QuicTime::Zero()));
+          AckedPacket(QuicPacketNumber(acked_packet_number_), kDefaultTCPMSS,
+                      QuicTime::Zero()));
     }
     sender_->OnCongestionEvent(true, bytes_in_flight_, clock_.Now(),
                                acked_packets, lost_packets);
@@ -102,7 +104,8 @@ class TcpCubicSenderBytesTest : public QuicTest {
     LostPacketVector lost_packets;
     for (int i = 0; i < n; ++i) {
       ++acked_packet_number_;
-      lost_packets.push_back(LostPacket(acked_packet_number_, packet_length));
+      lost_packets.push_back(
+          LostPacket(QuicPacketNumber(acked_packet_number_), packet_length));
     }
     sender_->OnCongestionEvent(false, bytes_in_flight_, clock_.Now(),
                                acked_packets, lost_packets);
@@ -110,10 +113,11 @@ class TcpCubicSenderBytesTest : public QuicTest {
   }
 
   // Does not increment acked_packet_number_.
-  void LosePacket(QuicPacketNumber packet_number) {
+  void LosePacket(uint64_t packet_number) {
     AckedPacketVector acked_packets;
     LostPacketVector lost_packets;
-    lost_packets.push_back(LostPacket(packet_number, kDefaultTCPMSS));
+    lost_packets.push_back(
+        LostPacket(QuicPacketNumber(packet_number), kDefaultTCPMSS));
     sender_->OnCongestionEvent(false, bytes_in_flight_, clock_.Now(),
                                acked_packets, lost_packets);
     bytes_in_flight_ -= kDefaultTCPMSS;
@@ -122,8 +126,8 @@ class TcpCubicSenderBytesTest : public QuicTest {
   const QuicTime::Delta one_ms_;
   MockClock clock_;
   std::unique_ptr<TcpCubicSenderBytesPeer> sender_;
-  QuicPacketNumber packet_number_;
-  QuicPacketNumber acked_packet_number_;
+  uint64_t packet_number_;
+  uint64_t acked_packet_number_;
   QuicByteCount bytes_in_flight_;
 };
 
@@ -779,7 +783,8 @@ TEST_F(TcpCubicSenderBytesTest, DefaultMaxCwnd) {
   LostPacketVector missing_packets;
   for (uint64_t i = 1; i < kDefaultMaxCongestionWindowPackets; ++i) {
     acked_packets.clear();
-    acked_packets.push_back(AckedPacket(i, 1350, QuicTime::Zero()));
+    acked_packets.push_back(
+        AckedPacket(QuicPacketNumber(i), 1350, QuicTime::Zero()));
     sender->OnCongestionEvent(true, sender->GetCongestionWindow(), clock_.Now(),
                               acked_packets, missing_packets);
   }

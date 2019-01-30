@@ -73,7 +73,7 @@ class QUIC_EXPORT_PRIVATE PacketNumberQueue {
   size_t NumIntervals() const;
 
   // Returns the length of last interval.
-  QuicPacketNumber LastIntervalLength() const;
+  QuicPacketCount LastIntervalLength() const;
 
   // Returns iterators over the packet number intervals.
   const_iterator begin() const;

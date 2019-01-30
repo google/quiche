@@ -18,6 +18,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_simple_buffer_allocator.h"
 #include "net/third_party/quiche/src/quic/core/quic_time.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_epoll.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
 #include "net/quic/platform/impl/quic_epoll_clock.h"
 
@@ -43,7 +44,7 @@ enum class QuicAllocator { SIMPLE, BUFFER_POOL };
 
 class QuicEpollConnectionHelper : public QuicConnectionHelperInterface {
  public:
-  QuicEpollConnectionHelper(gfe2::EpollServer* eps, QuicAllocator allocator);
+  QuicEpollConnectionHelper(QuicEpollServer* eps, QuicAllocator allocator);
   QuicEpollConnectionHelper(const QuicEpollConnectionHelper&) = delete;
   QuicEpollConnectionHelper& operator=(const QuicEpollConnectionHelper&) =
       delete;

@@ -17,20 +17,29 @@ namespace quic {
 
 struct QUIC_EXPORT_PRIVATE QuicCryptoFrame {
   QuicCryptoFrame();
-  QuicCryptoFrame(QuicStreamOffset offset, QuicStringPiece data);
+  QuicCryptoFrame(EncryptionLevel level,
+                  QuicStreamOffset offset,
+                  QuicPacketLength data_length);
+  QuicCryptoFrame(EncryptionLevel level,
+                  QuicStreamOffset offset,
+                  QuicStringPiece data);
   ~QuicCryptoFrame();
 
   friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                                       const QuicCryptoFrame& s);
 
+  // When writing a crypto frame to a packet, the packet must be encrypted at
+  // |level|. When a crypto frame is read, the encryption level of the packet it
+  // was received in is put in |level|.
+  EncryptionLevel level;
   QuicPacketLength data_length;
   // When reading, |data_buffer| points to the data that was received in the
-  // frame. When writing, |data_buffer| must be a valid pointer for the lifetime
-  // of the frame, which may get serialized some time after creation.
+  // frame. |data_buffer| is not used when writing.
   const char* data_buffer;
   QuicStreamOffset offset;  // Location of this data in the stream.
 
-  QuicCryptoFrame(QuicStreamOffset offset,
+  QuicCryptoFrame(EncryptionLevel level,
+                  QuicStreamOffset offset,
                   const char* data_buffer,
                   QuicPacketLength data_length);
 };

@@ -24,8 +24,6 @@ const int64_t kHybridStartDelayMaxThresholdUs = 16000;
 HybridSlowStart::HybridSlowStart()
     : started_(false),
       hystart_found_(NOT_FOUND),
-      last_sent_packet_number_(0),
-      end_packet_number_(0),
       rtt_sample_count_(0),
       current_min_rtt_(QuicTime::Delta::Zero()) {}
 
@@ -56,7 +54,7 @@ void HybridSlowStart::StartReceiveRound(QuicPacketNumber last_sent) {
 }
 
 bool HybridSlowStart::IsEndOfRound(QuicPacketNumber ack) const {
-  return end_packet_number_ <= ack;
+  return !end_packet_number_.IsInitialized() || end_packet_number_ <= ack;
 }
 
 bool HybridSlowStart::ShouldExitSlowStart(QuicTime::Delta latest_rtt,

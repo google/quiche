@@ -27,7 +27,7 @@ bool NullEncrypter::SetIV(QuicStringPiece iv) {
 }
 
 bool NullEncrypter::EncryptPacket(QuicTransportVersion version,
-                                  QuicPacketNumber /*packet_number*/,
+                                  uint64_t /*packet_number*/,
                                   QuicStringPiece associated_data,
                                   QuicStringPiece plaintext,
                                   char* output,

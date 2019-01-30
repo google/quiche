@@ -4,7 +4,6 @@
 
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_constants.h"
 
-#include <cstddef>
 #include <limits>
 
 #include "base/logging.h"
@@ -17,8 +16,9 @@ namespace {
 //  * in each instruction, the bits of |value| that are zero in |mask| are zero;
 //  * every byte matches exactly one opcode.
 void ValidateLangague(const QpackLanguage* language) {
+#ifndef NDEBUG
   for (const auto* instruction : *language) {
-    DCHECK_EQ(0u, instruction->opcode.value & ~instruction->opcode.mask);
+    DCHECK_EQ(0, instruction->opcode.value & ~instruction->opcode.mask);
   }
 
   for (uint8_t byte = 0; byte < std::numeric_limits<uint8_t>::max(); ++byte) {
@@ -30,6 +30,7 @@ void ValidateLangague(const QpackLanguage* language) {
     }
     DCHECK_EQ(1u, match_count) << static_cast<int>(byte);
   }
+#endif
 }
 
 }  // namespace
@@ -68,7 +69,7 @@ const QpackInstruction* DuplicateInstruction() {
   return instruction;
 }
 
-const QpackInstruction* DynamicTableSizeUpdateInstruction() {
+const QpackInstruction* SetDynamicTableCapacityInstruction() {
   static const QpackInstructionOpcode* const opcode =
       new QpackInstructionOpcode{0b00100000, 0b11100000};
   static const QpackInstruction* const instruction =
@@ -80,14 +81,12 @@ const QpackLanguage* QpackEncoderStreamLanguage() {
   static const QpackLanguage* const language = new QpackLanguage{
       InsertWithNameReferenceInstruction(),
       InsertWithoutNameReferenceInstruction(), DuplicateInstruction(),
-      DynamicTableSizeUpdateInstruction()};
-#ifndef NDEBUG
+      SetDynamicTableCapacityInstruction()};
   ValidateLangague(language);
-#endif
   return language;
 }
 
-const QpackInstruction* TableStateSynchronizeInstruction() {
+const QpackInstruction* InsertCountIncrementInstruction() {
   static const QpackInstructionOpcode* const opcode =
       new QpackInstructionOpcode{0b00000000, 0b11000000};
   static const QpackInstruction* const instruction =
@@ -113,11 +112,9 @@ const QpackInstruction* StreamCancellationInstruction() {
 
 const QpackLanguage* QpackDecoderStreamLanguage() {
   static const QpackLanguage* const language = new QpackLanguage{
-      TableStateSynchronizeInstruction(), HeaderAcknowledgementInstruction(),
+      InsertCountIncrementInstruction(), HeaderAcknowledgementInstruction(),
       StreamCancellationInstruction()};
-#ifndef NDEBUG
   ValidateLangague(language);
-#endif
   return language;
 }
 
@@ -136,9 +133,7 @@ const QpackInstruction* QpackPrefixInstruction() {
 const QpackLanguage* QpackPrefixLanguage() {
   static const QpackLanguage* const language =
       new QpackLanguage{QpackPrefixInstruction()};
-#ifndef NDEBUG
   ValidateLangague(language);
-#endif
   return language;
 }
 
@@ -198,9 +193,7 @@ const QpackLanguage* QpackRequestStreamLanguage() {
                         QpackLiteralHeaderFieldNameReferenceInstruction(),
                         QpackLiteralHeaderFieldPostBaseInstruction(),
                         QpackLiteralHeaderFieldInstruction()};
-#ifndef NDEBUG
   ValidateLangague(language);
-#endif
   return language;
 }
 

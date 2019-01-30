@@ -3,9 +3,9 @@
 // found in the LICENSE file.
 
 #include "net/third_party/quiche/src/spdy/core/spdy_frame_reader.h"
+
 #include <cstdint>
 
-#include "base/macros.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_arraysize.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_endianness_util.h"
@@ -37,7 +37,7 @@ TEST(SpdyFrameReaderTest, ReadUInt32) {
   // Frame data in network byte order.
   const uint32_t kFrameData[] = {
       SpdyHostToNet32(1),
-      SpdyHostToNet32(static_cast<uint32_t>(1) << 31),
+      SpdyHostToNet32(0x80000000),
   };
 
   SpdyFrameReader frame_reader(reinterpret_cast<const char*>(kFrameData),

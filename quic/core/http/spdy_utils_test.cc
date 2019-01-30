@@ -327,6 +327,24 @@ TEST_F(GetPromisedUrlFromHeaders, Connect) {
   EXPECT_EQ(SpdyUtils::GetPromisedUrlFromHeaders(headers), "");
 }
 
+TEST_F(GetPromisedUrlFromHeaders, InvalidUserinfo) {
+  SpdyHeaderBlock headers;
+  headers[":method"] = "GET";
+  headers[":authority"] = "user@www.google.com";
+  headers[":scheme"] = "https";
+  headers[":path"] = "/";
+  EXPECT_EQ(SpdyUtils::GetPromisedUrlFromHeaders(headers), "");
+}
+
+TEST_F(GetPromisedUrlFromHeaders, InvalidPath) {
+  SpdyHeaderBlock headers;
+  headers[":method"] = "GET";
+  headers[":authority"] = "www.google.com";
+  headers[":scheme"] = "https";
+  headers[":path"] = "";
+  EXPECT_EQ(SpdyUtils::GetPromisedUrlFromHeaders(headers), "");
+}
+
 using GetPromisedHostNameFromHeaders = QuicTest;
 
 TEST_F(GetPromisedHostNameFromHeaders, NormalUsage) {

@@ -4,6 +4,8 @@
 
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_decoder.h"
 
+#include <limits>
+
 #include "base/logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
 
@@ -40,33 +42,36 @@ void QpackDecoder::OnInsertWithNameReference(bool is_static,
   if (is_static) {
     auto entry = header_table_.LookupEntry(/* is_static = */ true, name_index);
     if (!entry) {
-      encoder_stream_error_delegate_->OnError("Invalid static table entry.");
+      encoder_stream_error_delegate_->OnEncoderStreamError(
+          "Invalid static table entry.");
       return;
     }
 
     entry = header_table_.InsertEntry(entry->name(), value);
     if (!entry) {
-      encoder_stream_error_delegate_->OnError(
+      encoder_stream_error_delegate_->OnEncoderStreamError(
           "Error inserting entry with name reference.");
     }
     return;
   }
 
-  uint64_t real_index;
-  if (!EncoderStreamRelativeIndexToRealIndex(name_index, &real_index)) {
-    encoder_stream_error_delegate_->OnError("Invalid relative index.");
+  uint64_t absolute_index;
+  if (!EncoderStreamRelativeIndexToAbsoluteIndex(name_index, &absolute_index)) {
+    encoder_stream_error_delegate_->OnEncoderStreamError(
+        "Invalid relative index.");
     return;
   }
 
   const QpackEntry* entry =
-      header_table_.LookupEntry(/* is_static = */ false, real_index);
+      header_table_.LookupEntry(/* is_static = */ false, absolute_index);
   if (!entry) {
-    encoder_stream_error_delegate_->OnError("Dynamic table entry not found.");
+    encoder_stream_error_delegate_->OnEncoderStreamError(
+        "Dynamic table entry not found.");
     return;
   }
   entry = header_table_.InsertEntry(entry->name(), value);
   if (!entry) {
-    encoder_stream_error_delegate_->OnError(
+    encoder_stream_error_delegate_->OnEncoderStreamError(
         "Error inserting entry with name reference.");
   }
 }
@@ -75,50 +80,54 @@ void QpackDecoder::OnInsertWithoutNameReference(QuicStringPiece name,
                                                 QuicStringPiece value) {
   const QpackEntry* entry = header_table_.InsertEntry(name, value);
   if (!entry) {
-    encoder_stream_error_delegate_->OnError("Error inserting literal entry.");
+    encoder_stream_error_delegate_->OnEncoderStreamError(
+        "Error inserting literal entry.");
   }
 }
 
 void QpackDecoder::OnDuplicate(uint64_t index) {
-  uint64_t real_index;
-  if (!EncoderStreamRelativeIndexToRealIndex(index, &real_index)) {
-    encoder_stream_error_delegate_->OnError("Invalid relative index.");
+  uint64_t absolute_index;
+  if (!EncoderStreamRelativeIndexToAbsoluteIndex(index, &absolute_index)) {
+    encoder_stream_error_delegate_->OnEncoderStreamError(
+        "Invalid relative index.");
     return;
   }
 
   const QpackEntry* entry =
-      header_table_.LookupEntry(/* is_static = */ false, real_index);
+      header_table_.LookupEntry(/* is_static = */ false, absolute_index);
   if (!entry) {
-    encoder_stream_error_delegate_->OnError("Dynamic table entry not found.");
+    encoder_stream_error_delegate_->OnEncoderStreamError(
+        "Dynamic table entry not found.");
     return;
   }
   entry = header_table_.InsertEntry(entry->name(), entry->value());
   if (!entry) {
-    encoder_stream_error_delegate_->OnError("Error inserting duplicate entry.");
+    encoder_stream_error_delegate_->OnEncoderStreamError(
+        "Error inserting duplicate entry.");
   }
 }
 
-void QpackDecoder::OnDynamicTableSizeUpdate(uint64_t max_size) {
-  if (!header_table_.UpdateTableSize(max_size)) {
-    encoder_stream_error_delegate_->OnError(
-        "Error updating dynamic table size.");
+void QpackDecoder::OnSetDynamicTableCapacity(uint64_t capacity) {
+  if (!header_table_.SetDynamicTableCapacity(capacity)) {
+    encoder_stream_error_delegate_->OnEncoderStreamError(
+        "Error updating dynamic table capacity.");
   }
 }
 
 void QpackDecoder::OnErrorDetected(QuicStringPiece error_message) {
-  encoder_stream_error_delegate_->OnError(error_message);
+  encoder_stream_error_delegate_->OnEncoderStreamError(error_message);
 }
 
-bool QpackDecoder::EncoderStreamRelativeIndexToRealIndex(
+bool QpackDecoder::EncoderStreamRelativeIndexToAbsoluteIndex(
     uint64_t relative_index,
-    uint64_t* real_index) const {
+    uint64_t* absolute_index) const {
   if (relative_index == std::numeric_limits<uint64_t>::max() ||
       relative_index + 1 > std::numeric_limits<uint64_t>::max() -
                                header_table_.inserted_entry_count()) {
     return false;
   }
 
-  *real_index = header_table_.inserted_entry_count() - relative_index - 1;
+  *absolute_index = header_table_.inserted_entry_count() - relative_index - 1;
   return true;
 }
 

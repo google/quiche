@@ -25,8 +25,8 @@ class QUIC_EXPORT_PRIVATE QpackDecoderStreamReceiver
    public:
     virtual ~Delegate() = default;
 
-    // 5.3.1 Table State Synchronize
-    virtual void OnTableStateSynchronize(uint64_t insert_count) = 0;
+    // 5.3.1 Insert Count Increment
+    virtual void OnInsertCountIncrement(uint64_t increment) = 0;
     // 5.3.2 Header Acknowledgement
     virtual void OnHeaderAcknowledgement(QuicStreamId stream_id) = 0;
     // 5.3.3 Stream Cancellation

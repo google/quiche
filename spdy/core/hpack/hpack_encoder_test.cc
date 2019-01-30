@@ -7,12 +7,11 @@
 #include <cstdint>
 #include <map>
 
-#include "base/arena.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/absl/random/random.h"
+#include "net/third_party/quiche/src/http2/test_tools/http2_random.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_huffman_table.h"
-#include "util/random/acmrandom.h"
+#include "net/third_party/quiche/src/spdy/platform/api/spdy_unsafe_arena.h"
 
 namespace spdy {
 
@@ -86,11 +85,11 @@ class HpackEncoderPeer {
     std::unique_ptr<HpackEncoder::ProgressiveEncoder> encoderator =
         encoder->EncodeHeaderSet(header_set);
     SpdyString output_buffer;
-    ACMRandom random(FLAGS_test_random_seed);
-    encoderator->Next(absl::Uniform<uint32_t>(random, 0, 16), &output_buffer);
+    http2::test::Http2Random random;
+    encoderator->Next(random.UniformInRange(0, 16), &output_buffer);
     while (encoderator->HasNext()) {
       SpdyString second_buffer;
-      encoderator->Next(absl::Uniform<uint32_t>(random, 0, 16), &second_buffer);
+      encoderator->Next(random.UniformInRange(0, 16), &second_buffer);
       output_buffer.append(second_buffer);
     }
     *output = std::move(output_buffer);
@@ -201,7 +200,7 @@ class HpackEncoderTest : public ::testing::TestWithParam<bool> {
   const HpackEntry* cookie_a_;
   const HpackEntry* cookie_c_;
 
-  UnsafeArena headers_storage_;
+  SpdyUnsafeArena headers_storage_;
   std::vector<std::pair<SpdyStringPiece, SpdyStringPiece>> headers_observed_;
 
   HpackOutputStream expected_;

@@ -92,6 +92,13 @@ class PacketCollector : public QuicPacketCreator::DelegateInterface,
     }
     return WRITE_FAILED;
   }
+  bool WriteCryptoData(EncryptionLevel level,
+                       QuicStreamOffset offset,
+                       QuicByteCount data_length,
+                       QuicDataWriter* writer) override {
+    QUIC_BUG << "PacketCollector::WriteCryptoData is unimplemented.";
+    return false;
+  }
 
   std::vector<std::unique_ptr<QuicEncryptedPacket>>* packets() {
     return &packets_;
@@ -235,9 +242,9 @@ class ChloValidator : public ChloAlpnExtractor {
     if (helper_->CanAcceptClientHello(chlo, client_address_, peer_address_,
                                       self_address_, &error_details_)) {
       can_accept_ = true;
-      rejector_->OnChlo(version, connection_id,
-                        helper_->GenerateConnectionIdForReject(connection_id),
-                        chlo);
+      rejector_->OnChlo(
+          version, connection_id,
+          helper_->GenerateConnectionIdForReject(version, connection_id), chlo);
     }
   }
 
@@ -506,27 +513,29 @@ QuicDispatcher::QuicPacketFate QuicDispatcher::ValidityChecks(
   }
 
   // initial packet number of 0 is always invalid.
-  if (header.packet_number == kInvalidPacketNumber) {
+  if (!header.packet_number.IsInitialized()) {
     return kFateTimeWait;
   }
   if (GetQuicRestartFlag(quic_enable_accept_random_ipn)) {
     QUIC_RESTART_FLAG_COUNT_N(quic_enable_accept_random_ipn, 1, 2);
     // Accepting Initial Packet Numbers in 1...((2^31)-1) range... check
     // maximum accordingly.
-    if (header.packet_number > kMaxRandomInitialPacketNumber) {
+    if (header.packet_number > MaxRandomInitialPacketNumber()) {
       return kFateTimeWait;
     }
   } else {
     // Count those that would have been accepted if FLAGS..random_ipn
     // were true -- to detect/diagnose potential issues prior to
     // enabling the flag.
-    if ((header.packet_number > kMaxReasonableInitialPacketNumber) &&
-        (header.packet_number <= kMaxRandomInitialPacketNumber)) {
+    if ((header.packet_number >
+         QuicPacketNumber(kMaxReasonableInitialPacketNumber)) &&
+        (header.packet_number <= MaxRandomInitialPacketNumber())) {
       QUIC_CODE_COUNT_N(had_possibly_random_ipn, 1, 2);
     }
     // Check that the sequence number is within the range that the client is
     // expected to send before receiving a response from the server.
-    if (header.packet_number > kMaxReasonableInitialPacketNumber) {
+    if (header.packet_number >
+        QuicPacketNumber(kMaxReasonableInitialPacketNumber)) {
       return kFateTimeWait;
     }
   }
@@ -552,9 +561,7 @@ void QuicDispatcher::CleanUpSession(SessionMap::iterator it,
     // expediency. Stop doing this when removing flag
     // quic_always_reset_ietf_connections.
     if (!GetQuicReloadableFlag(quic_always_reset_ietf_connections) &&
-        (!GetQuicReloadableFlag(
-             quic_send_reset_for_post_handshake_connections_without_termination_packets) ||  // NOLINT
-         (source == ConnectionCloseSource::FROM_PEER))) {
+        source == ConnectionCloseSource::FROM_PEER) {
       action = QuicTimeWaitListManager::DO_NOTHING;
     } else if (!connection->IsHandshakeConfirmed()) {
       QUIC_CODE_COUNT(quic_v44_add_to_time_wait_list_with_handshake_failed);
@@ -726,6 +733,8 @@ void QuicDispatcher::OnWriteBlocked(
 }
 
 void QuicDispatcher::OnRstStreamReceived(const QuicRstStreamFrame& frame) {}
+
+void QuicDispatcher::OnStopSendingReceived(const QuicStopSendingFrame& frame) {}
 
 void QuicDispatcher::OnConnectionAddedToTimeWaitList(
     QuicConnectionId connection_id) {

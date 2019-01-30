@@ -270,6 +270,10 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
                                       QuicStreamOffset offset,
                                       bool last_frame_in_packet,
                                       QuicPacketLength data_length);
+  // Returns the overhead of framing a CRYPTO frame with the specific offset and
+  // data length provided, but not counting the size of the data payload.
+  static size_t GetMinCryptoFrameSize(QuicStreamOffset offset,
+                                      QuicPacketLength data_length);
   static size_t GetMessageFrameSize(QuicTransportVersion version,
                                     bool last_frame_in_packet,
                                     QuicByteCount length);
@@ -373,6 +377,12 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   size_t BuildConnectivityProbingPacket(const QuicPacketHeader& header,
                                         char* buffer,
                                         size_t packet_length);
+
+  // Serializes an IETF probing packet, which is a padded PING packet.
+  // Returns the length of the packet. Returns 0 if it fails to serialize.
+  size_t BuildIetfConnectivityProbingPacket(const QuicPacketHeader& header,
+                                            char* buffer,
+                                            size_t packet_length);
 
   // Serialize a probing packet that uses IETF QUIC's PATH CHALLENGE frame. Also
   // fills the packet with padding.
@@ -506,7 +516,7 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   // Returns header wire format of last received packet.
   // Please do not use this method.
   // TODO(fayang): Remove last_header_form_ when deprecating
-  // quic_proxy_use_real_packet_format_when_reject flag.
+  // quic_fix_last_packet_is_ietf_quic flag.
   PacketHeaderFormat GetLastPacketFormat() const;
 
   void set_validate_flags(bool value) { validate_flags_ = value; }
@@ -534,6 +544,10 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
 
   QuicTime creation_time() const { return creation_time_; }
 
+  QuicPacketNumber first_sending_packet_number() const {
+    return first_sending_packet_number_;
+  }
+
  private:
   friend class test::QuicFramerPeer;
 
@@ -545,9 +559,9 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
     ~AckFrameInfo();
 
     // The maximum ack block length.
-    QuicPacketNumber max_block_length;
+    QuicPacketCount max_block_length;
     // Length of first ack block.
-    QuicPacketNumber first_block_length;
+    QuicPacketCount first_block_length;
     // Number of ACK blocks needed for the ACK frame.
     size_t num_ack_blocks;
   };
@@ -597,7 +611,7 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
       QuicDataReader* reader,
       QuicPacketNumberLength packet_number_length,
       QuicPacketNumber base_packet_number,
-      QuicPacketNumber* packet_number);
+      uint64_t* packet_number);
   bool ProcessFrameData(QuicDataReader* reader, const QuicPacketHeader& header);
   bool ProcessIetfFrameData(QuicDataReader* reader,
                             const QuicPacketHeader& header);
@@ -635,10 +649,10 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
 
   // Returns the full packet number from the truncated
   // wire format version and the last seen packet number.
-  QuicPacketNumber CalculatePacketNumberFromWire(
+  uint64_t CalculatePacketNumberFromWire(
       QuicPacketNumberLength packet_number_length,
       QuicPacketNumber base_packet_number,
-      QuicPacketNumber packet_number) const;
+      uint64_t packet_number) const;
 
   // Returns the QuicTime::Delta corresponding to the time from when the framer
   // was created.
@@ -675,7 +689,7 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   // successfully appended.
   static bool AppendAckBlock(uint8_t gap,
                              QuicPacketNumberLength length_length,
-                             QuicPacketNumber length,
+                             uint64_t length,
                              QuicDataWriter* writer);
 
   static uint8_t GetPacketNumberFlags(
@@ -869,12 +883,14 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   // The last timestamp received if process_timestamps_ is true.
   QuicTime::Delta last_timestamp_;
 
+  // If this is a framer of a connection, this is the packet number of first
+  // sending packet. If this is a framer of a framer of dispatcher, this is the
+  // packet number of sent packets (for those which have packet number).
+  const QuicPacketNumber first_sending_packet_number_;
+
   // If not null, framer asks data_producer_ to write stream frame data. Not
   // owned. TODO(fayang): Consider add data producer to framer's constructor.
   QuicStreamFrameDataProducer* data_producer_;
-
-  // Latched value of quic_process_stateless_reset_at_client_only flag.
-  const bool process_stateless_reset_at_client_only_;
 
   // If true, framer infers packet header type (IETF/GQUIC) from version_.
   // Otherwise, framer infers packet header type from first byte of a received

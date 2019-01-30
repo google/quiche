@@ -8,14 +8,10 @@
 
 #include <algorithm>
 #include <limits>
-#include <memory>
-#include <utility>
 
-#include "base/log_severity.h"
 #include "base/logging.h"
-#include "strings/cord.h"
-#include "testing/base/public/googletest.h"  // for FLAGS_test_random_seed
 #include "testing/gtest/include/gtest/gtest.h"
+#include "net/third_party/quiche/src/http2/test_tools/http2_random.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_constants.h"
 #include "net/third_party/quiche/src/spdy/core/mock_spdy_framer_visitor.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_frame_builder.h"
@@ -25,7 +21,6 @@
 #include "net/third_party/quiche/src/spdy/core/spdy_protocol_test_utils.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_test_utils.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_ptr_util.h"
-#include "util/random/mt_random.h"
 
 namespace spdy {
 namespace test {
@@ -33,11 +28,7 @@ namespace {
 
 class SpdyDeframerVisitorTest : public ::testing::Test {
  protected:
-  SpdyDeframerVisitorTest()
-      : encoder_(SpdyFramer::ENABLE_COMPRESSION),
-        random_(FLAGS_test_random_seed) {
-    DLOG(INFO) << "Random seed (--test_random_seed): "
-               << FLAGS_test_random_seed;
+  SpdyDeframerVisitorTest() : encoder_(SpdyFramer::ENABLE_COMPRESSION) {
     decoder_.set_process_single_input_frame(true);
     auto collector =
         SpdyMakeUnique<DeframerCallbackCollector>(&collected_frames_);
@@ -77,7 +68,7 @@ class SpdyDeframerVisitorTest : public ::testing::Test {
   std::unique_ptr<SpdyTestDeframer> deframer_;
 
  private:
-  MTRandom random_;
+  http2::test::Http2Random random_;
 };
 
 TEST_F(SpdyDeframerVisitorTest, DataFrame) {
@@ -161,12 +152,12 @@ TEST_F(SpdyDeframerVisitorTest, HeaderFrameWithContinuation) {
 
 TEST_F(SpdyDeframerVisitorTest, PriorityFrame) {
   const char kFrameData[] = {
-      0x00, 0x00, 0x05,        // Length: 5
-      0x02,                    //   Type: PRIORITY
-      0x00,                    //  Flags: none
-      0x00, 0x00, 0x00, 0x65,  // Stream: 101
-      0x80, 0x00, 0x00, 0x01,  // Parent: 1 (Exclusive)
-      0x10,                    // Weight: 17
+      0x00,   0x00, 0x05,        // Length: 5
+      0x02,                      //   Type: PRIORITY
+      0x00,                      //  Flags: none
+      0x00,   0x00, 0x00, 0x65,  // Stream: 101
+      '\x80', 0x00, 0x00, 0x01,  // Parent: 1 (Exclusive)
+      0x10,                      // Weight: 17
   };
 
   EXPECT_TRUE(DeframeInput(kFrameData, sizeof kFrameData));
@@ -194,14 +185,14 @@ TEST_F(SpdyDeframerVisitorTest, SettingsFrame) {
   // values. The last one will be in the decoded SpdySettingsIR, but the vector
   // of settings will have both, in the same order.
   const char kFrameData[] = {
-      0x00, 0x00, 0x0c,        // Length
-      0x04,                    // Type (SETTINGS)
-      0x00,                    // Flags
-      0x00, 0x00, 0x00, 0x00,  // Stream id (must be zero)
-      0x00, 0x04,              // Setting id (SETTINGS_INITIAL_WINDOW_SIZE)
-      0x0a, 0x0b, 0x0c, 0x0d,  // Setting value
-      0x00, 0x04,              // Setting id (SETTINGS_INITIAL_WINDOW_SIZE)
-      0x00, 0x00, 0x00, 0xff,  // Setting value
+      0x00, 0x00, 0x0c,          // Length
+      0x04,                      // Type (SETTINGS)
+      0x00,                      // Flags
+      0x00, 0x00, 0x00, 0x00,    // Stream id (must be zero)
+      0x00, 0x04,                // Setting id (SETTINGS_INITIAL_WINDOW_SIZE)
+      0x0a, 0x0b, 0x0c, 0x0d,    // Setting value
+      0x00, 0x04,                // Setting id (SETTINGS_INITIAL_WINDOW_SIZE)
+      0x00, 0x00, 0x00, '\xff',  // Setting value
   };
 
   EXPECT_TRUE(DeframeInput(kFrameData, sizeof kFrameData));

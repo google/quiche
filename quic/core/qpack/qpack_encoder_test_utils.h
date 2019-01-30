@@ -21,7 +21,7 @@ class NoopDecoderStreamErrorDelegate
  public:
   ~NoopDecoderStreamErrorDelegate() override = default;
 
-  void OnError(QuicStringPiece error_message) override;
+  void OnDecoderStreamError(QuicStringPiece error_message) override;
 };
 
 // Mock QpackEncoder::DecoderStreamErrorDelegate implementation.
@@ -30,7 +30,7 @@ class MockDecoderStreamErrorDelegate
  public:
   ~MockDecoderStreamErrorDelegate() override = default;
 
-  MOCK_METHOD1(OnError, void(QuicStringPiece error_message));
+  MOCK_METHOD1(OnDecoderStreamError, void(QuicStringPiece error_message));
 };
 
 // QpackEncoderStreamSender::Delegate implementation that does nothing.
@@ -39,7 +39,16 @@ class NoopEncoderStreamSenderDelegate
  public:
   ~NoopEncoderStreamSenderDelegate() override = default;
 
-  void Write(QuicStringPiece data) override;
+  void WriteEncoderStreamData(QuicStringPiece data) override;
+};
+
+// Mock QpackEncoderStreamSender::Delegate implementation.
+class MockEncoderStreamSenderDelegate
+    : public QpackEncoderStreamSender::Delegate {
+ public:
+  ~MockEncoderStreamSenderDelegate() override = default;
+
+  MOCK_METHOD1(WriteEncoderStreamData, void(QuicStringPiece data));
 };
 
 QuicString QpackEncode(

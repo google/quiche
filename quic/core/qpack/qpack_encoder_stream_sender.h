@@ -22,9 +22,10 @@ class QUIC_EXPORT_PRIVATE QpackEncoderStreamSender {
     virtual ~Delegate() = default;
 
     // Encoded |data| is ready to be written on the encoder stream.
-    // Write() is called exactly once for each instruction, |data| contains the
-    // entire encoded instruction and it is guaranteed to be not empty.
-    virtual void Write(QuicStringPiece data) = 0;
+    // WriteEncoderStreamData() is called exactly once for each instruction.
+    // |data| contains the entire encoded instruction and it is guaranteed to be
+    // not empty.
+    virtual void WriteEncoderStreamData(QuicStringPiece data) = 0;
   };
 
   explicit QpackEncoderStreamSender(Delegate* delegate);
@@ -44,8 +45,8 @@ class QUIC_EXPORT_PRIVATE QpackEncoderStreamSender {
                                       QuicStringPiece value);
   // 5.2.3. Duplicate
   void SendDuplicate(uint64_t index);
-  // 5.2.4. Dynamic Table Size Update
-  void SendDynamicTableSizeUpdate(uint64_t max_size);
+  // 5.2.4. Set Dynamic Table Capacity
+  void SendSetDynamicTableCapacity(uint64_t capacity);
 
  private:
   Delegate* const delegate_;

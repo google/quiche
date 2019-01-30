@@ -13,6 +13,7 @@
 #include "base/macros.h"
 #include "third_party/boringssl/src/include/openssl/base.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_handshake.h"
+#include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_server_id.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
@@ -351,6 +352,14 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
     pre_shared_key_ = QuicString(psk);
   }
 
+  bool pad_inchoate_hello() const { return pad_inchoate_hello_; }
+  void set_pad_inchoate_hello(bool new_value) {
+    pad_inchoate_hello_ = new_value;
+  }
+
+  bool pad_full_hello() const { return pad_full_hello_; }
+  void set_pad_full_hello(bool new_value) { pad_full_hello_ = new_value; }
+
  private:
   // Sets the members to reasonable, default values.
   void SetDefaults();
@@ -402,6 +411,20 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
   // If non-empty, the client will operate in the pre-shared key mode by
   // incorporating |pre_shared_key_| into the key schedule.
   QuicString pre_shared_key_;
+
+  // In QUIC, technically, client hello should be fully padded.
+  // However, fully padding on slow network connection (e.g. 50kbps) can add
+  // 150ms latency to one roundtrip. Therefore, you can disable padding of
+  // individual messages. It is recommend to leave at least one message in
+  // each direction fully padded (e.g. full CHLO and SHLO), but if you know
+  // the lower-bound MTU, you don't need to pad all of them (keep in mind that
+  // it's not OK to do it according to the standard).
+  //
+  // Also, if you disable padding, you must disable (change) the
+  // anti-amplification protection. You should only do so if you have some
+  // other means of verifying the client.
+  bool pad_inchoate_hello_ = true;
+  bool pad_full_hello_ = true;
 };
 
 }  // namespace quic

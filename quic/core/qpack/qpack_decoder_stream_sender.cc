@@ -18,18 +18,17 @@ QpackDecoderStreamSender::QpackDecoderStreamSender(Delegate* delegate)
   DCHECK(delegate_);
 }
 
-void QpackDecoderStreamSender::SendTableStateSynchronize(
-    uint64_t insert_count) {
-  instruction_encoder_.set_varint(insert_count);
+void QpackDecoderStreamSender::SendInsertCountIncrement(uint64_t increment) {
+  instruction_encoder_.set_varint(increment);
 
-  instruction_encoder_.Encode(TableStateSynchronizeInstruction());
+  instruction_encoder_.Encode(InsertCountIncrementInstruction());
 
   QuicString output;
 
   instruction_encoder_.Next(std::numeric_limits<size_t>::max(), &output);
   DCHECK(!instruction_encoder_.HasNext());
 
-  delegate_->Write(output);
+  delegate_->WriteDecoderStreamData(output);
 }
 
 void QpackDecoderStreamSender::SendHeaderAcknowledgement(
@@ -43,7 +42,7 @@ void QpackDecoderStreamSender::SendHeaderAcknowledgement(
   instruction_encoder_.Next(std::numeric_limits<size_t>::max(), &output);
   DCHECK(!instruction_encoder_.HasNext());
 
-  delegate_->Write(output);
+  delegate_->WriteDecoderStreamData(output);
 }
 
 void QpackDecoderStreamSender::SendStreamCancellation(QuicStreamId stream_id) {
@@ -56,7 +55,7 @@ void QpackDecoderStreamSender::SendStreamCancellation(QuicStreamId stream_id) {
   instruction_encoder_.Next(std::numeric_limits<size_t>::max(), &output);
   DCHECK(!instruction_encoder_.HasNext());
 
-  delegate_->Write(output);
+  delegate_->WriteDecoderStreamData(output);
 }
 
 }  // namespace quic

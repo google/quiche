@@ -11,4 +11,15 @@ const char* const kFinalOffsetHeaderKey = ":final-offset";
 const char* const kEPIDGoogleFrontEnd = "GFE";
 const char* const kEPIDGoogleFrontEnd0 = "GFE0";
 
+QuicPacketNumber MaxRandomInitialPacketNumber() {
+  static const QuicPacketNumber kMaxRandomInitialPacketNumber =
+      QuicPacketNumber(0x7fffffff);
+  return kMaxRandomInitialPacketNumber;
+}
+
+QuicPacketNumber FirstSendingPacketNumber() {
+  static const QuicPacketNumber kFirstSendingPacketNumber = QuicPacketNumber(1);
+  return kFirstSendingPacketNumber;
+}
+
 }  // namespace quic

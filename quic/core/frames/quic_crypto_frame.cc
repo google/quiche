@@ -8,15 +8,27 @@
 
 namespace quic {
 
-QuicCryptoFrame::QuicCryptoFrame() : QuicCryptoFrame(0, nullptr, 0) {}
+QuicCryptoFrame::QuicCryptoFrame()
+    : QuicCryptoFrame(ENCRYPTION_NONE, 0, nullptr, 0) {}
 
-QuicCryptoFrame::QuicCryptoFrame(QuicStreamOffset offset, QuicStringPiece data)
-    : QuicCryptoFrame(offset, data.data(), data.length()) {}
+QuicCryptoFrame::QuicCryptoFrame(EncryptionLevel level,
+                                 QuicStreamOffset offset,
+                                 QuicPacketLength data_length)
+    : QuicCryptoFrame(level, offset, nullptr, data_length) {}
 
-QuicCryptoFrame::QuicCryptoFrame(QuicStreamOffset offset,
+QuicCryptoFrame::QuicCryptoFrame(EncryptionLevel level,
+                                 QuicStreamOffset offset,
+                                 QuicStringPiece data)
+    : QuicCryptoFrame(level, offset, data.data(), data.length()) {}
+
+QuicCryptoFrame::QuicCryptoFrame(EncryptionLevel level,
+                                 QuicStreamOffset offset,
                                  const char* data_buffer,
                                  QuicPacketLength data_length)
-    : data_length(data_length), data_buffer(data_buffer), offset(offset) {}
+    : level(level),
+      data_length(data_length),
+      data_buffer(data_buffer),
+      offset(offset) {}
 
 QuicCryptoFrame::~QuicCryptoFrame() {}
 

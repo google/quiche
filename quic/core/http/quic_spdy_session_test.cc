@@ -1001,6 +1001,23 @@ TEST_P(QuicSpdySessionTestServer, RstStreamBeforeHeadersDecompressed) {
                           GetNthClientInitiatedBidirectionalId(0),
                           QUIC_ERROR_PROCESSING_STREAM, 0);
   session_.OnRstStream(rst1);
+
+  // Create and inject a STOP_SENDING frame. In GOOGLE QUIC, receiving a
+  // RST_STREAM frame causes a two-way close. For IETF QUIC, RST_STREAM causes a
+  // one-way close.
+  if (transport_version() == QUIC_VERSION_99) {
+    // Only needed for version 99/IETF QUIC.
+    QuicStopSendingFrame stop_sending(
+        kInvalidControlFrameId, GetNthClientInitiatedBidirectionalId(0),
+        static_cast<QuicApplicationErrorCode>(QUIC_ERROR_PROCESSING_STREAM));
+    // Expect the RESET_STREAM that is generated in response to receiving a
+    // STOP_SENDING.
+    EXPECT_CALL(*connection_,
+                OnStreamReset(GetNthClientInitiatedBidirectionalId(0),
+                              QUIC_ERROR_PROCESSING_STREAM));
+    session_.OnStopSendingFrame(stop_sending);
+  }
+
   EXPECT_EQ(0u, session_.GetNumOpenIncomingStreams());
   // Connection should remain alive.
   EXPECT_TRUE(connection_->connected());
@@ -1219,15 +1236,31 @@ TEST_P(QuicSpdySessionTestServer,
         .Times(2)
         .WillRepeatedly(Invoke(&session_, &TestSession::ClearControlFrame));
   } else {
-    // V99 has an additional, STOP_SENDING, frame.
+    // V99 has an additional, STOP_SENDING, frame and an additional RST_STREAM
+    // (the response to the STOP_SENDING) frame.
     EXPECT_CALL(*connection_, SendControlFrame(_))
-        .Times(3)
+        .Times(4)
         .WillRepeatedly(Invoke(&session_, &TestSession::ClearControlFrame));
   }
   EXPECT_CALL(*connection_, OnStreamReset(stream->id(), _));
   QuicRstStreamFrame rst_frame(kInvalidControlFrameId, stream->id(),
                                QUIC_STREAM_CANCELLED, kByteOffset);
   session_.OnRstStream(rst_frame);
+  // Create and inject a STOP_SENDING frame. In GOOGLE QUIC, receiving a
+  // RST_STREAM frame causes a two-way close. For IETF QUIC, RST_STREAM causes a
+  // one-way close.
+  if (transport_version() == QUIC_VERSION_99) {
+    // Only needed for version 99/IETF QUIC.
+    QuicStopSendingFrame stop_sending(
+        kInvalidControlFrameId, stream->id(),
+        static_cast<QuicApplicationErrorCode>(QUIC_STREAM_CANCELLED));
+    // Expect the RESET_STREAM that is generated in response to receiving a
+    // STOP_SENDING.
+    EXPECT_CALL(*connection_,
+                OnStreamReset(stream->id(), QUIC_STREAM_CANCELLED));
+    session_.OnStopSendingFrame(stop_sending);
+  }
+
   EXPECT_EQ(kByteOffset, session_.flow_controller()->bytes_consumed());
 }
 

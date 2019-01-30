@@ -45,8 +45,8 @@ bool QpackEncoderStreamReceiver::OnInstructionDecoded(
     return true;
   }
 
-  DCHECK_EQ(instruction, DynamicTableSizeUpdateInstruction());
-  delegate_->OnDynamicTableSizeUpdate(instruction_decoder_.varint());
+  DCHECK_EQ(instruction, SetDynamicTableCapacityInstruction());
+  delegate_->OnSetDynamicTableCapacity(instruction_decoder_.varint());
   return true;
 }
 

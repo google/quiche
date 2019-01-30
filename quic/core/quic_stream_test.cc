@@ -8,6 +8,7 @@
 
 #include "net/third_party/quiche/src/quic/core/quic_connection.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
+#include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/core/quic_write_blocked_list.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_expect_bug.h"
@@ -122,6 +123,18 @@ class QuicStreamTestBase : public QuicTestWithParam<ParsedQuicVersion> {
   }
 
   bool ClearControlFrame(const QuicFrame& frame) {
+    DeleteFrame(&const_cast<QuicFrame&>(frame));
+    return true;
+  }
+
+  bool ClearResetStreamFrame(const QuicFrame& frame) {
+    EXPECT_EQ(RST_STREAM_FRAME, frame.type);
+    DeleteFrame(&const_cast<QuicFrame&>(frame));
+    return true;
+  }
+
+  bool ClearStopSendingFrame(const QuicFrame& frame) {
+    EXPECT_EQ(STOP_SENDING_FRAME, frame.type);
     DeleteFrame(&const_cast<QuicFrame&>(frame));
     return true;
   }
@@ -686,7 +699,8 @@ TEST_P(QuicStreamTest, StreamTooLong) {
   QuicStreamFrame stream_frame(stream_->id(), false, kMaxStreamLength,
                                QuicStringPiece("."));
   EXPECT_QUIC_PEER_BUG(stream_->OnStreamFrame(stream_frame),
-                       "Receive stream frame reaches max stream length");
+                       QuicStrCat("Receive stream frame on stream ",
+                                  stream_->id(), " reaches max stream length"));
 }
 
 TEST_P(QuicParameterizedStreamTest, SetDrainingIncomingOutgoing) {
@@ -1067,7 +1081,6 @@ TEST_P(QuicStreamTest, WritevDataReachStreamLimit) {
   QuicConsumedData consumed = stream_->WriteMemSlices(storage.ToSpan(), false);
   EXPECT_EQ(data.length(), consumed.bytes_consumed);
   struct iovec iov2 = {const_cast<char*>(data.data()), 1u};
-  SimpleBufferAllocator allocator2;
   QuicMemSliceStorage storage2(
       &iov2, 1,
       session_->connection()->helper()->GetStreamSendBufferAllocator(), 1024);
@@ -1445,6 +1458,10 @@ TEST_P(QuicStreamTest, ResetStreamOnTtlExpiresEarlyRetransmitData) {
 TEST_P(QuicParameterizedStreamTest, CheckStopSending) {
   Initialize();
   const int kStopSendingCode = 123;
+  // These must start as false.
+  EXPECT_FALSE(QuicStreamPeer::write_side_closed(stream_));
+  EXPECT_FALSE(QuicStreamPeer::read_side_closed(stream_));
+  // Expect to actually see a stop sending if and only if we are in version 99.
   if (connection_->transport_version() == QUIC_VERSION_99) {
     EXPECT_CALL(*session_, SendStopSending(kStopSendingCode, stream_->id()))
         .Times(1);
@@ -1452,6 +1469,74 @@ TEST_P(QuicParameterizedStreamTest, CheckStopSending) {
     EXPECT_CALL(*session_, SendStopSending(_, _)).Times(0);
   }
   stream_->SendStopSending(kStopSendingCode);
+  // Sending a STOP_SENDING does not actually close the local stream.
+  // Our implementation waits for the responding RESET_STREAM to effect the
+  // closes. Therefore, read- and write-side closes should both be false.
+  EXPECT_FALSE(QuicStreamPeer::write_side_closed(stream_));
+  EXPECT_FALSE(QuicStreamPeer::read_side_closed(stream_));
+}
+
+// Test that OnStreamReset does one-way (read) closes if version 99, two way
+// (read and write) if not version 99.
+TEST_P(QuicStreamTest, OnStreamResetReadOrReadWrite) {
+  Initialize();
+  EXPECT_FALSE(QuicStreamPeer::write_side_closed(stream_));
+  EXPECT_FALSE(QuicStreamPeer::read_side_closed(stream_));
+
+  QuicRstStreamFrame rst_frame(kInvalidControlFrameId, stream_->id(),
+                               QUIC_STREAM_CANCELLED, 1234);
+  stream_->OnStreamReset(rst_frame);
+  if (connection_->transport_version() == QUIC_VERSION_99) {
+    // Version 99/IETF QUIC should close just the read side.
+    EXPECT_TRUE(QuicStreamPeer::read_side_closed(stream_));
+    EXPECT_FALSE(QuicStreamPeer::write_side_closed(stream_));
+  } else {
+    // Google QUIC should close both sides of the stream.
+    EXPECT_TRUE(QuicStreamPeer::write_side_closed(stream_));
+    EXPECT_TRUE(QuicStreamPeer::read_side_closed(stream_));
+  }
+}
+
+// Test that receiving a STOP_SENDING just closes the write side of the stream.
+// If not V99, the test is a noop (no STOP_SENDING in Google QUIC).
+TEST_P(QuicStreamTest, OnStopSendingReadOrReadWrite) {
+  Initialize();
+  if (connection_->transport_version() != QUIC_VERSION_99) {
+    return;
+  }
+
+  EXPECT_FALSE(QuicStreamPeer::write_side_closed(stream_));
+  EXPECT_FALSE(QuicStreamPeer::read_side_closed(stream_));
+
+  // Simulate receipt of a STOP_SENDING.
+  stream_->OnStopSending(123);
+
+  // Should close just the read side.
+  EXPECT_FALSE(QuicStreamPeer::read_side_closed(stream_));
+  EXPECT_TRUE(QuicStreamPeer::write_side_closed(stream_));
+}
+
+// SendOnlyRstStream must only send a RESET_STREAM (no bundled STOP_SENDING).
+TEST_P(QuicStreamTest, SendOnlyRstStream) {
+  Initialize();
+  if (connection_->transport_version() != QUIC_VERSION_99) {
+    return;
+  }
+
+  EXPECT_CALL(*connection_,
+              OnStreamReset(stream_->id(), QUIC_BAD_APPLICATION_PAYLOAD));
+  EXPECT_CALL(*connection_, SendControlFrame(_))
+      .Times(1)
+      .WillOnce(Invoke(this, &QuicStreamTest::ClearResetStreamFrame));
+
+  QuicSessionPeer::SendRstStreamInner(session_.get(), stream_->id(),
+                                      QUIC_BAD_APPLICATION_PAYLOAD,
+                                      stream_->stream_bytes_written(),
+                                      /*close_write_side_only=*/true);
+
+  // ResetStreamOnly should just close the write side.
+  EXPECT_FALSE(QuicStreamPeer::read_side_closed(stream_));
+  EXPECT_TRUE(QuicStreamPeer::write_side_closed(stream_));
 }
 
 }  // namespace

@@ -6,11 +6,11 @@
 
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "net/third_party/quiche/src/quic/core/proto/crypto_server_config.proto.h"
 #include "net/third_party/quiche/src/quic/core/quic_simple_buffer_allocator.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/tls_client_handshaker.h"
 #include "net/third_party/quiche/src/quic/core/tls_server_handshaker.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_clock.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
@@ -31,18 +31,30 @@ static QuicByteCount kDefaultMaxPacketSize = 1200;
 
 class FakeQuartcSessionDelegate : public QuartcSession::Delegate {
  public:
-  explicit FakeQuartcSessionDelegate(QuartcStream::Delegate* stream_delegate)
-      : stream_delegate_(stream_delegate) {}
+  explicit FakeQuartcSessionDelegate(QuartcStream::Delegate* stream_delegate,
+                                     const QuicClock* clock)
+      : stream_delegate_(stream_delegate), clock_(clock) {}
+
+  void OnConnectionWritable() override {
+    LOG(INFO) << "Connection writable!";
+    if (!writable_time_.IsInitialized()) {
+      writable_time_ = clock_->Now();
+    }
+  }
+
   // Called when peers have established forward-secure encryption
   void OnCryptoHandshakeComplete() override {
     LOG(INFO) << "Crypto handshake complete!";
+    crypto_handshake_time_ = clock_->Now();
   }
+
   // Called when connection closes locally, or remotely by peer.
   void OnConnectionClosed(QuicErrorCode error_code,
                           const QuicString& error_details,
                           ConnectionCloseSource source) override {
     connected_ = false;
   }
+
   // Called when an incoming QUIC stream is created.
   void OnIncomingStream(QuartcStream* quartc_stream) override {
     last_incoming_stream_ = quartc_stream;
@@ -65,12 +77,17 @@ class FakeQuartcSessionDelegate : public QuartcSession::Delegate {
   }
 
   bool connected() { return connected_; }
+  QuicTime writable_time() const { return writable_time_; }
+  QuicTime crypto_handshake_time() const { return crypto_handshake_time_; }
 
  private:
   QuartcStream* last_incoming_stream_;
   std::vector<QuicString> incoming_messages_;
   bool connected_ = true;
   QuartcStream::Delegate* stream_delegate_;
+  QuicTime writable_time_ = QuicTime::Zero();
+  QuicTime crypto_handshake_time_ = QuicTime::Zero();
+  const QuicClock* clock_;
 };
 
 class FakeQuartcStreamDelegate : public QuartcStream::Delegate {
@@ -128,11 +145,11 @@ class QuartcSessionTest : public QuicTest {
 
     client_stream_delegate_ = QuicMakeUnique<FakeQuartcStreamDelegate>();
     client_session_delegate_ = QuicMakeUnique<FakeQuartcSessionDelegate>(
-        client_stream_delegate_.get());
+        client_stream_delegate_.get(), simulator_.GetClock());
 
     server_stream_delegate_ = QuicMakeUnique<FakeQuartcStreamDelegate>();
     server_session_delegate_ = QuicMakeUnique<FakeQuartcSessionDelegate>(
-        server_stream_delegate_.get());
+        server_stream_delegate_.get(), simulator_.GetClock());
 
     QuartcFactoryConfig factory_config;
     factory_config.alarm_factory = simulator_.GetAlarmFactory();
@@ -356,6 +373,29 @@ TEST_F(QuartcSessionTest, SendMessageFails) {
   CreateClientAndServerSessions(QuartcSessionConfig());
   StartHandshake();
   TestSendLongMessage();
+}
+
+TEST_F(QuartcSessionTest, TestCryptoHandshakeCanWriteTriggers) {
+  CreateClientAndServerSessions(QuartcSessionConfig());
+
+  StartHandshake();
+
+  RunTasks();
+
+  ASSERT_TRUE(client_session_delegate_->writable_time().IsInitialized());
+  ASSERT_TRUE(
+      client_session_delegate_->crypto_handshake_time().IsInitialized());
+  // On client, we are writable 1-rtt before crypto handshake is complete.
+  ASSERT_LT(client_session_delegate_->writable_time(),
+            client_session_delegate_->crypto_handshake_time());
+
+  ASSERT_TRUE(server_session_delegate_->writable_time().IsInitialized());
+  ASSERT_TRUE(
+      server_session_delegate_->crypto_handshake_time().IsInitialized());
+  // On server, the writable time and crypto handshake are the same. (when SHLO
+  // is sent).
+  ASSERT_EQ(server_session_delegate_->writable_time(),
+            server_session_delegate_->crypto_handshake_time());
 }
 
 TEST_F(QuartcSessionTest, PreSharedKeyHandshake) {

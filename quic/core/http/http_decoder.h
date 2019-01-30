@@ -58,7 +58,10 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
     // Called when a SETTINGS frame has been successfully parsed.
     virtual void OnSettingsFrame(const SettingsFrame& frame) = 0;
 
-    // Called when a DATA frame has been recevied, |frame_lengths| will be
+    // Called when a DUPLICATE_PUSH frame has been successfully parsed.
+    virtual void OnDuplicatePushFrame(const DuplicatePushFrame& frame) = 0;
+
+    // Called when a DATA frame has been received, |frame_lengths| will be
     // passed to inform header length and payload length of the frame.
     virtual void OnDataFrameStart(Http3FrameLengths frame_length) = 0;
     // Called when the payload of a DATA frame has read. May be called

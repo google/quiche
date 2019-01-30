@@ -18,8 +18,8 @@ TEST_F(QuicTestUtilsTest, ConnectionId) {
   EXPECT_EQ(TestConnectionId(), TestConnectionId());
   EXPECT_EQ(TestConnectionId(33), TestConnectionId(33));
   EXPECT_NE(TestConnectionId(0xdead), TestConnectionId(0xbeef));
-  EXPECT_EQ(0x1337, TestConnectionIdToUInt64(TestConnectionId(0x1337)));
-  EXPECT_NE(0xdead, TestConnectionIdToUInt64(TestConnectionId(0xbeef)));
+  EXPECT_EQ(0x1337u, TestConnectionIdToUInt64(TestConnectionId(0x1337)));
+  EXPECT_NE(0xdeadu, TestConnectionIdToUInt64(TestConnectionId(0xbeef)));
 }
 
 TEST_F(QuicTestUtilsTest, BasicApproxEq) {

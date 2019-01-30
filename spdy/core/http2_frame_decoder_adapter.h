@@ -11,13 +11,13 @@
 #include <memory>
 
 #include "net/third_party/quiche/src/http2/decoder/http2_frame_decoder.h"
+#include "net/third_party/quiche/src/http2/platform/api/http2_optional.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_decoder_adapter.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_header_table.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_alt_svc_wire_format.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_headers_handler_interface.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_piece.h"
-#include "util/gtl/labs/optional.h"
 
 namespace spdy {
 
@@ -137,6 +137,9 @@ class SPDY_EXPORT_PRIVATE Http2DecoderAdapter
   // has responded with an HTTP/1.1 (or earlier) response.
   bool probable_http_response() const;
 
+  // Returns the estimate of dynamically allocated memory in bytes.
+  size_t EstimateMemoryUsage() const;
+
   spdy::HpackDecoderAdapter* GetHpackDecoder();
 
   bool HasError() const;
@@ -242,7 +245,7 @@ class SPDY_EXPORT_PRIVATE Http2DecoderAdapter
 
   // Amount of trailing padding. Currently used just as an indicator of whether
   // OnPadLength has been called.
-  absl::optional<size_t> opt_pad_length_;
+  Http2Optional<size_t> opt_pad_length_;
 
   // Temporary buffers for the AltSvc fields.
   Http2String alt_svc_origin_;

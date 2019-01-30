@@ -33,6 +33,11 @@ bool QuicStreamPeer::read_side_closed(QuicStream* stream) {
 }
 
 // static
+bool QuicStreamPeer::write_side_closed(QuicStream* stream) {
+  return stream->write_side_closed();
+}
+
+// static
 void QuicStreamPeer::CloseReadSide(QuicStream* stream) {
   stream->CloseReadSide();
 }

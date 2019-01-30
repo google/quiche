@@ -18,9 +18,7 @@ BandwidthSampler::BandwidthSampler()
       total_bytes_sent_at_last_acked_packet_(0),
       last_acked_packet_sent_time_(QuicTime::Zero()),
       last_acked_packet_ack_time_(QuicTime::Zero()),
-      last_sent_packet_(0),
       is_app_limited_(false),
-      end_of_app_limited_phase_(0),
       connection_state_map_() {}
 
 BandwidthSampler::~BandwidthSampler() {}

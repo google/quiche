@@ -6,6 +6,7 @@
 
 #include <list>
 
+#include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
@@ -53,7 +54,7 @@ class QuicBufferedPacketStoreTest : public QuicTest {
         packet_content_("some encrypted content"),
         packet_time_(QuicTime::Zero() + QuicTime::Delta::FromMicroseconds(42)),
         packet_(packet_content_.data(), packet_content_.size(), packet_time_),
-        invalid_version_(PROTOCOL_UNSUPPORTED, QUIC_VERSION_UNSUPPORTED),
+        invalid_version_(UnsupportedQuicVersion()),
         valid_version_(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_44) {}
 
  protected:

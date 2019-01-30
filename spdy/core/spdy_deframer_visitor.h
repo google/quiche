@@ -111,7 +111,7 @@ class SpdyDeframerVisitorInterface {
   virtual ~SpdyDeframerVisitorInterface() {}
 
   // Wrap a visitor in another SpdyDeframerVisitorInterface that will
-  // VLOG each call, and will then forward the calls to the wrapped visitor
+  // DVLOG each call, and will then forward the calls to the wrapped visitor
   // (if provided; nullptr is OK). Takes ownership of the wrapped visitor.
   static std::unique_ptr<SpdyDeframerVisitorInterface> LogBeforeVisiting(
       std::unique_ptr<SpdyDeframerVisitorInterface> wrapped_visitor);
@@ -195,8 +195,7 @@ struct CollectedFrame {
             typename X =
                 typename std::enable_if<std::is_base_of<SpdyFrameIR, T>::value>>
   ::testing::AssertionResult VerifyHasFrame(const T& expected_ir) const {
-    VERIFY_SUCCESS(VerifySpdyFrameIREquals(expected_ir, frame_ir.get()));
-    return ::testing::AssertionSuccess();
+    return VerifySpdyFrameIREquals(expected_ir, frame_ir.get());
   }
 
   // Compare the collected headers against a StringPairVector. Ignores

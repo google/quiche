@@ -91,6 +91,11 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
   // Collects reset error code received on streams.
   void OnRstStreamReceived(const QuicRstStreamFrame& frame) override;
 
+  // QuicSession::Visitor interface implementation (via inheritance of
+  // QuicTimeWaitListManager::Visitor):
+  // Collects reset error code received on streams.
+  void OnStopSendingReceived(const QuicStopSendingFrame& frame) override;
+
   // QuicTimeWaitListManager::Visitor interface implementation
   // Called whenever the time wait list manager adds a new connection to the
   // time-wait list.
@@ -110,7 +115,7 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
   // send a handshake and then up to 50 or so data packets, and then it may
   // resend the handshake packet up to 10 times.  (Retransmitted packets are
   // sent with unique packet numbers.)
-  static const QuicPacketNumber kMaxReasonableInitialPacketNumber = 100;
+  static const uint64_t kMaxReasonableInitialPacketNumber = 100;
   static_assert(kMaxReasonableInitialPacketNumber >=
                     kInitialCongestionWindow + 10,
                 "kMaxReasonableInitialPacketNumber is unreasonably small "
@@ -348,7 +353,7 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
 
   // Please do not use this method.
   // TODO(fayang): Remove this method when deprecating
-  // quic_proxy_use_real_packet_format_when_reject flag.
+  // quic_fix_last_packet_is_ietf_quic flag.
   PacketHeaderFormat GetLastPacketFormat() const;
 
  private:

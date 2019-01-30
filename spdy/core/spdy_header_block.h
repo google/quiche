@@ -10,13 +10,14 @@
 #include <list>
 #include <memory>
 #include <utility>
+#include <vector>
 
 #include "base/macros.h"
-#include "base/port.h"
+#include "net/third_party/quiche/src/spdy/platform/api/spdy_containers.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_export.h"
+#include "net/third_party/quiche/src/spdy/platform/api/spdy_macros.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_piece.h"
-#include "util/gtl/linked_hash_map.h"
 
 namespace spdy {
 
@@ -81,7 +82,8 @@ class SPDY_EXPORT_PRIVATE SpdyHeaderBlock {
     size_t separator_size_ = 0;
   };
 
-  typedef gtl::linked_hash_map<SpdyStringPiece, HeaderValue> MapType;
+  typedef SpdyLinkedHashMap<SpdyStringPiece, HeaderValue, SpdyStringPieceHash>
+      MapType;
 
  public:
   typedef std::pair<SpdyStringPiece, SpdyStringPiece> value_type;
@@ -179,10 +181,10 @@ class SPDY_EXPORT_PRIVATE SpdyHeaderBlock {
                               const SpdyStringPiece value);
 
   // Allows either lookup or mutation of the value associated with a key.
-  ValueProxy operator[](const SpdyStringPiece key) ABSL_MUST_USE_RESULT;
+  ValueProxy operator[](const SpdyStringPiece key) SPDY_MUST_USE_RESULT;
 
   // This object provides automatic conversions that allow SpdyHeaderBlock to be
-  // nearly a drop-in replacement for linked_hash_map<SpdyString, SpdyString>.
+  // nearly a drop-in replacement for SpdyLinkedHashMap<SpdyString, SpdyString>.
   // It reads data from or writes data to a SpdyHeaderBlock::Storage.
   class SPDY_EXPORT_PRIVATE ValueProxy {
    public:

@@ -9,6 +9,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
 
+using testing::Eq;
 using testing::StrictMock;
 
 namespace quic {
@@ -26,7 +27,7 @@ class MockDelegate : public QpackEncoderStreamReceiver::Delegate {
   MOCK_METHOD2(OnInsertWithoutNameReference,
                void(QuicStringPiece name, QuicStringPiece value));
   MOCK_METHOD1(OnDuplicate, void(uint64_t index));
-  MOCK_METHOD1(OnDynamicTableSizeUpdate, void(uint64_t max_size));
+  MOCK_METHOD1(OnSetDynamicTableCapacity, void(uint64_t capacity));
   MOCK_METHOD1(OnErrorDetected, void(QuicStringPiece error_message));
 };
 
@@ -45,15 +46,15 @@ class QpackEncoderStreamReceiverTest : public QuicTest {
 
 TEST_F(QpackEncoderStreamReceiverTest, InsertWithNameReference) {
   // Static, index fits in prefix, empty value.
-  EXPECT_CALL(*delegate(), OnInsertWithNameReference(true, 5, ""));
+  EXPECT_CALL(*delegate(), OnInsertWithNameReference(true, 5, Eq("")));
   // Static, index fits in prefix, Huffman encoded value.
-  EXPECT_CALL(*delegate(), OnInsertWithNameReference(true, 2, "foo"));
+  EXPECT_CALL(*delegate(), OnInsertWithNameReference(true, 2, Eq("foo")));
   // Not static, index does not fit in prefix, not Huffman encoded value.
-  EXPECT_CALL(*delegate(), OnInsertWithNameReference(false, 137, "bar"));
+  EXPECT_CALL(*delegate(), OnInsertWithNameReference(false, 137, Eq("bar")));
   // Value length does not fit in prefix.
   // 'Z' would be Huffman encoded to 8 bits, so no Huffman encoding is used.
   EXPECT_CALL(*delegate(),
-              OnInsertWithNameReference(false, 42, QuicString(127, 'Z')));
+              OnInsertWithNameReference(false, 42, Eq(QuicString(127, 'Z'))));
 
   Decode(QuicTextUtils::HexDecode(
       "c500"
@@ -66,29 +67,29 @@ TEST_F(QpackEncoderStreamReceiverTest, InsertWithNameReference) {
 }
 
 TEST_F(QpackEncoderStreamReceiverTest, InsertWithNameReferenceIndexTooLarge) {
-  EXPECT_CALL(*delegate(), OnErrorDetected("Encoded integer too large."));
+  EXPECT_CALL(*delegate(), OnErrorDetected(Eq("Encoded integer too large.")));
 
   Decode(QuicTextUtils::HexDecode("bfffffffffffffffffffffff"));
 }
 
 TEST_F(QpackEncoderStreamReceiverTest, InsertWithNameReferenceValueTooLong) {
-  EXPECT_CALL(*delegate(),
-              OnErrorDetected(QuicStringPiece("Encoded integer too large.")));
+  EXPECT_CALL(*delegate(), OnErrorDetected(Eq("Encoded integer too large.")));
 
   Decode(QuicTextUtils::HexDecode("c57fffffffffffffffffffff"));
 }
 
 TEST_F(QpackEncoderStreamReceiverTest, InsertWithoutNameReference) {
   // Empty name and value.
-  EXPECT_CALL(*delegate(), OnInsertWithoutNameReference("", ""));
+  EXPECT_CALL(*delegate(), OnInsertWithoutNameReference(Eq(""), Eq("")));
   // Huffman encoded short strings.
-  EXPECT_CALL(*delegate(), OnInsertWithoutNameReference("bar", "bar"));
+  EXPECT_CALL(*delegate(), OnInsertWithoutNameReference(Eq("bar"), Eq("bar")));
   // Not Huffman encoded short strings.
-  EXPECT_CALL(*delegate(), OnInsertWithoutNameReference("foo", "foo"));
+  EXPECT_CALL(*delegate(), OnInsertWithoutNameReference(Eq("foo"), Eq("foo")));
   // Not Huffman encoded long strings; length does not fit on prefix.
   // 'Z' would be Huffman encoded to 8 bits, so no Huffman encoding is used.
-  EXPECT_CALL(*delegate(), OnInsertWithoutNameReference(QuicString(31, 'Z'),
-                                                        QuicString(127, 'Z')));
+  EXPECT_CALL(*delegate(),
+              OnInsertWithoutNameReference(Eq(QuicString(31, 'Z')),
+                                           Eq(QuicString(127, 'Z'))));
 
   Decode(QuicTextUtils::HexDecode(
       "4000"
@@ -104,7 +105,7 @@ TEST_F(QpackEncoderStreamReceiverTest, InsertWithoutNameReference) {
 // Name Length value is too large for varint decoder to decode.
 TEST_F(QpackEncoderStreamReceiverTest,
        InsertWithoutNameReferenceNameTooLongForVarintDecoder) {
-  EXPECT_CALL(*delegate(), OnErrorDetected("Encoded integer too large."));
+  EXPECT_CALL(*delegate(), OnErrorDetected(Eq("Encoded integer too large.")));
 
   Decode(QuicTextUtils::HexDecode("5fffffffffffffffffffff"));
 }
@@ -112,8 +113,7 @@ TEST_F(QpackEncoderStreamReceiverTest,
 // Name Length value can be decoded by varint decoder but exceeds 1 MB limit.
 TEST_F(QpackEncoderStreamReceiverTest,
        InsertWithoutNameReferenceNameExceedsLimit) {
-  EXPECT_CALL(*delegate(),
-              OnErrorDetected(QuicStringPiece("String literal too long.")));
+  EXPECT_CALL(*delegate(), OnErrorDetected(Eq("String literal too long.")));
 
   Decode(QuicTextUtils::HexDecode("5fffff7f"));
 }
@@ -121,7 +121,7 @@ TEST_F(QpackEncoderStreamReceiverTest,
 // Value Length value is too large for varint decoder to decode.
 TEST_F(QpackEncoderStreamReceiverTest,
        InsertWithoutNameReferenceValueTooLongForVarintDecoder) {
-  EXPECT_CALL(*delegate(), OnErrorDetected("Encoded integer too large."));
+  EXPECT_CALL(*delegate(), OnErrorDetected(Eq("Encoded integer too large.")));
 
   Decode(QuicTextUtils::HexDecode("436261727fffffffffffffffffffff"));
 }
@@ -129,7 +129,7 @@ TEST_F(QpackEncoderStreamReceiverTest,
 // Value Length value can be decoded by varint decoder but exceeds 1 MB limit.
 TEST_F(QpackEncoderStreamReceiverTest,
        InsertWithoutNameReferenceValueExceedsLimit) {
-  EXPECT_CALL(*delegate(), OnErrorDetected("String literal too long."));
+  EXPECT_CALL(*delegate(), OnErrorDetected(Eq("String literal too long.")));
 
   Decode(QuicTextUtils::HexDecode("436261727fffff7f"));
 }
@@ -144,22 +144,22 @@ TEST_F(QpackEncoderStreamReceiverTest, Duplicate) {
 }
 
 TEST_F(QpackEncoderStreamReceiverTest, DuplicateIndexTooLarge) {
-  EXPECT_CALL(*delegate(), OnErrorDetected("Encoded integer too large."));
+  EXPECT_CALL(*delegate(), OnErrorDetected(Eq("Encoded integer too large.")));
 
   Decode(QuicTextUtils::HexDecode("1fffffffffffffffffffff"));
 }
 
-TEST_F(QpackEncoderStreamReceiverTest, DynamicTableSizeUpdate) {
-  // Small max size fits in prefix.
-  EXPECT_CALL(*delegate(), OnDynamicTableSizeUpdate(17));
-  // Large max size requires two extension bytes.
-  EXPECT_CALL(*delegate(), OnDynamicTableSizeUpdate(500));
+TEST_F(QpackEncoderStreamReceiverTest, SetDynamicTableCapacity) {
+  // Small capacity fits in prefix.
+  EXPECT_CALL(*delegate(), OnSetDynamicTableCapacity(17));
+  // Large capacity requires two extension bytes.
+  EXPECT_CALL(*delegate(), OnSetDynamicTableCapacity(500));
 
   Decode(QuicTextUtils::HexDecode("313fd503"));
 }
 
-TEST_F(QpackEncoderStreamReceiverTest, DynamicTableSizeUpdateMaxSizeTooLarge) {
-  EXPECT_CALL(*delegate(), OnErrorDetected("Encoded integer too large."));
+TEST_F(QpackEncoderStreamReceiverTest, SetDynamicTableCapacityTooLarge) {
+  EXPECT_CALL(*delegate(), OnErrorDetected(Eq("Encoded integer too large.")));
 
   Decode(QuicTextUtils::HexDecode("3fffffffffffffffffffff"));
 }

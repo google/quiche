@@ -9,7 +9,7 @@ namespace test {
 
 LimitedMtuTestWriter::LimitedMtuTestWriter(QuicByteCount mtu) : mtu_(mtu) {}
 
-LimitedMtuTestWriter::~LimitedMtuTestWriter() {}
+LimitedMtuTestWriter::~LimitedMtuTestWriter() = default;
 
 WriteResult LimitedMtuTestWriter::WritePacket(
     const char* buffer,

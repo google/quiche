@@ -329,54 +329,6 @@ TEST_F(QuicCryptoClientStreamTest, NoChannelID) {
   EXPECT_FALSE(stream()->WasChannelIDSourceCallbackRun());
 }
 
-TEST_F(QuicCryptoClientStreamTest, TokenBindingNegotiation) {
-  server_options_.token_binding_params = QuicTagVector{kTB10, kP256};
-  crypto_config_.tb_key_params = QuicTagVector{kTB10};
-
-  CompleteCryptoHandshake();
-  EXPECT_TRUE(stream()->encryption_established());
-  EXPECT_TRUE(stream()->handshake_confirmed());
-  EXPECT_EQ(kTB10,
-            stream()->crypto_negotiated_params().token_binding_key_param);
-}
-
-TEST_F(QuicCryptoClientStreamTest, NoTokenBindingWithoutServerSupport) {
-  crypto_config_.tb_key_params = QuicTagVector{kTB10, kP256};
-
-  CompleteCryptoHandshake();
-  EXPECT_TRUE(stream()->encryption_established());
-  EXPECT_TRUE(stream()->handshake_confirmed());
-  EXPECT_EQ(0u, stream()->crypto_negotiated_params().token_binding_key_param);
-}
-
-TEST_F(QuicCryptoClientStreamTest, NoTokenBindingWithoutClientSupport) {
-  server_options_.token_binding_params = QuicTagVector{kTB10, kP256};
-
-  CompleteCryptoHandshake();
-  EXPECT_TRUE(stream()->encryption_established());
-  EXPECT_TRUE(stream()->handshake_confirmed());
-  EXPECT_EQ(0u, stream()->crypto_negotiated_params().token_binding_key_param);
-}
-
-TEST_F(QuicCryptoClientStreamTest, TokenBindingNotNegotiated) {
-  CompleteCryptoHandshake();
-  EXPECT_TRUE(stream()->encryption_established());
-  EXPECT_TRUE(stream()->handshake_confirmed());
-  EXPECT_EQ(0u, stream()->crypto_negotiated_params().token_binding_key_param);
-}
-
-TEST_F(QuicCryptoClientStreamTest, NoTokenBindingInPrivacyMode) {
-  server_options_.token_binding_params = QuicTagVector{kTB10};
-  crypto_config_.tb_key_params = QuicTagVector{kTB10};
-  server_id_ = QuicServerId(kServerHostname, kServerPort, true);
-  CreateConnection();
-
-  CompleteCryptoHandshake();
-  EXPECT_TRUE(stream()->encryption_established());
-  EXPECT_TRUE(stream()->handshake_confirmed());
-  EXPECT_EQ(0u, stream()->crypto_negotiated_params().token_binding_key_param);
-}
-
 TEST_F(QuicCryptoClientStreamTest, PreferredVersion) {
   // This mimics the case where client receives version negotiation packet, such
   // that, the preferred version is different from the packets' version.
@@ -440,7 +392,7 @@ class QuicCryptoClientStreamStatelessTest : public QuicTest {
     client_session_->GetMutableCryptoStream()->CryptoConnect();
     EXPECT_CALL(*server_session_->helper(), CanAcceptClientHello(_, _, _, _, _))
         .Times(testing::AnyNumber());
-    EXPECT_CALL(*server_session_->helper(), GenerateConnectionIdForReject(_))
+    EXPECT_CALL(*server_session_->helper(), GenerateConnectionIdForReject(_, _))
         .Times(testing::AnyNumber());
     crypto_test_utils::AdvanceHandshake(
         client_connection_, client_session_->GetMutableCryptoStream(), 0,

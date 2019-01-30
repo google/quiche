@@ -6,10 +6,12 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <memory>
 
 #include "base/logging.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_output_stream.h"
+#include "net/third_party/quiche/src/spdy/platform/api/spdy_estimate_memory_usage.h"
 
 namespace spdy {
 
@@ -35,6 +37,7 @@ HpackHuffmanTable::~HpackHuffmanTable() = default;
 bool HpackHuffmanTable::Initialize(const HpackHuffmanSymbol* input_symbols,
                                    size_t symbol_count) {
   CHECK(!IsInitialized());
+  DCHECK_LE(symbol_count, std::numeric_limits<uint16_t>::max());
 
   std::vector<Symbol> symbols(symbol_count);
   // Validate symbol id sequence, and copy into |symbols|.
@@ -138,6 +141,11 @@ size_t HpackHuffmanTable::EncodedSize(SpdyStringPiece in) const {
     bit_count += 8 - bit_count % 8;
   }
   return bit_count / 8;
+}
+
+size_t HpackHuffmanTable::EstimateMemoryUsage() const {
+  return SpdyEstimateMemoryUsage(code_by_id_) +
+         SpdyEstimateMemoryUsage(length_by_id_);
 }
 
 }  // namespace spdy

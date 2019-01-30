@@ -135,20 +135,22 @@ TEST_F(QuicTraceVisitorTest, AckPackets) {
 
         const quic_trace::AckInfo& info = frame.ack_info();
         for (const auto& block : info.acked_packets()) {
-          packets.Add(block.first_packet(), block.last_packet() + 1);
+          packets.Add(QuicPacketNumber(block.first_packet()),
+                      QuicPacketNumber(block.last_packet()) + 1);
         }
       }
     }
     if (packet.event_type() == quic_trace::PACKET_LOST) {
-      packets.Add(packet.packet_number(), packet.packet_number() + 1);
+      packets.Add(QuicPacketNumber(packet.packet_number()),
+                  QuicPacketNumber(packet.packet_number()) + 1);
     }
   }
 
   ASSERT_EQ(1u, packets.Size());
-  EXPECT_EQ(1u, packets.begin()->min());
+  EXPECT_EQ(QuicPacketNumber(1u), packets.begin()->min());
   // We leave some room (20 packets) for the packets which did not receive
   // conclusive status at the end of simulation.
-  EXPECT_GT(packets.rbegin()->max(), packets_sent_ - 20);
+  EXPECT_GT(packets.rbegin()->max(), QuicPacketNumber(packets_sent_ - 20));
 }
 
 TEST_F(QuicTraceVisitorTest, TransportState) {

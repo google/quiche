@@ -185,7 +185,7 @@ class QuicTimeWaitListManagerTest : public QuicTest {
   QuicEncryptedPacket* ConstructEncryptedPacket(
       QuicConnectionId destination_connection_id,
       QuicConnectionId source_connection_id,
-      QuicPacketNumber packet_number) {
+      uint64_t packet_number) {
     return quic::test::ConstructEncryptedPacket(destination_connection_id,
                                                 source_connection_id, false,
                                                 false, packet_number, "data");
@@ -406,9 +406,8 @@ TEST_F(QuicTimeWaitListManagerTest, SendQueuedPackets) {
   QuicConnectionId connection_id = TestConnectionId(1);
   EXPECT_CALL(visitor_, OnConnectionAddedToTimeWaitList(connection_id));
   AddConnectionId(connection_id, QuicTimeWaitListManager::SEND_STATELESS_RESET);
-  QuicPacketNumber packet_number = 234;
   std::unique_ptr<QuicEncryptedPacket> packet(ConstructEncryptedPacket(
-      connection_id, EmptyQuicConnectionId(), packet_number));
+      connection_id, EmptyQuicConnectionId(), /*packet_number=*/234));
   // Let first write through.
   EXPECT_CALL(writer_,
               WritePacket(_, _, self_address_.host(), peer_address_, _))
@@ -433,9 +432,8 @@ TEST_F(QuicTimeWaitListManagerTest, SendQueuedPackets) {
   EXPECT_CALL(visitor_, OnConnectionAddedToTimeWaitList(other_connection_id));
   AddConnectionId(other_connection_id,
                   QuicTimeWaitListManager::SEND_STATELESS_RESET);
-  QuicPacketNumber other_packet_number = 23423;
   std::unique_ptr<QuicEncryptedPacket> other_packet(ConstructEncryptedPacket(
-      other_connection_id, EmptyQuicConnectionId(), other_packet_number));
+      other_connection_id, EmptyQuicConnectionId(), /*packet_number=*/23423));
   EXPECT_CALL(writer_, WritePacket(_, _, _, _, _)).Times(0);
   EXPECT_CALL(visitor_, OnWriteBlocked(&time_wait_list_manager_));
   ProcessPacket(other_connection_id);

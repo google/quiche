@@ -9,24 +9,25 @@
 #ifndef QUICHE_SPDY_CORE_SPDY_PROTOCOL_H_
 #define QUICHE_SPDY_CORE_SPDY_PROTOCOL_H_
 
+#include <cstddef>
 #include <cstdint>
 #include <iosfwd>
 #include <limits>
 #include <map>
 #include <memory>
+#include <new>
 #include <utility>
 
 #include "base/logging.h"
 #include "base/macros.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_alt_svc_wire_format.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_bitmasks.h"
-#include "net/third_party/quiche/src/spdy/core/spdy_bug_tracker.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_header_block.h"
+#include "net/third_party/quiche/src/spdy/platform/api/spdy_bug_tracker.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_export.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_ptr_util.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_piece.h"
-#include "util/gtl/linked_hash_map.h"
 
 namespace spdy {
 
@@ -230,7 +231,7 @@ SPDY_EXPORT_PRIVATE SpdyPriority Http2WeightToSpdy3Priority(int weight);
 
 // Reserved ID for root stream of HTTP/2 stream dependency tree, as specified
 // in RFC 7540 section 5.3.1.
-const int kHttp2RootStreamId = 0;
+const unsigned int kHttp2RootStreamId = 0;
 
 typedef uint64_t SpdyPingId;
 
@@ -668,7 +669,6 @@ class SPDY_EXPORT_PRIVATE SpdyGoAwayIR : public SpdyFrameIR {
 
   SpdyStreamId last_good_stream_id() const { return last_good_stream_id_; }
   void set_last_good_stream_id(SpdyStreamId last_good_stream_id) {
-    DCHECK_LE(0u, last_good_stream_id);
     DCHECK_EQ(0u, last_good_stream_id & ~kStreamIdMask);
     last_good_stream_id_ = last_good_stream_id;
   }
@@ -985,6 +985,9 @@ class SPDY_EXPORT_PRIVATE SpdySerializedFrame {
     *this = SpdySerializedFrame();
     return buffer;
   }
+
+  // Returns the estimate of dynamically allocated memory in bytes.
+  size_t EstimateMemoryUsage() const { return owns_buffer_ ? size_ : 0; }
 
  protected:
   char* frame_;

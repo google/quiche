@@ -65,8 +65,9 @@ bssl::UniquePtr<SSL_CTX> TlsClientHandshaker::CreateSslCtx() {
 
 bool TlsClientHandshaker::CryptoConnect() {
   CrypterPair crypters;
-  CryptoUtils::CreateTlsInitialCrypters(Perspective::IS_CLIENT,
-                                        session()->connection_id(), &crypters);
+  CryptoUtils::CreateTlsInitialCrypters(
+      Perspective::IS_CLIENT, session()->connection()->transport_version(),
+      session()->connection_id(), &crypters);
   session()->connection()->SetEncrypter(ENCRYPTION_NONE,
                                         std::move(crypters.encrypter));
   session()->connection()->SetDecrypter(ENCRYPTION_NONE,

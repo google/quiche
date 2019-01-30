@@ -4,9 +4,7 @@
 
 #include "net/third_party/quiche/src/spdy/core/priority_write_scheduler.h"
 
-#include "testing/base/public/benchmark.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "testing/base/public/test_utils.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_test_utils.h"
 
@@ -203,7 +201,7 @@ TEST_F(PriorityWriteSchedulerTest, MarkStreamReadyBack) {
   EXPECT_SPDY_BUG(scheduler_.MarkStreamReady(1, false),
                   "Stream 1 not registered");
   EXPECT_FALSE(scheduler_.HasReadyStreams());
-  EXPECT_SPDY_BUG(EXPECT_EQ(0, scheduler_.PopNextReadyStream()),
+  EXPECT_SPDY_BUG(EXPECT_EQ(0u, scheduler_.PopNextReadyStream()),
                   "No ready streams available");
 
   // Add a bunch of ready streams to tail of per-priority lists.

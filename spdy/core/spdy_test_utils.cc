@@ -7,10 +7,11 @@
 #include <algorithm>
 #include <cstring>
 #include <memory>
+#include <new>
 #include <utility>
+#include <vector>
 
 #include "base/logging.h"
-#include "strings/strcat.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_endianness_util.h"
 
@@ -32,7 +33,7 @@ SpdyString HexDumpWithMarks(const unsigned char* data,
   }
 
   SpdyString hex;
-  for (const unsigned char *row = data; length > 0;
+  for (const unsigned char* row = data; length > 0;
        row += kColumns, length -= kColumns) {
     for (const unsigned char* p = row; p < row + 4; ++p) {
       if (p < row + length) {

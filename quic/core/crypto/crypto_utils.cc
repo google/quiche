@@ -95,11 +95,13 @@ const char kPreSharedKeyLabel[] = "QUIC PSK";
 
 // static
 void CryptoUtils::CreateTlsInitialCrypters(Perspective perspective,
+                                           QuicTransportVersion version,
                                            QuicConnectionId connection_id,
                                            CrypterPair* crypters) {
-  QUIC_BUG_IF(connection_id.length() != kQuicDefaultConnectionIdLength)
-      << "CreateTlsInitialCrypters called with connection ID " << connection_id
-      << " of unsupported length " << connection_id.length();
+  QUIC_BUG_IF(!QuicUtils::IsConnectionIdValidForVersion(connection_id, version))
+      << "CreateTlsInitialCrypters: attempted to use connection ID "
+      << connection_id << " which is invalid with version "
+      << QuicVersionToString(version);
   const EVP_MD* hash = EVP_sha256();
 
   std::vector<uint8_t> handshake_secret;

@@ -6,16 +6,19 @@
 
 // Tests of HpackDecoderAdapter.
 
+#include <stdint.h>
+
+#include <tuple>
 #include <utility>
 #include <vector>
 
 #include "base/logging.h"
 #include "testing/gmock/include/gmock/gmock.h"
-#include "testing/base/public/googletest.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "net/third_party/quiche/src/http2/hpack/decoder/hpack_decoder_state.h"
 #include "net/third_party/quiche/src/http2/hpack/decoder/hpack_decoder_tables.h"
 #include "net/third_party/quiche/src/http2/hpack/tools/hpack_block_builder.h"
+#include "net/third_party/quiche/src/http2/test_tools/http2_random.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_constants.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_encoder.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_output_stream.h"
@@ -23,12 +26,12 @@
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_arraysize.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_utils.h"
-#include "util/random/mt_random.h"
 
 using ::http2::HpackEntryType;
 using ::http2::HpackString;
 using ::http2::HpackStringPair;
 using ::http2::test::HpackBlockBuilder;
+using ::http2::test::HpackDecoderPeer;
 using ::testing::ElementsAre;
 using ::testing::Pair;
 
@@ -57,8 +60,6 @@ class HpackDecoderPeer {
 
 namespace spdy {
 namespace test {
-
-using ::http2::test::HpackDecoderPeer;
 
 class HpackDecoderAdapterPeer {
  public:
@@ -112,14 +113,8 @@ enum StartChoice { START_WITH_HANDLER, START_WITHOUT_HANDLER, NO_START };
 
 class HpackDecoderAdapterTest
     : public ::testing::TestWithParam<std::tuple<StartChoice, bool>> {
- public:
-  static void SetUpTestCase() {
-    LOG(INFO) << "Flag --test_random_seed=" << FLAGS_test_random_seed;
-  }
-
  protected:
-  HpackDecoderAdapterTest()
-      : random_(FLAGS_test_random_seed), decoder_(), decoder_peer_(&decoder_) {}
+  HpackDecoderAdapterTest() : decoder_(), decoder_peer_(&decoder_) {}
 
   void SetUp() override {
     std::tie(start_choice_, randomly_split_input_buffer_) = GetParam();
@@ -254,7 +249,7 @@ class HpackDecoderAdapterTest
     return result;
   }
 
-  MTRandom random_;
+  http2::test::Http2Random random_;
   HpackDecoderAdapter decoder_;
   test::HpackDecoderAdapterPeer decoder_peer_;
   TestHeadersHandler handler_;
@@ -407,13 +402,14 @@ TEST_P(HpackDecoderAdapterTest, HandleHeaderRepresentation) {
   decoder_.HandleControlFrameHeadersComplete(nullptr);
 
   // Resulting decoded headers are in the same order as the inputs.
-  EXPECT_THAT(decoded_block(),
-              ElementsAre(Pair("cookie", " part 1; part 2 ; part3;  fin!"),
-                          Pair("passed-through", SpdyString("foo\0baz", 7)),
-                          Pair("joined", "not joined"),
-                          Pair("joineD", SpdyString("value 1\0value 2", 15)),
-                          Pair("empty", ""),
-                          Pair("empty-joined", SpdyString("\0foo\0\0", 6))));
+  EXPECT_THAT(
+      decoded_block(),
+      ElementsAre(Pair("cookie", " part 1; part 2 ; part3;  fin!"),
+                  Pair("passed-through", SpdyStringPiece("foo\0baz", 7)),
+                  Pair("joined", "not joined"),
+                  Pair("joineD", SpdyStringPiece("value 1\0value 2", 15)),
+                  Pair("empty", ""),
+                  Pair("empty-joined", SpdyStringPiece("\0foo\0\0", 6))));
 }
 
 // Decoding indexed static table field should work.
@@ -678,8 +674,7 @@ TEST_P(HpackDecoderAdapterTest, HuffmanEOSError) {
 
   SpdyString first = SpdyHexDecode("418cf1e3c2e5f23a6ba0ab90f4ff");
   EXPECT_TRUE(DecodeHeaderBlock(first));
-  first[1] = 0x8d;
-  first.push_back(0xff);
+  first = SpdyHexDecode("418df1e3c2e5f23a6ba0ab90f4ffff");
   EXPECT_FALSE(DecodeHeaderBlock(first));
 }
 
@@ -705,8 +700,9 @@ TEST_P(HpackDecoderAdapterTest, BasicC31) {
 // RFC 7541, Section C.4: Request Examples with Huffman Coding
 // http://httpwg.org/specs/rfc7541.html#rfc.section.C.4
 TEST_P(HpackDecoderAdapterTest, SectionC4RequestHuffmanExamples) {
-  // TODO(jamessynge): Use gfe/http2/hpack/tools/hpack_example.h to parse the
+  // TODO(jamessynge): Use http2/hpack/tools/hpack_example.h to parse the
   // example directly, instead of having it as a comment.
+  //
   // 82                                      | == Indexed - Add ==
   //                                         |   idx = 2
   //                                         | -> :method: GET

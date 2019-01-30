@@ -24,6 +24,14 @@ class QUIC_EXPORT_PRIVATE QuicStreamFrameDataProducer {
                                                 QuicStreamOffset offset,
                                                 QuicByteCount data_length,
                                                 QuicDataWriter* writer) = 0;
+
+  // Writes the data for a CRYPTO frame to |writer| for a frame at encryption
+  // level |level| starting at offset |offset| for |data_length| bytes. Returns
+  // whether writing the data was successful.
+  virtual bool WriteCryptoData(EncryptionLevel level,
+                               QuicStreamOffset offset,
+                               QuicByteCount data_length,
+                               QuicDataWriter* writer) = 0;
 };
 
 }  // namespace quic

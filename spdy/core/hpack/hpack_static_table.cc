@@ -7,6 +7,7 @@
 #include "base/logging.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_constants.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_entry.h"
+#include "net/third_party/quiche/src/spdy/platform/api/spdy_estimate_memory_usage.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_piece.h"
 
 namespace spdy {
@@ -38,6 +39,12 @@ void HpackStaticTable::Initialize(const HpackStaticEntry* static_entry_table,
 
 bool HpackStaticTable::IsInitialized() const {
   return !static_entries_.empty();
+}
+
+size_t HpackStaticTable::EstimateMemoryUsage() const {
+  return SpdyEstimateMemoryUsage(static_entries_) +
+         SpdyEstimateMemoryUsage(static_index_) +
+         SpdyEstimateMemoryUsage(static_name_index_);
 }
 
 }  // namespace spdy

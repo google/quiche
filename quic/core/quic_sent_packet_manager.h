@@ -368,7 +368,9 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
     LOSS_MODE,
   };
 
-  typedef QuicLinkedHashMap<QuicPacketNumber, TransmissionType>
+  typedef QuicLinkedHashMap<QuicPacketNumber,
+                            TransmissionType,
+                            QuicPacketNumberHash>
       PendingRetransmissionMap;
 
   // Returns the current retransmission mode.

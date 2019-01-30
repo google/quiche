@@ -5,6 +5,7 @@
 #ifndef QUICHE_SPDY_CORE_HPACK_HPACK_ENTRY_H_
 #define QUICHE_SPDY_CORE_HPACK_HPACK_ENTRY_H_
 
+#include <cstddef>
 #include <cstdint>
 
 #include "base/macros.h"

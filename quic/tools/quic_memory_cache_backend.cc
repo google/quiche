@@ -107,9 +107,9 @@ void QuicMemoryCacheBackend::ResourceFile::SetHostPathFromBase(
   host_ = base.substr(0, path_start);
   size_t query_start = base.find_first_of(',');
   if (query_start > 0) {
-    path_ = absl::ClippedSubstr(base, path_start, query_start - 1);
+    path_ = base.substr(path_start, query_start - 1);
   } else {
-    path_ = absl::ClippedSubstr(base, path_start);
+    path_ = base.substr(path_start);
   }
 }
 

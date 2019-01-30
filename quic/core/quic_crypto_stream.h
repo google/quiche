@@ -56,16 +56,6 @@ class QUIC_EXPORT_PRIVATE QuicCryptoStream : public QuicStream {
                             size_t result_len,
                             QuicString* result) const;
 
-  // Performs key extraction for Token Binding. Unlike ExportKeyingMaterial,
-  // this function can be called before forward-secure encryption is
-  // established. Returns false if initial encryption has not been established,
-  // and true on success.
-  //
-  // Since this depends only on the initial keys, a signature over it can be
-  // repurposed by an attacker who obtains the client's or server's DH private
-  // value.
-  bool ExportTokenBindingKeyingMaterial(QuicString* result) const;
-
   // Writes |data| to the QuicStream at level |level|.
   virtual void WriteCryptoData(EncryptionLevel level, QuicStringPiece data);
 

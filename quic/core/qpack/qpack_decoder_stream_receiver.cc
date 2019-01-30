@@ -27,8 +27,8 @@ void QpackDecoderStreamReceiver::Decode(QuicStringPiece data) {
 
 bool QpackDecoderStreamReceiver::OnInstructionDecoded(
     const QpackInstruction* instruction) {
-  if (instruction == TableStateSynchronizeInstruction()) {
-    delegate_->OnTableStateSynchronize(instruction_decoder_.varint());
+  if (instruction == InsertCountIncrementInstruction()) {
+    delegate_->OnInsertCountIncrement(instruction_decoder_.varint());
     return true;
   }
 

@@ -21,10 +21,11 @@ enum class HttpFrameType : uint8_t {
   SETTINGS = 0x4,
   PUSH_PROMISE = 0x5,
   GOAWAY = 0x7,
-  MAX_PUSH_ID = 0xD
+  MAX_PUSH_ID = 0xD,
+  DUPLICATE_PUSH = 0xE
 };
 
-// 4.2.2.  DATA
+// 4.2.1.  DATA
 //
 //   DATA frames (type=0x0) convey arbitrary, variable-length sequences of
 //   octets associated with an HTTP request or response payload.
@@ -32,7 +33,7 @@ struct DataFrame {
   QuicStringPiece data;
 };
 
-// 4.2.3.  HEADERS
+// 4.2.2.  HEADERS
 //
 //   The HEADERS frame (type=0x1) is used to carry a header block,
 //   compressed using QPACK.
@@ -40,7 +41,7 @@ struct HeadersFrame {
   QuicStringPiece headers;
 };
 
-// 4.2.4.  PRIORITY
+// 4.2.3.  PRIORITY
 //
 //   The PRIORITY (type=0x02) frame specifies the sender-advised priority
 //   of a stream
@@ -69,7 +70,7 @@ struct PriorityFrame {
   }
 };
 
-// 4.2.5.  CANCEL_PUSH
+// 4.2.4.  CANCEL_PUSH
 //
 //   The CANCEL_PUSH frame (type=0x3) is used to request cancellation of
 //   server push prior to the push stream being created.
@@ -83,7 +84,7 @@ struct CancelPushFrame {
   }
 };
 
-// 4.2.6.  SETTINGS
+// 4.2.5.  SETTINGS
 //
 //   The SETTINGS frame (type=0x4) conveys configuration parameters that
 //   affect how endpoints communicate, such as preferences and constraints
@@ -100,7 +101,7 @@ struct SettingsFrame {
   }
 };
 
-// 4.2.7.  PUSH_PROMISE
+// 4.2.6.  PUSH_PROMISE
 //
 //   The PUSH_PROMISE frame (type=0x05) is used to carry a request header
 //   set from server to client, as in HTTP/2.
@@ -113,7 +114,7 @@ struct PushPromiseFrame {
   }
 };
 
-// 4.2.8.  GOAWAY
+// 4.2.7.  GOAWAY
 //
 //   The GOAWAY frame (type=0x7) is used to initiate graceful shutdown of
 //   a connection by a server.
@@ -125,7 +126,7 @@ struct GoAwayFrame {
   }
 };
 
-// 4.2.9.  MAX_PUSH_ID
+// 4.2.8.  MAX_PUSH_ID
 //
 //   The MAX_PUSH_ID frame (type=0xD) is used by clients to control the
 //   number of server pushes that the server can initiate.
@@ -133,6 +134,19 @@ struct MaxPushIdFrame {
   PushId push_id;
 
   bool operator==(const MaxPushIdFrame& rhs) const {
+    return push_id == rhs.push_id;
+  }
+};
+
+// 4.2.9.  DUPLICATE_PUSH
+//
+//  The DUPLICATE_PUSH frame (type=0xE) is used by servers to indicate
+//  that an existing pushed resource is related to multiple client
+//  requests.
+struct DuplicatePushFrame {
+  PushId push_id;
+
+  bool operator==(const DuplicatePushFrame& rhs) const {
     return push_id == rhs.push_id;
   }
 };

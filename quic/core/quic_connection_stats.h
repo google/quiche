@@ -73,7 +73,7 @@ struct QUIC_EXPORT_PRIVATE QuicConnectionStats {
   // Number of packets received out of packet number order.
   QuicPacketCount packets_reordered;
   // Maximum reordering observed in packet number space.
-  QuicPacketNumber max_sequence_reordering;
+  QuicPacketCount max_sequence_reordering;
   // Maximum reordering observed in microseconds
   int64_t max_time_reordering_us;
 

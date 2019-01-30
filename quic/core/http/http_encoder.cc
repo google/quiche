@@ -59,33 +59,32 @@ HttpEncoder::HttpEncoder() {}
 HttpEncoder::~HttpEncoder() {}
 
 QuicByteCount HttpEncoder::SerializeDataFrameHeader(
-    QuicByteCount length,
+    QuicByteCount payload_length,
     std::unique_ptr<char[]>* output) {
-  DCHECK_NE(0u, length);
+  DCHECK_NE(0u, payload_length);
   QuicByteCount header_length =
-      QuicDataWriter::GetVarInt62Len(length) + kFrameTypeLength;
+      QuicDataWriter::GetVarInt62Len(payload_length) + kFrameTypeLength;
 
   output->reset(new char[header_length]);
   QuicDataWriter writer(header_length, output->get(), NETWORK_BYTE_ORDER);
 
-  if (WriteFrameHeader(length, HttpFrameType::DATA, &writer)) {
+  if (WriteFrameHeader(payload_length, HttpFrameType::DATA, &writer)) {
     return header_length;
   }
   return 0;
 }
 
 QuicByteCount HttpEncoder::SerializeHeadersFrameHeader(
-    const HeadersFrame& headers,
+    QuicByteCount payload_length,
     std::unique_ptr<char[]>* output) {
+  DCHECK_NE(0u, payload_length);
   QuicByteCount header_length =
-      QuicDataWriter::GetVarInt62Len(headers.headers.length()) +
-      kFrameTypeLength;
+      QuicDataWriter::GetVarInt62Len(payload_length) + kFrameTypeLength;
 
   output->reset(new char[header_length]);
   QuicDataWriter writer(header_length, output->get(), NETWORK_BYTE_ORDER);
 
-  if (WriteFrameHeader(headers.headers.length(), HttpFrameType::HEADERS,
-                       &writer)) {
+  if (WriteFrameHeader(payload_length, HttpFrameType::HEADERS, &writer)) {
     return header_length;
   }
   return 0;
@@ -220,6 +219,24 @@ QuicByteCount HttpEncoder::SerializeMaxPushIdFrame(
 
   if (WriteFrameHeader(payload_length, HttpFrameType::MAX_PUSH_ID, &writer) &&
       writer.WriteVarInt62(max_push_id.push_id)) {
+    return total_length;
+  }
+  return 0;
+}
+
+QuicByteCount HttpEncoder::SerializeDuplicatePushFrame(
+    const DuplicatePushFrame& duplicate_push,
+    std::unique_ptr<char[]>* output) {
+  QuicByteCount payload_length =
+      QuicDataWriter::GetVarInt62Len(duplicate_push.push_id);
+  QuicByteCount total_length = GetTotalLength(payload_length);
+
+  output->reset(new char[total_length]);
+  QuicDataWriter writer(total_length, output->get(), NETWORK_BYTE_ORDER);
+
+  if (WriteFrameHeader(payload_length, HttpFrameType::DUPLICATE_PUSH,
+                       &writer) &&
+      writer.WriteVarInt62(duplicate_push.push_id)) {
     return total_length;
   }
   return 0;

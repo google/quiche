@@ -113,9 +113,11 @@ TEST_F(QuicCryptoClientConfigTest, CachedState_ServerDesignatedConnectionId) {
 TEST_F(QuicCryptoClientConfigTest, CachedState_ServerIdConsumedBeforeSet) {
   QuicCryptoClientConfig::CachedState state;
   EXPECT_FALSE(state.has_server_designated_connection_id());
+#if GTEST_HAS_DEATH_TEST && !defined(NDEBUG)
   EXPECT_DEBUG_DEATH(state.GetNextServerDesignatedConnectionId(),
                      "Attempting to consume a connection id "
                      "that was never designated.");
+#endif  // GTEST_HAS_DEATH_TEST && !defined(NDEBUG)
 }
 
 TEST_F(QuicCryptoClientConfigTest, CachedState_ServerNonce) {
@@ -152,9 +154,11 @@ TEST_F(QuicCryptoClientConfigTest, CachedState_ServerNonce) {
 TEST_F(QuicCryptoClientConfigTest, CachedState_ServerNonceConsumedBeforeSet) {
   QuicCryptoClientConfig::CachedState state;
   EXPECT_FALSE(state.has_server_nonce());
+#if GTEST_HAS_DEATH_TEST && !defined(NDEBUG)
   EXPECT_DEBUG_DEATH(state.GetNextServerNonce(),
                      "Attempting to consume a server nonce "
                      "that was never designated.");
+#endif  // GTEST_HAS_DEATH_TEST && !defined(NDEBUG)
 }
 
 TEST_F(QuicCryptoClientConfigTest, CachedState_InitializeFrom) {
@@ -197,6 +201,26 @@ TEST_F(QuicCryptoClientConfigTest, InchoateChlo) {
   QuicStringPiece alpn;
   EXPECT_TRUE(msg.GetStringPiece(kALPN, &alpn));
   EXPECT_EQ("hq", alpn);
+
+  EXPECT_EQ(msg.minimum_size(), 1024u);
+}
+
+TEST_F(QuicCryptoClientConfigTest, InchoateChloIsNotPadded) {
+  QuicCryptoClientConfig::CachedState state;
+  QuicCryptoClientConfig config(crypto_test_utils::ProofVerifierForTesting(),
+                                TlsClientHandshaker::CreateSslCtx());
+  config.set_pad_inchoate_hello(false);
+  config.set_user_agent_id("quic-tester");
+  config.set_alpn("hq");
+  QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> params(
+      new QuicCryptoNegotiatedParameters);
+  CryptoHandshakeMessage msg;
+  QuicServerId server_id("www.google.com", 443, false);
+  MockRandom rand;
+  config.FillInchoateClientHello(server_id, QuicVersionMax(), &state, &rand,
+                                 /* demand_x509_proof= */ true, params, &msg);
+
+  EXPECT_EQ(msg.minimum_size(), 1u);
 }
 
 // Make sure AES-GCM is the preferred encryption algorithm if it has hardware
@@ -305,6 +329,30 @@ TEST_F(QuicCryptoClientConfigTest, FillClientHello) {
   QuicVersionLabel cver;
   EXPECT_EQ(QUIC_NO_ERROR, chlo.GetVersionLabel(kVER, &cver));
   EXPECT_EQ(CreateQuicVersionLabel(QuicVersionMax()), cver);
+}
+
+TEST_F(QuicCryptoClientConfigTest, FillClientHelloNoPadding) {
+  QuicCryptoClientConfig::CachedState state;
+  QuicCryptoClientConfig config(crypto_test_utils::ProofVerifierForTesting(),
+                                TlsClientHandshaker::CreateSslCtx());
+  config.set_pad_full_hello(false);
+  QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> params(
+      new QuicCryptoNegotiatedParameters);
+  QuicConnectionId kConnectionId = TestConnectionId(1234);
+  QuicString error_details;
+  MockRandom rand;
+  CryptoHandshakeMessage chlo;
+  QuicServerId server_id("www.google.com", 443, false);
+  config.FillClientHello(server_id, kConnectionId, QuicVersionMax(), &state,
+                         QuicWallTime::Zero(), &rand,
+                         nullptr,  // channel_id_key
+                         params, &chlo, &error_details);
+
+  // Verify that the version label has been set correctly in the CHLO.
+  QuicVersionLabel cver;
+  EXPECT_EQ(QUIC_NO_ERROR, chlo.GetVersionLabel(kVER, &cver));
+  EXPECT_EQ(CreateQuicVersionLabel(QuicVersionMax()), cver);
+  EXPECT_EQ(chlo.minimum_size(), 1u);
 }
 
 TEST_F(QuicCryptoClientConfigTest, ProcessServerDowngradeAttack) {

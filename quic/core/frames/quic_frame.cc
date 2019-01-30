@@ -246,14 +246,14 @@ QuicFrame CopyRetransmittableControlFrame(const QuicFrame& frame) {
     case PING_FRAME:
       copy = QuicFrame(QuicPingFrame(frame.ping_frame.control_frame_id));
       break;
+    case STOP_SENDING_FRAME:
+      copy = QuicFrame(new QuicStopSendingFrame(*frame.stop_sending_frame));
+      break;
     case STREAM_ID_BLOCKED_FRAME:
       copy = QuicFrame(QuicStreamIdBlockedFrame(frame.stream_id_blocked_frame));
       break;
     case MAX_STREAM_ID_FRAME:
       copy = QuicFrame(QuicMaxStreamIdFrame(frame.max_stream_id_frame));
-      break;
-    case STOP_SENDING_FRAME:
-      copy = QuicFrame(new QuicStopSendingFrame(*frame.stop_sending_frame));
       break;
     default:
       QUIC_BUG << "Try to copy a non-retransmittable control frame: " << frame;

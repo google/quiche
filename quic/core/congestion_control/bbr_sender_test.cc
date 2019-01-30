@@ -515,97 +515,6 @@ TEST_F(BbrSenderTest, RecoveryStates) {
   ASSERT_TRUE(simulator_result);
 }
 
-// Ensures the code transitions loss recovery states correctly when in STARTUP
-// and the BBS2 connection option is used.
-// (NOT_IN_RECOVERY -> CONSERVATION -> GROWTH -> NOT_IN_RECOVERY).
-TEST_F(BbrSenderTest, StartupMediumRecoveryStates) {
-  // Set seed to the position where the gain cycling causes the sender go
-  // into conservation upon entering PROBE_BW.
-  //
-  // TODO(vasilvv): there should be a better way to test this.
-  random_.set_seed(UINT64_C(14719894707049085006));
-
-  const QuicTime::Delta timeout = QuicTime::Delta::FromSeconds(10);
-  bool simulator_result;
-  CreateSmallBufferSetup();
-  SetConnectionOption(kBBS2);
-
-  bbr_sender_.AddBytesToTransfer(100 * 1024 * 1024);
-  ASSERT_EQ(BbrSender::NOT_IN_RECOVERY,
-            sender_->ExportDebugState().recovery_state);
-
-  simulator_result = simulator_.RunUntilOrTimeout(
-      [this]() {
-        return sender_->ExportDebugState().recovery_state !=
-               BbrSender::NOT_IN_RECOVERY;
-      },
-      timeout);
-  ASSERT_TRUE(simulator_result);
-  ASSERT_EQ(BbrSender::MEDIUM_GROWTH,
-            sender_->ExportDebugState().recovery_state);
-
-  simulator_result = simulator_.RunUntilOrTimeout(
-      [this]() {
-        return sender_->ExportDebugState().recovery_state !=
-               BbrSender::MEDIUM_GROWTH;
-      },
-      timeout);
-  ASSERT_TRUE(simulator_result);
-  ASSERT_EQ(BbrSender::GROWTH, sender_->ExportDebugState().recovery_state);
-
-  simulator_result = simulator_.RunUntilOrTimeout(
-      [this]() {
-        return sender_->ExportDebugState().recovery_state != BbrSender::GROWTH;
-      },
-      timeout);
-
-  ASSERT_EQ(BbrSender::PROBE_BW, sender_->ExportDebugState().mode);
-  ASSERT_EQ(BbrSender::NOT_IN_RECOVERY,
-            sender_->ExportDebugState().recovery_state);
-  ASSERT_TRUE(simulator_result);
-}
-
-// Ensures the code transitions loss recovery states correctly when in STARTUP
-// and the BBS3 connection option is used.
-// (NOT_IN_RECOVERY -> GROWTH -> NOT_IN_RECOVERY).
-TEST_F(BbrSenderTest, StartupGrowthRecoveryStates) {
-  // Set seed to the position where the gain cycling causes the sender go
-  // into conservation upon entering PROBE_BW.
-  //
-  // TODO(vasilvv): there should be a better way to test this.
-  random_.set_seed(UINT64_C(14719894707049085006));
-
-  const QuicTime::Delta timeout = QuicTime::Delta::FromSeconds(10);
-  bool simulator_result;
-  CreateSmallBufferSetup();
-  SetConnectionOption(kBBS3);
-
-  bbr_sender_.AddBytesToTransfer(100 * 1024 * 1024);
-  ASSERT_EQ(BbrSender::NOT_IN_RECOVERY,
-            sender_->ExportDebugState().recovery_state);
-
-  simulator_result = simulator_.RunUntilOrTimeout(
-      [this]() {
-        return sender_->ExportDebugState().recovery_state !=
-               BbrSender::NOT_IN_RECOVERY;
-      },
-      timeout);
-  ASSERT_TRUE(simulator_result);
-  ASSERT_EQ(BbrSender::GROWTH, sender_->ExportDebugState().recovery_state);
-
-  simulator_result = simulator_.RunUntilOrTimeout(
-      [this]() {
-        return sender_->ExportDebugState().recovery_state != BbrSender::GROWTH;
-      },
-      timeout);
-  ASSERT_TRUE(simulator_result);
-
-  ASSERT_EQ(BbrSender::PROBE_BW, sender_->ExportDebugState().mode);
-  ASSERT_EQ(BbrSender::NOT_IN_RECOVERY,
-            sender_->ExportDebugState().recovery_state);
-  ASSERT_TRUE(simulator_result);
-}
-
 // Verify the behavior of the algorithm in the case when the connection sends
 // small bursts of data after sending continuously for a while.
 TEST_F(BbrSenderTest, ApplicationLimitedBursts) {
@@ -1185,7 +1094,7 @@ TEST_F(BbrSenderTest, SimpleTransferStartupRateReduction) {
   QuicBandwidth pacing_rate = original_pacing_rate;
   const QuicByteCount original_cwnd = sender_->GetCongestionWindow();
   LostPacketVector lost_packets;
-  lost_packets.push_back(LostPacket(0, kMaxPacketSize));
+  lost_packets.push_back(LostPacket(QuicPacketNumber(), kMaxPacketSize));
   QuicPacketNumber largest_sent =
       bbr_sender_.connection()->sent_packet_manager().GetLargestSentPacket();
   for (QuicPacketNumber packet_number =
@@ -1235,7 +1144,7 @@ TEST_F(BbrSenderTest, SimpleTransferDoubleStartupRateReduction) {
   QuicBandwidth pacing_rate = original_pacing_rate;
   const QuicByteCount original_cwnd = sender_->GetCongestionWindow();
   LostPacketVector lost_packets;
-  lost_packets.push_back(LostPacket(0, kMaxPacketSize));
+  lost_packets.push_back(LostPacket(QuicPacketNumber(), kMaxPacketSize));
   QuicPacketNumber largest_sent =
       bbr_sender_.connection()->sent_packet_manager().GetLargestSentPacket();
   for (QuicPacketNumber packet_number =

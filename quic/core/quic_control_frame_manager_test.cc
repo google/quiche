@@ -235,7 +235,6 @@ TEST_F(QuicControlFrameManagerTest, DonotSendPingWithBufferedFrames) {
 }
 
 TEST_F(QuicControlFrameManagerTest, DonotRetransmitOldWindowUpdates) {
-  SetQuicReloadableFlag(quic_donot_retransmit_old_window_update2, true);
   Initialize();
   // Send two more window updates of the same stream.
   manager_->WriteOrBufferWindowUpdate(kTestStreamId, 200);
@@ -271,7 +270,6 @@ TEST_F(QuicControlFrameManagerTest, DonotRetransmitOldWindowUpdates) {
 }
 
 TEST_F(QuicControlFrameManagerTest, RetransmitWindowUpdateOfDifferentStreams) {
-  SetQuicReloadableFlag(quic_donot_retransmit_old_window_update2, true);
   Initialize();
   // Send two more window updates of different streams.
   manager_->WriteOrBufferWindowUpdate(kTestStreamId + 2, 200);

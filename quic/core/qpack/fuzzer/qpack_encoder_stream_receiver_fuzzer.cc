@@ -28,7 +28,7 @@ class NoOpDelegate : public QpackEncoderStreamReceiver::Delegate {
   void OnInsertWithoutNameReference(QuicStringPiece name,
                                     QuicStringPiece value) override {}
   void OnDuplicate(uint64_t index) override {}
-  void OnDynamicTableSizeUpdate(uint64_t max_size) override {}
+  void OnSetDynamicTableCapacity(uint64_t capacity) override {}
   void OnErrorDetected(QuicStringPiece error_message) override {
     error_detected_ = true;
   }

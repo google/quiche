@@ -31,37 +31,43 @@ class GeneralLossAlgorithmTest : public QuicTest {
 
   ~GeneralLossAlgorithmTest() override {}
 
-  void SendDataPacket(QuicPacketNumber packet_number) {
+  void SendDataPacket(uint64_t packet_number) {
     QuicStreamFrame frame;
     frame.stream_id = QuicUtils::GetHeadersStreamId(
         CurrentSupportedVersions()[0].transport_version);
-    SerializedPacket packet(packet_number, PACKET_1BYTE_PACKET_NUMBER, nullptr,
-                            kDefaultLength, false, false);
+    SerializedPacket packet(QuicPacketNumber(packet_number),
+                            PACKET_1BYTE_PACKET_NUMBER, nullptr, kDefaultLength,
+                            false, false);
     packet.retransmittable_frames.push_back(QuicFrame(frame));
-    unacked_packets_.AddSentPacket(&packet, 0, NOT_RETRANSMISSION, clock_.Now(),
-                                   true);
+    unacked_packets_.AddSentPacket(&packet, QuicPacketNumber(),
+                                   NOT_RETRANSMISSION, clock_.Now(), true);
   }
 
-  void SendAckPacket(QuicPacketNumber packet_number) {
-    SerializedPacket packet(packet_number, PACKET_1BYTE_PACKET_NUMBER, nullptr,
-                            kDefaultLength, true, false);
-    unacked_packets_.AddSentPacket(&packet, 0, NOT_RETRANSMISSION, clock_.Now(),
-                                   false);
+  void SendAckPacket(uint64_t packet_number) {
+    SerializedPacket packet(QuicPacketNumber(packet_number),
+                            PACKET_1BYTE_PACKET_NUMBER, nullptr, kDefaultLength,
+                            true, false);
+    unacked_packets_.AddSentPacket(&packet, QuicPacketNumber(),
+                                   NOT_RETRANSMISSION, clock_.Now(), false);
   }
 
-  void VerifyLosses(QuicPacketNumber largest_newly_acked,
+  void VerifyLosses(uint64_t largest_newly_acked,
                     const AckedPacketVector& packets_acked,
-                    const std::vector<QuicPacketNumber>& losses_expected) {
-    if (largest_newly_acked > unacked_packets_.largest_acked()) {
-      unacked_packets_.IncreaseLargestAcked(largest_newly_acked);
+                    const std::vector<uint64_t>& losses_expected) {
+    if (!unacked_packets_.largest_acked().IsInitialized() ||
+        QuicPacketNumber(largest_newly_acked) >
+            unacked_packets_.largest_acked()) {
+      unacked_packets_.IncreaseLargestAcked(
+          QuicPacketNumber(largest_newly_acked));
     }
     LostPacketVector lost_packets;
     loss_algorithm_.DetectLosses(unacked_packets_, clock_.Now(), rtt_stats_,
-                                 largest_newly_acked, packets_acked,
-                                 &lost_packets);
+                                 QuicPacketNumber(largest_newly_acked),
+                                 packets_acked, &lost_packets);
     ASSERT_EQ(losses_expected.size(), lost_packets.size());
     for (size_t i = 0; i < losses_expected.size(); ++i) {
-      EXPECT_EQ(lost_packets[i].packet_number, losses_expected[i]);
+      EXPECT_EQ(lost_packets[i].packet_number,
+                QuicPacketNumber(losses_expected[i]));
     }
   }
 
@@ -79,18 +85,21 @@ TEST_F(GeneralLossAlgorithmTest, NackRetransmit1Packet) {
   }
   AckedPacketVector packets_acked;
   // No loss on one ack.
-  unacked_packets_.RemoveFromInFlight(2);
-  packets_acked.push_back(AckedPacket(2, kMaxPacketSize, QuicTime::Zero()));
-  VerifyLosses(2, packets_acked, std::vector<QuicPacketNumber>{});
+  unacked_packets_.RemoveFromInFlight(QuicPacketNumber(2));
+  packets_acked.push_back(
+      AckedPacket(QuicPacketNumber(2), kMaxPacketSize, QuicTime::Zero()));
+  VerifyLosses(2, packets_acked, std::vector<uint64_t>{});
   packets_acked.clear();
   // No loss on two acks.
-  unacked_packets_.RemoveFromInFlight(3);
-  packets_acked.push_back(AckedPacket(3, kMaxPacketSize, QuicTime::Zero()));
-  VerifyLosses(3, packets_acked, std::vector<QuicPacketNumber>{});
+  unacked_packets_.RemoveFromInFlight(QuicPacketNumber(3));
+  packets_acked.push_back(
+      AckedPacket(QuicPacketNumber(3), kMaxPacketSize, QuicTime::Zero()));
+  VerifyLosses(3, packets_acked, std::vector<uint64_t>{});
   packets_acked.clear();
   // Loss on three acks.
-  unacked_packets_.RemoveFromInFlight(4);
-  packets_acked.push_back(AckedPacket(4, kMaxPacketSize, QuicTime::Zero()));
+  unacked_packets_.RemoveFromInFlight(QuicPacketNumber(4));
+  packets_acked.push_back(
+      AckedPacket(QuicPacketNumber(4), kMaxPacketSize, QuicTime::Zero()));
   VerifyLosses(4, packets_acked, {1});
   EXPECT_EQ(QuicTime::Zero(), loss_algorithm_.GetLossTimeout());
 }
@@ -105,12 +114,15 @@ TEST_F(GeneralLossAlgorithmTest, NackRetransmit1PacketWith1StretchAck) {
   }
   AckedPacketVector packets_acked;
   // Nack the first packet 3 times in a single StretchAck.
-  unacked_packets_.RemoveFromInFlight(2);
-  packets_acked.push_back(AckedPacket(2, kMaxPacketSize, QuicTime::Zero()));
-  unacked_packets_.RemoveFromInFlight(3);
-  packets_acked.push_back(AckedPacket(3, kMaxPacketSize, QuicTime::Zero()));
-  unacked_packets_.RemoveFromInFlight(4);
-  packets_acked.push_back(AckedPacket(4, kMaxPacketSize, QuicTime::Zero()));
+  unacked_packets_.RemoveFromInFlight(QuicPacketNumber(2));
+  packets_acked.push_back(
+      AckedPacket(QuicPacketNumber(2), kMaxPacketSize, QuicTime::Zero()));
+  unacked_packets_.RemoveFromInFlight(QuicPacketNumber(3));
+  packets_acked.push_back(
+      AckedPacket(QuicPacketNumber(3), kMaxPacketSize, QuicTime::Zero()));
+  unacked_packets_.RemoveFromInFlight(QuicPacketNumber(4));
+  packets_acked.push_back(
+      AckedPacket(QuicPacketNumber(4), kMaxPacketSize, QuicTime::Zero()));
   VerifyLosses(4, packets_acked, {1});
   EXPECT_EQ(QuicTime::Zero(), loss_algorithm_.GetLossTimeout());
 }
@@ -124,8 +136,9 @@ TEST_F(GeneralLossAlgorithmTest, NackRetransmit1PacketSingleAck) {
   }
   AckedPacketVector packets_acked;
   // Nack the first packet 3 times in an AckFrame with three missing packets.
-  unacked_packets_.RemoveFromInFlight(4);
-  packets_acked.push_back(AckedPacket(4, kMaxPacketSize, QuicTime::Zero()));
+  unacked_packets_.RemoveFromInFlight(QuicPacketNumber(4));
+  packets_acked.push_back(
+      AckedPacket(QuicPacketNumber(4), kMaxPacketSize, QuicTime::Zero()));
   VerifyLosses(4, packets_acked, {1});
   EXPECT_EQ(QuicTime::Zero(), loss_algorithm_.GetLossTimeout());
 }
@@ -138,9 +151,10 @@ TEST_F(GeneralLossAlgorithmTest, EarlyRetransmit1Packet) {
   }
   AckedPacketVector packets_acked;
   // Early retransmit when the final packet gets acked and the first is nacked.
-  unacked_packets_.RemoveFromInFlight(2);
-  packets_acked.push_back(AckedPacket(2, kMaxPacketSize, QuicTime::Zero()));
-  VerifyLosses(2, packets_acked, std::vector<QuicPacketNumber>{});
+  unacked_packets_.RemoveFromInFlight(QuicPacketNumber(2));
+  packets_acked.push_back(
+      AckedPacket(QuicPacketNumber(2), kMaxPacketSize, QuicTime::Zero()));
+  VerifyLosses(2, packets_acked, std::vector<uint64_t>{});
   packets_acked.clear();
   EXPECT_EQ(clock_.Now() + 1.25 * rtt_stats_.smoothed_rtt(),
             loss_algorithm_.GetLossTimeout());
@@ -162,9 +176,9 @@ TEST_F(GeneralLossAlgorithmTest, EarlyRetransmitAllPackets) {
   AckedPacketVector packets_acked;
   // Early retransmit when the final packet gets acked and 1.25 RTTs have
   // elapsed since the packets were sent.
-  unacked_packets_.RemoveFromInFlight(kNumSentPackets);
-  packets_acked.push_back(
-      AckedPacket(kNumSentPackets, kMaxPacketSize, QuicTime::Zero()));
+  unacked_packets_.RemoveFromInFlight(QuicPacketNumber(kNumSentPackets));
+  packets_acked.push_back(AckedPacket(QuicPacketNumber(kNumSentPackets),
+                                      kMaxPacketSize, QuicTime::Zero()));
   // This simulates a single ack following multiple missing packets with FACK.
   VerifyLosses(kNumSentPackets, packets_acked, {1, 2});
   packets_acked.clear();
@@ -190,14 +204,15 @@ TEST_F(GeneralLossAlgorithmTest, DontEarlyRetransmitNeuteredPacket) {
   }
   AckedPacketVector packets_acked;
   // Neuter packet 1.
-  unacked_packets_.RemoveRetransmittability(1);
+  unacked_packets_.RemoveRetransmittability(QuicPacketNumber(1));
   clock_.AdvanceTime(rtt_stats_.smoothed_rtt());
 
   // Early retransmit when the final packet gets acked and the first is nacked.
-  unacked_packets_.IncreaseLargestAcked(2);
-  unacked_packets_.RemoveFromInFlight(2);
-  packets_acked.push_back(AckedPacket(2, kMaxPacketSize, QuicTime::Zero()));
-  VerifyLosses(2, packets_acked, std::vector<QuicPacketNumber>{});
+  unacked_packets_.IncreaseLargestAcked(QuicPacketNumber(2));
+  unacked_packets_.RemoveFromInFlight(QuicPacketNumber(2));
+  packets_acked.push_back(
+      AckedPacket(QuicPacketNumber(2), kMaxPacketSize, QuicTime::Zero()));
+  VerifyLosses(2, packets_acked, std::vector<uint64_t>{});
   EXPECT_EQ(clock_.Now() + 0.25 * rtt_stats_.smoothed_rtt(),
             loss_algorithm_.GetLossTimeout());
 }
@@ -211,10 +226,11 @@ TEST_F(GeneralLossAlgorithmTest, EarlyRetransmitWithLargerUnackablePackets) {
   clock_.AdvanceTime(rtt_stats_.smoothed_rtt());
 
   // Early retransmit when the final packet gets acked and the first is nacked.
-  unacked_packets_.IncreaseLargestAcked(2);
-  unacked_packets_.RemoveFromInFlight(2);
-  packets_acked.push_back(AckedPacket(2, kMaxPacketSize, QuicTime::Zero()));
-  VerifyLosses(2, packets_acked, std::vector<QuicPacketNumber>{});
+  unacked_packets_.IncreaseLargestAcked(QuicPacketNumber(2));
+  unacked_packets_.RemoveFromInFlight(QuicPacketNumber(2));
+  packets_acked.push_back(
+      AckedPacket(QuicPacketNumber(2), kMaxPacketSize, QuicTime::Zero()));
+  VerifyLosses(2, packets_acked, std::vector<uint64_t>{});
   packets_acked.clear();
   EXPECT_EQ(clock_.Now() + 0.25 * rtt_stats_.smoothed_rtt(),
             loss_algorithm_.GetLossTimeout());
@@ -237,9 +253,10 @@ TEST_F(GeneralLossAlgorithmTest, AlwaysLosePacketSent1RTTEarlier) {
   AckedPacketVector packets_acked;
   // Wait another RTT and ack 2.
   clock_.AdvanceTime(rtt_stats_.smoothed_rtt());
-  unacked_packets_.IncreaseLargestAcked(2);
-  unacked_packets_.RemoveFromInFlight(2);
-  packets_acked.push_back(AckedPacket(2, kMaxPacketSize, QuicTime::Zero()));
+  unacked_packets_.IncreaseLargestAcked(QuicPacketNumber(2));
+  unacked_packets_.RemoveFromInFlight(QuicPacketNumber(2));
+  packets_acked.push_back(
+      AckedPacket(QuicPacketNumber(2), kMaxPacketSize, QuicTime::Zero()));
   VerifyLosses(2, packets_acked, {1});
 }
 
@@ -253,18 +270,21 @@ TEST_F(GeneralLossAlgorithmTest, LazyFackNackRetransmit1Packet) {
   }
   AckedPacketVector packets_acked;
   // No loss on one ack.
-  unacked_packets_.RemoveFromInFlight(2);
-  packets_acked.push_back(AckedPacket(2, kMaxPacketSize, QuicTime::Zero()));
-  VerifyLosses(2, packets_acked, std::vector<QuicPacketNumber>{});
+  unacked_packets_.RemoveFromInFlight(QuicPacketNumber(2));
+  packets_acked.push_back(
+      AckedPacket(QuicPacketNumber(2), kMaxPacketSize, QuicTime::Zero()));
+  VerifyLosses(2, packets_acked, std::vector<uint64_t>{});
   packets_acked.clear();
   // No loss on two acks.
-  unacked_packets_.RemoveFromInFlight(3);
-  packets_acked.push_back(AckedPacket(3, kMaxPacketSize, QuicTime::Zero()));
-  VerifyLosses(3, packets_acked, std::vector<QuicPacketNumber>{});
+  unacked_packets_.RemoveFromInFlight(QuicPacketNumber(3));
+  packets_acked.push_back(
+      AckedPacket(QuicPacketNumber(3), kMaxPacketSize, QuicTime::Zero()));
+  VerifyLosses(3, packets_acked, std::vector<uint64_t>{});
   packets_acked.clear();
   // Loss on three acks.
-  unacked_packets_.RemoveFromInFlight(4);
-  packets_acked.push_back(AckedPacket(4, kMaxPacketSize, QuicTime::Zero()));
+  unacked_packets_.RemoveFromInFlight(QuicPacketNumber(4));
+  packets_acked.push_back(
+      AckedPacket(QuicPacketNumber(4), kMaxPacketSize, QuicTime::Zero()));
   VerifyLosses(4, packets_acked, {1});
   EXPECT_EQ(QuicTime::Zero(), loss_algorithm_.GetLossTimeout());
 }
@@ -281,19 +301,23 @@ TEST_F(GeneralLossAlgorithmTest,
   }
   AckedPacketVector packets_acked;
   // Nack the first packet 3 times in a single StretchAck.
-  unacked_packets_.RemoveFromInFlight(2);
-  packets_acked.push_back(AckedPacket(2, kMaxPacketSize, QuicTime::Zero()));
-  unacked_packets_.RemoveFromInFlight(3);
-  packets_acked.push_back(AckedPacket(3, kMaxPacketSize, QuicTime::Zero()));
-  unacked_packets_.RemoveFromInFlight(4);
-  packets_acked.push_back(AckedPacket(4, kMaxPacketSize, QuicTime::Zero()));
-  VerifyLosses(4, packets_acked, std::vector<QuicPacketNumber>{});
+  unacked_packets_.RemoveFromInFlight(QuicPacketNumber(2));
+  packets_acked.push_back(
+      AckedPacket(QuicPacketNumber(2), kMaxPacketSize, QuicTime::Zero()));
+  unacked_packets_.RemoveFromInFlight(QuicPacketNumber(3));
+  packets_acked.push_back(
+      AckedPacket(QuicPacketNumber(3), kMaxPacketSize, QuicTime::Zero()));
+  unacked_packets_.RemoveFromInFlight(QuicPacketNumber(4));
+  packets_acked.push_back(
+      AckedPacket(QuicPacketNumber(4), kMaxPacketSize, QuicTime::Zero()));
+  VerifyLosses(4, packets_acked, std::vector<uint64_t>{});
   packets_acked.clear();
   // The timer isn't set because we expect more acks.
   EXPECT_EQ(QuicTime::Zero(), loss_algorithm_.GetLossTimeout());
   // Process another ack and then packet 1 will be lost.
-  unacked_packets_.RemoveFromInFlight(5);
-  packets_acked.push_back(AckedPacket(5, kMaxPacketSize, QuicTime::Zero()));
+  unacked_packets_.RemoveFromInFlight(QuicPacketNumber(5));
+  packets_acked.push_back(
+      AckedPacket(QuicPacketNumber(5), kMaxPacketSize, QuicTime::Zero()));
   VerifyLosses(5, packets_acked, {1});
   EXPECT_EQ(QuicTime::Zero(), loss_algorithm_.GetLossTimeout());
 }
@@ -308,15 +332,17 @@ TEST_F(GeneralLossAlgorithmTest, LazyFackNackRetransmit1PacketSingleAck) {
   }
   AckedPacketVector packets_acked;
   // Nack the first packet 3 times in an AckFrame with three missing packets.
-  unacked_packets_.RemoveFromInFlight(4);
-  packets_acked.push_back(AckedPacket(4, kMaxPacketSize, QuicTime::Zero()));
-  VerifyLosses(4, packets_acked, std::vector<QuicPacketNumber>{});
+  unacked_packets_.RemoveFromInFlight(QuicPacketNumber(4));
+  packets_acked.push_back(
+      AckedPacket(QuicPacketNumber(4), kMaxPacketSize, QuicTime::Zero()));
+  VerifyLosses(4, packets_acked, std::vector<uint64_t>{});
   packets_acked.clear();
   // The timer isn't set because we expect more acks.
   EXPECT_EQ(QuicTime::Zero(), loss_algorithm_.GetLossTimeout());
   // Process another ack and then packet 1 and 2 will be lost.
-  unacked_packets_.RemoveFromInFlight(5);
-  packets_acked.push_back(AckedPacket(5, kMaxPacketSize, QuicTime::Zero()));
+  unacked_packets_.RemoveFromInFlight(QuicPacketNumber(5));
+  packets_acked.push_back(
+      AckedPacket(QuicPacketNumber(5), kMaxPacketSize, QuicTime::Zero()));
   VerifyLosses(5, packets_acked, {1, 2});
   EXPECT_EQ(QuicTime::Zero(), loss_algorithm_.GetLossTimeout());
 }
@@ -330,10 +356,11 @@ TEST_F(GeneralLossAlgorithmTest, NoLossFor500Nacks) {
     SendDataPacket(i);
   }
   AckedPacketVector packets_acked;
-  unacked_packets_.RemoveFromInFlight(2);
-  packets_acked.push_back(AckedPacket(2, kMaxPacketSize, QuicTime::Zero()));
+  unacked_packets_.RemoveFromInFlight(QuicPacketNumber(2));
+  packets_acked.push_back(
+      AckedPacket(QuicPacketNumber(2), kMaxPacketSize, QuicTime::Zero()));
   for (size_t i = 1; i < 500; ++i) {
-    VerifyLosses(2, packets_acked, std::vector<QuicPacketNumber>{});
+    VerifyLosses(2, packets_acked, std::vector<uint64_t>{});
     packets_acked.clear();
   }
   if (GetQuicReloadableFlag(quic_eighth_rtt_loss_detection)) {
@@ -357,9 +384,10 @@ TEST_F(GeneralLossAlgorithmTest, NoLossUntilTimeout) {
   // Expect the timer to not be set.
   EXPECT_EQ(QuicTime::Zero(), loss_algorithm_.GetLossTimeout());
   // The packet should not be lost until 1.25 RTTs pass.
-  unacked_packets_.RemoveFromInFlight(2);
-  packets_acked.push_back(AckedPacket(2, kMaxPacketSize, QuicTime::Zero()));
-  VerifyLosses(2, packets_acked, std::vector<QuicPacketNumber>{});
+  unacked_packets_.RemoveFromInFlight(QuicPacketNumber(2));
+  packets_acked.push_back(
+      AckedPacket(QuicPacketNumber(2), kMaxPacketSize, QuicTime::Zero()));
+  VerifyLosses(2, packets_acked, std::vector<uint64_t>{});
   packets_acked.clear();
   if (GetQuicReloadableFlag(quic_eighth_rtt_loss_detection)) {
     // Expect the timer to be set to 0.25 RTT's in the future.
@@ -370,7 +398,7 @@ TEST_F(GeneralLossAlgorithmTest, NoLossUntilTimeout) {
     EXPECT_EQ(0.25 * rtt_stats_.smoothed_rtt(),
               loss_algorithm_.GetLossTimeout() - clock_.Now());
   }
-  VerifyLosses(2, packets_acked, std::vector<QuicPacketNumber>{});
+  VerifyLosses(2, packets_acked, std::vector<uint64_t>{});
   clock_.AdvanceTime(0.25 * rtt_stats_.smoothed_rtt());
   VerifyLosses(2, packets_acked, {1});
   EXPECT_EQ(QuicTime::Zero(), loss_algorithm_.GetLossTimeout());
@@ -388,16 +416,17 @@ TEST_F(GeneralLossAlgorithmTest, NoLossWithoutNack) {
   // Expect the timer to not be set.
   EXPECT_EQ(QuicTime::Zero(), loss_algorithm_.GetLossTimeout());
   // The packet should not be lost without a nack.
-  unacked_packets_.RemoveFromInFlight(1);
-  packets_acked.push_back(AckedPacket(1, kMaxPacketSize, QuicTime::Zero()));
-  VerifyLosses(1, packets_acked, std::vector<QuicPacketNumber>{});
+  unacked_packets_.RemoveFromInFlight(QuicPacketNumber(1));
+  packets_acked.push_back(
+      AckedPacket(QuicPacketNumber(1), kMaxPacketSize, QuicTime::Zero()));
+  VerifyLosses(1, packets_acked, std::vector<uint64_t>{});
   packets_acked.clear();
   // The timer should still not be set.
   EXPECT_EQ(QuicTime::Zero(), loss_algorithm_.GetLossTimeout());
   clock_.AdvanceTime(0.25 * rtt_stats_.smoothed_rtt());
-  VerifyLosses(1, packets_acked, std::vector<QuicPacketNumber>{});
+  VerifyLosses(1, packets_acked, std::vector<uint64_t>{});
   clock_.AdvanceTime(rtt_stats_.smoothed_rtt());
-  VerifyLosses(1, packets_acked, std::vector<QuicPacketNumber>{});
+  VerifyLosses(1, packets_acked, std::vector<uint64_t>{});
 
   EXPECT_EQ(QuicTime::Zero(), loss_algorithm_.GetLossTimeout());
 }
@@ -414,9 +443,10 @@ TEST_F(GeneralLossAlgorithmTest, MultipleLossesAtOnce) {
   // Expect the timer to not be set.
   EXPECT_EQ(QuicTime::Zero(), loss_algorithm_.GetLossTimeout());
   // The packet should not be lost until 1.25 RTTs pass.
-  unacked_packets_.RemoveFromInFlight(10);
-  packets_acked.push_back(AckedPacket(10, kMaxPacketSize, QuicTime::Zero()));
-  VerifyLosses(10, packets_acked, std::vector<QuicPacketNumber>{});
+  unacked_packets_.RemoveFromInFlight(QuicPacketNumber(10));
+  packets_acked.push_back(
+      AckedPacket(QuicPacketNumber(10), kMaxPacketSize, QuicTime::Zero()));
+  VerifyLosses(10, packets_acked, std::vector<uint64_t>{});
   packets_acked.clear();
   if (GetQuicReloadableFlag(quic_eighth_rtt_loss_detection)) {
     // Expect the timer to be set to 0.25 RTT's in the future.
@@ -445,9 +475,10 @@ TEST_F(GeneralLossAlgorithmTest, NoSpuriousLossesFromLargeReordering) {
   EXPECT_EQ(QuicTime::Zero(), loss_algorithm_.GetLossTimeout());
   // The packet should not be lost until 1.25 RTTs pass.
 
-  unacked_packets_.RemoveFromInFlight(10);
-  packets_acked.push_back(AckedPacket(10, kMaxPacketSize, QuicTime::Zero()));
-  VerifyLosses(10, packets_acked, std::vector<QuicPacketNumber>{});
+  unacked_packets_.RemoveFromInFlight(QuicPacketNumber(10));
+  packets_acked.push_back(
+      AckedPacket(QuicPacketNumber(10), kMaxPacketSize, QuicTime::Zero()));
+  VerifyLosses(10, packets_acked, std::vector<uint64_t>{});
   packets_acked.clear();
   if (GetQuicReloadableFlag(quic_eighth_rtt_loss_detection)) {
     // Expect the timer to be set to 0.25 RTT's in the future.
@@ -461,10 +492,11 @@ TEST_F(GeneralLossAlgorithmTest, NoSpuriousLossesFromLargeReordering) {
   clock_.AdvanceTime(0.25 * rtt_stats_.smoothed_rtt());
   // Now ack packets 1 to 9 and ensure the timer is no longer set and no packets
   // are lost.
-  for (QuicPacketNumber i = 1; i <= 9; ++i) {
-    unacked_packets_.RemoveFromInFlight(i);
-    packets_acked.push_back(AckedPacket(i, kMaxPacketSize, QuicTime::Zero()));
-    VerifyLosses(i, packets_acked, std::vector<QuicPacketNumber>{});
+  for (uint64_t i = 1; i <= 9; ++i) {
+    unacked_packets_.RemoveFromInFlight(QuicPacketNumber(i));
+    packets_acked.push_back(
+        AckedPacket(QuicPacketNumber(i), kMaxPacketSize, QuicTime::Zero()));
+    VerifyLosses(i, packets_acked, std::vector<uint64_t>{});
     packets_acked.clear();
     EXPECT_EQ(QuicTime::Zero(), loss_algorithm_.GetLossTimeout());
   }
@@ -484,14 +516,15 @@ TEST_F(GeneralLossAlgorithmTest, IncreaseThresholdUponSpuriousLoss) {
   // Expect the timer to not be set.
   EXPECT_EQ(QuicTime::Zero(), loss_algorithm_.GetLossTimeout());
   // Packet 1 should not be lost until 1/16 RTTs pass.
-  unacked_packets_.RemoveFromInFlight(2);
-  packets_acked.push_back(AckedPacket(2, kMaxPacketSize, QuicTime::Zero()));
-  VerifyLosses(2, packets_acked, std::vector<QuicPacketNumber>{});
+  unacked_packets_.RemoveFromInFlight(QuicPacketNumber(2));
+  packets_acked.push_back(
+      AckedPacket(QuicPacketNumber(2), kMaxPacketSize, QuicTime::Zero()));
+  VerifyLosses(2, packets_acked, std::vector<uint64_t>{});
   packets_acked.clear();
   // Expect the timer to be set to 1/16 RTT's in the future.
   EXPECT_EQ(rtt_stats_.smoothed_rtt() * (1.0f / 16),
             loss_algorithm_.GetLossTimeout() - clock_.Now());
-  VerifyLosses(2, packets_acked, std::vector<QuicPacketNumber>{});
+  VerifyLosses(2, packets_acked, std::vector<uint64_t>{});
   clock_.AdvanceTime(rtt_stats_.smoothed_rtt() * (1.0f / 16));
   VerifyLosses(2, packets_acked, {1});
   EXPECT_EQ(QuicTime::Zero(), loss_algorithm_.GetLossTimeout());
@@ -508,13 +541,13 @@ TEST_F(GeneralLossAlgorithmTest, IncreaseThresholdUponSpuriousLoss) {
     clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(1));
   }
   loss_algorithm_.SpuriousRetransmitDetected(unacked_packets_, clock_.Now(),
-                                             rtt_stats_, 11);
+                                             rtt_stats_, QuicPacketNumber(11));
   EXPECT_EQ(1, loss_algorithm_.reordering_shift());
 
   // Detect another spurious retransmit and ensure the threshold doesn't
   // increase again.
   loss_algorithm_.SpuriousRetransmitDetected(unacked_packets_, clock_.Now(),
-                                             rtt_stats_, 12);
+                                             rtt_stats_, QuicPacketNumber(12));
   EXPECT_EQ(1, loss_algorithm_.reordering_shift());
 }
 

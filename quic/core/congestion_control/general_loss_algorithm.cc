@@ -31,7 +31,6 @@ GeneralLossAlgorithm::GeneralLossAlgorithm() : GeneralLossAlgorithm(kNack) {}
 
 GeneralLossAlgorithm::GeneralLossAlgorithm(LossDetectionType loss_type)
     : loss_detection_timeout_(QuicTime::Zero()),
-      largest_lost_(0),
       least_in_flight_(1),
       faster_detect_loss_(GetQuicReloadableFlag(quic_faster_detect_loss)) {
   SetLossDetectionType(loss_type);
@@ -39,7 +38,7 @@ GeneralLossAlgorithm::GeneralLossAlgorithm(LossDetectionType loss_type)
 
 void GeneralLossAlgorithm::SetLossDetectionType(LossDetectionType loss_type) {
   loss_detection_timeout_ = QuicTime::Zero();
-  largest_sent_on_spurious_retransmit_ = kInvalidPacketNumber;
+  largest_sent_on_spurious_retransmit_.Clear();
   loss_type_ = loss_type;
   reordering_shift_ = loss_type == kAdaptiveTime
                           ? kDefaultAdaptiveLossDelayShift
@@ -49,7 +48,7 @@ void GeneralLossAlgorithm::SetLossDetectionType(LossDetectionType loss_type) {
     QUIC_RELOADABLE_FLAG_COUNT(quic_eighth_rtt_loss_detection);
     reordering_shift_ = 3;
   }
-  largest_previously_acked_ = kInvalidPacketNumber;
+  largest_previously_acked_.Clear();
 }
 
 LossDetectionType GeneralLossAlgorithm::GetLossDetectionType() const {
@@ -91,7 +90,7 @@ void GeneralLossAlgorithm::DetectLosses(
   QuicPacketNumber packet_number = unacked_packets.GetLeastUnacked();
   auto it = unacked_packets.begin();
   if (faster_detect_loss_) {
-    if (least_in_flight_ >= packet_number) {
+    if (least_in_flight_.IsInitialized() && least_in_flight_ >= packet_number) {
       if (least_in_flight_ > unacked_packets.largest_sent_packet() + 1) {
         QUIC_BUG << "least_in_flight: " << least_in_flight_
                  << " is greater than largest_sent_packet + 1: "
@@ -103,9 +102,9 @@ void GeneralLossAlgorithm::DetectLosses(
       }
     }
     // Clear least_in_flight_.
-    least_in_flight_ = kInvalidPacketNumber;
+    least_in_flight_.Clear();
   } else {
-    if (largest_lost_ >= packet_number) {
+    if (largest_lost_.IsInitialized() && largest_lost_ >= packet_number) {
       if (largest_lost_ > unacked_packets.largest_sent_packet()) {
         QUIC_BUG << "largest_lost: " << largest_lost_
                  << " is greater than largest_sent_packet: "
@@ -132,7 +131,8 @@ void GeneralLossAlgorithm::DetectLosses(
     } else if (loss_type_ == kLazyFack) {
       // Require two in order acks to invoke FACK, which avoids spuriously
       // retransmitting packets when one packet is reordered by a large amount.
-      if (largest_newly_acked > largest_previously_acked_ &&
+      if (largest_previously_acked_.IsInitialized() &&
+          largest_newly_acked > largest_previously_acked_ &&
           largest_previously_acked_ > packet_number &&
           largest_previously_acked_ - packet_number >=
               (kNumberOfNacksBeforeRetransmission - 1)) {
@@ -150,7 +150,7 @@ void GeneralLossAlgorithm::DetectLosses(
       QuicTime when_lost = it->sent_time + loss_delay;
       if (time < when_lost) {
         loss_detection_timeout_ = when_lost;
-        if (least_in_flight_ == kInvalidPacketNumber) {
+        if (!least_in_flight_.IsInitialized()) {
           // At this point, packet_number is in flight and not detected as lost.
           least_in_flight_ = packet_number;
         }
@@ -166,18 +166,19 @@ void GeneralLossAlgorithm::DetectLosses(
       packets_lost->push_back(LostPacket(packet_number, it->bytes_sent));
       continue;
     }
-    if (least_in_flight_ == kInvalidPacketNumber) {
+    if (!least_in_flight_.IsInitialized()) {
       // At this point, packet_number is in flight and not detected as lost.
       least_in_flight_ = packet_number;
     }
   }
-  if (least_in_flight_ == kInvalidPacketNumber) {
+  if (!least_in_flight_.IsInitialized()) {
     // There is no in flight packet.
     least_in_flight_ = largest_newly_acked + 1;
   }
   largest_previously_acked_ = largest_newly_acked;
   if (!packets_lost->empty()) {
-    DCHECK_LT(largest_lost_, packets_lost->back().packet_number);
+    DCHECK(!largest_lost_.IsInitialized() ||
+           largest_lost_ < packets_lost->back().packet_number);
     largest_lost_ = packets_lost->back().packet_number;
   }
 }
@@ -212,7 +213,8 @@ void GeneralLossAlgorithm::SpuriousRetransmitDetected(
     return;
   }
 
-  if (spurious_retransmission <= largest_sent_on_spurious_retransmit_) {
+  if (largest_sent_on_spurious_retransmit_.IsInitialized() &&
+      spurious_retransmission <= largest_sent_on_spurious_retransmit_) {
     return;
   }
   largest_sent_on_spurious_retransmit_ = unacked_packets.largest_sent_packet();

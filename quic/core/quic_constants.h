@@ -181,7 +181,7 @@ const size_t kDiversificationNonceSize = 32;
 
 // The largest gap in packets we'll accept without closing the connection.
 // This will likely have to be tuned.
-const QuicPacketNumber kMaxPacketGap = 5000;
+const QuicPacketCount kMaxPacketGap = 5000;
 
 // The maximum number of random padding bytes to add.
 const QuicByteCount kMaxNumRandomPaddingBytes = 256;
@@ -193,7 +193,7 @@ const QuicByteCount kQuicStreamSendBufferSliceSize = 4 * 1024;
 
 // For When using Random Initial Packet Numbers, they can start
 // anyplace in the range 1...((2^31)-1) or 0x7fffffff
-const QuicPacketNumber kMaxRandomInitialPacketNumber = 0x7fffffff;
+QUIC_EXPORT_PRIVATE QuicPacketNumber MaxRandomInitialPacketNumber();
 
 // Used to represent an invalid or no control frame id.
 const QuicControlFrameId kInvalidControlFrameId = 0;
@@ -224,8 +224,10 @@ const size_t kMinRandomBytesLengthInStatelessReset = 24;
 // Maximum length allowed for the token in a NEW_TOKEN frame.
 const size_t kMaxNewTokenTokenLength = 0xffff;
 
-// Used to represent an invalid packet number.
-const QuicPacketNumber kInvalidPacketNumber = 0;
+// Packet number of first sending packet of a connection. Please note, this
+// cannot be used as first received packet because peer can choose its starting
+// packet number.
+QUIC_EXPORT_PRIVATE QuicPacketNumber FirstSendingPacketNumber();
 
 // Used by clients to tell if a public reset is sent from a Google frontend.
 QUIC_EXPORT_PRIVATE extern const char* const kEPIDGoogleFrontEnd;

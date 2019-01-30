@@ -16,7 +16,6 @@
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 
 namespace quic {
-
 namespace test {
 
 // Simulates a connection that drops packets a configured percentage of the time
@@ -143,17 +142,17 @@ class PacketDroppingTestWriter : public QuicPacketWriterWrapper {
     ~DelayedWrite();
 
     QuicString buffer;
-    const QuicIpAddress self_address;
-    const QuicSocketAddress peer_address;
+    QuicIpAddress self_address;
+    QuicSocketAddress peer_address;
     std::unique_ptr<PerPacketOptions> options;
     QuicTime send_time;
   };
 
   typedef std::list<DelayedWrite> DelayedPacketList;
 
-  const quic::QuicClock* clock_;
-  std::unique_ptr<quic::QuicAlarm> write_unblocked_alarm_;
-  std::unique_ptr<quic::QuicAlarm> delay_alarm_;
+  const QuicClock* clock_;
+  std::unique_ptr<QuicAlarm> write_unblocked_alarm_;
+  std::unique_ptr<QuicAlarm> delay_alarm_;
   std::unique_ptr<Delegate> on_can_write_;
   SimpleRandom simple_random_;
   // Stored packets delayed by fake packet delay or bandwidth restrictions.

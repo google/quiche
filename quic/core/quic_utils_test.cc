@@ -183,6 +183,23 @@ TEST_F(QuicUtilsTest, RandomConnectionId) {
   EXPECT_NE(connection_id, TestConnectionId(1));
 }
 
+TEST_F(QuicUtilsTest, VariableLengthConnectionId) {
+  EXPECT_FALSE(
+      QuicUtils::VariableLengthConnectionIdAllowedForVersion(QUIC_VERSION_35));
+  EXPECT_TRUE(QuicUtils::IsConnectionIdValidForVersion(
+      QuicUtils::CreateZeroConnectionId(QUIC_VERSION_35), QUIC_VERSION_35));
+  EXPECT_TRUE(QuicUtils::IsConnectionIdValidForVersion(
+      QuicUtils::CreateZeroConnectionId(QUIC_VERSION_99), QUIC_VERSION_99));
+  if (!QuicConnectionIdSupportsVariableLength(quic::Perspective::IS_SERVER) ||
+      !QuicConnectionIdSupportsVariableLength(quic::Perspective::IS_CLIENT)) {
+    return;
+  }
+  EXPECT_NE(QuicUtils::CreateZeroConnectionId(QUIC_VERSION_35),
+            EmptyQuicConnectionId());
+  EXPECT_FALSE(QuicUtils::IsConnectionIdValidForVersion(EmptyQuicConnectionId(),
+                                                        QUIC_VERSION_35));
+}
+
 TEST_F(QuicUtilsTest, StatelessResetToken) {
   QuicConnectionId connection_id1a = test::TestConnectionId(1);
   QuicConnectionId connection_id1b = test::TestConnectionId(1);

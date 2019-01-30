@@ -15,9 +15,7 @@ QuicTransmissionInfo::QuicTransmissionInfo()
       in_flight(false),
       state(OUTSTANDING),
       has_crypto_handshake(false),
-      num_padding_bytes(0),
-      retransmission(kInvalidPacketNumber),
-      largest_acked(kInvalidPacketNumber) {}
+      num_padding_bytes(0) {}
 
 QuicTransmissionInfo::QuicTransmissionInfo(
     EncryptionLevel level,
@@ -35,9 +33,7 @@ QuicTransmissionInfo::QuicTransmissionInfo(
       in_flight(false),
       state(OUTSTANDING),
       has_crypto_handshake(has_crypto_handshake),
-      num_padding_bytes(num_padding_bytes),
-      retransmission(kInvalidPacketNumber),
-      largest_acked(kInvalidPacketNumber) {}
+      num_padding_bytes(num_padding_bytes) {}
 
 QuicTransmissionInfo::QuicTransmissionInfo(const QuicTransmissionInfo& other) =
     default;

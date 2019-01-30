@@ -13,7 +13,6 @@
 
 #include <algorithm>
 #include <cstdint>
-#include <limits>
 
 #include "base/logging.h"
 #include "base/macros.h"
@@ -169,16 +168,8 @@ class HTTP2_EXPORT_PRIVATE HpackStringDecoder {
   // false otherwise, in which case status set.
   template <class Listener>
   void OnStringStart(Listener* cb, DecodeStatus* status) {
-    // HpackVarintDecoder::value() returns uint64_t.
-    const uint64_t value = length_decoder_.value();
-    // |remaining_| is size_t.  Check for truncation on 32-bit platforms.
-    // numeric_limits::max() is constexpr.  On platforms where size_t is at
-    // least 64 bit wide, the compiler should optimize away this branch.
-    if (value > std::numeric_limits<size_t>::max()) {
-      *status = DecodeStatus::kDecodeError;
-      return;
-    }
-    remaining_ = static_cast<size_t>(value);
+    // TODO(vasilvv): fail explicitly in case of truncation.
+    remaining_ = static_cast<size_t>(length_decoder_.value());
     // Make callback so consumer knows what is coming.
     cb->OnStringStart(huffman_encoded_, remaining_);
   }

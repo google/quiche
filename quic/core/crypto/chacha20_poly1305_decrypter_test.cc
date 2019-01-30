@@ -116,7 +116,7 @@ QuicData* DecryptWithNonce(ChaCha20Poly1305Decrypter* decrypter,
                            QuicStringPiece nonce,
                            QuicStringPiece associated_data,
                            QuicStringPiece ciphertext) {
-  QuicPacketNumber packet_number;
+  uint64_t packet_number;
   QuicStringPiece nonce_prefix(nonce.data(),
                                nonce.size() - sizeof(packet_number));
   decrypter->SetNoncePrefix(nonce_prefix);

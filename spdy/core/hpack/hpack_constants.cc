@@ -6,13 +6,12 @@
 
 #include <cstddef>
 #include <memory>
+#include <vector>
 
 #include "base/logging.h"
-#include "base/once.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_huffman_table.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_static_table.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_arraysize.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_ptr_util.h"
 
 namespace spdy {
 
@@ -26,7 +25,7 @@ namespace spdy {
 // HpackHuffmanSymbol entries are initialized as {code, length, id}.
 // Codes are specified in the |length| most-significant bits of |code|.
 const std::vector<HpackHuffmanSymbol>& HpackHuffmanCodeVector() {
-  static const std::vector<HpackHuffmanSymbol> kHpackHuffmanCode = {
+  static const auto* kHpackHuffmanCode = new std::vector<HpackHuffmanSymbol>{
       {0xffc00000ul, 13, 0},    //     11111111|11000
       {0xffffb000ul, 23, 1},    //     11111111|11111111|1011000
       {0xfffffe20ul, 28, 2},    //     11111111|11111111|11111110|0010
@@ -285,7 +284,7 @@ const std::vector<HpackHuffmanSymbol>& HpackHuffmanCodeVector() {
       {0xfffffb80ul, 26, 255},  //     11111111|11111111|11111011|10
       {0xfffffffcul, 30, 256},  // EOS 11111111|11111111|11111111|111111
   };
-  return kHpackHuffmanCode;
+  return *kHpackHuffmanCode;
 }
 
 // The "constructor" for a HpackStaticEntry that computes the lengths at
@@ -294,7 +293,7 @@ const std::vector<HpackHuffmanSymbol>& HpackHuffmanCodeVector() {
   { name, SPDY_ARRAYSIZE(name) - 1, value, SPDY_ARRAYSIZE(value) - 1 }
 
 const std::vector<HpackStaticEntry>& HpackStaticTableVector() {
-  static const std::vector<HpackStaticEntry> kHpackStaticTable = {
+  static const auto* kHpackStaticTable = new std::vector<HpackStaticEntry>{
       STATIC_ENTRY(":authority", ""),                    // 1
       STATIC_ENTRY(":method", "GET"),                    // 2
       STATIC_ENTRY(":method", "POST"),                   // 3
@@ -357,7 +356,7 @@ const std::vector<HpackStaticEntry>& HpackStaticTableVector() {
       STATIC_ENTRY("via", ""),                           // 60
       STATIC_ENTRY("www-authenticate", ""),              // 61
   };
-  return kHpackStaticTable;
+  return *kHpackStaticTable;
 }
 
 #undef STATIC_ENTRY

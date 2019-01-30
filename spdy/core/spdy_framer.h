@@ -220,6 +220,9 @@ class SPDY_EXPORT_PRIVATE SpdyFramer {
   // Get (and lazily initialize) the HPACK encoder state.
   HpackEncoder* GetHpackEncoder();
 
+  // Returns the estimate of dynamically allocated memory in bytes.
+  size_t EstimateMemoryUsage() const;
+
  protected:
   friend class test::SpdyFramerPeer;
   friend class test::SpdyFramerTest_MultipleContinuationFramesWithIterator_Test;

@@ -37,6 +37,9 @@ struct QUIC_EXPORT_PRIVATE QuicBlockedFrame {
   // BLOCKED or STREAM_BLOCKED frame is generated.
   // If stream_id is 0 then a BLOCKED frame is generated and transmitted,
   // if non-0, a STREAM_BLOCKED.
+  // TODO(fkastenholz): This should be converted to use
+  // QuicUtils::GetInvalidStreamId to get the correct invalid stream id value
+  // and not rely on 0.
   QuicStreamId stream_id;
 
   // For Google QUIC, the offset is ignored.

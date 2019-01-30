@@ -262,6 +262,24 @@ void HttpDecoder::ReadFramePayload(QuicDataReader* reader) {
       }
       return;
     }
+
+    case 0xE: {  // DUPLICATE_PUSH
+      BufferFramePayload(reader);
+      if (remaining_frame_length_ != 0) {
+        return;
+      }
+      QuicDataReader reader(buffer_.data(), current_frame_length_,
+                            NETWORK_BYTE_ORDER);
+      DuplicatePushFrame frame;
+      if (!reader.ReadVarInt62(&frame.push_id)) {
+        RaiseError(QUIC_INTERNAL_ERROR, "Unable to read push_id");
+        return;
+      }
+      visitor_->OnDuplicatePushFrame(frame);
+      state_ = STATE_READING_FRAME_LENGTH;
+      current_length_field_size_ = 0;
+      return;
+    }
     // Reserved frame types.
     // TODO(rch): Since these are actually the same behavior as the
     // default, we probably don't need to special case them here?

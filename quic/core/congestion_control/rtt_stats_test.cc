@@ -192,9 +192,9 @@ TEST_F(RttStatsTest, UpdateRttWithBadSendDeltas) {
   for (QuicTime::Delta bad_send_delta : bad_send_deltas) {
     SCOPED_TRACE(Message() << "bad_send_delta = "
                            << bad_send_delta.ToMicroseconds());
-#if QUIC_LOG_WARNING_IS_ON
-    EXPECT_QUIC_LOG_CALL_CONTAINS(log, WARNING, "Ignoring");
-#endif
+    if (QUIC_LOG_WARNING_IS_ON()) {
+      EXPECT_QUIC_LOG_CALL_CONTAINS(log, WARNING, "Ignoring");
+    }
     rtt_stats_.UpdateRtt(bad_send_delta, QuicTime::Delta::Zero(),
                          QuicTime::Zero());
     EXPECT_EQ(initial_rtt, rtt_stats_.min_rtt());

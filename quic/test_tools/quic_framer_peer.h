@@ -18,11 +18,11 @@ class QuicFramerPeer {
  public:
   QuicFramerPeer() = delete;
 
-  static QuicPacketNumber CalculatePacketNumberFromWire(
+  static uint64_t CalculatePacketNumberFromWire(
       QuicFramer* framer,
       QuicPacketNumberLength packet_number_length,
       QuicPacketNumber last_packet_number,
-      QuicPacketNumber packet_number);
+      uint64_t packet_number);
   static void SetLastSerializedConnectionId(QuicFramer* framer,
                                             QuicConnectionId connection_id);
   static void SetLargestPacketNumber(QuicFramer* framer,
@@ -161,6 +161,8 @@ class QuicFramerPeer {
                                    const QuicFrame& frame,
                                    bool last_frame_in_packet,
                                    QuicPacketNumberLength packet_number_length);
+  static void SetFirstSendingPacketNumber(QuicFramer* framer,
+                                          uint64_t packet_number);
 };
 
 }  // namespace test

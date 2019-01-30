@@ -141,6 +141,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerStream
     // Given the current connection_id, generates a new ConnectionId to
     // be returned with a stateless reject.
     virtual QuicConnectionId GenerateConnectionIdForReject(
+        QuicTransportVersion version,
         QuicConnectionId connection_id) const = 0;
 
     // Returns true if |message|, which was received on |self_address| is

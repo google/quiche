@@ -170,6 +170,8 @@ class MockQuicSimpleServerSession : public QuicSimpleServerSession {
 
   using QuicSession::ActivateStream;
 
+  MOCK_METHOD1(OnStopSendingReceived, void(const QuicStopSendingFrame& frame));
+
   spdy::SpdyHeaderBlock original_request_headers_;
 };
 
@@ -197,7 +199,8 @@ class QuicSimpleServerStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
                  &memory_cache_backend_),
         quic_response_(new QuicBackendResponse),
         body_("hello world"),
-        is_verion_99_(connection_->transport_version() == QUIC_VERSION_99) {
+        is_version_99_(connection_->transport_version() == QUIC_VERSION_99) {
+    connection_->set_visitor(&session_);
     header_list_.OnHeaderBlockStart();
     header_list_.OnHeader(":authority", "www.google.com");
     header_list_.OnHeader(":path", "/");
@@ -245,7 +248,7 @@ class QuicSimpleServerStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
   QuicString body_;
   QuicHeaderList header_list_;
   HttpEncoder encoder_;
-  bool is_verion_99_;
+  bool is_version_99_;
 };
 
 INSTANTIATE_TEST_CASE_P(Tests,
@@ -261,7 +264,7 @@ TEST_P(QuicSimpleServerStreamTest, TestFraming) {
   QuicByteCount header_length =
       encoder_.SerializeDataFrameHeader(body_.length(), &buffer);
   QuicString header = QuicString(buffer.get(), header_length);
-  QuicString data = is_verion_99_ ? header + body_ : body_;
+  QuicString data = is_version_99_ ? header + body_ : body_;
   stream_->OnStreamFrame(
       QuicStreamFrame(stream_->id(), /*fin=*/false, /*offset=*/0, data));
   EXPECT_EQ("11", StreamHeadersValue("content-length"));
@@ -280,7 +283,7 @@ TEST_P(QuicSimpleServerStreamTest, TestFramingOnePacket) {
   QuicByteCount header_length =
       encoder_.SerializeDataFrameHeader(body_.length(), &buffer);
   QuicString header = QuicString(buffer.get(), header_length);
-  QuicString data = is_verion_99_ ? header + body_ : body_;
+  QuicString data = is_version_99_ ? header + body_ : body_;
   stream_->OnStreamFrame(
       QuicStreamFrame(stream_->id(), /*fin=*/false, /*offset=*/0, data));
   EXPECT_EQ("11", StreamHeadersValue("content-length"));
@@ -310,7 +313,7 @@ TEST_P(QuicSimpleServerStreamTest, TestFramingExtraData) {
 
   // We'll automatically write out an error (headers + body)
   EXPECT_CALL(session_, WriteHeadersMock(_, _, _, _, _));
-  if (is_verion_99_) {
+  if (is_version_99_) {
     EXPECT_CALL(session_, WritevData(_, _, _, _, _))
         .WillOnce(Invoke(MockQuicSession::ConsumeData));
   }
@@ -324,7 +327,7 @@ TEST_P(QuicSimpleServerStreamTest, TestFramingExtraData) {
   QuicByteCount header_length =
       encoder_.SerializeDataFrameHeader(body_.length(), &buffer);
   QuicString header = QuicString(buffer.get(), header_length);
-  QuicString data = is_verion_99_ ? header + body_ : body_;
+  QuicString data = is_version_99_ ? header + body_ : body_;
 
   stream_->OnStreamFrame(
       QuicStreamFrame(stream_->id(), /*fin=*/false, /*offset=*/0, data));
@@ -333,7 +336,7 @@ TEST_P(QuicSimpleServerStreamTest, TestFramingExtraData) {
   header_length =
       encoder_.SerializeDataFrameHeader(large_body.length(), &buffer);
   header = QuicString(buffer.get(), header_length);
-  QuicString data2 = is_verion_99_ ? header + large_body : large_body;
+  QuicString data2 = is_version_99_ ? header + large_body : large_body;
   stream_->OnStreamFrame(
       QuicStreamFrame(stream_->id(), /*fin=*/true, data.size(), data2));
   EXPECT_EQ("11", StreamHeadersValue("content-length"));
@@ -365,7 +368,7 @@ TEST_P(QuicSimpleServerStreamTest, SendResponseWithIllegalResponseStatus) {
 
   InSequence s;
   EXPECT_CALL(session_, WriteHeadersMock(stream_->id(), _, false, _, _));
-  if (is_verion_99_) {
+  if (is_version_99_) {
     EXPECT_CALL(session_, WritevData(_, _, _, _, _))
         .Times(1)
         .WillOnce(Return(QuicConsumedData(header_length, false)));
@@ -405,7 +408,7 @@ TEST_P(QuicSimpleServerStreamTest, SendResponseWithIllegalResponseStatus2) {
 
   InSequence s;
   EXPECT_CALL(session_, WriteHeadersMock(stream_->id(), _, false, _, _));
-  if (is_verion_99_) {
+  if (is_version_99_) {
     EXPECT_CALL(session_, WritevData(_, _, _, _, _))
         .Times(1)
         .WillOnce(Return(QuicConsumedData(header_length, false)));
@@ -474,7 +477,7 @@ TEST_P(QuicSimpleServerStreamTest, SendResponseWithValidHeaders) {
 
   InSequence s;
   EXPECT_CALL(session_, WriteHeadersMock(stream_->id(), _, false, _, _));
-  if (is_verion_99_) {
+  if (is_version_99_) {
     EXPECT_CALL(session_, WritevData(_, _, _, _, _))
         .Times(1)
         .WillOnce(Return(QuicConsumedData(header_length, false)));
@@ -523,7 +526,7 @@ TEST_P(QuicSimpleServerStreamTest, SendResponseWithPushResources) {
               session_, 0),
           _));
   EXPECT_CALL(session_, WriteHeadersMock(stream_->id(), _, false, _, _));
-  if (is_verion_99_) {
+  if (is_version_99_) {
     EXPECT_CALL(session_, WritevData(_, _, _, _, _))
         .Times(1)
         .WillOnce(Return(QuicConsumedData(header_length, false)));
@@ -588,7 +591,7 @@ TEST_P(QuicSimpleServerStreamTest, PushResponseOnServerInitiatedStream) {
                                server_initiated_stream->priority(), _));
 
   InSequence s;
-  if (is_verion_99_) {
+  if (is_version_99_) {
     EXPECT_CALL(session_, WritevData(_, kServerInitiatedStreamId, _, _, _))
         .Times(1)
         .WillOnce(Return(QuicConsumedData(header_length, false)));
@@ -612,7 +615,7 @@ TEST_P(QuicSimpleServerStreamTest, TestSendErrorResponse) {
 
   InSequence s;
   EXPECT_CALL(session_, WriteHeadersMock(_, _, _, _, _));
-  if (is_verion_99_) {
+  if (is_version_99_) {
     EXPECT_CALL(session_, WritevData(_, _, _, _, _))
         .Times(1)
         .WillOnce(Return(QuicConsumedData(2, false)));
@@ -685,7 +688,12 @@ TEST_P(QuicSimpleServerStreamTest,
   QuicRstStreamFrame rst_frame(kInvalidControlFrameId, stream_->id(),
                                QUIC_STREAM_CANCELLED, 1234);
   stream_->OnStreamReset(rst_frame);
-
+  if (connection_->transport_version() == QUIC_VERSION_99) {
+    // For V99 receiving a RST_STREAM causes a 1-way close; the test requires
+    // a full close. A CloseWriteSide closes the other half of the stream.
+    // Everything should then work properly.
+    stream_->CloseWriteSide();
+  }
   EXPECT_TRUE(stream_->reading_stopped());
   EXPECT_TRUE(stream_->write_side_closed());
 }

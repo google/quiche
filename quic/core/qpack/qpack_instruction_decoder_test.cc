@@ -4,6 +4,8 @@
 
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_instruction_decoder.h"
 
+#include <algorithm>
+
 #include "base/logging.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -13,6 +15,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
 
 using ::testing::_;
+using ::testing::Eq;
 using ::testing::Expectation;
 using ::testing::Return;
 using ::testing::StrictMock;
@@ -140,14 +143,12 @@ TEST_P(QpackInstructionDecoderTest, NameAndValue) {
 }
 
 TEST_P(QpackInstructionDecoderTest, InvalidHuffmanEncoding) {
-  EXPECT_CALL(delegate_,
-              OnError(QuicStringPiece("Error in Huffman-encoded string.")));
+  EXPECT_CALL(delegate_, OnError(Eq("Error in Huffman-encoded string.")));
   decoder_.Decode(QuicTextUtils::HexDecode("c1ff"));
 }
 
 TEST_P(QpackInstructionDecoderTest, InvalidVarintEncoding) {
-  EXPECT_CALL(delegate_,
-              OnError(QuicStringPiece("Encoded integer too large.")));
+  EXPECT_CALL(delegate_, OnError(Eq("Encoded integer too large.")));
   decoder_.Decode(QuicTextUtils::HexDecode("ffffffffffffffffffffff"));
 }
 

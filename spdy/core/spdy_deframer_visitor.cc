@@ -7,13 +7,13 @@
 #include <stdlib.h>
 
 #include <algorithm>
+#include <cstdint>
 #include <limits>
 #include <memory>
 
-#include "base/log_severity.h"
 #include "base/logging.h"
-#include "strings/cord.h"
 #include "testing/gmock/include/gmock/gmock.h"
+#include "net/third_party/quiche/src/http2/platform/api/http2_macros.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_constants.h"
 #include "net/third_party/quiche/src/spdy/core/mock_spdy_framer_visitor.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_frame_reader.h"
@@ -35,7 +35,7 @@ namespace test {
 enum class HeaderDirection { REQUEST, RESPONSE };
 
 // Types of HTTP/2 frames, per RFC 7540.
-// TODO(jamessynge): Switch to using //gfe/http2/http2_constants.h when ready.
+// TODO(jamessynge): Switch to using http2/http2_constants.h when ready.
 enum Http2FrameType {
   DATA = 0,
   HEADERS = 1,
@@ -54,7 +54,7 @@ enum Http2FrameType {
   UNKNOWN = -2,
 };
 
-// TODO(jamessynge): Switch to using //gfe/http2/http2_constants.h when ready.
+// TODO(jamessynge): Switch to using http2/http2_constants.h when ready.
 const char* Http2FrameTypeToString(Http2FrameType v) {
   switch (v) {
     case DATA:
@@ -88,7 +88,7 @@ const char* Http2FrameTypeToString(Http2FrameType v) {
   }
 }
 
-// TODO(jamessynge): Switch to using //gfe/http2/http2_constants.h when ready.
+// TODO(jamessynge): Switch to using http2/http2_constants.h when ready.
 inline std::ostream& operator<<(std::ostream& out, Http2FrameType v) {
   return out << Http2FrameTypeToString(v);
 }
@@ -97,7 +97,7 @@ inline std::ostream& operator<<(std::ostream& out, Http2FrameType v) {
 // (see https://httpwg.github.io/specs/rfc7540.html#FrameHeader for details on
 // the fixed 9-octet header structure shared by all frames).
 // Flag bits are only valid for specified frame types.
-// TODO(jamessynge): Switch to using //gfe/http2/http2_constants.h when ready.
+// TODO(jamessynge): Switch to using http2/http2_constants.h when ready.
 enum Http2HeaderFlag {
   NO_FLAGS = 0,
 
@@ -109,7 +109,7 @@ enum Http2HeaderFlag {
 };
 
 // Returns name of frame type.
-// TODO(jamessynge): Switch to using //gfe/http2/http2_constants.h when ready.
+// TODO(jamessynge): Switch to using http2/http2_constants.h when ready.
 const char* Http2FrameTypeToString(Http2FrameType v);
 
 void SpdyDeframerVisitorInterface::OnPingAck(
@@ -268,7 +268,7 @@ void SpdyTestDeframerImpl::AtDataEnd() {
 void SpdyTestDeframerImpl::AtGoAwayEnd() {
   DVLOG(1) << "AtDataEnd";
   CHECK_EQ(frame_type_, GOAWAY);
-  if (ABSL_DIE_IF_NULL(goaway_description_)->empty()) {
+  if (HTTP2_DIE_IF_NULL(goaway_description_)->empty()) {
     listener_->OnGoAway(std::move(goaway_ir_));
   } else {
     listener_->OnGoAway(SpdyMakeUnique<SpdyGoAwayIR>(
@@ -751,7 +751,7 @@ void SpdyTestDeframerImpl::OnHeaderBlockStart() {
   CHECK(frame_type_ == HEADERS || frame_type_ == PUSH_PROMISE)
       << "   frame_type_=" << Http2FrameTypeToString(frame_type_);
   CHECK(headers_ != nullptr);
-  CHECK_EQ(headers_->size(), 0u);
+  CHECK_EQ(0u, headers_->size());
   got_hpack_end_ = false;
 }
 
@@ -761,8 +761,8 @@ void SpdyTestDeframerImpl::OnHeader(SpdyStringPiece key,
         frame_type_ == PUSH_PROMISE)
       << "   frame_type_=" << Http2FrameTypeToString(frame_type_);
   CHECK(!got_hpack_end_);
-  ABSL_DIE_IF_NULL(headers_)->emplace_back(SpdyString(key), SpdyString(value));
-  ABSL_DIE_IF_NULL(headers_handler_)->OnHeader(key, value);
+  HTTP2_DIE_IF_NULL(headers_)->emplace_back(SpdyString(key), SpdyString(value));
+  HTTP2_DIE_IF_NULL(headers_handler_)->OnHeader(key, value);
 }
 
 void SpdyTestDeframerImpl::OnHeaderBlockEnd(
@@ -896,11 +896,11 @@ CollectedFrame& CollectedFrame::operator=(CollectedFrame&& other) {
   return *this;
 }
 
-::testing::AssertionResult CollectedFrame::VerifyHasHeaders(
+AssertionResult CollectedFrame::VerifyHasHeaders(
     const StringPairVector& expected_headers) const {
   VERIFY_NE(headers.get(), nullptr);
   VERIFY_THAT(*headers, ::testing::ContainerEq(expected_headers));
-  return ::testing::AssertionSuccess();
+  return AssertionSuccess();
 }
 
 AssertionResult CollectedFrame::VerifyHasSettings(
@@ -912,7 +912,7 @@ AssertionResult CollectedFrame::VerifyHasSettings(
 
 DeframerCallbackCollector::DeframerCallbackCollector(
     std::vector<CollectedFrame>* collected_frames)
-    : collected_frames_(ABSL_DIE_IF_NULL(collected_frames)) {}
+    : collected_frames_(HTTP2_DIE_IF_NULL(collected_frames)) {}
 
 void DeframerCallbackCollector::OnAltSvc(
     std::unique_ptr<SpdyAltSvcIR> frame_ir) {

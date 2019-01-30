@@ -62,6 +62,14 @@ TEST_F(QuicSpdyServerStreamBaseTest,
   QuicRstStreamFrame rst_frame(kInvalidControlFrameId, stream_->id(),
                                QUIC_STREAM_CANCELLED, 1234);
   stream_->OnStreamReset(rst_frame);
+  if (session_.connection()->transport_version() == QUIC_VERSION_99) {
+    // Create and inject a STOP SENDING frame to complete the close
+    // of the stream. This is only needed for version 99/IETF QUIC.
+    QuicStopSendingFrame stop_sending(
+        kInvalidControlFrameId, stream_->id(),
+        static_cast<QuicApplicationErrorCode>(QUIC_STREAM_CANCELLED));
+    session_.OnStopSendingFrame(stop_sending);
+  }
 
   EXPECT_TRUE(stream_->reading_stopped());
   EXPECT_TRUE(stream_->write_side_closed());

@@ -12,6 +12,7 @@
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_decrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_encrypter.h"
+#include "net/third_party/quiche/src/quic/core/quic_connection_id.h"
 #include "net/third_party/quiche/src/quic/core/quic_framer.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
@@ -245,11 +246,11 @@ bool QuicTimeWaitListManager::WriteToWire(QueuedPacket* queued_packet) {
     result = writer_->Flush();
   }
 
-  if (result.status == WRITE_STATUS_BLOCKED) {
+  if (IsWriteBlockedStatus(result.status)) {
     // If blocked and unbuffered, return false to retry sending.
     DCHECK(writer_->IsWriteBlocked());
     visitor_->OnWriteBlocked(this);
-    return writer_->IsWriteBlockedDataBuffered();
+    return result.status == WRITE_STATUS_BLOCKED_DATA_BUFFERED;
   } else if (IsWriteError(result.status)) {
     QUIC_LOG_FIRST_N(WARNING, 1)
         << "Received unknown error while sending termination packet to "

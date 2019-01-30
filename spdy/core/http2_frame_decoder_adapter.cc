@@ -16,7 +16,6 @@
 #include <utility>
 
 #include "base/logging.h"
-#include "strings/escaping.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_buffer.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_status.h"
 #include "net/third_party/quiche/src/http2/decoder/http2_frame_decoder.h"
@@ -27,17 +26,16 @@
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_decoder_adapter.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_header_table.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_alt_svc_wire_format.h"
-#include "net/third_party/quiche/src/spdy/core/spdy_bug_tracker.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_header_block.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_headers_handler_interface.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
+#include "net/third_party/quiche/src/spdy/platform/api/spdy_bug_tracker.h"
+#include "net/third_party/quiche/src/spdy/platform/api/spdy_endianness_util.h"
+#include "net/third_party/quiche/src/spdy/platform/api/spdy_estimate_memory_usage.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_flags.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_ptr_util.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_utils.h"
-#include "util/endian/endian.h"
-#include "util/gtl/labs/optional.h"
 
-using absl::nullopt;
 using ::spdy::ExtensionVisitorInterface;
 using ::spdy::HpackDecoderAdapter;
 using ::spdy::HpackHeaderTable;
@@ -45,6 +43,7 @@ using ::spdy::ParseErrorCode;
 using ::spdy::ParseFrameType;
 using ::spdy::SpdyAltSvcWireFormat;
 using ::spdy::SpdyErrorCode;
+using ::spdy::SpdyEstimateMemoryUsage;
 using ::spdy::SpdyFramerDebugVisitorInterface;
 using ::spdy::SpdyFramerVisitorInterface;
 using ::spdy::SpdyFrameType;
@@ -71,7 +70,7 @@ SpdyFrameType ToSpdyFrameType(Http2FrameType type) {
 uint64_t ToSpdyPingId(const Http2PingFields& ping) {
   uint64_t v;
   std::memcpy(&v, ping.opaque_bytes, Http2PingFields::EncodedSize());
-  return gntohll(v);
+  return spdy::SpdyNetToHost64(v);
 }
 
 // Overwrites the fields of the header with invalid values, for the purpose
@@ -248,6 +247,13 @@ bool Http2DecoderAdapter::probable_http_response() const {
   return latched_probable_http_response_;
 }
 
+size_t Http2DecoderAdapter::EstimateMemoryUsage() const {
+  // Skip |frame_decoder_|, |frame_header_| and |hpack_first_frame_header_| as
+  // they don't allocate.
+  return SpdyEstimateMemoryUsage(alt_svc_origin_) +
+         SpdyEstimateMemoryUsage(alt_svc_value_);
+}
+
 // ===========================================================================
 // Implementations of the methods declared by Http2FrameDecoderListener.
 
@@ -354,7 +360,7 @@ void Http2DecoderAdapter::OnDataEnd() {
   if (frame_header().IsEndStream()) {
     visitor()->OnStreamEnd(frame_header().stream_id);
   }
-  opt_pad_length_ = nullopt;
+  opt_pad_length_.reset();
 }
 
 void Http2DecoderAdapter::OnHeadersStart(const Http2FrameHeader& header) {
@@ -407,7 +413,7 @@ void Http2DecoderAdapter::OnHpackFragment(const char* data, size_t len) {
 void Http2DecoderAdapter::OnHeadersEnd() {
   DVLOG(1) << "OnHeadersEnd";
   CommonHpackFragmentEnd();
-  opt_pad_length_ = nullopt;
+  opt_pad_length_.reset();
 }
 
 void Http2DecoderAdapter::OnPriorityFrame(const Http2FrameHeader& header,
@@ -521,7 +527,7 @@ void Http2DecoderAdapter::OnPushPromiseStart(
 void Http2DecoderAdapter::OnPushPromiseEnd() {
   DVLOG(1) << "OnPushPromiseEnd";
   CommonHpackFragmentEnd();
-  opt_pad_length_ = nullopt;
+  opt_pad_length_.reset();
 }
 
 void Http2DecoderAdapter::OnPing(const Http2FrameHeader& header,

@@ -124,9 +124,13 @@ DEFINE_string(root_certificate_file,
               "for_connecting_to_google/roots.pem",
               "Path to the root certificate which the server's certificate is "
               "required to chain to.");
-ABSL_FLAG(bool, disable_certificate_verification, false,
+ABSL_FLAG(bool,
+          disable_certificate_verification,
+          false,
           "If true, don't verify the server certificate.");
-ABSL_FLAG(bool, drop_response_body, false,
+ABSL_FLAG(bool,
+          drop_response_body,
+          false,
           "If true, drop response body immediately after it is received.");
 
 using quic::QuicStringPiece;
@@ -169,7 +173,7 @@ int main(int argc, char* argv[]) {
   cout << "Resolved " << host << " to " << host_port << endl;
 
   // Build the client, and try to connect.
-  gfe2::EpollServer epoll_server;
+  quic::QuicEpollServer epoll_server;
   quic::QuicServerId server_id(url.host(), port, false);
   quic::ParsedQuicVersionVector versions = quic::CurrentSupportedVersions();
   if (FLAGS_quic_version != -1) {

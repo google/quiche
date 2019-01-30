@@ -4,16 +4,20 @@
 
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_decoder_test_utils.h"
 
+#include <algorithm>
 #include <cstddef>
+#include <utility>
 
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace quic {
 namespace test {
 
-void NoopEncoderStreamErrorDelegate::OnError(QuicStringPiece error_message) {}
+void NoopEncoderStreamErrorDelegate::OnEncoderStreamError(
+    QuicStringPiece error_message) {}
 
-void NoopDecoderStreamSenderDelegate::Write(QuicStringPiece data) {}
+void NoopDecoderStreamSenderDelegate::WriteDecoderStreamData(
+    QuicStringPiece data) {}
 
 TestHeadersHandler::TestHeadersHandler()
     : decoding_completed_(false), decoding_error_detected_(false) {}

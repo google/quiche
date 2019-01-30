@@ -182,7 +182,7 @@ void QuicServer::Shutdown() {
   fd_ = -1;
 }
 
-void QuicServer::OnEvent(int fd, gfe2::EpollEvent* event) {
+void QuicServer::OnEvent(int fd, QuicEpollEvent* event) {
   DCHECK_EQ(fd, fd_);
   event->out_ready_mask = 0;
 

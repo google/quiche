@@ -40,6 +40,9 @@ class SPDY_EXPORT_PRIVATE HpackStaticTable {
     return static_name_index_;
   }
 
+  // Returns the estimate of dynamically allocated memory in bytes.
+  size_t EstimateMemoryUsage() const;
+
  private:
   HpackHeaderTable::EntryTable static_entries_;
   HpackHeaderTable::UnorderedEntrySet static_index_;

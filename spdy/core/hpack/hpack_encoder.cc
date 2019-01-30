@@ -12,6 +12,7 @@
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_header_table.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_huffman_table.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_output_stream.h"
+#include "net/third_party/quiche/src/spdy/platform/api/spdy_estimate_memory_usage.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_ptr_util.h"
 
 namespace spdy {
@@ -123,6 +124,12 @@ void HpackEncoder::ApplyHeaderTableSizeSetting(size_t size_setting) {
   should_emit_table_size_ = true;
 }
 
+size_t HpackEncoder::EstimateMemoryUsage() const {
+  // |huffman_table_| is a singleton. It's accounted for in spdy_session_pool.cc
+  return SpdyEstimateMemoryUsage(header_table_) +
+         SpdyEstimateMemoryUsage(output_stream_);
+}
+
 void HpackEncoder::EncodeRepresentations(RepresentationIterator* iter,
                                          SpdyString* output) {
   MaybeEmitTableSize();
@@ -228,18 +235,17 @@ void HpackEncoder::CookieToCrumbs(const Representation& cookie,
   if (first == SpdyStringPiece::npos) {
     cookie_value = SpdyStringPiece();
   } else {
-    cookie_value = absl::ClippedSubstr(cookie_value, first, (last - first) + 1);
+    cookie_value = cookie_value.substr(first, (last - first) + 1);
   }
   for (size_t pos = 0;;) {
     size_t end = cookie_value.find(";", pos);
 
     if (end == SpdyStringPiece::npos) {
-      out->push_back(
-          std::make_pair(cookie.first, absl::ClippedSubstr(cookie_value, pos)));
+      out->push_back(std::make_pair(cookie.first, cookie_value.substr(pos)));
       break;
     }
-    out->push_back(std::make_pair(
-        cookie.first, absl::ClippedSubstr(cookie_value, pos, end - pos)));
+    out->push_back(
+        std::make_pair(cookie.first, cookie_value.substr(pos, end - pos)));
 
     // Consume next space if present.
     pos = end + 1;
@@ -258,8 +264,8 @@ void HpackEncoder::DecomposeRepresentation(const Representation& header_field,
     end = header_field.second.find('\0', pos);
     out->push_back(std::make_pair(
         header_field.first,
-        absl::ClippedSubstr(header_field.second, pos,
-                            end == SpdyStringPiece::npos ? end : end - pos)));
+        header_field.second.substr(
+            pos, end == SpdyStringPiece::npos ? end : end - pos)));
     pos = end + 1;
   }
 }

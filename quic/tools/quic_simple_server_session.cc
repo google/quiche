@@ -13,8 +13,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
 #include "net/third_party/quiche/src/quic/tools/quic_simple_server_stream.h"
 
-using spdy::SpdyHeaderBlock;
-
 namespace quic {
 
 QuicSimpleServerSession::QuicSimpleServerSession(

@@ -10,7 +10,6 @@
 namespace quic {
 
 class QuicClient;
-class QuicCryptoClientConfig;
 class QuicPacketWriter;
 
 namespace test {

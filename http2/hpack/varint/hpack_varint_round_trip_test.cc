@@ -22,28 +22,10 @@
 
 using ::testing::AssertionFailure;
 using ::testing::AssertionSuccess;
-using ::testing::Bool;
-using ::testing::WithParamInterface;
 
 namespace http2 {
 namespace test {
 namespace {
-
-// Save previous value of flag and restore on destruction.
-class FlagSaver {
- public:
-  FlagSaver() = delete;
-  explicit FlagSaver(bool decode_64_bits)
-      : saved_value_(GetHttp2ReloadableFlag(http2_varint_decode_64_bits)) {
-    SetHttp2ReloadableFlag(http2_varint_decode_64_bits, decode_64_bits);
-  }
-  ~FlagSaver() {
-    SetHttp2ReloadableFlag(http2_varint_decode_64_bits, saved_value_);
-  }
-
- private:
-  const bool saved_value_;
-};
 
 // Returns the highest value with the specified number of extension bytes
 // and the specified prefix length (bits).
@@ -53,13 +35,9 @@ uint64_t HiValueOfExtensionBytes(uint32_t extension_bytes,
          (extension_bytes == 0 ? 0 : (1LLU << (extension_bytes * 7)));
 }
 
-class HpackVarintRoundTripTest : public RandomDecoderTest,
-                                 public WithParamInterface<bool> {
+class HpackVarintRoundTripTest : public RandomDecoderTest {
  protected:
-  HpackVarintRoundTripTest()
-      : decode_64_bits_(GetParam()),
-        flag_saver_(decode_64_bits_),
-        prefix_length_(0) {}
+  HpackVarintRoundTripTest() : prefix_length_(0) {}
 
   DecodeStatus StartDecoding(DecodeBuffer* b) override {
     CHECK_LT(0u, b->Remaining());
@@ -260,22 +238,14 @@ class HpackVarintRoundTripTest : public RandomDecoderTest,
     EncodeAndDecodeValues(values, prefix_length, expected_bytes);
   }
 
-  // |flag_saver_| must preceed |decoder_| so that the flag is already set when
-  // |decoder_| is constructed.
-  const bool decode_64_bits_;
-  FlagSaver flag_saver_;
   HpackVarintDecoder decoder_;
   Http2String buffer_;
   uint8_t prefix_length_;
 };
 
-INSTANTIATE_TEST_CASE_P(HpackVarintRoundTripTest,
-                        HpackVarintRoundTripTest,
-                        Bool());
-
 // To help me and future debuggers of varint encodings, this LOGs out the
 // transition points where a new extension byte is added.
-TEST_P(HpackVarintRoundTripTest, Encode) {
+TEST_F(HpackVarintRoundTripTest, Encode) {
   for (int prefix_length = 3; prefix_length <= 8; ++prefix_length) {
     const uint64_t a = HiValueOfExtensionBytes(0, prefix_length);
     const uint64_t b = HiValueOfExtensionBytes(1, prefix_length);
@@ -300,19 +270,13 @@ TEST_P(HpackVarintRoundTripTest, Encode) {
         b - 1, b, b + 1, b + 2, b + 3,  // Force line break.
         c - 1, c, c + 1, c + 2, c + 3,  // Force line break.
         d - 1, d, d + 1, d + 2, d + 3,  // Force line break.
-        e - 1, e, e + 1, e + 2, e + 3   // Force line break.
+        e - 1, e, e + 1, e + 2, e + 3,  // Force line break.
+        f - 1, f, f + 1, f + 2, f + 3,  // Force line break.
+        g - 1, g, g + 1, g + 2, g + 3,  // Force line break.
+        h - 1, h, h + 1, h + 2, h + 3,  // Force line break.
+        i - 1, i, i + 1, i + 2, i + 3,  // Force line break.
+        j - 1, j, j + 1, j + 2, j + 3,  // Force line break.
     };
-    if (decode_64_bits_) {
-      for (auto value : {
-               f - 1, f, f + 1, f + 2, f + 3,  // Force line break.
-               g - 1, g, g + 1, g + 2, g + 3,  // Force line break.
-               h - 1, h, h + 1, h + 2, h + 3,  // Force line break.
-               i - 1, i, i + 1, i + 2, i + 3,  // Force line break.
-               j - 1, j, j + 1, j + 2, j + 3,  // Force line break.
-           }) {
-        values.push_back(value);
-      }
-    }
 
     for (uint64_t value : values) {
       EncodeNoRandom(value, prefix_length);
@@ -323,7 +287,7 @@ TEST_P(HpackVarintRoundTripTest, Encode) {
   }
 }
 
-TEST_P(HpackVarintRoundTripTest, FromSpec1337) {
+TEST_F(HpackVarintRoundTripTest, FromSpec1337) {
   DecodeBuffer b(Http2StringPiece("\x1f\x9a\x0a"));
   uint32_t prefix_length = 5;
   uint8_t p = b.DecodeUInt8();
@@ -340,7 +304,7 @@ TEST_P(HpackVarintRoundTripTest, FromSpec1337) {
 }
 
 // Test all the values that fit into the prefix (one less than the mask).
-TEST_P(HpackVarintRoundTripTest, ValidatePrefixOnly) {
+TEST_F(HpackVarintRoundTripTest, ValidatePrefixOnly) {
   for (int prefix_length = 3; prefix_length <= 8; ++prefix_length) {
     const uint8_t prefix_mask = (1 << prefix_length) - 1;
     EncodeAndDecodeValuesInRange(0, prefix_mask, prefix_length, 1);
@@ -348,7 +312,7 @@ TEST_P(HpackVarintRoundTripTest, ValidatePrefixOnly) {
 }
 
 // Test all values that require exactly 1 extension byte.
-TEST_P(HpackVarintRoundTripTest, ValidateOneExtensionByte) {
+TEST_F(HpackVarintRoundTripTest, ValidateOneExtensionByte) {
   for (int prefix_length = 3; prefix_length <= 8; ++prefix_length) {
     const uint64_t start = HiValueOfExtensionBytes(0, prefix_length) + 1;
     EncodeAndDecodeValuesInRange(start, 128, prefix_length, 2);
@@ -356,7 +320,7 @@ TEST_P(HpackVarintRoundTripTest, ValidateOneExtensionByte) {
 }
 
 // Test *some* values that require exactly 2 extension bytes.
-TEST_P(HpackVarintRoundTripTest, ValidateTwoExtensionBytes) {
+TEST_F(HpackVarintRoundTripTest, ValidateTwoExtensionBytes) {
   for (int prefix_length = 3; prefix_length <= 8; ++prefix_length) {
     const uint64_t start = HiValueOfExtensionBytes(1, prefix_length) + 1;
     const uint64_t range = 127 << 7;
@@ -366,7 +330,7 @@ TEST_P(HpackVarintRoundTripTest, ValidateTwoExtensionBytes) {
 }
 
 // Test *some* values that require 3 extension bytes.
-TEST_P(HpackVarintRoundTripTest, ValidateThreeExtensionBytes) {
+TEST_F(HpackVarintRoundTripTest, ValidateThreeExtensionBytes) {
   for (int prefix_length = 3; prefix_length <= 8; ++prefix_length) {
     const uint64_t start = HiValueOfExtensionBytes(2, prefix_length) + 1;
     const uint64_t range = 127 << 14;
@@ -376,7 +340,7 @@ TEST_P(HpackVarintRoundTripTest, ValidateThreeExtensionBytes) {
 }
 
 // Test *some* values that require 4 extension bytes.
-TEST_P(HpackVarintRoundTripTest, ValidateFourExtensionBytes) {
+TEST_F(HpackVarintRoundTripTest, ValidateFourExtensionBytes) {
   for (int prefix_length = 3; prefix_length <= 8; ++prefix_length) {
     const uint64_t start = HiValueOfExtensionBytes(3, prefix_length) + 1;
     const uint64_t range = 127 << 21;
@@ -386,11 +350,7 @@ TEST_P(HpackVarintRoundTripTest, ValidateFourExtensionBytes) {
 }
 
 // Test *some* values that require 5 extension bytes.
-TEST_P(HpackVarintRoundTripTest, ValidateFiveExtensionBytes) {
-  if (!decode_64_bits_) {
-    return;
-  }
-
+TEST_F(HpackVarintRoundTripTest, ValidateFiveExtensionBytes) {
   for (int prefix_length = 3; prefix_length <= 8; ++prefix_length) {
     const uint64_t start = HiValueOfExtensionBytes(4, prefix_length) + 1;
     const uint64_t range = 127llu << 28;
@@ -400,11 +360,7 @@ TEST_P(HpackVarintRoundTripTest, ValidateFiveExtensionBytes) {
 }
 
 // Test *some* values that require 6 extension bytes.
-TEST_P(HpackVarintRoundTripTest, ValidateSixExtensionBytes) {
-  if (!decode_64_bits_) {
-    return;
-  }
-
+TEST_F(HpackVarintRoundTripTest, ValidateSixExtensionBytes) {
   for (int prefix_length = 3; prefix_length <= 8; ++prefix_length) {
     const uint64_t start = HiValueOfExtensionBytes(5, prefix_length) + 1;
     const uint64_t range = 127llu << 35;
@@ -414,11 +370,7 @@ TEST_P(HpackVarintRoundTripTest, ValidateSixExtensionBytes) {
 }
 
 // Test *some* values that require 7 extension bytes.
-TEST_P(HpackVarintRoundTripTest, ValidateSevenExtensionBytes) {
-  if (!decode_64_bits_) {
-    return;
-  }
-
+TEST_F(HpackVarintRoundTripTest, ValidateSevenExtensionBytes) {
   for (int prefix_length = 3; prefix_length <= 8; ++prefix_length) {
     const uint64_t start = HiValueOfExtensionBytes(6, prefix_length) + 1;
     const uint64_t range = 127llu << 42;
@@ -428,11 +380,7 @@ TEST_P(HpackVarintRoundTripTest, ValidateSevenExtensionBytes) {
 }
 
 // Test *some* values that require 8 extension bytes.
-TEST_P(HpackVarintRoundTripTest, ValidateEightExtensionBytes) {
-  if (!decode_64_bits_) {
-    return;
-  }
-
+TEST_F(HpackVarintRoundTripTest, ValidateEightExtensionBytes) {
   for (int prefix_length = 3; prefix_length <= 8; ++prefix_length) {
     const uint64_t start = HiValueOfExtensionBytes(7, prefix_length) + 1;
     const uint64_t range = 127llu << 49;
@@ -442,11 +390,7 @@ TEST_P(HpackVarintRoundTripTest, ValidateEightExtensionBytes) {
 }
 
 // Test *some* values that require 9 extension bytes.
-TEST_P(HpackVarintRoundTripTest, ValidateNineExtensionBytes) {
-  if (!decode_64_bits_) {
-    return;
-  }
-
+TEST_F(HpackVarintRoundTripTest, ValidateNineExtensionBytes) {
   for (int prefix_length = 3; prefix_length <= 8; ++prefix_length) {
     const uint64_t start = HiValueOfExtensionBytes(8, prefix_length) + 1;
     const uint64_t range = 127llu << 56;
@@ -456,55 +400,12 @@ TEST_P(HpackVarintRoundTripTest, ValidateNineExtensionBytes) {
 }
 
 // Test *some* values that require 10 extension bytes.
-TEST_P(HpackVarintRoundTripTest, ValidateTenExtensionBytes) {
-  if (!decode_64_bits_) {
-    return;
-  }
-
+TEST_F(HpackVarintRoundTripTest, ValidateTenExtensionBytes) {
   for (int prefix_length = 3; prefix_length <= 8; ++prefix_length) {
     const uint64_t start = HiValueOfExtensionBytes(9, prefix_length) + 1;
     const uint64_t range = std::numeric_limits<uint64_t>::max() - start;
 
     EncodeAndDecodeValuesInRange(start, range, prefix_length, 11);
-  }
-}
-
-// Test the value one larger than the largest that can be decoded.
-TEST_P(HpackVarintRoundTripTest, ValueTooLarge) {
-  // New implementation can decode any integer that HpackVarintEncoder can
-  // encode.
-  if (decode_64_bits_) {
-    return;
-  }
-
-  for (prefix_length_ = 3; prefix_length_ <= 8; ++prefix_length_) {
-    const uint64_t too_large = (1 << 28) + (1 << prefix_length_) - 1;
-    const uint32_t expected_offset = 6;
-    HpackBlockBuilder bb;
-    bb.AppendHighBitsAndVarint(0, prefix_length_, too_large);
-    buffer_ = bb.buffer();
-
-    // The validator is called after each of the several times that the input
-    // DecodeBuffer is decoded, each with a different segmentation of the input.
-    // Validate that decoder_.value() matches the expected value.
-    bool validated = false;
-    Validator validator = [&validated, expected_offset](
-                              const DecodeBuffer& db,
-                              DecodeStatus status) -> AssertionResult {
-      validated = true;
-      VERIFY_EQ(DecodeStatus::kDecodeError, status);
-      VERIFY_EQ(expected_offset, db.Offset());
-      return AssertionSuccess();
-    };
-
-    // StartDecoding, above, requires the DecodeBuffer be non-empty so that it
-    // can call Start with the prefix byte.
-    bool return_non_zero_on_first = true;
-    DecodeBuffer b(buffer_);
-    EXPECT_TRUE(
-        DecodeAndValidateSeveralWays(&b, return_non_zero_on_first, validator));
-    EXPECT_EQ(expected_offset, b.Offset());
-    EXPECT_TRUE(validated);
   }
 }
 

@@ -35,7 +35,7 @@ void QpackEncoder::DecodeDecoderStreamData(QuicStringPiece data) {
   decoder_stream_receiver_.Decode(data);
 }
 
-void QpackEncoder::OnTableStateSynchronize(uint64_t insert_count) {
+void QpackEncoder::OnInsertCountIncrement(uint64_t increment) {
   // TODO(bnc): Implement dynamic table management for encoding.
 }
 
@@ -48,7 +48,7 @@ void QpackEncoder::OnStreamCancellation(QuicStreamId stream_id) {
 }
 
 void QpackEncoder::OnErrorDetected(QuicStringPiece error_message) {
-  decoder_stream_error_delegate_->OnError(error_message);
+  decoder_stream_error_delegate_->OnDecoderStreamError(error_message);
 }
 
 }  // namespace quic

@@ -28,7 +28,6 @@
 namespace quic {
 namespace test {
 
-using gfe2::EpollServer;
 using ::testing::_;
 
 namespace {
@@ -228,7 +227,7 @@ class QuicServerDispatchPacketTest : public QuicTest {
   QuicConfig config_;
   QuicCryptoServerConfig crypto_config_;
   QuicVersionManager version_manager_;
-  EpollServer eps_;
+  QuicEpollServer eps_;
   QuicMemoryCacheBackend quic_simple_server_backend_;
   MockQuicDispatcher dispatcher_;
 };

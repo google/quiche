@@ -91,7 +91,7 @@ QuicErrorCode QuicStreamSequencerBuffer::OnStreamData(
       // Extend the right edge of last interval.
       // TODO(fayang): Encapsulate this into a future version of QuicIntervalSet
       // if this is more efficient than Add.
-      const_cast<QuicInterval<QuicPacketNumber>*>(&(*bytes_received_.rbegin()))
+      const_cast<QuicInterval<QuicStreamOffset>*>(&(*bytes_received_.rbegin()))
           ->SetMax(starting_offset + size);
     } else {
       bytes_received_.Add(starting_offset, starting_offset + size);

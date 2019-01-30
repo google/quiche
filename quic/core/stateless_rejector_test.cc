@@ -52,8 +52,7 @@ const char* FlagsModeToString(FlagsMode mode) {
 
 // Test various combinations of QUIC version and flag state.
 struct TestParams {
-  ParsedQuicVersion version =
-      ParsedQuicVersion{PROTOCOL_UNSUPPORTED, QUIC_VERSION_UNSUPPORTED};
+  ParsedQuicVersion version = UnsupportedQuicVersion();
   FlagsMode flags;
 };
 

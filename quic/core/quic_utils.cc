@@ -443,6 +443,37 @@ QuicConnectionId QuicUtils::CreateRandomConnectionId(QuicRandom* random,
                           QUIC_ARRAYSIZE(connection_id_bytes));
 }
 
+// static
+bool QuicUtils::VariableLengthConnectionIdAllowedForVersion(
+    QuicTransportVersion version) {
+  // TODO(dschinazi): Allow in appropriate version when supported.
+  return false;
+}
+
+// static
+QuicConnectionId QuicUtils::CreateZeroConnectionId(
+    QuicTransportVersion version) {
+  if (!QuicConnectionIdSupportsVariableLength(Perspective::IS_SERVER) ||
+      !QuicConnectionIdSupportsVariableLength(Perspective::IS_CLIENT)) {
+    return QuicConnectionIdFromUInt64(0);
+  }
+  if (!VariableLengthConnectionIdAllowedForVersion(version)) {
+    char connection_id_bytes[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+    return QuicConnectionId(static_cast<char*>(connection_id_bytes),
+                            QUIC_ARRAYSIZE(connection_id_bytes));
+  }
+  return EmptyQuicConnectionId();
+}
+
+// static
+bool QuicUtils::IsConnectionIdValidForVersion(QuicConnectionId connection_id,
+                                              QuicTransportVersion version) {
+  if (VariableLengthConnectionIdAllowedForVersion(version)) {
+    return true;
+  }
+  return connection_id.length() == kQuicDefaultConnectionIdLength;
+}
+
 QuicUint128 QuicUtils::GenerateStatelessResetToken(
     QuicConnectionId connection_id) {
   if (!QuicConnectionIdUseNetworkByteOrder()) {

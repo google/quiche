@@ -104,7 +104,7 @@ class QuicCryptoServerStreamTest : public QuicTestWithParam<bool> {
     server_session_.reset(server_session);
     EXPECT_CALL(*server_session_->helper(), CanAcceptClientHello(_, _, _, _, _))
         .Times(testing::AnyNumber());
-    EXPECT_CALL(*server_session_->helper(), GenerateConnectionIdForReject(_))
+    EXPECT_CALL(*server_session_->helper(), GenerateConnectionIdForReject(_, _))
         .Times(testing::AnyNumber());
     crypto_test_utils::FakeServerOptions options;
     options.token_binding_params = QuicTagVector{kTB10};
@@ -487,28 +487,6 @@ TEST_P(QuicCryptoServerStreamTest, DoesPeerSupportStatelessRejects) {
   stateful_reject_config.ToHandshakeMessage(&message_);
   EXPECT_FALSE(
       QuicCryptoServerStreamPeer::DoesPeerSupportStatelessRejects(message_));
-}
-
-TEST_P(QuicCryptoServerStreamTest, TokenBindingNegotiated) {
-  Initialize();
-
-  client_options_.token_binding_params = QuicTagVector{kTB10, kP256};
-  CompleteCryptoHandshake();
-  EXPECT_EQ(
-      kTB10,
-      server_stream()->crypto_negotiated_params().token_binding_key_param);
-  EXPECT_TRUE(server_stream()->encryption_established());
-  EXPECT_TRUE(server_stream()->handshake_confirmed());
-}
-
-TEST_P(QuicCryptoServerStreamTest, NoTokenBindingWithoutClientSupport) {
-  Initialize();
-
-  CompleteCryptoHandshake();
-  EXPECT_EQ(
-      0u, server_stream()->crypto_negotiated_params().token_binding_key_param);
-  EXPECT_TRUE(server_stream()->encryption_established());
-  EXPECT_TRUE(server_stream()->handshake_confirmed());
 }
 
 class QuicCryptoServerStreamTestWithFailingProofSource

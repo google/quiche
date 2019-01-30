@@ -67,6 +67,11 @@ class QuicSessionPeer {
       QuicSession* session);
   static QuicStreamIdManager* v99_unidirectional_stream_id_manager(
       QuicSession* session);
+  static void SendRstStreamInner(QuicSession* session,
+                                 QuicStreamId id,
+                                 QuicRstStreamErrorCode error,
+                                 QuicStreamOffset bytes_written,
+                                 bool close_write_side_only);
 };
 
 }  // namespace test

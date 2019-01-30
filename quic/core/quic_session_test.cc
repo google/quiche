@@ -1291,18 +1291,30 @@ TEST_P(QuicSessionTestServer, ConnectionFlowControlAccountingRstOutOfOrder) {
       1 + kInitialSessionFlowControlWindowForTest / 2;
 
   if (transport_version() == QUIC_VERSION_99) {
+    // Two more control frames than in Google QUIC, one is the STOP_SENDING
+    // frame, the other is the RST_STREAM generated in response.
     EXPECT_CALL(*connection_, SendControlFrame(_))
-        .Times(3)
+        .Times(4)
         .WillRepeatedly(Invoke(&session_, &TestSession::ClearControlFrame));
+    EXPECT_CALL(*connection_, OnStreamReset(stream->id(), _)).Times(2);
   } else {
     EXPECT_CALL(*connection_, SendControlFrame(_))
         .Times(2)
         .WillRepeatedly(Invoke(&session_, &TestSession::ClearControlFrame));
+    EXPECT_CALL(*connection_, OnStreamReset(stream->id(), _));
   }
-  EXPECT_CALL(*connection_, OnStreamReset(stream->id(), _));
   QuicRstStreamFrame rst_frame(kInvalidControlFrameId, stream->id(),
                                QUIC_STREAM_CANCELLED, kByteOffset);
   session_.OnRstStream(rst_frame);
+  if (transport_version() == QUIC_VERSION_99) {
+    // The test is predicated on the stream being fully closed. For V99, the
+    // RST_STREAM only does one side (the read side from the perspective of the
+    // node receiving the RST_STREAM). This is needed to fully close the
+    // stream and therefore fulfill all of the expects.
+    QuicStopSendingFrame frame(kInvalidControlFrameId, stream->id(),
+                               QUIC_STREAM_CANCELLED);
+    EXPECT_TRUE(session_.OnStopSendingFrame(frame));
+  }
   EXPECT_EQ(kByteOffset, session_.flow_controller()->bytes_consumed());
 }
 
@@ -1732,16 +1744,26 @@ TEST_P(QuicSessionTestServer, TestZombieStreams) {
   if (transport_version() == QUIC_VERSION_99) {
     // Once for the RST_STREAM, once for the STOP_SENDING
     EXPECT_CALL(*connection_, SendControlFrame(_))
-        .Times(2)
+        .Times(3)
         .WillRepeatedly(Invoke(&session_, &TestSession::ClearControlFrame));
+    EXPECT_CALL(*connection_, OnStreamReset(stream2->id(), _)).Times(2);
   } else {
     // Just for the RST_STREAM
     EXPECT_CALL(*connection_, SendControlFrame(_))
         .WillOnce(Invoke(&session_, &TestSession::ClearControlFrame));
+    EXPECT_CALL(*connection_,
+                OnStreamReset(stream2->id(), QUIC_RST_ACKNOWLEDGEMENT));
   }
-  EXPECT_CALL(*connection_,
-              OnStreamReset(stream2->id(), QUIC_RST_ACKNOWLEDGEMENT));
   stream2->OnStreamReset(rst_frame);
+  if (transport_version() == QUIC_VERSION_99) {
+    // The test is predicated on the stream being fully closed. For V99, the
+    // RST_STREAM only does one side (the read side from the perspective of the
+    // node receiving the RST_STREAM). This is needed to fully close the
+    // stream and therefore fulfill all of the expects.
+    QuicStopSendingFrame frame(kInvalidControlFrameId, stream2->id(),
+                               QUIC_STREAM_CANCELLED);
+    EXPECT_TRUE(session_.OnStopSendingFrame(frame));
+  }
   EXPECT_FALSE(QuicContainsKey(session_.zombie_streams(), stream2->id()));
   ASSERT_EQ(1u, session_.closed_streams()->size());
   EXPECT_EQ(stream2->id(), session_.closed_streams()->front()->id());
@@ -1759,6 +1781,10 @@ TEST_P(QuicSessionTestServer, TestZombieStreams) {
   EXPECT_CALL(*connection_,
               OnStreamReset(stream4->id(), QUIC_STREAM_CANCELLED));
   stream4->WriteOrBufferData(body, false, nullptr);
+  // Note well: Reset() actually closes the stream in both directions. For
+  // GOOGLE QUIC it sends a RST_STREAM (which does a 2-way close), for IETF
+  // QUIC/V99 it sends both a RST_STREAM and a STOP_SENDING (each of which
+  // closes in only one direction).
   stream4->Reset(QUIC_STREAM_CANCELLED);
   EXPECT_FALSE(QuicContainsKey(session_.zombie_streams(), stream4->id()));
   EXPECT_EQ(2u, session_.closed_streams()->size());
@@ -2279,10 +2305,24 @@ TEST_P(QuicSessionTestServer, OnStopSendingInputValidStream) {
   }
 
   TestStream* stream = session_.CreateOutgoingBidirectionalStream();
+
+  // Ensure that the stream starts out open in both directions.
+  EXPECT_FALSE(QuicStreamPeer::write_side_closed(stream));
+  EXPECT_FALSE(QuicStreamPeer::read_side_closed(stream));
+
   QuicStreamId stream_id = stream->id();
   QuicStopSendingFrame frame(1, stream_id, 123);
   EXPECT_CALL(*stream, OnStopSending(123));
+  // Expect a reset to come back out.xxxxx
+  EXPECT_CALL(*connection_, SendControlFrame(_));
+  EXPECT_CALL(
+      *connection_,
+      OnStreamReset(stream_id, static_cast<QuicRstStreamErrorCode>(123)));
   EXPECT_TRUE(session_.OnStopSendingFrame(frame));
+  // When the STOP_SENDING is received, the node generates a RST_STREAM,
+  // which closes the stream in the write direction. Ensure this.
+  EXPECT_FALSE(QuicStreamPeer::read_side_closed(stream));
+  EXPECT_TRUE(QuicStreamPeer::write_side_closed(stream));
 }
 
 }  // namespace

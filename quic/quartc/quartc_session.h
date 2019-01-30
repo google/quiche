@@ -24,6 +24,7 @@ namespace quic {
 class QuartcCryptoServerStreamHelper : public QuicCryptoServerStream::Helper {
  public:
   QuicConnectionId GenerateConnectionIdForReject(
+      QuicTransportVersion version,
       QuicConnectionId connection_id) const override;
 
   bool CanAcceptClientHello(const CryptoHandshakeMessage& message,
@@ -126,8 +127,17 @@ class QUIC_EXPORT_PRIVATE QuartcSession
    public:
     virtual ~Delegate() {}
 
-    // Called when the crypto handshake is complete.
+    // Called when the crypto handshake is complete. Crypto handshake on the
+    // client is only completed _after_ SHLO is received, but we can actually
+    // start sending media data right after CHLO is sent.
     virtual void OnCryptoHandshakeComplete() = 0;
+
+    // Connection can be writable even before crypto handshake is complete.
+    // In particular, on the client, we can start sending data after sending
+    // full CHLO, without waiting for SHLO. This reduces a send delay by 1-rtt.
+    //
+    // This may be called multiple times.
+    virtual void OnConnectionWritable() = 0;
 
     // Called when a new stream is received from the remote endpoint.
     virtual void OnIncomingStream(QuartcStream* stream) = 0;

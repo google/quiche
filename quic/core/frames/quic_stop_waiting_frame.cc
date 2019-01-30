@@ -8,7 +8,7 @@
 
 namespace quic {
 
-QuicStopWaitingFrame::QuicStopWaitingFrame() : least_unacked(0) {}
+QuicStopWaitingFrame::QuicStopWaitingFrame() {}
 
 QuicStopWaitingFrame::~QuicStopWaitingFrame() {}
 

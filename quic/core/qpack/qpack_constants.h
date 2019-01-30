@@ -30,14 +30,14 @@ bool operator==(const QpackInstructionOpcode& a,
 // literal consumes all bytes containing the field value.
 enum class QpackInstructionFieldType {
   // A single bit indicating whether the index refers to the static table, or
-  // indicating the sign of Delta Base Index.  Called "S" bit because both
-  // "static" and "sign" start with the letter "S".
+  // indicating the sign of Delta Base.  Called "S" bit because both "static"
+  // and "sign" start with the letter "S".
   kSbit,
   // An integer encoded with variable length encoding.  This could be an index,
-  // stream ID, maximum size, or Largest Reference.
+  // stream ID, maximum size, or Encoded Required Insert Count.
   kVarint,
   // A second integer encoded with variable length encoding.  This could be
-  // Delta Base Index.
+  // Delta Base.
   kVarint2,
   // A header name or header value encoded as:
   //   a bit indicating whether it is Huffman encoded;
@@ -97,15 +97,15 @@ const QpackInstruction* InsertWithoutNameReferenceInstruction();
 const QpackInstruction* DuplicateInstruction();
 
 // 5.2.4 Dynamic Table Size Update
-const QpackInstruction* DynamicTableSizeUpdateInstruction();
+const QpackInstruction* SetDynamicTableCapacityInstruction();
 
 // Encoder stream language.
 const QpackLanguage* QpackEncoderStreamLanguage();
 
 // 5.3 Decoder stream instructions
 
-// 5.3.1 Table State Synchronize
-const QpackInstruction* TableStateSynchronizeInstruction();
+// 5.3.1 Insert Count Increment
+const QpackInstruction* InsertCountIncrementInstruction();
 
 // 5.3.2 Header Acknowledgement
 const QpackInstruction* HeaderAcknowledgementInstruction();

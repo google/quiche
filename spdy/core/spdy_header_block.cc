@@ -9,12 +9,12 @@
 #include <algorithm>
 #include <utility>
 
-#include "base/arena.h"
 #include "base/logging.h"
 #include "base/macros.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_estimate_memory_usage.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_ptr_util.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_utils.h"
+#include "net/third_party/quiche/src/spdy/platform/api/spdy_unsafe_arena.h"
 
 namespace spdy {
 namespace {
@@ -90,8 +90,13 @@ class SpdyHeaderBlock::Storage {
 
   size_t bytes_allocated() const { return arena_.status().bytes_allocated(); }
 
+  // TODO(xunjieli): https://crbug.com/669108. Merge this with bytes_allocated()
+  size_t EstimateMemoryUsage() const {
+    return arena_.status().bytes_allocated();
+  }
+
  private:
-  UnsafeArena arena_;
+  SpdyUnsafeArena arena_;
 };
 
 SpdyHeaderBlock::HeaderValue::HeaderValue(Storage* storage,
