@@ -77,9 +77,8 @@ class UnknownPayloadDecoderTest
   const uint32_t length_;
 };
 
-INSTANTIATE_TEST_CASE_P(VariousLengths,
-                        UnknownPayloadDecoderTest,
-                        ::testing::Values(0, 1, 2, 3, 255, 256));
+INSTANTIATE_TEST_SUITE_P(VariousLengths, UnknownPayloadDecoderTest,
+                         ::testing::Values(0, 1, 2, 3, 255, 256));
 
 TEST_P(UnknownPayloadDecoderTest, ValidLength) {
   Http2String unknown_payload = Random().RandString(length_);

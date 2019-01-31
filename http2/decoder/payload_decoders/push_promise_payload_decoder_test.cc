@@ -87,9 +87,8 @@ class PushPromisePayloadDecoderTest
                                                 PushPromisePayloadDecoderPeer,
                                                 Listener> {};
 
-INSTANTIATE_TEST_CASE_P(VariousPadLengths,
-                        PushPromisePayloadDecoderTest,
-                        ::testing::Values(0, 1, 2, 3, 4, 254, 255, 256));
+INSTANTIATE_TEST_SUITE_P(VariousPadLengths, PushPromisePayloadDecoderTest,
+                         ::testing::Values(0, 1, 2, 3, 4, 254, 255, 256));
 
 // Payload contains the required Http2PushPromiseFields, followed by some
 // (fake) HPACK payload.

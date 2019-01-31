@@ -83,9 +83,8 @@ class GoAwayOpaqueDataLengthTests
   const uint32_t length_;
 };
 
-INSTANTIATE_TEST_CASE_P(VariousLengths,
-                        GoAwayOpaqueDataLengthTests,
-                        ::testing::Values(0, 1, 2, 3, 4, 5, 6));
+INSTANTIATE_TEST_SUITE_P(VariousLengths, GoAwayOpaqueDataLengthTests,
+                         ::testing::Values(0, 1, 2, 3, 4, 5, 6));
 
 TEST_P(GoAwayOpaqueDataLengthTests, ValidLength) {
   Http2GoAwayFields goaway;

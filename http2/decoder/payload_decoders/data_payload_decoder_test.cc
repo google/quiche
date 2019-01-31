@@ -98,9 +98,8 @@ class DataPayloadDecoderTest
   }
 };
 
-INSTANTIATE_TEST_CASE_P(VariousPadLengths,
-                        DataPayloadDecoderTest,
-                        ::testing::Values(0, 1, 2, 3, 4, 254, 255, 256));
+INSTANTIATE_TEST_SUITE_P(VariousPadLengths, DataPayloadDecoderTest,
+                         ::testing::Values(0, 1, 2, 3, 4, 254, 255, 256));
 
 TEST_P(DataPayloadDecoderTest, VariousDataPayloadSizes) {
   for (size_t data_size : {0, 1, 2, 3, 255, 256, 1024}) {
