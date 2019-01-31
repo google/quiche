@@ -207,7 +207,8 @@ class HpackEncoderTest : public ::testing::TestWithParam<bool> {
   bool use_incremental_;
 };
 
-INSTANTIATE_TEST_CASE_P(HpackEncoderTests, HpackEncoderTest, ::testing::Bool());
+INSTANTIATE_TEST_SUITE_P(HpackEncoderTests, HpackEncoderTest,
+                         ::testing::Bool());
 
 TEST_P(HpackEncoderTest, SingleDynamicIndex) {
   encoder_.SetHeaderListener(

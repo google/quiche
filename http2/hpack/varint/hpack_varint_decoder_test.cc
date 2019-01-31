@@ -107,9 +107,8 @@ class HpackVarintDecoderTest : public RandomDecoderTest,
   uint8_t prefix_length_;
 };
 
-INSTANTIATE_TEST_CASE_P(
-    HpackVarintDecoderTest,
-    HpackVarintDecoderTest,
+INSTANTIATE_TEST_SUITE_P(
+    HpackVarintDecoderTest, HpackVarintDecoderTest,
     ::testing::Combine(
         // Bits of the first byte not part of the prefix should be ignored.
         ::testing::Values(0b00000000, 0b11111111, 0b10101010),

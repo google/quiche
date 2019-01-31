@@ -139,9 +139,9 @@ class HpackHuffmanTranscoderAdjacentCharTest
   const char c_;
 };
 
-INSTANTIATE_TEST_CASE_P(HpackHuffmanTranscoderAdjacentCharTest,
-                        HpackHuffmanTranscoderAdjacentCharTest,
-                        ::testing::Range(0, 256));
+INSTANTIATE_TEST_SUITE_P(HpackHuffmanTranscoderAdjacentCharTest,
+                         HpackHuffmanTranscoderAdjacentCharTest,
+                         ::testing::Range(0, 256));
 
 // Test c_ adjacent to every other character, both before and after.
 TEST_P(HpackHuffmanTranscoderAdjacentCharTest, RoundTripAdjacentChar) {
@@ -169,11 +169,11 @@ class HpackHuffmanTranscoderRepeatedCharTest
   const size_t length_;
 };
 
-INSTANTIATE_TEST_CASE_P(
-    HpackHuffmanTranscoderRepeatedCharTest,
-    HpackHuffmanTranscoderRepeatedCharTest,
-    ::testing::Combine(::testing::Range(0, 256),
-                       ::testing::Values(1, 2, 3, 4, 8, 16, 32)));
+INSTANTIATE_TEST_SUITE_P(HpackHuffmanTranscoderRepeatedCharTest,
+                         HpackHuffmanTranscoderRepeatedCharTest,
+                         ::testing::Combine(::testing::Range(0, 256),
+                                            ::testing::Values(1, 2, 3, 4, 8, 16,
+                                                              32)));
 
 TEST_P(HpackHuffmanTranscoderRepeatedCharTest, RoundTripRepeatedChar) {
   ASSERT_TRUE(TranscodeAndValidateSeveralWays(MakeString()));
