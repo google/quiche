@@ -6,6 +6,7 @@
 #define QUICHE_HTTP2_HTTP2_CONSTANTS_H_
 
 // Constants from the HTTP/2 spec, RFC 7540, and associated helper functions.
+// comment change for testing purposes only
 
 #include <cstdint>
 #include <iosfwd>
