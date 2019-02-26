@@ -9,17 +9,20 @@
 
 namespace quic {
 
-QuicMessageFrame::QuicMessageFrame() : message_id(0) {}
+QuicMessageFrame::QuicMessageFrame()
+    : message_id(0), data(nullptr), message_length(0) {}
 
-QuicMessageFrame::QuicMessageFrame(QuicMessageId message_id,
-                                   QuicStringPiece message_data)
-    : message_id(message_id), message_data(message_data) {}
+QuicMessageFrame::QuicMessageFrame(QuicMessageId message_id)
+    : message_id(message_id), data(nullptr), message_length(0) {}
+
+QuicMessageFrame::QuicMessageFrame(const char* data, QuicPacketLength length)
+    : message_id(0), data(data), message_length(length) {}
 
 QuicMessageFrame::~QuicMessageFrame() {}
 
 std::ostream& operator<<(std::ostream& os, const QuicMessageFrame& s) {
   os << " message_id: " << s.message_id
-     << ", message_length: " << s.message_data.length() << " }\n";
+     << ", message_length: " << s.message_length << " }\n";
   return os;
 }
 

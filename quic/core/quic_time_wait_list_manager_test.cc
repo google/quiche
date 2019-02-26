@@ -55,9 +55,6 @@ class FramerVisitorCapturingPublicReset : public NoOpFramerVisitor {
   }
 
   bool IsValidStatelessResetToken(QuicUint128 token) const override {
-    if (!QuicConnectionIdSupportsVariableLength(Perspective::IS_SERVER)) {
-      return token == QuicConnectionIdToUInt64(connection_id_);
-    }
     return token == QuicUtils::GenerateStatelessResetToken(connection_id_);
   }
 
@@ -144,8 +141,6 @@ class QuicTimeWaitListManagerTest : public QuicTest {
   void SetUp() override {
     EXPECT_CALL(writer_, IsWriteBlocked())
         .WillRepeatedly(ReturnPointee(&writer_is_blocked_));
-    EXPECT_CALL(writer_, IsWriteBlockedDataBuffered())
-        .WillRepeatedly(Return(false));
   }
 
   void AddConnectionId(QuicConnectionId connection_id,
@@ -221,14 +216,8 @@ bool ValidPublicResetPacketPredicate(
   QuicIetfStatelessResetPacket stateless_reset =
       visitor.stateless_reset_packet();
 
-  QuicUint128 expected_stateless_reset_token;
-  if (!QuicConnectionIdSupportsVariableLength(Perspective::IS_SERVER)) {
-    expected_stateless_reset_token =
-        QuicConnectionIdToUInt64(expected_connection_id);
-  } else {
-    expected_stateless_reset_token =
-        QuicUtils::GenerateStatelessResetToken(expected_connection_id);
-  }
+  QuicUint128 expected_stateless_reset_token =
+      QuicUtils::GenerateStatelessResetToken(expected_connection_id);
 
   bool stateless_reset_is_valid =
       stateless_reset.stateless_reset_token == expected_stateless_reset_token;

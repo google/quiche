@@ -13,7 +13,7 @@ quic_trace::EncryptionLevel EncryptionLevelToProto(EncryptionLevel level) {
   switch (level) {
     case ENCRYPTION_NONE:
       return quic_trace::ENCRYPTION_INITIAL;
-    case ENCRYPTION_INITIAL:
+    case ENCRYPTION_ZERO_RTT:
       return quic_trace::ENCRYPTION_0RTT;
     case ENCRYPTION_FORWARD_SECURE:
       return quic_trace::ENCRYPTION_1RTT;
@@ -26,20 +26,8 @@ quic_trace::EncryptionLevel EncryptionLevelToProto(EncryptionLevel level) {
 QuicTraceVisitor::QuicTraceVisitor(const QuicConnection* connection)
     : connection_(connection),
       start_time_(connection_->clock()->ApproximateNow()) {
-  QuicString binary_connection_id;
-  if (!QuicConnectionIdSupportsVariableLength(connection->perspective())) {
-    // QUIC CIDs are currently represented in memory as a converted
-    // representation of the on-wire ID.  Convert it back to wire format before
-    // recording, since the standard treats it as an opaque blob.
-    uint64_t connection_id = QuicEndian::HostToNet64(
-        QuicConnectionIdToUInt64(connection->connection_id()));
-    binary_connection_id = QuicString(
-        reinterpret_cast<const char*>(&connection_id), sizeof(connection_id));
-  } else {
-    binary_connection_id.assign(connection->connection_id().data(),
-                                connection->connection_id().length());
-  }
-
+  QuicString binary_connection_id(connection->connection_id().data(),
+                                  connection->connection_id().length());
   // We assume that the connection ID in gQUIC is equivalent to the
   // server-chosen client-selected ID.
   switch (connection->perspective()) {
@@ -338,4 +326,4 @@ void QuicTraceVisitor::PopulateTransportState(
   }
 }
 
-};  // namespace quic
+}  // namespace quic

@@ -37,10 +37,10 @@ class QpackEncoderTest : public QuicTestWithParam<FragmentMode> {
   const FragmentMode fragment_mode_;
 };
 
-INSTANTIATE_TEST_CASE_P(,
-                        QpackEncoderTest,
-                        Values(FragmentMode::kSingleChunk,
-                               FragmentMode::kOctetByOctet));
+INSTANTIATE_TEST_SUITE_P(,
+                         QpackEncoderTest,
+                         Values(FragmentMode::kSingleChunk,
+                                FragmentMode::kOctetByOctet));
 
 TEST_P(QpackEncoderTest, Empty) {
   spdy::SpdyHeaderBlock header_list;

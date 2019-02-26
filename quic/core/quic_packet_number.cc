@@ -64,9 +64,9 @@ QuicPacketNumber& QuicPacketNumber::operator--() {
 #ifndef NDEBUG
   DCHECK(IsInitialized());
   if (GetQuicRestartFlag(quic_uint64max_uninitialized_pn)) {
-    DCHECK_GE(ToUint64(), 1);
+    DCHECK_GE(ToUint64(), 1UL);
   } else {
-    DCHECK_GT(ToUint64(), 1);
+    DCHECK_GT(ToUint64(), 1UL);
   }
 #endif
   packet_number_--;
@@ -77,9 +77,9 @@ QuicPacketNumber QuicPacketNumber::operator--(int) {
 #ifndef NDEBUG
   DCHECK(IsInitialized());
   if (GetQuicRestartFlag(quic_uint64max_uninitialized_pn)) {
-    DCHECK_GE(ToUint64(), 1);
+    DCHECK_GE(ToUint64(), 1UL);
   } else {
-    DCHECK_GT(ToUint64(), 1);
+    DCHECK_GT(ToUint64(), 1UL);
   }
 #endif
   QuicPacketNumber previous(*this);

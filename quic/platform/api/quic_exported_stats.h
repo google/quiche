@@ -64,9 +64,9 @@ namespace quic {
 #define QUIC_HISTOGRAM_TIMES(name, sample, min, max, bucket_count, docstring) \
   do {                                                                        \
     QUIC_CLIENT_HISTOGRAM_TIMES_IMPL(name, sample, min, max, bucket_count,    \
-                                     docstring)                               \
+                                     docstring);                              \
     QUIC_SERVER_HISTOGRAM_TIMES_IMPL(name, sample, min, max, bucket_count,    \
-                                     docstring)                               \
+                                     docstring);                              \
   } while (0)
 
 //------------------------------------------------------------------------------

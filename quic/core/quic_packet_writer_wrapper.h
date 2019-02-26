@@ -30,7 +30,6 @@ class QuicPacketWriterWrapper : public QuicPacketWriter {
                           const QuicIpAddress& self_address,
                           const QuicSocketAddress& peer_address,
                           PerPacketOptions* options) override;
-  bool IsWriteBlockedDataBuffered() const override;
   bool IsWriteBlocked() const override;
   void SetWritable() override;
   QuicByteCount GetMaxPacketSize(

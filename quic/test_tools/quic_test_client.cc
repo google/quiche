@@ -25,11 +25,9 @@
 #include "net/third_party/quiche/src/quic/test_tools/quic_client_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_connection_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_spdy_session_peer.h"
-#include "net/third_party/quiche/src/quic/test_tools/quic_stream_peer.h"
+#include "net/third_party/quiche/src/quic/test_tools/quic_spdy_stream_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 #include "net/third_party/quiche/src/quic/tools/quic_url.h"
-
-using spdy::SpdyHeaderBlock;
 
 namespace quic {
 namespace test {
@@ -341,9 +339,8 @@ ssize_t QuicTestClient::SendRequestAndRstTogether(const QuicString& uri) {
       session->connection(), QuicConnection::SEND_ACK_IF_PENDING);
   ssize_t ret = SendMessage(headers, "", /*fin=*/true, /*flush=*/false);
 
-  QuicStreamId stream_id =
-      QuicSpdySessionPeer::GetNthClientInitiatedBidirectionalStreamId(*session,
-                                                                      0);
+  QuicStreamId stream_id = GetNthClientInitiatedBidirectionalStreamId(
+      session->connection()->transport_version(), 0);
   session->SendRstStream(stream_id, QUIC_STREAM_CANCELLED, 0);
   return ret;
 }
@@ -385,18 +382,18 @@ ssize_t QuicTestClient::GetOrCreateStreamAndSendRequest(
   if (stream == nullptr) {
     return 0;
   }
-  QuicStreamPeer::set_ack_listener(stream, ack_listener);
+  QuicSpdyStreamPeer::set_ack_listener(stream, ack_listener);
 
   ssize_t ret = 0;
   if (headers != nullptr) {
-    SpdyHeaderBlock spdy_headers(headers->Clone());
+    spdy::SpdyHeaderBlock spdy_headers(headers->Clone());
     if (spdy_headers[":authority"].as_string().empty()) {
       spdy_headers[":authority"] = client_->server_id().host();
     }
     ret = stream->SendRequest(std::move(spdy_headers), body, fin);
     ++num_requests_;
   } else {
-    stream->WriteOrBufferBody(QuicString(body), fin, ack_listener);
+    stream->WriteOrBufferBody(QuicString(body), fin);
     ret = body.length();
   }
   if (GetQuicReloadableFlag(enable_quic_stateless_reject_support)) {
@@ -741,9 +738,9 @@ void QuicTestClient::OnClose(QuicSpdyStream* stream) {
   open_streams_.erase(id);
 }
 
-bool QuicTestClient::CheckVary(const SpdyHeaderBlock& client_request,
-                               const SpdyHeaderBlock& promise_request,
-                               const SpdyHeaderBlock& promise_response) {
+bool QuicTestClient::CheckVary(const spdy::SpdyHeaderBlock& client_request,
+                               const spdy::SpdyHeaderBlock& promise_request,
+                               const spdy::SpdyHeaderBlock& promise_response) {
   return true;
 }
 

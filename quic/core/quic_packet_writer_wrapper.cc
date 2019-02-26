@@ -24,10 +24,6 @@ WriteResult QuicPacketWriterWrapper::WritePacket(
                               options);
 }
 
-bool QuicPacketWriterWrapper::IsWriteBlockedDataBuffered() const {
-  return writer_->IsWriteBlockedDataBuffered();
-}
-
 bool QuicPacketWriterWrapper::IsWriteBlocked() const {
   return writer_->IsWriteBlocked();
 }

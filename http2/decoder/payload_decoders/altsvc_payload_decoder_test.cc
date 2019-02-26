@@ -96,10 +96,9 @@ class AltSvcPayloadLengthTests : public AltSvcPayloadDecoderTest,
   const uint32_t value_length_;
 };
 
-INSTANTIATE_TEST_CASE_P(VariousOriginAndValueLengths,
-                        AltSvcPayloadLengthTests,
-                        ::testing::Combine(::testing::Values(0, 1, 3, 65535),
-                                           ::testing::Values(0, 1, 3, 65537)));
+INSTANTIATE_TEST_SUITE_P(VariousOriginAndValueLengths, AltSvcPayloadLengthTests,
+                         ::testing::Combine(::testing::Values(0, 1, 3, 65535),
+                                            ::testing::Values(0, 1, 3, 65537)));
 
 TEST_P(AltSvcPayloadLengthTests, ValidOriginAndValueLength) {
   Http2String origin = Random().RandString(origin_length_);

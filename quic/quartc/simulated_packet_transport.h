@@ -53,6 +53,13 @@ class SimulatedQuartcPacketTransport : public Endpoint,
   // callback to unblock it.)
   void Act() override;
 
+  // Changes whether the transport is writable.  If |writable| is false, the
+  // transport will reject calls to |Write| and will not call
+  // |Delegate::OnTransportCanWrite|.  If |writable| is true, the transport will
+  // allow calls to |Write| and will call |Delegate::OnTransportCanWrite|
+  // whenever it is able to write another packet.
+  void SetWritable(bool writable);
+
   // Last packet number sent over this simulated transport.
   // TODO(b/112561077):  Reorganize tests so that this method can be deleted.
   // This exists purely for use by quartc_session_test.cc, to test that the
@@ -64,6 +71,10 @@ class SimulatedQuartcPacketTransport : public Endpoint,
   Delegate* delegate_ = nullptr;
   Queue egress_queue_;
   QuicPacketNumber last_packet_number_;
+
+  // Controls whether the transport is considered to be writable.  Used to
+  // simulate behavior that arises when the transport is blocked.
+  bool writable_ = true;
 };
 
 }  // namespace simulator

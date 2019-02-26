@@ -24,6 +24,9 @@ SimulatedQuartcPacketTransport::SimulatedQuartcPacketTransport(
 int SimulatedQuartcPacketTransport::Write(const char* buffer,
                                           size_t buf_len,
                                           const PacketInfo& info) {
+  if (!writable_) {
+    return 0;
+  }
   if (egress_queue_.bytes_queued() + buf_len > egress_queue_.capacity()) {
     return 0;
   }
@@ -69,14 +72,22 @@ void SimulatedQuartcPacketTransport::AcceptPacket(
 }
 
 void SimulatedQuartcPacketTransport::OnPacketDequeued() {
-  if (delegate_) {
+  if (delegate_ && writable_) {
     delegate_->OnTransportCanWrite();
   }
 }
 
 void SimulatedQuartcPacketTransport::Act() {
-  if (delegate_) {
+  if (delegate_ && writable_) {
     delegate_->OnTransportCanWrite();
+  }
+}
+
+void SimulatedQuartcPacketTransport::SetWritable(bool writable) {
+  writable_ = writable;
+  if (writable_) {
+    // May need to call |Delegate::OnTransportCanWrite|.
+    Schedule(clock_->Now());
   }
 }
 

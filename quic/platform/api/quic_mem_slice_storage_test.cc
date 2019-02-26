@@ -4,7 +4,6 @@
 
 #include "net/third_party/quiche/src/quic/platform/api/quic_mem_slice_storage.h"
 #include "net/third_party/quiche/src/quic/core/quic_simple_buffer_allocator.h"
-
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 
 namespace quic {

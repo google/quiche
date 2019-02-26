@@ -88,6 +88,8 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
       bool include_version,
       bool include_diversification_nonce,
       QuicPacketNumberLength packet_number_length,
+      QuicVariableLengthIntegerLength retry_token_length_length,
+      QuicVariableLengthIntegerLength length_length,
       QuicStreamOffset offset);
 
   // Returns false and flushes all pending frames if current open packet is
@@ -103,13 +105,21 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
                    TransmissionType transmission_type,
                    QuicFrame* frame);
 
+  // Creates a CRYPTO frame that fits into the current packet (which must be
+  // empty) and adds it to the packet.
+  bool ConsumeCryptoData(EncryptionLevel level,
+                         size_t write_length,
+                         QuicStreamOffset offset,
+                         TransmissionType transmission_type,
+                         QuicFrame* frame);
+
   // Returns true if current open packet can accommodate more stream frames of
   // stream |id| at |offset| and data length |data_size|, false otherwise.
   bool HasRoomForStreamFrame(QuicStreamId id,
                              QuicStreamOffset offset,
                              size_t data_size);
 
-  // Returns true if current open packet can accomoodate a message frame of
+  // Returns true if current open packet can accommodate a message frame of
   // |length|.
   bool HasRoomForMessageFrame(QuicByteCount length);
 
@@ -242,6 +252,9 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // Sets long header type of next constructed packets.
   void SetLongHeaderType(QuicLongHeaderType type);
 
+  // Sets the retry token to be sent over the wire in v99 IETF Initial packets.
+  void SetRetryToken(QuicStringPiece retry_token);
+
   // Returns the largest payload that will fit into a single MESSAGE frame.
   QuicPacketLength GetLargestMessagePayload() const;
 
@@ -274,6 +287,14 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
                          size_t iov_offset,
                          QuicStreamOffset offset,
                          bool fin,
+                         QuicFrame* frame);
+
+  // Creates a CRYPTO frame which fits into the current open packet. Returns
+  // false if there isn't enough room in the current open packet for a CRYPTO
+  // frame, and true if there is.
+  bool CreateCryptoFrame(EncryptionLevel level,
+                         size_t write_length,
+                         QuicStreamOffset offset,
                          QuicFrame* frame);
 
   void FillPacketHeader(QuicPacketHeader* header);
@@ -313,6 +334,21 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // packet_.packet_number_length should never be read directly, use this
   // function instead.
   QuicPacketNumberLength GetPacketNumberLength() const;
+
+  // Returns long header type of packet to send over the wire.
+  QuicLongHeaderType GetLongHeaderType() const;
+
+  // Returns length of the retry token variable length integer to send over the
+  // wire. Is non-zero for v99 IETF Initial packets.
+  QuicVariableLengthIntegerLength GetRetryTokenLengthLength() const;
+
+  // Returns the retry token to send over the wire, only sent in
+  // v99 IETF Initial packets.
+  QuicStringPiece GetRetryToken() const;
+
+  // Returns length of the length variable length integer to send over the
+  // wire. Is non-zero for v99 IETF Initial, 0-RTT or Handshake packets.
+  QuicVariableLengthIntegerLength GetLengthLength() const;
 
   // Returns true if |frame| starts with CHLO.
   bool StreamFrameStartsWithChlo(const QuicStreamFrame& frame) const;
@@ -354,7 +390,12 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   SerializedPacket packet_;
 
   // Long header type of next constructed packets.
+  // TODO(fayang): remove this variable when deprecating
+  // quic_encryption_driven_header_type.
   QuicLongHeaderType long_header_type_;
+
+  // Retry token to send over the wire in v99 IETF Initial packets.
+  QuicString retry_token_;
 
   // Pending padding bytes to send. Pending padding bytes will be sent in next
   // packet(s) (after all other frames) if current constructed packet does not
@@ -373,6 +414,9 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // Latched value of --quic_set_transmission_type_for_next_frame. Don't use
   // this variable directly, use ShouldSetTransmissionTypeForNextFrame instead.
   bool set_transmission_type_for_next_frame_;
+
+  // Latched value of gfe2_reloadable_flag_quic_encryption_driven_header_type.
+  const bool encryption_level_driven_long_header_type_;
 };
 
 }  // namespace quic

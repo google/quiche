@@ -45,9 +45,12 @@ namespace test {
 namespace {
 
 const size_t kNormalPacketBufferSize = 1400;
-// several different stream ids, should be encoded
+// Several different stream ids, should be encoded
 // in 8, 4, 2, and 1 byte, respectively. Last one
 // checks that value==0 works.
+// All stream IDs end in 0x0, so the client/server- initiated
+// and Uni/Bi-directional bits are available to alter, as any
+// given test may wish.
 const QuicIetfStreamId kStreamId8 = UINT64_C(0x3EDCBA9876543210);
 const QuicIetfStreamId kStreamId4 = UINT64_C(0x36543210);
 const QuicIetfStreamId kStreamId2 = UINT64_C(0x3210);
@@ -109,6 +112,8 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
   void OnDecryptedPacket(EncryptionLevel level) override {}
 
   bool OnPacketHeader(const QuicPacketHeader& header) override { return true; }
+
+  void OnCoalescedPacket(const QuicEncryptedPacket& packet) override {}
 
   bool OnStreamFrame(const QuicStreamFrame& frame) override { return true; }
 
@@ -450,6 +455,129 @@ class QuicIetfFramerTest : public QuicTestWithParam<ParsedQuicVersion> {
     EXPECT_EQ(receive_frame.stream_id, transmit_frame.stream_id);
     EXPECT_EQ(receive_frame.ietf_error_code, transmit_frame.ietf_error_code);
     EXPECT_EQ(receive_frame.byte_offset, transmit_frame.byte_offset);
+  }
+
+  void TryMaxStreamsFrame(QuicStreamId stream_id,
+                          bool unidirectional,
+                          bool stream_id_server_initiated) {
+    if (!unidirectional && !stream_id_server_initiated && stream_id == 0) {
+      // For bidirectional, client initiated, streams, 0 is not allowed,
+      // it's used for the crypto stream and is not included in the counting.
+      return;
+    }
+
+    char packet_buffer[kNormalPacketBufferSize];
+    memset(packet_buffer, 0, sizeof(packet_buffer));
+
+    Perspective old_perspective = framer_.perspective();
+    // Set up the writer and transmit QuicMaxStreamIdFrame
+    QuicDataWriter writer(sizeof(packet_buffer), packet_buffer,
+                          NETWORK_BYTE_ORDER);
+    if (stream_id_server_initiated) {
+      stream_id |= 0x01;
+    }
+    if (unidirectional) {
+      stream_id |= 0x02;
+    }
+
+    // Set the perspective of the sender. If the stream id is supposed to
+    // be server-initiated, then the sender of the MAX_STREAMS should be
+    // a client, and vice versa. Do this prior to constructing the frame or
+    // generating the packet, so that any internal dependencies are satisfied.
+    QuicFramerPeer::SetPerspective(&framer_, (stream_id_server_initiated)
+                                                 ? Perspective::IS_CLIENT
+                                                 : Perspective::IS_SERVER);
+    QuicMaxStreamIdFrame transmit_frame(0, stream_id);
+
+    // Add the frame.
+    EXPECT_TRUE(QuicFramerPeer::AppendMaxStreamsFrame(&framer_, transmit_frame,
+                                                      &writer));
+
+    // Check that buffer length is in the expected range
+    EXPECT_LE(1u, writer.length());
+    EXPECT_GE(8u, writer.length());
+
+    // Set the perspective for the receiver.
+    QuicFramerPeer::SetPerspective(&framer_, (stream_id_server_initiated)
+                                                 ? Perspective::IS_SERVER
+                                                 : Perspective::IS_CLIENT);
+
+    // Set up reader and empty receive QuicPaddingFrame.
+    QuicDataReader reader(packet_buffer, writer.length(), NETWORK_BYTE_ORDER);
+    QuicMaxStreamIdFrame receive_frame;
+
+    // Deframe it
+    EXPECT_TRUE(QuicFramerPeer::ProcessMaxStreamsFrame(
+        &framer_, &reader, &receive_frame,
+        (unidirectional) ? IETF_MAX_STREAMS_UNIDIRECTIONAL
+                         : IETF_MAX_STREAMS_BIDIRECTIONAL))
+        << " Error: " << framer_.detailed_error();
+
+    // Now check that received and sent data are equivalent
+    EXPECT_EQ(stream_id, receive_frame.max_stream_id);
+    EXPECT_EQ(transmit_frame.max_stream_id, receive_frame.max_stream_id);
+    QuicFramerPeer::SetPerspective(&framer_, old_perspective);
+  }
+
+  void TryStreamsBlockedFrame(QuicStreamId stream_id,
+                              bool unidirectional,
+                              bool stream_id_server_initiated) {
+    if (!unidirectional && !stream_id_server_initiated && stream_id == 0) {
+      // For bidirectional, client initiated, streams, 0 is not allowed,
+      // it's used for the crypto stream and is not included in the counting.
+      return;
+    }
+
+    char packet_buffer[kNormalPacketBufferSize];
+    memset(packet_buffer, 0, sizeof(packet_buffer));
+
+    Perspective old_perspective = framer_.perspective();
+    // Set up the writer and transmit QuicMaxStreamIdFrame
+    QuicDataWriter writer(sizeof(packet_buffer), packet_buffer,
+                          NETWORK_BYTE_ORDER);
+    if (stream_id_server_initiated) {
+      stream_id |= 0x01;
+    }
+    if (unidirectional) {
+      stream_id |= 0x02;
+    }
+
+    // Set the perspective of the sender. If the stream id is supposed to
+    // be server-initiated, then the sender of the MAX_STREAMS should be
+    // a client, and vice versa. Do this prior to constructing the frame or
+    // generating the packet, so that any internal dependencies are satisfied.
+    QuicFramerPeer::SetPerspective(&framer_, (stream_id_server_initiated)
+                                                 ? Perspective::IS_SERVER
+                                                 : Perspective::IS_CLIENT);
+    QuicStreamIdBlockedFrame transmit_frame(0, stream_id);
+
+    // Add the frame.
+    EXPECT_TRUE(QuicFramerPeer::AppendStreamsBlockedFrame(
+        &framer_, transmit_frame, &writer));
+
+    // Check that buffer length is in the expected range
+    EXPECT_LE(1u, writer.length());
+    EXPECT_GE(8u, writer.length());
+
+    // Set the perspective for the receiver.
+    QuicFramerPeer::SetPerspective(&framer_, (stream_id_server_initiated)
+                                                 ? Perspective::IS_CLIENT
+                                                 : Perspective::IS_SERVER);
+
+    // Set up reader and empty receive QuicPaddingFrame.
+    QuicDataReader reader(packet_buffer, writer.length(), NETWORK_BYTE_ORDER);
+    QuicStreamIdBlockedFrame receive_frame;
+
+    // Deframe it
+    EXPECT_TRUE(QuicFramerPeer::ProcessStreamsBlockedFrame(
+        &framer_, &reader, &receive_frame,
+        (unidirectional) ? IETF_STREAMS_BLOCKED_UNIDIRECTIONAL
+                         : IETF_STREAMS_BLOCKED_BIDIRECTIONAL));
+
+    // Now check that received and sent data are equivalent
+    EXPECT_EQ(stream_id, receive_frame.stream_id);
+    EXPECT_EQ(transmit_frame.stream_id, receive_frame.stream_id);
+    QuicFramerPeer::SetPerspective(&framer_, old_perspective);
   }
 
   QuicTime start_;
@@ -1082,7 +1210,8 @@ TEST_F(QuicIetfFramerTest, MaxDataFrame) {
     // Now check that the received data equals the sent data.
     EXPECT_EQ(transmit_frame.byte_offset, window_size);
     EXPECT_EQ(transmit_frame.byte_offset, receive_frame.byte_offset);
-    EXPECT_EQ(0u, receive_frame.stream_id);
+    EXPECT_EQ(QuicUtils::GetInvalidStreamId(framer_.transport_version()),
+              receive_frame.stream_id);
   }
 }
 
@@ -1128,38 +1257,21 @@ TEST_F(QuicIetfFramerTest, MaxStreamDataFrame) {
   }
 }
 
-TEST_F(QuicIetfFramerTest, MaxStreamIdFrame) {
-  char packet_buffer[kNormalPacketBufferSize];
+TEST_F(QuicIetfFramerTest, MaxStreamsFrame) {
   QuicIetfStreamId stream_ids[] = {kStreamId4, kStreamId2, kStreamId1,
                                    kStreamId0};
 
   for (QuicIetfStreamId stream_id : stream_ids) {
-    memset(packet_buffer, 0, sizeof(packet_buffer));
-
-    // Set up the writer and transmit QuicMaxStreamIdFrame
-    QuicDataWriter writer(sizeof(packet_buffer), packet_buffer,
-                          NETWORK_BYTE_ORDER);
-    QuicMaxStreamIdFrame transmit_frame(0, stream_id);
-
-    // Add the frame.
-    EXPECT_TRUE(QuicFramerPeer::AppendMaxStreamIdFrame(&framer_, transmit_frame,
-                                                       &writer));
-
-    // Check that buffer length is in the expected range
-    EXPECT_LE(1u, writer.length());
-    EXPECT_GE(8u, writer.length());
-
-    // Set up reader and empty receive QuicPaddingFrame.
-    QuicDataReader reader(packet_buffer, writer.length(), NETWORK_BYTE_ORDER);
-    QuicMaxStreamIdFrame receive_frame;
-
-    // Deframe it
-    EXPECT_TRUE(QuicFramerPeer::ProcessMaxStreamIdFrame(&framer_, &reader,
-                                                        &receive_frame));
-
-    // Now check that received and sent data are equivalent
-    EXPECT_EQ(stream_id, receive_frame.max_stream_id);
-    EXPECT_EQ(transmit_frame.max_stream_id, receive_frame.max_stream_id);
+    // Cover all four combinations of uni/bi-directional and
+    // server-/client- initiation.
+    TryMaxStreamsFrame(stream_id, /*unidirectional=*/true,
+                       /*stream_id_server_initiated=*/true);
+    TryMaxStreamsFrame(stream_id, /*unidirectional=*/true,
+                       /*stream_id_server_initiated=*/false);
+    TryMaxStreamsFrame(stream_id, /*unidirectional=*/false,
+                       /*stream_id_server_initiated=*/true);
+    TryMaxStreamsFrame(stream_id, /*unidirectional=*/false,
+                       /*stream_id_server_initiated=*/false);
   }
 }
 
@@ -1174,7 +1286,8 @@ TEST_F(QuicIetfFramerTest, BlockedFrame) {
     // Set up the writer and transmit QuicBlockedFrame
     QuicDataWriter writer(sizeof(packet_buffer), packet_buffer,
                           NETWORK_BYTE_ORDER);
-    QuicBlockedFrame transmit_frame(0, 0, offset);
+    QuicBlockedFrame transmit_frame(
+        0, QuicUtils::GetInvalidStreamId(framer_.transport_version()), offset);
 
     // Add the frame.
     EXPECT_TRUE(QuicFramerPeer::AppendIetfBlockedFrame(&framer_, transmit_frame,
@@ -1193,7 +1306,8 @@ TEST_F(QuicIetfFramerTest, BlockedFrame) {
                                                         &receive_frame));
 
     // Check that received and sent data are equivalent
-    EXPECT_EQ(0u, receive_frame.stream_id);
+    EXPECT_EQ(QuicUtils::GetInvalidStreamId(framer_.transport_version()),
+              receive_frame.stream_id);
     EXPECT_EQ(offset, receive_frame.offset);
     EXPECT_EQ(transmit_frame.offset, receive_frame.offset);
   }
@@ -1241,38 +1355,23 @@ TEST_F(QuicIetfFramerTest, StreamBlockedFrame) {
   }
 }
 
-TEST_F(QuicIetfFramerTest, StreamIdBlockedFrame) {
-  char packet_buffer[kNormalPacketBufferSize];
+TEST_F(QuicIetfFramerTest, StreamsBlockedFrame) {
   QuicIetfStreamId stream_ids[] = {kStreamId4, kStreamId2, kStreamId1,
                                    kStreamId0};
 
   for (QuicIetfStreamId stream_id : stream_ids) {
-    memset(packet_buffer, 0, sizeof(packet_buffer));
-
-    // Set up the writer and transmit QuicStreamIdBlockedFrame
-    QuicDataWriter writer(sizeof(packet_buffer), packet_buffer,
-                          NETWORK_BYTE_ORDER);
-    QuicStreamIdBlockedFrame transmit_frame(0, stream_id);
-
-    // Add the frame.
-    EXPECT_TRUE(QuicFramerPeer::AppendStreamIdBlockedFrame(
-        &framer_, transmit_frame, &writer));
-
-    // Check that buffer length is in the expected range
-    EXPECT_LE(1u, writer.length());
-    EXPECT_GE(8u, writer.length());
-
-    // Set up reader and empty receive QuicPaddingFrame.
-    QuicDataReader reader(packet_buffer, writer.length(), NETWORK_BYTE_ORDER);
-    QuicStreamIdBlockedFrame receive_frame;
-
-    // Deframe it
-    EXPECT_TRUE(QuicFramerPeer::ProcessStreamIdBlockedFrame(&framer_, &reader,
-                                                            &receive_frame));
-
-    // Now check that received == sent
-    EXPECT_EQ(stream_id, receive_frame.stream_id);
-    EXPECT_EQ(transmit_frame.stream_id, receive_frame.stream_id);
+    TryStreamsBlockedFrame(stream_id,
+                           /*unidirectional=*/false,
+                           /*stream_id_server_initiated=*/false);
+    TryStreamsBlockedFrame(stream_id,
+                           /*unidirectional=*/false,
+                           /*stream_id_server_initiated=*/true);
+    TryStreamsBlockedFrame(stream_id,
+                           /*unidirectional=*/true,
+                           /*stream_id_server_initiated=*/false);
+    TryStreamsBlockedFrame(stream_id,
+                           /*unidirectional=*/true,
+                           /*stream_id_server_initiated=*/true);
   }
 }
 

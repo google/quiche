@@ -84,11 +84,6 @@ class QUIC_EXPORT_PRIVATE QuicPacketWriter {
                                   const QuicSocketAddress& peer_address,
                                   PerPacketOptions* options) = 0;
 
-  // Returns true if the writer buffers and subsequently rewrites data
-  // when an attempt to write results in the underlying socket becoming
-  // write blocked.
-  virtual bool IsWriteBlockedDataBuffered() const = 0;
-
   // Returns true if the network socket is not writable.
   virtual bool IsWriteBlocked() const = 0;
 

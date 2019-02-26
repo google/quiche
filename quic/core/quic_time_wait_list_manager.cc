@@ -336,9 +336,6 @@ QuicTimeWaitListManager::ConnectionIdData::~ConnectionIdData() = default;
 
 QuicUint128 QuicTimeWaitListManager::GetStatelessResetToken(
     QuicConnectionId connection_id) const {
-  if (!QuicConnectionIdSupportsVariableLength(Perspective::IS_SERVER)) {
-    return QuicConnectionIdToUInt64(connection_id);
-  }
   return QuicUtils::GenerateStatelessResetToken(connection_id);
 }
 

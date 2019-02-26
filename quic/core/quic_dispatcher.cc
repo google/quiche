@@ -96,8 +96,7 @@ class PacketCollector : public QuicPacketCreator::DelegateInterface,
                        QuicStreamOffset offset,
                        QuicByteCount data_length,
                        QuicDataWriter* writer) override {
-    QUIC_BUG << "PacketCollector::WriteCryptoData is unimplemented.";
-    return false;
+    return send_buffer_.WriteStreamData(offset, data_length, writer);
   }
 
   std::vector<std::unique_ptr<QuicEncryptedPacket>>* packets() {
@@ -143,7 +142,12 @@ class StatelessConnectionTerminator {
     frame->error_details = error_details;
     // TODO(fayang): Use the right long header type for conneciton close sent by
     // dispatcher.
-    creator_.SetLongHeaderType(RETRY);
+    if (QuicVersionHasLongHeaderLengths(framer_->transport_version())) {
+      creator_.SetLongHeaderType(HANDSHAKE);
+    } else {
+      // TODO(b/123493765): we should probably not be sending RETRY here.
+      creator_.SetLongHeaderType(RETRY);
+    }
     if (!creator_.AddSavedFrame(QuicFrame(frame), NOT_RETRANSMISSION)) {
       QUIC_BUG << "Unable to add frame to an empty packet";
       delete frame;
@@ -165,16 +169,31 @@ class StatelessConnectionTerminator {
     collector_.SaveStatelessRejectFrameData(reject);
     while (offset < reject.length()) {
       QuicFrame frame;
-      creator_.SetLongHeaderType(RETRY);
-      if (!creator_.ConsumeData(
-              QuicUtils::GetCryptoStreamId(framer_->transport_version()),
-              reject.length(), offset, offset,
-              /*fin=*/false,
-              /*needs_full_padding=*/true, NOT_RETRANSMISSION, &frame)) {
-        QUIC_BUG << "Unable to consume data into an empty packet.";
-        return;
+      if (QuicVersionHasLongHeaderLengths(framer_->transport_version())) {
+        creator_.SetLongHeaderType(HANDSHAKE);
+      } else {
+        // TODO(b/123493765): we should probably not be sending RETRY here.
+        creator_.SetLongHeaderType(RETRY);
       }
-      offset += frame.stream_frame.data_length;
+      if (framer_->transport_version() < QUIC_VERSION_47) {
+        if (!creator_.ConsumeData(
+                QuicUtils::GetCryptoStreamId(framer_->transport_version()),
+                reject.length(), offset, offset,
+                /*fin=*/false,
+                /*needs_full_padding=*/true, NOT_RETRANSMISSION, &frame)) {
+          QUIC_BUG << "Unable to consume data into an empty packet.";
+          return;
+        }
+        offset += frame.stream_frame.data_length;
+      } else {
+        if (!creator_.ConsumeCryptoData(ENCRYPTION_NONE,
+                                        reject.length() - offset, offset,
+                                        NOT_RETRANSMISSION, &frame)) {
+          QUIC_BUG << "Unable to consume crypto data into an empty packet.";
+          return;
+        }
+        offset += frame.crypto_frame->data_length;
+      }
       if (offset < reject.length()) {
         DCHECK(!creator_.HasRoomForStreamFrame(
             QuicUtils::GetCryptoStreamId(framer_->transport_version()), offset,
@@ -267,7 +286,7 @@ class ChloValidator : public ChloAlpnExtractor {
 }  // namespace
 
 QuicDispatcher::QuicDispatcher(
-    const QuicConfig& config,
+    const QuicConfig* config,
     const QuicCryptoServerConfig* crypto_config,
     QuicVersionManager* version_manager,
     std::unique_ptr<QuicConnectionHelperInterface> helper,
@@ -404,16 +423,13 @@ bool QuicDispatcher::OnUnauthenticatedPublicHeader(
       if (ShouldCreateSessionForUnknownVersion(framer_.last_version_label())) {
         return true;
       }
-      if (!GetQuicReloadableFlag(quic_limit_version_negotiation) ||
-          current_packet_->length() >= kMinPacketSizeForVersionNegotiation) {
+      if (current_packet_->length() >= kMinPacketSizeForVersionNegotiation) {
         // Since the version is not supported, send a version negotiation
         // packet and stop processing the current packet.
         time_wait_list_manager()->SendVersionNegotiationPacket(
             connection_id, header.form != GOOGLE_QUIC_PACKET,
             GetSupportedVersions(), current_self_address_,
             current_peer_address_, GetPerPacketContext());
-      } else {
-        QUIC_RELOADABLE_FLAG_COUNT(quic_limit_version_negotiation);
       }
       return false;
     }
@@ -845,6 +861,10 @@ bool QuicDispatcher::OnPacketHeader(const QuicPacketHeader& /*header*/) {
   return false;
 }
 
+void QuicDispatcher::OnCoalescedPacket(const QuicEncryptedPacket& /*packet*/) {
+  DCHECK(false);
+}
+
 bool QuicDispatcher::OnStreamFrame(const QuicStreamFrame& /*frame*/) {
   DCHECK(false);
   return false;
@@ -1202,7 +1222,7 @@ void QuicDispatcher::MaybeRejectStatelessly(QuicConnectionId connection_id,
     ChloAlpnExtractor alpn_extractor;
     if (FLAGS_quic_allow_chlo_buffering &&
         !ChloExtractor::Extract(*current_packet_, GetSupportedVersions(),
-                                config_.create_session_tag_indicators(),
+                                config_->create_session_tag_indicators(),
                                 &alpn_extractor)) {
       // Buffer non-CHLO packets.
       ProcessUnauthenticatedHeaderFate(kFateBuffer, connection_id, form,
@@ -1224,7 +1244,7 @@ void QuicDispatcher::MaybeRejectStatelessly(QuicConnectionId connection_id,
                           current_peer_address_, current_self_address_,
                           rejector.get());
   if (!ChloExtractor::Extract(*current_packet_, GetSupportedVersions(),
-                              config_.create_session_tag_indicators(),
+                              config_->create_session_tag_indicators(),
                               &validator)) {
     ProcessUnauthenticatedHeaderFate(kFateBuffer, connection_id, form, version);
     return;
@@ -1281,12 +1301,6 @@ void QuicDispatcher::OnStatelessRejectorProcessDone(
   current_packet_ = current_packet.get();
   current_connection_id_ = rejector->connection_id();
   framer_.set_version(first_version);
-  if (GetQuicReloadableFlag(quic_fix_last_packet_is_ietf_quic)) {
-    if (GetLastPacketFormat() != current_packet_format) {
-      QUIC_RELOADABLE_FLAG_COUNT(quic_fix_last_packet_is_ietf_quic);
-    }
-    framer_.set_last_packet_form(current_packet_format);
-  }
 
   // Stop buffering packets on this connection
   const auto num_erased =
@@ -1383,10 +1397,6 @@ void QuicDispatcher::DeliverPacketsToSession(
 
 void QuicDispatcher::DisableFlagValidation() {
   framer_.set_validate_flags(false);
-}
-
-PacketHeaderFormat QuicDispatcher::GetLastPacketFormat() const {
-  return framer_.GetLastPacketFormat();
 }
 
 }  // namespace quic

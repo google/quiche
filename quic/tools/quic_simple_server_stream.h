@@ -15,10 +15,6 @@
 
 namespace quic {
 
-namespace test {
-class QuicSimpleServerStreamPeer;
-}  // namespace test
-
 // All this does right now is aggregate data, and on fin, send an HTTP
 // response.
 class QuicSimpleServerStream : public QuicSpdyServerStreamBase,
@@ -93,14 +89,12 @@ class QuicSimpleServerStream : public QuicSpdyServerStreamBase,
 
   const QuicString& body() { return body_; }
 
- private:
-  friend class test::QuicSimpleServerStreamPeer;
-
   // The parsed headers received from the client.
   spdy::SpdyHeaderBlock request_headers_;
   int64_t content_length_;
   QuicString body_;
 
+ private:
   QuicSimpleServerBackend* quic_simple_server_backend_;  // Not owned.
 };
 

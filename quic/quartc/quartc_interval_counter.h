@@ -8,8 +8,8 @@
 #include <stddef.h>
 #include <vector>
 
-#include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_interval.h"
+#include "net/third_party/quiche/src/quic/core/quic_interval.h"
+#include "net/third_party/quiche/src/quic/core/quic_interval_set.h"
 
 namespace quic {
 

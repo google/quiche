@@ -233,8 +233,8 @@ TEST_F(Aes128GcmEncrypterTest, EncryptPacket) {
   Aes128GcmEncrypter encrypter;
   ASSERT_TRUE(encrypter.SetKey(key));
   ASSERT_TRUE(encrypter.SetIV(iv));
-  ASSERT_TRUE(encrypter.EncryptPacket(QUIC_VERSION_43, packet_num, aad, pt,
-                                      out.data(), &out_size, out.size()));
+  ASSERT_TRUE(encrypter.EncryptPacket(packet_num, aad, pt, out.data(),
+                                      &out_size, out.size()));
   EXPECT_EQ(out_size, out.size());
   test::CompareCharArraysWithHexError("ciphertext", out.data(), out.size(),
                                       ct.data(), ct.size());

@@ -31,6 +31,7 @@
 namespace quic {
 
 namespace test {
+class QuicSpdyStreamPeer;
 class QuicStreamPeer;
 }  // namespace test
 
@@ -117,16 +118,25 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream : public QuicStream {
       QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener);
 
   // Sends |data| to the peer, or buffers if it can't be sent immediately.
-  void WriteOrBufferBody(
-      QuicStringPiece data,
-      bool fin,
-      QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener);
+  void WriteOrBufferBody(QuicStringPiece data, bool fin);
 
   // Writes the trailers contained in |trailer_block| to the dedicated
   // headers stream. Trailers will always have the FIN set.
   virtual size_t WriteTrailers(
       spdy::SpdyHeaderBlock trailer_block,
       QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener);
+
+  // Override to report newly acked bytes via ack_listener_.
+  bool OnStreamFrameAcked(QuicStreamOffset offset,
+                          QuicByteCount data_length,
+                          bool fin_acked,
+                          QuicTime::Delta ack_delay_time,
+                          QuicByteCount* newly_acked_length) override;
+
+  // Override to report bytes retransmitted via ack_listener_.
+  void OnStreamFrameRetransmitted(QuicStreamOffset offset,
+                                  QuicByteCount data_length,
+                                  bool fin_retransmitted) override;
 
   // Does the same thing as WriteOrBufferBody except this method takes iovec
   // as the data input. Right now it only calls WritevData.
@@ -165,10 +175,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream : public QuicStream {
   void set_visitor(Visitor* visitor) { visitor_ = visitor; }
 
   bool headers_decompressed() const { return headers_decompressed_; }
-
-  size_t total_header_bytes_written() const {
-    return total_header_bytes_written_;
-  }
 
   // Returns total amount of body bytes that have been read.
   uint64_t total_body_bytes_read() const;
@@ -210,15 +216,35 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream : public QuicStream {
   virtual void OnTrailingHeadersComplete(bool fin,
                                          size_t frame_len,
                                          const QuicHeaderList& header_list);
+  virtual size_t WriteHeadersImpl(
+      spdy::SpdyHeaderBlock header_block,
+      bool fin,
+      QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener);
+
   QuicSpdySession* spdy_session() const { return spdy_session_; }
   Visitor* visitor() { return visitor_; }
 
   void set_headers_decompressed(bool val) { headers_decompressed_ = val; }
 
+  void set_ack_listener(
+      QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener) {
+    ack_listener_ = std::move(ack_listener);
+  }
+
+  const QuicIntervalSet<QuicStreamOffset>& unacked_frame_headers_offsets() {
+    return unacked_frame_headers_offsets_;
+  }
+
  private:
+  friend class test::QuicSpdyStreamPeer;
   friend class test::QuicStreamPeer;
   friend class QuicStreamUtils;
   class HttpDecoderVisitor;
+
+  // Given the interval marked by [|offset|, |offset| + |data_length|), return
+  // the number of frame header bytes contained in it.
+  QuicByteCount GetNumFrameHeadersInInterval(QuicStreamOffset offset,
+                                             QuicByteCount data_length) const;
 
   QuicSpdySession* spdy_session_;
 
@@ -244,8 +270,13 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream : public QuicStream {
   std::unique_ptr<HttpDecoderVisitor> http_decoder_visitor_;
   // Buffer that contains decoded data of the stream.
   QuicSpdyStreamBodyBuffer body_buffer_;
-  // Total bytes of header written to the stream.
-  size_t total_header_bytes_written_;
+
+  // Ack listener of this stream, and it is notified when any of written bytes
+  // are acked or retransmitted.
+  QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener_;
+
+  // Offset of unacked frame headers.
+  QuicIntervalSet<QuicStreamOffset> unacked_frame_headers_offsets_;
 };
 
 }  // namespace quic

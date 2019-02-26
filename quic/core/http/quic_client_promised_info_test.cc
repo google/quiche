@@ -84,8 +84,8 @@ class QuicClientPromisedInfoTest : public QuicTest {
     headers_["content-length"] = "11";
 
     stream_ = QuicMakeUnique<QuicSpdyClientStream>(
-        QuicSpdySessionPeer::GetNthClientInitiatedBidirectionalStreamId(
-            session_, 0),
+        GetNthClientInitiatedBidirectionalStreamId(
+            connection_->transport_version(), 0),
         &session_, BIDIRECTIONAL);
     stream_visitor_ = QuicMakeUnique<StreamVisitor>();
     stream_->set_visitor(stream_visitor_.get());
@@ -99,9 +99,8 @@ class QuicClientPromisedInfoTest : public QuicTest {
     promise_url_ = SpdyUtils::GetPromisedUrlFromHeaders(push_promise_);
 
     client_request_ = push_promise_.Clone();
-    promise_id_ =
-        QuicSpdySessionPeer::GetNthServerInitiatedUnidirectionalStreamId(
-            session_, 0);
+    promise_id_ = GetNthServerInitiatedUnidirectionalStreamId(
+        connection_->transport_version(), 0);
   }
 
   class StreamVisitor : public QuicSpdyClientStream::Visitor {

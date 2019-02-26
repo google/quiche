@@ -7,7 +7,6 @@
 #include <string.h>
 #include <sys/socket.h>
 
-#include "net/util/netutil.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"
 #include "net/third_party/quiche/src/quic/core/quic_epoll_alarm_factory.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
@@ -15,6 +14,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_port_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test_loopback.h"
@@ -35,7 +35,7 @@ namespace {
 class QuicServerTest : public QuicTest {};
 
 TEST_F(QuicServerTest, TestDroppedPackets) {
-  int port = net_util::PickUnusedPortOrDie();
+  int port = QuicPickUnusedPortOrDie();
 
   QuicSocketAddress server_address(TestLoopback(), port);
   QuicMemoryCacheBackend response_cache;
@@ -78,7 +78,7 @@ TEST_F(QuicServerTest, TestDroppedPackets) {
 class MockQuicSimpleDispatcher : public QuicSimpleDispatcher {
  public:
   MockQuicSimpleDispatcher(
-      const QuicConfig& config,
+      const QuicConfig* config,
       const QuicCryptoServerConfig* crypto_config,
       QuicVersionManager* version_manager,
       std::unique_ptr<QuicConnectionHelperInterface> helper,
@@ -113,7 +113,7 @@ class TestQuicServer : public QuicServer {
  protected:
   QuicDispatcher* CreateQuicDispatcher() override {
     mock_dispatcher_ = new MockQuicSimpleDispatcher(
-        config(), &crypto_config(), version_manager(),
+        &config(), &crypto_config(), version_manager(),
         std::unique_ptr<QuicEpollConnectionHelper>(
             new QuicEpollConnectionHelper(epoll_server(),
                                           QuicAllocator::BUFFER_POOL)),
@@ -132,7 +132,7 @@ class TestQuicServer : public QuicServer {
 class QuicServerEpollInTest : public QuicTest {
  public:
   QuicServerEpollInTest()
-      : port_(net_util::PickUnusedPortOrDie()),
+      : port_(QuicPickUnusedPortOrDie()),
         server_address_(TestLoopback(), port_) {}
 
   void StartListening() {
@@ -203,7 +203,7 @@ class QuicServerDispatchPacketTest : public QuicTest {
                        TlsServerHandshaker::CreateSslCtx()),
         version_manager_(AllSupportedVersions()),
         dispatcher_(
-            config_,
+            &config_,
             &crypto_config_,
             &version_manager_,
             std::unique_ptr<QuicEpollConnectionHelper>(

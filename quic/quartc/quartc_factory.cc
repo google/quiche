@@ -5,28 +5,54 @@
 #include "net/third_party/quiche/src/quic/quartc/quartc_factory.h"
 
 #include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"
+#include "net/third_party/quiche/src/quic/core/quic_utils.h"
+#include "net/third_party/quiche/src/quic/core/tls_client_handshaker.h"
+#include "net/third_party/quiche/src/quic/core/tls_server_handshaker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
+#include "net/third_party/quiche/src/quic/quartc/quartc_connection_helper.h"
+#include "net/third_party/quiche/src/quic/quartc/quartc_crypto_helpers.h"
 #include "net/third_party/quiche/src/quic/quartc/quartc_session.h"
 
 namespace quic {
 
 QuartcFactory::QuartcFactory(const QuartcFactoryConfig& factory_config)
     : alarm_factory_(factory_config.alarm_factory),
-      clock_(factory_config.clock) {}
+      clock_(factory_config.clock),
+      connection_helper_(QuicMakeUnique<QuartcConnectionHelper>(clock_)),
+      compressed_certs_cache_(QuicMakeUnique<QuicCompressedCertsCache>(
+          QuicCompressedCertsCache::kQuicCompressedCertsCacheSize)),
+      stream_helper_(QuicMakeUnique<QuartcCryptoServerStreamHelper>()) {}
 
-QuartcFactory::~QuartcFactory() {}
-
-std::unique_ptr<QuartcSession> QuartcFactory::CreateQuartcSession(
-    const QuartcSessionConfig& quartc_session_config) {
+std::unique_ptr<QuartcSession> QuartcFactory::CreateQuartcClientSession(
+    const QuartcSessionConfig& quartc_session_config,
+    QuicStringPiece server_crypto_config) {
   DCHECK(quartc_session_config.packet_transport);
-
-  Perspective perspective = quartc_session_config.perspective;
 
   // QuartcSession will eventually own both |writer| and |quic_connection|.
   auto writer =
       QuicMakeUnique<QuartcPacketWriter>(quartc_session_config.packet_transport,
                                          quartc_session_config.max_packet_size);
+
+  // While the QuicConfig is not directly used by the connection, creating it
+  // also sets flag values which must be set before creating the connection.
+  QuicConfig quic_config = CreateQuicConfig(quartc_session_config);
+  std::unique_ptr<QuicConnection> quic_connection =
+      CreateQuicConnection(Perspective::IS_CLIENT, writer.get());
+
+  return QuicMakeUnique<QuartcClientSession>(
+      std::move(quic_connection), quic_config, CurrentSupportedVersions(),
+      clock_, std::move(writer),
+      CreateCryptoClientConfig(quartc_session_config.pre_shared_key),
+      server_crypto_config);
+}
+
+QuicConfig CreateQuicConfig(const QuartcSessionConfig& quartc_session_config) {
+  // TODO(b/124398962): Figure out a better way to initialize QUIC flags.
+  // Creating a config shouldn't have global side-effects on flags.  However,
+  // this has the advantage of ensuring that flag values stay in sync with the
+  // options requested by configs, so simply splitting the config and flag
+  // settings doesn't seem preferable.
 
   // Fixes behavior of StopReading() with level-triggered stream sequencers.
   SetQuicReloadableFlag(quic_stop_reading_when_level_triggered, true);
@@ -34,11 +60,8 @@ std::unique_ptr<QuartcSession> QuartcFactory::CreateQuartcSession(
   // Fix b/110259444.
   SetQuicReloadableFlag(quic_fix_spurious_ack_alarm, true);
 
-  // Enable version 45+ to enable SendMessage API.
-  // Enable version 47+ to enable 'quic bit' per draft 17.
-  SetQuicReloadableFlag(quic_enable_version_45, true);
+  // Enable version 46+ to enable SendMessage API and 'quic bit' per draft 17.
   SetQuicReloadableFlag(quic_enable_version_46, true);
-  SetQuicReloadableFlag(quic_enable_version_47, true);
 
   // Fix for inconsistent reporting of crypto handshake.
   SetQuicReloadableFlag(quic_fix_has_pending_crypto_data, true);
@@ -57,9 +80,6 @@ std::unique_ptr<QuartcSession> QuartcFactory::CreateQuartcSession(
   // to implement negotiation outside of QuicConnection.
   SetQuicRestartFlag(quic_no_server_conn_ver_negotiation2, false);
 
-  std::unique_ptr<QuicConnection> quic_connection =
-      CreateQuicConnection(perspective, writer.get());
-
   QuicTagVector copt;
   copt.push_back(kNSTP);
 
@@ -77,22 +97,6 @@ std::unique_ptr<QuartcSession> QuartcFactory::CreateQuartcSession(
 
   // Enable time-based loss detection.
   copt.push_back(kTIME);
-
-  QuicSentPacketManager& sent_packet_manager =
-      quic_connection->sent_packet_manager();
-
-  // Default delayed ack time is 25ms.
-  // If data packets are sent less often (e.g. because p-time was modified),
-  // we would force acks to be sent every 25ms regardless, increasing
-  // overhead. Since generally we guarantee a packet every 20ms, changing
-  // this value should have miniscule effect on quality on good connections,
-  // but on poor connections, changing this number significantly reduced the
-  // number of ack-only packets.
-  // The p-time can go up to as high as 120ms, and when it does, it's
-  // when the low overhead is the most important thing. Ideally it should be
-  // above 120ms, but it cannot be higher than 0.5*RTO, which equals to 100ms.
-  sent_packet_manager.set_delayed_ack_time(
-      QuicTime::Delta::FromMilliseconds(100));
 
   // Note: flag settings have no effect for Exoblaze builds since
   // SetQuicReloadableFlag() gets stubbed out.
@@ -114,15 +118,6 @@ std::unique_ptr<QuartcSession> QuartcFactory::CreateQuartcSession(
   if (!quartc_session_config.enable_tail_loss_probe) {
     copt.push_back(kNTLP);
   }
-
-  quic_connection->set_fill_up_link_during_probing(true);
-
-  // We start ack decimation after 15 packets. Typically, we would see
-  // 1-2 crypto handshake packets, one media packet, and 10 probing packets.
-  // We want to get acks for the probing packets as soon as possible,
-  // but we can start using ack decimation right after first probing completes.
-  // The default was to not start ack decimation for the first 100 packets.
-  quic_connection->set_min_received_before_ack_decimation(15);
 
   // TODO(b/112192153):  Test and possible enable slower startup when pipe
   // filling is ready to use.  Slower startup is kBBRS.
@@ -175,42 +170,63 @@ std::unique_ptr<QuartcSession> QuartcFactory::CreateQuartcSession(
   // number of open streams gives sufficient headroom to recover before QUIC
   // refuses new streams.
   quic_config.SetMaxIncomingDynamicStreamsToSend(1000);
-  return QuicMakeUnique<QuartcSession>(
-      std::move(quic_connection), quic_config, CurrentSupportedVersions(),
-      quartc_session_config.unique_remote_server_id, perspective,
-      this /*QuicConnectionHelperInterface*/, clock_, std::move(writer));
+
+  return quic_config;
 }
 
 std::unique_ptr<QuicConnection> QuartcFactory::CreateQuicConnection(
     Perspective perspective,
     QuartcPacketWriter* packet_writer) {
-  // dummy_id and dummy_address are used because Quartc network layer will not
-  // use these two.
-  QuicConnectionId dummy_id;
-  if (!QuicConnectionIdSupportsVariableLength(perspective)) {
-    dummy_id = QuicConnectionIdFromUInt64(0);
-  } else {
+  // |dummy_id| and |dummy_address| are used because Quartc network layer will
+  // not use these two.
     char connection_id_bytes[sizeof(uint64_t)] = {};
-    dummy_id = QuicConnectionId(static_cast<char*>(connection_id_bytes),
-                                sizeof(connection_id_bytes));
-  }
-  QuicSocketAddress dummy_address(QuicIpAddress::Any4(), 0 /*Port*/);
-  return QuicMakeUnique<QuicConnection>(
-      dummy_id, dummy_address, this, /*QuicConnectionHelperInterface*/
-      alarm_factory_ /*QuicAlarmFactory*/, packet_writer, /*owns_writer=*/false,
-      perspective, CurrentSupportedVersions());
+    QuicConnectionId dummy_id = QuicConnectionId(
+        static_cast<char*>(connection_id_bytes), sizeof(connection_id_bytes));
+    QuicSocketAddress dummy_address(QuicIpAddress::Any4(), /*port=*/0);
+    return quic::CreateQuicConnection(
+        dummy_id, dummy_address, connection_helper_.get(), alarm_factory_,
+        packet_writer, perspective, CurrentSupportedVersions());
 }
 
-const QuicClock* QuartcFactory::GetClock() const {
-  return clock_;
-}
+std::unique_ptr<QuicConnection> CreateQuicConnection(
+    QuicConnectionId connection_id,
+    const QuicSocketAddress& peer_address,
+    QuicConnectionHelperInterface* connection_helper,
+    QuicAlarmFactory* alarm_factory,
+    QuicPacketWriter* packet_writer,
+    Perspective perspective,
+    ParsedQuicVersionVector supported_versions) {
+  auto quic_connection = QuicMakeUnique<QuicConnection>(
+      connection_id, peer_address, connection_helper, alarm_factory,
+      packet_writer,
+      /*owns_writer=*/false, perspective, supported_versions);
 
-QuicRandom* QuartcFactory::GetRandomGenerator() {
-  return QuicRandom::GetInstance();
-}
+  QuicSentPacketManager& sent_packet_manager =
+      quic_connection->sent_packet_manager();
 
-QuicBufferAllocator* QuartcFactory::GetStreamSendBufferAllocator() {
-  return &buffer_allocator_;
+  // Default delayed ack time is 25ms.
+  // If data packets are sent less often (e.g. because p-time was modified),
+  // we would force acks to be sent every 25ms regardless, increasing
+  // overhead. Since generally we guarantee a packet every 20ms, changing
+  // this value should have miniscule effect on quality on good connections,
+  // but on poor connections, changing this number significantly reduced the
+  // number of ack-only packets.
+  // The p-time can go up to as high as 120ms, and when it does, it's
+  // when the low overhead is the most important thing. Ideally it should be
+  // above 120ms, but it cannot be higher than 0.5*RTO, which equals to 100ms.
+  sent_packet_manager.set_delayed_ack_time(
+      QuicTime::Delta::FromMilliseconds(100));
+
+  quic_connection->set_fill_up_link_during_probing(true);
+
+  // We start ack decimation after 15 packets. Typically, we would see
+  // 1-2 crypto handshake packets, one media packet, and 10 probing packets.
+  // We want to get acks for the probing packets as soon as possible,
+  // but we can start using ack decimation right after first probing completes.
+  // The default was to not start ack decimation for the first 100 packets.
+  quic_connection->set_min_received_before_ack_decimation(15);
+
+  return quic_connection;
 }
 
 std::unique_ptr<QuartcFactory> CreateQuartcFactory(

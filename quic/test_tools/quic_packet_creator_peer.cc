@@ -43,6 +43,18 @@ QuicPacketNumberLength QuicPacketCreatorPeer::GetPacketNumberLength(
   return creator->GetPacketNumberLength();
 }
 
+// static
+QuicVariableLengthIntegerLength
+QuicPacketCreatorPeer::GetRetryTokenLengthLength(QuicPacketCreator* creator) {
+  return creator->GetRetryTokenLengthLength();
+}
+
+// static
+QuicVariableLengthIntegerLength QuicPacketCreatorPeer::GetLengthLength(
+    QuicPacketCreator* creator) {
+  return creator->GetLengthLength();
+}
+
 void QuicPacketCreatorPeer::SetPacketNumber(QuicPacketCreator* creator,
                                             uint64_t s) {
   DCHECK_NE(0u, s);

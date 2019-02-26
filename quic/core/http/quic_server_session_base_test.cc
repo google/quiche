@@ -65,7 +65,7 @@ class TestServerSession : public QuicServerSessionBase {
                               compressed_certs_cache),
         quic_simple_server_backend_(quic_simple_server_backend) {}
 
-  ~TestServerSession() override { delete connection(); };
+  ~TestServerSession() override { delete connection(); }
 
  protected:
   QuicSpdyStream* CreateIncomingStream(QuicStreamId id) override {
@@ -157,13 +157,13 @@ class QuicServerSessionBaseTest : public QuicTestWithParam<ParsedQuicVersion> {
   }
 
   QuicStreamId GetNthClientInitiatedBidirectionalId(int n) {
-    return QuicSpdySessionPeer::GetNthClientInitiatedBidirectionalStreamId(
-        *session_, n);
+    return GetNthClientInitiatedBidirectionalStreamId(
+        connection_->transport_version(), n);
   }
 
   QuicStreamId GetNthServerInitiatedUnidirectionalId(int n) {
-    return QuicSpdySessionPeer::GetNthServerInitiatedUnidirectionalStreamId(
-        *session_, n);
+    return quic::test::GetNthServerInitiatedUnidirectionalStreamId(
+        connection_->transport_version(), n);
   }
 
   QuicTransportVersion transport_version() const {
@@ -188,6 +188,7 @@ class QuicServerSessionBaseTest : public QuicTestWithParam<ParsedQuicVersion> {
     EXPECT_CALL(owner_, OnStopSendingReceived(_)).Times(1);
     // Expect the RESET_STREAM that is generated in response to receiving a
     // STOP_SENDING.
+    EXPECT_CALL(*connection_, SendControlFrame(_));
     EXPECT_CALL(*connection_, OnStreamReset(stream_id, rst_stream_code));
     session_->OnStopSendingFrame(stop_sending);
   }
@@ -222,9 +223,8 @@ MATCHER_P(EqualsProto, network_params, "") {
               reference.previous_connection_state());
 }
 
-INSTANTIATE_TEST_CASE_P(Tests,
-                        QuicServerSessionBaseTest,
-                        ::testing::ValuesIn(AllSupportedVersions()));
+INSTANTIATE_TEST_SUITE_P(Tests, QuicServerSessionBaseTest,
+                         ::testing::ValuesIn(AllSupportedVersions()));
 TEST_P(QuicServerSessionBaseTest, CloseStreamDueToReset) {
   // Open a stream, then reset it.
   // Send two bytes of payload to open it.
@@ -238,10 +238,14 @@ TEST_P(QuicServerSessionBaseTest, CloseStreamDueToReset) {
                           GetNthClientInitiatedBidirectionalId(0),
                           QUIC_ERROR_PROCESSING_STREAM, 0);
   EXPECT_CALL(owner_, OnRstStreamReceived(_)).Times(1);
-  EXPECT_CALL(*connection_, SendControlFrame(_));
-  EXPECT_CALL(*connection_,
-              OnStreamReset(GetNthClientInitiatedBidirectionalId(0),
-                            QUIC_RST_ACKNOWLEDGEMENT));
+  if (transport_version() != QUIC_VERSION_99) {
+    // For non-version 99, the RESET_STREAM will do the full close.
+    // Set up expects accordingly.
+    EXPECT_CALL(*connection_, SendControlFrame(_));
+    EXPECT_CALL(*connection_,
+                OnStreamReset(GetNthClientInitiatedBidirectionalId(0),
+                              QUIC_RST_ACKNOWLEDGEMENT));
+  }
   visitor_->OnRstStream(rst1);
 
   // For version-99 will create and receive a stop-sending, completing
@@ -265,10 +269,14 @@ TEST_P(QuicServerSessionBaseTest, NeverOpenStreamDueToReset) {
                           GetNthClientInitiatedBidirectionalId(0),
                           QUIC_ERROR_PROCESSING_STREAM, 0);
   EXPECT_CALL(owner_, OnRstStreamReceived(_)).Times(1);
-  EXPECT_CALL(*connection_, SendControlFrame(_));
-  EXPECT_CALL(*connection_,
-              OnStreamReset(GetNthClientInitiatedBidirectionalId(0),
-                            QUIC_RST_ACKNOWLEDGEMENT));
+  if (transport_version() != QUIC_VERSION_99) {
+    // For non-version 99, the RESET_STREAM will do the full close.
+    // Set up expects accordingly.
+    EXPECT_CALL(*connection_, SendControlFrame(_));
+    EXPECT_CALL(*connection_,
+                OnStreamReset(GetNthClientInitiatedBidirectionalId(0),
+                              QUIC_RST_ACKNOWLEDGEMENT));
+  }
   visitor_->OnRstStream(rst1);
 
   // For version-99 will create and receive a stop-sending, completing
@@ -303,10 +311,14 @@ TEST_P(QuicServerSessionBaseTest, AcceptClosedStream) {
                          GetNthClientInitiatedBidirectionalId(0),
                          QUIC_ERROR_PROCESSING_STREAM, 0);
   EXPECT_CALL(owner_, OnRstStreamReceived(_)).Times(1);
-  EXPECT_CALL(*connection_, SendControlFrame(_));
-  EXPECT_CALL(*connection_,
-              OnStreamReset(GetNthClientInitiatedBidirectionalId(0),
-                            QUIC_RST_ACKNOWLEDGEMENT));
+  if (transport_version() != QUIC_VERSION_99) {
+    // For non-version 99, the RESET_STREAM will do the full close.
+    // Set up expects accordingly.
+    EXPECT_CALL(*connection_, SendControlFrame(_));
+    EXPECT_CALL(*connection_,
+                OnStreamReset(GetNthClientInitiatedBidirectionalId(0),
+                              QUIC_RST_ACKNOWLEDGEMENT));
+  }
   visitor_->OnRstStream(rst);
 
   // For version-99 will create and receive a stop-sending, completing
@@ -350,7 +362,7 @@ TEST_P(QuicServerSessionBaseTest, MaxOpenStreams) {
   for (size_t i = 0; i < kMaxStreamsForTest; ++i) {
     EXPECT_TRUE(QuicServerSessionBasePeer::GetOrCreateDynamicStream(
         session_.get(), stream_id));
-    stream_id += QuicSpdySessionPeer::StreamIdDelta(*session_);
+    stream_id += QuicUtils::StreamIdDelta(connection_->transport_version());
   }
 
   if (transport_version() != QUIC_VERSION_99) {
@@ -359,11 +371,11 @@ TEST_P(QuicServerSessionBaseTest, MaxOpenStreams) {
     for (size_t i = 0; i < kMaxStreamsMinimumIncrement; ++i) {
       EXPECT_TRUE(QuicServerSessionBasePeer::GetOrCreateDynamicStream(
           session_.get(), stream_id));
-      stream_id += QuicSpdySessionPeer::StreamIdDelta(*session_);
+      stream_id += QuicUtils::StreamIdDelta(connection_->transport_version());
     }
   }
   // Now violate the server's internal stream limit.
-  stream_id += QuicSpdySessionPeer::StreamIdDelta(*session_);
+  stream_id += QuicUtils::StreamIdDelta(connection_->transport_version());
 
   if (transport_version() != QUIC_VERSION_99) {
     // For non-version 99, QUIC responds to an attempt to exceed the stream
@@ -395,7 +407,8 @@ TEST_P(QuicServerSessionBaseTest, MaxAvailableBidirectionalStreams) {
       session_.get(), GetNthClientInitiatedBidirectionalId(0)));
 
   // Establish available streams up to the server's limit.
-  QuicStreamId next_id = QuicSpdySessionPeer::StreamIdDelta(*session_);
+  QuicStreamId next_id =
+      QuicUtils::StreamIdDelta(connection_->transport_version());
   const int kLimitingStreamId =
       GetNthClientInitiatedBidirectionalId(kAvailableStreamLimit + 1);
   if (transport_version() != QUIC_VERSION_99) {
@@ -665,9 +678,8 @@ class StreamMemberLifetimeTest : public QuicServerSessionBaseTest {
   QuicCryptoServerConfigPeer crypto_config_peer_;
 };
 
-INSTANTIATE_TEST_CASE_P(StreamMemberLifetimeTests,
-                        StreamMemberLifetimeTest,
-                        ::testing::ValuesIn(AllSupportedVersions()));
+INSTANTIATE_TEST_SUITE_P(StreamMemberLifetimeTests, StreamMemberLifetimeTest,
+                         ::testing::ValuesIn(AllSupportedVersions()));
 
 // Trigger an operation which causes an async invocation of
 // ProofSource::GetProof.  Delay the completion of the operation until after the

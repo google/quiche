@@ -88,25 +88,6 @@ void QuicControlFrameManager::WriteOrBufferStopSending(uint16_t code,
       new QuicStopSendingFrame(++last_control_frame_id_, stream_id, code)));
 }
 
-void QuicControlFrameManager::WriteOrBufferRstStreamStopSending(
-    QuicStreamId stream_id,
-    QuicRstStreamErrorCode error_code,
-    QuicStreamOffset bytes_written) {
-  const bool had_buffered_frames = HasBufferedFrames();
-  QUIC_DVLOG(1) << "Queuing RST_STREAM_FRAME";
-  control_frames_.emplace_back(QuicFrame(new QuicRstStreamFrame(
-      ++last_control_frame_id_, stream_id, error_code, bytes_written)));
-  if (session_->connection()->transport_version() == QUIC_VERSION_99) {
-    QUIC_DVLOG(1) << "Version 99, Queuing STOP_SENDING";
-    control_frames_.emplace_back(QuicFrame(new QuicStopSendingFrame(
-        ++last_control_frame_id_, stream_id, error_code)));
-  }
-  if (had_buffered_frames) {
-    return;
-  }
-  WriteBufferedFrames();
-}
-
 void QuicControlFrameManager::WritePing() {
   QUIC_DVLOG(1) << "Writing PING_FRAME";
   if (HasBufferedFrames()) {

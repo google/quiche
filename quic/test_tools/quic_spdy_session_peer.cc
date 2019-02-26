@@ -50,55 +50,15 @@ void QuicSpdySessionPeer::SetMaxUncompressedHeaderBytes(
 }
 
 // static
-size_t QuicSpdySessionPeer::WriteHeadersImpl(
+size_t QuicSpdySessionPeer::WriteHeadersOnHeadersStream(
     QuicSpdySession* session,
     QuicStreamId id,
     spdy::SpdyHeaderBlock headers,
     bool fin,
-    int weight,
-    QuicStreamId parent_stream_id,
-    bool exclusive,
+    spdy::SpdyPriority priority,
     QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener) {
-  return session->WriteHeadersImpl(id, std::move(headers), fin, weight,
-                                   parent_stream_id, exclusive,
-                                   std::move(ack_listener));
-}
-
-//  static
-QuicStreamId QuicSpdySessionPeer::StreamIdDelta(
-    const QuicSpdySession& session) {
-  return QuicUtils::StreamIdDelta(session.connection()->transport_version());
-}
-
-//  static
-QuicStreamId QuicSpdySessionPeer::GetNthClientInitiatedBidirectionalStreamId(
-    const QuicSpdySession& session,
-    int n) {
-  return QuicUtils::GetFirstBidirectionalStreamId(
-             session.connection()->transport_version(),
-             Perspective::IS_CLIENT) +
-         // + 1 because spdy_session contains headers stream.
-         QuicSpdySessionPeer::StreamIdDelta(session) * (n + 1);
-}
-
-//  static
-QuicStreamId QuicSpdySessionPeer::GetNthServerInitiatedBidirectionalStreamId(
-    const QuicSpdySession& session,
-    int n) {
-  return QuicUtils::GetFirstBidirectionalStreamId(
-             session.connection()->transport_version(),
-             Perspective::IS_SERVER) +
-         QuicSpdySessionPeer::StreamIdDelta(session) * n;
-}
-
-//  static
-QuicStreamId QuicSpdySessionPeer::GetNthServerInitiatedUnidirectionalStreamId(
-    const QuicSpdySession& session,
-    int n) {
-  return QuicUtils::GetFirstUnidirectionalStreamId(
-             session.connection()->transport_version(),
-             Perspective::IS_SERVER) +
-         QuicSpdySessionPeer::StreamIdDelta(session) * n;
+  return session->WriteHeadersOnHeadersStream(
+      id, std::move(headers), fin, priority, std::move(ack_listener));
 }
 
 }  // namespace test

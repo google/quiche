@@ -20,6 +20,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_server_stats.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
 #include "net/quic/platform/impl/quic_socket_utils.h"
 
@@ -115,9 +116,12 @@ bool QuicPacketReader::ReadAndDispatchManyPackets(
     }
 
     if (QUIC_PREDICT_FALSE(mmsg_hdr_[i].msg_hdr.msg_flags & MSG_TRUNC)) {
-      QUIC_LOG_FIRST_N(ERROR, 10)
+      QUIC_LOG_FIRST_N(WARNING, 100)
           << "Dropping truncated QUIC packet: buffer size:"
           << packets_[i].iov.iov_len << " packet size:" << mmsg_hdr_[i].msg_len;
+      QUIC_SERVER_HISTOGRAM_COUNTS(
+          "QuicPacketReader.DroppedPacketSize", mmsg_hdr_[i].msg_len, 1, 10000,
+          20, "In QuicPacketReader, the size of big packets that are dropped.");
       continue;
     }
 

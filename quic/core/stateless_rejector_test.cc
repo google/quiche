@@ -169,10 +169,9 @@ class StatelessRejectorTest : public QuicTestWithParam<TestParams> {
   QuicString stk_hex_;
 };
 
-INSTANTIATE_TEST_CASE_P(Flags,
-                        StatelessRejectorTest,
-                        ::testing::ValuesIn(GetTestParams()),
-                        TestParamToString);
+INSTANTIATE_TEST_SUITE_P(Flags, StatelessRejectorTest,
+                         ::testing::ValuesIn(GetTestParams()),
+                         TestParamToString);
 
 TEST_P(StatelessRejectorTest, InvalidChlo) {
   // clang-format off

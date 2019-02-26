@@ -78,6 +78,7 @@ bool QuicClientEpollNetworkHelper::CreateUDPSocketAndBind(
   } else {
     client_address = QuicSocketAddress(QuicIpAddress::Any6(), bind_to_port);
   }
+
   sockaddr_storage addr = client_address.generic_address();
   int rc = bind(fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr));
   if (rc < 0) {

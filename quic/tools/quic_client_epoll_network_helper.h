@@ -13,16 +13,13 @@
 #include <string>
 
 #include "base/macros.h"
-#include "gfe/gfe2/base/epoll_server.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_client_push_promise_index.h"
-#include "net/third_party/quiche/src/quic/core/http/quic_spdy_client_session.h"
-#include "net/third_party/quiche/src/quic/core/http/quic_spdy_client_stream.h"
 #include "net/third_party/quiche/src/quic/core/quic_config.h"
 #include "net/third_party/quiche/src/quic/core/quic_packet_reader.h"
 #include "net/third_party/quiche/src/quic/core/quic_process_packet_interface.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_epoll.h"
-#include "net/third_party/quiche/src/quic/tools/quic_spdy_client_base.h"
+#include "net/third_party/quiche/src/quic/tools/quic_client_base.h"
 
 namespace quic {
 

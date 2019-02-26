@@ -42,10 +42,10 @@ class QuicArenaScopedPtrParamTest : public QuicTestWithParam<TestParam> {
   QuicOneBlockArena<1024> arena_;
 };
 
-INSTANTIATE_TEST_CASE_P(QuicArenaScopedPtrParamTest,
-                        QuicArenaScopedPtrParamTest,
-                        testing::Values(TestParam::kFromHeap,
-                                        TestParam::kFromArena));
+INSTANTIATE_TEST_SUITE_P(QuicArenaScopedPtrParamTest,
+                         QuicArenaScopedPtrParamTest,
+                         testing::Values(TestParam::kFromHeap,
+                                         TestParam::kFromArena));
 
 TEST_P(QuicArenaScopedPtrParamTest, NullObjects) {
   QuicArenaScopedPtr<TestObject> def;

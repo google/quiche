@@ -33,11 +33,6 @@ using QuicLinkedHashMap = QuicLinkedHashMapImpl<Key, Value, Hash>;
 template <typename Key, typename Value, int Size>
 using QuicSmallMap = QuicSmallMapImpl<Key, Value, Size>;
 
-// A data structure used to represent a sorted set of non-empty, non-adjacent,
-// and mutually disjoint intervals.
-template <typename T>
-using QuicIntervalSet = QuicIntervalSetImpl<T>;
-
 // Represents a simple queue which may be backed by a list or
 // a flat circular buffer.
 //

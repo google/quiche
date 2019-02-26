@@ -96,9 +96,9 @@ class NoOpHeadersHandler
  public:
   ~NoOpHeadersHandler() override = default;
 
-  void OnHeaderDecoded(QuicStringPiece name, QuicStringPiece value) override{};
-  void OnDecodingCompleted() override{};
-  void OnDecodingErrorDetected(QuicStringPiece error_message) override{};
+  void OnHeaderDecoded(QuicStringPiece name, QuicStringPiece value) override {}
+  void OnDecodingCompleted() override {}
+  void OnDecodingErrorDetected(QuicStringPiece error_message) override {}
 };
 
 void QpackDecode(

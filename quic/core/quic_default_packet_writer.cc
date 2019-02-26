@@ -30,10 +30,6 @@ WriteResult QuicDefaultPacketWriter::WritePacket(
   return result;
 }
 
-bool QuicDefaultPacketWriter::IsWriteBlockedDataBuffered() const {
-  return false;
-}
-
 bool QuicDefaultPacketWriter::IsWriteBlocked() const {
   return write_blocked_;
 }

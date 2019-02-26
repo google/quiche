@@ -163,10 +163,9 @@ class Http2FrameHeaderTypeAndFlagTest
 };
 
 class IsEndStreamTest : public Http2FrameHeaderTypeAndFlagTest {};
-INSTANTIATE_TEST_CASE_P(IsEndStream,
-                        IsEndStreamTest,
-                        Combine(ValuesIn(ValidFrameTypes()),
-                                Values(~Http2FrameFlag::END_STREAM, 0xff)));
+INSTANTIATE_TEST_SUITE_P(IsEndStream, IsEndStreamTest,
+                         Combine(ValuesIn(ValidFrameTypes()),
+                                 Values(~Http2FrameFlag::END_STREAM, 0xff)));
 TEST_P(IsEndStreamTest, IsEndStream) {
   const bool is_set =
       (flags_ & Http2FrameFlag::END_STREAM) == Http2FrameFlag::END_STREAM;
@@ -201,10 +200,9 @@ TEST_P(IsEndStreamTest, IsEndStream) {
 }
 
 class IsACKTest : public Http2FrameHeaderTypeAndFlagTest {};
-INSTANTIATE_TEST_CASE_P(IsAck,
-                        IsACKTest,
-                        Combine(ValuesIn(ValidFrameTypes()),
-                                Values(~Http2FrameFlag::ACK, 0xff)));
+INSTANTIATE_TEST_SUITE_P(IsAck, IsACKTest,
+                         Combine(ValuesIn(ValidFrameTypes()),
+                                 Values(~Http2FrameFlag::ACK, 0xff)));
 TEST_P(IsACKTest, IsAck) {
   const bool is_set = (flags_ & Http2FrameFlag::ACK) == Http2FrameFlag::ACK;
   Http2String flags_string;
@@ -238,10 +236,9 @@ TEST_P(IsACKTest, IsAck) {
 }
 
 class IsEndHeadersTest : public Http2FrameHeaderTypeAndFlagTest {};
-INSTANTIATE_TEST_CASE_P(IsEndHeaders,
-                        IsEndHeadersTest,
-                        Combine(ValuesIn(ValidFrameTypes()),
-                                Values(~Http2FrameFlag::END_HEADERS, 0xff)));
+INSTANTIATE_TEST_SUITE_P(IsEndHeaders, IsEndHeadersTest,
+                         Combine(ValuesIn(ValidFrameTypes()),
+                                 Values(~Http2FrameFlag::END_HEADERS, 0xff)));
 TEST_P(IsEndHeadersTest, IsEndHeaders) {
   const bool is_set =
       (flags_ & Http2FrameFlag::END_HEADERS) == Http2FrameFlag::END_HEADERS;
@@ -279,10 +276,9 @@ TEST_P(IsEndHeadersTest, IsEndHeaders) {
 }
 
 class IsPaddedTest : public Http2FrameHeaderTypeAndFlagTest {};
-INSTANTIATE_TEST_CASE_P(IsPadded,
-                        IsPaddedTest,
-                        Combine(ValuesIn(ValidFrameTypes()),
-                                Values(~Http2FrameFlag::PADDED, 0xff)));
+INSTANTIATE_TEST_SUITE_P(IsPadded, IsPaddedTest,
+                         Combine(ValuesIn(ValidFrameTypes()),
+                                 Values(~Http2FrameFlag::PADDED, 0xff)));
 TEST_P(IsPaddedTest, IsPadded) {
   const bool is_set =
       (flags_ & Http2FrameFlag::PADDED) == Http2FrameFlag::PADDED;
@@ -318,10 +314,9 @@ TEST_P(IsPaddedTest, IsPadded) {
 }
 
 class HasPriorityTest : public Http2FrameHeaderTypeAndFlagTest {};
-INSTANTIATE_TEST_CASE_P(HasPriority,
-                        HasPriorityTest,
-                        Combine(ValuesIn(ValidFrameTypes()),
-                                Values(~Http2FrameFlag::PRIORITY, 0xff)));
+INSTANTIATE_TEST_SUITE_P(HasPriority, HasPriorityTest,
+                         Combine(ValuesIn(ValidFrameTypes()),
+                                 Values(~Http2FrameFlag::PRIORITY, 0xff)));
 TEST_P(HasPriorityTest, HasPriority) {
   const bool is_set =
       (flags_ & Http2FrameFlag::PRIORITY) == Http2FrameFlag::PRIORITY;

@@ -6,6 +6,10 @@
 
 namespace quic {
 
+std::unique_ptr<PerPacketOptions> QuartcPerPacketOptions::Clone() const {
+  return QuicMakeUnique<QuartcPerPacketOptions>(*this);
+}
+
 QuartcPacketWriter::QuartcPacketWriter(QuartcPacketTransport* packet_transport,
                                        QuicByteCount max_packet_size)
     : packet_transport_(packet_transport), max_packet_size_(max_packet_size) {}
@@ -19,20 +23,18 @@ WriteResult QuartcPacketWriter::WritePacket(
   DCHECK(packet_transport_);
 
   QuartcPacketTransport::PacketInfo info;
-  if (connection_) {
-    info.packet_number = connection_->packet_generator().packet_number();
+  QuartcPerPacketOptions* quartc_options =
+      static_cast<QuartcPerPacketOptions*>(options);
+  if (quartc_options && quartc_options->connection) {
+    info.packet_number =
+        quartc_options->connection->packet_generator().packet_number();
   }
-
   int bytes_written = packet_transport_->Write(buffer, buf_len, info);
   if (bytes_written <= 0) {
     writable_ = false;
     return WriteResult(WRITE_STATUS_BLOCKED, EWOULDBLOCK);
   }
   return WriteResult(WRITE_STATUS_OK, bytes_written);
-}
-
-bool QuartcPacketWriter::IsWriteBlockedDataBuffered() const {
-  return false;
 }
 
 bool QuartcPacketWriter::IsWriteBlocked() const {

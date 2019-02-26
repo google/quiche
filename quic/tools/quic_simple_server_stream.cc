@@ -291,7 +291,7 @@ void QuicSimpleServerStream::SendIncompleteResponse(
   QUIC_DLOG(INFO) << "Stream " << id()
                   << " writing body (fin = false) with size: " << body.size();
   if (!body.empty()) {
-    WriteOrBufferBody(body, /*fin=*/false, nullptr);
+    WriteOrBufferBody(body, /*fin=*/false);
   }
 }
 
@@ -321,7 +321,7 @@ void QuicSimpleServerStream::SendHeadersAndBodyAndTrailers(
   QUIC_DLOG(INFO) << "Stream " << id() << " writing body (fin = " << send_fin
                   << ") with size: " << body.size();
   if (!body.empty() || send_fin) {
-    WriteOrBufferBody(body, send_fin, nullptr);
+    WriteOrBufferBody(body, send_fin);
   }
   if (send_fin) {
     // Nothing else to send.

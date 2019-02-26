@@ -224,7 +224,7 @@ class HpackDecoderTest : public ::testing::TestWithParam<bool>,
   bool saw_start_ = false;
   bool saw_end_ = false;
 };
-INSTANTIATE_TEST_CASE_P(AllWays, HpackDecoderTest, ::testing::Bool());
+INSTANTIATE_TEST_SUITE_P(AllWays, HpackDecoderTest, ::testing::Bool());
 
 // Test based on RFC 7541, section C.3: Request Examples without Huffman Coding.
 // This section shows several consecutive header lists, corresponding to HTTP

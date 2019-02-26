@@ -9,6 +9,7 @@
 
 #include "net/third_party/quiche/src/quic/core/http/http_frames.h"
 #include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
+#include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 
@@ -20,7 +21,7 @@ class QuicDataReader;
 // |header_length| stores number of bytes header occupies.
 // |payload_length| stores number of bytes payload occupies.
 struct QUIC_EXPORT_PRIVATE Http3FrameLengths {
-  Http3FrameLengths(uint64_t header, uint64_t payload)
+  Http3FrameLengths(QuicByteCount header, QuicByteCount payload)
       : header_length(header), payload_length(payload) {}
 
   bool operator==(const Http3FrameLengths& other) const {
@@ -76,7 +77,8 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
     // multiple times for a single frame.
     virtual void OnHeadersFramePayload(QuicStringPiece payload) = 0;
     // Called when a HEADERS frame has been completely processed.
-    virtual void OnHeadersFrameEnd() = 0;
+    // |frame_len| is the length of the HEADERS frame payload.
+    virtual void OnHeadersFrameEnd(QuicByteCount frame_len) = 0;
 
     // Called when a PUSH_PROMISE frame has been recevied for |push_id|.
     virtual void OnPushPromiseFrameStart(PushId push_id) = 0;
@@ -104,7 +106,7 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
   // Processes the input and invokes the visitor for any frames.
   // Returns the number of bytes consumed, or 0 if there was an error, in which
   // case error() should be consulted.
-  size_t ProcessInput(const char* data, size_t len);
+  QuicByteCount ProcessInput(const char* data, QuicByteCount len);
 
   bool has_payload() { return has_payload_; }
 
@@ -158,13 +160,13 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
   // Type of the frame currently being parsed.
   uint8_t current_frame_type_;
   // Size of the frame's length field.
-  uint64_t current_length_field_size_;
+  QuicByteCount current_length_field_size_;
   // Remaining length that's needed for the frame's length field.
-  uint64_t remaining_length_field_length_;
+  QuicByteCount remaining_length_field_length_;
   // Length of the payload of the frame currently being parsed.
-  uint64_t current_frame_length_;
+  QuicByteCount current_frame_length_;
   // Remaining payload bytes to be parsed.
-  uint64_t remaining_frame_length_;
+  QuicByteCount remaining_frame_length_;
   // Last error.
   QuicErrorCode error_;
   // The issue which caused |error_|

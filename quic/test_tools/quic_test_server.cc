@@ -70,7 +70,7 @@ class CustomStreamSession : public QuicSimpleServerSession {
 class QuicTestDispatcher : public QuicSimpleDispatcher {
  public:
   QuicTestDispatcher(
-      const QuicConfig& config,
+      const QuicConfig* config,
       const QuicCryptoServerConfig* crypto_config,
       QuicVersionManager* version_manager,
       std::unique_ptr<QuicConnectionHelperInterface> helper,
@@ -165,7 +165,7 @@ QuicTestServer::QuicTestServer(
 
 QuicDispatcher* QuicTestServer::CreateQuicDispatcher() {
   return new QuicTestDispatcher(
-      config(), &crypto_config(), version_manager(),
+      &config(), &crypto_config(), version_manager(),
       QuicMakeUnique<QuicEpollConnectionHelper>(epoll_server(),
                                                 QuicAllocator::BUFFER_POOL),
       std::unique_ptr<QuicCryptoServerStream::Helper>(

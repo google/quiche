@@ -43,10 +43,10 @@ class QpackInstructionEncoderTest : public QuicTestWithParam<FragmentMode> {
   const FragmentMode fragment_mode_;
 };
 
-INSTANTIATE_TEST_CASE_P(,
-                        QpackInstructionEncoderTest,
-                        Values(FragmentMode::kSingleChunk,
-                               FragmentMode::kOctetByOctet));
+INSTANTIATE_TEST_SUITE_P(,
+                         QpackInstructionEncoderTest,
+                         Values(FragmentMode::kSingleChunk,
+                                FragmentMode::kOctetByOctet));
 
 TEST_P(QpackInstructionEncoderTest, Varint) {
   const QpackInstruction instruction{QpackInstructionOpcode{0x00, 0x80},

@@ -615,9 +615,8 @@ class SpdyFramerTest : public ::testing::TestWithParam<Output> {
   Http2DecoderAdapter deframer_;
 };
 
-INSTANTIATE_TEST_CASE_P(SpdyFramerTests,
-                        SpdyFramerTest,
-                        ::testing::Values(USE, NOT_USE));
+INSTANTIATE_TEST_SUITE_P(SpdyFramerTests, SpdyFramerTest,
+                         ::testing::Values(USE, NOT_USE));
 
 // Test that we can encode and decode a SpdyHeaderBlock in serialized form.
 TEST_P(SpdyFramerTest, HeaderBlockInBuffer) {

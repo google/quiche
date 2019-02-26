@@ -62,10 +62,8 @@ class QpackDecoderTest : public QuicTestWithParam<FragmentMode> {
   const FragmentMode fragment_mode_;
 };
 
-INSTANTIATE_TEST_CASE_P(,
-                        QpackDecoderTest,
-                        Values(FragmentMode::kSingleChunk,
-                               FragmentMode::kOctetByOctet));
+INSTANTIATE_TEST_SUITE_P(, QpackDecoderTest, Values(FragmentMode::kSingleChunk,
+                                                  FragmentMode::kOctetByOctet));
 
 TEST_P(QpackDecoderTest, NoPrefix) {
   EXPECT_CALL(handler_,

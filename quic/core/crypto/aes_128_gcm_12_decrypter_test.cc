@@ -212,8 +212,8 @@ QuicData* DecryptWithNonce(Aes128Gcm12Decrypter* decrypter,
   std::unique_ptr<char[]> output(new char[ciphertext.length()]);
   size_t output_length = 0;
   const bool success = decrypter->DecryptPacket(
-      QuicTransportVersionMax(), packet_number, associated_data, ciphertext,
-      output.get(), &output_length, ciphertext.length());
+      packet_number, associated_data, ciphertext, output.get(), &output_length,
+      ciphertext.length());
   if (!success) {
     return nullptr;
   }

@@ -322,7 +322,7 @@ class QuicSentPacketManagerTest : public QuicTestWithParam<bool> {
   StrictMock<MockSessionNotifier> notifier_;
 };
 
-INSTANTIATE_TEST_CASE_P(Tests, QuicSentPacketManagerTest, testing::Bool());
+INSTANTIATE_TEST_SUITE_P(Tests, QuicSentPacketManagerTest, testing::Bool());
 
 TEST_P(QuicSentPacketManagerTest, IsUnacked) {
   VerifyUnackedPackets(nullptr, 0);
@@ -504,11 +504,9 @@ TEST_P(QuicSentPacketManagerTest, RetransmitThenAckPreviousThenNackRetransmit) {
   if (manager_.session_decides_what_to_write()) {
     // Frames in all packets are acked.
     EXPECT_CALL(notifier_, IsFrameOutstanding(_)).WillRepeatedly(Return(false));
-    if (GetQuicReloadableFlag(quic_fix_mark_for_loss_retransmission)) {
-      // Notify session that stream frame in packet 2 gets lost although it is
-      // not outstanding.
-      EXPECT_CALL(notifier_, OnFrameLost(_)).Times(1);
-    }
+    // Notify session that stream frame in packet 2 gets lost although it is
+    // not outstanding.
+    EXPECT_CALL(notifier_, OnFrameLost(_)).Times(1);
   }
   manager_.OnAckFrameStart(QuicPacketNumber(5), QuicTime::Delta::Infinite(),
                            clock_.Now());
@@ -516,8 +514,7 @@ TEST_P(QuicSentPacketManagerTest, RetransmitThenAckPreviousThenNackRetransmit) {
   manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(2));
   EXPECT_TRUE(manager_.OnAckFrameEnd(clock_.Now()));
 
-  if (manager_.session_decides_what_to_write() &&
-      GetQuicReloadableFlag(quic_fix_mark_for_loss_retransmission)) {
+  if (manager_.session_decides_what_to_write()) {
     uint64_t unacked[] = {2};
     VerifyUnackedPackets(unacked, QUIC_ARRAYSIZE(unacked));
   } else {
@@ -629,11 +626,9 @@ TEST_P(QuicSentPacketManagerTest, RetransmitTwiceThenAckFirst) {
   if (manager_.session_decides_what_to_write()) {
     // Frames in all packets are acked.
     EXPECT_CALL(notifier_, IsFrameOutstanding(_)).WillRepeatedly(Return(false));
-    if (GetQuicReloadableFlag(quic_fix_mark_for_loss_retransmission)) {
-      // Notify session that stream frame in packet 2 gets lost although it is
-      // not outstanding.
-      EXPECT_CALL(notifier_, OnFrameLost(_)).Times(1);
-    }
+    // Notify session that stream frame in packet 2 gets lost although it is
+    // not outstanding.
+    EXPECT_CALL(notifier_, OnFrameLost(_)).Times(1);
   }
   manager_.OnAckFrameStart(QuicPacketNumber(5), QuicTime::Delta::Infinite(),
                            clock_.Now());
@@ -641,8 +636,7 @@ TEST_P(QuicSentPacketManagerTest, RetransmitTwiceThenAckFirst) {
   manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(2));
   EXPECT_TRUE(manager_.OnAckFrameEnd(clock_.Now()));
 
-  if (manager_.session_decides_what_to_write() &&
-      GetQuicReloadableFlag(quic_fix_mark_for_loss_retransmission)) {
+  if (manager_.session_decides_what_to_write()) {
     uint64_t unacked[] = {2};
     VerifyUnackedPackets(unacked, QUIC_ARRAYSIZE(unacked));
   } else {
@@ -873,11 +867,9 @@ TEST_P(QuicSentPacketManagerTest, TailLossProbeTimeout) {
   if (manager_.session_decides_what_to_write()) {
     // Frames in all packets are acked.
     EXPECT_CALL(notifier_, IsFrameOutstanding(_)).WillRepeatedly(Return(false));
-    if (GetQuicReloadableFlag(quic_fix_mark_for_loss_retransmission)) {
-      // Notify session that stream frame in packets 1 and 2 get lost although
-      // they are not outstanding.
-      EXPECT_CALL(notifier_, OnFrameLost(_)).Times(2);
-    }
+    // Notify session that stream frame in packets 1 and 2 get lost although
+    // they are not outstanding.
+    EXPECT_CALL(notifier_, OnFrameLost(_)).Times(2);
   }
   manager_.OnAckFrameStart(QuicPacketNumber(5), QuicTime::Delta::Infinite(),
                            clock_.Now());
@@ -980,27 +972,12 @@ TEST_P(QuicSentPacketManagerTest, TailLossProbeThenRTO) {
                   true, _, _, Pointwise(PacketNumberEq(), {largest_acked}), _));
   EXPECT_CALL(*network_change_visitor_, OnCongestionChange());
   if (manager_.session_decides_what_to_write()) {
-    if (GetQuicReloadableFlag(quic_fix_mark_for_loss_retransmission)) {
-      // Although frames in packet 3 gets acked, it would be kept for another
-      // RTT.
-      EXPECT_CALL(notifier_, IsFrameOutstanding(_))
-          .WillRepeatedly(Return(true));
-    } else {
-      // Frames in packet 3 gets acked as packet 103 gets acked.
-      EXPECT_CALL(notifier_, IsFrameOutstanding(_))
-          .WillOnce(Return(true))
-          .WillOnce(Return(true))
-          .WillOnce(Return(false))
-          .WillRepeatedly(Return(true));
-    }
-    if (GetQuicReloadableFlag(quic_fix_mark_for_loss_retransmission)) {
-      // Packets [1, 102] are lost, although stream frame in packet 3 is not
-      // outstanding.
-      EXPECT_CALL(notifier_, OnFrameLost(_)).Times(102);
-    } else {
-      // Packets 1, 2 and [4, 102] are lost.
-      EXPECT_CALL(notifier_, OnFrameLost(_)).Times(101);
-    }
+    // Although frames in packet 3 gets acked, it would be kept for another
+    // RTT.
+    EXPECT_CALL(notifier_, IsFrameOutstanding(_)).WillRepeatedly(Return(true));
+    // Packets [1, 102] are lost, although stream frame in packet 3 is not
+    // outstanding.
+    EXPECT_CALL(notifier_, OnFrameLost(_)).Times(102);
   }
   manager_.OnAckFrameStart(QuicPacketNumber(103), QuicTime::Delta::Infinite(),
                            clock_.Now());
@@ -1363,27 +1340,10 @@ TEST_P(QuicSentPacketManagerTest, RetransmissionTimeout) {
                 OnPacketLoss(QuicPacketNumber(i), LOSS_RETRANSMISSION, _));
   }
   if (manager_.session_decides_what_to_write()) {
-    if (GetQuicReloadableFlag(quic_fix_mark_for_loss_retransmission)) {
-      EXPECT_CALL(notifier_, IsFrameOutstanding(_))
-          .WillRepeatedly(Return(true));
-    } else {
-      EXPECT_CALL(notifier_, IsFrameOutstanding(_))
-          .WillOnce(Return(true))
-          // This is used for QUIC_BUG_IF in MarkForRetransmission, which is not
-          // ideal.
-          .WillOnce(Return(true))
-          .WillOnce(Return(false))
-          .WillRepeatedly(Return(true));
-    }
-    if (GetQuicReloadableFlag(quic_fix_mark_for_loss_retransmission)) {
-      // Packets [1, 99] are considered as lost, although stream frame in packet
-      // 2 is not outstanding.
-      EXPECT_CALL(notifier_, OnFrameLost(_)).Times(99);
-    } else {
-      // Packets [1, 99] are considered as lost, but packets 2 does not have
-      // retransmittable frames as packet 102 is acked.
-      EXPECT_CALL(notifier_, OnFrameLost(_)).Times(98);
-    }
+    EXPECT_CALL(notifier_, IsFrameOutstanding(_)).WillRepeatedly(Return(true));
+    // Packets [1, 99] are considered as lost, although stream frame in packet
+    // 2 is not outstanding.
+    EXPECT_CALL(notifier_, OnFrameLost(_)).Times(99);
   }
   manager_.OnAckFrameStart(QuicPacketNumber(102), QuicTime::Delta::Zero(),
                            clock_.Now());
@@ -1492,27 +1452,10 @@ TEST_P(QuicSentPacketManagerTest, NewRetransmissionTimeout) {
                                 /*lost_packets=*/Not(IsEmpty())));
   EXPECT_CALL(*network_change_visitor_, OnCongestionChange());
   if (manager_.session_decides_what_to_write()) {
-    if (GetQuicReloadableFlag(quic_fix_mark_for_loss_retransmission)) {
-      EXPECT_CALL(notifier_, IsFrameOutstanding(_))
-          .WillRepeatedly(Return(true));
-    } else {
-      EXPECT_CALL(notifier_, IsFrameOutstanding(_))
-          .WillOnce(Return(true))
-          // This is used for QUIC_BUG_IF in MarkForRetransmission, which is not
-          // ideal.
-          .WillOnce(Return(true))
-          .WillOnce(Return(false))
-          .WillRepeatedly(Return(true));
-    }
-    if (GetQuicReloadableFlag(quic_fix_mark_for_loss_retransmission)) {
-      // Packets [1, 99] are considered as lost, although stream frame in packet
-      // 2 is not outstanding.
-      EXPECT_CALL(notifier_, OnFrameLost(_)).Times(99);
-    } else {
-      // Packets [1, 99] are considered as lost, but packets 2 does not have
-      // retransmittable frames as packet 102 is acked.
-      EXPECT_CALL(notifier_, OnFrameLost(_)).Times(98);
-    }
+    EXPECT_CALL(notifier_, IsFrameOutstanding(_)).WillRepeatedly(Return(true));
+    // Packets [1, 99] are considered as lost, although stream frame in packet
+    // 2 is not outstanding.
+    EXPECT_CALL(notifier_, OnFrameLost(_)).Times(99);
   }
   manager_.OnAckFrameStart(QuicPacketNumber(102), QuicTime::Delta::Zero(),
                            clock_.Now());

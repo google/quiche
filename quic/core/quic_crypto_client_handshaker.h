@@ -222,7 +222,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientHandshaker
   // STATE_VERIFY_PROOF*, and subsequent STATE_SEND_CHLO state.
   bool stateless_reject_received_;
 
-  QuicWallTime proof_verify_start_time_;
+  QuicTime proof_verify_start_time_;
 
   int num_scup_messages_received_;
 

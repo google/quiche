@@ -27,6 +27,10 @@ class QuicPacketCreatorPeer {
       QuicPacketNumberLength packet_number_length);
   static QuicPacketNumberLength GetPacketNumberLength(
       QuicPacketCreator* creator);
+  static QuicVariableLengthIntegerLength GetRetryTokenLengthLength(
+      QuicPacketCreator* creator);
+  static QuicVariableLengthIntegerLength GetLengthLength(
+      QuicPacketCreator* creator);
   static void SetPacketNumber(QuicPacketCreator* creator, uint64_t s);
   static void ClearPacketNumber(QuicPacketCreator* creator);
   static void FillPacketHeader(QuicPacketCreator* creator,

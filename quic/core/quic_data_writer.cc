@@ -15,6 +15,9 @@
 
 namespace quic {
 
+QuicDataWriter::QuicDataWriter(size_t size, char* buffer)
+    : QuicDataWriter(size, buffer, NETWORK_BYTE_ORDER) {}
+
 QuicDataWriter::QuicDataWriter(size_t size, char* buffer, Endianness endianness)
     : buffer_(buffer), capacity_(size), length_(0), endianness_(endianness) {}
 
@@ -171,14 +174,7 @@ bool QuicDataWriter::WritePaddingBytes(size_t count) {
   return WriteRepeatedByte(0x00, count);
 }
 
-bool QuicDataWriter::WriteConnectionId(QuicConnectionId connection_id,
-                                       Perspective perspective) {
-  if (!QuicConnectionIdSupportsVariableLength(perspective)) {
-    uint64_t connection_id64 =
-        QuicEndian::HostToNet64(QuicConnectionIdToUInt64(connection_id));
-
-    return WriteBytes(&connection_id64, sizeof(connection_id64));
-  }
+bool QuicDataWriter::WriteConnectionId(QuicConnectionId connection_id) {
   return WriteBytes(connection_id.data(), connection_id.length());
 }
 
@@ -283,23 +279,58 @@ bool QuicDataWriter::WriteVarInt62(uint64_t value) {
   return false;
 }
 
+bool QuicDataWriter::WriteVarInt62(
+    uint64_t value,
+    QuicVariableLengthIntegerLength write_length) {
+  DCHECK_EQ(endianness_, NETWORK_BYTE_ORDER);
+
+  size_t remaining = capacity_ - length_;
+  if (remaining < write_length) {
+    return false;
+  }
+
+  const QuicVariableLengthIntegerLength min_length = GetVarInt62Len(value);
+  if (write_length < min_length) {
+    QUIC_BUG << "Cannot write value " << value << " with write_length "
+             << write_length;
+    return false;
+  }
+  if (write_length == min_length) {
+    return WriteVarInt62(value);
+  }
+
+  if (write_length == VARIABLE_LENGTH_INTEGER_LENGTH_2) {
+    return WriteUInt8(0b01000000) && WriteUInt8(value);
+  }
+  if (write_length == VARIABLE_LENGTH_INTEGER_LENGTH_4) {
+    return WriteUInt8(0b10000000) && WriteUInt8(0) && WriteUInt16(value);
+  }
+  if (write_length == VARIABLE_LENGTH_INTEGER_LENGTH_8) {
+    return WriteUInt8(0b11000000) && WriteUInt8(0) && WriteUInt16(0) &&
+           WriteUInt32(value);
+  }
+
+  QUIC_BUG << "Invalid write_length " << static_cast<int>(write_length);
+  return false;
+}
+
 // static
-int QuicDataWriter::GetVarInt62Len(uint64_t value) {
+QuicVariableLengthIntegerLength QuicDataWriter::GetVarInt62Len(uint64_t value) {
   if ((value & kVarInt62ErrorMask) != 0) {
     QUIC_BUG << "Attempted to encode a value, " << value
              << ", that is too big for VarInt62";
-    return 0;
+    return VARIABLE_LENGTH_INTEGER_LENGTH_0;
   }
   if ((value & kVarInt62Mask8Bytes) != 0) {
-    return 8;
+    return VARIABLE_LENGTH_INTEGER_LENGTH_8;
   }
   if ((value & kVarInt62Mask4Bytes) != 0) {
-    return 4;
+    return VARIABLE_LENGTH_INTEGER_LENGTH_4;
   }
   if ((value & kVarInt62Mask2Bytes) != 0) {
-    return 2;
+    return VARIABLE_LENGTH_INTEGER_LENGTH_2;
   }
-  return 1;
+  return VARIABLE_LENGTH_INTEGER_LENGTH_1;
 }
 
 bool QuicDataWriter::WriteStringPieceVarInt62(

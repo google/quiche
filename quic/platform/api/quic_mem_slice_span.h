@@ -35,6 +35,12 @@ class QUIC_EXPORT_PRIVATE QuicMemSliceSpan {
     return impl_.SaveMemSlicesInSendBuffer(send_buffer);
   }
 
+  // Save data buffers as message data in |message_frame|. |message_frame| will
+  // hold a reference to all data buffers.
+  void SaveMemSlicesAsMessageData(QuicMessageFrame* message_frame) {
+    impl_.SaveMemSlicesAsMessageData(message_frame);
+  }
+
   // Return data of the span at |index| by the form of a QuicStringPiece.
   QuicStringPiece GetData(int index) { return impl_.GetData(index); }
 

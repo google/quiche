@@ -68,7 +68,6 @@ class QuicMemoryCacheBackend : public QuicSimpleServerBackend {
    private:
     QuicStringPiece host_;
     QuicStringPiece path_;
-    QuicMemoryCacheBackend* cache_;
   };
 
   QuicMemoryCacheBackend();

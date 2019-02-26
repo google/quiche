@@ -11,6 +11,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
+#include "net/third_party/quiche/src/quic/test_tools/quic_unacked_packet_map_peer.h"
 
 using testing::_;
 using testing::Return;
@@ -18,27 +19,46 @@ using testing::StrictMock;
 
 namespace quic {
 namespace test {
-
-class QuicUnackedPacketMapPeer {
- public:
-  static const QuicStreamFrame& GetAggregatedStreamFrame(
-      const QuicUnackedPacketMap& unacked_packets) {
-    return unacked_packets.aggregated_stream_frame_;
-  }
-};
-
 namespace {
 
 // Default packet length.
 const uint32_t kDefaultLength = 1000;
 
-class QuicUnackedPacketMapTest : public QuicTestWithParam<bool> {
+struct TestParams {
+  TestParams(Perspective perspective, bool session_decides_what_to_write)
+      : perspective(perspective),
+        session_decides_what_to_write(session_decides_what_to_write) {}
+
+  friend std::ostream& operator<<(std::ostream& os, const TestParams& p) {
+    os << "{ Perspective: " << p.perspective
+       << " session_decides_what_to_write: " << p.session_decides_what_to_write
+       << " }";
+    return os;
+  }
+
+  Perspective perspective;
+  bool session_decides_what_to_write;
+};
+
+std::vector<TestParams> GetTestParams() {
+  std::vector<TestParams> params;
+  for (Perspective perspective :
+       {Perspective::IS_CLIENT, Perspective::IS_SERVER}) {
+    for (bool session_decides_what_to_write : {true, false}) {
+      params.push_back(TestParams(perspective, session_decides_what_to_write));
+    }
+  }
+  return params;
+}
+
+class QuicUnackedPacketMapTest : public QuicTestWithParam<TestParams> {
  protected:
   QuicUnackedPacketMapTest()
-      : unacked_packets_(),
+      : unacked_packets_(GetParam().perspective),
         now_(QuicTime::Zero() + QuicTime::Delta::FromMilliseconds(1000)) {
     unacked_packets_.SetSessionNotifier(&notifier_);
-    unacked_packets_.SetSessionDecideWhatToWrite(GetParam());
+    unacked_packets_.SetSessionDecideWhatToWrite(
+        GetParam().session_decides_what_to_write);
     EXPECT_CALL(notifier_, IsFrameOutstanding(_)).WillRepeatedly(Return(true));
     EXPECT_CALL(notifier_, OnStreamFrameRetransmitted(_))
         .Times(testing::AnyNumber());
@@ -178,7 +198,9 @@ class QuicUnackedPacketMapTest : public QuicTestWithParam<bool> {
   StrictMock<MockSessionNotifier> notifier_;
 };
 
-INSTANTIATE_TEST_CASE_P(Tests, QuicUnackedPacketMapTest, testing::Bool());
+INSTANTIATE_TEST_SUITE_P(Tests,
+                         QuicUnackedPacketMapTest,
+                         ::testing::ValuesIn(GetTestParams()));
 
 TEST_P(QuicUnackedPacketMapTest, RttOnly) {
   // Acks are only tracked for RTT measurement purposes.

@@ -54,12 +54,11 @@ class QuicClientPushPromiseIndexTest : public QuicTest {
                                                        &alarm_factory_,
                                                        Perspective::IS_CLIENT)),
         session_(connection_->supported_versions(), connection_, &index_),
-        promised_(
-            &session_,
-            QuicSpdySessionPeer::GetNthServerInitiatedUnidirectionalStreamId(
-                session_,
-                0),
-            url_) {
+        promised_(&session_,
+                  GetNthServerInitiatedUnidirectionalStreamId(
+                      connection_->transport_version(),
+                      0),
+                  url_) {
     request_[":path"] = "/bar";
     request_[":authority"] = "www.google.com";
     request_[":version"] = "HTTP/1.1";

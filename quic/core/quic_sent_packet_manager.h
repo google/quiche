@@ -13,11 +13,10 @@
 #include <vector>
 
 #include "base/macros.h"
-#include "net/third_party/quiche/src/quic/core/congestion_control/general_loss_algorithm.h"
-#include "net/third_party/quiche/src/quic/core/congestion_control/loss_detection_interface.h"
 #include "net/third_party/quiche/src/quic/core/congestion_control/pacing_sender.h"
 #include "net/third_party/quiche/src/quic/core/congestion_control/rtt_stats.h"
 #include "net/third_party/quiche/src/quic/core/congestion_control/send_algorithm_interface.h"
+#include "net/third_party/quiche/src/quic/core/congestion_control/uber_loss_algorithm.h"
 #include "net/third_party/quiche/src/quic/core/proto/cached_network_parameters.proto.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_pending_retransmission.h"
@@ -115,7 +114,9 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
     return pacing_sender_.max_pacing_rate();
   }
 
-  void SetHandshakeConfirmed() { handshake_confirmed_ = true; }
+  // Set handshake_confirmed_ to true and neuter packets in HANDSHAKE packet
+  // number space.
+  void SetHandshakeConfirmed();
 
   // Requests retransmission of all unacked packets of |retransmission_type|.
   // The behavior of this method depends on the value of |retransmission_type|:
@@ -140,6 +141,8 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
 
   // Removes the retransmittable frames from all unencrypted packets to ensure
   // they don't get retransmitted.
+  // TODO(fayang): Consider remove this function when deprecating
+  // quic_use_uber_loss_algorithm.
   void NeuterUnencryptedPackets();
 
   // Returns true if there are pending retransmissions.
@@ -473,6 +476,14 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // Sets the initial RTT of the connection.
   void SetInitialRtt(QuicTime::Delta rtt);
 
+  // Called when handshake is confirmed to remove the retransmittable frames
+  // from all packets of HANDSHAKE_DATA packet number space to ensure they don't
+  // get retransmitted and will eventually be removed from unacked packets map.
+  // Only used when quic_use_uber_loss_algorithm is true. Please note, this only
+  // applies to QUIC Crypto and needs to be changed when switches to IETF QUIC
+  // with QUIC TLS.
+  void NeuterHandshakePackets();
+
   // Newly serialized retransmittable packets are added to this map, which
   // contains owning pointers to any contained frames.  If a packet is
   // retransmitted, this map will contain entries for both the old and the new
@@ -486,9 +497,6 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // Pending retransmissions which have not been packetized and sent yet.
   PendingRetransmissionMap pending_retransmissions_;
 
-  // Tracks if the connection was created by the server or the client.
-  Perspective perspective_;
-
   const QuicClock* clock_;
   QuicConnectionStats* stats_;
 
@@ -499,7 +507,10 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   std::unique_ptr<SendAlgorithmInterface> send_algorithm_;
   // Not owned. Always points to |general_loss_algorithm_| outside of tests.
   LossDetectionInterface* loss_algorithm_;
+  // TODO(fayang): Remove general_loss_algorithm_ when deprecating
+  // quic_use_uber_loss_algorithm.
   GeneralLossAlgorithm general_loss_algorithm_;
+  UberLossAlgorithm uber_loss_algorithm_;
   bool n_connection_simulation_;
 
   // Tracks the first RTO packet.  If any packet before that packet gets acked,
@@ -572,12 +583,6 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // A reverse iterator of last_ack_frame_.packets. This is reset in
   // OnAckRangeStart, and gradually moves in OnAckRange..
   PacketNumberQueue::const_reverse_iterator acked_packets_iter_;
-
-  // Latched value of quic_aggregate_acked_stream_frames_2 flag.
-  const bool aggregate_acked_stream_frames_;
-
-  // Latched value of quic_fix_mark_for_loss_retransmission flag.
-  const bool fix_mark_for_loss_retransmission_;
 };
 
 }  // namespace quic

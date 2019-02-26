@@ -226,6 +226,11 @@ bool QuicClientBase::MigrateSocketWithSpecifiedPort(
   return true;
 }
 
+bool QuicClientBase::ChangeEphemeralPort() {
+  auto current_host = network_helper_->GetLatestClientAddress().host();
+  return MigrateSocketWithSpecifiedPort(current_host, 0 /*any ephemeral port*/);
+}
+
 QuicSession* QuicClientBase::session() {
   return session_.get();
 }
@@ -325,7 +330,7 @@ QuicConnectionId QuicClientBase::GetNextServerDesignatedConnectionId() {
 }
 
 QuicConnectionId QuicClientBase::GenerateNewConnectionId() {
-  return QuicUtils::CreateRandomConnectionId(Perspective::IS_CLIENT);
+  return QuicUtils::CreateRandomConnectionId();
 }
 
 bool QuicClientBase::CanReconnectWithDifferentVersion(

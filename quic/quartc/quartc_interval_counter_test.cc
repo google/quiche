@@ -6,7 +6,7 @@
 
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_interval.h"
+#include "net/third_party/quiche/src/quic/core/quic_interval.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 
 namespace quic {

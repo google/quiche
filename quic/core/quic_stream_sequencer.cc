@@ -47,12 +47,23 @@ void QuicStreamSequencer::OnStreamFrame(const QuicStreamFrame& frame) {
       return;
     }
   }
+  OnFrameData(byte_offset, data_len, frame.data_buffer);
+}
+
+void QuicStreamSequencer::OnCryptoFrame(const QuicCryptoFrame& frame) {
+  ++num_frames_received_;
+  OnFrameData(frame.offset, frame.data_length, frame.data_buffer);
+}
+
+void QuicStreamSequencer::OnFrameData(QuicStreamOffset byte_offset,
+                                      size_t data_len,
+                                      const char* data_buffer) {
   const size_t previous_readable_bytes = buffered_frames_.ReadableBytes();
   size_t bytes_written;
   QuicString error_details;
   QuicErrorCode result = buffered_frames_.OnStreamData(
-      byte_offset, QuicStringPiece(frame.data_buffer, frame.data_length),
-      &bytes_written, &error_details);
+      byte_offset, QuicStringPiece(data_buffer, data_len), &bytes_written,
+      &error_details);
   if (result != QUIC_NO_ERROR) {
     QuicString details = QuicStrCat(
         "Stream ", stream_->id(), ": ", QuicErrorCodeToString(result), ": ",

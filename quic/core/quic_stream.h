@@ -286,12 +286,13 @@ class QUIC_EXPORT_PRIVATE QuicStream
                        QuicDataWriter* writer);
 
   // Called when data [offset, offset + data_length) is acked. |fin_acked|
-  // indicates whether the fin is acked. Returns true if any new stream data
-  // (including fin) gets acked.
+  // indicates whether the fin is acked. Returns true and updates
+  // |newly_acked_length| if any new stream data (including fin) gets acked.
   virtual bool OnStreamFrameAcked(QuicStreamOffset offset,
                                   QuicByteCount data_length,
                                   bool fin_acked,
-                                  QuicTime::Delta ack_delay_time);
+                                  QuicTime::Delta ack_delay_time,
+                                  QuicByteCount* newly_acked_length);
 
   // Called when data [offset, offset + data_length) was retransmitted.
   // |fin_retransmitted| indicates whether fin was retransmitted.
@@ -413,11 +414,6 @@ class QUIC_EXPORT_PRIVATE QuicStream
     stream_contributes_to_connection_flow_control_ = false;
   }
 
-  void set_ack_listener(
-      QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener) {
-    ack_listener_ = std::move(ack_listener);
-  }
-
   const QuicIntervalSet<QuicStreamOffset>& bytes_acked() const;
 
   const QuicStreamSendBuffer& send_buffer() const { return send_buffer_; }
@@ -520,10 +516,6 @@ class QUIC_EXPORT_PRIVATE QuicStream
   // Indicates whether paddings will be added after the fin is consumed for this
   // stream.
   bool add_random_padding_after_fin_;
-
-  // Ack listener of this stream, and it is notified when any of written bytes
-  // are acked.
-  QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener_;
 
   // Send buffer of this stream. Send buffer is cleaned up when data gets acked
   // or discarded.

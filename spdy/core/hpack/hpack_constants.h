@@ -12,7 +12,8 @@
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_export.h"
 
 // All section references below are to
-// http://tools.ietf.org/html/draft-ietf-httpbis-header-compression-08
+// https://httpwg.org/specs/rfc7540.html and
+// https://httpwg.org/specs/rfc7541.html.
 
 namespace spdy {
 
@@ -42,7 +43,7 @@ struct HpackStaticEntry {
 class HpackHuffmanTable;
 class HpackStaticTable;
 
-// Defined in RFC 7540, 6.5.2.
+// RFC 7540, 6.5.2: Initial value for SETTINGS_HEADER_TABLE_SIZE.
 const uint32_t kDefaultHeaderTableSizeSetting = 4096;
 
 // RFC 7541, 5.2: Flag for a string literal that is stored unmodified (i.e.,
@@ -69,11 +70,11 @@ const HpackPrefix kLiteralNoIndexOpcode = {0b0000, 4};
 // varint-encoded table size with a 5-bit prefix.
 const HpackPrefix kHeaderTableSizeUpdateOpcode = {0b001, 3};
 
-// Symbol code table from RFC 7541, "Appendix C. Huffman Code".
+// RFC 7541, Appendix B: Huffman Code.
 SPDY_EXPORT_PRIVATE const std::vector<HpackHuffmanSymbol>&
 HpackHuffmanCodeVector();
 
-// Static table from RFC 7541, "Appendix B. Static Table Definition".
+// RFC 7541, Appendix A: Static Table Definition.
 SPDY_EXPORT_PRIVATE const std::vector<HpackStaticEntry>&
 HpackStaticTableVector();
 
@@ -87,7 +88,7 @@ SPDY_EXPORT_PRIVATE const HpackHuffmanTable& ObtainHpackHuffmanTable();
 // threads. This function is thread-safe.
 SPDY_EXPORT_PRIVATE const HpackStaticTable& ObtainHpackStaticTable();
 
-// Pseudo-headers start with a colon.  (HTTP2 8.1.2.1., HPACK 3.1.)
+// RFC 7541, 8.1.2.1: Pseudo-headers start with a colon.
 const char kPseudoHeaderPrefix = ':';
 
 }  // namespace spdy

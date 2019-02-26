@@ -12,18 +12,21 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 
 int main(int argc, char* argv[]) {
-  InitGoogle(argv[0], &argc, &argv, false);
+  const char* usage =
+      "Usage: qpack_offline_decoder input_filename expected_headers_filename "
+      "....";
+  std::vector<quic::QuicString> args =
+      quic::QuicParseCommandLineFlags(usage, argc, argv);
 
-  if (argc < 3 || argc % 2 != 1) {
-    QUIC_LOG(ERROR) << "Usage: " << argv[0]
-                    << " input_filename expected_headers_filename ...";
+  if (args.size() < 2 || args.size() % 2 != 0) {
+    quic::QuicPrintCommandLineFlagHelp(usage);
     return 1;
   }
 
-  int i;
-  for (i = 0; 2 * i + 1 < argc; ++i) {
-    const quic::QuicStringPiece input_filename(argv[2 * i + 1]);
-    const quic::QuicStringPiece expected_headers_filename(argv[2 * i + 2]);
+  size_t i;
+  for (i = 0; 2 * i < args.size(); ++i) {
+    const quic::QuicStringPiece input_filename(args[2 * i]);
+    const quic::QuicStringPiece expected_headers_filename(args[2 * i + 1]);
 
     // Every file represents a different connection,
     // therefore every file needs a fresh decoding context.

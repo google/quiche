@@ -225,13 +225,13 @@ void QuicCryptoServerHandshaker::
   //
   // NOTE: the SHLO will be encrypted with the new server write key.
   session()->connection()->SetEncrypter(
-      ENCRYPTION_INITIAL,
+      ENCRYPTION_ZERO_RTT,
       std::move(crypto_negotiated_params_->initial_crypters.encrypter));
-  session()->connection()->SetDefaultEncryptionLevel(ENCRYPTION_INITIAL);
+  session()->connection()->SetDefaultEncryptionLevel(ENCRYPTION_ZERO_RTT);
   // Set the decrypter immediately so that we no longer accept unencrypted
   // packets.
   session()->connection()->SetDecrypter(
-      ENCRYPTION_INITIAL,
+      ENCRYPTION_ZERO_RTT,
       std::move(crypto_negotiated_params_->initial_crypters.decrypter));
   session()->connection()->SetDiversificationNonce(*diversification_nonce);
 
@@ -310,9 +310,13 @@ void QuicCryptoServerHandshaker::FinishSendServerConfigUpdate(
 
   QUIC_DVLOG(1) << "Server: Sending server config update: "
                 << message.DebugString();
-  const QuicData& data = message.GetSerialized();
-  stream_->WriteOrBufferData(QuicStringPiece(data.data(), data.length()), false,
-                             nullptr);
+  if (transport_version() < QUIC_VERSION_47) {
+    const QuicData& data = message.GetSerialized();
+    stream_->WriteOrBufferData(QuicStringPiece(data.data(), data.length()),
+                               false, nullptr);
+  } else {
+    SendHandshakeMessage(message);
+  }
 
   ++num_server_config_update_messages_sent_;
 }
@@ -352,6 +356,11 @@ bool QuicCryptoServerHandshaker::ShouldSendExpectCTHeader() const {
 QuicLongHeaderType QuicCryptoServerHandshaker::GetLongHeaderType(
     QuicStreamOffset /*offset*/) const {
   if (last_sent_handshake_message_tag() == kSREJ) {
+    if (QuicVersionHasLongHeaderLengths(
+            session()->connection()->transport_version())) {
+      return HANDSHAKE;
+    }
+    // TODO(b/123493765): we should probably not be sending RETRY here.
     return RETRY;
   }
   if (last_sent_handshake_message_tag() == kSHLO) {

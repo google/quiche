@@ -56,8 +56,6 @@ class QuicEpollConnectionHelper : public QuicConnectionHelperInterface {
   QuicBufferAllocator* GetStreamSendBufferAllocator() override;
 
  private:
-  friend class QuicEpollConnectionHelperPeer;
-
   const QuicEpollClock clock_;
   QuicRandom* random_generator_;
   // Set up allocators.  They take up minimal memory before use.

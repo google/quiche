@@ -8,6 +8,7 @@
 #include "net/third_party/quiche/src/quic/core/congestion_control/send_algorithm_interface.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_sent_packet_manager.h"
+#include "net/third_party/quiche/src/quic/test_tools/quic_unacked_packet_map_peer.h"
 
 namespace quic {
 namespace test {
@@ -41,7 +42,8 @@ bool QuicSentPacketManagerPeer::GetUseNewRto(
 void QuicSentPacketManagerPeer::SetPerspective(
     QuicSentPacketManager* sent_packet_manager,
     Perspective perspective) {
-  sent_packet_manager->perspective_ = perspective;
+  QuicUnackedPacketMapPeer::SetPerspective(
+      &sent_packet_manager->unacked_packets_, perspective);
 }
 
 // static

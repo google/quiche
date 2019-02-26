@@ -55,6 +55,8 @@ class QUIC_EXPORT_PRIVATE GeneralLossAlgorithm : public LossDetectionInterface {
       const RttStats& rtt_stats,
       QuicPacketNumber spurious_retransmission) override;
 
+  void SetPacketNumberSpace(PacketNumberSpace packet_number_space);
+
   int reordering_shift() const { return reordering_shift_; }
 
  private:
@@ -71,15 +73,11 @@ class QUIC_EXPORT_PRIVATE GeneralLossAlgorithm : public LossDetectionInterface {
   int reordering_shift_;
   // The largest newly acked from the previous call to DetectLosses.
   QuicPacketNumber largest_previously_acked_;
-  // The largest lost packet.
-  // TODO(fayang): Remove this variable when deprecating
-  // quic_faster_detect_loss.
-  QuicPacketNumber largest_lost_;
   // The least in flight packet. Loss detection should start from this. Please
   // note, least_in_flight_ could be largest packet ever sent + 1.
   QuicPacketNumber least_in_flight_;
-  // Latched value of quic_faster_detect_loss flag.
-  const bool faster_detect_loss_;
+  // This is only used when quic_use_uber_loss_algorithm is true.
+  PacketNumberSpace packet_number_space_;
 };
 
 }  // namespace quic

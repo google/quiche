@@ -119,9 +119,9 @@ QuicData* DecryptWithNonce(ChaCha20Poly1305TlsDecrypter* decrypter,
   decrypter->SetIV(nonce);
   std::unique_ptr<char[]> output(new char[ciphertext.length()]);
   size_t output_length = 0;
-  const bool success = decrypter->DecryptPacket(
-      QuicTransportVersionMax(), 0, associated_data, ciphertext, output.get(),
-      &output_length, ciphertext.length());
+  const bool success =
+      decrypter->DecryptPacket(0, associated_data, ciphertext, output.get(),
+                               &output_length, ciphertext.length());
   if (!success) {
     return nullptr;
   }

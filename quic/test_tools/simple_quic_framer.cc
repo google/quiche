@@ -55,6 +55,8 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
     return true;
   }
 
+  void OnCoalescedPacket(const QuicEncryptedPacket& packet) override {}
+
   bool OnStreamFrame(const QuicStreamFrame& frame) override {
     // Save a copy of the data so it is valid after the packet is processed.
     QuicString* string_data =
@@ -68,8 +70,13 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
   }
 
   bool OnCryptoFrame(const QuicCryptoFrame& frame) override {
-    // TODO(nharper): Implement this.
-    return false;
+    // Save a copy of the data so it is valid after the packet is processed.
+    QuicString* string_data =
+        new QuicString(frame.data_buffer, frame.data_length);
+    crypto_data_.push_back(QuicWrapUnique(string_data));
+    crypto_frames_.push_back(QuicMakeUnique<QuicCryptoFrame>(
+        frame.level, frame.offset, QuicStringPiece(*string_data)));
+    return true;
   }
 
   bool OnAckFrameStart(QuicPacketNumber largest_acked,
@@ -181,7 +188,7 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
   }
 
   bool OnMessageFrame(const QuicMessageFrame& frame) override {
-    message_frames_.push_back(frame);
+    message_frames_.emplace_back(frame.data, frame.message_length);
     return true;
   }
 
@@ -222,6 +229,9 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
   const std::vector<std::unique_ptr<QuicStreamFrame>>& stream_frames() const {
     return stream_frames_;
   }
+  const std::vector<std::unique_ptr<QuicCryptoFrame>>& crypto_frames() const {
+    return crypto_frames_;
+  }
   const std::vector<QuicStopWaitingFrame>& stop_waiting_frames() const {
     return stop_waiting_frames_;
   }
@@ -258,6 +268,7 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
   std::vector<QuicPaddingFrame> padding_frames_;
   std::vector<QuicPingFrame> ping_frames_;
   std::vector<std::unique_ptr<QuicStreamFrame>> stream_frames_;
+  std::vector<std::unique_ptr<QuicCryptoFrame>> crypto_frames_;
   std::vector<QuicRstStreamFrame> rst_stream_frames_;
   std::vector<QuicGoAwayFrame> goaway_frames_;
   std::vector<QuicStreamIdBlockedFrame> stream_id_blocked_frames_;
@@ -274,6 +285,7 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
   std::vector<QuicNewTokenFrame> new_token_frames_;
   std::vector<QuicMessageFrame> message_frames_;
   std::vector<std::unique_ptr<QuicString>> stream_data_;
+  std::vector<std::unique_ptr<QuicString>> crypto_data_;
   EncryptionLevel last_decrypted_level_;
 };
 
@@ -325,7 +337,8 @@ size_t SimpleQuicFramer::num_frames() const {
          rst_stream_frames().size() + stop_waiting_frames().size() +
          path_challenge_frames().size() + path_response_frames().size() +
          stream_frames().size() + ping_frames().size() +
-         connection_close_frames().size() + padding_frames().size();
+         connection_close_frames().size() + padding_frames().size() +
+         crypto_frames().size();
 }
 
 const std::vector<QuicAckFrame>& SimpleQuicFramer::ack_frames() const {
@@ -362,6 +375,11 @@ SimpleQuicFramer::window_update_frames() const {
 const std::vector<std::unique_ptr<QuicStreamFrame>>&
 SimpleQuicFramer::stream_frames() const {
   return visitor_->stream_frames();
+}
+
+const std::vector<std::unique_ptr<QuicCryptoFrame>>&
+SimpleQuicFramer::crypto_frames() const {
+  return visitor_->crypto_frames();
 }
 
 const std::vector<QuicRstStreamFrame>& SimpleQuicFramer::rst_stream_frames()

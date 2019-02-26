@@ -53,8 +53,7 @@ class QUIC_EXPORT_PRIVATE QuicDecrypter : public QuicCrypter {
   // to form the nonce.
   // TODO(wtc): add a way for DecryptPacket to report decryption failure due
   // to non-authentic inputs, as opposed to other reasons for failure.
-  virtual bool DecryptPacket(QuicTransportVersion version,
-                             uint64_t packet_number,
+  virtual bool DecryptPacket(uint64_t packet_number,
                              QuicStringPiece associated_data,
                              QuicStringPiece ciphertext,
                              char* output,

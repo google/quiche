@@ -4,6 +4,7 @@
 
 #include "net/third_party/quiche/src/quic/core/quic_received_packet_manager.h"
 
+#include <algorithm>
 #include <limits>
 #include <utility>
 
@@ -74,6 +75,13 @@ void QuicReceivedPacketManager::RecordPacketReceived(
       ack_frame_.received_packet_times.push_back(
           std::make_pair(packet_number, receipt_time));
     }
+  }
+
+  if (least_received_packet_number_.IsInitialized()) {
+    least_received_packet_number_ =
+        std::min(least_received_packet_number_, packet_number);
+  } else {
+    least_received_packet_number_ = packet_number;
   }
 }
 
@@ -150,12 +158,14 @@ bool QuicReceivedPacketManager::HasMissingPackets() const {
   if (ack_frame_.packets.NumIntervals() > 1) {
     return true;
   }
-  // TODO(fayang): Fix this as this check assumes first sent packet by peer
-  // is 1.
-  return ack_frame_.packets.Min() >
-         (peer_least_packet_awaiting_ack_.IsInitialized()
-              ? peer_least_packet_awaiting_ack_
-              : QuicPacketNumber(1));
+  if (!GetQuicRestartFlag(quic_enable_accept_random_ipn)) {
+    return ack_frame_.packets.Min() >
+           (peer_least_packet_awaiting_ack_.IsInitialized()
+                ? peer_least_packet_awaiting_ack_
+                : QuicPacketNumber(1));
+  }
+  return peer_least_packet_awaiting_ack_.IsInitialized() &&
+         ack_frame_.packets.Min() > peer_least_packet_awaiting_ack_;
 }
 
 bool QuicReceivedPacketManager::HasNewMissingPackets() const {
@@ -169,6 +179,18 @@ bool QuicReceivedPacketManager::ack_frame_updated() const {
 
 QuicPacketNumber QuicReceivedPacketManager::GetLargestObserved() const {
   return LargestAcked(ack_frame_);
+}
+
+QuicPacketNumber QuicReceivedPacketManager::PeerFirstSendingPacketNumber()
+    const {
+  if (!GetQuicRestartFlag(quic_enable_accept_random_ipn)) {
+    return QuicPacketNumber(1);
+  }
+  if (!least_received_packet_number_.IsInitialized()) {
+    QUIC_BUG << "No packets have been received yet";
+    return QuicPacketNumber(1);
+  }
+  return least_received_packet_number_;
 }
 
 }  // namespace quic

@@ -168,16 +168,11 @@ TEST_F(QuicUtilsTest, RandomConnectionId) {
   MockRandom random(33);
   QuicConnectionId connection_id = QuicUtils::CreateRandomConnectionId(&random);
   EXPECT_EQ(connection_id.length(), sizeof(uint64_t));
-  if (!QuicConnectionIdSupportsVariableLength(quic::Perspective::IS_SERVER) ||
-      !QuicConnectionIdSupportsVariableLength(quic::Perspective::IS_CLIENT)) {
-    EXPECT_EQ(connection_id, QuicConnectionIdFromUInt64(random.RandUint64()));
-  } else {
     char connection_id_bytes[sizeof(uint64_t)];
     random.RandBytes(connection_id_bytes, QUIC_ARRAYSIZE(connection_id_bytes));
     EXPECT_EQ(connection_id,
               QuicConnectionId(static_cast<char*>(connection_id_bytes),
                                QUIC_ARRAYSIZE(connection_id_bytes)));
-  }
   EXPECT_NE(connection_id, EmptyQuicConnectionId());
   EXPECT_NE(connection_id, TestConnectionId());
   EXPECT_NE(connection_id, TestConnectionId(1));
@@ -185,19 +180,15 @@ TEST_F(QuicUtilsTest, RandomConnectionId) {
 
 TEST_F(QuicUtilsTest, VariableLengthConnectionId) {
   EXPECT_FALSE(
-      QuicUtils::VariableLengthConnectionIdAllowedForVersion(QUIC_VERSION_35));
+      QuicUtils::VariableLengthConnectionIdAllowedForVersion(QUIC_VERSION_39));
   EXPECT_TRUE(QuicUtils::IsConnectionIdValidForVersion(
-      QuicUtils::CreateZeroConnectionId(QUIC_VERSION_35), QUIC_VERSION_35));
+      QuicUtils::CreateZeroConnectionId(QUIC_VERSION_39), QUIC_VERSION_39));
   EXPECT_TRUE(QuicUtils::IsConnectionIdValidForVersion(
       QuicUtils::CreateZeroConnectionId(QUIC_VERSION_99), QUIC_VERSION_99));
-  if (!QuicConnectionIdSupportsVariableLength(quic::Perspective::IS_SERVER) ||
-      !QuicConnectionIdSupportsVariableLength(quic::Perspective::IS_CLIENT)) {
-    return;
-  }
-  EXPECT_NE(QuicUtils::CreateZeroConnectionId(QUIC_VERSION_35),
+  EXPECT_NE(QuicUtils::CreateZeroConnectionId(QUIC_VERSION_39),
             EmptyQuicConnectionId());
   EXPECT_FALSE(QuicUtils::IsConnectionIdValidForVersion(EmptyQuicConnectionId(),
-                                                        QUIC_VERSION_35));
+                                                        QUIC_VERSION_39));
 }
 
 TEST_F(QuicUtilsTest, StatelessResetToken) {

@@ -77,7 +77,7 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
     // ENCRYPTION_REESTABLISHED indicates that a client hello was rejected by
     // the server and thus the encryption key has been updated. Therefore the
     // connection should resend any packets that were sent under
-    // ENCRYPTION_INITIAL. (Client only.)
+    // ENCRYPTION_ZERO_RTT. (Client only.)
     ENCRYPTION_REESTABLISHED,
     // HANDSHAKE_CONFIRMED, in a client, indicates the server has accepted
     // our handshake. In a server it indicates that a full, valid client hello
@@ -99,6 +99,7 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
 
   // QuicConnectionVisitorInterface methods:
   void OnStreamFrame(const QuicStreamFrame& frame) override;
+  void OnCryptoFrame(const QuicCryptoFrame& frame) override;
   void OnRstStream(const QuicRstStreamFrame& frame) override;
   void OnGoAway(const QuicGoAwayFrame& frame) override;
   void OnMessageReceived(QuicStringPiece message) override;
@@ -165,11 +166,17 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
                                       QuicStreamOffset offset,
                                       StreamSendingState state);
 
-  // Called by application to send |message|. Returns the message result which
-  // includes the message status and message ID (valid if the write succeeds).
-  // SendMessage flushes a message packet even it is not full. If the
-  // application wants to bundle other data in the same packet, please consider
-  // adding a packet flusher around the SendMessage and/or WritevData calls.
+  // Called by application to send |message|. Data copy can be avoided if
+  // |message| is provided in reference counted memory.
+  // Please note, |message| provided in reference counted memory would be moved
+  // internally when message is successfully sent. Thereafter, it would be
+  // undefined behavior if callers try to access the slices through their own
+  // copy of the span object.
+  // Returns the message result which includes the message status and message ID
+  // (valid if the write succeeds). SendMessage flushes a message packet even it
+  // is not full. If the application wants to bundle other data in the same
+  // packet, please consider adding a packet flusher around the SendMessage
+  // and/or WritevData calls.
   //
   // OnMessageAcked and OnMessageLost are called when a particular message gets
   // acked or lost.
@@ -179,7 +186,7 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
   // blocked. In this case the caller can retry sending message again when
   // connection becomes available, for example after getting OnCanWrite()
   // callback.
-  MessageResult SendMessage(QuicStringPiece message);
+  MessageResult SendMessage(QuicMemSliceSpan message);
 
   // Called when message with |message_id| gets acked.
   virtual void OnMessageAcked(QuicMessageId message_id);
@@ -381,6 +388,17 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
     return num_locally_closed_incoming_streams_highest_offset_;
   }
 
+  // Does actual work of sending reset-stream or reset-stream&stop-sending
+  // If the connection is not version 99/IETF QUIC, will always send a
+  // RESET_STREAM and close_write_side_only is ignored. If the connection is
+  // IETF QUIC/Version 99 then will send a RESET_STREAM and STOP_SENDING if
+  // close_write_side_only is false, just a RESET_STREAM if
+  // close_write_side_only is true.
+  virtual void SendRstStreamInner(QuicStreamId id,
+                                  QuicRstStreamErrorCode error,
+                                  QuicStreamOffset bytes_written,
+                                  bool close_write_side_only);
+
  protected:
   using StaticStreamMap = QuicSmallMap<QuicStreamId, QuicStream*, 2>;
 
@@ -570,17 +588,6 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
 
   // Closes the pending stream |stream_id| before it has been created.
   void ClosePendingStream(QuicStreamId stream_id);
-
-  // Does actual work of sending reset-stream or reset-stream&stop-sending
-  // If the connection is not version 99/IETF QUIC, will always send a
-  // RESET_STREAM and close_write_side_only is ignored. If the connection is
-  // IETF QUIC/Version 99 then will send a RESET_STREAM and STOP_SENDING if
-  // close_write_side_only is false, just a RESET_STREAM if
-  // close_write_side_only is true.
-  void SendRstStreamInner(QuicStreamId id,
-                          QuicRstStreamErrorCode error,
-                          QuicStreamOffset bytes_written,
-                          bool close_write_side_only);
 
   // Keep track of highest received byte offset of locally closed streams, while
   // waiting for a definitive final highest offset from the peer.

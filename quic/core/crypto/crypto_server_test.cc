@@ -236,7 +236,7 @@ class CryptoServerTest : public QuicTestWithParam<TestParams> {
 
   void ShouldSucceed(const CryptoHandshakeMessage& message) {
     bool called = false;
-    QuicSocketAddress server_address;
+    QuicSocketAddress server_address(QuicIpAddress::Any4(), 5);
     config_.ValidateClientHello(
         message, client_address_.host(), server_address,
         supported_versions_.front().transport_version, &clock_, signed_config_,
@@ -254,7 +254,7 @@ class CryptoServerTest : public QuicTestWithParam<TestParams> {
   void ShouldFailMentioning(const char* error_substr,
                             const CryptoHandshakeMessage& message,
                             bool* called) {
-    QuicSocketAddress server_address;
+    QuicSocketAddress server_address(QuicIpAddress::Any4(), 5);
     config_.ValidateClientHello(
         message, client_address_.host(), server_address,
         supported_versions_.front().transport_version, &clock_, signed_config_,
@@ -312,7 +312,7 @@ class CryptoServerTest : public QuicTestWithParam<TestParams> {
       QuicReferenceCountedPointer<ValidateCallback::Result> result,
       bool should_succeed,
       const char* error_substr) {
-    QuicSocketAddress server_address;
+    QuicSocketAddress server_address(QuicIpAddress::Any4(), 5);
     QuicConnectionId server_designated_connection_id =
         TestConnectionId(rand_for_id_generation_.RandUint64());
     bool called;
@@ -415,9 +415,8 @@ class CryptoServerTest : public QuicTestWithParam<TestParams> {
   std::unique_ptr<CryptoHandshakeMessage> server_config_;
 };
 
-INSTANTIATE_TEST_CASE_P(CryptoServerTests,
-                        CryptoServerTest,
-                        ::testing::ValuesIn(GetTestParams()));
+INSTANTIATE_TEST_SUITE_P(CryptoServerTests, CryptoServerTest,
+                         ::testing::ValuesIn(GetTestParams()));
 
 TEST_P(CryptoServerTest, BadSNI) {
   // clang-format off

@@ -10,6 +10,7 @@
 
 #include "base/macros.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"
+#include "net/third_party/quiche/src/quic/core/frames/quic_frame.h"
 #include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
@@ -79,6 +80,9 @@ class QUIC_EXPORT_PRIVATE QuicUtils {
                            size_t buffer_length,
                            char* buffer);
 
+  // Creates an iovec pointing to the same data as |data|.
+  static struct iovec MakeIovec(QuicStringPiece data);
+
   // Returns true if a packet is ackable. A packet is unackable if it can never
   // be acked. Occurs when a packet is never sent, after it is acknowledged
   // once, or if it's a crypto packet we never expect to receive an ack for.
@@ -87,6 +91,10 @@ class QUIC_EXPORT_PRIVATE QuicUtils {
   // Returns true if frame with |type| is retransmittable. A retransmittable
   // frame should be retransmitted if it is detected as lost.
   static bool IsRetransmittableFrame(QuicFrameType type);
+
+  // Returns true if |frame| is a handshake frame in version |version|.
+  static bool IsHandshakeFrame(const QuicFrame& frame,
+                               QuicTransportVersion transport_version);
 
   // Returns packet state corresponding to |retransmission_type|.
   static SentPacketState RetransmissionTypeToPacketState(
@@ -121,9 +129,12 @@ class QUIC_EXPORT_PRIVATE QuicUtils {
   // v99.
   static bool IsBidirectionalStreamId(QuicStreamId id);
 
-  // Returns stream type according to |id| and |peer_initiated|. Only used in
-  // v99.
-  static StreamType GetStreamType(QuicStreamId id, bool peer_initiated);
+  // Returns stream type.  Either |perspective| or |peer_initiated| would be
+  // enough together with |id|.  This method enforces that the three parameters
+  // are consistent.  Only used in v99.
+  static StreamType GetStreamType(QuicStreamId id,
+                                  Perspective perspective,
+                                  bool peer_initiated);
 
   // Returns the delta between consecutive stream IDs of the same type.
   static QuicStreamId StreamIdDelta(QuicTransportVersion version);
@@ -141,15 +152,8 @@ class QUIC_EXPORT_PRIVATE QuicUtils {
   // Generates a random 64bit connection ID.
   static QuicConnectionId CreateRandomConnectionId();
 
-  // Generates a random 64bit connection ID.
-  static QuicConnectionId CreateRandomConnectionId(Perspective perspective);
-
   // Generates a random 64bit connection ID using the provided QuicRandom.
   static QuicConnectionId CreateRandomConnectionId(QuicRandom* random);
-
-  // Generates a random 64bit connection ID using the provided QuicRandom.
-  static QuicConnectionId CreateRandomConnectionId(QuicRandom* random,
-                                                   Perspective perspective);
 
   // Returns true if the QUIC version allows variable length connection IDs.
   static bool VariableLengthConnectionIdAllowedForVersion(

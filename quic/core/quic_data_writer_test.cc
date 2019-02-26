@@ -37,9 +37,8 @@ std::vector<TestParams> GetTestParams() {
 
 class QuicDataWriterTest : public QuicTestWithParam<TestParams> {};
 
-INSTANTIATE_TEST_CASE_P(QuicDataWriterTests,
-                        QuicDataWriterTest,
-                        ::testing::ValuesIn(GetTestParams()));
+INSTANTIATE_TEST_SUITE_P(QuicDataWriterTests, QuicDataWriterTest,
+                         ::testing::ValuesIn(GetTestParams()));
 
 TEST_P(QuicDataWriterTest, SanityCheckUFloat16Consts) {
   // Check the arithmetic on the constants - otherwise the values below make
@@ -256,99 +255,16 @@ TEST_P(QuicDataWriterTest, WriteConnectionId) {
   ASSERT_LE(connection_id.length(), kQuicMaxConnectionIdLength);
   char buffer[kQuicMaxConnectionIdLength];
   QuicDataWriter writer(connection_id.length(), buffer, GetParam().endianness);
-  EXPECT_TRUE(writer.WriteConnectionId(connection_id, Perspective::IS_CLIENT));
+  EXPECT_TRUE(writer.WriteConnectionId(connection_id));
   test::CompareCharArraysWithHexError("connection_id", buffer,
                                       connection_id.length(), big_endian,
                                       connection_id.length());
 
   QuicConnectionId read_connection_id;
   QuicDataReader reader(buffer, connection_id.length(), GetParam().endianness);
-  EXPECT_TRUE(reader.ReadConnectionId(
-      &read_connection_id, QUIC_ARRAYSIZE(big_endian), Perspective::IS_CLIENT));
+  EXPECT_TRUE(
+      reader.ReadConnectionId(&read_connection_id, QUIC_ARRAYSIZE(big_endian)));
   EXPECT_EQ(connection_id, read_connection_id);
-
-  // TODO(dschinazi) b/120240679 - remove this second read once these flags are
-  // deprecated: quic_variable_length_connection_ids_(client|server).
-  QuicConnectionId read_connection_id2;
-  QuicDataReader reader2(buffer, connection_id.length(), GetParam().endianness);
-  EXPECT_TRUE(reader2.ReadConnectionId(&read_connection_id2,
-                                       QUIC_ARRAYSIZE(big_endian),
-                                       Perspective::IS_SERVER));
-  EXPECT_EQ(connection_id, read_connection_id2);
-}
-
-// TODO(dschinazi) b/120240679 - remove this test once these flags are
-// deprecated: quic_variable_length_connection_ids_(client|server).
-TEST_P(QuicDataWriterTest, WriteConnectionIdServerAllowingVariableLength) {
-  if (!GetQuicRestartFlag(quic_connection_ids_network_byte_order)) {
-    // This test is pointless if the flag is off.
-    return;
-  }
-  SetQuicRestartFlag(quic_variable_length_connection_ids_client, false);
-  SetQuicRestartFlag(quic_variable_length_connection_ids_server, true);
-  QuicConnectionId connection_id =
-      TestConnectionId(UINT64_C(0x0011223344556677));
-  char big_endian[] = {
-      0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
-  };
-  EXPECT_EQ(connection_id.length(), QUIC_ARRAYSIZE(big_endian));
-  ASSERT_LE(connection_id.length(), kQuicMaxConnectionIdLength);
-  char buffer[kQuicMaxConnectionIdLength];
-  QuicDataWriter writer(connection_id.length(), buffer, GetParam().endianness);
-  EXPECT_TRUE(writer.WriteConnectionId(connection_id, Perspective::IS_SERVER));
-  test::CompareCharArraysWithHexError("connection_id", buffer,
-                                      connection_id.length(), big_endian,
-                                      connection_id.length());
-
-  QuicConnectionId read_connection_id;
-  QuicDataReader reader(buffer, connection_id.length(), GetParam().endianness);
-  EXPECT_TRUE(reader.ReadConnectionId(
-      &read_connection_id, QUIC_ARRAYSIZE(big_endian), Perspective::IS_CLIENT));
-  EXPECT_EQ(connection_id, read_connection_id);
-
-  QuicConnectionId read_connection_id2;
-  QuicDataReader reader2(buffer, connection_id.length(), GetParam().endianness);
-  EXPECT_TRUE(reader2.ReadConnectionId(&read_connection_id2,
-                                       QUIC_ARRAYSIZE(big_endian),
-                                       Perspective::IS_SERVER));
-  EXPECT_EQ(connection_id, read_connection_id2);
-}
-
-// TODO(dschinazi) b/120240679 - remove this test once these flags are
-// deprecated: quic_variable_length_connection_ids_(client|server).
-TEST_P(QuicDataWriterTest, WriteConnectionIdClientAllowingVariableLength) {
-  if (!GetQuicRestartFlag(quic_connection_ids_network_byte_order)) {
-    // This test is pointless if the flag is off.
-    return;
-  }
-  SetQuicRestartFlag(quic_variable_length_connection_ids_client, true);
-  SetQuicRestartFlag(quic_variable_length_connection_ids_server, false);
-  QuicConnectionId connection_id =
-      TestConnectionId(UINT64_C(0x0011223344556677));
-  char big_endian[] = {
-      0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
-  };
-  EXPECT_EQ(connection_id.length(), QUIC_ARRAYSIZE(big_endian));
-  ASSERT_LE(connection_id.length(), kQuicMaxConnectionIdLength);
-  char buffer[kQuicMaxConnectionIdLength];
-  QuicDataWriter writer(connection_id.length(), buffer, GetParam().endianness);
-  EXPECT_TRUE(writer.WriteConnectionId(connection_id, Perspective::IS_SERVER));
-  test::CompareCharArraysWithHexError("connection_id", buffer,
-                                      connection_id.length(), big_endian,
-                                      connection_id.length());
-
-  QuicConnectionId read_connection_id;
-  QuicDataReader reader(buffer, connection_id.length(), GetParam().endianness);
-  EXPECT_TRUE(reader.ReadConnectionId(
-      &read_connection_id, QUIC_ARRAYSIZE(big_endian), Perspective::IS_CLIENT));
-  EXPECT_EQ(connection_id, read_connection_id);
-
-  QuicConnectionId read_connection_id2;
-  QuicDataReader reader2(buffer, connection_id.length(), GetParam().endianness);
-  EXPECT_TRUE(reader2.ReadConnectionId(&read_connection_id2,
-                                       QUIC_ARRAYSIZE(big_endian),
-                                       Perspective::IS_SERVER));
-  EXPECT_EQ(connection_id, read_connection_id2);
 }
 
 TEST_P(QuicDataWriterTest, WriteTag) {
@@ -988,6 +904,76 @@ TEST_P(QuicDataWriterTest, MultiVarInt1) {
     EXPECT_EQ(test_val, (UINT64_C(0x30) + (i & 0xf)));
   }
   // And the N+1st should fail.
+  EXPECT_FALSE(reader.ReadVarInt62(&test_val));
+}
+
+// Test writing varints with a forced length.
+TEST_P(QuicDataWriterTest, VarIntFixedLength) {
+  char buffer[90];
+  memset(buffer, 0, sizeof(buffer));
+  QuicDataWriter writer(sizeof(buffer), static_cast<char*>(buffer),
+                        Endianness::NETWORK_BYTE_ORDER);
+
+  writer.WriteVarInt62(1, VARIABLE_LENGTH_INTEGER_LENGTH_1);
+  writer.WriteVarInt62(1, VARIABLE_LENGTH_INTEGER_LENGTH_2);
+  writer.WriteVarInt62(1, VARIABLE_LENGTH_INTEGER_LENGTH_4);
+  writer.WriteVarInt62(1, VARIABLE_LENGTH_INTEGER_LENGTH_8);
+
+  writer.WriteVarInt62(63, VARIABLE_LENGTH_INTEGER_LENGTH_1);
+  writer.WriteVarInt62(63, VARIABLE_LENGTH_INTEGER_LENGTH_2);
+  writer.WriteVarInt62(63, VARIABLE_LENGTH_INTEGER_LENGTH_4);
+  writer.WriteVarInt62(63, VARIABLE_LENGTH_INTEGER_LENGTH_8);
+
+  writer.WriteVarInt62(64, VARIABLE_LENGTH_INTEGER_LENGTH_2);
+  writer.WriteVarInt62(64, VARIABLE_LENGTH_INTEGER_LENGTH_4);
+  writer.WriteVarInt62(64, VARIABLE_LENGTH_INTEGER_LENGTH_8);
+
+  writer.WriteVarInt62(16383, VARIABLE_LENGTH_INTEGER_LENGTH_2);
+  writer.WriteVarInt62(16383, VARIABLE_LENGTH_INTEGER_LENGTH_4);
+  writer.WriteVarInt62(16383, VARIABLE_LENGTH_INTEGER_LENGTH_8);
+
+  writer.WriteVarInt62(16384, VARIABLE_LENGTH_INTEGER_LENGTH_4);
+  writer.WriteVarInt62(16384, VARIABLE_LENGTH_INTEGER_LENGTH_8);
+
+  writer.WriteVarInt62(1073741823, VARIABLE_LENGTH_INTEGER_LENGTH_4);
+  writer.WriteVarInt62(1073741823, VARIABLE_LENGTH_INTEGER_LENGTH_8);
+
+  writer.WriteVarInt62(1073741824, VARIABLE_LENGTH_INTEGER_LENGTH_8);
+
+  QuicDataReader reader(buffer, sizeof(buffer), Endianness::NETWORK_BYTE_ORDER);
+
+  uint64_t test_val = 0;
+  for (int i = 0; i < 4; ++i) {
+    EXPECT_TRUE(reader.ReadVarInt62(&test_val));
+    EXPECT_EQ(test_val, 1);
+  }
+  for (int i = 0; i < 4; ++i) {
+    EXPECT_TRUE(reader.ReadVarInt62(&test_val));
+    EXPECT_EQ(test_val, 63);
+  }
+
+  for (int i = 0; i < 3; ++i) {
+    EXPECT_TRUE(reader.ReadVarInt62(&test_val));
+    EXPECT_EQ(test_val, 64);
+  }
+  for (int i = 0; i < 3; ++i) {
+    EXPECT_TRUE(reader.ReadVarInt62(&test_val));
+    EXPECT_EQ(test_val, 16383);
+  }
+
+  for (int i = 0; i < 2; ++i) {
+    EXPECT_TRUE(reader.ReadVarInt62(&test_val));
+    EXPECT_EQ(test_val, 16384);
+  }
+  for (int i = 0; i < 2; ++i) {
+    EXPECT_TRUE(reader.ReadVarInt62(&test_val));
+    EXPECT_EQ(test_val, 1073741823);
+  }
+
+  EXPECT_TRUE(reader.ReadVarInt62(&test_val));
+  EXPECT_EQ(test_val, 1073741824);
+
+  // We are at the end of the buffer so this should fail.
   EXPECT_FALSE(reader.ReadVarInt62(&test_val));
 }
 

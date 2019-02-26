@@ -15,16 +15,33 @@ class NullEncrypterTest : public QuicTestWithParam<bool> {};
 TEST_F(NullEncrypterTest, EncryptClient) {
   unsigned char expected[] = {
       // fnv hash
-      0x97, 0xdc, 0x27, 0x2f, 0x18, 0xa8, 0x56, 0x73, 0xdf, 0x8d, 0x1d, 0xd0,
+      0x97,
+      0xdc,
+      0x27,
+      0x2f,
+      0x18,
+      0xa8,
+      0x56,
+      0x73,
+      0xdf,
+      0x8d,
+      0x1d,
+      0xd0,
       // payload
-      'g', 'o', 'o', 'd', 'b', 'y', 'e', '!',
+      'g',
+      'o',
+      'o',
+      'd',
+      'b',
+      'y',
+      'e',
+      '!',
   };
   char encrypted[256];
   size_t encrypted_len = 0;
   NullEncrypter encrypter(Perspective::IS_CLIENT);
-  ASSERT_TRUE(encrypter.EncryptPacket(QUIC_VERSION_39, 0, "hello world!",
-                                      "goodbye!", encrypted, &encrypted_len,
-                                      256));
+  ASSERT_TRUE(encrypter.EncryptPacket(0, "hello world!", "goodbye!", encrypted,
+                                      &encrypted_len, 256));
   test::CompareCharArraysWithHexError(
       "encrypted data", encrypted, encrypted_len,
       reinterpret_cast<const char*>(expected), QUIC_ARRAYSIZE(expected));
@@ -33,52 +50,33 @@ TEST_F(NullEncrypterTest, EncryptClient) {
 TEST_F(NullEncrypterTest, EncryptServer) {
   unsigned char expected[] = {
       // fnv hash
-      0x63, 0x5e, 0x08, 0x03, 0x32, 0x80, 0x8f, 0x73, 0xdf, 0x8d, 0x1d, 0x1a,
+      0x63,
+      0x5e,
+      0x08,
+      0x03,
+      0x32,
+      0x80,
+      0x8f,
+      0x73,
+      0xdf,
+      0x8d,
+      0x1d,
+      0x1a,
       // payload
-      'g', 'o', 'o', 'd', 'b', 'y', 'e', '!',
+      'g',
+      'o',
+      'o',
+      'd',
+      'b',
+      'y',
+      'e',
+      '!',
   };
   char encrypted[256];
   size_t encrypted_len = 0;
   NullEncrypter encrypter(Perspective::IS_SERVER);
-  ASSERT_TRUE(encrypter.EncryptPacket(QUIC_VERSION_39, 0, "hello world!",
-                                      "goodbye!", encrypted, &encrypted_len,
-                                      256));
-  test::CompareCharArraysWithHexError(
-      "encrypted data", encrypted, encrypted_len,
-      reinterpret_cast<const char*>(expected), QUIC_ARRAYSIZE(expected));
-}
-
-TEST_F(NullEncrypterTest, EncryptClientPre37) {
-  unsigned char expected[] = {
-      // fnv hash
-      0xa0, 0x6f, 0x44, 0x8a, 0x44, 0xf8, 0x18, 0x3b, 0x47, 0x91, 0xb2, 0x13,
-      // payload
-      'g', 'o', 'o', 'd', 'b', 'y', 'e', '!',
-  };
-  char encrypted[256];
-  size_t encrypted_len = 0;
-  NullEncrypter encrypter(Perspective::IS_CLIENT);
-  ASSERT_TRUE(encrypter.EncryptPacket(QUIC_VERSION_35, 0, "hello world!",
-                                      "goodbye!", encrypted, &encrypted_len,
-                                      256));
-  test::CompareCharArraysWithHexError(
-      "encrypted data", encrypted, encrypted_len,
-      reinterpret_cast<const char*>(expected), QUIC_ARRAYSIZE(expected));
-}
-
-TEST_F(NullEncrypterTest, EncryptServerPre37) {
-  unsigned char expected[] = {
-      // fnv hash
-      0xa0, 0x6f, 0x44, 0x8a, 0x44, 0xf8, 0x18, 0x3b, 0x47, 0x91, 0xb2, 0x13,
-      // payload
-      'g', 'o', 'o', 'd', 'b', 'y', 'e', '!',
-  };
-  char encrypted[256];
-  size_t encrypted_len = 0;
-  NullEncrypter encrypter(Perspective::IS_SERVER);
-  ASSERT_TRUE(encrypter.EncryptPacket(QUIC_VERSION_35, 0, "hello world!",
-                                      "goodbye!", encrypted, &encrypted_len,
-                                      256));
+  ASSERT_TRUE(encrypter.EncryptPacket(0, "hello world!", "goodbye!", encrypted,
+                                      &encrypted_len, 256));
   test::CompareCharArraysWithHexError(
       "encrypted data", encrypted, encrypted_len,
       reinterpret_cast<const char*>(expected), QUIC_ARRAYSIZE(expected));

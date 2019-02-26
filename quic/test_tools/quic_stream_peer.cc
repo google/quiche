@@ -87,12 +87,5 @@ QuicStreamSendBuffer& QuicStreamPeer::SendBuffer(QuicStream* stream) {
   return stream->send_buffer_;
 }
 
-// static
-void QuicStreamPeer::set_ack_listener(
-    QuicStream* stream,
-    QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener) {
-  stream->set_ack_listener(std::move(ack_listener));
-}
-
 }  // namespace test
 }  // namespace quic

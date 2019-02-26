@@ -123,8 +123,7 @@ bool AeadBaseEncrypter::Encrypt(QuicStringPiece nonce,
   return true;
 }
 
-bool AeadBaseEncrypter::EncryptPacket(QuicTransportVersion /*version*/,
-                                      uint64_t packet_number,
+bool AeadBaseEncrypter::EncryptPacket(uint64_t packet_number,
                                       QuicStringPiece associated_data,
                                       QuicStringPiece plaintext,
                                       char* output,

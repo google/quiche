@@ -26,8 +26,7 @@ bool NullEncrypter::SetIV(QuicStringPiece iv) {
   return iv.empty();
 }
 
-bool NullEncrypter::EncryptPacket(QuicTransportVersion version,
-                                  uint64_t /*packet_number*/,
+bool NullEncrypter::EncryptPacket(uint64_t /*packet_number*/,
                                   QuicStringPiece associated_data,
                                   QuicStringPiece plaintext,
                                   char* output,
@@ -38,16 +37,12 @@ bool NullEncrypter::EncryptPacket(QuicTransportVersion version,
     return false;
   }
   QuicUint128 hash;
-  if (version > QUIC_VERSION_35) {
-    if (perspective_ == Perspective::IS_SERVER) {
-      hash =
-          QuicUtils::FNV1a_128_Hash_Three(associated_data, plaintext, "Server");
-    } else {
-      hash =
-          QuicUtils::FNV1a_128_Hash_Three(associated_data, plaintext, "Client");
-    }
+  if (perspective_ == Perspective::IS_SERVER) {
+    hash =
+        QuicUtils::FNV1a_128_Hash_Three(associated_data, plaintext, "Server");
   } else {
-    hash = QuicUtils::FNV1a_128_Hash_Two(associated_data, plaintext);
+    hash =
+        QuicUtils::FNV1a_128_Hash_Three(associated_data, plaintext, "Client");
   }
   // TODO(ianswett): memmove required for in place encryption.  Placing the
   // hash at the end would allow use of memcpy, doing nothing for in place.

@@ -4,13 +4,14 @@
 
 #include "net/third_party/quiche/src/quic/tools/quic_client.h"
 
+#include <dirent.h>
+#include <sys/types.h>
+
 #include <memory>
 
-#include "file/base/path.h"
-#include "file/util/linux_fileops.h"
-#include "gfe/gfe2/base/epoll_server.h"
-#include "net/util/netutil.h"
-#include "testing/base/public/test_utils.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_epoll.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_port_utils.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test_loopback.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
@@ -23,39 +24,44 @@ namespace {
 
 const char* kPathToFds = "/proc/self/fd";
 
+QuicString ReadLink(const QuicString& path) {
+  QuicString result(PATH_MAX, '\0');
+  ssize_t result_size = readlink(path.c_str(), &result[0], result.size());
+  CHECK(result_size > 0 && static_cast<size_t>(result_size) < result.size());
+  result.resize(result_size);
+  return result;
+}
+
 // Counts the number of open sockets for the current process.
 size_t NumOpenSocketFDs() {
-  std::vector<QuicString> fd_entries;
-  QuicString error_message;
-
-  CHECK(file_util::LinuxFileOps::ListDirectoryEntries(kPathToFds, &fd_entries,
-                                                      &error_message));
-
   size_t socket_count = 0;
-  for (const QuicString& entry : fd_entries) {
-    if (entry == "." || entry == "..") {
+  dirent* file;
+  std::unique_ptr<DIR, int (*)(DIR*)> fd_directory(opendir(kPathToFds),
+                                                   closedir);
+  while ((file = readdir(fd_directory.get())) != nullptr) {
+    QuicStringPiece name(file->d_name);
+    if (name == "." || name == "..") {
       continue;
     }
 
-    QuicString fd_path =
-        file_util::LinuxFileOps::ReadLink(file::JoinPath(kPathToFds, entry));
+    QuicString fd_path = ReadLink(QuicStrCat(kPathToFds, "/", name));
     if (QuicTextUtils::StartsWith(fd_path, "socket:")) {
       socket_count++;
     }
   }
-
   return socket_count;
 }
 
 // Creates a new QuicClient and Initializes it. Caller is responsible for
 // deletion.
-QuicClient* CreateAndInitializeQuicClient(QuicEpollServer* eps, uint16_t port) {
+std::unique_ptr<QuicClient> CreateAndInitializeQuicClient(QuicEpollServer* eps,
+                                                          uint16_t port) {
   QuicSocketAddress server_address(QuicSocketAddress(TestLoopback(), port));
   QuicServerId server_id("hostname", server_address.port(), false);
   ParsedQuicVersionVector versions = AllSupportedVersions();
-  QuicClient* client =
-      new QuicClient(server_address, server_id, versions, eps,
-                     crypto_test_utils::ProofVerifierForTesting());
+  auto client =
+      QuicMakeUnique<QuicClient>(server_address, server_id, versions, eps,
+                                 crypto_test_utils::ProofVerifierForTesting());
   EXPECT_TRUE(client->Initialize());
   return client;
 }
@@ -66,8 +72,12 @@ TEST_F(QuicClientTest, DoNotLeakSocketFDs) {
   // Make sure that the QuicClient doesn't leak socket FDs. Doing so could cause
   // port exhaustion in long running processes which repeatedly create clients.
 
-  // Record initial number of FDs, after creation of EpollServer.
+  // Record initial number of FDs, after creating EpollServer and creating and
+  // destroying a single client (the latter is needed since initializing
+  // platform dependencies like certificate verifier may open a persistent
+  // socket).
   QuicEpollServer eps;
+  CreateAndInitializeQuicClient(&eps, QuicPickUnusedPortOrDie());
   size_t number_of_open_fds = NumOpenSocketFDs();
 
   // Create a number of clients, initialize them, and verify this has resulted
@@ -75,7 +85,7 @@ TEST_F(QuicClientTest, DoNotLeakSocketFDs) {
   const int kNumClients = 50;
   for (int i = 0; i < kNumClients; ++i) {
     std::unique_ptr<QuicClient> client(
-        CreateAndInitializeQuicClient(&eps, net_util::PickUnusedPortOrDie()));
+        CreateAndInitializeQuicClient(&eps, QuicPickUnusedPortOrDie()));
 
     // Initializing the client will create a new FD.
     EXPECT_LT(number_of_open_fds, NumOpenSocketFDs());
@@ -90,7 +100,7 @@ TEST_F(QuicClientTest, CreateAndCleanUpUDPSockets) {
   size_t number_of_open_fds = NumOpenSocketFDs();
 
   std::unique_ptr<QuicClient> client(
-      CreateAndInitializeQuicClient(&eps, net_util::PickUnusedPortOrDie()));
+      CreateAndInitializeQuicClient(&eps, QuicPickUnusedPortOrDie()));
   EXPECT_EQ(number_of_open_fds + 1, NumOpenSocketFDs());
   // Create more UDP sockets.
   EXPECT_TRUE(QuicClientPeer::CreateUDPSocketAndBind(client.get()));

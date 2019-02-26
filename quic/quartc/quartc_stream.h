@@ -47,7 +47,8 @@ class QUIC_EXPORT_PRIVATE QuartcStream : public QuicStream {
   bool OnStreamFrameAcked(QuicStreamOffset offset,
                           QuicByteCount data_length,
                           bool fin_acked,
-                          QuicTime::Delta ack_delay_time) override;
+                          QuicTime::Delta ack_delay_time,
+                          QuicByteCount* newly_acked_length) override;
 
   void OnStreamFrameRetransmitted(QuicStreamOffset offset,
                                   QuicByteCount data_length,

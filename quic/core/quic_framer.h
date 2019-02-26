@@ -112,6 +112,16 @@ class QUIC_EXPORT_PRIVATE QuicFramerVisitorInterface {
   // If OnPacketHeader returns false, framing for this packet will cease.
   virtual bool OnPacketHeader(const QuicPacketHeader& header) = 0;
 
+  // Called when the packet being processed contains multiple IETF QUIC packets,
+  // which is due to there being more data after what is covered by the length
+  // field. |packet| contains the remaining data which can be processed.
+  // Note that this is called when the framer parses the length field, before
+  // it attempts to decrypt the first payload. It is the visitor's
+  // responsibility to buffer the packet and call ProcessPacket on it
+  // after the framer is done parsing the current payload. |packet| does not
+  // own its internal buffer, the visitor should make a copy of it.
+  virtual void OnCoalescedPacket(const QuicEncryptedPacket& packet) = 0;
+
   // Called when a StreamFrame has been parsed.
   virtual bool OnStreamFrame(const QuicStreamFrame& frame) = 0;
 
@@ -304,11 +314,11 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   // be generated and calculates the appropriate size.
   static size_t GetWindowUpdateFrameSize(QuicTransportVersion version,
                                          const QuicWindowUpdateFrame& frame);
-  // Size in bytes of all MaxStreamId frame fields.
-  static size_t GetMaxStreamIdFrameSize(QuicTransportVersion version,
-                                        const QuicMaxStreamIdFrame& frame);
-  // Size in bytes of all StreamIdBlocked frame fields.
-  static size_t GetStreamIdBlockedFrameSize(
+  // Size in bytes of all MaxStreams frame fields.
+  static size_t GetMaxStreamsFrameSize(QuicTransportVersion version,
+                                       const QuicMaxStreamIdFrame& frame);
+  // Size in bytes of all StreamsBlocked frame fields.
+  static size_t GetStreamsBlockedFrameSize(
       QuicTransportVersion version,
       const QuicStreamIdBlockedFrame& frame);
   // Size in bytes of all Blocked frame fields.
@@ -362,7 +372,10 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
       QuicConnectionIdLength source_connection_id_length,
       bool includes_version,
       bool includes_diversification_nonce,
-      QuicPacketNumberLength packet_number_length);
+      QuicPacketNumberLength packet_number_length,
+      QuicVariableLengthIntegerLength retry_token_length_length,
+      uint64_t retry_token_length,
+      QuicVariableLengthIntegerLength length_length);
 
   // Serializes a packet containing |frames| into |buffer|.
   // Returns the length of the packet, which must not be longer than
@@ -370,19 +383,22 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   size_t BuildDataPacket(const QuicPacketHeader& header,
                          const QuicFrames& frames,
                          char* buffer,
-                         size_t packet_length);
+                         size_t packet_length,
+                         EncryptionLevel level);
 
   // Serializes a probing packet, which is a padded PING packet. Returns the
   // length of the packet. Returns 0 if it fails to serialize.
   size_t BuildConnectivityProbingPacket(const QuicPacketHeader& header,
                                         char* buffer,
-                                        size_t packet_length);
+                                        size_t packet_length,
+                                        EncryptionLevel level);
 
-  // Serializes an IETF probing packet, which is a padded PING packet.
-  // Returns the length of the packet. Returns 0 if it fails to serialize.
-  size_t BuildIetfConnectivityProbingPacket(const QuicPacketHeader& header,
-                                            char* buffer,
-                                            size_t packet_length);
+  // Serializes a probing packet, which is a padded PING packet. Returns the
+  // length of the packet. Returns 0 if it fails to serialize.
+  size_t BuildConnectivityProbingPacketNew(const QuicPacketHeader& header,
+                                           char* buffer,
+                                           size_t packet_length,
+                                           EncryptionLevel level);
 
   // Serialize a probing packet that uses IETF QUIC's PATH CHALLENGE frame. Also
   // fills the packet with padding.
@@ -390,7 +406,8 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
                                         char* buffer,
                                         size_t packet_length,
                                         QuicPathFrameBuffer* payload,
-                                        QuicRandom* randomizer);
+                                        QuicRandom* randomizer,
+                                        EncryptionLevel level);
 
   // Serialize a probing response packet that uses IETF QUIC's PATH RESPONSE
   // frame. Also fills the packet with padding if |is_padded| is
@@ -400,7 +417,8 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
                                  char* buffer,
                                  size_t packet_length,
                                  const QuicDeque<QuicPathFrameBuffer>& payloads,
-                                 const bool is_padded);
+                                 const bool is_padded,
+                                 EncryptionLevel level);
 
   // Returns a new public reset packet.
   static std::unique_ptr<QuicEncryptedPacket> BuildPublicResetPacket(
@@ -426,17 +444,24 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   // packet will be set -- but it will be set from version_ not
   // header.versions.
   bool AppendPacketHeader(const QuicPacketHeader& header,
-                          QuicDataWriter* writer);
+                          QuicDataWriter* writer,
+                          size_t* length_field_offset);
   bool AppendIetfHeaderTypeByte(const QuicPacketHeader& header,
                                 QuicDataWriter* writer);
   bool AppendIetfPacketHeader(const QuicPacketHeader& header,
-                              QuicDataWriter* writer);
+                              QuicDataWriter* writer,
+                              size_t* length_field_offset);
+  bool WriteIetfLongHeaderLength(const QuicPacketHeader& header,
+                                 QuicDataWriter* writer,
+                                 size_t length_field_offset,
+                                 EncryptionLevel level);
   bool AppendTypeByte(const QuicFrame& frame,
                       bool last_frame_in_packet,
                       QuicDataWriter* writer);
   bool AppendIetfTypeByte(const QuicFrame& frame,
                           bool last_frame_in_packet,
                           QuicDataWriter* writer);
+  size_t AppendIetfFrames(const QuicFrames& frames, QuicDataWriter* writer);
   bool AppendStreamFrame(const QuicStreamFrame& frame,
                          bool last_frame_in_packet,
                          QuicDataWriter* writer);
@@ -485,6 +510,10 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
                         char* buffer,
                         size_t buffer_len);
 
+  // Returns the length of the ciphertext that would be generated by encrypting
+  // to plaintext of size |plaintext_size| at the given level.
+  size_t GetCiphertextSize(EncryptionLevel level, size_t plaintext_size) const;
+
   // Returns the maximum length of plaintext that can be encrypted
   // to ciphertext no larger than |ciphertext_size|.
   size_t GetMaxPlaintextSize(size_t ciphertext_size);
@@ -507,27 +536,14 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   // Returns true if data with |offset| of stream |id| starts with 'CHLO'.
   bool StartsWithChlo(QuicStreamId id, QuicStreamOffset offset) const;
 
-  // Returns byte order to read/write integers and floating numbers.
-  Endianness endianness() const;
-
   // Returns true if |header| is considered as an stateless reset packet.
   bool IsIetfStatelessResetPacket(const QuicPacketHeader& header) const;
-
-  // Returns header wire format of last received packet.
-  // Please do not use this method.
-  // TODO(fayang): Remove last_header_form_ when deprecating
-  // quic_fix_last_packet_is_ietf_quic flag.
-  PacketHeaderFormat GetLastPacketFormat() const;
 
   void set_validate_flags(bool value) { validate_flags_ = value; }
 
   Perspective perspective() const { return perspective_; }
 
   QuicVersionLabel last_version_label() const { return last_version_label_; }
-
-  void set_last_packet_form(PacketHeaderFormat form) {
-    last_header_form_ = form;
-  }
 
   void set_data_producer(QuicStreamFrameDataProducer* data_producer) {
     data_producer_ = data_producer;
@@ -566,12 +582,6 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
     size_t num_ack_blocks;
   };
 
-  // The same as BuildDataPacket, but it only builds IETF-format packets.
-  size_t BuildIetfDataPacket(const QuicPacketHeader& header,
-                             const QuicFrames& frames,
-                             char* buffer,
-                             size_t packet_length);
-
   bool ProcessDataPacket(QuicDataReader* reader,
                          QuicPacketHeader* header,
                          const QuicEncryptedPacket& packet,
@@ -589,6 +599,16 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
 
   bool ProcessVersionNegotiationPacket(QuicDataReader* reader,
                                        const QuicPacketHeader& header);
+
+  bool MaybeProcessIetfInitialRetryToken(QuicDataReader* encrypted_reader,
+                                         QuicPacketHeader* header);
+
+  void MaybeProcessCoalescedPacket(const QuicDataReader& encrypted_reader,
+                                   uint64_t remaining_bytes_length,
+                                   const QuicPacketHeader& header);
+
+  bool MaybeProcessIetfLength(QuicDataReader* encrypted_reader,
+                              QuicPacketHeader* header);
 
   bool ProcessPublicHeader(QuicDataReader* reader,
                            bool last_packet_is_ietf_quic,
@@ -640,9 +660,9 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
                            bool no_message_length,
                            QuicMessageFrame* frame);
 
-  bool DecryptPayload(QuicDataReader* encrypted_reader,
+  bool DecryptPayload(QuicStringPiece encrypted,
+                      QuicStringPiece associated_data,
                       const QuicPacketHeader& header,
-                      const QuicEncryptedPacket& packet,
                       char* decrypted_buffer,
                       size_t buffer_length,
                       size_t* decrypted_length);
@@ -703,8 +723,7 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
       QuicConnectionIdLength destination_connection_id_length,
       QuicConnectionId source_connection_id,
       QuicConnectionIdLength source_connection_id_length,
-      QuicDataWriter* writer,
-      Perspective perspective);
+      QuicDataWriter* writer);
 
   // The Append* methods attempt to write the provided header or frame using the
   // |writer|, and return true if successful.
@@ -789,10 +808,11 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   bool ProcessMaxStreamDataFrame(QuicDataReader* reader,
                                  QuicWindowUpdateFrame* frame);
 
-  bool AppendMaxStreamIdFrame(const QuicMaxStreamIdFrame& frame,
-                              QuicDataWriter* writer);
-  bool ProcessMaxStreamIdFrame(QuicDataReader* reader,
-                               QuicMaxStreamIdFrame* frame);
+  bool AppendMaxStreamsFrame(const QuicMaxStreamIdFrame& frame,
+                             QuicDataWriter* writer);
+  bool ProcessMaxStreamsFrame(QuicDataReader* reader,
+                              QuicMaxStreamIdFrame* frame,
+                              uint64_t frame_type);
 
   bool AppendIetfBlockedFrame(const QuicBlockedFrame& frame,
                               QuicDataWriter* writer);
@@ -803,10 +823,12 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   bool ProcessStreamBlockedFrame(QuicDataReader* reader,
                                  QuicBlockedFrame* frame);
 
-  bool AppendStreamIdBlockedFrame(const QuicStreamIdBlockedFrame& frame,
-                                  QuicDataWriter* writer);
-  bool ProcessStreamIdBlockedFrame(QuicDataReader* reader,
-                                   QuicStreamIdBlockedFrame* frame);
+  bool AppendStreamsBlockedFrame(const QuicStreamIdBlockedFrame& frame,
+                                 QuicDataWriter* writer);
+  bool ProcessStreamsBlockedFrame(QuicDataReader* reader,
+                                  QuicStreamIdBlockedFrame* frame,
+                                  uint64_t frame_type);
+
   bool AppendNewConnectionIdFrame(const QuicNewConnectionIdFrame& frame,
                                   QuicDataWriter* writer);
   bool ProcessNewConnectionIdFrame(QuicDataReader* reader,
@@ -845,9 +867,6 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   QuicConnectionId last_serialized_connection_id_;
   // The last QUIC version label received.
   QuicVersionLabel last_version_label_;
-  // Format of last received packet header, whether it is Google QUIC, IETF long
-  // header packet or IETF short header packet.
-  PacketHeaderFormat last_header_form_;
   // Version of the protocol being used.
   ParsedQuicVersion version_;
   // This vector contains QUIC versions which we currently support.

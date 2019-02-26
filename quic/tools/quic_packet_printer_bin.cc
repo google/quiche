@@ -80,6 +80,9 @@ class QuicPacketPrinter : public QuicFramerVisitorInterface {
     std::cerr << "OnPacketHeader\n";
     return true;
   }
+  void OnCoalescedPacket(const QuicEncryptedPacket& packet) override {
+    std::cerr << "OnCoalescedPacket\n";
+  }
   bool OnStreamFrame(const QuicStreamFrame& frame) override {
     std::cerr << "OnStreamFrame: " << frame;
     std::cerr << "         data: { "

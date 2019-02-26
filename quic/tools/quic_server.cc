@@ -147,7 +147,7 @@ QuicPacketWriter* QuicServer::CreateWriter(int fd) {
 QuicDispatcher* QuicServer::CreateQuicDispatcher() {
   QuicEpollAlarmFactory alarm_factory(&epoll_server_);
   return new QuicSimpleDispatcher(
-      config_, &crypto_config_, &version_manager_,
+      &config_, &crypto_config_, &version_manager_,
       std::unique_ptr<QuicEpollConnectionHelper>(new QuicEpollConnectionHelper(
           &epoll_server_, QuicAllocator::BUFFER_POOL)),
       std::unique_ptr<QuicCryptoServerStream::Helper>(

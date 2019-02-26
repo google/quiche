@@ -35,30 +35,13 @@ class QuicSpdySessionPeer {
   static void SetMaxUncompressedHeaderBytes(
       QuicSpdySession* session,
       size_t set_max_uncompressed_header_bytes);
-  static size_t WriteHeadersImpl(
+  static size_t WriteHeadersOnHeadersStream(
       QuicSpdySession* session,
       QuicStreamId id,
       spdy::SpdyHeaderBlock headers,
       bool fin,
-      int weight,
-      QuicStreamId parent_stream_id,
-      bool exclusive,
+      spdy::SpdyPriority priority,
       QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener);
-  // Helper functions for stream ids, to allow test logic to abstract
-  // over the HTTP stream numbering scheme (i.e. whether one or
-  // two QUIC streams are used per HTTP transaction).
-  static QuicStreamId StreamIdDelta(const QuicSpdySession& session);
-  // n should start at 0.
-  static QuicStreamId GetNthClientInitiatedBidirectionalStreamId(
-      const QuicSpdySession& session,
-      int n);
-  // n should start at 0.
-  static QuicStreamId GetNthServerInitiatedBidirectionalStreamId(
-      const QuicSpdySession& session,
-      int n);
-  static QuicStreamId GetNthServerInitiatedUnidirectionalStreamId(
-      const QuicSpdySession& session,
-      int n);
 };
 
 }  // namespace test

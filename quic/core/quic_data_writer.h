@@ -38,7 +38,11 @@ const uint64_t kVarInt62Mask2Bytes = UINT64_C(0x0000000000003fc0);
 // of the QuicDataWriter.
 class QUIC_EXPORT_PRIVATE QuicDataWriter {
  public:
-  // Creates a QuicDataWriter where |buffer| is not owned.
+  // Creates a QuicDataWriter where |buffer| is not owned
+  // using NETWORK_BYTE_ORDER endianness.
+  QuicDataWriter(size_t size, char* buffer);
+  // Creates a QuicDataWriter where |buffer| is not owned
+  // using the specified endianness.
   QuicDataWriter(size_t size, char* buffer, Endianness endianness);
   QuicDataWriter(const QuicDataWriter&) = delete;
   QuicDataWriter& operator=(const QuicDataWriter&) = delete;
@@ -68,6 +72,13 @@ class QUIC_EXPORT_PRIVATE QuicDataWriter {
   // buffer.
   bool WriteVarInt62(uint64_t value);
 
+  // Same as WriteVarInt62(uint64_t), but forces an encoding size to write to.
+  // This is not as optimized as WriteVarInt62(uint64_t).
+  // Returns false if the value does not fit in the specified write_length or if
+  // there is no room in the buffer.
+  bool WriteVarInt62(uint64_t value,
+                     QuicVariableLengthIntegerLength write_length);
+
   // Writes a string piece as a consecutive length/content pair. The
   // length is VarInt62 encoded.
   bool WriteStringPieceVarInt62(const QuicStringPiece& string_piece);
@@ -76,7 +87,7 @@ class QUIC_EXPORT_PRIVATE QuicDataWriter {
   // the given value using IETF VarInt62 encoding. Returns the number
   // of bytes required to encode the given integer or 0 if the value
   // is too large to encode.
-  static int GetVarInt62Len(uint64_t value);
+  static QuicVariableLengthIntegerLength GetVarInt62Len(uint64_t value);
 
   // Writes least significant |num_bytes| of a 64-bit unsigned integer in the
   // correct byte order.
@@ -96,10 +107,7 @@ class QUIC_EXPORT_PRIVATE QuicDataWriter {
   bool WritePaddingBytes(size_t count);
 
   // Write connection ID to the payload.
-  // TODO(dschinazi) b/120240679 - remove perspective once these flags are
-  // deprecated: quic_variable_length_connection_ids_(client|server).
-  bool WriteConnectionId(QuicConnectionId connection_id,
-                         Perspective perspective);
+  bool WriteConnectionId(QuicConnectionId connection_id);
 
   // Write tag as a 32-bit unsigned integer to the payload. As tags are already
   // converted to big endian (e.g., CHLO is 'C','H','L','O') in memory by TAG or

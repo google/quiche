@@ -10,7 +10,7 @@ namespace quic {
 namespace test {
 
 MockQuicDispatcher::MockQuicDispatcher(
-    const QuicConfig& config,
+    const QuicConfig* config,
     const QuicCryptoServerConfig* crypto_config,
     QuicVersionManager* version_manager,
     std::unique_ptr<QuicConnectionHelperInterface> helper,

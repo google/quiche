@@ -255,12 +255,12 @@ QuicString SpdyUtils::GetPushPromiseUrl(QuicStringPiece scheme,
   // Validate the scheme; this is to ensure a scheme of "foo://bar" is not
   // parsed as a URL of "foo://bar://baz" when combined with a host of "baz".
   std::string canonical_scheme;
-  url::StdStringCanonOutput canon_output(&canonical_scheme);
+  url::StdStringCanonOutput canon_scheme_output(&canonical_scheme);
   url::Component canon_component;
   url::Component scheme_component(0, scheme.size());
 
-  if (!url::CanonicalizeScheme(scheme.data(), scheme_component, &canon_output,
-                               &canon_component) ||
+  if (!url::CanonicalizeScheme(scheme.data(), scheme_component,
+                               &canon_scheme_output, &canon_component) ||
       !canon_component.is_nonempty() || canon_component.begin != 0) {
     return QuicString();
   }
@@ -304,13 +304,13 @@ QuicString SpdyUtils::GetPushPromiseUrl(QuicStringPiece scheme,
     }
   }
 
-  // Validate the host by attempting to canoncalize it. Invalid characters
+  // Validate the host by attempting to canonicalize it. Invalid characters
   // will result in a canonicalization failure (e.g. '/')
   std::string canon_host;
-  canon_output = url::StdStringCanonOutput(&canon_host);
+  url::StdStringCanonOutput canon_host_output(&canon_host);
   canon_component.reset();
-  if (!url::CanonicalizeHost(authority.data(), host_component, &canon_output,
-                             &canon_component) ||
+  if (!url::CanonicalizeHost(authority.data(), host_component,
+                             &canon_host_output, &canon_component) ||
       !canon_component.is_nonempty() || canon_component.begin != 0) {
     return QuicString();
   }

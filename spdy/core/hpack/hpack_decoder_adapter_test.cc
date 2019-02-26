@@ -259,15 +259,13 @@ class HpackDecoderAdapterTest
   size_t bytes_passed_in_;
 };
 
-INSTANTIATE_TEST_CASE_P(
-    NoHandler,
-    HpackDecoderAdapterTest,
+INSTANTIATE_TEST_SUITE_P(
+    NoHandler, HpackDecoderAdapterTest,
     ::testing::Combine(::testing::Values(START_WITHOUT_HANDLER, NO_START),
                        ::testing::Bool()));
 
-INSTANTIATE_TEST_CASE_P(
-    WithHandler,
-    HpackDecoderAdapterTest,
+INSTANTIATE_TEST_SUITE_P(
+    WithHandler, HpackDecoderAdapterTest,
     ::testing::Combine(::testing::Values(START_WITH_HANDLER),
                        ::testing::Bool()));
 

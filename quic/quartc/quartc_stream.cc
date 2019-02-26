@@ -76,14 +76,15 @@ void QuartcStream::OnDataBuffered(
 bool QuartcStream::OnStreamFrameAcked(QuicStreamOffset offset,
                                       QuicByteCount data_length,
                                       bool fin_acked,
-                                      QuicTime::Delta ack_delay_time) {
+                                      QuicTime::Delta ack_delay_time,
+                                      QuicByteCount* newly_acked_length) {
   // Previous losses of acked data are no longer relevant to the retransmission
   // count.  Once data is acked, it will never be retransmitted.
   lost_frame_counter_.RemoveInterval(
       QuicInterval<QuicStreamOffset>(offset, offset + data_length));
 
   return QuicStream::OnStreamFrameAcked(offset, data_length, fin_acked,
-                                        ack_delay_time);
+                                        ack_delay_time, newly_acked_length);
 }
 
 void QuartcStream::OnStreamFrameRetransmitted(QuicStreamOffset offset,

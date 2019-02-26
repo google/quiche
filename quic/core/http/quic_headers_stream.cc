@@ -60,7 +60,8 @@ void QuicHeadersStream::MaybeReleaseSequencerBuffer() {
 bool QuicHeadersStream::OnStreamFrameAcked(QuicStreamOffset offset,
                                            QuicByteCount data_length,
                                            bool fin_acked,
-                                           QuicTime::Delta ack_delay_time) {
+                                           QuicTime::Delta ack_delay_time,
+                                           QuicByteCount* newly_acked_length) {
   QuicIntervalSet<QuicStreamOffset> newly_acked(offset, offset + data_length);
   newly_acked.Difference(bytes_acked());
   for (const auto& acked : newly_acked) {
@@ -104,7 +105,7 @@ bool QuicHeadersStream::OnStreamFrameAcked(QuicStreamOffset offset,
     unacked_headers_.pop_front();
   }
   return QuicStream::OnStreamFrameAcked(offset, data_length, fin_acked,
-                                        ack_delay_time);
+                                        ack_delay_time, newly_acked_length);
 }
 
 void QuicHeadersStream::OnStreamFrameRetransmitted(QuicStreamOffset offset,

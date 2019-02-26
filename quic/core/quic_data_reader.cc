@@ -12,6 +12,9 @@
 
 namespace quic {
 
+QuicDataReader::QuicDataReader(const char* data, const size_t len)
+    : QuicDataReader(data, len, NETWORK_BYTE_ORDER) {}
+
 QuicDataReader::QuicDataReader(const char* data,
                                const size_t len,
                                Endianness endianness)
@@ -129,17 +132,7 @@ bool QuicDataReader::ReadStringPiece(QuicStringPiece* result, size_t size) {
 }
 
 bool QuicDataReader::ReadConnectionId(QuicConnectionId* connection_id,
-                                      uint8_t length,
-                                      Perspective perspective) {
-  if (!QuicConnectionIdSupportsVariableLength(perspective)) {
-    uint64_t connection_id64 = 0;
-    if (!ReadBytes(&connection_id64, sizeof(connection_id64))) {
-      return false;
-    }
-    *connection_id =
-        QuicConnectionIdFromUInt64(QuicEndian::NetToHost64(connection_id64));
-    return true;
-  }
+                                      uint8_t length) {
   DCHECK_LE(length, kQuicMaxConnectionIdLength);
 
   const bool ok = ReadBytes(connection_id->mutable_data(), length);
@@ -159,7 +152,7 @@ QuicStringPiece QuicDataReader::ReadRemainingPayload() {
   return payload;
 }
 
-QuicStringPiece QuicDataReader::PeekRemainingPayload() {
+QuicStringPiece QuicDataReader::PeekRemainingPayload() const {
   return QuicStringPiece(data_ + pos_, len_ - pos_);
 }
 
@@ -183,18 +176,27 @@ bool QuicDataReader::IsDoneReading() const {
   return len_ == pos_;
 }
 
-int QuicDataReader::PeekVarInt62Length() {
+QuicVariableLengthIntegerLength QuicDataReader::PeekVarInt62Length() {
   DCHECK_EQ(endianness_, NETWORK_BYTE_ORDER);
   const unsigned char* next =
       reinterpret_cast<const unsigned char*>(data_ + pos_);
   if (BytesRemaining() == 0) {
-    return 0;
+    return VARIABLE_LENGTH_INTEGER_LENGTH_0;
   }
-  return 1 << ((*next & 0b11000000) >> 6);
+  return static_cast<QuicVariableLengthIntegerLength>(
+      1 << ((*next & 0b11000000) >> 6));
 }
 
 size_t QuicDataReader::BytesRemaining() const {
   return len_ - pos_;
+}
+
+bool QuicDataReader::TruncateRemaining(size_t truncation_length) {
+  if (truncation_length > BytesRemaining()) {
+    return false;
+  }
+  len_ = pos_ + truncation_length;
+  return true;
 }
 
 bool QuicDataReader::CanRead(size_t bytes) const {

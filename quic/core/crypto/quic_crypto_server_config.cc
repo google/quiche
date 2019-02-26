@@ -77,7 +77,7 @@ class DefaultKeyExchangeSource : public KeyExchangeSource {
 
   std::unique_ptr<KeyExchange> Create(QuicString /*server_config_id*/,
                                       QuicTag type,
-                                      QuicStringPiece private_key) {
+                                      QuicStringPiece private_key) override {
     if (private_key.empty()) {
       QUIC_LOG(WARNING) << "Server config contains key exchange method without "
                            "corresponding private key: "
@@ -876,10 +876,6 @@ void QuicCryptoServerConfig::ProcessClientHelloAfterGetProof(
       << "ProcessClientHelloAfterGetProof: attempted to use connection ID "
       << connection_id << " which is invalid with version "
       << QuicVersionToString(version.transport_version);
-  if (!QuicConnectionIdSupportsVariableLength(Perspective::IS_SERVER)) {
-    connection_id = QuicConnectionIdFromUInt64(
-        QuicEndian::HostToNet64(QuicConnectionIdToUInt64(connection_id)));
-  }
   ProcessClientHelloHelper helper(&done_cb);
 
   if (found_error) {
@@ -1020,21 +1016,10 @@ void QuicCryptoServerConfig::ProcessClientHelloAfterCalculateSharedKeys(
 
   QuicString hkdf_suffix;
   const QuicData& client_hello_serialized = client_hello.GetSerialized();
-  if (!QuicConnectionIdSupportsVariableLength(Perspective::IS_SERVER)) {
-    // connection_id is already passed in in network byte order.
-    const uint64_t connection_id64_net =
-        QuicConnectionIdToUInt64(connection_id);
-    hkdf_suffix.reserve(sizeof(connection_id64_net) +
-                        client_hello_serialized.length() +
-                        requested_config->serialized.size());
-    hkdf_suffix.append(reinterpret_cast<const char*>(&connection_id64_net),
-                       sizeof(connection_id64_net));
-  } else {
     hkdf_suffix.reserve(connection_id.length() +
                         client_hello_serialized.length() +
                         requested_config->serialized.size());
     hkdf_suffix.append(connection_id.data(), connection_id.length());
-  }
   hkdf_suffix.append(client_hello_serialized.data(),
                      client_hello_serialized.length());
   hkdf_suffix.append(requested_config->serialized);
@@ -1057,15 +1042,7 @@ void QuicCryptoServerConfig::ProcessClientHelloAfterCalculateSharedKeys(
     QuicString hkdf_input;
     hkdf_input.append(QuicCryptoConfig::kCETVLabel,
                       strlen(QuicCryptoConfig::kCETVLabel) + 1);
-    if (!QuicConnectionIdSupportsVariableLength(Perspective::IS_SERVER)) {
-      // connection_id is already passed in in network byte order.
-      const uint64_t connection_id64_net =
-          QuicConnectionIdToUInt64(connection_id);
-      hkdf_input.append(reinterpret_cast<const char*>(&connection_id64_net),
-                        sizeof(connection_id64_net));
-    } else {
-      hkdf_input.append(connection_id.data(), connection_id.length());
-    }
+    hkdf_input.append(connection_id.data(), connection_id.length());
     hkdf_input.append(client_hello_copy_serialized.data(),
                       client_hello_copy_serialized.length());
     hkdf_input.append(requested_config->serialized);
@@ -1084,9 +1061,8 @@ void QuicCryptoServerConfig::ProcessClientHelloAfterCalculateSharedKeys(
     char plaintext[kMaxPacketSize];
     size_t plaintext_length = 0;
     const bool success = crypters.decrypter->DecryptPacket(
-        QUIC_VERSION_35, 0 /* packet number */,
-        QuicStringPiece() /* associated data */, cetv_ciphertext, plaintext,
-        &plaintext_length, kMaxPacketSize);
+        0 /* packet number */, QuicStringPiece() /* associated data */,
+        cetv_ciphertext, plaintext, &plaintext_length, kMaxPacketSize);
     if (!success) {
       helper.Fail(QUIC_INVALID_CRYPTO_MESSAGE_PARAMETER,
                   "CETV decryption failure");
@@ -1613,10 +1589,6 @@ void QuicCryptoServerConfig::BuildRejection(
                   << "with server-designated connection ID "
                   << server_designated_connection_id;
     out->set_tag(kSREJ);
-    if (!QuicConnectionIdSupportsVariableLength(Perspective::IS_SERVER)) {
-      out->SetValue(kRCID, QuicEndian::HostToNet64(QuicConnectionIdToUInt64(
-                               server_designated_connection_id)));
-    } else {
       if (!QuicUtils::IsConnectionIdValidForVersion(
               server_designated_connection_id, version)) {
         QUIC_BUG << "Tried to send server designated connection ID "
@@ -1628,7 +1600,6 @@ void QuicCryptoServerConfig::BuildRejection(
       out->SetStringPiece(
           kRCID, QuicStringPiece(server_designated_connection_id.data(),
                                  server_designated_connection_id.length()));
-    }
   } else {
     out->set_tag(kREJ);
   }
@@ -2078,6 +2049,7 @@ bool QuicCryptoServerConfig::ClientDemandsX509Proof(
 
 bool QuicCryptoServerConfig::IsNextConfigReady(QuicWallTime now) const {
   if (GetQuicReloadableFlag(quic_fix_config_rotation)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_fix_config_rotation);
     return !next_config_promotion_time_.IsZero() &&
            !next_config_promotion_time_.IsAfter(now);
   }

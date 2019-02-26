@@ -177,6 +177,7 @@ enum QuicFrameType : uint8_t {
   BLOCKED_FRAME = 5,
   STOP_WAITING_FRAME = 6,
   PING_FRAME = 7,
+  CRYPTO_FRAME = 8,
 
   // STREAM and ACK frames are special frames. They are encoded differently on
   // the wire and their values do not need to be stable.
@@ -197,7 +198,6 @@ enum QuicFrameType : uint8_t {
   PATH_CHALLENGE_FRAME,
   STOP_SENDING_FRAME,
   MESSAGE_FRAME,
-  CRYPTO_FRAME,
   NEW_TOKEN_FRAME,
   RETIRE_CONNECTION_ID_FRAME,
 
@@ -234,15 +234,14 @@ enum QuicIetfFrameType : uint8_t {
   // 0x09 through 0x0f are various flag settings of the IETF_STREAM frame.
   IETF_MAX_DATA = 0x10,
   IETF_MAX_STREAM_DATA = 0x11,
-  IETF_MAX_STREAM_ID = 0x12,  // TODO(fkastenholz): Will become IETF_MAX_STREAMS
-  // 0x13 reserved, a flag setting for IETF_MAX_STREAMS.
+  IETF_MAX_STREAMS_BIDIRECTIONAL = 0x12,
+  IETF_MAX_STREAMS_UNIDIRECTIONAL = 0x13,
   IETF_BLOCKED = 0x14,  // TODO(fkastenholz): Should, eventually, be renamed to
                         // IETF_DATA_BLOCKED
   IETF_STREAM_BLOCKED = 0x15,  // TODO(fkastenholz): Should, eventually, be
                                // renamed to IETF_STREAM_DATA_BLOCKED
-  IETF_STREAM_ID_BLOCKED =
-      0x16,  // TODO(fkastenholz): Will become IETF_STREAMS_BLOCKED
-  // 0x17 reserved, a flag setting for IETF_STREAMS_BLOCKED
+  IETF_STREAMS_BLOCKED_BIDIRECTIONAL = 0x16,
+  IETF_STREAMS_BLOCKED_UNIDIRECTIONAL = 0x17,
   IETF_NEW_CONNECTION_ID = 0x18,
   IETF_RETIRE_CONNECTION_ID = 0x19,
   IETF_PATH_CHALLENGE = 0x1a,
@@ -271,10 +270,25 @@ enum QuicIetfFrameType : uint8_t {
 #define IETF_STREAM_FRAME_LEN_BIT 0x02
 #define IETF_STREAM_FRAME_OFF_BIT 0x04
 
+enum QuicVariableLengthIntegerLength : uint8_t {
+  // Length zero means the variable length integer is not present.
+  VARIABLE_LENGTH_INTEGER_LENGTH_0 = 0,
+  VARIABLE_LENGTH_INTEGER_LENGTH_1 = 1,
+  VARIABLE_LENGTH_INTEGER_LENGTH_2 = 2,
+  VARIABLE_LENGTH_INTEGER_LENGTH_4 = 4,
+  VARIABLE_LENGTH_INTEGER_LENGTH_8 = 8,
+};
+
+// By default we write the IETF long header length using the 2-byte encoding
+// of variable length integers, even when the length is below 64, which allows
+// us to fill in the length before knowing what the length actually is.
+const QuicVariableLengthIntegerLength kQuicDefaultLongHeaderLengthLength =
+    VARIABLE_LENGTH_INTEGER_LENGTH_2;
+
 enum QuicPacketNumberLength : uint8_t {
   PACKET_1BYTE_PACKET_NUMBER = 1,
   PACKET_2BYTE_PACKET_NUMBER = 2,
-  PACKET_3BYTE_PACKET_NUMBER = 3,  // Used in version > QUIC_VERSION_46.
+  PACKET_3BYTE_PACKET_NUMBER = 3,  // Used in version > QUIC_VERSION_44.
   PACKET_4BYTE_PACKET_NUMBER = 4,
   // TODO(rch): Remove this when we remove QUIC_VERSION_39.
   PACKET_6BYTE_PACKET_NUMBER = 6,
@@ -359,7 +373,7 @@ enum LossDetectionType : uint8_t {
 // understand.
 enum EncryptionLevel : int8_t {
   ENCRYPTION_NONE = 0,
-  ENCRYPTION_INITIAL = 1,
+  ENCRYPTION_ZERO_RTT = 1,
   ENCRYPTION_FORWARD_SECURE = 2,
 
   NUM_ENCRYPTION_LEVELS,
@@ -549,6 +563,16 @@ enum StreamType {
   // Unidirectional streams carry data in one direction only.
   WRITE_UNIDIRECTIONAL,
   READ_UNIDIRECTIONAL,
+};
+
+// A packet number space is the context in which a packet can be processed and
+// acknowledged.
+enum PacketNumberSpace : uint8_t {
+  INITIAL_DATA = 0,  // Only used in IETF QUIC.
+  HANDSHAKE_DATA = 1,
+  APPLICATION_DATA = 2,
+
+  NUM_PACKET_NUMBER_SPACES,
 };
 
 }  // namespace quic

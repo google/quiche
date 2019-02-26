@@ -108,12 +108,10 @@ class QuicSpdyClientSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
     push_promise_[":method"] = "GET";
     push_promise_[":scheme"] = "https";
     promise_url_ = SpdyUtils::GetPromisedUrlFromHeaders(push_promise_);
-    promised_stream_id_ =
-        QuicSpdySessionPeer::GetNthServerInitiatedUnidirectionalStreamId(
-            *session_, 0);
-    associated_stream_id_ =
-        QuicSpdySessionPeer::GetNthClientInitiatedBidirectionalStreamId(
-            *session_, 0);
+    promised_stream_id_ = GetNthServerInitiatedUnidirectionalStreamId(
+        connection_->transport_version(), 0);
+    associated_stream_id_ = GetNthClientInitiatedBidirectionalStreamId(
+        connection_->transport_version(), 0);
   }
 
   // The function ensures that A) the max stream id frames get properly deleted
@@ -172,9 +170,8 @@ class QuicSpdyClientSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
   QuicStreamId associated_stream_id_;
 };
 
-INSTANTIATE_TEST_CASE_P(Tests,
-                        QuicSpdyClientSessionTest,
-                        ::testing::ValuesIn(AllSupportedVersions()));
+INSTANTIATE_TEST_SUITE_P(Tests, QuicSpdyClientSessionTest,
+                         ::testing::ValuesIn(AllSupportedVersions()));
 
 TEST_P(QuicSpdyClientSessionTest, CryptoConnect) {
   CompleteCryptoHandshake();
@@ -281,9 +278,8 @@ TEST_P(QuicSpdyClientSessionTest, MaxNumStreamsWithRst) {
 
     // Note that this is to be the second stream created, but GetNth... starts
     // numbering at 0 (the first stream is 0, second is 1...)
-    QuicMaxStreamIdFrame frame(
-        0, QuicSpdySessionPeer::GetNthClientInitiatedBidirectionalStreamId(
-               *session_, 1));
+    QuicMaxStreamIdFrame frame(0, GetNthClientInitiatedBidirectionalStreamId(
+                                      connection_->transport_version(), 1));
     session_->OnMaxStreamIdFrame(frame);
   }
   stream = session_->CreateOutgoingBidirectionalStream();
@@ -350,9 +346,8 @@ TEST_P(QuicSpdyClientSessionTest, ResetAndTrailers) {
   if (GetParam().transport_version == QUIC_VERSION_99) {
     // Note that this is to be the second stream created, but GetNth... starts
     // numbering at 0 (the first stream is 0, second is 1...)
-    QuicMaxStreamIdFrame frame(
-        0, QuicSpdySessionPeer::GetNthClientInitiatedBidirectionalStreamId(
-               *session_, 1));
+    QuicMaxStreamIdFrame frame(0, GetNthClientInitiatedBidirectionalStreamId(
+                                      connection_->transport_version(), 1));
     session_->OnMaxStreamIdFrame(frame);
   }
   stream = session_->CreateOutgoingBidirectionalStream();
@@ -454,7 +449,7 @@ TEST_P(QuicSpdyClientSessionTest, InvalidPacketReceived) {
   QuicReceivedPacket valid_packet(buf, 2, QuicTime::Zero(), false);
   // Close connection shouldn't be called.
   EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(0);
-  if (connection_->transport_version() > QUIC_VERSION_46) {
+  if (connection_->transport_version() > QUIC_VERSION_44) {
     // Illegal fixed bit value.
     EXPECT_CALL(*connection_, OnError(_)).Times(1);
   }
@@ -539,7 +534,8 @@ TEST_P(QuicSpdyClientSessionTest, PushPromiseOutOfOrder) {
   EXPECT_CALL(*stream, OnPromiseHeaderList(promised_stream_id_, _, _));
   session_->OnPromiseHeaderList(associated_stream_id_, promised_stream_id_, 0,
                                 QuicHeaderList());
-  associated_stream_id_ += QuicSpdySessionPeer::StreamIdDelta(*session_);
+  associated_stream_id_ +=
+      QuicUtils::StreamIdDelta(connection_->transport_version());
   EXPECT_CALL(*connection_,
               CloseConnection(QUIC_INVALID_STREAM_ID,
                               "Received push stream id lesser or equal to the"
@@ -557,9 +553,8 @@ TEST_P(QuicSpdyClientSessionTest, PushPromiseOutgoingStreamId) {
       session_->CreateOutgoingBidirectionalStream());
 
   // Promise an illegal (outgoing) stream id.
-  promised_stream_id_ =
-      QuicSpdySessionPeer::GetNthClientInitiatedBidirectionalStreamId(*session_,
-                                                                      0);
+  promised_stream_id_ = GetNthClientInitiatedBidirectionalStreamId(
+      connection_->transport_version(), 0);
   EXPECT_CALL(
       *connection_,
       CloseConnection(QUIC_INVALID_STREAM_ID,
@@ -615,7 +610,8 @@ TEST_P(QuicSpdyClientSessionTest, PushPromiseDuplicateUrl) {
   EXPECT_NE(session_->GetPromisedById(promised_stream_id_), nullptr);
   EXPECT_NE(session_->GetPromisedByUrl(promise_url_), nullptr);
 
-  promised_stream_id_ += QuicSpdySessionPeer::StreamIdDelta(*session_);
+  promised_stream_id_ +=
+      QuicUtils::StreamIdDelta(connection_->transport_version());
   EXPECT_CALL(*connection_, SendControlFrame(_));
   EXPECT_CALL(*connection_,
               OnStreamReset(promised_stream_id_, QUIC_DUPLICATE_PROMISE_URL));
@@ -632,7 +628,8 @@ TEST_P(QuicSpdyClientSessionTest, ReceivingPromiseEnhanceYourCalm) {
     push_promise_[":path"] = QuicStringPrintf("/bar%zu", i);
 
     QuicStreamId id =
-        promised_stream_id_ + i * QuicSpdySessionPeer::StreamIdDelta(*session_);
+        promised_stream_id_ +
+        i * QuicUtils::StreamIdDelta(connection_->transport_version());
 
     EXPECT_TRUE(
         session_->HandlePromised(associated_stream_id_, id, push_promise_));
@@ -648,7 +645,8 @@ TEST_P(QuicSpdyClientSessionTest, ReceivingPromiseEnhanceYourCalm) {
   push_promise_[":path"] = QuicStringPrintf("/bar%d", i);
 
   QuicStreamId id =
-      promised_stream_id_ + i * QuicSpdySessionPeer::StreamIdDelta(*session_);
+      promised_stream_id_ +
+      i * QuicUtils::StreamIdDelta(connection_->transport_version());
   EXPECT_CALL(*connection_, SendControlFrame(_));
   EXPECT_CALL(*connection_, OnStreamReset(id, QUIC_REFUSED_STREAM));
   EXPECT_FALSE(
@@ -780,9 +778,8 @@ TEST_P(QuicSpdyClientSessionTest,
   } else {
     EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(0);
   }
-  session_->GetOrCreateStream(
-      QuicSpdySessionPeer::GetNthServerInitiatedBidirectionalStreamId(*session_,
-                                                                      0));
+  session_->GetOrCreateStream(GetNthServerInitiatedBidirectionalStreamId(
+      connection_->transport_version(), 0));
 }
 
 }  // namespace

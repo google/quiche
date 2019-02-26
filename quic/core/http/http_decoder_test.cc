@@ -31,7 +31,7 @@ class MockVisitor : public HttpDecoder::Visitor {
 
   MOCK_METHOD0(OnHeadersFrameStart, void());
   MOCK_METHOD1(OnHeadersFramePayload, void(QuicStringPiece payload));
-  MOCK_METHOD0(OnHeadersFrameEnd, void());
+  MOCK_METHOD1(OnHeadersFrameEnd, void(QuicByteCount frame_len));
 
   MOCK_METHOD1(OnPushPromiseFrameStart, void(PushId push_id));
   MOCK_METHOD1(OnPushPromiseFramePayload, void(QuicStringPiece payload));
@@ -84,7 +84,7 @@ TEST_F(HttpDecoderTest, ReservedFramesSmallPayload) {
 TEST_F(HttpDecoderTest, ReservedFramesLargePayload) {
   for (int n = 0; n < 8; ++n) {
     const uint8_t type = 0xB + 0x1F * n;
-    const size_t payload_size = 256;
+    const QuicByteCount payload_size = 256;
     char input[payload_size + 3] = {// length
                                     0x40 + 0x01, 0x00,
                                     // type
@@ -383,7 +383,7 @@ TEST_F(HttpDecoderTest, HeadersFrame) {
   InSequence s;
   EXPECT_CALL(visitor_, OnHeadersFrameStart());
   EXPECT_CALL(visitor_, OnHeadersFramePayload(QuicStringPiece("Headers")));
-  EXPECT_CALL(visitor_, OnHeadersFrameEnd());
+  EXPECT_CALL(visitor_, OnHeadersFrameEnd(7));
   EXPECT_EQ(QUIC_ARRAYSIZE(input),
             decoder_.ProcessInput(input, QUIC_ARRAYSIZE(input)));
   EXPECT_EQ(QUIC_NO_ERROR, decoder_.error());
@@ -398,7 +398,7 @@ TEST_F(HttpDecoderTest, HeadersFrame) {
   EXPECT_CALL(visitor_, OnHeadersFramePayload(QuicStringPiece("e")));
   EXPECT_CALL(visitor_, OnHeadersFramePayload(QuicStringPiece("r")));
   EXPECT_CALL(visitor_, OnHeadersFramePayload(QuicStringPiece("s")));
-  EXPECT_CALL(visitor_, OnHeadersFrameEnd());
+  EXPECT_CALL(visitor_, OnHeadersFrameEnd(7));
   for (char c : input) {
     EXPECT_EQ(1u, decoder_.ProcessInput(&c, 1));
   }

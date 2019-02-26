@@ -61,13 +61,6 @@ class QUIC_EXPORT_PRIVATE QuicControlFrameManager {
   // immediately.
   void WriteOrBufferMaxStreamId(QuicStreamId id);
 
-  // Tries to send a packet with both a RST_STREAM and, if version 99, an
-  // IETF-QUIC STOP_SENDING frame. The frames are buffered if they can not
-  // be sent immediately.
-  void WriteOrBufferRstStreamStopSending(QuicControlFrameId stream_id,
-                                         QuicRstStreamErrorCode error_code,
-                                         QuicStreamOffset bytes_written);
-
   // Tries to send an IETF-QUIC STOP_SENDING frame. The frame is buffered if it
   // can not be sent immediately.
   void WriteOrBufferStopSending(uint16_t code, QuicStreamId stream_id);

@@ -48,10 +48,6 @@ class QuicStreamPeer {
   static QuicSession* session(QuicStream* stream);
 
   static QuicStreamSendBuffer& SendBuffer(QuicStream* stream);
-
-  static void set_ack_listener(
-      QuicStream* stream,
-      QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener);
 };
 
 }  // namespace test

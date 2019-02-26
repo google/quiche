@@ -96,6 +96,9 @@ class QUIC_EXPORT_PRIVATE QuicConnectionVisitorInterface {
   // A simple visitor interface for dealing with a data frame.
   virtual void OnStreamFrame(const QuicStreamFrame& frame) = 0;
 
+  // Called when a CRYPTO frame containing handshake data is received.
+  virtual void OnCryptoFrame(const QuicCryptoFrame& frame) = 0;
+
   // The session should process the WINDOW_UPDATE frame, adjusting both stream
   // and connection level flow control windows.
   virtual void OnWindowUpdateFrame(const QuicWindowUpdateFrame& frame) = 0;
@@ -230,9 +233,6 @@ class QUIC_EXPORT_PRIVATE QuicConnectionDebugVisitor
 
   // Called when a StreamFrame has been parsed.
   virtual void OnStreamFrame(const QuicStreamFrame& frame) {}
-
-  // Called when a AckFrame has been parsed.
-  virtual void OnAckFrame(const QuicAckFrame& frame) {}
 
   // Called when a StopWaitingFrame has been parsed.
   virtual void OnStopWaitingFrame(const QuicStopWaitingFrame& frame) {}
@@ -380,6 +380,13 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Sets the number of active streams on the connection for congestion control.
   void SetNumOpenStreams(size_t num_streams);
 
+  // Sends crypto handshake messages of length |write_length| to the peer in as
+  // few packets as possible. Returns the number of bytes consumed from the
+  // data.
+  virtual size_t SendCryptoData(EncryptionLevel level,
+                                size_t write_length,
+                                QuicStreamOffset offset);
+
   // Send the data of length |write_length| to the peer in as few packets as
   // possible. Returns the number of bytes consumed from data, and a boolean
   // indicating if the fin bit was consumed.  This does not indicate the data
@@ -479,6 +486,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   bool OnUnauthenticatedHeader(const QuicPacketHeader& header) override;
   void OnDecryptedPacket(EncryptionLevel level) override;
   bool OnPacketHeader(const QuicPacketHeader& header) override;
+  void OnCoalescedPacket(const QuicEncryptedPacket& packet) override;
   bool OnStreamFrame(const QuicStreamFrame& frame) override;
   bool OnCryptoFrame(const QuicCryptoFrame& frame) override;
   bool OnAckFrameStart(QuicPacketNumber largest_acked,
@@ -748,7 +756,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // Tries to send |message| and returns the message status.
   virtual MessageStatus SendMessage(QuicMessageId message_id,
-                                    QuicStringPiece message);
+                                    QuicMemSliceSpan message);
 
   // Returns the largest payload that will fit into a single MESSAGE frame.
   QuicPacketLength GetLargestMessagePayload() const;
@@ -846,6 +854,12 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // Attempts to process any queued undecryptable packets.
   void MaybeProcessUndecryptablePackets();
+
+  // Queue a coalesced packet.
+  void QueueCoalescedPacket(const QuicEncryptedPacket& packet);
+
+  // Process previously queued coalesced packets.
+  void MaybeProcessCoalescedPackets();
 
   enum PacketContent : uint8_t {
     NO_FRAMES_RECEIVED,
@@ -1156,6 +1170,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // sent with the INITIAL encryption and the CHLO message was lost.
   QuicDeque<std::unique_ptr<QuicEncryptedPacket>> undecryptable_packets_;
 
+  // Collection of coalesced packets which were received while processing
+  // the current packet.
+  QuicDeque<std::unique_ptr<QuicEncryptedPacket>> coalesced_packets_;
+
   // Maximum number of undecryptable packets the connection will store.
   size_t max_undecryptable_packets_;
 
@@ -1399,9 +1417,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // connection does not support version negotiation if a single version is
   // provided in constructor.
   const bool no_version_negotiation_;
-
-  // Latched value of --quic_clear_probing_mark_after_packet_processing.
-  const bool clear_probing_mark_after_packet_processing_;
 
   // Payload of most recently transmitted QUIC_VERSION_99 connectivity
   // probe packet (the PATH_CHALLENGE payload). This implementation transmits

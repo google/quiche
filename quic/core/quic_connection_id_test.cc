@@ -37,18 +37,10 @@ TEST_F(QuicConnectionIdTest, NotEmpty) {
 
 TEST_F(QuicConnectionIdTest, ZeroIsNotEmpty) {
   QuicConnectionId connection_id = test::TestConnectionId(0);
-  if (!GetQuicRestartFlag(quic_connection_ids_network_byte_order)) {
-    // Zero is empty when connection IDs are represented in host byte order.
-    return;
-  }
   EXPECT_FALSE(connection_id.IsEmpty());
 }
 
 TEST_F(QuicConnectionIdTest, Data) {
-  if (!GetQuicRestartFlag(quic_connection_ids_network_byte_order)) {
-    // These methods are not allowed when the flag is off.
-    return;
-  }
   char connection_id_data[kQuicDefaultConnectionIdLength];
   memset(connection_id_data, 0x42, sizeof(connection_id_data));
   QuicConnectionId connection_id1 =

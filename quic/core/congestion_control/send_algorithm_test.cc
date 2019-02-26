@@ -268,10 +268,9 @@ class SendAlgorithmTest : public QuicTestWithParam<TestParams> {
   SendAlgorithmInterface* sender_;
 };
 
-INSTANTIATE_TEST_CASE_P(SendAlgorithmTests,
-                        SendAlgorithmTest,
-                        ::testing::ValuesIn(GetTestParams()),
-                        TestParamToString);
+INSTANTIATE_TEST_SUITE_P(SendAlgorithmTests, SendAlgorithmTest,
+                         ::testing::ValuesIn(GetTestParams()),
+                         TestParamToString);
 
 // Test a simple long data transfer in the default setup.
 TEST_P(SendAlgorithmTest, SimpleWiredNetworkTransfer) {

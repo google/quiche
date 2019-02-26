@@ -113,7 +113,7 @@ TEST_F(CryptoTestUtilsTest, TestGenerateFullCHLO) {
       QuicCryptoServerConfig::TESTING, QuicRandom::GetInstance(),
       crypto_test_utils::ProofSourceForTesting(), KeyExchangeSource::Default(),
       TlsServerHandshaker::CreateSslCtx());
-  QuicSocketAddress server_addr;
+  QuicSocketAddress server_addr(QuicIpAddress::Any4(), 5);
   QuicSocketAddress client_addr(QuicIpAddress::Loopback4(), 1);
   QuicReferenceCountedPointer<QuicSignedServerConfig> signed_config(
       new QuicSignedServerConfig);

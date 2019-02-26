@@ -1,3 +1,7 @@
+// Copyright (c) 2019 The Chromium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
 #include "net/third_party/quiche/src/quic/tools/quic_simple_crypto_server_stream_helper.h"
 
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
@@ -12,10 +16,6 @@ class QuicSimpleCryptoServerStreamHelperTest : public QuicTest {};
 TEST_F(QuicSimpleCryptoServerStreamHelperTest, GenerateConnectionIdForReject) {
   test::MockRandom random;
   QuicSimpleCryptoServerStreamHelper helper(&random);
-
-  EXPECT_EQ(QuicUtils::CreateRandomConnectionId(&random),
-            helper.GenerateConnectionIdForReject(QUIC_VERSION_35,
-                                                 test::TestConnectionId()));
 
   EXPECT_EQ(QuicUtils::CreateRandomConnectionId(&random),
             helper.GenerateConnectionIdForReject(QUIC_VERSION_99,

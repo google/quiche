@@ -246,7 +246,7 @@ PacketDroppingTestWriter::DelayedWrite::DelayedWrite(
       options(std::move(options)),
       send_time(send_time) {}
 
-PacketDroppingTestWriter::DelayedWrite::~DelayedWrite() {}
+PacketDroppingTestWriter::DelayedWrite::~DelayedWrite() = default;
 
 }  // namespace test
 }  // namespace quic

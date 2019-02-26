@@ -63,6 +63,7 @@ class TestQuicSession : public MockQuicSession {
     TestQuicStream* stream = new TestQuicStream(
         id, this,
         DetermineStreamType(id, connection()->transport_version(),
+                            perspective(),
                             /*is_incoming=*/true, BIDIRECTIONAL));
     ActivateStream(QuicWrapUnique(stream));
     return stream;
@@ -170,7 +171,7 @@ class QuicStreamIdManagerTestClient : public QuicStreamIdManagerTestBase {
       : QuicStreamIdManagerTestBase(Perspective::IS_CLIENT) {}
 };
 
-INSTANTIATE_TEST_CASE_P(Tests, QuicStreamIdManagerTestClient, testing::Bool());
+INSTANTIATE_TEST_SUITE_P(Tests, QuicStreamIdManagerTestClient, testing::Bool());
 
 // Check that the parameters used by the stream ID manager are properly
 // initialized.
@@ -618,7 +619,7 @@ class QuicStreamIdManagerTestServer : public QuicStreamIdManagerTestBase {
       : QuicStreamIdManagerTestBase(Perspective::IS_SERVER) {}
 };
 
-INSTANTIATE_TEST_CASE_P(Tests, QuicStreamIdManagerTestServer, testing::Bool());
+INSTANTIATE_TEST_SUITE_P(Tests, QuicStreamIdManagerTestServer, testing::Bool());
 
 // This test checks that the initialization for the maximum allowed outgoing
 // stream id is correct.

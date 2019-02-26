@@ -223,6 +223,8 @@ void QuicEndpoint::OnStreamFrame(const QuicStreamFrame& frame) {
   DCHECK_LE(offsets_received_.Size(), 1000u);
 }
 
+void QuicEndpoint::OnCryptoFrame(const QuicCryptoFrame& frame) {}
+
 void QuicEndpoint::OnCanWrite() {
   if (notifier_ != nullptr) {
     notifier_->OnCanWrite();
@@ -309,10 +311,6 @@ WriteResult QuicEndpoint::Writer::WritePacket(
   endpoint_->nic_tx_queue_.AcceptPacket(std::move(packet));
 
   return WriteResult(WRITE_STATUS_OK, buf_len);
-}
-
-bool QuicEndpoint::Writer::IsWriteBlockedDataBuffered() const {
-  return false;
 }
 
 bool QuicEndpoint::Writer::IsWriteBlocked() const {

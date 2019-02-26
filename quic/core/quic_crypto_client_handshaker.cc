@@ -95,7 +95,7 @@ QuicCryptoClientHandshaker::QuicCryptoClientHandshaker(
       proof_handler_(proof_handler),
       verify_ok_(false),
       stateless_reject_received_(false),
-      proof_verify_start_time_(QuicWallTime::Zero()),
+      proof_verify_start_time_(QuicTime::Zero()),
       num_scup_messages_received_(0),
       encryption_established_(false),
       handshake_confirmed_(false),
@@ -272,7 +272,7 @@ void QuicCryptoClientHandshaker::DoInitialize(
     // the proof.
     DCHECK(crypto_config_->proof_verifier());
     // Track proof verification time when cached server config is used.
-    proof_verify_start_time_ = session()->connection()->clock()->WallNow();
+    proof_verify_start_time_ = session()->connection()->clock()->Now();
     chlo_hash_ = cached->chlo_hash();
     // If the cached state needs to be verified, do it now.
     next_state_ = STATE_VERIFY_PROOF;
@@ -381,15 +381,15 @@ void QuicCryptoClientHandshaker::DoSendCHLO(
   SendHandshakeMessage(out);
   // Be prepared to decrypt with the new server write key.
   session()->connection()->SetAlternativeDecrypter(
-      ENCRYPTION_INITIAL,
+      ENCRYPTION_ZERO_RTT,
       std::move(crypto_negotiated_params_->initial_crypters.decrypter),
       true /* latch once used */);
   // Send subsequent packets under encryption on the assumption that the
   // server will accept the handshake.
   session()->connection()->SetEncrypter(
-      ENCRYPTION_INITIAL,
+      ENCRYPTION_ZERO_RTT,
       std::move(crypto_negotiated_params_->initial_crypters.encrypter));
-  session()->connection()->SetDefaultEncryptionLevel(ENCRYPTION_INITIAL);
+  session()->connection()->SetDefaultEncryptionLevel(ENCRYPTION_ZERO_RTT);
 
   // TODO(ianswett): Merge ENCRYPTION_REESTABLISHED and
   // ENCRYPTION_FIRST_ESTABLSIHED
@@ -498,12 +498,10 @@ QuicAsyncStatus QuicCryptoClientHandshaker::DoVerifyProof(
 
 void QuicCryptoClientHandshaker::DoVerifyProofComplete(
     QuicCryptoClientConfig::CachedState* cached) {
-  if (!proof_verify_start_time_.IsZero()) {
+  if (proof_verify_start_time_.IsInitialized()) {
     QUIC_CLIENT_HISTOGRAM_TIMES(
         "QuicSession.VerifyProofTime.CachedServerConfig",
-        QuicTime::Delta::FromMicroseconds(
-            session()->connection()->clock()->WallNow().ToUNIXMicroseconds() -
-            proof_verify_start_time_.ToUNIXMicroseconds()),
+        (session()->connection()->clock()->Now() - proof_verify_start_time_),
         QuicTime::Delta::FromMilliseconds(1), QuicTime::Delta::FromSeconds(10),
         50, "");
   }

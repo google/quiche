@@ -56,7 +56,7 @@ class QpackRoundTripTest
   const FragmentMode decoding_fragment_mode_;
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     ,
     QpackRoundTripTest,
     Combine(Values(FragmentMode::kSingleChunk, FragmentMode::kOctetByOctet),

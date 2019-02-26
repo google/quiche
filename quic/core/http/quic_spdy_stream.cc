@@ -81,7 +81,9 @@ class QuicSpdyStream::HttpDecoderVisitor : public HttpDecoder::Visitor {
     CloseConnectionOnWrongFrame("Headers");
   }
 
-  void OnHeadersFrameEnd() override { CloseConnectionOnWrongFrame("Headers"); }
+  void OnHeadersFrameEnd(QuicByteCount frame_len) override {
+    CloseConnectionOnWrongFrame("Headers");
+  }
 
   void OnPushPromiseFrameStart(PushId push_id) override {
     CloseConnectionOnWrongFrame("Push Promise");
@@ -121,7 +123,7 @@ QuicSpdyStream::QuicSpdyStream(QuicStreamId id,
       trailers_consumed_(false),
       http_decoder_visitor_(new HttpDecoderVisitor(this)),
       body_buffer_(sequencer()),
-      total_header_bytes_written_(0) {
+      ack_listener_(nullptr) {
   DCHECK_NE(QuicUtils::GetCryptoStreamId(
                 spdy_session->connection()->transport_version()),
             id);
@@ -129,7 +131,8 @@ QuicSpdyStream::QuicSpdyStream(QuicStreamId id,
   // are complete.
   sequencer()->SetBlockedUntilFlush();
 
-  if (spdy_session_->connection()->transport_version() == QUIC_VERSION_99) {
+  if (VersionHasDataFrameHeader(
+          spdy_session_->connection()->transport_version())) {
     sequencer()->set_level_triggered(true);
   }
   decoder_.set_visitor(http_decoder_visitor_.get());
@@ -146,7 +149,7 @@ QuicSpdyStream::QuicSpdyStream(PendingStream pending,
       trailers_consumed_(false),
       http_decoder_visitor_(new HttpDecoderVisitor(this)),
       body_buffer_(sequencer()),
-      total_header_bytes_written_(0) {
+      ack_listener_(nullptr) {
   DCHECK_NE(QuicUtils::GetCryptoStreamId(
                 spdy_session->connection()->transport_version()),
             id());
@@ -154,7 +157,8 @@ QuicSpdyStream::QuicSpdyStream(PendingStream pending,
   // are complete.
   sequencer()->SetBlockedUntilFlush();
 
-  if (spdy_session_->connection()->transport_version() == QUIC_VERSION_99) {
+  if (VersionHasDataFrameHeader(
+          spdy_session_->connection()->transport_version())) {
     sequencer()->set_level_triggered(true);
   }
   decoder_.set_visitor(http_decoder_visitor_.get());
@@ -166,8 +170,8 @@ size_t QuicSpdyStream::WriteHeaders(
     SpdyHeaderBlock header_block,
     bool fin,
     QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener) {
-  size_t bytes_written = spdy_session_->WriteHeaders(
-      id(), std::move(header_block), fin, priority(), std::move(ack_listener));
+  size_t bytes_written =
+      WriteHeadersImpl(std::move(header_block), fin, std::move(ack_listener));
   if (fin) {
     // TODO(rch): Add test to ensure fin_sent_ is set whenever a fin is sent.
     set_fin_sent(true);
@@ -176,28 +180,32 @@ size_t QuicSpdyStream::WriteHeaders(
   return bytes_written;
 }
 
-void QuicSpdyStream::WriteOrBufferBody(
-    QuicStringPiece data,
-    bool fin,
-    QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener) {
-  if (spdy_session_->connection()->transport_version() != QUIC_VERSION_99 ||
+void QuicSpdyStream::WriteOrBufferBody(QuicStringPiece data, bool fin) {
+  if (!VersionHasDataFrameHeader(
+          spdy_session_->connection()->transport_version()) ||
       data.length() == 0) {
-    WriteOrBufferData(data, fin, std::move(ack_listener));
+    WriteOrBufferData(data, fin, nullptr);
     return;
   }
   QuicConnection::ScopedPacketFlusher flusher(
       spdy_session_->connection(), QuicConnection::SEND_ACK_IF_PENDING);
+
+  // Write frame header.
   std::unique_ptr<char[]> buffer;
   QuicByteCount header_length =
       encoder_.SerializeDataFrameHeader(data.length(), &buffer);
-  WriteOrBufferData(QuicStringPiece(buffer.get(), header_length), false,
-                    nullptr);
+  unacked_frame_headers_offsets_.Add(
+      send_buffer().stream_offset(),
+      send_buffer().stream_offset() + header_length);
   QUIC_DLOG(INFO) << "Stream " << id() << " is writing header of length "
                   << header_length;
-  total_header_bytes_written_ += header_length;
-  WriteOrBufferData(data, fin, std::move(ack_listener));
+  WriteOrBufferData(QuicStringPiece(buffer.get(), header_length), false,
+                    nullptr);
+
+  // Write body.
   QUIC_DLOG(INFO) << "Stream " << id() << " is writing body of length "
                   << data.length();
+  WriteOrBufferData(data, fin, nullptr);
 }
 
 size_t QuicSpdyStream::WriteTrailers(
@@ -221,8 +229,7 @@ size_t QuicSpdyStream::WriteTrailers(
   // trailers are the last thing to be sent on a stream.
   const bool kFin = true;
   size_t bytes_written =
-      spdy_session_->WriteHeaders(id(), std::move(trailer_block), kFin,
-                                  priority(), std::move(ack_listener));
+      WriteHeadersImpl(std::move(trailer_block), kFin, std::move(ack_listener));
   set_fin_sent(kFin);
 
   // Trailers are the last thing to be sent on a stream, but if there is still
@@ -250,7 +257,8 @@ QuicConsumedData QuicSpdyStream::WritevBody(const struct iovec* iov,
 
 QuicConsumedData QuicSpdyStream::WriteBodySlices(QuicMemSliceSpan slices,
                                                  bool fin) {
-  if (spdy_session_->connection()->transport_version() != QUIC_VERSION_99 ||
+  if (!VersionHasDataFrameHeader(
+          spdy_session_->connection()->transport_version()) ||
       slices.empty()) {
     return WriteMemSlices(slices, fin);
   }
@@ -264,23 +272,30 @@ QuicConsumedData QuicSpdyStream::WriteBodySlices(QuicMemSliceSpan slices,
 
   QuicConnection::ScopedPacketFlusher flusher(
       spdy_session_->connection(), QuicConnection::SEND_ACK_IF_PENDING);
+
+  // Write frame header.
   struct iovec header_iov = {static_cast<void*>(buffer.get()), header_length};
   QuicMemSliceStorage storage(
       &header_iov, 1,
       spdy_session_->connection()->helper()->GetStreamSendBufferAllocator(),
       GetQuicFlag(FLAGS_quic_send_buffer_max_data_slice_size));
-  WriteMemSlices(storage.ToSpan(), false);
+  unacked_frame_headers_offsets_.Add(
+      send_buffer().stream_offset(),
+      send_buffer().stream_offset() + header_length);
   QUIC_DLOG(INFO) << "Stream " << id() << " is writing header of length "
                   << header_length;
-  total_header_bytes_written_ += header_length;
-  QUIC_DLOG(INFO) << "Stream" << id() << " is writing body of length "
+  WriteMemSlices(storage.ToSpan(), false);
+
+  // Write body.
+  QUIC_DLOG(INFO) << "Stream " << id() << " is writing body of length "
                   << slices.total_length();
   return WriteMemSlices(slices, fin);
 }
 
 size_t QuicSpdyStream::Readv(const struct iovec* iov, size_t iov_len) {
   DCHECK(FinishedReadingHeaders());
-  if (spdy_session_->connection()->transport_version() != QUIC_VERSION_99) {
+  if (!VersionHasDataFrameHeader(
+          spdy_session_->connection()->transport_version())) {
     return sequencer()->Readv(iov, iov_len);
   }
   return body_buffer_.ReadBody(iov, iov_len);
@@ -288,7 +303,8 @@ size_t QuicSpdyStream::Readv(const struct iovec* iov, size_t iov_len) {
 
 int QuicSpdyStream::GetReadableRegions(iovec* iov, size_t iov_len) const {
   DCHECK(FinishedReadingHeaders());
-  if (spdy_session_->connection()->transport_version() != QUIC_VERSION_99) {
+  if (!VersionHasDataFrameHeader(
+          spdy_session_->connection()->transport_version())) {
     return sequencer()->GetReadableRegions(iov, iov_len);
   }
   return body_buffer_.PeekBody(iov, iov_len);
@@ -296,8 +312,10 @@ int QuicSpdyStream::GetReadableRegions(iovec* iov, size_t iov_len) const {
 
 void QuicSpdyStream::MarkConsumed(size_t num_bytes) {
   DCHECK(FinishedReadingHeaders());
-  if (spdy_session_->connection()->transport_version() != QUIC_VERSION_99) {
-    return sequencer()->MarkConsumed(num_bytes);
+  if (!VersionHasDataFrameHeader(
+          spdy_session_->connection()->transport_version())) {
+    sequencer()->MarkConsumed(num_bytes);
+    return;
   }
   body_buffer_.MarkBodyConsumed(num_bytes);
 }
@@ -310,7 +328,8 @@ bool QuicSpdyStream::IsDoneReading() const {
 }
 
 bool QuicSpdyStream::HasBytesToRead() const {
-  if (spdy_session_->connection()->transport_version() != QUIC_VERSION_99) {
+  if (!VersionHasDataFrameHeader(
+          spdy_session_->connection()->transport_version())) {
     return sequencer()->HasBytesToRead();
   }
   return body_buffer_.HasBytesToRead();
@@ -321,7 +340,8 @@ void QuicSpdyStream::MarkTrailersConsumed() {
 }
 
 uint64_t QuicSpdyStream::total_body_bytes_read() const {
-  if (spdy_session_->connection()->transport_version() == QUIC_VERSION_99) {
+  if (VersionHasDataFrameHeader(
+          spdy_session_->connection()->transport_version())) {
     return body_buffer_.total_body_bytes_received();
   }
   return sequencer()->NumBytesConsumed();
@@ -424,6 +444,14 @@ void QuicSpdyStream::OnTrailingHeadersComplete(
       QuicStreamFrame(id(), fin, final_byte_offset, QuicStringPiece()));
 }
 
+size_t QuicSpdyStream::WriteHeadersImpl(
+    spdy::SpdyHeaderBlock header_block,
+    bool fin,
+    QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener) {
+  return spdy_session_->WriteHeadersOnHeadersStream(
+      id(), std::move(header_block), fin, priority(), std::move(ack_listener));
+}
+
 void QuicSpdyStream::OnPriorityFrame(SpdyPriority priority) {
   DCHECK_EQ(Perspective::IS_SERVER, session()->connection()->perspective());
   SetPriority(priority);
@@ -442,7 +470,8 @@ void QuicSpdyStream::OnStreamReset(const QuicRstStreamFrame& frame) {
 }
 
 void QuicSpdyStream::OnDataAvailable() {
-  if (session()->connection()->transport_version() != QUIC_VERSION_99) {
+  if (!VersionHasDataFrameHeader(
+          session()->connection()->transport_version())) {
     OnBodyAvailable();
     return;
   }
@@ -541,6 +570,53 @@ void QuicSpdyStream::OnDataFramePayload(QuicStringPiece payload) {
 void QuicSpdyStream::OnDataFrameEnd() {
   DVLOG(1) << "Reaches the end of a data frame. Total bytes received are "
            << body_buffer_.total_body_bytes_received();
+}
+
+bool QuicSpdyStream::OnStreamFrameAcked(QuicStreamOffset offset,
+                                        QuicByteCount data_length,
+                                        bool fin_acked,
+                                        QuicTime::Delta ack_delay_time,
+                                        QuicByteCount* newly_acked_length) {
+  const bool new_data_acked = QuicStream::OnStreamFrameAcked(
+      offset, data_length, fin_acked, ack_delay_time, newly_acked_length);
+
+  const QuicByteCount newly_acked_header_length =
+      GetNumFrameHeadersInInterval(offset, data_length);
+  DCHECK_LE(newly_acked_header_length, *newly_acked_length);
+  unacked_frame_headers_offsets_.Difference(offset, offset + data_length);
+  if (ack_listener_ != nullptr && new_data_acked) {
+    ack_listener_->OnPacketAcked(
+        *newly_acked_length - newly_acked_header_length, ack_delay_time);
+  }
+  return new_data_acked;
+}
+
+void QuicSpdyStream::OnStreamFrameRetransmitted(QuicStreamOffset offset,
+                                                QuicByteCount data_length,
+                                                bool fin_retransmitted) {
+  QuicStream::OnStreamFrameRetransmitted(offset, data_length,
+                                         fin_retransmitted);
+
+  const QuicByteCount retransmitted_header_length =
+      GetNumFrameHeadersInInterval(offset, data_length);
+  DCHECK_LE(retransmitted_header_length, data_length);
+
+  if (ack_listener_ != nullptr) {
+    ack_listener_->OnPacketRetransmitted(data_length -
+                                         retransmitted_header_length);
+  }
+}
+
+QuicByteCount QuicSpdyStream::GetNumFrameHeadersInInterval(
+    QuicStreamOffset offset,
+    QuicByteCount data_length) const {
+  QuicByteCount header_acked_length = 0;
+  QuicIntervalSet<QuicStreamOffset> newly_acked(offset, offset + data_length);
+  newly_acked.Intersection(unacked_frame_headers_offsets_);
+  for (const auto& interval : newly_acked) {
+    header_acked_length += interval.Length();
+  }
+  return header_acked_length;
 }
 
 #undef ENDPOINT  // undef for jumbo builds

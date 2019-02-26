@@ -7,7 +7,10 @@
 #ifndef QUICHE_QUIC_TOOLS_QUIC_SIMPLE_SERVER_SESSION_H_
 #define QUICHE_QUIC_TOOLS_QUIC_SIMPLE_SERVER_SESSION_H_
 
+#include <stdint.h>
+
 #include <list>
+#include <memory>
 #include <set>
 #include <string>
 #include <utility>

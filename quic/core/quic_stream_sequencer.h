@@ -64,6 +64,13 @@ class QUIC_EXPORT_PRIVATE QuicStreamSequencer {
   // buffered.
   void OnStreamFrame(const QuicStreamFrame& frame);
 
+  // If the frame is the next one we need in order to process in-order data,
+  // ProcessData will be immediately called on the crypto stream until all
+  // buffered data is processed or the crypto stream fails to consume data. Any
+  // unconsumed data will be buffered. If the frame is not the next in line, it
+  // will be buffered.
+  void OnCryptoFrame(const QuicCryptoFrame& frame);
+
   // Once data is buffered, it's up to the stream to read it when the stream
   // can handle more data.  The following three functions make that possible.
 
@@ -161,6 +168,11 @@ class QUIC_EXPORT_PRIVATE QuicStreamSequencer {
   // If we've received a FIN and have processed all remaining data, then inform
   // the stream of FIN, and clear buffers.
   bool MaybeCloseStream();
+
+  // Shared implementation between OnStreamFrame and OnCryptoFrame.
+  void OnFrameData(QuicStreamOffset byte_offset,
+                   size_t data_len,
+                   const char* data_buffer);
 
   // The stream which owns this sequencer.
   StreamInterface* stream_;

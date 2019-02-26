@@ -50,6 +50,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_sent_packet_manager.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_mem_slice_span.h"
 
 namespace quic {
 
@@ -99,6 +100,14 @@ class QUIC_EXPORT_PRIVATE QuicPacketGenerator {
                                size_t write_length,
                                QuicStreamOffset offset,
                                StreamSendingState state);
+
+  // Consumes data for CRYPTO frames sent at |level| starting at |offset| for a
+  // total of |write_length| bytes, and returns the number of bytes consumed.
+  // The data is passed into the packet creator and serialized into one or more
+  // packets.
+  size_t ConsumeCryptoData(EncryptionLevel level,
+                           size_t write_length,
+                           QuicStreamOffset offset);
 
   // Sends as many data only packets as allowed by the send algorithm and the
   // available iov.
@@ -210,7 +219,7 @@ class QUIC_EXPORT_PRIVATE QuicPacketGenerator {
 
   // Tries to add a message frame containing |message| and returns the status.
   MessageStatus AddMessageFrame(QuicMessageId message_id,
-                                QuicStringPiece message);
+                                QuicMemSliceSpan message);
 
   // Returns the largest payload that will fit into a single MESSAGE frame.
   QuicPacketLength GetLargestMessagePayload() const;

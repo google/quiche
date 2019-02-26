@@ -14,6 +14,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_macros.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
@@ -492,7 +493,7 @@ QuicTime::Delta QuicConfig::IdleNetworkTimeout() const {
 }
 
 // TODO(ianswett) Use this for silent close on mobile, or delete.
-ABSL_ATTRIBUTE_UNUSED void QuicConfig::SetSilentClose(bool silent_close) {
+QUIC_UNUSED void QuicConfig::SetSilentClose(bool silent_close) {
   silent_close_.set(silent_close ? 1 : 0, silent_close ? 1 : 0);
 }
 

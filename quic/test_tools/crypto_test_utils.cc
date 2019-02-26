@@ -5,6 +5,7 @@
 #include "net/third_party/quiche/src/quic/test_tools/crypto_test_utils.h"
 
 #include <memory>
+#include <string>
 
 #include "third_party/boringssl/src/include/openssl/bn.h"
 #include "third_party/boringssl/src/include/openssl/ec.h"
@@ -507,11 +508,19 @@ void SendHandshakeMessageToStream(QuicCryptoStream* stream,
                                   const CryptoHandshakeMessage& message,
                                   Perspective perspective) {
   const QuicData& data = message.GetSerialized();
-  QuicStreamFrame frame(
-      QuicUtils::GetCryptoStreamId(
-          QuicStreamPeer::session(stream)->connection()->transport_version()),
-      false, stream->stream_bytes_read(), data.AsStringPiece());
-  stream->OnStreamFrame(frame);
+  QuicSession* session = QuicStreamPeer::session(stream);
+  if (session->connection()->transport_version() < QUIC_VERSION_47) {
+    QuicStreamFrame frame(QuicUtils::GetCryptoStreamId(
+                              session->connection()->transport_version()),
+                          false, stream->crypto_bytes_read(),
+                          data.AsStringPiece());
+    stream->OnStreamFrame(frame);
+  } else {
+    EncryptionLevel level = session->connection()->last_decrypted_level();
+    QuicCryptoFrame frame(level, stream->BytesReadOnLevel(level),
+                          data.AsStringPiece());
+    stream->OnCryptoFrame(frame);
+  }
 }
 
 void CommunicateHandshakeMessages(PacketSavingConnection* client_conn,
@@ -589,7 +598,7 @@ QuicString GetValueForTag(const CryptoHandshakeMessage& message, QuicTag tag) {
 
 uint64_t LeafCertHashForTesting() {
   QuicReferenceCountedPointer<ProofSource::Chain> chain;
-  QuicSocketAddress server_address;
+  QuicSocketAddress server_address(QuicIpAddress::Any4(), 42);
   QuicCryptoProof proof;
   std::unique_ptr<ProofSource> proof_source(ProofSourceForTesting());
 
@@ -724,7 +733,7 @@ void CompareClientAndServerKeys(QuicCryptoClientStream* client,
   QuicFramer* server_framer = QuicConnectionPeer::GetFramer(
       QuicStreamPeer::session(server)->connection());
   const QuicEncrypter* client_encrypter(
-      QuicFramerPeer::GetEncrypter(client_framer, ENCRYPTION_INITIAL));
+      QuicFramerPeer::GetEncrypter(client_framer, ENCRYPTION_ZERO_RTT));
   const QuicDecrypter* client_decrypter(
       QuicStreamPeer::session(client)->connection()->decrypter());
   const QuicEncrypter* client_forward_secure_encrypter(
@@ -732,7 +741,7 @@ void CompareClientAndServerKeys(QuicCryptoClientStream* client,
   const QuicDecrypter* client_forward_secure_decrypter(
       QuicStreamPeer::session(client)->connection()->alternative_decrypter());
   const QuicEncrypter* server_encrypter(
-      QuicFramerPeer::GetEncrypter(server_framer, ENCRYPTION_INITIAL));
+      QuicFramerPeer::GetEncrypter(server_framer, ENCRYPTION_ZERO_RTT));
   const QuicDecrypter* server_decrypter(
       QuicStreamPeer::session(server)->connection()->decrypter());
   const QuicEncrypter* server_forward_secure_encrypter(
@@ -936,6 +945,7 @@ void MovePackets(PacketSavingConnection* source_conn,
       break;
     }
     QuicConnectionPeer::SwapCrypters(dest_conn, framer.framer());
+    dest_conn->OnDecryptedPacket(framer.last_decrypted_level());
 
     if (dest_stream->handshake_protocol() == PROTOCOL_TLS1_3) {
       // Try to process the packet with a framer that only has the NullDecrypter
@@ -960,6 +970,9 @@ void MovePackets(PacketSavingConnection* source_conn,
         dest_conn, source_conn->encrypted_packets_[index]->AsStringPiece());
     for (const auto& stream_frame : framer.stream_frames()) {
       dest_stream->OnStreamFrame(*stream_frame);
+    }
+    for (const auto& crypto_frame : framer.crypto_frames()) {
+      dest_stream->OnCryptoFrame(*crypto_frame);
     }
   }
   *inout_packet_index = index;
