@@ -9,6 +9,7 @@
 
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "net/third_party/quiche/src/http2/platform/api/http2_test_helpers.h"
 
 using ::testing::AllOf;
 using ::testing::HasSubstr;
