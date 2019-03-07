@@ -4,10 +4,10 @@
 
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_decoder_adapter.h"
 
-#include "base/logging.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_buffer.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_status.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_estimate_memory_usage.h"
+#include "net/third_party/quiche/src/spdy/platform/api/spdy_logging.h"
 
 using ::http2::DecodeBuffer;
 using ::http2::HpackEntryType;
@@ -26,13 +26,13 @@ HpackDecoderAdapter::HpackDecoderAdapter()
 HpackDecoderAdapter::~HpackDecoderAdapter() = default;
 
 void HpackDecoderAdapter::ApplyHeaderTableSizeSetting(size_t size_setting) {
-  DVLOG(2) << "HpackDecoderAdapter::ApplyHeaderTableSizeSetting";
+  SPDY_DVLOG(2) << "HpackDecoderAdapter::ApplyHeaderTableSizeSetting";
   hpack_decoder_.ApplyHeaderTableSizeSetting(size_setting);
 }
 
 void HpackDecoderAdapter::HandleControlFrameHeadersStart(
     SpdyHeadersHandlerInterface* handler) {
-  DVLOG(2) << "HpackDecoderAdapter::HandleControlFrameHeadersStart";
+  SPDY_DVLOG(2) << "HpackDecoderAdapter::HandleControlFrameHeadersStart";
   DCHECK(!header_block_started_);
   listener_adapter_.set_handler(handler);
 }
@@ -40,8 +40,8 @@ void HpackDecoderAdapter::HandleControlFrameHeadersStart(
 bool HpackDecoderAdapter::HandleControlFrameHeadersData(
     const char* headers_data,
     size_t headers_data_length) {
-  DVLOG(2) << "HpackDecoderAdapter::HandleControlFrameHeadersData: len="
-           << headers_data_length;
+  SPDY_DVLOG(2) << "HpackDecoderAdapter::HandleControlFrameHeadersData: len="
+                << headers_data_length;
   if (!header_block_started_) {
     // Initialize the decoding process here rather than in
     // HandleControlFrameHeadersStart because that method is not always called.
@@ -58,8 +58,9 @@ bool HpackDecoderAdapter::HandleControlFrameHeadersData(
   if (headers_data_length > 0) {
     DCHECK_NE(headers_data, nullptr);
     if (headers_data_length > max_decode_buffer_size_bytes_) {
-      DVLOG(1) << "max_decode_buffer_size_bytes_ < headers_data_length: "
-               << max_decode_buffer_size_bytes_ << " < " << headers_data_length;
+      SPDY_DVLOG(1) << "max_decode_buffer_size_bytes_ < headers_data_length: "
+                    << max_decode_buffer_size_bytes_ << " < "
+                    << headers_data_length;
       return false;
     }
     listener_adapter_.AddToTotalHpackBytes(headers_data_length);
@@ -73,12 +74,12 @@ bool HpackDecoderAdapter::HandleControlFrameHeadersData(
 
 bool HpackDecoderAdapter::HandleControlFrameHeadersComplete(
     size_t* compressed_len) {
-  DVLOG(2) << "HpackDecoderAdapter::HandleControlFrameHeadersComplete";
+  SPDY_DVLOG(2) << "HpackDecoderAdapter::HandleControlFrameHeadersComplete";
   if (compressed_len != nullptr) {
     *compressed_len = listener_adapter_.total_hpack_bytes();
   }
   if (!hpack_decoder_.EndDecodingBlock()) {
-    DVLOG(3) << "EndDecodingBlock returned false";
+    SPDY_DVLOG(3) << "EndDecodingBlock returned false";
     return false;
   }
   header_block_started_ = false;
@@ -91,7 +92,7 @@ const SpdyHeaderBlock& HpackDecoderAdapter::decoded_block() const {
 
 void HpackDecoderAdapter::SetHeaderTableDebugVisitor(
     std::unique_ptr<HpackHeaderTable::DebugVisitorInterface> visitor) {
-  DVLOG(2) << "HpackDecoderAdapter::SetHeaderTableDebugVisitor";
+  SPDY_DVLOG(2) << "HpackDecoderAdapter::SetHeaderTableDebugVisitor";
   if (visitor != nullptr) {
     listener_adapter_.SetHeaderTableDebugVisitor(std::move(visitor));
     hpack_decoder_.set_tables_debug_listener(&listener_adapter_);
@@ -103,7 +104,7 @@ void HpackDecoderAdapter::SetHeaderTableDebugVisitor(
 
 void HpackDecoderAdapter::set_max_decode_buffer_size_bytes(
     size_t max_decode_buffer_size_bytes) {
-  DVLOG(2) << "HpackDecoderAdapter::set_max_decode_buffer_size_bytes";
+  SPDY_DVLOG(2) << "HpackDecoderAdapter::set_max_decode_buffer_size_bytes";
   max_decode_buffer_size_bytes_ = max_decode_buffer_size_bytes;
   hpack_decoder_.set_max_string_size_bytes(max_decode_buffer_size_bytes);
 }
@@ -126,7 +127,7 @@ void HpackDecoderAdapter::ListenerAdapter::SetHeaderTableDebugVisitor(
 }
 
 void HpackDecoderAdapter::ListenerAdapter::OnHeaderListStart() {
-  DVLOG(2) << "HpackDecoderAdapter::ListenerAdapter::OnHeaderListStart";
+  SPDY_DVLOG(2) << "HpackDecoderAdapter::ListenerAdapter::OnHeaderListStart";
   total_hpack_bytes_ = 0;
   total_uncompressed_bytes_ = 0;
   decoded_block_.clear();
@@ -138,21 +139,21 @@ void HpackDecoderAdapter::ListenerAdapter::OnHeaderListStart() {
 void HpackDecoderAdapter::ListenerAdapter::OnHeader(HpackEntryType entry_type,
                                                     const HpackString& name,
                                                     const HpackString& value) {
-  DVLOG(2) << "HpackDecoderAdapter::ListenerAdapter::OnHeader:\n name: " << name
-           << "\n value: " << value;
+  SPDY_DVLOG(2) << "HpackDecoderAdapter::ListenerAdapter::OnHeader:\n name: "
+                << name << "\n value: " << value;
   total_uncompressed_bytes_ += name.size() + value.size();
   if (handler_ == nullptr) {
-    DVLOG(3) << "Adding to decoded_block";
+    SPDY_DVLOG(3) << "Adding to decoded_block";
     decoded_block_.AppendValueOrAddHeader(name.ToStringPiece(),
                                           value.ToStringPiece());
   } else {
-    DVLOG(3) << "Passing to handler";
+    SPDY_DVLOG(3) << "Passing to handler";
     handler_->OnHeader(name.ToStringPiece(), value.ToStringPiece());
   }
 }
 
 void HpackDecoderAdapter::ListenerAdapter::OnHeaderListEnd() {
-  DVLOG(2) << "HpackDecoderAdapter::ListenerAdapter::OnHeaderListEnd";
+  SPDY_DVLOG(2) << "HpackDecoderAdapter::ListenerAdapter::OnHeaderListEnd";
   // We don't clear the SpdyHeaderBlock here to allow access to it until the
   // next HPACK block is decoded.
   if (handler_ != nullptr) {
@@ -163,21 +164,21 @@ void HpackDecoderAdapter::ListenerAdapter::OnHeaderListEnd() {
 
 void HpackDecoderAdapter::ListenerAdapter::OnHeaderErrorDetected(
     SpdyStringPiece error_message) {
-  VLOG(1) << error_message;
+  SPDY_VLOG(1) << error_message;
 }
 
 int64_t HpackDecoderAdapter::ListenerAdapter::OnEntryInserted(
     const http2::HpackStringPair& sp,
     size_t insert_count) {
-  DVLOG(2) << "HpackDecoderAdapter::ListenerAdapter::OnEntryInserted: " << sp
-           << ",  insert_count=" << insert_count;
+  SPDY_DVLOG(2) << "HpackDecoderAdapter::ListenerAdapter::OnEntryInserted: "
+                << sp << ",  insert_count=" << insert_count;
   if (visitor_ == nullptr) {
     return 0;
   }
   HpackEntry entry(sp.name.ToStringPiece(), sp.value.ToStringPiece(),
                    /*is_static*/ false, insert_count);
   int64_t time_added = visitor_->OnNewEntry(entry);
-  DVLOG(2)
+  SPDY_DVLOG(2)
       << "HpackDecoderAdapter::ListenerAdapter::OnEntryInserted: time_added="
       << time_added;
   return time_added;
@@ -187,9 +188,9 @@ void HpackDecoderAdapter::ListenerAdapter::OnUseEntry(
     const http2::HpackStringPair& sp,
     size_t insert_count,
     int64_t time_added) {
-  DVLOG(2) << "HpackDecoderAdapter::ListenerAdapter::OnUseEntry: " << sp
-           << ",  insert_count=" << insert_count
-           << ",  time_added=" << time_added;
+  SPDY_DVLOG(2) << "HpackDecoderAdapter::ListenerAdapter::OnUseEntry: " << sp
+                << ",  insert_count=" << insert_count
+                << ",  time_added=" << time_added;
   if (visitor_ != nullptr) {
     HpackEntry entry(sp.name.ToStringPiece(), sp.value.ToStringPiece(),
                      /*is_static*/ false, insert_count);

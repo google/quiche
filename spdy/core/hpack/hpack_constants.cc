@@ -8,10 +8,10 @@
 #include <memory>
 #include <vector>
 
-#include "base/logging.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_huffman_table.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_static_table.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_arraysize.h"
+#include "net/third_party/quiche/src/spdy/platform/api/spdy_logging.h"
 
 namespace spdy {
 

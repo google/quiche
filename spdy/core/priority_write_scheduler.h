@@ -13,11 +13,11 @@
 #include <utility>
 #include <vector>
 
-#include "base/logging.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_containers.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
 #include "net/third_party/quiche/src/spdy/core/write_scheduler.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_bug_tracker.h"
+#include "net/third_party/quiche/src/spdy/platform/api/spdy_logging.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_macros.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_utils.h"
@@ -92,7 +92,7 @@ class PriorityWriteScheduler : public WriteScheduler<StreamIdType> {
       StreamIdType stream_id) const override {
     auto it = stream_infos_.find(stream_id);
     if (it == stream_infos_.end()) {
-      DVLOG(1) << "Stream " << stream_id << " not registered";
+      SPDY_DVLOG(1) << "Stream " << stream_id << " not registered";
       return StreamPrecedenceType(kV3LowestPriority);
     }
     return StreamPrecedenceType(it->second.priority);
@@ -113,7 +113,7 @@ class PriorityWriteScheduler : public WriteScheduler<StreamIdType> {
     auto it = stream_infos_.find(stream_id);
     if (it == stream_infos_.end()) {
       // TODO(mpw): add to stream_infos_ on demand--see b/15676312.
-      DVLOG(1) << "Stream " << stream_id << " not registered";
+      SPDY_DVLOG(1) << "Stream " << stream_id << " not registered";
       return;
     }
     StreamInfo& stream_info = it->second;
@@ -266,7 +266,7 @@ class PriorityWriteScheduler : public WriteScheduler<StreamIdType> {
   bool IsStreamReady(StreamIdType stream_id) const {
     auto it = stream_infos_.find(stream_id);
     if (it == stream_infos_.end()) {
-      DLOG(INFO) << "Stream " << stream_id << " not registered";
+      SPDY_DLOG(INFO) << "Stream " << stream_id << " not registered";
       return false;
     }
     return it->second.ready;

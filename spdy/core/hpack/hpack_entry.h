@@ -8,7 +8,6 @@
 #include <cstddef>
 #include <cstdint>
 
-#include "base/macros.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_export.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_piece.h"

@@ -8,7 +8,7 @@
 #include <cctype>
 #include <limits>
 
-#include "base/logging.h"
+#include "net/third_party/quiche/src/spdy/platform/api/spdy_logging.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_utils.h"
 
 namespace spdy {

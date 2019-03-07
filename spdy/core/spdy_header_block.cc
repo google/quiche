@@ -9,9 +9,8 @@
 #include <algorithm>
 #include <utility>
 
-#include "base/logging.h"
-#include "base/macros.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_estimate_memory_usage.h"
+#include "net/third_party/quiche/src/spdy/platform/api/spdy_logging.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_ptr_util.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_utils.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_unsafe_arena.h"
@@ -204,14 +203,14 @@ SpdyHeaderBlock::ValueProxy& SpdyHeaderBlock::ValueProxy::operator=(
     const SpdyStringPiece value) {
   *spdy_header_block_value_size_ += value.size();
   if (lookup_result_ == block_->end()) {
-    DVLOG(1) << "Inserting: (" << key_ << ", " << value << ")";
+    SPDY_DVLOG(1) << "Inserting: (" << key_ << ", " << value << ")";
     lookup_result_ =
         block_
             ->emplace(std::make_pair(
                 key_, HeaderValue(storage_, key_, storage_->Write(value))))
             .first;
   } else {
-    DVLOG(1) << "Updating key: " << key_ << " with value: " << value;
+    SPDY_DVLOG(1) << "Updating key: " << key_ << " with value: " << value;
     *spdy_header_block_value_size_ -= lookup_result_->second.SizeEstimate();
     lookup_result_->second =
         HeaderValue(storage_, key_, storage_->Write(value));
@@ -279,7 +278,7 @@ SpdyString SpdyHeaderBlock::DebugString() const {
 void SpdyHeaderBlock::erase(SpdyStringPiece key) {
   auto iter = block_.find(key);
   if (iter != block_.end()) {
-    DVLOG(1) << "Erasing header with name: " << key;
+    SPDY_DVLOG(1) << "Erasing header with name: " << key;
     key_size_ -= key.size();
     value_size_ -= iter->second.SizeEstimate();
     block_.erase(iter);
@@ -299,11 +298,12 @@ void SpdyHeaderBlock::insert(const SpdyHeaderBlock::value_type& value) {
 
   auto iter = block_.find(value.first);
   if (iter == block_.end()) {
-    DVLOG(1) << "Inserting: (" << value.first << ", " << value.second << ")";
+    SPDY_DVLOG(1) << "Inserting: (" << value.first << ", " << value.second
+                  << ")";
     AppendHeader(value.first, value.second);
   } else {
-    DVLOG(1) << "Updating key: " << iter->first
-             << " with value: " << value.second;
+    SPDY_DVLOG(1) << "Updating key: " << iter->first
+                  << " with value: " << value.second;
     value_size_ -= iter->second.SizeEstimate();
     auto* storage = GetStorage();
     iter->second =
@@ -313,16 +313,16 @@ void SpdyHeaderBlock::insert(const SpdyHeaderBlock::value_type& value) {
 
 SpdyHeaderBlock::ValueProxy SpdyHeaderBlock::operator[](
     const SpdyStringPiece key) {
-  DVLOG(2) << "Operator[] saw key: " << key;
+  SPDY_DVLOG(2) << "Operator[] saw key: " << key;
   SpdyStringPiece out_key;
   auto iter = block_.find(key);
   if (iter == block_.end()) {
     // We write the key first, to assure that the ValueProxy has a
     // reference to a valid SpdyStringPiece in its operator=.
     out_key = WriteKey(key);
-    DVLOG(2) << "Key written as: " << std::hex
-             << static_cast<const void*>(key.data()) << ", " << std::dec
-             << key.size();
+    SPDY_DVLOG(2) << "Key written as: " << std::hex
+                  << static_cast<const void*>(key.data()) << ", " << std::dec
+                  << key.size();
   } else {
     out_key = iter->first;
   }
@@ -335,12 +335,13 @@ void SpdyHeaderBlock::AppendValueOrAddHeader(const SpdyStringPiece key,
 
   auto iter = block_.find(key);
   if (iter == block_.end()) {
-    DVLOG(1) << "Inserting: (" << key << ", " << value << ")";
+    SPDY_DVLOG(1) << "Inserting: (" << key << ", " << value << ")";
 
     AppendHeader(key, value);
     return;
   }
-  DVLOG(1) << "Updating key: " << iter->first << "; appending value: " << value;
+  SPDY_DVLOG(1) << "Updating key: " << iter->first
+                << "; appending value: " << value;
   value_size_ += SeparatorForKey(key).size();
   iter->second.Append(GetStorage()->Write(value));
 }

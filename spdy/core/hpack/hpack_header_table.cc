@@ -6,11 +6,11 @@
 
 #include <algorithm>
 
-#include "base/logging.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_constants.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_static_table.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_containers.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_estimate_memory_usage.h"
+#include "net/third_party/quiche/src/spdy/platform/api/spdy_logging.h"
 
 namespace spdy {
 
@@ -202,9 +202,9 @@ const HpackEntry* HpackHeaderTable::TryAddEntry(SpdyStringPiece name,
   if (!index_result.second) {
     // An entry with the same name and value already exists in the dynamic
     // index. We should replace it with the newly added entry.
-    DVLOG(1) << "Found existing entry: "
-             << (*index_result.first)->GetDebugString()
-             << " replacing with: " << new_entry->GetDebugString();
+    SPDY_DVLOG(1) << "Found existing entry: "
+                  << (*index_result.first)->GetDebugString()
+                  << " replacing with: " << new_entry->GetDebugString();
     DCHECK_GT(new_entry->InsertionIndex(),
               (*index_result.first)->InsertionIndex());
     dynamic_index_.erase(index_result.first);
@@ -216,9 +216,9 @@ const HpackEntry* HpackHeaderTable::TryAddEntry(SpdyStringPiece name,
   if (!name_result.second) {
     // An entry with the same name already exists in the dynamic index. We
     // should replace it with the newly added entry.
-    DVLOG(1) << "Found existing entry: "
-             << name_result.first->second->GetDebugString()
-             << " replacing with: " << new_entry->GetDebugString();
+    SPDY_DVLOG(1) << "Found existing entry: "
+                  << name_result.first->second->GetDebugString()
+                  << " replacing with: " << new_entry->GetDebugString();
     DCHECK_GT(new_entry->InsertionIndex(),
               name_result.first->second->InsertionIndex());
     dynamic_name_index_.erase(name_result.first);
@@ -233,35 +233,35 @@ const HpackEntry* HpackHeaderTable::TryAddEntry(SpdyStringPiece name,
     // Call |debug_visitor_->OnNewEntry()| to get the current time.
     HpackEntry& entry = dynamic_entries_.front();
     entry.set_time_added(debug_visitor_->OnNewEntry(entry));
-    DVLOG(2) << "HpackHeaderTable::OnNewEntry: name=" << entry.name()
-             << ",  value=" << entry.value()
-             << ",  insert_index=" << entry.InsertionIndex()
-             << ",  time_added=" << entry.time_added();
+    SPDY_DVLOG(2) << "HpackHeaderTable::OnNewEntry: name=" << entry.name()
+                  << ",  value=" << entry.value()
+                  << ",  insert_index=" << entry.InsertionIndex()
+                  << ",  time_added=" << entry.time_added();
   }
 
   return &dynamic_entries_.front();
 }
 
 void HpackHeaderTable::DebugLogTableState() const {
-  DVLOG(2) << "Dynamic table:";
+  SPDY_DVLOG(2) << "Dynamic table:";
   for (auto it = dynamic_entries_.begin(); it != dynamic_entries_.end(); ++it) {
-    DVLOG(2) << "  " << it->GetDebugString();
+    SPDY_DVLOG(2) << "  " << it->GetDebugString();
   }
-  DVLOG(2) << "Full Static Index:";
+  SPDY_DVLOG(2) << "Full Static Index:";
   for (const auto* entry : static_index_) {
-    DVLOG(2) << "  " << entry->GetDebugString();
+    SPDY_DVLOG(2) << "  " << entry->GetDebugString();
   }
-  DVLOG(2) << "Full Static Name Index:";
+  SPDY_DVLOG(2) << "Full Static Name Index:";
   for (const auto it : static_name_index_) {
-    DVLOG(2) << "  " << it.first << ": " << it.second->GetDebugString();
+    SPDY_DVLOG(2) << "  " << it.first << ": " << it.second->GetDebugString();
   }
-  DVLOG(2) << "Full Dynamic Index:";
+  SPDY_DVLOG(2) << "Full Dynamic Index:";
   for (const auto* entry : dynamic_index_) {
-    DVLOG(2) << "  " << entry->GetDebugString();
+    SPDY_DVLOG(2) << "  " << entry->GetDebugString();
   }
-  DVLOG(2) << "Full Dynamic Name Index:";
+  SPDY_DVLOG(2) << "Full Dynamic Name Index:";
   for (const auto it : dynamic_name_index_) {
-    DVLOG(2) << "  " << it.first << ": " << it.second->GetDebugString();
+    SPDY_DVLOG(2) << "  " << it.first << ": " << it.second->GetDebugString();
   }
 }
 

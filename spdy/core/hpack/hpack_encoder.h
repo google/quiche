@@ -13,7 +13,6 @@
 #include <utility>
 #include <vector>
 
-#include "base/macros.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_header_table.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_output_stream.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"

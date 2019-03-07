@@ -18,13 +18,12 @@
 #include <new>
 #include <utility>
 
-#include "base/logging.h"
-#include "base/macros.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_alt_svc_wire_format.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_bitmasks.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_header_block.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_bug_tracker.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_export.h"
+#include "net/third_party/quiche/src/spdy/platform/api/spdy_logging.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_ptr_util.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_piece.h"

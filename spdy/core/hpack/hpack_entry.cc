@@ -4,8 +4,8 @@
 
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_entry.h"
 
-#include "base/logging.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_estimate_memory_usage.h"
+#include "net/third_party/quiche/src/spdy/platform/api/spdy_logging.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_utils.h"
 
 namespace spdy {

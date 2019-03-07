@@ -10,7 +10,6 @@
 #include <list>
 #include <new>
 
-#include "base/logging.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_macros.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_constants.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_bitmasks.h"
@@ -18,6 +17,7 @@
 #include "net/third_party/quiche/src/spdy/core/spdy_frame_reader.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_bug_tracker.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_estimate_memory_usage.h"
+#include "net/third_party/quiche/src/spdy/platform/api/spdy_logging.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_ptr_util.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_utils.h"
 
@@ -129,7 +129,7 @@ bool SerializeHeadersGivenEncoding(const SpdyHeadersIR& headers,
   }
 
   if (!ret) {
-    DLOG(WARNING) << "Failed to build HEADERS. Not enough space in output";
+    SPDY_DLOG(WARNING) << "Failed to build HEADERS. Not enough space in output";
   }
   return ret;
 }
@@ -159,8 +159,9 @@ bool SerializePushPromiseGivenEncoding(const SpdyPushPromiseIR& push_promise,
     ok = builder.WriteBytes(padding.data(), padding.length());
   }
 
-  DLOG_IF(ERROR, !ok) << "Failed to write PUSH_PROMISE encoding, not enough "
-                      << "space in output";
+  SPDY_DLOG_IF(ERROR, !ok)
+      << "Failed to write PUSH_PROMISE encoding, not enough "
+      << "space in output";
   return ok;
 }
 
@@ -176,8 +177,8 @@ bool WritePayloadWithContinuation(SpdyFrameBuilder* builder,
   } else if (type == SpdyFrameType::PUSH_PROMISE) {
     end_flag = PUSH_PROMISE_FLAG_END_PUSH_PROMISE;
   } else {
-    DLOG(FATAL) << "CONTINUATION frames cannot be used with frame type "
-                << FrameTypeToString(type);
+    SPDY_DLOG(FATAL) << "CONTINUATION frames cannot be used with frame type "
+                     << FrameTypeToString(type);
   }
 
   // Write all the padding payload and as much of the data payload as possible
@@ -421,7 +422,7 @@ std::unique_ptr<SpdyFrameSequence> SpdyFramer::CreateIterator(
                       static_cast<const SpdyPushPromiseIR*>(frame_ir.release())));
     }
     case SpdyFrameType::DATA: {
-      DVLOG(1) << "Serialize a stream end DATA frame for VTL";
+      SPDY_DVLOG(1) << "Serialize a stream end DATA frame for VTL";
       HTTP2_FALLTHROUGH;
     }
     default: {

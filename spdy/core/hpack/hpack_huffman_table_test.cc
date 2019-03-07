@@ -6,7 +6,6 @@
 
 #include <utility>
 
-#include "base/macros.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "net/third_party/quiche/src/http2/hpack/huffman/hpack_huffman_decoder.h"

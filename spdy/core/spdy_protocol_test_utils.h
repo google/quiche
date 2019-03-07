@@ -19,11 +19,11 @@
 
 #include <typeinfo>
 
-#include "base/logging.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_test_utils.h"
+#include "net/third_party/quiche/src/spdy/platform/api/spdy_logging.h"
 
 namespace spdy {
 namespace test {
@@ -38,7 +38,7 @@ namespace test {
 template <class T>
 ::testing::AssertionResult VerifySpdyFrameWithPaddingIREquals(const T& expected,
                                                               const T& actual) {
-  VLOG(1) << "VerifySpdyFrameWithPaddingIREquals";
+  SPDY_VLOG(1) << "VerifySpdyFrameWithPaddingIREquals";
   VERIFY_EQ(expected.padded(), actual.padded());
   if (expected.padded()) {
     VERIFY_EQ(expected.padding_payload_len(), actual.padding_payload_len());
@@ -52,7 +52,7 @@ template <class T>
 ::testing::AssertionResult VerifySpdyFrameWithPriorityIREquals(
     const T& expected,
     const T& actual) {
-  VLOG(1) << "VerifySpdyFrameWithPriorityIREquals";
+  SPDY_VLOG(1) << "VerifySpdyFrameWithPriorityIREquals";
   VERIFY_EQ(expected.parent_stream_id(), actual.parent_stream_id());
   VERIFY_EQ(expected.weight(), actual.weight());
   VERIFY_EQ(expected.exclusive(), actual.exclusive());
@@ -123,12 +123,12 @@ template <class E>
 ::testing::AssertionResult VerifySpdyFrameIREquals(const E* expected,
                                                    const SpdyFrameIR* actual) {
   if (expected == nullptr || actual == nullptr) {
-    VLOG(1) << "VerifySpdyFrameIREquals one null";
+    SPDY_VLOG(1) << "VerifySpdyFrameIREquals one null";
     VERIFY_EQ(expected, nullptr);
     VERIFY_EQ(actual, nullptr);
     return ::testing::AssertionSuccess();
   }
-  VLOG(1) << "VerifySpdyFrameIREquals not null";
+  SPDY_VLOG(1) << "VerifySpdyFrameIREquals not null";
   VERIFY_EQ(actual->frame_type(), expected->frame_type());
   const E* actual2 = static_cast<const E*>(actual);
   return VerifySpdyFrameIREquals(*expected, *actual2);
@@ -139,7 +139,7 @@ template <class E>
 template <class E>
 ::testing::AssertionResult VerifySpdyFrameIREquals(const E& expected,
                                                    const SpdyFrameIR* actual) {
-  VLOG(1) << "VerifySpdyFrameIREquals";
+  SPDY_VLOG(1) << "VerifySpdyFrameIREquals";
   return VerifySpdyFrameIREquals(&expected, actual);
 }
 

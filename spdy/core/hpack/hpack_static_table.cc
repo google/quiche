@@ -4,10 +4,10 @@
 
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_static_table.h"
 
-#include "base/logging.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_constants.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_entry.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_estimate_memory_usage.h"
+#include "net/third_party/quiche/src/spdy/platform/api/spdy_logging.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_piece.h"
 
 namespace spdy {

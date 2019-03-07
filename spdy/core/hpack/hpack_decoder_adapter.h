@@ -13,7 +13,6 @@
 #include <cstdint>
 #include <memory>
 
-#include "base/macros.h"
 #include "net/third_party/quiche/src/http2/hpack/decoder/hpack_decoder.h"
 #include "net/third_party/quiche/src/http2/hpack/decoder/hpack_decoder_listener.h"
 #include "net/third_party/quiche/src/http2/hpack/decoder/hpack_decoder_tables.h"

@@ -6,7 +6,7 @@
 
 #include <new>
 
-#include "base/logging.h"
+#include "net/third_party/quiche/src/spdy/platform/api/spdy_logging.h"
 
 namespace spdy {
 
