@@ -9,11 +9,11 @@
 #include <algorithm>
 #include <memory>
 
-#include "base/logging.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_buffer.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_status.h"
 #include "net/third_party/quiche/src/http2/http2_constants.h"
+#include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_test_helpers.h"
 
 using ::testing::AssertionFailure;
@@ -33,13 +33,14 @@ DecodeStatus RandomDecoderTest::DecodeSegments(DecodeBuffer* original,
                                                const SelectSize& select_size) {
   DecodeStatus status = DecodeStatus::kDecodeInProgress;
   bool first = true;
-  VLOG(2) << "DecodeSegments: input size=" << original->Remaining();
+  HTTP2_VLOG(2) << "DecodeSegments: input size=" << original->Remaining();
   while (first || original->HasData()) {
     size_t remaining = original->Remaining();
     size_t size =
         std::min(remaining, select_size(first, original->Offset(), remaining));
     DecodeBuffer db(original->cursor(), size);
-    VLOG(2) << "Decoding " << size << " bytes of " << remaining << " remaining";
+    HTTP2_VLOG(2) << "Decoding " << size << " bytes of " << remaining
+                  << " remaining";
     if (first) {
       first = false;
       status = StartDecoding(&db);
@@ -78,13 +79,13 @@ AssertionResult RandomDecoderTest::DecodeAndValidateSeveralWays(
     bool return_non_zero_on_first,
     const Validator& validator) {
   const uint32_t original_remaining = original->Remaining();
-  VLOG(1) << "DecodeAndValidateSeveralWays - Start, remaining = "
-          << original_remaining;
+  HTTP2_VLOG(1) << "DecodeAndValidateSeveralWays - Start, remaining = "
+                << original_remaining;
   uint32_t first_consumed;
   {
     // Fast decode (no stopping unless decoder does so).
     DecodeBuffer input(original->cursor(), original_remaining);
-    VLOG(2) << "DecodeSegmentsAndValidate with SelectRemaining";
+    HTTP2_VLOG(2) << "DecodeSegmentsAndValidate with SelectRemaining";
     VERIFY_SUCCESS(
         DecodeSegmentsAndValidate(&input, SelectRemaining(), validator))
         << "\nFailed with SelectRemaining; input.Offset=" << input.Offset()
@@ -94,7 +95,7 @@ AssertionResult RandomDecoderTest::DecodeAndValidateSeveralWays(
   if (original_remaining <= 30) {
     // Decode again, one byte at a time.
     DecodeBuffer input(original->cursor(), original_remaining);
-    VLOG(2) << "DecodeSegmentsAndValidate with SelectOne";
+    HTTP2_VLOG(2) << "DecodeSegmentsAndValidate with SelectOne";
     VERIFY_SUCCESS(DecodeSegmentsAndValidate(&input, SelectOne(), validator))
         << "\nFailed with SelectOne; input.Offset=" << input.Offset()
         << "; input.Remaining=" << input.Remaining();
@@ -103,7 +104,7 @@ AssertionResult RandomDecoderTest::DecodeAndValidateSeveralWays(
   if (original_remaining <= 20) {
     // Decode again, one or zero bytes at a time.
     DecodeBuffer input(original->cursor(), original_remaining);
-    VLOG(2) << "DecodeSegmentsAndValidate with SelectZeroAndOne";
+    HTTP2_VLOG(2) << "DecodeSegmentsAndValidate with SelectZeroAndOne";
     VERIFY_SUCCESS(DecodeSegmentsAndValidate(
         &input, SelectZeroAndOne(return_non_zero_on_first), validator))
         << "\nFailed with SelectZeroAndOne";
@@ -114,7 +115,7 @@ AssertionResult RandomDecoderTest::DecodeAndValidateSeveralWays(
   {
     // Decode again, with randomly selected segment sizes.
     DecodeBuffer input(original->cursor(), original_remaining);
-    VLOG(2) << "DecodeSegmentsAndValidate with SelectRandom";
+    HTTP2_VLOG(2) << "DecodeSegmentsAndValidate with SelectRandom";
     VERIFY_SUCCESS(DecodeSegmentsAndValidate(
         &input, SelectRandom(return_non_zero_on_first), validator))
         << "\nFailed with SelectRandom; input.Offset=" << input.Offset()
@@ -123,7 +124,7 @@ AssertionResult RandomDecoderTest::DecodeAndValidateSeveralWays(
   }
   VERIFY_EQ(original_remaining, original->Remaining());
   original->AdvanceCursor(first_consumed);
-  VLOG(1) << "DecodeAndValidateSeveralWays - SUCCESS";
+  HTTP2_VLOG(1) << "DecodeAndValidateSeveralWays - SUCCESS";
   return ::testing::AssertionSuccess();
 }
 

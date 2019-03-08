@@ -7,7 +7,7 @@
 #include <bitset>
 #include <limits>
 
-#include "base/logging.h"
+#include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 
 // Terminology:
 //
@@ -415,13 +415,13 @@ HpackHuffmanDecoder::HpackHuffmanDecoder() = default;
 HpackHuffmanDecoder::~HpackHuffmanDecoder() = default;
 
 bool HpackHuffmanDecoder::Decode(Http2StringPiece input, Http2String* output) {
-  DVLOG(1) << "HpackHuffmanDecoder::Decode";
+  HTTP2_DVLOG(1) << "HpackHuffmanDecoder::Decode";
 
   // Fill bit_buffer_ from input.
   input.remove_prefix(bit_buffer_.AppendBytes(input));
 
   while (true) {
-    DVLOG(3) << "Enter Decode Loop, bit_buffer_: " << bit_buffer_;
+    HTTP2_DVLOG(3) << "Enter Decode Loop, bit_buffer_: " << bit_buffer_;
     if (bit_buffer_.count() >= 7) {
       // Get high 7 bits of the bit buffer, see if that contains a complete
       // code of 5, 6 or 7 bits.
@@ -447,10 +447,10 @@ bool HpackHuffmanDecoder::Decode(Http2StringPiece input, Http2String* output) {
     }
 
     HuffmanCode code_prefix = bit_buffer_.value() >> kExtraAccumulatorBitCount;
-    DVLOG(3) << "code_prefix: " << HuffmanCodeBitSet(code_prefix);
+    HTTP2_DVLOG(3) << "code_prefix: " << HuffmanCodeBitSet(code_prefix);
 
     PrefixInfo prefix_info = PrefixToInfo(code_prefix);
-    DVLOG(3) << "prefix_info: " << prefix_info;
+    HTTP2_DVLOG(3) << "prefix_info: " << prefix_info;
     DCHECK_LE(kMinCodeBitCount, prefix_info.code_length);
     DCHECK_LE(prefix_info.code_length, kMaxCodeBitCount);
 
@@ -465,8 +465,8 @@ bool HpackHuffmanDecoder::Decode(Http2StringPiece input, Http2String* output) {
         continue;
       }
       // Encoder is not supposed to explicity encode the EOS symbol.
-      DLOG(ERROR) << "EOS explicitly encoded!\n " << bit_buffer_ << "\n "
-                  << prefix_info;
+      HTTP2_DLOG(ERROR) << "EOS explicitly encoded!\n " << bit_buffer_ << "\n "
+                        << prefix_info;
       return false;
     }
     // bit_buffer_ doesn't have enough bits in it to decode the next symbol.

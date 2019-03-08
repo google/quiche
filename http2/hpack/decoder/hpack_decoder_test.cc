@@ -10,7 +10,6 @@
 #include <utility>
 #include <vector>
 
-#include "base/logging.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_buffer.h"
@@ -22,6 +21,7 @@
 #include "net/third_party/quiche/src/http2/hpack/tools/hpack_block_builder.h"
 #include "net/third_party/quiche/src/http2/hpack/tools/hpack_example.h"
 #include "net/third_party/quiche/src/http2/http2_constants.h"
+#include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_test_helpers.h"
 #include "net/third_party/quiche/src/http2/test_tools/http2_random.h"
@@ -130,7 +130,7 @@ class HpackDecoderTest : public ::testing::TestWithParam<bool>,
   }
 
   AssertionResult DecodeBlock(Http2StringPiece block) {
-    VLOG(1) << "HpackDecoderTest::DecodeBlock";
+    HTTP2_VLOG(1) << "HpackDecoderTest::DecodeBlock";
 
     VERIFY_FALSE(decoder_.error_detected());
     VERIFY_TRUE(error_messages_.empty());

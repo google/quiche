@@ -4,7 +4,7 @@
 
 #include "net/third_party/quiche/src/http2/hpack/varint/hpack_varint_encoder.h"
 
-#include "base/logging.h"
+#include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 
 namespace http2 {
 

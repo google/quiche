@@ -4,9 +4,9 @@
 
 #include "net/third_party/quiche/src/http2/hpack/decoder/hpack_decoder_state.h"
 
-#include "base/logging.h"
 #include "net/third_party/quiche/src/http2/hpack/hpack_string.h"
 #include "net/third_party/quiche/src/http2/http2_constants.h"
+#include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_macros.h"
 
 namespace http2 {
@@ -41,21 +41,21 @@ void HpackDecoderState::set_tables_debug_listener(
 
 void HpackDecoderState::ApplyHeaderTableSizeSetting(
     uint32_t header_table_size) {
-  DVLOG(2) << "HpackDecoderState::ApplyHeaderTableSizeSetting("
-           << header_table_size << ")";
+  HTTP2_DVLOG(2) << "HpackDecoderState::ApplyHeaderTableSizeSetting("
+                 << header_table_size << ")";
   DCHECK_LE(lowest_header_table_size_, final_header_table_size_);
   if (header_table_size < lowest_header_table_size_) {
     lowest_header_table_size_ = header_table_size;
   }
   final_header_table_size_ = header_table_size;
-  DVLOG(2) << "low water mark: " << lowest_header_table_size_;
-  DVLOG(2) << "final limit: " << final_header_table_size_;
+  HTTP2_DVLOG(2) << "low water mark: " << lowest_header_table_size_;
+  HTTP2_DVLOG(2) << "final limit: " << final_header_table_size_;
 }
 
 // Called to notify this object that we're starting to decode an HPACK block
 // (e.g. a HEADERS or PUSH_PROMISE frame's header has been decoded).
 void HpackDecoderState::OnHeaderBlockStart() {
-  DVLOG(2) << "HpackDecoderState::OnHeaderBlockStart";
+  HTTP2_DVLOG(2) << "HpackDecoderState::OnHeaderBlockStart";
   // This instance can't be reused after an error has been detected, as we must
   // assume that the encoder and decoder compression states are no longer
   // synchronized.
@@ -72,14 +72,14 @@ void HpackDecoderState::OnHeaderBlockStart() {
       (lowest_header_table_size_ <
            decoder_tables_.current_header_table_size() ||
        final_header_table_size_ < decoder_tables_.header_table_size_limit());
-  DVLOG(2) << "HpackDecoderState::OnHeaderListStart "
-           << "require_dynamic_table_size_update_="
-           << require_dynamic_table_size_update_;
+  HTTP2_DVLOG(2) << "HpackDecoderState::OnHeaderListStart "
+                 << "require_dynamic_table_size_update_="
+                 << require_dynamic_table_size_update_;
   listener_->OnHeaderListStart();
 }
 
 void HpackDecoderState::OnIndexedHeader(size_t index) {
-  DVLOG(2) << "HpackDecoderState::OnIndexedHeader: " << index;
+  HTTP2_DVLOG(2) << "HpackDecoderState::OnIndexedHeader: " << index;
   if (error_detected_) {
     return;
   }
@@ -101,8 +101,9 @@ void HpackDecoderState::OnNameIndexAndLiteralValue(
     HpackEntryType entry_type,
     size_t name_index,
     HpackDecoderStringBuffer* value_buffer) {
-  DVLOG(2) << "HpackDecoderState::OnNameIndexAndLiteralValue " << entry_type
-           << ", " << name_index << ", " << value_buffer->str();
+  HTTP2_DVLOG(2) << "HpackDecoderState::OnNameIndexAndLiteralValue "
+                 << entry_type << ", " << name_index << ", "
+                 << value_buffer->str();
   if (error_detected_) {
     return;
   }
@@ -127,8 +128,8 @@ void HpackDecoderState::OnLiteralNameAndValue(
     HpackEntryType entry_type,
     HpackDecoderStringBuffer* name_buffer,
     HpackDecoderStringBuffer* value_buffer) {
-  DVLOG(2) << "HpackDecoderState::OnLiteralNameAndValue " << entry_type << ", "
-           << name_buffer->str() << ", " << value_buffer->str();
+  HTTP2_DVLOG(2) << "HpackDecoderState::OnLiteralNameAndValue " << entry_type
+                 << ", " << name_buffer->str() << ", " << value_buffer->str();
   if (error_detected_) {
     return;
   }
@@ -146,11 +147,11 @@ void HpackDecoderState::OnLiteralNameAndValue(
 }
 
 void HpackDecoderState::OnDynamicTableSizeUpdate(size_t size_limit) {
-  DVLOG(2) << "HpackDecoderState::OnDynamicTableSizeUpdate " << size_limit
-           << ", required="
-           << (require_dynamic_table_size_update_ ? "true" : "false")
-           << ", allowed="
-           << (allow_dynamic_table_size_update_ ? "true" : "false");
+  HTTP2_DVLOG(2) << "HpackDecoderState::OnDynamicTableSizeUpdate " << size_limit
+                 << ", required="
+                 << (require_dynamic_table_size_update_ ? "true" : "false")
+                 << ", allowed="
+                 << (allow_dynamic_table_size_update_ ? "true" : "false");
   if (error_detected_) {
     return;
   }
@@ -185,14 +186,14 @@ void HpackDecoderState::OnDynamicTableSizeUpdate(size_t size_limit) {
 }
 
 void HpackDecoderState::OnHpackDecodeError(Http2StringPiece error_message) {
-  DVLOG(2) << "HpackDecoderState::OnHpackDecodeError " << error_message;
+  HTTP2_DVLOG(2) << "HpackDecoderState::OnHpackDecodeError " << error_message;
   if (!error_detected_) {
     ReportError(error_message);
   }
 }
 
 void HpackDecoderState::OnHeaderBlockEnd() {
-  DVLOG(2) << "HpackDecoderState::OnHeaderBlockEnd";
+  HTTP2_DVLOG(2) << "HpackDecoderState::OnHeaderBlockEnd";
   if (error_detected_) {
     return;
   }
@@ -206,9 +207,9 @@ void HpackDecoderState::OnHeaderBlockEnd() {
 }
 
 void HpackDecoderState::ReportError(Http2StringPiece error_message) {
-  DVLOG(2) << "HpackDecoderState::ReportError is new="
-           << (!error_detected_ ? "true" : "false")
-           << ", error_message: " << error_message;
+  HTTP2_DVLOG(2) << "HpackDecoderState::ReportError is new="
+                 << (!error_detected_ ? "true" : "false")
+                 << ", error_message: " << error_message;
   if (!error_detected_) {
     listener_->OnHeaderErrorDetected(error_message);
     error_detected_ = true;

@@ -4,9 +4,9 @@
 
 #include "net/third_party/quiche/src/http2/decoder/payload_decoders/ping_payload_decoder.h"
 
-#include "base/logging.h"
 #include "net/third_party/quiche/src/http2/decoder/http2_frame_decoder_listener.h"
 #include "net/third_party/quiche/src/http2/http2_constants.h"
+#include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 
 namespace http2 {
 namespace {
@@ -18,7 +18,8 @@ DecodeStatus PingPayloadDecoder::StartDecodingPayload(FrameDecoderState* state,
   const Http2FrameHeader& frame_header = state->frame_header();
   const uint32_t total_length = frame_header.payload_length;
 
-  DVLOG(2) << "PingPayloadDecoder::StartDecodingPayload: " << frame_header;
+  HTTP2_DVLOG(2) << "PingPayloadDecoder::StartDecodingPayload: "
+                 << frame_header;
   DCHECK_EQ(Http2FrameType::PING, frame_header.type);
   DCHECK_LE(db->Remaining(), total_length);
   DCHECK_EQ(0, frame_header.flags & ~(Http2FrameFlag::ACK));
@@ -50,8 +51,8 @@ DecodeStatus PingPayloadDecoder::StartDecodingPayload(FrameDecoderState* state,
 
 DecodeStatus PingPayloadDecoder::ResumeDecodingPayload(FrameDecoderState* state,
                                                        DecodeBuffer* db) {
-  DVLOG(2) << "ResumeDecodingPayload: remaining_payload="
-           << state->remaining_payload();
+  HTTP2_DVLOG(2) << "ResumeDecodingPayload: remaining_payload="
+                 << state->remaining_payload();
   DCHECK_EQ(Http2FrameType::PING, state->frame_header().type);
   DCHECK_LE(db->Remaining(), state->frame_header().payload_length);
   return HandleStatus(
@@ -60,8 +61,8 @@ DecodeStatus PingPayloadDecoder::ResumeDecodingPayload(FrameDecoderState* state,
 
 DecodeStatus PingPayloadDecoder::HandleStatus(FrameDecoderState* state,
                                               DecodeStatus status) {
-  DVLOG(2) << "HandleStatus: status=" << status
-           << "; remaining_payload=" << state->remaining_payload();
+  HTTP2_DVLOG(2) << "HandleStatus: status=" << status
+                 << "; remaining_payload=" << state->remaining_payload();
   if (status == DecodeStatus::kDecodeDone) {
     if (state->remaining_payload() == 0) {
       const Http2FrameHeader& frame_header = state->frame_header();

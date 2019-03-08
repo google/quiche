@@ -48,7 +48,7 @@ Http2FrameDecoderListener* Http2FrameDecoder::listener() const {
 }
 
 DecodeStatus Http2FrameDecoder::DecodeFrame(DecodeBuffer* db) {
-  DVLOG(2) << "Http2FrameDecoder::DecodeFrame state=" << state_;
+  HTTP2_DVLOG(2) << "Http2FrameDecoder::DecodeFrame state=" << state_;
   switch (state_) {
     case State::kStartDecodingHeader:
       if (frame_decoder_state_.StartDecodingFrameHeader(db)) {
@@ -88,17 +88,17 @@ DecodeStatus Http2FrameDecoder::StartDecodingPayload(DecodeBuffer* db) {
   // TODO(jamessynge): Remove OnFrameHeader once done with supporting
   // SpdyFramer's exact states.
   if (!listener()->OnFrameHeader(header)) {
-    DVLOG(2) << "OnFrameHeader rejected the frame, will discard; header: "
-             << header;
+    HTTP2_DVLOG(2) << "OnFrameHeader rejected the frame, will discard; header: "
+                   << header;
     state_ = State::kDiscardPayload;
     frame_decoder_state_.InitializeRemainders();
     return DecodeStatus::kDecodeError;
   }
 
   if (header.payload_length > maximum_payload_size_) {
-    DVLOG(2) << "Payload length is greater than allowed: "
-             << header.payload_length << " > " << maximum_payload_size_
-             << "\n   header: " << header;
+    HTTP2_DVLOG(2) << "Payload length is greater than allowed: "
+                   << header.payload_length << " > " << maximum_payload_size_
+                   << "\n   header: " << header;
     state_ = State::kDiscardPayload;
     frame_decoder_state_.InitializeRemainders();
     listener()->OnFrameSizeError(header);
@@ -412,13 +412,15 @@ DecodeStatus Http2FrameDecoder::ResumeDecodingWindowUpdatePayload(
 }
 
 DecodeStatus Http2FrameDecoder::DiscardPayload(DecodeBuffer* db) {
-  DVLOG(2) << "remaining_payload=" << frame_decoder_state_.remaining_payload_
-           << "; remaining_padding=" << frame_decoder_state_.remaining_padding_;
+  HTTP2_DVLOG(2) << "remaining_payload="
+                 << frame_decoder_state_.remaining_payload_
+                 << "; remaining_padding="
+                 << frame_decoder_state_.remaining_padding_;
   frame_decoder_state_.remaining_payload_ +=
       frame_decoder_state_.remaining_padding_;
   frame_decoder_state_.remaining_padding_ = 0;
   const size_t avail = frame_decoder_state_.AvailablePayload(db);
-  DVLOG(2) << "avail=" << avail;
+  HTTP2_DVLOG(2) << "avail=" << avail;
   if (avail > 0) {
     frame_decoder_state_.ConsumePayload(avail);
     db->AdvanceCursor(avail);

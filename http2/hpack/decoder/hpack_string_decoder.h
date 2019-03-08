@@ -14,12 +14,11 @@
 #include <algorithm>
 #include <cstdint>
 
-#include "base/logging.h"
-#include "base/macros.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_buffer.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_status.h"
 #include "net/third_party/quiche/src/http2/hpack/varint/hpack_varint_decoder.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_export.h"
+#include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_macros.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string.h"
 
@@ -82,7 +81,8 @@ class HTTP2_EXPORT_PRIVATE HpackStringDecoder {
     while (true) {
       switch (state_) {
         case kStartDecodingLength:
-          DVLOG(2) << "kStartDecodingLength: db->Remaining=" << db->Remaining();
+          HTTP2_DVLOG(2) << "kStartDecodingLength: db->Remaining="
+                         << db->Remaining();
           if (!StartDecodingLength(db, cb, &status)) {
             // The length is split across decode buffers.
             return status;
@@ -99,13 +99,13 @@ class HTTP2_EXPORT_PRIVATE HpackStringDecoder {
           HTTP2_FALLTHROUGH;
 
         case kDecodingString:
-          DVLOG(2) << "kDecodingString: db->Remaining=" << db->Remaining()
-                   << "    remaining_=" << remaining_;
+          HTTP2_DVLOG(2) << "kDecodingString: db->Remaining=" << db->Remaining()
+                         << "    remaining_=" << remaining_;
           return DecodeString(db, cb);
 
         case kResumeDecodingLength:
-          DVLOG(2) << "kResumeDecodingLength: db->Remaining="
-                   << db->Remaining();
+          HTTP2_DVLOG(2) << "kResumeDecodingLength: db->Remaining="
+                         << db->Remaining();
           if (!ResumeDecodingLength(db, cb, &status)) {
             return status;
           }

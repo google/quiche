@@ -6,13 +6,12 @@
 
 #include <stddef.h>
 
-#include "base/logging.h"
-#include "base/macros.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_buffer.h"
 #include "net/third_party/quiche/src/http2/decoder/http2_frame_decoder_listener.h"
 #include "net/third_party/quiche/src/http2/http2_constants.h"
 #include "net/third_party/quiche/src/http2/http2_structures.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_bug_tracker.h"
+#include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_macros.h"
 
 namespace http2 {
@@ -44,7 +43,8 @@ DecodeStatus HeadersPayloadDecoder::StartDecodingPayload(
   const Http2FrameHeader& frame_header = state->frame_header();
   const uint32_t total_length = frame_header.payload_length;
 
-  DVLOG(2) << "HeadersPayloadDecoder::StartDecodingPayload: " << frame_header;
+  HTTP2_DVLOG(2) << "HeadersPayloadDecoder::StartDecodingPayload: "
+                 << frame_header;
 
   DCHECK_EQ(Http2FrameType::HEADERS, frame_header.type);
   DCHECK_LE(db->Remaining(), total_length);
@@ -67,9 +67,9 @@ DecodeStatus HeadersPayloadDecoder::StartDecodingPayload(
   // set then we can decode faster.
   const auto payload_flags = Http2FrameFlag::PADDED | Http2FrameFlag::PRIORITY;
   if (!frame_header.HasAnyFlags(payload_flags)) {
-    DVLOG(2) << "StartDecodingPayload !IsPadded && !HasPriority";
+    HTTP2_DVLOG(2) << "StartDecodingPayload !IsPadded && !HasPriority";
     if (db->Remaining() == total_length) {
-      DVLOG(2) << "StartDecodingPayload all present";
+      HTTP2_DVLOG(2) << "StartDecodingPayload all present";
       // Note that we don't cache the listener field so that the callee can
       // replace it if the frame is bad.
       // If this case is common enough, consider combining the 3 callbacks
@@ -97,9 +97,9 @@ DecodeStatus HeadersPayloadDecoder::StartDecodingPayload(
 DecodeStatus HeadersPayloadDecoder::ResumeDecodingPayload(
     FrameDecoderState* state,
     DecodeBuffer* db) {
-  DVLOG(2) << "HeadersPayloadDecoder::ResumeDecodingPayload "
-           << "remaining_payload=" << state->remaining_payload()
-           << "; db->Remaining=" << db->Remaining();
+  HTTP2_DVLOG(2) << "HeadersPayloadDecoder::ResumeDecodingPayload "
+                 << "remaining_payload=" << state->remaining_payload()
+                 << "; db->Remaining=" << db->Remaining();
 
   const Http2FrameHeader& frame_header = state->frame_header();
 
@@ -110,8 +110,9 @@ DecodeStatus HeadersPayloadDecoder::ResumeDecodingPayload(
   DecodeStatus status;
   size_t avail;
   while (true) {
-    DVLOG(2) << "HeadersPayloadDecoder::ResumeDecodingPayload payload_state_="
-             << payload_state_;
+    HTTP2_DVLOG(2)
+        << "HeadersPayloadDecoder::ResumeDecodingPayload payload_state_="
+        << payload_state_;
     switch (payload_state_) {
       case PayloadState::kReadPadLength:
         // ReadPadLength handles the OnPadLength callback, and updating the

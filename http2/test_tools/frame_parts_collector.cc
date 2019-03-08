@@ -6,9 +6,9 @@
 
 #include <utility>
 
-#include "base/logging.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "net/third_party/quiche/src/http2/http2_structures_test_util.h"
+#include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_ptr_util.h"
 
 namespace http2 {

@@ -6,11 +6,11 @@
 
 #include <stddef.h>
 
-#include "base/logging.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_buffer.h"
 #include "net/third_party/quiche/src/http2/decoder/http2_frame_decoder_listener.h"
 #include "net/third_party/quiche/src/http2/http2_constants.h"
 #include "net/third_party/quiche/src/http2/http2_structures.h"
+#include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 
 namespace http2 {
 
@@ -20,8 +20,8 @@ DecodeStatus ContinuationPayloadDecoder::StartDecodingPayload(
   const Http2FrameHeader& frame_header = state->frame_header();
   const uint32_t total_length = frame_header.payload_length;
 
-  DVLOG(2) << "ContinuationPayloadDecoder::StartDecodingPayload: "
-           << frame_header;
+  HTTP2_DVLOG(2) << "ContinuationPayloadDecoder::StartDecodingPayload: "
+                 << frame_header;
   DCHECK_EQ(Http2FrameType::CONTINUATION, frame_header.type);
   DCHECK_LE(db->Remaining(), total_length);
   DCHECK_EQ(0, frame_header.flags & ~(Http2FrameFlag::END_HEADERS));
@@ -34,9 +34,9 @@ DecodeStatus ContinuationPayloadDecoder::StartDecodingPayload(
 DecodeStatus ContinuationPayloadDecoder::ResumeDecodingPayload(
     FrameDecoderState* state,
     DecodeBuffer* db) {
-  DVLOG(2) << "ContinuationPayloadDecoder::ResumeDecodingPayload"
-           << "  remaining_payload=" << state->remaining_payload()
-           << "  db->Remaining=" << db->Remaining();
+  HTTP2_DVLOG(2) << "ContinuationPayloadDecoder::ResumeDecodingPayload"
+                 << "  remaining_payload=" << state->remaining_payload()
+                 << "  db->Remaining=" << db->Remaining();
   DCHECK_EQ(Http2FrameType::CONTINUATION, state->frame_header().type);
   DCHECK_LE(state->remaining_payload(), state->frame_header().payload_length);
   DCHECK_LE(db->Remaining(), state->remaining_payload());

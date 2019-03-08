@@ -4,8 +4,8 @@
 
 #include "net/third_party/quiche/src/http2/hpack/decoder/hpack_entry_type_decoder.h"
 
-#include "base/logging.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_bug_tracker.h"
+#include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_utils.h"
 
 namespace http2 {

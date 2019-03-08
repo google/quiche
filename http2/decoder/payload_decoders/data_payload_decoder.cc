@@ -6,13 +6,12 @@
 
 #include <stddef.h>
 
-#include "base/logging.h"
-#include "base/macros.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_buffer.h"
 #include "net/third_party/quiche/src/http2/decoder/http2_frame_decoder_listener.h"
 #include "net/third_party/quiche/src/http2/http2_constants.h"
 #include "net/third_party/quiche/src/http2/http2_structures.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_bug_tracker.h"
+#include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_macros.h"
 
 namespace http2 {
@@ -39,7 +38,8 @@ DecodeStatus DataPayloadDecoder::StartDecodingPayload(FrameDecoderState* state,
   const Http2FrameHeader& frame_header = state->frame_header();
   const uint32_t total_length = frame_header.payload_length;
 
-  DVLOG(2) << "DataPayloadDecoder::StartDecodingPayload: " << frame_header;
+  HTTP2_DVLOG(2) << "DataPayloadDecoder::StartDecodingPayload: "
+                 << frame_header;
   DCHECK_EQ(Http2FrameType::DATA, frame_header.type);
   DCHECK_LE(db->Remaining(), total_length);
   DCHECK_EQ(0, frame_header.flags &
@@ -49,11 +49,11 @@ DecodeStatus DataPayloadDecoder::StartDecodingPayload(FrameDecoderState* state,
   // the decode buffer. TO BE SEEN if that is true. It certainly requires that
   // the transport buffers be large (e.g. >> 16KB typically).
   // TODO(jamessynge) Add counters.
-  DVLOG(2) << "StartDecodingPayload total_length=" << total_length;
+  HTTP2_DVLOG(2) << "StartDecodingPayload total_length=" << total_length;
   if (!frame_header.IsPadded()) {
-    DVLOG(2) << "StartDecodingPayload !IsPadded";
+    HTTP2_DVLOG(2) << "StartDecodingPayload !IsPadded";
     if (db->Remaining() == total_length) {
-      DVLOG(2) << "StartDecodingPayload all present";
+      HTTP2_DVLOG(2) << "StartDecodingPayload all present";
       // Note that we don't cache the listener field so that the callee can
       // replace it if the frame is bad.
       // If this case is common enough, consider combining the 3 callbacks
@@ -77,8 +77,8 @@ DecodeStatus DataPayloadDecoder::StartDecodingPayload(FrameDecoderState* state,
 
 DecodeStatus DataPayloadDecoder::ResumeDecodingPayload(FrameDecoderState* state,
                                                        DecodeBuffer* db) {
-  DVLOG(2) << "DataPayloadDecoder::ResumeDecodingPayload payload_state_="
-           << payload_state_;
+  HTTP2_DVLOG(2) << "DataPayloadDecoder::ResumeDecodingPayload payload_state_="
+                 << payload_state_;
   const Http2FrameHeader& frame_header = state->frame_header();
   DCHECK_EQ(Http2FrameType::DATA, frame_header.type);
   DCHECK_LE(state->remaining_payload_and_padding(),

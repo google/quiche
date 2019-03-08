@@ -16,7 +16,6 @@
 
 #include <cstdint>
 
-#include "base/logging.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_buffer.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_status.h"
 #include "net/third_party/quiche/src/http2/decoder/http2_frame_decoder_listener.h"
@@ -24,6 +23,7 @@
 #include "net/third_party/quiche/src/http2/http2_constants.h"
 #include "net/third_party/quiche/src/http2/http2_structures.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_export.h"
+#include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 
 namespace http2 {
 namespace test {
@@ -60,15 +60,16 @@ class HTTP2_EXPORT_PRIVATE FrameDecoderState {
   // remaining payload.
   template <class S>
   DecodeStatus StartDecodingStructureInPayload(S* out, DecodeBuffer* db) {
-    DVLOG(2) << __func__ << "\n\tdb->Remaining=" << db->Remaining()
-             << "\n\tremaining_payload_=" << remaining_payload_
-             << "\n\tneed=" << S::EncodedSize();
+    HTTP2_DVLOG(2) << __func__ << "\n\tdb->Remaining=" << db->Remaining()
+                   << "\n\tremaining_payload_=" << remaining_payload_
+                   << "\n\tneed=" << S::EncodedSize();
     DecodeStatus status =
         structure_decoder_.Start(out, db, &remaining_payload_);
     if (status != DecodeStatus::kDecodeError) {
       return status;
     }
-    DVLOG(2) << "StartDecodingStructureInPayload: detected frame size error";
+    HTTP2_DVLOG(2)
+        << "StartDecodingStructureInPayload: detected frame size error";
     return ReportFrameSizeError();
   }
 
@@ -77,14 +78,15 @@ class HTTP2_EXPORT_PRIVATE FrameDecoderState {
   // the payload. Returns values are as for StartDecodingStructureInPayload.
   template <class S>
   DecodeStatus ResumeDecodingStructureInPayload(S* out, DecodeBuffer* db) {
-    DVLOG(2) << __func__ << "\n\tdb->Remaining=" << db->Remaining()
-             << "\n\tremaining_payload_=" << remaining_payload_;
+    HTTP2_DVLOG(2) << __func__ << "\n\tdb->Remaining=" << db->Remaining()
+                   << "\n\tremaining_payload_=" << remaining_payload_;
     if (structure_decoder_.Resume(out, db, &remaining_payload_)) {
       return DecodeStatus::kDecodeDone;
     } else if (remaining_payload_ > 0) {
       return DecodeStatus::kDecodeInProgress;
     } else {
-      DVLOG(2) << "ResumeDecodingStructureInPayload: detected frame size error";
+      HTTP2_DVLOG(2)
+          << "ResumeDecodingStructureInPayload: detected frame size error";
       return ReportFrameSizeError();
     }
   }

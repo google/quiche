@@ -6,8 +6,8 @@
 
 #include <functional>
 
-#include "base/logging.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 #include "net/third_party/quiche/src/http2/test_tools/http2_random.h"
 
 namespace http2 {

@@ -6,13 +6,12 @@
 
 #include <stddef.h>
 
-#include "base/logging.h"
-#include "base/macros.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_buffer.h"
 #include "net/third_party/quiche/src/http2/decoder/http2_frame_decoder_listener.h"
 #include "net/third_party/quiche/src/http2/http2_constants.h"
 #include "net/third_party/quiche/src/http2/http2_structures.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_bug_tracker.h"
+#include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_macros.h"
 
 namespace http2 {
@@ -39,8 +38,8 @@ std::ostream& operator<<(std::ostream& out,
 DecodeStatus GoAwayPayloadDecoder::StartDecodingPayload(
     FrameDecoderState* state,
     DecodeBuffer* db) {
-  DVLOG(2) << "GoAwayPayloadDecoder::StartDecodingPayload: "
-           << state->frame_header();
+  HTTP2_DVLOG(2) << "GoAwayPayloadDecoder::StartDecodingPayload: "
+                 << state->frame_header();
   DCHECK_EQ(Http2FrameType::GOAWAY, state->frame_header().type);
   DCHECK_LE(db->Remaining(), state->frame_header().payload_length);
   DCHECK_EQ(0, state->frame_header().flags);
@@ -53,9 +52,9 @@ DecodeStatus GoAwayPayloadDecoder::StartDecodingPayload(
 DecodeStatus GoAwayPayloadDecoder::ResumeDecodingPayload(
     FrameDecoderState* state,
     DecodeBuffer* db) {
-  DVLOG(2) << "GoAwayPayloadDecoder::ResumeDecodingPayload: remaining_payload="
-           << state->remaining_payload()
-           << ", db->Remaining=" << db->Remaining();
+  HTTP2_DVLOG(2)
+      << "GoAwayPayloadDecoder::ResumeDecodingPayload: remaining_payload="
+      << state->remaining_payload() << ", db->Remaining=" << db->Remaining();
 
   const Http2FrameHeader& frame_header = state->frame_header();
   DCHECK_EQ(Http2FrameType::GOAWAY, frame_header.type);
@@ -68,8 +67,9 @@ DecodeStatus GoAwayPayloadDecoder::ResumeDecodingPayload(
   DecodeStatus status = DecodeStatus::kDecodeError;
   size_t avail;
   while (true) {
-    DVLOG(2) << "GoAwayPayloadDecoder::ResumeDecodingPayload payload_state_="
-             << payload_state_;
+    HTTP2_DVLOG(2)
+        << "GoAwayPayloadDecoder::ResumeDecodingPayload payload_state_="
+        << payload_state_;
     switch (payload_state_) {
       case PayloadState::kStartDecodingFixedFields:
         status = state->StartDecodingStructureInPayload(&goaway_fields_, db);

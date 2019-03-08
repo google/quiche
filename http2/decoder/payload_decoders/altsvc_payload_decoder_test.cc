@@ -6,12 +6,12 @@
 
 #include <stddef.h>
 
-#include "base/logging.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "net/third_party/quiche/src/http2/decoder/http2_frame_decoder_listener.h"
 #include "net/third_party/quiche/src/http2/decoder/payload_decoders/payload_decoder_base_test_util.h"
 #include "net/third_party/quiche/src/http2/http2_constants.h"
 #include "net/third_party/quiche/src/http2/http2_structures_test_util.h"
+#include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string.h"
 #include "net/third_party/quiche/src/http2/test_tools/frame_parts.h"
 #include "net/third_party/quiche/src/http2/test_tools/frame_parts_collector.h"
@@ -39,29 +39,29 @@ struct Listener : public FramePartsCollector {
   void OnAltSvcStart(const Http2FrameHeader& header,
                      size_t origin_length,
                      size_t value_length) override {
-    VLOG(1) << "OnAltSvcStart header: " << header
-            << "; origin_length=" << origin_length
-            << "; value_length=" << value_length;
+    HTTP2_VLOG(1) << "OnAltSvcStart header: " << header
+                  << "; origin_length=" << origin_length
+                  << "; value_length=" << value_length;
     StartFrame(header)->OnAltSvcStart(header, origin_length, value_length);
   }
 
   void OnAltSvcOriginData(const char* data, size_t len) override {
-    VLOG(1) << "OnAltSvcOriginData: len=" << len;
+    HTTP2_VLOG(1) << "OnAltSvcOriginData: len=" << len;
     CurrentFrame()->OnAltSvcOriginData(data, len);
   }
 
   void OnAltSvcValueData(const char* data, size_t len) override {
-    VLOG(1) << "OnAltSvcValueData: len=" << len;
+    HTTP2_VLOG(1) << "OnAltSvcValueData: len=" << len;
     CurrentFrame()->OnAltSvcValueData(data, len);
   }
 
   void OnAltSvcEnd() override {
-    VLOG(1) << "OnAltSvcEnd";
+    HTTP2_VLOG(1) << "OnAltSvcEnd";
     EndFrame()->OnAltSvcEnd();
   }
 
   void OnFrameSizeError(const Http2FrameHeader& header) override {
-    VLOG(1) << "OnFrameSizeError: " << header;
+    HTTP2_VLOG(1) << "OnFrameSizeError: " << header;
     FrameError(header)->OnFrameSizeError(header);
   }
 };
@@ -88,15 +88,17 @@ class AltSvcPayloadLengthTests : public AltSvcPayloadDecoderTest,
   AltSvcPayloadLengthTests()
       : origin_length_(::testing::get<0>(GetParam())),
         value_length_(::testing::get<1>(GetParam())) {
-    VLOG(1) << "################  origin_length_=" << origin_length_
-            << "   value_length_=" << value_length_ << "  ################";
+    HTTP2_VLOG(1) << "################  origin_length_=" << origin_length_
+                  << "   value_length_=" << value_length_
+                  << "  ################";
   }
 
   const uint16_t origin_length_;
   const uint32_t value_length_;
 };
 
-INSTANTIATE_TEST_SUITE_P(VariousOriginAndValueLengths, AltSvcPayloadLengthTests,
+INSTANTIATE_TEST_SUITE_P(VariousOriginAndValueLengths,
+                         AltSvcPayloadLengthTests,
                          ::testing::Combine(::testing::Values(0, 1, 3, 65535),
                                             ::testing::Values(0, 1, 3, 65537)));
 

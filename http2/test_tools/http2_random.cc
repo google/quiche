@@ -1,6 +1,6 @@
 #include "net/third_party/quiche/src/http2/test_tools/http2_random.h"
 
-#include "base/logging.h"
+#include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_utils.h"
 #include "third_party/boringssl/src/include/openssl/chacha.h"
 #include "third_party/boringssl/src/include/openssl/rand.h"
@@ -13,7 +13,7 @@ namespace test {
 Http2Random::Http2Random() {
   RAND_bytes(key_, sizeof(key_));
 
-  LOG(INFO) << "Initialized test RNG with the following key: " << Key();
+  HTTP2_LOG(INFO) << "Initialized test RNG with the following key: " << Key();
 }
 
 Http2Random::Http2Random(Http2StringPiece key) {

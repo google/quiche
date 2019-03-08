@@ -8,9 +8,9 @@
 
 #include <stddef.h>
 
-#include "base/logging.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_arraysize.h"
+#include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_piece.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_utils.h"
 #include "net/third_party/quiche/src/http2/tools/random_decoder_test.h"
@@ -108,7 +108,8 @@ class HpackVarintDecoderTest : public RandomDecoderTest,
 };
 
 INSTANTIATE_TEST_SUITE_P(
-    HpackVarintDecoderTest, HpackVarintDecoderTest,
+    HpackVarintDecoderTest,
+    HpackVarintDecoderTest,
     ::testing::Combine(
         // Bits of the first byte not part of the prefix should be ignored.
         ::testing::Values(0b00000000, 0b11111111, 0b10101010),
@@ -259,11 +260,11 @@ struct {
 };
 
 TEST_P(HpackVarintDecoderTest, Success) {
-    for (size_t i = 0; i < HTTP2_ARRAYSIZE(kSuccessTestData); ++i) {
-      DecodeExpectSuccess(Http2HexDecode(kSuccessTestData[i].data),
-                          kSuccessTestData[i].prefix_length,
-                          kSuccessTestData[i].expected_value);
-    }
+  for (size_t i = 0; i < HTTP2_ARRAYSIZE(kSuccessTestData); ++i) {
+    DecodeExpectSuccess(Http2HexDecode(kSuccessTestData[i].data),
+                        kSuccessTestData[i].prefix_length,
+                        kSuccessTestData[i].expected_value);
+  }
 }
 
 struct {
@@ -300,10 +301,10 @@ struct {
     {"ff80feffffffffffffff8100", 8}};
 
 TEST_P(HpackVarintDecoderTest, Error) {
-    for (size_t i = 0; i < HTTP2_ARRAYSIZE(kErrorTestData); ++i) {
-      DecodeExpectError(Http2HexDecode(kErrorTestData[i].data),
-                        kErrorTestData[i].prefix_length);
-    }
+  for (size_t i = 0; i < HTTP2_ARRAYSIZE(kErrorTestData); ++i) {
+    DecodeExpectError(Http2HexDecode(kErrorTestData[i].data),
+                      kErrorTestData[i].prefix_length);
+  }
 }
 
 }  // namespace

@@ -103,8 +103,9 @@ DecodeStatus HpackVarintDecoder::Resume(DecodeBuffer* db) {
   }
 
   // Signal error if value is too large or there are too many extension bytes.
-  DLOG(WARNING) << "Variable length int encoding is too large or too long. "
-                << DebugString();
+  HTTP2_DLOG(WARNING)
+      << "Variable length int encoding is too large or too long. "
+      << DebugString();
   MarkDone();
   return DecodeStatus::kDecodeError;
 }

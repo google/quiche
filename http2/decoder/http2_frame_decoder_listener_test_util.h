@@ -75,8 +75,8 @@ class FailingHttp2FrameDecoderListener : public Http2FrameDecoderListener {
   void EnsureNotAbstract() { FailingHttp2FrameDecoderListener instance; }
 };
 
-// VLOG's all the calls it receives, and forwards those calls to an optional
-// listener.
+// HTTP2_VLOG's all the calls it receives, and forwards those calls to an
+// optional listener.
 class LoggingHttp2FrameDecoderListener : public Http2FrameDecoderListener {
  public:
   LoggingHttp2FrameDecoderListener();

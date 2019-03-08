@@ -4,12 +4,12 @@
 
 #include "net/third_party/quiche/src/http2/decoder/payload_decoders/window_update_payload_decoder.h"
 
-#include "base/logging.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_buffer.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_http2_structures.h"
 #include "net/third_party/quiche/src/http2/decoder/http2_frame_decoder_listener.h"
 #include "net/third_party/quiche/src/http2/http2_constants.h"
 #include "net/third_party/quiche/src/http2/http2_structures.h"
+#include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 
 namespace http2 {
 
@@ -19,8 +19,8 @@ DecodeStatus WindowUpdatePayloadDecoder::StartDecodingPayload(
   const Http2FrameHeader& frame_header = state->frame_header();
   const uint32_t total_length = frame_header.payload_length;
 
-  DVLOG(2) << "WindowUpdatePayloadDecoder::StartDecodingPayload: "
-           << frame_header;
+  HTTP2_DVLOG(2) << "WindowUpdatePayloadDecoder::StartDecodingPayload: "
+                 << frame_header;
 
   DCHECK_EQ(Http2FrameType::WINDOW_UPDATE, frame_header.type);
   DCHECK_LE(db->Remaining(), total_length);
@@ -45,9 +45,9 @@ DecodeStatus WindowUpdatePayloadDecoder::StartDecodingPayload(
 DecodeStatus WindowUpdatePayloadDecoder::ResumeDecodingPayload(
     FrameDecoderState* state,
     DecodeBuffer* db) {
-  DVLOG(2) << "ResumeDecodingPayload: remaining_payload="
-           << state->remaining_payload()
-           << "; db->Remaining=" << db->Remaining();
+  HTTP2_DVLOG(2) << "ResumeDecodingPayload: remaining_payload="
+                 << state->remaining_payload()
+                 << "; db->Remaining=" << db->Remaining();
   DCHECK_EQ(Http2FrameType::WINDOW_UPDATE, state->frame_header().type);
   DCHECK_LE(db->Remaining(), state->frame_header().payload_length);
   return HandleStatus(state, state->ResumeDecodingStructureInPayload(
@@ -56,8 +56,8 @@ DecodeStatus WindowUpdatePayloadDecoder::ResumeDecodingPayload(
 
 DecodeStatus WindowUpdatePayloadDecoder::HandleStatus(FrameDecoderState* state,
                                                       DecodeStatus status) {
-  DVLOG(2) << "HandleStatus: status=" << status
-           << "; remaining_payload=" << state->remaining_payload();
+  HTTP2_DVLOG(2) << "HandleStatus: status=" << status
+                 << "; remaining_payload=" << state->remaining_payload();
   if (status == DecodeStatus::kDecodeDone) {
     if (state->remaining_payload() == 0) {
       state->listener()->OnWindowUpdate(

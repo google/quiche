@@ -8,9 +8,9 @@
 
 #include <vector>
 
-#include "base/logging.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "net/third_party/quiche/src/http2/http2_constants.h"
+#include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_reconstruct_object.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_piece.h"
@@ -44,7 +44,7 @@ class Http2FrameDecoderTest : public RandomDecoderTest {
   }
 
   DecodeStatus StartDecoding(DecodeBuffer* db) override {
-    DVLOG(2) << "StartDecoding, db->Remaining=" << db->Remaining();
+    HTTP2_DVLOG(2) << "StartDecoding, db->Remaining=" << db->Remaining();
     collector_.Reset();
     PrepareDecoder();
 
@@ -61,7 +61,7 @@ class Http2FrameDecoderTest : public RandomDecoderTest {
   }
 
   DecodeStatus ResumeDecoding(DecodeBuffer* db) override {
-    DVLOG(2) << "ResumeDecoding, db->Remaining=" << db->Remaining();
+    HTTP2_DVLOG(2) << "ResumeDecoding, db->Remaining=" << db->Remaining();
     DecodeStatus status = decoder_.DecodeFrame(db);
     if (status != DecodeStatus::kDecodeInProgress) {
       // Keep track of this so that a concrete test can verify that both fast

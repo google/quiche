@@ -10,7 +10,6 @@
 // must provide a non-empty decode buffer. Continue with calls to Resume() if
 // Start, and any subsequent calls to Resume, returns kDecodeInProgress.
 
-#include "base/logging.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_buffer.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_status.h"
 #include "net/third_party/quiche/src/http2/hpack/decoder/hpack_entry_decoder_listener.h"
@@ -18,6 +17,7 @@
 #include "net/third_party/quiche/src/http2/hpack/decoder/hpack_string_decoder.h"
 #include "net/third_party/quiche/src/http2/hpack/http2_hpack_constants.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_export.h"
+#include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string.h"
 
 namespace http2 {

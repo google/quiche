@@ -33,23 +33,24 @@ uint32_t Http2StructureDecoder::IncompleteStart(DecodeBuffer* db,
 DecodeStatus Http2StructureDecoder::IncompleteStart(DecodeBuffer* db,
                                                     uint32_t* remaining_payload,
                                                     uint32_t target_size) {
-  DVLOG(1) << "IncompleteStart@" << this
-           << ": *remaining_payload=" << *remaining_payload
-           << "; target_size=" << target_size
-           << "; db->Remaining=" << db->Remaining();
+  HTTP2_DVLOG(1) << "IncompleteStart@" << this
+                 << ": *remaining_payload=" << *remaining_payload
+                 << "; target_size=" << target_size
+                 << "; db->Remaining=" << db->Remaining();
   *remaining_payload -=
       IncompleteStart(db, std::min(target_size, *remaining_payload));
   if (*remaining_payload > 0 && db->Empty()) {
     return DecodeStatus::kDecodeInProgress;
   }
-  DVLOG(1) << "IncompleteStart: kDecodeError";
+  HTTP2_DVLOG(1) << "IncompleteStart: kDecodeError";
   return DecodeStatus::kDecodeError;
 }
 
 bool Http2StructureDecoder::ResumeFillingBuffer(DecodeBuffer* db,
                                                 uint32_t target_size) {
-  DVLOG(2) << "ResumeFillingBuffer@" << this << ": target_size=" << target_size
-           << "; offset_=" << offset_ << "; db->Remaining=" << db->Remaining();
+  HTTP2_DVLOG(2) << "ResumeFillingBuffer@" << this
+                 << ": target_size=" << target_size << "; offset_=" << offset_
+                 << "; db->Remaining=" << db->Remaining();
   if (target_size < offset_) {
     HTTP2_BUG << "Already filled buffer_! target_size=" << target_size
               << "    offset_=" << offset_;
@@ -57,7 +58,7 @@ bool Http2StructureDecoder::ResumeFillingBuffer(DecodeBuffer* db,
   }
   const uint32_t needed = target_size - offset_;
   const uint32_t num_to_copy = db->MinLengthRemaining(needed);
-  DVLOG(2) << "ResumeFillingBuffer num_to_copy=" << num_to_copy;
+  HTTP2_DVLOG(2) << "ResumeFillingBuffer num_to_copy=" << num_to_copy;
   memcpy(&buffer_[offset_], db->cursor(), num_to_copy);
   db->AdvanceCursor(num_to_copy);
   offset_ += num_to_copy;
@@ -67,10 +68,10 @@ bool Http2StructureDecoder::ResumeFillingBuffer(DecodeBuffer* db,
 bool Http2StructureDecoder::ResumeFillingBuffer(DecodeBuffer* db,
                                                 uint32_t* remaining_payload,
                                                 uint32_t target_size) {
-  DVLOG(2) << "ResumeFillingBuffer@" << this << ": target_size=" << target_size
-           << "; offset_=" << offset_
-           << "; *remaining_payload=" << *remaining_payload
-           << "; db->Remaining=" << db->Remaining();
+  HTTP2_DVLOG(2) << "ResumeFillingBuffer@" << this
+                 << ": target_size=" << target_size << "; offset_=" << offset_
+                 << "; *remaining_payload=" << *remaining_payload
+                 << "; db->Remaining=" << db->Remaining();
   if (target_size < offset_) {
     HTTP2_BUG << "Already filled buffer_! target_size=" << target_size
               << "    offset_=" << offset_;
@@ -79,7 +80,7 @@ bool Http2StructureDecoder::ResumeFillingBuffer(DecodeBuffer* db,
   const uint32_t needed = target_size - offset_;
   const uint32_t num_to_copy =
       db->MinLengthRemaining(std::min(needed, *remaining_payload));
-  DVLOG(2) << "ResumeFillingBuffer num_to_copy=" << num_to_copy;
+  HTTP2_DVLOG(2) << "ResumeFillingBuffer num_to_copy=" << num_to_copy;
   memcpy(&buffer_[offset_], db->cursor(), num_to_copy);
   db->AdvanceCursor(num_to_copy);
   offset_ += num_to_copy;

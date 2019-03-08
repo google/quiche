@@ -8,8 +8,8 @@
 
 #include <utility>
 
-#include "base/logging.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_test_helpers.h"
 
 using ::testing::AssertionFailure;
@@ -140,8 +140,8 @@ TEST_F(HpackStringTest, MoveConstructor) {
   EXPECT_TRUE(VerifyEqual(&hs0, ""));
   EXPECT_TRUE(VerifyNotEqual(&hs1, ""));
 
-  LOG(INFO) << hs0;
-  LOG(INFO) << hs1;
+  HTTP2_LOG(INFO) << hs0;
+  HTTP2_LOG(INFO) << hs1;
 }
 
 }  // namespace

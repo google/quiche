@@ -8,8 +8,8 @@ namespace http2 {
 
 DecodeStatus FrameDecoderState::ReadPadLength(DecodeBuffer* db,
                                               bool report_pad_length) {
-  DVLOG(2) << "ReadPadLength db->Remaining=" << db->Remaining()
-           << "; payload_length=" << frame_header().payload_length;
+  HTTP2_DVLOG(2) << "ReadPadLength db->Remaining=" << db->Remaining()
+                 << "; payload_length=" << frame_header().payload_length;
   DCHECK(IsPaddable());
   DCHECK(frame_header().IsPadded());
 
@@ -51,9 +51,9 @@ DecodeStatus FrameDecoderState::ReadPadLength(DecodeBuffer* db,
 }
 
 bool FrameDecoderState::SkipPadding(DecodeBuffer* db) {
-  DVLOG(2) << "SkipPadding remaining_padding_=" << remaining_padding_
-           << ", db->Remaining=" << db->Remaining()
-           << ", header: " << frame_header();
+  HTTP2_DVLOG(2) << "SkipPadding remaining_padding_=" << remaining_padding_
+                 << ", db->Remaining=" << db->Remaining()
+                 << ", header: " << frame_header();
   DCHECK_EQ(remaining_payload_, 0u);
   DCHECK(IsPaddable()) << "header: " << frame_header();
   DCHECK_GE(remaining_padding_, 0u);
@@ -70,10 +70,10 @@ bool FrameDecoderState::SkipPadding(DecodeBuffer* db) {
 }
 
 DecodeStatus FrameDecoderState::ReportFrameSizeError() {
-  DVLOG(2) << "FrameDecoderState::ReportFrameSizeError: "
-           << " remaining_payload_=" << remaining_payload_
-           << "; remaining_padding_=" << remaining_padding_
-           << ", header: " << frame_header();
+  HTTP2_DVLOG(2) << "FrameDecoderState::ReportFrameSizeError: "
+                 << " remaining_payload_=" << remaining_payload_
+                 << "; remaining_padding_=" << remaining_padding_
+                 << ", header: " << frame_header();
   listener()->OnFrameSizeError(frame_header());
   return DecodeStatus::kDecodeError;
 }

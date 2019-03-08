@@ -6,15 +6,15 @@
 
 #include <cstdint>
 
-#include "base/logging.h"
+#include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_utils.h"
 
 namespace http2 {
 
 DecodeStatus HpackBlockDecoder::Decode(DecodeBuffer* db) {
   if (!before_entry_) {
-    DVLOG(2) << "HpackBlockDecoder::Decode resume entry, db->Remaining="
-             << db->Remaining();
+    HTTP2_DVLOG(2) << "HpackBlockDecoder::Decode resume entry, db->Remaining="
+                   << db->Remaining();
     DecodeStatus status = entry_decoder_.Resume(db, listener_);
     switch (status) {
       case DecodeStatus::kDecodeDone:
@@ -29,8 +29,8 @@ DecodeStatus HpackBlockDecoder::Decode(DecodeBuffer* db) {
   }
   DCHECK(before_entry_);
   while (db->HasData()) {
-    DVLOG(2) << "HpackBlockDecoder::Decode start entry, db->Remaining="
-             << db->Remaining();
+    HTTP2_DVLOG(2) << "HpackBlockDecoder::Decode start entry, db->Remaining="
+                   << db->Remaining();
     DecodeStatus status = entry_decoder_.Start(db, listener_);
     switch (status) {
       case DecodeStatus::kDecodeDone:

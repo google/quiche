@@ -6,12 +6,12 @@
 
 #include <stddef.h>
 
-#include "base/logging.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "net/third_party/quiche/src/http2/decoder/http2_frame_decoder_listener.h"
 #include "net/third_party/quiche/src/http2/decoder/payload_decoders/payload_decoder_base_test_util.h"
 #include "net/third_party/quiche/src/http2/http2_constants.h"
 #include "net/third_party/quiche/src/http2/http2_structures_test_util.h"
+#include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 #include "net/third_party/quiche/src/http2/test_tools/frame_parts.h"
 #include "net/third_party/quiche/src/http2/test_tools/frame_parts_collector.h"
 #include "net/third_party/quiche/src/http2/test_tools/http2_random.h"
@@ -35,18 +35,18 @@ namespace {
 struct Listener : public FramePartsCollector {
   void OnPing(const Http2FrameHeader& header,
               const Http2PingFields& ping) override {
-    VLOG(1) << "OnPing: " << header << "; " << ping;
+    HTTP2_VLOG(1) << "OnPing: " << header << "; " << ping;
     StartAndEndFrame(header)->OnPing(header, ping);
   }
 
   void OnPingAck(const Http2FrameHeader& header,
                  const Http2PingFields& ping) override {
-    VLOG(1) << "OnPingAck: " << header << "; " << ping;
+    HTTP2_VLOG(1) << "OnPingAck: " << header << "; " << ping;
     StartAndEndFrame(header)->OnPingAck(header, ping);
   }
 
   void OnFrameSizeError(const Http2FrameHeader& header) override {
-    VLOG(1) << "OnFrameSizeError: " << header;
+    HTTP2_VLOG(1) << "OnFrameSizeError: " << header;
     FrameError(header)->OnFrameSizeError(header);
   }
 };

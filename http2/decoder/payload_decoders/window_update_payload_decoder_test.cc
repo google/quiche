@@ -6,12 +6,12 @@
 
 #include <stddef.h>
 
-#include "base/logging.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "net/third_party/quiche/src/http2/decoder/http2_frame_decoder_listener.h"
 #include "net/third_party/quiche/src/http2/decoder/payload_decoders/payload_decoder_base_test_util.h"
 #include "net/third_party/quiche/src/http2/http2_constants.h"
 #include "net/third_party/quiche/src/http2/http2_structures_test_util.h"
+#include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 #include "net/third_party/quiche/src/http2/test_tools/frame_parts.h"
 #include "net/third_party/quiche/src/http2/test_tools/frame_parts_collector.h"
 #include "net/third_party/quiche/src/http2/test_tools/http2_random.h"
@@ -37,14 +37,14 @@ namespace {
 struct Listener : public FramePartsCollector {
   void OnWindowUpdate(const Http2FrameHeader& header,
                       uint32_t window_size_increment) override {
-    VLOG(1) << "OnWindowUpdate: " << header
-            << "; window_size_increment=" << window_size_increment;
+    HTTP2_VLOG(1) << "OnWindowUpdate: " << header
+                  << "; window_size_increment=" << window_size_increment;
     EXPECT_EQ(Http2FrameType::WINDOW_UPDATE, header.type);
     StartAndEndFrame(header)->OnWindowUpdate(header, window_size_increment);
   }
 
   void OnFrameSizeError(const Http2FrameHeader& header) override {
-    VLOG(1) << "OnFrameSizeError: " << header;
+    HTTP2_VLOG(1) << "OnFrameSizeError: " << header;
     FrameError(header)->OnFrameSizeError(header);
   }
 };
@@ -57,7 +57,7 @@ class WindowUpdatePayloadDecoderTest
   Http2WindowUpdateFields RandWindowUpdateFields() {
     Http2WindowUpdateFields fields;
     test::Randomize(&fields, RandomPtr());
-    VLOG(3) << "RandWindowUpdateFields: " << fields;
+    HTTP2_VLOG(3) << "RandWindowUpdateFields: " << fields;
     return fields;
   }
 };

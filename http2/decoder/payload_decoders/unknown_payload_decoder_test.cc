@@ -8,12 +8,12 @@
 
 #include <type_traits>
 
-#include "base/logging.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "net/third_party/quiche/src/http2/decoder/http2_frame_decoder_listener.h"
 #include "net/third_party/quiche/src/http2/decoder/payload_decoders/payload_decoder_base_test_util.h"
 #include "net/third_party/quiche/src/http2/http2_constants.h"
 #include "net/third_party/quiche/src/http2/http2_structures.h"
+#include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string.h"
 #include "net/third_party/quiche/src/http2/test_tools/frame_parts.h"
 #include "net/third_party/quiche/src/http2/test_tools/frame_parts_collector.h"
@@ -41,17 +41,17 @@ namespace {
 
 struct Listener : public FramePartsCollector {
   void OnUnknownStart(const Http2FrameHeader& header) override {
-    VLOG(1) << "OnUnknownStart: " << header;
+    HTTP2_VLOG(1) << "OnUnknownStart: " << header;
     StartFrame(header)->OnUnknownStart(header);
   }
 
   void OnUnknownPayload(const char* data, size_t len) override {
-    VLOG(1) << "OnUnknownPayload: len=" << len;
+    HTTP2_VLOG(1) << "OnUnknownPayload: len=" << len;
     CurrentFrame()->OnUnknownPayload(data, len);
   }
 
   void OnUnknownEnd() override {
-    VLOG(1) << "OnUnknownEnd";
+    HTTP2_VLOG(1) << "OnUnknownEnd";
     EndFrame()->OnUnknownEnd();
   }
 };
@@ -66,7 +66,8 @@ class UnknownPayloadDecoderTest
       public ::testing::WithParamInterface<uint32_t> {
  protected:
   UnknownPayloadDecoderTest() : length_(GetParam()) {
-    VLOG(1) << "################  length_=" << length_ << "  ################";
+    HTTP2_VLOG(1) << "################  length_=" << length_
+                  << "  ################";
 
     // Each test case will choose a random frame type that isn't supported.
     do {
@@ -77,7 +78,8 @@ class UnknownPayloadDecoderTest
   const uint32_t length_;
 };
 
-INSTANTIATE_TEST_SUITE_P(VariousLengths, UnknownPayloadDecoderTest,
+INSTANTIATE_TEST_SUITE_P(VariousLengths,
+                         UnknownPayloadDecoderTest,
                          ::testing::Values(0, 1, 2, 3, 255, 256));
 
 TEST_P(UnknownPayloadDecoderTest, ValidLength) {

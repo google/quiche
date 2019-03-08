@@ -38,13 +38,13 @@ class HpackStringDecoderTest : public RandomDecoderTest {
   DecodeStatus ResumeDecoding(DecodeBuffer* b) override {
     // Provides coverage of DebugString and StateToString.
     // Not validating output.
-    VLOG(1) << decoder_.DebugString();
-    VLOG(2) << collector_;
+    HTTP2_VLOG(1) << decoder_.DebugString();
+    HTTP2_VLOG(2) << collector_;
     return decoder_.Resume(b, &listener_);
   }
 
   AssertionResult Collected(Http2StringPiece s, bool huffman_encoded) {
-    VLOG(1) << collector_;
+    HTTP2_VLOG(1) << collector_;
     return collector_.Collected(s, huffman_encoded);
   }
 
@@ -64,9 +64,9 @@ class HpackStringDecoderTest : public RandomDecoderTest {
             VERIFY_NE(collector_,
                       HpackStringCollector(expected_str, expected_huffman));
           }
-          VLOG(2) << collector_.ToString();
+          HTTP2_VLOG(2) << collector_.ToString();
           collector_.Clear();
-          VLOG(2) << collector_;
+          HTTP2_VLOG(2) << collector_;
           return result;
         };
   }

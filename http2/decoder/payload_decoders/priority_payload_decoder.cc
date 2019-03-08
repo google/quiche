@@ -4,19 +4,19 @@
 
 #include "net/third_party/quiche/src/http2/decoder/payload_decoders/priority_payload_decoder.h"
 
-#include "base/logging.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_buffer.h"
 #include "net/third_party/quiche/src/http2/decoder/http2_frame_decoder_listener.h"
 #include "net/third_party/quiche/src/http2/http2_constants.h"
 #include "net/third_party/quiche/src/http2/http2_structures.h"
+#include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 
 namespace http2 {
 
 DecodeStatus PriorityPayloadDecoder::StartDecodingPayload(
     FrameDecoderState* state,
     DecodeBuffer* db) {
-  DVLOG(2) << "PriorityPayloadDecoder::StartDecodingPayload: "
-           << state->frame_header();
+  HTTP2_DVLOG(2) << "PriorityPayloadDecoder::StartDecodingPayload: "
+                 << state->frame_header();
   DCHECK_EQ(Http2FrameType::PRIORITY, state->frame_header().type);
   DCHECK_LE(db->Remaining(), state->frame_header().payload_length);
   // PRIORITY frames have no flags.
@@ -29,9 +29,9 @@ DecodeStatus PriorityPayloadDecoder::StartDecodingPayload(
 DecodeStatus PriorityPayloadDecoder::ResumeDecodingPayload(
     FrameDecoderState* state,
     DecodeBuffer* db) {
-  DVLOG(2) << "PriorityPayloadDecoder::ResumeDecodingPayload"
-           << "  remaining_payload=" << state->remaining_payload()
-           << "  db->Remaining=" << db->Remaining();
+  HTTP2_DVLOG(2) << "PriorityPayloadDecoder::ResumeDecodingPayload"
+                 << "  remaining_payload=" << state->remaining_payload()
+                 << "  db->Remaining=" << db->Remaining();
   DCHECK_EQ(Http2FrameType::PRIORITY, state->frame_header().type);
   DCHECK_LE(db->Remaining(), state->frame_header().payload_length);
   return HandleStatus(

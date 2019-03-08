@@ -6,13 +6,13 @@
 
 #include <stddef.h>
 
-#include "base/logging.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "net/third_party/quiche/src/http2/decoder/http2_frame_decoder_listener.h"
 #include "net/third_party/quiche/src/http2/decoder/payload_decoders/payload_decoder_base_test_util.h"
 #include "net/third_party/quiche/src/http2/http2_constants.h"
 #include "net/third_party/quiche/src/http2/http2_structures.h"
 #include "net/third_party/quiche/src/http2/http2_structures_test_util.h"
+#include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_test_helpers.h"
 #include "net/third_party/quiche/src/http2/test_tools/frame_parts.h"
@@ -43,34 +43,34 @@ namespace {
 
 struct Listener : public FramePartsCollector {
   void OnDataStart(const Http2FrameHeader& header) override {
-    VLOG(1) << "OnDataStart: " << header;
+    HTTP2_VLOG(1) << "OnDataStart: " << header;
     StartFrame(header)->OnDataStart(header);
   }
 
   void OnDataPayload(const char* data, size_t len) override {
-    VLOG(1) << "OnDataPayload: len=" << len;
+    HTTP2_VLOG(1) << "OnDataPayload: len=" << len;
     CurrentFrame()->OnDataPayload(data, len);
   }
 
   void OnDataEnd() override {
-    VLOG(1) << "OnDataEnd";
+    HTTP2_VLOG(1) << "OnDataEnd";
     EndFrame()->OnDataEnd();
   }
 
   void OnPadLength(size_t pad_length) override {
-    VLOG(1) << "OnPadLength: " << pad_length;
+    HTTP2_VLOG(1) << "OnPadLength: " << pad_length;
     CurrentFrame()->OnPadLength(pad_length);
   }
 
   void OnPadding(const char* padding, size_t skipped_length) override {
-    VLOG(1) << "OnPadding: " << skipped_length;
+    HTTP2_VLOG(1) << "OnPadding: " << skipped_length;
     CurrentFrame()->OnPadding(padding, skipped_length);
   }
 
   void OnPaddingTooLong(const Http2FrameHeader& header,
                         size_t missing_length) override {
-    VLOG(1) << "OnPaddingTooLong: " << header
-            << "    missing_length: " << missing_length;
+    HTTP2_VLOG(1) << "OnPaddingTooLong: " << header
+                  << "    missing_length: " << missing_length;
     EndFrame()->OnPaddingTooLong(header, missing_length);
   }
 };
@@ -98,7 +98,8 @@ class DataPayloadDecoderTest
   }
 };
 
-INSTANTIATE_TEST_SUITE_P(VariousPadLengths, DataPayloadDecoderTest,
+INSTANTIATE_TEST_SUITE_P(VariousPadLengths,
+                         DataPayloadDecoderTest,
                          ::testing::Values(0, 1, 2, 3, 4, 254, 255, 256));
 
 TEST_P(DataPayloadDecoderTest, VariousDataPayloadSizes) {

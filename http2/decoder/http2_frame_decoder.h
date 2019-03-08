@@ -21,7 +21,6 @@
 
 #include <cstdint>
 
-#include "base/logging.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_buffer.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_status.h"
 #include "net/third_party/quiche/src/http2/decoder/frame_decoder_state.h"
@@ -40,6 +39,7 @@
 #include "net/third_party/quiche/src/http2/decoder/payload_decoders/window_update_payload_decoder.h"
 #include "net/third_party/quiche/src/http2/http2_structures.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_export.h"
+#include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 
 namespace http2 {
 namespace test {

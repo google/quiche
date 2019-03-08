@@ -6,12 +6,12 @@
 
 #include <stddef.h>
 
-#include "base/logging.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "net/third_party/quiche/src/http2/decoder/http2_frame_decoder_listener.h"
 #include "net/third_party/quiche/src/http2/decoder/payload_decoders/payload_decoder_base_test_util.h"
 #include "net/third_party/quiche/src/http2/http2_constants.h"
 #include "net/third_party/quiche/src/http2/http2_structures_test_util.h"
+#include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string.h"
 #include "net/third_party/quiche/src/http2/test_tools/frame_parts.h"
 #include "net/third_party/quiche/src/http2/test_tools/frame_parts_collector.h"
@@ -36,22 +36,23 @@ namespace {
 struct Listener : public FramePartsCollector {
   void OnGoAwayStart(const Http2FrameHeader& header,
                      const Http2GoAwayFields& goaway) override {
-    VLOG(1) << "OnGoAwayStart header: " << header << "; goaway: " << goaway;
+    HTTP2_VLOG(1) << "OnGoAwayStart header: " << header
+                  << "; goaway: " << goaway;
     StartFrame(header)->OnGoAwayStart(header, goaway);
   }
 
   void OnGoAwayOpaqueData(const char* data, size_t len) override {
-    VLOG(1) << "OnGoAwayOpaqueData: len=" << len;
+    HTTP2_VLOG(1) << "OnGoAwayOpaqueData: len=" << len;
     CurrentFrame()->OnGoAwayOpaqueData(data, len);
   }
 
   void OnGoAwayEnd() override {
-    VLOG(1) << "OnGoAwayEnd";
+    HTTP2_VLOG(1) << "OnGoAwayEnd";
     EndFrame()->OnGoAwayEnd();
   }
 
   void OnFrameSizeError(const Http2FrameHeader& header) override {
-    VLOG(1) << "OnFrameSizeError: " << header;
+    HTTP2_VLOG(1) << "OnFrameSizeError: " << header;
     FrameError(header)->OnFrameSizeError(header);
   }
 };
@@ -77,13 +78,15 @@ class GoAwayOpaqueDataLengthTests
       public ::testing::WithParamInterface<uint32_t> {
  protected:
   GoAwayOpaqueDataLengthTests() : length_(GetParam()) {
-    VLOG(1) << "################  length_=" << length_ << "  ################";
+    HTTP2_VLOG(1) << "################  length_=" << length_
+                  << "  ################";
   }
 
   const uint32_t length_;
 };
 
-INSTANTIATE_TEST_SUITE_P(VariousLengths, GoAwayOpaqueDataLengthTests,
+INSTANTIATE_TEST_SUITE_P(VariousLengths,
+                         GoAwayOpaqueDataLengthTests,
                          ::testing::Values(0, 1, 2, 3, 4, 5, 6));
 
 TEST_P(GoAwayOpaqueDataLengthTests, ValidLength) {

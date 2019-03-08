@@ -6,13 +6,13 @@
 
 #include <stddef.h>
 
-#include "base/logging.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "net/third_party/quiche/src/http2/decoder/http2_frame_decoder_listener.h"
 #include "net/third_party/quiche/src/http2/decoder/payload_decoders/payload_decoder_base_test_util.h"
 #include "net/third_party/quiche/src/http2/http2_constants.h"
 #include "net/third_party/quiche/src/http2/http2_constants_test_util.h"
 #include "net/third_party/quiche/src/http2/http2_structures_test_util.h"
+#include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 #include "net/third_party/quiche/src/http2/test_tools/frame_parts.h"
 #include "net/third_party/quiche/src/http2/test_tools/frame_parts_collector.h"
 #include "net/third_party/quiche/src/http2/test_tools/http2_random.h"
@@ -38,12 +38,12 @@ namespace {
 struct Listener : public FramePartsCollector {
   void OnRstStream(const Http2FrameHeader& header,
                    Http2ErrorCode error_code) override {
-    VLOG(1) << "OnRstStream: " << header << "; error_code=" << error_code;
+    HTTP2_VLOG(1) << "OnRstStream: " << header << "; error_code=" << error_code;
     StartAndEndFrame(header)->OnRstStream(header, error_code);
   }
 
   void OnFrameSizeError(const Http2FrameHeader& header) override {
-    VLOG(1) << "OnFrameSizeError: " << header;
+    HTTP2_VLOG(1) << "OnFrameSizeError: " << header;
     FrameError(header)->OnFrameSizeError(header);
   }
 };

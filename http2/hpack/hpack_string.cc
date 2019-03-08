@@ -6,7 +6,7 @@
 
 #include <utility>
 
-#include "base/logging.h"
+#include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_utils.h"
 
 namespace http2 {
@@ -47,16 +47,16 @@ std::ostream& operator<<(std::ostream& out, const HpackString& v) {
 HpackStringPair::HpackStringPair(const HpackString& name,
                                  const HpackString& value)
     : name(name), value(value) {
-  DVLOG(3) << DebugString() << " ctor";
+  HTTP2_DVLOG(3) << DebugString() << " ctor";
 }
 
 HpackStringPair::HpackStringPair(Http2StringPiece name, Http2StringPiece value)
     : name(name), value(value) {
-  DVLOG(3) << DebugString() << " ctor";
+  HTTP2_DVLOG(3) << DebugString() << " ctor";
 }
 
 HpackStringPair::~HpackStringPair() {
-  DVLOG(3) << DebugString() << " dtor";
+  HTTP2_DVLOG(3) << DebugString() << " dtor";
 }
 
 Http2String HpackStringPair::DebugString() const {

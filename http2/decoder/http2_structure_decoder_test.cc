@@ -22,12 +22,12 @@
 
 #include <cstdint>
 
-#include "base/logging.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_buffer.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_status.h"
 #include "net/third_party/quiche/src/http2/http2_constants.h"
 #include "net/third_party/quiche/src/http2/http2_structures_test_util.h"
+#include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_reconstruct_object.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_piece.h"
@@ -137,8 +137,8 @@ class Http2StructureDecoderTest : public RandomDecoderTest {
       VERIFY_EQ(0u, incomplete_resume_count_);
     }
     if (expected != nullptr) {
-      DVLOG(1) << "DecodeLeadingStructure expected: " << *expected;
-      DVLOG(1) << "DecodeLeadingStructure   actual: " << structure_;
+      HTTP2_DVLOG(1) << "DecodeLeadingStructure expected: " << *expected;
+      HTTP2_DVLOG(1) << "DecodeLeadingStructure   actual: " << structure_;
       VERIFY_EQ(*expected, structure_);
     }
     return AssertionSuccess();

@@ -4,8 +4,8 @@
 
 #include "net/third_party/quiche/src/http2/hpack/huffman/hpack_huffman_encoder.h"
 
-#include "base/logging.h"
 #include "net/third_party/quiche/src/http2/hpack/huffman/huffman_spec_tables.h"
+#include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 
 // TODO(jamessynge): Remove use of binary literals, that is a C++ 14 feature.
 

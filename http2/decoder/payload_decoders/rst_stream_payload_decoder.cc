@@ -4,19 +4,19 @@
 
 #include "net/third_party/quiche/src/http2/decoder/payload_decoders/rst_stream_payload_decoder.h"
 
-#include "base/logging.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_buffer.h"
 #include "net/third_party/quiche/src/http2/decoder/http2_frame_decoder_listener.h"
 #include "net/third_party/quiche/src/http2/http2_constants.h"
 #include "net/third_party/quiche/src/http2/http2_structures.h"
+#include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 
 namespace http2 {
 
 DecodeStatus RstStreamPayloadDecoder::StartDecodingPayload(
     FrameDecoderState* state,
     DecodeBuffer* db) {
-  DVLOG(2) << "RstStreamPayloadDecoder::StartDecodingPayload: "
-           << state->frame_header();
+  HTTP2_DVLOG(2) << "RstStreamPayloadDecoder::StartDecodingPayload: "
+                 << state->frame_header();
   DCHECK_EQ(Http2FrameType::RST_STREAM, state->frame_header().type);
   DCHECK_LE(db->Remaining(), state->frame_header().payload_length);
   // RST_STREAM has no flags.
@@ -29,9 +29,9 @@ DecodeStatus RstStreamPayloadDecoder::StartDecodingPayload(
 DecodeStatus RstStreamPayloadDecoder::ResumeDecodingPayload(
     FrameDecoderState* state,
     DecodeBuffer* db) {
-  DVLOG(2) << "RstStreamPayloadDecoder::ResumeDecodingPayload"
-           << "  remaining_payload=" << state->remaining_payload()
-           << "  db->Remaining=" << db->Remaining();
+  HTTP2_DVLOG(2) << "RstStreamPayloadDecoder::ResumeDecodingPayload"
+                 << "  remaining_payload=" << state->remaining_payload()
+                 << "  db->Remaining=" << db->Remaining();
   DCHECK_EQ(Http2FrameType::RST_STREAM, state->frame_header().type);
   DCHECK_LE(db->Remaining(), state->frame_header().payload_length);
   return HandleStatus(
@@ -40,8 +40,8 @@ DecodeStatus RstStreamPayloadDecoder::ResumeDecodingPayload(
 
 DecodeStatus RstStreamPayloadDecoder::HandleStatus(FrameDecoderState* state,
                                                    DecodeStatus status) {
-  DVLOG(2) << "HandleStatus: status=" << status
-           << "; remaining_payload=" << state->remaining_payload();
+  HTTP2_DVLOG(2) << "HandleStatus: status=" << status
+                 << "; remaining_payload=" << state->remaining_payload();
   if (status == DecodeStatus::kDecodeDone) {
     if (state->remaining_payload() == 0) {
       state->listener()->OnRstStream(state->frame_header(),

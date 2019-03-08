@@ -4,9 +4,9 @@
 
 #include "net/third_party/quiche/src/http2/hpack/decoder/hpack_decoder.h"
 
-#include "base/logging.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_status.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_estimate_memory_usage.h"
+#include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 
 namespace http2 {
 
@@ -33,8 +33,8 @@ void HpackDecoder::ApplyHeaderTableSizeSetting(uint32_t max_header_table_size) {
 }
 
 bool HpackDecoder::StartDecodingBlock() {
-  DVLOG(3) << "HpackDecoder::StartDecodingBlock, error_detected="
-           << (error_detected() ? "true" : "false");
+  HTTP2_DVLOG(3) << "HpackDecoder::StartDecodingBlock, error_detected="
+                 << (error_detected() ? "true" : "false");
   if (error_detected()) {
     return false;
   }
@@ -47,9 +47,9 @@ bool HpackDecoder::StartDecodingBlock() {
 }
 
 bool HpackDecoder::DecodeFragment(DecodeBuffer* db) {
-  DVLOG(3) << "HpackDecoder::DecodeFragment, error_detected="
-           << (error_detected() ? "true" : "false")
-           << ", size=" << db->Remaining();
+  HTTP2_DVLOG(3) << "HpackDecoder::DecodeFragment, error_detected="
+                 << (error_detected() ? "true" : "false")
+                 << ", size=" << db->Remaining();
   if (error_detected()) {
     return false;
   }
@@ -74,8 +74,8 @@ bool HpackDecoder::DecodeFragment(DecodeBuffer* db) {
 }
 
 bool HpackDecoder::EndDecodingBlock() {
-  DVLOG(3) << "HpackDecoder::EndDecodingBlock, error_detected="
-           << (error_detected() ? "true" : "false");
+  HTTP2_DVLOG(3) << "HpackDecoder::EndDecodingBlock, error_detected="
+                 << (error_detected() ? "true" : "false");
   if (error_detected()) {
     return false;
   }
@@ -95,10 +95,10 @@ bool HpackDecoder::EndDecodingBlock() {
 bool HpackDecoder::error_detected() {
   if (!error_detected_) {
     if (entry_buffer_.error_detected()) {
-      DVLOG(2) << "HpackDecoder::error_detected in entry_buffer_";
+      HTTP2_DVLOG(2) << "HpackDecoder::error_detected in entry_buffer_";
       error_detected_ = true;
     } else if (decoder_state_.error_detected()) {
-      DVLOG(2) << "HpackDecoder::error_detected in decoder_state_";
+      HTTP2_DVLOG(2) << "HpackDecoder::error_detected in decoder_state_";
       error_detected_ = true;
     }
   }
@@ -110,9 +110,9 @@ size_t HpackDecoder::EstimateMemoryUsage() const {
 }
 
 void HpackDecoder::ReportError(Http2StringPiece error_message) {
-  DVLOG(3) << "HpackDecoder::ReportError is new="
-           << (!error_detected_ ? "true" : "false")
-           << ", error_message: " << error_message;
+  HTTP2_DVLOG(3) << "HpackDecoder::ReportError is new="
+                 << (!error_detected_ ? "true" : "false")
+                 << ", error_message: " << error_message;
   if (!error_detected_) {
     error_detected_ = true;
     decoder_state_.listener()->OnHeaderErrorDetected(error_message);

@@ -4,9 +4,9 @@
 
 #include "net/third_party/quiche/src/http2/hpack/http2_hpack_constants.h"
 
-#include "base/logging.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_mock_log.h"
 
 namespace http2 {
@@ -33,37 +33,37 @@ TEST(HpackEntryTypeTest, OutputHpackEntryType) {
     CREATE_HTTP2_MOCK_LOG(log);
     log.StartCapturingLogs();
     EXPECT_HTTP2_LOG_CALL_CONTAINS(log, INFO, "kIndexedHeader");
-    LOG(INFO) << HpackEntryType::kIndexedHeader;
+    HTTP2_LOG(INFO) << HpackEntryType::kIndexedHeader;
   }
   {
     CREATE_HTTP2_MOCK_LOG(log);
     log.StartCapturingLogs();
     EXPECT_HTTP2_LOG_CALL_CONTAINS(log, INFO, "kDynamicTableSizeUpdate");
-    LOG(INFO) << HpackEntryType::kDynamicTableSizeUpdate;
+    HTTP2_LOG(INFO) << HpackEntryType::kDynamicTableSizeUpdate;
   }
   {
     CREATE_HTTP2_MOCK_LOG(log);
     log.StartCapturingLogs();
     EXPECT_HTTP2_LOG_CALL_CONTAINS(log, INFO, "kIndexedLiteralHeader");
-    LOG(INFO) << HpackEntryType::kIndexedLiteralHeader;
+    HTTP2_LOG(INFO) << HpackEntryType::kIndexedLiteralHeader;
   }
   {
     CREATE_HTTP2_MOCK_LOG(log);
     log.StartCapturingLogs();
     EXPECT_HTTP2_LOG_CALL_CONTAINS(log, INFO, "kUnindexedLiteralHeader");
-    LOG(INFO) << HpackEntryType::kUnindexedLiteralHeader;
+    HTTP2_LOG(INFO) << HpackEntryType::kUnindexedLiteralHeader;
   }
   {
     CREATE_HTTP2_MOCK_LOG(log);
     log.StartCapturingLogs();
     EXPECT_HTTP2_LOG_CALL_CONTAINS(log, INFO, "kNeverIndexedLiteralHeader");
-    LOG(INFO) << HpackEntryType::kNeverIndexedLiteralHeader;
+    HTTP2_LOG(INFO) << HpackEntryType::kNeverIndexedLiteralHeader;
   }
   {
     CREATE_HTTP2_MOCK_LOG(log);
     log.StartCapturingLogs();
     EXPECT_HTTP2_LOG_CALL_CONTAINS(log, INFO, "UnknownHpackEntryType(1234321)");
-    LOG(INFO) << static_cast<HpackEntryType>(1234321);
+    HTTP2_LOG(INFO) << static_cast<HpackEntryType>(1234321);
   }
 }
 
