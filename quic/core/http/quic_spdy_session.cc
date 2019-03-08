@@ -693,4 +693,9 @@ void QuicSpdySession::CloseConnectionWithDetails(QuicErrorCode error,
       error, details, ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
 }
 
+bool QuicSpdySession::HasActiveRequestStreams() const {
+  // TODO(renjietang): Exclude static streams.
+  return !dynamic_streams().empty();
+}
+
 }  // namespace quic

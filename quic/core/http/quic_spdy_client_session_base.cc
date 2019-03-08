@@ -203,7 +203,7 @@ void QuicSpdyClientSessionBase::CloseStreamInner(QuicStreamId stream_id,
 }
 
 bool QuicSpdyClientSessionBase::ShouldReleaseHeadersStreamSequencerBuffer() {
-  return num_active_requests() == 0 && promised_by_id_.empty();
+  return !HasActiveRequestStreams() && promised_by_id_.empty();
 }
 
 }  // namespace quic

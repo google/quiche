@@ -194,7 +194,7 @@ bool QuicClientBase::WaitForEvents() {
     Connect();
   }
 
-  return session()->num_active_requests() != 0;
+  return HasActiveRequests();
 }
 
 bool QuicClientBase::MigrateSocket(const QuicIpAddress& new_host) {

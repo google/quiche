@@ -266,4 +266,8 @@ const QuicString& QuicSpdyClientBase::latest_response_trailers() const {
   return latest_response_trailers_;
 }
 
+bool QuicSpdyClientBase::HasActiveRequests() {
+  return client_session()->HasActiveRequestStreams();
+}
+
 }  // namespace quic

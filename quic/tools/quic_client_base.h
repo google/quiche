@@ -283,6 +283,9 @@ class QuicClientBase {
   // You probably want to call this if you override CreateQuicSpdyClientSession.
   void ResetSession() { session_.reset(); }
 
+  // Returns true if the corresponding of this client has active requests.
+  virtual bool HasActiveRequests() = 0;
+
  private:
   // Returns true and set |version| if client can reconnect with a different
   // version.

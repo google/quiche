@@ -159,6 +159,9 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
     max_inbound_header_list_size_ = max_inbound_header_list_size;
   }
 
+  // Returns true if the session has active request streams.
+  bool HasActiveRequestStreams() const;
+
  protected:
   // Override CreateIncomingStream(), CreateOutgoingBidirectionalStream() and
   // CreateOutgoingUnidirectionalStream() with QuicSpdyStream return type to

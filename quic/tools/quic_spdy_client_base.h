@@ -159,6 +159,7 @@ class QuicSpdyClientBase : public QuicClientBase,
   void AddPromiseDataToResend(const spdy::SpdyHeaderBlock& headers,
                               QuicStringPiece body,
                               bool fin);
+  bool HasActiveRequests() override;
 
  private:
   // Specific QuicClient class for storing data to resend.

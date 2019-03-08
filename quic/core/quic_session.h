@@ -275,7 +275,6 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
 
   QuicConnection* connection() { return connection_; }
   const QuicConnection* connection() const { return connection_; }
-  size_t num_active_requests() const { return dynamic_stream_map_.size(); }
   const QuicSocketAddress& peer_address() const {
     return connection_->peer_address();
   }
