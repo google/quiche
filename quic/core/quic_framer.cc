@@ -1092,7 +1092,8 @@ size_t QuicFramer::AppendIetfFrames(const QuicFrames& frames,
         break;
       case ACK_FRAME:
         if (!AppendIetfAckFrameAndTypeByte(*frame.ack_frame, writer)) {
-          QUIC_BUG << "AppendAckFrameAndTypeByte failed: " << detailed_error();
+          QUIC_BUG << "AppendIetfAckFrameAndTypeByte failed: "
+                   << detailed_error();
           return 0;
         }
         break;
