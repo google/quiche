@@ -55,9 +55,10 @@ class QuicReferenceCountedPointer {
  public:
   QuicReferenceCountedPointer() = default;
 
-  // Constructor from raw pointer |p|. This guarantees the reference count of *p
-  // is 1. This should only be used when a new object is created, calling this
-  // on an already existent object is undefined behavior.
+  // Constructor from raw pointer |p|. This guarantees that the reference count
+  // of *p is 1. This should be only called when a new object is created.
+  // Calling this on an already existent object does not increase its reference
+  // count.
   explicit QuicReferenceCountedPointer(T* p) : impl_(p) {}
 
   // Allows implicit conversion from nullptr.
@@ -72,7 +73,7 @@ class QuicReferenceCountedPointer {
   QuicReferenceCountedPointer(const QuicReferenceCountedPointer& other)
       : impl_(other.impl()) {}
 
-  // Move constructors. After move, It adopts the reference from |other|.
+  // Move constructors. After move, it adopts the reference from |other|.
   template <typename U>
   QuicReferenceCountedPointer(QuicReferenceCountedPointer<U>&& other)  // NOLINT
       : impl_(std::move(other.impl())) {}
@@ -107,22 +108,22 @@ class QuicReferenceCountedPointer {
   }
 
   // Accessors for the referenced object.
-  // operator* and operator-> will assert() if there is no current object.
+  // operator*() and operator->() will assert() if there is no current object.
   T& operator*() const { return *impl_; }
   T* operator->() const { return impl_.get(); }
 
   explicit operator bool() const { return static_cast<bool>(impl_); }
 
   // Assignment operator on raw pointer. Drops a reference to current pointee,
-  // if any, and replaces it with |p|. This guarantees the reference count of *p
-  // is 1. This should only be used when a new object is created, calling this
-  // on a already existent object is undefined behavior.
+  // if any, and replaces it with |p|. This guarantees that the reference count
+  // of *p is 1. This should only be used when a new object is created.  Calling
+  // this on an already existent object is undefined behavior.
   QuicReferenceCountedPointer<T>& operator=(T* p) {
     impl_ = p;
     return *this;
   }
 
-  // Returns the raw pointer with no change in reference.
+  // Returns the raw pointer with no change in reference count.
   T* get() const { return impl_.get(); }
 
   QuicReferenceCountedPointerImpl<T>& impl() { return impl_; }

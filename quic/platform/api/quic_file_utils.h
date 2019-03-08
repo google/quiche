@@ -13,8 +13,7 @@
 
 namespace quic {
 
-// Traverses the directory |dirname| and retuns all of the files
-// it contains.
+// Traverses the directory |dirname| and returns all of the files it contains.
 QUIC_EXPORT_PRIVATE std::vector<QuicString> ReadFileContents(
     const QuicString& dirname);
 
