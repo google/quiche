@@ -4,10 +4,11 @@
 
 #include "net/third_party/quiche/src/http2/hpack/http2_hpack_constants.h"
 
+#include <sstream>
+
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_mock_log.h"
 
 namespace http2 {
 namespace test {
@@ -30,40 +31,34 @@ TEST(HpackEntryTypeTest, HpackEntryTypeToString) {
 
 TEST(HpackEntryTypeTest, OutputHpackEntryType) {
   {
-    CREATE_HTTP2_MOCK_LOG(log);
-    log.StartCapturingLogs();
-    EXPECT_HTTP2_LOG_CALL_CONTAINS(log, INFO, "kIndexedHeader");
-    HTTP2_LOG(INFO) << HpackEntryType::kIndexedHeader;
+    std::stringstream log;
+    log << HpackEntryType::kIndexedHeader;
+    EXPECT_EQ("kIndexedHeader", log.str());
   }
   {
-    CREATE_HTTP2_MOCK_LOG(log);
-    log.StartCapturingLogs();
-    EXPECT_HTTP2_LOG_CALL_CONTAINS(log, INFO, "kDynamicTableSizeUpdate");
-    HTTP2_LOG(INFO) << HpackEntryType::kDynamicTableSizeUpdate;
+    std::stringstream log;
+    log << HpackEntryType::kDynamicTableSizeUpdate;
+    EXPECT_EQ("kDynamicTableSizeUpdate", log.str());
   }
   {
-    CREATE_HTTP2_MOCK_LOG(log);
-    log.StartCapturingLogs();
-    EXPECT_HTTP2_LOG_CALL_CONTAINS(log, INFO, "kIndexedLiteralHeader");
-    HTTP2_LOG(INFO) << HpackEntryType::kIndexedLiteralHeader;
+    std::stringstream log;
+    log << HpackEntryType::kIndexedLiteralHeader;
+    EXPECT_EQ("kIndexedLiteralHeader", log.str());
   }
   {
-    CREATE_HTTP2_MOCK_LOG(log);
-    log.StartCapturingLogs();
-    EXPECT_HTTP2_LOG_CALL_CONTAINS(log, INFO, "kUnindexedLiteralHeader");
-    HTTP2_LOG(INFO) << HpackEntryType::kUnindexedLiteralHeader;
+    std::stringstream log;
+    log << HpackEntryType::kUnindexedLiteralHeader;
+    EXPECT_EQ("kUnindexedLiteralHeader", log.str());
   }
   {
-    CREATE_HTTP2_MOCK_LOG(log);
-    log.StartCapturingLogs();
-    EXPECT_HTTP2_LOG_CALL_CONTAINS(log, INFO, "kNeverIndexedLiteralHeader");
-    HTTP2_LOG(INFO) << HpackEntryType::kNeverIndexedLiteralHeader;
+    std::stringstream log;
+    log << HpackEntryType::kNeverIndexedLiteralHeader;
+    EXPECT_EQ("kNeverIndexedLiteralHeader", log.str());
   }
   {
-    CREATE_HTTP2_MOCK_LOG(log);
-    log.StartCapturingLogs();
-    EXPECT_HTTP2_LOG_CALL_CONTAINS(log, INFO, "UnknownHpackEntryType(1234321)");
-    HTTP2_LOG(INFO) << static_cast<HpackEntryType>(1234321);
+    std::stringstream log;
+    log << static_cast<HpackEntryType>(1234321);
+    EXPECT_EQ("UnknownHpackEntryType(1234321)", log.str());
   }
 }
 
