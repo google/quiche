@@ -12925,6 +12925,91 @@ TEST_P(QuicFramerTest, PacketHeaderWithVariableLengthConnectionId) {
   CheckFramingBoundaries(packet, QUIC_INVALID_PACKET_HEADER);
 }
 
+TEST_P(QuicFramerTest, UpdateExpectedConnectionIdLength) {
+  if (framer_.transport_version() < QUIC_VERSION_46) {
+    return;
+  }
+  char connection_id_bytes[9] = {0xFE, 0xDC, 0xBA, 0x98, 0x76,
+                                 0x54, 0x32, 0x10, 0x42};
+  QuicConnectionId connection_id(connection_id_bytes,
+                                 sizeof(connection_id_bytes));
+  framer_.SetShouldUpdateExpectedConnectionIdLength(true);
+
+  // clang-format off
+  unsigned char long_header_packet[] = {
+      // public flags (long header with packet type ZERO_RTT_PROTECTED and
+      // 4-byte packet number)
+      0xD3,
+      // version
+      QUIC_VERSION_BYTES,
+      // destination connection ID length
+      0x60,
+      // destination connection ID
+      0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10, 0x42,
+      // packet number
+      0x12, 0x34, 0x56, 0x78,
+      // padding frame
+      0x00,
+  };
+  unsigned char long_header_packet99[] = {
+      // public flags (long header with packet type ZERO_RTT_PROTECTED and
+      // 4-byte packet number)
+      0xD3,
+      // version
+      QUIC_VERSION_BYTES,
+      // destination connection ID length
+      0x60,
+      // destination connection ID
+      0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10, 0x42,
+      // long header packet length
+      0x05,
+      // packet number
+      0x12, 0x34, 0x56, 0x78,
+      // padding frame
+      0x00,
+  };
+  // clang-format on
+
+  if (!QuicVersionHasLongHeaderLengths(framer_.transport_version())) {
+    EXPECT_TRUE(framer_.ProcessPacket(
+        QuicEncryptedPacket(AsChars(long_header_packet),
+                            QUIC_ARRAYSIZE(long_header_packet), false)));
+  } else {
+    EXPECT_TRUE(framer_.ProcessPacket(
+        QuicEncryptedPacket(AsChars(long_header_packet99),
+                            QUIC_ARRAYSIZE(long_header_packet99), false)));
+  }
+
+  EXPECT_EQ(QUIC_NO_ERROR, framer_.error());
+  ASSERT_TRUE(visitor_.header_.get());
+  EXPECT_EQ(visitor_.header_.get()->destination_connection_id, connection_id);
+  EXPECT_EQ(visitor_.header_.get()->packet_number,
+            QuicPacketNumber(UINT64_C(0x12345678)));
+
+  // clang-format off
+  unsigned char short_header_packet[] = {
+    // type (short header, 4 byte packet number)
+    0x43,
+    // connection_id
+    0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10, 0x42,
+    // packet number
+    0x13, 0x37, 0x42, 0x33,
+    // padding frame
+    0x00,
+  };
+  // clang-format on
+
+  QuicEncryptedPacket short_header_encrypted(
+      AsChars(short_header_packet), QUIC_ARRAYSIZE(short_header_packet), false);
+  EXPECT_TRUE(framer_.ProcessPacket(short_header_encrypted));
+
+  EXPECT_EQ(QUIC_NO_ERROR, framer_.error());
+  ASSERT_TRUE(visitor_.header_.get());
+  EXPECT_EQ(visitor_.header_.get()->destination_connection_id, connection_id);
+  EXPECT_EQ(visitor_.header_.get()->packet_number,
+            QuicPacketNumber(UINT64_C(0x13374233)));
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

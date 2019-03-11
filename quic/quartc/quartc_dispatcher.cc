@@ -21,18 +21,23 @@ QuartcDispatcher::QuartcDispatcher(
     std::unique_ptr<QuicAlarmFactory> alarm_factory,
     std::unique_ptr<QuartcPacketWriter> packet_writer,
     Delegate* delegate)
-    : QuicDispatcher(config.get(),
-                     crypto_config.get(),
-                     version_manager,
-                     std::move(helper),
-                     std::move(session_helper),
-                     std::move(alarm_factory),
-                     kQuicDefaultConnectionIdLength),
+    : QuicDispatcher(
+          config.get(),
+          crypto_config.get(),
+          version_manager,
+          std::move(helper),
+          std::move(session_helper),
+          std::move(alarm_factory),
+          QuicUtils::CreateZeroConnectionId(
+              version_manager->GetSupportedVersions()[0].transport_version)
+              .length()),
       owned_quic_config_(std::move(config)),
       owned_crypto_config_(std::move(crypto_config)),
       crypto_config_(crypto_config_serialized),
       delegate_(delegate),
       packet_writer_(packet_writer.get()) {
+  // Allow incoming packets to set our expected connection ID length.
+  SetShouldUpdateExpectedConnectionIdLength(true);
   // QuicDispatcher takes ownership of the writer.
   QuicDispatcher::InitializeWithWriter(packet_writer.release());
   // NB: This must happen *after* InitializeWithWriter.  It can call us back
@@ -50,6 +55,8 @@ QuartcSession* QuartcDispatcher::CreateQuicSession(
     const QuicSocketAddress& client_address,
     QuicStringPiece alpn,
     const ParsedQuicVersion& version) {
+  // Make our expected connection ID non-mutable since we have a connection.
+  SetShouldUpdateExpectedConnectionIdLength(false);
   std::unique_ptr<QuicConnection> connection = CreateQuicConnection(
       connection_id, client_address, helper(), alarm_factory(), writer(),
       Perspective::IS_SERVER, ParsedQuicVersionVector{version});

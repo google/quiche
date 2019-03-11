@@ -473,7 +473,8 @@ QuicFramer::QuicFramer(const ParsedQuicVersionVector& supported_versions,
       data_producer_(nullptr),
       infer_packet_header_type_from_version_(perspective ==
                                              Perspective::IS_CLIENT),
-      expected_connection_id_length_(expected_connection_id_length) {
+      expected_connection_id_length_(expected_connection_id_length),
+      should_update_expected_connection_id_length_(false) {
   DCHECK(!supported_versions.empty());
   version_ = supported_versions_[0];
   decrypter_ = QuicMakeUnique<NullDecrypter>(perspective);
@@ -2565,12 +2566,20 @@ bool QuicFramer::ProcessIetfPacketHeader(QuicDataReader* reader,
     if (dcil != 0) {
       dcil += kConnectionIdLengthAdjustment;
     }
+    if (should_update_expected_connection_id_length_ &&
+        expected_connection_id_length_ != dcil) {
+      QUIC_DVLOG(1) << ENDPOINT << "Updating expected_connection_id_length: "
+                    << static_cast<int>(expected_connection_id_length_)
+                    << " -> " << static_cast<int>(dcil);
+      expected_connection_id_length_ = dcil;
+    }
     uint8_t scil = connection_id_lengths_byte & kSourceConnectionIdLengthMask;
     if (scil != 0) {
       scil += kConnectionIdLengthAdjustment;
     }
-    if (dcil != destination_connection_id_length ||
-        scil != source_connection_id_length) {
+    if ((dcil != destination_connection_id_length ||
+         scil != source_connection_id_length) &&
+        !should_update_expected_connection_id_length_) {
       QUIC_DVLOG(1) << "dcil: " << static_cast<uint32_t>(dcil)
                     << ", scil: " << static_cast<uint32_t>(scil);
       set_detailed_error("Invalid ConnectionId length.");

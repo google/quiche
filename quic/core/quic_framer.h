@@ -565,6 +565,14 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
     return first_sending_packet_number_;
   }
 
+  // If true, QuicFramer will change its expected connection ID length
+  // to the received destination connection ID length of all IETF long headers.
+  void SetShouldUpdateExpectedConnectionIdLength(
+      bool should_update_expected_connection_id_length) {
+    should_update_expected_connection_id_length_ =
+        should_update_expected_connection_id_length;
+  }
+
  private:
   friend class test::QuicFramerPeer;
 
@@ -921,7 +929,11 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   // encode its length. This variable contains the length we expect to read.
   // This is also used to validate the long header connection ID lengths in
   // older versions of QUIC.
-  const uint8_t expected_connection_id_length_;
+  uint8_t expected_connection_id_length_;
+
+  // When this is true, QuicFramer will change expected_connection_id_length_
+  // to the received destination connection ID length of all IETF long headers.
+  bool should_update_expected_connection_id_length_;
 };
 
 }  // namespace quic

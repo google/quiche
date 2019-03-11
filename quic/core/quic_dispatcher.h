@@ -349,6 +349,14 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
   // Skip validating that the public flags are set to legal values.
   void DisableFlagValidation();
 
+  // If true, our framer will change its expected connection ID length
+  // to the received destination connection ID length of all IETF long headers.
+  void SetShouldUpdateExpectedConnectionIdLength(
+      bool should_update_expected_connection_id_length) {
+    framer_.SetShouldUpdateExpectedConnectionIdLength(
+        should_update_expected_connection_id_length);
+  }
+
  private:
   friend class test::QuicDispatcherPeer;
   friend class StatelessRejectorProcessDoneCallback;
