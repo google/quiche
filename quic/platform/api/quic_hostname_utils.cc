@@ -12,7 +12,7 @@ bool QuicHostnameUtils::IsValidSNI(QuicStringPiece sni) {
 }
 
 // static
-QuicString QuicHostnameUtils::NormalizeHostname(QuicStringPiece hostname) {
+std::string QuicHostnameUtils::NormalizeHostname(QuicStringPiece hostname) {
   return QuicHostnameUtilsImpl::NormalizeHostname(hostname);
 }
 

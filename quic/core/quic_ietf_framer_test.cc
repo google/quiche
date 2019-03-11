@@ -796,7 +796,7 @@ TEST_F(QuicIetfFramerTest, ConnectionCloseEmptyString) {
                         NETWORK_BYTE_ORDER);
 
   // empty string,
-  QuicString test_string = "Ich Bin Ein Jelly Donut?";
+  std::string test_string = "Ich Bin Ein Jelly Donut?";
   QuicConnectionCloseFrame sent_frame;
   sent_frame.error_code = static_cast<QuicErrorCode>(0);
   sent_frame.error_details = test_string;
@@ -831,7 +831,7 @@ TEST_F(QuicIetfFramerTest, ApplicationCloseEmptyString) {
                         NETWORK_BYTE_ORDER);
 
   // empty string,
-  QuicString test_string = "Ich Bin Ein Jelly Donut?";
+  std::string test_string = "Ich Bin Ein Jelly Donut?";
   QuicApplicationCloseFrame sent_frame;
   sent_frame.error_code = static_cast<QuicErrorCode>(0);
   sent_frame.error_details = test_string;

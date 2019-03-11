@@ -18,7 +18,7 @@ using quic::MAX_FAILURE_REASON;
 
 int main(int argc, char* argv[]) {
   const char* usage = "Usage: quic_reject_reason_decoder <packed_reason>";
-  std::vector<quic::QuicString> args =
+  std::vector<std::string> args =
       quic::QuicParseCommandLineFlags(usage, argc, argv);
 
   if (args.size() != 1) {

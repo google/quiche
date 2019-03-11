@@ -20,7 +20,7 @@ namespace simulator {
 class OneWayLink : public Actor, public ConstrainedPortInterface {
  public:
   OneWayLink(Simulator* simulator,
-             QuicString name,
+             std::string name,
              UnconstrainedPortInterface* sink,
              QuicBandwidth bandwidth,
              QuicTime::Delta propagation_delay);
@@ -66,7 +66,7 @@ class OneWayLink : public Actor, public ConstrainedPortInterface {
 class SymmetricLink {
  public:
   SymmetricLink(Simulator* simulator,
-                QuicString name,
+                std::string name,
                 UnconstrainedPortInterface* sink_a,
                 UnconstrainedPortInterface* sink_b,
                 QuicBandwidth bandwidth,

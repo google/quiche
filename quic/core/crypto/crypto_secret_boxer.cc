@@ -43,12 +43,12 @@ size_t CryptoSecretBoxer::GetKeySize() {
 // kAEAD is the AEAD used for boxing: AES-256-GCM-SIV.
 static const EVP_AEAD* (*const kAEAD)() = EVP_aead_aes_256_gcm_siv;
 
-void CryptoSecretBoxer::SetKeys(const std::vector<QuicString>& keys) {
+void CryptoSecretBoxer::SetKeys(const std::vector<std::string>& keys) {
   DCHECK(!keys.empty());
   const EVP_AEAD* const aead = kAEAD();
   std::unique_ptr<State> new_state(new State);
 
-  for (const QuicString& key : keys) {
+  for (const std::string& key : keys) {
     DCHECK_EQ(kBoxKeySize, key.size());
     bssl::UniquePtr<EVP_AEAD_CTX> ctx(
         EVP_AEAD_CTX_new(aead, reinterpret_cast<const uint8_t*>(key.data()),
@@ -66,8 +66,8 @@ void CryptoSecretBoxer::SetKeys(const std::vector<QuicString>& keys) {
   state_ = std::move(new_state);
 }
 
-QuicString CryptoSecretBoxer::Box(QuicRandom* rand,
-                                  QuicStringPiece plaintext) const {
+std::string CryptoSecretBoxer::Box(QuicRandom* rand,
+                                   QuicStringPiece plaintext) const {
   // The box is formatted as:
   //   12 bytes of random nonce
   //   n bytes of ciphertext
@@ -75,7 +75,7 @@ QuicString CryptoSecretBoxer::Box(QuicRandom* rand,
   size_t out_len =
       kSIVNonceSize + plaintext.size() + EVP_AEAD_max_overhead(kAEAD());
 
-  QuicString ret;
+  std::string ret;
   ret.resize(out_len);
   uint8_t* out = reinterpret_cast<uint8_t*>(const_cast<char*>(ret.data()));
 
@@ -104,7 +104,7 @@ QuicString CryptoSecretBoxer::Box(QuicRandom* rand,
 }
 
 bool CryptoSecretBoxer::Unbox(QuicStringPiece in_ciphertext,
-                              QuicString* out_storage,
+                              std::string* out_storage,
                               QuicStringPiece* out) const {
   if (in_ciphertext.size() < kSIVNonceSize) {
     return false;

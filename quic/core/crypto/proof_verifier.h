@@ -48,7 +48,7 @@ class QUIC_EXPORT_PRIVATE ProofVerifierCallback {
   // details of the verification. |Run| may take ownership of |details| by
   // calling |release| on it.
   virtual void Run(bool ok,
-                   const QuicString& error_details,
+                   const std::string& error_details,
                    std::unique_ptr<ProofVerifyDetails>* details) = 0;
 };
 
@@ -75,16 +75,16 @@ class QUIC_EXPORT_PRIVATE ProofVerifier {
   // The signature uses SHA-256 as the hash function and PSS padding in the
   // case of RSA.
   virtual QuicAsyncStatus VerifyProof(
-      const QuicString& hostname,
+      const std::string& hostname,
       const uint16_t port,
-      const QuicString& server_config,
+      const std::string& server_config,
       QuicTransportVersion transport_version,
       QuicStringPiece chlo_hash,
-      const std::vector<QuicString>& certs,
-      const QuicString& cert_sct,
-      const QuicString& signature,
+      const std::vector<std::string>& certs,
+      const std::string& cert_sct,
+      const std::string& signature,
       const ProofVerifyContext* context,
-      QuicString* error_details,
+      std::string* error_details,
       std::unique_ptr<ProofVerifyDetails>* details,
       std::unique_ptr<ProofVerifierCallback> callback) = 0;
 
@@ -101,10 +101,10 @@ class QUIC_EXPORT_PRIVATE ProofVerifier {
   // will call back, on the original thread, via |callback| when complete.
   // In this case, the ProofVerifier will take ownership of |callback|.
   virtual QuicAsyncStatus VerifyCertChain(
-      const QuicString& hostname,
-      const std::vector<QuicString>& certs,
+      const std::string& hostname,
+      const std::vector<std::string>& certs,
       const ProofVerifyContext* context,
-      QuicString* error_details,
+      std::string* error_details,
       std::unique_ptr<ProofVerifyDetails>* details,
       std::unique_ptr<ProofVerifierCallback> callback) = 0;
 

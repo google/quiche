@@ -25,7 +25,7 @@ class QUIC_EXPORT_PRIVATE QuicSocketAddressCoder {
   QuicSocketAddressCoder& operator=(const QuicSocketAddressCoder&) = delete;
   ~QuicSocketAddressCoder();
 
-  QuicString Encode() const;
+  std::string Encode() const;
 
   bool Decode(const char* data, size_t length);
 

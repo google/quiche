@@ -27,11 +27,11 @@
 //
 // Expected Use:
 //  QuicStreamSequencerBuffer buffer(2.5 * 8 * 1024);
-//  QuicString source(1024, 'a');
+//  std::string source(1024, 'a');
 //  QuicStringPiece string_piece(source.data(), source.size());
 //  size_t written = 0;
 //  buffer.OnStreamData(800, string_piece, GetEpollClockNow(), &written);
-//  source = QuicString{800, 'b'};
+//  source = std::string{800, 'b'};
 //  QuicStringPiece string_piece1(source.data(), 800);
 //  // Try to write to [1, 801), but should fail due to overlapping,
 //  // res should be QUIC_INVALID_STREAM_DATA
@@ -109,14 +109,14 @@ class QUIC_EXPORT_PRIVATE QuicStreamSequencerBuffer {
   QuicErrorCode OnStreamData(QuicStreamOffset offset,
                              QuicStringPiece data,
                              size_t* bytes_buffered,
-                             QuicString* error_details);
+                             std::string* error_details);
 
   // Reads from this buffer into given iovec array, up to number of iov_len
   // iovec objects and returns the number of bytes read.
   QuicErrorCode Readv(const struct iovec* dest_iov,
                       size_t dest_count,
                       size_t* bytes_read,
-                      QuicString* error_details);
+                      std::string* error_details);
 
   // Returns the readable region of valid data in iovec format. The readable
   // region is the buffer region where there is valid data not yet read by
@@ -173,7 +173,7 @@ class QUIC_EXPORT_PRIVATE QuicStreamSequencerBuffer {
   bool CopyStreamData(QuicStreamOffset offset,
                       QuicStringPiece data,
                       size_t* bytes_copy,
-                      QuicString* error_details);
+                      std::string* error_details);
 
   // Dispose the given buffer block.
   // After calling this method, blocks_[index] is set to nullptr
@@ -213,10 +213,10 @@ class QUIC_EXPORT_PRIVATE QuicStreamSequencerBuffer {
   QuicStreamOffset NextExpectedByte() const;
 
   // Return |gaps_| as a string: [1024, 1500) [1800, 2048)... for debugging.
-  QuicString GapsDebugString();
+  std::string GapsDebugString();
 
   // Return all received frames as a string in same format as GapsDebugString();
-  QuicString ReceivedFramesDebugString();
+  std::string ReceivedFramesDebugString();
 
   // The maximum total capacity of this buffer in byte, as constructed.
   const size_t max_buffer_capacity_bytes_;

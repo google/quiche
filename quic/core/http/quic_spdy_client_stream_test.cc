@@ -97,7 +97,7 @@ class QuicSpdyClientStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
   std::unique_ptr<QuicSpdyClientStream> stream_;
   std::unique_ptr<StreamVisitor> stream_visitor_;
   SpdyHeaderBlock headers_;
-  QuicString body_;
+  std::string body_;
   HttpEncoder encoder_;
 };
 
@@ -124,10 +124,10 @@ TEST_P(QuicSpdyClientStreamTest, TestFraming) {
   std::unique_ptr<char[]> buffer;
   QuicByteCount header_length =
       encoder_.SerializeDataFrameHeader(body_.length(), &buffer);
-  QuicString header = QuicString(buffer.get(), header_length);
-  QuicString data = VersionHasDataFrameHeader(connection_->transport_version())
-                        ? header + body_
-                        : body_;
+  std::string header = std::string(buffer.get(), header_length);
+  std::string data = VersionHasDataFrameHeader(connection_->transport_version())
+                         ? header + body_
+                         : body_;
   stream_->OnStreamFrame(
       QuicStreamFrame(stream_->id(), /*fin=*/false, /*offset=*/0, data));
   EXPECT_EQ("200", stream_->response_headers().find(":status")->second);
@@ -155,10 +155,10 @@ TEST_P(QuicSpdyClientStreamTest, TestFramingOnePacket) {
   std::unique_ptr<char[]> buffer;
   QuicByteCount header_length =
       encoder_.SerializeDataFrameHeader(body_.length(), &buffer);
-  QuicString header = QuicString(buffer.get(), header_length);
-  QuicString data = VersionHasDataFrameHeader(connection_->transport_version())
-                        ? header + body_
-                        : body_;
+  std::string header = std::string(buffer.get(), header_length);
+  std::string data = VersionHasDataFrameHeader(connection_->transport_version())
+                         ? header + body_
+                         : body_;
   stream_->OnStreamFrame(
       QuicStreamFrame(stream_->id(), /*fin=*/false, /*offset=*/0, data));
   EXPECT_EQ("200", stream_->response_headers().find(":status")->second);
@@ -168,7 +168,7 @@ TEST_P(QuicSpdyClientStreamTest, TestFramingOnePacket) {
 
 TEST_P(QuicSpdyClientStreamTest,
        QUIC_TEST_DISABLED_IN_CHROME(TestFramingExtraData)) {
-  QuicString large_body = "hello world!!!!!!";
+  std::string large_body = "hello world!!!!!!";
 
   auto headers = AsHeaderList(headers_);
   stream_->OnStreamHeaderList(false, headers.uncompressed_header_bytes(),
@@ -180,10 +180,10 @@ TEST_P(QuicSpdyClientStreamTest,
   std::unique_ptr<char[]> buffer;
   QuicByteCount header_length =
       encoder_.SerializeDataFrameHeader(large_body.length(), &buffer);
-  QuicString header = QuicString(buffer.get(), header_length);
-  QuicString data = VersionHasDataFrameHeader(connection_->transport_version())
-                        ? header + large_body
-                        : large_body;
+  std::string header = std::string(buffer.get(), header_length);
+  std::string data = VersionHasDataFrameHeader(connection_->transport_version())
+                         ? header + large_body
+                         : large_body;
   EXPECT_CALL(*connection_, SendControlFrame(_));
   EXPECT_CALL(*connection_,
               OnStreamReset(stream_->id(), QUIC_BAD_APPLICATION_PAYLOAD));
@@ -219,10 +219,10 @@ TEST_P(QuicSpdyClientStreamTest, ReceivingTrailers) {
   std::unique_ptr<char[]> buffer;
   QuicByteCount header_length =
       encoder_.SerializeDataFrameHeader(body_.length(), &buffer);
-  QuicString header = QuicString(buffer.get(), header_length);
-  QuicString data = VersionHasDataFrameHeader(connection_->transport_version())
-                        ? header + body_
-                        : body_;
+  std::string header = std::string(buffer.get(), header_length);
+  std::string data = VersionHasDataFrameHeader(connection_->transport_version())
+                         ? header + body_
+                         : body_;
   stream_->OnStreamFrame(
       QuicStreamFrame(stream_->id(), /*fin=*/false, /*offset=*/0, data));
   EXPECT_TRUE(stream_->reading_stopped());

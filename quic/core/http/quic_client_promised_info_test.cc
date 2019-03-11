@@ -49,7 +49,7 @@ class MockQuicSpdyClientSession : public QuicSpdyClientSession {
       delete;
   ~MockQuicSpdyClientSession() override {}
 
-  bool IsAuthorized(const QuicString& authority) override {
+  bool IsAuthorized(const std::string& authority) override {
     return authorized_;
   }
 
@@ -125,10 +125,10 @@ class QuicClientPromisedInfoTest : public QuicTest {
   std::unique_ptr<StreamVisitor> stream_visitor_;
   std::unique_ptr<QuicSpdyClientStream> promised_stream_;
   SpdyHeaderBlock headers_;
-  QuicString body_;
+  std::string body_;
   SpdyHeaderBlock push_promise_;
   QuicStreamId promise_id_;
-  QuicString promise_url_;
+  std::string promise_url_;
   SpdyHeaderBlock client_request_;
 };
 

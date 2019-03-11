@@ -15,7 +15,7 @@ void NoopDecoderStreamErrorDelegate::OnDecoderStreamError(
 void NoopEncoderStreamSenderDelegate::WriteEncoderStreamData(
     QuicStringPiece data) {}
 
-QuicString QpackEncode(
+std::string QpackEncode(
     QpackEncoder::DecoderStreamErrorDelegate* decoder_stream_error_delegate,
     QpackEncoderStreamSender::Delegate* encoder_stream_sender_delegate,
     const FragmentSizeGenerator& fragment_size_generator,
@@ -25,7 +25,7 @@ QuicString QpackEncode(
   auto progressive_encoder =
       encoder.EncodeHeaderList(/* stream_id = */ 1, header_list);
 
-  QuicString output;
+  std::string output;
   while (progressive_encoder->HasNext()) {
     progressive_encoder->Next(fragment_size_generator(), &output);
   }

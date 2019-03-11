@@ -12,7 +12,7 @@ namespace quic {
 namespace simulator {
 
 Switch::Switch(Simulator* simulator,
-               QuicString name,
+               std::string name,
                SwitchPortNumber port_count,
                QuicByteCount queue_capacity) {
   for (size_t port_number = 1; port_number <= port_count; port_number++) {
@@ -25,7 +25,7 @@ Switch::Switch(Simulator* simulator,
 Switch::~Switch() {}
 
 Switch::Port::Port(Simulator* simulator,
-                   QuicString name,
+                   std::string name,
                    Switch* parent,
                    SwitchPortNumber port_number,
                    QuicByteCount queue_capacity)

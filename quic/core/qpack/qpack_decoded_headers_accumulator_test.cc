@@ -79,7 +79,7 @@ TEST_F(QpackDecodedHeadersAccumulatorTest, Success) {
   EXPECT_CALL(decoder_stream_sender_delegate_,
               WriteDecoderStreamData(Eq(kHeaderAcknowledgement)));
 
-  QuicString encoded_data(QuicTextUtils::HexDecode("000023666f6f03626172"));
+  std::string encoded_data(QuicTextUtils::HexDecode("000023666f6f03626172"));
   EXPECT_TRUE(accumulator_.Decode(encoded_data));
   EXPECT_TRUE(accumulator_.EndHeaderBlock());
 

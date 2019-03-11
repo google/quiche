@@ -155,7 +155,7 @@ QuicStreamId QuicSimpleServerStream::stream_id() const {
   return id();
 }
 
-QuicString QuicSimpleServerStream::peer_host() const {
+std::string QuicSimpleServerStream::peer_host() const {
   return spdy_session()->peer_address().host().ToString();
 }
 
@@ -192,8 +192,8 @@ void QuicSimpleServerStream::OnResponseBackendComplete(
   // response status, send error response. Notice that
   // QuicHttpResponseCache push urls are strictly authority + path only,
   // scheme is not included (see |QuicHttpResponseCache::GetKey()|).
-  QuicString request_url = request_headers_[":authority"].as_string() +
-                           request_headers_[":path"].as_string();
+  std::string request_url = request_headers_[":authority"].as_string() +
+                            request_headers_[":path"].as_string();
   int response_code;
   const SpdyHeaderBlock& response_headers = response->headers();
   if (!ParseHeaderStatusCode(response_headers, &response_code)) {

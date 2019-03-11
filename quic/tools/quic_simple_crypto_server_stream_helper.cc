@@ -27,7 +27,7 @@ bool QuicSimpleCryptoServerStreamHelper::CanAcceptClientHello(
     const QuicSocketAddress& client_address,
     const QuicSocketAddress& peer_address,
     const QuicSocketAddress& self_address,
-    QuicString* error_details) const {
+    std::string* error_details) const {
   return true;
 }
 

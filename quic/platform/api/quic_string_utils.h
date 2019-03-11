@@ -14,7 +14,7 @@
 namespace quic {
 
 template <typename... Args>
-inline void QuicStrAppend(QuicString* output, const Args&... args) {
+inline void QuicStrAppend(std::string* output, const Args&... args) {
   QuicStrAppendImpl(output, std::forward<const Args&>(args)...);
 }
 

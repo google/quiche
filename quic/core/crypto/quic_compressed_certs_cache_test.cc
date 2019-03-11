@@ -27,31 +27,31 @@ class QuicCompressedCertsCacheTest : public testing::Test {
 };
 
 TEST_F(QuicCompressedCertsCacheTest, CacheHit) {
-  std::vector<QuicString> certs = {"leaf cert", "intermediate cert",
-                                   "root cert"};
+  std::vector<std::string> certs = {"leaf cert", "intermediate cert",
+                                    "root cert"};
   QuicReferenceCountedPointer<ProofSource::Chain> chain(
       new ProofSource::Chain(certs));
-  QuicString common_certs = "common certs";
-  QuicString cached_certs = "cached certs";
-  QuicString compressed = "compressed cert";
+  std::string common_certs = "common certs";
+  std::string cached_certs = "cached certs";
+  std::string compressed = "compressed cert";
 
   certs_cache_.Insert(chain, common_certs, cached_certs, compressed);
 
-  const QuicString* cached_value =
+  const std::string* cached_value =
       certs_cache_.GetCompressedCert(chain, common_certs, cached_certs);
   ASSERT_NE(nullptr, cached_value);
   EXPECT_EQ(*cached_value, compressed);
 }
 
 TEST_F(QuicCompressedCertsCacheTest, CacheMiss) {
-  std::vector<QuicString> certs = {"leaf cert", "intermediate cert",
-                                   "root cert"};
+  std::vector<std::string> certs = {"leaf cert", "intermediate cert",
+                                    "root cert"};
   QuicReferenceCountedPointer<ProofSource::Chain> chain(
       new ProofSource::Chain(certs));
 
-  QuicString common_certs = "common certs";
-  QuicString cached_certs = "cached certs";
-  QuicString compressed = "compressed cert";
+  std::string common_certs = "common certs";
+  std::string cached_certs = "cached certs";
+  std::string compressed = "compressed cert";
 
   certs_cache_.Insert(chain, common_certs, cached_certs, compressed);
 
@@ -70,14 +70,14 @@ TEST_F(QuicCompressedCertsCacheTest, CacheMiss) {
 TEST_F(QuicCompressedCertsCacheTest, CacheMissDueToEviction) {
   // Test cache returns a miss when a queried uncompressed certs was cached but
   // then evicted.
-  std::vector<QuicString> certs = {"leaf cert", "intermediate cert",
-                                   "root cert"};
+  std::vector<std::string> certs = {"leaf cert", "intermediate cert",
+                                    "root cert"};
   QuicReferenceCountedPointer<ProofSource::Chain> chain(
       new ProofSource::Chain(certs));
 
-  QuicString common_certs = "common certs";
-  QuicString cached_certs = "cached certs";
-  QuicString compressed = "compressed cert";
+  std::string common_certs = "common certs";
+  std::string cached_certs = "cached certs";
+  std::string compressed = "compressed cert";
   certs_cache_.Insert(chain, common_certs, cached_certs, compressed);
 
   // Insert another kQuicCompressedCertsCacheSize certs to evict the first

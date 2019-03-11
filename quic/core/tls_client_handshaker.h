@@ -27,7 +27,7 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
                       ProofVerifier* proof_verifier,
                       SSL_CTX* ssl_ctx,
                       std::unique_ptr<ProofVerifyContext> verify_context,
-                      const QuicString& user_agent_id);
+                      const std::string& user_agent_id);
   TlsClientHandshaker(const TlsClientHandshaker&) = delete;
   TlsClientHandshaker& operator=(const TlsClientHandshaker&) = delete;
 
@@ -43,7 +43,7 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
   int num_scup_messages_received() const override;
   bool WasChannelIDSent() const override;
   bool WasChannelIDSourceCallbackRun() const override;
-  QuicString chlo_hash() const override;
+  std::string chlo_hash() const override;
 
   // From QuicCryptoClientStream::HandshakerDelegate and TlsHandshaker
   bool encryption_established() const override;
@@ -62,7 +62,7 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
 
     // ProofVerifierCallback interface.
     void Run(bool ok,
-             const QuicString& error_details,
+             const std::string& error_details,
              std::unique_ptr<ProofVerifyDetails>* details) override;
 
     // If called, Cancel causes the pending callback to be a no-op.
@@ -81,12 +81,12 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
   } state_ = STATE_IDLE;
 
   bool SetTransportParameters();
-  bool ProcessTransportParameters(QuicString* error_details);
+  bool ProcessTransportParameters(std::string* error_details);
   void FinishHandshake();
 
   void AdvanceHandshake() override;
   void CloseConnection(QuicErrorCode error,
-                       const QuicString& reason_phrase) override;
+                       const std::string& reason_phrase) override;
 
   // Certificate verification functions:
 
@@ -107,14 +107,14 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
   ProofVerifier* proof_verifier_;
   std::unique_ptr<ProofVerifyContext> verify_context_;
 
-  QuicString user_agent_id_;
+  std::string user_agent_id_;
 
   // ProofVerifierCallback used for async certificate verification. This object
   // is owned by |proof_verifier_|.
   ProofVerifierCallbackImpl* proof_verify_callback_ = nullptr;
   std::unique_ptr<ProofVerifyDetails> verify_details_;
   enum ssl_verify_result_t verify_result_ = ssl_verify_retry;
-  QuicString cert_verify_error_details_;
+  std::string cert_verify_error_details_;
 
   bool encryption_established_ = false;
   bool handshake_confirmed_ = false;

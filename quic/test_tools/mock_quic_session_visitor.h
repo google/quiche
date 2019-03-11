@@ -22,7 +22,7 @@ class MockQuicSessionVisitor : public QuicTimeWaitListManager::Visitor {
   MOCK_METHOD4(OnConnectionClosed,
                void(QuicConnectionId connection_id,
                     QuicErrorCode error,
-                    const QuicString& error_details,
+                    const std::string& error_details,
                     ConnectionCloseSource source));
   MOCK_METHOD1(OnWriteBlocked,
                void(QuicBlockedWriterInterface* blocked_writer));
@@ -48,7 +48,7 @@ class MockQuicCryptoServerStreamHelper : public QuicCryptoServerStream::Helper {
                           const QuicSocketAddress& client_address,
                           const QuicSocketAddress& peer_address,
                           const QuicSocketAddress& self_address,
-                          QuicString* error_details));
+                          std::string* error_details));
 };
 
 }  // namespace test

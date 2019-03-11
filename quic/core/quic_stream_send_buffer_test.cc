@@ -30,8 +30,8 @@ class QuicStreamSendBufferTest : public QuicTest {
     EXPECT_EQ(0u, send_buffer_.size());
     EXPECT_EQ(0u, send_buffer_.stream_bytes_written());
     EXPECT_EQ(0u, send_buffer_.stream_bytes_outstanding());
-    QuicString data1(1536, 'a');
-    QuicString data2 = QuicString(256, 'b') + QuicString(256, 'c');
+    std::string data1(1536, 'a');
+    std::string data2 = std::string(256, 'b') + std::string(256, 'c');
     struct iovec iov[2];
     iov[0] = MakeIovec(QuicStringPiece(data1));
     iov[1] = MakeIovec(QuicStringPiece(data2));
@@ -77,11 +77,11 @@ class QuicStreamSendBufferTest : public QuicTest {
 TEST_F(QuicStreamSendBufferTest, CopyDataToBuffer) {
   char buf[4000];
   QuicDataWriter writer(4000, buf, HOST_BYTE_ORDER);
-  QuicString copy1(1024, 'a');
-  QuicString copy2 =
-      QuicString(512, 'a') + QuicString(256, 'b') + QuicString(256, 'c');
-  QuicString copy3(1024, 'c');
-  QuicString copy4(768, 'd');
+  std::string copy1(1024, 'a');
+  std::string copy2 =
+      std::string(512, 'a') + std::string(256, 'b') + std::string(256, 'c');
+  std::string copy3(1024, 'c');
+  std::string copy4(768, 'd');
 
   ASSERT_TRUE(send_buffer_.WriteStreamData(0, 1024, &writer));
   EXPECT_EQ(copy1, QuicStringPiece(buf, 1024));
@@ -94,12 +94,12 @@ TEST_F(QuicStreamSendBufferTest, CopyDataToBuffer) {
 
   // Test data piece across boundries.
   QuicDataWriter writer2(4000, buf, HOST_BYTE_ORDER);
-  QuicString copy5 =
-      QuicString(536, 'a') + QuicString(256, 'b') + QuicString(232, 'c');
+  std::string copy5 =
+      std::string(536, 'a') + std::string(256, 'b') + std::string(232, 'c');
   ASSERT_TRUE(send_buffer_.WriteStreamData(1000, 1024, &writer2));
   EXPECT_EQ(copy5, QuicStringPiece(buf, 1024));
   ASSERT_TRUE(send_buffer_.WriteStreamData(2500, 1024, &writer2));
-  QuicString copy6 = QuicString(572, 'c') + QuicString(452, 'd');
+  std::string copy6 = std::string(572, 'c') + std::string(452, 'd');
   EXPECT_EQ(copy6, QuicStringPiece(buf + 1024, 1024));
 
   // Invalid data copy.

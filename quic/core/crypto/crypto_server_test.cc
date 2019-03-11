@@ -46,7 +46,7 @@ class DummyProofVerifierCallback : public ProofVerifierCallback {
   ~DummyProofVerifierCallback() override {}
 
   void Run(bool ok,
-           const QuicString& error_details,
+           const std::string& error_details,
            std::unique_ptr<ProofVerifyDetails>* details) override {
     DCHECK(false);
   }
@@ -279,7 +279,7 @@ class CryptoServerTest : public QuicTestWithParam<TestParams> {
 
     void Run(
         QuicErrorCode error,
-        const QuicString& error_details,
+        const std::string& error_details,
         std::unique_ptr<CryptoHandshakeMessage> message,
         std::unique_ptr<DiversificationNonce> diversification_nonce,
         std::unique_ptr<ProofSource::Details> proof_source_details) override {
@@ -291,7 +291,7 @@ class CryptoServerTest : public QuicTestWithParam<TestParams> {
         ASSERT_NE(error, QUIC_NO_ERROR)
             << "Message didn't fail: " << result_->client_hello.DebugString();
 
-        EXPECT_TRUE(error_details.find(error_substr_) != QuicString::npos)
+        EXPECT_TRUE(error_details.find(error_substr_) != std::string::npos)
             << error_substr_ << " not in " << error_details;
       }
       if (message != nullptr) {
@@ -328,8 +328,8 @@ class CryptoServerTest : public QuicTestWithParam<TestParams> {
     EXPECT_TRUE(called);
   }
 
-  QuicString GenerateNonce() {
-    QuicString nonce;
+  std::string GenerateNonce() {
+    std::string nonce;
     CryptoUtils::GenerateNonce(
         clock_.WallNow(), rand_,
         QuicStringPiece(reinterpret_cast<const char*>(orbit_), sizeof(orbit_)),
@@ -384,7 +384,7 @@ class CryptoServerTest : public QuicTestWithParam<TestParams> {
            GetParam().use_stateless_rejects;
   }
 
-  QuicString XlctHexString() {
+  std::string XlctHexString() {
     uint64_t xlct = crypto_test_utils::LeafCertHashForTesting();
     return "#" + QuicTextUtils::HexEncode(reinterpret_cast<char*>(&xlct),
                                           sizeof(xlct));
@@ -397,7 +397,7 @@ class CryptoServerTest : public QuicTestWithParam<TestParams> {
   QuicSocketAddress client_address_;
   ParsedQuicVersionVector supported_versions_;
   ParsedQuicVersion client_version_;
-  QuicString client_version_string_;
+  std::string client_version_string_;
   QuicCryptoServerConfig config_;
   QuicCryptoServerConfigPeer peer_;
   QuicCompressedCertsCache compressed_certs_cache_;
@@ -411,11 +411,12 @@ class CryptoServerTest : public QuicTestWithParam<TestParams> {
 
   // These strings contain hex escaped values from the server suitable for using
   // when constructing client hello messages.
-  QuicString nonce_hex_, pub_hex_, srct_hex_, scid_hex_;
+  std::string nonce_hex_, pub_hex_, srct_hex_, scid_hex_;
   std::unique_ptr<CryptoHandshakeMessage> server_config_;
 };
 
-INSTANTIATE_TEST_SUITE_P(CryptoServerTests, CryptoServerTest,
+INSTANTIATE_TEST_SUITE_P(CryptoServerTests,
+                         CryptoServerTest,
                          ::testing::ValuesIn(GetTestParams()));
 
 TEST_P(CryptoServerTest, BadSNI) {
@@ -669,7 +670,7 @@ TEST_P(CryptoServerTest, DowngradeAttack) {
   }
   // Set the client's preferred version to a supported version that
   // is not the "current" version (supported_versions_.front()).
-  QuicString bad_version =
+  std::string bad_version =
       ParsedQuicVersionToString(supported_versions_.back());
 
   CryptoHandshakeMessage msg = crypto_test_utils::CreateCHLO(
@@ -683,16 +684,16 @@ TEST_P(CryptoServerTest, DowngradeAttack) {
 
 TEST_P(CryptoServerTest, CorruptServerConfig) {
   // This tests corrupted server config.
-  CryptoHandshakeMessage msg =
-      crypto_test_utils::CreateCHLO({{"PDMD", "X509"},
-                                     {"AEAD", "AESG"},
-                                     {"KEXS", "C255"},
-                                     {"SCID", (QuicString(1, 'X') + scid_hex_)},
-                                     {"#004b5453", srct_hex_},
-                                     {"PUBS", pub_hex_},
-                                     {"NONC", nonce_hex_},
-                                     {"VER\0", client_version_string_}},
-                                    kClientHelloMinimumSize);
+  CryptoHandshakeMessage msg = crypto_test_utils::CreateCHLO(
+      {{"PDMD", "X509"},
+       {"AEAD", "AESG"},
+       {"KEXS", "C255"},
+       {"SCID", (std::string(1, 'X') + scid_hex_)},
+       {"#004b5453", srct_hex_},
+       {"PUBS", pub_hex_},
+       {"NONC", nonce_hex_},
+       {"VER\0", client_version_string_}},
+      kClientHelloMinimumSize);
 
   ShouldSucceed(msg);
   CheckRejectTag();
@@ -708,7 +709,7 @@ TEST_P(CryptoServerTest, CorruptSourceAddressToken) {
        {"AEAD", "AESG"},
        {"KEXS", "C255"},
        {"SCID", scid_hex_},
-       {"#004b5453", (QuicString(1, 'X') + srct_hex_)},
+       {"#004b5453", (std::string(1, 'X') + srct_hex_)},
        {"PUBS", pub_hex_},
        {"NONC", nonce_hex_},
        {"XLCT", XlctHexString()},
@@ -729,7 +730,7 @@ TEST_P(CryptoServerTest, CorruptSourceAddressTokenIsStillAccepted) {
        {"AEAD", "AESG"},
        {"KEXS", "C255"},
        {"SCID", scid_hex_},
-       {"#004b5453", (QuicString(1, 'X') + srct_hex_)},
+       {"#004b5453", (std::string(1, 'X') + srct_hex_)},
        {"PUBS", pub_hex_},
        {"NONC", nonce_hex_},
        {"XLCT", XlctHexString()},
@@ -749,9 +750,9 @@ TEST_P(CryptoServerTest, CorruptClientNonceAndSourceAddressToken) {
        {"AEAD", "AESG"},
        {"KEXS", "C255"},
        {"SCID", scid_hex_},
-       {"#004b5453", (QuicString(1, 'X') + srct_hex_)},
+       {"#004b5453", (std::string(1, 'X') + srct_hex_)},
        {"PUBS", pub_hex_},
-       {"NONC", (QuicString(1, 'X') + nonce_hex_)},
+       {"NONC", (std::string(1, 'X') + nonce_hex_)},
        {"XLCT", XlctHexString()},
        {"VER\0", client_version_string_}},
       kClientHelloMinimumSize);
@@ -770,11 +771,11 @@ TEST_P(CryptoServerTest, CorruptMultipleTags) {
        {"AEAD", "AESG"},
        {"KEXS", "C255"},
        {"SCID", scid_hex_},
-       {"#004b5453", (QuicString(1, 'X') + srct_hex_)},
+       {"#004b5453", (std::string(1, 'X') + srct_hex_)},
        {"PUBS", pub_hex_},
-       {"NONC", (QuicString(1, 'X') + nonce_hex_)},
-       {"NONP", (QuicString(1, 'X') + nonce_hex_)},
-       {"SNO\0", (QuicString(1, 'X') + nonce_hex_)},
+       {"NONC", (std::string(1, 'X') + nonce_hex_)},
+       {"NONP", (std::string(1, 'X') + nonce_hex_)},
+       {"SNO\0", (std::string(1, 'X') + nonce_hex_)},
        {"XLCT", XlctHexString()},
        {"VER\0", client_version_string_}},
       kClientHelloMinimumSize);
@@ -847,9 +848,9 @@ TEST_P(CryptoServerTest, ProofForSuppliedServerConfig) {
 
   // Get certs from compressed certs.
   const CommonCertSets* common_cert_sets(CommonCertSets::GetInstanceQUIC());
-  std::vector<QuicString> cached_certs;
+  std::vector<std::string> cached_certs;
 
-  std::vector<QuicString> certs;
+  std::vector<std::string> certs;
   ASSERT_TRUE(CertCompressor::DecompressChain(cert, cached_certs,
                                               common_cert_sets, &certs));
 
@@ -859,16 +860,16 @@ TEST_P(CryptoServerTest, ProofForSuppliedServerConfig) {
   std::unique_ptr<ProofVerifyContext> verify_context(
       crypto_test_utils::ProofVerifyContextForTesting());
   std::unique_ptr<ProofVerifyDetails> details;
-  QuicString error_details;
+  std::string error_details;
   std::unique_ptr<ProofVerifierCallback> callback(
       new DummyProofVerifierCallback());
-  QuicString chlo_hash;
+  std::string chlo_hash;
   CryptoUtils::HashHandshakeMessage(msg, &chlo_hash, Perspective::IS_SERVER);
   EXPECT_EQ(QUIC_SUCCESS,
             proof_verifier->VerifyProof(
-                "test.example.com", 443, (QuicString(scfg_str)),
+                "test.example.com", 443, (std::string(scfg_str)),
                 client_version_.transport_version, chlo_hash, certs, "",
-                (QuicString(proof)), verify_context.get(), &error_details,
+                (std::string(proof)), verify_context.get(), &error_details,
                 &details, std::move(callback)));
 }
 
@@ -980,7 +981,7 @@ TEST_P(CryptoServerTest, TwoRttServerDropCachedCerts) {
   QuicStringPiece certs_compressed;
   ASSERT_TRUE(out_.GetStringPiece(kCertificateTag, &certs_compressed));
   ASSERT_NE(0u, certs_compressed.size());
-  std::vector<QuicString> certs;
+  std::vector<std::string> certs;
   ASSERT_TRUE(CertCompressor::DecompressChain(
       certs_compressed, /*cached_certs=*/{}, /*common_sets=*/nullptr, &certs));
 
@@ -1084,7 +1085,7 @@ TEST_F(CryptoServerConfigGenerationTest, SCIDIsHashOfServerConfig) {
   QuicStringPiece scid;
   EXPECT_TRUE(scfg->GetStringPiece(kSCID, &scid));
   // Need to take a copy of |scid| has we're about to call |Erase|.
-  const QuicString scid_str(scid);
+  const std::string scid_str(scid);
 
   scfg->Erase(kSCID);
   scfg->MarkDirty();

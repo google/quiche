@@ -65,14 +65,14 @@ class QUIC_EXPORT_PRIVATE KeyExchange {
   // (which is implicitly known by a KeyExchange object) and a public value
   // from the peer.
   virtual bool CalculateSharedKey(QuicStringPiece peer_public_value,
-                                  QuicString* shared_key) const = 0;
+                                  std::string* shared_key) const = 0;
 
   // CalculateSharedKey computes the shared key between the local private key
   // (which is may not be locally known to a KeyExchange object) and a public
   // value from the peer.
   // Callers should expect that |callback| might be invoked synchronously.
   virtual void CalculateSharedKey(QuicStringPiece peer_public_value,
-                                  QuicString* shared_key,
+                                  std::string* shared_key,
                                   std::unique_ptr<Callback> callback) const = 0;
 
   // public_value returns the local public key which can be sent to a peer in

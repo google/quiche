@@ -14,12 +14,12 @@
 namespace quic {
 
 // Traverses the directory |dirname| and returns all of the files it contains.
-QUIC_EXPORT_PRIVATE std::vector<QuicString> ReadFileContents(
-    const QuicString& dirname);
+QUIC_EXPORT_PRIVATE std::vector<std::string> ReadFileContents(
+    const std::string& dirname);
 
 // Reads the contents of |filename| as a string into |contents|.
 QUIC_EXPORT_PRIVATE void ReadFileContents(QuicStringPiece filename,
-                                          QuicString* contents);
+                                          std::string* contents);
 
 }  // namespace quic
 

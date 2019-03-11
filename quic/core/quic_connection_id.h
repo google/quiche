@@ -61,7 +61,7 @@ class QUIC_EXPORT_PRIVATE QuicConnectionId {
 
   // Generates an ASCII string that represents
   // the contents of the connection ID, or "0" if it is empty.
-  QuicString ToString() const;
+  std::string ToString() const;
 
   // operator<< allows easily logging connection IDs.
   friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(

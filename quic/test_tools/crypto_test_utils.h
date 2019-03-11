@@ -47,9 +47,9 @@ class TestChannelIDKey : public ChannelIDKey {
   // ChannelIDKey implementation.
 
   bool Sign(QuicStringPiece signed_data,
-            QuicString* out_signature) const override;
+            std::string* out_signature) const override;
 
-  QuicString SerializeKey() const override;
+  std::string SerializeKey() const override;
 
  private:
   bssl::UniquePtr<EVP_PKEY> ecdsa_key_;
@@ -62,12 +62,12 @@ class TestChannelIDSource : public ChannelIDSource {
   // ChannelIDSource implementation.
 
   QuicAsyncStatus GetChannelIDKey(
-      const QuicString& hostname,
+      const std::string& hostname,
       std::unique_ptr<ChannelIDKey>* channel_id_key,
       ChannelIDSourceCallback* /*callback*/) override;
 
  private:
-  static EVP_PKEY* HostnameToKey(const QuicString& hostname);
+  static EVP_PKEY* HostnameToKey(const std::string& hostname);
 };
 
 namespace crypto_test_utils {
@@ -176,7 +176,7 @@ std::pair<size_t, size_t> AdvanceHandshake(PacketSavingConnection* client_conn,
                                            size_t server_i);
 
 // Returns the value for the tag |tag| in the tag value map of |message|.
-QuicString GetValueForTag(const CryptoHandshakeMessage& message, QuicTag tag);
+std::string GetValueForTag(const CryptoHandshakeMessage& message, QuicTag tag);
 
 // Returns a new |ProofSource| that serves up test certificates.
 std::unique_ptr<ProofSource> ProofSourceForTesting();
@@ -218,9 +218,9 @@ QuicTag ParseTag(const char* tagstr);
 //        {"SNI", "www.example.com"}},
 //       optional_minimum_size_bytes);
 CryptoHandshakeMessage CreateCHLO(
-    std::vector<std::pair<QuicString, QuicString>> tags_and_values);
+    std::vector<std::pair<std::string, std::string>> tags_and_values);
 CryptoHandshakeMessage CreateCHLO(
-    std::vector<std::pair<QuicString, QuicString>> tags_and_values,
+    std::vector<std::pair<std::string, std::string>> tags_and_values,
     int minimum_size_bytes);
 
 // ChannelIDSourceForTesting returns a ChannelIDSource that generates keys
@@ -262,11 +262,11 @@ void CompareClientAndServerKeys(QuicCryptoClientStream* client,
                                 QuicCryptoServerStream* server);
 
 // Return a CHLO nonce in hexadecimal.
-QuicString GenerateClientNonceHex(const QuicClock* clock,
-                                  QuicCryptoServerConfig* crypto_config);
+std::string GenerateClientNonceHex(const QuicClock* clock,
+                                   QuicCryptoServerConfig* crypto_config);
 
 // Return a CHLO PUBS in hexadecimal.
-QuicString GenerateClientPublicValuesHex();
+std::string GenerateClientPublicValuesHex();
 
 }  // namespace crypto_test_utils
 

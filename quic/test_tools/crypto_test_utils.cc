@@ -48,7 +48,7 @@ TestChannelIDKey::TestChannelIDKey(EVP_PKEY* ecdsa_key)
 TestChannelIDKey::~TestChannelIDKey() {}
 
 bool TestChannelIDKey::Sign(QuicStringPiece signed_data,
-                            QuicString* out_signature) const {
+                            std::string* out_signature) const {
   bssl::ScopedEVP_MD_CTX md_ctx;
   if (EVP_DigestSignInit(md_ctx.get(), nullptr, EVP_sha256(), nullptr,
                          ecdsa_key_.get()) != 1) {
@@ -87,12 +87,12 @@ bool TestChannelIDKey::Sign(QuicStringPiece signed_data,
   }
 
   *out_signature =
-      QuicString(reinterpret_cast<char*>(signature.get()), kSignatureLength);
+      std::string(reinterpret_cast<char*>(signature.get()), kSignatureLength);
 
   return true;
 }
 
-QuicString TestChannelIDKey::SerializeKey() const {
+std::string TestChannelIDKey::SerializeKey() const {
   // i2d_PublicKey will produce an ANSI X9.62 public key which, for a P-256
   // key, is 0x04 (meaning uncompressed) followed by the x and y field
   // elements as 32-byte, big-endian numbers.
@@ -107,13 +107,13 @@ QuicString TestChannelIDKey::SerializeKey() const {
   uint8_t* derp = buf;
   i2d_PublicKey(ecdsa_key_.get(), &derp);
 
-  return QuicString(reinterpret_cast<char*>(buf + 1), kExpectedKeyLength - 1);
+  return std::string(reinterpret_cast<char*>(buf + 1), kExpectedKeyLength - 1);
 }
 
 TestChannelIDSource::~TestChannelIDSource() {}
 
 QuicAsyncStatus TestChannelIDSource::GetChannelIDKey(
-    const QuicString& hostname,
+    const std::string& hostname,
     std::unique_ptr<ChannelIDKey>* channel_id_key,
     ChannelIDSourceCallback* /*callback*/) {
   *channel_id_key = QuicMakeUnique<TestChannelIDKey>(HostnameToKey(hostname));
@@ -121,7 +121,7 @@ QuicAsyncStatus TestChannelIDSource::GetChannelIDKey(
 }
 
 // static
-EVP_PKEY* TestChannelIDSource::HostnameToKey(const QuicString& hostname) {
+EVP_PKEY* TestChannelIDSource::HostnameToKey(const std::string& hostname) {
   // In order to generate a deterministic key for a given hostname the
   // hostname is hashed with SHA-256 and the resulting digest is treated as a
   // big-endian number. The most-significant bit is cleared to ensure that
@@ -217,7 +217,7 @@ class AsyncTestChannelIDSource : public ChannelIDSource, public CallbackSource {
   ~AsyncTestChannelIDSource() override {}
 
   // ChannelIDSource implementation.
-  QuicAsyncStatus GetChannelIDKey(const QuicString& hostname,
+  QuicAsyncStatus GetChannelIDKey(const std::string& hostname,
                                   std::unique_ptr<ChannelIDKey>* channel_id_key,
                                   ChannelIDSourceCallback* callback) override {
     // Synchronous mode.
@@ -323,7 +323,7 @@ class FullChloGenerator {
         : generator_(generator) {}
     void Run(
         QuicErrorCode error,
-        const QuicString& error_details,
+        const std::string& error_details,
         std::unique_ptr<CryptoHandshakeMessage> message,
         std::unique_ptr<DiversificationNonce> diversification_nonce,
         std::unique_ptr<ProofSource::Details> proof_source_details) override {
@@ -588,10 +588,10 @@ std::pair<size_t, size_t> AdvanceHandshake(PacketSavingConnection* client_conn,
   return std::make_pair(client_i, server_i);
 }
 
-QuicString GetValueForTag(const CryptoHandshakeMessage& message, QuicTag tag) {
+std::string GetValueForTag(const CryptoHandshakeMessage& message, QuicTag tag) {
   auto it = message.tag_value_map().find(tag);
   if (it == message.tag_value_map().end()) {
-    return QuicString();
+    return std::string();
   }
   return it->second;
 }
@@ -681,7 +681,7 @@ class MockCommonCertSets : public CommonCertSets {
   }
 
  private:
-  const QuicString cert_;
+  const std::string cert_;
   const uint64_t hash_;
   const uint32_t index_;
 };
@@ -782,10 +782,10 @@ void CompareClientAndServerKeys(QuicCryptoClientStream* client,
   const char kSampleLabel[] = "label";
   const char kSampleContext[] = "context";
   const size_t kSampleOutputLength = 32;
-  QuicString client_key_extraction;
-  QuicString server_key_extraction;
-  QuicString client_tb_ekm;
-  QuicString server_tb_ekm;
+  std::string client_key_extraction;
+  std::string server_key_extraction;
+  std::string client_tb_ekm;
+  std::string server_tb_ekm;
   EXPECT_TRUE(client->ExportKeyingMaterial(kSampleLabel, kSampleContext,
                                            kSampleOutputLength,
                                            &client_key_extraction));
@@ -876,12 +876,12 @@ QuicTag ParseTag(const char* tagstr) {
 }
 
 CryptoHandshakeMessage CreateCHLO(
-    std::vector<std::pair<QuicString, QuicString>> tags_and_values) {
+    std::vector<std::pair<std::string, std::string>> tags_and_values) {
   return CreateCHLO(tags_and_values, -1);
 }
 
 CryptoHandshakeMessage CreateCHLO(
-    std::vector<std::pair<QuicString, QuicString>> tags_and_values,
+    std::vector<std::pair<std::string, std::string>> tags_and_values,
     int minimum_size_bytes) {
   CryptoHandshakeMessage msg;
   msg.set_tag(MakeQuicTag('C', 'H', 'L', 'O'));
@@ -891,15 +891,15 @@ CryptoHandshakeMessage CreateCHLO(
   }
 
   for (const auto& tag_and_value : tags_and_values) {
-    const QuicString& tag = tag_and_value.first;
-    const QuicString& value = tag_and_value.second;
+    const std::string& tag = tag_and_value.first;
+    const std::string& value = tag_and_value.second;
 
     const QuicTag quic_tag = ParseTag(tag.c_str());
 
     size_t value_len = value.length();
     if (value_len > 0 && value[0] == '#') {
       // This is ascii encoded hex.
-      QuicString hex_value =
+      std::string hex_value =
           QuicTextUtils::HexDecode(QuicStringPiece(&value[1]));
       msg.SetStringPiece(quic_tag, hex_value);
       continue;
@@ -997,8 +997,8 @@ CryptoHandshakeMessage GenerateDefaultInchoateCHLO(
   // clang-format on
 }
 
-QuicString GenerateClientNonceHex(const QuicClock* clock,
-                                  QuicCryptoServerConfig* crypto_config) {
+std::string GenerateClientNonceHex(const QuicClock* clock,
+                                   QuicCryptoServerConfig* crypto_config) {
   QuicCryptoServerConfig::ConfigOptions old_config_options;
   QuicCryptoServerConfig::ConfigOptions new_config_options;
   old_config_options.id = "old-config-id";
@@ -1012,13 +1012,13 @@ QuicString GenerateClientNonceHex(const QuicClock* clock,
       crypto_config->AddConfig(std::move(primary_config), clock->WallNow()));
   QuicStringPiece orbit;
   CHECK(msg->GetStringPiece(kORBT, &orbit));
-  QuicString nonce;
+  std::string nonce;
   CryptoUtils::GenerateNonce(clock->WallNow(), QuicRandom::GetInstance(), orbit,
                              &nonce);
   return ("#" + QuicTextUtils::HexEncode(nonce));
 }
 
-QuicString GenerateClientPublicValuesHex() {
+std::string GenerateClientPublicValuesHex() {
   char public_value[32];
   memset(public_value, 42, sizeof(public_value));
   return ("#" + QuicTextUtils::HexEncode(public_value, sizeof(public_value)));

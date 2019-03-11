@@ -27,7 +27,7 @@ size_t QuicStreamSequencerBufferPeer::Read(char* dest_buffer, size_t size) {
   iovec dest;
   dest.iov_base = dest_buffer, dest.iov_len = size;
   size_t bytes_read;
-  QuicString error_details;
+  std::string error_details;
   EXPECT_EQ(QUIC_NO_ERROR,
             buffer_->Readv(&dest, 1, &bytes_read, &error_details));
   return bytes_read;

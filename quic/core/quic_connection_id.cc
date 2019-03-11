@@ -64,9 +64,9 @@ size_t QuicConnectionId::Hash() const {
                                  data_bytes[0] ^ data_bytes[1] ^ data_bytes[2]);
 }
 
-QuicString QuicConnectionId::ToString() const {
+std::string QuicConnectionId::ToString() const {
   if (IsEmpty()) {
-    return QuicString("0");
+    return std::string("0");
   }
   return QuicTextUtils::HexEncode(data_, length_);
 }

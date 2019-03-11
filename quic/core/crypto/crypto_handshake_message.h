@@ -45,7 +45,7 @@ class QUIC_EXPORT_PRIVATE CryptoHandshakeMessage {
   template <class T>
   void SetValue(QuicTag tag, const T& v) {
     tag_value_map_[tag] =
-        QuicString(reinterpret_cast<const char*>(&v), sizeof(v));
+        std::string(reinterpret_cast<const char*>(&v), sizeof(v));
   }
 
   // SetVector sets an element with the given tag to the raw contents of an
@@ -53,10 +53,10 @@ class QUIC_EXPORT_PRIVATE CryptoHandshakeMessage {
   template <class T>
   void SetVector(QuicTag tag, const std::vector<T>& v) {
     if (v.empty()) {
-      tag_value_map_[tag] = QuicString();
+      tag_value_map_[tag] = std::string();
     } else {
-      tag_value_map_[tag] = QuicString(reinterpret_cast<const char*>(&v[0]),
-                                       v.size() * sizeof(T));
+      tag_value_map_[tag] = std::string(reinterpret_cast<const char*>(&v[0]),
+                                        v.size() * sizeof(T));
     }
   }
 
@@ -126,7 +126,7 @@ class QUIC_EXPORT_PRIVATE CryptoHandshakeMessage {
 
   // DebugString returns a multi-line, string representation of the message
   // suitable for including in debug output.
-  QuicString DebugString() const;
+  std::string DebugString() const;
 
  private:
   // GetPOD is a utility function for extracting a plain-old-data value. If
@@ -138,7 +138,7 @@ class QUIC_EXPORT_PRIVATE CryptoHandshakeMessage {
   // little-endian.
   QuicErrorCode GetPOD(QuicTag tag, void* out, size_t len) const;
 
-  QuicString DebugStringInternal(size_t indent) const;
+  std::string DebugStringInternal(size_t indent) const;
 
   QuicTag tag_;
   QuicTagValueMap tag_value_map_;

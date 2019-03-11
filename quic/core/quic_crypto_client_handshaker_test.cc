@@ -31,26 +31,26 @@ class InsecureProofVerifier : public ProofVerifier {
 
   // ProofVerifier override.
   QuicAsyncStatus VerifyProof(
-      const QuicString& hostname,
+      const std::string& hostname,
       const uint16_t port,
-      const QuicString& server_config,
+      const std::string& server_config,
       QuicTransportVersion transport_version,
       QuicStringPiece chlo_hash,
-      const std::vector<QuicString>& certs,
-      const QuicString& cert_sct,
-      const QuicString& signature,
+      const std::vector<std::string>& certs,
+      const std::string& cert_sct,
+      const std::string& signature,
       const ProofVerifyContext* context,
-      QuicString* error_details,
+      std::string* error_details,
       std::unique_ptr<ProofVerifyDetails>* verify_details,
       std::unique_ptr<ProofVerifierCallback> callback) override {
     return QUIC_SUCCESS;
   }
 
   QuicAsyncStatus VerifyCertChain(
-      const QuicString& hostname,
-      const std::vector<QuicString>& certs,
+      const std::string& hostname,
+      const std::vector<std::string>& certs,
       const ProofVerifyContext* context,
-      QuicString* error_details,
+      std::string* error_details,
       std::unique_ptr<ProofVerifyDetails>* details,
       std::unique_ptr<ProofVerifierCallback> callback) override {
     return QUIC_SUCCESS;
@@ -68,8 +68,8 @@ class DummyProofSource : public ProofSource {
 
   // ProofSource override.
   void GetProof(const QuicSocketAddress& server_address,
-                const QuicString& hostname,
-                const QuicString& server_config,
+                const std::string& hostname,
+                const std::string& server_config,
                 QuicTransportVersion transport_version,
                 QuicStringPiece chlo_hash,
                 std::unique_ptr<Callback> callback) override {
@@ -83,8 +83,8 @@ class DummyProofSource : public ProofSource {
 
   QuicReferenceCountedPointer<Chain> GetCertChain(
       const QuicSocketAddress& server_address,
-      const QuicString& hostname) override {
-    std::vector<QuicString> certs;
+      const std::string& hostname) override {
+    std::vector<std::string> certs;
     certs.push_back("Dummy cert");
     return QuicReferenceCountedPointer<ProofSource::Chain>(
         new ProofSource::Chain(certs));
@@ -92,7 +92,7 @@ class DummyProofSource : public ProofSource {
 
   void ComputeTlsSignature(
       const QuicSocketAddress& server_address,
-      const QuicString& hostname,
+      const std::string& hostname,
       uint16_t signature_algorithm,
       QuicStringPiece in,
       std::unique_ptr<SignatureCallback> callback) override {
@@ -157,7 +157,7 @@ class QuicCryptoClientHandshakerTest : public Test {
         QuicCryptoServerConfig::GenerateConfig(helper_.GetRandomGenerator(),
                                                helper_.GetClock(), options);
     state_.Initialize(
-        config->config(), "sourcetoken", std::vector<QuicString>{"Dummy cert"},
+        config->config(), "sourcetoken", std::vector<std::string>{"Dummy cert"},
         "", "chlo_hash", "signature", helper_.GetClock()->WallNow(),
         helper_.GetClock()->WallNow().Add(QuicTime::Delta::FromSeconds(30)));
 

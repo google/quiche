@@ -10,8 +10,8 @@
 namespace quic {
 
 void DummyProofSource::GetProof(const QuicSocketAddress& server_address,
-                                const QuicString& hostname,
-                                const QuicString& server_config,
+                                const std::string& hostname,
+                                const std::string& server_config,
                                 QuicTransportVersion transport_version,
                                 QuicStringPiece chlo_hash,
                                 std::unique_ptr<Callback> callback) {
@@ -25,8 +25,8 @@ void DummyProofSource::GetProof(const QuicSocketAddress& server_address,
 
 QuicReferenceCountedPointer<DummyProofSource::Chain>
 DummyProofSource::GetCertChain(const QuicSocketAddress& server_address,
-                               const QuicString& hostname) {
-  std::vector<QuicString> certs;
+                               const std::string& hostname) {
+  std::vector<std::string> certs;
   certs.push_back(kDummyCertName);
   return QuicReferenceCountedPointer<ProofSource::Chain>(
       new ProofSource::Chain(certs));
@@ -34,7 +34,7 @@ DummyProofSource::GetCertChain(const QuicSocketAddress& server_address,
 
 void DummyProofSource::ComputeTlsSignature(
     const QuicSocketAddress& server_address,
-    const QuicString& hostname,
+    const std::string& hostname,
     uint16_t signature_algorithm,
     QuicStringPiece in,
     std::unique_ptr<SignatureCallback> callback) {
@@ -42,26 +42,26 @@ void DummyProofSource::ComputeTlsSignature(
 }
 
 QuicAsyncStatus InsecureProofVerifier::VerifyProof(
-    const QuicString& hostname,
+    const std::string& hostname,
     const uint16_t port,
-    const QuicString& server_config,
+    const std::string& server_config,
     QuicTransportVersion transport_version,
     QuicStringPiece chlo_hash,
-    const std::vector<QuicString>& certs,
-    const QuicString& cert_sct,
-    const QuicString& signature,
+    const std::vector<std::string>& certs,
+    const std::string& cert_sct,
+    const std::string& signature,
     const ProofVerifyContext* context,
-    QuicString* error_details,
+    std::string* error_details,
     std::unique_ptr<ProofVerifyDetails>* verify_details,
     std::unique_ptr<ProofVerifierCallback> callback) {
   return QUIC_SUCCESS;
 }
 
 QuicAsyncStatus InsecureProofVerifier::VerifyCertChain(
-    const QuicString& hostname,
-    const std::vector<QuicString>& certs,
+    const std::string& hostname,
+    const std::vector<std::string>& certs,
     const ProofVerifyContext* context,
-    QuicString* error_details,
+    std::string* error_details,
     std::unique_ptr<ProofVerifyDetails>* details,
     std::unique_ptr<ProofVerifierCallback> callback) {
   return QUIC_SUCCESS;
@@ -86,7 +86,7 @@ bool QuartcCryptoServerStreamHelper::CanAcceptClientHello(
     const QuicSocketAddress& client_address,
     const QuicSocketAddress& peer_address,
     const QuicSocketAddress& self_address,
-    QuicString* error_details) const {
+    std::string* error_details) const {
   return true;
 }
 
@@ -114,7 +114,7 @@ CryptoServerConfig CreateCryptoServerConfig(QuicRandom* random,
   char source_address_token_secret[kInputKeyingMaterialLength];
   random->RandBytes(source_address_token_secret, kInputKeyingMaterialLength);
   auto config = QuicMakeUnique<QuicCryptoServerConfig>(
-      QuicString(source_address_token_secret, kInputKeyingMaterialLength),
+      std::string(source_address_token_secret, kInputKeyingMaterialLength),
       random, QuicMakeUnique<DummyProofSource>(), KeyExchangeSource::Default(),
       TlsServerHandshaker::CreateSslCtx());
 
@@ -155,7 +155,7 @@ CryptoServerConfig CreateCryptoServerConfig(QuicRandom* random,
   const QuicData& data = message->GetSerialized();
 
   crypto_server_config.serialized_crypto_config =
-      QuicString(data.data(), data.length());
+      std::string(data.data(), data.length());
   return crypto_server_config;
 }
 

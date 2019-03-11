@@ -26,7 +26,7 @@ class P256KeyExchangeFactory : public KeyExchange::Factory {
 
   std::unique_ptr<KeyExchange> Create(QuicRandom* /* rand */) const override {
     // TODO(agl): avoid the serialisation/deserialisation in this function.
-    const QuicString private_value = P256KeyExchange::NewPrivateKey();
+    const std::string private_value = P256KeyExchange::NewPrivateKey();
     return P256KeyExchange::New(private_value);
   }
 
@@ -72,25 +72,25 @@ std::unique_ptr<P256KeyExchange> P256KeyExchange::New(QuicStringPiece key) {
 }
 
 // static
-QuicString P256KeyExchange::NewPrivateKey() {
+std::string P256KeyExchange::NewPrivateKey() {
   bssl::UniquePtr<EC_KEY> key(EC_KEY_new_by_curve_name(NID_X9_62_prime256v1));
   if (!key.get() || !EC_KEY_generate_key(key.get())) {
     QUIC_DLOG(INFO) << "Can't generate a new private key.";
-    return QuicString();
+    return std::string();
   }
 
   int key_len = i2d_ECPrivateKey(key.get(), nullptr);
   if (key_len <= 0) {
     QUIC_DLOG(INFO) << "Can't convert private key to string";
-    return QuicString();
+    return std::string();
   }
   std::unique_ptr<uint8_t[]> private_key(new uint8_t[key_len]);
   uint8_t* keyp = private_key.get();
   if (!i2d_ECPrivateKey(key.get(), &keyp)) {
     QUIC_DLOG(INFO) << "Can't convert private key to string.";
-    return QuicString();
+    return std::string();
   }
-  return QuicString(reinterpret_cast<char*>(private_key.get()), key_len);
+  return std::string(reinterpret_cast<char*>(private_key.get()), key_len);
 }
 
 const KeyExchange::Factory& P256KeyExchange::GetFactory() const {
@@ -99,7 +99,7 @@ const KeyExchange::Factory& P256KeyExchange::GetFactory() const {
 }
 
 bool P256KeyExchange::CalculateSharedKey(QuicStringPiece peer_public_value,
-                                         QuicString* out_result) const {
+                                         std::string* out_result) const {
   if (peer_public_value.size() != kUncompressedP256PointBytes) {
     QUIC_DLOG(INFO) << "Peer public value is invalid";
     return false;
@@ -130,7 +130,7 @@ bool P256KeyExchange::CalculateSharedKey(QuicStringPiece peer_public_value,
 
 void P256KeyExchange::CalculateSharedKey(
     QuicStringPiece peer_public_value,
-    QuicString* shared_key,
+    std::string* shared_key,
     std::unique_ptr<Callback> callback) const {
   callback->Run(CalculateSharedKey(peer_public_value, shared_key));
 }

@@ -56,7 +56,7 @@ class QuicSimpleServerStream : public QuicSpdyServerStreamBase,
   // Implements QuicSimpleServerBackend::RequestHandler callbacks
   QuicConnectionId connection_id() const override;
   QuicStreamId stream_id() const override;
-  QuicString peer_host() const override;
+  std::string peer_host() const override;
   void OnResponseBackendComplete(
       const QuicBackendResponse* response,
       std::list<QuicBackendResponse::ServerPushInfo> resources) override;
@@ -87,12 +87,12 @@ class QuicSimpleServerStream : public QuicSpdyServerStreamBase,
 
   spdy::SpdyHeaderBlock* request_headers() { return &request_headers_; }
 
-  const QuicString& body() { return body_; }
+  const std::string& body() { return body_; }
 
   // The parsed headers received from the client.
   spdy::SpdyHeaderBlock request_headers_;
   int64_t content_length_;
-  QuicString body_;
+  std::string body_;
 
  private:
   QuicSimpleServerBackend* quic_simple_server_backend_;  // Not owned.

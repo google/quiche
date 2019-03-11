@@ -46,8 +46,8 @@ TEST_F(Curve25519KeyExchangeTest, SharedKey) {
   QuicRandom* const rand = QuicRandom::GetInstance();
 
   for (int i = 0; i < 5; i++) {
-    const QuicString alice_key(Curve25519KeyExchange::NewPrivateKey(rand));
-    const QuicString bob_key(Curve25519KeyExchange::NewPrivateKey(rand));
+    const std::string alice_key(Curve25519KeyExchange::NewPrivateKey(rand));
+    const std::string bob_key(Curve25519KeyExchange::NewPrivateKey(rand));
 
     std::unique_ptr<Curve25519KeyExchange> alice(
         Curve25519KeyExchange::New(alice_key));
@@ -57,7 +57,7 @@ TEST_F(Curve25519KeyExchangeTest, SharedKey) {
     const QuicStringPiece alice_public(alice->public_value());
     const QuicStringPiece bob_public(bob->public_value());
 
-    QuicString alice_shared, bob_shared;
+    std::string alice_shared, bob_shared;
     ASSERT_TRUE(alice->CalculateSharedKey(bob_public, &alice_shared));
     ASSERT_TRUE(bob->CalculateSharedKey(alice_public, &bob_shared));
     ASSERT_EQ(alice_shared, bob_shared);
@@ -70,8 +70,8 @@ TEST_F(Curve25519KeyExchangeTest, SharedKeyAsync) {
   QuicRandom* const rand = QuicRandom::GetInstance();
 
   for (int i = 0; i < 5; i++) {
-    const QuicString alice_key(Curve25519KeyExchange::NewPrivateKey(rand));
-    const QuicString bob_key(Curve25519KeyExchange::NewPrivateKey(rand));
+    const std::string alice_key(Curve25519KeyExchange::NewPrivateKey(rand));
+    const std::string bob_key(Curve25519KeyExchange::NewPrivateKey(rand));
 
     std::unique_ptr<Curve25519KeyExchange> alice(
         Curve25519KeyExchange::New(alice_key));
@@ -81,7 +81,7 @@ TEST_F(Curve25519KeyExchangeTest, SharedKeyAsync) {
     const QuicStringPiece alice_public(alice->public_value());
     const QuicStringPiece bob_public(bob->public_value());
 
-    QuicString alice_shared, bob_shared;
+    std::string alice_shared, bob_shared;
     TestCallbackResult alice_result;
     ASSERT_FALSE(alice_result.ok());
     alice->CalculateSharedKey(bob_public, &alice_shared,

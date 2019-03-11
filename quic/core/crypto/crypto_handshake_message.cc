@@ -85,7 +85,7 @@ void CryptoHandshakeMessage::SetVersion(QuicTag tag,
 
 void CryptoHandshakeMessage::SetStringPiece(QuicTag tag,
                                             QuicStringPiece value) {
-  tag_value_map_[tag] = QuicString(value);
+  tag_value_map_[tag] = std::string(value);
 }
 
 void CryptoHandshakeMessage::Erase(QuicTag tag) {
@@ -236,7 +236,7 @@ size_t CryptoHandshakeMessage::minimum_size() const {
   return minimum_size_;
 }
 
-QuicString CryptoHandshakeMessage::DebugString() const {
+std::string CryptoHandshakeMessage::DebugString() const {
   return DebugStringInternal(0);
 }
 
@@ -261,11 +261,12 @@ QuicErrorCode CryptoHandshakeMessage::GetPOD(QuicTag tag,
   return ret;
 }
 
-QuicString CryptoHandshakeMessage::DebugStringInternal(size_t indent) const {
-  QuicString ret = QuicString(2 * indent, ' ') + QuicTagToString(tag_) + "<\n";
+std::string CryptoHandshakeMessage::DebugStringInternal(size_t indent) const {
+  std::string ret =
+      std::string(2 * indent, ' ') + QuicTagToString(tag_) + "<\n";
   ++indent;
   for (auto it = tag_value_map_.begin(); it != tag_value_map_.end(); ++it) {
-    ret += QuicString(2 * indent, ' ') + QuicTagToString(it->first) + ": ";
+    ret += std::string(2 * indent, ' ') + QuicTagToString(it->first) + ": ";
 
     bool done = false;
     switch (it->first) {
@@ -371,7 +372,7 @@ QuicString CryptoHandshakeMessage::DebugStringInternal(size_t indent) const {
     ret += "\n";
   }
   --indent;
-  ret += QuicString(2 * indent, ' ') + ">";
+  ret += std::string(2 * indent, ' ') + ">";
   return ret;
 }
 

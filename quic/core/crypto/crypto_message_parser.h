@@ -17,7 +17,7 @@ class QUIC_EXPORT_PRIVATE CryptoMessageParser {
   virtual ~CryptoMessageParser() {}
 
   virtual QuicErrorCode error() const = 0;
-  virtual const QuicString& error_detail() const = 0;
+  virtual const std::string& error_detail() const = 0;
 
   // Processes input data, which must be delivered in order. The input data
   // being processed was received at encryption level |level|. Returns

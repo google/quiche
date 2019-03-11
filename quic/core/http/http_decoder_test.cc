@@ -321,12 +321,12 @@ TEST_F(HttpDecoderTest, DataFrame) {
 
 TEST_F(HttpDecoderTest, FrameHeaderPartialDelivery) {
   // A large input that will occupy more than 1 byte in the length field.
-  QuicString input(2048, 'x');
+  std::string input(2048, 'x');
   HttpEncoder encoder;
   std::unique_ptr<char[]> buffer;
   QuicByteCount header_length =
       encoder.SerializeDataFrameHeader(input.length(), &buffer);
-  QuicString header = QuicString(buffer.get(), header_length);
+  std::string header = std::string(buffer.get(), header_length);
   // Partially send only 1 byte of the header to process.
   EXPECT_EQ(1u, decoder_.ProcessInput(header.data(), 1));
   EXPECT_EQ(QUIC_NO_ERROR, decoder_.error());

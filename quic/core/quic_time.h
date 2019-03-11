@@ -75,7 +75,7 @@ class QUIC_EXPORT_PRIVATE QuicTime {
       return time_offset_ == kQuicInfiniteTimeUs;
     }
 
-    QuicString ToDebugValue() const;
+    std::string ToDebugValue() const;
 
    private:
     friend inline bool operator==(QuicTime::Delta lhs, QuicTime::Delta rhs);

@@ -7,7 +7,7 @@
 
 namespace quic {
 
-ProofSource::Chain::Chain(const std::vector<QuicString>& certs)
+ProofSource::Chain::Chain(const std::vector<std::string>& certs)
     : certs(certs) {}
 
 ProofSource::Chain::~Chain() {}

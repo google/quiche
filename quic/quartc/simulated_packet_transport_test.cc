@@ -36,7 +36,7 @@ class FakeDelegate : public QuartcPacketTransport::Delegate {
 
   void OnTransportCanWrite() override {
     while (!packets_to_send_.empty()) {
-      const QuicString& packet = packets_to_send_.front();
+      const std::string& packet = packets_to_send_.front();
       if (transport_->Write(packet.data(), packet.size(),
                             QuartcPacketTransport::PacketInfo()) <
           static_cast<int>(packet.size())) {
@@ -51,20 +51,20 @@ class FakeDelegate : public QuartcPacketTransport::Delegate {
     packets_received_.emplace_back(data, data_len);
   }
 
-  void AddPacketToSend(const QuicString& packet) {
+  void AddPacketToSend(const std::string& packet) {
     packets_to_send_.push(packet);
   }
 
   size_t packets_to_send() { return packets_to_send_.size(); }
-  const std::vector<QuicString>& packets_received() {
+  const std::vector<std::string>& packets_received() {
     return packets_received_;
   }
   int write_blocked_count() { return write_blocked_count_; }
 
  private:
   QuartcPacketTransport* const transport_ = nullptr;
-  std::queue<QuicString> packets_to_send_;
-  std::vector<QuicString> packets_received_;
+  std::queue<std::string> packets_to_send_;
+  std::vector<std::string> packets_received_;
   int write_blocked_count_ = 0;
 };
 
@@ -105,8 +105,8 @@ class SimulatedPacketTransportTest : public QuicTest {
 };
 
 TEST_F(SimulatedPacketTransportTest, OneWayTransmission) {
-  QuicString packet_1(kDefaultPacketSize, 'a');
-  QuicString packet_2(kDefaultPacketSize, 'b');
+  std::string packet_1(kDefaultPacketSize, 'a');
+  std::string packet_2(kDefaultPacketSize, 'b');
   client_delegate_.AddPacketToSend(packet_1);
   client_delegate_.AddPacketToSend(packet_2);
 
@@ -120,10 +120,10 @@ TEST_F(SimulatedPacketTransportTest, OneWayTransmission) {
 }
 
 TEST_F(SimulatedPacketTransportTest, TwoWayTransmission) {
-  QuicString packet_1(kDefaultPacketSize, 'a');
-  QuicString packet_2(kDefaultPacketSize, 'b');
-  QuicString packet_3(kDefaultPacketSize, 'c');
-  QuicString packet_4(kDefaultPacketSize, 'd');
+  std::string packet_1(kDefaultPacketSize, 'a');
+  std::string packet_2(kDefaultPacketSize, 'b');
+  std::string packet_3(kDefaultPacketSize, 'c');
+  std::string packet_4(kDefaultPacketSize, 'd');
 
   client_delegate_.AddPacketToSend(packet_1);
   client_delegate_.AddPacketToSend(packet_2);
@@ -144,9 +144,9 @@ TEST_F(SimulatedPacketTransportTest, TwoWayTransmission) {
 
 TEST_F(SimulatedPacketTransportTest, TestWriteBlocked) {
   // Add 10 packets beyond what fits in the egress queue.
-  std::vector<QuicString> packets;
+  std::vector<std::string> packets;
   for (unsigned int i = 0; i < kDefaultQueueLength + 10; ++i) {
-    packets.push_back(QuicString(kDefaultPacketSize, 'a' + i));
+    packets.push_back(std::string(kDefaultPacketSize, 'a' + i));
     client_delegate_.AddPacketToSend(packets.back());
   }
 

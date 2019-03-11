@@ -107,7 +107,7 @@ bool QpackOfflineDecoder::DecodeHeaderBlocksFromFile(
     QuicStringPiece input_filename) {
   // Store data in |input_data_storage|; use a QuicStringPiece to efficiently
   // keep track of remaining portion yet to be decoded.
-  QuicString input_data_storage;
+  std::string input_data_storage;
   ReadFileContents(input_filename, &input_data_storage);
   QuicStringPiece input_data(input_data_storage);
 
@@ -166,7 +166,7 @@ bool QpackOfflineDecoder::VerifyDecodedHeaderLists(
     QuicStringPiece expected_headers_filename) {
   // Store data in |expected_headers_data_storage|; use a QuicStringPiece to
   // efficiently keep track of remaining portion yet to be decoded.
-  QuicString expected_headers_data_storage;
+  std::string expected_headers_data_storage;
   ReadFileContents(expected_headers_filename, &expected_headers_data_storage);
   QuicStringPiece expected_headers_data(expected_headers_data_storage);
 

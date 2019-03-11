@@ -22,7 +22,7 @@ TEST_F(QuicMemSliceStorageImplTest, EmptyIov) {
 
 TEST_F(QuicMemSliceStorageImplTest, SingleIov) {
   SimpleBufferAllocator allocator;
-  QuicString body(3, 'c');
+  std::string body(3, 'c');
   struct iovec iov = {const_cast<char*>(body.data()), body.length()};
   QuicMemSliceStorage storage(&iov, 1, &allocator, 1024);
   auto span = storage.ToSpan();
@@ -32,8 +32,8 @@ TEST_F(QuicMemSliceStorageImplTest, SingleIov) {
 
 TEST_F(QuicMemSliceStorageImplTest, MultipleIovInSingleSlice) {
   SimpleBufferAllocator allocator;
-  QuicString body1(3, 'a');
-  QuicString body2(4, 'b');
+  std::string body1(3, 'a');
+  std::string body2(4, 'b');
   struct iovec iov[] = {{const_cast<char*>(body1.data()), body1.length()},
                         {const_cast<char*>(body2.data()), body2.length()}};
 
@@ -44,8 +44,8 @@ TEST_F(QuicMemSliceStorageImplTest, MultipleIovInSingleSlice) {
 
 TEST_F(QuicMemSliceStorageImplTest, MultipleIovInMultipleSlice) {
   SimpleBufferAllocator allocator;
-  QuicString body1(4, 'a');
-  QuicString body2(4, 'b');
+  std::string body1(4, 'a');
+  std::string body2(4, 'b');
   struct iovec iov[] = {{const_cast<char*>(body1.data()), body1.length()},
                         {const_cast<char*>(body2.data()), body2.length()}};
 

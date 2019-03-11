@@ -136,12 +136,12 @@ TEST_F(ChaCha20Poly1305TlsDecrypterTest, Decrypt) {
     bool has_pt = test_vectors[i].pt;
 
     // Decode the test vector.
-    QuicString key = QuicTextUtils::HexDecode(test_vectors[i].key);
-    QuicString iv = QuicTextUtils::HexDecode(test_vectors[i].iv);
-    QuicString fixed = QuicTextUtils::HexDecode(test_vectors[i].fixed);
-    QuicString aad = QuicTextUtils::HexDecode(test_vectors[i].aad);
-    QuicString ct = QuicTextUtils::HexDecode(test_vectors[i].ct);
-    QuicString pt;
+    std::string key = QuicTextUtils::HexDecode(test_vectors[i].key);
+    std::string iv = QuicTextUtils::HexDecode(test_vectors[i].iv);
+    std::string fixed = QuicTextUtils::HexDecode(test_vectors[i].fixed);
+    std::string aad = QuicTextUtils::HexDecode(test_vectors[i].aad);
+    std::string ct = QuicTextUtils::HexDecode(test_vectors[i].ct);
+    std::string pt;
     if (has_pt) {
       pt = QuicTextUtils::HexDecode(test_vectors[i].pt);
     }

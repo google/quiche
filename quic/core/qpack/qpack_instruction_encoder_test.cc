@@ -23,12 +23,12 @@ class QpackInstructionEncoderTest : public QuicTestWithParam<FragmentMode> {
   ~QpackInstructionEncoderTest() override = default;
 
   // Encode |instruction| with fragment sizes dictated by |fragment_mode_|.
-  QuicString EncodeInstruction(const QpackInstruction* instruction) {
+  std::string EncodeInstruction(const QpackInstruction* instruction) {
     EXPECT_FALSE(encoder_.HasNext());
 
     FragmentSizeGenerator fragment_size_generator =
         FragmentModeToFragmentSizeGenerator(fragment_mode_);
-    QuicString output;
+    std::string output;
     encoder_.Encode(instruction);
     while (encoder_.HasNext()) {
       encoder_.Next(fragment_size_generator(), &output);

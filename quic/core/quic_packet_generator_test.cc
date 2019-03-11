@@ -52,7 +52,7 @@ class MockDelegate : public QuicPacketGenerator::DelegateInterface {
   MOCK_METHOD0(GetPacketBuffer, char*());
   MOCK_METHOD1(OnSerializedPacket, void(SerializedPacket* packet));
   MOCK_METHOD3(OnUnrecoverableError,
-               void(QuicErrorCode, const QuicString&, ConnectionCloseSource));
+               void(QuicErrorCode, const std::string&, ConnectionCloseSource));
 
   void SetCanWriteAnything() {
     EXPECT_CALL(*this, ShouldGeneratePacket(_, _)).WillRepeatedly(Return(true));
@@ -239,7 +239,7 @@ class QuicPacketGeneratorTest : public QuicTest {
   }
 
   QuicGoAwayFrame* CreateGoAwayFrame() {
-    return new QuicGoAwayFrame(2, QUIC_NO_ERROR, 1, QuicString());
+    return new QuicGoAwayFrame(2, QUIC_NO_ERROR, 1, std::string());
   }
 
   void CheckPacketContains(const PacketContents& contents,
@@ -478,7 +478,7 @@ TEST_F(QuicPacketGeneratorTest, ConsumeCryptoData) {
 
   EXPECT_CALL(delegate_, OnSerializedPacket(_))
       .WillOnce(Invoke(this, &QuicPacketGeneratorTest::SavePacket));
-  QuicString data = "crypto data";
+  std::string data = "crypto data";
   size_t consumed_bytes =
       generator_.ConsumeCryptoData(ENCRYPTION_NONE, data, 0);
   generator_.Flush();
@@ -1350,7 +1350,7 @@ TEST_F(QuicPacketGeneratorTest, ConnectionCloseFrameLargerThanPacketSize) {
   frame->error_code = QUIC_PACKET_WRITE_ERROR;
   char buf[2000] = {};
   QuicStringPiece error_details(buf, 2000);
-  frame->error_details = QuicString(error_details);
+  frame->error_details = std::string(error_details);
   generator_.AddControlFrame(QuicFrame(frame), /*bundle_ack=*/false);
   EXPECT_TRUE(generator_.HasQueuedFrames());
   EXPECT_TRUE(generator_.HasRetransmittableFrames());
@@ -1533,7 +1533,7 @@ TEST_F(QuicPacketGeneratorTest, AddMessageFrame) {
       MESSAGE_STATUS_SUCCESS,
       generator_.AddMessageFrame(
           2, MakeSpan(&allocator_,
-                      QuicString(generator_.GetLargestMessagePayload(), 'a'),
+                      std::string(generator_.GetLargestMessagePayload(), 'a'),
                       &storage)));
   EXPECT_TRUE(generator_.HasRetransmittableFrames());
 
@@ -1543,7 +1543,7 @@ TEST_F(QuicPacketGeneratorTest, AddMessageFrame) {
       generator_.AddMessageFrame(
           3,
           MakeSpan(&allocator_,
-                   QuicString(generator_.GetLargestMessagePayload() + 10, 'a'),
+                   std::string(generator_.GetLargestMessagePayload() + 10, 'a'),
                    &storage)));
 }
 

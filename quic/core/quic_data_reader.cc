@@ -305,7 +305,7 @@ bool QuicDataReader::ReadVarIntStreamId(QuicStreamId* result) {
   return true;
 }
 
-QuicString QuicDataReader::DebugString() const {
+std::string QuicDataReader::DebugString() const {
   return QuicStrCat(" { length: ", len_, ", position: ", pos_, " }");
 }
 

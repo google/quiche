@@ -39,7 +39,7 @@ TEST_F(CopyAndValidateHeaders, NormalUsage) {
                            {"cookie", "part3"},
 
                            // Already-delimited headers are passed through.
-                           {"passed-through", QuicString("foo\0baz", 7)},
+                           {"passed-through", std::string("foo\0baz", 7)},
 
                            // Other headers are joined on \0.
                            {"joined", "value 1"},
@@ -374,7 +374,7 @@ TEST_F(GetPromisedHostNameFromHeaders, NormalUsage) {
 using PopulateHeaderBlockFromUrl = QuicTest;
 
 TEST_F(PopulateHeaderBlockFromUrl, NormalUsage) {
-  QuicString url = "https://www.google.com/index.html";
+  std::string url = "https://www.google.com/index.html";
   SpdyHeaderBlock headers;
   EXPECT_TRUE(SpdyUtils::PopulateHeaderBlockFromUrl(url, &headers));
   EXPECT_EQ("https", headers[":scheme"].as_string());
@@ -383,7 +383,7 @@ TEST_F(PopulateHeaderBlockFromUrl, NormalUsage) {
 }
 
 TEST_F(PopulateHeaderBlockFromUrl, UrlWithNoPath) {
-  QuicString url = "https://www.google.com";
+  std::string url = "https://www.google.com";
   SpdyHeaderBlock headers;
   EXPECT_TRUE(SpdyUtils::PopulateHeaderBlockFromUrl(url, &headers));
   EXPECT_EQ("https", headers[":scheme"].as_string());

@@ -53,7 +53,7 @@ class MockQuicSession : public QuicSession {
  public:
   MockQuicSession(QuicConnection* connection,
                   const QuicConfig& config,
-                  QuicString* write_buffer)
+                  std::string* write_buffer)
       : QuicSession(connection,
                     nullptr /*visitor*/,
                     config,
@@ -121,7 +121,7 @@ class MockQuicSession : public QuicSession {
 
  private:
   // Stores written data from ReliableQuicStreamAdapter.
-  QuicString* write_buffer_;
+  std::string* write_buffer_;
   // Whether data is written to write_buffer_.
   bool writable_ = true;
 };
@@ -164,7 +164,7 @@ class DummyPacketWriter : public QuicPacketWriter {
 
 class MockQuartcStreamDelegate : public QuartcStream::Delegate {
  public:
-  MockQuartcStreamDelegate(QuicStreamId id, QuicString* read_buffer)
+  MockQuartcStreamDelegate(QuicStreamId id, std::string* read_buffer)
       : id_(id), read_buffer_(read_buffer) {}
 
   void OnBufferChanged(QuartcStream* stream) override {
@@ -199,7 +199,7 @@ class MockQuartcStreamDelegate : public QuartcStream::Delegate {
  protected:
   QuicStreamId id_;
   // Data read by the QuicStream.
-  QuicString* read_buffer_;
+  std::string* read_buffer_;
   // Whether the QuicStream is closed.
   bool closed_ = false;
 
@@ -258,9 +258,9 @@ class QuartcStreamTest : public QuicTest, public QuicConnectionHelperInterface {
   std::unique_ptr<MockQuartcStreamDelegate> mock_stream_delegate_;
   std::unique_ptr<MockQuicSession> session_;
   // Data written by the ReliableQuicStreamAdapterTest.
-  QuicString write_buffer_;
+  std::string write_buffer_;
   // Data read by the ReliableQuicStreamAdapterTest.
-  QuicString read_buffer_;
+  std::string read_buffer_;
   std::unique_ptr<QuicAlarmFactory> alarm_factory_;
   std::unique_ptr<QuicConnection> connection_;
   // Used to implement the QuicConnectionHelperInterface.

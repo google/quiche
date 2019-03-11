@@ -31,7 +31,7 @@ namespace quic {
 // the command line specifies '-h' or '--help', prints a usage message with flag
 // descriptions to stdout and exits with status 0. If a flag has an unparsable
 // value, writes an error message to stderr and exits with status 1.
-inline std::vector<QuicString> QuicParseCommandLineFlags(
+inline std::vector<std::string> QuicParseCommandLineFlags(
     const char* usage,
     int argc,
     const char* const* argv) {

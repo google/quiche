@@ -26,7 +26,7 @@ namespace simulator {
 // A simple counter that increments its value by 1 every specified period.
 class Counter : public Actor {
  public:
-  Counter(Simulator* simulator, QuicString name, QuicTime::Delta period)
+  Counter(Simulator* simulator, std::string name, QuicTime::Delta period)
       : Actor(simulator, name), value_(-1), period_(period) {
     Schedule(clock_->Now());
   }
@@ -89,7 +89,7 @@ class CounterPort : public UnconstrainedPortInterface {
     per_destination_packet_counter_.clear();
   }
 
-  QuicPacketCount CountPacketsForDestination(QuicString destination) const {
+  QuicPacketCount CountPacketsForDestination(std::string destination) const {
     auto result_it = per_destination_packet_counter_.find(destination);
     if (result_it == per_destination_packet_counter_.cend()) {
       return 0;
@@ -101,7 +101,8 @@ class CounterPort : public UnconstrainedPortInterface {
   QuicByteCount bytes_;
   QuicPacketCount packets_;
 
-  QuicUnorderedMap<QuicString, QuicPacketCount> per_destination_packet_counter_;
+  QuicUnorderedMap<std::string, QuicPacketCount>
+      per_destination_packet_counter_;
 };
 
 // Sends the packet to the specified destination at the uplink rate.  Provides a
@@ -109,9 +110,9 @@ class CounterPort : public UnconstrainedPortInterface {
 class LinkSaturator : public Endpoint {
  public:
   LinkSaturator(Simulator* simulator,
-                QuicString name,
+                std::string name,
                 QuicByteCount packet_size,
-                QuicString destination)
+                std::string destination)
       : Endpoint(simulator, name),
         packet_size_(packet_size),
         destination_(std::move(destination)),
@@ -155,7 +156,7 @@ class LinkSaturator : public Endpoint {
 
  private:
   QuicByteCount packet_size_;
-  QuicString destination_;
+  std::string destination_;
 
   ConstrainedPortInterface* tx_port_;
   CounterPort rx_port_;
@@ -427,7 +428,7 @@ TEST_F(SimulatorTest, SwitchedNetwork) {
 class AlarmToggler : public Actor {
  public:
   AlarmToggler(Simulator* simulator,
-               QuicString name,
+               std::string name,
                QuicAlarm* alarm,
                QuicTime::Delta interval)
       : Actor(simulator, name),
@@ -591,7 +592,7 @@ TEST_F(SimulatorTest, RunFor) {
 
 class MockPacketFilter : public PacketFilter {
  public:
-  MockPacketFilter(Simulator* simulator, QuicString name, Endpoint* endpoint)
+  MockPacketFilter(Simulator* simulator, std::string name, Endpoint* endpoint)
       : PacketFilter(simulator, name, endpoint) {}
   MOCK_METHOD1(FilterPacket, bool(const Packet&));
 };

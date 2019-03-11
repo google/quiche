@@ -74,7 +74,7 @@ class QuicSimpleServerSession : public QuicServerSessionBase {
   // And enqueue HEADERS block in those PUSH_PROMISED for sending push response
   // later.
   virtual void PromisePushResources(
-      const QuicString& request_url,
+      const std::string& request_url,
       const std::list<QuicBackendResponse::ServerPushInfo>& resources,
       QuicStreamId original_stream_id,
       const spdy::SpdyHeaderBlock& original_request_headers);
@@ -112,7 +112,7 @@ class QuicSimpleServerSession : public QuicServerSessionBase {
   // Copying the rest headers ensures they are the same as the original
   // request, especially cookies.
   spdy::SpdyHeaderBlock SynthesizePushRequestHeaders(
-      QuicString request_url,
+      std::string request_url,
       QuicBackendResponse::ServerPushInfo resource,
       const spdy::SpdyHeaderBlock& original_request_headers);
 

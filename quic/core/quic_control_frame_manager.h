@@ -43,7 +43,7 @@ class QUIC_EXPORT_PRIVATE QuicControlFrameManager {
   // immediately.
   void WriteOrBufferGoAway(QuicErrorCode error,
                            QuicStreamId last_good_stream_id,
-                           const QuicString& reason);
+                           const std::string& reason);
 
   // Tries to send a WINDOW_UPDATE_FRAME. Buffers the frame if it cannot be sent
   // immediately.

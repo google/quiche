@@ -260,7 +260,7 @@ void TcpCubicSenderBytes::OnRetransmissionTimeout(bool packets_retransmitted) {
   HandleRetransmissionTimeout();
 }
 
-QuicString TcpCubicSenderBytes::GetDebugState() const {
+std::string TcpCubicSenderBytes::GetDebugState() const {
   return "";
 }
 

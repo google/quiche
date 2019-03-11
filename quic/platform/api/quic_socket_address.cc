@@ -31,7 +31,7 @@ bool QuicSocketAddress::IsInitialized() const {
   return impl_.IsInitialized();
 }
 
-QuicString QuicSocketAddress::ToString() const {
+std::string QuicSocketAddress::ToString() const {
   return impl_.ToString();
 }
 

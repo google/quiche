@@ -60,7 +60,6 @@
 namespace {
 
 using quic::QuicSocketAddress;
-using quic::QuicString;
 using quic::QuicStringPiece;
 using quic::QuicTextUtils;
 using quic::QuicUrl;
@@ -97,7 +96,7 @@ class FakeProofVerifier : public quic::ProofVerifier {
   }
 };
 
-QuicSocketAddress LookupAddress(QuicString host, QuicString port) {
+QuicSocketAddress LookupAddress(std::string host, std::string port) {
   addrinfo hint;
   memset(&hint, 0, sizeof(hint));
   hint.ai_protocol = IPPROTO_UDP;
@@ -200,7 +199,7 @@ int main(int argc, char* argv[]) {
   const char* usage = "Usage: quic_client [options] <url>";
 
   // All non-flag arguments should be interpreted as URLs to fetch.
-  std::vector<QuicString> urls =
+  std::vector<std::string> urls =
       quic::QuicParseCommandLineFlags(usage, argc, argv);
   if (urls.size() != 1) {
     quic::QuicPrintCommandLineFlagHelp(usage);

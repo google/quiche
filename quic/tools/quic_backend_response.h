@@ -20,13 +20,13 @@ class QuicBackendResponse {
     ServerPushInfo(QuicUrl request_url,
                    spdy::SpdyHeaderBlock headers,
                    spdy::SpdyPriority priority,
-                   QuicString body);
+                   std::string body);
     ServerPushInfo(const ServerPushInfo& other);
 
     QuicUrl request_url;
     spdy::SpdyHeaderBlock headers;
     spdy::SpdyPriority priority;
-    QuicString body;
+    std::string body;
   };
 
   enum SpecialResponseType {
@@ -75,7 +75,7 @@ class QuicBackendResponse {
   SpecialResponseType response_type_;
   spdy::SpdyHeaderBlock headers_;
   spdy::SpdyHeaderBlock trailers_;
-  QuicString body_;
+  std::string body_;
   uint16_t stop_sending_code_;
 };
 

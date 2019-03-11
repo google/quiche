@@ -16,9 +16,9 @@ namespace quic {
 
 struct QUIC_EXPORT_PRIVATE QuicConnectionCloseFrame {
   QuicConnectionCloseFrame();
-  QuicConnectionCloseFrame(QuicErrorCode error_code, QuicString error_details);
+  QuicConnectionCloseFrame(QuicErrorCode error_code, std::string error_details);
   QuicConnectionCloseFrame(QuicIetfTransportErrorCodes ietf_error_code,
-                           QuicString error_details,
+                           std::string error_details,
                            uint64_t frame_type);
 
   friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
@@ -33,7 +33,7 @@ struct QUIC_EXPORT_PRIVATE QuicConnectionCloseFrame {
     QuicErrorCode error_code;
     QuicIetfTransportErrorCodes ietf_error_code;
   };
-  QuicString error_details;
+  std::string error_details;
 
   // Contains the type of frame that triggered the connection close. Made a
   // uint64, as opposed to the QuicIetfFrameType, to support possible

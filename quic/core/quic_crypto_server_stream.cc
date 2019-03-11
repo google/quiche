@@ -71,7 +71,7 @@ void QuicCryptoServerStream::CancelOutstandingCallbacks() {
 }
 
 bool QuicCryptoServerStream::GetBase64SHA256ClientChannelID(
-    QuicString* output) const {
+    std::string* output) const {
   return handshaker()->GetBase64SHA256ClientChannelID(output);
 }
 

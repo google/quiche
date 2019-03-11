@@ -38,7 +38,7 @@ class QUIC_EXPORT_PRIVATE TlsHandshaker : public CryptoMessageParser {
   bool ProcessInput(QuicStringPiece input, EncryptionLevel level) override;
   size_t InputBytesRemaining() const override { return 0; }
   QuicErrorCode error() const override { return parser_error_; }
-  const QuicString& error_detail() const override {
+  const std::string& error_detail() const override {
     return parser_error_detail_;
   }
 
@@ -53,7 +53,7 @@ class QUIC_EXPORT_PRIVATE TlsHandshaker : public CryptoMessageParser {
   virtual void AdvanceHandshake() = 0;
 
   virtual void CloseConnection(QuicErrorCode error,
-                               const QuicString& reason_phrase) = 0;
+                               const std::string& reason_phrase) = 0;
 
   // Creates an SSL_CTX and configures it with the options that are appropriate
   // for both client and server. The caller is responsible for ownership of the
@@ -135,7 +135,7 @@ class QUIC_EXPORT_PRIVATE TlsHandshaker : public CryptoMessageParser {
   QuicSession* session_;
 
   QuicErrorCode parser_error_ = QUIC_NO_ERROR;
-  QuicString parser_error_detail_;
+  std::string parser_error_detail_;
 
   bssl::UniquePtr<SSL> ssl_;
 };

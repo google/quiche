@@ -17,7 +17,7 @@ namespace simulator {
 class CountingPacketFilter : public simulator::PacketFilter {
  public:
   CountingPacketFilter(simulator::Simulator* simulator,
-                       const QuicString& name,
+                       const std::string& name,
                        simulator::Endpoint* endpoint)
       : PacketFilter(simulator, name, endpoint) {}
 

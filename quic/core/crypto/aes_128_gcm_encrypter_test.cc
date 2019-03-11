@@ -181,12 +181,12 @@ TEST_F(Aes128GcmEncrypterTest, Encrypt) {
     const TestGroupInfo& test_info = test_group_info[i];
     for (size_t j = 0; test_vectors[j].key != nullptr; j++) {
       // Decode the test vector.
-      QuicString key = QuicTextUtils::HexDecode(test_vectors[j].key);
-      QuicString iv = QuicTextUtils::HexDecode(test_vectors[j].iv);
-      QuicString pt = QuicTextUtils::HexDecode(test_vectors[j].pt);
-      QuicString aad = QuicTextUtils::HexDecode(test_vectors[j].aad);
-      QuicString ct = QuicTextUtils::HexDecode(test_vectors[j].ct);
-      QuicString tag = QuicTextUtils::HexDecode(test_vectors[j].tag);
+      std::string key = QuicTextUtils::HexDecode(test_vectors[j].key);
+      std::string iv = QuicTextUtils::HexDecode(test_vectors[j].iv);
+      std::string pt = QuicTextUtils::HexDecode(test_vectors[j].pt);
+      std::string aad = QuicTextUtils::HexDecode(test_vectors[j].aad);
+      std::string ct = QuicTextUtils::HexDecode(test_vectors[j].ct);
+      std::string tag = QuicTextUtils::HexDecode(test_vectors[j].tag);
 
       // The test vector's lengths should look sane. Note that the lengths
       // in |test_info| are in bits.
@@ -218,13 +218,14 @@ TEST_F(Aes128GcmEncrypterTest, Encrypt) {
 }
 
 TEST_F(Aes128GcmEncrypterTest, EncryptPacket) {
-  QuicString key = QuicTextUtils::HexDecode("d95a145250826c25a77b6a84fd4d34fc");
-  QuicString iv = QuicTextUtils::HexDecode("50c4431ebb18283448e276e2");
+  std::string key =
+      QuicTextUtils::HexDecode("d95a145250826c25a77b6a84fd4d34fc");
+  std::string iv = QuicTextUtils::HexDecode("50c4431ebb18283448e276e2");
   uint64_t packet_num = 0x13278f44;
-  QuicString aad =
+  std::string aad =
       QuicTextUtils::HexDecode("875d49f64a70c9cbe713278f44ff000005");
-  QuicString pt = QuicTextUtils::HexDecode("aa0003a250bd000000000001");
-  QuicString ct = QuicTextUtils::HexDecode(
+  std::string pt = QuicTextUtils::HexDecode("aa0003a250bd000000000001");
+  std::string ct = QuicTextUtils::HexDecode(
       "7dd4708b989ee7d38a013e3656e9b37beefd05808fe1ab41e3b4f2c0");
 
   std::vector<char> out(ct.size());

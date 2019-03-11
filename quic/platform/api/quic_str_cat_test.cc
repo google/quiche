@@ -25,7 +25,7 @@ TEST_F(QuicStrCatTest, Ints) {
   const size_t size = 8;
   const intptr_t intptr = -9;
   const uintptr_t uintptr = 10;
-  QuicString answer;
+  std::string answer;
   answer = QuicStrCat(s, us);
   EXPECT_EQ(answer, "-12");
   answer = QuicStrCat(i, ui);
@@ -41,9 +41,9 @@ TEST_F(QuicStrCatTest, Ints) {
 }
 
 TEST_F(QuicStrCatTest, Basics) {
-  QuicString result;
+  std::string result;
 
-  QuicString strs[] = {"Hello", "Cruel", "World"};
+  std::string strs[] = {"Hello", "Cruel", "World"};
 
   QuicStringPiece pieces[] = {"Hello", "Cruel", "World"};
 
@@ -82,7 +82,7 @@ TEST_F(QuicStrCatTest, Basics) {
   result = QuicStrCat(ui64s[0], ", ", ui64s[1], "!");
   EXPECT_EQ(result, "12345678910, 10987654321!");
 
-  QuicString one = "1";
+  std::string one = "1";
   result = QuicStrCat("And a ", one.size(), " and a ", &result[2] - &result[0],
                       " and a ", one, " 2 3 4", "!");
   EXPECT_EQ(result, "And a 1 and a 2 and a 1 2 3 4!");
@@ -105,7 +105,7 @@ TEST_F(QuicStrCatTest, Basics) {
 }
 
 TEST_F(QuicStrCatTest, MaxArgs) {
-  QuicString result;
+  std::string result;
   // Test 10 up to 26 arguments, the current maximum
   result = QuicStrCat(1, 2, 3, 4, 5, 6, 7, 8, 9, "a");
   EXPECT_EQ(result, "123456789a");

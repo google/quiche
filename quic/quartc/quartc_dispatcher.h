@@ -57,7 +57,7 @@ class QuartcDispatcher : public QuicDispatcher,
   // Members owned by QuartcDispatcher but not QuicDispatcher.
   std::unique_ptr<QuicConfig> owned_quic_config_;
   std::unique_ptr<QuicCryptoServerConfig> owned_crypto_config_;
-  QuicString crypto_config_;
+  std::string crypto_config_;
 
   // Delegate invoked when the dispatcher creates a new session.
   Delegate* delegate_;

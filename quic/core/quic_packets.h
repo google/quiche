@@ -140,7 +140,7 @@ struct QUIC_EXPORT_PRIVATE QuicPublicResetPacket {
   // An arbitrary string to identify an endpoint. Used by clients to
   // differentiate traffic from Google servers vs Non-google servers.
   // Will not be used if empty().
-  QuicString endpoint_id;
+  std::string endpoint_id;
 };
 
 struct QUIC_EXPORT_PRIVATE QuicVersionNegotiationPacket {

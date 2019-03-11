@@ -29,14 +29,14 @@ class QUIC_EXPORT_PRIVATE Curve25519KeyExchange : public KeyExchange {
 
   // NewPrivateKey returns a private key, generated from |rand|, suitable for
   // passing to |New|.
-  static QuicString NewPrivateKey(QuicRandom* rand);
+  static std::string NewPrivateKey(QuicRandom* rand);
 
   // KeyExchange interface.
   const Factory& GetFactory() const override;
   bool CalculateSharedKey(QuicStringPiece peer_public_value,
-                          QuicString* shared_key) const override;
+                          std::string* shared_key) const override;
   void CalculateSharedKey(QuicStringPiece peer_public_value,
-                          QuicString* shared_key,
+                          std::string* shared_key,
                           std::unique_ptr<Callback> callback) const override;
   QuicStringPiece public_value() const override;
 

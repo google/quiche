@@ -28,7 +28,7 @@ struct QuartcFactoryConfig {
 struct QuartcSessionConfig {
   // If a pre-shared cryptographic key is available for this session, specify it
   // here.  This value will only be used if non-empty.
-  QuicString pre_shared_key;
+  std::string pre_shared_key;
 
   // The maximum size of the packet can be written with the packet writer.
   // 1200 bytes by default.

@@ -17,7 +17,7 @@ namespace quic {
 
 struct QUIC_EXPORT_PRIVATE QuicNewTokenFrame {
   QuicNewTokenFrame();
-  QuicNewTokenFrame(QuicControlFrameId control_frame_id, QuicString token);
+  QuicNewTokenFrame(QuicControlFrameId control_frame_id, std::string token);
 
   friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
       std::ostream& os,
@@ -27,7 +27,7 @@ struct QUIC_EXPORT_PRIVATE QuicNewTokenFrame {
   // and non-zero when sent.
   QuicControlFrameId control_frame_id;
 
-  QuicString token;
+  std::string token;
 };
 static_assert(sizeof(QuicNewTokenFrame) <= 64,
               "Keep the QuicNewTokenFrame size to a cacheline.");

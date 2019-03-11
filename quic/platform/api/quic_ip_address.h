@@ -42,9 +42,9 @@ class QUIC_EXPORT_PRIVATE QuicIpAddress {
   int AddressFamilyToInt() const;
   // Returns the address as a sequence of bytes in network-byte-order. IPv4 will
   // be 4 bytes. IPv6 will be 16 bytes.
-  QuicString ToPackedString() const;
+  std::string ToPackedString() const;
   // Returns string representation of the address.
-  QuicString ToString() const;
+  std::string ToString() const;
   // Normalizes the address representation with respect to IPv4 addresses, i.e,
   // mapped IPv4 addresses ("::ffff:X.Y.Z.Q") are converted to pure IPv4
   // addresses.  All other IPv4, IPv6, and empty values are left unchanged.
@@ -56,7 +56,7 @@ class QUIC_EXPORT_PRIVATE QuicIpAddress {
   // unchanged).
   QuicIpAddress DualStacked() const;
   bool FromPackedString(const char* data, size_t length);
-  bool FromString(QuicString str);
+  bool FromString(std::string str);
   bool IsIPv4() const;
   bool IsIPv6() const;
   bool InSameSubnet(const QuicIpAddress& other, int subnet_length);

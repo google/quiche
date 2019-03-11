@@ -90,7 +90,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientStream
     // ChannelIDSource operated asynchronously. Intended for testing.
     virtual bool WasChannelIDSourceCallbackRun() const = 0;
 
-    virtual QuicString chlo_hash() const = 0;
+    virtual std::string chlo_hash() const = 0;
 
     // Returns true once any encrypter (initial/0RTT or final/1RTT) has been set
     // for the connection.
@@ -156,7 +156,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientStream
   // ChannelIDSource operated asynchronously. Intended for testing.
   bool WasChannelIDSourceCallbackRun() const;
 
-  QuicString chlo_hash() const;
+  std::string chlo_hash() const;
 
  protected:
   void set_handshaker(std::unique_ptr<HandshakerDelegate> handshaker) {

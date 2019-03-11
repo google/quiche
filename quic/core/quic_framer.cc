@@ -1368,7 +1368,7 @@ std::unique_ptr<QuicEncryptedPacket> QuicFramer::BuildPublicResetPacket(
       IpAddressFamily::IP_UNSPEC) {
     // packet.client_address is non-empty.
     QuicSocketAddressCoder address_coder(packet.client_address);
-    QuicString serialized_address = address_coder.Encode();
+    std::string serialized_address = address_coder.Encode();
     if (serialized_address.empty()) {
       return nullptr;
     }
@@ -1994,7 +1994,7 @@ bool QuicFramer::ProcessPublicResetPacket(QuicDataReader* reader,
   QuicStringPiece endpoint_id;
   if (perspective_ == Perspective::IS_CLIENT &&
       reset->GetStringPiece(kEPID, &endpoint_id)) {
-    packet.endpoint_id = QuicString(endpoint_id);
+    packet.endpoint_id = std::string(endpoint_id);
     packet.endpoint_id += '\0';
   }
 
@@ -3724,7 +3724,7 @@ bool QuicFramer::ProcessConnectionCloseFrame(QuicDataReader* reader,
     set_detailed_error("Unable to read connection close error details.");
     return false;
   }
-  frame->error_details = QuicString(error_details);
+  frame->error_details = std::string(error_details);
 
   return true;
 }
@@ -3755,7 +3755,7 @@ bool QuicFramer::ProcessGoAwayFrame(QuicDataReader* reader,
     set_detailed_error("Unable to read goaway reason.");
     return false;
   }
-  frame->reason_phrase = QuicString(reason_phrase);
+  frame->reason_phrase = std::string(reason_phrase);
 
   return true;
 }
@@ -4511,7 +4511,7 @@ bool QuicFramer::ProcessNewTokenFrame(QuicDataReader* reader,
     set_detailed_error("Unable to read new token data.");
     return false;
   }
-  frame->token = QuicString(data);
+  frame->token = std::string(data);
   return true;
 }
 
@@ -5225,7 +5225,7 @@ bool QuicFramer::ProcessIetfConnectionCloseFrame(
     set_detailed_error("Unable to read connection close error details.");
     return false;
   }
-  frame->error_details = QuicString(phrase);
+  frame->error_details = std::string(phrase);
 
   return true;
 }
@@ -5250,7 +5250,7 @@ bool QuicFramer::ProcessApplicationCloseFrame(
     set_detailed_error("Unable to read application close error details.");
     return false;
   }
-  frame->error_details = QuicString(phrase);
+  frame->error_details = std::string(phrase);
 
   return true;
 }

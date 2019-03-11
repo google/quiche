@@ -61,8 +61,8 @@ class QUIC_EXPORT_PRIVATE QpackInstructionDecoder {
   bool s_bit() const { return s_bit_; }
   uint64_t varint() const { return varint_; }
   uint64_t varint2() const { return varint2_; }
-  const QuicString& name() const { return name_; }
-  const QuicString& value() const { return value_; }
+  const std::string& name() const { return name_; }
+  const std::string& value() const { return value_; }
 
  private:
   enum class State {
@@ -114,8 +114,8 @@ class QUIC_EXPORT_PRIVATE QpackInstructionDecoder {
   bool s_bit_;
   uint64_t varint_;
   uint64_t varint2_;
-  QuicString name_;
-  QuicString value_;
+  std::string name_;
+  std::string value_;
   // Whether the currently decoded header name or value is Huffman encoded.
   bool is_huffman_encoded_;
   // Length of string being read into |name_| or |value_|.

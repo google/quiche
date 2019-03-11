@@ -243,15 +243,15 @@ QuicVersionLabel QuicVersionToQuicVersionLabel(
       ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, transport_version));
 }
 
-QuicString QuicVersionLabelToString(QuicVersionLabel version_label) {
+std::string QuicVersionLabelToString(QuicVersionLabel version_label) {
   return QuicTagToString(QuicEndian::HostToNet32(version_label));
 }
 
-QuicString QuicVersionLabelVectorToString(
+std::string QuicVersionLabelVectorToString(
     const QuicVersionLabelVector& version_labels,
-    const QuicString& separator,
+    const std::string& separator,
     size_t skip_after_nth_version) {
-  QuicString result;
+  std::string result;
   for (size_t i = 0; i < version_labels.size(); ++i) {
     if (i != 0) {
       result.append(separator);
@@ -280,7 +280,7 @@ HandshakeProtocol QuicVersionLabelToHandshakeProtocol(
   case x:                        \
     return #x
 
-QuicString QuicVersionToString(QuicTransportVersion transport_version) {
+std::string QuicVersionToString(QuicTransportVersion transport_version) {
   switch (transport_version) {
     RETURN_STRING_LITERAL(QUIC_VERSION_39);
     RETURN_STRING_LITERAL(QUIC_VERSION_43);
@@ -293,13 +293,13 @@ QuicString QuicVersionToString(QuicTransportVersion transport_version) {
   }
 }
 
-QuicString ParsedQuicVersionToString(ParsedQuicVersion version) {
+std::string ParsedQuicVersionToString(ParsedQuicVersion version) {
   return QuicVersionLabelToString(CreateQuicVersionLabel(version));
 }
 
-QuicString QuicTransportVersionVectorToString(
+std::string QuicTransportVersionVectorToString(
     const QuicTransportVersionVector& versions) {
-  QuicString result = "";
+  std::string result = "";
   for (size_t i = 0; i < versions.size(); ++i) {
     if (i != 0) {
       result.append(",");
@@ -309,11 +309,11 @@ QuicString QuicTransportVersionVectorToString(
   return result;
 }
 
-QuicString ParsedQuicVersionVectorToString(
+std::string ParsedQuicVersionVectorToString(
     const ParsedQuicVersionVector& versions,
-    const QuicString& separator,
+    const std::string& separator,
     size_t skip_after_nth_version) {
-  QuicString result;
+  std::string result;
   for (size_t i = 0; i < versions.size(); ++i) {
     if (i != 0) {
       result.append(separator);

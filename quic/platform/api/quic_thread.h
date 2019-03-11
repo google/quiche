@@ -13,7 +13,7 @@ namespace quic {
 // A class representing a thread of execution in QUIC.
 class QuicThread : public QuicThreadImpl {
  public:
-  QuicThread(const QuicString& string) : QuicThreadImpl(string) {}
+  QuicThread(const std::string& string) : QuicThreadImpl(string) {}
   QuicThread(const QuicThread&) = delete;
   QuicThread& operator=(const QuicThread&) = delete;
 

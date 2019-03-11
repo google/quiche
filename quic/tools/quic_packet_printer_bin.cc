@@ -208,7 +208,7 @@ class QuicPacketPrinter : public QuicFramerVisitorInterface {
 
 int main(int argc, char* argv[]) {
   const char* usage = "Usage: quic_packet_printer client|server <hex>";
-  std::vector<quic::QuicString> args =
+  std::vector<std::string> args =
       quic::QuicParseCommandLineFlags(usage, argc, argv);
 
   if (args.size() < 2) {
@@ -216,7 +216,7 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  quic::QuicString perspective_string = args[0];
+  std::string perspective_string = args[0];
   quic::Perspective perspective;
   if (perspective_string == "client") {
     perspective = quic::Perspective::IS_CLIENT;
@@ -227,7 +227,7 @@ int main(int argc, char* argv[]) {
     quic::QuicPrintCommandLineFlagHelp(usage);
     return 1;
   }
-  quic::QuicString hex = quic::QuicTextUtils::HexDecode(args[1]);
+  std::string hex = quic::QuicTextUtils::HexDecode(args[1]);
   quic::ParsedQuicVersionVector versions = quic::AllSupportedVersions();
   // Fake a time since we're not actually generating acks.
   quic::QuicTime start(quic::QuicTime::Zero());

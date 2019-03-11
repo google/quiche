@@ -7,11 +7,11 @@
 
 #include <cstddef>
 
-#include "net/third_party/quiche/src/quic/core/quic_alarm.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_client_push_promise_index.h"
-#include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_spdy_client_session_base.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_spdy_stream.h"
+#include "net/third_party/quiche/src/quic/core/quic_alarm.h"
+#include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_framer.h"
@@ -32,7 +32,7 @@ class QUIC_EXPORT_PRIVATE QuicClientPromisedInfo
   // Interface to QuicSpdyClientStream
   QuicClientPromisedInfo(QuicSpdyClientSessionBase* session,
                          QuicStreamId id,
-                         QuicString url);
+                         std::string url);
   QuicClientPromisedInfo(const QuicClientPromisedInfo&) = delete;
   QuicClientPromisedInfo& operator=(const QuicClientPromisedInfo&) = delete;
   virtual ~QuicClientPromisedInfo();
@@ -76,7 +76,7 @@ class QUIC_EXPORT_PRIVATE QuicClientPromisedInfo
 
   QuicStreamId id() const { return id_; }
 
-  const QuicString url() const { return url_; }
+  const std::string url() const { return url_; }
 
   // Return true if there's a request pending matching this push promise.
   bool is_validating() const { return client_request_delegate_ != nullptr; }
@@ -98,7 +98,7 @@ class QUIC_EXPORT_PRIVATE QuicClientPromisedInfo
 
   QuicSpdyClientSessionBase* session_;
   QuicStreamId id_;
-  QuicString url_;
+  std::string url_;
   spdy::SpdyHeaderBlock request_headers_;
   std::unique_ptr<spdy::SpdyHeaderBlock> response_headers_;
   spdy::SpdyHeaderBlock client_request_headers_;

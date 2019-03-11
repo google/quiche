@@ -18,11 +18,11 @@ namespace {
 class QuicUtilsTest : public QuicTest {};
 
 TEST_F(QuicUtilsTest, DetermineAddressChangeType) {
-  const QuicString kIPv4String1 = "1.2.3.4";
-  const QuicString kIPv4String2 = "1.2.3.5";
-  const QuicString kIPv4String3 = "1.1.3.5";
-  const QuicString kIPv6String1 = "2001:700:300:1800::f";
-  const QuicString kIPv6String2 = "2001:700:300:1800:1:1:1:f";
+  const std::string kIPv4String1 = "1.2.3.4";
+  const std::string kIPv4String2 = "1.2.3.5";
+  const std::string kIPv4String3 = "1.1.3.5";
+  const std::string kIPv6String1 = "2001:700:300:1800::f";
+  const std::string kIPv6String2 = "2001:700:300:1800:1:1:1:f";
   QuicSocketAddress old_address;
   QuicSocketAddress new_address;
   QuicIpAddress address;
@@ -168,11 +168,11 @@ TEST_F(QuicUtilsTest, RandomConnectionId) {
   MockRandom random(33);
   QuicConnectionId connection_id = QuicUtils::CreateRandomConnectionId(&random);
   EXPECT_EQ(connection_id.length(), sizeof(uint64_t));
-    char connection_id_bytes[sizeof(uint64_t)];
-    random.RandBytes(connection_id_bytes, QUIC_ARRAYSIZE(connection_id_bytes));
-    EXPECT_EQ(connection_id,
-              QuicConnectionId(static_cast<char*>(connection_id_bytes),
-                               QUIC_ARRAYSIZE(connection_id_bytes)));
+  char connection_id_bytes[sizeof(uint64_t)];
+  random.RandBytes(connection_id_bytes, QUIC_ARRAYSIZE(connection_id_bytes));
+  EXPECT_EQ(connection_id,
+            QuicConnectionId(static_cast<char*>(connection_id_bytes),
+                             QUIC_ARRAYSIZE(connection_id_bytes)));
   EXPECT_NE(connection_id, EmptyQuicConnectionId());
   EXPECT_NE(connection_id, TestConnectionId());
   EXPECT_NE(connection_id, TestConnectionId(1));

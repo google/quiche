@@ -283,7 +283,7 @@ class QuicSpdySession::SpdyFramerVisitor
   }
 
  private:
-  void CloseConnection(const QuicString& details, QuicErrorCode code) {
+  void CloseConnection(const std::string& details, QuicErrorCode code) {
     if (session_->IsConnected()) {
       session_->CloseConnectionWithDetails(code, details);
     }
@@ -419,8 +419,8 @@ void QuicSpdySession::OnStreamHeaderList(QuicStreamId stream_id,
     // byte offset necessary for flow control and open stream accounting.
     size_t final_byte_offset = 0;
     for (const auto& header : header_list) {
-      const QuicString& header_key = header.first;
-      const QuicString& header_value = header.second;
+      const std::string& header_key = header.first;
+      const std::string& header_value = header.second;
       if (header_key == kFinalOffsetHeaderKey) {
         if (!QuicTextUtils::StringToSizeT(header_value, &final_byte_offset)) {
           connection()->CloseConnection(
@@ -577,7 +577,8 @@ void QuicSpdySession::OnPromiseHeaderList(QuicStreamId stream_id,
                                           QuicStreamId promised_stream_id,
                                           size_t frame_len,
                                           const QuicHeaderList& header_list) {
-  QuicString error = "OnPromiseHeaderList should be overridden in client code.";
+  std::string error =
+      "OnPromiseHeaderList should be overridden in client code.";
   QUIC_BUG << error;
   connection()->CloseConnection(QUIC_INTERNAL_ERROR, error,
                                 ConnectionCloseBehavior::SILENT_CLOSE);
@@ -688,7 +689,7 @@ void QuicSpdySession::set_max_uncompressed_header_bytes(
 }
 
 void QuicSpdySession::CloseConnectionWithDetails(QuicErrorCode error,
-                                                 const QuicString& details) {
+                                                 const std::string& details) {
   connection()->CloseConnection(
       error, details, ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
 }

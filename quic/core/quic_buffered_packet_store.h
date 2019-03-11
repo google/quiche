@@ -67,7 +67,7 @@ class QUIC_EXPORT_PRIVATE QuicBufferedPacketStore {
     std::list<BufferedPacket> buffered_packets;
     QuicTime creation_time;
     // The alpn from the CHLO, if one was found.
-    QuicString alpn;
+    std::string alpn;
     // Indicating whether this is an IETF QUIC connection.
     bool ietf_quic;
     // If buffered_packets contains the CHLO, it is the version of the CHLO.
@@ -108,7 +108,7 @@ class QUIC_EXPORT_PRIVATE QuicBufferedPacketStore {
                                     QuicSocketAddress self_address,
                                     QuicSocketAddress peer_address,
                                     bool is_chlo,
-                                    const QuicString& alpn,
+                                    const std::string& alpn,
                                     const ParsedQuicVersion& version);
 
   // Returns true if there are any packets buffered for |connection_id|.

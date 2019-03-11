@@ -125,7 +125,7 @@ bool AeadBaseDecrypter::SetDiversificationNonce(
     return true;
   }
 
-  QuicString key, nonce_prefix;
+  std::string key, nonce_prefix;
   size_t prefix_size = nonce_size_ - sizeof(QuicPacketNumber);
   DiversifyPreliminaryKey(
       QuicStringPiece(reinterpret_cast<const char*>(key_), key_size_),

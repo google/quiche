@@ -32,8 +32,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
       break;
     }
 
-    QuicString name;
-    QuicString value;
+    std::string name;
+    std::string value;
     switch (provider.ConsumeIntegral<uint8_t>()) {
       case 0:
         // Static table entry with no header value.
@@ -126,7 +126,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   // Encode header list.
   NoopDecoderStreamErrorDelegate decoder_stream_error_delegate;
   NoopEncoderStreamSenderDelegate encoder_stream_sender_delegate;
-  QuicString encoded_header_block = QpackEncode(
+  std::string encoded_header_block = QpackEncode(
       &decoder_stream_error_delegate, &encoder_stream_sender_delegate,
       fragment_size_generator, &header_list);
 

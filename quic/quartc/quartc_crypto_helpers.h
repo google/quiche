@@ -26,7 +26,7 @@ static constexpr char kDummyCertName[] = "Dummy cert";
 
 struct CryptoServerConfig {
   std::unique_ptr<QuicCryptoServerConfig> config;
-  QuicString serialized_crypto_config;
+  std::string serialized_crypto_config;
 };
 
 // Length of HKDF input keying material, equal to its number of bytes.
@@ -43,19 +43,19 @@ class DummyProofSource : public ProofSource {
 
   // ProofSource overrides.
   void GetProof(const QuicSocketAddress& server_address,
-                const QuicString& hostname,
-                const QuicString& server_config,
+                const std::string& hostname,
+                const std::string& server_config,
                 QuicTransportVersion transport_version,
                 QuicStringPiece chlo_hash,
                 std::unique_ptr<Callback> callback) override;
 
   QuicReferenceCountedPointer<Chain> GetCertChain(
       const QuicSocketAddress& server_address,
-      const QuicString& hostname) override;
+      const std::string& hostname) override;
 
   void ComputeTlsSignature(
       const QuicSocketAddress& server_address,
-      const QuicString& hostname,
+      const std::string& hostname,
       uint16_t signature_algorithm,
       QuicStringPiece in,
       std::unique_ptr<SignatureCallback> callback) override;
@@ -71,24 +71,24 @@ class InsecureProofVerifier : public ProofVerifier {
 
   // ProofVerifier overrides.
   QuicAsyncStatus VerifyProof(
-      const QuicString& hostname,
+      const std::string& hostname,
       const uint16_t port,
-      const QuicString& server_config,
+      const std::string& server_config,
       QuicTransportVersion transport_version,
       QuicStringPiece chlo_hash,
-      const std::vector<QuicString>& certs,
-      const QuicString& cert_sct,
-      const QuicString& signature,
+      const std::vector<std::string>& certs,
+      const std::string& cert_sct,
+      const std::string& signature,
       const ProofVerifyContext* context,
-      QuicString* error_details,
+      std::string* error_details,
       std::unique_ptr<ProofVerifyDetails>* verify_details,
       std::unique_ptr<ProofVerifierCallback> callback) override;
 
   QuicAsyncStatus VerifyCertChain(
-      const QuicString& hostname,
-      const std::vector<QuicString>& certs,
+      const std::string& hostname,
+      const std::vector<std::string>& certs,
       const ProofVerifyContext* context,
-      QuicString* error_details,
+      std::string* error_details,
       std::unique_ptr<ProofVerifyDetails>* details,
       std::unique_ptr<ProofVerifierCallback> callback) override;
 
@@ -106,7 +106,7 @@ class QuartcCryptoServerStreamHelper : public QuicCryptoServerStream::Helper {
                             const QuicSocketAddress& client_address,
                             const QuicSocketAddress& peer_address,
                             const QuicSocketAddress& self_address,
-                            QuicString* error_details) const override;
+                            std::string* error_details) const override;
 };
 
 std::unique_ptr<QuicCryptoClientConfig> CreateCryptoClientConfig(

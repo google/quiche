@@ -19,7 +19,7 @@ class QUIC_EXPORT_PRIVATE QuicConnectionCloseDelegateInterface {
 
   // Called when an unrecoverable error is encountered.
   virtual void OnUnrecoverableError(QuicErrorCode error,
-                                    const QuicString& error_details,
+                                    const std::string& error_details,
                                     ConnectionCloseSource source) = 0;
 };
 

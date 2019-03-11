@@ -116,7 +116,7 @@ TEST_F(QuicServerIdTest, Equals) {
 }
 
 TEST_F(QuicServerIdTest, EstimateMemoryUsage) {
-  QuicString host = "this is a rather very quite long hostname";
+  std::string host = "this is a rather very quite long hostname";
   uint16_t port = 10;
   bool privacy_mode_enabled = true;
   QuicServerId server_id(host, port, privacy_mode_enabled);

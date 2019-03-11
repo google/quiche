@@ -228,7 +228,7 @@ void QpackInstructionDecoder::DoVarintDone() {
     return;
   }
 
-  QuicString* const string =
+  std::string* const string =
       (field_->type == QpackInstructionFieldType::kName) ? &name_ : &value_;
   string->clear();
 
@@ -248,7 +248,7 @@ size_t QpackInstructionDecoder::DoReadString(QuicStringPiece data) {
   DCHECK(field_->type == QpackInstructionFieldType::kName ||
          field_->type == QpackInstructionFieldType::kValue);
 
-  QuicString* const string =
+  std::string* const string =
       (field_->type == QpackInstructionFieldType::kName) ? &name_ : &value_;
   DCHECK_LT(string->size(), string_length_);
 
@@ -267,14 +267,14 @@ void QpackInstructionDecoder::DoReadStringDone() {
   DCHECK(field_->type == QpackInstructionFieldType::kName ||
          field_->type == QpackInstructionFieldType::kValue);
 
-  QuicString* const string =
+  std::string* const string =
       (field_->type == QpackInstructionFieldType::kName) ? &name_ : &value_;
   DCHECK_EQ(string->size(), string_length_);
 
   if (is_huffman_encoded_) {
     huffman_decoder_.Reset();
     // HpackHuffmanDecoder::Decode() cannot perform in-place decoding.
-    QuicString decoded_value;
+    std::string decoded_value;
     huffman_decoder_.Decode(*string, &decoded_value);
     if (!huffman_decoder_.InputProperlyTerminated()) {
       OnError("Error in Huffman-encoded string.");

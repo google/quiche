@@ -11,7 +11,7 @@
 
 namespace quic {
 
-QuicString QuicBandwidth::ToDebugValue() const {
+std::string QuicBandwidth::ToDebugValue() const {
   if (bits_per_second_ < 80000) {
     return QuicStringPrintf("%" PRId64 " bits/s (%" PRId64 " bytes/s)",
                             bits_per_second_, bits_per_second_ / 8);

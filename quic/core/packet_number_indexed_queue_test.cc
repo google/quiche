@@ -18,7 +18,7 @@ class PacketNumberIndexedQueueTest : public QuicTest {
   PacketNumberIndexedQueueTest() {}
 
  protected:
-  PacketNumberIndexedQueue<QuicString> queue_;
+  PacketNumberIndexedQueue<std::string> queue_;
 };
 
 TEST_F(PacketNumberIndexedQueueTest, InitialState) {

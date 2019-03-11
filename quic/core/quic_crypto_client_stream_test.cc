@@ -188,10 +188,10 @@ TEST_F(QuicCryptoClientStreamTest, InvalidCachedServerConfig) {
   QuicCryptoClientConfig::CachedState* state =
       crypto_config_.LookupOrCreate(server_id_);
 
-  std::vector<QuicString> certs = state->certs();
-  QuicString cert_sct = state->cert_sct();
-  QuicString signature = state->signature();
-  QuicString chlo_hash = state->chlo_hash();
+  std::vector<std::string> certs = state->certs();
+  std::string cert_sct = state->cert_sct();
+  std::string signature = state->signature();
+  std::string chlo_hash = state->chlo_hash();
   state->SetProof(certs, cert_sct, chlo_hash, signature + signature);
 
   EXPECT_CALL(*session_, OnProofVerifyDetailsAvailable(testing::_))
@@ -243,7 +243,7 @@ TEST_F(QuicCryptoClientStreamTest, ServerConfigUpdate) {
   // Make sure that the STK and SCFG are cached correctly.
   EXPECT_EQ("xstk", state->source_address_token());
 
-  const QuicString& cached_scfg = state->server_config();
+  const std::string& cached_scfg = state->server_config();
   test::CompareCharArraysWithHexError(
       "scfg", cached_scfg.data(), cached_scfg.length(),
       reinterpret_cast<char*>(scfg), QUIC_ARRAYSIZE(scfg));

@@ -32,7 +32,7 @@ class QpackRoundTripTest
       const spdy::SpdyHeaderBlock& header_list) {
     NoopDecoderStreamErrorDelegate decoder_stream_error_delegate;
     NoopEncoderStreamSenderDelegate encoder_stream_sender_delegate;
-    QuicString encoded_header_block = QpackEncode(
+    std::string encoded_header_block = QpackEncode(
         &decoder_stream_error_delegate, &encoder_stream_sender_delegate,
         FragmentModeToFragmentSizeGenerator(encoding_fragment_mode_),
         &header_list);
@@ -90,8 +90,8 @@ TEST_P(QpackRoundTripTest, MultipleWithLongEntries) {
   spdy::SpdyHeaderBlock header_list;
   header_list["foo"] = "bar";
   header_list[":path"] = "/";
-  header_list["foobaar"] = QuicString(127, 'Z');
-  header_list[QuicString(1000, 'b')] = QuicString(1000, 'c');
+  header_list["foobaar"] = std::string(127, 'Z');
+  header_list[std::string(1000, 'b')] = std::string(1000, 'c');
 
   spdy::SpdyHeaderBlock output = EncodeThenDecode(header_list);
   EXPECT_EQ(header_list, output);

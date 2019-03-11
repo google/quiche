@@ -24,7 +24,7 @@ class QuicCryptoServerHandshaker::ProcessClientHelloCallback
 
   void Run(
       QuicErrorCode error,
-      const QuicString& error_details,
+      const std::string& error_details,
       std::unique_ptr<CryptoHandshakeMessage> message,
       std::unique_ptr<DiversificationNonce> diversification_nonce,
       std::unique_ptr<ProofSource::Details> proof_source_details) override {
@@ -160,7 +160,7 @@ void QuicCryptoServerHandshaker::
     FinishProcessingHandshakeMessageAfterProcessClientHello(
         const ValidateClientHelloResultCallback::Result& result,
         QuicErrorCode error,
-        const QuicString& error_details,
+        const std::string& error_details,
         std::unique_ptr<CryptoHandshakeMessage> reply,
         std::unique_ptr<DiversificationNonce> diversification_nonce,
         std::unique_ptr<ProofSource::Details> proof_source_details) {
@@ -207,7 +207,7 @@ void QuicCryptoServerHandshaker::
   // session config.
   QuicConfig* config = session()->config();
   OverrideQuicConfigDefaults(config);
-  QuicString process_error_details;
+  std::string process_error_details;
   const QuicErrorCode process_error =
       config->ProcessPeerHello(message, CLIENT, &process_error_details);
   if (process_error != QUIC_NO_ERROR) {
@@ -354,13 +354,13 @@ bool QuicCryptoServerHandshaker::ShouldSendExpectCTHeader() const {
 }
 
 bool QuicCryptoServerHandshaker::GetBase64SHA256ClientChannelID(
-    QuicString* output) const {
+    std::string* output) const {
   if (!encryption_established() ||
       crypto_negotiated_params_->channel_id.empty()) {
     return false;
   }
 
-  const QuicString& channel_id(crypto_negotiated_params_->channel_id);
+  const std::string& channel_id(crypto_negotiated_params_->channel_id);
   uint8_t digest[SHA256_DIGEST_LENGTH];
   SHA256(reinterpret_cast<const uint8_t*>(channel_id.data()), channel_id.size(),
          digest);
@@ -392,7 +392,7 @@ void QuicCryptoServerHandshaker::ProcessClientHello(
     std::unique_ptr<ProofSource::Details> proof_source_details,
     std::unique_ptr<ProcessClientHelloResultCallback> done_cb) {
   const CryptoHandshakeMessage& message = result->client_hello;
-  QuicString error_details;
+  std::string error_details;
   if (!helper_->CanAcceptClientHello(
           message, GetClientAddress(), session()->connection()->peer_address(),
           session()->connection()->self_address(), &error_details)) {

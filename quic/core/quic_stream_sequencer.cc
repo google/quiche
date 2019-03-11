@@ -60,12 +60,12 @@ void QuicStreamSequencer::OnFrameData(QuicStreamOffset byte_offset,
                                       const char* data_buffer) {
   const size_t previous_readable_bytes = buffered_frames_.ReadableBytes();
   size_t bytes_written;
-  QuicString error_details;
+  std::string error_details;
   QuicErrorCode result = buffered_frames_.OnStreamData(
       byte_offset, QuicStringPiece(data_buffer, data_len), &bytes_written,
       &error_details);
   if (result != QUIC_NO_ERROR) {
-    QuicString details = QuicStrCat(
+    std::string details = QuicStrCat(
         "Stream ", stream_->id(), ": ", QuicErrorCodeToString(result), ": ",
         error_details,
         "\nPeer Address: ", stream_->PeerAddressOfLatestPacket().ToString());
@@ -161,7 +161,7 @@ bool QuicStreamSequencer::PrefetchNextRegion(iovec* iov) {
   return buffered_frames_.PrefetchNextRegion(iov);
 }
 
-void QuicStreamSequencer::Read(QuicString* buffer) {
+void QuicStreamSequencer::Read(std::string* buffer) {
   DCHECK(!blocked_);
   buffer->resize(buffer->size() + ReadableBytes());
   iovec iov;
@@ -172,12 +172,12 @@ void QuicStreamSequencer::Read(QuicString* buffer) {
 
 int QuicStreamSequencer::Readv(const struct iovec* iov, size_t iov_len) {
   DCHECK(!blocked_);
-  QuicString error_details;
+  std::string error_details;
   size_t bytes_read;
   QuicErrorCode read_error =
       buffered_frames_.Readv(iov, iov_len, &bytes_read, &error_details);
   if (read_error != QUIC_NO_ERROR) {
-    QuicString details =
+    std::string details =
         QuicStrCat("Stream ", stream_->id(), ": ", error_details);
     stream_->CloseConnectionWithDetails(read_error, details);
     return static_cast<int>(bytes_read);
@@ -259,7 +259,7 @@ QuicStreamOffset QuicStreamSequencer::NumBytesConsumed() const {
   return buffered_frames_.BytesConsumed();
 }
 
-const QuicString QuicStreamSequencer::DebugString() const {
+const std::string QuicStreamSequencer::DebugString() const {
   // clang-format off
   return QuicStrCat("QuicStreamSequencer:",
                 "\n  bytes buffered: ", NumBytesBuffered(),

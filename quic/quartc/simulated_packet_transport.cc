@@ -10,8 +10,8 @@ namespace simulator {
 
 SimulatedQuartcPacketTransport::SimulatedQuartcPacketTransport(
     Simulator* simulator,
-    const QuicString& name,
-    const QuicString& peer_name,
+    const std::string& name,
+    const std::string& peer_name,
     QuicByteCount queue_capacity)
     : Endpoint(simulator, name),
       peer_name_(peer_name),
@@ -34,7 +34,7 @@ int SimulatedQuartcPacketTransport::Write(const char* buffer,
   last_packet_number_ = info.packet_number;
 
   auto packet = QuicMakeUnique<Packet>();
-  packet->contents = QuicString(buffer, buf_len);
+  packet->contents = std::string(buffer, buf_len);
   packet->size = buf_len;
   packet->tx_timestamp = clock_->Now();
   packet->source = name();

@@ -72,7 +72,7 @@ class PacketCollector : public QuicPacketCreator::DelegateInterface,
   }
 
   void OnUnrecoverableError(QuicErrorCode error,
-                            const QuicString& error_details,
+                            const std::string& error_details,
                             ConnectionCloseSource source) override {}
 
   void SaveStatelessRejectFrameData(QuicStringPiece reject) {
@@ -135,7 +135,7 @@ class StatelessConnectionTerminator {
   // Generates a packet containing a CONNECTION_CLOSE frame specifying
   // |error_code| and |error_details| and add the connection to time wait.
   void CloseConnection(QuicErrorCode error_code,
-                       const QuicString& error_details,
+                       const std::string& error_details,
                        bool ietf_quic) {
     QuicConnectionCloseFrame* frame = new QuicConnectionCloseFrame;
     frame->error_code = error_code;
@@ -211,14 +211,14 @@ class ChloAlpnExtractor : public ChloExtractor::Delegate {
               const CryptoHandshakeMessage& chlo) override {
     QuicStringPiece alpn_value;
     if (chlo.GetStringPiece(kALPN, &alpn_value)) {
-      alpn_ = QuicString(alpn_value);
+      alpn_ = std::string(alpn_value);
     }
   }
 
-  QuicString&& ConsumeAlpn() { return std::move(alpn_); }
+  std::string&& ConsumeAlpn() { return std::move(alpn_); }
 
  private:
-  QuicString alpn_;
+  std::string alpn_;
 };
 
 // Class which sits between the ChloExtractor and the StatelessRejector
@@ -255,7 +255,7 @@ class ChloValidator : public ChloAlpnExtractor {
 
   bool can_accept() const { return can_accept_; }
 
-  const QuicString& error_details() const { return error_details_; }
+  const std::string& error_details() const { return error_details_; }
 
  private:
   QuicCryptoServerStream::Helper* helper_;  // Unowned.
@@ -266,7 +266,7 @@ class ChloValidator : public ChloAlpnExtractor {
   QuicSocketAddress self_address_;
   StatelessRejector* rejector_;  // Unowned.
   bool can_accept_;
-  QuicString error_details_;
+  std::string error_details_;
 };
 
 }  // namespace
@@ -653,7 +653,7 @@ void QuicDispatcher::Shutdown() {
 
 void QuicDispatcher::OnConnectionClosed(QuicConnectionId connection_id,
                                         QuicErrorCode error,
-                                        const QuicString& error_details,
+                                        const std::string& error_details,
                                         ConnectionCloseSource source) {
   auto it = session_map_.find(connection_id);
   if (it == session_map_.end()) {
@@ -714,7 +714,7 @@ void QuicDispatcher::StatelesslyTerminateConnection(
     PacketHeaderFormat format,
     ParsedQuicVersion version,
     QuicErrorCode error_code,
-    const QuicString& error_details,
+    const std::string& error_details,
     QuicTimeWaitListManager::TimeWaitAction action) {
   if (format != IETF_QUIC_LONG_HEADER_PACKET) {
     QUIC_DVLOG(1) << "Statelessly terminating " << connection_id

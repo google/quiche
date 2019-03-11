@@ -17,8 +17,8 @@ namespace quic {
 class QUIC_EXPORT_PRIVATE QuicServerId {
  public:
   QuicServerId();
-  QuicServerId(const QuicString& host, uint16_t port);
-  QuicServerId(const QuicString& host,
+  QuicServerId(const std::string& host, uint16_t port);
+  QuicServerId(const std::string& host,
                uint16_t port,
                bool privacy_mode_enabled);
   ~QuicServerId();
@@ -27,7 +27,7 @@ class QUIC_EXPORT_PRIVATE QuicServerId {
   bool operator<(const QuicServerId& other) const;
   bool operator==(const QuicServerId& other) const;
 
-  const QuicString& host() const { return host_; }
+  const std::string& host() const { return host_; }
 
   uint16_t port() const { return port_; }
 
@@ -36,7 +36,7 @@ class QUIC_EXPORT_PRIVATE QuicServerId {
   size_t EstimateMemoryUsage() const;
 
  private:
-  QuicString host_;
+  std::string host_;
   uint16_t port_;
   bool privacy_mode_enabled_;
 };

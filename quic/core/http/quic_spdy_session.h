@@ -153,7 +153,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   virtual bool ShouldReleaseHeadersStreamSequencerBuffer();
 
   void CloseConnectionWithDetails(QuicErrorCode error,
-                                  const QuicString& details);
+                                  const std::string& details);
 
   void set_max_inbound_header_list_size(size_t max_inbound_header_list_size) {
     max_inbound_header_list_size_ = max_inbound_header_list_size;

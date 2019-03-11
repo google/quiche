@@ -15,7 +15,7 @@ namespace simulator {
 class Alarm : public QuicAlarm {
  public:
   Alarm(Simulator* simulator,
-        QuicString name,
+        std::string name,
         QuicArenaScopedPtr<QuicAlarm::Delegate> delegate)
       : QuicAlarm(std::move(delegate)), adapter_(simulator, name, this) {}
   ~Alarm() override {}
@@ -33,7 +33,7 @@ class Alarm : public QuicAlarm {
   // interfaces.
   class Adapter : public Actor {
    public:
-    Adapter(Simulator* simulator, QuicString name, Alarm* parent)
+    Adapter(Simulator* simulator, std::string name, Alarm* parent)
         : Actor(simulator, name), parent_(parent) {}
     ~Adapter() override {}
 
@@ -51,12 +51,12 @@ class Alarm : public QuicAlarm {
   Adapter adapter_;
 };
 
-AlarmFactory::AlarmFactory(Simulator* simulator, QuicString name)
+AlarmFactory::AlarmFactory(Simulator* simulator, std::string name)
     : simulator_(simulator), name_(std::move(name)), counter_(0) {}
 
 AlarmFactory::~AlarmFactory() {}
 
-QuicString AlarmFactory::GetNewAlarmName() {
+std::string AlarmFactory::GetNewAlarmName() {
   ++counter_;
   return QuicStringPrintf("%s (alarm %i)", name_.c_str(), counter_);
 }

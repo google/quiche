@@ -40,7 +40,7 @@ void QuicHeaderList::OnHeader(QuicStringPiece name, QuicStringPiece value) {
     current_header_list_size_ += name.size();
     current_header_list_size_ += value.size();
     current_header_list_size_ += spdy::kPerHeaderOverhead;
-    header_list_.emplace_back(QuicString(name), QuicString(value));
+    header_list_.emplace_back(std::string(name), std::string(value));
   }
 }
 
@@ -60,8 +60,8 @@ void QuicHeaderList::Clear() {
   compressed_header_bytes_ = 0;
 }
 
-QuicString QuicHeaderList::DebugString() const {
-  QuicString s = "{ ";
+std::string QuicHeaderList::DebugString() const {
+  std::string s = "{ ";
   for (const auto& p : *this) {
     s.append(p.first + "=" + p.second + ", ");
   }

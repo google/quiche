@@ -298,7 +298,7 @@ class QuicIntervalSet {
   // where the intervals are in the same order as given by traversal from
   // begin() to end(). This representation is intended for human consumption;
   // computer programs should not rely on the output being in exactly this form.
-  QuicString ToString() const;
+  std::string ToString() const;
 
   QuicIntervalSet& operator=(std::initializer_list<value_type> il) {
     assign(il.begin(), il.end());
@@ -809,7 +809,7 @@ void QuicIntervalSet<T>::Complement(const T& min, const T& max) {
 }
 
 template <typename T>
-QuicString QuicIntervalSet<T>::ToString() const {
+std::string QuicIntervalSet<T>::ToString() const {
   std::ostringstream os;
   os << *this;
   return os.str();

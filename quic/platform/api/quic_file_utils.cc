@@ -10,12 +10,12 @@ namespace quic {
 
 // Traverses the directory |dirname| and retuns all of the files
 // it contains.
-std::vector<QuicString> ReadFileContents(const QuicString& dirname) {
+std::vector<std::string> ReadFileContents(const std::string& dirname) {
   return ReadFileContentsImpl(dirname);
 }
 
 // Reads the contents of |filename| as a string into |contents|.
-void ReadFileContents(QuicStringPiece filename, QuicString* contents) {
+void ReadFileContents(QuicStringPiece filename, std::string* contents) {
   ReadFileContentsImpl(filename, contents);
 }
 

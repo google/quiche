@@ -41,7 +41,7 @@ QuartcStream* QuartcSession::CreateOutgoingBidirectionalStream() {
       GetNextOutgoingBidirectionalStreamId(), QuicStream::kDefaultPriority));
 }
 
-bool QuartcSession::SendOrQueueMessage(QuicString message) {
+bool QuartcSession::SendOrQueueMessage(std::string message) {
   if (!CanSendMessage()) {
     QUIC_LOG(ERROR) << "Quic session does not support SendMessage";
     return false;
@@ -182,14 +182,14 @@ bool QuartcSession::ShouldKeepConnectionAlive() const {
 }
 
 void QuartcSession::OnConnectionClosed(QuicErrorCode error,
-                                       const QuicString& error_details,
+                                       const std::string& error_details,
                                        ConnectionCloseSource source) {
   QuicSession::OnConnectionClosed(error, error_details, source);
   DCHECK(session_delegate_);
   session_delegate_->OnConnectionClosed(error, error_details, source);
 }
 
-void QuartcSession::CloseConnection(const QuicString& details) {
+void QuartcSession::CloseConnection(const std::string& details) {
   connection_->CloseConnection(
       QuicErrorCode::QUIC_CONNECTION_CANCELLED, details,
       ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET_WITH_NO_ACK);
@@ -324,7 +324,7 @@ void QuartcClientSession::StartCryptoHandshake() {
   if (!server_config_.empty()) {
     QuicCryptoServerConfig::ConfigOptions options;
 
-    QuicString error;
+    std::string error;
     QuicWallTime now = clock()->WallNow();
     QuicCryptoClientConfig::CachedState::ServerConfigState result =
         client_crypto_config_->LookupOrCreate(server_id)->SetServerConfig(
@@ -334,7 +334,7 @@ void QuartcClientSession::StartCryptoHandshake() {
     if (result == QuicCryptoClientConfig::CachedState::SERVER_CONFIG_VALID) {
       DCHECK_EQ(error, "");
       client_crypto_config_->LookupOrCreate(server_id)->SetProof(
-          std::vector<QuicString>{kDummyCertName}, /*cert_sct=*/"",
+          std::vector<std::string>{kDummyCertName}, /*cert_sct=*/"",
           /*chlo_hash=*/"", /*signature=*/"anything");
     } else {
       LOG(DFATAL) << "Unable to set server config, error=" << error;

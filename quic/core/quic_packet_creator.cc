@@ -188,7 +188,7 @@ bool QuicPacketCreator::ConsumeData(QuicStreamId id,
   if (FLAGS_quic_enforce_single_packet_chlo &&
       StreamFrameStartsWithChlo(frame->stream_frame) &&
       frame->stream_frame.data_length < write_length) {
-    const QuicString error_details =
+    const std::string error_details =
         "Client hello won't fit in a single packet.";
     QUIC_BUG << error_details << " Constructed stream frame length: "
              << frame->stream_frame.data_length
@@ -380,7 +380,7 @@ void QuicPacketCreator::Flush() {
 
 void QuicPacketCreator::OnSerializedPacket() {
   if (packet_.encrypted_buffer == nullptr) {
-    const QuicString error_details = "Failed to SerializePacket.";
+    const std::string error_details = "Failed to SerializePacket.";
     QUIC_BUG << error_details;
     delegate_->OnUnrecoverableError(QUIC_FAILED_TO_SERIALIZE_PACKET,
                                     error_details,
@@ -792,7 +792,7 @@ QuicStringPiece QuicPacketCreator::GetRetryToken() const {
 }
 
 void QuicPacketCreator::SetRetryToken(QuicStringPiece retry_token) {
-  retry_token_ = QuicString(retry_token);
+  retry_token_ = std::string(retry_token);
 }
 
 QuicVariableLengthIntegerLength QuicPacketCreator::GetLengthLength() const {
@@ -849,7 +849,7 @@ bool QuicPacketCreator::AddFrame(const QuicFrame& frame,
       frame.stream_frame.stream_id !=
           QuicUtils::GetCryptoStreamId(framer_->transport_version()) &&
       packet_.encryption_level == ENCRYPTION_NONE) {
-    const QuicString error_details =
+    const std::string error_details =
         "Cannot send stream data without encryption.";
     QUIC_BUG << error_details;
     delegate_->OnUnrecoverableError(

@@ -12,7 +12,7 @@ namespace simulator {
 
 Queue::ListenerInterface::~ListenerInterface() {}
 
-Queue::Queue(Simulator* simulator, QuicString name, QuicByteCount capacity)
+Queue::Queue(Simulator* simulator, std::string name, QuicByteCount capacity)
     : Actor(simulator, name),
       capacity_(capacity),
       bytes_queued_(0),

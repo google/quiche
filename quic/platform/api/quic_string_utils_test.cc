@@ -20,7 +20,7 @@ TEST(QuicStringUtilsTest, QuicStrCat) {
 
   // Single string-like argument.
   const char kFoo[] = "foo";
-  const QuicString string_foo(kFoo);
+  const std::string string_foo(kFoo);
   const QuicStringPiece stringpiece_foo(string_foo);
   EXPECT_EQ("foo", QuicStrCat(kFoo));
   EXPECT_EQ("foo", QuicStrCat(string_foo));
@@ -29,7 +29,7 @@ TEST(QuicStringUtilsTest, QuicStrCat) {
   // Two string-like arguments.
   const char kBar[] = "bar";
   const QuicStringPiece stringpiece_bar(kBar);
-  const QuicString string_bar(kBar);
+  const std::string string_bar(kBar);
   EXPECT_EQ("foobar", QuicStrCat(kFoo, kBar));
   EXPECT_EQ("foobar", QuicStrCat(kFoo, string_bar));
   EXPECT_EQ("foobar", QuicStrCat(kFoo, stringpiece_bar));
@@ -73,13 +73,13 @@ TEST(QuicStringUtilsTest, QuicStrCat) {
 
 TEST(QuicStringUtilsTest, QuicStrAppend) {
   // No arguments on empty string.
-  QuicString output;
+  std::string output;
   QuicStrAppend(&output);
   EXPECT_TRUE(output.empty());
 
   // Single string-like argument.
   const char kFoo[] = "foo";
-  const QuicString string_foo(kFoo);
+  const std::string string_foo(kFoo);
   const QuicStringPiece stringpiece_foo(string_foo);
   QuicStrAppend(&output, kFoo);
   EXPECT_EQ("foo", output);
@@ -97,7 +97,7 @@ TEST(QuicStringUtilsTest, QuicStrAppend) {
   // Two string-like arguments.
   const char kBar[] = "bar";
   const QuicStringPiece stringpiece_bar(kBar);
-  const QuicString string_bar(kBar);
+  const std::string string_bar(kBar);
   QuicStrAppend(&output, kFoo, kBar);
   EXPECT_EQ("foobar", output);
   QuicStrAppend(&output, kFoo, string_bar);

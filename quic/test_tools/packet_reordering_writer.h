@@ -33,7 +33,7 @@ class PacketReorderingWriter : public QuicPacketWriterWrapper {
  private:
   bool delay_next_ = false;
   size_t num_packets_to_wait_ = 0;
-  QuicString delayed_data_;
+  std::string delayed_data_;
   QuicIpAddress delayed_self_address_;
   QuicSocketAddress delayed_peer_address_;
   std::unique_ptr<PerPacketOptions> delayed_options_;

@@ -8,8 +8,8 @@ namespace quic {
 namespace test {
 
 void FailingProofSource::GetProof(const QuicSocketAddress& server_address,
-                                  const QuicString& hostname,
-                                  const QuicString& server_config,
+                                  const std::string& hostname,
+                                  const std::string& server_config,
                                   QuicTransportVersion transport_version,
                                   QuicStringPiece chlo_hash,
                                   std::unique_ptr<Callback> callback) {
@@ -18,13 +18,13 @@ void FailingProofSource::GetProof(const QuicSocketAddress& server_address,
 
 QuicReferenceCountedPointer<ProofSource::Chain>
 FailingProofSource::GetCertChain(const QuicSocketAddress& server_address,
-                                 const QuicString& hostname) {
+                                 const std::string& hostname) {
   return QuicReferenceCountedPointer<Chain>();
 }
 
 void FailingProofSource::ComputeTlsSignature(
     const QuicSocketAddress& server_address,
-    const QuicString& hostname,
+    const std::string& hostname,
     uint16_t signature_algorithm,
     QuicStringPiece in,
     std::unique_ptr<SignatureCallback> callback) {

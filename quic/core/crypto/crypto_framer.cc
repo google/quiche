@@ -75,7 +75,7 @@ QuicErrorCode CryptoFramer::error() const {
   return error_;
 }
 
-const QuicString& CryptoFramer::error_detail() const {
+const std::string& CryptoFramer::error_detail() const {
   return error_detail_;
 }
 
@@ -329,7 +329,7 @@ QuicErrorCode CryptoFramer::Process(QuicStringPiece input) {
       break;
   }
   // Save any remaining data.
-  buffer_ = QuicString(reader.PeekRemainingPayload());
+  buffer_ = std::string(reader.PeekRemainingPayload());
   return QUIC_NO_ERROR;
 }
 

@@ -232,12 +232,12 @@ TEST_F(Aes128Gcm12DecrypterTest, Decrypt) {
       bool has_pt = test_vectors[j].pt;
 
       // Decode the test vector.
-      QuicString key = QuicTextUtils::HexDecode(test_vectors[j].key);
-      QuicString iv = QuicTextUtils::HexDecode(test_vectors[j].iv);
-      QuicString ct = QuicTextUtils::HexDecode(test_vectors[j].ct);
-      QuicString aad = QuicTextUtils::HexDecode(test_vectors[j].aad);
-      QuicString tag = QuicTextUtils::HexDecode(test_vectors[j].tag);
-      QuicString pt;
+      std::string key = QuicTextUtils::HexDecode(test_vectors[j].key);
+      std::string iv = QuicTextUtils::HexDecode(test_vectors[j].iv);
+      std::string ct = QuicTextUtils::HexDecode(test_vectors[j].ct);
+      std::string aad = QuicTextUtils::HexDecode(test_vectors[j].aad);
+      std::string tag = QuicTextUtils::HexDecode(test_vectors[j].tag);
+      std::string pt;
       if (has_pt) {
         pt = QuicTextUtils::HexDecode(test_vectors[j].pt);
       }
@@ -258,7 +258,7 @@ TEST_F(Aes128Gcm12DecrypterTest, Decrypt) {
       ASSERT_LE(static_cast<size_t>(Aes128Gcm12Decrypter::kAuthTagSize),
                 tag.length());
       tag.resize(Aes128Gcm12Decrypter::kAuthTagSize);
-      QuicString ciphertext = ct + tag;
+      std::string ciphertext = ct + tag;
 
       Aes128Gcm12Decrypter decrypter;
       ASSERT_TRUE(decrypter.SetKey(key));

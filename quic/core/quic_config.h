@@ -55,7 +55,7 @@ class QUIC_EXPORT_PRIVATE QuicConfigValue {
   virtual QuicErrorCode ProcessPeerHello(
       const CryptoHandshakeMessage& peer_hello,
       HelloType hello_type,
-      QuicString* error_details) = 0;
+      std::string* error_details) = 0;
 
  protected:
   const QuicTag tag_;
@@ -106,7 +106,7 @@ class QUIC_EXPORT_PRIVATE QuicNegotiableUint32 : public QuicNegotiableValue {
   // PRESENCE_OPTIONAL then |negotiated_value_| is set to |default_value_|.
   QuicErrorCode ProcessPeerHello(const CryptoHandshakeMessage& peer_hello,
                                  HelloType hello_type,
-                                 QuicString* error_details) override;
+                                 std::string* error_details) override;
 
   // Takes a value |value| parsed from a handshake message (whether a TLS
   // ClientHello/ServerHello or a CryptoHandshakeMessage) whose sender was
@@ -115,7 +115,7 @@ class QUIC_EXPORT_PRIVATE QuicNegotiableUint32 : public QuicNegotiableValue {
   // an error, details are put in |*error_details|.
   QuicErrorCode ReceiveValue(uint32_t value,
                              HelloType hello_type,
-                             QuicString* error_details);
+                             std::string* error_details);
 
  private:
   uint32_t max_value_;
@@ -147,7 +147,7 @@ class QUIC_EXPORT_PRIVATE QuicFixedUint32 : public QuicConfigValue {
   // Sets |value_| to the corresponding value from |peer_hello_| if it exists.
   QuicErrorCode ProcessPeerHello(const CryptoHandshakeMessage& peer_hello,
                                  HelloType hello_type,
-                                 QuicString* error_details) override;
+                                 std::string* error_details) override;
 
  private:
   uint32_t send_value_;
@@ -180,7 +180,7 @@ class QUIC_EXPORT_PRIVATE QuicFixedUint128 : public QuicConfigValue {
   // Sets |value_| to the corresponding value from |peer_hello_| if it exists.
   QuicErrorCode ProcessPeerHello(const CryptoHandshakeMessage& peer_hello,
                                  HelloType hello_type,
-                                 QuicString* error_details) override;
+                                 std::string* error_details) override;
 
  private:
   QuicUint128 send_value_;
@@ -216,7 +216,7 @@ class QUIC_EXPORT_PRIVATE QuicFixedTagVector : public QuicConfigValue {
   // it exists.
   QuicErrorCode ProcessPeerHello(const CryptoHandshakeMessage& peer_hello,
                                  HelloType hello_type,
-                                 QuicString* error_details) override;
+                                 std::string* error_details) override;
 
  private:
   QuicTagVector send_values_;
@@ -247,7 +247,7 @@ class QUIC_EXPORT_PRIVATE QuicFixedSocketAddress : public QuicConfigValue {
 
   QuicErrorCode ProcessPeerHello(const CryptoHandshakeMessage& peer_hello,
                                  HelloType hello_type,
-                                 QuicString* error_details) override;
+                                 std::string* error_details) override;
 
  private:
   QuicSocketAddress send_value_;
@@ -418,7 +418,7 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   // the corresponding QuicErrorCode and sets detailed error in |error_details|.
   QuicErrorCode ProcessPeerHello(const CryptoHandshakeMessage& peer_hello,
                                  HelloType hello_type,
-                                 QuicString* error_details);
+                                 std::string* error_details);
 
   // FillTransportParameters writes the values to send for ICSL, MIDS, CFCW, and
   // SFCW to |*params|, returning true if the values could be written and false
@@ -431,7 +431,7 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   // it returns a QuicErrorCode and puts a detailed error in |*error_details|.
   QuicErrorCode ProcessTransportParameters(const TransportParameters& params,
                                            HelloType hello_type,
-                                           QuicString* error_details);
+                                           std::string* error_details);
 
  private:
   friend class test::QuicConfigPeer;

@@ -65,7 +65,7 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
     encryption_established_ = true;
     handshake_confirmed_ = true;
     CryptoHandshakeMessage msg;
-    QuicString error_details;
+    std::string error_details;
     session()->config()->SetInitialStreamFlowControlWindowToSend(
         kInitialStreamFlowControlWindowForTest);
     session()->config()->SetInitialSessionFlowControlWindowToSend(
@@ -717,7 +717,7 @@ TEST_P(QuicSessionTestServer, DebugDFatalIfMarkingClosedStreamWriteBlocked) {
   EXPECT_CALL(*connection_, SendControlFrame(_));
   EXPECT_CALL(*connection_, OnStreamReset(closed_stream_id, _));
   stream2->Reset(QUIC_BAD_APPLICATION_PAYLOAD);
-  QuicString msg =
+  std::string msg =
       QuicStrCat("Marking unknown stream ", closed_stream_id, " blocked.");
   EXPECT_QUIC_BUG(session_.MarkConnectionLevelWriteBlocked(closed_stream_id),
                   msg);
@@ -1218,7 +1218,7 @@ TEST_P(QuicSessionTestServer, HandshakeUnblocksFlowControlBlockedStream) {
 
   // Create a stream, and send enough data to make it flow control blocked.
   TestStream* stream2 = session_.CreateOutgoingBidirectionalStream();
-  QuicString body(kMinimumFlowControlSendWindow, '.');
+  std::string body(kMinimumFlowControlSendWindow, '.');
   EXPECT_FALSE(stream2->flow_controller()->IsBlocked());
   EXPECT_FALSE(session_.IsConnectionFlowControlBlocked());
   EXPECT_FALSE(session_.IsStreamFlowControlBlocked());
@@ -1370,7 +1370,7 @@ TEST_P(QuicSessionTestServer, ConnectionFlowControlAccountingFinAfterRst) {
   // adjusting the connection level flow control receive window to take into
   // account the total number of bytes sent by the peer.
   const QuicStreamOffset kByteOffset = 5678;
-  QuicString body = "hello";
+  std::string body = "hello";
   QuicStreamFrame frame(stream->id(), true, kByteOffset, QuicStringPiece(body));
   session_.OnStreamFrame(frame);
 
@@ -1735,7 +1735,7 @@ TEST_P(QuicSessionTestServer, TestZombieStreams) {
   session_.set_writev_consumes_all_data(true);
 
   TestStream* stream2 = session_.CreateOutgoingBidirectionalStream();
-  QuicString body(100, '.');
+  std::string body(100, '.');
   stream2->WriteOrBufferData(body, false, nullptr);
   EXPECT_TRUE(stream2->IsWaitingForAcks());
   EXPECT_EQ(1u, QuicStreamPeer::SendBuffer(stream2).size());
@@ -2023,7 +2023,7 @@ TEST_P(QuicSessionTestServer, LocallyResetZombieStreams) {
 
   session_.set_writev_consumes_all_data(true);
   TestStream* stream2 = session_.CreateOutgoingBidirectionalStream();
-  QuicString body(100, '.');
+  std::string body(100, '.');
   stream2->CloseReadSide();
   stream2->WriteOrBufferData(body, true, nullptr);
   EXPECT_TRUE(stream2->IsWaitingForAcks());
@@ -2074,7 +2074,7 @@ TEST_P(QuicSessionTestServer, WriteUnidirectionalStream) {
   TestStream* stream4 = new TestStream(GetNthServerInitiatedUnidirectionalId(1),
                                        &session_, WRITE_UNIDIRECTIONAL);
   session_.ActivateStream(QuicWrapUnique(stream4));
-  QuicString body(100, '.');
+  std::string body(100, '.');
   stream4->WriteOrBufferData(body, false, nullptr);
   EXPECT_FALSE(QuicContainsKey(session_.zombie_streams(), stream4->id()));
   stream4->WriteOrBufferData(body, true, nullptr);
@@ -2103,7 +2103,7 @@ TEST_P(QuicSessionTestServer, ReadUnidirectionalStream) {
   // Discard all incoming data.
   stream4->StopReading();
 
-  QuicString data(100, '.');
+  std::string data(100, '.');
   QuicStreamFrame stream_frame(GetNthClientInitiatedUnidirectionalId(1), false,
                                0, data);
   stream4->OnStreamFrame(stream_frame);
@@ -2124,7 +2124,7 @@ TEST_P(QuicSessionTestServer, WriteOrBufferDataOnReadUnidirectionalStream) {
               CloseConnection(
                   QUIC_TRY_TO_WRITE_DATA_ON_READ_UNIDIRECTIONAL_STREAM, _, _))
       .Times(1);
-  QuicString body(100, '.');
+  std::string body(100, '.');
   stream4->WriteOrBufferData(body, false, nullptr);
 }
 
@@ -2137,7 +2137,7 @@ TEST_P(QuicSessionTestServer, WritevDataOnReadUnidirectionalStream) {
               CloseConnection(
                   QUIC_TRY_TO_WRITE_DATA_ON_READ_UNIDIRECTIONAL_STREAM, _, _))
       .Times(1);
-  QuicString body(100, '.');
+  std::string body(100, '.');
   struct iovec iov = {const_cast<char*>(body.data()), body.length()};
   QuicMemSliceStorage storage(
       &iov, 1, session_.connection()->helper()->GetStreamSendBufferAllocator(),

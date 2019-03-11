@@ -45,11 +45,11 @@ int QuicIpAddress::AddressFamilyToInt() const {
   return impl_.AddressFamilyToInt();
 }
 
-QuicString QuicIpAddress::ToPackedString() const {
+std::string QuicIpAddress::ToPackedString() const {
   return impl_.ToPackedString();
 }
 
-QuicString QuicIpAddress::ToString() const {
+std::string QuicIpAddress::ToString() const {
   return impl_.ToString();
 }
 
@@ -65,7 +65,7 @@ bool QuicIpAddress::FromPackedString(const char* data, size_t length) {
   return impl_.FromPackedString(data, length);
 }
 
-bool QuicIpAddress::FromString(QuicString str) {
+bool QuicIpAddress::FromString(std::string str) {
   return impl_.FromString(str);
 }
 

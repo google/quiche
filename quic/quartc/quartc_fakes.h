@@ -29,7 +29,7 @@ class FakeQuartcEndpointDelegate : public QuartcEndpoint::Delegate {
   }
 
   void OnConnectError(QuicErrorCode error,
-                      const QuicString& error_details) override {
+                      const std::string& error_details) override {
     LOG(FATAL) << "Unexpected error during QuartcEndpoint::Connect(); error="
                << error << ", error_details=" << error_details;
   }
@@ -62,7 +62,7 @@ class FakeQuartcSessionDelegate : public QuartcSession::Delegate {
 
   // Called when connection closes locally, or remotely by peer.
   void OnConnectionClosed(QuicErrorCode error_code,
-                          const QuicString& error_details,
+                          const std::string& error_details,
                           ConnectionCloseSource source) override {
     connected_ = false;
   }
@@ -84,7 +84,7 @@ class FakeQuartcSessionDelegate : public QuartcSession::Delegate {
   QuartcStream* last_incoming_stream() { return last_incoming_stream_; }
 
   // Returns all received messages.
-  const std::vector<QuicString>& incoming_messages() {
+  const std::vector<std::string>& incoming_messages() {
     return incoming_messages_;
   }
 
@@ -94,7 +94,7 @@ class FakeQuartcSessionDelegate : public QuartcSession::Delegate {
 
  private:
   QuartcStream* last_incoming_stream_;
-  std::vector<QuicString> incoming_messages_;
+  std::vector<std::string> incoming_messages_;
   bool connected_ = true;
   QuartcStream::Delegate* stream_delegate_;
   QuicTime writable_time_ = QuicTime::Zero();
@@ -110,8 +110,8 @@ class FakeQuartcStreamDelegate : public QuartcStream::Delegate {
                     bool fin) override {
     size_t bytes_consumed = 0;
     for (size_t i = 0; i < iov_length; ++i) {
-      received_data_[stream->id()] +=
-          QuicString(static_cast<const char*>(iov[i].iov_base), iov[i].iov_len);
+      received_data_[stream->id()] += std::string(
+          static_cast<const char*>(iov[i].iov_base), iov[i].iov_len);
       bytes_consumed += iov[i].iov_len;
     }
     return bytes_consumed;
@@ -124,12 +124,12 @@ class FakeQuartcStreamDelegate : public QuartcStream::Delegate {
   void OnBufferChanged(QuartcStream* stream) override {}
 
   bool has_data() { return !received_data_.empty(); }
-  std::map<QuicStreamId, QuicString> data() { return received_data_; }
+  std::map<QuicStreamId, std::string> data() { return received_data_; }
 
   QuicRstStreamErrorCode stream_error(QuicStreamId id) { return errors_[id]; }
 
  private:
-  std::map<QuicStreamId, QuicString> received_data_;
+  std::map<QuicStreamId, std::string> received_data_;
   std::map<QuicStreamId, QuicRstStreamErrorCode> errors_;
 };
 

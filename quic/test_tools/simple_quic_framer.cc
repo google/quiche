@@ -59,8 +59,8 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
 
   bool OnStreamFrame(const QuicStreamFrame& frame) override {
     // Save a copy of the data so it is valid after the packet is processed.
-    QuicString* string_data =
-        new QuicString(frame.data_buffer, frame.data_length);
+    std::string* string_data =
+        new std::string(frame.data_buffer, frame.data_length);
     stream_data_.push_back(QuicWrapUnique(string_data));
     // TODO(ianswett): A pointer isn't necessary with emplace_back.
     stream_frames_.push_back(QuicMakeUnique<QuicStreamFrame>(
@@ -71,8 +71,8 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
 
   bool OnCryptoFrame(const QuicCryptoFrame& frame) override {
     // Save a copy of the data so it is valid after the packet is processed.
-    QuicString* string_data =
-        new QuicString(frame.data_buffer, frame.data_length);
+    std::string* string_data =
+        new std::string(frame.data_buffer, frame.data_length);
     crypto_data_.push_back(QuicWrapUnique(string_data));
     crypto_frames_.push_back(QuicMakeUnique<QuicCryptoFrame>(
         frame.level, frame.offset, QuicStringPiece(*string_data)));
@@ -284,8 +284,8 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
   std::vector<QuicRetireConnectionIdFrame> retire_connection_id_frames_;
   std::vector<QuicNewTokenFrame> new_token_frames_;
   std::vector<QuicMessageFrame> message_frames_;
-  std::vector<std::unique_ptr<QuicString>> stream_data_;
-  std::vector<std::unique_ptr<QuicString>> crypto_data_;
+  std::vector<std::unique_ptr<std::string>> stream_data_;
+  std::vector<std::unique_ptr<std::string>> crypto_data_;
   EncryptionLevel last_decrypted_level_;
 };
 

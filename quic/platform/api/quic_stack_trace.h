@@ -10,7 +10,7 @@
 
 namespace quic {
 
-inline QuicString QuicStackTrace() {
+inline std::string QuicStackTrace() {
   return QuicStackTraceImpl();
 }
 

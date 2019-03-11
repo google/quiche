@@ -44,7 +44,7 @@ class QuicClientEpollNetworkHelper : public QuicClientBase::NetworkHelper,
   ~QuicClientEpollNetworkHelper() override;
 
   // Return a name describing the class for use in debug/error reporting.
-  QuicString Name() const override;
+  std::string Name() const override;
 
   // From EpollCallbackInterface
   void OnRegistration(QuicEpollServer* eps, int fd, int event_mask) override;

@@ -32,17 +32,17 @@ class FakeProofSource : public ProofSource {
 
   // ProofSource interface
   void GetProof(const QuicSocketAddress& server_address,
-                const QuicString& hostname,
-                const QuicString& server_config,
+                const std::string& hostname,
+                const std::string& server_config,
                 QuicTransportVersion transport_version,
                 QuicStringPiece chlo_hash,
                 std::unique_ptr<ProofSource::Callback> callback) override;
   QuicReferenceCountedPointer<Chain> GetCertChain(
       const QuicSocketAddress& server_address,
-      const QuicString& hostname) override;
+      const std::string& hostname) override;
   void ComputeTlsSignature(
       const QuicSocketAddress& server_address,
-      const QuicString& hostname,
+      const std::string& hostname,
       uint16_t signature_algorithm,
       QuicStringPiece in,
       std::unique_ptr<ProofSource::SignatureCallback> callback) override;
@@ -67,10 +67,10 @@ class FakeProofSource : public ProofSource {
   class GetProofOp : public PendingOp {
    public:
     GetProofOp(const QuicSocketAddress& server_addr,
-               QuicString hostname,
-               QuicString server_config,
+               std::string hostname,
+               std::string server_config,
                QuicTransportVersion transport_version,
-               QuicString chlo_hash,
+               std::string chlo_hash,
                std::unique_ptr<ProofSource::Callback> callback,
                ProofSource* delegate);
     ~GetProofOp() override;
@@ -79,10 +79,10 @@ class FakeProofSource : public ProofSource {
 
    private:
     QuicSocketAddress server_address_;
-    QuicString hostname_;
-    QuicString server_config_;
+    std::string hostname_;
+    std::string server_config_;
     QuicTransportVersion transport_version_;
-    QuicString chlo_hash_;
+    std::string chlo_hash_;
     std::unique_ptr<ProofSource::Callback> callback_;
     ProofSource* delegate_;
   };
@@ -90,7 +90,7 @@ class FakeProofSource : public ProofSource {
   class ComputeSignatureOp : public PendingOp {
    public:
     ComputeSignatureOp(const QuicSocketAddress& server_address,
-                       QuicString hostname,
+                       std::string hostname,
                        uint16_t sig_alg,
                        QuicStringPiece in,
                        std::unique_ptr<ProofSource::SignatureCallback> callback,
@@ -101,9 +101,9 @@ class FakeProofSource : public ProofSource {
 
    private:
     QuicSocketAddress server_address_;
-    QuicString hostname_;
+    std::string hostname_;
     uint16_t sig_alg_;
-    QuicString in_;
+    std::string in_;
     std::unique_ptr<ProofSource::SignatureCallback> callback_;
     ProofSource* delegate_;
   };

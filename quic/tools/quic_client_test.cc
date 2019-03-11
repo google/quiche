@@ -24,8 +24,8 @@ namespace {
 
 const char* kPathToFds = "/proc/self/fd";
 
-QuicString ReadLink(const QuicString& path) {
-  QuicString result(PATH_MAX, '\0');
+std::string ReadLink(const std::string& path) {
+  std::string result(PATH_MAX, '\0');
   ssize_t result_size = readlink(path.c_str(), &result[0], result.size());
   CHECK(result_size > 0 && static_cast<size_t>(result_size) < result.size());
   result.resize(result_size);
@@ -44,7 +44,7 @@ size_t NumOpenSocketFDs() {
       continue;
     }
 
-    QuicString fd_path = ReadLink(QuicStrCat(kPathToFds, "/", name));
+    std::string fd_path = ReadLink(QuicStrCat(kPathToFds, "/", name));
     if (QuicTextUtils::StartsWith(fd_path, "socket:")) {
       socket_count++;
     }

@@ -16,7 +16,7 @@ class QuicUrlTest : public QuicTest {};
 
 TEST_F(QuicUrlTest, Basic) {
   // No scheme specified.
-  QuicString url_str = "www.example.com";
+  std::string url_str = "www.example.com";
   QuicUrl url(url_str);
   EXPECT_FALSE(url.IsValid());
 
@@ -54,7 +54,7 @@ TEST_F(QuicUrlTest, Basic) {
 
 TEST_F(QuicUrlTest, DefaultScheme) {
   // Default scheme to HTTP.
-  QuicString url_str = "www.example.com";
+  std::string url_str = "www.example.com";
   QuicUrl url(url_str, "http");
   EXPECT_EQ("http://www.example.com/", url.ToString());
   EXPECT_EQ("http", url.scheme());
@@ -73,7 +73,7 @@ TEST_F(QuicUrlTest, DefaultScheme) {
 }
 
 TEST_F(QuicUrlTest, IsValid) {
-  QuicString url_str =
+  std::string url_str =
       "ftp://www.example.com:12345/path/to/resource?a=1&campaign=2";
   EXPECT_TRUE(QuicUrl(url_str).IsValid());
 
@@ -86,7 +86,7 @@ TEST_F(QuicUrlTest, IsValid) {
   EXPECT_FALSE(QuicUrl(url_str).IsValid());
 
   // Host name too long.
-  QuicString host(1024, 'a');
+  std::string host(1024, 'a');
   url_str = "https://" + host;
   EXPECT_FALSE(QuicUrl(url_str).IsValid());
 
@@ -96,7 +96,7 @@ TEST_F(QuicUrlTest, IsValid) {
 }
 
 TEST_F(QuicUrlTest, HostPort) {
-  QuicString url_str = "http://www.example.com/";
+  std::string url_str = "http://www.example.com/";
   QuicUrl url(url_str);
   EXPECT_EQ("www.example.com", url.HostPort());
   EXPECT_EQ("www.example.com", url.host());
@@ -134,7 +134,7 @@ TEST_F(QuicUrlTest, HostPort) {
 }
 
 TEST_F(QuicUrlTest, PathParamsQuery) {
-  QuicString url_str =
+  std::string url_str =
       "https://www.example.com:12345/path/to/resource?a=1&campaign=2";
   QuicUrl url(url_str);
   EXPECT_EQ("/path/to/resource?a=1&campaign=2", url.PathParamsQuery());

@@ -48,7 +48,7 @@ class QuartcSession : public QuicSession,
   // support SendMessage API. Other unexpected errors during send will not be
   // returned, because messages can be sent later if connection is congestion
   // controlled.
-  bool SendOrQueueMessage(QuicString message);
+  bool SendOrQueueMessage(std::string message);
 
   // Returns largest message payload acceptable in SendQuartcMessage.
   QuicPacketLength GetLargestMessagePayload() const {
@@ -69,7 +69,7 @@ class QuartcSession : public QuicSession,
   void OnCanWrite() override;
 
   void OnConnectionClosed(QuicErrorCode error,
-                          const QuicString& error_details,
+                          const std::string& error_details,
                           ConnectionCloseSource source) override;
 
   // QuartcSession methods.
@@ -84,7 +84,7 @@ class QuartcSession : public QuicSession,
   //
   // Cleans up the underlying QuicConnection's state.  Closing the connection
   // makes it safe to delete the QuartcSession.
-  void CloseConnection(const QuicString& details);
+  void CloseConnection(const std::string& details);
 
   // If the given stream is still open, sends a reset frame to cancel it.
   // Note:  This method cancels a stream by QuicStreamId rather than by pointer
@@ -122,7 +122,7 @@ class QuartcSession : public QuicSession,
     // Called when the connection is closed. This means all of the streams will
     // be closed and no new streams can be created.
     virtual void OnConnectionClosed(QuicErrorCode error_code,
-                                    const QuicString& error_details,
+                                    const std::string& error_details,
                                     ConnectionCloseSource source) = 0;
 
     // Called when message (sent as SendMessage) is received.
@@ -189,7 +189,7 @@ class QuartcSession : public QuicSession,
   // Queue of pending messages sent by SendQuartcMessage that were not sent
   // yet or blocked by congestion control. Messages are queued in the order
   // of sent by SendOrQueueMessage().
-  QuicDeque<QuicString> send_message_queue_;
+  QuicDeque<std::string> send_message_queue_;
 };
 
 class QuartcClientSession : public QuartcSession,
@@ -242,7 +242,7 @@ class QuartcClientSession : public QuartcSession,
   // Client perspective crypto stream.
   std::unique_ptr<QuicCryptoClientStream> crypto_stream_;
 
-  const QuicString server_config_;
+  const std::string server_config_;
 };
 
 class QuartcServerSession : public QuartcSession {

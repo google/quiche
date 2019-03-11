@@ -29,7 +29,7 @@ QuicErrorCode ReadUint32(const CryptoHandshakeMessage& msg,
                          QuicConfigPresence presence,
                          uint32_t default_value,
                          uint32_t* out,
-                         QuicString* error_details) {
+                         std::string* error_details) {
   DCHECK(error_details != nullptr);
   QuicErrorCode error = msg.GetUint32(tag, out);
   switch (error) {
@@ -97,7 +97,7 @@ void QuicNegotiableUint32::ToHandshakeMessage(
 QuicErrorCode QuicNegotiableUint32::ProcessPeerHello(
     const CryptoHandshakeMessage& peer_hello,
     HelloType hello_type,
-    QuicString* error_details) {
+    std::string* error_details) {
   DCHECK(!negotiated());
   DCHECK(error_details != nullptr);
   uint32_t value;
@@ -111,7 +111,7 @@ QuicErrorCode QuicNegotiableUint32::ProcessPeerHello(
 
 QuicErrorCode QuicNegotiableUint32::ReceiveValue(uint32_t value,
                                                  HelloType hello_type,
-                                                 QuicString* error_details) {
+                                                 std::string* error_details) {
   if (hello_type == SERVER && value > max_value_) {
     *error_details = "Invalid value received for " + QuicTagToString(tag_);
     return QUIC_INVALID_NEGOTIATED_VALUE;
@@ -167,7 +167,7 @@ void QuicFixedUint32::ToHandshakeMessage(CryptoHandshakeMessage* out) const {
 QuicErrorCode QuicFixedUint32::ProcessPeerHello(
     const CryptoHandshakeMessage& peer_hello,
     HelloType hello_type,
-    QuicString* error_details) {
+    std::string* error_details) {
   DCHECK(error_details != nullptr);
   QuicErrorCode error = peer_hello.GetUint32(tag_, &receive_value_);
   switch (error) {
@@ -232,7 +232,7 @@ void QuicFixedUint128::ToHandshakeMessage(CryptoHandshakeMessage* out) const {
 QuicErrorCode QuicFixedUint128::ProcessPeerHello(
     const CryptoHandshakeMessage& peer_hello,
     HelloType hello_type,
-    QuicString* error_details) {
+    std::string* error_details) {
   DCHECK(error_details != nullptr);
   QuicErrorCode error = peer_hello.GetUint128(tag_, &receive_value_);
   switch (error) {
@@ -302,7 +302,7 @@ void QuicFixedTagVector::ToHandshakeMessage(CryptoHandshakeMessage* out) const {
 QuicErrorCode QuicFixedTagVector::ProcessPeerHello(
     const CryptoHandshakeMessage& peer_hello,
     HelloType hello_type,
-    QuicString* error_details) {
+    std::string* error_details) {
   DCHECK(error_details != nullptr);
   QuicTagVector values;
   QuicErrorCode error = peer_hello.GetTaglist(tag_, &values);
@@ -375,7 +375,7 @@ void QuicFixedSocketAddress::ToHandshakeMessage(
 QuicErrorCode QuicFixedSocketAddress::ProcessPeerHello(
     const CryptoHandshakeMessage& peer_hello,
     HelloType hello_type,
-    QuicString* error_details) {
+    std::string* error_details) {
   QuicStringPiece address;
   if (!peer_hello.GetStringPiece(tag_, &address)) {
     if (presence_ == PRESENCE_REQUIRED) {
@@ -690,7 +690,7 @@ void QuicConfig::ToHandshakeMessage(CryptoHandshakeMessage* out) const {
 QuicErrorCode QuicConfig::ProcessPeerHello(
     const CryptoHandshakeMessage& peer_hello,
     HelloType hello_type,
-    QuicString* error_details) {
+    std::string* error_details) {
   DCHECK(error_details != nullptr);
 
   QuicErrorCode error = QUIC_NO_ERROR;
@@ -779,7 +779,7 @@ bool QuicConfig::FillTransportParameters(TransportParameters* params) const {
 QuicErrorCode QuicConfig::ProcessTransportParameters(
     const TransportParameters& params,
     HelloType hello_type,
-    QuicString* error_details) {
+    std::string* error_details) {
   QuicErrorCode error = idle_network_timeout_seconds_.ReceiveValue(
       params.idle_timeout, hello_type, error_details);
   if (error != QUIC_NO_ERROR) {

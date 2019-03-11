@@ -61,7 +61,7 @@ void QuicSimpleServerSession::OnStreamFrame(const QuicStreamFrame& frame) {
 }
 
 void QuicSimpleServerSession::PromisePushResources(
-    const QuicString& request_url,
+    const std::string& request_url,
     const std::list<QuicBackendResponse::ServerPushInfo>& resources,
     QuicStreamId original_stream_id,
     const spdy::SpdyHeaderBlock& original_request_headers) {
@@ -160,7 +160,7 @@ void QuicSimpleServerSession::HandleRstOnValidNonexistentStream(
 }
 
 spdy::SpdyHeaderBlock QuicSimpleServerSession::SynthesizePushRequestHeaders(
-    QuicString request_url,
+    std::string request_url,
     QuicBackendResponse::ServerPushInfo resource,
     const spdy::SpdyHeaderBlock& original_request_headers) {
   QuicUrl push_request_url = resource.request_url;

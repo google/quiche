@@ -34,21 +34,21 @@ class QuicUrl {
 
   // Returns full text of the QuicUrl if it is valid. Return empty string
   // otherwise.
-  QuicString ToString() const;
+  std::string ToString() const;
 
   // Returns host:port.
   // If the host is empty, it will return an empty string.
   // If the host is an IPv6 address, it will be bracketed.
   // If port is not present or is equal to default_port of scheme (e.g., port
   // 80 for HTTP), it won't be returned.
-  QuicString HostPort() const;
+  std::string HostPort() const;
 
   // Returns a string assembles path, parameters and query.
-  QuicString PathParamsQuery() const;
+  std::string PathParamsQuery() const;
 
-  QuicString scheme() const;
-  QuicString host() const;
-  QuicString path() const;
+  std::string scheme() const;
+  std::string host() const;
+  std::string path() const;
   uint16_t port() const;
 
  private:

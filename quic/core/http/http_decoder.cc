@@ -355,7 +355,7 @@ void HttpDecoder::BufferFrameLength(QuicDataReader* reader) {
   remaining_length_field_length_ -= bytes_to_read;
 }
 
-void HttpDecoder::RaiseError(QuicErrorCode error, QuicString error_detail) {
+void HttpDecoder::RaiseError(QuicErrorCode error, std::string error_detail) {
   state_ = STATE_ERROR;
   error_ = error;
   error_detail_ = std::move(error_detail);

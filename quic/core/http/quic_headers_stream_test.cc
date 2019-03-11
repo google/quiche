@@ -344,10 +344,10 @@ class QuicHeadersStreamTest : public QuicTestWithParam<TestParams> {
   QuicHeadersStream* headers_stream_;
   SpdyHeaderBlock headers_;
   std::unique_ptr<TestHeadersHandler> headers_handler_;
-  QuicString body_;
-  QuicString saved_data_;
-  QuicString saved_header_data_;
-  QuicString saved_payloads_;
+  std::string body_;
+  std::string saved_data_;
+  std::string saved_header_data_;
+  std::string saved_payloads_;
   std::unique_ptr<SpdyFramer> framer_;
   std::unique_ptr<http2::Http2DecoderAdapter> deframer_;
   StrictMock<MockVisitor> visitor_;
@@ -360,7 +360,8 @@ class QuicHeadersStreamTest : public QuicTestWithParam<TestParams> {
 };
 
 // Run all tests with each version and perspective (client or server).
-INSTANTIATE_TEST_SUITE_P(Tests, QuicHeadersStreamTest,
+INSTANTIATE_TEST_SUITE_P(Tests,
+                         QuicHeadersStreamTest,
                          ::testing::ValuesIn(GetTestParams()));
 
 TEST_P(QuicHeadersStreamTest, StreamId) {
@@ -539,9 +540,9 @@ TEST_P(QuicHeadersStreamTest, ProcessLargeRawData) {
   // We want to create a frame that is more than the SPDY Framer's max control
   // frame size, which is 16K, but less than the HPACK decoders max decode
   // buffer size, which is 32K.
-  headers_["key0"] = QuicString(1 << 13, '.');
-  headers_["key1"] = QuicString(1 << 13, '.');
-  headers_["key2"] = QuicString(1 << 13, '.');
+  headers_["key0"] = std::string(1 << 13, '.');
+  headers_["key1"] = std::string(1 << 13, '.');
+  headers_["key2"] = std::string(1 << 13, '.');
   for (QuicStreamId stream_id = client_id_1_; stream_id < client_id_3_;
        stream_id += next_stream_id_) {
     for (bool fin : {false, true}) {
@@ -725,9 +726,9 @@ TEST_P(QuicHeadersStreamTest, HpackDecoderDebugVisitor) {
 
   // Create some headers we expect to generate entries in HPACK's
   // dynamic table, in addition to content-length.
-  headers_["key0"] = QuicString(1 << 1, '.');
-  headers_["key1"] = QuicString(1 << 2, '.');
-  headers_["key2"] = QuicString(1 << 3, '.');
+  headers_["key0"] = std::string(1 << 1, '.');
+  headers_["key1"] = std::string(1 << 2, '.');
+  headers_["key2"] = std::string(1 << 3, '.');
   for (QuicStreamId stream_id = client_id_1_; stream_id < client_id_3_;
        stream_id += next_stream_id_) {
     for (bool fin : {false, true}) {

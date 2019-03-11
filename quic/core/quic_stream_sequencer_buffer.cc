@@ -71,7 +71,7 @@ QuicErrorCode QuicStreamSequencerBuffer::OnStreamData(
     QuicStreamOffset starting_offset,
     QuicStringPiece data,
     size_t* const bytes_buffered,
-    QuicString* error_details) {
+    std::string* error_details) {
   *bytes_buffered = 0;
   size_t size = data.size();
   if (size == 0) {
@@ -158,7 +158,7 @@ QuicErrorCode QuicStreamSequencerBuffer::OnStreamData(
 bool QuicStreamSequencerBuffer::CopyStreamData(QuicStreamOffset offset,
                                                QuicStringPiece data,
                                                size_t* bytes_copy,
-                                               QuicString* error_details) {
+                                               std::string* error_details) {
   *bytes_copy = 0;
   size_t source_remaining = data.size();
   if (source_remaining == 0) {
@@ -236,7 +236,7 @@ bool QuicStreamSequencerBuffer::CopyStreamData(QuicStreamOffset offset,
 QuicErrorCode QuicStreamSequencerBuffer::Readv(const iovec* dest_iov,
                                                size_t dest_count,
                                                size_t* bytes_read,
-                                               QuicString* error_details) {
+                                               std::string* error_details) {
   *bytes_read = 0;
   for (size_t i = 0; i < dest_count && ReadableBytes() > 0; ++i) {
     char* dest = reinterpret_cast<char*>(dest_iov[i].iov_base);
@@ -500,12 +500,12 @@ size_t QuicStreamSequencerBuffer::GetBlockCapacity(size_t block_index) const {
   }
 }
 
-QuicString QuicStreamSequencerBuffer::GapsDebugString() {
+std::string QuicStreamSequencerBuffer::GapsDebugString() {
   // TODO(vasilvv): this should return the complement of |bytes_received_|.
   return bytes_received_.ToString();
 }
 
-QuicString QuicStreamSequencerBuffer::ReceivedFramesDebugString() {
+std::string QuicStreamSequencerBuffer::ReceivedFramesDebugString() {
   return bytes_received_.ToString();
 }
 

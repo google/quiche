@@ -45,7 +45,7 @@ class QUIC_EXPORT_PRIVATE QpackInstructionEncoder {
   // Encodes the next up to |max_encoded_bytes| octets of the current
   // instruction, appending to |output|.  Must only be called when HasNext()
   // returns true.  |max_encoded_bytes| must be positive.
-  void Next(size_t max_encoded_bytes, QuicString* output);
+  void Next(size_t max_encoded_bytes, std::string* output);
 
  private:
   enum class State {
@@ -73,10 +73,10 @@ class QUIC_EXPORT_PRIVATE QpackInstructionEncoder {
   void DoOpcode();
   void DoStartField();
   void DoStaticBit();
-  size_t DoVarintStart(size_t max_encoded_bytes, QuicString* output);
-  size_t DoVarintResume(size_t max_encoded_bytes, QuicString* output);
+  size_t DoVarintStart(size_t max_encoded_bytes, std::string* output);
+  size_t DoVarintResume(size_t max_encoded_bytes, std::string* output);
   void DoStartString();
-  size_t DoWriteString(size_t max_encoded_bytes, QuicString* output);
+  size_t DoWriteString(size_t max_encoded_bytes, std::string* output);
 
   // Storage for field values to be encoded.
   bool s_bit_;
@@ -89,7 +89,7 @@ class QUIC_EXPORT_PRIVATE QpackInstructionEncoder {
 
   // Storage for the Huffman encoded string literal to be written if Huffman
   // encoding is used.
-  QuicString huffman_encoded_string_;
+  std::string huffman_encoded_string_;
 
   // If Huffman encoding is used, points to a substring of
   // |huffman_encoded_string_|.

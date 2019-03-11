@@ -98,7 +98,7 @@ class QuicSpdyStream::HttpDecoderVisitor : public HttpDecoder::Visitor {
   }
 
  private:
-  void CloseConnectionOnWrongFrame(QuicString frame_type) {
+  void CloseConnectionOnWrongFrame(std::string frame_type) {
     stream_->session()->connection()->CloseConnection(
         QUIC_HTTP_DECODER_ERROR, frame_type + " frame received on data stream",
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);

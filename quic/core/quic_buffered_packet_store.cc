@@ -85,7 +85,7 @@ EnqueuePacketResult QuicBufferedPacketStore::EnqueuePacket(
     QuicSocketAddress self_address,
     QuicSocketAddress peer_address,
     bool is_chlo,
-    const QuicString& alpn,
+    const std::string& alpn,
     const ParsedQuicVersion& version) {
   QUIC_BUG_IF(!FLAGS_quic_allow_chlo_buffering)
       << "Shouldn't buffer packets if disabled via flag.";

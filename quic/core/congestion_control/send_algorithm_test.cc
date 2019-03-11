@@ -132,7 +132,8 @@ struct TestParams {
   const CongestionControlType congestion_control_type;
 };
 
-QuicString TestParamToString(const testing::TestParamInfo<TestParams>& params) {
+std::string TestParamToString(
+    const testing::TestParamInfo<TestParams>& params) {
   return QuicStrCat(
       CongestionControlTypeToString(params.param.congestion_control_type), "_");
 }
@@ -268,7 +269,8 @@ class SendAlgorithmTest : public QuicTestWithParam<TestParams> {
   SendAlgorithmInterface* sender_;
 };
 
-INSTANTIATE_TEST_SUITE_P(SendAlgorithmTests, SendAlgorithmTest,
+INSTANTIATE_TEST_SUITE_P(SendAlgorithmTests,
+                         SendAlgorithmTest,
                          ::testing::ValuesIn(GetTestParams()),
                          TestParamToString);
 

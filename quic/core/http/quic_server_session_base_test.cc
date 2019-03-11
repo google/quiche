@@ -492,7 +492,7 @@ TEST_P(QuicServerSessionBaseTest, BandwidthEstimates) {
   int32_t bandwidth_estimate_kbytes_per_second = 123;
   int32_t max_bandwidth_estimate_kbytes_per_second = 134;
   int32_t max_bandwidth_estimate_timestamp = 1122334455;
-  const QuicString serving_region = "not a real region";
+  const std::string serving_region = "not a real region";
   session_->set_serving_region(serving_region);
 
   session_->UnregisterStreamPriority(
@@ -601,7 +601,7 @@ TEST_P(QuicServerSessionBaseTest, BandwidthResumptionExperiment) {
   copt.push_back(kBWRE);
   QuicConfigPeer::SetReceivedConnectionOptions(session_->config(), copt);
 
-  const QuicString kTestServingRegion = "a serving region";
+  const std::string kTestServingRegion = "a serving region";
   session_->set_serving_region(kTestServingRegion);
 
   // Set the time to be one hour + one second from the 0 baseline.
@@ -703,7 +703,7 @@ TEST_P(StreamMemberLifetimeTest, Basic) {
   std::vector<ParsedQuicVersion> packet_version_list = {GetParam()};
   std::unique_ptr<QuicEncryptedPacket> packet(ConstructEncryptedPacket(
       TestConnectionId(1), EmptyQuicConnectionId(), true, false, 1,
-      QuicString(chlo.GetSerialized().AsStringPiece()), CONNECTION_ID_PRESENT,
+      std::string(chlo.GetSerialized().AsStringPiece()), CONNECTION_ID_PRESENT,
       CONNECTION_ID_ABSENT, PACKET_4BYTE_PACKET_NUMBER, &packet_version_list));
 
   EXPECT_CALL(stream_helper_, CanAcceptClientHello(_, _, _, _, _))

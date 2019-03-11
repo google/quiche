@@ -19,7 +19,7 @@ QuicClientPushPromiseIndex::~QuicClientPushPromiseIndex() {}
 QuicClientPushPromiseIndex::TryHandle::~TryHandle() {}
 
 QuicClientPromisedInfo* QuicClientPushPromiseIndex::GetPromised(
-    const QuicString& url) {
+    const std::string& url) {
   auto it = promised_by_url_.find(url);
   if (it == promised_by_url_.end()) {
     return nullptr;
@@ -31,7 +31,7 @@ QuicAsyncStatus QuicClientPushPromiseIndex::Try(
     const spdy::SpdyHeaderBlock& request,
     QuicClientPushPromiseIndex::Delegate* delegate,
     TryHandle** handle) {
-  QuicString url(SpdyUtils::GetPromisedUrlFromHeaders(request));
+  std::string url(SpdyUtils::GetPromisedUrlFromHeaders(request));
   auto it = promised_by_url_.find(url);
   if (it != promised_by_url_.end()) {
     QuicClientPromisedInfo* promised = it->second;

@@ -28,7 +28,7 @@ DEFINE_QUIC_COMMAND_LINE_FLAG(
 
 int main(int argc, char* argv[]) {
   const char* usage = "Usage: quic_server [options]";
-  std::vector<quic::QuicString> non_option_args =
+  std::vector<std::string> non_option_args =
       quic::QuicParseCommandLineFlags(usage, argc, argv);
   if (!non_option_args.empty()) {
     quic::QuicPrintCommandLineFlagHelp(usage);

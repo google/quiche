@@ -25,7 +25,7 @@ class MockStream : public QuicStreamSequencer::StreamInterface {
   MOCK_METHOD0(OnFinRead, void());
   MOCK_METHOD0(OnDataAvailable, void());
   MOCK_METHOD2(CloseConnectionWithDetails,
-               void(QuicErrorCode error, const QuicString& details));
+               void(QuicErrorCode error, const std::string& details));
   MOCK_METHOD1(Reset, void(QuicRstStreamErrorCode error));
   MOCK_METHOD0(OnCanWrite, void());
   MOCK_METHOD1(AddBytesConsumed, void(QuicByteCount bytes));
@@ -61,7 +61,7 @@ class QuicSpdyStreamBodyBufferTest : public QuicTest {
 };
 
 TEST_F(QuicSpdyStreamBodyBufferTest, ReceiveBodies) {
-  QuicString body(1024, 'a');
+  std::string body(1024, 'a');
   EXPECT_FALSE(body_buffer_.HasBytesToRead());
   body_buffer_.OnDataHeader(Http3FrameLengths(3, 1024));
   body_buffer_.OnDataPayload(QuicStringPiece(body));
@@ -70,7 +70,7 @@ TEST_F(QuicSpdyStreamBodyBufferTest, ReceiveBodies) {
 }
 
 TEST_F(QuicSpdyStreamBodyBufferTest, PeekBody) {
-  QuicString body(1024, 'a');
+  std::string body(1024, 'a');
   body_buffer_.OnDataHeader(Http3FrameLengths(3, 1024));
   body_buffer_.OnDataPayload(QuicStringPiece(body));
   EXPECT_EQ(1024u, body_buffer_.total_body_bytes_received());
@@ -84,13 +84,13 @@ TEST_F(QuicSpdyStreamBodyBufferTest, PeekBody) {
 // Buffer only receives 1 frame. Stream consumes less or equal than a frame.
 TEST_F(QuicSpdyStreamBodyBufferTest, MarkConsumedPartialSingleFrame) {
   testing::InSequence seq;
-  QuicString body(1024, 'a');
+  std::string body(1024, 'a');
   std::unique_ptr<char[]> buffer;
   QuicByteCount header_length =
       encoder_.SerializeDataFrameHeader(body.length(), &buffer);
-  QuicString header = QuicString(buffer.get(), header_length);
+  std::string header = std::string(buffer.get(), header_length);
   Http3FrameLengths lengths(header_length, 1024);
-  QuicString data = header + body;
+  std::string data = header + body;
   QuicStreamFrame frame(1, false, 0, data);
   sequencer_.OnStreamFrame(frame);
   body_buffer_.OnDataHeader(lengths);
@@ -104,25 +104,25 @@ TEST_F(QuicSpdyStreamBodyBufferTest, MarkConsumedPartialSingleFrame) {
 TEST_F(QuicSpdyStreamBodyBufferTest, MarkConsumedMultipleFrames) {
   testing::InSequence seq;
   // 1st frame.
-  QuicString body1(1024, 'a');
+  std::string body1(1024, 'a');
   std::unique_ptr<char[]> buffer;
   QuicByteCount header_length1 =
       encoder_.SerializeDataFrameHeader(body1.length(), &buffer);
-  QuicString header1 = QuicString(buffer.get(), header_length1);
+  std::string header1 = std::string(buffer.get(), header_length1);
   Http3FrameLengths lengths1(header_length1, 1024);
-  QuicString data1 = header1 + body1;
+  std::string data1 = header1 + body1;
   QuicStreamFrame frame1(1, false, 0, data1);
   sequencer_.OnStreamFrame(frame1);
   body_buffer_.OnDataHeader(lengths1);
   body_buffer_.OnDataPayload(QuicStringPiece(body1));
 
   // 2nd frame.
-  QuicString body2(2048, 'b');
+  std::string body2(2048, 'b');
   QuicByteCount header_length2 =
       encoder_.SerializeDataFrameHeader(body2.length(), &buffer);
-  QuicString header2 = QuicString(buffer.get(), header_length2);
+  std::string header2 = std::string(buffer.get(), header_length2);
   Http3FrameLengths lengths2(header_length2, 2048);
-  QuicString data2 = header2 + body2;
+  std::string data2 = header2 + body2;
   QuicStreamFrame frame2(1, false, data1.length(), data2);
   sequencer_.OnStreamFrame(frame2);
   body_buffer_.OnDataHeader(lengths2);
@@ -139,7 +139,7 @@ TEST_F(QuicSpdyStreamBodyBufferTest, MarkConsumedMultipleFrames) {
 }
 
 TEST_F(QuicSpdyStreamBodyBufferTest, MarkConsumedMoreThanBuffered) {
-  QuicString body(1024, 'a');
+  std::string body(1024, 'a');
   Http3FrameLengths lengths(3, 1024);
   body_buffer_.OnDataHeader(lengths);
   body_buffer_.OnDataPayload(body);
@@ -152,13 +152,13 @@ TEST_F(QuicSpdyStreamBodyBufferTest, MarkConsumedMoreThanBuffered) {
 // Buffer receives 1 frame. Stream read from the buffer.
 TEST_F(QuicSpdyStreamBodyBufferTest, ReadSingleBody) {
   testing::InSequence seq;
-  QuicString body(1024, 'a');
+  std::string body(1024, 'a');
   std::unique_ptr<char[]> buffer;
   QuicByteCount header_length =
       encoder_.SerializeDataFrameHeader(body.length(), &buffer);
-  QuicString header = QuicString(buffer.get(), header_length);
+  std::string header = std::string(buffer.get(), header_length);
   Http3FrameLengths lengths(header_length, 1024);
-  QuicString data = header + body;
+  std::string data = header + body;
   QuicStreamFrame frame(1, false, 0, data);
   sequencer_.OnStreamFrame(frame);
   body_buffer_.OnDataHeader(lengths);
@@ -179,25 +179,25 @@ TEST_F(QuicSpdyStreamBodyBufferTest, ReadSingleBody) {
 TEST_F(QuicSpdyStreamBodyBufferTest, ReadMultipleBody) {
   testing::InSequence seq;
   // 1st frame.
-  QuicString body1(1024, 'a');
+  std::string body1(1024, 'a');
   std::unique_ptr<char[]> buffer;
   QuicByteCount header_length1 =
       encoder_.SerializeDataFrameHeader(body1.length(), &buffer);
-  QuicString header1 = QuicString(buffer.get(), header_length1);
+  std::string header1 = std::string(buffer.get(), header_length1);
   Http3FrameLengths lengths1(header_length1, 1024);
-  QuicString data1 = header1 + body1;
+  std::string data1 = header1 + body1;
   QuicStreamFrame frame1(1, false, 0, data1);
   sequencer_.OnStreamFrame(frame1);
   body_buffer_.OnDataHeader(lengths1);
   body_buffer_.OnDataPayload(QuicStringPiece(body1));
 
   // 2nd frame.
-  QuicString body2(2048, 'b');
+  std::string body2(2048, 'b');
   QuicByteCount header_length2 =
       encoder_.SerializeDataFrameHeader(body2.length(), &buffer);
-  QuicString header2 = QuicString(buffer.get(), header_length2);
+  std::string header2 = std::string(buffer.get(), header_length2);
   Http3FrameLengths lengths2(header_length2, 2048);
-  QuicString data2 = header2 + body2;
+  std::string data2 = header2 + body2;
   QuicStreamFrame frame2(1, false, data1.length(), data2);
   sequencer_.OnStreamFrame(frame2);
   body_buffer_.OnDataHeader(lengths2);

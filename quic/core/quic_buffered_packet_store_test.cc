@@ -64,7 +64,7 @@ class QuicBufferedPacketStoreTest : public QuicTest {
   QuicBufferedPacketStore store_;
   QuicSocketAddress self_address_;
   QuicSocketAddress peer_address_;
-  QuicString packet_content_;
+  std::string packet_content_;
   QuicTime packet_time_;
   QuicReceivedPacket packet_;
   const ParsedQuicVersion invalid_version_;

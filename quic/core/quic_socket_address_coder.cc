@@ -23,8 +23,8 @@ QuicSocketAddressCoder::QuicSocketAddressCoder(const QuicSocketAddress& address)
 
 QuicSocketAddressCoder::~QuicSocketAddressCoder() {}
 
-QuicString QuicSocketAddressCoder::Encode() const {
-  QuicString serialized;
+std::string QuicSocketAddressCoder::Encode() const {
+  std::string serialized;
   uint16_t address_family;
   switch (address_.host().address_family()) {
     case IpAddressFamily::IP_V4:

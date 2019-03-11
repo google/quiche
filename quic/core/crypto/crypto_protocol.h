@@ -24,7 +24,7 @@
 
 namespace quic {
 
-typedef QuicString ServerConfigID;
+typedef std::string ServerConfigID;
 
 // clang-format off
 const QuicTag kCHLO = TAG('C', 'H', 'L', 'O');   // Client hello

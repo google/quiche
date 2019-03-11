@@ -14,19 +14,19 @@ namespace test {
 class FailingProofSource : public ProofSource {
  public:
   void GetProof(const QuicSocketAddress& server_address,
-                const QuicString& hostname,
-                const QuicString& server_config,
+                const std::string& hostname,
+                const std::string& server_config,
                 QuicTransportVersion transport_version,
                 QuicStringPiece chlo_hash,
                 std::unique_ptr<Callback> callback) override;
 
   QuicReferenceCountedPointer<Chain> GetCertChain(
       const QuicSocketAddress& server_address,
-      const QuicString& hostname) override;
+      const std::string& hostname) override;
 
   void ComputeTlsSignature(
       const QuicSocketAddress& server_address,
-      const QuicString& hostname,
+      const std::string& hostname,
       uint16_t signature_algorithm,
       QuicStringPiece in,
       std::unique_ptr<SignatureCallback> callback) override;

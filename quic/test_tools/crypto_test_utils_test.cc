@@ -73,7 +73,7 @@ class ShloVerifier {
         : shlo_verifier_(shlo_verifier) {}
     void Run(
         QuicErrorCode error,
-        const QuicString& error_details,
+        const std::string& error_details,
         std::unique_ptr<CryptoHandshakeMessage> message,
         std::unique_ptr<DiversificationNonce> diversification_nonce,
         std::unique_ptr<ProofSource::Details> proof_source_details) override {
@@ -135,14 +135,14 @@ TEST_F(CryptoTestUtilsTest, TestGenerateFullCHLO) {
       crypto_config.AddConfig(std::move(primary_config), clock.WallNow()));
   QuicStringPiece orbit;
   ASSERT_TRUE(msg->GetStringPiece(kORBT, &orbit));
-  QuicString nonce;
+  std::string nonce;
   CryptoUtils::GenerateNonce(clock.WallNow(), QuicRandom::GetInstance(), orbit,
                              &nonce);
-  QuicString nonce_hex = "#" + QuicTextUtils::HexEncode(nonce);
+  std::string nonce_hex = "#" + QuicTextUtils::HexEncode(nonce);
 
   char public_value[32];
   memset(public_value, 42, sizeof(public_value));
-  QuicString pub_hex =
+  std::string pub_hex =
       "#" + QuicTextUtils::HexEncode(public_value, sizeof(public_value));
 
   QuicTransportVersion version(AllSupportedTransportVersions().front());

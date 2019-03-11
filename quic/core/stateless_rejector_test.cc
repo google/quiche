@@ -56,7 +56,8 @@ struct TestParams {
   FlagsMode flags;
 };
 
-QuicString TestParamToString(const testing::TestParamInfo<TestParams>& params) {
+std::string TestParamToString(
+    const testing::TestParamInfo<TestParams>& params) {
   return QuicStrCat("v", ParsedQuicVersionToString(params.param.version), "_",
                     FlagsModeToString(params.param.flags));
 }
@@ -122,7 +123,7 @@ class StatelessRejectorTest : public QuicTestWithParam<TestParams> {
         "#" + QuicTextUtils::HexEncode(public_value, sizeof(public_value));
 
     // Generate a client nonce.
-    QuicString nonce;
+    std::string nonce;
     CryptoUtils::GenerateNonce(
         clock_.WallNow(), QuicRandom::GetInstance(),
         QuicStringPiece(
@@ -135,7 +136,7 @@ class StatelessRejectorTest : public QuicTestWithParam<TestParams> {
     SourceAddressTokens previous_tokens;
     QuicIpAddress ip = QuicIpAddress::Loopback4();
     MockRandom rand;
-    QuicString stk = config_peer_.NewSourceAddressToken(
+    std::string stk = config_peer_.NewSourceAddressToken(
         config_peer_.GetPrimaryConfig()->id, previous_tokens, ip, &rand,
         clock_.WallNow(), nullptr);
     stk_hex_ = "#" + QuicTextUtils::HexEncode(stk);
@@ -162,14 +163,15 @@ class StatelessRejectorTest : public QuicTestWithParam<TestParams> {
   std::unique_ptr<StatelessRejector> rejector_;
 
   // Values used in CHLO messages
-  QuicString scid_hex_;
-  QuicString nonc_hex_;
-  QuicString pubs_hex_;
-  QuicString ver_hex_;
-  QuicString stk_hex_;
+  std::string scid_hex_;
+  std::string nonc_hex_;
+  std::string pubs_hex_;
+  std::string ver_hex_;
+  std::string stk_hex_;
 };
 
-INSTANTIATE_TEST_SUITE_P(Flags, StatelessRejectorTest,
+INSTANTIATE_TEST_SUITE_P(Flags,
+                         StatelessRejectorTest,
                          ::testing::ValuesIn(GetTestParams()),
                          TestParamToString);
 
@@ -252,7 +254,7 @@ TEST_P(StatelessRejectorTest, RejectChlo) {
 
 TEST_P(StatelessRejectorTest, AcceptChlo) {
   const uint64_t xlct = crypto_test_utils::LeafCertHashForTesting();
-  const QuicString xlct_hex =
+  const std::string xlct_hex =
       "#" + QuicTextUtils::HexEncode(reinterpret_cast<const char*>(&xlct),
                                      sizeof(xlct));
   // clang-format off

@@ -81,14 +81,14 @@ class QuicTestClient : public QuicSpdyStream::Visitor,
                        public QuicClientPushPromiseIndex::Delegate {
  public:
   QuicTestClient(QuicSocketAddress server_address,
-                 const QuicString& server_hostname,
+                 const std::string& server_hostname,
                  const ParsedQuicVersionVector& supported_versions);
   QuicTestClient(QuicSocketAddress server_address,
-                 const QuicString& server_hostname,
+                 const std::string& server_hostname,
                  const QuicConfig& config,
                  const ParsedQuicVersionVector& supported_versions);
   QuicTestClient(QuicSocketAddress server_address,
-                 const QuicString& server_hostname,
+                 const std::string& server_hostname,
                  const QuicConfig& config,
                  const ParsedQuicVersionVector& supported_versions,
                  std::unique_ptr<ProofVerifier> proof_verifier);
@@ -96,25 +96,26 @@ class QuicTestClient : public QuicSpdyStream::Visitor,
   ~QuicTestClient() override;
 
   // Sets the |user_agent_id| of the |client_|.
-  void SetUserAgentID(const QuicString& user_agent_id);
+  void SetUserAgentID(const std::string& user_agent_id);
 
   // Wraps data in a quic packet and sends it.
-  ssize_t SendData(const QuicString& data, bool last_data);
+  ssize_t SendData(const std::string& data, bool last_data);
   // As above, but |delegate| will be notified when |data| is ACKed.
   ssize_t SendData(
-      const QuicString& data,
+      const std::string& data,
       bool last_data,
       QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener);
 
   // Clears any outstanding state and sends a simple GET of 'uri' to the
   // server.  Returns 0 if the request failed and no bytes were written.
-  ssize_t SendRequest(const QuicString& uri);
+  ssize_t SendRequest(const std::string& uri);
   // Send a request R and a RST_FRAME which resets R, in the same packet.
-  ssize_t SendRequestAndRstTogether(const QuicString& uri);
+  ssize_t SendRequestAndRstTogether(const std::string& uri);
   // Sends requests for all the urls and waits for the responses.  To process
   // the individual responses as they are returned, the caller should use the
   // set the response_listener on the client().
-  void SendRequestsAndWaitForResponses(const std::vector<QuicString>& url_list);
+  void SendRequestsAndWaitForResponses(
+      const std::vector<std::string>& url_list);
   // Sends a request containing |headers| and |body| and returns the number of
   // bytes sent (the size of the serialized request headers and body).
   ssize_t SendMessage(const spdy::SpdyHeaderBlock& headers,
@@ -135,11 +136,11 @@ class QuicTestClient : public QuicSpdyStream::Visitor,
                       bool flush);
   // Sends a request containing |headers| and |body|, waits for the response,
   // and returns the response body.
-  QuicString SendCustomSynchronousRequest(const spdy::SpdyHeaderBlock& headers,
-                                          const QuicString& body);
+  std::string SendCustomSynchronousRequest(const spdy::SpdyHeaderBlock& headers,
+                                           const std::string& body);
   // Sends a GET request for |uri|, waits for the response, and returns the
   // response body.
-  QuicString SendSynchronousRequest(const QuicString& uri);
+  std::string SendSynchronousRequest(const std::string& uri);
   void SendConnectivityProbing();
   void Connect();
   void ResetConnection();
@@ -160,7 +161,7 @@ class QuicTestClient : public QuicSpdyStream::Visitor,
   const spdy::SpdyHeaderBlock& response_trailers() const;
   bool response_complete() const;
   int64_t response_body_size() const;
-  const QuicString& response_body() const;
+  const std::string& response_body() const;
   // Group 2.
   bool response_headers_complete() const;
   const spdy::SpdyHeaderBlock* response_headers() const;
@@ -241,12 +242,12 @@ class QuicTestClient : public QuicSpdyStream::Visitor,
   MockableQuicClient* client();
 
   // cert_common_name returns the common name value of the server's certificate,
-  // or the empty QuicString if no certificate was presented.
-  const QuicString& cert_common_name() const;
+  // or the empty std::string if no certificate was presented.
+  const std::string& cert_common_name() const;
 
   // cert_sct returns the signed timestamp of the server's certificate,
-  // or the empty QuicString if no signed timestamp was presented.
-  const QuicString& cert_sct() const;
+  // or the empty std::string if no signed timestamp was presented.
+  const std::string& cert_sct() const;
 
   // Get the server config map.
   QuicTagValueMap GetServerConfig() const;
@@ -273,7 +274,7 @@ class QuicTestClient : public QuicSpdyStream::Visitor,
 
   // Explicitly set the SNI value for this client, overriding the default
   // behavior which extracts the SNI value from the request URL.
-  void OverrideSni(const QuicString& sni) {
+  void OverrideSni(const std::string& sni) {
     override_sni_set_ = true;
     override_sni_ = sni;
   }
@@ -285,7 +286,7 @@ class QuicTestClient : public QuicSpdyStream::Visitor,
   // Given |uri|, populates the fields in |headers| for a simple GET
   // request. If |uri| is a relative URL, the QuicServerId will be
   // use to specify the authority.
-  bool PopulateHeaderBlockFromUrl(const QuicString& uri,
+  bool PopulateHeaderBlockFromUrl(const std::string& uri,
                                   spdy::SpdyHeaderBlock* headers);
 
   // Waits for a period of time that is long enough to receive all delayed acks
@@ -328,7 +329,7 @@ class QuicTestClient : public QuicSpdyStream::Visitor,
                    bool response_headers_complete,
                    const spdy::SpdyHeaderBlock& response_headers,
                    const spdy::SpdyHeaderBlock& preliminary_headers,
-                   const QuicString& response,
+                   const std::string& response,
                    const spdy::SpdyHeaderBlock& response_trailers,
                    uint64_t bytes_read,
                    uint64_t bytes_written,
@@ -340,7 +341,7 @@ class QuicTestClient : public QuicSpdyStream::Visitor,
     bool response_headers_complete;
     spdy::SpdyHeaderBlock response_headers;
     spdy::SpdyHeaderBlock preliminary_headers;
-    QuicString response;
+    std::string response;
     spdy::SpdyHeaderBlock response_trailers;
     uint64_t bytes_read;
     uint64_t bytes_written;
@@ -378,7 +379,7 @@ class QuicTestClient : public QuicSpdyStream::Visitor,
   spdy::SpdyHeaderBlock response_trailers_;
 
   spdy::SpdyPriority priority_;
-  QuicString response_;
+  std::string response_;
   // bytes_read_ and bytes_written_ are updated only when stream_ is released;
   // prefer bytes_read() and bytes_written() member functions.
   uint64_t bytes_read_;
@@ -403,7 +404,7 @@ class QuicTestClient : public QuicSpdyStream::Visitor,
   // If set, this value is used for the connection SNI, overriding the usual
   // logic which extracts the SNI from the request URL.
   bool override_sni_set_ = false;
-  QuicString override_sni_;
+  std::string override_sni_;
 };
 
 }  // namespace test

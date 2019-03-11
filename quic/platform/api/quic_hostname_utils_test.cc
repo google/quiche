@@ -78,7 +78,7 @@ TEST_F(QuicHostnameUtilsTest, NormalizeHostname) {
   // clang-format on
 
   for (size_t i = 0; i < QUIC_ARRAYSIZE(tests); ++i) {
-    EXPECT_EQ(QuicString(tests[i].expected),
+    EXPECT_EQ(std::string(tests[i].expected),
               QuicHostnameUtils::NormalizeHostname(tests[i].input));
   }
 }

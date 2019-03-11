@@ -73,7 +73,7 @@ class QUIC_EXPORT_PRIVATE TcpCubicSenderBytes : public SendAlgorithmInterface {
   bool InSlowStart() const override;
   bool InRecovery() const override;
   bool ShouldSendProbingPacket() const override;
-  QuicString GetDebugState() const override;
+  std::string GetDebugState() const override;
   void OnApplicationLimited(QuicByteCount bytes_in_flight) override;
   // End implementation of SendAlgorithmInterface.
 

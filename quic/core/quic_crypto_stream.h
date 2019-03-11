@@ -63,7 +63,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoStream : public QuicStream {
   bool ExportKeyingMaterial(QuicStringPiece label,
                             QuicStringPiece context,
                             size_t result_len,
-                            QuicString* result) const;
+                            std::string* result) const;
 
   // Writes |data| to the QuicStream at level |level|.
   virtual void WriteCryptoData(EncryptionLevel level, QuicStringPiece data);

@@ -56,7 +56,7 @@ class QUIC_EXPORT_PRIVATE QpackDecodedHeadersAccumulator
   size_t uncompressed_header_bytes_;
   size_t compressed_header_bytes_;
   bool error_detected_;
-  QuicString error_message_;
+  std::string error_message_;
 };
 
 }  // namespace quic

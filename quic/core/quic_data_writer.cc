@@ -349,7 +349,7 @@ bool QuicDataWriter::WriteStringPieceVarInt62(
   return true;
 }
 
-QuicString QuicDataWriter::DebugString() const {
+std::string QuicDataWriter::DebugString() const {
   return QuicStrCat(" { capacity: ", capacity_, ", length: ", length_, " }");
 }
 

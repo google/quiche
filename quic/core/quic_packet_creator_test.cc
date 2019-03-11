@@ -179,7 +179,7 @@ class QuicPacketCreatorTest : public QuicTestWithParam<TestParams> {
 
   void CheckStreamFrame(const QuicFrame& frame,
                         QuicStreamId stream_id,
-                        const QuicString& data,
+                        const std::string& data,
                         QuicStreamOffset offset,
                         bool fin) {
     EXPECT_EQ(STREAM_FRAME, frame.type);
@@ -253,7 +253,7 @@ class QuicPacketCreatorTest : public QuicTestWithParam<TestParams> {
   QuicFramer client_framer_;
   StrictMock<MockFramerVisitor> framer_visitor_;
   StrictMock<MockPacketCreatorDelegate> delegate_;
-  QuicString data_;
+  std::string data_;
   struct iovec iov_;
   TestPacketCreator creator_;
   SerializedPacket serialized_packet_;
@@ -468,7 +468,7 @@ TEST_P(QuicPacketCreatorTest, ReserializeFramesWithFullPacketAndPadding) {
       GetStreamFrameOverhead(client_framer_.transport_version());
   size_t capacity = kDefaultMaxPacketSize - overhead;
   for (int delta = -5; delta <= 0; ++delta) {
-    QuicString data(capacity + delta, 'A');
+    std::string data(capacity + delta, 'A');
     size_t bytes_free = 0 - delta;
 
     QuicFrame frame;
@@ -532,7 +532,7 @@ TEST_P(QuicPacketCreatorTest, SerializeConnectionClose) {
 }
 
 TEST_P(QuicPacketCreatorTest, ConsumeCryptoData) {
-  QuicString data = "crypto data";
+  std::string data = "crypto data";
   QuicFrame frame;
   ASSERT_TRUE(creator_.ConsumeCryptoData(ENCRYPTION_NONE, data.length(), 0,
                                          NOT_RETRANSMISSION, &frame));
@@ -577,7 +577,7 @@ TEST_P(QuicPacketCreatorTest, ConsumeDataFinOnly) {
   EXPECT_EQ(0u, consumed);
   CheckStreamFrame(
       frame, QuicUtils::GetCryptoStreamId(client_framer_.transport_version()),
-      QuicString(), 0u, true);
+      std::string(), 0u, true);
   EXPECT_TRUE(creator_.HasPendingFrames());
 }
 
@@ -620,7 +620,7 @@ TEST_P(QuicPacketCreatorTest, StreamFrameConsumption) {
   size_t capacity = kDefaultMaxPacketSize - overhead;
   // Now, test various sizes around this size.
   for (int delta = -5; delta <= 5; ++delta) {
-    QuicString data(capacity + delta, 'A');
+    std::string data(capacity + delta, 'A');
     size_t bytes_free = delta > 0 ? 0 : 0 - delta;
     QuicFrame frame;
     MakeIOVector(data, &iov_);
@@ -651,7 +651,7 @@ TEST_P(QuicPacketCreatorTest, CryptoStreamFramePacketPadding) {
   size_t capacity = kDefaultMaxPacketSize - overhead;
   // Now, test various sizes around this size.
   for (int delta = -5; delta <= 5; ++delta) {
-    QuicString data(capacity + delta, 'A');
+    std::string data(capacity + delta, 'A');
     size_t bytes_free = delta > 0 ? 0 : 0 - delta;
 
     QuicFrame frame;
@@ -691,7 +691,7 @@ TEST_P(QuicPacketCreatorTest, NonCryptoStreamFramePacketNonPadding) {
   size_t capacity = kDefaultMaxPacketSize - overhead;
   // Now, test various sizes around this size.
   for (int delta = -5; delta <= 5; ++delta) {
-    QuicString data(capacity + delta, 'A');
+    std::string data(capacity + delta, 'A');
     size_t bytes_free = delta > 0 ? 0 : 0 - delta;
 
     QuicFrame frame;
@@ -1128,7 +1128,7 @@ TEST_P(QuicPacketCreatorTest, ConsumeDataLargerThanOneStreamFrame) {
       QuicPacketCreatorPeer::GetRetryTokenLengthLength(&creator_),
       QuicPacketCreatorPeer::GetLengthLength(&creator_), &payload_length));
   QuicFrame frame;
-  const QuicString too_long_payload(payload_length * 2, 'a');
+  const std::string too_long_payload(payload_length * 2, 'a');
   MakeIOVector(too_long_payload, &iov_);
   EXPECT_CALL(delegate_, OnSerializedPacket(_))
       .WillOnce(Invoke(this, &QuicPacketCreatorTest::SaveSerializedPacket));
@@ -1137,7 +1137,7 @@ TEST_P(QuicPacketCreatorTest, ConsumeDataLargerThanOneStreamFrame) {
       1u, iov_.iov_len, 0u, 0u, true, false, NOT_RETRANSMISSION, &frame));
   size_t consumed = frame.stream_frame.data_length;
   EXPECT_EQ(payload_length, consumed);
-  const QuicString payload(payload_length, 'a');
+  const std::string payload(payload_length, 'a');
   CheckStreamFrame(
       frame, QuicUtils::GetCryptoStreamId(client_framer_.transport_version()),
       payload, 0u, false);
@@ -1510,7 +1510,7 @@ TEST_P(QuicPacketCreatorTest, AddMessageFrame) {
   // Verify that there is enough room for the largest message payload.
   EXPECT_TRUE(
       creator_.HasRoomForMessageFrame(creator_.GetLargestMessagePayload()));
-  QuicString message(creator_.GetLargestMessagePayload(), 'a');
+  std::string message(creator_.GetLargestMessagePayload(), 'a');
   QuicMessageFrame* message_frame = new QuicMessageFrame(1);
   MakeSpan(&allocator_, message, &storage)
       .SaveMemSlicesAsMessageData(message_frame);
@@ -1555,7 +1555,7 @@ TEST_P(QuicPacketCreatorTest, MessageFrameConsumption) {
   if (client_framer_.transport_version() <= QUIC_VERSION_44) {
     return;
   }
-  QuicString message_data(kDefaultMaxPacketSize, 'a');
+  std::string message_data(kDefaultMaxPacketSize, 'a');
   QuicStringPiece message_buffer(message_data);
   QuicMemSliceStorage storage(nullptr, 0, nullptr, 0);
   // Test all possible size of message frames.
@@ -1635,7 +1635,7 @@ TEST_P(QuicPacketCreatorTest, RetryToken) {
                               9, 10, 11, 12, 13, 14, 15, 16};
 
   creator_.SetRetryToken(
-      QuicString(retry_token_bytes, sizeof(retry_token_bytes)));
+      std::string(retry_token_bytes, sizeof(retry_token_bytes)));
 
   frames_.push_back(QuicFrame(QuicStreamFrame(
       QuicUtils::GetCryptoStreamId(client_framer_.transport_version()), false,

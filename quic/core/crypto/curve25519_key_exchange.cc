@@ -20,7 +20,8 @@ class Curve25519KeyExchangeFactory : public KeyExchange::Factory {
   ~Curve25519KeyExchangeFactory() override = default;
 
   std::unique_ptr<KeyExchange> Create(QuicRandom* rand) const override {
-    const QuicString private_value = Curve25519KeyExchange::NewPrivateKey(rand);
+    const std::string private_value =
+        Curve25519KeyExchange::NewPrivateKey(rand);
     return Curve25519KeyExchange::New(private_value);
   }
 
@@ -58,10 +59,10 @@ std::unique_ptr<Curve25519KeyExchange> Curve25519KeyExchange::New(
 }
 
 // static
-QuicString Curve25519KeyExchange::NewPrivateKey(QuicRandom* rand) {
+std::string Curve25519KeyExchange::NewPrivateKey(QuicRandom* rand) {
   uint8_t private_key[X25519_PRIVATE_KEY_LEN];
   rand->RandBytes(private_key, sizeof(private_key));
-  return QuicString(reinterpret_cast<char*>(private_key), sizeof(private_key));
+  return std::string(reinterpret_cast<char*>(private_key), sizeof(private_key));
 }
 
 const Curve25519KeyExchange::Factory& Curve25519KeyExchange::GetFactory()
@@ -72,7 +73,7 @@ const Curve25519KeyExchange::Factory& Curve25519KeyExchange::GetFactory()
 
 bool Curve25519KeyExchange::CalculateSharedKey(
     QuicStringPiece peer_public_value,
-    QuicString* out_result) const {
+    std::string* out_result) const {
   if (peer_public_value.size() != X25519_PUBLIC_VALUE_LEN) {
     return false;
   }
@@ -89,7 +90,7 @@ bool Curve25519KeyExchange::CalculateSharedKey(
 
 void Curve25519KeyExchange::CalculateSharedKey(
     QuicStringPiece peer_public_value,
-    QuicString* shared_key,
+    std::string* shared_key,
     std::unique_ptr<Callback> callback) const {
   callback->Run(CalculateSharedKey(peer_public_value, shared_key));
 }

@@ -54,7 +54,7 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
     // Called when the connection is closed after the streams have been closed.
     virtual void OnConnectionClosed(QuicConnectionId connection_id,
                                     QuicErrorCode error,
-                                    const QuicString& error_details,
+                                    const std::string& error_details,
                                     ConnectionCloseSource source) = 0;
 
     // Called when the session has become write blocked.
@@ -106,7 +106,7 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
   void OnWindowUpdateFrame(const QuicWindowUpdateFrame& frame) override;
   void OnBlockedFrame(const QuicBlockedFrame& frame) override;
   void OnConnectionClosed(QuicErrorCode error,
-                          const QuicString& error_details,
+                          const std::string& error_details,
                           ConnectionCloseSource source) override;
   void OnWriteBlocked() override;
   void OnSuccessfulVersionNegotiation(
@@ -203,7 +203,7 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
                              QuicStreamOffset bytes_written);
 
   // Called when the session wants to go away and not accept any new streams.
-  virtual void SendGoAway(QuicErrorCode error_code, const QuicString& reason);
+  virtual void SendGoAway(QuicErrorCode error_code, const std::string& reason);
 
   // Sends a BLOCKED frame.
   virtual void SendBlocked(QuicStreamId id);

@@ -15,7 +15,7 @@ int main(int argc, char* argv[]) {
   const char* usage =
       "Usage: qpack_offline_decoder input_filename expected_headers_filename "
       "....";
-  std::vector<quic::QuicString> args =
+  std::vector<std::string> args =
       quic::QuicParseCommandLineFlags(usage, argc, argv);
 
   if (args.size() < 2 || args.size() % 2 != 0) {

@@ -59,7 +59,7 @@ class QUIC_EXPORT_PRIVATE PendingStream
   void AddBytesConsumed(QuicByteCount bytes) override;
   void Reset(QuicRstStreamErrorCode error) override;
   void CloseConnectionWithDetails(QuicErrorCode error,
-                                  const QuicString& details) override;
+                                  const std::string& details) override;
   QuicStreamId id() const override;
   const QuicSocketAddress& PeerAddressOfLatestPacket() const override;
 
@@ -144,7 +144,7 @@ class QUIC_EXPORT_PRIVATE QuicStream
   // Called by the subclass or the sequencer to close the entire connection from
   // this end.
   void CloseConnectionWithDetails(QuicErrorCode error,
-                                  const QuicString& details) override;
+                                  const std::string& details) override;
 
   // Called by the stream sequencer as bytes are consumed from the buffer.
   // If the receive window has dropped below the threshold, then send a

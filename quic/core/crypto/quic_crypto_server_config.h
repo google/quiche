@@ -76,7 +76,7 @@ class PrimaryConfigChangedCallback {
   PrimaryConfigChangedCallback& operator=(const PrimaryConfigChangedCallback&) =
       delete;
   virtual ~PrimaryConfigChangedCallback();
-  virtual void Run(const QuicString& scid) = 0;
+  virtual void Run(const std::string& scid) = 0;
 };
 
 // Callback used to accept the result of the |client_hello| validation step.
@@ -92,7 +92,7 @@ class QUIC_EXPORT_PRIVATE ValidateClientHelloResultCallback {
     CryptoHandshakeMessage client_hello;
     ClientHelloInfo info;
     QuicErrorCode error_code;
-    QuicString error_details;
+    std::string error_details;
 
     // Populated if the CHLO STK contained a CachedNetworkParameters proto.
     CachedNetworkParameters cached_network_params;
@@ -121,7 +121,7 @@ class QUIC_EXPORT_PRIVATE ProcessClientHelloResultCallback {
       const ProcessClientHelloResultCallback&) = delete;
   virtual ~ProcessClientHelloResultCallback();
   virtual void Run(QuicErrorCode error,
-                   const QuicString& error_details,
+                   const std::string& error_details,
                    std::unique_ptr<CryptoHandshakeMessage> message,
                    std::unique_ptr<DiversificationNonce> diversification_nonce,
                    std::unique_ptr<ProofSource::Details> details) = 0;
@@ -163,7 +163,7 @@ class QUIC_EXPORT_PRIVATE KeyExchangeSource {
 
   // Create a new KeyExchange of the specified type using the specified
   // private key.
-  virtual std::unique_ptr<KeyExchange> Create(QuicString /*server_config_id*/,
+  virtual std::unique_ptr<KeyExchange> Create(std::string /*server_config_id*/,
                                               QuicTag type,
                                               QuicStringPiece private_key) = 0;
 };
@@ -192,10 +192,10 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
     QuicTagVector token_binding_params;
     // id contains the server config id for the resulting config. If empty, a
     // random id is generated.
-    QuicString id;
+    std::string id;
     // orbit contains the kOrbitSize bytes of the orbit value for the server
     // config. If |orbit| is empty then a random orbit is generated.
-    QuicString orbit;
+    std::string orbit;
     // p256 determines whether a P-256 public key will be included in the
     // server config. Note that this breaks deterministic server-config
     // generation since P-256 key generation doesn't use the QuicRandom given
@@ -262,10 +262,10 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
   // decrypting a source address token.  Note that these keys are used *without*
   // passing them through a KDF, in contradistinction to the
   // |source_address_token_secret| argument to the constructor.
-  void SetSourceAddressTokenKeys(const std::vector<QuicString>& keys);
+  void SetSourceAddressTokenKeys(const std::vector<std::string>& keys);
 
   // Get the server config ids for all known configs.
-  void GetConfigIds(std::vector<QuicString>* scids) const;
+  void GetConfigIds(std::vector<std::string>* scids) const;
 
   // Checks |client_hello| for gross errors and determines whether it can be
   // shown to be fresh (i.e. not a replay).  The result of the validation step
@@ -429,7 +429,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
   SSL_CTX* ssl_ctx() const;
 
   void set_pre_shared_key(QuicStringPiece psk) {
-    pre_shared_key_ = QuicString(psk);
+    pre_shared_key_ = std::string(psk);
   }
 
   bool pad_rej() const { return pad_rej_; }
@@ -455,9 +455,9 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
     // getters/setters here.
     // |serialized| contains the bytes of this server config, suitable for
     // sending on the wire.
-    QuicString serialized;
+    std::string serialized;
     // id contains the SCID of this server config.
-    QuicString id;
+    std::string id;
     // orbit contains the orbit value for this config: an opaque identifier
     // used to identify clusters of server frontends.
     unsigned char orbit[kOrbitSize];
@@ -636,11 +636,11 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
   // sets known locally and |client_common_set_hashes| contains the hashes of
   // the common sets known to the peer. |client_cached_cert_hashes| contains
   // 64-bit, FNV-1a hashes of certificates that the peer already possesses.
-  static QuicString CompressChain(
+  static std::string CompressChain(
       QuicCompressedCertsCache* compressed_certs_cache,
       const QuicReferenceCountedPointer<ProofSource::Chain>& chain,
-      const QuicString& client_common_set_hashes,
-      const QuicString& client_cached_cert_hashes,
+      const std::string& client_common_set_hashes,
+      const std::string& client_cached_cert_hashes,
       const CommonCertSets* common_sets);
 
   // ParseConfigProtobuf parses the given config protobuf and returns a
@@ -651,7 +651,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
 
   // NewSourceAddressToken returns a fresh source address token for the given
   // IP address. |cached_network_params| is optional, and can be nullptr.
-  QuicString NewSourceAddressToken(
+  std::string NewSourceAddressToken(
       const Config& config,
       const SourceAddressTokens& previous_tokens,
       const QuicIpAddress& ip,
@@ -696,7 +696,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
       QuicWallTime now) const;
 
   // NewServerNonce generates and encrypts a random nonce.
-  QuicString NewServerNonce(QuicRandom* rand, QuicWallTime now) const;
+  std::string NewServerNonce(QuicRandom* rand, QuicWallTime now) const;
 
   // ValidateExpectedLeafCertificate checks the |client_hello| to see if it has
   // an XLCT tag, and if so, verifies that its value matches the hash of the
@@ -705,7 +705,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
   // XLCT tag is present and valid. It returns false otherwise.
   bool ValidateExpectedLeafCertificate(
       const CryptoHandshakeMessage& client_hello,
-      const std::vector<QuicString>& certs) const;
+      const std::vector<std::string>& certs) const;
 
   // Returns true if the PDMD field from the client hello demands an X509
   // certificate.
@@ -742,10 +742,10 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
     const QuicTransportVersion version_;
     QuicCompressedCertsCache* compressed_certs_cache_;
     const CommonCertSets* common_cert_sets_;
-    const QuicString client_common_set_hashes_;
-    const QuicString client_cached_cert_hashes_;
+    const std::string client_common_set_hashes_;
+    const std::string client_cached_cert_hashes_;
     const bool sct_supported_by_client_;
-    const QuicString sni_;
+    const std::string sni_;
     CryptoHandshakeMessage message_;
     std::unique_ptr<BuildServerConfigUpdateMessageResultCallback> cb_;
   };
@@ -757,14 +757,14 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
       QuicTransportVersion version,
       QuicCompressedCertsCache* compressed_certs_cache,
       const CommonCertSets* common_cert_sets,
-      const QuicString& client_common_set_hashes,
-      const QuicString& client_cached_cert_hashes,
+      const std::string& client_common_set_hashes,
+      const std::string& client_cached_cert_hashes,
       bool sct_supported_by_client,
-      const QuicString& sni,
+      const std::string& sni,
       bool ok,
       const QuicReferenceCountedPointer<ProofSource::Chain>& chain,
-      const QuicString& signature,
-      const QuicString& leaf_cert_sct,
+      const std::string& signature,
+      const std::string& leaf_cert_sct,
       std::unique_ptr<ProofSource::Details> details,
       CryptoHandshakeMessage message,
       std::unique_ptr<BuildServerConfigUpdateMessageResultCallback> cb) const;
@@ -837,7 +837,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
 
   // If non-empty, the server will operate in the pre-shared key mode by
   // incorporating |pre_shared_key_| into the key schedule.
-  QuicString pre_shared_key_;
+  std::string pre_shared_key_;
 
   // Whether REJ message should be padded to max packet size.
   bool pad_rej_;
@@ -866,7 +866,7 @@ struct QUIC_EXPORT_PRIVATE QuicSignedServerConfig
   // The server config that is used for this proof (and the rest of the
   // request).
   QuicReferenceCountedPointer<QuicCryptoServerConfig::Config> config;
-  QuicString primary_scid;
+  std::string primary_scid;
 
  protected:
   ~QuicSignedServerConfig() override;

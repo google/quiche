@@ -36,7 +36,7 @@ class QUIC_EXPORT_PRIVATE QpackProgressiveEncoder
   bool HasNext() const override;
 
   // Encodes up to |max_encoded_bytes| octets, appending to |output|.
-  void Next(size_t max_encoded_bytes, QuicString* output) override;
+  void Next(size_t max_encoded_bytes, std::string* output) override;
 
  private:
   const QuicStreamId stream_id_;

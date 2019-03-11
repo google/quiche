@@ -66,7 +66,7 @@ class QUIC_EXPORT_PRIVATE QuicClientPushPromiseIndex {
 
   // Called by client code, used to enforce affinity between requests
   // for promised streams and the session the promise came from.
-  QuicClientPromisedInfo* GetPromised(const QuicString& url);
+  QuicClientPromisedInfo* GetPromised(const std::string& url);
 
   // Called by client code, to initiate rendezvous between a request
   // and a server push stream.  If |request|'s url is in the index,

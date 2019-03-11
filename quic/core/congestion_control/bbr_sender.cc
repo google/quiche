@@ -851,7 +851,7 @@ void BbrSender::CalculateRecoveryWindow(QuicByteCount bytes_acked,
   recovery_window_ = std::max(min_congestion_window_, recovery_window_);
 }
 
-QuicString BbrSender::GetDebugState() const {
+std::string BbrSender::GetDebugState() const {
   std::ostringstream stream;
   stream << ExportDebugState();
   return stream.str();
@@ -875,7 +875,7 @@ BbrSender::DebugState BbrSender::ExportDebugState() const {
   return DebugState(*this);
 }
 
-static QuicString ModeToString(BbrSender::Mode mode) {
+static std::string ModeToString(BbrSender::Mode mode) {
   switch (mode) {
     case BbrSender::STARTUP:
       return "STARTUP";

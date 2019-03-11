@@ -29,14 +29,14 @@ class QUIC_EXPORT_PRIVATE P256KeyExchange : public KeyExchange {
   // |NewPrivateKey| returns a private key, suitable for passing to |New|.
   // If |NewPrivateKey| can't generate a private key, it returns an empty
   // string.
-  static QuicString NewPrivateKey();
+  static std::string NewPrivateKey();
 
   // KeyExchange interface.
   const Factory& GetFactory() const override;
   bool CalculateSharedKey(QuicStringPiece peer_public_value,
-                          QuicString* shared_key) const override;
+                          std::string* shared_key) const override;
   void CalculateSharedKey(QuicStringPiece peer_public_value,
-                          QuicString* shared_key,
+                          std::string* shared_key,
                           std::unique_ptr<Callback> callback) const override;
   QuicStringPiece public_value() const override;
 

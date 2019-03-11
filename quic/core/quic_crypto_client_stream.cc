@@ -92,7 +92,7 @@ bool QuicCryptoClientStream::WasChannelIDSourceCallbackRun() const {
   return handshaker_->WasChannelIDSourceCallbackRun();
 }
 
-QuicString QuicCryptoClientStream::chlo_hash() const {
+std::string QuicCryptoClientStream::chlo_hash() const {
   return handshaker_->chlo_hash();
 }
 

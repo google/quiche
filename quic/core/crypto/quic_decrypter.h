@@ -73,8 +73,8 @@ class QUIC_EXPORT_PRIVATE QuicDecrypter : public QuicCrypter {
                                       const DiversificationNonce& nonce,
                                       size_t key_size,
                                       size_t nonce_prefix_size,
-                                      QuicString* out_key,
-                                      QuicString* out_nonce_prefix);
+                                      std::string* out_key,
+                                      std::string* out_nonce_prefix);
 };
 
 }  // namespace quic

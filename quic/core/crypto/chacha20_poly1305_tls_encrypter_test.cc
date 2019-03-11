@@ -89,15 +89,15 @@ TEST_F(ChaCha20Poly1305TlsEncrypterTest, EncryptThenDecrypt) {
   ChaCha20Poly1305TlsEncrypter encrypter;
   ChaCha20Poly1305TlsDecrypter decrypter;
 
-  QuicString key = QuicTextUtils::HexDecode(test_vectors[0].key);
+  std::string key = QuicTextUtils::HexDecode(test_vectors[0].key);
   ASSERT_TRUE(encrypter.SetKey(key));
   ASSERT_TRUE(decrypter.SetKey(key));
   ASSERT_TRUE(encrypter.SetIV("abcdefghijkl"));
   ASSERT_TRUE(decrypter.SetIV("abcdefghijkl"));
 
   uint64_t packet_number = UINT64_C(0x123456789ABC);
-  QuicString associated_data = "associated_data";
-  QuicString plaintext = "plaintext";
+  std::string associated_data = "associated_data";
+  std::string plaintext = "plaintext";
   char encrypted[1024];
   size_t len;
   ASSERT_TRUE(encrypter.EncryptPacket(packet_number, associated_data, plaintext,
@@ -113,12 +113,12 @@ TEST_F(ChaCha20Poly1305TlsEncrypterTest, EncryptThenDecrypt) {
 TEST_F(ChaCha20Poly1305TlsEncrypterTest, Encrypt) {
   for (size_t i = 0; test_vectors[i].key != nullptr; i++) {
     // Decode the test vector.
-    QuicString key = QuicTextUtils::HexDecode(test_vectors[i].key);
-    QuicString pt = QuicTextUtils::HexDecode(test_vectors[i].pt);
-    QuicString iv = QuicTextUtils::HexDecode(test_vectors[i].iv);
-    QuicString fixed = QuicTextUtils::HexDecode(test_vectors[i].fixed);
-    QuicString aad = QuicTextUtils::HexDecode(test_vectors[i].aad);
-    QuicString ct = QuicTextUtils::HexDecode(test_vectors[i].ct);
+    std::string key = QuicTextUtils::HexDecode(test_vectors[i].key);
+    std::string pt = QuicTextUtils::HexDecode(test_vectors[i].pt);
+    std::string iv = QuicTextUtils::HexDecode(test_vectors[i].iv);
+    std::string fixed = QuicTextUtils::HexDecode(test_vectors[i].fixed);
+    std::string aad = QuicTextUtils::HexDecode(test_vectors[i].aad);
+    std::string ct = QuicTextUtils::HexDecode(test_vectors[i].ct);
 
     ChaCha20Poly1305TlsEncrypter encrypter;
     ASSERT_TRUE(encrypter.SetKey(key));

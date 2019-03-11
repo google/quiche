@@ -122,7 +122,7 @@ class QUIC_EXPORT_PRIVATE QuicDataWriter {
 
   size_t remaining() const { return capacity_ - length_; }
 
-  QuicString DebugString() const;
+  std::string DebugString() const;
 
  private:
   // Returns the location that the data should be written at, or nullptr if

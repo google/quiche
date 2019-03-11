@@ -101,7 +101,7 @@ class QUIC_EXPORT_PRIVATE CryptoUtils {
   static void GenerateNonce(QuicWallTime now,
                             QuicRandom* random_generator,
                             QuicStringPiece orbit,
-                            QuicString* nonce);
+                            std::string* nonce);
 
   // DeriveKeys populates |crypters->encrypter|, |crypters->decrypter|, and
   // |subkey_secret| (optional -- may be null) given the contents of
@@ -127,11 +127,11 @@ class QUIC_EXPORT_PRIVATE CryptoUtils {
                          QuicStringPiece client_nonce,
                          QuicStringPiece server_nonce,
                          QuicStringPiece pre_shared_key,
-                         const QuicString& hkdf_input,
+                         const std::string& hkdf_input,
                          Perspective perspective,
                          Diversification diversification,
                          CrypterPair* crypters,
-                         QuicString* subkey_secret);
+                         std::string* subkey_secret);
 
   // Performs key extraction to derive a new secret of |result_len| bytes
   // dependent on |subkey_secret|, |label|, and |context|. Returns false if the
@@ -141,7 +141,7 @@ class QUIC_EXPORT_PRIVATE CryptoUtils {
                                    QuicStringPiece label,
                                    QuicStringPiece context,
                                    size_t result_len,
-                                   QuicString* result);
+                                   std::string* result);
 
   // Computes the FNV-1a hash of the provided DER-encoded cert for use in the
   // XLCT tag.
@@ -155,7 +155,7 @@ class QUIC_EXPORT_PRIVATE CryptoUtils {
   static QuicErrorCode ValidateServerHello(
       const CryptoHandshakeMessage& server_hello,
       const ParsedQuicVersionVector& negotiated_versions,
-      QuicString* error_details);
+      std::string* error_details);
 
   // Validates that the |server_versions| received do not indicate that the
   // ServerHello is part of a downgrade attack. |negotiated_versions| must
@@ -167,7 +167,7 @@ class QUIC_EXPORT_PRIVATE CryptoUtils {
   static QuicErrorCode ValidateServerHelloVersions(
       const QuicVersionLabelVector& server_versions,
       const ParsedQuicVersionVector& negotiated_versions,
-      QuicString* error_details);
+      std::string* error_details);
 
   // Validates that |client_hello| is actually a CHLO and that this is not part
   // of a downgrade attack.
@@ -179,7 +179,7 @@ class QUIC_EXPORT_PRIVATE CryptoUtils {
       const CryptoHandshakeMessage& client_hello,
       ParsedQuicVersion version,
       const ParsedQuicVersionVector& supported_versions,
-      QuicString* error_details);
+      std::string* error_details);
 
   // Validates that the |client_version| received does not indicate that a
   // downgrade attack has occurred. |connection_version| is the version of the
@@ -192,7 +192,7 @@ class QUIC_EXPORT_PRIVATE CryptoUtils {
       QuicVersionLabel client_version,
       ParsedQuicVersion connection_version,
       const ParsedQuicVersionVector& supported_versions,
-      QuicString* error_details);
+      std::string* error_details);
 
   // Returns the name of the HandshakeFailureReason as a char*
   static const char* HandshakeFailureReasonToString(
@@ -200,7 +200,7 @@ class QUIC_EXPORT_PRIVATE CryptoUtils {
 
   // Writes a hash of the serialized |message| into |output|.
   static void HashHandshakeMessage(const CryptoHandshakeMessage& message,
-                                   QuicString* output,
+                                   std::string* output,
                                    Perspective perspective);
 
  private:
@@ -221,7 +221,7 @@ class QUIC_EXPORT_PRIVATE CryptoUtils {
   static std::vector<uint8_t> HkdfExpandLabel(
       const EVP_MD* prf,
       const std::vector<uint8_t>& secret,
-      const QuicString& label,
+      const std::string& label,
       size_t out_len);
 };
 

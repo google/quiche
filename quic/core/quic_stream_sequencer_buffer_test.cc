@@ -74,7 +74,7 @@ class QuicStreamSequencerBufferTest : public QuicTest {
 
   std::unique_ptr<QuicStreamSequencerBuffer> buffer_;
   std::unique_ptr<QuicStreamSequencerBufferPeer> helper_;
-  QuicString error_details_;
+  std::string error_details_;
 };
 
 TEST_F(QuicStreamSequencerBufferTest, InitializeWithMaxRecvWindowSize) {
@@ -112,7 +112,7 @@ TEST_F(QuicStreamSequencerBufferTest, OnStreamData0length) {
 
 TEST_F(QuicStreamSequencerBufferTest, OnStreamDataWithinBlock) {
   EXPECT_FALSE(helper_->IsBufferAllocated());
-  QuicString source(1024, 'a');
+  std::string source(1024, 'a');
   size_t written;
   EXPECT_EQ(QUIC_NO_ERROR,
             buffer_->OnStreamData(800, source, &written, &error_details_));
@@ -131,7 +131,7 @@ TEST_F(QuicStreamSequencerBufferTest, OnStreamDataWithinBlock) {
 
 TEST_F(QuicStreamSequencerBufferTest, Move) {
   EXPECT_FALSE(helper_->IsBufferAllocated());
-  QuicString source(1024, 'a');
+  std::string source(1024, 'a');
   size_t written;
   EXPECT_EQ(QUIC_NO_ERROR,
             buffer_->OnStreamData(800, source, &written, &error_details_));
@@ -168,7 +168,7 @@ TEST_F(QuicStreamSequencerBufferTest, OnStreamDataInvalidSource) {
 }
 
 TEST_F(QuicStreamSequencerBufferTest, OnStreamDataWithOverlap) {
-  QuicString source(1024, 'a');
+  std::string source(1024, 'a');
   // Write something into [800, 1824)
   size_t written;
   EXPECT_EQ(QUIC_NO_ERROR,
@@ -182,12 +182,12 @@ TEST_F(QuicStreamSequencerBufferTest, OnStreamDataWithOverlap) {
 
 TEST_F(QuicStreamSequencerBufferTest,
        OnStreamDataOverlapAndDuplicateCornerCases) {
-  QuicString source(1024, 'a');
+  std::string source(1024, 'a');
   // Write something into [800, 1824)
   size_t written;
   buffer_->OnStreamData(800, source, &written, &error_details_);
-  source = QuicString(800, 'b');
-  QuicString one_byte = "c";
+  source = std::string(800, 'b');
+  std::string one_byte = "c";
   // Write [1, 801).
   EXPECT_EQ(QUIC_NO_ERROR,
             buffer_->OnStreamData(1, source, &written, &error_details_));
@@ -205,12 +205,12 @@ TEST_F(QuicStreamSequencerBufferTest,
 }
 
 TEST_F(QuicStreamSequencerBufferTest, OnStreamDataWithoutOverlap) {
-  QuicString source(1024, 'a');
+  std::string source(1024, 'a');
   // Write something into [800, 1824).
   size_t written;
   EXPECT_EQ(QUIC_NO_ERROR,
             buffer_->OnStreamData(800, source, &written, &error_details_));
-  source = QuicString(100, 'b');
+  source = std::string(100, 'b');
   // Write something into [kBlockSizeBytes * 2 - 20, kBlockSizeBytes * 2 + 80).
   EXPECT_EQ(QUIC_NO_ERROR,
             buffer_->OnStreamData(kBlockSizeBytes * 2 - 20, source, &written,
@@ -228,7 +228,7 @@ TEST_F(QuicStreamSequencerBufferTest, OnStreamDataInLongStreamWithOverlap) {
 
   // Three new out of order frames arrive.
   const size_t kBytesToWrite = 100;
-  QuicString source(kBytesToWrite, 'a');
+  std::string source(kBytesToWrite, 'a');
   size_t written;
   // Frame [2^32 + 500, 2^32 + 600).
   QuicStreamOffset offset = pow(2, 32) + 500;
@@ -252,7 +252,7 @@ TEST_F(QuicStreamSequencerBufferTest, OnStreamDataInLongStreamWithOverlap) {
 TEST_F(QuicStreamSequencerBufferTest, OnStreamDataTillEnd) {
   // Write 50 bytes to the end.
   const size_t kBytesToWrite = 50;
-  QuicString source(kBytesToWrite, 'a');
+  std::string source(kBytesToWrite, 'a');
   size_t written;
   EXPECT_EQ(QUIC_NO_ERROR,
             buffer_->OnStreamData(max_capacity_bytes_ - kBytesToWrite, source,
@@ -264,7 +264,7 @@ TEST_F(QuicStreamSequencerBufferTest, OnStreamDataTillEnd) {
 TEST_F(QuicStreamSequencerBufferTest, OnStreamDataTillEndCorner) {
   // Write 1 byte to the end.
   const size_t kBytesToWrite = 1;
-  QuicString source(kBytesToWrite, 'a');
+  std::string source(kBytesToWrite, 'a');
   size_t written;
   EXPECT_EQ(QUIC_NO_ERROR,
             buffer_->OnStreamData(max_capacity_bytes_ - kBytesToWrite, source,
@@ -274,7 +274,7 @@ TEST_F(QuicStreamSequencerBufferTest, OnStreamDataTillEndCorner) {
 }
 
 TEST_F(QuicStreamSequencerBufferTest, OnStreamDataBeyondCapacity) {
-  QuicString source(60, 'a');
+  std::string source(60, 'a');
   size_t written;
   EXPECT_EQ(QUIC_INTERNAL_ERROR,
             buffer_->OnStreamData(max_capacity_bytes_ - 50, source, &written,
@@ -308,12 +308,12 @@ TEST_F(QuicStreamSequencerBufferTest, OnStreamDataBeyondCapacity) {
 }
 
 TEST_F(QuicStreamSequencerBufferTest, Readv100Bytes) {
-  QuicString source(1024, 'a');
+  std::string source(1024, 'a');
   // Write something into [kBlockSizeBytes, kBlockSizeBytes + 1024).
   size_t written;
   buffer_->OnStreamData(kBlockSizeBytes, source, &written, &error_details_);
   EXPECT_FALSE(buffer_->HasBytesToRead());
-  source = QuicString(100, 'b');
+  source = std::string(100, 'b');
   // Write something into [0, 100).
   buffer_->OnStreamData(0, source, &written, &error_details_);
   EXPECT_TRUE(buffer_->HasBytesToRead());
@@ -325,14 +325,14 @@ TEST_F(QuicStreamSequencerBufferTest, Readv100Bytes) {
   QUIC_LOG(ERROR) << error_details_;
   EXPECT_EQ(100u, read);
   EXPECT_EQ(100u, buffer_->BytesConsumed());
-  EXPECT_EQ(source, QuicString(dest, read));
+  EXPECT_EQ(source, std::string(dest, read));
   // The first block should be released as its data has been read out.
   EXPECT_EQ(nullptr, helper_->GetBlock(0));
   EXPECT_TRUE(helper_->CheckBufferInvariants());
 }
 
 TEST_F(QuicStreamSequencerBufferTest, ReadvAcrossBlocks) {
-  QuicString source(kBlockSizeBytes + 50, 'a');
+  std::string source(kBlockSizeBytes + 50, 'a');
   // Write 1st block to full and extand 50 bytes to next block.
   size_t written;
   buffer_->OnStreamData(0, source, &written, &error_details_);
@@ -346,7 +346,7 @@ TEST_F(QuicStreamSequencerBufferTest, ReadvAcrossBlocks) {
     EXPECT_EQ(QUIC_NO_ERROR, buffer_->Readv(iovecs, 2, &read, &error_details_));
   }
   // The last read only reads the rest 50 bytes in 2nd block.
-  EXPECT_EQ(QuicString(50, 'a'), QuicString(dest, 50));
+  EXPECT_EQ(std::string(50, 'a'), std::string(dest, 50));
   EXPECT_EQ(0, dest[50]) << "Dest[50] shouln't be filled.";
   EXPECT_EQ(source.size(), buffer_->BytesConsumed());
   EXPECT_TRUE(buffer_->Empty());
@@ -354,7 +354,7 @@ TEST_F(QuicStreamSequencerBufferTest, ReadvAcrossBlocks) {
 }
 
 TEST_F(QuicStreamSequencerBufferTest, ClearAfterRead) {
-  QuicString source(kBlockSizeBytes + 50, 'a');
+  std::string source(kBlockSizeBytes + 50, 'a');
   // Write 1st block to full with 'a'.
   size_t written;
   buffer_->OnStreamData(0, source, &written, &error_details_);
@@ -371,7 +371,7 @@ TEST_F(QuicStreamSequencerBufferTest, ClearAfterRead) {
 
 TEST_F(QuicStreamSequencerBufferTest,
        OnStreamDataAcrossLastBlockAndFillCapacity) {
-  QuicString source(kBlockSizeBytes + 50, 'a');
+  std::string source(kBlockSizeBytes + 50, 'a');
   // Write 1st block to full with 'a'.
   size_t written;
   buffer_->OnStreamData(0, source, &written, &error_details_);
@@ -384,7 +384,7 @@ TEST_F(QuicStreamSequencerBufferTest,
 
   // Write more than half block size of bytes in the last block with 'b', which
   // will wrap to the beginning and reaches the full capacity.
-  source = QuicString(0.5 * kBlockSizeBytes + 512, 'b');
+  source = std::string(0.5 * kBlockSizeBytes + 512, 'b');
   EXPECT_EQ(QUIC_NO_ERROR, buffer_->OnStreamData(2 * kBlockSizeBytes, source,
                                                  &written, &error_details_));
   EXPECT_EQ(source.size(), written);
@@ -393,7 +393,7 @@ TEST_F(QuicStreamSequencerBufferTest,
 
 TEST_F(QuicStreamSequencerBufferTest,
        OnStreamDataAcrossLastBlockAndExceedCapacity) {
-  QuicString source(kBlockSizeBytes + 50, 'a');
+  std::string source(kBlockSizeBytes + 50, 'a');
   // Write 1st block to full.
   size_t written;
   buffer_->OnStreamData(0, source, &written, &error_details_);
@@ -405,7 +405,7 @@ TEST_F(QuicStreamSequencerBufferTest,
 
   // Try to write from [max_capacity_bytes_ - 0.5 * kBlockSizeBytes,
   // max_capacity_bytes_ +  512 + 1). But last bytes exceeds current capacity.
-  source = QuicString(0.5 * kBlockSizeBytes + 512 + 1, 'b');
+  source = std::string(0.5 * kBlockSizeBytes + 512 + 1, 'b');
   EXPECT_EQ(QUIC_INTERNAL_ERROR,
             buffer_->OnStreamData(2 * kBlockSizeBytes, source, &written,
                                   &error_details_));
@@ -415,14 +415,14 @@ TEST_F(QuicStreamSequencerBufferTest,
 TEST_F(QuicStreamSequencerBufferTest, ReadvAcrossLastBlock) {
   // Write to full capacity and read out 512 bytes at beginning and continue
   // appending 256 bytes.
-  QuicString source(max_capacity_bytes_, 'a');
+  std::string source(max_capacity_bytes_, 'a');
   size_t written;
   buffer_->OnStreamData(0, source, &written, &error_details_);
   char dest[512]{0};
   const iovec iov{dest, 512};
   size_t read;
   EXPECT_EQ(QUIC_NO_ERROR, buffer_->Readv(&iov, 1, &read, &error_details_));
-  source = QuicString(256, 'b');
+  source = std::string(256, 'b');
   buffer_->OnStreamData(max_capacity_bytes_, source, &written, &error_details_);
   EXPECT_TRUE(helper_->CheckBufferInvariants());
 
@@ -456,7 +456,7 @@ TEST_F(QuicStreamSequencerBufferTest, GetReadableRegionsEmpty) {
 
 TEST_F(QuicStreamSequencerBufferTest, ReleaseWholeBuffer) {
   // Tests that buffer is not deallocated unless ReleaseWholeBuffer() is called.
-  QuicString source(100, 'b');
+  std::string source(100, 'b');
   // Write something into [0, 100).
   size_t written;
   buffer_->OnStreamData(0, source, &written, &error_details_);
@@ -475,7 +475,7 @@ TEST_F(QuicStreamSequencerBufferTest, ReleaseWholeBuffer) {
 
 TEST_F(QuicStreamSequencerBufferTest, GetReadableRegionsBlockedByGap) {
   // Write into [1, 1024).
-  QuicString source(1023, 'a');
+  std::string source(1023, 'a');
   size_t written;
   buffer_->OnStreamData(1, source, &written, &error_details_);
   // Try to get readable regions, but none is there.
@@ -487,7 +487,7 @@ TEST_F(QuicStreamSequencerBufferTest, GetReadableRegionsBlockedByGap) {
 TEST_F(QuicStreamSequencerBufferTest, GetReadableRegionsTillEndOfBlock) {
   // Write first block to full with [0, 256) 'a' and the rest 'b' then read out
   // [0, 256)
-  QuicString source(kBlockSizeBytes, 'a');
+  std::string source(kBlockSizeBytes, 'a');
   size_t written;
   buffer_->OnStreamData(0, source, &written, &error_details_);
   char dest[256];
@@ -496,14 +496,14 @@ TEST_F(QuicStreamSequencerBufferTest, GetReadableRegionsTillEndOfBlock) {
   iovec iovs[2];
   int iov_count = buffer_->GetReadableRegions(iovs, 2);
   EXPECT_EQ(1, iov_count);
-  EXPECT_EQ(QuicString(kBlockSizeBytes - 256, 'a'),
-            QuicString(reinterpret_cast<const char*>(iovs[0].iov_base),
-                       iovs[0].iov_len));
+  EXPECT_EQ(std::string(kBlockSizeBytes - 256, 'a'),
+            std::string(reinterpret_cast<const char*>(iovs[0].iov_base),
+                        iovs[0].iov_len));
 }
 
 TEST_F(QuicStreamSequencerBufferTest, GetReadableRegionsWithinOneBlock) {
   // Write into [0, 1024) and then read out [0, 256)
-  QuicString source(1024, 'a');
+  std::string source(1024, 'a');
   size_t written;
   buffer_->OnStreamData(0, source, &written, &error_details_);
   char dest[256];
@@ -512,15 +512,15 @@ TEST_F(QuicStreamSequencerBufferTest, GetReadableRegionsWithinOneBlock) {
   iovec iovs[2];
   int iov_count = buffer_->GetReadableRegions(iovs, 2);
   EXPECT_EQ(1, iov_count);
-  EXPECT_EQ(QuicString(1024 - 256, 'a'),
-            QuicString(reinterpret_cast<const char*>(iovs[0].iov_base),
-                       iovs[0].iov_len));
+  EXPECT_EQ(std::string(1024 - 256, 'a'),
+            std::string(reinterpret_cast<const char*>(iovs[0].iov_base),
+                        iovs[0].iov_len));
 }
 
 TEST_F(QuicStreamSequencerBufferTest,
        GetReadableRegionsAcrossBlockWithLongIOV) {
   // Write into [0, 2 * kBlockSizeBytes + 1024) and then read out [0, 1024)
-  QuicString source(2 * kBlockSizeBytes + 1024, 'a');
+  std::string source(2 * kBlockSizeBytes + 1024, 'a');
   size_t written;
   buffer_->OnStreamData(0, source, &written, &error_details_);
   char dest[1024];
@@ -538,13 +538,13 @@ TEST_F(QuicStreamSequencerBufferTest,
        GetReadableRegionsWithMultipleIOVsAcrossEnd) {
   // Write into [0, 2 * kBlockSizeBytes + 1024) and then read out [0, 1024)
   // and then append 1024 + 512 bytes.
-  QuicString source(2.5 * kBlockSizeBytes - 1024, 'a');
+  std::string source(2.5 * kBlockSizeBytes - 1024, 'a');
   size_t written;
   buffer_->OnStreamData(0, source, &written, &error_details_);
   char dest[1024];
   helper_->Read(dest, 1024);
   // Write across the end.
-  source = QuicString(1024 + 512, 'b');
+  source = std::string(1024 + 512, 'b');
   buffer_->OnStreamData(2.5 * kBlockSizeBytes - 1024, source, &written,
                         &error_details_);
   // Use short iovec's.
@@ -558,9 +558,9 @@ TEST_F(QuicStreamSequencerBufferTest,
   EXPECT_EQ(4, buffer_->GetReadableRegions(iovs1, 5));
   EXPECT_EQ(0.5 * kBlockSizeBytes, iovs1[2].iov_len);
   EXPECT_EQ(512u, iovs1[3].iov_len);
-  EXPECT_EQ(QuicString(512, 'b'),
-            QuicString(reinterpret_cast<const char*>(iovs1[3].iov_base),
-                       iovs1[3].iov_len));
+  EXPECT_EQ(std::string(512, 'b'),
+            std::string(reinterpret_cast<const char*>(iovs1[3].iov_base),
+                        iovs1[3].iov_len));
 }
 
 TEST_F(QuicStreamSequencerBufferTest, GetReadableRegionEmpty) {
@@ -572,7 +572,7 @@ TEST_F(QuicStreamSequencerBufferTest, GetReadableRegionEmpty) {
 
 TEST_F(QuicStreamSequencerBufferTest, GetReadableRegionBeforeGap) {
   // Write into [1, 1024).
-  QuicString source(1023, 'a');
+  std::string source(1023, 'a');
   size_t written;
   buffer_->OnStreamData(1, source, &written, &error_details_);
   // GetReadableRegion should return false because range  [0,1) hasn't been
@@ -583,7 +583,7 @@ TEST_F(QuicStreamSequencerBufferTest, GetReadableRegionBeforeGap) {
 
 TEST_F(QuicStreamSequencerBufferTest, GetReadableRegionTillEndOfBlock) {
   // Write into [0, kBlockSizeBytes + 1) and then read out [0, 256)
-  QuicString source(kBlockSizeBytes + 1, 'a');
+  std::string source(kBlockSizeBytes + 1, 'a');
   size_t written;
   buffer_->OnStreamData(0, source, &written, &error_details_);
   char dest[256];
@@ -592,13 +592,13 @@ TEST_F(QuicStreamSequencerBufferTest, GetReadableRegionTillEndOfBlock) {
   iovec iov;
   EXPECT_TRUE(buffer_->GetReadableRegion(&iov));
   EXPECT_EQ(
-      QuicString(kBlockSizeBytes - 256, 'a'),
-      QuicString(reinterpret_cast<const char*>(iov.iov_base), iov.iov_len));
+      std::string(kBlockSizeBytes - 256, 'a'),
+      std::string(reinterpret_cast<const char*>(iov.iov_base), iov.iov_len));
 }
 
 TEST_F(QuicStreamSequencerBufferTest, GetReadableRegionTillGap) {
   // Write into [0, kBlockSizeBytes - 1) and then read out [0, 256)
-  QuicString source(kBlockSizeBytes - 1, 'a');
+  std::string source(kBlockSizeBytes - 1, 'a');
   size_t written;
   buffer_->OnStreamData(0, source, &written, &error_details_);
   char dest[256];
@@ -607,8 +607,8 @@ TEST_F(QuicStreamSequencerBufferTest, GetReadableRegionTillGap) {
   iovec iov;
   EXPECT_TRUE(buffer_->GetReadableRegion(&iov));
   EXPECT_EQ(
-      QuicString(kBlockSizeBytes - 1 - 256, 'a'),
-      QuicString(reinterpret_cast<const char*>(iov.iov_base), iov.iov_len));
+      std::string(kBlockSizeBytes - 1 - 256, 'a'),
+      std::string(reinterpret_cast<const char*>(iov.iov_base), iov.iov_len));
 }
 
 TEST_F(QuicStreamSequencerBufferTest, PrefetchEmptyBuffer) {
@@ -617,89 +617,89 @@ TEST_F(QuicStreamSequencerBufferTest, PrefetchEmptyBuffer) {
 }
 
 TEST_F(QuicStreamSequencerBufferTest, PrefetchInitialBuffer) {
-  QuicString source(kBlockSizeBytes, 'a');
+  std::string source(kBlockSizeBytes, 'a');
   size_t written;
   buffer_->OnStreamData(0, source, &written, &error_details_);
   iovec iov;
   EXPECT_TRUE(buffer_->PrefetchNextRegion(&iov));
-  EXPECT_EQ(source, QuicString(reinterpret_cast<const char*>(iov.iov_base),
-                               iov.iov_len));
+  EXPECT_EQ(source, std::string(reinterpret_cast<const char*>(iov.iov_base),
+                                iov.iov_len));
 }
 
 TEST_F(QuicStreamSequencerBufferTest, PrefetchBufferWithOffset) {
-  QuicString source(1024, 'a');
+  std::string source(1024, 'a');
   size_t written;
   buffer_->OnStreamData(0, source, &written, &error_details_);
   iovec iov;
   EXPECT_TRUE(buffer_->PrefetchNextRegion(&iov));
-  EXPECT_EQ(source, QuicString(reinterpret_cast<const char*>(iov.iov_base),
-                               iov.iov_len));
+  EXPECT_EQ(source, std::string(reinterpret_cast<const char*>(iov.iov_base),
+                                iov.iov_len));
   // The second frame goes into the same bucket.
-  QuicString source2(800, 'a');
+  std::string source2(800, 'a');
   buffer_->OnStreamData(1024, source2, &written, &error_details_);
   EXPECT_TRUE(buffer_->PrefetchNextRegion(&iov));
-  EXPECT_EQ(source2, QuicString(reinterpret_cast<const char*>(iov.iov_base),
-                                iov.iov_len));
+  EXPECT_EQ(source2, std::string(reinterpret_cast<const char*>(iov.iov_base),
+                                 iov.iov_len));
 }
 
 TEST_F(QuicStreamSequencerBufferTest, PrefetchBufferWithMultipleBucket) {
   const size_t data_size = 1024;
-  QuicString source(data_size, 'a');
+  std::string source(data_size, 'a');
   size_t written;
   buffer_->OnStreamData(0, source, &written, &error_details_);
   iovec iov;
   EXPECT_TRUE(buffer_->PrefetchNextRegion(&iov));
-  EXPECT_EQ(source, QuicString(reinterpret_cast<const char*>(iov.iov_base),
-                               iov.iov_len));
-  QuicString source2(kBlockSizeBytes, 'b');
+  EXPECT_EQ(source, std::string(reinterpret_cast<const char*>(iov.iov_base),
+                                iov.iov_len));
+  std::string source2(kBlockSizeBytes, 'b');
   buffer_->OnStreamData(data_size, source2, &written, &error_details_);
   EXPECT_TRUE(buffer_->PrefetchNextRegion(&iov));
   EXPECT_EQ(
-      QuicString(kBlockSizeBytes - data_size, 'b'),
-      QuicString(reinterpret_cast<const char*>(iov.iov_base), iov.iov_len));
+      std::string(kBlockSizeBytes - data_size, 'b'),
+      std::string(reinterpret_cast<const char*>(iov.iov_base), iov.iov_len));
   EXPECT_TRUE(buffer_->PrefetchNextRegion(&iov));
   EXPECT_EQ(
-      QuicString(data_size, 'b'),
-      QuicString(reinterpret_cast<const char*>(iov.iov_base), iov.iov_len));
+      std::string(data_size, 'b'),
+      std::string(reinterpret_cast<const char*>(iov.iov_base), iov.iov_len));
 }
 
 TEST_F(QuicStreamSequencerBufferTest, PrefetchBufferAfterBlockRetired) {
-  QuicString source(kBlockSizeBytes, 'a');
+  std::string source(kBlockSizeBytes, 'a');
   size_t written;
   buffer_->OnStreamData(0, source, &written, &error_details_);
   iovec iov;
   EXPECT_TRUE(buffer_->PrefetchNextRegion(&iov));
-  EXPECT_EQ(source, QuicString(reinterpret_cast<const char*>(iov.iov_base),
-                               iov.iov_len));
+  EXPECT_EQ(source, std::string(reinterpret_cast<const char*>(iov.iov_base),
+                                iov.iov_len));
   // Read the whole block so it's retired.
   char dest[kBlockSizeBytes];
   helper_->Read(dest, kBlockSizeBytes);
 
-  QuicString source2(300, 'b');
+  std::string source2(300, 'b');
   buffer_->OnStreamData(kBlockSizeBytes, source2, &written, &error_details_);
 
   EXPECT_TRUE(buffer_->PrefetchNextRegion(&iov));
-  EXPECT_EQ(source2, QuicString(reinterpret_cast<const char*>(iov.iov_base),
-                                iov.iov_len));
+  EXPECT_EQ(source2, std::string(reinterpret_cast<const char*>(iov.iov_base),
+                                 iov.iov_len));
 }
 
 TEST_F(QuicStreamSequencerBufferTest, PrefetchContinously) {
-  QuicString source(kBlockSizeBytes, 'a');
+  std::string source(kBlockSizeBytes, 'a');
   size_t written;
   buffer_->OnStreamData(0, source, &written, &error_details_);
   iovec iov;
   EXPECT_TRUE(buffer_->PrefetchNextRegion(&iov));
-  EXPECT_EQ(source, QuicString(reinterpret_cast<const char*>(iov.iov_base),
-                               iov.iov_len));
-  QuicString source2(kBlockSizeBytes, 'b');
+  EXPECT_EQ(source, std::string(reinterpret_cast<const char*>(iov.iov_base),
+                                iov.iov_len));
+  std::string source2(kBlockSizeBytes, 'b');
   buffer_->OnStreamData(kBlockSizeBytes, source2, &written, &error_details_);
   EXPECT_TRUE(buffer_->PrefetchNextRegion(&iov));
-  EXPECT_EQ(source2, QuicString(reinterpret_cast<const char*>(iov.iov_base),
-                                iov.iov_len));
+  EXPECT_EQ(source2, std::string(reinterpret_cast<const char*>(iov.iov_base),
+                                 iov.iov_len));
 }
 
 TEST_F(QuicStreamSequencerBufferTest, ConsumeMoreThanPrefetch) {
-  QuicString source(100, 'a');
+  std::string source(100, 'a');
   size_t written;
   buffer_->OnStreamData(0, source, &written, &error_details_);
   char dest[30];
@@ -707,32 +707,32 @@ TEST_F(QuicStreamSequencerBufferTest, ConsumeMoreThanPrefetch) {
   iovec iov;
   EXPECT_TRUE(buffer_->PrefetchNextRegion(&iov));
   EXPECT_EQ(
-      QuicString(70, 'a'),
-      QuicString(reinterpret_cast<const char*>(iov.iov_base), iov.iov_len));
-  QuicString source2(100, 'b');
+      std::string(70, 'a'),
+      std::string(reinterpret_cast<const char*>(iov.iov_base), iov.iov_len));
+  std::string source2(100, 'b');
   buffer_->OnStreamData(100, source2, &written, &error_details_);
   buffer_->MarkConsumed(100);
   EXPECT_TRUE(buffer_->PrefetchNextRegion(&iov));
   EXPECT_EQ(
-      QuicString(70, 'b'),
-      QuicString(reinterpret_cast<const char*>(iov.iov_base), iov.iov_len));
+      std::string(70, 'b'),
+      std::string(reinterpret_cast<const char*>(iov.iov_base), iov.iov_len));
 }
 
 TEST_F(QuicStreamSequencerBufferTest, PrefetchMoreThanBufferHas) {
-  QuicString source(100, 'a');
+  std::string source(100, 'a');
   size_t written;
   buffer_->OnStreamData(0, source, &written, &error_details_);
   iovec iov;
   EXPECT_TRUE(buffer_->PrefetchNextRegion(&iov));
   EXPECT_EQ(
-      QuicString(100, 'a'),
-      QuicString(reinterpret_cast<const char*>(iov.iov_base), iov.iov_len));
+      std::string(100, 'a'),
+      std::string(reinterpret_cast<const char*>(iov.iov_base), iov.iov_len));
   EXPECT_FALSE(buffer_->PrefetchNextRegion(&iov));
 }
 
 TEST_F(QuicStreamSequencerBufferTest, MarkConsumedInOneBlock) {
   // Write into [0, 1024) and then read out [0, 256)
-  QuicString source(1024, 'a');
+  std::string source(1024, 'a');
   size_t written;
   buffer_->OnStreamData(0, source, &written, &error_details_);
   char dest[256];
@@ -748,7 +748,7 @@ TEST_F(QuicStreamSequencerBufferTest, MarkConsumedInOneBlock) {
 
 TEST_F(QuicStreamSequencerBufferTest, MarkConsumedNotEnoughBytes) {
   // Write into [0, 1024) and then read out [0, 256)
-  QuicString source(1024, 'a');
+  std::string source(1024, 'a');
   size_t written;
   buffer_->OnStreamData(0, source, &written, &error_details_);
   char dest[256];
@@ -768,7 +768,7 @@ TEST_F(QuicStreamSequencerBufferTest, MarkConsumedNotEnoughBytes) {
 
 TEST_F(QuicStreamSequencerBufferTest, MarkConsumedAcrossBlock) {
   // Write into [0, 2 * kBlockSizeBytes + 1024) and then read out [0, 1024)
-  QuicString source(2 * kBlockSizeBytes + 1024, 'a');
+  std::string source(2 * kBlockSizeBytes + 1024, 'a');
   size_t written;
   buffer_->OnStreamData(0, source, &written, &error_details_);
   char dest[1024];
@@ -783,12 +783,12 @@ TEST_F(QuicStreamSequencerBufferTest, MarkConsumedAcrossBlock) {
 TEST_F(QuicStreamSequencerBufferTest, MarkConsumedAcrossEnd) {
   // Write into [0, 2.5 * kBlockSizeBytes - 1024) and then read out [0, 1024)
   // and then append 1024 + 512 bytes.
-  QuicString source(2.5 * kBlockSizeBytes - 1024, 'a');
+  std::string source(2.5 * kBlockSizeBytes - 1024, 'a');
   size_t written;
   buffer_->OnStreamData(0, source, &written, &error_details_);
   char dest[1024];
   helper_->Read(dest, 1024);
-  source = QuicString(1024 + 512, 'b');
+  source = std::string(1024 + 512, 'b');
   buffer_->OnStreamData(2.5 * kBlockSizeBytes - 1024, source, &written,
                         &error_details_);
   EXPECT_EQ(1024u, buffer_->BytesConsumed());
@@ -809,14 +809,14 @@ TEST_F(QuicStreamSequencerBufferTest, MarkConsumedAcrossEnd) {
 
 TEST_F(QuicStreamSequencerBufferTest, FlushBufferedFrames) {
   // Write into [0, 2.5 * kBlockSizeBytes - 1024) and then read out [0, 1024).
-  QuicString source(max_capacity_bytes_ - 1024, 'a');
+  std::string source(max_capacity_bytes_ - 1024, 'a');
   size_t written;
   buffer_->OnStreamData(0, source, &written, &error_details_);
   char dest[1024];
   helper_->Read(dest, 1024);
   EXPECT_EQ(1024u, buffer_->BytesConsumed());
   // Write [1024, 512) to the physical beginning.
-  source = QuicString(512, 'b');
+  source = std::string(512, 'b');
   buffer_->OnStreamData(max_capacity_bytes_, source, &written, &error_details_);
   EXPECT_EQ(512u, written);
   EXPECT_EQ(max_capacity_bytes_ - 1024 + 512, buffer_->FlushBufferedFrames());

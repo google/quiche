@@ -68,8 +68,8 @@ class TestStream : public QuicSimpleServerStream {
   void DoSendErrorResponse() { SendErrorResponse(); }
 
   spdy::SpdyHeaderBlock* mutable_headers() { return &request_headers_; }
-  void set_body(QuicString body) { body_ = std::move(body); }
-  const QuicString& body() const { return body_; }
+  void set_body(std::string body) { body_ = std::move(body); }
+  const std::string& body() const { return body_; }
   int content_length() const { return content_length_; }
 
   QuicStringPiece GetHeader(QuicStringPiece key) const {
@@ -113,7 +113,7 @@ class MockQuicSimpleServerSession : public QuicSimpleServerSession {
 
   MOCK_METHOD3(OnConnectionClosed,
                void(QuicErrorCode error,
-                    const QuicString& error_details,
+                    const std::string& error_details,
                     ConnectionCloseSource source));
   MOCK_METHOD1(CreateIncomingStream, QuicSpdyStream*(QuicStreamId id));
   MOCK_METHOD5(WritevData,
@@ -136,7 +136,7 @@ class MockQuicSimpleServerSession : public QuicSimpleServerSession {
   MOCK_METHOD1(OnHeadersHeadOfLineBlocking, void(QuicTime::Delta delta));
   // Matchers cannot be used on non-copyable types like SpdyHeaderBlock.
   void PromisePushResources(
-      const QuicString& request_url,
+      const std::string& request_url,
       const std::list<QuicBackendResponse::ServerPushInfo>& resources,
       QuicStreamId original_stream_id,
       const spdy::SpdyHeaderBlock& original_request_headers) override {
@@ -145,7 +145,7 @@ class MockQuicSimpleServerSession : public QuicSimpleServerSession {
                              original_request_headers);
   }
   MOCK_METHOD4(PromisePushResourcesMock,
-               void(const QuicString&,
+               void(const std::string&,
                     const std::list<QuicBackendResponse::ServerPushInfo>&,
                     QuicStreamId,
                     const spdy::SpdyHeaderBlock&));
@@ -206,9 +206,9 @@ class QuicSimpleServerStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
     connection_->AdvanceTime(QuicTime::Delta::FromSeconds(1));
   }
 
-  const QuicString& StreamBody() { return stream_->body(); }
+  const std::string& StreamBody() { return stream_->body(); }
 
-  QuicString StreamHeadersValue(const QuicString& key) {
+  std::string StreamHeadersValue(const std::string& key) {
     return (*stream_->mutable_headers())[key].as_string();
   }
 
@@ -232,7 +232,7 @@ class QuicSimpleServerStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
   StrictMock<MockQuicSimpleServerSession> session_;
   StrictMock<TestStream>* stream_;  // Owned by session_.
   std::unique_ptr<QuicBackendResponse> quic_response_;
-  QuicString body_;
+  std::string body_;
   QuicHeaderList header_list_;
   HttpEncoder encoder_;
 };
@@ -248,8 +248,8 @@ TEST_P(QuicSimpleServerStreamTest, TestFraming) {
   std::unique_ptr<char[]> buffer;
   QuicByteCount header_length =
       encoder_.SerializeDataFrameHeader(body_.length(), &buffer);
-  QuicString header = QuicString(buffer.get(), header_length);
-  QuicString data = HasFrameHeader() ? header + body_ : body_;
+  std::string header = std::string(buffer.get(), header_length);
+  std::string data = HasFrameHeader() ? header + body_ : body_;
   stream_->OnStreamFrame(
       QuicStreamFrame(stream_->id(), /*fin=*/false, /*offset=*/0, data));
   EXPECT_EQ("11", StreamHeadersValue("content-length"));
@@ -266,8 +266,8 @@ TEST_P(QuicSimpleServerStreamTest, TestFramingOnePacket) {
   std::unique_ptr<char[]> buffer;
   QuicByteCount header_length =
       encoder_.SerializeDataFrameHeader(body_.length(), &buffer);
-  QuicString header = QuicString(buffer.get(), header_length);
-  QuicString data = HasFrameHeader() ? header + body_ : body_;
+  std::string header = std::string(buffer.get(), header_length);
+  std::string data = HasFrameHeader() ? header + body_ : body_;
   stream_->OnStreamFrame(
       QuicStreamFrame(stream_->id(), /*fin=*/false, /*offset=*/0, data));
   EXPECT_EQ("11", StreamHeadersValue("content-length"));
@@ -292,7 +292,7 @@ TEST_P(QuicSimpleServerStreamTest, SendQuicRstStreamNoErrorInStopReading) {
 
 TEST_P(QuicSimpleServerStreamTest, TestFramingExtraData) {
   InSequence seq;
-  QuicString large_body = "hello world!!!!!!";
+  std::string large_body = "hello world!!!!!!";
 
   // We'll automatically write out an error (headers + body)
   EXPECT_CALL(*stream_, WriteHeadersMock(false));
@@ -307,8 +307,8 @@ TEST_P(QuicSimpleServerStreamTest, TestFramingExtraData) {
   std::unique_ptr<char[]> buffer;
   QuicByteCount header_length =
       encoder_.SerializeDataFrameHeader(body_.length(), &buffer);
-  QuicString header = QuicString(buffer.get(), header_length);
-  QuicString data = HasFrameHeader() ? header + body_ : body_;
+  std::string header = std::string(buffer.get(), header_length);
+  std::string data = HasFrameHeader() ? header + body_ : body_;
 
   stream_->OnStreamFrame(
       QuicStreamFrame(stream_->id(), /*fin=*/false, /*offset=*/0, data));
@@ -316,8 +316,8 @@ TEST_P(QuicSimpleServerStreamTest, TestFramingExtraData) {
   // accept the bytes.
   header_length =
       encoder_.SerializeDataFrameHeader(large_body.length(), &buffer);
-  header = QuicString(buffer.get(), header_length);
-  QuicString data2 = HasFrameHeader() ? header + large_body : large_body;
+  header = std::string(buffer.get(), header_length);
+  std::string data2 = HasFrameHeader() ? header + large_body : large_body;
   stream_->OnStreamFrame(
       QuicStreamFrame(stream_->id(), /*fin=*/true, data.size(), data2));
   EXPECT_EQ("11", StreamHeadersValue("content-length"));
@@ -337,7 +337,7 @@ TEST_P(QuicSimpleServerStreamTest, SendResponseWithIllegalResponseStatus) {
   // HTTP/2 only supports integer responsecode, so "200 OK" is illegal.
   response_headers_[":status"] = "200 OK";
   response_headers_["content-length"] = "5";
-  QuicString body = "Yummm";
+  std::string body = "Yummm";
   std::unique_ptr<char[]> buffer;
   QuicByteCount header_length =
       encoder_.SerializeDataFrameHeader(body.length(), &buffer);
@@ -371,7 +371,7 @@ TEST_P(QuicSimpleServerStreamTest, SendResponseWithIllegalResponseStatus2) {
   // HTTP/2 only supports 3-digit-integer, so "+200" is illegal.
   response_headers_[":status"] = "+200";
   response_headers_["content-length"] = "5";
-  QuicString body = "Yummm";
+  std::string body = "Yummm";
 
   std::unique_ptr<char[]> buffer;
   QuicByteCount header_length =
@@ -413,7 +413,7 @@ TEST_P(QuicSimpleServerStreamTest, SendPushResponseWith404Response) {
   response_headers_[":version"] = "HTTP/1.1";
   response_headers_[":status"] = "404";
   response_headers_["content-length"] = "8";
-  QuicString body = "NotFound";
+  std::string body = "NotFound";
 
   memory_cache_backend_.AddResponse("www.google.com", "/bar",
                                     std::move(response_headers_), body);
@@ -436,7 +436,7 @@ TEST_P(QuicSimpleServerStreamTest, SendResponseWithValidHeaders) {
   response_headers_[":version"] = "HTTP/1.1";
   response_headers_[":status"] = "200";
   response_headers_["content-length"] = "5";
-  QuicString body = "Yummm";
+  std::string body = "Yummm";
 
   std::unique_ptr<char[]> buffer;
   QuicByteCount header_length =
@@ -463,9 +463,9 @@ TEST_P(QuicSimpleServerStreamTest, SendResponseWithPushResources) {
   // call PromisePushResources() to handle these resources.
 
   // Add a request and response with valid headers into cache.
-  QuicString host = "www.google.com";
-  QuicString request_path = "/foo";
-  QuicString body = "Yummm";
+  std::string host = "www.google.com";
+  std::string request_path = "/foo";
+  std::string body = "Yummm";
   std::unique_ptr<char[]> buffer;
   QuicByteCount header_length =
       encoder_.SerializeDataFrameHeader(body.length(), &buffer);
@@ -526,8 +526,8 @@ TEST_P(QuicSimpleServerStreamTest, PushResponseOnServerInitiatedStream) {
                                  WRITE_UNIDIRECTIONAL, &memory_cache_backend_);
   session_.ActivateStream(QuicWrapUnique(server_initiated_stream));
 
-  const QuicString kHost = "www.foo.com";
-  const QuicString kPath = "/bar";
+  const std::string kHost = "www.foo.com";
+  const std::string kPath = "/bar";
   spdy::SpdyHeaderBlock headers;
   headers[":path"] = kPath;
   headers[":authority"] = kHost;
@@ -537,7 +537,7 @@ TEST_P(QuicSimpleServerStreamTest, PushResponseOnServerInitiatedStream) {
   response_headers_[":version"] = "HTTP/1.1";
   response_headers_[":status"] = "200";
   response_headers_["content-length"] = "5";
-  const QuicString kBody = "Hello";
+  const std::string kBody = "Hello";
   std::unique_ptr<char[]> buffer;
   QuicByteCount header_length =
       encoder_.SerializeDataFrameHeader(kBody.length(), &buffer);

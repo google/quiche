@@ -20,10 +20,10 @@ FakeProofSource::PendingOp::~PendingOp() = default;
 
 FakeProofSource::GetProofOp::GetProofOp(
     const QuicSocketAddress& server_addr,
-    QuicString hostname,
-    QuicString server_config,
+    std::string hostname,
+    std::string server_config,
     QuicTransportVersion transport_version,
-    QuicString chlo_hash,
+    std::string chlo_hash,
     std::unique_ptr<ProofSource::Callback> callback,
     ProofSource* delegate)
     : server_address_(server_addr),
@@ -44,7 +44,7 @@ void FakeProofSource::GetProofOp::Run() {
 
 FakeProofSource::ComputeSignatureOp::ComputeSignatureOp(
     const QuicSocketAddress& server_address,
-    QuicString hostname,
+    std::string hostname,
     uint16_t sig_alg,
     QuicStringPiece in,
     std::unique_ptr<ProofSource::SignatureCallback> callback,
@@ -69,8 +69,8 @@ void FakeProofSource::Activate() {
 
 void FakeProofSource::GetProof(
     const QuicSocketAddress& server_address,
-    const QuicString& hostname,
-    const QuicString& server_config,
+    const std::string& hostname,
+    const std::string& server_config,
     QuicTransportVersion transport_version,
     QuicStringPiece chlo_hash,
     std::unique_ptr<ProofSource::Callback> callback) {
@@ -82,18 +82,18 @@ void FakeProofSource::GetProof(
 
   pending_ops_.push_back(QuicMakeUnique<GetProofOp>(
       server_address, hostname, server_config, transport_version,
-      QuicString(chlo_hash), std::move(callback), delegate_.get()));
+      std::string(chlo_hash), std::move(callback), delegate_.get()));
 }
 
 QuicReferenceCountedPointer<ProofSource::Chain> FakeProofSource::GetCertChain(
     const QuicSocketAddress& server_address,
-    const QuicString& hostname) {
+    const std::string& hostname) {
   return delegate_->GetCertChain(server_address, hostname);
 }
 
 void FakeProofSource::ComputeTlsSignature(
     const QuicSocketAddress& server_address,
-    const QuicString& hostname,
+    const std::string& hostname,
     uint16_t signature_algorithm,
     QuicStringPiece in,
     std::unique_ptr<ProofSource::SignatureCallback> callback) {

@@ -23,8 +23,8 @@ class SimulatedQuartcPacketTransport : public Endpoint,
                                        public Queue::ListenerInterface {
  public:
   SimulatedQuartcPacketTransport(Simulator* simulator,
-                                 const QuicString& name,
-                                 const QuicString& peer_name,
+                                 const std::string& name,
+                                 const std::string& peer_name,
                                  QuicByteCount queue_capacity);
 
   // QuartcPacketTransport methods.
@@ -67,7 +67,7 @@ class SimulatedQuartcPacketTransport : public Endpoint,
   QuicPacketNumber last_packet_number() { return last_packet_number_; }
 
  private:
-  QuicString peer_name_;
+  std::string peer_name_;
   Delegate* delegate_ = nullptr;
   Queue egress_queue_;
   QuicPacketNumber last_packet_number_;

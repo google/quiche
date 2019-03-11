@@ -41,7 +41,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerStreamBase : public QuicCryptoStream {
   // GetBase64SHA256ClientChannelID sets |*output| to the base64 encoded,
   // SHA-256 hash of the client's ChannelID key and returns true, if the client
   // presented a ChannelID. Otherwise it returns false.
-  virtual bool GetBase64SHA256ClientChannelID(QuicString* output) const = 0;
+  virtual bool GetBase64SHA256ClientChannelID(std::string* output) const = 0;
 
   virtual int NumServerConfigUpdateMessagesSent() const = 0;
 
@@ -92,7 +92,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerStream
     // GetBase64SHA256ClientChannelID sets |*output| to the base64 encoded,
     // SHA-256 hash of the client's ChannelID key and returns true, if the
     // client presented a ChannelID. Otherwise it returns false.
-    virtual bool GetBase64SHA256ClientChannelID(QuicString* output) const = 0;
+    virtual bool GetBase64SHA256ClientChannelID(std::string* output) const = 0;
 
     // Sends the latest server config and source-address token to the client.
     virtual void SendServerConfigUpdate(
@@ -147,7 +147,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerStream
                                       const QuicSocketAddress& client_address,
                                       const QuicSocketAddress& peer_address,
                                       const QuicSocketAddress& self_address,
-                                      QuicString* error_details) const = 0;
+                                      std::string* error_details) const = 0;
   };
 
   // |crypto_config| must outlive the stream.
@@ -165,7 +165,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerStream
 
   // From QuicCryptoServerStreamBase
   void CancelOutstandingCallbacks() override;
-  bool GetBase64SHA256ClientChannelID(QuicString* output) const override;
+  bool GetBase64SHA256ClientChannelID(std::string* output) const override;
   void SendServerConfigUpdate(
       const CachedNetworkParameters* cached_network_params) override;
   uint8_t NumHandshakeMessages() const override;

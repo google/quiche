@@ -20,7 +20,7 @@ TlsClientHandshaker::ProofVerifierCallbackImpl::~ProofVerifierCallbackImpl() {}
 
 void TlsClientHandshaker::ProofVerifierCallbackImpl::Run(
     bool ok,
-    const QuicString& error_details,
+    const std::string& error_details,
     std::unique_ptr<ProofVerifyDetails>* details) {
   if (parent_ == nullptr) {
     return;
@@ -44,7 +44,7 @@ TlsClientHandshaker::TlsClientHandshaker(
     ProofVerifier* proof_verifier,
     SSL_CTX* ssl_ctx,
     std::unique_ptr<ProofVerifyContext> verify_context,
-    const QuicString& user_agent_id)
+    const std::string& user_agent_id)
     : TlsHandshaker(stream, session, ssl_ctx),
       server_id_(server_id),
       proof_verifier_(proof_verifier),
@@ -116,7 +116,7 @@ bool TlsClientHandshaker::SetTransportParameters() {
 }
 
 bool TlsClientHandshaker::ProcessTransportParameters(
-    QuicString* error_details) {
+    std::string* error_details) {
   TransportParameters params;
   const uint8_t* param_bytes;
   size_t param_bytes_len;
@@ -166,7 +166,7 @@ bool TlsClientHandshaker::WasChannelIDSourceCallbackRun() const {
   return false;
 }
 
-QuicString TlsClientHandshaker::chlo_hash() const {
+std::string TlsClientHandshaker::chlo_hash() const {
   return "";
 }
 
@@ -229,7 +229,7 @@ void TlsClientHandshaker::AdvanceHandshake() {
 }
 
 void TlsClientHandshaker::CloseConnection(QuicErrorCode error,
-                                          const QuicString& reason_phrase) {
+                                          const std::string& reason_phrase) {
   state_ = STATE_CONNECTION_CLOSED;
   stream()->CloseConnectionWithDetails(error, reason_phrase);
 }
@@ -238,7 +238,7 @@ void TlsClientHandshaker::FinishHandshake() {
   QUIC_LOG(INFO) << "Client: handshake finished";
   state_ = STATE_HANDSHAKE_COMPLETE;
 
-  QuicString error_details;
+  std::string error_details;
   if (!ProcessTransportParameters(&error_details)) {
     CloseConnection(QUIC_HANDSHAKE_FAILED, error_details);
     return;
@@ -276,11 +276,11 @@ enum ssl_verify_result_t TlsClientHandshaker::VerifyCert(uint8_t* out_alert) {
     return ssl_verify_invalid;
   }
   // TODO(nharper): Pass the CRYPTO_BUFFERs into the QUIC stack to avoid copies.
-  std::vector<QuicString> certs;
+  std::vector<std::string> certs;
   for (CRYPTO_BUFFER* cert : cert_chain) {
     certs.push_back(
-        QuicString(reinterpret_cast<const char*>(CRYPTO_BUFFER_data(cert)),
-                   CRYPTO_BUFFER_len(cert)));
+        std::string(reinterpret_cast<const char*>(CRYPTO_BUFFER_data(cert)),
+                    CRYPTO_BUFFER_len(cert)));
   }
 
   ProofVerifierCallbackImpl* proof_verify_callback =

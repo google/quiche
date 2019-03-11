@@ -43,7 +43,7 @@ class QUIC_EXPORT_PRIVATE QuicStreamSequencer {
     // Called when an error has occurred which should result in the connection
     // being closed.
     virtual void CloseConnectionWithDetails(QuicErrorCode error,
-                                            const QuicString& details) = 0;
+                                            const std::string& details) = 0;
 
     // Returns the stream id of this stream.
     virtual QuicStreamId id() const = 0;
@@ -98,7 +98,7 @@ class QUIC_EXPORT_PRIVATE QuicStreamSequencer {
 
   // Appends all of the readable data to |buffer| and marks all of the appended
   // data as consumed.
-  void Read(QuicString* buffer);
+  void Read(std::string* buffer);
 
   // Returns true if the sequncer has bytes available for reading.
   bool HasBytesToRead() const;
@@ -153,7 +153,7 @@ class QUIC_EXPORT_PRIVATE QuicStreamSequencer {
   void set_stream(StreamInterface* stream) { stream_ = stream; }
 
   // Returns string describing internal state.
-  const QuicString DebugString() const;
+  const std::string DebugString() const;
 
  private:
   friend class test::QuicStreamSequencerPeer;

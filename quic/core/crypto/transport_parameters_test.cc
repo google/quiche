@@ -412,7 +412,7 @@ TEST_F(TransportParametersTest, CryptoHandshakeMessageRoundtrip) {
   orig_params.idle_timeout = 56;
 
   orig_params.google_quic_params = QuicMakeUnique<CryptoHandshakeMessage>();
-  const QuicString kTestString = "test string";
+  const std::string kTestString = "test string";
   orig_params.google_quic_params->SetStringPiece(42, kTestString);
   const uint32_t kTestValue = 12;
   orig_params.google_quic_params->SetValue(1337, kTestValue);

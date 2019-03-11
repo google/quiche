@@ -329,7 +329,7 @@ TEST_P(QuicStreamIdManagerTestClient, IsIncomingStreamIdInValidAboveLimit) {
   QuicStreamId stream_id =
       stream_id_manager_->actual_max_allowed_incoming_stream_id() +
       kV99StreamIdIncrement;
-  QuicString error_details =
+  std::string error_details =
       GetParam() ? "Stream id 401 above 397" : "Stream id 403 above 399";
   EXPECT_CALL(*connection_,
               CloseConnection(QUIC_INVALID_STREAM_ID, error_details, _));
@@ -603,7 +603,7 @@ TEST_P(QuicStreamIdManagerTestClient, TestStaticStreamAdjustment) {
   // jump is not allowed; make sure.
   first_dynamic += kV99StreamIdIncrement * 100;
   expected_max_incoming += kV99StreamIdIncrement * 100;
-  QuicString bug_detail =
+  std::string bug_detail =
       GetParam() ? "allocate 5 got 401" : "allocate 7 got 403";
   EXPECT_QUIC_BUG(
       stream_id_manager_->RegisterStaticStream(first_dynamic),
@@ -830,7 +830,7 @@ TEST_P(QuicStreamIdManagerTestServer, ExtremeMaybeIncreaseLargestPeerStreamId) {
       stream_id_manager_->actual_max_allowed_incoming_stream_id() +
       kV99StreamIdIncrement * 20;
 
-  QuicString error_details =
+  std::string error_details =
       GetParam() ? "Stream id 480 above 400" : "Stream id 478 above 398";
   EXPECT_CALL(*connection_,
               CloseConnection(QUIC_INVALID_STREAM_ID, error_details, _));

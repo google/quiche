@@ -86,7 +86,7 @@ class QUIC_EXPORT_PRIVATE QuicBandwidth {
                                              bits_per_second_);
   }
 
-  QuicString ToDebugValue() const;
+  std::string ToDebugValue() const;
 
  private:
   explicit constexpr QuicBandwidth(int64_t bits_per_second)

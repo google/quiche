@@ -149,7 +149,7 @@ class QUIC_EXPORT_PRIVATE QuicDataReader {
   // greater than (2^32)-1.
   bool ReadVarIntStreamId(QuicStreamId* result);
 
-  QuicString DebugString() const;
+  std::string DebugString() const;
 
  private:
   // Returns true if the underlying buffer has enough room to read the given

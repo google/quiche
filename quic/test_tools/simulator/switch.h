@@ -20,7 +20,7 @@ typedef size_t SwitchPortNumber;
 class Switch {
  public:
   Switch(Simulator* simulator,
-         QuicString name,
+         std::string name,
          SwitchPortNumber port_count,
          QuicByteCount queue_capacity);
   Switch(const Switch&) = delete;
@@ -42,7 +42,7 @@ class Switch {
   class Port : public Endpoint, public UnconstrainedPortInterface {
    public:
     Port(Simulator* simulator,
-         QuicString name,
+         std::string name,
          Switch* parent,
          SwitchPortNumber port_number,
          QuicByteCount queue_capacity);
@@ -80,7 +80,7 @@ class Switch {
   // This can not be a QuicDeque since pointers into this are
   // assumed to be stable.
   std::deque<Port> ports_;
-  QuicUnorderedMap<QuicString, Port*> switching_table_;
+  QuicUnorderedMap<std::string, Port*> switching_table_;
 };
 
 }  // namespace simulator

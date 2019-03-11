@@ -289,7 +289,7 @@ void QuicSession::OnMessageReceived(QuicStringPiece message) {
 }
 
 void QuicSession::OnConnectionClosed(QuicErrorCode error,
-                                     const QuicString& error_details,
+                                     const std::string& error_details,
                                      ConnectionCloseSource source) {
   DCHECK(!connection_->connected());
   if (error_ == QUIC_NO_ERROR) {
@@ -617,7 +617,7 @@ void QuicSession::SendRstStreamInner(QuicStreamId id,
 }
 
 void QuicSession::SendGoAway(QuicErrorCode error_code,
-                             const QuicString& reason) {
+                             const std::string& reason) {
   // GOAWAY frame is not supported in v99.
   DCHECK_NE(QUIC_VERSION_99, connection_->transport_version());
   if (goaway_sent_) {

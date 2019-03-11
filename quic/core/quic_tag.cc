@@ -34,7 +34,7 @@ bool FindMutualQuicTag(const QuicTagVector& our_tags,
   return false;
 }
 
-QuicString QuicTagToString(QuicTag tag) {
+std::string QuicTagToString(QuicTag tag) {
   char chars[sizeof tag];
   bool ascii = true;
   const QuicTag orig_tag = tag;
@@ -53,7 +53,7 @@ QuicString QuicTagToString(QuicTag tag) {
   }
 
   if (ascii) {
-    return QuicString(chars, sizeof(chars));
+    return std::string(chars, sizeof(chars));
   }
 
   return QuicTextUtils::Uint64ToString(orig_tag);

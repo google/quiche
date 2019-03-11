@@ -76,7 +76,7 @@ void PendingStream::Reset(QuicRstStreamErrorCode error) {
 }
 
 void PendingStream::CloseConnectionWithDetails(QuicErrorCode error,
-                                               const QuicString& details) {
+                                               const std::string& details) {
   session_->connection()->CloseConnection(
       error, details, ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
 }
@@ -402,7 +402,7 @@ void QuicStream::Reset(QuicRstStreamErrorCode error) {
 }
 
 void QuicStream::CloseConnectionWithDetails(QuicErrorCode error,
-                                            const QuicString& details) {
+                                            const std::string& details) {
   session()->connection()->CloseConnection(
       error, details, ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
 }

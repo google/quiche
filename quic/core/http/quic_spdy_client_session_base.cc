@@ -118,7 +118,7 @@ bool QuicSpdyClientSessionBase::HandlePromised(QuicStreamId /* associated_id */,
     return false;
   }
 
-  const QuicString url = SpdyUtils::GetPromisedUrlFromHeaders(headers);
+  const std::string url = SpdyUtils::GetPromisedUrlFromHeaders(headers);
   QuicClientPromisedInfo* old_promised = GetPromisedByUrl(url);
   if (old_promised) {
     QUIC_DVLOG(1) << "Promise for stream " << promised_id
@@ -150,7 +150,7 @@ bool QuicSpdyClientSessionBase::HandlePromised(QuicStreamId /* associated_id */,
 }
 
 QuicClientPromisedInfo* QuicSpdyClientSessionBase::GetPromisedByUrl(
-    const QuicString& url) {
+    const std::string& url) {
   auto it = push_promise_index_->promised_by_url()->find(url);
   if (it != push_promise_index_->promised_by_url()->end()) {
     return it->second;

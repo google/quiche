@@ -132,7 +132,7 @@ void QuicSpdyClientBase::SendRequestAndWaitForResponse(
 }
 
 void QuicSpdyClientBase::SendRequestsAndWaitForResponse(
-    const std::vector<QuicString>& url_list) {
+    const std::vector<std::string>& url_list) {
   for (size_t i = 0; i < url_list.size(); ++i) {
     SpdyHeaderBlock headers;
     if (!SpdyUtils::PopulateHeaderBlockFromUrl(url_list[i], &headers)) {
@@ -240,12 +240,12 @@ size_t QuicSpdyClientBase::latest_response_code() const {
   return latest_response_code_;
 }
 
-const QuicString& QuicSpdyClientBase::latest_response_headers() const {
+const std::string& QuicSpdyClientBase::latest_response_headers() const {
   QUIC_BUG_IF(!store_response_) << "Response not stored!";
   return latest_response_headers_;
 }
 
-const QuicString& QuicSpdyClientBase::preliminary_response_headers() const {
+const std::string& QuicSpdyClientBase::preliminary_response_headers() const {
   QUIC_BUG_IF(!store_response_) << "Response not stored!";
   return preliminary_response_headers_;
 }
@@ -256,12 +256,12 @@ const SpdyHeaderBlock& QuicSpdyClientBase::latest_response_header_block()
   return latest_response_header_block_;
 }
 
-const QuicString& QuicSpdyClientBase::latest_response_body() const {
+const std::string& QuicSpdyClientBase::latest_response_body() const {
   QUIC_BUG_IF(!store_response_) << "Response not stored!";
   return latest_response_body_;
 }
 
-const QuicString& QuicSpdyClientBase::latest_response_trailers() const {
+const std::string& QuicSpdyClientBase::latest_response_trailers() const {
   QUIC_BUG_IF(!store_response_) << "Response not stored!";
   return latest_response_trailers_;
 }

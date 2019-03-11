@@ -124,7 +124,7 @@ class QUIC_EXPORT_PRIVATE SendAlgorithmInterface {
 
   // Retrieves debugging information about the current state of the
   // send algorithm.
-  virtual QuicString GetDebugState() const = 0;
+  virtual std::string GetDebugState() const = 0;
 
   // Called when the connection has no outstanding data to send. Specifically,
   // this means that none of the data streams are write-blocked, there are no

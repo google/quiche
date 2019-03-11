@@ -1010,7 +1010,7 @@ const QuicTime::Delta QuicSentPacketManager::GetRetransmissionDelay(
   return retransmission_delay;
 }
 
-QuicString QuicSentPacketManager::GetDebugState() const {
+std::string QuicSentPacketManager::GetDebugState() const {
   return send_algorithm_->GetDebugState();
 }
 

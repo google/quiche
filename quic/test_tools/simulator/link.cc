@@ -14,7 +14,7 @@ namespace simulator {
 const uint64_t kMaxRandomDelayUs = 10;
 
 OneWayLink::OneWayLink(Simulator* simulator,
-                       QuicString name,
+                       std::string name,
                        UnconstrainedPortInterface* sink,
                        QuicBandwidth bandwidth,
                        QuicTime::Delta propagation_delay)
@@ -85,7 +85,7 @@ QuicTime::Delta OneWayLink::GetRandomDelay(QuicTime::Delta transfer_time) {
 }
 
 SymmetricLink::SymmetricLink(Simulator* simulator,
-                             QuicString name,
+                             std::string name,
                              UnconstrainedPortInterface* sink_a,
                              UnconstrainedPortInterface* sink_b,
                              QuicBandwidth bandwidth,

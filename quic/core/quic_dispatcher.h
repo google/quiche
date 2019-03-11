@@ -79,7 +79,7 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
   // Ensure that the closed connection is cleaned up asynchronously.
   void OnConnectionClosed(QuicConnectionId connection_id,
                           QuicErrorCode error,
-                          const QuicString& error_details,
+                          const std::string& error_details,
                           ConnectionCloseSource source) override;
 
   // QuicSession::Visitor interface implementation (via inheritance of
@@ -338,7 +338,7 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
       PacketHeaderFormat format,
       ParsedQuicVersion version,
       QuicErrorCode error_code,
-      const QuicString& error_details,
+      const std::string& error_details,
       QuicTimeWaitListManager::TimeWaitAction action);
 
   // Save/Restore per packet context. Used by async stateless rejector.
@@ -453,7 +453,7 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
   QuicSocketAddress current_self_address_;
   const QuicReceivedPacket* current_packet_;
   // If |current_packet_| is a CHLO packet, the extracted alpn.
-  QuicString current_alpn_;
+  std::string current_alpn_;
   QuicConnectionId current_connection_id_;
 
   // Used to get the supported versions based on flag. Does not own.

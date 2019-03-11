@@ -23,7 +23,7 @@ void QpackDecoderStreamSender::SendInsertCountIncrement(uint64_t increment) {
 
   instruction_encoder_.Encode(InsertCountIncrementInstruction());
 
-  QuicString output;
+  std::string output;
 
   instruction_encoder_.Next(std::numeric_limits<size_t>::max(), &output);
   DCHECK(!instruction_encoder_.HasNext());
@@ -37,7 +37,7 @@ void QpackDecoderStreamSender::SendHeaderAcknowledgement(
 
   instruction_encoder_.Encode(HeaderAcknowledgementInstruction());
 
-  QuicString output;
+  std::string output;
 
   instruction_encoder_.Next(std::numeric_limits<size_t>::max(), &output);
   DCHECK(!instruction_encoder_.HasNext());
@@ -50,7 +50,7 @@ void QpackDecoderStreamSender::SendStreamCancellation(QuicStreamId stream_id) {
 
   instruction_encoder_.Encode(StreamCancellationInstruction());
 
-  QuicString output;
+  std::string output;
 
   instruction_encoder_.Next(std::numeric_limits<size_t>::max(), &output);
   DCHECK(!instruction_encoder_.HasNext());

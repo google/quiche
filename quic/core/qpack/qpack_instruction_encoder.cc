@@ -34,7 +34,7 @@ bool QpackInstructionEncoder::HasNext() const {
 }
 
 void QpackInstructionEncoder::Next(size_t max_encoded_bytes,
-                                   QuicString* output) {
+                                   std::string* output) {
   DCHECK(HasNext());
   DCHECK_NE(0u, max_encoded_bytes);
 
@@ -108,7 +108,7 @@ void QpackInstructionEncoder::DoStaticBit() {
 }
 
 size_t QpackInstructionEncoder::DoVarintStart(size_t max_encoded_bytes,
-                                              QuicString* output) {
+                                              std::string* output) {
   DCHECK(field_->type == QpackInstructionFieldType::kVarint ||
          field_->type == QpackInstructionFieldType::kVarint2 ||
          field_->type == QpackInstructionFieldType::kName ||
@@ -149,7 +149,7 @@ size_t QpackInstructionEncoder::DoVarintStart(size_t max_encoded_bytes,
 }
 
 size_t QpackInstructionEncoder::DoVarintResume(size_t max_encoded_bytes,
-                                               QuicString* output) {
+                                               std::string* output) {
   DCHECK(field_->type == QpackInstructionFieldType::kVarint ||
          field_->type == QpackInstructionFieldType::kVarint2 ||
          field_->type == QpackInstructionFieldType::kName ||
@@ -195,7 +195,7 @@ void QpackInstructionEncoder::DoStartString() {
 }
 
 size_t QpackInstructionEncoder::DoWriteString(size_t max_encoded_bytes,
-                                              QuicString* output) {
+                                              std::string* output) {
   DCHECK(field_->type == QpackInstructionFieldType::kName ||
          field_->type == QpackInstructionFieldType::kValue);
 

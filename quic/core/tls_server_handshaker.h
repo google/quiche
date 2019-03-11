@@ -37,7 +37,7 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
 
   // From QuicCryptoServerStream::HandshakerDelegate
   void CancelOutstandingCallbacks() override;
-  bool GetBase64SHA256ClientChannelID(QuicString* output) const override;
+  bool GetBase64SHA256ClientChannelID(std::string* output) const override;
   void SendServerConfigUpdate(
       const CachedNetworkParameters* cached_network_params) override;
   uint8_t NumHandshakeMessages() const override;
@@ -64,7 +64,7 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
   class SignatureCallback : public ProofSource::SignatureCallback {
    public:
     explicit SignatureCallback(TlsServerHandshaker* handshaker);
-    void Run(bool ok, QuicString signature) override;
+    void Run(bool ok, std::string signature) override;
 
     // If called, Cancel causes the pending callback to be a no-op.
     void Cancel();
@@ -90,15 +90,15 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
   // for the TLS stack to read.
   void AdvanceHandshake() override;
   void CloseConnection(QuicErrorCode error,
-                       const QuicString& reason_phrase) override;
+                       const std::string& reason_phrase) override;
 
   // Called when the TLS handshake is complete.
   void FinishHandshake();
 
-  void CloseConnection(const QuicString& reason_phrase);
+  void CloseConnection(const std::string& reason_phrase);
 
   bool SetTransportParameters();
-  bool ProcessTransportParameters(QuicString* error_details);
+  bool ProcessTransportParameters(std::string* error_details);
 
   // Calls the instance method PrivateKeySign after looking up the
   // TlsServerHandshaker from |ssl|.
@@ -154,8 +154,8 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
   ProofSource* proof_source_;
   SignatureCallback* signature_callback_ = nullptr;
 
-  QuicString hostname_;
-  QuicString cert_verify_sig_;
+  std::string hostname_;
+  std::string cert_verify_sig_;
 
   bool encryption_established_ = false;
   bool handshake_confirmed_ = false;

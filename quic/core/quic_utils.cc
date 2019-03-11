@@ -165,7 +165,7 @@ const char* QuicUtils::TransmissionTypeToString(TransmissionType type) {
   return "INVALID_TRANSMISSION_TYPE";
 }
 
-QuicString QuicUtils::AddressChangeTypeToString(AddressChangeType type) {
+std::string QuicUtils::AddressChangeTypeToString(AddressChangeType type) {
   switch (type) {
     RETURN_STRING_LITERAL(NO_CHANGE);
     RETURN_STRING_LITERAL(PORT_CHANGE);

@@ -390,7 +390,7 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   SerializedPacket packet_;
 
   // Retry token to send over the wire in v99 IETF Initial packets.
-  QuicString retry_token_;
+  std::string retry_token_;
 
   // Pending padding bytes to send. Pending padding bytes will be sent in next
   // packet(s) (after all other frames) if current constructed packet does not

@@ -64,7 +64,7 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
     encryption_established_ = true;
     handshake_confirmed_ = true;
     CryptoHandshakeMessage msg;
-    QuicString error_details;
+    std::string error_details;
     session()->config()->SetInitialStreamFlowControlWindowToSend(
         kInitialStreamFlowControlWindowForTest);
     session()->config()->SetInitialSessionFlowControlWindowToSend(
@@ -569,7 +569,7 @@ TEST_P(QuicSpdySessionTestServer,
   EXPECT_CALL(*connection_, SendControlFrame(_));
   EXPECT_CALL(*connection_, OnStreamReset(closed_stream_id, _));
   stream2->Reset(QUIC_BAD_APPLICATION_PAYLOAD);
-  QuicString msg =
+  std::string msg =
       QuicStrCat("Marking unknown stream ", closed_stream_id, " blocked.");
   EXPECT_QUIC_BUG(session_.MarkConnectionLevelWriteBlocked(closed_stream_id),
                   msg);
@@ -1086,7 +1086,7 @@ TEST_P(QuicSpdySessionTestServer, HandshakeUnblocksFlowControlBlockedStream) {
 
   // Create a stream, and send enough data to make it flow control blocked.
   TestStream* stream2 = session_.CreateOutgoingBidirectionalStream();
-  QuicString body(kMinimumFlowControlSendWindow, '.');
+  std::string body(kMinimumFlowControlSendWindow, '.');
   EXPECT_FALSE(stream2->flow_controller()->IsBlocked());
   EXPECT_FALSE(session_.IsConnectionFlowControlBlocked());
   EXPECT_FALSE(session_.IsStreamFlowControlBlocked());
@@ -1321,7 +1321,7 @@ TEST_P(QuicSpdySessionTestServer, ConnectionFlowControlAccountingFinAfterRst) {
   // adjusting the connection level flow control receive window to take into
   // account the total number of bytes sent by the peer.
   const QuicStreamOffset kByteOffset = 5678;
-  QuicString body = "hello";
+  std::string body = "hello";
   QuicStreamFrame frame(stream->id(), true, kByteOffset, QuicStringPiece(body));
   session_.OnStreamFrame(frame);
 

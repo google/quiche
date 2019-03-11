@@ -57,7 +57,7 @@ class QuicSpdyClientStream : public QuicSpdyStream {
                      bool fin);
 
   // Returns the response data.
-  const QuicString& data() { return data_; }
+  const std::string& data() { return data_; }
 
   // Returns whatever headers have been received for this stream.
   const spdy::SpdyHeaderBlock& response_headers() { return response_headers_; }
@@ -83,7 +83,7 @@ class QuicSpdyClientStream : public QuicSpdyStream {
   // The parsed content-length, or -1 if none is specified.
   int64_t content_length_;
   int response_code_;
-  QuicString data_;
+  std::string data_;
   size_t header_bytes_read_;
   size_t header_bytes_written_;
 

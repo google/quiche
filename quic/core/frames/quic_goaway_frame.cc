@@ -16,7 +16,7 @@ QuicGoAwayFrame::QuicGoAwayFrame()
 QuicGoAwayFrame::QuicGoAwayFrame(QuicControlFrameId control_frame_id,
                                  QuicErrorCode error_code,
                                  QuicStreamId last_good_stream_id,
-                                 const QuicString& reason)
+                                 const std::string& reason)
     : control_frame_id(control_frame_id),
       error_code(error_code),
       last_good_stream_id(last_good_stream_id),

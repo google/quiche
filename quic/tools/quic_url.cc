@@ -11,7 +11,7 @@ namespace quic {
 
 static constexpr size_t kMaxHostNameLength = 256;
 
-QuicUrl::QuicUrl(QuicStringPiece url) : url_(static_cast<QuicString>(url)) {}
+QuicUrl::QuicUrl(QuicStringPiece url) : url_(static_cast<std::string>(url)) {}
 
 QuicUrl::QuicUrl(QuicStringPiece url, QuicStringPiece default_scheme)
     : QuicUrl(url) {
@@ -22,7 +22,7 @@ QuicUrl::QuicUrl(QuicStringPiece url, QuicStringPiece default_scheme)
   url_ = GURL(QuicStrCat(default_scheme, "://", url));
 }
 
-QuicString QuicUrl::ToString() const {
+std::string QuicUrl::ToString() const {
   if (IsValid()) {
     return url_.spec();
   }
@@ -41,12 +41,12 @@ bool QuicUrl::IsValid() const {
   return true;
 }
 
-QuicString QuicUrl::HostPort() const {
+std::string QuicUrl::HostPort() const {
   if (!IsValid() || !url_.has_host()) {
     return "";
   }
 
-  QuicString host = url_.host();
+  std::string host = url_.host();
   int port = url_.IntPort();
   if (port == url::PORT_UNSPECIFIED) {
     return host;
@@ -54,7 +54,7 @@ QuicString QuicUrl::HostPort() const {
   return QuicStrCat(host, ":", port);
 }
 
-QuicString QuicUrl::PathParamsQuery() const {
+std::string QuicUrl::PathParamsQuery() const {
   if (!IsValid() || !url_.has_path()) {
     return "/";
   }
@@ -62,7 +62,7 @@ QuicString QuicUrl::PathParamsQuery() const {
   return url_.PathForRequest();
 }
 
-QuicString QuicUrl::scheme() const {
+std::string QuicUrl::scheme() const {
   if (!IsValid()) {
     return "";
   }
@@ -70,7 +70,7 @@ QuicString QuicUrl::scheme() const {
   return url_.scheme();
 }
 
-QuicString QuicUrl::host() const {
+std::string QuicUrl::host() const {
   if (!IsValid()) {
     return "";
   }
@@ -78,7 +78,7 @@ QuicString QuicUrl::host() const {
   return url_.HostNoBrackets();
 }
 
-QuicString QuicUrl::path() const {
+std::string QuicUrl::path() const {
   if (!IsValid()) {
     return "";
   }

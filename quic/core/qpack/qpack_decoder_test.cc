@@ -62,8 +62,10 @@ class QpackDecoderTest : public QuicTestWithParam<FragmentMode> {
   const FragmentMode fragment_mode_;
 };
 
-INSTANTIATE_TEST_SUITE_P(, QpackDecoderTest, Values(FragmentMode::kSingleChunk,
-                                                  FragmentMode::kOctetByOctet));
+INSTANTIATE_TEST_SUITE_P(,
+                         QpackDecoderTest,
+                         Values(FragmentMode::kSingleChunk,
+                                FragmentMode::kOctetByOctet));
 
 TEST_P(QpackDecoderTest, NoPrefix) {
   EXPECT_CALL(handler_,
@@ -119,7 +121,7 @@ TEST_P(QpackDecoderTest, SimpleLiteralEntry) {
 
 TEST_P(QpackDecoderTest, MultipleLiteralEntries) {
   EXPECT_CALL(handler_, OnHeaderDecoded(Eq("foo"), Eq("bar")));
-  QuicString str(127, 'a');
+  std::string str(127, 'a');
   EXPECT_CALL(handler_, OnHeaderDecoded(Eq("foobaar"), QuicStringPiece(str)));
   EXPECT_CALL(handler_, OnDecodingCompleted());
   EXPECT_CALL(decoder_stream_sender_delegate_,
@@ -558,11 +560,11 @@ TEST_P(QpackDecoderTest, WrappedRequiredInsertCount) {
   DecodeEncoderStreamData(
       QuicTextUtils::HexDecode("6294e7"     // Name "foo".
                                "7fd903"));  // Value length 600.
-  QuicString header_value(600, 'Z');
+  std::string header_value(600, 'Z');
   DecodeEncoderStreamData(header_value);
 
   // Duplicate most recent entry 200 times.
-  DecodeEncoderStreamData(QuicString(200, '\x00'));
+  DecodeEncoderStreamData(std::string(200, '\x00'));
 
   // Now there is only one entry in the dynamic table, with absolute index 200.
 

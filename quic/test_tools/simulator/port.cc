@@ -14,7 +14,7 @@ Packet::~Packet() {}
 
 Packet::Packet(const Packet& packet) = default;
 
-Endpoint::Endpoint(Simulator* simulator, QuicString name)
+Endpoint::Endpoint(Simulator* simulator, std::string name)
     : Actor(simulator, name) {}
 
 }  // namespace simulator

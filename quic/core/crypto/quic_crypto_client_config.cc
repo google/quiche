@@ -138,7 +138,7 @@ bool QuicCryptoClientConfig::CachedState::has_server_designated_connection_id()
 }
 
 void QuicCryptoClientConfig::CachedState::add_server_nonce(
-    const QuicString& server_nonce) {
+    const std::string& server_nonce) {
   server_nonces_.push(server_nonce);
 }
 
@@ -151,7 +151,7 @@ QuicCryptoClientConfig::CachedState::SetServerConfig(
     QuicStringPiece server_config,
     QuicWallTime now,
     QuicWallTime expiry_time,
-    QuicString* error_details) {
+    std::string* error_details) {
   const bool matches_existing = server_config == server_config_;
 
   // Even if the new server config matches the existing one, we still wish to
@@ -188,7 +188,7 @@ QuicCryptoClientConfig::CachedState::SetServerConfig(
   }
 
   if (!matches_existing) {
-    server_config_ = QuicString(server_config);
+    server_config_ = std::string(server_config);
     SetProofInvalid();
     scfg_ = std::move(new_scfg_storage);
   }
@@ -205,7 +205,7 @@ void QuicCryptoClientConfig::CachedState::InvalidateServerConfig() {
 }
 
 void QuicCryptoClientConfig::CachedState::SetProof(
-    const std::vector<QuicString>& certs,
+    const std::vector<std::string>& certs,
     QuicStringPiece cert_sct,
     QuicStringPiece chlo_hash,
     QuicStringPiece signature) {
@@ -228,9 +228,9 @@ void QuicCryptoClientConfig::CachedState::SetProof(
   // If the proof has changed then it needs to be revalidated.
   SetProofInvalid();
   certs_ = certs;
-  cert_sct_ = QuicString(cert_sct);
-  chlo_hash_ = QuicString(chlo_hash);
-  server_config_sig_ = QuicString(signature);
+  cert_sct_ = std::string(cert_sct);
+  chlo_hash_ = std::string(chlo_hash);
+  server_config_sig_ = std::string(signature);
 }
 
 void QuicCryptoClientConfig::CachedState::Clear() {
@@ -269,8 +269,8 @@ void QuicCryptoClientConfig::CachedState::SetProofInvalid() {
 bool QuicCryptoClientConfig::CachedState::Initialize(
     QuicStringPiece server_config,
     QuicStringPiece source_address_token,
-    const std::vector<QuicString>& certs,
-    const QuicString& cert_sct,
+    const std::vector<std::string>& certs,
+    const std::string& cert_sct,
     QuicStringPiece chlo_hash,
     QuicStringPiece signature,
     QuicWallTime now,
@@ -282,7 +282,7 @@ bool QuicCryptoClientConfig::CachedState::Initialize(
     return false;
   }
 
-  QuicString error_details;
+  std::string error_details;
   ServerConfigState state =
       SetServerConfig(server_config, now, expiration_time, &error_details);
   RecordDiskCacheServerConfigState(state);
@@ -300,29 +300,29 @@ bool QuicCryptoClientConfig::CachedState::Initialize(
   return true;
 }
 
-const QuicString& QuicCryptoClientConfig::CachedState::server_config() const {
+const std::string& QuicCryptoClientConfig::CachedState::server_config() const {
   return server_config_;
 }
 
-const QuicString& QuicCryptoClientConfig::CachedState::source_address_token()
+const std::string& QuicCryptoClientConfig::CachedState::source_address_token()
     const {
   return source_address_token_;
 }
 
-const std::vector<QuicString>& QuicCryptoClientConfig::CachedState::certs()
+const std::vector<std::string>& QuicCryptoClientConfig::CachedState::certs()
     const {
   return certs_;
 }
 
-const QuicString& QuicCryptoClientConfig::CachedState::cert_sct() const {
+const std::string& QuicCryptoClientConfig::CachedState::cert_sct() const {
   return cert_sct_;
 }
 
-const QuicString& QuicCryptoClientConfig::CachedState::chlo_hash() const {
+const std::string& QuicCryptoClientConfig::CachedState::chlo_hash() const {
   return chlo_hash_;
 }
 
-const QuicString& QuicCryptoClientConfig::CachedState::signature() const {
+const std::string& QuicCryptoClientConfig::CachedState::signature() const {
   return server_config_sig_;
 }
 
@@ -341,12 +341,12 @@ QuicCryptoClientConfig::CachedState::proof_verify_details() const {
 
 void QuicCryptoClientConfig::CachedState::set_source_address_token(
     QuicStringPiece token) {
-  source_address_token_ = QuicString(token);
+  source_address_token_ = std::string(token);
 }
 
 void QuicCryptoClientConfig::CachedState::set_cert_sct(
     QuicStringPiece cert_sct) {
-  cert_sct_ = QuicString(cert_sct);
+  cert_sct_ = std::string(cert_sct);
 }
 
 void QuicCryptoClientConfig::CachedState::SetProofVerifyDetails(
@@ -385,13 +385,13 @@ QuicCryptoClientConfig::CachedState::GetNextServerDesignatedConnectionId() {
   return next_id;
 }
 
-QuicString QuicCryptoClientConfig::CachedState::GetNextServerNonce() {
+std::string QuicCryptoClientConfig::CachedState::GetNextServerNonce() {
   if (server_nonces_.empty()) {
     QUIC_BUG
         << "Attempting to consume a server nonce that was never designated.";
     return "";
   }
-  const QuicString server_nonce = server_nonces_.front();
+  const std::string server_nonce = server_nonces_.front();
   server_nonces_.pop();
   return server_nonce;
 }
@@ -494,7 +494,7 @@ void QuicCryptoClientConfig::FillInchoateClientHello(
 
   out->SetStringPiece(kCertificateSCTTag, "");
 
-  const std::vector<QuicString>& certs = cached->certs();
+  const std::vector<std::string>& certs = cached->certs();
   // We save |certs| in the QuicCryptoNegotiatedParameters so that, if the
   // client config is being used for multiple connections, another connection
   // doesn't update the cached certificates and cause us to be unable to
@@ -520,7 +520,7 @@ QuicErrorCode QuicCryptoClientConfig::FillClientHello(
     const ChannelIDKey* channel_id_key,
     QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> out_params,
     CryptoHandshakeMessage* out,
-    QuicString* error_details) const {
+    std::string* error_details) const {
   DCHECK(error_details != nullptr);
   QUIC_BUG_IF(!QuicUtils::IsConnectionIdValidForVersion(
       connection_id, preferred_version.transport_version))
@@ -636,7 +636,7 @@ QuicErrorCode QuicCryptoClientConfig::FillClientHello(
   }
   out->SetStringPiece(kPUBS, out_params->client_key_exchange->public_value());
 
-  const std::vector<QuicString>& certs = cached->certs();
+  const std::vector<std::string>& certs = cached->certs();
   if (certs.empty()) {
     *error_details = "No certs to calculate XLCT";
     return QUIC_CRYPTO_INTERNAL_ERROR;
@@ -653,17 +653,17 @@ QuicErrorCode QuicCryptoClientConfig::FillClientHello(
     CryptoHandshakeMessage cetv;
     cetv.set_tag(kCETV);
 
-    QuicString hkdf_input;
+    std::string hkdf_input;
     const QuicData& client_hello_serialized = out->GetSerialized();
     hkdf_input.append(QuicCryptoConfig::kCETVLabel,
                       strlen(QuicCryptoConfig::kCETVLabel) + 1);
-      hkdf_input.append(connection_id.data(), connection_id.length());
+    hkdf_input.append(connection_id.data(), connection_id.length());
     hkdf_input.append(client_hello_serialized.data(),
                       client_hello_serialized.length());
     hkdf_input.append(cached->server_config());
 
-    QuicString key = channel_id_key->SerializeKey();
-    QuicString signature;
+    std::string key = channel_id_key->SerializeKey();
+    std::string signature;
     if (!channel_id_key->Sign(hkdf_input, &signature)) {
       *error_details = "Channel ID signature failed";
       return QUIC_INVALID_CHANNEL_ID_SIGNATURE;
@@ -707,8 +707,8 @@ QuicErrorCode QuicCryptoClientConfig::FillClientHello(
   //   out_params->hkdf_input_suffix
   //   out_params->initial_crypters
   out_params->hkdf_input_suffix.clear();
-    out_params->hkdf_input_suffix.append(connection_id.data(),
-                                         connection_id.length());
+  out_params->hkdf_input_suffix.append(connection_id.data(),
+                                       connection_id.length());
   const QuicData& client_hello_serialized = out->GetSerialized();
   out_params->hkdf_input_suffix.append(client_hello_serialized.data(),
                                        client_hello_serialized.length());
@@ -719,13 +719,13 @@ QuicErrorCode QuicCryptoClientConfig::FillClientHello(
   }
   out_params->hkdf_input_suffix.append(certs[0]);
 
-  QuicString hkdf_input;
+  std::string hkdf_input;
   const size_t label_len = strlen(QuicCryptoConfig::kInitialLabel) + 1;
   hkdf_input.reserve(label_len + out_params->hkdf_input_suffix.size());
   hkdf_input.append(QuicCryptoConfig::kInitialLabel, label_len);
   hkdf_input.append(out_params->hkdf_input_suffix);
 
-  QuicString* subkey_secret = &out_params->initial_subkey_secret;
+  std::string* subkey_secret = &out_params->initial_subkey_secret;
 
   if (!CryptoUtils::DeriveKeys(out_params->initial_premaster_secret,
                                out_params->aead, out_params->client_nonce,
@@ -745,9 +745,9 @@ QuicErrorCode QuicCryptoClientConfig::CacheNewServerConfig(
     QuicWallTime now,
     QuicTransportVersion version,
     QuicStringPiece chlo_hash,
-    const std::vector<QuicString>& cached_certs,
+    const std::vector<std::string>& cached_certs,
     CachedState* cached,
-    QuicString* error_details) {
+    std::string* error_details) {
   DCHECK(error_details != nullptr);
 
   QuicStringPiece scfg;
@@ -784,7 +784,7 @@ QuicErrorCode QuicCryptoClientConfig::CacheNewServerConfig(
   bool has_proof = message.GetStringPiece(kPROF, &proof);
   bool has_cert = message.GetStringPiece(kCertificateTag, &cert_bytes);
   if (has_proof && has_cert) {
-    std::vector<QuicString> certs;
+    std::vector<std::string> certs;
     if (!CertCompressor::DecompressChain(cert_bytes, cached_certs,
                                          common_cert_sets, &certs)) {
       *error_details = "Certificate data invalid";
@@ -819,7 +819,7 @@ QuicErrorCode QuicCryptoClientConfig::ProcessRejection(
     QuicStringPiece chlo_hash,
     CachedState* cached,
     QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> out_params,
-    QuicString* error_details) {
+    std::string* error_details) {
   DCHECK(error_details != nullptr);
 
   if ((rej.tag() != kREJ) && (rej.tag() != kSREJ)) {
@@ -836,29 +836,29 @@ QuicErrorCode QuicCryptoClientConfig::ProcessRejection(
 
   QuicStringPiece nonce;
   if (rej.GetStringPiece(kServerNonceTag, &nonce)) {
-    out_params->server_nonce = QuicString(nonce);
+    out_params->server_nonce = std::string(nonce);
   }
 
   if (rej.tag() == kSREJ) {
     QuicConnectionId connection_id;
 
-      QuicStringPiece connection_id_bytes;
-      if (!rej.GetStringPiece(kRCID, &connection_id_bytes)) {
-        *error_details = "Missing kRCID";
-        return QUIC_CRYPTO_MESSAGE_PARAMETER_NOT_FOUND;
-      }
-      connection_id = QuicConnectionId(connection_id_bytes.data(),
-                                       connection_id_bytes.length());
-      if (!QuicUtils::IsConnectionIdValidForVersion(connection_id, version)) {
-        QUIC_PEER_BUG << "Received server-designated connection ID "
-                      << connection_id << " which is invalid with version "
-                      << QuicVersionToString(version);
-        *error_details = "Bad kRCID length";
-        return QUIC_CRYPTO_INTERNAL_ERROR;
-      }
+    QuicStringPiece connection_id_bytes;
+    if (!rej.GetStringPiece(kRCID, &connection_id_bytes)) {
+      *error_details = "Missing kRCID";
+      return QUIC_CRYPTO_MESSAGE_PARAMETER_NOT_FOUND;
+    }
+    connection_id = QuicConnectionId(connection_id_bytes.data(),
+                                     connection_id_bytes.length());
+    if (!QuicUtils::IsConnectionIdValidForVersion(connection_id, version)) {
+      QUIC_PEER_BUG << "Received server-designated connection ID "
+                    << connection_id << " which is invalid with version "
+                    << QuicVersionToString(version);
+      *error_details = "Bad kRCID length";
+      return QUIC_CRYPTO_INTERNAL_ERROR;
+    }
     cached->add_server_designated_connection_id(connection_id);
     if (!nonce.empty()) {
-      cached->add_server_nonce(QuicString(nonce));
+      cached->add_server_nonce(std::string(nonce));
     }
     return QUIC_NO_ERROR;
   }
@@ -873,7 +873,7 @@ QuicErrorCode QuicCryptoClientConfig::ProcessServerHello(
     const ParsedQuicVersionVector& negotiated_versions,
     CachedState* cached,
     QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> out_params,
-    QuicString* error_details) {
+    std::string* error_details) {
   DCHECK(error_details != nullptr);
 
   QuicErrorCode valid = CryptoUtils::ValidateServerHello(
@@ -909,7 +909,7 @@ QuicErrorCode QuicCryptoClientConfig::ProcessServerHello(
     return QUIC_INVALID_CRYPTO_MESSAGE_PARAMETER;
   }
 
-  QuicString hkdf_input;
+  std::string hkdf_input;
   const size_t label_len = strlen(QuicCryptoConfig::kForwardSecureLabel) + 1;
   hkdf_input.reserve(label_len + out_params->hkdf_input_suffix.size());
   hkdf_input.append(QuicCryptoConfig::kForwardSecureLabel, label_len);
@@ -936,7 +936,7 @@ QuicErrorCode QuicCryptoClientConfig::ProcessServerConfigUpdate(
     QuicStringPiece chlo_hash,
     CachedState* cached,
     QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> out_params,
-    QuicString* error_details) {
+    std::string* error_details) {
   DCHECK(error_details != nullptr);
 
   if (server_config_update.tag() != kSCUP) {
@@ -976,7 +976,7 @@ void QuicCryptoClientConfig::InitializeFrom(
   cached->InitializeFrom(*canonical_cached);
 }
 
-void QuicCryptoClientConfig::AddCanonicalSuffix(const QuicString& suffix) {
+void QuicCryptoClientConfig::AddCanonicalSuffix(const std::string& suffix) {
   canonical_suffixes_.push_back(suffix);
 }
 

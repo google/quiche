@@ -92,8 +92,8 @@ class TestEncrypter : public QuicEncrypter {
                      size_t* output_length,
                      size_t max_output_length) override {
     packet_number_ = QuicPacketNumber(packet_number);
-    associated_data_ = QuicString(associated_data);
-    plaintext_ = QuicString(plaintext);
+    associated_data_ = std::string(associated_data);
+    plaintext_ = std::string(plaintext);
     memcpy(output, plaintext.data(), plaintext.length());
     *output_length = plaintext.length();
     return true;
@@ -111,8 +111,8 @@ class TestEncrypter : public QuicEncrypter {
   QuicStringPiece GetNoncePrefix() const override { return QuicStringPiece(); }
 
   QuicPacketNumber packet_number_;
-  QuicString associated_data_;
-  QuicString plaintext_;
+  std::string associated_data_;
+  std::string plaintext_;
 };
 
 class TestDecrypter : public QuicDecrypter {
@@ -135,8 +135,8 @@ class TestDecrypter : public QuicDecrypter {
                      size_t* output_length,
                      size_t max_output_length) override {
     packet_number_ = QuicPacketNumber(packet_number);
-    associated_data_ = QuicString(associated_data);
-    ciphertext_ = QuicString(ciphertext);
+    associated_data_ = std::string(associated_data);
+    ciphertext_ = std::string(ciphertext);
     memcpy(output, ciphertext.data(), ciphertext.length());
     *output_length = ciphertext.length();
     return true;
@@ -148,8 +148,8 @@ class TestDecrypter : public QuicDecrypter {
   // Use a distinct value starting with 0xFFFFFF, which is never used by TLS.
   uint32_t cipher_id() const override { return 0xFFFFFFF2; }
   QuicPacketNumber packet_number_;
-  QuicString associated_data_;
-  QuicString ciphertext_;
+  std::string associated_data_;
+  std::string ciphertext_;
 };
 
 class TestQuicVisitor : public QuicFramerVisitorInterface {
@@ -220,8 +220,8 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
   bool OnStreamFrame(const QuicStreamFrame& frame) override {
     ++frame_count_;
     // Save a copy of the data so it is valid after the packet is processed.
-    QuicString* string_data =
-        new QuicString(frame.data_buffer, frame.data_length);
+    std::string* string_data =
+        new std::string(frame.data_buffer, frame.data_length);
     stream_data_.push_back(QuicWrapUnique(string_data));
     stream_frames_.push_back(QuicMakeUnique<QuicStreamFrame>(
         frame.stream_id, frame.fin, frame.offset, *string_data));
@@ -231,8 +231,8 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
   bool OnCryptoFrame(const QuicCryptoFrame& frame) override {
     ++frame_count_;
     // Save a copy of the data so it is valid after the packet is processed.
-    QuicString* string_data =
-        new QuicString(frame.data_buffer, frame.data_length);
+    std::string* string_data =
+        new std::string(frame.data_buffer, frame.data_length);
     crypto_data_.push_back(QuicWrapUnique(string_data));
     crypto_frames_.push_back(QuicMakeUnique<QuicCryptoFrame>(
         ENCRYPTION_NONE, frame.offset, *string_data));
@@ -407,14 +407,14 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
   QuicNewConnectionIdFrame new_connection_id_;
   QuicRetireConnectionIdFrame retire_connection_id_;
   QuicNewTokenFrame new_token_;
-  std::vector<std::unique_ptr<QuicString>> stream_data_;
-  std::vector<std::unique_ptr<QuicString>> crypto_data_;
+  std::vector<std::unique_ptr<std::string>> stream_data_;
+  std::vector<std::unique_ptr<std::string>> crypto_data_;
 };
 
 // Simple struct for defining a packet's content, and associated
 // parse error.
 struct PacketFragment {
-  QuicString error_if_missing;
+  std::string error_if_missing;
   std::vector<unsigned char> fragment;
 };
 
@@ -569,7 +569,7 @@ class QuicFramerTest : public QuicTestWithParam<ParsedQuicVersion> {
     // Check all the various prefixes of |packet| for the expected
     // parse error and error code.
     for (size_t i = 0; i < packet->length(); ++i) {
-      QuicString expected_error;
+      std::string expected_error;
       size_t len = 0;
       for (const auto& fragment : fragments) {
         len += fragment.fragment.size();
@@ -588,7 +588,7 @@ class QuicFramerTest : public QuicTestWithParam<ParsedQuicVersion> {
 
   void CheckProcessingFails(const QuicEncryptedPacket& packet,
                             size_t len,
-                            QuicString expected_error,
+                            std::string expected_error,
                             QuicErrorCode error_code) {
     QuicEncryptedPacket encrypted(packet.data(), len, false);
     EXPECT_FALSE(framer_.ProcessPacket(encrypted)) << "len: " << len;
@@ -598,7 +598,7 @@ class QuicFramerTest : public QuicTestWithParam<ParsedQuicVersion> {
 
   void CheckProcessingFails(unsigned char* packet,
                             size_t len,
-                            QuicString expected_error,
+                            std::string expected_error,
                             QuicErrorCode error_code) {
     QuicEncryptedPacket encrypted(AsChars(packet), len, false);
     EXPECT_FALSE(framer_.ProcessPacket(encrypted)) << "len: " << len;
@@ -607,8 +607,8 @@ class QuicFramerTest : public QuicTestWithParam<ParsedQuicVersion> {
   }
 
   // Checks if the supplied string matches data in the supplied StreamFrame.
-  void CheckStreamFrameData(QuicString str, QuicStreamFrame* frame) {
-    EXPECT_EQ(str, QuicString(frame->data_buffer, frame->data_length));
+  void CheckStreamFrameData(std::string str, QuicStreamFrame* frame) {
+    EXPECT_EQ(str, std::string(frame->data_buffer, frame->data_length));
   }
 
   void CheckCalculatePacketNumber(uint64_t expected_packet_number,
@@ -6210,7 +6210,8 @@ TEST_P(QuicFramerTest, CryptoFrame) {
   ASSERT_EQ(1u, visitor_.crypto_frames_.size());
   QuicCryptoFrame* frame = visitor_.crypto_frames_[0].get();
   EXPECT_EQ(kStreamOffset, frame->offset);
-  EXPECT_EQ("hello world!", QuicString(frame->data_buffer, frame->data_length));
+  EXPECT_EQ("hello world!",
+            std::string(frame->data_buffer, frame->data_length));
 
   CheckFramingBoundaries(packet, QUIC_INVALID_FRAME_DATA);
 }
@@ -7377,7 +7378,7 @@ TEST_P(QuicFramerTest, BuildTruncatedCloseFramePacket) {
   } else {
     close_frame.error_code = static_cast<QuicErrorCode>(0x05060708);
   }
-  close_frame.error_details = QuicString(2048, 'A');
+  close_frame.error_details = std::string(2048, 'A');
   QuicFrames frames = {QuicFrame(&close_frame)};
 
   // clang-format off
@@ -7662,7 +7663,7 @@ TEST_P(QuicFramerTest, BuildTruncatedApplicationCloseFramePacket) {
 
   QuicApplicationCloseFrame app_close_frame;
   app_close_frame.error_code = static_cast<QuicErrorCode>(0x11);
-  app_close_frame.error_details = QuicString(2048, 'A');
+  app_close_frame.error_details = std::string(2048, 'A');
 
   QuicFrames frames = {QuicFrame(&app_close_frame)};
 
@@ -7846,7 +7847,7 @@ TEST_P(QuicFramerTest, BuildTruncatedGoAwayPacket) {
   QuicGoAwayFrame goaway_frame;
   goaway_frame.error_code = static_cast<QuicErrorCode>(0x05060708);
   goaway_frame.last_good_stream_id = kStreamId;
-  goaway_frame.reason_phrase = QuicString(2048, 'A');
+  goaway_frame.reason_phrase = std::string(2048, 'A');
 
   QuicFrames frames = {QuicFrame(&goaway_frame)};
 
@@ -9605,7 +9606,7 @@ static bool ExpectedStreamFrame(const QuicStreamFrame& frame) {
   return (frame.stream_id == kTestQuicStreamId ||
           frame.stream_id == QuicUtils::GetCryptoStreamId(QUIC_VERSION_99)) &&
          !frame.fin && frame.offset == 0 &&
-         QuicString(frame.data_buffer, frame.data_length) == kTestString;
+         std::string(frame.data_buffer, frame.data_length) == kTestString;
   // FIN is hard-coded false in ConstructEncryptedPacket.
   // Offset 0 is hard-coded in ConstructEncryptedPacket.
 }
@@ -11223,8 +11224,8 @@ TEST_P(QuicFramerTest, BuildNewTokenFramePacket) {
   uint8_t expected_token_value[] = {0x00, 0x01, 0x02, 0x03,
                                     0x04, 0x05, 0x06, 0x07};
 
-  QuicNewTokenFrame frame(0, QuicString((const char*)(expected_token_value),
-                                        sizeof(expected_token_value)));
+  QuicNewTokenFrame frame(0, std::string((const char*)(expected_token_value),
+                                         sizeof(expected_token_value)));
 
   QuicFrames frames = {QuicFrame(&frame)};
 
@@ -11511,7 +11512,7 @@ TEST_P(QuicFramerTest, GetRetransmittableControlFrameSize) {
             QuicFramer::GetRetransmittableControlFrameSize(
                 framer_.transport_version(), QuicFrame(&rst_stream)));
 
-  QuicString error_detail(2048, 'e');
+  std::string error_detail(2048, 'e');
   QuicConnectionCloseFrame connection_close(QUIC_NETWORK_IDLE_TIMEOUT,
                                             error_detail);
   EXPECT_EQ(QuicFramer::GetMinConnectionCloseFrameSize(

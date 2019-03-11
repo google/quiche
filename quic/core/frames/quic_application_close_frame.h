@@ -21,7 +21,7 @@ struct QUIC_EXPORT_PRIVATE QuicApplicationCloseFrame {
       const QuicApplicationCloseFrame& frame);
 
   QuicErrorCode error_code;
-  QuicString error_details;
+  std::string error_details;
 };
 
 }  // namespace quic

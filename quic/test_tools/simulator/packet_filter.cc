@@ -8,7 +8,7 @@ namespace quic {
 namespace simulator {
 
 PacketFilter::PacketFilter(Simulator* simulator,
-                           QuicString name,
+                           std::string name,
                            Endpoint* input)
     : Endpoint(simulator, name), input_(input) {
   input_->SetTxPort(this);

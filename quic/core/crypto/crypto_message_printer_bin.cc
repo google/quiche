@@ -16,7 +16,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
 
 using quic::Perspective;
-using quic::QuicString;
 using std::cerr;
 using std::cout;
 using std::endl;
@@ -44,7 +43,7 @@ int main(int argc, char* argv[]) {
   quic::CryptoFramer framer;
   framer.set_visitor(&printer);
   framer.set_process_truncated_messages(true);
-  QuicString input = quic::QuicTextUtils::HexDecode(argv[1]);
+  std::string input = quic::QuicTextUtils::HexDecode(argv[1]);
   if (!framer.ProcessInput(input)) {
     return 1;
   }

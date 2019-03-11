@@ -32,7 +32,7 @@ class QuicMemoryCacheBackend : public QuicSimpleServerBackend {
   // server push associations.
   class ResourceFile {
    public:
-    explicit ResourceFile(const QuicString& file_name);
+    explicit ResourceFile(const std::string& file_name);
     ResourceFile(const ResourceFile&) = delete;
     ResourceFile& operator=(const ResourceFile&) = delete;
     virtual ~ResourceFile();
@@ -42,7 +42,7 @@ class QuicMemoryCacheBackend : public QuicSimpleServerBackend {
     // |base| is |file_name_| with |cache_directory| prefix stripped.
     void SetHostPathFromBase(QuicStringPiece base);
 
-    const QuicString& file_name() { return file_name_; }
+    const std::string& file_name() { return file_name_; }
 
     QuicStringPiece host() { return host_; }
 
@@ -58,8 +58,8 @@ class QuicMemoryCacheBackend : public QuicSimpleServerBackend {
     void HandleXOriginalUrl();
     QuicStringPiece RemoveScheme(QuicStringPiece url);
 
-    QuicString file_name_;
-    QuicString file_contents_;
+    std::string file_name_;
+    std::string file_contents_;
     QuicStringPiece body_;
     spdy::SpdyHeaderBlock spdy_headers_;
     QuicStringPiece x_original_url_;
@@ -135,19 +135,19 @@ class QuicMemoryCacheBackend : public QuicSimpleServerBackend {
   void AddDefaultResponse(QuicBackendResponse* response);
 
   // |cache_cirectory| can be generated using `wget -p --save-headers <url>`.
-  void InitializeFromDirectory(const QuicString& cache_directory);
+  void InitializeFromDirectory(const std::string& cache_directory);
 
   // Find all the server push resources associated with |request_url|.
   std::list<QuicBackendResponse::ServerPushInfo> GetServerPushResources(
-      QuicString request_url);
+      std::string request_url);
 
   // Implements the functions for interface QuicSimpleServerBackend
   // |cache_cirectory| can be generated using `wget -p --save-headers <url>`.
-  bool InitializeBackend(const QuicString& cache_directory) override;
+  bool InitializeBackend(const std::string& cache_directory) override;
   bool IsBackendInitialized() const override;
   void FetchResponseFromBackend(
       const spdy::SpdyHeaderBlock& request_headers,
-      const QuicString& request_body,
+      const std::string& request_body,
       QuicSimpleServerBackend::RequestHandler* quic_server_stream) override;
   void CloseBackendResponseStream(
       QuicSimpleServerBackend::RequestHandler* quic_server_stream) override;
@@ -161,7 +161,7 @@ class QuicMemoryCacheBackend : public QuicSimpleServerBackend {
                        spdy::SpdyHeaderBlock response_trailers,
                        uint16_t stop_sending_code);
 
-  QuicString GetKey(QuicStringPiece host, QuicStringPiece path) const;
+  std::string GetKey(QuicStringPiece host, QuicStringPiece path) const;
 
   // Add some server push urls with given responses for specified
   // request if these push resources are not associated with this request yet.
@@ -172,11 +172,11 @@ class QuicMemoryCacheBackend : public QuicSimpleServerBackend {
 
   // Check if push resource(push_host/push_path) associated with given request
   // url already exists in server push map.
-  bool PushResourceExistsInCache(QuicString original_request_url,
+  bool PushResourceExistsInCache(std::string original_request_url,
                                  QuicBackendResponse::ServerPushInfo resource);
 
   // Cached responses.
-  QuicUnorderedMap<QuicString, std::unique_ptr<QuicBackendResponse>> responses_
+  QuicUnorderedMap<std::string, std::unique_ptr<QuicBackendResponse>> responses_
       GUARDED_BY(response_mutex_);
 
   // The default response for cache misses, if set.
@@ -184,7 +184,7 @@ class QuicMemoryCacheBackend : public QuicSimpleServerBackend {
       GUARDED_BY(response_mutex_);
 
   // A map from request URL to associated server push responses (if any).
-  std::multimap<QuicString, QuicBackendResponse::ServerPushInfo>
+  std::multimap<std::string, QuicBackendResponse::ServerPushInfo>
       server_push_resources_ GUARDED_BY(response_mutex_);
 
   // Protects against concurrent access from test threads setting responses, and

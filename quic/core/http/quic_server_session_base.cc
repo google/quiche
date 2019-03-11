@@ -80,7 +80,7 @@ void QuicServerSessionBase::OnConfigNegotiated() {
 }
 
 void QuicServerSessionBase::OnConnectionClosed(QuicErrorCode error,
-                                               const QuicString& error_details,
+                                               const std::string& error_details,
                                                ConnectionCloseSource source) {
   QuicSession::OnConnectionClosed(error, error_details, source);
   // In the unlikely event we get a connection close while doing an asynchronous

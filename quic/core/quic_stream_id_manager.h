@@ -44,7 +44,7 @@ class QUIC_EXPORT_PRIVATE QuicStreamIdManager {
 
   // Generate a string suitable for sending to the log/etc to show current state
   // of the stream ID manager.
-  QuicString DebugString() const {
+  std::string DebugString() const {
     return QuicStrCat(
         " { max_allowed_outgoing_stream_id: ", max_allowed_outgoing_stream_id_,
         ", actual_max_allowed_incoming_stream_id_: ",

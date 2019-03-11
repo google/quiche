@@ -55,7 +55,7 @@ QuicClientEpollNetworkHelper::~QuicClientEpollNetworkHelper() {
   CleanUpAllUDPSockets();
 }
 
-QuicString QuicClientEpollNetworkHelper::Name() const {
+std::string QuicClientEpollNetworkHelper::Name() const {
   return "QuicClientEpollNetworkHelper";
 }
 

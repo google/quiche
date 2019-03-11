@@ -21,7 +21,7 @@ TlsServerHandshaker::SignatureCallback::SignatureCallback(
     : handshaker_(handshaker) {}
 
 void TlsServerHandshaker::SignatureCallback::Run(bool ok,
-                                                 QuicString signature) {
+                                                 std::string signature) {
   if (handshaker_ == nullptr) {
     return;
   }
@@ -91,7 +91,7 @@ void TlsServerHandshaker::CancelOutstandingCallbacks() {
 }
 
 bool TlsServerHandshaker::GetBase64SHA256ClientChannelID(
-    QuicString* output) const {
+    std::string* output) const {
   // Channel ID is not supported when TLS is used in QUIC.
   return false;
 }
@@ -189,13 +189,13 @@ void TlsServerHandshaker::AdvanceHandshake() {
 }
 
 void TlsServerHandshaker::CloseConnection(QuicErrorCode error,
-                                          const QuicString& reason_phrase) {
+                                          const std::string& reason_phrase) {
   state_ = STATE_CONNECTION_CLOSED;
   stream()->CloseConnectionWithDetails(error, reason_phrase);
 }
 
 bool TlsServerHandshaker::ProcessTransportParameters(
-    QuicString* error_details) {
+    std::string* error_details) {
   TransportParameters client_params;
   const uint8_t* client_params_bytes;
   size_t params_bytes_len;
@@ -352,7 +352,7 @@ int TlsServerHandshaker::SelectCertificate(int* out_alert) {
     CRYPTO_BUFFER_free(certs[i]);
   }
 
-  QuicString error_details;
+  std::string error_details;
   if (!ProcessTransportParameters(&error_details)) {
     CloseConnection(QUIC_HANDSHAKE_FAILED, error_details);
     *out_alert = SSL_AD_INTERNAL_ERROR;

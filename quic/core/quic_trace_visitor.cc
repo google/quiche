@@ -26,8 +26,8 @@ quic_trace::EncryptionLevel EncryptionLevelToProto(EncryptionLevel level) {
 QuicTraceVisitor::QuicTraceVisitor(const QuicConnection* connection)
     : connection_(connection),
       start_time_(connection_->clock()->ApproximateNow()) {
-  QuicString binary_connection_id(connection->connection_id().data(),
-                                  connection->connection_id().length());
+  std::string binary_connection_id(connection->connection_id().data(),
+                                   connection->connection_id().length());
   // We assume that the connection ID in gQUIC is equivalent to the
   // server-chosen client-selected ID.
   switch (connection->perspective()) {
@@ -263,7 +263,7 @@ void QuicTraceVisitor::OnWindowUpdateFrame(const QuicWindowUpdateFrame& frame,
 void QuicTraceVisitor::OnSuccessfulVersionNegotiation(
     const ParsedQuicVersion& version) {
   uint32_t tag = QuicEndian::HostToNet32(CreateQuicVersionLabel(version));
-  QuicString binary_tag(reinterpret_cast<const char*>(&tag), sizeof(tag));
+  std::string binary_tag(reinterpret_cast<const char*>(&tag), sizeof(tag));
   trace_.set_protocol_version(binary_tag);
 }
 

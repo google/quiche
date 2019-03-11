@@ -424,7 +424,7 @@ TEST_F(QuicIntervalSetTest, QuicIntervalSetIntersection) {
 }
 
 TEST_F(QuicIntervalSetTest, QuicIntervalSetIntersectionBothEmpty) {
-  QuicIntervalSet<QuicString> mine, theirs;
+  QuicIntervalSet<std::string> mine, theirs;
   EXPECT_FALSE(mine.Intersects(theirs));
   EXPECT_FALSE(theirs.Intersects(mine));
   mine.Intersection(theirs);
@@ -434,8 +434,8 @@ TEST_F(QuicIntervalSetTest, QuicIntervalSetIntersectionBothEmpty) {
 }
 
 TEST_F(QuicIntervalSetTest, QuicIntervalSetIntersectionEmptyMine) {
-  QuicIntervalSet<QuicString> mine;
-  QuicIntervalSet<QuicString> theirs("a", "b");
+  QuicIntervalSet<std::string> mine;
+  QuicIntervalSet<std::string> theirs("a", "b");
   EXPECT_FALSE(mine.Intersects(theirs));
   EXPECT_FALSE(theirs.Intersects(mine));
   mine.Intersection(theirs);
@@ -445,8 +445,8 @@ TEST_F(QuicIntervalSetTest, QuicIntervalSetIntersectionEmptyMine) {
 }
 
 TEST_F(QuicIntervalSetTest, QuicIntervalSetIntersectionEmptyTheirs) {
-  QuicIntervalSet<QuicString> mine("a", "b");
-  QuicIntervalSet<QuicString> theirs;
+  QuicIntervalSet<std::string> mine("a", "b");
+  QuicIntervalSet<std::string> theirs;
   EXPECT_FALSE(mine.Intersects(theirs));
   EXPECT_FALSE(theirs.Intersects(mine));
   mine.Intersection(theirs);
@@ -456,8 +456,8 @@ TEST_F(QuicIntervalSetTest, QuicIntervalSetIntersectionEmptyTheirs) {
 }
 
 TEST_F(QuicIntervalSetTest, QuicIntervalSetIntersectionTheirsBeforeMine) {
-  QuicIntervalSet<QuicString> mine("y", "z");
-  QuicIntervalSet<QuicString> theirs;
+  QuicIntervalSet<std::string> mine("y", "z");
+  QuicIntervalSet<std::string> theirs;
   theirs.Add("a", "b");
   theirs.Add("c", "d");
   EXPECT_FALSE(mine.Intersects(theirs));
@@ -469,10 +469,10 @@ TEST_F(QuicIntervalSetTest, QuicIntervalSetIntersectionTheirsBeforeMine) {
 }
 
 TEST_F(QuicIntervalSetTest, QuicIntervalSetIntersectionMineBeforeTheirs) {
-  QuicIntervalSet<QuicString> mine;
+  QuicIntervalSet<std::string> mine;
   mine.Add("a", "b");
   mine.Add("c", "d");
-  QuicIntervalSet<QuicString> theirs("y", "z");
+  QuicIntervalSet<std::string> theirs("y", "z");
   EXPECT_FALSE(mine.Intersects(theirs));
   EXPECT_FALSE(theirs.Intersects(mine));
   mine.Intersection(theirs);
@@ -682,7 +682,7 @@ TEST_F(QuicIntervalSetTest, QuicIntervalSetDifferenceAlternatingIntervals) {
 }
 
 TEST_F(QuicIntervalSetTest, QuicIntervalSetDifferenceEmptyMine) {
-  QuicIntervalSet<QuicString> mine, theirs;
+  QuicIntervalSet<std::string> mine, theirs;
   theirs.Add("a", "b");
 
   mine.Difference(theirs);
@@ -690,7 +690,7 @@ TEST_F(QuicIntervalSetTest, QuicIntervalSetDifferenceEmptyMine) {
 }
 
 TEST_F(QuicIntervalSetTest, QuicIntervalSetDifferenceEmptyTheirs) {
-  QuicIntervalSet<QuicString> mine, theirs;
+  QuicIntervalSet<std::string> mine, theirs;
   mine.Add("a", "b");
 
   mine.Difference(theirs);
@@ -700,7 +700,7 @@ TEST_F(QuicIntervalSetTest, QuicIntervalSetDifferenceEmptyTheirs) {
 }
 
 TEST_F(QuicIntervalSetTest, QuicIntervalSetDifferenceTheirsBeforeMine) {
-  QuicIntervalSet<QuicString> mine, theirs;
+  QuicIntervalSet<std::string> mine, theirs;
   mine.Add("y", "z");
   theirs.Add("a", "b");
 
@@ -711,7 +711,7 @@ TEST_F(QuicIntervalSetTest, QuicIntervalSetDifferenceTheirsBeforeMine) {
 }
 
 TEST_F(QuicIntervalSetTest, QuicIntervalSetDifferenceMineBeforeTheirs) {
-  QuicIntervalSet<QuicString> mine, theirs;
+  QuicIntervalSet<std::string> mine, theirs;
   mine.Add("a", "b");
   theirs.Add("y", "z");
 
@@ -722,10 +722,10 @@ TEST_F(QuicIntervalSetTest, QuicIntervalSetDifferenceMineBeforeTheirs) {
 }
 
 TEST_F(QuicIntervalSetTest, QuicIntervalSetDifferenceIdentical) {
-  QuicIntervalSet<QuicString> mine;
+  QuicIntervalSet<std::string> mine;
   mine.Add("a", "b");
   mine.Add("c", "d");
-  QuicIntervalSet<QuicString> theirs(mine);
+  QuicIntervalSet<std::string> theirs(mine);
 
   mine.Difference(theirs);
   EXPECT_TRUE(mine.Empty());

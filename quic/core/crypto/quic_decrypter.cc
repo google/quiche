@@ -55,14 +55,14 @@ void QuicDecrypter::DiversifyPreliminaryKey(QuicStringPiece preliminary_key,
                                             const DiversificationNonce& nonce,
                                             size_t key_size,
                                             size_t nonce_prefix_size,
-                                            QuicString* out_key,
-                                            QuicString* out_nonce_prefix) {
-  QuicHKDF hkdf((QuicString(preliminary_key)) + (QuicString(nonce_prefix)),
+                                            std::string* out_key,
+                                            std::string* out_nonce_prefix) {
+  QuicHKDF hkdf((std::string(preliminary_key)) + (std::string(nonce_prefix)),
                 QuicStringPiece(nonce.data(), nonce.size()),
                 "QUIC key diversification", 0, key_size, 0, nonce_prefix_size,
                 0);
-  *out_key = QuicString(hkdf.server_write_key());
-  *out_nonce_prefix = QuicString(hkdf.server_write_iv());
+  *out_key = std::string(hkdf.server_write_key());
+  *out_nonce_prefix = std::string(hkdf.server_write_iv());
 }
 
 }  // namespace quic

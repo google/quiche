@@ -107,7 +107,7 @@ void QuicCryptoStream::OnDataAvailableInSequencer(
 bool QuicCryptoStream::ExportKeyingMaterial(QuicStringPiece label,
                                             QuicStringPiece context,
                                             size_t result_len,
-                                            QuicString* result) const {
+                                            std::string* result) const {
   if (!handshake_confirmed()) {
     QUIC_DLOG(ERROR) << "ExportKeyingMaterial was called before forward-secure"
                      << "encryption was established.";

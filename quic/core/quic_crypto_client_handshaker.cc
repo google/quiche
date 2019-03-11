@@ -52,7 +52,7 @@ QuicCryptoClientHandshaker::ProofVerifierCallbackImpl::
 
 void QuicCryptoClientHandshaker::ProofVerifierCallbackImpl::Run(
     bool ok,
-    const QuicString& error_details,
+    const std::string& error_details,
     std::unique_ptr<ProofVerifyDetails>* details) {
   if (parent_ == nullptr) {
     return;
@@ -161,7 +161,7 @@ bool QuicCryptoClientHandshaker::WasChannelIDSourceCallbackRun() const {
   return channel_id_source_callback_run_;
 }
 
-QuicString QuicCryptoClientHandshaker::chlo_hash() const {
+std::string QuicCryptoClientHandshaker::chlo_hash() const {
   return chlo_hash_;
 }
 
@@ -185,7 +185,7 @@ CryptoMessageParser* QuicCryptoClientHandshaker::crypto_message_parser() {
 void QuicCryptoClientHandshaker::HandleServerConfigUpdateMessage(
     const CryptoHandshakeMessage& server_config_update) {
   DCHECK(server_config_update.tag() == kSCUP);
-  QuicString error_details;
+  std::string error_details;
   QuicCryptoClientConfig::CachedState* cached =
       crypto_config_->LookupOrCreate(server_id_);
   QuicErrorCode error = crypto_config_->ProcessServerConfigUpdate(
@@ -350,7 +350,7 @@ void QuicCryptoClientHandshaker::DoSendCHLO(
     DCHECK(!crypto_negotiated_params_->server_nonce.empty());
   }
 
-  QuicString error_details;
+  std::string error_details;
   QuicErrorCode error = crypto_config_->FillClientHello(
       server_id_, session()->connection()->connection_id(),
       session()->supported_versions().front(), cached,
@@ -433,7 +433,7 @@ void QuicCryptoClientHandshaker::DoReceiveREJ(
   session()->NeuterUnencryptedData();
 
   stateless_reject_received_ = in->tag() == kSREJ;
-  QuicString error_details;
+  std::string error_details;
   QuicErrorCode error = crypto_config_->ProcessRejection(
       *in, session()->connection()->clock()->WallNow(),
       session()->connection()->transport_version(), chlo_hash_, cached,
@@ -613,7 +613,7 @@ void QuicCryptoClientHandshaker::DoReceiveSHLO(
     return;
   }
 
-  QuicString error_details;
+  std::string error_details;
   QuicErrorCode error = crypto_config_->ProcessServerHello(
       *in, session()->connection()->connection_id(),
       session()->connection()->version(),

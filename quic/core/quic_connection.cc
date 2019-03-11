@@ -564,7 +564,7 @@ void QuicConnection::OnPublicResetPacket(const QuicPublicResetPacket& packet) {
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnPublicResetPacket(packet);
   }
-  QuicString error_details = "Received public reset.";
+  std::string error_details = "Received public reset.";
   if (perspective_ == Perspective::IS_CLIENT && !packet.endpoint_id.empty()) {
     QuicStrAppend(&error_details, " From ", packet.endpoint_id, ".");
   }
@@ -580,7 +580,7 @@ bool QuicConnection::OnProtocolVersionMismatch(
   QUIC_DLOG(INFO) << ENDPOINT << "Received packet with mismatched version "
                   << ParsedQuicVersionToString(received_version);
   if (perspective_ == Perspective::IS_CLIENT) {
-    const QuicString error_details = "Protocol version mismatch.";
+    const std::string error_details = "Protocol version mismatch.";
     QUIC_BUG << ENDPOINT << error_details;
     TearDownLocalConnectionState(QUIC_INTERNAL_ERROR, error_details,
                                  ConnectionCloseSource::FROM_SELF);
@@ -652,7 +652,7 @@ void QuicConnection::OnVersionNegotiationPacket(
   // here.  (Check for a bug regression.)
   DCHECK_EQ(connection_id_, packet.connection_id);
   if (perspective_ == Perspective::IS_SERVER) {
-    const QuicString error_details =
+    const std::string error_details =
         "Server receieved version negotiation packet.";
     QUIC_BUG << error_details;
     QUIC_CODE_COUNT(quic_tear_down_local_connection_on_version_negotiation);
@@ -670,7 +670,7 @@ void QuicConnection::OnVersionNegotiationPacket(
   }
 
   if (QuicContainsValue(packet.versions, version())) {
-    const QuicString error_details =
+    const std::string error_details =
         "Server already supports client's version and should have accepted the "
         "connection.";
     QUIC_DLOG(WARNING) << error_details;
@@ -748,7 +748,7 @@ bool QuicConnection::OnUnauthenticatedHeader(const QuicPacketHeader& header) {
 
   if (!packet_generator_.IsPendingPacketEmpty()) {
     // Incoming packets may change a queued ACK frame.
-    const QuicString error_details =
+    const std::string error_details =
         "Pending frames must be serialized before incoming packets are "
         "processed.";
     QUIC_BUG << error_details << ", received header: " << header;
@@ -780,7 +780,7 @@ bool QuicConnection::OnUnauthenticatedHeader(const QuicPacketHeader& header) {
     if (!header.version_flag) {
       // Packets should have the version flag till version negotiation is
       // done.
-      QuicString error_details =
+      std::string error_details =
           QuicStrCat(ENDPOINT, "Packet ", header.packet_number.ToUint64(),
                      " without version flag before version negotiated.");
       QUIC_DLOG(WARNING) << error_details;
@@ -1460,7 +1460,7 @@ void QuicConnection::OnAuthenticatedIetfStatelessResetPacket(
     const QuicIetfStatelessResetPacket& packet) {
   // TODO(fayang): Add OnAuthenticatedIetfStatelessResetPacket to
   // debug_visitor_.
-  const QuicString error_details = "Received stateless reset.";
+  const std::string error_details = "Received stateless reset.";
   QUIC_CODE_COUNT(quic_tear_down_local_connection_on_stateless_reset);
   TearDownLocalConnectionState(QUIC_PUBLIC_RESET, error_details,
                                ConnectionCloseSource::FROM_PEER);
@@ -2491,7 +2491,7 @@ void QuicConnection::OnWriteError(int error_code) {
   }
   write_error_occurred_ = true;
 
-  const QuicString error_details = QuicStrCat(
+  const std::string error_details = QuicStrCat(
       "Write failed with error: ", error_code, " (", strerror(error_code), ")");
   QUIC_LOG_FIRST_N(ERROR, 2) << ENDPOINT << error_details;
   switch (error_code) {
@@ -2550,7 +2550,7 @@ void QuicConnection::OnSerializedPacket(SerializedPacket* serialized_packet) {
 }
 
 void QuicConnection::OnUnrecoverableError(QuicErrorCode error,
-                                          const QuicString& error_details,
+                                          const std::string& error_details,
                                           ConnectionCloseSource source) {
   // The packet creator or generator encountered an unrecoverable error: tear
   // down local connection state immediately.
@@ -2842,7 +2842,7 @@ void QuicConnection::MaybeProcessCoalescedPackets() {
 
 void QuicConnection::CloseConnection(
     QuicErrorCode error,
-    const QuicString& error_details,
+    const std::string& error_details,
     ConnectionCloseBehavior connection_close_behavior) {
   DCHECK(!error_details.empty());
   if (!connected_) {
@@ -2873,7 +2873,7 @@ void QuicConnection::CloseConnection(
 }
 
 void QuicConnection::SendConnectionClosePacket(QuicErrorCode error,
-                                               const QuicString& details,
+                                               const std::string& details,
                                                AckBundling ack_mode) {
   QUIC_DLOG(INFO) << ENDPOINT << "Sending connection close packet.";
   if (fix_termination_packets_) {
@@ -2895,7 +2895,7 @@ void QuicConnection::SendConnectionClosePacket(QuicErrorCode error,
 
 void QuicConnection::TearDownLocalConnectionState(
     QuicErrorCode error,
-    const QuicString& error_details,
+    const std::string& error_details,
     ConnectionCloseSource source) {
   if (!connected_) {
     QUIC_DLOG(INFO) << "Connection is already closed.";
@@ -2996,7 +2996,7 @@ void QuicConnection::CheckForTimeout() {
                 << " idle_network_timeout: "
                 << idle_network_timeout_.ToMicroseconds();
   if (idle_duration >= idle_network_timeout_) {
-    const QuicString error_details = "No recent network activity.";
+    const std::string error_details = "No recent network activity.";
     QUIC_DVLOG(1) << ENDPOINT << error_details;
     if ((sent_packet_manager_.GetConsecutiveTlpCount() > 0 ||
          sent_packet_manager_.GetConsecutiveRtoCount() > 0 ||
@@ -3017,7 +3017,7 @@ void QuicConnection::CheckForTimeout() {
                   << " handshake timeout: "
                   << handshake_timeout_.ToMicroseconds();
     if (connected_duration >= handshake_timeout_) {
-      const QuicString error_details = "Handshake timeout expired.";
+      const std::string error_details = "Handshake timeout expired.";
       QUIC_DVLOG(1) << ENDPOINT << error_details;
       CloseConnection(QUIC_HANDSHAKE_TIMEOUT, error_details,
                       ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);

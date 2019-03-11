@@ -66,7 +66,7 @@ class StatelessRejector {
   QuicErrorCode error() const { return error_; }
 
   // Returns the error details when state() returns FAILED.
-  QuicString error_details() const { return error_details_; }
+  std::string error_details() const { return error_details_; }
 
   // Returns the connection ID.
   QuicConnectionId connection_id() const { return connection_id_; }
@@ -91,14 +91,14 @@ class StatelessRejector {
 
   void ProcessClientHelloDone(
       QuicErrorCode error,
-      const QuicString& error_details,
+      const std::string& error_details,
       std::unique_ptr<CryptoHandshakeMessage> message,
       std::unique_ptr<StatelessRejector> rejector,
       std::unique_ptr<StatelessRejector::ProcessDoneCallback> done_cb);
 
   State state_;
   QuicErrorCode error_;
-  QuicString error_details_;
+  std::string error_details_;
   ParsedQuicVersion version_;
   ParsedQuicVersionVector versions_;
   QuicConnectionId connection_id_;

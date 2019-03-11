@@ -23,7 +23,7 @@ class QuicCryptoServerConfigPeer {
 
   // Returns the config associated with |config_id|.
   QuicReferenceCountedPointer<QuicCryptoServerConfig::Config> GetConfig(
-      QuicString config_id);
+      std::string config_id);
 
   // Returns a pointer to the ProofSource object.
   ProofSource* GetProofSource() const;
@@ -32,8 +32,8 @@ class QuicCryptoServerConfigPeer {
   void ResetProofSource(std::unique_ptr<ProofSource> proof_source);
 
   // Generates a new valid source address token.
-  QuicString NewSourceAddressToken(
-      QuicString config_id,
+  std::string NewSourceAddressToken(
+      std::string config_id,
       SourceAddressTokens previous_tokens,
       const QuicIpAddress& ip,
       QuicRandom* rand,
@@ -42,7 +42,7 @@ class QuicCryptoServerConfigPeer {
 
   // Attempts to validate the tokens in |tokens|.
   HandshakeFailureReason ValidateSourceAddressTokens(
-      QuicString config_id,
+      std::string config_id,
       QuicStringPiece tokens,
       const QuicIpAddress& ip,
       QuicWallTime now,
@@ -70,18 +70,18 @@ class QuicCryptoServerConfigPeer {
   void CheckConfigs(
       std::vector<std::pair<ServerConfigID, bool>> expected_ids_and_status);
 
-  // ConfigsDebug returns a QuicString that contains debugging information about
-  // the set of Configs loaded in |server_config_| and their status.
-  QuicString ConfigsDebug()
+  // ConfigsDebug returns a std::string that contains debugging information
+  // about the set of Configs loaded in |server_config_| and their status.
+  std::string ConfigsDebug()
       SHARED_LOCKS_REQUIRED(server_config_->configs_lock_);
 
   void SelectNewPrimaryConfig(int seconds);
 
-  static QuicString CompressChain(
+  static std::string CompressChain(
       QuicCompressedCertsCache* compressed_certs_cache,
       const QuicReferenceCountedPointer<ProofSource::Chain>& chain,
-      const QuicString& client_common_set_hashes,
-      const QuicString& client_cached_cert_hashes,
+      const std::string& client_common_set_hashes,
+      const std::string& client_cached_cert_hashes,
       const CommonCertSets* common_sets);
 
   uint32_t source_address_token_future_secs();

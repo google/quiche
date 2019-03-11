@@ -40,7 +40,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientHandshaker
   int num_scup_messages_received() const override;
   bool WasChannelIDSent() const override;
   bool WasChannelIDSourceCallbackRun() const override;
-  QuicString chlo_hash() const override;
+  std::string chlo_hash() const override;
   bool encryption_established() const override;
   bool handshake_confirmed() const override;
   const QuicCryptoNegotiatedParameters& crypto_negotiated_params()
@@ -87,7 +87,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientHandshaker
 
     // ProofVerifierCallback interface.
     void Run(bool ok,
-             const QuicString& error_details,
+             const std::string& error_details,
              std::unique_ptr<ProofVerifyDetails>* details) override;
 
     // Cancel causes any future callbacks to be ignored. It must be called on
@@ -174,7 +174,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientHandshaker
   QuicCryptoClientConfig* const crypto_config_;
 
   // SHA-256 hash of the most recently sent CHLO.
-  QuicString chlo_hash_;
+  std::string chlo_hash_;
 
   // Server's (hostname, port, is_https, privacy_mode) tuple.
   const QuicServerId server_id_;
@@ -213,7 +213,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientHandshaker
   // verification. These members must not be used after
   // STATE_VERIFY_PROOF_COMPLETE.
   bool verify_ok_;
-  QuicString verify_error_details_;
+  std::string verify_error_details_;
   std::unique_ptr<ProofVerifyDetails> verify_details_;
 
   // True if the server responded to a previous CHLO with a stateless

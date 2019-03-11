@@ -19,7 +19,7 @@ using spdy::SpdyHeaderBlock;
 
 namespace quic {
 
-QuicMemoryCacheBackend::ResourceFile::ResourceFile(const QuicString& file_name)
+QuicMemoryCacheBackend::ResourceFile::ResourceFile(const std::string& file_name)
     : file_name_(file_name) {}
 
 QuicMemoryCacheBackend::ResourceFile::~ResourceFile() = default;
@@ -31,7 +31,7 @@ void QuicMemoryCacheBackend::ResourceFile::Read() {
   size_t start = 0;
   while (start < file_contents_.length()) {
     size_t pos = file_contents_.find("\n", start);
-    if (pos == QuicString::npos) {
+    if (pos == std::string::npos) {
       QUIC_LOG(DFATAL) << "Headers invalid or empty, ignoring: " << file_name_;
       return;
     }
@@ -49,7 +49,7 @@ void QuicMemoryCacheBackend::ResourceFile::Read() {
     // Extract the status from the HTTP first line.
     if (line.substr(0, 4) == "HTTP") {
       pos = line.find(" ");
-      if (pos == QuicString::npos) {
+      if (pos == std::string::npos) {
         QUIC_LOG(DFATAL) << "Headers invalid or empty, ignoring: "
                          << file_name_;
         return;
@@ -59,7 +59,7 @@ void QuicMemoryCacheBackend::ResourceFile::Read() {
     }
     // Headers are "key: value".
     pos = line.find(": ");
-    if (pos == QuicString::npos) {
+    if (pos == std::string::npos) {
       QUIC_LOG(DFATAL) << "Headers invalid or empty, ignoring: " << file_name_;
       return;
     }
@@ -86,7 +86,7 @@ void QuicMemoryCacheBackend::ResourceFile::Read() {
     size_t start = 0;
     while (start < push_urls.length()) {
       size_t pos = push_urls.find('\0', start);
-      if (pos == QuicString::npos) {
+      if (pos == std::string::npos) {
         push_urls_.push_back(QuicStringPiece(push_urls.data() + start,
                                              push_urls.length() - start));
         break;
@@ -227,7 +227,7 @@ void QuicMemoryCacheBackend::AddStopSendingResponse(
 QuicMemoryCacheBackend::QuicMemoryCacheBackend() : cache_initialized_(false) {}
 
 bool QuicMemoryCacheBackend::InitializeBackend(
-    const QuicString& cache_directory) {
+    const std::string& cache_directory) {
   if (cache_directory.empty()) {
     QUIC_BUG << "cache_directory must not be empty.";
     return false;
@@ -235,7 +235,7 @@ bool QuicMemoryCacheBackend::InitializeBackend(
   QUIC_LOG(INFO)
       << "Attempting to initialize QuicMemoryCacheBackend from directory: "
       << cache_directory;
-  std::vector<QuicString> files = ReadFileContents(cache_directory);
+  std::vector<std::string> files = ReadFileContents(cache_directory);
   std::list<std::unique_ptr<ResourceFile>> resource_files;
   for (const auto& filename : files) {
     std::unique_ptr<ResourceFile> resource_file(new ResourceFile(filename));
@@ -267,7 +267,7 @@ bool QuicMemoryCacheBackend::InitializeBackend(
       }
       push_resources.push_back(ServerPushInfo(url, response->headers().Clone(),
                                               kV3LowestPriority,
-                                              (QuicString(response->body()))));
+                                              (std::string(response->body()))));
     }
     MaybeAddServerPushResources(resource_file->host(), resource_file->path(),
                                 push_resources);
@@ -282,7 +282,7 @@ bool QuicMemoryCacheBackend::IsBackendInitialized() const {
 
 void QuicMemoryCacheBackend::FetchResponseFromBackend(
     const SpdyHeaderBlock& request_headers,
-    const QuicString& request_body,
+    const std::string& request_body,
     QuicSimpleServerBackend::RequestHandler* quic_stream) {
   const QuicBackendResponse* quic_response = nullptr;
   // Find response in cache. If not found, send error response.
@@ -292,8 +292,8 @@ void QuicMemoryCacheBackend::FetchResponseFromBackend(
     quic_response = GetResponse(authority->second, path->second);
   }
 
-  QuicString request_url =
-      QuicString(authority->second) + QuicString(path->second);
+  std::string request_url =
+      std::string(authority->second) + std::string(path->second);
   std::list<ServerPushInfo> resources = GetServerPushResources(request_url);
   QUIC_DVLOG(1)
       << "Fetching QUIC response from backend in-memory cache for url "
@@ -306,7 +306,7 @@ void QuicMemoryCacheBackend::CloseBackendResponseStream(
     QuicSimpleServerBackend::RequestHandler* quic_stream) {}
 
 std::list<ServerPushInfo> QuicMemoryCacheBackend::GetServerPushResources(
-    QuicString request_url) {
+    std::string request_url) {
   QuicWriterMutexLock lock(&response_mutex_);
 
   std::list<ServerPushInfo> resources;
@@ -336,7 +336,7 @@ void QuicMemoryCacheBackend::AddResponseImpl(QuicStringPiece host,
   QuicWriterMutexLock lock(&response_mutex_);
 
   DCHECK(!host.empty()) << "Host must be populated, e.g. \"www.google.com\"";
-  QuicString key = GetKey(host, path);
+  std::string key = GetKey(host, path);
   if (QuicContainsKey(responses_, key)) {
     QUIC_BUG << "Response for '" << key << "' already exists!";
     return;
@@ -351,20 +351,20 @@ void QuicMemoryCacheBackend::AddResponseImpl(QuicStringPiece host,
   responses_[key] = std::move(new_response);
 }
 
-QuicString QuicMemoryCacheBackend::GetKey(QuicStringPiece host,
-                                          QuicStringPiece path) const {
-  QuicString host_string = QuicString(host);
+std::string QuicMemoryCacheBackend::GetKey(QuicStringPiece host,
+                                           QuicStringPiece path) const {
+  std::string host_string = std::string(host);
   size_t port = host_string.find(':');
-  if (port != QuicString::npos)
-    host_string = QuicString(host_string.c_str(), port);
-  return host_string + QuicString(path);
+  if (port != std::string::npos)
+    host_string = std::string(host_string.c_str(), port);
+  return host_string + std::string(path);
 }
 
 void QuicMemoryCacheBackend::MaybeAddServerPushResources(
     QuicStringPiece request_host,
     QuicStringPiece request_path,
     std::list<ServerPushInfo> push_resources) {
-  QuicString request_url = GetKey(request_host, request_path);
+  std::string request_url = GetKey(request_host, request_path);
 
   for (const auto& push_resource : push_resources) {
     if (PushResourceExistsInCache(request_url, push_resource)) {
@@ -380,11 +380,11 @@ void QuicMemoryCacheBackend::MaybeAddServerPushResources(
       QuicWriterMutexLock lock(&response_mutex_);
       server_push_resources_.insert(std::make_pair(request_url, push_resource));
     }
-    QuicString host = push_resource.request_url.host();
+    std::string host = push_resource.request_url.host();
     if (host.empty()) {
-      host = QuicString(request_host);
+      host = std::string(request_host);
     }
-    QuicString path = push_resource.request_url.path();
+    std::string path = push_resource.request_url.path();
     bool found_existing_response = false;
     {
       QuicWriterMutexLock lock(&response_mutex_);
@@ -401,7 +401,7 @@ void QuicMemoryCacheBackend::MaybeAddServerPushResources(
 }
 
 bool QuicMemoryCacheBackend::PushResourceExistsInCache(
-    QuicString original_request_url,
+    std::string original_request_url,
     ServerPushInfo resource) {
   QuicWriterMutexLock lock(&response_mutex_);
   auto resource_range =

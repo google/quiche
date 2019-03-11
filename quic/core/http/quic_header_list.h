@@ -23,7 +23,7 @@ namespace quic {
 class QUIC_EXPORT_PRIVATE QuicHeaderList
     : public spdy::SpdyHeadersHandlerInterface {
  public:
-  typedef QuicDeque<std::pair<QuicString, QuicString>> ListType;
+  typedef QuicDeque<std::pair<std::string, std::string>> ListType;
   typedef ListType::const_iterator const_iterator;
 
   QuicHeaderList();
@@ -56,10 +56,10 @@ class QUIC_EXPORT_PRIVATE QuicHeaderList
 
   size_t max_header_list_size() const { return max_header_list_size_; }
 
-  QuicString DebugString() const;
+  std::string DebugString() const;
 
  private:
-  QuicDeque<std::pair<QuicString, QuicString>> header_list_;
+  QuicDeque<std::pair<std::string, std::string>> header_list_;
 
   // The limit on the size of the header list (defined by spec as name + value +
   // overhead for each header field). Headers over this limit will not be
@@ -76,8 +76,8 @@ class QUIC_EXPORT_PRIVATE QuicHeaderList
 };
 
 inline bool operator==(const QuicHeaderList& l1, const QuicHeaderList& l2) {
-  auto pred = [](const std::pair<QuicString, QuicString>& p1,
-                 const std::pair<QuicString, QuicString>& p2) {
+  auto pred = [](const std::pair<std::string, std::string>& p1,
+                 const std::pair<std::string, std::string>& p2) {
     return p1.first == p2.first && p1.second == p2.second;
   };
   return std::equal(l1.begin(), l1.end(), l2.begin(), pred);

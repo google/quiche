@@ -111,7 +111,7 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
   bool has_payload() { return has_payload_; }
 
   QuicErrorCode error() const { return error_; }
-  const QuicString& error_detail() const { return error_detail_; }
+  const std::string& error_detail() const { return error_detail_; }
 
  private:
   // Represents the current state of the parsing state machine.
@@ -145,7 +145,7 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
   void BufferFrameLength(QuicDataReader* reader);
 
   // Sets |error_| and |error_detail_| accordingly.
-  void RaiseError(QuicErrorCode error, QuicString error_detail);
+  void RaiseError(QuicErrorCode error, std::string error_detail);
 
   // Parses the payload of a PRIORITY frame from |reader| into |frame|.
   bool ParsePriorityFrame(QuicDataReader* reader, PriorityFrame* frame);
@@ -170,14 +170,14 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
   // Last error.
   QuicErrorCode error_;
   // The issue which caused |error_|
-  QuicString error_detail_;
+  std::string error_detail_;
   // True if the call to ProcessInput() generates any payload. Flushed every
   // time ProcessInput() is called.
   bool has_payload_;
   // Remaining unparsed data.
-  QuicString buffer_;
+  std::string buffer_;
   // Remaining unparsed length field data.
-  QuicString length_buffer_;
+  std::string length_buffer_;
 };
 
 }  // namespace quic

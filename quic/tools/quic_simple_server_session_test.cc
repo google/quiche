@@ -601,28 +601,28 @@ class QuicSimpleServerSessionServerPushTest
     // than stream flow control window so stream won't send the full body.
     size_t body_size = 2 * kStreamFlowControlWindowSize;  // 64KB.
 
-    QuicString request_url = "mail.google.com/";
+    std::string request_url = "mail.google.com/";
     spdy::SpdyHeaderBlock request_headers;
-    QuicString resource_host = "www.google.com";
-    QuicString partial_push_resource_path = "/server_push_src";
+    std::string resource_host = "www.google.com";
+    std::string partial_push_resource_path = "/server_push_src";
     std::list<QuicBackendResponse::ServerPushInfo> push_resources;
-    QuicString scheme = "http";
+    std::string scheme = "http";
     QuicByteCount header_length = 0;
     for (unsigned int i = 1; i <= num_resources; ++i) {
       QuicStreamId stream_id = GetNthServerInitiatedUnidirectionalId(i - 1);
-      QuicString path =
+      std::string path =
           partial_push_resource_path + QuicTextUtils::Uint64ToString(i);
-      QuicString url = scheme + "://" + resource_host + path;
+      std::string url = scheme + "://" + resource_host + path;
       QuicUrl resource_url = QuicUrl(url);
-      QuicString body(body_size, 'a');
-      QuicString data;
+      std::string body(body_size, 'a');
+      std::string data;
       header_length = 0;
       if (VersionHasDataFrameHeader(connection_->transport_version())) {
         HttpEncoder encoder;
         std::unique_ptr<char[]> buffer;
         header_length =
             encoder.SerializeDataFrameHeader(body.length(), &buffer);
-        QuicString header = QuicString(buffer.get(), header_length);
+        std::string header = std::string(buffer.get(), header_length);
         data = header + body;
       } else {
         data = body;

@@ -66,7 +66,7 @@ class TestStream : public QuicStream {
   using QuicStream::WritevData;
 
  private:
-  QuicString data_;
+  std::string data_;
 };
 
 class QuicStreamTestBase : public QuicTestWithParam<ParsedQuicVersion> {
@@ -160,7 +160,8 @@ class QuicStreamTest : public QuicStreamTestBase {};
 // Index value of 1 has the test run with supported-version[1], which is some
 // version OTHER than 99.
 INSTANTIATE_TEST_SUITE_P(
-    QuicStreamTests, QuicStreamTest,
+    QuicStreamTests,
+    QuicStreamTest,
     ::testing::ValuesIn(ParsedVersionOfIndex(AllSupportedVersions(), 1)));
 
 // Make a parameterized version of the QuicStreamTest for those tests
@@ -389,7 +390,7 @@ TEST_P(QuicStreamTest, WriteOrBufferData) {
 
 TEST_P(QuicStreamTest, WriteOrBufferDataReachStreamLimit) {
   Initialize();
-  QuicString data("aaaaa");
+  std::string data("aaaaa");
   QuicStreamPeer::SetStreamBytesWritten(kMaxStreamLength - data.length(),
                                         stream_);
   EXPECT_CALL(*session_, WritevData(_, _, _, _, _))
@@ -574,7 +575,7 @@ TEST_P(QuicStreamTest, StopReadingSendsFlowControl) {
       .Times(AtLeast(1))
       .WillRepeatedly(Invoke(this, &QuicStreamTest::ClearControlFrame));
 
-  QuicString data(1000, 'x');
+  std::string data(1000, 'x');
   for (QuicStreamOffset offset = 0;
        offset < 2 * kInitialStreamFlowControlWindowForTest;
        offset += data.length()) {
@@ -968,7 +969,7 @@ TEST_P(QuicStreamTest, WriteBufferedData) {
   set_initial_flow_control_window_bytes(500000);
 
   Initialize();
-  QuicString data(1024, 'a');
+  std::string data(1024, 'a');
   EXPECT_TRUE(stream_->CanWriteNewData());
 
   // Testing WriteOrBufferData.
@@ -1073,7 +1074,7 @@ TEST_P(QuicStreamTest, WriteBufferedData) {
 
 TEST_P(QuicStreamTest, WritevDataReachStreamLimit) {
   Initialize();
-  QuicString data("aaaaa");
+  std::string data("aaaaa");
   QuicStreamPeer::SetStreamBytesWritten(kMaxStreamLength - data.length(),
                                         stream_);
   EXPECT_CALL(*session_, WritevData(_, _, _, _, _))
@@ -1339,7 +1340,7 @@ TEST_P(QuicStreamTest, MarkConnectionLevelWriteBlockedOnWindowUpdateFrame) {
       .WillRepeatedly(Invoke(MockQuicSession::ConsumeData));
   EXPECT_CALL(*connection_, SendControlFrame(_))
       .WillOnce(Invoke(this, &QuicStreamTest::ClearControlFrame));
-  QuicString data(1024, '.');
+  std::string data(1024, '.');
   stream_->WriteOrBufferData(data, false, nullptr);
   EXPECT_FALSE(HasWriteBlockedStreams());
 
@@ -1360,7 +1361,7 @@ TEST_P(QuicStreamTest,
   set_initial_flow_control_window_bytes(kSmallWindow);
   Initialize();
 
-  QuicString data(kSmallWindow, '.');
+  std::string data(kSmallWindow, '.');
   EXPECT_CALL(*session_, WritevData(_, _, _, _, _))
       .WillRepeatedly(Invoke(MockQuicSession::ConsumeData));
   EXPECT_CALL(*connection_, SendControlFrame(_))
@@ -1419,7 +1420,7 @@ TEST_P(QuicStreamTest, ResetStreamOnTtlExpiresRetransmitLostData) {
 
   EXPECT_CALL(*session_, WritevData(_, stream_->id(), 200, 0, FIN))
       .WillOnce(Invoke(MockQuicSession::ConsumeData));
-  QuicString body(200, 'a');
+  std::string body(200, 'a');
   stream_->WriteOrBufferData(body, true, nullptr);
 
   // Set TTL to be 1 s.
@@ -1443,7 +1444,7 @@ TEST_P(QuicStreamTest, ResetStreamOnTtlExpiresEarlyRetransmitData) {
 
   EXPECT_CALL(*session_, WritevData(_, stream_->id(), 200, 0, FIN))
       .WillOnce(Invoke(MockQuicSession::ConsumeData));
-  QuicString body(200, 'a');
+  std::string body(200, 'a');
   stream_->WriteOrBufferData(body, true, nullptr);
 
   // Set TTL to be 1 s.

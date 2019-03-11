@@ -54,7 +54,7 @@ TEST_F(QpackEncoderStreamReceiverTest, InsertWithNameReference) {
   // Value length does not fit in prefix.
   // 'Z' would be Huffman encoded to 8 bits, so no Huffman encoding is used.
   EXPECT_CALL(*delegate(),
-              OnInsertWithNameReference(false, 42, Eq(QuicString(127, 'Z'))));
+              OnInsertWithNameReference(false, 42, Eq(std::string(127, 'Z'))));
 
   Decode(QuicTextUtils::HexDecode(
       "c500"
@@ -88,8 +88,8 @@ TEST_F(QpackEncoderStreamReceiverTest, InsertWithoutNameReference) {
   // Not Huffman encoded long strings; length does not fit on prefix.
   // 'Z' would be Huffman encoded to 8 bits, so no Huffman encoding is used.
   EXPECT_CALL(*delegate(),
-              OnInsertWithoutNameReference(Eq(QuicString(31, 'Z')),
-                                           Eq(QuicString(127, 'Z'))));
+              OnInsertWithoutNameReference(Eq(std::string(31, 'Z')),
+                                           Eq(std::string(127, 'Z'))));
 
   Decode(QuicTextUtils::HexDecode(
       "4000"

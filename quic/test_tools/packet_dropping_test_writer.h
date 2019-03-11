@@ -141,7 +141,7 @@ class PacketDroppingTestWriter : public QuicPacketWriterWrapper {
     DelayedWrite& operator=(DelayedWrite&&) = default;
     ~DelayedWrite();
 
-    QuicString buffer;
+    std::string buffer;
     QuicIpAddress self_address;
     QuicSocketAddress peer_address;
     std::unique_ptr<PerPacketOptions> options;

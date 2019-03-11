@@ -26,16 +26,16 @@ class FakeProofVerifier : public ProofVerifier {
       : verifier_(crypto_test_utils::ProofVerifierForTesting()) {}
 
   QuicAsyncStatus VerifyProof(
-      const QuicString& hostname,
+      const std::string& hostname,
       const uint16_t port,
-      const QuicString& server_config,
+      const std::string& server_config,
       QuicTransportVersion quic_version,
       QuicStringPiece chlo_hash,
-      const std::vector<QuicString>& certs,
-      const QuicString& cert_sct,
-      const QuicString& signature,
+      const std::vector<std::string>& certs,
+      const std::string& cert_sct,
+      const std::string& signature,
       const ProofVerifyContext* context,
-      QuicString* error_details,
+      std::string* error_details,
       std::unique_ptr<ProofVerifyDetails>* details,
       std::unique_ptr<ProofVerifierCallback> callback) override {
     return verifier_->VerifyProof(
@@ -44,10 +44,10 @@ class FakeProofVerifier : public ProofVerifier {
   }
 
   QuicAsyncStatus VerifyCertChain(
-      const QuicString& hostname,
-      const std::vector<QuicString>& certs,
+      const std::string& hostname,
+      const std::vector<std::string>& certs,
       const ProofVerifyContext* context,
-      QuicString* error_details,
+      std::string* error_details,
       std::unique_ptr<ProofVerifyDetails>* details,
       std::unique_ptr<ProofVerifierCallback> callback) override {
     if (!active_) {
@@ -81,7 +81,7 @@ class FakeProofVerifier : public ProofVerifier {
   class FailingProofVerifierCallback : public ProofVerifierCallback {
    public:
     void Run(bool ok,
-             const QuicString& error_details,
+             const std::string& error_details,
              std::unique_ptr<ProofVerifyDetails>* details) override {
       FAIL();
     }
@@ -89,10 +89,10 @@ class FakeProofVerifier : public ProofVerifier {
 
   class VerifyChainPendingOp {
    public:
-    VerifyChainPendingOp(const QuicString& hostname,
-                         const std::vector<QuicString>& certs,
+    VerifyChainPendingOp(const std::string& hostname,
+                         const std::vector<std::string>& certs,
                          const ProofVerifyContext* context,
-                         QuicString* error_details,
+                         std::string* error_details,
                          std::unique_ptr<ProofVerifyDetails>* details,
                          std::unique_ptr<ProofVerifierCallback> callback,
                          ProofVerifier* delegate)
@@ -117,10 +117,10 @@ class FakeProofVerifier : public ProofVerifier {
     }
 
    private:
-    QuicString hostname_;
-    std::vector<QuicString> certs_;
+    std::string hostname_;
+    std::vector<std::string> certs_;
     const ProofVerifyContext* context_;
-    QuicString* error_details_;
+    std::string* error_details_;
     std::unique_ptr<ProofVerifyDetails>* details_;
     std::unique_ptr<ProofVerifierCallback> callback_;
     ProofVerifier* delegate_;
@@ -158,10 +158,10 @@ class TestQuicCryptoStream : public QuicCryptoStream {
   }
 
   void WriteCryptoData(EncryptionLevel level, QuicStringPiece data) override {
-    pending_writes_.push_back(std::make_pair(QuicString(data), level));
+    pending_writes_.push_back(std::make_pair(std::string(data), level));
   }
 
-  const std::vector<std::pair<QuicString, EncryptionLevel>>& pending_writes() {
+  const std::vector<std::pair<std::string, EncryptionLevel>>& pending_writes() {
     return pending_writes_;
   }
 
@@ -191,7 +191,7 @@ class TestQuicCryptoStream : public QuicCryptoStream {
   }
 
  private:
-  std::vector<std::pair<QuicString, EncryptionLevel>> pending_writes_;
+  std::vector<std::pair<std::string, EncryptionLevel>> pending_writes_;
 };
 
 class TestQuicCryptoClientStream : public TestQuicCryptoStream {

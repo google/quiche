@@ -77,7 +77,7 @@ class TestQuicSpdyServerSession : public QuicServerSessionBase {
 
   MOCK_METHOD3(OnConnectionClosed,
                void(QuicErrorCode error,
-                    const QuicString& error_details,
+                    const std::string& error_details,
                     ConnectionCloseSource source));
   MOCK_METHOD1(CreateIncomingStream, QuicSpdyStream*(QuicStreamId id));
   MOCK_METHOD1(CreateIncomingStream, QuicSpdyStream*(PendingStream pending));
@@ -138,7 +138,7 @@ class TestDispatcher : public QuicDispatcher {
                bool(QuicConnectionId connection_id, bool ietf_quic));
 
   struct TestQuicPerPacketContext : public QuicPerPacketContext {
-    QuicString custom_packet_context;
+    std::string custom_packet_context;
   };
 
   std::unique_ptr<QuicPerPacketContext> GetPerPacketContext() const override {
@@ -154,7 +154,7 @@ class TestDispatcher : public QuicDispatcher {
     custom_packet_context_ = test_context->custom_packet_context;
   }
 
-  QuicString custom_packet_context_;
+  std::string custom_packet_context_;
 
   using QuicDispatcher::current_client_address;
   using QuicDispatcher::current_peer_address;
@@ -246,7 +246,7 @@ class QuicDispatcherTest : public QuicTest {
   void ProcessPacket(QuicSocketAddress peer_address,
                      QuicConnectionId connection_id,
                      bool has_version_flag,
-                     const QuicString& data) {
+                     const std::string& data) {
     ProcessPacket(peer_address, connection_id, has_version_flag, data,
                   CONNECTION_ID_PRESENT, PACKET_4BYTE_PACKET_NUMBER);
   }
@@ -256,7 +256,7 @@ class QuicDispatcherTest : public QuicTest {
   void ProcessPacket(QuicSocketAddress peer_address,
                      QuicConnectionId connection_id,
                      bool has_version_flag,
-                     const QuicString& data,
+                     const std::string& data,
                      QuicConnectionIdIncluded connection_id_included,
                      QuicPacketNumberLength packet_number_length) {
     ProcessPacket(peer_address, connection_id, has_version_flag, data,
@@ -267,7 +267,7 @@ class QuicDispatcherTest : public QuicTest {
   void ProcessPacket(QuicSocketAddress peer_address,
                      QuicConnectionId connection_id,
                      bool has_version_flag,
-                     const QuicString& data,
+                     const std::string& data,
                      QuicConnectionIdIncluded connection_id_included,
                      QuicPacketNumberLength packet_number_length,
                      uint64_t packet_number) {
@@ -281,7 +281,7 @@ class QuicDispatcherTest : public QuicTest {
                      QuicConnectionId connection_id,
                      bool has_version_flag,
                      ParsedQuicVersion version,
-                     const QuicString& data,
+                     const std::string& data,
                      QuicConnectionIdIncluded connection_id_included,
                      QuicPacketNumberLength packet_number_length,
                      uint64_t packet_number) {
@@ -298,11 +298,11 @@ class QuicDispatcherTest : public QuicTest {
       // Add CHLO packet to the beginning to be verified first, because it is
       // also processed first by new session.
       data_connection_map_[connection_id].push_front(
-          QuicString(packet->data(), packet->length()));
+          std::string(packet->data(), packet->length()));
     } else {
       // For non-CHLO, always append to last.
       data_connection_map_[connection_id].push_back(
-          QuicString(packet->data(), packet->length()));
+          std::string(packet->data(), packet->length()));
     }
     dispatcher_->ProcessPacket(server_address_, peer_address, *received_packet);
   }
@@ -347,14 +347,14 @@ class QuicDispatcherTest : public QuicTest {
                                                time_wait_list_manager_);
   }
 
-  QuicString SerializeCHLO() {
+  std::string SerializeCHLO() {
     CryptoHandshakeMessage client_hello;
     client_hello.set_tag(kCHLO);
     client_hello.SetStringPiece(kALPN, "hq");
-    return QuicString(client_hello.GetSerialized().AsStringPiece());
+    return std::string(client_hello.GetSerialized().AsStringPiece());
   }
 
-  QuicString SerializeTlsClientHello() { return ""; }
+  std::string SerializeTlsClientHello() { return ""; }
 
   void MarkSession1Deleted() { session1_ = nullptr; }
 
@@ -368,7 +368,7 @@ class QuicDispatcherTest : public QuicTest {
   MockTimeWaitListManager* time_wait_list_manager_;
   TestQuicSpdyServerSession* session1_;
   TestQuicSpdyServerSession* session2_;
-  std::map<QuicConnectionId, std::list<QuicString>> data_connection_map_;
+  std::map<QuicConnectionId, std::list<std::string>> data_connection_map_;
   QuicBufferedPacketStore* store_;
 };
 
@@ -499,7 +499,7 @@ TEST_F(QuicDispatcherTest, StatelessVersionNegotiation) {
   ParsedQuicVersion parsed_version(PROTOCOL_QUIC_CRYPTO, version);
   // Pad the CHLO message with enough data to make the packet large enough
   // to trigger version negotiation.
-  QuicString chlo = SerializeCHLO() + QuicString(1200, 'a');
+  std::string chlo = SerializeCHLO() + std::string(1200, 'a');
   DCHECK_LE(1200u, chlo.length());
   ProcessPacket(client_address, TestConnectionId(1), true, parsed_version, chlo,
                 CONNECTION_ID_PRESENT, PACKET_4BYTE_PACKET_NUMBER, 1);
@@ -516,11 +516,11 @@ TEST_F(QuicDispatcherTest, NoVersionNegotiationWithSmallPacket) {
   QuicTransportVersion version =
       static_cast<QuicTransportVersion>(QuicTransportVersionMin() - 1);
   ParsedQuicVersion parsed_version(PROTOCOL_QUIC_CRYPTO, version);
-  QuicString chlo = SerializeCHLO() + QuicString(1200, 'a');
+  std::string chlo = SerializeCHLO() + std::string(1200, 'a');
   // Truncate to 1100 bytes of payload which results in a packet just
   // under 1200 bytes after framing, packet, and encryption overhead.
   DCHECK_LE(1200u, chlo.length());
-  QuicString truncated_chlo = chlo.substr(0, 1100);
+  std::string truncated_chlo = chlo.substr(0, 1100);
   DCHECK_EQ(1100u, truncated_chlo.length());
   ProcessPacket(client_address, TestConnectionId(1), true, parsed_version,
                 truncated_chlo, CONNECTION_ID_PRESENT,
@@ -542,11 +542,11 @@ TEST_F(QuicDispatcherTest, VersionNegotiationWithoutChloSizeValidation) {
   QuicTransportVersion version =
       static_cast<QuicTransportVersion>(QuicTransportVersionMin() - 1);
   ParsedQuicVersion parsed_version(PROTOCOL_QUIC_CRYPTO, version);
-  QuicString chlo = SerializeCHLO() + QuicString(1200, 'a');
+  std::string chlo = SerializeCHLO() + std::string(1200, 'a');
   // Truncate to 1100 bytes of payload which results in a packet just
   // under 1200 bytes after framing, packet, and encryption overhead.
   DCHECK_LE(1200u, chlo.length());
-  QuicString truncated_chlo = chlo.substr(0, 1100);
+  std::string truncated_chlo = chlo.substr(0, 1100);
   DCHECK_EQ(1100u, truncated_chlo.length());
   ProcessPacket(client_address, TestConnectionId(1), true, parsed_version,
                 truncated_chlo, CONNECTION_ID_PRESENT,
@@ -1167,7 +1167,7 @@ TEST_P(QuicDispatcherStatelessRejectTest, CheapRejects) {
         .Times(1);
   }
   ProcessPacket(client_address, connection_id, true,
-                QuicString(client_hello.GetSerialized().AsStringPiece()));
+                std::string(client_hello.GetSerialized().AsStringPiece()));
 
   if (GetParam().enable_stateless_rejects_via_flag) {
     EXPECT_EQ(true,
@@ -1218,7 +1218,7 @@ TEST_P(QuicDispatcherStatelessRejectTest, BufferNonChlo) {
           })))
       .RetiresOnSaturation();
   ProcessPacket(client_address, connection_id, true,
-                QuicString(client_hello.GetSerialized().AsStringPiece()));
+                std::string(client_hello.GetSerialized().AsStringPiece()));
   EXPECT_FALSE(
       time_wait_list_manager_->IsConnectionIdInTimeWait(connection_id));
 }
@@ -1624,8 +1624,8 @@ class BufferedPacketStoreTest
         &full_chlo_);
   }
 
-  QuicString SerializeFullCHLO() {
-    return QuicString(full_chlo_.GetSerialized().AsStringPiece());
+  std::string SerializeFullCHLO() {
+    return std::string(full_chlo_.GetSerialized().AsStringPiece());
   }
 
  protected:
@@ -2130,16 +2130,16 @@ class AsyncGetProofTest : public QuicDispatcherTest {
     return static_cast<FakeProofSource*>(crypto_config_peer_.GetProofSource());
   }
 
-  QuicString SerializeFullCHLO() {
-    return QuicString(full_chlo_.GetSerialized().AsStringPiece());
+  std::string SerializeFullCHLO() {
+    return std::string(full_chlo_.GetSerialized().AsStringPiece());
   }
 
-  QuicString SerializeFullCHLOForClient2() {
-    return QuicString(full_chlo_2_.GetSerialized().AsStringPiece());
+  std::string SerializeFullCHLOForClient2() {
+    return std::string(full_chlo_2_.GetSerialized().AsStringPiece());
   }
 
-  QuicString SerializeCHLO() {
-    return QuicString(chlo_.GetSerialized().AsStringPiece());
+  std::string SerializeCHLO() {
+    return std::string(chlo_.GetSerialized().AsStringPiece());
   }
 
   // Sets up a session, and crypto stream based on the test parameters.

@@ -58,7 +58,7 @@ class QUIC_EXPORT_PRIVATE CryptoFramer : public CryptoMessageParser {
   }
 
   QuicErrorCode error() const override;
-  const QuicString& error_detail() const override;
+  const std::string& error_detail() const override;
 
   // Processes input data, which must be delivered in order. Returns
   // false if there was an error, and true otherwise. ProcessInput optionally
@@ -115,13 +115,13 @@ class QUIC_EXPORT_PRIVATE CryptoFramer : public CryptoMessageParser {
   // Last error.
   QuicErrorCode error_;
   // Remaining unparsed data.
-  QuicString buffer_;
+  std::string buffer_;
   // Current state of the parsing.
   CryptoFramerState state_;
   // The message currently being parsed.
   CryptoHandshakeMessage message_;
   // The issue which caused |error_|
-  QuicString error_detail_;
+  std::string error_detail_;
   // Number of entires in the message currently being parsed.
   uint16_t num_entries_;
   // tags_and_lengths_ contains the tags that are currently being parsed and

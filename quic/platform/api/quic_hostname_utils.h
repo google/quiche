@@ -25,7 +25,7 @@ class QUIC_EXPORT_PRIVATE QuicHostnameUtils {
   // Canonicalizes the specified hostname.  This involves a wide variety of
   // transformations, including lowercasing, removing trailing dots and IDNA
   // conversion.
-  static QuicString NormalizeHostname(QuicStringPiece hostname);
+  static std::string NormalizeHostname(QuicStringPiece hostname);
 };
 
 }  // namespace quic

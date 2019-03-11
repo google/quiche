@@ -104,28 +104,28 @@ struct QUIC_EXPORT_PRIVATE QuicCryptoNegotiatedParameters
 
   QuicTag key_exchange;
   QuicTag aead;
-  QuicString initial_premaster_secret;
-  QuicString forward_secure_premaster_secret;
+  std::string initial_premaster_secret;
+  std::string forward_secure_premaster_secret;
   // initial_subkey_secret is used as the PRK input to the HKDF used when
   // performing key extraction that needs to happen before forward-secure keys
   // are available.
-  QuicString initial_subkey_secret;
+  std::string initial_subkey_secret;
   // subkey_secret is used as the PRK input to the HKDF used for key extraction.
-  QuicString subkey_secret;
+  std::string subkey_secret;
   CrypterPair initial_crypters;
   CrypterPair forward_secure_crypters;
   // Normalized SNI: converted to lower case and trailing '.' removed.
-  QuicString sni;
-  QuicString client_nonce;
-  QuicString server_nonce;
+  std::string sni;
+  std::string client_nonce;
+  std::string server_nonce;
   // hkdf_input_suffix contains the HKDF input following the label: the
   // ConnectionId, client hello and server config. This is only populated in the
   // client because only the client needs to derive the forward secure keys at a
   // later time from the initial keys.
-  QuicString hkdf_input_suffix;
+  std::string hkdf_input_suffix;
   // cached_certs contains the cached certificates that a client used when
   // sending a client hello.
-  std::vector<QuicString> cached_certs;
+  std::vector<std::string> cached_certs;
   // client_key_exchange is used by clients to store the ephemeral KeyExchange
   // for the connection.
   std::unique_ptr<KeyExchange> client_key_exchange;
@@ -133,14 +133,14 @@ struct QUIC_EXPORT_PRIVATE QuicCryptoNegotiatedParameters
   // proves possession of the corresponding private key. It consists of 32
   // bytes of x coordinate, followed by 32 bytes of y coordinate. Both values
   // are big-endian and the pair is a P-256 public key.
-  QuicString channel_id;
+  std::string channel_id;
   QuicTag token_binding_key_param;
 
   // Used when generating proof signature when sending server config updates.
 
   // Used to generate cert chain when sending server config updates.
-  QuicString client_common_set_hashes;
-  QuicString client_cached_cert_hashes;
+  std::string client_common_set_hashes;
+  std::string client_cached_cert_hashes;
 
   // Default to false; set to true if the client indicates that it supports sct
   // by sending CSCT tag with an empty value in client hello.

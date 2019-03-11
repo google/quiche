@@ -50,18 +50,18 @@ TEST_F(CryptoUtilsTest, TestExportKeyingMaterial) {
 
   for (size_t i = 0; i < QUIC_ARRAYSIZE(test_vector); i++) {
     // Decode the test vector.
-    QuicString subkey_secret =
+    std::string subkey_secret =
         QuicTextUtils::HexDecode(test_vector[i].subkey_secret);
-    QuicString label = QuicTextUtils::HexDecode(test_vector[i].label);
-    QuicString context = QuicTextUtils::HexDecode(test_vector[i].context);
+    std::string label = QuicTextUtils::HexDecode(test_vector[i].label);
+    std::string context = QuicTextUtils::HexDecode(test_vector[i].context);
     size_t result_len = test_vector[i].result_len;
     bool expect_ok = test_vector[i].expected != nullptr;
-    QuicString expected;
+    std::string expected;
     if (expect_ok) {
       expected = QuicTextUtils::HexDecode(test_vector[i].expected);
     }
 
-    QuicString result;
+    std::string result;
     bool ok = CryptoUtils::ExportKeyingMaterial(subkey_secret, label, context,
                                                 result_len, &result);
     EXPECT_EQ(expect_ok, ok);

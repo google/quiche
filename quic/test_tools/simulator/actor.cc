@@ -8,7 +8,7 @@
 namespace quic {
 namespace simulator {
 
-Actor::Actor(Simulator* simulator, QuicString name)
+Actor::Actor(Simulator* simulator, std::string name)
     : simulator_(simulator),
       clock_(simulator->GetClock()),
       name_(std::move(name)) {

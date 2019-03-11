@@ -70,10 +70,10 @@ TEST_F(QuicHKDFTest, HKDF) {
     const HKDFInput& test(kHKDFInputs[i]);
     SCOPED_TRACE(i);
 
-    const QuicString key = QuicTextUtils::HexDecode(test.key_hex);
-    const QuicString salt = QuicTextUtils::HexDecode(test.salt_hex);
-    const QuicString info = QuicTextUtils::HexDecode(test.info_hex);
-    const QuicString expected = QuicTextUtils::HexDecode(test.output_hex);
+    const std::string key = QuicTextUtils::HexDecode(test.key_hex);
+    const std::string salt = QuicTextUtils::HexDecode(test.salt_hex);
+    const std::string info = QuicTextUtils::HexDecode(test.info_hex);
+    const std::string expected = QuicTextUtils::HexDecode(test.output_hex);
 
     // We set the key_length to the length of the expected output and then take
     // the result from the first key, which is the client write key.

@@ -47,7 +47,7 @@ void QuicControlFrameManager::WriteOrBufferRstStream(
 void QuicControlFrameManager::WriteOrBufferGoAway(
     QuicErrorCode error,
     QuicStreamId last_good_stream_id,
-    const QuicString& reason) {
+    const std::string& reason) {
   QUIC_DVLOG(1) << "Writing GOAWAY_FRAME";
   WriteOrBufferQuicFrame(QuicFrame(new QuicGoAwayFrame(
       ++last_control_frame_id_, error, last_good_stream_id, reason)));

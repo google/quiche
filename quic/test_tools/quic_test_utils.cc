@@ -131,15 +131,15 @@ std::unique_ptr<QuicPacket> BuildUnsizedDataPacket(
       header.length_length);
 }
 
-QuicString Sha1Hash(QuicStringPiece data) {
+std::string Sha1Hash(QuicStringPiece data) {
   char buffer[SHA_DIGEST_LENGTH];
   SHA1(reinterpret_cast<const uint8_t*>(data.data()), data.size(),
        reinterpret_cast<uint8_t*>(buffer));
-  return QuicString(buffer, QUIC_ARRAYSIZE(buffer));
+  return std::string(buffer, QUIC_ARRAYSIZE(buffer));
 }
 
 uint64_t SimpleRandom::RandUint64() {
-  QuicString hash =
+  std::string hash =
       Sha1Hash(QuicStringPiece(reinterpret_cast<char*>(&seed_), sizeof(seed_)));
   DCHECK_EQ(static_cast<size_t>(SHA_DIGEST_LENGTH), hash.length());
   memcpy(&seed_, hash.data(), sizeof(seed_));
@@ -650,7 +650,7 @@ TestQuicSpdyClientSession::TestQuicSpdyClientSession(
 
 TestQuicSpdyClientSession::~TestQuicSpdyClientSession() {}
 
-bool TestQuicSpdyClientSession::IsAuthorized(const QuicString& authority) {
+bool TestQuicSpdyClientSession::IsAuthorized(const std::string& authority) {
   return true;
 }
 
@@ -714,10 +714,10 @@ MockNetworkChangeVisitor::~MockNetworkChangeVisitor() {}
 
 namespace {
 
-QuicString HexDumpWithMarks(const char* data,
-                            int length,
-                            const bool* marks,
-                            int mark_length) {
+std::string HexDumpWithMarks(const char* data,
+                             int length,
+                             const bool* marks,
+                             int mark_length) {
   static const char kHexChars[] = "0123456789abcdef";
   static const int kColumns = 4;
 
@@ -728,7 +728,7 @@ QuicString HexDumpWithMarks(const char* data,
     mark_length = std::min(mark_length, kSizeLimit);
   }
 
-  QuicString hex;
+  std::string hex;
   for (const char* row = data; length > 0;
        row += kColumns, length -= kColumns) {
     for (const char* p = row; p < row + 4; ++p) {
@@ -782,7 +782,7 @@ QuicEncryptedPacket* ConstructEncryptedPacket(
     bool version_flag,
     bool reset_flag,
     uint64_t packet_number,
-    const QuicString& data) {
+    const std::string& data) {
   return ConstructEncryptedPacket(
       destination_connection_id, source_connection_id, version_flag, reset_flag,
       packet_number, data, CONNECTION_ID_PRESENT, CONNECTION_ID_ABSENT,
@@ -795,7 +795,7 @@ QuicEncryptedPacket* ConstructEncryptedPacket(
     bool version_flag,
     bool reset_flag,
     uint64_t packet_number,
-    const QuicString& data,
+    const std::string& data,
     QuicConnectionIdIncluded destination_connection_id_included,
     QuicConnectionIdIncluded source_connection_id_included,
     QuicPacketNumberLength packet_number_length) {
@@ -811,7 +811,7 @@ QuicEncryptedPacket* ConstructEncryptedPacket(
     bool version_flag,
     bool reset_flag,
     uint64_t packet_number,
-    const QuicString& data,
+    const std::string& data,
     QuicConnectionIdIncluded destination_connection_id_included,
     QuicConnectionIdIncluded source_connection_id_included,
     QuicPacketNumberLength packet_number_length,
@@ -828,7 +828,7 @@ QuicEncryptedPacket* ConstructEncryptedPacket(
     bool version_flag,
     bool reset_flag,
     uint64_t packet_number,
-    const QuicString& data,
+    const std::string& data,
     QuicConnectionIdIncluded destination_connection_id_included,
     QuicConnectionIdIncluded source_connection_id_included,
     QuicPacketNumberLength packet_number_length,
@@ -894,7 +894,7 @@ QuicEncryptedPacket* ConstructMisFramedEncryptedPacket(
     bool version_flag,
     bool reset_flag,
     uint64_t packet_number,
-    const QuicString& data,
+    const std::string& data,
     QuicConnectionIdIncluded destination_connection_id_included,
     QuicConnectionIdIncluded source_connection_id_included,
     QuicPacketNumberLength packet_number_length,
@@ -939,7 +939,7 @@ QuicEncryptedPacket* ConstructMisFramedEncryptedPacket(
   return new QuicEncryptedPacket(buffer, encrypted_length, true);
 }
 
-void CompareCharArraysWithHexError(const QuicString& description,
+void CompareCharArraysWithHexError(const std::string& description,
                                    const char* actual,
                                    const int actual_len,
                                    const char* expected,

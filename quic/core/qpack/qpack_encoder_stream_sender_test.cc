@@ -51,7 +51,7 @@ TEST_F(QpackEncoderStreamSenderTest, InsertWithNameReference) {
           "5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a"
           "5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a"
           "5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a"))));
-  stream_.SendInsertWithNameReference(false, 42, QuicString(127, 'Z'));
+  stream_.SendInsertWithNameReference(false, 42, std::string(127, 'Z'));
 }
 
 TEST_F(QpackEncoderStreamSenderTest, InsertWithoutNameReference) {
@@ -80,8 +80,8 @@ TEST_F(QpackEncoderStreamSenderTest, InsertWithoutNameReference) {
           "5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a"
           "5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a"
           "5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a"))));
-  stream_.SendInsertWithoutNameReference(QuicString(31, 'Z'),
-                                         QuicString(127, 'Z'));
+  stream_.SendInsertWithoutNameReference(std::string(31, 'Z'),
+                                         std::string(127, 'Z'));
 }
 
 TEST_F(QpackEncoderStreamSenderTest, Duplicate) {

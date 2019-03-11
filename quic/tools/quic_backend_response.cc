@@ -10,7 +10,7 @@ QuicBackendResponse::ServerPushInfo::ServerPushInfo(
     QuicUrl request_url,
     spdy::SpdyHeaderBlock headers,
     spdy::SpdyPriority priority,
-    QuicString body)
+    std::string body)
     : request_url(request_url),
       headers(std::move(headers)),
       priority(priority),

@@ -402,7 +402,7 @@ TEST_F(QuicIntervalTest, Length) {
 TEST_F(QuicIntervalTest, IntervalOfTypeWithNoOperatorMinus) {
   // QuicInterval<T> should work even if T does not support operator-().  We
   // just can't call QuicInterval<T>::Length() for such types.
-  const QuicInterval<QuicString> d1("a", "b");
+  const QuicInterval<std::string> d1("a", "b");
   const QuicInterval<std::pair<int, int>> d2({1, 2}, {4, 3});
   EXPECT_EQ("a", d1.min());
   EXPECT_EQ("b", d1.max());

@@ -38,7 +38,7 @@ TEST_F(QuicTextUtilsTest, ToLower) {
 }
 
 TEST_F(QuicTextUtilsTest, RemoveLeadingAndTrailingWhitespace) {
-  QuicString input;
+  std::string input;
 
   for (auto* input : {"text", " text", "  text", "text ", "text  ", " text ",
                       "  text  ", "\r\n\ttext", "text\n\r\t"}) {
@@ -49,9 +49,9 @@ TEST_F(QuicTextUtilsTest, RemoveLeadingAndTrailingWhitespace) {
 }
 
 TEST_F(QuicTextUtilsTest, StringToNumbers) {
-  const QuicString kMaxInt32Plus1 = "2147483648";
-  const QuicString kMinInt32Minus1 = "-2147483649";
-  const QuicString kMaxUint32Plus1 = "4294967296";
+  const std::string kMaxInt32Plus1 = "2147483648";
+  const std::string kMinInt32Minus1 = "-2147483649";
+  const std::string kMaxUint32Plus1 = "4294967296";
 
   {
     // StringToUint64
@@ -168,8 +168,8 @@ TEST_F(QuicTextUtilsTest, HexDump) {
 }
 
 TEST_F(QuicTextUtilsTest, Base64Encode) {
-  QuicString output;
-  QuicString input = "Hello";
+  std::string output;
+  std::string input = "Hello";
   QuicTextUtils::Base64Encode(reinterpret_cast<const uint8_t*>(input.data()),
                               input.length(), &output);
   EXPECT_EQ("SGVsbG8", output);

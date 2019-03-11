@@ -208,7 +208,7 @@ class QuartcSessionTest : public QuicTest {
 
     // Send messages from peer 1 to peer 2 until required number of messages
     // are queued in unsent message queue.
-    std::vector<QuicString> sent_messages;
+    std::vector<std::string> sent_messages;
     while (peer_sending->send_message_queue_size() < queue_size) {
       sent_messages.push_back(
           QuicStrCat("Sending message, index=", sent_messages.size()));
@@ -229,13 +229,13 @@ class QuartcSessionTest : public QuicTest {
     ASSERT_TRUE(client_peer_->CanSendMessage());
 
     // Send message of maximum allowed length.
-    QuicString message_max_long =
-        QuicString(server_peer_->GetLargestMessagePayload(), 'A');
+    std::string message_max_long =
+        std::string(server_peer_->GetLargestMessagePayload(), 'A');
     ASSERT_TRUE(server_peer_->SendOrQueueMessage(message_max_long));
 
     // Send long message which should fail.
-    QuicString message_too_long =
-        QuicString(server_peer_->GetLargestMessagePayload() + 1, 'B');
+    std::string message_too_long =
+        std::string(server_peer_->GetLargestMessagePayload() + 1, 'B');
     ASSERT_FALSE(server_peer_->SendOrQueueMessage(message_too_long));
 
     // Wait for peer 2 to receive message.

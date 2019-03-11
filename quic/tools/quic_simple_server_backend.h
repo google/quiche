@@ -27,7 +27,7 @@ class QuicSimpleServerBackend {
 
     virtual QuicConnectionId connection_id() const = 0;
     virtual QuicStreamId stream_id() const = 0;
-    virtual QuicString peer_host() const = 0;
+    virtual std::string peer_host() const = 0;
     // Called when the response is ready at the backend and can be send back to
     // the QUIC client.
     virtual void OnResponseBackendComplete(
@@ -38,7 +38,7 @@ class QuicSimpleServerBackend {
   virtual ~QuicSimpleServerBackend() = default;
   // This method initializes the backend instance to fetch responses
   // from a backend server, in-memory cache etc.
-  virtual bool InitializeBackend(const QuicString& backend_url) = 0;
+  virtual bool InitializeBackend(const std::string& backend_url) = 0;
   // Returns true if the backend has been successfully initialized
   // and could be used to fetch HTTP requests
   virtual bool IsBackendInitialized() const = 0;
@@ -49,7 +49,7 @@ class QuicSimpleServerBackend {
   // asynchronously calls |request_handler| with the HTTP response.
   virtual void FetchResponseFromBackend(
       const spdy::SpdyHeaderBlock& request_headers,
-      const QuicString& request_body,
+      const std::string& request_body,
       RequestHandler* request_handler) = 0;
   // Clears the state of the backend  instance
   virtual void CloseBackendResponseStream(RequestHandler* request_handler) = 0;

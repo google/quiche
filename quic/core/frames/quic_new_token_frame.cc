@@ -12,7 +12,7 @@ QuicNewTokenFrame::QuicNewTokenFrame()
     : control_frame_id(kInvalidControlFrameId) {}
 
 QuicNewTokenFrame::QuicNewTokenFrame(QuicControlFrameId control_frame_id,
-                                     QuicString token)
+                                     std::string token)
     : control_frame_id(control_frame_id), token(token) {}
 
 std::ostream& operator<<(std::ostream& os, const QuicNewTokenFrame& s) {

@@ -23,8 +23,8 @@ const QuicByteCount kWriteChunkSize = 128 * 1024;
 const char kStreamDataContents = 'Q';
 
 // Takes a SHA-1 hash of the name and converts it into five 32-bit integers.
-static std::vector<uint32_t> HashNameIntoFive32BitIntegers(QuicString name) {
-  const QuicString hash = test::Sha1Hash(name);
+static std::vector<uint32_t> HashNameIntoFive32BitIntegers(std::string name) {
+  const std::string hash = test::Sha1Hash(name);
 
   std::vector<uint32_t> output;
   uint32_t current_number = 0;
@@ -39,14 +39,14 @@ static std::vector<uint32_t> HashNameIntoFive32BitIntegers(QuicString name) {
   return output;
 }
 
-QuicSocketAddress GetAddressFromName(QuicString name) {
+QuicSocketAddress GetAddressFromName(std::string name) {
   const std::vector<uint32_t> hash = HashNameIntoFive32BitIntegers(name);
 
   // Generate a random port between 1025 and 65535.
   const uint16_t port = 1025 + hash[0] % (65535 - 1025 + 1);
 
   // Generate a random 10.x.x.x address, where x is between 1 and 254.
-  QuicString ip_address{"\xa\0\0\0", 4};
+  std::string ip_address{"\xa\0\0\0", 4};
   for (size_t i = 1; i < 4; i++) {
     ip_address[i] = 1 + hash[i] % 254;
   }
@@ -56,8 +56,8 @@ QuicSocketAddress GetAddressFromName(QuicString name) {
 }
 
 QuicEndpoint::QuicEndpoint(Simulator* simulator,
-                           QuicString name,
-                           QuicString peer_name,
+                           std::string name,
+                           std::string peer_name,
                            Perspective perspective,
                            QuicConnectionId connection_id)
     : Endpoint(simulator, name),
@@ -103,7 +103,7 @@ QuicEndpoint::QuicEndpoint(Simulator* simulator,
   // primarily because
   //  - this enables pacing, and
   //  - this sets the non-handshake timeouts.
-  QuicString error;
+  std::string error;
   CryptoHandshakeMessage peer_hello;
   peer_hello.SetValue(kICSL,
                       static_cast<uint32_t>(kMaximumIdleTimeoutSecs - 1));
@@ -122,7 +122,7 @@ QuicEndpoint::~QuicEndpoint() {
     const char* perspective_prefix =
         connection_.perspective() == Perspective::IS_CLIENT ? "C" : "S";
 
-    QuicString identifier =
+    std::string identifier =
         QuicStrCat(perspective_prefix, connection_.connection_id().ToString());
     QuicRecordTestOutput(identifier,
                          trace_visitor_->trace()->SerializeAsString());
@@ -305,7 +305,7 @@ WriteResult QuicEndpoint::Writer::WritePacket(
   packet->destination = endpoint_->peer_name_;
   packet->tx_timestamp = endpoint_->clock_->Now();
 
-  packet->contents = QuicString(buffer, buf_len);
+  packet->contents = std::string(buffer, buf_len);
   packet->size = buf_len;
 
   endpoint_->nic_tx_queue_.AcceptPacket(std::move(packet));
@@ -384,7 +384,7 @@ void QuicEndpoint::WriteStreamData() {
 }
 
 QuicEndpointMultiplexer::QuicEndpointMultiplexer(
-    QuicString name,
+    std::string name,
     std::initializer_list<QuicEndpoint*> endpoints)
     : Endpoint((*endpoints.begin())->simulator(), name) {
   for (QuicEndpoint* endpoint : endpoints) {

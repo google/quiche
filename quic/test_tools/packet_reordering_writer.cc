@@ -33,7 +33,7 @@ WriteResult PacketReorderingWriter::WritePacket(
   }
   // Still have packet to wait.
   DCHECK_LT(0u, num_packets_to_wait_) << "Only allow one packet to be delayed";
-  delayed_data_ = QuicString(buffer, buf_len);
+  delayed_data_ = std::string(buffer, buf_len);
   delayed_self_address_ = self_address;
   delayed_peer_address_ = peer_address;
   if (options != nullptr) {

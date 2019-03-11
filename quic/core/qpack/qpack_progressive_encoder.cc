@@ -37,7 +37,7 @@ bool QpackProgressiveEncoder::HasNext() const {
 }
 
 void QpackProgressiveEncoder::Next(size_t max_encoded_bytes,
-                                   QuicString* output) {
+                                   std::string* output) {
   DCHECK_NE(0u, max_encoded_bytes);
   DCHECK(HasNext());
 

@@ -24,8 +24,8 @@ TEST_F(QuicHeaderListTest, OnHeader) {
 
 TEST_F(QuicHeaderListTest, TooLarge) {
   QuicHeaderList headers;
-  QuicString key = "key";
-  QuicString value(1 << 18, '1');
+  std::string key = "key";
+  std::string value(1 << 18, '1');
   // Send a header that exceeds max_header_list_size.
   headers.OnHeader(key, value);
   // Send a second header exceeding max_header_list_size.
@@ -42,8 +42,8 @@ TEST_F(QuicHeaderListTest, TooLarge) {
 TEST_F(QuicHeaderListTest, NotTooLarge) {
   QuicHeaderList headers;
   headers.set_max_header_list_size(1 << 20);
-  QuicString key = "key";
-  QuicString value(1 << 18, '1');
+  std::string key = "key";
+  std::string value(1 << 18, '1');
   headers.OnHeader(key, value);
   size_t total_bytes = key.size() + value.size();
   headers.OnHeaderBlockEnd(total_bytes, total_bytes);

@@ -35,7 +35,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
         uint64_t name_index = provider.ConsumeIntegral<uint64_t>();
         uint16_t value_length =
             provider.ConsumeIntegralInRange<uint16_t>(0, kMaxStringLength);
-        QuicString value = provider.ConsumeRandomLengthString(value_length);
+        std::string value = provider.ConsumeRandomLengthString(value_length);
 
         sender.SendInsertWithNameReference(is_static, name_index, value);
         break;
@@ -43,10 +43,10 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
       case 1: {
         uint16_t name_length =
             provider.ConsumeIntegralInRange<uint16_t>(0, kMaxStringLength);
-        QuicString name = provider.ConsumeRandomLengthString(name_length);
+        std::string name = provider.ConsumeRandomLengthString(name_length);
         uint16_t value_length =
             provider.ConsumeIntegralInRange<uint16_t>(0, kMaxStringLength);
-        QuicString value = provider.ConsumeRandomLengthString(value_length);
+        std::string value = provider.ConsumeRandomLengthString(value_length);
         sender.SendInsertWithoutNameReference(name, value);
         break;
       }

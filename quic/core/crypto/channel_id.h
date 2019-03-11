@@ -24,10 +24,10 @@ class QUIC_EXPORT_PRIVATE ChannelIDKey {
   // Sign signs |signed_data| using the ChannelID private key and puts the
   // signature into |out_signature|. It returns true on success.
   virtual bool Sign(QuicStringPiece signed_data,
-                    QuicString* out_signature) const = 0;
+                    std::string* out_signature) const = 0;
 
   // SerializeKey returns the serialized ChannelID public key.
-  virtual QuicString SerializeKey() const = 0;
+  virtual std::string SerializeKey() const = 0;
 };
 
 // ChannelIDSourceCallback provides a generic mechanism for a ChannelIDSource
@@ -58,7 +58,7 @@ class QUIC_EXPORT_PRIVATE ChannelIDSource {
   // when complete. In this case, the ChannelIDSource will take ownership of
   // |callback|.
   virtual QuicAsyncStatus GetChannelIDKey(
-      const QuicString& hostname,
+      const std::string& hostname,
       std::unique_ptr<ChannelIDKey>* channel_id_key,
       ChannelIDSourceCallback* callback) = 0;
 };

@@ -43,7 +43,7 @@ class QuicSpdyClientSession : public QuicSpdyClientSessionBase {
   QuicCryptoClientStreamBase* GetMutableCryptoStream() override;
   const QuicCryptoClientStreamBase* GetCryptoStream() const override;
 
-  bool IsAuthorized(const QuicString& authority) override;
+  bool IsAuthorized(const std::string& authority) override;
 
   // QuicSpdyClientSessionBase methods:
   void OnProofValid(const QuicCryptoClientConfig::CachedState& cached) override;

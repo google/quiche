@@ -61,7 +61,7 @@ bool SpdyUtils::CopyAndValidateHeaders(const QuicHeaderList& header_list,
                                        int64_t* content_length,
                                        SpdyHeaderBlock* headers) {
   for (const auto& p : header_list) {
-    const QuicString& name = p.first;
+    const std::string& name = p.first;
     if (name.empty()) {
       QUIC_DLOG(ERROR) << "Header name must not be empty.";
       return false;
@@ -90,7 +90,7 @@ bool SpdyUtils::CopyAndValidateTrailers(const QuicHeaderList& header_list,
                                         SpdyHeaderBlock* trailers) {
   bool found_final_byte_offset = false;
   for (const auto& p : header_list) {
-    const QuicString& name = p.first;
+    const std::string& name = p.first;
 
     // Pull out the final offset pseudo header which indicates the number of
     // response body bytes expected.
@@ -129,7 +129,7 @@ bool SpdyUtils::CopyAndValidateTrailers(const QuicHeaderList& header_list,
 }
 
 // static
-QuicString SpdyUtils::GetPromisedUrlFromHeaders(
+std::string SpdyUtils::GetPromisedUrlFromHeaders(
     const SpdyHeaderBlock& headers) {
   // RFC 7540, Section 8.1.2.3: All HTTP/2 requests MUST include exactly
   // one valid value for the ":method", ":scheme", and ":path" pseudo-header
@@ -150,12 +150,12 @@ QuicString SpdyUtils::GetPromisedUrlFromHeaders(
   // So the only methods allowed in a PUSH_PROMISE are GET and HEAD.
   SpdyHeaderBlock::const_iterator it = headers.find(":method");
   if (it == headers.end() || (it->second != "GET" && it->second != "HEAD")) {
-    return QuicString();
+    return std::string();
   }
 
   it = headers.find(":scheme");
   if (it == headers.end() || it->second.empty()) {
-    return QuicString();
+    return std::string();
   }
   QuicStringPiece scheme = it->second;
 
@@ -164,7 +164,7 @@ QuicString SpdyUtils::GetPromisedUrlFromHeaders(
   // (see Section 10.1).
   it = headers.find(":authority");
   if (it == headers.end() || it->second.empty()) {
-    return QuicString();
+    return std::string();
   }
   QuicStringPiece authority = it->second;
 
@@ -175,7 +175,7 @@ QuicString SpdyUtils::GetPromisedUrlFromHeaders(
   // is deferred to implementations in QuicUrlUtils::GetPushPromiseUrl().
   it = headers.find(":path");
   if (it == headers.end()) {
-    return QuicString();
+    return std::string();
   }
   QuicStringPiece path = it->second;
 
@@ -183,7 +183,7 @@ QuicString SpdyUtils::GetPromisedUrlFromHeaders(
 }
 
 // static
-QuicString SpdyUtils::GetPromisedHostNameFromHeaders(
+std::string SpdyUtils::GetPromisedHostNameFromHeaders(
     const SpdyHeaderBlock& headers) {
   // TODO(fayang): Consider just checking out the value of the ":authority" key
   // in headers.
@@ -192,22 +192,22 @@ QuicString SpdyUtils::GetPromisedHostNameFromHeaders(
 
 // static
 bool SpdyUtils::PromisedUrlIsValid(const SpdyHeaderBlock& headers) {
-  QuicString url(GetPromisedUrlFromHeaders(headers));
+  std::string url(GetPromisedUrlFromHeaders(headers));
   return !url.empty() && GURL(url).is_valid();
 }
 
 // static
-bool SpdyUtils::PopulateHeaderBlockFromUrl(const QuicString url,
+bool SpdyUtils::PopulateHeaderBlockFromUrl(const std::string url,
                                            SpdyHeaderBlock* headers) {
   (*headers)[":method"] = "GET";
   size_t pos = url.find("://");
-  if (pos == QuicString::npos) {
+  if (pos == std::string::npos) {
     return false;
   }
   (*headers)[":scheme"] = url.substr(0, pos);
   size_t start = pos + 3;
   pos = url.find("/", start);
-  if (pos == QuicString::npos) {
+  if (pos == std::string::npos) {
     (*headers)[":authority"] = url.substr(start);
     (*headers)[":path"] = "/";
     return true;
@@ -218,9 +218,9 @@ bool SpdyUtils::PopulateHeaderBlockFromUrl(const QuicString url,
 }
 
 // static
-QuicString SpdyUtils::GetPushPromiseUrl(QuicStringPiece scheme,
-                                        QuicStringPiece authority,
-                                        QuicStringPiece path) {
+std::string SpdyUtils::GetPushPromiseUrl(QuicStringPiece scheme,
+                                         QuicStringPiece authority,
+                                         QuicStringPiece path) {
   // RFC 7540, Section 8.1.2.3: The ":path" pseudo-header field includes the
   // path and query parts of the target URI (the "path-absolute" production
   // and optionally a '?' character followed by the "query" production (see
@@ -249,7 +249,7 @@ QuicString SpdyUtils::GetPushPromiseUrl(QuicStringPiece scheme,
   // 8.1.2.3 about OPTIONS requests does not apply here (i.e. ":path" cannot be
   // "*").
   if (path.empty() || path[0] != '/' || (path.size() >= 2 && path[1] == '/')) {
-    return QuicString();
+    return std::string();
   }
 
   // Validate the scheme; this is to ensure a scheme of "foo://bar" is not
@@ -262,7 +262,7 @@ QuicString SpdyUtils::GetPushPromiseUrl(QuicStringPiece scheme,
   if (!url::CanonicalizeScheme(scheme.data(), scheme_component,
                                &canon_scheme_output, &canon_component) ||
       !canon_component.is_nonempty() || canon_component.begin != 0) {
-    return QuicString();
+    return std::string();
   }
   canonical_scheme.resize(canon_component.len + 1);
 
@@ -285,14 +285,14 @@ QuicString SpdyUtils::GetPushPromiseUrl(QuicStringPiece scheme,
   // it is performed later in processing, only "http" and "https" schemed
   // URIs are supported for PUSH.
   if (username_component.is_valid() || password_component.is_valid()) {
-    return QuicString();
+    return std::string();
   }
 
   // Failed parsing or no host present. ParseAuthority() will ensure that
   // host_component + port_component cover the entire string, if
   // username_component and password_component are not present.
   if (!host_component.is_nonempty()) {
-    return QuicString();
+    return std::string();
   }
 
   // Validate the port (if present; it's optional).
@@ -300,7 +300,7 @@ QuicString SpdyUtils::GetPushPromiseUrl(QuicStringPiece scheme,
   if (port_component.is_nonempty()) {
     parsed_port_number = url::ParsePort(authority.data(), port_component);
     if (parsed_port_number < 0 && parsed_port_number != url::PORT_UNSPECIFIED) {
-      return QuicString();
+      return std::string();
     }
   }
 
@@ -312,7 +312,7 @@ QuicString SpdyUtils::GetPushPromiseUrl(QuicStringPiece scheme,
   if (!url::CanonicalizeHost(authority.data(), host_component,
                              &canon_host_output, &canon_component) ||
       !canon_component.is_nonempty() || canon_component.begin != 0) {
-    return QuicString();
+    return std::string();
   }
 
   // At this point, "authority" has been validated to either be of the form
@@ -332,7 +332,7 @@ QuicString SpdyUtils::GetPushPromiseUrl(QuicStringPiece scheme,
       origin_url.has_username() || origin_url.has_password() ||
       (origin_url.has_path() && origin_url.path_piece() != "/") ||
       origin_url.has_query() || origin_url.has_ref()) {
-    return QuicString();
+    return std::string();
   }
 
   // Attempt to parse the path.
@@ -344,7 +344,7 @@ QuicString SpdyUtils::GetPushPromiseUrl(QuicStringPiece scheme,
   // fragment to the query.
   GURL full_url(spec);
   if (!full_url.is_valid() || full_url.has_ref()) {
-    return QuicString();
+    return std::string();
   }
 
   return full_url.spec();

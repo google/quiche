@@ -67,7 +67,8 @@ class UberQuicStreamIdManagerTest : public QuicTestWithParam<Perspective> {
   QuicFrame frame_;
 };
 
-INSTANTIATE_TEST_SUITE_P(Tests, UberQuicStreamIdManagerTest,
+INSTANTIATE_TEST_SUITE_P(Tests,
+                         UberQuicStreamIdManagerTest,
                          ::testing::ValuesIn({Perspective::IS_CLIENT,
                                               Perspective::IS_SERVER}));
 
@@ -218,9 +219,9 @@ TEST_P(UberQuicStreamIdManagerTest, MaybeIncreaseLargestPeerStreamId) {
   EXPECT_TRUE(manager_->MaybeIncreaseLargestPeerStreamId(
       manager_->actual_max_allowed_incoming_unidirectional_stream_id()));
 
-  QuicString error_details = GetParam() == Perspective::IS_SERVER
-                                 ? "Stream id 404 above 400"
-                                 : "Stream id 401 above 397";
+  std::string error_details = GetParam() == Perspective::IS_SERVER
+                                  ? "Stream id 404 above 400"
+                                  : "Stream id 401 above 397";
   EXPECT_CALL(*connection_,
               CloseConnection(QUIC_INVALID_STREAM_ID, error_details, _));
   EXPECT_FALSE(manager_->MaybeIncreaseLargestPeerStreamId(

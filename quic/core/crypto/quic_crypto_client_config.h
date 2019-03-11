@@ -82,13 +82,13 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
     ServerConfigState SetServerConfig(QuicStringPiece server_config,
                                       QuicWallTime now,
                                       QuicWallTime expiry_time,
-                                      QuicString* error_details);
+                                      std::string* error_details);
 
     // InvalidateServerConfig clears the cached server config (if any).
     void InvalidateServerConfig();
 
     // SetProof stores a cert chain, cert signed timestamp and signature.
-    void SetProof(const std::vector<QuicString>& certs,
+    void SetProof(const std::vector<std::string>& certs,
                   QuicStringPiece cert_sct,
                   QuicStringPiece chlo_hash,
                   QuicStringPiece signature);
@@ -109,12 +109,12 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
     // generation_counter_ in sync.
     void SetProofInvalid();
 
-    const QuicString& server_config() const;
-    const QuicString& source_address_token() const;
-    const std::vector<QuicString>& certs() const;
-    const QuicString& cert_sct() const;
-    const QuicString& chlo_hash() const;
-    const QuicString& signature() const;
+    const std::string& server_config() const;
+    const std::string& source_address_token() const;
+    const std::vector<std::string>& certs() const;
+    const std::string& cert_sct() const;
+    const std::string& chlo_hash() const;
+    const std::string& signature() const;
     bool proof_valid() const;
     uint64_t generation_counter() const;
     const ProofVerifyDetails* proof_verify_details() const;
@@ -138,7 +138,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
     QuicConnectionId GetNextServerDesignatedConnectionId();
 
     // Adds the servernonce to the queue of server nonces.
-    void add_server_nonce(const QuicString& server_nonce);
+    void add_server_nonce(const std::string& server_nonce);
 
     // If true, the crypto config contains at least one server nonce, and the
     // client should use one of these nonces.
@@ -147,7 +147,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
     // This function should only be called when has_server_nonce is true.
     // Returns the next server_nonce specified by the server and removes it
     // from the queue of nonces.
-    QuicString GetNextServerNonce();
+    std::string GetNextServerNonce();
 
     // SetProofVerifyDetails takes ownership of |details|.
     void SetProofVerifyDetails(ProofVerifyDetails* details);
@@ -162,22 +162,22 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
     // Returns false if there is a problem parsing the server config.
     bool Initialize(QuicStringPiece server_config,
                     QuicStringPiece source_address_token,
-                    const std::vector<QuicString>& certs,
-                    const QuicString& cert_sct,
+                    const std::vector<std::string>& certs,
+                    const std::string& cert_sct,
                     QuicStringPiece chlo_hash,
                     QuicStringPiece signature,
                     QuicWallTime now,
                     QuicWallTime expiration_time);
 
    private:
-    QuicString server_config_;         // A serialized handshake message.
-    QuicString source_address_token_;  // An opaque proof of IP ownership.
-    std::vector<QuicString> certs_;    // A list of certificates in leaf-first
-                                       // order.
-    QuicString cert_sct_;              // Signed timestamp of the leaf cert.
-    QuicString chlo_hash_;             // Hash of the CHLO message.
-    QuicString server_config_sig_;     // A signature of |server_config_|.
-    bool server_config_valid_;         // True if |server_config_| is correctly
+    std::string server_config_;         // A serialized handshake message.
+    std::string source_address_token_;  // An opaque proof of IP ownership.
+    std::vector<std::string> certs_;    // A list of certificates in leaf-first
+                                        // order.
+    std::string cert_sct_;              // Signed timestamp of the leaf cert.
+    std::string chlo_hash_;             // Hash of the CHLO message.
+    std::string server_config_sig_;     // A signature of |server_config_|.
+    bool server_config_valid_;          // True if |server_config_| is correctly
                                 // signed and |certs_| has been validated.
     QuicWallTime expiration_time_;  // Time when the config is no longer valid.
     // Generation counter associated with the |server_config_|, |certs_| and
@@ -194,7 +194,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
     // that no connection-id is added twice.  Also, consider keeping the server
     // nonces and connection_ids together in one queue.
     QuicQueue<QuicConnectionId> server_designated_connection_ids_;
-    QuicQueue<QuicString> server_nonces_;
+    QuicQueue<std::string> server_nonces_;
   };
 
   // Used to filter server ids for partial config deletion.
@@ -262,7 +262,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
       const ChannelIDKey* channel_id_key,
       QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> out_params,
       CryptoHandshakeMessage* out,
-      QuicString* error_details) const;
+      std::string* error_details) const;
 
   // ProcessRejection processes a REJ message from a server and updates the
   // cached information about that server. After this, |IsComplete| may return
@@ -277,7 +277,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
       QuicStringPiece chlo_hash,
       CachedState* cached,
       QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> out_params,
-      QuicString* error_details);
+      std::string* error_details);
 
   // ProcessServerHello processes the message in |server_hello|, updates the
   // cached information about that server, writes the negotiated parameters to
@@ -295,7 +295,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
       const ParsedQuicVersionVector& negotiated_versions,
       CachedState* cached,
       QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> out_params,
-      QuicString* error_details);
+      std::string* error_details);
 
   // Processes the message in |server_update|, updating the cached source
   // address token, and server config.
@@ -309,7 +309,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
       QuicStringPiece chlo_hash,
       CachedState* cached,
       QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> out_params,
-      QuicString* error_details);
+      std::string* error_details);
 
   ProofVerifier* proof_verifier() const;
 
@@ -334,22 +334,22 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
   // is expected to be shared among servers with the domain suffix. If a server
   // matches this suffix, then the server config from another server with the
   // suffix will be used to initialize the cached state for this server.
-  void AddCanonicalSuffix(const QuicString& suffix);
+  void AddCanonicalSuffix(const std::string& suffix);
 
   // Saves the |user_agent_id| that will be passed in QUIC's CHLO message.
-  void set_user_agent_id(const QuicString& user_agent_id) {
+  void set_user_agent_id(const std::string& user_agent_id) {
     user_agent_id_ = user_agent_id;
   }
 
   // Returns the user_agent_id that will be provided in the client hello
   // handshake message.
-  const QuicString& user_agent_id() const { return user_agent_id_; }
+  const std::string& user_agent_id() const { return user_agent_id_; }
 
   // Saves the |alpn| that will be passed in QUIC's CHLO message.
-  void set_alpn(const QuicString& alpn) { alpn_ = alpn; }
+  void set_alpn(const std::string& alpn) { alpn_ = alpn; }
 
   void set_pre_shared_key(QuicStringPiece psk) {
-    pre_shared_key_ = QuicString(psk);
+    pre_shared_key_ = std::string(psk);
   }
 
   bool pad_inchoate_hello() const { return pad_inchoate_hello_; }
@@ -373,9 +373,9 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
       QuicWallTime now,
       QuicTransportVersion version,
       QuicStringPiece chlo_hash,
-      const std::vector<QuicString>& cached_certs,
+      const std::vector<std::string>& cached_certs,
       CachedState* cached,
-      QuicString* error_details);
+      std::string* error_details);
 
   // If the suffix of the hostname in |server_id| is in |canonical_suffixes_|,
   // then populate |cached| with the canonical cached state from
@@ -396,21 +396,21 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
 
   // Contains list of suffixes (for exmaple ".c.youtube.com",
   // ".googlevideo.com") of canonical hostnames.
-  std::vector<QuicString> canonical_suffixes_;
+  std::vector<std::string> canonical_suffixes_;
 
   std::unique_ptr<ProofVerifier> proof_verifier_;
   std::unique_ptr<ChannelIDSource> channel_id_source_;
   bssl::UniquePtr<SSL_CTX> ssl_ctx_;
 
   // The |user_agent_id_| passed in QUIC's CHLO message.
-  QuicString user_agent_id_;
+  std::string user_agent_id_;
 
   // The |alpn_| passed in QUIC's CHLO message.
-  QuicString alpn_;
+  std::string alpn_;
 
   // If non-empty, the client will operate in the pre-shared key mode by
   // incorporating |pre_shared_key_| into the key schedule.
-  QuicString pre_shared_key_;
+  std::string pre_shared_key_;
 
   // In QUIC, technically, client hello should be fully padded.
   // However, fully padding on slow network connection (e.g. 50kbps) can add

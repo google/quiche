@@ -43,7 +43,7 @@ class QuartcEndpoint {
     // Called if the endpoint fails to establish a session after a call to
     // Connect.  (The most likely cause is a network idle timeout.)
     virtual void OnConnectError(QuicErrorCode error,
-                                const QuicString& error_details) = 0;
+                                const std::string& error_details) = 0;
   };
 
   virtual ~QuartcEndpoint() = default;
@@ -97,7 +97,7 @@ class QuartcClientEndpoint : public QuartcEndpoint {
   QuartcEndpoint::Delegate* delegate_;
 
   // Server config.  If valid, used to perform a 0-RTT connection.
-  const QuicString serialized_server_config_;
+  const std::string serialized_server_config_;
 
   // Version manager.  May be injected to control version negotiation in tests.
   std::unique_ptr<QuicVersionManager> version_manager_;
