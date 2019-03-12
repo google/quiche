@@ -5,7 +5,8 @@
 #ifndef QUICHE_QUIC_PLATFORM_API_QUIC_THREAD_H_
 #define QUICHE_QUIC_PLATFORM_API_QUIC_THREAD_H_
 
-#include "net/third_party/quiche/src/quic/platform/api/quic_string.h"
+#include <string>
+
 #include "net/quic/platform/impl/quic_thread_impl.h"
 
 namespace quic {

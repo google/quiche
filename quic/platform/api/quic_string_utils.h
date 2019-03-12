@@ -5,9 +5,9 @@
 #ifndef QUICHE_QUIC_PLATFORM_API_QUIC_STRING_UTILS_H_
 #define QUICHE_QUIC_PLATFORM_API_QUIC_STRING_UTILS_H_
 
+#include <string>
 #include <utility>
 
-#include "net/third_party/quiche/src/quic/platform/api/quic_string.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 #include "net/quic/platform/impl/quic_string_utils_impl.h"
 

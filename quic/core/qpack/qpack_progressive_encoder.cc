@@ -4,10 +4,11 @@
 
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_progressive_encoder.h"
 
+#include <string>
+
 #include "base/logging.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_constants.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_header_table.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 
 namespace quic {

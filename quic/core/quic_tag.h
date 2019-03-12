@@ -6,10 +6,10 @@
 #define QUICHE_QUIC_CORE_QUIC_TAG_H_
 
 #include <map>
+#include <string>
 #include <vector>
 
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string.h"
 
 namespace quic {
 

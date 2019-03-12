@@ -5,13 +5,13 @@
 #ifndef QUICHE_QUIC_CORE_CRYPTO_CERT_COMPRESSOR_H_
 #define QUICHE_QUIC_CORE_CRYPTO_CERT_COMPRESSOR_H_
 
+#include <string>
 #include <vector>
 
 #include "base/macros.h"
 #include "net/third_party/quiche/src/quic/core/crypto/common_cert_set.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 
 namespace quic {

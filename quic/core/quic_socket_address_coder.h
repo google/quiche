@@ -6,11 +6,11 @@
 #define QUICHE_QUIC_CORE_QUIC_SOCKET_ADDRESS_CODER_H_
 
 #include <cstdint>
+#include <string>
 
 #include "base/macros.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string.h"
 
 namespace quic {
 

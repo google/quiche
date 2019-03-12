@@ -4,8 +4,9 @@
 
 #include "net/third_party/quiche/src/quic/core/quic_socket_address_coder.h"
 
+#include <string>
+
 #include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 
 namespace quic {

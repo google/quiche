@@ -5,10 +5,11 @@
 #ifndef QUICHE_QUIC_CORE_STATELESS_REJECTOR_H_
 #define QUICHE_QUIC_CORE_STATELESS_REJECTOR_H_
 
+#include <string>
+
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_framer.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_crypto_server_config.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string.h"
 
 namespace quic {
 

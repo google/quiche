@@ -6,10 +6,10 @@
 #define QUICHE_QUIC_CORE_CRYPTO_CURVE25519_KEY_EXCHANGE_H_
 
 #include <cstdint>
+#include <string>
 
 #include "net/third_party/quiche/src/quic/core/crypto/key_exchange.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 
 namespace quic {

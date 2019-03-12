@@ -5,6 +5,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_crypto_client_handshaker.h"
 
 #include <memory>
+#include <string>
 
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_utils.h"
@@ -13,7 +14,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string.h"
 
 namespace quic {
 

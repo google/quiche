@@ -4,6 +4,7 @@
 
 #include "net/third_party/quiche/src/quic/core/quic_dispatcher.h"
 
+#include <string>
 #include <utility>
 
 #include "base/macros.h"
@@ -20,7 +21,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_stack_trace.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 
 namespace quic {

@@ -5,9 +5,9 @@
 #include "net/third_party/quiche/src/quic/core/crypto/p256_key_exchange.h"
 
 #include <memory>
+#include <string>
 
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 
 namespace quic {

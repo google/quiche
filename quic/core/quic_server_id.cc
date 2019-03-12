@@ -4,11 +4,11 @@
 
 #include "net/third_party/quiche/src/quic/core/quic_server_id.h"
 
+#include <string>
 #include <tuple>
 
 #include "net/third_party/quiche/src/quic/platform/api/quic_estimate_memory_usage.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string.h"
 
 namespace quic {
 

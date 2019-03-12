@@ -5,12 +5,12 @@
 #ifndef QUICHE_QUIC_CORE_CRYPTO_QUIC_COMPRESSED_CERTS_CACHE_H_
 #define QUICHE_QUIC_CORE_CRYPTO_QUIC_COMPRESSED_CERTS_CACHE_H_
 
+#include <string>
 #include <vector>
 
 #include "net/third_party/quiche/src/quic/core/crypto/proof_source.h"
 #include "net/third_party/quiche/src/quic/core/quic_lru_cache.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string.h"
 
 namespace quic {
 

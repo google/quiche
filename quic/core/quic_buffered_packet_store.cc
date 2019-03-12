@@ -4,10 +4,11 @@
 
 #include "net/third_party/quiche/src/quic/core/quic_buffered_packet_store.h"
 
+#include <string>
+
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_map_util.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string.h"
 
 namespace quic {
 

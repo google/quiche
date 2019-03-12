@@ -5,10 +5,10 @@
 #include "net/third_party/quiche/src/quic/core/quic_buffered_packet_store.h"
 
 #include <list>
+#include <string>
 
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/mock_clock.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_buffered_packet_store_peer.h"

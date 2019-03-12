@@ -5,8 +5,9 @@
 #ifndef QUICHE_QUIC_CORE_QUIC_CONNECTION_ID_H_
 #define QUICHE_QUIC_CORE_QUIC_CONNECTION_ID_H_
 
+#include <string>
+
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_uint128.h"
 
 namespace quic {

@@ -5,9 +5,9 @@
 #ifndef QUICHE_QUIC_PLATFORM_API_QUIC_FLAGS_H_
 #define QUICHE_QUIC_PLATFORM_API_QUIC_FLAGS_H_
 
+#include <string>
 #include <vector>
 
-#include "net/third_party/quiche/src/quic/platform/api/quic_string.h"
 #include "net/quic/platform/impl/quic_flags_impl.h"
 
 // Define a command-line flag that can be automatically set via

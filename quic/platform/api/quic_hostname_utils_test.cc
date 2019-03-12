@@ -4,8 +4,9 @@
 
 #include "net/third_party/quiche/src/quic/platform/api/quic_hostname_utils.h"
 
+#include <string>
+
 #include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 
 namespace quic {

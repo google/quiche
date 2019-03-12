@@ -6,11 +6,11 @@
 #define QUICHE_QUIC_CORE_CRYPTO_CHANNEL_ID_H_
 
 #include <memory>
+#include <string>
 
 #include "base/macros.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 
 namespace quic {

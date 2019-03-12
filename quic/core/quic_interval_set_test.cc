@@ -5,13 +5,14 @@
 #include "net/third_party/quiche/src/quic/core/quic_interval_set.h"
 
 #include <stdarg.h>
+
 #include <algorithm>
 #include <iostream>
 #include <iterator>
 #include <limits>
+#include <string>
 #include <vector>
 
-#include "net/third_party/quiche/src/quic/platform/api/quic_string.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 
 namespace quic {

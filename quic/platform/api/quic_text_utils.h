@@ -5,7 +5,8 @@
 #ifndef QUICHE_QUIC_PLATFORM_API_QUIC_TEXT_UTILS_H_
 #define QUICHE_QUIC_PLATFORM_API_QUIC_TEXT_UTILS_H_
 
-#include "net/third_party/quiche/src/quic/platform/api/quic_string.h"
+#include <string>
+
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 #include "net/quic/platform/impl/quic_text_utils_impl.h"
 

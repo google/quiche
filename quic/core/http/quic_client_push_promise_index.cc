@@ -4,9 +4,10 @@
 
 #include "net/third_party/quiche/src/quic/core/http/quic_client_push_promise_index.h"
 
+#include <string>
+
 #include "net/third_party/quiche/src/quic/core/http/quic_client_promised_info.h"
 #include "net/third_party/quiche/src/quic/core/http/spdy_utils.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string.h"
 
 using spdy::SpdyHeaderBlock;
 

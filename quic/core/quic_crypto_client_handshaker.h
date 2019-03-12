@@ -5,13 +5,14 @@
 #ifndef QUICHE_QUIC_CORE_QUIC_CRYPTO_CLIENT_HANDSHAKER_H_
 #define QUICHE_QUIC_CORE_QUIC_CRYPTO_CLIENT_HANDSHAKER_H_
 
+#include <string>
+
 #include "net/third_party/quiche/src/quic/core/crypto/channel_id.h"
 #include "net/third_party/quiche/src/quic/core/crypto/proof_verifier.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_crypto_client_config.h"
 #include "net/third_party/quiche/src/quic/core/quic_crypto_client_stream.h"
 #include "net/third_party/quiche/src/quic/core/quic_server_id.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string.h"
 
 namespace quic {
 

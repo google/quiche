@@ -5,9 +5,10 @@
 #ifndef QUICHE_QUIC_TOOLS_QUIC_URL_H_
 #define QUICHE_QUIC_TOOLS_QUIC_URL_H_
 
+#include <string>
+
 #include "url/gurl.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 
 namespace quic {

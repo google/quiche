@@ -6,9 +6,9 @@
 #define QUICHE_QUIC_CORE_CRYPTO_CRYPTO_PROTOCOL_H_
 
 #include <cstddef>
+#include <string>
 
 #include "net/third_party/quiche/src/quic/core/quic_tag.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string.h"
 
 // Version and Crypto tags are written to the wire with a big-endian
 // representation of the name of the tag.  For example

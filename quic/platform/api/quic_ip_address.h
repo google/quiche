@@ -5,8 +5,9 @@
 #ifndef QUICHE_QUIC_PLATFORM_API_QUIC_IP_ADDRESS_H_
 #define QUICHE_QUIC_PLATFORM_API_QUIC_IP_ADDRESS_H_
 
+#include <string>
+
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string.h"
 #include "net/quic/platform/impl/quic_ip_address_impl.h"
 
 namespace quic {

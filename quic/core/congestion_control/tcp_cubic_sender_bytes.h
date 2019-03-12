@@ -8,6 +8,7 @@
 #define QUICHE_QUIC_CORE_CONGESTION_CONTROL_TCP_CUBIC_SENDER_BYTES_H_
 
 #include <cstdint>
+#include <string>
 
 #include "base/macros.h"
 #include "net/third_party/quiche/src/quic/core/congestion_control/cubic_bytes.h"
@@ -19,7 +20,6 @@
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_time.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string.h"
 
 namespace quic {
 

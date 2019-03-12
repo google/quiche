@@ -5,6 +5,7 @@
 #include "net/third_party/quiche/src/quic/core/qpack/offline/qpack_offline_decoder.h"
 
 #include <cstdint>
+#include <string>
 #include <utility>
 
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_test_utils.h"
@@ -12,7 +13,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_endian.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_file_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
 
 namespace quic {

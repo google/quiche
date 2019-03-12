@@ -4,8 +4,9 @@
 
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_secret_boxer.h"
 
+#include <string>
+
 #include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 
 namespace quic {

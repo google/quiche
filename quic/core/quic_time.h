@@ -17,9 +17,9 @@
 #include <cstdint>
 #include <limits>
 #include <ostream>
+#include <string>
 
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string.h"
 
 // TODO(vasilvv): replace with ABSL_MUST_USE_RESULT once we're using absl.
 #if defined(__clang__)

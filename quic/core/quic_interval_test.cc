@@ -5,11 +5,11 @@
 #include "net/third_party/quiche/src/quic/core/quic_interval.h"
 
 #include <sstream>
+#include <string>
 #include <type_traits>
 #include <utility>
 
 #include "net/third_party/quiche/src/quic/core/quic_time.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 
 namespace quic {

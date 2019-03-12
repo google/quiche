@@ -5,13 +5,14 @@
 #ifndef QUICHE_QUIC_CORE_TLS_CLIENT_HANDSHAKER_H_
 #define QUICHE_QUIC_CORE_TLS_CLIENT_HANDSHAKER_H_
 
+#include <string>
+
 #include "third_party/boringssl/src/include/openssl/ssl.h"
 #include "net/third_party/quiche/src/quic/core/crypto/proof_verifier.h"
 #include "net/third_party/quiche/src/quic/core/quic_crypto_client_stream.h"
 #include "net/third_party/quiche/src/quic/core/quic_crypto_stream.h"
 #include "net/third_party/quiche/src/quic/core/tls_handshaker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string.h"
 
 namespace quic {
 

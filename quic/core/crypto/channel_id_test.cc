@@ -5,8 +5,8 @@
 #include "net/third_party/quiche/src/quic/core/crypto/channel_id.h"
 
 #include <memory>
+#include <string>
 
-#include "net/third_party/quiche/src/quic/platform/api/quic_string.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/crypto_test_utils.h"
 

@@ -4,8 +4,9 @@
 
 #include "net/third_party/quiche/src/quic/core/http/quic_header_list.h"
 
+#include <string>
+
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 
 namespace quic {

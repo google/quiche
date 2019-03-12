@@ -6,11 +6,11 @@
 #define QUICHE_QUIC_CORE_QPACK_QPACK_CONSTANTS_H_
 
 #include <cstdint>
+#include <string>
 #include <tuple>
 #include <vector>
 
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string.h"
 
 namespace quic {
 

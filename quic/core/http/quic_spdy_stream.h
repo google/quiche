@@ -13,6 +13,7 @@
 
 #include <cstddef>
 #include <list>
+#include <string>
 
 #include "base/macros.h"
 #include "net/third_party/quiche/src/quic/core/http/http_decoder.h"
@@ -25,7 +26,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_framer.h"
 
 namespace quic {

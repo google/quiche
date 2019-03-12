@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include <cstdint>
+#include <string>
 
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_secret_boxer.h"
 
@@ -10,7 +11,6 @@
 #include "third_party/boringssl/src/include/openssl/err.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string.h"
 
 namespace quic {
 

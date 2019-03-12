@@ -9,6 +9,7 @@
 
 #include <cstdint>
 #include <ostream>
+#include <string>
 
 #include "base/macros.h"
 #include "net/third_party/quiche/src/quic/core/congestion_control/bandwidth_sampler.h"
@@ -20,7 +21,6 @@
 #include "net/third_party/quiche/src/quic/core/quic_time.h"
 #include "net/third_party/quiche/src/quic/core/quic_unacked_packet_map.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string.h"
 
 namespace quic {
 

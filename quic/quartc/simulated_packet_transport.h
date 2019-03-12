@@ -5,7 +5,8 @@
 #ifndef QUICHE_QUIC_QUARTC_SIMULATED_PACKET_TRANSPORT_H_
 #define QUICHE_QUIC_QUARTC_SIMULATED_PACKET_TRANSPORT_H_
 
-#include "net/third_party/quiche/src/quic/platform/api/quic_string.h"
+#include <string>
+
 #include "net/third_party/quiche/src/quic/quartc/quartc_packet_writer.h"
 #include "net/third_party/quiche/src/quic/test_tools/simulator/port.h"
 #include "net/third_party/quiche/src/quic/test_tools/simulator/queue.h"

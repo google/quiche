@@ -5,6 +5,8 @@
 #ifndef QUICHE_QUIC_QUARTC_QUARTC_CRYPTO_HELPERS_H_
 #define QUICHE_QUIC_QUARTC_QUARTC_CRYPTO_HELPERS_H_
 
+#include <string>
+
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_handshake_message.h"
 #include "net/third_party/quiche/src/quic/core/crypto/proof_source.h"
 #include "net/third_party/quiche/src/quic/core/crypto/proof_verifier.h"
@@ -15,7 +17,6 @@
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_reference_counted.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 
 namespace quic {

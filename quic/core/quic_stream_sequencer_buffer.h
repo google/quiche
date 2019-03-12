@@ -62,6 +62,7 @@
 #include <functional>
 #include <list>
 #include <memory>
+#include <string>
 
 #include "base/macros.h"
 #include "net/third_party/quiche/src/quic/core/quic_interval_set.h"
@@ -69,7 +70,6 @@
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_iovec.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 
 namespace quic {

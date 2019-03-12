@@ -5,7 +5,8 @@
 #ifndef QUICHE_QUIC_QUARTC_COUNTING_PACKET_FILTER_H_
 #define QUICHE_QUIC_QUARTC_COUNTING_PACKET_FILTER_H_
 
-#include "net/third_party/quiche/src/quic/platform/api/quic_string.h"
+#include <string>
+
 #include "net/third_party/quiche/src/quic/test_tools/simulator/packet_filter.h"
 #include "net/third_party/quiche/src/quic/test_tools/simulator/port.h"
 #include "net/third_party/quiche/src/quic/test_tools/simulator/simulator.h"

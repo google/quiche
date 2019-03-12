@@ -5,9 +5,9 @@
 #include "net/third_party/quiche/src/quic/core/quic_bandwidth.h"
 
 #include <cinttypes>
+#include <string>
 
 #include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string.h"
 
 namespace quic {
 

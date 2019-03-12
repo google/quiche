@@ -5,10 +5,10 @@
 #include "net/third_party/quiche/src/quic/core/quic_tag.h"
 
 #include <algorithm>
+#include <string>
 
 #include "base/macros.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
 
 namespace quic {

@@ -5,9 +5,9 @@
 #ifndef QUICHE_QUIC_PLATFORM_API_QUIC_STR_CAT_H_
 #define QUICHE_QUIC_PLATFORM_API_QUIC_STR_CAT_H_
 
+#include <string>
 #include <utility>
 
-#include "net/third_party/quiche/src/quic/platform/api/quic_string.h"
 #include "net/quic/platform/impl/quic_str_cat_impl.h"
 
 namespace quic {

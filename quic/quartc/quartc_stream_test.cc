@@ -5,6 +5,7 @@
 #include "net/third_party/quiche/src/quic/quartc/quartc_stream.h"
 
 #include <memory>
+#include <string>
 #include <type_traits>
 #include <utility>
 
@@ -33,7 +34,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_ip_address.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test_mem_slice_vector.h"
 #include "net/third_party/quiche/src/quic/quartc/quartc_factory.h"

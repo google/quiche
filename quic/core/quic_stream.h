@@ -20,6 +20,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <list>
+#include <string>
 
 #include "base/macros.h"
 #include "net/third_party/quiche/src/quic/core/quic_flow_controller.h"
@@ -31,7 +32,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_mem_slice_span.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_reference_counted.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
 

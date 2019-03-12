@@ -5,13 +5,14 @@
 #ifndef QUICHE_QUIC_CORE_QUIC_CRYPTO_SERVER_HANDSHAKER_H_
 #define QUICHE_QUIC_CORE_QUIC_CRYPTO_SERVER_HANDSHAKER_H_
 
+#include <string>
+
 #include "net/third_party/quiche/src/quic/core/proto/cached_network_parameters.pb.h"
 #include "net/third_party/quiche/src/quic/core/proto/source_address_token.pb.h"
 #include "net/third_party/quiche/src/quic/core/quic_crypto_handshaker.h"
 #include "net/third_party/quiche/src/quic/core/quic_crypto_server_stream.h"
 #include "net/third_party/quiche/src/quic/core/quic_session.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string.h"
 
 namespace quic {
 

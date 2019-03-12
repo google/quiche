@@ -4,8 +4,9 @@
 
 #include "net/third_party/quiche/src/quic/core/quic_trace_visitor.h"
 
+#include <string>
+
 #include "net/third_party/quiche/src/quic/platform/api/quic_endian.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string.h"
 
 namespace quic {
 

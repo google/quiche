@@ -6,6 +6,7 @@
 #define QUICHE_QUIC_CORE_CRYPTO_PROOF_SOURCE_H_
 
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "net/third_party/quiche/src/quic/core/crypto/quic_crypto_proof.h"
@@ -13,7 +14,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_reference_counted.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 
 namespace quic {
