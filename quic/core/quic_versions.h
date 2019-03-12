@@ -341,6 +341,13 @@ QUIC_EXPORT_PRIVATE inline bool QuicVersionHasLongHeaderLengths(
   return transport_version == QUIC_VERSION_99;
 }
 
+// Returns whether |transport_version| uses CRYPTO frames for the handshake
+// instead of stream 1.
+QUIC_EXPORT_PRIVATE inline bool QuicVersionUsesCryptoFrames(
+    QuicTransportVersion transport_version) {
+  return transport_version >= QUIC_VERSION_47;
+}
+
 }  // namespace quic
 
 #endif  // QUICHE_QUIC_CORE_QUIC_VERSIONS_H_

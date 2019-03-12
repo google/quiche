@@ -119,7 +119,8 @@ ParsedQuicVersionVector AllSupportedVersions() {
       continue;
     }
     for (QuicTransportVersion version : kSupportedTransportVersions) {
-      if (protocol == PROTOCOL_TLS1_3 && version < QUIC_VERSION_47) {
+      if (protocol == PROTOCOL_TLS1_3 &&
+          !QuicVersionUsesCryptoFrames(version)) {
         // The TLS handshake is only deployable if CRYPTO frames are also used,
         // which are added in v47.
         continue;

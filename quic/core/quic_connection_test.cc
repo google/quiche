@@ -645,7 +645,7 @@ class TestConnection : public QuicConnection {
   QuicConsumedData SendCryptoStreamData() {
     QuicStreamOffset offset = 0;
     QuicStringPiece data("chlo");
-    if (transport_version() < QUIC_VERSION_47) {
+    if (!QuicVersionUsesCryptoFrames(transport_version())) {
       return SendStreamDataWithString(
           QuicUtils::GetCryptoStreamId(transport_version()), data, offset,
           NO_FIN);
@@ -2676,7 +2676,7 @@ TEST_P(QuicConnectionTest, FramePackingNonCryptoThenCrypto) {
   // Parse the last packet and ensure it's the crypto stream frame.
   EXPECT_EQ(2u, writer_->frame_count());
   ASSERT_EQ(1u, writer_->padding_frames().size());
-  if (connection_.transport_version() < QUIC_VERSION_47) {
+  if (!QuicVersionUsesCryptoFrames(connection_.transport_version())) {
     ASSERT_EQ(1u, writer_->stream_frames().size());
     EXPECT_EQ(QuicUtils::GetCryptoStreamId(connection_.transport_version()),
               writer_->stream_frames()[0]->stream_id);
@@ -5913,7 +5913,7 @@ TEST_P(QuicConnectionTest, BundleAckForSecondCHLO) {
     EXPECT_EQ(4u, writer_->frame_count());
     EXPECT_FALSE(writer_->stop_waiting_frames().empty());
   }
-  if (connection_.transport_version() < QUIC_VERSION_47) {
+  if (!QuicVersionUsesCryptoFrames(connection_.transport_version())) {
     EXPECT_EQ(1u, writer_->stream_frames().size());
   } else {
     EXPECT_EQ(1u, writer_->crypto_frames().size());
@@ -5946,7 +5946,7 @@ TEST_P(QuicConnectionTest, BundleAckForSecondCHLOTwoPacketReject) {
     EXPECT_EQ(4u, writer_->frame_count());
     EXPECT_FALSE(writer_->stop_waiting_frames().empty());
   }
-  if (connection_.transport_version() < QUIC_VERSION_47) {
+  if (!QuicVersionUsesCryptoFrames(connection_.transport_version())) {
     EXPECT_EQ(1u, writer_->stream_frames().size());
   } else {
     EXPECT_EQ(1u, writer_->crypto_frames().size());

@@ -1517,7 +1517,8 @@ bool QuicSession::RetransmitLostData() {
   QuicConnection::ScopedPacketFlusher retransmission_flusher(
       connection_, QuicConnection::SEND_ACK_IF_QUEUED);
   // Retransmit crypto data first.
-  bool uses_crypto_frames = connection_->transport_version() >= QUIC_VERSION_47;
+  bool uses_crypto_frames =
+      QuicVersionUsesCryptoFrames(connection_->transport_version());
   QuicCryptoStream* crypto_stream = GetMutableCryptoStream();
   if (uses_crypto_frames && crypto_stream->HasPendingCryptoRetransmission()) {
     SetTransmissionType(HANDSHAKE_RETRANSMISSION);

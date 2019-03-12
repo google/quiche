@@ -317,7 +317,7 @@ bool QuicUtils::IsRetransmittableFrame(QuicFrameType type) {
 // static
 bool QuicUtils::IsHandshakeFrame(const QuicFrame& frame,
                                  QuicTransportVersion transport_version) {
-  if (transport_version < QUIC_VERSION_47) {
+  if (!QuicVersionUsesCryptoFrames(transport_version)) {
     return frame.type == STREAM_FRAME &&
            frame.stream_frame.stream_id == GetCryptoStreamId(transport_version);
   } else {

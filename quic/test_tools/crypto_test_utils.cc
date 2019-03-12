@@ -509,7 +509,8 @@ void SendHandshakeMessageToStream(QuicCryptoStream* stream,
                                   Perspective perspective) {
   const QuicData& data = message.GetSerialized();
   QuicSession* session = QuicStreamPeer::session(stream);
-  if (session->connection()->transport_version() < QUIC_VERSION_47) {
+  if (!QuicVersionUsesCryptoFrames(
+          session->connection()->transport_version())) {
     QuicStreamFrame frame(QuicUtils::GetCryptoStreamId(
                               session->connection()->transport_version()),
                           false, stream->crypto_bytes_read(),

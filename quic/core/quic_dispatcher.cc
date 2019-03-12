@@ -161,7 +161,7 @@ class StatelessConnectionTerminator {
     collector_.SaveStatelessRejectFrameData(reject);
     while (offset < reject.length()) {
       QuicFrame frame;
-      if (framer_->transport_version() < QUIC_VERSION_47) {
+      if (!QuicVersionUsesCryptoFrames(framer_->transport_version())) {
         if (!creator_.ConsumeData(
                 QuicUtils::GetCryptoStreamId(framer_->transport_version()),
                 reject.length(), offset, offset,

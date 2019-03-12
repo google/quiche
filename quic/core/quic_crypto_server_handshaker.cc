@@ -310,7 +310,7 @@ void QuicCryptoServerHandshaker::FinishSendServerConfigUpdate(
 
   QUIC_DVLOG(1) << "Server: Sending server config update: "
                 << message.DebugString();
-  if (transport_version() < QUIC_VERSION_47) {
+  if (!QuicVersionUsesCryptoFrames(transport_version())) {
     const QuicData& data = message.GetSerialized();
     stream_->WriteOrBufferData(QuicStringPiece(data.data(), data.length()),
                                false, nullptr);

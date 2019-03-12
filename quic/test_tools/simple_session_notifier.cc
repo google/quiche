@@ -386,7 +386,7 @@ bool SimpleSessionNotifier::IsFrameOutstanding(const QuicFrame& frame) const {
 }
 
 bool SimpleSessionNotifier::HasUnackedCryptoData() const {
-  if (connection_->transport_version() >= QUIC_VERSION_47) {
+  if (QuicVersionUsesCryptoFrames(connection_->transport_version())) {
     for (size_t i = 0; i < NUM_ENCRYPTION_LEVELS; ++i) {
       const StreamState& state = crypto_state_[i];
       if (state.bytes_total > state.bytes_sent) {

@@ -373,7 +373,8 @@ class QuicDispatcherTest : public QuicTest {
 };
 
 TEST_F(QuicDispatcherTest, TlsClientHelloCreatesSession) {
-  if (CurrentSupportedVersions().front().transport_version < QUIC_VERSION_47) {
+  if (!QuicVersionUsesCryptoFrames(
+          CurrentSupportedVersions().front().transport_version)) {
     // TLS is only supported in versions 47 and greater.
     return;
   }

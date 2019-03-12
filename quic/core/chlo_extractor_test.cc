@@ -70,7 +70,8 @@ class ChloExtractorTest : public QuicTest {
     }
     QuicFramer framer(SupportedVersions(header_.version), QuicTime::Zero(),
                       Perspective::IS_CLIENT, kQuicDefaultConnectionIdLength);
-    if (version.transport_version < QUIC_VERSION_47 || munge_stream_id) {
+    if (!QuicVersionUsesCryptoFrames(version.transport_version) ||
+        munge_stream_id) {
       QuicStreamId stream_id =
           QuicUtils::GetCryptoStreamId(version.transport_version);
       if (munge_stream_id) {

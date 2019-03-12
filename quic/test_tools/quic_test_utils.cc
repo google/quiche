@@ -857,7 +857,7 @@ QuicEncryptedPacket* ConstructEncryptedPacket(
   QuicFrames frames;
   QuicFramer framer(*versions, QuicTime::Zero(), perspective,
                     kQuicDefaultConnectionIdLength);
-  if ((*versions)[0].transport_version < QUIC_VERSION_47) {
+  if (!QuicVersionUsesCryptoFrames((*versions)[0].transport_version)) {
     QuicFrame frame(QuicStreamFrame(
         QuicUtils::GetCryptoStreamId((*versions)[0].transport_version), false,
         0, QuicStringPiece(data)));

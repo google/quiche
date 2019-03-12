@@ -125,7 +125,7 @@ bool ChloFramerVisitor::OnPacketHeader(const QuicPacketHeader& header) {
 }
 void ChloFramerVisitor::OnCoalescedPacket(const QuicEncryptedPacket& packet) {}
 bool ChloFramerVisitor::OnStreamFrame(const QuicStreamFrame& frame) {
-  if (framer_->transport_version() >= QUIC_VERSION_47) {
+  if (QuicVersionUsesCryptoFrames(framer_->transport_version())) {
     // CHLO will be sent in CRYPTO frames in v47 and above.
     return false;
   }
@@ -139,7 +139,7 @@ bool ChloFramerVisitor::OnStreamFrame(const QuicStreamFrame& frame) {
 }
 
 bool ChloFramerVisitor::OnCryptoFrame(const QuicCryptoFrame& frame) {
-  if (framer_->transport_version() < QUIC_VERSION_47) {
+  if (!QuicVersionUsesCryptoFrames(framer_->transport_version())) {
     // CHLO will be in stream frames before v47.
     return false;
   }

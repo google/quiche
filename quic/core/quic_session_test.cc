@@ -1240,7 +1240,7 @@ TEST_P(QuicSessionTestServer, HandshakeUnblocksFlowControlBlockedStream) {
 }
 
 TEST_P(QuicSessionTestServer, HandshakeUnblocksFlowControlBlockedCryptoStream) {
-  if (GetParam().transport_version >= QUIC_VERSION_47) {
+  if (QuicVersionUsesCryptoFrames(GetParam().transport_version)) {
     // QUIC version 47 onwards uses CRYPTO frames for the handshake, so this
     // test doesn't make sense for those versions since CRYPTO frames aren't
     // flow controlled.
@@ -1809,13 +1809,13 @@ TEST_P(QuicSessionTestServer, OnStreamFrameLost) {
 
   // Lost data on cryption stream, streams 2 and 4.
   EXPECT_CALL(*stream4, HasPendingRetransmission()).WillOnce(Return(true));
-  if (connection_->transport_version() < QUIC_VERSION_47) {
+  if (!QuicVersionUsesCryptoFrames(connection_->transport_version())) {
     EXPECT_CALL(*crypto_stream, HasPendingRetransmission())
         .WillOnce(Return(true));
   }
   EXPECT_CALL(*stream2, HasPendingRetransmission()).WillOnce(Return(true));
   session_.OnFrameLost(QuicFrame(frame3));
-  if (connection_->transport_version() < QUIC_VERSION_47) {
+  if (!QuicVersionUsesCryptoFrames(connection_->transport_version())) {
     session_.OnFrameLost(QuicFrame(frame1));
   } else {
     QuicCryptoFrame crypto_frame(ENCRYPTION_NONE, 0, 1300);
@@ -1832,7 +1832,7 @@ TEST_P(QuicSessionTestServer, OnStreamFrameLost) {
   // stream go first.
   // Do not check congestion window when crypto stream has lost data.
   EXPECT_CALL(*send_algorithm, CanSend(_)).Times(0);
-  if (connection_->transport_version() < QUIC_VERSION_47) {
+  if (!QuicVersionUsesCryptoFrames(connection_->transport_version())) {
     EXPECT_CALL(*crypto_stream, OnCanWrite());
     EXPECT_CALL(*crypto_stream, HasPendingRetransmission())
         .WillOnce(Return(false));

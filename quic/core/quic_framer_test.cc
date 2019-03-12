@@ -9640,7 +9640,7 @@ TEST_P(QuicFramerTest, ConstructEncryptedPacket) {
   EXPECT_CALL(visitor, OnDecryptedPacket(_)).Times(1);
   EXPECT_CALL(visitor, OnError(_)).Times(0);
   EXPECT_CALL(visitor, OnStreamFrame(_)).Times(0);
-  if (framer_.version().transport_version < QUIC_VERSION_47) {
+  if (!QuicVersionUsesCryptoFrames(framer_.version().transport_version)) {
     EXPECT_CALL(visitor, OnStreamFrame(Truly(ExpectedStreamFrame))).Times(1);
   } else {
     EXPECT_CALL(visitor, OnCryptoFrame(_)).Times(1);

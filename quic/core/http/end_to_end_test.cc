@@ -148,7 +148,7 @@ std::vector<TestParams> GetTestParams(bool use_tls_handshake,
   ParsedQuicVersionVector version_buckets[3];
 
   for (const ParsedQuicVersion& version : all_supported_versions) {
-    if (version.transport_version < QUIC_VERSION_47) {
+    if (!QuicVersionUsesCryptoFrames(version.transport_version)) {
       version_buckets[0].push_back(version);
     } else if (version.handshake_protocol == PROTOCOL_QUIC_CRYPTO) {
       version_buckets[1].push_back(version);
@@ -2023,8 +2023,10 @@ TEST_P(EndToEndTest, HeadersAndCryptoStreamsNoConnectionFlowControl) {
       client_->client()->client_session());
   // In v47 and later, the crypto handshake (sent in CRYPTO frames) is not
   // subject to flow control.
-  if (client_->client()->client_session()->connection()->transport_version() <
-      QUIC_VERSION_47) {
+  if (!QuicVersionUsesCryptoFrames(client_->client()
+                                       ->client_session()
+                                       ->connection()
+                                       ->transport_version())) {
     EXPECT_LT(QuicFlowControllerPeer::SendWindowSize(
                   crypto_stream->flow_controller()),
               kStreamIFCW);

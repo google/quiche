@@ -1043,7 +1043,7 @@ size_t QuicFramer::BuildDataPacket(const QuicPacketHeader& header,
         }
         break;
       case CRYPTO_FRAME:
-        if (version_.transport_version < QUIC_VERSION_47) {
+        if (!QuicVersionUsesCryptoFrames(version_.transport_version)) {
           set_detailed_error(
               "Attempt to append CRYPTO frame in version prior to 47.");
           return RaiseError(QUIC_INTERNAL_ERROR);
@@ -2804,7 +2804,7 @@ bool QuicFramer::ProcessFrameData(QuicDataReader* reader,
         break;
       }
       case CRYPTO_FRAME: {
-        if (version_.transport_version < QUIC_VERSION_47) {
+        if (!QuicVersionUsesCryptoFrames(version_.transport_version)) {
           set_detailed_error("Illegal frame type.");
           return RaiseError(QUIC_INVALID_FRAME_DATA);
         }
