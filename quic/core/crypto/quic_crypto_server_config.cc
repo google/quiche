@@ -344,8 +344,7 @@ QuicCryptoServerConfig::GenerateConfig(QuicRandom* rand,
   std::unique_ptr<QuicData> serialized(
       CryptoFramer::ConstructHandshakeMessage(msg));
 
-  std::unique_ptr<QuicServerConfigProtobuf> config(
-      new QuicServerConfigProtobuf);
+  auto config = QuicMakeUnique<QuicServerConfigProtobuf>();
   config->set_config(std::string(serialized->AsStringPiece()));
   QuicServerConfigProtobuf::PrivateKey* curve25519_key = config->add_key();
   curve25519_key->set_tag(kC255);
@@ -824,14 +823,12 @@ void QuicCryptoServerConfig::ProcessClientHello(
 
   // No need to get a new proof if one was already generated.
   if (!signed_config->chain) {
-    std::unique_ptr<ProcessClientHelloCallback> cb(
-        new ProcessClientHelloCallback(
-            this, validate_chlo_result, reject_only, connection_id,
-            client_address, version, supported_versions, use_stateless_rejects,
-            server_designated_connection_id, clock, rand,
-            compressed_certs_cache, params, signed_config,
-            total_framing_overhead, chlo_packet_size, requested_config,
-            primary_config, std::move(done_cb)));
+    auto cb = QuicMakeUnique<ProcessClientHelloCallback>(
+        this, validate_chlo_result, reject_only, connection_id, client_address,
+        version, supported_versions, use_stateless_rejects,
+        server_designated_connection_id, clock, rand, compressed_certs_cache,
+        params, signed_config, total_framing_overhead, chlo_packet_size,
+        requested_config, primary_config, std::move(done_cb));
     proof_source_->GetProof(
         server_address, std::string(info.sni), primary_config->serialized,
         version.transport_version, chlo_hash, std::move(cb));
@@ -886,8 +883,7 @@ void QuicCryptoServerConfig::ProcessClientHelloAfterGetProof(
   const CryptoHandshakeMessage& client_hello =
       validate_chlo_result->client_hello;
   const ClientHelloInfo& info = validate_chlo_result->info;
-  std::unique_ptr<DiversificationNonce> out_diversification_nonce(
-      new DiversificationNonce);
+  auto out_diversification_nonce = QuicMakeUnique<DiversificationNonce>();
 
   QuicStringPiece cert_sct;
   if (client_hello.GetStringPiece(kCertificateSCTTag, &cert_sct) &&
@@ -895,7 +891,7 @@ void QuicCryptoServerConfig::ProcessClientHelloAfterGetProof(
     params->sct_supported_by_client = true;
   }
 
-  std::unique_ptr<CryptoHandshakeMessage> out(new CryptoHandshakeMessage);
+  auto out = QuicMakeUnique<CryptoHandshakeMessage>();
   if (!info.reject_reasons.empty() || !requested_config.get()) {
     BuildRejection(version.transport_version, clock->WallNow(), *primary_config,
                    client_hello, info,
@@ -1484,10 +1480,10 @@ void QuicCryptoServerConfig::BuildServerConfigUpdateMessage(
   message.SetStringPiece(kSCFG, serialized);
   message.SetStringPiece(kSourceAddressTokenTag, source_address_token);
 
-  std::unique_ptr<BuildServerConfigUpdateMessageProofSourceCallback>
-      proof_source_cb(new BuildServerConfigUpdateMessageProofSourceCallback(
+  auto proof_source_cb =
+      QuicMakeUnique<BuildServerConfigUpdateMessageProofSourceCallback>(
           this, version, compressed_certs_cache, common_cert_sets, params,
-          std::move(message), std::move(cb)));
+          std::move(message), std::move(cb));
 
   proof_source_->GetProof(server_address, params.sni, serialized, version,
                           chlo_hash, std::move(proof_source_cb));
