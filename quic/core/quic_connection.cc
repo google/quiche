@@ -1112,39 +1112,6 @@ bool QuicConnection::OnPingFrame(const QuicPingFrame& frame) {
   return true;
 }
 
-const char* QuicConnection::ValidateAckFrame(const QuicAckFrame& incoming_ack) {
-  if (LargestAcked(incoming_ack) > packet_generator_.packet_number()) {
-    QUIC_DLOG(WARNING) << ENDPOINT << "Peer's observed unsent packet:"
-                       << LargestAcked(incoming_ack) << " vs "
-                       << packet_generator_.packet_number();
-    // We got an error for data we have not sent.  Error out.
-    return "Largest observed too high.";
-  }
-
-  if (LargestAcked(incoming_ack) < sent_packet_manager_.GetLargestObserved()) {
-    QUIC_LOG(INFO) << ENDPOINT << "Peer's largest_observed packet decreased:"
-                   << LargestAcked(incoming_ack) << " vs "
-                   << sent_packet_manager_.GetLargestObserved()
-                   << " packet_number:" << last_header_.packet_number
-                   << " largest seen with ack:" << largest_seen_packet_with_ack_
-                   << " connection_id: " << connection_id_;
-    // A new ack has a diminished largest_observed value.  Error out.
-    // If this was an old packet, we wouldn't even have checked.
-    return "Largest observed too low.";
-  }
-
-  if (!incoming_ack.packets.Empty() &&
-      incoming_ack.packets.Max() != LargestAcked(incoming_ack)) {
-    QUIC_BUG << ENDPOINT
-             << "Peer last received packet: " << incoming_ack.packets.Max()
-             << " which is not equal to largest observed: "
-             << incoming_ack.largest_acked;
-    return "Last received packet not equal to largest observed.";
-  }
-
-  return nullptr;
-}
-
 const char* QuicConnection::ValidateStopWaitingFrame(
     const QuicStopWaitingFrame& stop_waiting) {
   if (received_packet_manager_.peer_least_packet_awaiting_ack()

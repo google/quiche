@@ -967,10 +967,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Flush packets buffered in the writer, if any.
   void FlushPackets();
 
-  // Make sure an ack we got from our peer is sane.
-  // Returns nullptr for valid acks or an error string if it was invalid.
-  const char* ValidateAckFrame(const QuicAckFrame& incoming_ack);
-
   // Make sure a stop waiting we got from our peer is sane.
   // Returns nullptr if the frame is valid or an error string if it was invalid.
   const char* ValidateStopWaitingFrame(
