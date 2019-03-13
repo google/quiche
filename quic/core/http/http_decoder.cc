@@ -35,13 +35,11 @@ HttpDecoder::HttpDecoder()
       current_frame_length_(0),
       remaining_frame_length_(0),
       error_(QUIC_NO_ERROR),
-      error_detail_(""),
-      has_payload_(false) {}
+      error_detail_("") {}
 
 HttpDecoder::~HttpDecoder() {}
 
 QuicByteCount HttpDecoder::ProcessInput(const char* data, QuicByteCount len) {
-  has_payload_ = false;
   QuicDataReader reader(data, len);
   while (error_ == QUIC_NO_ERROR && reader.BytesRemaining() != 0) {
     switch (state_) {
@@ -112,7 +110,6 @@ void HttpDecoder::ReadFramePayload(QuicDataReader* reader) {
         RaiseError(QUIC_INTERNAL_ERROR, "Unable to read data");
         return;
       }
-      has_payload_ = true;
       visitor_->OnDataFramePayload(payload);
       remaining_frame_length_ -= payload.length();
       if (remaining_frame_length_ == 0) {

@@ -470,6 +470,8 @@ void QuicSpdyStream::OnStreamReset(const QuicRstStreamFrame& frame) {
 }
 
 void QuicSpdyStream::OnDataAvailable() {
+  DCHECK(FinishedReadingHeaders());
+
   if (!VersionHasDataFrameHeader(
           session()->connection()->transport_version())) {
     OnBodyAvailable();
@@ -477,16 +479,12 @@ void QuicSpdyStream::OnDataAvailable() {
   }
 
   iovec iov;
-  bool has_payload = false;
   while (sequencer()->PrefetchNextRegion(&iov)) {
     decoder_.ProcessInput(reinterpret_cast<const char*>(iov.iov_base),
                           iov.iov_len);
-    if (decoder_.has_payload()) {
-      has_payload = true;
-    }
   }
 
-  if (has_payload) {
+  if (body_buffer_.HasBytesToRead()) {
     OnBodyAvailable();
     return;
   }
@@ -560,14 +558,22 @@ void QuicSpdyStream::ClearSession() {
 }
 
 void QuicSpdyStream::OnDataFrameStart(Http3FrameLengths frame_lengths) {
+  DCHECK(
+      VersionHasDataFrameHeader(session()->connection()->transport_version()));
+
   body_buffer_.OnDataHeader(frame_lengths);
 }
 
 void QuicSpdyStream::OnDataFramePayload(QuicStringPiece payload) {
+  DCHECK(
+      VersionHasDataFrameHeader(session()->connection()->transport_version()));
+
   body_buffer_.OnDataPayload(payload);
 }
 
 void QuicSpdyStream::OnDataFrameEnd() {
+  DCHECK(
+      VersionHasDataFrameHeader(session()->connection()->transport_version()));
   DVLOG(1) << "Reaches the end of a data frame. Total bytes received are "
            << body_buffer_.total_body_bytes_received();
 }

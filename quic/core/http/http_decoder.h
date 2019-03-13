@@ -108,8 +108,6 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
   // case error() should be consulted.
   QuicByteCount ProcessInput(const char* data, QuicByteCount len);
 
-  bool has_payload() { return has_payload_; }
-
   QuicErrorCode error() const { return error_; }
   const std::string& error_detail() const { return error_detail_; }
 
@@ -171,9 +169,6 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
   QuicErrorCode error_;
   // The issue which caused |error_|
   std::string error_detail_;
-  // True if the call to ProcessInput() generates any payload. Flushed every
-  // time ProcessInput() is called.
-  bool has_payload_;
   // Remaining unparsed data.
   std::string buffer_;
   // Remaining unparsed length field data.
