@@ -351,5 +351,11 @@ QuicConnection::PacketContent QuicConnectionPeer::GetCurrentPacketContent(
   return connection->current_packet_content_;
 }
 
+// static
+void QuicConnectionPeer::SetLastHeaderFormat(QuicConnection* connection,
+                                             PacketHeaderFormat format) {
+  connection->last_header_.form = format;
+}
+
 }  // namespace test
 }  // namespace quic

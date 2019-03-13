@@ -1139,6 +1139,8 @@ TEST_P(QuicSessionTestServer, ServerReplyToConnectivityProbes) {
       .WillOnce(Invoke(
           connection_,
           &MockQuicConnection::ReallySendConnectivityProbingResponsePacket));
+  QuicConnectionPeer::SetLastHeaderFormat(connection_,
+                                          IETF_QUIC_SHORT_HEADER_PACKET);
   // Need to explicitly do this to emulate the reception of a PathChallenge,
   // which stores its payload for use in generating the response.
   connection_->OnPathChallengeFrame(

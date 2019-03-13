@@ -413,6 +413,9 @@ TEST_P(QuicSpdyClientSessionTest, OnPromiseHeaderListWithStaticStream) {
 }
 
 TEST_P(QuicSpdyClientSessionTest, GoAwayReceived) {
+  if (connection_->transport_version() == QUIC_VERSION_99) {
+    return;
+  }
   CompleteCryptoHandshake();
 
   // After receiving a GoAway, I should no longer be able to create outgoing

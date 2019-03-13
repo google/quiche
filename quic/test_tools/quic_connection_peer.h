@@ -138,6 +138,8 @@ class QuicConnectionPeer {
   static bool SupportsReleaseTime(QuicConnection* connection);
   static QuicConnection::PacketContent GetCurrentPacketContent(
       QuicConnection* connection);
+  static void SetLastHeaderFormat(QuicConnection* connection,
+                                  PacketHeaderFormat format);
 };
 
 }  // namespace test

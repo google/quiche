@@ -89,6 +89,21 @@ QuicStreamId GetNthClientInitiatedStreamId(int n,
   return QuicUtils::GetHeadersStreamId(version) + n * 2;
 }
 
+QuicLongHeaderType EncryptionlevelToLongHeaderType(EncryptionLevel level) {
+  switch (level) {
+    case ENCRYPTION_NONE:
+      return INITIAL;
+    case ENCRYPTION_ZERO_RTT:
+      return ZERO_RTT_PROTECTED;
+    case ENCRYPTION_FORWARD_SECURE:
+      DCHECK(false);
+      return INVALID_PACKET_TYPE;
+    default:
+      DCHECK(false);
+      return INVALID_PACKET_TYPE;
+  }
+}
+
 // TaggingEncrypter appends kTagSize bytes of |tag| to the end of each message.
 class TaggingEncrypter : public QuicEncrypter {
  public:
@@ -1064,7 +1079,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
                                   bool has_stop_waiting,
                                   EncryptionLevel level) {
     std::unique_ptr<QuicPacket> packet(
-        ConstructDataPacket(number, has_stop_waiting));
+        ConstructDataPacket(number, has_stop_waiting, level));
     char buffer[kMaxPacketSize];
     size_t encrypted_length = peer_framer_.EncryptPayload(
         level, QuicPacketNumber(number), *packet, buffer, kMaxPacketSize);
@@ -1173,8 +1188,22 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
   }
 
   std::unique_ptr<QuicPacket> ConstructDataPacket(uint64_t number,
-                                                  bool has_stop_waiting) {
+                                                  bool has_stop_waiting,
+                                                  EncryptionLevel level) {
     QuicPacketHeader header;
+    if (peer_framer_.transport_version() > QUIC_VERSION_43 &&
+        level < ENCRYPTION_FORWARD_SECURE) {
+      // Set long header type accordingly.
+      header.version_flag = true;
+      header.long_packet_type = EncryptionlevelToLongHeaderType(level);
+      if (QuicVersionHasLongHeaderLengths(
+              peer_framer_.version().transport_version)) {
+        header.length_length = VARIABLE_LENGTH_INTEGER_LENGTH_2;
+        if (header.long_packet_type == INITIAL) {
+          header.retry_token_length_length = VARIABLE_LENGTH_INTEGER_LENGTH_1;
+        }
+      }
+    }
     // Set connection_id to peer's in memory representation as this data packet
     // is created by peer_framer.
     header.destination_connection_id = connection_id_;
@@ -1183,6 +1212,14 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     if (peer_framer_.transport_version() > QUIC_VERSION_43 &&
         peer_framer_.perspective() == Perspective::IS_SERVER) {
       header.destination_connection_id_included = CONNECTION_ID_ABSENT;
+      if (header.version_flag) {
+        header.source_connection_id = connection_id_;
+        header.source_connection_id_included = CONNECTION_ID_PRESENT;
+        if (GetParam().version.handshake_protocol == PROTOCOL_QUIC_CRYPTO &&
+            header.long_packet_type == ZERO_RTT_PROTECTED) {
+          header.nonce = &diversification_nonce_;
+        }
+      }
     }
     header.packet_number = QuicPacketNumber(number);
 
@@ -1351,6 +1388,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
   QuicConnectionIdIncluded connection_id_included_;
 
   SimpleSessionNotifier notifier_;
+  DiversificationNonce diversification_nonce_;
 };
 
 // Run all end to end tests with all supported versions.
@@ -2396,7 +2434,9 @@ TEST_P(QuicConnectionTest, AckNeedsRetransmittableFrames) {
     ProcessDataPacket(i);
   }
   // Send a packet containing stream frame.
-  SendStreamDataToPeer(1, "bar", 0, NO_FIN, nullptr);
+  SendStreamDataToPeer(
+      QuicUtils::GetCryptoStreamId(connection_.version().transport_version),
+      "bar", 0, NO_FIN, nullptr);
 
   // Session will not be informed until receiving another 20 packets.
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(19);
@@ -2717,7 +2757,9 @@ TEST_P(QuicConnectionTest, FramePackingAckResponse) {
   EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
   ProcessDataPacket(1);
   QuicPacketNumber last_packet;
-  SendStreamDataToPeer(1, "foo", 0, NO_FIN, &last_packet);
+  SendStreamDataToPeer(
+      QuicUtils::GetCryptoStreamId(connection_.version().transport_version),
+      "foo", 0, NO_FIN, &last_packet);
   // Verify ack is bundled with outging packet.
   EXPECT_FALSE(writer_->ack_frames().empty());
 
@@ -2731,7 +2773,11 @@ TEST_P(QuicConnectionTest, FramePackingAckResponse) {
 
   // Process a data packet to cause the visitor's OnCanWrite to be invoked.
   EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
-  ProcessDataPacket(2);
+  peer_framer_.SetEncrypter(ENCRYPTION_FORWARD_SECURE,
+                            QuicMakeUnique<TaggingEncrypter>(0x01));
+  connection_.SetDecrypter(ENCRYPTION_FORWARD_SECURE,
+                           QuicMakeUnique<StrictTaggingDecrypter>(0x01));
+  ProcessDataPacketAtLevel(2, false, ENCRYPTION_FORWARD_SECURE);
 
   EXPECT_EQ(0u, connection_.NumQueuedPackets());
   EXPECT_FALSE(connection_.HasQueuedData());
@@ -3341,8 +3387,8 @@ TEST_P(QuicConnectionTest, NoSendAlarmAfterProcessPacketWhenWriteBlocked) {
   const uint64_t received_packet_num = 1;
   const bool has_stop_waiting = false;
   const EncryptionLevel level = ENCRYPTION_NONE;
-  std::unique_ptr<QuicPacket> packet(
-      ConstructDataPacket(received_packet_num, has_stop_waiting));
+  std::unique_ptr<QuicPacket> packet(ConstructDataPacket(
+      received_packet_num, has_stop_waiting, ENCRYPTION_NONE));
   char buffer[kMaxPacketSize];
   size_t encrypted_length =
       peer_framer_.EncryptPayload(level, QuicPacketNumber(received_packet_num),
@@ -4900,7 +4946,8 @@ TEST_P(QuicConnectionTest, TimeoutAfter5ClientRTOs) {
 TEST_P(QuicConnectionTest, SendScheduler) {
   // Test that if we send a packet without delay, it is not queued.
   QuicFramerPeer::SetPerspective(&peer_framer_, Perspective::IS_CLIENT);
-  std::unique_ptr<QuicPacket> packet = ConstructDataPacket(1, !kHasStopWaiting);
+  std::unique_ptr<QuicPacket> packet =
+      ConstructDataPacket(1, !kHasStopWaiting, ENCRYPTION_NONE);
   QuicPacketCreatorPeer::SetPacketNumber(creator_, 1);
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _));
   connection_.SendPacket(ENCRYPTION_NONE, 1, std::move(packet),
@@ -4913,7 +4960,8 @@ TEST_P(QuicConnectionTest, FailToSendFirstPacket) {
   // packet at which point self_address_ might be uninitialized.
   QuicFramerPeer::SetPerspective(&peer_framer_, Perspective::IS_CLIENT);
   EXPECT_CALL(visitor_, OnConnectionClosed(_, _, _)).Times(1);
-  std::unique_ptr<QuicPacket> packet = ConstructDataPacket(1, !kHasStopWaiting);
+  std::unique_ptr<QuicPacket> packet =
+      ConstructDataPacket(1, !kHasStopWaiting, ENCRYPTION_NONE);
   QuicPacketCreatorPeer::SetPacketNumber(creator_, 1);
   writer_->SetShouldWriteFail();
   connection_.SendPacket(ENCRYPTION_NONE, 1, std::move(packet),
@@ -4922,7 +4970,8 @@ TEST_P(QuicConnectionTest, FailToSendFirstPacket) {
 
 TEST_P(QuicConnectionTest, SendSchedulerEAGAIN) {
   QuicFramerPeer::SetPerspective(&peer_framer_, Perspective::IS_CLIENT);
-  std::unique_ptr<QuicPacket> packet = ConstructDataPacket(1, !kHasStopWaiting);
+  std::unique_ptr<QuicPacket> packet =
+      ConstructDataPacket(1, !kHasStopWaiting, ENCRYPTION_NONE);
   QuicPacketCreatorPeer::SetPacketNumber(creator_, 1);
   BlockOnNextWrite();
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, QuicPacketNumber(2u), _, _))
@@ -5076,6 +5125,7 @@ TEST_P(QuicConnectionTest, SendDelayedAck) {
   EXPECT_TRUE(connection_.GetAckAlarm()->IsSet());
   EXPECT_EQ(ack_time, connection_.GetAckAlarm()->deadline());
   // Simulate delayed ack alarm firing.
+  clock_.AdvanceTime(DefaultDelayedAckTime());
   connection_.GetAckAlarm()->Fire();
   // Check that ack is sent and that delayed ack alarm is reset.
   if (GetParam().no_stop_waiting) {
@@ -5114,6 +5164,7 @@ TEST_P(QuicConnectionTest, SendDelayedAfterQuiescence) {
   EXPECT_TRUE(connection_.GetAckAlarm()->IsSet());
   EXPECT_EQ(ack_time, connection_.GetAckAlarm()->deadline());
   // Simulate delayed ack alarm firing.
+  clock_.AdvanceTime(DefaultDelayedAckTime());
   connection_.GetAckAlarm()->Fire();
   // Check that ack is sent and that delayed ack alarm is reset.
   if (GetParam().no_stop_waiting) {
@@ -5136,6 +5187,7 @@ TEST_P(QuicConnectionTest, SendDelayedAfterQuiescence) {
   EXPECT_TRUE(connection_.GetAckAlarm()->IsSet());
   EXPECT_EQ(ack_time, connection_.GetAckAlarm()->deadline());
   // Simulate delayed ack alarm firing.
+  clock_.AdvanceTime(DefaultDelayedAckTime());
   connection_.GetAckAlarm()->Fire();
   // Check that ack is sent and that delayed ack alarm is reset.
   if (GetParam().no_stop_waiting) {
@@ -5249,6 +5301,7 @@ TEST_P(QuicConnectionTest, SendDelayedAckAckDecimationAfterQuiescence) {
   EXPECT_TRUE(connection_.GetAckAlarm()->IsSet());
   EXPECT_EQ(ack_time, connection_.GetAckAlarm()->deadline());
   // Simulate delayed ack alarm firing.
+  clock_.AdvanceTime(DefaultDelayedAckTime());
   connection_.GetAckAlarm()->Fire();
   // Check that ack is sent and that delayed ack alarm is reset.
   if (GetParam().no_stop_waiting) {
@@ -5271,6 +5324,7 @@ TEST_P(QuicConnectionTest, SendDelayedAckAckDecimationAfterQuiescence) {
   EXPECT_TRUE(connection_.GetAckAlarm()->IsSet());
   EXPECT_EQ(ack_time, connection_.GetAckAlarm()->deadline());
   // Simulate delayed ack alarm firing.
+  clock_.AdvanceTime(DefaultDelayedAckTime());
   connection_.GetAckAlarm()->Fire();
   // Check that ack is sent and that delayed ack alarm is reset.
   if (GetParam().no_stop_waiting) {
@@ -5849,7 +5903,12 @@ TEST_P(QuicConnectionTest, NoAckOnOldNacks) {
 
 TEST_P(QuicConnectionTest, SendDelayedAckOnOutgoingPacket) {
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
-  ProcessPacket(1);
+  EXPECT_CALL(visitor_, OnStreamFrame(_));
+  peer_framer_.SetEncrypter(ENCRYPTION_FORWARD_SECURE,
+                            QuicMakeUnique<TaggingEncrypter>(0x01));
+  connection_.SetDecrypter(ENCRYPTION_FORWARD_SECURE,
+                           QuicMakeUnique<StrictTaggingDecrypter>(0x01));
+  ProcessDataPacketAtLevel(1, false, ENCRYPTION_FORWARD_SECURE);
   connection_.SendStreamDataWithString(
       GetNthClientInitiatedStreamId(1, connection_.transport_version()), "foo",
       0, NO_FIN);
@@ -6034,7 +6093,8 @@ TEST_P(QuicConnectionTest, SendWhenDisconnected) {
                               ConnectionCloseBehavior::SILENT_CLOSE);
   EXPECT_FALSE(connection_.connected());
   EXPECT_FALSE(connection_.CanWriteStreamData());
-  std::unique_ptr<QuicPacket> packet = ConstructDataPacket(1, !kHasStopWaiting);
+  std::unique_ptr<QuicPacket> packet =
+      ConstructDataPacket(1, !kHasStopWaiting, ENCRYPTION_NONE);
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, QuicPacketNumber(1), _, _))
       .Times(0);
   connection_.SendPacket(ENCRYPTION_NONE, 1, std::move(packet),
@@ -7789,7 +7849,8 @@ TEST_P(QuicConnectionTest, StopProcessingGQuicPacketInIetfQuicConnection) {
   // Let connection process a Google QUIC packet.
   peer_framer_.set_version_for_tests(
       ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_43));
-  std::unique_ptr<QuicPacket> packet(ConstructDataPacket(2, !kHasStopWaiting));
+  std::unique_ptr<QuicPacket> packet(
+      ConstructDataPacket(2, !kHasStopWaiting, ENCRYPTION_NONE));
   char buffer[kMaxPacketSize];
   size_t encrypted_length = peer_framer_.EncryptPayload(
       ENCRYPTION_NONE, QuicPacketNumber(2), *packet, buffer, kMaxPacketSize);
