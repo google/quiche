@@ -323,11 +323,7 @@ void QuicSession::OnConnectionClosed(QuicErrorCode error,
 }
 
 void QuicSession::OnWriteBlocked() {
-  if (GetQuicReloadableFlag(
-          quic_connection_do_not_add_to_write_blocked_list_if_disconnected) &&
-      !connection_->connected()) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(
-        quic_connection_do_not_add_to_write_blocked_list_if_disconnected, 1, 2);
+  if (!connection_->connected()) {
     return;
   }
   if (visitor_) {

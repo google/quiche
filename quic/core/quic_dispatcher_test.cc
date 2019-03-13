@@ -1537,11 +1537,6 @@ TEST_F(QuicDispatcherWriteBlockedListTest, PerConnectionWriterBlocked) {
 
 TEST_F(QuicDispatcherWriteBlockedListTest,
        RemoveConnectionFromWriteBlockedListWhenDeletingSessions) {
-  if (!GetQuicReloadableFlag(
-          quic_connection_do_not_add_to_write_blocked_list_if_disconnected)) {
-    return;
-  }
-
   dispatcher_->OnConnectionClosed(connection1()->connection_id(),
                                   QUIC_PACKET_WRITE_ERROR, "Closed by test.",
                                   ConnectionCloseSource::FROM_SELF);

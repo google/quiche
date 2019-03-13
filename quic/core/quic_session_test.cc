@@ -472,12 +472,7 @@ TEST_P(QuicSessionTestServer, DontCallOnWriteBlockedForDisconnectedConnection) {
                                ConnectionCloseBehavior::SILENT_CLOSE);
   ASSERT_FALSE(connection_->connected());
 
-  if (GetQuicReloadableFlag(
-          quic_connection_do_not_add_to_write_blocked_list_if_disconnected)) {
-    EXPECT_CALL(session_visitor_, OnWriteBlocked(_)).Times(0);
-  } else {
-    EXPECT_CALL(session_visitor_, OnWriteBlocked(_)).Times(1);
-  }
+  EXPECT_CALL(session_visitor_, OnWriteBlocked(_)).Times(0);
   session_.OnWriteBlocked();
 }
 

@@ -592,11 +592,7 @@ std::unique_ptr<QuicPerPacketContext> QuicDispatcher::GetPerPacketContext()
 }
 
 void QuicDispatcher::DeleteSessions() {
-  if (GetQuicReloadableFlag(
-          quic_connection_do_not_add_to_write_blocked_list_if_disconnected) &&
-      !write_blocked_list_.empty()) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(
-        quic_connection_do_not_add_to_write_blocked_list_if_disconnected, 2, 2);
+  if (!write_blocked_list_.empty()) {
     for (const std::unique_ptr<QuicSession>& session : closed_session_list_) {
       if (write_blocked_list_.erase(session->connection()) != 0) {
         QUIC_BUG << "QuicConnection was in WriteBlockedList before destruction";
