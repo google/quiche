@@ -975,7 +975,8 @@ bool QuicConnection::OnAckFrameStart(QuicPacketNumber largest_acked,
   if (!sent_packet_manager_.GetLargestObserved().IsInitialized() ||
       largest_acked > sent_packet_manager_.GetLargestObserved()) {
     visitor_->OnForwardProgressConfirmed();
-  } else if (largest_acked < sent_packet_manager_.GetLargestObserved()) {
+  } else if (!sent_packet_manager_.tolerate_reneging() &&
+             largest_acked < sent_packet_manager_.GetLargestObserved()) {
     QUIC_LOG(INFO) << ENDPOINT << "Peer's largest_observed packet decreased:"
                    << largest_acked << " vs "
                    << sent_packet_manager_.GetLargestObserved()

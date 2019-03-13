@@ -351,6 +351,8 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // Setting the send algorithm once the connection is underway is dangerous.
   void SetSendAlgorithm(SendAlgorithmInterface* send_algorithm);
 
+  bool tolerate_reneging() const { return tolerate_reneging_; }
+
  private:
   friend class test::QuicConnectionPeer;
   friend class test::QuicSentPacketManagerPeer;
@@ -580,6 +582,9 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // A reverse iterator of last_ack_frame_.packets. This is reset in
   // OnAckRangeStart, and gradually moves in OnAckRange..
   PacketNumberQueue::const_reverse_iterator acked_packets_iter_;
+
+  // Latched value of quic_tolerate_reneging.
+  const bool tolerate_reneging_;
 };
 
 }  // namespace quic

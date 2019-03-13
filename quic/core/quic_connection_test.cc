@@ -2488,10 +2488,14 @@ TEST_P(QuicConnectionTest, LargestObservedLower) {
   QuicAckFrame frame2 = InitAckFrame(2);
   ProcessAckPacket(&frame2);
 
-  // Now change it to 1, and it should cause a connection error.
-  EXPECT_CALL(visitor_, OnConnectionClosed(QUIC_INVALID_ACK_DATA, _,
-                                           ConnectionCloseSource::FROM_SELF));
-  EXPECT_CALL(visitor_, OnCanWrite()).Times(0);
+  if (GetQuicReloadableFlag(quic_tolerate_reneging)) {
+    EXPECT_CALL(visitor_, OnCanWrite());
+  } else {
+    // Now change it to 1, and it should cause a connection error.
+    EXPECT_CALL(visitor_, OnConnectionClosed(QUIC_INVALID_ACK_DATA, _,
+                                             ConnectionCloseSource::FROM_SELF));
+    EXPECT_CALL(visitor_, OnCanWrite()).Times(0);
+  }
   ProcessAckPacket(&frame1);
 }
 

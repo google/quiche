@@ -2433,6 +2433,38 @@ TEST_P(QuicSentPacketManagerTest, OnAckRangeSlowPath) {
   EXPECT_TRUE(manager_.OnAckFrameEnd(clock_.Now()));
 }
 
+TEST_P(QuicSentPacketManagerTest, TolerateReneging) {
+  if (!manager_.tolerate_reneging()) {
+    return;
+  }
+  // Send packets 1 - 20.
+  for (size_t i = 1; i <= 20; ++i) {
+    SendDataPacket(i);
+  }
+  // Ack [5, 7), [10, 12), [15, 17).
+  uint64_t acked1[] = {5, 6, 10, 11, 15, 16};
+  uint64_t lost1[] = {1, 2, 3, 4, 7, 8, 9, 12, 13};
+  ExpectAcksAndLosses(true, acked1, QUIC_ARRAYSIZE(acked1), lost1,
+                      QUIC_ARRAYSIZE(lost1));
+  EXPECT_CALL(notifier_, OnFrameLost(_)).Times(AnyNumber());
+  manager_.OnAckFrameStart(QuicPacketNumber(16), QuicTime::Delta::Infinite(),
+                           clock_.Now());
+  manager_.OnAckRange(QuicPacketNumber(15), QuicPacketNumber(17));
+  manager_.OnAckRange(QuicPacketNumber(10), QuicPacketNumber(12));
+  manager_.OnAckRange(QuicPacketNumber(5), QuicPacketNumber(7));
+  EXPECT_TRUE(manager_.OnAckFrameEnd(clock_.Now()));
+
+  // Making sure reneged ACK does not harm. Ack [4, 8), [9, 13).
+  uint64_t acked2[] = {4, 7, 9, 12};
+  ExpectAcksAndLosses(true, acked2, QUIC_ARRAYSIZE(acked2), nullptr, 0);
+  manager_.OnAckFrameStart(QuicPacketNumber(12), QuicTime::Delta::Infinite(),
+                           clock_.Now());
+  manager_.OnAckRange(QuicPacketNumber(9), QuicPacketNumber(13));
+  manager_.OnAckRange(QuicPacketNumber(4), QuicPacketNumber(8));
+  EXPECT_TRUE(manager_.OnAckFrameEnd(clock_.Now()));
+  EXPECT_EQ(QuicPacketNumber(16), manager_.GetLargestObserved());
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

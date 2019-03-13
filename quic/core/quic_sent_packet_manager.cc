@@ -111,7 +111,11 @@ QuicSentPacketManager::QuicSentPacketManager(
       delayed_ack_time_(
           QuicTime::Delta::FromMilliseconds(kDefaultDelayedAckTimeMs)),
       rtt_updated_(false),
-      acked_packets_iter_(last_ack_frame_.packets.rbegin()) {
+      acked_packets_iter_(last_ack_frame_.packets.rbegin()),
+      tolerate_reneging_(GetQuicReloadableFlag(quic_tolerate_reneging)) {
+  if (tolerate_reneging_) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_tolerate_reneging);
+  }
   SetSendAlgorithm(congestion_control_type);
 }
 
@@ -1063,7 +1067,8 @@ void QuicSentPacketManager::OnAckFrameStart(QuicPacketNumber largest_acked,
   rtt_updated_ =
       MaybeUpdateRTT(largest_acked, ack_delay_time, ack_receive_time);
   DCHECK(!unacked_packets_.largest_acked().IsInitialized() ||
-         largest_acked >= unacked_packets_.largest_acked());
+         largest_acked >= unacked_packets_.largest_acked() ||
+         tolerate_reneging_);
   last_ack_frame_.ack_delay_time = ack_delay_time;
   acked_packets_iter_ = last_ack_frame_.packets.rbegin();
 }
