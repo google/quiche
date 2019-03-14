@@ -42,6 +42,10 @@ QuicConnectionId TestConnectionId();
 // given number, such as an index.
 QuicConnectionId TestConnectionId(uint64_t connection_number);
 
+// A generic predictable connection ID suited for testing, generated from a
+// given number, such as an index. Guaranteed to be 9 bytes long.
+QuicConnectionId TestConnectionIdNineBytesLong(uint64_t connection_number);
+
 // Extracts the connection number passed to TestConnectionId().
 uint64_t TestConnectionIdToUInt64(QuicConnectionId connection_id);
 

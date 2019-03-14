@@ -346,6 +346,24 @@ bool QuicDispatcher::OnUnauthenticatedPublicHeader(
     return false;
   }
 
+  // We currently do not support having the server change its connection ID
+  // length during the handshake. Until then, fast-fail connections.
+  // TODO(dschinazi): actually support changing connection IDs from the server.
+  if (header.destination_connection_id.length() !=
+      framer_.GetExpectedConnectionIdLength()) {
+    DCHECK(QuicUtils::VariableLengthConnectionIdAllowedForVersion(
+        header.version.transport_version));
+    QUIC_DLOG(INFO)
+        << "Packet with unexpected connection ID lengths: destination "
+        << header.destination_connection_id << " source "
+        << header.source_connection_id << " expected "
+        << static_cast<int>(framer_.GetExpectedConnectionIdLength());
+    ProcessUnauthenticatedHeaderFate(kFateTimeWait,
+                                     header.destination_connection_id,
+                                     header.form, header.version);
+    return false;
+  }
+
   // Packets with connection IDs for active connections are processed
   // immediately.
   QuicConnectionId connection_id = header.destination_connection_id;
@@ -460,7 +478,7 @@ void QuicDispatcher::ProcessUnauthenticatedHeaderFate(
         // Add this connection_id to the time-wait state, to safely reject
         // future packets.
         QUIC_DLOG(INFO) << "Adding connection ID " << connection_id
-                        << "to time-wait list.";
+                        << " to time-wait list.";
         QUIC_CODE_COUNT(quic_reject_fate_time_wait);
         StatelesslyTerminateConnection(
             connection_id, form, version, QUIC_HANDSHAKE_FAILED,

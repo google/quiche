@@ -469,8 +469,7 @@ QuicConnectionId QuicUtils::CreateRandomConnectionId(QuicRandom* random) {
 // static
 bool QuicUtils::VariableLengthConnectionIdAllowedForVersion(
     QuicTransportVersion version) {
-  // TODO(dschinazi): Allow in appropriate version when supported.
-  return false;
+  return version == QUIC_VERSION_99;
 }
 
 // static

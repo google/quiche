@@ -572,6 +572,11 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
         should_update_expected_connection_id_length;
   }
 
+  // The connection ID length the framer expects on incoming IETF short headers.
+  uint8_t GetExpectedConnectionIdLength() {
+    return expected_connection_id_length_;
+  }
+
  private:
   friend class test::QuicFramerPeer;
 

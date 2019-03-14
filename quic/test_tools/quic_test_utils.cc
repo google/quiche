@@ -47,6 +47,18 @@ QuicConnectionId TestConnectionId(uint64_t connection_number) {
                           sizeof(connection_id64_net));
 }
 
+QuicConnectionId TestConnectionIdNineBytesLong(uint64_t connection_number) {
+  const uint64_t connection_number_net =
+      QuicEndian::HostToNet64(connection_number);
+  char connection_id_bytes[9] = {};
+  static_assert(
+      sizeof(connection_id_bytes) == 1 + sizeof(connection_number_net),
+      "bad lengths");
+  memcpy(connection_id_bytes + 1, &connection_number_net,
+         sizeof(connection_number_net));
+  return QuicConnectionId(connection_id_bytes, sizeof(connection_id_bytes));
+}
+
 uint64_t TestConnectionIdToUInt64(QuicConnectionId connection_id) {
   DCHECK_EQ(connection_id.length(), kQuicDefaultConnectionIdLength);
   uint64_t connection_id64_net = 0;

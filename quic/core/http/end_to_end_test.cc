@@ -284,7 +284,8 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
         chlo_multiplier_(0),
         stream_factory_(nullptr),
         support_server_push_(false),
-        override_connection_id_(nullptr) {
+        override_connection_id_(nullptr),
+        expected_connection_id_length_(kQuicDefaultConnectionIdLength) {
     FLAGS_quic_supports_tls_handshake = true;
     SetQuicRestartFlag(quic_no_server_conn_ver_negotiation2, true);
     SetQuicReloadableFlag(quic_no_client_conn_ver_negotiation, true);
@@ -450,13 +451,10 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     SetQuicReloadableFlag(quic_use_cheap_stateless_rejects,
                           GetParam().use_cheap_stateless_reject);
 
-    uint8_t connection_id_length = override_connection_id_ != nullptr
-                                       ? override_connection_id_->length()
-                                       : kQuicDefaultConnectionIdLength;
-    auto* test_server =
-        new QuicTestServer(crypto_test_utils::ProofSourceForTesting(),
-                           server_config_, server_supported_versions_,
-                           &memory_cache_backend_, connection_id_length);
+    auto* test_server = new QuicTestServer(
+        crypto_test_utils::ProofSourceForTesting(), server_config_,
+        server_supported_versions_, &memory_cache_backend_,
+        expected_connection_id_length_);
     server_thread_ = QuicMakeUnique<ServerThread>(test_server, server_address_);
     if (chlo_multiplier_ != 0) {
       server_thread_->server()->SetChloMultiplier(chlo_multiplier_);
@@ -640,6 +638,7 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
   std::string pre_shared_key_client_;
   std::string pre_shared_key_server_;
   QuicConnectionId* override_connection_id_;
+  uint8_t expected_connection_id_length_;
 };
 
 // Run all end to end tests with all supported versions.
@@ -717,6 +716,7 @@ TEST_P(EndToEndTest, SimpleRequestResponseZeroConnectionID) {
   QuicConnectionId connection_id = QuicUtils::CreateZeroConnectionId(
       GetParam().negotiated_version.transport_version);
   override_connection_id_ = &connection_id;
+  expected_connection_id_length_ = connection_id.length();
   ASSERT_TRUE(Initialize());
 
   EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
@@ -733,6 +733,47 @@ TEST_P(EndToEndTest, SimpleRequestResponseZeroConnectionID) {
   EXPECT_EQ(client_->client()->client_session()->connection()->connection_id(),
             QuicUtils::CreateZeroConnectionId(
                 GetParam().negotiated_version.transport_version));
+}
+
+TEST_P(EndToEndTest, BadConnectionIdLength) {
+  if (!QuicUtils::VariableLengthConnectionIdAllowedForVersion(
+          GetParam().negotiated_version.transport_version)) {
+    ASSERT_TRUE(Initialize());
+    return;
+  }
+  QuicConnectionId connection_id = TestConnectionIdNineBytesLong(1);
+  override_connection_id_ = &connection_id;
+  ASSERT_FALSE(Initialize());
+  EXPECT_EQ(QUIC_HANDSHAKE_FAILED, client_->connection_error());
+}
+
+TEST_P(EndToEndTest, MixGoodAndBadConnectionIdLengths) {
+  if (!QuicUtils::VariableLengthConnectionIdAllowedForVersion(
+          GetParam().negotiated_version.transport_version)) {
+    ASSERT_TRUE(Initialize());
+    return;
+  }
+
+  // Start client_ which will fail due to bad connection ID length.
+  QuicConnectionId connection_id = TestConnectionIdNineBytesLong(1);
+  override_connection_id_ = &connection_id;
+  ASSERT_FALSE(Initialize());
+  EXPECT_EQ(QUIC_HANDSHAKE_FAILED, client_->connection_error());
+  override_connection_id_ = nullptr;
+
+  // Start client2 which will succeed.
+  std::unique_ptr<QuicTestClient> client2(CreateQuicClient(nullptr));
+  SpdyHeaderBlock headers;
+  headers[":method"] = "POST";
+  headers[":path"] = "/foo";
+  headers[":scheme"] = "https";
+  headers[":authority"] = server_hostname_;
+  headers["content-length"] = "3";
+  client2->SendMessage(headers, "", /*fin=*/false);
+  client2->SendData("eep", true);
+  client2->WaitForResponse();
+  EXPECT_EQ(kFooResponseBody, client2->response_body());
+  EXPECT_EQ("200", client2->response_headers()->find(":status")->second);
 }
 
 TEST_P(EndToEndTest, SimpleRequestResponseWithLargeReject) {
@@ -794,6 +835,7 @@ TEST_P(EndToEndTest, MultipleRequestResponseZeroConnectionID) {
   QuicConnectionId connection_id = QuicUtils::CreateZeroConnectionId(
       GetParam().negotiated_version.transport_version);
   override_connection_id_ = &connection_id;
+  expected_connection_id_length_ = connection_id.length();
   ASSERT_TRUE(Initialize());
 
   EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));

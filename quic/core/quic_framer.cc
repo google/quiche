@@ -2277,8 +2277,6 @@ bool QuicFramer::ProcessPublicHeader(QuicDataReader* reader,
   if (packet_has_ietf_packet_header) {
     return ProcessIetfPacketHeader(reader, header);
   }
-  DCHECK(!QuicUtils::VariableLengthConnectionIdAllowedForVersion(
-      transport_version()));
   uint8_t public_flags;
   if (!reader->ReadBytes(&public_flags, 1)) {
     set_detailed_error("Unable to read public flags.");
@@ -2579,7 +2577,11 @@ bool QuicFramer::ProcessIetfPacketHeader(QuicDataReader* reader,
     }
     if ((dcil != destination_connection_id_length ||
          scil != source_connection_id_length) &&
-        !should_update_expected_connection_id_length_) {
+        !should_update_expected_connection_id_length_ &&
+        !QuicUtils::VariableLengthConnectionIdAllowedForVersion(
+            header->version.transport_version)) {
+      // TODO(dschinazi): use the framer's version once the
+      // OnProtocolVersionMismatch call is moved to before this is run.
       QUIC_DVLOG(1) << "dcil: " << static_cast<uint32_t>(dcil)
                     << ", scil: " << static_cast<uint32_t>(scil);
       set_detailed_error("Invalid ConnectionId length.");
@@ -5607,7 +5609,9 @@ bool QuicFramer::ProcessNewConnectionIdFrame(QuicDataReader* reader,
     return false;
   }
 
-  if (connection_id_length != kQuicDefaultConnectionIdLength) {
+  if (connection_id_length != kQuicDefaultConnectionIdLength &&
+      !QuicUtils::VariableLengthConnectionIdAllowedForVersion(
+          transport_version())) {
     set_detailed_error("Invalid new connection ID length.");
     return false;
   }

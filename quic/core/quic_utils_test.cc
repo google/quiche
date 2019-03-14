@@ -188,6 +188,8 @@ TEST_F(QuicUtilsTest, VariableLengthConnectionId) {
       QuicUtils::CreateZeroConnectionId(QUIC_VERSION_99), QUIC_VERSION_99));
   EXPECT_NE(QuicUtils::CreateZeroConnectionId(QUIC_VERSION_39),
             EmptyQuicConnectionId());
+  EXPECT_EQ(QuicUtils::CreateZeroConnectionId(QUIC_VERSION_99),
+            EmptyQuicConnectionId());
   EXPECT_FALSE(QuicUtils::IsConnectionIdValidForVersion(EmptyQuicConnectionId(),
                                                         QUIC_VERSION_39));
 }
