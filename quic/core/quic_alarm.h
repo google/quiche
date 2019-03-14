@@ -5,7 +5,6 @@
 #ifndef QUICHE_QUIC_CORE_QUIC_ALARM_H_
 #define QUICHE_QUIC_CORE_QUIC_ALARM_H_
 
-#include "base/macros.h"
 #include "net/third_party/quiche/src/quic/core/quic_arena_scoped_ptr.h"
 #include "net/third_party/quiche/src/quic/core/quic_time.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"

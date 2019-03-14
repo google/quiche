@@ -5,7 +5,6 @@
 #ifndef QUICHE_QUIC_TEST_TOOLS_MOCK_QUIC_DISPATCHER_H_
 #define QUICHE_QUIC_TEST_TOOLS_MOCK_QUIC_DISPATCHER_H_
 
-#include "base/macros.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_crypto_server_config.h"
 #include "net/third_party/quiche/src/quic/core/quic_config.h"

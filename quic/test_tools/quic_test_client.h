@@ -9,7 +9,6 @@
 #include <memory>
 #include <string>
 
-#include "base/macros.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "net/third_party/quiche/src/quic/core/proto/cached_network_parameters.pb.h"
 #include "net/third_party/quiche/src/quic/core/quic_framer.h"

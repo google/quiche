@@ -10,7 +10,6 @@
 
 #include <string>
 
-#include "base/macros.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_handshake.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_client_push_promise_index.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_spdy_client_session.h"

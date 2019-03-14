@@ -13,7 +13,6 @@
 
 #include <cstdint>  // for uintptr_t
 
-#include "base/macros.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_aligned.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 

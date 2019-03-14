@@ -8,7 +8,6 @@
 #include <cstdint>
 #include <string>
 
-#include "base/macros.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection_id.h"
 #include "net/third_party/quiche/src/quic/core/quic_data_writer.h"

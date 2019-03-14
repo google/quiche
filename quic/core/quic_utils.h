@@ -9,7 +9,6 @@
 #include <cstdint>
 #include <string>
 
-#include "base/macros.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"
 #include "net/third_party/quiche/src/quic/core/frames/quic_frame.h"
 #include "net/third_party/quiche/src/quic/core/quic_error_codes.h"

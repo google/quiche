@@ -8,7 +8,6 @@
 #include <algorithm>
 #include <map>
 
-#include "base/macros.h"
 #include "net/third_party/quiche/src/quic/core/congestion_control/loss_detection_interface.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_time.h"

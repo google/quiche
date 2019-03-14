@@ -9,7 +9,6 @@
 #include <list>
 #include <memory>
 
-#include "base/macros.h"
 #include "net/third_party/quiche/src/quic/core/quic_alarm.h"
 #include "net/third_party/quiche/src/quic/core/quic_packet_writer_wrapper.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_clock.h"

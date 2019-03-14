@@ -10,7 +10,6 @@
 #include <cstdint>
 #include <limits>
 
-#include "base/macros.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 

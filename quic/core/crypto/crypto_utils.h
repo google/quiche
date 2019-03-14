@@ -11,7 +11,6 @@
 #include <cstdint>
 #include <string>
 
-#include "base/macros.h"
 #include "third_party/boringssl/src/include/openssl/evp.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_handshake.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_handshake_message.h"

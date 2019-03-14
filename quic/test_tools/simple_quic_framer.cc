@@ -6,7 +6,6 @@
 
 #include <memory>
 
-#include "base/macros.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_decrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_encrypter.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"

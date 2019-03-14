@@ -5,7 +5,6 @@
 #ifndef QUICHE_QUIC_TEST_TOOLS_MOCK_QUIC_SESSION_VISITOR_H_
 #define QUICHE_QUIC_TEST_TOOLS_MOCK_QUIC_SESSION_VISITOR_H_
 
-#include "base/macros.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "net/third_party/quiche/src/quic/core/quic_crypto_server_stream.h"
 #include "net/third_party/quiche/src/quic/core/quic_time_wait_list_manager.h"

@@ -10,7 +10,6 @@
 #include <cstdint>
 #include <string>
 
-#include "base/macros.h"
 #include "net/third_party/quiche/src/quic/core/congestion_control/cubic_bytes.h"
 #include "net/third_party/quiche/src/quic/core/congestion_control/hybrid_slow_start.h"
 #include "net/third_party/quiche/src/quic/core/congestion_control/prr_sender.h"

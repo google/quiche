@@ -8,7 +8,6 @@
 #include <cstddef>
 #include <memory>
 
-#include "base/macros.h"
 #include "net/third_party/quiche/src/quic/core/quic_packet_writer.h"
 
 namespace quic {

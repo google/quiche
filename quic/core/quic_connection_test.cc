@@ -11,7 +11,6 @@
 
 #include <string>
 
-#include "base/macros.h"
 #include "net/third_party/quiche/src/quic/core/congestion_control/loss_detection_interface.h"
 #include "net/third_party/quiche/src/quic/core/congestion_control/send_algorithm_interface.h"
 #include "net/third_party/quiche/src/quic/core/crypto/null_encrypter.h"

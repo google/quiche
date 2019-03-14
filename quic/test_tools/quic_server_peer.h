@@ -5,8 +5,6 @@
 #ifndef QUICHE_QUIC_TEST_TOOLS_QUIC_SERVER_PEER_H_
 #define QUICHE_QUIC_TEST_TOOLS_QUIC_SERVER_PEER_H_
 
-#include "base/macros.h"
-
 namespace quic {
 
 class QuicDispatcher;

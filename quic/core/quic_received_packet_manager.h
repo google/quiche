@@ -5,7 +5,6 @@
 #ifndef QUICHE_QUIC_CORE_QUIC_RECEIVED_PACKET_MANAGER_H_
 #define QUICHE_QUIC_CORE_QUIC_RECEIVED_PACKET_MANAGER_H_
 
-#include "base/macros.h"
 #include "net/third_party/quiche/src/quic/core/quic_config.h"
 #include "net/third_party/quiche/src/quic/core/quic_framer.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"

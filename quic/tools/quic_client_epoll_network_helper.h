@@ -12,7 +12,6 @@
 #include <memory>
 #include <string>
 
-#include "base/macros.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_client_push_promise_index.h"
 #include "net/third_party/quiche/src/quic/core/quic_config.h"
 #include "net/third_party/quiche/src/quic/core/quic_packet_reader.h"

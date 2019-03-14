@@ -5,7 +5,6 @@
 #ifndef QUICHE_QUIC_TOOLS_QUIC_SIMPLE_SERVER_STREAM_H_
 #define QUICHE_QUIC_TOOLS_QUIC_SIMPLE_SERVER_STREAM_H_
 
-#include "base/macros.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_spdy_server_stream_base.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"

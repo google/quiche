@@ -4,8 +4,8 @@
 
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_header_table.h"
 
-#include "base/logging.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_static_table.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 
 namespace quic {
 

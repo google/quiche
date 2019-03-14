@@ -9,7 +9,6 @@
 #include <map>
 #include <memory>
 
-#include "base/macros.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_session.h"
 #include "net/third_party/quiche/src/quic/core/quic_write_blocked_list.h"

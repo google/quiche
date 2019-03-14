@@ -15,7 +15,6 @@
 #include <list>
 #include <string>
 
-#include "base/macros.h"
 #include "net/third_party/quiche/src/quic/core/http/http_decoder.h"
 #include "net/third_party/quiche/src/quic/core/http/http_encoder.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_header_list.h"

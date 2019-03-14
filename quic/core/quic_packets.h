@@ -14,7 +14,6 @@
 #include <utility>
 #include <vector>
 
-#include "base/macros.h"
 #include "net/third_party/quiche/src/quic/core/frames/quic_frame.h"
 #include "net/third_party/quiche/src/quic/core/quic_ack_listener_interface.h"
 #include "net/third_party/quiche/src/quic/core/quic_bandwidth.h"

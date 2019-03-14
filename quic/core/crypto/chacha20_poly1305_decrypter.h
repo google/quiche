@@ -7,7 +7,6 @@
 
 #include <cstdint>
 
-#include "base/macros.h"
 #include "net/third_party/quiche/src/quic/core/crypto/aead_base_decrypter.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 

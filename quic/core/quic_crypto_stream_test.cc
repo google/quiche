@@ -9,7 +9,6 @@
 #include <string>
 #include <vector>
 
-#include "base/macros.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_handshake.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
 #include "net/third_party/quiche/src/quic/core/crypto/null_encrypter.h"

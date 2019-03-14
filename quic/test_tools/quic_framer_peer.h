@@ -5,7 +5,6 @@
 #ifndef QUICHE_QUIC_TEST_TOOLS_QUIC_FRAMER_PEER_H_
 #define QUICHE_QUIC_TEST_TOOLS_QUIC_FRAMER_PEER_H_
 
-#include "base/macros.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/quic_framer.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"

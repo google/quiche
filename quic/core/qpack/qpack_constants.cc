@@ -6,7 +6,7 @@
 
 #include <limits>
 
-#include "base/logging.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 
 namespace quic {
 

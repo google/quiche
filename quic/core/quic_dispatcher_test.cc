@@ -8,7 +8,6 @@
 #include <ostream>
 #include <string>
 
-#include "base/macros.h"
 #include "net/third_party/quiche/src/quic/core/chlo_extractor.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_handshake.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"

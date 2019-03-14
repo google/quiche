@@ -9,7 +9,6 @@
 #include <memory>
 #include <string>
 
-#include "base/macros.h"
 #include "net/third_party/quiche/src/quic/core/crypto/channel_id.h"
 #include "net/third_party/quiche/src/quic/core/crypto/proof_verifier.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_crypto_client_config.h"

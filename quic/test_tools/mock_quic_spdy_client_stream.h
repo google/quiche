@@ -5,7 +5,6 @@
 #ifndef QUICHE_QUIC_TEST_TOOLS_MOCK_QUIC_SPDY_CLIENT_STREAM_H_
 #define QUICHE_QUIC_TEST_TOOLS_MOCK_QUIC_SPDY_CLIENT_STREAM_H_
 
-#include "base/macros.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_header_list.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_spdy_client_stream.h"

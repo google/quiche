@@ -13,7 +13,6 @@
 #include <string>
 #include <vector>
 
-#include "base/macros.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_compressed_certs_cache.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_spdy_session.h"
 #include "net/third_party/quiche/src/quic/core/quic_crypto_server_stream.h"

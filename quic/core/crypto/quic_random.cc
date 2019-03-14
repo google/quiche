@@ -4,7 +4,6 @@
 
 #include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"
 
-#include "base/macros.h"
 #include "third_party/boringssl/src/include/openssl/rand.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 

@@ -12,7 +12,6 @@
 
 #include <cstdint>
 
-#include "base/macros.h"
 #include "net/third_party/quiche/src/quic/core/quic_arena_scoped_ptr.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"

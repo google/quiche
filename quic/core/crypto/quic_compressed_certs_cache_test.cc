@@ -6,7 +6,6 @@
 
 #include <string>
 
-#include "base/macros.h"
 #include "net/third_party/quiche/src/quic/core/crypto/cert_compressor.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"

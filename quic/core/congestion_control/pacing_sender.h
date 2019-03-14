@@ -15,7 +15,6 @@
 #include <map>
 #include <memory>
 
-#include "base/macros.h"
 #include "net/third_party/quiche/src/quic/core/congestion_control/send_algorithm_interface.h"
 #include "net/third_party/quiche/src/quic/core/quic_bandwidth.h"
 #include "net/third_party/quiche/src/quic/core/quic_config.h"

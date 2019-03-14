@@ -6,9 +6,9 @@
 
 #include <algorithm>
 
-#include "base/logging.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_decoder_test_utils.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_test_utils.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_header_block.h"

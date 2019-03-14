@@ -10,7 +10,6 @@
 
 #include <cstdint>
 
-#include "base/macros.h"
 #include "net/third_party/quiche/src/quic/core/quic_bandwidth.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection_stats.h"
 #include "net/third_party/quiche/src/quic/core/quic_time.h"

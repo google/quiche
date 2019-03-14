@@ -7,7 +7,6 @@
 
 #include <cstdint>
 
-#include "base/macros.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 
 namespace quic {

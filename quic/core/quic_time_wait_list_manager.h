@@ -11,7 +11,6 @@
 #include <cstddef>
 #include <memory>
 
-#include "base/macros.h"
 #include "net/third_party/quiche/src/quic/core/quic_blocked_writer_interface.h"
 #include "net/third_party/quiche/src/quic/core/quic_framer.h"
 #include "net/third_party/quiche/src/quic/core/quic_packet_writer.h"

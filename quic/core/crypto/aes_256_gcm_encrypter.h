@@ -5,7 +5,6 @@
 #ifndef QUICHE_QUIC_CORE_CRYPTO_AES_256_GCM_ENCRYPTER_H_
 #define QUICHE_QUIC_CORE_CRYPTO_AES_256_GCM_ENCRYPTER_H_
 
-#include "base/macros.h"
 #include "net/third_party/quiche/src/quic/core/crypto/aead_base_encrypter.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 

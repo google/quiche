@@ -7,7 +7,6 @@
 #include <algorithm>
 #include <string>
 
-#include "base/macros.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
 

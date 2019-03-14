@@ -13,7 +13,6 @@
 #include <utility>
 #include <vector>
 
-#include "base/macros.h"
 #include "net/third_party/quiche/src/quic/core/congestion_control/pacing_sender.h"
 #include "net/third_party/quiche/src/quic/core/congestion_control/rtt_stats.h"
 #include "net/third_party/quiche/src/quic/core/congestion_control/send_algorithm_interface.h"

@@ -12,7 +12,6 @@
 #include <string>
 #include <vector>
 
-#include "base/macros.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_compressed_certs_cache.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"
 #include "net/third_party/quiche/src/quic/core/quic_blocked_writer_interface.h"

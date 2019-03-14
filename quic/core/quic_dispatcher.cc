@@ -7,7 +7,6 @@
 #include <string>
 #include <utility>
 
-#include "base/macros.h"
 #include "net/third_party/quiche/src/quic/core/chlo_extractor.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"

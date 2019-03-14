@@ -11,7 +11,6 @@
 #include <ostream>
 #include <string>
 
-#include "base/macros.h"
 #include "net/third_party/quiche/src/quic/core/congestion_control/bandwidth_sampler.h"
 #include "net/third_party/quiche/src/quic/core/congestion_control/send_algorithm_interface.h"
 #include "net/third_party/quiche/src/quic/core/congestion_control/windowed_filter.h"

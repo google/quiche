@@ -8,7 +8,6 @@
 #include <cstdint>
 #include <string>
 
-#include "base/macros.h"
 #include "third_party/boringssl/src/include/openssl/base.h"
 #include "net/third_party/quiche/src/quic/core/crypto/key_exchange.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"

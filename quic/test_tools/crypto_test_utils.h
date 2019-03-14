@@ -11,7 +11,6 @@
 #include <utility>
 #include <vector>
 
-#include "base/macros.h"
 #include "third_party/boringssl/src/include/openssl/evp.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_framer.h"
 #include "net/third_party/quiche/src/quic/core/quic_framer.h"

@@ -44,7 +44,6 @@
 #include <cstdint>
 #include <list>
 
-#include "base/macros.h"
 #include "net/third_party/quiche/src/quic/core/quic_packet_creator.h"
 #include "net/third_party/quiche/src/quic/core/quic_pending_retransmission.h"
 #include "net/third_party/quiche/src/quic/core/quic_sent_packet_manager.h"

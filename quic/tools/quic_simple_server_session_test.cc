@@ -7,7 +7,6 @@
 #include <algorithm>
 #include <memory>
 
-#include "base/macros.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_crypto_server_config.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"
 #include "net/third_party/quiche/src/quic/core/proto/cached_network_parameters.pb.h"

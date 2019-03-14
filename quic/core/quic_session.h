@@ -13,7 +13,6 @@
 #include <string>
 #include <vector>
 
-#include "base/macros.h"
 #include "net/third_party/quiche/src/quic/core/legacy_quic_stream_id_manager.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection.h"
 #include "net/third_party/quiche/src/quic/core/quic_control_frame_manager.h"

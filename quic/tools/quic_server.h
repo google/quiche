@@ -13,7 +13,6 @@
 
 #include <memory>
 
-#include "base/macros.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_crypto_server_config.h"
 #include "net/third_party/quiche/src/quic/core/quic_config.h"
 #include "net/third_party/quiche/src/quic/core/quic_epoll_connection_helper.h"

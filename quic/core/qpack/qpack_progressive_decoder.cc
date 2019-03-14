@@ -7,9 +7,9 @@
 #include <algorithm>
 #include <limits>
 
-#include "base/logging.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_constants.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_header_table.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
 
 namespace quic {

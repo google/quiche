@@ -9,7 +9,6 @@
 #include <memory>
 #include <string>
 
-#include "base/macros.h"
 #include "third_party/boringssl/src/include/openssl/sha.h"
 #include "third_party/boringssl/src/include/openssl/ssl.h"
 #include "net/third_party/quiche/src/quic/core/crypto/aes_128_gcm_12_decrypter.h"

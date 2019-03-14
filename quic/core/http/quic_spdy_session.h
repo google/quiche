@@ -9,7 +9,6 @@
 #include <memory>
 #include <string>
 
-#include "base/macros.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_header_list.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_headers_stream.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_spdy_stream.h"
