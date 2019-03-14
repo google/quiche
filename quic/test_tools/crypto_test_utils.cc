@@ -910,7 +910,8 @@ CryptoHandshakeMessage CreateCHLO(
 
   // The CryptoHandshakeMessage needs to be serialized and parsed to ensure
   // that any padding is included.
-  std::unique_ptr<QuicData> bytes(CryptoFramer::ConstructHandshakeMessage(msg));
+  std::unique_ptr<QuicData> bytes =
+      CryptoFramer::ConstructHandshakeMessage(msg);
   std::unique_ptr<CryptoHandshakeMessage> parsed(
       CryptoFramer::ParseMessage(bytes->AsStringPiece()));
   CHECK(parsed);

@@ -323,8 +323,8 @@ QuicCryptoServerConfig::GenerateConfig(QuicRandom* rand,
   if (options.id.empty()) {
     // We need to ensure that the SCID changes whenever the server config does
     // thus we make it a hash of the rest of the server config.
-    std::unique_ptr<QuicData> serialized(
-        CryptoFramer::ConstructHandshakeMessage(msg));
+    std::unique_ptr<QuicData> serialized =
+        CryptoFramer::ConstructHandshakeMessage(msg);
 
     uint8_t scid_bytes[SHA256_DIGEST_LENGTH];
     SHA256(reinterpret_cast<const uint8_t*>(serialized->data()),
@@ -340,8 +340,8 @@ QuicCryptoServerConfig::GenerateConfig(QuicRandom* rand,
   // everything but itself and so extra tags should be added prior to the
   // preceding if block.
 
-  std::unique_ptr<QuicData> serialized(
-      CryptoFramer::ConstructHandshakeMessage(msg));
+  std::unique_ptr<QuicData> serialized =
+      CryptoFramer::ConstructHandshakeMessage(msg);
 
   auto config = QuicMakeUnique<QuicServerConfigProtobuf>();
   config->set_config(std::string(serialized->AsStringPiece()));

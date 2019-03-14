@@ -79,7 +79,7 @@ TEST(CryptoFramerTest, ConstructHandshakeMessage) {
   };
 
   CryptoFramer framer;
-  std::unique_ptr<QuicData> data(framer.ConstructHandshakeMessage(message));
+  std::unique_ptr<QuicData> data = framer.ConstructHandshakeMessage(message);
   ASSERT_TRUE(data != nullptr);
   test::CompareCharArraysWithHexError("constructed packet", data->data(),
                                       data->length(), AsChars(packet),
@@ -114,7 +114,7 @@ TEST(CryptoFramerTest, ConstructHandshakeMessageWithTwoKeys) {
   };
 
   CryptoFramer framer;
-  std::unique_ptr<QuicData> data(framer.ConstructHandshakeMessage(message));
+  std::unique_ptr<QuicData> data = framer.ConstructHandshakeMessage(message);
   ASSERT_TRUE(data != nullptr);
 
   test::CompareCharArraysWithHexError("constructed packet", data->data(),
@@ -141,7 +141,7 @@ TEST(CryptoFramerTest, ConstructHandshakeMessageZeroLength) {
   };
 
   CryptoFramer framer;
-  std::unique_ptr<QuicData> data(framer.ConstructHandshakeMessage(message));
+  std::unique_ptr<QuicData> data = framer.ConstructHandshakeMessage(message);
   ASSERT_TRUE(data != nullptr);
 
   test::CompareCharArraysWithHexError("constructed packet", data->data(),
@@ -157,7 +157,7 @@ TEST(CryptoFramerTest, ConstructHandshakeMessageTooManyEntries) {
   }
 
   CryptoFramer framer;
-  std::unique_ptr<QuicData> data(framer.ConstructHandshakeMessage(message));
+  std::unique_ptr<QuicData> data = framer.ConstructHandshakeMessage(message);
   EXPECT_TRUE(data == nullptr);
 }
 
@@ -191,7 +191,7 @@ TEST(CryptoFramerTest, ConstructHandshakeMessageMinimumSize) {
   };
 
   CryptoFramer framer;
-  std::unique_ptr<QuicData> data(framer.ConstructHandshakeMessage(message));
+  std::unique_ptr<QuicData> data = framer.ConstructHandshakeMessage(message);
   ASSERT_TRUE(data != nullptr);
 
   test::CompareCharArraysWithHexError("constructed packet", data->data(),
@@ -227,7 +227,7 @@ TEST(CryptoFramerTest, ConstructHandshakeMessageMinimumSizePadLast) {
   };
 
   CryptoFramer framer;
-  std::unique_ptr<QuicData> data(framer.ConstructHandshakeMessage(message));
+  std::unique_ptr<QuicData> data = framer.ConstructHandshakeMessage(message);
   ASSERT_TRUE(data != nullptr);
 
   test::CompareCharArraysWithHexError("constructed packet", data->data(),

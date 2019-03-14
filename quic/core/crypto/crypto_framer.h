@@ -82,7 +82,7 @@ class QUIC_EXPORT_PRIVATE CryptoFramer : public CryptoMessageParser {
 
   // Returns a new QuicData owned by the caller that contains a serialized
   // |message|, or nullptr if there was an error.
-  static QuicData* ConstructHandshakeMessage(
+  static std::unique_ptr<QuicData> ConstructHandshakeMessage(
       const CryptoHandshakeMessage& message);
 
   // Debug only method which permits processing truncated messages.

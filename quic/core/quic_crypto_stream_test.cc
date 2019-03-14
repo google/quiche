@@ -80,7 +80,7 @@ class QuicCryptoStreamTest : public QuicTest {
 
   void ConstructHandshakeMessage() {
     CryptoFramer framer;
-    message_data_.reset(framer.ConstructHandshakeMessage(message_));
+    message_data_ = framer.ConstructHandshakeMessage(message_);
   }
 
  protected:

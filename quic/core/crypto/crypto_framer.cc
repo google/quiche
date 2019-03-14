@@ -129,7 +129,7 @@ void CryptoFramer::ForceHandshake() {
 }
 
 // static
-QuicData* CryptoFramer::ConstructHandshakeMessage(
+std::unique_ptr<QuicData> CryptoFramer::ConstructHandshakeMessage(
     const CryptoHandshakeMessage& message) {
   size_t num_entries = message.tag_value_map().size();
   size_t pad_length = 0;
@@ -229,7 +229,7 @@ QuicData* CryptoFramer::ConstructHandshakeMessage(
     }
   }
 
-  return new QuicData(buffer.release(), len, true);
+  return QuicMakeUnique<QuicData>(buffer.release(), len, true);
 }
 
 void CryptoFramer::Clear() {
