@@ -36,8 +36,7 @@ class QuicPacketCreatorPeer {
                                QuicPacketHeader* header);
   static void CreateStreamFrame(QuicPacketCreator* creator,
                                 QuicStreamId id,
-                                size_t write_length,
-                                size_t iov_offset,
+                                size_t data_length,
                                 QuicStreamOffset offset,
                                 bool fin,
                                 QuicFrame* frame);

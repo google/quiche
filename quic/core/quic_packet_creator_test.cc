@@ -390,7 +390,7 @@ TEST_P(QuicPacketCreatorTest, ReserializeFramesWithFullPadding) {
   QuicPacketCreatorPeer::CreateStreamFrame(
       &creator_,
       QuicUtils::GetCryptoStreamId(client_framer_.transport_version()),
-      iov_.iov_len, 0u, 0u, false, &frame);
+      iov_.iov_len, 0u, false, &frame);
   QuicFrames frames;
   frames.push_back(frame);
   char buffer[kMaxPacketSize];
@@ -413,7 +413,7 @@ TEST_P(QuicPacketCreatorTest, DoNotRetransmitPendingPadding) {
   QuicPacketCreatorPeer::CreateStreamFrame(
       &creator_,
       QuicUtils::GetCryptoStreamId(client_framer_.transport_version()),
-      iov_.iov_len, 0u, 0u, false, &frame);
+      iov_.iov_len, 0u, false, &frame);
 
   const int kNumPaddingBytes1 = 4;
   int packet_size = 0;
@@ -480,7 +480,7 @@ TEST_P(QuicPacketCreatorTest, ReserializeFramesWithFullPacketAndPadding) {
     QuicPacketCreatorPeer::CreateStreamFrame(
         &creator_,
         QuicUtils::GetCryptoStreamId(client_framer_.transport_version()),
-        iov_.iov_len, 0, kOffset, false, &frame);
+        iov_.iov_len, kOffset, false, &frame);
     QuicFrames frames;
     frames.push_back(frame);
     char buffer[kMaxPacketSize];
@@ -1375,7 +1375,7 @@ TEST_P(QuicPacketCreatorTest, SendPacketAfterFullPaddingRetransmission) {
   QuicPacketCreatorPeer::CreateStreamFrame(
       &creator_,
       QuicUtils::GetCryptoStreamId(client_framer_.transport_version()),
-      iov_.iov_len, 0u, 0u, false, &frame);
+      iov_.iov_len, 0u, false, &frame);
   QuicFrames frames;
   frames.push_back(frame);
   char buffer[kMaxPacketSize];

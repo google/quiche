@@ -179,10 +179,14 @@ bool QuicPacketCreator::ConsumeData(QuicStreamId id,
                                     bool needs_full_padding,
                                     TransmissionType transmission_type,
                                     QuicFrame* frame) {
-  if (!HasRoomForStreamFrame(id, offset, write_length - iov_offset)) {
+  // TODO(ianswett): Remove write_length once the multi-packet CHLO check is
+  // done higher in the stack.
+  DCHECK_GE(write_length, iov_offset);
+  const size_t data_size = write_length - iov_offset;
+  if (!HasRoomForStreamFrame(id, offset, data_size)) {
     return false;
   }
-  CreateStreamFrame(id, write_length, iov_offset, offset, fin, frame);
+  CreateStreamFrame(id, data_size, offset, fin, frame);
   // Explicitly disallow multi-packet CHLOs.
   if (FLAGS_quic_enforce_single_packet_chlo &&
       StreamFrameStartsWithChlo(frame->stream_frame) &&
@@ -267,12 +271,10 @@ size_t QuicPacketCreator::StreamFramePacketOverhead(
 }
 
 void QuicPacketCreator::CreateStreamFrame(QuicStreamId id,
-                                          size_t write_length,
-                                          size_t iov_offset,
+                                          size_t data_size,
                                           QuicStreamOffset offset,
                                           bool fin,
                                           QuicFrame* frame) {
-  const size_t data_size = write_length - iov_offset;
   DCHECK_GT(
       max_packet_length_,
       StreamFramePacketOverhead(
@@ -287,13 +289,9 @@ void QuicPacketCreator::CreateStreamFrame(QuicStreamId id,
       << QuicFramer::GetMinStreamFrameSize(framer_->transport_version(), id,
                                            offset, true, data_size);
 
-  if (iov_offset == write_length) {
-    QUIC_BUG_IF(!fin) << "Creating a stream frame with no data or fin.";
-    // Create a new packet for the fin, if necessary.
-    *frame = QuicFrame(QuicStreamFrame(id, true, offset, QuicStringPiece()));
-    return;
-  }
-
+  QUIC_BUG_IF(data_size == 0 && !fin)
+      << "Creating a stream frame for stream ID:" << id
+      << " with no data or fin.";
   size_t min_frame_size = QuicFramer::GetMinStreamFrameSize(
       framer_->transport_version(), id, offset,
       /* last_frame_in_packet= */ true, data_size);

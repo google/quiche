@@ -277,11 +277,10 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   friend class test::QuicPacketCreatorPeer;
 
   // Creates a stream frame which fits into the current open packet. If
-  // |write_length| is 0 and fin is true, the expected behavior is to consume
-  // the fin but return 0.
+  // |data_size| is 0 and fin is true, the expected behavior is to consume
+  // the fin.
   void CreateStreamFrame(QuicStreamId id,
-                         size_t write_length,
-                         size_t iov_offset,
+                         size_t data_size,
                          QuicStreamOffset offset,
                          bool fin,
                          QuicFrame* frame);
