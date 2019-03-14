@@ -959,8 +959,9 @@ SSL_CTX* QuicCryptoClientConfig::ssl_ctx() const {
   return ssl_ctx_.get();
 }
 
-void QuicCryptoClientConfig::SetChannelIDSource(ChannelIDSource* source) {
-  channel_id_source_.reset(source);
+void QuicCryptoClientConfig::SetChannelIDSource(
+    std::unique_ptr<ChannelIDSource> source) {
+  channel_id_source_ = std::move(source);
 }
 
 void QuicCryptoClientConfig::InitializeFrom(

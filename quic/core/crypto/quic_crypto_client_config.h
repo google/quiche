@@ -318,9 +318,8 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
 
   // SetChannelIDSource sets a ChannelIDSource that will be called, when the
   // server supports channel IDs, to obtain a channel ID for signing a message
-  // proving possession of the channel ID. This object takes ownership of
-  // |source|.
-  void SetChannelIDSource(ChannelIDSource* source);
+  // proving possession of the channel ID.
+  void SetChannelIDSource(std::unique_ptr<ChannelIDSource> source);
 
   // Initialize the CachedState from |canonical_crypto_config| for the
   // |canonical_server_id| as the initial CachedState for |server_id|. We will

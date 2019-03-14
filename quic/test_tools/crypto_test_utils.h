@@ -226,7 +226,7 @@ CryptoHandshakeMessage CreateCHLO(
 // deterministically based on the hostname given in the GetChannelIDKey call.
 // This ChannelIDSource works in synchronous mode, i.e., its GetChannelIDKey
 // method never returns QUIC_PENDING.
-ChannelIDSource* ChannelIDSourceForTesting();
+std::unique_ptr<ChannelIDSource> ChannelIDSourceForTesting();
 
 // MovePackets parses crypto handshake messages from packet number
 // |*inout_packet_index| through to the last packet (or until a packet fails

@@ -133,10 +133,9 @@ class QuicClientBase {
 
   // SetChannelIDSource sets a ChannelIDSource that will be called, when the
   // server supports channel IDs, to obtain a channel ID for signing a message
-  // proving possession of the channel ID. This object takes ownership of
-  // |source|.
-  void SetChannelIDSource(ChannelIDSource* source) {
-    crypto_config_.SetChannelIDSource(source);
+  // proving possession of the channel ID.
+  void SetChannelIDSource(std::unique_ptr<ChannelIDSource> source) {
+    crypto_config_.SetChannelIDSource(std::move(source));
   }
 
   const ParsedQuicVersionVector& supported_versions() const {

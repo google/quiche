@@ -211,9 +211,10 @@ bool HexChar(char c, uint8_t* value) {
 // argument to GetChannelIDKey is nullptr.
 class AsyncTestChannelIDSource : public ChannelIDSource, public CallbackSource {
  public:
-  // Takes ownership of |sync_source|, a synchronous ChannelIDSource.
-  explicit AsyncTestChannelIDSource(ChannelIDSource* sync_source)
-      : sync_source_(sync_source) {}
+  // |sync_source| is a synchronous ChannelIDSource.
+  explicit AsyncTestChannelIDSource(
+      std::unique_ptr<ChannelIDSource> sync_source)
+      : sync_source_(std::move(sync_source)) {}
   ~AsyncTestChannelIDSource() override {}
 
   // ChannelIDSource implementation.
@@ -447,12 +448,13 @@ int HandshakeWithFakeClient(MockQuicConnectionHelper* helper,
                                        TlsClientHandshaker::CreateSslCtx());
   AsyncTestChannelIDSource* async_channel_id_source = nullptr;
   if (options.channel_id_enabled) {
-    ChannelIDSource* source = ChannelIDSourceForTesting();
+    std::unique_ptr<ChannelIDSource> source = ChannelIDSourceForTesting();
     if (options.channel_id_source_async) {
-      async_channel_id_source = new AsyncTestChannelIDSource(source);
-      source = async_channel_id_source;
+      auto temp = QuicMakeUnique<AsyncTestChannelIDSource>(std::move(source));
+      async_channel_id_source = temp.get();
+      source = std::move(temp);
     }
-    crypto_config.SetChannelIDSource(source);
+    crypto_config.SetChannelIDSource(std::move(source));
   }
   if (!options.token_binding_params.empty()) {
     crypto_config.tb_key_params = options.token_binding_params;
@@ -919,8 +921,8 @@ CryptoHandshakeMessage CreateCHLO(
   return *parsed;
 }
 
-ChannelIDSource* ChannelIDSourceForTesting() {
-  return new TestChannelIDSource();
+std::unique_ptr<ChannelIDSource> ChannelIDSourceForTesting() {
+  return QuicMakeUnique<TestChannelIDSource>();
 }
 
 void MovePackets(PacketSavingConnection* source_conn,
