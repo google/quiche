@@ -662,12 +662,10 @@ class QuicCryptoServerConfig::ProcessClientHelloAfterGetProofCallback
       const QuicSocketAddress& client_address,
       ParsedQuicVersion version,
       const ParsedQuicVersionVector& supported_versions,
-      const QuicClock* clock,
       QuicRandom* rand,
       QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> params,
       QuicReferenceCountedPointer<QuicSignedServerConfig> signed_config,
       const QuicReferenceCountedPointer<Config>& requested_config,
-      const QuicReferenceCountedPointer<Config>& primary_config,
       std::unique_ptr<ProcessClientHelloResultCallback> done_cb)
       : config_(config),
         proof_source_details_(std::move(proof_source_details)),
@@ -679,21 +677,18 @@ class QuicCryptoServerConfig::ProcessClientHelloAfterGetProofCallback
         client_address_(client_address),
         version_(version),
         supported_versions_(supported_versions),
-        clock_(clock),
         rand_(rand),
         params_(params),
         signed_config_(signed_config),
         requested_config_(requested_config),
-        primary_config_(primary_config),
         done_cb_(std::move(done_cb)) {}
 
   void Run(bool ok) override {
     config_->ProcessClientHelloAfterCalculateSharedKeys(
         !ok, std::move(proof_source_details_), key_exchange_type_,
         std::move(out_), public_value_, *validate_chlo_result_, connection_id_,
-        client_address_, version_, supported_versions_, clock_, rand_, params_,
-        signed_config_, requested_config_, primary_config_,
-        std::move(done_cb_));
+        client_address_, version_, supported_versions_, rand_, params_,
+        signed_config_, requested_config_, std::move(done_cb_));
   }
 
  private:
@@ -708,12 +703,10 @@ class QuicCryptoServerConfig::ProcessClientHelloAfterGetProofCallback
   const QuicSocketAddress client_address_;
   ParsedQuicVersion version_;
   const ParsedQuicVersionVector supported_versions_;
-  const QuicClock* clock_;
   QuicRandom* rand_;
   QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> params_;
   QuicReferenceCountedPointer<QuicSignedServerConfig> signed_config_;
   const QuicReferenceCountedPointer<Config> requested_config_;
-  const QuicReferenceCountedPointer<Config> primary_config_;
   std::unique_ptr<ProcessClientHelloResultCallback> done_cb_;
 };
 
@@ -945,8 +938,8 @@ void QuicCryptoServerConfig::ProcessClientHelloAfterGetProof(
   auto cb = QuicMakeUnique<ProcessClientHelloAfterGetProofCallback>(
       this, std::move(proof_source_details), key_exchange->type(),
       std::move(out), public_value, validate_chlo_result, connection_id,
-      client_address, version, supported_versions, clock, rand, params,
-      signed_config, requested_config, primary_config, std::move(done_cb));
+      client_address, version, supported_versions, rand, params, signed_config,
+      requested_config, std::move(done_cb));
   key_exchange->CalculateSharedKeyAsync(
       public_value, &params->initial_premaster_secret, std::move(cb));
 }
@@ -962,12 +955,10 @@ void QuicCryptoServerConfig::ProcessClientHelloAfterCalculateSharedKeys(
     const QuicSocketAddress& client_address,
     ParsedQuicVersion version,
     const ParsedQuicVersionVector& supported_versions,
-    const QuicClock* clock,
     QuicRandom* rand,
     QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> params,
     QuicReferenceCountedPointer<QuicSignedServerConfig> signed_config,
     const QuicReferenceCountedPointer<Config>& requested_config,
-    const QuicReferenceCountedPointer<Config>& primary_config,
     std::unique_ptr<ProcessClientHelloResultCallback> done_cb) const {
   QUIC_BUG_IF(!QuicUtils::IsConnectionIdValidForVersion(
       connection_id, version.transport_version))
@@ -986,7 +977,6 @@ void QuicCryptoServerConfig::ProcessClientHelloAfterCalculateSharedKeys(
   const CryptoHandshakeMessage& client_hello =
       validate_chlo_result.client_hello;
   const ClientHelloInfo& info = validate_chlo_result.info;
-  auto out_diversification_nonce = QuicMakeUnique<DiversificationNonce>();
 
   if (!info.sni.empty()) {
     params->sni = QuicHostnameUtils::NormalizeHostname(info.sni);
@@ -1072,6 +1062,7 @@ void QuicCryptoServerConfig::ProcessClientHelloAfterCalculateSharedKeys(
   hkdf_input.append(QuicCryptoConfig::kInitialLabel, label_len);
   hkdf_input.append(hkdf_suffix);
 
+  auto out_diversification_nonce = QuicMakeUnique<DiversificationNonce>();
   rand->RandBytes(out_diversification_nonce->data(),
                   out_diversification_nonce->size());
   CryptoUtils::Diversification diversification =

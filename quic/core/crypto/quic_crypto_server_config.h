@@ -604,12 +604,10 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
       const QuicSocketAddress& client_address,
       ParsedQuicVersion version,
       const ParsedQuicVersionVector& supported_versions,
-      const QuicClock* clock,
       QuicRandom* rand,
       QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> params,
       QuicReferenceCountedPointer<QuicSignedServerConfig> signed_config,
       const QuicReferenceCountedPointer<Config>& requested_config,
-      const QuicReferenceCountedPointer<Config>& primary_config,
       std::unique_ptr<ProcessClientHelloResultCallback> done_cb) const;
 
   // BuildRejection sets |out| to be a REJ message in reply to |client_hello|.
