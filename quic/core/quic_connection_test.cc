@@ -71,6 +71,12 @@ const bool kHasStopWaiting = true;
 
 const int kDefaultRetransmissionTimeMs = 500;
 
+DiversificationNonce kTestDiversificationNonce = {
+    'a', 'b', 'a', 'b', 'a', 'b', 'a', 'b', 'a', 'b', 'a',
+    'b', 'a', 'b', 'a', 'b', 'a', 'b', 'a', 'b', 'a', 'b',
+    'a', 'b', 'a', 'b', 'a', 'b', 'a', 'b', 'a', 'b',
+};
+
 const QuicSocketAddress kPeerAddress =
     QuicSocketAddress(QuicIpAddress::Loopback6(),
                       /*port=*/12345);
@@ -1216,7 +1222,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
         header.source_connection_id_included = CONNECTION_ID_PRESENT;
         if (GetParam().version.handshake_protocol == PROTOCOL_QUIC_CRYPTO &&
             header.long_packet_type == ZERO_RTT_PROTECTED) {
-          header.nonce = &diversification_nonce_;
+          header.nonce = &kTestDiversificationNonce;
         }
       }
     }
@@ -1387,7 +1393,6 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
   QuicConnectionIdIncluded connection_id_included_;
 
   SimpleSessionNotifier notifier_;
-  DiversificationNonce diversification_nonce_;
 };
 
 // Run all end to end tests with all supported versions.
