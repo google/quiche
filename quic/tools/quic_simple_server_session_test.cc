@@ -592,8 +592,8 @@ class QuicSimpleServerSessionServerPushTest
   // them by sending PUSH_PROMISE for all and sending push responses for as much
   // as possible(limited by kMaxStreamsForTest).
   // If |num_resources| > kMaxStreamsForTest, the left over will be queued.
-  // Returns the length of the data frame header, 0 if the version doesn't
-  // require header.
+  // Returns the length of the DATA frame header, or 0 if the version does not
+  // use DATA frames.
   QuicByteCount PromisePushResources(size_t num_resources) {
     // testing::InSequence seq;
     // To prevent push streams from being closed the response need to be larger
@@ -606,7 +606,7 @@ class QuicSimpleServerSessionServerPushTest
     std::string partial_push_resource_path = "/server_push_src";
     std::list<QuicBackendResponse::ServerPushInfo> push_resources;
     std::string scheme = "http";
-    QuicByteCount header_length = 0;
+    QuicByteCount data_frame_header_length = 0;
     for (unsigned int i = 1; i <= num_resources; ++i) {
       QuicStreamId stream_id = GetNthServerInitiatedUnidirectionalId(i - 1);
       std::string path =
@@ -615,13 +615,13 @@ class QuicSimpleServerSessionServerPushTest
       QuicUrl resource_url = QuicUrl(url);
       std::string body(body_size, 'a');
       std::string data;
-      header_length = 0;
+      data_frame_header_length = 0;
       if (VersionHasDataFrameHeader(connection_->transport_version())) {
         HttpEncoder encoder;
         std::unique_ptr<char[]> buffer;
-        header_length =
+        data_frame_header_length =
             encoder.SerializeDataFrameHeader(body.length(), &buffer);
-        std::string header = std::string(buffer.get(), header_length);
+        std::string header(buffer.get(), data_frame_header_length);
         data = header + body;
       } else {
         data = body;
@@ -639,21 +639,23 @@ class QuicSimpleServerSessionServerPushTest
         // |kMaxStreamsForTest| promised responses should be sent.
         // Since flow control window is smaller than response body, not the
         // whole body will be sent.
+        QuicStreamOffset offset = 0;
         if (VersionHasDataFrameHeader(connection_->transport_version())) {
           EXPECT_CALL(*connection_,
-                      SendStreamData(stream_id, header_length, 0, NO_FIN));
+                      SendStreamData(stream_id, data_frame_header_length,
+                                     offset, NO_FIN));
+          offset += data_frame_header_length;
         }
-        EXPECT_CALL(*connection_,
-                    SendStreamData(stream_id, _, header_length, NO_FIN))
+        EXPECT_CALL(*connection_, SendStreamData(stream_id, _, offset, NO_FIN))
             .WillOnce(Return(QuicConsumedData(
-                kStreamFlowControlWindowSize - header_length, false)));
+                kStreamFlowControlWindowSize - offset, false)));
         EXPECT_CALL(*session_, SendBlocked(stream_id));
       }
     }
     session_->PromisePushResources(request_url, push_resources,
                                    GetNthClientInitiatedBidirectionalId(0),
                                    request_headers);
-    return header_length;
+    return data_frame_header_length;
   }
 
   void ConsumeHeadersStreamData() {
@@ -684,20 +686,23 @@ TEST_P(QuicSimpleServerSessionServerPushTest,
        HandlePromisedPushRequestsAfterStreamDraining) {
   ConsumeHeadersStreamData();
   size_t num_resources = kMaxStreamsForTest + 1;
-  QuicByteCount header_length = PromisePushResources(num_resources);
+  QuicByteCount data_frame_header_length = PromisePushResources(num_resources);
   QuicStreamId next_out_going_stream_id =
       GetNthServerInitiatedUnidirectionalId(kMaxStreamsForTest);
 
   // After an open stream is marked draining, a new stream is expected to be
   // created and a response sent on the stream.
+  QuicStreamOffset offset = 0;
   if (VersionHasDataFrameHeader(connection_->transport_version())) {
-    EXPECT_CALL(*connection_, SendStreamData(next_out_going_stream_id,
-                                             header_length, 0, NO_FIN));
+    EXPECT_CALL(*connection_,
+                SendStreamData(next_out_going_stream_id,
+                               data_frame_header_length, offset, NO_FIN));
+    offset += data_frame_header_length;
   }
-  EXPECT_CALL(*connection_, SendStreamData(next_out_going_stream_id, _,
-                                           header_length, NO_FIN))
-      .WillOnce(Return(QuicConsumedData(
-          kStreamFlowControlWindowSize - header_length, false)));
+  EXPECT_CALL(*connection_,
+              SendStreamData(next_out_going_stream_id, _, offset, NO_FIN))
+      .WillOnce(Return(
+          QuicConsumedData(kStreamFlowControlWindowSize - offset, false)));
   EXPECT_CALL(*session_, SendBlocked(next_out_going_stream_id));
 
   if (IsVersion99()) {
@@ -732,7 +737,7 @@ TEST_P(QuicSimpleServerSessionServerPushTest,
         .WillOnce(Invoke(
             this, &QuicSimpleServerSessionServerPushTest::ClearControlFrame));
   }
-  QuicByteCount header_length = PromisePushResources(num_resources);
+  QuicByteCount data_frame_header_length = PromisePushResources(num_resources);
 
   // Reset the last stream in the queue. It should be marked cancelled.
   QuicStreamId stream_got_reset =
@@ -753,14 +758,16 @@ TEST_P(QuicSimpleServerSessionServerPushTest,
   QuicStreamId stream_not_reset =
       GetNthServerInitiatedUnidirectionalId(kMaxStreamsForTest);
   InSequence s;
+  QuicStreamOffset offset = 0;
   if (VersionHasDataFrameHeader(connection_->transport_version())) {
     EXPECT_CALL(*connection_,
-                SendStreamData(stream_not_reset, header_length, 0, NO_FIN));
+                SendStreamData(stream_not_reset, data_frame_header_length,
+                               offset, NO_FIN));
+    offset += data_frame_header_length;
   }
-  EXPECT_CALL(*connection_,
-              SendStreamData(stream_not_reset, _, header_length, NO_FIN))
-      .WillOnce(Return(QuicConsumedData(
-          kStreamFlowControlWindowSize - header_length, false)));
+  EXPECT_CALL(*connection_, SendStreamData(stream_not_reset, _, offset, NO_FIN))
+      .WillOnce(Return(
+          QuicConsumedData(kStreamFlowControlWindowSize - offset, false)));
   EXPECT_CALL(*session_, SendBlocked(stream_not_reset));
 
   if (IsVersion99()) {
@@ -790,7 +797,7 @@ TEST_P(QuicSimpleServerSessionServerPushTest,
         .WillOnce(Invoke(
             this, &QuicSimpleServerSessionServerPushTest::ClearControlFrame));
   }
-  QuicByteCount header_length = PromisePushResources(num_resources);
+  QuicByteCount data_frame_header_length = PromisePushResources(num_resources);
   QuicStreamId stream_to_open =
       GetNthServerInitiatedUnidirectionalId(kMaxStreamsForTest);
 
@@ -804,14 +811,16 @@ TEST_P(QuicSimpleServerSessionServerPushTest,
     EXPECT_CALL(*connection_,
                 OnStreamReset(stream_got_reset, QUIC_RST_ACKNOWLEDGEMENT));
   }
+  QuicStreamOffset offset = 0;
   if (VersionHasDataFrameHeader(connection_->transport_version())) {
     EXPECT_CALL(*connection_,
-                SendStreamData(stream_to_open, header_length, 0, NO_FIN));
+                SendStreamData(stream_to_open, data_frame_header_length, offset,
+                               NO_FIN));
+    offset += data_frame_header_length;
   }
-  EXPECT_CALL(*connection_,
-              SendStreamData(stream_to_open, _, header_length, NO_FIN))
-      .WillOnce(Return(QuicConsumedData(
-          kStreamFlowControlWindowSize - header_length, false)));
+  EXPECT_CALL(*connection_, SendStreamData(stream_to_open, _, offset, NO_FIN))
+      .WillOnce(Return(
+          QuicConsumedData(kStreamFlowControlWindowSize - offset, false)));
 
   EXPECT_CALL(*session_, SendBlocked(stream_to_open));
   QuicRstStreamFrame rst(kInvalidControlFrameId, stream_got_reset,
