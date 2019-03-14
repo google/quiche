@@ -17,9 +17,9 @@ namespace quic {
 
 class QuicDataReader;
 
-// Struct that stores meta data of a data frame.
-// |header_length| stores number of bytes header occupies.
-// |payload_length| stores number of bytes payload occupies.
+// Struct that stores meta data of an HTTP/3 frame.
+// |header_length| is frame header length in bytes.
+// |payload_length| is frame payload length in bytes.
 struct QUIC_EXPORT_PRIVATE Http3FrameLengths {
   Http3FrameLengths(QuicByteCount header, QuicByteCount payload)
       : header_length(header), payload_length(payload) {}
@@ -62,8 +62,8 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
     // Called when a DUPLICATE_PUSH frame has been successfully parsed.
     virtual void OnDuplicatePushFrame(const DuplicatePushFrame& frame) = 0;
 
-    // Called when a DATA frame has been received, |frame_lengths| will be
-    // passed to inform header length and payload length of the frame.
+    // Called when a DATA frame has been received.
+    // |frame_length| contains DATA frame length and payload length.
     virtual void OnDataFrameStart(Http3FrameLengths frame_length) = 0;
     // Called when the payload of a DATA frame has read. May be called
     // multiple times for a single frame.
@@ -72,7 +72,8 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
     virtual void OnDataFrameEnd() = 0;
 
     // Called when a HEADERS frame has been recevied.
-    virtual void OnHeadersFrameStart() = 0;
+    // |frame_length| contains HEADERS frame length and payload length.
+    virtual void OnHeadersFrameStart(Http3FrameLengths frame_length) = 0;
     // Called when the payload of a HEADERS frame has read. May be called
     // multiple times for a single frame.
     virtual void OnHeadersFramePayload(QuicStringPiece payload) = 0;

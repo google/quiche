@@ -121,7 +121,9 @@ void HttpDecoder::ReadFramePayload(QuicDataReader* reader) {
     }
     case 0x1: {  // HEADERS
       if (current_frame_length_ == remaining_frame_length_) {
-        visitor_->OnHeadersFrameStart();
+        visitor_->OnHeadersFrameStart(
+            Http3FrameLengths(current_length_field_size_ + kFrameTypeLength,
+                              current_frame_length_));
       }
       QuicByteCount bytes_to_read = std::min<QuicByteCount>(
           remaining_frame_length_, reader->BytesRemaining());

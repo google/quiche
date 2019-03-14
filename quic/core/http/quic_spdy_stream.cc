@@ -73,16 +73,31 @@ class QuicSpdyStream::HttpDecoderVisitor : public HttpDecoder::Visitor {
 
   void OnDataFrameEnd() override { stream_->OnDataFrameEnd(); }
 
-  void OnHeadersFrameStart() override {
-    CloseConnectionOnWrongFrame("Headers");
+  void OnHeadersFrameStart(Http3FrameLengths frame_length) override {
+    if (!VersionUsesQpack(
+            stream_->session()->connection()->transport_version())) {
+      CloseConnectionOnWrongFrame("Headers");
+      return;
+    }
+    stream_->OnHeadersFrameStart(frame_length);
   }
 
   void OnHeadersFramePayload(QuicStringPiece payload) override {
-    CloseConnectionOnWrongFrame("Headers");
+    if (!VersionUsesQpack(
+            stream_->session()->connection()->transport_version())) {
+      CloseConnectionOnWrongFrame("Headers");
+      return;
+    }
+    stream_->OnHeadersFramePayload(payload);
   }
 
   void OnHeadersFrameEnd(QuicByteCount frame_len) override {
-    CloseConnectionOnWrongFrame("Headers");
+    if (!VersionUsesQpack(
+            stream_->session()->connection()->transport_version())) {
+      CloseConnectionOnWrongFrame("Headers");
+      return;
+    }
+    stream_->OnHeadersFrameEnd(frame_len);
   }
 
   void OnPushPromiseFrameStart(PushId push_id) override {
@@ -623,6 +638,18 @@ QuicByteCount QuicSpdyStream::GetNumFrameHeadersInInterval(
     header_acked_length += interval.Length();
   }
   return header_acked_length;
+}
+
+void QuicSpdyStream::OnHeadersFrameStart(Http3FrameLengths frame_length) {
+  DCHECK(VersionUsesQpack(spdy_session_->connection()->transport_version()));
+}
+
+void QuicSpdyStream::OnHeadersFramePayload(QuicStringPiece payload) {
+  DCHECK(VersionUsesQpack(spdy_session_->connection()->transport_version()));
+}
+
+void QuicSpdyStream::OnHeadersFrameEnd(QuicByteCount frame_len) {
+  DCHECK(VersionUsesQpack(spdy_session_->connection()->transport_version()));
 }
 
 #undef ENDPOINT  // undef for jumbo builds

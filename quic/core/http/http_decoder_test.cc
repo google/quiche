@@ -29,7 +29,7 @@ class MockVisitor : public HttpDecoder::Visitor {
   MOCK_METHOD1(OnDataFramePayload, void(QuicStringPiece payload));
   MOCK_METHOD0(OnDataFrameEnd, void());
 
-  MOCK_METHOD0(OnHeadersFrameStart, void());
+  MOCK_METHOD1(OnHeadersFrameStart, void(Http3FrameLengths frame_lengths));
   MOCK_METHOD1(OnHeadersFramePayload, void(QuicStringPiece payload));
   MOCK_METHOD1(OnHeadersFrameEnd, void(QuicByteCount frame_len));
 
@@ -381,7 +381,7 @@ TEST_F(HttpDecoderTest, HeadersFrame) {
 
   // Process the full frame.
   InSequence s;
-  EXPECT_CALL(visitor_, OnHeadersFrameStart());
+  EXPECT_CALL(visitor_, OnHeadersFrameStart(Http3FrameLengths(2, 7)));
   EXPECT_CALL(visitor_, OnHeadersFramePayload(QuicStringPiece("Headers")));
   EXPECT_CALL(visitor_, OnHeadersFrameEnd(7));
   EXPECT_EQ(QUIC_ARRAYSIZE(input),
@@ -390,7 +390,7 @@ TEST_F(HttpDecoderTest, HeadersFrame) {
   EXPECT_EQ("", decoder_.error_detail());
 
   // Process the frame incremently.
-  EXPECT_CALL(visitor_, OnHeadersFrameStart());
+  EXPECT_CALL(visitor_, OnHeadersFrameStart(Http3FrameLengths(2, 7)));
   EXPECT_CALL(visitor_, OnHeadersFramePayload(QuicStringPiece("H")));
   EXPECT_CALL(visitor_, OnHeadersFramePayload(QuicStringPiece("e")));
   EXPECT_CALL(visitor_, OnHeadersFramePayload(QuicStringPiece("a")));

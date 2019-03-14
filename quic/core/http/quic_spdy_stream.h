@@ -205,6 +205,9 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream : public QuicStream {
   void OnDataFrameStart(Http3FrameLengths frame_lengths);
   void OnDataFramePayload(QuicStringPiece payload);
   void OnDataFrameEnd();
+  void OnHeadersFrameStart(Http3FrameLengths frame_length);
+  void OnHeadersFramePayload(QuicStringPiece payload);
+  void OnHeadersFrameEnd(QuicByteCount frame_len);
 
   using QuicStream::CloseWriteSide;
 
