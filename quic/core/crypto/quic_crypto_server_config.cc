@@ -74,40 +74,22 @@ class DefaultKeyExchangeSource : public KeyExchangeSource {
   DefaultKeyExchangeSource() = default;
   ~DefaultKeyExchangeSource() override = default;
 
-  std::unique_ptr<KeyExchange> Create(std::string /*server_config_id*/,
-                                      QuicTag type,
-                                      QuicStringPiece private_key) override {
+  std::unique_ptr<AsynchronousKeyExchange> Create(
+      std::string server_config_id,
+      QuicTag type,
+      QuicStringPiece private_key) override {
     if (private_key.empty()) {
       QUIC_LOG(WARNING) << "Server config contains key exchange method without "
-                           "corresponding private key: "
-                        << type;
+                           "corresponding private key of type "
+                        << QuicTagToString(type);
       return nullptr;
     }
 
-    std::unique_ptr<KeyExchange> ka;
-    switch (type) {
-      case kC255:
-        ka = Curve25519KeyExchange::New(private_key);
-        if (!ka) {
-          QUIC_LOG(WARNING) << "Server config contained an invalid curve25519"
-                               " private key.";
-          return nullptr;
-        }
-        break;
-      case kP256:
-        ka = P256KeyExchange::New(private_key);
-        if (!ka) {
-          QUIC_LOG(WARNING) << "Server config contained an invalid P-256"
-                               " private key.";
-          return nullptr;
-        }
-        break;
-      default:
-        QUIC_LOG(WARNING)
-            << "Server config message contains unknown key exchange "
-               "method: "
-            << type;
-        return nullptr;
+    std::unique_ptr<SynchronousKeyExchange> ka =
+        CreateLocalSynchronousKeyExchange(type, private_key);
+    if (!ka) {
+      QUIC_LOG(WARNING) << "Failed to create key exchange method of type "
+                        << QuicTagToString(type);
     }
     return ka;
   }
@@ -250,8 +232,8 @@ QuicCryptoServerConfig::GenerateConfig(QuicRandom* rand,
 
   const std::string curve25519_private_key =
       Curve25519KeyExchange::NewPrivateKey(rand);
-  std::unique_ptr<Curve25519KeyExchange> curve25519(
-      Curve25519KeyExchange::New(curve25519_private_key));
+  std::unique_ptr<Curve25519KeyExchange> curve25519 =
+      Curve25519KeyExchange::New(curve25519_private_key);
   QuicStringPiece curve25519_public_value = curve25519->public_value();
 
   std::string encoded_public_values;
@@ -666,12 +648,12 @@ class QuicCryptoServerConfig::ProcessClientHelloCallback
 };
 
 class QuicCryptoServerConfig::ProcessClientHelloAfterGetProofCallback
-    : public KeyExchange::Callback {
+    : public AsynchronousKeyExchange::Callback {
  public:
   ProcessClientHelloAfterGetProofCallback(
       const QuicCryptoServerConfig* config,
       std::unique_ptr<ProofSource::Details> proof_source_details,
-      const KeyExchange::Factory& key_exchange_factory,
+      QuicTag key_exchange_type,
       std::unique_ptr<CryptoHandshakeMessage> out,
       QuicStringPiece public_value,
       QuicReferenceCountedPointer<ValidateClientHelloResultCallback::Result>
@@ -689,7 +671,7 @@ class QuicCryptoServerConfig::ProcessClientHelloAfterGetProofCallback
       std::unique_ptr<ProcessClientHelloResultCallback> done_cb)
       : config_(config),
         proof_source_details_(std::move(proof_source_details)),
-        key_exchange_factory_(key_exchange_factory),
+        key_exchange_type_(key_exchange_type),
         out_(std::move(out)),
         public_value_(public_value),
         validate_chlo_result_(std::move(validate_chlo_result)),
@@ -707,7 +689,7 @@ class QuicCryptoServerConfig::ProcessClientHelloAfterGetProofCallback
 
   void Run(bool ok) override {
     config_->ProcessClientHelloAfterCalculateSharedKeys(
-        !ok, std::move(proof_source_details_), key_exchange_factory_,
+        !ok, std::move(proof_source_details_), key_exchange_type_,
         std::move(out_), public_value_, *validate_chlo_result_, connection_id_,
         client_address_, version_, supported_versions_, clock_, rand_, params_,
         signed_config_, requested_config_, primary_config_,
@@ -717,7 +699,7 @@ class QuicCryptoServerConfig::ProcessClientHelloAfterGetProofCallback
  private:
   const QuicCryptoServerConfig* config_;
   std::unique_ptr<ProofSource::Details> proof_source_details_;
-  const KeyExchange::Factory& key_exchange_factory_;
+  QuicTag key_exchange_type_;
   std::unique_ptr<CryptoHandshakeMessage> out_;
   std::string public_value_;
   QuicReferenceCountedPointer<ValidateClientHelloResultCallback::Result>
@@ -955,24 +937,24 @@ void QuicCryptoServerConfig::ProcessClientHelloAfterGetProof(
     return;
   }
 
-  const KeyExchange* key_exchange =
+  const AsynchronousKeyExchange* key_exchange =
       requested_config->key_exchanges[key_exchange_index].get();
   // TODO(rch): Would it be better to implement a move operator and just
   // std::move(helper) instead of done_cb?
   helper.DetachCallback();
   auto cb = QuicMakeUnique<ProcessClientHelloAfterGetProofCallback>(
-      this, std::move(proof_source_details), key_exchange->GetFactory(),
+      this, std::move(proof_source_details), key_exchange->type(),
       std::move(out), public_value, validate_chlo_result, connection_id,
       client_address, version, supported_versions, clock, rand, params,
       signed_config, requested_config, primary_config, std::move(done_cb));
-  key_exchange->CalculateSharedKey(
+  key_exchange->CalculateSharedKeyAsync(
       public_value, &params->initial_premaster_secret, std::move(cb));
 }
 
 void QuicCryptoServerConfig::ProcessClientHelloAfterCalculateSharedKeys(
     bool found_error,
     std::unique_ptr<ProofSource::Details> proof_source_details,
-    const KeyExchange::Factory& key_exchange_factory,
+    QuicTag key_exchange_type,
     std::unique_ptr<CryptoHandshakeMessage> out,
     QuicStringPiece public_value,
     const ValidateClientHelloResultCallback::Result& validate_chlo_result,
@@ -996,7 +978,8 @@ void QuicCryptoServerConfig::ProcessClientHelloAfterCalculateSharedKeys(
   ProcessClientHelloHelper helper(&done_cb);
 
   if (found_error) {
-    helper.Fail(QUIC_INVALID_CRYPTO_MESSAGE_PARAMETER, "Invalid public value");
+    helper.Fail(QUIC_INVALID_CRYPTO_MESSAGE_PARAMETER,
+                "Failed to calculate shared key");
     return;
   }
 
@@ -1104,11 +1087,18 @@ void QuicCryptoServerConfig::ProcessClientHelloAfterCalculateSharedKeys(
   }
 
   std::string forward_secure_public_value;
-  std::unique_ptr<KeyExchange> forward_secure_key_exchange =
-      key_exchange_factory.Create(rand);
+  std::unique_ptr<SynchronousKeyExchange> forward_secure_key_exchange =
+      CreateLocalSynchronousKeyExchange(key_exchange_type, rand);
+  if (!forward_secure_key_exchange) {
+    QUIC_DLOG(WARNING) << "Failed to create keypair";
+    helper.Fail(QUIC_INVALID_CRYPTO_MESSAGE_PARAMETER,
+                "Failed to create keypair");
+    return;
+  }
+
   forward_secure_public_value =
       std::string(forward_secure_key_exchange->public_value());
-  if (!forward_secure_key_exchange->CalculateSharedKey(
+  if (!forward_secure_key_exchange->CalculateSharedKeySync(
           public_value, &params->forward_secure_premaster_secret)) {
     helper.Fail(QUIC_INVALID_CRYPTO_MESSAGE_PARAMETER, "Invalid public value");
     return;
@@ -1716,8 +1706,8 @@ std::string QuicCryptoServerConfig::CompressChain(
 QuicReferenceCountedPointer<QuicCryptoServerConfig::Config>
 QuicCryptoServerConfig::ParseConfigProtobuf(
     const std::unique_ptr<QuicServerConfigProtobuf>& protobuf) {
-  std::unique_ptr<CryptoHandshakeMessage> msg(
-      CryptoFramer::ParseMessage(protobuf->config()));
+  std::unique_ptr<CryptoHandshakeMessage> msg =
+      CryptoFramer::ParseMessage(protobuf->config());
 
   if (msg->tag() != kSCFG) {
     QUIC_LOG(WARNING) << "Server config message has tag " << msg->tag()
@@ -1808,13 +1798,13 @@ QuicCryptoServerConfig::ParseConfigProtobuf(
       }
     }
 
-    std::unique_ptr<KeyExchange> ka =
+    std::unique_ptr<AsynchronousKeyExchange> ka =
         key_exchange_source_->Create(config->id, tag, private_key);
     if (!ka) {
       return nullptr;
     }
     for (const auto& key_exchange : config->key_exchanges) {
-      if (key_exchange->GetFactory().tag() == tag) {
+      if (key_exchange->type() == tag) {
         QUIC_LOG(WARNING) << "Duplicate key exchange in config: " << tag;
         return nullptr;
       }

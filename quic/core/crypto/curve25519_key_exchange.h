@@ -16,14 +16,18 @@ namespace quic {
 
 class QuicRandom;
 
-// Curve25519KeyExchange implements a KeyExchange using elliptic-curve
-// Diffie-Hellman on curve25519. See http://cr.yp.to/ecdh.html
-class QUIC_EXPORT_PRIVATE Curve25519KeyExchange : public KeyExchange {
+// Curve25519KeyExchange implements a SynchronousKeyExchange using
+// elliptic-curve Diffie-Hellman on curve25519. See http://cr.yp.to/ecdh.html
+class QUIC_EXPORT_PRIVATE Curve25519KeyExchange
+    : public SynchronousKeyExchange {
  public:
   ~Curve25519KeyExchange() override;
 
-  // New creates a new object from a private key. If the private key is
-  // invalid, nullptr is returned.
+  // New generates a private key and then creates new key-exchange object.
+  static std::unique_ptr<Curve25519KeyExchange> New(QuicRandom* rand);
+
+  // New creates a new key-exchange object from a private key. If |private_key|
+  // is invalid, nullptr is returned.
   static std::unique_ptr<Curve25519KeyExchange> New(
       QuicStringPiece private_key);
 
@@ -31,14 +35,11 @@ class QUIC_EXPORT_PRIVATE Curve25519KeyExchange : public KeyExchange {
   // passing to |New|.
   static std::string NewPrivateKey(QuicRandom* rand);
 
-  // KeyExchange interface.
-  const Factory& GetFactory() const override;
-  bool CalculateSharedKey(QuicStringPiece peer_public_value,
-                          std::string* shared_key) const override;
-  void CalculateSharedKey(QuicStringPiece peer_public_value,
-                          std::string* shared_key,
-                          std::unique_ptr<Callback> callback) const override;
+  // SynchronousKeyExchange interface.
+  bool CalculateSharedKeySync(QuicStringPiece peer_public_value,
+                              std::string* shared_key) const override;
   QuicStringPiece public_value() const override;
+  QuicTag type() const override { return kC255; }
 
  private:
   Curve25519KeyExchange();

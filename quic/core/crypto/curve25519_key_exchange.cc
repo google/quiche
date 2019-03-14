@@ -9,30 +9,23 @@
 
 #include "third_party/boringssl/src/include/openssl/curve25519.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
 
 namespace quic {
-namespace {
-
-class Curve25519KeyExchangeFactory : public KeyExchange::Factory {
- public:
-  Curve25519KeyExchangeFactory() = default;
-  ~Curve25519KeyExchangeFactory() override = default;
-
-  std::unique_ptr<KeyExchange> Create(QuicRandom* rand) const override {
-    const std::string private_value =
-        Curve25519KeyExchange::NewPrivateKey(rand);
-    return Curve25519KeyExchange::New(private_value);
-  }
-
-  QuicTag tag() const override { return kC255; }
-};
-
-}  // namespace
 
 Curve25519KeyExchange::Curve25519KeyExchange() {}
 
 Curve25519KeyExchange::~Curve25519KeyExchange() {}
+
+// static
+std::unique_ptr<Curve25519KeyExchange> Curve25519KeyExchange::New(
+    QuicRandom* rand) {
+  std::unique_ptr<Curve25519KeyExchange> result =
+      New(Curve25519KeyExchange::NewPrivateKey(rand));
+  QUIC_BUG_IF(result == nullptr);
+  return result;
+}
 
 // static
 std::unique_ptr<Curve25519KeyExchange> Curve25519KeyExchange::New(
@@ -65,15 +58,9 @@ std::string Curve25519KeyExchange::NewPrivateKey(QuicRandom* rand) {
   return std::string(reinterpret_cast<char*>(private_key), sizeof(private_key));
 }
 
-const Curve25519KeyExchange::Factory& Curve25519KeyExchange::GetFactory()
-    const {
-  static const Factory* factory = new Curve25519KeyExchangeFactory;
-  return *factory;
-}
-
-bool Curve25519KeyExchange::CalculateSharedKey(
+bool Curve25519KeyExchange::CalculateSharedKeySync(
     QuicStringPiece peer_public_value,
-    std::string* out_result) const {
+    std::string* shared_key) const {
   if (peer_public_value.size() != X25519_PUBLIC_VALUE_LEN) {
     return false;
   }
@@ -84,15 +71,8 @@ bool Curve25519KeyExchange::CalculateSharedKey(
     return false;
   }
 
-  out_result->assign(reinterpret_cast<char*>(result), sizeof(result));
+  shared_key->assign(reinterpret_cast<char*>(result), sizeof(result));
   return true;
-}
-
-void Curve25519KeyExchange::CalculateSharedKey(
-    QuicStringPiece peer_public_value,
-    std::string* shared_key,
-    std::unique_ptr<Callback> callback) const {
-  callback->Run(CalculateSharedKey(peer_public_value, shared_key));
 }
 
 QuicStringPiece Curve25519KeyExchange::public_value() const {

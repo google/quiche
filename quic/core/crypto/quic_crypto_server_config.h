@@ -162,9 +162,10 @@ class QUIC_EXPORT_PRIVATE KeyExchangeSource {
 
   // Create a new KeyExchange of the specified type using the specified
   // private key.
-  virtual std::unique_ptr<KeyExchange> Create(std::string /*server_config_id*/,
-                                              QuicTag type,
-                                              QuicStringPiece private_key) = 0;
+  virtual std::unique_ptr<AsynchronousKeyExchange> Create(
+      std::string server_config_id,
+      QuicTag type,
+      QuicStringPiece private_key) = 0;
 };
 
 // QuicCryptoServerConfig contains the crypto configuration of a QUIC server.
@@ -461,10 +462,9 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
     // used to identify clusters of server frontends.
     unsigned char orbit[kOrbitSize];
 
-    // key_exchanges contains key exchange objects with the private keys
-    // already loaded. The values correspond, one-to-one, with the tags in
-    // |kexs| from the parent class.
-    std::vector<std::unique_ptr<KeyExchange>> key_exchanges;
+    // key_exchanges contains key exchange objects. The values correspond,
+    // one-to-one, with the tags in |kexs| from the parent class.
+    std::vector<std::unique_ptr<AsynchronousKeyExchange>> key_exchanges;
 
     // tag_value_map contains the raw key/value pairs for the config.
     QuicTagValueMap tag_value_map;
@@ -596,7 +596,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
   void ProcessClientHelloAfterCalculateSharedKeys(
       bool found_error,
       std::unique_ptr<ProofSource::Details> proof_source_details,
-      const KeyExchange::Factory& key_exchange_factory,
+      QuicTag key_exchange_type,
       std::unique_ptr<CryptoHandshakeMessage> out,
       QuicStringPiece public_value,
       const ValidateClientHelloResultCallback::Result& validate_chlo_result,

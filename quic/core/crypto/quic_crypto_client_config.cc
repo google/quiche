@@ -629,7 +629,7 @@ QuicErrorCode QuicCryptoClientConfig::FillClientHello(
       return QUIC_CRYPTO_INTERNAL_ERROR;
   }
 
-  if (!out_params->client_key_exchange->CalculateSharedKey(
+  if (!out_params->client_key_exchange->CalculateSharedKeySync(
           public_value, &out_params->initial_premaster_secret)) {
     *error_details = "Key exchange failure";
     return QUIC_INVALID_CRYPTO_MESSAGE_PARAMETER;
@@ -903,7 +903,7 @@ QuicErrorCode QuicCryptoClientConfig::ProcessServerHello(
     return QUIC_INVALID_CRYPTO_MESSAGE_PARAMETER;
   }
 
-  if (!out_params->client_key_exchange->CalculateSharedKey(
+  if (!out_params->client_key_exchange->CalculateSharedKeySync(
           public_value, &out_params->forward_secure_premaster_secret)) {
     *error_details = "Key exchange failure";
     return QUIC_INVALID_CRYPTO_MESSAGE_PARAMETER;

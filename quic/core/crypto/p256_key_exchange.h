@@ -15,29 +15,29 @@
 
 namespace quic {
 
-// P256KeyExchange implements a KeyExchange using elliptic-curve
+// P256KeyExchange implements a SynchronousKeyExchange using elliptic-curve
 // Diffie-Hellman on NIST P-256.
-class QUIC_EXPORT_PRIVATE P256KeyExchange : public KeyExchange {
+class QUIC_EXPORT_PRIVATE P256KeyExchange : public SynchronousKeyExchange {
  public:
   ~P256KeyExchange() override;
 
-  // New creates a new key exchange object from a private key. If
-  // |private_key| is invalid, nullptr is returned.
+  // New generates a private key and then creates new key-exchange object.
+  static std::unique_ptr<P256KeyExchange> New();
+
+  // New creates a new key-exchange object from a private key. If |private_key|
+  // is invalid, nullptr is returned.
   static std::unique_ptr<P256KeyExchange> New(QuicStringPiece private_key);
 
-  // |NewPrivateKey| returns a private key, suitable for passing to |New|.
+  // NewPrivateKey returns a private key, suitable for passing to |New|.
   // If |NewPrivateKey| can't generate a private key, it returns an empty
   // string.
   static std::string NewPrivateKey();
 
-  // KeyExchange interface.
-  const Factory& GetFactory() const override;
-  bool CalculateSharedKey(QuicStringPiece peer_public_value,
-                          std::string* shared_key) const override;
-  void CalculateSharedKey(QuicStringPiece peer_public_value,
-                          std::string* shared_key,
-                          std::unique_ptr<Callback> callback) const override;
+  // SynchronousKeyExchange interface.
+  bool CalculateSharedKeySync(QuicStringPiece peer_public_value,
+                              std::string* shared_key) const override;
   QuicStringPiece public_value() const override;
+  QuicTag type() const override { return kP256; }
 
  private:
   enum {

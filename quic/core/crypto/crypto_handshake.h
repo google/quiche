@@ -15,7 +15,7 @@
 namespace quic {
 
 class CommonCertSets;
-class KeyExchange;
+class SynchronousKeyExchange;
 class QuicDecrypter;
 class QuicEncrypter;
 
@@ -127,7 +127,7 @@ struct QUIC_EXPORT_PRIVATE QuicCryptoNegotiatedParameters
   std::vector<std::string> cached_certs;
   // client_key_exchange is used by clients to store the ephemeral KeyExchange
   // for the connection.
-  std::unique_ptr<KeyExchange> client_key_exchange;
+  std::unique_ptr<SynchronousKeyExchange> client_key_exchange;
   // channel_id is set by servers to a ChannelID key when the client correctly
   // proves possession of the corresponding private key. It consists of 32
   // bytes of x coordinate, followed by 32 bytes of y coordinate. Both values
