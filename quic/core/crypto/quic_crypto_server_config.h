@@ -524,36 +524,14 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
   void SelectNewPrimaryConfig(QuicWallTime now) const
       EXCLUSIVE_LOCKS_REQUIRED(configs_lock_);
 
-  // EvaluateClientHello checks |client_hello| for gross errors and determines
-  // whether it can be shown to be fresh (i.e. not a replay). The results are
-  // written to |info|.
+  // EvaluateClientHello checks |client_hello_state->client_hello| for gross
+  // errors and determines whether it is fresh (i.e. not a replay). The results
+  // are written to |client_hello_state->info|.
   void EvaluateClientHello(
       const QuicSocketAddress& server_address,
       QuicTransportVersion version,
       QuicReferenceCountedPointer<Config> requested_config,
       QuicReferenceCountedPointer<Config> primary_config,
-      QuicReferenceCountedPointer<QuicSignedServerConfig> crypto_proof,
-      QuicReferenceCountedPointer<ValidateClientHelloResultCallback::Result>
-          client_hello_state,
-      std::unique_ptr<ValidateClientHelloResultCallback> done_cb) const;
-
-  // Callback class for bridging between EvaluateClientHello and
-  // EvaluateClientHelloAfterGetProof.
-  class EvaluateClientHelloCallback;
-  friend class EvaluateClientHelloCallback;
-
-  // Continuation of EvaluateClientHello after the call to
-  // ProofSource::GetProof. |get_proof_failed| indicates whether GetProof
-  // failed.  If GetProof was not run, then |get_proof_failed| will be
-  // set to false.
-  void EvaluateClientHelloAfterGetProof(
-      const QuicIpAddress& server_ip,
-      QuicTransportVersion version,
-      QuicReferenceCountedPointer<Config> requested_config,
-      QuicReferenceCountedPointer<Config> primary_config,
-      QuicReferenceCountedPointer<QuicSignedServerConfig> crypto_proof,
-      std::unique_ptr<ProofSource::Details> proof_source_details,
-      bool get_proof_failed,
       QuicReferenceCountedPointer<ValidateClientHelloResultCallback::Result>
           client_hello_state,
       std::unique_ptr<ValidateClientHelloResultCallback> done_cb) const;

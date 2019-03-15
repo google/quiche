@@ -518,8 +518,7 @@ void QuicCryptoServerConfig::ValidateClientHello(
     signed_config->proof.signature = "";
     signed_config->proof.leaf_cert_scts = "";
     EvaluateClientHello(server_address, version, requested_config,
-                        primary_config, signed_config, result,
-                        std::move(done_cb));
+                        primary_config, result, std::move(done_cb));
   } else {
     done_cb->Run(result, /* details = */ nullptr);
   }
@@ -1250,68 +1249,14 @@ void QuicCryptoServerConfig::SelectNewPrimaryConfig(
   }
 }
 
-class QuicCryptoServerConfig::EvaluateClientHelloCallback
-    : public ProofSource::Callback {
- public:
-  EvaluateClientHelloCallback(
-      const QuicCryptoServerConfig& config,
-      const QuicIpAddress& server_ip,
-      QuicTransportVersion version,
-      QuicReferenceCountedPointer<QuicCryptoServerConfig::Config>
-          requested_config,
-      QuicReferenceCountedPointer<QuicCryptoServerConfig::Config>
-          primary_config,
-      QuicReferenceCountedPointer<QuicSignedServerConfig> signed_config,
-      QuicReferenceCountedPointer<ValidateClientHelloResultCallback::Result>
-          client_hello_state,
-      std::unique_ptr<ValidateClientHelloResultCallback> done_cb)
-      : config_(config),
-        server_ip_(server_ip),
-        version_(version),
-        requested_config_(std::move(requested_config)),
-        primary_config_(std::move(primary_config)),
-        signed_config_(signed_config),
-        client_hello_state_(std::move(client_hello_state)),
-        done_cb_(std::move(done_cb)) {}
-
-  void Run(bool ok,
-           const QuicReferenceCountedPointer<ProofSource::Chain>& chain,
-           const QuicCryptoProof& proof,
-           std::unique_ptr<ProofSource::Details> details) override {
-    if (ok) {
-      signed_config_->chain = chain;
-      signed_config_->proof = proof;
-    }
-    config_.EvaluateClientHelloAfterGetProof(
-        server_ip_, version_, requested_config_, primary_config_,
-        signed_config_, std::move(details), !ok, client_hello_state_,
-        std::move(done_cb_));
-  }
-
- private:
-  const QuicCryptoServerConfig& config_;
-  const QuicIpAddress& server_ip_;
-  const QuicTransportVersion version_;
-  const QuicReferenceCountedPointer<QuicCryptoServerConfig::Config>
-      requested_config_;
-  const QuicReferenceCountedPointer<QuicCryptoServerConfig::Config>
-      primary_config_;
-  QuicReferenceCountedPointer<QuicSignedServerConfig> signed_config_;
-  QuicReferenceCountedPointer<ValidateClientHelloResultCallback::Result>
-      client_hello_state_;
-  std::unique_ptr<ValidateClientHelloResultCallback> done_cb_;
-};
-
 void QuicCryptoServerConfig::EvaluateClientHello(
     const QuicSocketAddress& server_address,
     QuicTransportVersion version,
     QuicReferenceCountedPointer<Config> requested_config,
     QuicReferenceCountedPointer<Config> primary_config,
-    QuicReferenceCountedPointer<QuicSignedServerConfig> signed_config,
     QuicReferenceCountedPointer<ValidateClientHelloResultCallback::Result>
         client_hello_state,
     std::unique_ptr<ValidateClientHelloResultCallback> done_cb) const {
-  DCHECK(!signed_config->chain);
 
   ValidateClientHelloHelper helper(client_hello_state, &done_cb);
 
@@ -1388,27 +1333,6 @@ void QuicCryptoServerConfig::EvaluateClientHello(
   } else if (!ValidateExpectedLeafCertificate(client_hello, chain->certs)) {
     info->reject_reasons.push_back(INVALID_EXPECTED_LEAF_CERTIFICATE);
   }
-  EvaluateClientHelloAfterGetProof(
-      server_address.host(), version, requested_config, primary_config,
-      signed_config, /*proof_source_details=*/nullptr,
-      /*get_proof_failed=*/false, client_hello_state, std::move(done_cb));
-  helper.DetachCallback();
-}
-
-void QuicCryptoServerConfig::EvaluateClientHelloAfterGetProof(
-    const QuicIpAddress& server_ip,
-    QuicTransportVersion version,
-    QuicReferenceCountedPointer<Config> requested_config,
-    QuicReferenceCountedPointer<Config> primary_config,
-    QuicReferenceCountedPointer<QuicSignedServerConfig> signed_config,
-    std::unique_ptr<ProofSource::Details> proof_source_details,
-    bool get_proof_failed,
-    QuicReferenceCountedPointer<ValidateClientHelloResultCallback::Result>
-        client_hello_state,
-    std::unique_ptr<ValidateClientHelloResultCallback> done_cb) const {
-  ValidateClientHelloHelper helper(client_hello_state, &done_cb);
-  const CryptoHandshakeMessage& client_hello = client_hello_state->client_hello;
-  ClientHelloInfo* info = &(client_hello_state->info);
 
   if (info->client_nonce.size() != kNonceSize) {
     info->reject_reasons.push_back(CLIENT_NONCE_INVALID_FAILURE);
@@ -1428,7 +1352,8 @@ void QuicCryptoServerConfig::EvaluateClientHelloAfterGetProof(
       info->server_nonce.empty()) {
     info->reject_reasons.push_back(SERVER_NONCE_REQUIRED_FAILURE);
   }
-  helper.ValidationComplete(QUIC_NO_ERROR, "", std::move(proof_source_details));
+  helper.ValidationComplete(QUIC_NO_ERROR, "",
+                            std::unique_ptr<ProofSource::Details>());
 }
 
 void QuicCryptoServerConfig::BuildServerConfigUpdateMessage(
