@@ -14,6 +14,8 @@ quic_trace::EncryptionLevel EncryptionLevelToProto(EncryptionLevel level) {
   switch (level) {
     case ENCRYPTION_NONE:
       return quic_trace::ENCRYPTION_INITIAL;
+    case ENCRYPTION_HANDSHAKE:
+      return quic_trace::ENCRYPTION_HANDSHAKE;
     case ENCRYPTION_ZERO_RTT:
       return quic_trace::ENCRYPTION_0RTT;
     case ENCRYPTION_FORWARD_SECURE:

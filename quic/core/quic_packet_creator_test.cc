@@ -147,6 +147,8 @@ class QuicPacketCreatorTest : public QuicTestWithParam<TestParams> {
         creator_(connection_id_, &client_framer_, &delegate_, &producer_),
         serialized_packet_(creator_.NoPacket()) {
     EXPECT_CALL(delegate_, GetPacketBuffer()).WillRepeatedly(Return(nullptr));
+    creator_.SetEncrypter(ENCRYPTION_HANDSHAKE, QuicMakeUnique<NullEncrypter>(
+                                                    Perspective::IS_CLIENT));
     creator_.SetEncrypter(ENCRYPTION_ZERO_RTT, QuicMakeUnique<NullEncrypter>(
                                                    Perspective::IS_CLIENT));
     creator_.SetEncrypter(

@@ -30,6 +30,7 @@ QuicCryptoStream::QuicCryptoStream(QuicSession* session)
                  /*is_static=*/true,
                  BIDIRECTIONAL),
       substreams_{{this, ENCRYPTION_NONE},
+                  {this, ENCRYPTION_HANDSHAKE},
                   {this, ENCRYPTION_ZERO_RTT},
                   {this, ENCRYPTION_FORWARD_SECURE}} {
   // The crypto stream is exempt from connection level flow control.

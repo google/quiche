@@ -118,6 +118,7 @@ enum ssl_encryption_level_t TlsHandshaker::BoringEncryptionLevel(
   switch (level) {
     case ENCRYPTION_NONE:
       return ssl_encryption_initial;
+    case ENCRYPTION_HANDSHAKE:
     case ENCRYPTION_ZERO_RTT:
       return ssl_encryption_handshake;
     case ENCRYPTION_FORWARD_SECURE:

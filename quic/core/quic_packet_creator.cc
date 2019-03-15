@@ -30,6 +30,8 @@ QuicLongHeaderType EncryptionlevelToLongHeaderType(EncryptionLevel level) {
   switch (level) {
     case ENCRYPTION_NONE:
       return INITIAL;
+    case ENCRYPTION_HANDSHAKE:
+      return HANDSHAKE;
     case ENCRYPTION_ZERO_RTT:
       return ZERO_RTT_PROTECTED;
     case ENCRYPTION_FORWARD_SECURE:

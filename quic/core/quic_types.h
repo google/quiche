@@ -373,8 +373,9 @@ enum LossDetectionType : uint8_t {
 // understand.
 enum EncryptionLevel : int8_t {
   ENCRYPTION_NONE = 0,
-  ENCRYPTION_ZERO_RTT = 1,
-  ENCRYPTION_FORWARD_SECURE = 2,
+  ENCRYPTION_HANDSHAKE = 1,
+  ENCRYPTION_ZERO_RTT = 2,
+  ENCRYPTION_FORWARD_SECURE = 3,
 
   NUM_ENCRYPTION_LEVELS,
 };
