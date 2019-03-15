@@ -696,7 +696,6 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
         delete;
     BuildServerConfigUpdateMessageProofSourceCallback(
         const QuicCryptoServerConfig* config,
-        QuicTransportVersion version,
         QuicCompressedCertsCache* compressed_certs_cache,
         const CommonCertSets* common_cert_sets,
         const QuicCryptoNegotiatedParameters& params,
@@ -710,7 +709,6 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
 
    private:
     const QuicCryptoServerConfig* config_;
-    const QuicTransportVersion version_;
     QuicCompressedCertsCache* compressed_certs_cache_;
     const CommonCertSets* common_cert_sets_;
     const std::string client_common_set_hashes_;
@@ -725,7 +723,6 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
   // the proof has been acquired.  Finishes building the server config update
   // message and invokes |cb|.
   void FinishBuildServerConfigUpdateMessage(
-      QuicTransportVersion version,
       QuicCompressedCertsCache* compressed_certs_cache,
       const CommonCertSets* common_cert_sets,
       const std::string& client_common_set_hashes,

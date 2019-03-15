@@ -1404,7 +1404,7 @@ void QuicCryptoServerConfig::BuildServerConfigUpdateMessage(
 
   auto proof_source_cb =
       QuicMakeUnique<BuildServerConfigUpdateMessageProofSourceCallback>(
-          this, version, compressed_certs_cache, common_cert_sets, params,
+          this, compressed_certs_cache, common_cert_sets, params,
           std::move(message), std::move(cb));
 
   proof_source_->GetProof(server_address, params.sni, serialized, version,
@@ -1417,14 +1417,12 @@ QuicCryptoServerConfig::BuildServerConfigUpdateMessageProofSourceCallback::
 QuicCryptoServerConfig::BuildServerConfigUpdateMessageProofSourceCallback::
     BuildServerConfigUpdateMessageProofSourceCallback(
         const QuicCryptoServerConfig* config,
-        QuicTransportVersion version,
         QuicCompressedCertsCache* compressed_certs_cache,
         const CommonCertSets* common_cert_sets,
         const QuicCryptoNegotiatedParameters& params,
         CryptoHandshakeMessage message,
         std::unique_ptr<BuildServerConfigUpdateMessageResultCallback> cb)
     : config_(config),
-      version_(version),
       compressed_certs_cache_(compressed_certs_cache),
       common_cert_sets_(common_cert_sets),
       client_common_set_hashes_(params.client_common_set_hashes),
@@ -1440,15 +1438,13 @@ void QuicCryptoServerConfig::BuildServerConfigUpdateMessageProofSourceCallback::
         const QuicCryptoProof& proof,
         std::unique_ptr<ProofSource::Details> details) {
   config_->FinishBuildServerConfigUpdateMessage(
-      version_, compressed_certs_cache_, common_cert_sets_,
-      client_common_set_hashes_, client_cached_cert_hashes_,
-      sct_supported_by_client_, sni_, ok, chain, proof.signature,
-      proof.leaf_cert_scts, std::move(details), std::move(message_),
-      std::move(cb_));
+      compressed_certs_cache_, common_cert_sets_, client_common_set_hashes_,
+      client_cached_cert_hashes_, sct_supported_by_client_, sni_, ok, chain,
+      proof.signature, proof.leaf_cert_scts, std::move(details),
+      std::move(message_), std::move(cb_));
 }
 
 void QuicCryptoServerConfig::FinishBuildServerConfigUpdateMessage(
-    QuicTransportVersion version,
     QuicCompressedCertsCache* compressed_certs_cache,
     const CommonCertSets* common_cert_sets,
     const std::string& client_common_set_hashes,
