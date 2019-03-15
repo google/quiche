@@ -455,14 +455,16 @@ const char* CryptoUtils::HandshakeFailureReasonToString(
 }
 
 // static
-void CryptoUtils::HashHandshakeMessage(const CryptoHandshakeMessage& message,
-                                       std::string* output,
-                                       Perspective perspective) {
+std::string CryptoUtils::HashHandshakeMessage(
+    const CryptoHandshakeMessage& message,
+    Perspective perspective) {
+  string output;
   const QuicData& serialized = message.GetSerialized();
   uint8_t digest[SHA256_DIGEST_LENGTH];
   SHA256(reinterpret_cast<const uint8_t*>(serialized.data()),
          serialized.length(), digest);
-  output->assign(reinterpret_cast<const char*>(digest), sizeof(digest));
+  output.assign(reinterpret_cast<const char*>(digest), sizeof(digest));
+  return output;
 }
 
 #undef RETURN_STRING_LITERAL  // undef for jumbo builds

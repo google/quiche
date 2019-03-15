@@ -863,8 +863,8 @@ TEST_P(CryptoServerTest, ProofForSuppliedServerConfig) {
   std::string error_details;
   std::unique_ptr<ProofVerifierCallback> callback(
       new DummyProofVerifierCallback());
-  std::string chlo_hash;
-  CryptoUtils::HashHandshakeMessage(msg, &chlo_hash, Perspective::IS_SERVER);
+  const std::string chlo_hash =
+      CryptoUtils::HashHandshakeMessage(msg, Perspective::IS_SERVER);
   EXPECT_EQ(QUIC_SUCCESS,
             proof_verifier->VerifyProof(
                 "test.example.com", 443, (std::string(scfg_str)),

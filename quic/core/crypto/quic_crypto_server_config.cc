@@ -790,10 +790,6 @@ void QuicCryptoServerConfig::ProcessClientHello(
     helper.Fail(QUIC_UNSUPPORTED_PROOF_DEMAND, "Missing or invalid PDMD");
     return;
   }
-  DCHECK(proof_source_.get());
-  std::string chlo_hash;
-  CryptoUtils::HashHandshakeMessage(client_hello, &chlo_hash,
-                                    Perspective::IS_SERVER);
 
   // No need to get a new proof if one was already generated.
   if (!signed_config->chain) {
@@ -803,6 +799,10 @@ void QuicCryptoServerConfig::ProcessClientHello(
         server_designated_connection_id, clock, rand, compressed_certs_cache,
         params, signed_config, total_framing_overhead, chlo_packet_size,
         requested_config, primary_config, std::move(done_cb));
+    const std::string chlo_hash =
+        CryptoUtils::HashHandshakeMessage(client_hello, Perspective::IS_SERVER);
+
+    DCHECK(proof_source_.get());
     proof_source_->GetProof(
         server_address, std::string(info.sni), primary_config->serialized,
         version.transport_version, chlo_hash, std::move(cb));

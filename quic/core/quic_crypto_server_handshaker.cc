@@ -121,8 +121,8 @@ void QuicCryptoServerHandshaker::OnHandshakeMessage(
     return;
   }
 
-  CryptoUtils::HashHandshakeMessage(message, &chlo_hash_,
-                                    Perspective::IS_SERVER);
+  chlo_hash_ =
+      CryptoUtils::HashHandshakeMessage(message, Perspective::IS_SERVER);
 
   std::unique_ptr<ValidateCallback> cb(new ValidateCallback(this));
   DCHECK(validate_client_hello_cb_ == nullptr);

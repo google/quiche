@@ -334,7 +334,7 @@ void QuicCryptoClientHandshaker::DoSendCHLO(
       return;
     }
     next_state_ = STATE_RECV_REJ;
-    CryptoUtils::HashHandshakeMessage(out, &chlo_hash_, Perspective::IS_CLIENT);
+    chlo_hash_ = CryptoUtils::HashHandshakeMessage(out, Perspective::IS_CLIENT);
     session()->connection()->set_fully_pad_crypto_hadshake_packets(
         crypto_config_->pad_inchoate_hello());
     SendHandshakeMessage(out);
@@ -364,7 +364,7 @@ void QuicCryptoClientHandshaker::DoSendCHLO(
     stream_->CloseConnectionWithDetails(error, error_details);
     return;
   }
-  CryptoUtils::HashHandshakeMessage(out, &chlo_hash_, Perspective::IS_CLIENT);
+  chlo_hash_ = CryptoUtils::HashHandshakeMessage(out, Perspective::IS_CLIENT);
   channel_id_sent_ = (channel_id_key_ != nullptr);
   if (cached->proof_verify_details()) {
     proof_handler_->OnProofVerifyDetailsAvailable(
