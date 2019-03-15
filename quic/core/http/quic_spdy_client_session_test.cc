@@ -211,7 +211,7 @@ TEST_P(QuicSpdyClientSessionTest, NoEncryptionAfterInitialEncryption) {
   crypto_test_utils::SendHandshakeMessageToStream(
       session_->GetMutableCryptoStream(), rej, Perspective::IS_CLIENT);
   EXPECT_FALSE(session_->IsEncryptionEstablished());
-  EXPECT_EQ(ENCRYPTION_NONE,
+  EXPECT_EQ(ENCRYPTION_INITIAL,
             QuicPacketCreatorPeer::GetEncryptionLevel(
                 QuicConnectionPeer::GetPacketCreator(connection_)));
   // Verify that no new streams may be created.

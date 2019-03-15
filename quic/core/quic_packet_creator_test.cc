@@ -270,7 +270,7 @@ INSTANTIATE_TEST_SUITE_P(QuicPacketCreatorTests,
                          ::testing::ValuesIn(GetTestParams()));
 
 TEST_P(QuicPacketCreatorTest, SerializeFrames) {
-  for (int i = ENCRYPTION_NONE; i < NUM_ENCRYPTION_LEVELS; ++i) {
+  for (int i = ENCRYPTION_INITIAL; i < NUM_ENCRYPTION_LEVELS; ++i) {
     EncryptionLevel level = static_cast<EncryptionLevel>(i);
     creator_.set_encryption_level(level);
     frames_.push_back(QuicFrame(new QuicAckFrame(InitAckFrame(1))));
@@ -324,7 +324,7 @@ TEST_P(QuicPacketCreatorTest, ReserializeFramesWithSequenceNumberLength) {
   char buffer[kMaxPacketSize];
   QuicPendingRetransmission retransmission(CreateRetransmission(
       frames, true /* has_crypto_handshake */, -1 /* needs full padding */,
-      ENCRYPTION_NONE, PACKET_4BYTE_PACKET_NUMBER));
+      ENCRYPTION_INITIAL, PACKET_4BYTE_PACKET_NUMBER));
   EXPECT_CALL(delegate_, OnSerializedPacket(_))
       .WillOnce(Invoke(this, &QuicPacketCreatorTest::SaveSerializedPacket));
   creator_.ReserializeAllFrames(retransmission, buffer, kMaxPacketSize);
@@ -359,12 +359,12 @@ TEST_P(QuicPacketCreatorTest, ReserializeCryptoFrameWithForwardSecurity) {
   char buffer[kMaxPacketSize];
   QuicPendingRetransmission retransmission(CreateRetransmission(
       frames, true /* has_crypto_handshake */, -1 /* needs full padding */,
-      ENCRYPTION_NONE,
+      ENCRYPTION_INITIAL,
       QuicPacketCreatorPeer::GetPacketNumberLength(&creator_)));
   EXPECT_CALL(delegate_, OnSerializedPacket(_))
       .WillOnce(Invoke(this, &QuicPacketCreatorTest::SaveSerializedPacket));
   creator_.ReserializeAllFrames(retransmission, buffer, kMaxPacketSize);
-  EXPECT_EQ(ENCRYPTION_NONE, serialized_packet_.encryption_level);
+  EXPECT_EQ(ENCRYPTION_INITIAL, serialized_packet_.encryption_level);
 }
 
 TEST_P(QuicPacketCreatorTest, ReserializeFrameWithForwardSecurity) {
@@ -375,7 +375,7 @@ TEST_P(QuicPacketCreatorTest, ReserializeFrameWithForwardSecurity) {
   char buffer[kMaxPacketSize];
   QuicPendingRetransmission retransmission(CreateRetransmission(
       frames, false /* has_crypto_handshake */, 0 /* no padding */,
-      ENCRYPTION_NONE,
+      ENCRYPTION_INITIAL,
       QuicPacketCreatorPeer::GetPacketNumberLength(&creator_)));
   EXPECT_CALL(delegate_, OnSerializedPacket(_))
       .WillOnce(Invoke(this, &QuicPacketCreatorTest::SaveSerializedPacket));
@@ -398,7 +398,7 @@ TEST_P(QuicPacketCreatorTest, ReserializeFramesWithFullPadding) {
   char buffer[kMaxPacketSize];
   QuicPendingRetransmission retransmission(CreateRetransmission(
       frames, true /* has_crypto_handshake */, -1 /* needs full padding */,
-      ENCRYPTION_NONE,
+      ENCRYPTION_INITIAL,
       QuicPacketCreatorPeer::GetPacketNumberLength(&creator_)));
   EXPECT_CALL(delegate_, OnSerializedPacket(_))
       .WillOnce(Invoke(this, &QuicPacketCreatorTest::SaveSerializedPacket));
@@ -425,7 +425,7 @@ TEST_P(QuicPacketCreatorTest, DoNotRetransmitPendingPadding) {
     char buffer[kMaxPacketSize];
     QuicPendingRetransmission retransmission(CreateRetransmission(
         frames, false /* has_crypto_handshake */,
-        kNumPaddingBytes1 /* padding bytes */, ENCRYPTION_NONE,
+        kNumPaddingBytes1 /* padding bytes */, ENCRYPTION_INITIAL,
         QuicPacketCreatorPeer::GetPacketNumberLength(&creator_)));
     EXPECT_CALL(delegate_, OnSerializedPacket(_))
         .WillOnce(Invoke(this, &QuicPacketCreatorTest::SaveSerializedPacket));
@@ -453,7 +453,7 @@ TEST_P(QuicPacketCreatorTest, DoNotRetransmitPendingPadding) {
   char buffer[kMaxPacketSize];
   QuicPendingRetransmission retransmission(CreateRetransmission(
       frames, false /* has_crypto_handshake */,
-      kNumPaddingBytes2 /* padding bytes */, ENCRYPTION_NONE,
+      kNumPaddingBytes2 /* padding bytes */, ENCRYPTION_INITIAL,
       QuicPacketCreatorPeer::GetPacketNumberLength(&creator_)));
   EXPECT_CALL(delegate_, OnSerializedPacket(_))
       .WillOnce(Invoke(this, &QuicPacketCreatorTest::SaveSerializedPacket));
@@ -488,7 +488,7 @@ TEST_P(QuicPacketCreatorTest, ReserializeFramesWithFullPacketAndPadding) {
     char buffer[kMaxPacketSize];
     QuicPendingRetransmission retransmission(CreateRetransmission(
         frames, true /* has_crypto_handshake */, -1 /* needs full padding */,
-        ENCRYPTION_NONE,
+        ENCRYPTION_INITIAL,
         QuicPacketCreatorPeer::GetPacketNumberLength(&creator_)));
     EXPECT_CALL(delegate_, OnSerializedPacket(_))
         .WillOnce(Invoke(this, &QuicPacketCreatorTest::SaveSerializedPacket));
@@ -516,7 +516,7 @@ TEST_P(QuicPacketCreatorTest, SerializeConnectionClose) {
   QuicFrames frames;
   frames.push_back(QuicFrame(&frame));
   SerializedPacket serialized = SerializeAllFrames(frames);
-  EXPECT_EQ(ENCRYPTION_NONE, serialized.encryption_level);
+  EXPECT_EQ(ENCRYPTION_INITIAL, serialized.encryption_level);
   ASSERT_EQ(QuicPacketNumber(1u), serialized.packet_number);
   ASSERT_EQ(QuicPacketNumber(1u), creator_.packet_number());
 
@@ -535,7 +535,7 @@ TEST_P(QuicPacketCreatorTest, SerializeConnectionClose) {
 TEST_P(QuicPacketCreatorTest, ConsumeCryptoData) {
   std::string data = "crypto data";
   QuicFrame frame;
-  ASSERT_TRUE(creator_.ConsumeCryptoData(ENCRYPTION_NONE, data.length(), 0,
+  ASSERT_TRUE(creator_.ConsumeCryptoData(ENCRYPTION_INITIAL, data.length(), 0,
                                          NOT_RETRANSMISSION, &frame));
   EXPECT_EQ(frame.crypto_frame->data_length, data.length());
   EXPECT_TRUE(creator_.HasPendingFrames());
@@ -735,7 +735,7 @@ TEST_P(QuicPacketCreatorTest, SerializeVersionNegotiationPacket) {
 }
 
 TEST_P(QuicPacketCreatorTest, SerializeConnectivityProbingPacket) {
-  for (int i = ENCRYPTION_NONE; i < NUM_ENCRYPTION_LEVELS; ++i) {
+  for (int i = ENCRYPTION_INITIAL; i < NUM_ENCRYPTION_LEVELS; ++i) {
     EncryptionLevel level = static_cast<EncryptionLevel>(i);
 
     creator_.set_encryption_level(level);
@@ -778,7 +778,7 @@ TEST_P(QuicPacketCreatorTest, SerializePathChallengeProbePacket) {
   QuicPathFrameBuffer payload = {
       {0xde, 0xad, 0xbe, 0xef, 0xba, 0xdc, 0x0f, 0xee}};
 
-  for (int i = ENCRYPTION_NONE; i < NUM_ENCRYPTION_LEVELS; ++i) {
+  for (int i = ENCRYPTION_INITIAL; i < NUM_ENCRYPTION_LEVELS; ++i) {
     EncryptionLevel level = static_cast<EncryptionLevel>(i);
 
     creator_.set_encryption_level(level);
@@ -809,7 +809,7 @@ TEST_P(QuicPacketCreatorTest, SerializePathResponseProbePacket1PayloadPadded) {
   QuicPathFrameBuffer payload0 = {
       {0xde, 0xad, 0xbe, 0xef, 0xba, 0xdc, 0x0f, 0xee}};
 
-  for (int i = ENCRYPTION_NONE; i < NUM_ENCRYPTION_LEVELS; ++i) {
+  for (int i = ENCRYPTION_INITIAL; i < NUM_ENCRYPTION_LEVELS; ++i) {
     EncryptionLevel level = static_cast<EncryptionLevel>(i);
     creator_.set_encryption_level(level);
 
@@ -843,7 +843,7 @@ TEST_P(QuicPacketCreatorTest,
   QuicPathFrameBuffer payload0 = {
       {0xde, 0xad, 0xbe, 0xef, 0xba, 0xdc, 0x0f, 0xee}};
 
-  for (int i = ENCRYPTION_NONE; i < NUM_ENCRYPTION_LEVELS; ++i) {
+  for (int i = ENCRYPTION_INITIAL; i < NUM_ENCRYPTION_LEVELS; ++i) {
     EncryptionLevel level = static_cast<EncryptionLevel>(i);
     creator_.set_encryption_level(level);
 
@@ -877,7 +877,7 @@ TEST_P(QuicPacketCreatorTest, SerializePathResponseProbePacket2PayloadsPadded) {
   QuicPathFrameBuffer payload1 = {
       {0xad, 0xbe, 0xef, 0xba, 0xdc, 0x0f, 0xee, 0xde}};
 
-  for (int i = ENCRYPTION_NONE; i < NUM_ENCRYPTION_LEVELS; ++i) {
+  for (int i = ENCRYPTION_INITIAL; i < NUM_ENCRYPTION_LEVELS; ++i) {
     EncryptionLevel level = static_cast<EncryptionLevel>(i);
     creator_.set_encryption_level(level);
 
@@ -914,7 +914,7 @@ TEST_P(QuicPacketCreatorTest,
   QuicPathFrameBuffer payload1 = {
       {0xad, 0xbe, 0xef, 0xba, 0xdc, 0x0f, 0xee, 0xde}};
 
-  for (int i = ENCRYPTION_NONE; i < NUM_ENCRYPTION_LEVELS; ++i) {
+  for (int i = ENCRYPTION_INITIAL; i < NUM_ENCRYPTION_LEVELS; ++i) {
     EncryptionLevel level = static_cast<EncryptionLevel>(i);
     creator_.set_encryption_level(level);
 
@@ -951,7 +951,7 @@ TEST_P(QuicPacketCreatorTest, SerializePathResponseProbePacket3PayloadsPadded) {
   QuicPathFrameBuffer payload2 = {
       {0xbe, 0xef, 0xba, 0xdc, 0x0f, 0xee, 0xde, 0xad}};
 
-  for (int i = ENCRYPTION_NONE; i < NUM_ENCRYPTION_LEVELS; ++i) {
+  for (int i = ENCRYPTION_INITIAL; i < NUM_ENCRYPTION_LEVELS; ++i) {
     EncryptionLevel level = static_cast<EncryptionLevel>(i);
     creator_.set_encryption_level(level);
 
@@ -991,7 +991,7 @@ TEST_P(QuicPacketCreatorTest,
   QuicPathFrameBuffer payload2 = {
       {0xbe, 0xef, 0xba, 0xdc, 0x0f, 0xee, 0xde, 0xad}};
 
-  for (int i = ENCRYPTION_NONE; i < NUM_ENCRYPTION_LEVELS; ++i) {
+  for (int i = ENCRYPTION_INITIAL; i < NUM_ENCRYPTION_LEVELS; ++i) {
     EncryptionLevel level = static_cast<EncryptionLevel>(i);
     creator_.set_encryption_level(level);
 
@@ -1259,7 +1259,7 @@ TEST_P(QuicPacketCreatorTest, AddUnencryptedStreamDataClosesConnection) {
     return;
   }
 
-  creator_.set_encryption_level(ENCRYPTION_NONE);
+  creator_.set_encryption_level(ENCRYPTION_INITIAL);
   EXPECT_CALL(delegate_, OnUnrecoverableError(_, _, _));
   QuicStreamFrame stream_frame(
       QuicUtils::GetHeadersStreamId(client_framer_.transport_version()),
@@ -1344,7 +1344,7 @@ TEST_P(QuicPacketCreatorTest, SendPendingPaddingInRetransmission) {
   frames.push_back(QuicFrame(stream_frame));
   char buffer[kMaxPacketSize];
   QuicPendingRetransmission retransmission(CreateRetransmission(
-      frames, true, /*num_padding_bytes=*/0, ENCRYPTION_NONE,
+      frames, true, /*num_padding_bytes=*/0, ENCRYPTION_INITIAL,
       QuicPacketCreatorPeer::GetPacketNumberLength(&creator_)));
   EXPECT_CALL(delegate_, OnSerializedPacket(_))
       .WillOnce(Invoke(this, &QuicPacketCreatorTest::SaveSerializedPacket));
@@ -1382,7 +1382,7 @@ TEST_P(QuicPacketCreatorTest, SendPacketAfterFullPaddingRetransmission) {
   frames.push_back(frame);
   char buffer[kMaxPacketSize];
   QuicPendingRetransmission retransmission(CreateRetransmission(
-      frames, true, /*num_padding_bytes=*/-1, ENCRYPTION_NONE,
+      frames, true, /*num_padding_bytes=*/-1, ENCRYPTION_INITIAL,
       QuicPacketCreatorPeer::GetPacketNumberLength(&creator_)));
   EXPECT_CALL(delegate_, OnSerializedPacket(_))
       .WillRepeatedly(

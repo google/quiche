@@ -479,7 +479,7 @@ TEST_F(QuicPacketGeneratorTest, ConsumeCryptoData) {
       .WillOnce(Invoke(this, &QuicPacketGeneratorTest::SavePacket));
   std::string data = "crypto data";
   size_t consumed_bytes =
-      generator_.ConsumeCryptoData(ENCRYPTION_NONE, data, 0);
+      generator_.ConsumeCryptoData(ENCRYPTION_INITIAL, data, 0);
   generator_.Flush();
   EXPECT_EQ(data.length(), consumed_bytes);
   EXPECT_FALSE(generator_.HasQueuedFrames());

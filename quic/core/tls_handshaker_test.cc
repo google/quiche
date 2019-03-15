@@ -387,7 +387,7 @@ TEST_F(TlsHandshakerTest, ClientConnectionClosedOnTlsError) {
       0, 0, 0,  // uint24 length
   };
   server_stream_->WriteCryptoData(
-      ENCRYPTION_NONE,
+      ENCRYPTION_INITIAL,
       QuicStringPiece(bogus_handshake_message,
                       QUIC_ARRAYSIZE(bogus_handshake_message)));
   server_stream_->SendCryptoMessagesToPeer(client_stream_);
@@ -405,7 +405,7 @@ TEST_F(TlsHandshakerTest, ServerConnectionClosedOnTlsError) {
       0, 0, 0,  // uint24 length
   };
   client_stream_->WriteCryptoData(
-      ENCRYPTION_NONE,
+      ENCRYPTION_INITIAL,
       QuicStringPiece(bogus_handshake_message,
                       QUIC_ARRAYSIZE(bogus_handshake_message)));
   client_stream_->SendCryptoMessagesToPeer(server_stream_);

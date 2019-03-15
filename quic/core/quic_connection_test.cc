@@ -96,7 +96,7 @@ QuicStreamId GetNthClientInitiatedStreamId(int n,
 
 QuicLongHeaderType EncryptionlevelToLongHeaderType(EncryptionLevel level) {
   switch (level) {
-    case ENCRYPTION_NONE:
+    case ENCRYPTION_INITIAL:
       return INITIAL;
     case ENCRYPTION_HANDSHAKE:
       return HANDSHAKE;
@@ -345,7 +345,7 @@ class TestPacketWriter : public QuicPacketWriter {
     }
 
     if (use_tagging_decrypter_) {
-      framer_.framer()->SetDecrypter(ENCRYPTION_NONE,
+      framer_.framer()->SetDecrypter(ENCRYPTION_INITIAL,
                                      QuicMakeUnique<TaggingDecrypter>());
     }
     EXPECT_TRUE(framer_.ProcessPacket(packet));
@@ -602,8 +602,8 @@ class TestConnection : public QuicConnection {
     char buffer[kMaxPacketSize];
     size_t encrypted_length =
         QuicConnectionPeer::GetFramer(this)->EncryptPayload(
-            ENCRYPTION_NONE, QuicPacketNumber(packet_number), *packet, buffer,
-            kMaxPacketSize);
+            ENCRYPTION_INITIAL, QuicPacketNumber(packet_number), *packet,
+            buffer, kMaxPacketSize);
     SerializedPacket serialized_packet(
         QuicPacketNumber(packet_number), PACKET_4BYTE_PACKET_NUMBER, buffer,
         encrypted_length, has_ack, has_pending_frames);
@@ -634,7 +634,7 @@ class TestConnection : public QuicConnection {
                                             StreamSendingState state) {
     ScopedPacketFlusher flusher(this, NO_ACK);
     if (id != QuicUtils::GetCryptoStreamId(transport_version()) &&
-        this->encryption_level() == ENCRYPTION_NONE) {
+        this->encryption_level() == ENCRYPTION_INITIAL) {
       this->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
     }
     struct iovec iov;
@@ -673,13 +673,13 @@ class TestConnection : public QuicConnection {
           QuicUtils::GetCryptoStreamId(transport_version()), data, offset,
           NO_FIN);
     }
-    producer_.SaveCryptoData(ENCRYPTION_NONE, offset, data);
+    producer_.SaveCryptoData(ENCRYPTION_INITIAL, offset, data);
     size_t bytes_written;
     if (notifier_) {
       bytes_written =
-          notifier_->WriteCryptoData(ENCRYPTION_NONE, data.length(), offset);
+          notifier_->WriteCryptoData(ENCRYPTION_INITIAL, data.length(), offset);
     } else {
-      bytes_written = QuicConnection::SendCryptoData(ENCRYPTION_NONE,
+      bytes_written = QuicConnection::SendCryptoData(ENCRYPTION_INITIAL,
                                                      data.length(), offset);
     }
     return QuicConsumedData(bytes_written, /*fin_consumed*/ false);
@@ -996,7 +996,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     QuicPacketCreatorPeer::SetSendVersionInPacket(
         &peer_creator_, connection_.perspective() == Perspective::IS_SERVER);
     if (QuicPacketCreatorPeer::GetEncryptionLevel(&peer_creator_) >
-        ENCRYPTION_NONE) {
+        ENCRYPTION_INITIAL) {
       // Set peer_framer_'s corresponding encrypter.
       peer_creator_.SetEncrypter(
           QuicPacketCreatorPeer::GetEncryptionLevel(&peer_creator_),
@@ -1027,11 +1027,11 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     QuicPacketCreatorPeer::FillPacketHeader(&peer_creator_, &header);
     char encrypted_buffer[kMaxPacketSize];
     size_t length = peer_framer_.BuildDataPacket(
-        header, frames, encrypted_buffer, kMaxPacketSize, ENCRYPTION_NONE);
+        header, frames, encrypted_buffer, kMaxPacketSize, ENCRYPTION_INITIAL);
     DCHECK_GT(length, 0u);
 
     const size_t encrypted_length = peer_framer_.EncryptInPlace(
-        ENCRYPTION_NONE, header.packet_number,
+        ENCRYPTION_INITIAL, header.packet_number,
         GetStartOfEncryptedData(peer_framer_.version().transport_version,
                                 header),
         length, kMaxPacketSize, encrypted_buffer);
@@ -1068,11 +1068,11 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
   }
 
   size_t ProcessDataPacket(uint64_t number) {
-    return ProcessDataPacketAtLevel(number, false, ENCRYPTION_NONE);
+    return ProcessDataPacketAtLevel(number, false, ENCRYPTION_INITIAL);
   }
 
   size_t ProcessDataPacket(QuicPacketNumber packet_number) {
-    return ProcessDataPacketAtLevel(packet_number, false, ENCRYPTION_NONE);
+    return ProcessDataPacketAtLevel(packet_number, false, ENCRYPTION_INITIAL);
   }
 
   size_t ProcessDataPacketAtLevel(QuicPacketNumber packet_number,
@@ -1102,9 +1102,9 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
   void ProcessClosePacket(uint64_t number) {
     std::unique_ptr<QuicPacket> packet(ConstructClosePacket(number));
     char buffer[kMaxPacketSize];
-    size_t encrypted_length =
-        peer_framer_.EncryptPayload(ENCRYPTION_NONE, QuicPacketNumber(number),
-                                    *packet, buffer, kMaxPacketSize);
+    size_t encrypted_length = peer_framer_.EncryptPayload(
+        ENCRYPTION_INITIAL, QuicPacketNumber(number), *packet, buffer,
+        kMaxPacketSize);
     connection_.ProcessUdpPacket(
         kSelfAddress, kPeerAddress,
         QuicReceivedPacket(buffer, encrypted_length, QuicTime::Zero(), false));
@@ -2055,8 +2055,9 @@ TEST_P(QuicConnectionTest, IncreaseServerMaxPacketSize) {
   frames.push_back(QuicFrame(padding));
   std::unique_ptr<QuicPacket> packet(ConstructPacket(header, frames));
   char buffer[kMaxPacketSize];
-  size_t encrypted_length = peer_framer_.EncryptPayload(
-      ENCRYPTION_NONE, QuicPacketNumber(12), *packet, buffer, kMaxPacketSize);
+  size_t encrypted_length =
+      peer_framer_.EncryptPayload(ENCRYPTION_INITIAL, QuicPacketNumber(12),
+                                  *packet, buffer, kMaxPacketSize);
   EXPECT_EQ(kMaxPacketSize, encrypted_length);
 
   framer_.set_version(version());
@@ -2095,8 +2096,9 @@ TEST_P(QuicConnectionTest, IncreaseServerMaxPacketSizeWhileWriterLimited) {
   frames.push_back(QuicFrame(padding));
   std::unique_ptr<QuicPacket> packet(ConstructPacket(header, frames));
   char buffer[kMaxPacketSize];
-  size_t encrypted_length = peer_framer_.EncryptPayload(
-      ENCRYPTION_NONE, QuicPacketNumber(12), *packet, buffer, kMaxPacketSize);
+  size_t encrypted_length =
+      peer_framer_.EncryptPayload(ENCRYPTION_INITIAL, QuicPacketNumber(12),
+                                  *packet, buffer, kMaxPacketSize);
   EXPECT_EQ(kMaxPacketSize, encrypted_length);
 
   framer_.set_version(version());
@@ -3392,9 +3394,9 @@ TEST_P(QuicConnectionTest, NoSendAlarmAfterProcessPacketWhenWriteBlocked) {
   // is returned.
   const uint64_t received_packet_num = 1;
   const bool has_stop_waiting = false;
-  const EncryptionLevel level = ENCRYPTION_NONE;
+  const EncryptionLevel level = ENCRYPTION_INITIAL;
   std::unique_ptr<QuicPacket> packet(ConstructDataPacket(
-      received_packet_num, has_stop_waiting, ENCRYPTION_NONE));
+      received_packet_num, has_stop_waiting, ENCRYPTION_INITIAL));
   char buffer[kMaxPacketSize];
   size_t encrypted_length =
       peer_framer_.EncryptPayload(level, QuicPacketNumber(received_packet_num),
@@ -3623,7 +3625,7 @@ TEST_P(QuicConnectionTest, RetransmitWithSameEncryptionLevel) {
 
   // A TaggingEncrypter puts kTagSize copies of the given byte (0x01 here) at
   // the end of the packet. We can test this to check which encrypter was used.
-  connection_.SetEncrypter(ENCRYPTION_NONE,
+  connection_.SetEncrypter(ENCRYPTION_INITIAL,
                            QuicMakeUnique<TaggingEncrypter>(0x01));
   SendStreamDataToPeer(
       QuicUtils::GetCryptoStreamId(connection_.transport_version()), "foo", 0,
@@ -3647,7 +3649,7 @@ TEST_P(QuicConnectionTest, RetransmitWithSameEncryptionLevel) {
   // Manually mark both packets for retransmission.
   connection_.RetransmitUnackedPackets(ALL_UNACKED_RETRANSMISSION);
 
-  // Packet should have been sent with ENCRYPTION_NONE.
+  // Packet should have been sent with ENCRYPTION_INITIAL.
   EXPECT_EQ(0x01010101u, writer_->final_bytes_of_previous_packet());
 
   // Packet should have been sent with ENCRYPTION_ZERO_RTT.
@@ -3658,7 +3660,7 @@ TEST_P(QuicConnectionTest, SendHandshakeMessages) {
   use_tagging_decrypter();
   // A TaggingEncrypter puts kTagSize copies of the given byte (0x01 here) at
   // the end of the packet. We can test this to check which encrypter was used.
-  connection_.SetEncrypter(ENCRYPTION_NONE,
+  connection_.SetEncrypter(ENCRYPTION_INITIAL,
                            QuicMakeUnique<TaggingEncrypter>(0x01));
 
   // Attempt to send a handshake message and have the socket block.
@@ -3688,7 +3690,7 @@ TEST_P(QuicConnectionTest, SendHandshakeMessages) {
 TEST_P(QuicConnectionTest,
        DropRetransmitsForNullEncryptedPacketAfterForwardSecure) {
   use_tagging_decrypter();
-  connection_.SetEncrypter(ENCRYPTION_NONE,
+  connection_.SetEncrypter(ENCRYPTION_INITIAL,
                            QuicMakeUnique<TaggingEncrypter>(0x01));
   QuicPacketNumber packet_number;
   connection_.SendCryptoStreamData();
@@ -3714,9 +3716,9 @@ TEST_P(QuicConnectionTest,
 
 TEST_P(QuicConnectionTest, RetransmitPacketsWithInitialEncryption) {
   use_tagging_decrypter();
-  connection_.SetEncrypter(ENCRYPTION_NONE,
+  connection_.SetEncrypter(ENCRYPTION_INITIAL,
                            QuicMakeUnique<TaggingEncrypter>(0x01));
-  connection_.SetDefaultEncryptionLevel(ENCRYPTION_NONE);
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_INITIAL);
 
   SendStreamDataToPeer(
       QuicUtils::GetCryptoStreamId(connection_.transport_version()), "foo", 0,
@@ -4953,10 +4955,10 @@ TEST_P(QuicConnectionTest, SendScheduler) {
   // Test that if we send a packet without delay, it is not queued.
   QuicFramerPeer::SetPerspective(&peer_framer_, Perspective::IS_CLIENT);
   std::unique_ptr<QuicPacket> packet =
-      ConstructDataPacket(1, !kHasStopWaiting, ENCRYPTION_NONE);
+      ConstructDataPacket(1, !kHasStopWaiting, ENCRYPTION_INITIAL);
   QuicPacketCreatorPeer::SetPacketNumber(creator_, 1);
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _));
-  connection_.SendPacket(ENCRYPTION_NONE, 1, std::move(packet),
+  connection_.SendPacket(ENCRYPTION_INITIAL, 1, std::move(packet),
                          HAS_RETRANSMITTABLE_DATA, false, false);
   EXPECT_EQ(0u, connection_.NumQueuedPackets());
 }
@@ -4967,22 +4969,22 @@ TEST_P(QuicConnectionTest, FailToSendFirstPacket) {
   QuicFramerPeer::SetPerspective(&peer_framer_, Perspective::IS_CLIENT);
   EXPECT_CALL(visitor_, OnConnectionClosed(_, _, _)).Times(1);
   std::unique_ptr<QuicPacket> packet =
-      ConstructDataPacket(1, !kHasStopWaiting, ENCRYPTION_NONE);
+      ConstructDataPacket(1, !kHasStopWaiting, ENCRYPTION_INITIAL);
   QuicPacketCreatorPeer::SetPacketNumber(creator_, 1);
   writer_->SetShouldWriteFail();
-  connection_.SendPacket(ENCRYPTION_NONE, 1, std::move(packet),
+  connection_.SendPacket(ENCRYPTION_INITIAL, 1, std::move(packet),
                          HAS_RETRANSMITTABLE_DATA, false, false);
 }
 
 TEST_P(QuicConnectionTest, SendSchedulerEAGAIN) {
   QuicFramerPeer::SetPerspective(&peer_framer_, Perspective::IS_CLIENT);
   std::unique_ptr<QuicPacket> packet =
-      ConstructDataPacket(1, !kHasStopWaiting, ENCRYPTION_NONE);
+      ConstructDataPacket(1, !kHasStopWaiting, ENCRYPTION_INITIAL);
   QuicPacketCreatorPeer::SetPacketNumber(creator_, 1);
   BlockOnNextWrite();
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, QuicPacketNumber(2u), _, _))
       .Times(0);
-  connection_.SendPacket(ENCRYPTION_NONE, 1, std::move(packet),
+  connection_.SendPacket(ENCRYPTION_INITIAL, 1, std::move(packet),
                          HAS_RETRANSMITTABLE_DATA, false, false);
   EXPECT_EQ(1u, connection_.NumQueuedPackets());
 }
@@ -5123,7 +5125,7 @@ TEST_P(QuicConnectionTest, SendDelayedAck) {
   frame1_.stream_id = 3;
 
   // The same as ProcessPacket(1) except that ENCRYPTION_ZERO_RTT is used
-  // instead of ENCRYPTION_NONE.
+  // instead of ENCRYPTION_INITIAL.
   EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
   ProcessDataPacketAtLevel(1, !kHasStopWaiting, ENCRYPTION_ZERO_RTT);
 
@@ -5162,7 +5164,7 @@ TEST_P(QuicConnectionTest, SendDelayedAfterQuiescence) {
   frame1_.stream_id = 3;
 
   // The same as ProcessPacket(1) except that ENCRYPTION_ZERO_RTT is used
-  // instead of ENCRYPTION_NONE.
+  // instead of ENCRYPTION_INITIAL.
   EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
   ProcessDataPacketAtLevel(1, !kHasStopWaiting, ENCRYPTION_ZERO_RTT);
 
@@ -5247,7 +5249,7 @@ TEST_P(QuicConnectionTest, SendDelayedAckDecimation) {
   }
   EXPECT_FALSE(connection_.GetAckAlarm()->IsSet());
   // The same as ProcessPacket(1) except that ENCRYPTION_ZERO_RTT is used
-  // instead of ENCRYPTION_NONE.
+  // instead of ENCRYPTION_INITIAL.
   EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
   ProcessDataPacketAtLevel(kFirstDecimatedPacket, !kHasStopWaiting,
                            ENCRYPTION_ZERO_RTT);
@@ -5299,7 +5301,7 @@ TEST_P(QuicConnectionTest, SendDelayedAckAckDecimationAfterQuiescence) {
   frame1_.stream_id = 3;
 
   // The same as ProcessPacket(1) except that ENCRYPTION_ZERO_RTT is used
-  // instead of ENCRYPTION_NONE.
+  // instead of ENCRYPTION_INITIAL.
   EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
   ProcessDataPacketAtLevel(1, !kHasStopWaiting, ENCRYPTION_ZERO_RTT);
 
@@ -5365,7 +5367,7 @@ TEST_P(QuicConnectionTest, SendDelayedAckAckDecimationAfterQuiescence) {
   }
   EXPECT_FALSE(connection_.GetAckAlarm()->IsSet());
   // The same as ProcessPacket(1) except that ENCRYPTION_ZERO_RTT is used
-  // instead of ENCRYPTION_NONE.
+  // instead of ENCRYPTION_INITIAL.
   EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
   ProcessDataPacketAtLevel(kFirstDecimatedPacket, !kHasStopWaiting,
                            ENCRYPTION_ZERO_RTT);
@@ -5441,7 +5443,7 @@ TEST_P(QuicConnectionTest, SendDelayedAckDecimationUnlimitedAggregation) {
   }
   EXPECT_FALSE(connection_.GetAckAlarm()->IsSet());
   // The same as ProcessPacket(1) except that ENCRYPTION_ZERO_RTT is used
-  // instead of ENCRYPTION_NONE.
+  // instead of ENCRYPTION_INITIAL.
   EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
   ProcessDataPacketAtLevel(kFirstDecimatedPacket, !kHasStopWaiting,
                            ENCRYPTION_ZERO_RTT);
@@ -5494,7 +5496,7 @@ TEST_P(QuicConnectionTest, SendDelayedAckDecimationEighthRtt) {
   }
   EXPECT_FALSE(connection_.GetAckAlarm()->IsSet());
   // The same as ProcessPacket(1) except that ENCRYPTION_ZERO_RTT is used
-  // instead of ENCRYPTION_NONE.
+  // instead of ENCRYPTION_INITIAL.
   EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
   ProcessDataPacketAtLevel(kFirstDecimatedPacket, !kHasStopWaiting,
                            ENCRYPTION_ZERO_RTT);
@@ -5616,7 +5618,7 @@ TEST_P(QuicConnectionTest, SendDelayedAckDecimationWithLargeReordering) {
   }
   EXPECT_FALSE(connection_.GetAckAlarm()->IsSet());
   // The same as ProcessPacket(1) except that ENCRYPTION_ZERO_RTT is used
-  // instead of ENCRYPTION_NONE.
+  // instead of ENCRYPTION_INITIAL.
   EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
   ProcessDataPacketAtLevel(kFirstDecimatedPacket, !kHasStopWaiting,
                            ENCRYPTION_ZERO_RTT);
@@ -5700,7 +5702,7 @@ TEST_P(QuicConnectionTest, SendDelayedAckDecimationWithReorderingEighthRtt) {
   }
   EXPECT_FALSE(connection_.GetAckAlarm()->IsSet());
   // The same as ProcessPacket(1) except that ENCRYPTION_ZERO_RTT is used
-  // instead of ENCRYPTION_NONE.
+  // instead of ENCRYPTION_INITIAL.
   EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
   ProcessDataPacketAtLevel(kFirstDecimatedPacket, !kHasStopWaiting,
                            ENCRYPTION_ZERO_RTT);
@@ -5768,7 +5770,7 @@ TEST_P(QuicConnectionTest,
   }
   EXPECT_FALSE(connection_.GetAckAlarm()->IsSet());
   // The same as ProcessPacket(1) except that ENCRYPTION_ZERO_RTT is used
-  // instead of ENCRYPTION_NONE.
+  // instead of ENCRYPTION_INITIAL.
   EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
   ProcessDataPacketAtLevel(kFirstDecimatedPacket, !kHasStopWaiting,
                            ENCRYPTION_ZERO_RTT);
@@ -6100,10 +6102,10 @@ TEST_P(QuicConnectionTest, SendWhenDisconnected) {
   EXPECT_FALSE(connection_.connected());
   EXPECT_FALSE(connection_.CanWriteStreamData());
   std::unique_ptr<QuicPacket> packet =
-      ConstructDataPacket(1, !kHasStopWaiting, ENCRYPTION_NONE);
+      ConstructDataPacket(1, !kHasStopWaiting, ENCRYPTION_INITIAL);
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, QuicPacketNumber(1), _, _))
       .Times(0);
-  connection_.SendPacket(ENCRYPTION_NONE, 1, std::move(packet),
+  connection_.SendPacket(ENCRYPTION_INITIAL, 1, std::move(packet),
                          HAS_RETRANSMITTABLE_DATA, false, false);
 }
 
@@ -6312,8 +6314,9 @@ TEST_P(QuicConnectionTest, ServerSendsVersionNegotiationPacket) {
   frames.push_back(QuicFrame(frame1_));
   std::unique_ptr<QuicPacket> packet(ConstructPacket(header, frames));
   char buffer[kMaxPacketSize];
-  size_t encrypted_length = framer_.EncryptPayload(
-      ENCRYPTION_NONE, QuicPacketNumber(12), *packet, buffer, kMaxPacketSize);
+  size_t encrypted_length =
+      framer_.EncryptPayload(ENCRYPTION_INITIAL, QuicPacketNumber(12), *packet,
+                             buffer, kMaxPacketSize);
 
   framer_.set_version(version());
   // Writer's framer's perspective is client, so that it needs to have the right
@@ -6364,8 +6367,9 @@ TEST_P(QuicConnectionTest, ServerSendsVersionNegotiationPacketSocketBlocked) {
   frames.push_back(QuicFrame(frame1_));
   std::unique_ptr<QuicPacket> packet(ConstructPacket(header, frames));
   char buffer[kMaxPacketSize];
-  size_t encrypted_length = framer_.EncryptPayload(
-      ENCRYPTION_NONE, QuicPacketNumber(12), *packet, buffer, kMaxPacketSize);
+  size_t encrypted_length =
+      framer_.EncryptPayload(ENCRYPTION_INITIAL, QuicPacketNumber(12), *packet,
+                             buffer, kMaxPacketSize);
 
   framer_.set_version(version());
   BlockOnNextWrite();
@@ -6423,8 +6427,9 @@ TEST_P(QuicConnectionTest,
   frames.push_back(QuicFrame(frame1_));
   std::unique_ptr<QuicPacket> packet(ConstructPacket(header, frames));
   char buffer[kMaxPacketSize];
-  size_t encryped_length = framer_.EncryptPayload(
-      ENCRYPTION_NONE, QuicPacketNumber(12), *packet, buffer, kMaxPacketSize);
+  size_t encryped_length =
+      framer_.EncryptPayload(ENCRYPTION_INITIAL, QuicPacketNumber(12), *packet,
+                             buffer, kMaxPacketSize);
 
   framer_.set_version(version());
   set_perspective(Perspective::IS_SERVER);
@@ -6477,8 +6482,9 @@ TEST_P(QuicConnectionTest, ClientHandlesVersionNegotiation) {
   frames.push_back(QuicFrame(frame1_));
   std::unique_ptr<QuicPacket> packet(ConstructPacket(header, frames));
   char buffer[kMaxPacketSize];
-  size_t encrypted_length = peer_framer_.EncryptPayload(
-      ENCRYPTION_NONE, QuicPacketNumber(12), *packet, buffer, kMaxPacketSize);
+  size_t encrypted_length =
+      peer_framer_.EncryptPayload(ENCRYPTION_INITIAL, QuicPacketNumber(12),
+                                  *packet, buffer, kMaxPacketSize);
   ASSERT_NE(0u, encrypted_length);
   EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
@@ -6584,7 +6590,7 @@ TEST_P(QuicConnectionTest, ProcessFramesIfPacketClosedConnection) {
   EXPECT_TRUE(nullptr != packet);
   char buffer[kMaxPacketSize];
   size_t encrypted_length = peer_framer_.EncryptPayload(
-      ENCRYPTION_NONE, QuicPacketNumber(1), *packet, buffer, kMaxPacketSize);
+      ENCRYPTION_INITIAL, QuicPacketNumber(1), *packet, buffer, kMaxPacketSize);
 
   EXPECT_CALL(visitor_, OnConnectionClosed(QUIC_PEER_GOING_AWAY, _,
                                            ConnectionCloseSource::FROM_PEER));
@@ -7856,10 +7862,10 @@ TEST_P(QuicConnectionTest, StopProcessingGQuicPacketInIetfQuicConnection) {
   peer_framer_.set_version_for_tests(
       ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_43));
   std::unique_ptr<QuicPacket> packet(
-      ConstructDataPacket(2, !kHasStopWaiting, ENCRYPTION_NONE));
+      ConstructDataPacket(2, !kHasStopWaiting, ENCRYPTION_INITIAL));
   char buffer[kMaxPacketSize];
   size_t encrypted_length = peer_framer_.EncryptPayload(
-      ENCRYPTION_NONE, QuicPacketNumber(2), *packet, buffer, kMaxPacketSize);
+      ENCRYPTION_INITIAL, QuicPacketNumber(2), *packet, buffer, kMaxPacketSize);
   // Make sure no stream frame is processed.
   EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(0);
   connection_.ProcessUdpPacket(

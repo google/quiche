@@ -142,7 +142,7 @@ void QuicUtils::SerializeUint128Short(QuicUint128 v, uint8_t* out) {
 // static
 const char* QuicUtils::EncryptionLevelToString(EncryptionLevel level) {
   switch (level) {
-    RETURN_STRING_LITERAL(ENCRYPTION_NONE);
+    RETURN_STRING_LITERAL(ENCRYPTION_INITIAL);
     RETURN_STRING_LITERAL(ENCRYPTION_HANDSHAKE);
     RETURN_STRING_LITERAL(ENCRYPTION_ZERO_RTT);
     RETURN_STRING_LITERAL(ENCRYPTION_FORWARD_SECURE);

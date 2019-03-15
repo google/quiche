@@ -218,8 +218,8 @@ class QUIC_EXPORT_PRIVATE QuicFramerVisitorInterface {
 class QUIC_EXPORT_PRIVATE QuicFramer {
  public:
   // Constructs a new framer that installs a kNULL QuicEncrypter and
-  // QuicDecrypter for level ENCRYPTION_NONE. |supported_versions| specifies the
-  // list of supported QUIC versions. |quic_version_| is set to the maximum
+  // QuicDecrypter for level ENCRYPTION_INITIAL. |supported_versions| specifies
+  // the list of supported QUIC versions. |quic_version_| is set to the maximum
   // version in |supported_versions|.
   QuicFramer(const ParsedQuicVersionVector& supported_versions,
              QuicTime creation_time,

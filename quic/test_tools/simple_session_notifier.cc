@@ -113,7 +113,7 @@ void SimpleSessionNotifier::WriteOrBufferRstStream(
 }
 
 void SimpleSessionNotifier::NeuterUnencryptedData() {
-  for (const auto& interval : crypto_bytes_transferred_[ENCRYPTION_NONE]) {
+  for (const auto& interval : crypto_bytes_transferred_[ENCRYPTION_INITIAL]) {
     // TODO(nharper): Handle CRYPTO frame case.
     QuicStreamFrame stream_frame(
         QuicUtils::GetCryptoStreamId(connection_->transport_version()), false,
@@ -497,7 +497,7 @@ bool SimpleSessionNotifier::RetransmitLostCryptoData() {
     QuicIntervalSet<QuicStreamOffset> retransmission(
         state.pending_retransmissions.begin()->min(),
         state.pending_retransmissions.begin()->max());
-    EncryptionLevel retransmission_encryption_level = ENCRYPTION_NONE;
+    EncryptionLevel retransmission_encryption_level = ENCRYPTION_INITIAL;
     for (size_t i = 0; i < NUM_ENCRYPTION_LEVELS; ++i) {
       if (retransmission.Intersects(crypto_bytes_transferred_[i])) {
         retransmission_encryption_level = static_cast<EncryptionLevel>(i);

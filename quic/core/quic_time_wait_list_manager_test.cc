@@ -154,7 +154,7 @@ class QuicTimeWaitListManagerTest : public QuicTest {
         new QuicEncryptedPacket(nullptr, 0, false)));
     time_wait_list_manager_.AddConnectionIdToTimeWait(
         connection_id, false, QuicTimeWaitListManager::SEND_TERMINATION_PACKETS,
-        ENCRYPTION_NONE, &termination_packets);
+        ENCRYPTION_INITIAL, &termination_packets);
   }
 
   void AddConnectionId(
@@ -164,7 +164,7 @@ class QuicTimeWaitListManagerTest : public QuicTest {
       std::vector<std::unique_ptr<QuicEncryptedPacket>>* packets) {
     time_wait_list_manager_.AddConnectionIdToTimeWait(
         connection_id, version.transport_version > QUIC_VERSION_43, action,
-        ENCRYPTION_NONE, packets);
+        ENCRYPTION_INITIAL, packets);
   }
 
   bool IsConnectionIdInTimeWait(QuicConnectionId connection_id) {
@@ -545,7 +545,7 @@ TEST_F(QuicTimeWaitListManagerTest, MaxConnectionsTest) {
 // Regression test for b/116200989.
 TEST_F(QuicTimeWaitListManagerTest,
        SendStatelessResetInResponseToShortHeaders) {
-  // This test mimics a scenario where an ENCRYPTION_NONE connection close is
+  // This test mimics a scenario where an ENCRYPTION_INITIAL connection close is
   // added as termination packet for an IETF connection ID. However, a short
   // header packet is received later.
   const size_t kConnectionCloseLength = 100;
@@ -554,10 +554,10 @@ TEST_F(QuicTimeWaitListManagerTest,
   termination_packets.push_back(
       std::unique_ptr<QuicEncryptedPacket>(new QuicEncryptedPacket(
           new char[kConnectionCloseLength], kConnectionCloseLength, true)));
-  // Add an ENCRYPTION_NONE termination packet.
+  // Add an ENCRYPTION_INITIAL termination packet.
   time_wait_list_manager_.AddConnectionIdToTimeWait(
       connection_id_, /*ietf_quic=*/true,
-      QuicTimeWaitListManager::SEND_TERMINATION_PACKETS, ENCRYPTION_NONE,
+      QuicTimeWaitListManager::SEND_TERMINATION_PACKETS, ENCRYPTION_INITIAL,
       &termination_packets);
 
   if (GetQuicReloadableFlag(quic_always_reset_short_header_packets)) {

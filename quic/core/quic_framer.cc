@@ -461,8 +461,8 @@ QuicFramer::QuicFramer(const ParsedQuicVersionVector& supported_versions,
       last_version_label_(0),
       version_(PROTOCOL_UNSUPPORTED, QUIC_VERSION_UNSUPPORTED),
       supported_versions_(supported_versions),
-      decrypter_level_(ENCRYPTION_NONE),
-      alternative_decrypter_level_(ENCRYPTION_NONE),
+      decrypter_level_(ENCRYPTION_INITIAL),
+      alternative_decrypter_level_(ENCRYPTION_INITIAL),
       alternative_decrypter_latch_(false),
       perspective_(perspective),
       validate_flags_(true),
@@ -478,7 +478,7 @@ QuicFramer::QuicFramer(const ParsedQuicVersionVector& supported_versions,
   DCHECK(!supported_versions.empty());
   version_ = supported_versions_[0];
   decrypter_ = QuicMakeUnique<NullDecrypter>(perspective);
-  encrypter_[ENCRYPTION_NONE] = QuicMakeUnique<NullEncrypter>(perspective);
+  encrypter_[ENCRYPTION_INITIAL] = QuicMakeUnique<NullEncrypter>(perspective);
 }
 
 QuicFramer::~QuicFramer() {}
@@ -3951,7 +3951,7 @@ size_t QuicFramer::GetMaxPlaintextSize(size_t ciphertext_size) {
   // level to hand. Both the NullEncrypter and AES-GCM have a tag length of 12.
   size_t min_plaintext_size = ciphertext_size;
 
-  for (int i = ENCRYPTION_NONE; i < NUM_ENCRYPTION_LEVELS; i++) {
+  for (int i = ENCRYPTION_INITIAL; i < NUM_ENCRYPTION_LEVELS; i++) {
     if (encrypter_[i] != nullptr) {
       size_t size = encrypter_[i]->GetMaxPlaintextSize(ciphertext_size);
       if (size < min_plaintext_size) {
@@ -4005,7 +4005,7 @@ bool QuicFramer::DecryptPayload(QuicStringPiece encrypted,
         // switch back.
         decrypter_ = std::move(alternative_decrypter_);
         decrypter_level_ = alternative_decrypter_level_;
-        alternative_decrypter_level_ = ENCRYPTION_NONE;
+        alternative_decrypter_level_ = ENCRYPTION_INITIAL;
       } else {
         // Switch the alternative decrypter so that we use it first next time.
         decrypter_.swap(alternative_decrypter_);

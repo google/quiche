@@ -12,7 +12,7 @@ namespace quic {
 
 quic_trace::EncryptionLevel EncryptionLevelToProto(EncryptionLevel level) {
   switch (level) {
-    case ENCRYPTION_NONE:
+    case ENCRYPTION_INITIAL:
       return quic_trace::ENCRYPTION_INITIAL;
     case ENCRYPTION_HANDSHAKE:
       return quic_trace::ENCRYPTION_HANDSHAKE;

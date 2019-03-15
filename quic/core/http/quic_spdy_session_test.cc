@@ -1673,7 +1673,7 @@ TEST_P(QuicSpdySessionTestServer, OnStreamFrameLost) {
   if (!QuicVersionUsesCryptoFrames(connection_->transport_version())) {
     session_.OnFrameLost(QuicFrame(frame1));
   } else {
-    QuicCryptoFrame crypto_frame(ENCRYPTION_NONE, 0, 1300);
+    QuicCryptoFrame crypto_frame(ENCRYPTION_INITIAL, 0, 1300);
     session_.OnFrameLost(QuicFrame(&crypto_frame));
   }
   session_.OnFrameLost(QuicFrame(frame2));

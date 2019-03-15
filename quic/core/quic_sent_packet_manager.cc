@@ -367,7 +367,7 @@ void QuicSentPacketManager::NeuterUnencryptedPackets() {
     for (QuicUnackedPacketMap::const_iterator it = unacked_packets_.begin();
          it != unacked_packets_.end(); ++it, ++packet_number) {
       if (!it->retransmittable_frames.empty() &&
-          it->encryption_level == ENCRYPTION_NONE) {
+          it->encryption_level == ENCRYPTION_INITIAL) {
         // Once the connection swithes to forward secure, no unencrypted packets
         // will be sent. The data has been abandoned in the cryto stream. Remove
         // it from in flight.
@@ -378,7 +378,7 @@ void QuicSentPacketManager::NeuterUnencryptedPackets() {
   }
   for (QuicUnackedPacketMap::const_iterator it = unacked_packets_.begin();
        it != unacked_packets_.end(); ++it, ++packet_number) {
-    if (it->encryption_level == ENCRYPTION_NONE &&
+    if (it->encryption_level == ENCRYPTION_INITIAL &&
         unacked_packets_.HasRetransmittableFrames(*it)) {
       // Once you're forward secure, no unencrypted packets will be sent, crypto
       // or otherwise. Unencrypted packets are neutered and abandoned, to ensure

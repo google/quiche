@@ -149,7 +149,7 @@ class StatelessConnectionTerminator {
     time_wait_list_manager_->AddConnectionIdToTimeWait(
         connection_id_, ietf_quic,
         QuicTimeWaitListManager::SEND_TERMINATION_PACKETS,
-        quic::ENCRYPTION_NONE, collector_.packets());
+        quic::ENCRYPTION_INITIAL, collector_.packets());
   }
 
   // Generates a series of termination packets containing the crypto handshake
@@ -171,7 +171,7 @@ class StatelessConnectionTerminator {
         }
         offset += frame.stream_frame.data_length;
       } else {
-        if (!creator_.ConsumeCryptoData(ENCRYPTION_NONE,
+        if (!creator_.ConsumeCryptoData(ENCRYPTION_INITIAL,
                                         reject.length() - offset, offset,
                                         NOT_RETRANSMISSION, &frame)) {
           QUIC_BUG << "Unable to consume crypto data into an empty packet.";
@@ -188,7 +188,7 @@ class StatelessConnectionTerminator {
     }
     time_wait_list_manager_->AddConnectionIdToTimeWait(
         connection_id_, ietf_quic,
-        QuicTimeWaitListManager::SEND_TERMINATION_PACKETS, ENCRYPTION_NONE,
+        QuicTimeWaitListManager::SEND_TERMINATION_PACKETS, ENCRYPTION_INITIAL,
         collector_.packets());
     DCHECK(time_wait_list_manager_->IsConnectionIdInTimeWait(connection_id_));
   }
@@ -735,7 +735,7 @@ void QuicDispatcher::StatelesslyTerminateConnection(
                   << ", error_code:" << error_code
                   << ", error_details:" << error_details;
     time_wait_list_manager_->AddConnectionIdToTimeWait(
-        connection_id, format != GOOGLE_QUIC_PACKET, action, ENCRYPTION_NONE,
+        connection_id, format != GOOGLE_QUIC_PACKET, action, ENCRYPTION_INITIAL,
         nullptr);
     return;
   }
@@ -775,7 +775,7 @@ void QuicDispatcher::StatelesslyTerminateConnection(
       ParsedQuicVersionVector{UnsupportedQuicVersion()}));
   time_wait_list_manager()->AddConnectionIdToTimeWait(
       connection_id, /*ietf_quic=*/true,
-      QuicTimeWaitListManager::SEND_TERMINATION_PACKETS, ENCRYPTION_NONE,
+      QuicTimeWaitListManager::SEND_TERMINATION_PACKETS, ENCRYPTION_INITIAL,
       &termination_packets);
 }
 

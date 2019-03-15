@@ -512,8 +512,8 @@ PacketNumberSpace QuicUnackedPacketMap::GetPacketNumberSpace(
     EncryptionLevel encryption_level) const {
   DCHECK(use_uber_loss_algorithm_);
   if (perspective_ == Perspective::IS_CLIENT) {
-    return encryption_level == ENCRYPTION_NONE ? HANDSHAKE_DATA
-                                               : APPLICATION_DATA;
+    return encryption_level == ENCRYPTION_INITIAL ? HANDSHAKE_DATA
+                                                  : APPLICATION_DATA;
   }
   return encryption_level == ENCRYPTION_FORWARD_SECURE ? APPLICATION_DATA
                                                        : HANDSHAKE_DATA;

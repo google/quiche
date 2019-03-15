@@ -376,7 +376,7 @@ SerializedPacket::SerializedPacket(QuicPacketNumber packet_number,
       num_padding_bytes(0),
       packet_number(packet_number),
       packet_number_length(packet_number_length),
-      encryption_level(ENCRYPTION_NONE),
+      encryption_level(ENCRYPTION_INITIAL),
       has_ack(has_ack),
       has_stop_waiting(has_stop_waiting),
       transmission_type(NOT_RETRANSMISSION) {}

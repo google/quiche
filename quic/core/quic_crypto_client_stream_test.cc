@@ -161,7 +161,7 @@ TEST_F(QuicCryptoClientStreamTest, ExpiredServerConfig) {
   stream()->CryptoConnect();
   // Check that a client hello was sent.
   ASSERT_EQ(1u, connection_->encrypted_packets_.size());
-  EXPECT_EQ(ENCRYPTION_NONE, connection_->encryption_level());
+  EXPECT_EQ(ENCRYPTION_INITIAL, connection_->encryption_level());
 }
 
 TEST_F(QuicCryptoClientStreamTest, ClockSkew) {

@@ -32,7 +32,7 @@ class UberLossAlgorithmTest : public QuicTest {
   void SendPacket(uint64_t packet_number, EncryptionLevel encryption_level) {
     QuicStreamFrame frame;
     frame.stream_id =
-        encryption_level == ENCRYPTION_NONE
+        encryption_level == ENCRYPTION_INITIAL
             ? QuicUtils::GetCryptoStreamId(
                   CurrentSupportedVersions()[0].transport_version)
             : QuicUtils::GetHeadersStreamId(
@@ -82,15 +82,15 @@ TEST_F(UberLossAlgorithmTest, ScenarioA) {
   // Server receives and buffers packets 2 and 3. Server receives packet 4 and
   // processes handshake asynchronously, so server acks 4 and cannot process
   // packets 2 and 3.
-  SendPacket(1, ENCRYPTION_NONE);
+  SendPacket(1, ENCRYPTION_INITIAL);
   SendPacket(2, ENCRYPTION_ZERO_RTT);
   SendPacket(3, ENCRYPTION_ZERO_RTT);
   unacked_packets_->RemoveFromInFlight(QuicPacketNumber(1));
-  SendPacket(4, ENCRYPTION_NONE);
+  SendPacket(4, ENCRYPTION_INITIAL);
 
   AckPackets({1, 4});
   unacked_packets_->MaybeUpdateLargestAckedOfPacketNumberSpace(
-      ENCRYPTION_NONE, QuicPacketNumber(4));
+      ENCRYPTION_INITIAL, QuicPacketNumber(4));
   // Verify no packet is detected lost.
   VerifyLosses(4, packets_acked_, std::vector<uint64_t>{});
   EXPECT_EQ(QuicTime::Zero(), loss_algorithm_.GetLossTimeout());

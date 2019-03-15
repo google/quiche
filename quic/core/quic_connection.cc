@@ -232,7 +232,7 @@ QuicConnection::QuicConnection(
       per_packet_options_(nullptr),
       writer_(writer),
       owns_writer_(owns_writer),
-      encryption_level_(ENCRYPTION_NONE),
+      encryption_level_(ENCRYPTION_INITIAL),
       clock_(helper->GetClock()),
       random_generator_(helper->GetRandomGenerator()),
       connection_id_(connection_id),
@@ -242,7 +242,7 @@ QuicConnection::QuicConnection(
       last_packet_decrypted_(false),
       last_size_(0),
       current_packet_data_(nullptr),
-      last_decrypted_packet_level_(ENCRYPTION_NONE),
+      last_decrypted_packet_level_(ENCRYPTION_INITIAL),
       should_last_packet_instigate_acks_(false),
       was_last_packet_missing_(false),
       max_undecryptable_packets_(0),
@@ -900,7 +900,7 @@ bool QuicConnection::OnStreamFrame(const QuicStreamFrame& frame) {
     debug_visitor_->OnStreamFrame(frame);
   }
   if (frame.stream_id != QuicUtils::GetCryptoStreamId(transport_version()) &&
-      last_decrypted_packet_level_ == ENCRYPTION_NONE) {
+      last_decrypted_packet_level_ == ENCRYPTION_INITIAL) {
     if (MaybeConsiderAsMemoryCorruption(frame)) {
       CloseConnection(QUIC_MAYBE_CORRUPTED_MEMORY,
                       "Received crypto frame on non crypto stream.",
@@ -1968,7 +1968,7 @@ bool QuicConnection::ProcessValidatedPacket(const QuicPacketHeader& header) {
   }
 
   if (perspective_ == Perspective::IS_SERVER &&
-      encryption_level_ == ENCRYPTION_NONE &&
+      encryption_level_ == ENCRYPTION_INITIAL &&
       last_size_ > packet_generator_.GetCurrentMaxPacketLength()) {
     SetMaxPacketLength(last_size_);
   }
@@ -2433,7 +2433,7 @@ bool QuicConnection::ShouldDiscardPacket(const SerializedPacket& packet) {
 
   QuicPacketNumber packet_number = packet.packet_number;
   if (encryption_level_ == ENCRYPTION_FORWARD_SECURE &&
-      packet.encryption_level == ENCRYPTION_NONE) {
+      packet.encryption_level == ENCRYPTION_INITIAL) {
     // Drop packets that are NULL encrypted since the peer won't accept them
     // anymore.
     QUIC_DLOG(INFO) << ENDPOINT
@@ -2724,7 +2724,8 @@ void QuicConnection::QueueUndecryptablePacket(
 void QuicConnection::MaybeProcessUndecryptablePackets() {
   process_undecryptable_packets_alarm_->Cancel();
 
-  if (undecryptable_packets_.empty() || encryption_level_ == ENCRYPTION_NONE) {
+  if (undecryptable_packets_.empty() ||
+      encryption_level_ == ENCRYPTION_INITIAL) {
     return;
   }
 
@@ -3477,7 +3478,7 @@ QuicStringPiece QuicConnection::GetCurrentPacket() {
 bool QuicConnection::MaybeConsiderAsMemoryCorruption(
     const QuicStreamFrame& frame) {
   if (frame.stream_id == QuicUtils::GetCryptoStreamId(transport_version()) ||
-      last_decrypted_packet_level_ != ENCRYPTION_NONE) {
+      last_decrypted_packet_level_ != ENCRYPTION_INITIAL) {
     return false;
   }
 
@@ -3738,7 +3739,7 @@ EncryptionLevel QuicConnection::GetConnectionCloseEncryptionLevel() const {
     }
     return ENCRYPTION_ZERO_RTT;
   }
-  return ENCRYPTION_NONE;
+  return ENCRYPTION_INITIAL;
 }
 
 size_t QuicConnection::min_received_before_ack_decimation() const {

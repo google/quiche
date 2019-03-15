@@ -28,7 +28,7 @@ namespace {
 
 QuicLongHeaderType EncryptionlevelToLongHeaderType(EncryptionLevel level) {
   switch (level) {
-    case ENCRYPTION_NONE:
+    case ENCRYPTION_INITIAL:
       return INITIAL;
     case ENCRYPTION_HANDSHAKE:
       return HANDSHAKE;
@@ -847,7 +847,7 @@ bool QuicPacketCreator::AddFrame(const QuicFrame& frame,
   if (frame.type == STREAM_FRAME &&
       frame.stream_frame.stream_id !=
           QuicUtils::GetCryptoStreamId(framer_->transport_version()) &&
-      packet_.encryption_level == ENCRYPTION_NONE) {
+      packet_.encryption_level == ENCRYPTION_INITIAL) {
     const std::string error_details =
         "Cannot send stream data without encryption.";
     QUIC_BUG << error_details;

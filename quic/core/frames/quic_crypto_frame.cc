@@ -9,7 +9,7 @@
 namespace quic {
 
 QuicCryptoFrame::QuicCryptoFrame()
-    : QuicCryptoFrame(ENCRYPTION_NONE, 0, nullptr, 0) {}
+    : QuicCryptoFrame(ENCRYPTION_INITIAL, 0, nullptr, 0) {}
 
 QuicCryptoFrame::QuicCryptoFrame(EncryptionLevel level,
                                  QuicStreamOffset offset,

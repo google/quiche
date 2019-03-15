@@ -293,7 +293,7 @@ void QuicCryptoClientHandshaker::DoSendCHLO(
   }
 
   // Send the client hello in plaintext.
-  session()->connection()->SetDefaultEncryptionLevel(ENCRYPTION_NONE);
+  session()->connection()->SetDefaultEncryptionLevel(ENCRYPTION_INITIAL);
   encryption_established_ = false;
   if (num_client_hellos_ > QuicCryptoClientStream::kMaxClientHellos) {
     stream_->CloseConnectionWithDetails(

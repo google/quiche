@@ -241,7 +241,7 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
         new std::string(frame.data_buffer, frame.data_length);
     crypto_data_.push_back(QuicWrapUnique(string_data));
     crypto_frames_.push_back(QuicMakeUnique<QuicCryptoFrame>(
-        ENCRYPTION_NONE, frame.offset, *string_data));
+        ENCRYPTION_INITIAL, frame.offset, *string_data));
     return true;
   }
 
@@ -445,9 +445,9 @@ class QuicFramerTest : public QuicTestWithParam<ParsedQuicVersion> {
                 kQuicDefaultConnectionIdLength) {
     SetQuicFlag(&FLAGS_quic_supports_tls_handshake, true);
     framer_.set_version(version_);
-    framer_.SetDecrypter(ENCRYPTION_NONE,
+    framer_.SetDecrypter(ENCRYPTION_INITIAL,
                          std::unique_ptr<QuicDecrypter>(decrypter_));
-    framer_.SetEncrypter(ENCRYPTION_NONE,
+    framer_.SetEncrypter(ENCRYPTION_INITIAL,
                          std::unique_ptr<QuicEncrypter>(encrypter_));
 
     framer_.set_visitor(&visitor_);
@@ -1870,7 +1870,7 @@ TEST_P(QuicFramerTest, MissingDiversificationNonce) {
     return;
   }
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
-  framer_.SetDecrypter(ENCRYPTION_NONE,
+  framer_.SetDecrypter(ENCRYPTION_INITIAL,
                        QuicMakeUnique<NullDecrypter>(Perspective::IS_CLIENT));
   decrypter_ = new test::TestDecrypter();
   framer_.SetAlternativeDecrypter(
@@ -5251,7 +5251,7 @@ TEST_P(QuicFramerTest, IetfStatelessResetPacket) {
     return;
   }
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
-  framer_.SetDecrypter(ENCRYPTION_NONE,
+  framer_.SetDecrypter(ENCRYPTION_INITIAL,
                        QuicMakeUnique<NullDecrypter>(Perspective::IS_CLIENT));
   decrypter_ = new test::TestDecrypter();
   framer_.SetAlternativeDecrypter(
@@ -5281,7 +5281,7 @@ TEST_P(QuicFramerTest, IetfStatelessResetPacketInvalidStatelessResetToken) {
     return;
   }
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
-  framer_.SetDecrypter(ENCRYPTION_NONE,
+  framer_.SetDecrypter(ENCRYPTION_INITIAL,
                        QuicMakeUnique<NullDecrypter>(Perspective::IS_CLIENT));
   decrypter_ = new test::TestDecrypter();
   framer_.SetAlternativeDecrypter(
@@ -6147,9 +6147,9 @@ TEST_P(QuicFramerTest, BuildCryptoFramePacket) {
   framer_.set_data_producer(&data_producer);
 
   QuicStringPiece crypto_frame_contents("hello world!");
-  QuicCryptoFrame crypto_frame(ENCRYPTION_NONE, kStreamOffset,
+  QuicCryptoFrame crypto_frame(ENCRYPTION_INITIAL, kStreamOffset,
                                crypto_frame_contents.length());
-  data_producer.SaveCryptoData(ENCRYPTION_NONE, kStreamOffset,
+  data_producer.SaveCryptoData(ENCRYPTION_INITIAL, kStreamOffset,
                                crypto_frame_contents);
 
   QuicFrames frames = {QuicFrame(&crypto_frame)};
@@ -8594,7 +8594,7 @@ TEST_P(QuicFramerTest, BuildConnectivityProbingPacket) {
   std::unique_ptr<char[]> buffer(new char[kMaxPacketSize]);
 
   size_t length = framer_.BuildConnectivityProbingPacket(
-      header, buffer.get(), packet_size, ENCRYPTION_NONE);
+      header, buffer.get(), packet_size, ENCRYPTION_INITIAL);
 
   EXPECT_NE(0u, length);
   QuicPacket data(framer_.transport_version(), buffer.release(), length, true,
@@ -8642,7 +8642,7 @@ TEST_P(QuicFramerTest, BuildPaddedPathChallengePacket) {
 
   size_t length = framer_.BuildPaddedPathChallengePacket(
       header, buffer.get(), QUIC_ARRAYSIZE(packet), &payload, &randomizer,
-      ENCRYPTION_NONE);
+      ENCRYPTION_INITIAL);
   EXPECT_EQ(length, QUIC_ARRAYSIZE(packet));
 
   // Payload has the random bytes that were generated. Copy them into packet,
@@ -8695,7 +8695,7 @@ TEST_P(QuicFramerTest, BuildPathResponsePacket1ResponseUnpadded) {
   payloads.push_back(payload0);
   size_t length = framer_.BuildPathResponsePacket(
       header, buffer.get(), QUIC_ARRAYSIZE(packet), payloads,
-      /*is_padded=*/false, ENCRYPTION_NONE);
+      /*is_padded=*/false, ENCRYPTION_INITIAL);
   EXPECT_EQ(length, QUIC_ARRAYSIZE(packet));
   QuicPacket data(framer_.transport_version(), buffer.release(), length, true,
                   header);
@@ -8741,7 +8741,7 @@ TEST_P(QuicFramerTest, BuildPathResponsePacket1ResponsePadded) {
   payloads.push_back(payload0);
   size_t length = framer_.BuildPathResponsePacket(
       header, buffer.get(), QUIC_ARRAYSIZE(packet), payloads,
-      /*is_padded=*/true, ENCRYPTION_NONE);
+      /*is_padded=*/true, ENCRYPTION_INITIAL);
   EXPECT_EQ(length, QUIC_ARRAYSIZE(packet));
   QuicPacket data(framer_.transport_version(), buffer.release(), length, true,
                   header);
@@ -8792,7 +8792,7 @@ TEST_P(QuicFramerTest, BuildPathResponsePacket3ResponsesUnpadded) {
   payloads.push_back(payload2);
   size_t length = framer_.BuildPathResponsePacket(
       header, buffer.get(), QUIC_ARRAYSIZE(packet), payloads,
-      /*is_padded=*/false, ENCRYPTION_NONE);
+      /*is_padded=*/false, ENCRYPTION_INITIAL);
   EXPECT_EQ(length, QUIC_ARRAYSIZE(packet));
   QuicPacket data(framer_.transport_version(), buffer.release(), length, true,
                   header);
@@ -8845,7 +8845,7 @@ TEST_P(QuicFramerTest, BuildPathResponsePacket3ResponsesPadded) {
   payloads.push_back(payload2);
   size_t length = framer_.BuildPathResponsePacket(
       header, buffer.get(), QUIC_ARRAYSIZE(packet), payloads,
-      /*is_padded=*/true, ENCRYPTION_NONE);
+      /*is_padded=*/true, ENCRYPTION_INITIAL);
   EXPECT_EQ(length, QUIC_ARRAYSIZE(packet));
   QuicPacket data(framer_.transport_version(), buffer.release(), length, true,
                   header);
@@ -9211,7 +9211,7 @@ TEST_P(QuicFramerTest, EncryptPacket) {
       VARIABLE_LENGTH_INTEGER_LENGTH_0, 0, VARIABLE_LENGTH_INTEGER_LENGTH_0));
   char buffer[kMaxPacketSize];
   size_t encrypted_length = framer_.EncryptPayload(
-      ENCRYPTION_NONE, packet_number, *raw, buffer, kMaxPacketSize);
+      ENCRYPTION_INITIAL, packet_number, *raw, buffer, kMaxPacketSize);
 
   ASSERT_NE(0u, encrypted_length);
   EXPECT_TRUE(CheckEncryption(packet_number, raw.get()));
@@ -9314,7 +9314,7 @@ TEST_P(QuicFramerTest, EncryptPacketWithVersionFlag) {
       VARIABLE_LENGTH_INTEGER_LENGTH_0));
   char buffer[kMaxPacketSize];
   size_t encrypted_length = framer_.EncryptPayload(
-      ENCRYPTION_NONE, packet_number, *raw, buffer, kMaxPacketSize);
+      ENCRYPTION_INITIAL, packet_number, *raw, buffer, kMaxPacketSize);
 
   ASSERT_NE(0u, encrypted_length);
   EXPECT_TRUE(CheckEncryption(packet_number, raw.get()));
@@ -9344,7 +9344,7 @@ TEST_P(QuicFramerTest, AckTruncationLargePacket) {
   ASSERT_TRUE(raw_ack_packet != nullptr);
   char buffer[kMaxPacketSize];
   size_t encrypted_length =
-      framer_.EncryptPayload(ENCRYPTION_NONE, header.packet_number,
+      framer_.EncryptPayload(ENCRYPTION_INITIAL, header.packet_number,
                              *raw_ack_packet, buffer, kMaxPacketSize);
   ASSERT_NE(0u, encrypted_length);
   // Now make sure we can turn our ack packet back into an ack frame.
@@ -9384,7 +9384,7 @@ TEST_P(QuicFramerTest, AckTruncationSmallPacket) {
   ASSERT_TRUE(raw_ack_packet != nullptr);
   char buffer[kMaxPacketSize];
   size_t encrypted_length =
-      framer_.EncryptPayload(ENCRYPTION_NONE, header.packet_number,
+      framer_.EncryptPayload(ENCRYPTION_INITIAL, header.packet_number,
                              *raw_ack_packet, buffer, kMaxPacketSize);
   ASSERT_NE(0u, encrypted_length);
   // Now make sure we can turn our ack packet back into an ack frame.
@@ -9422,7 +9422,7 @@ TEST_P(QuicFramerTest, CleanTruncation) {
 
   char buffer[kMaxPacketSize];
   size_t encrypted_length =
-      framer_.EncryptPayload(ENCRYPTION_NONE, header.packet_number,
+      framer_.EncryptPayload(ENCRYPTION_INITIAL, header.packet_number,
                              *raw_ack_packet, buffer, kMaxPacketSize);
   ASSERT_NE(0u, encrypted_length);
 
@@ -9639,9 +9639,9 @@ static bool ExpectedStreamFrame(const QuicStreamFrame& frame) {
 TEST_P(QuicFramerTest, ConstructEncryptedPacket) {
   // Since we are using ConstructEncryptedPacket, we have to set the framer's
   // crypto to be Null.
-  framer_.SetDecrypter(ENCRYPTION_NONE,
+  framer_.SetDecrypter(ENCRYPTION_INITIAL,
                        QuicMakeUnique<NullDecrypter>(framer_.perspective()));
-  framer_.SetEncrypter(ENCRYPTION_NONE,
+  framer_.SetEncrypter(ENCRYPTION_INITIAL,
                        QuicMakeUnique<NullEncrypter>(framer_.perspective()));
   ParsedQuicVersionVector versions;
   versions.push_back(framer_.version());
@@ -9679,9 +9679,9 @@ TEST_P(QuicFramerTest, ConstructEncryptedPacket) {
 TEST_P(QuicFramerTest, ConstructMisFramedEncryptedPacket) {
   // Since we are using ConstructEncryptedPacket, we have to set the framer's
   // crypto to be Null.
-  framer_.SetDecrypter(ENCRYPTION_NONE,
+  framer_.SetDecrypter(ENCRYPTION_INITIAL,
                        QuicMakeUnique<NullDecrypter>(framer_.perspective()));
-  framer_.SetEncrypter(ENCRYPTION_NONE,
+  framer_.SetEncrypter(ENCRYPTION_INITIAL,
                        QuicMakeUnique<NullEncrypter>(framer_.perspective()));
   ParsedQuicVersionVector versions;
   versions.push_back(framer_.version());

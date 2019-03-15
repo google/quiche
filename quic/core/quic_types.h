@@ -372,7 +372,7 @@ enum LossDetectionType : uint8_t {
 // to be specified so that it is retransmitted at a level which the peer can
 // understand.
 enum EncryptionLevel : int8_t {
-  ENCRYPTION_NONE = 0,
+  ENCRYPTION_INITIAL = 0,
   ENCRYPTION_HANDSHAKE = 1,
   ENCRYPTION_ZERO_RTT = 2,
   ENCRYPTION_FORWARD_SECURE = 3,

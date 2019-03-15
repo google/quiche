@@ -81,14 +81,14 @@ class ChloExtractorTest : public QuicTest {
           QuicFrame(QuicStreamFrame(stream_id, false, offset, data)));
     } else {
       frames.push_back(
-          QuicFrame(new QuicCryptoFrame(ENCRYPTION_NONE, offset, data)));
+          QuicFrame(new QuicCryptoFrame(ENCRYPTION_INITIAL, offset, data)));
     }
     std::unique_ptr<QuicPacket> packet(
         BuildUnsizedDataPacket(&framer, header_, frames));
     EXPECT_TRUE(packet != nullptr);
     size_t encrypted_length =
-        framer.EncryptPayload(ENCRYPTION_NONE, header_.packet_number, *packet,
-                              buffer_, QUIC_ARRAYSIZE(buffer_));
+        framer.EncryptPayload(ENCRYPTION_INITIAL, header_.packet_number,
+                              *packet, buffer_, QUIC_ARRAYSIZE(buffer_));
     ASSERT_NE(0u, encrypted_length);
     packet_ = QuicMakeUnique<QuicEncryptedPacket>(buffer_, encrypted_length);
     EXPECT_TRUE(packet_ != nullptr);

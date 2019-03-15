@@ -103,7 +103,7 @@ EncryptionLevel TlsHandshaker::QuicEncryptionLevel(
     enum ssl_encryption_level_t level) {
   switch (level) {
     case ssl_encryption_initial:
-      return ENCRYPTION_NONE;
+      return ENCRYPTION_INITIAL;
     case ssl_encryption_early_data:
     case ssl_encryption_handshake:
       return ENCRYPTION_ZERO_RTT;
@@ -116,7 +116,7 @@ EncryptionLevel TlsHandshaker::QuicEncryptionLevel(
 enum ssl_encryption_level_t TlsHandshaker::BoringEncryptionLevel(
     EncryptionLevel level) {
   switch (level) {
-    case ENCRYPTION_NONE:
+    case ENCRYPTION_INITIAL:
       return ssl_encryption_initial;
     case ENCRYPTION_HANDSHAKE:
     case ENCRYPTION_ZERO_RTT:

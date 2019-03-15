@@ -73,7 +73,7 @@ class QuicPacketPrinter : public QuicFramerVisitorInterface {
   }
   void OnDecryptedPacket(EncryptionLevel level) override {
     // This only currently supports "decrypting" null encrypted packets.
-    DCHECK_EQ(ENCRYPTION_NONE, level);
+    DCHECK_EQ(ENCRYPTION_INITIAL, level);
     std::cerr << "OnDecryptedPacket\n";
   }
   bool OnPacketHeader(const QuicPacketHeader& header) override {

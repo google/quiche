@@ -102,8 +102,8 @@ TEST_F(SimpleSessionNotifierTest, WriteOrBufferRstStream) {
 
 TEST_F(SimpleSessionNotifierTest, NeuterUnencryptedData) {
   InSequence s;
-  // Send crypto data [0, 1024) in ENCRYPTION_NONE.
-  connection_.SetDefaultEncryptionLevel(ENCRYPTION_NONE);
+  // Send crypto data [0, 1024) in ENCRYPTION_INITIAL.
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_INITIAL);
   EXPECT_CALL(connection_, SendStreamData(QuicUtils::GetCryptoStreamId(
                                               connection_.transport_version()),
                                           1024, 0, NO_FIN))
@@ -135,8 +135,8 @@ TEST_F(SimpleSessionNotifierTest, NeuterUnencryptedData) {
 
 TEST_F(SimpleSessionNotifierTest, OnCanWrite) {
   InSequence s;
-  // Send crypto data [0, 1024) in ENCRYPTION_NONE.
-  connection_.SetDefaultEncryptionLevel(ENCRYPTION_NONE);
+  // Send crypto data [0, 1024) in ENCRYPTION_INITIAL.
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_INITIAL);
   EXPECT_CALL(connection_, SendStreamData(QuicUtils::GetCryptoStreamId(
                                               connection_.transport_version()),
                                           1024, 0, NO_FIN))

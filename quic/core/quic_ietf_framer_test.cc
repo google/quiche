@@ -764,8 +764,8 @@ TEST_F(QuicIetfFramerTest, CryptoFrame) {
   QuicStreamOffset offsets[] = {kOffset8, kOffset4, kOffset2, kOffset1,
                                 kOffset0};
   for (QuicStreamOffset offset : offsets) {
-    QuicCryptoFrame frame(ENCRYPTION_NONE, offset, frame_data.length());
-    data_producer.SaveCryptoData(ENCRYPTION_NONE, offset, frame_data);
+    QuicCryptoFrame frame(ENCRYPTION_INITIAL, offset, frame_data.length());
+    data_producer.SaveCryptoData(ENCRYPTION_INITIAL, offset, frame_data);
 
     QuicDataWriter writer(QUIC_ARRAYSIZE(packet_buffer), packet_buffer,
                           NETWORK_BYTE_ORDER);

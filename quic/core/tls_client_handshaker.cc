@@ -69,9 +69,9 @@ bool TlsClientHandshaker::CryptoConnect() {
   CryptoUtils::CreateTlsInitialCrypters(
       Perspective::IS_CLIENT, session()->connection()->transport_version(),
       session()->connection_id(), &crypters);
-  session()->connection()->SetEncrypter(ENCRYPTION_NONE,
+  session()->connection()->SetEncrypter(ENCRYPTION_INITIAL,
                                         std::move(crypters.encrypter));
-  session()->connection()->SetDecrypter(ENCRYPTION_NONE,
+  session()->connection()->SetDecrypter(ENCRYPTION_INITIAL,
                                         std::move(crypters.decrypter));
   state_ = STATE_HANDSHAKE_RUNNING;
   // Configure certificate verification.

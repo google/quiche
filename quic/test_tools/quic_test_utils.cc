@@ -131,7 +131,7 @@ std::unique_ptr<QuicPacket> BuildUnsizedDataPacket(
     size_t packet_size) {
   char* buffer = new char[packet_size];
   size_t length = framer->BuildDataPacket(header, frames, buffer, packet_size,
-                                          ENCRYPTION_NONE);
+                                          ENCRYPTION_INITIAL);
   DCHECK_NE(0u, length);
   // Re-construct the data packet with data ownership.
   return QuicMakeUnique<QuicPacket>(
@@ -875,7 +875,7 @@ QuicEncryptedPacket* ConstructEncryptedPacket(
         0, QuicStringPiece(data)));
     frames.push_back(frame);
   } else {
-    QuicFrame frame(new QuicCryptoFrame(ENCRYPTION_NONE, 0, data));
+    QuicFrame frame(new QuicCryptoFrame(ENCRYPTION_INITIAL, 0, data));
     frames.push_back(frame);
   }
 
@@ -884,7 +884,7 @@ QuicEncryptedPacket* ConstructEncryptedPacket(
   EXPECT_TRUE(packet != nullptr);
   char* buffer = new char[kMaxPacketSize];
   size_t encrypted_length =
-      framer.EncryptPayload(ENCRYPTION_NONE, QuicPacketNumber(packet_number),
+      framer.EncryptPayload(ENCRYPTION_INITIAL, QuicPacketNumber(packet_number),
                             *packet, buffer, kMaxPacketSize);
   EXPECT_NE(0u, encrypted_length);
   DeleteFrames(&frames);
@@ -945,7 +945,7 @@ QuicEncryptedPacket* ConstructMisFramedEncryptedPacket(
 
   char* buffer = new char[kMaxPacketSize];
   size_t encrypted_length =
-      framer.EncryptPayload(ENCRYPTION_NONE, QuicPacketNumber(packet_number),
+      framer.EncryptPayload(ENCRYPTION_INITIAL, QuicPacketNumber(packet_number),
                             *packet, buffer, kMaxPacketSize);
   EXPECT_NE(0u, encrypted_length);
   return new QuicEncryptedPacket(buffer, encrypted_length, true);

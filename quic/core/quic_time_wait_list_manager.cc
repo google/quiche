@@ -158,14 +158,14 @@ void QuicTimeWaitListManager::ProcessPacket(
           if (!connection_data->ietf_quic) {
             QUIC_CODE_COUNT(quic_received_short_header_packet_for_gquic);
           }
-          if (connection_data->encryption_level == ENCRYPTION_NONE) {
+          if (connection_data->encryption_level == ENCRYPTION_INITIAL) {
             QUIC_CODE_COUNT(
                 quic_encryption_none_termination_packets_for_short_header);
             if (GetQuicReloadableFlag(quic_always_reset_short_header_packets)) {
               QUIC_RELOADABLE_FLAG_COUNT(
                   quic_always_reset_short_header_packets);
               // Send stateless reset in response to short header packets,
-              // because ENCRYPTION_NONE termination packets will not be
+              // because ENCRYPTION_INITIAL termination packets will not be
               // processed by clients.
               SendPublicReset(self_address, peer_address, connection_id,
                               connection_data->ietf_quic,
@@ -370,7 +370,7 @@ QuicTimeWaitListManager::ConnectionIdData::ConnectionIdData(
     : num_packets(num_packets),
       ietf_quic(ietf_quic),
       time_added(time_added),
-      encryption_level(ENCRYPTION_NONE),
+      encryption_level(ENCRYPTION_INITIAL),
       action(action) {}
 
 QuicTimeWaitListManager::ConnectionIdData::ConnectionIdData(

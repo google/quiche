@@ -7,7 +7,7 @@
 namespace quic {
 
 QuicTransmissionInfo::QuicTransmissionInfo()
-    : encryption_level(ENCRYPTION_NONE),
+    : encryption_level(ENCRYPTION_INITIAL),
       packet_number_length(PACKET_1BYTE_PACKET_NUMBER),
       bytes_sent(0),
       sent_time(QuicTime::Zero()),

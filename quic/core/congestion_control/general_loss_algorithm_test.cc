@@ -59,7 +59,7 @@ class GeneralLossAlgorithmTest : public QuicTest {
                     const std::vector<uint64_t>& losses_expected) {
     if (unacked_packets_.use_uber_loss_algorithm()) {
       unacked_packets_.MaybeUpdateLargestAckedOfPacketNumberSpace(
-          ENCRYPTION_NONE, QuicPacketNumber(largest_newly_acked));
+          ENCRYPTION_INITIAL, QuicPacketNumber(largest_newly_acked));
     } else if (!unacked_packets_.largest_acked().IsInitialized() ||
                QuicPacketNumber(largest_newly_acked) >
                    unacked_packets_.largest_acked()) {
@@ -216,7 +216,7 @@ TEST_F(GeneralLossAlgorithmTest, DontEarlyRetransmitNeuteredPacket) {
   // Early retransmit when the final packet gets acked and the first is nacked.
   if (unacked_packets_.use_uber_loss_algorithm()) {
     unacked_packets_.MaybeUpdateLargestAckedOfPacketNumberSpace(
-        ENCRYPTION_NONE, QuicPacketNumber(2));
+        ENCRYPTION_INITIAL, QuicPacketNumber(2));
   } else {
     unacked_packets_.IncreaseLargestAcked(QuicPacketNumber(2));
   }
@@ -239,7 +239,7 @@ TEST_F(GeneralLossAlgorithmTest, EarlyRetransmitWithLargerUnackablePackets) {
   // Early retransmit when the final packet gets acked and the first is nacked.
   if (unacked_packets_.use_uber_loss_algorithm()) {
     unacked_packets_.MaybeUpdateLargestAckedOfPacketNumberSpace(
-        ENCRYPTION_NONE, QuicPacketNumber(2));
+        ENCRYPTION_INITIAL, QuicPacketNumber(2));
   } else {
     unacked_packets_.IncreaseLargestAcked(QuicPacketNumber(2));
   }
@@ -271,7 +271,7 @@ TEST_F(GeneralLossAlgorithmTest, AlwaysLosePacketSent1RTTEarlier) {
   clock_.AdvanceTime(rtt_stats_.smoothed_rtt());
   if (unacked_packets_.use_uber_loss_algorithm()) {
     unacked_packets_.MaybeUpdateLargestAckedOfPacketNumberSpace(
-        ENCRYPTION_NONE, QuicPacketNumber(2));
+        ENCRYPTION_INITIAL, QuicPacketNumber(2));
   } else {
     unacked_packets_.IncreaseLargestAcked(QuicPacketNumber(2));
   }

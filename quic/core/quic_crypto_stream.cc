@@ -29,7 +29,7 @@ QuicCryptoStream::QuicCryptoStream(QuicSession* session)
                  session,
                  /*is_static=*/true,
                  BIDIRECTIONAL),
-      substreams_{{this, ENCRYPTION_NONE},
+      substreams_{{this, ENCRYPTION_INITIAL},
                   {this, ENCRYPTION_HANDSHAKE},
                   {this, ENCRYPTION_ZERO_RTT},
                   {this, ENCRYPTION_FORWARD_SECURE}} {
@@ -178,14 +178,15 @@ bool QuicCryptoStream::OnCryptoFrameAcked(const QuicCryptoFrame& frame,
 void QuicCryptoStream::NeuterUnencryptedStreamData() {
   if (!QuicVersionUsesCryptoFrames(
           session()->connection()->transport_version())) {
-    for (const auto& interval : bytes_consumed_[ENCRYPTION_NONE]) {
+    for (const auto& interval : bytes_consumed_[ENCRYPTION_INITIAL]) {
       QuicByteCount newly_acked_length = 0;
       send_buffer().OnStreamDataAcked(
           interval.min(), interval.max() - interval.min(), &newly_acked_length);
     }
     return;
   }
-  QuicStreamSendBuffer* send_buffer = &substreams_[ENCRYPTION_NONE].send_buffer;
+  QuicStreamSendBuffer* send_buffer =
+      &substreams_[ENCRYPTION_INITIAL].send_buffer;
   // TODO(nharper): Consider adding a Clear() method to QuicStreamSendBuffer to
   // replace the following code.
   QuicIntervalSet<QuicStreamOffset> to_ack = send_buffer->bytes_acked();
@@ -215,7 +216,7 @@ bool QuicCryptoStream::HasPendingCryptoRetransmission() {
     return false;
   }
   for (EncryptionLevel level :
-       {ENCRYPTION_NONE, ENCRYPTION_ZERO_RTT, ENCRYPTION_FORWARD_SECURE}) {
+       {ENCRYPTION_INITIAL, ENCRYPTION_ZERO_RTT, ENCRYPTION_FORWARD_SECURE}) {
     if (substreams_[level].send_buffer.HasPendingRetransmission()) {
       return true;
     }
@@ -230,7 +231,7 @@ void QuicCryptoStream::WritePendingCryptoRetransmission() {
   EncryptionLevel current_encryption_level =
       session()->connection()->encryption_level();
   for (EncryptionLevel level :
-       {ENCRYPTION_NONE, ENCRYPTION_ZERO_RTT, ENCRYPTION_FORWARD_SECURE}) {
+       {ENCRYPTION_INITIAL, ENCRYPTION_ZERO_RTT, ENCRYPTION_FORWARD_SECURE}) {
     QuicStreamSendBuffer* send_buffer = &substreams_[level].send_buffer;
     session()->connection()->SetDefaultEncryptionLevel(level);
     while (send_buffer->HasPendingRetransmission()) {
@@ -249,7 +250,7 @@ void QuicCryptoStream::WritePendingRetransmission() {
         send_buffer().NextPendingRetransmission();
     QuicIntervalSet<QuicStreamOffset> retransmission(
         pending.offset, pending.offset + pending.length);
-    EncryptionLevel retransmission_encryption_level = ENCRYPTION_NONE;
+    EncryptionLevel retransmission_encryption_level = ENCRYPTION_INITIAL;
     // Determine the encryption level to write the retransmission
     // at. The retransmission should be written at the same encryption level
     // as the original transmission.
@@ -295,7 +296,7 @@ bool QuicCryptoStream::RetransmitStreamData(QuicStreamOffset offset,
                                                    offset + data_length);
   // Determine the encryption level to send data. This only needs to be once as
   // [offset, offset + data_length) is guaranteed to be in the same packet.
-  EncryptionLevel send_encryption_level = ENCRYPTION_NONE;
+  EncryptionLevel send_encryption_level = ENCRYPTION_INITIAL;
   for (size_t i = 0; i < NUM_ENCRYPTION_LEVELS; ++i) {
     if (retransmission.Intersects(bytes_consumed_[i])) {
       send_encryption_level = static_cast<EncryptionLevel>(i);
@@ -337,7 +338,7 @@ uint64_t QuicCryptoStream::crypto_bytes_read() const {
           session()->connection()->transport_version())) {
     return stream_bytes_read();
   }
-  return substreams_[ENCRYPTION_NONE].sequencer.NumBytesConsumed() +
+  return substreams_[ENCRYPTION_INITIAL].sequencer.NumBytesConsumed() +
          substreams_[ENCRYPTION_ZERO_RTT].sequencer.NumBytesConsumed() +
          substreams_[ENCRYPTION_FORWARD_SECURE].sequencer.NumBytesConsumed();
 }
@@ -413,7 +414,7 @@ bool QuicCryptoStream::IsWaitingForAcks() const {
     return QuicStream::IsWaitingForAcks();
   }
   for (EncryptionLevel level :
-       {ENCRYPTION_NONE, ENCRYPTION_ZERO_RTT, ENCRYPTION_FORWARD_SECURE}) {
+       {ENCRYPTION_INITIAL, ENCRYPTION_ZERO_RTT, ENCRYPTION_FORWARD_SECURE}) {
     if (substreams_[level].send_buffer.stream_bytes_outstanding()) {
       return true;
     }
