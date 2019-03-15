@@ -340,11 +340,11 @@ QuicCryptoServerConfig::GenerateConfig(QuicRandom* rand,
   return config;
 }
 
-CryptoHandshakeMessage* QuicCryptoServerConfig::AddConfig(
+std::unique_ptr<CryptoHandshakeMessage> QuicCryptoServerConfig::AddConfig(
     std::unique_ptr<QuicServerConfigProtobuf> protobuf,
     const QuicWallTime now) {
-  std::unique_ptr<CryptoHandshakeMessage> msg(
-      CryptoFramer::ParseMessage(protobuf->config()));
+  std::unique_ptr<CryptoHandshakeMessage> msg =
+      CryptoFramer::ParseMessage(protobuf->config());
 
   if (!msg.get()) {
     QUIC_LOG(WARNING) << "Failed to parse server config message";
@@ -373,13 +373,13 @@ CryptoHandshakeMessage* QuicCryptoServerConfig::AddConfig(
               primary_config_.get());
   }
 
-  return msg.release();
+  return msg;
 }
 
-CryptoHandshakeMessage* QuicCryptoServerConfig::AddDefaultConfig(
-    QuicRandom* rand,
-    const QuicClock* clock,
-    const ConfigOptions& options) {
+std::unique_ptr<CryptoHandshakeMessage>
+QuicCryptoServerConfig::AddDefaultConfig(QuicRandom* rand,
+                                         const QuicClock* clock,
+                                         const ConfigOptions& options) {
   return AddConfig(GenerateConfig(rand, clock, options), clock->WallNow());
 }
 

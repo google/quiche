@@ -124,15 +124,15 @@ TEST_F(CryptoTestUtilsTest, TestGenerateFullCHLO) {
 
   QuicCryptoServerConfig::ConfigOptions old_config_options;
   old_config_options.id = "old-config-id";
-  delete crypto_config.AddDefaultConfig(QuicRandom::GetInstance(), &clock,
-                                        old_config_options);
+  crypto_config.AddDefaultConfig(QuicRandom::GetInstance(), &clock,
+                                 old_config_options);
   QuicCryptoServerConfig::ConfigOptions new_config_options;
-  std::unique_ptr<QuicServerConfigProtobuf> primary_config(
+  std::unique_ptr<QuicServerConfigProtobuf> primary_config =
       crypto_config.GenerateConfig(QuicRandom::GetInstance(), &clock,
-                                   new_config_options));
+                                   new_config_options);
   primary_config->set_primary_time(clock.WallNow().ToUNIXSeconds());
-  std::unique_ptr<CryptoHandshakeMessage> msg(
-      crypto_config.AddConfig(std::move(primary_config), clock.WallNow()));
+  std::unique_ptr<CryptoHandshakeMessage> msg =
+      crypto_config.AddConfig(std::move(primary_config), clock.WallNow());
   QuicStringPiece orbit;
   ASSERT_TRUE(msg->GetStringPiece(kORBT, &orbit));
   std::string nonce;

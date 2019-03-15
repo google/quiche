@@ -209,8 +209,8 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
   // |server_nonce_entropy|: an entropy source used to generate the orbit and
   //     key for server nonces, which are always local to a given instance of a
   //     server. Not owned.
-  // |proof_source|: provides certificate chains and signatures. This class
-  //     takes ownership of |proof_source|.
+  // |proof_source|: provides certificate chains and signatures.
+  // |key_exchange_source|: provides key-exchange functionality.
   // |ssl_ctx|: The SSL_CTX used for doing TLS handshakes.
   QuicCryptoServerConfig(QuicStringPiece source_address_token_secret,
                          QuicRandom* server_nonce_entropy,
@@ -232,20 +232,20 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
       const ConfigOptions& options);
 
   // AddConfig adds a QuicServerConfigProtobuf to the available configurations.
-  // It returns the SCFG message from the config if successful. The caller
-  // takes ownership of the CryptoHandshakeMessage. |now| is used in
+  // It returns the SCFG message from the config if successful. |now| is used in
   // conjunction with |protobuf->primary_time()| to determine whether the
   // config should be made primary.
-  CryptoHandshakeMessage* AddConfig(
+  std::unique_ptr<CryptoHandshakeMessage> AddConfig(
       std::unique_ptr<QuicServerConfigProtobuf> protobuf,
       QuicWallTime now);
 
   // AddDefaultConfig calls DefaultConfig to create a config and then calls
   // AddConfig to add it. See the comment for |DefaultConfig| for details of
   // the arguments.
-  CryptoHandshakeMessage* AddDefaultConfig(QuicRandom* rand,
-                                           const QuicClock* clock,
-                                           const ConfigOptions& options);
+  std::unique_ptr<CryptoHandshakeMessage> AddDefaultConfig(
+      QuicRandom* rand,
+      const QuicClock* clock,
+      const ConfigOptions& options);
 
   // SetConfigs takes a vector of config protobufs and the current time.
   // Configs are assumed to be uniquely identified by their server config ID.

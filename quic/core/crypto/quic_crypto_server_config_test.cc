@@ -158,8 +158,8 @@ class SourceAddressTokenTest : public QuicTest {
     clock_.AdvanceTime(QuicTime::Delta::FromSeconds(1000000));
     original_time_ = clock_.WallNow();
 
-    primary_config_.reset(server_.AddDefaultConfig(
-        rand_, &clock_, QuicCryptoServerConfig::ConfigOptions()));
+    primary_config_ = server_.AddDefaultConfig(
+        rand_, &clock_, QuicCryptoServerConfig::ConfigOptions());
   }
 
   std::string NewSourceAddressToken(std::string config_id,

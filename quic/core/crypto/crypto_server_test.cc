@@ -133,7 +133,7 @@ class CryptoServerTest : public QuicTestWithParam<TestParams> {
   void SetUp() override {
     QuicCryptoServerConfig::ConfigOptions old_config_options;
     old_config_options.id = kOldConfigId;
-    delete config_.AddDefaultConfig(rand_, &clock_, old_config_options);
+    config_.AddDefaultConfig(rand_, &clock_, old_config_options);
     clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(1000));
     std::unique_ptr<QuicServerConfigProtobuf> primary_config(
         config_.GenerateConfig(rand_, &clock_, config_options_));
