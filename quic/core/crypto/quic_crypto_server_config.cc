@@ -95,6 +95,23 @@ class DefaultKeyExchangeSource : public KeyExchangeSource {
   }
 };
 
+// Returns true if the PDMD field from the client hello demands an X509
+// certificate.
+bool ClientDemandsX509Proof(const CryptoHandshakeMessage& client_hello) {
+  QuicTagVector their_proof_demands;
+
+  if (client_hello.GetTaglist(kPDMD, &their_proof_demands) != QUIC_NO_ERROR) {
+    return false;
+  }
+
+  for (const QuicTag tag : their_proof_demands) {
+    if (tag == kX509) {
+      return true;
+    }
+  }
+  return false;
+}
+
 }  // namespace
 
 // static
@@ -1929,22 +1946,6 @@ bool QuicCryptoServerConfig::ValidateExpectedLeafCertificate(
     return false;
   }
   return CryptoUtils::ComputeLeafCertHash(certs.at(0)) == hash_from_client;
-}
-
-bool QuicCryptoServerConfig::ClientDemandsX509Proof(
-    const CryptoHandshakeMessage& client_hello) const {
-  QuicTagVector their_proof_demands;
-
-  if (client_hello.GetTaglist(kPDMD, &their_proof_demands) != QUIC_NO_ERROR) {
-    return false;
-  }
-
-  for (const QuicTag tag : their_proof_demands) {
-    if (tag == kX509) {
-      return true;
-    }
-  }
-  return false;
 }
 
 bool QuicCryptoServerConfig::IsNextConfigReady(QuicWallTime now) const {

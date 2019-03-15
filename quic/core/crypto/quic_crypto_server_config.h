@@ -682,10 +682,6 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
       const CryptoHandshakeMessage& client_hello,
       const std::vector<std::string>& certs) const;
 
-  // Returns true if the PDMD field from the client hello demands an X509
-  // certificate.
-  bool ClientDemandsX509Proof(const CryptoHandshakeMessage& client_hello) const;
-
   // Callback to receive the results of ProofSource::GetProof.  Note: this
   // callback has no cancellation support, since the lifetime of the ProofSource
   // is controlled by this object via unique ownership.  If that ownership
