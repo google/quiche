@@ -1941,73 +1941,8 @@ bool QuicConnection::ProcessValidatedPacket(const QuicPacketHeader& header) {
     self_address_ = last_packet_destination_address_;
   }
 
-  if (GetQuicRestartFlag(quic_enable_accept_random_ipn)) {
-    QUIC_RESTART_FLAG_COUNT_N(quic_enable_accept_random_ipn, 2, 2);
-    // Configured to accept any packet number in range 1...0x7fffffff
-    // as initial packet number.
-    if (last_header_.packet_number.IsInitialized()) {
-      // The last packet's number is not 0. Ensure that this packet
-      // is reasonably close to where it should be.
-      if (!Near(header.packet_number, last_header_.packet_number)) {
-        QUIC_DLOG(INFO) << ENDPOINT << "Packet " << header.packet_number
-                        << " out of bounds.  Discarding";
-        CloseConnection(QUIC_INVALID_PACKET_HEADER,
-                        "Packet number out of bounds.",
-                        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
-        return false;
-      }
-    } else {
-      // The "last packet's number" is 0, meaning that this packet is the first
-      // one received. Ensure it is in range 1..MaxRandomInitialPacketNumber(),
-      // inclusive.
-      if ((header.packet_number > MaxRandomInitialPacketNumber())) {
-        // packet number is bad.
-        QUIC_DLOG(INFO) << ENDPOINT << "Initial packet " << header.packet_number
-                        << " out of bounds.  Discarding";
-        CloseConnection(QUIC_INVALID_PACKET_HEADER,
-                        "Initial packet number out of bounds.",
-                        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
-        return false;
-      }
-    }
-  } else {  //  if (GetQuicRestartFlag(quic_enable_accept_random_ipn))
-    // Count those that would have been accepted if FLAGS..random_ipn
-    // were true -- to detect/diagnose potential issues prior to
-    // enabling the flag.
-    if (header.packet_number >
-            received_packet_manager_.PeerFirstSendingPacketNumber() &&
-        header.packet_number <= MaxRandomInitialPacketNumber()) {
-      QUIC_CODE_COUNT_N(had_possibly_random_ipn, 2, 2);
-    }
-    bool out_of_bound =
-        last_header_.packet_number.IsInitialized()
-            ? !Near(header.packet_number, last_header_.packet_number)
-            : header.packet_number >=
-                  (received_packet_manager_.PeerFirstSendingPacketNumber() +
-                   kMaxPacketGap);
-    if (out_of_bound) {
-      QUIC_DLOG(INFO) << ENDPOINT << "Packet " << header.packet_number
-                      << " out of bounds.  Discarding";
-      QuicStringPiece packet_data = GetCurrentPacket();
-      const size_t kMaxPacketLengthInErrorDetails = 64;
-      CloseConnection(
-          QUIC_INVALID_PACKET_HEADER,
-          QuicStrCat("Packet number out of bounds. ",
-                     last_header_.packet_number.IsInitialized()
-                         ? QuicStrCat("last_pkn=",
-                                      last_header_.packet_number.ToUint64())
-                         : "first received packet",
-                     ", current_pkn=", header.packet_number.ToUint64(),
-                     ", current_pkt_len=", packet_data.length(),
-                     ", current_hdr=",
-                     QuicTextUtils::HexEncode(
-                         packet_data.length() > kMaxPacketLengthInErrorDetails
-                             ? QuicStringPiece(packet_data.data(),
-                                               kMaxPacketLengthInErrorDetails)
-                             : packet_data)),
-          ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
-      return false;
-    }
+  if (!ValidateReceivedPacketNumber(header.packet_number)) {
+    return false;
   }
 
   if (version_negotiation_state_ != NEGOTIATED_VERSION) {
@@ -2038,6 +1973,65 @@ bool QuicConnection::ProcessValidatedPacket(const QuicPacketHeader& header) {
     SetMaxPacketLength(last_size_);
   }
   return true;
+}
+
+bool QuicConnection::ValidateReceivedPacketNumber(
+    QuicPacketNumber packet_number) {
+  if (GetQuicRestartFlag(quic_enable_accept_random_ipn)) {
+    QUIC_RESTART_FLAG_COUNT_N(quic_enable_accept_random_ipn, 2, 2);
+    // Configured to accept any packet number in range 1...0x7fffffff as initial
+    // packet number.
+    bool out_of_bound = false;
+    string error_detail = "Packet number out of bounds.";
+    if (last_header_.packet_number.IsInitialized()) {
+      out_of_bound = !Near(packet_number, last_header_.packet_number);
+    } else if ((packet_number > MaxRandomInitialPacketNumber())) {
+      out_of_bound = true;
+      error_detail = "Initial packet number out of bounds.";
+    }
+    if (out_of_bound) {
+      QUIC_DLOG(INFO) << ENDPOINT << "Packet " << packet_number
+                      << " out of bounds.  Discarding";
+      CloseConnection(QUIC_INVALID_PACKET_HEADER, error_detail,
+                      ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+      return false;
+    }
+    return true;
+  }
+
+  if (packet_number > received_packet_manager_.PeerFirstSendingPacketNumber() &&
+      packet_number <= MaxRandomInitialPacketNumber()) {
+    QUIC_CODE_COUNT_N(had_possibly_random_ipn, 2, 2);
+  }
+  const bool out_of_bound =
+      last_header_.packet_number.IsInitialized()
+          ? !Near(packet_number, last_header_.packet_number)
+          : packet_number >=
+                (received_packet_manager_.PeerFirstSendingPacketNumber() +
+                 kMaxPacketGap);
+  if (!out_of_bound) {
+    return true;
+  }
+  QUIC_DLOG(INFO) << ENDPOINT << "Packet " << packet_number
+                  << " out of bounds.  Discarding";
+  QuicStringPiece packet_data = GetCurrentPacket();
+  const size_t kMaxPacketLengthInErrorDetails = 64;
+  CloseConnection(
+      QUIC_INVALID_PACKET_HEADER,
+      QuicStrCat(
+          "Packet number out of bounds. ",
+          last_header_.packet_number.IsInitialized()
+              ? QuicStrCat("last_pkn=", last_header_.packet_number.ToUint64())
+              : "first received packet",
+          ", current_pkn=", packet_number.ToUint64(),
+          ", current_pkt_len=", packet_data.length(), ", current_hdr=",
+          QuicTextUtils::HexEncode(
+              packet_data.length() > kMaxPacketLengthInErrorDetails
+                  ? QuicStringPiece(packet_data.data(),
+                                    kMaxPacketLengthInErrorDetails)
+                  : packet_data)),
+      ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+  return false;
 }
 
 void QuicConnection::WriteQueuedPackets() {

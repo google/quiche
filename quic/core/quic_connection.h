@@ -1045,6 +1045,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // handled, false otherwise.
   bool ProcessValidatedPacket(const QuicPacketHeader& header);
 
+  // Returns true if received |packet_number| can be processed. Please note,
+  // this is called after packet got decrypted successfully.
+  bool ValidateReceivedPacketNumber(QuicPacketNumber packet_number);
+
   // Consider receiving crypto frame on non crypto stream as memory corruption.
   bool MaybeConsiderAsMemoryCorruption(const QuicStreamFrame& frame);
 
