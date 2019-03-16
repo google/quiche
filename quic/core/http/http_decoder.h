@@ -65,8 +65,9 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
     // Called when a DATA frame has been received.
     // |frame_length| contains DATA frame length and payload length.
     virtual void OnDataFrameStart(Http3FrameLengths frame_length) = 0;
-    // Called when the payload of a DATA frame has read. May be called
-    // multiple times for a single frame.
+    // Called when part of the payload of a DATA frame has been read.  May be
+    // called multiple times for a single frame.  |payload| is guaranteed to be
+    // non-empty.
     virtual void OnDataFramePayload(QuicStringPiece payload) = 0;
     // Called when a DATA frame has been completely processed.
     virtual void OnDataFrameEnd() = 0;
@@ -74,8 +75,9 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
     // Called when a HEADERS frame has been recevied.
     // |frame_length| contains HEADERS frame length and payload length.
     virtual void OnHeadersFrameStart(Http3FrameLengths frame_length) = 0;
-    // Called when the payload of a HEADERS frame has read. May be called
-    // multiple times for a single frame.
+    // Called when part of the payload of a HEADERS frame has been read.  May be
+    // called multiple times for a single frame.  |payload| is guaranteed to be
+    // non-empty.
     virtual void OnHeadersFramePayload(QuicStringPiece payload) = 0;
     // Called when a HEADERS frame has been completely processed.
     // |frame_len| is the length of the HEADERS frame payload.
@@ -83,8 +85,9 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
 
     // Called when a PUSH_PROMISE frame has been recevied for |push_id|.
     virtual void OnPushPromiseFrameStart(PushId push_id) = 0;
-    // Called when the payload of a PUSH_PROMISE frame has read. May be called
-    // multiple times for a single frame.
+    // Called when part of the payload of a PUSH_PROMISE frame has been read.
+    // May be called multiple times for a single frame.  |payload| is guaranteed
+    // to be non-empty.
     virtual void OnPushPromiseFramePayload(QuicStringPiece payload) = 0;
     // Called when a PUSH_PROMISE frame has been completely processed.
     virtual void OnPushPromiseFrameEnd() = 0;
@@ -118,6 +121,7 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
     STATE_READING_FRAME_LENGTH,
     STATE_READING_FRAME_TYPE,
     STATE_READING_FRAME_PAYLOAD,
+    STATE_FINISH_PARSING,
     STATE_ERROR
   };
 
@@ -126,12 +130,17 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
   void ReadFrameLength(QuicDataReader* reader);
 
   // Reads the type of a frame from |reader|. Sets error_ and error_detail_
-  // if there are any errors.
+  // if there are any errors.  Also calls OnDataFrameStart() or
+  // OnHeadersFrameStart() for appropriate frame types.
   void ReadFrameType(QuicDataReader* reader);
 
   // Reads the payload of the current frame from |reader| and processes it,
   // possibly buffering the data or invoking the visitor.
   void ReadFramePayload(QuicDataReader* reader);
+
+  // Optionally parses buffered data; calls visitor method to signal that frame
+  // had been parsed completely.
+  void FinishParsing();
 
   // Discards any remaining frame payload from |reader|.
   void DiscardFramePayload(QuicDataReader* reader);

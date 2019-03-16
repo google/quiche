@@ -68,6 +68,7 @@ class QuicSpdyStream::HttpDecoderVisitor : public HttpDecoder::Visitor {
   }
 
   void OnDataFramePayload(QuicStringPiece payload) override {
+    DCHECK(!payload.empty());
     stream_->OnDataFramePayload(payload);
   }
 
@@ -83,6 +84,7 @@ class QuicSpdyStream::HttpDecoderVisitor : public HttpDecoder::Visitor {
   }
 
   void OnHeadersFramePayload(QuicStringPiece payload) override {
+    DCHECK(!payload.empty());
     if (!VersionUsesQpack(
             stream_->session()->connection()->transport_version())) {
       CloseConnectionOnWrongFrame("Headers");
@@ -105,6 +107,7 @@ class QuicSpdyStream::HttpDecoderVisitor : public HttpDecoder::Visitor {
   }
 
   void OnPushPromiseFramePayload(QuicStringPiece payload) override {
+    DCHECK(!payload.empty());
     CloseConnectionOnWrongFrame("Push Promise");
   }
 

@@ -23,6 +23,7 @@ void QuicSpdyStreamBodyBuffer::OnDataHeader(Http3FrameLengths frame_lengths) {
 }
 
 void QuicSpdyStreamBodyBuffer::OnDataPayload(QuicStringPiece payload) {
+  DCHECK(!payload.empty());
   bodies_.push_back(payload);
   total_body_bytes_received_ += payload.length();
   total_body_bytes_readable_ += payload.length();

@@ -333,13 +333,13 @@ TEST_F(HttpDecoderTest, FrameHeaderPartialDelivery) {
   EXPECT_EQ("", decoder_.error_detail());
 
   // Send the rest of the header.
+  EXPECT_CALL(visitor_, OnDataFrameStart(Http3FrameLengths(3, 2048)));
   EXPECT_EQ(header_length - 1,
             decoder_.ProcessInput(header.data() + 1, header_length - 1));
   EXPECT_EQ(QUIC_NO_ERROR, decoder_.error());
   EXPECT_EQ("", decoder_.error_detail());
 
   // Send data.
-  EXPECT_CALL(visitor_, OnDataFrameStart(Http3FrameLengths(3, 2048)));
   EXPECT_CALL(visitor_, OnDataFramePayload(QuicStringPiece(input)));
   EXPECT_CALL(visitor_, OnDataFrameEnd());
   EXPECT_EQ(2048u, decoder_.ProcessInput(input.data(), 2048));
@@ -399,6 +399,76 @@ TEST_F(HttpDecoderTest, HeadersFrame) {
   EXPECT_CALL(visitor_, OnHeadersFramePayload(QuicStringPiece("r")));
   EXPECT_CALL(visitor_, OnHeadersFramePayload(QuicStringPiece("s")));
   EXPECT_CALL(visitor_, OnHeadersFrameEnd(7));
+  for (char c : input) {
+    EXPECT_EQ(1u, decoder_.ProcessInput(&c, 1));
+  }
+  EXPECT_EQ(QUIC_NO_ERROR, decoder_.error());
+  EXPECT_EQ("", decoder_.error_detail());
+}
+
+TEST_F(HttpDecoderTest, EmptyDataFrame) {
+  char input[] = {0x00,   // length
+                  0x00};  // type (DATA)
+
+  // Process the full frame.
+  InSequence s;
+  EXPECT_CALL(visitor_, OnDataFrameStart(Http3FrameLengths(2, 0)));
+  EXPECT_CALL(visitor_, OnDataFrameEnd());
+  EXPECT_EQ(QUIC_ARRAYSIZE(input),
+            decoder_.ProcessInput(input, QUIC_ARRAYSIZE(input)));
+  EXPECT_EQ(QUIC_NO_ERROR, decoder_.error());
+  EXPECT_EQ("", decoder_.error_detail());
+
+  // Process the frame incremently.
+  EXPECT_CALL(visitor_, OnDataFrameStart(Http3FrameLengths(2, 0)));
+  EXPECT_CALL(visitor_, OnDataFrameEnd());
+  for (char c : input) {
+    EXPECT_EQ(1u, decoder_.ProcessInput(&c, 1));
+  }
+  EXPECT_EQ(QUIC_NO_ERROR, decoder_.error());
+  EXPECT_EQ("", decoder_.error_detail());
+}
+
+TEST_F(HttpDecoderTest, EmptyHeadersFrame) {
+  char input[] = {0x00,   // length
+                  0x01};  // type (HEADERS)
+
+  // Process the full frame.
+  InSequence s;
+  EXPECT_CALL(visitor_, OnHeadersFrameStart(Http3FrameLengths(2, 0)));
+  EXPECT_CALL(visitor_, OnHeadersFrameEnd(0));
+  EXPECT_EQ(QUIC_ARRAYSIZE(input),
+            decoder_.ProcessInput(input, QUIC_ARRAYSIZE(input)));
+  EXPECT_EQ(QUIC_NO_ERROR, decoder_.error());
+  EXPECT_EQ("", decoder_.error_detail());
+
+  // Process the frame incremently.
+  EXPECT_CALL(visitor_, OnHeadersFrameStart(Http3FrameLengths(2, 0)));
+  EXPECT_CALL(visitor_, OnHeadersFrameEnd(0));
+  for (char c : input) {
+    EXPECT_EQ(1u, decoder_.ProcessInput(&c, 1));
+  }
+  EXPECT_EQ(QUIC_NO_ERROR, decoder_.error());
+  EXPECT_EQ("", decoder_.error_detail());
+}
+
+TEST_F(HttpDecoderTest, PushPromiseFrameNoHeaders) {
+  char input[] = {0x01,   // length
+                  0x05,   // type (PUSH_PROMISE)
+                  0x01};  // Push Id
+
+  // Process the full frame.
+  InSequence s;
+  EXPECT_CALL(visitor_, OnPushPromiseFrameStart(1));
+  EXPECT_CALL(visitor_, OnPushPromiseFrameEnd());
+  EXPECT_EQ(QUIC_ARRAYSIZE(input),
+            decoder_.ProcessInput(input, QUIC_ARRAYSIZE(input)));
+  EXPECT_EQ(QUIC_NO_ERROR, decoder_.error());
+  EXPECT_EQ("", decoder_.error_detail());
+
+  // Process the frame incremently.
+  EXPECT_CALL(visitor_, OnPushPromiseFrameStart(1));
+  EXPECT_CALL(visitor_, OnPushPromiseFrameEnd());
   for (char c : input) {
     EXPECT_EQ(1u, decoder_.ProcessInput(&c, 1));
   }
