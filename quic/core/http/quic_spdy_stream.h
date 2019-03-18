@@ -84,10 +84,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream : public QuicStream {
                                   size_t frame_len,
                                   const QuicHeaderList& header_list);
 
-  // Called when the received headers are too large. By default this will
-  // reset the stream.
-  virtual void OnHeadersTooLarge();
-
   // Called by the session when decompressed push promise headers have
   // been completely delivered to this stream.
   virtual void OnPromiseHeaderList(QuicStreamId promised_id,
@@ -202,6 +198,10 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream : public QuicStream {
   // will be available.
   bool IsClosed() { return sequencer()->IsClosed(); }
 
+  using QuicStream::CloseWriteSide;
+
+ protected:
+  // HTTP/3
   void OnDataFrameStart(Http3FrameLengths frame_lengths);
   void OnDataFramePayload(QuicStringPiece payload);
   void OnDataFrameEnd();
@@ -209,9 +209,10 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream : public QuicStream {
   void OnHeadersFramePayload(QuicStringPiece payload);
   void OnHeadersFrameEnd(QuicByteCount frame_len);
 
-  using QuicStream::CloseWriteSide;
+  // Called when the received headers are too large. By default this will
+  // reset the stream.
+  virtual void OnHeadersTooLarge();
 
- protected:
   virtual void OnInitialHeadersComplete(bool fin,
                                         size_t frame_len,
                                         const QuicHeaderList& header_list);
