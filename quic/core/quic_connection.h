@@ -1457,6 +1457,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // packet manager, and an ACK timeout would be used to record when an ACK
   // needs to be sent.
   bool send_ack_when_on_can_write_;
+
+  // Latched value of quic_validate_packet_number_post_decryption.
+  const bool validate_packet_number_post_decryption_;
 };
 
 }  // namespace quic

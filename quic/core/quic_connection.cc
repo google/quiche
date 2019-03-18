@@ -339,7 +339,9 @@ QuicConnection::QuicConnection(
       no_version_negotiation_(supported_versions.size() == 1),
       fix_termination_packets_(
           GetQuicReloadableFlag(quic_fix_termination_packets)),
-      send_ack_when_on_can_write_(false) {
+      send_ack_when_on_can_write_(false),
+      validate_packet_number_post_decryption_(
+          GetQuicReloadableFlag(quic_validate_packet_number_post_decryption)) {
   if (ack_mode_ == ACK_DECIMATION) {
     QUIC_RELOADABLE_FLAG_COUNT(quic_enable_ack_decimation);
   }
@@ -352,6 +354,9 @@ QuicConnection::QuicConnection(
   }
   if (received_packet_manager_.decide_when_to_send_acks()) {
     QUIC_RELOADABLE_FLAG_COUNT(quic_rpm_decides_when_to_send_acks);
+  }
+  if (validate_packet_number_post_decryption_) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_validate_packet_number_post_decryption);
   }
   QUIC_DLOG(INFO) << ENDPOINT
                   << "Created connection with connection_id: " << connection_id
@@ -758,7 +763,8 @@ bool QuicConnection::OnUnauthenticatedHeader(const QuicPacketHeader& header) {
 
   // If this packet has already been seen, or the sender has told us that it
   // will not be retransmitted, then stop processing the packet.
-  if (!received_packet_manager_.IsAwaitingPacket(header.packet_number)) {
+  if (!validate_packet_number_post_decryption_ &&
+      !received_packet_manager_.IsAwaitingPacket(header.packet_number)) {
     if (framer_.IsIetfStatelessResetPacket(header)) {
       QuicIetfStatelessResetPacket packet(
           header, header.possible_stateless_reset_token);
@@ -1977,6 +1983,16 @@ bool QuicConnection::ProcessValidatedPacket(const QuicPacketHeader& header) {
 
 bool QuicConnection::ValidateReceivedPacketNumber(
     QuicPacketNumber packet_number) {
+  if (validate_packet_number_post_decryption_ &&
+      !received_packet_manager_.IsAwaitingPacket(packet_number)) {
+    QUIC_DLOG(INFO) << ENDPOINT << "Packet " << packet_number
+                    << " no longer being waited for.  Discarding.";
+    if (debug_visitor_ != nullptr) {
+      debug_visitor_->OnDuplicatePacket(packet_number);
+    }
+    return false;
+  }
+
   if (GetQuicRestartFlag(quic_enable_accept_random_ipn)) {
     QUIC_RESTART_FLAG_COUNT_N(quic_enable_accept_random_ipn, 2, 2);
     // Configured to accept any packet number in range 1...0x7fffffff as initial
