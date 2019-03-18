@@ -458,7 +458,7 @@ const char* CryptoUtils::HandshakeFailureReasonToString(
 std::string CryptoUtils::HashHandshakeMessage(
     const CryptoHandshakeMessage& message,
     Perspective perspective) {
-  string output;
+  std::string output;
   const QuicData& serialized = message.GetSerialized();
   uint8_t digest[SHA256_DIGEST_LENGTH];
   SHA256(reinterpret_cast<const uint8_t*>(serialized.data()),

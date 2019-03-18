@@ -198,8 +198,8 @@ class QUIC_EXPORT_PRIVATE CryptoUtils {
       HandshakeFailureReason reason);
 
   // Returns a hash of the serialized |message|.
-  static string HashHandshakeMessage(const CryptoHandshakeMessage& message,
-                                     Perspective perspective);
+  static std::string HashHandshakeMessage(const CryptoHandshakeMessage& message,
+                                          Perspective perspective);
 
  private:
   // Implements the HKDF-Expand-Label function as defined in section 7.1 of RFC

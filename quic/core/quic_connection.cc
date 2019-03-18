@@ -1998,7 +1998,7 @@ bool QuicConnection::ValidateReceivedPacketNumber(
     // Configured to accept any packet number in range 1...0x7fffffff as initial
     // packet number.
     bool out_of_bound = false;
-    string error_detail = "Packet number out of bounds.";
+    std::string error_detail = "Packet number out of bounds.";
     if (last_header_.packet_number.IsInitialized()) {
       out_of_bound = !Near(packet_number, last_header_.packet_number);
     } else if ((packet_number > MaxRandomInitialPacketNumber())) {
