@@ -536,6 +536,120 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
           client_hello_state,
       std::unique_ptr<ValidateClientHelloResultCallback> done_cb) const;
 
+  // Convenience class which carries the arguments passed to
+  // |ProcessClientHellp| along.
+  class ProcessClientHelloContext {
+   public:
+    ProcessClientHelloContext(
+        QuicReferenceCountedPointer<ValidateClientHelloResultCallback::Result>
+            validate_chlo_result,
+        bool reject_only,
+        QuicConnectionId connection_id,
+        const QuicSocketAddress& server_address,
+        const QuicSocketAddress& client_address,
+        ParsedQuicVersion version,
+        const ParsedQuicVersionVector& supported_versions,
+        bool use_stateless_rejects,
+        QuicConnectionId server_designated_connection_id,
+        const QuicClock* clock,
+        QuicRandom* rand,
+        QuicCompressedCertsCache* compressed_certs_cache,
+        QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> params,
+        QuicReferenceCountedPointer<QuicSignedServerConfig> signed_config,
+        QuicByteCount total_framing_overhead,
+        QuicByteCount chlo_packet_size,
+        std::unique_ptr<ProcessClientHelloResultCallback> done_cb)
+        : validate_chlo_result_(validate_chlo_result),
+          reject_only_(reject_only),
+          connection_id_(connection_id),
+          server_address_(server_address),
+          client_address_(client_address),
+          version_(version),
+          supported_versions_(supported_versions),
+          use_stateless_rejects_(use_stateless_rejects),
+          server_designated_connection_id_(server_designated_connection_id),
+          clock_(clock),
+          rand_(rand),
+          compressed_certs_cache_(compressed_certs_cache),
+          params_(params),
+          signed_config_(signed_config),
+          total_framing_overhead_(total_framing_overhead),
+          chlo_packet_size_(chlo_packet_size),
+          done_cb_(std::move(done_cb)) {}
+
+    ~ProcessClientHelloContext();
+
+    // Invoke |done_cb_| with an error status
+    void Fail(QuicErrorCode error, const std::string& error_details);
+
+    // Invoke |done_cb_| with a success status
+    void Succeed(std::unique_ptr<CryptoHandshakeMessage> message,
+                 std::unique_ptr<DiversificationNonce> diversification_nonce,
+                 std::unique_ptr<ProofSource::Details> proof_source_details);
+
+    // Member accessors
+    QuicReferenceCountedPointer<ValidateClientHelloResultCallback::Result>
+    validate_chlo_result() const {
+      return validate_chlo_result_;
+    }
+    bool reject_only() const { return reject_only_; }
+    QuicConnectionId connection_id() const { return connection_id_; }
+    QuicSocketAddress server_address() const { return server_address_; }
+    QuicSocketAddress client_address() const { return client_address_; }
+    ParsedQuicVersion version() const { return version_; }
+    ParsedQuicVersionVector supported_versions() const {
+      return supported_versions_;
+    }
+    bool use_stateless_rejects() const { return use_stateless_rejects_; }
+    QuicConnectionId server_designated_connection_id() const {
+      return server_designated_connection_id_;
+    }
+    const QuicClock* clock() const { return clock_; }
+    QuicRandom* rand() const { return rand_; }  // NOLINT
+    QuicCompressedCertsCache* compressed_certs_cache() const {
+      return compressed_certs_cache_;
+    }
+    QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> params() const {
+      return params_;
+    }
+    QuicReferenceCountedPointer<QuicSignedServerConfig> signed_config() const {
+      return signed_config_;
+    }
+    QuicByteCount total_framing_overhead() const {
+      return total_framing_overhead_;
+    }
+    QuicByteCount chlo_packet_size() const { return chlo_packet_size_; }
+
+    // Derived value accessors
+    const CryptoHandshakeMessage& client_hello() const {
+      return validate_chlo_result()->client_hello;
+    }
+    const ClientHelloInfo& info() const { return validate_chlo_result()->info; }
+    QuicTransportVersion transport_version() const {
+      return version().transport_version;
+    }
+
+   private:
+    const QuicReferenceCountedPointer<ValidateClientHelloResultCallback::Result>
+        validate_chlo_result_;
+    const bool reject_only_;
+    const QuicConnectionId connection_id_;
+    const QuicSocketAddress server_address_;
+    const QuicSocketAddress client_address_;
+    const ParsedQuicVersion version_;
+    const ParsedQuicVersionVector supported_versions_;
+    const bool use_stateless_rejects_;
+    const QuicConnectionId server_designated_connection_id_;
+    const QuicClock* const clock_;
+    QuicRandom* const rand_;
+    QuicCompressedCertsCache* const compressed_certs_cache_;
+    const QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> params_;
+    const QuicReferenceCountedPointer<QuicSignedServerConfig> signed_config_;
+    const QuicByteCount total_framing_overhead_;
+    const QuicByteCount chlo_packet_size_;
+    std::unique_ptr<ProcessClientHelloResultCallback> done_cb_;
+  };
+
   // Callback class for bridging between ProcessClientHello and
   // ProcessClientHelloAfterGetProof.
   class ProcessClientHelloCallback;
@@ -545,25 +659,9 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
   void ProcessClientHelloAfterGetProof(
       bool found_error,
       std::unique_ptr<ProofSource::Details> proof_source_details,
-      QuicReferenceCountedPointer<ValidateClientHelloResultCallback::Result>
-          validate_chlo_result,
-      bool reject_only,
-      QuicConnectionId connection_id,
-      const QuicSocketAddress& client_address,
-      ParsedQuicVersion version,
-      const ParsedQuicVersionVector& supported_versions,
-      bool use_stateless_rejects,
-      QuicConnectionId server_designated_connection_id,
-      const QuicClock* clock,
-      QuicRandom* rand,
-      QuicCompressedCertsCache* compressed_certs_cache,
-      QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> params,
-      QuicReferenceCountedPointer<QuicSignedServerConfig> crypto_proof,
-      QuicByteCount total_framing_overhead,
-      QuicByteCount chlo_packet_size,
+      std::unique_ptr<ProcessClientHelloContext> context,
       const QuicReferenceCountedPointer<Config>& requested_config,
-      const QuicReferenceCountedPointer<Config>& primary_config,
-      std::unique_ptr<ProcessClientHelloResultCallback> done_cb) const;
+      const QuicReferenceCountedPointer<Config>& primary_config) const;
 
   // Callback class for bridging between ProcessClientHelloAfterGetProof and
   // ProcessClientHelloAfterCalculateSharedKeys.
@@ -577,34 +675,13 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
       QuicTag key_exchange_type,
       std::unique_ptr<CryptoHandshakeMessage> out,
       QuicStringPiece public_value,
-      const ValidateClientHelloResultCallback::Result& validate_chlo_result,
-      QuicConnectionId connection_id,
-      const QuicSocketAddress& client_address,
-      ParsedQuicVersion version,
-      const ParsedQuicVersionVector& supported_versions,
-      QuicRandom* rand,
-      QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> params,
-      QuicReferenceCountedPointer<QuicSignedServerConfig> signed_config,
-      const QuicReferenceCountedPointer<Config>& requested_config,
-      std::unique_ptr<ProcessClientHelloResultCallback> done_cb) const;
+      std::unique_ptr<ProcessClientHelloContext> context,
+      const QuicReferenceCountedPointer<Config>& requested_config) const;
 
   // BuildRejection sets |out| to be a REJ message in reply to |client_hello|.
-  void BuildRejection(
-      QuicTransportVersion version,
-      QuicWallTime now,
-      const Config& config,
-      const CryptoHandshakeMessage& client_hello,
-      const ClientHelloInfo& info,
-      const CachedNetworkParameters& cached_network_params,
-      bool use_stateless_rejects,
-      QuicConnectionId server_designated_connection_id,
-      QuicRandom* rand,
-      QuicCompressedCertsCache* compressed_certs_cache,
-      QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> params,
-      const QuicSignedServerConfig& crypto_proof,
-      QuicByteCount total_framing_overhead,
-      QuicByteCount chlo_packet_size,
-      CryptoHandshakeMessage* out) const;
+  void BuildRejection(const ProcessClientHelloContext& context,
+                      const Config& config,
+                      CryptoHandshakeMessage* out) const;
 
   // CompressChain compresses the certificates in |chain->certs| and returns a
   // compressed representation. |common_sets| contains the common certificate
