@@ -1098,6 +1098,19 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // which is the highest encryption level that peer can guarantee to process.
   EncryptionLevel GetConnectionCloseEncryptionLevel() const;
 
+  // Called after an ACK frame is successfully processed to update largest
+  // received packet number which contains an ACK frame.
+  void SetLargestReceivedPacketWithAck(QuicPacketNumber new_value);
+
+  // Returns largest received packet number which contains an ACK frame.
+  QuicPacketNumber GetLargestReceivedPacketWithAck() const;
+
+  // Returns the largest packet number that has been sent.
+  QuicPacketNumber GetLargestSentPacket() const;
+
+  // Returns the largest sent packet number that has been ACKed by peer.
+  QuicPacketNumber GetLargestAckedPacket() const;
+
   QuicFramer framer_;
 
   // Contents received in the current packet, especially used to identify
@@ -1163,6 +1176,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // Track some peer state so we can do less bookkeeping
   // Largest sequence sent by the peer which had an ack frame (latest ack info).
+  // Do not read or write directly, use GetLargestReceivedPacketWithAck() and
+  // SetLargestReceivedPacketWithAck() instead.
   QuicPacketNumber largest_seen_packet_with_ack_;
 
   // Largest packet number sent by the peer which had a stop waiting frame.

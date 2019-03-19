@@ -960,33 +960,33 @@ bool QuicConnection::OnAckFrameStart(QuicPacketNumber largest_acked,
   QUIC_DVLOG(1) << ENDPOINT
                 << "OnAckFrameStart, largest_acked: " << largest_acked;
 
-  if (largest_seen_packet_with_ack_.IsInitialized() &&
-      last_header_.packet_number <= largest_seen_packet_with_ack_) {
+  if (GetLargestReceivedPacketWithAck().IsInitialized() &&
+      last_header_.packet_number <= GetLargestReceivedPacketWithAck()) {
     QUIC_DLOG(INFO) << ENDPOINT << "Received an old ack frame: ignoring";
     return true;
   }
 
-  if (!sent_packet_manager_.GetLargestSentPacket().IsInitialized() ||
-      largest_acked > sent_packet_manager_.GetLargestSentPacket()) {
+  if (!GetLargestSentPacket().IsInitialized() ||
+      largest_acked > GetLargestSentPacket()) {
     QUIC_DLOG(WARNING) << ENDPOINT
                        << "Peer's observed unsent packet:" << largest_acked
-                       << " vs " << sent_packet_manager_.GetLargestSentPacket();
+                       << " vs " << GetLargestSentPacket();
     // We got an ack for data we have not sent.
     CloseConnection(QUIC_INVALID_ACK_DATA, "Largest observed too high.",
                     ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return false;
   }
 
-  if (!sent_packet_manager_.GetLargestObserved().IsInitialized() ||
-      largest_acked > sent_packet_manager_.GetLargestObserved()) {
+  if (!GetLargestAckedPacket().IsInitialized() ||
+      largest_acked > GetLargestAckedPacket()) {
     visitor_->OnForwardProgressConfirmed();
   } else if (!sent_packet_manager_.tolerate_reneging() &&
-             largest_acked < sent_packet_manager_.GetLargestObserved()) {
+             largest_acked < GetLargestAckedPacket()) {
     QUIC_LOG(INFO) << ENDPOINT << "Peer's largest_observed packet decreased:"
-                   << largest_acked << " vs "
-                   << sent_packet_manager_.GetLargestObserved()
+                   << largest_acked << " vs " << GetLargestAckedPacket()
                    << " packet_number:" << last_header_.packet_number
-                   << " largest seen with ack:" << largest_seen_packet_with_ack_
+                   << " largest seen with ack:"
+                   << GetLargestReceivedPacketWithAck()
                    << " connection_id: " << connection_id_;
     // A new ack has a diminished largest_observed value.
     // If this was an old packet, we wouldn't even have checked.
@@ -1004,8 +1004,8 @@ bool QuicConnection::OnAckRange(QuicPacketNumber start, QuicPacketNumber end) {
   DCHECK(connected_);
   QUIC_DVLOG(1) << ENDPOINT << "OnAckRange: [" << start << ", " << end << ")";
 
-  if (largest_seen_packet_with_ack_.IsInitialized() &&
-      last_header_.packet_number <= largest_seen_packet_with_ack_) {
+  if (GetLargestReceivedPacketWithAck().IsInitialized() &&
+      last_header_.packet_number <= GetLargestReceivedPacketWithAck()) {
     QUIC_DLOG(INFO) << ENDPOINT << "Received an old ack frame: ignoring";
     return true;
   }
@@ -1020,8 +1020,8 @@ bool QuicConnection::OnAckTimestamp(QuicPacketNumber packet_number,
   QUIC_DVLOG(1) << ENDPOINT << "OnAckTimestamp: [" << packet_number << ", "
                 << timestamp.ToDebuggingValue() << ")";
 
-  if (largest_seen_packet_with_ack_.IsInitialized() &&
-      last_header_.packet_number <= largest_seen_packet_with_ack_) {
+  if (GetLargestReceivedPacketWithAck().IsInitialized() &&
+      last_header_.packet_number <= GetLargestReceivedPacketWithAck()) {
     QUIC_DLOG(INFO) << ENDPOINT << "Received an old ack frame: ignoring";
     return true;
   }
@@ -1034,8 +1034,8 @@ bool QuicConnection::OnAckFrameEnd(QuicPacketNumber start) {
   DCHECK(connected_);
   QUIC_DVLOG(1) << ENDPOINT << "OnAckFrameEnd, start: " << start;
 
-  if (largest_seen_packet_with_ack_.IsInitialized() &&
-      last_header_.packet_number <= largest_seen_packet_with_ack_) {
+  if (GetLargestReceivedPacketWithAck().IsInitialized() &&
+      last_header_.packet_number <= GetLargestReceivedPacketWithAck()) {
     QUIC_DLOG(INFO) << ENDPOINT << "Received an old ack frame: ignoring";
     return true;
   }
@@ -1051,7 +1051,7 @@ bool QuicConnection::OnAckFrameEnd(QuicPacketNumber start) {
     // Update pace time into future because smoothed RTT is likely updated.
     UpdateReleaseTimeIntoFuture();
   }
-  largest_seen_packet_with_ack_ = last_header_.packet_number;
+  SetLargestReceivedPacketWithAck(last_header_.packet_number);
   // If the incoming ack's packets set expresses missing packets: peer is still
   // waiting for a packet lower than a packet that we are no longer planning to
   // send.
@@ -3756,6 +3756,23 @@ EncryptionLevel QuicConnection::GetConnectionCloseEncryptionLevel() const {
     return ENCRYPTION_ZERO_RTT;
   }
   return ENCRYPTION_INITIAL;
+}
+
+void QuicConnection::SetLargestReceivedPacketWithAck(
+    QuicPacketNumber new_value) {
+  largest_seen_packet_with_ack_ = new_value;
+}
+
+QuicPacketNumber QuicConnection::GetLargestReceivedPacketWithAck() const {
+  return largest_seen_packet_with_ack_;
+}
+
+QuicPacketNumber QuicConnection::GetLargestSentPacket() const {
+  return sent_packet_manager_.GetLargestSentPacket();
+}
+
+QuicPacketNumber QuicConnection::GetLargestAckedPacket() const {
+  return sent_packet_manager_.GetLargestObserved();
 }
 
 size_t QuicConnection::min_received_before_ack_decimation() const {
