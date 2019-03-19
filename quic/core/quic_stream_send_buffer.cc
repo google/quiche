@@ -4,7 +4,6 @@
 
 #include <algorithm>
 
-#include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
 #include "net/third_party/quiche/src/quic/core/quic_data_writer.h"
 #include "net/third_party/quiche/src/quic/core/quic_interval.h"
 #include "net/third_party/quiche/src/quic/core/quic_stream_send_buffer.h"
