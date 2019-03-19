@@ -681,6 +681,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
   // BuildRejection sets |out| to be a REJ message in reply to |client_hello|.
   void BuildRejection(const ProcessClientHelloContext& context,
                       const Config& config,
+                      const std::vector<uint32_t>& reject_reasons,
                       CryptoHandshakeMessage* out) const;
 
   // CompressChain compresses the certificates in |chain->certs| and returns a

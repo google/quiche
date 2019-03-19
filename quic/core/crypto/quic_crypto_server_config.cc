@@ -759,7 +759,8 @@ void QuicCryptoServerConfig::ProcessClientHelloAfterGetProof(
 
   auto out = QuicMakeUnique<CryptoHandshakeMessage>();
   if (!context->info().reject_reasons.empty() || !requested_config) {
-    BuildRejection(*context, *primary_config, out.get());
+    BuildRejection(*context, *primary_config, context->info().reject_reasons,
+                   out.get());
     if (rejection_observer_ != nullptr) {
       rejection_observer_->OnRejectionBuilt(context->info().reject_reasons,
                                             out.get());
@@ -1355,6 +1356,7 @@ void QuicCryptoServerConfig::FinishBuildServerConfigUpdateMessage(
 void QuicCryptoServerConfig::BuildRejection(
     const ProcessClientHelloContext& context,
     const Config& config,
+    const std::vector<uint32_t>& reject_reasons,
     CryptoHandshakeMessage* out) const {
   const QuicWallTime now = context.clock()->WallNow();
   if (GetQuicReloadableFlag(enable_quic_stateless_reject_support) &&
@@ -1393,8 +1395,8 @@ void QuicCryptoServerConfig::BuildRejection(
   }
 
   // Send client the reject reason for debugging purposes.
-  DCHECK_LT(0u, context.info().reject_reasons.size());
-  out->SetVector(kRREJ, context.info().reject_reasons);
+  DCHECK_LT(0u, reject_reasons.size());
+  out->SetVector(kRREJ, reject_reasons);
 
   // The client may have requested a certificate chain.
   if (!ClientDemandsX509Proof(context.client_hello())) {
