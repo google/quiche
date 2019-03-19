@@ -513,6 +513,23 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
       QuicStringPiece requested_scid) const
       SHARED_LOCKS_REQUIRED(configs_lock_);
 
+  // A snapshot of the configs associated with an in-progress handshake.
+  struct Configs {
+    QuicReferenceCountedPointer<Config> requested;
+    QuicReferenceCountedPointer<Config> primary;
+  };
+
+  // Get a snapshot of the current configs associated with a handshake.  If this
+  // method was called earlier in this handshake |old_primary_config| should be
+  // set to the primary config returned from that invocation, otherwise nullptr.
+  //
+  // Returns true if any configs are loaded.  If false is returned, |configs| is
+  // not modified.
+  bool GetCurrentConfigs(const QuicWallTime& now,
+                         QuicStringPiece requested_scid,
+                         QuicReferenceCountedPointer<Config> old_primary_config,
+                         Configs* configs) const;
+
   // ConfigPrimaryTimeLessThan returns true if a->primary_time <
   // b->primary_time.
   static bool ConfigPrimaryTimeLessThan(
@@ -530,8 +547,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
   void EvaluateClientHello(
       const QuicSocketAddress& server_address,
       QuicTransportVersion version,
-      QuicReferenceCountedPointer<Config> requested_config,
-      QuicReferenceCountedPointer<Config> primary_config,
+      const Configs& configs,
       QuicReferenceCountedPointer<ValidateClientHelloResultCallback::Result>
           client_hello_state,
       std::unique_ptr<ValidateClientHelloResultCallback> done_cb) const;
@@ -660,8 +676,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
       bool found_error,
       std::unique_ptr<ProofSource::Details> proof_source_details,
       std::unique_ptr<ProcessClientHelloContext> context,
-      const QuicReferenceCountedPointer<Config>& requested_config,
-      const QuicReferenceCountedPointer<Config>& primary_config) const;
+      const Configs& configs) const;
 
   // Callback class for bridging between ProcessClientHelloAfterGetProof and
   // ProcessClientHelloAfterCalculateSharedKeys.
@@ -676,7 +691,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
       std::unique_ptr<CryptoHandshakeMessage> out,
       QuicStringPiece public_value,
       std::unique_ptr<ProcessClientHelloContext> context,
-      const QuicReferenceCountedPointer<Config>& requested_config) const;
+      const Configs& configs) const;
 
   // BuildRejection sets |out| to be a REJ message in reply to |client_hello|.
   void BuildRejection(const ProcessClientHelloContext& context,
@@ -833,16 +848,20 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
   //   2) primary_config_ != nullptr -> primary_config_->is_primary
   //   3) ∀ c∈configs_, c->is_primary <-> c == primary_config_
   mutable QuicMutex configs_lock_;
+
   // configs_ contains all active server configs. It's expected that there are
   // about half-a-dozen configs active at any one time.
   ConfigMap configs_ GUARDED_BY(configs_lock_);
+
   // primary_config_ points to a Config (which is also in |configs_|) which is
   // the primary config - i.e. the one that we'll give out to new clients.
   mutable QuicReferenceCountedPointer<Config> primary_config_
       GUARDED_BY(configs_lock_);
+
   // next_config_promotion_time_ contains the nearest, future time when an
   // active config will be promoted to primary.
   mutable QuicWallTime next_config_promotion_time_ GUARDED_BY(configs_lock_);
+
   // Callback to invoke when the primary config changes.
   std::unique_ptr<PrimaryConfigChangedCallback> primary_config_changed_cb_
       GUARDED_BY(configs_lock_);
