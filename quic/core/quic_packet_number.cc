@@ -19,6 +19,17 @@ void QuicPacketNumber::Clear() {
   packet_number_ = UninitializedPacketNumber();
 }
 
+void QuicPacketNumber::UpdateMax(QuicPacketNumber new_value) {
+  if (!new_value.IsInitialized()) {
+    return;
+  }
+  if (!IsInitialized()) {
+    packet_number_ = new_value.ToUint64();
+  } else {
+    packet_number_ = std::max(packet_number_, new_value.ToUint64());
+  }
+}
+
 uint64_t QuicPacketNumber::Hash() const {
   DCHECK(IsInitialized());
   return packet_number_;

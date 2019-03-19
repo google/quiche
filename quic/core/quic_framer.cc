@@ -1850,12 +1850,7 @@ bool QuicFramer::ProcessIetfDataPacket(QuicDataReader* encrypted_reader,
 
   // Update the largest packet number after we have decrypted the packet
   // so we are confident is not attacker controlled.
-  if (largest_packet_number_.IsInitialized()) {
-    largest_packet_number_ =
-        std::max(header->packet_number, largest_packet_number_);
-  } else {
-    largest_packet_number_ = header->packet_number;
-  }
+  largest_packet_number_.UpdateMax(header->packet_number);
 
   if (!visitor_->OnPacketHeader(*header)) {
     RecordDroppedPacketReason(DroppedPacketReason::INVALID_PACKET_NUMBER);
@@ -1928,12 +1923,7 @@ bool QuicFramer::ProcessDataPacket(QuicDataReader* encrypted_reader,
 
   // Update the largest packet number after we have decrypted the packet
   // so we are confident is not attacker controlled.
-  if (largest_packet_number_.IsInitialized()) {
-    largest_packet_number_ =
-        std::max(header->packet_number, largest_packet_number_);
-  } else {
-    largest_packet_number_ = header->packet_number;
-  }
+  largest_packet_number_.UpdateMax(header->packet_number);
 
   if (!visitor_->OnPacketHeader(*header)) {
     // The visitor suppresses further processing of the packet.

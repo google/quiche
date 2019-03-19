@@ -68,12 +68,7 @@ void QuicUnackedPacketMap::AddSentPacket(SerializedPacket* packet,
       packet->encryption_level, packet->packet_number_length, transmission_type,
       sent_time, bytes_sent, has_crypto_handshake, packet->num_padding_bytes);
   info.largest_acked = packet->largest_acked;
-  if (packet->largest_acked.IsInitialized()) {
-    largest_sent_largest_acked_ =
-        largest_sent_largest_acked_.IsInitialized()
-            ? std::max(largest_sent_largest_acked_, packet->largest_acked)
-            : packet->largest_acked;
-  }
+  largest_sent_largest_acked_.UpdateMax(packet->largest_acked);
   if (old_packet_number.IsInitialized()) {
     TransferRetransmissionInfo(old_packet_number, packet_number,
                                transmission_type, &info);
@@ -234,12 +229,7 @@ void QuicUnackedPacketMap::MaybeUpdateLargestAckedOfPacketNumberSpace(
   DCHECK(use_uber_loss_algorithm_);
   const PacketNumberSpace packet_number_space =
       GetPacketNumberSpace(encryption_level);
-  if (!largest_acked_packets_[packet_number_space].IsInitialized()) {
-    largest_acked_packets_[packet_number_space] = packet_number;
-  } else {
-    largest_acked_packets_[packet_number_space] =
-        std::max(largest_acked_packets_[packet_number_space], packet_number);
-  }
+  largest_acked_packets_[packet_number_space].UpdateMax(packet_number);
 }
 
 bool QuicUnackedPacketMap::IsPacketUsefulForMeasuringRtt(

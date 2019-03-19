@@ -21,8 +21,16 @@ TEST(QuicPacketNumberTest, BasicTest) {
   EXPECT_TRUE(num2.IsInitialized());
   EXPECT_EQ(10u, num2.ToUint64());
   EXPECT_EQ(10u, num2.Hash());
+  num2.UpdateMax(num);
+  EXPECT_EQ(10u, num2.ToUint64());
+  num2.UpdateMax(QuicPacketNumber(9));
+  EXPECT_EQ(10u, num2.ToUint64());
+  num2.UpdateMax(QuicPacketNumber(11));
+  EXPECT_EQ(11u, num2.ToUint64());
   num2.Clear();
   EXPECT_FALSE(num2.IsInitialized());
+  num2.UpdateMax(QuicPacketNumber(9));
+  EXPECT_EQ(9u, num2.ToUint64());
 
   if (!GetQuicRestartFlag(quic_uint64max_uninitialized_pn)) {
     QuicPacketNumber num3(std::numeric_limits<uint64_t>::max());

@@ -30,6 +30,10 @@ class QUIC_EXPORT_PRIVATE QuicPacketNumber {
   // Packet number becomes uninitialized after calling this function.
   void Clear();
 
+  // Updates this packet number to be |new_value| if it is greater than current
+  // value.
+  void UpdateMax(QuicPacketNumber new_value);
+
   // REQUIRES: IsInitialized() == true.
   uint64_t Hash() const;
 

@@ -1146,14 +1146,7 @@ bool QuicSentPacketManager::OnAckFrameEnd(QuicTime ack_receive_time) {
     QUIC_DVLOG(1) << ENDPOINT << "Got an ack for packet "
                   << acked_packet.packet_number;
     last_ack_frame_.packets.Add(acked_packet.packet_number);
-    if (info->largest_acked.IsInitialized()) {
-      if (largest_packet_peer_knows_is_acked_.IsInitialized()) {
-        largest_packet_peer_knows_is_acked_ =
-            std::max(largest_packet_peer_knows_is_acked_, info->largest_acked);
-      } else {
-        largest_packet_peer_knows_is_acked_ = info->largest_acked;
-      }
-    }
+    largest_packet_peer_knows_is_acked_.UpdateMax(info->largest_acked);
     // If data is associated with the most recent transmission of this
     // packet, then inform the caller.
     if (info->in_flight) {

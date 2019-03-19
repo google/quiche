@@ -148,12 +148,7 @@ void TcpCubicSenderBytes::OnPacketAcked(QuicPacketNumber acked_packet_number,
                                         QuicByteCount acked_bytes,
                                         QuicByteCount prior_in_flight,
                                         QuicTime event_time) {
-  if (largest_acked_packet_number_.IsInitialized()) {
-    largest_acked_packet_number_ =
-        std::max(acked_packet_number, largest_acked_packet_number_);
-  } else {
-    largest_acked_packet_number_ = acked_packet_number;
-  }
+  largest_acked_packet_number_.UpdateMax(acked_packet_number);
   if (InRecovery()) {
     if (!no_prr_) {
       // PRR is used when in recovery.
