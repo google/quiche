@@ -91,6 +91,7 @@ class TestEncrypter : public QuicEncrypter {
   bool SetKey(QuicStringPiece key) override { return true; }
   bool SetNoncePrefix(QuicStringPiece nonce_prefix) override { return true; }
   bool SetIV(QuicStringPiece iv) override { return true; }
+  bool SetHeaderProtectionKey(QuicStringPiece key) override { return true; }
   bool EncryptPacket(uint64_t packet_number,
                      QuicStringPiece associated_data,
                      QuicStringPiece plaintext,
@@ -103,6 +104,9 @@ class TestEncrypter : public QuicEncrypter {
     memcpy(output, plaintext.data(), plaintext.length());
     *output_length = plaintext.length();
     return true;
+  }
+  std::string GenerateHeaderProtectionMask(QuicStringPiece sample) override {
+    return std::string(5, 0);
   }
   size_t GetKeySize() const override { return 0; }
   size_t GetNoncePrefixSize() const override { return 0; }
@@ -127,6 +131,7 @@ class TestDecrypter : public QuicDecrypter {
   bool SetKey(QuicStringPiece key) override { return true; }
   bool SetNoncePrefix(QuicStringPiece nonce_prefix) override { return true; }
   bool SetIV(QuicStringPiece iv) override { return true; }
+  bool SetHeaderProtectionKey(QuicStringPiece key) override { return true; }
   bool SetPreliminaryKey(QuicStringPiece key) override {
     QUIC_BUG << "should not be called";
     return false;
@@ -146,6 +151,10 @@ class TestDecrypter : public QuicDecrypter {
     memcpy(output, ciphertext.data(), ciphertext.length());
     *output_length = ciphertext.length();
     return true;
+  }
+  std::string GenerateHeaderProtectionMask(
+      QuicDataReader* sample_reader) override {
+    return std::string(5, 0);
   }
   size_t GetKeySize() const override { return 0; }
   size_t GetIVSize() const override { return 0; }

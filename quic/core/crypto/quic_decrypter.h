@@ -11,6 +11,7 @@
 #include <string>
 
 #include "net/third_party/quiche/src/quic/core/crypto/quic_crypter.h"
+#include "net/third_party/quiche/src/quic/core/quic_data_reader.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
@@ -59,6 +60,13 @@ class QUIC_EXPORT_PRIVATE QuicDecrypter : public QuicCrypter {
                              char* output,
                              size_t* output_length,
                              size_t max_output_length) = 0;
+
+  // Reads a sample of ciphertext from |sample_reader| and uses the header
+  // protection key to generate a mask to use for header protection. If
+  // successful, this function returns this mask, which is at least 5 bytes
+  // long. Callers can detect failure by checking if the output string is empty.
+  virtual std::string GenerateHeaderProtectionMask(
+      QuicDataReader* sample_reader) = 0;
 
   // The ID of the cipher. Return 0x03000000 ORed with the 'cryptographic suite
   // selector'.

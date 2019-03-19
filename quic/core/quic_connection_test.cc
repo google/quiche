@@ -127,6 +127,8 @@ class TaggingEncrypter : public QuicEncrypter {
 
   bool SetIV(QuicStringPiece iv) override { return true; }
 
+  bool SetHeaderProtectionKey(QuicStringPiece key) override { return true; }
+
   bool EncryptPacket(uint64_t packet_number,
                      QuicStringPiece associated_data,
                      QuicStringPiece plaintext,
@@ -143,6 +145,10 @@ class TaggingEncrypter : public QuicEncrypter {
     memset(output, tag_, kTagSize);
     *output_length = len;
     return true;
+  }
+
+  std::string GenerateHeaderProtectionMask(QuicStringPiece sample) override {
+    return std::string(5, 0);
   }
 
   size_t GetKeySize() const override { return 0; }
@@ -182,6 +188,8 @@ class TaggingDecrypter : public QuicDecrypter {
 
   bool SetIV(QuicStringPiece iv) override { return true; }
 
+  bool SetHeaderProtectionKey(QuicStringPiece key) override { return true; }
+
   bool SetPreliminaryKey(QuicStringPiece key) override {
     QUIC_BUG << "should not be called";
     return false;
@@ -206,6 +214,11 @@ class TaggingDecrypter : public QuicDecrypter {
     *output_length = ciphertext.size() - kTagSize;
     memcpy(output, ciphertext.data(), *output_length);
     return true;
+  }
+
+  std::string GenerateHeaderProtectionMask(
+      QuicDataReader* sample_reader) override {
+    return std::string(5, 0);
   }
 
   size_t GetKeySize() const override { return 0; }

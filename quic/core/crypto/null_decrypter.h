@@ -32,6 +32,7 @@ class QUIC_EXPORT_PRIVATE NullDecrypter : public QuicDecrypter {
   bool SetKey(QuicStringPiece key) override;
   bool SetNoncePrefix(QuicStringPiece nonce_prefix) override;
   bool SetIV(QuicStringPiece iv) override;
+  bool SetHeaderProtectionKey(QuicStringPiece key) override;
   bool SetPreliminaryKey(QuicStringPiece key) override;
   bool SetDiversificationNonce(const DiversificationNonce& nonce) override;
   bool DecryptPacket(uint64_t packet_number,
@@ -40,6 +41,8 @@ class QUIC_EXPORT_PRIVATE NullDecrypter : public QuicDecrypter {
                      char* output,
                      size_t* output_length,
                      size_t max_output_length) override;
+  std::string GenerateHeaderProtectionMask(
+      QuicDataReader* sample_reader) override;
   size_t GetKeySize() const override;
   size_t GetIVSize() const override;
   QuicStringPiece GetKey() const override;

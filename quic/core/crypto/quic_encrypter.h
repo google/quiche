@@ -41,6 +41,12 @@ class QUIC_EXPORT_PRIVATE QuicEncrypter : public QuicCrypter {
                              size_t* output_length,
                              size_t max_output_length) = 0;
 
+  // Takes a |sample| of ciphertext and uses the header protection key to
+  // generate a mask to use for header protection, and returns that mask. On
+  // success, the mask will be at least 5 bytes long; on failure the string will
+  // be empty.
+  virtual std::string GenerateHeaderProtectionMask(QuicStringPiece sample) = 0;
+
   // GetKeySize() and GetNoncePrefixSize() tell the HKDF class how many bytes
   // of key material needs to be derived from the master secret.
   // NOTE: the sizes returned by GetKeySize() and GetNoncePrefixSize() are

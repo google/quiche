@@ -17,11 +17,11 @@ const size_t kNonceSize = 12;
 }  // namespace
 
 Aes128Gcm12Decrypter::Aes128Gcm12Decrypter()
-    : AeadBaseDecrypter(EVP_aead_aes_128_gcm,
-                        kKeySize,
-                        kAuthTagSize,
-                        kNonceSize,
-                        /* use_ietf_nonce_construction */ false) {
+    : AesBaseDecrypter(EVP_aead_aes_128_gcm,
+                       kKeySize,
+                       kAuthTagSize,
+                       kNonceSize,
+                       /* use_ietf_nonce_construction */ false) {
   static_assert(kKeySize <= kMaxKeySize, "key size too big");
   static_assert(kNonceSize <= kMaxNonceSize, "nonce size too big");
 }

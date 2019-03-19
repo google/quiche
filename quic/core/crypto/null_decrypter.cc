@@ -28,6 +28,10 @@ bool NullDecrypter::SetIV(QuicStringPiece iv) {
   return iv.empty();
 }
 
+bool NullDecrypter::SetHeaderProtectionKey(QuicStringPiece key) {
+  return key.empty();
+}
+
 bool NullDecrypter::SetPreliminaryKey(QuicStringPiece key) {
   QUIC_BUG << "Should not be called";
   return false;
@@ -64,6 +68,11 @@ bool NullDecrypter::DecryptPacket(uint64_t /*packet_number*/,
   memcpy(output, plaintext.data(), plaintext.length());
   *output_length = plaintext.length();
   return true;
+}
+
+std::string NullDecrypter::GenerateHeaderProtectionMask(
+    QuicDataReader* sample_reader) {
+  return std::string(5, 0);
 }
 
 size_t NullDecrypter::GetKeySize() const {

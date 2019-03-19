@@ -255,5 +255,20 @@ TEST_F(Aes128GcmEncrypterTest, GetCiphertextSize) {
   EXPECT_EQ(26u, encrypter.GetCiphertextSize(10));
 }
 
+TEST_F(Aes128GcmEncrypterTest, GenerateHeaderProtectionMask) {
+  Aes128GcmEncrypter encrypter;
+  std::string key =
+      QuicTextUtils::HexDecode("d9132370cb18476ab833649cf080d970");
+  std::string sample =
+      QuicTextUtils::HexDecode("d1d7998068517adb769b48b924a32c47");
+  ASSERT_TRUE(encrypter.SetHeaderProtectionKey(key));
+  std::string mask = encrypter.GenerateHeaderProtectionMask(sample);
+  std::string expected_mask =
+      QuicTextUtils::HexDecode("b132c37d6164da4ea4dc9b763aceec27");
+  test::CompareCharArraysWithHexError("header protection mask", mask.data(),
+                                      mask.size(), expected_mask.data(),
+                                      expected_mask.size());
+}
+
 }  // namespace test
 }  // namespace quic

@@ -275,5 +275,21 @@ TEST_F(Aes256GcmDecrypterTest, Decrypt) {
   }
 }
 
+TEST_F(Aes256GcmDecrypterTest, GenerateHeaderProtectionMask) {
+  Aes256GcmDecrypter decrypter;
+  std::string key = QuicTextUtils::HexDecode(
+      "ed23ecbf54d426def5c52c3dcfc84434e62e57781d3125bb21ed91b7d3e07788");
+  std::string sample =
+      QuicTextUtils::HexDecode("4d190c474be2b8babafb49ec4e38e810");
+  QuicDataReader sample_reader(sample.data(), sample.size());
+  ASSERT_TRUE(decrypter.SetHeaderProtectionKey(key));
+  std::string mask = decrypter.GenerateHeaderProtectionMask(&sample_reader);
+  std::string expected_mask =
+      QuicTextUtils::HexDecode("db9ed4e6ccd033af2eae01407199c56e");
+  test::CompareCharArraysWithHexError("header protection mask", mask.data(),
+                                      mask.size(), expected_mask.data(),
+                                      expected_mask.size());
+}
+
 }  // namespace test
 }  // namespace quic

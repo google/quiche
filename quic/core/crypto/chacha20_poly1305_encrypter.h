@@ -5,7 +5,7 @@
 #ifndef QUICHE_QUIC_CORE_CRYPTO_CHACHA20_POLY1305_ENCRYPTER_H_
 #define QUICHE_QUIC_CORE_CRYPTO_CHACHA20_POLY1305_ENCRYPTER_H_
 
-#include "net/third_party/quiche/src/quic/core/crypto/aead_base_encrypter.h"
+#include "net/third_party/quiche/src/quic/core/crypto/chacha_base_encrypter.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 
 namespace quic {
@@ -17,7 +17,8 @@ namespace quic {
 //
 // It uses an authentication tag of 12 bytes (96 bits). The fixed prefix of the
 // nonce is four bytes.
-class QUIC_EXPORT_PRIVATE ChaCha20Poly1305Encrypter : public AeadBaseEncrypter {
+class QUIC_EXPORT_PRIVATE ChaCha20Poly1305Encrypter
+    : public ChaChaBaseEncrypter {
  public:
   enum {
     kAuthTagSize = 12,

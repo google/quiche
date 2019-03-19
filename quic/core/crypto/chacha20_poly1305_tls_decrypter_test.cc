@@ -167,5 +167,20 @@ TEST_F(ChaCha20Poly1305TlsDecrypterTest, Decrypt) {
   }
 }
 
+TEST_F(ChaCha20Poly1305TlsDecrypterTest, GenerateHeaderProtectionMask) {
+  ChaCha20Poly1305TlsDecrypter decrypter;
+  std::string key = QuicTextUtils::HexDecode(
+      "6a067f432787bd6034dd3f08f07fc9703a27e58c70e2d88d948b7f6489923cc7");
+  std::string sample =
+      QuicTextUtils::HexDecode("1210d91cceb45c716b023f492c29e612");
+  QuicDataReader sample_reader(sample.data(), sample.size());
+  ASSERT_TRUE(decrypter.SetHeaderProtectionKey(key));
+  std::string mask = decrypter.GenerateHeaderProtectionMask(&sample_reader);
+  std::string expected_mask = QuicTextUtils::HexDecode("1cc2cd98dc");
+  test::CompareCharArraysWithHexError("header protection mask", mask.data(),
+                                      mask.size(), expected_mask.data(),
+                                      expected_mask.size());
+}
+
 }  // namespace test
 }  // namespace quic

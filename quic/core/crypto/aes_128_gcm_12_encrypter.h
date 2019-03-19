@@ -5,7 +5,7 @@
 #ifndef QUICHE_QUIC_CORE_CRYPTO_AES_128_GCM_12_ENCRYPTER_H_
 #define QUICHE_QUIC_CORE_CRYPTO_AES_128_GCM_12_ENCRYPTER_H_
 
-#include "net/third_party/quiche/src/quic/core/crypto/aead_base_encrypter.h"
+#include "net/third_party/quiche/src/quic/core/crypto/aes_base_encrypter.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 
 namespace quic {
@@ -16,7 +16,7 @@ namespace quic {
 //
 // It uses an authentication tag of 12 bytes (96 bits). The fixed prefix
 // of the nonce is four bytes.
-class QUIC_EXPORT_PRIVATE Aes128Gcm12Encrypter : public AeadBaseEncrypter {
+class QUIC_EXPORT_PRIVATE Aes128Gcm12Encrypter : public AesBaseEncrypter {
  public:
   enum {
     // Authentication tags are truncated to 96 bits.

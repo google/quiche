@@ -17,11 +17,11 @@ const size_t kNonceSize = 12;
 }  // namespace
 
 ChaCha20Poly1305Decrypter::ChaCha20Poly1305Decrypter()
-    : AeadBaseDecrypter(EVP_aead_chacha20_poly1305,
-                        kKeySize,
-                        kAuthTagSize,
-                        kNonceSize,
-                        /* use_ietf_nonce_construction */ false) {
+    : ChaChaBaseDecrypter(EVP_aead_chacha20_poly1305,
+                          kKeySize,
+                          kAuthTagSize,
+                          kNonceSize,
+                          /* use_ietf_nonce_construction */ false) {
   static_assert(kKeySize <= kMaxKeySize, "key size too big");
   static_assert(kNonceSize <= kMaxNonceSize, "nonce size too big");
 }

@@ -28,12 +28,14 @@ class QUIC_EXPORT_PRIVATE NullEncrypter : public QuicEncrypter {
   bool SetKey(QuicStringPiece key) override;
   bool SetNoncePrefix(QuicStringPiece nonce_prefix) override;
   bool SetIV(QuicStringPiece iv) override;
+  bool SetHeaderProtectionKey(QuicStringPiece key) override;
   bool EncryptPacket(uint64_t packet_number,
                      QuicStringPiece associated_data,
                      QuicStringPiece plaintext,
                      char* output,
                      size_t* output_length,
                      size_t max_output_length) override;
+  std::string GenerateHeaderProtectionMask(QuicStringPiece sample) override;
   size_t GetKeySize() const override;
   size_t GetNoncePrefixSize() const override;
   size_t GetIVSize() const override;

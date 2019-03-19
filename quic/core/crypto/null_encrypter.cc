@@ -26,6 +26,10 @@ bool NullEncrypter::SetIV(QuicStringPiece iv) {
   return iv.empty();
 }
 
+bool NullEncrypter::SetHeaderProtectionKey(QuicStringPiece key) {
+  return key.empty();
+}
+
 bool NullEncrypter::EncryptPacket(uint64_t /*packet_number*/,
                                   QuicStringPiece associated_data,
                                   QuicStringPiece plaintext,
@@ -51,6 +55,11 @@ bool NullEncrypter::EncryptPacket(uint64_t /*packet_number*/,
                                    reinterpret_cast<unsigned char*>(output));
   *output_length = len;
   return true;
+}
+
+std::string NullEncrypter::GenerateHeaderProtectionMask(
+    QuicStringPiece sample) {
+  return std::string(5, 0);
 }
 
 size_t NullEncrypter::GetKeySize() const {

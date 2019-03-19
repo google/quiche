@@ -69,6 +69,9 @@ class QUIC_EXPORT_PRIVATE QuicCrypter {
   // packet number, even when retransmitting a lost packet.
   virtual bool SetIV(QuicStringPiece iv) = 0;
 
+  // Sets the key to use for header protection.
+  virtual bool SetHeaderProtectionKey(QuicStringPiece key) = 0;
+
   // Returns the size in bytes of a key for the algorithm.
   virtual size_t GetKeySize() const = 0;
   // Returns the size in bytes of an IV to use with the algorithm.

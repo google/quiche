@@ -7,7 +7,7 @@
 
 #include <cstdint>
 
-#include "net/third_party/quiche/src/quic/core/crypto/aead_base_decrypter.h"
+#include "net/third_party/quiche/src/quic/core/crypto/chacha_base_decrypter.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 
 namespace quic {
@@ -19,7 +19,8 @@ namespace quic {
 //
 // It uses an authentication tag of 12 bytes (96 bits). The fixed prefix of the
 // nonce is four bytes.
-class QUIC_EXPORT_PRIVATE ChaCha20Poly1305Decrypter : public AeadBaseDecrypter {
+class QUIC_EXPORT_PRIVATE ChaCha20Poly1305Decrypter
+    : public ChaChaBaseDecrypter {
  public:
   enum {
     kAuthTagSize = 12,

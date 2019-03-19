@@ -5,7 +5,7 @@
 #ifndef QUICHE_QUIC_CORE_CRYPTO_CHACHA20_POLY1305_TLS_ENCRYPTER_H_
 #define QUICHE_QUIC_CORE_CRYPTO_CHACHA20_POLY1305_TLS_ENCRYPTER_H_
 
-#include "net/third_party/quiche/src/quic/core/crypto/aead_base_encrypter.h"
+#include "net/third_party/quiche/src/quic/core/crypto/chacha_base_encrypter.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 
 namespace quic {
@@ -16,7 +16,7 @@ namespace quic {
 // It uses an authentication tag of 16 bytes (128 bits). It uses a 12 byte IV
 // that is XOR'd with the packet number to compute the nonce.
 class QUIC_EXPORT_PRIVATE ChaCha20Poly1305TlsEncrypter
-    : public AeadBaseEncrypter {
+    : public ChaChaBaseEncrypter {
  public:
   enum {
     kAuthTagSize = 16,
