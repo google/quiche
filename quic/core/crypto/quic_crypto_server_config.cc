@@ -429,74 +429,64 @@ bool QuicCryptoServerConfig::SetConfigs(
     const std::vector<std::unique_ptr<QuicServerConfigProtobuf>>& protobufs,
     const QuicWallTime now) {
   std::vector<QuicReferenceCountedPointer<Config>> parsed_configs;
-  bool ok = true;
-
   for (auto& protobuf : protobufs) {
     QuicReferenceCountedPointer<Config> config(ParseConfigProtobuf(protobuf));
     if (!config) {
-      ok = false;
-      break;
+      QUIC_LOG(WARNING) << "Rejecting QUIC configs because of above errors";
+      return false;
     }
 
     parsed_configs.push_back(config);
   }
 
   if (parsed_configs.empty()) {
-    QUIC_LOG(WARNING) << "New config list is empty.";
-    ok = false;
+    QUIC_LOG(WARNING)
+        << "Rejecting QUIC configs because new config list is empty.";
+    return false;
   }
 
-  if (!ok) {
-    QUIC_LOG(WARNING) << "Rejecting QUIC configs because of above errors";
-  } else {
-    QUIC_LOG(INFO) << "Updating configs:";
+  QUIC_LOG(INFO) << "Updating configs:";
 
-    QuicWriterMutexLock locked(&configs_lock_);
-    ConfigMap new_configs;
+  QuicWriterMutexLock locked(&configs_lock_);
+  ConfigMap new_configs;
 
-    for (std::vector<QuicReferenceCountedPointer<Config>>::const_iterator i =
-             parsed_configs.begin();
-         i != parsed_configs.end(); ++i) {
-      QuicReferenceCountedPointer<Config> config = *i;
-
-      auto it = configs_.find(config->id);
-      if (it != configs_.end()) {
-        QUIC_LOG(INFO) << "Keeping scid: "
-                       << QuicTextUtils::HexEncode(config->id) << " orbit: "
-                       << QuicTextUtils::HexEncode(
-                              reinterpret_cast<const char*>(config->orbit),
-                              kOrbitSize)
-                       << " new primary_time "
-                       << config->primary_time.ToUNIXSeconds()
-                       << " old primary_time "
-                       << it->second->primary_time.ToUNIXSeconds()
-                       << " new priority " << config->priority
-                       << " old priority " << it->second->priority;
-        // Update primary_time and priority.
-        it->second->primary_time = config->primary_time;
-        it->second->priority = config->priority;
-        new_configs.insert(*it);
-      } else {
-        QUIC_LOG(INFO) << "Adding scid: "
-                       << QuicTextUtils::HexEncode(config->id) << " orbit: "
-                       << QuicTextUtils::HexEncode(
-                              reinterpret_cast<const char*>(config->orbit),
-                              kOrbitSize)
-                       << " primary_time "
-                       << config->primary_time.ToUNIXSeconds() << " priority "
-                       << config->priority;
-        new_configs.insert(std::make_pair(config->id, config));
-      }
+  for (const QuicReferenceCountedPointer<Config>& config : parsed_configs) {
+    auto it = configs_.find(config->id);
+    if (it != configs_.end()) {
+      QUIC_LOG(INFO) << "Keeping scid: " << QuicTextUtils::HexEncode(config->id)
+                     << " orbit: "
+                     << QuicTextUtils::HexEncode(
+                            reinterpret_cast<const char*>(config->orbit),
+                            kOrbitSize)
+                     << " new primary_time "
+                     << config->primary_time.ToUNIXSeconds()
+                     << " old primary_time "
+                     << it->second->primary_time.ToUNIXSeconds()
+                     << " new priority " << config->priority << " old priority "
+                     << it->second->priority;
+      // Update primary_time and priority.
+      it->second->primary_time = config->primary_time;
+      it->second->priority = config->priority;
+      new_configs.insert(*it);
+    } else {
+      QUIC_LOG(INFO) << "Adding scid: " << QuicTextUtils::HexEncode(config->id)
+                     << " orbit: "
+                     << QuicTextUtils::HexEncode(
+                            reinterpret_cast<const char*>(config->orbit),
+                            kOrbitSize)
+                     << " primary_time " << config->primary_time.ToUNIXSeconds()
+                     << " priority " << config->priority;
+      new_configs.emplace(config->id, config);
     }
-
-    configs_.swap(new_configs);
-    SelectNewPrimaryConfig(now);
-    DCHECK(primary_config_.get());
-    DCHECK_EQ(configs_.find(primary_config_->id)->second.get(),
-              primary_config_.get());
   }
 
-  return ok;
+  configs_ = std::move(new_configs);
+  SelectNewPrimaryConfig(now);
+  DCHECK(primary_config_.get());
+  DCHECK_EQ(configs_.find(primary_config_->id)->second.get(),
+            primary_config_.get());
+
+  return true;
 }
 
 void QuicCryptoServerConfig::SetSourceAddressTokenKeys(
