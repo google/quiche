@@ -11201,6 +11201,49 @@ TEST_P(QuicFramerTest, NewConnectionIdFrameVariableLength) {
   CheckFramingBoundaries(packet99, QUIC_INVALID_NEW_CONNECTION_ID_DATA);
 }
 
+// Verifies that parsing a NEW_CONNECTION_ID frame with a length above the
+// specified maximum fails.
+TEST_P(QuicFramerTest, InvalidLongNewConnectionIdFrame) {
+  if (framer_.transport_version() != QUIC_VERSION_99) {
+    // The NEW_CONNECTION_ID frame is only for version 99.
+    return;
+  }
+  // clang-format off
+  PacketFragments packet99 = {
+      // type (short header, 4 byte packet number)
+      {"",
+       {0x43}},
+      // connection_id
+      {"",
+       {0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10}},
+      // packet number
+      {"",
+       {0x12, 0x34, 0x56, 0x78}},
+      // frame type (IETF_NEW_CONNECTION_ID frame)
+      {"",
+       {0x18}},
+      // error code
+      {"Unable to read new connection ID frame sequence number.",
+       {kVarInt62OneByte + 0x11}},
+      {"Unable to read new connection ID frame connection id length.",
+       {0x13}},  // connection ID length
+      {"Unable to read new connection ID frame connection id.",
+       {0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+        0xF0, 0xD2, 0xB4, 0x96, 0x78, 0x5A, 0x3C, 0x1E,
+        0x42, 0x33, 0x42}},
+      {"Can not read new connection ID frame reset token.",
+       {0xb5, 0x69, 0x0f, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}}
+  };
+  // clang-format on
+
+  std::unique_ptr<QuicEncryptedPacket> encrypted(
+      AssemblePacketFromFragments(packet99));
+  EXPECT_FALSE(framer_.ProcessPacket(*encrypted));
+  EXPECT_EQ(QUIC_INVALID_NEW_CONNECTION_ID_DATA, framer_.error());
+  EXPECT_EQ("New connection ID length too high.", framer_.detailed_error());
+}
+
 TEST_P(QuicFramerTest, BuildNewConnectionIdFramePacket) {
   if (framer_.transport_version() != QUIC_VERSION_99) {
     // This frame is only for version 99.

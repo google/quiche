@@ -2579,6 +2579,9 @@ bool QuicFramer::ProcessIetfPacketHeader(QuicDataReader* reader,
     source_connection_id_length = scil;
   }
 
+  DCHECK_LE(destination_connection_id_length, kQuicMaxConnectionIdLength);
+  DCHECK_LE(source_connection_id_length, kQuicMaxConnectionIdLength);
+
   // Read connection ID.
   if (!reader->ReadConnectionId(&header->destination_connection_id,
                                 destination_connection_id_length)) {
@@ -5597,10 +5600,15 @@ bool QuicFramer::ProcessNewConnectionIdFrame(QuicDataReader* reader,
     return false;
   }
 
+  if (connection_id_length > kQuicMaxConnectionIdLength) {
+    set_detailed_error("New connection ID length too high.");
+    return false;
+  }
+
   if (connection_id_length != kQuicDefaultConnectionIdLength &&
       !QuicUtils::VariableLengthConnectionIdAllowedForVersion(
           transport_version())) {
-    set_detailed_error("Invalid new connection ID length.");
+    set_detailed_error("Invalid new connection ID length for version.");
     return false;
   }
 

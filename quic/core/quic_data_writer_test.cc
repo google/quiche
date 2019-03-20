@@ -10,6 +10,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_data_reader.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_expect_bug.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
@@ -38,7 +39,8 @@ std::vector<TestParams> GetTestParams() {
 
 class QuicDataWriterTest : public QuicTestWithParam<TestParams> {};
 
-INSTANTIATE_TEST_SUITE_P(QuicDataWriterTests, QuicDataWriterTest,
+INSTANTIATE_TEST_SUITE_P(QuicDataWriterTests,
+                         QuicDataWriterTest,
                          ::testing::ValuesIn(GetTestParams()));
 
 TEST_P(QuicDataWriterTest, SanityCheckUFloat16Consts) {
@@ -1095,6 +1097,21 @@ TEST_P(QuicDataWriterTest, PeekVarInt62Length) {
   EXPECT_TRUE(writer4.WriteVarInt62(2000000000));
   QuicDataReader reader4(buffer4, 20, NETWORK_BYTE_ORDER);
   EXPECT_EQ(8, reader4.PeekVarInt62Length());
+}
+
+TEST_P(QuicDataWriterTest, InvalidConnectionIdLengthRead) {
+  static const uint8_t bad_connection_id_length = 19;
+  static_assert(bad_connection_id_length > kQuicMaxConnectionIdLength,
+                "bad lengths");
+  char buffer[20] = {};
+  QuicDataReader reader(buffer, 20);
+  QuicConnectionId connection_id;
+  bool ok;
+  EXPECT_QUIC_BUG(
+      ok = reader.ReadConnectionId(&connection_id, bad_connection_id_length),
+      QuicStrCat("Attempted to read connection ID with length too high ",
+                 static_cast<int>(bad_connection_id_length)));
+  EXPECT_FALSE(ok);
 }
 
 }  // namespace

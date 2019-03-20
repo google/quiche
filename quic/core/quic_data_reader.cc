@@ -133,7 +133,11 @@ bool QuicDataReader::ReadStringPiece(QuicStringPiece* result, size_t size) {
 
 bool QuicDataReader::ReadConnectionId(QuicConnectionId* connection_id,
                                       uint8_t length) {
-  DCHECK_LE(length, kQuicMaxConnectionIdLength);
+  if (length > kQuicMaxConnectionIdLength) {
+    QUIC_BUG << "Attempted to read connection ID with length too high "
+             << static_cast<int>(length);
+    return false;
+  }
   if (length == 0) {
     connection_id->set_length(0);
     return true;
