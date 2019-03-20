@@ -241,8 +241,9 @@ class TestSession : public QuicSpdySession {
 
   QuicConsumedData SendStreamData(QuicStream* stream) {
     struct iovec iov;
-    if (stream->id() !=
-            QuicUtils::GetCryptoStreamId(connection()->transport_version()) &&
+    if ((QuicVersionUsesCryptoFrames(connection()->transport_version()) ||
+         stream->id() !=
+             QuicUtils::GetCryptoStreamId(connection()->transport_version())) &&
         connection()->encryption_level() != ENCRYPTION_FORWARD_SECURE) {
       this->connection()->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
     }
@@ -330,9 +331,13 @@ class QuicSpdySessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
   }
 
   void CheckClosedStreams() {
-    for (QuicStreamId i =
-             QuicUtils::GetCryptoStreamId(connection_->transport_version());
-         i < 100; i++) {
+    QuicStreamId first_stream_id = QuicUtils::GetFirstBidirectionalStreamId(
+        connection_->transport_version(), Perspective::IS_CLIENT);
+    if (!QuicVersionUsesCryptoFrames(connection_->transport_version())) {
+      first_stream_id =
+          QuicUtils::GetCryptoStreamId(connection_->transport_version());
+    }
+    for (QuicStreamId i = first_stream_id; i < 100; i++) {
       if (!QuicContainsKey(closed_streams_, i)) {
         EXPECT_FALSE(session_.IsClosedStream(i)) << " stream id: " << i;
       } else {
@@ -429,9 +434,13 @@ TEST_P(QuicSpdySessionTestServer, IsCryptoHandshakeConfirmed) {
 
 TEST_P(QuicSpdySessionTestServer, IsClosedStreamDefault) {
   // Ensure that no streams are initially closed.
-  for (QuicStreamId i =
-           QuicUtils::GetCryptoStreamId(connection_->transport_version());
-       i < 100; i++) {
+  QuicStreamId first_stream_id = QuicUtils::GetFirstBidirectionalStreamId(
+      connection_->transport_version(), Perspective::IS_CLIENT);
+  if (!QuicVersionUsesCryptoFrames(connection_->transport_version())) {
+    first_stream_id =
+        QuicUtils::GetCryptoStreamId(connection_->transport_version());
+  }
+  for (QuicStreamId i = first_stream_id; i < 100; i++) {
     EXPECT_FALSE(session_.IsClosedStream(i)) << "stream id: " << i;
   }
 }
@@ -1656,9 +1665,6 @@ TEST_P(QuicSpdySessionTestServer, OnStreamFrameLost) {
   TestStream* stream2 = session_.CreateOutgoingBidirectionalStream();
   TestStream* stream4 = session_.CreateOutgoingBidirectionalStream();
 
-  QuicStreamFrame frame1(
-      QuicUtils::GetCryptoStreamId(connection_->transport_version()), false, 0,
-      1300);
   QuicStreamFrame frame2(stream2->id(), false, 0, 9);
   QuicStreamFrame frame3(stream4->id(), false, 0, 9);
 
@@ -1671,6 +1677,9 @@ TEST_P(QuicSpdySessionTestServer, OnStreamFrameLost) {
   EXPECT_CALL(*stream2, HasPendingRetransmission()).WillOnce(Return(true));
   session_.OnFrameLost(QuicFrame(frame3));
   if (!QuicVersionUsesCryptoFrames(connection_->transport_version())) {
+    QuicStreamFrame frame1(
+        QuicUtils::GetCryptoStreamId(connection_->transport_version()), false,
+        0, 1300);
     session_.OnFrameLost(QuicFrame(frame1));
   } else {
     QuicCryptoFrame crypto_frame(ENCRYPTION_INITIAL, 0, 1300);

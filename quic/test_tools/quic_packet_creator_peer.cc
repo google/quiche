@@ -83,6 +83,15 @@ void QuicPacketCreatorPeer::CreateStreamFrame(QuicPacketCreator* creator,
 }
 
 // static
+bool QuicPacketCreatorPeer::CreateCryptoFrame(QuicPacketCreator* creator,
+                                              EncryptionLevel level,
+                                              size_t write_length,
+                                              QuicStreamOffset offset,
+                                              QuicFrame* frame) {
+  return creator->CreateCryptoFrame(level, write_length, offset, frame);
+}
+
+// static
 SerializedPacket QuicPacketCreatorPeer::SerializeAllFrames(
     QuicPacketCreator* creator,
     const QuicFrames& frames,

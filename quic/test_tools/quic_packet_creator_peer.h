@@ -40,6 +40,11 @@ class QuicPacketCreatorPeer {
                                 QuicStreamOffset offset,
                                 bool fin,
                                 QuicFrame* frame);
+  static bool CreateCryptoFrame(QuicPacketCreator* creator,
+                                EncryptionLevel level,
+                                size_t write_length,
+                                QuicStreamOffset offset,
+                                QuicFrame* frame);
   static SerializedPacket SerializeAllFrames(QuicPacketCreator* creator,
                                              const QuicFrames& frames,
                                              char* buffer,

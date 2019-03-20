@@ -325,9 +325,13 @@ class QuicSessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
   }
 
   void CheckClosedStreams() {
-    for (QuicStreamId i =
-             QuicUtils::GetCryptoStreamId(connection_->transport_version());
-         i < 100; i++) {
+    QuicStreamId first_stream_id = QuicUtils::GetFirstBidirectionalStreamId(
+        connection_->transport_version(), Perspective::IS_CLIENT);
+    if (!QuicVersionUsesCryptoFrames(connection_->transport_version())) {
+      first_stream_id =
+          QuicUtils::GetCryptoStreamId(connection_->transport_version());
+    }
+    for (QuicStreamId i = first_stream_id; i < 100; i++) {
       if (!QuicContainsKey(closed_streams_, i)) {
         EXPECT_FALSE(session_.IsClosedStream(i)) << " stream id: " << i;
       } else {
@@ -485,9 +489,13 @@ TEST_P(QuicSessionTestServer, IsCryptoHandshakeConfirmed) {
 
 TEST_P(QuicSessionTestServer, IsClosedStreamDefault) {
   // Ensure that no streams are initially closed.
-  for (QuicStreamId i =
-           QuicUtils::GetCryptoStreamId(connection_->transport_version());
-       i < 100; i++) {
+  QuicStreamId first_stream_id = QuicUtils::GetFirstBidirectionalStreamId(
+      connection_->transport_version(), Perspective::IS_CLIENT);
+  if (!QuicVersionUsesCryptoFrames(connection_->transport_version())) {
+    first_stream_id =
+        QuicUtils::GetCryptoStreamId(connection_->transport_version());
+  }
+  for (QuicStreamId i = first_stream_id; i < 100; i++) {
     EXPECT_FALSE(session_.IsClosedStream(i)) << "stream id: " << i;
   }
 }

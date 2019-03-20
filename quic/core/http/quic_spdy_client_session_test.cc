@@ -199,8 +199,10 @@ TEST_P(QuicSpdyClientSessionTest, NoEncryptionAfterInitialEncryption) {
   EXPECT_TRUE(session_->IsEncryptionEstablished());
   QuicSpdyClientStream* stream = session_->CreateOutgoingBidirectionalStream();
   ASSERT_TRUE(stream != nullptr);
-  EXPECT_NE(QuicUtils::GetCryptoStreamId(connection_->transport_version()),
-            stream->id());
+  if (!QuicVersionUsesCryptoFrames(GetParam().transport_version)) {
+    EXPECT_NE(QuicUtils::GetCryptoStreamId(connection_->transport_version()),
+              stream->id());
+  }
 
   // Process an "inchoate" REJ from the server which will cause
   // an inchoate CHLO to be sent and will leave the encryption level

@@ -59,10 +59,11 @@ bool SimpleDataProducer::WriteCryptoData(EncryptionLevel level,
                                          QuicByteCount data_length,
                                          QuicDataWriter* writer) {
   auto it = crypto_buffer_map_.find(std::make_pair(level, offset));
-  if (it == crypto_buffer_map_.end() || it->second.length() != data_length) {
+  if (it == crypto_buffer_map_.end() || it->second.length() < data_length) {
     return false;
   }
-  return writer->WriteStringPiece(it->second);
+  return writer->WriteStringPiece(
+      QuicStringPiece(it->second.data(), data_length));
 }
 
 }  // namespace test
