@@ -781,10 +781,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
     return packet_generator_;
   }
 
-  const QuicReceivedPacketManager& received_packet_manager() const {
-    return received_packet_manager_;
-  }
-
   EncryptionLevel encryption_level() const { return encryption_level_; }
   EncryptionLevel last_decrypted_level() const {
     return last_decrypted_packet_level_;
@@ -864,6 +860,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   bool IsHandshakeConfirmed() const {
     return sent_packet_manager_.handshake_confirmed();
   }
+
+  // Returns the largest received packet number sent by peer.
+  QuicPacketNumber GetLargestReceivedPacket() const;
 
   // Adds the connection ID to a set of connection IDs that are accepted as
   // destination on incoming packets.

@@ -887,10 +887,12 @@ bool QuicConnection::OnPacketHeader(const QuicPacketHeader& header) {
   current_effective_peer_migration_type_ = NO_CHANGE;
 
   if (perspective_ == Perspective::IS_CLIENT) {
-    if (!received_packet_manager_.GetLargestObserved().IsInitialized() ||
-        header.packet_number > received_packet_manager_.GetLargestObserved()) {
+    if (!GetLargestReceivedPacket().IsInitialized() ||
+        header.packet_number > GetLargestReceivedPacket()) {
       // Update peer_address_ and effective_peer_address_ immediately for
       // client connections.
+      // TODO(fayang): only change peer addresses in application data packet
+      // number space.
       direct_peer_address_ = last_packet_source_address_;
       effective_peer_address_ = GetEffectivePeerAddressFromCurrentPacket();
     }
@@ -1432,10 +1434,11 @@ void QuicConnection::OnPacketComplete() {
                                  /* is_response= */ true);
     }
 
-    if (last_header_.packet_number ==
-        received_packet_manager_.GetLargestObserved()) {
+    if (last_header_.packet_number == GetLargestReceivedPacket()) {
       direct_peer_address_ = last_packet_source_address_;
       if (current_effective_peer_migration_type_ != NO_CHANGE) {
+        // TODO(fayang): When multiple packet number spaces is supported, only
+        // start peer migration for the application data.
         StartEffectivePeerMigration(current_effective_peer_migration_type_);
       }
     }
@@ -3645,13 +3648,14 @@ void QuicConnection::UpdatePacketContent(PacketContent type) {
   }
 
   current_packet_content_ = NOT_PADDED_PING;
-  if (received_packet_manager_.GetLargestObserved().IsInitialized() &&
-      last_header_.packet_number ==
-          received_packet_manager_.GetLargestObserved()) {
+  if (GetLargestReceivedPacket().IsInitialized() &&
+      last_header_.packet_number == GetLargestReceivedPacket()) {
     direct_peer_address_ = last_packet_source_address_;
     if (current_effective_peer_migration_type_ != NO_CHANGE) {
       // Start effective peer migration immediately when the current packet is
       // confirmed not a connectivity probing packet.
+      // TODO(fayang): When multiple packet number spaces is supported, only
+      // start peer migration for the application data.
       StartEffectivePeerMigration(current_effective_peer_migration_type_);
     }
   }
@@ -3820,6 +3824,10 @@ QuicPacketNumber QuicConnection::GetLargestSentPacket() const {
 
 QuicPacketNumber QuicConnection::GetLargestAckedPacket() const {
   return sent_packet_manager_.GetLargestObserved();
+}
+
+QuicPacketNumber QuicConnection::GetLargestReceivedPacket() const {
+  return received_packet_manager_.GetLargestObserved();
 }
 
 size_t QuicConnection::min_received_before_ack_decimation() const {

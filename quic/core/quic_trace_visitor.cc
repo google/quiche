@@ -230,8 +230,7 @@ void QuicTraceVisitor::OnIncomingAck(
     QuicPacketNumber /*least_unacked_sent_packet*/) {
   quic_trace::Event* event = trace_.add_events();
   event->set_time_us(ConvertTimestampToRecordedFormat(ack_receive_time));
-  event->set_packet_number(
-      connection_->received_packet_manager().GetLargestObserved().ToUint64());
+  event->set_packet_number(connection_->GetLargestReceivedPacket().ToUint64());
   event->set_event_type(quic_trace::PACKET_RECEIVED);
 
   // TODO(vasilvv): consider removing this copy.
@@ -255,8 +254,7 @@ void QuicTraceVisitor::OnWindowUpdateFrame(const QuicWindowUpdateFrame& frame,
   quic_trace::Event* event = trace_.add_events();
   event->set_time_us(ConvertTimestampToRecordedFormat(receive_time));
   event->set_event_type(quic_trace::PACKET_RECEIVED);
-  event->set_packet_number(
-      connection_->received_packet_manager().GetLargestObserved().ToUint64());
+  event->set_packet_number(connection_->GetLargestReceivedPacket().ToUint64());
 
   // TODO(vasilvv): consider removing this copy.
   QuicWindowUpdateFrame copy_of_update = frame;
