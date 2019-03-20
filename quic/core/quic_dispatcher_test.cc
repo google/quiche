@@ -116,14 +116,14 @@ class TestDispatcher : public QuicDispatcher {
  public:
   TestDispatcher(const QuicConfig* config,
                  const QuicCryptoServerConfig* crypto_config,
-                 QuicVersionManager* version_manager)
+                 QuicVersionManager* version_manager,
+                 QuicRandom* random)
       : QuicDispatcher(config,
                        crypto_config,
                        version_manager,
                        QuicMakeUnique<MockQuicConnectionHelper>(),
                        std::unique_ptr<QuicCryptoServerStream::Helper>(
-                           new QuicSimpleCryptoServerStreamHelper(
-                               QuicRandom::GetInstance())),
+                           new QuicSimpleCryptoServerStreamHelper(random)),
                        QuicMakeUnique<MockAlarmFactory>(),
                        kQuicDefaultConnectionIdLength) {}
 
@@ -208,9 +208,11 @@ class QuicDispatcherTest : public QuicTest {
                        KeyExchangeSource::Default(),
                        TlsServerHandshaker::CreateSslCtx()),
         server_address_(QuicIpAddress::Any4(), 5),
-        dispatcher_(new NiceMock<TestDispatcher>(&config_,
-                                                 &crypto_config_,
-                                                 &version_manager_)),
+        dispatcher_(
+            new NiceMock<TestDispatcher>(&config_,
+                                         &crypto_config_,
+                                         &version_manager_,
+                                         mock_helper_.GetRandomGenerator())),
         time_wait_list_manager_(nullptr),
         session1_(nullptr),
         session2_(nullptr),
@@ -636,39 +638,52 @@ TEST_F(QuicDispatcherTest, NoVersionPacketToTimeWaitListManager) {
   ProcessPacket(client_address, connection_id, false, SerializeCHLO());
 }
 
-// Makes sure nine-byte connection IDs end up in the time wait list.
-TEST_F(QuicDispatcherTest, BadConnectionIdLengthPacketToTimeWaitListManager) {
+// Makes sure nine-byte connection IDs are replaced by 8-byte ones.
+TEST_F(QuicDispatcherTest, BadConnectionIdLengthReplaced) {
   if (!QuicUtils::VariableLengthConnectionIdAllowedForVersion(
           CurrentSupportedVersions()[0].transport_version)) {
+    // When variable length connection IDs are not supported, the connection
+    // fails. See StrayPacketTruncatedConnectionId.
     return;
   }
-  CreateTimeWaitListManager();
-
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
 
-  // Dispatcher forwards all packets for this connection_id to the time wait
-  // list manager.
-  EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, QuicStringPiece("hq"), _))
-      .Times(0);
-  EXPECT_CALL(*time_wait_list_manager_,
-              ProcessPacket(_, _, TestConnectionIdNineBytesLong(2), _, _))
-      .Times(1);
-  EXPECT_CALL(*time_wait_list_manager_,
-              AddConnectionIdToTimeWait(_, _, _, _, _))
-      .Times(1);
-  ProcessPacket(client_address, TestConnectionIdNineBytesLong(2), true,
-                SerializeCHLO());
+  QuicConnectionId bad_connection_id = TestConnectionIdNineBytesLong(2);
+  QuicConnectionId fixed_connection_id =
+      QuicUtils::CreateRandomConnectionId(mock_helper_.GetRandomGenerator());
+
+  EXPECT_CALL(*dispatcher_,
+              CreateQuicSession(fixed_connection_id, client_address,
+                                QuicStringPiece("hq"), _))
+      .WillOnce(testing::Return(CreateSession(
+          dispatcher_.get(), config_, fixed_connection_id, client_address,
+          &mock_helper_, &mock_alarm_factory_, &crypto_config_,
+          QuicDispatcherPeer::GetCache(dispatcher_.get()), &session1_)));
+  EXPECT_CALL(*reinterpret_cast<MockQuicConnection*>(session1_->connection()),
+              ProcessUdpPacket(_, _, _))
+      .WillOnce(WithArg<2>(
+          Invoke([this, bad_connection_id](const QuicEncryptedPacket& packet) {
+            ValidatePacket(bad_connection_id, packet);
+          })));
+  EXPECT_CALL(*dispatcher_,
+              ShouldCreateOrBufferPacketForConnection(bad_connection_id, _));
+  ProcessPacket(client_address, bad_connection_id, true, SerializeCHLO());
+  EXPECT_EQ(client_address, dispatcher_->current_peer_address());
+  EXPECT_EQ(server_address_, dispatcher_->current_self_address());
 }
 
-// Makes sure TestConnectionId(1) creates a new connection but
-// TestConnectionIdNineBytesLong(2) ends up in the time wait list.
+// Makes sure TestConnectionId(1) creates a new connection and
+// TestConnectionIdNineBytesLong(2) gets replaced.
 TEST_F(QuicDispatcherTest, MixGoodAndBadConnectionIdLengthPackets) {
   if (!QuicUtils::VariableLengthConnectionIdAllowedForVersion(
           CurrentSupportedVersions()[0].transport_version)) {
     return;
   }
-  CreateTimeWaitListManager();
+
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
+  QuicConnectionId bad_connection_id = TestConnectionIdNineBytesLong(2);
+  QuicConnectionId fixed_connection_id =
+      QuicUtils::CreateRandomConnectionId(mock_helper_.GetRandomGenerator());
 
   EXPECT_CALL(*dispatcher_,
               CreateQuicSession(TestConnectionId(1), client_address,
@@ -688,18 +703,22 @@ TEST_F(QuicDispatcherTest, MixGoodAndBadConnectionIdLengthPackets) {
   EXPECT_EQ(client_address, dispatcher_->current_peer_address());
   EXPECT_EQ(server_address_, dispatcher_->current_self_address());
 
-  EXPECT_CALL(*dispatcher_, CreateQuicSession(TestConnectionIdNineBytesLong(2),
-                                              _, QuicStringPiece("hq"), _))
-      .Times(0);
-  EXPECT_CALL(*time_wait_list_manager_,
-              ProcessPacket(_, _, TestConnectionIdNineBytesLong(2), _, _))
-      .Times(1);
-  EXPECT_CALL(*time_wait_list_manager_,
-              AddConnectionIdToTimeWait(_, _, _, _, _))
-      .Times(1);
-
-  ProcessPacket(client_address, TestConnectionIdNineBytesLong(2), true,
-                SerializeCHLO());
+  EXPECT_CALL(*dispatcher_,
+              CreateQuicSession(fixed_connection_id, client_address,
+                                QuicStringPiece("hq"), _))
+      .WillOnce(testing::Return(CreateSession(
+          dispatcher_.get(), config_, fixed_connection_id, client_address,
+          &mock_helper_, &mock_alarm_factory_, &crypto_config_,
+          QuicDispatcherPeer::GetCache(dispatcher_.get()), &session2_)));
+  EXPECT_CALL(*reinterpret_cast<MockQuicConnection*>(session2_->connection()),
+              ProcessUdpPacket(_, _, _))
+      .WillOnce(WithArg<2>(
+          Invoke([this, bad_connection_id](const QuicEncryptedPacket& packet) {
+            ValidatePacket(bad_connection_id, packet);
+          })));
+  EXPECT_CALL(*dispatcher_,
+              ShouldCreateOrBufferPacketForConnection(bad_connection_id, _));
+  ProcessPacket(client_address, bad_connection_id, true, SerializeCHLO());
 
   EXPECT_CALL(*reinterpret_cast<MockQuicConnection*>(session1_->connection()),
               ProcessUdpPacket(_, _, _))
@@ -1304,15 +1323,20 @@ class QuicDispatcherTestStrayPacketConnectionId : public QuicDispatcherTest {};
 // Packets with truncated connection IDs should be dropped.
 TEST_F(QuicDispatcherTestStrayPacketConnectionId,
        StrayPacketTruncatedConnectionId) {
+  if (QuicUtils::VariableLengthConnectionIdAllowedForVersion(
+          CurrentSupportedVersions()[0].transport_version)) {
+    // When variable length connection IDs are supported, the server
+    // transparently replaces empty connection IDs with one it chooses.
+    // See BadConnectionIdLengthReplaced.
+    return;
+  }
   CreateTimeWaitListManager();
 
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
   QuicConnectionId connection_id = TestConnectionId(1);
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, QuicStringPiece("hq"), _))
       .Times(0);
-  if (CurrentSupportedVersions()[0].transport_version > QUIC_VERSION_43 &&
-      !QuicUtils::VariableLengthConnectionIdAllowedForVersion(
-          CurrentSupportedVersions()[0].transport_version)) {
+  if (CurrentSupportedVersions()[0].transport_version > QUIC_VERSION_43) {
     // This IETF packet has invalid connection ID length.
     EXPECT_CALL(*time_wait_list_manager_, ProcessPacket(_, _, _, _, _))
         .Times(0);

@@ -30,6 +30,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_alarm.h"
 #include "net/third_party/quiche/src/quic/core/quic_alarm_factory.h"
 #include "net/third_party/quiche/src/quic/core/quic_blocked_writer_interface.h"
+#include "net/third_party/quiche/src/quic/core/quic_connection_id.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection_stats.h"
 #include "net/third_party/quiche/src/quic/core/quic_framer.h"
 #include "net/third_party/quiche/src/quic/core/quic_one_block_arena.h"
@@ -864,6 +865,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
     return sent_packet_manager_.handshake_confirmed();
   }
 
+  // Adds the connection ID to a set of connection IDs that are accepted as
+  // destination on incoming packets.
+  void AddIncomingConnectionId(QuicConnectionId connection_id);
+
  protected:
   // Calls cancel() on all the alarms owned by this connection.
   void CancelAllAlarms();
@@ -1111,6 +1116,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Returns the largest sent packet number that has been ACKed by peer.
   QuicPacketNumber GetLargestAckedPacket() const;
 
+  // Whether incoming_connection_ids_ contains connection_id.
+  bool HasIncomingConnectionId(QuicConnectionId connection_id);
+
   QuicFramer framer_;
 
   // Contents received in the current packet, especially used to identify
@@ -1136,7 +1144,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   const QuicClock* clock_;
   QuicRandom* random_generator_;
 
-  const QuicConnectionId connection_id_;
+  QuicConnectionId connection_id_;
   // Address on the last successfully processed packet received from the
   // direct peer.
   QuicSocketAddress self_address_;
@@ -1462,6 +1470,11 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // might send a packet with more than one PATH_CHALLENGE, so all need to be
   // saved and responded to.
   QuicDeque<QuicPathFrameBuffer> received_path_challenge_payloads_;
+
+  // Set of connection IDs that should be accepted as destination on
+  // received packets. This is conceptually a set but is implemented as a
+  // vector to improve performance since it is expected to be very small.
+  std::vector<QuicConnectionId> incoming_connection_ids_;
 
   // Latched value of quic_fix_termination_packets.
   const bool fix_termination_packets_;

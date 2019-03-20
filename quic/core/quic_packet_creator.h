@@ -215,6 +215,9 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // Sets whether the connection ID should be sent over the wire.
   void SetConnectionIdIncluded(QuicConnectionIdIncluded connection_id_included);
 
+  // Update the connection ID used in outgoing packets.
+  void SetConnectionId(QuicConnectionId connection_id);
+
   // Sets the encryption level that will be applied to new packets.
   void set_encryption_level(EncryptionLevel level) {
     packet_.encryption_level = level;

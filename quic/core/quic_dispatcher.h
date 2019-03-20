@@ -110,6 +110,14 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
   // Deletes all sessions on the closed session list and clears the list.
   virtual void DeleteSessions();
 
+  using ConnectionIdMap = QuicUnorderedMap<QuicConnectionId,
+                                           QuicConnectionId,
+                                           QuicConnectionIdHash>;
+
+  const ConnectionIdMap& connection_id_map() const {
+    return connection_id_map_;
+  }
+
   // The largest packet number we expect to receive with a connection
   // ID for a connection that is not established yet.  The current design will
   // send a handshake and then up to 50 or so data packets, and then it may
@@ -405,6 +413,12 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
       QuicTransportVersion first_version,
       PacketHeaderFormat form);
 
+  // If the connection ID length is different from what the dispatcher expects,
+  // replace the connection ID with a random one of the right length,
+  // and save it to make sure the mapping is persistent.
+  QuicConnectionId MaybeReplaceConnectionId(QuicConnectionId connection_id,
+                                            ParsedQuicVersion version);
+
   void set_new_sessions_allowed_per_event_loop(
       int16_t new_sessions_allowed_per_event_loop) {
     new_sessions_allowed_per_event_loop_ = new_sessions_allowed_per_event_loop;
@@ -421,6 +435,9 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
   WriteBlockedList write_blocked_list_;
 
   SessionMap session_map_;
+
+  // Map of connection IDs with bad lengths to their replacements.
+  ConnectionIdMap connection_id_map_;
 
   // Entity that manages connection_ids in time wait state.
   std::unique_ptr<QuicTimeWaitListManager> time_wait_list_manager_;

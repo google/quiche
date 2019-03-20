@@ -970,6 +970,10 @@ void QuicPacketCreator::SetConnectionIdIncluded(
   connection_id_included_ = connection_id_included;
 }
 
+void QuicPacketCreator::SetConnectionId(QuicConnectionId connection_id) {
+  connection_id_ = connection_id;
+}
+
 void QuicPacketCreator::SetTransmissionType(TransmissionType type) {
   DCHECK(can_set_transmission_type_);
 

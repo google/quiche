@@ -229,6 +229,9 @@ class QUIC_EXPORT_PRIVATE QuicPacketGenerator {
   // Returns the largest payload that will fit into a single MESSAGE frame.
   QuicPacketLength GetLargestMessagePayload() const;
 
+  // Update the connection ID used in outgoing packets.
+  void SetConnectionId(QuicConnectionId connection_id);
+
   void set_debug_delegate(QuicPacketCreator::DebugDelegate* debug_delegate) {
     packet_creator_.set_debug_delegate(debug_delegate);
   }

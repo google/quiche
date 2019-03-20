@@ -329,6 +329,30 @@ void QuicDispatcher::ProcessPacket(const QuicSocketAddress& self_address,
   //            next packet does not use them incorrectly.
 }
 
+QuicConnectionId QuicDispatcher::MaybeReplaceConnectionId(
+    QuicConnectionId connection_id,
+    ParsedQuicVersion version) {
+  const uint8_t expected_connection_id_length =
+      framer_.GetExpectedConnectionIdLength();
+  if (connection_id.length() == expected_connection_id_length) {
+    return connection_id;
+  }
+  DCHECK(QuicUtils::VariableLengthConnectionIdAllowedForVersion(
+      version.transport_version));
+  auto it = connection_id_map_.find(connection_id);
+  if (it != connection_id_map_.end()) {
+    return it->second;
+  }
+  QuicConnectionId new_connection_id =
+      session_helper_->GenerateConnectionIdForReject(version.transport_version,
+                                                     connection_id);
+  DCHECK_EQ(expected_connection_id_length, new_connection_id.length());
+  connection_id_map_.insert(std::make_pair(connection_id, new_connection_id));
+  QUIC_DLOG(INFO) << "Replacing incoming connection ID " << connection_id
+                  << " with " << new_connection_id;
+  return new_connection_id;
+}
+
 bool QuicDispatcher::OnUnauthenticatedPublicHeader(
     const QuicPacketHeader& header) {
   current_connection_id_ = header.destination_connection_id;
@@ -345,28 +369,10 @@ bool QuicDispatcher::OnUnauthenticatedPublicHeader(
   if (header.destination_connection_id_included != CONNECTION_ID_PRESENT) {
     return false;
   }
-
-  // We currently do not support having the server change its connection ID
-  // length during the handshake. Until then, fast-fail connections.
-  // TODO(dschinazi): actually support changing connection IDs from the server.
-  if (header.destination_connection_id.length() !=
-      framer_.GetExpectedConnectionIdLength()) {
-    DCHECK(QuicUtils::VariableLengthConnectionIdAllowedForVersion(
-        header.version.transport_version));
-    QUIC_DLOG(INFO)
-        << "Packet with unexpected connection ID lengths: destination "
-        << header.destination_connection_id << " source "
-        << header.source_connection_id << " expected "
-        << static_cast<int>(framer_.GetExpectedConnectionIdLength());
-    ProcessUnauthenticatedHeaderFate(kFateTimeWait,
-                                     header.destination_connection_id,
-                                     header.form, header.version);
-    return false;
-  }
+  QuicConnectionId connection_id = header.destination_connection_id;
 
   // Packets with connection IDs for active connections are processed
   // immediately.
-  QuicConnectionId connection_id = header.destination_connection_id;
   auto it = session_map_.find(connection_id);
   if (it != session_map_.end()) {
     DCHECK(!buffered_packets_.HasBufferedPackets(connection_id));
@@ -998,9 +1004,15 @@ void QuicDispatcher::ProcessBufferedChlos(size_t max_connections_to_create) {
     if (packets.empty()) {
       return;
     }
+    QuicConnectionId original_connection_id = connection_id;
+    connection_id =
+        MaybeReplaceConnectionId(connection_id, packet_list.version);
     QuicSession* session =
         CreateQuicSession(connection_id, packets.front().peer_address,
                           packet_list.alpn, packet_list.version);
+    if (original_connection_id != connection_id) {
+      session->connection()->AddIncomingConnectionId(original_connection_id);
+    }
     QUIC_DLOG(INFO) << "Created new session for " << connection_id;
     session_map_.insert(std::make_pair(connection_id, QuicWrapUnique(session)));
     DeliverPacketsToSession(packets, session);
@@ -1093,10 +1105,17 @@ void QuicDispatcher::ProcessChlo(PacketHeaderFormat form,
     }
     return;
   }
+
+  QuicConnectionId original_connection_id = current_connection_id_;
+  current_connection_id_ =
+      MaybeReplaceConnectionId(current_connection_id_, framer_.version());
   // Creates a new session and process all buffered packets for this connection.
   QuicSession* session =
       CreateQuicSession(current_connection_id_, current_peer_address_,
                         current_alpn_, framer_.version());
+  if (original_connection_id != current_connection_id_) {
+    session->connection()->AddIncomingConnectionId(original_connection_id);
+  }
   QUIC_DLOG(INFO) << "Created new session for " << current_connection_id_;
   session_map_.insert(
       std::make_pair(current_connection_id_, QuicWrapUnique(session)));

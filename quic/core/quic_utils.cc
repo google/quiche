@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <string>
 
+#include "net/third_party/quiche/src/quic/core/quic_connection_id.h"
 #include "net/third_party/quiche/src/quic/core/quic_constants.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_aligned.h"
@@ -456,15 +457,37 @@ QuicStreamId QuicUtils::GetFirstUnidirectionalStreamId(
 
 // static
 QuicConnectionId QuicUtils::CreateRandomConnectionId() {
-  return CreateRandomConnectionId(QuicRandom::GetInstance());
+  return CreateRandomConnectionId(kQuicDefaultConnectionIdLength,
+                                  QuicRandom::GetInstance());
 }
 
 // static
 QuicConnectionId QuicUtils::CreateRandomConnectionId(QuicRandom* random) {
-  char connection_id_bytes[kQuicDefaultConnectionIdLength];
-  random->RandBytes(connection_id_bytes, QUIC_ARRAYSIZE(connection_id_bytes));
+  return CreateRandomConnectionId(kQuicDefaultConnectionIdLength, random);
+}
+// static
+QuicConnectionId QuicUtils::CreateRandomConnectionId(
+    uint8_t connection_id_length) {
+  return CreateRandomConnectionId(connection_id_length,
+                                  QuicRandom::GetInstance());
+}
+
+// static
+QuicConnectionId QuicUtils::CreateRandomConnectionId(
+    uint8_t connection_id_length,
+    QuicRandom* random) {
+  if (connection_id_length == 0) {
+    return EmptyQuicConnectionId();
+  }
+  if (connection_id_length > kQuicMaxConnectionIdLength) {
+    QUIC_BUG << "Tried to CreateRandomConnectionId of invalid length "
+             << static_cast<int>(connection_id_length);
+    connection_id_length = kQuicMaxConnectionIdLength;
+  }
+  char connection_id_bytes[kQuicMaxConnectionIdLength];
+  random->RandBytes(connection_id_bytes, connection_id_length);
   return QuicConnectionId(static_cast<char*>(connection_id_bytes),
-                          QUIC_ARRAYSIZE(connection_id_bytes));
+                          connection_id_length);
 }
 
 // static

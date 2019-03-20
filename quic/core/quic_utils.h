@@ -154,6 +154,15 @@ class QUIC_EXPORT_PRIVATE QuicUtils {
   // Generates a random 64bit connection ID using the provided QuicRandom.
   static QuicConnectionId CreateRandomConnectionId(QuicRandom* random);
 
+  // Generates a random connection ID of the given length.
+  static QuicConnectionId CreateRandomConnectionId(
+      uint8_t connection_id_length);
+
+  // Generates a random connection ID of the given length using the provided
+  // QuicRandom.
+  static QuicConnectionId CreateRandomConnectionId(uint8_t connection_id_length,
+                                                   QuicRandom* random);
+
   // Returns true if the QUIC version allows variable length connection IDs.
   static bool VariableLengthConnectionIdAllowedForVersion(
       QuicTransportVersion version);

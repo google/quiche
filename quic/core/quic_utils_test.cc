@@ -177,6 +177,28 @@ TEST_F(QuicUtilsTest, RandomConnectionId) {
   EXPECT_NE(connection_id, EmptyQuicConnectionId());
   EXPECT_NE(connection_id, TestConnectionId());
   EXPECT_NE(connection_id, TestConnectionId(1));
+  EXPECT_NE(connection_id, TestConnectionIdNineBytesLong(1));
+  EXPECT_EQ(QuicUtils::CreateRandomConnectionId().length(),
+            kQuicDefaultConnectionIdLength);
+}
+
+TEST_F(QuicUtilsTest, RandomConnectionIdVariableLength) {
+  MockRandom random(1337);
+  const uint8_t connection_id_length = 9;
+  QuicConnectionId connection_id =
+      QuicUtils::CreateRandomConnectionId(connection_id_length, &random);
+  EXPECT_EQ(connection_id.length(), connection_id_length);
+  char connection_id_bytes[connection_id_length];
+  random.RandBytes(connection_id_bytes, QUIC_ARRAYSIZE(connection_id_bytes));
+  EXPECT_EQ(connection_id,
+            QuicConnectionId(static_cast<char*>(connection_id_bytes),
+                             QUIC_ARRAYSIZE(connection_id_bytes)));
+  EXPECT_NE(connection_id, EmptyQuicConnectionId());
+  EXPECT_NE(connection_id, TestConnectionId());
+  EXPECT_NE(connection_id, TestConnectionId(1));
+  EXPECT_NE(connection_id, TestConnectionIdNineBytesLong(1));
+  EXPECT_EQ(QuicUtils::CreateRandomConnectionId(connection_id_length).length(),
+            connection_id_length);
 }
 
 TEST_F(QuicUtilsTest, VariableLengthConnectionId) {

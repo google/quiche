@@ -535,4 +535,8 @@ QuicPacketLength QuicPacketGenerator::GetLargestMessagePayload() const {
   return packet_creator_.GetLargestMessagePayload();
 }
 
+void QuicPacketGenerator::SetConnectionId(QuicConnectionId connection_id) {
+  packet_creator_.SetConnectionId(connection_id);
+}
+
 }  // namespace quic

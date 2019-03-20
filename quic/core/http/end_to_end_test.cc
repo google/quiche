@@ -741,10 +741,17 @@ TEST_P(EndToEndTest, BadConnectionIdLength) {
     ASSERT_TRUE(Initialize());
     return;
   }
-  QuicConnectionId connection_id = TestConnectionIdNineBytesLong(1);
+  QuicConnectionId connection_id =
+      TestConnectionIdNineBytesLong(UINT64_C(0xBADbadBADbad));
   override_connection_id_ = &connection_id;
-  ASSERT_FALSE(Initialize());
-  EXPECT_EQ(QUIC_HANDSHAKE_FAILED, client_->connection_error());
+  ASSERT_TRUE(Initialize());
+  EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
+  EXPECT_EQ("200", client_->response_headers()->find(":status")->second);
+  EXPECT_EQ(kQuicDefaultConnectionIdLength, client_->client()
+                                                ->client_session()
+                                                ->connection()
+                                                ->connection_id()
+                                                .length());
 }
 
 TEST_P(EndToEndTest, MixGoodAndBadConnectionIdLengths) {
@@ -754,14 +761,14 @@ TEST_P(EndToEndTest, MixGoodAndBadConnectionIdLengths) {
     return;
   }
 
-  // Start client_ which will fail due to bad connection ID length.
-  QuicConnectionId connection_id = TestConnectionIdNineBytesLong(1);
+  // Start client_ which will use a bad connection ID length.
+  QuicConnectionId connection_id =
+      TestConnectionIdNineBytesLong(UINT64_C(0xBADbadBADbad));
   override_connection_id_ = &connection_id;
-  ASSERT_FALSE(Initialize());
-  EXPECT_EQ(QUIC_HANDSHAKE_FAILED, client_->connection_error());
+  ASSERT_TRUE(Initialize());
   override_connection_id_ = nullptr;
 
-  // Start client2 which will succeed.
+  // Start client2 which will use a good connection ID length.
   std::unique_ptr<QuicTestClient> client2(CreateQuicClient(nullptr));
   SpdyHeaderBlock headers;
   headers[":method"] = "POST";
@@ -771,9 +778,23 @@ TEST_P(EndToEndTest, MixGoodAndBadConnectionIdLengths) {
   headers["content-length"] = "3";
   client2->SendMessage(headers, "", /*fin=*/false);
   client2->SendData("eep", true);
+
+  EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
+  EXPECT_EQ("200", client_->response_headers()->find(":status")->second);
+  EXPECT_EQ(kQuicDefaultConnectionIdLength, client_->client()
+                                                ->client_session()
+                                                ->connection()
+                                                ->connection_id()
+                                                .length());
+
   client2->WaitForResponse();
   EXPECT_EQ(kFooResponseBody, client2->response_body());
   EXPECT_EQ("200", client2->response_headers()->find(":status")->second);
+  EXPECT_EQ(kQuicDefaultConnectionIdLength, client2->client()
+                                                ->client_session()
+                                                ->connection()
+                                                ->connection_id()
+                                                .length());
 }
 
 TEST_P(EndToEndTest, SimpleRequestResponseWithLargeReject) {

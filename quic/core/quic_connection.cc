@@ -21,6 +21,7 @@
 #include "net/third_party/quiche/src/quic/core/proto/cached_network_parameters.pb.h"
 #include "net/third_party/quiche/src/quic/core/quic_bandwidth.h"
 #include "net/third_party/quiche/src/quic/core/quic_config.h"
+#include "net/third_party/quiche/src/quic/core/quic_connection_id.h"
 #include "net/third_party/quiche/src/quic/core/quic_packet_generator.h"
 #include "net/third_party/quiche/src/quic/core/quic_pending_retransmission.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
@@ -205,6 +206,17 @@ class ProcessUndecryptablePacketsAlarmDelegate : public QuicAlarm::Delegate {
  private:
   QuicConnection* connection_;
 };
+
+// Whether this incoming packet is allowed to replace our connection ID.
+bool PacketCanReplaceConnectionId(const QuicPacketHeader& header,
+                                  Perspective perspective) {
+  return perspective == Perspective::IS_CLIENT &&
+         header.form == IETF_QUIC_LONG_HEADER_PACKET &&
+         QuicUtils::VariableLengthConnectionIdAllowedForVersion(
+             header.version.transport_version) &&
+         (header.long_packet_type == INITIAL ||
+          header.long_packet_type == RETRY);
+}
 
 }  // namespace
 
@@ -719,9 +731,34 @@ void QuicConnection::OnVersionNegotiationPacket(
   RetransmitUnackedPackets(ALL_UNACKED_RETRANSMISSION);
 }
 
+bool QuicConnection::HasIncomingConnectionId(QuicConnectionId connection_id) {
+  for (QuicConnectionId const& incoming_connection_id :
+       incoming_connection_ids_) {
+    if (incoming_connection_id == connection_id) {
+      return true;
+    }
+  }
+  return false;
+}
+
+void QuicConnection::AddIncomingConnectionId(QuicConnectionId connection_id) {
+  if (HasIncomingConnectionId(connection_id)) {
+    return;
+  }
+  incoming_connection_ids_.push_back(connection_id);
+}
+
 bool QuicConnection::OnUnauthenticatedPublicHeader(
     const QuicPacketHeader& header) {
-  if (header.destination_connection_id == connection_id_) {
+  if (header.destination_connection_id == connection_id_ ||
+      HasIncomingConnectionId(header.destination_connection_id)) {
+    return true;
+  }
+
+  if (PacketCanReplaceConnectionId(header, perspective_)) {
+    QUIC_DLOG(INFO) << ENDPOINT << "Accepting packet with new connection ID "
+                    << header.destination_connection_id << " instead of "
+                    << connection_id_;
     return true;
   }
 
@@ -748,7 +785,9 @@ bool QuicConnection::OnUnauthenticatedHeader(const QuicPacketHeader& header) {
   // Check that any public reset packet with a different connection ID that was
   // routed to this QuicConnection has been redirected before control reaches
   // here.
-  DCHECK_EQ(connection_id_, header.destination_connection_id);
+  DCHECK(header.destination_connection_id == connection_id_ ||
+         HasIncomingConnectionId(header.destination_connection_id) ||
+         PacketCanReplaceConnectionId(header, perspective_));
 
   if (!packet_generator_.IsPendingPacketEmpty()) {
     // Incoming packets may change a queued ACK frame.
@@ -1945,6 +1984,14 @@ bool QuicConnection::ProcessValidatedPacket(const QuicPacketHeader& header) {
       }
     }
     self_address_ = last_packet_destination_address_;
+  }
+
+  if (PacketCanReplaceConnectionId(header, perspective_) &&
+      connection_id_ != header.source_connection_id) {
+    QUIC_DLOG(INFO) << ENDPOINT << "Replacing connection ID " << connection_id_
+                    << " with " << header.source_connection_id;
+    connection_id_ = header.source_connection_id;
+    packet_generator_.SetConnectionId(connection_id_);
   }
 
   if (!ValidateReceivedPacketNumber(header.packet_number)) {
