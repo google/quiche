@@ -686,6 +686,12 @@ class MockQuicSpdySession : public QuicSpdySession {
   const QuicCryptoStream* GetCryptoStream() const override;
   void SetCryptoStream(QuicCryptoStream* crypto_stream);
 
+  void ReallyOnConnectionClosed(QuicErrorCode error,
+                                const std::string& error_details,
+                                ConnectionCloseSource source) {
+    QuicSession::OnConnectionClosed(error, error_details, source);
+  }
+
   // From QuicSession.
   MOCK_METHOD3(OnConnectionClosed,
                void(QuicErrorCode error,

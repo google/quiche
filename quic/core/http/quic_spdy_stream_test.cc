@@ -304,6 +304,46 @@ TEST_P(QuicSpdyStreamTest, MarkHeadersConsumed) {
   EXPECT_EQ(QuicHeaderList(), stream_->header_list());
 }
 
+TEST_P(QuicSpdyStreamTest, ProcessWrongFramesOnSpdyStream) {
+  testing::InSequence s;
+  Initialize(kShouldProcessData);
+  if (!HasFrameHeader()) {
+    return;
+  }
+  connection_->AdvanceTime(QuicTime::Delta::FromSeconds(1));
+  GoAwayFrame goaway;
+  goaway.stream_id = 0x1;
+  std::unique_ptr<char[]> buffer;
+  QuicByteCount header_length = encoder_.SerializeGoAwayFrame(goaway, &buffer);
+  std::string data = std::string(buffer.get(), header_length);
+
+  EXPECT_EQ("", stream_->data());
+  QuicHeaderList headers = ProcessHeaders(false, headers_);
+  EXPECT_EQ(headers, stream_->header_list());
+  stream_->ConsumeHeaderList();
+  QuicStreamFrame frame(GetNthClientInitiatedBidirectionalId(0), false, 0,
+                        QuicStringPiece(data));
+
+  EXPECT_CALL(*connection_, CloseConnection(QUIC_HTTP_DECODER_ERROR, _, _))
+      .WillOnce(
+          (Invoke([this](QuicErrorCode error, const std::string& error_details,
+                         ConnectionCloseBehavior connection_close_behavior) {
+            connection_->ReallyCloseConnection(error, error_details,
+                                               connection_close_behavior);
+          })));
+  EXPECT_CALL(*connection_, SendConnectionClosePacket(_, _, _));
+  EXPECT_CALL(*session_, OnConnectionClosed(_, _, _))
+      .WillOnce(
+          Invoke([this](QuicErrorCode error, const std::string& error_details,
+                        ConnectionCloseSource source) {
+            session_->ReallyOnConnectionClosed(error, error_details, source);
+          }));
+  EXPECT_CALL(*session_, SendRstStream(_, _, _));
+  EXPECT_CALL(*session_, SendRstStream(_, _, _));
+
+  stream_->OnStreamFrame(frame);
+}
+
 TEST_P(QuicSpdyStreamTest, ProcessHeadersAndBody) {
   Initialize(kShouldProcessData);
 
@@ -404,6 +444,7 @@ TEST_P(QuicSpdyStreamTest, ProcessHeadersAndBodyReadv) {
   vec.iov_len = QUIC_ARRAYSIZE(buffer);
 
   size_t bytes_read = stream_->Readv(&vec, 1);
+  QuicStreamPeer::CloseReadSide(stream_);
   EXPECT_EQ(body.length(), bytes_read);
   EXPECT_EQ(body, std::string(buffer, bytes_read));
 }
