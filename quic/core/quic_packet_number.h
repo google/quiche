@@ -126,11 +126,7 @@ inline bool operator>=(QuicPacketNumber lhs, QuicPacketNumber rhs) {
 inline QuicPacketNumber operator+(QuicPacketNumber lhs, uint64_t delta) {
 #ifndef NDEBUG
   DCHECK(lhs.IsInitialized());
-  if (GetQuicRestartFlag(quic_uint64max_uninitialized_pn)) {
-    DCHECK_GT(std::numeric_limits<uint64_t>::max() - lhs.ToUint64(), delta);
-  } else {
-    DCHECK_GE(std::numeric_limits<uint64_t>::max() - lhs.ToUint64(), delta);
-  }
+  DCHECK_GT(std::numeric_limits<uint64_t>::max() - lhs.ToUint64(), delta);
 #endif
   return QuicPacketNumber(lhs.packet_number_ + delta);
 }
@@ -138,11 +134,7 @@ inline QuicPacketNumber operator+(QuicPacketNumber lhs, uint64_t delta) {
 inline QuicPacketNumber operator-(QuicPacketNumber lhs, uint64_t delta) {
 #ifndef NDEBUG
   DCHECK(lhs.IsInitialized());
-  if (GetQuicRestartFlag(quic_uint64max_uninitialized_pn)) {
-    DCHECK_GE(lhs.ToUint64(), delta);
-  } else {
-    DCHECK_GT(lhs.ToUint64(), delta);
-  }
+  DCHECK_GE(lhs.ToUint64(), delta);
 #endif
   return QuicPacketNumber(lhs.packet_number_ - delta);
 }

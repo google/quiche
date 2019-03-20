@@ -7890,8 +7890,7 @@ TEST_P(QuicConnectionTest, StopProcessingGQuicPacketInIetfQuicConnection) {
 }
 
 TEST_P(QuicConnectionTest, AcceptPacketNumberZero) {
-  if (!GetQuicRestartFlag(quic_uint64max_uninitialized_pn) ||
-      version().transport_version != QUIC_VERSION_99) {
+  if (version().transport_version != QUIC_VERSION_99) {
     return;
   }
   // Set first_sending_packet_number to be 0 to allow successfully processing

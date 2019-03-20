@@ -47,11 +47,7 @@ bool QuicPacketNumber::IsInitialized() const {
 QuicPacketNumber& QuicPacketNumber::operator++() {
 #ifndef NDEBUG
   DCHECK(IsInitialized());
-  if (GetQuicRestartFlag(quic_uint64max_uninitialized_pn)) {
-    DCHECK_LT(ToUint64(), std::numeric_limits<uint64_t>::max() - 1);
-  } else {
-    DCHECK_LT(ToUint64(), std::numeric_limits<uint64_t>::max());
-  }
+  DCHECK_LT(ToUint64(), std::numeric_limits<uint64_t>::max() - 1);
 #endif
   packet_number_++;
   return *this;
@@ -60,11 +56,7 @@ QuicPacketNumber& QuicPacketNumber::operator++() {
 QuicPacketNumber QuicPacketNumber::operator++(int) {
 #ifndef NDEBUG
   DCHECK(IsInitialized());
-  if (GetQuicRestartFlag(quic_uint64max_uninitialized_pn)) {
-    DCHECK_LT(ToUint64(), std::numeric_limits<uint64_t>::max() - 1);
-  } else {
-    DCHECK_LT(ToUint64(), std::numeric_limits<uint64_t>::max());
-  }
+  DCHECK_LT(ToUint64(), std::numeric_limits<uint64_t>::max() - 1);
 #endif
   QuicPacketNumber previous(*this);
   packet_number_++;
@@ -74,11 +66,7 @@ QuicPacketNumber QuicPacketNumber::operator++(int) {
 QuicPacketNumber& QuicPacketNumber::operator--() {
 #ifndef NDEBUG
   DCHECK(IsInitialized());
-  if (GetQuicRestartFlag(quic_uint64max_uninitialized_pn)) {
-    DCHECK_GE(ToUint64(), 1UL);
-  } else {
-    DCHECK_GT(ToUint64(), 1UL);
-  }
+  DCHECK_GE(ToUint64(), 1UL);
 #endif
   packet_number_--;
   return *this;
@@ -87,11 +75,7 @@ QuicPacketNumber& QuicPacketNumber::operator--() {
 QuicPacketNumber QuicPacketNumber::operator--(int) {
 #ifndef NDEBUG
   DCHECK(IsInitialized());
-  if (GetQuicRestartFlag(quic_uint64max_uninitialized_pn)) {
-    DCHECK_GE(ToUint64(), 1UL);
-  } else {
-    DCHECK_GT(ToUint64(), 1UL);
-  }
+  DCHECK_GE(ToUint64(), 1UL);
 #endif
   QuicPacketNumber previous(*this);
   packet_number_--;
@@ -101,11 +85,7 @@ QuicPacketNumber QuicPacketNumber::operator--(int) {
 QuicPacketNumber& QuicPacketNumber::operator+=(uint64_t delta) {
 #ifndef NDEBUG
   DCHECK(IsInitialized());
-  if (GetQuicRestartFlag(quic_uint64max_uninitialized_pn)) {
-    DCHECK_GT(std::numeric_limits<uint64_t>::max() - ToUint64(), delta);
-  } else {
-    DCHECK_GE(std::numeric_limits<uint64_t>::max() - ToUint64(), delta);
-  }
+  DCHECK_GT(std::numeric_limits<uint64_t>::max() - ToUint64(), delta);
 #endif
   packet_number_ += delta;
   return *this;
@@ -114,11 +94,7 @@ QuicPacketNumber& QuicPacketNumber::operator+=(uint64_t delta) {
 QuicPacketNumber& QuicPacketNumber::operator-=(uint64_t delta) {
 #ifndef NDEBUG
   DCHECK(IsInitialized());
-  if (GetQuicRestartFlag(quic_uint64max_uninitialized_pn)) {
-    DCHECK_GE(ToUint64(), delta);
-  } else {
-    DCHECK_GT(ToUint64(), delta);
-  }
+  DCHECK_GE(ToUint64(), delta);
 #endif
   packet_number_ -= delta;
   return *this;
@@ -135,9 +111,7 @@ std::ostream& operator<<(std::ostream& os, const QuicPacketNumber& p) {
 
 // static
 uint64_t QuicPacketNumber::UninitializedPacketNumber() {
-  return GetQuicRestartFlag(quic_uint64max_uninitialized_pn)
-             ? std::numeric_limits<uint64_t>::max()
-             : 0;
+  return std::numeric_limits<uint64_t>::max();
 }
 
 }  // namespace quic

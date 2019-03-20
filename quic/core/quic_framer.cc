@@ -345,9 +345,7 @@ bool IsValidPacketNumberLength(QuicPacketNumberLength packet_number_length) {
 
 bool IsValidFullPacketNumber(uint64_t full_packet_number,
                              QuicTransportVersion version) {
-  return full_packet_number > 0 ||
-         (GetQuicRestartFlag(quic_uint64max_uninitialized_pn) &&
-          version == QUIC_VERSION_99);
+  return full_packet_number > 0 || version == QUIC_VERSION_99;
 }
 
 // Convert a stream ID to a count of streams, for IETF QUIC/Version 99 only.

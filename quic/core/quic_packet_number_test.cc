@@ -32,16 +32,6 @@ TEST(QuicPacketNumberTest, BasicTest) {
   num2.UpdateMax(QuicPacketNumber(9));
   EXPECT_EQ(9u, num2.ToUint64());
 
-  if (!GetQuicRestartFlag(quic_uint64max_uninitialized_pn)) {
-    QuicPacketNumber num3(std::numeric_limits<uint64_t>::max());
-    EXPECT_TRUE(num3.IsInitialized());
-    EXPECT_EQ(std::numeric_limits<uint64_t>::max(), num3.ToUint64());
-    EXPECT_EQ(std::numeric_limits<uint64_t>::max(), num3.Hash());
-    num3.Clear();
-    EXPECT_FALSE(num3.IsInitialized());
-    return;
-  }
-
   QuicPacketNumber num4(0);
   EXPECT_TRUE(num4.IsInitialized());
   EXPECT_EQ(0u, num4.ToUint64());
@@ -59,20 +49,6 @@ TEST(QuicPacketNumberTest, Operators) {
 
   EXPECT_EQ(QuicPacketNumber(101), ++num);
   EXPECT_EQ(QuicPacketNumber(100), --num);
-
-  if (!GetQuicRestartFlag(quic_uint64max_uninitialized_pn)) {
-    QuicPacketNumber num2(std::numeric_limits<uint64_t>::max());
-    EXPECT_EQ(QuicPacketNumber(std::numeric_limits<uint64_t>::max()), num2--);
-    EXPECT_EQ(QuicPacketNumber(std::numeric_limits<uint64_t>::max() - 1), num2);
-    EXPECT_EQ(QuicPacketNumber(std::numeric_limits<uint64_t>::max() - 2),
-              --num2);
-
-    EXPECT_EQ(QuicPacketNumber(std::numeric_limits<uint64_t>::max() - 2),
-              num2++);
-    EXPECT_EQ(QuicPacketNumber(std::numeric_limits<uint64_t>::max() - 1), num2);
-    EXPECT_EQ(QuicPacketNumber(std::numeric_limits<uint64_t>::max()), ++num2);
-    return;
-  }
 
   QuicPacketNumber num3(0);
   EXPECT_EQ(QuicPacketNumber(0), num3++);
