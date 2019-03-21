@@ -697,6 +697,13 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
       std::unique_ptr<ProcessClientHelloContext> context,
       const Configs& configs) const;
 
+  // BuildRejectionAndRecordStats calls |BuildRejection| below and also informs
+  // the RejectionObserver.
+  void BuildRejectionAndRecordStats(const ProcessClientHelloContext& context,
+                                    const Config& config,
+                                    const std::vector<uint32_t>& reject_reasons,
+                                    CryptoHandshakeMessage* out) const;
+
   // BuildRejection sets |out| to be a REJ message in reply to |client_hello|.
   void BuildRejection(const ProcessClientHelloContext& context,
                       const Config& config,

@@ -705,12 +705,8 @@ void QuicCryptoServerConfig::ProcessClientHelloAfterGetProof(
 
   auto out = QuicMakeUnique<CryptoHandshakeMessage>();
   if (!context->info().reject_reasons.empty() || !configs.requested) {
-    BuildRejection(*context, *configs.primary, context->info().reject_reasons,
-                   out.get());
-    if (rejection_observer_ != nullptr) {
-      rejection_observer_->OnRejectionBuilt(context->info().reject_reasons,
-                                            out.get());
-    }
+    BuildRejectionAndRecordStats(*context, *configs.primary,
+                                 context->info().reject_reasons, out.get());
     context->Succeed(std::move(out), std::move(out_diversification_nonce),
                      std::move(proof_source_details));
     return;
@@ -1327,6 +1323,17 @@ void QuicCryptoServerConfig::FinishBuildServerConfigUpdateMessage(
   }
 
   cb->Run(true, message);
+}
+
+void QuicCryptoServerConfig::BuildRejectionAndRecordStats(
+    const ProcessClientHelloContext& context,
+    const Config& config,
+    const std::vector<uint32_t>& reject_reasons,
+    CryptoHandshakeMessage* out) const {
+  BuildRejection(context, config, reject_reasons, out);
+  if (rejection_observer_ != nullptr) {
+    rejection_observer_->OnRejectionBuilt(reject_reasons, out);
+  }
 }
 
 void QuicCryptoServerConfig::BuildRejection(
