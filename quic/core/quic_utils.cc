@@ -493,7 +493,7 @@ QuicConnectionId QuicUtils::CreateRandomConnectionId(
 // static
 bool QuicUtils::VariableLengthConnectionIdAllowedForVersion(
     QuicTransportVersion version) {
-  return version == QUIC_VERSION_99;
+  return version >= QUIC_VERSION_47;
 }
 
 // static

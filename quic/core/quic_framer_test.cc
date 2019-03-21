@@ -11147,8 +11147,8 @@ TEST_P(QuicFramerTest, NewConnectionIdFrame) {
 }
 
 TEST_P(QuicFramerTest, NewConnectionIdFrameVariableLength) {
-  if (!QuicUtils::VariableLengthConnectionIdAllowedForVersion(
-          framer_.transport_version())) {
+  if (framer_.transport_version() != QUIC_VERSION_99) {
+    // This frame is only for version 99.
     return;
   }
   // clang-format off

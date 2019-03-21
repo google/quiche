@@ -103,7 +103,7 @@ enum QuicTransportVersion {
 
   QUIC_VERSION_46 = 46,  // Use IETF draft-17 header format with demultiplexing
                          // bit.
-  QUIC_VERSION_47 = 47,  // Use CRYPTO frames for QuicCryptoStreams.
+  QUIC_VERSION_47 = 47,  // Allow variable-length QUIC connection IDs.
   QUIC_VERSION_99 = 99,  // Dumping ground for IETF QUIC changes which are not
                          // yet ready for production.
 };
@@ -345,7 +345,7 @@ QUIC_EXPORT_PRIVATE inline bool QuicVersionHasLongHeaderLengths(
 // instead of stream 1.
 QUIC_EXPORT_PRIVATE inline bool QuicVersionUsesCryptoFrames(
     QuicTransportVersion transport_version) {
-  return transport_version >= QUIC_VERSION_47;
+  return transport_version == QUIC_VERSION_99;
 }
 
 }  // namespace quic
