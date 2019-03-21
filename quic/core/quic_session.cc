@@ -1257,7 +1257,8 @@ void QuicSession::SendPing() {
 }
 
 size_t QuicSession::GetNumDynamicOutgoingStreams() const {
-  DCHECK_GE(dynamic_stream_map_.size() + pending_stream_map_.size(),
+  DCHECK_GE(static_cast<size_t>(dynamic_stream_map_.size() +
+                                pending_stream_map_.size()),
             num_dynamic_incoming_streams_);
   return dynamic_stream_map_.size() + pending_stream_map_.size() -
          num_dynamic_incoming_streams_;
