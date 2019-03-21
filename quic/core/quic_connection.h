@@ -38,10 +38,10 @@
 #include "net/third_party/quiche/src/quic/core/quic_packet_generator.h"
 #include "net/third_party/quiche/src/quic/core/quic_packet_writer.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
-#include "net/third_party/quiche/src/quic/core/quic_received_packet_manager.h"
 #include "net/third_party/quiche/src/quic/core/quic_sent_packet_manager.h"
 #include "net/third_party/quiche/src/quic/core/quic_time.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
+#include "net/third_party/quiche/src/quic/core/uber_received_packet_manager.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
@@ -1236,7 +1236,11 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // 200ms, this is over 5 seconds.
   bool close_connection_after_five_rtos_;
 
+  // TODO(fayang): remove received_packet_manager_ when deprecating
+  // quic_use_uber_received_packet_manager.
   QuicReceivedPacketManager received_packet_manager_;
+  // Used when use_uber_received_packet_manager_ is true.
+  UberReceivedPacketManager uber_received_packet_manager_;
 
   // Indicates whether an ack should be sent the next time we try to write.
   // TODO(fayang): Remove ack_queued_ when deprecating
@@ -1487,6 +1491,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // Latched value of quic_validate_packet_number_post_decryption.
   const bool validate_packet_number_post_decryption_;
+
+  // Latched value of quic_rpm_decides_when_to_send_acks and
+  // quic_use_uber_received_packet_manager.
+  const bool use_uber_received_packet_manager_;
 };
 
 }  // namespace quic

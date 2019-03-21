@@ -266,6 +266,7 @@ QuicConnection::QuicConnection(
           ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET),
       close_connection_after_five_rtos_(false),
       received_packet_manager_(&stats_),
+      uber_received_packet_manager_(&stats_),
       ack_queued_(false),
       num_retransmittable_packets_received_since_last_ack_sent_(0),
       num_packets_received_since_last_ack_sent_(0),
@@ -353,7 +354,10 @@ QuicConnection::QuicConnection(
           GetQuicReloadableFlag(quic_fix_termination_packets)),
       send_ack_when_on_can_write_(false),
       validate_packet_number_post_decryption_(
-          GetQuicReloadableFlag(quic_validate_packet_number_post_decryption)) {
+          GetQuicReloadableFlag(quic_validate_packet_number_post_decryption)),
+      use_uber_received_packet_manager_(
+          received_packet_manager_.decide_when_to_send_acks() &&
+          GetQuicReloadableFlag(quic_use_uber_received_packet_manager)) {
   if (ack_mode_ == ACK_DECIMATION) {
     QUIC_RELOADABLE_FLAG_COUNT(quic_enable_ack_decimation);
   }
@@ -369,6 +373,9 @@ QuicConnection::QuicConnection(
   }
   if (validate_packet_number_post_decryption_) {
     QUIC_RELOADABLE_FLAG_COUNT(quic_validate_packet_number_post_decryption);
+  }
+  if (use_uber_received_packet_manager_) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_use_uber_received_packet_manager);
   }
   QUIC_DLOG(INFO) << ENDPOINT
                   << "Created connection with connection_id: " << connection_id
@@ -396,7 +403,11 @@ QuicConnection::QuicConnection(
   SetMaxPacketLength(perspective_ == Perspective::IS_SERVER
                          ? kDefaultServerMaxPacketSize
                          : kDefaultMaxPacketSize);
-  received_packet_manager_.set_max_ack_ranges(255);
+  if (use_uber_received_packet_manager_) {
+    uber_received_packet_manager_.set_max_ack_ranges(255);
+  } else {
+    received_packet_manager_.set_max_ack_ranges(255);
+  }
   MaybeEnableSessionDecidesWhatToWrite();
   DCHECK(!GetQuicRestartFlag(quic_no_server_conn_ver_negotiation2) ||
          perspective_ == Perspective::IS_CLIENT ||
@@ -452,7 +463,11 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
     debug_visitor_->OnSetFromConfig(config);
   }
   if (received_packet_manager_.decide_when_to_send_acks()) {
-    received_packet_manager_.SetFromConfig(config, perspective_);
+    if (use_uber_received_packet_manager_) {
+      uber_received_packet_manager_.SetFromConfig(config, perspective_);
+    } else {
+      received_packet_manager_.SetFromConfig(config, perspective_);
+    }
   } else {
     if (GetQuicReloadableFlag(quic_enable_ack_decimation) &&
         config.HasClientSentConnectionOption(kACD0, perspective_)) {
@@ -493,7 +508,11 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
       config.HasClientSentConnectionOption(kSTMP, perspective_)) {
     QUIC_RELOADABLE_FLAG_COUNT(quic_send_timestamps);
     framer_.set_process_timestamps(true);
-    received_packet_manager_.set_save_timestamps(true);
+    if (use_uber_received_packet_manager_) {
+      uber_received_packet_manager_.set_save_timestamps(true);
+    } else {
+      received_packet_manager_.set_save_timestamps(true);
+    }
   }
 
   supports_release_time_ =
@@ -802,21 +821,27 @@ bool QuicConnection::OnUnauthenticatedHeader(const QuicPacketHeader& header) {
 
   // If this packet has already been seen, or the sender has told us that it
   // will not be retransmitted, then stop processing the packet.
-  if (!validate_packet_number_post_decryption_ &&
-      !received_packet_manager_.IsAwaitingPacket(header.packet_number)) {
-    if (framer_.IsIetfStatelessResetPacket(header)) {
-      QuicIetfStatelessResetPacket packet(
-          header, header.possible_stateless_reset_token);
-      OnAuthenticatedIetfStatelessResetPacket(packet);
+  if (!validate_packet_number_post_decryption_) {
+    const bool is_awaiting =
+        use_uber_received_packet_manager_
+            ? uber_received_packet_manager_.IsAwaitingPacket(
+                  header.packet_number)
+            : received_packet_manager_.IsAwaitingPacket(header.packet_number);
+    if (!is_awaiting) {
+      if (framer_.IsIetfStatelessResetPacket(header)) {
+        QuicIetfStatelessResetPacket packet(
+            header, header.possible_stateless_reset_token);
+        OnAuthenticatedIetfStatelessResetPacket(packet);
+        return false;
+      }
+      QUIC_DLOG(INFO) << ENDPOINT << "Packet " << header.packet_number
+                      << " no longer being waited for.  Discarding.";
+      if (debug_visitor_ != nullptr) {
+        debug_visitor_->OnDuplicatePacket(header.packet_number);
+      }
+      ++stats_.packets_dropped;
       return false;
     }
-    QUIC_DLOG(INFO) << ENDPOINT << "Packet " << header.packet_number
-                    << " no longer being waited for.  Discarding.";
-    if (debug_visitor_ != nullptr) {
-      debug_visitor_->OnDuplicatePacket(header.packet_number);
-    }
-    ++stats_.packets_dropped;
-    return false;
   }
 
   if (version_negotiation_state_ != NEGOTIATED_VERSION &&
@@ -925,13 +950,20 @@ bool QuicConnection::OnPacketHeader(const QuicPacketHeader& header) {
   QUIC_DVLOG(1) << ENDPOINT << "Received packet header: " << header;
   last_header_ = header;
   // An ack will be sent if a missing retransmittable packet was received;
-  was_last_packet_missing_ =
-      received_packet_manager_.IsMissing(last_header_.packet_number);
+  if (!use_uber_received_packet_manager_) {
+    was_last_packet_missing_ =
+        received_packet_manager_.IsMissing(last_header_.packet_number);
+  }
 
   // Record packet receipt to populate ack info before processing stream
   // frames, since the processing may result in sending a bundled ack.
-  received_packet_manager_.RecordPacketReceived(last_header_,
-                                                time_of_last_received_packet_);
+  if (use_uber_received_packet_manager_) {
+    uber_received_packet_manager_.RecordPacketReceived(
+        last_header_, time_of_last_received_packet_);
+  } else {
+    received_packet_manager_.RecordPacketReceived(
+        last_header_, time_of_last_received_packet_);
+  }
   DCHECK(connected_);
   return true;
 }
@@ -958,8 +990,8 @@ bool QuicConnection::OnStreamFrame(const QuicStreamFrame& frame) {
     QUIC_PEER_BUG << ENDPOINT
                   << "Received an unencrypted data frame: closing connection"
                   << " packet_number:" << last_header_.packet_number
-                  << " stream_id:" << frame.stream_id << " received_packets:"
-                  << received_packet_manager_.ack_frame();
+                  << " stream_id:" << frame.stream_id
+                  << " received_packets:" << GetUpdatedAckFrame();
     CloseConnection(QUIC_UNENCRYPTED_STREAM_DATA,
                     "Unencrypted stream data seen.",
                     ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
@@ -1134,7 +1166,11 @@ bool QuicConnection::OnStopWaitingFrame(const QuicStopWaitingFrame& frame) {
   }
 
   largest_seen_packet_with_stop_waiting_ = last_header_.packet_number;
-  received_packet_manager_.DontWaitForPacketsBefore(frame.least_unacked);
+  if (use_uber_received_packet_manager_) {
+    uber_received_packet_manager_.DontWaitForPacketsBefore(frame.least_unacked);
+  } else {
+    received_packet_manager_.DontWaitForPacketsBefore(frame.least_unacked);
+  }
   return connected_;
 }
 
@@ -1161,14 +1197,15 @@ bool QuicConnection::OnPingFrame(const QuicPingFrame& frame) {
 
 const char* QuicConnection::ValidateStopWaitingFrame(
     const QuicStopWaitingFrame& stop_waiting) {
-  if (received_packet_manager_.peer_least_packet_awaiting_ack()
-          .IsInitialized() &&
-      stop_waiting.least_unacked <
-          received_packet_manager_.peer_least_packet_awaiting_ack()) {
-    QUIC_DLOG(ERROR)
-        << ENDPOINT
-        << "Peer's sent low least_unacked: " << stop_waiting.least_unacked
-        << " vs " << received_packet_manager_.peer_least_packet_awaiting_ack();
+  const QuicPacketNumber peer_least_packet_awaiting_ack =
+      use_uber_received_packet_manager_
+          ? uber_received_packet_manager_.peer_least_packet_awaiting_ack()
+          : received_packet_manager_.peer_least_packet_awaiting_ack();
+  if (peer_least_packet_awaiting_ack.IsInitialized() &&
+      stop_waiting.least_unacked < peer_least_packet_awaiting_ack) {
+    QUIC_DLOG(ERROR) << ENDPOINT << "Peer's sent low least_unacked: "
+                     << stop_waiting.least_unacked << " vs "
+                     << peer_least_packet_awaiting_ack;
     // We never process old ack frames, so this number should only increase.
     return "Least unacked too small.";
   }
@@ -1451,11 +1488,19 @@ void QuicConnection::OnPacketComplete() {
       should_last_packet_instigate_acks_ && was_last_packet_missing_;
 
   if (received_packet_manager_.decide_when_to_send_acks()) {
-    received_packet_manager_.MaybeUpdateAckTimeout(
-        should_last_packet_instigate_acks_, last_header_.packet_number,
-        time_of_last_received_packet_, clock_->ApproximateNow(),
-        sent_packet_manager_.GetRttStats(),
-        sent_packet_manager_.delayed_ack_time());
+    if (use_uber_received_packet_manager_) {
+      uber_received_packet_manager_.MaybeUpdateAckTimeout(
+          should_last_packet_instigate_acks_, last_header_.packet_number,
+          time_of_last_received_packet_, clock_->ApproximateNow(),
+          sent_packet_manager_.GetRttStats(),
+          sent_packet_manager_.delayed_ack_time());
+    } else {
+      received_packet_manager_.MaybeUpdateAckTimeout(
+          should_last_packet_instigate_acks_, last_header_.packet_number,
+          time_of_last_received_packet_, clock_->ApproximateNow(),
+          sent_packet_manager_.GetRttStats(),
+          sent_packet_manager_.delayed_ack_time());
+    }
   } else if (ack_frame_updated()) {
     // It's possible the ack frame was sent along with response data, so it
     // no longer needs to be sent.
@@ -1609,6 +1654,10 @@ void QuicConnection::CloseIfTooManyOutstandingSentPackets() {
 }
 
 const QuicFrame QuicConnection::GetUpdatedAckFrame() {
+  if (use_uber_received_packet_manager_) {
+    return uber_received_packet_manager_.GetUpdatedAckFrame(
+        clock_->ApproximateNow());
+  }
   return received_packet_manager_.GetUpdatedAckFrame(clock_->ApproximateNow());
 }
 
@@ -1910,7 +1959,10 @@ void QuicConnection::OnCanWrite() {
 
   WriteQueuedPackets();
   if (received_packet_manager_.decide_when_to_send_acks()) {
-    const QuicTime ack_timeout = received_packet_manager_.ack_timeout();
+    const QuicTime ack_timeout =
+        use_uber_received_packet_manager_
+            ? uber_received_packet_manager_.GetAckTimeout()
+            : received_packet_manager_.ack_timeout();
     if (ack_timeout.IsInitialized() &&
         ack_timeout <= clock_->ApproximateNow()) {
       // Send an ACK now because either 1) we were write blocked when we last
@@ -2033,14 +2085,19 @@ bool QuicConnection::ProcessValidatedPacket(const QuicPacketHeader& header) {
 
 bool QuicConnection::ValidateReceivedPacketNumber(
     QuicPacketNumber packet_number) {
-  if (validate_packet_number_post_decryption_ &&
-      !received_packet_manager_.IsAwaitingPacket(packet_number)) {
-    QUIC_DLOG(INFO) << ENDPOINT << "Packet " << packet_number
-                    << " no longer being waited for.  Discarding.";
-    if (debug_visitor_ != nullptr) {
-      debug_visitor_->OnDuplicatePacket(packet_number);
+  if (validate_packet_number_post_decryption_) {
+    const bool is_awaiting =
+        use_uber_received_packet_manager_
+            ? uber_received_packet_manager_.IsAwaitingPacket(packet_number)
+            : received_packet_manager_.IsAwaitingPacket(packet_number);
+    if (!is_awaiting) {
+      QUIC_DLOG(INFO) << ENDPOINT << "Packet " << packet_number
+                      << " no longer being waited for.  Discarding.";
+      if (debug_visitor_ != nullptr) {
+        debug_visitor_->OnDuplicatePacket(packet_number);
+      }
+      return false;
     }
-    return false;
   }
 
   if (GetQuicRestartFlag(quic_enable_accept_random_ipn)) {
@@ -2064,17 +2121,18 @@ bool QuicConnection::ValidateReceivedPacketNumber(
     }
     return true;
   }
-
-  if (packet_number > received_packet_manager_.PeerFirstSendingPacketNumber() &&
+  const QuicPacketNumber peer_first_sending_packet_number =
+      use_uber_received_packet_manager_
+          ? uber_received_packet_manager_.PeerFirstSendingPacketNumber()
+          : received_packet_manager_.PeerFirstSendingPacketNumber();
+  if (packet_number > peer_first_sending_packet_number &&
       packet_number <= MaxRandomInitialPacketNumber()) {
     QUIC_CODE_COUNT_N(had_possibly_random_ipn, 2, 2);
   }
   const bool out_of_bound =
       last_header_.packet_number.IsInitialized()
           ? !Near(packet_number, last_header_.packet_number)
-          : packet_number >=
-                (received_packet_manager_.PeerFirstSendingPacketNumber() +
-                 kMaxPacketGap);
+          : packet_number >= (peer_first_sending_packet_number + kMaxPacketGap);
   if (!out_of_bound) {
     return true;
   }
@@ -2213,7 +2271,12 @@ const QuicFrames QuicConnection::MaybeBundleAckOpportunistically() {
   QuicFrames frames;
   bool has_pending_ack = false;
   if (received_packet_manager_.decide_when_to_send_acks()) {
-    has_pending_ack = received_packet_manager_.ack_timeout().IsInitialized();
+    if (use_uber_received_packet_manager_) {
+      has_pending_ack =
+          uber_received_packet_manager_.GetAckTimeout().IsInitialized();
+    } else {
+      has_pending_ack = received_packet_manager_.ack_timeout().IsInitialized();
+    }
   } else {
     has_pending_ack = ack_alarm_->IsSet();
   }
@@ -3207,7 +3270,9 @@ QuicConnection::ScopedPacketFlusher::~ScopedPacketFlusher() {
     if (connection_->packet_generator_.deprecate_ack_bundling_mode()) {
       if (connection_->received_packet_manager_.decide_when_to_send_acks()) {
         const QuicTime ack_timeout =
-            connection_->received_packet_manager_.ack_timeout();
+            connection_->use_uber_received_packet_manager_
+                ? connection_->uber_received_packet_manager_.GetAckTimeout()
+                : connection_->received_packet_manager_.ack_timeout();
         if (ack_timeout.IsInitialized()) {
           if (ack_timeout <= connection_->clock_->ApproximateNow() &&
               !connection_->CanWrite(NO_RETRANSMITTABLE_DATA)) {
@@ -3531,6 +3596,9 @@ bool QuicConnection::IsCurrentPacketConnectivityProbing() const {
 }
 
 bool QuicConnection::ack_frame_updated() const {
+  if (use_uber_received_packet_manager_) {
+    return uber_received_packet_manager_.AckFrameUpdated();
+  }
   return received_packet_manager_.ack_frame_updated();
 }
 
@@ -3676,8 +3744,13 @@ void QuicConnection::MaybeEnableSessionDecidesWhatToWrite() {
 void QuicConnection::PostProcessAfterAckFrame(bool send_stop_waiting,
                                               bool acked_new_packet) {
   if (no_stop_waiting_frames_) {
-    received_packet_manager_.DontWaitForPacketsBefore(
-        sent_packet_manager_.largest_packet_peer_knows_is_acked());
+    if (use_uber_received_packet_manager_) {
+      uber_received_packet_manager_.DontWaitForPacketsBefore(
+          sent_packet_manager_.largest_packet_peer_knows_is_acked());
+    } else {
+      received_packet_manager_.DontWaitForPacketsBefore(
+          sent_packet_manager_.largest_packet_peer_knows_is_acked());
+    }
   }
   // Always reset the retransmission alarm when an ack comes in, since we now
   // have a better estimate of the current rtt than when it was set.
@@ -3744,7 +3817,11 @@ void QuicConnection::ResetAckStates() {
   num_retransmittable_packets_received_since_last_ack_sent_ = 0;
   num_packets_received_since_last_ack_sent_ = 0;
   if (received_packet_manager_.decide_when_to_send_acks()) {
-    received_packet_manager_.ResetAckStates();
+    if (use_uber_received_packet_manager_) {
+      uber_received_packet_manager_.ResetAckStates();
+    } else {
+      received_packet_manager_.ResetAckStates();
+    }
   }
 }
 
@@ -3827,11 +3904,17 @@ QuicPacketNumber QuicConnection::GetLargestAckedPacket() const {
 }
 
 QuicPacketNumber QuicConnection::GetLargestReceivedPacket() const {
+  if (use_uber_received_packet_manager_) {
+    return uber_received_packet_manager_.GetLargestObserved();
+  }
   return received_packet_manager_.GetLargestObserved();
 }
 
 size_t QuicConnection::min_received_before_ack_decimation() const {
   if (received_packet_manager_.decide_when_to_send_acks()) {
+    if (use_uber_received_packet_manager_) {
+      return uber_received_packet_manager_.min_received_before_ack_decimation();
+    }
     return received_packet_manager_.min_received_before_ack_decimation();
   }
   return min_received_before_ack_decimation_;
@@ -3839,7 +3922,13 @@ size_t QuicConnection::min_received_before_ack_decimation() const {
 
 void QuicConnection::set_min_received_before_ack_decimation(size_t new_value) {
   if (received_packet_manager_.decide_when_to_send_acks()) {
-    received_packet_manager_.set_min_received_before_ack_decimation(new_value);
+    if (use_uber_received_packet_manager_) {
+      uber_received_packet_manager_.set_min_received_before_ack_decimation(
+          new_value);
+    } else {
+      received_packet_manager_.set_min_received_before_ack_decimation(
+          new_value);
+    }
   } else {
     min_received_before_ack_decimation_ = new_value;
   }
@@ -3847,6 +3936,10 @@ void QuicConnection::set_min_received_before_ack_decimation(size_t new_value) {
 
 size_t QuicConnection::ack_frequency_before_ack_decimation() const {
   if (received_packet_manager_.decide_when_to_send_acks()) {
+    if (use_uber_received_packet_manager_) {
+      return uber_received_packet_manager_
+          .ack_frequency_before_ack_decimation();
+    }
     return received_packet_manager_.ack_frequency_before_ack_decimation();
   }
   return ack_frequency_before_ack_decimation_;
@@ -3855,7 +3948,13 @@ size_t QuicConnection::ack_frequency_before_ack_decimation() const {
 void QuicConnection::set_ack_frequency_before_ack_decimation(size_t new_value) {
   DCHECK_GT(new_value, 0u);
   if (received_packet_manager_.decide_when_to_send_acks()) {
-    received_packet_manager_.set_ack_frequency_before_ack_decimation(new_value);
+    if (use_uber_received_packet_manager_) {
+      uber_received_packet_manager_.set_ack_frequency_before_ack_decimation(
+          new_value);
+    } else {
+      received_packet_manager_.set_ack_frequency_before_ack_decimation(
+          new_value);
+    }
   } else {
     ack_frequency_before_ack_decimation_ = new_value;
   }

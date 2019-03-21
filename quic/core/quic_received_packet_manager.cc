@@ -154,7 +154,7 @@ bool QuicReceivedPacketManager::IsMissing(QuicPacketNumber packet_number) {
 }
 
 bool QuicReceivedPacketManager::IsAwaitingPacket(
-    QuicPacketNumber packet_number) {
+    QuicPacketNumber packet_number) const {
   return quic::IsAwaitingPacket(ack_frame_, packet_number,
                                 peer_least_packet_awaiting_ack_);
 }

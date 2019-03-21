@@ -1,0 +1,87 @@
+// Copyright 2019 The Chromium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#ifndef QUICHE_QUIC_CORE_UBER_RECEIVED_PACKET_MANAGER_H_
+#define QUICHE_QUIC_CORE_UBER_RECEIVED_PACKET_MANAGER_H_
+
+#include "net/third_party/quiche/src/quic/core/quic_received_packet_manager.h"
+
+namespace quic {
+
+// This class simply wraps a single received packet manager.
+class QUIC_EXPORT_PRIVATE UberReceivedPacketManager {
+ public:
+  explicit UberReceivedPacketManager(QuicConnectionStats* stats);
+  UberReceivedPacketManager(const UberReceivedPacketManager&) = delete;
+  UberReceivedPacketManager& operator=(const UberReceivedPacketManager&) =
+      delete;
+  virtual ~UberReceivedPacketManager();
+
+  void SetFromConfig(const QuicConfig& config, Perspective perspective);
+
+  // Checks if we are still waiting for the packet with |packet_number|.
+  bool IsAwaitingPacket(QuicPacketNumber packet_number) const;
+
+  // Called after a packet has been successfully decrypted and its header has
+  // been parsed.
+  void RecordPacketReceived(const QuicPacketHeader& header,
+                            QuicTime receipt_time);
+
+  // Retrieves a frame containing a QuicAckFrame. The ack frame must be
+  // serialized before another packet is received, or it will change.
+  const QuicFrame GetUpdatedAckFrame(QuicTime approximate_now);
+
+  // Stop ACKing packets before |least_unacked|.
+  void DontWaitForPacketsBefore(QuicPacketNumber least_unacked);
+
+  // Called after header of last received packet has been successfully processed
+  // to update ACK timeout.
+  void MaybeUpdateAckTimeout(bool should_last_packet_instigate_acks,
+                             QuicPacketNumber last_received_packet_number,
+                             QuicTime time_of_last_received_packet,
+                             QuicTime now,
+                             const RttStats* rtt_stats,
+                             QuicTime::Delta delayed_ack_time);
+
+  // Resets ACK related states, called after an ACK is successfully sent.
+  void ResetAckStates();
+
+  // Returns true if ACK frame has been updated since GetUpdatedAckFrame was
+  // last called.
+  bool AckFrameUpdated() const;
+
+  // Returns the largest received packet number.
+  QuicPacketNumber GetLargestObserved() const;
+
+  // Returns current ACK timeout.
+  QuicTime GetAckTimeout() const;
+
+  // Returns peer first sending packet number to our best knowledge.
+  QuicPacketNumber PeerFirstSendingPacketNumber() const;
+
+  QuicPacketNumber peer_least_packet_awaiting_ack() const;
+
+  size_t min_received_before_ack_decimation() const;
+  void set_min_received_before_ack_decimation(size_t new_value);
+
+  size_t ack_frequency_before_ack_decimation() const;
+  void set_ack_frequency_before_ack_decimation(size_t new_value);
+
+  // For logging purposes.
+  const QuicAckFrame& ack_frame() const;
+
+  void set_max_ack_ranges(size_t max_ack_ranges);
+
+  void set_save_timestamps(bool save_timestamps);
+
+ private:
+  friend class test::QuicConnectionPeer;
+  friend class test::UberReceivedPacketManagerPeer;
+
+  QuicReceivedPacketManager received_packet_manager_;
+};
+
+}  // namespace quic
+
+#endif  // QUICHE_QUIC_CORE_UBER_RECEIVED_PACKET_MANAGER_H_

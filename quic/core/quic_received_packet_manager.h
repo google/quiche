@@ -17,6 +17,7 @@ class RttStats;
 namespace test {
 class QuicConnectionPeer;
 class QuicReceivedPacketManagerPeer;
+class UberReceivedPacketManagerPeer;
 }  // namespace test
 
 struct QuicConnectionStats;
@@ -42,7 +43,7 @@ class QUIC_EXPORT_PRIVATE QuicReceivedPacketManager {
   virtual bool IsMissing(QuicPacketNumber packet_number);
 
   // Checks if we're still waiting for the packet with |packet_number|.
-  virtual bool IsAwaitingPacket(QuicPacketNumber packet_number);
+  virtual bool IsAwaitingPacket(QuicPacketNumber packet_number) const;
 
   // Retrieves a frame containing a QuicAckFrame.  The ack frame may not be
   // changed outside QuicReceivedPacketManager and must be serialized before
@@ -75,7 +76,7 @@ class QUIC_EXPORT_PRIVATE QuicReceivedPacketManager {
   // packets of the largest observed.
   virtual bool HasNewMissingPackets() const;
 
-  QuicPacketNumber peer_least_packet_awaiting_ack() {
+  QuicPacketNumber peer_least_packet_awaiting_ack() const {
     return peer_least_packet_awaiting_ack_;
   }
 
@@ -123,6 +124,7 @@ class QUIC_EXPORT_PRIVATE QuicReceivedPacketManager {
  private:
   friend class test::QuicConnectionPeer;
   friend class test::QuicReceivedPacketManagerPeer;
+  friend class test::UberReceivedPacketManagerPeer;
 
   // Sets ack_timeout_ to |time| if ack_timeout_ is not initialized or > time.
   void MaybeUpdateAckTimeoutTo(QuicTime time);

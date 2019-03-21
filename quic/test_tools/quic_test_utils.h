@@ -1040,7 +1040,7 @@ class MockReceivedPacketManager : public QuicReceivedPacketManager {
   MOCK_METHOD2(RecordPacketReceived,
                void(const QuicPacketHeader& header, QuicTime receipt_time));
   MOCK_METHOD1(IsMissing, bool(QuicPacketNumber packet_number));
-  MOCK_METHOD1(IsAwaitingPacket, bool(QuicPacketNumber packet_number));
+  MOCK_CONST_METHOD1(IsAwaitingPacket, bool(QuicPacketNumber packet_number));
   MOCK_METHOD1(UpdatePacketInformationSentByPeer,
                void(const QuicStopWaitingFrame& stop_waiting));
   MOCK_CONST_METHOD0(HasNewMissingPackets, bool(void));
