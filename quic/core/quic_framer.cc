@@ -316,6 +316,35 @@ QuicPacketNumberLength GetLongHeaderPacketNumberLength(
   return PACKET_4BYTE_PACKET_NUMBER;
 }
 
+// Used to get packet number space before packet gets decrypted.
+PacketNumberSpace GetPacketNumberSpace(const QuicPacketHeader& header) {
+  switch (header.form) {
+    case GOOGLE_QUIC_PACKET:
+      QUIC_BUG << "Try to get packet number space of Google QUIC packet";
+      break;
+    case IETF_QUIC_SHORT_HEADER_PACKET:
+      return APPLICATION_DATA;
+    case IETF_QUIC_LONG_HEADER_PACKET:
+      switch (header.long_packet_type) {
+        case INITIAL:
+          return INITIAL_DATA;
+        case HANDSHAKE:
+          return HANDSHAKE_DATA;
+        case ZERO_RTT_PROTECTED:
+          return APPLICATION_DATA;
+        case VERSION_NEGOTIATION:
+        case RETRY:
+        case INVALID_PACKET_TYPE:
+          QUIC_BUG << "Try to get packet number space of long header type: "
+                   << QuicUtils::QuicLongHeaderTypetoString(
+                          header.long_packet_type);
+          break;
+      }
+  }
+
+  return NUM_PACKET_NUMBER_SPACES;
+}
+
 QuicStringPiece TruncateErrorString(QuicStringPiece error) {
   if (error.length() <= kMaxErrorStringLength) {
     return error;
@@ -472,7 +501,8 @@ QuicFramer::QuicFramer(const ParsedQuicVersionVector& supported_versions,
       infer_packet_header_type_from_version_(perspective ==
                                              Perspective::IS_CLIENT),
       expected_connection_id_length_(expected_connection_id_length),
-      should_update_expected_connection_id_length_(false) {
+      should_update_expected_connection_id_length_(false),
+      supports_multiple_packet_number_spaces_(false) {
   DCHECK(!supported_versions.empty());
   version_ = supported_versions_[0];
   decrypter_ = QuicMakeUnique<NullDecrypter>(perspective);
@@ -1770,7 +1800,13 @@ bool QuicFramer::ProcessIetfDataPacket(QuicDataReader* encrypted_reader,
   if (header->form == IETF_QUIC_SHORT_HEADER_PACKET ||
       header->long_packet_type != VERSION_NEGOTIATION) {
     // Process packet number.
-    QuicPacketNumber base_packet_number = largest_packet_number_;
+    QuicPacketNumber base_packet_number;
+    if (supports_multiple_packet_number_spaces_) {
+      base_packet_number =
+          largest_decrypted_packet_numbers_[GetPacketNumberSpace(*header)];
+    } else {
+      base_packet_number = largest_packet_number_;
+    }
     uint64_t full_packet_number;
     if (!ProcessAndCalculatePacketNumber(
             encrypted_reader, header->packet_number_length, base_packet_number,
@@ -1831,8 +1867,9 @@ bool QuicFramer::ProcessIetfDataPacket(QuicDataReader* encrypted_reader,
       header->length_length);
 
   size_t decrypted_length = 0;
+  EncryptionLevel decrypted_level;
   if (!DecryptPayload(encrypted, associated_data, *header, decrypted_buffer,
-                      buffer_length, &decrypted_length)) {
+                      buffer_length, &decrypted_length, &decrypted_level)) {
     if (IsIetfStatelessResetPacket(*header)) {
       // This is a stateless reset packet.
       QuicIetfStatelessResetPacket packet(
@@ -1848,7 +1885,13 @@ bool QuicFramer::ProcessIetfDataPacket(QuicDataReader* encrypted_reader,
 
   // Update the largest packet number after we have decrypted the packet
   // so we are confident is not attacker controlled.
-  largest_packet_number_.UpdateMax(header->packet_number);
+  if (supports_multiple_packet_number_spaces_) {
+    largest_decrypted_packet_numbers_[QuicUtils::GetPacketNumberSpace(
+                                          decrypted_level)]
+        .UpdateMax(header->packet_number);
+  } else {
+    largest_packet_number_.UpdateMax(header->packet_number);
+  }
 
   if (!visitor_->OnPacketHeader(*header)) {
     RecordDroppedPacketReason(DroppedPacketReason::INVALID_PACKET_NUMBER);
@@ -1910,8 +1953,9 @@ bool QuicFramer::ProcessDataPacket(QuicDataReader* encrypted_reader,
       header->length_length);
 
   size_t decrypted_length = 0;
+  EncryptionLevel decrypted_level;
   if (!DecryptPayload(encrypted, associated_data, *header, decrypted_buffer,
-                      buffer_length, &decrypted_length)) {
+                      buffer_length, &decrypted_length, &decrypted_level)) {
     RecordDroppedPacketReason(DroppedPacketReason::DECRYPTION_FAILURE);
     set_detailed_error("Unable to decrypt payload.");
     return RaiseError(QUIC_DECRYPTION_FAILURE);
@@ -1921,7 +1965,13 @@ bool QuicFramer::ProcessDataPacket(QuicDataReader* encrypted_reader,
 
   // Update the largest packet number after we have decrypted the packet
   // so we are confident is not attacker controlled.
-  largest_packet_number_.UpdateMax(header->packet_number);
+  if (supports_multiple_packet_number_spaces_) {
+    largest_decrypted_packet_numbers_[QuicUtils::GetPacketNumberSpace(
+                                          decrypted_level)]
+        .UpdateMax(header->packet_number);
+  } else {
+    largest_packet_number_.UpdateMax(header->packet_number);
+  }
 
   if (!visitor_->OnPacketHeader(*header)) {
     // The visitor suppresses further processing of the packet.
@@ -2418,7 +2468,13 @@ QuicFramer::AckFrameInfo QuicFramer::GetAckFrameInfo(
 
 bool QuicFramer::ProcessUnauthenticatedHeader(QuicDataReader* encrypted_reader,
                                               QuicPacketHeader* header) {
-  QuicPacketNumber base_packet_number = largest_packet_number_;
+  QuicPacketNumber base_packet_number;
+  if (supports_multiple_packet_number_spaces_) {
+    base_packet_number =
+        largest_decrypted_packet_numbers_[GetPacketNumberSpace(*header)];
+  } else {
+    base_packet_number = largest_packet_number_;
+  }
   uint64_t full_packet_number;
   if (!ProcessAndCalculatePacketNumber(
           encrypted_reader, header->packet_number_length, base_packet_number,
@@ -3959,7 +4015,8 @@ bool QuicFramer::DecryptPayload(QuicStringPiece encrypted,
                                 const QuicPacketHeader& header,
                                 char* decrypted_buffer,
                                 size_t buffer_length,
-                                size_t* decrypted_length) {
+                                size_t* decrypted_length,
+                                EncryptionLevel* decrypted_level) {
   DCHECK(decrypter_ != nullptr);
 
   bool success = decrypter_->DecryptPacket(
@@ -3967,6 +4024,7 @@ bool QuicFramer::DecryptPayload(QuicStringPiece encrypted,
       decrypted_buffer, decrypted_length, buffer_length);
   if (success) {
     visitor_->OnDecryptedPacket(decrypter_level_);
+    *decrypted_level = decrypter_level_;
   } else if (alternative_decrypter_ != nullptr) {
     if (header.nonce != nullptr) {
       DCHECK_EQ(perspective_, Perspective::IS_CLIENT);
@@ -3991,6 +4049,7 @@ bool QuicFramer::DecryptPayload(QuicStringPiece encrypted,
     }
     if (success) {
       visitor_->OnDecryptedPacket(alternative_decrypter_level_);
+      *decrypted_level = decrypter_level_;
       if (alternative_decrypter_latch_) {
         // Switch to the alternative decrypter and latch so that we cannot
         // switch back.
@@ -5698,6 +5757,20 @@ void QuicFramer::InferPacketHeaderTypeFromVersion() {
   DCHECK(perspective_ == Perspective::IS_SERVER &&
          !infer_packet_header_type_from_version_);
   infer_packet_header_type_from_version_ = true;
+}
+
+void QuicFramer::EnableMultiplePacketNumberSpacesSupport() {
+  if (supports_multiple_packet_number_spaces_) {
+    QUIC_BUG << "Multiple packet number spaces has already been enabled";
+    return;
+  }
+  if (largest_packet_number_.IsInitialized()) {
+    QUIC_BUG << "Try to enable multiple packet number spaces support after any "
+                "packet has been received.";
+    return;
+  }
+
+  supports_multiple_packet_number_spaces_ = true;
 }
 
 #undef ENDPOINT  // undef for jumbo builds

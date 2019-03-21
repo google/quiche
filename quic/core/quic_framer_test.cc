@@ -13141,6 +13141,99 @@ TEST_P(QuicFramerTest, UpdateExpectedConnectionIdLength) {
             QuicPacketNumber(UINT64_C(0x13374233)));
 }
 
+TEST_P(QuicFramerTest, MultiplePacketNumberSpaces) {
+  if (framer_.transport_version() < QUIC_VERSION_46) {
+    return;
+  }
+  framer_.SetShouldUpdateExpectedConnectionIdLength(true);
+  framer_.EnableMultiplePacketNumberSpacesSupport();
+
+  // clang-format off
+  unsigned char long_header_packet[] = {
+       // public flags (long header with packet type ZERO_RTT_PROTECTED and
+       // 4-byte packet number)
+       0xD3,
+       // version
+       QUIC_VERSION_BYTES,
+       // destination connection ID length
+       0x60,
+       // destination connection ID
+       0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10, 0x42,
+       // packet number
+       0x12, 0x34, 0x56, 0x78,
+       // padding frame
+       0x00,
+   };
+  unsigned char long_header_packet99[] = {
+       // public flags (long header with packet type ZERO_RTT_PROTECTED and
+       // 4-byte packet number)
+       0xD3,
+       // version
+       QUIC_VERSION_BYTES,
+       // destination connection ID length
+       0x60,
+       // destination connection ID
+       0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10, 0x42,
+       // long header packet length
+       0x05,
+       // packet number
+       0x12, 0x34, 0x56, 0x78,
+       // padding frame
+       0x00,
+  };
+  // clang-format on
+
+  framer_.SetDecrypter(ENCRYPTION_ZERO_RTT, QuicMakeUnique<TestDecrypter>());
+  if (!QuicVersionHasLongHeaderLengths(framer_.transport_version())) {
+    EXPECT_TRUE(framer_.ProcessPacket(
+        QuicEncryptedPacket(AsChars(long_header_packet),
+                            QUIC_ARRAYSIZE(long_header_packet), false)));
+  } else {
+    EXPECT_TRUE(framer_.ProcessPacket(
+        QuicEncryptedPacket(AsChars(long_header_packet99),
+                            QUIC_ARRAYSIZE(long_header_packet99), false)));
+  }
+
+  EXPECT_EQ(QUIC_NO_ERROR, framer_.error());
+  EXPECT_FALSE(
+      QuicFramerPeer::GetLargestDecryptedPacketNumber(&framer_, INITIAL_DATA)
+          .IsInitialized());
+  EXPECT_FALSE(
+      QuicFramerPeer::GetLargestDecryptedPacketNumber(&framer_, HANDSHAKE_DATA)
+          .IsInitialized());
+  EXPECT_EQ(kPacketNumber, QuicFramerPeer::GetLargestDecryptedPacketNumber(
+                               &framer_, APPLICATION_DATA));
+
+  // clang-format off
+  unsigned char short_header_packet[] = {
+     // type (short header, 1 byte packet number)
+     0x40,
+     // connection_id
+     0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10, 0x42,
+     // packet number
+     0x79,
+     // padding frame
+     0x00,
+  };
+  // clang-format on
+
+  QuicEncryptedPacket short_header_encrypted(
+      AsChars(short_header_packet), QUIC_ARRAYSIZE(short_header_packet), false);
+  framer_.SetDecrypter(ENCRYPTION_FORWARD_SECURE,
+                       QuicMakeUnique<TestDecrypter>());
+  EXPECT_TRUE(framer_.ProcessPacket(short_header_encrypted));
+
+  EXPECT_EQ(QUIC_NO_ERROR, framer_.error());
+  EXPECT_FALSE(
+      QuicFramerPeer::GetLargestDecryptedPacketNumber(&framer_, INITIAL_DATA)
+          .IsInitialized());
+  EXPECT_FALSE(
+      QuicFramerPeer::GetLargestDecryptedPacketNumber(&framer_, HANDSHAKE_DATA)
+          .IsInitialized());
+  EXPECT_EQ(kPacketNumber + 1, QuicFramerPeer::GetLargestDecryptedPacketNumber(
+                                   &framer_, APPLICATION_DATA));
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

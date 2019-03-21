@@ -167,6 +167,9 @@ class QuicFramerPeer {
   static void SetExpectedConnectionIDLength(
       QuicFramer* framer,
       uint8_t expected_connection_id_length);
+  static QuicPacketNumber GetLargestDecryptedPacketNumber(
+      QuicFramer* framer,
+      PacketNumberSpace packet_number_space);
 };
 
 }  // namespace test

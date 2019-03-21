@@ -531,5 +531,23 @@ QuicUint128 QuicUtils::GenerateStatelessResetToken(
       QuicEndian::NetToHost64(data_bytes[0]));
 }
 
+// static
+PacketNumberSpace QuicUtils::GetPacketNumberSpace(
+    EncryptionLevel encryption_level) {
+  switch (encryption_level) {
+    case ENCRYPTION_INITIAL:
+      return INITIAL_DATA;
+    case ENCRYPTION_HANDSHAKE:
+      return HANDSHAKE_DATA;
+    case ENCRYPTION_ZERO_RTT:
+    case ENCRYPTION_FORWARD_SECURE:
+      return APPLICATION_DATA;
+    default:
+      QUIC_BUG << "Try to get packet number space of encryption level: "
+               << EncryptionLevelToString(encryption_level);
+      return NUM_PACKET_NUMBER_SPACES;
+  }
+}
+
 #undef RETURN_STRING_LITERAL  // undef for jumbo builds
 }  // namespace quic

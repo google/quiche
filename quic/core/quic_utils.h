@@ -179,6 +179,10 @@ class QUIC_EXPORT_PRIVATE QuicUtils {
   // Generates a 128bit stateless reset token based on a connection ID.
   static QuicUint128 GenerateStatelessResetToken(
       QuicConnectionId connection_id);
+
+  // Determines packet number space from |encryption_level|.
+  static PacketNumberSpace GetPacketNumberSpace(
+      EncryptionLevel encryption_level);
 };
 
 }  // namespace quic

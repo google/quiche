@@ -354,5 +354,12 @@ void QuicFramerPeer::SetExpectedConnectionIDLength(
       expected_connection_id_length;
 }
 
+// static
+QuicPacketNumber QuicFramerPeer::GetLargestDecryptedPacketNumber(
+    QuicFramer* framer,
+    PacketNumberSpace packet_number_space) {
+  return framer->largest_decrypted_packet_numbers_[packet_number_space];
+}
+
 }  // namespace test
 }  // namespace quic

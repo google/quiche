@@ -577,6 +577,8 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
     return expected_connection_id_length_;
   }
 
+  void EnableMultiplePacketNumberSpacesSupport();
+
  private:
   friend class test::QuicFramerPeer;
 
@@ -678,7 +680,8 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
                       const QuicPacketHeader& header,
                       char* decrypted_buffer,
                       size_t buffer_length,
-                      size_t* decrypted_length);
+                      size_t* decrypted_length,
+                      EncryptionLevel* decrypted_level);
 
   // Returns the full packet number from the truncated
   // wire format version and the last seen packet number.
@@ -876,6 +879,9 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   QuicErrorCode error_;
   // Updated by ProcessPacketHeader when it succeeds decrypting a larger packet.
   QuicPacketNumber largest_packet_number_;
+  // Largest successfully decrypted packet number per packet number space. Only
+  // used when supports_multiple_packet_number_spaces_ is true.
+  QuicPacketNumber largest_decrypted_packet_numbers_[NUM_PACKET_NUMBER_SPACES];
   // Updated by WritePacketHeader.
   QuicConnectionId last_serialized_connection_id_;
   // The last QUIC version label received.
@@ -938,6 +944,9 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   // When this is true, QuicFramer will change expected_connection_id_length_
   // to the received destination connection ID length of all IETF long headers.
   bool should_update_expected_connection_id_length_;
+
+  // Indicates whether this framer supports multiple packet number spaces.
+  bool supports_multiple_packet_number_spaces_;
 };
 
 }  // namespace quic
