@@ -158,6 +158,7 @@ class TestDispatcher : public QuicDispatcher {
   using QuicDispatcher::current_client_address;
   using QuicDispatcher::current_peer_address;
   using QuicDispatcher::current_self_address;
+  using QuicDispatcher::SetAllowShortInitialConnectionIds;
   using QuicDispatcher::writer;
 };
 
@@ -639,7 +640,7 @@ TEST_F(QuicDispatcherTest, NoVersionPacketToTimeWaitListManager) {
 }
 
 // Makes sure nine-byte connection IDs are replaced by 8-byte ones.
-TEST_F(QuicDispatcherTest, BadConnectionIdLengthReplaced) {
+TEST_F(QuicDispatcherTest, LongConnectionIdLengthReplaced) {
   if (!QuicUtils::VariableLengthConnectionIdAllowedForVersion(
           CurrentSupportedVersions()[0].transport_version)) {
     // When variable length connection IDs are not supported, the connection
@@ -651,6 +652,45 @@ TEST_F(QuicDispatcherTest, BadConnectionIdLengthReplaced) {
   QuicConnectionId bad_connection_id = TestConnectionIdNineBytesLong(2);
   QuicConnectionId fixed_connection_id =
       QuicUtils::CreateRandomConnectionId(mock_helper_.GetRandomGenerator());
+
+  EXPECT_CALL(*dispatcher_,
+              CreateQuicSession(fixed_connection_id, client_address,
+                                QuicStringPiece("hq"), _))
+      .WillOnce(testing::Return(CreateSession(
+          dispatcher_.get(), config_, fixed_connection_id, client_address,
+          &mock_helper_, &mock_alarm_factory_, &crypto_config_,
+          QuicDispatcherPeer::GetCache(dispatcher_.get()), &session1_)));
+  EXPECT_CALL(*reinterpret_cast<MockQuicConnection*>(session1_->connection()),
+              ProcessUdpPacket(_, _, _))
+      .WillOnce(WithArg<2>(
+          Invoke([this, bad_connection_id](const QuicEncryptedPacket& packet) {
+            ValidatePacket(bad_connection_id, packet);
+          })));
+  EXPECT_CALL(*dispatcher_,
+              ShouldCreateOrBufferPacketForConnection(bad_connection_id, _));
+  ProcessPacket(client_address, bad_connection_id, true, SerializeCHLO());
+  EXPECT_EQ(client_address, dispatcher_->current_peer_address());
+  EXPECT_EQ(server_address_, dispatcher_->current_self_address());
+}
+
+// Makes sure zero-byte connection IDs are replaced by 8-byte ones.
+TEST_F(QuicDispatcherTest, InvalidShortConnectionIdLengthReplaced) {
+  if (!QuicUtils::VariableLengthConnectionIdAllowedForVersion(
+          CurrentSupportedVersions()[0].transport_version)) {
+    // When variable length connection IDs are not supported, the connection
+    // fails. See StrayPacketTruncatedConnectionId.
+    return;
+  }
+  QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
+
+  QuicConnectionId bad_connection_id = EmptyQuicConnectionId();
+  QuicConnectionId fixed_connection_id =
+      QuicUtils::CreateRandomConnectionId(mock_helper_.GetRandomGenerator());
+
+  // Disable validation of invalid short connection IDs.
+  dispatcher_->SetAllowShortInitialConnectionIds(true);
+  // Note that StrayPacketTruncatedConnectionId covers the case where the
+  // validation is still enabled.
 
   EXPECT_CALL(*dispatcher_,
               CreateQuicSession(fixed_connection_id, client_address,
@@ -1323,20 +1363,15 @@ class QuicDispatcherTestStrayPacketConnectionId : public QuicDispatcherTest {};
 // Packets with truncated connection IDs should be dropped.
 TEST_F(QuicDispatcherTestStrayPacketConnectionId,
        StrayPacketTruncatedConnectionId) {
-  if (QuicUtils::VariableLengthConnectionIdAllowedForVersion(
-          CurrentSupportedVersions()[0].transport_version)) {
-    // When variable length connection IDs are supported, the server
-    // transparently replaces empty connection IDs with one it chooses.
-    // See BadConnectionIdLengthReplaced.
-    return;
-  }
   CreateTimeWaitListManager();
 
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
   QuicConnectionId connection_id = TestConnectionId(1);
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, QuicStringPiece("hq"), _))
       .Times(0);
-  if (CurrentSupportedVersions()[0].transport_version > QUIC_VERSION_43) {
+  if (CurrentSupportedVersions()[0].transport_version > QUIC_VERSION_43 &&
+      !QuicUtils::VariableLengthConnectionIdAllowedForVersion(
+          CurrentSupportedVersions()[0].transport_version)) {
     // This IETF packet has invalid connection ID length.
     EXPECT_CALL(*time_wait_list_manager_, ProcessPacket(_, _, _, _, _))
         .Times(0);

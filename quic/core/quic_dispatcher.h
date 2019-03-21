@@ -364,6 +364,13 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
         should_update_expected_connection_id_length);
   }
 
+  // If true, the dispatcher will allow incoming initial packets that have
+  // connection IDs shorter than 64 bits.
+  void SetAllowShortInitialConnectionIds(
+      bool allow_short_initial_connection_ids) {
+    allow_short_initial_connection_ids_ = allow_short_initial_connection_ids;
+  }
+
  private:
   friend class test::QuicDispatcherPeer;
   friend class StatelessRejectorProcessDoneCallback;
@@ -495,6 +502,10 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
 
   // True if this dispatcher is not draining.
   bool accept_new_connections_;
+
+  // If false, the dispatcher follows the IETF spec and rejects packets with
+  // invalid connection IDs lengths below 64 bits. If true they are allowed.
+  bool allow_short_initial_connection_ids_;
 };
 
 }  // namespace quic

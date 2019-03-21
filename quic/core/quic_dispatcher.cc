@@ -296,7 +296,8 @@ QuicDispatcher::QuicDispatcher(
               expected_connection_id_length),
       last_error_(QUIC_NO_ERROR),
       new_sessions_allowed_per_event_loop_(0u),
-      accept_new_connections_(true) {
+      accept_new_connections_(true),
+      allow_short_initial_connection_ids_(false) {
   framer_.set_visitor(this);
 }
 
@@ -370,6 +371,26 @@ bool QuicDispatcher::OnUnauthenticatedPublicHeader(
     return false;
   }
   QuicConnectionId connection_id = header.destination_connection_id;
+
+  // The IETF spec requires the client to generate an initial server
+  // connection ID that is at least 64 bits long. After that initial
+  // connection ID, the dispatcher picks a new one of its expected length.
+  // Therefore we should never receive a connection ID that is smaller
+  // than 64 bits and smaller than what we expect.
+  if (connection_id.length() < kQuicMinimumInitialConnectionIdLength &&
+      connection_id.length() < framer_.GetExpectedConnectionIdLength() &&
+      !allow_short_initial_connection_ids_) {
+    DCHECK(header.version_flag);
+    DCHECK(QuicUtils::VariableLengthConnectionIdAllowedForVersion(
+        header.version.transport_version));
+    QUIC_DLOG(INFO) << "Packet with short destination connection ID "
+                    << connection_id << " expected "
+                    << static_cast<int>(
+                           framer_.GetExpectedConnectionIdLength());
+    ProcessUnauthenticatedHeaderFate(kFateTimeWait, connection_id, header.form,
+                                     header.version);
+    return false;
+  }
 
   // Packets with connection IDs for active connections are processed
   // immediately.
