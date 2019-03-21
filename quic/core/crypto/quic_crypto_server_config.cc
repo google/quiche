@@ -76,6 +76,7 @@ class DefaultKeyExchangeSource : public KeyExchangeSource {
 
   std::unique_ptr<AsynchronousKeyExchange> Create(
       std::string server_config_id,
+      bool /* is_fallback */,
       QuicTag type,
       QuicStringPiece private_key) override {
     if (private_key.empty()) {
@@ -1577,8 +1578,8 @@ QuicCryptoServerConfig::ParseConfigProtobuf(
       }
     }
 
-    std::unique_ptr<AsynchronousKeyExchange> ka =
-        key_exchange_source_->Create(config->id, tag, private_key);
+    std::unique_ptr<AsynchronousKeyExchange> ka = key_exchange_source_->Create(
+        config->id, /* is_fallback = */ false, tag, private_key);
     if (!ka) {
       return nullptr;
     }

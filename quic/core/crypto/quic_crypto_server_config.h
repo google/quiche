@@ -160,10 +160,14 @@ class QUIC_EXPORT_PRIVATE KeyExchangeSource {
   // Returns the default KeyExchangeSource.
   static std::unique_ptr<KeyExchangeSource> Default();
 
-  // Create a new KeyExchange of the specified type using the specified
-  // private key.
+  // Create a new KeyExchange using the curve specified by |type| using the
+  // specified private key.  |private_key| may be empty for key-exchange
+  // mechanisms which do not hold the private key in-process.  If |is_fallback|
+  // is set, |private_key| is required to be set, and a local key-exchange
+  // object should be returned.
   virtual std::unique_ptr<AsynchronousKeyExchange> Create(
       std::string server_config_id,
+      bool is_fallback,
       QuicTag type,
       QuicStringPiece private_key) = 0;
 };
