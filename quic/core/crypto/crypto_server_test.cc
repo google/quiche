@@ -135,9 +135,9 @@ class CryptoServerTest : public QuicTestWithParam<TestParams> {
     old_config_options.id = kOldConfigId;
     config_.AddDefaultConfig(rand_, &clock_, old_config_options);
     clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(1000));
-    std::unique_ptr<QuicServerConfigProtobuf> primary_config(
-        config_.GenerateConfig(rand_, &clock_, config_options_));
-    primary_config->set_primary_time(clock_.WallNow().ToUNIXSeconds());
+    QuicServerConfigProtobuf primary_config =
+        config_.GenerateConfig(rand_, &clock_, config_options_);
+    primary_config.set_primary_time(clock_.WallNow().ToUNIXSeconds());
     std::unique_ptr<CryptoHandshakeMessage> msg(
         config_.AddConfig(std::move(primary_config), clock_.WallNow()));
 

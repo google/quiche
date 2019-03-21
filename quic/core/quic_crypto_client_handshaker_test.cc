@@ -153,11 +153,10 @@ class QuicCryptoClientHandshakerTest : public Test {
 
   void InitializeServerParametersToEnableFullHello() {
     QuicCryptoServerConfig::ConfigOptions options;
-    std::unique_ptr<QuicServerConfigProtobuf> config =
-        QuicCryptoServerConfig::GenerateConfig(helper_.GetRandomGenerator(),
-                                               helper_.GetClock(), options);
+    QuicServerConfigProtobuf config = QuicCryptoServerConfig::GenerateConfig(
+        helper_.GetRandomGenerator(), helper_.GetClock(), options);
     state_.Initialize(
-        config->config(), "sourcetoken", std::vector<std::string>{"Dummy cert"},
+        config.config(), "sourcetoken", std::vector<std::string>{"Dummy cert"},
         "", "chlo_hash", "signature", helper_.GetClock()->WallNow(),
         helper_.GetClock()->WallNow().Add(QuicTime::Delta::FromSeconds(30)));
 

@@ -230,17 +230,16 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
 
   // Generates a QuicServerConfigProtobuf protobuf suitable for
   // AddConfig and SetConfigs.
-  static std::unique_ptr<QuicServerConfigProtobuf> GenerateConfig(
-      QuicRandom* rand,
-      const QuicClock* clock,
-      const ConfigOptions& options);
+  static QuicServerConfigProtobuf GenerateConfig(QuicRandom* rand,
+                                                 const QuicClock* clock,
+                                                 const ConfigOptions& options);
 
   // AddConfig adds a QuicServerConfigProtobuf to the available configurations.
   // It returns the SCFG message from the config if successful. |now| is used in
   // conjunction with |protobuf->primary_time()| to determine whether the
   // config should be made primary.
   std::unique_ptr<CryptoHandshakeMessage> AddConfig(
-      std::unique_ptr<QuicServerConfigProtobuf> protobuf,
+      const QuicServerConfigProtobuf& protobuf,
       QuicWallTime now);
 
   // AddDefaultConfig calls DefaultConfig to create a config and then calls
@@ -258,9 +257,8 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
   // known, but are missing from the protobufs are deleted, unless they are
   // currently the primary config. SetConfigs returns false if any errors were
   // encountered and no changes to the QuicCryptoServerConfig will occur.
-  bool SetConfigs(
-      const std::vector<std::unique_ptr<QuicServerConfigProtobuf>>& protobufs,
-      QuicWallTime now);
+  bool SetConfigs(const std::vector<QuicServerConfigProtobuf>& protobufs,
+                  QuicWallTime now);
 
   // SetSourceAddressTokenKeys sets the keys to be tried, in order, when
   // decrypting a source address token.  Note that these keys are used *without*
@@ -726,7 +724,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
   // QuicReferenceCountedPointer<Config> if successful. The caller adopts the
   // reference to the Config. On error, ParseConfigProtobuf returns nullptr.
   QuicReferenceCountedPointer<Config> ParseConfigProtobuf(
-      const std::unique_ptr<QuicServerConfigProtobuf>& protobuf);
+      const QuicServerConfigProtobuf& protobuf);
 
   // NewSourceAddressToken returns a fresh source address token for the given
   // IP address. |cached_network_params| is optional, and can be nullptr.

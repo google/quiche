@@ -267,10 +267,10 @@ QuicCryptoServerConfig::QuicCryptoServerConfig(
 QuicCryptoServerConfig::~QuicCryptoServerConfig() {}
 
 // static
-std::unique_ptr<QuicServerConfigProtobuf>
-QuicCryptoServerConfig::GenerateConfig(QuicRandom* rand,
-                                       const QuicClock* clock,
-                                       const ConfigOptions& options) {
+QuicServerConfigProtobuf QuicCryptoServerConfig::GenerateConfig(
+    QuicRandom* rand,
+    const QuicClock* clock,
+    const ConfigOptions& options) {
   CryptoHandshakeMessage msg;
 
   const std::string curve25519_private_key =
@@ -368,14 +368,14 @@ QuicCryptoServerConfig::GenerateConfig(QuicRandom* rand,
   std::unique_ptr<QuicData> serialized =
       CryptoFramer::ConstructHandshakeMessage(msg);
 
-  auto config = QuicMakeUnique<QuicServerConfigProtobuf>();
-  config->set_config(std::string(serialized->AsStringPiece()));
-  QuicServerConfigProtobuf::PrivateKey* curve25519_key = config->add_key();
+  QuicServerConfigProtobuf config;
+  config.set_config(std::string(serialized->AsStringPiece()));
+  QuicServerConfigProtobuf::PrivateKey* curve25519_key = config.add_key();
   curve25519_key->set_tag(kC255);
   curve25519_key->set_private_key(curve25519_private_key);
 
   if (options.p256) {
-    QuicServerConfigProtobuf::PrivateKey* p256_key = config->add_key();
+    QuicServerConfigProtobuf::PrivateKey* p256_key = config.add_key();
     p256_key->set_tag(kP256);
     p256_key->set_private_key(p256_private_key);
   }
@@ -384,10 +384,10 @@ QuicCryptoServerConfig::GenerateConfig(QuicRandom* rand,
 }
 
 std::unique_ptr<CryptoHandshakeMessage> QuicCryptoServerConfig::AddConfig(
-    std::unique_ptr<QuicServerConfigProtobuf> protobuf,
+    const QuicServerConfigProtobuf& protobuf,
     const QuicWallTime now) {
   std::unique_ptr<CryptoHandshakeMessage> msg =
-      CryptoFramer::ParseMessage(protobuf->config());
+      CryptoFramer::ParseMessage(protobuf.config());
 
   if (!msg.get()) {
     QUIC_LOG(WARNING) << "Failed to parse server config message";
@@ -427,7 +427,7 @@ QuicCryptoServerConfig::AddDefaultConfig(QuicRandom* rand,
 }
 
 bool QuicCryptoServerConfig::SetConfigs(
-    const std::vector<std::unique_ptr<QuicServerConfigProtobuf>>& protobufs,
+    const std::vector<QuicServerConfigProtobuf>& protobufs,
     const QuicWallTime now) {
   std::vector<QuicReferenceCountedPointer<Config>> parsed_configs;
   for (auto& protobuf : protobufs) {
@@ -1492,9 +1492,9 @@ std::string QuicCryptoServerConfig::CompressChain(
 
 QuicReferenceCountedPointer<QuicCryptoServerConfig::Config>
 QuicCryptoServerConfig::ParseConfigProtobuf(
-    const std::unique_ptr<QuicServerConfigProtobuf>& protobuf) {
+    const QuicServerConfigProtobuf& protobuf) {
   std::unique_ptr<CryptoHandshakeMessage> msg =
-      CryptoFramer::ParseMessage(protobuf->config());
+      CryptoFramer::ParseMessage(protobuf.config());
 
   if (msg->tag() != kSCFG) {
     QUIC_LOG(WARNING) << "Server config message has tag " << msg->tag()
@@ -1503,15 +1503,15 @@ QuicCryptoServerConfig::ParseConfigProtobuf(
   }
 
   QuicReferenceCountedPointer<Config> config(new Config);
-  config->serialized = protobuf->config();
+  config->serialized = protobuf.config();
   config->source_address_token_boxer = &source_address_token_boxer_;
 
-  if (protobuf->has_primary_time()) {
+  if (protobuf.has_primary_time()) {
     config->primary_time =
-        QuicWallTime::FromUNIXSeconds(protobuf->primary_time());
+        QuicWallTime::FromUNIXSeconds(protobuf.primary_time());
   }
 
-  config->priority = protobuf->priority();
+  config->priority = protobuf.priority();
 
   QuicStringPiece scid;
   if (!msg->GetStringPiece(kSCID, &scid)) {
@@ -1554,10 +1554,10 @@ QuicCryptoServerConfig::ParseConfigProtobuf(
   static_assert(sizeof(config->orbit) == kOrbitSize, "incorrect orbit size");
   memcpy(config->orbit, orbit.data(), sizeof(config->orbit));
 
-  if (kexs_tags.size() != static_cast<size_t>(protobuf->key_size())) {
+  if (kexs_tags.size() != static_cast<size_t>(protobuf.key_size())) {
     QUIC_LOG(WARNING) << "Server config has " << kexs_tags.size()
                       << " key exchange methods configured, but "
-                      << protobuf->key_size() << " private keys";
+                      << protobuf.key_size() << " private keys";
     return nullptr;
   }
 
@@ -1577,8 +1577,8 @@ QuicCryptoServerConfig::ParseConfigProtobuf(
 
     config->kexs.push_back(tag);
 
-    for (int j = 0; j < protobuf->key_size(); j++) {
-      const QuicServerConfigProtobuf::PrivateKey& key = protobuf->key(i);
+    for (int j = 0; j < protobuf.key_size(); j++) {
+      const QuicServerConfigProtobuf::PrivateKey& key = protobuf.key(i);
       if (key.tag() == tag) {
         private_key = key.private_key();
         break;

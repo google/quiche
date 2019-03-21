@@ -334,7 +334,7 @@ class CryptoServerConfigsTest : public QuicTest {
 
     bool has_invalid = false;
 
-    std::vector<std::unique_ptr<QuicServerConfigProtobuf>> protobufs;
+    std::vector<QuicServerConfigProtobuf> protobufs;
     for (const auto& config : configs) {
       const ServerConfigID& server_config_id = config.server_config_id;
       const int primary_time = config.primary_time;
@@ -343,12 +343,12 @@ class CryptoServerConfigsTest : public QuicTest {
       QuicCryptoServerConfig::ConfigOptions options;
       options.id = server_config_id;
       options.orbit = kOrbit;
-      std::unique_ptr<QuicServerConfigProtobuf> protobuf =
+      QuicServerConfigProtobuf protobuf =
           QuicCryptoServerConfig::GenerateConfig(rand_, &clock_, options);
-      protobuf->set_primary_time(primary_time);
-      protobuf->set_priority(priority);
+      protobuf.set_primary_time(primary_time);
+      protobuf.set_priority(priority);
       if (std::string(server_config_id).find("INVALID") == 0) {
-        protobuf->clear_key();
+        protobuf.clear_key();
         has_invalid = true;
       }
       protobufs.push_back(std::move(protobuf));
