@@ -262,10 +262,6 @@ size_t QuicSpdyStream::WriteTrailers(
 QuicConsumedData QuicSpdyStream::WritevBody(const struct iovec* iov,
                                             int count,
                                             bool fin) {
-  if (!GetQuicReloadableFlag(quic_call_write_mem_slices)) {
-    return WritevData(iov, count, fin);
-  }
-  QUIC_RELOADABLE_FLAG_COUNT(quic_call_write_mem_slices);
   QuicMemSliceStorage storage(
       iov, count,
       session()->connection()->helper()->GetStreamSendBufferAllocator(),
