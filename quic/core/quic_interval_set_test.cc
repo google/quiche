@@ -93,13 +93,13 @@ TEST_F(QuicIntervalSetTest, IsDisjoint) {
 static bool VA_Check(const QuicIntervalSet<int>& is, int count, va_list ap) {
   std::vector<QuicInterval<int>> intervals(is.begin(), is.end());
   if (count != static_cast<int>(intervals.size())) {
-    LOG(ERROR) << "Expected " << count << " intervals, got " << intervals.size()
-               << ": " << is;
+    QUIC_LOG(ERROR) << "Expected " << count << " intervals, got "
+                    << intervals.size() << ": " << is;
     return false;
   }
   if (count != static_cast<int>(is.Size())) {
-    LOG(ERROR) << "Expected " << count << " intervals, got Size " << is.Size()
-               << ": " << is;
+    QUIC_LOG(ERROR) << "Expected " << count << " intervals, got Size "
+                    << is.Size() << ": " << is;
     return false;
   }
   bool result = true;
@@ -107,8 +107,8 @@ static bool VA_Check(const QuicIntervalSet<int>& is, int count, va_list ap) {
     int min = va_arg(ap, int);
     int max = va_arg(ap, int);
     if (min != intervals[i].min() || max != intervals[i].max()) {
-      LOG(ERROR) << "Expected: [" << min << ", " << max << ") got "
-                 << intervals[i] << " in " << is;
+      QUIC_LOG(ERROR) << "Expected: [" << min << ", " << max << ") got "
+                      << intervals[i] << " in " << is;
       result = false;
     }
   }
@@ -946,12 +946,12 @@ TEST_F(QuicIntervalSetTest, OutputReturnsOstreamRef) {
 }
 
 struct NotOstreamable {
-  bool operator<(const NotOstreamable& other) const { return false; }
-  bool operator>(const NotOstreamable& other) const { return false; }
-  bool operator!=(const NotOstreamable& other) const { return false; }
-  bool operator>=(const NotOstreamable& other) const { return true; }
-  bool operator<=(const NotOstreamable& other) const { return true; }
-  bool operator==(const NotOstreamable& other) const { return true; }
+  bool operator<(const NotOstreamable&) const { return false; }
+  bool operator>(const NotOstreamable&) const { return false; }
+  bool operator!=(const NotOstreamable&) const { return false; }
+  bool operator>=(const NotOstreamable&) const { return true; }
+  bool operator<=(const NotOstreamable&) const { return true; }
+  bool operator==(const NotOstreamable&) const { return true; }
 };
 
 TEST_F(QuicIntervalSetTest, IntervalOfTypeWithNoOstreamSupport) {

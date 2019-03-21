@@ -438,9 +438,9 @@ TEST_F(QuicIntervalTest, OutputReturnsOstreamRef) {
 }
 
 struct NotOstreamable {
-  bool operator<(const NotOstreamable& other) const { return false; }
-  bool operator>=(const NotOstreamable& other) const { return true; }
-  bool operator==(const NotOstreamable& other) const { return true; }
+  bool operator<(const NotOstreamable&) const { return false; }
+  bool operator>=(const NotOstreamable&) const { return true; }
+  bool operator==(const NotOstreamable&) const { return true; }
 };
 
 TEST_F(QuicIntervalTest, IntervalOfTypeWithNoOstreamSupport) {
