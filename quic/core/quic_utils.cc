@@ -549,5 +549,21 @@ PacketNumberSpace QuicUtils::GetPacketNumberSpace(
   }
 }
 
+// static
+EncryptionLevel QuicUtils::GetEncryptionLevel(
+    PacketNumberSpace packet_number_space) {
+  switch (packet_number_space) {
+    case INITIAL_DATA:
+      return ENCRYPTION_INITIAL;
+    case HANDSHAKE_DATA:
+      return ENCRYPTION_HANDSHAKE;
+    case APPLICATION_DATA:
+      return ENCRYPTION_FORWARD_SECURE;
+    default:
+      DCHECK(false);
+      return NUM_ENCRYPTION_LEVELS;
+  }
+}
+
 #undef RETURN_STRING_LITERAL  // undef for jumbo builds
 }  // namespace quic

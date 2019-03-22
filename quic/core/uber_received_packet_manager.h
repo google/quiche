@@ -9,7 +9,9 @@
 
 namespace quic {
 
-// This class simply wraps a single received packet manager.
+// This class comprises multiple received packet managers, one per packet number
+// space. Please note, if multiple packet number spaces is not supported, only
+// one received packet manager will be used.
 class QUIC_EXPORT_PRIVATE UberReceivedPacketManager {
  public:
   explicit UberReceivedPacketManager(QuicConnectionStats* stats);
@@ -21,23 +23,28 @@ class QUIC_EXPORT_PRIVATE UberReceivedPacketManager {
   void SetFromConfig(const QuicConfig& config, Perspective perspective);
 
   // Checks if we are still waiting for the packet with |packet_number|.
-  bool IsAwaitingPacket(QuicPacketNumber packet_number) const;
+  bool IsAwaitingPacket(EncryptionLevel decrypted_packet_level,
+                        QuicPacketNumber packet_number) const;
 
   // Called after a packet has been successfully decrypted and its header has
   // been parsed.
-  void RecordPacketReceived(const QuicPacketHeader& header,
+  void RecordPacketReceived(EncryptionLevel decrypted_packet_level,
+                            const QuicPacketHeader& header,
                             QuicTime receipt_time);
 
   // Retrieves a frame containing a QuicAckFrame. The ack frame must be
   // serialized before another packet is received, or it will change.
-  const QuicFrame GetUpdatedAckFrame(QuicTime approximate_now);
+  const QuicFrame GetUpdatedAckFrame(PacketNumberSpace packet_number_space,
+                                     QuicTime approximate_now);
 
   // Stop ACKing packets before |least_unacked|.
-  void DontWaitForPacketsBefore(QuicPacketNumber least_unacked);
+  void DontWaitForPacketsBefore(EncryptionLevel decrypted_packet_level,
+                                QuicPacketNumber least_unacked);
 
   // Called after header of last received packet has been successfully processed
   // to update ACK timeout.
   void MaybeUpdateAckTimeout(bool should_last_packet_instigate_acks,
+                             EncryptionLevel decrypted_packet_level,
                              QuicPacketNumber last_received_packet_number,
                              QuicTime time_of_last_received_packet,
                              QuicTime now,
@@ -45,17 +52,24 @@ class QUIC_EXPORT_PRIVATE UberReceivedPacketManager {
                              QuicTime::Delta delayed_ack_time);
 
   // Resets ACK related states, called after an ACK is successfully sent.
-  void ResetAckStates();
+  void ResetAckStates(EncryptionLevel encryption_level);
+
+  // Called to enable multiple packet number support.
+  void EnableMultiplePacketNumberSpacesSupport();
 
   // Returns true if ACK frame has been updated since GetUpdatedAckFrame was
   // last called.
-  bool AckFrameUpdated() const;
+  bool IsAckFrameUpdated() const;
 
   // Returns the largest received packet number.
-  QuicPacketNumber GetLargestObserved() const;
+  QuicPacketNumber GetLargestObserved(
+      EncryptionLevel decrypted_packet_level) const;
 
-  // Returns current ACK timeout.
-  QuicTime GetAckTimeout() const;
+  // Returns ACK timeout of |packet_number_space|.
+  QuicTime GetAckTimeout(PacketNumberSpace packet_number_space) const;
+
+  // Get the earliest ack_timeout of all packet number spaces.
+  QuicTime GetEarliestAckTimeout() const;
 
   // Returns peer first sending packet number to our best knowledge.
   QuicPacketNumber PeerFirstSendingPacketNumber() const;
@@ -68,6 +82,10 @@ class QUIC_EXPORT_PRIVATE UberReceivedPacketManager {
   size_t ack_frequency_before_ack_decimation() const;
   void set_ack_frequency_before_ack_decimation(size_t new_value);
 
+  bool supports_multiple_packet_number_spaces() const {
+    return supports_multiple_packet_number_spaces_;
+  }
+
   // For logging purposes.
   const QuicAckFrame& ack_frame() const;
 
@@ -79,7 +97,12 @@ class QUIC_EXPORT_PRIVATE UberReceivedPacketManager {
   friend class test::QuicConnectionPeer;
   friend class test::UberReceivedPacketManagerPeer;
 
-  QuicReceivedPacketManager received_packet_manager_;
+  // One received packet manager per packet number space. If
+  // supports_multiple_packet_number_spaces_ is false, only the first (0 index)
+  // received_packet_manager is used.
+  QuicReceivedPacketManager received_packet_managers_[NUM_PACKET_NUMBER_SPACES];
+
+  bool supports_multiple_packet_number_spaces_;
 };
 
 }  // namespace quic

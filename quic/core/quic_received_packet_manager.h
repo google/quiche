@@ -25,6 +25,7 @@ struct QuicConnectionStats;
 // Records all received packets by a connection.
 class QUIC_EXPORT_PRIVATE QuicReceivedPacketManager {
  public:
+  QuicReceivedPacketManager();
   explicit QuicReceivedPacketManager(QuicConnectionStats* stats);
   QuicReceivedPacketManager(const QuicReceivedPacketManager&) = delete;
   QuicReceivedPacketManager& operator=(const QuicReceivedPacketManager&) =
@@ -90,6 +91,8 @@ class QUIC_EXPORT_PRIVATE QuicReceivedPacketManager {
   // packet number. Please note, this function should only be called when at
   // least one packet has been received.
   QuicPacketNumber PeerFirstSendingPacketNumber() const;
+
+  void set_connection_stats(QuicConnectionStats* stats) { stats_ = stats; }
 
   // For logging purposes.
   const QuicAckFrame& ack_frame() const { return ack_frame_; }

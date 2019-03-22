@@ -183,6 +183,10 @@ class QUIC_EXPORT_PRIVATE QuicUtils {
   // Determines packet number space from |encryption_level|.
   static PacketNumberSpace GetPacketNumberSpace(
       EncryptionLevel encryption_level);
+
+  // Determines encryption level to send packets in |packet_number_space|.
+  static EncryptionLevel GetEncryptionLevel(
+      PacketNumberSpace packet_number_space);
 };
 
 }  // namespace quic

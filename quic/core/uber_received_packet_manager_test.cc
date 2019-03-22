@@ -7,6 +7,7 @@
 #include "net/third_party/quiche/src/quic/core/congestion_control/rtt_stats.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection_stats.h"
+#include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/mock_clock.h"
@@ -17,19 +18,24 @@ namespace test {
 class UberReceivedPacketManagerPeer {
  public:
   static void SetAckMode(UberReceivedPacketManager* manager, AckMode ack_mode) {
-    manager->received_packet_manager_.ack_mode_ = ack_mode;
+    for (auto& received_packet_manager : manager->received_packet_managers_) {
+      received_packet_manager.ack_mode_ = ack_mode;
+    }
   }
 
   static void SetFastAckAfterQuiescence(UberReceivedPacketManager* manager,
                                         bool fast_ack_after_quiescence) {
-    manager->received_packet_manager_.fast_ack_after_quiescence_ =
-        fast_ack_after_quiescence;
+    for (auto& received_packet_manager : manager->received_packet_managers_) {
+      received_packet_manager.fast_ack_after_quiescence_ =
+          fast_ack_after_quiescence;
+    }
   }
 
   static void SetAckDecimationDelay(UberReceivedPacketManager* manager,
                                     float ack_decimation_delay) {
-    manager->received_packet_manager_.ack_decimation_delay_ =
-        ack_decimation_delay;
+    for (auto& received_packet_manager : manager->received_packet_managers_) {
+      received_packet_manager.ack_decimation_delay_ = ack_decimation_delay;
+    }
   }
 };
 
@@ -52,31 +58,73 @@ class UberReceivedPacketManagerTest : public QuicTest {
   }
 
   void RecordPacketReceipt(uint64_t packet_number) {
-    RecordPacketReceipt(packet_number, QuicTime::Zero());
+    RecordPacketReceipt(ENCRYPTION_FORWARD_SECURE, packet_number);
   }
 
   void RecordPacketReceipt(uint64_t packet_number, QuicTime receipt_time) {
-    QuicPacketHeader header;
-    header.packet_number = QuicPacketNumber(packet_number);
-    manager_->RecordPacketReceived(header, receipt_time);
+    RecordPacketReceipt(ENCRYPTION_FORWARD_SECURE, packet_number, receipt_time);
   }
 
-  bool HasPendingAck() { return manager_->GetAckTimeout().IsInitialized(); }
+  void RecordPacketReceipt(EncryptionLevel decrypted_packet_level,
+                           uint64_t packet_number) {
+    RecordPacketReceipt(decrypted_packet_level, packet_number,
+                        QuicTime::Zero());
+  }
+
+  void RecordPacketReceipt(EncryptionLevel decrypted_packet_level,
+                           uint64_t packet_number,
+                           QuicTime receipt_time) {
+    QuicPacketHeader header;
+    header.packet_number = QuicPacketNumber(packet_number);
+    manager_->RecordPacketReceived(decrypted_packet_level, header,
+                                   receipt_time);
+  }
+
+  bool HasPendingAck() {
+    if (!manager_->supports_multiple_packet_number_spaces()) {
+      return manager_->GetAckTimeout(APPLICATION_DATA).IsInitialized();
+    }
+    return manager_->GetEarliestAckTimeout().IsInitialized();
+  }
 
   void MaybeUpdateAckTimeout(bool should_last_packet_instigate_acks,
                              uint64_t last_received_packet_number) {
+    MaybeUpdateAckTimeout(should_last_packet_instigate_acks,
+                          ENCRYPTION_FORWARD_SECURE,
+                          last_received_packet_number);
+  }
+
+  void MaybeUpdateAckTimeout(bool should_last_packet_instigate_acks,
+                             EncryptionLevel decrypted_packet_level,
+                             uint64_t last_received_packet_number) {
     manager_->MaybeUpdateAckTimeout(
-        should_last_packet_instigate_acks,
+        should_last_packet_instigate_acks, decrypted_packet_level,
         QuicPacketNumber(last_received_packet_number), clock_.ApproximateNow(),
         clock_.ApproximateNow(), &rtt_stats_, kDelayedAckTime);
   }
 
   void CheckAckTimeout(QuicTime time) {
-    DCHECK(HasPendingAck() && manager_->GetAckTimeout() == time);
-    if (time <= clock_.ApproximateNow()) {
-      // ACK timeout expires, send an ACK.
-      manager_->ResetAckStates();
-      DCHECK(!HasPendingAck());
+    DCHECK(HasPendingAck());
+    if (!manager_->supports_multiple_packet_number_spaces()) {
+      DCHECK(manager_->GetAckTimeout(APPLICATION_DATA) == time);
+      if (time <= clock_.ApproximateNow()) {
+        // ACK timeout expires, send an ACK.
+        manager_->ResetAckStates(ENCRYPTION_FORWARD_SECURE);
+        DCHECK(!HasPendingAck());
+      }
+      return;
+    }
+    DCHECK(manager_->GetEarliestAckTimeout() == time);
+    // Send all expired ACKs.
+    for (int8_t i = INITIAL_DATA; i < NUM_PACKET_NUMBER_SPACES; ++i) {
+      const QuicTime ack_timeout =
+          manager_->GetAckTimeout(static_cast<PacketNumberSpace>(i));
+      if (!ack_timeout.IsInitialized() ||
+          ack_timeout > clock_.ApproximateNow()) {
+        continue;
+      }
+      manager_->ResetAckStates(
+          QuicUtils::GetEncryptionLevel(static_cast<PacketNumberSpace>(i)));
     }
   }
 
@@ -87,38 +135,39 @@ class UberReceivedPacketManagerTest : public QuicTest {
 };
 
 TEST_F(UberReceivedPacketManagerTest, DontWaitForPacketsBefore) {
-  QuicPacketHeader header;
-  header.packet_number = QuicPacketNumber(2u);
-  manager_->RecordPacketReceived(header, QuicTime::Zero());
-  header.packet_number = QuicPacketNumber(7u);
-  manager_->RecordPacketReceived(header, QuicTime::Zero());
-  EXPECT_TRUE(manager_->IsAwaitingPacket(QuicPacketNumber(3u)));
-  EXPECT_TRUE(manager_->IsAwaitingPacket(QuicPacketNumber(6u)));
-  manager_->DontWaitForPacketsBefore(QuicPacketNumber(4));
-  EXPECT_FALSE(manager_->IsAwaitingPacket(QuicPacketNumber(3u)));
-  EXPECT_TRUE(manager_->IsAwaitingPacket(QuicPacketNumber(6u)));
+  RecordPacketReceipt(2);
+  RecordPacketReceipt(7);
+  EXPECT_TRUE(manager_->IsAwaitingPacket(ENCRYPTION_FORWARD_SECURE,
+                                         QuicPacketNumber(3u)));
+  EXPECT_TRUE(manager_->IsAwaitingPacket(ENCRYPTION_FORWARD_SECURE,
+                                         QuicPacketNumber(6u)));
+  manager_->DontWaitForPacketsBefore(ENCRYPTION_FORWARD_SECURE,
+                                     QuicPacketNumber(4));
+  EXPECT_FALSE(manager_->IsAwaitingPacket(ENCRYPTION_FORWARD_SECURE,
+                                          QuicPacketNumber(3u)));
+  EXPECT_TRUE(manager_->IsAwaitingPacket(ENCRYPTION_FORWARD_SECURE,
+                                         QuicPacketNumber(6u)));
 }
 
 TEST_F(UberReceivedPacketManagerTest, GetUpdatedAckFrame) {
-  QuicPacketHeader header;
-  header.packet_number = QuicPacketNumber(2u);
   QuicTime two_ms = QuicTime::Zero() + QuicTime::Delta::FromMilliseconds(2);
-  EXPECT_FALSE(manager_->AckFrameUpdated());
-  manager_->RecordPacketReceived(header, two_ms);
-  EXPECT_TRUE(manager_->AckFrameUpdated());
+  EXPECT_FALSE(manager_->IsAckFrameUpdated());
+  RecordPacketReceipt(2, two_ms);
+  EXPECT_TRUE(manager_->IsAckFrameUpdated());
 
-  QuicFrame ack = manager_->GetUpdatedAckFrame(QuicTime::Zero());
-  manager_->ResetAckStates();
-  EXPECT_FALSE(manager_->AckFrameUpdated());
+  QuicFrame ack =
+      manager_->GetUpdatedAckFrame(APPLICATION_DATA, QuicTime::Zero());
+  manager_->ResetAckStates(ENCRYPTION_FORWARD_SECURE);
+  EXPECT_FALSE(manager_->IsAckFrameUpdated());
   // When UpdateReceivedPacketInfo with a time earlier than the time of the
   // largest observed packet, make sure that the delta is 0, not negative.
   EXPECT_EQ(QuicTime::Delta::Zero(), ack.ack_frame->ack_delay_time);
   EXPECT_EQ(1u, ack.ack_frame->received_packet_times.size());
 
   QuicTime four_ms = QuicTime::Zero() + QuicTime::Delta::FromMilliseconds(4);
-  ack = manager_->GetUpdatedAckFrame(four_ms);
-  manager_->ResetAckStates();
-  EXPECT_FALSE(manager_->AckFrameUpdated());
+  ack = manager_->GetUpdatedAckFrame(APPLICATION_DATA, four_ms);
+  manager_->ResetAckStates(ENCRYPTION_FORWARD_SECURE);
+  EXPECT_FALSE(manager_->IsAckFrameUpdated());
   // When UpdateReceivedPacketInfo after not having received a new packet,
   // the delta should still be accurate.
   EXPECT_EQ(QuicTime::Delta::FromMilliseconds(2),
@@ -126,25 +175,22 @@ TEST_F(UberReceivedPacketManagerTest, GetUpdatedAckFrame) {
   // And received packet times won't have change.
   EXPECT_EQ(1u, ack.ack_frame->received_packet_times.size());
 
-  header.packet_number = QuicPacketNumber(999u);
-  manager_->RecordPacketReceived(header, two_ms);
-  header.packet_number = QuicPacketNumber(4u);
-  manager_->RecordPacketReceived(header, two_ms);
-  header.packet_number = QuicPacketNumber(1000u);
-  manager_->RecordPacketReceived(header, two_ms);
-  EXPECT_TRUE(manager_->AckFrameUpdated());
-  ack = manager_->GetUpdatedAckFrame(two_ms);
-  manager_->ResetAckStates();
-  EXPECT_FALSE(manager_->AckFrameUpdated());
+  RecordPacketReceipt(999, two_ms);
+  RecordPacketReceipt(4, two_ms);
+  RecordPacketReceipt(1000, two_ms);
+  EXPECT_TRUE(manager_->IsAckFrameUpdated());
+  ack = manager_->GetUpdatedAckFrame(APPLICATION_DATA, two_ms);
+  manager_->ResetAckStates(ENCRYPTION_FORWARD_SECURE);
+  EXPECT_FALSE(manager_->IsAckFrameUpdated());
   // UpdateReceivedPacketInfo should discard any times which can't be
   // expressed on the wire.
   EXPECT_EQ(2u, ack.ack_frame->received_packet_times.size());
 }
 
 TEST_F(UberReceivedPacketManagerTest, UpdateReceivedConnectionStats) {
-  EXPECT_FALSE(manager_->AckFrameUpdated());
+  EXPECT_FALSE(manager_->IsAckFrameUpdated());
   RecordPacketReceipt(1);
-  EXPECT_TRUE(manager_->AckFrameUpdated());
+  EXPECT_TRUE(manager_->IsAckFrameUpdated());
   RecordPacketReceipt(6);
   RecordPacketReceipt(2,
                       QuicTime::Zero() + QuicTime::Delta::FromMilliseconds(1));
@@ -156,11 +202,11 @@ TEST_F(UberReceivedPacketManagerTest, UpdateReceivedConnectionStats) {
 
 TEST_F(UberReceivedPacketManagerTest, LimitAckRanges) {
   manager_->set_max_ack_ranges(10);
-  EXPECT_FALSE(manager_->AckFrameUpdated());
+  EXPECT_FALSE(manager_->IsAckFrameUpdated());
   for (int i = 0; i < 100; ++i) {
     RecordPacketReceipt(1 + 2 * i);
-    EXPECT_TRUE(manager_->AckFrameUpdated());
-    manager_->GetUpdatedAckFrame(QuicTime::Zero());
+    EXPECT_TRUE(manager_->IsAckFrameUpdated());
+    manager_->GetUpdatedAckFrame(APPLICATION_DATA, QuicTime::Zero());
     EXPECT_GE(10u, manager_->ack_frame().packets.NumIntervals());
     EXPECT_EQ(QuicPacketNumber(1u + 2 * i),
               manager_->ack_frame().packets.Max());
@@ -177,9 +223,9 @@ TEST_F(UberReceivedPacketManagerTest, LimitAckRanges) {
 }
 
 TEST_F(UberReceivedPacketManagerTest, IgnoreOutOfOrderTimestamps) {
-  EXPECT_FALSE(manager_->AckFrameUpdated());
+  EXPECT_FALSE(manager_->IsAckFrameUpdated());
   RecordPacketReceipt(1, QuicTime::Zero());
-  EXPECT_TRUE(manager_->AckFrameUpdated());
+  EXPECT_TRUE(manager_->IsAckFrameUpdated());
   EXPECT_EQ(1u, manager_->ack_frame().received_packet_times.size());
   RecordPacketReceipt(2,
                       QuicTime::Zero() + QuicTime::Delta::FromMilliseconds(1));
@@ -683,6 +729,69 @@ TEST_F(UberReceivedPacketManagerTest,
   RecordPacketReceipt(kFirstDecimatedPacket + 10, clock_.ApproximateNow());
   MaybeUpdateAckTimeout(kInstigateAck, kFirstDecimatedPacket + 10);
   CheckAckTimeout(clock_.ApproximateNow());
+}
+
+TEST_F(UberReceivedPacketManagerTest,
+       DontWaitForPacketsBeforeMultiplePacketNumberSpaces) {
+  manager_->EnableMultiplePacketNumberSpacesSupport();
+  EXPECT_FALSE(
+      manager_->GetLargestObserved(ENCRYPTION_HANDSHAKE).IsInitialized());
+  EXPECT_FALSE(
+      manager_->GetLargestObserved(ENCRYPTION_FORWARD_SECURE).IsInitialized());
+  RecordPacketReceipt(ENCRYPTION_HANDSHAKE, 2);
+  RecordPacketReceipt(ENCRYPTION_HANDSHAKE, 4);
+  RecordPacketReceipt(ENCRYPTION_FORWARD_SECURE, 3);
+  RecordPacketReceipt(ENCRYPTION_FORWARD_SECURE, 7);
+  EXPECT_EQ(QuicPacketNumber(4),
+            manager_->GetLargestObserved(ENCRYPTION_HANDSHAKE));
+  EXPECT_EQ(QuicPacketNumber(7),
+            manager_->GetLargestObserved(ENCRYPTION_FORWARD_SECURE));
+
+  EXPECT_TRUE(
+      manager_->IsAwaitingPacket(ENCRYPTION_HANDSHAKE, QuicPacketNumber(3)));
+  EXPECT_FALSE(manager_->IsAwaitingPacket(ENCRYPTION_FORWARD_SECURE,
+                                          QuicPacketNumber(3)));
+  EXPECT_TRUE(manager_->IsAwaitingPacket(ENCRYPTION_FORWARD_SECURE,
+                                         QuicPacketNumber(4)));
+
+  manager_->DontWaitForPacketsBefore(ENCRYPTION_FORWARD_SECURE,
+                                     QuicPacketNumber(5));
+  EXPECT_TRUE(
+      manager_->IsAwaitingPacket(ENCRYPTION_HANDSHAKE, QuicPacketNumber(3)));
+  EXPECT_FALSE(manager_->IsAwaitingPacket(ENCRYPTION_FORWARD_SECURE,
+                                          QuicPacketNumber(4)));
+}
+
+TEST_F(UberReceivedPacketManagerTest, AckSendingDifferentPacketNumberSpaces) {
+  manager_->EnableMultiplePacketNumberSpacesSupport();
+  SetQuicRestartFlag(quic_enable_accept_random_ipn, true);
+  EXPECT_FALSE(HasPendingAck());
+  EXPECT_FALSE(manager_->IsAckFrameUpdated());
+
+  RecordPacketReceipt(ENCRYPTION_HANDSHAKE, 3);
+  EXPECT_TRUE(manager_->IsAckFrameUpdated());
+  MaybeUpdateAckTimeout(kInstigateAck, ENCRYPTION_HANDSHAKE, 3);
+  EXPECT_TRUE(HasPendingAck());
+  // Delayed ack is scheduled.
+  CheckAckTimeout(clock_.ApproximateNow() + kDelayedAckTime);
+
+  RecordPacketReceipt(ENCRYPTION_FORWARD_SECURE, 3);
+  MaybeUpdateAckTimeout(kInstigateAck, ENCRYPTION_FORWARD_SECURE, 3);
+  EXPECT_TRUE(HasPendingAck());
+  // Delayed ack is scheduled.
+  CheckAckTimeout(clock_.ApproximateNow() + kDelayedAckTime);
+
+  RecordPacketReceipt(ENCRYPTION_FORWARD_SECURE, 2);
+  MaybeUpdateAckTimeout(kInstigateAck, ENCRYPTION_FORWARD_SECURE, 2);
+  // Application data ACK should be sent immediately.
+  CheckAckTimeout(clock_.ApproximateNow());
+  // Delayed ACK of handshake data is pending.
+  CheckAckTimeout(clock_.ApproximateNow() + kDelayedAckTime);
+
+  // Send delayed handshake data ACK.
+  clock_.AdvanceTime(kDelayedAckTime);
+  CheckAckTimeout(clock_.ApproximateNow());
+  EXPECT_FALSE(HasPendingAck());
 }
 
 }  // namespace

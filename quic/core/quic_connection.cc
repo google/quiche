@@ -357,6 +357,7 @@ QuicConnection::QuicConnection(
           GetQuicReloadableFlag(quic_validate_packet_number_post_decryption)),
       use_uber_received_packet_manager_(
           received_packet_manager_.decide_when_to_send_acks() &&
+          validate_packet_number_post_decryption_ &&
           GetQuicReloadableFlag(quic_use_uber_received_packet_manager)) {
   if (ack_mode_ == ACK_DECIMATION) {
     QUIC_RELOADABLE_FLAG_COUNT(quic_enable_ack_decimation);
@@ -825,7 +826,7 @@ bool QuicConnection::OnUnauthenticatedHeader(const QuicPacketHeader& header) {
     const bool is_awaiting =
         use_uber_received_packet_manager_
             ? uber_received_packet_manager_.IsAwaitingPacket(
-                  header.packet_number)
+                  last_decrypted_packet_level_, header.packet_number)
             : received_packet_manager_.IsAwaitingPacket(header.packet_number);
     if (!is_awaiting) {
       if (framer_.IsIetfStatelessResetPacket(header)) {
@@ -959,7 +960,8 @@ bool QuicConnection::OnPacketHeader(const QuicPacketHeader& header) {
   // frames, since the processing may result in sending a bundled ack.
   if (use_uber_received_packet_manager_) {
     uber_received_packet_manager_.RecordPacketReceived(
-        last_header_, time_of_last_received_packet_);
+        last_decrypted_packet_level_, last_header_,
+        time_of_last_received_packet_);
   } else {
     received_packet_manager_.RecordPacketReceived(
         last_header_, time_of_last_received_packet_);
@@ -1167,7 +1169,8 @@ bool QuicConnection::OnStopWaitingFrame(const QuicStopWaitingFrame& frame) {
 
   largest_seen_packet_with_stop_waiting_ = last_header_.packet_number;
   if (use_uber_received_packet_manager_) {
-    uber_received_packet_manager_.DontWaitForPacketsBefore(frame.least_unacked);
+    uber_received_packet_manager_.DontWaitForPacketsBefore(
+        last_decrypted_packet_level_, frame.least_unacked);
   } else {
     received_packet_manager_.DontWaitForPacketsBefore(frame.least_unacked);
   }
@@ -1490,9 +1493,9 @@ void QuicConnection::OnPacketComplete() {
   if (received_packet_manager_.decide_when_to_send_acks()) {
     if (use_uber_received_packet_manager_) {
       uber_received_packet_manager_.MaybeUpdateAckTimeout(
-          should_last_packet_instigate_acks_, last_header_.packet_number,
-          time_of_last_received_packet_, clock_->ApproximateNow(),
-          sent_packet_manager_.GetRttStats(),
+          should_last_packet_instigate_acks_, last_decrypted_packet_level_,
+          last_header_.packet_number, time_of_last_received_packet_,
+          clock_->ApproximateNow(), sent_packet_manager_.GetRttStats(),
           sent_packet_manager_.delayed_ack_time());
     } else {
       received_packet_manager_.MaybeUpdateAckTimeout(
@@ -1656,6 +1659,7 @@ void QuicConnection::CloseIfTooManyOutstandingSentPackets() {
 const QuicFrame QuicConnection::GetUpdatedAckFrame() {
   if (use_uber_received_packet_manager_) {
     return uber_received_packet_manager_.GetUpdatedAckFrame(
+        QuicUtils::GetPacketNumberSpace(encryption_level_),
         clock_->ApproximateNow());
   }
   return received_packet_manager_.GetUpdatedAckFrame(clock_->ApproximateNow());
@@ -1961,7 +1965,8 @@ void QuicConnection::OnCanWrite() {
   if (received_packet_manager_.decide_when_to_send_acks()) {
     const QuicTime ack_timeout =
         use_uber_received_packet_manager_
-            ? uber_received_packet_manager_.GetAckTimeout()
+            ? uber_received_packet_manager_.GetAckTimeout(
+                  QuicUtils::GetPacketNumberSpace(encryption_level_))
             : received_packet_manager_.ack_timeout();
     if (ack_timeout.IsInitialized() &&
         ack_timeout <= clock_->ApproximateNow()) {
@@ -2088,7 +2093,8 @@ bool QuicConnection::ValidateReceivedPacketNumber(
   if (validate_packet_number_post_decryption_) {
     const bool is_awaiting =
         use_uber_received_packet_manager_
-            ? uber_received_packet_manager_.IsAwaitingPacket(packet_number)
+            ? uber_received_packet_manager_.IsAwaitingPacket(
+                  last_decrypted_packet_level_, packet_number)
             : received_packet_manager_.IsAwaitingPacket(packet_number);
     if (!is_awaiting) {
       QUIC_DLOG(INFO) << ENDPOINT << "Packet " << packet_number
@@ -2273,7 +2279,9 @@ const QuicFrames QuicConnection::MaybeBundleAckOpportunistically() {
   if (received_packet_manager_.decide_when_to_send_acks()) {
     if (use_uber_received_packet_manager_) {
       has_pending_ack =
-          uber_received_packet_manager_.GetAckTimeout().IsInitialized();
+          uber_received_packet_manager_
+              .GetAckTimeout(QuicUtils::GetPacketNumberSpace(encryption_level_))
+              .IsInitialized();
     } else {
       has_pending_ack = received_packet_manager_.ack_timeout().IsInitialized();
     }
@@ -3271,7 +3279,9 @@ QuicConnection::ScopedPacketFlusher::~ScopedPacketFlusher() {
       if (connection_->received_packet_manager_.decide_when_to_send_acks()) {
         const QuicTime ack_timeout =
             connection_->use_uber_received_packet_manager_
-                ? connection_->uber_received_packet_manager_.GetAckTimeout()
+                ? connection_->uber_received_packet_manager_.GetAckTimeout(
+                      QuicUtils::GetPacketNumberSpace(
+                          connection_->encryption_level_))
                 : connection_->received_packet_manager_.ack_timeout();
         if (ack_timeout.IsInitialized()) {
           if (ack_timeout <= connection_->clock_->ApproximateNow() &&
@@ -3597,7 +3607,7 @@ bool QuicConnection::IsCurrentPacketConnectivityProbing() const {
 
 bool QuicConnection::ack_frame_updated() const {
   if (use_uber_received_packet_manager_) {
-    return uber_received_packet_manager_.AckFrameUpdated();
+    return uber_received_packet_manager_.IsAckFrameUpdated();
   }
   return received_packet_manager_.ack_frame_updated();
 }
@@ -3746,6 +3756,7 @@ void QuicConnection::PostProcessAfterAckFrame(bool send_stop_waiting,
   if (no_stop_waiting_frames_) {
     if (use_uber_received_packet_manager_) {
       uber_received_packet_manager_.DontWaitForPacketsBefore(
+          last_decrypted_packet_level_,
           sent_packet_manager_.largest_packet_peer_knows_is_acked());
     } else {
       received_packet_manager_.DontWaitForPacketsBefore(
@@ -3818,7 +3829,7 @@ void QuicConnection::ResetAckStates() {
   num_packets_received_since_last_ack_sent_ = 0;
   if (received_packet_manager_.decide_when_to_send_acks()) {
     if (use_uber_received_packet_manager_) {
-      uber_received_packet_manager_.ResetAckStates();
+      uber_received_packet_manager_.ResetAckStates(encryption_level_);
     } else {
       received_packet_manager_.ResetAckStates();
     }
@@ -3905,7 +3916,8 @@ QuicPacketNumber QuicConnection::GetLargestAckedPacket() const {
 
 QuicPacketNumber QuicConnection::GetLargestReceivedPacket() const {
   if (use_uber_received_packet_manager_) {
-    return uber_received_packet_manager_.GetLargestObserved();
+    return uber_received_packet_manager_.GetLargestObserved(
+        last_decrypted_packet_level_);
   }
   return received_packet_manager_.GetLargestObserved();
 }

@@ -39,6 +39,9 @@ const float kAckDecimationDelay = 0.25;
 const float kShortAckDecimationDelay = 0.125;
 }  // namespace
 
+QuicReceivedPacketManager::QuicReceivedPacketManager()
+    : QuicReceivedPacketManager(nullptr) {}
+
 QuicReceivedPacketManager::QuicReceivedPacketManager(QuicConnectionStats* stats)
     : ack_frame_updated_(false),
       max_ack_ranges_(0),
