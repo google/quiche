@@ -264,10 +264,16 @@ class QuicSentPacketManagerTest : public QuicTestWithParam<bool> {
   }
 
   void SendDataPacket(uint64_t packet_number) {
+    SendDataPacket(packet_number, ENCRYPTION_INITIAL);
+  }
+
+  void SendDataPacket(uint64_t packet_number,
+                      EncryptionLevel encryption_level) {
     EXPECT_CALL(*send_algorithm_,
                 OnPacketSent(_, BytesInFlight(),
                              QuicPacketNumber(packet_number), _, _));
     SerializedPacket packet(CreateDataPacket(packet_number));
+    packet.encryption_level = encryption_level;
     manager_.OnPacketSent(&packet, QuicPacketNumber(), clock_.Now(),
                           NOT_RETRANSMISSION, HAS_RETRANSMITTABLE_DATA);
   }
@@ -2463,6 +2469,111 @@ TEST_P(QuicSentPacketManagerTest, TolerateReneging) {
   manager_.OnAckRange(QuicPacketNumber(4), QuicPacketNumber(8));
   EXPECT_TRUE(manager_.OnAckFrameEnd(clock_.Now()));
   EXPECT_EQ(QuicPacketNumber(16), manager_.GetLargestObserved());
+}
+
+TEST_P(QuicSentPacketManagerTest, MultiplePacketNumberSpaces) {
+  if (!GetQuicReloadableFlag(quic_use_uber_loss_algorithm)) {
+    return;
+  }
+  manager_.EnableMultiplePacketNumberSpacesSupport();
+  EXPECT_FALSE(
+      manager_.GetLargestSentPacket(ENCRYPTION_INITIAL).IsInitialized());
+  EXPECT_FALSE(
+      manager_.GetLargestAckedPacket(ENCRYPTION_INITIAL).IsInitialized());
+  // Send packet 1.
+  SendDataPacket(1, ENCRYPTION_INITIAL);
+  EXPECT_EQ(QuicPacketNumber(1),
+            manager_.GetLargestSentPacket(ENCRYPTION_INITIAL));
+  EXPECT_FALSE(
+      manager_.GetLargestSentPacket(ENCRYPTION_HANDSHAKE).IsInitialized());
+  // Ack packet 1.
+  ExpectAck(1);
+  manager_.OnAckFrameStart(QuicPacketNumber(1), QuicTime::Delta::Infinite(),
+                           clock_.Now());
+  manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(2));
+  EXPECT_TRUE(manager_.OnAckFrameEnd(clock_.Now()));
+  EXPECT_EQ(QuicPacketNumber(1),
+            manager_.GetLargestAckedPacket(ENCRYPTION_INITIAL));
+  EXPECT_FALSE(
+      manager_.GetLargestAckedPacket(ENCRYPTION_HANDSHAKE).IsInitialized());
+  // Send packets 2 and 3.
+  SendDataPacket(2, ENCRYPTION_HANDSHAKE);
+  SendDataPacket(3, ENCRYPTION_HANDSHAKE);
+  EXPECT_EQ(QuicPacketNumber(1),
+            manager_.GetLargestSentPacket(ENCRYPTION_INITIAL));
+  EXPECT_EQ(QuicPacketNumber(3),
+            manager_.GetLargestSentPacket(ENCRYPTION_HANDSHAKE));
+  EXPECT_FALSE(
+      manager_.GetLargestSentPacket(ENCRYPTION_ZERO_RTT).IsInitialized());
+  // Ack packet 2.
+  ExpectAck(2);
+  manager_.OnAckFrameStart(QuicPacketNumber(2), QuicTime::Delta::Infinite(),
+                           clock_.Now());
+  manager_.OnAckRange(QuicPacketNumber(2), QuicPacketNumber(3));
+  EXPECT_TRUE(manager_.OnAckFrameEnd(clock_.Now()));
+  EXPECT_EQ(QuicPacketNumber(2),
+            manager_.GetLargestAckedPacket(ENCRYPTION_HANDSHAKE));
+  EXPECT_FALSE(
+      manager_.GetLargestAckedPacket(ENCRYPTION_ZERO_RTT).IsInitialized());
+  // Ack packet 3.
+  ExpectAck(3);
+  manager_.OnAckFrameStart(QuicPacketNumber(3), QuicTime::Delta::Infinite(),
+                           clock_.Now());
+  manager_.OnAckRange(QuicPacketNumber(2), QuicPacketNumber(4));
+  EXPECT_TRUE(manager_.OnAckFrameEnd(clock_.Now()));
+  EXPECT_EQ(QuicPacketNumber(3),
+            manager_.GetLargestAckedPacket(ENCRYPTION_HANDSHAKE));
+  EXPECT_FALSE(
+      manager_.GetLargestAckedPacket(ENCRYPTION_ZERO_RTT).IsInitialized());
+  // Send packets 4 and 5.
+  SendDataPacket(4, ENCRYPTION_ZERO_RTT);
+  SendDataPacket(5, ENCRYPTION_ZERO_RTT);
+  EXPECT_EQ(QuicPacketNumber(1),
+            manager_.GetLargestSentPacket(ENCRYPTION_INITIAL));
+  EXPECT_EQ(QuicPacketNumber(3),
+            manager_.GetLargestSentPacket(ENCRYPTION_HANDSHAKE));
+  EXPECT_EQ(QuicPacketNumber(5),
+            manager_.GetLargestSentPacket(ENCRYPTION_ZERO_RTT));
+  EXPECT_EQ(QuicPacketNumber(5),
+            manager_.GetLargestSentPacket(ENCRYPTION_FORWARD_SECURE));
+  // Ack packet 5.
+  ExpectAck(5);
+  manager_.OnAckFrameStart(QuicPacketNumber(5), QuicTime::Delta::Infinite(),
+                           clock_.Now());
+  manager_.OnAckRange(QuicPacketNumber(5), QuicPacketNumber(6));
+  EXPECT_TRUE(manager_.OnAckFrameEnd(clock_.Now()));
+  EXPECT_EQ(QuicPacketNumber(3),
+            manager_.GetLargestAckedPacket(ENCRYPTION_HANDSHAKE));
+  EXPECT_EQ(QuicPacketNumber(5),
+            manager_.GetLargestAckedPacket(ENCRYPTION_ZERO_RTT));
+  EXPECT_EQ(QuicPacketNumber(5),
+            manager_.GetLargestAckedPacket(ENCRYPTION_FORWARD_SECURE));
+
+  // Send packets 6 - 8.
+  SendDataPacket(6, ENCRYPTION_FORWARD_SECURE);
+  SendDataPacket(7, ENCRYPTION_FORWARD_SECURE);
+  SendDataPacket(8, ENCRYPTION_FORWARD_SECURE);
+  EXPECT_EQ(QuicPacketNumber(1),
+            manager_.GetLargestSentPacket(ENCRYPTION_INITIAL));
+  EXPECT_EQ(QuicPacketNumber(3),
+            manager_.GetLargestSentPacket(ENCRYPTION_HANDSHAKE));
+  EXPECT_EQ(QuicPacketNumber(8),
+            manager_.GetLargestSentPacket(ENCRYPTION_ZERO_RTT));
+  EXPECT_EQ(QuicPacketNumber(8),
+            manager_.GetLargestSentPacket(ENCRYPTION_FORWARD_SECURE));
+  // Ack all packets.
+  uint64_t acked[] = {4, 6, 7, 8};
+  ExpectAcksAndLosses(true, acked, QUIC_ARRAYSIZE(acked), nullptr, 0);
+  manager_.OnAckFrameStart(QuicPacketNumber(8), QuicTime::Delta::Infinite(),
+                           clock_.Now());
+  manager_.OnAckRange(QuicPacketNumber(4), QuicPacketNumber(9));
+  EXPECT_TRUE(manager_.OnAckFrameEnd(clock_.Now()));
+  EXPECT_EQ(QuicPacketNumber(3),
+            manager_.GetLargestAckedPacket(ENCRYPTION_HANDSHAKE));
+  EXPECT_EQ(QuicPacketNumber(8),
+            manager_.GetLargestAckedPacket(ENCRYPTION_ZERO_RTT));
+  EXPECT_EQ(QuicPacketNumber(8),
+            manager_.GetLargestAckedPacket(ENCRYPTION_FORWARD_SECURE));
 }
 
 }  // namespace

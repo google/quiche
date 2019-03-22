@@ -33,7 +33,8 @@ QuicUnackedPacketMap::QuicUnackedPacketMap(Perspective perspective)
       session_notifier_(nullptr),
       session_decides_what_to_write_(false),
       use_uber_loss_algorithm_(
-          GetQuicReloadableFlag(quic_use_uber_loss_algorithm)) {
+          GetQuicReloadableFlag(quic_use_uber_loss_algorithm)),
+      supports_multiple_packet_number_spaces_(false) {
   if (use_uber_loss_algorithm_) {
     QUIC_RELOADABLE_FLAG_COUNT(quic_use_uber_loss_algorithm);
   }
@@ -75,6 +76,10 @@ void QuicUnackedPacketMap::AddSentPacket(SerializedPacket* packet,
   }
 
   largest_sent_packet_ = packet_number;
+  if (supports_multiple_packet_number_spaces_) {
+    largest_sent_packets_[GetPacketNumberSpace(packet->encryption_level)] =
+        packet_number;
+  }
   if (set_in_flight) {
     bytes_in_flight_ += bytes_sent;
     info.in_flight = true;
@@ -501,6 +506,9 @@ PacketNumberSpace QuicUnackedPacketMap::GetPacketNumberSpace(
 PacketNumberSpace QuicUnackedPacketMap::GetPacketNumberSpace(
     EncryptionLevel encryption_level) const {
   DCHECK(use_uber_loss_algorithm_);
+  if (supports_multiple_packet_number_spaces_) {
+    return QuicUtils::GetPacketNumberSpace(encryption_level);
+  }
   if (perspective_ == Perspective::IS_CLIENT) {
     return encryption_level == ENCRYPTION_INITIAL ? HANDSHAKE_DATA
                                                   : APPLICATION_DATA;
@@ -537,6 +545,26 @@ void QuicUnackedPacketMap::SetSessionDecideWhatToWrite(
     return;
   }
   session_decides_what_to_write_ = session_decides_what_to_write;
+}
+
+void QuicUnackedPacketMap::EnableMultiplePacketNumberSpacesSupport() {
+  if (supports_multiple_packet_number_spaces_) {
+    QUIC_BUG << "Multiple packet number spaces has already been enabled";
+    return;
+  }
+  if (largest_sent_packet_.IsInitialized()) {
+    QUIC_BUG << "Try to enable multiple packet number spaces support after any "
+                "packet has been sent.";
+    return;
+  }
+
+  supports_multiple_packet_number_spaces_ = true;
+}
+
+QuicPacketNumber QuicUnackedPacketMap::GetLargestSentPacketOfPacketNumberSpace(
+    EncryptionLevel encryption_level) const {
+  DCHECK(supports_multiple_packet_number_spaces_);
+  return largest_sent_packets_[GetPacketNumberSpace(encryption_level)];
 }
 
 }  // namespace quic

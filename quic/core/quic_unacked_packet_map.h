@@ -204,10 +204,16 @@ class QUIC_EXPORT_PRIVATE QuicUnackedPacketMap {
   QuicPacketNumber GetLargestSentRetransmittableOfPacketNumberSpace(
       PacketNumberSpace packet_number_space) const;
 
+  // Returns largest sent packet number of |encryption_level|.
+  QuicPacketNumber GetLargestSentPacketOfPacketNumberSpace(
+      EncryptionLevel encryption_level) const;
+
   // Called to start/stop letting session decide what to write.
   void SetSessionDecideWhatToWrite(bool session_decides_what_to_write);
 
   void SetSessionNotifier(SessionNotifierInterface* session_notifier);
+
+  void EnableMultiplePacketNumberSpacesSupport();
 
   bool session_decides_what_to_write() const {
     return session_decides_what_to_write_;
@@ -216,6 +222,10 @@ class QUIC_EXPORT_PRIVATE QuicUnackedPacketMap {
   bool use_uber_loss_algorithm() const { return use_uber_loss_algorithm_; }
 
   Perspective perspective() const { return perspective_; }
+
+  bool supports_multiple_packet_number_spaces() const {
+    return supports_multiple_packet_number_spaces_;
+  }
 
  private:
   friend class test::QuicUnackedPacketMapPeer;
@@ -249,6 +259,8 @@ class QUIC_EXPORT_PRIVATE QuicUnackedPacketMap {
   const Perspective perspective_;
 
   QuicPacketNumber largest_sent_packet_;
+  // Only used when supports_multiple_packet_number_spaces_ is true.
+  QuicPacketNumber largest_sent_packets_[NUM_PACKET_NUMBER_SPACES];
   // The largest sent packet we expect to receive an ack for.
   // TODO(fayang): Remove largest_sent_retransmittable_packet_ when deprecating
   // quic_use_uber_loss_algorithm.
@@ -296,6 +308,9 @@ class QUIC_EXPORT_PRIVATE QuicUnackedPacketMap {
 
   // Latched value of quic_use_uber_loss_algorithm.
   const bool use_uber_loss_algorithm_;
+
+  // If true, supports multiple packet number spaces.
+  bool supports_multiple_packet_number_spaces_;
 };
 
 }  // namespace quic

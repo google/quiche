@@ -1147,6 +1147,11 @@ bool QuicSentPacketManager::OnAckFrameEnd(QuicTime ack_receive_time) {
                   << acked_packet.packet_number;
     last_ack_frame_.packets.Add(acked_packet.packet_number);
     largest_packet_peer_knows_is_acked_.UpdateMax(info->largest_acked);
+    if (supports_multiple_packet_number_spaces()) {
+      largest_packets_peer_knows_is_acked_[QuicUtils::GetPacketNumberSpace(
+                                               info->encryption_level)]
+          .UpdateMax(info->largest_acked);
+    }
     // If data is associated with the most recent transmission of this
     // packet, then inform the caller.
     if (info->in_flight) {
@@ -1194,6 +1199,31 @@ void QuicSentPacketManager::SetInitialRtt(QuicTime::Delta rtt) {
   const QuicTime::Delta max_rtt =
       QuicTime::Delta::FromMicroseconds(kMaxInitialRoundTripTimeUs);
   rtt_stats_.set_initial_rtt(std::max(min_rtt, std::min(max_rtt, rtt)));
+}
+
+void QuicSentPacketManager::EnableMultiplePacketNumberSpacesSupport() {
+  unacked_packets_.EnableMultiplePacketNumberSpacesSupport();
+}
+
+QuicPacketNumber QuicSentPacketManager::GetLargestAckedPacket(
+    EncryptionLevel decrypted_packet_level) const {
+  DCHECK(supports_multiple_packet_number_spaces());
+  return unacked_packets_.GetLargestAckedOfPacketNumberSpace(
+      QuicUtils::GetPacketNumberSpace(decrypted_packet_level));
+}
+
+QuicPacketNumber QuicSentPacketManager::GetLargestSentPacket(
+    EncryptionLevel decrypted_packet_level) const {
+  DCHECK(supports_multiple_packet_number_spaces());
+  return unacked_packets_.GetLargestSentPacketOfPacketNumberSpace(
+      decrypted_packet_level);
+}
+
+QuicPacketNumber QuicSentPacketManager::GetLargestPacketPeerKnowsIsAcked(
+    EncryptionLevel decrypted_packet_level) const {
+  DCHECK(supports_multiple_packet_number_spaces());
+  return largest_packets_peer_knows_is_acked_[QuicUtils::GetPacketNumberSpace(
+      decrypted_packet_level)];
 }
 
 #undef ENDPOINT  // undef for jumbo builds

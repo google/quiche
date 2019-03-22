@@ -272,6 +272,8 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
     unacked_packets_.SetSessionDecideWhatToWrite(session_decides_what_to_write);
   }
 
+  void EnableMultiplePacketNumberSpacesSupport();
+
   void SetDebugDelegate(DebugDelegate* debug_delegate);
 
   void SetPacingAlarmGranularity(QuicTime::Delta alarm_granularity) {
@@ -282,9 +284,18 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
     return unacked_packets_.largest_acked();
   }
 
+  QuicPacketNumber GetLargestAckedPacket(
+      EncryptionLevel decrypted_packet_level) const;
+
   QuicPacketNumber GetLargestSentPacket() const {
     return unacked_packets_.largest_sent_packet();
   }
+
+  QuicPacketNumber GetLargestSentPacket(
+      EncryptionLevel decrypted_packet_level) const;
+
+  QuicPacketNumber GetLargestPacketPeerKnowsIsAcked(
+      EncryptionLevel decrypted_packet_level) const;
 
   void SetNetworkChangeVisitor(NetworkChangeVisitor* visitor) {
     DCHECK(!network_change_visitor_);
@@ -351,6 +362,10 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   void SetSendAlgorithm(SendAlgorithmInterface* send_algorithm);
 
   bool tolerate_reneging() const { return tolerate_reneging_; }
+
+  bool supports_multiple_packet_number_spaces() const {
+    return unacked_packets_.supports_multiple_packet_number_spaces();
+  }
 
  private:
   friend class test::QuicConnectionPeer;
@@ -567,6 +582,11 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
 
   // The largest acked value that was sent in an ack, which has then been acked.
   QuicPacketNumber largest_packet_peer_knows_is_acked_;
+  // The largest acked value that was sent in an ack, which has then been acked
+  // for per packet number space. Only used when connection supports multiple
+  // packet number spaces.
+  QuicPacketNumber
+      largest_packets_peer_knows_is_acked_[NUM_PACKET_NUMBER_SPACES];
 
   // The maximum amount of time to wait before sending an acknowledgement.
   // The recovery code assumes the delayed ack time is the same on both sides.
