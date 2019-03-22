@@ -258,6 +258,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
   // currently the primary config. SetConfigs returns false if any errors were
   // encountered and no changes to the QuicCryptoServerConfig will occur.
   bool SetConfigs(const std::vector<QuicServerConfigProtobuf>& protobufs,
+                  const QuicServerConfigProtobuf* fallback_protobuf,
                   QuicWallTime now);
 
   // SetSourceAddressTokenKeys sets the keys to be tried, in order, when
@@ -519,6 +520,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
   struct Configs {
     QuicReferenceCountedPointer<Config> requested;
     QuicReferenceCountedPointer<Config> primary;
+    QuicReferenceCountedPointer<Config> fallback;
   };
 
   // Get a snapshot of the current configs associated with a handshake.  If this
@@ -724,7 +726,8 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
   // QuicReferenceCountedPointer<Config> if successful. The caller adopts the
   // reference to the Config. On error, ParseConfigProtobuf returns nullptr.
   QuicReferenceCountedPointer<Config> ParseConfigProtobuf(
-      const QuicServerConfigProtobuf& protobuf);
+      const QuicServerConfigProtobuf& protobuf,
+      bool is_fallback) const;
 
   // NewSourceAddressToken returns a fresh source address token for the given
   // IP address. |cached_network_params| is optional, and can be nullptr.
@@ -865,6 +868,14 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
   // primary_config_ points to a Config (which is also in |configs_|) which is
   // the primary config - i.e. the one that we'll give out to new clients.
   mutable QuicReferenceCountedPointer<Config> primary_config_
+      GUARDED_BY(configs_lock_);
+
+  // fallback_config_ points to a Config (which is also in |configs_|) which is
+  // the fallback config, which will be used if the other configs are unuseable
+  // for some reason.
+  //
+  // TODO(b/112548056): This is currently always nullptr.
+  QuicReferenceCountedPointer<Config> fallback_config_
       GUARDED_BY(configs_lock_);
 
   // next_config_promotion_time_ contains the nearest, future time when an

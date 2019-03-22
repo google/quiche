@@ -355,7 +355,8 @@ class CryptoServerConfigsTest : public QuicTest {
     }
 
     ASSERT_EQ(!has_invalid && !configs.empty(),
-              config_.SetConfigs(protobufs, clock_.WallNow()));
+              config_.SetConfigs(protobufs, /* fallback_protobuf = */ nullptr,
+                                 clock_.WallNow()));
   }
 
  protected:
