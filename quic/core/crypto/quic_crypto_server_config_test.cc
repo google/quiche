@@ -466,7 +466,6 @@ class ValidateCallback : public ValidateClientHelloResultCallback {
 };
 
 TEST_F(CryptoServerConfigsTest, AdvancePrimaryViaValidate) {
-  SetQuicReloadableFlag(quic_fix_config_rotation, true);
   // Check that a new primary config is enabled at the right time.
   SetConfigs({{"a", 900, 1}, {"b", 1100, 1}});
   test_peer_.SelectNewPrimaryConfig(1000);

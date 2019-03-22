@@ -1824,13 +1824,8 @@ bool QuicCryptoServerConfig::ValidateExpectedLeafCertificate(
 }
 
 bool QuicCryptoServerConfig::IsNextConfigReady(QuicWallTime now) const {
-  if (GetQuicReloadableFlag(quic_fix_config_rotation)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_fix_config_rotation);
-    return !next_config_promotion_time_.IsZero() &&
-           !next_config_promotion_time_.IsAfter(now);
-  }
   return !next_config_promotion_time_.IsZero() &&
-         next_config_promotion_time_.IsAfter(now);
+         !next_config_promotion_time_.IsAfter(now);
 }
 
 QuicCryptoServerConfig::Config::Config()
