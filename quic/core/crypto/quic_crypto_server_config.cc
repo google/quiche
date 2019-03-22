@@ -394,7 +394,8 @@ std::unique_ptr<CryptoHandshakeMessage> QuicCryptoServerConfig::AddConfig(
     return nullptr;
   }
 
-  QuicReferenceCountedPointer<Config> config(ParseConfigProtobuf(protobuf));
+  QuicReferenceCountedPointer<Config> config =
+      ParseConfigProtobuf(protobuf, /* is_fallback = */ false);
   if (!config.get()) {
     QUIC_LOG(WARNING) << "Failed to parse server config message";
     return nullptr;
@@ -428,16 +429,33 @@ QuicCryptoServerConfig::AddDefaultConfig(QuicRandom* rand,
 
 bool QuicCryptoServerConfig::SetConfigs(
     const std::vector<QuicServerConfigProtobuf>& protobufs,
+    const QuicServerConfigProtobuf* fallback_protobuf,
     const QuicWallTime now) {
   std::vector<QuicReferenceCountedPointer<Config>> parsed_configs;
   for (auto& protobuf : protobufs) {
-    QuicReferenceCountedPointer<Config> config(ParseConfigProtobuf(protobuf));
+    QuicReferenceCountedPointer<Config> config =
+        ParseConfigProtobuf(protobuf, /* is_fallback = */ false);
     if (!config) {
       QUIC_LOG(WARNING) << "Rejecting QUIC configs because of above errors";
       return false;
     }
 
     parsed_configs.push_back(config);
+  }
+
+  QuicReferenceCountedPointer<Config> fallback_config;
+  if (fallback_protobuf != nullptr) {
+    fallback_config =
+        ParseConfigProtobuf(*fallback_protobuf, /* is_fallback = */ true);
+    if (!fallback_config) {
+      QUIC_LOG(WARNING) << "Rejecting QUIC configs because of above errors";
+      return false;
+    }
+    QUIC_LOG(INFO) << "Fallback config has scid "
+                   << QuicTextUtils::HexEncode(fallback_config->id);
+    parsed_configs.push_back(fallback_config);
+  } else {
+    QUIC_LOG(INFO) << "No fallback config provided";
   }
 
   if (parsed_configs.empty()) {
@@ -482,6 +500,7 @@ bool QuicCryptoServerConfig::SetConfigs(
   }
 
   configs_ = std::move(new_configs);
+  fallback_config_ = fallback_config;
   SelectNewPrimaryConfig(now);
   DCHECK(primary_config_.get());
   DCHECK_EQ(configs_.find(primary_config_->id)->second.get(),
@@ -593,9 +612,9 @@ class QuicCryptoServerConfig::ProcessClientHelloAfterGetProofCallback
  private:
   const QuicCryptoServerConfig* config_;
   std::unique_ptr<ProofSource::Details> proof_source_details_;
-  QuicTag key_exchange_type_;
+  const QuicTag key_exchange_type_;
   std::unique_ptr<CryptoHandshakeMessage> out_;
-  std::string public_value_;
+  const std::string public_value_;
   std::unique_ptr<ProcessClientHelloContext> context_;
   const Configs configs_;
 };
@@ -1007,6 +1026,7 @@ bool QuicCryptoServerConfig::GetCurrentConfigs(
     configs->primary = primary_config_;
   }
   configs->requested = GetConfigWithScid(requested_scid);
+  configs->fallback = fallback_config_;
 
   return true;
 }
@@ -1492,7 +1512,8 @@ std::string QuicCryptoServerConfig::CompressChain(
 
 QuicReferenceCountedPointer<QuicCryptoServerConfig::Config>
 QuicCryptoServerConfig::ParseConfigProtobuf(
-    const QuicServerConfigProtobuf& protobuf) {
+    const QuicServerConfigProtobuf& protobuf,
+    bool is_fallback) const {
   std::unique_ptr<CryptoHandshakeMessage> msg =
       CryptoFramer::ParseMessage(protobuf.config());
 
@@ -1585,8 +1606,8 @@ QuicCryptoServerConfig::ParseConfigProtobuf(
       }
     }
 
-    std::unique_ptr<AsynchronousKeyExchange> ka = key_exchange_source_->Create(
-        config->id, /* is_fallback = */ false, tag, private_key);
+    std::unique_ptr<AsynchronousKeyExchange> ka =
+        key_exchange_source_->Create(config->id, is_fallback, tag, private_key);
     if (!ka) {
       return nullptr;
     }
