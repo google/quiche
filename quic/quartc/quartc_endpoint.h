@@ -108,11 +108,8 @@ class QuartcClientEndpoint : public QuartcEndpoint {
   // calls the delegate.
   std::unique_ptr<QuicAlarm> create_session_alarm_;
 
-  // QuartcFactory used by this endpoint to create sessions.  This is an
-  // implementation detail of the QuartcEndpoint, and will eventually be
-  // replaced by a dispatcher (for servers) or version-negotiation agent (for
-  // clients).
-  std::unique_ptr<QuartcFactory> factory_;
+  // Helper used by QuicConnection.
+  std::unique_ptr<QuicConnectionHelperInterface> connection_helper_;
 
   // Config to be used for new sessions.
   QuartcSessionConfig config_;

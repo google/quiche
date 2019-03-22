@@ -16,16 +16,11 @@
 
 namespace quic {
 
-QuartcFactory::QuartcFactory(const QuartcFactoryConfig& factory_config)
-    : alarm_factory_(factory_config.alarm_factory),
-      clock_(factory_config.clock),
-      connection_helper_(QuicMakeUnique<QuartcConnectionHelper>(clock_)),
-      compressed_certs_cache_(QuicMakeUnique<QuicCompressedCertsCache>(
-          QuicCompressedCertsCache::kQuicCompressedCertsCacheSize)),
-      stream_helper_(QuicMakeUnique<QuartcCryptoServerStreamHelper>()) {}
-
-std::unique_ptr<QuartcSession> QuartcFactory::CreateQuartcClientSession(
+std::unique_ptr<QuartcSession> CreateQuartcClientSession(
     const QuartcSessionConfig& quartc_session_config,
+    const QuicClock* clock,
+    QuicAlarmFactory* alarm_factory,
+    QuicConnectionHelperInterface* connection_helper,
     const ParsedQuicVersionVector& supported_versions,
     QuicStringPiece server_crypto_config,
     QuartcPacketTransport* packet_transport) {
@@ -38,11 +33,18 @@ std::unique_ptr<QuartcSession> QuartcFactory::CreateQuartcClientSession(
   // While the QuicConfig is not directly used by the connection, creating it
   // also sets flag values which must be set before creating the connection.
   QuicConfig quic_config = CreateQuicConfig(quartc_session_config);
+
+  // |dummy_id| and |dummy_address| are used because Quartc network layer will
+  // not use these two.
+  QuicConnectionId dummy_id = QuicUtils::CreateZeroConnectionId(
+      supported_versions[0].transport_version);
+  QuicSocketAddress dummy_address(QuicIpAddress::Any4(), /*port=*/0);
   std::unique_ptr<QuicConnection> quic_connection = CreateQuicConnection(
-      Perspective::IS_CLIENT, supported_versions, writer.get());
+      dummy_id, dummy_address, connection_helper, alarm_factory, writer.get(),
+      Perspective::IS_CLIENT, supported_versions);
 
   return QuicMakeUnique<QuartcClientSession>(
-      std::move(quic_connection), quic_config, supported_versions, clock_,
+      std::move(quic_connection), quic_config, supported_versions, clock,
       std::move(writer),
       CreateCryptoClientConfig(quartc_session_config.pre_shared_key),
       server_crypto_config);
@@ -191,20 +193,6 @@ QuicConfig CreateQuicConfig(const QuartcSessionConfig& quartc_session_config) {
   return quic_config;
 }
 
-std::unique_ptr<QuicConnection> QuartcFactory::CreateQuicConnection(
-    Perspective perspective,
-    const ParsedQuicVersionVector& supported_versions,
-    QuartcPacketWriter* packet_writer) {
-  // |dummy_id| and |dummy_address| are used because Quartc network layer will
-  // not use these two.
-  QuicConnectionId dummy_id = QuicUtils::CreateZeroConnectionId(
-      supported_versions[0].transport_version);
-  QuicSocketAddress dummy_address(QuicIpAddress::Any4(), /*port=*/0);
-  return quic::CreateQuicConnection(
-      dummy_id, dummy_address, connection_helper_.get(), alarm_factory_,
-      packet_writer, perspective, supported_versions);
-}
-
 std::unique_ptr<QuicConnection> CreateQuicConnection(
     QuicConnectionId connection_id,
     const QuicSocketAddress& peer_address,
@@ -244,11 +232,6 @@ std::unique_ptr<QuicConnection> CreateQuicConnection(
   quic_connection->set_min_received_before_ack_decimation(15);
 
   return quic_connection;
-}
-
-std::unique_ptr<QuartcFactory> CreateQuartcFactory(
-    const QuartcFactoryConfig& factory_config) {
-  return std::unique_ptr<QuartcFactory>(new QuartcFactory(factory_config));
 }
 
 }  // namespace quic

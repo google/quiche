@@ -42,14 +42,6 @@ QuicArenaScopedPtr<QuicAlarm> QuartcAlarmFactoryWrapper::CreateAlarm(
   return impl_->CreateAlarm(std::move(delegate), arena);
 }
 
-QuartcFactoryConfig CreateFactoryConfig(QuicAlarmFactory* alarm_factory,
-                                        const QuicClock* clock) {
-  QuartcFactoryConfig config;
-  config.alarm_factory = alarm_factory;
-  config.clock = clock;
-  return config;
-}
-
 }  // namespace
 
 QuartcClientEndpoint::QuartcClientEndpoint(
@@ -68,8 +60,7 @@ QuartcClientEndpoint::QuartcClientEndpoint(
                                              AllSupportedVersions())),
       create_session_alarm_(QuicWrapUnique(
           alarm_factory_->CreateAlarm(new CreateSessionDelegate(this)))),
-      factory_(QuicMakeUnique<QuartcFactory>(
-          CreateFactoryConfig(alarm_factory, clock))),
+      connection_helper_(QuicMakeUnique<QuartcConnectionHelper>(clock)),
       config_(config) {}
 
 void QuartcClientEndpoint::Connect(QuartcPacketTransport* packet_transport) {
@@ -78,9 +69,10 @@ void QuartcClientEndpoint::Connect(QuartcPacketTransport* packet_transport) {
 }
 
 void QuartcClientEndpoint::OnCreateSessionAlarm() {
-  session_ = factory_->CreateQuartcClientSession(
-      config_, version_manager_->GetSupportedVersions(),
-      serialized_server_config_, packet_transport_);
+  session_ = CreateQuartcClientSession(
+      config_, clock_, alarm_factory_, connection_helper_.get(),
+      version_manager_->GetSupportedVersions(), serialized_server_config_,
+      packet_transport_);
   delegate_->OnSessionCreated(session_.get());
 }
 

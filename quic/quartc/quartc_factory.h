@@ -13,18 +13,6 @@
 
 namespace quic {
 
-// The configuration for creating a QuartcFactory.
-struct QuartcFactoryConfig {
-  // Factory for |QuicAlarm|s. Implemented by the Quartc user with different
-  // mechanisms. For example in WebRTC, it is implemented with rtc::Thread.
-  // Owned by the user, and needs to stay alive for as long as the QuartcFactory
-  // exists.
-  QuicAlarmFactory* alarm_factory = nullptr;
-  // The clock used by |QuicAlarm|s. Implemented by the Quartc user. Owned by
-  // the user, and needs to stay alive for as long as the QuartcFactory exists.
-  const QuicClock* clock = nullptr;
-};
-
 struct QuartcSessionConfig {
   // If a pre-shared cryptographic key is available for this session, specify it
   // here.  This value will only be used if non-empty.
@@ -48,42 +36,15 @@ struct QuartcSessionConfig {
   bool enable_tail_loss_probe = true;
 };
 
-// Factory that creates instances of QuartcSession.  Implements the
-// QuicConnectionHelperInterface used by the QuicConnections. Only one
-// QuartcFactory is expected to be created.
-class QuartcFactory {
- public:
-  explicit QuartcFactory(const QuartcFactoryConfig& factory_config);
-
-  // Creates a new QuartcSession using the given configuration.
-  std::unique_ptr<QuartcSession> CreateQuartcClientSession(
-      const QuartcSessionConfig& quartc_session_config,
-      const ParsedQuicVersionVector& supported_versions,
-      QuicStringPiece server_crypto_config,
-      QuartcPacketTransport* packet_transport);
-
- private:
-  std::unique_ptr<QuicConnection> CreateQuicConnection(
-      Perspective perspective,
-      const ParsedQuicVersionVector& supported_versions,
-      QuartcPacketWriter* packet_writer);
-
-  // Used to implement QuicAlarmFactory.  Owned by the user and must outlive
-  // QuartcFactory.
-  QuicAlarmFactory* alarm_factory_;
-  // Used to implement the QuicConnectionHelperInterface.  Owned by the user and
-  // must outlive QuartcFactory.
-  const QuicClock* clock_;
-
-  // Helper used by all QuicConnections.
-  std::unique_ptr<QuicConnectionHelperInterface> connection_helper_;
-
-  // Used by QuicCryptoServerStream to track most recently compressed certs.
-  std::unique_ptr<QuicCompressedCertsCache> compressed_certs_cache_;
-
-  // This helper is needed to create QuicCryptoServerStreams.
-  std::unique_ptr<QuicCryptoServerStream::Helper> stream_helper_;
-};
+// Creates a new QuartcClientSession using the given configuration.
+std::unique_ptr<QuartcSession> CreateQuartcClientSession(
+    const QuartcSessionConfig& quartc_session_config,
+    const QuicClock* clock,
+    QuicAlarmFactory* alarm_factory,
+    QuicConnectionHelperInterface* connection_helper,
+    const ParsedQuicVersionVector& supported_versions,
+    QuicStringPiece server_crypto_config,
+    QuartcPacketTransport* packet_transport);
 
 // Configures global settings, such as supported quic versions.
 // Must execute on QUIC thread.
@@ -100,10 +61,6 @@ std::unique_ptr<QuicConnection> CreateQuicConnection(
     QuicPacketWriter* packet_writer,
     Perspective perspective,
     ParsedQuicVersionVector supported_versions);
-
-// Creates a new instance of QuartcFactory.
-std::unique_ptr<QuartcFactory> CreateQuartcFactory(
-    const QuartcFactoryConfig& factory_config);
 
 }  // namespace quic
 
