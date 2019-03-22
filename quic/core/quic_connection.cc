@@ -201,7 +201,11 @@ class ProcessUndecryptablePacketsAlarmDelegate : public QuicAlarm::Delegate {
   ProcessUndecryptablePacketsAlarmDelegate& operator=(
       const ProcessUndecryptablePacketsAlarmDelegate&) = delete;
 
-  void OnAlarm() override { connection_->MaybeProcessUndecryptablePackets(); }
+  void OnAlarm() override {
+    QuicConnection::ScopedPacketFlusher flusher(connection_,
+                                                QuicConnection::NO_ACK);
+    connection_->MaybeProcessUndecryptablePackets();
+  }
 
  private:
   QuicConnection* connection_;
