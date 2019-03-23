@@ -82,8 +82,12 @@ class AckAlarmDelegate : public QuicAlarm::Delegate {
     QuicConnection::ScopedPacketFlusher flusher(connection_,
                                                 QuicConnection::SEND_ACK);
     if (connection_->packet_generator().deprecate_ack_bundling_mode()) {
-      DCHECK(!connection_->GetUpdatedAckFrame().ack_frame->packets.Empty());
-      connection_->SendAck();
+      if (connection_->SupportsMultiplePacketNumberSpaces()) {
+        connection_->SendAllPendingAcks();
+      } else {
+        DCHECK(!connection_->GetUpdatedAckFrame().ack_frame->packets.Empty());
+        connection_->SendAck();
+      }
     }
   }
 
@@ -414,6 +418,7 @@ QuicConnection::QuicConnection(
     received_packet_manager_.set_max_ack_ranges(255);
   }
   MaybeEnableSessionDecidesWhatToWrite();
+  MaybeEnableMultiplePacketNumberSpacesSupport();
   DCHECK(!GetQuicRestartFlag(quic_no_server_conn_ver_negotiation2) ||
          perspective_ == Perspective::IS_CLIENT ||
          supported_versions.size() == 1);
@@ -1969,15 +1974,18 @@ void QuicConnection::OnCanWrite() {
   if (received_packet_manager_.decide_when_to_send_acks()) {
     const QuicTime ack_timeout =
         use_uber_received_packet_manager_
-            ? uber_received_packet_manager_.GetAckTimeout(
-                  QuicUtils::GetPacketNumberSpace(encryption_level_))
+            ? uber_received_packet_manager_.GetEarliestAckTimeout()
             : received_packet_manager_.ack_timeout();
     if (ack_timeout.IsInitialized() &&
         ack_timeout <= clock_->ApproximateNow()) {
       // Send an ACK now because either 1) we were write blocked when we last
       // tried to send an ACK, or 2) both ack alarm and send alarm were set to
       // go off together.
-      SendAck();
+      if (SupportsMultiplePacketNumberSpaces()) {
+        SendAllPendingAcks();
+      } else {
+        SendAck();
+      }
     }
   } else if (send_ack_when_on_can_write_) {
     // Send an ACK now because either 1) we were write blocked when we last
@@ -2110,6 +2118,11 @@ bool QuicConnection::ValidateReceivedPacketNumber(
     }
   }
 
+  if (use_uber_received_packet_manager_) {
+    // When using uber_received_packet_manager, accept any packet numbers.
+    return true;
+  }
+
   if (GetQuicRestartFlag(quic_enable_accept_random_ipn)) {
     QUIC_RESTART_FLAG_COUNT_N(quic_enable_accept_random_ipn, 2, 2);
     // Configured to accept any packet number in range 1...0x7fffffff as initial
@@ -2131,18 +2144,17 @@ bool QuicConnection::ValidateReceivedPacketNumber(
     }
     return true;
   }
-  const QuicPacketNumber peer_first_sending_packet_number =
-      use_uber_received_packet_manager_
-          ? uber_received_packet_manager_.PeerFirstSendingPacketNumber()
-          : received_packet_manager_.PeerFirstSendingPacketNumber();
-  if (packet_number > peer_first_sending_packet_number &&
+
+  if (packet_number > received_packet_manager_.PeerFirstSendingPacketNumber() &&
       packet_number <= MaxRandomInitialPacketNumber()) {
     QUIC_CODE_COUNT_N(had_possibly_random_ipn, 2, 2);
   }
   const bool out_of_bound =
       last_header_.packet_number.IsInitialized()
           ? !Near(packet_number, last_header_.packet_number)
-          : packet_number >= (peer_first_sending_packet_number + kMaxPacketGap);
+          : packet_number >=
+                (received_packet_manager_.PeerFirstSendingPacketNumber() +
+                 kMaxPacketGap);
   if (!out_of_bound) {
     return true;
   }
@@ -2725,6 +2737,7 @@ void QuicConnection::OnPingTimeout() {
 }
 
 void QuicConnection::SendAck() {
+  DCHECK(!SupportsMultiplePacketNumberSpaces());
   if (!received_packet_manager_.decide_when_to_send_acks()) {
     // When received_packet_manager decides when to send ack, delaying
     // ResetAckStates until ACK is successfully flushed.
@@ -2985,7 +2998,10 @@ void QuicConnection::SendConnectionClosePacket(QuicErrorCode error,
   }
   ClearQueuedPackets();
   ScopedPacketFlusher flusher(this, ack_mode);
-  if (packet_generator_.deprecate_ack_bundling_mode() && ack_mode == SEND_ACK &&
+  // When multiple packet number spaces is supported, an ACK frame will be
+  // bundled when connection is not write blocked.
+  if (!SupportsMultiplePacketNumberSpaces() &&
+      packet_generator_.deprecate_ack_bundling_mode() && ack_mode == SEND_ACK &&
       !GetUpdatedAckFrame().ack_frame->packets.Empty()) {
     SendAck();
   }
@@ -3283,9 +3299,8 @@ QuicConnection::ScopedPacketFlusher::~ScopedPacketFlusher() {
       if (connection_->received_packet_manager_.decide_when_to_send_acks()) {
         const QuicTime ack_timeout =
             connection_->use_uber_received_packet_manager_
-                ? connection_->uber_received_packet_manager_.GetAckTimeout(
-                      QuicUtils::GetPacketNumberSpace(
-                          connection_->encryption_level_))
+                ? connection_->uber_received_packet_manager_
+                      .GetEarliestAckTimeout()
                 : connection_->received_packet_manager_.ack_timeout();
         if (ack_timeout.IsInitialized()) {
           if (ack_timeout <= connection_->clock_->ApproximateNow() &&
@@ -3313,6 +3328,8 @@ QuicConnection::ScopedPacketFlusher::~ScopedPacketFlusher() {
                    .decide_when_to_send_acks()) {
             connection_->send_ack_when_on_can_write_ = true;
           }
+        } else if (connection_->SupportsMultiplePacketNumberSpaces()) {
+          connection_->SendAllPendingAcks();
         } else {
           connection_->SendAck();
         }
@@ -3901,20 +3918,110 @@ EncryptionLevel QuicConnection::GetConnectionCloseEncryptionLevel() const {
   return ENCRYPTION_INITIAL;
 }
 
+void QuicConnection::SendAllPendingAcks() {
+  DCHECK(SupportsMultiplePacketNumberSpaces());
+  QUIC_DVLOG(1) << ENDPOINT << "Trying to send all pending ACKs";
+  // Latches current encryption level.
+  const EncryptionLevel current_encryption_level = encryption_level_;
+  for (int8_t i = INITIAL_DATA; i <= APPLICATION_DATA; ++i) {
+    const QuicTime ack_timeout = uber_received_packet_manager_.GetAckTimeout(
+        static_cast<PacketNumberSpace>(i));
+    if (!ack_timeout.IsInitialized() ||
+        ack_timeout > clock_->ApproximateNow()) {
+      continue;
+    }
+    QUIC_DVLOG(1) << ENDPOINT << "Sending ACK of packet number space: "
+                  << static_cast<uint32_t>(i);
+    // Switch to the appropriate encryption level.
+    SetDefaultEncryptionLevel(
+        QuicUtils::GetEncryptionLevel(static_cast<PacketNumberSpace>(i)));
+    QuicFrames frames;
+    frames.push_back(uber_received_packet_manager_.GetUpdatedAckFrame(
+        static_cast<PacketNumberSpace>(i), clock_->ApproximateNow()));
+    const bool flushed = packet_generator_.FlushAckFrame(frames);
+    if (!flushed) {
+      // Connection is write blocked.
+      break;
+    }
+    ResetAckStates();
+  }
+  // Restores encryption level.
+  SetDefaultEncryptionLevel(current_encryption_level);
+
+  const QuicTime timeout =
+      uber_received_packet_manager_.GetEarliestAckTimeout();
+  if (timeout.IsInitialized()) {
+    // If there are ACKs pending, re-arm ack alarm.
+    ack_alarm_->Set(timeout);
+  }
+  // Only try to bundle retransmittable data with ACK frame if default
+  // encryption level is forward secure.
+  if (encryption_level_ != ENCRYPTION_FORWARD_SECURE ||
+      consecutive_num_packets_with_no_retransmittable_frames_ <
+          max_consecutive_num_packets_with_no_retransmittable_frames_) {
+    return;
+  }
+  consecutive_num_packets_with_no_retransmittable_frames_ = 0;
+  if (packet_generator_.HasRetransmittableFrames() ||
+      visitor_->WillingAndAbleToWrite()) {
+    // There are pending retransmittable frames.
+    return;
+  }
+
+  visitor_->OnAckNeedsRetransmittableFrame();
+}
+
+void QuicConnection::MaybeEnableMultiplePacketNumberSpacesSupport() {
+  const bool enable_multiple_packet_number_spaces =
+      version().handshake_protocol == PROTOCOL_TLS1_3 &&
+      use_uber_received_packet_manager_ &&
+      sent_packet_manager_.use_uber_loss_algorithm() &&
+      GetQuicRestartFlag(quic_enable_accept_random_ipn);
+  if (!enable_multiple_packet_number_spaces) {
+    return;
+  }
+  QUIC_DVLOG(1) << ENDPOINT << "connection " << connection_id()
+                << " supports multiple packet number spaces";
+  framer_.EnableMultiplePacketNumberSpacesSupport();
+  sent_packet_manager_.EnableMultiplePacketNumberSpacesSupport();
+  uber_received_packet_manager_.EnableMultiplePacketNumberSpacesSupport();
+}
+
+bool QuicConnection::SupportsMultiplePacketNumberSpaces() const {
+  return sent_packet_manager_.supports_multiple_packet_number_spaces();
+}
+
 void QuicConnection::SetLargestReceivedPacketWithAck(
     QuicPacketNumber new_value) {
-  largest_seen_packet_with_ack_ = new_value;
+  if (SupportsMultiplePacketNumberSpaces()) {
+    largest_seen_packets_with_ack_[QuicUtils::GetPacketNumberSpace(
+        last_decrypted_packet_level_)] = new_value;
+  } else {
+    largest_seen_packet_with_ack_ = new_value;
+  }
 }
 
 QuicPacketNumber QuicConnection::GetLargestReceivedPacketWithAck() const {
+  if (SupportsMultiplePacketNumberSpaces()) {
+    return largest_seen_packets_with_ack_[QuicUtils::GetPacketNumberSpace(
+        last_decrypted_packet_level_)];
+  }
   return largest_seen_packet_with_ack_;
 }
 
 QuicPacketNumber QuicConnection::GetLargestSentPacket() const {
+  if (SupportsMultiplePacketNumberSpaces()) {
+    return sent_packet_manager_.GetLargestSentPacket(
+        last_decrypted_packet_level_);
+  }
   return sent_packet_manager_.GetLargestSentPacket();
 }
 
 QuicPacketNumber QuicConnection::GetLargestAckedPacket() const {
+  if (SupportsMultiplePacketNumberSpaces()) {
+    return sent_packet_manager_.GetLargestAckedPacket(
+        last_decrypted_packet_level_);
+  }
   return sent_packet_manager_.GetLargestObserved();
 }
 
