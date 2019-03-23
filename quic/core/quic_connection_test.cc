@@ -8640,6 +8640,45 @@ TEST_P(QuicConnectionTest, MultiplePacketNumberSpacesBasicReceiving) {
   EXPECT_FALSE(connection_.GetAckAlarm()->IsSet());
 }
 
+TEST_P(QuicConnectionTest, CancelAckAlarmOnWriteBlocked) {
+  if (!connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
+  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
+  use_tagging_decrypter();
+  // Receives packet 1000 in initial data.
+  ProcessDataPacketAtLevel(1000, false, ENCRYPTION_INITIAL);
+  EXPECT_TRUE(connection_.GetAckAlarm()->IsSet());
+  peer_framer_.SetEncrypter(ENCRYPTION_ZERO_RTT,
+                            QuicMakeUnique<TaggingEncrypter>(0x02));
+  connection_.SetDecrypter(ENCRYPTION_ZERO_RTT,
+                           QuicMakeUnique<StrictTaggingDecrypter>(0x02));
+  connection_.SetEncrypter(ENCRYPTION_INITIAL,
+                           QuicMakeUnique<TaggingEncrypter>(0x02));
+  // Receives packet 1000 in application data.
+  ProcessDataPacketAtLevel(1000, false, ENCRYPTION_ZERO_RTT);
+  EXPECT_TRUE(connection_.GetAckAlarm()->IsSet());
+
+  writer_->SetWriteBlocked();
+  EXPECT_CALL(visitor_, OnWriteBlocked()).Times(AnyNumber());
+  // Simulates ACK alarm fires and verify no ACK is flushed because of write
+  // blocked.
+  clock_.AdvanceTime(DefaultDelayedAckTime());
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
+  connection_.SetEncrypter(ENCRYPTION_FORWARD_SECURE,
+                           QuicMakeUnique<TaggingEncrypter>(0x02));
+  connection_.GetAckAlarm()->Fire();
+  // Verify ACK alarm is not set.
+  EXPECT_FALSE(connection_.GetAckAlarm()->IsSet());
+
+  writer_->SetWritable();
+  // Verify 2 ACKs are sent when connection gets unblocked.
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(2);
+  connection_.OnCanWrite();
+  EXPECT_FALSE(connection_.GetAckAlarm()->IsSet());
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic
