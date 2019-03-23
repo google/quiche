@@ -71,9 +71,6 @@ class QUIC_EXPORT_PRIVATE UberReceivedPacketManager {
   // Get the earliest ack_timeout of all packet number spaces.
   QuicTime GetEarliestAckTimeout() const;
 
-  // Returns peer first sending packet number to our best knowledge.
-  QuicPacketNumber PeerFirstSendingPacketNumber() const;
-
   QuicPacketNumber peer_least_packet_awaiting_ack() const;
 
   size_t min_received_before_ack_decimation() const;

@@ -147,7 +147,6 @@ QuicTime UberReceivedPacketManager::GetAckTimeout(
 }
 
 QuicTime UberReceivedPacketManager::GetEarliestAckTimeout() const {
-  DCHECK(supports_multiple_packet_number_spaces_);
   QuicTime ack_timeout = QuicTime::Zero();
   // Returns the earliest non-zero ack timeout.
   for (const auto& received_packet_manager : received_packet_managers_) {
@@ -161,12 +160,6 @@ QuicTime UberReceivedPacketManager::GetEarliestAckTimeout() const {
     }
   }
   return ack_timeout;
-}
-
-QuicPacketNumber UberReceivedPacketManager::PeerFirstSendingPacketNumber()
-    const {
-  DCHECK(!supports_multiple_packet_number_spaces_);
-  return received_packet_managers_[0].PeerFirstSendingPacketNumber();
 }
 
 QuicPacketNumber UberReceivedPacketManager::peer_least_packet_awaiting_ack()

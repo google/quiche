@@ -367,6 +367,10 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
     return unacked_packets_.supports_multiple_packet_number_spaces();
   }
 
+  bool use_uber_loss_algorithm() const {
+    return unacked_packets_.use_uber_loss_algorithm();
+  }
+
  private:
   friend class test::QuicConnectionPeer;
   friend class test::QuicSentPacketManagerPeer;

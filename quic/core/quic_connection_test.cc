@@ -655,6 +655,20 @@ class TestConnection : public QuicConnection {
     return SaveAndSendStreamData(id, &iov, 1, data.length(), offset, state);
   }
 
+  QuicConsumedData SendApplicationDataAtLevel(EncryptionLevel encryption_level,
+                                              QuicStreamId id,
+                                              QuicStringPiece data,
+                                              QuicStreamOffset offset,
+                                              StreamSendingState state) {
+    ScopedPacketFlusher flusher(this, NO_ACK);
+    DCHECK(encryption_level >= ENCRYPTION_ZERO_RTT);
+    SetEncrypter(encryption_level, QuicMakeUnique<TaggingEncrypter>(0x01));
+    SetDefaultEncryptionLevel(encryption_level);
+    struct iovec iov;
+    MakeIOVector(data, &iov);
+    return SaveAndSendStreamData(id, &iov, 1, data.length(), offset, state);
+  }
+
   QuicConsumedData SendStreamData3() {
     return SendStreamDataWithString(
         GetNthClientInitiatedStreamId(1, transport_version()), "food", 0,
@@ -1070,13 +1084,29 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     QuicFrames frames;
     frames.push_back(frame);
     std::unique_ptr<QuicPacket> packet(ConstructPacket(header, frames));
+    // Set the correct encryption level and encrypter on peer_creator and
+    // peer_framer, respectively.
+    peer_creator_.set_encryption_level(level);
+    if (QuicPacketCreatorPeer::GetEncryptionLevel(&peer_creator_) >
+        ENCRYPTION_INITIAL) {
+      peer_framer_.SetEncrypter(
+          QuicPacketCreatorPeer::GetEncryptionLevel(&peer_creator_),
+          QuicMakeUnique<TaggingEncrypter>(0x01));
+      // Set the corresponding decrypter.
+      connection_.SetDecrypter(
+          QuicPacketCreatorPeer::GetEncryptionLevel(&peer_creator_),
+          QuicMakeUnique<StrictTaggingDecrypter>(0x01));
+    }
 
     char buffer[kMaxPacketSize];
-    size_t encrypted_length = framer_.EncryptPayload(
+    size_t encrypted_length = peer_framer_.EncryptPayload(
         level, QuicPacketNumber(number), *packet, buffer, kMaxPacketSize);
     connection_.ProcessUdpPacket(
         kSelfAddress, kPeerAddress,
-        QuicReceivedPacket(buffer, encrypted_length, QuicTime::Zero(), false));
+        QuicReceivedPacket(buffer, encrypted_length, clock_.Now(), false));
+    if (connection_.GetSendAlarm()->IsSet()) {
+      connection_.GetSendAlarm()->Fire();
+    }
     return encrypted_length;
   }
 
@@ -1101,6 +1131,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     std::unique_ptr<QuicPacket> packet(
         ConstructDataPacket(number, has_stop_waiting, level));
     char buffer[kMaxPacketSize];
+    peer_creator_.set_encryption_level(level);
     size_t encrypted_length = peer_framer_.EncryptPayload(
         level, QuicPacketNumber(number), *packet, buffer, kMaxPacketSize);
     connection_.ProcessUdpPacket(
@@ -1321,15 +1352,12 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
 
   void TriggerConnectionClose() {
     // Send an erroneous packet to close the connection.
-    EXPECT_CALL(visitor_, OnConnectionClosed(QUIC_INVALID_PACKET_HEADER, _,
+    EXPECT_CALL(visitor_, OnConnectionClosed(QUIC_INVALID_ACK_DATA, _,
                                              ConnectionCloseSource::FROM_SELF));
-    // Call ProcessDataPacket rather than ProcessPacket, as we should not get a
-    // packet call to the visitor.
-    if (GetQuicRestartFlag(quic_enable_accept_random_ipn)) {
-      ProcessDataPacket(MaxRandomInitialPacketNumber() + 6000);
-    } else {
-      ProcessDataPacket(6000);
-    }
+    EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
+    // Triggers a connection by receiving ACK of unsent packet.
+    QuicAckFrame frame = InitAckFrame(10000);
+    ProcessAckPacket(1, &frame);
 
     EXPECT_FALSE(QuicConnectionPeer::GetConnectionClosePacket(&connection_) ==
                  nullptr);
@@ -1416,6 +1444,9 @@ INSTANTIATE_TEST_SUITE_P(SupportedVersion,
                          ::testing::ValuesIn(GetTestParams()));
 
 TEST_P(QuicConnectionTest, SelfAddressChangeAtClient) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
 
   EXPECT_EQ(Perspective::IS_CLIENT, connection_.perspective());
@@ -1438,6 +1469,9 @@ TEST_P(QuicConnectionTest, SelfAddressChangeAtClient) {
 }
 
 TEST_P(QuicConnectionTest, SelfAddressChangeAtServer) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
 
   set_perspective(Perspective::IS_SERVER);
@@ -1464,6 +1498,9 @@ TEST_P(QuicConnectionTest, SelfAddressChangeAtServer) {
 }
 
 TEST_P(QuicConnectionTest, AllowSelfAddressChangeToMappedIpv4AddressAtServer) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
 
   set_perspective(Perspective::IS_SERVER);
@@ -1496,6 +1533,9 @@ TEST_P(QuicConnectionTest, AllowSelfAddressChangeToMappedIpv4AddressAtServer) {
 }
 
 TEST_P(QuicConnectionTest, ClientAddressChangeAndPacketReordered) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   set_perspective(Perspective::IS_SERVER);
   QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
@@ -1531,6 +1571,9 @@ TEST_P(QuicConnectionTest, ClientAddressChangeAndPacketReordered) {
 }
 
 TEST_P(QuicConnectionTest, PeerAddressChangeAtServer) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   set_perspective(Perspective::IS_SERVER);
   QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
@@ -1565,6 +1608,9 @@ TEST_P(QuicConnectionTest, PeerAddressChangeAtServer) {
 }
 
 TEST_P(QuicConnectionTest, EffectivePeerAddressChangeAtServer) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   set_perspective(Perspective::IS_SERVER);
   QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
@@ -1649,6 +1695,9 @@ TEST_P(QuicConnectionTest, EffectivePeerAddressChangeAtServer) {
 }
 
 TEST_P(QuicConnectionTest, ReceivePaddedPingAtServer) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   set_perspective(Perspective::IS_SERVER);
   QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
@@ -1704,7 +1753,8 @@ TEST_P(QuicConnectionTest, ReceivePaddedPingAtServer) {
 
 TEST_P(QuicConnectionTest, WriteOutOfOrderQueuedPackets) {
   // EXPECT_QUIC_BUG tests are expensive so only run one instance of them.
-  if (!IsDefaultTestConfiguration()) {
+  if (!IsDefaultTestConfiguration() ||
+      connection_.SupportsMultiplePacketNumberSpaces()) {
     return;
   }
 
@@ -1730,6 +1780,9 @@ TEST_P(QuicConnectionTest, WriteOutOfOrderQueuedPackets) {
 }
 
 TEST_P(QuicConnectionTest, DiscardQueuedPacketsAfterConnectionClose) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   // Regression test for b/74073386.
   {
     InSequence seq;
@@ -1755,6 +1808,9 @@ TEST_P(QuicConnectionTest, DiscardQueuedPacketsAfterConnectionClose) {
 }
 
 TEST_P(QuicConnectionTest, ReceiveConnectivityProbingAtServer) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   set_perspective(Perspective::IS_SERVER);
   QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
@@ -1810,6 +1866,9 @@ TEST_P(QuicConnectionTest, ReceiveConnectivityProbingAtServer) {
 }
 
 TEST_P(QuicConnectionTest, ReceiveReorderedConnectivityProbingAtServer) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   set_perspective(Perspective::IS_SERVER);
   QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
@@ -1862,6 +1921,9 @@ TEST_P(QuicConnectionTest, ReceiveReorderedConnectivityProbingAtServer) {
 }
 
 TEST_P(QuicConnectionTest, MigrateAfterProbingAtServer) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   set_perspective(Perspective::IS_SERVER);
   QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
@@ -1912,6 +1974,9 @@ TEST_P(QuicConnectionTest, MigrateAfterProbingAtServer) {
 }
 
 TEST_P(QuicConnectionTest, ReceivePaddedPingAtClient) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   set_perspective(Perspective::IS_CLIENT);
   EXPECT_EQ(Perspective::IS_CLIENT, connection_.perspective());
@@ -1954,6 +2019,9 @@ TEST_P(QuicConnectionTest, ReceivePaddedPingAtClient) {
 }
 
 TEST_P(QuicConnectionTest, ReceiveConnectivityProbingAtClient) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   set_perspective(Perspective::IS_CLIENT);
   EXPECT_EQ(Perspective::IS_CLIENT, connection_.perspective());
@@ -1999,6 +2067,9 @@ TEST_P(QuicConnectionTest, ReceiveConnectivityProbingAtClient) {
 }
 
 TEST_P(QuicConnectionTest, PeerAddressChangeAtClient) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   set_perspective(Perspective::IS_CLIENT);
   EXPECT_EQ(Perspective::IS_CLIENT, connection_.perspective());
@@ -2032,11 +2103,17 @@ TEST_P(QuicConnectionTest, PeerAddressChangeAtClient) {
 }
 
 TEST_P(QuicConnectionTest, MaxPacketSize) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_EQ(Perspective::IS_CLIENT, connection_.perspective());
   EXPECT_EQ(1350u, connection_.max_packet_length());
 }
 
 TEST_P(QuicConnectionTest, SmallerServerMaxPacketSize) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   TestConnection connection(TestConnectionId(), kPeerAddress, helper_.get(),
                             alarm_factory_.get(), writer_.get(),
                             Perspective::IS_SERVER, version());
@@ -2045,6 +2122,9 @@ TEST_P(QuicConnectionTest, SmallerServerMaxPacketSize) {
 }
 
 TEST_P(QuicConnectionTest, IncreaseServerMaxPacketSize) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
 
   set_perspective(Perspective::IS_SERVER);
@@ -2083,6 +2163,9 @@ TEST_P(QuicConnectionTest, IncreaseServerMaxPacketSize) {
 }
 
 TEST_P(QuicConnectionTest, IncreaseServerMaxPacketSizeWhileWriterLimited) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
 
   const QuicByteCount lower_max_packet_size = 1240;
@@ -2126,6 +2209,9 @@ TEST_P(QuicConnectionTest, IncreaseServerMaxPacketSizeWhileWriterLimited) {
 }
 
 TEST_P(QuicConnectionTest, LimitMaxPacketSizeByWriter) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   const QuicByteCount lower_max_packet_size = 1240;
   writer_->set_max_packet_size(lower_max_packet_size);
 
@@ -2137,6 +2223,9 @@ TEST_P(QuicConnectionTest, LimitMaxPacketSizeByWriter) {
 }
 
 TEST_P(QuicConnectionTest, LimitMaxPacketSizeByWriterForNewConnection) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   const QuicConnectionId connection_id = TestConnectionId(17);
   const QuicByteCount lower_max_packet_size = 1240;
   writer_->set_max_packet_size(lower_max_packet_size);
@@ -2148,6 +2237,9 @@ TEST_P(QuicConnectionTest, LimitMaxPacketSizeByWriterForNewConnection) {
 }
 
 TEST_P(QuicConnectionTest, PacketsInOrder) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
 
   ProcessPacket(1);
@@ -2164,6 +2256,9 @@ TEST_P(QuicConnectionTest, PacketsInOrder) {
 }
 
 TEST_P(QuicConnectionTest, PacketsOutOfOrder) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
 
   ProcessPacket(3);
@@ -2183,6 +2278,9 @@ TEST_P(QuicConnectionTest, PacketsOutOfOrder) {
 }
 
 TEST_P(QuicConnectionTest, DuplicatePacket) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
 
   ProcessPacket(3);
@@ -2199,6 +2297,9 @@ TEST_P(QuicConnectionTest, DuplicatePacket) {
 }
 
 TEST_P(QuicConnectionTest, PacketsOutOfOrderWithAdditionsAndLeastAwaiting) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
 
   ProcessPacket(3);
@@ -2229,6 +2330,9 @@ TEST_P(QuicConnectionTest, PacketsOutOfOrderWithAdditionsAndLeastAwaiting) {
 }
 
 TEST_P(QuicConnectionTest, RejectPacketTooFarOut) {
+  if (GetQuicReloadableFlag(quic_use_uber_received_packet_manager)) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnConnectionClosed(QUIC_INVALID_PACKET_HEADER, _,
                                            ConnectionCloseSource::FROM_SELF));
 
@@ -2244,6 +2348,9 @@ TEST_P(QuicConnectionTest, RejectPacketTooFarOut) {
 }
 
 TEST_P(QuicConnectionTest, RejectUnencryptedStreamData) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   // EXPECT_QUIC_BUG tests are expensive so only run one instance of them.
   if (!IsDefaultTestConfiguration()) {
     return;
@@ -2265,6 +2372,9 @@ TEST_P(QuicConnectionTest, RejectUnencryptedStreamData) {
 }
 
 TEST_P(QuicConnectionTest, OutOfOrderReceiptCausesAckSend) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
 
   ProcessPacket(3);
@@ -2303,6 +2413,9 @@ TEST_P(QuicConnectionTest, OutOfOrderReceiptCausesAckSend) {
 }
 
 TEST_P(QuicConnectionTest, OutOfOrderAckReceiptCausesNoAck) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
 
   SendStreamDataToPeer(1, "foo", 0, NO_FIN, nullptr);
@@ -2322,6 +2435,9 @@ TEST_P(QuicConnectionTest, OutOfOrderAckReceiptCausesNoAck) {
 }
 
 TEST_P(QuicConnectionTest, AckReceiptCausesAckSend) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   QuicPacketNumber original, second;
 
@@ -2388,6 +2504,9 @@ TEST_P(QuicConnectionTest, AckReceiptCausesAckSend) {
 }
 
 TEST_P(QuicConnectionTest, AckSentEveryNthPacket) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   connection_.set_ack_frequency_before_ack_decimation(3);
 
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
@@ -2402,6 +2521,9 @@ TEST_P(QuicConnectionTest, AckSentEveryNthPacket) {
 }
 
 TEST_P(QuicConnectionTest, AckDecimationReducesAcks) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   const size_t kMinRttMs = 40;
   RttStats* rtt_stats = const_cast<RttStats*>(manager_->GetRttStats());
   rtt_stats->UpdateRtt(QuicTime::Delta::FromMilliseconds(kMinRttMs),
@@ -2429,6 +2551,9 @@ TEST_P(QuicConnectionTest, AckDecimationReducesAcks) {
 }
 
 TEST_P(QuicConnectionTest, AckNeedsRetransmittableFrames) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(99);
 
@@ -2479,7 +2604,8 @@ TEST_P(QuicConnectionTest, AckNeedsRetransmittableFrames) {
 }
 
 TEST_P(QuicConnectionTest, LeastUnackedLower) {
-  if (GetParam().version.transport_version > QUIC_VERSION_43) {
+  if (GetParam().version.transport_version > QUIC_VERSION_43 ||
+      connection_.SupportsMultiplePacketNumberSpaces()) {
     return;
   }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
@@ -2514,6 +2640,9 @@ TEST_P(QuicConnectionTest, LeastUnackedLower) {
 }
 
 TEST_P(QuicConnectionTest, TooManySentPackets) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
 
   QuicPacketCount max_tracked_packets = 50;
@@ -2537,6 +2666,9 @@ TEST_P(QuicConnectionTest, TooManySentPackets) {
 }
 
 TEST_P(QuicConnectionTest, LargestObservedLower) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
 
   SendStreamDataToPeer(1, "foo", 0, NO_FIN, nullptr);
@@ -2561,6 +2693,9 @@ TEST_P(QuicConnectionTest, LargestObservedLower) {
 }
 
 TEST_P(QuicConnectionTest, AckUnsentData) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   // Ack a packet which has not been sent.
   EXPECT_CALL(visitor_, OnConnectionClosed(QUIC_INVALID_ACK_DATA, _,
                                            ConnectionCloseSource::FROM_SELF));
@@ -2572,6 +2707,9 @@ TEST_P(QuicConnectionTest, AckUnsentData) {
 }
 
 TEST_P(QuicConnectionTest, BasicSending) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
   ProcessDataPacket(1);
@@ -2663,6 +2801,9 @@ TEST_P(QuicConnectionTest, BasicSending) {
 // QuicConnection should record the packet sent-time prior to sending the
 // packet.
 TEST_P(QuicConnectionTest, RecordSentTimeBeforePacketSent) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   // We're using a MockClock for the tests, so we have complete control over the
   // time.
   // Our recorded timestamp for the last packet sent time will be passed in to
@@ -2694,6 +2835,9 @@ TEST_P(QuicConnectionTest, RecordSentTimeBeforePacketSent) {
 }
 
 TEST_P(QuicConnectionTest, FramePacking) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   // Send two stream frames in 1 packet by queueing them.
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   {
@@ -2726,6 +2870,9 @@ TEST_P(QuicConnectionTest, FramePacking) {
 }
 
 TEST_P(QuicConnectionTest, FramePackingNonCryptoThenCrypto) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   // Send two stream frames (one non-crypto, then one crypto) in 2 packets by
   // queueing them.
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
@@ -2752,6 +2899,9 @@ TEST_P(QuicConnectionTest, FramePackingNonCryptoThenCrypto) {
 }
 
 TEST_P(QuicConnectionTest, FramePackingCryptoThenNonCrypto) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   // Send two stream frames (one crypto, then one non-crypto) in 2 packets by
   // queueing them.
   {
@@ -2773,6 +2923,9 @@ TEST_P(QuicConnectionTest, FramePackingCryptoThenNonCrypto) {
 }
 
 TEST_P(QuicConnectionTest, FramePackingAckResponse) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   // Process a data packet to queue up a pending ack.
   EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
@@ -2821,6 +2974,9 @@ TEST_P(QuicConnectionTest, FramePackingAckResponse) {
 }
 
 TEST_P(QuicConnectionTest, FramePackingSendv) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   // Send data in 1 packet by writing multiple blocks in a single iovector
   // using writev.
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _));
@@ -2850,6 +3006,9 @@ TEST_P(QuicConnectionTest, FramePackingSendv) {
 }
 
 TEST_P(QuicConnectionTest, FramePackingSendvQueued) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   // Try to send two stream frames in 1 packet by using writev.
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _));
 
@@ -2881,6 +3040,9 @@ TEST_P(QuicConnectionTest, FramePackingSendvQueued) {
 }
 
 TEST_P(QuicConnectionTest, SendingZeroBytes) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   // Send a zero byte write with a fin using writev.
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _));
@@ -2900,6 +3062,9 @@ TEST_P(QuicConnectionTest, SendingZeroBytes) {
 }
 
 TEST_P(QuicConnectionTest, LargeSendWithPendingAck) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   // Set the ack alarm by processing a ping frame.
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
@@ -2937,6 +3102,9 @@ TEST_P(QuicConnectionTest, LargeSendWithPendingAck) {
 }
 
 TEST_P(QuicConnectionTest, OnCanWrite) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   // Visitor's OnCanWrite will send data, but will have more pending writes.
   EXPECT_CALL(visitor_, OnCanWrite())
       .WillOnce(DoAll(IgnoreResult(InvokeWithoutArgs(
@@ -2966,6 +3134,9 @@ TEST_P(QuicConnectionTest, OnCanWrite) {
 }
 
 TEST_P(QuicConnectionTest, RetransmitOnNack) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   QuicPacketNumber last_packet;
   QuicByteCount second_packet_size;
   SendStreamDataToPeer(3, "foo", 0, NO_FIN, &last_packet);  // Packet 1
@@ -2993,6 +3164,9 @@ TEST_P(QuicConnectionTest, RetransmitOnNack) {
 }
 
 TEST_P(QuicConnectionTest, DoNotSendQueuedPacketForResetStream) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   // Block the connection to queue the packet.
   BlockOnNextWrite();
 
@@ -3016,6 +3190,9 @@ TEST_P(QuicConnectionTest, DoNotSendQueuedPacketForResetStream) {
 }
 
 TEST_P(QuicConnectionTest, SendQueuedPacketForQuicRstStreamNoError) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   // Block the connection to queue the packet.
   BlockOnNextWrite();
 
@@ -3040,6 +3217,9 @@ TEST_P(QuicConnectionTest, SendQueuedPacketForQuicRstStreamNoError) {
 }
 
 TEST_P(QuicConnectionTest, DoNotRetransmitForResetStreamOnNack) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   QuicStreamId stream_id = 2;
   QuicPacketNumber last_packet;
   SendStreamDataToPeer(stream_id, "foo", 0, NO_FIN, &last_packet);
@@ -3059,6 +3239,9 @@ TEST_P(QuicConnectionTest, DoNotRetransmitForResetStreamOnNack) {
 }
 
 TEST_P(QuicConnectionTest, RetransmitForQuicRstStreamNoErrorOnNack) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   QuicStreamId stream_id = 2;
   QuicPacketNumber last_packet;
   SendStreamDataToPeer(stream_id, "foo", 0, NO_FIN, &last_packet);
@@ -3081,6 +3264,9 @@ TEST_P(QuicConnectionTest, RetransmitForQuicRstStreamNoErrorOnNack) {
 }
 
 TEST_P(QuicConnectionTest, DoNotRetransmitForResetStreamOnRTO) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   QuicStreamId stream_id = 2;
   QuicPacketNumber last_packet;
   SendStreamDataToPeer(stream_id, "foo", 0, NO_FIN, &last_packet);
@@ -3100,6 +3286,9 @@ TEST_P(QuicConnectionTest, DoNotRetransmitForResetStreamOnRTO) {
 // Ensure that if the only data in flight is non-retransmittable, the
 // retransmission alarm is not set.
 TEST_P(QuicConnectionTest, CancelRetransmissionAlarmAfterResetStream) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   QuicStreamId stream_id = 2;
   QuicPacketNumber last_data_packet;
   SendStreamDataToPeer(stream_id, "foo", 0, NO_FIN, &last_data_packet);
@@ -3131,6 +3320,9 @@ TEST_P(QuicConnectionTest, CancelRetransmissionAlarmAfterResetStream) {
 }
 
 TEST_P(QuicConnectionTest, RetransmitForQuicRstStreamNoErrorOnRTO) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   connection_.SetMaxTailLossProbes(0);
 
   QuicStreamId stream_id = 2;
@@ -3151,6 +3343,9 @@ TEST_P(QuicConnectionTest, RetransmitForQuicRstStreamNoErrorOnRTO) {
 }
 
 TEST_P(QuicConnectionTest, DoNotSendPendingRetransmissionForResetStream) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   QuicStreamId stream_id = 2;
   QuicPacketNumber last_packet;
   SendStreamDataToPeer(stream_id, "foo", 0, NO_FIN, &last_packet);
@@ -3184,6 +3379,9 @@ TEST_P(QuicConnectionTest, DoNotSendPendingRetransmissionForResetStream) {
 }
 
 TEST_P(QuicConnectionTest, SendPendingRetransmissionForQuicRstStreamNoError) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   QuicStreamId stream_id = 2;
   QuicPacketNumber last_packet;
   SendStreamDataToPeer(stream_id, "foo", 0, NO_FIN, &last_packet);
@@ -3218,6 +3416,9 @@ TEST_P(QuicConnectionTest, SendPendingRetransmissionForQuicRstStreamNoError) {
 }
 
 TEST_P(QuicConnectionTest, RetransmitAckedPacket) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   QuicPacketNumber last_packet;
   SendStreamDataToPeer(1, "foo", 0, NO_FIN, &last_packet);    // Packet 1
   SendStreamDataToPeer(1, "foos", 3, NO_FIN, &last_packet);   // Packet 2
@@ -3259,6 +3460,9 @@ TEST_P(QuicConnectionTest, RetransmitAckedPacket) {
 }
 
 TEST_P(QuicConnectionTest, RetransmitNackedLargestObserved) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   QuicPacketNumber original, second;
 
@@ -3286,6 +3490,9 @@ TEST_P(QuicConnectionTest, RetransmitNackedLargestObserved) {
 }
 
 TEST_P(QuicConnectionTest, QueueAfterTwoRTOs) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   connection_.SetMaxTailLossProbes(0);
 
   for (int i = 0; i < 10; ++i) {
@@ -3317,6 +3524,9 @@ TEST_P(QuicConnectionTest, QueueAfterTwoRTOs) {
 }
 
 TEST_P(QuicConnectionTest, WriteBlockedBufferedThenSent) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   BlockOnNextWrite();
   writer_->set_is_write_blocked_data_buffered(true);
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
@@ -3329,6 +3539,9 @@ TEST_P(QuicConnectionTest, WriteBlockedBufferedThenSent) {
 }
 
 TEST_P(QuicConnectionTest, WriteBlockedThenSent) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
   BlockOnNextWrite();
   connection_.SendStreamDataWithString(1, "foo", 0, NO_FIN);
@@ -3348,6 +3561,9 @@ TEST_P(QuicConnectionTest, WriteBlockedThenSent) {
 }
 
 TEST_P(QuicConnectionTest, RetransmitWriteBlockedAckedOriginalThenSent) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   connection_.SendStreamDataWithString(3, "foo", 0, NO_FIN);
   EXPECT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
@@ -3378,6 +3594,9 @@ TEST_P(QuicConnectionTest, RetransmitWriteBlockedAckedOriginalThenSent) {
 }
 
 TEST_P(QuicConnectionTest, AlarmsWhenWriteBlocked) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   // Block the connection.
   BlockOnNextWrite();
   connection_.SendStreamDataWithString(3, "foo", 0, NO_FIN);
@@ -3392,6 +3611,9 @@ TEST_P(QuicConnectionTest, AlarmsWhenWriteBlocked) {
 }
 
 TEST_P(QuicConnectionTest, NoSendAlarmAfterProcessPacketWhenWriteBlocked) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
 
   // Block the connection.
@@ -3423,6 +3645,9 @@ TEST_P(QuicConnectionTest, NoSendAlarmAfterProcessPacketWhenWriteBlocked) {
 }
 
 TEST_P(QuicConnectionTest, AddToWriteBlockedListIfWriterBlockedWhenProcessing) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   SendStreamDataToPeer(1, "foo", 0, NO_FIN, nullptr);
 
@@ -3437,6 +3662,9 @@ TEST_P(QuicConnectionTest, AddToWriteBlockedListIfWriterBlockedWhenProcessing) {
 }
 
 TEST_P(QuicConnectionTest, DoNotAddToWriteBlockedListAfterDisconnect) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   writer_->SetBatchMode(true);
   EXPECT_TRUE(connection_.connected());
   EXPECT_CALL(visitor_, OnConnectionClosed(QUIC_PEER_GOING_AWAY, _,
@@ -3456,6 +3684,9 @@ TEST_P(QuicConnectionTest, DoNotAddToWriteBlockedListAfterDisconnect) {
 }
 
 TEST_P(QuicConnectionTest, AddToWriteBlockedListIfBlockedOnFlushPackets) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   writer_->SetBatchMode(true);
   writer_->BlockOnNextFlush();
 
@@ -3469,6 +3700,9 @@ TEST_P(QuicConnectionTest, AddToWriteBlockedListIfBlockedOnFlushPackets) {
 }
 
 TEST_P(QuicConnectionTest, NoLimitPacketsPerNack) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   int offset = 0;
   // Send packets 1 to 15.
@@ -3500,6 +3734,9 @@ TEST_P(QuicConnectionTest, NoLimitPacketsPerNack) {
 
 // Test sending multiple acks from the connection to the session.
 TEST_P(QuicConnectionTest, MultipleAcks) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
   ProcessDataPacket(1);
@@ -3529,6 +3766,9 @@ TEST_P(QuicConnectionTest, MultipleAcks) {
 }
 
 TEST_P(QuicConnectionTest, DontLatchUnackedPacket) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
   ProcessDataPacket(1);
@@ -3594,6 +3834,9 @@ TEST_P(QuicConnectionTest, DontLatchUnackedPacket) {
 }
 
 TEST_P(QuicConnectionTest, TLP) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   connection_.SetMaxTailLossProbes(1);
 
   SendStreamDataToPeer(3, "foo", 0, NO_FIN, nullptr);
@@ -3614,6 +3857,9 @@ TEST_P(QuicConnectionTest, TLP) {
 }
 
 TEST_P(QuicConnectionTest, RTO) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   connection_.SetMaxTailLossProbes(0);
 
   QuicTime default_retransmission_time =
@@ -3634,6 +3880,9 @@ TEST_P(QuicConnectionTest, RTO) {
 }
 
 TEST_P(QuicConnectionTest, RetransmitWithSameEncryptionLevel) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   use_tagging_decrypter();
 
   // A TaggingEncrypter puts kTagSize copies of the given byte (0x01 here) at
@@ -3670,6 +3919,9 @@ TEST_P(QuicConnectionTest, RetransmitWithSameEncryptionLevel) {
 }
 
 TEST_P(QuicConnectionTest, SendHandshakeMessages) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   use_tagging_decrypter();
   // A TaggingEncrypter puts kTagSize copies of the given byte (0x01 here) at
   // the end of the packet. We can test this to check which encrypter was used.
@@ -3702,6 +3954,9 @@ TEST_P(QuicConnectionTest, SendHandshakeMessages) {
 
 TEST_P(QuicConnectionTest,
        DropRetransmitsForNullEncryptedPacketAfterForwardSecure) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   use_tagging_decrypter();
   connection_.SetEncrypter(ENCRYPTION_INITIAL,
                            QuicMakeUnique<TaggingEncrypter>(0x01));
@@ -3728,6 +3983,9 @@ TEST_P(QuicConnectionTest,
 }
 
 TEST_P(QuicConnectionTest, RetransmitPacketsWithInitialEncryption) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   use_tagging_decrypter();
   connection_.SetEncrypter(ENCRYPTION_INITIAL,
                            QuicMakeUnique<TaggingEncrypter>(0x01));
@@ -3748,6 +4006,9 @@ TEST_P(QuicConnectionTest, RetransmitPacketsWithInitialEncryption) {
 }
 
 TEST_P(QuicConnectionTest, BufferNonDecryptablePackets) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   // SetFromConfig is always called after construction from InitializeSession.
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
   QuicConfig config;
@@ -3780,6 +4041,9 @@ TEST_P(QuicConnectionTest, BufferNonDecryptablePackets) {
 }
 
 TEST_P(QuicConnectionTest, TestRetransmitOrder) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   connection_.SetMaxTailLossProbes(0);
 
   QuicByteCount first_packet_size;
@@ -3812,6 +4076,9 @@ TEST_P(QuicConnectionTest, TestRetransmitOrder) {
 }
 
 TEST_P(QuicConnectionTest, Buffer100NonDecryptablePacketsThenKeyChange) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   // SetFromConfig is always called after construction from InitializeSession.
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
   QuicConfig config;
@@ -3850,6 +4117,9 @@ TEST_P(QuicConnectionTest, Buffer100NonDecryptablePacketsThenKeyChange) {
 }
 
 TEST_P(QuicConnectionTest, SetRTOAfterWritingToSocket) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   BlockOnNextWrite();
   connection_.SendStreamDataWithString(1, "foo", 0, NO_FIN);
   // Make sure that RTO is not started when the packet is queued.
@@ -3862,6 +4132,9 @@ TEST_P(QuicConnectionTest, SetRTOAfterWritingToSocket) {
 }
 
 TEST_P(QuicConnectionTest, DelayRTOWithAckReceipt) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   connection_.SetMaxTailLossProbes(0);
 
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
@@ -3905,6 +4178,9 @@ TEST_P(QuicConnectionTest, DelayRTOWithAckReceipt) {
 }
 
 TEST_P(QuicConnectionTest, TestQueued) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   connection_.SetMaxTailLossProbes(0);
 
   EXPECT_EQ(0u, connection_.NumQueuedPackets());
@@ -3919,6 +4195,9 @@ TEST_P(QuicConnectionTest, TestQueued) {
 }
 
 TEST_P(QuicConnectionTest, InitialTimeout) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_TRUE(connection_.connected());
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(AnyNumber());
   EXPECT_FALSE(connection_.GetTimeoutAlarm()->IsSet());
@@ -3950,6 +4229,9 @@ TEST_P(QuicConnectionTest, InitialTimeout) {
 }
 
 TEST_P(QuicConnectionTest, IdleTimeoutAfterFirstSentPacket) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_TRUE(connection_.connected());
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(AnyNumber());
   EXPECT_FALSE(connection_.GetTimeoutAlarm()->IsSet());
@@ -4001,6 +4283,9 @@ TEST_P(QuicConnectionTest, IdleTimeoutAfterFirstSentPacket) {
 }
 
 TEST_P(QuicConnectionTest, IdleTimeoutAfterSendTwoPackets) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_TRUE(connection_.connected());
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(AnyNumber());
   EXPECT_FALSE(connection_.GetTimeoutAlarm()->IsSet());
@@ -4061,6 +4346,9 @@ TEST_P(QuicConnectionTest, IdleTimeoutAfterSendTwoPackets) {
 }
 
 TEST_P(QuicConnectionTest, HandshakeTimeout) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   // Use a shorter handshake timeout than idle timeout for this test.
   const QuicTime::Delta timeout = QuicTime::Delta::FromSeconds(5);
   connection_.SetNetworkTimeouts(timeout, timeout);
@@ -4104,6 +4392,9 @@ TEST_P(QuicConnectionTest, HandshakeTimeout) {
 }
 
 TEST_P(QuicConnectionTest, PingAfterSend) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_TRUE(connection_.connected());
   EXPECT_CALL(visitor_, ShouldKeepConnectionAlive())
       .WillRepeatedly(Return(true));
@@ -4153,6 +4444,9 @@ TEST_P(QuicConnectionTest, PingAfterSend) {
 }
 
 TEST_P(QuicConnectionTest, ReducedPingTimeout) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_TRUE(connection_.connected());
   EXPECT_CALL(visitor_, ShouldKeepConnectionAlive())
       .WillRepeatedly(Return(true));
@@ -4207,6 +4501,9 @@ TEST_P(QuicConnectionTest, ReducedPingTimeout) {
 // Tests whether sending an MTU discovery packet to peer successfully causes the
 // maximum packet size to increase.
 TEST_P(QuicConnectionTest, SendMtuDiscoveryPacket) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_TRUE(connection_.connected());
 
   // Send an MTU probe.
@@ -4246,6 +4543,9 @@ TEST_P(QuicConnectionTest, SendMtuDiscoveryPacket) {
 // Tests whether MTU discovery does not happen when it is not explicitly enabled
 // by the connection options.
 TEST_P(QuicConnectionTest, MtuDiscoveryDisabled) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_TRUE(connection_.connected());
 
   const QuicPacketCount packets_between_probes_base = 10;
@@ -4262,6 +4562,9 @@ TEST_P(QuicConnectionTest, MtuDiscoveryDisabled) {
 // Tests whether MTU discovery works when the probe gets acknowledged on the
 // first try.
 TEST_P(QuicConnectionTest, MtuDiscoveryEnabled) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_TRUE(connection_.connected());
 
   connection_.EnablePathMtuDiscovery(send_algorithm_);
@@ -4310,6 +4613,9 @@ TEST_P(QuicConnectionTest, MtuDiscoveryEnabled) {
 // Tests whether MTU discovery works correctly when the probes never get
 // acknowledged.
 TEST_P(QuicConnectionTest, MtuDiscoveryFailed) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_TRUE(connection_.connected());
 
   connection_.EnablePathMtuDiscovery(send_algorithm_);
@@ -4392,6 +4698,9 @@ TEST_P(QuicConnectionTest, MtuDiscoveryFailed) {
 // Tests whether MTU discovery works when the writer has a limit on how large a
 // packet can be.
 TEST_P(QuicConnectionTest, MtuDiscoveryWriterLimited) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_TRUE(connection_.connected());
 
   const QuicByteCount mtu_limit = kMtuDiscoveryTargetPacketSizeHigh - 1;
@@ -4442,6 +4751,9 @@ TEST_P(QuicConnectionTest, MtuDiscoveryWriterLimited) {
 // Tests whether MTU discovery works when the writer returns an error despite
 // advertising higher packet length.
 TEST_P(QuicConnectionTest, MtuDiscoveryWriterFailed) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_TRUE(connection_.connected());
 
   const QuicByteCount mtu_limit = kMtuDiscoveryTargetPacketSizeHigh - 1;
@@ -4494,6 +4806,9 @@ TEST_P(QuicConnectionTest, MtuDiscoveryWriterFailed) {
 }
 
 TEST_P(QuicConnectionTest, NoMtuDiscoveryAfterConnectionClosed) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_TRUE(connection_.connected());
 
   connection_.EnablePathMtuDiscovery(send_algorithm_);
@@ -4518,6 +4833,9 @@ TEST_P(QuicConnectionTest, NoMtuDiscoveryAfterConnectionClosed) {
 }
 
 TEST_P(QuicConnectionTest, TimeoutAfterSend) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_TRUE(connection_.connected());
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
   QuicConfig config;
@@ -4567,6 +4885,9 @@ TEST_P(QuicConnectionTest, TimeoutAfterSend) {
 }
 
 TEST_P(QuicConnectionTest, TimeoutAfterRetransmission) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   EXPECT_TRUE(connection_.connected());
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
@@ -4642,6 +4963,9 @@ TEST_P(QuicConnectionTest, TimeoutAfterRetransmission) {
 }
 
 TEST_P(QuicConnectionTest, NewTimeoutAfterSendSilentClose) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   // Same test as above, but complete a handshake which enables silent close,
   // causing no connection close packet to be sent.
   EXPECT_TRUE(connection_.connected());
@@ -4709,6 +5033,9 @@ TEST_P(QuicConnectionTest, NewTimeoutAfterSendSilentClose) {
 }
 
 TEST_P(QuicConnectionTest, TimeoutAfterSendSilentCloseAndTLP) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   // Same test as above, but complete a handshake which enables silent close,
   // but sending TLPs causes the connection close to be sent.
   EXPECT_TRUE(connection_.connected());
@@ -4765,6 +5092,9 @@ TEST_P(QuicConnectionTest, TimeoutAfterSendSilentCloseAndTLP) {
 }
 
 TEST_P(QuicConnectionTest, TimeoutAfterSendSilentCloseWithOpenStreams) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   // Same test as above, but complete a handshake which enables silent close,
   // but having open streams causes the connection close to be sent.
   EXPECT_TRUE(connection_.connected());
@@ -4819,6 +5149,9 @@ TEST_P(QuicConnectionTest, TimeoutAfterSendSilentCloseWithOpenStreams) {
 }
 
 TEST_P(QuicConnectionTest, TimeoutAfterReceive) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   EXPECT_TRUE(connection_.connected());
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
@@ -4869,6 +5202,9 @@ TEST_P(QuicConnectionTest, TimeoutAfterReceive) {
 }
 
 TEST_P(QuicConnectionTest, TimeoutAfterReceiveNotSendWhenUnacked) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   EXPECT_TRUE(connection_.connected());
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
@@ -4931,6 +5267,9 @@ TEST_P(QuicConnectionTest, TimeoutAfterReceiveNotSendWhenUnacked) {
 }
 
 TEST_P(QuicConnectionTest, TimeoutAfter5ClientRTOs) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   connection_.SetMaxTailLossProbes(2);
   EXPECT_TRUE(connection_.connected());
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
@@ -4965,6 +5304,9 @@ TEST_P(QuicConnectionTest, TimeoutAfter5ClientRTOs) {
 }
 
 TEST_P(QuicConnectionTest, SendScheduler) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   // Test that if we send a packet without delay, it is not queued.
   QuicFramerPeer::SetPerspective(&peer_framer_, Perspective::IS_CLIENT);
   std::unique_ptr<QuicPacket> packet =
@@ -4977,6 +5319,9 @@ TEST_P(QuicConnectionTest, SendScheduler) {
 }
 
 TEST_P(QuicConnectionTest, FailToSendFirstPacket) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   // Test that the connection does not crash when it fails to send the first
   // packet at which point self_address_ might be uninitialized.
   QuicFramerPeer::SetPerspective(&peer_framer_, Perspective::IS_CLIENT);
@@ -4990,6 +5335,9 @@ TEST_P(QuicConnectionTest, FailToSendFirstPacket) {
 }
 
 TEST_P(QuicConnectionTest, SendSchedulerEAGAIN) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   QuicFramerPeer::SetPerspective(&peer_framer_, Perspective::IS_CLIENT);
   std::unique_ptr<QuicPacket> packet =
       ConstructDataPacket(1, !kHasStopWaiting, ENCRYPTION_INITIAL);
@@ -5003,6 +5351,9 @@ TEST_P(QuicConnectionTest, SendSchedulerEAGAIN) {
 }
 
 TEST_P(QuicConnectionTest, TestQueueLimitsOnSendStreamData) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   // All packets carry version info till version is negotiated.
   size_t payload_length;
   size_t length = GetPacketLengthForOneStream(
@@ -5023,6 +5374,9 @@ TEST_P(QuicConnectionTest, TestQueueLimitsOnSendStreamData) {
 }
 
 TEST_P(QuicConnectionTest, LoopThroughSendingPackets) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   // All packets carry version info till version is negotiated.
   size_t payload_length;
 
@@ -5086,6 +5440,9 @@ TEST_P(QuicConnectionTest, LoopThroughSendingPackets) {
 }
 
 TEST_P(QuicConnectionTest, LoopThroughSendingPacketsWithTruncation) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   set_perspective(Perspective::IS_SERVER);
   if (GetParam().version.transport_version <= QUIC_VERSION_43) {
     // For IETF QUIC, encryption level will be switched to FORWARD_SECURE in
@@ -5126,6 +5483,9 @@ TEST_P(QuicConnectionTest, LoopThroughSendingPacketsWithTruncation) {
 }
 
 TEST_P(QuicConnectionTest, SendDelayedAck) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   QuicTime ack_time = clock_.ApproximateNow() + DefaultDelayedAckTime();
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   EXPECT_FALSE(connection_.GetAckAlarm()->IsSet());
@@ -5161,6 +5521,9 @@ TEST_P(QuicConnectionTest, SendDelayedAck) {
 }
 
 TEST_P(QuicConnectionTest, SendDelayedAfterQuiescence) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   QuicConnectionPeer::SetFastAckAfterQuiescence(&connection_, true);
 
   // The beginning of the connection counts as quiescence.
@@ -5233,6 +5596,9 @@ TEST_P(QuicConnectionTest, SendDelayedAfterQuiescence) {
 }
 
 TEST_P(QuicConnectionTest, SendDelayedAckDecimation) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnAckNeedsRetransmittableFrame()).Times(AnyNumber());
   QuicConnectionPeer::SetAckMode(&connection_, ACK_DECIMATION);
 
@@ -5291,6 +5657,9 @@ TEST_P(QuicConnectionTest, SendDelayedAckDecimation) {
 }
 
 TEST_P(QuicConnectionTest, SendDelayedAckAckDecimationAfterQuiescence) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnAckNeedsRetransmittableFrame()).Times(AnyNumber());
   QuicConnectionPeer::SetAckMode(&connection_, ACK_DECIMATION);
   QuicConnectionPeer::SetFastAckAfterQuiescence(&connection_, true);
@@ -5420,6 +5789,9 @@ TEST_P(QuicConnectionTest, SendDelayedAckAckDecimationAfterQuiescence) {
 }
 
 TEST_P(QuicConnectionTest, SendDelayedAckDecimationUnlimitedAggregation) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnAckNeedsRetransmittableFrame()).Times(AnyNumber());
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
   QuicConfig config;
@@ -5479,6 +5851,9 @@ TEST_P(QuicConnectionTest, SendDelayedAckDecimationUnlimitedAggregation) {
 }
 
 TEST_P(QuicConnectionTest, SendDelayedAckDecimationEighthRtt) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnAckNeedsRetransmittableFrame()).Times(AnyNumber());
   QuicConnectionPeer::SetAckMode(&connection_, ACK_DECIMATION);
   QuicConnectionPeer::SetAckDecimationDelay(&connection_, 0.125);
@@ -5538,6 +5913,9 @@ TEST_P(QuicConnectionTest, SendDelayedAckDecimationEighthRtt) {
 }
 
 TEST_P(QuicConnectionTest, SendDelayedAckDecimationWithReordering) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnAckNeedsRetransmittableFrame()).Times(AnyNumber());
   QuicConnectionPeer::SetAckMode(&connection_, ACK_DECIMATION_WITH_REORDERING);
 
@@ -5602,6 +5980,9 @@ TEST_P(QuicConnectionTest, SendDelayedAckDecimationWithReordering) {
 }
 
 TEST_P(QuicConnectionTest, SendDelayedAckDecimationWithLargeReordering) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnAckNeedsRetransmittableFrame()).Times(AnyNumber());
   QuicConnectionPeer::SetAckMode(&connection_, ACK_DECIMATION_WITH_REORDERING);
 
@@ -5685,6 +6066,9 @@ TEST_P(QuicConnectionTest, SendDelayedAckDecimationWithLargeReordering) {
 }
 
 TEST_P(QuicConnectionTest, SendDelayedAckDecimationWithReorderingEighthRtt) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnAckNeedsRetransmittableFrame()).Times(AnyNumber());
   QuicConnectionPeer::SetAckMode(&connection_, ACK_DECIMATION_WITH_REORDERING);
   QuicConnectionPeer::SetAckDecimationDelay(&connection_, 0.125);
@@ -5753,6 +6137,9 @@ TEST_P(QuicConnectionTest, SendDelayedAckDecimationWithReorderingEighthRtt) {
 
 TEST_P(QuicConnectionTest,
        SendDelayedAckDecimationWithLargeReorderingEighthRtt) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnAckNeedsRetransmittableFrame()).Times(AnyNumber());
   QuicConnectionPeer::SetAckMode(&connection_, ACK_DECIMATION_WITH_REORDERING);
   QuicConnectionPeer::SetAckDecimationDelay(&connection_, 0.125);
@@ -5837,6 +6224,9 @@ TEST_P(QuicConnectionTest,
 }
 
 TEST_P(QuicConnectionTest, SendDelayedAckOnHandshakeConfirmed) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   ProcessPacket(1);
   // Check that ack is sent and that delayed ack alarm is set.
@@ -5858,6 +6248,9 @@ TEST_P(QuicConnectionTest, SendDelayedAckOnHandshakeConfirmed) {
 }
 
 TEST_P(QuicConnectionTest, SendDelayedAckOnSecondPacket) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   ProcessPacket(1);
   ProcessPacket(2);
@@ -5874,6 +6267,9 @@ TEST_P(QuicConnectionTest, SendDelayedAckOnSecondPacket) {
 }
 
 TEST_P(QuicConnectionTest, NoAckOnOldNacks) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   // Drop one packet, triggering a sequence of acks.
   if (GetQuicRestartFlag(quic_enable_accept_random_ipn)) {
@@ -5923,6 +6319,9 @@ TEST_P(QuicConnectionTest, NoAckOnOldNacks) {
 }
 
 TEST_P(QuicConnectionTest, SendDelayedAckOnOutgoingPacket) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   EXPECT_CALL(visitor_, OnStreamFrame(_));
   peer_framer_.SetEncrypter(ENCRYPTION_FORWARD_SECURE,
@@ -5947,6 +6346,9 @@ TEST_P(QuicConnectionTest, SendDelayedAckOnOutgoingPacket) {
 }
 
 TEST_P(QuicConnectionTest, SendDelayedAckOnOutgoingCryptoPacket) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   ProcessPacket(1);
   connection_.SendStreamDataWithString(
@@ -5964,6 +6366,9 @@ TEST_P(QuicConnectionTest, SendDelayedAckOnOutgoingCryptoPacket) {
 }
 
 TEST_P(QuicConnectionTest, BlockAndBufferOnFirstCHLOPacketOfTwo) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   ProcessPacket(1);
   BlockOnNextWrite();
@@ -5981,6 +6386,9 @@ TEST_P(QuicConnectionTest, BlockAndBufferOnFirstCHLOPacketOfTwo) {
 }
 
 TEST_P(QuicConnectionTest, BundleAckForSecondCHLO) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   EXPECT_FALSE(connection_.GetAckAlarm()->IsSet());
   EXPECT_CALL(visitor_, OnCanWrite())
@@ -6010,6 +6418,9 @@ TEST_P(QuicConnectionTest, BundleAckForSecondCHLO) {
 }
 
 TEST_P(QuicConnectionTest, BundleAckForSecondCHLOTwoPacketReject) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   EXPECT_FALSE(connection_.GetAckAlarm()->IsSet());
 
@@ -6043,6 +6454,9 @@ TEST_P(QuicConnectionTest, BundleAckForSecondCHLOTwoPacketReject) {
 }
 
 TEST_P(QuicConnectionTest, BundleAckWithDataOnIncomingAck) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   connection_.SendStreamDataWithString(
       GetNthClientInitiatedStreamId(1, connection_.transport_version()), "foo",
@@ -6098,6 +6512,9 @@ TEST_P(QuicConnectionTest, BundleAckWithDataOnIncomingAck) {
 }
 
 TEST_P(QuicConnectionTest, NoAckSentForClose) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   ProcessPacket(1);
   EXPECT_CALL(visitor_, OnConnectionClosed(QUIC_PEER_GOING_AWAY, _,
@@ -6107,6 +6524,9 @@ TEST_P(QuicConnectionTest, NoAckSentForClose) {
 }
 
 TEST_P(QuicConnectionTest, SendWhenDisconnected) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_TRUE(connection_.connected());
   EXPECT_CALL(visitor_, OnConnectionClosed(QUIC_PEER_GOING_AWAY, _,
                                            ConnectionCloseSource::FROM_SELF));
@@ -6124,7 +6544,8 @@ TEST_P(QuicConnectionTest, SendWhenDisconnected) {
 
 TEST_P(QuicConnectionTest, SendConnectivityProbingWhenDisconnected) {
   // EXPECT_QUIC_BUG tests are expensive so only run one instance of them.
-  if (!IsDefaultTestConfiguration()) {
+  if (!IsDefaultTestConfiguration() ||
+      connection_.SupportsMultiplePacketNumberSpaces()) {
     return;
   }
 
@@ -6146,6 +6567,9 @@ TEST_P(QuicConnectionTest, SendConnectivityProbingWhenDisconnected) {
 }
 
 TEST_P(QuicConnectionTest, WriteBlockedAfterClientSendsConnectivityProbe) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_EQ(Perspective::IS_CLIENT, connection_.perspective());
   TestPacketWriter probing_writer(version(), &clock_);
   // Block next write so that sending connectivity probe will encounter a
@@ -6162,6 +6586,9 @@ TEST_P(QuicConnectionTest, WriteBlockedAfterClientSendsConnectivityProbe) {
 }
 
 TEST_P(QuicConnectionTest, WriterBlockedAfterServerSendsConnectivityProbe) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   set_perspective(Perspective::IS_SERVER);
   QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
 
@@ -6179,6 +6606,9 @@ TEST_P(QuicConnectionTest, WriterBlockedAfterServerSendsConnectivityProbe) {
 }
 
 TEST_P(QuicConnectionTest, WriterErrorWhenClientSendsConnectivityProbe) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_EQ(Perspective::IS_CLIENT, connection_.perspective());
   TestPacketWriter probing_writer(version(), &clock_);
   probing_writer.SetShouldWriteFail();
@@ -6194,6 +6624,9 @@ TEST_P(QuicConnectionTest, WriterErrorWhenClientSendsConnectivityProbe) {
 }
 
 TEST_P(QuicConnectionTest, WriterErrorWhenServerSendsConnectivityProbe) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   set_perspective(Perspective::IS_SERVER);
   QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
 
@@ -6209,7 +6642,8 @@ TEST_P(QuicConnectionTest, WriterErrorWhenServerSendsConnectivityProbe) {
 }
 
 TEST_P(QuicConnectionTest, PublicReset) {
-  if (GetParam().version.transport_version > QUIC_VERSION_43) {
+  if (GetParam().version.transport_version > QUIC_VERSION_43 ||
+      connection_.SupportsMultiplePacketNumberSpaces()) {
     return;
   }
   QuicPublicResetPacket header;
@@ -6225,7 +6659,8 @@ TEST_P(QuicConnectionTest, PublicReset) {
 }
 
 TEST_P(QuicConnectionTest, IetfStatelessReset) {
-  if (GetParam().version.transport_version <= QUIC_VERSION_43) {
+  if (GetParam().version.transport_version <= QUIC_VERSION_43 ||
+      connection_.SupportsMultiplePacketNumberSpaces()) {
     return;
   }
   const QuicUint128 kTestStatelessResetToken = 1010101;
@@ -6245,7 +6680,8 @@ TEST_P(QuicConnectionTest, IetfStatelessReset) {
 }
 
 TEST_P(QuicConnectionTest, GoAway) {
-  if (GetParam().version.transport_version == QUIC_VERSION_99) {
+  if (GetParam().version.transport_version == QUIC_VERSION_99 ||
+      connection_.SupportsMultiplePacketNumberSpaces()) {
     // GoAway is not available in version 99.
     return;
   }
@@ -6261,6 +6697,9 @@ TEST_P(QuicConnectionTest, GoAway) {
 }
 
 TEST_P(QuicConnectionTest, WindowUpdate) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
 
   QuicWindowUpdateFrame window_update;
@@ -6271,6 +6710,9 @@ TEST_P(QuicConnectionTest, WindowUpdate) {
 }
 
 TEST_P(QuicConnectionTest, Blocked) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
 
   QuicBlockedFrame blocked;
@@ -6282,6 +6724,9 @@ TEST_P(QuicConnectionTest, Blocked) {
 }
 
 TEST_P(QuicConnectionTest, ZeroBytePacket) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   // Don't close the connection for zero byte packets.
   EXPECT_CALL(visitor_, OnConnectionClosed(_, _, _)).Times(0);
   QuicReceivedPacket encrypted(nullptr, 0, QuicTime::Zero());
@@ -6289,7 +6734,8 @@ TEST_P(QuicConnectionTest, ZeroBytePacket) {
 }
 
 TEST_P(QuicConnectionTest, MissingPacketsBeforeLeastUnacked) {
-  if (GetParam().version.transport_version > QUIC_VERSION_43) {
+  if (GetParam().version.transport_version > QUIC_VERSION_43 ||
+      connection_.SupportsMultiplePacketNumberSpaces()) {
     return;
   }
   // Set the packet number of the ack packet to be least unacked (4).
@@ -6300,6 +6746,9 @@ TEST_P(QuicConnectionTest, MissingPacketsBeforeLeastUnacked) {
 }
 
 TEST_P(QuicConnectionTest, ServerSendsVersionNegotiationPacket) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   // Turn off QUIC_VERSION_99.
   SetQuicReloadableFlag(quic_enable_version_99, false);
   connection_.SetSupportedVersions(CurrentSupportedVersions());
@@ -6353,6 +6802,9 @@ TEST_P(QuicConnectionTest, ServerSendsVersionNegotiationPacket) {
 }
 
 TEST_P(QuicConnectionTest, ServerSendsVersionNegotiationPacketSocketBlocked) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   // Turn off QUIC_VERSION_99.
   SetQuicReloadableFlag(quic_enable_version_99, false);
   connection_.SetSupportedVersions(CurrentSupportedVersions());
@@ -6413,6 +6865,9 @@ TEST_P(QuicConnectionTest, ServerSendsVersionNegotiationPacketSocketBlocked) {
 
 TEST_P(QuicConnectionTest,
        ServerSendsVersionNegotiationPacketSocketBlockedDataBuffered) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   // Turn off QUIC_VERSION_99.
   SetQuicReloadableFlag(quic_enable_version_99, false);
   connection_.SetSupportedVersions(CurrentSupportedVersions());
@@ -6459,6 +6914,9 @@ TEST_P(QuicConnectionTest,
 }
 
 TEST_P(QuicConnectionTest, ClientHandlesVersionNegotiation) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   // Start out with some unsupported version.
   QuicConnectionPeer::GetFramer(&connection_)
       ->set_version_for_tests(ParsedQuicVersion(
@@ -6514,6 +6972,9 @@ TEST_P(QuicConnectionTest, ClientHandlesVersionNegotiation) {
 }
 
 TEST_P(QuicConnectionTest, BadVersionNegotiation) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   // Send a version negotiation packet with the version the client started with.
   // It should be rejected.
   EXPECT_CALL(visitor_,
@@ -6529,6 +6990,9 @@ TEST_P(QuicConnectionTest, BadVersionNegotiation) {
 }
 
 TEST_P(QuicConnectionTest, CheckSendStats) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   connection_.SetMaxTailLossProbes(0);
 
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _));
@@ -6584,6 +7048,9 @@ TEST_P(QuicConnectionTest, CheckSendStats) {
 }
 
 TEST_P(QuicConnectionTest, ProcessFramesIfPacketClosedConnection) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   // Construct a packet with stream frame and connection close frame.
   QuicPacketHeader header;
   header.destination_connection_id = connection_id_;
@@ -6616,6 +7083,9 @@ TEST_P(QuicConnectionTest, ProcessFramesIfPacketClosedConnection) {
 }
 
 TEST_P(QuicConnectionTest, SelectMutualVersion) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   connection_.SetSupportedVersions(AllSupportedVersions());
   // Set the connection to speak the lowest quic version.
   connection_.set_version(QuicVersionMin());
@@ -6642,6 +7112,9 @@ TEST_P(QuicConnectionTest, SelectMutualVersion) {
 }
 
 TEST_P(QuicConnectionTest, ConnectionCloseWhenWritable) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_FALSE(writer_->IsWriteBlocked());
 
   // Send a packet.
@@ -6654,6 +7127,9 @@ TEST_P(QuicConnectionTest, ConnectionCloseWhenWritable) {
 }
 
 TEST_P(QuicConnectionTest, ConnectionCloseGettingWriteBlocked) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   BlockOnNextWrite();
   TriggerConnectionClose();
   EXPECT_EQ(1u, writer_->packets_write_attempts());
@@ -6661,6 +7137,9 @@ TEST_P(QuicConnectionTest, ConnectionCloseGettingWriteBlocked) {
 }
 
 TEST_P(QuicConnectionTest, ConnectionCloseWhenWriteBlocked) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   BlockOnNextWrite();
   connection_.SendStreamDataWithString(1, "foo", 0, NO_FIN);
   EXPECT_EQ(1u, connection_.NumQueuedPackets());
@@ -6671,6 +7150,9 @@ TEST_P(QuicConnectionTest, ConnectionCloseWhenWriteBlocked) {
 }
 
 TEST_P(QuicConnectionTest, OnPacketSentDebugVisitor) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   MockQuicConnectionDebugVisitor debug_visitor;
   connection_.set_debug_visitor(&debug_visitor);
 
@@ -6683,6 +7165,9 @@ TEST_P(QuicConnectionTest, OnPacketSentDebugVisitor) {
 }
 
 TEST_P(QuicConnectionTest, OnPacketHeaderDebugVisitor) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   QuicPacketHeader header;
   header.packet_number = QuicPacketNumber(1);
   if (GetParam().version.transport_version > QUIC_VERSION_43) {
@@ -6698,6 +7183,9 @@ TEST_P(QuicConnectionTest, OnPacketHeaderDebugVisitor) {
 }
 
 TEST_P(QuicConnectionTest, Pacing) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   TestConnection server(connection_id_, kSelfAddress, helper_.get(),
                         alarm_factory_.get(), writer_.get(),
                         Perspective::IS_SERVER, version());
@@ -6713,6 +7201,9 @@ TEST_P(QuicConnectionTest, Pacing) {
 }
 
 TEST_P(QuicConnectionTest, WindowUpdateInstigateAcks) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
 
   // Send a WINDOW_UPDATE frame.
@@ -6728,6 +7219,9 @@ TEST_P(QuicConnectionTest, WindowUpdateInstigateAcks) {
 }
 
 TEST_P(QuicConnectionTest, BlockedFrameInstigateAcks) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
 
   // Send a BLOCKED frame.
@@ -6742,6 +7236,9 @@ TEST_P(QuicConnectionTest, BlockedFrameInstigateAcks) {
 }
 
 TEST_P(QuicConnectionTest, ReevaluateTimeUntilSendOnAck) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   // Enable pacing.
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
   QuicConfig config;
@@ -6788,6 +7285,9 @@ TEST_P(QuicConnectionTest, ReevaluateTimeUntilSendOnAck) {
 }
 
 TEST_P(QuicConnectionTest, SendAcksImmediately) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
   ProcessDataPacket(1);
@@ -6796,6 +7296,9 @@ TEST_P(QuicConnectionTest, SendAcksImmediately) {
 }
 
 TEST_P(QuicConnectionTest, SendPingImmediately) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   MockQuicConnectionDebugVisitor debug_visitor;
   connection_.set_debug_visitor(&debug_visitor);
 
@@ -6808,6 +7311,9 @@ TEST_P(QuicConnectionTest, SendPingImmediately) {
 }
 
 TEST_P(QuicConnectionTest, SendBlockedImmediately) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   MockQuicConnectionDebugVisitor debug_visitor;
   connection_.set_debug_visitor(&debug_visitor);
 
@@ -6820,6 +7326,9 @@ TEST_P(QuicConnectionTest, SendBlockedImmediately) {
 }
 
 TEST_P(QuicConnectionTest, SendingUnencryptedStreamDataFails) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   // EXPECT_QUIC_BUG tests are expensive so only run one instance of them.
   if (!IsDefaultTestConfiguration()) {
     return;
@@ -6836,6 +7345,9 @@ TEST_P(QuicConnectionTest, SendingUnencryptedStreamDataFails) {
 }
 
 TEST_P(QuicConnectionTest, SetRetransmissionAlarmForCryptoPacket) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_TRUE(connection_.connected());
   EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
 
@@ -6857,6 +7369,9 @@ TEST_P(QuicConnectionTest, SetRetransmissionAlarmForCryptoPacket) {
 }
 
 TEST_P(QuicConnectionTest, PathDegradingAlarmForCryptoPacket) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_TRUE(connection_.connected());
   EXPECT_FALSE(connection_.GetPathDegradingAlarm()->IsSet());
   EXPECT_FALSE(connection_.IsPathDegrading());
@@ -6882,6 +7397,9 @@ TEST_P(QuicConnectionTest, PathDegradingAlarmForCryptoPacket) {
 
 // Includes regression test for https://b.corp.google.com/issues/69979024.
 TEST_P(QuicConnectionTest, PathDegradingAlarmForNonCryptoPackets) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_TRUE(connection_.connected());
   EXPECT_FALSE(connection_.GetPathDegradingAlarm()->IsSet());
   EXPECT_FALSE(connection_.IsPathDegrading());
@@ -6956,6 +7474,9 @@ TEST_P(QuicConnectionTest, PathDegradingAlarmForNonCryptoPackets) {
 }
 
 TEST_P(QuicConnectionTest, RetransmittableOnWireSetsPingAlarm) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   const QuicTime::Delta retransmittable_on_wire_timeout =
       QuicTime::Delta::FromMilliseconds(50);
   connection_.set_retransmittable_on_wire_timeout(
@@ -7027,6 +7548,9 @@ TEST_P(QuicConnectionTest, RetransmittableOnWireSetsPingAlarm) {
 // spin timer to detect path degrading when a new packet is sent on the
 // degraded path.
 TEST_P(QuicConnectionTest, NoPathDegradingAlarmIfPathIsDegrading) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_TRUE(connection_.connected());
   EXPECT_FALSE(connection_.GetPathDegradingAlarm()->IsSet());
   EXPECT_FALSE(connection_.IsPathDegrading());
@@ -7093,6 +7617,9 @@ TEST_P(QuicConnectionTest, NoPathDegradingAlarmIfPathIsDegrading) {
 // the timer to detect future path degrading when forward progress is made
 // after path has been marked degrading.
 TEST_P(QuicConnectionTest, UnmarkPathDegradingOnForwardProgress) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_TRUE(connection_.connected());
   EXPECT_FALSE(connection_.GetPathDegradingAlarm()->IsSet());
   EXPECT_FALSE(connection_.IsPathDegrading());
@@ -7164,6 +7691,9 @@ TEST_P(QuicConnectionTest, UnmarkPathDegradingOnForwardProgress) {
 }
 
 TEST_P(QuicConnectionTest, NoPathDegradingOnServer) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   set_perspective(Perspective::IS_SERVER);
   QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
 
@@ -7188,6 +7718,9 @@ TEST_P(QuicConnectionTest, NoPathDegradingOnServer) {
 }
 
 TEST_P(QuicConnectionTest, NoPathDegradingAfterSendingAck) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
   ProcessDataPacket(1);
@@ -7199,6 +7732,9 @@ TEST_P(QuicConnectionTest, NoPathDegradingAfterSendingAck) {
 }
 
 TEST_P(QuicConnectionTest, MultipleCallsToCloseConnection) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   // Verifies that multiple calls to CloseConnection do not
   // result in multiple attempts to close the connection - it will be marked as
   // disconnected after the first call.
@@ -7210,6 +7746,9 @@ TEST_P(QuicConnectionTest, MultipleCallsToCloseConnection) {
 }
 
 TEST_P(QuicConnectionTest, ServerReceivesChloOnNonCryptoStream) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
 
   set_perspective(Perspective::IS_SERVER);
@@ -7229,6 +7768,9 @@ TEST_P(QuicConnectionTest, ServerReceivesChloOnNonCryptoStream) {
 }
 
 TEST_P(QuicConnectionTest, ClientReceivesRejOnNonCryptoStream) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
 
   CryptoHandshakeMessage message;
@@ -7245,6 +7787,9 @@ TEST_P(QuicConnectionTest, ClientReceivesRejOnNonCryptoStream) {
 }
 
 TEST_P(QuicConnectionTest, CloseConnectionOnPacketTooLarge) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   SimulateNextPacketTooLarge();
   // A connection close packet is sent
   EXPECT_CALL(visitor_, OnConnectionClosed(QUIC_PACKET_WRITE_ERROR, _,
@@ -7254,6 +7799,9 @@ TEST_P(QuicConnectionTest, CloseConnectionOnPacketTooLarge) {
 }
 
 TEST_P(QuicConnectionTest, AlwaysGetPacketTooLarge) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   // Test even we always get packet too large, we do not infinitely try to send
   // close packet.
   AlwaysGetPacketTooLarge();
@@ -7266,6 +7814,9 @@ TEST_P(QuicConnectionTest, AlwaysGetPacketTooLarge) {
 // Verify that if connection has no outstanding data, it notifies the send
 // algorithm after the write.
 TEST_P(QuicConnectionTest, SendDataAndBecomeApplicationLimited) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(*send_algorithm_, OnApplicationLimited(_)).Times(1);
   {
     InSequence seq;
@@ -7281,6 +7832,9 @@ TEST_P(QuicConnectionTest, SendDataAndBecomeApplicationLimited) {
 // Verify that the connection does not become app-limited if there is
 // outstanding data to send after the write.
 TEST_P(QuicConnectionTest, NotBecomeApplicationLimitedIfMoreDataAvailable) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(*send_algorithm_, OnApplicationLimited(_)).Times(0);
   {
     InSequence seq;
@@ -7294,6 +7848,9 @@ TEST_P(QuicConnectionTest, NotBecomeApplicationLimitedIfMoreDataAvailable) {
 // Verify that the connection does not become app-limited after blocked write
 // even if there is outstanding data to send after the write.
 TEST_P(QuicConnectionTest, NotBecomeApplicationLimitedDueToWriteBlock) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(*send_algorithm_, OnApplicationLimited(_)).Times(0);
   EXPECT_CALL(visitor_, WillingAndAbleToWrite()).WillRepeatedly(Return(true));
   BlockOnNextWrite();
@@ -7316,6 +7873,9 @@ TEST_P(QuicConnectionTest, NotBecomeApplicationLimitedDueToWriteBlock) {
 // Test the mode in which the link is filled up with probing retransmissions if
 // the connection becomes application-limited.
 TEST_P(QuicConnectionTest, SendDataWhenApplicationLimited) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   EXPECT_CALL(*send_algorithm_, ShouldSendProbingPacket())
       .WillRepeatedly(Return(true));
@@ -7359,6 +7919,9 @@ TEST_P(QuicConnectionTest, SendDataWhenApplicationLimited) {
 }
 
 TEST_P(QuicConnectionTest, DonotForceSendingAckOnPacketTooLarge) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   // Send an ack by simulating delayed ack alarm firing.
   ProcessPacket(1);
@@ -7376,6 +7939,9 @@ TEST_P(QuicConnectionTest, DonotForceSendingAckOnPacketTooLarge) {
 }
 
 TEST_P(QuicConnectionTest, CloseConnectionForStatelessReject) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   std::string error_details("stateless reject");
   EXPECT_CALL(visitor_, OnConnectionClosed(
                             QUIC_CRYPTO_HANDSHAKE_STATELESS_REJECT,
@@ -7388,6 +7954,9 @@ TEST_P(QuicConnectionTest, CloseConnectionForStatelessReject) {
 
 // Regression test for b/63620844.
 TEST_P(QuicConnectionTest, FailedToWriteHandshakePacket) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   SimulateNextPacketTooLarge();
   EXPECT_CALL(visitor_, OnConnectionClosed(QUIC_PACKET_WRITE_ERROR, _,
                                            ConnectionCloseSource::FROM_SELF))
@@ -7396,12 +7965,18 @@ TEST_P(QuicConnectionTest, FailedToWriteHandshakePacket) {
 }
 
 TEST_P(QuicConnectionTest, MaxPacingRate) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_EQ(0, connection_.MaxPacingRate().ToBytesPerSecond());
   connection_.SetMaxPacingRate(QuicBandwidth::FromBytesPerSecond(100));
   EXPECT_EQ(100, connection_.MaxPacingRate().ToBytesPerSecond());
 }
 
 TEST_P(QuicConnectionTest, ClientAlwaysSendConnectionId) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_EQ(Perspective::IS_CLIENT, connection_.perspective());
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
   connection_.SendStreamDataWithString(3, "foo", 0, NO_FIN);
@@ -7421,6 +7996,9 @@ TEST_P(QuicConnectionTest, ClientAlwaysSendConnectionId) {
 }
 
 TEST_P(QuicConnectionTest, SendProbingRetransmissions) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   MockQuicConnectionDebugVisitor debug_visitor;
   connection_.set_debug_visitor(&debug_visitor);
 
@@ -7467,6 +8045,9 @@ TEST_P(QuicConnectionTest, SendProbingRetransmissions) {
 // there are no outstanding packets.
 TEST_P(QuicConnectionTest,
        SendProbingRetransmissionsFailsWhenNothingToRetransmit) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   ASSERT_TRUE(connection_.sent_packet_manager().unacked_packets().empty());
 
   MockQuicConnectionDebugVisitor debug_visitor;
@@ -7479,6 +8060,9 @@ TEST_P(QuicConnectionTest,
 }
 
 TEST_P(QuicConnectionTest, PingAfterLastRetransmittablePacketAcked) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   const QuicTime::Delta retransmittable_on_wire_timeout =
       QuicTime::Delta::FromMilliseconds(50);
   connection_.set_retransmittable_on_wire_timeout(
@@ -7571,6 +8155,9 @@ TEST_P(QuicConnectionTest, PingAfterLastRetransmittablePacketAcked) {
 }
 
 TEST_P(QuicConnectionTest, NoPingIfRetransmittablePacketSent) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   const QuicTime::Delta retransmittable_on_wire_timeout =
       QuicTime::Delta::FromMilliseconds(50);
   connection_.set_retransmittable_on_wire_timeout(
@@ -7643,6 +8230,9 @@ TEST_P(QuicConnectionTest, NoPingIfRetransmittablePacketSent) {
 }
 
 TEST_P(QuicConnectionTest, OnForwardProgressConfirmed) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnForwardProgressConfirmed()).Times(Exactly(0));
   EXPECT_TRUE(connection_.connected());
 
@@ -7682,6 +8272,9 @@ TEST_P(QuicConnectionTest, OnForwardProgressConfirmed) {
 }
 
 TEST_P(QuicConnectionTest, ValidStatelessResetToken) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   const QuicUint128 kTestToken = 1010101;
   const QuicUint128 kWrongTestToken = 1010100;
   QuicConfig config;
@@ -7700,6 +8293,9 @@ TEST_P(QuicConnectionTest, ValidStatelessResetToken) {
 }
 
 TEST_P(QuicConnectionTest, WriteBlockedWithInvalidAck) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   EXPECT_CALL(visitor_, OnConnectionClosed(QUIC_INVALID_ACK_DATA, _, _));
 
@@ -7711,7 +8307,8 @@ TEST_P(QuicConnectionTest, WriteBlockedWithInvalidAck) {
 }
 
 TEST_P(QuicConnectionTest, SendMessage) {
-  if (connection_.transport_version() <= QUIC_VERSION_44) {
+  if (connection_.transport_version() <= QUIC_VERSION_44 ||
+      connection_.SupportsMultiplePacketNumberSpaces()) {
     return;
   }
   std::string message(connection_.GetLargestMessagePayload() * 2, 'a');
@@ -7756,7 +8353,8 @@ TEST_P(QuicConnectionTest, SendMessage) {
 // Test to check that the path challenge/path response logic works
 // correctly. This test is only for version-99
 TEST_P(QuicConnectionTest, PathChallengeResponse) {
-  if (connection_.version().transport_version != QUIC_VERSION_99) {
+  if (connection_.version().transport_version != QUIC_VERSION_99 ||
+      connection_.SupportsMultiplePacketNumberSpaces()) {
     return;
   }
   // First check if we can probe from server to client and back
@@ -7801,6 +8399,9 @@ TEST_P(QuicConnectionTest, PathChallengeResponse) {
 
 // Regression test for b/110259444
 TEST_P(QuicConnectionTest, DoNotScheduleSpuriousAckAlarm) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   SetQuicReloadableFlag(quic_fix_spurious_ack_alarm, true);
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   EXPECT_CALL(visitor_, OnWriteBlocked()).Times(AtLeast(1));
@@ -7822,6 +8423,9 @@ TEST_P(QuicConnectionTest, DoNotScheduleSpuriousAckAlarm) {
 }
 
 TEST_P(QuicConnectionTest, DisablePacingOffloadConnectionOptions) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   EXPECT_FALSE(QuicConnectionPeer::SupportsReleaseTime(&connection_));
   writer_->set_supports_release_time(true);
   QuicConfig config;
@@ -7841,6 +8445,9 @@ TEST_P(QuicConnectionTest, DisablePacingOffloadConnectionOptions) {
 // Regression test for b/110259444
 // Get a path response without having issued a path challenge...
 TEST_P(QuicConnectionTest, OrphanPathResponse) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   QuicPathFrameBuffer data = {{0, 1, 2, 3, 4, 5, 6, 7}};
 
   QuicPathResponseFrame frame(99, data);
@@ -7856,6 +8463,9 @@ TEST_P(QuicConnectionTest, OrphanPathResponse) {
 
 // Regression test for b/120791670
 TEST_P(QuicConnectionTest, StopProcessingGQuicPacketInIetfQuicConnection) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
   // This test mimics a problematic scenario where an IETF QUIC connection
   // receives a Google QUIC packet and continue processing it using Google QUIC
   // wire format.
@@ -7890,7 +8500,8 @@ TEST_P(QuicConnectionTest, StopProcessingGQuicPacketInIetfQuicConnection) {
 }
 
 TEST_P(QuicConnectionTest, AcceptPacketNumberZero) {
-  if (version().transport_version != QUIC_VERSION_99) {
+  if (version().transport_version != QUIC_VERSION_99 ||
+      connection_.SupportsMultiplePacketNumberSpaces()) {
     return;
   }
   // Set first_sending_packet_number to be 0 to allow successfully processing
@@ -7909,6 +8520,124 @@ TEST_P(QuicConnectionTest, AcceptPacketNumberZero) {
   ProcessPacket(2);
   EXPECT_EQ(QuicPacketNumber(2), LargestAcked(*outgoing_ack()));
   EXPECT_EQ(1u, outgoing_ack()->packets.NumIntervals());
+}
+
+TEST_P(QuicConnectionTest, MultiplePacketNumberSpacesBasicSending) {
+  if (!connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
+  use_tagging_decrypter();
+  connection_.SetEncrypter(ENCRYPTION_INITIAL,
+                           QuicMakeUnique<TaggingEncrypter>(0x01));
+
+  connection_.SendCryptoStreamData();
+  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
+  EXPECT_CALL(*loss_algorithm_, DetectLosses(_, _, _, _, _, _));
+  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
+  QuicAckFrame frame1 = InitAckFrame(1);
+  // Received ACK for packet 1.
+  ProcessFramePacketAtLevel(30, QuicFrame(&frame1), ENCRYPTION_INITIAL);
+
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(4);
+  connection_.SendApplicationDataAtLevel(ENCRYPTION_ZERO_RTT, 5, "data", 0,
+                                         NO_FIN);
+  connection_.SendApplicationDataAtLevel(ENCRYPTION_ZERO_RTT, 5, "data", 4,
+                                         NO_FIN);
+  connection_.SendApplicationDataAtLevel(ENCRYPTION_FORWARD_SECURE, 5, "data",
+                                         8, NO_FIN);
+  connection_.SendApplicationDataAtLevel(ENCRYPTION_FORWARD_SECURE, 5, "data",
+                                         12, FIN);
+  // Received ACK for packets 2, 4, 5.
+  EXPECT_CALL(*loss_algorithm_, DetectLosses(_, _, _, _, _, _));
+  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
+  QuicAckFrame frame2 =
+      InitAckFrame({{QuicPacketNumber(2), QuicPacketNumber(3)},
+                    {QuicPacketNumber(4), QuicPacketNumber(6)}});
+  // Make sure although the same packet number is used, but they are in
+  // different packet number spaces.
+  ProcessFramePacketAtLevel(30, QuicFrame(&frame2), ENCRYPTION_FORWARD_SECURE);
+}
+
+TEST_P(QuicConnectionTest, PeerAcksPacketsInWrongPacketNumberSpace) {
+  if (!connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
+  use_tagging_decrypter();
+  connection_.SetEncrypter(ENCRYPTION_INITIAL,
+                           QuicMakeUnique<TaggingEncrypter>(0x01));
+
+  connection_.SendCryptoStreamData();
+  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
+  EXPECT_CALL(*loss_algorithm_, DetectLosses(_, _, _, _, _, _));
+  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
+  QuicAckFrame frame1 = InitAckFrame(1);
+  // Received ACK for packet 1.
+  ProcessFramePacketAtLevel(30, QuicFrame(&frame1), ENCRYPTION_INITIAL);
+
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(2);
+  connection_.SendApplicationDataAtLevel(ENCRYPTION_ZERO_RTT, 5, "data", 0,
+                                         NO_FIN);
+  connection_.SendApplicationDataAtLevel(ENCRYPTION_ZERO_RTT, 5, "data", 4,
+                                         NO_FIN);
+
+  // Received ACK for packets 2 and 3 in wrong packet number space.
+  QuicAckFrame invalid_ack =
+      InitAckFrame({{QuicPacketNumber(2), QuicPacketNumber(4)}});
+  EXPECT_CALL(visitor_, OnConnectionClosed(QUIC_INVALID_ACK_DATA, _,
+                                           ConnectionCloseSource::FROM_SELF));
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
+  ProcessFramePacketAtLevel(300, QuicFrame(&invalid_ack), ENCRYPTION_INITIAL);
+}
+
+TEST_P(QuicConnectionTest, MultiplePacketNumberSpacesBasicReceiving) {
+  if (!connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
+  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
+  use_tagging_decrypter();
+  // Receives packet 1000 in initial data.
+  ProcessDataPacketAtLevel(1000, false, ENCRYPTION_INITIAL);
+  EXPECT_TRUE(connection_.GetAckAlarm()->IsSet());
+  peer_framer_.SetEncrypter(ENCRYPTION_ZERO_RTT,
+                            QuicMakeUnique<TaggingEncrypter>(0x02));
+  connection_.SetDecrypter(ENCRYPTION_ZERO_RTT,
+                           QuicMakeUnique<StrictTaggingDecrypter>(0x02));
+  connection_.SetEncrypter(ENCRYPTION_INITIAL,
+                           QuicMakeUnique<TaggingEncrypter>(0x02));
+  // Receives packet 1000 in application data.
+  ProcessDataPacketAtLevel(1000, false, ENCRYPTION_ZERO_RTT);
+  EXPECT_TRUE(connection_.GetAckAlarm()->IsSet());
+  connection_.SendApplicationDataAtLevel(ENCRYPTION_ZERO_RTT, 5, "data", 0,
+                                         NO_FIN);
+  // Verify application data ACK gets bundled with outgoing data.
+  EXPECT_EQ(2u, writer_->frame_count());
+  // Make sure ACK alarm is still set because initial data is not ACKed.
+  EXPECT_TRUE(connection_.GetAckAlarm()->IsSet());
+  // Receive packet 1001 in application data.
+  ProcessDataPacketAtLevel(1001, false, ENCRYPTION_ZERO_RTT);
+  clock_.AdvanceTime(DefaultRetransmissionTime());
+  // Simulates ACK alarm fires and verify two ACKs are flushed.
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(2);
+  connection_.SetEncrypter(ENCRYPTION_FORWARD_SECURE,
+                           QuicMakeUnique<TaggingEncrypter>(0x02));
+  connection_.GetAckAlarm()->Fire();
+  EXPECT_FALSE(connection_.GetAckAlarm()->IsSet());
+  // Receives more packets in application data.
+  ProcessDataPacketAtLevel(1002, false, ENCRYPTION_ZERO_RTT);
+  EXPECT_TRUE(connection_.GetAckAlarm()->IsSet());
+
+  peer_framer_.SetEncrypter(ENCRYPTION_FORWARD_SECURE,
+                            QuicMakeUnique<TaggingEncrypter>(0x02));
+  connection_.SetDecrypter(ENCRYPTION_FORWARD_SECURE,
+                           QuicMakeUnique<StrictTaggingDecrypter>(0x02));
+  // Verify zero rtt and forward secure packets get acked in the same packet.
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
+  ProcessDataPacketAtLevel(1003, false, ENCRYPTION_FORWARD_SECURE);
+  EXPECT_FALSE(connection_.GetAckAlarm()->IsSet());
 }
 
 }  // namespace

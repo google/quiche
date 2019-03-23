@@ -868,6 +868,14 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // destination on incoming packets.
   void AddIncomingConnectionId(QuicConnectionId connection_id);
 
+  // Called when ACK alarm goes off. Sends ACKs of those packet number spaces
+  // which have expired ACK timeout. Only used when this connection supports
+  // multiple packet number spaces.
+  void SendAllPendingAcks();
+
+  // Returns true if this connection supports multiple packet number spaces.
+  bool SupportsMultiplePacketNumberSpaces() const;
+
  protected:
   // Calls cancel() on all the alarms owned by this connection.
   void CancelAllAlarms();
@@ -1094,6 +1102,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // num_retransmittable_packets_received_since_last_ack_sent_ etc.
   void ResetAckStates();
 
+  // Enables multiple packet number spaces support based on handshake protocol
+  // and flags.
+  void MaybeEnableMultiplePacketNumberSpacesSupport();
+
   // Returns true if ack alarm is not set and there is no pending ack in the
   // generator.
   bool ShouldSetAckAlarm() const;
@@ -1186,6 +1198,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Do not read or write directly, use GetLargestReceivedPacketWithAck() and
   // SetLargestReceivedPacketWithAck() instead.
   QuicPacketNumber largest_seen_packet_with_ack_;
+  // Largest packet number sent by the peer which had an ACK frame per packet
+  // number space. Only used when this connection supports multiple packet
+  // number spaces.
+  QuicPacketNumber largest_seen_packets_with_ack_[NUM_PACKET_NUMBER_SPACES];
 
   // Largest packet number sent by the peer which had a stop waiting frame.
   QuicPacketNumber largest_seen_packet_with_stop_waiting_;
