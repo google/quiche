@@ -3941,6 +3941,8 @@ void QuicConnection::SendAllPendingAcks() {
     const bool flushed = packet_generator_.FlushAckFrame(frames);
     if (!flushed) {
       // Connection is write blocked.
+      QUIC_BUG_IF(!writer_->IsWriteBlocked())
+          << "Writer not blocked, but ACK not flushed for packet space:" << i;
       break;
     }
     ResetAckStates();
