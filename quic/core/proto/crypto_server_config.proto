@@ -19,7 +19,7 @@ message QuicServerConfigProtobuf {
   // private key is specific to the algorithm in question.
   message PrivateKey {
     required uint32 tag = 1;
-    required string private_key = 2;
+    required bytes private_key = 2;
   }
   repeated PrivateKey key = 2;
 
