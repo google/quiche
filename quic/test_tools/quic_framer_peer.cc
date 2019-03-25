@@ -307,9 +307,8 @@ bool QuicFramerPeer::ProcessRetireConnectionIdFrame(
 void QuicFramerPeer::SwapCrypters(QuicFramer* framer1, QuicFramer* framer2) {
   for (int i = ENCRYPTION_INITIAL; i < NUM_ENCRYPTION_LEVELS; i++) {
     framer1->encrypter_[i].swap(framer2->encrypter_[i]);
+    framer1->decrypter_[i].swap(framer2->decrypter_[i]);
   }
-  framer1->decrypter_.swap(framer2->decrypter_);
-  framer1->alternative_decrypter_.swap(framer2->alternative_decrypter_);
 
   EncryptionLevel framer2_level = framer2->decrypter_level_;
   framer2->decrypter_level_ = framer1->decrypter_level_;

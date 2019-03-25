@@ -489,7 +489,7 @@ QuicFramer::QuicFramer(const ParsedQuicVersionVector& supported_versions,
       version_(PROTOCOL_UNSUPPORTED, QUIC_VERSION_UNSUPPORTED),
       supported_versions_(supported_versions),
       decrypter_level_(ENCRYPTION_INITIAL),
-      alternative_decrypter_level_(ENCRYPTION_INITIAL),
+      alternative_decrypter_level_(NUM_ENCRYPTION_LEVELS),
       alternative_decrypter_latch_(false),
       perspective_(perspective),
       validate_flags_(true),
@@ -505,7 +505,7 @@ QuicFramer::QuicFramer(const ParsedQuicVersionVector& supported_versions,
       supports_multiple_packet_number_spaces_(false) {
   DCHECK(!supported_versions.empty());
   version_ = supported_versions_[0];
-  decrypter_ = QuicMakeUnique<NullDecrypter>(perspective);
+  decrypter_[ENCRYPTION_INITIAL] = QuicMakeUnique<NullDecrypter>(perspective);
   encrypter_[ENCRYPTION_INITIAL] = QuicMakeUnique<NullEncrypter>(perspective);
 }
 
@@ -3910,9 +3910,10 @@ QuicStringPiece QuicFramer::GetAssociatedDataFromEncryptedPacket(
 
 void QuicFramer::SetDecrypter(EncryptionLevel level,
                               std::unique_ptr<QuicDecrypter> decrypter) {
-  DCHECK(alternative_decrypter_ == nullptr);
+  DCHECK_EQ(alternative_decrypter_level_, NUM_ENCRYPTION_LEVELS);
   DCHECK_GE(level, decrypter_level_);
-  decrypter_ = std::move(decrypter);
+  decrypter_[decrypter_level_] = nullptr;
+  decrypter_[level] = std::move(decrypter);
   decrypter_level_ = level;
 }
 
@@ -3920,17 +3921,24 @@ void QuicFramer::SetAlternativeDecrypter(
     EncryptionLevel level,
     std::unique_ptr<QuicDecrypter> decrypter,
     bool latch_once_used) {
-  alternative_decrypter_ = std::move(decrypter);
+  DCHECK_NE(level, decrypter_level_);
+  if (alternative_decrypter_level_ != NUM_ENCRYPTION_LEVELS) {
+    decrypter_[alternative_decrypter_level_] = nullptr;
+  }
+  decrypter_[level] = std::move(decrypter);
   alternative_decrypter_level_ = level;
   alternative_decrypter_latch_ = latch_once_used;
 }
 
 const QuicDecrypter* QuicFramer::decrypter() const {
-  return decrypter_.get();
+  return decrypter_[decrypter_level_].get();
 }
 
 const QuicDecrypter* QuicFramer::alternative_decrypter() const {
-  return alternative_decrypter_.get();
+  if (alternative_decrypter_level_ == NUM_ENCRYPTION_LEVELS) {
+    return nullptr;
+  }
+  return decrypter_[alternative_decrypter_level_].get();
 }
 
 void QuicFramer::SetEncrypter(EncryptionLevel level,
@@ -4017,18 +4025,22 @@ bool QuicFramer::DecryptPayload(QuicStringPiece encrypted,
                                 size_t buffer_length,
                                 size_t* decrypted_length,
                                 EncryptionLevel* decrypted_level) {
-  DCHECK(decrypter_ != nullptr);
+  DCHECK(decrypter_[decrypter_level_] != nullptr);
+  QuicDecrypter* alternative_decrypter = nullptr;
+  if (alternative_decrypter_level_ != NUM_ENCRYPTION_LEVELS) {
+    alternative_decrypter = decrypter_[alternative_decrypter_level_].get();
+  }
 
-  bool success = decrypter_->DecryptPacket(
+  bool success = decrypter_[decrypter_level_]->DecryptPacket(
       header.packet_number.ToUint64(), associated_data, encrypted,
       decrypted_buffer, decrypted_length, buffer_length);
   if (success) {
     visitor_->OnDecryptedPacket(decrypter_level_);
     *decrypted_level = decrypter_level_;
-  } else if (alternative_decrypter_ != nullptr) {
+  } else if (alternative_decrypter != nullptr) {
     if (header.nonce != nullptr) {
       DCHECK_EQ(perspective_, Perspective::IS_CLIENT);
-      alternative_decrypter_->SetDiversificationNonce(*header.nonce);
+      alternative_decrypter->SetDiversificationNonce(*header.nonce);
     }
     bool try_alternative_decryption = true;
     if (alternative_decrypter_level_ == ENCRYPTION_ZERO_RTT) {
@@ -4043,7 +4055,7 @@ bool QuicFramer::DecryptPayload(QuicStringPiece encrypted,
     }
 
     if (try_alternative_decryption) {
-      success = alternative_decrypter_->DecryptPacket(
+      success = alternative_decrypter->DecryptPacket(
           header.packet_number.ToUint64(), associated_data, encrypted,
           decrypted_buffer, decrypted_length, buffer_length);
     }
@@ -4053,12 +4065,12 @@ bool QuicFramer::DecryptPayload(QuicStringPiece encrypted,
       if (alternative_decrypter_latch_) {
         // Switch to the alternative decrypter and latch so that we cannot
         // switch back.
-        decrypter_ = std::move(alternative_decrypter_);
         decrypter_level_ = alternative_decrypter_level_;
-        alternative_decrypter_level_ = ENCRYPTION_INITIAL;
+        decrypter_[decrypter_level_] =
+            std::move(decrypter_[alternative_decrypter_level_]);
+        alternative_decrypter_level_ = NUM_ENCRYPTION_LEVELS;
       } else {
         // Switch the alternative decrypter so that we use it first next time.
-        decrypter_.swap(alternative_decrypter_);
         EncryptionLevel level = alternative_decrypter_level_;
         alternative_decrypter_level_ = decrypter_level_;
         decrypter_level_ = level;

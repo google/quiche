@@ -893,17 +893,17 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   // element, with subsequent elements in descending order (versions can be
   // skipped as necessary).
   ParsedQuicVersionVector supported_versions_;
-  // Primary decrypter used to decrypt packets during parsing.
-  std::unique_ptr<QuicDecrypter> decrypter_;
-  // Alternative decrypter that can also be used to decrypt packets.
-  std::unique_ptr<QuicDecrypter> alternative_decrypter_;
-  // The encryption level of |decrypter_|.
+  // Decrypters used to decrypt packets during parsing.
+  std::unique_ptr<QuicDecrypter> decrypter_[NUM_ENCRYPTION_LEVELS];
+  // The encryption level of the primary decrypter to use in |decrypter_|.
   EncryptionLevel decrypter_level_;
-  // The encryption level of |alternative_decrypter_|.
-  EncryptionLevel alternative_decrypter_level_;
-  // |alternative_decrypter_latch_| is true if, when |alternative_decrypter_|
-  // successfully decrypts a packet, we should install it as the only
+  // The encryption level of the alternative decrypter to use in |decrypter_|.
+  // When set to NUM_ENCRYPTION_LEVELS, indicates that there is no alternative
   // decrypter.
+  EncryptionLevel alternative_decrypter_level_;
+  // |alternative_decrypter_latch_| is true if, when the decrypter at
+  // |alternative_decrypter_level_| successfully decrypts a packet, we should
+  // install it as the only decrypter.
   bool alternative_decrypter_latch_;
   // Encrypters used to encrypt packets via EncryptPayload().
   std::unique_ptr<QuicEncrypter> encrypter_[NUM_ENCRYPTION_LEVELS];
