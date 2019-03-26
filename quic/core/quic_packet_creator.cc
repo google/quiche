@@ -448,6 +448,9 @@ void QuicPacketCreator::CreateAndSerializeStreamFrame(
 
   const bool set_fin = fin && (bytes_consumed == remaining_data_size);
   QuicStreamFrame frame(id, set_fin, stream_offset, bytes_consumed);
+  if (debug_delegate_ != nullptr) {
+    debug_delegate_->OnFrameAddedToPacket(QuicFrame(frame));
+  }
   QUIC_DVLOG(1) << ENDPOINT << "Adding frame: " << frame;
 
   // TODO(ianswett): AppendTypeByte and AppendStreamFrame could be optimized

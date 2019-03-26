@@ -65,6 +65,13 @@ std::vector<TestParams> GetTestParams() {
   return params;
 }
 
+class MockDebugDelegate : public QuicPacketCreator::DebugDelegate {
+ public:
+  ~MockDebugDelegate() override = default;
+
+  MOCK_METHOD1(OnFrameAddedToPacket, void(const QuicFrame& frame));
+};
+
 class TestPacketCreator : public QuicPacketCreator {
  public:
   TestPacketCreator(QuicConnectionId connection_id,
@@ -1237,9 +1244,12 @@ TEST_P(QuicPacketCreatorTest, AddFrameAndFlush) {
                     QuicPacketCreatorPeer::GetRetryTokenLengthLength(&creator_),
                     0, QuicPacketCreatorPeer::GetLengthLength(&creator_)),
             creator_.BytesFree());
+  StrictMock<MockDebugDelegate> debug;
+  creator_.set_debug_delegate(&debug);
 
   // Add a variety of frame types and then a padding frame.
   QuicAckFrame ack_frame(InitAckFrame(10u));
+  EXPECT_CALL(debug, OnFrameAddedToPacket(_));
   EXPECT_TRUE(
       creator_.AddSavedFrame(QuicFrame(&ack_frame), NOT_RETRANSMISSION));
   EXPECT_TRUE(creator_.HasPendingFrames());
@@ -1248,6 +1258,7 @@ TEST_P(QuicPacketCreatorTest, AddFrameAndFlush) {
 
   QuicFrame frame;
   MakeIOVector("test", &iov_);
+  EXPECT_CALL(debug, OnFrameAddedToPacket(_));
   ASSERT_TRUE(creator_.ConsumeData(
       QuicUtils::GetCryptoStreamId(client_framer_.transport_version()), &iov_,
       1u, iov_.iov_len, 0u, 0u, false, false, NOT_RETRANSMISSION, &frame));
@@ -1258,6 +1269,7 @@ TEST_P(QuicPacketCreatorTest, AddFrameAndFlush) {
       QuicUtils::GetCryptoStreamId(client_framer_.transport_version())));
 
   QuicPaddingFrame padding_frame;
+  EXPECT_CALL(debug, OnFrameAddedToPacket(_));
   EXPECT_TRUE(
       creator_.AddSavedFrame(QuicFrame(padding_frame), NOT_RETRANSMISSION));
   EXPECT_TRUE(creator_.HasPendingFrames());
@@ -1308,6 +1320,9 @@ TEST_P(QuicPacketCreatorTest, SerializeAndSendStreamFrame) {
   EXPECT_CALL(delegate_, OnSerializedPacket(_))
       .WillOnce(Invoke(this, &QuicPacketCreatorTest::SaveSerializedPacket));
   size_t num_bytes_consumed;
+  StrictMock<MockDebugDelegate> debug;
+  creator_.set_debug_delegate(&debug);
+  EXPECT_CALL(debug, OnFrameAddedToPacket(_));
   creator_.CreateAndSerializeStreamFrame(
       QuicUtils::GetHeadersStreamId(client_framer_.transport_version()),
       iov_.iov_len, 0, 0, true, NOT_RETRANSMISSION, &num_bytes_consumed);
