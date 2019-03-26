@@ -139,7 +139,7 @@ bool QuicStreamSendBuffer::WriteStreamData(QuicStreamOffset offset,
   if (write_index_hit &&
       static_cast<size_t>(write_index_) == buffered_slices_.size()) {
     // Already write to the end off buffer.
-    DVLOG(2) << "Finish writing out all buffered data.";
+    QUIC_DVLOG(2) << "Finish writing out all buffered data.";
     write_index_ = -1;
   }
 
