@@ -1258,7 +1258,7 @@ size_t QuicFramer::AppendIetfFrames(const QuicFrames& frames,
   return writer->length();
 }
 
-size_t QuicFramer::BuildConnectivityProbingPacketNew(
+size_t QuicFramer::BuildConnectivityProbingPacket(
     const QuicPacketHeader& header,
     char* buffer,
     size_t packet_length,
@@ -1274,48 +1274,6 @@ size_t QuicFramer::BuildConnectivityProbingPacketNew(
   frames.push_back(QuicFrame(padding_frame));
 
   return BuildDataPacket(header, frames, buffer, packet_length, level);
-}
-
-size_t QuicFramer::BuildConnectivityProbingPacket(
-    const QuicPacketHeader& header,
-    char* buffer,
-    size_t packet_length,
-    EncryptionLevel level) {
-  if (transport_version() == QUIC_VERSION_99 ||
-      QuicVersionHasLongHeaderLengths(transport_version()) ||
-      GetQuicReloadableFlag(quic_simplify_build_connectivity_probing_packet)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_simplify_build_connectivity_probing_packet);
-    // TODO(rch): Remove this method when the flag is deprecated.
-    return BuildConnectivityProbingPacketNew(header, buffer, packet_length,
-                                             level);
-  }
-
-  QuicDataWriter writer(packet_length, buffer);
-
-  if (!AppendPacketHeader(header, &writer, nullptr)) {
-    QUIC_BUG << "AppendPacketHeader failed";
-    return 0;
-  }
-
-  // Write a PING frame, which has no data payload.
-  QuicPingFrame ping_frame;
-  if (!AppendTypeByte(QuicFrame(ping_frame), false, &writer)) {
-    QUIC_BUG << "AppendTypeByte failed for ping frame in probing packet";
-    return 0;
-  }
-  // Add padding to the rest of the packet.
-  QuicPaddingFrame padding_frame;
-  if (!AppendTypeByte(QuicFrame(padding_frame), true, &writer)) {
-    QUIC_BUG << "AppendTypeByte failed for padding frame in probing packet";
-    return 0;
-  }
-  if (!AppendPaddingFrame(padding_frame, &writer)) {
-    QUIC_BUG << "AppendPaddingFrame of " << padding_frame.num_padding_bytes
-             << " failed";
-    return 0;
-  }
-
-  return writer.length();
 }
 
 size_t QuicFramer::BuildPaddedPathChallengePacket(

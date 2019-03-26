@@ -390,13 +390,6 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
                                         size_t packet_length,
                                         EncryptionLevel level);
 
-  // Serializes a probing packet, which is a padded PING packet. Returns the
-  // length of the packet. Returns 0 if it fails to serialize.
-  size_t BuildConnectivityProbingPacketNew(const QuicPacketHeader& header,
-                                           char* buffer,
-                                           size_t packet_length,
-                                           EncryptionLevel level);
-
   // Serialize a probing packet that uses IETF QUIC's PATH CHALLENGE frame. Also
   // fills the packet with padding.
   size_t BuildPaddedPathChallengePacket(const QuicPacketHeader& header,
