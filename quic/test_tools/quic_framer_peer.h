@@ -33,6 +33,7 @@ class QuicFramerPeer {
   static void SwapCrypters(QuicFramer* framer1, QuicFramer* framer2);
 
   static QuicEncrypter* GetEncrypter(QuicFramer* framer, EncryptionLevel level);
+  static QuicDecrypter* GetDecrypter(QuicFramer* framer, EncryptionLevel level);
 
   // IETF defined frame append/process methods.
   static bool ProcessIetfStreamFrame(QuicFramer* framer,

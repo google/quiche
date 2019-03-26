@@ -329,6 +329,12 @@ QuicEncrypter* QuicFramerPeer::GetEncrypter(QuicFramer* framer,
 }
 
 // static
+QuicDecrypter* QuicFramerPeer::GetDecrypter(QuicFramer* framer,
+                                            EncryptionLevel level) {
+  return framer->decrypter_[level].get();
+}
+
+// static
 size_t QuicFramerPeer::ComputeFrameLength(
     QuicFramer* framer,
     const QuicFrame& frame,
