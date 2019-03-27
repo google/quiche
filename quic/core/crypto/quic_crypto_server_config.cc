@@ -617,6 +617,38 @@ class QuicCryptoServerConfig::ProcessClientHelloAfterGetProofCallback
   const std::string public_value_;
   std::unique_ptr<ProcessClientHelloContext> context_;
   const Configs configs_;
+  std::unique_ptr<ProcessClientHelloResultCallback> done_cb_;
+};
+
+class QuicCryptoServerConfig::SendRejectWithFallbackConfigCallback
+    : public ProofSource::Callback {
+ public:
+  SendRejectWithFallbackConfigCallback(
+      const QuicCryptoServerConfig* config,
+      std::unique_ptr<ProcessClientHelloContext> context,
+      QuicReferenceCountedPointer<Config> fallback_config)
+      : config_(config),
+        context_(std::move(context)),
+        fallback_config_(fallback_config) {}
+
+  // Capture |chain| and |proof| into the signed config, and then invoke
+  // SendRejectWithFallbackConfigAfterGetProof.
+  void Run(bool ok,
+           const QuicReferenceCountedPointer<ProofSource::Chain>& chain,
+           const QuicCryptoProof& proof,
+           std::unique_ptr<ProofSource::Details> details) override {
+    if (ok) {
+      context_->signed_config()->chain = chain;
+      context_->signed_config()->proof = proof;
+    }
+    config_->SendRejectWithFallbackConfigAfterGetProof(
+        !ok, std::move(details), std::move(context_), fallback_config_);
+  }
+
+ private:
+  const QuicCryptoServerConfig* config_;
+  std::unique_ptr<ProcessClientHelloContext> context_;
+  QuicReferenceCountedPointer<Config> fallback_config_;
 };
 
 void QuicCryptoServerConfig::ProcessClientHello(
@@ -812,8 +844,16 @@ void QuicCryptoServerConfig::ProcessClientHelloAfterCalculateSharedKeys(
       << QuicVersionToString(context->transport_version());
 
   if (found_error) {
-    context->Fail(QUIC_INVALID_CRYPTO_MESSAGE_PARAMETER,
-                  "Failed to calculate shared key");
+    // If we are already using the fallback config, just bail out of the
+    // handshake.
+    if (context->signed_config()->config == configs.fallback ||
+        !GetQuicReloadableFlag(
+            send_quic_fallback_server_config_on_leto_error)) {
+      context->Fail(QUIC_INVALID_CRYPTO_MESSAGE_PARAMETER,
+                    "Failed to calculate shared key");
+    } else {
+      SendRejectWithFallbackConfig(std::move(context), configs.fallback);
+    }
     return;
   }
 
@@ -978,6 +1018,45 @@ void QuicCryptoServerConfig::ProcessClientHelloAfterCalculateSharedKeys(
   out->SetStringPiece(kPUBS, forward_secure_public_value);
 
   context->Succeed(std::move(out), std::move(out_diversification_nonce),
+                   std::move(proof_source_details));
+}
+
+void QuicCryptoServerConfig::SendRejectWithFallbackConfig(
+    std::unique_ptr<ProcessClientHelloContext> context,
+    QuicReferenceCountedPointer<Config> fallback_config) const {
+  // We failed to calculate a shared initial key, likely because we tried to use
+  // a remote key-exchange service which could not be reached.  We want to send
+  // a REJ which tells the client to use a different ServerConfig which
+  // corresponds to a local keypair.  To generate the REJ we need to request a
+  // new proof.
+  const std::string chlo_hash = CryptoUtils::HashHandshakeMessage(
+      context->client_hello(), Perspective::IS_SERVER);
+  const QuicSocketAddress server_address = context->server_address();
+  const std::string sni(context->info().sni);
+  const QuicTransportVersion transport_version = context->transport_version();
+
+  auto cb = QuicMakeUnique<SendRejectWithFallbackConfigCallback>(
+      this, std::move(context), fallback_config);
+  proof_source_->GetProof(server_address, sni, fallback_config->serialized,
+                          transport_version, chlo_hash, std::move(cb));
+}
+
+void QuicCryptoServerConfig::SendRejectWithFallbackConfigAfterGetProof(
+    bool found_error,
+    std::unique_ptr<ProofSource::Details> proof_source_details,
+    std::unique_ptr<ProcessClientHelloContext> context,
+    QuicReferenceCountedPointer<Config> fallback_config) const {
+  if (found_error) {
+    context->Fail(QUIC_HANDSHAKE_FAILED, "Failed to get proof");
+    return;
+  }
+
+  auto out = QuicMakeUnique<CryptoHandshakeMessage>();
+  BuildRejectionAndRecordStats(*context, *fallback_config,
+                               {SERVER_CONFIG_UNKNOWN_CONFIG_FAILURE},
+                               out.get());
+
+  context->Succeed(std::move(out), QuicMakeUnique<DiversificationNonce>(),
                    std::move(proof_source_details));
 }
 
@@ -1575,7 +1654,9 @@ QuicCryptoServerConfig::ParseConfigProtobuf(
   static_assert(sizeof(config->orbit) == kOrbitSize, "incorrect orbit size");
   memcpy(config->orbit, orbit.data(), sizeof(config->orbit));
 
-  if (kexs_tags.size() != static_cast<size_t>(protobuf.key_size())) {
+  if ((kexs_tags.size() != static_cast<size_t>(protobuf.key_size())) &&
+      (!GetQuicRestartFlag(dont_fetch_quic_private_keys_from_leto) &&
+       protobuf.key_size() == 0)) {
     QUIC_LOG(WARNING) << "Server config has " << kexs_tags.size()
                       << " key exchange methods configured, but "
                       << protobuf.key_size() << " private keys";

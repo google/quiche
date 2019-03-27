@@ -697,6 +697,28 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
       std::unique_ptr<ProcessClientHelloContext> context,
       const Configs& configs) const;
 
+  // Send a REJ which contains a different ServerConfig than the one the client
+  // originally used.  This is necessary in cases where we discover in the
+  // middle of the handshake that the private key for the ServerConfig the
+  // client used is not accessible.
+  void SendRejectWithFallbackConfig(
+      std::unique_ptr<ProcessClientHelloContext> context,
+      QuicReferenceCountedPointer<Config> fallback_config) const;
+
+  // Callback class for bridging between SendRejectWithFallbackConfig and
+  // SendRejectWithFallbackConfigAfterGetProof.
+  class SendRejectWithFallbackConfigCallback;
+  friend class SendRejectWithFallbackConfigCallback;
+
+  // Portion of ProcessClientHello which executes after GetProof in the case
+  // where we have received a CHLO but need to reject it due to the ServerConfig
+  // private keys being inaccessible.
+  void SendRejectWithFallbackConfigAfterGetProof(
+      bool found_error,
+      std::unique_ptr<ProofSource::Details> proof_source_details,
+      std::unique_ptr<ProcessClientHelloContext> context,
+      QuicReferenceCountedPointer<Config> fallback_config) const;
+
   // BuildRejectionAndRecordStats calls |BuildRejection| below and also informs
   // the RejectionObserver.
   void BuildRejectionAndRecordStats(const ProcessClientHelloContext& context,
