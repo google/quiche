@@ -57,8 +57,11 @@ void ConfigureGlobalQuicSettings() {
   // Fix b/110259444.
   SetQuicReloadableFlag(quic_fix_spurious_ack_alarm, true);
 
-  // Enable version 46+ to enable SendMessage API and 'quic bit' per draft 17.
+  // Enable version 46 to enable SendMessage API and 'quic bit' per draft 17.
   SetQuicReloadableFlag(quic_enable_version_46, true);
+
+  // Enable version 47 to enable variable-length connection ids.
+  SetQuicReloadableFlag(quic_enable_version_47, true);
 
   // Fix for inconsistent reporting of crypto handshake.
   SetQuicReloadableFlag(quic_fix_has_pending_crypto_data, true);
