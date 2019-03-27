@@ -9,6 +9,7 @@
 #include <memory>
 #include <string>
 
+#include "testing/gmock/include/gmock/gmock.h"
 #include "net/third_party/quiche/src/quic/core/crypto/cert_compressor.h"
 #include "net/third_party/quiche/src/quic/core/crypto/chacha20_poly1305_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_handshake_message.h"
@@ -25,6 +26,8 @@
 
 namespace quic {
 namespace test {
+using ::testing::EqualsProto;
+using ::testing::Not;
 
 class QuicCryptoServerConfigTest : public QuicTest {};
 
@@ -259,12 +262,12 @@ TEST_F(SourceAddressTokenTest, SourceAddressTokenWithNetworkParams) {
       NewSourceAddressToken(kPrimary, ip4_, &cached_network_params_input);
 
   CachedNetworkParameters cached_network_params_output;
-  EXPECT_NE(cached_network_params_output.SerializeAsString(),
-            cached_network_params_input.SerializeAsString());
+  EXPECT_THAT(cached_network_params_output,
+              Not(EqualsProto(cached_network_params_input)));
   ValidateSourceAddressTokens(kPrimary, token4_with_cached_network_params, ip4_,
                               &cached_network_params_output);
-  EXPECT_EQ(cached_network_params_output.SerializeAsString(),
-            cached_network_params_input.SerializeAsString());
+  EXPECT_THAT(cached_network_params_output,
+              EqualsProto(cached_network_params_input));
 }
 
 // Test the ability for a source address token to be valid for multiple
