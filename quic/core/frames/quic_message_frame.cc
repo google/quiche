@@ -6,6 +6,7 @@
 
 #include "net/third_party/quiche/src/quic/core/quic_constants.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_mem_slice.h"
 
 namespace quic {
 
@@ -14,6 +15,15 @@ QuicMessageFrame::QuicMessageFrame()
 
 QuicMessageFrame::QuicMessageFrame(QuicMessageId message_id)
     : message_id(message_id), data(nullptr), message_length(0) {}
+
+QuicMessageFrame::QuicMessageFrame(QuicMessageId message_id,
+                                   QuicMemSliceSpan span)
+    : message_id(message_id), data(nullptr), message_length(0) {
+  span.ConsumeAll([&](QuicMemSlice slice) {
+    message_length += slice.length();
+    message_data.push_back(std::move(slice));
+  });
+}
 
 QuicMessageFrame::QuicMessageFrame(const char* data, QuicPacketLength length)
     : message_id(0), data(data), message_length(length) {}

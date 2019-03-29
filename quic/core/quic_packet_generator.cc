@@ -479,8 +479,7 @@ MessageStatus QuicPacketGenerator::AddMessageFrame(QuicMessageId message_id,
   if (!packet_creator_.HasRoomForMessageFrame(message_length)) {
     packet_creator_.Flush();
   }
-  QuicMessageFrame* frame = new QuicMessageFrame(message_id);
-  message.SaveMemSlicesAsMessageData(frame);
+  QuicMessageFrame* frame = new QuicMessageFrame(message_id, message);
   const bool success =
       packet_creator_.AddSavedFrame(QuicFrame(frame), next_transmission_type_);
   if (!success) {

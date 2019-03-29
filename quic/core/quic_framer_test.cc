@@ -8432,11 +8432,8 @@ TEST_P(QuicFramerTest, BuildMessagePacket) {
   header.packet_number = kPacketNumber;
   QuicMemSliceStorage storage(nullptr, 0, nullptr, 0);
 
-  QuicMessageFrame frame(1);
-  MakeSpan(&allocator_, "message", &storage).SaveMemSlicesAsMessageData(&frame);
-  QuicMessageFrame frame2(2);
-  MakeSpan(&allocator_, "message2", &storage)
-      .SaveMemSlicesAsMessageData(&frame2);
+  QuicMessageFrame frame(1, MakeSpan(&allocator_, "message", &storage));
+  QuicMessageFrame frame2(2, MakeSpan(&allocator_, "message2", &storage));
   QuicFrames frames = {QuicFrame(&frame), QuicFrame(&frame2)};
 
   // clang-format off

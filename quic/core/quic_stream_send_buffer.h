@@ -7,9 +7,11 @@
 
 #include "net/third_party/quiche/src/quic/core/frames/quic_stream_frame.h"
 #include "net/third_party/quiche/src/quic/core/quic_interval_set.h"
+#include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_iovec.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_mem_slice.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_mem_slice_span.h"
 
 namespace quic {
 
@@ -71,6 +73,9 @@ class QUIC_EXPORT_PRIVATE QuicStreamSendBuffer {
 
   // Save |slice| to send buffer.
   void SaveMemSlice(QuicMemSlice slice);
+
+  // Save all slices in |span| to send buffer. Return total bytes saved.
+  QuicByteCount SaveMemSliceSpan(QuicMemSliceSpan span);
 
   // Called when |bytes_consumed| bytes has been consumed by the stream.
   void OnStreamDataConsumed(size_t bytes_consumed);

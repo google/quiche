@@ -1616,23 +1616,21 @@ TEST_P(QuicPacketCreatorTest, AddMessageFrame) {
   EXPECT_TRUE(
       creator_.HasRoomForMessageFrame(creator_.GetLargestMessagePayload()));
   std::string message(creator_.GetLargestMessagePayload(), 'a');
-  QuicMessageFrame* message_frame = new QuicMessageFrame(1);
-  MakeSpan(&allocator_, message, &storage)
-      .SaveMemSlicesAsMessageData(message_frame);
+  QuicMessageFrame* message_frame =
+      new QuicMessageFrame(1, MakeSpan(&allocator_, message, &storage));
   EXPECT_TRUE(
       creator_.AddSavedFrame(QuicFrame(message_frame), NOT_RETRANSMISSION));
   EXPECT_TRUE(creator_.HasPendingFrames());
   creator_.Flush();
 
-  QuicMessageFrame* frame2 = new QuicMessageFrame(2);
-  MakeSpan(&allocator_, "message", &storage).SaveMemSlicesAsMessageData(frame2);
+  QuicMessageFrame* frame2 =
+      new QuicMessageFrame(2, MakeSpan(&allocator_, "message", &storage));
   EXPECT_TRUE(creator_.AddSavedFrame(QuicFrame(frame2), NOT_RETRANSMISSION));
   EXPECT_TRUE(creator_.HasPendingFrames());
   // Verify if a new frame is added, 1 byte message length will be added.
   EXPECT_EQ(1u, creator_.ExpansionOnNewFrame());
-  QuicMessageFrame* frame3 = new QuicMessageFrame(3);
-  MakeSpan(&allocator_, "message2", &storage)
-      .SaveMemSlicesAsMessageData(frame3);
+  QuicMessageFrame* frame3 =
+      new QuicMessageFrame(3, MakeSpan(&allocator_, "message2", &storage));
   EXPECT_TRUE(creator_.AddSavedFrame(QuicFrame(frame3), NOT_RETRANSMISSION));
   EXPECT_EQ(1u, creator_.ExpansionOnNewFrame());
   creator_.Flush();
@@ -1643,16 +1641,15 @@ TEST_P(QuicPacketCreatorTest, AddMessageFrame) {
       client_framer_.transport_version(), Perspective::IS_CLIENT);
   EXPECT_TRUE(creator_.ConsumeData(stream_id, &iov_, 1u, iov_.iov_len, 0u, 0u,
                                    false, false, NOT_RETRANSMISSION, &frame));
-  QuicMessageFrame* frame4 = new QuicMessageFrame(4);
-  MakeSpan(&allocator_, "message", &storage).SaveMemSlicesAsMessageData(frame4);
+  QuicMessageFrame* frame4 =
+      new QuicMessageFrame(4, MakeSpan(&allocator_, "message", &storage));
   EXPECT_TRUE(creator_.AddSavedFrame(QuicFrame(frame4), NOT_RETRANSMISSION));
   EXPECT_TRUE(creator_.HasPendingFrames());
   // Verify there is not enough room for largest payload.
   EXPECT_FALSE(
       creator_.HasRoomForMessageFrame(creator_.GetLargestMessagePayload()));
   // Add largest message will causes the flush of the stream frame.
-  QuicMessageFrame frame5(5);
-  MakeSpan(&allocator_, message, &storage).SaveMemSlicesAsMessageData(&frame5);
+  QuicMessageFrame frame5(5, MakeSpan(&allocator_, message, &storage));
   EXPECT_FALSE(creator_.AddSavedFrame(QuicFrame(&frame5), NOT_RETRANSMISSION));
   EXPECT_FALSE(creator_.HasPendingFrames());
 }
@@ -1667,10 +1664,10 @@ TEST_P(QuicPacketCreatorTest, MessageFrameConsumption) {
   // Test all possible size of message frames.
   for (size_t message_size = 0;
        message_size <= creator_.GetLargestMessagePayload(); ++message_size) {
-    QuicMessageFrame* frame = new QuicMessageFrame(0);
-    MakeSpan(&allocator_, QuicStringPiece(message_buffer.data(), message_size),
-             &storage)
-        .SaveMemSlicesAsMessageData(frame);
+    QuicMessageFrame* frame = new QuicMessageFrame(
+        0, MakeSpan(&allocator_,
+                    QuicStringPiece(message_buffer.data(), message_size),
+                    &storage));
     EXPECT_TRUE(creator_.AddSavedFrame(QuicFrame(frame), NOT_RETRANSMISSION));
     EXPECT_TRUE(creator_.HasPendingFrames());
 

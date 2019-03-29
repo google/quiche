@@ -5,7 +5,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_mem_slice_span.h"
 
 #include "net/third_party/quiche/src/quic/core/quic_simple_buffer_allocator.h"
-#include "net/third_party/quiche/src/quic/core/quic_stream_send_buffer.h"
+#include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test_mem_slice_vector.h"
@@ -26,23 +26,20 @@ class QuicMemSliceSpanImplTest : public QuicTest {
   std::vector<std::pair<char*, size_t>> buffers_;
 };
 
-TEST_F(QuicMemSliceSpanImplTest, SaveDataInSendBuffer) {
+TEST_F(QuicMemSliceSpanImplTest, ConsumeAll) {
   SimpleBufferAllocator allocator;
-  QuicStreamSendBuffer send_buffer(&allocator);
   QuicTestMemSliceVector vector(buffers_);
 
-  EXPECT_EQ(10 * 1024u, vector.span().SaveMemSlicesInSendBuffer(&send_buffer));
-  EXPECT_EQ(10u, send_buffer.size());
-}
+  int num_slices = 0;
+  QuicByteCount bytes_consumed =
+      vector.span().ConsumeAll([&](QuicMemSlice slice) {
+        EXPECT_EQ(data_, slice.data());
+        EXPECT_EQ(1024, slice.length());
+        ++num_slices;
+      });
 
-TEST_F(QuicMemSliceSpanImplTest, SaveEmptyMemSliceInSendBuffer) {
-  SimpleBufferAllocator allocator;
-  QuicStreamSendBuffer send_buffer(&allocator);
-  buffers_.push_back(std::make_pair(nullptr, 0));
-  QuicTestMemSliceVector vector(buffers_);
-  EXPECT_EQ(10 * 1024u, vector.span().SaveMemSlicesInSendBuffer(&send_buffer));
-  // Verify the empty slice does not get saved.
-  EXPECT_EQ(10u, send_buffer.size());
+  EXPECT_EQ(10 * 1024u, bytes_consumed);
+  EXPECT_EQ(10, num_slices);
 }
 
 }  // namespace

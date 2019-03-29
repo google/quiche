@@ -601,8 +601,7 @@ QuicConsumedData QuicStream::WriteMemSlices(QuicMemSliceSpan span, bool fin) {
     if (!span.empty()) {
       // Buffer all data if buffered data size is below limit.
       QuicStreamOffset offset = send_buffer_.stream_offset();
-      consumed_data.bytes_consumed =
-          span.SaveMemSlicesInSendBuffer(&send_buffer_);
+      consumed_data.bytes_consumed = send_buffer_.SaveMemSliceSpan(span);
       if (offset > send_buffer_.stream_offset() ||
           kMaxStreamLength < send_buffer_.stream_offset()) {
         QUIC_BUG << "Write too many data via stream " << id_;

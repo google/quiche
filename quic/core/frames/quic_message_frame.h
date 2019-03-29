@@ -9,6 +9,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_mem_slice.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_mem_slice_span.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 
 namespace quic {
@@ -18,6 +19,7 @@ typedef QuicInlinedVector<QuicMemSlice, 1> QuicMessageData;
 struct QUIC_EXPORT_PRIVATE QuicMessageFrame {
   QuicMessageFrame();
   explicit QuicMessageFrame(QuicMessageId message_id);
+  QuicMessageFrame(QuicMessageId message_id, QuicMemSliceSpan span);
   QuicMessageFrame(const char* data, QuicPacketLength length);
 
   QuicMessageFrame(const QuicMessageFrame& other) = delete;

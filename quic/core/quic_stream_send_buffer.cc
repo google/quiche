@@ -82,6 +82,11 @@ void QuicStreamSendBuffer::SaveMemSlice(QuicMemSlice slice) {
   stream_offset_ += length;
 }
 
+QuicByteCount QuicStreamSendBuffer::SaveMemSliceSpan(QuicMemSliceSpan span) {
+  return span.ConsumeAll(
+      [&](QuicMemSlice slice) { SaveMemSlice(std::move(slice)); });
+}
+
 void QuicStreamSendBuffer::OnStreamDataConsumed(size_t bytes_consumed) {
   stream_bytes_written_ += bytes_consumed;
   stream_bytes_outstanding_ += bytes_consumed;

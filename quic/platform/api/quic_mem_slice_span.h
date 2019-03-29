@@ -29,16 +29,9 @@ class QUIC_EXPORT_PRIVATE QuicMemSliceSpan {
 
   ~QuicMemSliceSpan() = default;
 
-  // Save data buffers to |send_buffer| and returns the amount of saved data.
-  // |send_buffer| will hold a reference to all data buffer.
-  QuicByteCount SaveMemSlicesInSendBuffer(QuicStreamSendBuffer* send_buffer) {
-    return impl_.SaveMemSlicesInSendBuffer(send_buffer);
-  }
-
-  // Save data buffers as message data in |message_frame|. |message_frame| will
-  // hold a reference to all data buffers.
-  void SaveMemSlicesAsMessageData(QuicMessageFrame* message_frame) {
-    impl_.SaveMemSlicesAsMessageData(message_frame);
+  template <typename ConsumeFunction>
+  QuicByteCount ConsumeAll(ConsumeFunction consume) {
+    return impl_.ConsumeAll(consume);
   }
 
   // Return data of the span at |index| by the form of a QuicStringPiece.
