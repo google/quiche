@@ -34,7 +34,7 @@ TEST_F(QuicMemSliceSpanImplTest, ConsumeAll) {
   QuicByteCount bytes_consumed =
       vector.span().ConsumeAll([&](QuicMemSlice slice) {
         EXPECT_EQ(data_, slice.data());
-        EXPECT_EQ(1024, slice.length());
+        EXPECT_EQ(1024u, slice.length());
         ++num_slices;
       });
 
