@@ -9,7 +9,6 @@
 #include <memory>
 #include <string>
 
-#include "testing/gmock/include/gmock/gmock.h"
 #include "net/third_party/quiche/src/quic/core/crypto/cert_compressor.h"
 #include "net/third_party/quiche/src/quic/core/crypto/chacha20_poly1305_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_handshake_message.h"
@@ -26,8 +25,17 @@
 
 namespace quic {
 namespace test {
-using ::testing::EqualsProto;
 using ::testing::Not;
+
+// NOTE: This matcher depends on the wire format of serialzied protocol buffers,
+// which may change in the future.
+// Switch to ::testing::EqualsProto once it is available in Chromium.
+MATCHER_P(SerializedProtoEquals, message, "") {
+  std::string expected_serialized, actual_serialized;
+  message.SerializeToString(&expected_serialized);
+  arg.SerializeToString(&actual_serialized);
+  return expected_serialized == actual_serialized;
+}
 
 class QuicCryptoServerConfigTest : public QuicTest {};
 
@@ -263,11 +271,11 @@ TEST_F(SourceAddressTokenTest, SourceAddressTokenWithNetworkParams) {
 
   CachedNetworkParameters cached_network_params_output;
   EXPECT_THAT(cached_network_params_output,
-              Not(EqualsProto(cached_network_params_input)));
+              Not(SerializedProtoEquals(cached_network_params_input)));
   ValidateSourceAddressTokens(kPrimary, token4_with_cached_network_params, ip4_,
                               &cached_network_params_output);
   EXPECT_THAT(cached_network_params_output,
-              EqualsProto(cached_network_params_input));
+              SerializedProtoEquals(cached_network_params_input));
 }
 
 // Test the ability for a source address token to be valid for multiple
