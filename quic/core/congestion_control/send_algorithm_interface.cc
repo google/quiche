@@ -30,9 +30,9 @@ SendAlgorithmInterface* SendAlgorithmInterface::Create(
   switch (congestion_control_type) {
     case kGoogCC:  // GoogCC is not supported by quic/core, fall back to BBR.
     case kBBR:
-      return new BbrSender(rtt_stats, unacked_packets,
+      return new BbrSender(clock->ApproximateNow(), rtt_stats, unacked_packets,
                            initial_congestion_window, max_congestion_window,
-                           random);
+                           random, stats);
     case kPCC:
       if (GetQuicReloadableFlag(quic_enable_pcc3)) {
         return CreatePccSender(clock, rtt_stats, unacked_packets, random, stats,

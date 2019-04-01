@@ -48,12 +48,22 @@ struct QUIC_EXPORT_PRIVATE QuicConnectionStats {
   // Number of packets abandoned as lost by the loss detection algorithm.
   QuicPacketCount packets_lost;
 
+  // Number of times this connection went through the slow start phase.
+  uint32_t slowstart_count;
+  // Number of round trips spent in slow start.
+  uint32_t slowstart_num_rtts;
   // Number of packets sent in slow start.
   QuicPacketCount slowstart_packets_sent;
+  // Number of bytes sent in slow start.
+  QuicByteCount slowstart_bytes_sent;
   // Number of packets lost exiting slow start.
   QuicPacketCount slowstart_packets_lost;
   // Number of bytes lost exiting slow start.
   QuicByteCount slowstart_bytes_lost;
+  // Time spent in COMPLETED slow start phases.
+  QuicTime::Delta slowstart_duration;
+  // Start time of the last slow start phase.
+  QuicTime slowstart_start_time;
 
   QuicPacketCount packets_dropped;  // Duplicate or less than least unacked.
   size_t crypto_retransmit_count;

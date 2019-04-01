@@ -23,6 +23,10 @@
 #include "net/third_party/quiche/src/quic/test_tools/simulator/simulator.h"
 #include "net/third_party/quiche/src/quic/test_tools/simulator/switch.h"
 
+using testing::AllOf;
+using testing::Ge;
+using testing::Le;
+
 namespace quic {
 namespace test {
 
@@ -127,11 +131,11 @@ class BbrSenderTest : public QuicTest {
         endpoint->connection()->sent_packet_manager().GetRttStats();
     // Ownership of the sender will be overtaken by the endpoint.
     BbrSender* sender = new BbrSender(
-        rtt_stats,
+        endpoint->connection()->clock()->Now(), rtt_stats,
         QuicSentPacketManagerPeer::GetUnackedPacketMap(
             QuicConnectionPeer::GetSentPacketManager(endpoint->connection())),
         kInitialCongestionWindowPackets, kDefaultMaxCongestionWindowPackets,
-        &random_);
+        &random_, QuicConnectionPeer::GetStats(endpoint->connection()));
     QuicConnectionPeer::SetSendAlgorithm(endpoint->connection(), sender);
     endpoint->RecordTrace();
     return sender;
@@ -367,11 +371,11 @@ TEST_F(BbrSenderTest, SimpleTransferAckDecimation) {
   // Decrease the CWND gain so extra CWND is required with stretch acks.
   FLAGS_quic_bbr_cwnd_gain = 1.0;
   sender_ = new BbrSender(
-      rtt_stats_,
+      bbr_sender_.connection()->clock()->Now(), rtt_stats_,
       QuicSentPacketManagerPeer::GetUnackedPacketMap(
           QuicConnectionPeer::GetSentPacketManager(bbr_sender_.connection())),
       kInitialCongestionWindowPackets, kDefaultMaxCongestionWindowPackets,
-      &random_);
+      &random_, QuicConnectionPeer::GetStats(bbr_sender_.connection()));
   QuicConnectionPeer::SetSendAlgorithm(bbr_sender_.connection(), sender_);
   // Enable Ack Decimation on the receiver.
   QuicConnectionPeer::SetAckMode(receiver_.connection(),
@@ -1308,6 +1312,28 @@ TEST_F(BbrSenderTest, ProbeRTTMinCWND1) {
   simulator_.RunFor(1.5 * time_to_exit_probe_rtt);
   EXPECT_EQ(BbrSender::PROBE_BW, sender_->ExportDebugState().mode);
   EXPECT_GE(sender_->ExportDebugState().min_rtt_timestamp, probe_rtt_start);
+}
+
+TEST_F(BbrSenderTest, StartupStats) {
+  CreateDefaultSetup();
+
+  DriveOutOfStartup();
+  ASSERT_FALSE(sender_->InSlowStart());
+
+  const QuicConnectionStats& stats = bbr_sender_.connection()->GetStats();
+  EXPECT_EQ(1, stats.slowstart_count);
+  EXPECT_THAT(stats.slowstart_num_rtts, AllOf(Ge(5), Le(15)));
+  EXPECT_THAT(stats.slowstart_packets_sent, AllOf(Ge(100), Le(1000)));
+  EXPECT_THAT(stats.slowstart_bytes_sent, AllOf(Ge(1e5), Le(1e6)));
+  EXPECT_LE(stats.slowstart_packets_lost, 10);
+  EXPECT_LE(stats.slowstart_bytes_lost, 1e4);
+  EXPECT_THAT(stats.slowstart_duration,
+              AllOf(Ge(QuicTime::Delta::FromMilliseconds(500)),
+                    Le(QuicTime::Delta::FromMilliseconds(1500))));
+  EXPECT_EQ(QuicTime::Zero(), stats.slowstart_start_time);
+  EXPECT_EQ(stats.slowstart_duration,
+            QuicConnectionPeer::GetSentPacketManager(bbr_sender_.connection())
+                ->GetSlowStartDuration());
 }
 
 }  // namespace test

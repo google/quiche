@@ -88,11 +88,13 @@ class QUIC_EXPORT_PRIVATE BbrSender : public SendAlgorithmInterface {
     QuicPacketNumber end_of_app_limited_phase;
   };
 
-  BbrSender(const RttStats* rtt_stats,
+  BbrSender(QuicTime now,
+            const RttStats* rtt_stats,
             const QuicUnackedPacketMap* unacked_packets,
             QuicPacketCount initial_tcp_congestion_window,
             QuicPacketCount max_tcp_congestion_window,
-            QuicRandom* random);
+            QuicRandom* random,
+            QuicConnectionStats* stats);
   BbrSender(const BbrSender&) = delete;
   BbrSender& operator=(const BbrSender&) = delete;
   ~BbrSender() override;
@@ -192,7 +194,7 @@ class QUIC_EXPORT_PRIVATE BbrSender : public SendAlgorithmInterface {
   bool ShouldExtendMinRttExpiry() const;
 
   // Enters the STARTUP mode.
-  void EnterStartupMode();
+  void EnterStartupMode(QuicTime now);
   // Enters the PROBE_BW mode.
   void EnterProbeBandwidthMode(QuicTime now);
 
@@ -236,7 +238,7 @@ class QUIC_EXPORT_PRIVATE BbrSender : public SendAlgorithmInterface {
   // Determines the appropriate congestion window for the connection.
   void CalculateCongestionWindow(QuicByteCount bytes_acked,
                                  QuicByteCount excess_acked);
-  // Determines the approriate window that constrains the in-flight during
+  // Determines the appropriate window that constrains the in-flight during
   // recovery.
   void CalculateRecoveryWindow(QuicByteCount bytes_acked,
                                QuicByteCount bytes_lost);
@@ -245,9 +247,13 @@ class QUIC_EXPORT_PRIVATE BbrSender : public SendAlgorithmInterface {
   // will be observed if present.
   bool IsPipeSufficientlyFull() const;
 
+  // Called right before exiting STARTUP.
+  void OnExitStartup(QuicTime now);
+
   const RttStats* rtt_stats_;
   const QuicUnackedPacketMap* unacked_packets_;
   QuicRandom* random_;
+  QuicConnectionStats* stats_;
 
   Mode mode_;
 

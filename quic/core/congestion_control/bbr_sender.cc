@@ -10,6 +10,7 @@
 
 #include "net/third_party/quiche/src/quic/core/congestion_control/rtt_stats.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
+#include "net/third_party/quiche/src/quic/core/quic_time.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_fallthrough.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
@@ -77,14 +78,17 @@ BbrSender::DebugState::DebugState(const BbrSender& sender)
 
 BbrSender::DebugState::DebugState(const DebugState& state) = default;
 
-BbrSender::BbrSender(const RttStats* rtt_stats,
+BbrSender::BbrSender(QuicTime now,
+                     const RttStats* rtt_stats,
                      const QuicUnackedPacketMap* unacked_packets,
                      QuicPacketCount initial_tcp_congestion_window,
                      QuicPacketCount max_tcp_congestion_window,
-                     QuicRandom* random)
+                     QuicRandom* random,
+                     QuicConnectionStats* stats)
     : rtt_stats_(rtt_stats),
       unacked_packets_(unacked_packets),
       random_(random),
+      stats_(stats),
       mode_(STARTUP),
       round_trip_count_(0),
       max_bandwidth_(kBandwidthWindowSize, QuicBandwidth::Zero(), 0),
@@ -134,7 +138,11 @@ BbrSender::BbrSender(const RttStats* rtt_stats,
       probe_rtt_disabled_if_app_limited_(false),
       app_limited_since_last_probe_rtt_(false),
       min_rtt_since_last_probe_rtt_(QuicTime::Delta::Infinite()) {
-  EnterStartupMode();
+  if (stats_) {
+    stats_->slowstart_count = 0;
+    stats_->slowstart_start_time = QuicTime::Zero();
+  }
+  EnterStartupMode(now);
 }
 
 BbrSender::~BbrSender() {}
@@ -156,6 +164,11 @@ void BbrSender::OnPacketSent(QuicTime sent_time,
                              QuicPacketNumber packet_number,
                              QuicByteCount bytes,
                              HasRetransmittableData is_retransmittable) {
+  if (stats_ && InSlowStart()) {
+    ++stats_->slowstart_packets_sent;
+    stats_->slowstart_bytes_sent += bytes;
+  }
+
   last_sent_packet_ = packet_number;
 
   if (bytes_in_flight == 0 && sampler_.is_app_limited()) {
@@ -425,7 +438,12 @@ QuicByteCount BbrSender::ProbeRttCongestionWindow() const {
   return min_congestion_window_;
 }
 
-void BbrSender::EnterStartupMode() {
+void BbrSender::EnterStartupMode(QuicTime now) {
+  if (stats_) {
+    ++stats_->slowstart_count;
+    DCHECK_EQ(stats_->slowstart_start_time, QuicTime::Zero()) << mode_;
+    stats_->slowstart_start_time = now;
+  }
   mode_ = STARTUP;
   pacing_gain_ = high_gain_;
   congestion_window_gain_ = high_cwnd_gain_;
@@ -450,8 +468,14 @@ void BbrSender::EnterProbeBandwidthMode(QuicTime now) {
 void BbrSender::DiscardLostPackets(const LostPacketVector& lost_packets) {
   for (const LostPacket& packet : lost_packets) {
     sampler_.OnPacketLost(packet.packet_number);
-    if (startup_rate_reduction_multiplier_ != 0 && mode_ == STARTUP) {
-      startup_bytes_lost_ += packet.bytes_lost;
+    if (mode_ == STARTUP) {
+      if (stats_) {
+        ++stats_->slowstart_packets_lost;
+        stats_->slowstart_bytes_lost += packet.bytes_lost;
+      }
+      if (startup_rate_reduction_multiplier_ != 0) {
+        startup_bytes_lost_ += packet.bytes_lost;
+      }
     }
   }
 }
@@ -461,6 +485,9 @@ bool BbrSender::UpdateRoundTripCounter(QuicPacketNumber last_acked_packet) {
       last_acked_packet > current_round_trip_end_) {
     round_trip_count_++;
     current_round_trip_end_ = last_sent_packet_;
+    if (stats_ && InSlowStart()) {
+      ++stats_->slowstart_num_rtts;
+    }
     return true;
   }
 
@@ -603,6 +630,7 @@ void BbrSender::CheckIfFullBandwidthReached() {
 
 void BbrSender::MaybeExitStartupOrDrain(QuicTime now) {
   if (mode_ == STARTUP && is_at_full_bandwidth_) {
+    OnExitStartup(now);
     mode_ = DRAIN;
     pacing_gain_ = drain_gain_;
     congestion_window_gain_ = high_cwnd_gain_;
@@ -613,10 +641,25 @@ void BbrSender::MaybeExitStartupOrDrain(QuicTime now) {
   }
 }
 
+void BbrSender::OnExitStartup(QuicTime now) {
+  DCHECK_EQ(mode_, STARTUP);
+  if (stats_) {
+    DCHECK_NE(stats_->slowstart_start_time, QuicTime::Zero());
+    if (now > stats_->slowstart_start_time) {
+      stats_->slowstart_duration =
+          now - stats_->slowstart_start_time + stats_->slowstart_duration;
+    }
+    stats_->slowstart_start_time = QuicTime::Zero();
+  }
+}
+
 void BbrSender::MaybeEnterOrExitProbeRtt(QuicTime now,
                                          bool is_round_start,
                                          bool min_rtt_expired) {
   if (min_rtt_expired && !exiting_quiescence_ && mode_ != PROBE_RTT) {
+    if (InSlowStart()) {
+      OnExitStartup(now);
+    }
     mode_ = PROBE_RTT;
     pacing_gain_ = 1;
     // Do not decide on the time to exit PROBE_RTT until the |bytes_in_flight|
@@ -644,7 +687,7 @@ void BbrSender::MaybeEnterOrExitProbeRtt(QuicTime now,
       if (now >= exit_probe_rtt_at_ && probe_rtt_round_passed_) {
         min_rtt_timestamp_ = now;
         if (!is_at_full_bandwidth_) {
-          EnterStartupMode();
+          EnterStartupMode(now);
         } else {
           EnterProbeBandwidthMode(now);
         }

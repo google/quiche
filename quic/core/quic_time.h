@@ -234,6 +234,12 @@ inline bool operator>=(QuicTime lhs, QuicTime rhs) {
   return !(lhs < rhs);
 }
 
+// Override stream output operator for gtest or CHECK macros.
+inline std::ostream& operator<<(std::ostream& output, const QuicTime t) {
+  output << t.ToDebuggingValue();
+  return output;
+}
+
 // Non-member arithmetic operators for QuicTime::Delta.
 inline QuicTime::Delta operator+(QuicTime::Delta lhs, QuicTime::Delta rhs) {
   return QuicTime::Delta(lhs.time_offset_ + rhs.time_offset_);

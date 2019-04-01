@@ -235,6 +235,14 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
     return send_algorithm_->GetSlowStartThreshold() / kDefaultTCPMSS;
   }
 
+  // Return the total time spent in slow start so far. If the sender is
+  // currently in slow start, the return value will include the duration between
+  // the most recent entry to slow start and now.
+  //
+  // Only implemented for BBR. Return QuicTime::Delta::Infinite() for other
+  // congestion controllers.
+  QuicTime::Delta GetSlowStartDuration() const;
+
   // Returns debugging information about the state of the congestion controller.
   std::string GetDebugState() const;
 

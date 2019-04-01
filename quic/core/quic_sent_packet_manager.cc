@@ -13,6 +13,7 @@
 #include "net/third_party/quiche/src/quic/core/proto/cached_network_parameters.pb.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection_stats.h"
 #include "net/third_party/quiche/src/quic/core/quic_pending_retransmission.h"
+#include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
@@ -1012,6 +1013,19 @@ const QuicTime::Delta QuicSentPacketManager::GetRetransmissionDelay(
     return QuicTime::Delta::FromMilliseconds(kMaxRetransmissionTimeMs);
   }
   return retransmission_delay;
+}
+
+QuicTime::Delta QuicSentPacketManager::GetSlowStartDuration() const {
+  if (send_algorithm_->GetCongestionControlType() != kBBR) {
+    return QuicTime::Delta::Infinite();
+  }
+
+  if (!send_algorithm_->InSlowStart()) {
+    return stats_->slowstart_duration;
+  }
+
+  return clock_->ApproximateNow() - stats_->slowstart_start_time +
+         stats_->slowstart_duration;
 }
 
 std::string QuicSentPacketManager::GetDebugState() const {
