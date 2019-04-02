@@ -22,6 +22,7 @@ class MockVisitor : public HttpDecoder::Visitor {
   MOCK_METHOD1(OnCancelPushFrame, void(const CancelPushFrame& frame));
   MOCK_METHOD1(OnMaxPushIdFrame, void(const MaxPushIdFrame& frame));
   MOCK_METHOD1(OnGoAwayFrame, void(const GoAwayFrame& frame));
+  MOCK_METHOD1(OnSettingsFrameStart, void(Http3FrameLengths frame_lengths));
   MOCK_METHOD1(OnSettingsFrame, void(const SettingsFrame& frame));
   MOCK_METHOD1(OnDuplicatePushFrame, void(const DuplicatePushFrame& frame));
 
@@ -271,6 +272,7 @@ TEST_F(HttpDecoderTest, SettingsFrame) {
   frame.values[6] = 5;
 
   // Process the full frame.
+  EXPECT_CALL(visitor_, OnSettingsFrameStart(Http3FrameLengths(2, 6)));
   EXPECT_CALL(visitor_, OnSettingsFrame(frame));
   EXPECT_EQ(QUIC_ARRAYSIZE(input),
             decoder_.ProcessInput(input, QUIC_ARRAYSIZE(input)));
@@ -278,6 +280,7 @@ TEST_F(HttpDecoderTest, SettingsFrame) {
   EXPECT_EQ("", decoder_.error_detail());
 
   // Process the frame incremently.
+  EXPECT_CALL(visitor_, OnSettingsFrameStart(Http3FrameLengths(2, 6)));
   EXPECT_CALL(visitor_, OnSettingsFrame(frame));
   for (char c : input) {
     EXPECT_EQ(1u, decoder_.ProcessInput(&c, 1));

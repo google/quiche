@@ -106,6 +106,9 @@ void HttpDecoder::ReadFrameType(QuicDataReader* reader) {
   } else if (current_frame_type_ == 0x1) {
     visitor_->OnHeadersFrameStart(Http3FrameLengths(
         current_length_field_size_ + kFrameTypeLength, current_frame_length_));
+  } else if (current_frame_type_ == 0x4) {
+    visitor_->OnSettingsFrameStart(Http3FrameLengths(
+        current_length_field_size_ + kFrameTypeLength, current_frame_length_));
   }
 
   state_ = (remaining_frame_length_ == 0) ? STATE_FINISH_PARSING

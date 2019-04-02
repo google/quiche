@@ -56,6 +56,9 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
     // Called when a GOAWAY frame has been successfully parsed.
     virtual void OnGoAwayFrame(const GoAwayFrame& frame) = 0;
 
+    // Called when a SETTINGS frame has been received.
+    virtual void OnSettingsFrameStart(Http3FrameLengths frame_length) = 0;
+
     // Called when a SETTINGS frame has been successfully parsed.
     virtual void OnSettingsFrame(const SettingsFrame& frame) = 0;
 

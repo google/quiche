@@ -55,6 +55,10 @@ class QuicSpdyStream::HttpDecoderVisitor : public HttpDecoder::Visitor {
     CloseConnectionOnWrongFrame("Goaway");
   }
 
+  void OnSettingsFrameStart(Http3FrameLengths frame_lengths) override {
+    CloseConnectionOnWrongFrame("Settings");
+  }
+
   void OnSettingsFrame(const SettingsFrame& frame) override {
     CloseConnectionOnWrongFrame("Settings");
   }
