@@ -208,6 +208,8 @@ std::unique_ptr<QuicConnection> CreateQuicConnection(
       connection_id, peer_address, connection_helper, alarm_factory,
       packet_writer,
       /*owns_writer=*/false, perspective, supported_versions);
+  quic_connection->SetMaxPacketLength(
+      packet_writer->GetMaxPacketSize(peer_address));
 
   QuicSentPacketManager& sent_packet_manager =
       quic_connection->sent_packet_manager();
