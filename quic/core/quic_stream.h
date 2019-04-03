@@ -145,11 +145,6 @@ class QUIC_EXPORT_PRIVATE QuicStream
   void CloseConnectionWithDetails(QuicErrorCode error,
                                   const std::string& details) override;
 
-  // Called by the stream sequencer as bytes are consumed from the buffer.
-  // If the receive window has dropped below the threshold, then send a
-  // WINDOW_UPDATE frame.
-  void AddBytesConsumed(QuicByteCount bytes) override;
-
   // Get peer IP of the lastest packet which connection is dealing/delt with.
   const QuicSocketAddress& PeerAddressOfLatestPacket() const override;
 
@@ -233,8 +228,6 @@ class QUIC_EXPORT_PRIVATE QuicStream
   // offset.
   // Returns true if the highest offset did increase.
   bool MaybeIncreaseHighestReceivedOffset(QuicStreamOffset new_offset);
-  // Called when bytes are sent to the peer.
-  void AddBytesSent(QuicByteCount bytes);
 
   // Updates the flow controller's send window offset and calls OnCanWrite if
   // it was blocked before.
@@ -394,6 +387,11 @@ class QUIC_EXPORT_PRIVATE QuicStream
   // Called when |bytes_consumed| bytes has been consumed.
   virtual void OnStreamDataConsumed(size_t bytes_consumed);
 
+  // Called by the stream sequencer as bytes are consumed from the buffer.
+  // If the receive window has dropped below the threshold, then send a
+  // WINDOW_UPDATE frame.
+  void AddBytesConsumed(QuicByteCount bytes) override;
+
   // Writes pending retransmissions if any.
   virtual void WritePendingRetransmission();
 
@@ -445,6 +443,9 @@ class QUIC_EXPORT_PRIVATE QuicStream
   // Write buffered data in send buffer. TODO(fayang): Consider combine
   // WriteOrBufferData, Writev and WriteBufferedData.
   void WriteBufferedData();
+
+  // Called when bytes are sent to the peer.
+  void AddBytesSent(QuicByteCount bytes);
 
   // Returns true if deadline_ has passed.
   bool HasDeadlinePassed() const;
