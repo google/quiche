@@ -1867,6 +1867,10 @@ void QuicConnection::ProcessUdpPacket(const QuicSocketAddress& self_address,
   if (!connected_) {
     return;
   }
+  QUIC_DVLOG(2) << ENDPOINT << "Received encrypted " << packet.length()
+                << " bytes:" << std::endl
+                << QuicTextUtils::HexDump(
+                       QuicStringPiece(packet.data(), packet.length()));
   QUIC_BUG_IF(current_packet_data_ != nullptr)
       << "ProcessUdpPacket must not be called while processing a packet.";
   if (debug_visitor_ != nullptr) {
@@ -2109,8 +2113,15 @@ bool QuicConnection::ValidateReceivedPacketNumber(
                   last_decrypted_packet_level_, packet_number)
             : received_packet_manager_.IsAwaitingPacket(packet_number);
     if (!is_awaiting) {
-      QUIC_DLOG(INFO) << ENDPOINT << "Packet " << packet_number
-                      << " no longer being waited for.  Discarding.";
+      if (use_uber_received_packet_manager_) {
+        QUIC_DLOG(INFO) << ENDPOINT << "Packet " << packet_number
+                        << " no longer being waited for at level "
+                        << static_cast<int>(last_decrypted_packet_level_)
+                        << ".  Discarding.";
+      } else {
+        QUIC_DLOG(INFO) << ENDPOINT << "Packet " << packet_number
+                        << " no longer being waited for.  Discarding.";
+      }
       if (debug_visitor_ != nullptr) {
         debug_visitor_->OnDuplicatePacket(packet_number);
       }
