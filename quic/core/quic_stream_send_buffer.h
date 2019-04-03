@@ -62,7 +62,7 @@ class QUIC_EXPORT_PRIVATE QuicStreamSendBuffer {
  public:
   explicit QuicStreamSendBuffer(QuicBufferAllocator* allocator);
   QuicStreamSendBuffer(const QuicStreamSendBuffer& other) = delete;
-  QuicStreamSendBuffer(QuicStreamSendBuffer&& other) = delete;
+  QuicStreamSendBuffer(QuicStreamSendBuffer&& other) = default;
   ~QuicStreamSendBuffer();
 
   // Save |data_length| of data starts at |iov_offset| in |iov| to send buffer.
