@@ -140,6 +140,7 @@ bool TlsClientHandshaker::ProcessTransportParameters(
           error_details) != QUIC_NO_ERROR ||
       session()->config()->ProcessTransportParameters(
           params, SERVER, error_details) != QUIC_NO_ERROR) {
+    DCHECK(!error_details->empty());
     return false;
   }
 
@@ -231,6 +232,7 @@ void TlsClientHandshaker::AdvanceHandshake() {
 
 void TlsClientHandshaker::CloseConnection(QuicErrorCode error,
                                           const std::string& reason_phrase) {
+  DCHECK(!reason_phrase.empty());
   state_ = STATE_CONNECTION_CLOSED;
   stream()->CloseConnectionWithDetails(error, reason_phrase);
 }
@@ -241,6 +243,7 @@ void TlsClientHandshaker::FinishHandshake() {
 
   std::string error_details;
   if (!ProcessTransportParameters(&error_details)) {
+    DCHECK(!error_details.empty());
     CloseConnection(QUIC_HANDSHAKE_FAILED, error_details);
     return;
   }

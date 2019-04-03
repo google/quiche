@@ -783,26 +783,29 @@ QuicErrorCode QuicConfig::ProcessTransportParameters(
   QuicErrorCode error = idle_network_timeout_seconds_.ReceiveValue(
       params.idle_timeout, hello_type, error_details);
   if (error != QUIC_NO_ERROR) {
+    DCHECK(!error_details->empty());
     return error;
   }
   const CryptoHandshakeMessage* peer_params = params.google_quic_params.get();
-  if (!peer_params) {
-    return QUIC_CRYPTO_MESSAGE_PARAMETER_NOT_FOUND;
-  }
-  error =
-      silent_close_.ProcessPeerHello(*peer_params, hello_type, error_details);
-  if (error != QUIC_NO_ERROR) {
-    return error;
-  }
-  error = initial_round_trip_time_us_.ProcessPeerHello(*peer_params, hello_type,
-                                                       error_details);
-  if (error != QUIC_NO_ERROR) {
-    return error;
-  }
-  error = connection_options_.ProcessPeerHello(*peer_params, hello_type,
-                                               error_details);
-  if (error != QUIC_NO_ERROR) {
-    return error;
+  if (peer_params != nullptr) {
+    error =
+        silent_close_.ProcessPeerHello(*peer_params, hello_type, error_details);
+    if (error != QUIC_NO_ERROR) {
+      DCHECK(!error_details->empty());
+      return error;
+    }
+    error = initial_round_trip_time_us_.ProcessPeerHello(
+        *peer_params, hello_type, error_details);
+    if (error != QUIC_NO_ERROR) {
+      DCHECK(!error_details->empty());
+      return error;
+    }
+    error = connection_options_.ProcessPeerHello(*peer_params, hello_type,
+                                                 error_details);
+    if (error != QUIC_NO_ERROR) {
+      DCHECK(!error_details->empty());
+      return error;
+    }
   }
 
   initial_stream_flow_control_window_bytes_.SetReceivedValue(
