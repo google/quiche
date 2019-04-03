@@ -1321,12 +1321,12 @@ TEST_F(BbrSenderTest, StartupStats) {
   ASSERT_FALSE(sender_->InSlowStart());
 
   const QuicConnectionStats& stats = bbr_sender_.connection()->GetStats();
-  EXPECT_EQ(1, stats.slowstart_count);
-  EXPECT_THAT(stats.slowstart_num_rtts, AllOf(Ge(5), Le(15)));
-  EXPECT_THAT(stats.slowstart_packets_sent, AllOf(Ge(100), Le(1000)));
-  EXPECT_THAT(stats.slowstart_bytes_sent, AllOf(Ge(1e5), Le(1e6)));
-  EXPECT_LE(stats.slowstart_packets_lost, 10);
-  EXPECT_LE(stats.slowstart_bytes_lost, 1e4);
+  EXPECT_EQ(1u, stats.slowstart_count);
+  EXPECT_THAT(stats.slowstart_num_rtts, AllOf(Ge(5u), Le(15u)));
+  EXPECT_THAT(stats.slowstart_packets_sent, AllOf(Ge(100u), Le(1000u)));
+  EXPECT_THAT(stats.slowstart_bytes_sent, AllOf(Ge(100000u), Le(1000000u)));
+  EXPECT_LE(stats.slowstart_packets_lost, 10u);
+  EXPECT_LE(stats.slowstart_bytes_lost, 10000u);
   EXPECT_THAT(stats.slowstart_duration,
               AllOf(Ge(QuicTime::Delta::FromMilliseconds(500)),
                     Le(QuicTime::Delta::FromMilliseconds(1500))));
