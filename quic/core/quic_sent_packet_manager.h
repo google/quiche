@@ -502,6 +502,9 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // Sets the initial RTT of the connection.
   void SetInitialRtt(QuicTime::Delta rtt);
 
+  // Should only be called from constructor.
+  LossDetectionInterface* GetInitialLossAlgorithm();
+
   // Called when handshake is confirmed to remove the retransmittable frames
   // from all packets of HANDSHAKE_DATA packet number space to ensure they don't
   // get retransmitted and will eventually be removed from unacked packets map.

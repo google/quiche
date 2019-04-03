@@ -498,28 +498,24 @@ TEST_P(QuicSpdySessionTestServer, MaximumAvailableOpenedStreams) {
     // Get the max allowed stream ID, this should succeed.
     EXPECT_NE(nullptr,
               session_.GetOrCreateDynamicStream(
-                  QuicSessionPeer::v99_streamid_manager(
-                      dynamic_cast<QuicSession*>(&session_))
+                  QuicSessionPeer::v99_streamid_manager(&session_)
                       ->actual_max_allowed_incoming_bidirectional_stream_id()));
     EXPECT_NE(
         nullptr,
         session_.GetOrCreateDynamicStream(
-            QuicSessionPeer::v99_streamid_manager(
-                dynamic_cast<QuicSession*>(&session_))
+            QuicSessionPeer::v99_streamid_manager(&session_)
                 ->actual_max_allowed_incoming_unidirectional_stream_id()));
     EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(1);
     // Get the (max allowed stream ID)++, this should fail.
     EXPECT_EQ(nullptr,
               session_.GetOrCreateDynamicStream(
-                  QuicSessionPeer::v99_streamid_manager(
-                      dynamic_cast<QuicSession*>(&session_))
+                  QuicSessionPeer::v99_streamid_manager(&session_)
                       ->actual_max_allowed_incoming_bidirectional_stream_id() +
                   IdDelta()));
     EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(1);
     EXPECT_EQ(nullptr,
               session_.GetOrCreateDynamicStream(
-                  QuicSessionPeer::v99_streamid_manager(
-                      dynamic_cast<QuicSession*>(&session_))
+                  QuicSessionPeer::v99_streamid_manager(&session_)
                       ->actual_max_allowed_incoming_unidirectional_stream_id() +
                   IdDelta()));
   } else {

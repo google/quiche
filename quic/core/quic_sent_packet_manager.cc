@@ -84,11 +84,7 @@ QuicSentPacketManager::QuicSentPacketManager(
       debug_delegate_(nullptr),
       network_change_visitor_(nullptr),
       initial_congestion_window_(kInitialCongestionWindow),
-      loss_algorithm_(
-          unacked_packets_.use_uber_loss_algorithm()
-              ? dynamic_cast<LossDetectionInterface*>(&uber_loss_algorithm_)
-              : dynamic_cast<LossDetectionInterface*>(
-                    &general_loss_algorithm_)),
+      loss_algorithm_(GetInitialLossAlgorithm()),
       general_loss_algorithm_(loss_type),
       uber_loss_algorithm_(loss_type),
       consecutive_rto_count_(0),
@@ -118,6 +114,13 @@ QuicSentPacketManager::QuicSentPacketManager(
     QUIC_RELOADABLE_FLAG_COUNT(quic_tolerate_reneging);
   }
   SetSendAlgorithm(congestion_control_type);
+}
+
+LossDetectionInterface* QuicSentPacketManager::GetInitialLossAlgorithm() {
+  if (unacked_packets_.use_uber_loss_algorithm()) {
+    return &uber_loss_algorithm_;
+  }
+  return &general_loss_algorithm_;
 }
 
 QuicSentPacketManager::~QuicSentPacketManager() {}
