@@ -41,11 +41,10 @@ std::vector<uint8_t> CryptoUtils::HkdfExpandLabel(
     size_t out_len) {
   bssl::ScopedCBB quic_hkdf_label;
   CBB inner_label;
-  const char label_prefix[] = "quic ";
-  // The minimum possible length for the QuicHkdfLabel is 9 bytes - 2 bytes for
-  // Length, plus 1 byte for the length of the inner label, plus the length of
-  // that label (which is at least 5), plus 1 byte at the end.
-  if (!CBB_init(quic_hkdf_label.get(), 9) ||
+  const char label_prefix[] = "tls13 ";
+  // 19 = size(u16) + size(u8) + len("tls13 ") + len ("client in") + size(u8)
+  static const size_t max_quic_hkdf_label_length = 19;
+  if (!CBB_init(quic_hkdf_label.get(), max_quic_hkdf_label_length) ||
       !CBB_add_u16(quic_hkdf_label.get(), out_len) ||
       !CBB_add_u8_length_prefixed(quic_hkdf_label.get(), &inner_label) ||
       !CBB_add_bytes(&inner_label,
@@ -74,9 +73,9 @@ void CryptoUtils::SetKeyAndIV(const EVP_MD* prf,
                               const std::vector<uint8_t>& pp_secret,
                               QuicCrypter* crypter) {
   std::vector<uint8_t> key = CryptoUtils::HkdfExpandLabel(
-      prf, pp_secret, "key", crypter->GetKeySize());
-  std::vector<uint8_t> iv =
-      CryptoUtils::HkdfExpandLabel(prf, pp_secret, "iv", crypter->GetIVSize());
+      prf, pp_secret, "quic key", crypter->GetKeySize());
+  std::vector<uint8_t> iv = CryptoUtils::HkdfExpandLabel(
+      prf, pp_secret, "quic iv", crypter->GetIVSize());
   crypter->SetKey(
       QuicStringPiece(reinterpret_cast<char*>(key.data()), key.size()));
   crypter->SetIV(
@@ -85,9 +84,9 @@ void CryptoUtils::SetKeyAndIV(const EVP_MD* prf,
 
 namespace {
 
-const uint8_t kInitialSalt[] = {0x9c, 0x10, 0x8f, 0x98, 0x52, 0x0a, 0x5c,
-                                0x5c, 0x32, 0x96, 0x8e, 0x95, 0x0e, 0x8a,
-                                0x2c, 0x5f, 0xe0, 0x6d, 0x6c, 0x38};
+const uint8_t kInitialSalt[] = {0xef, 0x4f, 0xb0, 0xab, 0xb4, 0x74, 0x70,
+                                0xc4, 0x1b, 0xef, 0xcf, 0x80, 0x31, 0x33,
+                                0x4f, 0xae, 0x48, 0x5e, 0x09, 0xa0};
 
 const char kPreSharedKeyLabel[] = "QUIC PSK";
 
