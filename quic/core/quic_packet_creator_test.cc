@@ -1197,18 +1197,9 @@ TEST_P(QuicPacketCreatorTest, ConsumeDataLargerThanOneStreamFrame) {
   }
   creator_.set_encryption_level(ENCRYPTION_FORWARD_SECURE);
   // A string larger than fits into a frame.
-  size_t payload_length;
-  creator_.SetMaxPacketLength(GetPacketLengthForOneStream(
-      client_framer_.transport_version(),
-      QuicPacketCreatorPeer::SendVersionInPacket(&creator_),
-      !kIncludeDiversificationNonce,
-      creator_.GetDestinationConnectionIdLength(),
-      creator_.GetSourceConnectionIdLength(),
-      QuicPacketCreatorPeer::GetPacketNumberLength(&creator_),
-      QuicPacketCreatorPeer::GetRetryTokenLengthLength(&creator_),
-      QuicPacketCreatorPeer::GetLengthLength(&creator_), &payload_length));
   QuicFrame frame;
-  const std::string too_long_payload(payload_length * 2, 'a');
+  size_t payload_length = creator_.max_packet_length();
+  const std::string too_long_payload(payload_length, 'a');
   MakeIOVector(too_long_payload, &iov_);
   EXPECT_CALL(delegate_, OnSerializedPacket(_))
       .WillOnce(Invoke(this, &QuicPacketCreatorTest::SaveSerializedPacket));
@@ -1217,9 +1208,8 @@ TEST_P(QuicPacketCreatorTest, ConsumeDataLargerThanOneStreamFrame) {
   ASSERT_TRUE(creator_.ConsumeData(stream_id, &iov_, 1u, iov_.iov_len, 0u, 0u,
                                    true, false, NOT_RETRANSMISSION, &frame));
   size_t consumed = frame.stream_frame.data_length;
-  EXPECT_EQ(payload_length, consumed);
-  const std::string payload(payload_length, 'a');
-  CheckStreamFrame(frame, stream_id, payload, 0u, false);
+  // The entire payload could not be consumed.
+  EXPECT_GT(payload_length, consumed);
   creator_.Flush();
   DeleteSerializedPacket();
 }

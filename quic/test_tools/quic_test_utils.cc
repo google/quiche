@@ -982,45 +982,6 @@ void CompareCharArraysWithHexError(const std::string& description,
                 << HexDumpWithMarks(actual, actual_len, marks.get(), max_len);
 }
 
-size_t GetPacketLengthForOneStream(
-    QuicTransportVersion version,
-    bool include_version,
-    bool include_diversification_nonce,
-    QuicConnectionIdLength destination_connection_id_length,
-    QuicConnectionIdLength source_connection_id_length,
-    QuicPacketNumberLength packet_number_length,
-    QuicVariableLengthIntegerLength retry_token_length_length,
-    QuicVariableLengthIntegerLength length_length,
-    size_t* payload_length) {
-  *payload_length = 1;
-  const size_t stream_length =
-      NullEncrypter(Perspective::IS_CLIENT).GetCiphertextSize(*payload_length) +
-      QuicPacketCreator::StreamFramePacketOverhead(
-          version, destination_connection_id_length,
-          source_connection_id_length, include_version,
-          include_diversification_nonce, packet_number_length,
-          retry_token_length_length, length_length, 0u);
-  const size_t ack_length =
-      NullEncrypter(Perspective::IS_CLIENT)
-          .GetCiphertextSize(QuicFramer::GetMinAckFrameSize(
-              version, PACKET_1BYTE_PACKET_NUMBER)) +
-      GetPacketHeaderSize(version, destination_connection_id_length,
-                          source_connection_id_length, include_version,
-                          include_diversification_nonce, packet_number_length,
-                          retry_token_length_length, 0, length_length);
-  if (stream_length < ack_length) {
-    *payload_length = 1 + ack_length - stream_length;
-  }
-
-  return NullEncrypter(Perspective::IS_CLIENT)
-             .GetCiphertextSize(*payload_length) +
-         QuicPacketCreator::StreamFramePacketOverhead(
-             version, destination_connection_id_length,
-             source_connection_id_length, include_version,
-             include_diversification_nonce, packet_number_length,
-             retry_token_length_length, length_length, 0u);
-}
-
 QuicConfig DefaultQuicConfig() {
   QuicConfig config;
   config.SetInitialStreamFlowControlWindowToSend(

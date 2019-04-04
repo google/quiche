@@ -5354,89 +5354,35 @@ TEST_P(QuicConnectionTest, TestQueueLimitsOnSendStreamData) {
   if (connection_.SupportsMultiplePacketNumberSpaces()) {
     return;
   }
-  // All packets carry version info till version is negotiated.
-  size_t payload_length;
-  size_t length = GetPacketLengthForOneStream(
-      connection_.version().transport_version, kIncludeVersion,
-      !kIncludeDiversificationNonce, PACKET_8BYTE_CONNECTION_ID,
-      PACKET_0BYTE_CONNECTION_ID,
-      QuicPacketCreatorPeer::GetPacketNumberLength(creator_),
-      QuicPacketCreatorPeer::GetRetryTokenLengthLength(creator_),
-      QuicPacketCreatorPeer::GetLengthLength(creator_), &payload_length);
-  connection_.SetMaxPacketLength(length);
 
   // Queue the first packet.
+  size_t payload_length = connection_.max_packet_length();
   EXPECT_CALL(*send_algorithm_, CanSend(_)).WillOnce(testing::Return(false));
   const std::string payload(payload_length, 'a');
-  EXPECT_EQ(0u, connection_.SendStreamDataWithString(3, payload, 0, NO_FIN)
+  QuicStreamId first_bidi_stream_id(QuicUtils::GetFirstBidirectionalStreamId(
+      connection_.version().transport_version, Perspective::IS_CLIENT));
+  EXPECT_EQ(0u, connection_
+                    .SendStreamDataWithString(first_bidi_stream_id, payload, 0,
+                                              NO_FIN)
                     .bytes_consumed);
   EXPECT_EQ(0u, connection_.NumQueuedPackets());
 }
 
-TEST_P(QuicConnectionTest, LoopThroughSendingPackets) {
+TEST_P(QuicConnectionTest, SendingThreePackets) {
   if (connection_.SupportsMultiplePacketNumberSpaces()) {
     return;
   }
-  // All packets carry version info till version is negotiated.
-  size_t payload_length;
 
-  // Number of packets this test generates. The goal is to have
-  // kPacketCount packets, each the same size (overhead and payload).
-  // The payload will vary depending on the overhead (which in turn
-  // varies per the QUIC packet encoding rules).
-  const int kPacketCount = 7;
-
-  // Get the basic packet size. This assumes, among other things, a
-  // stream offset of 0.
-  size_t length = GetPacketLengthForOneStream(
-      connection_.version().transport_version, kIncludeVersion,
-      !kIncludeDiversificationNonce, PACKET_8BYTE_CONNECTION_ID,
-      PACKET_0BYTE_CONNECTION_ID,
-      QuicPacketCreatorPeer::GetPacketNumberLength(creator_),
-      QuicPacketCreatorPeer::GetRetryTokenLengthLength(creator_),
-      QuicPacketCreatorPeer::GetLengthLength(creator_), &payload_length);
-  // GetPacketLengthForOneStream() assumes a stream offset of 0 in determining
-  // packet length. The size of the offset field in a stream frame is
-  // 0 for offset 0, and 2 for non-zero offsets up through 16K (for
-  // versions other than 99) and 1 for non-zero offsets through 16K
-  // for version 99. Increase the length by 1 or 2, as apporpriate, so
-  // that subsequent packets containing subsequent stream frames with
-  // non-zero offsets will fit within the packet length.
-  if (connection_.version().transport_version == QUIC_VERSION_99) {
-    length = length + 1;
-  } else {
-    length = length + 2;
-  }
-
-  connection_.SetMaxPacketLength(length);
-
-  // Queue the first packet.
-  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
-      .Times(kPacketCount);
-
-  size_t total_payload_length = payload_length * kPacketCount;
-  // The first frame of the stream is at offset 0. When the offset is
-  // 0, it is not included in the stream frame. Increase the total
-  // payload so that the "missing" offset byte in the first packet is
-  // occupied by a payload byte. The net result is that each of the N
-  // packets of the test will contain a single stream frame, each of
-  // which will be the same size (overhead + data).
-  if (connection_.version().transport_version == QUIC_VERSION_99) {
-    // Version 99 encodes the offset in 1 byte for the scope of this test.
-    total_payload_length = total_payload_length + 1;
-  } else {
-    // Versions other than 99 encode the offset in 2 bytes for the
-    // scope of this test.
-    total_payload_length = total_payload_length + 2;
-  }
+  // Make the payload twice the size of the packet, so 3 packets are written.
+  size_t total_payload_length = 2 * connection_.max_packet_length();
   const std::string payload(total_payload_length, 'a');
-
-  EXPECT_EQ(payload.size(),
-            connection_
-                .SendStreamDataWithString(QuicUtils::GetCryptoStreamId(
-                                              connection_.transport_version()),
-                                          payload, 0, NO_FIN)
-                .bytes_consumed);
+  QuicStreamId first_bidi_stream_id(QuicUtils::GetFirstBidirectionalStreamId(
+      connection_.version().transport_version, Perspective::IS_CLIENT));
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(3);
+  EXPECT_EQ(payload.size(), connection_
+                                .SendStreamDataWithString(first_bidi_stream_id,
+                                                          payload, 0, NO_FIN)
+                                .bytes_consumed);
 }
 
 TEST_P(QuicConnectionTest, LoopThroughSendingPacketsWithTruncation) {
