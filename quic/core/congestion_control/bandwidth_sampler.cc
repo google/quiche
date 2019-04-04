@@ -15,6 +15,7 @@ namespace quic {
 BandwidthSampler::BandwidthSampler()
     : total_bytes_sent_(0),
       total_bytes_acked_(0),
+      total_bytes_lost_(0),
       total_bytes_sent_at_last_acked_packet_(0),
       last_acked_packet_sent_time_(QuicTime::Zero()),
       last_acked_packet_ack_time_(QuicTime::Zero()),
@@ -87,7 +88,8 @@ BandwidthSample BandwidthSampler::OnPacketAcknowledgedInner(
     QuicPacketNumber packet_number,
     const ConnectionStateOnSentPacket& sent_packet) {
   total_bytes_acked_ += sent_packet.size;
-  total_bytes_sent_at_last_acked_packet_ = sent_packet.total_bytes_sent;
+  total_bytes_sent_at_last_acked_packet_ =
+      sent_packet.send_time_state.total_bytes_sent;
   last_acked_packet_sent_time_ = sent_packet.sent_time;
   last_acked_packet_ack_time_ = ack_time;
 
@@ -109,7 +111,7 @@ BandwidthSample BandwidthSampler::OnPacketAcknowledgedInner(
   QuicBandwidth send_rate = QuicBandwidth::Infinite();
   if (sent_packet.sent_time > sent_packet.last_acked_packet_sent_time) {
     send_rate = QuicBandwidth::FromBytesAndTimeDelta(
-        sent_packet.total_bytes_sent -
+        sent_packet.send_time_state.total_bytes_sent -
             sent_packet.total_bytes_sent_at_last_acked_packet,
         sent_packet.sent_time - sent_packet.last_acked_packet_sent_time);
   }
@@ -133,8 +135,7 @@ BandwidthSample BandwidthSampler::OnPacketAcknowledgedInner(
     return BandwidthSample();
   }
   QuicBandwidth ack_rate = QuicBandwidth::FromBytesAndTimeDelta(
-      total_bytes_acked_ -
-          sent_packet.total_bytes_acked_at_the_last_acked_packet,
+      total_bytes_acked_ - sent_packet.send_time_state.total_bytes_acked,
       ack_time - sent_packet.last_acked_packet_ack_time);
 
   BandwidthSample sample;
@@ -143,17 +144,28 @@ BandwidthSample BandwidthSampler::OnPacketAcknowledgedInner(
   // means that the RTT measurements here can be artificially high, especially
   // on low bandwidth connections.
   sample.rtt = ack_time - sent_packet.sent_time;
-  // A sample is app-limited if the packet was sent during the app-limited
-  // phase.
-  sample.is_app_limited = sent_packet.is_app_limited;
+  SentPacketToSendTimeState(sent_packet, &sample.state_at_send);
   return sample;
 }
 
-void BandwidthSampler::OnPacketLost(QuicPacketNumber packet_number) {
+SendTimeState BandwidthSampler::OnPacketLost(QuicPacketNumber packet_number) {
   // TODO(vasilvv): see the comment for the case of missing packets in
   // BandwidthSampler::OnPacketAcknowledged on why this does not raise a
   // QUIC_BUG when removal fails.
-  connection_state_map_.Remove(packet_number);
+  SendTimeState send_time_state;
+  send_time_state.is_valid = connection_state_map_.Remove(
+      packet_number, [&](const ConnectionStateOnSentPacket& sent_packet) {
+        total_bytes_lost_ += sent_packet.size;
+        SentPacketToSendTimeState(sent_packet, &send_time_state);
+      });
+  return send_time_state;
+}
+
+void BandwidthSampler::SentPacketToSendTimeState(
+    const ConnectionStateOnSentPacket& sent_packet,
+    SendTimeState* send_time_state) const {
+  *send_time_state = sent_packet.send_time_state;
+  send_time_state->is_valid = true;
 }
 
 void BandwidthSampler::OnAppLimited() {
@@ -162,14 +174,33 @@ void BandwidthSampler::OnAppLimited() {
 }
 
 void BandwidthSampler::RemoveObsoletePackets(QuicPacketNumber least_unacked) {
+  // A packet can become obsolete when it is removed from QuicUnackedPacketMap's
+  // view of inflight before it is acked or marked as lost. For example, when
+  // QuicSentPacketManager::RetransmitCryptoPackets retransmits a crypto packet,
+  // the packet is removed from QuicUnackedPacketMap's inflight, but is not
+  // marked as acked or lost in the BandwidthSampler.
   while (!connection_state_map_.IsEmpty() &&
          connection_state_map_.first_packet() < least_unacked) {
-    connection_state_map_.Remove(connection_state_map_.first_packet());
+    connection_state_map_.Remove(
+        connection_state_map_.first_packet(),
+        [&](const ConnectionStateOnSentPacket& sent_packet) {
+          // Obsoleted packets as either acked or lost but the sampler doesn't
+          // know. We count them as acked here, since most packets are acked.
+          total_bytes_acked_ += sent_packet.size;
+        });
   }
+}
+
+QuicByteCount BandwidthSampler::total_bytes_sent() const {
+  return total_bytes_sent_;
 }
 
 QuicByteCount BandwidthSampler::total_bytes_acked() const {
   return total_bytes_acked_;
+}
+
+QuicByteCount BandwidthSampler::total_bytes_lost() const {
+  return total_bytes_lost_;
 }
 
 bool BandwidthSampler::is_app_limited() const {

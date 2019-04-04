@@ -6,6 +6,7 @@
 #define QUICHE_QUIC_CORE_PACKET_NUMBER_INDEXED_QUEUE_H_
 
 #include "net/third_party/quiche/src/quic/core/quic_constants.h"
+#include "net/third_party/quiche/src/quic/core/quic_packet_number.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
@@ -53,6 +54,11 @@ class PacketNumberIndexedQueue {
   // Removes data associated with |packet_number| and frees the slots in the
   // queue as necessary.
   bool Remove(QuicPacketNumber packet_number);
+
+  // Same as above, but if an entry is present in the queue, also call f(entry)
+  // before removing it.
+  template <typename Function>
+  bool Remove(QuicPacketNumber packet_number, Function f);
 
   bool IsEmpty() const { return number_of_present_entries_ == 0; }
 
@@ -161,10 +167,18 @@ bool PacketNumberIndexedQueue<T>::Emplace(QuicPacketNumber packet_number,
 
 template <typename T>
 bool PacketNumberIndexedQueue<T>::Remove(QuicPacketNumber packet_number) {
+  return Remove(packet_number, [](const T&) {});
+}
+
+template <typename T>
+template <typename Function>
+bool PacketNumberIndexedQueue<T>::Remove(QuicPacketNumber packet_number,
+                                         Function f) {
   EntryWrapper* entry = GetEntryWrapper(packet_number);
   if (entry == nullptr) {
     return false;
   }
+  f(*static_cast<const T*>(entry));
   entry->present = false;
   number_of_present_entries_--;
 

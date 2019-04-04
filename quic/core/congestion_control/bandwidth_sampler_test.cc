@@ -4,6 +4,7 @@
 
 #include "net/third_party/quiche/src/quic/core/congestion_control/bandwidth_sampler.h"
 
+#include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/mock_clock.h"
@@ -40,6 +41,10 @@ class BandwidthSamplerTest : public QuicTest {
   BandwidthSampler sampler_;
   QuicByteCount bytes_in_flight_;
 
+  QuicByteCount PacketsToBytes(QuicPacketCount packet_count) {
+    return packet_count * kRegularPacketSize;
+  }
+
   void SendPacketInner(uint64_t packet_number,
                        QuicByteCount bytes,
                        HasRetransmittableData has_retransmittable_data) {
@@ -66,15 +71,19 @@ class BandwidthSamplerTest : public QuicTest {
   // Acknowledge receipt of a packet and expect it to be not app-limited.
   QuicBandwidth AckPacket(uint64_t packet_number) {
     BandwidthSample sample = AckPacketInner(packet_number);
-    EXPECT_FALSE(sample.is_app_limited);
+    EXPECT_TRUE(sample.state_at_send.is_valid);
+    EXPECT_FALSE(sample.state_at_send.is_app_limited);
     return sample.bandwidth;
   }
 
-  void LosePacket(uint64_t packet_number) {
+  SendTimeState LosePacket(uint64_t packet_number) {
     QuicByteCount size = BandwidthSamplerPeer::GetPacketSize(
         sampler_, QuicPacketNumber(packet_number));
     bytes_in_flight_ -= size;
-    sampler_.OnPacketLost(QuicPacketNumber(packet_number));
+    SendTimeState send_time_state =
+        sampler_.OnPacketLost(QuicPacketNumber(packet_number));
+    EXPECT_TRUE(send_time_state.is_valid);
+    return send_time_state;
   }
 
   // Sends one packet and acks it.  Then, send 20 packets.  Finally, send
@@ -122,6 +131,63 @@ TEST_F(BandwidthSamplerTest, SendAndWait) {
   }
   EXPECT_EQ(0u, BandwidthSamplerPeer::GetNumberOfTrackedPackets(sampler_));
   EXPECT_EQ(0u, bytes_in_flight_);
+}
+
+TEST_F(BandwidthSamplerTest, SendTimeState) {
+  QuicTime::Delta time_between_packets = QuicTime::Delta::FromMilliseconds(10);
+
+  // Send packets 1-5.
+  for (int i = 1; i <= 5; i++) {
+    SendPacket(i);
+    EXPECT_EQ(PacketsToBytes(i), sampler_.total_bytes_sent());
+    clock_.AdvanceTime(time_between_packets);
+  }
+
+  // Ack packet 1.
+  SendTimeState send_time_state = AckPacketInner(1).state_at_send;
+  EXPECT_EQ(PacketsToBytes(1), send_time_state.total_bytes_sent);
+  EXPECT_EQ(0, send_time_state.total_bytes_acked);
+  EXPECT_EQ(0, send_time_state.total_bytes_lost);
+  EXPECT_EQ(PacketsToBytes(1), sampler_.total_bytes_acked());
+
+  // Lose packet 2.
+  send_time_state = LosePacket(2);
+  EXPECT_EQ(PacketsToBytes(2), send_time_state.total_bytes_sent);
+  EXPECT_EQ(0, send_time_state.total_bytes_acked);
+  EXPECT_EQ(0, send_time_state.total_bytes_lost);
+  EXPECT_EQ(PacketsToBytes(1), sampler_.total_bytes_lost());
+
+  // Lose packet 3.
+  send_time_state = LosePacket(3);
+  EXPECT_EQ(PacketsToBytes(3), send_time_state.total_bytes_sent);
+  EXPECT_EQ(0, send_time_state.total_bytes_acked);
+  EXPECT_EQ(0, send_time_state.total_bytes_lost);
+  EXPECT_EQ(PacketsToBytes(2), sampler_.total_bytes_lost());
+
+  // Send packets 6-10.
+  for (int i = 6; i <= 10; i++) {
+    SendPacket(i);
+    EXPECT_EQ(PacketsToBytes(i), sampler_.total_bytes_sent());
+    clock_.AdvanceTime(time_between_packets);
+  }
+
+  // Ack all inflight packets.
+  QuicPacketCount acked_packet_count = 1;
+  EXPECT_EQ(PacketsToBytes(acked_packet_count), sampler_.total_bytes_acked());
+  for (int i = 4; i <= 10; i++) {
+    send_time_state = AckPacketInner(i).state_at_send;
+    ++acked_packet_count;
+    EXPECT_EQ(PacketsToBytes(acked_packet_count), sampler_.total_bytes_acked());
+    EXPECT_EQ(PacketsToBytes(i), send_time_state.total_bytes_sent);
+    if (i <= 5) {
+      EXPECT_EQ(0, send_time_state.total_bytes_acked);
+      EXPECT_EQ(0, send_time_state.total_bytes_lost);
+    } else {
+      EXPECT_EQ(PacketsToBytes(1), send_time_state.total_bytes_acked);
+      EXPECT_EQ(PacketsToBytes(2), send_time_state.total_bytes_lost);
+    }
+    clock_.AdvanceTime(time_between_packets);
+  }
 }
 
 // Test the sampler during regular windowed sender scenario with fixed
@@ -321,7 +387,7 @@ TEST_F(BandwidthSamplerTest, AppLimited) {
   // app-limited and underestimate the bandwidth due to that.
   for (int i = 41; i <= 60; i++) {
     BandwidthSample sample = AckPacketInner(i);
-    EXPECT_TRUE(sample.is_app_limited);
+    EXPECT_TRUE(sample.state_at_send.is_app_limited);
     EXPECT_LT(sample.bandwidth, 0.7f * expected_bandwidth);
 
     SendPacket(i + 20);

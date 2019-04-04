@@ -505,13 +505,14 @@ bool BbrSender::UpdateBandwidthAndMinRtt(
     }
     BandwidthSample bandwidth_sample =
         sampler_.OnPacketAcknowledged(now, packet.packet_number);
-    last_sample_is_app_limited_ = bandwidth_sample.is_app_limited;
-    has_non_app_limited_sample_ |= !bandwidth_sample.is_app_limited;
+    last_sample_is_app_limited_ = bandwidth_sample.state_at_send.is_app_limited;
+    has_non_app_limited_sample_ |=
+        !bandwidth_sample.state_at_send.is_app_limited;
     if (!bandwidth_sample.rtt.IsZero()) {
       sample_min_rtt = std::min(sample_min_rtt, bandwidth_sample.rtt);
     }
 
-    if (!bandwidth_sample.is_app_limited ||
+    if (!bandwidth_sample.state_at_send.is_app_limited ||
         bandwidth_sample.bandwidth > BandwidthEstimate()) {
       max_bandwidth_.Update(bandwidth_sample.bandwidth, round_trip_count_);
     }

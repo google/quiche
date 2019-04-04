@@ -9,6 +9,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_bandwidth.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_time.h"
+#include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 
 namespace quic {
@@ -16,6 +17,47 @@ namespace quic {
 namespace test {
 class BandwidthSamplerPeer;
 }  // namespace test
+
+// A subset of BandwidthSampler::ConnectionStateOnSentPacket which is returned
+// to the caller when the packet is acked or lost.
+struct QUIC_EXPORT_PRIVATE SendTimeState {
+  SendTimeState()
+      : is_valid(false),
+        is_app_limited(false),
+        total_bytes_sent(0),
+        total_bytes_acked(0),
+        total_bytes_lost(0) {}
+
+  SendTimeState(bool is_app_limited,
+                QuicByteCount total_bytes_sent,
+                QuicByteCount total_bytes_acked,
+                QuicByteCount total_bytes_lost)
+      : is_valid(true),
+        is_app_limited(is_app_limited),
+        total_bytes_sent(total_bytes_sent),
+        total_bytes_acked(total_bytes_acked),
+        total_bytes_lost(total_bytes_lost) {}
+
+  SendTimeState(const SendTimeState& other) = default;
+
+  // Whether other states in this object is valid.
+  bool is_valid;
+
+  // Whether the sender is app limited at the time the packet was sent.
+  // App limited bandwidth sample might be artificially low because the sender
+  // did not have enough data to send in order to saturate the link.
+  bool is_app_limited;
+
+  // Total number of sent bytes at the time the packet was sent.
+  // Includes the packet itself.
+  QuicByteCount total_bytes_sent;
+
+  // Total number of acked bytes at the time the packet was sent.
+  QuicByteCount total_bytes_acked;
+
+  // Total number of lost bytes at the time the packet was sent.
+  QuicByteCount total_bytes_lost;
+};
 
 struct QUIC_EXPORT_PRIVATE BandwidthSample {
   // The bandwidth at that particular sample. Zero if no valid bandwidth sample
@@ -26,14 +68,11 @@ struct QUIC_EXPORT_PRIVATE BandwidthSample {
   // available.  Does not correct for delayed ack time.
   QuicTime::Delta rtt;
 
-  // Indicates whether the sample might be artificially low because the sender
-  // did not have enough data to send in order to saturate the link.
-  bool is_app_limited;
+  // States captured when the packet was sent.
+  SendTimeState state_at_send;
 
   BandwidthSample()
-      : bandwidth(QuicBandwidth::Zero()),
-        rtt(QuicTime::Delta::Zero()),
-        is_app_limited(false) {}
+      : bandwidth(QuicBandwidth::Zero()), rtt(QuicTime::Delta::Zero()) {}
 };
 
 // An interface common to any class that can provide bandwidth samples from the
@@ -62,7 +101,7 @@ class QUIC_EXPORT_PRIVATE BandwidthSamplerInterface {
 
   // Informs the sampler that a packet is considered lost and it should no
   // longer keep track of it.
-  virtual void OnPacketLost(QuicPacketNumber packet_number) = 0;
+  virtual SendTimeState OnPacketLost(QuicPacketNumber packet_number) = 0;
 
   // Informs the sampler that the connection is currently app-limited, causing
   // the sampler to enter the app-limited phase.  The phase will expire by
@@ -72,11 +111,14 @@ class QUIC_EXPORT_PRIVATE BandwidthSamplerInterface {
   // Remove all the packets lower than the specified packet number.
   virtual void RemoveObsoletePackets(QuicPacketNumber least_unacked) = 0;
 
-  // Total number of bytes currently acknowledged by the receiver.
+  // Total number of bytes sent/acked/lost in the connection.
+  virtual QuicByteCount total_bytes_sent() const = 0;
   virtual QuicByteCount total_bytes_acked() const = 0;
+  virtual QuicByteCount total_bytes_lost() const = 0;
 
   // Application-limited information exported for debugging.
   virtual bool is_app_limited() const = 0;
+
   virtual QuicPacketNumber end_of_app_limited_phase() const = 0;
 };
 
@@ -172,14 +214,18 @@ class QUIC_EXPORT_PRIVATE BandwidthSampler : public BandwidthSamplerInterface {
                     HasRetransmittableData has_retransmittable_data) override;
   BandwidthSample OnPacketAcknowledged(QuicTime ack_time,
                                        QuicPacketNumber packet_number) override;
-  void OnPacketLost(QuicPacketNumber packet_number) override;
+  SendTimeState OnPacketLost(QuicPacketNumber packet_number) override;
 
   void OnAppLimited() override;
 
   void RemoveObsoletePackets(QuicPacketNumber least_unacked) override;
 
+  QuicByteCount total_bytes_sent() const override;
   QuicByteCount total_bytes_acked() const override;
+  QuicByteCount total_bytes_lost() const override;
+
   bool is_app_limited() const override;
+
   QuicPacketNumber end_of_app_limited_phase() const override;
 
  private:
@@ -196,10 +242,6 @@ class QUIC_EXPORT_PRIVATE BandwidthSampler : public BandwidthSamplerInterface {
     // Size of the packet.
     QuicByteCount size;
 
-    // The value of |total_bytes_sent_| at the time the packet was sent.
-    // Includes the packet itself.
-    QuicByteCount total_bytes_sent;
-
     // The value of |total_bytes_sent_at_last_acked_packet_| at the time the
     // packet was sent.
     QuicByteCount total_bytes_sent_at_last_acked_packet;
@@ -212,13 +254,9 @@ class QUIC_EXPORT_PRIVATE BandwidthSampler : public BandwidthSamplerInterface {
     // sent.
     QuicTime last_acked_packet_ack_time;
 
-    // The value of |total_bytes_acked_| at the time the packet was
-    // sent.
-    QuicByteCount total_bytes_acked_at_the_last_acked_packet;
-
-    // The value of |is_app_limited_| at the time the packet was
-    // sent.
-    bool is_app_limited;
+    // Send time states that are returned to the congestion controller when the
+    // packet is acked or lost.
+    SendTimeState send_time_state;
 
     // Snapshot constructor. Records the current state of the bandwidth
     // sampler.
@@ -227,33 +265,38 @@ class QUIC_EXPORT_PRIVATE BandwidthSampler : public BandwidthSamplerInterface {
                                 const BandwidthSampler& sampler)
         : sent_time(sent_time),
           size(size),
-          total_bytes_sent(sampler.total_bytes_sent_),
           total_bytes_sent_at_last_acked_packet(
               sampler.total_bytes_sent_at_last_acked_packet_),
           last_acked_packet_sent_time(sampler.last_acked_packet_sent_time_),
           last_acked_packet_ack_time(sampler.last_acked_packet_ack_time_),
-          total_bytes_acked_at_the_last_acked_packet(
-              sampler.total_bytes_acked_),
-          is_app_limited(sampler.is_app_limited_) {}
+          send_time_state(sampler.is_app_limited_,
+                          sampler.total_bytes_sent_,
+                          sampler.total_bytes_acked_,
+                          sampler.total_bytes_lost_) {}
 
     // Default constructor.  Required to put this structure into
     // PacketNumberIndexedQueue.
     ConnectionStateOnSentPacket()
         : sent_time(QuicTime::Zero()),
           size(0),
-          total_bytes_sent(0),
           total_bytes_sent_at_last_acked_packet(0),
           last_acked_packet_sent_time(QuicTime::Zero()),
-          last_acked_packet_ack_time(QuicTime::Zero()),
-          total_bytes_acked_at_the_last_acked_packet(0),
-          is_app_limited(false) {}
+          last_acked_packet_ack_time(QuicTime::Zero()) {}
   };
+
+  // Copy a subset of the (private) ConnectionStateOnSentPacket to the (public)
+  // SendTimeState. Always set send_time_state->is_valid to true.
+  void SentPacketToSendTimeState(const ConnectionStateOnSentPacket& sent_packet,
+                                 SendTimeState* send_time_state) const;
 
   // The total number of congestion controlled bytes sent during the connection.
   QuicByteCount total_bytes_sent_;
 
   // The total number of congestion controlled bytes which were acknowledged.
   QuicByteCount total_bytes_acked_;
+
+  // The total number of congestion controlled bytes which were lost.
+  QuicByteCount total_bytes_lost_;
 
   // The value of |total_bytes_sent_| at the time the last acknowledged packet
   // was sent. Valid only when |last_acked_packet_sent_time_| is valid.
