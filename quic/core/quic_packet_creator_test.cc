@@ -97,7 +97,7 @@ class TestPacketCreator : public QuicPacketCreator {
     if (data_length > 0) {
       producer_->SaveStreamData(id, iov, iov_count, iov_offset, data_length);
     }
-    return QuicPacketCreator::ConsumeData(id, data_length, iov_offset, offset,
+    return QuicPacketCreator::ConsumeData(id, data_length - iov_offset, offset,
                                           fin, needs_full_padding,
                                           transmission_type, frame);
   }
@@ -693,6 +693,9 @@ TEST_P(QuicPacketCreatorTest, StreamFrameConsumption) {
 }
 
 TEST_P(QuicPacketCreatorTest, CryptoStreamFramePacketPadding) {
+  // This test serializes crypto payloads slightly larger than a packet, which
+  // Causes the multi-packet ClientHello check to fail.
+  FLAGS_quic_enforce_single_packet_chlo = false;
   // Compute the total overhead for a single frame in packet.
   size_t overhead =
       GetPacketHeaderOverhead(client_framer_.transport_version()) +

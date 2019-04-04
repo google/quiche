@@ -148,7 +148,7 @@ QuicConsumedData QuicPacketGenerator::ConsumeData(QuicStreamId id,
     bool needs_full_padding =
         has_handshake && fully_pad_crypto_handshake_packets_;
 
-    if (!packet_creator_.ConsumeData(id, write_length, total_bytes_consumed,
+    if (!packet_creator_.ConsumeData(id, write_length - total_bytes_consumed,
                                      offset + total_bytes_consumed, fin,
                                      needs_full_padding,
                                      next_transmission_type_, &frame)) {

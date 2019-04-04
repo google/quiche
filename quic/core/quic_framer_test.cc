@@ -9854,30 +9854,6 @@ TEST_P(QuicFramerTest, FramerFuzzTest) {
                      framer_.version());
 }
 
-TEST_P(QuicFramerTest, StartsWithChlo) {
-  if (QuicVersionUsesCryptoFrames(framer_.transport_version())) {
-    // When client hellos are sent in crypto frames, this test doesn't make
-    // sense.
-    return;
-  }
-  SimpleDataProducer producer;
-  framer_.set_data_producer(&producer);
-  QuicStringPiece data("CHLOCHLO");
-  struct iovec iovec;
-  iovec.iov_base = const_cast<char*>(data.data());
-  iovec.iov_len = data.length();
-  QuicStreamId stream_id =
-      QuicUtils::GetCryptoStreamId(framer_.transport_version());
-  producer.SaveStreamData(stream_id, &iovec, 1, 0, data.length());
-  for (size_t offset = 0; offset < 5; ++offset) {
-    if (offset == 0 || offset == 4) {
-      EXPECT_TRUE(framer_.StartsWithChlo(stream_id, offset));
-    } else {
-      EXPECT_FALSE(framer_.StartsWithChlo(stream_id, offset));
-    }
-  }
-}
-
 TEST_P(QuicFramerTest, IetfBlockedFrame) {
   // This test only for version 99.
   if (framer_.transport_version() != QUIC_VERSION_99) {

@@ -523,9 +523,6 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   // Tell framer to infer packet header type from version_.
   void InferPacketHeaderTypeFromVersion();
 
-  // Returns true if data with |offset| of stream |id| starts with 'CHLO'.
-  bool StartsWithChlo(QuicStreamId id, QuicStreamOffset offset) const;
-
   // Returns true if |header| is considered as an stateless reset packet.
   bool IsIetfStatelessResetPacket(const QuicPacketHeader& header) const;
 

@@ -163,7 +163,7 @@ class StatelessConnectionTerminator {
       if (!QuicVersionUsesCryptoFrames(framer_->transport_version())) {
         if (!creator_.ConsumeData(
                 QuicUtils::GetCryptoStreamId(framer_->transport_version()),
-                reject.length(), offset, offset,
+                reject.length() - offset, offset,
                 /*fin=*/false,
                 /*needs_full_padding=*/true, NOT_RETRANSMISSION, &frame)) {
           QUIC_BUG << "Unable to consume data into an empty packet.";

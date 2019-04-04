@@ -5176,25 +5176,6 @@ bool QuicFramer::IsVersionNegotiation(
   return header.long_packet_type == VERSION_NEGOTIATION;
 }
 
-bool QuicFramer::StartsWithChlo(QuicStreamId id,
-                                QuicStreamOffset offset) const {
-  if (data_producer_ == nullptr) {
-    QUIC_BUG << "Does not have data producer.";
-    return false;
-  }
-  char buf[sizeof(kCHLO)];
-  QuicDataWriter writer(sizeof(kCHLO), buf);
-  if (data_producer_->WriteStreamData(id, offset, sizeof(kCHLO), &writer) !=
-      WRITE_SUCCESS) {
-    QUIC_BUG << "Failed to write data for stream " << id << " with offset "
-             << offset << " data_length = " << sizeof(kCHLO);
-    return false;
-  }
-
-  return strncmp(buf, reinterpret_cast<const char*>(&kCHLO), sizeof(kCHLO)) ==
-         0;
-}
-
 bool QuicFramer::AppendIetfConnectionCloseFrame(
     const QuicConnectionCloseFrame& frame,
     QuicDataWriter* writer) {

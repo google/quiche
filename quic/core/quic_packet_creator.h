@@ -96,8 +96,7 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // If current packet is not full, creates a stream frame that fits into the
   // open packet and adds it to the packet.
   bool ConsumeData(QuicStreamId id,
-                   size_t write_length,
-                   size_t iov_offset,
+                   size_t data_length,
                    QuicStreamOffset offset,
                    bool fin,
                    bool needs_full_padding,
@@ -352,8 +351,8 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // wire. Is non-zero for v99 IETF Initial, 0-RTT or Handshake packets.
   QuicVariableLengthIntegerLength GetLengthLength() const;
 
-  // Returns true if |frame| starts with CHLO.
-  bool StreamFrameStartsWithChlo(const QuicStreamFrame& frame) const;
+  // Returns true if |frame| is a ClientHello.
+  bool StreamFrameIsClientHello(const QuicStreamFrame& frame) const;
 
   // Returns true if packet under construction has IETF long header.
   bool HasIetfLongHeader() const;

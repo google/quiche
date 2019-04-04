@@ -174,30 +174,25 @@ bool QuicPacketCreator::ConsumeCryptoData(EncryptionLevel level,
 }
 
 bool QuicPacketCreator::ConsumeData(QuicStreamId id,
-                                    size_t write_length,
-                                    size_t iov_offset,
+                                    size_t data_size,
                                     QuicStreamOffset offset,
                                     bool fin,
                                     bool needs_full_padding,
                                     TransmissionType transmission_type,
                                     QuicFrame* frame) {
-  // TODO(ianswett): Remove write_length once the multi-packet CHLO check is
-  // done higher in the stack.
-  DCHECK_GE(write_length, iov_offset);
-  const size_t data_size = write_length - iov_offset;
   if (!HasRoomForStreamFrame(id, offset, data_size)) {
     return false;
   }
   CreateStreamFrame(id, data_size, offset, fin, frame);
   // Explicitly disallow multi-packet CHLOs.
   if (FLAGS_quic_enforce_single_packet_chlo &&
-      StreamFrameStartsWithChlo(frame->stream_frame) &&
-      frame->stream_frame.data_length < write_length) {
+      StreamFrameIsClientHello(frame->stream_frame) &&
+      frame->stream_frame.data_length < data_size) {
     const std::string error_details =
         "Client hello won't fit in a single packet.";
     QUIC_BUG << error_details << " Constructed stream frame length: "
              << frame->stream_frame.data_length
-             << " CHLO length: " << write_length;
+             << " CHLO length: " << data_size;
     delegate_->OnUnrecoverableError(QUIC_CRYPTO_CHLO_TOO_LARGE, error_details,
                                     ConnectionCloseSource::FROM_SELF);
     return false;
@@ -953,15 +948,15 @@ void QuicPacketCreator::AddPendingPadding(QuicByteCount size) {
   pending_padding_bytes_ += size;
 }
 
-bool QuicPacketCreator::StreamFrameStartsWithChlo(
+bool QuicPacketCreator::StreamFrameIsClientHello(
     const QuicStreamFrame& frame) const {
   if (framer_->perspective() == Perspective::IS_SERVER ||
       frame.stream_id !=
-          QuicUtils::GetCryptoStreamId(framer_->transport_version()) ||
-      frame.data_length < sizeof(kCHLO)) {
+          QuicUtils::GetCryptoStreamId(framer_->transport_version())) {
     return false;
   }
-  return framer_->StartsWithChlo(frame.stream_id, frame.offset);
+  // The ClientHello is always sent with INITIAL encryption.
+  return packet_.encryption_level == ENCRYPTION_INITIAL;
 }
 
 void QuicPacketCreator::SetConnectionIdIncluded(
