@@ -1489,7 +1489,8 @@ WriteStreamDataResult QuicSession::WriteStreamData(QuicStreamId id,
   if (stream == nullptr) {
     // This causes the connection to be closed because of failed to serialize
     // packet.
-    QUIC_BUG << "Stream " << id << " does not exist when trying to write data.";
+    QUIC_BUG << "Stream " << id << " does not exist when trying to write data."
+             << " version:" << connection_->transport_version();
     return STREAM_MISSING;
   }
   if (stream->WriteStreamData(offset, data_length, writer)) {
