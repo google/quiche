@@ -802,7 +802,7 @@ TEST_P(QuicFramerTest, EmptyPacket) {
 
 TEST_P(QuicFramerTest, LargePacket) {
   // clang-format off
-  unsigned char packet[kMaxPacketSize + 1] = {
+  unsigned char packet[kMaxIncomingPacketSize + 1] = {
     // public flags (8 byte connection_id)
     0x28,
     // connection_id
@@ -812,7 +812,7 @@ TEST_P(QuicFramerTest, LargePacket) {
     // private flags
     0x00,
   };
-  unsigned char packet44[kMaxPacketSize + 1] = {
+  unsigned char packet44[kMaxIncomingPacketSize + 1] = {
     // type (short header 4 byte packet number)
     0x32,
     // connection_id
@@ -820,7 +820,7 @@ TEST_P(QuicFramerTest, LargePacket) {
     // packet number
     0x78, 0x56, 0x34, 0x12,
   };
-  unsigned char packet46[kMaxPacketSize + 1] = {
+  unsigned char packet46[kMaxIncomingPacketSize + 1] = {
     // type (short header 4 byte packet number)
     0x43,
     // connection_id
@@ -845,10 +845,10 @@ TEST_P(QuicFramerTest, LargePacket) {
       !kIncludeDiversificationNonce, PACKET_4BYTE_PACKET_NUMBER,
       VARIABLE_LENGTH_INTEGER_LENGTH_0, 0, VARIABLE_LENGTH_INTEGER_LENGTH_0);
 
-  memset(p + header_size, 0, kMaxPacketSize - header_size);
+  memset(p + header_size, 0, kMaxIncomingPacketSize - header_size);
 
   QuicEncryptedPacket encrypted(AsChars(p), p_size, false);
-  EXPECT_QUIC_BUG(framer_.ProcessPacket(encrypted), "Packet too large:1");
+  EXPECT_FALSE(framer_.ProcessPacket(encrypted));
 
   ASSERT_TRUE(visitor_.header_.get());
   // Make sure we've parsed the packet header, so we can send an error.
@@ -856,6 +856,7 @@ TEST_P(QuicFramerTest, LargePacket) {
             visitor_.header_->destination_connection_id);
   // Make sure the correct error is propagated.
   EXPECT_EQ(QUIC_PACKET_TOO_LARGE, framer_.error());
+  EXPECT_EQ("Packet too large.", framer_.detailed_error());
 }
 
 TEST_P(QuicFramerTest, PacketHeader) {

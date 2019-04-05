@@ -27,6 +27,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_aligned.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_client_stats.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_endian.h"
@@ -1560,15 +1561,16 @@ bool QuicFramer::ProcessPacket(const QuicEncryptedPacket& packet) {
     rv = ProcessVersionNegotiationPacket(&reader, header);
   } else if (header.reset_flag) {
     rv = ProcessPublicResetPacket(&reader, header);
-  } else if (packet.length() <= kMaxPacketSize) {
+  } else if (packet.length() <= kMaxIncomingPacketSize) {
     // The optimized decryption algorithm implementations run faster when
     // operating on aligned memory.
-    QUIC_CACHELINE_ALIGNED char buffer[kMaxPacketSize];
+    QUIC_CACHELINE_ALIGNED char buffer[kMaxIncomingPacketSize];
     if (packet_has_ietf_packet_header) {
       rv = ProcessIetfDataPacket(&reader, &header, packet, buffer,
-                                 kMaxPacketSize);
+                                 QUIC_ARRAYSIZE(buffer));
     } else {
-      rv = ProcessDataPacket(&reader, &header, packet, buffer, kMaxPacketSize);
+      rv = ProcessDataPacket(&reader, &header, packet, buffer,
+                             QUIC_ARRAYSIZE(buffer));
     }
   } else {
     std::unique_ptr<char[]> large_buffer(new char[packet.length()]);
@@ -1580,7 +1582,8 @@ bool QuicFramer::ProcessPacket(const QuicEncryptedPacket& packet) {
                              packet.length());
     }
     QUIC_BUG_IF(rv) << "QUIC should never successfully process packets larger"
-                    << "than kMaxPacketSize. packet size:" << packet.length();
+                    << "than kMaxIncomingPacketSize. packet size:"
+                    << packet.length();
   }
   return rv;
 }
@@ -1857,9 +1860,8 @@ bool QuicFramer::ProcessIetfDataPacket(QuicDataReader* encrypted_reader,
     return true;
   }
 
-  if (packet.length() > kMaxPacketSize) {
-    // If the packet has gotten this far, it should not be too large.
-    QUIC_BUG << "Packet too large:" << packet.length();
+  if (packet.length() > kMaxIncomingPacketSize) {
+    set_detailed_error("Packet too large.");
     return RaiseError(QUIC_PACKET_TOO_LARGE);
   }
 
@@ -1936,9 +1938,8 @@ bool QuicFramer::ProcessDataPacket(QuicDataReader* encrypted_reader,
     return true;
   }
 
-  if (packet.length() > kMaxPacketSize) {
-    // If the packet has gotten this far, it should not be too large.
-    QUIC_BUG << "Packet too large:" << packet.length();
+  if (packet.length() > kMaxIncomingPacketSize) {
+    set_detailed_error("Packet too large.");
     return RaiseError(QUIC_PACKET_TOO_LARGE);
   }
 
