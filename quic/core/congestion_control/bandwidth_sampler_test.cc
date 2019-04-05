@@ -146,22 +146,22 @@ TEST_F(BandwidthSamplerTest, SendTimeState) {
   // Ack packet 1.
   SendTimeState send_time_state = AckPacketInner(1).state_at_send;
   EXPECT_EQ(PacketsToBytes(1), send_time_state.total_bytes_sent);
-  EXPECT_EQ(0, send_time_state.total_bytes_acked);
-  EXPECT_EQ(0, send_time_state.total_bytes_lost);
+  EXPECT_EQ(0u, send_time_state.total_bytes_acked);
+  EXPECT_EQ(0u, send_time_state.total_bytes_lost);
   EXPECT_EQ(PacketsToBytes(1), sampler_.total_bytes_acked());
 
   // Lose packet 2.
   send_time_state = LosePacket(2);
   EXPECT_EQ(PacketsToBytes(2), send_time_state.total_bytes_sent);
-  EXPECT_EQ(0, send_time_state.total_bytes_acked);
-  EXPECT_EQ(0, send_time_state.total_bytes_lost);
+  EXPECT_EQ(0u, send_time_state.total_bytes_acked);
+  EXPECT_EQ(0u, send_time_state.total_bytes_lost);
   EXPECT_EQ(PacketsToBytes(1), sampler_.total_bytes_lost());
 
   // Lose packet 3.
   send_time_state = LosePacket(3);
   EXPECT_EQ(PacketsToBytes(3), send_time_state.total_bytes_sent);
-  EXPECT_EQ(0, send_time_state.total_bytes_acked);
-  EXPECT_EQ(0, send_time_state.total_bytes_lost);
+  EXPECT_EQ(0u, send_time_state.total_bytes_acked);
+  EXPECT_EQ(0u, send_time_state.total_bytes_lost);
   EXPECT_EQ(PacketsToBytes(2), sampler_.total_bytes_lost());
 
   // Send packets 6-10.
@@ -180,8 +180,8 @@ TEST_F(BandwidthSamplerTest, SendTimeState) {
     EXPECT_EQ(PacketsToBytes(acked_packet_count), sampler_.total_bytes_acked());
     EXPECT_EQ(PacketsToBytes(i), send_time_state.total_bytes_sent);
     if (i <= 5) {
-      EXPECT_EQ(0, send_time_state.total_bytes_acked);
-      EXPECT_EQ(0, send_time_state.total_bytes_lost);
+      EXPECT_EQ(0u, send_time_state.total_bytes_acked);
+      EXPECT_EQ(0u, send_time_state.total_bytes_lost);
     } else {
       EXPECT_EQ(PacketsToBytes(1), send_time_state.total_bytes_acked);
       EXPECT_EQ(PacketsToBytes(2), send_time_state.total_bytes_lost);
