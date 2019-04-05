@@ -400,6 +400,9 @@ class QUIC_EXPORT_PRIVATE BbrSender : public SendAlgorithmInterface {
   bool probe_rtt_disabled_if_app_limited_;
   bool app_limited_since_last_probe_rtt_;
   QuicTime::Delta min_rtt_since_last_probe_rtt_;
+
+  // Latched value of --quic_always_get_bw_sample_when_acked.
+  const bool always_get_bw_sample_when_acked_;
 };
 
 QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
