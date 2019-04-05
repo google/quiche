@@ -47,6 +47,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_server_id.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
+#include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_default_proof_providers.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
@@ -151,11 +152,20 @@ DEFINE_QUIC_COMMAND_LINE_FLAG(bool,
                               "Set to true for a quieter output experience.");
 
 DEFINE_QUIC_COMMAND_LINE_FLAG(
-    int32_t,
+    std::string,
     quic_version,
-    -1,
+    "",
     "QUIC version to speak, e.g. 21. If not set, then all available "
-    "versions are offered in the handshake.");
+    "versions are offered in the handshake. Also supports wire versions "
+    "such as Q043 or T099.");
+
+DEFINE_QUIC_COMMAND_LINE_FLAG(
+    int32_t,
+    quic_ietf_draft,
+    0,
+    "QUIC IETF draft number to use over the wire, e.g. 18. "
+    "By default this sets quic_version to T099. "
+    "This also enables required internal QUIC flags.");
 
 DEFINE_QUIC_COMMAND_LINE_FLAG(
     bool,
@@ -228,12 +238,31 @@ int main(int argc, char* argv[]) {
   quic::QuicEpollServer epoll_server;
   quic::QuicServerId server_id(url.host(), port, false);
   quic::ParsedQuicVersionVector versions = quic::CurrentSupportedVersions();
-  if (GetQuicFlag(FLAGS_quic_version) != -1) {
-    versions.clear();
-    versions.push_back(quic::ParsedQuicVersion(
-        quic::PROTOCOL_QUIC_CRYPTO, static_cast<quic::QuicTransportVersion>(
-                                        GetQuicFlag(FLAGS_quic_version))));
+
+  std::string quic_version_string = GetQuicFlag(FLAGS_quic_version);
+  const int32_t quic_ietf_draft = GetQuicFlag(FLAGS_quic_ietf_draft);
+  if (quic_ietf_draft > 0) {
+    quic::QuicVersionInitializeSupportForIetfDraft(quic_ietf_draft);
+    if (quic_version_string.length() == 0) {
+      quic_version_string = "T099";
+    }
   }
+  if (quic_version_string.length() > 0) {
+    if (quic_version_string[0] == 'T') {
+      // ParseQuicVersionString checks quic_supports_tls_handshake.
+      SetQuicFlag(&FLAGS_quic_supports_tls_handshake, true);
+    }
+    quic::ParsedQuicVersion parsed_quic_version =
+        quic::ParseQuicVersionString(quic_version_string);
+    if (parsed_quic_version.transport_version ==
+        quic::QUIC_VERSION_UNSUPPORTED) {
+      return 1;
+    }
+    versions.clear();
+    versions.push_back(parsed_quic_version);
+    quic::QuicEnableVersion(parsed_quic_version);
+  }
+
   const int32_t num_requests(GetQuicFlag(FLAGS_num_requests));
   std::unique_ptr<quic::ProofVerifier> proof_verifier;
   if (GetQuicFlag(FLAGS_disable_certificate_verification)) {

@@ -227,6 +227,11 @@ ParsedVersionsToTransportVersions(const ParsedQuicVersionVector& versions);
 QUIC_EXPORT_PRIVATE ParsedQuicVersion
 ParseQuicVersionLabel(QuicVersionLabel version_label);
 
+// Parses a QUIC version string such as "Q043" or "T099".
+// Also supports parsing numbers such as "44".
+QUIC_EXPORT_PRIVATE ParsedQuicVersion
+ParseQuicVersionString(std::string version_string);
+
 // Constructs a QuicVersionLabel from the provided ParsedQuicVersion.
 QUIC_EXPORT_PRIVATE QuicVersionLabel
 CreateQuicVersionLabel(ParsedQuicVersion parsed_version);
@@ -347,6 +352,14 @@ QUIC_EXPORT_PRIVATE inline bool QuicVersionUsesCryptoFrames(
     QuicTransportVersion transport_version) {
   return transport_version == QUIC_VERSION_99;
 }
+
+// Initializes support for the provided IETF draft version by setting flags
+// and the version label.
+QUIC_EXPORT_PRIVATE void QuicVersionInitializeSupportForIetfDraft(
+    int32_t draft_version);
+
+// Enables the flags required to support this version of QUIC.
+QUIC_EXPORT_PRIVATE void QuicEnableVersion(ParsedQuicVersion parsed_version);
 
 }  // namespace quic
 

@@ -8,11 +8,13 @@
 
 #include "net/third_party/quiche/src/quic/core/quic_tag.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_endian.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
 
 namespace quic {
 namespace {
@@ -22,6 +24,10 @@ namespace {
 QuicVersionLabel MakeVersionLabel(char a, char b, char c, char d) {
   return MakeQuicTag(d, c, b, a);
 }
+
+// Version label for ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_99).
+// Defaults to "T099". Can be overridden for IETF interop events.
+QuicVersionLabel kQuicT099VersionLabel = 0;
 
 }  // namespace
 
@@ -66,6 +72,10 @@ QuicVersionLabel CreateQuicVersionLabel(ParsedQuicVersion parsed_version) {
     case QUIC_VERSION_47:
       return MakeVersionLabel(proto, '0', '4', '7');
     case QUIC_VERSION_99:
+      if (parsed_version.handshake_protocol == PROTOCOL_TLS1_3 &&
+          kQuicT099VersionLabel != 0) {
+        return kQuicT099VersionLabel;
+      }
       return MakeVersionLabel(proto, '0', '9', '9');
     default:
       // This shold be an ERROR because we should never attempt to convert an
@@ -102,6 +112,41 @@ ParsedQuicVersion ParseQuicVersionLabel(QuicVersionLabel version_label) {
   // Reading from the client so this should not be considered an ERROR.
   QUIC_DLOG(INFO) << "Unsupported QuicVersionLabel version: "
                   << QuicVersionLabelToString(version_label);
+  return UnsupportedQuicVersion();
+}
+
+ParsedQuicVersion ParseQuicVersionString(std::string version_string) {
+  if (version_string.length() == 0) {
+    return UnsupportedQuicVersion();
+  }
+  int quic_version_number = 0;
+  if (QuicTextUtils::StringToInt(version_string, &quic_version_number) &&
+      quic_version_number > 0) {
+    return ParsedQuicVersion(
+        PROTOCOL_QUIC_CRYPTO,
+        static_cast<QuicTransportVersion>(quic_version_number));
+  }
+
+  std::vector<HandshakeProtocol> protocols = {PROTOCOL_QUIC_CRYPTO};
+  if (FLAGS_quic_supports_tls_handshake) {
+    protocols.push_back(PROTOCOL_TLS1_3);
+  }
+  for (QuicTransportVersion version : kSupportedTransportVersions) {
+    for (HandshakeProtocol handshake : protocols) {
+      const ParsedQuicVersion parsed_version =
+          ParsedQuicVersion(handshake, version);
+      if (version_string == ParsedQuicVersionToString(parsed_version)) {
+        return parsed_version;
+      }
+    }
+  }
+  // Still recognize T099 even if kQuicT099VersionLabel has been changed.
+  if (FLAGS_quic_supports_tls_handshake && version_string == "T099") {
+    return ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_99);
+  }
+  // Reading from the client so this should not be considered an ERROR.
+  QUIC_DLOG(INFO) << "Unsupported QUIC version string: \"" << version_string
+                  << "\".";
   return UnsupportedQuicVersion();
 }
 
@@ -331,6 +376,50 @@ std::string ParsedQuicVersionVectorToString(
 
 ParsedQuicVersion UnsupportedQuicVersion() {
   return ParsedQuicVersion(PROTOCOL_UNSUPPORTED, QUIC_VERSION_UNSUPPORTED);
+}
+
+void QuicVersionInitializeSupportForIetfDraft(int32_t draft_version) {
+  if (draft_version == 0) {
+    return;
+  }
+  if (draft_version < 0 || draft_version >= 256) {
+    LOG(FATAL) << "Invalid IETF draft version " << draft_version;
+    return;
+  }
+
+  kQuicT099VersionLabel = 0xff000000 + draft_version;
+
+  // Enable necessary flags.
+  SetQuicFlag(&FLAGS_quic_supports_tls_handshake, true);
+  SetQuicReloadableFlag(quic_deprecate_ack_bundling_mode, true);
+  SetQuicReloadableFlag(quic_rpm_decides_when_to_send_acks, true);
+  SetQuicReloadableFlag(quic_use_uber_loss_algorithm, true);
+  SetQuicReloadableFlag(quic_use_uber_received_packet_manager, true);
+  SetQuicReloadableFlag(quic_validate_packet_number_post_decryption, true);
+  SetQuicRestartFlag(quic_enable_accept_random_ipn, true);
+}
+
+void QuicEnableVersion(ParsedQuicVersion parsed_version) {
+  if (parsed_version.handshake_protocol == PROTOCOL_TLS1_3) {
+    SetQuicFlag(&FLAGS_quic_supports_tls_handshake, true);
+  }
+  static_assert(QUIC_ARRAYSIZE(kSupportedTransportVersions) == 6u,
+                "Supported versions out of sync");
+  if (parsed_version.transport_version >= QUIC_VERSION_99) {
+    SetQuicReloadableFlag(quic_enable_version_99, true);
+  }
+  if (parsed_version.transport_version >= QUIC_VERSION_47) {
+    SetQuicReloadableFlag(quic_enable_version_47, true);
+  }
+  if (parsed_version.transport_version >= QUIC_VERSION_46) {
+    SetQuicReloadableFlag(quic_enable_version_46, true);
+  }
+  if (parsed_version.transport_version >= QUIC_VERSION_44) {
+    SetQuicReloadableFlag(quic_enable_version_44, true);
+  }
+  if (parsed_version.transport_version >= QUIC_VERSION_43) {
+    SetQuicReloadableFlag(quic_enable_version_43, true);
+  }
 }
 
 #undef RETURN_STRING_LITERAL  // undef for jumbo builds
