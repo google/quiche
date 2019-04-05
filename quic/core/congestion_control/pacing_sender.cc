@@ -4,7 +4,9 @@
 
 #include "net/third_party/quiche/src/quic/core/congestion_control/pacing_sender.h"
 
+#include "net/third_party/quiche/src/quic/core/quic_bandwidth.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 
 namespace quic {
@@ -94,6 +96,13 @@ void PacingSender::OnPacketSent(
                          (sender_->GetCongestionWindow() *
                           GetQuicFlag(FLAGS_quic_lumpy_pacing_cwnd_fraction)) /
                          kDefaultTCPMSS)));
+    if (GetQuicReloadableFlag(quic_no_lumpy_pacing_at_low_bw) &&
+        sender_->BandwidthEstimate() <
+            QuicBandwidth::FromKBitsPerSecond(1200)) {
+      // Below 1.2Mbps, send 1 packet at once, because one full-sized packet
+      // is about 10ms of queueing.
+      lumpy_tokens_ = 1u;
+    }
   }
   --lumpy_tokens_;
   if (pacing_limited_) {
@@ -134,7 +143,8 @@ QuicTime::Delta PacingSender::TimeUntilSend(
     return ideal_next_packet_send_time_ - now;
   }
 
-  QUIC_DVLOG(1) << "Sending packet now";
+  QUIC_DVLOG(1) << "Sending packet now. ideal_next_packet_send_time: "
+                << ideal_next_packet_send_time_ << ", now: " << now;
   return QuicTime::Delta::Zero();
 }
 

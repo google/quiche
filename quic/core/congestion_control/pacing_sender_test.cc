@@ -47,6 +47,8 @@ class PacingSenderTest : public QuicTest {
     pacing_sender_ = QuicMakeUnique<PacingSender>();
     pacing_sender_->set_sender(mock_sender_.get());
     EXPECT_CALL(*mock_sender_, PacingRate(_)).WillRepeatedly(Return(bandwidth));
+    EXPECT_CALL(*mock_sender_, BandwidthEstimate())
+        .WillRepeatedly(Return(bandwidth));
     if (burst_size == 0) {
       EXPECT_CALL(*mock_sender_, OnCongestionEvent(_, _, _, _, _));
       LostPacketVector lost_packets;
@@ -426,6 +428,32 @@ TEST_F(PacingSenderTest, LumpyPacingWithInitialBurstToken) {
   CheckPacketIsSentImmediately();
   // Packet 24 will be delayed 2ms.
   CheckPacketIsDelayed(QuicTime::Delta::FromMilliseconds(2));
+}
+
+TEST_F(PacingSenderTest, NoLumpyPacingForLowBandwidthFlows) {
+  // Set lumpy size to be 3, and cwnd faction to 0.5
+  SetQuicFlag(&FLAGS_quic_lumpy_pacing_size, 3);
+  SetQuicFlag(&FLAGS_quic_lumpy_pacing_cwnd_fraction, 0.5f);
+  SetQuicReloadableFlag(quic_no_lumpy_pacing_at_low_bw, true);
+
+  // Configure pacing rate of 1 packet per 100 ms.
+  QuicTime::Delta inter_packet_delay = QuicTime::Delta::FromMilliseconds(100);
+  InitPacingRate(kInitialBurstPackets, QuicBandwidth::FromBytesAndTimeDelta(
+                                           kMaxPacketSize, inter_packet_delay));
+  UpdateRtt();
+
+  // Send kInitialBurstPackets packets, and verify that they are not paced.
+  for (int i = 0; i < kInitialBurstPackets; ++i) {
+    CheckPacketIsSentImmediately();
+  }
+
+  // The first packet after burst token exhausted is also sent immediately,
+  // because ideal_next_packet_send_time has not been set yet.
+  CheckPacketIsSentImmediately();
+
+  for (int i = 0; i < 200; ++i) {
+    CheckPacketIsDelayed(inter_packet_delay);
+  }
 }
 
 }  // namespace test
