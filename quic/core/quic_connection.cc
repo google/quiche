@@ -3875,7 +3875,7 @@ MessageStatus QuicConnection::SendMessage(QuicMessageId message_id,
              << transport_version();
     return MESSAGE_STATUS_UNSUPPORTED;
   }
-  if (message.total_length() > GetLargestMessagePayload()) {
+  if (message.total_length() > GetCurrentLargestMessagePayload()) {
     return MESSAGE_STATUS_TOO_LARGE;
   }
   if (!CanWrite(HAS_RETRANSMITTABLE_DATA)) {
@@ -3885,8 +3885,12 @@ MessageStatus QuicConnection::SendMessage(QuicMessageId message_id,
   return packet_generator_.AddMessageFrame(message_id, message);
 }
 
-QuicPacketLength QuicConnection::GetLargestMessagePayload() const {
-  return packet_generator_.GetLargestMessagePayload();
+QuicPacketLength QuicConnection::GetCurrentLargestMessagePayload() const {
+  return packet_generator_.GetCurrentLargestMessagePayload();
+}
+
+QuicPacketLength QuicConnection::GetGuaranteedLargestMessagePayload() const {
+  return packet_generator_.GetGuaranteedLargestMessagePayload();
 }
 
 bool QuicConnection::ShouldSetAckAlarm() const {

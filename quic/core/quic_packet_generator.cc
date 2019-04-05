@@ -472,7 +472,7 @@ MessageStatus QuicPacketGenerator::AddMessageFrame(QuicMessageId message_id,
     MaybeBundleAckOpportunistically();
   }
   const QuicByteCount message_length = message.total_length();
-  if (message_length > GetLargestMessagePayload()) {
+  if (message_length > GetCurrentLargestMessagePayload()) {
     return MESSAGE_STATUS_TOO_LARGE;
   }
   SendQueuedFrames(/*flush=*/false);
@@ -530,8 +530,13 @@ bool QuicPacketGenerator::FlushAckFrame(const QuicFrames& frames) {
   return true;
 }
 
-QuicPacketLength QuicPacketGenerator::GetLargestMessagePayload() const {
-  return packet_creator_.GetLargestMessagePayload();
+QuicPacketLength QuicPacketGenerator::GetCurrentLargestMessagePayload() const {
+  return packet_creator_.GetCurrentLargestMessagePayload();
+}
+
+QuicPacketLength QuicPacketGenerator::GetGuaranteedLargestMessagePayload()
+    const {
+  return packet_creator_.GetGuaranteedLargestMessagePayload();
 }
 
 void QuicPacketGenerator::SetConnectionId(QuicConnectionId connection_id) {

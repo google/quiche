@@ -51,8 +51,8 @@ class QuartcSession : public QuicSession,
   bool SendOrQueueMessage(std::string message);
 
   // Returns largest message payload acceptable in SendQuartcMessage.
-  QuicPacketLength GetLargestMessagePayload() const {
-    return connection()->GetLargestMessagePayload();
+  QuicPacketLength GetCurrentLargestMessagePayload() const {
+    return connection()->GetCurrentLargestMessagePayload();
   }
 
   // Return true if transport support message frame.

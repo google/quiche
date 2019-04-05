@@ -320,7 +320,12 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
   // Returns the largest payload that will fit into a single MESSAGE frame.
   // Because overhead can vary during a connection, this method should be
   // checked for every message.
-  QuicPacketLength GetLargestMessagePayload() const;
+  QuicPacketLength GetCurrentLargestMessagePayload() const;
+
+  // Returns the largest payload that will fit into a single MESSAGE frame at
+  // any point during the connection.  This assumes the version and
+  // connection ID lengths do not change.
+  QuicPacketLength GetGuaranteedLargestMessagePayload() const;
 
   bool goaway_sent() const { return goaway_sent_; }
 

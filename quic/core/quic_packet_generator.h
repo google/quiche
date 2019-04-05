@@ -227,7 +227,8 @@ class QUIC_EXPORT_PRIVATE QuicPacketGenerator {
   bool FlushAckFrame(const QuicFrames& frames);
 
   // Returns the largest payload that will fit into a single MESSAGE frame.
-  QuicPacketLength GetLargestMessagePayload() const;
+  QuicPacketLength GetCurrentLargestMessagePayload() const;
+  QuicPacketLength GetGuaranteedLargestMessagePayload() const;
 
   // Update the connection ID used in outgoing packets.
   void SetConnectionId(QuicConnectionId connection_id);

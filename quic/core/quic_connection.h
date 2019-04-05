@@ -757,7 +757,13 @@ class QUIC_EXPORT_PRIVATE QuicConnection
                                     QuicMemSliceSpan message);
 
   // Returns the largest payload that will fit into a single MESSAGE frame.
-  QuicPacketLength GetLargestMessagePayload() const;
+  // Because overhead can vary during a connection, this method should be
+  // checked for every message.
+  QuicPacketLength GetCurrentLargestMessagePayload() const;
+  // Returns the largest payload that will fit into a single MESSAGE frame at
+  // any point during the connection.  This assumes the version and
+  // connection ID lengths do not change.
+  QuicPacketLength GetGuaranteedLargestMessagePayload() const;
 
   // Return the id of the cipher of the primary decrypter of the framer.
   uint32_t cipher_id() const { return framer_.decrypter()->cipher_id(); }

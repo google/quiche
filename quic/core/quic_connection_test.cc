@@ -8257,7 +8257,7 @@ TEST_P(QuicConnectionTest, SendMessage) {
       connection_.SupportsMultiplePacketNumberSpaces()) {
     return;
   }
-  std::string message(connection_.GetLargestMessagePayload() * 2, 'a');
+  std::string message(connection_.GetCurrentLargestMessagePayload() * 2, 'a');
   QuicStringPiece message_data(message);
   QuicMemSliceStorage storage(nullptr, 0, nullptr, 0);
   {
@@ -8272,8 +8272,9 @@ TEST_P(QuicConnectionTest, SendMessage) {
         MESSAGE_STATUS_SUCCESS,
         connection_.SendMessage(
             1, MakeSpan(connection_.helper()->GetStreamSendBufferAllocator(),
-                        QuicStringPiece(message_data.data(),
-                                        connection_.GetLargestMessagePayload()),
+                        QuicStringPiece(
+                            message_data.data(),
+                            connection_.GetCurrentLargestMessagePayload()),
                         &storage)));
   }
   // Fail to send a message if connection is congestion control blocked.
@@ -8289,11 +8290,11 @@ TEST_P(QuicConnectionTest, SendMessage) {
   EXPECT_EQ(
       MESSAGE_STATUS_TOO_LARGE,
       connection_.SendMessage(
-          3,
-          MakeSpan(connection_.helper()->GetStreamSendBufferAllocator(),
-                   QuicStringPiece(message_data.data(),
-                                   connection_.GetLargestMessagePayload() + 1),
-                   &storage)));
+          3, MakeSpan(connection_.helper()->GetStreamSendBufferAllocator(),
+                      QuicStringPiece(
+                          message_data.data(),
+                          connection_.GetCurrentLargestMessagePayload() + 1),
+                      &storage)));
 }
 
 // Test to check that the path challenge/path response logic works

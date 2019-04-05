@@ -1531,9 +1531,10 @@ TEST_F(QuicPacketGeneratorTest, AddMessageFrame) {
   EXPECT_EQ(
       MESSAGE_STATUS_SUCCESS,
       generator_.AddMessageFrame(
-          2, MakeSpan(&allocator_,
-                      std::string(generator_.GetLargestMessagePayload(), 'a'),
-                      &storage)));
+          2, MakeSpan(
+                 &allocator_,
+                 std::string(generator_.GetCurrentLargestMessagePayload(), 'a'),
+                 &storage)));
   EXPECT_TRUE(generator_.HasRetransmittableFrames());
 
   // Failed to send messages which cannot fit into one packet.
@@ -1542,7 +1543,8 @@ TEST_F(QuicPacketGeneratorTest, AddMessageFrame) {
       generator_.AddMessageFrame(
           3,
           MakeSpan(&allocator_,
-                   std::string(generator_.GetLargestMessagePayload() + 10, 'a'),
+                   std::string(
+                       generator_.GetCurrentLargestMessagePayload() + 10, 'a'),
                    &storage)));
 }
 

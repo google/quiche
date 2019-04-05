@@ -47,10 +47,10 @@ bool QuartcSession::SendOrQueueMessage(std::string message) {
     return false;
   }
 
-  if (message.size() > GetLargestMessagePayload()) {
+  if (message.size() > GetCurrentLargestMessagePayload()) {
     QUIC_LOG(ERROR) << "Message is too big, message_size=" << message.size()
-                    << ", GetLargestMessagePayload="
-                    << GetLargestMessagePayload();
+                    << ", GetCurrentLargestMessagePayload="
+                    << GetCurrentLargestMessagePayload();
     return false;
   }
 

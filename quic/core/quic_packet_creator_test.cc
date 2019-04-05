@@ -1606,9 +1606,9 @@ TEST_P(QuicPacketCreatorTest, AddMessageFrame) {
           Invoke(this, &QuicPacketCreatorTest::ClearSerializedPacketForTests));
   QuicMemSliceStorage storage(nullptr, 0, nullptr, 0);
   // Verify that there is enough room for the largest message payload.
-  EXPECT_TRUE(
-      creator_.HasRoomForMessageFrame(creator_.GetLargestMessagePayload()));
-  std::string message(creator_.GetLargestMessagePayload(), 'a');
+  EXPECT_TRUE(creator_.HasRoomForMessageFrame(
+      creator_.GetCurrentLargestMessagePayload()));
+  std::string message(creator_.GetCurrentLargestMessagePayload(), 'a');
   QuicMessageFrame* message_frame =
       new QuicMessageFrame(1, MakeSpan(&allocator_, message, &storage));
   EXPECT_TRUE(
@@ -1639,8 +1639,8 @@ TEST_P(QuicPacketCreatorTest, AddMessageFrame) {
   EXPECT_TRUE(creator_.AddSavedFrame(QuicFrame(frame4), NOT_RETRANSMISSION));
   EXPECT_TRUE(creator_.HasPendingFrames());
   // Verify there is not enough room for largest payload.
-  EXPECT_FALSE(
-      creator_.HasRoomForMessageFrame(creator_.GetLargestMessagePayload()));
+  EXPECT_FALSE(creator_.HasRoomForMessageFrame(
+      creator_.GetCurrentLargestMessagePayload()));
   // Add largest message will causes the flush of the stream frame.
   QuicMessageFrame frame5(5, MakeSpan(&allocator_, message, &storage));
   EXPECT_FALSE(creator_.AddSavedFrame(QuicFrame(&frame5), NOT_RETRANSMISSION));
@@ -1654,31 +1654,40 @@ TEST_P(QuicPacketCreatorTest, MessageFrameConsumption) {
   std::string message_data(kDefaultMaxPacketSize, 'a');
   QuicStringPiece message_buffer(message_data);
   QuicMemSliceStorage storage(nullptr, 0, nullptr, 0);
-  // Test all possible size of message frames.
-  for (size_t message_size = 0;
-       message_size <= creator_.GetLargestMessagePayload(); ++message_size) {
-    QuicMessageFrame* frame = new QuicMessageFrame(
-        0, MakeSpan(&allocator_,
-                    QuicStringPiece(message_buffer.data(), message_size),
-                    &storage));
-    EXPECT_TRUE(creator_.AddSavedFrame(QuicFrame(frame), NOT_RETRANSMISSION));
-    EXPECT_TRUE(creator_.HasPendingFrames());
+  // Test all possible encryption levels of message frames.
+  for (EncryptionLevel level :
+       {ENCRYPTION_ZERO_RTT, ENCRYPTION_FORWARD_SECURE}) {
+    creator_.set_encryption_level(level);
+    // Test all possible sizes of message frames.
+    for (size_t message_size = 0;
+         message_size <= creator_.GetCurrentLargestMessagePayload();
+         ++message_size) {
+      QuicMessageFrame* frame = new QuicMessageFrame(
+          0, MakeSpan(&allocator_,
+                      QuicStringPiece(message_buffer.data(), message_size),
+                      &storage));
+      EXPECT_TRUE(creator_.AddSavedFrame(QuicFrame(frame), NOT_RETRANSMISSION));
+      EXPECT_TRUE(creator_.HasPendingFrames());
 
-    size_t expansion_bytes = message_size >= 64 ? 2 : 1;
-    EXPECT_EQ(expansion_bytes, creator_.ExpansionOnNewFrame());
-    // Verify BytesFree returns bytes available for the next frame, which should
-    // subtract the message length.
-    size_t expected_bytes_free =
-        creator_.GetLargestMessagePayload() - message_size < expansion_bytes
-            ? 0
-            : creator_.GetLargestMessagePayload() - expansion_bytes -
-                  message_size;
-    EXPECT_EQ(expected_bytes_free, creator_.BytesFree());
-    EXPECT_CALL(delegate_, OnSerializedPacket(_))
-        .WillOnce(Invoke(this, &QuicPacketCreatorTest::SaveSerializedPacket));
-    creator_.Flush();
-    ASSERT_TRUE(serialized_packet_.encrypted_buffer);
-    DeleteSerializedPacket();
+      size_t expansion_bytes = message_size >= 64 ? 2 : 1;
+      EXPECT_EQ(expansion_bytes, creator_.ExpansionOnNewFrame());
+      // Verify BytesFree returns bytes available for the next frame, which
+      // should subtract the message length.
+      size_t expected_bytes_free =
+          creator_.GetCurrentLargestMessagePayload() - message_size <
+                  expansion_bytes
+              ? 0
+              : creator_.GetCurrentLargestMessagePayload() - expansion_bytes -
+                    message_size;
+      EXPECT_EQ(expected_bytes_free, creator_.BytesFree());
+      EXPECT_LE(creator_.GetGuaranteedLargestMessagePayload(),
+                creator_.GetCurrentLargestMessagePayload());
+      EXPECT_CALL(delegate_, OnSerializedPacket(_))
+          .WillOnce(Invoke(this, &QuicPacketCreatorTest::SaveSerializedPacket));
+      creator_.Flush();
+      ASSERT_TRUE(serialized_packet_.encrypted_buffer);
+      DeleteSerializedPacket();
+    }
   }
 }
 

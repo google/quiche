@@ -3552,8 +3552,8 @@ TEST_P(EndToEndTest, SendMessages) {
   }
 
   SetPacketLossPercentage(30);
-  ASSERT_GT(kMaxPacketSize, client_session->GetLargestMessagePayload());
-  ASSERT_LT(0, client_session->GetLargestMessagePayload());
+  ASSERT_GT(kMaxPacketSize, client_session->GetCurrentLargestMessagePayload());
+  ASSERT_LT(0, client_session->GetCurrentLargestMessagePayload());
 
   std::string message_string(kMaxPacketSize, 'a');
   QuicStringPiece message_buffer(message_string);
@@ -3564,20 +3564,23 @@ TEST_P(EndToEndTest, SendMessages) {
     QuicConnection::ScopedPacketFlusher flusher(
         client_session->connection(), QuicConnection::SEND_ACK_IF_PENDING);
     // Verify the largest message gets successfully sent.
-    EXPECT_EQ(MessageResult(MESSAGE_STATUS_SUCCESS, 1),
-              client_session->SendMessage(MakeSpan(
-                  client_session->connection()
-                      ->helper()
-                      ->GetStreamSendBufferAllocator(),
-                  QuicStringPiece(message_buffer.data(),
-                                  client_session->GetLargestMessagePayload()),
-                  &storage)));
+    EXPECT_EQ(
+        MessageResult(MESSAGE_STATUS_SUCCESS, 1),
+        client_session->SendMessage(MakeSpan(
+            client_session->connection()
+                ->helper()
+                ->GetStreamSendBufferAllocator(),
+            QuicStringPiece(message_buffer.data(),
+                            client_session->GetCurrentLargestMessagePayload()),
+            &storage)));
     // Send more messages with size (0, largest_payload] until connection is
     // write blocked.
     const int kTestMaxNumberOfMessages = 100;
     for (size_t i = 2; i <= kTestMaxNumberOfMessages; ++i) {
       size_t message_length =
-          random->RandUint64() % client_session->GetLargestMessagePayload() + 1;
+          random->RandUint64() %
+              client_session->GetCurrentLargestMessagePayload() +
+          1;
       MessageResult result = client_session->SendMessage(MakeSpan(
           client_session->connection()
               ->helper()
@@ -3592,17 +3595,17 @@ TEST_P(EndToEndTest, SendMessages) {
   }
 
   client_->WaitForDelayedAcks();
-  EXPECT_EQ(
-      MESSAGE_STATUS_TOO_LARGE,
-      client_session
-          ->SendMessage(MakeSpan(
-              client_session->connection()
-                  ->helper()
-                  ->GetStreamSendBufferAllocator(),
-              QuicStringPiece(message_buffer.data(),
-                              client_session->GetLargestMessagePayload() + 1),
-              &storage))
-          .status);
+  EXPECT_EQ(MESSAGE_STATUS_TOO_LARGE,
+            client_session
+                ->SendMessage(MakeSpan(
+                    client_session->connection()
+                        ->helper()
+                        ->GetStreamSendBufferAllocator(),
+                    QuicStringPiece(
+                        message_buffer.data(),
+                        client_session->GetCurrentLargestMessagePayload() + 1),
+                    &storage))
+                .status);
   EXPECT_EQ(QUIC_NO_ERROR, client_->connection_error());
 }
 

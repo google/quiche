@@ -230,12 +230,12 @@ class QuartcSessionTest : public QuicTest {
 
     // Send message of maximum allowed length.
     std::string message_max_long =
-        std::string(server_peer_->GetLargestMessagePayload(), 'A');
+        std::string(server_peer_->GetCurrentLargestMessagePayload(), 'A');
     ASSERT_TRUE(server_peer_->SendOrQueueMessage(message_max_long));
 
     // Send long message which should fail.
     std::string message_too_long =
-        std::string(server_peer_->GetLargestMessagePayload() + 1, 'B');
+        std::string(server_peer_->GetCurrentLargestMessagePayload() + 1, 'B');
     ASSERT_FALSE(server_peer_->SendOrQueueMessage(message_too_long));
 
     // Wait for peer 2 to receive message.

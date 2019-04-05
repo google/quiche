@@ -255,7 +255,11 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   void SetRetryToken(QuicStringPiece retry_token);
 
   // Returns the largest payload that will fit into a single MESSAGE frame.
-  QuicPacketLength GetLargestMessagePayload() const;
+  QuicPacketLength GetCurrentLargestMessagePayload() const;
+  // Returns the largest payload that will fit into a single MESSAGE frame at
+  // any point during the connection.  This assumes the version and
+  // connection ID lengths do not change.
+  QuicPacketLength GetGuaranteedLargestMessagePayload() const;
 
   void set_debug_delegate(DebugDelegate* debug_delegate) {
     debug_delegate_ = debug_delegate;

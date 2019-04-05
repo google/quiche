@@ -1623,8 +1623,12 @@ bool QuicSession::session_decides_what_to_write() const {
   return connection_->session_decides_what_to_write();
 }
 
-QuicPacketLength QuicSession::GetLargestMessagePayload() const {
-  return connection_->GetLargestMessagePayload();
+QuicPacketLength QuicSession::GetCurrentLargestMessagePayload() const {
+  return connection_->GetCurrentLargestMessagePayload();
+}
+
+QuicPacketLength QuicSession::GetGuaranteedLargestMessagePayload() const {
+  return connection_->GetGuaranteedLargestMessagePayload();
 }
 
 void QuicSession::SendStopSending(uint16_t code, QuicStreamId stream_id) {

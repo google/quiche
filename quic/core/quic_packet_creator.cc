@@ -10,9 +10,11 @@
 
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection_id.h"
+#include "net/third_party/quiche/src/quic/core/quic_constants.h"
 #include "net/third_party/quiche/src/quic/core/quic_data_writer.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
+#include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_aligned.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
@@ -984,7 +986,7 @@ void QuicPacketCreator::SetTransmissionType(TransmissionType type) {
   }
 }
 
-QuicPacketLength QuicPacketCreator::GetLargestMessagePayload() const {
+QuicPacketLength QuicPacketCreator::GetCurrentLargestMessagePayload() const {
   if (framer_->transport_version() <= QUIC_VERSION_44) {
     return 0;
   }
@@ -992,11 +994,42 @@ QuicPacketLength QuicPacketCreator::GetLargestMessagePayload() const {
       framer_->transport_version(), GetDestinationConnectionIdLength(),
       GetSourceConnectionIdLength(), IncludeVersionInHeader(),
       IncludeNonceInPublicHeader(), GetPacketNumberLength(),
-      GetRetryTokenLengthLength(), GetRetryToken().length(), GetLengthLength());
+      // No Retry token on packets containing application data.
+      VARIABLE_LENGTH_INTEGER_LENGTH_0, 0, GetLengthLength());
   // This is the largest possible message payload when the length field is
   // omitted.
   return max_plaintext_size_ -
          std::min(max_plaintext_size_, packet_header_size + kQuicFrameTypeSize);
+}
+
+QuicPacketLength QuicPacketCreator::GetGuaranteedLargestMessagePayload() const {
+  if (framer_->transport_version() <= QUIC_VERSION_44) {
+    return 0;
+  }
+  // QUIC Crypto server packets may include a diversification nonce.
+  const bool may_include_nonce =
+      framer_->version().handshake_protocol == PROTOCOL_QUIC_CRYPTO &&
+      framer_->perspective() == Perspective::IS_SERVER;
+  // IETF QUIC long headers include a length on client 0RTT packets.
+  QuicVariableLengthIntegerLength length_length =
+      framer_->perspective() == Perspective::IS_CLIENT
+          ? VARIABLE_LENGTH_INTEGER_LENGTH_2
+          : VARIABLE_LENGTH_INTEGER_LENGTH_0;
+  const size_t packet_header_size = GetPacketHeaderSize(
+      framer_->transport_version(), GetDestinationConnectionIdLength(),
+      // Assume CID lengths don't change, but version may be present.
+      GetSourceConnectionIdLength(), kIncludeVersion, may_include_nonce,
+      PACKET_4BYTE_PACKET_NUMBER,
+      // No Retry token on packets containing application data.
+      VARIABLE_LENGTH_INTEGER_LENGTH_0, 0, length_length);
+  // This is the largest possible message payload when the length field is
+  // omitted.
+  const QuicPacketLength largest_payload =
+      max_plaintext_size_ -
+      std::min(max_plaintext_size_, packet_header_size + kQuicFrameTypeSize);
+  // This must always be less than or equal to GetCurrentLargestMessagePayload.
+  DCHECK_LE(largest_payload, GetCurrentLargestMessagePayload());
+  return largest_payload;
 }
 
 bool QuicPacketCreator::HasIetfLongHeader() const {
