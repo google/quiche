@@ -353,6 +353,12 @@ QUIC_EXPORT_PRIVATE inline bool QuicVersionUsesCryptoFrames(
   return transport_version == QUIC_VERSION_99;
 }
 
+// Returns whether |transport_version| has HTTP/3 Control stream.
+QUIC_EXPORT_PRIVATE inline bool VersionHasControlStreams(
+    QuicTransportVersion transport_version) {
+  return transport_version == QUIC_VERSION_99;
+}
+
 // Initializes support for the provided IETF draft version by setting flags
 // and the version label.
 QUIC_EXPORT_PRIVATE void QuicVersionInitializeSupportForIetfDraft(

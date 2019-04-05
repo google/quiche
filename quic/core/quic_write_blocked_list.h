@@ -189,9 +189,6 @@ class QUIC_EXPORT_PRIVATE QuicWriteBlockedList {
     // Add |id| to the collection in unblocked state.
     void Register(QuicStreamId id) {
       DCHECK(!IsRegistered(id));
-      DCHECK(streams_.empty() || id > streams_.back().id)
-          << "stream_id: " << id
-          << " last static stream: " << streams_.back().id;
       streams_.push_back({id, false});
     }
 

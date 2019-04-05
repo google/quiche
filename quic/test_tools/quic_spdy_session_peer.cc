@@ -61,5 +61,11 @@ size_t QuicSpdySessionPeer::WriteHeadersOnHeadersStream(
       id, std::move(headers), fin, priority, std::move(ack_listener));
 }
 
+// static
+QuicStreamId QuicSpdySessionPeer::GetNextOutgoingUnidirectionalStreamId(
+    QuicSpdySession* session) {
+  return session->GetNextOutgoingUnidirectionalStreamId();
+}
+
 }  // namespace test
 }  // namespace quic

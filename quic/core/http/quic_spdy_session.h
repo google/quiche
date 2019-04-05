@@ -158,6 +158,10 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
     max_inbound_header_list_size_ = max_inbound_header_list_size;
   }
 
+  size_t max_inbound_header_list_size() const {
+    return max_inbound_header_list_size_;
+  }
+
   // Returns true if the session has active request streams.
   bool HasActiveRequestStreams() const;
 

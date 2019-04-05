@@ -41,6 +41,9 @@ class QuicSpdySessionPeer {
       bool fin,
       spdy::SpdyPriority priority,
       QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener);
+  // |session| can't be nullptr.
+  static QuicStreamId GetNextOutgoingUnidirectionalStreamId(
+      QuicSpdySession* session);
 };
 
 }  // namespace test
