@@ -5,11 +5,11 @@
 #ifndef QUICHE_QUIC_PLATFORM_API_QUIC_PCC_SENDER_H_
 #define QUICHE_QUIC_PLATFORM_API_QUIC_PCC_SENDER_H_
 
-#include "net/third_party/quiche/src/quic/core/congestion_control/send_algorithm_interface.h"
 #include "net/quic/platform/impl/quic_pcc_sender_impl.h"
 
 namespace quic {
 
+class SendAlgorithmInterface;
 // Interface for creating a PCC SendAlgorithmInterface
 SendAlgorithmInterface* CreatePccSender(
     const QuicClock* clock,
