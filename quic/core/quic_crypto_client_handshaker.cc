@@ -295,7 +295,7 @@ void QuicCryptoClientHandshaker::DoSendCHLO(
   // Send the client hello in plaintext.
   session()->connection()->SetDefaultEncryptionLevel(ENCRYPTION_INITIAL);
   encryption_established_ = false;
-  if (num_client_hellos_ > QuicCryptoClientStream::kMaxClientHellos) {
+  if (num_client_hellos_ >= QuicCryptoClientStream::kMaxClientHellos) {
     stream_->CloseConnectionWithDetails(
         QUIC_CRYPTO_TOO_MANY_REJECTS,
         QuicStrCat("More than ", QuicCryptoClientStream::kMaxClientHellos,

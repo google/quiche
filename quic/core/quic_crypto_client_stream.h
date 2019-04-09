@@ -46,12 +46,15 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientStream
     : public QuicCryptoClientStreamBase {
  public:
   // kMaxClientHellos is the maximum number of times that we'll send a client
-  // hello. The value 3 accounts for:
+  // hello. The value 4 accounts for:
   //   * One failure due to an incorrect or missing source-address token.
   //   * One failure due the server's certificate chain being unavailible and
   //     the server being unwilling to send it without a valid source-address
   //     token.
-  static const int kMaxClientHellos = 3;
+  //   * One failure due to the ServerConfig private key being located on a
+  //     remote oracle which has become unavailable, forcing the server to send
+  //     the client a fallback ServerConfig.
+  static const int kMaxClientHellos = 4;
 
   // QuicCryptoClientStream creates a HandshakerDelegate at construction time
   // based on the QuicTransportVersion of the connection. Different
