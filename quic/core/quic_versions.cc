@@ -25,10 +25,6 @@ QuicVersionLabel MakeVersionLabel(char a, char b, char c, char d) {
   return MakeQuicTag(d, c, b, a);
 }
 
-// IETF draft version for ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_99).
-// Overrides the version label and ALPN string for IETF interop events.
-int32_t kQuicT099IetfDraftVersion = 0;
-
 }  // namespace
 
 ParsedQuicVersion::ParsedQuicVersion(HandshakeProtocol handshake_protocol,
@@ -78,8 +74,8 @@ QuicVersionLabel CreateQuicVersionLabel(ParsedQuicVersion parsed_version) {
       return MakeVersionLabel(proto, '0', '4', '7');
     case QUIC_VERSION_99:
       if (parsed_version.handshake_protocol == PROTOCOL_TLS1_3 &&
-          kQuicT099IetfDraftVersion != 0) {
-        return 0xff000000 + kQuicT099IetfDraftVersion;
+          GetQuicFlag(FLAGS_quic_ietf_draft_version) != 0) {
+        return 0xff000000 + GetQuicFlag(FLAGS_quic_ietf_draft_version);
       }
       return MakeVersionLabel(proto, '0', '9', '9');
     default:
@@ -145,7 +141,7 @@ ParsedQuicVersion ParseQuicVersionString(std::string version_string) {
       }
     }
   }
-  // Still recognize T099 even if kQuicT099IetfDraftVersion has been changed.
+  // Still recognize T099 even if flag quic_ietf_draft_version has been changed.
   if (FLAGS_quic_supports_tls_handshake && version_string == "T099") {
     return ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_99);
   }
@@ -386,22 +382,24 @@ ParsedQuicVersion UnsupportedQuicVersion() {
 std::string AlpnForVersion(ParsedQuicVersion parsed_version) {
   if (parsed_version.handshake_protocol == PROTOCOL_TLS1_3 &&
       parsed_version.transport_version == QUIC_VERSION_99 &&
-      kQuicT099IetfDraftVersion != 0) {
-    return "h3-" + QuicTextUtils::Uint64ToString(kQuicT099IetfDraftVersion);
+      GetQuicFlag(FLAGS_quic_ietf_draft_version) != 0) {
+    return "h3-" + QuicTextUtils::Uint64ToString(
+                       GetQuicFlag(FLAGS_quic_ietf_draft_version));
   }
   return "h3-google-" + ParsedQuicVersionToString(parsed_version);
 }
 
 void QuicVersionInitializeSupportForIetfDraft(int32_t draft_version) {
-  if (draft_version == 0) {
-    return;
-  }
   if (draft_version < 0 || draft_version >= 256) {
     LOG(FATAL) << "Invalid IETF draft version " << draft_version;
     return;
   }
 
-  kQuicT099IetfDraftVersion = draft_version;
+  SetQuicFlag(&FLAGS_quic_ietf_draft_version, draft_version);
+
+  if (draft_version == 0) {
+    return;
+  }
 
   // Enable necessary flags.
   SetQuicFlag(&FLAGS_quic_supports_tls_handshake, true);

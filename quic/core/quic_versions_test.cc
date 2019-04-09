@@ -591,6 +591,11 @@ TEST_F(QuicVersionsTest, InitializeSupportForIetfDraft) {
   EXPECT_EQ(MakeVersionLabel(0xff, 0, 0, 18),
             CreateQuicVersionLabel(parsed_version_t099));
   EXPECT_EQ("h3-18", AlpnForVersion(parsed_version_t099));
+
+  QuicVersionInitializeSupportForIetfDraft(0);
+  EXPECT_EQ(MakeVersionLabel('T', '0', '9', '9'),
+            CreateQuicVersionLabel(parsed_version_t099));
+  EXPECT_EQ("h3-google-T099", AlpnForVersion(parsed_version_t099));
 }
 
 TEST_F(QuicVersionsTest, QuicEnableVersion) {
