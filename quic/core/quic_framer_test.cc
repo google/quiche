@@ -4391,11 +4391,12 @@ TEST_P(QuicFramerTest, ConnectionCloseFrame) {
       PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
 
   EXPECT_EQ(0u, visitor_.stream_frames_.size());
-
-  EXPECT_EQ(0x11, visitor_.connection_close_frame_.error_code);
+  EXPECT_EQ(0x11, static_cast<unsigned>(
+                      visitor_.connection_close_frame_.quic_error_code));
   EXPECT_EQ("because I can", visitor_.connection_close_frame_.error_details);
   if (framer_.transport_version() == QUIC_VERSION_99) {
-    EXPECT_EQ(0x1234u, visitor_.connection_close_frame_.frame_type);
+    EXPECT_EQ(0x1234u,
+              visitor_.connection_close_frame_.transport_close_frame_type);
   }
 
   ASSERT_EQ(0u, visitor_.ack_frames_.size());
@@ -7279,11 +7280,11 @@ TEST_P(QuicFramerTest, BuildCloseFramePacket) {
 
   QuicConnectionCloseFrame close_frame;
   if (framer_.transport_version() == QUIC_VERSION_99) {
-    close_frame.ietf_error_code =
+    close_frame.transport_error_code =
         static_cast<QuicIetfTransportErrorCodes>(0x11);
-    close_frame.frame_type = 0x05;
+    close_frame.transport_close_frame_type = 0x05;
   } else {
-    close_frame.error_code = static_cast<QuicErrorCode>(0x05060708);
+    close_frame.quic_error_code = static_cast<QuicErrorCode>(0x05060708);
   }
   close_frame.error_details = "because I can";
 
@@ -7406,10 +7407,10 @@ TEST_P(QuicFramerTest, BuildTruncatedCloseFramePacket) {
 
   QuicConnectionCloseFrame close_frame;
   if (framer_.transport_version() == QUIC_VERSION_99) {
-    close_frame.ietf_error_code = PROTOCOL_VIOLATION;  // value is 0x0a
-    EXPECT_EQ(0u, close_frame.frame_type);
+    close_frame.transport_error_code = PROTOCOL_VIOLATION;  // value is 0x0a
+    EXPECT_EQ(0u, close_frame.transport_close_frame_type);
   } else {
-    close_frame.error_code = static_cast<QuicErrorCode>(0x05060708);
+    close_frame.quic_error_code = static_cast<QuicErrorCode>(0x05060708);
   }
   close_frame.error_details = std::string(2048, 'A');
   QuicFrames frames = {QuicFrame(&close_frame)};

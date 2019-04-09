@@ -774,6 +774,7 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
                               uint8_t frame_type,
                               QuicStreamFrame* frame);
   bool ProcessIetfConnectionCloseFrame(QuicDataReader* reader,
+                                       QuicConnectionCloseType type,
                                        QuicConnectionCloseFrame* frame);
   bool ProcessApplicationCloseFrame(QuicDataReader* reader,
                                     QuicApplicationCloseFrame* frame);

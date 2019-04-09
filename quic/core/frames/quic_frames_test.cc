@@ -133,12 +133,14 @@ TEST_F(QuicFramesTest, MaxStreamIdFrameToString) {
 
 TEST_F(QuicFramesTest, ConnectionCloseFrameToString) {
   QuicConnectionCloseFrame frame;
-  frame.error_code = QUIC_NETWORK_IDLE_TIMEOUT;
+  frame.quic_error_code = QUIC_NETWORK_IDLE_TIMEOUT;
   frame.error_details = "No recent network activity.";
   std::ostringstream stream;
   stream << frame;
   EXPECT_EQ(
-      "{ error_code: 25, error_details: 'No recent network activity.', "
+      "{ Close type: UNINITIALIZED, error_code: 25, extracted_error_code: 122, "
+      "error_details: 'No recent "
+      "network activity.', "
       "frame_type: 0"
       "}\n",
       stream.str());

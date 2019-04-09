@@ -559,9 +559,7 @@ TEST_P(QuicPacketCreatorTest, ReserializeFramesWithFullPacketAndPadding) {
 }
 
 TEST_P(QuicPacketCreatorTest, SerializeConnectionClose) {
-  QuicConnectionCloseFrame frame;
-  frame.error_code = QUIC_NO_ERROR;
-  frame.error_details = "error";
+  QuicConnectionCloseFrame frame(QUIC_NO_ERROR, "error");
 
   QuicFrames frames;
   frames.push_back(QuicFrame(&frame));

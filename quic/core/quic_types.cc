@@ -50,4 +50,53 @@ std::ostream& operator<<(std::ostream& os, const WriteResult& s) {
 MessageResult::MessageResult(MessageStatus status, QuicMessageId message_id)
     : status(status), message_id(message_id) {}
 
+std::ostream& operator<<(std::ostream& os,
+                         const QuicIetfTransportErrorCodes& c) {
+  if (c >= 0xff00) {
+    os << "Private value: " << c;
+    return os;
+  }
+
+  switch (c) {
+    case NO_IETF_QUIC_ERROR:
+      os << "NO_IETF_QUIC_ERROR";
+      break;
+    case INTERNAL_ERROR:
+      os << "INTERNAL_ERROR";
+      break;
+    case SERVER_BUSY_ERROR:
+      os << "SERVER_BUSY_ERROR";
+      break;
+    case FLOW_CONTROL_ERROR:
+      os << "FLOW_CONTROL_ERROR";
+      break;
+    case STREAM_LIMIT_ERROR:
+      os << "STREAM_LIMIT_ERROR";
+      break;
+    case STREAM_STATE_ERROR:
+      os << "STREAM_STATE_ERROR";
+      break;
+    case FINAL_SIZE_ERROR:
+      os << "FINAL_SIZE_ERROR";
+      break;
+    case FRAME_ENCODING_ERROR:
+      os << "FRAME_ENCODING_ERROR";
+      break;
+    case TRANSPORT_PARAMETER_ERROR:
+      os << "TRANSPORT_PARAMETER_ERROR";
+      break;
+    case VERSION_NEGOTIATION_ERROR:
+      os << "VERSION_NEGOTIATION_ERROR";
+      break;
+    case PROTOCOL_VIOLATION:
+      os << "PROTOCOL_VIOLATION";
+      break;
+    case INVALID_MIGRATION:
+      os << "INVALID_MIGRATION";
+      break;
+      // No default -- compiler will catch any adds/changes then.
+  }
+  return os;
+}
+
 }  // namespace quic

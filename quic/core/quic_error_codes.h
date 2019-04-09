@@ -328,8 +328,14 @@ enum QuicErrorCode {
   // Connection from stale host needs to be cancelled.
   QUIC_STALE_CONNECTION_CANCELLED = 121,
 
+  // A pseudo error, used as an extended error reason code in the error_details
+  // of IETF-QUIC CONNECTION_CLOSE frames. It is used in
+  // OnConnectionClosed upcalls to indicate that extended error information was
+  // not available in a received CONNECTION_CLOSE frame.
+  QUIC_IETF_GQUIC_ERROR_MISSING = 122,
+
   // No error. Used as bound while iterating.
-  QUIC_LAST_ERROR = 122,
+  QUIC_LAST_ERROR = 123,
 };
 // QuicErrorCodes is encoded as a single octet on-the-wire.
 static_assert(static_cast<int>(QUIC_LAST_ERROR) <=

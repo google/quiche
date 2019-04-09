@@ -152,7 +152,7 @@ void QuicTraceVisitor::PopulateFrameInfo(const QuicFrame& frame,
       frame_record->set_frame_type(quic_trace::CONNECTION_CLOSE);
 
       quic_trace::CloseInfo* info = frame_record->mutable_close_info();
-      info->set_error_code(frame.connection_close_frame->error_code);
+      info->set_error_code(frame.connection_close_frame->quic_error_code);
       info->set_reason_phrase(frame.connection_close_frame->error_details);
       break;
     }

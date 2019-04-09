@@ -112,8 +112,9 @@ bool QuicFramerPeer::AppendApplicationCloseFrame(
 bool QuicFramerPeer::ProcessIetfConnectionCloseFrame(
     QuicFramer* framer,
     QuicDataReader* reader,
+    QuicConnectionCloseType type,
     QuicConnectionCloseFrame* frame) {
-  return framer->ProcessIetfConnectionCloseFrame(reader, frame);
+  return framer->ProcessIetfConnectionCloseFrame(reader, type, frame);
 }
 
 // static

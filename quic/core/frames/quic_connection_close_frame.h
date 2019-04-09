@@ -14,10 +14,26 @@
 
 namespace quic {
 
+// There are three different forms of CONNECTION_CLOSE. UNINITIALIZED is
+// included explicitly for the QuicConnectionCloseFrame so that when the object
+// is constructed, a valid enumeration, indicating that the type is not known,
+// can be set.
+typedef enum QuicConnectionCloseType {
+  UNINITIALIZED = 0,
+  GOOGLE_QUIC_CONNECTION_CLOSE = 1,
+  IETF_QUIC_TRANSPORT_CONNECTION_CLOSE = 2,
+  IETF_QUIC_APPLICATION_CONNECTION_CLOSE = 3
+} QuicConnectionCloseType;
+QUIC_EXPORT_PRIVATE std::ostream& operator<<(
+    std::ostream& os,
+    const QuicConnectionCloseType type);
+
 struct QUIC_EXPORT_PRIVATE QuicConnectionCloseFrame {
   QuicConnectionCloseFrame();
+  QuicConnectionCloseFrame(QuicErrorCode error_code);
   QuicConnectionCloseFrame(QuicErrorCode error_code, std::string error_details);
-  QuicConnectionCloseFrame(QuicIetfTransportErrorCodes ietf_error_code,
+  QuicConnectionCloseFrame(QuicIetfTransportErrorCodes transport_error_code,
+                           QuicErrorCode extracted_error_code,
                            std::string error_details,
                            uint64_t frame_type);
 
@@ -25,20 +41,38 @@ struct QUIC_EXPORT_PRIVATE QuicConnectionCloseFrame {
       std::ostream& os,
       const QuicConnectionCloseFrame& c);
 
-  // Set error_code or ietf_error_code based on the transport version
-  // currently in use.
+  // Indicates whether the received CONNECTION_CLOSE frame is a Google QUIC
+  // CONNECTION_CLOSE, IETF QUIC CONNECTION_CLOSE
+  QuicConnectionCloseType close_type;
+
+  // This is the error field in the frame.
+  // The CONNECTION_CLOSE frame reports a 16-bit error code:
+  // - The transport error code as reported in a CONNECTION_CLOSE/Transport
+  //   frame,
+  // - An opaque 16-bit code as reported in CONNECTION_CLOSE/Application frames,
+  // - A QuicErrorCode, which is used in Google QUIC.
   union {
-    // IETF QUIC has a different set of error codes. Include both
-    // code-sets.
-    QuicErrorCode error_code;
-    QuicIetfTransportErrorCodes ietf_error_code;
+    QuicIetfTransportErrorCodes transport_error_code;
+    uint16_t application_error_code;
+    QuicErrorCode quic_error_code;
   };
+
+  // This error code is extracted from, or added to, the "QuicErrorCode:
+  // QUIC_...(123)" text in the error_details. It provides fine-grained
+  // information as to the source of the error.
+  QuicErrorCode extracted_error_code;
+
+  // String with additional error details. In some circumstances, we will add a
+  // "QuicErrorCode: QUIC_...(123)" string indicating a more specific internal
+  // error code.
   std::string error_details;
 
+  // The frame type present in the IETF transport connection close frame.
+  // Not populated for the Google QUIC or application connection close frames.
   // Contains the type of frame that triggered the connection close. Made a
   // uint64, as opposed to the QuicIetfFrameType, to support possible
   // extensions as well as reporting invalid frame types received from the peer.
-  uint64_t frame_type;
+  uint64_t transport_close_frame_type;
 };
 
 }  // namespace quic

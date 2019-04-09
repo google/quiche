@@ -7,28 +7,74 @@
 namespace quic {
 
 QuicConnectionCloseFrame::QuicConnectionCloseFrame()
-    : error_code(QUIC_NO_ERROR), frame_type(0) {}
+    : close_type(UNINITIALIZED),
+      quic_error_code(QUIC_NO_ERROR),
+      extracted_error_code(QUIC_IETF_GQUIC_ERROR_MISSING),
+      transport_close_frame_type(0) {}
+
+QuicConnectionCloseFrame::QuicConnectionCloseFrame(QuicErrorCode error_code)
+    : close_type(UNINITIALIZED),
+      quic_error_code(error_code),
+      extracted_error_code(QUIC_IETF_GQUIC_ERROR_MISSING),
+      transport_close_frame_type(0) {}
 
 QuicConnectionCloseFrame::QuicConnectionCloseFrame(QuicErrorCode error_code,
                                                    std::string error_details)
-    : error_code(error_code),
+    : close_type(UNINITIALIZED),
+      quic_error_code(error_code),
+      extracted_error_code(QUIC_IETF_GQUIC_ERROR_MISSING),
       error_details(std::move(error_details)),
-      frame_type(0) {}
+      transport_close_frame_type(0) {}
 
 QuicConnectionCloseFrame::QuicConnectionCloseFrame(
-    QuicIetfTransportErrorCodes ietf_error_code,
+    QuicIetfTransportErrorCodes transport_error_code,
+    QuicErrorCode extracted_error_code,
     std::string error_details,
-    uint64_t frame_type)
-    : ietf_error_code(ietf_error_code),
+    uint64_t transport_close_frame_type)
+    : close_type(UNINITIALIZED),
+      transport_error_code(transport_error_code),
+      extracted_error_code(extracted_error_code),
       error_details(std::move(error_details)),
-      frame_type(frame_type) {}
+      transport_close_frame_type(transport_close_frame_type) {}
 
 std::ostream& operator<<(
     std::ostream& os,
     const QuicConnectionCloseFrame& connection_close_frame) {
-  os << "{ error_code: " << connection_close_frame.error_code
-     << ", error_details: '" << connection_close_frame.error_details
-     << "', frame_type: " << connection_close_frame.frame_type << "}\n";
+  os << "{ Close type: " << connection_close_frame.close_type
+     << ", error_code: "
+     << ((connection_close_frame.close_type ==
+          IETF_QUIC_TRANSPORT_CONNECTION_CLOSE)
+             ? connection_close_frame.transport_error_code
+             : ((connection_close_frame.close_type ==
+                 IETF_QUIC_APPLICATION_CONNECTION_CLOSE)
+                    ? connection_close_frame.application_error_code
+                    : connection_close_frame.quic_error_code))
+     << ", extracted_error_code: "
+     << connection_close_frame.extracted_error_code << ", error_details: '"
+     << connection_close_frame.error_details
+     << "', frame_type: " << connection_close_frame.transport_close_frame_type
+     << "}\n";
+  return os;
+}
+
+std::ostream& operator<<(std::ostream& os, const QuicConnectionCloseType type) {
+  switch (type) {
+    case UNINITIALIZED:
+      os << "UNINITIALIZED";
+      break;
+    case GOOGLE_QUIC_CONNECTION_CLOSE:
+      os << "GOOGLE_QUIC_CONNECTION_CLOSE";
+      break;
+    case IETF_QUIC_TRANSPORT_CONNECTION_CLOSE:
+      os << "IETF_QUIC_TRANSPORT_CONNECTION_CLOSE";
+      break;
+    case IETF_QUIC_APPLICATION_CONNECTION_CLOSE:
+      os << "IETF_QUIC_APPLICATION_CONNECTION_CLOSE";
+      break;
+    default:
+      os << "Unknown: " << static_cast<int>(type);
+      break;
+  }
   return os;
 }
 

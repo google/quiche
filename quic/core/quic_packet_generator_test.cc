@@ -1345,11 +1345,10 @@ TEST_F(QuicPacketGeneratorTest, DontCrashOnInvalidStopWaiting) {
 // Regression test for b/31486443.
 TEST_F(QuicPacketGeneratorTest, ConnectionCloseFrameLargerThanPacketSize) {
   delegate_.SetCanWriteAnything();
-  QuicConnectionCloseFrame* frame = new QuicConnectionCloseFrame();
-  frame->error_code = QUIC_PACKET_WRITE_ERROR;
   char buf[2000] = {};
   QuicStringPiece error_details(buf, 2000);
-  frame->error_details = std::string(error_details);
+  QuicConnectionCloseFrame* frame = new QuicConnectionCloseFrame(
+      QUIC_PACKET_WRITE_ERROR, std::string(error_details));
   generator_.AddControlFrame(QuicFrame(frame), /*bundle_ack=*/false);
   EXPECT_TRUE(generator_.HasQueuedFrames());
   EXPECT_TRUE(generator_.HasRetransmittableFrames());

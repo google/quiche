@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "net/third_party/quiche/src/quic/core/quic_connection_id.h"
+#include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
 #include "net/third_party/quiche/src/quic/core/quic_packet_number.h"
 #include "net/third_party/quiche/src/quic/core/quic_time.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
@@ -246,10 +247,10 @@ enum QuicIetfFrameType : uint8_t {
   IETF_RETIRE_CONNECTION_ID = 0x19,
   IETF_PATH_CHALLENGE = 0x1a,
   IETF_PATH_RESPONSE = 0x1b,
+  // Both of the following are "Connection Close" frames,
+  // the first signals transport-layer errors, the second application-layer
+  // errors.
   IETF_CONNECTION_CLOSE = 0x1c,
-  // 0x1d reserved, a flag setting for IETF_CONNECTION_CLOSE
-  // TODO(fkastenholz): IETF_APPLICATION_CLOSE disappears in the next version of
-  // QUIC. It is retained temporarily
   IETF_APPLICATION_CLOSE = 0x1d,
 
   // MESSAGE frame type is not yet determined, use 0x2x temporarily to give
@@ -483,16 +484,18 @@ enum QuicIetfTransportErrorCodes : uint16_t {
   INTERNAL_ERROR = 0x1,
   SERVER_BUSY_ERROR = 0x2,
   FLOW_CONTROL_ERROR = 0x3,
-  STREAM_ID_ERROR = 0x4,
+  STREAM_LIMIT_ERROR = 0x4,
   STREAM_STATE_ERROR = 0x5,
-  FINAL_OFFSET_ERROR = 0x6,
+  FINAL_SIZE_ERROR = 0x6,
   FRAME_ENCODING_ERROR = 0x7,
   TRANSPORT_PARAMETER_ERROR = 0x8,
   VERSION_NEGOTIATION_ERROR = 0x9,
   PROTOCOL_VIOLATION = 0xA,
   INVALID_MIGRATION = 0xC,
-  FRAME_ERROR_base = 0x100,  // add frame type to this base
 };
+QUIC_EXPORT_PRIVATE std::ostream& operator<<(
+    std::ostream& os,
+    const QuicIetfTransportErrorCodes& c);
 
 // Please note, this value cannot used directly for packet serialization.
 enum QuicLongHeaderType : uint8_t {

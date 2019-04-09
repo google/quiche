@@ -1305,8 +1305,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
       header.destination_connection_id_included = CONNECTION_ID_ABSENT;
     }
 
-    QuicConnectionCloseFrame qccf;
-    qccf.error_code = QUIC_PEER_GOING_AWAY;
+    QuicConnectionCloseFrame qccf(QUIC_PEER_GOING_AWAY);
 
     QuicFrames frames;
     frames.push_back(QuicFrame(&qccf));
@@ -2368,7 +2367,7 @@ TEST_P(QuicConnectionTest, RejectUnencryptedStreamData) {
       writer_->connection_close_frames();
   EXPECT_EQ(1u, connection_close_frames.size());
   EXPECT_EQ(QUIC_UNENCRYPTED_STREAM_DATA,
-            connection_close_frames[0].error_code);
+            connection_close_frames[0].quic_error_code);
 }
 
 TEST_P(QuicConnectionTest, OutOfOrderReceiptCausesAckSend) {
@@ -7006,8 +7005,7 @@ TEST_P(QuicConnectionTest, ProcessFramesIfPacketClosedConnection) {
   header.packet_number = QuicPacketNumber(1);
   header.version_flag = false;
 
-  QuicConnectionCloseFrame qccf;
-  qccf.error_code = QUIC_PEER_GOING_AWAY;
+  QuicConnectionCloseFrame qccf(QUIC_PEER_GOING_AWAY);
 
   QuicFrames frames;
   frames.push_back(QuicFrame(frame1_));

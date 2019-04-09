@@ -590,7 +590,7 @@ size_t QuicFramer::GetMinConnectionCloseFrameSize(
   if (version == QUIC_VERSION_99) {
     return QuicDataWriter::GetVarInt62Len(
                TruncatedErrorStringSize(frame.error_details)) +
-           QuicDataWriter::GetVarInt62Len(frame.frame_type) +
+           QuicDataWriter::GetVarInt62Len(frame.transport_close_frame_type) +
            kQuicFrameTypeSize + kQuicIetfQuicErrorCodeSize;
   }
   return kQuicFrameTypeSize + kQuicErrorCodeSize + kQuicErrorDetailsLengthSize;
@@ -2905,7 +2905,12 @@ bool QuicFramer::ProcessIetfFrameData(QuicDataReader* reader,
         }
         case IETF_CONNECTION_CLOSE: {
           QuicConnectionCloseFrame frame;
-          if (!ProcessIetfConnectionCloseFrame(reader, &frame)) {
+          if (!ProcessIetfConnectionCloseFrame(
+                  reader,
+                  ((frame_type == IETF_CONNECTION_CLOSE)
+                       ? IETF_QUIC_TRANSPORT_CONNECTION_CLOSE
+                       : IETF_QUIC_APPLICATION_CONNECTION_CLOSE),
+                  &frame)) {
             return RaiseError(QUIC_INVALID_CONNECTION_CLOSE_DATA);
           }
           if (!visitor_->OnConnectionCloseFrame(frame)) {
@@ -3724,6 +3729,8 @@ bool QuicFramer::ProcessRstStreamFrame(QuicDataReader* reader,
 bool QuicFramer::ProcessConnectionCloseFrame(QuicDataReader* reader,
                                              QuicConnectionCloseFrame* frame) {
   uint32_t error_code;
+  frame->close_type = GOOGLE_QUIC_CONNECTION_CLOSE;
+
   if (!reader->ReadUInt32(&error_code)) {
     set_detailed_error("Unable to read connection close error code.");
     return false;
@@ -3734,7 +3741,7 @@ bool QuicFramer::ProcessConnectionCloseFrame(QuicDataReader* reader,
     error_code = QUIC_LAST_ERROR;
   }
 
-  frame->error_code = static_cast<QuicErrorCode>(error_code);
+  frame->quic_error_code = static_cast<QuicErrorCode>(error_code);
 
   QuicStringPiece error_details;
   if (!reader->ReadStringPiece16(&error_details)) {
@@ -5068,7 +5075,7 @@ bool QuicFramer::AppendConnectionCloseFrame(
   if (version_.transport_version == QUIC_VERSION_99) {
     return AppendIetfConnectionCloseFrame(frame, writer);
   }
-  uint32_t error_code = static_cast<uint32_t>(frame.error_code);
+  uint32_t error_code = static_cast<uint32_t>(frame.quic_error_code);
   if (!writer->WriteUInt32(error_code)) {
     return false;
   }
@@ -5180,11 +5187,12 @@ bool QuicFramer::IsVersionNegotiation(
 bool QuicFramer::AppendIetfConnectionCloseFrame(
     const QuicConnectionCloseFrame& frame,
     QuicDataWriter* writer) {
-  if (!writer->WriteUInt16(static_cast<const uint16_t>(frame.error_code))) {
+  if (!writer->WriteUInt16(frame.application_error_code)) {
     set_detailed_error("Can not write connection close frame error code");
     return false;
   }
-  if (!writer->WriteVarInt62(frame.frame_type)) {
+
+  if (!writer->WriteVarInt62(frame.transport_close_frame_type)) {
     set_detailed_error("Writing frame type failed.");
     return false;
   }
@@ -5215,15 +5223,17 @@ bool QuicFramer::AppendApplicationCloseFrame(
 
 bool QuicFramer::ProcessIetfConnectionCloseFrame(
     QuicDataReader* reader,
+    QuicConnectionCloseType type,
     QuicConnectionCloseFrame* frame) {
+  frame->close_type = type;
   uint16_t code;
   if (!reader->ReadUInt16(&code)) {
     set_detailed_error("Unable to read connection close error code.");
     return false;
   }
-  frame->ietf_error_code = static_cast<QuicIetfTransportErrorCodes>(code);
+  frame->transport_error_code = static_cast<QuicIetfTransportErrorCodes>(code);
 
-  if (!reader->ReadVarInt62(&frame->frame_type)) {
+  if (!reader->ReadVarInt62(&frame->transport_close_frame_type)) {
     set_detailed_error("Unable to read connection close frame type.");
     return false;
   }

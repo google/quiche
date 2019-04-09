@@ -1321,15 +1321,16 @@ bool QuicConnection::OnConnectionCloseFrame(
     debug_visitor_->OnConnectionCloseFrame(frame);
   }
   QUIC_DLOG(INFO) << ENDPOINT << "Received ConnectionClose for connection: "
-                  << connection_id()
-                  << ", with error: " << QuicErrorCodeToString(frame.error_code)
-                  << " (" << frame.error_details << ")";
-  if (frame.error_code == QUIC_BAD_MULTIPATH_FLAG) {
+                  << connection_id() << ", with error: "
+                  << QuicErrorCodeToString(frame.quic_error_code) << " ("
+                  << frame.error_details << ")";
+  if (frame.close_type == GOOGLE_QUIC_CONNECTION_CLOSE &&
+      frame.quic_error_code == QUIC_BAD_MULTIPATH_FLAG) {
     QUIC_LOG_FIRST_N(ERROR, 10) << "Unexpected QUIC_BAD_MULTIPATH_FLAG error."
                                 << " last_received_header: " << last_header_
                                 << " encryption_level: " << encryption_level_;
   }
-  TearDownLocalConnectionState(frame.error_code, frame.error_details,
+  TearDownLocalConnectionState(frame.quic_error_code, frame.error_details,
                                ConnectionCloseSource::FROM_PEER);
   return connected_;
 }
@@ -3016,9 +3017,8 @@ void QuicConnection::SendConnectionClosePacket(QuicErrorCode error,
       !GetUpdatedAckFrame().ack_frame->packets.Empty()) {
     SendAck();
   }
-  QuicConnectionCloseFrame* frame = new QuicConnectionCloseFrame();
-  frame->error_code = error;
-  frame->error_details = details;
+  QuicConnectionCloseFrame* frame =
+      new QuicConnectionCloseFrame(error, details);
   packet_generator_.AddControlFrame(QuicFrame(frame));
   packet_generator_.FlushAllQueuedFrames();
 }
