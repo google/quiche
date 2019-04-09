@@ -51,6 +51,8 @@ bssl::UniquePtr<SSL_CTX> TlsServerHandshaker::CreateSslCtx() {
   bssl::UniquePtr<SSL_CTX> ssl_ctx = TlsHandshaker::CreateSslCtx();
   SSL_CTX_set_tlsext_servername_callback(
       ssl_ctx.get(), TlsServerHandshaker::SelectCertificateCallback);
+  SSL_CTX_set_alpn_select_cb(ssl_ctx.get(),
+                             TlsServerHandshaker::SelectAlpnCallback, nullptr);
   return ssl_ctx;
 }
 
@@ -360,6 +362,43 @@ int TlsServerHandshaker::SelectCertificate(int* out_alert) {
   }
 
   QUIC_LOG(INFO) << "Set " << chain->certs.size() << " certs for server";
+  return SSL_TLSEXT_ERR_OK;
+}
+
+// static
+int TlsServerHandshaker::SelectAlpnCallback(SSL* ssl,
+                                            const uint8_t** out,
+                                            uint8_t* out_len,
+                                            const uint8_t* in,
+                                            unsigned in_len,
+                                            void* arg) {
+  return HandshakerFromSsl(ssl)->SelectAlpn(out, out_len, in, in_len);
+}
+
+int TlsServerHandshaker::SelectAlpn(const uint8_t** out,
+                                    uint8_t* out_len,
+                                    const uint8_t* in,
+                                    unsigned in_len) {
+  // |in| contains a sequence of 1-byte-length-prefixed values.
+  // We currently simply return the first provided ALPN value.
+  // TODO(b/130164908) Act on ALPN.
+  if (in_len == 0) {
+    *out_len = 0;
+    *out = nullptr;
+    QUIC_DLOG(INFO) << "No ALPN provided";
+    return SSL_TLSEXT_ERR_OK;
+  }
+  const uint8_t first_alpn_length = in[0];
+  if (static_cast<unsigned>(first_alpn_length) > in_len - 1) {
+    QUIC_LOG(ERROR) << "Failed to parse ALPN";
+    return SSL_TLSEXT_ERR_ALERT_FATAL;
+  }
+  *out_len = first_alpn_length;
+  *out = in + 1;
+  QUIC_DLOG(INFO) << "Server selecting ALPN '"
+                  << QuicStringPiece(reinterpret_cast<const char*>(*out),
+                                     *out_len)
+                  << "'";
   return SSL_TLSEXT_ERR_OK;
 }
 

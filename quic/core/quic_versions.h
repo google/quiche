@@ -359,6 +359,10 @@ QUIC_EXPORT_PRIVATE inline bool VersionHasControlStreams(
   return transport_version == QUIC_VERSION_99;
 }
 
+// Returns the ALPN string to use in TLS for this version of QUIC.
+QUIC_EXPORT_PRIVATE std::string AlpnForVersion(
+    ParsedQuicVersion parsed_version);
+
 // Initializes support for the provided IETF draft version by setting flags
 // and the version label.
 QUIC_EXPORT_PRIVATE void QuicVersionInitializeSupportForIetfDraft(

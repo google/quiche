@@ -4,12 +4,14 @@
 
 #include "net/third_party/quiche/src/quic/core/tls_client_handshaker.h"
 
+#include <cstring>
 #include <string>
 
 #include "third_party/boringssl/src/include/openssl/ssl.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/transport_parameters.h"
 #include "net/third_party/quiche/src/quic/core/quic_session.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
 
 namespace quic {
 
@@ -86,6 +88,27 @@ bool TlsClientHandshaker::CryptoConnect() {
   if (SSL_set_tlsext_host_name(ssl(), server_id_.host().c_str()) != 1) {
     return false;
   }
+
+  std::string alpn_string =
+      AlpnForVersion(session()->supported_versions().front());
+  if (alpn_string.length() > std::numeric_limits<uint8_t>::max()) {
+    QUIC_BUG << "ALPN too long: '" << alpn_string << "'";
+    CloseConnection(QUIC_HANDSHAKE_FAILED, "ALPN too long");
+    return false;
+  }
+  const uint8_t alpn_length = alpn_string.length();
+  // SSL_set_alpn_protos expects a sequence of one-byte-length-prefixed strings
+  // so we copy alpn_string to a new buffer that has the length in alpn[0].
+  uint8_t alpn[std::numeric_limits<uint8_t>::max() + 1];
+  alpn[0] = alpn_length;
+  memcpy(reinterpret_cast<char*>(alpn + 1), alpn_string.data(), alpn_length);
+  if (SSL_set_alpn_protos(ssl(), alpn,
+                          static_cast<unsigned>(alpn_length) + 1) != 0) {
+    QUIC_BUG << "Failed to set ALPN: '" << alpn_string << "'";
+    CloseConnection(QUIC_HANDSHAKE_FAILED, "Failed to set ALPN");
+    return false;
+  }
+  QUIC_DLOG(INFO) << "Client using ALPN: '" << alpn_string << "'";
 
   // Set the Transport Parameters to send in the ClientHello
   if (!SetTransportParameters()) {
@@ -246,6 +269,28 @@ void TlsClientHandshaker::FinishHandshake() {
     DCHECK(!error_details.empty());
     CloseConnection(QUIC_HANDSHAKE_FAILED, error_details);
     return;
+  }
+
+  const uint8_t* alpn_data = nullptr;
+  unsigned alpn_length = 0;
+  SSL_get0_alpn_selected(ssl(), &alpn_data, &alpn_length);
+  // TODO(b/130164908) Act on ALPN.
+  if (alpn_length != 0) {
+    std::string received_alpn_string(reinterpret_cast<const char*>(alpn_data),
+                                     alpn_length);
+    std::string sent_alpn_string =
+        AlpnForVersion(session()->supported_versions().front());
+    if (received_alpn_string != sent_alpn_string) {
+      QUIC_LOG(ERROR) << "Client: received mismatched ALPN '"
+                      << received_alpn_string << "', expected '"
+                      << sent_alpn_string << "'";
+      CloseConnection(QUIC_HANDSHAKE_FAILED, "Mismatched ALPN");
+      return;
+    }
+    QUIC_DLOG(INFO) << "Client: server selected ALPN: '" << received_alpn_string
+                    << "'";
+  } else {
+    QUIC_DLOG(INFO) << "Client: server did not select ALPN";
   }
 
   session()->connection()->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);

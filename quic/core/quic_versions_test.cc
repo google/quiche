@@ -556,6 +556,21 @@ TEST_F(QuicVersionsTest, CheckVersionNumbersForTypos) {
   EXPECT_EQ(QUIC_VERSION_99, 99);
 }
 
+TEST_F(QuicVersionsTest, AlpnForVersion) {
+  FLAGS_quic_supports_tls_handshake = true;
+  ParsedQuicVersion parsed_version_q047 =
+      ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_47);
+  ParsedQuicVersion parsed_version_t047 =
+      ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_47);
+  ParsedQuicVersion parsed_version_t099 =
+      ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_99);
+  FLAGS_quic_supports_tls_handshake = false;
+
+  EXPECT_EQ("h3-google-Q047", AlpnForVersion(parsed_version_q047));
+  EXPECT_EQ("h3-google-T047", AlpnForVersion(parsed_version_t047));
+  EXPECT_EQ("h3-google-T099", AlpnForVersion(parsed_version_t099));
+}
+
 TEST_F(QuicVersionsTest, InitializeSupportForIetfDraft) {
   FLAGS_quic_supports_tls_handshake = true;
   ParsedQuicVersion parsed_version_t099 =
@@ -563,16 +578,19 @@ TEST_F(QuicVersionsTest, InitializeSupportForIetfDraft) {
   FLAGS_quic_supports_tls_handshake = false;
   EXPECT_EQ(MakeVersionLabel('T', '0', '9', '9'),
             CreateQuicVersionLabel(parsed_version_t099));
+  EXPECT_EQ("h3-google-T099", AlpnForVersion(parsed_version_t099));
 
   QuicVersionInitializeSupportForIetfDraft(0);
   EXPECT_EQ(MakeVersionLabel('T', '0', '9', '9'),
             CreateQuicVersionLabel(parsed_version_t099));
+  EXPECT_EQ("h3-google-T099", AlpnForVersion(parsed_version_t099));
   EXPECT_FALSE(FLAGS_quic_supports_tls_handshake);
 
   QuicVersionInitializeSupportForIetfDraft(18);
   EXPECT_TRUE(FLAGS_quic_supports_tls_handshake);
   EXPECT_EQ(MakeVersionLabel(0xff, 0, 0, 18),
             CreateQuicVersionLabel(parsed_version_t099));
+  EXPECT_EQ("h3-18", AlpnForVersion(parsed_version_t099));
 }
 
 TEST_F(QuicVersionsTest, QuicEnableVersion) {

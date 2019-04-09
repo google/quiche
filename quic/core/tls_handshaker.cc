@@ -236,6 +236,8 @@ void TlsHandshaker::SendAlert(EncryptionLevel level, uint8_t desc) {
   // (draft-ietf-quic-transport-14, section 11.3). However, according to
   // quic_error_codes.h, this QUIC implementation only sends 1-byte error codes
   // right now.
+  QUIC_DLOG(INFO) << "TLS failing handshake due to alert "
+                  << static_cast<int>(desc);
   CloseConnection(QUIC_HANDSHAKE_FAILED, "TLS handshake failure");
 }
 

@@ -61,6 +61,14 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
   // |ssl|.
   static int SelectCertificateCallback(SSL* ssl, int* out_alert, void* arg);
 
+  // Calls SelectAlpn after looking up the TlsServerHandshaker from |ssl|.
+  static int SelectAlpnCallback(SSL* ssl,
+                                const uint8_t** out,
+                                uint8_t* out_len,
+                                const uint8_t* in,
+                                unsigned in_len,
+                                void* arg);
+
  private:
   class SignatureCallback : public ProofSource::SignatureCallback {
    public:
@@ -147,6 +155,12 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
   // If SelectCertificate returns SSL_TLSEXT_ERR_ALERT_FATAL, then it puts in
   // |*out_alert| the TLS alert value that the server will send.
   int SelectCertificate(int* out_alert);
+
+  // Selects which ALPN to use based on the list sent by the client.
+  int SelectAlpn(const uint8_t** out,
+                 uint8_t* out_len,
+                 const uint8_t* in,
+                 unsigned in_len);
 
   static TlsServerHandshaker* HandshakerFromSsl(SSL* ssl);
 

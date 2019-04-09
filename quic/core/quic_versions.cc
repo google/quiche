@@ -25,9 +25,9 @@ QuicVersionLabel MakeVersionLabel(char a, char b, char c, char d) {
   return MakeQuicTag(d, c, b, a);
 }
 
-// Version label for ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_99).
-// Defaults to "T099". Can be overridden for IETF interop events.
-QuicVersionLabel kQuicT099VersionLabel = 0;
+// IETF draft version for ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_99).
+// Overrides the version label and ALPN string for IETF interop events.
+int32_t kQuicT099IetfDraftVersion = 0;
 
 }  // namespace
 
@@ -73,8 +73,8 @@ QuicVersionLabel CreateQuicVersionLabel(ParsedQuicVersion parsed_version) {
       return MakeVersionLabel(proto, '0', '4', '7');
     case QUIC_VERSION_99:
       if (parsed_version.handshake_protocol == PROTOCOL_TLS1_3 &&
-          kQuicT099VersionLabel != 0) {
-        return kQuicT099VersionLabel;
+          kQuicT099IetfDraftVersion != 0) {
+        return 0xff000000 + kQuicT099IetfDraftVersion;
       }
       return MakeVersionLabel(proto, '0', '9', '9');
     default:
@@ -116,7 +116,7 @@ ParsedQuicVersion ParseQuicVersionLabel(QuicVersionLabel version_label) {
 }
 
 ParsedQuicVersion ParseQuicVersionString(std::string version_string) {
-  if (version_string.length() == 0) {
+  if (version_string.empty()) {
     return UnsupportedQuicVersion();
   }
   int quic_version_number = 0;
@@ -140,7 +140,7 @@ ParsedQuicVersion ParseQuicVersionString(std::string version_string) {
       }
     }
   }
-  // Still recognize T099 even if kQuicT099VersionLabel has been changed.
+  // Still recognize T099 even if kQuicT099IetfDraftVersion has been changed.
   if (FLAGS_quic_supports_tls_handshake && version_string == "T099") {
     return ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_99);
   }
@@ -378,6 +378,15 @@ ParsedQuicVersion UnsupportedQuicVersion() {
   return ParsedQuicVersion(PROTOCOL_UNSUPPORTED, QUIC_VERSION_UNSUPPORTED);
 }
 
+std::string AlpnForVersion(ParsedQuicVersion parsed_version) {
+  if (parsed_version.handshake_protocol == PROTOCOL_TLS1_3 &&
+      parsed_version.transport_version == QUIC_VERSION_99 &&
+      kQuicT099IetfDraftVersion != 0) {
+    return "h3-" + QuicTextUtils::Uint64ToString(kQuicT099IetfDraftVersion);
+  }
+  return "h3-google-" + ParsedQuicVersionToString(parsed_version);
+}
+
 void QuicVersionInitializeSupportForIetfDraft(int32_t draft_version) {
   if (draft_version == 0) {
     return;
@@ -387,7 +396,7 @@ void QuicVersionInitializeSupportForIetfDraft(int32_t draft_version) {
     return;
   }
 
-  kQuicT099VersionLabel = 0xff000000 + draft_version;
+  kQuicT099IetfDraftVersion = draft_version;
 
   // Enable necessary flags.
   SetQuicFlag(&FLAGS_quic_supports_tls_handshake, true);
