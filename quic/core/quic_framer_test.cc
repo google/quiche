@@ -568,7 +568,7 @@ class QuicFramerTest : public QuicTestWithParam<ParsedQuicVersion> {
   // packet fragments in |fragments|.
   std::unique_ptr<QuicEncryptedPacket> AssemblePacketFromFragments(
       const PacketFragments& fragments) {
-    char* buffer = new char[kMaxPacketSize + 1];
+    char* buffer = new char[kMaxOutgoingPacketSize + 1];
     size_t len = 0;
     for (const auto& fragment : fragments) {
       memcpy(buffer + len, fragment.fragment.data(), fragment.fragment.size());
@@ -5408,7 +5408,7 @@ TEST_P(QuicFramerTest, BuildPaddingFramePacket) {
   QuicFrames frames = {QuicFrame(QuicPaddingFrame())};
 
   // clang-format off
-  unsigned char packet[kMaxPacketSize] = {
+  unsigned char packet[kMaxOutgoingPacketSize] = {
     // public flags (8 byte connection_id)
     0x28,
     // connection_id
@@ -5421,7 +5421,7 @@ TEST_P(QuicFramerTest, BuildPaddingFramePacket) {
     0x00, 0x00, 0x00, 0x00
   };
 
-  unsigned char packet44[kMaxPacketSize] = {
+  unsigned char packet44[kMaxOutgoingPacketSize] = {
     // type (short header, 4 byte packet number)
     0x32,
     // connection_id
@@ -5434,7 +5434,7 @@ TEST_P(QuicFramerTest, BuildPaddingFramePacket) {
     0x00, 0x00, 0x00, 0x00
   };
 
-  unsigned char packet46[kMaxPacketSize] = {
+  unsigned char packet46[kMaxOutgoingPacketSize] = {
     // type (short header, 4 byte packet number)
     0x43,
     // connection_id
@@ -5447,7 +5447,7 @@ TEST_P(QuicFramerTest, BuildPaddingFramePacket) {
     0x00, 0x00, 0x00, 0x00
   };
 
-  unsigned char packet99[kMaxPacketSize] = {
+  unsigned char packet99[kMaxOutgoingPacketSize] = {
     // type (short header, 4 byte packet number)
     0x43,
     // connection_id
@@ -5475,7 +5475,7 @@ TEST_P(QuicFramerTest, BuildPaddingFramePacket) {
       PACKET_0BYTE_CONNECTION_ID, !kIncludeVersion,
       !kIncludeDiversificationNonce, PACKET_4BYTE_PACKET_NUMBER,
       VARIABLE_LENGTH_INTEGER_LENGTH_0, 0, VARIABLE_LENGTH_INTEGER_LENGTH_0);
-  memset(p + header_size + 1, 0x00, kMaxPacketSize - header_size - 1);
+  memset(p + header_size + 1, 0x00, kMaxOutgoingPacketSize - header_size - 1);
 
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
@@ -5640,7 +5640,7 @@ TEST_P(QuicFramerTest, Build4ByteSequenceNumberPaddingFramePacket) {
   QuicFrames frames = {QuicFrame(QuicPaddingFrame())};
 
   // clang-format off
-  unsigned char packet[kMaxPacketSize] = {
+  unsigned char packet[kMaxOutgoingPacketSize] = {
     // public flags (8 byte connection_id and 4 byte packet number)
     0x28,
     // connection_id
@@ -5653,7 +5653,7 @@ TEST_P(QuicFramerTest, Build4ByteSequenceNumberPaddingFramePacket) {
     0x00, 0x00, 0x00, 0x00
   };
 
-  unsigned char packet44[kMaxPacketSize] = {
+  unsigned char packet44[kMaxOutgoingPacketSize] = {
     // type (short header, 4 byte packet number)
     0x32,
     // connection_id
@@ -5666,7 +5666,7 @@ TEST_P(QuicFramerTest, Build4ByteSequenceNumberPaddingFramePacket) {
     0x00, 0x00, 0x00, 0x00
   };
 
-  unsigned char packet46[kMaxPacketSize] = {
+  unsigned char packet46[kMaxOutgoingPacketSize] = {
     // type (short header, 4 byte packet number)
     0x43,
     // connection_id
@@ -5679,7 +5679,7 @@ TEST_P(QuicFramerTest, Build4ByteSequenceNumberPaddingFramePacket) {
     0x00, 0x00, 0x00, 0x00
   };
 
-  unsigned char packet99[kMaxPacketSize] = {
+  unsigned char packet99[kMaxOutgoingPacketSize] = {
     // type (short header, 4 byte packet number)
     0x43,
     // connection_id
@@ -5707,7 +5707,7 @@ TEST_P(QuicFramerTest, Build4ByteSequenceNumberPaddingFramePacket) {
       PACKET_0BYTE_CONNECTION_ID, !kIncludeVersion,
       !kIncludeDiversificationNonce, PACKET_4BYTE_PACKET_NUMBER,
       VARIABLE_LENGTH_INTEGER_LENGTH_0, 0, VARIABLE_LENGTH_INTEGER_LENGTH_0);
-  memset(p + header_size + 1, 0x00, kMaxPacketSize - header_size - 1);
+  memset(p + header_size + 1, 0x00, kMaxOutgoingPacketSize - header_size - 1);
 
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
@@ -5729,7 +5729,7 @@ TEST_P(QuicFramerTest, Build2ByteSequenceNumberPaddingFramePacket) {
   QuicFrames frames = {QuicFrame(QuicPaddingFrame())};
 
   // clang-format off
-  unsigned char packet[kMaxPacketSize] = {
+  unsigned char packet[kMaxOutgoingPacketSize] = {
     // public flags (8 byte connection_id and 2 byte packet number)
     0x18,
     // connection_id
@@ -5742,7 +5742,7 @@ TEST_P(QuicFramerTest, Build2ByteSequenceNumberPaddingFramePacket) {
     0x00, 0x00, 0x00, 0x00
   };
 
-  unsigned char packet44[kMaxPacketSize] = {
+  unsigned char packet44[kMaxOutgoingPacketSize] = {
     // type (short header, 2 byte packet number)
     0x31,
     // connection_id
@@ -5755,7 +5755,7 @@ TEST_P(QuicFramerTest, Build2ByteSequenceNumberPaddingFramePacket) {
     0x00, 0x00, 0x00, 0x00
   };
 
-  unsigned char packet46[kMaxPacketSize] = {
+  unsigned char packet46[kMaxOutgoingPacketSize] = {
     // type (short header, 2 byte packet number)
     0x41,
     // connection_id
@@ -5768,7 +5768,7 @@ TEST_P(QuicFramerTest, Build2ByteSequenceNumberPaddingFramePacket) {
     0x00, 0x00, 0x00, 0x00
   };
 
-  unsigned char packet99[kMaxPacketSize] = {
+  unsigned char packet99[kMaxOutgoingPacketSize] = {
     // type (short header, 2 byte packet number)
     0x41,
     // connection_id
@@ -5796,7 +5796,7 @@ TEST_P(QuicFramerTest, Build2ByteSequenceNumberPaddingFramePacket) {
       PACKET_0BYTE_CONNECTION_ID, !kIncludeVersion,
       !kIncludeDiversificationNonce, PACKET_2BYTE_PACKET_NUMBER,
       VARIABLE_LENGTH_INTEGER_LENGTH_0, 0, VARIABLE_LENGTH_INTEGER_LENGTH_0);
-  memset(p + header_size + 1, 0x00, kMaxPacketSize - header_size - 1);
+  memset(p + header_size + 1, 0x00, kMaxOutgoingPacketSize - header_size - 1);
 
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
@@ -5818,7 +5818,7 @@ TEST_P(QuicFramerTest, Build1ByteSequenceNumberPaddingFramePacket) {
   QuicFrames frames = {QuicFrame(QuicPaddingFrame())};
 
   // clang-format off
-  unsigned char packet[kMaxPacketSize] = {
+  unsigned char packet[kMaxOutgoingPacketSize] = {
     // public flags (8 byte connection_id and 1 byte packet number)
     0x08,
     // connection_id
@@ -5831,7 +5831,7 @@ TEST_P(QuicFramerTest, Build1ByteSequenceNumberPaddingFramePacket) {
     0x00, 0x00, 0x00, 0x00
   };
 
-  unsigned char packet44[kMaxPacketSize] = {
+  unsigned char packet44[kMaxOutgoingPacketSize] = {
     // type (short header, 1 byte packet number)
     0x30,
     // connection_id
@@ -5844,7 +5844,7 @@ TEST_P(QuicFramerTest, Build1ByteSequenceNumberPaddingFramePacket) {
     0x00, 0x00, 0x00, 0x00
   };
 
-  unsigned char packet46[kMaxPacketSize] = {
+  unsigned char packet46[kMaxOutgoingPacketSize] = {
     // type (short header, 1 byte packet number)
     0x40,
     // connection_id
@@ -5857,7 +5857,7 @@ TEST_P(QuicFramerTest, Build1ByteSequenceNumberPaddingFramePacket) {
     0x00, 0x00, 0x00, 0x00
   };
 
-  unsigned char packet99[kMaxPacketSize] = {
+  unsigned char packet99[kMaxOutgoingPacketSize] = {
     // type (short header, 1 byte packet number)
     0x40,
     // connection_id
@@ -5885,7 +5885,7 @@ TEST_P(QuicFramerTest, Build1ByteSequenceNumberPaddingFramePacket) {
       PACKET_0BYTE_CONNECTION_ID, !kIncludeVersion,
       !kIncludeDiversificationNonce, PACKET_1BYTE_PACKET_NUMBER,
       VARIABLE_LENGTH_INTEGER_LENGTH_0, 0, VARIABLE_LENGTH_INTEGER_LENGTH_0);
-  memset(p + header_size + 1, 0x00, kMaxPacketSize - header_size - 1);
+  memset(p + header_size + 1, 0x00, kMaxOutgoingPacketSize - header_size - 1);
 
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
@@ -8599,7 +8599,7 @@ TEST_P(QuicFramerTest, BuildConnectivityProbingPacket) {
     packet_size = QUIC_ARRAYSIZE(packet44);
   }
 
-  std::unique_ptr<char[]> buffer(new char[kMaxPacketSize]);
+  std::unique_ptr<char[]> buffer(new char[kMaxOutgoingPacketSize]);
 
   size_t length = framer_.BuildConnectivityProbingPacket(
       header, buffer.get(), packet_size, ENCRYPTION_INITIAL);
@@ -8645,7 +8645,7 @@ TEST_P(QuicFramerTest, BuildPaddedPathChallengePacket) {
   };
   // clang-format on
 
-  std::unique_ptr<char[]> buffer(new char[kMaxPacketSize]);
+  std::unique_ptr<char[]> buffer(new char[kMaxOutgoingPacketSize]);
   MockRandom randomizer;
 
   size_t length = framer_.BuildPaddedPathChallengePacket(
@@ -8698,7 +8698,7 @@ TEST_P(QuicFramerTest, BuildPathResponsePacket1ResponseUnpadded) {
     0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
   };
   // clang-format on
-  std::unique_ptr<char[]> buffer(new char[kMaxPacketSize]);
+  std::unique_ptr<char[]> buffer(new char[kMaxOutgoingPacketSize]);
   QuicDeque<QuicPathFrameBuffer> payloads;
   payloads.push_back(payload0);
   size_t length = framer_.BuildPathResponsePacket(
@@ -8744,7 +8744,7 @@ TEST_P(QuicFramerTest, BuildPathResponsePacket1ResponsePadded) {
     0x00, 0x00, 0x00, 0x00, 0x00
   };
   // clang-format on
-  std::unique_ptr<char[]> buffer(new char[kMaxPacketSize]);
+  std::unique_ptr<char[]> buffer(new char[kMaxOutgoingPacketSize]);
   QuicDeque<QuicPathFrameBuffer> payloads;
   payloads.push_back(payload0);
   size_t length = framer_.BuildPathResponsePacket(
@@ -8793,7 +8793,7 @@ TEST_P(QuicFramerTest, BuildPathResponsePacket3ResponsesUnpadded) {
   };
   // clang-format on
 
-  std::unique_ptr<char[]> buffer(new char[kMaxPacketSize]);
+  std::unique_ptr<char[]> buffer(new char[kMaxOutgoingPacketSize]);
   QuicDeque<QuicPathFrameBuffer> payloads;
   payloads.push_back(payload0);
   payloads.push_back(payload1);
@@ -8846,7 +8846,7 @@ TEST_P(QuicFramerTest, BuildPathResponsePacket3ResponsesPadded) {
   };
   // clang-format on
 
-  std::unique_ptr<char[]> buffer(new char[kMaxPacketSize]);
+  std::unique_ptr<char[]> buffer(new char[kMaxOutgoingPacketSize]);
   QuicDeque<QuicPathFrameBuffer> payloads;
   payloads.push_back(payload0);
   payloads.push_back(payload1);
@@ -9217,9 +9217,9 @@ TEST_P(QuicFramerTest, EncryptPacket) {
       PACKET_0BYTE_CONNECTION_ID, !kIncludeVersion,
       !kIncludeDiversificationNonce, PACKET_4BYTE_PACKET_NUMBER,
       VARIABLE_LENGTH_INTEGER_LENGTH_0, 0, VARIABLE_LENGTH_INTEGER_LENGTH_0));
-  char buffer[kMaxPacketSize];
+  char buffer[kMaxOutgoingPacketSize];
   size_t encrypted_length = framer_.EncryptPayload(
-      ENCRYPTION_INITIAL, packet_number, *raw, buffer, kMaxPacketSize);
+      ENCRYPTION_INITIAL, packet_number, *raw, buffer, kMaxOutgoingPacketSize);
 
   ASSERT_NE(0u, encrypted_length);
   EXPECT_TRUE(CheckEncryption(packet_number, raw.get()));
@@ -9320,9 +9320,9 @@ TEST_P(QuicFramerTest, EncryptPacketWithVersionFlag) {
       kIncludeVersion, !kIncludeDiversificationNonce,
       PACKET_4BYTE_PACKET_NUMBER, VARIABLE_LENGTH_INTEGER_LENGTH_0, 0,
       VARIABLE_LENGTH_INTEGER_LENGTH_0));
-  char buffer[kMaxPacketSize];
+  char buffer[kMaxOutgoingPacketSize];
   size_t encrypted_length = framer_.EncryptPayload(
-      ENCRYPTION_INITIAL, packet_number, *raw, buffer, kMaxPacketSize);
+      ENCRYPTION_INITIAL, packet_number, *raw, buffer, kMaxOutgoingPacketSize);
 
   ASSERT_NE(0u, encrypted_length);
   EXPECT_TRUE(CheckEncryption(packet_number, raw.get()));
@@ -9350,10 +9350,10 @@ TEST_P(QuicFramerTest, AckTruncationLargePacket) {
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
   std::unique_ptr<QuicPacket> raw_ack_packet(BuildDataPacket(header, frames));
   ASSERT_TRUE(raw_ack_packet != nullptr);
-  char buffer[kMaxPacketSize];
+  char buffer[kMaxOutgoingPacketSize];
   size_t encrypted_length =
       framer_.EncryptPayload(ENCRYPTION_INITIAL, header.packet_number,
-                             *raw_ack_packet, buffer, kMaxPacketSize);
+                             *raw_ack_packet, buffer, kMaxOutgoingPacketSize);
   ASSERT_NE(0u, encrypted_length);
   // Now make sure we can turn our ack packet back into an ack frame.
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_SERVER);
@@ -9390,10 +9390,10 @@ TEST_P(QuicFramerTest, AckTruncationSmallPacket) {
   std::unique_ptr<QuicPacket> raw_ack_packet(
       BuildDataPacket(header, frames, 500));
   ASSERT_TRUE(raw_ack_packet != nullptr);
-  char buffer[kMaxPacketSize];
+  char buffer[kMaxOutgoingPacketSize];
   size_t encrypted_length =
       framer_.EncryptPayload(ENCRYPTION_INITIAL, header.packet_number,
-                             *raw_ack_packet, buffer, kMaxPacketSize);
+                             *raw_ack_packet, buffer, kMaxOutgoingPacketSize);
   ASSERT_NE(0u, encrypted_length);
   // Now make sure we can turn our ack packet back into an ack frame.
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_SERVER);
@@ -9428,10 +9428,10 @@ TEST_P(QuicFramerTest, CleanTruncation) {
   std::unique_ptr<QuicPacket> raw_ack_packet(BuildDataPacket(header, frames));
   ASSERT_TRUE(raw_ack_packet != nullptr);
 
-  char buffer[kMaxPacketSize];
+  char buffer[kMaxOutgoingPacketSize];
   size_t encrypted_length =
       framer_.EncryptPayload(ENCRYPTION_INITIAL, header.packet_number,
-                             *raw_ack_packet, buffer, kMaxPacketSize);
+                             *raw_ack_packet, buffer, kMaxOutgoingPacketSize);
   ASSERT_NE(0u, encrypted_length);
 
   // Now make sure we can turn our ack packet back into an ack frame.

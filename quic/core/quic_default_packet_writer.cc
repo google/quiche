@@ -40,7 +40,7 @@ void QuicDefaultPacketWriter::SetWritable() {
 
 QuicByteCount QuicDefaultPacketWriter::GetMaxPacketSize(
     const QuicSocketAddress& peer_address) const {
-  return kMaxPacketSize;
+  return kMaxOutgoingPacketSize;
 }
 
 bool QuicDefaultPacketWriter::SupportsReleaseTime() const {

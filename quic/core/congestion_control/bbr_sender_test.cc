@@ -63,8 +63,8 @@ const QuicTime::Delta kTestPropagationDelay =
 const QuicTime::Delta kLocalPropagationDelay =
     QuicTime::Delta::FromMilliseconds(2);
 const QuicTime::Delta kTestTransferTime =
-    kTestLinkBandwidth.TransferTime(kMaxPacketSize) +
-    kLocalLinkBandwidth.TransferTime(kMaxPacketSize);
+    kTestLinkBandwidth.TransferTime(kMaxOutgoingPacketSize) +
+    kLocalLinkBandwidth.TransferTime(kMaxOutgoingPacketSize);
 const QuicTime::Delta kTestRtt =
     (kTestPropagationDelay + kLocalPropagationDelay + kTestTransferTime) * 2;
 const QuicByteCount kTestBdp = kTestRtt * kTestLinkBandwidth;
@@ -1091,7 +1091,8 @@ TEST_F(BbrSenderTest, SimpleTransferStartupRateReduction) {
   QuicBandwidth pacing_rate = original_pacing_rate;
   const QuicByteCount original_cwnd = sender_->GetCongestionWindow();
   LostPacketVector lost_packets;
-  lost_packets.push_back(LostPacket(QuicPacketNumber(), kMaxPacketSize));
+  lost_packets.push_back(
+      LostPacket(QuicPacketNumber(), kMaxOutgoingPacketSize));
   QuicPacketNumber largest_sent =
       bbr_sender_.connection()->sent_packet_manager().GetLargestSentPacket();
   for (QuicPacketNumber packet_number =
@@ -1141,7 +1142,8 @@ TEST_F(BbrSenderTest, SimpleTransferDoubleStartupRateReduction) {
   QuicBandwidth pacing_rate = original_pacing_rate;
   const QuicByteCount original_cwnd = sender_->GetCongestionWindow();
   LostPacketVector lost_packets;
-  lost_packets.push_back(LostPacket(QuicPacketNumber(), kMaxPacketSize));
+  lost_packets.push_back(
+      LostPacket(QuicPacketNumber(), kMaxOutgoingPacketSize));
   QuicPacketNumber largest_sent =
       bbr_sender_.connection()->sent_packet_manager().GetLargestSentPacket();
   for (QuicPacketNumber packet_number =

@@ -32,8 +32,9 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
       : public QuicConnectionCloseDelegateInterface {
    public:
     ~DelegateInterface() override {}
-    // Get a buffer of kMaxPacketSize bytes to serialize the next packet.
-    // If return nullptr, QuicPacketCreator will serialize on a stack buffer.
+    // Get a buffer of kMaxOutgoingPacketSize bytes to serialize the next
+    // packet. If return nullptr, QuicPacketCreator will serialize on a stack
+    // buffer.
     virtual char* GetPacketBuffer() = 0;
     // Called when a packet is serialized. Delegate does not take the ownership
     // of |serialized_packet|, but takes ownership of any frames it removes

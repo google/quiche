@@ -16,7 +16,7 @@
 namespace quic {
 namespace {
 
-const QuicByteCount kTransferSize = 1000 * kMaxPacketSize;
+const QuicByteCount kTransferSize = 1000 * kMaxOutgoingPacketSize;
 const QuicByteCount kTestStreamNumber = 3;
 const QuicTime::Delta kDelay = QuicTime::Delta::FromMilliseconds(20);
 

@@ -83,7 +83,7 @@ bool QuicPacketReader::ReadAndDispatchManyPackets(
 #if MMSG_MORE_NO_ANDROID
   // Re-set the length fields in case recvmmsg has changed them.
   for (int i = 0; i < kNumPacketsPerReadMmsgCall; ++i) {
-    DCHECK_LE(kMaxPacketSize, packets_[i].iov.iov_len);
+    DCHECK_LE(kMaxOutgoingPacketSize, packets_[i].iov.iov_len);
     msghdr* hdr = &mmsg_hdr_[i].msg_hdr;
     hdr->msg_namelen = sizeof(sockaddr_storage);
     DCHECK_EQ(1, hdr->msg_iovlen);

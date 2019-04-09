@@ -52,7 +52,8 @@ class PacingSenderTest : public QuicTest {
     if (burst_size == 0) {
       EXPECT_CALL(*mock_sender_, OnCongestionEvent(_, _, _, _, _));
       LostPacketVector lost_packets;
-      lost_packets.push_back(LostPacket(QuicPacketNumber(1), kMaxPacketSize));
+      lost_packets.push_back(
+          LostPacket(QuicPacketNumber(1), kMaxOutgoingPacketSize));
       AckedPacketVector empty;
       pacing_sender_->OnCongestionEvent(true, 1234, clock_.Now(), empty,
                                         lost_packets);
@@ -84,15 +85,16 @@ class PacingSenderTest : public QuicTest {
     }
     EXPECT_CALL(*mock_sender_,
                 OnPacketSent(clock_.Now(), bytes_in_flight, packet_number_,
-                             kMaxPacketSize, retransmittable_data));
+                             kMaxOutgoingPacketSize, retransmittable_data));
     EXPECT_CALL(*mock_sender_, GetCongestionWindow())
         .Times(AtMost(1))
         .WillRepeatedly(Return(cwnd * kDefaultTCPMSS));
-    EXPECT_CALL(*mock_sender_, CanSend(bytes_in_flight + kMaxPacketSize))
+    EXPECT_CALL(*mock_sender_,
+                CanSend(bytes_in_flight + kMaxOutgoingPacketSize))
         .Times(AtMost(1))
         .WillRepeatedly(Return(!cwnd_limited));
     pacing_sender_->OnPacketSent(clock_.Now(), bytes_in_flight,
-                                 packet_number_++, kMaxPacketSize,
+                                 packet_number_++, kMaxOutgoingPacketSize,
                                  retransmittable_data);
   }
 
@@ -151,8 +153,9 @@ TEST_F(PacingSenderTest, SendNow) {
 
 TEST_F(PacingSenderTest, VariousSending) {
   // Configure pacing rate of 1 packet per 1 ms, no initial burst.
-  InitPacingRate(0, QuicBandwidth::FromBytesAndTimeDelta(
-                        kMaxPacketSize, QuicTime::Delta::FromMilliseconds(1)));
+  InitPacingRate(
+      0, QuicBandwidth::FromBytesAndTimeDelta(
+             kMaxOutgoingPacketSize, QuicTime::Delta::FromMilliseconds(1)));
 
   // Now update the RTT and verify that packets are actually paced.
   UpdateRtt();
@@ -206,8 +209,9 @@ TEST_F(PacingSenderTest, VariousSending) {
 
 TEST_F(PacingSenderTest, InitialBurst) {
   // Configure pacing rate of 1 packet per 1 ms.
-  InitPacingRate(10, QuicBandwidth::FromBytesAndTimeDelta(
-                         kMaxPacketSize, QuicTime::Delta::FromMilliseconds(1)));
+  InitPacingRate(
+      10, QuicBandwidth::FromBytesAndTimeDelta(
+              kMaxOutgoingPacketSize, QuicTime::Delta::FromMilliseconds(1)));
 
   // Update the RTT and verify that the first 10 packets aren't paced.
   UpdateRtt();
@@ -242,8 +246,9 @@ TEST_F(PacingSenderTest, InitialBurst) {
 
 TEST_F(PacingSenderTest, InitialBurstNoRttMeasurement) {
   // Configure pacing rate of 1 packet per 1 ms.
-  InitPacingRate(10, QuicBandwidth::FromBytesAndTimeDelta(
-                         kMaxPacketSize, QuicTime::Delta::FromMilliseconds(1)));
+  InitPacingRate(
+      10, QuicBandwidth::FromBytesAndTimeDelta(
+              kMaxOutgoingPacketSize, QuicTime::Delta::FromMilliseconds(1)));
 
   // Send 10 packets, and verify that they are not paced.
   for (int i = 0; i < kInitialBurstPackets; ++i) {
@@ -277,9 +282,9 @@ TEST_F(PacingSenderTest, InitialBurstNoRttMeasurement) {
 TEST_F(PacingSenderTest, FastSending) {
   // Ensure the pacing sender paces, even when the inter-packet spacing is less
   // than the pacing granularity.
-  InitPacingRate(10,
-                 QuicBandwidth::FromBytesAndTimeDelta(
-                     2 * kMaxPacketSize, QuicTime::Delta::FromMilliseconds(1)));
+  InitPacingRate(10, QuicBandwidth::FromBytesAndTimeDelta(
+                         2 * kMaxOutgoingPacketSize,
+                         QuicTime::Delta::FromMilliseconds(1)));
   // Update the RTT and verify that the first 10 packets aren't paced.
   UpdateRtt();
 
@@ -315,18 +320,20 @@ TEST_F(PacingSenderTest, FastSending) {
 
 TEST_F(PacingSenderTest, NoBurstEnteringRecovery) {
   // Configure pacing rate of 1 packet per 1 ms with no burst tokens.
-  InitPacingRate(0, QuicBandwidth::FromBytesAndTimeDelta(
-                        kMaxPacketSize, QuicTime::Delta::FromMilliseconds(1)));
+  InitPacingRate(
+      0, QuicBandwidth::FromBytesAndTimeDelta(
+             kMaxOutgoingPacketSize, QuicTime::Delta::FromMilliseconds(1)));
   // Sending a packet will set burst tokens.
   CheckPacketIsSentImmediately();
 
   // Losing a packet will set clear burst tokens.
   LostPacketVector lost_packets;
-  lost_packets.push_back(LostPacket(QuicPacketNumber(1), kMaxPacketSize));
+  lost_packets.push_back(
+      LostPacket(QuicPacketNumber(1), kMaxOutgoingPacketSize));
   AckedPacketVector empty_acked;
   EXPECT_CALL(*mock_sender_,
-              OnCongestionEvent(true, kMaxPacketSize, _, IsEmpty(), _));
-  pacing_sender_->OnCongestionEvent(true, kMaxPacketSize, clock_.Now(),
+              OnCongestionEvent(true, kMaxOutgoingPacketSize, _, IsEmpty(), _));
+  pacing_sender_->OnCongestionEvent(true, kMaxOutgoingPacketSize, clock_.Now(),
                                     empty_acked, lost_packets);
   // One packet is sent immediately, because of 1ms pacing granularity.
   CheckPacketIsSentImmediately();
@@ -340,8 +347,9 @@ TEST_F(PacingSenderTest, NoBurstEnteringRecovery) {
 
 TEST_F(PacingSenderTest, NoBurstInRecovery) {
   // Configure pacing rate of 1 packet per 1 ms with no burst tokens.
-  InitPacingRate(0, QuicBandwidth::FromBytesAndTimeDelta(
-                        kMaxPacketSize, QuicTime::Delta::FromMilliseconds(1)));
+  InitPacingRate(
+      0, QuicBandwidth::FromBytesAndTimeDelta(
+             kMaxOutgoingPacketSize, QuicTime::Delta::FromMilliseconds(1)));
 
   UpdateRtt();
 
@@ -353,8 +361,9 @@ TEST_F(PacingSenderTest, NoBurstInRecovery) {
 
 TEST_F(PacingSenderTest, CwndLimited) {
   // Configure pacing rate of 1 packet per 1 ms, no initial burst.
-  InitPacingRate(0, QuicBandwidth::FromBytesAndTimeDelta(
-                        kMaxPacketSize, QuicTime::Delta::FromMilliseconds(1)));
+  InitPacingRate(
+      0, QuicBandwidth::FromBytesAndTimeDelta(
+             kMaxOutgoingPacketSize, QuicTime::Delta::FromMilliseconds(1)));
 
   UpdateRtt();
 
@@ -382,8 +391,9 @@ TEST_F(PacingSenderTest, LumpyPacingWithInitialBurstToken) {
   SetQuicFlag(&FLAGS_quic_lumpy_pacing_size, 3);
   SetQuicFlag(&FLAGS_quic_lumpy_pacing_cwnd_fraction, 0.5f);
   // Configure pacing rate of 1 packet per 1 ms.
-  InitPacingRate(10, QuicBandwidth::FromBytesAndTimeDelta(
-                         kMaxPacketSize, QuicTime::Delta::FromMilliseconds(1)));
+  InitPacingRate(
+      10, QuicBandwidth::FromBytesAndTimeDelta(
+              kMaxOutgoingPacketSize, QuicTime::Delta::FromMilliseconds(1)));
   UpdateRtt();
 
   // Send 10 packets, and verify that they are not paced.
@@ -438,8 +448,9 @@ TEST_F(PacingSenderTest, NoLumpyPacingForLowBandwidthFlows) {
 
   // Configure pacing rate of 1 packet per 100 ms.
   QuicTime::Delta inter_packet_delay = QuicTime::Delta::FromMilliseconds(100);
-  InitPacingRate(kInitialBurstPackets, QuicBandwidth::FromBytesAndTimeDelta(
-                                           kMaxPacketSize, inter_packet_delay));
+  InitPacingRate(kInitialBurstPackets,
+                 QuicBandwidth::FromBytesAndTimeDelta(kMaxOutgoingPacketSize,
+                                                      inter_packet_delay));
   UpdateRtt();
 
   // Send kInitialBurstPackets packets, and verify that they are not paced.

@@ -880,7 +880,7 @@ size_t QuicFramer::GetSerializedFrameLength(
       free_bytes >= GetMinAckFrameSize(version_.transport_version,
                                        PACKET_6BYTE_PACKET_NUMBER);
   if (can_truncate) {
-    // Truncate the frame so the packet will not exceed kMaxPacketSize.
+    // Truncate the frame so the packet will not exceed kMaxOutgoingPacketSize.
     // Note that we may not use every byte of the writer in this case.
     QUIC_DLOG(INFO) << ENDPOINT
                     << "Truncating large frame, free bytes: " << free_bytes;

@@ -918,7 +918,7 @@ TEST_P(EndToEndTestWithTls, MultipleClients) {
 TEST_P(EndToEndTestWithTls, RequestOverMultiplePackets) {
   // Send a large enough request to guarantee fragmentation.
   std::string huge_request =
-      "/some/path?query=" + std::string(kMaxPacketSize, '.');
+      "/some/path?query=" + std::string(kMaxOutgoingPacketSize, '.');
   AddToCache(huge_request, 200, kBarResponseBody);
 
   ASSERT_TRUE(Initialize());
@@ -930,7 +930,7 @@ TEST_P(EndToEndTestWithTls, RequestOverMultiplePackets) {
 TEST_P(EndToEndTestWithTls, MultiplePacketsRandomOrder) {
   // Send a large enough request to guarantee fragmentation.
   std::string huge_request =
-      "/some/path?query=" + std::string(kMaxPacketSize, '.');
+      "/some/path?query=" + std::string(kMaxOutgoingPacketSize, '.');
   AddToCache(huge_request, 200, kBarResponseBody);
 
   ASSERT_TRUE(Initialize());
@@ -1426,7 +1426,7 @@ TEST_P(EndToEndTest, InvalidStream) {
   ASSERT_TRUE(Initialize());
   EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
 
-  std::string body(kMaxPacketSize, 'a');
+  std::string body(kMaxOutgoingPacketSize, 'a');
   SpdyHeaderBlock headers;
   headers[":method"] = "POST";
   headers[":path"] = "/foo";
@@ -1450,7 +1450,7 @@ TEST_P(EndToEndTest, LargeHeaders) {
   ASSERT_TRUE(Initialize());
   EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
 
-  std::string body(kMaxPacketSize, 'a');
+  std::string body(kMaxOutgoingPacketSize, 'a');
   SpdyHeaderBlock headers;
   headers[":method"] = "POST";
   headers[":path"] = "/foo";
@@ -2267,7 +2267,7 @@ TEST_P(EndToEndTest, AckNotifierWithPacketLossAndBlockedSocket) {
   // Test the AckNotifier's ability to track multiple packets by making the
   // request body exceed the size of a single packet.
   std::string request_string = "a request body bigger than one packet" +
-                               std::string(kMaxPacketSize, '.');
+                               std::string(kMaxOutgoingPacketSize, '.');
 
   // The TestAckListener will cause a failure if not notified.
   QuicReferenceCountedPointer<TestAckListener> ack_listener(
@@ -2802,7 +2802,7 @@ TEST_P(EndToEndTest, EarlyResponseFinRecording) {
   // update.  This allows headers processing to trigger the error response
   // before the request FIN is processed but receive the request FIN before the
   // response is sent completely.
-  const uint32_t kRequestBodySize = kMaxPacketSize + 10;
+  const uint32_t kRequestBodySize = kMaxOutgoingPacketSize + 10;
   std::string request_body(kRequestBodySize, 'a');
 
   // Send the request.
@@ -3552,10 +3552,11 @@ TEST_P(EndToEndTest, SendMessages) {
   }
 
   SetPacketLossPercentage(30);
-  ASSERT_GT(kMaxPacketSize, client_session->GetCurrentLargestMessagePayload());
+  ASSERT_GT(kMaxOutgoingPacketSize,
+            client_session->GetCurrentLargestMessagePayload());
   ASSERT_LT(0, client_session->GetCurrentLargestMessagePayload());
 
-  std::string message_string(kMaxPacketSize, 'a');
+  std::string message_string(kMaxOutgoingPacketSize, 'a');
   QuicStringPiece message_buffer(message_string);
   QuicRandom* random =
       QuicConnectionPeer::GetHelper(client_connection)->GetRandomGenerator();

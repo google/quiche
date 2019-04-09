@@ -1046,7 +1046,7 @@ TEST_F(QuicPacketGeneratorTest, SetMaxPacketLength_Initial) {
   // Send enough data for three packets.
   size_t data_len = 3 * kDefaultMaxPacketSize + 1;
   size_t packet_len = kDefaultMaxPacketSize + 100;
-  ASSERT_LE(packet_len, kMaxPacketSize);
+  ASSERT_LE(packet_len, kMaxOutgoingPacketSize);
   generator_.SetMaxPacketLength(packet_len);
   EXPECT_EQ(packet_len, generator_.GetCurrentMaxPacketLength());
 
@@ -1082,7 +1082,7 @@ TEST_F(QuicPacketGeneratorTest, SetMaxPacketLength_Middle) {
   // one.
   size_t data_len = kDefaultMaxPacketSize;
   size_t packet_len = kDefaultMaxPacketSize + 100;
-  ASSERT_LE(packet_len, kMaxPacketSize);
+  ASSERT_LE(packet_len, kMaxOutgoingPacketSize);
 
   // We expect to see three packets in total.
   EXPECT_CALL(delegate_, OnSerializedPacket(_))
@@ -1136,7 +1136,7 @@ TEST_F(QuicPacketGeneratorTest, SetMaxPacketLength_MidpacketFlush) {
   size_t first_write_len = kDefaultMaxPacketSize / 2;
   size_t packet_len = kDefaultMaxPacketSize + 100;
   size_t second_write_len = packet_len + 1;
-  ASSERT_LE(packet_len, kMaxPacketSize);
+  ASSERT_LE(packet_len, kMaxOutgoingPacketSize);
 
   // First send half of the packet worth of data.  We are in the batch mode, so
   // should not cause packet serialization.
@@ -1223,7 +1223,7 @@ TEST_F(QuicPacketGeneratorTest, GenerateMtuDiscoveryPacket_Simple) {
   delegate_.SetCanWriteAnything();
 
   const size_t target_mtu = kDefaultMaxPacketSize + 100;
-  static_assert(target_mtu < kMaxPacketSize,
+  static_assert(target_mtu < kMaxOutgoingPacketSize,
                 "The MTU probe used by the test exceeds maximum packet size");
 
   EXPECT_CALL(delegate_, OnSerializedPacket(_))
@@ -1248,7 +1248,7 @@ TEST_F(QuicPacketGeneratorTest, GenerateMtuDiscoveryPacket_SurroundedByData) {
   delegate_.SetCanWriteAnything();
 
   const size_t target_mtu = kDefaultMaxPacketSize + 100;
-  static_assert(target_mtu < kMaxPacketSize,
+  static_assert(target_mtu < kMaxOutgoingPacketSize,
                 "The MTU probe used by the test exceeds maximum packet size");
 
   // Send enough data so it would always cause two packets to be sent.

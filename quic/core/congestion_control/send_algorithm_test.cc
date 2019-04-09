@@ -63,8 +63,8 @@ const QuicBandwidth kTestLinkWiredBandwidth =
 const QuicTime::Delta kTestLinkWiredPropagationDelay =
     QuicTime::Delta::FromMilliseconds(50);
 const QuicTime::Delta kTestWiredTransferTime =
-    kTestLinkWiredBandwidth.TransferTime(kMaxPacketSize) +
-    kLocalLinkBandwidth.TransferTime(kMaxPacketSize);
+    kTestLinkWiredBandwidth.TransferTime(kMaxOutgoingPacketSize) +
+    kLocalLinkBandwidth.TransferTime(kMaxOutgoingPacketSize);
 const QuicTime::Delta kTestWiredRtt =
     (kTestLinkWiredPropagationDelay + kLocalPropagationDelay +
      kTestWiredTransferTime) *
@@ -79,7 +79,7 @@ const QuicBandwidth kTestLinkLowBdpBandwidth =
     QuicBandwidth::FromKBitsPerSecond(200);
 const QuicTime::Delta kTestLinkLowBdpPropagationDelay =
     QuicTime::Delta::FromMilliseconds(50);
-const QuicByteCount kTestPolicerQueue = kMaxPacketSize;
+const QuicByteCount kTestPolicerQueue = kMaxOutgoingPacketSize;
 
 // Satellite network settings.  In a satellite network, the bottleneck
 // buffer is typically sized for non-satellite links , but the

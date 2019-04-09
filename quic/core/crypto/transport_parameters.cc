@@ -19,7 +19,7 @@ enum TransportParameterId : uint16_t {
   kInitialMaxDataId = 1,
   kInitialMaxBidiStreamsId = 2,
   kIdleTimeoutId = 3,
-  kMaxPacketSizeId = 5,
+  kMaxOutgoingPacketSizeId = 5,
   kStatelessResetTokenId = 6,
   kAckDelayExponentId = 7,
   kInitialMaxUniStreamsId = 8,
@@ -150,7 +150,7 @@ bool SerializeTransportParameters(const TransportParameters& in,
   }
   CBB max_packet_size_param;
   if (in.max_packet_size.present) {
-    if (!CBB_add_u16(&params, kMaxPacketSizeId) ||
+    if (!CBB_add_u16(&params, kMaxOutgoingPacketSizeId) ||
         !CBB_add_u16_length_prefixed(&params, &max_packet_size_param) ||
         !CBB_add_u16(&max_packet_size_param, in.max_packet_size.value)) {
       return false;
@@ -255,7 +255,7 @@ bool ParseTransportParameters(const uint8_t* in,
           return false;
         }
         break;
-      case kMaxPacketSizeId:
+      case kMaxOutgoingPacketSizeId:
         if (!CBS_get_u16(&value, &out->max_packet_size.value) ||
             CBS_len(&value) != 0) {
           return false;

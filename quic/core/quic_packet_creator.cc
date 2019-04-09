@@ -266,7 +266,7 @@ size_t QuicPacketCreator::StreamFramePacketOverhead(
          // would calculate the correct lengths at the correct time, based on
          // the state at that time/place.
          QuicFramer::GetMinStreamFrameSize(version, 1u, offset, true,
-                                           kMaxPacketSize);
+                                           kMaxOutgoingPacketSize);
 }
 
 void QuicPacketCreator::CreateStreamFrame(QuicStreamId id,
@@ -364,13 +364,13 @@ void QuicPacketCreator::Flush() {
     return;
   }
 
-  QUIC_CACHELINE_ALIGNED char stack_buffer[kMaxPacketSize];
+  QUIC_CACHELINE_ALIGNED char stack_buffer[kMaxOutgoingPacketSize];
   char* serialized_packet_buffer = delegate_->GetPacketBuffer();
   if (serialized_packet_buffer == nullptr) {
     serialized_packet_buffer = stack_buffer;
   }
 
-  SerializePacket(serialized_packet_buffer, kMaxPacketSize);
+  SerializePacket(serialized_packet_buffer, kMaxOutgoingPacketSize);
   OnSerializedPacket();
 }
 
@@ -418,13 +418,13 @@ void QuicPacketCreator::CreateAndSerializeStreamFrame(
   QuicPacketHeader header;
   FillPacketHeader(&header);
 
-  QUIC_CACHELINE_ALIGNED char stack_buffer[kMaxPacketSize];
+  QUIC_CACHELINE_ALIGNED char stack_buffer[kMaxOutgoingPacketSize];
   char* encrypted_buffer = delegate_->GetPacketBuffer();
   if (encrypted_buffer == nullptr) {
     encrypted_buffer = stack_buffer;
   }
 
-  QuicDataWriter writer(kMaxPacketSize, encrypted_buffer);
+  QuicDataWriter writer(kMaxOutgoingPacketSize, encrypted_buffer);
   size_t length_field_offset = 0;
   if (!framer_->AppendPacketHeader(header, &writer, &length_field_offset)) {
     QUIC_BUG << "AppendPacketHeader failed";
@@ -477,7 +477,7 @@ void QuicPacketCreator::CreateAndSerializeStreamFrame(
   size_t encrypted_length = framer_->EncryptInPlace(
       packet_.encryption_level, packet_.packet_number,
       GetStartOfEncryptedData(framer_->transport_version(), header),
-      writer.length(), kMaxPacketSize, encrypted_buffer);
+      writer.length(), kMaxOutgoingPacketSize, encrypted_buffer);
   if (encrypted_length == 0) {
     QUIC_BUG << "Failed to encrypt packet number " << header.packet_number;
     return;
@@ -637,7 +637,7 @@ QuicPacketCreator::SerializeConnectivityProbingPacket() {
   // FillPacketHeader increments packet_number_.
   FillPacketHeader(&header);
 
-  std::unique_ptr<char[]> buffer(new char[kMaxPacketSize]);
+  std::unique_ptr<char[]> buffer(new char[kMaxOutgoingPacketSize]);
   size_t length = framer_->BuildConnectivityProbingPacket(
       header, buffer.get(), max_plaintext_size_, packet_.encryption_level);
   DCHECK(length);
@@ -645,7 +645,7 @@ QuicPacketCreator::SerializeConnectivityProbingPacket() {
   const size_t encrypted_length = framer_->EncryptInPlace(
       packet_.encryption_level, packet_.packet_number,
       GetStartOfEncryptedData(framer_->transport_version(), header), length,
-      kMaxPacketSize, buffer.get());
+      kMaxOutgoingPacketSize, buffer.get());
   DCHECK(encrypted_length);
 
   OwningSerializedPacketPointer serialize_packet(new SerializedPacket(
@@ -669,7 +669,7 @@ QuicPacketCreator::SerializePathChallengeConnectivityProbingPacket(
   // FillPacketHeader increments packet_number_.
   FillPacketHeader(&header);
 
-  std::unique_ptr<char[]> buffer(new char[kMaxPacketSize]);
+  std::unique_ptr<char[]> buffer(new char[kMaxOutgoingPacketSize]);
   size_t length = framer_->BuildPaddedPathChallengePacket(
       header, buffer.get(), max_plaintext_size_, payload, random_,
       packet_.encryption_level);
@@ -678,7 +678,7 @@ QuicPacketCreator::SerializePathChallengeConnectivityProbingPacket(
   const size_t encrypted_length = framer_->EncryptInPlace(
       packet_.encryption_level, packet_.packet_number,
       GetStartOfEncryptedData(framer_->transport_version(), header), length,
-      kMaxPacketSize, buffer.get());
+      kMaxOutgoingPacketSize, buffer.get());
   DCHECK(encrypted_length);
 
   OwningSerializedPacketPointer serialize_packet(new SerializedPacket(
@@ -703,7 +703,7 @@ QuicPacketCreator::SerializePathResponseConnectivityProbingPacket(
   // FillPacketHeader increments packet_number_.
   FillPacketHeader(&header);
 
-  std::unique_ptr<char[]> buffer(new char[kMaxPacketSize]);
+  std::unique_ptr<char[]> buffer(new char[kMaxOutgoingPacketSize]);
   size_t length = framer_->BuildPathResponsePacket(
       header, buffer.get(), max_plaintext_size_, payloads, is_padded,
       packet_.encryption_level);
@@ -712,7 +712,7 @@ QuicPacketCreator::SerializePathResponseConnectivityProbingPacket(
   const size_t encrypted_length = framer_->EncryptInPlace(
       packet_.encryption_level, packet_.packet_number,
       GetStartOfEncryptedData(framer_->transport_version(), header), length,
-      kMaxPacketSize, buffer.get());
+      kMaxOutgoingPacketSize, buffer.get());
   DCHECK(encrypted_length);
 
   OwningSerializedPacketPointer serialize_packet(new SerializedPacket(

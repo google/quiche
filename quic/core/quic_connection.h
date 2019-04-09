@@ -77,9 +77,9 @@ static_assert(kPacketsBetweenMtuProbesBase < (1 << 8),
 const QuicByteCount kMtuDiscoveryTargetPacketSizeHigh = 1450;
 const QuicByteCount kMtuDiscoveryTargetPacketSizeLow = 1430;
 
-static_assert(kMtuDiscoveryTargetPacketSizeLow <= kMaxPacketSize,
+static_assert(kMtuDiscoveryTargetPacketSizeLow <= kMaxOutgoingPacketSize,
               "MTU discovery target is too large");
-static_assert(kMtuDiscoveryTargetPacketSizeHigh <= kMaxPacketSize,
+static_assert(kMtuDiscoveryTargetPacketSizeHigh <= kMaxOutgoingPacketSize,
               "MTU discovery target is too large");
 
 static_assert(kMtuDiscoveryTargetPacketSizeLow > kDefaultMaxPacketSize,

@@ -118,7 +118,7 @@ enum QuicErrorCode {
   QUIC_DECRYPTION_FAILURE = 12,
   // There was an error encrypting.
   QUIC_ENCRYPTION_FAILURE = 13,
-  // The packet exceeded kMaxPacketSize.
+  // The packet exceeded kMaxOutgoingPacketSize.
   QUIC_PACKET_TOO_LARGE = 14,
   // The peer is going away.  May be a client or server.
   QUIC_PEER_GOING_AWAY = 16,

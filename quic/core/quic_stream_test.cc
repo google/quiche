@@ -72,7 +72,7 @@ class TestStream : public QuicStream {
 class QuicStreamTestBase : public QuicTestWithParam<ParsedQuicVersion> {
  public:
   QuicStreamTestBase()
-      : initial_flow_control_window_bytes_(kMaxPacketSize),
+      : initial_flow_control_window_bytes_(kMaxOutgoingPacketSize),
         zero_(QuicTime::Delta::Zero()),
         supported_versions_(AllSupportedVersions()) {}
 

@@ -99,7 +99,7 @@ class ChloExtractorTest : public QuicTest {
   TestDelegate delegate_;
   QuicPacketHeader header_;
   std::unique_ptr<QuicEncryptedPacket> packet_;
-  char buffer_[kMaxPacketSize];
+  char buffer_[kMaxOutgoingPacketSize];
 };
 
 TEST_F(ChloExtractorTest, FindsValidChlo) {

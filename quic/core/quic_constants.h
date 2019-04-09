@@ -32,16 +32,18 @@ const QuicByteCount kDefaultMaxPacketSize = 1350;
 const QuicByteCount kDefaultServerMaxPacketSize = 1000;
 // Maximum transmission unit on Ethernet.
 const QuicByteCount kEthernetMTU = 1500;
-// The maximum packet size of any QUIC packet, based on ethernet's max size,
-// minus the IP and UDP headers. IPv6 has a 40 byte header, UDP adds an
+// The maximum packet size of any QUIC packet over IPv6, based on ethernet's max
+// size, minus the IP and UDP headers. IPv6 has a 40 byte header, UDP adds an
 // additional 8 bytes.  This is a total overhead of 48 bytes.  Ethernet's
 // max packet size is 1500 bytes,  1500 - 48 = 1452.
-const QuicByteCount kMaxPacketSize = 1452;
+const QuicByteCount kMaxV6PacketSize = 1452;
 // The maximum packet size of any QUIC packet over IPv4.
 // 1500(Ethernet) - 20(IPv4 header) - 8(UDP header) = 1472.
 const QuicByteCount kMaxV4PacketSize = 1472;
 // The maximum incoming packet size allowed.
 const QuicByteCount kMaxIncomingPacketSize = kMaxV4PacketSize;
+// The maximum outgoing packet size allowed.
+const QuicByteCount kMaxOutgoingPacketSize = kMaxV6PacketSize;
 // ETH_MAX_MTU - MAX(sizeof(iphdr), sizeof(ip6_hdr)) - sizeof(udphdr).
 const QuicByteCount kMaxGsoPacketSize = 65535 - 40 - 8;
 // Default maximum packet size used in the Linux TCP implementation.

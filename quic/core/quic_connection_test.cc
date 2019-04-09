@@ -337,7 +337,7 @@ class TestPacketWriter : public QuicPacketWriter {
         packets_write_attempts_(0),
         clock_(clock),
         write_pause_time_delta_(QuicTime::Delta::Zero()),
-        max_packet_size_(kMaxPacketSize),
+        max_packet_size_(kMaxOutgoingPacketSize),
         supports_release_time_(false) {}
   TestPacketWriter(const TestPacketWriter&) = delete;
   TestPacketWriter& operator=(const TestPacketWriter&) = delete;
@@ -612,11 +612,11 @@ class TestConnection : public QuicConnection {
                   HasRetransmittableData retransmittable,
                   bool has_ack,
                   bool has_pending_frames) {
-    char buffer[kMaxPacketSize];
+    char buffer[kMaxOutgoingPacketSize];
     size_t encrypted_length =
         QuicConnectionPeer::GetFramer(this)->EncryptPayload(
             ENCRYPTION_INITIAL, QuicPacketNumber(packet_number), *packet,
-            buffer, kMaxPacketSize);
+            buffer, kMaxOutgoingPacketSize);
     SerializedPacket serialized_packet(
         QuicPacketNumber(packet_number), PACKET_4BYTE_PACKET_NUMBER, buffer,
         encrypted_length, has_ack, has_pending_frames);
@@ -1030,10 +1030,10 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
           QuicMakeUnique<NullEncrypter>(peer_framer_.perspective()));
     }
 
-    char buffer[kMaxPacketSize];
+    char buffer[kMaxOutgoingPacketSize];
     SerializedPacket serialized_packet =
-        QuicPacketCreatorPeer::SerializeAllFrames(&peer_creator_, frames,
-                                                  buffer, kMaxPacketSize);
+        QuicPacketCreatorPeer::SerializeAllFrames(
+            &peer_creator_, frames, buffer, kMaxOutgoingPacketSize);
     connection_.ProcessUdpPacket(
         self_address, peer_address,
         QuicReceivedPacket(serialized_packet.encrypted_buffer,
@@ -1052,16 +1052,17 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
         &peer_creator_, connection_.perspective() == Perspective::IS_SERVER);
     QuicPacketHeader header;
     QuicPacketCreatorPeer::FillPacketHeader(&peer_creator_, &header);
-    char encrypted_buffer[kMaxPacketSize];
+    char encrypted_buffer[kMaxOutgoingPacketSize];
     size_t length = peer_framer_.BuildDataPacket(
-        header, frames, encrypted_buffer, kMaxPacketSize, ENCRYPTION_INITIAL);
+        header, frames, encrypted_buffer, kMaxOutgoingPacketSize,
+        ENCRYPTION_INITIAL);
     DCHECK_GT(length, 0u);
 
     const size_t encrypted_length = peer_framer_.EncryptInPlace(
         ENCRYPTION_INITIAL, header.packet_number,
         GetStartOfEncryptedData(peer_framer_.version().transport_version,
                                 header),
-        length, kMaxPacketSize, encrypted_buffer);
+        length, kMaxOutgoingPacketSize, encrypted_buffer);
     DCHECK_GT(encrypted_length, 0u);
 
     connection_.ProcessUdpPacket(
@@ -1098,9 +1099,10 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
           QuicMakeUnique<StrictTaggingDecrypter>(0x01));
     }
 
-    char buffer[kMaxPacketSize];
-    size_t encrypted_length = peer_framer_.EncryptPayload(
-        level, QuicPacketNumber(number), *packet, buffer, kMaxPacketSize);
+    char buffer[kMaxOutgoingPacketSize];
+    size_t encrypted_length =
+        peer_framer_.EncryptPayload(level, QuicPacketNumber(number), *packet,
+                                    buffer, kMaxOutgoingPacketSize);
     connection_.ProcessUdpPacket(
         kSelfAddress, kPeerAddress,
         QuicReceivedPacket(buffer, encrypted_length, clock_.Now(), false));
@@ -1130,10 +1132,11 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
                                   EncryptionLevel level) {
     std::unique_ptr<QuicPacket> packet(
         ConstructDataPacket(number, has_stop_waiting, level));
-    char buffer[kMaxPacketSize];
+    char buffer[kMaxOutgoingPacketSize];
     peer_creator_.set_encryption_level(level);
-    size_t encrypted_length = peer_framer_.EncryptPayload(
-        level, QuicPacketNumber(number), *packet, buffer, kMaxPacketSize);
+    size_t encrypted_length =
+        peer_framer_.EncryptPayload(level, QuicPacketNumber(number), *packet,
+                                    buffer, kMaxOutgoingPacketSize);
     connection_.ProcessUdpPacket(
         kSelfAddress, kPeerAddress,
         QuicReceivedPacket(buffer, encrypted_length, clock_.Now(), false));
@@ -1145,10 +1148,10 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
 
   void ProcessClosePacket(uint64_t number) {
     std::unique_ptr<QuicPacket> packet(ConstructClosePacket(number));
-    char buffer[kMaxPacketSize];
+    char buffer[kMaxOutgoingPacketSize];
     size_t encrypted_length = peer_framer_.EncryptPayload(
         ENCRYPTION_INITIAL, QuicPacketNumber(number), *packet, buffer,
-        kMaxPacketSize);
+        kMaxOutgoingPacketSize);
     connection_.ProcessUdpPacket(
         kSelfAddress, kPeerAddress,
         QuicReceivedPacket(buffer, encrypted_length, QuicTime::Zero(), false));
@@ -2146,11 +2149,11 @@ TEST_P(QuicConnectionTest, IncreaseServerMaxPacketSize) {
   frames.push_back(QuicFrame(frame1_));
   frames.push_back(QuicFrame(padding));
   std::unique_ptr<QuicPacket> packet(ConstructPacket(header, frames));
-  char buffer[kMaxPacketSize];
+  char buffer[kMaxOutgoingPacketSize];
   size_t encrypted_length =
       peer_framer_.EncryptPayload(ENCRYPTION_INITIAL, QuicPacketNumber(12),
-                                  *packet, buffer, kMaxPacketSize);
-  EXPECT_EQ(kMaxPacketSize, encrypted_length);
+                                  *packet, buffer, kMaxOutgoingPacketSize);
+  EXPECT_EQ(kMaxOutgoingPacketSize, encrypted_length);
 
   framer_.set_version(version());
   EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
@@ -2158,7 +2161,7 @@ TEST_P(QuicConnectionTest, IncreaseServerMaxPacketSize) {
       kSelfAddress, kPeerAddress,
       QuicReceivedPacket(buffer, encrypted_length, QuicTime::Zero(), false));
 
-  EXPECT_EQ(kMaxPacketSize, connection_.max_packet_length());
+  EXPECT_EQ(kMaxOutgoingPacketSize, connection_.max_packet_length());
 }
 
 TEST_P(QuicConnectionTest, IncreaseServerMaxPacketSizeWhileWriterLimited) {
@@ -2190,11 +2193,11 @@ TEST_P(QuicConnectionTest, IncreaseServerMaxPacketSizeWhileWriterLimited) {
   frames.push_back(QuicFrame(frame1_));
   frames.push_back(QuicFrame(padding));
   std::unique_ptr<QuicPacket> packet(ConstructPacket(header, frames));
-  char buffer[kMaxPacketSize];
+  char buffer[kMaxOutgoingPacketSize];
   size_t encrypted_length =
       peer_framer_.EncryptPayload(ENCRYPTION_INITIAL, QuicPacketNumber(12),
-                                  *packet, buffer, kMaxPacketSize);
-  EXPECT_EQ(kMaxPacketSize, encrypted_length);
+                                  *packet, buffer, kMaxOutgoingPacketSize);
+  EXPECT_EQ(kMaxOutgoingPacketSize, encrypted_length);
 
   framer_.set_version(version());
   EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
@@ -2447,7 +2450,7 @@ TEST_P(QuicConnectionTest, AckReceiptCausesAckSend) {
   QuicAckFrame frame = InitAckFrame({{second, second + 1}});
   // First nack triggers early retransmit.
   LostPacketVector lost_packets;
-  lost_packets.push_back(LostPacket(original, kMaxPacketSize));
+  lost_packets.push_back(LostPacket(original, kMaxOutgoingPacketSize));
   EXPECT_CALL(*loss_algorithm_, DetectLosses(_, _, _, _, _, _))
       .WillOnce(SetArgPointee<5>(lost_packets));
   EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
@@ -3153,7 +3156,8 @@ TEST_P(QuicConnectionTest, RetransmitOnNack) {
   // Lose a packet and ensure it triggers retransmission.
   QuicAckFrame nack_two = ConstructAckFrame(3, 2);
   LostPacketVector lost_packets;
-  lost_packets.push_back(LostPacket(QuicPacketNumber(2), kMaxPacketSize));
+  lost_packets.push_back(
+      LostPacket(QuicPacketNumber(2), kMaxOutgoingPacketSize));
   EXPECT_CALL(*loss_algorithm_, DetectLosses(_, _, _, _, _, _))
       .WillOnce(SetArgPointee<5>(lost_packets));
   EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
@@ -3254,7 +3258,7 @@ TEST_P(QuicConnectionTest, RetransmitForQuicRstStreamNoErrorOnNack) {
   QuicAckFrame nack_two = ConstructAckFrame(last_packet, last_packet - 1);
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   LostPacketVector lost_packets;
-  lost_packets.push_back(LostPacket(last_packet - 1, kMaxPacketSize));
+  lost_packets.push_back(LostPacket(last_packet - 1, kMaxOutgoingPacketSize));
   EXPECT_CALL(*loss_algorithm_, DetectLosses(_, _, _, _, _, _))
       .WillOnce(SetArgPointee<5>(lost_packets));
   EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
@@ -3392,7 +3396,7 @@ TEST_P(QuicConnectionTest, SendPendingRetransmissionForQuicRstStreamNoError) {
   QuicAckFrame ack = ConstructAckFrame(last_packet, last_packet - 1);
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   LostPacketVector lost_packets;
-  lost_packets.push_back(LostPacket(last_packet - 1, kMaxPacketSize));
+  lost_packets.push_back(LostPacket(last_packet - 1, kMaxOutgoingPacketSize));
   EXPECT_CALL(*loss_algorithm_, DetectLosses(_, _, _, _, _, _))
       .WillOnce(SetArgPointee<5>(lost_packets));
   EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
@@ -3432,7 +3436,8 @@ TEST_P(QuicConnectionTest, RetransmitAckedPacket) {
   BlockOnNextWrite();
 
   LostPacketVector lost_packets;
-  lost_packets.push_back(LostPacket(QuicPacketNumber(2), kMaxPacketSize));
+  lost_packets.push_back(
+      LostPacket(QuicPacketNumber(2), kMaxOutgoingPacketSize));
   EXPECT_CALL(*loss_algorithm_, DetectLosses(_, _, _, _, _, _))
       .WillOnce(SetArgPointee<5>(lost_packets));
   EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
@@ -3472,7 +3477,7 @@ TEST_P(QuicConnectionTest, RetransmitNackedLargestObserved) {
   QuicAckFrame frame = InitAckFrame({{second, second + 1}});
   // The first nack should retransmit the largest observed packet.
   LostPacketVector lost_packets;
-  lost_packets.push_back(LostPacket(original, kMaxPacketSize));
+  lost_packets.push_back(LostPacket(original, kMaxOutgoingPacketSize));
   EXPECT_CALL(*loss_algorithm_, DetectLosses(_, _, _, _, _, _))
       .WillOnce(SetArgPointee<5>(lost_packets));
   EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
@@ -3631,10 +3636,10 @@ TEST_P(QuicConnectionTest, NoSendAlarmAfterProcessPacketWhenWriteBlocked) {
   const EncryptionLevel level = ENCRYPTION_INITIAL;
   std::unique_ptr<QuicPacket> packet(ConstructDataPacket(
       received_packet_num, has_stop_waiting, ENCRYPTION_INITIAL));
-  char buffer[kMaxPacketSize];
+  char buffer[kMaxOutgoingPacketSize];
   size_t encrypted_length =
       peer_framer_.EncryptPayload(level, QuicPacketNumber(received_packet_num),
-                                  *packet, buffer, kMaxPacketSize);
+                                  *packet, buffer, kMaxOutgoingPacketSize);
   connection_.ProcessUdpPacket(
       kSelfAddress, kPeerAddress,
       QuicReceivedPacket(buffer, encrypted_length, clock_.Now(), false));
@@ -3718,7 +3723,8 @@ TEST_P(QuicConnectionTest, NoLimitPacketsPerNack) {
   // 14 packets have been NACK'd and lost.
   LostPacketVector lost_packets;
   for (int i = 1; i < 15; ++i) {
-    lost_packets.push_back(LostPacket(QuicPacketNumber(i), kMaxPacketSize));
+    lost_packets.push_back(
+        LostPacket(QuicPacketNumber(i), kMaxOutgoingPacketSize));
   }
   EXPECT_CALL(*loss_algorithm_, DetectLosses(_, _, _, _, _, _))
       .WillOnce(SetArgPointee<5>(lost_packets));
@@ -6412,7 +6418,8 @@ TEST_P(QuicConnectionTest, BundleAckWithDataOnIncomingAck) {
   // Ack the second packet, which will retransmit the first packet.
   QuicAckFrame ack = ConstructAckFrame(2, 1);
   LostPacketVector lost_packets;
-  lost_packets.push_back(LostPacket(QuicPacketNumber(1), kMaxPacketSize));
+  lost_packets.push_back(
+      LostPacket(QuicPacketNumber(1), kMaxOutgoingPacketSize));
   EXPECT_CALL(*loss_algorithm_, DetectLosses(_, _, _, _, _, _))
       .WillOnce(SetArgPointee<5>(lost_packets));
   EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
@@ -6720,10 +6727,10 @@ TEST_P(QuicConnectionTest, ServerSendsVersionNegotiationPacket) {
   QuicFrames frames;
   frames.push_back(QuicFrame(frame1_));
   std::unique_ptr<QuicPacket> packet(ConstructPacket(header, frames));
-  char buffer[kMaxPacketSize];
+  char buffer[kMaxOutgoingPacketSize];
   size_t encrypted_length =
       framer_.EncryptPayload(ENCRYPTION_INITIAL, QuicPacketNumber(12), *packet,
-                             buffer, kMaxPacketSize);
+                             buffer, kMaxOutgoingPacketSize);
 
   framer_.set_version(version());
   // Writer's framer's perspective is client, so that it needs to have the right
@@ -6776,10 +6783,10 @@ TEST_P(QuicConnectionTest, ServerSendsVersionNegotiationPacketSocketBlocked) {
   QuicFrames frames;
   frames.push_back(QuicFrame(frame1_));
   std::unique_ptr<QuicPacket> packet(ConstructPacket(header, frames));
-  char buffer[kMaxPacketSize];
+  char buffer[kMaxOutgoingPacketSize];
   size_t encrypted_length =
       framer_.EncryptPayload(ENCRYPTION_INITIAL, QuicPacketNumber(12), *packet,
-                             buffer, kMaxPacketSize);
+                             buffer, kMaxOutgoingPacketSize);
 
   framer_.set_version(version());
   BlockOnNextWrite();
@@ -6839,10 +6846,10 @@ TEST_P(QuicConnectionTest,
   QuicFrames frames;
   frames.push_back(QuicFrame(frame1_));
   std::unique_ptr<QuicPacket> packet(ConstructPacket(header, frames));
-  char buffer[kMaxPacketSize];
+  char buffer[kMaxOutgoingPacketSize];
   size_t encryped_length =
       framer_.EncryptPayload(ENCRYPTION_INITIAL, QuicPacketNumber(12), *packet,
-                             buffer, kMaxPacketSize);
+                             buffer, kMaxOutgoingPacketSize);
 
   framer_.set_version(version());
   set_perspective(Perspective::IS_SERVER);
@@ -6897,10 +6904,10 @@ TEST_P(QuicConnectionTest, ClientHandlesVersionNegotiation) {
   QuicFrames frames;
   frames.push_back(QuicFrame(frame1_));
   std::unique_ptr<QuicPacket> packet(ConstructPacket(header, frames));
-  char buffer[kMaxPacketSize];
+  char buffer[kMaxOutgoingPacketSize];
   size_t encrypted_length =
       peer_framer_.EncryptPayload(ENCRYPTION_INITIAL, QuicPacketNumber(12),
-                                  *packet, buffer, kMaxPacketSize);
+                                  *packet, buffer, kMaxOutgoingPacketSize);
   ASSERT_NE(0u, encrypted_length);
   EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
@@ -6962,8 +6969,10 @@ TEST_P(QuicConnectionTest, CheckSendStats) {
                     {QuicPacketNumber(4), QuicPacketNumber(5)}});
 
   LostPacketVector lost_packets;
-  lost_packets.push_back(LostPacket(QuicPacketNumber(1), kMaxPacketSize));
-  lost_packets.push_back(LostPacket(QuicPacketNumber(3), kMaxPacketSize));
+  lost_packets.push_back(
+      LostPacket(QuicPacketNumber(1), kMaxOutgoingPacketSize));
+  lost_packets.push_back(
+      LostPacket(QuicPacketNumber(3), kMaxOutgoingPacketSize));
   EXPECT_CALL(*loss_algorithm_, DetectLosses(_, _, _, _, _, _))
       .WillOnce(SetArgPointee<5>(lost_packets));
   EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
@@ -7012,9 +7021,10 @@ TEST_P(QuicConnectionTest, ProcessFramesIfPacketClosedConnection) {
   frames.push_back(QuicFrame(&qccf));
   std::unique_ptr<QuicPacket> packet(ConstructPacket(header, frames));
   EXPECT_TRUE(nullptr != packet);
-  char buffer[kMaxPacketSize];
-  size_t encrypted_length = peer_framer_.EncryptPayload(
-      ENCRYPTION_INITIAL, QuicPacketNumber(1), *packet, buffer, kMaxPacketSize);
+  char buffer[kMaxOutgoingPacketSize];
+  size_t encrypted_length =
+      peer_framer_.EncryptPayload(ENCRYPTION_INITIAL, QuicPacketNumber(1),
+                                  *packet, buffer, kMaxOutgoingPacketSize);
 
   EXPECT_CALL(visitor_, OnConnectionClosed(QUIC_PEER_GOING_AWAY, _,
                                            ConnectionCloseSource::FROM_PEER));
@@ -8431,9 +8441,10 @@ TEST_P(QuicConnectionTest, StopProcessingGQuicPacketInIetfQuicConnection) {
       ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_43));
   std::unique_ptr<QuicPacket> packet(
       ConstructDataPacket(2, !kHasStopWaiting, ENCRYPTION_INITIAL));
-  char buffer[kMaxPacketSize];
-  size_t encrypted_length = peer_framer_.EncryptPayload(
-      ENCRYPTION_INITIAL, QuicPacketNumber(2), *packet, buffer, kMaxPacketSize);
+  char buffer[kMaxOutgoingPacketSize];
+  size_t encrypted_length =
+      peer_framer_.EncryptPayload(ENCRYPTION_INITIAL, QuicPacketNumber(2),
+                                  *packet, buffer, kMaxOutgoingPacketSize);
   // Make sure no stream frame is processed.
   EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(0);
   connection_.ProcessUdpPacket(

@@ -686,7 +686,7 @@ void BbrSender::MaybeEnterOrExitProbeRtt(QuicTime now,
       // we allow an extra packet since QUIC checks CWND before sending a
       // packet.
       if (unacked_packets_->bytes_in_flight() <
-          ProbeRttCongestionWindow() + kMaxPacketSize) {
+          ProbeRttCongestionWindow() + kMaxOutgoingPacketSize) {
         exit_probe_rtt_at_ = now + kProbeRttTime;
         probe_rtt_round_passed_ = false;
       }

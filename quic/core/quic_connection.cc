@@ -2251,8 +2251,9 @@ void QuicConnection::WritePendingRetransmissions() {
       packet_generator_.FlushAllQueuedFrames();
     }
     DCHECK(!packet_generator_.HasQueuedFrames());
-    char buffer[kMaxPacketSize];
-    packet_generator_.ReserializeAllFrames(pending, buffer, kMaxPacketSize);
+    char buffer[kMaxOutgoingPacketSize];
+    packet_generator_.ReserializeAllFrames(pending, buffer,
+                                           kMaxOutgoingPacketSize);
   }
 }
 
@@ -2420,7 +2421,7 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
     }
   }
 
-  DCHECK_LE(encrypted_length, kMaxPacketSize);
+  DCHECK_LE(encrypted_length, kMaxOutgoingPacketSize);
   DCHECK_LE(encrypted_length, packet_generator_.GetCurrentMaxPacketLength());
   QUIC_DVLOG(1) << ENDPOINT << "Sending packet " << packet_number << " : "
                 << (IsRetransmittable(*packet) == HAS_RETRANSMITTABLE_DATA
@@ -3427,8 +3428,8 @@ QuicByteCount QuicConnection::GetLimitedMaxPacketSize(
   if (max_packet_size > writer_limit) {
     max_packet_size = writer_limit;
   }
-  if (max_packet_size > kMaxPacketSize) {
-    max_packet_size = kMaxPacketSize;
+  if (max_packet_size > kMaxOutgoingPacketSize) {
+    max_packet_size = kMaxOutgoingPacketSize;
   }
   return max_packet_size;
 }

@@ -137,9 +137,9 @@ QuicConsumedData QuicPacketGenerator::ConsumeData(QuicStreamId id,
   }
   // We determine if we can enter the fast path before executing
   // the slow path loop.
-  bool run_fast_path = !has_handshake && state != FIN_AND_PADDING &&
-                       !HasQueuedFrames() &&
-                       write_length - total_bytes_consumed > kMaxPacketSize;
+  bool run_fast_path =
+      !has_handshake && state != FIN_AND_PADDING && !HasQueuedFrames() &&
+      write_length - total_bytes_consumed > kMaxOutgoingPacketSize;
 
   while (!run_fast_path && delegate_->ShouldGeneratePacket(
                                HAS_RETRANSMITTABLE_DATA,
@@ -177,9 +177,9 @@ QuicConsumedData QuicPacketGenerator::ConsumeData(QuicStreamId id,
     // TODO(ianswett): Move to having the creator flush itself when it's full.
     packet_creator_.Flush();
 
-    run_fast_path = !has_handshake && state != FIN_AND_PADDING &&
-                    !HasQueuedFrames() &&
-                    write_length - total_bytes_consumed > kMaxPacketSize;
+    run_fast_path =
+        !has_handshake && state != FIN_AND_PADDING && !HasQueuedFrames() &&
+        write_length - total_bytes_consumed > kMaxOutgoingPacketSize;
   }
 
   if (run_fast_path) {

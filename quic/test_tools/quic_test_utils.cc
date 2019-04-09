@@ -109,7 +109,8 @@ std::unique_ptr<QuicPacket> BuildUnsizedDataPacket(
     QuicFramer* framer,
     const QuicPacketHeader& header,
     const QuicFrames& frames) {
-  const size_t max_plaintext_size = framer->GetMaxPlaintextSize(kMaxPacketSize);
+  const size_t max_plaintext_size =
+      framer->GetMaxPlaintextSize(kMaxOutgoingPacketSize);
   size_t packet_size = GetPacketHeaderSize(framer->transport_version(), header);
   for (size_t i = 0; i < frames.size(); ++i) {
     DCHECK_LE(packet_size, max_plaintext_size);
@@ -698,7 +699,7 @@ void TestPushPromiseDelegate::OnRendezvousResult(QuicSpdyStream* stream) {
 
 MockPacketWriter::MockPacketWriter() {
   ON_CALL(*this, GetMaxPacketSize(_))
-      .WillByDefault(testing::Return(kMaxPacketSize));
+      .WillByDefault(testing::Return(kMaxOutgoingPacketSize));
   ON_CALL(*this, IsBatchMode()).WillByDefault(testing::Return(false));
   ON_CALL(*this, GetNextWriteLocation(_, _))
       .WillByDefault(testing::Return(nullptr));
@@ -882,10 +883,10 @@ QuicEncryptedPacket* ConstructEncryptedPacket(
   std::unique_ptr<QuicPacket> packet(
       BuildUnsizedDataPacket(&framer, header, frames));
   EXPECT_TRUE(packet != nullptr);
-  char* buffer = new char[kMaxPacketSize];
+  char* buffer = new char[kMaxOutgoingPacketSize];
   size_t encrypted_length =
       framer.EncryptPayload(ENCRYPTION_INITIAL, QuicPacketNumber(packet_number),
-                            *packet, buffer, kMaxPacketSize);
+                            *packet, buffer, kMaxOutgoingPacketSize);
   EXPECT_NE(0u, encrypted_length);
   DeleteFrames(&frames);
   return new QuicEncryptedPacket(buffer, encrypted_length, true);
@@ -943,10 +944,10 @@ QuicEncryptedPacket* ConstructMisFramedEncryptedPacket(
       VARIABLE_LENGTH_INTEGER_LENGTH_0, 0, VARIABLE_LENGTH_INTEGER_LENGTH_0)] =
       0x1F;
 
-  char* buffer = new char[kMaxPacketSize];
+  char* buffer = new char[kMaxOutgoingPacketSize];
   size_t encrypted_length =
       framer.EncryptPayload(ENCRYPTION_INITIAL, QuicPacketNumber(packet_number),
-                            *packet, buffer, kMaxPacketSize);
+                            *packet, buffer, kMaxOutgoingPacketSize);
   EXPECT_NE(0u, encrypted_length);
   return new QuicEncryptedPacket(buffer, encrypted_length, true);
 }
@@ -1137,12 +1138,13 @@ QuicMemSliceSpan MakeSpan(QuicBufferAllocator* allocator,
                           QuicStringPiece message_data,
                           QuicMemSliceStorage* storage) {
   if (message_data.length() == 0) {
-    *storage = QuicMemSliceStorage(nullptr, 0, allocator, kMaxPacketSize);
+    *storage =
+        QuicMemSliceStorage(nullptr, 0, allocator, kMaxOutgoingPacketSize);
     return storage->ToSpan();
   }
   struct iovec iov = {const_cast<char*>(message_data.data()),
                       message_data.length()};
-  *storage = QuicMemSliceStorage(&iov, 1, allocator, kMaxPacketSize);
+  *storage = QuicMemSliceStorage(&iov, 1, allocator, kMaxOutgoingPacketSize);
   return storage->ToSpan();
 }
 

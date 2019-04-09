@@ -107,11 +107,11 @@ class QUIC_EXPORT_PRIVATE QuicPacketWriter {
   //
   // Batch mode:
   // Return the starting address for the next packet's data. A minimum of
-  // kMaxPacketSize is guaranteed to be available from the returned address. If
-  // the internal buffer does not have enough space, nullptr is returned.
-  // All arguments should be identical to the follow-up call to |WritePacket|,
-  // they are here to allow advanced packet memory management in packet writers,
-  // e.g. one packet buffer pool per |peer_address|.
+  // kMaxOutgoingPacketSize is guaranteed to be available from the returned
+  // address. If the internal buffer does not have enough space, nullptr is
+  // returned. All arguments should be identical to the follow-up call to
+  // |WritePacket|, they are here to allow advanced packet memory management in
+  // packet writers, e.g. one packet buffer pool per |peer_address|.
   virtual char* GetNextWriteLocation(const QuicIpAddress& self_address,
                                      const QuicSocketAddress& peer_address) = 0;
 

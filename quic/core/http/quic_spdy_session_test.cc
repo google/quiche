@@ -703,7 +703,7 @@ TEST_P(QuicSpdySessionTestServer, OnCanWriteBundlesStreams) {
 
   EXPECT_CALL(*send_algorithm, CanSend(_)).WillRepeatedly(Return(true));
   EXPECT_CALL(*send_algorithm, GetCongestionWindow())
-      .WillRepeatedly(Return(kMaxPacketSize * 10));
+      .WillRepeatedly(Return(kMaxOutgoingPacketSize * 10));
   EXPECT_CALL(*send_algorithm, InRecovery()).WillRepeatedly(Return(false));
   EXPECT_CALL(*stream2, OnCanWrite()).WillOnce(Invoke([this, stream2]() {
     session_.SendStreamData(stream2);

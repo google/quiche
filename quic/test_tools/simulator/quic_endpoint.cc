@@ -65,7 +65,7 @@ QuicEndpoint::QuicEndpoint(Simulator* simulator,
       writer_(this),
       nic_tx_queue_(simulator,
                     QuicStringPrintf("%s (TX Queue)", name.c_str()),
-                    kMaxPacketSize * kTxQueueSize),
+                    kMaxOutgoingPacketSize * kTxQueueSize),
       connection_(connection_id,
                   GetAddressFromName(peer_name),
                   simulator,
@@ -204,7 +204,7 @@ void QuicEndpoint::SetTxPort(ConstrainedPortInterface* port) {
 void QuicEndpoint::OnPacketDequeued() {
   if (writer_.IsWriteBlocked() &&
       (nic_tx_queue_.capacity() - nic_tx_queue_.bytes_queued()) >=
-          kMaxPacketSize) {
+          kMaxOutgoingPacketSize) {
     writer_.SetWritable();
     connection_.OnCanWrite();
   }
@@ -290,7 +290,7 @@ WriteResult QuicEndpoint::Writer::WritePacket(
     PerPacketOptions* options) {
   DCHECK(!IsWriteBlocked());
   DCHECK(options == nullptr);
-  DCHECK(buf_len <= kMaxPacketSize);
+  DCHECK(buf_len <= kMaxOutgoingPacketSize);
 
   // Instead of losing a packet, become write-blocked when the egress queue is
   // full.
@@ -323,7 +323,7 @@ void QuicEndpoint::Writer::SetWritable() {
 
 QuicByteCount QuicEndpoint::Writer::GetMaxPacketSize(
     const QuicSocketAddress& /*peer_address*/) const {
-  return kMaxPacketSize;
+  return kMaxOutgoingPacketSize;
 }
 
 bool QuicEndpoint::Writer::SupportsReleaseTime() const {

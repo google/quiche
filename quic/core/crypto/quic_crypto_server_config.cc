@@ -910,11 +910,11 @@ void QuicCryptoServerConfig::ProcessClientHelloAfterCalculateSharedKeys(
       return;
     }
 
-    char plaintext[kMaxPacketSize];
+    char plaintext[kMaxOutgoingPacketSize];
     size_t plaintext_length = 0;
     const bool success = crypters.decrypter->DecryptPacket(
         0 /* packet number */, QuicStringPiece() /* associated data */,
-        cetv_ciphertext, plaintext, &plaintext_length, kMaxPacketSize);
+        cetv_ciphertext, plaintext, &plaintext_length, kMaxOutgoingPacketSize);
     if (!success) {
       context->Fail(QUIC_INVALID_CRYPTO_MESSAGE_PARAMETER,
                     "CETV decryption failure");
