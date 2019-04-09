@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <string>
-
 #include "net/third_party/quiche/src/quic/platform/api/quic_ip_address.h"
+
+#include <string>
 
 namespace quic {
 
@@ -25,6 +25,11 @@ QuicIpAddress QuicIpAddress::Any6() {
 }
 
 QuicIpAddress::QuicIpAddress(const QuicIpAddressImpl& impl) : impl_(impl) {}
+
+QuicIpAddress::QuicIpAddress(const in_addr& ipv4_address)
+    : impl_(ipv4_address) {}
+QuicIpAddress::QuicIpAddress(const in6_addr& ipv6_address)
+    : impl_(ipv6_address) {}
 
 bool operator==(QuicIpAddress lhs, QuicIpAddress rhs) {
   return lhs.impl_ == rhs.impl_;

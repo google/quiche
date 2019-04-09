@@ -5,6 +5,14 @@
 #ifndef QUICHE_QUIC_PLATFORM_API_QUIC_IP_ADDRESS_H_
 #define QUICHE_QUIC_PLATFORM_API_QUIC_IP_ADDRESS_H_
 
+#if defined(_WIN32)
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#else
+#include <sys/socket.h>
+#include <sys/types.h>
+#endif
+
 #include <string>
 
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
@@ -31,6 +39,8 @@ class QUIC_EXPORT_PRIVATE QuicIpAddress {
   QuicIpAddress() = default;
   QuicIpAddress(const QuicIpAddress& other) = default;
   explicit QuicIpAddress(const QuicIpAddressImpl& impl);
+  explicit QuicIpAddress(const in_addr& ipv4_address);
+  explicit QuicIpAddress(const in6_addr& ipv6_address);
   QuicIpAddress& operator=(const QuicIpAddress& other) = default;
   QuicIpAddress& operator=(QuicIpAddress&& other) = default;
   QUIC_EXPORT_PRIVATE friend bool operator==(QuicIpAddress lhs,
