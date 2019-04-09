@@ -346,6 +346,32 @@ PacketNumberSpace GetPacketNumberSpace(const QuicPacketHeader& header) {
   return NUM_PACKET_NUMBER_SPACES;
 }
 
+EncryptionLevel GetEncryptionLevel(const QuicPacketHeader& header) {
+  switch (header.form) {
+    case GOOGLE_QUIC_PACKET:
+      QUIC_BUG << "Cannot determine EncryptionLevel from Google QUIC header";
+      break;
+    case IETF_QUIC_SHORT_HEADER_PACKET:
+      return ENCRYPTION_FORWARD_SECURE;
+    case IETF_QUIC_LONG_HEADER_PACKET:
+      switch (header.long_packet_type) {
+        case INITIAL:
+          return ENCRYPTION_INITIAL;
+        case HANDSHAKE:
+          return ENCRYPTION_HANDSHAKE;
+        case ZERO_RTT_PROTECTED:
+          return ENCRYPTION_ZERO_RTT;
+        case VERSION_NEGOTIATION:
+        case RETRY:
+        case INVALID_PACKET_TYPE:
+          QUIC_BUG << "No encryption used with type "
+                   << QuicUtils::QuicLongHeaderTypetoString(
+                          header.long_packet_type);
+      }
+  }
+  return NUM_ENCRYPTION_LEVELS;
+}
+
 QuicStringPiece TruncateErrorString(QuicStringPiece error) {
   if (error.length() <= kMaxErrorStringLength) {
     return error;
@@ -3878,6 +3904,7 @@ void QuicFramer::SetDecrypter(EncryptionLevel level,
                               std::unique_ptr<QuicDecrypter> decrypter) {
   DCHECK_EQ(alternative_decrypter_level_, NUM_ENCRYPTION_LEVELS);
   DCHECK_GE(level, decrypter_level_);
+  DCHECK(!version_.KnowsWhichDecrypterToUse());
   decrypter_[decrypter_level_] = nullptr;
   decrypter_[level] = std::move(decrypter);
   decrypter_level_ = level;
@@ -3888,12 +3915,29 @@ void QuicFramer::SetAlternativeDecrypter(
     std::unique_ptr<QuicDecrypter> decrypter,
     bool latch_once_used) {
   DCHECK_NE(level, decrypter_level_);
+  DCHECK(!version_.KnowsWhichDecrypterToUse());
   if (alternative_decrypter_level_ != NUM_ENCRYPTION_LEVELS) {
     decrypter_[alternative_decrypter_level_] = nullptr;
   }
   decrypter_[level] = std::move(decrypter);
   alternative_decrypter_level_ = level;
   alternative_decrypter_latch_ = latch_once_used;
+}
+
+void QuicFramer::InstallDecrypter(EncryptionLevel level,
+                                  std::unique_ptr<QuicDecrypter> decrypter) {
+  DCHECK(version_.KnowsWhichDecrypterToUse());
+  decrypter_[level] = std::move(decrypter);
+}
+
+void QuicFramer::RemoveDecrypter(EncryptionLevel level) {
+  DCHECK(version_.KnowsWhichDecrypterToUse());
+  decrypter_[level] = nullptr;
+}
+
+const QuicDecrypter* QuicFramer::GetDecrypter(EncryptionLevel level) const {
+  DCHECK(version_.KnowsWhichDecrypterToUse());
+  return decrypter_[level].get();
 }
 
 const QuicDecrypter* QuicFramer::decrypter() const {
@@ -3991,18 +4035,31 @@ bool QuicFramer::DecryptPayload(QuicStringPiece encrypted,
                                 size_t buffer_length,
                                 size_t* decrypted_length,
                                 EncryptionLevel* decrypted_level) {
-  DCHECK(decrypter_[decrypter_level_] != nullptr);
+  EncryptionLevel level = decrypter_level_;
+  QuicDecrypter* decrypter = decrypter_[level].get();
   QuicDecrypter* alternative_decrypter = nullptr;
-  if (alternative_decrypter_level_ != NUM_ENCRYPTION_LEVELS) {
+  if (version().KnowsWhichDecrypterToUse()) {
+    level = GetEncryptionLevel(header);
+    decrypter = decrypter_[level].get();
+    if (decrypter == nullptr) {
+      return false;
+    }
+    if (level == ENCRYPTION_ZERO_RTT &&
+        perspective_ == Perspective::IS_CLIENT && header.nonce != nullptr) {
+      decrypter->SetDiversificationNonce(*header.nonce);
+    }
+  } else if (alternative_decrypter_level_ != NUM_ENCRYPTION_LEVELS) {
     alternative_decrypter = decrypter_[alternative_decrypter_level_].get();
   }
 
-  bool success = decrypter_[decrypter_level_]->DecryptPacket(
+  DCHECK(decrypter != nullptr);
+
+  bool success = decrypter->DecryptPacket(
       header.packet_number.ToUint64(), associated_data, encrypted,
       decrypted_buffer, decrypted_length, buffer_length);
   if (success) {
-    visitor_->OnDecryptedPacket(decrypter_level_);
-    *decrypted_level = decrypter_level_;
+    visitor_->OnDecryptedPacket(level);
+    *decrypted_level = level;
   } else if (alternative_decrypter != nullptr) {
     if (header.nonce != nullptr) {
       DCHECK_EQ(perspective_, Perspective::IS_CLIENT);

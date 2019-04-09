@@ -9,6 +9,7 @@
 #include <string>
 
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
+#include "net/third_party/quiche/src/quic/core/crypto/null_decrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/null_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_decrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_encrypter.h"
@@ -215,6 +216,11 @@ class QuicPacketGeneratorTest : public QuicTest {
         QuicMakeUnique<NullEncrypter>(Perspective::IS_CLIENT));
     creator_->set_encryption_level(ENCRYPTION_FORWARD_SECURE);
     framer_.set_data_producer(&producer_);
+    if (simple_framer_.framer()->version().KnowsWhichDecrypterToUse()) {
+      simple_framer_.framer()->InstallDecrypter(
+          ENCRYPTION_FORWARD_SECURE,
+          QuicMakeUnique<NullDecrypter>(Perspective::IS_SERVER));
+    }
     generator_.AttachPacketFlusher();
   }
 

@@ -2874,6 +2874,20 @@ void QuicConnection::SetAlternativeDecrypter(
   }
 }
 
+void QuicConnection::InstallDecrypter(
+    EncryptionLevel level,
+    std::unique_ptr<QuicDecrypter> decrypter) {
+  framer_.InstallDecrypter(level, std::move(decrypter));
+  if (!undecryptable_packets_.empty() &&
+      !process_undecryptable_packets_alarm_->IsSet()) {
+    process_undecryptable_packets_alarm_->Set(clock_->ApproximateNow());
+  }
+}
+
+void QuicConnection::RemoveDecrypter(EncryptionLevel level) {
+  framer_.RemoveDecrypter(level);
+}
+
 const QuicDecrypter* QuicConnection::decrypter() const {
   return framer_.decrypter();
 }
@@ -3892,6 +3906,13 @@ QuicPacketLength QuicConnection::GetCurrentLargestMessagePayload() const {
 
 QuicPacketLength QuicConnection::GetGuaranteedLargestMessagePayload() const {
   return packet_generator_.GetGuaranteedLargestMessagePayload();
+}
+
+uint32_t QuicConnection::cipher_id() const {
+  if (version().KnowsWhichDecrypterToUse()) {
+    return framer_.GetDecrypter(last_decrypted_packet_level_)->cipher_id();
+  }
+  return framer_.decrypter()->cipher_id();
 }
 
 bool QuicConnection::ShouldSetAckAlarm() const {

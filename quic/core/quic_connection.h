@@ -672,6 +672,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
                                std::unique_ptr<QuicDecrypter> decrypter,
                                bool latch_once_used);
 
+  void InstallDecrypter(EncryptionLevel level,
+                        std::unique_ptr<QuicDecrypter> decrypter);
+  void RemoveDecrypter(EncryptionLevel level);
+
   const QuicDecrypter* decrypter() const;
   const QuicDecrypter* alternative_decrypter() const;
 
@@ -765,8 +769,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // connection ID lengths do not change.
   QuicPacketLength GetGuaranteedLargestMessagePayload() const;
 
-  // Return the id of the cipher of the primary decrypter of the framer.
-  uint32_t cipher_id() const { return framer_.decrypter()->cipher_id(); }
+  // Returns the id of the cipher last used for decrypting packets.
+  uint32_t cipher_id() const;
 
   std::vector<std::unique_ptr<QuicEncryptedPacket>>* termination_packets() {
     return termination_packets_.get();

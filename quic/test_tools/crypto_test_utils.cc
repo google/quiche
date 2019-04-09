@@ -749,6 +749,11 @@ std::string EncryptionLevelString(EncryptionLevel level) {
 void CompareCrypters(const QuicEncrypter* encrypter,
                      const QuicDecrypter* decrypter,
                      std::string label) {
+  if (encrypter == nullptr || decrypter == nullptr) {
+    ADD_FAILURE() << "Expected non-null crypters; have " << encrypter << " and "
+                  << decrypter;
+    return;
+  }
   QuicStringPiece encrypter_key = encrypter->GetKey();
   QuicStringPiece encrypter_iv = encrypter->GetNoncePrefix();
   QuicStringPiece decrypter_key = decrypter->GetKey();

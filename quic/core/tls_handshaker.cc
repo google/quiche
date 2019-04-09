@@ -205,22 +205,8 @@ void TlsHandshaker::SetEncryptionSecret(
     const std::vector<uint8_t>& write_secret) {
   std::unique_ptr<QuicEncrypter> encrypter = CreateEncrypter(write_secret);
   session()->connection()->SetEncrypter(level, std::move(encrypter));
-  if (level != ENCRYPTION_FORWARD_SECURE) {
-    std::unique_ptr<QuicDecrypter> decrypter = CreateDecrypter(read_secret);
-    session()->connection()->SetDecrypter(level, std::move(decrypter));
-  } else {
-    // When forward-secure read keys are available, they get set as the
-    // alternative decrypter instead of the primary decrypter. One reason for
-    // this is that after the forward secure keys become available, the server
-    // still has crypto handshake messages to read at the handshake encryption
-    // level, meaning that both the ENCRYPTION_ZERO_RTT and
-    // ENCRYPTION_FORWARD_SECURE decrypters need to be available. (Tests also
-    // assume that an alternative decrypter gets set, so at some point we need
-    // to call SetAlternativeDecrypter.)
-    std::unique_ptr<QuicDecrypter> decrypter = CreateDecrypter(read_secret);
-    session()->connection()->SetAlternativeDecrypter(
-        level, std::move(decrypter), /*latch_once_used*/ true);
-  }
+  std::unique_ptr<QuicDecrypter> decrypter = CreateDecrypter(read_secret);
+  session()->connection()->InstallDecrypter(level, std::move(decrypter));
 }
 
 void TlsHandshaker::WriteMessage(EncryptionLevel level, QuicStringPiece data) {

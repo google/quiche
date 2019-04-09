@@ -69,8 +69,8 @@ TlsServerHandshaker::TlsServerHandshaker(QuicCryptoStream* stream,
       session->connection_id(), &crypters);
   session->connection()->SetEncrypter(ENCRYPTION_INITIAL,
                                       std::move(crypters.encrypter));
-  session->connection()->SetDecrypter(ENCRYPTION_INITIAL,
-                                      std::move(crypters.decrypter));
+  session->connection()->InstallDecrypter(ENCRYPTION_INITIAL,
+                                          std::move(crypters.decrypter));
 
   // Configure the SSL to be a server.
   SSL_set_accept_state(ssl());
