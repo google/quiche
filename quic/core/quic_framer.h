@@ -475,11 +475,6 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
                                std::unique_ptr<QuicDecrypter> decrypter,
                                bool latch_once_used);
 
-  void InstallDecrypter(EncryptionLevel level,
-                        std::unique_ptr<QuicDecrypter> decrypter);
-  void RemoveDecrypter(EncryptionLevel level);
-
-  const QuicDecrypter* GetDecrypter(EncryptionLevel level) const;
   const QuicDecrypter* decrypter() const;
   const QuicDecrypter* alternative_decrypter() const;
 

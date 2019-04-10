@@ -454,26 +454,13 @@ class QuicFramerTest : public QuicTestWithParam<ParsedQuicVersion> {
                 kQuicDefaultConnectionIdLength) {
     SetQuicFlag(&FLAGS_quic_supports_tls_handshake, true);
     framer_.set_version(version_);
-    if (framer_.version().KnowsWhichDecrypterToUse()) {
-      framer_.InstallDecrypter(ENCRYPTION_INITIAL,
-                               std::unique_ptr<QuicDecrypter>(decrypter_));
-    } else {
-      framer_.SetDecrypter(ENCRYPTION_INITIAL,
-                           std::unique_ptr<QuicDecrypter>(decrypter_));
-    }
+    framer_.SetDecrypter(ENCRYPTION_INITIAL,
+                         std::unique_ptr<QuicDecrypter>(decrypter_));
     framer_.SetEncrypter(ENCRYPTION_INITIAL,
                          std::unique_ptr<QuicEncrypter>(encrypter_));
 
     framer_.set_visitor(&visitor_);
     framer_.InferPacketHeaderTypeFromVersion();
-  }
-
-  void SetDecrypterLevel(EncryptionLevel level) {
-    if (!framer_.version().KnowsWhichDecrypterToUse()) {
-      return;
-    }
-    decrypter_ = new TestDecrypter();
-    framer_.InstallDecrypter(level, std::unique_ptr<QuicDecrypter>(decrypter_));
   }
 
   // Helper function to get unsigned char representation of the handshake
@@ -814,7 +801,6 @@ TEST_P(QuicFramerTest, EmptyPacket) {
 }
 
 TEST_P(QuicFramerTest, LargePacket) {
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
   // clang-format off
   unsigned char packet[kMaxIncomingPacketSize + 1] = {
     // public flags (8 byte connection_id)
@@ -972,7 +958,6 @@ TEST_P(QuicFramerTest, LongPacketHeader) {
 }
 
 TEST_P(QuicFramerTest, PacketHeaderWith0ByteConnectionId) {
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
   QuicFramerPeer::SetLastSerializedConnectionId(&framer_,
                                                 FramerTestConnectionId());
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
@@ -1028,7 +1013,6 @@ TEST_P(QuicFramerTest, PacketHeaderWith0ByteConnectionId) {
 }
 
 TEST_P(QuicFramerTest, PacketHeaderWithVersionFlag) {
-  SetDecrypterLevel(ENCRYPTION_ZERO_RTT);
   // clang-format off
   PacketFragments packet = {
       // public flags (0 byte connection_id)
@@ -1128,7 +1112,6 @@ TEST_P(QuicFramerTest, PacketHeaderWithVersionFlag) {
 }
 
 TEST_P(QuicFramerTest, PacketHeaderWith4BytePacketNumber) {
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
   QuicFramerPeer::SetLargestPacketNumber(&framer_, kPacketNumber - 2);
 
   // clang-format off
@@ -1188,7 +1171,6 @@ TEST_P(QuicFramerTest, PacketHeaderWith4BytePacketNumber) {
 }
 
 TEST_P(QuicFramerTest, PacketHeaderWith2BytePacketNumber) {
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
   QuicFramerPeer::SetLargestPacketNumber(&framer_, kPacketNumber - 2);
 
   // clang-format off
@@ -1249,7 +1231,6 @@ TEST_P(QuicFramerTest, PacketHeaderWith2BytePacketNumber) {
 }
 
 TEST_P(QuicFramerTest, PacketHeaderWith1BytePacketNumber) {
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
   QuicFramerPeer::SetLargestPacketNumber(&framer_, kPacketNumber - 2);
 
   // clang-format off
@@ -1311,7 +1292,6 @@ TEST_P(QuicFramerTest, PacketHeaderWith1BytePacketNumber) {
 }
 
 TEST_P(QuicFramerTest, PacketNumberDecreasesThenIncreases) {
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
   // Test the case when a packet is received from the past and future packet
   // numbers are still calculated relative to the largest received packet.
   QuicPacketHeader header;
@@ -1378,7 +1358,6 @@ TEST_P(QuicFramerTest, PacketNumberDecreasesThenIncreases) {
 }
 
 TEST_P(QuicFramerTest, PacketWithDiversificationNonce) {
-  SetDecrypterLevel(ENCRYPTION_ZERO_RTT);
   // clang-format off
   unsigned char packet[] = {
     // public flags: includes nonce flag
@@ -1548,7 +1527,6 @@ TEST_P(QuicFramerTest, LargePublicFlagWithMismatchedVersions) {
 }
 
 TEST_P(QuicFramerTest, PaddingFrame) {
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
   // clang-format off
   unsigned char packet[] = {
     // public flags (8 byte connection_id)
@@ -1693,7 +1671,6 @@ TEST_P(QuicFramerTest, PaddingFrame) {
 }
 
 TEST_P(QuicFramerTest, StreamFrame) {
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
   // clang-format off
   PacketFragments packet = {
       // public flags (8 byte connection_id)
@@ -1850,7 +1827,6 @@ TEST_P(QuicFramerTest, EmptyStreamFrame) {
   if (framer_.transport_version() != QUIC_VERSION_99) {
     return;
   }
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
   // clang-format off
   PacketFragments packet = {
       // type (short header, 4 byte packet number)
@@ -1904,18 +1880,11 @@ TEST_P(QuicFramerTest, MissingDiversificationNonce) {
     return;
   }
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
+  framer_.SetDecrypter(ENCRYPTION_INITIAL,
+                       QuicMakeUnique<NullDecrypter>(Perspective::IS_CLIENT));
   decrypter_ = new test::TestDecrypter();
-  if (framer_.version().KnowsWhichDecrypterToUse()) {
-    framer_.InstallDecrypter(ENCRYPTION_INITIAL, QuicMakeUnique<NullDecrypter>(
-                                                     Perspective::IS_CLIENT));
-    framer_.InstallDecrypter(ENCRYPTION_ZERO_RTT,
-                             std::unique_ptr<QuicDecrypter>(decrypter_));
-  } else {
-    framer_.SetDecrypter(ENCRYPTION_INITIAL,
-                         QuicMakeUnique<NullDecrypter>(Perspective::IS_CLIENT));
-    framer_.SetAlternativeDecrypter(
-        ENCRYPTION_ZERO_RTT, std::unique_ptr<QuicDecrypter>(decrypter_), false);
-  }
+  framer_.SetAlternativeDecrypter(
+      ENCRYPTION_ZERO_RTT, std::unique_ptr<QuicDecrypter>(decrypter_), false);
 
   // clang-format off
   unsigned char packet[] = {
@@ -2060,7 +2029,6 @@ TEST_P(QuicFramerTest, StreamFrame3ByteStreamId) {
 }
 
 TEST_P(QuicFramerTest, StreamFrame2ByteStreamId) {
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
   // clang-format off
   PacketFragments packet = {
       // public flags (8 byte connection_id)
@@ -2212,7 +2180,6 @@ TEST_P(QuicFramerTest, StreamFrame2ByteStreamId) {
 }
 
 TEST_P(QuicFramerTest, StreamFrame1ByteStreamId) {
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
   // clang-format off
   PacketFragments packet = {
       // public flags (8 byte connection_id)
@@ -2364,7 +2331,6 @@ TEST_P(QuicFramerTest, StreamFrame1ByteStreamId) {
 }
 
 TEST_P(QuicFramerTest, StreamFrameWithVersion) {
-  SetDecrypterLevel(ENCRYPTION_ZERO_RTT);
   // clang-format off
   PacketFragments packet = {
       // public flags (version, 8 byte connection_id)
@@ -2554,7 +2520,6 @@ TEST_P(QuicFramerTest, StreamFrameWithVersion) {
 }
 
 TEST_P(QuicFramerTest, RejectPacket) {
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
   visitor_.accept_packet_ = false;
 
   // clang-format off
@@ -2700,7 +2665,6 @@ TEST_P(QuicFramerTest, RejectPublicHeader) {
 }
 
 TEST_P(QuicFramerTest, AckFrameOneAckBlock) {
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
   // clang-format off
   PacketFragments packet = {
       // public flags (8 byte connection_id)
@@ -2852,7 +2816,6 @@ TEST_P(QuicFramerTest, AckFrameOneAckBlock) {
 // and handles the case where the first ack block is larger than the
 // largest_acked packet.
 TEST_P(QuicFramerTest, FirstAckFrameUnderflow) {
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
   // clang-format off
   PacketFragments packet = {
       // public flags (8 byte connection_id)
@@ -2987,7 +2950,6 @@ TEST_P(QuicFramerTest, ThirdAckBlockUnderflowGap) {
     // for now, only v99
     return;
   }
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
   // clang-format off
   PacketFragments packet99 = {
       // type (short header, 4 byte packet number)
@@ -3045,7 +3007,6 @@ TEST_P(QuicFramerTest, ThirdAckBlockUnderflowAck) {
     // for now, only v99
     return;
   }
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
   // clang-format off
   PacketFragments packet99 = {
       // type (short header, 4 byte packet number)
@@ -3101,7 +3062,6 @@ TEST_P(QuicFramerTest, AckBlockUnderflowGapWrap) {
     // for now, only v99
     return;
   }
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
   // clang-format off
   PacketFragments packet99 = {
       // type (short header, 4 byte packet number)
@@ -3151,7 +3111,6 @@ TEST_P(QuicFramerTest, AckBlockUnderflowAckWrap) {
     // for now, only v99
     return;
   }
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
   // clang-format off
   PacketFragments packet99 = {
       // type (short header, 4 byte packet number)
@@ -3200,7 +3159,6 @@ TEST_P(QuicFramerTest, AckBlockAcksEverything) {
     // for now, only v99
     return;
   }
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
   // clang-format off
   PacketFragments packet99 = {
       // type (short header, 4 byte packet number)
@@ -3399,7 +3357,6 @@ TEST_P(QuicFramerTest, AckFrameFirstAckBlockLengthZero) {
 }
 
 TEST_P(QuicFramerTest, AckFrameOneAckBlockMaxLength) {
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
   // clang-format off
   PacketFragments packet = {
       // public flags (8 byte connection_id)
@@ -3542,7 +3499,6 @@ TEST_P(QuicFramerTest, AckFrameOneAckBlockMaxLength) {
 // Tests ability to handle multiple ackblocks after the first ack
 // block. Non-version-99 tests include multiple timestamps as well.
 TEST_P(QuicFramerTest, AckFrameTwoTimeStampsMultipleAckBlocks) {
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
   // clang-format off
   PacketFragments packet = {
       // public flags (8 byte connection_id)
@@ -4176,7 +4132,6 @@ TEST_P(QuicFramerTest, InvalidNewStopWaitingFrame) {
 }
 
 TEST_P(QuicFramerTest, RstStreamFrame) {
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
   // clang-format off
   PacketFragments packet = {
       // public flags (8 byte connection_id)
@@ -4302,7 +4257,6 @@ TEST_P(QuicFramerTest, RstStreamFrame) {
 }
 
 TEST_P(QuicFramerTest, ConnectionCloseFrame) {
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
   // clang-format off
   PacketFragments packet = {
       // public flags (8 byte connection_id)
@@ -4455,7 +4409,6 @@ TEST_P(QuicFramerTest, ApplicationCloseFrame) {
     // This frame does not exist in versions other than 99.
     return;
   }
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
 
   // clang-format off
   PacketFragments packet99 = {
@@ -4731,7 +4684,6 @@ TEST_P(QuicFramerTest, MaxDataFrame) {
     // This frame is available only in version 99.
     return;
   }
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
   // clang-format off
   PacketFragments packet99 = {
       // type (short header, 4 byte packet number)
@@ -4775,7 +4727,6 @@ TEST_P(QuicFramerTest, MaxStreamDataFrame) {
     // This frame available only in version 99.
     return;
   }
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
   // clang-format off
   PacketFragments packet99 = {
       // type (short header, 4 byte packet number)
@@ -4817,7 +4768,6 @@ TEST_P(QuicFramerTest, MaxStreamDataFrame) {
 }
 
 TEST_P(QuicFramerTest, BlockedFrame) {
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
   // clang-format off
   PacketFragments packet = {
       // public flags (8 byte connection_id)
@@ -4927,7 +4877,6 @@ TEST_P(QuicFramerTest, BlockedFrame) {
 }
 
 TEST_P(QuicFramerTest, PingFrame) {
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
   // clang-format off
   unsigned char packet[] = {
      // public flags (8 byte connection_id)
@@ -5011,7 +4960,6 @@ TEST_P(QuicFramerTest, MessageFrame) {
   if (framer_.transport_version() <= QUIC_VERSION_44) {
     return;
   }
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
   // clang-format off
   PacketFragments packet45 = {
        // type (short header, 4 byte packet number)
@@ -5314,18 +5262,11 @@ TEST_P(QuicFramerTest, IetfStatelessResetPacket) {
     return;
   }
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
+  framer_.SetDecrypter(ENCRYPTION_INITIAL,
+                       QuicMakeUnique<NullDecrypter>(Perspective::IS_CLIENT));
   decrypter_ = new test::TestDecrypter();
-  if (framer_.version().KnowsWhichDecrypterToUse()) {
-    framer_.InstallDecrypter(ENCRYPTION_INITIAL, QuicMakeUnique<NullDecrypter>(
-                                                     Perspective::IS_CLIENT));
-    framer_.InstallDecrypter(ENCRYPTION_ZERO_RTT,
-                             std::unique_ptr<QuicDecrypter>(decrypter_));
-  } else {
-    framer_.SetDecrypter(ENCRYPTION_INITIAL,
-                         QuicMakeUnique<NullDecrypter>(Perspective::IS_CLIENT));
-    framer_.SetAlternativeDecrypter(
-        ENCRYPTION_ZERO_RTT, std::unique_ptr<QuicDecrypter>(decrypter_), false);
-  }
+  framer_.SetAlternativeDecrypter(
+      ENCRYPTION_ZERO_RTT, std::unique_ptr<QuicDecrypter>(decrypter_), false);
   // This packet cannot be decrypted because diversification nonce is missing.
   QuicEncryptedPacket encrypted(AsChars(packet), QUIC_ARRAYSIZE(packet), false);
   EXPECT_TRUE(framer_.ProcessPacket(encrypted));
@@ -5351,18 +5292,11 @@ TEST_P(QuicFramerTest, IetfStatelessResetPacketInvalidStatelessResetToken) {
     return;
   }
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
+  framer_.SetDecrypter(ENCRYPTION_INITIAL,
+                       QuicMakeUnique<NullDecrypter>(Perspective::IS_CLIENT));
   decrypter_ = new test::TestDecrypter();
-  if (framer_.version().KnowsWhichDecrypterToUse()) {
-    framer_.InstallDecrypter(ENCRYPTION_INITIAL, QuicMakeUnique<NullDecrypter>(
-                                                     Perspective::IS_CLIENT));
-    framer_.InstallDecrypter(ENCRYPTION_ZERO_RTT,
-                             std::unique_ptr<QuicDecrypter>(decrypter_));
-  } else {
-    framer_.SetDecrypter(ENCRYPTION_INITIAL,
-                         QuicMakeUnique<NullDecrypter>(Perspective::IS_CLIENT));
-    framer_.SetAlternativeDecrypter(
-        ENCRYPTION_ZERO_RTT, std::unique_ptr<QuicDecrypter>(decrypter_), false);
-  }
+  framer_.SetAlternativeDecrypter(
+      ENCRYPTION_ZERO_RTT, std::unique_ptr<QuicDecrypter>(decrypter_), false);
   // This packet cannot be decrypted because diversification nonce is missing.
   QuicEncryptedPacket encrypted(AsChars(packet), QUIC_ARRAYSIZE(packet), false);
   EXPECT_FALSE(framer_.ProcessPacket(encrypted));
@@ -6268,7 +6202,6 @@ TEST_P(QuicFramerTest, CryptoFrame) {
     // CRYPTO frames aren't supported prior to v46.
     return;
   }
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
 
   // clang-format off
   PacketFragments packet = {
@@ -9520,7 +9453,6 @@ TEST_P(QuicFramerTest, CleanTruncation) {
 }
 
 TEST_P(QuicFramerTest, StopPacketProcessing) {
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
   // clang-format off
   unsigned char packet[] = {
     // public flags (8 byte connection_id)
@@ -9715,14 +9647,10 @@ static bool ExpectedStreamFrame(const QuicStreamFrame& frame) {
 TEST_P(QuicFramerTest, ConstructEncryptedPacket) {
   // Since we are using ConstructEncryptedPacket, we have to set the framer's
   // crypto to be Null.
-  if (framer_.version().KnowsWhichDecrypterToUse()) {
-    framer_.InstallDecrypter(
-        ENCRYPTION_FORWARD_SECURE,
-        QuicMakeUnique<NullDecrypter>(framer_.perspective()));
-  } else {
-    framer_.SetDecrypter(ENCRYPTION_INITIAL,
-                         QuicMakeUnique<NullDecrypter>(framer_.perspective()));
-  }
+  framer_.SetDecrypter(ENCRYPTION_INITIAL,
+                       QuicMakeUnique<NullDecrypter>(framer_.perspective()));
+  framer_.SetEncrypter(ENCRYPTION_INITIAL,
+                       QuicMakeUnique<NullEncrypter>(framer_.perspective()));
   ParsedQuicVersionVector versions;
   versions.push_back(framer_.version());
   std::unique_ptr<QuicEncryptedPacket> packet(ConstructEncryptedPacket(
@@ -9757,16 +9685,10 @@ TEST_P(QuicFramerTest, ConstructEncryptedPacket) {
 // Verify that the packet returned by ConstructMisFramedEncryptedPacket()
 // does cause the framer to return an error.
 TEST_P(QuicFramerTest, ConstructMisFramedEncryptedPacket) {
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
   // Since we are using ConstructEncryptedPacket, we have to set the framer's
   // crypto to be Null.
-  if (framer_.version().KnowsWhichDecrypterToUse()) {
-    framer_.InstallDecrypter(ENCRYPTION_INITIAL, QuicMakeUnique<NullDecrypter>(
-                                                     framer_.perspective()));
-  } else {
-    framer_.SetDecrypter(ENCRYPTION_INITIAL,
-                         QuicMakeUnique<NullDecrypter>(framer_.perspective()));
-  }
+  framer_.SetDecrypter(ENCRYPTION_INITIAL,
+                       QuicMakeUnique<NullDecrypter>(framer_.perspective()));
   framer_.SetEncrypter(ENCRYPTION_INITIAL,
                        QuicMakeUnique<NullEncrypter>(framer_.perspective()));
   ParsedQuicVersionVector versions;
@@ -9939,7 +9861,6 @@ TEST_P(QuicFramerTest, IetfBlockedFrame) {
   if (framer_.transport_version() != QUIC_VERSION_99) {
     return;
   }
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
 
   // clang-format off
   PacketFragments packet99 = {
@@ -10022,7 +9943,6 @@ TEST_P(QuicFramerTest, IetfStreamBlockedFrame) {
   if (framer_.transport_version() != QUIC_VERSION_99) {
     return;
   }
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
 
   // clang-format off
   PacketFragments packet99 = {
@@ -10110,7 +10030,6 @@ TEST_P(QuicFramerTest, ServerBiDiMaxStreamsFrame) {
   if (framer_.transport_version() != QUIC_VERSION_99) {
     return;
   }
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
 
   // clang-format off
   PacketFragments packet99 = {
@@ -10158,7 +10077,6 @@ TEST_P(QuicFramerTest, ClientBiDiMaxStreamsFrame) {
   if (framer_.transport_version() != QUIC_VERSION_99) {
     return;
   }
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
 
   // clang-format off
   PacketFragments packet99 = {
@@ -10209,7 +10127,6 @@ TEST_P(QuicFramerTest, ServerUniDiMaxStreamsFrame) {
   if (framer_.transport_version() != QUIC_VERSION_99) {
     return;
   }
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
 
   // clang-format off
   PacketFragments packet99 = {
@@ -10258,7 +10175,6 @@ TEST_P(QuicFramerTest, ClientUniDiMaxStreamsFrame) {
   if (framer_.transport_version() != QUIC_VERSION_99) {
     return;
   }
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
 
   // clang-format off
   PacketFragments packet99 = {
@@ -10312,7 +10228,6 @@ TEST_P(QuicFramerTest, ServerBiDiMaxStreamsFrameTooBig) {
   if (framer_.transport_version() != QUIC_VERSION_99) {
     return;
   }
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
 
   // clang-format off
   unsigned char packet99[] = {
@@ -10356,7 +10271,6 @@ TEST_P(QuicFramerTest, ClientBiDiMaxStreamsFrameTooBig) {
   if (framer_.transport_version() != QUIC_VERSION_99) {
     return;
   }
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
 
   // clang-format off
   unsigned char packet99[] = {
@@ -10406,7 +10320,6 @@ TEST_P(QuicFramerTest, ServerUniDiMaxStreamsFrameTooBig) {
   if (framer_.transport_version() != QUIC_VERSION_99) {
     return;
   }
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
 
   // clang-format off
   unsigned char packet99[] = {
@@ -10451,7 +10364,6 @@ TEST_P(QuicFramerTest, ClientUniDiMaxStreamsFrameTooBig) {
   if (framer_.transport_version() != QUIC_VERSION_99) {
     return;
   }
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
 
   // clang-format off
   unsigned char packet99[] = {
@@ -10499,7 +10411,6 @@ TEST_P(QuicFramerTest, MaxStreamsFrameZeroCount) {
   if (framer_.transport_version() != QUIC_VERSION_99) {
     return;
   }
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
 
   // clang-format off
   unsigned char packet99[] = {
@@ -10529,7 +10440,6 @@ TEST_P(QuicFramerTest, ServerBiDiStreamsBlockedFrame) {
   if (framer_.transport_version() != QUIC_VERSION_99) {
     return;
   }
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
 
   // clang-format off
   PacketFragments packet99 = {
@@ -10582,7 +10492,6 @@ TEST_P(QuicFramerTest, ClientBiDiStreamsBlockedFrame) {
   if (framer_.transport_version() != QUIC_VERSION_99) {
     return;
   }
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
 
   // clang-format off
   PacketFragments packet99 = {
@@ -10630,7 +10539,6 @@ TEST_P(QuicFramerTest, ServerUniDiStreamsBlockedFrame) {
   if (framer_.transport_version() != QUIC_VERSION_99) {
     return;
   }
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
 
   // clang-format off
   PacketFragments packet99 = {
@@ -10679,7 +10587,6 @@ TEST_P(QuicFramerTest, ClientUniDiStreamsBlockedFrame) {
   if (framer_.transport_version() != QUIC_VERSION_99) {
     return;
   }
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
 
   // clang-format off
   PacketFragments packet99 = {
@@ -10731,7 +10638,6 @@ TEST_P(QuicFramerTest, StreamsBlockedFrameTooBig) {
   if (framer_.transport_version() != QUIC_VERSION_99) {
     return;
   }
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
 
   // clang-format off
   unsigned char packet99[] = {
@@ -10766,7 +10672,6 @@ TEST_P(QuicFramerTest, StreamsBlockedFrameZeroCount) {
   if (framer_.transport_version() != QUIC_VERSION_99) {
     return;
   }
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
 
   // clang-format off
   unsigned char packet99[] = {
@@ -11166,7 +11071,6 @@ TEST_P(QuicFramerTest, NewConnectionIdFrame) {
     // This frame is only for version 99.
     return;
   }
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
   // clang-format off
   PacketFragments packet99 = {
       // type (short header, 4 byte packet number)
@@ -11222,7 +11126,6 @@ TEST_P(QuicFramerTest, NewConnectionIdFrameVariableLength) {
     // This frame is only for version 99.
     return;
   }
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
   // clang-format off
   PacketFragments packet99 = {
       // type (short header, 4 byte packet number)
@@ -11280,7 +11183,6 @@ TEST_P(QuicFramerTest, InvalidLongNewConnectionIdFrame) {
     // The NEW_CONNECTION_ID frame is only for version 99.
     return;
   }
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
   // clang-format off
   PacketFragments packet99 = {
       // type (short header, 4 byte packet number)
@@ -11373,7 +11275,6 @@ TEST_P(QuicFramerTest, NewTokenFrame) {
     // This frame is only for version 99.
     return;
   }
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
   // clang-format off
   PacketFragments packet = {
       // type (short header, 4 byte packet number)
@@ -11466,7 +11367,6 @@ TEST_P(QuicFramerTest, IetfStopSendingFrame) {
   if (framer_.transport_version() != QUIC_VERSION_99) {
     return;
   }
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
 
   // clang-format off
   PacketFragments packet99 = {
@@ -11554,7 +11454,6 @@ TEST_P(QuicFramerTest, IetfPathChallengeFrame) {
   if (framer_.transport_version() != QUIC_VERSION_99) {
     return;
   }
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
 
   // clang-format off
   PacketFragments packet99 = {
@@ -11637,7 +11536,6 @@ TEST_P(QuicFramerTest, IetfPathResponseFrame) {
   if (framer_.transport_version() != QUIC_VERSION_99) {
     return;
   }
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
 
   // clang-format off
   PacketFragments packet99 = {
@@ -11804,7 +11702,6 @@ TEST_P(QuicFramerTest, IetfFrameTypeEncodingErrorUnknown1Byte) {
   if (framer_.transport_version() != QUIC_VERSION_99) {
     return;
   }
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
   // clang-format off
   PacketFragments packet = {
       // type (short header, 4 byte packet number)
@@ -11836,7 +11733,6 @@ TEST_P(QuicFramerTest, IetfFrameTypeEncodingErrorUnknown2Bytes) {
   if (framer_.transport_version() != QUIC_VERSION_99) {
     return;
   }
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
 
   // clang-format off
   PacketFragments packet = {
@@ -11869,7 +11765,6 @@ TEST_P(QuicFramerTest, IetfFrameTypeEncodingErrorUnknown4Bytes) {
   if (framer_.transport_version() != QUIC_VERSION_99) {
     return;
   }
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
 
   // clang-format off
   PacketFragments packet = {
@@ -11902,7 +11797,6 @@ TEST_P(QuicFramerTest, IetfFrameTypeEncodingErrorUnknown8Bytes) {
   if (framer_.transport_version() != QUIC_VERSION_99) {
     return;
   }
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
   // clang-format off
   PacketFragments packet = {
       // type (short header, 4 byte packet number)
@@ -11938,7 +11832,6 @@ TEST_P(QuicFramerTest, IetfFrameTypeEncodingErrorKnown2Bytes) {
   if (framer_.transport_version() != QUIC_VERSION_99) {
     return;
   }
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
 
   // clang-format off
   PacketFragments packet = {
@@ -11971,7 +11864,6 @@ TEST_P(QuicFramerTest, IetfFrameTypeEncodingErrorKnown4Bytes) {
   if (framer_.transport_version() != QUIC_VERSION_99) {
     return;
   }
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
 
   // clang-format off
   PacketFragments packet = {
@@ -12004,7 +11896,6 @@ TEST_P(QuicFramerTest, IetfFrameTypeEncodingErrorKnown8Bytes) {
   if (framer_.transport_version() != QUIC_VERSION_99) {
     return;
   }
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
   // clang-format off
   PacketFragments packet = {
       // type (short header, 4 byte packet number)
@@ -12040,7 +11931,6 @@ TEST_P(QuicFramerTest, IetfFrameTypeEncodingErrorKnown2BytesAllTypes) {
   if (framer_.transport_version() != QUIC_VERSION_99) {
     return;
   }
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
 
   // clang-format off
   PacketFragments packets[] = {
@@ -12441,7 +12331,6 @@ TEST_P(QuicFramerTest, RetireConnectionIdFrame) {
     // This frame is only for version 99.
     return;
   }
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
   // clang-format off
   PacketFragments packet99 = {
       // type (short header, 4 byte packet number)
@@ -12522,7 +12411,6 @@ TEST_P(QuicFramerTest, BuildRetireConnectionIdFramePacket) {
 }
 
 TEST_P(QuicFramerTest, AckFrameWithInvalidLargestObserved) {
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
   // clang-format off
   unsigned char packet[] = {
     // public flags (8 byte connection_id)
@@ -12623,7 +12511,6 @@ TEST_P(QuicFramerTest, AckFrameWithInvalidLargestObserved) {
 }
 
 TEST_P(QuicFramerTest, FirstAckBlockJustUnderFlow) {
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
   // clang-format off
   unsigned char packet[] = {
     // public flags (8 byte connection_id)
@@ -12726,7 +12613,6 @@ TEST_P(QuicFramerTest, FirstAckBlockJustUnderFlow) {
 }
 
 TEST_P(QuicFramerTest, ThirdAckBlockJustUnderflow) {
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
   // clang-format off
   unsigned char packet[] = {
     // public flags (8 byte connection_id)
@@ -12875,7 +12761,6 @@ TEST_P(QuicFramerTest, CoalescedPacket) {
   if (!QuicVersionHasLongHeaderLengths(framer_.transport_version())) {
     return;
   }
-  SetDecrypterLevel(ENCRYPTION_ZERO_RTT);
   // clang-format off
   unsigned char packet[] = {
     // first coalesced packet
@@ -12970,7 +12855,6 @@ TEST_P(QuicFramerTest, MismatchedCoalescedPacket) {
   if (!QuicVersionHasLongHeaderLengths(framer_.transport_version())) {
     return;
   }
-  SetDecrypterLevel(ENCRYPTION_ZERO_RTT);
   // clang-format off
   unsigned char packet[] = {
     // first coalesced packet
@@ -13053,7 +12937,6 @@ TEST_P(QuicFramerTest, InvalidCoalescedPacket) {
   if (!QuicVersionHasLongHeaderLengths(framer_.transport_version())) {
     return;
   }
-  SetDecrypterLevel(ENCRYPTION_ZERO_RTT);
   // clang-format off
   unsigned char packet[] = {
     // first coalesced packet
@@ -13114,7 +12997,6 @@ TEST_P(QuicFramerTest, PacketHeaderWithVariableLengthConnectionId) {
   if (framer_.transport_version() < QUIC_VERSION_46) {
     return;
   }
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
   char connection_id_bytes[9] = {0xFE, 0xDC, 0xBA, 0x98, 0x76,
                                  0x54, 0x32, 0x10, 0x42};
   QuicConnectionId connection_id(connection_id_bytes,
@@ -13155,7 +13037,6 @@ TEST_P(QuicFramerTest, UpdateExpectedConnectionIdLength) {
   if (framer_.transport_version() < QUIC_VERSION_46) {
     return;
   }
-  SetDecrypterLevel(ENCRYPTION_ZERO_RTT);
   framer_.SetShouldUpdateExpectedConnectionIdLength(true);
 
   // clang-format off
@@ -13210,7 +13091,6 @@ TEST_P(QuicFramerTest, UpdateExpectedConnectionIdLength) {
   EXPECT_EQ(visitor_.header_.get()->packet_number,
             QuicPacketNumber(UINT64_C(0x12345678)));
 
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
   // clang-format off
   unsigned char short_header_packet[] = {
     // type (short header, 4 byte packet number)
@@ -13278,13 +13158,7 @@ TEST_P(QuicFramerTest, MultiplePacketNumberSpaces) {
   };
   // clang-format on
 
-  if (framer_.version().KnowsWhichDecrypterToUse()) {
-    framer_.InstallDecrypter(ENCRYPTION_ZERO_RTT,
-                             QuicMakeUnique<TestDecrypter>());
-    framer_.RemoveDecrypter(ENCRYPTION_INITIAL);
-  } else {
-    framer_.SetDecrypter(ENCRYPTION_ZERO_RTT, QuicMakeUnique<TestDecrypter>());
-  }
+  framer_.SetDecrypter(ENCRYPTION_ZERO_RTT, QuicMakeUnique<TestDecrypter>());
   if (!QuicVersionHasLongHeaderLengths(framer_.transport_version())) {
     EXPECT_TRUE(framer_.ProcessPacket(
         QuicEncryptedPacket(AsChars(long_header_packet),
@@ -13320,14 +13194,8 @@ TEST_P(QuicFramerTest, MultiplePacketNumberSpaces) {
 
   QuicEncryptedPacket short_header_encrypted(
       AsChars(short_header_packet), QUIC_ARRAYSIZE(short_header_packet), false);
-  if (framer_.version().KnowsWhichDecrypterToUse()) {
-    framer_.InstallDecrypter(ENCRYPTION_FORWARD_SECURE,
-                             QuicMakeUnique<TestDecrypter>());
-    framer_.RemoveDecrypter(ENCRYPTION_ZERO_RTT);
-  } else {
-    framer_.SetDecrypter(ENCRYPTION_FORWARD_SECURE,
-                         QuicMakeUnique<TestDecrypter>());
-  }
+  framer_.SetDecrypter(ENCRYPTION_FORWARD_SECURE,
+                       QuicMakeUnique<TestDecrypter>());
   EXPECT_TRUE(framer_.ProcessPacket(short_header_encrypted));
 
   EXPECT_EQ(QUIC_NO_ERROR, framer_.error());

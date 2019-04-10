@@ -375,16 +375,10 @@ void QuicCryptoClientHandshaker::DoSendCHLO(
       crypto_config_->pad_full_hello());
   SendHandshakeMessage(out);
   // Be prepared to decrypt with the new server write key.
-  if (session()->connection()->version().KnowsWhichDecrypterToUse()) {
-    session()->connection()->InstallDecrypter(
-        ENCRYPTION_ZERO_RTT,
-        std::move(crypto_negotiated_params_->initial_crypters.decrypter));
-  } else {
-    session()->connection()->SetAlternativeDecrypter(
-        ENCRYPTION_ZERO_RTT,
-        std::move(crypto_negotiated_params_->initial_crypters.decrypter),
-        true /* latch once used */);
-  }
+  session()->connection()->SetAlternativeDecrypter(
+      ENCRYPTION_ZERO_RTT,
+      std::move(crypto_negotiated_params_->initial_crypters.decrypter),
+      true /* latch once used */);
   // Send subsequent packets under encryption on the assumption that the
   // server will accept the handshake.
   session()->connection()->SetEncrypter(
@@ -590,8 +584,10 @@ void QuicCryptoClientHandshaker::DoReceiveSHLO(
   // to see whether the response was a reject, and if so, move on to
   // the reject-processing state.
   if ((in->tag() == kREJ) || (in->tag() == kSREJ)) {
-    // A reject message must be sent in ENCRYPTION_INITIAL.
-    if (session()->connection()->last_decrypted_level() != ENCRYPTION_INITIAL) {
+    // alternative_decrypter will be nullptr if the original alternative
+    // decrypter latched and became the primary decrypter. That happens
+    // if we received a message encrypted with the INITIAL key.
+    if (session()->connection()->alternative_decrypter() == nullptr) {
       // The rejection was sent encrypted!
       stream_->CloseConnectionWithDetails(
           QUIC_CRYPTO_ENCRYPTION_LEVEL_INCORRECT, "encrypted REJ message");
@@ -607,7 +603,10 @@ void QuicCryptoClientHandshaker::DoReceiveSHLO(
     return;
   }
 
-  if (session()->connection()->last_decrypted_level() == ENCRYPTION_INITIAL) {
+  // alternative_decrypter will be nullptr if the original alternative
+  // decrypter latched and became the primary decrypter. That happens
+  // if we received a message encrypted with the INITIAL key.
+  if (session()->connection()->alternative_decrypter() != nullptr) {
     // The server hello was sent without encryption.
     stream_->CloseConnectionWithDetails(QUIC_CRYPTO_ENCRYPTION_LEVEL_INCORRECT,
                                         "unencrypted SHLO message");
@@ -639,14 +638,9 @@ void QuicCryptoClientHandshaker::DoReceiveSHLO(
   // has been floated that the server shouldn't send packets encrypted
   // with the FORWARD_SECURE key until it receives a FORWARD_SECURE
   // packet from the client.
-  if (session()->connection()->version().KnowsWhichDecrypterToUse()) {
-    session()->connection()->InstallDecrypter(ENCRYPTION_FORWARD_SECURE,
-                                              std::move(crypters->decrypter));
-  } else {
-    session()->connection()->SetAlternativeDecrypter(
-        ENCRYPTION_FORWARD_SECURE, std::move(crypters->decrypter),
-        false /* don't latch */);
-  }
+  session()->connection()->SetAlternativeDecrypter(
+      ENCRYPTION_FORWARD_SECURE, std::move(crypters->decrypter),
+      false /* don't latch */);
   session()->connection()->SetEncrypter(ENCRYPTION_FORWARD_SECURE,
                                         std::move(crypters->encrypter));
   session()->connection()->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
