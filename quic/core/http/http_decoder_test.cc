@@ -3,7 +3,9 @@
 // found in the LICENSE file.
 
 #include "net/third_party/quiche/src/quic/core/http/http_decoder.h"
+
 #include "net/third_party/quiche/src/quic/core/http/http_encoder.h"
+#include "net/third_party/quiche/src/quic/core/quic_data_writer.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 
@@ -477,6 +479,32 @@ TEST_F(HttpDecoderTest, PushPromiseFrameNoHeaders) {
   }
   EXPECT_EQ(QUIC_NO_ERROR, decoder_.error());
   EXPECT_EQ("", decoder_.error_detail());
+}
+
+TEST_F(HttpDecoderTest, MalformedFrameWithOverlyLargePayload) {
+  char input[] = {0x10,   // length
+                  0x03,   // type (CANCEL_PUSH)
+                  0x15};  // malformed payload
+  // Process the full frame.
+  EXPECT_CALL(visitor_, OnError(&decoder_));
+  EXPECT_EQ(0, decoder_.ProcessInput(input, QUIC_ARRAYSIZE(input)));
+  EXPECT_EQ(QUIC_INTERNAL_ERROR, decoder_.error());
+  EXPECT_EQ("Frame is too large", decoder_.error_detail());
+}
+
+TEST_F(HttpDecoderTest, MalformedSettingsFrame) {
+  char input[30];
+  QuicDataWriter writer(30, input);
+  // Write length.
+  writer.WriteVarInt62(2048 * 1024);
+  // Write type SETTINGS.
+  writer.WriteUInt8(0x04);
+
+  writer.WriteStringPiece("Malformed payload");
+  EXPECT_CALL(visitor_, OnError(&decoder_));
+  EXPECT_EQ(0, decoder_.ProcessInput(input, QUIC_ARRAYSIZE(input)));
+  EXPECT_EQ(QUIC_INTERNAL_ERROR, decoder_.error());
+  EXPECT_EQ("Frame is too large", decoder_.error_detail());
 }
 
 }  // namespace quic

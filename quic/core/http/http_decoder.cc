@@ -26,6 +26,10 @@ uint8_t ExtractBits(uint8_t flags, uint8_t num_bits, uint8_t offset) {
 
 // Length of the type field of HTTP/3 frames.
 static const QuicByteCount kFrameTypeLength = 1;
+// Length of the weight field of a priority frame.
+static const size_t kPriorityWeightLength = 1;
+// Length of a priority frame's first byte.
+static const size_t kPriorityFirstByteLength = 1;
 
 }  // namespace
 
@@ -98,6 +102,12 @@ void HttpDecoder::ReadFrameType(QuicDataReader* reader) {
     return;
   }
 
+  if (current_frame_length_ > MaxFrameLength(current_frame_type_)) {
+    RaiseError(QUIC_INTERNAL_ERROR, "Frame is too large");
+    visitor_->OnError(this);
+    return;
+  }
+
   // Calling the following two visitor methods does not require parsing of any
   // frame payload.
   if (current_frame_type_ == 0x0) {
@@ -152,15 +162,10 @@ void HttpDecoder::ReadFramePayload(QuicDataReader* reader) {
       break;
     }
     case 0x3: {  // CANCEL_PUSH
-      // TODO(rch): Handle partial delivery.
       BufferFramePayload(reader);
       break;
     }
     case 0x4: {  // SETTINGS
-      // TODO(rch): Handle overly large SETTINGS frames. Either:
-      // 1. Impose a limit on SETTINGS frame size, and close the connection if
-      //    exceeded
-      // 2. Implement a streaming parsing mode.
       BufferFramePayload(reader);
       break;
     }
@@ -437,6 +442,28 @@ bool HttpDecoder::ParseSettingsFrame(QuicDataReader* reader,
     frame->values[id] = content;
   }
   return true;
+}
+
+QuicByteCount HttpDecoder::MaxFrameLength(uint8_t frame_type) {
+  switch (frame_type) {
+    case 0x2:  // PRIORITY
+      return kPriorityFirstByteLength + VARIABLE_LENGTH_INTEGER_LENGTH_8 * 2 +
+             kPriorityWeightLength;
+    case 0x3:  // CANCEL_PUSH
+      return sizeof(PushId);
+    case 0x4:  // SETTINGS
+      // This limit is arbitrary.
+      return 1024 * 1024;
+    case 0x7:  // GOAWAY
+      return sizeof(QuicStreamId);
+    case 0xD:  // MAX_PUSH_ID
+      return sizeof(PushId);
+    case 0xE:  // DUPLICATE_PUSH
+      return sizeof(PushId);
+    default:
+      // Other frames require no data buffering, so it's safe to have no limit.
+      return std::numeric_limits<QuicByteCount>::max();
+  }
 }
 
 }  // namespace quic
