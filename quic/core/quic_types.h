@@ -93,6 +93,12 @@ enum WriteStatus {
   WRITE_STATUS_NUM_VALUES,
 };
 
+std::string HistogramEnumString(WriteStatus enum_value);
+
+inline std::string HistogramEnumDescription(WriteStatus dummy) {
+  return "status";
+}
+
 inline bool IsWriteBlockedStatus(WriteStatus status) {
   return status == WRITE_STATUS_BLOCKED ||
          status == WRITE_STATUS_BLOCKED_DATA_BUFFERED;

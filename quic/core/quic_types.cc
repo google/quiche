@@ -31,6 +31,25 @@ std::ostream& operator<<(std::ostream& os, const AckedPacket& acked_packet) {
   return os;
 }
 
+std::string HistogramEnumString(WriteStatus enum_value) {
+  switch (enum_value) {
+    case WRITE_STATUS_OK:
+      return "OK";
+    case WRITE_STATUS_BLOCKED:
+      return "BLOCKED";
+    case WRITE_STATUS_BLOCKED_DATA_BUFFERED:
+      return "BLOCKED_DATA_BUFFERED";
+    case WRITE_STATUS_ERROR:
+      return "ERROR";
+    case WRITE_STATUS_MSG_TOO_BIG:
+      return "MSG_TOO_BIG";
+    case WRITE_STATUS_NUM_VALUES:
+      return "NUM_VALUES";
+  }
+  QUIC_DLOG(ERROR) << "Invalid WriteStatus value: " << enum_value;
+  return "<invalid>";
+}
+
 WriteResult::WriteResult() : status(WRITE_STATUS_ERROR), bytes_written(0) {}
 
 WriteResult::WriteResult(WriteStatus status, int bytes_written_or_error_code)
