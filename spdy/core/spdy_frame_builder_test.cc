@@ -10,8 +10,24 @@
 #include "net/third_party/quiche/src/spdy/core/array_output_buffer.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_framer.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
+#include "net/third_party/quiche/src/spdy/platform/api/spdy_export.h"
 
 namespace spdy {
+
+namespace test {
+
+class SPDY_EXPORT_PRIVATE SpdyFrameBuilderPeer {
+ public:
+  static char* GetWritableBuffer(SpdyFrameBuilder* builder, size_t length) {
+    return builder->GetWritableBuffer(length);
+  }
+
+  static char* GetWritableOutput(SpdyFrameBuilder* builder,
+                                 size_t desired_length,
+                                 size_t* actual_length) {
+    return builder->GetWritableOutput(desired_length, actual_length);
+  }
+};
 
 namespace {
 
@@ -25,7 +41,8 @@ char output_buffer[kSize] = "";
 TEST(SpdyFrameBuilderTest, GetWritableBuffer) {
   const size_t kBuilderSize = 10;
   SpdyFrameBuilder builder(kBuilderSize);
-  char* writable_buffer = builder.GetWritableBuffer(kBuilderSize);
+  char* writable_buffer =
+      SpdyFrameBuilderPeer::GetWritableBuffer(&builder, kBuilderSize);
   memset(writable_buffer, ~1, kBuilderSize);
   EXPECT_TRUE(builder.Seek(kBuilderSize));
   SpdySerializedFrame frame(builder.take());
@@ -42,7 +59,8 @@ TEST(SpdyFrameBuilderTest, GetWritableOutput) {
   const size_t kBuilderSize = 10;
   SpdyFrameBuilder builder(kBuilderSize, &output);
   size_t actual_size = 0;
-  char* writable_buffer = builder.GetWritableOutput(kBuilderSize, &actual_size);
+  char* writable_buffer = SpdyFrameBuilderPeer::GetWritableOutput(
+      &builder, kBuilderSize, &actual_size);
   memset(writable_buffer, ~1, kBuilderSize);
   EXPECT_TRUE(builder.Seek(kBuilderSize));
   SpdySerializedFrame frame(output.Begin(), kBuilderSize, false);
@@ -59,10 +77,11 @@ TEST(SpdyFrameBuilderTest, GetWritableOutputNegative) {
   const size_t kBuilderSize = 10;
   SpdyFrameBuilder builder(kBuilderSize, &output);
   size_t actual_size = 0;
-  char* writable_buffer = builder.GetWritableOutput(kBuilderSize, &actual_size);
-  builder.GetWritableOutput(kBuilderSize, &actual_size);
+  char* writable_buffer = SpdyFrameBuilderPeer::GetWritableOutput(
+      &builder, kBuilderSize, &actual_size);
   EXPECT_EQ(0u, actual_size);
   EXPECT_EQ(nullptr, writable_buffer);
 }
 
+}  // namespace test
 }  // namespace spdy

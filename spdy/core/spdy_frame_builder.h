@@ -15,9 +15,12 @@
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_endianness_util.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_export.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_piece.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_test_utils_prod.h"
 
 namespace spdy {
+
+namespace test {
+class SpdyFrameBuilderPeer;
+}  // namespace test
 
 // This class provides facilities for basic binary value packing
 // into Spdy frames.
@@ -101,9 +104,7 @@ class SPDY_EXPORT_PRIVATE SpdyFrameBuilder {
   bool WriteBytes(const void* data, uint32_t data_len);
 
  private:
-  SPDY_FRIEND_TEST(SpdyFrameBuilderTest, GetWritableBuffer);
-  SPDY_FRIEND_TEST(SpdyFrameBuilderTest, GetWritableOutput);
-  SPDY_FRIEND_TEST(SpdyFrameBuilderTest, GetWritableOutputNegative);
+  friend class test::SpdyFrameBuilderPeer;
 
   // Populates this frame with a HTTP2 frame prefix with type and length
   // information.
