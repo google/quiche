@@ -4393,8 +4393,8 @@ TEST_P(QuicFramerTest, ConnectionCloseFrame) {
       PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
 
   EXPECT_EQ(0u, visitor_.stream_frames_.size());
-  EXPECT_EQ(0x11, static_cast<unsigned>(
-                      visitor_.connection_close_frame_.quic_error_code));
+  EXPECT_EQ(0x11u, static_cast<unsigned>(
+                       visitor_.connection_close_frame_.quic_error_code));
   EXPECT_EQ("because I can", visitor_.connection_close_frame_.error_details);
   if (framer_.transport_version() == QUIC_VERSION_99) {
     EXPECT_EQ(0x1234u,
