@@ -101,28 +101,12 @@ bool QuicFramerPeer::AppendIetfConnectionCloseFrame(
 }
 
 // static
-bool QuicFramerPeer::AppendApplicationCloseFrame(
-    QuicFramer* framer,
-    const QuicApplicationCloseFrame& frame,
-    QuicDataWriter* writer) {
-  return framer->AppendApplicationCloseFrame(frame, writer);
-}
-
-// static
 bool QuicFramerPeer::ProcessIetfConnectionCloseFrame(
     QuicFramer* framer,
     QuicDataReader* reader,
     QuicConnectionCloseType type,
     QuicConnectionCloseFrame* frame) {
   return framer->ProcessIetfConnectionCloseFrame(reader, type, frame);
-}
-
-// static
-bool QuicFramerPeer::ProcessApplicationCloseFrame(
-    QuicFramer* framer,
-    QuicDataReader* reader,
-    QuicApplicationCloseFrame* frame) {
-  return framer->ProcessApplicationCloseFrame(reader, frame);
 }
 
 // static

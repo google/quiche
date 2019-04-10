@@ -165,7 +165,7 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
   bool OnPingFrame(const QuicPingFrame& frame) override;
   bool OnRstStreamFrame(const QuicRstStreamFrame& frame) override;
   bool OnConnectionCloseFrame(const QuicConnectionCloseFrame& frame) override;
-  bool OnApplicationCloseFrame(const QuicApplicationCloseFrame& frame) override;
+  bool OnApplicationCloseFrame(const QuicConnectionCloseFrame& frame) override;
   bool OnStopSendingFrame(const QuicStopSendingFrame& frame) override;
   bool OnPathChallengeFrame(const QuicPathChallengeFrame& frame) override;
   bool OnPathResponseFrame(const QuicPathResponseFrame& frame) override;

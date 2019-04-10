@@ -158,9 +158,12 @@ class QUIC_EXPORT_PRIVATE QuicFramerVisitorInterface {
   virtual bool OnConnectionCloseFrame(
       const QuicConnectionCloseFrame& frame) = 0;
 
-  // Called when an IETF ApplicationCloseFrame has been parsed.
+  // Called when an IETF QUIC CONNECTION_CLOSE/Application Frame has been
+  // parsed. TEMPORARILY pass the frame as a QuicConnectionCloseFrame.
+  // TODO(fkastenholz): remove when V99 fully utilizes the IETF
+  // CONNECTION_CLOSE close frame.
   virtual bool OnApplicationCloseFrame(
-      const QuicApplicationCloseFrame& frame) = 0;
+      const QuicConnectionCloseFrame& frame) = 0;
 
   // Called when a StopSendingFrame has been parsed.
   virtual bool OnStopSendingFrame(const QuicStopSendingFrame& frame) = 0;
@@ -304,9 +307,6 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   static size_t GetMinConnectionCloseFrameSize(
       QuicTransportVersion version,
       const QuicConnectionCloseFrame& frame);
-  static size_t GetMinApplicationCloseFrameSize(
-      QuicTransportVersion version,
-      const QuicApplicationCloseFrame& frame);
   // Size in bytes of all GoAway frame fields without the reason phrase.
   static size_t GetMinGoAwayFrameSize();
   // Size in bytes of all WindowUpdate frame fields.
@@ -776,8 +776,6 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   bool ProcessIetfConnectionCloseFrame(QuicDataReader* reader,
                                        QuicConnectionCloseType type,
                                        QuicConnectionCloseFrame* frame);
-  bool ProcessApplicationCloseFrame(QuicDataReader* reader,
-                                    QuicApplicationCloseFrame* frame);
   bool ProcessPathChallengeFrame(QuicDataReader* reader,
                                  QuicPathChallengeFrame* frame);
   bool ProcessPathResponseFrame(QuicDataReader* reader,
@@ -794,8 +792,6 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
                              QuicDataWriter* writer);
   bool AppendIetfConnectionCloseFrame(const QuicConnectionCloseFrame& frame,
                                       QuicDataWriter* writer);
-  bool AppendApplicationCloseFrame(const QuicApplicationCloseFrame& frame,
-                                   QuicDataWriter* writer);
   bool AppendPathChallengeFrame(const QuicPathChallengeFrame& frame,
                                 QuicDataWriter* writer);
   bool AppendPathResponseFrame(const QuicPathResponseFrame& frame,

@@ -191,7 +191,6 @@ enum QuicFrameType : uint8_t {
   // from Google QUIC frames. These are valid/allowed if and only if IETF-
   // QUIC has been negotiated. Values are not important, they are not
   // the values that are in the packets (see QuicIetfFrameType, below).
-  APPLICATION_CLOSE_FRAME,
   NEW_CONNECTION_ID_FRAME,
   MAX_STREAM_ID_FRAME,
   STREAM_ID_BLOCKED_FRAME,
@@ -249,7 +248,8 @@ enum QuicIetfFrameType : uint8_t {
   IETF_PATH_RESPONSE = 0x1b,
   // Both of the following are "Connection Close" frames,
   // the first signals transport-layer errors, the second application-layer
-  // errors.
+  // errors.The frame formats and protocol procedures are the same, the only
+  // difference is the number space in the frame's error code field.
   IETF_CONNECTION_CLOSE = 0x1c,
   IETF_APPLICATION_CLOSE = 0x1d,
 

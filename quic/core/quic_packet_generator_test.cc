@@ -1349,6 +1349,9 @@ TEST_F(QuicPacketGeneratorTest, ConnectionCloseFrameLargerThanPacketSize) {
   QuicStringPiece error_details(buf, 2000);
   QuicConnectionCloseFrame* frame = new QuicConnectionCloseFrame(
       QUIC_PACKET_WRITE_ERROR, std::string(error_details));
+  if (framer_.transport_version() == QUIC_VERSION_99) {
+    frame->close_type = IETF_QUIC_TRANSPORT_CONNECTION_CLOSE;
+  }
   generator_.AddControlFrame(QuicFrame(frame), /*bundle_ack=*/false);
   EXPECT_TRUE(generator_.HasQueuedFrames());
   EXPECT_TRUE(generator_.HasRetransmittableFrames());

@@ -9,7 +9,6 @@
 #include <vector>
 
 #include "net/third_party/quiche/src/quic/core/frames/quic_ack_frame.h"
-#include "net/third_party/quiche/src/quic/core/frames/quic_application_close_frame.h"
 #include "net/third_party/quiche/src/quic/core/frames/quic_blocked_frame.h"
 #include "net/third_party/quiche/src/quic/core/frames/quic_connection_close_frame.h"
 #include "net/third_party/quiche/src/quic/core/frames/quic_crypto_frame.h"
@@ -53,7 +52,6 @@ struct QUIC_EXPORT_PRIVATE QuicFrame {
   explicit QuicFrame(QuicGoAwayFrame* frame);
   explicit QuicFrame(QuicWindowUpdateFrame* frame);
   explicit QuicFrame(QuicBlockedFrame* frame);
-  explicit QuicFrame(QuicApplicationCloseFrame* frame);
   explicit QuicFrame(QuicNewConnectionIdFrame* frame);
   explicit QuicFrame(QuicRetireConnectionIdFrame* frame);
   explicit QuicFrame(QuicNewTokenFrame* frame);
@@ -94,7 +92,6 @@ struct QUIC_EXPORT_PRIVATE QuicFrame {
         QuicGoAwayFrame* goaway_frame;
         QuicWindowUpdateFrame* window_update_frame;
         QuicBlockedFrame* blocked_frame;
-        QuicApplicationCloseFrame* application_close_frame;
         QuicNewConnectionIdFrame* new_connection_id_frame;
         QuicRetireConnectionIdFrame* retire_connection_id_frame;
         QuicPathResponseFrame* path_response_frame;

@@ -1309,6 +1309,9 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     }
 
     QuicConnectionCloseFrame qccf(QUIC_PEER_GOING_AWAY);
+    if (peer_framer_.transport_version() == QUIC_VERSION_99) {
+      qccf.close_type = IETF_QUIC_TRANSPORT_CONNECTION_CLOSE;
+    }
 
     QuicFrames frames;
     frames.push_back(QuicFrame(&qccf));
@@ -7015,6 +7018,9 @@ TEST_P(QuicConnectionTest, ProcessFramesIfPacketClosedConnection) {
   header.version_flag = false;
 
   QuicConnectionCloseFrame qccf(QUIC_PEER_GOING_AWAY);
+  if (peer_framer_.transport_version() == QUIC_VERSION_99) {
+    qccf.close_type = IETF_QUIC_TRANSPORT_CONNECTION_CLOSE;
+  }
 
   QuicFrames frames;
   frames.push_back(QuicFrame(frame1_));

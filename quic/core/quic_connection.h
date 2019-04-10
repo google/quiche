@@ -253,9 +253,9 @@ class QUIC_EXPORT_PRIVATE QuicConnectionDebugVisitor
   // Called when a ConnectionCloseFrame has been parsed.
   virtual void OnConnectionCloseFrame(const QuicConnectionCloseFrame& frame) {}
 
-  // Called when an ApplicationCloseFrame has been parsed.
-  virtual void OnApplicationCloseFrame(const QuicApplicationCloseFrame& frame) {
-  }
+  // Called when an IETF QUIC CONNECTION_CLOSE/Application Frame has been
+  // parsed.
+  virtual void OnApplicationCloseFrame(const QuicConnectionCloseFrame& frame) {}
 
   // Called when a WindowUpdate has been parsed.
   virtual void OnWindowUpdateFrame(const QuicWindowUpdateFrame& frame,
@@ -498,7 +498,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   bool OnPingFrame(const QuicPingFrame& frame) override;
   bool OnRstStreamFrame(const QuicRstStreamFrame& frame) override;
   bool OnConnectionCloseFrame(const QuicConnectionCloseFrame& frame) override;
-  bool OnApplicationCloseFrame(const QuicApplicationCloseFrame& frame) override;
+  bool OnApplicationCloseFrame(const QuicConnectionCloseFrame& frame) override;
   bool OnStopSendingFrame(const QuicStopSendingFrame& frame) override;
   bool OnPathChallengeFrame(const QuicPathChallengeFrame& frame) override;
   bool OnPathResponseFrame(const QuicPathResponseFrame& frame) override;

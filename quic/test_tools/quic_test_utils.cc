@@ -282,7 +282,7 @@ bool NoOpFramerVisitor::OnConnectionCloseFrame(
 }
 
 bool NoOpFramerVisitor::OnApplicationCloseFrame(
-    const QuicApplicationCloseFrame& frame) {
+    const QuicConnectionCloseFrame& frame) {
   return true;
 }
 

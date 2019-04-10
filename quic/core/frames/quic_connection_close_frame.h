@@ -14,15 +14,11 @@
 
 namespace quic {
 
-// There are three different forms of CONNECTION_CLOSE. UNINITIALIZED is
-// included explicitly for the QuicConnectionCloseFrame so that when the object
-// is constructed, a valid enumeration, indicating that the type is not known,
-// can be set.
+// There are three different forms of CONNECTION_CLOSE.
 typedef enum QuicConnectionCloseType {
-  UNINITIALIZED = 0,
-  GOOGLE_QUIC_CONNECTION_CLOSE = 1,
-  IETF_QUIC_TRANSPORT_CONNECTION_CLOSE = 2,
-  IETF_QUIC_APPLICATION_CONNECTION_CLOSE = 3
+  GOOGLE_QUIC_CONNECTION_CLOSE = 0,
+  IETF_QUIC_TRANSPORT_CONNECTION_CLOSE = 1,
+  IETF_QUIC_APPLICATION_CONNECTION_CLOSE = 2
 } QuicConnectionCloseType;
 QUIC_EXPORT_PRIVATE std::ostream& operator<<(
     std::ostream& os,
@@ -42,7 +38,7 @@ struct QUIC_EXPORT_PRIVATE QuicConnectionCloseFrame {
       const QuicConnectionCloseFrame& c);
 
   // Indicates whether the received CONNECTION_CLOSE frame is a Google QUIC
-  // CONNECTION_CLOSE, IETF QUIC CONNECTION_CLOSE
+  // CONNECTION_CLOSE, IETF QUIC CONNECTION_CLOSE.
   QuicConnectionCloseType close_type;
 
   // This is the error field in the frame.
@@ -62,9 +58,10 @@ struct QUIC_EXPORT_PRIVATE QuicConnectionCloseFrame {
   // information as to the source of the error.
   QuicErrorCode extracted_error_code;
 
-  // String with additional error details. In some circumstances, we will add a
-  // "QuicErrorCode: QUIC_...(123)" string indicating a more specific internal
-  // error code.
+  // String with additional error details. "QuicErrorCode: 123" will be appended
+  // to the error details when sending IETF QUIC Connection Close and
+  // Application Close frames and parsed into extracted_error_code upon receipt,
+  // when present.
   std::string error_details;
 
   // The frame type present in the IETF transport connection close frame.

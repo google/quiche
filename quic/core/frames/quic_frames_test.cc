@@ -137,8 +137,12 @@ TEST_F(QuicFramesTest, ConnectionCloseFrameToString) {
   frame.error_details = "No recent network activity.";
   std::ostringstream stream;
   stream << frame;
+  // Note that "extracted_error_code: 122" is QUIC_IETF_GQUIC_ERROR_MISSING,
+  // indicating that, in fact, no extended error code was available from the
+  // underlying frame.
   EXPECT_EQ(
-      "{ Close type: UNINITIALIZED, error_code: 25, extracted_error_code: 122, "
+      "{ Close type: GOOGLE_QUIC_CONNECTION_CLOSE, error_code: 25, "
+      "extracted_error_code: 122, "
       "error_details: 'No recent "
       "network activity.', "
       "frame_type: 0"

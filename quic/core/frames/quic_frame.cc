@@ -45,9 +45,6 @@ QuicFrame::QuicFrame(QuicWindowUpdateFrame* frame)
 QuicFrame::QuicFrame(QuicBlockedFrame* frame)
     : type(BLOCKED_FRAME), blocked_frame(frame) {}
 
-QuicFrame::QuicFrame(QuicApplicationCloseFrame* frame)
-    : type(APPLICATION_CLOSE_FRAME), application_close_frame(frame) {}
-
 QuicFrame::QuicFrame(QuicNewConnectionIdFrame* frame)
     : type(NEW_CONNECTION_ID_FRAME), new_connection_id_frame(frame) {}
 
@@ -115,9 +112,6 @@ void DeleteFrame(QuicFrame* frame) {
       break;
     case STOP_SENDING_FRAME:
       delete frame->stop_sending_frame;
-      break;
-    case APPLICATION_CLOSE_FRAME:
-      delete frame->application_close_frame;
       break;
     case NEW_CONNECTION_ID_FRAME:
       delete frame->new_connection_id_frame;
@@ -307,9 +301,6 @@ std::ostream& operator<<(std::ostream& os, const QuicFrame& frame) {
       os << "type { MTU_DISCOVERY_FRAME } ";
       break;
     }
-    case APPLICATION_CLOSE_FRAME:
-      os << "type { APPLICATION_CLOSE } " << *(frame.application_close_frame);
-      break;
     case NEW_CONNECTION_ID_FRAME:
       os << "type { NEW_CONNECTION_ID } " << *(frame.new_connection_id_frame);
       break;

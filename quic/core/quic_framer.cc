@@ -588,25 +588,27 @@ size_t QuicFramer::GetMinConnectionCloseFrameSize(
     QuicTransportVersion version,
     const QuicConnectionCloseFrame& frame) {
   if (version == QUIC_VERSION_99) {
+    // TODO(fkastenholz): For complete support of IETF QUIC CONNECTION_CLOSE,
+    // check if the frame is a Transport close and if the frame's
+    // extracted_error_code is not QUIC_IETF_GQUIC_ERROR_MISSING. If so,
+    // extend the error string to include " QuicErrorCode: #"
+    if (frame.close_type == IETF_QUIC_APPLICATION_CONNECTION_CLOSE) {
+      // Application close variant does not include the transport close frame
+      // type field.
+      return QuicDataWriter::GetVarInt62Len(
+                 TruncatedErrorStringSize(frame.error_details)) +
+             kQuicFrameTypeSize + kQuicIetfQuicErrorCodeSize;
+    }
+    QUIC_BUG_IF(frame.close_type != IETF_QUIC_TRANSPORT_CONNECTION_CLOSE)
+        << "IETF QUIC Connection close and QuicConnectionCloseFrame type is "
+           "not IETF ConnectionClose";
     return QuicDataWriter::GetVarInt62Len(
                TruncatedErrorStringSize(frame.error_details)) +
            QuicDataWriter::GetVarInt62Len(frame.transport_close_frame_type) +
            kQuicFrameTypeSize + kQuicIetfQuicErrorCodeSize;
   }
+  // Not version 99/IETF QUIC, return Google QUIC CONNECTION CLOSE frame size.
   return kQuicFrameTypeSize + kQuicErrorCodeSize + kQuicErrorDetailsLengthSize;
-}
-
-// static
-size_t QuicFramer::GetMinApplicationCloseFrameSize(
-    QuicTransportVersion version,
-    const QuicApplicationCloseFrame& frame) {
-  if (version != QUIC_VERSION_99) {
-    QUIC_BUG << "In version " << version
-             << " - not 99 - and tried to serialize ApplicationClose.";
-  }
-  return QuicDataWriter::GetVarInt62Len(
-             TruncatedErrorStringSize(frame.error_details)) +
-         kQuicFrameTypeSize + kQuicIetfQuicErrorCodeSize;
 }
 
 // static
@@ -721,11 +723,6 @@ size_t QuicFramer::GetRetransmittableControlFrameSize(
       return GetWindowUpdateFrameSize(version, *frame.window_update_frame);
     case BLOCKED_FRAME:
       return GetBlockedFrameSize(version, *frame.blocked_frame);
-    case APPLICATION_CLOSE_FRAME:
-      return GetMinApplicationCloseFrameSize(version,
-                                             *frame.application_close_frame) +
-             TruncatedErrorStringSize(
-                 frame.application_close_frame->error_details);
     case NEW_CONNECTION_ID_FRAME:
       return GetNewConnectionIdFrameSize(*frame.new_connection_id_frame);
     case RETIRE_CONNECTION_ID_FRAME:
@@ -1027,10 +1024,6 @@ size_t QuicFramer::BuildDataPacket(const QuicPacketHeader& header,
           return 0;
         }
         break;
-      case APPLICATION_CLOSE_FRAME:
-        set_detailed_error(
-            "Attempt to append APPLICATION_CLOSE frame and not in version 99.");
-        return RaiseError(QUIC_INTERNAL_ERROR);
       case NEW_CONNECTION_ID_FRAME:
         set_detailed_error(
             "Attempt to append NEW_CONNECTION_ID frame and not in version 99.");
@@ -1144,9 +1137,10 @@ size_t QuicFramer::AppendIetfFrames(const QuicFrames& frames,
         }
         break;
       case CONNECTION_CLOSE_FRAME:
-        if (!AppendConnectionCloseFrame(*frame.connection_close_frame,
-                                        writer)) {
-          QUIC_BUG << "AppendConnectionCloseFrame failed: " << detailed_error();
+        if (!AppendIetfConnectionCloseFrame(*frame.connection_close_frame,
+                                            writer)) {
+          QUIC_BUG << "AppendIetfConnectionCloseFrame failed: "
+                   << detailed_error();
           return 0;
         }
         break;
@@ -1172,14 +1166,6 @@ size_t QuicFramer::AppendIetfFrames(const QuicFrames& frames,
       case BLOCKED_FRAME:
         if (!AppendBlockedFrame(*frame.blocked_frame, writer)) {
           QUIC_BUG << "AppendBlockedFrame failed: " << detailed_error();
-          return 0;
-        }
-        break;
-      case APPLICATION_CLOSE_FRAME:
-        if (!AppendApplicationCloseFrame(*frame.application_close_frame,
-                                         writer)) {
-          QUIC_BUG << "AppendApplicationCloseFrame failed: "
-                   << detailed_error();
           return 0;
         }
         break;
@@ -2906,11 +2892,7 @@ bool QuicFramer::ProcessIetfFrameData(QuicDataReader* reader,
         case IETF_CONNECTION_CLOSE: {
           QuicConnectionCloseFrame frame;
           if (!ProcessIetfConnectionCloseFrame(
-                  reader,
-                  ((frame_type == IETF_CONNECTION_CLOSE)
-                       ? IETF_QUIC_TRANSPORT_CONNECTION_CLOSE
-                       : IETF_QUIC_APPLICATION_CONNECTION_CLOSE),
-                  &frame)) {
+                  reader, IETF_QUIC_TRANSPORT_CONNECTION_CLOSE, &frame)) {
             return RaiseError(QUIC_INVALID_CONNECTION_CLOSE_DATA);
           }
           if (!visitor_->OnConnectionCloseFrame(frame)) {
@@ -2921,8 +2903,9 @@ bool QuicFramer::ProcessIetfFrameData(QuicDataReader* reader,
           break;
         }
         case IETF_APPLICATION_CLOSE: {
-          QuicApplicationCloseFrame frame;
-          if (!ProcessApplicationCloseFrame(reader, &frame)) {
+          QuicConnectionCloseFrame frame;
+          if (!ProcessIetfConnectionCloseFrame(
+                  reader, IETF_QUIC_APPLICATION_CONNECTION_CLOSE, &frame)) {
             return RaiseError(QUIC_INVALID_APPLICATION_CLOSE_DATA);
           }
           if (!visitor_->OnApplicationCloseFrame(frame)) {
@@ -4238,11 +4221,6 @@ bool QuicFramer::AppendTypeByte(const QuicFrame& frame,
     case MTU_DISCOVERY_FRAME:
       type_byte = static_cast<uint8_t>(PING_FRAME);
       break;
-
-    case APPLICATION_CLOSE_FRAME:
-      set_detailed_error(
-          "Attempt to append APPLICATION_CLOSE frame and not in version 99.");
-      return RaiseError(QUIC_INTERNAL_ERROR);
     case NEW_CONNECTION_ID_FRAME:
       set_detailed_error(
           "Attempt to append NEW_CONNECTION_ID frame and not in version 99.");
@@ -4299,7 +4277,17 @@ bool QuicFramer::AppendIetfTypeByte(const QuicFrame& frame,
       type_byte = IETF_RST_STREAM;
       break;
     case CONNECTION_CLOSE_FRAME:
-      type_byte = IETF_CONNECTION_CLOSE;
+      switch (frame.connection_close_frame->close_type) {
+        case IETF_QUIC_APPLICATION_CONNECTION_CLOSE:
+          type_byte = IETF_APPLICATION_CLOSE;
+          break;
+        case IETF_QUIC_TRANSPORT_CONNECTION_CLOSE:
+          type_byte = IETF_CONNECTION_CLOSE;
+          break;
+        default:
+          set_detailed_error("Invalid QuicConnectionCloseFrame type.");
+          return RaiseError(QUIC_INTERNAL_ERROR);
+      }
       break;
     case GOAWAY_FRAME:
       set_detailed_error(
@@ -4341,9 +4329,6 @@ bool QuicFramer::AppendIetfTypeByte(const QuicFrame& frame,
     case MTU_DISCOVERY_FRAME:
       // The path MTU discovery frame is encoded as a PING frame on the wire.
       type_byte = IETF_PING;
-      break;
-    case APPLICATION_CLOSE_FRAME:
-      type_byte = IETF_APPLICATION_CLOSE;
       break;
     case NEW_CONNECTION_ID_FRAME:
       type_byte = IETF_NEW_CONNECTION_ID;
@@ -5187,35 +5172,34 @@ bool QuicFramer::IsVersionNegotiation(
 bool QuicFramer::AppendIetfConnectionCloseFrame(
     const QuicConnectionCloseFrame& frame,
     QuicDataWriter* writer) {
+  if (frame.close_type != IETF_QUIC_TRANSPORT_CONNECTION_CLOSE &&
+      frame.close_type != IETF_QUIC_APPLICATION_CONNECTION_CLOSE) {
+    QUIC_BUG << "Invalid close_type for writing IETF CONNECTION CLOSE.";
+    set_detailed_error("Invalid close_type for writing IETF CONNECTION CLOSE.");
+    return false;
+  }
+
   if (!writer->WriteUInt16(frame.application_error_code)) {
     set_detailed_error("Can not write connection close frame error code");
     return false;
   }
 
-  if (!writer->WriteVarInt62(frame.transport_close_frame_type)) {
-    set_detailed_error("Writing frame type failed.");
-    return false;
+  if (frame.close_type == IETF_QUIC_TRANSPORT_CONNECTION_CLOSE) {
+    // Write the frame-type of the frame causing the error only
+    // if it's a CONNECTION_CLOSE/Transport.
+    if (!writer->WriteVarInt62(frame.transport_close_frame_type)) {
+      set_detailed_error("Writing frame type failed.");
+      return false;
+    }
   }
 
+  // TODO(fkastenholz): For full IETF CONNECTION CLOSE support,
+  // if this is a Transport CONNECTION_CLOSE and the extended
+  // error is not QUIC_IETF_GQUIC_ERROR_MISSING then append the extended
+  // "QuicErrorCode: #" string to the phrase.
   if (!writer->WriteStringPieceVarInt62(
           TruncateErrorString(frame.error_details))) {
     set_detailed_error("Can not write connection close phrase");
-    return false;
-  }
-  return true;
-}
-
-bool QuicFramer::AppendApplicationCloseFrame(
-    const QuicApplicationCloseFrame& frame,
-    QuicDataWriter* writer) {
-  if (!writer->WriteUInt16(static_cast<const uint16_t>(frame.error_code))) {
-    set_detailed_error("Can not write application close frame error code");
-    return false;
-  }
-
-  if (!writer->WriteStringPieceVarInt62(
-          TruncateErrorString(frame.error_details))) {
-    set_detailed_error("Can not write application close phrase");
     return false;
   }
   return true;
@@ -5233,9 +5217,13 @@ bool QuicFramer::ProcessIetfConnectionCloseFrame(
   }
   frame->transport_error_code = static_cast<QuicIetfTransportErrorCodes>(code);
 
-  if (!reader->ReadVarInt62(&frame->transport_close_frame_type)) {
-    set_detailed_error("Unable to read connection close frame type.");
-    return false;
+  if (type == IETF_QUIC_TRANSPORT_CONNECTION_CLOSE) {
+    // The frame-type of the frame causing the error is present only
+    // if it's a CONNECTION_CLOSE/Transport.
+    if (!reader->ReadVarInt62(&frame->transport_close_frame_type)) {
+      set_detailed_error("Unable to read connection close frame type.");
+      return false;
+    }
   }
 
   uint64_t phrase_length;
@@ -5248,31 +5236,9 @@ bool QuicFramer::ProcessIetfConnectionCloseFrame(
     set_detailed_error("Unable to read connection close error details.");
     return false;
   }
-  frame->error_details = std::string(phrase);
-
-  return true;
-}
-
-bool QuicFramer::ProcessApplicationCloseFrame(
-    QuicDataReader* reader,
-    QuicApplicationCloseFrame* frame) {
-  uint16_t code;
-  if (!reader->ReadUInt16(&code)) {
-    set_detailed_error("Unable to read application close error code.");
-    return false;
-  }
-  frame->error_code = static_cast<QuicErrorCode>(code);
-
-  uint64_t phrase_length;
-  if (!reader->ReadVarInt62(&phrase_length)) {
-    set_detailed_error("Unable to read application close error details.");
-    return false;
-  }
-  QuicStringPiece phrase;
-  if (!reader->ReadStringPiece(&phrase, static_cast<size_t>(phrase_length))) {
-    set_detailed_error("Unable to read application close error details.");
-    return false;
-  }
+  // TODO(fkastenholz): when full support is done, add code here
+  // to extract the extended error code from the reason phrase
+  // and set it into frame->extracted_error_code.
   frame->error_details = std::string(phrase);
 
   return true;

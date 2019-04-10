@@ -7,20 +7,23 @@
 namespace quic {
 
 QuicConnectionCloseFrame::QuicConnectionCloseFrame()
-    : close_type(UNINITIALIZED),
+    // Default close type ensures that existing, pre-V99 code works as expected.
+    : close_type(GOOGLE_QUIC_CONNECTION_CLOSE),
       quic_error_code(QUIC_NO_ERROR),
       extracted_error_code(QUIC_IETF_GQUIC_ERROR_MISSING),
       transport_close_frame_type(0) {}
 
 QuicConnectionCloseFrame::QuicConnectionCloseFrame(QuicErrorCode error_code)
-    : close_type(UNINITIALIZED),
+    // Default close type ensures that existing, pre-V99 code works as expected.
+    : close_type(GOOGLE_QUIC_CONNECTION_CLOSE),
       quic_error_code(error_code),
       extracted_error_code(QUIC_IETF_GQUIC_ERROR_MISSING),
       transport_close_frame_type(0) {}
 
 QuicConnectionCloseFrame::QuicConnectionCloseFrame(QuicErrorCode error_code,
                                                    std::string error_details)
-    : close_type(UNINITIALIZED),
+    // Default close type ensures that existing, pre-V99 code works as expected.
+    : close_type(GOOGLE_QUIC_CONNECTION_CLOSE),
       quic_error_code(error_code),
       extracted_error_code(QUIC_IETF_GQUIC_ERROR_MISSING),
       error_details(std::move(error_details)),
@@ -31,7 +34,8 @@ QuicConnectionCloseFrame::QuicConnectionCloseFrame(
     QuicErrorCode extracted_error_code,
     std::string error_details,
     uint64_t transport_close_frame_type)
-    : close_type(UNINITIALIZED),
+    // Default close type ensures that existing, pre-V99 code works as expected.
+    : close_type(GOOGLE_QUIC_CONNECTION_CLOSE),
       transport_error_code(transport_error_code),
       extracted_error_code(extracted_error_code),
       error_details(std::move(error_details)),
@@ -59,9 +63,6 @@ std::ostream& operator<<(
 
 std::ostream& operator<<(std::ostream& os, const QuicConnectionCloseType type) {
   switch (type) {
-    case UNINITIALIZED:
-      os << "UNINITIALIZED";
-      break;
     case GOOGLE_QUIC_CONNECTION_CLOSE:
       os << "GOOGLE_QUIC_CONNECTION_CLOSE";
       break;

@@ -76,7 +76,6 @@ void QuicTraceVisitor::OnPacketSent(const SerializedPacket& serialized_packet,
         break;
 
       // New IETF frames, not used in current gQUIC version.
-      case APPLICATION_CLOSE_FRAME:
       case NEW_CONNECTION_ID_FRAME:
       case RETIRE_CONNECTION_ID_FRAME:
       case MAX_STREAM_ID_FRAME:
@@ -154,6 +153,10 @@ void QuicTraceVisitor::PopulateFrameInfo(const QuicFrame& frame,
       quic_trace::CloseInfo* info = frame_record->mutable_close_info();
       info->set_error_code(frame.connection_close_frame->quic_error_code);
       info->set_reason_phrase(frame.connection_close_frame->error_details);
+      info->set_close_type(static_cast<quic_trace::CloseType>(
+          frame.connection_close_frame->close_type));
+      info->set_transport_close_frame_type(
+          frame.connection_close_frame->transport_close_frame_type);
       break;
     }
 
@@ -203,7 +206,6 @@ void QuicTraceVisitor::PopulateFrameInfo(const QuicFrame& frame,
       break;
 
     // New IETF frames, not used in current gQUIC version.
-    case APPLICATION_CLOSE_FRAME:
     case NEW_CONNECTION_ID_FRAME:
     case RETIRE_CONNECTION_ID_FRAME:
     case MAX_STREAM_ID_FRAME:

@@ -1253,7 +1253,7 @@ bool QuicConnection::OnRstStreamFrame(const QuicRstStreamFrame& frame) {
 }
 
 bool QuicConnection::OnApplicationCloseFrame(
-    const QuicApplicationCloseFrame& frame) {
+    const QuicConnectionCloseFrame& frame) {
   // TODO(fkastenholz): Need to figure out what the right thing is to do with
   // this when we get one. Most likely, the correct action is to mimic the
   // OnConnectionCloseFrame actions, with possibly an indication to the
@@ -3020,6 +3020,9 @@ void QuicConnection::SendConnectionClosePacket(QuicErrorCode error,
   }
   QuicConnectionCloseFrame* frame =
       new QuicConnectionCloseFrame(error, details);
+  if (transport_version() == QUIC_VERSION_99) {
+    frame->close_type = IETF_QUIC_TRANSPORT_CONNECTION_CLOSE;
+  }
   packet_generator_.AddControlFrame(QuicFrame(frame));
   packet_generator_.FlushAllQueuedFrames();
 }

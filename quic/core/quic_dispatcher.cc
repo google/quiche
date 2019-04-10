@@ -138,6 +138,11 @@ class StatelessConnectionTerminator {
                        bool ietf_quic) {
     QuicConnectionCloseFrame* frame =
         new QuicConnectionCloseFrame(error_code, error_details);
+    // TODO(fkastenholz): The framer version may be incorrect in some cases.
+    if (framer_->transport_version() == QUIC_VERSION_99) {
+      frame->close_type = IETF_QUIC_TRANSPORT_CONNECTION_CLOSE;
+    }
+
     if (!creator_.AddSavedFrame(QuicFrame(frame), NOT_RETRANSMISSION)) {
       QUIC_BUG << "Unable to add frame to an empty packet";
       delete frame;
@@ -916,7 +921,7 @@ bool QuicDispatcher::OnConnectionCloseFrame(
 }
 
 bool QuicDispatcher::OnApplicationCloseFrame(
-    const QuicApplicationCloseFrame& /*frame*/) {
+    const QuicConnectionCloseFrame& /*frame*/) {
   DCHECK(false);
   return false;
 }

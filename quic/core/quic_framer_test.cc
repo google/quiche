@@ -315,9 +315,12 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
     return true;
   }
 
-  bool OnApplicationCloseFrame(
-      const QuicApplicationCloseFrame& frame) override {
-    application_close_frame_ = frame;
+  // TODO(fkastenholz): Remove when IETF QUIC is completely converted to
+  // doing Connection Close.
+  bool OnApplicationCloseFrame(const QuicConnectionCloseFrame& frame) override {
+    // OnApplicationCloseFrame receives a QuicConnectionCloseFrame as part of
+    // migration to IETF QUIC's new model.
+    connection_close_frame_ = frame;
     return true;
   }
 
@@ -410,7 +413,6 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
   std::vector<std::unique_ptr<QuicEncryptedPacket>> coalesced_packets_;
   QuicRstStreamFrame rst_stream_frame_;
   QuicConnectionCloseFrame connection_close_frame_;
-  QuicApplicationCloseFrame application_close_frame_;
   QuicStopSendingFrame stop_sending_frame_;
   QuicGoAwayFrame goaway_frame_;
   QuicPathChallengeFrame path_challenge_frame_;
@@ -4421,13 +4423,13 @@ TEST_P(QuicFramerTest, ApplicationCloseFrame) {
       // packet number
       {"",
        {0x12, 0x34, 0x56, 0x78}},
-      // frame type (IETF_APPLICATION_CLOSE frame)
+      // frame type (IETF_CONNECTION_CLOSE/Application frame)
       {"",
        {0x1d}},
       // error code
-      {"Unable to read application close error code.",
+      {"Unable to read connection close error code.",
        {0x00, 0x11}},
-      {"Unable to read application close error details.",
+      {"Unable to read connection close error details.",
        {
          // error details length
          kVarInt62OneByte + 0x0d,
@@ -4452,8 +4454,11 @@ TEST_P(QuicFramerTest, ApplicationCloseFrame) {
 
   EXPECT_EQ(0u, visitor_.stream_frames_.size());
 
-  EXPECT_EQ(0x11, visitor_.application_close_frame_.error_code);
-  EXPECT_EQ("because I can", visitor_.application_close_frame_.error_details);
+  EXPECT_EQ(IETF_QUIC_APPLICATION_CONNECTION_CLOSE,
+            visitor_.connection_close_frame_.close_type);
+  EXPECT_EQ(122u, visitor_.connection_close_frame_.extracted_error_code);
+  EXPECT_EQ(0x11, visitor_.connection_close_frame_.quic_error_code);
+  EXPECT_EQ("because I can", visitor_.connection_close_frame_.error_details);
 
   ASSERT_EQ(0u, visitor_.ack_frames_.size());
 
@@ -7283,6 +7288,7 @@ TEST_P(QuicFramerTest, BuildCloseFramePacket) {
     close_frame.transport_error_code =
         static_cast<QuicIetfTransportErrorCodes>(0x11);
     close_frame.transport_close_frame_type = 0x05;
+    close_frame.close_type = IETF_QUIC_TRANSPORT_CONNECTION_CLOSE;
   } else {
     close_frame.quic_error_code = static_cast<QuicErrorCode>(0x05060708);
   }
@@ -7409,6 +7415,7 @@ TEST_P(QuicFramerTest, BuildTruncatedCloseFramePacket) {
   if (framer_.transport_version() == QUIC_VERSION_99) {
     close_frame.transport_error_code = PROTOCOL_VIOLATION;  // value is 0x0a
     EXPECT_EQ(0u, close_frame.transport_close_frame_type);
+    close_frame.close_type = IETF_QUIC_TRANSPORT_CONNECTION_CLOSE;
   } else {
     close_frame.quic_error_code = static_cast<QuicErrorCode>(0x05060708);
   }
@@ -7646,9 +7653,10 @@ TEST_P(QuicFramerTest, BuildApplicationCloseFramePacket) {
   header.version_flag = false;
   header.packet_number = kPacketNumber;
 
-  QuicApplicationCloseFrame app_close_frame;
-  app_close_frame.error_code = static_cast<QuicErrorCode>(0x11);
+  QuicConnectionCloseFrame app_close_frame;
+  app_close_frame.quic_error_code = static_cast<QuicErrorCode>(0x11);
   app_close_frame.error_details = "because I can";
+  app_close_frame.close_type = IETF_QUIC_APPLICATION_CONNECTION_CLOSE;
 
   QuicFrames frames = {QuicFrame(&app_close_frame)};
 
@@ -7695,9 +7703,10 @@ TEST_P(QuicFramerTest, BuildTruncatedApplicationCloseFramePacket) {
   header.version_flag = false;
   header.packet_number = kPacketNumber;
 
-  QuicApplicationCloseFrame app_close_frame;
-  app_close_frame.error_code = static_cast<QuicErrorCode>(0x11);
+  QuicConnectionCloseFrame app_close_frame;
+  app_close_frame.quic_error_code = static_cast<QuicErrorCode>(0x11);
   app_close_frame.error_details = std::string(2048, 'A');
+  app_close_frame.close_type = IETF_QUIC_APPLICATION_CONNECTION_CLOSE;
 
   QuicFrames frames = {QuicFrame(&app_close_frame)};
 
@@ -11623,6 +11632,10 @@ TEST_P(QuicFramerTest, GetRetransmittableControlFrameSize) {
   std::string error_detail(2048, 'e');
   QuicConnectionCloseFrame connection_close(QUIC_NETWORK_IDLE_TIMEOUT,
                                             error_detail);
+  if (framer_.transport_version() == QUIC_VERSION_99) {
+    connection_close.close_type = IETF_QUIC_TRANSPORT_CONNECTION_CLOSE;
+  }
+
   EXPECT_EQ(QuicFramer::GetMinConnectionCloseFrameSize(
                 framer_.transport_version(), connection_close) +
                 256,
@@ -11649,11 +11662,6 @@ TEST_P(QuicFramerTest, GetRetransmittableControlFrameSize) {
   if (framer_.transport_version() != QUIC_VERSION_99) {
     return;
   }
-  QuicApplicationCloseFrame application_close;
-  EXPECT_EQ(QuicFramer::GetMinApplicationCloseFrameSize(
-                framer_.transport_version(), application_close),
-            QuicFramer::GetRetransmittableControlFrameSize(
-                framer_.transport_version(), QuicFrame(&application_close)));
 
   QuicNewConnectionIdFrame new_connection_id(5, TestConnectionId(), 1, 101111);
   EXPECT_EQ(QuicFramer::GetNewConnectionIdFrameSize(new_connection_id),

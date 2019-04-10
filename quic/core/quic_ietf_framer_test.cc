@@ -155,8 +155,9 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
     return true;
   }
 
-  bool OnApplicationCloseFrame(
-      const QuicApplicationCloseFrame& frame) override {
+  // TODO(fkastenholz): remove when finishing conversion to new IETF QUIC
+  // model.
+  bool OnApplicationCloseFrame(const QuicConnectionCloseFrame& frame) override {
     return true;
   }
 
@@ -801,6 +802,7 @@ TEST_F(QuicIetfFramerTest, ConnectionCloseEmptyString) {
   sent_frame.quic_error_code = static_cast<QuicErrorCode>(0);
   sent_frame.error_details = test_string;
   sent_frame.transport_close_frame_type = 123;
+  sent_frame.close_type = IETF_QUIC_TRANSPORT_CONNECTION_CLOSE;
   // write the frame to the packet buffer.
   EXPECT_TRUE(QuicFramerPeer::AppendIetfConnectionCloseFrame(
       &framer_, sent_frame, &writer));
@@ -818,8 +820,11 @@ TEST_F(QuicIetfFramerTest, ConnectionCloseEmptyString) {
       &framer_, &reader, IETF_QUIC_TRANSPORT_CONNECTION_CLOSE, &sink_frame));
 
   // Now check that received == sent
+  EXPECT_EQ(sent_frame.quic_error_code, sink_frame.quic_error_code);
   EXPECT_EQ(sink_frame.quic_error_code, static_cast<QuicErrorCode>(0));
   EXPECT_EQ(sink_frame.error_details, test_string);
+  EXPECT_EQ(sink_frame.close_type, sent_frame.close_type);
+  EXPECT_EQ(sent_frame.close_type, IETF_QUIC_TRANSPORT_CONNECTION_CLOSE);
 }
 
 TEST_F(QuicIetfFramerTest, ApplicationCloseEmptyString) {
@@ -832,12 +837,13 @@ TEST_F(QuicIetfFramerTest, ApplicationCloseEmptyString) {
 
   // empty string,
   std::string test_string = "Ich Bin Ein Jelly Donut?";
-  QuicApplicationCloseFrame sent_frame;
-  sent_frame.error_code = static_cast<QuicErrorCode>(0);
+  QuicConnectionCloseFrame sent_frame;
+  sent_frame.quic_error_code = static_cast<QuicErrorCode>(0);
   sent_frame.error_details = test_string;
+  sent_frame.close_type = IETF_QUIC_APPLICATION_CONNECTION_CLOSE;
   // write the frame to the packet buffer.
-  EXPECT_TRUE(QuicFramerPeer::AppendApplicationCloseFrame(&framer_, sent_frame,
-                                                          &writer));
+  EXPECT_TRUE(QuicFramerPeer::AppendIetfConnectionCloseFrame(
+      &framer_, sent_frame, &writer));
 
   // better have something in the packet buffer.
   EXPECT_NE(0u, writer.length());
@@ -846,14 +852,17 @@ TEST_F(QuicIetfFramerTest, ApplicationCloseEmptyString) {
   QuicDataReader reader(packet_buffer, writer.length(), NETWORK_BYTE_ORDER);
 
   // a QuicConnectionCloseFrame to hold the results.
-  QuicApplicationCloseFrame sink_frame;
+  QuicConnectionCloseFrame sink_frame;
 
-  EXPECT_TRUE(QuicFramerPeer::ProcessApplicationCloseFrame(&framer_, &reader,
-                                                           &sink_frame));
+  EXPECT_TRUE(QuicFramerPeer::ProcessIetfConnectionCloseFrame(
+      &framer_, &reader, IETF_QUIC_APPLICATION_CONNECTION_CLOSE, &sink_frame));
 
   // Now check that received == sent
-  EXPECT_EQ(sink_frame.error_code, static_cast<QuicErrorCode>(0));
+  EXPECT_EQ(sink_frame.quic_error_code, static_cast<QuicErrorCode>(0));
+  EXPECT_EQ(sent_frame.quic_error_code, sink_frame.quic_error_code);
   EXPECT_EQ(sink_frame.error_details, test_string);
+  EXPECT_EQ(sent_frame.close_type, IETF_QUIC_APPLICATION_CONNECTION_CLOSE);
+  EXPECT_EQ(sent_frame.close_type, sink_frame.close_type);
 }
 
 // Testing for the IETF ACK framer.
