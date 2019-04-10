@@ -1201,6 +1201,14 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     connection_.OnStreamReset(id, error);
   }
 
+  void SendPing() {
+    if (connection_.session_decides_what_to_write()) {
+      notifier_.WriteOrBufferPing();
+    } else {
+      connection_.SendControlFrame(QuicFrame(QuicPingFrame(1)));
+    }
+  }
+
   void ProcessAckPacket(uint64_t packet_number, QuicAckFrame* frame) {
     if (packet_number > 1) {
       QuicPacketCreatorPeer::SetPacketNumber(&peer_creator_, packet_number - 1);
@@ -3864,6 +3872,164 @@ TEST_P(QuicConnectionTest, TLP) {
   EXPECT_EQ(QuicPacketNumber(1u), stop_waiting()->least_unacked);
 }
 
+TEST_P(QuicConnectionTest, TailLossProbeDelayForStreamDataInTLPR) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
+  // Set TLPR from QuicConfig.
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  QuicConfig config;
+  QuicTagVector options;
+  options.push_back(kTLPR);
+  config.SetConnectionOptionsToSend(options);
+  connection_.SetFromConfig(config);
+  connection_.SetMaxTailLossProbes(1);
+
+  SendStreamDataToPeer(3, "foo", 0, NO_FIN, nullptr);
+  EXPECT_EQ(QuicPacketNumber(1u), stop_waiting()->least_unacked);
+
+  QuicTime retransmission_time =
+      connection_.GetRetransmissionAlarm()->deadline();
+  EXPECT_NE(QuicTime::Zero(), retransmission_time);
+  QuicTime::Delta expected_tlp_delay =
+      0.5 * manager_->GetRttStats()->SmoothedOrInitialRtt();
+  EXPECT_EQ(expected_tlp_delay, retransmission_time - clock_.Now());
+
+  EXPECT_EQ(QuicPacketNumber(1u), writer_->header().packet_number);
+  // Simulate firing of the retransmission alarm and retransmit the packet.
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, QuicPacketNumber(2), _, _));
+  clock_.AdvanceTime(retransmission_time - clock_.Now());
+  connection_.GetRetransmissionAlarm()->Fire();
+  EXPECT_EQ(QuicPacketNumber(2u), writer_->header().packet_number);
+
+  // We do not raise the high water mark yet.
+  EXPECT_EQ(QuicPacketNumber(1u), stop_waiting()->least_unacked);
+}
+
+TEST_P(QuicConnectionTest, TailLossProbeDelayForNonStreamDataInTLPR) {
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
+  // Set TLPR from QuicConfig.
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  QuicConfig config;
+  QuicTagVector options;
+  options.push_back(kTLPR);
+  config.SetConnectionOptionsToSend(options);
+  connection_.SetFromConfig(config);
+  connection_.SetMaxTailLossProbes(1);
+
+  // Sets retransmittable on wire.
+  const QuicTime::Delta retransmittable_on_wire_timeout =
+      QuicTime::Delta::FromMilliseconds(50);
+  connection_.set_retransmittable_on_wire_timeout(
+      retransmittable_on_wire_timeout);
+
+  EXPECT_TRUE(connection_.connected());
+  EXPECT_CALL(visitor_, ShouldKeepConnectionAlive())
+      .WillRepeatedly(Return(true));
+  EXPECT_FALSE(connection_.GetPathDegradingAlarm()->IsSet());
+  EXPECT_FALSE(connection_.IsPathDegrading());
+  EXPECT_FALSE(connection_.GetPingAlarm()->IsSet());
+
+  const char data[] = "data";
+  size_t data_size = strlen(data);
+  QuicStreamOffset offset = 0;
+
+  // Send a data packet.
+  connection_.SendStreamDataWithString(1, data, offset, NO_FIN);
+  offset += data_size;
+
+  // Path degrading alarm should be set when there is a retransmittable packet
+  // on the wire.
+  EXPECT_TRUE(connection_.GetPathDegradingAlarm()->IsSet());
+
+  // Verify the path degrading delay.
+  // First TLP with stream data.
+  QuicTime::Delta srtt = manager_->GetRttStats()->SmoothedOrInitialRtt();
+  QuicTime::Delta expected_delay = 0.5 * srtt;
+  // Add 1st RTO.
+  QuicTime::Delta retransmission_delay =
+      QuicTime::Delta::FromMilliseconds(kDefaultRetransmissionTimeMs);
+  expected_delay = expected_delay + retransmission_delay;
+  // Add 2nd RTO.
+  expected_delay = expected_delay + retransmission_delay * 2;
+  EXPECT_EQ(expected_delay,
+            QuicConnectionPeer::GetSentPacketManager(&connection_)
+                ->GetPathDegradingDelay());
+  ASSERT_TRUE(connection_.sent_packet_manager().HasInFlightPackets());
+
+  // The ping alarm is set for the ping timeout, not the shorter
+  // retransmittable_on_wire_timeout.
+  EXPECT_TRUE(connection_.GetPingAlarm()->IsSet());
+  EXPECT_EQ(QuicTime::Delta::FromSeconds(kPingTimeoutSecs),
+            connection_.GetPingAlarm()->deadline() - clock_.ApproximateNow());
+
+  // Receive an ACK for the data packet.
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(5));
+  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
+  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
+  QuicAckFrame frame =
+      InitAckFrame({{QuicPacketNumber(1), QuicPacketNumber(2)}});
+  ProcessAckPacket(&frame);
+
+  // Path degrading alarm should be cancelled as there is no more
+  // reretransmittable packets on the wire.
+  EXPECT_FALSE(connection_.GetPathDegradingAlarm()->IsSet());
+  // The ping alarm should be set to the retransmittable_on_wire_timeout.
+  EXPECT_TRUE(connection_.GetPingAlarm()->IsSet());
+  EXPECT_EQ(retransmittable_on_wire_timeout,
+            connection_.GetPingAlarm()->deadline() - clock_.ApproximateNow());
+
+  // Simulate firing of the retransmittable on wire and send a PING.
+  EXPECT_CALL(visitor_, SendPing()).WillOnce(Invoke([this]() { SendPing(); }));
+  clock_.AdvanceTime(retransmittable_on_wire_timeout);
+  connection_.GetPingAlarm()->Fire();
+
+  // The retransmission alarm and the path degrading alarm should be set as
+  // there is a retransmittable packet (PING) on the wire,
+  EXPECT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
+  EXPECT_TRUE(connection_.GetPathDegradingAlarm()->IsSet());
+
+  // Verify the retransmission delay.
+  QuicTime::Delta min_rto_timeout =
+      QuicTime::Delta::FromMilliseconds(kMinRetransmissionTimeMs);
+  srtt = manager_->GetRttStats()->SmoothedOrInitialRtt();
+  if (GetQuicReloadableFlag(quic_ignore_tlpr_if_sending_ping)) {
+    // First TLP without unacked stream data will no longer use TLPR.
+    expected_delay = std::max(2 * srtt, 1.5 * srtt + 0.5 * min_rto_timeout);
+  } else {
+    expected_delay =
+        std::max(QuicTime::Delta::FromMilliseconds(kMinTailLossProbeTimeoutMs),
+                 srtt * 0.5);
+  }
+  EXPECT_EQ(expected_delay,
+            connection_.GetRetransmissionAlarm()->deadline() - clock_.Now());
+
+  // Verify the path degrading delay.
+  // Path degrading delay will count TLPR for the tail loss probe delay.
+  expected_delay =
+      std::max(QuicTime::Delta::FromMilliseconds(kMinTailLossProbeTimeoutMs),
+               srtt * 0.5);
+  // Add 1st RTO.
+  retransmission_delay =
+      std::max(manager_->GetRttStats()->smoothed_rtt() +
+                   4 * manager_->GetRttStats()->mean_deviation(),
+               min_rto_timeout);
+  expected_delay = expected_delay + retransmission_delay;
+  // Add 2nd RTO.
+  expected_delay = expected_delay + retransmission_delay * 2;
+  EXPECT_EQ(expected_delay,
+            QuicConnectionPeer::GetSentPacketManager(&connection_)
+                ->GetPathDegradingDelay());
+
+  // The ping alarm is set for the ping timeout, not the shorter
+  // retransmittable_on_wire_timeout.
+  EXPECT_TRUE(connection_.GetPingAlarm()->IsSet());
+  EXPECT_EQ(QuicTime::Delta::FromSeconds(kPingTimeoutSecs),
+            connection_.GetPingAlarm()->deadline() - clock_.ApproximateNow());
+}
+
 TEST_P(QuicConnectionTest, RTO) {
   if (connection_.SupportsMultiplePacketNumberSpaces()) {
     return;
@@ -4435,9 +4601,7 @@ TEST_P(QuicConnectionTest, PingAfterSend) {
 
   writer_->Reset();
   clock_.AdvanceTime(QuicTime::Delta::FromSeconds(15));
-  EXPECT_CALL(visitor_, SendPing()).WillOnce(Invoke([this]() {
-    connection_.SendControlFrame(QuicFrame(QuicPingFrame(1)));
-  }));
+  EXPECT_CALL(visitor_, SendPing()).WillOnce(Invoke([this]() { SendPing(); }));
   connection_.GetPingAlarm()->Fire();
   EXPECT_EQ(1u, writer_->frame_count());
   ASSERT_EQ(1u, writer_->ping_frames().size());

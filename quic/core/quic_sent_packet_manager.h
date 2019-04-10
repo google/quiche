@@ -355,6 +355,15 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
     delayed_ack_time_ = delayed_ack_time;
   }
 
+  bool enable_half_rtt_tail_loss_probe() const {
+    return enable_half_rtt_tail_loss_probe_;
+  }
+
+  void set_enable_half_rtt_tail_loss_probe(
+      bool enable_half_rtt_tail_loss_probe) {
+    enable_half_rtt_tail_loss_probe_ = enable_half_rtt_tail_loss_probe;
+  }
+
   const QuicUnackedPacketMap& unacked_packets() const {
     return unacked_packets_;
   }

@@ -112,6 +112,19 @@ void SimpleSessionNotifier::WriteOrBufferRstStream(
   WriteBufferedControlFrames();
 }
 
+void SimpleSessionNotifier::WriteOrBufferPing() {
+  QUIC_DVLOG(1) << "Writing PING_FRAME";
+  const bool had_buffered_data =
+      HasBufferedStreamData() || HasBufferedControlFrames();
+  control_frames_.emplace_back(
+      (QuicFrame(QuicPingFrame(++last_control_frame_id_))));
+  if (had_buffered_data) {
+    QUIC_DLOG(WARNING) << "Connection is write blocked";
+    return;
+  }
+  WriteBufferedControlFrames();
+}
+
 void SimpleSessionNotifier::NeuterUnencryptedData() {
   for (const auto& interval : crypto_bytes_transferred_[ENCRYPTION_INITIAL]) {
     // TODO(nharper): Handle CRYPTO frame case.

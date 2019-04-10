@@ -100,6 +100,31 @@ TEST_F(SimpleSessionNotifierTest, WriteOrBufferRstStream) {
   EXPECT_FALSE(notifier_.StreamIsWaitingForAcks(5));
 }
 
+TEST_F(SimpleSessionNotifierTest, WriteOrBufferPing) {
+  InSequence s;
+  // Write ping when connection is not write blocked.
+  EXPECT_CALL(connection_, SendControlFrame(_))
+      .WillRepeatedly(
+          Invoke(this, &SimpleSessionNotifierTest::ControlFrameConsumed));
+  notifier_.WriteOrBufferPing();
+  EXPECT_EQ(0u, notifier_.StreamBytesToSend());
+  EXPECT_FALSE(notifier_.WillingToWrite());
+
+  // Write stream data and cause the connection to be write blocked.
+  EXPECT_CALL(connection_, SendStreamData(3, 1024, 0, NO_FIN))
+      .WillOnce(Return(QuicConsumedData(1024, false)));
+  notifier_.WriteOrBufferData(3, 1024, NO_FIN);
+  EXPECT_EQ(0u, notifier_.StreamBytesToSend());
+  EXPECT_CALL(connection_, SendStreamData(5, 512, 0, NO_FIN))
+      .WillOnce(Return(QuicConsumedData(256, false)));
+  notifier_.WriteOrBufferData(5, 512, NO_FIN);
+  EXPECT_TRUE(notifier_.WillingToWrite());
+
+  // Connection is blocked.
+  EXPECT_CALL(connection_, SendControlFrame(_)).Times(0);
+  notifier_.WriteOrBufferPing();
+}
+
 TEST_F(SimpleSessionNotifierTest, NeuterUnencryptedData) {
   InSequence s;
   // Send crypto data [0, 1024) in ENCRYPTION_INITIAL.

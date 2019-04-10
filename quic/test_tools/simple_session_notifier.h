@@ -31,6 +31,8 @@ class SimpleSessionNotifier : public SessionNotifierInterface {
   void WriteOrBufferRstStream(QuicStreamId id,
                               QuicRstStreamErrorCode error,
                               QuicStreamOffset bytes_written);
+  // Tries to write PING.
+  void WriteOrBufferPing();
 
   // Tries to write CRYPTO data and returns the number of bytes written.
   size_t WriteCryptoData(EncryptionLevel level,

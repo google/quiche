@@ -2745,7 +2745,17 @@ void QuicConnection::SendOrQueuePacket(SerializedPacket* packet) {
 
 void QuicConnection::OnPingTimeout() {
   if (!retransmission_alarm_->IsSet()) {
+    bool enable_half_rtt_tail_loss_probe =
+        sent_packet_manager_.enable_half_rtt_tail_loss_probe();
+    if (enable_half_rtt_tail_loss_probe &&
+        GetQuicReloadableFlag(quic_ignore_tlpr_if_sending_ping)) {
+      sent_packet_manager_.set_enable_half_rtt_tail_loss_probe(false);
+    }
     visitor_->SendPing();
+    if (enable_half_rtt_tail_loss_probe &&
+        GetQuicReloadableFlag(quic_ignore_tlpr_if_sending_ping)) {
+      sent_packet_manager_.set_enable_half_rtt_tail_loss_probe(true);
+    }
   }
 }
 
