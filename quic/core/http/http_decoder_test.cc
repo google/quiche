@@ -487,7 +487,7 @@ TEST_F(HttpDecoderTest, MalformedFrameWithOverlyLargePayload) {
                   0x15};  // malformed payload
   // Process the full frame.
   EXPECT_CALL(visitor_, OnError(&decoder_));
-  EXPECT_EQ(0, decoder_.ProcessInput(input, QUIC_ARRAYSIZE(input)));
+  EXPECT_EQ(0u, decoder_.ProcessInput(input, QUIC_ARRAYSIZE(input)));
   EXPECT_EQ(QUIC_INTERNAL_ERROR, decoder_.error());
   EXPECT_EQ("Frame is too large", decoder_.error_detail());
 }
@@ -502,7 +502,7 @@ TEST_F(HttpDecoderTest, MalformedSettingsFrame) {
 
   writer.WriteStringPiece("Malformed payload");
   EXPECT_CALL(visitor_, OnError(&decoder_));
-  EXPECT_EQ(0, decoder_.ProcessInput(input, QUIC_ARRAYSIZE(input)));
+  EXPECT_EQ(0u, decoder_.ProcessInput(input, QUIC_ARRAYSIZE(input)));
   EXPECT_EQ(QUIC_INTERNAL_ERROR, decoder_.error());
   EXPECT_EQ("Frame is too large", decoder_.error_detail());
 }
