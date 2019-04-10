@@ -7399,7 +7399,7 @@ TEST_P(QuicConnectionTest, PathDegradingAlarmForCryptoPacket) {
   EXPECT_FALSE(connection_.GetPathDegradingAlarm()->IsSet());
 }
 
-// Includes regression test for https://b.corp.google.com/issues/69979024.
+// Includes regression test for b/69979024.
 TEST_P(QuicConnectionTest, PathDegradingAlarmForNonCryptoPackets) {
   if (connection_.SupportsMultiplePacketNumberSpaces()) {
     return;
@@ -7429,7 +7429,7 @@ TEST_P(QuicConnectionTest, PathDegradingAlarmForNonCryptoPackets) {
 
     // Send a second packet. The path degrading alarm's deadline should remain
     // the same.
-    // Regression test for https://b.corp.google.com/issues/69979024.
+    // Regression test for b/69979024.
     clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(5));
     QuicTime prev_deadline = connection_.GetPathDegradingAlarm()->deadline();
     connection_.SendStreamDataWithString(
