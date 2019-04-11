@@ -9,6 +9,7 @@
 #include <ostream>
 #include <string>
 
+#include "net/third_party/quiche/src/quic/core/crypto/null_decrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/null_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_decrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_encrypter.h"
@@ -164,6 +165,17 @@ class QuicPacketCreatorTest : public QuicTestWithParam<TestParams> {
     client_framer_.set_visitor(&framer_visitor_);
     server_framer_.set_visitor(&framer_visitor_);
     client_framer_.set_data_producer(&producer_);
+    if (server_framer_.version().KnowsWhichDecrypterToUse()) {
+      server_framer_.InstallDecrypter(
+          ENCRYPTION_ZERO_RTT,
+          QuicMakeUnique<NullDecrypter>(Perspective::IS_SERVER));
+      server_framer_.InstallDecrypter(
+          ENCRYPTION_HANDSHAKE,
+          QuicMakeUnique<NullDecrypter>(Perspective::IS_SERVER));
+      server_framer_.InstallDecrypter(
+          ENCRYPTION_FORWARD_SECURE,
+          QuicMakeUnique<NullDecrypter>(Perspective::IS_SERVER));
+    }
   }
 
   ~QuicPacketCreatorTest() override {

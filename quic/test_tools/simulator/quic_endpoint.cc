@@ -86,8 +86,14 @@ QuicEndpoint::QuicEndpoint(Simulator* simulator,
   connection_.set_visitor(this);
   connection_.SetEncrypter(ENCRYPTION_FORWARD_SECURE,
                            QuicMakeUnique<NullEncrypter>(perspective));
-  connection_.SetDecrypter(ENCRYPTION_FORWARD_SECURE,
-                           QuicMakeUnique<NullDecrypter>(perspective));
+  if (connection_.version().KnowsWhichDecrypterToUse()) {
+    connection_.InstallDecrypter(ENCRYPTION_FORWARD_SECURE,
+                                 QuicMakeUnique<NullDecrypter>(perspective));
+    connection_.RemoveDecrypter(ENCRYPTION_INITIAL);
+  } else {
+    connection_.SetDecrypter(ENCRYPTION_FORWARD_SECURE,
+                             QuicMakeUnique<NullDecrypter>(perspective));
+  }
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   if (perspective == Perspective::IS_SERVER) {
     // Skip version negotiation.

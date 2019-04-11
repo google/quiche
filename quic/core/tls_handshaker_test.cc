@@ -263,15 +263,31 @@ void ExchangeHandshakeMessages(TestQuicCryptoStream* client,
   }
 }
 
+ParsedQuicVersionVector AllTlsSupportedVersions() {
+  SetQuicReloadableFlag(quic_enable_version_99, true);
+  SetQuicFlag(&FLAGS_quic_supports_tls_handshake, true);
+  ParsedQuicVersionVector supported_versions;
+  for (QuicTransportVersion version : kSupportedTransportVersions) {
+    if (!QuicVersionUsesCryptoFrames(version)) {
+      // The TLS handshake is only deployable if CRYPTO frames are also used.
+      continue;
+    }
+    supported_versions.push_back(ParsedQuicVersion(PROTOCOL_TLS1_3, version));
+  }
+  return supported_versions;
+}
+
 class TlsHandshakerTest : public QuicTest {
  public:
   TlsHandshakerTest()
       : client_conn_(new MockQuicConnection(&conn_helper_,
                                             &alarm_factory_,
-                                            Perspective::IS_CLIENT)),
+                                            Perspective::IS_CLIENT,
+                                            AllTlsSupportedVersions())),
         server_conn_(new MockQuicConnection(&conn_helper_,
                                             &alarm_factory_,
-                                            Perspective::IS_SERVER)),
+                                            Perspective::IS_SERVER,
+                                            AllTlsSupportedVersions())),
         client_session_(client_conn_, /*create_mock_crypto_stream=*/false),
         server_session_(server_conn_, /*create_mock_crypto_stream=*/false) {
     client_stream_ = new TestQuicCryptoClientStream(&client_session_);

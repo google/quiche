@@ -499,7 +499,7 @@ MockQuicSession::MockQuicSession(QuicConnection* connection,
     : QuicSession(connection,
                   nullptr,
                   DefaultQuicConfig(),
-                  CurrentSupportedVersions()) {
+                  connection->supported_versions()) {
   if (create_mock_crypto_stream) {
     crypto_stream_ = QuicMakeUnique<MockQuicCryptoStream>(this);
   }
@@ -923,6 +923,11 @@ QuicEncryptedPacket* ConstructMisFramedEncryptedPacket(
   header.reset_flag = reset_flag;
   header.packet_number_length = packet_number_length;
   header.packet_number = QuicPacketNumber(packet_number);
+  if (QuicVersionHasLongHeaderLengths((*versions)[0].transport_version) &&
+      version_flag) {
+    header.retry_token_length_length = VARIABLE_LENGTH_INTEGER_LENGTH_1;
+    header.length_length = VARIABLE_LENGTH_INTEGER_LENGTH_2;
+  }
   QuicFrame frame(QuicStreamFrame(1, false, 0, QuicStringPiece(data)));
   QuicFrames frames;
   frames.push_back(frame);
@@ -941,8 +946,7 @@ QuicEncryptedPacket* ConstructMisFramedEncryptedPacket(
       GetIncludedDestinationConnectionIdLength(header),
       GetIncludedSourceConnectionIdLength(header), version_flag,
       false /* no diversification nonce */, packet_number_length,
-      VARIABLE_LENGTH_INTEGER_LENGTH_0, 0, VARIABLE_LENGTH_INTEGER_LENGTH_0)] =
-      0x1F;
+      header.retry_token_length_length, 0, header.length_length)] = 0x1F;
 
   char* buffer = new char[kMaxOutgoingPacketSize];
   size_t encrypted_length =
