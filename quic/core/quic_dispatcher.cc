@@ -1066,10 +1066,6 @@ void QuicDispatcher::OnBufferPacketFailure(EnqueuePacketResult result,
                   << " because of " << result;
 }
 
-void QuicDispatcher::OnConnectionRejectedStatelessly() {}
-
-void QuicDispatcher::OnConnectionClosedStatelessly(QuicErrorCode error) {}
-
 bool QuicDispatcher::ShouldAttemptCheapStatelessRejection() {
   return true;
 }
@@ -1267,7 +1263,8 @@ void QuicDispatcher::MaybeRejectStatelessly(QuicConnectionId connection_id,
                                              time_wait_list_manager_.get());
     terminator.CloseConnection(QUIC_HANDSHAKE_FAILED, validator.error_details(),
                                form != GOOGLE_QUIC_PACKET);
-    OnConnectionClosedStatelessly(QUIC_HANDSHAKE_FAILED);
+    QuicSession::RecordConnectionCloseAtServer(
+        QUIC_HANDSHAKE_FAILED, ConnectionCloseSource::FROM_SELF);
     ProcessUnauthenticatedHeaderFate(kFateTimeWait, connection_id, form,
                                      version);
     return;
@@ -1372,6 +1369,9 @@ void QuicDispatcher::ProcessStatelessRejectorState(
       terminator.RejectConnection(
           rejector->reply().GetSerialized().AsStringPiece(),
           form != GOOGLE_QUIC_PACKET);
+      QuicSession::RecordConnectionCloseAtServer(
+          QUIC_CRYPTO_HANDSHAKE_STATELESS_REJECT,
+          ConnectionCloseSource::FROM_SELF);
       OnConnectionRejectedStatelessly();
       fate = kFateTimeWait;
       break;

@@ -7,6 +7,7 @@
 
 #include <cstdint>
 #include <limits>
+#include <string>
 
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 
@@ -348,6 +349,16 @@ QUIC_EXPORT_PRIVATE const char* QuicRstStreamErrorCodeToString(
 
 // Returns the name of the QuicErrorCode as a char*
 QUIC_EXPORT const char* QuicErrorCodeToString(QuicErrorCode error);
+
+QUIC_EXPORT_PRIVATE inline std::string HistogramEnumString(
+    QuicErrorCode enum_value) {
+  return QuicErrorCodeToString(enum_value);
+}
+
+QUIC_EXPORT_PRIVATE inline std::string HistogramEnumDescription(
+    QuicErrorCode dummy) {
+  return "cause";
+}
 
 }  // namespace quic
 

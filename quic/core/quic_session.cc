@@ -16,6 +16,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_map_util.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_server_stats.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_stack_trace.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
 
@@ -288,10 +289,30 @@ void QuicSession::OnMessageReceived(QuicStringPiece message) {
                 << ", " << message;
 }
 
+// static
+void QuicSession::RecordConnectionCloseAtServer(QuicErrorCode error,
+                                                ConnectionCloseSource source) {
+  if (error != QUIC_NO_ERROR) {
+    if (source == ConnectionCloseSource::FROM_SELF) {
+      QUIC_SERVER_HISTOGRAM_ENUM(
+          "quic_server_connection_close_errors", error, QUIC_LAST_ERROR,
+          "QuicErrorCode for server-closed connections.");
+    } else {
+      QUIC_SERVER_HISTOGRAM_ENUM(
+          "quic_client_connection_close_errors", error, QUIC_LAST_ERROR,
+          "QuicErrorCode for client-closed connections.");
+    }
+  }
+}
+
 void QuicSession::OnConnectionClosed(QuicErrorCode error,
                                      const std::string& error_details,
                                      ConnectionCloseSource source) {
   DCHECK(!connection_->connected());
+  if (perspective() == Perspective::IS_SERVER) {
+    RecordConnectionCloseAtServer(error, source);
+  }
+
   if (error_ == QUIC_NO_ERROR) {
     error_ = error;
   }

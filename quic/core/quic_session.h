@@ -17,6 +17,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_connection.h"
 #include "net/third_party/quiche/src/quic/core/quic_control_frame_manager.h"
 #include "net/third_party/quiche/src/quic/core/quic_crypto_stream.h"
+#include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
 #include "net/third_party/quiche/src/quic/core/quic_packet_creator.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_stream.h"
@@ -400,6 +401,12 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
                                   QuicRstStreamErrorCode error,
                                   QuicStreamOffset bytes_written,
                                   bool close_write_side_only);
+
+  // Record errors when a connection is closed at the server side, should only
+  // be called from server's perspective.
+  // Noop if |error| is QUIC_NO_ERROR.
+  static void RecordConnectionCloseAtServer(QuicErrorCode error,
+                                            ConnectionCloseSource source);
 
  protected:
   using StaticStreamMap = QuicSmallMap<QuicStreamId, QuicStream*, 2>;

@@ -202,10 +202,7 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
                                          const ParsedQuicVersion& version) = 0;
 
   // Called when a connection is rejected statelessly.
-  virtual void OnConnectionRejectedStatelessly();
-
-  // Called when a connection is closed statelessly.
-  virtual void OnConnectionClosedStatelessly(QuicErrorCode error);
+  virtual void OnConnectionRejectedStatelessly() {}
 
   // Returns true if cheap stateless rejection should be attempted.
   virtual bool ShouldAttemptCheapStatelessRejection();
