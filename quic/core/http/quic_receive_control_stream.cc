@@ -76,9 +76,7 @@ class QuicReceiveControlStream::HttpDecoderVisitor
     CloseConnectionOnWrongFrame("Headers");
   }
 
-  void OnHeadersFrameEnd(QuicByteCount frame_len) override {
-    CloseConnectionOnWrongFrame("Headers");
-  }
+  void OnHeadersFrameEnd() override { CloseConnectionOnWrongFrame("Headers"); }
 
   void OnPushPromiseFrameStart(PushId push_id) override {
     CloseConnectionOnWrongFrame("Push Promise");

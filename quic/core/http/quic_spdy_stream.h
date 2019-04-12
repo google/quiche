@@ -207,7 +207,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream : public QuicStream {
   void OnDataFrameEnd();
   void OnHeadersFrameStart(Http3FrameLengths frame_length);
   void OnHeadersFramePayload(QuicStringPiece payload);
-  void OnHeadersFrameEnd(QuicByteCount frame_len);
+  void OnHeadersFrameEnd();
 
   // Called when the received headers are too large. By default this will
   // reset the stream.

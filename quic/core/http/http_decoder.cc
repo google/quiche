@@ -248,7 +248,7 @@ void HttpDecoder::FinishParsing() {
       break;
     }
     case 0x1: {  // HEADERS
-      visitor_->OnHeadersFrameEnd(current_frame_length_);
+      visitor_->OnHeadersFrameEnd();
       break;
     }
     case 0x2: {  // PRIORITY

@@ -34,7 +34,7 @@ class MockVisitor : public HttpDecoder::Visitor {
 
   MOCK_METHOD1(OnHeadersFrameStart, void(Http3FrameLengths frame_lengths));
   MOCK_METHOD1(OnHeadersFramePayload, void(QuicStringPiece payload));
-  MOCK_METHOD1(OnHeadersFrameEnd, void(QuicByteCount frame_len));
+  MOCK_METHOD0(OnHeadersFrameEnd, void());
 
   MOCK_METHOD1(OnPushPromiseFrameStart, void(PushId push_id));
   MOCK_METHOD1(OnPushPromiseFramePayload, void(QuicStringPiece payload));
@@ -388,7 +388,7 @@ TEST_F(HttpDecoderTest, HeadersFrame) {
   InSequence s;
   EXPECT_CALL(visitor_, OnHeadersFrameStart(Http3FrameLengths(2, 7)));
   EXPECT_CALL(visitor_, OnHeadersFramePayload(QuicStringPiece("Headers")));
-  EXPECT_CALL(visitor_, OnHeadersFrameEnd(7));
+  EXPECT_CALL(visitor_, OnHeadersFrameEnd());
   EXPECT_EQ(QUIC_ARRAYSIZE(input),
             decoder_.ProcessInput(input, QUIC_ARRAYSIZE(input)));
   EXPECT_EQ(QUIC_NO_ERROR, decoder_.error());
@@ -403,7 +403,7 @@ TEST_F(HttpDecoderTest, HeadersFrame) {
   EXPECT_CALL(visitor_, OnHeadersFramePayload(QuicStringPiece("e")));
   EXPECT_CALL(visitor_, OnHeadersFramePayload(QuicStringPiece("r")));
   EXPECT_CALL(visitor_, OnHeadersFramePayload(QuicStringPiece("s")));
-  EXPECT_CALL(visitor_, OnHeadersFrameEnd(7));
+  EXPECT_CALL(visitor_, OnHeadersFrameEnd());
   for (char c : input) {
     EXPECT_EQ(1u, decoder_.ProcessInput(&c, 1));
   }
@@ -441,7 +441,7 @@ TEST_F(HttpDecoderTest, EmptyHeadersFrame) {
   // Process the full frame.
   InSequence s;
   EXPECT_CALL(visitor_, OnHeadersFrameStart(Http3FrameLengths(2, 0)));
-  EXPECT_CALL(visitor_, OnHeadersFrameEnd(0));
+  EXPECT_CALL(visitor_, OnHeadersFrameEnd());
   EXPECT_EQ(QUIC_ARRAYSIZE(input),
             decoder_.ProcessInput(input, QUIC_ARRAYSIZE(input)));
   EXPECT_EQ(QUIC_NO_ERROR, decoder_.error());
@@ -449,7 +449,7 @@ TEST_F(HttpDecoderTest, EmptyHeadersFrame) {
 
   // Process the frame incremently.
   EXPECT_CALL(visitor_, OnHeadersFrameStart(Http3FrameLengths(2, 0)));
-  EXPECT_CALL(visitor_, OnHeadersFrameEnd(0));
+  EXPECT_CALL(visitor_, OnHeadersFrameEnd());
   for (char c : input) {
     EXPECT_EQ(1u, decoder_.ProcessInput(&c, 1));
   }

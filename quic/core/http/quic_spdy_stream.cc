@@ -97,13 +97,13 @@ class QuicSpdyStream::HttpDecoderVisitor : public HttpDecoder::Visitor {
     stream_->OnHeadersFramePayload(payload);
   }
 
-  void OnHeadersFrameEnd(QuicByteCount frame_len) override {
+  void OnHeadersFrameEnd() override {
     if (!VersionUsesQpack(
             stream_->session()->connection()->transport_version())) {
       CloseConnectionOnWrongFrame("Headers");
       return;
     }
-    stream_->OnHeadersFrameEnd(frame_len);
+    stream_->OnHeadersFrameEnd();
   }
 
   void OnPushPromiseFrameStart(PushId push_id) override {
@@ -651,7 +651,7 @@ void QuicSpdyStream::OnHeadersFramePayload(QuicStringPiece payload) {
   DCHECK(VersionUsesQpack(spdy_session_->connection()->transport_version()));
 }
 
-void QuicSpdyStream::OnHeadersFrameEnd(QuicByteCount frame_len) {
+void QuicSpdyStream::OnHeadersFrameEnd() {
   DCHECK(VersionUsesQpack(spdy_session_->connection()->transport_version()));
 }
 

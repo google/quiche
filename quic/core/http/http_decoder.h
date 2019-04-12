@@ -84,7 +84,7 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
     virtual void OnHeadersFramePayload(QuicStringPiece payload) = 0;
     // Called when a HEADERS frame has been completely processed.
     // |frame_len| is the length of the HEADERS frame payload.
-    virtual void OnHeadersFrameEnd(QuicByteCount frame_len) = 0;
+    virtual void OnHeadersFrameEnd() = 0;
 
     // Called when a PUSH_PROMISE frame has been recevied for |push_id|.
     virtual void OnPushPromiseFrameStart(PushId push_id) = 0;
