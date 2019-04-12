@@ -71,7 +71,7 @@ MessageResult::MessageResult(MessageStatus status, QuicMessageId message_id)
 
 std::ostream& operator<<(std::ostream& os,
                          const QuicIetfTransportErrorCodes& c) {
-  if (c >= 0xff00) {
+  if (static_cast<uint16_t>(c) >= 0xff00u) {
     os << "Private value: " << c;
     return os;
   }
