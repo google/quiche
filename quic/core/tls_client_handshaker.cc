@@ -73,8 +73,8 @@ bool TlsClientHandshaker::CryptoConnect() {
       session()->connection_id(), &crypters);
   session()->connection()->SetEncrypter(ENCRYPTION_INITIAL,
                                         std::move(crypters.encrypter));
-  session()->connection()->SetDecrypter(ENCRYPTION_INITIAL,
-                                        std::move(crypters.decrypter));
+  session()->connection()->InstallDecrypter(ENCRYPTION_INITIAL,
+                                            std::move(crypters.decrypter));
   state_ = STATE_HANDSHAKE_RUNNING;
   // Configure certificate verification.
   // TODO(nharper): This only verifies certs on initial connection, not on

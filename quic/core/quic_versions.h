@@ -145,6 +145,8 @@ struct QUIC_EXPORT_PRIVATE ParsedQuicVersion {
     return handshake_protocol != other.handshake_protocol ||
            transport_version != other.transport_version;
   }
+
+  bool KnowsWhichDecrypterToUse() const;
 };
 
 QUIC_EXPORT_PRIVATE ParsedQuicVersion UnsupportedQuicVersion();

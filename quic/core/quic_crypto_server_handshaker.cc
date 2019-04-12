@@ -230,9 +230,16 @@ void QuicCryptoServerHandshaker::
   session()->connection()->SetDefaultEncryptionLevel(ENCRYPTION_ZERO_RTT);
   // Set the decrypter immediately so that we no longer accept unencrypted
   // packets.
-  session()->connection()->SetDecrypter(
-      ENCRYPTION_ZERO_RTT,
-      std::move(crypto_negotiated_params_->initial_crypters.decrypter));
+  if (session()->connection()->version().KnowsWhichDecrypterToUse()) {
+    session()->connection()->InstallDecrypter(
+        ENCRYPTION_ZERO_RTT,
+        std::move(crypto_negotiated_params_->initial_crypters.decrypter));
+    session()->connection()->RemoveDecrypter(ENCRYPTION_INITIAL);
+  } else {
+    session()->connection()->SetDecrypter(
+        ENCRYPTION_ZERO_RTT,
+        std::move(crypto_negotiated_params_->initial_crypters.decrypter));
+  }
   session()->connection()->SetDiversificationNonce(*diversification_nonce);
 
   session()->connection()->set_fully_pad_crypto_hadshake_packets(
@@ -244,10 +251,17 @@ void QuicCryptoServerHandshaker::
       std::move(crypto_negotiated_params_->forward_secure_crypters.encrypter));
   session()->connection()->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
 
-  session()->connection()->SetAlternativeDecrypter(
-      ENCRYPTION_FORWARD_SECURE,
-      std::move(crypto_negotiated_params_->forward_secure_crypters.decrypter),
-      false /* don't latch */);
+  if (session()->connection()->version().KnowsWhichDecrypterToUse()) {
+    session()->connection()->InstallDecrypter(
+        ENCRYPTION_FORWARD_SECURE,
+        std::move(
+            crypto_negotiated_params_->forward_secure_crypters.decrypter));
+  } else {
+    session()->connection()->SetAlternativeDecrypter(
+        ENCRYPTION_FORWARD_SECURE,
+        std::move(crypto_negotiated_params_->forward_secure_crypters.decrypter),
+        false /* don't latch */);
+  }
 
   encryption_established_ = true;
   handshake_confirmed_ = true;
