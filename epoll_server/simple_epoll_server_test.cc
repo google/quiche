@@ -18,9 +18,9 @@
 #include <cstddef>
 #include <cstdlib>
 #include <cstring>
-#include <hash_map>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -638,7 +638,7 @@ class TestParentAlarm {
   }
 
  protected:
-  typedef __gnu_cxx::hash_map<TestChildAlarm*, SimpleEpollServer::AlarmRegToken>
+  typedef std::unordered_map<TestChildAlarm*, SimpleEpollServer::AlarmRegToken>
       ChildTokenMap;
 
   ChildTokenMap child_tokens_;
