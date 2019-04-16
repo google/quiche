@@ -441,7 +441,6 @@ void QuicStream::WriteOrBufferData(
     return;
   }
 
-  QuicConsumedData consumed_data(0, false);
   fin_buffered_ = fin;
 
   bool had_buffered_data = HasBufferedData();
