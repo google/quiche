@@ -23,6 +23,9 @@
 namespace quic {
 namespace test {
 
+// Map of source id to sequence number.
+using IdToSequenceNumberMap = std::map<int32_t, int64_t>;
+
 // ParsedQuartcDataFrame with a receive_time.
 struct ReceivedMessage {
   ParsedQuartcDataFrame frame;
@@ -65,7 +68,7 @@ class QuartcPeer : public QuartcEndpoint::Delegate,
 
   // Returns a map of source id to the sequence number of the last frame
   // produced by that source.
-  std::map<int32_t, int64_t> GetLastSequenceNumbers() const;
+  IdToSequenceNumberMap GetLastSequenceNumbers() const;
 
   // QuartcEndpoint::Delegate overrides.
   void OnSessionCreated(QuartcSession* session) override;
