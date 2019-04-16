@@ -11,7 +11,9 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
 
+using ::testing::ElementsAre;
 using ::testing::Eq;
+using ::testing::Pair;
 using ::testing::StrictMock;
 
 namespace quic {
@@ -83,13 +85,8 @@ TEST_F(QpackDecodedHeadersAccumulatorTest, Success) {
   EXPECT_TRUE(accumulator_.Decode(encoded_data));
   EXPECT_TRUE(accumulator_.EndHeaderBlock());
 
-  auto header_list = accumulator_.quic_header_list();
-  auto it = header_list.begin();
-  EXPECT_TRUE(it != header_list.end());
-  EXPECT_EQ("foo", it->first);
-  EXPECT_EQ("bar", it->second);
-  ++it;
-  EXPECT_TRUE(it == header_list.end());
+  const QuicHeaderList& header_list = accumulator_.quic_header_list();
+  EXPECT_THAT(header_list, ElementsAre(Pair("foo", "bar")));
 
   EXPECT_EQ(strlen("foo") + strlen("bar"),
             header_list.uncompressed_header_bytes());

@@ -23,8 +23,9 @@ namespace quic {
 class QUIC_EXPORT_PRIVATE QuicHeaderList
     : public spdy::SpdyHeadersHandlerInterface {
  public:
-  typedef QuicDeque<std::pair<std::string, std::string>> ListType;
-  typedef ListType::const_iterator const_iterator;
+  using ListType = QuicDeque<std::pair<std::string, std::string>>;
+  using value_type = ListType::value_type;
+  using const_iterator = ListType::const_iterator;
 
   QuicHeaderList();
   QuicHeaderList(QuicHeaderList&& other);

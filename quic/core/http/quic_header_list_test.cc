@@ -9,12 +9,25 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 
+using ::testing::ElementsAre;
+using ::testing::Pair;
+
 namespace quic {
 
 class QuicHeaderListTest : public QuicTest {};
 
 // This test verifies that QuicHeaderList accumulates header pairs in order.
 TEST_F(QuicHeaderListTest, OnHeader) {
+  QuicHeaderList headers;
+  headers.OnHeader("foo", "bar");
+  headers.OnHeader("april", "fools");
+  headers.OnHeader("beep", "");
+
+  EXPECT_THAT(headers, ElementsAre(Pair("foo", "bar"), Pair("april", "fools"),
+                                   Pair("beep", "")));
+}
+
+TEST_F(QuicHeaderListTest, DebugString) {
   QuicHeaderList headers;
   headers.OnHeader("foo", "bar");
   headers.OnHeader("april", "fools");
@@ -61,8 +74,10 @@ TEST_F(QuicHeaderListTest, IsCopyableAndAssignable) {
   QuicHeaderList headers2(headers);
   QuicHeaderList headers3 = headers;
 
-  EXPECT_EQ("{ foo=bar, april=fools, beep=, }", headers2.DebugString());
-  EXPECT_EQ("{ foo=bar, april=fools, beep=, }", headers3.DebugString());
+  EXPECT_THAT(headers2, ElementsAre(Pair("foo", "bar"), Pair("april", "fools"),
+                                    Pair("beep", "")));
+  EXPECT_THAT(headers3, ElementsAre(Pair("foo", "bar"), Pair("april", "fools"),
+                                    Pair("beep", "")));
 }
 
 }  // namespace quic
