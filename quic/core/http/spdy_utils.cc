@@ -86,6 +86,7 @@ bool SpdyUtils::CopyAndValidateHeaders(const QuicHeaderList& header_list,
 }
 
 bool SpdyUtils::CopyAndValidateTrailers(const QuicHeaderList& header_list,
+                                        bool expect_final_byte_offset,
                                         size_t* final_byte_offset,
                                         SpdyHeaderBlock* trailers) {
   bool found_final_byte_offset = false;
@@ -94,7 +95,8 @@ bool SpdyUtils::CopyAndValidateTrailers(const QuicHeaderList& header_list,
 
     // Pull out the final offset pseudo header which indicates the number of
     // response body bytes expected.
-    if (!found_final_byte_offset && name == kFinalOffsetHeaderKey &&
+    if (expect_final_byte_offset && !found_final_byte_offset &&
+        name == kFinalOffsetHeaderKey &&
         QuicTextUtils::StringToSizeT(p.second, final_byte_offset)) {
       found_final_byte_offset = true;
       continue;
@@ -116,7 +118,7 @@ bool SpdyUtils::CopyAndValidateTrailers(const QuicHeaderList& header_list,
     trailers->AppendValueOrAddHeader(name, p.second);
   }
 
-  if (!found_final_byte_offset) {
+  if (expect_final_byte_offset && !found_final_byte_offset) {
     QUIC_DLOG(ERROR) << "Required key '" << kFinalOffsetHeaderKey
                      << "' not present";
     return false;

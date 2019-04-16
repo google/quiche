@@ -32,7 +32,17 @@ class QUIC_EXPORT_PRIVATE SpdyUtils {
                                      spdy::SpdyHeaderBlock* headers);
 
   // Copies a list of headers to a SpdyHeaderBlock.
+  // If |expect_final_byte_offset| is true, requires exactly one header field
+  // with key kFinalOffsetHeaderKey and an integer value.
+  // If |expect_final_byte_offset| is false, no kFinalOffsetHeaderKey may be
+  // present.
+  // Returns true if parsing is successful.  Returns false if the presence of
+  // kFinalOffsetHeaderKey does not match the value of
+  // |expect_final_byte_offset|, the kFinalOffsetHeaderKey value cannot be
+  // parsed, any other pseudo-header is present, an empty header key is present,
+  // or a header key contains an uppercase character.
   static bool CopyAndValidateTrailers(const QuicHeaderList& header_list,
+                                      bool expect_final_byte_offset,
                                       size_t* final_byte_offset,
                                       spdy::SpdyHeaderBlock* trailers);
 

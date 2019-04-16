@@ -17,6 +17,10 @@ using testing::UnorderedElementsAre;
 
 namespace quic {
 namespace test {
+namespace {
+
+const bool kExpectFinalByteOffset = true;
+const bool kDoNotExpectFinalByteOffset = false;
 
 static std::unique_ptr<QuicHeaderList> FromList(
     const QuicHeaderList::ListType& src) {
@@ -28,6 +32,8 @@ static std::unique_ptr<QuicHeaderList> FromList(
   headers->OnHeaderBlockEnd(0, 0);
   return headers;
 }
+
+}  // anonymous namespace
 
 using CopyAndValidateHeaders = QuicTest;
 
@@ -202,29 +208,62 @@ TEST_F(CopyAndValidateTrailers, SimplestValidList) {
   auto trailers = FromList({{kFinalOffsetHeaderKey, "1234"}});
   size_t final_byte_offset = 0;
   SpdyHeaderBlock block;
-  EXPECT_TRUE(SpdyUtils::CopyAndValidateTrailers(*trailers, &final_byte_offset,
-                                                 &block));
+  EXPECT_TRUE(SpdyUtils::CopyAndValidateTrailers(
+      *trailers, kExpectFinalByteOffset, &final_byte_offset, &block));
   EXPECT_EQ(1234u, final_byte_offset);
 }
 
-TEST_F(CopyAndValidateTrailers, EmptyTrailerList) {
-  // An empty trailer list will fail as required key kFinalOffsetHeaderKey is
+TEST_F(CopyAndValidateTrailers, EmptyTrailerListWithFinalByteOffsetExpected) {
+  // An empty trailer list will fail as expected key kFinalOffsetHeaderKey is
   // not present.
   QuicHeaderList trailers;
   size_t final_byte_offset = 0;
   SpdyHeaderBlock block;
-  EXPECT_FALSE(
-      SpdyUtils::CopyAndValidateTrailers(trailers, &final_byte_offset, &block));
+  EXPECT_FALSE(SpdyUtils::CopyAndValidateTrailers(
+      trailers, kExpectFinalByteOffset, &final_byte_offset, &block));
 }
 
-TEST_F(CopyAndValidateTrailers, FinalByteOffsetNotPresent) {
-  // Validation fails if required kFinalOffsetHeaderKey is not present, even if
+TEST_F(CopyAndValidateTrailers,
+       EmptyTrailerListWithFinalByteOffsetNotExpected) {
+  // An empty trailer list will pass successfully if kFinalOffsetHeaderKey is
+  // not expected.
+  QuicHeaderList trailers;
+  size_t final_byte_offset = 0;
+  SpdyHeaderBlock block;
+  EXPECT_TRUE(SpdyUtils::CopyAndValidateTrailers(
+      trailers, kDoNotExpectFinalByteOffset, &final_byte_offset, &block));
+  EXPECT_TRUE(block.empty());
+}
+
+TEST_F(CopyAndValidateTrailers, FinalByteOffsetExpectedButNotPresent) {
+  // Validation fails if expected kFinalOffsetHeaderKey is not present, even if
   // the rest of the header block is valid.
   auto trailers = FromList({{"key", "value"}});
   size_t final_byte_offset = 0;
   SpdyHeaderBlock block;
-  EXPECT_FALSE(SpdyUtils::CopyAndValidateTrailers(*trailers, &final_byte_offset,
-                                                  &block));
+  EXPECT_FALSE(SpdyUtils::CopyAndValidateTrailers(
+      *trailers, kExpectFinalByteOffset, &final_byte_offset, &block));
+}
+
+TEST_F(CopyAndValidateTrailers, FinalByteOffsetNotExpectedButPresent) {
+  // Validation fails if kFinalOffsetHeaderKey is present but should not be,
+  // even if the rest of the header block is valid.
+  auto trailers = FromList({{"key", "value"}, {kFinalOffsetHeaderKey, "1234"}});
+  size_t final_byte_offset = 0;
+  SpdyHeaderBlock block;
+  EXPECT_FALSE(SpdyUtils::CopyAndValidateTrailers(
+      *trailers, kDoNotExpectFinalByteOffset, &final_byte_offset, &block));
+}
+
+TEST_F(CopyAndValidateTrailers, FinalByteOffsetNotExpectedAndNotPresent) {
+  // Validation succeeds if kFinalOffsetHeaderKey is not expected and not
+  // present.
+  auto trailers = FromList({{"key", "value"}});
+  size_t final_byte_offset = 0;
+  SpdyHeaderBlock block;
+  EXPECT_TRUE(SpdyUtils::CopyAndValidateTrailers(
+      *trailers, kDoNotExpectFinalByteOffset, &final_byte_offset, &block));
+  EXPECT_THAT(block, UnorderedElementsAre(Pair("key", "value")));
 }
 
 TEST_F(CopyAndValidateTrailers, EmptyName) {
@@ -233,8 +272,8 @@ TEST_F(CopyAndValidateTrailers, EmptyName) {
   auto trailers = FromList({{"", "value"}, {kFinalOffsetHeaderKey, "1234"}});
   size_t final_byte_offset = 0;
   SpdyHeaderBlock block;
-  EXPECT_FALSE(SpdyUtils::CopyAndValidateTrailers(*trailers, &final_byte_offset,
-                                                  &block));
+  EXPECT_FALSE(SpdyUtils::CopyAndValidateTrailers(
+      *trailers, kExpectFinalByteOffset, &final_byte_offset, &block));
 }
 
 TEST_F(CopyAndValidateTrailers, PseudoHeaderInTrailers) {
@@ -243,8 +282,8 @@ TEST_F(CopyAndValidateTrailers, PseudoHeaderInTrailers) {
       FromList({{":pseudo_key", "value"}, {kFinalOffsetHeaderKey, "1234"}});
   size_t final_byte_offset = 0;
   SpdyHeaderBlock block;
-  EXPECT_FALSE(SpdyUtils::CopyAndValidateTrailers(*trailers, &final_byte_offset,
-                                                  &block));
+  EXPECT_FALSE(SpdyUtils::CopyAndValidateTrailers(
+      *trailers, kExpectFinalByteOffset, &final_byte_offset, &block));
 }
 
 TEST_F(CopyAndValidateTrailers, DuplicateTrailers) {
@@ -262,8 +301,8 @@ TEST_F(CopyAndValidateTrailers, DuplicateTrailers) {
                             {"key", "non_contiguous_duplicate"}});
   size_t final_byte_offset = 0;
   SpdyHeaderBlock block;
-  EXPECT_TRUE(SpdyUtils::CopyAndValidateTrailers(*trailers, &final_byte_offset,
-                                                 &block));
+  EXPECT_TRUE(SpdyUtils::CopyAndValidateTrailers(
+      *trailers, kExpectFinalByteOffset, &final_byte_offset, &block));
   EXPECT_THAT(
       block,
       UnorderedElementsAre(
@@ -286,8 +325,8 @@ TEST_F(CopyAndValidateTrailers, DuplicateCookies) {
 
   size_t final_byte_offset = 0;
   SpdyHeaderBlock block;
-  EXPECT_TRUE(
-      SpdyUtils::CopyAndValidateTrailers(*headers, &final_byte_offset, &block));
+  EXPECT_TRUE(SpdyUtils::CopyAndValidateTrailers(
+      *headers, kExpectFinalByteOffset, &final_byte_offset, &block));
   EXPECT_THAT(
       block,
       UnorderedElementsAre(

@@ -5,7 +5,7 @@
 #ifndef QUICHE_EPOLL_SERVER_PLATFORM_API_EPOLL_TEST_H_
 #define QUICHE_EPOLL_SERVER_PLATFORM_API_EPOLL_TEST_H_
 
-#include "net/epoll_server/platform/impl/epoll_test_impl.h"
+#include "net/tools/epoll_server/platform/impl/epoll_test_impl.h"
 #define EpollTest EpollTestImpl
 
 #endif  // QUICHE_EPOLL_SERVER_PLATFORM_API_EPOLL_TEST_H_

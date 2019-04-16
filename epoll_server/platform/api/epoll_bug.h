@@ -5,7 +5,7 @@
 #ifndef QUICHE_EPOLL_SERVER_PLATFORM_API_EPOLL_BUG_H_
 #define QUICHE_EPOLL_SERVER_PLATFORM_API_EPOLL_BUG_H_
 
-#include "net/epoll_server/platform/impl/epoll_bug_impl.h"
+#include "net/tools/epoll_server/platform/impl/epoll_bug_impl.h"
 
 #define EPOLL_BUG EPOLL_BUG_IMPL
 

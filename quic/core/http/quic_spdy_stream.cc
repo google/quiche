@@ -449,7 +449,9 @@ void QuicSpdyStream::OnTrailingHeadersComplete(
   }
 
   size_t final_byte_offset = 0;
-  if (!SpdyUtils::CopyAndValidateTrailers(header_list, &final_byte_offset,
+  if (!SpdyUtils::CopyAndValidateTrailers(header_list,
+                                          /* expect_final_byte_offset = */ true,
+                                          &final_byte_offset,
                                           &received_trailers_)) {
     QUIC_DLOG(ERROR) << "Trailers for stream " << id() << " are malformed.";
     session()->connection()->CloseConnection(
