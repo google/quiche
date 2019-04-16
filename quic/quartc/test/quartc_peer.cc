@@ -16,11 +16,28 @@ QuartcPeer::QuartcPeer(const QuicClock* clock,
     : clock_(clock),
       alarm_factory_(alarm_factory),
       random_(random),
+      enabled_(false),
       session_(nullptr),
       configs_(configs) {}
 
 QuartcPeer::~QuartcPeer() {
   session_->CloseConnection("~QuartcPeer()");
+}
+
+void QuartcPeer::SetEnabled(bool value) {
+  enabled_ = value;
+  for (auto& source : data_sources_) {
+    source->SetEnabled(enabled_);
+  }
+}
+
+std::map<int32_t, int64_t> QuartcPeer::GetLastSequenceNumbers() const {
+  DCHECK_GE(configs_.size(), data_sources_.size());
+  std::map<int32_t, int64_t> out;
+  for (int i = 0; i < data_sources_.size(); ++i) {
+    out[configs_[i].id] = data_sources_[i]->sequence_number();
+  }
+  return out;
 }
 
 void QuartcPeer::OnSessionCreated(QuartcSession* session) {
@@ -49,21 +66,15 @@ void QuartcPeer::OnConnectError(QuicErrorCode error,
                                 const std::string& error_details) {
   QUIC_LOG(WARNING) << "Connect failed, error=" << error
                     << ", details=" << error_details;
-  for (auto& source : data_sources_) {
-    source->SetEnabled(false);
-  }
+  SetEnabled(false);
 }
 
 void QuartcPeer::OnCryptoHandshakeComplete() {
-  for (auto& source : data_sources_) {
-    source->SetEnabled(true);
-  }
+  SetEnabled(true);
 }
 
 void QuartcPeer::OnConnectionWritable() {
-  for (auto& source : data_sources_) {
-    source->SetEnabled(true);
-  }
+  SetEnabled(true);
 }
 
 void QuartcPeer::OnIncomingStream(QuartcStream* stream) {
@@ -89,9 +100,7 @@ void QuartcPeer::OnConnectionClosed(QuicErrorCode error_code,
                                     ConnectionCloseSource source) {
   QUIC_LOG(INFO) << "Connection closed, error=" << error_code
                  << ", details=" << error_details;
-  for (auto& source : data_sources_) {
-    source->SetEnabled(false);
-  }
+  SetEnabled(false);
 }
 
 void QuartcPeer::OnMessageReceived(QuicStringPiece message) {

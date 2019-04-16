@@ -51,10 +51,21 @@ class QuartcPeer : public QuartcEndpoint::Delegate,
 
   ~QuartcPeer();
 
+  // Enable or disable this peer.  Disabling a peer causes it to stop sending
+  // messages (which may be useful for flushing data during tests).
+  // A peer begins disabled.  It automatically enables itself as soon as its
+  // session becomes writable, and disables itself when its session closes.
+  bool Enabled() const { return enabled_; }
+  void SetEnabled(bool value);
+
   // Messages received from the peer, in the order they were received.
   const std::vector<ReceivedMessage>& received_messages() const {
     return received_messages_;
   }
+
+  // Returns a map of source id to the sequence number of the last frame
+  // produced by that source.
+  std::map<int32_t, int64_t> GetLastSequenceNumbers() const;
 
   // QuartcEndpoint::Delegate overrides.
   void OnSessionCreated(QuartcSession* session) override;
@@ -80,6 +91,9 @@ class QuartcPeer : public QuartcEndpoint::Delegate,
   const QuicClock* clock_;
   QuicAlarmFactory* alarm_factory_;
   QuicRandom* random_;
+
+  // Whether the peer is currently sending.
+  bool enabled_;
 
   // Session used for sending and receiving data.  Not owned.  Created by an
   // external QuartcEndpoint and set in the |OnSessionCreated| callback.

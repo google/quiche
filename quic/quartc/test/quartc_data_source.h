@@ -85,8 +85,12 @@ class QuartcDataSource {
   // Whether the data source is enabled.  The data source only produces data
   // when enabled.  When first enabled, the data source starts sending
   // immediately.  When disabled, the data source stops sending immediately.
-  bool Enabled();
+  bool Enabled() const;
   void SetEnabled(bool value);
+
+  // Returns the sequence number of the last frame generated (or -1 if no frames
+  // have been generated).
+  int64_t sequence_number() const { return sequence_number_ - 1; }
 
  private:
   void GenerateFrame(QuicByteCount frame_size, QuicTime now);

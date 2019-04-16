@@ -100,7 +100,7 @@ QuicBandwidth QuartcDataSource::AllocateBandwidth(QuicBandwidth bandwidth) {
   return std::max(bandwidth - allocated_bandwidth_, QuicBandwidth::Zero());
 }
 
-bool QuartcDataSource::Enabled() {
+bool QuartcDataSource::Enabled() const {
   return send_alarm_->IsSet();
 }
 

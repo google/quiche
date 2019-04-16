@@ -362,6 +362,37 @@ TEST_F(QuartcPeerTest, BandwidthAllocationWithoutEnoughAvailable) {
             source_3_size);
 }
 
+TEST_F(QuartcPeerTest, DisableAndDrainMessages) {
+  QuartcDataSource::Config config;
+  config.id = 1;
+  config.max_bandwidth = client_server_link_.bandwidth() * 0.5;
+  config.frame_interval = QuicTime::Delta::FromMilliseconds(10);
+
+  CreatePeers({config});
+  Connect();
+
+  simulator_.RunFor(QuicTime::Delta::FromSeconds(15));
+
+  // After these calls, we should observe no new messages.
+  server_peer_->SetEnabled(false);
+  client_peer_->SetEnabled(false);
+
+  std::map<int32_t, int64_t> last_sent_by_client =
+      client_peer_->GetLastSequenceNumbers();
+  std::map<int32_t, int64_t> last_sent_by_server =
+      server_peer_->GetLastSequenceNumbers();
+
+  simulator_.RunFor(QuicTime::Delta::FromSeconds(15));
+
+  ASSERT_FALSE(client_peer_->received_messages().empty());
+  EXPECT_EQ(client_peer_->received_messages().back().frame.sequence_number,
+            last_sent_by_server[1]);
+
+  ASSERT_FALSE(server_peer_->received_messages().empty());
+  EXPECT_EQ(server_peer_->received_messages().back().frame.sequence_number,
+            last_sent_by_client[1]);
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic
