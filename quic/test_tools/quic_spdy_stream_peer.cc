@@ -19,7 +19,7 @@ void QuicSpdyStreamPeer::set_ack_listener(
 // static
 const QuicIntervalSet<QuicStreamOffset>&
 QuicSpdyStreamPeer::unacked_frame_headers_offsets(QuicSpdyStream* stream) {
-  return stream->unacked_frame_headers_offsets();
+  return stream->unacked_frame_headers_offsets_;
 }
 
 }  // namespace test

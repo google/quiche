@@ -234,10 +234,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream : public QuicStream {
     ack_listener_ = std::move(ack_listener);
   }
 
-  const QuicIntervalSet<QuicStreamOffset>& unacked_frame_headers_offsets() {
-    return unacked_frame_headers_offsets_;
-  }
-
  private:
   friend class test::QuicSpdyStreamPeer;
   friend class test::QuicStreamPeer;
