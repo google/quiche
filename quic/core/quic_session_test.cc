@@ -1195,7 +1195,7 @@ TEST_P(QuicSessionTestServer, OnStreamFrameInvalidStreamId) {
       QuicStringPiece("HT"));
   EXPECT_CALL(*connection_,
               CloseConnection(
-                  QUIC_INVALID_STREAM_ID, "Recevied data for an invalid stream",
+                  QUIC_INVALID_STREAM_ID, "Received data for an invalid stream",
                   ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET));
   session_.OnStreamFrame(data1);
 }
@@ -1208,7 +1208,7 @@ TEST_P(QuicSessionTestServer, OnRstStreamInvalidStreamId) {
       QUIC_ERROR_PROCESSING_STREAM, 0);
   EXPECT_CALL(*connection_,
               CloseConnection(
-                  QUIC_INVALID_STREAM_ID, "Recevied data for an invalid stream",
+                  QUIC_INVALID_STREAM_ID, "Received data for an invalid stream",
                   ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET));
   session_.OnRstStream(rst1);
 }

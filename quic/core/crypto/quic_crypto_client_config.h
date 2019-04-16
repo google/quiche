@@ -284,7 +284,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
   // then it puts an error message in |error_details| and returns an error
   // code. |version| is the QUIC version for the current connection.
   // |negotiated_versions| contains the list of version, if any, that were
-  // present in a version negotiation packet previously recevied from the
+  // present in a version negotiation packet previously received from the
   // server. The contents of this list will be compared against the list of
   // versions provided in the VER tag of the server hello.
   QuicErrorCode ProcessServerHello(

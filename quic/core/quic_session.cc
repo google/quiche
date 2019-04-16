@@ -124,7 +124,7 @@ void QuicSession::OnStreamFrame(const QuicStreamFrame& frame) {
   if (stream_id ==
       QuicUtils::GetInvalidStreamId(connection()->transport_version())) {
     connection()->CloseConnection(
-        QUIC_INVALID_STREAM_ID, "Recevied data for an invalid stream",
+        QUIC_INVALID_STREAM_ID, "Received data for an invalid stream",
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return;
   }
@@ -248,7 +248,7 @@ void QuicSession::OnRstStream(const QuicRstStreamFrame& frame) {
   if (stream_id ==
       QuicUtils::GetInvalidStreamId(connection()->transport_version())) {
     connection()->CloseConnection(
-        QUIC_INVALID_STREAM_ID, "Recevied data for an invalid stream",
+        QUIC_INVALID_STREAM_ID, "Received data for an invalid stream",
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return;
   }

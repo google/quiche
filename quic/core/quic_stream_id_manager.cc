@@ -75,7 +75,7 @@ bool QuicStreamIdManager::OnMaxStreamIdFrame(
     QUIC_CODE_COUNT(max_stream_id_bad_direction);
     session_->connection()->CloseConnection(
         QUIC_MAX_STREAM_ID_ERROR,
-        "Recevied max stream ID with wrong initiator bit setting",
+        "Received max stream ID with wrong initiator bit setting",
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return false;
   }

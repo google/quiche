@@ -75,7 +75,7 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
     // Called when a DATA frame has been completely processed.
     virtual void OnDataFrameEnd() = 0;
 
-    // Called when a HEADERS frame has been recevied.
+    // Called when a HEADERS frame has been received.
     // |frame_length| contains HEADERS frame length and payload length.
     virtual void OnHeadersFrameStart(Http3FrameLengths frame_length) = 0;
     // Called when part of the payload of a HEADERS frame has been read.  May be
@@ -86,7 +86,7 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
     // |frame_len| is the length of the HEADERS frame payload.
     virtual void OnHeadersFrameEnd() = 0;
 
-    // Called when a PUSH_PROMISE frame has been recevied for |push_id|.
+    // Called when a PUSH_PROMISE frame has been received for |push_id|.
     virtual void OnPushPromiseFrameStart(PushId push_id) = 0;
     // Called when part of the payload of a PUSH_PROMISE frame has been read.
     // May be called multiple times for a single frame.  |payload| is guaranteed
