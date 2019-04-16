@@ -20,7 +20,11 @@ namespace quic {
 namespace test {
 namespace {
 
+// Arbitrary stream ID used for testing.
 QuicStreamId kTestStreamId = 1;
+
+// Limit on header list size.
+const size_t kMaxHeaderListSize = 100;
 
 // Header Acknowledgement decoder stream instruction with stream_id = 1.
 const char* const kHeaderAcknowledgement = "\x81";
@@ -32,7 +36,7 @@ class QpackDecodedHeadersAccumulatorTest : public QuicTest {
   QpackDecodedHeadersAccumulatorTest()
       : qpack_decoder_(&encoder_stream_error_delegate_,
                        &decoder_stream_sender_delegate_),
-        accumulator_(kTestStreamId, &qpack_decoder_) {}
+        accumulator_(kTestStreamId, &qpack_decoder_, kMaxHeaderListSize) {}
 
   NoopEncoderStreamErrorDelegate encoder_stream_error_delegate_;
   StrictMock<MockDecoderStreamSenderDelegate> decoder_stream_sender_delegate_;
@@ -91,6 +95,24 @@ TEST_F(QpackDecodedHeadersAccumulatorTest, Success) {
   EXPECT_EQ(strlen("foo") + strlen("bar"),
             header_list.uncompressed_header_bytes());
   EXPECT_EQ(encoded_data.size(), header_list.compressed_header_bytes());
+}
+
+TEST_F(QpackDecodedHeadersAccumulatorTest, ExceedingLimit) {
+  EXPECT_CALL(decoder_stream_sender_delegate_,
+              WriteDecoderStreamData(Eq(kHeaderAcknowledgement)));
+
+  // Total length of header list exceeds kMaxHeaderListSize.
+  EXPECT_TRUE(accumulator_.Decode(QuicTextUtils::HexDecode(
+      "0000"                                      // header block prefix
+      "26666f6f626172"                            // header key: "foobar"
+      "7d61616161616161616161616161616161616161"  // header value: 'a' 125 times
+      "616161616161616161616161616161616161616161616161616161616161616161616161"
+      "616161616161616161616161616161616161616161616161616161616161616161616161"
+      "61616161616161616161616161616161616161616161616161616161616161616161")));
+  EXPECT_TRUE(accumulator_.EndHeaderBlock());
+
+  // QuicHeaderList signals header list over limit by clearing it.
+  EXPECT_TRUE(accumulator_.quic_header_list().empty());
 }
 
 }  // namespace test

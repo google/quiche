@@ -24,7 +24,9 @@ class QpackDecoder;
 class QUIC_EXPORT_PRIVATE QpackDecodedHeadersAccumulator
     : public QpackProgressiveDecoder::HeadersHandlerInterface {
  public:
-  QpackDecodedHeadersAccumulator(QuicStreamId id, QpackDecoder* qpack_decoder);
+  QpackDecodedHeadersAccumulator(QuicStreamId id,
+                                 QpackDecoder* qpack_decoder,
+                                 size_t max_header_list_size);
   virtual ~QpackDecodedHeadersAccumulator() = default;
 
   // QpackProgressiveDecoder::HeadersHandlerInterface implementation.
