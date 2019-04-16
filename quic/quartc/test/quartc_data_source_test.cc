@@ -118,6 +118,35 @@ TEST_F(QuartcDataSourceTest, DisableAndEnable) {
             21 * config.frame_interval);
 }
 
+TEST_F(QuartcDataSourceTest, EnablingTwiceDoesNotChangeSchedule) {
+  QuartcDataSource::Config config;
+  config.frame_interval = QuicTime::Delta::FromMilliseconds(20);
+
+  source_ = QuicMakeUnique<QuartcDataSource>(
+      simulator_.GetClock(), simulator_.GetAlarmFactory(),
+      simulator_.GetRandomGenerator(), config, &delegate_);
+  source_->AllocateBandwidth(
+      QuicBandwidth::FromBytesAndTimeDelta(1000, config.frame_interval));
+
+  // The first frame is produced immediately (but asynchronously) upon enabling
+  // the source.
+  source_->SetEnabled(true);
+  simulator_.RunFor(QuicTime::Delta::FromMicroseconds(1));
+  EXPECT_EQ(delegate_.frames().size(), 1);
+
+  // Enabling the source again does not re-schedule the alarm.
+  source_->SetEnabled(true);
+  simulator_.RunFor(QuicTime::Delta::FromMicroseconds(1));
+  EXPECT_EQ(delegate_.frames().size(), 1);
+
+  // The second frame is sent at the expected interval after the first.
+  ASSERT_TRUE(
+      simulator_.RunUntil([this] { return delegate_.frames().size() == 2; }));
+
+  EXPECT_EQ(delegate_.frames()[1].send_time - delegate_.frames()[0].send_time,
+            config.frame_interval);
+}
+
 TEST_F(QuartcDataSourceTest, ProducesFramesWithConfiguredSourceId) {
   QuartcDataSource::Config config;
   config.id = 7;
@@ -148,9 +177,10 @@ TEST_F(QuartcDataSourceTest, ProducesFramesAtAllocatedBandwidth) {
   ASSERT_EQ(delegate_.frames().size(), 1);
   EXPECT_EQ(delegate_.frames()[0].payload.size(),
             bytes_per_frame - kDataFrameHeaderSize);
+  EXPECT_EQ(delegate_.frames()[0].size, bytes_per_frame);
 }
 
-TEST_F(QuartcDataSourceTest, AlwaysProducesParseableHeader) {
+TEST_F(QuartcDataSourceTest, ProducesParseableHeaderWhenNotEnoughBandwidth) {
   QuartcDataSource::Config config;
   source_ = QuicMakeUnique<QuartcDataSource>(
       simulator_.GetClock(), simulator_.GetAlarmFactory(),
@@ -166,6 +196,7 @@ TEST_F(QuartcDataSourceTest, AlwaysProducesParseableHeader) {
 
   ASSERT_EQ(delegate_.frames().size(), 1);
   EXPECT_EQ(delegate_.frames()[0].payload.size(), 0);
+  EXPECT_EQ(delegate_.frames()[0].size, kDataFrameHeaderSize);
 
   // Header fields are still present and parseable.
   EXPECT_EQ(delegate_.frames()[0].source_id, 0);
@@ -225,10 +256,12 @@ TEST_F(QuartcDataSourceTest, AllocateClampsToMin) {
   simulator_.RunFor(config.frame_interval);
 
   // The frames produced use min_bandwidth instead of the lower allocation.
+  QuicByteCount bytes_per_frame =
+      config.min_bandwidth.ToBytesPerPeriod(config.frame_interval);
   ASSERT_EQ(delegate_.frames().size(), 1);
   EXPECT_EQ(delegate_.frames()[0].payload.size(),
-            config.min_bandwidth.ToBytesPerPeriod(config.frame_interval) -
-                kDataFrameHeaderSize);
+            bytes_per_frame - kDataFrameHeaderSize);
+  EXPECT_EQ(delegate_.frames()[0].size, bytes_per_frame);
 }
 
 TEST_F(QuartcDataSourceTest, AllocateClampsToMax) {
@@ -247,10 +280,12 @@ TEST_F(QuartcDataSourceTest, AllocateClampsToMax) {
   simulator_.RunFor(config.frame_interval);
 
   // The frames produced use max_bandwidth instead of the higher allocation.
+  QuicByteCount bytes_per_frame =
+      config.max_bandwidth.ToBytesPerPeriod(config.frame_interval);
   ASSERT_EQ(delegate_.frames().size(), 1);
   EXPECT_EQ(delegate_.frames()[0].payload.size(),
-            config.max_bandwidth.ToBytesPerPeriod(config.frame_interval) -
-                kDataFrameHeaderSize);
+            bytes_per_frame - kDataFrameHeaderSize);
+  EXPECT_EQ(delegate_.frames()[0].size, bytes_per_frame);
 }
 
 TEST_F(QuartcDataSourceTest, MaxFrameSize) {
@@ -282,7 +317,62 @@ TEST_F(QuartcDataSourceTest, MaxFrameSize) {
 
     // Each of the frames should have the configured maximum size.
     EXPECT_EQ(frame.payload.size(), bytes_per_frame - kDataFrameHeaderSize);
+    EXPECT_EQ(frame.size, bytes_per_frame);
   }
+}
+
+TEST_F(QuartcDataSourceTest, ProducesParseableHeaderWhenMaxFrameSizeTooSmall) {
+  QuartcDataSource::Config config;
+  config.max_frame_size = kDataFrameHeaderSize - 1;
+  source_ = QuicMakeUnique<QuartcDataSource>(
+      simulator_.GetClock(), simulator_.GetAlarmFactory(),
+      simulator_.GetRandomGenerator(), config, &delegate_);
+
+  source_->AllocateBandwidth(
+      QuicBandwidth::FromBytesAndTimeDelta(200, config.frame_interval));
+  source_->SetEnabled(true);
+
+  QuicTime start_time = simulator_.GetClock()->Now();
+  simulator_.RunFor(config.frame_interval);
+
+  ASSERT_GE(delegate_.frames().size(), 1);
+  EXPECT_EQ(delegate_.frames()[0].payload.size(), 0);
+  EXPECT_EQ(delegate_.frames()[0].size, kDataFrameHeaderSize);
+
+  // Header fields are still present and parseable.
+  EXPECT_EQ(delegate_.frames()[0].source_id, 0);
+  EXPECT_EQ(delegate_.frames()[0].sequence_number, 0);
+  EXPECT_EQ(delegate_.frames()[0].send_time, start_time);
+}
+
+TEST_F(QuartcDataSourceTest, ProducesParseableHeaderWhenLeftoverSizeTooSmall) {
+  QuartcDataSource::Config config;
+  config.max_frame_size = 200;
+  source_ = QuicMakeUnique<QuartcDataSource>(
+      simulator_.GetClock(), simulator_.GetAlarmFactory(),
+      simulator_.GetRandomGenerator(), config, &delegate_);
+
+  // Allocate enough bandwidth to send a 200-byte frame and a 1-byte frame.
+  source_->AllocateBandwidth(
+      QuicBandwidth::FromBytesAndTimeDelta(201, config.frame_interval));
+  source_->SetEnabled(true);
+
+  QuicTime start_time = simulator_.GetClock()->Now();
+  simulator_.RunFor(config.frame_interval);
+
+  ASSERT_EQ(delegate_.frames().size(), 2);
+  EXPECT_EQ(delegate_.frames()[0].payload.size(), 200 - kDataFrameHeaderSize);
+  EXPECT_EQ(delegate_.frames()[0].size, 200);
+
+  // The second frame, using the 1 leftover byte from the first, rounds up to
+  // the minimum frame size (just the header and no payload).
+  EXPECT_EQ(delegate_.frames()[1].payload.size(), 0);
+  EXPECT_EQ(delegate_.frames()[1].size, kDataFrameHeaderSize);
+
+  // Header fields are still present and parseable.
+  EXPECT_EQ(delegate_.frames()[1].source_id, 0);
+  EXPECT_EQ(delegate_.frames()[1].sequence_number, 1);
+  EXPECT_EQ(delegate_.frames()[1].send_time, start_time);
 }
 
 }  // namespace

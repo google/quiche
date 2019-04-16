@@ -31,6 +31,9 @@ struct ParsedQuartcDataFrame {
   int32_t source_id = -1;
   int64_t sequence_number = -1;
   QuicTime send_time = QuicTime::Zero();
+
+  // Total size, including header and payload.
+  QuicByteCount size = 0;
   std::string payload;
 };
 
@@ -52,9 +55,10 @@ class QuartcDataSource {
     QuicTime::Delta frame_interval = QuicTime::Delta::FromMilliseconds(10);
 
     // Maximum size of frames produced by this source.  If this value is greater
-    // than or equal to kDataFrameHeaderSize, the source may produce multiple
-    // frames with the same timestamp rather than a single frame that is larger
-    // than this size.  If less than kDataFrameHeaderSize, the value is ignored.
+    // than 0, the source may produce multiple frames with the same timestamp
+    // rather than a single frame that is larger than this size.
+    // If less than kDataFrameHeaderSize, the source produces frames of
+    // kDataFrameHeaderSize.
     QuicByteCount max_frame_size = 0;
   };
 

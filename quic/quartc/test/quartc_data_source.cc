@@ -48,6 +48,7 @@ bool ParsedQuartcDataFrame::Parse(QuicStringPiece data,
   out->sequence_number = sequence_number;
   out->send_time =
       QuicTime::Zero() + QuicTime::Delta::FromMicroseconds(time_bits);
+  out->size = data.size();
   out->payload = std::string(payload.data(), payload.size());
 
   return true;
@@ -81,10 +82,8 @@ void QuartcDataSource::OnSendAlarm() {
   }
 
   QuicByteCount bytes =
-      std::max(kDataFrameHeaderSize,
-               allocated_bandwidth_.ToBytesPerPeriod(time_since_last_send));
-  while (config_.max_frame_size >= kDataFrameHeaderSize &&
-         bytes > config_.max_frame_size) {
+      allocated_bandwidth_.ToBytesPerPeriod(time_since_last_send);
+  while (config_.max_frame_size > 0 && bytes > config_.max_frame_size) {
     GenerateFrame(config_.max_frame_size, now);
     bytes -= config_.max_frame_size;
   }
@@ -106,9 +105,11 @@ bool QuartcDataSource::Enabled() {
 }
 
 void QuartcDataSource::SetEnabled(bool value) {
-  if (value) {
-    send_alarm_->Set(clock_->Now());
-  } else {
+  if (Enabled() == value) {
+    return;
+  }
+
+  if (!value) {
     send_alarm_->Cancel();
 
     // Reset the last send time.  When re-enabled, the data source should
@@ -116,10 +117,14 @@ void QuartcDataSource::SetEnabled(bool value) {
     // bandwidth allocation and frame interval, not a huge frame accounting for
     // all the time since it was disabled.
     last_send_time_ = QuicTime::Zero();
+    return;
   }
+
+  send_alarm_->Set(clock_->Now());
 }
 
 void QuartcDataSource::GenerateFrame(QuicByteCount frame_size, QuicTime now) {
+  frame_size = std::max(frame_size, kDataFrameHeaderSize);
   if (buffer_.size() < frame_size) {
     buffer_.resize(frame_size);
   }
