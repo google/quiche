@@ -5,6 +5,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_tag.h"
 
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 
 namespace quic {
@@ -18,9 +19,12 @@ TEST_F(QuicTagTest, TagToString) {
   EXPECT_EQ("SNO ", QuicTagToString(kServerNonceTag));
   EXPECT_EQ("CRT ", QuicTagToString(kCertificateTag));
   EXPECT_EQ("CHLO", QuicTagToString(MakeQuicTag('C', 'H', 'L', 'O')));
-  // A tag that contains a non-printing character will be printed as a decimal
-  // number.
-  EXPECT_EQ("525092931", QuicTagToString(MakeQuicTag('C', 'H', 'L', '\x1f')));
+  if (!GetQuicReloadableFlag(quic_print_tag_hex)) {
+    EXPECT_EQ("525092931", QuicTagToString(MakeQuicTag('C', 'H', 'L', '\x1f')));
+    return;
+  }
+  // A tag that contains a non-printing character will be printed as hex.
+  EXPECT_EQ("43484c1f", QuicTagToString(MakeQuicTag('C', 'H', 'L', '\x1f')));
 }
 
 TEST_F(QuicTagTest, MakeQuicTag) {

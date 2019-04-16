@@ -8,6 +8,8 @@
 #include <string>
 
 #include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
 
 namespace quic {
@@ -34,6 +36,9 @@ bool FindMutualQuicTag(const QuicTagVector& our_tags,
 }
 
 std::string QuicTagToString(QuicTag tag) {
+  if (GetQuicReloadableFlag(quic_print_tag_hex) && tag == 0) {
+    return "0";
+  }
   char chars[sizeof tag];
   bool ascii = true;
   const QuicTag orig_tag = tag;
@@ -55,7 +60,14 @@ std::string QuicTagToString(QuicTag tag) {
     return std::string(chars, sizeof(chars));
   }
 
-  return QuicTextUtils::Uint64ToString(orig_tag);
+  if (!GetQuicReloadableFlag(quic_print_tag_hex)) {
+    return QuicTextUtils::Uint64ToString(orig_tag);
+  }
+
+  QUIC_RELOADABLE_FLAG_COUNT(quic_print_tag_hex);
+
+  return QuicTextUtils::HexEncode(reinterpret_cast<const char*>(&orig_tag),
+                                  sizeof(orig_tag));
 }
 
 uint32_t MakeQuicTag(char a, char b, char c, char d) {
