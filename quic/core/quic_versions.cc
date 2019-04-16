@@ -391,7 +391,7 @@ std::string AlpnForVersion(ParsedQuicVersion parsed_version) {
 
 void QuicVersionInitializeSupportForIetfDraft(int32_t draft_version) {
   if (draft_version < 0 || draft_version >= 256) {
-    LOG(FATAL) << "Invalid IETF draft version " << draft_version;
+    QUIC_LOG(FATAL) << "Invalid IETF draft version " << draft_version;
     return;
   }
 

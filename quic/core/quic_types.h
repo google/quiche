@@ -95,7 +95,7 @@ enum WriteStatus {
 
 std::string HistogramEnumString(WriteStatus enum_value);
 
-inline std::string HistogramEnumDescription(WriteStatus dummy) {
+inline std::string HistogramEnumDescription(WriteStatus /*dummy*/) {
   return "status";
 }
 
