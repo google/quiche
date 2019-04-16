@@ -271,9 +271,9 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // the timestamp field is set.  Otherwise, the timestamp is ignored.
   void OnAckTimestamp(QuicPacketNumber packet_number, QuicTime timestamp);
 
-  // Called when an ack frame is parsed completely. Returns true if a previously
-  // -unacked packet is acked.
-  bool OnAckFrameEnd(QuicTime ack_receive_time);
+  // Called when an ack frame is parsed completely.
+  AckResult OnAckFrameEnd(QuicTime ack_receive_time,
+                          EncryptionLevel ack_decrypted_level);
 
   // Called to enable/disable letting session decide what to write.
   void SetSessionDecideWhatToWrite(bool session_decides_what_to_write) {
@@ -491,11 +491,10 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
                             QuicTransmissionInfo* transmission_info);
 
   // Called after packets have been marked handled with last received ack frame.
-  void PostProcessAfterMarkingPacketHandled(
-      const QuicAckFrame& ack_frame,
-      QuicTime ack_receive_time,
-      bool rtt_updated,
-      QuicByteCount prior_bytes_in_flight);
+  void PostProcessNewlyAckedPackets(const QuicAckFrame& ack_frame,
+                                    QuicTime ack_receive_time,
+                                    bool rtt_updated,
+                                    QuicByteCount prior_bytes_in_flight);
 
   // Notify observers that packet with QuicTransmissionInfo |info| is a spurious
   // retransmission. It is caller's responsibility to guarantee the packet with

@@ -1122,8 +1122,17 @@ bool QuicConnection::OnAckFrameEnd(QuicPacketNumber start) {
     QUIC_DLOG(INFO) << ENDPOINT << "Received an old ack frame: ignoring";
     return true;
   }
-  bool acked_new_packet =
-      sent_packet_manager_.OnAckFrameEnd(time_of_last_received_packet_);
+  const AckResult ack_result = sent_packet_manager_.OnAckFrameEnd(
+      time_of_last_received_packet_, last_decrypted_packet_level_);
+  if (ack_result != PACKETS_NEWLY_ACKED &&
+      ack_result != NO_PACKETS_NEWLY_ACKED) {
+    // Error occurred (e.g., this ACK tries to ack packets in wrong packet
+    // number space), and this would cause the connection to be closed.
+    QUIC_DLOG(ERROR) << ENDPOINT
+                     << "Error occurred when processing an ACK frame: "
+                     << QuicUtils::AckResultToString(ack_result);
+    return false;
+  }
   // Cancel the send alarm because new packets likely have been acked, which
   // may change the congestion window and/or pacing rate.  Canceling the alarm
   // causes CanWrite to recalculate the next send time.
@@ -1141,7 +1150,8 @@ bool QuicConnection::OnAckFrameEnd(QuicPacketNumber start) {
   // If the incoming ack's packets set expresses received packets: peer is still
   // acking packets which we never care about.
   // Send an ack to raise the high water mark.
-  PostProcessAfterAckFrame(GetLeastUnacked() > start, acked_new_packet);
+  PostProcessAfterAckFrame(GetLeastUnacked() > start,
+                           ack_result == PACKETS_NEWLY_ACKED);
   processing_ack_frame_ = false;
 
   return connected_;

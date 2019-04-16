@@ -229,11 +229,9 @@ void QuicUnackedPacketMap::IncreaseLargestAcked(
 }
 
 void QuicUnackedPacketMap::MaybeUpdateLargestAckedOfPacketNumberSpace(
-    EncryptionLevel encryption_level,
+    PacketNumberSpace packet_number_space,
     QuicPacketNumber packet_number) {
   DCHECK(use_uber_loss_algorithm_);
-  const PacketNumberSpace packet_number_space =
-      GetPacketNumberSpace(encryption_level);
   largest_acked_packets_[packet_number_space].UpdateMax(packet_number);
 }
 

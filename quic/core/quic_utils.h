@@ -64,6 +64,9 @@ class QUIC_EXPORT_PRIVATE QuicUtils {
   // Returns QuicLongHeaderType as a char*.
   static const char* QuicLongHeaderTypetoString(QuicLongHeaderType type);
 
+  // Returns AckResult as a char*.
+  static const char* AckResultToString(AckResult result);
+
   // Determines and returns change type of address change from |old_address| to
   // |new_address|.
   static AddressChangeType DetermineAddressChangeType(

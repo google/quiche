@@ -587,6 +587,20 @@ enum PacketNumberSpace : uint8_t {
 
 enum AckMode { TCP_ACKING, ACK_DECIMATION, ACK_DECIMATION_WITH_REORDERING };
 
+// Used to return the result of processing a received ACK frame.
+enum AckResult {
+  PACKETS_NEWLY_ACKED,
+  NO_PACKETS_NEWLY_ACKED,
+  UNSENT_PACKETS_ACKED,     // Peer acks unsent packets.
+  UNACKABLE_PACKETS_ACKED,  // Peer acks packets that are not expected to be
+                            // acked. For example, encryption is reestablished,
+                            // and all sent encrypted packets cannot be
+                            // decrypted by the peer. Version gets negotiated,
+                            // and all sent packets in the different version
+                            // cannot be processed by the peer.
+  PACKETS_ACKED_IN_WRONG_PACKET_NUMBER_SPACE,
+};
+
 }  // namespace quic
 
 #endif  // QUICHE_QUIC_CORE_QUIC_TYPES_H_

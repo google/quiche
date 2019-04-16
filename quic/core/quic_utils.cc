@@ -209,6 +209,18 @@ const char* QuicUtils::QuicLongHeaderTypetoString(QuicLongHeaderType type) {
 }
 
 // static
+const char* QuicUtils::AckResultToString(AckResult result) {
+  switch (result) {
+    RETURN_STRING_LITERAL(PACKETS_NEWLY_ACKED);
+    RETURN_STRING_LITERAL(NO_PACKETS_NEWLY_ACKED);
+    RETURN_STRING_LITERAL(UNSENT_PACKETS_ACKED);
+    RETURN_STRING_LITERAL(UNACKABLE_PACKETS_ACKED);
+    RETURN_STRING_LITERAL(PACKETS_ACKED_IN_WRONG_PACKET_NUMBER_SPACE);
+  }
+  return "INVALID_ACK_RESULT";
+}
+
+// static
 AddressChangeType QuicUtils::DetermineAddressChangeType(
     const QuicSocketAddress& old_address,
     const QuicSocketAddress& new_address) {

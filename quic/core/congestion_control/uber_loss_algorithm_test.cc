@@ -90,7 +90,7 @@ TEST_F(UberLossAlgorithmTest, ScenarioA) {
 
   AckPackets({1, 4});
   unacked_packets_->MaybeUpdateLargestAckedOfPacketNumberSpace(
-      ENCRYPTION_INITIAL, QuicPacketNumber(4));
+      HANDSHAKE_DATA, QuicPacketNumber(4));
   // Verify no packet is detected lost.
   VerifyLosses(4, packets_acked_, std::vector<uint64_t>{});
   EXPECT_EQ(QuicTime::Zero(), loss_algorithm_.GetLossTimeout());
@@ -106,7 +106,7 @@ TEST_F(UberLossAlgorithmTest, ScenarioB) {
 
   AckPackets({4});
   unacked_packets_->MaybeUpdateLargestAckedOfPacketNumberSpace(
-      ENCRYPTION_ZERO_RTT, QuicPacketNumber(4));
+      APPLICATION_DATA, QuicPacketNumber(4));
   // No packet loss by acking 4.
   VerifyLosses(4, packets_acked_, std::vector<uint64_t>{});
   EXPECT_EQ(QuicTime::Zero(), loss_algorithm_.GetLossTimeout());
@@ -114,7 +114,7 @@ TEST_F(UberLossAlgorithmTest, ScenarioB) {
   // Acking 6 causes 3 to be detected loss.
   AckPackets({6});
   unacked_packets_->MaybeUpdateLargestAckedOfPacketNumberSpace(
-      ENCRYPTION_FORWARD_SECURE, QuicPacketNumber(6));
+      APPLICATION_DATA, QuicPacketNumber(6));
   VerifyLosses(6, packets_acked_, std::vector<uint64_t>{3});
   EXPECT_EQ(clock_.Now() + 1.25 * rtt_stats_.smoothed_rtt(),
             loss_algorithm_.GetLossTimeout());
@@ -140,9 +140,9 @@ TEST_F(UberLossAlgorithmTest, ScenarioC) {
 
   AckPackets({4, 5});
   unacked_packets_->MaybeUpdateLargestAckedOfPacketNumberSpace(
-      ENCRYPTION_FORWARD_SECURE, QuicPacketNumber(4));
+      APPLICATION_DATA, QuicPacketNumber(4));
   unacked_packets_->MaybeUpdateLargestAckedOfPacketNumberSpace(
-      ENCRYPTION_ZERO_RTT, QuicPacketNumber(5));
+      HANDSHAKE_DATA, QuicPacketNumber(5));
   // No packet loss by acking 5.
   VerifyLosses(5, packets_acked_, std::vector<uint64_t>{});
   EXPECT_EQ(clock_.Now() + 1.25 * rtt_stats_.smoothed_rtt(),

@@ -166,9 +166,9 @@ class QUIC_EXPORT_PRIVATE QuicUnackedPacketMap {
   void IncreaseLargestAcked(QuicPacketNumber largest_acked);
 
   // Called when |packet_number| gets acked. Maybe increase the largest acked of
-  // corresponding packet number space of |encryption_level|.
+  // |packet_number_space|.
   void MaybeUpdateLargestAckedOfPacketNumberSpace(
-      EncryptionLevel encryption_level,
+      PacketNumberSpace packet_number_space,
       QuicPacketNumber packet_number);
 
   // Remove any packets no longer needed for retransmission, congestion, or

@@ -273,7 +273,7 @@ void QuicSentPacketManager::SetHandshakeConfirmed() {
   }
 }
 
-void QuicSentPacketManager::PostProcessAfterMarkingPacketHandled(
+void QuicSentPacketManager::PostProcessNewlyAckedPackets(
     const QuicAckFrame& ack_frame,
     QuicTime ack_receive_time,
     bool rtt_updated,
@@ -1139,7 +1139,9 @@ void QuicSentPacketManager::OnAckTimestamp(QuicPacketNumber packet_number,
   }
 }
 
-bool QuicSentPacketManager::OnAckFrameEnd(QuicTime ack_receive_time) {
+AckResult QuicSentPacketManager::OnAckFrameEnd(
+    QuicTime ack_receive_time,
+    EncryptionLevel ack_decrypted_level) {
   QuicByteCount prior_bytes_in_flight = unacked_packets_.bytes_in_flight();
   // Reverse packets_acked_ so that it is in ascending order.
   reverse(packets_acked_.begin(), packets_acked_.end());
@@ -1154,20 +1156,37 @@ bool QuicSentPacketManager::OnAckFrameEnd(QuicTime ack_receive_time) {
                  << ", least_unacked: " << unacked_packets_.GetLeastUnacked()
                  << ", packets_acked_: " << packets_acked_;
       } else {
-        QUIC_PEER_BUG << "Received ack for unackable packet: "
+        QUIC_PEER_BUG << "Received "
+                      << QuicUtils::EncryptionLevelToString(ack_decrypted_level)
+                      << " ack for unackable packet: "
                       << acked_packet.packet_number << " with state: "
                       << QuicUtils::SentPacketStateToString(info->state);
+        if (supports_multiple_packet_number_spaces()) {
+          if (info->state == NEVER_SENT) {
+            return UNSENT_PACKETS_ACKED;
+          }
+          return UNACKABLE_PACKETS_ACKED;
+        }
       }
       continue;
     }
-    QUIC_DVLOG(1) << ENDPOINT << "Got an ack for packet "
-                  << acked_packet.packet_number;
+    QUIC_DVLOG(1) << ENDPOINT << "Got an "
+                  << QuicUtils::EncryptionLevelToString(ack_decrypted_level)
+                  << " ack for packet " << acked_packet.packet_number;
+    const PacketNumberSpace packet_number_space =
+        unacked_packets_.use_uber_loss_algorithm()
+            ? unacked_packets_.GetPacketNumberSpace(info->encryption_level)
+            : NUM_PACKET_NUMBER_SPACES;
+    if (supports_multiple_packet_number_spaces() &&
+        QuicUtils::GetPacketNumberSpace(ack_decrypted_level) !=
+            packet_number_space) {
+      return PACKETS_ACKED_IN_WRONG_PACKET_NUMBER_SPACE;
+    }
     last_ack_frame_.packets.Add(acked_packet.packet_number);
     largest_packet_peer_knows_is_acked_.UpdateMax(info->largest_acked);
     if (supports_multiple_packet_number_spaces()) {
-      largest_packets_peer_knows_is_acked_[QuicUtils::GetPacketNumberSpace(
-                                               info->encryption_level)]
-          .UpdateMax(info->largest_acked);
+      largest_packets_peer_knows_is_acked_[packet_number_space].UpdateMax(
+          info->largest_acked);
     }
     // If data is associated with the most recent transmission of this
     // packet, then inform the caller.
@@ -1179,16 +1198,16 @@ bool QuicSentPacketManager::OnAckFrameEnd(QuicTime ack_receive_time) {
     }
     if (unacked_packets_.use_uber_loss_algorithm()) {
       unacked_packets_.MaybeUpdateLargestAckedOfPacketNumberSpace(
-          info->encryption_level, acked_packet.packet_number);
+          packet_number_space, acked_packet.packet_number);
     }
     MarkPacketHandled(acked_packet.packet_number, info,
                       last_ack_frame_.ack_delay_time);
   }
   const bool acked_new_packet = !packets_acked_.empty();
-  PostProcessAfterMarkingPacketHandled(last_ack_frame_, ack_receive_time,
-                                       rtt_updated_, prior_bytes_in_flight);
+  PostProcessNewlyAckedPackets(last_ack_frame_, ack_receive_time, rtt_updated_,
+                               prior_bytes_in_flight);
 
-  return acked_new_packet;
+  return acked_new_packet ? PACKETS_NEWLY_ACKED : NO_PACKETS_NEWLY_ACKED;
 }
 
 void QuicSentPacketManager::SetDebugDelegate(DebugDelegate* debug_delegate) {
