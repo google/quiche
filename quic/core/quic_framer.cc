@@ -3940,6 +3940,14 @@ size_t QuicFramer::EncryptInPlace(EncryptionLevel level,
                                   size_t buffer_len,
                                   char* buffer) {
   DCHECK(packet_number.IsInitialized());
+  if (encrypter_[level] == nullptr) {
+    QUIC_BUG << ENDPOINT
+             << "Attempted to encrypt in place without encrypter at level "
+             << QuicUtils::EncryptionLevelToString(level);
+    RaiseError(QUIC_ENCRYPTION_FAILURE);
+    return 0;
+  }
+
   size_t output_length = 0;
   if (!encrypter_[level]->EncryptPacket(
           packet_number.ToUint64(),
@@ -3960,7 +3968,12 @@ size_t QuicFramer::EncryptPayload(EncryptionLevel level,
                                   char* buffer,
                                   size_t buffer_len) {
   DCHECK(packet_number.IsInitialized());
-  DCHECK(encrypter_[level] != nullptr);
+  if (encrypter_[level] == nullptr) {
+    QUIC_BUG << ENDPOINT << "Attempted to encrypt without encrypter at level "
+             << QuicUtils::EncryptionLevelToString(level);
+    RaiseError(QUIC_ENCRYPTION_FAILURE);
+    return 0;
+  }
 
   QuicStringPiece associated_data =
       packet.AssociatedData(version_.transport_version);
