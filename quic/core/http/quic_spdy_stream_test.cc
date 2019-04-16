@@ -618,8 +618,7 @@ TEST_P(QuicSpdyStreamTest, StreamFlowControlBlocked) {
             QuicFlowControllerPeer::SendWindowSize(stream_->flow_controller()));
 
   // And we should have queued the overflowed data.
-  EXPECT_EQ(kOverflow + kHeaderLength,
-            QuicStreamPeer::SizeOfQueuedData(stream_));
+  EXPECT_EQ(kOverflow + kHeaderLength, stream_->BufferedDataBytes());
 }
 
 TEST_P(QuicSpdyStreamTest, StreamFlowControlNoWindowUpdateIfNotConsumed) {

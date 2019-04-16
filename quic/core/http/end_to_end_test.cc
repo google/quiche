@@ -3780,8 +3780,7 @@ TEST_P(EndToEndTest, SimpleStopSendingRstStreamTest) {
   client_->SendMessage(headers, "", /*fin=*/false);
   // Stream should be open
   ASSERT_NE(nullptr, client_->latest_created_stream());
-  EXPECT_FALSE(
-      QuicStreamPeer::write_side_closed(client_->latest_created_stream()));
+  EXPECT_FALSE(client_->latest_created_stream()->write_side_closed());
   EXPECT_FALSE(
       QuicStreamPeer::read_side_closed(client_->latest_created_stream()));
 

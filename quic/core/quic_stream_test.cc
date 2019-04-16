@@ -100,8 +100,8 @@ class QuicStreamTestBase : public QuicTestWithParam<ParsedQuicVersion> {
         QuicSessionPeer::GetWriteBlockedStreams(session_.get());
   }
 
-  bool fin_sent() { return QuicStreamPeer::FinSent(stream_); }
-  bool rst_sent() { return QuicStreamPeer::RstSent(stream_); }
+  bool fin_sent() { return stream_->fin_sent(); }
+  bool rst_sent() { return stream_->rst_sent(); }
 
   void set_initial_flow_control_window_bytes(uint32_t val) {
     initial_flow_control_window_bytes_ = val;
@@ -1464,7 +1464,7 @@ TEST_P(QuicParameterizedStreamTest, CheckStopSending) {
   Initialize();
   const int kStopSendingCode = 123;
   // These must start as false.
-  EXPECT_FALSE(QuicStreamPeer::write_side_closed(stream_));
+  EXPECT_FALSE(stream_->write_side_closed());
   EXPECT_FALSE(QuicStreamPeer::read_side_closed(stream_));
   // Expect to actually see a stop sending if and only if we are in version 99.
   if (connection_->transport_version() == QUIC_VERSION_99) {
@@ -1477,7 +1477,7 @@ TEST_P(QuicParameterizedStreamTest, CheckStopSending) {
   // Sending a STOP_SENDING does not actually close the local stream.
   // Our implementation waits for the responding RESET_STREAM to effect the
   // closes. Therefore, read- and write-side closes should both be false.
-  EXPECT_FALSE(QuicStreamPeer::write_side_closed(stream_));
+  EXPECT_FALSE(stream_->write_side_closed());
   EXPECT_FALSE(QuicStreamPeer::read_side_closed(stream_));
 }
 
@@ -1485,7 +1485,7 @@ TEST_P(QuicParameterizedStreamTest, CheckStopSending) {
 // (read and write) if not version 99.
 TEST_P(QuicStreamTest, OnStreamResetReadOrReadWrite) {
   Initialize();
-  EXPECT_FALSE(QuicStreamPeer::write_side_closed(stream_));
+  EXPECT_FALSE(stream_->write_side_closed());
   EXPECT_FALSE(QuicStreamPeer::read_side_closed(stream_));
 
   QuicRstStreamFrame rst_frame(kInvalidControlFrameId, stream_->id(),
@@ -1494,10 +1494,10 @@ TEST_P(QuicStreamTest, OnStreamResetReadOrReadWrite) {
   if (connection_->transport_version() == QUIC_VERSION_99) {
     // Version 99/IETF QUIC should close just the read side.
     EXPECT_TRUE(QuicStreamPeer::read_side_closed(stream_));
-    EXPECT_FALSE(QuicStreamPeer::write_side_closed(stream_));
+    EXPECT_FALSE(stream_->write_side_closed());
   } else {
     // Google QUIC should close both sides of the stream.
-    EXPECT_TRUE(QuicStreamPeer::write_side_closed(stream_));
+    EXPECT_TRUE(stream_->write_side_closed());
     EXPECT_TRUE(QuicStreamPeer::read_side_closed(stream_));
   }
 }
@@ -1510,7 +1510,7 @@ TEST_P(QuicStreamTest, OnStopSendingReadOrReadWrite) {
     return;
   }
 
-  EXPECT_FALSE(QuicStreamPeer::write_side_closed(stream_));
+  EXPECT_FALSE(stream_->write_side_closed());
   EXPECT_FALSE(QuicStreamPeer::read_side_closed(stream_));
 
   // Simulate receipt of a STOP_SENDING.
@@ -1518,7 +1518,7 @@ TEST_P(QuicStreamTest, OnStopSendingReadOrReadWrite) {
 
   // Should close just the read side.
   EXPECT_FALSE(QuicStreamPeer::read_side_closed(stream_));
-  EXPECT_TRUE(QuicStreamPeer::write_side_closed(stream_));
+  EXPECT_TRUE(stream_->write_side_closed());
 }
 
 // SendOnlyRstStream must only send a RESET_STREAM (no bundled STOP_SENDING).
@@ -1541,7 +1541,7 @@ TEST_P(QuicStreamTest, SendOnlyRstStream) {
 
   // ResetStreamOnly should just close the write side.
   EXPECT_FALSE(QuicStreamPeer::read_side_closed(stream_));
-  EXPECT_TRUE(QuicStreamPeer::write_side_closed(stream_));
+  EXPECT_TRUE(stream_->write_side_closed());
 }
 
 }  // namespace

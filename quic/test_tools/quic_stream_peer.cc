@@ -33,43 +33,14 @@ bool QuicStreamPeer::read_side_closed(QuicStream* stream) {
 }
 
 // static
-bool QuicStreamPeer::write_side_closed(QuicStream* stream) {
-  return stream->write_side_closed();
-}
-
-// static
 void QuicStreamPeer::CloseReadSide(QuicStream* stream) {
   stream->CloseReadSide();
-}
-
-// static
-bool QuicStreamPeer::FinSent(QuicStream* stream) {
-  return stream->fin_sent_;
-}
-
-// static
-bool QuicStreamPeer::RstSent(QuicStream* stream) {
-  return stream->rst_sent_;
-}
-
-// static
-uint32_t QuicStreamPeer::SizeOfQueuedData(QuicStream* stream) {
-  return stream->BufferedDataBytes();
 }
 
 // static
 bool QuicStreamPeer::StreamContributesToConnectionFlowControl(
     QuicStream* stream) {
   return stream->stream_contributes_to_connection_flow_control_;
-}
-
-// static
-void QuicStreamPeer::WriteOrBufferData(
-    QuicStream* stream,
-    QuicStringPiece data,
-    bool fin,
-    QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener) {
-  stream->WriteOrBufferData(data, fin, std::move(ack_listener));
 }
 
 // static

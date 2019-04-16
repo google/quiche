@@ -26,22 +26,10 @@ class QuicStreamPeer {
   static void SetWriteSideClosed(bool value, QuicStream* stream);
   static void SetStreamBytesWritten(QuicStreamOffset stream_bytes_written,
                                     QuicStream* stream);
-  static bool write_side_closed(QuicStream* stream);
   static bool read_side_closed(QuicStream* stream);
   static void CloseReadSide(QuicStream* stream);
 
-  static bool FinSent(QuicStream* stream);
-  static bool RstSent(QuicStream* stream);
-
-  static uint32_t SizeOfQueuedData(QuicStream* stream);
-
   static bool StreamContributesToConnectionFlowControl(QuicStream* stream);
-
-  static void WriteOrBufferData(
-      QuicStream* stream,
-      QuicStringPiece data,
-      bool fin,
-      QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener);
 
   static QuicStreamSequencer* sequencer(QuicStream* stream);
   static QuicSession* session(QuicStream* stream);

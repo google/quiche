@@ -2329,7 +2329,7 @@ TEST_P(QuicSessionTestServer, OnStopSendingInputValidStream) {
   TestStream* stream = session_.CreateOutgoingBidirectionalStream();
 
   // Ensure that the stream starts out open in both directions.
-  EXPECT_FALSE(QuicStreamPeer::write_side_closed(stream));
+  EXPECT_FALSE(stream->write_side_closed());
   EXPECT_FALSE(QuicStreamPeer::read_side_closed(stream));
 
   QuicStreamId stream_id = stream->id();
@@ -2344,7 +2344,7 @@ TEST_P(QuicSessionTestServer, OnStopSendingInputValidStream) {
   // When the STOP_SENDING is received, the node generates a RST_STREAM,
   // which closes the stream in the write direction. Ensure this.
   EXPECT_FALSE(QuicStreamPeer::read_side_closed(stream));
-  EXPECT_TRUE(QuicStreamPeer::write_side_closed(stream));
+  EXPECT_TRUE(stream->write_side_closed());
 }
 
 }  // namespace
