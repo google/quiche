@@ -27,6 +27,7 @@
 #include "net/third_party/quiche/src/epoll_server/fake_simple_epoll_server.h"
 #include "net/third_party/quiche/src/epoll_server/platform/api/epoll_address_test_utils.h"
 #include "net/third_party/quiche/src/epoll_server/platform/api/epoll_expect_bug.h"
+#include "net/third_party/quiche/src/epoll_server/platform/api/epoll_ptr_util.h"
 #include "net/third_party/quiche/src/epoll_server/platform/api/epoll_test.h"
 #include "net/third_party/quiche/src/epoll_server/platform/api/epoll_thread.h"
 #include "net/third_party/quiche/src/epoll_server/platform/api/epoll_time.h"
@@ -178,7 +179,7 @@ class RecordingCB : public EpollCallbackInterface {
     recorder_->Record(this, SHUTDOWN, fd, 0);
   }
 
-  string Name() const override { return "RecordingCB"; }
+  std::string Name() const override { return "RecordingCB"; }
 
   const Recorder* recorder() const { return recorder_; }
 
@@ -467,17 +468,17 @@ TEST_F(EpollFunctionTest, TestHandleEvent) {
   ep()->CheckEventMask(fd(), 0);
 
   // At this point we should have creation and registration recorded.
-  EXPECT_EQ(2, records->size());
+  EXPECT_EQ(2u, records->size());
 
   // Call handle event and make sure something was recorded.
   ep()->HandleEvent(fd(), EPOLLOUT);
   ep()->CallReadyListCallbacks();
-  EXPECT_EQ(3, records->size());
+  EXPECT_EQ(3u, records->size());
 
   // Call handle event and make sure something was recorded.
   ep()->HandleEvent(fd(), EPOLLIN | O_NONBLOCK);
   ep()->CallReadyListCallbacks();
-  EXPECT_EQ(4, records->size());
+  EXPECT_EQ(4u, records->size());
 
   Recorder tmp;
   tmp.Record(cb(), CREATION, 0, 0);
@@ -510,7 +511,7 @@ TEST_F(EpollFunctionTest, TestNumFDsRegistered) {
 
 // Check all of the individual signals and 1-2 combinations.
 TEST_F(EpollFunctionTest, TestEventMaskToString) {
-  string test;
+  std::string test;
 
   test = SimpleEpollServer::EventMaskToString(EPOLLIN);
   EXPECT_EQ(test, "EPOLLIN ");
@@ -829,23 +830,23 @@ TEST(SimpleEpollServerTest, TestAlarms) {
   // Register an alarm and make sure we wait long enough to hit it.
   ep.set_timeout_in_us(alarm_time * 1000 * 2);
   ep.RegisterAlarm(WallTimeNowInUsec() + alarm_time, &alarm);
-  EXPECT_EQ(1, ep.GetNumPendingAlarmsForTest());
+  EXPECT_EQ(1u, ep.GetNumPendingAlarmsForTest());
   WaitForAlarm(&ep, alarm);
   EXPECT_TRUE(alarm.was_called());
-  EXPECT_EQ(0, ep.GetNumPendingAlarmsForTest());
+  EXPECT_EQ(0u, ep.GetNumPendingAlarmsForTest());
   alarm.Reset();
 
   // Test a different time just to be careful.
   alarm_time = 20;
   ep.set_timeout_in_us(alarm_time * 1000 * 2);
   ep.RegisterAlarm(WallTimeNowInUsec() + alarm_time, &alarm);
-  EXPECT_EQ(1, ep.GetNumPendingAlarmsForTest());
+  EXPECT_EQ(1u, ep.GetNumPendingAlarmsForTest());
   WaitForAlarm(&ep, alarm);
   EXPECT_TRUE(alarm.was_called());
   alarm.Reset();
 
   // The alarm was a one-time thing.  Make sure that we don't hit it again.
-  EXPECT_EQ(0, ep.GetNumPendingAlarmsForTest());
+  EXPECT_EQ(0u, ep.GetNumPendingAlarmsForTest());
   ep.WaitForEventsAndExecuteCallbacks();
   EXPECT_FALSE(alarm.was_called());
   alarm.Reset();
@@ -861,19 +862,19 @@ TEST(SimpleEpollServerTest, TestRegisterAlarmApproximateDelta) {
   // Register an alarm and make sure we wait long enough to hit it.
   ep.set_timeout_in_us(alarm_time * 1000 * 2);
   ep.RegisterAlarmApproximateDelta(alarm_time * 1000, &alarm);
-  EXPECT_EQ(1, ep.GetNumPendingAlarmsForTest());
+  EXPECT_EQ(1u, ep.GetNumPendingAlarmsForTest());
   WaitForAlarm(&ep, alarm);
   EXPECT_TRUE(alarm.was_called());
-  EXPECT_EQ(0, ep.GetNumPendingAlarmsForTest());
+  EXPECT_EQ(0u, ep.GetNumPendingAlarmsForTest());
   alarm.Reset();
   int64_t first_now = ep.ApproximateNowInUsec();
-  EXPECT_LT(0, first_now);
+  EXPECT_LT(0u, first_now);
 
   // Test a different time just to be careful.
   alarm_time = 20;
   ep.set_timeout_in_us(alarm_time * 1000 * 2);
   ep.RegisterAlarmApproximateDelta(alarm_time * 1000, &alarm);
-  EXPECT_EQ(1, ep.GetNumPendingAlarmsForTest());
+  EXPECT_EQ(1u, ep.GetNumPendingAlarmsForTest());
   WaitForAlarm(&ep, alarm);
   EXPECT_TRUE(alarm.was_called());
   alarm.Reset();
@@ -883,7 +884,7 @@ TEST(SimpleEpollServerTest, TestRegisterAlarmApproximateDelta) {
 
 
   // The alarm was a one-time thing.  Make sure that we don't hit it again.
-  EXPECT_EQ(0, ep.GetNumPendingAlarmsForTest());
+  EXPECT_EQ(0u, ep.GetNumPendingAlarmsForTest());
   ep.WaitForEventsAndExecuteCallbacks();
   EXPECT_FALSE(alarm.was_called());
   alarm.Reset();
@@ -898,10 +899,10 @@ TEST(SimpleEpollServerTest, TestAlarmsWithInfiniteWait) {
   // Register an alarm and make sure we wait long enough to hit it.
   ep.set_timeout_in_us(-1);
   ep.RegisterAlarm(WallTimeNowInUsec() + alarm_time, &alarm);
-  EXPECT_EQ(1, ep.GetNumPendingAlarmsForTest());
+  EXPECT_EQ(1u, ep.GetNumPendingAlarmsForTest());
   WaitForAlarm(&ep, alarm);
   EXPECT_TRUE(alarm.was_called());
-  EXPECT_EQ(0, ep.GetNumPendingAlarmsForTest());
+  EXPECT_EQ(0u, ep.GetNumPendingAlarmsForTest());
   alarm.Reset();
 }
 
@@ -931,14 +932,14 @@ TEST(SimpleEpollServerTest, TestAlarmsThatGetReRegisteredAreNotCalledTwice) {
   // Register two alarms and make sure we wait long enough to hit it.
   ep.RegisterAlarm(abs_time, &alarm);
   ep.RegisterAlarm(abs_time, &alarm2);
-  EXPECT_EQ(2, ep.GetNumPendingAlarmsForTest());
+  EXPECT_EQ(2u, ep.GetNumPendingAlarmsForTest());
 
   WaitForAlarm(&ep, alarm);
 
   EXPECT_TRUE(alarm.was_called());
   // Make sure that alarm is called only once.
   EXPECT_EQ(1, alarm.num_called());
-  EXPECT_EQ(1, ep.GetNumPendingAlarmsForTest());
+  EXPECT_EQ(1u, ep.GetNumPendingAlarmsForTest());
   alarm.Reset();
 }
 
@@ -966,14 +967,14 @@ TEST(SimpleEpollServerTest, TestAlarmsOneOnAlarmUnRegistersAnotherAlarm) {
   // on alarm2.
   alarm2.SetUnregisterAlarm(&alarm, &ep);
   ep.RegisterAlarm(abs_time + 1, &alarm2);
-  EXPECT_EQ(2, ep.GetNumPendingAlarmsForTest());
+  EXPECT_EQ(2u, ep.GetNumPendingAlarmsForTest());
 
   WaitForAlarm(&ep, alarm);
 
   EXPECT_TRUE(alarm.was_called());
   // Make sure that alarm is called only once.
   EXPECT_EQ(1, alarm.num_called());
-  EXPECT_EQ(0, ep.GetNumPendingAlarmsForTest());
+  EXPECT_EQ(0u, ep.GetNumPendingAlarmsForTest());
   alarm.Reset();
 }
 
@@ -989,7 +990,7 @@ TEST(SimpleEpollServerTest, TestRepeatAlarms) {
   ep.set_timeout_in_us(alarm_time * 1000 * 2);
   alarm.set_time_before_next_alarm(1000*alarm_time);
   ep.RegisterAlarm(WallTimeNowInUsec() + alarm_time, &alarm);
-  EXPECT_EQ(1, ep.GetNumPendingAlarmsForTest());
+  EXPECT_EQ(1u, ep.GetNumPendingAlarmsForTest());
 
   WaitForAlarm(&ep, alarm);
   // When we wake up it should be because the Alarm has been called, and has
@@ -1011,7 +1012,7 @@ TEST(SimpleEpollServerTest, TestRepeatAlarms) {
   alarm.Reset();
 
   // The alarm was a one-time thing.  Make sure that we don't hit it again.
-  EXPECT_EQ(0, ep.GetNumPendingAlarmsForTest());
+  EXPECT_EQ(0u, ep.GetNumPendingAlarmsForTest());
   ep.WaitForEventsAndExecuteCallbacks();
   EXPECT_FALSE(alarm.was_called());
 }
@@ -1031,7 +1032,7 @@ TEST(SimpleEpollServerTest, TestRepeatAlarmInPast) {
   // Register the alarm and make sure we wait long enough to hit it.
   ep.set_timeout_in_us(alarm_time * 1000 * 2);
   ep.RegisterAlarm(abs_time, &alarm);
-  EXPECT_EQ(1, ep.GetNumPendingAlarmsForTest());
+  EXPECT_EQ(1u, ep.GetNumPendingAlarmsForTest());
 
   WaitForAlarm(&ep, alarm);
   // When we wake up it should be because the Alarm has been called, and has
@@ -1045,7 +1046,7 @@ TEST(SimpleEpollServerTest, TestRepeatAlarmInPast) {
   alarm.Reset();
 
   // Make sure the alarm is called one final time.
-  EXPECT_EQ(1, ep.GetNumPendingAlarmsForTest());
+  EXPECT_EQ(1u, ep.GetNumPendingAlarmsForTest());
   ep.set_timeout_in_us(alarm_time * 1000 * 2);
   WaitForAlarm(&ep, alarm);
 
@@ -1053,7 +1054,7 @@ TEST(SimpleEpollServerTest, TestRepeatAlarmInPast) {
   alarm.Reset();
 
   // The alarm was a one-time thing.  Make sure that we don't hit it again.
-  EXPECT_EQ(0, ep.GetNumPendingAlarmsForTest());
+  EXPECT_EQ(0u, ep.GetNumPendingAlarmsForTest());
   ep.WaitForEventsAndExecuteCallbacks();
   EXPECT_FALSE(alarm.was_called());
 }
@@ -1182,10 +1183,10 @@ TEST(SimpleEpollServerTest, TestPastAlarm) {
   // Register the alarm and make sure we wait long enough to hit it.
   ep.set_timeout_in_us(1000 * 2);
   ep.RegisterAlarm(WallTimeNowInUsec() - 1000, &alarm);
-  EXPECT_EQ(1, ep.GetNumPendingAlarmsForTest());
+  EXPECT_EQ(1u, ep.GetNumPendingAlarmsForTest());
   ep.WaitForEventsAndExecuteCallbacks();
   EXPECT_TRUE(alarm.was_called());
-  EXPECT_EQ(0, ep.GetNumPendingAlarmsForTest());
+  EXPECT_EQ(0u, ep.GetNumPendingAlarmsForTest());
   alarm.Reset();
 }
 
@@ -1204,13 +1205,13 @@ TEST(SimpleEpollServerTest, TestUnregisterAlarm) {
   if (alarm2.get_token(&temptok)) {
     ep.UnregisterAlarm(temptok);
   }
-  EXPECT_EQ(1, ep.GetNumPendingAlarmsForTest());
+  EXPECT_EQ(1u, ep.GetNumPendingAlarmsForTest());
   EXPECT_TRUE(alarm2.onunregistration_called());
 
   if (alarm1.get_token(&temptok)) {
     ep.UnregisterAlarm(temptok);
   }
-  EXPECT_EQ(0, ep.GetNumPendingAlarmsForTest());
+  EXPECT_EQ(0u, ep.GetNumPendingAlarmsForTest());
   EXPECT_TRUE(alarm1.onunregistration_called());
 }
 
@@ -1223,10 +1224,10 @@ TEST(SimpleEpollServerTest, TestReregisterAlarm) {
   ep.set_time(1000);
   ep.RegisterAlarm(5000, &alarm);
 
-  EXPECT_EQ(1, ep.GetNumPendingAlarmsForTest());
+  EXPECT_EQ(1u, ep.GetNumPendingAlarmsForTest());
   ASSERT_TRUE(alarm.get_token(&token));
   ep.ReregisterAlarm(token, 6000);
-  EXPECT_EQ(1, ep.GetNumPendingAlarmsForTest());
+  EXPECT_EQ(1u, ep.GetNumPendingAlarmsForTest());
 
   ep.set_time(5000);
   ep.set_timeout_in_us(0);
@@ -1253,7 +1254,7 @@ TEST(SimpleEpollServerTest, TestReregisterDeferredAlarm) {
   ep.CallAndReregisterAlarmEvents();
   ep.CallAndReregisterAlarmEvents();
 
-  EXPECT_EQ(1, ep.GetNumPendingAlarmsForTest());
+  EXPECT_EQ(1u, ep.GetNumPendingAlarmsForTest());
   EXPECT_FALSE(alarm.was_called());
 
   ep.set_time(1500);
@@ -1312,7 +1313,7 @@ TEST(SimpleEpollServerTest, TestAlarmCanUnregistersAnotherAlarmOnShutdown) {
     ep.RegisterAlarm(now + 5000, &alarm1);
     ep.RegisterAlarm(now + 9000, &alarm2);
     alarm1.SetUnregisterAlarm(&alarm2, &ep);
-    EXPECT_EQ(2, ep.GetNumPendingAlarmsForTest());
+    EXPECT_EQ(2u, ep.GetNumPendingAlarmsForTest());
   }
 }
 
@@ -1378,7 +1379,7 @@ TEST(SimpleEpollServerTest, TestWrite) {
   ep.RegisterFD(write_fd, &recording_cb, EPOLLOUT | O_NONBLOCK);
   // At this point the recorder should have the creation and registration
   // events.
-  EXPECT_EQ(2, records->size());
+  EXPECT_EQ(2u, records->size());
 
   // Fill up the pipe.
   int written = 1;
@@ -1389,20 +1390,20 @@ TEST(SimpleEpollServerTest, TestWrite) {
 
   // There should be no new events as the pipe is not available for writing.
   ep.WaitForEventsAndExecuteCallbacks();
-  EXPECT_EQ(2, records->size());
+  EXPECT_EQ(2u, records->size());
 
   // Now read data from the pipe to make it writable again.  This time the
   // we should get an EPOLLOUT event.
   int size = read(read_fd, &data, kPageSize);
   EXPECT_EQ(kPageSize, size);
   ep.WaitForEventsAndExecuteCallbacks();
-  EXPECT_EQ(3, records->size());
+  EXPECT_EQ(3u, records->size());
 
   // Now unsubscribe from writable events (which adds a modification record)
   // and wait to verify that no event records are added.
   ep.StopWrite(write_fd);
   ep.WaitForEventsAndExecuteCallbacks();
-  EXPECT_EQ(4, records->size());
+  EXPECT_EQ(4u, records->size());
 
   // We had the right number of events all along. Make sure they were actually
   // the right events.
@@ -1439,7 +1440,7 @@ TEST(SimpleEpollServerTest, TestReadWrite) {
   ep.RegisterFDForReadWrite(read_fd, &recording_cb);
   // At this point the recorder should have the creation and registration
   // events.
-  EXPECT_EQ(2, records->size());
+  EXPECT_EQ(2u, records->size());
 
   int written = write(write_fd, &data, kPageSize);
   EXPECT_EQ(kPageSize, written);
@@ -1477,26 +1478,24 @@ TEST(SimpleEpollServerTest, TestMultipleFDs) {
   ep.RegisterFDForRead(pipe_one[0], &recording_cb_one);
   ep.RegisterFDForRead(pipe_two[0], &recording_cb_two);
 
-
-  EXPECT_EQ(2, records_one->size());
-  EXPECT_EQ(2, records_two->size());
+  EXPECT_EQ(2u, records_one->size());
+  EXPECT_EQ(2u, records_two->size());
 
   write(pipe_one[1], &data, 1);
   ep.WaitForEventsAndExecuteCallbacks();
-  EXPECT_EQ(3, records_one->size());
-  EXPECT_EQ(2, records_two->size());
-
+  EXPECT_EQ(3u, records_one->size());
+  EXPECT_EQ(2u, records_two->size());
 
   write(pipe_two[1], &data, 1);
   ep.WaitForEventsAndExecuteCallbacks();
-  EXPECT_EQ(3, records_one->size());
-  EXPECT_EQ(3, records_two->size());
+  EXPECT_EQ(3u, records_one->size());
+  EXPECT_EQ(3u, records_two->size());
 
   write(pipe_one[1], &data, 1);
   write(pipe_two[1], &data, 1);
   ep.WaitForEventsAndExecuteCallbacks();
-  EXPECT_EQ(4, records_one->size());
-  EXPECT_EQ(4, records_two->size());
+  EXPECT_EQ(4u, records_one->size());
+  EXPECT_EQ(4u, records_two->size());
 
   ep.WaitForEventsAndExecuteCallbacks();
   ep.UnregisterFD(pipe_one[0]);
@@ -1576,7 +1575,7 @@ class UnregisterCB : public EpollCallbackInterface {
   void OnEvent(int fd, EpollEvent* event) override {}
   void OnUnregistration(int fd, bool replaced) override {}
 
-  string Name() const override { return "UnregisterCB"; }
+  std::string Name() const override { return "UnregisterCB"; }
 
  protected:
   SimpleEpollServer* eps_;
@@ -1637,7 +1636,7 @@ TEST(SimpleEpollServerTest, TestFDsAndAlarms) {
 
   ep.RegisterFDForRead(pipe_fds[0], &recording_cb);
 
-  EXPECT_EQ(2, records->size());
+  EXPECT_EQ(2u, records->size());
   EXPECT_FALSE(alarm.was_called());
 
   // Write to the pipe and set a longish alarm so we get a read event followed
@@ -1645,11 +1644,11 @@ TEST(SimpleEpollServerTest, TestFDsAndAlarms) {
   int written = write(pipe_fds[1], &data, 1);
   EXPECT_EQ(1, written);
   ep.WaitForEventsAndExecuteCallbacks();
-  EXPECT_EQ(3, records->size());
+  EXPECT_EQ(3u, records->size());
   EXPECT_FALSE(alarm.was_called());
   ep.RegisterAlarm(WallTimeNowInUsec() + 1000, &alarm);
   WaitForAlarm(&ep, alarm);
-  EXPECT_EQ(3, records->size());
+  EXPECT_EQ(3u, records->size());
   EXPECT_TRUE(alarm.was_called());
   alarm.Reset();
 
@@ -1659,7 +1658,7 @@ TEST(SimpleEpollServerTest, TestFDsAndAlarms) {
   EXPECT_EQ(1, written);
   ep.WaitForEventsAndExecuteCallbacks();
   EXPECT_TRUE(alarm.was_called());
-  EXPECT_EQ(4, records->size());
+  EXPECT_EQ(4u, records->size());
 
   ep.UnregisterFD(pipe_fds[0]);
 
@@ -1703,7 +1702,7 @@ class EpollReader: public EpollCallbackInterface {
     EPOLL_LOG(FATAL);
   }
 
-  string Name() const override { return "EpollReader"; }
+  std::string Name() const override { return "EpollReader"; }
 
   // Returns true if the data in buf is the same as buf_, false otherwise.
   bool CheckOutput(char* buf, int len) {
@@ -1756,7 +1755,7 @@ void TestPipe(char *test_message, int len) {
       break;
     default: {  // Parent will receive message.
       close(writer_pipe);
-      auto ep = absl::make_unique<SimpleEpollServer>();
+      auto ep = EpollMakeUnique<SimpleEpollServer>();
       ep->set_timeout_in_us(1);
       EpollReader reader(len);
       ep->RegisterFD(reader_pipe, &reader, EPOLLIN);
@@ -1800,7 +1799,7 @@ TEST(SimpleEpollServerTest, TestRead) {
   int read_fd = pipe_fds[0];
   int write_fd = pipe_fds[1];
 
-  auto reader = absl::make_unique<EpollReader>(len);
+  auto reader = EpollMakeUnique<EpollReader>(len);
 
   // Check that registering a FD for read alerts us when there is data to be
   // read.
@@ -1943,7 +1942,7 @@ class EdgeTriggerCB : public EpollCallbackInterface {
     EPOLL_LOG(FATAL);
   }
 
-  string Name() const override { return "EdgeTriggerCB"; }
+  std::string Name() const override { return "EdgeTriggerCB"; }
 
  private:
   SimpleEpollServer* eps_;
@@ -2008,26 +2007,26 @@ TEST(SimpleEpollServerTest, TestReadyList) {
   ep.SetFDReady(pipe_fds[0], EPOLLIN);
   EXPECT_TRUE(ep.IsFDReady(pipe_fds[0]));
   EXPECT_FALSE(ep.IsFDReady(pipe_fds[1]));
-  EXPECT_EQ(1, ep.ReadyListSize());
+  EXPECT_EQ(1u, ep.ReadyListSize());
   ep.SetFDReady(pipe_fds[1], EPOLLOUT);
   EXPECT_TRUE(ep.IsFDReady(pipe_fds[0]));
   EXPECT_TRUE(ep.IsFDReady(pipe_fds[1]));
-  EXPECT_EQ(2, ep.ReadyListSize());
+  EXPECT_EQ(2u, ep.ReadyListSize());
 
   // Now check that SetFDNotReady doesn't affect other fds
   ep.SetFDNotReady(pipe_fds[0]);
   EXPECT_FALSE(ep.IsFDReady(pipe_fds[0]));
   EXPECT_TRUE(ep.IsFDReady(pipe_fds[1]));
-  EXPECT_EQ(1, ep.ReadyListSize());
+  EXPECT_EQ(1u, ep.ReadyListSize());
 
   ep.UnregisterFD(pipe_fds[0]);
   ep.UnregisterFD(pipe_fds[1]);
-  EXPECT_EQ(0, ep.ReadyListSize());
+  EXPECT_EQ(0u, ep.ReadyListSize());
 
   // Now try adding them when they are not registered, and it shouldn't work.
   ep.SetFDReady(pipe_fds[0], EPOLLIN);
   EXPECT_FALSE(ep.IsFDReady(pipe_fds[0]));
-  EXPECT_EQ(0, ep.ReadyListSize());
+  EXPECT_EQ(0u, ep.ReadyListSize());
 
   close(pipe_fds[0]);
   close(pipe_fds[1]);
@@ -2077,7 +2076,7 @@ class UnRegisterWhileProcessingCB: public EpollCallbackInterface {
     eps_->UnregisterFD(fd_);
   }
   void OnUnregistration(int fd, bool replaced) override {}
-  string Name() const override { return "UnRegisterWhileProcessingCB"; }
+  std::string Name() const override { return "UnRegisterWhileProcessingCB"; }
 
  protected:
   SimpleEpollServer* eps_;
@@ -2103,7 +2102,7 @@ class RegisterWhileProcessingCB: public EpollCallbackInterface {
     eps_->RegisterFDForReadWrite(fd_, cb_);
   }
   void OnUnregistration(int fd, bool replaced) override {}
-  string Name() const override { return "RegisterWhileProcessingCB"; }
+  std::string Name() const override { return "RegisterWhileProcessingCB"; }
 
  protected:
   SimpleEpollServer* eps_;
@@ -2193,7 +2192,7 @@ class ReRegWhileReadyListOnEvent: public EpollCallbackInterface {
     eps_->UnregisterFD(fd);
   }
   void OnUnregistration(int fd, bool replaced) override {}
-  string Name() const override { return "ReRegWhileReadyListOnEvent"; }
+  std::string Name() const override { return "ReRegWhileReadyListOnEvent"; }
 
  protected:
   SimpleEpollServer* eps_;
@@ -2246,7 +2245,9 @@ class UnRegEverythingReadyListOnEvent: public EpollCallbackInterface {
     }
   }
   void OnUnregistration(int fd, bool replaced) override {}
-  string Name() const override { return "UnRegEverythingReadyListOnEvent"; }
+  std::string Name() const override {
+    return "UnRegEverythingReadyListOnEvent";
+  }
 
  protected:
   SimpleEpollServer* eps_;
@@ -2257,13 +2258,14 @@ class UnRegEverythingReadyListOnEvent: public EpollCallbackInterface {
 
 TEST(SimpleEpollServerTest,
      NothingBadWhenUnRegisteredWhileProcessingFromReadyList) {
-  UnRegEverythingReadyListOnEvent callbacks[32];
+  const size_t kNumCallbacks = 32u;
+  UnRegEverythingReadyListOnEvent callbacks[kNumCallbacks];
   int num_called = 0;
   {
     FakeSimpleEpollServer epoll_server;
-    for (size_t i = 0; i < ABSL_ARRAYSIZE(callbacks); ++i) {
+    for (size_t i = 0; i < kNumCallbacks; ++i) {
       callbacks[i].set_fd(-i);
-      callbacks[i].set_fd_range(ABSL_ARRAYSIZE(callbacks));
+      callbacks[i].set_fd_range(kNumCallbacks);
       callbacks[i].set_num_called(&num_called);
       callbacks[i].set_epoll_server(&epoll_server);
       epoll_server.RegisterFDForReadWrite(0, &callbacks[i]);
@@ -2314,7 +2316,7 @@ class ApproximateNowInUsecTestCB: public EpollCallbackInterface {
   }
   void OnUnregistration(int fd, bool replaced) override {}
   void OnShutdown(SimpleEpollServer* eps, int fd) override {}
-  string Name() const override { return "ApproximateNowInUsecTestCB"; }
+  std::string Name() const override { return "ApproximateNowInUsecTestCB"; }
 
   void set_fakeepollserver(FakeSimpleEpollServer* feps) { feps_ = feps; }
   bool called() const { return called_; }
@@ -2371,9 +2373,7 @@ class RecordDelayOnEvent: public EpollCallbackInterface {
 
   void OnShutdown(SimpleEpollServer* eps, int fd) override {}
 
-  string Name() const override {
-    return "RecordDelayOnEvent";
-  }
+  std::string Name() const override { return "RecordDelayOnEvent"; }
 
   void set_epoll_server(SimpleEpollServer* eps) { eps_ = eps; }
   void OnRegistration(SimpleEpollServer* eps, int fd, int event_mask) override {
@@ -2465,7 +2465,7 @@ TEST(SimpleEpollServerAlarmTest, TestUnregisterOnDestruction) {
   eps.RegisterAlarmApproximateDelta(10000000, alarm.get());
   EXPECT_TRUE(eps.ContainsAlarm(alarm_ptr));
   alarm = nullptr;
-  EXPECT_EQ(0, eps.GetNumPendingAlarmsForTest());
+  EXPECT_EQ(0u, eps.GetNumPendingAlarmsForTest());
 }
 
 TEST(SimpleEpollServerAlarmTest, TestUnregisterOnAlarm) {
@@ -2488,18 +2488,18 @@ TEST(SimpleEpollServerAlarmTest, TestReregisterAlarm) {
   ep.set_time(1000);
   ep.RegisterAlarm(5000, &alarm);
 
-  EXPECT_EQ(1, ep.GetNumPendingAlarmsForTest());
+  EXPECT_EQ(1u, ep.GetNumPendingAlarmsForTest());
   alarm.ReregisterAlarm(6000);
-  EXPECT_EQ(1, ep.GetNumPendingAlarmsForTest());
+  EXPECT_EQ(1u, ep.GetNumPendingAlarmsForTest());
 
   ep.set_time(5000);
   ep.set_timeout_in_us(0);
   ep.CallAndReregisterAlarmEvents();
-  EXPECT_EQ(1, ep.GetNumPendingAlarmsForTest());
+  EXPECT_EQ(1u, ep.GetNumPendingAlarmsForTest());
 
   ep.set_time(6000);
   ep.CallAndReregisterAlarmEvents();
-  EXPECT_EQ(0, ep.GetNumPendingAlarmsForTest());
+  EXPECT_EQ(0u, ep.GetNumPendingAlarmsForTest());
 }
 
 TEST(SimpleEpollServerAlarmTest, TestThatSameAlarmCanNotBeRegisteredTwice) {

@@ -37,6 +37,7 @@
 
 #include <sys/epoll.h>
 
+#include "net/third_party/quiche/src/epoll_server/platform/api/epoll_export.h"
 #include "net/third_party/quiche/src/epoll_server/platform/api/epoll_logging.h"
 
 namespace epoll_server {
@@ -121,7 +122,7 @@ class EpollCallbackInterface {
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-class SimpleEpollServer {
+class EPOLL_EXPORT_PRIVATE SimpleEpollServer {
  public:
   typedef EpollAlarmCallbackInterface AlarmCB;
   typedef EpollCallbackInterface CB;
@@ -1009,7 +1010,7 @@ class EpollAlarmCallbackInterface {
 // Any classes overriding these functions must either call the implementation
 // of the parent class, or is must otherwise make sure that the 'registered_'
 // boolean and the token, 'token_', are updated appropriately.
-class EpollAlarm : public EpollAlarmCallbackInterface {
+class EPOLL_EXPORT_PRIVATE EpollAlarm : public EpollAlarmCallbackInterface {
  public:
   EpollAlarm();
 
