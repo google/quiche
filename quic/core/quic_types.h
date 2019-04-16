@@ -254,8 +254,7 @@ enum QuicIetfFrameType : uint8_t {
   IETF_PATH_RESPONSE = 0x1b,
   // Both of the following are "Connection Close" frames,
   // the first signals transport-layer errors, the second application-layer
-  // errors.The frame formats and protocol procedures are the same, the only
-  // difference is the number space in the frame's error code field.
+  // errors.
   IETF_CONNECTION_CLOSE = 0x1c,
   IETF_APPLICATION_CLOSE = 0x1d,
 

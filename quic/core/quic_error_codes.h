@@ -286,8 +286,6 @@ enum QuicErrorCode {
 
   // Receive a RST_STREAM with offset larger than kMaxStreamLength.
   QUIC_STREAM_LENGTH_OVERFLOW = 98,
-  // APPLICATION_CLOSE frame data is malformed.
-  QUIC_INVALID_APPLICATION_CLOSE_DATA = 101,
   // Received a MAX DATA frame with errors.
   QUIC_INVALID_MAX_DATA_FRAME_DATA = 102,
   // Received a MAX STREAM DATA frame with errors.

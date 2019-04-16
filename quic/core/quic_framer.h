@@ -154,15 +154,8 @@ class QUIC_EXPORT_PRIVATE QuicFramerVisitorInterface {
   // Called when a RstStreamFrame has been parsed.
   virtual bool OnRstStreamFrame(const QuicRstStreamFrame& frame) = 0;
 
-  // Called when a ConnectionCloseFrame has been parsed.
+  // Called when a ConnectionCloseFrame, of any type, has been parsed.
   virtual bool OnConnectionCloseFrame(
-      const QuicConnectionCloseFrame& frame) = 0;
-
-  // Called when an IETF QUIC CONNECTION_CLOSE/Application Frame has been
-  // parsed. TEMPORARILY pass the frame as a QuicConnectionCloseFrame.
-  // TODO(fkastenholz): remove when V99 fully utilizes the IETF
-  // CONNECTION_CLOSE close frame.
-  virtual bool OnApplicationCloseFrame(
       const QuicConnectionCloseFrame& frame) = 0;
 
   // Called when a StopSendingFrame has been parsed.

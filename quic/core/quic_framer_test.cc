@@ -315,15 +315,6 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
     return true;
   }
 
-  // TODO(fkastenholz): Remove when IETF QUIC is completely converted to
-  // doing Connection Close.
-  bool OnApplicationCloseFrame(const QuicConnectionCloseFrame& frame) override {
-    // OnApplicationCloseFrame receives a QuicConnectionCloseFrame as part of
-    // migration to IETF QUIC's new model.
-    connection_close_frame_ = frame;
-    return true;
-  }
-
   bool OnStopSendingFrame(const QuicStopSendingFrame& frame) override {
     stop_sending_frame_ = frame;
     return true;
@@ -4452,6 +4443,7 @@ TEST_P(QuicFramerTest, ConnectionCloseFrame) {
   CheckFramingBoundaries(fragments, QUIC_INVALID_CONNECTION_CLOSE_DATA);
 }
 
+// Test the CONNECTION_CLOSE/Application variant.
 TEST_P(QuicFramerTest, ApplicationCloseFrame) {
   if (framer_.transport_version() != QUIC_VERSION_99) {
     // This frame does not exist in versions other than 99.
@@ -4509,7 +4501,7 @@ TEST_P(QuicFramerTest, ApplicationCloseFrame) {
 
   ASSERT_EQ(0u, visitor_.ack_frames_.size());
 
-  CheckFramingBoundaries(packet99, QUIC_INVALID_APPLICATION_CLOSE_DATA);
+  CheckFramingBoundaries(packet99, QUIC_INVALID_CONNECTION_CLOSE_DATA);
 }
 
 TEST_P(QuicFramerTest, GoAwayFrame) {

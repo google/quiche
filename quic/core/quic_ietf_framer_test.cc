@@ -155,12 +155,6 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
     return true;
   }
 
-  // TODO(fkastenholz): remove when finishing conversion to new IETF QUIC
-  // model.
-  bool OnApplicationCloseFrame(const QuicConnectionCloseFrame& frame) override {
-    return true;
-  }
-
   bool OnStopSendingFrame(const QuicStopSendingFrame& frame) override {
     return true;
   }

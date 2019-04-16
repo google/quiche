@@ -195,9 +195,6 @@ MockFramerVisitor::MockFramerVisitor() {
   ON_CALL(*this, OnConnectionCloseFrame(_))
       .WillByDefault(testing::Return(true));
 
-  ON_CALL(*this, OnApplicationCloseFrame(_))
-      .WillByDefault(testing::Return(true));
-
   ON_CALL(*this, OnStopSendingFrame(_)).WillByDefault(testing::Return(true));
 
   ON_CALL(*this, OnPathChallengeFrame(_)).WillByDefault(testing::Return(true));
@@ -277,11 +274,6 @@ bool NoOpFramerVisitor::OnRstStreamFrame(const QuicRstStreamFrame& frame) {
 }
 
 bool NoOpFramerVisitor::OnConnectionCloseFrame(
-    const QuicConnectionCloseFrame& frame) {
-  return true;
-}
-
-bool NoOpFramerVisitor::OnApplicationCloseFrame(
     const QuicConnectionCloseFrame& frame) {
   return true;
 }

@@ -269,8 +269,6 @@ class MockFramerVisitor : public QuicFramerVisitorInterface {
   MOCK_METHOD1(OnRstStreamFrame, bool(const QuicRstStreamFrame& frame));
   MOCK_METHOD1(OnConnectionCloseFrame,
                bool(const QuicConnectionCloseFrame& frame));
-  MOCK_METHOD1(OnApplicationCloseFrame,
-               bool(const QuicConnectionCloseFrame& frame));
   MOCK_METHOD1(OnNewConnectionIdFrame,
                bool(const QuicNewConnectionIdFrame& frame));
   MOCK_METHOD1(OnRetireConnectionIdFrame,
@@ -323,7 +321,6 @@ class NoOpFramerVisitor : public QuicFramerVisitorInterface {
   bool OnPingFrame(const QuicPingFrame& frame) override;
   bool OnRstStreamFrame(const QuicRstStreamFrame& frame) override;
   bool OnConnectionCloseFrame(const QuicConnectionCloseFrame& frame) override;
-  bool OnApplicationCloseFrame(const QuicConnectionCloseFrame& frame) override;
   bool OnNewConnectionIdFrame(const QuicNewConnectionIdFrame& frame) override;
   bool OnRetireConnectionIdFrame(
       const QuicRetireConnectionIdFrame& frame) override;
@@ -1003,8 +1000,6 @@ class MockQuicConnectionDebugVisitor : public QuicConnectionDebugVisitor {
   MOCK_METHOD1(OnRstStreamFrame, void(const QuicRstStreamFrame&));
 
   MOCK_METHOD1(OnConnectionCloseFrame, void(const QuicConnectionCloseFrame&));
-
-  MOCK_METHOD1(OnApplicationCloseFrame, void(const QuicConnectionCloseFrame&));
 
   MOCK_METHOD1(OnStopSendingFrame, void(const QuicStopSendingFrame&));
 

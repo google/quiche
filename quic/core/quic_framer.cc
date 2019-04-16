@@ -2915,26 +2915,18 @@ bool QuicFramer::ProcessIetfFrameData(QuicDataReader* reader,
           }
           break;
         }
+        case IETF_APPLICATION_CLOSE:
         case IETF_CONNECTION_CLOSE: {
           QuicConnectionCloseFrame frame;
           if (!ProcessIetfConnectionCloseFrame(
-                  reader, IETF_QUIC_TRANSPORT_CONNECTION_CLOSE, &frame)) {
+                  reader,
+                  (frame_type == IETF_CONNECTION_CLOSE)
+                      ? IETF_QUIC_TRANSPORT_CONNECTION_CLOSE
+                      : IETF_QUIC_APPLICATION_CONNECTION_CLOSE,
+                  &frame)) {
             return RaiseError(QUIC_INVALID_CONNECTION_CLOSE_DATA);
           }
           if (!visitor_->OnConnectionCloseFrame(frame)) {
-            QUIC_DVLOG(1) << "Visitor asked to stop further processing.";
-            // Returning true since there was no parsing error.
-            return true;
-          }
-          break;
-        }
-        case IETF_APPLICATION_CLOSE: {
-          QuicConnectionCloseFrame frame;
-          if (!ProcessIetfConnectionCloseFrame(
-                  reader, IETF_QUIC_APPLICATION_CONNECTION_CLOSE, &frame)) {
-            return RaiseError(QUIC_INVALID_APPLICATION_CLOSE_DATA);
-          }
-          if (!visitor_->OnApplicationCloseFrame(frame)) {
             QUIC_DVLOG(1) << "Visitor asked to stop further processing.";
             // Returning true since there was no parsing error.
             return true;

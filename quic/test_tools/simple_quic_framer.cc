@@ -125,11 +125,6 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
     return true;
   }
 
-  bool OnApplicationCloseFrame(const QuicConnectionCloseFrame& frame) override {
-    application_close_frames_.push_back(frame);
-    return true;
-  }
-
   bool OnNewConnectionIdFrame(const QuicNewConnectionIdFrame& frame) override {
     new_connection_id_frames_.push_back(frame);
     return true;
@@ -207,10 +202,7 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
   const std::vector<QuicConnectionCloseFrame>& connection_close_frames() const {
     return connection_close_frames_;
   }
-  const std::vector<QuicConnectionCloseFrame>& application_close_frames()
-      const {
-    return application_close_frames_;
-  }
+
   const std::vector<QuicGoAwayFrame>& goaway_frames() const {
     return goaway_frames_;
   }
@@ -272,7 +264,6 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
   std::vector<QuicStreamIdBlockedFrame> stream_id_blocked_frames_;
   std::vector<QuicMaxStreamIdFrame> max_stream_id_frames_;
   std::vector<QuicConnectionCloseFrame> connection_close_frames_;
-  std::vector<QuicConnectionCloseFrame> application_close_frames_;
   std::vector<QuicStopSendingFrame> stop_sending_frames_;
   std::vector<QuicPathChallengeFrame> path_challenge_frames_;
   std::vector<QuicPathResponseFrame> path_response_frames_;

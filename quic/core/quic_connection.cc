@@ -1261,15 +1261,6 @@ bool QuicConnection::OnRstStreamFrame(const QuicRstStreamFrame& frame) {
   return connected_;
 }
 
-bool QuicConnection::OnApplicationCloseFrame(
-    const QuicConnectionCloseFrame& frame) {
-  // TODO(fkastenholz): Need to figure out what the right thing is to do with
-  // this when we get one. Most likely, the correct action is to mimic the
-  // OnConnectionCloseFrame actions, with possibly an indication to the
-  // application of the ApplicationClose information.
-  return true;
-}
-
 bool QuicConnection::OnStopSendingFrame(const QuicStopSendingFrame& frame) {
   DCHECK(connected_);
 
@@ -3053,6 +3044,8 @@ void QuicConnection::SendConnectionClosePacket(QuicErrorCode error,
   }
   QuicConnectionCloseFrame* frame =
       new QuicConnectionCloseFrame(error, details);
+  // If version99/IETF QUIC set the close type. Default close type is Google
+  // QUIC.
   if (transport_version() == QUIC_VERSION_99) {
     frame->close_type = IETF_QUIC_TRANSPORT_CONNECTION_CLOSE;
   }

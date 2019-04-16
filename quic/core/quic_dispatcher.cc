@@ -920,12 +920,6 @@ bool QuicDispatcher::OnConnectionCloseFrame(
   return false;
 }
 
-bool QuicDispatcher::OnApplicationCloseFrame(
-    const QuicConnectionCloseFrame& /*frame*/) {
-  DCHECK(false);
-  return false;
-}
-
 bool QuicDispatcher::OnMaxStreamIdFrame(const QuicMaxStreamIdFrame& frame) {
   return true;
 }

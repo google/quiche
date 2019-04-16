@@ -133,14 +133,10 @@ class QuicPacketPrinter : public QuicFramerVisitorInterface {
     return true;
   }
   bool OnConnectionCloseFrame(const QuicConnectionCloseFrame& frame) override {
-    std::cerr << "OnConnectionCloseFrame: " << frame;
-    return true;
-  }
-  bool OnApplicationCloseFrame(const QuicConnectionCloseFrame& frame) override {
     // The frame printout will indicate whether it's a Google QUIC
     // CONNECTION_CLOSE, IETF QUIC CONNECTION_CLOSE/Transport, or IETF QUIC
     // CONNECTION_CLOSE/Application frame.
-    std::cerr << "OnApplicationCloseFrame: " << frame;
+    std::cerr << "OnConnectionCloseFrame: " << frame;
     return true;
   }
   bool OnNewConnectionIdFrame(const QuicNewConnectionIdFrame& frame) override {
