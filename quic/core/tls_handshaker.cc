@@ -105,8 +105,9 @@ EncryptionLevel TlsHandshaker::QuicEncryptionLevel(
     case ssl_encryption_initial:
       return ENCRYPTION_INITIAL;
     case ssl_encryption_early_data:
-    case ssl_encryption_handshake:
       return ENCRYPTION_ZERO_RTT;
+    case ssl_encryption_handshake:
+      return ENCRYPTION_HANDSHAKE;
     case ssl_encryption_application:
       return ENCRYPTION_FORWARD_SECURE;
   }
@@ -119,8 +120,9 @@ enum ssl_encryption_level_t TlsHandshaker::BoringEncryptionLevel(
     case ENCRYPTION_INITIAL:
       return ssl_encryption_initial;
     case ENCRYPTION_HANDSHAKE:
-    case ENCRYPTION_ZERO_RTT:
       return ssl_encryption_handshake;
+    case ENCRYPTION_ZERO_RTT:
+      return ssl_encryption_early_data;
     case ENCRYPTION_FORWARD_SECURE:
       return ssl_encryption_application;
     default:
