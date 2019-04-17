@@ -71,6 +71,7 @@ void QuartcPeer::OnConnectError(QuicErrorCode error,
 
 void QuartcPeer::OnCryptoHandshakeComplete() {
   SetEnabled(true);
+  session_->SendPing();  // Hack to make probing work.
 }
 
 void QuartcPeer::OnConnectionWritable() {
