@@ -39,9 +39,14 @@ void OneWayLink::AcceptPacket(std::unique_ptr<Packet> packet) {
   QuicTime::Delta transfer_time = bandwidth_.TransferTime(packet->size);
   next_write_at_ = clock_->Now() + transfer_time;
 
-  packets_in_transit_.emplace(
+  packets_in_transit_.emplace_back(
       std::move(packet),
-      next_write_at_ + propagation_delay_ + GetRandomDelay(transfer_time));
+      // Ensure that packets are delivered in order.
+      std::max(
+          next_write_at_ + propagation_delay_ + GetRandomDelay(transfer_time),
+          packets_in_transit_.empty()
+              ? QuicTime::Zero()
+              : packets_in_transit_.back().dequeue_time));
   ScheduleNextPacketDeparture();
 }
 
@@ -59,7 +64,7 @@ void OneWayLink::Act() {
   DCHECK(packets_in_transit_.front().dequeue_time >= clock_->Now());
 
   sink_->AcceptPacket(std::move(packets_in_transit_.front().packet));
-  packets_in_transit_.pop();
+  packets_in_transit_.pop_front();
 
   ScheduleNextPacketDeparture();
 }

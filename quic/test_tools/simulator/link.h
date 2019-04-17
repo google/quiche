@@ -34,6 +34,13 @@ class OneWayLink : public Actor, public ConstrainedPortInterface {
 
   inline QuicBandwidth bandwidth() const { return bandwidth_; }
 
+ protected:
+  // Get the value of a random delay imposed on each packet.  By default, this
+  // is a short random delay in order to avoid artifical synchronization
+  // artifacts during the simulation.  Subclasses may override this behavior
+  // (for example, to provide a random component of delay).
+  virtual QuicTime::Delta GetRandomDelay(QuicTime::Delta transfer_time);
+
  private:
   struct QueuedPacket {
     std::unique_ptr<Packet> packet;
@@ -48,12 +55,8 @@ class OneWayLink : public Actor, public ConstrainedPortInterface {
   // packets on the link.
   void ScheduleNextPacketDeparture();
 
-  // Get the value of a random delay imposed on each packet in order to avoid
-  // artifical synchronization artifacts during the simulation.
-  QuicTime::Delta GetRandomDelay(QuicTime::Delta transfer_time);
-
   UnconstrainedPortInterface* sink_;
-  QuicQueue<QueuedPacket> packets_in_transit_;
+  QuicDeque<QueuedPacket> packets_in_transit_;
 
   const QuicBandwidth bandwidth_;
   const QuicTime::Delta propagation_delay_;
