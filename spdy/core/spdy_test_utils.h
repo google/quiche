@@ -15,7 +15,6 @@
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_bug_tracker.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_piece.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_test_helpers.h"
 
 namespace spdy {
 
