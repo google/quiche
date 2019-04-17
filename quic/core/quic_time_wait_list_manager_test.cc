@@ -560,18 +560,11 @@ TEST_F(QuicTimeWaitListManagerTest,
       QuicTimeWaitListManager::SEND_TERMINATION_PACKETS, ENCRYPTION_INITIAL,
       &termination_packets);
 
-  if (GetQuicReloadableFlag(quic_always_reset_short_header_packets)) {
-    // Termination packet is not encrypted, instead, send stateless reset.
-    EXPECT_CALL(writer_,
-                WritePacket(_, _, self_address_.host(), peer_address_, _))
-        .With(Args<0, 1>(PublicResetPacketEq(connection_id_)))
-        .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 0)));
-  } else {
-    // An unprocessable connection close is sent to peer.
-    EXPECT_CALL(writer_, WritePacket(_, kConnectionCloseLength,
-                                     self_address_.host(), peer_address_, _))
-        .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 1)));
-  }
+  // Termination packet is not encrypted, instead, send stateless reset.
+  EXPECT_CALL(writer_,
+              WritePacket(_, _, self_address_.host(), peer_address_, _))
+      .With(Args<0, 1>(PublicResetPacketEq(connection_id_)))
+      .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 0)));
   // Processes IETF short header packet.
   time_wait_list_manager_.ProcessPacket(
       self_address_, peer_address_, connection_id_,
