@@ -11,22 +11,12 @@ namespace test {
 
 namespace {
 
-bool ContainsSequenceNumbers(const std::vector<ReceivedMessage>& messages,
-                             IdToSequenceNumberMap id_to_sequence_number) {
-  for (const auto& message : messages) {
-    auto it = id_to_sequence_number.find(message.frame.source_id);
-    if (it != id_to_sequence_number.end() &&
-        it->second == message.frame.sequence_number) {
-      id_to_sequence_number.erase(it);
-    }
-  }
-  return id_to_sequence_number.empty();
-}
-
-void LogResults(const std::vector<ReceivedMessage>& messages) {
+void LogResults(const std::vector<ReceivedMessage>& messages,
+                IdToSequenceNumberMap sent_sequence_numbers) {
   QuicTime::Delta max_delay = QuicTime::Delta::Zero();
   QuicTime::Delta total_delay = QuicTime::Delta::Zero();
   QuicByteCount total_throughput = 0;
+  int64_t messages_received = 0;
   for (const auto& message : messages) {
     QuicTime::Delta one_way_delay =
         message.receive_time - message.frame.send_time;
@@ -36,16 +26,28 @@ void LogResults(const std::vector<ReceivedMessage>& messages) {
     max_delay = std::max(max_delay, one_way_delay);
     total_delay = total_delay + one_way_delay;
     total_throughput += message.frame.size;
+    ++messages_received;
   }
+
+  int64_t messages_expected = 0;
+  for (const auto& it : sent_sequence_numbers) {
+    // Sequence numbers start at zero, so add one to the last sequence number
+    // to get the expected number of messages.
+    messages_expected += it.second + 1;
+  }
+
   QuicBandwidth total_bandwidth = QuicBandwidth::FromBytesAndTimeDelta(
       total_throughput,
       messages.back().receive_time - messages.front().receive_time);
+  double fraction_lost =
+      1.0 - static_cast<double>(messages_received) / messages_expected;
   QUIC_LOG(INFO) << "Summary:\n  max_delay (ms)=" << max_delay.ToMilliseconds()
                  << "\n  average_delay (ms)="
                  << total_delay.ToMilliseconds() / messages.size()
                  << "\n  total_throughput (bytes)=" << total_throughput
                  << "\n  total_bandwidth (bps)="
-                 << total_bandwidth.ToBitsPerSecond();
+                 << total_bandwidth.ToBitsPerSecond()
+                 << "\n  fraction_lost=" << fraction_lost;
 }
 
 }  // namespace
@@ -141,29 +143,44 @@ bool BidiTestRunner::RunTest(QuicTime::Delta test_duration) {
   server_peer_->SetEnabled(false);
   client_peer_->SetEnabled(false);
 
-  IdToSequenceNumberMap sent_by_server = server_peer_->GetLastSequenceNumbers();
-  if (!simulator_->RunUntil([this, &sent_by_server] {
-        return ContainsSequenceNumbers(client_peer_->received_messages(),
-                                       sent_by_server);
-      })) {
-    return false;
-  }
-
-  IdToSequenceNumberMap sent_by_client = client_peer_->GetLastSequenceNumbers();
-  if (!simulator_->RunUntil([this, &sent_by_client] {
-        return ContainsSequenceNumbers(server_peer_->received_messages(),
-                                       sent_by_client);
-      })) {
+  if (!simulator_->RunUntil([this] { return PacketsDrained(); })) {
     return false;
   }
 
   // Compute results.
   QUIC_LOG(INFO) << "Printing client->server results:";
-  LogResults(server_peer_->received_messages());
+  LogResults(server_peer_->received_messages(),
+             client_peer_->GetLastSequenceNumbers());
 
   QUIC_LOG(INFO) << "Printing server->client results:";
-  LogResults(client_peer_->received_messages());
+  LogResults(client_peer_->received_messages(),
+             server_peer_->GetLastSequenceNumbers());
   return true;
+}
+
+bool BidiTestRunner::PacketsDrained() {
+  const ReceivedMessage& last_server_message =
+      server_peer_->received_messages().back();
+  const ReceivedMessage& last_client_message =
+      client_peer_->received_messages().back();
+
+  // Last observed propagation delay on the client -> server path.
+  QuicTime::Delta last_client_server_delay =
+      last_server_message.receive_time - last_server_message.frame.send_time;
+
+  // Last observed propagation delay on the server -> client path.
+  QuicTime::Delta last_server_client_delay =
+      last_client_message.receive_time - last_client_message.frame.send_time;
+
+  // Last observed RTT based on the propagation delays above.
+  QuicTime::Delta last_rtt =
+      last_client_server_delay + last_server_client_delay;
+
+  // If nothing interesting has happened for at least one RTT, then it's
+  // unlikely anything is still in flight.
+  QuicTime now = simulator_->GetClock()->Now();
+  return now - last_server_message.receive_time > last_rtt &&
+         now - last_client_message.receive_time > last_rtt;
 }
 
 }  // namespace test

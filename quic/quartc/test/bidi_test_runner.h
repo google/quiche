@@ -76,6 +76,9 @@ class BidiTestRunner {
   virtual bool RunTest(QuicTime::Delta test_duration);
 
  private:
+  // Returns true when no pending packets are believed to be in-flight.
+  bool PacketsDrained();
+
   simulator::Simulator* simulator_;
   QuartcPacketTransport* client_transport_;
   QuartcPacketTransport* server_transport_;
