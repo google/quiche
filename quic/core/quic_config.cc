@@ -5,10 +5,12 @@
 #include "net/third_party/quiche/src/quic/core/quic_config.h"
 
 #include <algorithm>
+#include <cstring>
 #include <string>
 
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_handshake_message.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
+#include "net/third_party/quiche/src/quic/core/quic_constants.h"
 #include "net/third_party/quiche/src/quic/core/quic_socket_address_coder.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
@@ -17,7 +19,9 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_macros.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_uint128.h"
 
 namespace quic {
 
@@ -746,25 +750,47 @@ QuicErrorCode QuicConfig::ProcessPeerHello(
 }
 
 bool QuicConfig::FillTransportParameters(TransportParameters* params) const {
-  params->initial_max_stream_data =
-      initial_stream_flow_control_window_bytes_.GetSendValue();
-  params->initial_max_data =
-      initial_session_flow_control_window_bytes_.GetSendValue();
+  params->idle_timeout_seconds.set_value(
+      idle_network_timeout_seconds_.GetUint32());
 
-  uint32_t idle_timeout = idle_network_timeout_seconds_.GetUint32();
-  if (idle_timeout > std::numeric_limits<uint16_t>::max()) {
-    QUIC_BUG << "idle network timeout set too large";
-    return false;
+  if (stateless_reset_token_.HasSendValue()) {
+    QuicUint128 stateless_reset_token = stateless_reset_token_.GetSendValue();
+    params->stateless_reset_token.assign(
+        reinterpret_cast<const char*>(&stateless_reset_token),
+        reinterpret_cast<const char*>(&stateless_reset_token) +
+            sizeof(stateless_reset_token));
   }
-  params->idle_timeout = idle_timeout;
 
-  uint32_t initial_max_streams = max_incoming_dynamic_streams_.GetSendValue();
-  if (initial_max_streams > std::numeric_limits<uint16_t>::max()) {
-    QUIC_BUG << "max incoming streams set too large";
-    return false;
+  params->max_packet_size.set_value(kMaxIncomingPacketSize);
+  params->initial_max_data.set_value(
+      initial_session_flow_control_window_bytes_.GetSendValue());
+  params->initial_max_stream_data_bidi_local.set_value(
+      initial_stream_flow_control_window_bytes_.GetSendValue());
+  params->initial_max_stream_data_bidi_remote.set_value(
+      initial_stream_flow_control_window_bytes_.GetSendValue());
+  params->initial_max_stream_data_uni.set_value(
+      initial_stream_flow_control_window_bytes_.GetSendValue());
+  params->initial_max_streams_bidi.set_value(
+      max_incoming_dynamic_streams_.GetSendValue());
+  params->initial_max_streams_uni.set_value(
+      max_incoming_dynamic_streams_.GetSendValue());
+  params->max_ack_delay.set_value(kDefaultDelayedAckTimeMs);
+  params->disable_migration =
+      connection_migration_disabled_.HasSendValue() &&
+      connection_migration_disabled_.GetSendValue() != 0;
+
+  if (alternate_server_address_.HasSendValue()) {
+    TransportParameters::PreferredAddress preferred_address;
+    QuicSocketAddress socket_address = alternate_server_address_.GetSendValue();
+    if (socket_address.host().IsIPv6()) {
+      preferred_address.ipv6_socket_address = socket_address;
+    } else {
+      preferred_address.ipv4_socket_address = socket_address;
+    }
+    params->preferred_address =
+        QuicMakeUnique<TransportParameters::PreferredAddress>(
+            preferred_address);
   }
-  params->initial_max_bidi_streams.present = true;
-  params->initial_max_bidi_streams.value = initial_max_streams;
 
   if (!params->google_quic_params) {
     params->google_quic_params = QuicMakeUnique<CryptoHandshakeMessage>();
@@ -773,6 +799,7 @@ bool QuicConfig::FillTransportParameters(TransportParameters* params) const {
   initial_round_trip_time_us_.ToHandshakeMessage(
       params->google_quic_params.get());
   connection_options_.ToHandshakeMessage(params->google_quic_params.get());
+
   return true;
 }
 
@@ -780,12 +807,61 @@ QuicErrorCode QuicConfig::ProcessTransportParameters(
     const TransportParameters& params,
     HelloType hello_type,
     std::string* error_details) {
+  uint64_t idle_timeout_seconds = params.idle_timeout_seconds.value();
+  if (idle_timeout_seconds > kMaximumIdleTimeoutSecs) {
+    idle_timeout_seconds = kMaximumIdleTimeoutSecs;
+  }
   QuicErrorCode error = idle_network_timeout_seconds_.ReceiveValue(
-      params.idle_timeout, hello_type, error_details);
+      idle_timeout_seconds, hello_type, error_details);
   if (error != QUIC_NO_ERROR) {
     DCHECK(!error_details->empty());
     return error;
   }
+
+  if (!params.stateless_reset_token.empty()) {
+    QuicUint128 stateless_reset_token;
+    if (params.stateless_reset_token.size() != sizeof(stateless_reset_token)) {
+      QUIC_BUG << "Bad stateless reset token length "
+               << params.stateless_reset_token.size();
+      *error_details = "Bad stateless reset token length";
+      return QUIC_INTERNAL_ERROR;
+    }
+    memcpy(&stateless_reset_token, params.stateless_reset_token.data(),
+           params.stateless_reset_token.size());
+    stateless_reset_token_.SetReceivedValue(stateless_reset_token);
+  }
+
+  if (params.max_packet_size.value() < kMaxOutgoingPacketSize) {
+    // TODO(dschinazi) act on this.
+    QUIC_DLOG(ERROR) << "Ignoring peer's requested max packet size of "
+                     << params.max_packet_size.value();
+  }
+
+  initial_session_flow_control_window_bytes_.SetReceivedValue(
+      std::min<uint64_t>(params.initial_max_data.value(),
+                         std::numeric_limits<uint32_t>::max()));
+
+  max_incoming_dynamic_streams_.SetReceivedValue(
+      std::min<uint64_t>(params.initial_max_streams_bidi.value(),
+                         std::numeric_limits<uint32_t>::max()));
+
+  initial_stream_flow_control_window_bytes_.SetReceivedValue(
+      std::min<uint64_t>(params.initial_max_stream_data_bidi_local.value(),
+                         std::numeric_limits<uint32_t>::max()));
+
+  connection_migration_disabled_.SetReceivedValue(
+      params.disable_migration ? 1u : 0u);
+
+  if (params.preferred_address != nullptr) {
+    if (params.preferred_address->ipv6_socket_address.port() != 0) {
+      alternate_server_address_.SetReceivedValue(
+          params.preferred_address->ipv6_socket_address);
+    } else if (params.preferred_address->ipv4_socket_address.port() != 0) {
+      alternate_server_address_.SetReceivedValue(
+          params.preferred_address->ipv4_socket_address);
+    }
+  }
+
   const CryptoHandshakeMessage* peer_params = params.google_quic_params.get();
   if (peer_params != nullptr) {
     error =
@@ -806,18 +882,6 @@ QuicErrorCode QuicConfig::ProcessTransportParameters(
       DCHECK(!error_details->empty());
       return error;
     }
-  }
-
-  initial_stream_flow_control_window_bytes_.SetReceivedValue(
-      params.initial_max_stream_data);
-  initial_session_flow_control_window_bytes_.SetReceivedValue(
-      params.initial_max_data);
-  if (params.initial_max_bidi_streams.present) {
-    max_incoming_dynamic_streams_.SetReceivedValue(
-        params.initial_max_bidi_streams.value);
-  } else {
-    // An absent value for initial_max_bidi_streams is treated as a value of 0.
-    max_incoming_dynamic_streams_.SetReceivedValue(0);
   }
 
   return QUIC_NO_ERROR;

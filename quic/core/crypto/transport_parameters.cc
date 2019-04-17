@@ -4,184 +4,514 @@
 
 #include "net/third_party/quiche/src/quic/core/crypto/transport_parameters.h"
 
+#include <cstring>
+
 #include "third_party/boringssl/src/include/openssl/bytestring.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_framer.h"
+#include "net/third_party/quiche/src/quic/core/quic_connection_id.h"
+#include "net/third_party/quiche/src/quic/core/quic_data_reader.h"
+#include "net/third_party/quiche/src/quic/core/quic_data_writer.h"
+#include "net/third_party/quiche/src/quic/core/quic_types.h"
+#include "net/third_party/quiche/src/quic/core/quic_versions.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
 
 namespace quic {
 
-namespace {
+// Values of the TransportParameterId enum as defined in the
+// "Transport Parameter Encoding" section of draft-ietf-quic-transport.
+// When parameters are encoded, one of these enum values is used to indicate
+// which parameter is encoded. The supported draft version is noted in
+// transport_parameters.h.
+enum TransportParameters::TransportParameterId : uint16_t {
+  kOriginalConnectionId = 0,
+  kIdleTimeout = 1,
+  kStatelessResetToken = 2,
+  kMaxPacketSize = 3,
+  kInitialMaxData = 4,
+  kInitialMaxStreamDataBidiLocal = 5,
+  kInitialMaxStreamDataBidiRemote = 6,
+  kInitialMaxStreamDataUni = 7,
+  kInitialMaxStreamsBidi = 8,
+  kInitialMaxStreamsUni = 9,
+  kAckDelayExponent = 0xa,
+  kMaxAckDelay = 0xb,
+  kDisableMigration = 0xc,
+  kPreferredAddress = 0xd,
 
-// Values of the TransportParameterId enum as defined in
-// draft-ietf-quic-transport-08 section 7.4. When parameters are encoded, one of
-// these enum values is used to indicate which parameter is encoded.
-enum TransportParameterId : uint16_t {
-  kInitialMaxStreamDataId = 0,
-  kInitialMaxDataId = 1,
-  kInitialMaxBidiStreamsId = 2,
-  kIdleTimeoutId = 3,
-  kMaxOutgoingPacketSizeId = 5,
-  kStatelessResetTokenId = 6,
-  kAckDelayExponentId = 7,
-  kInitialMaxUniStreamsId = 8,
-
-  kMaxKnownParameterId = 9,
+  kGoogleQuicParam = 18257,  // Used for non-standard Google-specific params.
 };
 
-// Value for the TransportParameterId to use for non-standard Google QUIC params
-// in Transport Parameters.
-const uint16_t kGoogleQuicParamId = 18257;
+namespace {
 
 // The following constants define minimum and maximum allowed values for some of
-// the parameters. These come from draft-ietf-quic-transport-08 section 7.4.1.
-const uint16_t kMaxAllowedIdleTimeout = 600;
-const uint16_t kMinAllowedMaxPacketSize = 1200;
-const uint16_t kMaxAllowedMaxPacketSize = 65527;
-const uint8_t kMaxAllowedAckDelayExponent = 20;
+// the parameters. These come from the "Transport Parameter Definitions"
+// section of draft-ietf-quic-transport.
+const uint64_t kMinMaxPacketSizeTransportParam = 1200;
+const uint64_t kDefaultMaxPacketSizeTransportParam = 65527;
+const uint64_t kMaxAckDelayExponentTransportParam = 20;
+const uint64_t kDefaultAckDelayExponentTransportParam = 3;
+const uint64_t kMaxMaxAckDelayTransportParam = 16383;
+const uint64_t kDefaultMaxAckDelayTransportParam = 25;
+const size_t kStatelessResetTokenLength = 16;
 
-static_assert(kMaxKnownParameterId <= 32, "too many parameters to bit pack");
-
-// The initial_max_stream_data, initial_max_data, and idle_timeout parameters
-// are always required to be present. When parsing the extension, a bitmask is
-// used to keep track of which parameter have been seen so far, and that bitmask
-// will be compared to this mask to check that all of the required parameters
-// were present.
-static constexpr uint16_t kRequiredParamsMask = (1 << kInitialMaxStreamDataId) |
-                                                (1 << kInitialMaxDataId) |
-                                                (1 << kIdleTimeoutId);
+std::string TransportParameterIdToString(
+    TransportParameters::TransportParameterId param_id) {
+  switch (param_id) {
+    case kOriginalConnectionId:
+      return "original_connection_id";
+    case kIdleTimeout:
+      return "idle_timeout";
+    case kStatelessResetToken:
+      return "stateless_reset_token";
+    case kMaxPacketSize:
+      return "max_packet_size";
+    case kInitialMaxData:
+      return "initial_max_data";
+    case kInitialMaxStreamDataBidiLocal:
+      return "initial_max_stream_data_bidi_local";
+    case kInitialMaxStreamDataBidiRemote:
+      return "initial_max_stream_data_bidi_remote";
+    case kInitialMaxStreamDataUni:
+      return "initial_max_stream_data_uni";
+    case kInitialMaxStreamsBidi:
+      return "initial_max_streams_bidi";
+    case kInitialMaxStreamsUni:
+      return "initial_max_streams_uni";
+    case kAckDelayExponent:
+      return "ack_delay_exponent";
+    case kMaxAckDelay:
+      return "max_ack_delay";
+    case kDisableMigration:
+      return "disable_migration";
+    case kPreferredAddress:
+      return "preferred_address";
+    case kGoogleQuicParam:
+      return "google";
+  }
+  return "Unknown(" + QuicTextUtils::Uint64ToString(param_id) + ")";
+}
 
 }  // namespace
 
-TransportParameters::TransportParameters() = default;
+TransportParameters::IntegerParameter::IntegerParameter(
+    TransportParameters::TransportParameterId param_id,
+    uint64_t default_value,
+    uint64_t min_value,
+    uint64_t max_value)
+    : param_id_(param_id),
+      value_(default_value),
+      default_value_(default_value),
+      min_value_(min_value),
+      max_value_(max_value),
+      has_been_read_from_cbs_(false) {
+  DCHECK_LE(min_value, default_value);
+  DCHECK_LE(default_value, max_value);
+  DCHECK_LE(max_value, kVarInt62MaxValue);
+}
 
-TransportParameters::~TransportParameters() = default;
+TransportParameters::IntegerParameter::IntegerParameter(
+    TransportParameters::TransportParameterId param_id)
+    : TransportParameters::IntegerParameter::IntegerParameter(
+          param_id,
+          0,
+          0,
+          kVarInt62MaxValue) {}
 
-bool TransportParameters::is_valid() const {
-  if (perspective == Perspective::IS_CLIENT && !stateless_reset_token.empty()) {
+void TransportParameters::IntegerParameter::set_value(uint64_t value) {
+  value_ = value;
+}
+
+uint64_t TransportParameters::IntegerParameter::value() const {
+  return value_;
+}
+
+bool TransportParameters::IntegerParameter::IsValid() const {
+  return min_value_ <= value_ && value_ <= max_value_;
+}
+
+bool TransportParameters::IntegerParameter::WriteToCbb(CBB* parent_cbb) const {
+  DCHECK(IsValid());
+  if (value_ == default_value_) {
+    // Do not write if the value is default.
+    return true;
+  }
+  uint8_t encoded_data[sizeof(uint64_t)] = {};
+  QuicDataWriter writer(sizeof(encoded_data),
+                        reinterpret_cast<char*>(encoded_data));
+  writer.WriteVarInt62(value_);
+  const uint16_t value_length = writer.length();
+  DCHECK_LE(value_length, sizeof(encoded_data));
+  const bool ok = CBB_add_u16(parent_cbb, param_id_) &&
+                  CBB_add_u16(parent_cbb, value_length) &&
+                  CBB_add_bytes(parent_cbb, encoded_data, value_length);
+  QUIC_BUG_IF(!ok) << "Failed to write " << this;
+  return ok;
+}
+
+bool TransportParameters::IntegerParameter::ReadFromCbs(CBS* const value_cbs) {
+  if (has_been_read_from_cbs_) {
+    QUIC_DLOG(ERROR) << "Received a second "
+                     << TransportParameterIdToString(param_id_);
     return false;
   }
-  if (perspective == Perspective::IS_SERVER &&
-      stateless_reset_token.size() != 16) {
+  has_been_read_from_cbs_ = true;
+  QuicDataReader reader(reinterpret_cast<const char*>(CBS_data(value_cbs)),
+                        CBS_len(value_cbs));
+  QuicVariableLengthIntegerLength value_length = reader.PeekVarInt62Length();
+  if (value_length == 0 || !reader.ReadVarInt62(&value_)) {
+    QUIC_DLOG(ERROR) << "Failed to parse value for "
+                     << TransportParameterIdToString(param_id_);
     return false;
   }
-  if (idle_timeout > kMaxAllowedIdleTimeout ||
-      (max_packet_size.present &&
-       (max_packet_size.value > kMaxAllowedMaxPacketSize ||
-        max_packet_size.value < kMinAllowedMaxPacketSize)) ||
-      (ack_delay_exponent.present &&
-       ack_delay_exponent.value > kMaxAllowedAckDelayExponent)) {
+  if (!reader.IsDoneReading()) {
+    QUIC_DLOG(ERROR) << "Received unexpected " << reader.BytesRemaining()
+                     << " bytes after parsing " << this;
+    return false;
+  }
+  if (!CBS_skip(value_cbs, value_length)) {
+    QUIC_BUG << "Failed to advance CBS past value for " << this;
     return false;
   }
   return true;
 }
 
+std::string TransportParameters::IntegerParameter::ToString(
+    bool for_use_in_list) const {
+  if (for_use_in_list && value_ == default_value_) {
+    return "";
+  }
+  std::string rv = for_use_in_list ? " " : "";
+  rv += TransportParameterIdToString(param_id_) + " ";
+  rv += QuicTextUtils::Uint64ToString(value_);
+  if (!IsValid()) {
+    rv += " (Invalid)";
+  }
+  return rv;
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         const TransportParameters::IntegerParameter& param) {
+  os << param.ToString(/*for_use_in_list=*/false);
+  return os;
+}
+
+TransportParameters::PreferredAddress::PreferredAddress()
+    : ipv4_socket_address(QuicIpAddress::Any4(), 0),
+      ipv6_socket_address(QuicIpAddress::Any6(), 0),
+      connection_id(EmptyQuicConnectionId()),
+      stateless_reset_token(kStatelessResetTokenLength, 0) {}
+
+TransportParameters::PreferredAddress::~PreferredAddress() {}
+
+std::ostream& operator<<(
+    std::ostream& os,
+    const TransportParameters::PreferredAddress& preferred_address) {
+  os << preferred_address.ToString();
+  return os;
+}
+
+std::string TransportParameters::PreferredAddress::ToString() const {
+  return "[" + ipv4_socket_address.ToString() + " " +
+         ipv6_socket_address.ToString() + " connection_id " +
+         connection_id.ToString() + " stateless_reset_token " +
+         QuicTextUtils::HexEncode(
+             reinterpret_cast<const char*>(stateless_reset_token.data()),
+             stateless_reset_token.size()) +
+         "]";
+}
+
+std::ostream& operator<<(std::ostream& os, const TransportParameters& params) {
+  os << params.ToString();
+  return os;
+}
+
+std::string TransportParameters::ToString() const {
+  std::string rv = "[";
+  if (perspective == Perspective::IS_SERVER) {
+    rv += "Server";
+  } else {
+    rv += "Client";
+  }
+  if (version != 0) {
+    rv += " version " + QuicVersionLabelToString(version);
+  }
+  if (!supported_versions.empty()) {
+    rv += " supported_versions " +
+          QuicVersionLabelVectorToString(supported_versions);
+  }
+  if (!original_connection_id.IsEmpty()) {
+    rv += " " + TransportParameterIdToString(kOriginalConnectionId) + " " +
+          original_connection_id.ToString();
+  }
+  rv += idle_timeout_seconds.ToString(/*for_use_in_list=*/true);
+  if (!stateless_reset_token.empty()) {
+    rv += " " + TransportParameterIdToString(kStatelessResetToken) + " " +
+          QuicTextUtils::HexEncode(
+              reinterpret_cast<const char*>(stateless_reset_token.data()),
+              stateless_reset_token.size());
+  }
+  rv += max_packet_size.ToString(/*for_use_in_list=*/true);
+  rv += initial_max_data.ToString(/*for_use_in_list=*/true);
+  rv += initial_max_stream_data_bidi_local.ToString(/*for_use_in_list=*/true);
+  rv += initial_max_stream_data_bidi_remote.ToString(/*for_use_in_list=*/true);
+  rv += initial_max_stream_data_uni.ToString(/*for_use_in_list=*/true);
+  rv += initial_max_streams_bidi.ToString(/*for_use_in_list=*/true);
+  rv += initial_max_streams_uni.ToString(/*for_use_in_list=*/true);
+  rv += ack_delay_exponent.ToString(/*for_use_in_list=*/true);
+  rv += max_ack_delay.ToString(/*for_use_in_list=*/true);
+  if (disable_migration) {
+    rv += " " + TransportParameterIdToString(kDisableMigration);
+  }
+  if (preferred_address) {
+    rv += " " + TransportParameterIdToString(kPreferredAddress) + " " +
+          preferred_address->ToString();
+  }
+  if (google_quic_params) {
+    rv += " " + TransportParameterIdToString(kGoogleQuicParam);
+  }
+  rv += "]";
+  return rv;
+}
+
+TransportParameters::TransportParameters()
+    : version(0),
+      original_connection_id(EmptyQuicConnectionId()),
+      idle_timeout_seconds(kIdleTimeout),
+      max_packet_size(kMaxPacketSize,
+                      kDefaultMaxPacketSizeTransportParam,
+                      kMinMaxPacketSizeTransportParam,
+                      kVarInt62MaxValue),
+      initial_max_data(kInitialMaxData),
+      initial_max_stream_data_bidi_local(kInitialMaxStreamDataBidiLocal),
+      initial_max_stream_data_bidi_remote(kInitialMaxStreamDataBidiRemote),
+      initial_max_stream_data_uni(kInitialMaxStreamDataUni),
+      initial_max_streams_bidi(kInitialMaxStreamsBidi),
+      initial_max_streams_uni(kInitialMaxStreamsUni),
+      ack_delay_exponent(kAckDelayExponent,
+                         kDefaultAckDelayExponentTransportParam,
+                         0,
+                         kMaxAckDelayExponentTransportParam),
+      max_ack_delay(kMaxAckDelay,
+                    kDefaultMaxAckDelayTransportParam,
+                    0,
+                    kMaxMaxAckDelayTransportParam),
+      disable_migration(false)
+// Important note: any new transport parameters must be added
+// to TransportParameters::AreValid, SerializeTransportParameters and
+// ParseTransportParameters.
+{}
+
+bool TransportParameters::AreValid() const {
+  DCHECK(perspective == Perspective::IS_CLIENT ||
+         perspective == Perspective::IS_SERVER);
+  if (perspective == Perspective::IS_CLIENT && !stateless_reset_token.empty()) {
+    QUIC_DLOG(ERROR) << "Client cannot send stateless reset token";
+    return false;
+  }
+  if (perspective == Perspective::IS_CLIENT &&
+      !original_connection_id.IsEmpty()) {
+    QUIC_DLOG(ERROR) << "Client cannot send original connection ID";
+    return false;
+  }
+  if (!stateless_reset_token.empty() &&
+      stateless_reset_token.size() != kStatelessResetTokenLength) {
+    QUIC_DLOG(ERROR) << "Stateless reset token has bad length "
+                     << stateless_reset_token.size();
+    return false;
+  }
+  if (perspective == Perspective::IS_CLIENT && preferred_address) {
+    QUIC_DLOG(ERROR) << "Client cannot send preferred address";
+    return false;
+  }
+  if (preferred_address && preferred_address->stateless_reset_token.size() !=
+                               kStatelessResetTokenLength) {
+    QUIC_DLOG(ERROR)
+        << "Preferred address stateless reset token has bad length "
+        << preferred_address->stateless_reset_token.size();
+    return false;
+  }
+  if (preferred_address &&
+      (!preferred_address->ipv4_socket_address.host().IsIPv4() ||
+       !preferred_address->ipv6_socket_address.host().IsIPv6())) {
+    QUIC_BUG << "Preferred address family failure";
+    return false;
+  }
+  const bool ok = idle_timeout_seconds.IsValid() && max_packet_size.IsValid() &&
+                  initial_max_data.IsValid() &&
+                  initial_max_stream_data_bidi_local.IsValid() &&
+                  initial_max_stream_data_bidi_remote.IsValid() &&
+                  initial_max_stream_data_uni.IsValid() &&
+                  initial_max_streams_bidi.IsValid() &&
+                  initial_max_streams_uni.IsValid() &&
+                  ack_delay_exponent.IsValid() && max_ack_delay.IsValid();
+  if (!ok) {
+    QUIC_DLOG(ERROR) << "Invalid transport parameters " << *this;
+  }
+  return ok;
+}
+
+TransportParameters::~TransportParameters() = default;
+
 bool SerializeTransportParameters(const TransportParameters& in,
                                   std::vector<uint8_t>* out) {
-  if (!in.is_valid()) {
+  if (!in.AreValid()) {
+    QUIC_DLOG(ERROR) << "Not serializing invalid transport parameters " << in;
     return false;
   }
   bssl::ScopedCBB cbb;
-  // 28 is the minimum size that the serialized TransportParameters can be,
-  // which is when it is for a client and only the required parameters are
-  // present. The CBB will grow to fit larger serializations.
-  if (!CBB_init(cbb.get(), 28) || !CBB_add_u32(cbb.get(), in.version)) {
+  // Empirically transport parameters generally fit within 128 bytes.
+  // The CBB will grow to fit larger serializations if required.
+  if (!CBB_init(cbb.get(), 128) || !CBB_add_u32(cbb.get(), in.version)) {
+    QUIC_BUG << "Failed to write version for " << in;
     return false;
   }
   CBB versions;
   if (in.perspective == Perspective::IS_SERVER) {
     if (!CBB_add_u8_length_prefixed(cbb.get(), &versions)) {
+      QUIC_BUG << "Failed to write versions length for " << in;
       return false;
     }
     for (QuicVersionLabel version : in.supported_versions) {
       if (!CBB_add_u32(&versions, version)) {
+        QUIC_BUG << "Failed to write supported version for " << in;
         return false;
       }
     }
   }
 
-  CBB params, initial_max_stream_data_param, initial_max_data_param,
-      idle_timeout_param;
-  // required parameters
-  if (!CBB_add_u16_length_prefixed(cbb.get(), &params) ||
-      // initial_max_stream_data
-      !CBB_add_u16(&params, kInitialMaxStreamDataId) ||
-      !CBB_add_u16_length_prefixed(&params, &initial_max_stream_data_param) ||
-      !CBB_add_u32(&initial_max_stream_data_param,
-                   in.initial_max_stream_data) ||
-      // initial_max_data
-      !CBB_add_u16(&params, kInitialMaxDataId) ||
-      !CBB_add_u16_length_prefixed(&params, &initial_max_data_param) ||
-      !CBB_add_u32(&initial_max_data_param, in.initial_max_data) ||
-      // idle_timeout
-      !CBB_add_u16(&params, kIdleTimeoutId) ||
-      !CBB_add_u16_length_prefixed(&params, &idle_timeout_param) ||
-      !CBB_add_u16(&idle_timeout_param, in.idle_timeout)) {
+  CBB params;
+  // Add length of the transport parameters list.
+  if (!CBB_add_u16_length_prefixed(cbb.get(), &params)) {
+    QUIC_BUG << "Failed to write parameter length for " << in;
     return false;
   }
 
+  // original_connection_id
+  CBB original_connection_id_param;
+  if (!in.original_connection_id.IsEmpty()) {
+    DCHECK_EQ(Perspective::IS_SERVER, in.perspective);
+    if (!CBB_add_u16(&params, kOriginalConnectionId) ||
+        !CBB_add_u16_length_prefixed(&params, &original_connection_id_param) ||
+        !CBB_add_bytes(
+            &original_connection_id_param,
+            reinterpret_cast<const uint8_t*>(in.original_connection_id.data()),
+            in.original_connection_id.length())) {
+      QUIC_BUG << "Failed to write original_connection_id "
+               << in.original_connection_id << " for " << in;
+      return false;
+    }
+  }
+
+  if (!in.idle_timeout_seconds.WriteToCbb(&params)) {
+    QUIC_BUG << "Failed to write idle_timeout for " << in;
+    return false;
+  }
+
+  // stateless_reset_token
   CBB stateless_reset_token_param;
   if (!in.stateless_reset_token.empty()) {
-    if (!CBB_add_u16(&params, kStatelessResetTokenId) ||
+    DCHECK_EQ(kStatelessResetTokenLength, in.stateless_reset_token.size());
+    DCHECK_EQ(Perspective::IS_SERVER, in.perspective);
+    if (!CBB_add_u16(&params, kStatelessResetToken) ||
         !CBB_add_u16_length_prefixed(&params, &stateless_reset_token_param) ||
         !CBB_add_bytes(&stateless_reset_token_param,
                        in.stateless_reset_token.data(),
                        in.stateless_reset_token.size())) {
+      QUIC_BUG << "Failed to write stateless_reset_token of length "
+               << in.stateless_reset_token.size() << " for " << in;
       return false;
     }
   }
 
-  CBB initial_max_bidi_streams_param;
-  if (in.initial_max_bidi_streams.present) {
-    if (!CBB_add_u16(&params, kInitialMaxBidiStreamsId) ||
-        !CBB_add_u16_length_prefixed(&params,
-                                     &initial_max_bidi_streams_param) ||
-        !CBB_add_u16(&initial_max_bidi_streams_param,
-                     in.initial_max_bidi_streams.value)) {
+  if (!in.max_packet_size.WriteToCbb(&params) ||
+      !in.initial_max_data.WriteToCbb(&params) ||
+      !in.initial_max_stream_data_bidi_local.WriteToCbb(&params) ||
+      !in.initial_max_stream_data_bidi_remote.WriteToCbb(&params) ||
+      !in.initial_max_stream_data_uni.WriteToCbb(&params) ||
+      !in.initial_max_streams_bidi.WriteToCbb(&params) ||
+      !in.initial_max_streams_uni.WriteToCbb(&params) ||
+      !in.ack_delay_exponent.WriteToCbb(&params) ||
+      !in.max_ack_delay.WriteToCbb(&params)) {
+    QUIC_BUG << "Failed to write integers for " << in;
+    return false;
+  }
+
+  // disable_migration
+  if (in.disable_migration) {
+    if (!CBB_add_u16(&params, kDisableMigration) ||
+        !CBB_add_u16(&params, 0u)) {  // 0 is the length of this parameter.
+      QUIC_BUG << "Failed to write disable_migration for " << in;
       return false;
     }
   }
-  CBB initial_max_uni_streams_param;
-  if (in.initial_max_uni_streams.present) {
-    if (!CBB_add_u16(&params, kInitialMaxUniStreamsId) ||
-        !CBB_add_u16_length_prefixed(&params, &initial_max_uni_streams_param) ||
-        !CBB_add_u16(&initial_max_uni_streams_param,
-                     in.initial_max_uni_streams.value)) {
+
+  // preferred_address
+  CBB preferred_address_params, preferred_address_connection_id_param;
+  if (in.preferred_address) {
+    std::string v4_address_bytes =
+        in.preferred_address->ipv4_socket_address.host().ToPackedString();
+    std::string v6_address_bytes =
+        in.preferred_address->ipv6_socket_address.host().ToPackedString();
+    if (v4_address_bytes.length() != 4 || v6_address_bytes.length() != 16 ||
+        in.preferred_address->stateless_reset_token.size() !=
+            kStatelessResetTokenLength) {
+      QUIC_BUG << "Bad lengths " << *in.preferred_address;
+      return false;
+    }
+    if (!CBB_add_u16(&params, kPreferredAddress) ||
+        !CBB_add_u16_length_prefixed(&params, &preferred_address_params) ||
+        !CBB_add_bytes(
+            &preferred_address_params,
+            reinterpret_cast<const uint8_t*>(v4_address_bytes.data()),
+            v4_address_bytes.length()) ||
+        !CBB_add_u16(&preferred_address_params,
+                     in.preferred_address->ipv4_socket_address.port()) ||
+        !CBB_add_bytes(
+            &preferred_address_params,
+            reinterpret_cast<const uint8_t*>(v6_address_bytes.data()),
+            v6_address_bytes.length()) ||
+        !CBB_add_u16(&preferred_address_params,
+                     in.preferred_address->ipv6_socket_address.port()) ||
+        !CBB_add_u16_length_prefixed(&preferred_address_params,
+                                     &preferred_address_connection_id_param) ||
+        !CBB_add_bytes(&preferred_address_connection_id_param,
+                       reinterpret_cast<const uint8_t*>(
+                           in.preferred_address->connection_id.data()),
+                       in.preferred_address->connection_id.length()) ||
+        !CBB_add_bytes(&preferred_address_params,
+                       in.preferred_address->stateless_reset_token.data(),
+                       in.preferred_address->stateless_reset_token.size())) {
+      QUIC_BUG << "Failed to write preferred_address for " << in;
       return false;
     }
   }
-  CBB max_packet_size_param;
-  if (in.max_packet_size.present) {
-    if (!CBB_add_u16(&params, kMaxOutgoingPacketSizeId) ||
-        !CBB_add_u16_length_prefixed(&params, &max_packet_size_param) ||
-        !CBB_add_u16(&max_packet_size_param, in.max_packet_size.value)) {
-      return false;
-    }
-  }
-  CBB ack_delay_exponent_param;
-  if (in.ack_delay_exponent.present) {
-    if (!CBB_add_u16(&params, kAckDelayExponentId) ||
-        !CBB_add_u16_length_prefixed(&params, &ack_delay_exponent_param) ||
-        !CBB_add_u8(&ack_delay_exponent_param, in.ack_delay_exponent.value)) {
-      return false;
-    }
-  }
+
+  // Google-specific non-standard parameter.
   CBB google_quic_params;
   if (in.google_quic_params) {
     const QuicData& serialized_google_quic_params =
         in.google_quic_params->GetSerialized();
-    if (!CBB_add_u16(&params, kGoogleQuicParamId) ||
+    if (!CBB_add_u16(&params, kGoogleQuicParam) ||
         !CBB_add_u16_length_prefixed(&params, &google_quic_params) ||
         !CBB_add_bytes(&google_quic_params,
                        reinterpret_cast<const uint8_t*>(
                            serialized_google_quic_params.data()),
                        serialized_google_quic_params.length())) {
+      QUIC_BUG << "Failed to write Google params of length "
+               << serialized_google_quic_params.length() << " for " << in;
       return false;
     }
   }
   if (!CBB_flush(cbb.get())) {
+    QUIC_BUG << "Failed to flush CBB for " << in;
     return false;
   }
   out->resize(CBB_len(cbb.get()));
   memcpy(out->data(), CBB_data(cbb.get()), CBB_len(cbb.get()));
+  QUIC_DLOG(INFO) << "Serialized " << in << " as " << CBB_len(cbb.get())
+                  << " bytes";
   return true;
 }
 
@@ -192,17 +522,22 @@ bool ParseTransportParameters(const uint8_t* in,
   CBS cbs;
   CBS_init(&cbs, in, in_len);
   if (!CBS_get_u32(&cbs, &out->version)) {
+    QUIC_DLOG(ERROR) << "Failed to parse transport parameter version";
     return false;
   }
   if (perspective == Perspective::IS_SERVER) {
     CBS versions;
     if (!CBS_get_u8_length_prefixed(&cbs, &versions) ||
         CBS_len(&versions) % 4 != 0) {
+      QUIC_DLOG(ERROR)
+          << "Failed to parse transport parameter supported versions";
       return false;
     }
     while (CBS_len(&versions) > 0) {
       QuicVersionLabel version;
       if (!CBS_get_u32(&versions, &version)) {
+        QUIC_DLOG(ERROR)
+            << "Failed to parse transport parameter supported version";
         return false;
       }
       out->supported_versions.push_back(version);
@@ -210,93 +545,176 @@ bool ParseTransportParameters(const uint8_t* in,
   }
   out->perspective = perspective;
 
-  uint32_t present_params = 0;
-  bool has_google_quic_params = false;
   CBS params;
   if (!CBS_get_u16_length_prefixed(&cbs, &params)) {
+    QUIC_DLOG(ERROR) << "Failed to parse the number of transport parameters";
     return false;
   }
+
   while (CBS_len(&params) > 0) {
     uint16_t param_id;
     CBS value;
-    if (!CBS_get_u16(&params, &param_id) ||
-        !CBS_get_u16_length_prefixed(&params, &value)) {
+    if (!CBS_get_u16(&params, &param_id)) {
+      QUIC_DLOG(ERROR) << "Failed to parse transport parameter ID";
       return false;
     }
-    if (param_id < kMaxKnownParameterId) {
-      uint16_t mask = 1 << param_id;
-      if (present_params & mask) {
-        return false;
-      }
-      present_params |= mask;
+    if (!CBS_get_u16_length_prefixed(&params, &value)) {
+      QUIC_DLOG(ERROR) << "Failed to parse length of transport parameter "
+                       << param_id;
+      return false;
     }
-    switch (param_id) {
-      case kInitialMaxStreamDataId:
-        if (!CBS_get_u32(&value, &out->initial_max_stream_data) ||
-            CBS_len(&value) != 0) {
+    bool parse_success = true;
+    switch (static_cast<TransportParameters::TransportParameterId>(param_id)) {
+      case kOriginalConnectionId:
+        if (!out->original_connection_id.IsEmpty()) {
+          QUIC_DLOG(ERROR) << "Received a second original connection ID";
           return false;
         }
-        break;
-      case kInitialMaxDataId:
-        if (!CBS_get_u32(&value, &out->initial_max_data) ||
-            CBS_len(&value) != 0) {
+        if (CBS_len(&value) > static_cast<size_t>(kQuicMaxConnectionIdLength)) {
+          QUIC_DLOG(ERROR) << "Received original connection ID of "
+                           << "invalid length " << CBS_len(&value);
           return false;
         }
-        break;
-      case kInitialMaxBidiStreamsId:
-        if (!CBS_get_u16(&value, &out->initial_max_bidi_streams.value) ||
-            CBS_len(&value) != 0) {
-          return false;
-        }
-        out->initial_max_bidi_streams.present = true;
-        break;
-      case kIdleTimeoutId:
-        if (!CBS_get_u16(&value, &out->idle_timeout) || CBS_len(&value) != 0) {
-          return false;
+        if (CBS_len(&value) != 0) {
+          out->original_connection_id.set_length(CBS_len(&value));
+          memcpy(out->original_connection_id.mutable_data(), CBS_data(&value),
+                 CBS_len(&value));
         }
         break;
-      case kMaxOutgoingPacketSizeId:
-        if (!CBS_get_u16(&value, &out->max_packet_size.value) ||
-            CBS_len(&value) != 0) {
+      case kIdleTimeout:
+        parse_success = out->idle_timeout_seconds.ReadFromCbs(&value);
+        break;
+      case kStatelessResetToken:
+        if (!out->stateless_reset_token.empty()) {
+          QUIC_DLOG(ERROR) << "Received a second stateless reset token";
           return false;
         }
-        out->max_packet_size.present = true;
-        break;
-      case kStatelessResetTokenId:
-        if (CBS_len(&value) == 0) {
+        if (CBS_len(&value) != kStatelessResetTokenLength) {
+          QUIC_DLOG(ERROR) << "Received stateless reset token of "
+                           << "invalid length " << CBS_len(&value);
           return false;
         }
         out->stateless_reset_token.assign(CBS_data(&value),
                                           CBS_data(&value) + CBS_len(&value));
         break;
-      case kAckDelayExponentId:
-        if (!CBS_get_u8(&value, &out->ack_delay_exponent.value) ||
-            CBS_len(&value) != 0) {
-          return false;
-        }
-        out->ack_delay_exponent.present = true;
+      case kMaxPacketSize:
+        parse_success = out->max_packet_size.ReadFromCbs(&value);
         break;
-      case kInitialMaxUniStreamsId:
-        if (!CBS_get_u16(&value, &out->initial_max_uni_streams.value) ||
-            CBS_len(&value) != 0) {
-          return false;
-        }
-        out->initial_max_uni_streams.present = true;
+      case kInitialMaxData:
+        parse_success = out->initial_max_data.ReadFromCbs(&value);
         break;
-      case kGoogleQuicParamId:
-        if (has_google_quic_params) {
+      case kInitialMaxStreamDataBidiLocal:
+        parse_success =
+            out->initial_max_stream_data_bidi_local.ReadFromCbs(&value);
+        break;
+      case kInitialMaxStreamDataBidiRemote:
+        parse_success =
+            out->initial_max_stream_data_bidi_remote.ReadFromCbs(&value);
+        break;
+      case kInitialMaxStreamDataUni:
+        parse_success = out->initial_max_stream_data_uni.ReadFromCbs(&value);
+        break;
+      case kInitialMaxStreamsBidi:
+        parse_success = out->initial_max_streams_bidi.ReadFromCbs(&value);
+        break;
+      case kInitialMaxStreamsUni:
+        parse_success = out->initial_max_streams_uni.ReadFromCbs(&value);
+        break;
+      case kAckDelayExponent:
+        parse_success = out->ack_delay_exponent.ReadFromCbs(&value);
+        break;
+      case kMaxAckDelay:
+        parse_success = out->max_ack_delay.ReadFromCbs(&value);
+        break;
+      case kDisableMigration:
+        if (out->disable_migration) {
+          QUIC_DLOG(ERROR) << "Received a second disable migration";
           return false;
         }
-        has_google_quic_params = true;
+        if (CBS_len(&value) != 0) {
+          QUIC_DLOG(ERROR) << "Received disable migration of invalid length "
+                           << CBS_len(&value);
+          return false;
+        }
+        out->disable_migration = true;
+        break;
+      case kPreferredAddress: {
+        uint16_t ipv4_port, ipv6_port;
+        in_addr ipv4_address;
+        in6_addr ipv6_address;
+        if (!CBS_copy_bytes(&value, reinterpret_cast<uint8_t*>(&ipv4_address),
+                            sizeof(ipv4_address)) ||
+            !CBS_get_u16(&value, &ipv4_port) ||
+            !CBS_copy_bytes(&value, reinterpret_cast<uint8_t*>(&ipv6_address),
+                            sizeof(ipv6_address)) ||
+            !CBS_get_u16(&value, &ipv6_port)) {
+          QUIC_DLOG(ERROR) << "Failed to parse preferred address IPs and ports";
+          return false;
+        }
+        TransportParameters::PreferredAddress preferred_address;
+        preferred_address.ipv4_socket_address =
+            QuicSocketAddress(QuicIpAddress(ipv4_address), ipv4_port);
+        preferred_address.ipv6_socket_address =
+            QuicSocketAddress(QuicIpAddress(ipv6_address), ipv6_port);
+        if (!preferred_address.ipv4_socket_address.host().IsIPv4() ||
+            !preferred_address.ipv6_socket_address.host().IsIPv6()) {
+          QUIC_DLOG(ERROR) << "Received preferred addresses of bad families "
+                           << preferred_address;
+          return false;
+        }
+        CBS connection_id_cbs;
+        if (!CBS_get_u16_length_prefixed(&value, &connection_id_cbs)) {
+          QUIC_DLOG(ERROR)
+              << "Failed to parse length of preferred address connection ID";
+          return false;
+        }
+        if (CBS_len(&connection_id_cbs) > kQuicMaxConnectionIdLength) {
+          QUIC_DLOG(ERROR) << "Bad preferred address connection ID length";
+          return false;
+        }
+        preferred_address.connection_id.set_length(CBS_len(&connection_id_cbs));
+        if (preferred_address.connection_id.length() > 0 &&
+            !CBS_copy_bytes(&connection_id_cbs,
+                            reinterpret_cast<uint8_t*>(
+                                preferred_address.connection_id.mutable_data()),
+                            preferred_address.connection_id.length())) {
+          QUIC_DLOG(ERROR) << "Failed to read preferred address connection ID";
+          return false;
+        }
+        if (CBS_len(&value) != kStatelessResetTokenLength) {
+          QUIC_DLOG(ERROR) << "Received preferred address with "
+                           << "invalid remaining length " << CBS_len(&value);
+          return false;
+        }
+        preferred_address.stateless_reset_token.assign(
+            CBS_data(&value), CBS_data(&value) + CBS_len(&value));
+        out->preferred_address =
+            QuicMakeUnique<TransportParameters::PreferredAddress>(
+                preferred_address);
+      } break;
+      case kGoogleQuicParam:
+        if (out->google_quic_params) {
+          QUIC_DLOG(ERROR) << "Received a second Google parameter";
+          return false;
+        }
         QuicStringPiece serialized_params(
             reinterpret_cast<const char*>(CBS_data(&value)), CBS_len(&value));
         out->google_quic_params = CryptoFramer::ParseMessage(serialized_params);
     }
+    if (!parse_success) {
+      return false;
+    }
   }
-  if ((present_params & kRequiredParamsMask) != kRequiredParamsMask) {
-    return false;
+
+  const bool ok = out->AreValid();
+  if (ok) {
+    QUIC_DLOG(INFO) << "Parsed transport parameters " << *out << " from "
+                    << in_len << " bytes";
+  } else {
+    QUIC_DLOG(ERROR) << "Transport parameter validity check failed " << *out
+                     << " from " << in_len << " bytes";
   }
-  return out->is_valid();
+  return ok;
 }
 
 }  // namespace quic
