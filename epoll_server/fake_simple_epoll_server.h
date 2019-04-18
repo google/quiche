@@ -8,8 +8,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include <unordered_map>
-#include <unordered_set>
+#include <map>
 
 #include "net/third_party/quiche/src/epoll_server/platform/api/epoll_export.h"
 #include "net/third_party/quiche/src/epoll_server/simple_epoll_server.h"
@@ -57,7 +56,7 @@ class EPOLL_EXPORT_PRIVATE FakeTimeSimpleEpollServer
 class EPOLL_EXPORT_PRIVATE FakeSimpleEpollServer
     : public FakeTimeSimpleEpollServer {
  public:  // type definitions
-  using EventQueue = std::unordered_multimap<int64_t, struct epoll_event>;
+  using EventQueue = std::multimap<int64_t, struct epoll_event>;
 
   FakeSimpleEpollServer();
   FakeSimpleEpollServer(const FakeSimpleEpollServer&) = delete;
