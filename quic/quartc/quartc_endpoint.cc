@@ -47,6 +47,7 @@ QuicArenaScopedPtr<QuicAlarm> QuartcAlarmFactoryWrapper::CreateAlarm(
 QuartcClientEndpoint::QuartcClientEndpoint(
     QuicAlarmFactory* alarm_factory,
     const QuicClock* clock,
+    QuicRandom* random,
     QuartcEndpoint::Delegate* delegate,
     const QuartcSessionConfig& config,
     QuicStringPiece serialized_server_config,
@@ -60,7 +61,8 @@ QuartcClientEndpoint::QuartcClientEndpoint(
                                              AllSupportedVersions())),
       create_session_alarm_(QuicWrapUnique(
           alarm_factory_->CreateAlarm(new CreateSessionDelegate(this)))),
-      connection_helper_(QuicMakeUnique<QuartcConnectionHelper>(clock)),
+      connection_helper_(
+          QuicMakeUnique<QuartcConnectionHelper>(clock_, random)),
       config_(config) {}
 
 void QuartcClientEndpoint::Connect(QuartcPacketTransport* packet_transport) {
@@ -79,6 +81,7 @@ void QuartcClientEndpoint::OnCreateSessionAlarm() {
 QuartcServerEndpoint::QuartcServerEndpoint(
     QuicAlarmFactory* alarm_factory,
     const QuicClock* clock,
+    QuicRandom* random,
     QuartcEndpoint::Delegate* delegate,
     const QuartcSessionConfig& config,
     std::unique_ptr<QuicVersionManager> version_manager)
@@ -88,7 +91,8 @@ QuartcServerEndpoint::QuartcServerEndpoint(
       version_manager_(version_manager ? std::move(version_manager)
                                        : QuicMakeUnique<QuicVersionManager>(
                                              AllSupportedVersions())),
-      pre_connection_helper_(QuicMakeUnique<QuartcConnectionHelper>(clock)),
+      pre_connection_helper_(
+          QuicMakeUnique<QuartcConnectionHelper>(clock, random)),
       crypto_config_(
           CreateCryptoServerConfig(pre_connection_helper_->GetRandomGenerator(),
                                    clock,

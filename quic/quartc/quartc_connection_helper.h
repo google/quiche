@@ -16,7 +16,7 @@ namespace quic {
 // Simple implementation of QuicConnectionHelperInterface for Quartc.
 class QuartcConnectionHelper : public QuicConnectionHelperInterface {
  public:
-  explicit QuartcConnectionHelper(const QuicClock* clock);
+  QuartcConnectionHelper(const QuicClock* clock, QuicRandom* random);
 
   // QuicConnectionHelperInterface overrides.
   const QuicClock* GetClock() const override;
@@ -25,6 +25,7 @@ class QuartcConnectionHelper : public QuicConnectionHelperInterface {
 
  private:
   const QuicClock* clock_;
+  QuicRandom* random_;
   SimpleBufferAllocator buffer_allocator_;
 };
 

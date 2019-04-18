@@ -13,6 +13,7 @@
 #include "net/third_party/quiche/src/quic/quartc/test/bidi_test_runner.h"
 #include "net/third_party/quiche/src/quic/quartc/test/random_delay_link.h"
 #include "net/third_party/quiche/src/quic/quartc/test/random_packet_filter.h"
+#include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/simulator/simulator.h"
 
 namespace quic {
@@ -21,7 +22,12 @@ namespace {
 
 class QuartcBidiTest : public QuicTest {
  protected:
-  QuartcBidiTest() {}
+  QuartcBidiTest() {
+    uint64_t seed = QuicRandom::GetInstance()->RandUint64();
+    QUIC_LOG(INFO) << "Setting random seed to " << seed;
+    random_.set_seed(seed);
+    simulator_.set_random_generator(&random_);
+  }
 
   void CreateTransports(QuicBandwidth bandwidth,
                         QuicTime::Delta propagation_delay,
@@ -45,6 +51,7 @@ class QuartcBidiTest : public QuicTest {
   }
 
   simulator::Simulator simulator_;
+  SimpleRandom random_;
 
   std::unique_ptr<simulator::SimulatedQuartcPacketTransport> client_transport_;
   std::unique_ptr<simulator::SimulatedQuartcPacketTransport> server_transport_;

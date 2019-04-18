@@ -49,10 +49,12 @@ class QuartcPeerTest : public QuicTest {
     DCHECK(server_peer_);
 
     server_endpoint_ = QuicMakeUnique<QuartcServerEndpoint>(
-        simulator_.GetAlarmFactory(), simulator_.GetClock(), server_peer_.get(),
+        simulator_.GetAlarmFactory(), simulator_.GetClock(),
+        simulator_.GetRandomGenerator(), server_peer_.get(),
         QuartcSessionConfig());
     client_endpoint_ = QuicMakeUnique<QuartcClientEndpoint>(
-        simulator_.GetAlarmFactory(), simulator_.GetClock(), client_peer_.get(),
+        simulator_.GetAlarmFactory(), simulator_.GetClock(),
+        simulator_.GetRandomGenerator(), client_peer_.get(),
         QuartcSessionConfig(), server_endpoint_->server_crypto_config());
 
     server_endpoint_->Connect(&server_transport_);

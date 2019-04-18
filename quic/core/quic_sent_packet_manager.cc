@@ -75,11 +75,13 @@ inline bool ShouldForceRetransmission(TransmissionType transmission_type) {
 QuicSentPacketManager::QuicSentPacketManager(
     Perspective perspective,
     const QuicClock* clock,
+    QuicRandom* random,
     QuicConnectionStats* stats,
     CongestionControlType congestion_control_type,
     LossDetectionType loss_type)
     : unacked_packets_(perspective),
       clock_(clock),
+      random_(random),
       stats_(stats),
       debug_delegate_(nullptr),
       network_change_visitor_(nullptr),
@@ -1054,8 +1056,8 @@ void QuicSentPacketManager::CancelRetransmissionsForStream(
 void QuicSentPacketManager::SetSendAlgorithm(
     CongestionControlType congestion_control_type) {
   SetSendAlgorithm(SendAlgorithmInterface::Create(
-      clock_, &rtt_stats_, &unacked_packets_, congestion_control_type,
-      QuicRandom::GetInstance(), stats_, initial_congestion_window_));
+      clock_, &rtt_stats_, &unacked_packets_, congestion_control_type, random_,
+      stats_, initial_congestion_window_));
 }
 
 void QuicSentPacketManager::SetSendAlgorithm(

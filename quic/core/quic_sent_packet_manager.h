@@ -89,6 +89,7 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
 
   QuicSentPacketManager(Perspective perspective,
                         const QuicClock* clock,
+                        QuicRandom* random,
                         QuicConnectionStats* stats,
                         CongestionControlType congestion_control_type,
                         LossDetectionType loss_type);
@@ -535,6 +536,7 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   PendingRetransmissionMap pending_retransmissions_;
 
   const QuicClock* clock_;
+  QuicRandom* random_;
   QuicConnectionStats* stats_;
 
   DebugDelegate* debug_delegate_;

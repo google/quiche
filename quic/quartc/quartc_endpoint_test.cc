@@ -33,17 +33,19 @@ class QuartcEndpointTest : public QuicTest {
         server_session_delegate_(&server_stream_delegate_,
                                  simulator_.GetClock()),
         server_endpoint_delegate_(&server_session_delegate_),
-        server_endpoint_(
-            QuicMakeUnique<QuartcServerEndpoint>(simulator_.GetAlarmFactory(),
-                                                 simulator_.GetClock(),
-                                                 &server_endpoint_delegate_,
-                                                 QuartcSessionConfig())),
+        server_endpoint_(QuicMakeUnique<QuartcServerEndpoint>(
+            simulator_.GetAlarmFactory(),
+            simulator_.GetClock(),
+            simulator_.GetRandomGenerator(),
+            &server_endpoint_delegate_,
+            QuartcSessionConfig())),
         client_session_delegate_(&client_stream_delegate_,
                                  simulator_.GetClock()),
         client_endpoint_delegate_(&client_session_delegate_),
         client_endpoint_(QuicMakeUnique<QuartcClientEndpoint>(
             simulator_.GetAlarmFactory(),
             simulator_.GetClock(),
+            simulator_.GetRandomGenerator(),
             &client_endpoint_delegate_,
             QuartcSessionConfig(),
             /*serialized_server_config=*/"")) {}
@@ -95,7 +97,8 @@ TEST_F(QuartcEndpointTest,
   client_versions.push_back({PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_43});
   client_endpoint_ = QuicMakeUnique<QuartcClientEndpoint>(
       simulator_.GetAlarmFactory(), simulator_.GetClock(),
-      &client_endpoint_delegate_, QuartcSessionConfig(),
+      simulator_.GetRandomGenerator(), &client_endpoint_delegate_,
+      QuartcSessionConfig(),
       /*serialized_server_config=*/"",
       QuicMakeUnique<QuicVersionManager>(client_versions));
 
@@ -104,7 +107,8 @@ TEST_F(QuartcEndpointTest,
   server_versions.push_back({PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_43});
   server_endpoint_ = QuicMakeUnique<QuartcServerEndpoint>(
       simulator_.GetAlarmFactory(), simulator_.GetClock(),
-      &server_endpoint_delegate_, QuartcSessionConfig(),
+      simulator_.GetRandomGenerator(), &server_endpoint_delegate_,
+      QuartcSessionConfig(),
       QuicMakeUnique<QuicVersionManager>(server_versions));
 
   // The endpoints should be able to establish a connection using version 46.
@@ -138,7 +142,8 @@ TEST_F(QuartcEndpointTest,
   client_versions.push_back({PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_43});
   client_endpoint_ = QuicMakeUnique<QuartcClientEndpoint>(
       simulator_.GetAlarmFactory(), simulator_.GetClock(),
-      &client_endpoint_delegate_, QuartcSessionConfig(),
+      simulator_.GetRandomGenerator(), &client_endpoint_delegate_,
+      QuartcSessionConfig(),
       /*serialized_server_config=*/"",
       QuicMakeUnique<QuicVersionManager>(client_versions));
 
@@ -149,7 +154,8 @@ TEST_F(QuartcEndpointTest,
   server_versions.push_back({PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_43});
   server_endpoint_ = QuicMakeUnique<QuartcServerEndpoint>(
       simulator_.GetAlarmFactory(), simulator_.GetClock(),
-      &server_endpoint_delegate_, QuartcSessionConfig(),
+      simulator_.GetRandomGenerator(), &server_endpoint_delegate_,
+      QuartcSessionConfig(),
       QuicMakeUnique<QuicVersionManager>(server_versions));
 
   // The endpoints should be able to establish a connection using version 46.
@@ -183,7 +189,8 @@ TEST_F(QuartcEndpointTest,
   client_versions.push_back({PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_43});
   client_endpoint_ = QuicMakeUnique<QuartcClientEndpoint>(
       simulator_.GetAlarmFactory(), simulator_.GetClock(),
-      &client_endpoint_delegate_, QuartcSessionConfig(),
+      simulator_.GetRandomGenerator(), &client_endpoint_delegate_,
+      QuartcSessionConfig(),
       /*serialized_server_config=*/"",
       QuicMakeUnique<QuicVersionManager>(client_versions));
 
@@ -192,7 +199,8 @@ TEST_F(QuartcEndpointTest,
   server_versions.push_back({PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_46});
   server_endpoint_ = QuicMakeUnique<QuartcServerEndpoint>(
       simulator_.GetAlarmFactory(), simulator_.GetClock(),
-      &server_endpoint_delegate_, QuartcSessionConfig(),
+      simulator_.GetRandomGenerator(), &server_endpoint_delegate_,
+      QuartcSessionConfig(),
       QuicMakeUnique<QuicVersionManager>(server_versions));
 
   // The endpoints should be unable to establish a connection.

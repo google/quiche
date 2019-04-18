@@ -80,7 +80,12 @@ class QuicSentPacketManagerTest : public QuicTestWithParam<bool> {
 
  protected:
   QuicSentPacketManagerTest()
-      : manager_(Perspective::IS_SERVER, &clock_, &stats_, kCubicBytes, kNack),
+      : manager_(Perspective::IS_SERVER,
+                 &clock_,
+                 QuicRandom::GetInstance(),
+                 &stats_,
+                 kCubicBytes,
+                 kNack),
         send_algorithm_(new StrictMock<MockSendAlgorithm>),
         network_change_visitor_(new StrictMock<MockNetworkChangeVisitor>) {
     QuicSentPacketManagerPeer::SetSendAlgorithm(&manager_, send_algorithm_);

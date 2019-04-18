@@ -328,6 +328,7 @@ QuicConnection::QuicConnection(
       sent_packet_manager_(
           perspective,
           clock_,
+          random_generator_,
           &stats_,
           GetQuicReloadableFlag(quic_default_to_bbr) ? kBBR : kCubicBytes,
           kNack),

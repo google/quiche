@@ -6,15 +6,16 @@
 
 namespace quic {
 
-QuartcConnectionHelper::QuartcConnectionHelper(const QuicClock* clock)
-    : clock_(clock) {}
+QuartcConnectionHelper::QuartcConnectionHelper(const QuicClock* clock,
+                                               QuicRandom* random)
+    : clock_(clock), random_(random) {}
 
 const QuicClock* QuartcConnectionHelper::GetClock() const {
   return clock_;
 }
 
 QuicRandom* QuartcConnectionHelper::GetRandomGenerator() {
-  return QuicRandom::GetInstance();
+  return random_;
 }
 
 QuicBufferAllocator* QuartcConnectionHelper::GetStreamSendBufferAllocator() {

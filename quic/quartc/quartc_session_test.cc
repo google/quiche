@@ -74,12 +74,14 @@ class QuartcSessionTest : public QuicTest {
     if (create_client_endpoint) {
       client_endpoint_ = QuicMakeUnique<QuartcClientEndpoint>(
           simulator_.GetAlarmFactory(), simulator_.GetClock(),
-          client_endpoint_delegate_.get(), quic::QuartcSessionConfig(),
+          simulator_.GetRandomGenerator(), client_endpoint_delegate_.get(),
+          quic::QuartcSessionConfig(),
           /*serialized_server_config=*/"");
     }
     server_endpoint_ = QuicMakeUnique<QuartcServerEndpoint>(
         simulator_.GetAlarmFactory(), simulator_.GetClock(),
-        server_endpoint_delegate_.get(), quic::QuartcSessionConfig());
+        simulator_.GetRandomGenerator(), server_endpoint_delegate_.get(),
+        quic::QuartcSessionConfig());
   }
 
   // Note that input session config will apply to both server and client.
@@ -512,7 +514,8 @@ TEST_F(QuartcSessionTest, PreSharedKeyHandshakeIs0RTT) {
 
   client_endpoint_ = QuicMakeUnique<QuartcClientEndpoint>(
       simulator_.GetAlarmFactory(), simulator_.GetClock(),
-      client_endpoint_delegate_.get(), QuartcSessionConfig(),
+      simulator_.GetRandomGenerator(), client_endpoint_delegate_.get(),
+      QuartcSessionConfig(),
       // This is the key line here. It passes through the server config
       // from the server to the client.
       server_endpoint_->server_crypto_config());

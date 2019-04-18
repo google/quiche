@@ -65,6 +65,7 @@ class QuartcClientEndpoint : public QuartcEndpoint {
   QuartcClientEndpoint(
       QuicAlarmFactory* alarm_factory,
       const QuicClock* clock,
+      QuicRandom* random,
       Delegate* delegate,
       const QuartcSessionConfig& config,
       QuicStringPiece serialized_server_config,
@@ -130,6 +131,7 @@ class QuartcServerEndpoint : public QuartcEndpoint,
   QuartcServerEndpoint(
       QuicAlarmFactory* alarm_factory,
       const QuicClock* clock,
+      QuicRandom* random,
       QuartcEndpoint::Delegate* delegate,
       const QuartcSessionConfig& config,
       std::unique_ptr<QuicVersionManager> version_manager = nullptr);
