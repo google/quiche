@@ -36,16 +36,6 @@ const uint64_t kFakeInitialMaxStreamsUni = 22;
 const uint64_t kFakeAckDelayExponent = 10;
 const uint64_t kFakeMaxAckDelay = 51;
 const bool kFakeDisableMigration = true;
-const in_addr kFakeV4Address = {QuicEndian::HostToNet32(0x41424344)};
-// clang-format off
-const in6_addr kFakeV6Address = {{{
-      0x60, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67,
-      0x68, 0x69, 0x6a, 0x6b, 0x6c, 0x6d, 0x6e, 0x6f}}};
-// clang-format on
-const QuicSocketAddress kFakeV4SocketAddress(QuicIpAddress(kFakeV4Address),
-                                             0x4884);
-const QuicSocketAddress kFakeV6SocketAddress(QuicIpAddress(kFakeV6Address),
-                                             0x6336);
 const QuicConnectionId kFakePreferredConnectionId = TestConnectionId(0xBEEF);
 const uint8_t kFakePreferredStatelessResetTokenData[16] = {
     0x80, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87,
@@ -55,11 +45,29 @@ const std::vector<uint8_t> kFakePreferredStatelessResetToken(
     kFakePreferredStatelessResetTokenData +
         sizeof(kFakeStatelessResetTokenData));
 
+QuicSocketAddress CreateFakeV4SocketAddress() {
+  QuicIpAddress ipv4_address;
+  if (!ipv4_address.FromString("65.66.67.68")) {  // 0x41424344
+    QUIC_LOG(FATAL) << "Failed to create IPv4 address";
+    return QuicSocketAddress();
+  }
+  return QuicSocketAddress(ipv4_address, 0x4884);
+}
+
+QuicSocketAddress CreateFakeV6SocketAddress() {
+  QuicIpAddress ipv6_address;
+  if (!ipv6_address.FromString("6061:6263:6465:6667:6869:6A6B:6C6D:6E6F")) {
+    QUIC_LOG(FATAL) << "Failed to create IPv6 address";
+    return QuicSocketAddress();
+  }
+  return QuicSocketAddress(ipv6_address, 0x6336);
+}
+
 std::unique_ptr<TransportParameters::PreferredAddress>
 CreateFakePreferredAddress() {
   TransportParameters::PreferredAddress preferred_address;
-  preferred_address.ipv4_socket_address = kFakeV4SocketAddress;
-  preferred_address.ipv6_socket_address = kFakeV6SocketAddress;
+  preferred_address.ipv4_socket_address = CreateFakeV4SocketAddress();
+  preferred_address.ipv6_socket_address = CreateFakeV6SocketAddress();
   preferred_address.connection_id = kFakePreferredConnectionId;
   preferred_address.stateless_reset_token = kFakePreferredStatelessResetToken;
   return QuicMakeUnique<TransportParameters::PreferredAddress>(
@@ -174,9 +182,9 @@ TEST_F(TransportParametersTest, RoundTripServer) {
   EXPECT_EQ(kFakeMaxAckDelay, new_params.max_ack_delay.value());
   EXPECT_EQ(kFakeDisableMigration, new_params.disable_migration);
   ASSERT_NE(nullptr, new_params.preferred_address.get());
-  EXPECT_EQ(kFakeV4SocketAddress,
+  EXPECT_EQ(CreateFakeV4SocketAddress(),
             new_params.preferred_address->ipv4_socket_address);
-  EXPECT_EQ(kFakeV6SocketAddress,
+  EXPECT_EQ(CreateFakeV6SocketAddress(),
             new_params.preferred_address->ipv6_socket_address);
   EXPECT_EQ(kFakePreferredConnectionId,
             new_params.preferred_address->connection_id);
@@ -506,9 +514,9 @@ TEST_F(TransportParametersTest, ParseServerParams) {
   EXPECT_EQ(kFakeMaxAckDelay, new_params.max_ack_delay.value());
   EXPECT_EQ(kFakeDisableMigration, new_params.disable_migration);
   ASSERT_NE(nullptr, new_params.preferred_address.get());
-  EXPECT_EQ(kFakeV4SocketAddress,
+  EXPECT_EQ(CreateFakeV4SocketAddress(),
             new_params.preferred_address->ipv4_socket_address);
-  EXPECT_EQ(kFakeV6SocketAddress,
+  EXPECT_EQ(CreateFakeV6SocketAddress(),
             new_params.preferred_address->ipv6_socket_address);
   EXPECT_EQ(kFakePreferredConnectionId,
             new_params.preferred_address->connection_id);
