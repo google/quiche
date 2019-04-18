@@ -9,7 +9,7 @@
 
 namespace epoll_server {
 
-int64_t WallTimeNowInUsec() { return WallTimeNowInUsecImpl(); }
+inline int64_t WallTimeNowInUsec() { return WallTimeNowInUsecImpl(); }
 
 }  // namespace epoll_server
 
