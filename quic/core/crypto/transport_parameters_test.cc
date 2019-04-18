@@ -152,7 +152,7 @@ TEST_F(TransportParametersTest, RoundTripServer) {
 
   EXPECT_EQ(Perspective::IS_SERVER, new_params.perspective);
   EXPECT_EQ(kFakeVersionLabel, new_params.version);
-  EXPECT_EQ(2, new_params.supported_versions.size());
+  EXPECT_EQ(2u, new_params.supported_versions.size());
   EXPECT_EQ(kFakeVersionLabel, new_params.supported_versions[0]);
   EXPECT_EQ(kFakeVersionLabel2, new_params.supported_versions[1]);
   EXPECT_EQ(kFakeOriginalConnectionId, new_params.original_connection_id);
