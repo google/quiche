@@ -476,6 +476,10 @@ struct LostPacket {
   LostPacket(QuicPacketNumber packet_number, QuicPacketLength bytes_lost)
       : packet_number(packet_number), bytes_lost(bytes_lost) {}
 
+  friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
+      std::ostream& os,
+      const LostPacket& lost_packet);
+
   QuicPacketNumber packet_number;
   // Number of bytes sent in the packet that was lost.
   QuicPacketLength bytes_lost;

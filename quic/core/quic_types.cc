@@ -31,6 +31,12 @@ std::ostream& operator<<(std::ostream& os, const AckedPacket& acked_packet) {
   return os;
 }
 
+std::ostream& operator<<(std::ostream& os, const LostPacket& lost_packet) {
+  os << "{ packet_number: " << lost_packet.packet_number
+     << ", bytes_lost: " << lost_packet.bytes_lost << "} ";
+  return os;
+}
+
 std::string HistogramEnumString(WriteStatus enum_value) {
   switch (enum_value) {
     case WRITE_STATUS_OK:
