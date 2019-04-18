@@ -82,9 +82,7 @@ QuicPacketCreator::QuicPacketCreator(QuicConnectionId connection_id,
               false),
       pending_padding_bytes_(0),
       needs_full_padding_(false),
-      can_set_transmission_type_(false),
-      set_transmission_type_for_next_frame_(
-          GetQuicReloadableFlag(quic_set_transmission_type_for_next_frame)) {
+      can_set_transmission_type_(false) {
   SetMaxPacketLength(kDefaultMaxPacketSize);
 }
 
@@ -395,9 +393,7 @@ void QuicPacketCreator::ClearPacket() {
   packet_.has_crypto_handshake = NOT_HANDSHAKE;
   packet_.num_padding_bytes = 0;
   packet_.original_packet_number.Clear();
-  if (!can_set_transmission_type_ || ShouldSetTransmissionTypeForNextFrame()) {
-    packet_.transmission_type = NOT_RETRANSMISSION;
-  }
+  packet_.transmission_type = NOT_RETRANSMISSION;
   packet_.encrypted_buffer = nullptr;
   packet_.encrypted_length = 0;
   DCHECK(packet_.retransmittable_frames.empty());
@@ -468,9 +464,7 @@ void QuicPacketCreator::CreateAndSerializeStreamFrame(
     return;
   }
 
-  if (ShouldSetTransmissionTypeForNextFrame()) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_set_transmission_type_for_next_frame, 1,
-                                 2);
+  if (can_set_transmission_type()) {
     packet_.transmission_type = transmission_type;
   }
 
@@ -892,10 +886,8 @@ bool QuicPacketCreator::AddFrame(const QuicFrame& frame,
 
   // Packet transmission type is determined by the last added retransmittable
   // frame.
-  if (ShouldSetTransmissionTypeForNextFrame() &&
+  if (can_set_transmission_type() &&
       QuicUtils::IsRetransmittableFrame(frame.type)) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_set_transmission_type_for_next_frame, 2,
-                                 2);
     packet_.transmission_type = transmission_type;
   }
   return true;
@@ -977,7 +969,7 @@ void QuicPacketCreator::SetConnectionId(QuicConnectionId connection_id) {
 void QuicPacketCreator::SetTransmissionType(TransmissionType type) {
   DCHECK(can_set_transmission_type_);
 
-  if (!ShouldSetTransmissionTypeForNextFrame()) {
+  if (!can_set_transmission_type()) {
     QUIC_DVLOG_IF(1, type != packet_.transmission_type)
         << ENDPOINT << "Setting Transmission type to "
         << QuicUtils::TransmissionTypeToString(type);

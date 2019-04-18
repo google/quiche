@@ -1017,13 +1017,10 @@ TEST_F(QuicPacketGeneratorTest, PacketTransmissionType) {
   ASSERT_EQ(1u, packets_[0].retransmittable_frames.size());
   EXPECT_EQ(stream1_id,
             packets_[0].retransmittable_frames[0].stream_frame.stream_id);
-  if (GetQuicReloadableFlag(quic_set_transmission_type_for_next_frame)) {
-    // Since the second frame was not added, the packet's transmission type
-    // should be the first frame's type.
-    EXPECT_EQ(packets_[0].transmission_type, LOSS_RETRANSMISSION);
-  } else {
-    EXPECT_EQ(packets_[0].transmission_type, NOT_RETRANSMISSION);
-  }
+
+  // Since the second frame was not added, the packet's transmission type
+  // should be the first frame's type.
+  EXPECT_EQ(packets_[0].transmission_type, LOSS_RETRANSMISSION);
 }
 
 TEST_F(QuicPacketGeneratorTest, TestConnectionIdLength) {

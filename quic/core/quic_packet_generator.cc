@@ -454,7 +454,7 @@ bool QuicPacketGenerator::HasPendingStreamFramesOfStream(
 
 void QuicPacketGenerator::SetTransmissionType(TransmissionType type) {
   packet_creator_.SetTransmissionType(type);
-  if (packet_creator_.ShouldSetTransmissionTypeForNextFrame()) {
+  if (packet_creator_.can_set_transmission_type()) {
     next_transmission_type_ = type;
   }
 }

@@ -1738,7 +1738,7 @@ TEST_P(QuicPacketCreatorTest, PacketTransmissionType) {
   creator_.Flush();
   ASSERT_TRUE(serialized_packet_.encrypted_buffer);
 
-  if (creator_.ShouldSetTransmissionTypeForNextFrame()) {
+  if (creator_.can_set_transmission_type()) {
     // The last retransmittable frame on packet is a stream frame, the packet's
     // transmission type should be the same as the stream frame's.
     EXPECT_EQ(serialized_packet_.transmission_type, RTO_RETRANSMISSION);

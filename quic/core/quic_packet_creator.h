@@ -270,9 +270,7 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
     can_set_transmission_type_ = can_set_transmission_type;
   }
 
-  bool ShouldSetTransmissionTypeForNextFrame() const {
-    return can_set_transmission_type_ && set_transmission_type_for_next_frame_;
-  }
+  bool can_set_transmission_type() const { return can_set_transmission_type_; }
 
   QuicByteCount pending_padding_bytes() const { return pending_padding_bytes_; }
 
@@ -410,10 +408,6 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // If true, packet_'s transmission type is only set by
   // SetPacketTransmissionType and does not get cleared in ClearPacket.
   bool can_set_transmission_type_;
-
-  // Latched value of --quic_set_transmission_type_for_next_frame. Don't use
-  // this variable directly, use ShouldSetTransmissionTypeForNextFrame instead.
-  bool set_transmission_type_for_next_frame_;
 };
 
 }  // namespace quic
