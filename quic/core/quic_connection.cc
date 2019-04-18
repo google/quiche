@@ -1502,11 +1502,30 @@ void QuicConnection::OnPacketComplete() {
 
   if (received_packet_manager_.decide_when_to_send_acks()) {
     if (use_uber_received_packet_manager_) {
-      uber_received_packet_manager_.MaybeUpdateAckTimeout(
-          should_last_packet_instigate_acks_, last_decrypted_packet_level_,
-          last_header_.packet_number, time_of_last_received_packet_,
-          clock_->ApproximateNow(), sent_packet_manager_.GetRttStats(),
-          sent_packet_manager_.delayed_ack_time());
+      // Some encryption levels share a packet number space, it is therefore
+      // possible for us to want to ack some packets even though we do not yet
+      // have the appropriate keys to encrypt the acks. In this scenario we
+      // do not update the ACK timeout. This can happen for example with
+      // IETF QUIC on the server when we receive 0-RTT packets and do not yet
+      // have 1-RTT keys (0-RTT packets are acked at the 1-RTT level).
+      // Note that this could cause slight performance degradations in the edge
+      // case where one packet is received, then the encrypter is installed,
+      // then a second packet is received; as that could cause the ACK for the
+      // second packet to be delayed instead of immediate. This is currently
+      // considered to be small enough of an edge case to not be optimized for.
+      if (framer_.HasEncrypterOfEncryptionLevel(QuicUtils::GetEncryptionLevel(
+              QuicUtils::GetPacketNumberSpace(last_decrypted_packet_level_)))) {
+        uber_received_packet_manager_.MaybeUpdateAckTimeout(
+            should_last_packet_instigate_acks_, last_decrypted_packet_level_,
+            last_header_.packet_number, time_of_last_received_packet_,
+            clock_->ApproximateNow(), sent_packet_manager_.GetRttStats(),
+            sent_packet_manager_.delayed_ack_time());
+      } else {
+        QUIC_DLOG(INFO) << ENDPOINT << "Not updating ACK timeout for "
+                        << QuicUtils::EncryptionLevelToString(
+                               last_decrypted_packet_level_)
+                        << " as we do not have the corresponding encrypter";
+      }
     } else {
       received_packet_manager_.MaybeUpdateAckTimeout(
           should_last_packet_instigate_acks_, last_header_.packet_number,
@@ -3980,6 +3999,13 @@ void QuicConnection::SendAllPendingAcks() {
         static_cast<PacketNumberSpace>(i));
     if (!ack_timeout.IsInitialized() ||
         ack_timeout > clock_->ApproximateNow()) {
+      continue;
+    }
+    if (!framer_.HasEncrypterOfEncryptionLevel(
+            QuicUtils::GetEncryptionLevel(static_cast<PacketNumberSpace>(i)))) {
+      QUIC_BUG << ENDPOINT << "Cannot send ACKs for packet number space "
+               << static_cast<uint32_t>(i)
+               << " without corresponding encrypter";
       continue;
     }
     QUIC_DVLOG(1) << ENDPOINT << "Sending ACK of packet number space: "
