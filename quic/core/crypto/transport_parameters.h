@@ -52,7 +52,7 @@ struct QUIC_EXPORT_PRIVATE TransportParameters {
         const IntegerParameter& param);
 
    private:
-    friend class TransportParameters;
+    friend struct TransportParameters;
     // Constructors for initial setup used by TransportParameters only.
     // This constructor sets |default_value| and |min_value| to 0, and
     // |max_value| to kVarInt62MaxValue.
