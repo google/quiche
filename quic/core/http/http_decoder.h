@@ -117,6 +117,7 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
 
   QuicErrorCode error() const { return error_; }
   const std::string& error_detail() const { return error_detail_; }
+  uint64_t current_frame_type() const { return current_frame_type_; }
 
  private:
   // Represents the current state of the parsing state machine.
@@ -152,8 +153,11 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
   void BufferFramePayload(QuicDataReader* reader);
 
   // Buffers any remaining frame length field from |reader| into
-  // |length_buffer_|
+  // |length_buffer_|.
   void BufferFrameLength(QuicDataReader* reader);
+
+  // Buffers any remaining frame type field from |reader| into |type_buffer_|.
+  void BufferFrameType(QuicDataReader* reader);
 
   // Sets |error_| and |error_detail_| accordingly.
   void RaiseError(QuicErrorCode error, std::string error_detail);
@@ -172,7 +176,7 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
   // Current state of the parsing.
   HttpDecoderState state_;
   // Type of the frame currently being parsed.
-  uint8_t current_frame_type_;
+  uint64_t current_frame_type_;
   // Size of the frame's length field.
   QuicByteCount current_length_field_size_;
   // Remaining length that's needed for the frame's length field.
@@ -181,6 +185,10 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
   QuicByteCount current_frame_length_;
   // Remaining payload bytes to be parsed.
   QuicByteCount remaining_frame_length_;
+  // Length of the frame's type field.
+  QuicByteCount current_type_field_length_;
+  // Remaining length that's needed for the frame's type field.
+  QuicByteCount remaining_type_field_length_;
   // Last error.
   QuicErrorCode error_;
   // The issue which caused |error_|
@@ -189,6 +197,8 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
   std::string buffer_;
   // Remaining unparsed length field data.
   std::string length_buffer_;
+  // Remaining unparsed type field data.
+  std::array<char, sizeof(uint64_t)> type_buffer_;
 };
 
 }  // namespace quic

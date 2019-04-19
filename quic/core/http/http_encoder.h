@@ -77,7 +77,8 @@ class QUIC_EXPORT_PRIVATE HttpEncoder {
                         HttpFrameType type,
                         QuicDataWriter* writer);
 
-  QuicByteCount GetTotalLength(QuicByteCount payload_length);
+  QuicByteCount GetTotalLength(QuicByteCount payload_length,
+                               HttpFrameType type);
 };
 
 }  // namespace quic
