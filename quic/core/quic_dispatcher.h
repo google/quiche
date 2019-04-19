@@ -339,6 +339,7 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
   void StatelesslyTerminateConnection(
       QuicConnectionId connection_id,
       PacketHeaderFormat format,
+      bool version_flag,
       ParsedQuicVersion version,
       QuicErrorCode error_code,
       const std::string& error_details,
@@ -380,6 +381,7 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
   // packets, like ValidityChecks, and invokes ProcessUnauthenticatedHeaderFate.
   void MaybeRejectStatelessly(QuicConnectionId connection_id,
                               PacketHeaderFormat form,
+                              bool version_flag,
                               ParsedQuicVersion version);
 
   // Deliver |packets| to |session| for further processing.
@@ -392,6 +394,7 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
   void ProcessUnauthenticatedHeaderFate(QuicPacketFate fate,
                                         QuicConnectionId connection_id,
                                         PacketHeaderFormat form,
+                                        bool version_flag,
                                         ParsedQuicVersion version);
 
   // Invoked when StatelessRejector::Process completes. |first_version| is the
@@ -407,14 +410,16 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
       const QuicSocketAddress& current_self_address,
       std::unique_ptr<QuicReceivedPacket> current_packet,
       ParsedQuicVersion first_version,
-      PacketHeaderFormat current_packet_format);
+      PacketHeaderFormat current_packet_format,
+      bool current_version_flag);
 
   // Examine the state of the rejector and decide what to do with the current
   // packet.
   void ProcessStatelessRejectorState(
       std::unique_ptr<StatelessRejector> rejector,
       QuicTransportVersion first_version,
-      PacketHeaderFormat form);
+      PacketHeaderFormat form,
+      bool version_flag);
 
   // If the connection ID length is different from what the dispatcher expects,
   // replace the connection ID with a random one of the right length,

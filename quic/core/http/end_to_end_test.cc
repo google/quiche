@@ -3348,7 +3348,8 @@ TEST_P(EndToEndTest,
   EXPECT_EQ("", client_->SendSynchronousRequest("/foo"));
 
   if (client_->client()->client_session()->connection()->transport_version() >
-      QUIC_VERSION_43) {
+          QUIC_VERSION_43 ||
+      GetQuicReloadableFlag(quic_terminate_gquic_connection_as_ietf)) {
     EXPECT_EQ(QUIC_HANDSHAKE_FAILED, client_->connection_error());
   } else {
     EXPECT_EQ(QUIC_PUBLIC_RESET, client_->connection_error());
