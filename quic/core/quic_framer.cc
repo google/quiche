@@ -2514,6 +2514,12 @@ bool QuicFramer::ProcessIetfHeaderTypeByte(QuicDataReader* reader,
           set_detailed_error("Illegal long header type value.");
           return false;
         }
+        if (header->long_packet_type == RETRY &&
+            (version().KnowsWhichDecrypterToUse() ||
+             supports_multiple_packet_number_spaces_)) {
+          set_detailed_error("Not yet supported IETF RETRY packet received.");
+          return RaiseError(QUIC_INVALID_PACKET_HEADER);
+        }
         header->packet_number_length = GetLongHeaderPacketNumberLength(
             header->version.transport_version, type);
       }

@@ -13341,6 +13341,61 @@ TEST_P(QuicFramerTest, MultiplePacketNumberSpaces) {
                                    &framer_, APPLICATION_DATA));
 }
 
+TEST_P(QuicFramerTest, IetfRetryPacketRejected) {
+  if (!framer_.version().KnowsWhichDecrypterToUse()) {
+    return;
+  }
+
+  // clang-format off
+  PacketFragments packet = {
+    // public flags (IETF Retry packet, 0-length original destination CID)
+    {"Unable to read type.",
+     {0xf0}},
+    // version tag
+    {"Unable to read protocol version.",
+     {QUIC_VERSION_BYTES}},
+    // connection_id length
+    {"Not yet supported IETF RETRY packet received.",
+     {0x00}},
+  };
+  // clang-format on
+
+  std::unique_ptr<QuicEncryptedPacket> encrypted(
+      AssemblePacketFromFragments(packet));
+
+  EXPECT_FALSE(framer_.ProcessPacket(*encrypted));
+  EXPECT_EQ(QUIC_INVALID_PACKET_HEADER, framer_.error());
+  CheckFramingBoundaries(packet, QUIC_INVALID_PACKET_HEADER);
+}
+
+TEST_P(QuicFramerTest, RetryPacketRejectedWithMultiplePacketNumberSpaces) {
+  if (framer_.transport_version() < QUIC_VERSION_46) {
+    return;
+  }
+  framer_.EnableMultiplePacketNumberSpacesSupport();
+
+  // clang-format off
+  PacketFragments packet = {
+    // public flags (IETF Retry packet, 0-length original destination CID)
+    {"Unable to read type.",
+     {0xf0}},
+    // version tag
+    {"Unable to read protocol version.",
+     {QUIC_VERSION_BYTES}},
+    // connection_id length
+    {"Not yet supported IETF RETRY packet received.",
+     {0x00}},
+  };
+  // clang-format on
+
+  std::unique_ptr<QuicEncryptedPacket> encrypted(
+      AssemblePacketFromFragments(packet));
+
+  EXPECT_FALSE(framer_.ProcessPacket(*encrypted));
+  EXPECT_EQ(QUIC_INVALID_PACKET_HEADER, framer_.error());
+  CheckFramingBoundaries(packet, QUIC_INVALID_PACKET_HEADER);
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic
