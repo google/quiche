@@ -13396,6 +13396,45 @@ TEST_P(QuicFramerTest, RetryPacketRejectedWithMultiplePacketNumberSpaces) {
   CheckFramingBoundaries(packet, QUIC_INVALID_PACKET_HEADER);
 }
 
+TEST_P(QuicFramerTest, ProcessPublicHeaderNoVersionInferredType) {
+  // The framer needs to have Perspective::IS_SERVER and configured to infer the
+  // packet header type from the packet (not the version). The framer's version
+  // needs to be one that uses the IETF packet format.
+  if (!framer_.version().KnowsWhichDecrypterToUse()) {
+    return;
+  }
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_SERVER);
+
+  // Prepare a packet that uses the Google QUIC packet header but has no version
+  // field.
+
+  // clang-format off
+  PacketFragments packet = {
+    // public flags (1-byte packet number, 8-byte connection_id, no version)
+    {"Unable to read public flags.",
+     {0x08}},
+    // connection_id
+    {"Unable to read ConnectionId.",
+     {0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10}},
+    // packet number
+    {"Unable to read packet number.",
+     {0x01}},
+    // padding
+    {"Invalid public header type for expected version.",
+     {0x00}},
+  };
+  // clang-format on
+
+  PacketFragments& fragments = packet;
+
+  std::unique_ptr<QuicEncryptedPacket> encrypted(
+      AssemblePacketFromFragments(fragments));
+
+  EXPECT_FALSE(framer_.ProcessPacket(*encrypted));
+  EXPECT_EQ(QUIC_INVALID_PACKET_HEADER, framer_.error());
+  CheckFramingBoundaries(fragments, QUIC_INVALID_PACKET_HEADER);
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

@@ -2465,6 +2465,10 @@ bool QuicFramer::ProcessUnauthenticatedHeader(QuicDataReader* encrypted_reader,
         "Visitor asked to stop processing of unauthenticated header.");
     return false;
   }
+  if (!header->version_flag && version().KnowsWhichDecrypterToUse()) {
+    set_detailed_error("Invalid public header type for expected version.");
+    return RaiseError(QUIC_INVALID_PACKET_HEADER);
+  }
   return true;
 }
 
