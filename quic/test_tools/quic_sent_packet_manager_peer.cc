@@ -79,12 +79,6 @@ RttStats* QuicSentPacketManagerPeer::GetRttStats(
 }
 
 // static
-bool QuicSentPacketManagerPeer::HasPendingPackets(
-    const QuicSentPacketManager* sent_packet_manager) {
-  return sent_packet_manager->unacked_packets_.HasInFlightPackets();
-}
-
-// static
 bool QuicSentPacketManagerPeer::IsRetransmission(
     QuicSentPacketManager* sent_packet_manager,
     uint64_t packet_number) {

@@ -379,7 +379,7 @@ TEST_P(QuicSentPacketManagerTest, RetransmitThenAck) {
   // Packet 1 is unacked, pending, but not retransmittable.
   uint64_t unacked[] = {1};
   VerifyUnackedPackets(unacked, QUIC_ARRAYSIZE(unacked));
-  EXPECT_TRUE(QuicSentPacketManagerPeer::HasPendingPackets(&manager_));
+  EXPECT_TRUE(manager_.HasInFlightPackets());
   VerifyRetransmittablePackets(nullptr, 0);
 }
 
@@ -466,7 +466,7 @@ TEST_P(QuicSentPacketManagerTest, RetransmitThenAckPrevious) {
   // 2 remains unacked, but no packets have retransmittable data.
   uint64_t unacked[] = {2};
   VerifyUnackedPackets(unacked, QUIC_ARRAYSIZE(unacked));
-  EXPECT_TRUE(QuicSentPacketManagerPeer::HasPendingPackets(&manager_));
+  EXPECT_TRUE(manager_.HasInFlightPackets());
   VerifyRetransmittablePackets(nullptr, 0);
   if (manager_.session_decides_what_to_write()) {
     // Ack 2 causes 2 be considered as spurious retransmission.
@@ -540,7 +540,7 @@ TEST_P(QuicSentPacketManagerTest, RetransmitThenAckPreviousThenNackRetransmit) {
     // No packets remain unacked.
     VerifyUnackedPackets(nullptr, 0);
   }
-  EXPECT_FALSE(QuicSentPacketManagerPeer::HasPendingPackets(&manager_));
+  EXPECT_FALSE(manager_.HasInFlightPackets());
   VerifyRetransmittablePackets(nullptr, 0);
 
   // Verify that the retransmission alarm would not fire,
@@ -573,7 +573,7 @@ TEST_P(QuicSentPacketManagerTest,
   // Since 2 was marked for retransmit, when 1 is acked, 2 is kept for RTT.
   uint64_t unacked[] = {2};
   VerifyUnackedPackets(unacked, QUIC_ARRAYSIZE(unacked));
-  EXPECT_FALSE(QuicSentPacketManagerPeer::HasPendingPackets(&manager_));
+  EXPECT_FALSE(manager_.HasInFlightPackets());
   VerifyRetransmittablePackets(nullptr, 0);
 
   // Verify that the retransmission alarm would not fire,
@@ -617,7 +617,7 @@ TEST_P(QuicSentPacketManagerTest, RetransmitTwiceThenAckFirst) {
   // 2 and 3 remain unacked, but no packets have retransmittable data.
   uint64_t unacked[] = {2, 3};
   VerifyUnackedPackets(unacked, QUIC_ARRAYSIZE(unacked));
-  EXPECT_TRUE(QuicSentPacketManagerPeer::HasPendingPackets(&manager_));
+  EXPECT_TRUE(manager_.HasInFlightPackets());
   VerifyRetransmittablePackets(nullptr, 0);
 
   // Ensure packet 2 is lost when 4 is sent and 3 and 4 are acked.
@@ -639,7 +639,7 @@ TEST_P(QuicSentPacketManagerTest, RetransmitTwiceThenAckFirst) {
 
   uint64_t unacked2[] = {2};
   VerifyUnackedPackets(unacked2, QUIC_ARRAYSIZE(unacked2));
-  EXPECT_TRUE(QuicSentPacketManagerPeer::HasPendingPackets(&manager_));
+  EXPECT_TRUE(manager_.HasInFlightPackets());
 
   SendDataPacket(5);
   ExpectAckAndLoss(true, 5, 2);
@@ -665,7 +665,7 @@ TEST_P(QuicSentPacketManagerTest, RetransmitTwiceThenAckFirst) {
   } else {
     VerifyUnackedPackets(nullptr, 0);
   }
-  EXPECT_FALSE(QuicSentPacketManagerPeer::HasPendingPackets(&manager_));
+  EXPECT_FALSE(manager_.HasInFlightPackets());
   if (manager_.session_decides_what_to_write()) {
     // Spurious retransmission is detected when packet 3 gets acked. We cannot
     // know packet 2 is a spurious until it gets acked.
@@ -889,7 +889,7 @@ TEST_P(QuicSentPacketManagerTest, TailLossProbeTimeout) {
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
             manager_.OnAckFrameEnd(clock_.Now(), ENCRYPTION_INITIAL));
 
-  EXPECT_TRUE(QuicSentPacketManagerPeer::HasPendingPackets(&manager_));
+  EXPECT_TRUE(manager_.HasInFlightPackets());
 
   // Acking two more packets will lose both of them due to nacks.
   SendDataPacket(4);
@@ -912,7 +912,7 @@ TEST_P(QuicSentPacketManagerTest, TailLossProbeTimeout) {
             manager_.OnAckFrameEnd(clock_.Now(), ENCRYPTION_INITIAL));
 
   EXPECT_FALSE(manager_.HasPendingRetransmissions());
-  EXPECT_FALSE(QuicSentPacketManagerPeer::HasPendingPackets(&manager_));
+  EXPECT_FALSE(manager_.HasInFlightPackets());
   EXPECT_EQ(2u, stats_.tlp_count);
   EXPECT_EQ(0u, stats_.rto_count);
 }
@@ -1269,7 +1269,7 @@ TEST_P(QuicSentPacketManagerTest,
     EXPECT_TRUE(manager_.HasPendingRetransmissions());
   }
   EXPECT_TRUE(QuicSentPacketManagerPeer::HasUnackedCryptoPackets(&manager_));
-  EXPECT_FALSE(QuicSentPacketManagerPeer::HasPendingPackets(&manager_));
+  EXPECT_FALSE(manager_.HasInFlightPackets());
 }
 
 TEST_P(QuicSentPacketManagerTest,
@@ -1315,7 +1315,7 @@ TEST_P(QuicSentPacketManagerTest,
   VerifyRetransmittablePackets(nullptr, 0);
   EXPECT_FALSE(manager_.HasPendingRetransmissions());
   EXPECT_FALSE(QuicSentPacketManagerPeer::HasUnackedCryptoPackets(&manager_));
-  EXPECT_FALSE(QuicSentPacketManagerPeer::HasPendingPackets(&manager_));
+  EXPECT_FALSE(manager_.HasInFlightPackets());
 
   // Ensure both packets get discarded when packet 2 is acked.
   uint64_t acked[] = {3};

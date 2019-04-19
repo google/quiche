@@ -46,9 +46,6 @@ class QuicSentPacketManagerPeer {
 
   static RttStats* GetRttStats(QuicSentPacketManager* sent_packet_manager);
 
-  static bool HasPendingPackets(
-      const QuicSentPacketManager* sent_packet_manager);
-
   // Returns true if |packet_number| is a retransmission of a packet.
   static bool IsRetransmission(QuicSentPacketManager* sent_packet_manager,
                                uint64_t packet_number);
