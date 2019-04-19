@@ -80,7 +80,7 @@ TEST_F(HttpDecoderTest, ReservedFramesNoPayload) {
   EXPECT_EQ(3u, decoder_.ProcessInput(in, QUIC_ARRAYSIZE(in)));
   EXPECT_EQ(QUIC_NO_ERROR, decoder_.error());
   ASSERT_EQ("", decoder_.error_detail());
-  EXPECT_EQ(0xB + 0x1F * 3, decoder_.current_frame_type());
+  EXPECT_EQ(0xB + 0x1F * 3u, decoder_.current_frame_type());
 }
 
 TEST_F(HttpDecoderTest, ReservedFramesSmallPayload) {
@@ -113,7 +113,7 @@ TEST_F(HttpDecoderTest, ReservedFramesSmallPayload) {
   EXPECT_EQ(QUIC_ARRAYSIZE(in), decoder_.ProcessInput(in, QUIC_ARRAYSIZE(in)));
   EXPECT_EQ(QUIC_NO_ERROR, decoder_.error());
   ASSERT_EQ("", decoder_.error_detail());
-  EXPECT_EQ(0xB + 0x1F * 3, decoder_.current_frame_type());
+  EXPECT_EQ(0xB + 0x1F * 3u, decoder_.current_frame_type());
 }
 
 TEST_F(HttpDecoderTest, ReservedFramesLargePayload) {
@@ -147,7 +147,7 @@ TEST_F(HttpDecoderTest, ReservedFramesLargePayload) {
   EXPECT_EQ(QUIC_ARRAYSIZE(in), decoder_.ProcessInput(in, QUIC_ARRAYSIZE(in)));
   EXPECT_EQ(QUIC_NO_ERROR, decoder_.error());
   ASSERT_EQ("", decoder_.error_detail());
-  EXPECT_EQ(0xB + 0x1F * 3, decoder_.current_frame_type());
+  EXPECT_EQ(0xB + 0x1F * 3u, decoder_.current_frame_type());
 }
 
 TEST_F(HttpDecoderTest, CancelPush) {
