@@ -13,7 +13,7 @@ namespace test {
 // static
 QuicHeadersStream* QuicSpdySessionPeer::GetHeadersStream(
     QuicSpdySession* session) {
-  return session->headers_stream_.get();
+  return session->headers_stream();
 }
 
 // static
@@ -22,6 +22,20 @@ void QuicSpdySessionPeer::SetHeadersStream(QuicSpdySession* session,
   session->headers_stream_.reset(headers_stream);
   if (headers_stream != nullptr) {
     session->RegisterStaticStream(headers_stream->id(), headers_stream);
+  }
+}
+
+void QuicSpdySessionPeer::SetUnownedHeadersStream(
+    QuicSpdySession* session,
+    QuicHeadersStream* headers_stream) {
+  for (auto& it : session->dynamic_streams()) {
+    if (it.first == QuicUtils::GetHeadersStreamId(
+                        session->connection()->transport_version())) {
+      it.second.reset(headers_stream);
+      session->unowned_headers_stream_ =
+          static_cast<QuicHeadersStream*>(it.second.get());
+      break;
+    }
   }
 }
 

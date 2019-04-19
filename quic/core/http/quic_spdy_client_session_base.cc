@@ -95,6 +95,13 @@ void QuicSpdyClientSessionBase::OnPromiseHeaderList(
     // It's quite possible to receive headers after a stream has been reset.
     return;
   }
+  if (GetQuicReloadableFlag(quic_eliminate_static_stream_map) &&
+      stream->is_static()) {
+    connection()->CloseConnection(
+        QUIC_INVALID_HEADERS_STREAM_DATA, "stream is static",
+        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    return;
+  }
   stream->OnPromiseHeaderList(promised_stream_id, frame_len, header_list);
 }
 

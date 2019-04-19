@@ -343,6 +343,9 @@ class QUIC_EXPORT_PRIVATE QuicStream
   // Does not send a FIN.  May cause the stream to be closed.
   virtual void CloseWriteSide();
 
+  // Returns true if the stream is static.
+  bool is_static() const { return is_static_; }
+
  protected:
   // Sends as many bytes in the first |count| buffers of |iov| to the connection
   // as the connection will consume. If FIN is consumed, the write side is

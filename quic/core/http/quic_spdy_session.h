@@ -139,7 +139,17 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
 
   QpackEncoder* qpack_encoder();
   QpackDecoder* qpack_decoder();
-  QuicHeadersStream* headers_stream() { return headers_stream_.get(); }
+  QuicHeadersStream* headers_stream() {
+    return GetQuicReloadableFlag(quic_eliminate_static_stream_map)
+               ? unowned_headers_stream_
+               : headers_stream_.get();
+  }
+
+  const QuicHeadersStream* headers_stream() const {
+    return GetQuicReloadableFlag(quic_eliminate_static_stream_map)
+               ? unowned_headers_stream_
+               : headers_stream_.get();
+  }
 
   bool server_push_enabled() const { return server_push_enabled_; }
 
@@ -261,6 +271,13 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
 
   // TODO(123528590): Remove this member.
   std::unique_ptr<QuicHeadersStream> headers_stream_;
+
+  // Unowned headers stream pointer that points to the stream
+  // in dynamic_stream_map.
+  // TODO(renjietang): Merge this with headers_stream_ and clean up other
+  // static_stream_map logic when flag eliminate_static_stream_map
+  // is deprecated.
+  QuicHeadersStream* unowned_headers_stream_;
 
   // The maximum size of a header block that will be accepted from the peer,
   // defined per spec as key + value + overhead per field (uncompressed).

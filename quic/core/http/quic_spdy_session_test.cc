@@ -896,9 +896,16 @@ TEST_P(QuicSpdySessionTestServer,
   // connection flow control blocked.
   TestCryptoStream* crypto_stream = session_.GetMutableCryptoStream();
   EXPECT_CALL(*crypto_stream, OnCanWrite());
-  QuicSpdySessionPeer::SetHeadersStream(&session_, nullptr);
-  TestHeadersStream* headers_stream = new TestHeadersStream(&session_);
-  QuicSpdySessionPeer::SetHeadersStream(&session_, headers_stream);
+  TestHeadersStream* headers_stream;
+  if (!GetQuicReloadableFlag(quic_eliminate_static_stream_map)) {
+    QuicSpdySessionPeer::SetHeadersStream(&session_, nullptr);
+    headers_stream = new TestHeadersStream(&session_);
+    QuicSpdySessionPeer::SetHeadersStream(&session_, headers_stream);
+  } else {
+    QuicSpdySessionPeer::SetUnownedHeadersStream(&session_, nullptr);
+    headers_stream = new TestHeadersStream(&session_);
+    QuicSpdySessionPeer::SetUnownedHeadersStream(&session_, headers_stream);
+  }
   session_.MarkConnectionLevelWriteBlocked(
       QuicUtils::GetHeadersStreamId(connection_->transport_version()));
   EXPECT_CALL(*headers_stream, OnCanWrite());
@@ -1597,9 +1604,16 @@ TEST_P(QuicSpdySessionTestClient, RecordFinAfterReadSideClosed) {
 }
 
 TEST_P(QuicSpdySessionTestClient, WritePriority) {
-  QuicSpdySessionPeer::SetHeadersStream(&session_, nullptr);
-  TestHeadersStream* headers_stream = new TestHeadersStream(&session_);
-  QuicSpdySessionPeer::SetHeadersStream(&session_, headers_stream);
+  TestHeadersStream* headers_stream;
+  if (!GetQuicReloadableFlag(quic_eliminate_static_stream_map)) {
+    QuicSpdySessionPeer::SetHeadersStream(&session_, nullptr);
+    headers_stream = new TestHeadersStream(&session_);
+    QuicSpdySessionPeer::SetHeadersStream(&session_, headers_stream);
+  } else {
+    QuicSpdySessionPeer::SetUnownedHeadersStream(&session_, nullptr);
+    headers_stream = new TestHeadersStream(&session_);
+    QuicSpdySessionPeer::SetUnownedHeadersStream(&session_, headers_stream);
+  }
 
   // Make packet writer blocked so |headers_stream| will buffer its write data.
   MockPacketWriter* writer = static_cast<MockPacketWriter*>(

@@ -355,9 +355,15 @@ void QuicSpdySession::Initialize() {
   headers_stream_ = QuicMakeUnique<QuicHeadersStream>((this));
   DCHECK_EQ(QuicUtils::GetHeadersStreamId(connection()->transport_version()),
             headers_stream_->id());
-  RegisterStaticStream(
-      QuicUtils::GetHeadersStreamId(connection()->transport_version()),
-      headers_stream_.get());
+  if (!GetQuicReloadableFlag(quic_eliminate_static_stream_map)) {
+    RegisterStaticStream(
+        QuicUtils::GetHeadersStreamId(connection()->transport_version()),
+        headers_stream_.get());
+  } else {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_eliminate_static_stream_map, 7, 9);
+    unowned_headers_stream_ = headers_stream_.get();
+    RegisterStaticStreamNew(std::move(headers_stream_));
+  }
 
   set_max_uncompressed_header_bytes(max_inbound_header_list_size_);
 
@@ -438,6 +444,14 @@ void QuicSpdySession::OnStreamHeaderList(QuicStreamId stream_id,
     // It's quite possible to receive headers after a stream has been reset.
     return;
   }
+  if (GetQuicReloadableFlag(quic_eliminate_static_stream_map) &&
+      stream->is_static()) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_eliminate_static_stream_map, 8, 9);
+    connection()->CloseConnection(
+        QUIC_INVALID_HEADERS_STREAM_DATA, "stream is static",
+        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    return;
+  }
   stream->OnStreamHeaderList(fin, frame_len, header_list);
 }
 
@@ -478,7 +492,7 @@ size_t QuicSpdySession::WritePriority(QuicStreamId id,
   }
   SpdyPriorityIR priority_frame(id, parent_stream_id, weight, exclusive);
   SpdySerializedFrame frame(spdy_framer_.SerializeFrame(priority_frame));
-  headers_stream_->WriteOrBufferData(
+  headers_stream()->WriteOrBufferData(
       QuicStringPiece(frame.data(), frame.size()), false, nullptr);
   return frame.size();
 }
@@ -498,7 +512,7 @@ size_t QuicSpdySession::WritePushPromise(QuicStreamId original_stream_id,
   push_promise.set_fin(false);
 
   SpdySerializedFrame frame(spdy_framer_.SerializeFrame(push_promise));
-  headers_stream_->WriteOrBufferData(
+  headers_stream()->WriteOrBufferData(
       QuicStringPiece(frame.data(), frame.size()), false, nullptr);
   return frame.size();
 }
@@ -508,7 +522,7 @@ size_t QuicSpdySession::SendMaxHeaderListSize(size_t value) {
   settings_frame.AddSetting(SETTINGS_MAX_HEADER_LIST_SIZE, value);
 
   SpdySerializedFrame frame(spdy_framer_.SerializeFrame(settings_frame));
-  headers_stream_->WriteOrBufferData(
+  headers_stream()->WriteOrBufferData(
       QuicStringPiece(frame.data(), frame.size()), false, nullptr);
   return frame.size();
 }
@@ -567,7 +581,7 @@ size_t QuicSpdySession::WriteHeadersOnHeadersStreamImpl(
     headers_frame.set_exclusive(exclusive);
   }
   SpdySerializedFrame frame(spdy_framer_.SerializeFrame(headers_frame));
-  headers_stream_->WriteOrBufferData(
+  headers_stream()->WriteOrBufferData(
       QuicStringPiece(frame.data(), frame.size()), false,
       std::move(ack_listener));
   return frame.size();
@@ -695,8 +709,20 @@ void QuicSpdySession::CloseConnectionWithDetails(QuicErrorCode error,
 }
 
 bool QuicSpdySession::HasActiveRequestStreams() const {
-  // TODO(renjietang): Exclude static streams.
-  return !dynamic_streams().empty();
+  if (!GetQuicReloadableFlag(quic_eliminate_static_stream_map)) {
+    return !dynamic_streams().empty();
+  }
+  // In the case where session is destructed by calling
+  // dynamic_streams().clear(), we will have incorrect accounting here.
+  // TODO(renjietang): Modify destructors and make this a DCHECK.
+  QUIC_RELOADABLE_FLAG_COUNT_N(quic_eliminate_static_stream_map, 9, 9);
+  if (static_cast<size_t>(dynamic_streams().size()) >
+      num_incoming_static_streams() + num_outgoing_static_streams()) {
+    return dynamic_streams().size() - num_incoming_static_streams() -
+               num_outgoing_static_streams() >
+           0;
+  }
+  return false;
 }
 
 }  // namespace quic

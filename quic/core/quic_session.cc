@@ -61,6 +61,8 @@ QuicSession::QuicSession(QuicConnection* connection,
                             config_.GetMaxIncomingDynamicStreamsToSend()),
       num_dynamic_incoming_streams_(0),
       num_draining_incoming_streams_(0),
+      num_outgoing_static_streams_(0),
+      num_incoming_static_streams_(0),
       num_locally_closed_incoming_streams_highest_offset_(0),
       error_(QUIC_NO_ERROR),
       flow_controller_(
@@ -118,6 +120,20 @@ void QuicSession::RegisterStaticStream(QuicStreamId id, QuicStream* stream) {
   }
 }
 
+void QuicSession::RegisterStaticStreamNew(std::unique_ptr<QuicStream> stream) {
+  DCHECK(GetQuicReloadableFlag(quic_eliminate_static_stream_map));
+  QuicStreamId stream_id = stream->id();
+  dynamic_stream_map_[stream_id] = std::move(stream);
+  if (connection_->transport_version() == QUIC_VERSION_99) {
+    v99_streamid_manager_.RegisterStaticStream(stream_id);
+  }
+  if (IsIncomingStream(stream_id)) {
+    ++num_incoming_static_streams_;
+  } else {
+    ++num_outgoing_static_streams_;
+  }
+}
+
 void QuicSession::OnStreamFrame(const QuicStreamFrame& frame) {
   // TODO(rch) deal with the error case of stream id 0.
   QuicStreamId stream_id = frame.stream_id;
@@ -150,6 +166,14 @@ void QuicSession::OnStreamFrame(const QuicStreamFrame& frame) {
       QuicStreamOffset final_byte_offset = frame.offset + frame.data_length;
       OnFinalByteOffsetReceived(stream_id, final_byte_offset);
     }
+    return;
+  }
+  if (GetQuicReloadableFlag(quic_eliminate_static_stream_map) && frame.fin &&
+      handler.stream->is_static()) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_eliminate_static_stream_map, 1, 9);
+    connection()->CloseConnection(
+        QUIC_INVALID_STREAM_ID, "Attempt to close a static stream",
+        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return;
   }
   handler.stream->OnStreamFrame(frame);
@@ -230,6 +254,19 @@ bool QuicSession::OnStopSendingFrame(const QuicStopSendingFrame& frame) {
                   << stream_id << ". Ignoring.";
     return true;
   }
+
+  if (GetQuicReloadableFlag(quic_eliminate_static_stream_map) &&
+      stream->is_static()) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_eliminate_static_stream_map, 2, 9);
+    QUIC_DVLOG(1) << ENDPOINT
+                  << "Received STOP_SENDING for a static stream, id: "
+                  << stream_id << " Closing connection";
+    connection()->CloseConnection(
+        QUIC_INVALID_STREAM_ID, "Received STOP_SENDING for a static stream",
+        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    return false;
+  }
+
   stream->OnStopSending(frame.application_error_code);
 
   stream->set_stream_error(
@@ -277,6 +314,14 @@ void QuicSession::OnRstStream(const QuicRstStreamFrame& frame) {
     HandleRstOnValidNonexistentStream(frame);
     return;  // Errors are handled by GetOrCreateStream.
   }
+  if (GetQuicReloadableFlag(quic_eliminate_static_stream_map) &&
+      handler.stream->is_static()) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_eliminate_static_stream_map, 3, 9);
+    connection()->CloseConnection(
+        QUIC_INVALID_STREAM_ID, "Attempt to reset a static stream",
+        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    return;
+  }
   handler.stream->OnStreamReset(frame);
 }
 
@@ -317,14 +362,35 @@ void QuicSession::OnConnectionClosed(QuicErrorCode error,
     error_ = error;
   }
 
-  while (!dynamic_stream_map_.empty()) {
-    DynamicStreamMap::iterator it = dynamic_stream_map_.begin();
-    QuicStreamId id = it->first;
-    it->second->OnConnectionClosed(error, source);
-    // The stream should call CloseStream as part of OnConnectionClosed.
-    if (dynamic_stream_map_.find(id) != dynamic_stream_map_.end()) {
-      QUIC_BUG << ENDPOINT << "Stream failed to close under OnConnectionClosed";
-      CloseStream(id);
+  if (!GetQuicReloadableFlag(quic_eliminate_static_stream_map)) {
+    while (!dynamic_stream_map_.empty()) {
+      DynamicStreamMap::iterator it = dynamic_stream_map_.begin();
+      QuicStreamId id = it->first;
+      it->second->OnConnectionClosed(error, source);
+      // The stream should call CloseStream as part of OnConnectionClosed.
+      if (dynamic_stream_map_.find(id) != dynamic_stream_map_.end()) {
+        QUIC_BUG << ENDPOINT << "Stream " << id
+                 << " failed to close under OnConnectionClosed";
+        CloseStream(id);
+      }
+    }
+  } else {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_eliminate_static_stream_map, 4, 9);
+    // Copy all non static streams in a new map for the ease of deleting.
+    QuicSmallMap<QuicStreamId, QuicStream*, 10> non_static_streams;
+    for (const auto& it : dynamic_stream_map_) {
+      if (!it.second->is_static()) {
+        non_static_streams[it.first] = it.second.get();
+      }
+    }
+    for (const auto& it : non_static_streams) {
+      QuicStreamId id = it.first;
+      it.second->OnConnectionClosed(error, source);
+      if (dynamic_stream_map_.find(id) != dynamic_stream_map_.end()) {
+        QUIC_BUG << ENDPOINT << "Stream " << id
+                 << " failed to close under OnConnectionClosed";
+        CloseStream(id);
+      }
     }
   }
 
@@ -533,7 +599,8 @@ bool QuicSession::HasPendingHandshake() const {
 
 uint64_t QuicSession::GetNumOpenDynamicStreams() const {
   return dynamic_stream_map_.size() - draining_streams_.size() +
-         locally_closed_streams_highest_offset_.size();
+         locally_closed_streams_highest_offset_.size() -
+         num_incoming_static_streams_ - num_outgoing_static_streams_;
 }
 
 void QuicSession::ProcessUdpPacket(const QuicSocketAddress& self_address,
@@ -625,6 +692,17 @@ void QuicSession::SendRstStreamInner(QuicStreamId id,
 
   DynamicStreamMap::iterator it = dynamic_stream_map_.find(id);
   if (it != dynamic_stream_map_.end()) {
+    if (GetQuicReloadableFlag(quic_eliminate_static_stream_map) &&
+        it->second->is_static()) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_eliminate_static_stream_map, 5, 9);
+      QUIC_DVLOG(1) << ENDPOINT
+                    << "Try to send rst for a static stream, id: " << id
+                    << " Closing connection";
+      connection()->CloseConnection(
+          QUIC_INVALID_STREAM_ID, "Sending rst for a static stream",
+          ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+      return;
+    }
     QuicStream* stream = it->second.get();
     if (stream) {
       stream->set_rst_sent(true);
@@ -687,6 +765,17 @@ void QuicSession::CloseStreamInner(QuicStreamId stream_id, bool locally_reset) {
     return;
   }
   QuicStream* stream = it->second.get();
+  if (GetQuicReloadableFlag(quic_eliminate_static_stream_map) &&
+      stream->is_static()) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_eliminate_static_stream_map, 6, 9);
+    QUIC_DVLOG(1) << ENDPOINT
+                  << "Try to close a static stream, id: " << stream_id
+                  << " Closing connection";
+    connection()->CloseConnection(
+        QUIC_INVALID_STREAM_ID, "Try to close a static stream",
+        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    return;
+  }
 
   // Tell the stream that a RST has been sent.
   if (locally_reset) {
@@ -1024,6 +1113,7 @@ QuicConfig* QuicSession::config() {
 }
 
 void QuicSession::ActivateStream(std::unique_ptr<QuicStream> stream) {
+  DCHECK(!stream->is_static());
   QuicStreamId stream_id = stream->id();
   QUIC_DVLOG(1) << ENDPOINT << "num_streams: " << dynamic_stream_map_.size()
                 << ". activating " << stream_id;
@@ -1245,7 +1335,8 @@ size_t QuicSession::GetNumOpenOutgoingStreams() const {
 }
 
 size_t QuicSession::GetNumActiveStreams() const {
-  return dynamic_stream_map_.size() - draining_streams_.size();
+  return dynamic_stream_map_.size() - draining_streams_.size() -
+         num_incoming_static_streams_ - num_outgoing_static_streams_;
 }
 
 size_t QuicSession::GetNumDrainingStreams() const {
@@ -1280,9 +1371,11 @@ void QuicSession::SendPing() {
 size_t QuicSession::GetNumDynamicOutgoingStreams() const {
   DCHECK_GE(static_cast<size_t>(dynamic_stream_map_.size() +
                                 pending_stream_map_.size()),
-            num_dynamic_incoming_streams_);
+            num_dynamic_incoming_streams_ + num_outgoing_static_streams_ +
+                num_incoming_static_streams_);
   return dynamic_stream_map_.size() + pending_stream_map_.size() -
-         num_dynamic_incoming_streams_;
+         num_dynamic_incoming_streams_ - num_outgoing_static_streams_ -
+         num_incoming_static_streams_;
 }
 
 size_t QuicSession::GetNumDrainingOutgoingStreams() const {

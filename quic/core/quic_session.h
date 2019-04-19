@@ -300,6 +300,16 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
   // reserved headers and crypto streams.
   size_t GetNumOpenOutgoingStreams() const;
 
+  // Returns the number of open peer initiated static streams.
+  size_t num_incoming_static_streams() const {
+    return num_incoming_static_streams_;
+  }
+
+  // Returns the number of open self initiated static streams.
+  size_t num_outgoing_static_streams() const {
+    return num_outgoing_static_streams_;
+  }
+
   // Add the stream to the session's write-blocked list because it is blocked by
   // connection-level flow control but not by its own stream-level flow control.
   // The stream will be given a chance to write when a connection-level
@@ -481,6 +491,9 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
   // Register (|id|, |stream|) with the static stream map. Override previous
   // registrations with the same id.
   void RegisterStaticStream(QuicStreamId id, QuicStream* stream);
+  // TODO(renjietang): Replace the original Register method with the new one
+  // once flag is deprecated.
+  void RegisterStaticStreamNew(std::unique_ptr<QuicStream> stream);
   const StaticStreamMap& static_streams() const { return static_stream_map_; }
 
   DynamicStreamMap& dynamic_streams() { return dynamic_stream_map_; }
@@ -652,6 +665,14 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
 
   // A counter for peer initiated streams which are in the draining_streams_.
   size_t num_draining_incoming_streams_;
+
+  // A counter for self initiated static streams which are in
+  // dynamic_stream_map_.
+  size_t num_outgoing_static_streams_;
+
+  // A counter for peer initiated static streams which are in
+  // dynamic_stream_map_.
+  size_t num_incoming_static_streams_;
 
   // A counter for peer initiated streams which are in the
   // locally_closed_streams_highest_offset_.
