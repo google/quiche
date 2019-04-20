@@ -194,14 +194,6 @@ void QuicSentPacketManagerPeer::SetUsingPacing(
 }
 
 // static
-bool QuicSentPacketManagerPeer::IsUnacked(
-    QuicSentPacketManager* sent_packet_manager,
-    uint64_t packet_number) {
-  return sent_packet_manager->unacked_packets_.IsUnacked(
-      QuicPacketNumber(packet_number));
-}
-
-// static
 bool QuicSentPacketManagerPeer::HasRetransmittableFrames(
     QuicSentPacketManager* sent_packet_manager,
     uint64_t packet_number) {

@@ -129,7 +129,8 @@ class QuicSentPacketManagerTest : public QuicTestWithParam<bool> {
     EXPECT_FALSE(manager_.unacked_packets().empty());
     EXPECT_EQ(QuicPacketNumber(packets[0]), manager_.GetLeastUnacked());
     for (size_t i = 0; i < num_packets; ++i) {
-      EXPECT_TRUE(QuicSentPacketManagerPeer::IsUnacked(&manager_, packets[i]))
+      EXPECT_TRUE(
+          manager_.unacked_packets().IsUnacked(QuicPacketNumber(packets[i])))
           << packets[i];
     }
   }
@@ -1259,8 +1260,8 @@ TEST_P(QuicSentPacketManagerTest,
   manager_.RetransmitUnackedPackets(ALL_UNACKED_RETRANSMISSION);
   if (manager_.session_decides_what_to_write()) {
     // Both packets 1 and 2 are unackable.
-    EXPECT_FALSE(QuicSentPacketManagerPeer::IsUnacked(&manager_, 1));
-    EXPECT_FALSE(QuicSentPacketManagerPeer::IsUnacked(&manager_, 2));
+    EXPECT_FALSE(manager_.unacked_packets().IsUnacked(QuicPacketNumber(1)));
+    EXPECT_FALSE(manager_.unacked_packets().IsUnacked(QuicPacketNumber(2)));
   } else {
     // Packet 2 is useful because it does not get retransmitted and still has
     // retransmittable frames.
