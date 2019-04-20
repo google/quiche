@@ -136,12 +136,6 @@ QuicTime::Delta QuicSentPacketManagerPeer::GetTailLossProbeDelay(
 }
 
 // static
-bool QuicSentPacketManagerPeer::HasUnackedCryptoPackets(
-    const QuicSentPacketManager* sent_packet_manager) {
-  return sent_packet_manager->unacked_packets_.HasPendingCryptoPackets();
-}
-
-// static
 size_t QuicSentPacketManagerPeer::GetNumRetransmittablePackets(
     const QuicSentPacketManager* sent_packet_manager) {
   size_t num_unacked_packets = 0;

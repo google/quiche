@@ -65,9 +65,6 @@ class QuicSentPacketManagerPeer {
   static QuicTime::Delta GetTailLossProbeDelay(
       const QuicSentPacketManager* sent_packet_manager);
 
-  static bool HasUnackedCryptoPackets(
-      const QuicSentPacketManager* sent_packet_manager);
-
   static size_t GetNumRetransmittablePackets(
       const QuicSentPacketManager* sent_packet_manager);
 

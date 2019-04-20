@@ -1039,7 +1039,7 @@ TEST_P(QuicSentPacketManagerTest, CryptoHandshakeTimeout) {
   for (size_t i = 1; i <= kNumSentDataPackets; ++i) {
     SendDataPacket(kNumSentCryptoPackets + i);
   }
-  EXPECT_TRUE(QuicSentPacketManagerPeer::HasUnackedCryptoPackets(&manager_));
+  EXPECT_TRUE(manager_.HasUnackedCryptoPackets());
 
   // The first retransmits 2 packets.
   if (manager_.session_decides_what_to_write()) {
@@ -1055,7 +1055,7 @@ TEST_P(QuicSentPacketManagerTest, CryptoHandshakeTimeout) {
     RetransmitNextPacket(7);
     EXPECT_FALSE(manager_.HasPendingRetransmissions());
   }
-  EXPECT_TRUE(QuicSentPacketManagerPeer::HasUnackedCryptoPackets(&manager_));
+  EXPECT_TRUE(manager_.HasUnackedCryptoPackets());
 
   // The second retransmits 2 packets.
   if (manager_.session_decides_what_to_write()) {
@@ -1071,7 +1071,7 @@ TEST_P(QuicSentPacketManagerTest, CryptoHandshakeTimeout) {
     RetransmitNextPacket(9);
     EXPECT_FALSE(manager_.HasPendingRetransmissions());
   }
-  EXPECT_TRUE(QuicSentPacketManagerPeer::HasUnackedCryptoPackets(&manager_));
+  EXPECT_TRUE(manager_.HasUnackedCryptoPackets());
 
   // Now ack the two crypto packets and the speculatively encrypted request,
   // and ensure the first four crypto packets get abandoned, but not lost.
@@ -1088,7 +1088,7 @@ TEST_P(QuicSentPacketManagerTest, CryptoHandshakeTimeout) {
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
             manager_.OnAckFrameEnd(clock_.Now(), ENCRYPTION_INITIAL));
 
-  EXPECT_FALSE(QuicSentPacketManagerPeer::HasUnackedCryptoPackets(&manager_));
+  EXPECT_FALSE(manager_.HasUnackedCryptoPackets());
 }
 
 TEST_P(QuicSentPacketManagerTest, CryptoHandshakeTimeoutVersionNegotiation) {
@@ -1101,7 +1101,7 @@ TEST_P(QuicSentPacketManagerTest, CryptoHandshakeTimeoutVersionNegotiation) {
   for (size_t i = 1; i <= kNumSentDataPackets; ++i) {
     SendDataPacket(kNumSentCryptoPackets + i);
   }
-  EXPECT_TRUE(QuicSentPacketManagerPeer::HasUnackedCryptoPackets(&manager_));
+  EXPECT_TRUE(manager_.HasUnackedCryptoPackets());
 
   if (manager_.session_decides_what_to_write()) {
     EXPECT_CALL(notifier_, RetransmitFrames(_, _))
@@ -1115,7 +1115,7 @@ TEST_P(QuicSentPacketManagerTest, CryptoHandshakeTimeoutVersionNegotiation) {
     RetransmitNextPacket(7);
     EXPECT_FALSE(manager_.HasPendingRetransmissions());
   }
-  EXPECT_TRUE(QuicSentPacketManagerPeer::HasUnackedCryptoPackets(&manager_));
+  EXPECT_TRUE(manager_.HasUnackedCryptoPackets());
 
   // Now act like a version negotiation packet arrived, which would cause all
   // unacked packets to be retransmitted.
@@ -1169,7 +1169,7 @@ TEST_P(QuicSentPacketManagerTest, CryptoHandshakeTimeoutVersionNegotiation) {
 TEST_P(QuicSentPacketManagerTest, CryptoHandshakeSpuriousRetransmission) {
   // Send 1 crypto packet.
   SendCryptoPacket(1);
-  EXPECT_TRUE(QuicSentPacketManagerPeer::HasUnackedCryptoPackets(&manager_));
+  EXPECT_TRUE(manager_.HasUnackedCryptoPackets());
 
   // Retransmit the crypto packet as 2.
   if (manager_.session_decides_what_to_write()) {
@@ -1206,7 +1206,7 @@ TEST_P(QuicSentPacketManagerTest, CryptoHandshakeSpuriousRetransmission) {
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
             manager_.OnAckFrameEnd(clock_.Now(), ENCRYPTION_INITIAL));
 
-  EXPECT_FALSE(QuicSentPacketManagerPeer::HasUnackedCryptoPackets(&manager_));
+  EXPECT_FALSE(manager_.HasUnackedCryptoPackets());
   uint64_t unacked[] = {3};
   VerifyUnackedPackets(unacked, QUIC_ARRAYSIZE(unacked));
 }
@@ -1218,7 +1218,7 @@ TEST_P(QuicSentPacketManagerTest, CryptoHandshakeTimeoutUnsentDataPacket) {
     SendCryptoPacket(i);
   }
   SendDataPacket(3);
-  EXPECT_TRUE(QuicSentPacketManagerPeer::HasUnackedCryptoPackets(&manager_));
+  EXPECT_TRUE(manager_.HasUnackedCryptoPackets());
 
   // Retransmit 2 crypto packets, but not the serialized packet.
   if (manager_.session_decides_what_to_write()) {
@@ -1233,7 +1233,7 @@ TEST_P(QuicSentPacketManagerTest, CryptoHandshakeTimeoutUnsentDataPacket) {
     RetransmitNextPacket(5);
     EXPECT_FALSE(manager_.HasPendingRetransmissions());
   }
-  EXPECT_TRUE(QuicSentPacketManagerPeer::HasUnackedCryptoPackets(&manager_));
+  EXPECT_TRUE(manager_.HasUnackedCryptoPackets());
 }
 
 TEST_P(QuicSentPacketManagerTest,
@@ -1241,7 +1241,7 @@ TEST_P(QuicSentPacketManagerTest,
   // Send 1 crypto packet.
   SendCryptoPacket(1);
 
-  EXPECT_TRUE(QuicSentPacketManagerPeer::HasUnackedCryptoPackets(&manager_));
+  EXPECT_TRUE(manager_.HasUnackedCryptoPackets());
 
   // Retransmit the crypto packet as 2.
   if (manager_.session_decides_what_to_write()) {
@@ -1269,7 +1269,7 @@ TEST_P(QuicSentPacketManagerTest,
     VerifyUnackedPackets(unacked, QUIC_ARRAYSIZE(unacked));
     EXPECT_TRUE(manager_.HasPendingRetransmissions());
   }
-  EXPECT_TRUE(QuicSentPacketManagerPeer::HasUnackedCryptoPackets(&manager_));
+  EXPECT_TRUE(manager_.HasUnackedCryptoPackets());
   EXPECT_FALSE(manager_.HasInFlightPackets());
 }
 
@@ -1278,7 +1278,7 @@ TEST_P(QuicSentPacketManagerTest,
   // Send 1 crypto packet.
   SendCryptoPacket(1);
 
-  EXPECT_TRUE(QuicSentPacketManagerPeer::HasUnackedCryptoPackets(&manager_));
+  EXPECT_TRUE(manager_.HasUnackedCryptoPackets());
 
   // Retransmit the crypto packet as 2.
   if (manager_.session_decides_what_to_write()) {
@@ -1289,7 +1289,7 @@ TEST_P(QuicSentPacketManagerTest,
   if (!manager_.session_decides_what_to_write()) {
     RetransmitNextPacket(2);
   }
-  EXPECT_TRUE(QuicSentPacketManagerPeer::HasUnackedCryptoPackets(&manager_));
+  EXPECT_TRUE(manager_.HasUnackedCryptoPackets());
 
   // Retransmit the crypto packet as 3.
   if (manager_.session_decides_what_to_write()) {
@@ -1300,7 +1300,7 @@ TEST_P(QuicSentPacketManagerTest,
   if (!manager_.session_decides_what_to_write()) {
     RetransmitNextPacket(3);
   }
-  EXPECT_TRUE(QuicSentPacketManagerPeer::HasUnackedCryptoPackets(&manager_));
+  EXPECT_TRUE(manager_.HasUnackedCryptoPackets());
 
   // Now neuter all unacked unencrypted packets, which occurs when the
   // connection goes forward secure.
@@ -1310,12 +1310,12 @@ TEST_P(QuicSentPacketManagerTest,
         .WillRepeatedly(Return(false));
     EXPECT_CALL(notifier_, IsFrameOutstanding(_)).WillRepeatedly(Return(false));
   }
-  EXPECT_FALSE(QuicSentPacketManagerPeer::HasUnackedCryptoPackets(&manager_));
+  EXPECT_FALSE(manager_.HasUnackedCryptoPackets());
   uint64_t unacked[] = {1, 2, 3};
   VerifyUnackedPackets(unacked, QUIC_ARRAYSIZE(unacked));
   VerifyRetransmittablePackets(nullptr, 0);
   EXPECT_FALSE(manager_.HasPendingRetransmissions());
-  EXPECT_FALSE(QuicSentPacketManagerPeer::HasUnackedCryptoPackets(&manager_));
+  EXPECT_FALSE(manager_.HasUnackedCryptoPackets());
   EXPECT_FALSE(manager_.HasInFlightPackets());
 
   // Ensure both packets get discarded when packet 2 is acked.
