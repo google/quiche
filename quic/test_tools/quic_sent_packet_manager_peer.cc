@@ -149,12 +149,6 @@ size_t QuicSentPacketManagerPeer::GetNumRetransmittablePackets(
 }
 
 // static
-QuicByteCount QuicSentPacketManagerPeer::GetBytesInFlight(
-    const QuicSentPacketManager* sent_packet_manager) {
-  return sent_packet_manager->unacked_packets_.bytes_in_flight();
-}
-
-// static
 void QuicSentPacketManagerPeer::SetConsecutiveRtoCount(
     QuicSentPacketManager* sent_packet_manager,
     size_t count) {

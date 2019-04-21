@@ -68,9 +68,6 @@ class QuicSentPacketManagerPeer {
   static size_t GetNumRetransmittablePackets(
       const QuicSentPacketManager* sent_packet_manager);
 
-  static QuicByteCount GetBytesInFlight(
-      const QuicSentPacketManager* sent_packet_manager);
-
   static void SetConsecutiveRtoCount(QuicSentPacketManager* sent_packet_manager,
                                      size_t count);
 

@@ -115,9 +115,7 @@ class QuicSentPacketManagerTest : public QuicTestWithParam<bool> {
 
   ~QuicSentPacketManagerTest() override {}
 
-  QuicByteCount BytesInFlight() {
-    return QuicSentPacketManagerPeer::GetBytesInFlight(&manager_);
-  }
+  QuicByteCount BytesInFlight() { return manager_.GetBytesInFlight(); }
   void VerifyUnackedPackets(uint64_t* packets, size_t num_packets) {
     if (num_packets == 0) {
       EXPECT_TRUE(manager_.unacked_packets().empty());
@@ -991,13 +989,11 @@ TEST_P(QuicSentPacketManagerTest, TailLossProbeThenRTO) {
   EXPECT_EQ(1u, stats_.rto_count);
   if (manager_.session_decides_what_to_write()) {
     // There are 2 RTO retransmissions.
-    EXPECT_EQ(104 * kDefaultLength,
-              QuicSentPacketManagerPeer::GetBytesInFlight(&manager_));
+    EXPECT_EQ(104 * kDefaultLength, manager_.GetBytesInFlight());
   }
   if (!manager_.session_decides_what_to_write()) {
     // Send and Ack the RTO and ensure OnRetransmissionTimeout is called.
-    EXPECT_EQ(102 * kDefaultLength,
-              QuicSentPacketManagerPeer::GetBytesInFlight(&manager_));
+    EXPECT_EQ(102 * kDefaultLength, manager_.GetBytesInFlight());
     EXPECT_TRUE(manager_.HasPendingRetransmissions());
     RetransmitNextPacket(103);
   }
@@ -1023,9 +1019,9 @@ TEST_P(QuicSentPacketManagerTest, TailLossProbeThenRTO) {
   // All packets before 103 should be lost.
   if (manager_.session_decides_what_to_write()) {
     // Packet 104 is still in flight.
-    EXPECT_EQ(1000u, QuicSentPacketManagerPeer::GetBytesInFlight(&manager_));
+    EXPECT_EQ(1000u, manager_.GetBytesInFlight());
   } else {
-    EXPECT_EQ(0u, QuicSentPacketManagerPeer::GetBytesInFlight(&manager_));
+    EXPECT_EQ(0u, manager_.GetBytesInFlight());
   }
 }
 
@@ -1353,12 +1349,10 @@ TEST_P(QuicSentPacketManagerTest, RetransmissionTimeout) {
   }
   manager_.OnRetransmissionTimeout();
   if (manager_.session_decides_what_to_write()) {
-    EXPECT_EQ(102 * kDefaultLength,
-              QuicSentPacketManagerPeer::GetBytesInFlight(&manager_));
+    EXPECT_EQ(102 * kDefaultLength, manager_.GetBytesInFlight());
   } else {
     ASSERT_TRUE(manager_.HasPendingRetransmissions());
-    EXPECT_EQ(100 * kDefaultLength,
-              QuicSentPacketManagerPeer::GetBytesInFlight(&manager_));
+    EXPECT_EQ(100 * kDefaultLength, manager_.GetBytesInFlight());
     RetransmitNextPacket(101);
     ASSERT_TRUE(manager_.HasPendingRetransmissions());
     RetransmitNextPacket(102);
@@ -1428,12 +1422,10 @@ TEST_P(QuicSentPacketManagerTest, RetransmissionTimeoutOnePacket) {
   }
   manager_.OnRetransmissionTimeout();
   if (manager_.session_decides_what_to_write()) {
-    EXPECT_EQ(101 * kDefaultLength,
-              QuicSentPacketManagerPeer::GetBytesInFlight(&manager_));
+    EXPECT_EQ(101 * kDefaultLength, manager_.GetBytesInFlight());
   } else {
     ASSERT_TRUE(manager_.HasPendingRetransmissions());
-    EXPECT_EQ(100 * kDefaultLength,
-              QuicSentPacketManagerPeer::GetBytesInFlight(&manager_));
+    EXPECT_EQ(100 * kDefaultLength, manager_.GetBytesInFlight());
     RetransmitNextPacket(101);
     EXPECT_FALSE(manager_.HasPendingRetransmissions());
   }
@@ -1474,12 +1466,10 @@ TEST_P(QuicSentPacketManagerTest, NewRetransmissionTimeout) {
   }
   manager_.OnRetransmissionTimeout();
   if (manager_.session_decides_what_to_write()) {
-    EXPECT_EQ(102 * kDefaultLength,
-              QuicSentPacketManagerPeer::GetBytesInFlight(&manager_));
+    EXPECT_EQ(102 * kDefaultLength, manager_.GetBytesInFlight());
   } else {
     EXPECT_TRUE(manager_.HasPendingRetransmissions());
-    EXPECT_EQ(100 * kDefaultLength,
-              QuicSentPacketManagerPeer::GetBytesInFlight(&manager_));
+    EXPECT_EQ(100 * kDefaultLength, manager_.GetBytesInFlight());
     RetransmitNextPacket(101);
     RetransmitNextPacket(102);
     EXPECT_FALSE(manager_.HasPendingRetransmissions());
@@ -1517,12 +1507,10 @@ TEST_P(QuicSentPacketManagerTest, TwoRetransmissionTimeoutsAckSecond) {
   }
   manager_.OnRetransmissionTimeout();
   if (manager_.session_decides_what_to_write()) {
-    EXPECT_EQ(2 * kDefaultLength,
-              QuicSentPacketManagerPeer::GetBytesInFlight(&manager_));
+    EXPECT_EQ(2 * kDefaultLength, manager_.GetBytesInFlight());
   } else {
     EXPECT_TRUE(manager_.HasPendingRetransmissions());
-    EXPECT_EQ(kDefaultLength,
-              QuicSentPacketManagerPeer::GetBytesInFlight(&manager_));
+    EXPECT_EQ(kDefaultLength, manager_.GetBytesInFlight());
     RetransmitNextPacket(2);
     EXPECT_FALSE(manager_.HasPendingRetransmissions());
   }
@@ -1535,12 +1523,10 @@ TEST_P(QuicSentPacketManagerTest, TwoRetransmissionTimeoutsAckSecond) {
   }
   manager_.OnRetransmissionTimeout();
   if (manager_.session_decides_what_to_write()) {
-    EXPECT_EQ(3 * kDefaultLength,
-              QuicSentPacketManagerPeer::GetBytesInFlight(&manager_));
+    EXPECT_EQ(3 * kDefaultLength, manager_.GetBytesInFlight());
   } else {
     EXPECT_TRUE(manager_.HasPendingRetransmissions());
-    EXPECT_EQ(2 * kDefaultLength,
-              QuicSentPacketManagerPeer::GetBytesInFlight(&manager_));
+    EXPECT_EQ(2 * kDefaultLength, manager_.GetBytesInFlight());
     RetransmitNextPacket(3);
     EXPECT_FALSE(manager_.HasPendingRetransmissions());
   }
@@ -1555,8 +1541,7 @@ TEST_P(QuicSentPacketManagerTest, TwoRetransmissionTimeoutsAckSecond) {
             manager_.OnAckFrameEnd(clock_.Now(), ENCRYPTION_INITIAL));
 
   // The original packet and newest should be outstanding.
-  EXPECT_EQ(2 * kDefaultLength,
-            QuicSentPacketManagerPeer::GetBytesInFlight(&manager_));
+  EXPECT_EQ(2 * kDefaultLength, manager_.GetBytesInFlight());
 }
 
 TEST_P(QuicSentPacketManagerTest, TwoRetransmissionTimeoutsAckFirst) {
@@ -1570,12 +1555,10 @@ TEST_P(QuicSentPacketManagerTest, TwoRetransmissionTimeoutsAckFirst) {
   }
   manager_.OnRetransmissionTimeout();
   if (manager_.session_decides_what_to_write()) {
-    EXPECT_EQ(2 * kDefaultLength,
-              QuicSentPacketManagerPeer::GetBytesInFlight(&manager_));
+    EXPECT_EQ(2 * kDefaultLength, manager_.GetBytesInFlight());
   } else {
     EXPECT_TRUE(manager_.HasPendingRetransmissions());
-    EXPECT_EQ(kDefaultLength,
-              QuicSentPacketManagerPeer::GetBytesInFlight(&manager_));
+    EXPECT_EQ(kDefaultLength, manager_.GetBytesInFlight());
     RetransmitNextPacket(2);
     EXPECT_FALSE(manager_.HasPendingRetransmissions());
   }
@@ -1588,12 +1571,10 @@ TEST_P(QuicSentPacketManagerTest, TwoRetransmissionTimeoutsAckFirst) {
   }
   manager_.OnRetransmissionTimeout();
   if (manager_.session_decides_what_to_write()) {
-    EXPECT_EQ(3 * kDefaultLength,
-              QuicSentPacketManagerPeer::GetBytesInFlight(&manager_));
+    EXPECT_EQ(3 * kDefaultLength, manager_.GetBytesInFlight());
   } else {
     EXPECT_TRUE(manager_.HasPendingRetransmissions());
-    EXPECT_EQ(2 * kDefaultLength,
-              QuicSentPacketManagerPeer::GetBytesInFlight(&manager_));
+    EXPECT_EQ(2 * kDefaultLength, manager_.GetBytesInFlight());
     RetransmitNextPacket(3);
     EXPECT_FALSE(manager_.HasPendingRetransmissions());
   }
@@ -1608,8 +1589,7 @@ TEST_P(QuicSentPacketManagerTest, TwoRetransmissionTimeoutsAckFirst) {
             manager_.OnAckFrameEnd(clock_.Now(), ENCRYPTION_INITIAL));
 
   // The first two packets should still be outstanding.
-  EXPECT_EQ(2 * kDefaultLength,
-            QuicSentPacketManagerPeer::GetBytesInFlight(&manager_));
+  EXPECT_EQ(2 * kDefaultLength, manager_.GetBytesInFlight());
 }
 
 TEST_P(QuicSentPacketManagerTest, GetTransmissionTime) {
@@ -1785,14 +1765,12 @@ TEST_P(QuicSentPacketManagerTest, GetTransmissionTimeSpuriousRTO) {
   manager_.OnRetransmissionTimeout();
   if (!manager_.session_decides_what_to_write()) {
     // All packets are still considered inflight.
-    EXPECT_EQ(4 * kDefaultLength,
-              QuicSentPacketManagerPeer::GetBytesInFlight(&manager_));
+    EXPECT_EQ(4 * kDefaultLength, manager_.GetBytesInFlight());
     RetransmitNextPacket(5);
     RetransmitNextPacket(6);
   }
   // All previous packets are inflight, plus two rto retransmissions.
-  EXPECT_EQ(6 * kDefaultLength,
-            QuicSentPacketManagerPeer::GetBytesInFlight(&manager_));
+  EXPECT_EQ(6 * kDefaultLength, manager_.GetBytesInFlight());
   EXPECT_FALSE(manager_.HasPendingRetransmissions());
 
   // The delay should double the second time.
@@ -1810,8 +1788,7 @@ TEST_P(QuicSentPacketManagerTest, GetTransmissionTimeSpuriousRTO) {
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
             manager_.OnAckFrameEnd(clock_.Now(), ENCRYPTION_INITIAL));
   EXPECT_FALSE(manager_.HasPendingRetransmissions());
-  EXPECT_EQ(5 * kDefaultLength,
-            QuicSentPacketManagerPeer::GetBytesInFlight(&manager_));
+  EXPECT_EQ(5 * kDefaultLength, manager_.GetBytesInFlight());
 
   // Wait 2RTTs from now for the RTO, since it's the max of the RTO time
   // and the TLP time.  In production, there would always be two TLP's first.
