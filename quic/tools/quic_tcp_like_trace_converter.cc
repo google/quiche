@@ -95,8 +95,7 @@ QuicInterval<uint64_t> QuicTcpLikeTraceConverter::OnControlFrameSent(
     QuicInterval<uint64_t> connection_offset = QuicInterval<uint64_t>(
         connection_offset_, connection_offset_ + control_frame_length);
     connection_offset_ += control_frame_length;
-    control_frames_info_[control_frame_id] = QuicInterval<uint64_t>(
-        connection_offset_, connection_offset_ + control_frame_length);
+    control_frames_info_[control_frame_id] = connection_offset;
     largest_observed_control_frame_id_ = control_frame_id;
     return connection_offset;
   }

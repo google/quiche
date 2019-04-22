@@ -70,7 +70,7 @@ TEST(QuicTcpLikeTraceConverterTest, BasicTest) {
   EXPECT_EQ(expected2, converter.OnControlFrameSent(1, 100));
 
   // Ignore passed in length for retransmitted frame.
-  expected2 = {450, 600};
+  expected2 = {300, 450};
   EXPECT_EQ(expected2, converter.OnControlFrameSent(2, 200));
 
   expected2 = {1602, 1702};
