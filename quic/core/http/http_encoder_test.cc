@@ -22,10 +22,10 @@ TEST_F(HttpEncoderTest, SerializeDataFrameHeader) {
   std::unique_ptr<char[]> buffer;
   uint64_t length =
       encoder_.SerializeDataFrameHeader(/* payload_length = */ 5, &buffer);
-  char output[] = {// length
-                   0x05,
-                   // type (DATA)
-                   0x00};
+  char output[] = {// type (DATA)
+                   0x00,
+                   // length
+                   0x05};
   EXPECT_EQ(QUIC_ARRAYSIZE(output), length);
   CompareCharArraysWithHexError("DATA", buffer.get(), length, output,
                                 QUIC_ARRAYSIZE(output));
@@ -35,10 +35,10 @@ TEST_F(HttpEncoderTest, SerializeHeadersFrameHeader) {
   std::unique_ptr<char[]> buffer;
   uint64_t length =
       encoder_.SerializeHeadersFrameHeader(/* payload_length = */ 7, &buffer);
-  char output[] = {// length
-                   0x07,
-                   // type (HEADERS)
-                   0x01};
+  char output[] = {// type (HEADERS)
+                   0x01,
+                   // length
+                   0x07};
   EXPECT_EQ(QUIC_ARRAYSIZE(output), length);
   CompareCharArraysWithHexError("HEADERS", buffer.get(), length, output,
                                 QUIC_ARRAYSIZE(output));
@@ -52,10 +52,10 @@ TEST_F(HttpEncoderTest, SerializePriorityFrame) {
   priority.prioritized_element_id = 0x03;
   priority.element_dependency_id = 0x04;
   priority.weight = 0xFF;
-  char output[] = {// length
-                   0x4,
-                   // type (PRIORITY)
+  char output[] = {// type (PRIORITY)
                    0x2,
+                   // length
+                   0x4,
                    // request stream, request stream, exclusive
                    0x01,
                    // prioritized_element_id
@@ -75,10 +75,10 @@ TEST_F(HttpEncoderTest, SerializePriorityFrame) {
 TEST_F(HttpEncoderTest, SerializeCancelPushFrame) {
   CancelPushFrame cancel_push;
   cancel_push.push_id = 0x01;
-  char output[] = {// length
-                   0x1,
-                   // type (CANCEL_PUSH)
+  char output[] = {// type (CANCEL_PUSH)
                    0x03,
+                   // length
+                   0x1,
                    // Push Id
                    0x01};
   std::unique_ptr<char[]> buffer;
@@ -93,10 +93,10 @@ TEST_F(HttpEncoderTest, SerializeSettingsFrame) {
   settings.values[3] = 2;
   settings.values[6] = 5;
   char output[] = {
-      // length
-      0x06,
       // type (SETTINGS)
       0x04,
+      // length
+      0x06,
       // identifier (SETTINGS_NUM_PLACEHOLDERS)
       0x00,
       0x03,
@@ -119,10 +119,10 @@ TEST_F(HttpEncoderTest, SerializePushPromiseFrameWithOnlyPushId) {
   PushPromiseFrame push_promise;
   push_promise.push_id = 0x01;
   push_promise.headers = "Headers";
-  char output[] = {// length
-                   0x8,
-                   // type (PUSH_PROMISE)
+  char output[] = {// type (PUSH_PROMISE)
                    0x05,
+                   // length
+                   0x8,
                    // Push Id
                    0x01};
   std::unique_ptr<char[]> buffer;
@@ -136,10 +136,10 @@ TEST_F(HttpEncoderTest, SerializePushPromiseFrameWithOnlyPushId) {
 TEST_F(HttpEncoderTest, SerializeGoAwayFrame) {
   GoAwayFrame goaway;
   goaway.stream_id = 0x1;
-  char output[] = {// length
-                   0x1,
-                   // type (GOAWAY)
+  char output[] = {// type (GOAWAY)
                    0x07,
+                   // length
+                   0x1,
                    // StreamId
                    0x01};
   std::unique_ptr<char[]> buffer;
@@ -152,10 +152,10 @@ TEST_F(HttpEncoderTest, SerializeGoAwayFrame) {
 TEST_F(HttpEncoderTest, SerializeMaxPushIdFrame) {
   MaxPushIdFrame max_push_id;
   max_push_id.push_id = 0x1;
-  char output[] = {// length
-                   0x1,
-                   // type (MAX_PUSH_ID)
+  char output[] = {// type (MAX_PUSH_ID)
                    0x0D,
+                   // length
+                   0x1,
                    // Push Id
                    0x01};
   std::unique_ptr<char[]> buffer;
@@ -168,10 +168,10 @@ TEST_F(HttpEncoderTest, SerializeMaxPushIdFrame) {
 TEST_F(HttpEncoderTest, SerializeDuplicatePushFrame) {
   DuplicatePushFrame duplicate_push;
   duplicate_push.push_id = 0x1;
-  char output[] = {// length
-                   0x1,
-                   // type (DUPLICATE_PUSH)
+  char output[] = {// type (DUPLICATE_PUSH)
                    0x0E,
+                   // length
+                   0x1,
                    // Push Id
                    0x01};
   std::unique_ptr<char[]> buffer;

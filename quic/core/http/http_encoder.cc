@@ -255,8 +255,8 @@ QuicByteCount HttpEncoder::SerializeDuplicatePushFrame(
 bool HttpEncoder::WriteFrameHeader(QuicByteCount length,
                                    HttpFrameType type,
                                    QuicDataWriter* writer) {
-  return writer->WriteVarInt62(length) &&
-         writer->WriteVarInt62(static_cast<uint64_t>(type));
+  return writer->WriteVarInt62(static_cast<uint64_t>(type)) &&
+         writer->WriteVarInt62(length);
 }
 
 QuicByteCount HttpEncoder::GetTotalLength(QuicByteCount payload_length,

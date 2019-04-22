@@ -62,8 +62,8 @@ TEST_F(HttpDecoderTest, ReservedFramesNoPayload) {
                                  QuicDataWriter::GetVarInt62Len(type);
     input = QuicMakeUnique<char[]>(total_length);
     QuicDataWriter writer(total_length, input.get());
-    writer.WriteVarInt62(0x00);
     writer.WriteVarInt62(type);
+    writer.WriteVarInt62(0x00);
 
     EXPECT_EQ(total_length, decoder_.ProcessInput(input.get(), total_length))
         << n;
@@ -73,10 +73,10 @@ TEST_F(HttpDecoderTest, ReservedFramesNoPayload) {
   }
   // Test on a arbitrary reserved frame with 2-byte type field by hard coding
   // variable length integer.
-  char in[] = {// length
-               0x00,
-               // type 0xB + 0x1F*3
-               0x40, 0x68};
+  char in[] = {// type 0xB + 0x1F*3
+               0x40, 0x68,
+               // length
+               0x00};
   EXPECT_EQ(3u, decoder_.ProcessInput(in, QUIC_ARRAYSIZE(in)));
   EXPECT_EQ(QUIC_NO_ERROR, decoder_.error());
   ASSERT_EQ("", decoder_.error_detail());
@@ -94,8 +94,8 @@ TEST_F(HttpDecoderTest, ReservedFramesSmallPayload) {
                                  payload_size;
     input = QuicMakeUnique<char[]>(total_length);
     QuicDataWriter writer(total_length, input.get());
-    writer.WriteVarInt62(payload_size);
     writer.WriteVarInt62(type);
+    writer.WriteVarInt62(payload_size);
     writer.WriteStringPiece(data);
     EXPECT_EQ(total_length, decoder_.ProcessInput(input.get(), total_length))
         << n;
@@ -106,10 +106,10 @@ TEST_F(HttpDecoderTest, ReservedFramesSmallPayload) {
 
   // Test on a arbitrary reserved frame with 2-byte type field by hard coding
   // variable length integer.
-  char in[payload_size + 3] = {// length
-                               payload_size,
-                               // type 0xB + 0x1F*3
-                               0x40, 0x68};
+  char in[payload_size + 3] = {// type 0xB + 0x1F*3
+                               0x40, 0x68,
+                               // length
+                               payload_size};
   EXPECT_EQ(QUIC_ARRAYSIZE(in), decoder_.ProcessInput(in, QUIC_ARRAYSIZE(in)));
   EXPECT_EQ(QUIC_NO_ERROR, decoder_.error());
   ASSERT_EQ("", decoder_.error_detail());
@@ -127,8 +127,8 @@ TEST_F(HttpDecoderTest, ReservedFramesLargePayload) {
                                  payload_size;
     input = QuicMakeUnique<char[]>(total_length);
     QuicDataWriter writer(total_length, input.get());
-    writer.WriteVarInt62(payload_size);
     writer.WriteVarInt62(type);
+    writer.WriteVarInt62(payload_size);
     writer.WriteStringPiece(data);
 
     EXPECT_EQ(total_length, decoder_.ProcessInput(input.get(), total_length))
@@ -140,10 +140,10 @@ TEST_F(HttpDecoderTest, ReservedFramesLargePayload) {
 
   // Test on a arbitrary reserved frame with 2-byte type field by hard coding
   // variable length integer.
-  char in[payload_size + 4] = {// length
-                               0x40 + 0x01, 0x00,
-                               // type 0xB + 0x1F*3
-                               0x40, 0x68};
+  char in[payload_size + 4] = {// type 0xB + 0x1F*3
+                               0x40, 0x68,
+                               // length
+                               0x40 + 0x01, 0x00};
   EXPECT_EQ(QUIC_ARRAYSIZE(in), decoder_.ProcessInput(in, QUIC_ARRAYSIZE(in)));
   EXPECT_EQ(QUIC_NO_ERROR, decoder_.error());
   ASSERT_EQ("", decoder_.error_detail());
@@ -151,10 +151,10 @@ TEST_F(HttpDecoderTest, ReservedFramesLargePayload) {
 }
 
 TEST_F(HttpDecoderTest, CancelPush) {
-  char input[] = {// length
-                  0x1,
-                  // type (CANCEL_PUSH)
+  char input[] = {// type (CANCEL_PUSH)
                   0x03,
+                  // length
+                  0x1,
                   // Push Id
                   0x01};
 
@@ -175,10 +175,10 @@ TEST_F(HttpDecoderTest, CancelPush) {
 }
 
 TEST_F(HttpDecoderTest, PushPromiseFrame) {
-  char input[] = {// length
-                  0x8,
-                  // type (PUSH_PROMISE)
+  char input[] = {// type (PUSH_PROMISE)
                   0x05,
+                  // length
+                  0x8,
                   // Push Id
                   0x01,
                   // Header Block
@@ -212,10 +212,10 @@ TEST_F(HttpDecoderTest, PushPromiseFrame) {
 }
 
 TEST_F(HttpDecoderTest, MaxPushId) {
-  char input[] = {// length
-                  0x1,
-                  // type (MAX_PUSH_ID)
+  char input[] = {// type (MAX_PUSH_ID)
                   0x0D,
+                  // length
+                  0x1,
                   // Push Id
                   0x01};
 
@@ -236,10 +236,10 @@ TEST_F(HttpDecoderTest, MaxPushId) {
 }
 
 TEST_F(HttpDecoderTest, DuplicatePush) {
-  char input[] = {// length
-                  0x1,
-                  // type (DUPLICATE_PUSH)
+  char input[] = {// type (DUPLICATE_PUSH)
                   0x0E,
+                  // length
+                  0x1,
                   // Push Id
                   0x01};
   // Process the full frame.
@@ -259,10 +259,10 @@ TEST_F(HttpDecoderTest, DuplicatePush) {
 }
 
 TEST_F(HttpDecoderTest, PriorityFrame) {
-  char input[] = {// length
-                  0x4,
-                  // type (PRIORITY)
+  char input[] = {// type (PRIORITY)
                   0x2,
+                  // length
+                  0x4,
                   // request stream, request stream, exclusive
                   0x01,
                   // prioritized_element_id
@@ -301,10 +301,10 @@ TEST_F(HttpDecoderTest, PriorityFrame) {
 TEST_F(HttpDecoderTest, SettingsFrame) {
   // clang-format off
   char input[] = {
-      // length
-      0x06,
       // type (SETTINGS)
       0x04,
+      // length
+      0x06,
       // identifier (SETTINGS_NUM_PLACEHOLDERS)
       0x00,
       0x03,
@@ -341,10 +341,10 @@ TEST_F(HttpDecoderTest, SettingsFrame) {
 }
 
 TEST_F(HttpDecoderTest, DataFrame) {
-  char input[] = {// length
-                  0x05,
-                  // type (DATA)
+  char input[] = {// type (DATA)
                   0x00,
+                  // length
+                  0x05,
                   // data
                   'D', 'a', 't', 'a', '!'};
 
@@ -409,8 +409,8 @@ TEST_F(HttpDecoderTest, PartialDeliveryOfLargeFrameType) {
                                QuicDataWriter::GetVarInt62Len(type);
   input.reset(new char[total_length]);
   QuicDataWriter writer(total_length, input.get());
-  writer.WriteVarInt62(0x00);
   writer.WriteVarInt62(type);
+  writer.WriteVarInt62(0x00);
 
   auto raw_input = input.get();
   for (uint64_t i = 0; i < total_length; ++i) {
@@ -423,10 +423,10 @@ TEST_F(HttpDecoderTest, PartialDeliveryOfLargeFrameType) {
 }
 
 TEST_F(HttpDecoderTest, GoAway) {
-  char input[] = {// length
-                  0x1,
-                  // type (GOAWAY)
+  char input[] = {// type (GOAWAY)
                   0x07,
+                  // length
+                  0x1,
                   // StreamId
                   0x01};
 
@@ -447,10 +447,10 @@ TEST_F(HttpDecoderTest, GoAway) {
 }
 
 TEST_F(HttpDecoderTest, HeadersFrame) {
-  char input[] = {// length
-                  0x07,
-                  // type (HEADERS)
+  char input[] = {// type (HEADERS)
                   0x01,
+                  // length
+                  0x07,
                   // headers
                   'H', 'e', 'a', 'd', 'e', 'r', 's'};
 
@@ -482,8 +482,8 @@ TEST_F(HttpDecoderTest, HeadersFrame) {
 }
 
 TEST_F(HttpDecoderTest, EmptyDataFrame) {
-  char input[] = {0x00,   // length
-                  0x00};  // type (DATA)
+  char input[] = {0x00,   // type (DATA)
+                  0x00};  // length
 
   // Process the full frame.
   InSequence s;
@@ -505,8 +505,8 @@ TEST_F(HttpDecoderTest, EmptyDataFrame) {
 }
 
 TEST_F(HttpDecoderTest, EmptyHeadersFrame) {
-  char input[] = {0x00,   // length
-                  0x01};  // type (HEADERS)
+  char input[] = {0x01,   // type (HEADERS)
+                  0x00};  // length
 
   // Process the full frame.
   InSequence s;
@@ -528,8 +528,8 @@ TEST_F(HttpDecoderTest, EmptyHeadersFrame) {
 }
 
 TEST_F(HttpDecoderTest, PushPromiseFrameNoHeaders) {
-  char input[] = {0x01,   // length
-                  0x05,   // type (PUSH_PROMISE)
+  char input[] = {0x05,   // type (PUSH_PROMISE)
+                  0x01,   // length
                   0x01};  // Push Id
 
   // Process the full frame.
@@ -552,8 +552,8 @@ TEST_F(HttpDecoderTest, PushPromiseFrameNoHeaders) {
 }
 
 TEST_F(HttpDecoderTest, MalformedFrameWithOverlyLargePayload) {
-  char input[] = {0x10,   // length
-                  0x03,   // type (CANCEL_PUSH)
+  char input[] = {0x03,   // type (CANCEL_PUSH)
+                  0x10,   // length
                   0x15};  // malformed payload
   // Process the full frame.
   EXPECT_CALL(visitor_, OnError(&decoder_));
@@ -565,10 +565,10 @@ TEST_F(HttpDecoderTest, MalformedFrameWithOverlyLargePayload) {
 TEST_F(HttpDecoderTest, MalformedSettingsFrame) {
   char input[30];
   QuicDataWriter writer(30, input);
-  // Write length.
-  writer.WriteVarInt62(2048 * 1024);
   // Write type SETTINGS.
   writer.WriteUInt8(0x04);
+  // Write length.
+  writer.WriteVarInt62(2048 * 1024);
 
   writer.WriteStringPiece("Malformed payload");
   EXPECT_CALL(visitor_, OnError(&decoder_));
