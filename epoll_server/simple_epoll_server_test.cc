@@ -164,7 +164,10 @@ class RecordingCB : public EpollCallbackInterface {
     if (event->in_events & EPOLLIN) {
       const int kLength = 1024;
       char buf[kLength];
-      read(fd, &buf, kLength);
+      int data_read;
+      do {
+        data_read = read(fd, &buf, kLength);
+      } while (data_read > 0);
     }
   }
 
@@ -1004,7 +1007,7 @@ TEST(SimpleEpollServerTest, TestRepeatAlarms) {
   alarm.Reset();
 
   // Make sure the alarm is called one final time.
-  EXPECT_EQ(1, ep.GetNumPendingAlarmsForTest());
+  EXPECT_EQ(1u, ep.GetNumPendingAlarmsForTest());
   ep.set_timeout_in_us(alarm_time * 1000 * 2);
   WaitForAlarm(&ep, alarm);
 
@@ -1481,18 +1484,18 @@ TEST(SimpleEpollServerTest, TestMultipleFDs) {
   EXPECT_EQ(2u, records_one->size());
   EXPECT_EQ(2u, records_two->size());
 
-  write(pipe_one[1], &data, 1);
+  EXPECT_EQ(1, write(pipe_one[1], &data, 1));
   ep.WaitForEventsAndExecuteCallbacks();
   EXPECT_EQ(3u, records_one->size());
   EXPECT_EQ(2u, records_two->size());
 
-  write(pipe_two[1], &data, 1);
+  EXPECT_EQ(1, write(pipe_two[1], &data, 1));
   ep.WaitForEventsAndExecuteCallbacks();
   EXPECT_EQ(3u, records_one->size());
   EXPECT_EQ(3u, records_two->size());
 
-  write(pipe_one[1], &data, 1);
-  write(pipe_two[1], &data, 1);
+  EXPECT_EQ(1, write(pipe_one[1], &data, 1));
+  EXPECT_EQ(1, write(pipe_two[1], &data, 1));
   ep.WaitForEventsAndExecuteCallbacks();
   EXPECT_EQ(4u, records_one->size());
   EXPECT_EQ(4u, records_two->size());
