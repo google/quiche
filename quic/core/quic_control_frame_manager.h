@@ -54,13 +54,13 @@ class QUIC_EXPORT_PRIVATE QuicControlFrameManager {
   // immediately.
   void WriteOrBufferBlocked(QuicStreamId id);
 
-  // Tries to send a STREAM_ID_BLOCKED Frame. Buffers the frame if it cannot be
+  // Tries to send a STREAMS_BLOCKED Frame. Buffers the frame if it cannot be
   // sent immediately.
-  void WriteOrBufferStreamIdBlocked(QuicStreamId id);
+  void WriteOrBufferStreamsBlocked(QuicStreamCount count, bool unidirectional);
 
-  // Tries to send a MAX_STREAM_ID Frame. Buffers the frame if it cannot be sent
+  // Tries to send a MAX_STREAMS Frame. Buffers the frame if it cannot be sent
   // immediately.
-  void WriteOrBufferMaxStreamId(QuicStreamId id);
+  void WriteOrBufferMaxStreams(QuicStreamCount count, bool unidirectional);
 
   // Tries to send an IETF-QUIC STOP_SENDING frame. The frame is buffered if it
   // can not be sent immediately.

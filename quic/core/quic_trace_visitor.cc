@@ -78,8 +78,8 @@ void QuicTraceVisitor::OnPacketSent(const SerializedPacket& serialized_packet,
       // New IETF frames, not used in current gQUIC version.
       case NEW_CONNECTION_ID_FRAME:
       case RETIRE_CONNECTION_ID_FRAME:
-      case MAX_STREAM_ID_FRAME:
-      case STREAM_ID_BLOCKED_FRAME:
+      case MAX_STREAMS_FRAME:
+      case STREAMS_BLOCKED_FRAME:
       case PATH_RESPONSE_FRAME:
       case PATH_CHALLENGE_FRAME:
       case STOP_SENDING_FRAME:
@@ -208,8 +208,8 @@ void QuicTraceVisitor::PopulateFrameInfo(const QuicFrame& frame,
     // New IETF frames, not used in current gQUIC version.
     case NEW_CONNECTION_ID_FRAME:
     case RETIRE_CONNECTION_ID_FRAME:
-    case MAX_STREAM_ID_FRAME:
-    case STREAM_ID_BLOCKED_FRAME:
+    case MAX_STREAMS_FRAME:
+    case STREAMS_BLOCKED_FRAME:
     case PATH_RESPONSE_FRAME:
     case PATH_CHALLENGE_FRAME:
     case STOP_SENDING_FRAME:

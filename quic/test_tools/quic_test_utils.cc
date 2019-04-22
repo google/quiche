@@ -202,9 +202,8 @@ MockFramerVisitor::MockFramerVisitor() {
   ON_CALL(*this, OnPathResponseFrame(_)).WillByDefault(testing::Return(true));
 
   ON_CALL(*this, OnGoAwayFrame(_)).WillByDefault(testing::Return(true));
-  ON_CALL(*this, OnMaxStreamIdFrame(_)).WillByDefault(testing::Return(true));
-  ON_CALL(*this, OnStreamIdBlockedFrame(_))
-      .WillByDefault(testing::Return(true));
+  ON_CALL(*this, OnMaxStreamsFrame(_)).WillByDefault(testing::Return(true));
+  ON_CALL(*this, OnStreamsBlockedFrame(_)).WillByDefault(testing::Return(true));
 }
 
 MockFramerVisitor::~MockFramerVisitor() {}
@@ -310,12 +309,12 @@ bool NoOpFramerVisitor::OnGoAwayFrame(const QuicGoAwayFrame& frame) {
   return true;
 }
 
-bool NoOpFramerVisitor::OnMaxStreamIdFrame(const QuicMaxStreamIdFrame& frame) {
+bool NoOpFramerVisitor::OnMaxStreamsFrame(const QuicMaxStreamsFrame& frame) {
   return true;
 }
 
-bool NoOpFramerVisitor::OnStreamIdBlockedFrame(
-    const QuicStreamIdBlockedFrame& frame) {
+bool NoOpFramerVisitor::OnStreamsBlockedFrame(
+    const QuicStreamsBlockedFrame& frame) {
   return true;
 }
 

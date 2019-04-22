@@ -335,13 +335,13 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
     return true;
   }
 
-  bool OnMaxStreamIdFrame(const QuicMaxStreamIdFrame& frame) override {
-    max_stream_id_frame_ = frame;
+  bool OnMaxStreamsFrame(const QuicMaxStreamsFrame& frame) override {
+    max_streams_frame_ = frame;
     return true;
   }
 
-  bool OnStreamIdBlockedFrame(const QuicStreamIdBlockedFrame& frame) override {
-    stream_id_blocked_frame_ = frame;
+  bool OnStreamsBlockedFrame(const QuicStreamsBlockedFrame& frame) override {
+    streams_blocked_frame_ = frame;
     return true;
   }
 
@@ -410,8 +410,8 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
   QuicPathResponseFrame path_response_frame_;
   QuicWindowUpdateFrame window_update_frame_;
   QuicBlockedFrame blocked_frame_;
-  QuicStreamIdBlockedFrame stream_id_blocked_frame_;
-  QuicMaxStreamIdFrame max_stream_id_frame_;
+  QuicStreamsBlockedFrame streams_blocked_frame_;
+  QuicMaxStreamsFrame max_streams_frame_;
   QuicNewConnectionIdFrame new_connection_id_;
   QuicRetireConnectionIdFrame retire_connection_id_;
   QuicNewTokenFrame new_token_;
@@ -10106,7 +10106,7 @@ TEST_P(QuicFramerTest, BuildIetfStreamBlockedPacket) {
                                       QUIC_ARRAYSIZE(packet99));
 }
 
-TEST_P(QuicFramerTest, ServerBiDiMaxStreamsFrame) {
+TEST_P(QuicFramerTest, BiDiMaxStreamsFrame) {
   // This test only for version 99.
   if (framer_.transport_version() != QUIC_VERSION_99) {
     return;
@@ -10143,18 +10143,12 @@ TEST_P(QuicFramerTest, ServerBiDiMaxStreamsFrame) {
       *encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
       PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
 
-  // This test is a server receiving a MAX_STREAMS frame. The
-  // stream ID that it generates should be a server-initiated
-  // stream ID. The expected Stream ID is
-  //                 ((0x3-1) * 4) | 0x1 = 0x9
-  //                  count-to-id      server inited, bidi
-  EXPECT_EQ(GetNthStreamid(QUIC_VERSION_99, Perspective::IS_SERVER,
-                           /*bidirectional=*/true, 3),
-            visitor_.max_stream_id_frame_.max_stream_id);
-  CheckFramingBoundaries(packet99, QUIC_MAX_STREAM_ID_DATA);
+  EXPECT_EQ(3u, visitor_.max_streams_frame_.stream_count);
+  EXPECT_FALSE(visitor_.max_streams_frame_.unidirectional);
+  CheckFramingBoundaries(packet99, QUIC_MAX_STREAMS_DATA);
 }
 
-TEST_P(QuicFramerTest, ClientBiDiMaxStreamsFrame) {
+TEST_P(QuicFramerTest, UniDiMaxStreamsFrame) {
   // This test only for version 99.
   if (framer_.transport_version() != QUIC_VERSION_99) {
     return;
@@ -10170,9 +10164,9 @@ TEST_P(QuicFramerTest, ClientBiDiMaxStreamsFrame) {
       // packet number
       {"",
        {0x12, 0x34, 0x9A, 0xBC}},
-      // frame type (IETF_MAX_STREAMS_BIDIRECTIONAL)
+      // frame type (IETF_MAX_STREAMS_UNIDIRECTIONAL)
       {"",
-       {0x12}},
+       {0x13}},
       // max. streams
       {"Can not read MAX_STREAMS stream count.",
        {kVarInt62OneByte + 0x03}},
@@ -10190,19 +10184,9 @@ TEST_P(QuicFramerTest, ClientBiDiMaxStreamsFrame) {
       *encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
       PACKET_0BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
 
-  // This test is a client receiving a MAX_STREAMS frame. The
-  // stream ID that it generates should be a client-initiated
-  // stream ID. The expected Stream ID is
-  //                ((0x3-1) * 4)       = 0xc
-  // It is not 8 because a client-initiated, bidi stream ID's
-  // low bits are 00 - which means that the old crypto stream
-  // falls into this category, and the first stream is streamid=4,
-  // not streamid=0.
-  EXPECT_EQ(GetNthStreamid(QUIC_VERSION_99, Perspective::IS_CLIENT,
-                           /*bidirectional=*/true, 3),
-            visitor_.max_stream_id_frame_.max_stream_id);
-
-  CheckFramingBoundaries(packet99, QUIC_MAX_STREAM_ID_DATA);
+  EXPECT_EQ(3u, visitor_.max_streams_frame_.stream_count);
+  EXPECT_TRUE(visitor_.max_streams_frame_.unidirectional);
+  CheckFramingBoundaries(packet99, QUIC_MAX_STREAMS_DATA);
 }
 
 TEST_P(QuicFramerTest, ServerUniDiMaxStreamsFrame) {
@@ -10242,16 +10226,9 @@ TEST_P(QuicFramerTest, ServerUniDiMaxStreamsFrame) {
       *encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
       PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
 
-  // This test is a server receiving a MAX_STREAMS frame. The
-  // stream ID that it generates should be a server-initiated
-  // stream ID. The expected Stream ID is
-  //      ((0x3-1) * 4) | 0x1 | 0x2 = 0xb
-  //        count-to-id      server inited, unidi
-  EXPECT_EQ(GetNthStreamid(QUIC_VERSION_99, Perspective::IS_SERVER,
-                           /*bidirectional=*/false, 3),
-            visitor_.max_stream_id_frame_.max_stream_id);
-
-  CheckFramingBoundaries(packet99, QUIC_MAX_STREAM_ID_DATA);
+  EXPECT_EQ(3u, visitor_.max_streams_frame_.stream_count);
+  EXPECT_TRUE(visitor_.max_streams_frame_.unidirectional);
+  CheckFramingBoundaries(packet99, QUIC_MAX_STREAMS_DATA);
 }
 
 TEST_P(QuicFramerTest, ClientUniDiMaxStreamsFrame) {
@@ -10290,16 +10267,9 @@ TEST_P(QuicFramerTest, ClientUniDiMaxStreamsFrame) {
       *encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
       PACKET_0BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
 
-  // This test is a client receiving a MAX_STREAMS frame. The
-  // stream ID that it generates should be a client-initiated
-  // stream ID. The expected Stream ID is
-  //               ((0x3-1) * 4) | 0x02= 0xa
-  //                count-to-id      client/unidi
-  EXPECT_EQ(GetNthStreamid(QUIC_VERSION_99, Perspective::IS_CLIENT,
-                           /*bidirectional=*/false, 3),
-            visitor_.max_stream_id_frame_.max_stream_id);
-
-  CheckFramingBoundaries(packet99, QUIC_MAX_STREAM_ID_DATA);
+  EXPECT_EQ(3u, visitor_.max_streams_frame_.stream_count);
+  EXPECT_TRUE(visitor_.max_streams_frame_.unidirectional);
+  CheckFramingBoundaries(packet99, QUIC_MAX_STREAMS_DATA);
 }
 
 // The following four tests ensure that the framer can deserialize a stream
@@ -10308,7 +10278,7 @@ TEST_P(QuicFramerTest, ClientUniDiMaxStreamsFrame) {
 // the stream limit is pegged to the maximum supported value. There are four
 // tests, for the four combinations of uni- and bi-directional, server- and
 // client- initiated.
-TEST_P(QuicFramerTest, ServerBiDiMaxStreamsFrameTooBig) {
+TEST_P(QuicFramerTest, BiDiMaxStreamsFrameTooBig) {
   // This test only for version 99.
   if (framer_.transport_version() != QUIC_VERSION_99) {
     return;
@@ -10342,14 +10312,8 @@ TEST_P(QuicFramerTest, ServerBiDiMaxStreamsFrameTooBig) {
       encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
       PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
 
-  // This test is a server receiving a MAX_STREAMS frame. The
-  // stream ID that it generates should be a server-initiated
-  // stream ID. The expected Stream ID is
-  //            0xfffffffc | 0x01  --> 0xfffffffd
-  //              maxid     server inited, bidi
-  EXPECT_EQ(GetNthStreamid(QUIC_VERSION_99, Perspective::IS_SERVER,
-                           /*bidirectional=*/true, 0x40000000),
-            visitor_.max_stream_id_frame_.max_stream_id);
+  EXPECT_EQ(0x40000000, visitor_.max_streams_frame_.stream_count);
+  EXPECT_FALSE(visitor_.max_streams_frame_.unidirectional);
 }
 
 TEST_P(QuicFramerTest, ClientBiDiMaxStreamsFrameTooBig) {
@@ -10387,19 +10351,8 @@ TEST_P(QuicFramerTest, ClientBiDiMaxStreamsFrameTooBig) {
       encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
       PACKET_0BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
 
-  // This test is a client receiving a MAX_STREAMS frame. The
-  // stream ID that it generates should be a client-initiated
-  // stream ID. The expected Stream ID is
-  //            0xfffffffc         --> 0xfffffffc
-  //            max id       bidi/client-inited
-  // TODO(fkastenholz): Change -2 to -1 when stream id 0 is no longer
-  // special.
-  // Subtract 1 because client/bidi stream ids start counting at
-  // 4, not 0. If we didn;t subtract 1, the resulting math would wrap to stream
-  // id 0, not 0xfffffffc.
-  EXPECT_EQ(GetNthStreamid(QUIC_VERSION_99, Perspective::IS_CLIENT,
-                           /*bidirectional=*/true, (0x40000000 - 1)),
-            visitor_.max_stream_id_frame_.max_stream_id);
+  EXPECT_EQ(0x40000000, visitor_.max_streams_frame_.stream_count);
+  EXPECT_FALSE(visitor_.max_streams_frame_.unidirectional);
 }
 
 TEST_P(QuicFramerTest, ServerUniDiMaxStreamsFrameTooBig) {
@@ -10437,14 +10390,8 @@ TEST_P(QuicFramerTest, ServerUniDiMaxStreamsFrameTooBig) {
       encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
       PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
 
-  // This test is a server receiving a MAX_STREAMS frame. The
-  // stream ID that it generates should be a server-initiated
-  // stream ID. The expected Stream ID is
-  //      0xfffffffc | 0x1 | 0x2 = 0xffffffff
-  //        maxid      server inited, unidi
-  EXPECT_EQ(GetNthStreamid(QUIC_VERSION_99, Perspective::IS_SERVER,
-                           /*bidirectional=*/false, 0x40000000),
-            visitor_.max_stream_id_frame_.max_stream_id);
+  EXPECT_EQ(0x40000000, visitor_.max_streams_frame_.stream_count);
+  EXPECT_TRUE(visitor_.max_streams_frame_.unidirectional);
 }
 
 TEST_P(QuicFramerTest, ClientUniDiMaxStreamsFrameTooBig) {
@@ -10482,19 +10429,11 @@ TEST_P(QuicFramerTest, ClientUniDiMaxStreamsFrameTooBig) {
       encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
       PACKET_0BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
 
-  // This test is a client receiving a MAX_STREAMS frame. The
-  // stream ID that it generates should be a client-initiated
-  // stream ID. The expected Stream ID is
-  //               0xfffffffc | 0x02= 0xfffffffe
-  //                maxid       client/unidi
-  EXPECT_EQ(GetNthStreamid(QUIC_VERSION_99, Perspective::IS_CLIENT,
-                           /*bidirectional=*/false, 0x40000000),
-            visitor_.max_stream_id_frame_.max_stream_id);
+  EXPECT_EQ(0x40000000, visitor_.max_streams_frame_.stream_count);
+  EXPECT_TRUE(visitor_.max_streams_frame_.unidirectional);
 }
 
-// Check that a stream count of 0 is rejected.
-// Directionality and intiation are not important for
-// this test.
+// Specifically test that count==0 is accepted.
 TEST_P(QuicFramerTest, MaxStreamsFrameZeroCount) {
   // This test only for version 99.
   if (framer_.transport_version() != QUIC_VERSION_99) {
@@ -10519,13 +10458,53 @@ TEST_P(QuicFramerTest, MaxStreamsFrameZeroCount) {
 
   QuicEncryptedPacket encrypted(AsChars(packet99), QUIC_ARRAYSIZE(packet99),
                                 false);
-  EXPECT_FALSE(framer_.ProcessPacket(encrypted));
-  EXPECT_EQ(QUIC_MAX_STREAM_ID_DATA, framer_.error());
-  EXPECT_EQ(framer_.detailed_error(),
-            "MAX_STREAMS stream count of 0 not supported.");
+  EXPECT_TRUE(framer_.ProcessPacket(encrypted));
 }
 
 TEST_P(QuicFramerTest, ServerBiDiStreamsBlockedFrame) {
+  // This test only for version 99.
+  if (framer_.transport_version() != QUIC_VERSION_99) {
+    return;
+  }
+  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
+
+  // clang-format off
+  PacketFragments packet99 = {
+      // type (short header, 4 byte packet number)
+      {"",
+       {0x43}},
+      // connection_id
+      {"",
+       {0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10}},
+      // packet number
+      {"",
+       {0x12, 0x34, 0x9A, 0xBC}},
+      // frame type (IETF_MAX_STREAMS_UNIDIRECTIONAL frame)
+      {"",
+       {0x13}},
+      // stream count
+      {"Can not read MAX_STREAMS stream count.",
+       {kVarInt62OneByte + 0x00}},
+  };
+  // clang-format on
+
+  std::unique_ptr<QuicEncryptedPacket> encrypted(
+      AssemblePacketFromFragments(packet99));
+  EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
+
+  EXPECT_EQ(QUIC_NO_ERROR, framer_.error());
+  ASSERT_TRUE(visitor_.header_.get());
+  EXPECT_TRUE(CheckDecryption(
+      *encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
+      PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
+
+  EXPECT_EQ(0u, visitor_.max_streams_frame_.stream_count);
+  EXPECT_TRUE(visitor_.max_streams_frame_.unidirectional);
+
+  CheckFramingBoundaries(packet99, QUIC_MAX_STREAMS_DATA);
+}
+
+TEST_P(QuicFramerTest, BiDiStreamsBlockedFrame) {
   // This test only for version 99.
   if (framer_.transport_version() != QUIC_VERSION_99) {
     return;
@@ -10547,7 +10526,7 @@ TEST_P(QuicFramerTest, ServerBiDiStreamsBlockedFrame) {
       {"",
        {0x16}},
       // stream id
-      {"Can not read STREAMS_BLOCKED stream id.",
+      {"Can not read STREAMS_BLOCKED stream count.",
        {kVarInt62OneByte + 0x03}},
   };
   // clang-format on
@@ -10562,71 +10541,13 @@ TEST_P(QuicFramerTest, ServerBiDiStreamsBlockedFrame) {
       *encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
       PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
 
-  // This test is a server receiving a STREAMS_BLOCKED frame. The
-  // stream ID that it generates should be a client-initiated
-  // stream ID. The expected Stream ID is
-  //                ((0x3-1) * 4)        = 0xc
-  //                 count-to-id      client inited, bidi
-  // It is not 8 because a client-initiated, bidi stream ID's
-  // low bits are 00 - which means that the old crypto stream
-  // falls into this category, and the first stream is streamid=4,
-  // not streamid=0.
-  EXPECT_EQ(GetNthStreamid(QUIC_VERSION_99, Perspective::IS_CLIENT,
-                           /*bidirectional=*/true, 3),
-            visitor_.stream_id_blocked_frame_.stream_id);
+  EXPECT_EQ(3u, visitor_.streams_blocked_frame_.stream_count);
+  EXPECT_FALSE(visitor_.streams_blocked_frame_.unidirectional);
 
-  CheckFramingBoundaries(packet99, QUIC_STREAM_ID_BLOCKED_DATA);
+  CheckFramingBoundaries(packet99, QUIC_STREAMS_BLOCKED_DATA);
 }
 
-TEST_P(QuicFramerTest, ClientBiDiStreamsBlockedFrame) {
-  // This test only for version 99.
-  if (framer_.transport_version() != QUIC_VERSION_99) {
-    return;
-  }
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
-
-  // clang-format off
-  PacketFragments packet99 = {
-      // type (short header, 4 byte packet number)
-      {"",
-       {0x43}},
-      // Test runs in client mode, no connection id
-      // packet number
-      {"",
-       {0x12, 0x34, 0x9A, 0xBC}},
-      // frame type (IETF_STREAMS_BLOCKED_BIDIRECTIONAL frame)
-      {"",
-       {0x16}},
-      // stream id
-      {"Can not read STREAMS_BLOCKED stream id.",
-       {kVarInt62OneByte + 0x03}},
-  };
-  // clang-format on
-
-  std::unique_ptr<QuicEncryptedPacket> encrypted(
-      AssemblePacketFromFragments(packet99));
-  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
-  EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
-
-  EXPECT_EQ(QUIC_NO_ERROR, framer_.error());
-  ASSERT_TRUE(visitor_.header_.get());
-  EXPECT_TRUE(CheckDecryption(
-      *encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
-      PACKET_0BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
-
-  // This test is a client receiving a STREAMS_BLOCKED frame. The
-  // stream ID that it generates should be a server-initiated
-  // stream ID. The expected Stream ID is
-  //                ((0x3-1) * 4) | 0x01 = 0x9
-  //                 count-to-id      server inited, bidi
-  EXPECT_EQ(GetNthStreamid(QUIC_VERSION_99, Perspective::IS_SERVER,
-                           /*bidirectional=*/true, 3),
-            visitor_.stream_id_blocked_frame_.stream_id);
-
-  CheckFramingBoundaries(packet99, QUIC_STREAM_ID_BLOCKED_DATA);
-}
-
-TEST_P(QuicFramerTest, ServerUniDiStreamsBlockedFrame) {
+TEST_P(QuicFramerTest, UniDiStreamsBlockedFrame) {
   // This test only for version 99.
   if (framer_.transport_version() != QUIC_VERSION_99) {
     return;
@@ -10648,7 +10569,7 @@ TEST_P(QuicFramerTest, ServerUniDiStreamsBlockedFrame) {
       {"",
        {0x17}},
       // stream id
-      {"Can not read STREAMS_BLOCKED stream id.",
+      {"Can not read STREAMS_BLOCKED stream count.",
        {kVarInt62OneByte + 0x03}},
   };
   // clang-format on
@@ -10663,16 +10584,9 @@ TEST_P(QuicFramerTest, ServerUniDiStreamsBlockedFrame) {
       *encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
       PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
 
-  // This test is a server receiving a STREAMS_BLOCKED frame. The
-  // stream ID that it generates should be a client-initiated
-  // stream ID. The expected Stream ID is
-  //                ((0x3-1) * 4)  | 0x2  = 0xa
-  //                 count-to-id      client inited, unidi
-  EXPECT_EQ(GetNthStreamid(QUIC_VERSION_99, Perspective::IS_CLIENT,
-                           /*bidirectional=*/false, 3),
-            visitor_.stream_id_blocked_frame_.stream_id);
-
-  CheckFramingBoundaries(packet99, QUIC_STREAM_ID_BLOCKED_DATA);
+  EXPECT_EQ(3u, visitor_.streams_blocked_frame_.stream_count);
+  EXPECT_TRUE(visitor_.streams_blocked_frame_.unidirectional);
+  CheckFramingBoundaries(packet99, QUIC_STREAMS_BLOCKED_DATA);
 }
 
 TEST_P(QuicFramerTest, ClientUniDiStreamsBlockedFrame) {
@@ -10695,7 +10609,7 @@ TEST_P(QuicFramerTest, ClientUniDiStreamsBlockedFrame) {
       {"",
        {0x17}},
       // stream id
-      {"Can not read STREAMS_BLOCKED stream id.",
+      {"Can not read STREAMS_BLOCKED stream count.",
        {kVarInt62OneByte + 0x03}},
   };
   // clang-format on
@@ -10711,16 +10625,9 @@ TEST_P(QuicFramerTest, ClientUniDiStreamsBlockedFrame) {
       *encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
       PACKET_0BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
 
-  // This test is a client receiving a STREAMS_BLOCKED frame. The
-  // stream ID that it generates should be a server-initiated
-  // stream ID. The expected Stream ID is
-  //                ((0x3-1) * 4) | 0x01 | 0x2 = 0xb
-  //                 count-to-id      server inited, bidi
-  EXPECT_EQ(GetNthStreamid(QUIC_VERSION_99, Perspective::IS_SERVER,
-                           /*bidirectional=*/false, 3),
-            visitor_.stream_id_blocked_frame_.stream_id);
-
-  CheckFramingBoundaries(packet99, QUIC_STREAM_ID_BLOCKED_DATA);
+  EXPECT_EQ(3u, visitor_.streams_blocked_frame_.stream_count);
+  EXPECT_TRUE(visitor_.streams_blocked_frame_.unidirectional);
+  CheckFramingBoundaries(packet99, QUIC_STREAMS_BLOCKED_DATA);
 }
 
 // Check that when we get a STREAMS_BLOCKED frame that specifies too large
@@ -10742,7 +10649,7 @@ TEST_P(QuicFramerTest, StreamsBlockedFrameTooBig) {
     // packet number
     0x12, 0x34, 0x9A, 0xBC,
     // frame type (IETF_STREAMS_BLOCKED_BIDIRECTIONAL)
-    0x17,
+    0x16,
 
     // max. streams. Max stream ID allowed is 0xffffffff
     // This encodes a count of 0x40000000, leading to stream
@@ -10756,45 +10663,57 @@ TEST_P(QuicFramerTest, StreamsBlockedFrameTooBig) {
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
   EXPECT_FALSE(framer_.ProcessPacket(encrypted));
 
-  EXPECT_EQ(QUIC_STREAM_ID_BLOCKED_DATA, framer_.error());
+  EXPECT_EQ(QUIC_STREAMS_BLOCKED_DATA, framer_.error());
   EXPECT_EQ(framer_.detailed_error(),
             "STREAMS_BLOCKED stream count exceeds implementation limit.");
 }
 
-// Test that count==0 is rejected.
+// Specifically test that count==0 is accepted.
 TEST_P(QuicFramerTest, StreamsBlockedFrameZeroCount) {
   // This test only for version 99.
   if (framer_.transport_version() != QUIC_VERSION_99) {
     return;
   }
+
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
 
   // clang-format off
-  unsigned char packet99[] = {
-    // type (short header, 4 byte packet number)
-    0x43,
-    // Test runs in client mode, no connection id
-    // packet number
-    0x12, 0x34, 0x9A, 0xBC,
-    // frame type (IETF_STREAMS_BLOCKED_BIDIRECTIONAL)
-    0x17,
-
-    // max. streams = 0
-    kVarInt62OneByte + 0x00
+  PacketFragments packet99 = {
+      // type (short header, 4 byte packet number)
+      {"",
+       {0x43}},
+      // connection_id
+      {"",
+       {0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10}},
+      // packet number
+      {"",
+       {0x12, 0x34, 0x9A, 0xBC}},
+      // frame type (IETF_STREAMS_BLOCKED_UNIDIRECTIONAL frame)
+      {"",
+       {0x17}},
+      // stream id
+      {"Can not read STREAMS_BLOCKED stream count.",
+       {kVarInt62OneByte + 0x00}},
   };
   // clang-format on
 
-  QuicEncryptedPacket encrypted(AsChars(packet99), QUIC_ARRAYSIZE(packet99),
-                                false);
-  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
-  EXPECT_FALSE(framer_.ProcessPacket(encrypted));
+  std::unique_ptr<QuicEncryptedPacket> encrypted(
+      AssemblePacketFromFragments(packet99));
+  EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
 
-  EXPECT_EQ(QUIC_STREAM_ID_BLOCKED_DATA, framer_.error());
-  EXPECT_EQ(framer_.detailed_error(),
-            "STREAMS_BLOCKED stream count 0 not supported.");
+  EXPECT_EQ(QUIC_NO_ERROR, framer_.error());
+  ASSERT_TRUE(visitor_.header_.get());
+  EXPECT_TRUE(CheckDecryption(
+      *encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
+      PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
+
+  EXPECT_EQ(0u, visitor_.streams_blocked_frame_.stream_count);
+  EXPECT_TRUE(visitor_.streams_blocked_frame_.unidirectional);
+
+  CheckFramingBoundaries(packet99, QUIC_STREAMS_BLOCKED_DATA);
 }
 
-TEST_P(QuicFramerTest, BuildServerBiDiStreamsBlockedPacket) {
+TEST_P(QuicFramerTest, BuildBiDiStreamsBlockedPacket) {
   // This test only for version 99.
   if (framer_.transport_version() != QUIC_VERSION_99) {
     return;
@@ -10806,13 +10725,9 @@ TEST_P(QuicFramerTest, BuildServerBiDiStreamsBlockedPacket) {
   header.version_flag = false;
   header.packet_number = kPacketNumber;
 
-  QuicStreamIdBlockedFrame frame;
-  // A server building a STREAMS_BLOCKED frame generates
-  // a server-initiated stream ID. This test is bidirectional.
-  // The low two bits of the stream ID are 01
-  // Expected value is 0x8u | 0x1u;
-  frame.stream_id = GetNthStreamid(QUIC_VERSION_99, Perspective::IS_SERVER,
-                                   /*bidirectional=*/true, 3);
+  QuicStreamsBlockedFrame frame;
+  frame.stream_count = 3;
+  frame.unidirectional = false;
 
   QuicFrames frames = {QuicFrame(frame)};
 
@@ -10840,54 +10755,7 @@ TEST_P(QuicFramerTest, BuildServerBiDiStreamsBlockedPacket) {
                                       QUIC_ARRAYSIZE(packet99));
 }
 
-TEST_P(QuicFramerTest, BuildClientBiDiStreamsBlockedPacket) {
-  // This test only for version 99.
-  if (framer_.transport_version() != QUIC_VERSION_99) {
-    return;
-  }
-
-  // This test runs in client mode.
-  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
-
-  QuicPacketHeader header;
-  header.destination_connection_id = FramerTestConnectionId();
-  header.reset_flag = false;
-  header.version_flag = false;
-  header.packet_number = kPacketNumber;
-
-  QuicStreamIdBlockedFrame frame;
-  // A client building a STREAMS_BLOCKED frame generates
-  // a client-initiated stream ID. This test is bidirectional.
-  // The low two bits of the stream ID are 00. Expected value is 0x8
-  frame.stream_id = GetNthStreamid(QUIC_VERSION_99, Perspective::IS_CLIENT,
-                                   /*bidirectional=*/true, 3);
-  QuicFrames frames = {QuicFrame(frame)};
-
-  // clang-format off
-  unsigned char packet99[] = {
-    // type (short header, 4 byte packet number)
-    0x43,
-    // connection_id
-    0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
-    // packet number
-    0x12, 0x34, 0x56, 0x78,
-
-    // frame type (IETF_STREAMS_BLOCKED_BIDIRECTIONAL frame)
-    0x16,
-    // Stream count
-    kVarInt62OneByte + 0x03
-  };
-  // clang-format on
-
-  std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
-  ASSERT_TRUE(data != nullptr);
-
-  test::CompareCharArraysWithHexError("constructed packet", data->data(),
-                                      data->length(), AsChars(packet99),
-                                      QUIC_ARRAYSIZE(packet99));
-}
-
-TEST_P(QuicFramerTest, BuildServerUniStreamsBlockedPacket) {
+TEST_P(QuicFramerTest, BuildUniStreamsBlockedPacket) {
   // This test only for version 99.
   if (framer_.transport_version() != QUIC_VERSION_99) {
     return;
@@ -10899,12 +10767,10 @@ TEST_P(QuicFramerTest, BuildServerUniStreamsBlockedPacket) {
   header.version_flag = false;
   header.packet_number = kPacketNumber;
 
-  QuicStreamIdBlockedFrame frame;
-  // A server building a STREAMS_BLOCKED frame generates
-  // a server-initiated stream ID. This test is bidirectional.
-  // The low two bits of the stream ID are 11. Expected value is 0xb
-  frame.stream_id = GetNthStreamid(QUIC_VERSION_99, Perspective::IS_SERVER,
-                                   /*bidirectional=*/false, 3);
+  QuicStreamsBlockedFrame frame;
+  frame.stream_count = 3;
+  frame.unidirectional = true;
+
   QuicFrames frames = {QuicFrame(frame)};
 
   // clang-format off
@@ -10931,54 +10797,7 @@ TEST_P(QuicFramerTest, BuildServerUniStreamsBlockedPacket) {
                                       QUIC_ARRAYSIZE(packet99));
 }
 
-TEST_P(QuicFramerTest, BuildClientUniDiStreamsBlockedPacket) {
-  // This test only for version 99.
-  if (framer_.transport_version() != QUIC_VERSION_99) {
-    return;
-  }
-
-  // This test runs in client mode.
-  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
-
-  QuicPacketHeader header;
-  header.destination_connection_id = FramerTestConnectionId();
-  header.reset_flag = false;
-  header.version_flag = false;
-  header.packet_number = kPacketNumber;
-
-  QuicStreamIdBlockedFrame frame;
-  // A client building a STREAMS_BLOCKED frame generates
-  // a client-initiated stream ID. This test is bidirectional.
-  // The low two bits of the stream ID are 10. Expected value is 0xa
-  frame.stream_id = GetNthStreamid(QUIC_VERSION_99, Perspective::IS_CLIENT,
-                                   /*bidirectional=*/false, 3);
-  QuicFrames frames = {QuicFrame(frame)};
-
-  // clang-format off
-  unsigned char packet99[] = {
-    // type (short header, 4 byte packet number)
-    0x43,
-    // connection_id
-    0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
-    // packet number
-    0x12, 0x34, 0x56, 0x78,
-
-    // frame type (IETF_STREAMS_BLOCKED_UNIDIRECTIONAL frame)
-    0x17,
-    // Stream count
-    kVarInt62OneByte + 0x03
-  };
-  // clang-format on
-
-  std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
-  ASSERT_TRUE(data != nullptr);
-
-  test::CompareCharArraysWithHexError("constructed packet", data->data(),
-                                      data->length(), AsChars(packet99),
-                                      QUIC_ARRAYSIZE(packet99));
-}
-
-TEST_P(QuicFramerTest, BuildServerBiDiMaxStreamsPacket) {
+TEST_P(QuicFramerTest, BuildBiDiMaxStreamsPacket) {
   // This test only for version 99.
   if (framer_.transport_version() != QUIC_VERSION_99) {
     return;
@@ -10990,14 +10809,10 @@ TEST_P(QuicFramerTest, BuildServerBiDiMaxStreamsPacket) {
   header.version_flag = false;
   header.packet_number = kPacketNumber;
 
-  QuicMaxStreamIdFrame frame;
-  // A server building a MAX_STREAMS frame generates
-  // a client-initiated stream ID. This test is bidirectional.
-  // The low two bits of the stream ID are 00. Expected value is 0xc
-  // because streamid==0 is special and the first client/bidi
-  // stream is 4, not 0.
-  frame.max_stream_id = GetNthStreamid(QUIC_VERSION_99, Perspective::IS_CLIENT,
-                                       /*bidirectional=*/true, 3);
+  QuicMaxStreamsFrame frame;
+  frame.stream_count = 3;
+  frame.unidirectional = false;
+
   QuicFrames frames = {QuicFrame(frame)};
 
   // clang-format off
@@ -11024,7 +10839,7 @@ TEST_P(QuicFramerTest, BuildServerBiDiMaxStreamsPacket) {
                                       QUIC_ARRAYSIZE(packet99));
 }
 
-TEST_P(QuicFramerTest, BuildClientBiDiMaxStreamsPacket) {
+TEST_P(QuicFramerTest, BuildUniDiMaxStreamsPacket) {
   // This test only for version 99.
   if (framer_.transport_version() != QUIC_VERSION_99) {
     return;
@@ -11039,103 +10854,10 @@ TEST_P(QuicFramerTest, BuildClientBiDiMaxStreamsPacket) {
   header.version_flag = false;
   header.packet_number = kPacketNumber;
 
-  QuicMaxStreamIdFrame frame;
-  // A client building a MAX_STREAMS frame generates
-  // a server-initiated stream ID. This test is bidirectional.
-  // The low two bits of the stream ID are 01. Expected value is 0x9
-  frame.max_stream_id = GetNthStreamid(QUIC_VERSION_99, Perspective::IS_SERVER,
-                                       /*bidirectional=*/true, 3);
-  QuicFrames frames = {QuicFrame(frame)};
+  QuicMaxStreamsFrame frame;
+  frame.stream_count = 3;
+  frame.unidirectional = true;
 
-  // clang-format off
-  unsigned char packet99[] = {
-    // type (short header, 4 byte packet number)
-    0x43,
-    // connection_id
-    0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
-    // packet number
-    0x12, 0x34, 0x56, 0x78,
-
-    // frame type (IETF_MAX_STREAMS_BIDIRECTIONAL frame)
-    0x12,
-    // Stream count
-    kVarInt62OneByte + 0x03
-  };
-  // clang-format on
-
-  std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
-  ASSERT_TRUE(data != nullptr);
-
-  test::CompareCharArraysWithHexError("constructed packet", data->data(),
-                                      data->length(), AsChars(packet99),
-                                      QUIC_ARRAYSIZE(packet99));
-}
-
-TEST_P(QuicFramerTest, BuildServerUniMaxStreamsPacket) {
-  // This test only for version 99.
-  if (framer_.transport_version() != QUIC_VERSION_99) {
-    return;
-  }
-
-  QuicPacketHeader header;
-  header.destination_connection_id = FramerTestConnectionId();
-  header.reset_flag = false;
-  header.version_flag = false;
-  header.packet_number = kPacketNumber;
-
-  QuicMaxStreamIdFrame frame;
-  // A server building a MAX_STREAMS frame generates
-  // a client-initiated stream ID. This test is bidirectional.
-  // The low two bits of the stream ID are 10. Expected value is 0xa
-  frame.max_stream_id = GetNthStreamid(QUIC_VERSION_99, Perspective::IS_CLIENT,
-                                       /*bidirectional=*/false, 3);
-  QuicFrames frames = {QuicFrame(frame)};
-
-  // clang-format off
-  unsigned char packet99[] = {
-    // type (short header, 4 byte packet number)
-    0x43,
-    // connection_id
-    0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
-    // packet number
-    0x12, 0x34, 0x56, 0x78,
-
-    // frame type (IETF_MAX_STREAMS_UNIDIRECTIONAL frame)
-    0x13,
-    // Stream count
-    kVarInt62OneByte + 0x03
-  };
-  // clang-format on
-
-  std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
-  ASSERT_TRUE(data != nullptr);
-
-  test::CompareCharArraysWithHexError("constructed packet", data->data(),
-                                      data->length(), AsChars(packet99),
-                                      QUIC_ARRAYSIZE(packet99));
-}
-
-TEST_P(QuicFramerTest, BuildClientUniDiMaxStreamsPacket) {
-  // This test only for version 99.
-  if (framer_.transport_version() != QUIC_VERSION_99) {
-    return;
-  }
-
-  // This test runs in client mode.
-  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
-
-  QuicPacketHeader header;
-  header.destination_connection_id = FramerTestConnectionId();
-  header.reset_flag = false;
-  header.version_flag = false;
-  header.packet_number = kPacketNumber;
-
-  QuicMaxStreamIdFrame frame;
-  // A client building a MAX_STREAMS frame generates
-  // a server-initiated stream ID. This test is bidirectional.
-  // The low two bits of the stream ID are 11. Expected value is 0xb
-  frame.max_stream_id = GetNthStreamid(QUIC_VERSION_99, Perspective::IS_SERVER,
-                                       /*bidirectional=*/false, 3);
   QuicFrames frames = {QuicFrame(frame)};
 
   // clang-format off
@@ -11762,17 +11484,17 @@ TEST_P(QuicFramerTest, GetRetransmittableControlFrameSize) {
             QuicFramer::GetRetransmittableControlFrameSize(
                 framer_.transport_version(), QuicFrame(&new_connection_id)));
 
-  QuicMaxStreamIdFrame max_stream_id(6, 3);
+  QuicMaxStreamsFrame max_streams(6, 3, /*unidirectional=*/false);
   EXPECT_EQ(QuicFramer::GetMaxStreamsFrameSize(framer_.transport_version(),
-                                               max_stream_id),
+                                               max_streams),
             QuicFramer::GetRetransmittableControlFrameSize(
-                framer_.transport_version(), QuicFrame(max_stream_id)));
+                framer_.transport_version(), QuicFrame(max_streams)));
 
-  QuicStreamIdBlockedFrame stream_id_blocked(7, 3);
+  QuicStreamsBlockedFrame streams_blocked(7, 3, /*unidirectional=*/false);
   EXPECT_EQ(QuicFramer::GetStreamsBlockedFrameSize(framer_.transport_version(),
-                                                   stream_id_blocked),
+                                                   streams_blocked),
             QuicFramer::GetRetransmittableControlFrameSize(
-                framer_.transport_version(), QuicFrame(stream_id_blocked)));
+                framer_.transport_version(), QuicFrame(streams_blocked)));
 
   QuicPathFrameBuffer buffer = {
       {0x80, 0x91, 0xa2, 0xb3, 0xc4, 0xd5, 0xe5, 0xf7}};

@@ -6,23 +6,25 @@
 
 #include <stddef.h>
 
+#include "net/third_party/quiche/src/quic/core/quic_types.h"
+
 namespace quic {
 
 class QuicStreamIdManager;
+class UberQuicStreamIdManager;
 
 namespace test {
 
 class QuicStreamIdManagerPeer {
  public:
   QuicStreamIdManagerPeer() = delete;
-  static void IncrementMaximumAllowedOutgoingStreamId(
+
+  static void set_incoming_actual_max_streams(
       QuicStreamIdManager* stream_id_manager,
-      int increment);
-  static void IncrementMaximumAllowedIncomingStreamId(
-      QuicStreamIdManager* stream_id_manager,
-      int increment);
-  static void SetMaxOpenIncomingStreams(QuicStreamIdManager* stream_id_manager,
-                                        size_t max_streams);
+      QuicStreamCount count);
+
+  static QuicStreamId GetFirstIncomingStreamId(
+      QuicStreamIdManager* stream_id_manager);
 };
 
 }  // namespace test

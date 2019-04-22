@@ -107,10 +107,10 @@ class QuicEndpoint : public Endpoint,
   void SendPing() override {}
   bool AllowSelfAddressChange() const override;
   void OnForwardProgressConfirmed() override {}
-  bool OnMaxStreamIdFrame(const QuicMaxStreamIdFrame& frame) override {
+  bool OnMaxStreamsFrame(const QuicMaxStreamsFrame& frame) override {
     return true;
   }
-  bool OnStreamIdBlockedFrame(const QuicStreamIdBlockedFrame& frame) override {
+  bool OnStreamsBlockedFrame(const QuicStreamsBlockedFrame& frame) override {
     return true;
   }
   bool OnStopSendingFrame(const QuicStopSendingFrame& frame) override {

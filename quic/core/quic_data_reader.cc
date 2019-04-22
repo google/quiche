@@ -295,7 +295,7 @@ bool QuicDataReader::ReadVarInt62(uint64_t* result) {
   return false;
 }
 
-bool QuicDataReader::ReadVarIntStreamId(QuicStreamId* result) {
+bool QuicDataReader::ReadVarIntU32(uint32_t* result) {
   uint64_t temp_uint64;
   // TODO(fkastenholz): We should disambiguate read-errors from
   // value errors.
@@ -305,7 +305,7 @@ bool QuicDataReader::ReadVarIntStreamId(QuicStreamId* result) {
   if (temp_uint64 > kMaxQuicStreamId) {
     return false;
   }
-  *result = static_cast<QuicStreamId>(temp_uint64);
+  *result = static_cast<uint32_t>(temp_uint64);
   return true;
 }
 

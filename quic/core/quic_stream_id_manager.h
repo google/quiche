@@ -6,6 +6,7 @@
 
 #include "net/third_party/quiche/src/quic/core/frames/quic_frame.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
+#include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
 
@@ -23,21 +24,17 @@ class QuicSession;
 const QuicStreamId kV99StreamIdIncrement = 4;
 
 // This constant controls the size of the window when deciding whether
-// to generate a MAX STREAM ID frame or not. See the discussion of the
+// to generate a MAX_STREAMS frame or not. See the discussion of the
 // window, below, for more details.
-const int kMaxStreamIdWindowDivisor = 2;
+const int kMaxStreamsWindowDivisor = 2;
 
 // This class manages the stream ids for Version 99/IETF QUIC.
-// TODO(fkastenholz): Expand to support bi- and uni-directional stream ids
-// TODO(fkastenholz): Roll in pre-version-99 management
 class QUIC_EXPORT_PRIVATE QuicStreamIdManager {
  public:
   QuicStreamIdManager(QuicSession* session,
-                      QuicStreamId next_outgoing_stream_id,
-                      QuicStreamId largest_peer_created_stream_id,
-                      QuicStreamId first_incoming_dynamic_stream_id,
-                      size_t max_allowed_outgoing_streams,
-                      size_t max_allowed_incoming_streams);
+                      bool unidirectional,
+                      QuicStreamCount max_allowed_outgoing_streams,
+                      QuicStreamCount max_allowed_incoming_streams);
 
   ~QuicStreamIdManager();
 
@@ -45,68 +42,85 @@ class QUIC_EXPORT_PRIVATE QuicStreamIdManager {
   // of the stream ID manager.
   std::string DebugString() const {
     return QuicStrCat(
-        " { max_allowed_outgoing_stream_id: ", max_allowed_outgoing_stream_id_,
-        ", actual_max_allowed_incoming_stream_id_: ",
-        actual_max_allowed_incoming_stream_id_,
-        ", advertised_max_allowed_incoming_stream_id_: ",
-        advertised_max_allowed_incoming_stream_id_,
-        ", max_stream_id_window_: ", max_stream_id_window_,
-        ", max_allowed_outgoing_streams_: ", max_allowed_outgoing_streams_,
-        ", max_allowed_incoming_streams_: ", max_allowed_incoming_streams_,
-        ", available_incoming_streams_: ", available_incoming_streams_,
-        ", first_incoming_dynamic_stream_id_: ",
-        first_incoming_dynamic_stream_id_,
-        ", first_outgoing_dynamic_stream_id_: ",
-        first_outgoing_dynamic_stream_id_, " }");
+        " { unidirectional_: ", unidirectional_,
+        ", perspective: ", perspective(),
+        ", outgoing_max_streams_: ", outgoing_max_streams_,
+        ", next_outgoing_stream_id_: ", next_outgoing_stream_id_,
+        ", outgoing_stream_count_: ", outgoing_stream_count_,
+        ", outgoing_static_stream_count_: ", outgoing_static_stream_count_,
+        ", using_default_max_streams_: ", using_default_max_streams_,
+        ", incoming_actual_max_streams_: ", incoming_actual_max_streams_,
+        ", incoming_advertised_max_streams_: ",
+        incoming_advertised_max_streams_,
+        ", incoming_static_stream_count_: ", incoming_static_stream_count_,
+        ", incoming_stream_count_: ", incoming_stream_count_,
+        ", available_streams_.size(): ", available_streams_.size(),
+        ", largest_peer_created_stream_id_: ", largest_peer_created_stream_id_,
+        ", max_streams_window_: ", max_streams_window_, " }");
   }
 
-  // Processes the MAX STREAM ID frame, invoked from
-  // QuicSession::OnMaxStreamIdFrame. It has the same semantics as the
+  // Processes the MAX_STREAMS frame, invoked from
+  // QuicSession::OnMaxStreamsFrame. It has the same semantics as the
   // QuicFramerVisitorInterface, returning true if the framer should continue
   // processing the packet, false if not.
-  bool OnMaxStreamIdFrame(const QuicMaxStreamIdFrame& frame);
+  bool OnMaxStreamsFrame(const QuicMaxStreamsFrame& frame);
 
-  // Processes the STREAM ID BLOCKED frame, invoked from
-  // QuicSession::OnStreamIdBlockedFrame. It has the same semantics as the
+  // Processes the STREAMS_BLOCKED frame, invoked from
+  // QuicSession::OnStreamsBlockedFrame. It has the same semantics as the
   // QuicFramerVisitorInterface, returning true if the framer should continue
   // processing the packet, false if not.
-  bool OnStreamIdBlockedFrame(const QuicStreamIdBlockedFrame& frame);
+  bool OnStreamsBlockedFrame(const QuicStreamsBlockedFrame& frame);
 
-  // Indicates whether the next outgoing stream ID can be allocated or not. The
-  // test is whether it will exceed the maximum-stream-id or not.
+  // Indicates whether the next outgoing stream ID can be allocated or not.
   bool CanOpenNextOutgoingStream();
 
-  // Generate and send a MAX_STREAM_ID frame.
-  void SendMaxStreamIdFrame();
+  // Generate and send a MAX_STREAMS frame.
+  void SendMaxStreamsFrame();
 
-  // Invoked to deal with releasing a stream ID.
+  // Invoked to deal with releasing a stream. Does nothing if the stream is
+  // outgoing. If the stream is incoming, the number of streams that the peer
+  // can open will be updated and a MAX_STREAMS frame, informing the peer of
+  // the additional streams, may be sent.
   void OnStreamClosed(QuicStreamId stream_id);
 
-  // Returns the next outgoing stream id. If it fails (due to running into the
-  // max_allowed_outgoing_stream_id limit) then it returns an invalid stream id.
+  // Returns the next outgoing stream id. Applications must call
+  // CanOpenNextOutgoingStream() first.  A QUIC_BUG is logged if this method
+  // allocates a stream ID past the peer specified limit.
   QuicStreamId GetNextOutgoingStreamId();
 
-  // Initialize the maximum allowed incoming stream id and number of streams.
-  void SetMaxOpenIncomingStreams(size_t max_streams);
+  // Set the outgoing stream limits to be |max_open_streams| plus the number
+  // of static streams that have been opened. For outgoing and incoming,
+  // respectively.
+  // SetMaxOpenOutgoingStreams will QUIC_BUG if it is called after
+  // a MAX_STREAMS frame has been received.
+  // TODO(fkastenholz): When static streams disappear, these should be removed.
+  void SetMaxOpenOutgoingStreams(size_t max_open_streams);
+  void SetMaxOpenIncomingStreams(size_t max_open_streams);
 
-  // Initialize the maximum allowed outgoing stream id, number of streams, and
-  // MAX_STREAM_ID advertisement window.
-  void SetMaxOpenOutgoingStreams(size_t max_streams);
+  // Adjust the outgoing stream limit - max_open_streams is the limit, not
+  // including static streams. Does not QUIC_BUG if it is called _after_
+  // receiving a MAX_STREAMS.
+  void AdjustMaxOpenOutgoingStreams(size_t max_open_streams);
+
+  // Sets the maximum number of outgoing streams to max_open_streams.
+  // Used when configuration has been done and we have an initial
+  // maximum stream count from the peer. Note that if the stream count is such
+  // that it would result in stream ID values that are greater than the
+  // implementation limit, it pegs the count at the implementation limit.
+  bool ConfigureMaxOpenOutgoingStreams(size_t max_open_streams);
 
   // Register a new stream as a static stream. This is used so that the
-  // advertised maximum stream ID can be calculated based on the start of the
+  // advertised MAX STREAMS can be calculated based on the start of the
   // dynamic stream space. This method will take any stream ID, one that either
   // this node or the peer will initiate.
-  void RegisterStaticStream(QuicStreamId stream_id);
+  // Returns false if this fails because the new static stream would cause the
+  // stream limit to be exceeded.
+  bool RegisterStaticStream(QuicStreamId stream_id);
 
-  // Check that an incoming stream id is valid -- is below the maximum allowed
-  // stream ID. Note that this method uses the actual maximum, not the most
-  // recently advertised maximum this helps preserve the Google-QUIC semantic
-  // that we actually care about the number of open streams, not the maximum
-  // stream ID.  Returns true if the stream ID is valid. If the stream ID fails
-  // the test, will close the connection (per the protocol specification) and
-  // return false. This method also maintains state with regard to the number of
-  // streams that the peer can open (used for generating MAX_STREAM_ID frames).
+  // Checks if the incoming stream ID exceeds the MAX_STREAMS limit.  If the
+  // limit is exceeded, closes the connection and returns false.  Uses the
+  // actual maximium, not the most recently advertised value, in order to
+  // enforce the Google-QUIC number of open streams behavior.
   // This method should be called exactly once for each incoming stream
   // creation.
   bool MaybeIncreaseLargestPeerStreamId(const QuicStreamId stream_id);
@@ -117,58 +131,130 @@ class QUIC_EXPORT_PRIVATE QuicStreamIdManager {
   // Return true if given stream is peer initiated.
   bool IsIncomingStream(QuicStreamId id) const;
 
-  size_t max_allowed_outgoing_streams() const {
-    return max_allowed_outgoing_streams_;
+  size_t outgoing_static_stream_count() const {
+    return outgoing_static_stream_count_;
   }
-  size_t max_allowed_incoming_streams() const {
-    return max_allowed_incoming_streams_;
+
+  size_t incoming_initial_max_open_streams() const {
+    return incoming_initial_max_open_streams_;
   }
-  QuicStreamId max_allowed_outgoing_stream_id() const {
-    return max_allowed_outgoing_stream_id_;
-  }
-  QuicStreamId advertised_max_allowed_incoming_stream_id() const {
-    return advertised_max_allowed_incoming_stream_id_;
-  }
-  QuicStreamId actual_max_allowed_incoming_stream_id() const {
-    return actual_max_allowed_incoming_stream_id_;
-  }
-  QuicStreamId max_stream_id_window() const { return max_stream_id_window_; }
+
+  QuicStreamCount max_streams_window() const { return max_streams_window_; }
 
   QuicStreamId next_outgoing_stream_id() const {
     return next_outgoing_stream_id_;
   }
 
-  QuicStreamId first_incoming_dynamic_stream_id() {
-    return first_incoming_dynamic_stream_id_;
-  }
-  QuicStreamId first_outgoing_dynamic_stream_id() {
-    return first_outgoing_dynamic_stream_id_;
-  }
-  size_t available_incoming_streams() { return available_incoming_streams_; }
-
-  void set_max_allowed_incoming_streams(size_t stream_count) {
-    max_allowed_incoming_streams_ = stream_count;
-  }
+  // Number of streams that the peer believes that it can still create.
+  size_t available_incoming_streams();
 
   void set_largest_peer_created_stream_id(
       QuicStreamId largest_peer_created_stream_id) {
     largest_peer_created_stream_id_ = largest_peer_created_stream_id;
   }
 
+  // These are the limits for outgoing and incoming streams,
+  // respectively. For incoming there are two limits, what has
+  // been advertised to the peer and what is actually available.
+  // The advertised incoming amount should never be more than the actual
+  // incoming one.
+  QuicStreamCount outgoing_max_streams() const { return outgoing_max_streams_; }
+  QuicStreamCount incoming_actual_max_streams() const {
+    return incoming_actual_max_streams_;
+  }
+  QuicStreamCount incoming_advertised_max_streams() const {
+    return incoming_advertised_max_streams_;
+  }
+  // Number of streams that have been opened (including those that have been
+  // opened and then closed. Must never exceed outgoing_max_streams
+  QuicStreamCount outgoing_stream_count() { return outgoing_stream_count_; }
+
+  // Perspective (CLIENT/SERVER) of this node and the peer, respectively.
+  Perspective perspective() const;
+  Perspective peer_perspective() const;
+
+  QuicTransportVersion transport_version() const;
+
  private:
   friend class test::QuicSessionPeer;
   friend class test::QuicStreamIdManagerPeer;
 
-  // Check whether the MAX_STREAM_ID window has opened up enough and, if so,
-  // generate and send a MAX_STREAM_ID frame.
-  void MaybeSendMaxStreamIdFrame();
+  // Check whether the MAX_STREAMS window has opened up enough and, if so,
+  // generate and send a MAX_STREAMS frame.
+  void MaybeSendMaxStreamsFrame();
+
+  // Get what should be the first incoming/outgoing stream ID that
+  // this stream id manager will manage, taking into account directionality and
+  // client/server perspective.
+  QuicStreamId GetFirstOutgoingStreamId() const;
+  QuicStreamId GetFirstIncomingStreamId() const;
+
+  void CalculateIncomingMaxStreamsWindow();
 
   // Back reference to the session containing this Stream ID Manager.
   // needed to access various session methods, such as perspective()
   QuicSession* session_;
 
+  // Whether this stream id manager is for unidrectional (true) or bidirectional
+  // (false) streams.
+  bool unidirectional_;
+
+  // This is the number of streams that this node can initiate.
+  // This limit applies to both static and dynamic streams - the total
+  // of the two can not exceed this count.
+  // This limit is:
+  //   - Initiated to a value specified in the constructor
+  //   - May be updated when the config is received.
+  //   - Is updated whenever a MAX STREAMS frame is received.
+  QuicStreamCount outgoing_max_streams_;
+
   // The ID to use for the next outgoing stream.
   QuicStreamId next_outgoing_stream_id_;
+
+  // The number of outgoing streams that have ever been opened, including those
+  // that have been closed. This number must never be larger than
+  // outgoing_max_streams_.
+  QuicStreamCount outgoing_stream_count_;
+
+  // Number of outgoing static streams created.
+  // TODO(fkastenholz): Remove when static streams no longer supported for IETF
+  // QUIC.
+  QuicStreamCount outgoing_static_stream_count_;
+
+  // Set to true while the default (from the constructor) outgoing stream limit
+  // is in use. It is set to false when either a MAX STREAMS frame is received
+  // or the transport negotiation completes and sets the stream limit (this is
+  // equivalent to a MAX_STREAMS frame).
+  // Necessary because outgoing_max_streams_ is a "best guess"
+  // until we receive an authoritative value from the peer.
+  // outgoing_max_streams_ is initialized in the constructor
+  // to some hard-coded value, which may or may not be consistent
+  // with what the peer wants. Furthermore, as we create outgoing
+  // static streams, the cap raises as static streams get inserted
+  // "beneath" the dynamic streams because, prior to receiving
+  // a MAX_STREAMS, the values setting the limit are interpreted
+  // as "number of request/responses" that can be created. Once
+  // a MAX_STREAMS is received, it becomes a hard limit.
+  bool using_default_max_streams_;
+
+  // FOR INCOMING STREAMS
+
+  // The maximum number of streams that can be opened by the peer.
+  QuicStreamCount incoming_actual_max_streams_;
+  QuicStreamCount incoming_advertised_max_streams_;
+
+  // Initial maximum on the number of open streams allowed.
+  QuicStreamCount incoming_initial_max_open_streams_;
+
+  // Number of outgoing static streams created.
+  // TODO(fkastenholz): Remove when static streams no longer supported for IETF
+  // QUIC.
+  QuicStreamCount incoming_static_stream_count_;
+
+  // This is the number of streams that have been created -- some are still
+  // open, the others have been closed. It is the number that is compared
+  // against MAX_STREAMS when deciding whether to accept a new stream or not.
+  QuicStreamCount incoming_stream_count_;
 
   // Set of stream ids that are less than the largest stream id that has been
   // received, but are nonetheless available to be created.
@@ -176,63 +262,14 @@ class QUIC_EXPORT_PRIVATE QuicStreamIdManager {
 
   QuicStreamId largest_peer_created_stream_id_;
 
-  // The maximum stream ID value that we can use. This is initialized based on,
-  // first, the default number of open streams we can do, updated per the number
-  // of streams we receive in the transport parameters, and then finally is
-  // modified whenever a MAX_STREAM_ID frame is received from the peer.
-  QuicStreamId max_allowed_outgoing_stream_id_;
-
-  // Unlike for streams this node initiates, for incoming streams, there are two
-  // maxima; the actual maximum which is the limit the peer must obey and the
-  // maximum that was most recently advertised to the peer in a MAX_STREAM_ID
-  // frame.
-  //
-  // The advertised maximum is never larger than the actual maximum. The actual
-  // maximum increases whenever an incoming stream is closed. The advertised
-  // maximum increases (to the actual maximum) whenever a MAX_STREAM_ID is sent.
-  //
-  // The peer is granted some leeway, incoming streams are accepted as long as
-  // their stream id is not greater than the actual maximum.  The protocol
-  // specifies that the advertised maximum is the limit. This implmentation uses
-  // the actual maximum in order to support Google-QUIC semantics, where it's
-  // the number of open streams, not their ID number, that is the real limit.
-  QuicStreamId actual_max_allowed_incoming_stream_id_;
-  QuicStreamId advertised_max_allowed_incoming_stream_id_;
-
-  // max_stream_id_window_ is set to max_allowed_outgoing_streams_ / 2
-  // (half of the number of streams that are allowed).  The local node
-  // does not send a MAX_STREAM_ID frame to the peer until the local node
-  // believes that the peer can open fewer than |max_stream_id_window_|
-  // streams. When that is so, the local node sends a MAX_STREAM_ID every time
-  // an inbound stream is closed.
-  QuicStreamId max_stream_id_window_;
-
-  // Maximum number of outgoing and incoming streams that are allowed to be
-  // concurrently opened. Initialized as part of configuration.
-  size_t max_allowed_outgoing_streams_;
-  size_t max_allowed_incoming_streams_;
-
-  // Keep track of the first dynamic stream id (which is the largest static
-  // stream id plus one id).  For Google QUIC, static streams are not counted
-  // against the stream count limit. When the number of static streams
-  // increases, the maximum stream id has to increase by a corresponding amount.
-  // These are used as floors from which the relevant maximum is
-  // calculated. Keeping the "first dynamic" rather than the "last static" has
-  // some implementation advantages.
-  QuicStreamId first_incoming_dynamic_stream_id_;
-  QuicStreamId first_outgoing_dynamic_stream_id_;
-
-  // Number of streams that that this node believes that the
-  // peer can open. It is initialized to the same value as
-  // max_allowed_incoming_streams_. It is decremented every
-  // time a new incoming stream is detected.  A MAX_STREAM_ID
-  // is sent whenver a stream closes and this counter is less
-  // than the window. When that happens, it is incremented by
-  // the number of streams we make available (the actual max
-  // stream ID - the most recently advertised one)
-  size_t available_incoming_streams_;
+  // When incoming streams close the local node sends MAX_STREAMS frames. It
+  // does so only when the peer can open fewer than |max_stream_id_window_|
+  // streams. That is, when |incoming_actual_max_streams_| -
+  // |incoming_advertised_max_streams_| is less than the window.
+  // max_streams_window_ is set to 1/2 of the initial number of incoming streams
+  // that are allowed (as set in the constructor).
+  QuicStreamId max_streams_window_;
 };
-
 }  // namespace quic
 
 #endif  // QUICHE_QUIC_CORE_QUIC_STREAM_ID_MANAGER_H_

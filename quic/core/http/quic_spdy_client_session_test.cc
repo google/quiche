@@ -114,13 +114,13 @@ class QuicSpdyClientSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
         connection_->transport_version(), 0);
   }
 
-  // The function ensures that A) the max stream id frames get properly deleted
+  // The function ensures that A) the MAX_STREAMS frames get properly deleted
   // (since the test uses a 'did we leak memory' check ... if we just lose the
   // frame, the test fails) and B) returns true (instead of the default, false)
   // which ensures that the rest of the system thinks that the frame actually
   // was transmitted.
-  bool ClearMaxStreamIdControlFrame(const QuicFrame& frame) {
-    if (frame.type == MAX_STREAM_ID_FRAME) {
+  bool ClearMaxStreamsControlFrame(const QuicFrame& frame) {
+    if (frame.type == MAX_STREAMS_FRAME) {
       DeleteFrame(&const_cast<QuicFrame&>(frame));
       return true;
     }
@@ -128,8 +128,8 @@ class QuicSpdyClientSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
   }
 
  public:
-  bool ClearStreamIdBlockedControlFrame(const QuicFrame& frame) {
-    if (frame.type == STREAM_ID_BLOCKED_FRAME) {
+  bool ClearStreamsBlockedControlFrame(const QuicFrame& frame) {
+    if (frame.type == STREAMS_BLOCKED_FRAME) {
       DeleteFrame(&const_cast<QuicFrame&>(frame));
       return true;
     }
@@ -146,7 +146,7 @@ class QuicSpdyClientSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
       EXPECT_CALL(*connection_, SendControlFrame(_))
           .Times(testing::AnyNumber())
           .WillRepeatedly(Invoke(
-              this, &QuicSpdyClientSessionTest::ClearMaxStreamIdControlFrame));
+              this, &QuicSpdyClientSessionTest::ClearMaxStreamsControlFrame));
     }
     session_->CryptoConnect();
     QuicCryptoClientStream* stream = static_cast<QuicCryptoClientStream*>(
@@ -244,12 +244,24 @@ TEST_P(QuicSpdyClientSessionTest, MaxNumStreamsWithNoFinOrRst) {
   EXPECT_FALSE(session_->CreateOutgoingBidirectionalStream());
 
   // Close the stream, but without having received a FIN or a RST_STREAM
-  // or MAX_STREAM_ID (V99) and check that a new one can not be created.
+  // or MAX_STREAMS (V99) and check that a new one can not be created.
   session_->CloseStream(stream->id());
   EXPECT_EQ(1u, session_->GetNumOpenOutgoingStreams());
 
   stream = session_->CreateOutgoingBidirectionalStream();
   EXPECT_FALSE(stream);
+
+  if (GetParam().transport_version == QUIC_VERSION_99) {
+    // Ensure that we have/have had 3 open streams, crypto, header, and the
+    // 1 test stream. Primary purpose of this is to fail when crypto
+    // no longer uses a normal stream. Some above constants will then need
+    // to be changed.
+    EXPECT_EQ(QuicSessionPeer::v99_bidirectional_stream_id_manager(&*session_)
+                      ->outgoing_static_stream_count() +
+                  1,
+              QuicSessionPeer::v99_bidirectional_stream_id_manager(&*session_)
+                  ->outgoing_stream_count());
+  }
 }
 
 TEST_P(QuicSpdyClientSessionTest, MaxNumStreamsWithRst) {
@@ -276,17 +288,34 @@ TEST_P(QuicSpdyClientSessionTest, MaxNumStreamsWithRst) {
   // Check that a new one can be created.
   EXPECT_EQ(0u, session_->GetNumOpenOutgoingStreams());
   if (GetParam().transport_version == QUIC_VERSION_99) {
-    // In V99 the stream limit increases only if we get a MAX_STREAM_ID
+    // In V99 the stream limit increases only if we get a MAX_STREAMS
     // frame; pretend we got one.
 
-    // Note that this is to be the second stream created, but GetNth... starts
-    // numbering at 0 (the first stream is 0, second is 1...)
-    QuicMaxStreamIdFrame frame(0, GetNthClientInitiatedBidirectionalStreamId(
-                                      connection_->transport_version(), 1));
-    session_->OnMaxStreamIdFrame(frame);
+    // Note that this is to be the second stream created, hence
+    // the stream count is 4 (the two streams created as a part of
+    // the test plus the crypto and header stream, internally created).
+    // TODO(nharper): Change 4 to 3 & update comment accordingly when the crypto
+    // stuff is no longer in a regular stream.
+    // TODO(fkastenholz): do above if nharper doesn't :-)
+    QuicMaxStreamsFrame frame(
+        0,
+        QuicSessionPeer::v99_bidirectional_stream_id_manager(&*session_)
+                ->outgoing_static_stream_count() +
+            2,
+        /*unidirectional=*/false);
+    session_->OnMaxStreamsFrame(frame);
   }
   stream = session_->CreateOutgoingBidirectionalStream();
   EXPECT_NE(nullptr, stream);
+  if (GetParam().transport_version == QUIC_VERSION_99) {
+    // Ensure that we have/have had four open streams, crypto, header, and the
+    // two test streams. Primary purpose of this is to fail when crypto
+    // no longer uses a normal stream. Some above constants will then need
+    // to be changed.
+    EXPECT_EQ(4u,
+              QuicSessionPeer::v99_bidirectional_stream_id_manager(&*session_)
+                  ->outgoing_stream_count());
+  }
 }
 
 TEST_P(QuicSpdyClientSessionTest, ResetAndTrailers) {
@@ -308,7 +337,7 @@ TEST_P(QuicSpdyClientSessionTest, ResetAndTrailers) {
 
   if (GetParam().transport_version == QUIC_VERSION_99) {
     // For v99, trying to open a stream and failing due to lack
-    // of stream ids will result in a STREAM_ID_BLOCKED. Make
+    // of stream ids will result in a STREAMS_BLOCKED. Make
     // sure we get one. Also clear out the frame because if it's
     // left sitting, the later SendRstStream will not actually
     // transmit the RST_STREAM because the connection will be in write-blocked
@@ -316,8 +345,7 @@ TEST_P(QuicSpdyClientSessionTest, ResetAndTrailers) {
     // RST_STREAM, below, will not be satisfied.
     EXPECT_CALL(*connection_, SendControlFrame(_))
         .WillOnce(Invoke(
-            this,
-            &QuicSpdyClientSessionTest::ClearStreamIdBlockedControlFrame));
+            this, &QuicSpdyClientSessionTest::ClearStreamsBlockedControlFrame));
   }
 
   EXPECT_EQ(nullptr, session_->CreateOutgoingBidirectionalStream());
@@ -347,14 +375,32 @@ TEST_P(QuicSpdyClientSessionTest, ResetAndTrailers) {
   // be able to create a new outgoing stream.
   EXPECT_EQ(0u, session_->GetNumOpenOutgoingStreams());
   if (GetParam().transport_version == QUIC_VERSION_99) {
-    // Note that this is to be the second stream created, but GetNth... starts
-    // numbering at 0 (the first stream is 0, second is 1...)
-    QuicMaxStreamIdFrame frame(0, GetNthClientInitiatedBidirectionalStreamId(
-                                      connection_->transport_version(), 1));
-    session_->OnMaxStreamIdFrame(frame);
+    // Note that this is to be the second stream created, hence
+    // the stream count is 4 (the two streams created as a part of
+    // the test plus the crypto and header stream, internally created).
+    // TODO(nharper): Change 4 to 3 & update comment accordingly when the crypto
+    // stuff is no longer in a regular stream.
+    // TODO(fkastenholz): do above if nharper doesn't :-)
+    QuicMaxStreamsFrame frame(
+        0,
+        QuicSessionPeer::v99_bidirectional_stream_id_manager(&*session_)
+                ->outgoing_static_stream_count() +
+            2,
+        /*unidirectional=*/false);
+
+    session_->OnMaxStreamsFrame(frame);
   }
   stream = session_->CreateOutgoingBidirectionalStream();
   EXPECT_NE(nullptr, stream);
+  if (GetParam().transport_version == QUIC_VERSION_99) {
+    // Ensure that we have/have had four open streams, crypto, header, and the
+    // two test streams. Primary purpose of this is to fail when crypto
+    // no longer uses a normal stream. Some above constants will then need
+    // to be changed.
+    EXPECT_EQ(4u,
+              QuicSessionPeer::v99_bidirectional_stream_id_manager(&*session_)
+                  ->outgoing_stream_count());
+  }
 }
 
 TEST_P(QuicSpdyClientSessionTest, ReceivedMalformedTrailersAfterSendingRst) {

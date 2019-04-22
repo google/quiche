@@ -941,12 +941,12 @@ bool QuicDispatcher::OnConnectionCloseFrame(
   return false;
 }
 
-bool QuicDispatcher::OnMaxStreamIdFrame(const QuicMaxStreamIdFrame& frame) {
+bool QuicDispatcher::OnMaxStreamsFrame(const QuicMaxStreamsFrame& frame) {
   return true;
 }
 
-bool QuicDispatcher::OnStreamIdBlockedFrame(
-    const QuicStreamIdBlockedFrame& frame) {
+bool QuicDispatcher::OnStreamsBlockedFrame(
+    const QuicStreamsBlockedFrame& frame) {
   return true;
 }
 

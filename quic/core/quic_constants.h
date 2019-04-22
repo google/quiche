@@ -211,6 +211,9 @@ const uint64_t kMaxIetfVarInt = UINT64_C(0x3fffffffffffffff);
 // TODO(fkastenholz): Should update this to 64 bits for IETF Quic.
 const QuicStreamId kMaxQuicStreamId = 0xffffffff;
 
+// The maximum value that can be stored in a 32-bit QuicStreamCount.
+const QuicStreamCount kMaxQuicStreamCount = 0xffffffff;
+
 // Number of bytes reserved for packet header type.
 const size_t kPacketHeaderTypeSize = 1;
 

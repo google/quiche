@@ -111,11 +111,11 @@ class QuicFramerPeer {
                                         QuicDataReader* reader,
                                         QuicWindowUpdateFrame* frame);
   static bool AppendMaxStreamsFrame(QuicFramer* framer,
-                                    const QuicMaxStreamIdFrame& frame,
+                                    const QuicMaxStreamsFrame& frame,
                                     QuicDataWriter* writer);
   static bool ProcessMaxStreamsFrame(QuicFramer* framer,
                                      QuicDataReader* reader,
-                                     QuicMaxStreamIdFrame* frame,
+                                     QuicMaxStreamsFrame* frame,
                                      uint64_t frame_type);
   static bool AppendIetfBlockedFrame(QuicFramer* framer,
                                      const QuicBlockedFrame& frame,
@@ -132,11 +132,11 @@ class QuicFramerPeer {
                                         QuicBlockedFrame* frame);
 
   static bool AppendStreamsBlockedFrame(QuicFramer* framer,
-                                        const QuicStreamIdBlockedFrame& frame,
+                                        const QuicStreamsBlockedFrame& frame,
                                         QuicDataWriter* writer);
   static bool ProcessStreamsBlockedFrame(QuicFramer* framer,
                                          QuicDataReader* reader,
-                                         QuicStreamIdBlockedFrame* frame,
+                                         QuicStreamsBlockedFrame* frame,
                                          uint64_t frame_type);
 
   static bool AppendNewConnectionIdFrame(QuicFramer* framer,

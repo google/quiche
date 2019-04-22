@@ -199,7 +199,7 @@ bool QuicFramerPeer::ProcessMaxStreamDataFrame(QuicFramer* framer,
 
 // static
 bool QuicFramerPeer::AppendMaxStreamsFrame(QuicFramer* framer,
-                                           const QuicMaxStreamIdFrame& frame,
+                                           const QuicMaxStreamsFrame& frame,
                                            QuicDataWriter* writer) {
   return framer->AppendMaxStreamsFrame(frame, writer);
 }
@@ -207,7 +207,7 @@ bool QuicFramerPeer::AppendMaxStreamsFrame(QuicFramer* framer,
 // static
 bool QuicFramerPeer::ProcessMaxStreamsFrame(QuicFramer* framer,
                                             QuicDataReader* reader,
-                                            QuicMaxStreamIdFrame* frame,
+                                            QuicMaxStreamsFrame* frame,
                                             uint64_t frame_type) {
   return framer->ProcessMaxStreamsFrame(reader, frame, frame_type);
 }
@@ -243,7 +243,7 @@ bool QuicFramerPeer::ProcessStreamBlockedFrame(QuicFramer* framer,
 // static
 bool QuicFramerPeer::AppendStreamsBlockedFrame(
     QuicFramer* framer,
-    const QuicStreamIdBlockedFrame& frame,
+    const QuicStreamsBlockedFrame& frame,
     QuicDataWriter* writer) {
   return framer->AppendStreamsBlockedFrame(frame, writer);
 }
@@ -251,7 +251,7 @@ bool QuicFramerPeer::AppendStreamsBlockedFrame(
 // static
 bool QuicFramerPeer::ProcessStreamsBlockedFrame(QuicFramer* framer,
                                                 QuicDataReader* reader,
-                                                QuicStreamIdBlockedFrame* frame,
+                                                QuicStreamsBlockedFrame* frame,
                                                 uint64_t frame_type) {
   return framer->ProcessStreamsBlockedFrame(reader, frame, frame_type);
 }

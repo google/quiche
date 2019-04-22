@@ -13,7 +13,7 @@
 #include "net/third_party/quiche/src/quic/core/frames/quic_connection_close_frame.h"
 #include "net/third_party/quiche/src/quic/core/frames/quic_crypto_frame.h"
 #include "net/third_party/quiche/src/quic/core/frames/quic_goaway_frame.h"
-#include "net/third_party/quiche/src/quic/core/frames/quic_max_stream_id_frame.h"
+#include "net/third_party/quiche/src/quic/core/frames/quic_max_streams_frame.h"
 #include "net/third_party/quiche/src/quic/core/frames/quic_message_frame.h"
 #include "net/third_party/quiche/src/quic/core/frames/quic_mtu_discovery_frame.h"
 #include "net/third_party/quiche/src/quic/core/frames/quic_new_connection_id_frame.h"
@@ -27,7 +27,7 @@
 #include "net/third_party/quiche/src/quic/core/frames/quic_stop_sending_frame.h"
 #include "net/third_party/quiche/src/quic/core/frames/quic_stop_waiting_frame.h"
 #include "net/third_party/quiche/src/quic/core/frames/quic_stream_frame.h"
-#include "net/third_party/quiche/src/quic/core/frames/quic_stream_id_blocked_frame.h"
+#include "net/third_party/quiche/src/quic/core/frames/quic_streams_blocked_frame.h"
 #include "net/third_party/quiche/src/quic/core/frames/quic_window_update_frame.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
@@ -41,9 +41,9 @@ struct QUIC_EXPORT_PRIVATE QuicFrame {
   explicit QuicFrame(QuicPaddingFrame padding_frame);
   explicit QuicFrame(QuicMtuDiscoveryFrame frame);
   explicit QuicFrame(QuicPingFrame frame);
-  explicit QuicFrame(QuicMaxStreamIdFrame frame);
+  explicit QuicFrame(QuicMaxStreamsFrame frame);
   explicit QuicFrame(QuicStopWaitingFrame frame);
-  explicit QuicFrame(QuicStreamIdBlockedFrame frame);
+  explicit QuicFrame(QuicStreamsBlockedFrame frame);
   explicit QuicFrame(QuicStreamFrame stream_frame);
 
   explicit QuicFrame(QuicAckFrame* frame);
@@ -72,9 +72,9 @@ struct QUIC_EXPORT_PRIVATE QuicFrame {
     QuicPaddingFrame padding_frame;
     QuicMtuDiscoveryFrame mtu_discovery_frame;
     QuicPingFrame ping_frame;
-    QuicMaxStreamIdFrame max_stream_id_frame;
+    QuicMaxStreamsFrame max_streams_frame;
     QuicStopWaitingFrame stop_waiting_frame;
-    QuicStreamIdBlockedFrame stream_id_blocked_frame;
+    QuicStreamsBlockedFrame streams_blocked_frame;
     QuicStreamFrame stream_frame;
 
     // Out of line frames.

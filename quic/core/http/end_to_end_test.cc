@@ -1527,9 +1527,15 @@ TEST_P(EndToEndTestWithTls, MaxIncomingDynamicStreamsLimitRespected) {
   server_config_.SetMaxIncomingDynamicStreamsToSend(
       kServerMaxIncomingDynamicStreams);
   ASSERT_TRUE(Initialize());
+  if (GetParam().negotiated_version.transport_version == QUIC_VERSION_99) {
+    // Do not run this test for version 99/IETF QUIC. Note that the test needs
+    // to be here, after calling Initialize(), because all tests end up calling
+    // EndToEndTest::TearDown(), which asserts that Initialize has been called
+    // and then proceeds to tear things down -- which fails if they are not
+    // properly set up.
+    return;
+  }
   EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
-  QuicConnection* client_connection =
-      client_->client()->client_session()->connection();
 
   // Make the client misbehave after negotiation.
   const int kServerMaxStreams = kMaxStreamsMinimumIncrement + 1;
@@ -1549,16 +1555,10 @@ TEST_P(EndToEndTestWithTls, MaxIncomingDynamicStreamsLimitRespected) {
     client_->SendMessage(headers, "", /*fin=*/false);
   }
   client_->WaitForResponse();
-  if (client_connection->transport_version() != QUIC_VERSION_99) {
-    EXPECT_TRUE(client_->connected());
-    EXPECT_EQ(QUIC_REFUSED_STREAM, client_->stream_error());
-    EXPECT_EQ(QUIC_NO_ERROR, client_->connection_error());
-  } else {
-    // Version 99 disconnects the connection if we exceed the stream limit.
-    EXPECT_FALSE(client_->connected());
-    EXPECT_EQ(QUIC_STREAM_CONNECTION_ERROR, client_->stream_error());
-    EXPECT_EQ(QUIC_INVALID_STREAM_ID, client_->connection_error());
-  }
+
+  EXPECT_TRUE(client_->connected());
+  EXPECT_EQ(QUIC_REFUSED_STREAM, client_->stream_error());
+  EXPECT_EQ(QUIC_NO_ERROR, client_->connection_error());
 }
 
 TEST_P(EndToEndTest, SetIndependentMaxIncomingDynamicStreamsLimits) {
@@ -1574,10 +1574,19 @@ TEST_P(EndToEndTest, SetIndependentMaxIncomingDynamicStreamsLimits) {
 
   // The client has received the server's limit and vice versa.
   QuicSpdyClientSession* client_session = client_->client()->client_session();
+  // The value returned by max_allowed... includes the Crypto and Header
+  // stream (created as a part of initialization). The config. values,
+  // above, are treated as "number of requests/responses" - that is, they do
+  // not include the static Crypto and Header streams. Reduce the value
+  // returned by max_allowed... by 2 to remove the static streams from the
+  // count.
   size_t client_max_open_outgoing_bidirectional_streams =
       client_session->connection()->transport_version() == QUIC_VERSION_99
           ? QuicSessionPeer::v99_streamid_manager(client_session)
-                ->max_allowed_outgoing_bidirectional_streams()
+                    ->max_allowed_outgoing_bidirectional_streams() -
+                QuicSessionPeer::v99_bidirectional_stream_id_manager(
+                    client_session)
+                    ->outgoing_static_stream_count()
           : QuicSessionPeer::GetStreamIdManager(client_session)
                 ->max_open_outgoing_streams();
   size_t client_max_open_outgoing_unidirectional_streams =
@@ -3909,6 +3918,37 @@ TEST_P(EndToEndTest, ForwardSecureConnectionClose) {
   // Verify ZERO_RTT_PROTECTED connection close is successfully processed by
   // client.
   EXPECT_EQ(QUIC_PACKET_WRITE_ERROR, client_->connection_error());
+}
+
+// Test that the stream id manager closes the connection if a stream
+// in excess of the allowed maximum.
+TEST_P(EndToEndTest, TooBigStreamIdClosesConnection) {
+  // Has to be before version test, see EndToEndTest::TearDown()
+  ASSERT_TRUE(Initialize());
+  if (negotiated_version_.transport_version != QUIC_VERSION_99) {
+    // Only runs for IETF QUIC.
+    return;
+  }
+  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+
+  std::string body(kMaxOutgoingPacketSize, 'a');
+  SpdyHeaderBlock headers;
+  headers[":method"] = "POST";
+  headers[":path"] = "/foo";
+  headers[":scheme"] = "https";
+  headers[":authority"] = server_hostname_;
+
+  // Force the client to write with a stream ID that exceeds the limit.
+  QuicSpdySession* session = client_->client()->client_session();
+  QuicStreamIdManager* stream_id_manager =
+      QuicSessionPeer::v99_bidirectional_stream_id_manager(session);
+  QuicStreamCount max_number_of_streams =
+      stream_id_manager->outgoing_max_streams();
+  QuicSessionPeer::SetNextOutgoingBidirectionalStreamId(
+      session, GetNthClientInitiatedBidirectionalId(max_number_of_streams + 1));
+  client_->SendCustomSynchronousRequest(headers, body);
+  EXPECT_EQ(QUIC_STREAM_CONNECTION_ERROR, client_->stream_error());
+  EXPECT_EQ(QUIC_INVALID_STREAM_ID, client_->connection_error());
 }
 
 }  // namespace

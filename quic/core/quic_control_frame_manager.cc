@@ -68,18 +68,20 @@ void QuicControlFrameManager::WriteOrBufferBlocked(QuicStreamId id) {
       QuicFrame(new QuicBlockedFrame(++last_control_frame_id_, id)));
 }
 
-void QuicControlFrameManager::WriteOrBufferStreamIdBlocked(QuicStreamId id) {
-  QUIC_DVLOG(1) << "Writing STREAM_ID_BLOCKED Frame";
-  QUIC_CODE_COUNT(stream_id_blocked_transmits);
-  WriteOrBufferQuicFrame(
-      QuicFrame(QuicStreamIdBlockedFrame(++last_control_frame_id_, id)));
+void QuicControlFrameManager::WriteOrBufferStreamsBlocked(QuicStreamCount count,
+                                                          bool unidirectional) {
+  QUIC_DVLOG(1) << "Writing STREAMS_BLOCKED Frame";
+  QUIC_CODE_COUNT(quic_streams_blocked_transmits);
+  WriteOrBufferQuicFrame(QuicFrame(QuicStreamsBlockedFrame(
+      ++last_control_frame_id_, count, unidirectional)));
 }
 
-void QuicControlFrameManager::WriteOrBufferMaxStreamId(QuicStreamId id) {
-  QUIC_DVLOG(1) << "Writing MAX_STREAM_ID Frame";
-  QUIC_CODE_COUNT(max_stream_id_transmits);
-  WriteOrBufferQuicFrame(
-      QuicFrame(QuicMaxStreamIdFrame(++last_control_frame_id_, id)));
+void QuicControlFrameManager::WriteOrBufferMaxStreams(QuicStreamCount count,
+                                                      bool unidirectional) {
+  QUIC_DVLOG(1) << "Writing MAX_STREAMS Frame";
+  QUIC_CODE_COUNT(quic_max_streams_transmits);
+  WriteOrBufferQuicFrame(QuicFrame(
+      QuicMaxStreamsFrame(++last_control_frame_id_, count, unidirectional)));
 }
 
 void QuicControlFrameManager::WriteOrBufferStopSending(uint16_t code,

@@ -6,6 +6,7 @@
 
 #include "net/third_party/quiche/src/quic/core/quic_session.h"
 #include "net/third_party/quiche/src/quic/core/quic_stream.h"
+#include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_map_util.h"
 
 namespace quic {
@@ -130,7 +131,7 @@ bool QuicSessionPeer::IsStreamCreated(QuicSession* session, QuicStreamId id) {
 bool QuicSessionPeer::IsStreamAvailable(QuicSession* session, QuicStreamId id) {
   DCHECK_NE(0u, id);
   if (session->connection()->transport_version() == QUIC_VERSION_99) {
-    if (id % kV99StreamIdIncrement < 2) {
+    if (id % QuicUtils::StreamIdDelta(QUIC_VERSION_99) < 2) {
       return QuicContainsKey(
           session->v99_streamid_manager_.bidirectional_stream_id_manager_
               .available_streams_,

@@ -190,6 +190,12 @@ class QUIC_EXPORT_PRIVATE QuicUtils {
   // Determines encryption level to send packets in |packet_number_space|.
   static EncryptionLevel GetEncryptionLevel(
       PacketNumberSpace packet_number_space);
+
+  // Get the maximum value for a V99/IETF QUIC stream count. If a count
+  // exceeds this value, it will result in a stream ID that exceeds the
+  // implementation limit on stream ID size.
+  static QuicStreamCount GetMaxStreamCount(bool unidirectional,
+                                           Perspective perspective);
 };
 
 }  // namespace quic

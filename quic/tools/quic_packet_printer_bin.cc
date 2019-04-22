@@ -168,12 +168,12 @@ class QuicPacketPrinter : public QuicFramerVisitorInterface {
     std::cerr << "OnGoAwayFrame: " << frame;
     return true;
   }
-  bool OnMaxStreamIdFrame(const QuicMaxStreamIdFrame& frame) override {
-    std::cerr << "OnMaxStreamIdFrame: " << frame;
+  bool OnMaxStreamsFrame(const QuicMaxStreamsFrame& frame) override {
+    std::cerr << "OnMaxStreamsFrame: " << frame;
     return true;
   }
-  bool OnStreamIdBlockedFrame(const QuicStreamIdBlockedFrame& frame) override {
-    std::cerr << "OnStreamIdBlockedFrame: " << frame;
+  bool OnStreamsBlockedFrame(const QuicStreamsBlockedFrame& frame) override {
+    std::cerr << "OnStreamsBlockedFrame: " << frame;
     return true;
   }
   bool OnWindowUpdateFrame(const QuicWindowUpdateFrame& frame) override {

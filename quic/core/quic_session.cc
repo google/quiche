@@ -244,14 +244,14 @@ bool QuicSession::OnStopSendingFrame(const QuicStopSendingFrame& frame) {
 
   // Get the QuicStream for this stream. Ignore the STOP_SENDING
   // if the QuicStream pointer is NULL
-  // QUESTION: IS THIS THE RIGHT THING TO DO? (that is, this would happen IFF
-  // there was an entry in the map, but the pointer is null. sounds more like a
-  // deep programming error rather than a simple protocol problem).
+  // QUESTION(fkastenholz): IS THIS THE RIGHT THING TO DO? (that is, this would
+  // happen IFF there was an entry in the map, but the pointer is null. sounds
+  // more like a deep programming error rather than a simple protocol problem).
   QuicStream* stream = it->second.get();
   if (stream == nullptr) {
-    QUIC_DVLOG(1) << ENDPOINT
-                  << "Received STOP_SENDING for NULL QuicStream, stream_id: "
-                  << stream_id << ". Ignoring.";
+    QUIC_BUG << ENDPOINT
+             << "Received STOP_SENDING for NULL QuicStream, stream_id: "
+             << stream_id << ". Ignoring.";
     return true;
   }
 
@@ -732,12 +732,15 @@ void QuicSession::SendWindowUpdate(QuicStreamId id,
   control_frame_manager_.WriteOrBufferWindowUpdate(id, byte_offset);
 }
 
-void QuicSession::SendMaxStreamId(QuicStreamId max_allowed_incoming_id) {
-  control_frame_manager_.WriteOrBufferMaxStreamId(max_allowed_incoming_id);
+void QuicSession::SendMaxStreams(QuicStreamCount stream_count,
+                                 bool unidirectional) {
+  control_frame_manager_.WriteOrBufferMaxStreams(stream_count, unidirectional);
 }
 
-void QuicSession::SendStreamIdBlocked(QuicStreamId max_allowed_outgoing_id) {
-  control_frame_manager_.WriteOrBufferStreamIdBlocked(max_allowed_outgoing_id);
+void QuicSession::SendStreamsBlocked(QuicStreamCount stream_count,
+                                     bool unidirectional) {
+  control_frame_manager_.WriteOrBufferStreamsBlocked(stream_count,
+                                                     unidirectional);
 }
 
 void QuicSession::CloseStream(QuicStreamId stream_id) {
@@ -913,7 +916,14 @@ void QuicSession::OnConfigNegotiated() {
   }
   QUIC_DVLOG(1) << "Setting max_open_outgoing_streams_ to " << max_streams;
   if (connection_->transport_version() == QUIC_VERSION_99) {
-    v99_streamid_manager_.SetMaxOpenOutgoingStreams(max_streams);
+    // TODO: When transport negotiation knows about bi- and uni- directional
+    // streams, this should be modified to indicate which one to the manager.
+    // Currently, BOTH are set to the same value.
+    // TODO(fkastenholz): AdjustMax is cognizant of the number of static streams
+    // and sets the maximum to be max_streams + number_of_statics. This should
+    // eventually be removed from IETF QUIC. -- Replace the call with
+    // ConfigureMaxOpen...
+    v99_streamid_manager_.AdjustMaxOpenOutgoingStreams(max_streams);
   } else {
     stream_id_manager_.set_max_open_outgoing_streams(max_streams);
   }
@@ -1765,13 +1775,12 @@ QuicStreamId QuicSession::next_outgoing_unidirectional_stream_id() const {
   return stream_id_manager_.next_outgoing_stream_id();
 }
 
-bool QuicSession::OnMaxStreamIdFrame(const QuicMaxStreamIdFrame& frame) {
-  return v99_streamid_manager_.OnMaxStreamIdFrame(frame);
+bool QuicSession::OnMaxStreamsFrame(const QuicMaxStreamsFrame& frame) {
+  return v99_streamid_manager_.OnMaxStreamsFrame(frame);
 }
 
-bool QuicSession::OnStreamIdBlockedFrame(
-    const QuicStreamIdBlockedFrame& frame) {
-  return v99_streamid_manager_.OnStreamIdBlockedFrame(frame);
+bool QuicSession::OnStreamsBlockedFrame(const QuicStreamsBlockedFrame& frame) {
+  return v99_streamid_manager_.OnStreamsBlockedFrame(frame);
 }
 
 size_t QuicSession::max_open_incoming_bidirectional_streams() const {

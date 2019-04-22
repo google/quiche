@@ -277,8 +277,8 @@ class TestSession : public QuicSpdySession {
 
 class QuicSpdySessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
  public:
-  bool ClearMaxStreamIdControlFrame(const QuicFrame& frame) {
-    if (frame.type == MAX_STREAM_ID_FRAME) {
+  bool ClearMaxStreamsControlFrame(const QuicFrame& frame) {
+    if (frame.type == MAX_STREAMS_FRAME) {
       DeleteFrame(&const_cast<QuicFrame&>(frame));
       return true;
     }
@@ -378,6 +378,24 @@ class QuicSpdySessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
 
   QuicStreamId IdDelta() {
     return QuicUtils::StreamIdDelta(connection_->transport_version());
+  }
+
+  QuicStreamId StreamCountToId(QuicStreamCount stream_count,
+                               Perspective perspective,
+                               bool bidirectional) {
+    // Calculate and build up stream ID rather than use
+    // GetFirst... because the test that relies on this method
+    // needs to do the stream count where #1 is 0/1/2/3, and not
+    // take into account that stream 0 is special.
+    QuicStreamId id =
+        ((stream_count - 1) * QuicUtils::StreamIdDelta(QUIC_VERSION_99));
+    if (!bidirectional) {
+      id |= 0x2;
+    }
+    if (perspective == Perspective::IS_SERVER) {
+      id |= 0x1;
+    }
+    return id;
   }
 
   MockQuicConnectionHelper helper_;
@@ -496,28 +514,35 @@ TEST_P(QuicSpdySessionTestServer, MaximumAvailableOpenedStreams) {
     // stream ID, the next ID should fail. Since the actual limit
     // is not the number of open streams, we allocate the max and the max+2.
     // Get the max allowed stream ID, this should succeed.
-    EXPECT_NE(nullptr,
-              session_.GetOrCreateDynamicStream(
-                  QuicSessionPeer::v99_streamid_manager(&session_)
-                      ->actual_max_allowed_incoming_bidirectional_stream_id()));
-    EXPECT_NE(
-        nullptr,
-        session_.GetOrCreateDynamicStream(
-            QuicSessionPeer::v99_streamid_manager(&session_)
-                ->actual_max_allowed_incoming_unidirectional_stream_id()));
-    EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(1);
-    // Get the (max allowed stream ID)++, this should fail.
-    EXPECT_EQ(nullptr,
-              session_.GetOrCreateDynamicStream(
-                  QuicSessionPeer::v99_streamid_manager(&session_)
-                      ->actual_max_allowed_incoming_bidirectional_stream_id() +
-                  IdDelta()));
-    EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(1);
-    EXPECT_EQ(nullptr,
-              session_.GetOrCreateDynamicStream(
-                  QuicSessionPeer::v99_streamid_manager(&session_)
-                      ->actual_max_allowed_incoming_unidirectional_stream_id() +
-                  IdDelta()));
+    QuicStreamId stream_id = StreamCountToId(
+        QuicSessionPeer::v99_streamid_manager(&session_)
+            ->actual_max_allowed_incoming_bidirectional_streams(),
+        Perspective::IS_CLIENT,  // Client initates stream, allocs stream id.
+        /*bidirectional=*/true);
+    EXPECT_NE(nullptr, session_.GetOrCreateDynamicStream(stream_id));
+    stream_id = StreamCountToId(
+        QuicSessionPeer::v99_streamid_manager(&session_)
+            ->actual_max_allowed_incoming_unidirectional_streams(),
+        Perspective::IS_CLIENT,
+        /*bidirectional=*/false);
+    EXPECT_NE(nullptr, session_.GetOrCreateDynamicStream(stream_id));
+    EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(2);
+    // Get the (max allowed stream ID)++. These should all fail.
+    stream_id = StreamCountToId(
+        QuicSessionPeer::v99_streamid_manager(&session_)
+                ->actual_max_allowed_incoming_bidirectional_streams() +
+            1,
+        Perspective::IS_CLIENT,
+        /*bidirectional=*/true);
+    EXPECT_EQ(nullptr, session_.GetOrCreateDynamicStream(stream_id));
+
+    stream_id = StreamCountToId(
+        QuicSessionPeer::v99_streamid_manager(&session_)
+                ->actual_max_allowed_incoming_unidirectional_streams() +
+            1,
+        Perspective::IS_CLIENT,
+        /*bidirectional=*/false);
+    EXPECT_EQ(nullptr, session_.GetOrCreateDynamicStream(stream_id));
   } else {
     QuicStreamId stream_id = GetNthClientInitiatedBidirectionalId(0);
     session_.GetOrCreateDynamicStream(stream_id);
@@ -556,9 +581,10 @@ TEST_P(QuicSpdySessionTestServer, ManyAvailableStreams) {
   session_.GetOrCreateDynamicStream(stream_id);
   EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(0);
   // Stream count is 200, GetNth... starts counting at 0, so the 200'th stream
-  // is 199.
+  // is 199. BUT actually we need to do 198 because the crypto stream (Stream
+  // ID 0) has not been registered, but GetNth... assumes that it has.
   EXPECT_NE(nullptr, session_.GetOrCreateDynamicStream(
-                         GetNthClientInitiatedBidirectionalId(199)));
+                         GetNthClientInitiatedBidirectionalId(198)));
 }
 
 TEST_P(QuicSpdySessionTestServer,
@@ -679,7 +705,7 @@ TEST_P(QuicSpdySessionTestServer, OnCanWriteBundlesStreams) {
   if (IsVersion99()) {
     EXPECT_CALL(*connection_, SendControlFrame(_))
         .WillRepeatedly(Invoke(
-            this, &QuicSpdySessionTestServer::ClearMaxStreamIdControlFrame));
+            this, &QuicSpdySessionTestServer::ClearMaxStreamsControlFrame));
   }
   // Encryption needs to be established before data can be sent.
   CryptoHandshakeMessage msg;
@@ -1469,6 +1495,16 @@ TEST_P(QuicSpdySessionTestServer,
   // than version 99. In version 99 the connection gets closed.
   const QuicStreamId kMaxStreams = 5;
   QuicSessionPeer::SetMaxOpenIncomingStreams(&session_, kMaxStreams);
+  // GetNth assumes that both the crypto and header streams have been
+  // open, but the stream id manager, using GetFirstBidirectional... only
+  // assumes that the crypto stream is open. This means that GetNth...(0)
+  // Will return stream ID == 8 (with id ==0 for crypto and id==4 for headers).
+  // It also means that GetNth(kMax..=5) returns 28 (streams 0/1/2/3/4 are ids
+  // 8, 12, 16, 20, 24, respectively, so stream#5 is stream id 28).
+  // However, the stream ID manager does not assume stream 4 is for headers.
+  // The ID manager would assume that stream#5 is streamid 24.
+  // In order to make this all work out properly, kFinalStreamId will
+  // be set to GetNth...(kMaxStreams-1)... but only for V99
   const QuicStreamId kFirstStreamId = GetNthClientInitiatedBidirectionalId(0);
   const QuicStreamId kFinalStreamId =
       GetNthClientInitiatedBidirectionalId(kMaxStreams);
@@ -1505,8 +1541,10 @@ TEST_P(QuicSpdySessionTestServer,
         .Times(1);
   } else {
     // On version 99 opening such a stream results in a connection close.
-    EXPECT_CALL(*connection_, CloseConnection(QUIC_INVALID_STREAM_ID,
-                                              "Stream id 28 above 24", _));
+    EXPECT_CALL(
+        *connection_,
+        CloseConnection(QUIC_INVALID_STREAM_ID,
+                        "Stream id 28 would exceed stream count limit 7", _));
   }
   // Create one more data streams to exceed limit of open stream.
   QuicStreamFrame data1(kFinalStreamId, false, 0, QuicStringPiece("HT"));
@@ -1518,10 +1556,10 @@ TEST_P(QuicSpdySessionTestServer, DrainingStreamsDoNotCountAsOpened) {
   // it) does not count against the open quota (because it is closed from the
   // protocol point of view).
   if (IsVersion99()) {
-    // Version 99 will result in a MAX_STREAM_ID frame as streams are consumed
+    // Version 99 will result in a MAX_STREAMS frame as streams are consumed
     // (via the OnStreamFrame call) and then released (via
     // StreamDraining). Eventually this node will believe that the peer is
-    // running low on available stream ids and then send a MAX_STREAM_ID frame,
+    // running low on available stream ids and then send a MAX_STREAMS frame,
     // caught by this EXPECT_CALL.
     EXPECT_CALL(*connection_, SendControlFrame(_)).Times(1);
   } else {

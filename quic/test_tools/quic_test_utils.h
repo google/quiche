@@ -278,9 +278,9 @@ class MockFramerVisitor : public QuicFramerVisitorInterface {
   MOCK_METHOD1(OnPathChallengeFrame, bool(const QuicPathChallengeFrame& frame));
   MOCK_METHOD1(OnPathResponseFrame, bool(const QuicPathResponseFrame& frame));
   MOCK_METHOD1(OnGoAwayFrame, bool(const QuicGoAwayFrame& frame));
-  MOCK_METHOD1(OnMaxStreamIdFrame, bool(const QuicMaxStreamIdFrame& frame));
-  MOCK_METHOD1(OnStreamIdBlockedFrame,
-               bool(const QuicStreamIdBlockedFrame& frame));
+  MOCK_METHOD1(OnMaxStreamsFrame, bool(const QuicMaxStreamsFrame& frame));
+  MOCK_METHOD1(OnStreamsBlockedFrame,
+               bool(const QuicStreamsBlockedFrame& frame));
   MOCK_METHOD1(OnWindowUpdateFrame, bool(const QuicWindowUpdateFrame& frame));
   MOCK_METHOD1(OnBlockedFrame, bool(const QuicBlockedFrame& frame));
   MOCK_METHOD1(OnMessageFrame, bool(const QuicMessageFrame& frame));
@@ -329,8 +329,8 @@ class NoOpFramerVisitor : public QuicFramerVisitorInterface {
   bool OnPathChallengeFrame(const QuicPathChallengeFrame& frame) override;
   bool OnPathResponseFrame(const QuicPathResponseFrame& frame) override;
   bool OnGoAwayFrame(const QuicGoAwayFrame& frame) override;
-  bool OnMaxStreamIdFrame(const QuicMaxStreamIdFrame& frame) override;
-  bool OnStreamIdBlockedFrame(const QuicStreamIdBlockedFrame& frame) override;
+  bool OnMaxStreamsFrame(const QuicMaxStreamsFrame& frame) override;
+  bool OnStreamsBlockedFrame(const QuicStreamsBlockedFrame& frame) override;
   bool OnWindowUpdateFrame(const QuicWindowUpdateFrame& frame) override;
   bool OnBlockedFrame(const QuicBlockedFrame& frame) override;
   bool OnMessageFrame(const QuicMessageFrame& frame) override;
@@ -377,9 +377,9 @@ class MockQuicConnectionVisitor : public QuicConnectionVisitorInterface {
   MOCK_METHOD0(SendPing, void());
   MOCK_CONST_METHOD0(AllowSelfAddressChange, bool());
   MOCK_METHOD0(OnForwardProgressConfirmed, void());
-  MOCK_METHOD1(OnMaxStreamIdFrame, bool(const QuicMaxStreamIdFrame& frame));
-  MOCK_METHOD1(OnStreamIdBlockedFrame,
-               bool(const QuicStreamIdBlockedFrame& frame));
+  MOCK_METHOD1(OnMaxStreamsFrame, bool(const QuicMaxStreamsFrame& frame));
+  MOCK_METHOD1(OnStreamsBlockedFrame,
+               bool(const QuicStreamsBlockedFrame& frame));
   MOCK_METHOD1(OnStopSendingFrame, bool(const QuicStopSendingFrame& frame));
 };
 

@@ -101,33 +101,37 @@ TEST_F(QuicFramesTest, StopSendingFrameToString) {
   EXPECT_TRUE(IsControlFrame(frame.type));
 }
 
-TEST_F(QuicFramesTest, StreamIdBlockedFrameToString) {
-  QuicStreamIdBlockedFrame stream_id_blocked;
-  QuicFrame frame(stream_id_blocked);
+TEST_F(QuicFramesTest, StreamsBlockedFrameToString) {
+  QuicStreamsBlockedFrame streams_blocked;
+  QuicFrame frame(streams_blocked);
   SetControlFrameId(1, &frame);
   EXPECT_EQ(1u, GetControlFrameId(frame));
-  // QuicStreamIdBlocked is copied into a QuicFrame (as opposed to putting a
+  // QuicStreamsBlocked is copied into a QuicFrame (as opposed to putting a
   // pointer to it into QuicFrame) so need to work with the copy in |frame| and
-  // not the original one, stream_id_blocked.
-  frame.stream_id_blocked_frame.stream_id = 321;
+  // not the original one, streams_blocked.
+  frame.streams_blocked_frame.stream_count = 321;
+  frame.streams_blocked_frame.unidirectional = false;
   std::ostringstream stream;
-  stream << frame.stream_id_blocked_frame;
-  EXPECT_EQ("{ control_frame_id: 1, stream id: 321 }\n", stream.str());
+  stream << frame.streams_blocked_frame;
+  EXPECT_EQ("{ control_frame_id: 1, stream count: 321, bidirectional }\n",
+            stream.str());
   EXPECT_TRUE(IsControlFrame(frame.type));
 }
 
-TEST_F(QuicFramesTest, MaxStreamIdFrameToString) {
-  QuicMaxStreamIdFrame max_stream_id;
-  QuicFrame frame(max_stream_id);
+TEST_F(QuicFramesTest, MaxStreamsFrameToString) {
+  QuicMaxStreamsFrame max_streams;
+  QuicFrame frame(max_streams);
   SetControlFrameId(1, &frame);
   EXPECT_EQ(1u, GetControlFrameId(frame));
-  // QuicMaxStreamId is copied into a QuicFrame (as opposed to putting a
+  // QuicMaxStreams is copied into a QuicFrame (as opposed to putting a
   // pointer to it into QuicFrame) so need to work with the copy in |frame| and
-  // not the original one, max_stream_id.
-  frame.max_stream_id_frame.max_stream_id = 321;
+  // not the original one, max_streams.
+  frame.max_streams_frame.stream_count = 321;
+  frame.max_streams_frame.unidirectional = true;
   std::ostringstream stream;
-  stream << frame.max_stream_id_frame;
-  EXPECT_EQ("{ control_frame_id: 1, stream_id: 321 }\n", stream.str());
+  stream << frame.max_streams_frame;
+  EXPECT_EQ("{ control_frame_id: 1, stream_count: 321, unidirectional }\n",
+            stream.str());
   EXPECT_TRUE(IsControlFrame(frame.type));
 }
 

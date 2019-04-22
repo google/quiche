@@ -1336,13 +1336,13 @@ bool QuicConnection::OnConnectionCloseFrame(
   return connected_;
 }
 
-bool QuicConnection::OnMaxStreamIdFrame(const QuicMaxStreamIdFrame& frame) {
-  return visitor_->OnMaxStreamIdFrame(frame);
+bool QuicConnection::OnMaxStreamsFrame(const QuicMaxStreamsFrame& frame) {
+  return visitor_->OnMaxStreamsFrame(frame);
 }
 
-bool QuicConnection::OnStreamIdBlockedFrame(
-    const QuicStreamIdBlockedFrame& frame) {
-  return visitor_->OnStreamIdBlockedFrame(frame);
+bool QuicConnection::OnStreamsBlockedFrame(
+    const QuicStreamsBlockedFrame& frame) {
+  return visitor_->OnStreamsBlockedFrame(frame);
 }
 
 bool QuicConnection::OnGoAwayFrame(const QuicGoAwayFrame& frame) {

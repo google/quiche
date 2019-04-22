@@ -7,6 +7,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_session_peer.h"
+#include "net/third_party/quiche/src/quic/test_tools/quic_stream_id_manager_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 
 using testing::_;
@@ -59,6 +60,16 @@ class UberQuicStreamIdManagerTest : public QuicTestWithParam<Perspective> {
            kV99StreamIdIncrement * n;
   }
 
+  QuicStreamId StreamCountToId(QuicStreamCount stream_count,
+                               Perspective perspective,
+                               bool bidirectional) {
+    return ((bidirectional) ? QuicUtils::GetFirstBidirectionalStreamId(
+                                  QUIC_VERSION_99, perspective)
+                            : QuicUtils::GetFirstUnidirectionalStreamId(
+                                  QUIC_VERSION_99, perspective)) +
+           ((stream_count - 1) * QuicUtils::StreamIdDelta(QUIC_VERSION_99));
+  }
+
   MockQuicConnectionHelper helper_;
   MockAlarmFactory alarm_factory_;
   MockQuicConnection* connection_;
@@ -96,27 +107,24 @@ TEST_P(UberQuicStreamIdManagerTest, RegisterStaticStream) {
           ? GetNthClientInitiatedUnidirectionalId(0)
           : GetNthServerInitiatedUnidirectionalId(0);
 
-  QuicStreamId actual_max_allowed_incoming_bidirectional_stream_id =
-      manager_->actual_max_allowed_incoming_bidirectional_stream_id();
-  QuicStreamId actual_max_allowed_incoming_unidirectional_stream_id =
-      manager_->actual_max_allowed_incoming_unidirectional_stream_id();
+  QuicStreamCount actual_max_allowed_incoming_bidirectional_streams =
+      manager_->actual_max_allowed_incoming_bidirectional_streams();
+  QuicStreamCount actual_max_allowed_incoming_unidirectional_streams =
+      manager_->actual_max_allowed_incoming_unidirectional_streams();
   manager_->RegisterStaticStream(first_incoming_bidirectional_stream_id);
-  // Verify actual_max_allowed_incoming_bidirectional_stream_id increases.
-  EXPECT_EQ(actual_max_allowed_incoming_bidirectional_stream_id +
-                kV99StreamIdIncrement,
-            manager_->actual_max_allowed_incoming_bidirectional_stream_id());
-  // Verify actual_max_allowed_incoming_unidirectional_stream_id does not
+  // Verify actual_max_allowed_incoming_bidirectional_streams increases.
+  EXPECT_EQ(actual_max_allowed_incoming_bidirectional_streams + 1u,
+            manager_->actual_max_allowed_incoming_bidirectional_streams());
+  // Verify actual_max_allowed_incoming_unidirectional_streams does not
   // change.
-  EXPECT_EQ(actual_max_allowed_incoming_unidirectional_stream_id,
-            manager_->actual_max_allowed_incoming_unidirectional_stream_id());
+  EXPECT_EQ(actual_max_allowed_incoming_unidirectional_streams,
+            manager_->actual_max_allowed_incoming_unidirectional_streams());
 
   manager_->RegisterStaticStream(first_incoming_unidirectional_stream_id);
-  EXPECT_EQ(actual_max_allowed_incoming_bidirectional_stream_id +
-                kV99StreamIdIncrement,
-            manager_->actual_max_allowed_incoming_bidirectional_stream_id());
-  EXPECT_EQ(actual_max_allowed_incoming_unidirectional_stream_id +
-                kV99StreamIdIncrement,
-            manager_->actual_max_allowed_incoming_unidirectional_stream_id());
+  EXPECT_EQ(actual_max_allowed_incoming_bidirectional_streams + 1u,
+            manager_->actual_max_allowed_incoming_bidirectional_streams());
+  EXPECT_EQ(actual_max_allowed_incoming_unidirectional_streams + 1u,
+            manager_->actual_max_allowed_incoming_unidirectional_streams());
 }
 
 TEST_P(UberQuicStreamIdManagerTest, SetMaxOpenOutgoingStreams) {
@@ -135,27 +143,10 @@ TEST_P(UberQuicStreamIdManagerTest, SetMaxOpenIncomingStreams) {
             manager_->GetMaxAllowdIncomingBidirectionalStreams());
   EXPECT_EQ(kNumMaxIncomingStreams,
             manager_->GetMaxAllowdIncomingUnidirectionalStreams());
-  EXPECT_EQ(
-      manager_->actual_max_allowed_incoming_bidirectional_stream_id(),
-      manager_->advertised_max_allowed_incoming_bidirectional_stream_id());
-  EXPECT_EQ(
-      manager_->actual_max_allowed_incoming_unidirectional_stream_id(),
-      manager_->advertised_max_allowed_incoming_unidirectional_stream_id());
-
-  QuicStreamId first_incoming_bidirectional_stream_id =
-      GetParam() == Perspective::IS_SERVER
-          ? GetNthClientInitiatedBidirectionalId(0)
-          : GetNthServerInitiatedBidirectionalId(0);
-  QuicStreamId first_incoming_unidirectional_stream_id =
-      GetParam() == Perspective::IS_SERVER
-          ? GetNthClientInitiatedUnidirectionalId(0)
-          : GetNthServerInitiatedUnidirectionalId(0);
-  EXPECT_EQ(first_incoming_bidirectional_stream_id +
-                (kNumMaxIncomingStreams - 1) * kV99StreamIdIncrement,
-            manager_->actual_max_allowed_incoming_bidirectional_stream_id());
-  EXPECT_EQ(first_incoming_unidirectional_stream_id +
-                (kNumMaxIncomingStreams - 1) * kV99StreamIdIncrement,
-            manager_->actual_max_allowed_incoming_unidirectional_stream_id());
+  EXPECT_EQ(manager_->actual_max_allowed_incoming_bidirectional_streams(),
+            manager_->advertised_max_allowed_incoming_bidirectional_streams());
+  EXPECT_EQ(manager_->actual_max_allowed_incoming_unidirectional_streams(),
+            manager_->advertised_max_allowed_incoming_unidirectional_streams());
 }
 
 TEST_P(UberQuicStreamIdManagerTest, GetNextOutgoingStreamId) {
@@ -214,86 +205,116 @@ TEST_P(UberQuicStreamIdManagerTest, AvailableStreams) {
 
 TEST_P(UberQuicStreamIdManagerTest, MaybeIncreaseLargestPeerStreamId) {
   EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(0);
-  EXPECT_TRUE(manager_->MaybeIncreaseLargestPeerStreamId(
-      manager_->actual_max_allowed_incoming_bidirectional_stream_id()));
-  EXPECT_TRUE(manager_->MaybeIncreaseLargestPeerStreamId(
-      manager_->actual_max_allowed_incoming_unidirectional_stream_id()));
+  EXPECT_TRUE(manager_->MaybeIncreaseLargestPeerStreamId(StreamCountToId(
+      manager_->actual_max_allowed_incoming_bidirectional_streams(),
+      /* Perspective=*/GetParam() == Perspective::IS_SERVER
+          ? Perspective::IS_CLIENT
+          : Perspective::IS_SERVER,
+      /* bidirectional=*/true)));
+  EXPECT_TRUE(manager_->MaybeIncreaseLargestPeerStreamId(StreamCountToId(
+      manager_->actual_max_allowed_incoming_bidirectional_streams(),
+      /* Perspective=*/GetParam() == Perspective::IS_SERVER
+          ? Perspective::IS_CLIENT
+          : Perspective::IS_SERVER,
+      /* bidirectional=*/false)));
 
-  std::string error_details = GetParam() == Perspective::IS_SERVER
-                                  ? "Stream id 404 above 400"
-                                  : "Stream id 401 above 397";
+  std::string error_details =
+      GetParam() == Perspective::IS_SERVER
+          ? "Stream id 404 would exceed stream count limit 100"
+          : "Stream id 401 would exceed stream count limit 100";
+
   EXPECT_CALL(*connection_,
               CloseConnection(QUIC_INVALID_STREAM_ID, error_details, _));
-  EXPECT_FALSE(manager_->MaybeIncreaseLargestPeerStreamId(
-      manager_->actual_max_allowed_incoming_bidirectional_stream_id() +
-      kV99StreamIdIncrement));
+  EXPECT_FALSE(manager_->MaybeIncreaseLargestPeerStreamId(StreamCountToId(
+      manager_->actual_max_allowed_incoming_bidirectional_streams() + 1,
+      /* Perspective=*/GetParam() == Perspective::IS_SERVER
+          ? Perspective::IS_CLIENT
+          : Perspective::IS_SERVER,
+      /* bidirectional=*/true)));
   error_details = GetParam() == Perspective::IS_SERVER
-                      ? "Stream id 402 above 398"
-                      : "Stream id 403 above 399";
+                      ? "Stream id 402 would exceed stream count limit 100"
+                      : "Stream id 403 would exceed stream count limit 100";
   EXPECT_CALL(*connection_,
               CloseConnection(QUIC_INVALID_STREAM_ID, error_details, _));
-  EXPECT_FALSE(manager_->MaybeIncreaseLargestPeerStreamId(
-      manager_->actual_max_allowed_incoming_unidirectional_stream_id() +
-      kV99StreamIdIncrement));
+  EXPECT_FALSE(manager_->MaybeIncreaseLargestPeerStreamId(StreamCountToId(
+      manager_->actual_max_allowed_incoming_bidirectional_streams() + 1,
+      /* Perspective=*/GetParam() == Perspective::IS_SERVER
+          ? Perspective::IS_CLIENT
+          : Perspective::IS_SERVER,
+      /* bidirectional=*/false)));
 }
 
-TEST_P(UberQuicStreamIdManagerTest, OnMaxStreamIdFrame) {
-  QuicStreamId max_allowed_outgoing_bidirectional_stream_id =
-      manager_->max_allowed_outgoing_bidirectional_stream_id();
-  QuicStreamId max_allowed_outgoing_unidirectional_stream_id =
-      manager_->max_allowed_outgoing_unidirectional_stream_id();
+TEST_P(UberQuicStreamIdManagerTest, OnMaxStreamsFrame) {
+  QuicStreamCount max_allowed_outgoing_bidirectional_stream_count =
+      manager_->max_allowed_outgoing_bidirectional_streams();
 
-  QuicMaxStreamIdFrame frame(kInvalidControlFrameId,
-                             max_allowed_outgoing_bidirectional_stream_id);
-  EXPECT_TRUE(manager_->OnMaxStreamIdFrame(frame));
-  EXPECT_EQ(max_allowed_outgoing_bidirectional_stream_id,
-            manager_->max_allowed_outgoing_bidirectional_stream_id());
-  frame.max_stream_id = max_allowed_outgoing_unidirectional_stream_id;
-  EXPECT_TRUE(manager_->OnMaxStreamIdFrame(frame));
-  EXPECT_EQ(max_allowed_outgoing_unidirectional_stream_id,
-            manager_->max_allowed_outgoing_unidirectional_stream_id());
+  QuicStreamCount max_allowed_outgoing_unidirectional_stream_count =
+      manager_->max_allowed_outgoing_unidirectional_streams();
 
-  frame.max_stream_id =
-      max_allowed_outgoing_bidirectional_stream_id + kV99StreamIdIncrement;
-  EXPECT_TRUE(manager_->OnMaxStreamIdFrame(frame));
-  EXPECT_EQ(
-      max_allowed_outgoing_bidirectional_stream_id + kV99StreamIdIncrement,
-      manager_->max_allowed_outgoing_bidirectional_stream_id());
-  EXPECT_EQ(max_allowed_outgoing_unidirectional_stream_id,
-            manager_->max_allowed_outgoing_unidirectional_stream_id());
+  // Inject a MAX_STREAMS frame that does not increase the limit and then
+  // check that there are no changes. First try the bidirectional manager.
+  QuicMaxStreamsFrame frame(kInvalidControlFrameId,
+                            max_allowed_outgoing_bidirectional_stream_count,
+                            /*unidirectional=*/false);
+  EXPECT_TRUE(manager_->OnMaxStreamsFrame(frame));
+  EXPECT_EQ(max_allowed_outgoing_bidirectional_stream_count,
+            manager_->max_allowed_outgoing_bidirectional_streams());
 
-  frame.max_stream_id =
-      max_allowed_outgoing_unidirectional_stream_id + kV99StreamIdIncrement;
-  EXPECT_TRUE(manager_->OnMaxStreamIdFrame(frame));
-  EXPECT_EQ(
-      max_allowed_outgoing_bidirectional_stream_id + kV99StreamIdIncrement,
-      manager_->max_allowed_outgoing_bidirectional_stream_id());
-  EXPECT_EQ(
-      max_allowed_outgoing_unidirectional_stream_id + kV99StreamIdIncrement,
-      manager_->max_allowed_outgoing_unidirectional_stream_id());
+  // Now try the unidirectioanl manager
+  frame.stream_count = max_allowed_outgoing_unidirectional_stream_count;
+  frame.unidirectional = true;
+  EXPECT_TRUE(manager_->OnMaxStreamsFrame(frame));
+  EXPECT_EQ(max_allowed_outgoing_unidirectional_stream_count,
+            manager_->max_allowed_outgoing_unidirectional_streams());
+
+  // Now try to increase the bidirectional stream count.
+  frame.stream_count = max_allowed_outgoing_bidirectional_stream_count + 1;
+  frame.unidirectional = false;
+  EXPECT_TRUE(manager_->OnMaxStreamsFrame(frame));
+  EXPECT_EQ(max_allowed_outgoing_bidirectional_stream_count + 1,
+            manager_->max_allowed_outgoing_bidirectional_streams());
+  // Make sure that the unidirectional state does not change.
+  EXPECT_EQ(max_allowed_outgoing_unidirectional_stream_count,
+            manager_->max_allowed_outgoing_unidirectional_streams());
+
+  // Now check that a MAX_STREAMS for the unidirectional manager increases
+  // just the unidirectiomal manager's state.
+  frame.stream_count = max_allowed_outgoing_unidirectional_stream_count + 1;
+  frame.unidirectional = true;
+  EXPECT_TRUE(manager_->OnMaxStreamsFrame(frame));
+  EXPECT_EQ(max_allowed_outgoing_bidirectional_stream_count + 1,
+            manager_->max_allowed_outgoing_bidirectional_streams());
+  EXPECT_EQ(max_allowed_outgoing_unidirectional_stream_count + 1,
+            manager_->max_allowed_outgoing_unidirectional_streams());
 }
 
-TEST_P(UberQuicStreamIdManagerTest, OnStreamIdBlockedFrame) {
+TEST_P(UberQuicStreamIdManagerTest, OnStreamsBlockedFrame) {
+  // Set up to capture calls to SendControlFrame - when a STREAMS_BLOCKED
+  // frame is received, it will result in a a new MAX_STREAMS frame being
+  // sent (if new streams can be made available).
   EXPECT_CALL(*connection_, SendControlFrame(_))
       .WillRepeatedly(
           Invoke(this, &UberQuicStreamIdManagerTest::SaveControlFrame));
 
-  QuicStreamId stream_id =
-      manager_->advertised_max_allowed_incoming_bidirectional_stream_id() -
-      kV99StreamIdIncrement;
-  QuicStreamIdBlockedFrame frame(kInvalidControlFrameId, stream_id);
-  session_->OnStreamIdBlockedFrame(frame);
-  EXPECT_EQ(MAX_STREAM_ID_FRAME, frame_.type);
-  EXPECT_EQ(manager_->actual_max_allowed_incoming_bidirectional_stream_id(),
-            frame_.max_stream_id_frame.max_stream_id);
+  QuicStreamCount stream_count =
+      manager_->advertised_max_allowed_incoming_bidirectional_streams() - 1;
 
-  frame.stream_id =
-      manager_->advertised_max_allowed_incoming_unidirectional_stream_id() -
-      kV99StreamIdIncrement;
-  session_->OnStreamIdBlockedFrame(frame);
-  EXPECT_EQ(MAX_STREAM_ID_FRAME, frame_.type);
-  EXPECT_EQ(manager_->actual_max_allowed_incoming_unidirectional_stream_id(),
-            frame_.max_stream_id_frame.max_stream_id);
+  QuicStreamsBlockedFrame frame(kInvalidControlFrameId, stream_count,
+                                /*unidirectional=*/false);
+  session_->OnStreamsBlockedFrame(frame);
+  EXPECT_EQ(MAX_STREAMS_FRAME, frame_.type);
+  EXPECT_EQ(manager_->actual_max_allowed_incoming_bidirectional_streams(),
+            frame_.max_streams_frame.stream_count);
+
+  stream_count =
+      manager_->advertised_max_allowed_incoming_unidirectional_streams() - 1;
+  frame.stream_count = stream_count;
+  frame.unidirectional = true;
+
+  session_->OnStreamsBlockedFrame(frame);
+  EXPECT_EQ(MAX_STREAMS_FRAME, frame_.type);
+  EXPECT_EQ(manager_->actual_max_allowed_incoming_unidirectional_streams(),
+            frame_.max_streams_frame.stream_count);
 }
 
 TEST_P(UberQuicStreamIdManagerTest, IsIncomingStream) {

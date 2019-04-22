@@ -1026,7 +1026,7 @@ void EncodeDecodeStreamId(uint64_t value_in, bool expected_decode_result) {
 
   QuicDataReader reader(buffer, sizeof(buffer), Endianness::NETWORK_BYTE_ORDER);
   QuicStreamId received_stream_id;
-  bool read_result = reader.ReadVarIntStreamId(&received_stream_id);
+  bool read_result = reader.ReadVarIntU32(&received_stream_id);
   EXPECT_EQ(expected_decode_result, read_result);
   if (read_result) {
     EXPECT_EQ(value_in, received_stream_id);
@@ -1112,6 +1112,34 @@ TEST_P(QuicDataWriterTest, InvalidConnectionIdLengthRead) {
       QuicStrCat("Attempted to read connection ID with length too high ",
                  static_cast<int>(bad_connection_id_length)));
   EXPECT_FALSE(ok);
+}
+
+// Test that ReadVarIntU32 works properly. Tests a valid stream count
+// (a 32 bit number) and an invalid one (a >32 bit number)
+TEST_P(QuicDataWriterTest, ValidU32) {
+  char buffer[1024];
+  memset(buffer, 0, sizeof(buffer));
+  QuicDataWriter writer(sizeof(buffer), static_cast<char*>(buffer),
+                        Endianness::NETWORK_BYTE_ORDER);
+  QuicDataReader reader(buffer, sizeof(buffer));
+  const QuicStreamCount write_stream_count = 0xffeeddcc;
+  EXPECT_TRUE(writer.WriteVarInt62(write_stream_count));
+  QuicStreamCount read_stream_count;
+  EXPECT_TRUE(reader.ReadVarIntU32(&read_stream_count));
+  EXPECT_EQ(write_stream_count, read_stream_count);
+}
+
+TEST_P(QuicDataWriterTest, InvalidU32) {
+  char buffer[1024];
+  memset(buffer, 0, sizeof(buffer));
+  QuicDataWriter writer(sizeof(buffer), static_cast<char*>(buffer),
+                        Endianness::NETWORK_BYTE_ORDER);
+  QuicDataReader reader(buffer, sizeof(buffer));
+  EXPECT_TRUE(writer.WriteVarInt62(UINT64_C(0x1ffeeddcc)));
+  QuicStreamCount read_stream_count = 123456;
+  EXPECT_FALSE(reader.ReadVarIntU32(&read_stream_count));
+  // If the value is bad, read_stream_count ought not change.
+  EXPECT_EQ(123456u, read_stream_count);
 }
 
 }  // namespace

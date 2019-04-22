@@ -4,33 +4,26 @@
 #include "net/third_party/quiche/src/quic/test_tools/quic_stream_id_manager_peer.h"
 
 #include "net/third_party/quiche/src/quic/core/quic_stream_id_manager.h"
+#include "net/third_party/quiche/src/quic/core/quic_utils.h"
+#include "net/third_party/quiche/src/quic/core/uber_quic_stream_id_manager.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 
 namespace quic {
 namespace test {
 
 // static
-void QuicStreamIdManagerPeer::IncrementMaximumAllowedOutgoingStreamId(
+void QuicStreamIdManagerPeer::set_incoming_actual_max_streams(
     QuicStreamIdManager* stream_id_manager,
-    int increment) {
-  stream_id_manager->max_allowed_outgoing_stream_id_ +=
-      (increment * kV99StreamIdIncrement);
+    QuicStreamCount count) {
+  stream_id_manager->incoming_actual_max_streams_ = count;
 }
 
 // static
-void QuicStreamIdManagerPeer::IncrementMaximumAllowedIncomingStreamId(
-    QuicStreamIdManager* stream_id_manager,
-    int increment) {
-  stream_id_manager->actual_max_allowed_incoming_stream_id_ +=
-      (increment * kV99StreamIdIncrement);
-  stream_id_manager->advertised_max_allowed_incoming_stream_id_ +=
-      (increment * kV99StreamIdIncrement);
+QuicStreamId QuicStreamIdManagerPeer::GetFirstIncomingStreamId(
+    QuicStreamIdManager* stream_id_manager) {
+  return stream_id_manager->GetFirstIncomingStreamId();
 }
 
-// static
-void QuicStreamIdManagerPeer::SetMaxOpenIncomingStreams(
-    QuicStreamIdManager* stream_id_manager,
-    size_t max_streams) {
-  stream_id_manager->SetMaxOpenIncomingStreams(max_streams);
-}
 }  // namespace test
 }  // namespace quic

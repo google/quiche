@@ -51,10 +51,10 @@ QuicFrame::QuicFrame(QuicNewConnectionIdFrame* frame)
 QuicFrame::QuicFrame(QuicRetireConnectionIdFrame* frame)
     : type(RETIRE_CONNECTION_ID_FRAME), retire_connection_id_frame(frame) {}
 
-QuicFrame::QuicFrame(QuicMaxStreamIdFrame frame) : max_stream_id_frame(frame) {}
+QuicFrame::QuicFrame(QuicMaxStreamsFrame frame) : max_streams_frame(frame) {}
 
-QuicFrame::QuicFrame(QuicStreamIdBlockedFrame frame)
-    : stream_id_blocked_frame(frame) {}
+QuicFrame::QuicFrame(QuicStreamsBlockedFrame frame)
+    : streams_blocked_frame(frame) {}
 
 QuicFrame::QuicFrame(QuicPathResponseFrame* frame)
     : type(PATH_RESPONSE_FRAME), path_response_frame(frame) {}
@@ -84,9 +84,9 @@ void DeleteFrame(QuicFrame* frame) {
     case PADDING_FRAME:
     case MTU_DISCOVERY_FRAME:
     case PING_FRAME:
-    case MAX_STREAM_ID_FRAME:
+    case MAX_STREAMS_FRAME:
     case STOP_WAITING_FRAME:
-    case STREAM_ID_BLOCKED_FRAME:
+    case STREAMS_BLOCKED_FRAME:
     case STREAM_FRAME:
       break;
     case ACK_FRAME:
@@ -154,8 +154,8 @@ bool IsControlFrame(QuicFrameType type) {
     case GOAWAY_FRAME:
     case WINDOW_UPDATE_FRAME:
     case BLOCKED_FRAME:
-    case STREAM_ID_BLOCKED_FRAME:
-    case MAX_STREAM_ID_FRAME:
+    case STREAMS_BLOCKED_FRAME:
+    case MAX_STREAMS_FRAME:
     case PING_FRAME:
     case STOP_SENDING_FRAME:
       return true;
@@ -174,10 +174,10 @@ QuicControlFrameId GetControlFrameId(const QuicFrame& frame) {
       return frame.window_update_frame->control_frame_id;
     case BLOCKED_FRAME:
       return frame.blocked_frame->control_frame_id;
-    case STREAM_ID_BLOCKED_FRAME:
-      return frame.stream_id_blocked_frame.control_frame_id;
-    case MAX_STREAM_ID_FRAME:
-      return frame.max_stream_id_frame.control_frame_id;
+    case STREAMS_BLOCKED_FRAME:
+      return frame.streams_blocked_frame.control_frame_id;
+    case MAX_STREAMS_FRAME:
+      return frame.max_streams_frame.control_frame_id;
     case PING_FRAME:
       return frame.ping_frame.control_frame_id;
     case STOP_SENDING_FRAME:
@@ -204,11 +204,11 @@ void SetControlFrameId(QuicControlFrameId control_frame_id, QuicFrame* frame) {
     case PING_FRAME:
       frame->ping_frame.control_frame_id = control_frame_id;
       return;
-    case STREAM_ID_BLOCKED_FRAME:
-      frame->stream_id_blocked_frame.control_frame_id = control_frame_id;
+    case STREAMS_BLOCKED_FRAME:
+      frame->streams_blocked_frame.control_frame_id = control_frame_id;
       return;
-    case MAX_STREAM_ID_FRAME:
-      frame->max_stream_id_frame.control_frame_id = control_frame_id;
+    case MAX_STREAMS_FRAME:
+      frame->max_streams_frame.control_frame_id = control_frame_id;
       return;
     case STOP_SENDING_FRAME:
       frame->stop_sending_frame->control_frame_id = control_frame_id;
@@ -240,11 +240,11 @@ QuicFrame CopyRetransmittableControlFrame(const QuicFrame& frame) {
     case STOP_SENDING_FRAME:
       copy = QuicFrame(new QuicStopSendingFrame(*frame.stop_sending_frame));
       break;
-    case STREAM_ID_BLOCKED_FRAME:
-      copy = QuicFrame(QuicStreamIdBlockedFrame(frame.stream_id_blocked_frame));
+    case STREAMS_BLOCKED_FRAME:
+      copy = QuicFrame(QuicStreamsBlockedFrame(frame.streams_blocked_frame));
       break;
-    case MAX_STREAM_ID_FRAME:
-      copy = QuicFrame(QuicMaxStreamIdFrame(frame.max_stream_id_frame));
+    case MAX_STREAMS_FRAME:
+      copy = QuicFrame(QuicMaxStreamsFrame(frame.max_streams_frame));
       break;
     default:
       QUIC_BUG << "Try to copy a non-retransmittable control frame: " << frame;
@@ -308,11 +308,11 @@ std::ostream& operator<<(std::ostream& os, const QuicFrame& frame) {
       os << "type { RETIRE_CONNECTION_ID } "
          << *(frame.retire_connection_id_frame);
       break;
-    case MAX_STREAM_ID_FRAME:
-      os << "type { MAX_STREAM_ID } " << frame.max_stream_id_frame;
+    case MAX_STREAMS_FRAME:
+      os << "type { MAX_STREAMS } " << frame.max_streams_frame;
       break;
-    case STREAM_ID_BLOCKED_FRAME:
-      os << "type { STREAM_ID_BLOCKED } " << frame.stream_id_blocked_frame;
+    case STREAMS_BLOCKED_FRAME:
+      os << "type { STREAMS_BLOCKED } " << frame.streams_blocked_frame;
       break;
     case PATH_RESPONSE_FRAME:
       os << "type { PATH_RESPONSE } " << *(frame.path_response_frame);

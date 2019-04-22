@@ -178,13 +178,13 @@ class QuicSimpleServerSessionTest
     return true;
   }
 
-  // The function ensures that A) the max stream id frames get properly deleted
+  // The function ensures that A) the MAX_STREAMS frames get properly deleted
   // (since the test uses a 'did we leak memory' check ... if we just lose the
   // frame, the test fails) and B) returns true (instead of the default, false)
   // which ensures that the rest of the system thinks that the frame actually
   // was transmitted.
-  bool ClearMaxStreamIdControlFrame(const QuicFrame& frame) {
-    if (frame.type == MAX_STREAM_ID_FRAME) {
+  bool ClearMaxStreamsControlFrame(const QuicFrame& frame) {
+    if (frame.type == MAX_STREAMS_FRAME) {
       DeleteFrame(&const_cast<QuicFrame&>(frame));
       return true;
     }
@@ -227,8 +227,7 @@ class QuicSimpleServerSessionTest
     if (IsVersion99()) {
       EXPECT_CALL(*connection_, SendControlFrame(_))
           .WillRepeatedly(Invoke(
-              this,
-              &QuicSimpleServerSessionTest::ClearMaxStreamIdControlFrame));
+              this, &QuicSimpleServerSessionTest::ClearMaxStreamsControlFrame));
     }
     session_->OnConfigNegotiated();
   }
@@ -566,7 +565,7 @@ class QuicSimpleServerSessionServerPushTest
     if (IsVersion99()) {
       EXPECT_CALL(*connection_, SendControlFrame(_))
           .WillRepeatedly(Invoke(this, &QuicSimpleServerSessionServerPushTest::
-                                           ClearMaxStreamIdControlFrame));
+                                           ClearMaxStreamsControlFrame));
     }
     session_->OnConfigNegotiated();
 
@@ -708,12 +707,13 @@ TEST_P(QuicSimpleServerSessionServerPushTest,
   if (IsVersion99()) {
     // The PromisePushedResources call, above, will have used all available
     // stream ids.  For version 99, stream ids are not made available until
-    // a MAX_STREAM_ID frame is received. This emulates the reception of one.
+    // a MAX_STREAMS frame is received. This emulates the reception of one.
     // For pre-v-99, the node monitors its own stream usage and makes streams
     // available as it closes/etc them.
-    session_->OnMaxStreamIdFrame(
-        QuicMaxStreamIdFrame(0, GetNthServerInitiatedUnidirectionalId(10)));
+    session_->OnMaxStreamsFrame(
+        QuicMaxStreamsFrame(0, num_resources, /*unidirectional=*/true));
   }
+
   session_->StreamDraining(GetNthServerInitiatedUnidirectionalId(0));
   // Number of open outgoing streams should still be the same, because a new
   // stream is opened. And the queue should be empty.
@@ -730,8 +730,8 @@ TEST_P(QuicSimpleServerSessionServerPushTest,
   // when opened stream become close, only one will become open.
   size_t num_resources = kMaxStreamsForTest + 2;
   if (IsVersion99()) {
-    // V99 will send out a stream-id-blocked frame when the we desired to exceed
-    // the limit. This will clear the frames so that they do not block the later
+    // V99 will send out a STREAMS_BLOCKED frame when it tries to exceed the
+    // limit. This will clear the frames so that they do not block the later
     // rst-stream frame.
     EXPECT_CALL(*connection_, SendControlFrame(_))
         .WillOnce(Invoke(
@@ -773,11 +773,11 @@ TEST_P(QuicSimpleServerSessionServerPushTest,
   if (IsVersion99()) {
     // The PromisePushedResources call, above, will have used all available
     // stream ids.  For version 99, stream ids are not made available until
-    // a MAX_STREAM_ID frame is received. This emulates the reception of one.
+    // a MAX_STREAMS frame is received. This emulates the reception of one.
     // For pre-v-99, the node monitors its own stream usage and makes streams
     // available as it closes/etc them.
-    session_->OnMaxStreamIdFrame(
-        QuicMaxStreamIdFrame(0, GetNthServerInitiatedUnidirectionalId(11)));
+    session_->OnMaxStreamsFrame(
+        QuicMaxStreamsFrame(0, num_resources, /*unidirectional=*/true));
   }
   session_->StreamDraining(GetNthServerInitiatedUnidirectionalId(0));
   session_->StreamDraining(GetNthServerInitiatedUnidirectionalId(1));
@@ -828,11 +828,11 @@ TEST_P(QuicSimpleServerSessionServerPushTest,
   if (IsVersion99()) {
     // The PromisePushedResources call, above, will have used all available
     // stream ids.  For version 99, stream ids are not made available until
-    // a MAX_STREAM_ID frame is received. This emulates the reception of one.
+    // a MAX_STREAMS frame is received. This emulates the reception of one.
     // For pre-v-99, the node monitors its own stream usage and makes streams
     // available as it closes/etc them.
-    session_->OnMaxStreamIdFrame(
-        QuicMaxStreamIdFrame(0, GetNthServerInitiatedUnidirectionalId(10)));
+    session_->OnMaxStreamsFrame(
+        QuicMaxStreamsFrame(0, num_resources, /*unidirectional=*/true));
   }
   visitor_->OnRstStream(rst);
   // Create and inject a STOP_SENDING frame. In GOOGLE QUIC, receiving a

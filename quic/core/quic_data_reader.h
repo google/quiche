@@ -142,11 +142,11 @@ class QUIC_EXPORT_PRIVATE QuicDataReader {
   // and that the integers in the range 0 ... (2^62)-1.
   bool ReadVarInt62(uint64_t* result);
 
-  // Convenience method that reads a StreamId.
-  // Atempts to read a Stream ID into |result| using ReadVarInt62 and
+  // Convenience method that reads a uint32_t.
+  // Attempts to read a varint into a uint32_t. using ReadVarInt62 and
   // returns false if there is a read error or if the value is
   // greater than (2^32)-1.
-  bool ReadVarIntStreamId(QuicStreamId* result);
+  bool ReadVarIntU32(uint32_t* result);
 
   std::string DebugString() const;
 

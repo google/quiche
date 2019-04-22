@@ -201,12 +201,11 @@ class QUIC_EXPORT_PRIVATE QuicFramerVisitorInterface {
   virtual void OnAuthenticatedIetfStatelessResetPacket(
       const QuicIetfStatelessResetPacket& packet) = 0;
 
-  // Called when an IETF MaxStreamId frame has been parsed.
-  virtual bool OnMaxStreamIdFrame(const QuicMaxStreamIdFrame& frame) = 0;
+  // Called when an IETF MaxStreams frame has been parsed.
+  virtual bool OnMaxStreamsFrame(const QuicMaxStreamsFrame& frame) = 0;
 
-  // Called when an IETF StreamIdBlocked frame has been parsed.
-  virtual bool OnStreamIdBlockedFrame(
-      const QuicStreamIdBlockedFrame& frame) = 0;
+  // Called when an IETF StreamsBlocked frame has been parsed.
+  virtual bool OnStreamsBlockedFrame(const QuicStreamsBlockedFrame& frame) = 0;
 };
 
 // Class for parsing and constructing QUIC packets.  It has a
@@ -309,11 +308,11 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
                                          const QuicWindowUpdateFrame& frame);
   // Size in bytes of all MaxStreams frame fields.
   static size_t GetMaxStreamsFrameSize(QuicTransportVersion version,
-                                       const QuicMaxStreamIdFrame& frame);
+                                       const QuicMaxStreamsFrame& frame);
   // Size in bytes of all StreamsBlocked frame fields.
   static size_t GetStreamsBlockedFrameSize(
       QuicTransportVersion version,
-      const QuicStreamIdBlockedFrame& frame);
+      const QuicStreamsBlockedFrame& frame);
   // Size in bytes of all Blocked frame fields.
   static size_t GetBlockedFrameSize(QuicTransportVersion version,
                                     const QuicBlockedFrame& frame);
@@ -809,10 +808,10 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   bool ProcessMaxStreamDataFrame(QuicDataReader* reader,
                                  QuicWindowUpdateFrame* frame);
 
-  bool AppendMaxStreamsFrame(const QuicMaxStreamIdFrame& frame,
+  bool AppendMaxStreamsFrame(const QuicMaxStreamsFrame& frame,
                              QuicDataWriter* writer);
   bool ProcessMaxStreamsFrame(QuicDataReader* reader,
-                              QuicMaxStreamIdFrame* frame,
+                              QuicMaxStreamsFrame* frame,
                               uint64_t frame_type);
 
   bool AppendIetfBlockedFrame(const QuicBlockedFrame& frame,
@@ -824,10 +823,10 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   bool ProcessStreamBlockedFrame(QuicDataReader* reader,
                                  QuicBlockedFrame* frame);
 
-  bool AppendStreamsBlockedFrame(const QuicStreamIdBlockedFrame& frame,
+  bool AppendStreamsBlockedFrame(const QuicStreamsBlockedFrame& frame,
                                  QuicDataWriter* writer);
   bool ProcessStreamsBlockedFrame(QuicDataReader* reader,
-                                  QuicStreamIdBlockedFrame* frame,
+                                  QuicStreamsBlockedFrame* frame,
                                   uint64_t frame_type);
 
   bool AppendNewConnectionIdFrame(const QuicNewConnectionIdFrame& frame,

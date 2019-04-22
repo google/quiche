@@ -27,6 +27,10 @@ typedef uint32_t QuicMessageId;
 // TODO(fkastenholz): Should update this to 64 bits for V99.
 typedef uint32_t QuicStreamId;
 
+// Count of stream IDs. Used in MAX_STREAMS and STREAMS_BLOCKED
+// frames.
+typedef uint32_t QuicStreamCount;
+
 typedef uint64_t QuicByteCount;
 typedef uint64_t QuicPacketCount;
 typedef uint64_t QuicPublicResetNonceProof;
@@ -198,8 +202,8 @@ enum QuicFrameType : uint8_t {
   // QUIC has been negotiated. Values are not important, they are not
   // the values that are in the packets (see QuicIetfFrameType, below).
   NEW_CONNECTION_ID_FRAME,
-  MAX_STREAM_ID_FRAME,
-  STREAM_ID_BLOCKED_FRAME,
+  MAX_STREAMS_FRAME,
+  STREAMS_BLOCKED_FRAME,
   PATH_RESPONSE_FRAME,
   PATH_CHALLENGE_FRAME,
   STOP_SENDING_FRAME,

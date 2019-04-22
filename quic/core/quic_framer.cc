@@ -404,63 +404,6 @@ bool IsValidFullPacketNumber(uint64_t full_packet_number,
   return full_packet_number > 0 || version == QUIC_VERSION_99;
 }
 
-// Convert a stream ID to a count of streams, for IETF QUIC/Version 99 only.
-// There is no need to take into account whether the ID is for uni- or
-// bi-directional streams, or whether it's server- or client- initiated.  It
-// always returns a valid count.
-QuicStreamId StreamIdToCount(QuicTransportVersion version,
-                             QuicStreamId stream_id) {
-  DCHECK_EQ(QUIC_VERSION_99, version);
-  if ((stream_id & 0x3) == 0) {
-    return (stream_id / QuicUtils::StreamIdDelta(version));
-  }
-  return (stream_id / QuicUtils::StreamIdDelta(version)) + 1;
-}
-
-// Returns the maximum value that a stream count may have, taking into account
-// the fact that bidirectional, client initiated, streams have one fewer stream
-// available than the others. This is because the old crypto streams, with ID ==
-// 0 are not included in the count.
-// The version is not included in the call, nor does the method take the version
-// into account, because this is called only from code used for IETF QUIC.
-// TODO(fkastenholz): Remove this method and replace calls to it with direct
-// references to kMaxQuicStreamIdCount when streamid 0 becomes a normal stream
-// id.
-QuicStreamId GetMaxStreamCount(bool unidirectional, Perspective perspective) {
-  if (!unidirectional && perspective == Perspective::IS_CLIENT) {
-    return kMaxQuicStreamId >> 2;
-  }
-  return (kMaxQuicStreamId >> 2) + 1;
-}
-
-// Convert a stream count to the maximum stream ID for that count.
-// Needs to know whether the resulting stream ID  should be uni-directional,
-// bi-directional, server-initiated, or client-initiated.
-// Returns true if it works, false if not. The only error condition is that
-// the stream_count is too big and it would generate a stream id that is larger
-// than the implementation's maximum stream id value.
-bool StreamCountToId(QuicStreamId stream_count,
-                     bool unidirectional,
-                     Perspective perspective,
-                     QuicTransportVersion version,
-                     QuicStreamId* generated_stream_id) {
-  DCHECK_EQ(QUIC_VERSION_99, version);
-  // TODO(fkastenholz): when the MAX_STREAMS and STREAMS_BLOCKED frames
-  // are connected all the way up to the stream_id_manager, handle count==0
-  // properly (interpret it as "can open 0 streams") and the count being too
-  // large (close the connection).
-  if ((stream_count == 0) ||
-      (stream_count > GetMaxStreamCount(unidirectional, perspective))) {
-    return false;
-  }
-  *generated_stream_id =
-      ((unidirectional)
-           ? QuicUtils::GetFirstUnidirectionalStreamId(version, perspective)
-           : QuicUtils::GetFirstBidirectionalStreamId(version, perspective)) +
-      ((stream_count - 1) * QuicUtils::StreamIdDelta(version));
-  return true;
-}
-
 bool AppendIetfConnectionIdsNew(bool version_flag,
                                 QuicConnectionId destination_connection_id,
                                 QuicConnectionId source_connection_id,
@@ -664,31 +607,26 @@ size_t QuicFramer::GetWindowUpdateFrameSize(
 
 // static
 size_t QuicFramer::GetMaxStreamsFrameSize(QuicTransportVersion version,
-                                          const QuicMaxStreamIdFrame& frame) {
+                                          const QuicMaxStreamsFrame& frame) {
   if (version != QUIC_VERSION_99) {
     QUIC_BUG << "In version " << version
-             << " - not 99 - and tried to serialize MaxStreamId Frame.";
+             << " - not 99 - and tried to serialize MaxStreams Frame.";
   }
-
-  // Convert from the stream id on which the connection is blocked to a count
-  QuicStreamId stream_count = StreamIdToCount(version, frame.max_stream_id);
-
-  return kQuicFrameTypeSize + QuicDataWriter::GetVarInt62Len(stream_count);
+  return kQuicFrameTypeSize +
+         QuicDataWriter::GetVarInt62Len(frame.stream_count);
 }
 
 // static
 size_t QuicFramer::GetStreamsBlockedFrameSize(
     QuicTransportVersion version,
-    const QuicStreamIdBlockedFrame& frame) {
+    const QuicStreamsBlockedFrame& frame) {
   if (version != QUIC_VERSION_99) {
     QUIC_BUG << "In version " << version
-             << " - not 99 - and tried to serialize StreamIdBlocked Frame.";
+             << " - not 99 - and tried to serialize StreamsBlocked Frame.";
   }
 
-  // Convert from the stream id on which the connection is blocked to a count
-  QuicStreamId stream_count = StreamIdToCount(version, frame.stream_id);
-
-  return kQuicFrameTypeSize + QuicDataWriter::GetVarInt62Len(stream_count);
+  return kQuicFrameTypeSize +
+         QuicDataWriter::GetVarInt62Len(frame.stream_count);
 }
 
 // static
@@ -755,10 +693,10 @@ size_t QuicFramer::GetRetransmittableControlFrameSize(
       return GetRetireConnectionIdFrameSize(*frame.retire_connection_id_frame);
     case NEW_TOKEN_FRAME:
       return GetNewTokenFrameSize(*frame.new_token_frame);
-    case MAX_STREAM_ID_FRAME:
-      return GetMaxStreamsFrameSize(version, frame.max_stream_id_frame);
-    case STREAM_ID_BLOCKED_FRAME:
-      return GetStreamsBlockedFrameSize(version, frame.stream_id_blocked_frame);
+    case MAX_STREAMS_FRAME:
+      return GetMaxStreamsFrameSize(version, frame.max_streams_frame);
+    case STREAMS_BLOCKED_FRAME:
+      return GetStreamsBlockedFrameSize(version, frame.streams_blocked_frame);
     case PATH_RESPONSE_FRAME:
       return GetPathResponseFrameSize(*frame.path_response_frame);
     case PATH_CHALLENGE_FRAME:
@@ -1063,13 +1001,13 @@ size_t QuicFramer::BuildDataPacket(const QuicPacketHeader& header,
         set_detailed_error(
             "Attempt to append NEW_TOKEN_ID frame and not in version 99.");
         return RaiseError(QUIC_INTERNAL_ERROR);
-      case MAX_STREAM_ID_FRAME:
+      case MAX_STREAMS_FRAME:
         set_detailed_error(
-            "Attempt to append MAX_STREAM_ID frame and not in version 99.");
+            "Attempt to append MAX_STREAMS frame and not in version 99.");
         return RaiseError(QUIC_INTERNAL_ERROR);
-      case STREAM_ID_BLOCKED_FRAME:
+      case STREAMS_BLOCKED_FRAME:
         set_detailed_error(
-            "Attempt to append STREAM_ID_BLOCKED frame and not in version 99.");
+            "Attempt to append STREAMS_BLOCKED frame and not in version 99.");
         return RaiseError(QUIC_INTERNAL_ERROR);
       case PATH_RESPONSE_FRAME:
         set_detailed_error(
@@ -1195,14 +1133,14 @@ size_t QuicFramer::AppendIetfFrames(const QuicFrames& frames,
           return 0;
         }
         break;
-      case MAX_STREAM_ID_FRAME:
-        if (!AppendMaxStreamsFrame(frame.max_stream_id_frame, writer)) {
+      case MAX_STREAMS_FRAME:
+        if (!AppendMaxStreamsFrame(frame.max_streams_frame, writer)) {
           QUIC_BUG << "AppendMaxStreamsFrame failed" << detailed_error();
           return 0;
         }
         break;
-      case STREAM_ID_BLOCKED_FRAME:
-        if (!AppendStreamsBlockedFrame(frame.stream_id_blocked_frame, writer)) {
+      case STREAMS_BLOCKED_FRAME:
+        if (!AppendStreamsBlockedFrame(frame.streams_blocked_frame, writer)) {
           QUIC_BUG << "AppendStreamsBlockedFrame failed" << detailed_error();
           return 0;
         }
@@ -2973,12 +2911,12 @@ bool QuicFramer::ProcessIetfFrameData(QuicDataReader* reader,
         }
         case IETF_MAX_STREAMS_BIDIRECTIONAL:
         case IETF_MAX_STREAMS_UNIDIRECTIONAL: {
-          QuicMaxStreamIdFrame frame;
+          QuicMaxStreamsFrame frame;
           if (!ProcessMaxStreamsFrame(reader, &frame, frame_type)) {
-            return RaiseError(QUIC_MAX_STREAM_ID_DATA);
+            return RaiseError(QUIC_MAX_STREAMS_DATA);
           }
-          QUIC_CODE_COUNT_N(max_stream_id_received, 1, 2);
-          if (!visitor_->OnMaxStreamIdFrame(frame)) {
+          QUIC_CODE_COUNT_N(quic_max_streams_received, 1, 2);
+          if (!visitor_->OnMaxStreamsFrame(frame)) {
             QUIC_DVLOG(1) << "Visitor asked to stop further processing.";
             // Returning true since there was no parsing error.
             return true;
@@ -3021,12 +2959,12 @@ bool QuicFramer::ProcessIetfFrameData(QuicDataReader* reader,
         }
         case IETF_STREAMS_BLOCKED_UNIDIRECTIONAL:
         case IETF_STREAMS_BLOCKED_BIDIRECTIONAL: {
-          QuicStreamIdBlockedFrame frame;
+          QuicStreamsBlockedFrame frame;
           if (!ProcessStreamsBlockedFrame(reader, &frame, frame_type)) {
-            return RaiseError(QUIC_STREAM_ID_BLOCKED_DATA);
+            return RaiseError(QUIC_STREAMS_BLOCKED_DATA);
           }
-          QUIC_CODE_COUNT_N(stream_id_blocked_received, 1, 2);
-          if (!visitor_->OnStreamIdBlockedFrame(frame)) {
+          QUIC_CODE_COUNT_N(quic_streams_blocked_received, 1, 2);
+          if (!visitor_->OnStreamsBlockedFrame(frame)) {
             QUIC_DVLOG(1) << "Visitor asked to stop further processing.";
             // Returning true since there was no parsing error.
             return true;
@@ -3245,7 +3183,7 @@ bool QuicFramer::ProcessIetfStreamFrame(QuicDataReader* reader,
                                         uint8_t frame_type,
                                         QuicStreamFrame* frame) {
   // Read stream id from the frame. It's always present.
-  if (!reader->ReadVarIntStreamId(&frame->stream_id)) {
+  if (!reader->ReadVarIntU32(&frame->stream_id)) {
     set_detailed_error("Unable to read stream_id.");
     return false;
   }
@@ -4306,13 +4244,13 @@ bool QuicFramer::AppendTypeByte(const QuicFrame& frame,
       set_detailed_error(
           "Attempt to append NEW_TOKEN frame and not in version 99.");
       return RaiseError(QUIC_INTERNAL_ERROR);
-    case MAX_STREAM_ID_FRAME:
+    case MAX_STREAMS_FRAME:
       set_detailed_error(
-          "Attempt to append MAX_STREAM_ID frame and not in version 99.");
+          "Attempt to append MAX_STREAMS frame and not in version 99.");
       return RaiseError(QUIC_INTERNAL_ERROR);
-    case STREAM_ID_BLOCKED_FRAME:
+    case STREAMS_BLOCKED_FRAME:
       set_detailed_error(
-          "Attempt to append STREAM_ID_BLOCKED frame and not in version 99.");
+          "Attempt to append STREAMS_BLOCKED frame and not in version 99.");
       return RaiseError(QUIC_INTERNAL_ERROR);
     case PATH_RESPONSE_FRAME:
       set_detailed_error(
@@ -4411,20 +4349,18 @@ bool QuicFramer::AppendIetfTypeByte(const QuicFrame& frame,
     case NEW_TOKEN_FRAME:
       type_byte = IETF_NEW_TOKEN;
       break;
-    case MAX_STREAM_ID_FRAME:
-      if (QuicUtils::IsBidirectionalStreamId(
-              frame.max_stream_id_frame.max_stream_id)) {
-        type_byte = IETF_MAX_STREAMS_BIDIRECTIONAL;
-      } else {
+    case MAX_STREAMS_FRAME:
+      if (frame.max_streams_frame.unidirectional) {
         type_byte = IETF_MAX_STREAMS_UNIDIRECTIONAL;
+      } else {
+        type_byte = IETF_MAX_STREAMS_BIDIRECTIONAL;
       }
       break;
-    case STREAM_ID_BLOCKED_FRAME:
-      if (QuicUtils::IsBidirectionalStreamId(
-              frame.max_stream_id_frame.max_stream_id)) {
-        type_byte = IETF_STREAMS_BLOCKED_BIDIRECTIONAL;
-      } else {
+    case STREAMS_BLOCKED_FRAME:
+      if (frame.streams_blocked_frame.unidirectional) {
         type_byte = IETF_STREAMS_BLOCKED_UNIDIRECTIONAL;
+      } else {
+        type_byte = IETF_STREAMS_BLOCKED_BIDIRECTIONAL;
       }
       break;
     case PATH_RESPONSE_FRAME:
@@ -5382,7 +5318,7 @@ bool QuicFramer::ProcessIetfResetStreamFrame(QuicDataReader* reader,
   // Get Stream ID from frame. ReadVarIntStreamID returns false
   // if either A) there is a read error or B) the resulting value of
   // the Stream ID is larger than the maximum allowed value.
-  if (!reader->ReadVarIntStreamId(&frame->stream_id)) {
+  if (!reader->ReadVarIntU32(&frame->stream_id)) {
     set_detailed_error("Unable to read rst stream stream id.");
     return false;
   }
@@ -5402,7 +5338,7 @@ bool QuicFramer::ProcessIetfResetStreamFrame(QuicDataReader* reader,
 bool QuicFramer::ProcessStopSendingFrame(
     QuicDataReader* reader,
     QuicStopSendingFrame* stop_sending_frame) {
-  if (!reader->ReadVarIntStreamId(&stop_sending_frame->stream_id)) {
+  if (!reader->ReadVarIntU32(&stop_sending_frame->stream_id)) {
     set_detailed_error("Unable to read stop sending stream id.");
     return false;
   }
@@ -5464,7 +5400,7 @@ bool QuicFramer::AppendMaxStreamDataFrame(const QuicWindowUpdateFrame& frame,
 
 bool QuicFramer::ProcessMaxStreamDataFrame(QuicDataReader* reader,
                                            QuicWindowUpdateFrame* frame) {
-  if (!reader->ReadVarIntStreamId(&frame->stream_id)) {
+  if (!reader->ReadVarIntU32(&frame->stream_id)) {
     set_detailed_error("Can not read MAX_STREAM_DATA stream id");
     return false;
   }
@@ -5475,13 +5411,9 @@ bool QuicFramer::ProcessMaxStreamDataFrame(QuicDataReader* reader,
   return true;
 }
 
-bool QuicFramer::AppendMaxStreamsFrame(const QuicMaxStreamIdFrame& frame,
+bool QuicFramer::AppendMaxStreamsFrame(const QuicMaxStreamsFrame& frame,
                                        QuicDataWriter* writer) {
-  // Convert from the stream id on which the connection is blocked to a count
-  QuicStreamId stream_count =
-      StreamIdToCount(version_.transport_version, frame.max_stream_id);
-
-  if (!writer->WriteVarInt62(stream_count)) {
+  if (!writer->WriteVarInt62(frame.stream_count)) {
     set_detailed_error("Can not write MAX_STREAMS stream count");
     return false;
   }
@@ -5489,33 +5421,14 @@ bool QuicFramer::AppendMaxStreamsFrame(const QuicMaxStreamIdFrame& frame,
 }
 
 bool QuicFramer::ProcessMaxStreamsFrame(QuicDataReader* reader,
-                                        QuicMaxStreamIdFrame* frame,
+                                        QuicMaxStreamsFrame* frame,
                                         uint64_t frame_type) {
-  QuicStreamId received_stream_count;
-  if (!reader->ReadVarIntStreamId(&received_stream_count)) {
+  if (!reader->ReadVarIntU32(&frame->stream_count)) {
     set_detailed_error("Can not read MAX_STREAMS stream count.");
     return false;
   }
-  // TODO(fkastenholz): handle properly when the STREAMS_BLOCKED
-  // frame is implemented and passed up to the stream ID manager.
-  if (received_stream_count == 0) {
-    set_detailed_error("MAX_STREAMS stream count of 0 not supported.");
-    return false;
-  }
-  // Note that this code assumes that the only possible error that
-  // StreamCountToId can detect is that the stream count is too big or is 0.
-  // Too big is prevented by passing in the minimum of the received count
-  // and the maximum supported count, ensuring that the stream ID is
-  // pegged at the maximum allowed ID.
-  // count==0 is handled above, so that detailed_error_ may be set
-  // properly.
-  return StreamCountToId(
-      std::min(
-          received_stream_count,
-          GetMaxStreamCount((frame_type == IETF_MAX_STREAMS_UNIDIRECTIONAL),
-                            perspective_)),
-      /*unidirectional=*/(frame_type == IETF_MAX_STREAMS_UNIDIRECTIONAL),
-      perspective_, version_.transport_version, &frame->max_stream_id);
+  frame->unidirectional = (frame_type == IETF_MAX_STREAMS_UNIDIRECTIONAL);
+  return true;
 }
 
 bool QuicFramer::AppendIetfBlockedFrame(const QuicBlockedFrame& frame,
@@ -5553,7 +5466,7 @@ bool QuicFramer::AppendStreamBlockedFrame(const QuicBlockedFrame& frame,
 
 bool QuicFramer::ProcessStreamBlockedFrame(QuicDataReader* reader,
                                            QuicBlockedFrame* frame) {
-  if (!reader->ReadVarIntStreamId(&frame->stream_id)) {
+  if (!reader->ReadVarIntU32(&frame->stream_id)) {
     set_detailed_error("Can not read stream blocked stream id.");
     return false;
   }
@@ -5564,14 +5477,9 @@ bool QuicFramer::ProcessStreamBlockedFrame(QuicDataReader* reader,
   return true;
 }
 
-bool QuicFramer::AppendStreamsBlockedFrame(
-    const QuicStreamIdBlockedFrame& frame,
-    QuicDataWriter* writer) {
-  // Convert from the stream id on which the connection is blocked to a count
-  QuicStreamId stream_count =
-      StreamIdToCount(version_.transport_version, frame.stream_id);
-
-  if (!writer->WriteVarInt62(stream_count)) {
+bool QuicFramer::AppendStreamsBlockedFrame(const QuicStreamsBlockedFrame& frame,
+                                           QuicDataWriter* writer) {
+  if (!writer->WriteVarInt62(frame.stream_count)) {
     set_detailed_error("Can not write STREAMS_BLOCKED stream count");
     return false;
   }
@@ -5579,43 +5487,29 @@ bool QuicFramer::AppendStreamsBlockedFrame(
 }
 
 bool QuicFramer::ProcessStreamsBlockedFrame(QuicDataReader* reader,
-                                            QuicStreamIdBlockedFrame* frame,
+                                            QuicStreamsBlockedFrame* frame,
                                             uint64_t frame_type) {
-  QuicStreamId received_stream_count;
-  if (!reader->ReadVarIntStreamId(&received_stream_count)) {
-    set_detailed_error("Can not read STREAMS_BLOCKED stream id.");
+  if (!reader->ReadVarIntU32(&frame->stream_count)) {
+    set_detailed_error("Can not read STREAMS_BLOCKED stream count.");
     return false;
   }
+  frame->unidirectional = (frame_type == IETF_STREAMS_BLOCKED_UNIDIRECTIONAL);
+
   // TODO(fkastenholz): handle properly when the STREAMS_BLOCKED
   // frame is implemented and passed up to the stream ID manager.
-  if (received_stream_count == 0) {
-    set_detailed_error("STREAMS_BLOCKED stream count 0 not supported.");
-    return false;
-  }
-  // TODO(fkastenholz): handle properly when the STREAMS_BLOCKED
-  // frame is implemented and passed up to the stream ID manager.
-  if (received_stream_count >
-      GetMaxStreamCount((frame_type == IETF_MAX_STREAMS_UNIDIRECTIONAL),
-                        ((perspective_ == Perspective::IS_CLIENT)
-                             ? Perspective::IS_SERVER
-                             : Perspective::IS_CLIENT))) {
+  if (frame->stream_count >
+      QuicUtils::GetMaxStreamCount(
+          (frame_type == IETF_STREAMS_BLOCKED_UNIDIRECTIONAL),
+          ((perspective_ == Perspective::IS_CLIENT)
+               ? Perspective::IS_SERVER
+               : Perspective::IS_CLIENT))) {
     // If stream count is such that the resulting stream ID would exceed our
     // implementation limit, generate an error.
     set_detailed_error(
         "STREAMS_BLOCKED stream count exceeds implementation limit.");
     return false;
   }
-  // Convert the stream count to an ID that can be used.
-  // The STREAMS_BLOCKED frame is a request for more streams
-  // that the peer will initiate. If this node is a client, it
-  // means that the peer is a server, and wants server-initiated
-  // stream IDs.
-  return StreamCountToId(
-      received_stream_count,
-      /*unidirectional=*/(frame_type == IETF_STREAMS_BLOCKED_UNIDIRECTIONAL),
-      (perspective_ == Perspective::IS_CLIENT) ? Perspective::IS_SERVER
-                                               : Perspective::IS_CLIENT,
-      version_.transport_version, &frame->stream_id);
+  return true;
 }
 
 bool QuicFramer::AppendNewConnectionIdFrame(

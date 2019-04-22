@@ -160,13 +160,13 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
     goaway_frames_.push_back(frame);
     return true;
   }
-  bool OnMaxStreamIdFrame(const QuicMaxStreamIdFrame& frame) override {
-    max_stream_id_frames_.push_back(frame);
+  bool OnMaxStreamsFrame(const QuicMaxStreamsFrame& frame) override {
+    max_streams_frames_.push_back(frame);
     return true;
   }
 
-  bool OnStreamIdBlockedFrame(const QuicStreamIdBlockedFrame& frame) override {
-    stream_id_blocked_frames_.push_back(frame);
+  bool OnStreamsBlockedFrame(const QuicStreamsBlockedFrame& frame) override {
+    streams_blocked_frames_.push_back(frame);
     return true;
   }
 
@@ -206,12 +206,11 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
   const std::vector<QuicGoAwayFrame>& goaway_frames() const {
     return goaway_frames_;
   }
-  const std::vector<QuicMaxStreamIdFrame>& max_stream_id_frames() const {
-    return max_stream_id_frames_;
+  const std::vector<QuicMaxStreamsFrame>& max_streams_frames() const {
+    return max_streams_frames_;
   }
-  const std::vector<QuicStreamIdBlockedFrame>& stream_id_blocked_frames()
-      const {
-    return stream_id_blocked_frames_;
+  const std::vector<QuicStreamsBlockedFrame>& streams_blocked_frames() const {
+    return streams_blocked_frames_;
   }
   const std::vector<QuicRstStreamFrame>& rst_stream_frames() const {
     return rst_stream_frames_;
@@ -261,8 +260,8 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
   std::vector<std::unique_ptr<QuicCryptoFrame>> crypto_frames_;
   std::vector<QuicRstStreamFrame> rst_stream_frames_;
   std::vector<QuicGoAwayFrame> goaway_frames_;
-  std::vector<QuicStreamIdBlockedFrame> stream_id_blocked_frames_;
-  std::vector<QuicMaxStreamIdFrame> max_stream_id_frames_;
+  std::vector<QuicStreamsBlockedFrame> streams_blocked_frames_;
+  std::vector<QuicMaxStreamsFrame> max_streams_frames_;
   std::vector<QuicConnectionCloseFrame> connection_close_frames_;
   std::vector<QuicStopSendingFrame> stop_sending_frames_;
   std::vector<QuicPathChallengeFrame> path_challenge_frames_;

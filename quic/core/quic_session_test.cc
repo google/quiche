@@ -393,6 +393,24 @@ class QuicSessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
            QuicUtils::StreamIdDelta(connection_->transport_version()) * n;
   }
 
+  QuicStreamId StreamCountToId(QuicStreamCount stream_count,
+                               Perspective perspective,
+                               bool bidirectional) {
+    // Calculate and build up stream ID rather than use
+    // GetFirst... because tests that rely on this method
+    // needs to do the stream count where #1 is 0/1/2/3, and not
+    // take into account that stream 0 is special.
+    QuicStreamId id =
+        ((stream_count - 1) * QuicUtils::StreamIdDelta(QUIC_VERSION_99));
+    if (!bidirectional) {
+      id |= 0x2;
+    }
+    if (perspective == Perspective::IS_SERVER) {
+      id |= 0x1;
+    }
+    return id;
+  }
+
   MockQuicConnectionHelper helper_;
   MockAlarmFactory alarm_factory_;
   NiceMock<MockQuicSessionVisitor> session_visitor_;
@@ -1514,8 +1532,10 @@ TEST_P(QuicSessionTestServer, TooManyUnfinishedStreamsCauseServerRejectStream) {
   }
 
   if (transport_version() == QUIC_VERSION_99) {
-    EXPECT_CALL(*connection_, CloseConnection(QUIC_INVALID_STREAM_ID,
-                                              "Stream id 24 above 20", _));
+    EXPECT_CALL(
+        *connection_,
+        CloseConnection(QUIC_INVALID_STREAM_ID,
+                        "Stream id 24 would exceed stream count limit 6", _));
   } else {
     EXPECT_CALL(*connection_, SendControlFrame(_)).Times(1);
     EXPECT_CALL(*connection_,
@@ -1601,7 +1621,7 @@ TEST_P(QuicSessionTestServer, DrainingStreamsDoNotCountAsOpened) {
   // it) does not count against the open quota (because it is closed from the
   // protocol point of view).
   if (transport_version() == QUIC_VERSION_99) {
-    // On v99, we will expect to see a MAX_STREAM_ID go out when there are not
+    // On v99, we will expect to see a MAX_STREAMS go out when there are not
     // enough streams to create the next one.
     EXPECT_CALL(*connection_, SendControlFrame(_)).Times(1);
   } else {
@@ -2179,19 +2199,24 @@ TEST_P(QuicSessionTestServer, NewStreamIdBelowLimit) {
     // Applicable only to V99
     return;
   }
-  QuicStreamId bidirectional_stream_id =
+  QuicStreamId bidirectional_stream_id = StreamCountToId(
       QuicSessionPeer::v99_streamid_manager(&session_)
-          ->advertised_max_allowed_incoming_bidirectional_stream_id() -
-      kV99StreamIdIncrement;
+              ->advertised_max_allowed_incoming_bidirectional_streams() -
+          1,
+      Perspective::IS_CLIENT,
+      /*bidirectional=*/true);
+
   QuicStreamFrame bidirectional_stream_frame(bidirectional_stream_id, false, 0,
                                              "Random String");
   EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(0);
   session_.OnStreamFrame(bidirectional_stream_frame);
 
-  QuicStreamId unidirectional_stream_id =
+  QuicStreamId unidirectional_stream_id = StreamCountToId(
       QuicSessionPeer::v99_streamid_manager(&session_)
-          ->advertised_max_allowed_incoming_unidirectional_stream_id() -
-      kV99StreamIdIncrement;
+              ->advertised_max_allowed_incoming_unidirectional_streams() -
+          1,
+      Perspective::IS_CLIENT,
+      /*bidirectional=*/false);
   QuicStreamFrame unidirectional_stream_frame(unidirectional_stream_id, false,
                                               0, "Random String");
   EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(0);
@@ -2204,17 +2229,19 @@ TEST_P(QuicSessionTestServer, NewStreamIdAtLimit) {
     // Applicable only to V99
     return;
   }
-  QuicStreamId bidirectional_stream_id =
+  QuicStreamId bidirectional_stream_id = StreamCountToId(
       QuicSessionPeer::v99_streamid_manager(&session_)
-          ->advertised_max_allowed_incoming_bidirectional_stream_id();
+          ->advertised_max_allowed_incoming_bidirectional_streams(),
+      Perspective::IS_CLIENT, /*bidirectional=*/true);
   QuicStreamFrame bidirectional_stream_frame(bidirectional_stream_id, false, 0,
                                              "Random String");
   EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(0);
   session_.OnStreamFrame(bidirectional_stream_frame);
 
-  QuicStreamId unidirectional_stream_id =
+  QuicStreamId unidirectional_stream_id = StreamCountToId(
       QuicSessionPeer::v99_streamid_manager(&session_)
-          ->advertised_max_allowed_incoming_unidirectional_stream_id();
+          ->advertised_max_allowed_incoming_unidirectional_streams(),
+      Perspective::IS_CLIENT, /*bidirectional=*/false);
   QuicStreamFrame unidirectional_stream_frame(unidirectional_stream_id, false,
                                               0, "Random String");
   EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(0);
@@ -2227,24 +2254,30 @@ TEST_P(QuicSessionTestServer, NewStreamIdAboveLimit) {
     // Applicable only to V99
     return;
   }
-  QuicStreamId bidirectional_stream_id =
+  QuicStreamId bidirectional_stream_id = StreamCountToId(
       QuicSessionPeer::v99_streamid_manager(&session_)
-          ->advertised_max_allowed_incoming_bidirectional_stream_id() +
-      kV99StreamIdIncrement;
+              ->advertised_max_allowed_incoming_bidirectional_streams() +
+          1,
+      Perspective::IS_CLIENT, /*bidirectional=*/true);
   QuicStreamFrame bidirectional_stream_frame(bidirectional_stream_id, false, 0,
                                              "Random String");
-  EXPECT_CALL(*connection_, CloseConnection(QUIC_INVALID_STREAM_ID,
-                                            "Stream id 404 above 400", _));
+  EXPECT_CALL(
+      *connection_,
+      CloseConnection(QUIC_INVALID_STREAM_ID,
+                      "Stream id 404 would exceed stream count limit 101", _));
   session_.OnStreamFrame(bidirectional_stream_frame);
 
-  QuicStreamId unidirectional_stream_id =
+  QuicStreamId unidirectional_stream_id = StreamCountToId(
       QuicSessionPeer::v99_streamid_manager(&session_)
-          ->advertised_max_allowed_incoming_unidirectional_stream_id() +
-      kV99StreamIdIncrement;
+              ->advertised_max_allowed_incoming_unidirectional_streams() +
+          1,
+      Perspective::IS_CLIENT, /*bidirectional=*/false);
   QuicStreamFrame unidirectional_stream_frame(unidirectional_stream_id, false,
                                               0, "Random String");
-  EXPECT_CALL(*connection_, CloseConnection(QUIC_INVALID_STREAM_ID,
-                                            "Stream id 402 above 398", _));
+  EXPECT_CALL(
+      *connection_,
+      CloseConnection(QUIC_INVALID_STREAM_ID,
+                      "Stream id 402 would exceed stream count limit 100", _));
   session_.OnStreamFrame(unidirectional_stream_frame);
 }
 

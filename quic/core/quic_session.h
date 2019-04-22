@@ -125,8 +125,8 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
   void OnPathDegrading() override;
   bool AllowSelfAddressChange() const override;
   void OnForwardProgressConfirmed() override;
-  bool OnMaxStreamIdFrame(const QuicMaxStreamIdFrame& frame) override;
-  bool OnStreamIdBlockedFrame(const QuicStreamIdBlockedFrame& frame) override;
+  bool OnMaxStreamsFrame(const QuicMaxStreamsFrame& frame) override;
+  bool OnStreamsBlockedFrame(const QuicStreamsBlockedFrame& frame) override;
   bool OnStopSendingFrame(const QuicStopSendingFrame& frame) override;
 
   // QuicStreamFrameDataProducer
@@ -211,11 +211,11 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
   // Sends a WINDOW_UPDATE frame.
   virtual void SendWindowUpdate(QuicStreamId id, QuicStreamOffset byte_offset);
 
-  // Send a MAX_STREAM_ID frame.
-  void SendMaxStreamId(QuicStreamId max_allowed_incoming_id);
+  // Send a MAX_STREAMS frame.
+  void SendMaxStreams(QuicStreamCount stream_count, bool unidirectional);
 
-  // Send a STREAM_ID_BLOCKED frame.
-  void SendStreamIdBlocked(QuicStreamId max_allowed_outgoing_id);
+  // Send a STREAMS_BLOCKED frame.
+  void SendStreamsBlocked(QuicStreamCount stream_count, bool unidirectional);
 
   // Create and transmit a STOP_SENDING frame
   virtual void SendStopSending(uint16_t code, QuicStreamId stream_id);

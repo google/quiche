@@ -290,10 +290,10 @@ enum QuicErrorCode {
   QUIC_INVALID_MAX_DATA_FRAME_DATA = 102,
   // Received a MAX STREAM DATA frame with errors.
   QUIC_INVALID_MAX_STREAM_DATA_FRAME_DATA = 103,
-  // Received a MAX_STREAM_ID frame with bad data
-  QUIC_MAX_STREAM_ID_DATA = 104,
-  // Received a STREAM_ID_BLOCKED frame with bad data
-  QUIC_STREAM_ID_BLOCKED_DATA = 105,
+  // Received a MAX_STREAMS frame with bad data
+  QUIC_MAX_STREAMS_DATA = 104,
+  // Received a STREAMS_BLOCKED frame with bad data
+  QUIC_STREAMS_BLOCKED_DATA = 105,
   // Error deframing a STREAM BLOCKED frame.
   QUIC_INVALID_STREAM_BLOCKED_DATA = 106,
   // NEW CONNECTION ID frame data is malformed.
@@ -315,13 +315,11 @@ enum QuicErrorCode {
 
   // RETIRE CONNECTION ID frame data is malformed.
   QUIC_INVALID_RETIRE_CONNECTION_ID_DATA = 117,
-  //
-  // Error in a received STREAM ID BLOCKED frame. -- the stream ID is not
-  // consistent with the state of the endpoint.
-  QUIC_STREAM_ID_BLOCKED_ERROR = 118,
-  // Error in a received MAX STREAM ID frame -- the stream ID is not
-  // consistent with the state of the endpoint.
-  QUIC_MAX_STREAM_ID_ERROR = 119,
+
+  // Error in a received STREAMS BLOCKED frame.
+  QUIC_STREAMS_BLOCKED_ERROR = 118,
+  // Error in a received MAX STREAMS frame
+  QUIC_MAX_STREAMS_ERROR = 119,
   // Error in Http decoder
   QUIC_HTTP_DECODER_ERROR = 120,
   // Connection from stale host needs to be cancelled.

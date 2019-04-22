@@ -116,12 +116,11 @@ class QUIC_EXPORT_PRIVATE QuicConnectionVisitorInterface {
   // Called when |message| has been received.
   virtual void OnMessageReceived(QuicStringPiece message) = 0;
 
-  // Called when a MAX_STREAM_ID frame has been received from the peer.
-  virtual bool OnMaxStreamIdFrame(const QuicMaxStreamIdFrame& frame) = 0;
+  // Called when a MAX_STREAMS frame has been received from the peer.
+  virtual bool OnMaxStreamsFrame(const QuicMaxStreamsFrame& frame) = 0;
 
-  // Called when a STREAM_ID_BLOCKED frame has been received from the peer.
-  virtual bool OnStreamIdBlockedFrame(
-      const QuicStreamIdBlockedFrame& frame) = 0;
+  // Called when a STREAMS_BLOCKED frame has been received from the peer.
+  virtual bool OnStreamsBlockedFrame(const QuicStreamsBlockedFrame& frame) = 0;
 
   // Called when the connection is closed either locally by the framer, or
   // remotely by the peer.
@@ -500,8 +499,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   bool OnPathChallengeFrame(const QuicPathChallengeFrame& frame) override;
   bool OnPathResponseFrame(const QuicPathResponseFrame& frame) override;
   bool OnGoAwayFrame(const QuicGoAwayFrame& frame) override;
-  bool OnMaxStreamIdFrame(const QuicMaxStreamIdFrame& frame) override;
-  bool OnStreamIdBlockedFrame(const QuicStreamIdBlockedFrame& frame) override;
+  bool OnMaxStreamsFrame(const QuicMaxStreamsFrame& frame) override;
+  bool OnStreamsBlockedFrame(const QuicStreamsBlockedFrame& frame) override;
   bool OnWindowUpdateFrame(const QuicWindowUpdateFrame& frame) override;
   bool OnBlockedFrame(const QuicBlockedFrame& frame) override;
   bool OnNewConnectionIdFrame(const QuicNewConnectionIdFrame& frame) override;
