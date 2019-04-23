@@ -629,6 +629,9 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
 
   // Latched value of quic_tolerate_reneging.
   const bool tolerate_reneging_;
+
+  // Latched value of quic_loss_removes_from_inflight.
+  const bool loss_removes_from_inflight_;
 };
 
 }  // namespace quic
