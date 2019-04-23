@@ -35,7 +35,7 @@ HttpDecoder::HttpDecoder()
     : visitor_(nullptr),
       state_(STATE_READING_FRAME_TYPE),
       current_frame_type_(0),
-      current_length_field_size_(0),
+      current_length_field_length_(0),
       remaining_length_field_length_(0),
       current_frame_length_(0),
       remaining_frame_length_(0),
@@ -119,16 +119,41 @@ void HttpDecoder::ReadFrameType(QuicDataReader* reader) {
 
 void HttpDecoder::ReadFrameLength(QuicDataReader* reader) {
   DCHECK_NE(0u, reader->BytesRemaining());
-  BufferFrameLength(reader);
-  if (remaining_length_field_length_ != 0) {
-    return;
-  }
-  QuicDataReader length_reader(length_buffer_.data(),
-                               current_length_field_size_);
-  if (!length_reader.ReadVarInt62(&current_frame_length_)) {
-    RaiseError(QUIC_INTERNAL_ERROR, "Unable to read frame length");
-    visitor_->OnError(this);
-    return;
+  if (current_length_field_length_ == 0) {
+    // A new frame is coming.
+    current_length_field_length_ = reader->PeekVarInt62Length();
+    if (current_length_field_length_ == 0) {
+      RaiseError(QUIC_INTERNAL_ERROR,
+                 "Unable to read the length of frame length");
+      visitor_->OnError(this);
+      return;
+    }
+    if (current_length_field_length_ <= reader->BytesRemaining()) {
+      // The reader has all length data needed, so no need to buffer.
+      if (!reader->ReadVarInt62(&current_frame_length_)) {
+        RaiseError(QUIC_INTERNAL_ERROR, "Unable to read frame length");
+        return;
+      }
+    } else {
+      // Buffer a new length field.
+      remaining_length_field_length_ = current_length_field_length_;
+      BufferFrameLength(reader);
+      return;
+    }
+  } else {
+    // Buffer the existing length field.
+    BufferFrameLength(reader);
+    // The frame is still not buffered completely.
+    if (remaining_length_field_length_ != 0) {
+      return;
+    }
+    QuicDataReader length_reader(length_buffer_.data(),
+                                 current_length_field_length_);
+    if (!length_reader.ReadVarInt62(&current_frame_length_)) {
+      RaiseError(QUIC_INTERNAL_ERROR, "Unable to read buffered frame length");
+      visitor_->OnError(this);
+      return;
+    }
   }
 
   if (current_frame_length_ > MaxFrameLength(current_frame_type_)) {
@@ -141,15 +166,15 @@ void HttpDecoder::ReadFrameLength(QuicDataReader* reader) {
   // frame payload.
   if (current_frame_type_ == 0x0) {
     visitor_->OnDataFrameStart(Http3FrameLengths(
-        current_length_field_size_ + current_type_field_length_,
+        current_length_field_length_ + current_type_field_length_,
         current_frame_length_));
   } else if (current_frame_type_ == 0x1) {
     visitor_->OnHeadersFrameStart(Http3FrameLengths(
-        current_length_field_size_ + current_type_field_length_,
+        current_length_field_length_ + current_type_field_length_,
         current_frame_length_));
   } else if (current_frame_type_ == 0x4) {
     visitor_->OnSettingsFrameStart(Http3FrameLengths(
-        current_length_field_size_ + current_type_field_length_,
+        current_length_field_length_ + current_type_field_length_,
         current_frame_length_));
   }
 
@@ -360,7 +385,7 @@ void HttpDecoder::FinishParsing() {
     }
   }
 
-  current_length_field_size_ = 0;
+  current_length_field_length_ = 0;
   current_type_field_length_ = 0;
   state_ = STATE_READING_FRAME_TYPE;
 }
@@ -376,7 +401,7 @@ void HttpDecoder::DiscardFramePayload(QuicDataReader* reader) {
   remaining_frame_length_ -= payload.length();
   if (remaining_frame_length_ == 0) {
     state_ = STATE_READING_FRAME_TYPE;
-    current_length_field_size_ = 0;
+    current_length_field_length_ = 0;
     current_type_field_length_ = 0;
   }
 }
@@ -398,25 +423,15 @@ void HttpDecoder::BufferFramePayload(QuicDataReader* reader) {
 }
 
 void HttpDecoder::BufferFrameLength(QuicDataReader* reader) {
-  if (current_length_field_size_ == 0) {
-    current_length_field_size_ = reader->PeekVarInt62Length();
-    if (current_length_field_size_ == 0) {
-      RaiseError(QUIC_INTERNAL_ERROR, "Unable to read frame length");
-      visitor_->OnError(this);
-      return;
-    }
-    remaining_length_field_length_ = current_length_field_size_;
-  }
-  if (current_length_field_size_ == remaining_length_field_length_) {
-    length_buffer_.erase(length_buffer_.size());
-    length_buffer_.reserve(current_length_field_size_);
+  if (current_length_field_length_ == remaining_length_field_length_) {
+    length_buffer_.fill(0);
   }
   QuicByteCount bytes_to_read = std::min<QuicByteCount>(
       remaining_length_field_length_, reader->BytesRemaining());
-  if (!reader->ReadBytes(&(length_buffer_[0]) + current_length_field_size_ -
+  if (!reader->ReadBytes(length_buffer_.data() + current_length_field_length_ -
                              remaining_length_field_length_,
                          bytes_to_read)) {
-    RaiseError(QUIC_INTERNAL_ERROR, "Unable to read frame length");
+    RaiseError(QUIC_INTERNAL_ERROR, "Unable to buffer frame length bytes.");
     visitor_->OnError(this);
     return;
   }

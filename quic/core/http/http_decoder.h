@@ -178,7 +178,7 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
   // Type of the frame currently being parsed.
   uint64_t current_frame_type_;
   // Size of the frame's length field.
-  QuicByteCount current_length_field_size_;
+  QuicByteCount current_length_field_length_;
   // Remaining length that's needed for the frame's length field.
   QuicByteCount remaining_length_field_length_;
   // Length of the payload of the frame currently being parsed.
@@ -196,7 +196,7 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
   // Remaining unparsed data.
   std::string buffer_;
   // Remaining unparsed length field data.
-  std::string length_buffer_;
+  std::array<char, sizeof(uint64_t)> length_buffer_;
   // Remaining unparsed type field data.
   std::array<char, sizeof(uint64_t)> type_buffer_;
 };
