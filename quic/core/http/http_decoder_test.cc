@@ -304,26 +304,29 @@ TEST_F(HttpDecoderTest, SettingsFrame) {
       // type (SETTINGS)
       0x04,
       // length
-      0x06,
+      0x07,
       // identifier (SETTINGS_NUM_PLACEHOLDERS)
-      0x00,
       0x03,
       // content
       0x02,
       // identifier (SETTINGS_MAX_HEADER_LIST_SIZE)
-      0x00,
       0x06,
       // content
       0x05,
-  };
+      // identifier (256 in variable length integer)
+      0x40 + 0x01,
+      0x00,
+      // content
+      0x04};
   // clang-format on
 
   SettingsFrame frame;
   frame.values[3] = 2;
   frame.values[6] = 5;
+  frame.values[256] = 4;
 
   // Process the full frame.
-  EXPECT_CALL(visitor_, OnSettingsFrameStart(Http3FrameLengths(2, 6)));
+  EXPECT_CALL(visitor_, OnSettingsFrameStart(Http3FrameLengths(2, 7)));
   EXPECT_CALL(visitor_, OnSettingsFrame(frame));
   EXPECT_EQ(QUIC_ARRAYSIZE(input),
             decoder_.ProcessInput(input, QUIC_ARRAYSIZE(input)));
@@ -331,7 +334,7 @@ TEST_F(HttpDecoderTest, SettingsFrame) {
   EXPECT_EQ("", decoder_.error_detail());
 
   // Process the frame incremently.
-  EXPECT_CALL(visitor_, OnSettingsFrameStart(Http3FrameLengths(2, 6)));
+  EXPECT_CALL(visitor_, OnSettingsFrameStart(Http3FrameLengths(2, 7)));
   EXPECT_CALL(visitor_, OnSettingsFrame(frame));
   for (char c : input) {
     EXPECT_EQ(1u, decoder_.ProcessInput(&c, 1));

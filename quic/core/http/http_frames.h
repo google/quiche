@@ -90,8 +90,7 @@ struct CancelPushFrame {
 //   affect how endpoints communicate, such as preferences and constraints
 //   on peer behavior
 
-using SettingsId = uint16_t;
-using SettingsMap = std::map<SettingsId, uint64_t>;
+using SettingsMap = std::map<uint64_t, uint64_t>;
 
 struct SettingsFrame {
   SettingsMap values;

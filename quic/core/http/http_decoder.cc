@@ -308,10 +308,6 @@ void HttpDecoder::FinishParsing() {
       break;
     }
     case 0x4: {  // SETTINGS
-      // TODO(rch): Handle overly large SETTINGS frames. Either:
-      // 1. Impose a limit on SETTINGS frame size, and close the connection if
-      //    exceeded
-      // 2. Implement a streaming parsing mode.
       SettingsFrame frame;
       QuicDataReader reader(buffer_.data(), current_frame_length_);
       if (!ParseSettingsFrame(&reader, &frame)) {
@@ -480,8 +476,8 @@ bool HttpDecoder::ParsePriorityFrame(QuicDataReader* reader,
 bool HttpDecoder::ParseSettingsFrame(QuicDataReader* reader,
                                      SettingsFrame* frame) {
   while (!reader->IsDoneReading()) {
-    uint16_t id;
-    if (!reader->ReadUInt16(&id)) {
+    uint64_t id;
+    if (!reader->ReadVarInt62(&id)) {
       RaiseError(QUIC_INTERNAL_ERROR,
                  "Unable to read settings frame identifier");
       return false;

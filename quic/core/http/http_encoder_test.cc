@@ -92,22 +92,23 @@ TEST_F(HttpEncoderTest, SerializeSettingsFrame) {
   SettingsFrame settings;
   settings.values[3] = 2;
   settings.values[6] = 5;
-  char output[] = {
-      // type (SETTINGS)
-      0x04,
-      // length
-      0x06,
-      // identifier (SETTINGS_NUM_PLACEHOLDERS)
-      0x00,
-      0x03,
-      // content
-      0x02,
-      // identifier (SETTINGS_MAX_HEADER_LIST_SIZE)
-      0x00,
-      0x06,
-      // content
-      0x05,
-  };
+  settings.values[256] = 4;
+  char output[] = {// type (SETTINGS)
+                   0x04,
+                   // length
+                   0x07,
+                   // identifier (SETTINGS_NUM_PLACEHOLDERS)
+                   0x03,
+                   // content
+                   0x02,
+                   // identifier (SETTINGS_MAX_HEADER_LIST_SIZE)
+                   0x06,
+                   // content
+                   0x05,
+                   // identifier (256 in variable length integer)
+                   0x40 + 0x01, 0x00,
+                   // content
+                   0x04};
   std::unique_ptr<char[]> buffer;
   uint64_t length = encoder_.SerializeSettingsFrame(settings, &buffer);
   EXPECT_EQ(QUIC_ARRAYSIZE(output), length);
