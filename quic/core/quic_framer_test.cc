@@ -10312,7 +10312,7 @@ TEST_P(QuicFramerTest, BiDiMaxStreamsFrameTooBig) {
       encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
       PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
 
-  EXPECT_EQ(0x40000000, visitor_.max_streams_frame_.stream_count);
+  EXPECT_EQ(0x40000000u, visitor_.max_streams_frame_.stream_count);
   EXPECT_FALSE(visitor_.max_streams_frame_.unidirectional);
 }
 
@@ -10351,7 +10351,7 @@ TEST_P(QuicFramerTest, ClientBiDiMaxStreamsFrameTooBig) {
       encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
       PACKET_0BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
 
-  EXPECT_EQ(0x40000000, visitor_.max_streams_frame_.stream_count);
+  EXPECT_EQ(0x40000000u, visitor_.max_streams_frame_.stream_count);
   EXPECT_FALSE(visitor_.max_streams_frame_.unidirectional);
 }
 
@@ -10390,7 +10390,7 @@ TEST_P(QuicFramerTest, ServerUniDiMaxStreamsFrameTooBig) {
       encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
       PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
 
-  EXPECT_EQ(0x40000000, visitor_.max_streams_frame_.stream_count);
+  EXPECT_EQ(0x40000000u, visitor_.max_streams_frame_.stream_count);
   EXPECT_TRUE(visitor_.max_streams_frame_.unidirectional);
 }
 
@@ -10429,7 +10429,7 @@ TEST_P(QuicFramerTest, ClientUniDiMaxStreamsFrameTooBig) {
       encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
       PACKET_0BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
 
-  EXPECT_EQ(0x40000000, visitor_.max_streams_frame_.stream_count);
+  EXPECT_EQ(0x40000000u, visitor_.max_streams_frame_.stream_count);
   EXPECT_TRUE(visitor_.max_streams_frame_.unidirectional);
 }
 
