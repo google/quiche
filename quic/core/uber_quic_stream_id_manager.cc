@@ -8,14 +8,6 @@
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 
 namespace quic {
-namespace {
-
-Perspective Reverse(Perspective perspective) {
-  return perspective == Perspective::IS_SERVER ? Perspective::IS_CLIENT
-                                               : Perspective::IS_SERVER;
-}
-
-}  // namespace
 
 UberQuicStreamIdManager::UberQuicStreamIdManager(
     QuicSession* session,
