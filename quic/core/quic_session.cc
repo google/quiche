@@ -96,9 +96,19 @@ void QuicSession::Initialize() {
 
   DCHECK_EQ(QuicUtils::GetCryptoStreamId(connection_->transport_version()),
             GetMutableCryptoStream()->id());
-  RegisterStaticStream(
-      QuicUtils::GetCryptoStreamId(connection_->transport_version()),
-      GetMutableCryptoStream());
+  if (!GetQuicReloadableFlag(quic_eliminate_static_stream_map)) {
+    RegisterStaticStream(
+        QuicUtils::GetCryptoStreamId(connection_->transport_version()),
+        GetMutableCryptoStream());
+  } else {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_eliminate_static_stream_map, 10, 15);
+    QuicStreamId id =
+        QuicUtils::GetCryptoStreamId(connection_->transport_version());
+    largest_static_stream_id_ = std::max(id, largest_static_stream_id_);
+    if (connection_->transport_version() == QUIC_VERSION_99) {
+      v99_streamid_manager_.RegisterStaticStream(id);
+    }
+  }
 }
 
 QuicSession::~QuicSession() {
@@ -170,7 +180,7 @@ void QuicSession::OnStreamFrame(const QuicStreamFrame& frame) {
   }
   if (GetQuicReloadableFlag(quic_eliminate_static_stream_map) && frame.fin &&
       handler.stream->is_static()) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_eliminate_static_stream_map, 1, 9);
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_eliminate_static_stream_map, 1, 15);
     connection()->CloseConnection(
         QUIC_INVALID_STREAM_ID, "Attempt to close a static stream",
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
@@ -207,7 +217,9 @@ bool QuicSession::OnStopSendingFrame(const QuicStopSendingFrame& frame) {
   // TODO(fkastenholz): IETF Quic does not have static streams and does not
   // make exceptions for them with respect to processing things like
   // STOP_SENDING.
-  if (QuicContainsKey(static_stream_map_, stream_id)) {
+  if (QuicContainsKey(static_stream_map_, stream_id) ||
+      stream_id ==
+          QuicUtils::GetCryptoStreamId(connection_->transport_version())) {
     QUIC_DVLOG(1) << ENDPOINT
                   << "Received STOP_SENDING for a static stream, id: "
                   << stream_id << " Closing connection";
@@ -257,7 +269,7 @@ bool QuicSession::OnStopSendingFrame(const QuicStopSendingFrame& frame) {
 
   if (GetQuicReloadableFlag(quic_eliminate_static_stream_map) &&
       stream->is_static()) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_eliminate_static_stream_map, 2, 9);
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_eliminate_static_stream_map, 2, 15);
     QUIC_DVLOG(1) << ENDPOINT
                   << "Received STOP_SENDING for a static stream, id: "
                   << stream_id << " Closing connection";
@@ -316,7 +328,7 @@ void QuicSession::OnRstStream(const QuicRstStreamFrame& frame) {
   }
   if (GetQuicReloadableFlag(quic_eliminate_static_stream_map) &&
       handler.stream->is_static()) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_eliminate_static_stream_map, 3, 9);
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_eliminate_static_stream_map, 3, 15);
     connection()->CloseConnection(
         QUIC_INVALID_STREAM_ID, "Attempt to reset a static stream",
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
@@ -375,7 +387,7 @@ void QuicSession::OnConnectionClosed(QuicErrorCode error,
       }
     }
   } else {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_eliminate_static_stream_map, 4, 9);
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_eliminate_static_stream_map, 4, 15);
     // Copy all non static streams in a new map for the ease of deleting.
     QuicSmallMap<QuicStreamId, QuicStream*, 10> non_static_streams;
     for (const auto& it : dynamic_stream_map_) {
@@ -694,7 +706,7 @@ void QuicSession::SendRstStreamInner(QuicStreamId id,
   if (it != dynamic_stream_map_.end()) {
     if (GetQuicReloadableFlag(quic_eliminate_static_stream_map) &&
         it->second->is_static()) {
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_eliminate_static_stream_map, 5, 9);
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_eliminate_static_stream_map, 5, 15);
       QUIC_DVLOG(1) << ENDPOINT
                     << "Try to send rst for a static stream, id: " << id
                     << " Closing connection";
@@ -770,7 +782,7 @@ void QuicSession::CloseStreamInner(QuicStreamId stream_id, bool locally_reset) {
   QuicStream* stream = it->second.get();
   if (GetQuicReloadableFlag(quic_eliminate_static_stream_map) &&
       stream->is_static()) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_eliminate_static_stream_map, 6, 9);
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_eliminate_static_stream_map, 6, 15);
     QUIC_DVLOG(1) << ENDPOINT
                   << "Try to close a static stream, id: " << stream_id
                   << " Closing connection";
@@ -1004,6 +1016,11 @@ void QuicSession::AdjustInitialFlowControlWindows(size_t stream_window) {
   for (auto const& kv : dynamic_stream_map_) {
     kv.second->flow_controller()->UpdateReceiveWindowSize(stream_window);
   }
+  if (GetQuicReloadableFlag(quic_eliminate_static_stream_map)) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_eliminate_static_stream_map, 11, 15);
+    GetMutableCryptoStream()->flow_controller()->UpdateReceiveWindowSize(
+        stream_window);
+  }
 }
 
 void QuicSession::HandleFrameOnNonexistentOutgoingStream(
@@ -1047,6 +1064,10 @@ void QuicSession::OnNewStreamFlowControlWindow(QuicStreamOffset new_window) {
   }
   for (auto const& kv : dynamic_stream_map_) {
     kv.second->UpdateSendWindowOffset(new_window);
+  }
+  if (GetQuicReloadableFlag(quic_eliminate_static_stream_map)) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_eliminate_static_stream_map, 12, 15);
+    GetMutableCryptoStream()->UpdateSendWindowOffset(new_window);
   }
 }
 
@@ -1175,6 +1196,12 @@ QuicStream* QuicSession::GetOrCreateStream(const QuicStreamId stream_id) {
 QuicSession::StreamHandler QuicSession::GetOrCreateStreamImpl(
     QuicStreamId stream_id,
     bool may_buffer) {
+  if (GetQuicReloadableFlag(quic_eliminate_static_stream_map) &&
+      stream_id ==
+          QuicUtils::GetCryptoStreamId(connection_->transport_version())) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_eliminate_static_stream_map, 13, 15);
+    return StreamHandler(GetMutableCryptoStream());
+  }
   StaticStreamMap::iterator it = static_stream_map_.find(stream_id);
   if (it != static_stream_map_.end()) {
     return StreamHandler(it->second);
@@ -1323,7 +1350,8 @@ bool QuicSession::IsOpenStream(QuicStreamId id) {
             id);
   if (QuicContainsKey(static_stream_map_, id) ||
       QuicContainsKey(dynamic_stream_map_, id) ||
-      QuicContainsKey(pending_stream_map_, id)) {
+      QuicContainsKey(pending_stream_map_, id) ||
+      id == QuicUtils::GetCryptoStreamId(connection_->transport_version())) {
     // Stream is active
     return true;
   }
@@ -1415,6 +1443,11 @@ bool QuicSession::IsStreamFlowControlBlocked() {
       return true;
     }
   }
+  if (GetQuicReloadableFlag(quic_eliminate_static_stream_map) &&
+      GetMutableCryptoStream()->flow_controller()->IsBlocked()) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_eliminate_static_stream_map, 14, 15);
+    return true;
+  }
   return false;
 }
 
@@ -1470,6 +1503,13 @@ QuicStream* QuicSession::GetStream(QuicStreamId id) const {
   if (zombie_stream != zombie_streams_.end()) {
     return zombie_stream->second.get();
   }
+
+  if (GetQuicReloadableFlag(quic_eliminate_static_stream_map) &&
+      id == QuicUtils::GetCryptoStreamId(connection_->transport_version())) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_eliminate_static_stream_map, 15, 15);
+    return const_cast<QuicCryptoStream*>(GetCryptoStream());
+  }
+
   return nullptr;
 }
 
