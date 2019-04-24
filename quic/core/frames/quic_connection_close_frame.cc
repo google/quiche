@@ -4,6 +4,8 @@
 
 #include "net/third_party/quiche/src/quic/core/frames/quic_connection_close_frame.h"
 
+#include <memory>
+
 namespace quic {
 
 QuicConnectionCloseFrame::QuicConnectionCloseFrame()
@@ -52,7 +54,8 @@ std::ostream& operator<<(
              : ((connection_close_frame.close_type ==
                  IETF_QUIC_APPLICATION_CONNECTION_CLOSE)
                     ? connection_close_frame.application_error_code
-                    : connection_close_frame.quic_error_code))
+                    : static_cast<uint16_t>(
+                          connection_close_frame.quic_error_code)))
      << ", extracted_error_code: "
      << connection_close_frame.extracted_error_code << ", error_details: '"
      << connection_close_frame.error_details
