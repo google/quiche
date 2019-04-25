@@ -1006,7 +1006,8 @@ TEST_P(QuicStreamTest, WriteBufferedData) {
   // Buffered data size < threshold, ask upper layer for more data.
   EXPECT_CALL(*stream_, OnCanWriteNewData()).Times(1);
   stream_->OnCanWrite();
-  EXPECT_EQ(GetQuicFlag(FLAGS_quic_buffered_data_threshold) - 1,
+  EXPECT_EQ(static_cast<uint64_t>(
+                GetQuicFlag(FLAGS_quic_buffered_data_threshold) - 1),
             stream_->BufferedDataBytes());
   EXPECT_TRUE(stream_->CanWriteNewData());
 
@@ -1055,7 +1056,8 @@ TEST_P(QuicStreamTest, WriteBufferedData) {
 
   EXPECT_CALL(*stream_, OnCanWriteNewData()).Times(1);
   stream_->OnCanWrite();
-  EXPECT_EQ(GetQuicFlag(FLAGS_quic_buffered_data_threshold) - 1,
+  EXPECT_EQ(static_cast<uint64_t>(
+                GetQuicFlag(FLAGS_quic_buffered_data_threshold) - 1),
             stream_->BufferedDataBytes());
   EXPECT_TRUE(stream_->CanWriteNewData());
 
@@ -1139,7 +1141,8 @@ TEST_P(QuicStreamTest, WriteMemSlices) {
       }));
   EXPECT_CALL(*stream_, OnCanWriteNewData()).Times(1);
   stream_->OnCanWrite();
-  EXPECT_EQ(GetQuicFlag(FLAGS_quic_buffered_data_threshold) - 1,
+  EXPECT_EQ(static_cast<uint64_t>(
+                GetQuicFlag(FLAGS_quic_buffered_data_threshold) - 1),
             stream_->BufferedDataBytes());
   // Try to write slices2 again.
   EXPECT_CALL(*session_, WritevData(_, _, _, _, _)).Times(0);

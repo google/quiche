@@ -86,7 +86,7 @@ bool QuicPacketReader::ReadAndDispatchManyPackets(
     DCHECK_LE(kMaxOutgoingPacketSize, packets_[i].iov.iov_len);
     msghdr* hdr = &mmsg_hdr_[i].msg_hdr;
     hdr->msg_namelen = sizeof(sockaddr_storage);
-    DCHECK_EQ(1, hdr->msg_iovlen);
+    DCHECK_EQ(1u, hdr->msg_iovlen);
     hdr->msg_controllen = kCmsgSpaceForReadPacket;
     hdr->msg_flags = 0;
   }
