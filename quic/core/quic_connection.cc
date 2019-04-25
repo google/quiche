@@ -1514,7 +1514,8 @@ void QuicConnection::OnPacketComplete() {
       // then a second packet is received; as that could cause the ACK for the
       // second packet to be delayed instead of immediate. This is currently
       // considered to be small enough of an edge case to not be optimized for.
-      if (framer_.HasEncrypterOfEncryptionLevel(QuicUtils::GetEncryptionLevel(
+      if (!SupportsMultiplePacketNumberSpaces() ||
+          framer_.HasEncrypterOfEncryptionLevel(QuicUtils::GetEncryptionLevel(
               QuicUtils::GetPacketNumberSpace(last_decrypted_packet_level_)))) {
         uber_received_packet_manager_.MaybeUpdateAckTimeout(
             should_last_packet_instigate_acks_, last_decrypted_packet_level_,
