@@ -50,7 +50,8 @@ std::ostream& operator<<(
      << ", error_code: "
      << ((connection_close_frame.close_type ==
           IETF_QUIC_TRANSPORT_CONNECTION_CLOSE)
-             ? connection_close_frame.transport_error_code
+             ? static_cast<uint16_t>(
+                   connection_close_frame.transport_error_code)
              : ((connection_close_frame.close_type ==
                  IETF_QUIC_APPLICATION_CONNECTION_CLOSE)
                     ? connection_close_frame.application_error_code
