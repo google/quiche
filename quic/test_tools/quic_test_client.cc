@@ -651,9 +651,7 @@ bool QuicTestClient::response_headers_complete() const {
 
 const spdy::SpdyHeaderBlock* QuicTestClient::response_headers() const {
   for (std::pair<QuicStreamId, QuicSpdyClientStream*> stream : open_streams_) {
-    size_t bytes_read =
-        stream.second->stream_bytes_read() + stream.second->header_bytes_read();
-    if (bytes_read > 0) {
+    if (stream.second->headers_decompressed()) {
       response_headers_ = stream.second->response_headers().Clone();
       break;
     }
