@@ -9,7 +9,6 @@
 #include <string>
 #include <utility>
 
-#include "testing/gmock/include/gmock/gmock.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
 #include "net/third_party/quiche/src/quic/core/crypto/null_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/quic_crypto_stream.h"

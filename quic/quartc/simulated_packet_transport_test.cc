@@ -4,8 +4,6 @@
 
 #include "net/third_party/quiche/src/quic/quartc/simulated_packet_transport.h"
 
-#include "testing/gmock/include/gmock/gmock.h"
-#include "testing/gtest/include/gtest/gtest.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/quartc/quartc_packet_writer.h"
 #include "net/third_party/quiche/src/quic/test_tools/simulator/simulator.h"

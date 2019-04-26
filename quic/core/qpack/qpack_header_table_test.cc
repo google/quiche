@@ -4,7 +4,6 @@
 
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_header_table.h"
 
-#include "testing/gtest/include/gtest/gtest.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_static_table.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"

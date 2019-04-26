@@ -5,11 +5,11 @@
 #ifndef QUICHE_QUIC_CORE_QPACK_QPACK_DECODER_TEST_UTILS_H_
 #define QUICHE_QUIC_CORE_QPACK_QPACK_DECODER_TEST_UTILS_H_
 
-#include "testing/gmock/include/gmock/gmock.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_decoder.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_progressive_decoder.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_test_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_header_block.h"
 
 namespace quic {

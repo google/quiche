@@ -3,11 +3,11 @@
 // found in the LICENSE file.
 
 #include "net/third_party/quiche/src/quic/core/quic_crypto_client_handshaker.h"
-#include "testing/gmock/include/gmock/gmock.h"
-#include "testing/gtest/include/gtest/gtest.h"
+
 #include "net/third_party/quiche/src/quic/core/proto/crypto_server_config.pb.h"
 #include "net/third_party/quiche/src/quic/core/tls_client_handshaker.h"
 #include "net/third_party/quiche/src/quic/core/tls_server_handshaker.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 
 namespace quic {

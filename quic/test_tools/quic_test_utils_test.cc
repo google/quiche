@@ -4,7 +4,6 @@
 
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 
-#include "testing/base/public/gunit-spi.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 
 namespace quic {

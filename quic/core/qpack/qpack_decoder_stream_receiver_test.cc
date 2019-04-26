@@ -4,8 +4,6 @@
 
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_decoder_stream_receiver.h"
 
-#include "testing/gmock/include/gmock/gmock.h"
-#include "testing/gtest/include/gtest/gtest.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
 
