@@ -278,7 +278,9 @@ void QuicTraceVisitor::OnApplicationLimited() {
 }
 
 void QuicTraceVisitor::OnAdjustNetworkParameters(QuicBandwidth bandwidth,
-                                                 QuicTime::Delta rtt) {
+                                                 QuicTime::Delta rtt,
+                                                 QuicByteCount old_cwnd,
+                                                 QuicByteCount new_cwnd) {
   quic_trace::Event* event = trace_.add_events();
   event->set_time_us(
       ConvertTimestampToRecordedFormat(connection_->clock()->ApproximateNow()));

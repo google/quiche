@@ -267,9 +267,11 @@ void QuicSentPacketManager::AdjustNetworkParameters(QuicBandwidth bandwidth,
   if (!rtt.IsZero()) {
     SetInitialRtt(rtt);
   }
+  const QuicByteCount old_cwnd = send_algorithm_->GetCongestionWindow();
   send_algorithm_->AdjustNetworkParameters(bandwidth, rtt);
   if (debug_delegate_ != nullptr) {
-    debug_delegate_->OnAdjustNetworkParameters(bandwidth, rtt);
+    debug_delegate_->OnAdjustNetworkParameters(
+        bandwidth, rtt, old_cwnd, send_algorithm_->GetCongestionWindow());
   }
 }
 

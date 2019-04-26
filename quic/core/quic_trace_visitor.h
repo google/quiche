@@ -42,7 +42,9 @@ class QuicTraceVisitor : public QuicConnectionDebugVisitor {
   void OnApplicationLimited() override;
 
   void OnAdjustNetworkParameters(QuicBandwidth bandwidth,
-                                 QuicTime::Delta rtt) override;
+                                 QuicTime::Delta rtt,
+                                 QuicByteCount old_cwnd,
+                                 QuicByteCount new_cwnd) override;
 
   // Returns a mutable pointer to the trace.  The trace is owned by the
   // visitor, but can be moved using Swap() method after the connection is

@@ -2372,6 +2372,8 @@ TEST_P(QuicSentPacketManagerTest, ResumeConnectionState) {
 
   EXPECT_CALL(*send_algorithm_,
               AdjustNetworkParameters(QuicBandwidth::Zero(), kRtt));
+  EXPECT_CALL(*send_algorithm_, GetCongestionWindow())
+      .Times(testing::AnyNumber());
   manager_.ResumeConnectionState(cached_network_params, false);
   EXPECT_EQ(kRtt, manager_.GetRttStats()->initial_rtt());
 }

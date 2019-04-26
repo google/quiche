@@ -70,7 +70,9 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
     virtual void OnApplicationLimited() {}
 
     virtual void OnAdjustNetworkParameters(QuicBandwidth bandwidth,
-                                           QuicTime::Delta rtt) {}
+                                           QuicTime::Delta rtt,
+                                           QuicByteCount old_cwnd,
+                                           QuicByteCount new_cwnd) {}
   };
 
   // Interface which gets callbacks from the QuicSentPacketManager when

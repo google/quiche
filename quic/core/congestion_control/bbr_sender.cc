@@ -352,6 +352,16 @@ void BbrSender::AdjustNetworkParameters(QuicBandwidth bandwidth,
   if (!rtt.IsZero() && (min_rtt_ > rtt || min_rtt_.IsZero())) {
     min_rtt_ = rtt;
   }
+  if (GetQuicReloadableFlag(quic_fix_bbr_cwnd_in_bandwidth_resumption) &&
+      mode_ == STARTUP) {
+    const QuicByteCount new_cwnd =
+        std::min(kMaxInitialCongestionWindow * kDefaultTCPMSS,
+                 bandwidth * rtt_stats_->SmoothedOrInitialRtt());
+    if (new_cwnd > congestion_window_) {
+      QUIC_RELOADABLE_FLAG_COUNT(quic_fix_bbr_cwnd_in_bandwidth_resumption);
+    }
+    congestion_window_ = std::max(new_cwnd, congestion_window_);
+  }
 }
 
 void BbrSender::OnCongestionEvent(bool /*rtt_updated*/,

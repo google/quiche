@@ -57,6 +57,9 @@ const QuicByteCount kMinPacketSizeForVersionNegotiation = 1200;
 // We match SPDY's use of 32 (since we'd compete with SPDY).
 const QuicPacketCount kInitialCongestionWindow = 32;
 
+// Do not allow initial congestion window to be greater than 200 packets.
+const QuicPacketCount kMaxInitialCongestionWindow = 200;
+
 // Minimum size of initial flow control window, for both stream and session.
 const uint32_t kMinimumFlowControlSendWindow = 16 * 1024;  // 16 KB
 
