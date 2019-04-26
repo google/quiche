@@ -37,7 +37,7 @@ class QUIC_EXPORT_PRIVATE ValueSplittingHeaderList {
     // Find next '\0' character; update |value_end_| and |header_field_|.
     void UpdateHeaderField();
 
-    const spdy::SpdyHeaderBlock* const header_list_;
+    const spdy::SpdyHeaderBlock* header_list_;
     spdy::SpdyHeaderBlock::const_iterator header_list_iterator_;
     QuicStringPiece::size_type value_start_;
     QuicStringPiece::size_type value_end_;
