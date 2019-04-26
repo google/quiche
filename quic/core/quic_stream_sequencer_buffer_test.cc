@@ -35,10 +35,10 @@ char GetCharFromIOVecs(size_t offset, iovec iov[], size_t count) {
     }
     start_offset += iov[i].iov_len;
   }
-  LOG(ERROR) << "Could not locate char at offset " << offset << " in " << count
-             << " iovecs";
+  QUIC_LOG(ERROR) << "Could not locate char at offset " << offset << " in "
+                  << count << " iovecs";
   for (size_t i = 0; i < count; ++i) {
-    LOG(ERROR) << "  iov[" << i << "].iov_len = " << iov[i].iov_len;
+    QUIC_LOG(ERROR) << "  iov[" << i << "].iov_len = " << iov[i].iov_len;
   }
   return '\0';
 }

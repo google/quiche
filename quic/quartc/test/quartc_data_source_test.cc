@@ -29,7 +29,8 @@ void FakeDelegate::OnDataProduced(const char* data, size_t length) {
   if (ParsedQuartcDataFrame::Parse(message, &frame)) {
     frames_.push_back(frame);
   } else {
-    LOG(FATAL) << "Data source produced a frame it can't parse: " << message;
+    QUIC_LOG(FATAL) << "Data source produced a frame it can't parse: "
+                    << message;
   }
 }
 

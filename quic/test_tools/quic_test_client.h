@@ -185,8 +185,8 @@ class QuicTestClient : public QuicSpdyStream::Visitor,
   void WaitForResponseForMs(int timeout_ms) {
     WaitUntil(timeout_ms, [this]() { return !closed_stream_states_.empty(); });
     if (response_complete()) {
-      VLOG(1) << "Client received response:"
-              << response_headers()->DebugString() << response_body();
+      QUIC_VLOG(1) << "Client received response:"
+                   << response_headers()->DebugString() << response_body();
     }
   }
 
