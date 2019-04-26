@@ -182,21 +182,21 @@ TEST(LinkedHashMapTest, Empty) {
 TEST(LinkedHashMapTest, Erase) {
   SimpleLinkedHashMap<int, int> m;
   ASSERT_EQ(0u, m.size());
-  EXPECT_EQ(0, m.erase(2));  // Nothing to erase yet
+  EXPECT_EQ(0u, m.erase(2));  // Nothing to erase yet
 
   m.insert(std::make_pair(2, 12));
   ASSERT_EQ(1u, m.size());
-  EXPECT_EQ(1, m.erase(2));
+  EXPECT_EQ(1u, m.erase(2));
   EXPECT_EQ(0u, m.size());
 
-  EXPECT_EQ(0, m.erase(2));  // Make sure nothing bad happens if we repeat.
+  EXPECT_EQ(0u, m.erase(2));  // Make sure nothing bad happens if we repeat.
   EXPECT_EQ(0u, m.size());
 }
 
 TEST(LinkedHashMapTest, Erase2) {
   SimpleLinkedHashMap<int, int> m;
   ASSERT_EQ(0u, m.size());
-  EXPECT_EQ(0, m.erase(2));  // Nothing to erase yet
+  EXPECT_EQ(0u, m.erase(2));  // Nothing to erase yet
 
   m.insert(std::make_pair(2, 12));
   m.insert(std::make_pair(1, 11));
@@ -205,8 +205,8 @@ TEST(LinkedHashMapTest, Erase2) {
   ASSERT_EQ(4u, m.size());
 
   // Erase middle two
-  EXPECT_EQ(1, m.erase(1));
-  EXPECT_EQ(1, m.erase(3));
+  EXPECT_EQ(1u, m.erase(1));
+  EXPECT_EQ(1u, m.erase(3));
 
   EXPECT_EQ(2u, m.size());
 
@@ -220,14 +220,14 @@ TEST(LinkedHashMapTest, Erase2) {
   ++it;
   ASSERT_TRUE(it == m.end());
 
-  EXPECT_EQ(0, m.erase(1));  // Make sure nothing bad happens if we repeat.
+  EXPECT_EQ(0u, m.erase(1));  // Make sure nothing bad happens if we repeat.
   ASSERT_EQ(2u, m.size());
 
-  EXPECT_EQ(1, m.erase(2));
-  EXPECT_EQ(1, m.erase(4));
+  EXPECT_EQ(1u, m.erase(2));
+  EXPECT_EQ(1u, m.erase(4));
   ASSERT_EQ(0u, m.size());
 
-  EXPECT_EQ(0, m.erase(1));  // Make sure nothing bad happens if we repeat.
+  EXPECT_EQ(0u, m.erase(1));  // Make sure nothing bad happens if we repeat.
   ASSERT_EQ(0u, m.size());
 }
 
