@@ -5,8 +5,10 @@
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 
 #include <algorithm>
+#include <cstdint>
 #include <memory>
 
+#include "third_party/boringssl/src/include/openssl/chacha.h"
 #include "third_party/boringssl/src/include/openssl/sha.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_framer.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_handshake.h"
@@ -152,18 +154,40 @@ std::string Sha1Hash(QuicStringPiece data) {
 }
 
 uint64_t SimpleRandom::RandUint64() {
-  std::string hash =
-      Sha1Hash(QuicStringPiece(reinterpret_cast<char*>(&seed_), sizeof(seed_)));
-  DCHECK_EQ(static_cast<size_t>(SHA_DIGEST_LENGTH), hash.length());
-  memcpy(&seed_, hash.data(), sizeof(seed_));
-  return seed_;
+  uint64_t result;
+  RandBytes(&result, sizeof(result));
+  return result;
 }
 
 void SimpleRandom::RandBytes(void* data, size_t len) {
-  uint8_t* real_data = static_cast<uint8_t*>(data);
-  for (size_t offset = 0; offset < len; offset++) {
-    real_data[offset] = RandUint64() & 0xff;
+  uint8_t* data_bytes = reinterpret_cast<uint8_t*>(data);
+  while (len > 0) {
+    const size_t buffer_left = sizeof(buffer_) - buffer_offset_;
+    const size_t to_copy = std::min(buffer_left, len);
+    memcpy(data_bytes, buffer_ + buffer_offset_, to_copy);
+    data_bytes += to_copy;
+    buffer_offset_ += to_copy;
+    len -= to_copy;
+
+    if (buffer_offset_ == sizeof(buffer_)) {
+      FillBuffer();
+    }
   }
+}
+
+void SimpleRandom::FillBuffer() {
+  uint8_t nonce[12];
+  memcpy(nonce, buffer_, sizeof(nonce));
+  CRYPTO_chacha_20(buffer_, buffer_, sizeof(buffer_), key_, nonce, 0);
+  buffer_offset_ = 0;
+}
+
+void SimpleRandom::set_seed(uint64_t seed) {
+  static_assert(sizeof(key_) == SHA256_DIGEST_LENGTH, "Key has to be 256 bits");
+  SHA256(reinterpret_cast<const uint8_t*>(&seed), sizeof(seed), key_);
+
+  memset(buffer_, 0, sizeof(buffer_));
+  FillBuffer();
 }
 
 MockFramerVisitor::MockFramerVisitor() {

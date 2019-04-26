@@ -213,12 +213,10 @@ std::unique_ptr<QuicPacket> BuildUnsizedDataPacket(
 std::string Sha1Hash(QuicStringPiece data);
 
 // Simple random number generator used to compute random numbers suitable
-// for pseudo-randomly dropping packets in tests.  It works by computing
-// the sha1 hash of the current seed, and using the first 64 bits as
-// the next random number, and the next seed.
+// for pseudo-randomly dropping packets in tests.
 class SimpleRandom : public QuicRandom {
  public:
-  SimpleRandom() : seed_(0) {}
+  SimpleRandom() { set_seed(0); }
   SimpleRandom(const SimpleRandom&) = delete;
   SimpleRandom& operator=(const SimpleRandom&) = delete;
   ~SimpleRandom() override {}
@@ -228,10 +226,14 @@ class SimpleRandom : public QuicRandom {
 
   void RandBytes(void* data, size_t len) override;
 
-  void set_seed(uint64_t seed) { seed_ = seed; }
+  void set_seed(uint64_t seed);
 
  private:
-  uint64_t seed_;
+  uint8_t buffer_[4096];
+  size_t buffer_offset_;
+  uint8_t key_[32];
+
+  void FillBuffer();
 };
 
 class MockFramerVisitor : public QuicFramerVisitorInterface {

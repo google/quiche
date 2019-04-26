@@ -52,8 +52,27 @@ TEST_F(QuicTestUtilsTest, QuicBandwidth) {
 TEST_F(QuicTestUtilsTest, SimpleRandomStability) {
   SimpleRandom rng;
   rng.set_seed(UINT64_C(0x1234567800010001));
-  EXPECT_EQ(UINT64_C(14865409841904857791), rng.RandUint64());
-  EXPECT_EQ(UINT64_C(12139094019410129741), rng.RandUint64());
+  EXPECT_EQ(UINT64_C(12589383305231984671), rng.RandUint64());
+  EXPECT_EQ(UINT64_C(17775425089941798664), rng.RandUint64());
+}
+
+// Ensure that the output of SimpleRandom does not depend on the size of the
+// read calls.
+TEST_F(QuicTestUtilsTest, SimpleRandomChunks) {
+  SimpleRandom rng;
+  std::string reference(16 * 1024, '\0');
+  rng.RandBytes(&reference[0], reference.size());
+
+  for (size_t chunk_size : {3, 4, 7, 4096}) {
+    rng.set_seed(0);
+    size_t chunks = reference.size() / chunk_size;
+    std::string buffer(chunks * chunk_size, '\0');
+    for (size_t i = 0; i < chunks; i++) {
+      rng.RandBytes(&buffer[i * chunk_size], chunk_size);
+    }
+    EXPECT_EQ(reference.substr(0, buffer.size()), buffer)
+        << "Failed for chunk_size = " << chunk_size;
+  }
 }
 
 }  // namespace test
