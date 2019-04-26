@@ -22,7 +22,7 @@ QpackProgressiveEncoder::QpackProgressiveEncoder(
       header_table_(header_table),
       encoder_stream_sender_(encoder_stream_sender),
       header_list_(header_list),
-      header_list_iterator_(header_list_->begin()),
+      header_list_iterator_(header_list_.begin()),
       prefix_encoded_(false) {
   // TODO(bnc): Use |stream_id_| for dynamic table entry management, and
   // remove this dummy DCHECK.
@@ -30,11 +30,10 @@ QpackProgressiveEncoder::QpackProgressiveEncoder(
 
   DCHECK(header_table_);
   DCHECK(encoder_stream_sender_);
-  DCHECK(header_list_);
 }
 
 bool QpackProgressiveEncoder::HasNext() const {
-  return header_list_iterator_ != header_list_->end() || !prefix_encoded_;
+  return header_list_iterator_ != header_list_.end() || !prefix_encoded_;
 }
 
 void QpackProgressiveEncoder::Next(size_t max_encoded_bytes,
@@ -61,7 +60,7 @@ void QpackProgressiveEncoder::Next(size_t max_encoded_bytes,
   }
 
   do {
-    // Call QpackInstructionEncoder::Encode for |*header_list_iterator_| if it
+    // Call QpackInstructionEncoder::Encode() for |*header_list_iterator_| if it
     // has not been called yet.
     if (!instruction_encoder_.HasNext()) {
       DCHECK(prefix_encoded_);

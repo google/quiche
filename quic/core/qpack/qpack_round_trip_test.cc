@@ -132,6 +132,14 @@ TEST_P(QpackRoundTripTest, StaticTable) {
   }
 }
 
+TEST_P(QpackRoundTripTest, ValueHasNullCharacter) {
+  spdy::SpdyHeaderBlock header_list;
+  header_list["foo"] = QuicStringPiece("bar\0bar\0baz", 11);
+
+  spdy::SpdyHeaderBlock output = EncodeThenDecode(header_list);
+  EXPECT_EQ(header_list, output);
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

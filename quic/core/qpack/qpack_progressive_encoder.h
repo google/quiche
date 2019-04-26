@@ -9,6 +9,7 @@
 
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_encoder_stream_sender.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_instruction_encoder.h"
+#include "net/third_party/quiche/src/quic/core/qpack/value_splitting_header_list.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_encoder.h"
@@ -24,6 +25,8 @@ class QUIC_EXPORT_PRIVATE QpackProgressiveEncoder
     : public spdy::HpackEncoder::ProgressiveEncoder {
  public:
   QpackProgressiveEncoder() = delete;
+  // |header_table|, |encoder_stream_sender|, and |header_list| must all outlive
+  // this object.
   QpackProgressiveEncoder(QuicStreamId stream_id,
                           QpackHeaderTable* header_table,
                           QpackEncoderStreamSender* encoder_stream_sender,
@@ -43,10 +46,10 @@ class QUIC_EXPORT_PRIVATE QpackProgressiveEncoder
   QpackInstructionEncoder instruction_encoder_;
   const QpackHeaderTable* const header_table_;
   QpackEncoderStreamSender* const encoder_stream_sender_;
-  const spdy::SpdyHeaderBlock* const header_list_;
+  const ValueSplittingHeaderList header_list_;
 
   // Header field currently being encoded.
-  spdy::SpdyHeaderBlock::const_iterator header_list_iterator_;
+  ValueSplittingHeaderList::const_iterator header_list_iterator_;
 
   // False until prefix is fully encoded.
   bool prefix_encoded_;
