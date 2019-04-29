@@ -244,7 +244,7 @@ TEST(LinkedHashMapTest, Erase3) {
   SimpleLinkedHashMap<int, int>::iterator it2 = m.find(2);
   SimpleLinkedHashMap<int, int>::iterator it4 = m.find(4);
   EXPECT_EQ(m.erase(it2, it4), m.find(4));
-  EXPECT_EQ(2, m.size());
+  EXPECT_EQ(2u, m.size());
 
   // Make sure we can still iterate over everything that's left.
   SimpleLinkedHashMap<int, int>::iterator it = m.begin();
