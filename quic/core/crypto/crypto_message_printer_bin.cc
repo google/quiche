@@ -10,7 +10,6 @@
 #include <iostream>
 #include <string>
 
-#include "base/init_google.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_framer.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
@@ -37,13 +36,19 @@ class CryptoMessagePrinter : public ::quic::CryptoFramerVisitorInterface {
 }  // namespace quic
 
 int main(int argc, char* argv[]) {
-  InitGoogle(argv[0], &argc, &argv, true);
+  const char* usage = "Usage: crypto_message_printer <hex>";
+  std::vector<std::string> messages =
+      quic::QuicParseCommandLineFlags(usage, argc, argv);
+  if (messages.size() != 1) {
+    quic::QuicPrintCommandLineFlagHelp(usage);
+    exit(0);
+  }
 
   quic::CryptoMessagePrinter printer;
   quic::CryptoFramer framer;
   framer.set_visitor(&printer);
   framer.set_process_truncated_messages(true);
-  std::string input = quic::QuicTextUtils::HexDecode(argv[1]);
+  std::string input = quic::QuicTextUtils::HexDecode(messages[0]);
   if (!framer.ProcessInput(input)) {
     return 1;
   }
