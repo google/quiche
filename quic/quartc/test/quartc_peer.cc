@@ -34,7 +34,7 @@ void QuartcPeer::SetEnabled(bool value) {
 IdToSequenceNumberMap QuartcPeer::GetLastSequenceNumbers() const {
   DCHECK_GE(configs_.size(), data_sources_.size());
   IdToSequenceNumberMap out;
-  for (int i = 0; i < data_sources_.size(); ++i) {
+  for (size_t i = 0; i < data_sources_.size(); ++i) {
     out[configs_[i].id] = data_sources_[i]->sequence_number();
   }
   return out;

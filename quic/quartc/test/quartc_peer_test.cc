@@ -170,8 +170,8 @@ TEST_F(QuartcPeerTest, MaxFrameSizeSmallerThanPacketSize) {
   // Run long enough for the bandwidth estimate to ramp up.
   simulator_.RunFor(QuicTime::Delta::FromSeconds(10));
 
-  EXPECT_EQ(client_peer_->received_messages().back().frame.size, 100);
-  EXPECT_EQ(server_peer_->received_messages().back().frame.size, 100);
+  EXPECT_EQ(client_peer_->received_messages().back().frame.size, 100u);
+  EXPECT_EQ(server_peer_->received_messages().back().frame.size, 100u);
 }
 
 TEST_F(QuartcPeerTest, MaxFrameSizeSmallerThanFrameHeader) {
@@ -233,8 +233,8 @@ TEST_F(QuartcPeerTest, SendReceiveMultipleSources) {
   std::vector<ReceivedMessage> client_messages =
       client_peer_->received_messages();
   std::sort(client_messages.begin(), client_messages.end(), order);
-  for (int i = 0; i < client_messages.size(); ++i) {
-    EXPECT_EQ(client_messages[i].frame.source_id, i + 1);
+  for (size_t i = 0; i < client_messages.size(); ++i) {
+    EXPECT_EQ(client_messages[i].frame.source_id, static_cast<int32_t>(i + 1));
     EXPECT_EQ(client_messages[i].frame.sequence_number, 0);
     EXPECT_GE(client_messages[i].frame.send_time, start_time);
     EXPECT_LE(client_messages[i].receive_time, end_time);
@@ -243,8 +243,8 @@ TEST_F(QuartcPeerTest, SendReceiveMultipleSources) {
   std::vector<ReceivedMessage> server_messages =
       server_peer_->received_messages();
   std::sort(server_messages.begin(), server_messages.end(), order);
-  for (int i = 0; i < server_messages.size(); ++i) {
-    EXPECT_EQ(server_messages[i].frame.source_id, i + 1);
+  for (size_t i = 0; i < server_messages.size(); ++i) {
+    EXPECT_EQ(server_messages[i].frame.source_id, static_cast<int32_t>(i + 1u));
     EXPECT_EQ(server_messages[i].frame.sequence_number, 0);
     EXPECT_GE(server_messages[i].frame.send_time, start_time);
     EXPECT_LE(server_messages[i].receive_time, end_time);
