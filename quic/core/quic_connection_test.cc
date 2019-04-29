@@ -8063,6 +8063,10 @@ TEST_P(QuicConnectionTest, SendDataWhenApplicationLimited) {
     EXPECT_CALL(visitor_, WillingAndAbleToWrite())
         .WillRepeatedly(Return(false));
   }
+  EXPECT_CALL(visitor_, SendProbingData()).WillRepeatedly([this] {
+    return connection_.sent_packet_manager().MaybeRetransmitOldestPacket(
+        PROBING_RETRANSMISSION);
+  });
   // Fix congestion window to be 20,000 bytes.
   EXPECT_CALL(*send_algorithm_, CanSend(Ge(20000u)))
       .WillRepeatedly(Return(false));
@@ -8209,6 +8213,10 @@ TEST_P(QuicConnectionTest, SendProbingRetransmissions) {
       }));
   EXPECT_CALL(*send_algorithm_, ShouldSendProbingPacket())
       .WillRepeatedly(Return(true));
+  EXPECT_CALL(visitor_, SendProbingData()).WillRepeatedly([this] {
+    return connection_.sent_packet_manager().MaybeRetransmitOldestPacket(
+        PROBING_RETRANSMISSION);
+  });
 
   connection_.SendProbingRetransmissions();
 
@@ -8232,6 +8240,10 @@ TEST_P(QuicConnectionTest,
   EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _, _)).Times(0);
   EXPECT_CALL(*send_algorithm_, ShouldSendProbingPacket())
       .WillRepeatedly(Return(true));
+  EXPECT_CALL(visitor_, SendProbingData()).WillRepeatedly([this] {
+    return connection_.sent_packet_manager().MaybeRetransmitOldestPacket(
+        PROBING_RETRANSMISSION);
+  });
 
   connection_.SendProbingRetransmissions();
 }

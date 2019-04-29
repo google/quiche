@@ -363,6 +363,7 @@ class MockQuicConnectionVisitor : public QuicConnectionVisitorInterface {
                     ConnectionCloseSource source));
   MOCK_METHOD0(OnWriteBlocked, void());
   MOCK_METHOD0(OnCanWrite, void());
+  MOCK_METHOD0(SendProbingData, bool());
   MOCK_METHOD1(OnCongestionWindowChange, void(QuicTime now));
   MOCK_METHOD1(OnConnectionMigration, void(AddressChangeType type));
   MOCK_METHOD0(OnPathDegrading, void());

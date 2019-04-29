@@ -587,6 +587,14 @@ void QuicSession::OnCanWrite() {
   }
 }
 
+bool QuicSession::SendProbingData() {
+  if (connection()->sent_packet_manager().MaybeRetransmitOldestPacket(
+          PROBING_RETRANSMISSION)) {
+    return true;
+  }
+  return false;
+}
+
 bool QuicSession::WillingAndAbleToWrite() const {
   // Schedule a write when:
   // 1) control frame manager has pending or new control frames, or

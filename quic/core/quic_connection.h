@@ -143,6 +143,10 @@ class QUIC_EXPORT_PRIVATE QuicConnectionVisitorInterface {
   // Called when a blocked socket becomes writable.
   virtual void OnCanWrite() = 0;
 
+  // Called when the connection needs more data to probe for additional
+  // bandwidth.  Returns true if data was sent, false otherwise.
+  virtual bool SendProbingData() = 0;
+
   // Called when the connection experiences a change in congestion window.
   virtual void OnCongestionWindowChange(QuicTime now) = 0;
 

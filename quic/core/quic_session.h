@@ -115,6 +115,7 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
       const QuicSocketAddress& self_address,
       const QuicSocketAddress& peer_address) override;
   void OnCanWrite() override;
+  bool SendProbingData() override;
   void OnCongestionWindowChange(QuicTime /*now*/) override {}
   void OnConnectionMigration(AddressChangeType type) override {}
   // Adds a connection level WINDOW_UPDATE frame.

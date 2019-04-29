@@ -2281,10 +2281,7 @@ void QuicConnection::WritePendingRetransmissions() {
 void QuicConnection::SendProbingRetransmissions() {
   while (sent_packet_manager_.GetSendAlgorithm()->ShouldSendProbingPacket() &&
          CanWrite(HAS_RETRANSMITTABLE_DATA)) {
-    const bool can_retransmit =
-        sent_packet_manager_.MaybeRetransmitOldestPacket(
-            PROBING_RETRANSMISSION);
-    if (!can_retransmit) {
+    if (!visitor_->SendProbingData()) {
       QUIC_DVLOG(1)
           << "Cannot send probing retransmissions: nothing to retransmit.";
       break;
