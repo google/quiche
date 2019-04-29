@@ -64,6 +64,8 @@ bool QuartcSession::SendOrQueueMessage(std::string message) {
 }
 
 void QuartcSession::ProcessSendMessageQueue() {
+  QuicConnection::ScopedPacketFlusher flusher(
+      connection(), QuicConnection::AckBundling::NO_ACK);
   while (!send_message_queue_.empty()) {
     struct iovec iov = {const_cast<char*>(send_message_queue_.front().data()),
                         send_message_queue_.front().length()};
@@ -118,6 +120,17 @@ void QuartcSession::OnCanWrite() {
   ProcessSendMessageQueue();
 
   QuicSession::OnCanWrite();
+}
+
+bool QuartcSession::SendProbingData() {
+  if (QuicSession::SendProbingData()) {
+    return true;
+  }
+
+  SetTransmissionType(PROBING_RETRANSMISSION);
+  SendPing();
+  WriteControlFrame(QuicFrame(QuicPaddingFrame()));
+  return true;
 }
 
 void QuartcSession::OnCryptoHandshakeEvent(CryptoHandshakeEvent event) {
@@ -197,7 +210,7 @@ void QuartcSession::CloseConnection(const std::string& details) {
 
 void QuartcSession::SetDelegate(Delegate* session_delegate) {
   if (session_delegate_) {
-    LOG(WARNING) << "The delegate for the session has already been set.";
+    QUIC_LOG(WARNING) << "The delegate for the session has already been set.";
   }
   session_delegate_ = session_delegate;
   DCHECK(session_delegate_);
@@ -337,7 +350,7 @@ void QuartcClientSession::StartCryptoHandshake() {
           std::vector<std::string>{kDummyCertName}, /*cert_sct=*/"",
           /*chlo_hash=*/"", /*signature=*/"anything");
     } else {
-      LOG(DFATAL) << "Unable to set server config, error=" << error;
+      QUIC_LOG(DFATAL) << "Unable to set server config, error=" << error;
     }
   }
 

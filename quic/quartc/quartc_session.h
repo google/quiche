@@ -67,6 +67,7 @@ class QuartcSession : public QuicSession,
   bool ShouldKeepConnectionAlive() const override;
 
   void OnCanWrite() override;
+  bool SendProbingData() override;
 
   void OnConnectionClosed(QuicErrorCode error,
                           const std::string& error_details,
