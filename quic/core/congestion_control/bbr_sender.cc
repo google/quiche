@@ -358,7 +358,11 @@ void BbrSender::AdjustNetworkParameters(QuicBandwidth bandwidth,
         std::min(kMaxInitialCongestionWindow * kDefaultTCPMSS,
                  bandwidth * rtt_stats_->SmoothedOrInitialRtt());
     if (new_cwnd > congestion_window_) {
-      QUIC_RELOADABLE_FLAG_COUNT(quic_fix_bbr_cwnd_in_bandwidth_resumption);
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_fix_bbr_cwnd_in_bandwidth_resumption, 1,
+                                   2);
+    } else {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_fix_bbr_cwnd_in_bandwidth_resumption, 2,
+                                   2);
     }
     congestion_window_ = std::max(new_cwnd, congestion_window_);
   }
