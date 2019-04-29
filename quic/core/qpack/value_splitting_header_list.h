@@ -17,7 +17,7 @@ class QUIC_EXPORT_PRIVATE ValueSplittingHeaderList {
  public:
   using value_type = spdy::SpdyHeaderBlock::value_type;
 
-  class const_iterator {
+  class QUIC_EXPORT_PRIVATE const_iterator {
    public:
     // |header_list| must outlive this object.
     const_iterator(const spdy::SpdyHeaderBlock* header_list,
