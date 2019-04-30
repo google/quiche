@@ -8,6 +8,11 @@
 #include "net/third_party/quiche/src/quic/core/quic_time.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 
+/* API_DESCRIPTION
+ QuicClock is used by QUIC core to get current time. Its instance is created by
+ applications and passed into QuicDispatcher and QuicConnectionHelperInterface.
+ API-DESCRIPTION */
+
 namespace quic {
 
 // Interface for retrieving the current time.

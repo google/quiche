@@ -8,6 +8,13 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/quic/platform/impl/quic_mem_slice_impl.h"
 
+/* API_DESCRIPTION
+ QuicMemSlice is used to wrap application data and pass to QUIC stream's write
+ interface. It refers to a memory block of data which should be around till
+ QuicMemSlice::Reset() is called. It's upto each platform, to implement it as
+ reference counted or not.
+ API-DESCRIPTION */
+
 namespace quic {
 
 // QuicMemSlice is an internally reference counted data buffer used as the
