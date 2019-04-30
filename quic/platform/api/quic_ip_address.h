@@ -73,6 +73,9 @@ class QUIC_EXPORT_PRIVATE QuicIpAddress {
   bool IsIPv6() const;
   bool InSameSubnet(const QuicIpAddress& other, int subnet_length);
 
+  in_addr GetIPv4() const;
+  in6_addr GetIPv6() const;
+
   const QuicIpAddressImpl& impl() const { return impl_; }
 
  private:

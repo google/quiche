@@ -85,7 +85,15 @@ bool QuicIpAddress::IsIPv6() const {
 
 bool QuicIpAddress::InSameSubnet(const QuicIpAddress& other,
                                  int subnet_length) {
-  return impl_.InSameSubnet(other.impl(), subnet_length);
+  return impl_.InSameSubnet(other.impl_, subnet_length);
+}
+
+in_addr QuicIpAddress::GetIPv4() const {
+  return impl_.GetIPv4();
+}
+
+in6_addr QuicIpAddress::GetIPv6() const {
+  return impl_.GetIPv6();
 }
 
 }  // namespace quic
