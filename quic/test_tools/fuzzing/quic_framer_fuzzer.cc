@@ -10,8 +10,6 @@
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
-  SetQuicFlag(&FLAGS_minloglevel, 3);
-
   quic::QuicFramer framer(quic::AllSupportedVersions(), quic::QuicTime::Zero(),
                           quic::Perspective::IS_SERVER,
                           quic::kQuicDefaultConnectionIdLength);
