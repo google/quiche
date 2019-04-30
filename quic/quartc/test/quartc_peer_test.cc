@@ -33,6 +33,7 @@ class QuartcPeerTest : public QuicTest {
                             &server_transport_,
                             QuicBandwidth::FromKBitsPerSecond(512),
                             QuicTime::Delta::FromMilliseconds(100)) {
+    SetQuicReloadableFlag(quic_default_to_bbr, true);
     simulator_.set_random_generator(&rng_);
   }
 
