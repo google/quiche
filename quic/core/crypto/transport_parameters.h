@@ -20,7 +20,7 @@ namespace quic {
 // TransportParameters contains parameters for QUIC's transport layer that are
 // exchanged during the TLS handshake. This struct is a mirror of the struct in
 // the "Transport Parameter Encoding" section of draft-ietf-quic-transport.
-// This struct currently uses the values from draft 18.
+// This struct currently uses the values from draft 20.
 struct QUIC_EXPORT_PRIVATE TransportParameters {
   // The identifier used to differentiate transport parameters.
   enum TransportParameterId : uint16_t;
@@ -119,8 +119,8 @@ struct QUIC_EXPORT_PRIVATE TransportParameters {
   // Initial packet sent by the client.
   QuicConnectionId original_connection_id;
 
-  // Idle timeout expressed in seconds.
-  IntegerParameter idle_timeout_seconds;
+  // Idle timeout expressed in milliseconds.
+  IntegerParameter idle_timeout_milliseconds;
 
   // Stateless reset token used in verifying stateless resets.
   std::vector<uint8_t> stateless_reset_token;

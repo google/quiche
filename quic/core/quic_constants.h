@@ -21,8 +21,9 @@ namespace quic {
 const uint64_t kNumSecondsPerMinute = 60;
 const uint64_t kNumSecondsPerHour = kNumSecondsPerMinute * 60;
 const uint64_t kNumSecondsPerWeek = kNumSecondsPerHour * 24 * 7;
+const uint64_t kNumMillisPerSecond = 1000;
 const uint64_t kNumMicrosPerMilli = 1000;
-const uint64_t kNumMicrosPerSecond = 1000 * 1000;
+const uint64_t kNumMicrosPerSecond = kNumMicrosPerMilli * kNumMillisPerSecond;
 
 // Default number of connections for N-connection emulation.
 const uint32_t kDefaultNumConnections = 2;

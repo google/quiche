@@ -211,6 +211,14 @@ bool TlsServerHandshaker::ProcessTransportParameters(
     *error_details = "Unable to parse Transport Parameters";
     return false;
   }
+
+  // When interoperating with non-Google implementations that do not send
+  // the version extension, set it to what we expect.
+  if (client_params.version == 0) {
+    client_params.version =
+        CreateQuicVersionLabel(session()->connection()->version());
+  }
+
   if (CryptoUtils::ValidateClientHelloVersion(
           client_params.version, session()->connection()->version(),
           session()->supported_versions(), error_details) != QUIC_NO_ERROR ||

@@ -152,6 +152,15 @@ bool TlsClientHandshaker::ProcessTransportParameters(
     return false;
   }
 
+  // When interoperating with non-Google implementations that do not send
+  // the version extension, set it to what we expect.
+  if (params.version == 0) {
+    params.version = CreateQuicVersionLabel(session()->connection()->version());
+  }
+  if (params.supported_versions.empty()) {
+    params.supported_versions.push_back(params.version);
+  }
+
   if (params.version !=
       CreateQuicVersionLabel(session()->connection()->version())) {
     *error_details = "Version mismatch detected";

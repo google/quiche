@@ -19,7 +19,7 @@ namespace {
 const QuicVersionLabel kFakeVersionLabel = 0x01234567;
 const QuicVersionLabel kFakeVersionLabel2 = 0x89ABCDEF;
 const QuicConnectionId kFakeOriginalConnectionId = TestConnectionId(0x1337);
-const uint64_t kFakeIdleTimeout = 12;
+const uint64_t kFakeIdleTimeoutMilliseconds = 12012;
 const uint8_t kFakeStatelessResetTokenData[16] = {
     0x90, 0x91, 0x92, 0x93, 0x94, 0x95, 0x96, 0x97,
     0x98, 0x99, 0x9A, 0x9B, 0x9C, 0x9D, 0x9E, 0x9F};
@@ -82,7 +82,7 @@ TEST_F(TransportParametersTest, RoundTripClient) {
   TransportParameters orig_params;
   orig_params.perspective = Perspective::IS_CLIENT;
   orig_params.version = kFakeVersionLabel;
-  orig_params.idle_timeout_seconds.set_value(kFakeIdleTimeout);
+  orig_params.idle_timeout_milliseconds.set_value(kFakeIdleTimeoutMilliseconds);
   orig_params.max_packet_size.set_value(kFakeMaxPacketSize);
   orig_params.initial_max_data.set_value(kFakeInitialMaxData);
   orig_params.initial_max_stream_data_bidi_local.set_value(
@@ -108,7 +108,8 @@ TEST_F(TransportParametersTest, RoundTripClient) {
   EXPECT_EQ(kFakeVersionLabel, new_params.version);
   EXPECT_TRUE(new_params.supported_versions.empty());
   EXPECT_EQ(EmptyQuicConnectionId(), new_params.original_connection_id);
-  EXPECT_EQ(kFakeIdleTimeout, new_params.idle_timeout_seconds.value());
+  EXPECT_EQ(kFakeIdleTimeoutMilliseconds,
+            new_params.idle_timeout_milliseconds.value());
   EXPECT_TRUE(new_params.stateless_reset_token.empty());
   EXPECT_EQ(kFakeMaxPacketSize, new_params.max_packet_size.value());
   EXPECT_EQ(kFakeInitialMaxData, new_params.initial_max_data.value());
@@ -134,7 +135,7 @@ TEST_F(TransportParametersTest, RoundTripServer) {
   orig_params.supported_versions.push_back(kFakeVersionLabel);
   orig_params.supported_versions.push_back(kFakeVersionLabel2);
   orig_params.original_connection_id = kFakeOriginalConnectionId;
-  orig_params.idle_timeout_seconds.set_value(kFakeIdleTimeout);
+  orig_params.idle_timeout_milliseconds.set_value(kFakeIdleTimeoutMilliseconds);
   orig_params.stateless_reset_token = kFakeStatelessResetToken;
   orig_params.max_packet_size.set_value(kFakeMaxPacketSize);
   orig_params.initial_max_data.set_value(kFakeInitialMaxData);
@@ -164,7 +165,8 @@ TEST_F(TransportParametersTest, RoundTripServer) {
   EXPECT_EQ(kFakeVersionLabel, new_params.supported_versions[0]);
   EXPECT_EQ(kFakeVersionLabel2, new_params.supported_versions[1]);
   EXPECT_EQ(kFakeOriginalConnectionId, new_params.original_connection_id);
-  EXPECT_EQ(kFakeIdleTimeout, new_params.idle_timeout_seconds.value());
+  EXPECT_EQ(kFakeIdleTimeoutMilliseconds,
+            new_params.idle_timeout_milliseconds.value());
   EXPECT_EQ(kFakeStatelessResetToken, new_params.stateless_reset_token);
   EXPECT_EQ(kFakeMaxPacketSize, new_params.max_packet_size.value());
   EXPECT_EQ(kFakeInitialMaxData, new_params.initial_max_data.value());
@@ -202,7 +204,9 @@ TEST_F(TransportParametersTest, IsValid) {
     TransportParameters params;
     params.perspective = Perspective::IS_CLIENT;
     EXPECT_TRUE(params.AreValid());
-    params.idle_timeout_seconds.set_value(601);
+    params.idle_timeout_milliseconds.set_value(kFakeIdleTimeoutMilliseconds);
+    EXPECT_TRUE(params.AreValid());
+    params.idle_timeout_milliseconds.set_value(601000);
     EXPECT_TRUE(params.AreValid());
   }
   {
@@ -237,7 +241,7 @@ TEST_F(TransportParametersTest, NoClientParamsWithStatelessResetToken) {
   TransportParameters orig_params;
   orig_params.perspective = Perspective::IS_CLIENT;
   orig_params.version = kFakeVersionLabel;
-  orig_params.idle_timeout_seconds.set_value(kFakeIdleTimeout);
+  orig_params.idle_timeout_milliseconds.set_value(kFakeIdleTimeoutMilliseconds);
   orig_params.stateless_reset_token = kFakeStatelessResetToken;
   orig_params.max_packet_size.set_value(kFakeMaxPacketSize);
 
@@ -248,12 +252,11 @@ TEST_F(TransportParametersTest, NoClientParamsWithStatelessResetToken) {
 TEST_F(TransportParametersTest, ParseClientParams) {
   // clang-format off
   const uint8_t kClientParams[] = {
-      0x01, 0x23, 0x45, 0x67,  // initial version
-      0x00, 0x3B,              // length of the parameters array that follows
-      // idle_timeout_seconds
+      0x00, 0x44,              // length of the parameters array that follows
+      // idle_timeout
       0x00, 0x01,  // parameter id
-      0x00, 0x01,  // length
-      0x0c,        // value
+      0x00, 0x02,  // length
+      0x6e, 0xec,  // value
       // max_packet_size
       0x00, 0x03,  // parameter id
       0x00, 0x02,  // length
@@ -293,6 +296,10 @@ TEST_F(TransportParametersTest, ParseClientParams) {
       // disable_migration
       0x00, 0x0c,  // parameter id
       0x00, 0x00,  // length
+      // Google version extension
+      0x47, 0x52,  // parameter id
+      0x00, 0x04,  // length
+      0x01, 0x23, 0x45, 0x67,  // initial version
   };
   // clang-format on
 
@@ -305,7 +312,8 @@ TEST_F(TransportParametersTest, ParseClientParams) {
   EXPECT_EQ(kFakeVersionLabel, new_params.version);
   EXPECT_TRUE(new_params.supported_versions.empty());
   EXPECT_EQ(EmptyQuicConnectionId(), new_params.original_connection_id);
-  EXPECT_EQ(kFakeIdleTimeout, new_params.idle_timeout_seconds.value());
+  EXPECT_EQ(kFakeIdleTimeoutMilliseconds,
+            new_params.idle_timeout_milliseconds.value());
   EXPECT_TRUE(new_params.stateless_reset_token.empty());
   EXPECT_EQ(kFakeMaxPacketSize, new_params.max_packet_size.value());
   EXPECT_EQ(kFakeInitialMaxData, new_params.initial_max_data.value());
@@ -329,12 +337,11 @@ TEST_F(TransportParametersTest, ParseClientParamsFailsWithStatelessResetToken) {
 
   // clang-format off
   const uint8_t kClientParamsWithFullToken[] = {
-      0x01, 0x23, 0x45, 0x67,  // initial version
-      0x00, 0x25,  // length parameters array that follows
-      // idle_timeout_seconds
+      0x00, 0x26,  // length parameters array that follows
+      // idle_timeout
       0x00, 0x01,  // parameter id
-      0x00, 0x01,  // length
-      0x0c,        // value
+      0x00, 0x02,  // length
+      0x6e, 0xec,  // value
       // stateless_reset_token
       0x00, 0x02,
       0x00, 0x10,
@@ -357,12 +364,11 @@ TEST_F(TransportParametersTest, ParseClientParamsFailsWithStatelessResetToken) {
 
   // clang-format off
   const uint8_t kClientParamsWithEmptyToken[] = {
-      0x01, 0x23, 0x45, 0x67,  // initial version
-      0x00, 0x15,  // length parameters array that follows
-      // idle_timeout_seconds
+      0x00, 0x16,  // length parameters array that follows
+      // idle_timeout
       0x00, 0x01,  // parameter id
-      0x00, 0x01,  // length
-      0x0c,        // value
+      0x00, 0x02,  // length
+      0x6e, 0xec,  // value
       // stateless_reset_token
       0x00, 0x02,
       0x00, 0x00,
@@ -385,12 +391,11 @@ TEST_F(TransportParametersTest, ParseClientParamsFailsWithStatelessResetToken) {
 TEST_F(TransportParametersTest, ParseClientParametersRepeated) {
   // clang-format off
   const uint8_t kClientParamsRepeated[] = {
-      0x01, 0x23, 0x45, 0x67,  // initial version
-      0x00, 0x14,  // length parameters array that follows
-      // idle_timeout_seconds
+      0x00, 0x16,  // length parameters array that follows
+      // idle_timeout
       0x00, 0x01,  // parameter id
-      0x00, 0x01,  // length
-      0x0c,        // value
+      0x00, 0x02,  // length
+      0x6e, 0xec,  // value
       // stateless_reset_token
       0x00, 0x02,
       0x00, 0x00,
@@ -398,10 +403,10 @@ TEST_F(TransportParametersTest, ParseClientParametersRepeated) {
       0x00, 0x03,  // parameter id
       0x00, 0x02,  // length
       0x63, 0x29,  // value
-      // idle_timeout_seconds (repeated)
+      // idle_timeout (repeated)
       0x00, 0x01,  // parameter id
-      0x00, 0x01,  // length
-      0x0c,        // value
+      0x00, 0x02,  // length
+      0x6e, 0xec,  // value
   };
   // clang-format on
   TransportParameters out_params;
@@ -413,19 +418,15 @@ TEST_F(TransportParametersTest, ParseClientParametersRepeated) {
 TEST_F(TransportParametersTest, ParseServerParams) {
   // clang-format off
   const uint8_t kServerParams[] = {
-      0x01, 0x23, 0x45, 0x67,  // negotiated_version
-      0x08,  // length of supported versions array
-      0x01, 0x23, 0x45, 0x67,
-      0x89, 0xab, 0xcd, 0xef,
-      0x00, 0x91,  // length of parameters array that follows
+      0x00, 0xa3,  // length of parameters array that follows
       // original_connection_id
       0x00, 0x00,  // parameter id
       0x00, 0x08,  // length
       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x13, 0x37,
-      // idle_timeout_seconds
+      // idle_timeout
       0x00, 0x01,  // parameter id
-      0x00, 0x01,  // length
-      0x0c,        // value
+      0x00, 0x02,  // length
+      0x6e, 0xec,  // value
       // stateless_reset_token
       0x00, 0x02,
       0x00, 0x10,
@@ -482,6 +483,13 @@ TEST_F(TransportParametersTest, ParseServerParams) {
       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xBE, 0xEF,  // connection ID
       0x80, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87,  // stateless reset token
       0x88, 0x89, 0x8A, 0x8B, 0x8C, 0x8D, 0x8E, 0x8F,
+      // Google version extension
+      0x47, 0x52,  // parameter id
+      0x00, 0x0d,  // length
+      0x01, 0x23, 0x45, 0x67,  // negotiated_version
+      0x08,  // length of supported versions array
+      0x01, 0x23, 0x45, 0x67,
+      0x89, 0xab, 0xcd, 0xef,
   };
   // clang-format on
 
@@ -496,7 +504,8 @@ TEST_F(TransportParametersTest, ParseServerParams) {
   EXPECT_EQ(kFakeVersionLabel, new_params.supported_versions[0]);
   EXPECT_EQ(kFakeVersionLabel2, new_params.supported_versions[1]);
   EXPECT_EQ(kFakeOriginalConnectionId, new_params.original_connection_id);
-  EXPECT_EQ(kFakeIdleTimeout, new_params.idle_timeout_seconds.value());
+  EXPECT_EQ(kFakeIdleTimeoutMilliseconds,
+            new_params.idle_timeout_milliseconds.value());
   EXPECT_EQ(kFakeStatelessResetToken, new_params.stateless_reset_token);
   EXPECT_EQ(kFakeMaxPacketSize, new_params.max_packet_size.value());
   EXPECT_EQ(kFakeInitialMaxData, new_params.initial_max_data.value());
@@ -527,28 +536,24 @@ TEST_F(TransportParametersTest, ParseServerParams) {
 TEST_F(TransportParametersTest, ParseServerParametersRepeated) {
   // clang-format off
   const uint8_t kServerParamsRepeated[] = {
-      0x01, 0x23, 0x45, 0x67,  // negotiated_version
-      0x08,  // length of supported versions array
-      0x01, 0x23, 0x45, 0x67,
-      0x89, 0xab, 0xcd, 0xef,
-      0x00, 0x2A,  // length of parameters array that follows
+      0x00, 0x2c,  // length of parameters array that follows
       // original_connection_id
       0x00, 0x00,  // parameter id
       0x00, 0x08,  // length
       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x13, 0x37,
-      // idle_timeout_seconds
+      // idle_timeout
       0x00, 0x01,  // parameter id
-      0x00, 0x01,  // length
-      0x0c,        // value
+      0x00, 0x02,  // length
+      0x6e, 0xec,  // value
       // stateless_reset_token
       0x00, 0x02,
       0x00, 0x10,
       0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
       0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10,
-      // idle_timeout_seconds (repeated)
+      // idle_timeout (repeated)
       0x00, 0x01,  // parameter id
-      0x00, 0x01,  // length
-      0x0c,        // value
+      0x00, 0x02,  // length
+      0x6e, 0xec,  // value
   };
   // clang-format on
 
@@ -561,6 +566,7 @@ TEST_F(TransportParametersTest, ParseServerParametersRepeated) {
 TEST_F(TransportParametersTest, CryptoHandshakeMessageRoundtrip) {
   TransportParameters orig_params;
   orig_params.perspective = Perspective::IS_CLIENT;
+  orig_params.version = kFakeVersionLabel;
   orig_params.max_packet_size.set_value(kFakeMaxPacketSize);
 
   orig_params.google_quic_params = QuicMakeUnique<CryptoHandshakeMessage>();
@@ -586,6 +592,7 @@ TEST_F(TransportParametersTest, CryptoHandshakeMessageRoundtrip) {
   EXPECT_EQ(new_params.google_quic_params->GetUint32(1337, &test_value),
             QUIC_NO_ERROR);
   EXPECT_EQ(test_value, kTestValue);
+  EXPECT_EQ(kFakeVersionLabel, new_params.version);
   EXPECT_EQ(kFakeMaxPacketSize, new_params.max_packet_size.value());
 }
 

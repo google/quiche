@@ -4,6 +4,7 @@
 
 #include "net/third_party/quiche/src/quic/core/crypto/transport_parameters.h"
 
+#include <cstdint>
 #include <cstring>
 
 #include "third_party/boringssl/src/include/openssl/bytestring.h"
@@ -41,6 +42,8 @@ enum TransportParameters::TransportParameterId : uint16_t {
   kPreferredAddress = 0xd,
 
   kGoogleQuicParam = 18257,  // Used for non-standard Google-specific params.
+  kGoogleQuicVersion =
+      18258,  // Used to transmit version and supported_versions.
 };
 
 namespace {
@@ -89,6 +92,8 @@ std::string TransportParameterIdToString(
       return "preferred_address";
     case kGoogleQuicParam:
       return "google";
+    case kGoogleQuicVersion:
+      return "google-version";
   }
   return "Unknown(" + QuicTextUtils::Uint64ToString(param_id) + ")";
 }
@@ -245,7 +250,7 @@ std::string TransportParameters::ToString() const {
     rv += " " + TransportParameterIdToString(kOriginalConnectionId) + " " +
           original_connection_id.ToString();
   }
-  rv += idle_timeout_seconds.ToString(/*for_use_in_list=*/true);
+  rv += idle_timeout_milliseconds.ToString(/*for_use_in_list=*/true);
   if (!stateless_reset_token.empty()) {
     rv += " " + TransportParameterIdToString(kStatelessResetToken) + " " +
           QuicTextUtils::HexEncode(
@@ -278,7 +283,7 @@ std::string TransportParameters::ToString() const {
 TransportParameters::TransportParameters()
     : version(0),
       original_connection_id(EmptyQuicConnectionId()),
-      idle_timeout_seconds(kIdleTimeout),
+      idle_timeout_milliseconds(kIdleTimeout),
       max_packet_size(kMaxPacketSize,
                       kDefaultMaxPacketSizeTransportParam,
                       kMinMaxPacketSizeTransportParam,
@@ -338,8 +343,8 @@ bool TransportParameters::AreValid() const {
     QUIC_BUG << "Preferred address family failure";
     return false;
   }
-  const bool ok = idle_timeout_seconds.IsValid() && max_packet_size.IsValid() &&
-                  initial_max_data.IsValid() &&
+  const bool ok = idle_timeout_milliseconds.IsValid() &&
+                  max_packet_size.IsValid() && initial_max_data.IsValid() &&
                   initial_max_stream_data_bidi_local.IsValid() &&
                   initial_max_stream_data_bidi_remote.IsValid() &&
                   initial_max_stream_data_uni.IsValid() &&
@@ -360,25 +365,18 @@ bool SerializeTransportParameters(const TransportParameters& in,
     QUIC_DLOG(ERROR) << "Not serializing invalid transport parameters " << in;
     return false;
   }
+  if (in.version == 0 || (in.perspective == Perspective::IS_SERVER &&
+                          in.supported_versions.empty())) {
+    QUIC_DLOG(ERROR) << "Refusing to serialize without versions";
+    return false;
+  }
+
   bssl::ScopedCBB cbb;
   // Empirically transport parameters generally fit within 128 bytes.
   // The CBB will grow to fit larger serializations if required.
-  if (!CBB_init(cbb.get(), 128) || !CBB_add_u32(cbb.get(), in.version)) {
-    QUIC_BUG << "Failed to write version for " << in;
+  if (!CBB_init(cbb.get(), 128)) {
+    QUIC_BUG << "Failed to initialize CBB for " << in;
     return false;
-  }
-  CBB versions;
-  if (in.perspective == Perspective::IS_SERVER) {
-    if (!CBB_add_u8_length_prefixed(cbb.get(), &versions)) {
-      QUIC_BUG << "Failed to write versions length for " << in;
-      return false;
-    }
-    for (QuicVersionLabel version : in.supported_versions) {
-      if (!CBB_add_u32(&versions, version)) {
-        QUIC_BUG << "Failed to write supported version for " << in;
-        return false;
-      }
-    }
   }
 
   CBB params;
@@ -404,7 +402,7 @@ bool SerializeTransportParameters(const TransportParameters& in,
     }
   }
 
-  if (!in.idle_timeout_seconds.WriteToCbb(&params)) {
+  if (!in.idle_timeout_milliseconds.WriteToCbb(&params)) {
     QUIC_BUG << "Failed to write idle_timeout for " << in;
     return false;
   }
@@ -504,6 +502,29 @@ bool SerializeTransportParameters(const TransportParameters& in,
       return false;
     }
   }
+
+  // Google-specific version extension.
+  CBB google_version_params;
+  if (!CBB_add_u16(&params, kGoogleQuicVersion) ||
+      !CBB_add_u16_length_prefixed(&params, &google_version_params) ||
+      !CBB_add_u32(&google_version_params, in.version)) {
+    QUIC_BUG << "Failed to write Google version extension for " << in;
+    return false;
+  }
+  CBB versions;
+  if (in.perspective == Perspective::IS_SERVER) {
+    if (!CBB_add_u8_length_prefixed(&google_version_params, &versions)) {
+      QUIC_BUG << "Failed to write versions length for " << in;
+      return false;
+    }
+    for (QuicVersionLabel version : in.supported_versions) {
+      if (!CBB_add_u32(&versions, version)) {
+        QUIC_BUG << "Failed to write supported version for " << in;
+        return false;
+      }
+    }
+  }
+
   if (!CBB_flush(cbb.get())) {
     QUIC_BUG << "Failed to flush CBB for " << in;
     return false;
@@ -519,31 +540,9 @@ bool ParseTransportParameters(const uint8_t* in,
                               size_t in_len,
                               Perspective perspective,
                               TransportParameters* out) {
+  out->perspective = perspective;
   CBS cbs;
   CBS_init(&cbs, in, in_len);
-  if (!CBS_get_u32(&cbs, &out->version)) {
-    QUIC_DLOG(ERROR) << "Failed to parse transport parameter version";
-    return false;
-  }
-  if (perspective == Perspective::IS_SERVER) {
-    CBS versions;
-    if (!CBS_get_u8_length_prefixed(&cbs, &versions) ||
-        CBS_len(&versions) % 4 != 0) {
-      QUIC_DLOG(ERROR)
-          << "Failed to parse transport parameter supported versions";
-      return false;
-    }
-    while (CBS_len(&versions) > 0) {
-      QuicVersionLabel version;
-      if (!CBS_get_u32(&versions, &version)) {
-        QUIC_DLOG(ERROR)
-            << "Failed to parse transport parameter supported version";
-        return false;
-      }
-      out->supported_versions.push_back(version);
-    }
-  }
-  out->perspective = perspective;
 
   CBS params;
   if (!CBS_get_u16_length_prefixed(&cbs, &params)) {
@@ -552,19 +551,20 @@ bool ParseTransportParameters(const uint8_t* in,
   }
 
   while (CBS_len(&params) > 0) {
-    uint16_t param_id;
+    TransportParameters::TransportParameterId param_id;
     CBS value;
-    if (!CBS_get_u16(&params, &param_id)) {
+    static_assert(sizeof(param_id) == sizeof(uint16_t), "bad size");
+    if (!CBS_get_u16(&params, reinterpret_cast<uint16_t*>(&param_id))) {
       QUIC_DLOG(ERROR) << "Failed to parse transport parameter ID";
       return false;
     }
     if (!CBS_get_u16_length_prefixed(&params, &value)) {
       QUIC_DLOG(ERROR) << "Failed to parse length of transport parameter "
-                       << param_id;
+                       << TransportParameterIdToString(param_id);
       return false;
     }
     bool parse_success = true;
-    switch (static_cast<TransportParameters::TransportParameterId>(param_id)) {
+    switch (param_id) {
       case kOriginalConnectionId:
         if (!out->original_connection_id.IsEmpty()) {
           QUIC_DLOG(ERROR) << "Received a second original connection ID";
@@ -582,7 +582,7 @@ bool ParseTransportParameters(const uint8_t* in,
         }
         break;
       case kIdleTimeout:
-        parse_success = out->idle_timeout_seconds.ReadFromCbs(&value);
+        parse_success = out->idle_timeout_milliseconds.ReadFromCbs(&value);
         break;
       case kStatelessResetToken:
         if (!out->stateless_reset_token.empty()) {
@@ -692,7 +692,7 @@ bool ParseTransportParameters(const uint8_t* in,
             QuicMakeUnique<TransportParameters::PreferredAddress>(
                 preferred_address);
       } break;
-      case kGoogleQuicParam:
+      case kGoogleQuicParam: {
         if (out->google_quic_params) {
           QUIC_DLOG(ERROR) << "Received a second Google parameter";
           return false;
@@ -700,6 +700,30 @@ bool ParseTransportParameters(const uint8_t* in,
         QuicStringPiece serialized_params(
             reinterpret_cast<const char*>(CBS_data(&value)), CBS_len(&value));
         out->google_quic_params = CryptoFramer::ParseMessage(serialized_params);
+      } break;
+      case kGoogleQuicVersion: {
+        if (!CBS_get_u32(&value, &out->version)) {
+          QUIC_DLOG(ERROR) << "Failed to parse Google version extension";
+          return false;
+        }
+        if (perspective == Perspective::IS_SERVER) {
+          CBS versions;
+          if (!CBS_get_u8_length_prefixed(&value, &versions) ||
+              CBS_len(&versions) % 4 != 0) {
+            QUIC_DLOG(ERROR)
+                << "Failed to parse Google supported versions length";
+            return false;
+          }
+          while (CBS_len(&versions) > 0) {
+            QuicVersionLabel version;
+            if (!CBS_get_u32(&versions, &version)) {
+              QUIC_DLOG(ERROR) << "Failed to parse Google supported version";
+              return false;
+            }
+            out->supported_versions.push_back(version);
+          }
+        }
+      } break;
     }
     if (!parse_success) {
       return false;

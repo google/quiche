@@ -750,8 +750,8 @@ QuicErrorCode QuicConfig::ProcessPeerHello(
 }
 
 bool QuicConfig::FillTransportParameters(TransportParameters* params) const {
-  params->idle_timeout_seconds.set_value(
-      idle_network_timeout_seconds_.GetUint32());
+  params->idle_timeout_milliseconds.set_value(
+      idle_network_timeout_seconds_.GetUint32() * kNumMillisPerSecond);
 
   if (stateless_reset_token_.HasSendValue()) {
     QuicUint128 stateless_reset_token = stateless_reset_token_.GetSendValue();
@@ -807,7 +807,9 @@ QuicErrorCode QuicConfig::ProcessTransportParameters(
     const TransportParameters& params,
     HelloType hello_type,
     std::string* error_details) {
-  uint64_t idle_timeout_seconds = params.idle_timeout_seconds.value();
+  // Intentionally round down to probe too often rather than not often enough.
+  uint64_t idle_timeout_seconds =
+      params.idle_timeout_milliseconds.value() / kNumMillisPerSecond;
   if (idle_timeout_seconds > kMaximumIdleTimeoutSecs) {
     idle_timeout_seconds = kMaximumIdleTimeoutSecs;
   }
