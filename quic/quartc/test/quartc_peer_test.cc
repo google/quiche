@@ -34,6 +34,7 @@ class QuartcPeerTest : public QuicTest {
                             QuicBandwidth::FromKBitsPerSecond(512),
                             QuicTime::Delta::FromMilliseconds(100)) {
     simulator_.set_random_generator(&rng_);
+    SetQuicReloadableFlag(quic_default_to_bbr, true);
   }
 
   void CreatePeers(const std::vector<QuartcDataSource::Config>& configs) {
