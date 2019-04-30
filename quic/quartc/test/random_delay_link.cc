@@ -17,7 +17,7 @@ namespace simulator {
 namespace {
 
 // Number of buckets used to define an exponential distribution.
-constexpr int64_t kNumBuckets = 2l << 32;
+constexpr int64_t kNumBuckets = static_cast<int64_t>(2) << 32;
 
 }  // namespace
 
