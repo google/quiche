@@ -90,12 +90,12 @@ void QuicServer::Initialize() {
   const uint32_t kInitialSessionFlowControlWindow = 1 * 1024 * 1024;  // 1 MB
   const uint32_t kInitialStreamFlowControlWindow = 64 * 1024;         // 64 KB
   if (config_.GetInitialStreamFlowControlWindowToSend() ==
-      kMinimumFlowControlSendWindow) {
+      kDefaultFlowControlSendWindow) {
     config_.SetInitialStreamFlowControlWindowToSend(
         kInitialStreamFlowControlWindow);
   }
   if (config_.GetInitialSessionFlowControlWindowToSend() ==
-      kMinimumFlowControlSendWindow) {
+      kDefaultFlowControlSendWindow) {
     config_.SetInitialSessionFlowControlWindowToSend(
         kInitialSessionFlowControlWindow);
   }

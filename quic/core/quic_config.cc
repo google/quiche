@@ -562,7 +562,7 @@ void QuicConfig::SetInitialStreamFlowControlWindowToSend(
     uint32_t window_bytes) {
   if (window_bytes < kMinimumFlowControlSendWindow) {
     QUIC_BUG << "Initial stream flow control receive window (" << window_bytes
-             << ") cannot be set lower than default ("
+             << ") cannot be set lower than minimum ("
              << kMinimumFlowControlSendWindow << ").";
     window_bytes = kMinimumFlowControlSendWindow;
   }

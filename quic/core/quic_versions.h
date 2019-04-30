@@ -147,6 +147,10 @@ struct QUIC_EXPORT_PRIVATE ParsedQuicVersion {
   }
 
   bool KnowsWhichDecrypterToUse() const;
+
+  // Indicates that this QUIC version does not have an enforced minimum value
+  // for flow control values negotiated during the handshake.
+  bool AllowsLowFlowControlLimits() const;
 };
 
 QUIC_EXPORT_PRIVATE ParsedQuicVersion UnsupportedQuicVersion();

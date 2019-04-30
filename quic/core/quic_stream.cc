@@ -33,7 +33,7 @@ size_t GetReceivedFlowControlWindow(QuicSession* session) {
     return session->config()->ReceivedInitialStreamFlowControlWindowBytes();
   }
 
-  return kMinimumFlowControlSendWindow;
+  return kDefaultFlowControlSendWindow;
 }
 
 }  // namespace

@@ -1448,8 +1448,12 @@ TEST_P(QuicSessionTestServer, InvalidStreamFlowControlWindowInHandshake) {
   QuicConfigPeer::SetReceivedInitialStreamFlowControlWindow(session_.config(),
                                                             kInvalidWindow);
 
-  EXPECT_CALL(*connection_,
-              CloseConnection(QUIC_FLOW_CONTROL_INVALID_WINDOW, _, _));
+  if (!connection_->version().AllowsLowFlowControlLimits()) {
+    EXPECT_CALL(*connection_,
+                CloseConnection(QUIC_FLOW_CONTROL_INVALID_WINDOW, _, _));
+  } else {
+    EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(0);
+  }
   session_.OnConfigNegotiated();
 }
 
@@ -1459,9 +1463,12 @@ TEST_P(QuicSessionTestServer, InvalidSessionFlowControlWindowInHandshake) {
   const uint32_t kInvalidWindow = kMinimumFlowControlSendWindow - 1;
   QuicConfigPeer::SetReceivedInitialSessionFlowControlWindow(session_.config(),
                                                              kInvalidWindow);
-
-  EXPECT_CALL(*connection_,
-              CloseConnection(QUIC_FLOW_CONTROL_INVALID_WINDOW, _, _));
+  if (!connection_->version().AllowsLowFlowControlLimits()) {
+    EXPECT_CALL(*connection_,
+                CloseConnection(QUIC_FLOW_CONTROL_INVALID_WINDOW, _, _));
+  } else {
+    EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(0);
+  }
   session_.OnConfigNegotiated();
 }
 

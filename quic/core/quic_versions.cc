@@ -42,6 +42,11 @@ bool ParsedQuicVersion::KnowsWhichDecrypterToUse() const {
          handshake_protocol == PROTOCOL_TLS1_3;
 }
 
+bool ParsedQuicVersion::AllowsLowFlowControlLimits() const {
+  return transport_version == QUIC_VERSION_99 &&
+         handshake_protocol == PROTOCOL_TLS1_3;
+}
+
 std::ostream& operator<<(std::ostream& os, const ParsedQuicVersion& version) {
   os << ParsedQuicVersionToString(version);
   return os;

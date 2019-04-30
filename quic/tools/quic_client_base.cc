@@ -54,11 +54,11 @@ bool QuicClientBase::Initialize() {
   const uint32_t kSessionMaxRecvWindowSize = 15 * 1024 * 1024;  // 15 MB
   const uint32_t kStreamMaxRecvWindowSize = 6 * 1024 * 1024;    //  6 MB
   if (config()->GetInitialStreamFlowControlWindowToSend() ==
-      kMinimumFlowControlSendWindow) {
+      kDefaultFlowControlSendWindow) {
     config()->SetInitialStreamFlowControlWindowToSend(kStreamMaxRecvWindowSize);
   }
   if (config()->GetInitialSessionFlowControlWindowToSend() ==
-      kMinimumFlowControlSendWindow) {
+      kDefaultFlowControlSendWindow) {
     config()->SetInitialSessionFlowControlWindowToSend(
         kSessionMaxRecvWindowSize);
   }

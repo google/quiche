@@ -69,7 +69,9 @@ QuicSession::QuicSession(QuicConnection* connection,
           this,
           QuicUtils::GetInvalidStreamId(connection->transport_version()),
           /*is_connection_flow_controller*/ true,
-          kMinimumFlowControlSendWindow,
+          connection->version().AllowsLowFlowControlLimits()
+              ? 0
+              : kMinimumFlowControlSendWindow,
           config_.GetInitialSessionFlowControlWindowToSend(),
           kSessionReceiveWindowLimit,
           perspective() == Perspective::IS_SERVER,
@@ -1054,10 +1056,11 @@ void QuicSession::HandleRstOnValidNonexistentStream(
 }
 
 void QuicSession::OnNewStreamFlowControlWindow(QuicStreamOffset new_window) {
-  if (new_window < kMinimumFlowControlSendWindow) {
+  if (new_window < kMinimumFlowControlSendWindow &&
+      !connection_->version().AllowsLowFlowControlLimits()) {
     QUIC_LOG_FIRST_N(ERROR, 1)
         << "Peer sent us an invalid stream flow control send window: "
-        << new_window << ", below default: " << kMinimumFlowControlSendWindow;
+        << new_window << ", below minimum: " << kMinimumFlowControlSendWindow;
     if (connection_->connected()) {
       connection_->CloseConnection(
           QUIC_FLOW_CONTROL_INVALID_WINDOW, "New stream window too low",
@@ -1080,7 +1083,8 @@ void QuicSession::OnNewStreamFlowControlWindow(QuicStreamOffset new_window) {
 }
 
 void QuicSession::OnNewSessionFlowControlWindow(QuicStreamOffset new_window) {
-  if (new_window < kMinimumFlowControlSendWindow) {
+  if (new_window < kMinimumFlowControlSendWindow &&
+      !connection_->version().AllowsLowFlowControlLimits()) {
     QUIC_LOG_FIRST_N(ERROR, 1)
         << "Peer sent us an invalid session flow control send window: "
         << new_window << ", below default: " << kMinimumFlowControlSendWindow;
