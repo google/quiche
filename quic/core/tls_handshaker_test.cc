@@ -265,7 +265,7 @@ void ExchangeHandshakeMessages(TestQuicCryptoStream* client,
 
 ParsedQuicVersionVector AllTlsSupportedVersions() {
   SetQuicReloadableFlag(quic_enable_version_99, true);
-  SetQuicFlag(&FLAGS_quic_supports_tls_handshake, true);
+  SetQuicFlag(FLAGS_quic_supports_tls_handshake, true);
   ParsedQuicVersionVector supported_versions;
   for (QuicTransportVersion version : kSupportedTransportVersions) {
     if (!QuicVersionUsesCryptoFrames(version)) {

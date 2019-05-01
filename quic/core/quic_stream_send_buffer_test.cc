@@ -48,7 +48,7 @@ class QuicStreamSendBufferTest : public QuicTest {
               QuicStreamSendBufferPeer::CurrentWriteSlice(&send_buffer_));
 
     // Save all data.
-    SetQuicFlag(&FLAGS_quic_send_buffer_max_data_slice_size, 1024);
+    SetQuicFlag(FLAGS_quic_send_buffer_max_data_slice_size, 1024);
     send_buffer_.SaveStreamData(iov, 2, 0, 2048);
     send_buffer_.SaveMemSlice(std::move(slice1));
     EXPECT_TRUE(slice1.empty());

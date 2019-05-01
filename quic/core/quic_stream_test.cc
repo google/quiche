@@ -956,7 +956,7 @@ TEST_P(QuicStreamTest, ConnectionClosed) {
 }
 
 TEST_P(QuicStreamTest, CanWriteNewDataAfterData) {
-  SetQuicFlag(&FLAGS_quic_buffered_data_threshold, 100);
+  SetQuicFlag(FLAGS_quic_buffered_data_threshold, 100);
   Initialize();
   EXPECT_TRUE(stream_->CanWriteNewDataAfterData(99));
   EXPECT_FALSE(stream_->CanWriteNewDataAfterData(100));
@@ -964,7 +964,7 @@ TEST_P(QuicStreamTest, CanWriteNewDataAfterData) {
 
 TEST_P(QuicStreamTest, WriteBufferedData) {
   // Set buffered data low water mark to be 100.
-  SetQuicFlag(&FLAGS_quic_buffered_data_threshold, 100);
+  SetQuicFlag(FLAGS_quic_buffered_data_threshold, 100);
   // Do not stream level flow control block this stream.
   set_initial_flow_control_window_bytes(500000);
 
@@ -1098,7 +1098,7 @@ TEST_P(QuicStreamTest, WritevDataReachStreamLimit) {
 
 TEST_P(QuicStreamTest, WriteMemSlices) {
   // Set buffered data low water mark to be 100.
-  SetQuicFlag(&FLAGS_quic_buffered_data_threshold, 100);
+  SetQuicFlag(FLAGS_quic_buffered_data_threshold, 100);
   // Do not flow control block this stream.
   set_initial_flow_control_window_bytes(500000);
 

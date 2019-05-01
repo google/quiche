@@ -250,7 +250,7 @@ int main(int argc, char* argv[]) {
   if (quic_version_string.length() > 0) {
     if (quic_version_string[0] == 'T') {
       // ParseQuicVersionString checks quic_supports_tls_handshake.
-      SetQuicFlag(&FLAGS_quic_supports_tls_handshake, true);
+      SetQuicFlag(FLAGS_quic_supports_tls_handshake, true);
     }
     quic::ParsedQuicVersion parsed_quic_version =
         quic::ParseQuicVersionString(quic_version_string);

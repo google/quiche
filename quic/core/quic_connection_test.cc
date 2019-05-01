@@ -868,7 +868,7 @@ struct TestParams {
 // Constructs various test permutations.
 std::vector<TestParams> GetTestParams() {
   QuicFlagSaver flags;
-  SetQuicFlag(&FLAGS_quic_supports_tls_handshake, true);
+  SetQuicFlag(FLAGS_quic_supports_tls_handshake, true);
   std::vector<TestParams> params;
   ParsedQuicVersionVector all_supported_versions = AllSupportedVersions();
   for (size_t i = 0; i < all_supported_versions.size(); ++i) {
@@ -928,7 +928,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
         packet_number_length_(PACKET_4BYTE_PACKET_NUMBER),
         connection_id_included_(CONNECTION_ID_PRESENT),
         notifier_(&connection_) {
-    SetQuicFlag(&FLAGS_quic_supports_tls_handshake, true);
+    SetQuicFlag(FLAGS_quic_supports_tls_handshake, true);
     connection_.set_defer_send_in_response_to_packets(GetParam().ack_response ==
                                                       AckResponse::kDefer);
     QuicFramerPeer::SetLastSerializedConnectionId(

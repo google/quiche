@@ -388,8 +388,8 @@ TEST_F(PacingSenderTest, CwndLimited) {
 
 TEST_F(PacingSenderTest, LumpyPacingWithInitialBurstToken) {
   // Set lumpy size to be 3, and cwnd faction to 0.5
-  SetQuicFlag(&FLAGS_quic_lumpy_pacing_size, 3);
-  SetQuicFlag(&FLAGS_quic_lumpy_pacing_cwnd_fraction, 0.5f);
+  SetQuicFlag(FLAGS_quic_lumpy_pacing_size, 3);
+  SetQuicFlag(FLAGS_quic_lumpy_pacing_cwnd_fraction, 0.5f);
   // Configure pacing rate of 1 packet per 1 ms.
   InitPacingRate(
       10, QuicBandwidth::FromBytesAndTimeDelta(
@@ -442,8 +442,8 @@ TEST_F(PacingSenderTest, LumpyPacingWithInitialBurstToken) {
 
 TEST_F(PacingSenderTest, NoLumpyPacingForLowBandwidthFlows) {
   // Set lumpy size to be 3, and cwnd faction to 0.5
-  SetQuicFlag(&FLAGS_quic_lumpy_pacing_size, 3);
-  SetQuicFlag(&FLAGS_quic_lumpy_pacing_cwnd_fraction, 0.5f);
+  SetQuicFlag(FLAGS_quic_lumpy_pacing_size, 3);
+  SetQuicFlag(FLAGS_quic_lumpy_pacing_cwnd_fraction, 0.5f);
   SetQuicReloadableFlag(quic_no_lumpy_pacing_at_low_bw, true);
 
   // Configure pacing rate of 1 packet per 100 ms.

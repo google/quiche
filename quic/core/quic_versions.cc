@@ -408,14 +408,14 @@ void QuicVersionInitializeSupportForIetfDraft(int32_t draft_version) {
     return;
   }
 
-  SetQuicFlag(&FLAGS_quic_ietf_draft_version, draft_version);
+  SetQuicFlag(FLAGS_quic_ietf_draft_version, draft_version);
 
   if (draft_version == 0) {
     return;
   }
 
   // Enable necessary flags.
-  SetQuicFlag(&FLAGS_quic_supports_tls_handshake, true);
+  SetQuicFlag(FLAGS_quic_supports_tls_handshake, true);
   SetQuicReloadableFlag(quic_deprecate_ack_bundling_mode, true);
   SetQuicReloadableFlag(quic_rpm_decides_when_to_send_acks, true);
   SetQuicReloadableFlag(quic_use_uber_loss_algorithm, true);
@@ -427,7 +427,7 @@ void QuicVersionInitializeSupportForIetfDraft(int32_t draft_version) {
 
 void QuicEnableVersion(ParsedQuicVersion parsed_version) {
   if (parsed_version.handshake_protocol == PROTOCOL_TLS1_3) {
-    SetQuicFlag(&FLAGS_quic_supports_tls_handshake, true);
+    SetQuicFlag(FLAGS_quic_supports_tls_handshake, true);
   }
   static_assert(QUIC_ARRAYSIZE(kSupportedTransportVersions) == 6u,
                 "Supported versions out of sync");

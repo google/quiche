@@ -68,7 +68,7 @@ void ConfigureGlobalQuicSettings() {
 
   // Ensure that we don't drop data because QUIC streams refuse to buffer it.
   // TODO(b/120099046):  Replace this with correct handling of WriteMemSlices().
-  SetQuicFlag(&FLAGS_quic_buffered_data_threshold,
+  SetQuicFlag(FLAGS_quic_buffered_data_threshold,
               std::numeric_limits<int>::max());
 
   // TODO(b/117157454): Perform version negotiation for Quartc outside of

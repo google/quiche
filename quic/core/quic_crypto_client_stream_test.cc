@@ -97,7 +97,7 @@ TEST_F(QuicCryptoClientStreamTest, ConnectedAfterSHLO) {
 }
 
 TEST_F(QuicCryptoClientStreamTest, ConnectedAfterTlsHandshake) {
-  SetQuicFlag(&FLAGS_quic_supports_tls_handshake, true);
+  SetQuicFlag(FLAGS_quic_supports_tls_handshake, true);
   supported_versions_.clear();
   for (QuicTransportVersion transport_version :
        AllSupportedTransportVersions()) {
