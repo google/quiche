@@ -813,6 +813,9 @@ QuicErrorCode QuicConfig::ProcessTransportParameters(
   if (idle_timeout_seconds > kMaximumIdleTimeoutSecs) {
     idle_timeout_seconds = kMaximumIdleTimeoutSecs;
   }
+  if (idle_timeout_seconds < 10) {
+    idle_timeout_seconds = 10;
+  }
   QuicErrorCode error = idle_network_timeout_seconds_.ReceiveValue(
       idle_timeout_seconds, hello_type, error_details);
   if (error != QUIC_NO_ERROR) {
