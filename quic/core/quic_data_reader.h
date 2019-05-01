@@ -108,6 +108,11 @@ class QUIC_EXPORT_PRIVATE QuicDataReader {
   // Returns true on success, false otherwise.
   bool ReadBytes(void* result, size_t size);
 
+  // Skips over |size| bytes from the buffer and forwards the internal iterator.
+  // Returns true if there are at least |size| bytes remaining to read, false
+  // otherwise.
+  bool SkipBytes(size_t size);
+
   // Returns true if the entirety of the underlying buffer has been read via
   // Read*() calls.
   bool IsDoneReading() const;

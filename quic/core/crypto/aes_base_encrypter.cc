@@ -11,7 +11,7 @@ namespace quic {
 
 bool AesBaseEncrypter::SetHeaderProtectionKey(QuicStringPiece key) {
   if (key.size() != GetKeySize()) {
-    QUIC_BUG << "Invalid key size for header protection";
+    QUIC_BUG << "Invalid key size for header protection: " << key.size();
     return false;
   }
   if (AES_set_encrypt_key(reinterpret_cast<const uint8_t*>(key.data()),

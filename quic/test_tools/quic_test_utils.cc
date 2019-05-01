@@ -885,14 +885,39 @@ QuicEncryptedPacket* ConstructEncryptedPacket(
   QuicFrames frames;
   QuicFramer framer(*versions, QuicTime::Zero(), perspective,
                     kQuicDefaultConnectionIdLength);
-  if (!QuicVersionUsesCryptoFrames((*versions)[0].transport_version)) {
-    QuicFrame frame(QuicStreamFrame(
-        QuicUtils::GetCryptoStreamId((*versions)[0].transport_version), false,
-        0, QuicStringPiece(data)));
+  ParsedQuicVersion version = (*versions)[0];
+  EncryptionLevel level =
+      header.version_flag ? ENCRYPTION_INITIAL : ENCRYPTION_FORWARD_SECURE;
+  if (version.handshake_protocol == PROTOCOL_TLS1_3 &&
+      level == ENCRYPTION_INITIAL) {
+    CrypterPair crypters;
+    CryptoUtils::CreateTlsInitialCrypters(Perspective::IS_CLIENT,
+                                          version.transport_version,
+                                          destination_connection_id, &crypters);
+    framer.SetEncrypter(ENCRYPTION_INITIAL, std::move(crypters.encrypter));
+    if (version.KnowsWhichDecrypterToUse()) {
+      framer.InstallDecrypter(ENCRYPTION_INITIAL,
+                              std::move(crypters.decrypter));
+    } else {
+      framer.SetDecrypter(ENCRYPTION_INITIAL, std::move(crypters.decrypter));
+    }
+  }
+  if (!QuicVersionUsesCryptoFrames(version.transport_version)) {
+    QuicFrame frame(
+        QuicStreamFrame(QuicUtils::GetCryptoStreamId(version.transport_version),
+                        false, 0, QuicStringPiece(data)));
     frames.push_back(frame);
   } else {
-    QuicFrame frame(new QuicCryptoFrame(ENCRYPTION_INITIAL, 0, data));
+    QuicFrame frame(new QuicCryptoFrame(level, 0, data));
     frames.push_back(frame);
+  }
+  // We need a minimum of 7 bytes of encrypted payload. (See
+  // QuicPacketCreator::kMinPlaintextPacketSize.) This will guarantee that we
+  // have at least that much. (It ignores the overhead of the stream/crypto
+  // framing, so it overpads slightly.)
+  if (data.length() < 7) {
+    size_t padding_length = 7 - data.length();
+    frames.push_back(QuicFrame(QuicPaddingFrame(padding_length)));
   }
 
   std::unique_ptr<QuicPacket> packet(
@@ -946,9 +971,26 @@ QuicEncryptedPacket* ConstructMisFramedEncryptedPacket(
   QuicFrame frame(QuicStreamFrame(1, false, 0, QuicStringPiece(data)));
   QuicFrames frames;
   frames.push_back(frame);
+  ParsedQuicVersion version =
+      (versions != nullptr ? *versions : AllSupportedVersions())[0];
   QuicFramer framer(versions != nullptr ? *versions : AllSupportedVersions(),
                     QuicTime::Zero(), perspective,
                     kQuicDefaultConnectionIdLength);
+  if (version.handshake_protocol == PROTOCOL_TLS1_3 && version_flag) {
+    CrypterPair crypters;
+    CryptoUtils::CreateTlsInitialCrypters(Perspective::IS_CLIENT,
+                                          version.transport_version,
+                                          destination_connection_id, &crypters);
+    framer.SetEncrypter(ENCRYPTION_INITIAL, std::move(crypters.encrypter));
+    framer.SetDecrypter(ENCRYPTION_INITIAL, std::move(crypters.decrypter));
+  }
+  // We need a minimum of 7 bytes of encrypted payload. This will guarantee that
+  // we have at least that much. (It ignores the overhead of the stream/crypto
+  // framing, so it overpads slightly.)
+  if (data.length() < 7) {
+    size_t padding_length = 7 - data.length();
+    frames.push_back(QuicFrame(QuicPaddingFrame(padding_length)));
+  }
 
   std::unique_ptr<QuicPacket> packet(
       BuildUnsizedDataPacket(&framer, header, frames));

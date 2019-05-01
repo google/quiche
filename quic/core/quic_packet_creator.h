@@ -278,6 +278,9 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
     return framer_->transport_version();
   }
 
+  // Returns the minimum size that the plaintext of a packet must be.
+  size_t MinPlaintextPacketSize() const;
+
  private:
   friend class test::QuicPacketCreatorPeer;
 

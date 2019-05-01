@@ -180,6 +180,15 @@ bool QuicDataReader::ReadBytes(void* result, size_t size) {
   return true;
 }
 
+bool QuicDataReader::SkipBytes(size_t size) {
+  if (!CanRead(size)) {
+    OnFailure();
+    return false;
+  }
+  pos_ += size;
+  return true;
+}
+
 bool QuicDataReader::IsDoneReading() const {
   return len_ == pos_;
 }

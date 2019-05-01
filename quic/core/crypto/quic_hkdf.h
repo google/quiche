@@ -54,6 +54,8 @@ class QUIC_EXPORT QuicHKDF {
   QuicStringPiece server_write_key() const { return server_write_key_; }
   QuicStringPiece server_write_iv() const { return server_write_iv_; }
   QuicStringPiece subkey_secret() const { return subkey_secret_; }
+  QuicStringPiece client_hp_key() const { return client_hp_key_; }
+  QuicStringPiece server_hp_key() const { return server_hp_key_; }
 
  private:
   std::vector<uint8_t> output_;
@@ -63,6 +65,8 @@ class QUIC_EXPORT QuicHKDF {
   QuicStringPiece client_write_iv_;
   QuicStringPiece server_write_iv_;
   QuicStringPiece subkey_secret_;
+  QuicStringPiece client_hp_key_;
+  QuicStringPiece server_hp_key_;
 };
 
 }  // namespace quic

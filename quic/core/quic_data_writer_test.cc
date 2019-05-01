@@ -1142,6 +1142,46 @@ TEST_P(QuicDataWriterTest, InvalidU32) {
   EXPECT_EQ(123456u, read_stream_count);
 }
 
+TEST_P(QuicDataWriterTest, Seek) {
+  char buffer[3] = {};
+  QuicDataWriter writer(QUIC_ARRAYSIZE(buffer), buffer, GetParam().endianness);
+  EXPECT_TRUE(writer.WriteUInt8(42));
+  EXPECT_TRUE(writer.Seek(1));
+  EXPECT_TRUE(writer.WriteUInt8(3));
+
+  char expected[] = {42, 0, 3};
+  for (size_t i = 0; i < QUIC_ARRAYSIZE(expected); ++i) {
+    EXPECT_EQ(buffer[i], expected[i]);
+  }
+}
+
+TEST_P(QuicDataWriterTest, SeekTooFarFails) {
+  char buffer[20];
+
+  // Check that one can seek to the end of the writer, but not past.
+  {
+    QuicDataWriter writer(QUIC_ARRAYSIZE(buffer), buffer,
+                          GetParam().endianness);
+    EXPECT_TRUE(writer.Seek(20));
+    EXPECT_FALSE(writer.Seek(1));
+  }
+
+  // Seeking several bytes past the end fails.
+  {
+    QuicDataWriter writer(QUIC_ARRAYSIZE(buffer), buffer,
+                          GetParam().endianness);
+    EXPECT_FALSE(writer.Seek(100));
+  }
+
+  // Seeking so far that arithmetic overflow could occur also fails.
+  {
+    QuicDataWriter writer(QUIC_ARRAYSIZE(buffer), buffer,
+                          GetParam().endianness);
+    EXPECT_TRUE(writer.Seek(10));
+    EXPECT_FALSE(writer.Seek(std::numeric_limits<size_t>::max()));
+  }
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

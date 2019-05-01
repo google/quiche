@@ -584,6 +584,34 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
     size_t num_ack_blocks;
   };
 
+  // Applies header protection to an IETF QUIC packet header in |buffer| using
+  // the encrypter for level |level|. The buffer has |buffer_len| bytes of data,
+  // with the first protected packet bytes starting at |ad_len|.
+  bool ApplyHeaderProtection(EncryptionLevel level,
+                             char* buffer,
+                             size_t buffer_len,
+                             size_t ad_len);
+
+  // Removes header protection from an IETF QUIC packet header.
+  //
+  // The packet number from the header is read from |reader|, where the packet
+  // number is the next contents in |reader|. |reader| is only advanced by the
+  // length of the packet number, but it is also used to peek the sample needed
+  // for removing header protection.
+  //
+  // Properties needed for removing header protection are read from |header|.
+  // The packet number length and type byte are written to |header|.
+  //
+  // The packet number, after removing header protection and decoding it, is
+  // written to |full_packet_number|. Finally, the header, with header
+  // protection removed, is written to |associated_data| to be used in packet
+  // decryption. |packet| is used in computing the asociated data.
+  bool RemoveHeaderProtection(QuicDataReader* reader,
+                              const QuicEncryptedPacket& packet,
+                              QuicPacketHeader* header,
+                              uint64_t* full_packet_number,
+                              std::vector<char>* associated_data);
+
   bool ProcessDataPacket(QuicDataReader* reader,
                          QuicPacketHeader* header,
                          const QuicEncryptedPacket& packet,
@@ -931,6 +959,10 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
 
   // Indicates whether this framer supports multiple packet number spaces.
   bool supports_multiple_packet_number_spaces_;
+
+  // The length in bytes of the last packet number written to an IETF-framed
+  // packet.
+  size_t last_written_packet_number_length_;
 };
 
 }  // namespace quic

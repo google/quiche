@@ -102,6 +102,7 @@ struct QUIC_EXPORT_PRIVATE QuicPacketHeader {
   // parsed from the packet buffer. IETF QUIC only, always false for GQUIC.
   bool has_possible_stateless_reset_token;
   QuicPacketNumberLength packet_number_length;
+  uint8_t type_byte;
   ParsedQuicVersion version;
   // nonce contains an optional, 32-byte nonce value. If not included in the
   // packet, |nonce| will be empty.

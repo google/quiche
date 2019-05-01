@@ -652,7 +652,9 @@ TEST_P(QuicPacketCreatorTest, CreateAllFreeBytesForStreamFrames) {
   const size_t overhead =
       GetPacketHeaderOverhead(client_framer_.transport_version()) +
       GetEncryptionOverhead();
-  for (size_t i = overhead; i < overhead + 100; ++i) {
+  for (size_t i = overhead + creator_.MinPlaintextPacketSize();
+       i < overhead + 100; ++i) {
+    SCOPED_TRACE(i);
     creator_.SetMaxPacketLength(i);
     const bool should_have_room =
         i >
@@ -1176,6 +1178,44 @@ TEST_P(QuicPacketCreatorTest, SerializeFrame) {
   if (!GetParam().version_serialization) {
     creator_.StopSendingVersion();
   }
+  std::string data("test data");
+  if (!QuicVersionUsesCryptoFrames(client_framer_.transport_version())) {
+    QuicStreamFrame stream_frame(
+        QuicUtils::GetCryptoStreamId(client_framer_.transport_version()),
+        /*fin=*/false, 0u, QuicStringPiece());
+    frames_.push_back(QuicFrame(stream_frame));
+  } else {
+    producer_.SaveCryptoData(ENCRYPTION_INITIAL, 0, data);
+    frames_.push_back(
+        QuicFrame(new QuicCryptoFrame(ENCRYPTION_INITIAL, 0, data.length())));
+  }
+  SerializedPacket serialized = SerializeAllFrames(frames_);
+
+  QuicPacketHeader header;
+  {
+    InSequence s;
+    EXPECT_CALL(framer_visitor_, OnPacket());
+    EXPECT_CALL(framer_visitor_, OnUnauthenticatedPublicHeader(_));
+    EXPECT_CALL(framer_visitor_, OnUnauthenticatedHeader(_));
+    EXPECT_CALL(framer_visitor_, OnDecryptedPacket(_));
+    EXPECT_CALL(framer_visitor_, OnPacketHeader(_))
+        .WillOnce(DoAll(SaveArg<0>(&header), Return(true)));
+    if (QuicVersionUsesCryptoFrames(client_framer_.transport_version())) {
+      EXPECT_CALL(framer_visitor_, OnCryptoFrame(_));
+    } else {
+      EXPECT_CALL(framer_visitor_, OnStreamFrame(_));
+    }
+    EXPECT_CALL(framer_visitor_, OnPacketComplete());
+  }
+  ProcessPacket(serialized);
+  EXPECT_EQ(GetParam().version_serialization, header.version_flag);
+  DeleteFrames(&frames_);
+}
+
+TEST_P(QuicPacketCreatorTest, SerializeFrameShortData) {
+  if (!GetParam().version_serialization) {
+    creator_.StopSendingVersion();
+  }
   std::string data("a");
   if (!QuicVersionUsesCryptoFrames(client_framer_.transport_version())) {
     QuicStreamFrame stream_frame(
@@ -1202,6 +1242,9 @@ TEST_P(QuicPacketCreatorTest, SerializeFrame) {
       EXPECT_CALL(framer_visitor_, OnCryptoFrame(_));
     } else {
       EXPECT_CALL(framer_visitor_, OnStreamFrame(_));
+    }
+    if (client_framer_.version().HasHeaderProtection()) {
+      EXPECT_CALL(framer_visitor_, OnPaddingFrame(_));
     }
     EXPECT_CALL(framer_visitor_, OnPacketComplete());
   }
@@ -1786,6 +1829,9 @@ TEST_P(QuicPacketCreatorTest, RetryToken) {
       EXPECT_CALL(framer_visitor_, OnCryptoFrame(_));
     } else {
       EXPECT_CALL(framer_visitor_, OnStreamFrame(_));
+    }
+    if (client_framer_.version().HasHeaderProtection()) {
+      EXPECT_CALL(framer_visitor_, OnPaddingFrame(_));
     }
     EXPECT_CALL(framer_visitor_, OnPacketComplete());
   }

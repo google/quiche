@@ -587,8 +587,13 @@ TEST_F(QuicDispatcherTest, TimeWaitListManager) {
   // Create a new session.
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
   QuicConnectionId connection_id = TestConnectionId(1);
+  std::string expected_alpn = "hq";
+  if (CurrentSupportedVersions().front().handshake_protocol ==
+      PROTOCOL_TLS1_3) {
+    expected_alpn = "";
+  }
   EXPECT_CALL(*dispatcher_, CreateQuicSession(connection_id, client_address,
-                                              QuicStringPiece("hq"), _))
+                                              QuicStringPiece(expected_alpn), _))
       .WillOnce(testing::Return(CreateSession(
           dispatcher_.get(), config_, connection_id, client_address,
           &mock_helper_, &mock_alarm_factory_, &crypto_config_,
@@ -815,6 +820,11 @@ TEST_F(QuicDispatcherTest, OKSeqNoPacketProcessed) {
 }
 
 TEST_F(QuicDispatcherTest, TooBigSeqNoPacketToTimeWaitListManager) {
+  if (CurrentSupportedVersions().front().HasHeaderProtection()) {
+    // When header protection is in use, we don't put packets in the time wait
+    // list manager based on packet number.
+    return;
+  }
   CreateTimeWaitListManager();
   SetQuicRestartFlag(quic_enable_accept_random_ipn, false);
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
