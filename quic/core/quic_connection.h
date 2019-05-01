@@ -836,8 +836,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   bool session_decides_what_to_write() const;
 
-  void SetRetransmittableOnWireAlarm();
-
   // Sets the current per-packet options for the connection. The QuicConnection
   // does not take ownership of |options|; |options| must live for as long as
   // the QuicConnection is in use.

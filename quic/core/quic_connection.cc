@@ -181,21 +181,6 @@ class MtuDiscoveryAlarmDelegate : public QuicAlarm::Delegate {
   QuicConnection* connection_;
 };
 
-class RetransmittableOnWireAlarmDelegate : public QuicAlarm::Delegate {
- public:
-  explicit RetransmittableOnWireAlarmDelegate(QuicConnection* connection)
-      : connection_(connection) {}
-  RetransmittableOnWireAlarmDelegate(
-      const RetransmittableOnWireAlarmDelegate&) = delete;
-  RetransmittableOnWireAlarmDelegate& operator=(
-      const RetransmittableOnWireAlarmDelegate&) = delete;
-
-  void OnAlarm() override { connection_->OnPingTimeout(); }
-
- private:
-  QuicConnection* connection_;
-};
-
 class ProcessUndecryptablePacketsAlarmDelegate : public QuicAlarm::Delegate {
  public:
   explicit ProcessUndecryptablePacketsAlarmDelegate(QuicConnection* connection)
@@ -3224,12 +3209,13 @@ void QuicConnection::SetTimeoutAlarm() {
 
 void QuicConnection::SetPingAlarm() {
   if (perspective_ == Perspective::IS_SERVER) {
-    // Only clients send pings.
+    // Only clients send pings to avoid NATs from timing out.
     return;
   }
   if (!visitor_->ShouldKeepConnectionAlive()) {
     ping_alarm_->Cancel();
-    // Don't send a ping unless there are open streams.
+    // Don't send a ping unless the application (ie: HTTP/3) says to, usually
+    // because it is expecting a response from the server.
     return;
   }
   if (retransmittable_on_wire_timeout_.IsInfinite() ||
