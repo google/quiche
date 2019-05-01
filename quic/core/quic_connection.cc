@@ -1308,6 +1308,7 @@ bool QuicConnection::OnConnectionCloseFrame(
   }
   QUIC_DLOG(INFO) << ENDPOINT << "Received ConnectionClose for connection: "
                   << connection_id() << ", with error: "
+                  << static_cast<uint64_t>(frame.quic_error_code) << " "
                   << QuicErrorCodeToString(frame.quic_error_code) << " ("
                   << frame.error_details << ")";
   if (frame.close_type == GOOGLE_QUIC_CONNECTION_CLOSE &&
