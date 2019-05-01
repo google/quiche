@@ -3252,6 +3252,7 @@ TEST_P(QuicFramerTest, AckFrameFirstAckBlockLengthZero) {
     // not arise.
     return;
   }
+  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
 
   // clang-format off
   PacketFragments packet = {
@@ -3833,6 +3834,7 @@ TEST_P(QuicFramerTest, AckFrameTwoTimeStampsMultipleAckBlocks) {
 }
 
 TEST_P(QuicFramerTest, AckFrameTimeStampDeltaTooHigh) {
+  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
   // clang-format off
   unsigned char packet[] = {
       // public flags (8 byte connection_id)
@@ -3924,6 +3926,7 @@ TEST_P(QuicFramerTest, AckFrameTimeStampDeltaTooHigh) {
 }
 
 TEST_P(QuicFramerTest, AckFrameTimeStampSecondDeltaTooHigh) {
+  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
   // clang-format off
   unsigned char packet[] = {
       // public flags (8 byte connection_id)
@@ -4030,6 +4033,7 @@ TEST_P(QuicFramerTest, NewStopWaitingFrame) {
   if (version_.transport_version == QUIC_VERSION_99) {
     return;
   }
+  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
   // clang-format off
   PacketFragments packet = {
       // public flags (8 byte connection_id)
@@ -4113,6 +4117,7 @@ TEST_P(QuicFramerTest, InvalidNewStopWaitingFrame) {
   if (version_.transport_version == QUIC_VERSION_99) {
     return;
   }
+  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
   // clang-format off
   unsigned char packet[] = {
     // public flags (8 byte connection_id)
@@ -4509,6 +4514,7 @@ TEST_P(QuicFramerTest, GoAwayFrame) {
     // This frame is not supported in version 99.
     return;
   }
+  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
   // clang-format off
   PacketFragments packet = {
       // public flags (8 byte connection_id)
@@ -4634,6 +4640,7 @@ TEST_P(QuicFramerTest, WindowUpdateFrame) {
     // for Version 99 equivalents.
     return;
   }
+  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
   // clang-format off
   PacketFragments packet = {
       // public flags (8 byte connection_id)
@@ -9402,6 +9409,7 @@ TEST_P(QuicFramerTest, AckTruncationLargePacket) {
     // effectively unlimited
     return;
   }
+  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
 
   QuicPacketHeader header;
   header.destination_connection_id = FramerTestConnectionId();
@@ -9441,6 +9449,7 @@ TEST_P(QuicFramerTest, AckTruncationSmallPacket) {
     // effectively unlimited
     return;
   }
+  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
 
   QuicPacketHeader header;
   header.destination_connection_id = FramerTestConnectionId();
@@ -9481,6 +9490,7 @@ TEST_P(QuicFramerTest, CleanTruncation) {
     // effectively unlimited
     return;
   }
+  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
 
   QuicPacketHeader header;
   header.destination_connection_id = FramerTestConnectionId();
@@ -9758,12 +9768,12 @@ TEST_P(QuicFramerTest, ConstructEncryptedPacket) {
 // Verify that the packet returned by ConstructMisFramedEncryptedPacket()
 // does cause the framer to return an error.
 TEST_P(QuicFramerTest, ConstructMisFramedEncryptedPacket) {
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
   // Since we are using ConstructEncryptedPacket, we have to set the framer's
   // crypto to be Null.
   if (framer_.version().KnowsWhichDecrypterToUse()) {
-    framer_.InstallDecrypter(ENCRYPTION_INITIAL, QuicMakeUnique<NullDecrypter>(
-                                                     framer_.perspective()));
+    framer_.InstallDecrypter(
+        ENCRYPTION_FORWARD_SECURE,
+        QuicMakeUnique<NullDecrypter>(framer_.perspective()));
   } else {
     framer_.SetDecrypter(ENCRYPTION_INITIAL,
                          QuicMakeUnique<NullDecrypter>(framer_.perspective()));
@@ -13077,17 +13087,33 @@ TEST_P(QuicFramerTest, IetfRetryPacketRejected) {
     {"Unable to read protocol version.",
      {QUIC_VERSION_BYTES}},
     // connection_id length
+    {"Illegal long header type value.",
+     {0x00}},
+  };
+  // clang-format on
+
+  // clang-format off
+  PacketFragments packet45 = {
+    // public flags (IETF Retry packet, 0-length original destination CID)
+    {"Unable to read type.",
+     {0xf0}},
+    // version tag
+    {"Unable to read protocol version.",
+     {QUIC_VERSION_BYTES}},
+    // connection_id length
     {"Not yet supported IETF RETRY packet received.",
      {0x00}},
   };
   // clang-format on
 
+  PacketFragments& fragments =
+      framer_.transport_version() > QUIC_VERSION_44 ? packet45 : packet;
   std::unique_ptr<QuicEncryptedPacket> encrypted(
-      AssemblePacketFromFragments(packet));
+      AssemblePacketFromFragments(fragments));
 
   EXPECT_FALSE(framer_.ProcessPacket(*encrypted));
   EXPECT_EQ(QUIC_INVALID_PACKET_HEADER, framer_.error());
-  CheckFramingBoundaries(packet, QUIC_INVALID_PACKET_HEADER);
+  CheckFramingBoundaries(fragments, QUIC_INVALID_PACKET_HEADER);
 }
 
 TEST_P(QuicFramerTest, RetryPacketRejectedWithMultiplePacketNumberSpaces) {

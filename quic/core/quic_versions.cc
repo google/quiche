@@ -38,7 +38,9 @@ ParsedQuicVersion::ParsedQuicVersion(HandshakeProtocol handshake_protocol,
 }
 
 bool ParsedQuicVersion::KnowsWhichDecrypterToUse() const {
-  return transport_version == QUIC_VERSION_99 ||
+  return (GetQuicReloadableFlag(quic_v44_disable_trial_decryption) &&
+          transport_version >= QUIC_VERSION_44) ||
+         transport_version == QUIC_VERSION_99 ||
          handshake_protocol == PROTOCOL_TLS1_3;
 }
 
