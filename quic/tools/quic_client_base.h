@@ -102,7 +102,7 @@ class QuicClientBase {
 
   // Wait for events until the handshake is confirmed.
   // Returns true if the crypto handshake succeeds, false otherwise.
-  bool WaitForCryptoHandshakeConfirmed() QUIC_MUST_USE_RESULT;
+  QUIC_MUST_USE_RESULT bool WaitForCryptoHandshakeConfirmed();
 
   // Wait up to 50ms, and handle any events which occur.
   // Returns true if there are any outstanding requests.
