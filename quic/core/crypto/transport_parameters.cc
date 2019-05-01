@@ -472,8 +472,8 @@ bool SerializeTransportParameters(const TransportParameters& in,
             v6_address_bytes.length()) ||
         !CBB_add_u16(&preferred_address_params,
                      in.preferred_address->ipv6_socket_address.port()) ||
-        !CBB_add_u16_length_prefixed(&preferred_address_params,
-                                     &preferred_address_connection_id_param) ||
+        !CBB_add_u8_length_prefixed(&preferred_address_params,
+                                    &preferred_address_connection_id_param) ||
         !CBB_add_bytes(&preferred_address_connection_id_param,
                        reinterpret_cast<const uint8_t*>(
                            in.preferred_address->connection_id.data()),
@@ -663,7 +663,7 @@ bool ParseTransportParameters(const uint8_t* in,
           return false;
         }
         CBS connection_id_cbs;
-        if (!CBS_get_u16_length_prefixed(&value, &connection_id_cbs)) {
+        if (!CBS_get_u8_length_prefixed(&value, &connection_id_cbs)) {
           QUIC_DLOG(ERROR)
               << "Failed to parse length of preferred address connection ID";
           return false;
