@@ -151,6 +151,9 @@ struct QUIC_EXPORT_PRIVATE ParsedQuicVersion {
   // Indicates that this QUIC version does not have an enforced minimum value
   // for flow control values negotiated during the handshake.
   bool AllowsLowFlowControlLimits() const;
+
+  // Returns whether header protection is used in this version of QUIC.
+  bool HasHeaderProtection() const;
 };
 
 QUIC_EXPORT_PRIVATE ParsedQuicVersion UnsupportedQuicVersion();
