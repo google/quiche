@@ -32,7 +32,7 @@ ParsedQuicVersion::ParsedQuicVersion(HandshakeProtocol handshake_protocol,
     : handshake_protocol(handshake_protocol),
       transport_version(transport_version) {
   if (handshake_protocol == PROTOCOL_TLS1_3 &&
-      !FLAGS_quic_supports_tls_handshake) {
+      !GetQuicFlag(FLAGS_quic_supports_tls_handshake)) {
     QUIC_BUG << "TLS use attempted when not enabled";
   }
 }
@@ -104,7 +104,7 @@ QuicVersionLabelVector CreateQuicVersionLabelVector(
 
 ParsedQuicVersion ParseQuicVersionLabel(QuicVersionLabel version_label) {
   std::vector<HandshakeProtocol> protocols = {PROTOCOL_QUIC_CRYPTO};
-  if (FLAGS_quic_supports_tls_handshake) {
+  if (GetQuicFlag(FLAGS_quic_supports_tls_handshake)) {
     protocols.push_back(PROTOCOL_TLS1_3);
   }
   for (QuicTransportVersion version : kSupportedTransportVersions) {
@@ -134,7 +134,7 @@ ParsedQuicVersion ParseQuicVersionString(std::string version_string) {
   }
 
   std::vector<HandshakeProtocol> protocols = {PROTOCOL_QUIC_CRYPTO};
-  if (FLAGS_quic_supports_tls_handshake) {
+  if (GetQuicFlag(FLAGS_quic_supports_tls_handshake)) {
     protocols.push_back(PROTOCOL_TLS1_3);
   }
   for (QuicTransportVersion version : kSupportedTransportVersions) {
@@ -147,7 +147,8 @@ ParsedQuicVersion ParseQuicVersionString(std::string version_string) {
     }
   }
   // Still recognize T099 even if flag quic_ietf_draft_version has been changed.
-  if (FLAGS_quic_supports_tls_handshake && version_string == "T099") {
+  if (GetQuicFlag(FLAGS_quic_supports_tls_handshake) &&
+      version_string == "T099") {
     return ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_99);
   }
   // Reading from the client so this should not be considered an ERROR.
@@ -167,7 +168,8 @@ QuicTransportVersionVector AllSupportedTransportVersions() {
 ParsedQuicVersionVector AllSupportedVersions() {
   ParsedQuicVersionVector supported_versions;
   for (HandshakeProtocol protocol : kSupportedHandshakeProtocols) {
-    if (protocol == PROTOCOL_TLS1_3 && !FLAGS_quic_supports_tls_handshake) {
+    if (protocol == PROTOCOL_TLS1_3 &&
+        !GetQuicFlag(FLAGS_quic_supports_tls_handshake)) {
       continue;
     }
     for (QuicTransportVersion version : kSupportedTransportVersions) {
