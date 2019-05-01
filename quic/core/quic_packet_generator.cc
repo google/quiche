@@ -523,6 +523,10 @@ bool QuicPacketGenerator::FlushAckFrame(const QuicFrames& frames) {
                                          NOT_HANDSHAKE)) {
       return false;
     }
+    if (frame.type == ACK_FRAME && frame.ack_frame->packets.Empty()) {
+      QUIC_LOG(ERROR) << "Bad ACK!!!";
+      continue;
+    }
     const bool success =
         packet_creator_.AddSavedFrame(frame, next_transmission_type_);
     QUIC_BUG_IF(!success) << "Failed to flush " << frame;
