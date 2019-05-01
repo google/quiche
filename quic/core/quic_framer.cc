@@ -3975,6 +3975,7 @@ bool QuicFramer::DecryptPayload(QuicStringPiece encrypted,
   QuicDecrypter* decrypter = decrypter_[level].get();
   QuicDecrypter* alternative_decrypter = nullptr;
   if (version().KnowsWhichDecrypterToUse()) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_v44_disable_trial_decryption);
     level = GetEncryptionLevel(header);
     decrypter = decrypter_[level].get();
     if (decrypter == nullptr) {
