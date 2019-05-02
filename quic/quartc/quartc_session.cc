@@ -127,9 +127,12 @@ bool QuartcSession::SendProbingData() {
     return true;
   }
 
+  // Set transmission type to PROBING_RETRANSMISSION such that the packets will
+  // be padded to full.
   SetTransmissionType(PROBING_RETRANSMISSION);
+  // TODO(mellem): this sent PING will be retransmitted if it is lost which is
+  // not ideal. Consider to send stream data as probing data instead.
   SendPing();
-  WriteControlFrame(QuicFrame(QuicPaddingFrame()));
   return true;
 }
 
