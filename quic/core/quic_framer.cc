@@ -4033,8 +4033,6 @@ bool QuicFramer::DecryptPayload(QuicStringPiece encrypted,
         // Switch to the alternative decrypter and latch so that we cannot
         // switch back.
         decrypter_level_ = alternative_decrypter_level_;
-        decrypter_[decrypter_level_] =
-            std::move(decrypter_[alternative_decrypter_level_]);
         alternative_decrypter_level_ = NUM_ENCRYPTION_LEVELS;
       } else {
         // Switch the alternative decrypter so that we use it first next time.
