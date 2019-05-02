@@ -47,7 +47,7 @@ const std::vector<uint8_t> kFakePreferredStatelessResetToken(
 
 QuicSocketAddress CreateFakeV4SocketAddress() {
   QuicIpAddress ipv4_address;
-  if (!ipv4_address.FromString("65.66.67.68")) {  // 0x41424344
+  if (!ipv4_address.FromString("65.66.67.68")) {  // 0x41, 0x42, 0x43, 0x44
     QUIC_LOG(FATAL) << "Failed to create IPv4 address";
     return QuicSocketAddress();
   }
@@ -418,7 +418,7 @@ TEST_F(TransportParametersTest, ParseClientParametersRepeated) {
 TEST_F(TransportParametersTest, ParseServerParams) {
   // clang-format off
   const uint8_t kServerParams[] = {
-      0x00, 0xa3,  // length of parameters array that follows
+      0x00, 0xa2,  // length of parameters array that follows
       // original_connection_id
       0x00, 0x00,  // parameter id
       0x00, 0x08,  // length
@@ -473,13 +473,13 @@ TEST_F(TransportParametersTest, ParseServerParams) {
       0x00, 0x00,  // length
       // preferred_address
       0x00, 0x0d,  // parameter id
-      0x00, 0x32,  // length
+      0x00, 0x31,  // length
       0x41, 0x42, 0x43, 0x44,  // IPv4 address
       0x48, 0x84,  // IPv4 port
       0x60, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67,  // IPv6 address
       0x68, 0x69, 0x6a, 0x6b, 0x6c, 0x6d, 0x6e, 0x6f,
       0x63, 0x36,  // IPv6 port
-      0x00, 0x08,  // connection ID length
+      0x08,        // connection ID length
       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xBE, 0xEF,  // connection ID
       0x80, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87,  // stateless reset token
       0x88, 0x89, 0x8A, 0x8B, 0x8C, 0x8D, 0x8E, 0x8F,
