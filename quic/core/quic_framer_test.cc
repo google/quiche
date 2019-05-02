@@ -13194,6 +13194,41 @@ TEST_P(QuicFramerTest, ProcessPublicHeaderNoVersionInferredType) {
   CheckFramingBoundaries(fragments, QUIC_INVALID_PACKET_HEADER);
 }
 
+TEST_P(QuicFramerTest, ProcessMismatchedHeaderVersion) {
+  // The framer needs to have Perspective::IS_SERVER and configured to infer the
+  // packet header type from the packet (not the version). The framer's version
+  // needs to be one that uses the IETF packet format.
+  if (!framer_.version().KnowsWhichDecrypterToUse()) {
+    return;
+  }
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_SERVER);
+
+  // clang-format off
+  PacketFragments packet = {
+    // public flags (long header with version present)
+    {"Unable to read public flags.",
+     {0x09}},
+    // connection_id
+    {"Unable to read ConnectionId.",
+     {0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10}},
+    // version tag
+    {"Unable to read protocol version.",
+     {QUIC_VERSION_BYTES}},
+    // packet number
+    {"Unable to read packet number.",
+     {0x01}},
+  };
+  // clang-format on
+
+  std::unique_ptr<QuicEncryptedPacket> encrypted(
+      AssemblePacketFromFragments(packet));
+  framer_.ProcessPacket(*encrypted);
+
+  EXPECT_FALSE(framer_.ProcessPacket(*encrypted));
+  EXPECT_EQ(QUIC_INVALID_PACKET_HEADER, framer_.error());
+  CheckFramingBoundaries(packet, QUIC_INVALID_PACKET_HEADER);
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

@@ -2404,7 +2404,19 @@ bool QuicFramer::ProcessUnauthenticatedHeader(QuicDataReader* encrypted_reader,
         "Visitor asked to stop processing of unauthenticated header.");
     return false;
   }
-  if (!header->version_flag && version().KnowsWhichDecrypterToUse()) {
+  // The function we are in is called because the framer believes that it is
+  // processing a packet that uses the non-IETF (i.e. Google QUIC) packet header
+  // type. Usually, the framer makes that decision based on the framer's
+  // version, but when the framer is used with Perspective::IS_SERVER, then
+  // before version negotiation is complete (specifically, before
+  // InferPacketHeaderTypeFromVersion is called), this decision is made based on
+  // the type byte of the packet.
+  //
+  // If the framer's version KnowsWhichDecrypterToUse, then that version expects
+  // to use the IETF packet header type. If that's the case and we're in this
+  // function, then the packet received is invalid: the framer was expecting an
+  // IETF packet header and didn't get one.
+  if (version().KnowsWhichDecrypterToUse()) {
     set_detailed_error("Invalid public header type for expected version.");
     return RaiseError(QUIC_INVALID_PACKET_HEADER);
   }
