@@ -390,6 +390,10 @@ enum EncryptionLevel : int8_t {
   NUM_ENCRYPTION_LEVELS,
 };
 
+inline bool EncryptionLevelIsValid(EncryptionLevel level) {
+  return ENCRYPTION_INITIAL <= level && level < NUM_ENCRYPTION_LEVELS;
+}
+
 enum AddressChangeType : uint8_t {
   // IP address and port remain unchanged.
   NO_CHANGE,

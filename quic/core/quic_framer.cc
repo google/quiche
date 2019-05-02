@@ -3978,12 +3978,25 @@ bool QuicFramer::DecryptPayload(QuicStringPiece encrypted,
                                 size_t buffer_length,
                                 size_t* decrypted_length,
                                 EncryptionLevel* decrypted_level) {
+  if (!EncryptionLevelIsValid(decrypter_level_)) {
+    QUIC_BUG << "Attempted to decrypt with bad decrypter_level_";
+    return false;
+  }
   EncryptionLevel level = decrypter_level_;
   QuicDecrypter* decrypter = decrypter_[level].get();
   QuicDecrypter* alternative_decrypter = nullptr;
   if (version().KnowsWhichDecrypterToUse()) {
     QUIC_RELOADABLE_FLAG_COUNT(quic_v44_disable_trial_decryption);
+    if (header.form == GOOGLE_QUIC_PACKET) {
+      QUIC_BUG << "Attempted to decrypt GOOGLE_QUIC_PACKET with a version that "
+                  "knows which decrypter to use";
+      return false;
+    }
     level = GetEncryptionLevel(header);
+    if (!EncryptionLevelIsValid(level)) {
+      QUIC_BUG << "Attempted to decrypt with bad level";
+      return false;
+    }
     decrypter = decrypter_[level].get();
     if (decrypter == nullptr) {
       return false;
@@ -3993,10 +4006,17 @@ bool QuicFramer::DecryptPayload(QuicStringPiece encrypted,
       decrypter->SetDiversificationNonce(*header.nonce);
     }
   } else if (alternative_decrypter_level_ != NUM_ENCRYPTION_LEVELS) {
+    if (!EncryptionLevelIsValid(alternative_decrypter_level_)) {
+      QUIC_BUG << "Attempted to decrypt with bad alternative_decrypter_level_";
+      return false;
+    }
     alternative_decrypter = decrypter_[alternative_decrypter_level_].get();
   }
 
-  DCHECK(decrypter != nullptr);
+  if (decrypter == nullptr) {
+    QUIC_BUG << "Attempting to decrypt without decrypter";
+    return false;
+  }
 
   bool success = decrypter->DecryptPacket(
       header.packet_number.ToUint64(), associated_data, encrypted,
@@ -4030,6 +4050,11 @@ bool QuicFramer::DecryptPayload(QuicStringPiece encrypted,
       visitor_->OnDecryptedPacket(alternative_decrypter_level_);
       *decrypted_level = decrypter_level_;
       if (alternative_decrypter_latch_) {
+        if (!EncryptionLevelIsValid(alternative_decrypter_level_)) {
+          QUIC_BUG << "Attempted to latch alternate decrypter with bad "
+                      "alternative_decrypter_level_";
+          return false;
+        }
         // Switch to the alternative decrypter and latch so that we cannot
         // switch back.
         decrypter_level_ = alternative_decrypter_level_;
