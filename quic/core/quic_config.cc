@@ -810,7 +810,11 @@ QuicErrorCode QuicConfig::ProcessTransportParameters(
   // Intentionally round down to probe too often rather than not often enough.
   uint64_t idle_timeout_seconds =
       params.idle_timeout_milliseconds.value() / kNumMillisPerSecond;
-  if (idle_timeout_seconds > kMaximumIdleTimeoutSecs) {
+  // An idle timeout of zero indicates it is disabled (in other words, it is
+  // set to infinity). When the idle timeout is very high, we set it to our
+  // preferred maximum and still probe that often.
+  if (idle_timeout_seconds > kMaximumIdleTimeoutSecs ||
+      idle_timeout_seconds == 0) {
     idle_timeout_seconds = kMaximumIdleTimeoutSecs;
   }
   QuicErrorCode error = idle_network_timeout_seconds_.ReceiveValue(
