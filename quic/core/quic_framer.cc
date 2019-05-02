@@ -21,6 +21,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_constants.h"
 #include "net/third_party/quiche/src/quic/core/quic_data_reader.h"
 #include "net/third_party/quiche/src/quic/core/quic_data_writer.h"
+#include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
 #include "net/third_party/quiche/src/quic/core/quic_socket_address_coder.h"
 #include "net/third_party/quiche/src/quic/core/quic_stream_frame_data_producer.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
@@ -2731,6 +2732,12 @@ bool QuicFramer::ProcessFrameData(QuicDataReader* reader,
       }
 
       case STOP_WAITING_FRAME: {
+        if (GetQuicReloadableFlag(quic_do_not_accept_stop_waiting) &&
+            version_.transport_version >= QUIC_VERSION_44) {
+          QUIC_RELOADABLE_FLAG_COUNT(quic_do_not_accept_stop_waiting);
+          set_detailed_error("STOP WAITING not supported in version 44+.");
+          return RaiseError(QUIC_INVALID_STOP_WAITING_DATA);
+        }
         QuicStopWaitingFrame stop_waiting_frame;
         if (!ProcessStopWaitingFrame(reader, header, &stop_waiting_frame)) {
           return RaiseError(QUIC_INVALID_STOP_WAITING_DATA);

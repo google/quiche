@@ -4097,6 +4097,15 @@ TEST_P(QuicFramerTest, NewStopWaitingFrame) {
 
   std::unique_ptr<QuicEncryptedPacket> encrypted(
       AssemblePacketFromFragments(fragments));
+  if (GetQuicReloadableFlag(quic_do_not_accept_stop_waiting) &&
+      version_.transport_version >= QUIC_VERSION_44) {
+    EXPECT_FALSE(framer_.ProcessPacket(*encrypted));
+    EXPECT_EQ(QUIC_INVALID_STOP_WAITING_DATA, framer_.error());
+    EXPECT_EQ("STOP WAITING not supported in version 44+.",
+              framer_.detailed_error());
+    return;
+  }
+
   EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
 
   EXPECT_EQ(QUIC_NO_ERROR, framer_.error());
@@ -4114,7 +4123,9 @@ TEST_P(QuicFramerTest, NewStopWaitingFrame) {
 }
 
 TEST_P(QuicFramerTest, InvalidNewStopWaitingFrame) {
-  if (version_.transport_version == QUIC_VERSION_99) {
+  if (version_.transport_version == QUIC_VERSION_99 ||
+      (GetQuicReloadableFlag(quic_do_not_accept_stop_waiting) &&
+       version_.transport_version >= QUIC_VERSION_44)) {
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
