@@ -41,7 +41,9 @@ QuicSimpleServerStream::QuicSimpleServerStream(
       quic_simple_server_backend_(quic_simple_server_backend) {}
 
 QuicSimpleServerStream::~QuicSimpleServerStream() {
-  quic_simple_server_backend_->CloseBackendResponseStream(this);
+  if (quic_simple_server_backend_) {
+    quic_simple_server_backend_->CloseBackendResponseStream(this);
+  }
 }
 
 void QuicSimpleServerStream::OnInitialHeadersComplete(
@@ -137,6 +139,12 @@ void QuicSimpleServerStream::SendResponse() {
   if (!QuicContainsKey(request_headers_, ":authority") ||
       !QuicContainsKey(request_headers_, ":path")) {
     QUIC_DVLOG(1) << "Request headers do not contain :authority or :path.";
+    SendErrorResponse();
+    return;
+  }
+
+  if (quic_simple_server_backend_ == nullptr) {
+    QUIC_DVLOG(1) << "Backend is missing.";
     SendErrorResponse();
     return;
   }
