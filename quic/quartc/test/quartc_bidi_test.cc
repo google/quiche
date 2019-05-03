@@ -6,9 +6,11 @@
 #include "net/third_party/quiche/src/quic/core/quic_time.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/quartc/simulated_packet_transport.h"
 #include "net/third_party/quiche/src/quic/quartc/test/bidi_test_runner.h"
+#include "net/third_party/quiche/src/quic/quartc/test/quic_trace_interceptor.h"
 #include "net/third_party/quiche/src/quic/quartc/test/random_delay_link.h"
 #include "net/third_party/quiche/src/quic/quartc/test/random_packet_filter.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
@@ -25,6 +27,9 @@ class QuartcBidiTest : public QuicTest {
     QUIC_LOG(INFO) << "Setting random seed to " << seed;
     random_.set_seed(seed);
     simulator_.set_random_generator(&random_);
+
+    client_trace_interceptor_ = QuicMakeUnique<QuicTraceInterceptor>("client");
+    server_trace_interceptor_ = QuicMakeUnique<QuicTraceInterceptor>("server");
   }
 
   void CreateTransports(QuicBandwidth bandwidth,
@@ -56,6 +61,9 @@ class QuartcBidiTest : public QuicTest {
   std::unique_ptr<simulator::RandomPacketFilter> client_filter_;
   std::unique_ptr<simulator::RandomPacketFilter> server_filter_;
   std::unique_ptr<simulator::SymmetricRandomDelayLink> client_server_link_;
+
+  std::unique_ptr<QuicTraceInterceptor> client_trace_interceptor_;
+  std::unique_ptr<QuicTraceInterceptor> server_trace_interceptor_;
 };
 
 TEST_F(QuartcBidiTest, Basic300kbps200ms) {
@@ -64,6 +72,8 @@ TEST_F(QuartcBidiTest, Basic300kbps200ms) {
                    10 * kDefaultMaxPacketSize, /*loss_percent=*/0);
   BidiTestRunner runner(&simulator_, client_transport_.get(),
                         server_transport_.get());
+  runner.set_client_interceptor(client_trace_interceptor_.get());
+  runner.set_server_interceptor(server_trace_interceptor_.get());
   EXPECT_TRUE(runner.RunTest(QuicTime::Delta::FromSeconds(30)));
 }
 
@@ -73,6 +83,8 @@ TEST_F(QuartcBidiTest, 300kbps200ms2PercentLoss) {
                    10 * kDefaultMaxPacketSize, /*loss_percent=*/2);
   BidiTestRunner runner(&simulator_, client_transport_.get(),
                         server_transport_.get());
+  runner.set_client_interceptor(client_trace_interceptor_.get());
+  runner.set_server_interceptor(server_trace_interceptor_.get());
   EXPECT_TRUE(runner.RunTest(QuicTime::Delta::FromSeconds(30)));
 }
 
@@ -84,6 +96,8 @@ TEST_F(QuartcBidiTest, 300kbps200ms25msRandom2PercentLoss) {
       QuicTime::Delta::FromMilliseconds(25));
   BidiTestRunner runner(&simulator_, client_transport_.get(),
                         server_transport_.get());
+  runner.set_client_interceptor(client_trace_interceptor_.get());
+  runner.set_server_interceptor(server_trace_interceptor_.get());
   EXPECT_TRUE(runner.RunTest(QuicTime::Delta::FromSeconds(30)));
 }
 
