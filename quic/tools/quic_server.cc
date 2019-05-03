@@ -81,6 +81,7 @@ QuicServer::QuicServer(
       packet_reader_(new QuicPacketReader()),
       quic_simple_server_backend_(quic_simple_server_backend),
       expected_connection_id_length_(expected_connection_id_length) {
+  DCHECK(quic_simple_server_backend_);
   Initialize();
 }
 
