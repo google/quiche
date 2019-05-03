@@ -841,9 +841,11 @@ bool QuicPacketCreator::AddFrame(const QuicFrame& frame,
   if (frame.type == STREAM_FRAME &&
       frame.stream_frame.stream_id !=
           QuicUtils::GetCryptoStreamId(framer_->transport_version()) &&
-      packet_.encryption_level == ENCRYPTION_INITIAL) {
-    const std::string error_details =
-        "Cannot send stream data without encryption.";
+      (packet_.encryption_level == ENCRYPTION_INITIAL ||
+       packet_.encryption_level == ENCRYPTION_HANDSHAKE)) {
+    const std::string error_details = QuicStrCat(
+        "Cannot send stream data with level: ",
+        QuicUtils::EncryptionLevelToString(packet_.encryption_level));
     QUIC_BUG << error_details;
     delegate_->OnUnrecoverableError(
         QUIC_ATTEMPT_TO_SEND_UNENCRYPTED_STREAM_DATA, error_details,

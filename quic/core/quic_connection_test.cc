@@ -7517,7 +7517,7 @@ TEST_P(QuicConnectionTest, SendingUnencryptedStreamDataFails) {
   struct iovec iov;
   MakeIOVector("", &iov);
   EXPECT_QUIC_BUG(connection_.SaveAndSendStreamData(3, &iov, 1, 0, 0, FIN),
-                  "Cannot send stream data without encryption.");
+                  "Cannot send stream data with level: ENCRYPTION_INITIAL");
   EXPECT_FALSE(connection_.connected());
 }
 

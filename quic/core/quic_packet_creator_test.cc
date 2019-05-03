@@ -295,7 +295,7 @@ TEST_P(QuicPacketCreatorTest, SerializeFrames) {
     frames_.push_back(QuicFrame(new QuicAckFrame(InitAckFrame(1))));
     QuicStreamId stream_id = QuicUtils::GetFirstBidirectionalStreamId(
         client_framer_.transport_version(), Perspective::IS_CLIENT);
-    if (level != ENCRYPTION_INITIAL) {
+    if (level != ENCRYPTION_INITIAL && level != ENCRYPTION_HANDSHAKE) {
       frames_.push_back(
           QuicFrame(QuicStreamFrame(stream_id, false, 0u, QuicStringPiece())));
       frames_.push_back(
@@ -320,7 +320,7 @@ TEST_P(QuicPacketCreatorTest, SerializeFrames) {
           .WillOnce(Return(true));
       EXPECT_CALL(framer_visitor_, OnAckFrameEnd(QuicPacketNumber(1)))
           .WillOnce(Return(true));
-      if (level != ENCRYPTION_INITIAL) {
+      if (level != ENCRYPTION_INITIAL && level != ENCRYPTION_HANDSHAKE) {
         EXPECT_CALL(framer_visitor_, OnStreamFrame(_));
         EXPECT_CALL(framer_visitor_, OnStreamFrame(_));
       }
@@ -1361,7 +1361,23 @@ TEST_P(QuicPacketCreatorTest, AddUnencryptedStreamDataClosesConnection) {
       /*fin=*/false, 0u, QuicStringPiece());
   EXPECT_QUIC_BUG(
       creator_.AddSavedFrame(QuicFrame(stream_frame), NOT_RETRANSMISSION),
-      "Cannot send stream data without encryption.");
+      "Cannot send stream data with level: ENCRYPTION_INITIAL");
+}
+
+TEST_P(QuicPacketCreatorTest, SendStreamDataWithEncryptionHandshake) {
+  // EXPECT_QUIC_BUG tests are expensive so only run one instance of them.
+  if (!IsDefaultTestConfiguration()) {
+    return;
+  }
+
+  creator_.set_encryption_level(ENCRYPTION_HANDSHAKE);
+  EXPECT_CALL(delegate_, OnUnrecoverableError(_, _, _));
+  QuicStreamFrame stream_frame(
+      QuicUtils::GetHeadersStreamId(client_framer_.transport_version()),
+      /*fin=*/false, 0u, QuicStringPiece());
+  EXPECT_QUIC_BUG(
+      creator_.AddSavedFrame(QuicFrame(stream_frame), NOT_RETRANSMISSION),
+      "Cannot send stream data with level: ENCRYPTION_HANDSHAKE");
 }
 
 TEST_P(QuicPacketCreatorTest, ChloTooLarge) {
