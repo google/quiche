@@ -3096,6 +3096,7 @@ void QuicConnection::CancelAllAlarms() {
   timeout_alarm_->Cancel();
   mtu_discovery_alarm_->Cancel();
   path_degrading_alarm_->Cancel();
+  process_undecryptable_packets_alarm_->Cancel();
 }
 
 QuicByteCount QuicConnection::max_packet_length() const {

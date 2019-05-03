@@ -4451,6 +4451,7 @@ TEST_P(QuicConnectionTest, InitialTimeout) {
   EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
   EXPECT_FALSE(connection_.GetSendAlarm()->IsSet());
   EXPECT_FALSE(connection_.GetMtuDiscoveryAlarm()->IsSet());
+  EXPECT_FALSE(connection_.GetProcessUndecryptablePacketsAlarm()->IsSet());
 }
 
 TEST_P(QuicConnectionTest, IdleTimeoutAfterFirstSentPacket) {
