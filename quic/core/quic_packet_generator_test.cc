@@ -118,7 +118,8 @@ class TestPacketGenerator : public QuicPacketGenerator {
         delegate_(static_cast<MockDelegate*>(delegate)),
         producer_(producer) {}
 
-  void AddControlFrame(const QuicFrame& frame, bool bundle_ack) {
+  bool ConsumeRetransmittableControlFrame(const QuicFrame& frame,
+                                          bool bundle_ack) {
     if (GetQuicReloadableFlag(quic_deprecate_ack_bundling_mode) &&
         !QuicPacketGeneratorPeer::GetPacketCreator(this)->has_ack()) {
       QuicFrames frames;
@@ -131,7 +132,7 @@ class TestPacketGenerator : public QuicPacketGenerator {
             .WillOnce(Return(frames));
       }
     }
-    QuicPacketGenerator::AddControlFrame(frame);
+    return QuicPacketGenerator::ConsumeRetransmittableControlFrame(frame);
   }
 
   QuicConsumedData ConsumeDataFastPath(QuicStreamId id,
@@ -414,26 +415,45 @@ TEST_F(QuicPacketGeneratorTest, ShouldSendAck_MultipleCalls) {
 TEST_F(QuicPacketGeneratorTest, AddControlFrame_NotWritable) {
   delegate_.SetCanNotWrite();
 
-  generator_.AddControlFrame(QuicFrame(CreateRstStreamFrame()),
-                             /*bundle_ack=*/false);
-  EXPECT_TRUE(generator_.HasQueuedFrames());
-  EXPECT_TRUE(generator_.HasRetransmittableFrames());
+  QuicRstStreamFrame* rst_frame = CreateRstStreamFrame();
+  const bool consumed =
+      generator_.ConsumeRetransmittableControlFrame(QuicFrame(rst_frame),
+                                                    /*bundle_ack=*/false);
+  if (generator_.deprecate_queued_control_frames()) {
+    EXPECT_FALSE(consumed);
+    EXPECT_FALSE(generator_.HasQueuedFrames());
+    EXPECT_FALSE(generator_.HasRetransmittableFrames());
+    delete rst_frame;
+  } else {
+    EXPECT_TRUE(generator_.HasQueuedFrames());
+    EXPECT_TRUE(generator_.HasRetransmittableFrames());
+  }
 }
 
 TEST_F(QuicPacketGeneratorTest, AddControlFrame_OnlyAckWritable) {
   delegate_.SetCanWriteOnlyNonRetransmittable();
 
-  generator_.AddControlFrame(QuicFrame(CreateRstStreamFrame()),
-                             /*bundle_ack=*/false);
-  EXPECT_TRUE(generator_.HasQueuedFrames());
-  EXPECT_TRUE(generator_.HasRetransmittableFrames());
+  QuicRstStreamFrame* rst_frame = CreateRstStreamFrame();
+  const bool consumed =
+      generator_.ConsumeRetransmittableControlFrame(QuicFrame(rst_frame),
+                                                    /*bundle_ack=*/false);
+  if (generator_.deprecate_queued_control_frames()) {
+    EXPECT_FALSE(consumed);
+    EXPECT_FALSE(generator_.HasQueuedFrames());
+    EXPECT_FALSE(generator_.HasRetransmittableFrames());
+    delete rst_frame;
+  } else {
+    EXPECT_TRUE(generator_.HasQueuedFrames());
+    EXPECT_TRUE(generator_.HasRetransmittableFrames());
+  }
 }
 
 TEST_F(QuicPacketGeneratorTest, AddControlFrame_WritableAndShouldNotFlush) {
   delegate_.SetCanWriteAnything();
 
-  generator_.AddControlFrame(QuicFrame(CreateRstStreamFrame()),
-                             /*bundle_ack=*/false);
+  generator_.ConsumeRetransmittableControlFrame(
+      QuicFrame(CreateRstStreamFrame()),
+      /*bundle_ack=*/false);
   EXPECT_TRUE(generator_.HasQueuedFrames());
   EXPECT_TRUE(generator_.HasRetransmittableFrames());
 }
@@ -441,8 +461,17 @@ TEST_F(QuicPacketGeneratorTest, AddControlFrame_WritableAndShouldNotFlush) {
 TEST_F(QuicPacketGeneratorTest, AddControlFrame_NotWritableBatchThenFlush) {
   delegate_.SetCanNotWrite();
 
-  generator_.AddControlFrame(QuicFrame(CreateRstStreamFrame()),
-                             /*bundle_ack=*/false);
+  QuicRstStreamFrame* rst_frame = CreateRstStreamFrame();
+  const bool consumed =
+      generator_.ConsumeRetransmittableControlFrame(QuicFrame(rst_frame),
+                                                    /*bundle_ack=*/false);
+  if (generator_.deprecate_queued_control_frames()) {
+    EXPECT_FALSE(consumed);
+    EXPECT_FALSE(generator_.HasQueuedFrames());
+    EXPECT_FALSE(generator_.HasRetransmittableFrames());
+    delete rst_frame;
+    return;
+  }
   EXPECT_TRUE(generator_.HasQueuedFrames());
   EXPECT_TRUE(generator_.HasRetransmittableFrames());
   generator_.Flush();
@@ -467,8 +496,9 @@ TEST_F(QuicPacketGeneratorTest, AddControlFrame_WritableAndShouldFlush) {
   EXPECT_CALL(delegate_, OnSerializedPacket(_))
       .WillOnce(Invoke(this, &QuicPacketGeneratorTest::SavePacket));
 
-  generator_.AddControlFrame(QuicFrame(CreateRstStreamFrame()),
-                             /*bundle_ack=*/false);
+  generator_.ConsumeRetransmittableControlFrame(
+      QuicFrame(CreateRstStreamFrame()),
+      /*bundle_ack=*/false);
   generator_.Flush();
   EXPECT_FALSE(generator_.HasQueuedFrames());
   EXPECT_FALSE(generator_.HasRetransmittableFrames());
@@ -778,10 +808,18 @@ TEST_F(QuicPacketGeneratorTest, ConsumeDataLargeSendAckFalse) {
   if (!GetQuicReloadableFlag(quic_deprecate_ack_bundling_mode)) {
     generator_.SetShouldSendAck(false);
   }
-  generator_.AddControlFrame(QuicFrame(CreateRstStreamFrame()),
-                             /*bundle_ack=*/true);
-  EXPECT_TRUE(generator_.HasQueuedFrames());
-  EXPECT_TRUE(generator_.HasRetransmittableFrames());
+  QuicRstStreamFrame* rst_frame = CreateRstStreamFrame();
+  const bool success =
+      generator_.ConsumeRetransmittableControlFrame(QuicFrame(rst_frame),
+                                                    /*bundle_ack=*/true);
+  if (generator_.deprecate_queued_control_frames()) {
+    EXPECT_FALSE(success);
+    EXPECT_FALSE(generator_.HasQueuedFrames());
+    EXPECT_FALSE(generator_.HasRetransmittableFrames());
+  } else {
+    EXPECT_TRUE(generator_.HasQueuedFrames());
+    EXPECT_TRUE(generator_.HasRetransmittableFrames());
+  }
 
   delegate_.SetCanWriteAnything();
 
@@ -789,11 +827,20 @@ TEST_F(QuicPacketGeneratorTest, ConsumeDataLargeSendAckFalse) {
     EXPECT_CALL(delegate_, GetUpdatedAckFrame())
         .WillOnce(Return(QuicFrame(&ack_frame_)));
   }
+  if (generator_.deprecate_queued_control_frames()) {
+    generator_.ConsumeRetransmittableControlFrame(QuicFrame(rst_frame),
+                                                  /*bundle_ack=*/false);
+  }
 
   // Create a 10000 byte IOVector.
   CreateData(10000);
   EXPECT_CALL(delegate_, OnSerializedPacket(_))
       .WillRepeatedly(Invoke(this, &QuicPacketGeneratorTest::SavePacket));
+  if (generator_.deprecate_queued_control_frames()) {
+    generator_.ConsumeRetransmittableControlFrame(
+        QuicFrame(CreateRstStreamFrame()),
+        /*bundle_ack=*/true);
+  }
   QuicConsumedData consumed = generator_.ConsumeData(
       QuicUtils::GetHeadersStreamId(framer_.transport_version()), &iov_, 1u,
       iov_.iov_len, 0, FIN);
@@ -863,10 +910,18 @@ TEST_F(QuicPacketGeneratorTest, NotWritableThenBatchOperations) {
   if (!GetQuicReloadableFlag(quic_deprecate_ack_bundling_mode)) {
     generator_.SetShouldSendAck(false);
   }
-  generator_.AddControlFrame(QuicFrame(CreateRstStreamFrame()),
-                             /*bundle_ack=*/true);
-  EXPECT_TRUE(generator_.HasQueuedFrames());
-  EXPECT_TRUE(generator_.HasRetransmittableFrames());
+  QuicRstStreamFrame* rst_frame = CreateRstStreamFrame();
+  const bool consumed =
+      generator_.ConsumeRetransmittableControlFrame(QuicFrame(rst_frame),
+                                                    /*bundle_ack=*/true);
+  if (generator_.deprecate_queued_control_frames()) {
+    EXPECT_FALSE(consumed);
+    EXPECT_FALSE(generator_.HasQueuedFrames());
+    EXPECT_FALSE(generator_.HasRetransmittableFrames());
+  } else {
+    EXPECT_TRUE(generator_.HasQueuedFrames());
+    EXPECT_TRUE(generator_.HasRetransmittableFrames());
+  }
   EXPECT_FALSE(generator_.HasPendingStreamFramesOfStream(3));
 
   delegate_.SetCanWriteAnything();
@@ -877,13 +932,18 @@ TEST_F(QuicPacketGeneratorTest, NotWritableThenBatchOperations) {
     EXPECT_CALL(delegate_, GetUpdatedAckFrame())
         .WillOnce(Return(QuicFrame(&ack_frame_)));
   }
-
+  if (generator_.deprecate_queued_control_frames()) {
+    EXPECT_TRUE(
+        generator_.ConsumeRetransmittableControlFrame(QuicFrame(rst_frame),
+                                                      /*bundle_ack=*/false));
+  }
   // Send some data and a control frame
   MakeIOVector("quux", &iov_);
   generator_.ConsumeData(3, &iov_, 1u, iov_.iov_len, 0, NO_FIN);
   if (framer_.transport_version() != QUIC_VERSION_99) {
-    generator_.AddControlFrame(QuicFrame(CreateGoAwayFrame()),
-                               /*bundle_ack=*/false);
+    generator_.ConsumeRetransmittableControlFrame(
+        QuicFrame(CreateGoAwayFrame()),
+        /*bundle_ack=*/false);
   }
   EXPECT_TRUE(generator_.HasPendingStreamFramesOfStream(3));
 
@@ -918,10 +978,18 @@ TEST_F(QuicPacketGeneratorTest, NotWritableThenBatchOperations2) {
   if (!GetQuicReloadableFlag(quic_deprecate_ack_bundling_mode)) {
     generator_.SetShouldSendAck(false);
   }
-  generator_.AddControlFrame(QuicFrame(CreateRstStreamFrame()),
-                             /*bundle_ack=*/true);
-  EXPECT_TRUE(generator_.HasQueuedFrames());
-  EXPECT_TRUE(generator_.HasRetransmittableFrames());
+  QuicRstStreamFrame* rst_frame = CreateRstStreamFrame();
+  const bool success =
+      generator_.ConsumeRetransmittableControlFrame(QuicFrame(rst_frame),
+                                                    /*bundle_ack=*/true);
+  if (generator_.deprecate_queued_control_frames()) {
+    EXPECT_FALSE(success);
+    EXPECT_FALSE(generator_.HasQueuedFrames());
+    EXPECT_FALSE(generator_.HasRetransmittableFrames());
+  } else {
+    EXPECT_TRUE(generator_.HasQueuedFrames());
+    EXPECT_TRUE(generator_.HasRetransmittableFrames());
+  }
 
   delegate_.SetCanWriteAnything();
 
@@ -940,7 +1008,11 @@ TEST_F(QuicPacketGeneratorTest, NotWritableThenBatchOperations2) {
     EXPECT_CALL(delegate_, OnSerializedPacket(_))
         .WillOnce(Invoke(this, &QuicPacketGeneratorTest::SavePacket));
   }
-
+  if (generator_.deprecate_queued_control_frames()) {
+    EXPECT_TRUE(
+        generator_.ConsumeRetransmittableControlFrame(QuicFrame(rst_frame),
+                                                      /*bundle_ack=*/false));
+  }
   // Send enough data to exceed one packet
   size_t data_len = kDefaultMaxPacketSize + 100;
   CreateData(data_len);
@@ -949,8 +1021,9 @@ TEST_F(QuicPacketGeneratorTest, NotWritableThenBatchOperations2) {
   EXPECT_EQ(data_len, consumed.bytes_consumed);
   EXPECT_TRUE(consumed.fin_consumed);
   if (framer_.transport_version() != QUIC_VERSION_99) {
-    generator_.AddControlFrame(QuicFrame(CreateGoAwayFrame()),
-                               /*bundle_ack=*/false);
+    generator_.ConsumeRetransmittableControlFrame(
+        QuicFrame(CreateGoAwayFrame()),
+        /*bundle_ack=*/false);
   }
 
   generator_.Flush();
@@ -1355,7 +1428,8 @@ TEST_F(QuicPacketGeneratorTest, ConnectionCloseFrameLargerThanPacketSize) {
   if (framer_.transport_version() == QUIC_VERSION_99) {
     frame->close_type = IETF_QUIC_TRANSPORT_CONNECTION_CLOSE;
   }
-  generator_.AddControlFrame(QuicFrame(frame), /*bundle_ack=*/false);
+  generator_.ConsumeRetransmittableControlFrame(QuicFrame(frame),
+                                                /*bundle_ack=*/false);
   EXPECT_TRUE(generator_.HasQueuedFrames());
   EXPECT_TRUE(generator_.HasRetransmittableFrames());
 }

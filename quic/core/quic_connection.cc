@@ -1785,13 +1785,19 @@ QuicConsumedData QuicConnection::SendStreamData(QuicStreamId id,
 }
 
 bool QuicConnection::SendControlFrame(const QuicFrame& frame) {
-  if (!CanWrite(HAS_RETRANSMITTABLE_DATA) && frame.type != PING_FRAME) {
+  if (!packet_generator_.deprecate_queued_control_frames() &&
+      !CanWrite(HAS_RETRANSMITTABLE_DATA) && frame.type != PING_FRAME) {
     QUIC_DVLOG(1) << ENDPOINT << "Failed to send control frame: " << frame;
     // Do not check congestion window for ping.
     return false;
   }
   ScopedPacketFlusher flusher(this, SEND_ACK_IF_PENDING);
-  packet_generator_.AddControlFrame(frame);
+  const bool consumed =
+      packet_generator_.ConsumeRetransmittableControlFrame(frame);
+  if (packet_generator_.deprecate_queued_control_frames() && !consumed) {
+    QUIC_DVLOG(1) << ENDPOINT << "Failed to send control frame: " << frame;
+    return false;
+  }
   if (frame.type == PING_FRAME) {
     // Flush PING frame immediately.
     packet_generator_.FlushAllQueuedFrames();
@@ -3054,7 +3060,7 @@ void QuicConnection::SendConnectionClosePacket(QuicErrorCode error,
   if (transport_version() == QUIC_VERSION_99) {
     frame->close_type = IETF_QUIC_TRANSPORT_CONNECTION_CLOSE;
   }
-  packet_generator_.AddControlFrame(QuicFrame(frame));
+  packet_generator_.ConsumeRetransmittableControlFrame(QuicFrame(frame));
   packet_generator_.FlushAllQueuedFrames();
 }
 

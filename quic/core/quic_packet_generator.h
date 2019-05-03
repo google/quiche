@@ -92,7 +92,9 @@ class QUIC_EXPORT_PRIVATE QuicPacketGenerator {
   // CreateAckFrame() when the packet is serialized.
   void SetShouldSendAck(bool also_send_stop_waiting);
 
-  void AddControlFrame(const QuicFrame& frame);
+  // Consumes retransmittable control |frame|. Returns true if the frame is
+  // successfully consumed. Returns false otherwise.
+  bool ConsumeRetransmittableControlFrame(const QuicFrame& frame);
 
   // Given some data, may consume part or all of it and pass it to the
   // packet creator to be serialized into packets. If not in batch
@@ -251,6 +253,10 @@ class QUIC_EXPORT_PRIVATE QuicPacketGenerator {
     return deprecate_ack_bundling_mode_;
   }
 
+  bool deprecate_queued_control_frames() const {
+    return deprecate_queued_control_frames_;
+  }
+
  private:
   friend class test::QuicPacketGeneratorPeer;
 
@@ -281,6 +287,8 @@ class QUIC_EXPORT_PRIVATE QuicPacketGenerator {
   DelegateInterface* delegate_;
 
   QuicPacketCreator packet_creator_;
+  // TODO(fayang): remove this when deprecating
+  // quic_deprecate_queued_control_frames.
   QuicFrames queued_control_frames_;
 
   // Transmission type of the next serialized packet.
@@ -309,6 +317,9 @@ class QUIC_EXPORT_PRIVATE QuicPacketGenerator {
 
   // Latched value of quic_deprecate_ack_bundling_mode.
   const bool deprecate_ack_bundling_mode_;
+
+  // Latched value of quic_deprecate_queued_control_frames.
+  const bool deprecate_queued_control_frames_;
 };
 
 }  // namespace quic

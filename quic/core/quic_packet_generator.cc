@@ -30,7 +30,10 @@ QuicPacketGenerator::QuicPacketGenerator(QuicConnectionId connection_id,
       random_generator_(random_generator),
       fully_pad_crypto_handshake_packets_(true),
       deprecate_ack_bundling_mode_(
-          GetQuicReloadableFlag(quic_deprecate_ack_bundling_mode)) {}
+          GetQuicReloadableFlag(quic_deprecate_ack_bundling_mode)),
+      deprecate_queued_control_frames_(
+          deprecate_ack_bundling_mode_ &&
+          GetQuicReloadableFlag(quic_deprecate_queued_control_frames)) {}
 
 QuicPacketGenerator::~QuicPacketGenerator() {
   DeleteFrames(&queued_control_frames_);
@@ -53,14 +56,37 @@ void QuicPacketGenerator::SetShouldSendAck(bool also_send_stop_waiting) {
   SendQueuedFrames(/*flush=*/false);
 }
 
-void QuicPacketGenerator::AddControlFrame(const QuicFrame& frame) {
+bool QuicPacketGenerator::ConsumeRetransmittableControlFrame(
+    const QuicFrame& frame) {
   QUIC_BUG_IF(IsControlFrame(frame.type) && !GetControlFrameId(frame))
       << "Adding a control frame with no control frame id: " << frame;
+  DCHECK(QuicUtils::IsRetransmittableFrame(frame.type)) << frame;
   if (deprecate_ack_bundling_mode_) {
     MaybeBundleAckOpportunistically();
   }
+  if (deprecate_queued_control_frames_) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_deprecate_queued_control_frames);
+    if (packet_creator_.HasPendingFrames()) {
+      if (packet_creator_.AddSavedFrame(frame, next_transmission_type_)) {
+        // There is pending frames and current frame fits.
+        return true;
+      }
+    }
+    DCHECK(!packet_creator_.HasPendingFrames());
+    if (frame.type != PING_FRAME && frame.type != CONNECTION_CLOSE_FRAME &&
+        !delegate_->ShouldGeneratePacket(HAS_RETRANSMITTABLE_DATA,
+                                         NOT_HANDSHAKE)) {
+      // Do not check congestion window for ping or connection close frames.
+      return false;
+    }
+    const bool success =
+        packet_creator_.AddSavedFrame(frame, next_transmission_type_);
+    DCHECK(success);
+    return success;
+  }
   queued_control_frames_.push_back(frame);
   SendQueuedFrames(/*flush=*/false);
+  return true;
 }
 
 size_t QuicPacketGenerator::ConsumeCryptoData(EncryptionLevel level,
