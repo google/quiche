@@ -13191,6 +13191,8 @@ TEST_P(QuicFramerTest, ProcessPublicHeaderNoVersionInferredType) {
 
   EXPECT_FALSE(framer_.ProcessPacket(*encrypted));
   EXPECT_EQ(QUIC_INVALID_PACKET_HEADER, framer_.error());
+  EXPECT_EQ("Invalid public header type for expected version.",
+            framer_.detailed_error());
   CheckFramingBoundaries(fragments, QUIC_INVALID_PACKET_HEADER);
 }
 
@@ -13226,6 +13228,8 @@ TEST_P(QuicFramerTest, ProcessMismatchedHeaderVersion) {
 
   EXPECT_FALSE(framer_.ProcessPacket(*encrypted));
   EXPECT_EQ(QUIC_INVALID_PACKET_HEADER, framer_.error());
+  EXPECT_EQ("Invalid public header type for expected version.",
+            framer_.detailed_error());
   CheckFramingBoundaries(packet, QUIC_INVALID_PACKET_HEADER);
 }
 
