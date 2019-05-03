@@ -11,14 +11,29 @@
 #include "net/third_party/quiche/src/quic/quartc/simulated_packet_transport.h"
 #include "net/third_party/quiche/src/quic/quartc/test/bidi_test_runner.h"
 #include "net/third_party/quiche/src/quic/quartc/test/quic_trace_interceptor.h"
-#include "net/third_party/quiche/src/quic/quartc/test/random_delay_link.h"
 #include "net/third_party/quiche/src/quic/quartc/test/random_packet_filter.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
+#include "net/third_party/quiche/src/quic/test_tools/simulator/link.h"
+#include "net/third_party/quiche/src/quic/test_tools/simulator/quic_endpoint.h"
 #include "net/third_party/quiche/src/quic/test_tools/simulator/simulator.h"
+#include "net/third_party/quiche/src/quic/test_tools/simulator/switch.h"
 
 namespace quic {
 namespace test {
 namespace {
+
+class CompetingTransferAlarmDelegate : public quic::QuicAlarm::Delegate {
+ public:
+  CompetingTransferAlarmDelegate(quic::simulator::QuicEndpoint* endpoint,
+                                 QuicByteCount bytes)
+      : endpoint_(endpoint), bytes_(bytes) {}
+
+  void OnAlarm() override { endpoint_->AddBytesToTransfer(bytes_); }
+
+ private:
+  quic::simulator::QuicEndpoint* const endpoint_;
+  const QuicByteCount bytes_;
+};
 
 class QuartcBidiTest : public QuicTest {
  protected:
@@ -36,21 +51,58 @@ class QuartcBidiTest : public QuicTest {
                         QuicTime::Delta propagation_delay,
                         QuicByteCount queue_length,
                         int loss_percent) {
+    // Endpoints which serve as the transports for client and server.
     client_transport_ =
         QuicMakeUnique<simulator::SimulatedQuartcPacketTransport>(
             &simulator_, "client_transport", "server_transport", queue_length);
     server_transport_ =
         QuicMakeUnique<simulator::SimulatedQuartcPacketTransport>(
             &simulator_, "server_transport", "client_transport", queue_length);
+
+    // Filters on each of the endpoints facilitate random packet loss.
     client_filter_ = QuicMakeUnique<simulator::RandomPacketFilter>(
         &simulator_, "client_filter", client_transport_.get());
     server_filter_ = QuicMakeUnique<simulator::RandomPacketFilter>(
         &simulator_, "server_filter", server_transport_.get());
-    client_server_link_ = QuicMakeUnique<simulator::SymmetricRandomDelayLink>(
-        client_filter_.get(), server_filter_.get(), bandwidth,
-        propagation_delay);
     client_filter_->set_loss_percent(loss_percent);
     server_filter_->set_loss_percent(loss_percent);
+
+    // Each endpoint connects directly to a switch.
+    client_switch_ = QuicMakeUnique<simulator::Switch>(
+        &simulator_, "client_switch", /*port_count=*/8, 2 * queue_length);
+    server_switch_ = QuicMakeUnique<simulator::Switch>(
+        &simulator_, "server_switch", /*port_count=*/8, 2 * queue_length);
+
+    // Links to the switch have significantly higher bandwdith than the
+    // bottleneck and insignificant propagation delay.
+    client_link_ = QuicMakeUnique<simulator::SymmetricLink>(
+        client_filter_.get(), client_switch_->port(1), 10 * bandwidth,
+        QuicTime::Delta::FromMicroseconds(1));
+    server_link_ = QuicMakeUnique<simulator::SymmetricLink>(
+        server_filter_.get(), server_switch_->port(1), 10 * bandwidth,
+        QuicTime::Delta::FromMicroseconds(1));
+
+    // The bottleneck link connects the two switches with the bandwidth and
+    // propagation delay specified by the test case.
+    bottleneck_link_ = QuicMakeUnique<simulator::SymmetricLink>(
+        client_switch_->port(2), server_switch_->port(2), bandwidth,
+        propagation_delay);
+  }
+
+  void SetupCompetingEndpoints(QuicBandwidth bandwidth) {
+    competing_client_ = absl::make_unique<quic::simulator::QuicEndpoint>(
+        &simulator_, "competing_client", "competing_server",
+        quic::Perspective::IS_CLIENT, quic::test::TestConnectionId(3));
+    competing_server_ = absl::make_unique<quic::simulator::QuicEndpoint>(
+        &simulator_, "competing_server", "competing_client",
+        quic::Perspective::IS_SERVER, quic::test::TestConnectionId(3));
+
+    competing_client_link_ = absl::make_unique<quic::simulator::SymmetricLink>(
+        competing_client_.get(), client_switch_->port(3), 10 * bandwidth,
+        QuicTime::Delta::FromMicroseconds(1));
+    competing_server_link_ = absl::make_unique<quic::simulator::SymmetricLink>(
+        competing_server_.get(), server_switch_->port(3), 10 * bandwidth,
+        QuicTime::Delta::FromMicroseconds(1));
   }
 
   simulator::Simulator simulator_;
@@ -60,7 +112,16 @@ class QuartcBidiTest : public QuicTest {
   std::unique_ptr<simulator::SimulatedQuartcPacketTransport> server_transport_;
   std::unique_ptr<simulator::RandomPacketFilter> client_filter_;
   std::unique_ptr<simulator::RandomPacketFilter> server_filter_;
-  std::unique_ptr<simulator::SymmetricRandomDelayLink> client_server_link_;
+  std::unique_ptr<simulator::Switch> client_switch_;
+  std::unique_ptr<simulator::Switch> server_switch_;
+  std::unique_ptr<simulator::SymmetricLink> client_link_;
+  std::unique_ptr<simulator::SymmetricLink> server_link_;
+  std::unique_ptr<simulator::SymmetricLink> bottleneck_link_;
+
+  std::unique_ptr<simulator::QuicEndpoint> competing_client_;
+  std::unique_ptr<simulator::QuicEndpoint> competing_server_;
+  std::unique_ptr<simulator::SymmetricLink> competing_client_link_;
+  std::unique_ptr<simulator::SymmetricLink> competing_server_link_;
 
   std::unique_ptr<QuicTraceInterceptor> client_trace_interceptor_;
   std::unique_ptr<QuicTraceInterceptor> server_trace_interceptor_;
@@ -88,14 +149,27 @@ TEST_F(QuartcBidiTest, 300kbps200ms2PercentLoss) {
   EXPECT_TRUE(runner.RunTest(QuicTime::Delta::FromSeconds(30)));
 }
 
-TEST_F(QuartcBidiTest, 300kbps200ms25msRandom2PercentLoss) {
-  CreateTransports(QuicBandwidth::FromKBitsPerSecond(300),
-                   QuicTime::Delta::FromMilliseconds(200),
-                   10 * kDefaultMaxPacketSize, /*loss_percent=*/2);
-  client_server_link_->set_median_random_delay(
-      QuicTime::Delta::FromMilliseconds(25));
-  BidiTestRunner runner(&simulator_, client_transport_.get(),
-                        server_transport_.get());
+TEST_F(QuartcBidiTest, 300kbps200ms2PercentLossCompetingBurst) {
+  QuicBandwidth bandwidth = QuicBandwidth::FromKBitsPerSecond(300);
+  CreateTransports(bandwidth, QuicTime::Delta::FromMilliseconds(200),
+                   10 * quic::kDefaultMaxPacketSize, /*loss_percent=*/2);
+  SetupCompetingEndpoints(bandwidth);
+
+  QuicTime competing_burst_time =
+      simulator_.GetClock()->Now() + QuicTime::Delta::FromSeconds(15);
+  std::unique_ptr<quic::QuicAlarm> competing_client_burst_alarm_ =
+      absl::WrapUnique(simulator_.GetAlarmFactory()->CreateAlarm(
+          new CompetingTransferAlarmDelegate(competing_client_.get(),
+                                             /*bytes=*/50 * 1024)));
+  std::unique_ptr<quic::QuicAlarm> competing_server_burst_alarm_ =
+      absl::WrapUnique(simulator_.GetAlarmFactory()->CreateAlarm(
+          new CompetingTransferAlarmDelegate(competing_server_.get(),
+                                             /*bytes=*/50 * 1024)));
+  competing_client_burst_alarm_->Set(competing_burst_time);
+  competing_server_burst_alarm_->Set(competing_burst_time);
+
+  quic::test::BidiTestRunner runner(&simulator_, client_transport_.get(),
+                                    server_transport_.get());
   runner.set_client_interceptor(client_trace_interceptor_.get());
   runner.set_server_interceptor(server_trace_interceptor_.get());
   EXPECT_TRUE(runner.RunTest(QuicTime::Delta::FromSeconds(30)));
