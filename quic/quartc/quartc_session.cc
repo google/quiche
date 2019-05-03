@@ -208,7 +208,7 @@ void QuartcSession::OnConnectionClosed(QuicErrorCode error,
 void QuartcSession::CloseConnection(const std::string& details) {
   connection_->CloseConnection(
       QuicErrorCode::QUIC_CONNECTION_CANCELLED, details,
-      ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET_WITH_NO_ACK);
+      ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
 }
 
 void QuartcSession::SetDelegate(Delegate* session_delegate) {

@@ -173,8 +173,7 @@ enum class ConnectionCloseSource { FROM_PEER, FROM_SELF };
 // Should a connection be closed silently or not.
 enum class ConnectionCloseBehavior {
   SILENT_CLOSE,
-  SEND_CONNECTION_CLOSE_PACKET,
-  SEND_CONNECTION_CLOSE_PACKET_WITH_NO_ACK
+  SEND_CONNECTION_CLOSE_PACKET
 };
 
 enum QuicFrameType : uint8_t {

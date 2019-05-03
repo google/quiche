@@ -931,13 +931,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
     return active_effective_peer_migration_type_;
   }
 
-  // Sends the connection close packet to the peer. |ack_mode| determines
-  // whether ack frame will be bundled with the connection close packet.
-  // TODO(fayang): change |ack_mode| to bool |force_sending_ack| when
-  // deprecating quic_deprecate_ack_bundling_mode.
+  // Sends a connection close packet to the peer and includes an ACK if the ACK
+  // is not empty, the |error| is not PACKET_WRITE_ERROR, and it fits.
   virtual void SendConnectionClosePacket(QuicErrorCode error,
-                                         const std::string& details,
-                                         AckBundling ack_mode);
+                                         const std::string& details);
 
   // Returns true if the packet should be discarded and not sent.
   virtual bool ShouldDiscardPacket(const SerializedPacket& packet);

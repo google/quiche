@@ -331,7 +331,7 @@ TEST_P(QuicSpdyStreamTest, ProcessWrongFramesOnSpdyStream) {
             connection_->ReallyCloseConnection(error, error_details,
                                                connection_close_behavior);
           })));
-  EXPECT_CALL(*connection_, SendConnectionClosePacket(_, _, _));
+  EXPECT_CALL(*connection_, SendConnectionClosePacket(_, _));
   EXPECT_CALL(*session_, OnConnectionClosed(_, _, _))
       .WillOnce(
           Invoke([this](QuicErrorCode error, const std::string& error_details,

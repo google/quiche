@@ -477,10 +477,8 @@ class MockQuicConnection : public QuicConnection {
                void(QuicErrorCode error,
                     const std::string& details,
                     ConnectionCloseBehavior connection_close_behavior));
-  MOCK_METHOD3(SendConnectionClosePacket,
-               void(QuicErrorCode error,
-                    const std::string& details,
-                    AckBundling ack_mode));
+  MOCK_METHOD2(SendConnectionClosePacket,
+               void(QuicErrorCode error, const std::string& details));
   MOCK_METHOD3(SendRstStream,
                void(QuicStreamId id,
                     QuicRstStreamErrorCode error,

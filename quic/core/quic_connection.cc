@@ -22,6 +22,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_bandwidth.h"
 #include "net/third_party/quiche/src/quic/core/quic_config.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection_id.h"
+#include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
 #include "net/third_party/quiche/src/quic/core/quic_packet_generator.h"
 #include "net/third_party/quiche/src/quic/core/quic_pending_retransmission.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
@@ -2632,9 +2633,8 @@ void QuicConnection::OnWriteError(int error_code) {
   QUIC_LOG_FIRST_N(ERROR, 2) << ENDPOINT << error_details;
   switch (error_code) {
     case QUIC_EMSGSIZE:
-      CloseConnection(
-          QUIC_PACKET_WRITE_ERROR, error_details,
-          ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET_WITH_NO_ACK);
+      CloseConnection(QUIC_PACKET_WRITE_ERROR, error_details,
+                      ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
       break;
     default:
       // We can't send an error as the socket is presumably borked.
@@ -3018,13 +3018,8 @@ void QuicConnection::CloseConnection(
                   << ", with error: " << QuicErrorCodeToString(error) << " ("
                   << error << "), and details:  " << error_details;
 
-  if (connection_close_behavior ==
-      ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET) {
-    SendConnectionClosePacket(error, error_details, SEND_ACK);
-  } else if (connection_close_behavior ==
-             ConnectionCloseBehavior::
-                 SEND_CONNECTION_CLOSE_PACKET_WITH_NO_ACK) {
-    SendConnectionClosePacket(error, error_details, NO_ACK);
+  if (connection_close_behavior != ConnectionCloseBehavior::SILENT_CLOSE) {
+    SendConnectionClosePacket(error, error_details);
   }
 
   ConnectionCloseSource source = ConnectionCloseSource::FROM_SELF;
@@ -3037,14 +3032,15 @@ void QuicConnection::CloseConnection(
 }
 
 void QuicConnection::SendConnectionClosePacket(QuicErrorCode error,
-                                               const std::string& details,
-                                               AckBundling ack_mode) {
+                                               const std::string& details) {
   QUIC_DLOG(INFO) << ENDPOINT << "Sending connection close packet.";
   if (fix_termination_packets_) {
     QUIC_RELOADABLE_FLAG_COUNT(quic_fix_termination_packets);
     SetDefaultEncryptionLevel(GetConnectionCloseEncryptionLevel());
   }
   ClearQueuedPackets();
+  // If there was a packet write error, write the smallest close possible.
+  AckBundling ack_mode = (error == QUIC_PACKET_WRITE_ERROR) ? NO_ACK : SEND_ACK;
   ScopedPacketFlusher flusher(this, ack_mode);
   // When multiple packet number spaces is supported, an ACK frame will be
   // bundled when connection is not write blocked.
