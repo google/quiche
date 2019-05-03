@@ -50,7 +50,14 @@ bool ParsedQuicVersion::AllowsLowFlowControlLimits() const {
 }
 
 bool ParsedQuicVersion::HasHeaderProtection() const {
-  return transport_version == QUIC_VERSION_99;
+  // Header protection support hasn't landed yet, so right now no version
+  // supports header protection. When support for header protection lands, this
+  // check will be revised to return true for versions that support header
+  // protection (i.e. transport_version == QUIC_VERSION_99).
+  //
+  // Returning false right now allows code to land in chromium that needs to be
+  // on only when header protection is supported.
+  return false;
 }
 
 std::ostream& operator<<(std::ostream& os, const ParsedQuicVersion& version) {
