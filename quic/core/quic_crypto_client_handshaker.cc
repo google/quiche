@@ -425,7 +425,7 @@ void QuicCryptoClientHandshaker::DoReceiveREJ(
           static_cast<HandshakeFailureReason>(reject_reasons[i]);
       packed_error |= 1 << (reason - 1);
     }
-    DVLOG(1) << "Reasons for rejection: " << packed_error;
+    QUIC_DVLOG(1) << "Reasons for rejection: " << packed_error;
     if (num_client_hellos_ == QuicCryptoClientStream::kMaxClientHellos) {
       QuicClientSparseHistogram("QuicClientHelloRejectReasons.TooMany",
                                 packed_error);

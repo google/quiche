@@ -133,7 +133,7 @@ void QuicClientEpollNetworkHelper::OnEvent(int fd, QuicEpollEvent* event) {
   DCHECK_EQ(fd, GetLatestFD());
 
   if (event->in_events & EPOLLIN) {
-    DVLOG(1) << "Read packets on EPOLLIN";
+    QUIC_DVLOG(1) << "Read packets on EPOLLIN";
     int times_to_read = max_reads_per_epoll_loop_;
     bool more_to_read = true;
     QuicPacketCount packets_dropped = 0;

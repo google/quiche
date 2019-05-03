@@ -137,8 +137,8 @@ const QuicBackendResponse* QuicMemoryCacheBackend::GetResponse(
 
   auto it = responses_.find(GetKey(host, path));
   if (it == responses_.end()) {
-    DVLOG(1) << "Get response for resource failed: host " << host << " path "
-             << path;
+    QUIC_DVLOG(1) << "Get response for resource failed: host " << host
+                  << " path " << path;
     if (default_response_) {
       return default_response_.get();
     }

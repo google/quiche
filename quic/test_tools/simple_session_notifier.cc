@@ -5,6 +5,7 @@
 #include "net/third_party/quiche/src/quic/test_tools/simple_session_notifier.h"
 
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_map_util.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 
@@ -551,7 +552,7 @@ bool SimpleSessionNotifier::RetransmitLostStreamData() {
             connection_->SendStreamData(pair.first, 0, state.bytes_sent, FIN);
         state.fin_lost = !consumed.fin_consumed;
         if (state.fin_lost) {
-          DLOG(INFO) << "Connection is write blocked";
+          QUIC_DLOG(INFO) << "Connection is write blocked";
           return false;
         }
       } else {
@@ -573,7 +574,7 @@ bool SimpleSessionNotifier::RetransmitLostStreamData() {
         }
         if (length > consumed.bytes_consumed ||
             (can_bundle_fin && !consumed.fin_consumed)) {
-          DVLOG(1) << "Connection is write blocked";
+          QUIC_DVLOG(1) << "Connection is write blocked";
           break;
         }
       }

@@ -594,8 +594,8 @@ void QuicSpdyStream::OnDataFramePayload(QuicStringPiece payload) {
 void QuicSpdyStream::OnDataFrameEnd() {
   DCHECK(
       VersionHasDataFrameHeader(session()->connection()->transport_version()));
-  DVLOG(1) << "Reaches the end of a data frame. Total bytes received are "
-           << body_buffer_.total_body_bytes_received();
+  QUIC_DVLOG(1) << "Reaches the end of a data frame. Total bytes received are "
+                << body_buffer_.total_body_bytes_received();
 }
 
 bool QuicSpdyStream::OnStreamFrameAcked(QuicStreamOffset offset,

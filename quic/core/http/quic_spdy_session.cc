@@ -435,8 +435,8 @@ void QuicSpdySession::OnStreamHeaderList(QuicStreamId stream_id,
               ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
           return;
         }
-        DVLOG(1) << "Received final byte offset in trailers for stream "
-                 << stream_id << ", which no longer exists.";
+        QUIC_DVLOG(1) << "Received final byte offset in trailers for stream "
+                      << stream_id << ", which no longer exists.";
         OnFinalByteOffsetReceived(stream_id, final_byte_offset);
       }
     }
