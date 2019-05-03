@@ -161,7 +161,7 @@ class BbrSenderTest : public QuicTest {
                                                 0.5 * kTestBdp);
     bbr_sender_link_ = QuicMakeUnique<simulator::SymmetricLink>(
         &bbr_sender_, switch_->port(1), kLocalLinkBandwidth,
-        kTestPropagationDelay);
+        kLocalPropagationDelay);
     receiver_link_ = QuicMakeUnique<simulator::SymmetricLink>(
         &receiver_, switch_->port(2), kTestLinkBandwidth,
         kTestPropagationDelay);
@@ -301,6 +301,10 @@ TEST_F(BbrSenderTest, SimpleTransferSmallBuffer) {
                    sender_->ExportDebugState().max_bandwidth, 0.01f);
   EXPECT_GE(bbr_sender_.connection()->GetStats().packets_lost, 0u);
   EXPECT_FALSE(sender_->ExportDebugState().last_sample_is_app_limited);
+
+  // The margin here is quite high, since there exists a possibility that the
+  // connection just exited high gain cycle.
+  EXPECT_APPROX_EQ(kTestRtt, rtt_stats_->smoothed_rtt(), 0.2f);
 }
 
 TEST_F(BbrSenderTest, SimpleTransferEarlyPacketLoss) {
@@ -470,12 +474,6 @@ TEST_F(BbrSenderTest, PacketLossOnSmallBufferStartup) {
 // Ensures the code transitions loss recovery states correctly (NOT_IN_RECOVERY
 // -> CONSERVATION -> GROWTH -> NOT_IN_RECOVERY).
 TEST_F(BbrSenderTest, RecoveryStates) {
-  // Set seed to the position where the gain cycling causes the sender go
-  // into conservation upon entering PROBE_BW.
-  //
-  // TODO(vasilvv): there should be a better way to test this.
-  random_.set_seed(UINT64_C(14719894707049085006));
-
   const QuicTime::Delta timeout = QuicTime::Delta::FromSeconds(10);
   bool simulator_result;
   CreateSmallBufferSetup();
@@ -509,7 +507,6 @@ TEST_F(BbrSenderTest, RecoveryStates) {
       },
       timeout);
 
-  ASSERT_EQ(BbrSender::PROBE_BW, sender_->ExportDebugState().mode);
   ASSERT_EQ(BbrSender::NOT_IN_RECOVERY,
             sender_->ExportDebugState().recovery_state);
   ASSERT_TRUE(simulator_result);
