@@ -693,8 +693,10 @@ TEST_P(StreamMemberLifetimeTest, Basic) {
     // TODO(nharper): Fix this test so it doesn't rely on QUIC crypto.
     return;
   }
-  SetQuicReloadableFlag(enable_quic_stateless_reject_support, true);
-  SetQuicReloadableFlag(quic_use_cheap_stateless_rejects, true);
+  if (GetQuicReloadableFlag(enable_quic_stateless_reject_support) ||
+      GetQuicReloadableFlag(quic_use_cheap_stateless_rejects)) {
+    return;
+  }
 
   const QuicClock* clock = helper_.GetClock();
   CryptoHandshakeMessage chlo = crypto_test_utils::GenerateDefaultInchoateCHLO(
@@ -708,8 +710,6 @@ TEST_P(StreamMemberLifetimeTest, Basic) {
 
   EXPECT_CALL(stream_helper_, CanAcceptClientHello(_, _, _, _, _))
       .WillOnce(testing::Return(true));
-  EXPECT_CALL(stream_helper_, GenerateConnectionIdForReject(_, _))
-      .WillOnce(testing::Return(TestConnectionId(12345)));
 
   // Set the current packet
   QuicConnectionPeer::SetCurrentPacket(session_->connection(),
