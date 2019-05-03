@@ -224,7 +224,7 @@ TEST_F(SimulatorTest, DirectLinkSaturation) {
   const QuicTime end_time = simulator.GetClock()->Now();
   const QuicBandwidth observed_bandwidth = QuicBandwidth::FromBytesAndTimeDelta(
       saturator_a.bytes_transmitted(), end_time - start_time);
-  test::ExpectApproxEq(link.bandwidth(), observed_bandwidth, 0.01f);
+  EXPECT_APPROX_EQ(link.bandwidth(), observed_bandwidth, 0.01f);
 }
 
 // Accepts packets and stores them internally.
@@ -683,15 +683,15 @@ TEST_F(SimulatorTest, TrafficPolicer) {
 
   // Ensure we've transmitted the amount of data we expected.
   for (auto* saturator : {&saturator1, &saturator2}) {
-    test::ExpectApproxEq(bandwidth * simulation_time,
-                         saturator->bytes_transmitted(), 0.01f);
+    EXPECT_APPROX_EQ(bandwidth * simulation_time,
+                     saturator->bytes_transmitted(), 0.01f);
   }
 
   // Check that only one direction is throttled.
-  test::ExpectApproxEq(saturator1.bytes_transmitted() / 4,
-                       saturator2.counter()->bytes(), 0.1f);
-  test::ExpectApproxEq(saturator2.bytes_transmitted(),
-                       saturator1.counter()->bytes(), 0.1f);
+  EXPECT_APPROX_EQ(saturator1.bytes_transmitted() / 4,
+                   saturator2.counter()->bytes(), 0.1f);
+  EXPECT_APPROX_EQ(saturator2.bytes_transmitted(),
+                   saturator1.counter()->bytes(), 0.1f);
 }
 
 // Ensure that a larger burst is allowed when the policed saturator exits
@@ -740,14 +740,14 @@ TEST_F(SimulatorTest, TrafficPolicerBurst) {
   simulator.RunFor(2 * base_propagation_delay);
 
   // Expect the burst to pass without losses.
-  test::ExpectApproxEq(saturator1.bytes_transmitted(),
-                       saturator2.counter()->bytes(), 0.1f);
+  EXPECT_APPROX_EQ(saturator1.bytes_transmitted(),
+                   saturator2.counter()->bytes(), 0.1f);
 
   // Expect subsequent traffic to be policed.
   saturator1.Resume();
   simulator.RunFor(QuicTime::Delta::FromSeconds(10));
-  test::ExpectApproxEq(saturator1.bytes_transmitted() / 4,
-                       saturator2.counter()->bytes(), 0.1f);
+  EXPECT_APPROX_EQ(saturator1.bytes_transmitted() / 4,
+                   saturator2.counter()->bytes(), 0.1f);
 }
 
 // Test that the packet aggregation support in queues work.

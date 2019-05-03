@@ -1128,7 +1128,8 @@ void CreateServerSessionForTest(
 
 // Verifies that the relative error of |actual| with respect to |expected| is
 // no more than |margin|.
-
+// Please use EXPECT_APPROX_EQ, a wrapper around this function, for better error
+// report.
 template <typename T>
 void ExpectApproxEq(T expected, T actual, float relative_margin) {
   // If |relative_margin| > 1 and T is an unsigned type, the comparison will
@@ -1138,9 +1139,15 @@ void ExpectApproxEq(T expected, T actual, float relative_margin) {
 
   T absolute_margin = expected * relative_margin;
 
-  EXPECT_GE(expected + absolute_margin, actual);
-  EXPECT_LE(expected - absolute_margin, actual);
+  EXPECT_GE(expected + absolute_margin, actual) << "actual value too big";
+  EXPECT_LE(expected - absolute_margin, actual) << "actual value too small";
 }
+
+#define EXPECT_APPROX_EQ(expected, actual, relative_margin)                    \
+  do {                                                                         \
+    SCOPED_TRACE(testing::Message() << "relative_margin:" << relative_margin); \
+    quic::test::ExpectApproxEq(expected, actual, relative_margin);             \
+  } while (0)
 
 template <typename T>
 QuicHeaderList AsHeaderList(const T& container) {

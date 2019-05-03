@@ -22,29 +22,29 @@ TEST_F(QuicTestUtilsTest, ConnectionId) {
 }
 
 TEST_F(QuicTestUtilsTest, BasicApproxEq) {
-  ExpectApproxEq(10, 10, 1e-6f);
-  ExpectApproxEq(1000, 1001, 0.01f);
-  EXPECT_NONFATAL_FAILURE(ExpectApproxEq(1000, 1100, 0.01f), "");
+  EXPECT_APPROX_EQ(10, 10, 1e-6f);
+  EXPECT_APPROX_EQ(1000, 1001, 0.01f);
+  EXPECT_NONFATAL_FAILURE(EXPECT_APPROX_EQ(1000, 1100, 0.01f), "");
 
-  ExpectApproxEq(64, 31, 0.55f);
-  EXPECT_NONFATAL_FAILURE(ExpectApproxEq(31, 64, 0.55f), "");
+  EXPECT_APPROX_EQ(64, 31, 0.55f);
+  EXPECT_NONFATAL_FAILURE(EXPECT_APPROX_EQ(31, 64, 0.55f), "");
 }
 
 TEST_F(QuicTestUtilsTest, QuicTimeDelta) {
-  ExpectApproxEq(QuicTime::Delta::FromMicroseconds(1000),
-                 QuicTime::Delta::FromMicroseconds(1003), 0.01f);
+  EXPECT_APPROX_EQ(QuicTime::Delta::FromMicroseconds(1000),
+                   QuicTime::Delta::FromMicroseconds(1003), 0.01f);
   EXPECT_NONFATAL_FAILURE(
-      ExpectApproxEq(QuicTime::Delta::FromMicroseconds(1000),
-                     QuicTime::Delta::FromMicroseconds(1200), 0.01f),
+      EXPECT_APPROX_EQ(QuicTime::Delta::FromMicroseconds(1000),
+                       QuicTime::Delta::FromMicroseconds(1200), 0.01f),
       "");
 }
 
 TEST_F(QuicTestUtilsTest, QuicBandwidth) {
-  ExpectApproxEq(QuicBandwidth::FromBytesPerSecond(1000),
-                 QuicBandwidth::FromBitsPerSecond(8005), 0.01f);
+  EXPECT_APPROX_EQ(QuicBandwidth::FromBytesPerSecond(1000),
+                   QuicBandwidth::FromBitsPerSecond(8005), 0.01f);
   EXPECT_NONFATAL_FAILURE(
-      ExpectApproxEq(QuicBandwidth::FromBytesPerSecond(1000),
-                     QuicBandwidth::FromBitsPerSecond(9005), 0.01f),
+      EXPECT_APPROX_EQ(QuicBandwidth::FromBytesPerSecond(1000),
+                       QuicBandwidth::FromBitsPerSecond(9005), 0.01f),
       "");
 }
 
