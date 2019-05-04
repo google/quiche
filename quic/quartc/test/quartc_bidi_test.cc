@@ -90,17 +90,17 @@ class QuartcBidiTest : public QuicTest {
   }
 
   void SetupCompetingEndpoints(QuicBandwidth bandwidth) {
-    competing_client_ = absl::make_unique<quic::simulator::QuicEndpoint>(
+    competing_client_ = QuicMakeUnique<quic::simulator::QuicEndpoint>(
         &simulator_, "competing_client", "competing_server",
         quic::Perspective::IS_CLIENT, quic::test::TestConnectionId(3));
-    competing_server_ = absl::make_unique<quic::simulator::QuicEndpoint>(
+    competing_server_ = QuicMakeUnique<quic::simulator::QuicEndpoint>(
         &simulator_, "competing_server", "competing_client",
         quic::Perspective::IS_SERVER, quic::test::TestConnectionId(3));
 
-    competing_client_link_ = absl::make_unique<quic::simulator::SymmetricLink>(
+    competing_client_link_ = QuicMakeUnique<quic::simulator::SymmetricLink>(
         competing_client_.get(), client_switch_->port(3), 10 * bandwidth,
         QuicTime::Delta::FromMicroseconds(1));
-    competing_server_link_ = absl::make_unique<quic::simulator::SymmetricLink>(
+    competing_server_link_ = QuicMakeUnique<quic::simulator::SymmetricLink>(
         competing_server_.get(), server_switch_->port(3), 10 * bandwidth,
         QuicTime::Delta::FromMicroseconds(1));
   }
@@ -158,11 +158,11 @@ TEST_F(QuartcBidiTest, 300kbps200ms2PercentLossCompetingBurst) {
   QuicTime competing_burst_time =
       simulator_.GetClock()->Now() + QuicTime::Delta::FromSeconds(15);
   std::unique_ptr<quic::QuicAlarm> competing_client_burst_alarm_ =
-      absl::WrapUnique(simulator_.GetAlarmFactory()->CreateAlarm(
+      QuicWrapUnique(simulator_.GetAlarmFactory()->CreateAlarm(
           new CompetingTransferAlarmDelegate(competing_client_.get(),
                                              /*bytes=*/50 * 1024)));
   std::unique_ptr<quic::QuicAlarm> competing_server_burst_alarm_ =
-      absl::WrapUnique(simulator_.GetAlarmFactory()->CreateAlarm(
+      QuicWrapUnique(simulator_.GetAlarmFactory()->CreateAlarm(
           new CompetingTransferAlarmDelegate(competing_server_.get(),
                                              /*bytes=*/50 * 1024)));
   competing_client_burst_alarm_->Set(competing_burst_time);
