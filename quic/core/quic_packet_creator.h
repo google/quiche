@@ -13,7 +13,6 @@
 #include <utility>
 #include <vector>
 
-#include "net/third_party/quiche/src/quic/core/quic_connection_close_delegate_interface.h"
 #include "net/third_party/quiche/src/quic/core/quic_framer.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_pending_retransmission.h"
@@ -28,10 +27,9 @@ class QuicPacketCreatorPeer;
 class QUIC_EXPORT_PRIVATE QuicPacketCreator {
  public:
   // A delegate interface for further processing serialized packet.
-  class QUIC_EXPORT_PRIVATE DelegateInterface
-      : public QuicConnectionCloseDelegateInterface {
+  class QUIC_EXPORT_PRIVATE DelegateInterface {
    public:
-    ~DelegateInterface() override {}
+    virtual ~DelegateInterface() {}
     // Get a buffer of kMaxOutgoingPacketSize bytes to serialize the next
     // packet. If return nullptr, QuicPacketCreator will serialize on a stack
     // buffer.
@@ -40,6 +38,11 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
     // of |serialized_packet|, but takes ownership of any frames it removes
     // from |packet.retransmittable_frames|.
     virtual void OnSerializedPacket(SerializedPacket* serialized_packet) = 0;
+
+    // Called when an unrecoverable error is encountered.
+    virtual void OnUnrecoverableError(QuicErrorCode error,
+                                      const std::string& error_details,
+                                      ConnectionCloseSource source) = 0;
   };
 
   // Interface which gets callbacks from the QuicPacketCreator at interesting

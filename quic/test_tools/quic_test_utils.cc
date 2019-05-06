@@ -1051,10 +1051,6 @@ MockReceivedPacketManager::MockReceivedPacketManager(QuicConnectionStats* stats)
 
 MockReceivedPacketManager::~MockReceivedPacketManager() {}
 
-MockConnectionCloseDelegate::MockConnectionCloseDelegate() {}
-
-MockConnectionCloseDelegate::~MockConnectionCloseDelegate() {}
-
 MockPacketCreatorDelegate::MockPacketCreatorDelegate() {}
 MockPacketCreatorDelegate::~MockPacketCreatorDelegate() {}
 

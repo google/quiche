@@ -18,7 +18,6 @@
 #include "net/third_party/quiche/src/quic/core/http/quic_client_push_promise_index.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_server_session_base.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection.h"
-#include "net/third_party/quiche/src/quic/core/quic_connection_close_delegate_interface.h"
 #include "net/third_party/quiche/src/quic/core/quic_framer.h"
 #include "net/third_party/quiche/src/quic/core/quic_packet_writer.h"
 #include "net/third_party/quiche/src/quic/core/quic_sent_packet_manager.h"
@@ -1027,18 +1026,6 @@ class MockReceivedPacketManager : public QuicReceivedPacketManager {
                void(const QuicStopWaitingFrame& stop_waiting));
   MOCK_CONST_METHOD0(HasNewMissingPackets, bool(void));
   MOCK_CONST_METHOD0(ack_frame_updated, bool(void));
-};
-
-class MockConnectionCloseDelegate
-    : public QuicConnectionCloseDelegateInterface {
- public:
-  MockConnectionCloseDelegate();
-  ~MockConnectionCloseDelegate() override;
-
-  MOCK_METHOD3(OnUnrecoverableError,
-               void(QuicErrorCode,
-                    const std::string&,
-                    ConnectionCloseSource source));
 };
 
 class MockPacketCreatorDelegate : public QuicPacketCreator::DelegateInterface {

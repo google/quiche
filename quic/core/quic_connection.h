@@ -517,11 +517,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   void OnAuthenticatedIetfStatelessResetPacket(
       const QuicIetfStatelessResetPacket& packet) override;
 
-  // QuicConnectionCloseDelegateInterface
-  void OnUnrecoverableError(QuicErrorCode error,
-                            const std::string& error_details,
-                            ConnectionCloseSource source) override;
-
   // QuicPacketGenerator::DelegateInterface
   bool ShouldGeneratePacket(HasRetransmittableData retransmittable,
                             IsHandshake handshake) override;
@@ -532,6 +527,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // QuicPacketCreator::DelegateInterface
   char* GetPacketBuffer() override;
   void OnSerializedPacket(SerializedPacket* packet) override;
+  void OnUnrecoverableError(QuicErrorCode error,
+                            const std::string& error_details,
+                            ConnectionCloseSource source) override;
 
   // QuicSentPacketManager::NetworkChangeVisitor
   void OnCongestionChange() override;
