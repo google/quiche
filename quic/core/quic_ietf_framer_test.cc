@@ -96,6 +96,10 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
   void OnVersionNegotiationPacket(
       const QuicVersionNegotiationPacket& packet) override {}
 
+  void OnRetryPacket(QuicConnectionId original_connection_id,
+                     QuicConnectionId new_connection_id,
+                     QuicStringPiece retry_token) override {}
+
   bool OnProtocolVersionMismatch(ParsedQuicVersion received_version,
                                  PacketHeaderFormat form) override {
     return true;

@@ -481,6 +481,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   void OnPublicResetPacket(const QuicPublicResetPacket& packet) override;
   void OnVersionNegotiationPacket(
       const QuicVersionNegotiationPacket& packet) override;
+  void OnRetryPacket(QuicConnectionId original_connection_id,
+                     QuicConnectionId new_connection_id,
+                     QuicStringPiece retry_token) override;
   bool OnUnauthenticatedPublicHeader(const QuicPacketHeader& header) override;
   bool OnUnauthenticatedHeader(const QuicPacketHeader& header) override;
   void OnDecryptedPacket(EncryptionLevel level) override;
@@ -1507,6 +1510,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // packet manager, and an ACK timeout would be used to record when an ACK
   // needs to be sent.
   bool send_ack_when_on_can_write_;
+
+  // Indicates whether a RETRY packet has been parsed.
+  bool retry_has_been_parsed_;
 
   // Latched value of quic_validate_packet_number_post_decryption.
   const bool validate_packet_number_post_decryption_;

@@ -154,6 +154,9 @@ struct QUIC_EXPORT_PRIVATE ParsedQuicVersion {
 
   // Returns whether header protection is used in this version of QUIC.
   bool HasHeaderProtection() const;
+
+  // Returns whether this version supports IETF RETRY packets.
+  bool SupportsRetry() const;
 };
 
 QUIC_EXPORT_PRIVATE ParsedQuicVersion UnsupportedQuicVersion();

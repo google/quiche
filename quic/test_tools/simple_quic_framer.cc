@@ -39,6 +39,10 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
         QuicMakeUnique<QuicVersionNegotiationPacket>((packet));
   }
 
+  void OnRetryPacket(QuicConnectionId original_connection_id,
+                     QuicConnectionId new_connection_id,
+                     QuicStringPiece retry_token) override {}
+
   bool OnUnauthenticatedPublicHeader(const QuicPacketHeader& header) override {
     return true;
   }

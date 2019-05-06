@@ -1510,6 +1510,8 @@ bool QuicFramer::ProcessPacket(const QuicEncryptedPacket& packet) {
   if (IsVersionNegotiation(header, packet_has_ietf_packet_header)) {
     QUIC_DVLOG(1) << ENDPOINT << "Received version negotiation packet";
     rv = ProcessVersionNegotiationPacket(&reader, header);
+  } else if (header.long_packet_type == RETRY) {
+    rv = ProcessRetryPacket(&reader, header);
   } else if (header.reset_flag) {
     rv = ProcessPublicResetPacket(&reader, header);
   } else if (packet.length() <= kMaxIncomingPacketSize) {
@@ -1560,6 +1562,29 @@ bool QuicFramer::ProcessVersionNegotiationPacket(
   } while (!reader->IsDoneReading());
 
   visitor_->OnVersionNegotiationPacket(packet);
+  return true;
+}
+
+bool QuicFramer::ProcessRetryPacket(QuicDataReader* reader,
+                                    const QuicPacketHeader& header) {
+  DCHECK_EQ(Perspective::IS_CLIENT, perspective_);
+
+  // Parse Original Destination Connection ID Length.
+  uint8_t odcil = header.type_byte & 0xf;
+  if (odcil != 0) {
+    odcil += kConnectionIdLengthAdjustment;
+  }
+
+  // Parse Original Destination Connection ID.
+  QuicConnectionId original_destination_connection_id;
+  if (!reader->ReadConnectionId(&original_destination_connection_id, odcil)) {
+    set_detailed_error("Unable to read Original Destination ConnectionId.");
+    return false;
+  }
+
+  QuicStringPiece retry_token = reader->ReadRemainingPayload();
+  visitor_->OnRetryPacket(original_destination_connection_id,
+                          header.source_connection_id, retry_token);
   return true;
 }
 
@@ -2430,6 +2455,7 @@ bool QuicFramer::ProcessIetfHeaderTypeByte(QuicDataReader* reader,
     set_detailed_error("Unable to read type.");
     return false;
   }
+  header->type_byte = type;
   // Determine whether this is a long or short header.
   header->form = type & FLAGS_LONG_HEADER ? IETF_QUIC_LONG_HEADER_PACKET
                                           : IETF_QUIC_SHORT_HEADER_PACKET;
@@ -2469,14 +2495,19 @@ bool QuicFramer::ProcessIetfHeaderTypeByte(QuicDataReader* reader,
           set_detailed_error("Illegal long header type value.");
           return false;
         }
-        if (header->long_packet_type == RETRY &&
-            (version().KnowsWhichDecrypterToUse() ||
-             supports_multiple_packet_number_spaces_)) {
-          set_detailed_error("Not yet supported IETF RETRY packet received.");
-          return RaiseError(QUIC_INVALID_PACKET_HEADER);
+        if (header->long_packet_type == RETRY) {
+          if (!version().SupportsRetry()) {
+            set_detailed_error("RETRY not supported in this version.");
+            return false;
+          }
+          if (perspective_ == Perspective::IS_SERVER) {
+            set_detailed_error("Client-initiated RETRY is invalid.");
+            return false;
+          }
+        } else {
+          header->packet_number_length = GetLongHeaderPacketNumberLength(
+              header->version.transport_version, type);
         }
-        header->packet_number_length = GetLongHeaderPacketNumberLength(
-            header->version.transport_version, type);
       }
     }
     if (header->long_packet_type != VERSION_NEGOTIATION) {

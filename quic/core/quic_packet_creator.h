@@ -255,7 +255,7 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // Sets transmission type of next constructed packets.
   void SetTransmissionType(TransmissionType type);
 
-  // Sets the retry token to be sent over the wire in v99 IETF Initial packets.
+  // Sets the retry token to be sent over the wire in IETF Initial packets.
   void SetRetryToken(QuicStringPiece retry_token);
 
   // Returns the largest payload that will fit into a single MESSAGE frame.

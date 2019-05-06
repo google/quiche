@@ -13,6 +13,7 @@
 #include "net/third_party/quiche/src/quic/core/crypto/quic_decrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"
+#include "net/third_party/quiche/src/quic/core/quic_connection_id.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_endian.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
@@ -91,6 +92,12 @@ class QUIC_EXPORT_PRIVATE QuicFramerVisitorInterface {
   // packet has been parsed.
   virtual void OnVersionNegotiationPacket(
       const QuicVersionNegotiationPacket& packet) = 0;
+
+  // Called only when |perspective_| is IS_CLIENT and a retry packet has been
+  // parsed.
+  virtual void OnRetryPacket(QuicConnectionId original_connection_id,
+                             QuicConnectionId new_connection_id,
+                             QuicStringPiece retry_token) = 0;
 
   // Called when all fields except packet number has been parsed, but has not
   // been authenticated. If it returns false, framing for this packet will
@@ -263,7 +270,7 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   }
 
   // Pass a UDP packet into the framer for parsing.
-  // Return true if the packet was processed succesfully. |packet| must be a
+  // Return true if the packet was processed successfully. |packet| must be a
   // single, complete UDP packet (not a frame of a packet).  This packet
   // might be null padded past the end of the payload, which will be correctly
   // ignored.
@@ -601,6 +608,9 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
 
   bool ProcessVersionNegotiationPacket(QuicDataReader* reader,
                                        const QuicPacketHeader& header);
+
+  bool ProcessRetryPacket(QuicDataReader* reader,
+                          const QuicPacketHeader& header);
 
   bool MaybeProcessIetfInitialRetryToken(QuicDataReader* encrypted_reader,
                                          QuicPacketHeader* header);

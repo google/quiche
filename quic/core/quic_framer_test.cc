@@ -198,6 +198,16 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
         QuicMakeUnique<QuicVersionNegotiationPacket>((packet));
   }
 
+  void OnRetryPacket(QuicConnectionId original_connection_id,
+                     QuicConnectionId new_connection_id,
+                     QuicStringPiece retry_token) override {
+    retry_original_connection_id_ =
+        QuicMakeUnique<QuicConnectionId>(original_connection_id);
+    retry_new_connection_id_ =
+        QuicMakeUnique<QuicConnectionId>(new_connection_id);
+    retry_token_ = QuicMakeUnique<std::string>(std::string(retry_token));
+  }
+
   bool OnProtocolVersionMismatch(ParsedQuicVersion received_version,
                                  PacketHeaderFormat /*form*/) override {
     QUIC_DLOG(INFO) << "QuicFramer Version Mismatch, version: "
@@ -394,6 +404,9 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
   std::unique_ptr<QuicPublicResetPacket> public_reset_packet_;
   std::unique_ptr<QuicIetfStatelessResetPacket> stateless_reset_packet_;
   std::unique_ptr<QuicVersionNegotiationPacket> version_negotiation_packet_;
+  std::unique_ptr<QuicConnectionId> retry_original_connection_id_;
+  std::unique_ptr<QuicConnectionId> retry_new_connection_id_;
+  std::unique_ptr<std::string> retry_token_;
   std::vector<std::unique_ptr<QuicStreamFrame>> stream_frames_;
   std::vector<std::unique_ptr<QuicCryptoFrame>> crypto_frames_;
   std::vector<std::unique_ptr<QuicAckFrame>> ack_frames_;
@@ -5477,6 +5490,78 @@ TEST_P(QuicFramerTest, OldVersionNegotiationPacket) {
     packet.back().fragment.pop_back();
   }
   CheckFramingBoundaries(packet, QUIC_INVALID_VERSION_NEGOTIATION_PACKET);
+}
+
+TEST_P(QuicFramerTest, ParseIetfRetryPacket) {
+  if (!framer_.version().SupportsRetry()) {
+    return;
+  }
+  // IETF RETRY is only sent from client to server.
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
+  // clang-format off
+  unsigned char packet[] = {
+      // public flags (long header with packet type RETRY and ODCIL=8)
+      0xF5,
+      // version
+      QUIC_VERSION_BYTES,
+      // connection ID lengths
+      0x05,
+      // source connection ID
+      0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x11,
+      // original destination connection ID
+      0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+      // retry token
+      'H', 'e', 'l', 'l', 'o', ' ', 't', 'h', 'i', 's',
+      ' ', 'i', 's', ' ', 'R', 'E', 'T', 'R', 'Y', '!',
+  };
+  // clang-format on
+
+  QuicEncryptedPacket encrypted(AsChars(packet), QUIC_ARRAYSIZE(packet), false);
+  EXPECT_TRUE(framer_.ProcessPacket(encrypted));
+
+  EXPECT_EQ(QUIC_NO_ERROR, framer_.error());
+  ASSERT_TRUE(visitor_.header_.get());
+
+  ASSERT_TRUE(visitor_.retry_original_connection_id_.get());
+  ASSERT_TRUE(visitor_.retry_new_connection_id_.get());
+  ASSERT_TRUE(visitor_.retry_token_.get());
+
+  EXPECT_EQ(FramerTestConnectionId(),
+            *visitor_.retry_original_connection_id_.get());
+  EXPECT_EQ(FramerTestConnectionIdPlusOne(),
+            *visitor_.retry_new_connection_id_.get());
+  EXPECT_EQ("Hello this is RETRY!", *visitor_.retry_token_.get());
+}
+
+TEST_P(QuicFramerTest, RejectIetfRetryPacketAsServer) {
+  if (!framer_.version().SupportsRetry()) {
+    return;
+  }
+  // IETF RETRY is only sent from client to server.
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_SERVER);
+  // clang-format off
+  unsigned char packet[] = {
+      // public flags (long header with packet type RETRY and ODCIL=8)
+      0xF5,
+      // version
+      QUIC_VERSION_BYTES,
+      // connection ID lengths
+      0x05,
+      // source connection ID
+      0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x11,
+      // original destination connection ID
+      0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+      // retry token
+      'H', 'e', 'l', 'l', 'o', ' ', 't', 'h', 'i', 's',
+      ' ', 'i', 's', ' ', 'R', 'E', 'T', 'R', 'Y', '!',
+  };
+  // clang-format on
+
+  QuicEncryptedPacket encrypted(AsChars(packet), QUIC_ARRAYSIZE(packet), false);
+  EXPECT_FALSE(framer_.ProcessPacket(encrypted));
+
+  EXPECT_EQ(QUIC_INVALID_PACKET_HEADER, framer_.error());
+  EXPECT_EQ("Client-initiated RETRY is invalid.", framer_.detailed_error());
 }
 
 TEST_P(QuicFramerTest, BuildPaddingFramePacket) {
@@ -13085,7 +13170,8 @@ TEST_P(QuicFramerTest, MultiplePacketNumberSpaces) {
 }
 
 TEST_P(QuicFramerTest, IetfRetryPacketRejected) {
-  if (!framer_.version().KnowsWhichDecrypterToUse()) {
+  if (!framer_.version().KnowsWhichDecrypterToUse() ||
+      framer_.version().SupportsRetry()) {
     return;
   }
 
@@ -13112,7 +13198,7 @@ TEST_P(QuicFramerTest, IetfRetryPacketRejected) {
     {"Unable to read protocol version.",
      {QUIC_VERSION_BYTES}},
     // connection_id length
-    {"Not yet supported IETF RETRY packet received.",
+    {"RETRY not supported in this version.",
      {0x00}},
   };
   // clang-format on
@@ -13128,7 +13214,8 @@ TEST_P(QuicFramerTest, IetfRetryPacketRejected) {
 }
 
 TEST_P(QuicFramerTest, RetryPacketRejectedWithMultiplePacketNumberSpaces) {
-  if (framer_.transport_version() < QUIC_VERSION_46) {
+  if (framer_.transport_version() < QUIC_VERSION_46 ||
+      framer_.version().SupportsRetry()) {
     return;
   }
   framer_.EnableMultiplePacketNumberSpacesSupport();
@@ -13142,7 +13229,7 @@ TEST_P(QuicFramerTest, RetryPacketRejectedWithMultiplePacketNumberSpaces) {
     {"Unable to read protocol version.",
      {QUIC_VERSION_BYTES}},
     // connection_id length
-    {"Not yet supported IETF RETRY packet received.",
+    {"RETRY not supported in this version.",
      {0x00}},
   };
   // clang-format on

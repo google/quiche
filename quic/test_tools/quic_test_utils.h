@@ -250,6 +250,10 @@ class MockFramerVisitor : public QuicFramerVisitorInterface {
   MOCK_METHOD1(OnPublicResetPacket, void(const QuicPublicResetPacket& header));
   MOCK_METHOD1(OnVersionNegotiationPacket,
                void(const QuicVersionNegotiationPacket& packet));
+  MOCK_METHOD3(OnRetryPacket,
+               void(QuicConnectionId original_connection_id,
+                    QuicConnectionId new_connection_id,
+                    QuicStringPiece retry_token));
   // The constructor sets this up to return true by default.
   MOCK_METHOD1(OnUnauthenticatedHeader, bool(const QuicPacketHeader& header));
   // The constructor sets this up to return true by default.
@@ -302,6 +306,9 @@ class NoOpFramerVisitor : public QuicFramerVisitorInterface {
   void OnPublicResetPacket(const QuicPublicResetPacket& packet) override {}
   void OnVersionNegotiationPacket(
       const QuicVersionNegotiationPacket& packet) override {}
+  void OnRetryPacket(QuicConnectionId original_connection_id,
+                     QuicConnectionId new_connection_id,
+                     QuicStringPiece retry_token) override {}
   bool OnProtocolVersionMismatch(ParsedQuicVersion version,
                                  PacketHeaderFormat form) override;
   bool OnUnauthenticatedHeader(const QuicPacketHeader& header) override;
@@ -1011,6 +1018,9 @@ class MockQuicConnectionDebugVisitor : public QuicConnectionDebugVisitor {
 
   MOCK_METHOD1(OnVersionNegotiationPacket,
                void(const QuicVersionNegotiationPacket&));
+
+  MOCK_METHOD3(OnRetryPacket,
+               void(QuicConnectionId, QuicConnectionId, QuicStringPiece));
 };
 
 class MockReceivedPacketManager : public QuicReceivedPacketManager {

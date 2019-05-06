@@ -16,6 +16,7 @@
 #include <utility>
 
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
+#include "net/third_party/quiche/src/quic/core/crypto/crypto_utils.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_decrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/proto/cached_network_parameters.pb.h"
@@ -348,6 +349,7 @@ QuicConnection::QuicConnection(
       fix_termination_packets_(
           GetQuicReloadableFlag(quic_fix_termination_packets)),
       send_ack_when_on_can_write_(false),
+      retry_has_been_parsed_(false),
       validate_packet_number_post_decryption_(
           GetQuicReloadableFlag(quic_validate_packet_number_post_decryption)),
       use_uber_received_packet_manager_(
@@ -744,6 +746,39 @@ void QuicConnection::OnVersionNegotiationPacket(
   no_stop_waiting_frames_ = transport_version() > QUIC_VERSION_43;
   version_negotiation_state_ = NEGOTIATION_IN_PROGRESS;
   RetransmitUnackedPackets(ALL_UNACKED_RETRANSMISSION);
+}
+
+// Handles retry for client connection.
+void QuicConnection::OnRetryPacket(QuicConnectionId original_connection_id,
+                                   QuicConnectionId new_connection_id,
+                                   QuicStringPiece retry_token) {
+  if (original_connection_id != connection_id_) {
+    QUIC_DLOG(ERROR) << "Ignoring RETRY with original connection ID "
+                     << original_connection_id << " not matching expected "
+                     << connection_id_ << " token "
+                     << QuicTextUtils::HexEncode(retry_token);
+    return;
+  }
+  if (retry_has_been_parsed_) {
+    QUIC_DLOG(ERROR) << "Ignoring non-first RETRY with token "
+                     << QuicTextUtils::HexEncode(retry_token);
+    return;
+  }
+  retry_has_been_parsed_ = true;
+  QUIC_DLOG(INFO) << "Received RETRY, replacing connection ID "
+                  << connection_id_ << " with " << new_connection_id
+                  << ", received token "
+                  << QuicTextUtils::HexEncode(retry_token);
+  connection_id_ = new_connection_id;
+  packet_generator_.SetConnectionId(connection_id_);
+  packet_generator_.SetRetryToken(retry_token);
+
+  // Reinstall initial crypters because the connection ID changed.
+  CrypterPair crypters;
+  CryptoUtils::CreateTlsInitialCrypters(
+      Perspective::IS_CLIENT, transport_version(), connection_id_, &crypters);
+  SetEncrypter(ENCRYPTION_INITIAL, std::move(crypters.encrypter));
+  InstallDecrypter(ENCRYPTION_INITIAL, std::move(crypters.decrypter));
 }
 
 bool QuicConnection::HasIncomingConnectionId(QuicConnectionId connection_id) {

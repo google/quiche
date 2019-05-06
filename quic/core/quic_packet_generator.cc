@@ -485,6 +485,10 @@ void QuicPacketGenerator::SetTransmissionType(TransmissionType type) {
   }
 }
 
+void QuicPacketGenerator::SetRetryToken(QuicStringPiece retry_token) {
+  packet_creator_.SetRetryToken(retry_token);
+}
+
 void QuicPacketGenerator::SetCanSetTransmissionType(
     bool can_set_transmission_type) {
   packet_creator_.set_can_set_transmission_type(can_set_transmission_type);

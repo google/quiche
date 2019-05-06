@@ -60,6 +60,10 @@ bool ParsedQuicVersion::HasHeaderProtection() const {
   return false;
 }
 
+bool ParsedQuicVersion::SupportsRetry() const {
+  return transport_version == QUIC_VERSION_99;
+}
+
 std::ostream& operator<<(std::ostream& os, const ParsedQuicVersion& version) {
   os << ParsedQuicVersionToString(version);
   return os;

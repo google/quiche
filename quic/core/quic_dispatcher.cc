@@ -869,6 +869,12 @@ void QuicDispatcher::OnVersionNegotiationPacket(
   DCHECK(false);
 }
 
+void QuicDispatcher::OnRetryPacket(QuicConnectionId /*original_connection_id*/,
+                                   QuicConnectionId /*new_connection_id*/,
+                                   QuicStringPiece /*retry_token*/) {
+  DCHECK(false);
+}
+
 void QuicDispatcher::OnDecryptedPacket(EncryptionLevel level) {
   DCHECK(false);
 }
@@ -1066,7 +1072,7 @@ bool QuicDispatcher::HasChlosBuffered() const {
 bool QuicDispatcher::ShouldCreateOrBufferPacketForConnection(
     QuicConnectionId connection_id,
     bool ietf_quic) {
-  VLOG(1) << "Received packet from new connection " << connection_id;
+  QUIC_VLOG(1) << "Received packet from new connection " << connection_id;
   return true;
 }
 

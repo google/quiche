@@ -63,6 +63,11 @@ class QuicPacketPrinter : public QuicFramerVisitorInterface {
       const QuicVersionNegotiationPacket& packet) override {
     std::cerr << "OnVersionNegotiationPacket\n";
   }
+  void OnRetryPacket(QuicConnectionId original_connection_id,
+                     QuicConnectionId new_connection_id,
+                     QuicStringPiece retry_token) override {
+    std::cerr << "OnRetryPacket\n";
+  }
   bool OnUnauthenticatedPublicHeader(const QuicPacketHeader& header) override {
     std::cerr << "OnUnauthenticatedPublicHeader\n";
     return true;
