@@ -1498,19 +1498,30 @@ bool QuicFramer::ProcessPacket(const QuicEncryptedPacket& packet) {
     return true;
   }
 
-  if (perspective_ == Perspective::IS_SERVER && header.version_flag &&
-      header.version != version_) {
-    if (!visitor_->OnProtocolVersionMismatch(header.version, header.form)) {
-      RecordDroppedPacketReason(DroppedPacketReason::VERSION_MISMATCH);
-      return true;
+  if (IsVersionNegotiation(header, packet_has_ietf_packet_header)) {
+    QUIC_DVLOG(1) << ENDPOINT << "Received version negotiation packet";
+    return ProcessVersionNegotiationPacket(&reader, header);
+  }
+
+  if (header.version_flag && header.version != version_) {
+    if (perspective_ == Perspective::IS_SERVER) {
+      if (!visitor_->OnProtocolVersionMismatch(header.version, header.form)) {
+        RecordDroppedPacketReason(DroppedPacketReason::VERSION_MISMATCH);
+        return true;
+      }
+    } else {
+      // A client received a packet of a different version but that packet is
+      // not a version negotiation packet. It is therefore invalid and dropped.
+      QUIC_DLOG(ERROR) << "Client received unexpected version "
+                       << ParsedQuicVersionToString(header.version)
+                       << " instead of " << ParsedQuicVersionToString(version_);
+      set_detailed_error("Client received unexpected version.");
+      return RaiseError(QUIC_INVALID_VERSION);
     }
   }
 
   bool rv;
-  if (IsVersionNegotiation(header, packet_has_ietf_packet_header)) {
-    QUIC_DVLOG(1) << ENDPOINT << "Received version negotiation packet";
-    rv = ProcessVersionNegotiationPacket(&reader, header);
-  } else if (header.long_packet_type == RETRY) {
+  if (header.long_packet_type == RETRY) {
     rv = ProcessRetryPacket(&reader, header);
   } else if (header.reset_flag) {
     rv = ProcessPublicResetPacket(&reader, header);

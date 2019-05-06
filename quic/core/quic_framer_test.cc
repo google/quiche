@@ -12938,6 +12938,36 @@ TEST_P(QuicFramerTest, InvalidCoalescedPacket) {
   ASSERT_EQ(visitor_.coalesced_packets_.size(), 0u);
 }
 
+TEST_P(QuicFramerTest, ClientReceivesInvalidVersion) {
+  if (framer_.transport_version() < QUIC_VERSION_44) {
+    return;
+  }
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
+
+  // clang-format off
+  unsigned char packet[] = {
+       // public flags (long header with packet type INITIAL)
+       0xFF,
+       // version that is different from the framer's version
+       'Q', '0', '4', '3',
+       // connection ID lengths
+       0x05,
+       // source connection ID
+       0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+       // packet number
+       0x01,
+       // padding frame
+       0x00,
+  };
+  // clang-format on
+
+  QuicEncryptedPacket encrypted(AsChars(packet), QUIC_ARRAYSIZE(packet), false);
+  EXPECT_FALSE(framer_.ProcessPacket(encrypted));
+
+  EXPECT_EQ(QUIC_INVALID_VERSION, framer_.error());
+  EXPECT_EQ("Client received unexpected version.", framer_.detailed_error());
+}
+
 TEST_P(QuicFramerTest, PacketHeaderWithVariableLengthConnectionId) {
   if (framer_.transport_version() < QUIC_VERSION_46) {
     return;
