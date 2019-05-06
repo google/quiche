@@ -10,6 +10,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/quartc/simulated_packet_transport.h"
 #include "net/third_party/quiche/src/quic/quartc/test/bidi_test_runner.h"
+#include "net/third_party/quiche/src/quic/quartc/test/quartc_competing_endpoint.h"
 #include "net/third_party/quiche/src/quic/quartc/test/quic_trace_interceptor.h"
 #include "net/third_party/quiche/src/quic/quartc/test/random_packet_filter.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
@@ -21,19 +22,6 @@
 namespace quic {
 namespace test {
 namespace {
-
-class CompetingTransferAlarmDelegate : public quic::QuicAlarm::Delegate {
- public:
-  CompetingTransferAlarmDelegate(quic::simulator::QuicEndpoint* endpoint,
-                                 QuicByteCount bytes)
-      : endpoint_(endpoint), bytes_(bytes) {}
-
-  void OnAlarm() override { endpoint_->AddBytesToTransfer(bytes_); }
-
- private:
-  quic::simulator::QuicEndpoint* const endpoint_;
-  const QuicByteCount bytes_;
-};
 
 class QuartcBidiTest : public QuicTest {
  protected:
@@ -89,19 +77,23 @@ class QuartcBidiTest : public QuicTest {
         propagation_delay);
   }
 
-  void SetupCompetingEndpoints(QuicBandwidth bandwidth) {
-    competing_client_ = QuicMakeUnique<quic::simulator::QuicEndpoint>(
-        &simulator_, "competing_client", "competing_server",
-        quic::Perspective::IS_CLIENT, quic::test::TestConnectionId(3));
-    competing_server_ = QuicMakeUnique<quic::simulator::QuicEndpoint>(
-        &simulator_, "competing_server", "competing_client",
-        quic::Perspective::IS_SERVER, quic::test::TestConnectionId(3));
+  void SetupCompetingEndpoints(QuicBandwidth bandwidth,
+                               QuicTime::Delta send_interval,
+                               QuicByteCount bytes_per_interval) {
+    competing_client_ = QuicMakeUnique<QuartcCompetingEndpoint>(
+        &simulator_, send_interval, bytes_per_interval, "competing_client",
+        "competing_server", quic::Perspective::IS_CLIENT,
+        quic::test::TestConnectionId(3));
+    competing_server_ = QuicMakeUnique<QuartcCompetingEndpoint>(
+        &simulator_, send_interval, bytes_per_interval, "competing_server",
+        "competing_client", quic::Perspective::IS_SERVER,
+        quic::test::TestConnectionId(3));
 
     competing_client_link_ = QuicMakeUnique<quic::simulator::SymmetricLink>(
-        competing_client_.get(), client_switch_->port(3), 10 * bandwidth,
+        competing_client_->endpoint(), client_switch_->port(3), 10 * bandwidth,
         QuicTime::Delta::FromMicroseconds(1));
     competing_server_link_ = QuicMakeUnique<quic::simulator::SymmetricLink>(
-        competing_server_.get(), server_switch_->port(3), 10 * bandwidth,
+        competing_server_->endpoint(), server_switch_->port(3), 10 * bandwidth,
         QuicTime::Delta::FromMicroseconds(1));
   }
 
@@ -118,8 +110,8 @@ class QuartcBidiTest : public QuicTest {
   std::unique_ptr<simulator::SymmetricLink> server_link_;
   std::unique_ptr<simulator::SymmetricLink> bottleneck_link_;
 
-  std::unique_ptr<simulator::QuicEndpoint> competing_client_;
-  std::unique_ptr<simulator::QuicEndpoint> competing_server_;
+  std::unique_ptr<QuartcCompetingEndpoint> competing_client_;
+  std::unique_ptr<QuartcCompetingEndpoint> competing_server_;
   std::unique_ptr<simulator::SymmetricLink> competing_client_link_;
   std::unique_ptr<simulator::SymmetricLink> competing_server_link_;
 
@@ -153,20 +145,8 @@ TEST_F(QuartcBidiTest, 300kbps200ms2PercentLossCompetingBurst) {
   QuicBandwidth bandwidth = QuicBandwidth::FromKBitsPerSecond(300);
   CreateTransports(bandwidth, QuicTime::Delta::FromMilliseconds(200),
                    10 * quic::kDefaultMaxPacketSize, /*loss_percent=*/2);
-  SetupCompetingEndpoints(bandwidth);
-
-  QuicTime competing_burst_time =
-      simulator_.GetClock()->Now() + QuicTime::Delta::FromSeconds(15);
-  std::unique_ptr<quic::QuicAlarm> competing_client_burst_alarm_ =
-      QuicWrapUnique(simulator_.GetAlarmFactory()->CreateAlarm(
-          new CompetingTransferAlarmDelegate(competing_client_.get(),
-                                             /*bytes=*/50 * 1024)));
-  std::unique_ptr<quic::QuicAlarm> competing_server_burst_alarm_ =
-      QuicWrapUnique(simulator_.GetAlarmFactory()->CreateAlarm(
-          new CompetingTransferAlarmDelegate(competing_server_.get(),
-                                             /*bytes=*/50 * 1024)));
-  competing_client_burst_alarm_->Set(competing_burst_time);
-  competing_server_burst_alarm_->Set(competing_burst_time);
+  SetupCompetingEndpoints(bandwidth, QuicTime::Delta::FromSeconds(15),
+                          /*bytes_per_interval=*/50 * 1024);
 
   quic::test::BidiTestRunner runner(&simulator_, client_transport_.get(),
                                     server_transport_.get());
