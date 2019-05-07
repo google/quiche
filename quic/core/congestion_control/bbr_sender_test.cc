@@ -11,6 +11,7 @@
 #include "net/third_party/quiche/src/quic/core/congestion_control/rtt_stats.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
@@ -304,7 +305,7 @@ TEST_F(BbrSenderTest, SimpleTransferSmallBuffer) {
 
   // The margin here is quite high, since there exists a possibility that the
   // connection just exited high gain cycle.
-  EXPECT_APPROX_EQ(kTestRtt, rtt_stats_->smoothed_rtt(), 0.2f);
+  EXPECT_APPROX_EQ(kTestRtt, sender_->GetMinRtt(), 0.2f);
 }
 
 TEST_F(BbrSenderTest, SimpleTransferEarlyPacketLoss) {
@@ -471,6 +472,20 @@ TEST_F(BbrSenderTest, PacketLossOnSmallBufferStartup) {
   EXPECT_LE(loss_rate, 0.31);
 }
 
+// Test the number of losses incurred by the startup phase in a situation when
+// the buffer is less than BDP, with a STARTUP CWND gain of 2.
+TEST_F(BbrSenderTest, PacketLossOnSmallBufferStartupDerivedCWNDGain) {
+  SetQuicReloadableFlag(quic_bbr_slower_startup3, true);
+  CreateSmallBufferSetup();
+
+  SetConnectionOption(kBBQ2);
+  DriveOutOfStartup();
+  float loss_rate =
+      static_cast<float>(bbr_sender_.connection()->GetStats().packets_lost) /
+      bbr_sender_.connection()->GetStats().packets_sent;
+  EXPECT_LE(loss_rate, 0.1);
+}
+
 // Ensures the code transitions loss recovery states correctly (NOT_IN_RECOVERY
 // -> CONSERVATION -> GROWTH -> NOT_IN_RECOVERY).
 TEST_F(BbrSenderTest, RecoveryStates) {
@@ -602,15 +617,14 @@ TEST_F(BbrSenderTest, Drain) {
   EXPECT_APPROX_EQ(kTestRtt, rtt_stats_->smoothed_rtt(), 0.1f);
 }
 
+// TODO(wub): Re-enable this test once default drain_gain changed to 0.75.
 // Verify that the DRAIN phase works correctly.
-TEST_F(BbrSenderTest, ShallowDrain) {
+TEST_F(BbrSenderTest, DISABLED_ShallowDrain) {
   SetQuicReloadableFlag(quic_bbr_slower_startup3, true);
   // Disable Ack Decimation on the receiver, because it can increase srtt.
   QuicConnectionPeer::SetAckMode(receiver_.connection(), AckMode::TCP_ACKING);
 
   CreateDefaultSetup();
-  // BBQ4 increases the pacing gain in DRAIN to 0.75
-  SetConnectionOption(kBBQ4);
   const QuicTime::Delta timeout = QuicTime::Delta::FromSeconds(10);
   // Get the queue at the bottleneck, which is the outgoing queue at the port to
   // which the receiver is connected.
@@ -1186,7 +1200,7 @@ TEST_F(BbrSenderTest, DerivedPacingGainStartup) {
 
 TEST_F(BbrSenderTest, DerivedCWNDGainStartup) {
   SetQuicReloadableFlag(quic_bbr_slower_startup3, true);
-  CreateDefaultSetup();
+  CreateSmallBufferSetup();
 
   SetConnectionOption(kBBQ2);
   EXPECT_EQ(3u, sender_->num_startup_rtts());
@@ -1208,7 +1222,10 @@ TEST_F(BbrSenderTest, DerivedCWNDGainStartup) {
   EXPECT_EQ(3u, sender_->ExportDebugState().rounds_without_bandwidth_gain);
   EXPECT_APPROX_EQ(kTestLinkBandwidth,
                    sender_->ExportDebugState().max_bandwidth, 0.01f);
-  EXPECT_EQ(0u, bbr_sender_.connection()->GetStats().packets_lost);
+  float loss_rate =
+      static_cast<float>(bbr_sender_.connection()->GetStats().packets_lost) /
+      bbr_sender_.connection()->GetStats().packets_sent;
+  EXPECT_LT(loss_rate, 0.15f);
   EXPECT_FALSE(sender_->ExportDebugState().last_sample_is_app_limited);
   // Expect an SRTT less than 2.7 * Min RTT on exit from STARTUP.
   EXPECT_GT(kTestRtt * 2.7, rtt_stats_->smoothed_rtt());

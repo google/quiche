@@ -30,7 +30,7 @@ const float kDefaultHighGain = 2.885f;
 // The newly derived gain for STARTUP, equal to 4 * ln(2)
 const float kDerivedHighGain = 2.773f;
 // The newly derived CWND gain for STARTUP, 2.
-const float kDerivedHighCWNDGain = 2.773f;
+const float kDerivedHighCWNDGain = 2.0f;
 // The gain used in STARTUP after loss has been detected.
 // 1.5 is enough to allow for 25% exogenous loss and still observe a 25% growth
 // in measured bandwidth.
@@ -328,11 +328,6 @@ void BbrSender::SetFromConfig(const QuicConfig& config,
       config.HasClientRequestedIndependentOption(kBBQ3, perspective)) {
     QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr_slower_startup3, 3, 4);
     enable_ack_aggregation_during_startup_ = true;
-  }
-  if (GetQuicReloadableFlag(quic_bbr_slower_startup3) &&
-      config.HasClientRequestedIndependentOption(kBBQ4, perspective)) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr_slower_startup3, 4, 4);
-    set_drain_gain(kModerateProbeRttMultiplier);
   }
   if (GetQuicReloadableFlag(quic_bbr_slower_startup4) &&
       config.HasClientRequestedIndependentOption(kBBQ5, perspective)) {

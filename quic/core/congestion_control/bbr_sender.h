@@ -164,6 +164,10 @@ class QUIC_EXPORT_PRIVATE BbrSender : public SendAlgorithmInterface {
     drain_gain_ = drain_gain;
   }
 
+  // Returns the current estimate of the RTT of the connection.  Outside of the
+  // edge cases, this is minimum RTT.
+  QuicTime::Delta GetMinRtt() const;
+
   DebugState ExportDebugState() const;
 
  private:
@@ -179,9 +183,6 @@ class QUIC_EXPORT_PRIVATE BbrSender : public SendAlgorithmInterface {
                          QuicRoundTripCount>
       MaxAckHeightFilter;
 
-  // Returns the current estimate of the RTT of the connection.  Outside of the
-  // edge cases, this is minimum RTT.
-  QuicTime::Delta GetMinRtt() const;
   // Returns whether the connection has achieved full bandwidth required to exit
   // the slow start.
   bool IsAtFullBandwidth() const;

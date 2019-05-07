@@ -26,6 +26,9 @@ namespace quic {
 
 typedef std::string ServerConfigID;
 
+// The following tags have been deprecated and should not be reused:
+// "BBQ4"
+
 // clang-format off
 const QuicTag kCHLO = TAG('C', 'H', 'L', 'O');   // Client hello
 const QuicTag kSHLO = TAG('S', 'H', 'L', 'O');   // Server hello
@@ -112,7 +115,6 @@ const QuicTag kBBQ2 = TAG('B', 'B', 'Q', '2');   // BBR with lower 2.0 STARTUP
                                                  // CWND gain.
 const QuicTag kBBQ3 = TAG('B', 'B', 'Q', '3');   // BBR with ack aggregation
                                                  // compensation in STARTUP.
-const QuicTag kBBQ4 = TAG('B', 'B', 'Q', '4');   // Drain gain of 0.75.
 const QuicTag kBBQ5 = TAG('B', 'B', 'Q', '5');   // Expire ack aggregation upon
                                                  // bandwidth increase in
                                                  // STARTUP.

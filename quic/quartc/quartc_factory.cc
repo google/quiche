@@ -133,7 +133,6 @@ QuicConfig CreateQuicConfig(const QuartcSessionConfig& quartc_session_config) {
   copt.push_back(kBBR9);  // Ignore app-limited if enough data is in flight.
   copt.push_back(kBBQ1);  // 2.773 pacing gain in STARTUP.
   copt.push_back(kBBQ2);  // 2.0 CWND gain in STARTUP.
-  copt.push_back(kBBQ4);  // 0.75 pacing gain in DRAIN.
   copt.push_back(k1RTT);  // Exit STARTUP after 1 RTT with no gains.
   copt.push_back(kIW10);  // 10-packet (14600 byte) initial cwnd.
 
