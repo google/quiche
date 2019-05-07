@@ -155,6 +155,40 @@ TEST_F(QuartcBidiTest, 300kbps200ms2PercentLossCompetingBurst) {
   EXPECT_TRUE(runner.RunTest(QuicTime::Delta::FromSeconds(30)));
 }
 
+TEST_F(QuartcBidiTest, 300kbps200ms2PercentLossSmallCompetingSpikes) {
+  QuicBandwidth bandwidth = QuicBandwidth::FromKBitsPerSecond(300);
+  CreateTransports(bandwidth, QuicTime::Delta::FromMilliseconds(200),
+                   10 * quic::kDefaultMaxPacketSize, /*loss_percent=*/2);
+
+  // Competition sends a small amount of data (10 kb) every 2 seconds.
+  SetupCompetingEndpoints(bandwidth, QuicTime::Delta::FromSeconds(2),
+                          /*bytes_per_interval=*/10 * 1024);
+
+  quic::test::BidiTestRunner runner(&simulator_, client_transport_.get(),
+                                    server_transport_.get());
+  runner.set_client_interceptor(client_trace_interceptor_.get());
+  runner.set_server_interceptor(server_trace_interceptor_.get());
+  EXPECT_TRUE(runner.RunTest(QuicTime::Delta::FromSeconds(30)));
+}
+
+TEST_F(QuartcBidiTest, 300kbps200ms2PercentLossAggregation) {
+  QuicBandwidth bandwidth = QuicBandwidth::FromKBitsPerSecond(300);
+  CreateTransports(bandwidth, QuicTime::Delta::FromMilliseconds(200),
+                   10 * quic::kDefaultMaxPacketSize, /*loss_percent=*/2);
+
+  // Set aggregation on the queues at either end of the bottleneck.
+  client_switch_->port_queue(2)->EnableAggregation(
+      10 * 1024, QuicTime::Delta::FromMilliseconds(100));
+  server_switch_->port_queue(2)->EnableAggregation(
+      10 * 1024, QuicTime::Delta::FromMilliseconds(100));
+
+  quic::test::BidiTestRunner runner(&simulator_, client_transport_.get(),
+                                    server_transport_.get());
+  runner.set_client_interceptor(client_trace_interceptor_.get());
+  runner.set_server_interceptor(server_trace_interceptor_.get());
+  EXPECT_TRUE(runner.RunTest(QuicTime::Delta::FromSeconds(30)));
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic
