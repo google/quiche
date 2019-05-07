@@ -420,7 +420,7 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
   // packet.
   void ProcessStatelessRejectorState(
       std::unique_ptr<StatelessRejector> rejector,
-      QuicTransportVersion first_version,
+      ParsedQuicVersion first_version,
       PacketHeaderFormat form,
       bool version_flag);
 

@@ -115,20 +115,23 @@ class PacketCollector : public QuicPacketCreator::DelegateInterface,
 class StatelessConnectionTerminator {
  public:
   StatelessConnectionTerminator(QuicConnectionId connection_id,
-                                QuicFramer* framer,
+                                const ParsedQuicVersion version,
                                 QuicConnectionHelperInterface* helper,
                                 QuicTimeWaitListManager* time_wait_list_manager)
       : connection_id_(connection_id),
-        framer_(framer),
+        framer_(ParsedQuicVersionVector{version},
+                /*unused*/ QuicTime::Zero(),
+                Perspective::IS_SERVER,
+                /*unused*/ kQuicDefaultConnectionIdLength),
         collector_(helper->GetStreamSendBufferAllocator()),
-        creator_(connection_id, framer, &collector_),
+        creator_(connection_id, &framer_, &collector_),
         time_wait_list_manager_(time_wait_list_manager) {
-    framer_->set_data_producer(&collector_);
+    framer_.set_data_producer(&collector_);
   }
 
   ~StatelessConnectionTerminator() {
     // Clear framer's producer.
-    framer_->set_data_producer(nullptr);
+    framer_.set_data_producer(nullptr);
   }
 
   // Generates a packet containing a CONNECTION_CLOSE frame specifying
@@ -138,8 +141,7 @@ class StatelessConnectionTerminator {
                        bool ietf_quic) {
     QuicConnectionCloseFrame* frame =
         new QuicConnectionCloseFrame(error_code, error_details);
-    // TODO(fkastenholz): The framer version may be incorrect in some cases.
-    if (framer_->transport_version() == QUIC_VERSION_99) {
+    if (framer_.transport_version() == QUIC_VERSION_99) {
       frame->close_type = IETF_QUIC_TRANSPORT_CONNECTION_CLOSE;
     }
 
@@ -164,9 +166,9 @@ class StatelessConnectionTerminator {
     collector_.SaveStatelessRejectFrameData(reject);
     while (offset < reject.length()) {
       QuicFrame frame;
-      if (!QuicVersionUsesCryptoFrames(framer_->transport_version())) {
+      if (!QuicVersionUsesCryptoFrames(framer_.transport_version())) {
         if (!creator_.ConsumeData(
-                QuicUtils::GetCryptoStreamId(framer_->transport_version()),
+                QuicUtils::GetCryptoStreamId(framer_.transport_version()),
                 reject.length() - offset, offset,
                 /*fin=*/false,
                 /*needs_full_padding=*/true, NOT_RETRANSMISSION, &frame)) {
@@ -185,7 +187,7 @@ class StatelessConnectionTerminator {
       }
       if (offset < reject.length()) {
         DCHECK(!creator_.HasRoomForStreamFrame(
-            QuicUtils::GetCryptoStreamId(framer_->transport_version()), offset,
+            QuicUtils::GetCryptoStreamId(framer_.transport_version()), offset,
             frame.stream_frame.data_length));
       }
       creator_.Flush();
@@ -199,7 +201,7 @@ class StatelessConnectionTerminator {
 
  private:
   QuicConnectionId connection_id_;
-  QuicFramer* framer_;  // Unowned.
+  QuicFramer framer_;
   // Set as the visitor of |creator_| to collect any generated packets.
   PacketCollector collector_;
   QuicPacketCreator creator_;
@@ -797,7 +799,7 @@ void QuicDispatcher::StatelesslyTerminateConnection(
     framer_.set_version(version);
 
     StatelessConnectionTerminator terminator(
-        connection_id, &framer_, helper_.get(), time_wait_list_manager_.get());
+        connection_id, version, helper_.get(), time_wait_list_manager_.get());
     // This also adds the connection to time wait list.
     if (format == GOOGLE_QUIC_PACKET) {
       QUIC_RELOADABLE_FLAG_COUNT_N(quic_terminate_gquic_connection_as_ietf, 1,
@@ -1284,7 +1286,7 @@ void QuicDispatcher::MaybeRejectStatelessly(QuicConnectionId connection_id,
   if (!validator.can_accept()) {
     // This CHLO is prohibited by policy.
     QUIC_CODE_COUNT(quic_reject_cant_accept_chlo);
-    StatelessConnectionTerminator terminator(connection_id, &framer_, helper(),
+    StatelessConnectionTerminator terminator(connection_id, version, helper(),
                                              time_wait_list_manager_.get());
     terminator.CloseConnection(QUIC_HANDSHAKE_FAILED, validator.error_details(),
                                form != GOOGLE_QUIC_PACKET);
@@ -1298,8 +1300,8 @@ void QuicDispatcher::MaybeRejectStatelessly(QuicConnectionId connection_id,
   // If we were able to make a decision about this CHLO based purely on the
   // information available in OnChlo, just invoke the done callback immediately.
   if (rejector->state() != StatelessRejector::UNKNOWN) {
-    ProcessStatelessRejectorState(
-        std::move(rejector), version.transport_version, form, version_flag);
+    ProcessStatelessRejectorState(std::move(rejector), version, form,
+                                  version_flag);
     return;
   }
 
@@ -1352,14 +1354,13 @@ void QuicDispatcher::OnStatelessRejectorProcessDone(
     return;
   }
 
-  ProcessStatelessRejectorState(std::move(rejector),
-                                first_version.transport_version,
+  ProcessStatelessRejectorState(std::move(rejector), first_version,
                                 current_packet_format, current_version_flag);
 }
 
 void QuicDispatcher::ProcessStatelessRejectorState(
     std::unique_ptr<StatelessRejector> rejector,
-    QuicTransportVersion first_version,
+    ParsedQuicVersion first_version,
     PacketHeaderFormat form,
     bool version_flag) {
   QuicPacketFate fate;
@@ -1368,7 +1369,7 @@ void QuicDispatcher::ProcessStatelessRejectorState(
       // There was an error processing the client hello.
       QUIC_CODE_COUNT(quic_reject_error_processing_chlo);
       StatelessConnectionTerminator terminator(rejector->connection_id(),
-                                               &framer_, helper(),
+                                               first_version, helper(),
                                                time_wait_list_manager_.get());
       terminator.CloseConnection(rejector->error(), rejector->error_details(),
                                  form != GOOGLE_QUIC_PACKET);
@@ -1387,12 +1388,13 @@ void QuicDispatcher::ProcessStatelessRejectorState(
       break;
 
     case StatelessRejector::REJECTED: {
-      QUIC_BUG_IF(first_version != framer_.transport_version())
-          << "SREJ: Client's version: " << QuicVersionToString(first_version)
+      QUIC_BUG_IF(first_version != framer_.version())
+          << "SREJ: Client's version: "
+          << QuicVersionToString(first_version.transport_version)
           << " is different from current dispatcher framer's version: "
           << QuicVersionToString(framer_.transport_version());
       StatelessConnectionTerminator terminator(rejector->connection_id(),
-                                               &framer_, helper(),
+                                               first_version, helper(),
                                                time_wait_list_manager_.get());
       terminator.RejectConnection(
           rejector->reply().GetSerialized().AsStringPiece(),
