@@ -923,7 +923,7 @@ TEST_P(QuicSpdySessionTestServer,
   TestCryptoStream* crypto_stream = session_.GetMutableCryptoStream();
   EXPECT_CALL(*crypto_stream, OnCanWrite());
   TestHeadersStream* headers_stream;
-  if (!GetQuicReloadableFlag(quic_eliminate_static_stream_map)) {
+  if (!GetQuicReloadableFlag(quic_eliminate_static_stream_map_2)) {
     QuicSpdySessionPeer::SetHeadersStream(&session_, nullptr);
     headers_stream = new TestHeadersStream(&session_);
     QuicSpdySessionPeer::SetHeadersStream(&session_, headers_stream);
@@ -1643,7 +1643,7 @@ TEST_P(QuicSpdySessionTestClient, RecordFinAfterReadSideClosed) {
 
 TEST_P(QuicSpdySessionTestClient, WritePriority) {
   TestHeadersStream* headers_stream;
-  if (!GetQuicReloadableFlag(quic_eliminate_static_stream_map)) {
+  if (!GetQuicReloadableFlag(quic_eliminate_static_stream_map_2)) {
     QuicSpdySessionPeer::SetHeadersStream(&session_, nullptr);
     headers_stream = new TestHeadersStream(&session_);
     QuicSpdySessionPeer::SetHeadersStream(&session_, headers_stream);

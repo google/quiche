@@ -140,15 +140,13 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   QpackEncoder* qpack_encoder();
   QpackDecoder* qpack_decoder();
   QuicHeadersStream* headers_stream() {
-    return GetQuicReloadableFlag(quic_eliminate_static_stream_map)
-               ? unowned_headers_stream_
-               : headers_stream_.get();
+    return eliminate_static_stream_map() ? unowned_headers_stream_
+                                         : headers_stream_.get();
   }
 
   const QuicHeadersStream* headers_stream() const {
-    return GetQuicReloadableFlag(quic_eliminate_static_stream_map)
-               ? unowned_headers_stream_
-               : headers_stream_.get();
+    return eliminate_static_stream_map() ? unowned_headers_stream_
+                                         : headers_stream_.get();
   }
 
   bool server_push_enabled() const { return server_push_enabled_; }
