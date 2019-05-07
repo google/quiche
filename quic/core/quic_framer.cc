@@ -554,31 +554,31 @@ size_t QuicFramer::GetRstStreamFrameSize(QuicTransportVersion version,
 }
 
 // static
-size_t QuicFramer::GetMinConnectionCloseFrameSize(
+size_t QuicFramer::GetConnectionCloseFrameSize(
     QuicTransportVersion version,
     const QuicConnectionCloseFrame& frame) {
-  if (version == QUIC_VERSION_99) {
-    // TODO(fkastenholz): For complete support of IETF QUIC CONNECTION_CLOSE,
-    // check if the frame is a Transport close and if the frame's
-    // extracted_error_code is not QUIC_IETF_GQUIC_ERROR_MISSING. If so,
-    // extend the error string to include " QuicErrorCode: #"
-    if (frame.close_type == IETF_QUIC_APPLICATION_CONNECTION_CLOSE) {
-      // Application close variant does not include the transport close frame
-      // type field.
-      return QuicDataWriter::GetVarInt62Len(
-                 TruncatedErrorStringSize(frame.error_details)) +
-             kQuicFrameTypeSize + kQuicIetfQuicErrorCodeSize;
-    }
-    QUIC_BUG_IF(frame.close_type != IETF_QUIC_TRANSPORT_CONNECTION_CLOSE)
-        << "IETF QUIC Connection close and QuicConnectionCloseFrame type is "
-           "not IETF ConnectionClose";
-    return QuicDataWriter::GetVarInt62Len(
-               TruncatedErrorStringSize(frame.error_details)) +
-           QuicDataWriter::GetVarInt62Len(frame.transport_close_frame_type) +
-           kQuicFrameTypeSize + kQuicIetfQuicErrorCodeSize;
+  if (version != QUIC_VERSION_99) {
+    // Not version 99/IETF QUIC, return Google QUIC CONNECTION CLOSE frame size.
+    return kQuicFrameTypeSize + kQuicErrorCodeSize +
+           kQuicErrorDetailsLengthSize +
+           TruncatedErrorStringSize(frame.error_details);
   }
-  // Not version 99/IETF QUIC, return Google QUIC CONNECTION CLOSE frame size.
-  return kQuicFrameTypeSize + kQuicErrorCodeSize + kQuicErrorDetailsLengthSize;
+  // TODO(fkastenholz): For complete support of IETF QUIC CONNECTION_CLOSE,
+  // check if the frame is a Transport close and if the frame's
+  // extracted_error_code is not QUIC_IETF_GQUIC_ERROR_MISSING. If so,
+  // extend the error string to include " QuicErrorCode: #"
+  const size_t truncated_error_string_size =
+      TruncatedErrorStringSize(frame.error_details);
+  const size_t frame_size =
+      truncated_error_string_size +
+      QuicDataWriter::GetVarInt62Len(truncated_error_string_size) +
+      kQuicFrameTypeSize + kQuicIetfQuicErrorCodeSize;
+  if (frame.close_type == IETF_QUIC_APPLICATION_CONNECTION_CLOSE) {
+    return frame_size;
+  }
+  // frame includes the transport_close_frame_type, so include its length.
+  return frame_size +
+         QuicDataWriter::GetVarInt62Len(frame.transport_close_frame_type);
 }
 
 // static
@@ -674,10 +674,8 @@ size_t QuicFramer::GetRetransmittableControlFrameSize(
     case RST_STREAM_FRAME:
       return GetRstStreamFrameSize(version, *frame.rst_stream_frame);
     case CONNECTION_CLOSE_FRAME:
-      return GetMinConnectionCloseFrameSize(version,
-                                            *frame.connection_close_frame) +
-             TruncatedErrorStringSize(
-                 frame.connection_close_frame->error_details);
+      return GetConnectionCloseFrameSize(version,
+                                         *frame.connection_close_frame);
     case GOAWAY_FRAME:
       return GetMinGoAwayFrameSize() +
              TruncatedErrorStringSize(frame.goaway_frame->reason_phrase);

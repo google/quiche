@@ -301,9 +301,9 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   // Size in bytes of all reset stream frame fields.
   static size_t GetRstStreamFrameSize(QuicTransportVersion version,
                                       const QuicRstStreamFrame& frame);
-  // Size in bytes of all connection close frame fields without the error
-  // details and the missing packets from the enclosed ack frame.
-  static size_t GetMinConnectionCloseFrameSize(
+  // Size in bytes of all connection close frame fields, including the error
+  // details.
+  static size_t GetConnectionCloseFrameSize(
       QuicTransportVersion version,
       const QuicConnectionCloseFrame& frame);
   // Size in bytes of all GoAway frame fields without the reason phrase.

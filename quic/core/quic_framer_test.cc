@@ -11558,9 +11558,8 @@ TEST_P(QuicFramerTest, GetRetransmittableControlFrameSize) {
     connection_close.close_type = IETF_QUIC_TRANSPORT_CONNECTION_CLOSE;
   }
 
-  EXPECT_EQ(QuicFramer::GetMinConnectionCloseFrameSize(
-                framer_.transport_version(), connection_close) +
-                256,
+  EXPECT_EQ(QuicFramer::GetConnectionCloseFrameSize(framer_.transport_version(),
+                                                    connection_close),
             QuicFramer::GetRetransmittableControlFrameSize(
                 framer_.transport_version(), QuicFrame(&connection_close)));
 
