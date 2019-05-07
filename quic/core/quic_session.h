@@ -575,7 +575,7 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
 
   StreamHandler GetOrCreateStreamImpl(QuicStreamId stream_id, bool may_buffer);
 
-  const bool eliminate_static_stream_map() const {
+  bool eliminate_static_stream_map() const {
     return eliminate_static_stream_map_;
   }
 
