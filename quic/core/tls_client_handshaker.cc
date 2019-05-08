@@ -190,16 +190,6 @@ int TlsClientHandshaker::num_scup_messages_received() const {
   return 0;
 }
 
-bool TlsClientHandshaker::WasChannelIDSent() const {
-  // Channel ID is not used with TLS in QUIC.
-  return false;
-}
-
-bool TlsClientHandshaker::WasChannelIDSourceCallbackRun() const {
-  // Channel ID is not used with TLS in QUIC.
-  return false;
-}
-
 std::string TlsClientHandshaker::chlo_hash() const {
   return "";
 }

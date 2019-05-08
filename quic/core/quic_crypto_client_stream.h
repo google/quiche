@@ -9,7 +9,6 @@
 #include <memory>
 #include <string>
 
-#include "net/third_party/quiche/src/quic/core/crypto/channel_id.h"
 #include "net/third_party/quiche/src/quic/core/crypto/proof_verifier.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_crypto_client_config.h"
 #include "net/third_party/quiche/src/quic/core/quic_config.h"
@@ -85,13 +84,6 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientStream
     // to handshake confirmation.
     virtual int num_scup_messages_received() const = 0;
 
-    // Returns true if a channel ID was sent on this connection.
-    virtual bool WasChannelIDSent() const = 0;
-
-    // Returns true if our ChannelIDSourceCallback was run, which implies the
-    // ChannelIDSource operated asynchronously. Intended for testing.
-    virtual bool WasChannelIDSourceCallbackRun() const = 0;
-
     virtual std::string chlo_hash() const = 0;
 
     // Returns true once any encrypter (initial/0RTT or final/1RTT) has been set
@@ -150,13 +142,6 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientStream
   const QuicCryptoNegotiatedParameters& crypto_negotiated_params()
       const override;
   CryptoMessageParser* crypto_message_parser() override;
-
-  // Returns true if a channel ID was sent on this connection.
-  bool WasChannelIDSent() const;
-
-  // Returns true if our ChannelIDSourceCallback was run, which implies the
-  // ChannelIDSource operated asynchronously. Intended for testing.
-  bool WasChannelIDSourceCallbackRun() const;
 
   std::string chlo_hash() const;
 

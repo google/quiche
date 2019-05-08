@@ -418,30 +418,6 @@ TEST_P(QuicCryptoServerStreamTest, BadMessageType) {
                                                   Perspective::IS_SERVER);
 }
 
-TEST_P(QuicCryptoServerStreamTest, ChannelID) {
-  Initialize();
-
-  client_options_.channel_id_enabled = true;
-  client_options_.channel_id_source_async = false;
-  // CompleteCryptoHandshake verifies
-  // server_stream()->crypto_negotiated_params().channel_id is correct.
-  EXPECT_EQ(2, CompleteCryptoHandshake());
-  EXPECT_TRUE(server_stream()->encryption_established());
-  EXPECT_TRUE(server_stream()->handshake_confirmed());
-}
-
-TEST_P(QuicCryptoServerStreamTest, ChannelIDAsync) {
-  Initialize();
-
-  client_options_.channel_id_enabled = true;
-  client_options_.channel_id_source_async = true;
-  // CompleteCryptoHandshake verifies
-  // server_stream()->crypto_negotiated_params().channel_id is correct.
-  EXPECT_EQ(2, CompleteCryptoHandshake());
-  EXPECT_TRUE(server_stream()->encryption_established());
-  EXPECT_TRUE(server_stream()->handshake_confirmed());
-}
-
 TEST_P(QuicCryptoServerStreamTest, OnlySendSCUPAfterHandshakeComplete) {
   // An attempt to send a SCUP before completing handshake should fail.
   Initialize();

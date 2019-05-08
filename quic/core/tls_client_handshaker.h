@@ -42,8 +42,6 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
   bool CryptoConnect() override;
   int num_sent_client_hellos() const override;
   int num_scup_messages_received() const override;
-  bool WasChannelIDSent() const override;
-  bool WasChannelIDSourceCallbackRun() const override;
   std::string chlo_hash() const override;
 
   // From QuicCryptoClientStream::HandshakerDelegate and TlsHandshaker

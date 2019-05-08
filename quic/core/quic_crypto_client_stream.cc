@@ -84,14 +84,6 @@ CryptoMessageParser* QuicCryptoClientStream::crypto_message_parser() {
   return handshaker_->crypto_message_parser();
 }
 
-bool QuicCryptoClientStream::WasChannelIDSent() const {
-  return handshaker_->WasChannelIDSent();
-}
-
-bool QuicCryptoClientStream::WasChannelIDSourceCallbackRun() const {
-  return handshaker_->WasChannelIDSourceCallbackRun();
-}
-
 std::string QuicCryptoClientStream::chlo_hash() const {
   return handshaker_->chlo_hash();
 }

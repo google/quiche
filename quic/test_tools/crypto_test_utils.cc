@@ -43,126 +43,6 @@
 namespace quic {
 namespace test {
 
-TestChannelIDKey::TestChannelIDKey(EVP_PKEY* ecdsa_key)
-    : ecdsa_key_(ecdsa_key) {}
-TestChannelIDKey::~TestChannelIDKey() {}
-
-bool TestChannelIDKey::Sign(QuicStringPiece signed_data,
-                            std::string* out_signature) const {
-  bssl::ScopedEVP_MD_CTX md_ctx;
-  if (EVP_DigestSignInit(md_ctx.get(), nullptr, EVP_sha256(), nullptr,
-                         ecdsa_key_.get()) != 1) {
-    return false;
-  }
-
-  EVP_DigestUpdate(md_ctx.get(), ChannelIDVerifier::kContextStr,
-                   strlen(ChannelIDVerifier::kContextStr) + 1);
-  EVP_DigestUpdate(md_ctx.get(), ChannelIDVerifier::kClientToServerStr,
-                   strlen(ChannelIDVerifier::kClientToServerStr) + 1);
-  EVP_DigestUpdate(md_ctx.get(), signed_data.data(), signed_data.size());
-
-  size_t sig_len;
-  if (!EVP_DigestSignFinal(md_ctx.get(), nullptr, &sig_len)) {
-    return false;
-  }
-
-  std::unique_ptr<uint8_t[]> der_sig(new uint8_t[sig_len]);
-  if (!EVP_DigestSignFinal(md_ctx.get(), der_sig.get(), &sig_len)) {
-    return false;
-  }
-
-  uint8_t* derp = der_sig.get();
-  bssl::UniquePtr<ECDSA_SIG> sig(
-      d2i_ECDSA_SIG(nullptr, const_cast<const uint8_t**>(&derp), sig_len));
-  if (sig.get() == nullptr) {
-    return false;
-  }
-
-  // The signature consists of a pair of 32-byte numbers.
-  static const size_t kSignatureLength = 32 * 2;
-  std::unique_ptr<uint8_t[]> signature(new uint8_t[kSignatureLength]);
-  if (!BN_bn2bin_padded(&signature[0], 32, sig->r) ||
-      !BN_bn2bin_padded(&signature[32], 32, sig->s)) {
-    return false;
-  }
-
-  *out_signature =
-      std::string(reinterpret_cast<char*>(signature.get()), kSignatureLength);
-
-  return true;
-}
-
-std::string TestChannelIDKey::SerializeKey() const {
-  // i2d_PublicKey will produce an ANSI X9.62 public key which, for a P-256
-  // key, is 0x04 (meaning uncompressed) followed by the x and y field
-  // elements as 32-byte, big-endian numbers.
-  static const int kExpectedKeyLength = 65;
-
-  int len = i2d_PublicKey(ecdsa_key_.get(), nullptr);
-  if (len != kExpectedKeyLength) {
-    return "";
-  }
-
-  uint8_t buf[kExpectedKeyLength];
-  uint8_t* derp = buf;
-  i2d_PublicKey(ecdsa_key_.get(), &derp);
-
-  return std::string(reinterpret_cast<char*>(buf + 1), kExpectedKeyLength - 1);
-}
-
-TestChannelIDSource::~TestChannelIDSource() {}
-
-QuicAsyncStatus TestChannelIDSource::GetChannelIDKey(
-    const std::string& hostname,
-    std::unique_ptr<ChannelIDKey>* channel_id_key,
-    ChannelIDSourceCallback* /*callback*/) {
-  *channel_id_key = QuicMakeUnique<TestChannelIDKey>(HostnameToKey(hostname));
-  return QUIC_SUCCESS;
-}
-
-// static
-EVP_PKEY* TestChannelIDSource::HostnameToKey(const std::string& hostname) {
-  // In order to generate a deterministic key for a given hostname the
-  // hostname is hashed with SHA-256 and the resulting digest is treated as a
-  // big-endian number. The most-significant bit is cleared to ensure that
-  // the resulting value is less than the order of the group and then it's
-  // taken as a private key. Given the private key, the public key is
-  // calculated with a group multiplication.
-  SHA256_CTX sha256;
-  SHA256_Init(&sha256);
-  SHA256_Update(&sha256, hostname.data(), hostname.size());
-
-  unsigned char digest[SHA256_DIGEST_LENGTH];
-  SHA256_Final(digest, &sha256);
-
-  // Ensure that the digest is less than the order of the P-256 group by
-  // clearing the most-significant bit.
-  digest[0] &= 0x7f;
-
-  bssl::UniquePtr<BIGNUM> k(BN_new());
-  CHECK(BN_bin2bn(digest, sizeof(digest), k.get()) != nullptr);
-
-  bssl::UniquePtr<EC_GROUP> p256(
-      EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1));
-  CHECK(p256);
-
-  bssl::UniquePtr<EC_KEY> ecdsa_key(EC_KEY_new());
-  CHECK(ecdsa_key && EC_KEY_set_group(ecdsa_key.get(), p256.get()));
-
-  bssl::UniquePtr<EC_POINT> point(EC_POINT_new(p256.get()));
-  CHECK(EC_POINT_mul(p256.get(), point.get(), k.get(), nullptr, nullptr,
-                     nullptr));
-
-  EC_KEY_set_private_key(ecdsa_key.get(), k.get());
-  EC_KEY_set_public_key(ecdsa_key.get(), point.get());
-
-  bssl::UniquePtr<EVP_PKEY> pkey(EVP_PKEY_new());
-  // EVP_PKEY_set1_EC_KEY takes a reference so no |release| here.
-  EVP_PKEY_set1_EC_KEY(pkey.get(), ecdsa_key.get());
-
-  return pkey.release();
-}
-
 namespace crypto_test_utils {
 
 namespace {
@@ -207,57 +87,13 @@ bool HexChar(char c, uint8_t* value) {
   return false;
 }
 
-// A ChannelIDSource that works in asynchronous mode unless the |callback|
-// argument to GetChannelIDKey is nullptr.
-class AsyncTestChannelIDSource : public ChannelIDSource, public CallbackSource {
- public:
-  // |sync_source| is a synchronous ChannelIDSource.
-  explicit AsyncTestChannelIDSource(
-      std::unique_ptr<ChannelIDSource> sync_source)
-      : sync_source_(std::move(sync_source)) {}
-  ~AsyncTestChannelIDSource() override {}
-
-  // ChannelIDSource implementation.
-  QuicAsyncStatus GetChannelIDKey(const std::string& hostname,
-                                  std::unique_ptr<ChannelIDKey>* channel_id_key,
-                                  ChannelIDSourceCallback* callback) override {
-    // Synchronous mode.
-    if (!callback) {
-      return sync_source_->GetChannelIDKey(hostname, channel_id_key, nullptr);
-    }
-
-    // Asynchronous mode.
-    QuicAsyncStatus status =
-        sync_source_->GetChannelIDKey(hostname, &channel_id_key_, nullptr);
-    if (status != QUIC_SUCCESS) {
-      return QUIC_FAILURE;
-    }
-    callback_.reset(callback);
-    return QUIC_PENDING;
-  }
-
-  // CallbackSource implementation.
-  void RunPendingCallbacks() override {
-    if (callback_) {
-      callback_->Run(&channel_id_key_);
-      callback_.reset();
-    }
-  }
-
- private:
-  std::unique_ptr<ChannelIDSource> sync_source_;
-  std::unique_ptr<ChannelIDSourceCallback> callback_;
-  std::unique_ptr<ChannelIDKey> channel_id_key_;
-};
-
 }  // anonymous namespace
 
 FakeServerOptions::FakeServerOptions() {}
 
 FakeServerOptions::~FakeServerOptions() {}
 
-FakeClientOptions::FakeClientOptions()
-    : channel_id_enabled(false), channel_id_source_async(false) {}
+FakeClientOptions::FakeClientOptions() {}
 
 FakeClientOptions::~FakeClientOptions() {}
 
@@ -446,19 +282,6 @@ int HandshakeWithFakeClient(MockQuicConnectionHelper* helper,
 
   QuicCryptoClientConfig crypto_config(ProofVerifierForTesting(),
                                        TlsClientHandshaker::CreateSslCtx());
-  AsyncTestChannelIDSource* async_channel_id_source = nullptr;
-  if (options.channel_id_enabled) {
-    std::unique_ptr<ChannelIDSource> source = ChannelIDSourceForTesting();
-    if (options.channel_id_source_async) {
-      auto temp = QuicMakeUnique<AsyncTestChannelIDSource>(std::move(source));
-      async_channel_id_source = temp.get();
-      source = std::move(temp);
-    }
-    crypto_config.SetChannelIDSource(std::move(source));
-  }
-  if (!options.token_binding_params.empty()) {
-    crypto_config.tb_key_params = options.token_binding_params;
-  }
   TestQuicSpdyClientSession client_session(client_conn, DefaultQuicConfig(),
                                            supported_versions, server_id,
                                            &crypto_config);
@@ -471,25 +294,12 @@ int HandshakeWithFakeClient(MockQuicConnectionHelper* helper,
   client_session.GetMutableCryptoStream()->CryptoConnect();
   CHECK_EQ(1u, client_conn->encrypted_packets_.size());
 
-  CommunicateHandshakeMessagesAndRunCallbacks(
-      client_conn, client_session.GetMutableCryptoStream(), server_conn, server,
-      async_channel_id_source);
+  CommunicateHandshakeMessages(client_conn,
+                               client_session.GetMutableCryptoStream(),
+                               server_conn, server);
 
   if (server->handshake_confirmed() && server->encryption_established()) {
     CompareClientAndServerKeys(client_session.GetMutableCryptoStream(), server);
-
-    if (options.channel_id_enabled) {
-      std::unique_ptr<ChannelIDKey> channel_id_key;
-      QuicAsyncStatus status =
-          crypto_config.channel_id_source()->GetChannelIDKey(
-              server_id.host(), &channel_id_key, nullptr);
-      EXPECT_EQ(QUIC_SUCCESS, status);
-      EXPECT_EQ(channel_id_key->SerializeKey(),
-                server->crypto_negotiated_params().channel_id);
-      EXPECT_EQ(
-          options.channel_id_source_async,
-          client_session.GetCryptoStream()->WasChannelIDSourceCallbackRun());
-    }
   }
 
   return client_session.GetCryptoStream()->num_sent_client_hellos();
@@ -530,16 +340,6 @@ void CommunicateHandshakeMessages(PacketSavingConnection* client_conn,
                                   QuicCryptoStream* client,
                                   PacketSavingConnection* server_conn,
                                   QuicCryptoStream* server) {
-  CommunicateHandshakeMessagesAndRunCallbacks(client_conn, client, server_conn,
-                                              server, nullptr);
-}
-
-void CommunicateHandshakeMessagesAndRunCallbacks(
-    PacketSavingConnection* client_conn,
-    QuicCryptoStream* client,
-    PacketSavingConnection* server_conn,
-    QuicCryptoStream* server,
-    CallbackSource* callback_source) {
   size_t client_i = 0, server_i = 0;
   while (!client->handshake_confirmed() || !server->handshake_confirmed()) {
     ASSERT_GT(client_conn->encrypted_packets_.size(), client_i);
@@ -548,9 +348,6 @@ void CommunicateHandshakeMessagesAndRunCallbacks(
                    << " packets client->server";
     MovePackets(client_conn, &client_i, server, server_conn,
                 Perspective::IS_SERVER);
-    if (callback_source) {
-      callback_source->RunPendingCallbacks();
-    }
 
     if (client->handshake_confirmed() && server->handshake_confirmed()) {
       break;
@@ -561,9 +358,6 @@ void CommunicateHandshakeMessagesAndRunCallbacks(
                    << " packets server->client";
     MovePackets(server_conn, &server_i, client, client_conn,
                 Perspective::IS_CLIENT);
-    if (callback_source) {
-      callback_source->RunPendingCallbacks();
-    }
   }
 }
 
@@ -896,10 +690,6 @@ CryptoHandshakeMessage CreateCHLO(
   CHECK(parsed);
 
   return *parsed;
-}
-
-std::unique_ptr<ChannelIDSource> ChannelIDSourceForTesting() {
-  return QuicMakeUnique<TestChannelIDSource>();
 }
 
 void MovePackets(PacketSavingConnection* source_conn,

@@ -22,8 +22,6 @@
 
 namespace quic {
 
-class ChannelIDKey;
-class ChannelIDSource;
 class CryptoHandshakeMessage;
 class ProofVerifier;
 class ProofVerifyDetails;
@@ -258,7 +256,6 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
       const CachedState* cached,
       QuicWallTime now,
       QuicRandom* rand,
-      const ChannelIDKey* channel_id_key,
       QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> out_params,
       CryptoHandshakeMessage* out,
       std::string* error_details) const;
@@ -312,14 +309,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
 
   ProofVerifier* proof_verifier() const;
 
-  ChannelIDSource* channel_id_source() const;
-
   SSL_CTX* ssl_ctx() const;
-
-  // SetChannelIDSource sets a ChannelIDSource that will be called, when the
-  // server supports channel IDs, to obtain a channel ID for signing a message
-  // proving possession of the channel ID.
-  void SetChannelIDSource(std::unique_ptr<ChannelIDSource> source);
 
   // Initialize the CachedState from |canonical_crypto_config| for the
   // |canonical_server_id| as the initial CachedState for |server_id|. We will
@@ -397,7 +387,6 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
   std::vector<std::string> canonical_suffixes_;
 
   std::unique_ptr<ProofVerifier> proof_verifier_;
-  std::unique_ptr<ChannelIDSource> channel_id_source_;
   bssl::UniquePtr<SSL_CTX> ssl_ctx_;
 
   // The |user_agent_id_| passed in QUIC's CHLO message.

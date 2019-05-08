@@ -7,7 +7,6 @@
 
 #include <string>
 
-#include "net/third_party/quiche/src/quic/core/crypto/channel_id.h"
 #include "net/third_party/quiche/src/quic/core/crypto/proof_verifier.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_crypto_client_config.h"
 #include "net/third_party/quiche/src/quic/core/quic_crypto_client_stream.h"
@@ -39,8 +38,6 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientHandshaker
   bool CryptoConnect() override;
   int num_sent_client_hellos() const override;
   int num_scup_messages_received() const override;
-  bool WasChannelIDSent() const override;
-  bool WasChannelIDSourceCallbackRun() const override;
   std::string chlo_hash() const override;
   bool encryption_established() const override;
   bool handshake_confirmed() const override;
@@ -59,25 +56,6 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientHandshaker
   void DoSendCHLO(QuicCryptoClientConfig::CachedState* cached);
 
  private:
-  // ChannelIDSourceCallbackImpl is passed as the callback method to
-  // GetChannelIDKey. The ChannelIDSource calls this class with the result of
-  // channel ID lookup when lookup is performed asynchronously.
-  class ChannelIDSourceCallbackImpl : public ChannelIDSourceCallback {
-   public:
-    explicit ChannelIDSourceCallbackImpl(QuicCryptoClientHandshaker* parent);
-    ~ChannelIDSourceCallbackImpl() override;
-
-    // ChannelIDSourceCallback interface.
-    void Run(std::unique_ptr<ChannelIDKey>* channel_id_key) override;
-
-    // Cancel causes any future callbacks to be ignored. It must be called on
-    // the same thread as the callback will be made on.
-    void Cancel();
-
-   private:
-    QuicCryptoClientHandshaker* parent_;
-  };
-
   // ProofVerifierCallbackImpl is passed as the callback method to VerifyProof.
   // The ProofVerifier calls this class with the result of proof verification
   // when verification is performed asynchronously.
@@ -106,8 +84,6 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientHandshaker
     STATE_RECV_REJ,
     STATE_VERIFY_PROOF,
     STATE_VERIFY_PROOF_COMPLETE,
-    STATE_GET_CHANNEL_ID,
-    STATE_GET_CHANNEL_ID_COMPLETE,
     STATE_RECV_SHLO,
     STATE_INITIALIZE_SCUP,
     STATE_NONE,
@@ -137,15 +113,6 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientHandshaker
   // server config). If not, it closes the connection.
   void DoVerifyProofComplete(QuicCryptoClientConfig::CachedState* cached);
 
-  // Start the look up of Channel ID process. Returns either QUIC_SUCCESS if
-  // RequiresChannelID returns false or QuicAsyncStatus returned by
-  // GetChannelIDKey.
-  QuicAsyncStatus DoGetChannelID(QuicCryptoClientConfig::CachedState* cached);
-
-  // If there is no channel ID, then close the connection otherwise transtion to
-  // STATE_SEND_CHLO state.
-  void DoGetChannelIDComplete();
-
   // Process SHLO message from the server.
   void DoReceiveSHLO(const CryptoHandshakeMessage* in,
                      QuicCryptoClientConfig::CachedState* cached);
@@ -158,10 +125,6 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientHandshaker
   // Called to set the proof of |cached| valid.  Also invokes the session's
   // OnProofValid() method.
   void SetCachedProofValid(QuicCryptoClientConfig::CachedState* cached);
-
-  // Returns true if the server crypto config in |cached| requires a ChannelID
-  // and the client config settings also allow sending a ChannelID.
-  bool RequiresChannelID(QuicCryptoClientConfig::CachedState* cached);
 
   QuicCryptoClientStream* stream_;
 
@@ -182,22 +145,6 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientHandshaker
 
   // Generation counter from QuicCryptoClientConfig's CachedState.
   uint64_t generation_counter_;
-
-  // True if a channel ID was sent.
-  bool channel_id_sent_;
-
-  // True if channel_id_source_callback_ was run.
-  bool channel_id_source_callback_run_;
-
-  // channel_id_source_callback_ contains the callback object that we passed
-  // to an asynchronous channel ID lookup. The ChannelIDSource owns this
-  // object.
-  ChannelIDSourceCallbackImpl* channel_id_source_callback_;
-
-  // These members are used to store the result of an asynchronous channel ID
-  // lookup. These members must not be used after
-  // STATE_GET_CHANNEL_ID_COMPLETE.
-  std::unique_ptr<ChannelIDKey> channel_id_key_;
 
   // verify_context_ contains the context object that we pass to asynchronous
   // proof verifications.

@@ -11,7 +11,6 @@
 #include "third_party/boringssl/src/include/openssl/ssl.h"
 #include "net/third_party/quiche/src/quic/core/crypto/cert_compressor.h"
 #include "net/third_party/quiche/src/quic/core/crypto/chacha20_poly1305_encrypter.h"
-#include "net/third_party/quiche/src/quic/core/crypto/channel_id.h"
 #include "net/third_party/quiche/src/quic/core/crypto/common_cert_set.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_framer.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
@@ -517,7 +516,6 @@ QuicErrorCode QuicCryptoClientConfig::FillClientHello(
     const CachedState* cached,
     QuicWallTime now,
     QuicRandom* rand,
-    const ChannelIDKey* channel_id_key,
     QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> out_params,
     CryptoHandshakeMessage* out,
     std::string* error_details) const {
@@ -642,65 +640,6 @@ QuicErrorCode QuicCryptoClientConfig::FillClientHello(
     return QUIC_CRYPTO_INTERNAL_ERROR;
   }
   out->SetValue(kXLCT, CryptoUtils::ComputeLeafCertHash(certs[0]));
-
-  if (channel_id_key) {
-    // In order to calculate the encryption key for the CETV block we need to
-    // serialise the client hello as it currently is (i.e. without the CETV
-    // block). For this, the client hello is serialized without padding.
-    const size_t orig_min_size = out->minimum_size();
-    out->set_minimum_size(0);
-
-    CryptoHandshakeMessage cetv;
-    cetv.set_tag(kCETV);
-
-    std::string hkdf_input;
-    const QuicData& client_hello_serialized = out->GetSerialized();
-    hkdf_input.append(QuicCryptoConfig::kCETVLabel,
-                      strlen(QuicCryptoConfig::kCETVLabel) + 1);
-    hkdf_input.append(connection_id.data(), connection_id.length());
-    hkdf_input.append(client_hello_serialized.data(),
-                      client_hello_serialized.length());
-    hkdf_input.append(cached->server_config());
-
-    std::string key = channel_id_key->SerializeKey();
-    std::string signature;
-    if (!channel_id_key->Sign(hkdf_input, &signature)) {
-      *error_details = "Channel ID signature failed";
-      return QUIC_INVALID_CHANNEL_ID_SIGNATURE;
-    }
-
-    cetv.SetStringPiece(kCIDK, key);
-    cetv.SetStringPiece(kCIDS, signature);
-
-    CrypterPair crypters;
-    if (!CryptoUtils::DeriveKeys(out_params->initial_premaster_secret,
-                                 out_params->aead, out_params->client_nonce,
-                                 out_params->server_nonce, pre_shared_key_,
-                                 hkdf_input, Perspective::IS_CLIENT,
-                                 CryptoUtils::Diversification::Never(),
-                                 &crypters, nullptr /* subkey secret */)) {
-      *error_details = "Symmetric key setup failed";
-      return QUIC_CRYPTO_SYMMETRIC_KEY_SETUP_FAILED;
-    }
-
-    const QuicData& cetv_plaintext = cetv.GetSerialized();
-    const size_t encrypted_len =
-        crypters.encrypter->GetCiphertextSize(cetv_plaintext.length());
-    std::unique_ptr<char[]> output(new char[encrypted_len]);
-    size_t output_size = 0;
-    if (!crypters.encrypter->EncryptPacket(
-            0 /* packet number */, QuicStringPiece() /* associated data */,
-            cetv_plaintext.AsStringPiece(), output.get(), &output_size,
-            encrypted_len)) {
-      *error_details = "Packet encryption failed";
-      return QUIC_ENCRYPTION_FAILURE;
-    }
-
-    out->SetStringPiece(kCETV, QuicStringPiece(output.get(), output_size));
-    out->MarkDirty();
-
-    out->set_minimum_size(orig_min_size);
-  }
 
   // Derive the symmetric keys and set up the encrypters and decrypters.
   // Set the following members of out_params:
@@ -951,17 +890,8 @@ ProofVerifier* QuicCryptoClientConfig::proof_verifier() const {
   return proof_verifier_.get();
 }
 
-ChannelIDSource* QuicCryptoClientConfig::channel_id_source() const {
-  return channel_id_source_.get();
-}
-
 SSL_CTX* QuicCryptoClientConfig::ssl_ctx() const {
   return ssl_ctx_.get();
-}
-
-void QuicCryptoClientConfig::SetChannelIDSource(
-    std::unique_ptr<ChannelIDSource> source) {
-  channel_id_source_ = std::move(source);
 }
 
 void QuicCryptoClientConfig::InitializeFrom(

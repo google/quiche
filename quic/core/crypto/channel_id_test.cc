@@ -282,40 +282,5 @@ TEST_F(ChannelIDTest, VerifyKnownAnswerTest) {
   }
 }
 
-TEST_F(ChannelIDTest, SignAndVerify) {
-  std::unique_ptr<ChannelIDSource> source(
-      crypto_test_utils::ChannelIDSourceForTesting());
-
-  const std::string signed_data = "signed data";
-  const std::string hostname = "foo.example.com";
-  std::unique_ptr<ChannelIDKey> channel_id_key;
-  QuicAsyncStatus status =
-      source->GetChannelIDKey(hostname, &channel_id_key, nullptr);
-  ASSERT_EQ(QUIC_SUCCESS, status);
-
-  std::string signature;
-  ASSERT_TRUE(channel_id_key->Sign(signed_data, &signature));
-
-  std::string key = channel_id_key->SerializeKey();
-  EXPECT_TRUE(ChannelIDVerifier::Verify(key, signed_data, signature));
-
-  EXPECT_FALSE(ChannelIDVerifier::Verify("a" + key, signed_data, signature));
-  EXPECT_FALSE(ChannelIDVerifier::Verify(key, "a" + signed_data, signature));
-
-  std::unique_ptr<char[]> bad_key(new char[key.size()]);
-  memcpy(bad_key.get(), key.data(), key.size());
-  bad_key[1] ^= 0x80;
-  EXPECT_FALSE(ChannelIDVerifier::Verify(std::string(bad_key.get(), key.size()),
-                                         signed_data, signature));
-
-  std::unique_ptr<char[]> bad_signature(new char[signature.size()]);
-  memcpy(bad_signature.get(), signature.data(), signature.size());
-  bad_signature[1] ^= 0x80;
-  EXPECT_FALSE(ChannelIDVerifier::Verify(
-      key, signed_data, std::string(bad_signature.get(), signature.size())));
-
-  EXPECT_FALSE(ChannelIDVerifier::Verify(key, "wrong signed data", signature));
-}
-
 }  // namespace test
 }  // namespace quic

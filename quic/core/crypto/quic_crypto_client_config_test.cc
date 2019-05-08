@@ -323,7 +323,6 @@ TEST_F(QuicCryptoClientConfigTest, FillClientHello) {
   QuicServerId server_id("www.google.com", 443, false);
   config.FillClientHello(server_id, kConnectionId, QuicVersionMax(), &state,
                          QuicWallTime::Zero(), &rand,
-                         nullptr,  // channel_id_key
                          params, &chlo, &error_details);
 
   // Verify that the version label has been set correctly in the CHLO.
@@ -346,7 +345,6 @@ TEST_F(QuicCryptoClientConfigTest, FillClientHelloNoPadding) {
   QuicServerId server_id("www.google.com", 443, false);
   config.FillClientHello(server_id, kConnectionId, QuicVersionMax(), &state,
                          QuicWallTime::Zero(), &rand,
-                         nullptr,  // channel_id_key
                          params, &chlo, &error_details);
 
   // Verify that the version label has been set correctly in the CHLO.

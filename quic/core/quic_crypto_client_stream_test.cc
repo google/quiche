@@ -321,14 +321,6 @@ TEST_F(QuicCryptoClientStreamTest, ServerConfigUpdateBeforeHandshake) {
       stream(), server_config_update, Perspective::IS_SERVER);
 }
 
-TEST_F(QuicCryptoClientStreamTest, NoChannelID) {
-  crypto_config_.SetChannelIDSource(nullptr);
-
-  CompleteCryptoHandshake();
-  EXPECT_FALSE(stream()->WasChannelIDSent());
-  EXPECT_FALSE(stream()->WasChannelIDSourceCallbackRun());
-}
-
 TEST_F(QuicCryptoClientStreamTest, PreferredVersion) {
   // This mimics the case where client receives version negotiation packet, such
   // that, the preferred version is different from the packets' version.
