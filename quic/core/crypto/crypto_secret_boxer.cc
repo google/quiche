@@ -55,7 +55,7 @@ void CryptoSecretBoxer::SetKeys(const std::vector<std::string>& keys) {
                          key.size(), EVP_AEAD_DEFAULT_TAG_LENGTH));
     if (!ctx) {
       ERR_clear_error();
-      LOG(DFATAL) << "EVP_AEAD_CTX_init failed";
+      QUIC_LOG(DFATAL) << "EVP_AEAD_CTX_init failed";
       return;
     }
 
@@ -94,7 +94,7 @@ std::string CryptoSecretBoxer::Box(QuicRandom* rand,
                            reinterpret_cast<const uint8_t*>(plaintext.data()),
                            plaintext.size(), nullptr, 0)) {
       ERR_clear_error();
-      LOG(DFATAL) << "EVP_AEAD_CTX_seal failed";
+      QUIC_LOG(DFATAL) << "EVP_AEAD_CTX_seal failed";
       return "";
     }
   }

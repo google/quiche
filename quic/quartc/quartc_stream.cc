@@ -161,8 +161,8 @@ void QuartcStream::FinishWriting() {
 
 void QuartcStream::SetDelegate(Delegate* delegate) {
   if (delegate_) {
-    LOG(WARNING) << "The delegate for Stream " << id()
-                 << " has already been set.";
+    QUIC_LOG(WARNING) << "The delegate for Stream " << id()
+                      << " has already been set.";
   }
   delegate_ = delegate;
   DCHECK(delegate_);

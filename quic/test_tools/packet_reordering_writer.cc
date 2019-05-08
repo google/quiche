@@ -18,12 +18,12 @@ WriteResult PacketReorderingWriter::WritePacket(
     const QuicSocketAddress& peer_address,
     PerPacketOptions* options) {
   if (!delay_next_) {
-    VLOG(2) << "Writing a non-delayed packet";
+    QUIC_VLOG(2) << "Writing a non-delayed packet";
     WriteResult wr = QuicPacketWriterWrapper::WritePacket(
         buffer, buf_len, self_address, peer_address, options);
     --num_packets_to_wait_;
     if (num_packets_to_wait_ == 0) {
-      VLOG(2) << "Writing a delayed packet";
+      QUIC_VLOG(2) << "Writing a delayed packet";
       // It's time to write the delayed packet.
       QuicPacketWriterWrapper::WritePacket(
           delayed_data_.data(), delayed_data_.length(), delayed_self_address_,

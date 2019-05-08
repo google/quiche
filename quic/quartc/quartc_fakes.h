@@ -31,8 +31,9 @@ class FakeQuartcEndpointDelegate : public QuartcEndpoint::Delegate {
 
   void OnConnectError(QuicErrorCode error,
                       const std::string& error_details) override {
-    LOG(FATAL) << "Unexpected error during QuartcEndpoint::Connect(); error="
-               << error << ", error_details=" << error_details;
+    QUIC_LOG(FATAL)
+        << "Unexpected error during QuartcEndpoint::Connect(); error=" << error
+        << ", error_details=" << error_details;
   }
 
   QuartcSession* session() { return session_; }
@@ -49,7 +50,7 @@ class FakeQuartcSessionDelegate : public QuartcSession::Delegate {
       : stream_delegate_(stream_delegate), clock_(clock) {}
 
   void OnConnectionWritable() override {
-    LOG(INFO) << "Connection writable!";
+    QUIC_LOG(INFO) << "Connection writable!";
     if (!writable_time_.IsInitialized()) {
       writable_time_ = clock_->Now();
     }
@@ -57,7 +58,7 @@ class FakeQuartcSessionDelegate : public QuartcSession::Delegate {
 
   // Called when peers have established forward-secure encryption
   void OnCryptoHandshakeComplete() override {
-    LOG(INFO) << "Crypto handshake complete!";
+    QUIC_LOG(INFO) << "Crypto handshake complete!";
     crypto_handshake_time_ = clock_->Now();
   }
 
