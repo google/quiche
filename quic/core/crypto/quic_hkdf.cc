@@ -39,8 +39,8 @@ QuicHKDF::QuicHKDF(QuicStringPiece secret,
                    size_t server_iv_bytes_to_generate,
                    size_t subkey_secret_bytes_to_generate) {
   const size_t material_length =
-      client_key_bytes_to_generate + client_iv_bytes_to_generate +
-      server_key_bytes_to_generate + server_iv_bytes_to_generate +
+      2 * client_key_bytes_to_generate + client_iv_bytes_to_generate +
+      2 * server_key_bytes_to_generate + server_iv_bytes_to_generate +
       subkey_secret_bytes_to_generate;
   DCHECK_LT(material_length, kMaxKeyMaterialSize);
 
@@ -85,6 +85,19 @@ QuicHKDF::QuicHKDF(QuicStringPiece secret,
   if (subkey_secret_bytes_to_generate) {
     subkey_secret_ = QuicStringPiece(reinterpret_cast<char*>(&output_[j]),
                                      subkey_secret_bytes_to_generate);
+    j += subkey_secret_bytes_to_generate;
+  }
+  // Repeat client and server key bytes for header protection keys.
+  if (client_key_bytes_to_generate) {
+    client_hp_key_ = QuicStringPiece(reinterpret_cast<char*>(&output_[j]),
+                                     client_key_bytes_to_generate);
+    j += client_key_bytes_to_generate;
+  }
+
+  if (server_key_bytes_to_generate) {
+    server_hp_key_ = QuicStringPiece(reinterpret_cast<char*>(&output_[j]),
+                                     server_key_bytes_to_generate);
+    j += server_key_bytes_to_generate;
   }
 }
 

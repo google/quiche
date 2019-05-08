@@ -113,6 +113,9 @@ void QuicPacketCreator::SetMaxPacketLength(QuicByteCount length) {
 
   max_packet_length_ = length;
   max_plaintext_size_ = framer_->GetMaxPlaintextSize(max_packet_length_);
+  QUIC_BUG_IF(max_plaintext_size_ - PacketHeaderSize() <
+              MinPlaintextPacketSize())
+      << "Attempted to set max packet length too small";
 }
 
 // Stops serializing version of the protocol in packets sent after this call.
@@ -439,6 +442,7 @@ void QuicPacketCreator::CreateAndSerializeStreamFrame(
       max_plaintext_size_ - writer.length() - min_frame_size;
   const size_t bytes_consumed =
       std::min<size_t>(available_size, remaining_data_size);
+  const size_t plaintext_bytes_written = min_frame_size + bytes_consumed;
 
   const bool set_fin = fin && (bytes_consumed == remaining_data_size);
   QuicStreamFrame frame(id, set_fin, stream_offset, bytes_consumed);
@@ -457,6 +461,12 @@ void QuicPacketCreator::CreateAndSerializeStreamFrame(
   if (!framer_->AppendStreamFrame(frame, /* no stream frame length */ true,
                                   &writer)) {
     QUIC_BUG << "AppendStreamFrame failed";
+    return;
+  }
+  if (plaintext_bytes_written < MinPlaintextPacketSize() &&
+      !writer.WritePaddingBytes(MinPlaintextPacketSize() -
+                                plaintext_bytes_written)) {
+    QUIC_BUG << "Unable to add padding bytes";
     return;
   }
 
@@ -537,11 +547,7 @@ size_t QuicPacketCreator::PacketSize() {
   if (!queued_frames_.empty()) {
     return packet_size_;
   }
-  packet_size_ = GetPacketHeaderSize(
-      framer_->transport_version(), GetDestinationConnectionIdLength(),
-      GetSourceConnectionIdLength(), IncludeVersionInHeader(),
-      IncludeNonceInPublicHeader(), GetPacketNumberLength(),
-      GetRetryTokenLengthLength(), GetRetryToken().length(), GetLengthLength());
+  packet_size_ = PacketHeaderSize();
   return packet_size_;
 }
 
@@ -771,6 +777,14 @@ QuicPacketNumberLength QuicPacketCreator::GetPacketNumberLength() const {
   return packet_.packet_number_length;
 }
 
+size_t QuicPacketCreator::PacketHeaderSize() const {
+  return GetPacketHeaderSize(
+      framer_->transport_version(), GetDestinationConnectionIdLength(),
+      GetSourceConnectionIdLength(), IncludeVersionInHeader(),
+      IncludeNonceInPublicHeader(), GetPacketNumberLength(),
+      GetRetryTokenLengthLength(), GetRetryToken().length(), GetLengthLength());
+}
+
 QuicVariableLengthIntegerLength QuicPacketCreator::GetRetryTokenLengthLength()
     const {
   if (QuicVersionHasLongHeaderLengths(framer_->transport_version()) &&
@@ -909,11 +923,24 @@ void QuicPacketCreator::MaybeAddPadding() {
     needs_full_padding_ = true;
   }
 
-  if (!needs_full_padding_ && pending_padding_bytes_ == 0) {
+  // Header protection requires a minimum plaintext packet size.
+  size_t extra_padding_bytes = 0;
+  if (framer_->version().HasHeaderProtection()) {
+    size_t frame_bytes = PacketSize() - PacketHeaderSize();
+
+    if (frame_bytes + pending_padding_bytes_ < MinPlaintextPacketSize() &&
+        !needs_full_padding_) {
+      extra_padding_bytes = MinPlaintextPacketSize() - frame_bytes;
+    }
+  }
+
+  if (!needs_full_padding_ && pending_padding_bytes_ == 0 &&
+      extra_padding_bytes == 0) {
     // Do not need padding.
     return;
   }
 
+  int padding_bytes = -1;
   if (needs_full_padding_) {
     // Full padding does not consume pending padding bytes.
     packet_.num_padding_bytes = -1;
@@ -921,11 +948,12 @@ void QuicPacketCreator::MaybeAddPadding() {
     packet_.num_padding_bytes =
         std::min<int16_t>(pending_padding_bytes_, BytesFree());
     pending_padding_bytes_ -= packet_.num_padding_bytes;
+    padding_bytes =
+        std::max<int16_t>(packet_.num_padding_bytes, extra_padding_bytes);
   }
 
-  bool success =
-      AddFrame(QuicFrame(QuicPaddingFrame(packet_.num_padding_bytes)), false,
-               packet_.transmission_type);
+  bool success = AddFrame(QuicFrame(QuicPaddingFrame(padding_bytes)), false,
+                          packet_.transmission_type);
   DCHECK(success);
 }
 
@@ -1030,6 +1058,32 @@ QuicPacketLength QuicPacketCreator::GetGuaranteedLargestMessagePayload() const {
 bool QuicPacketCreator::HasIetfLongHeader() const {
   return framer_->transport_version() > QUIC_VERSION_43 &&
          packet_.encryption_level < ENCRYPTION_FORWARD_SECURE;
+}
+
+size_t QuicPacketCreator::MinPlaintextPacketSize() const {
+  if (!framer_->version().HasHeaderProtection()) {
+    return 0;
+  }
+  // Header protection samples 16 bytes of ciphertext starting 4 bytes after the
+  // packet number. In IETF QUIC, all AEAD algorithms have a 16-byte auth tag
+  // (i.e. the ciphertext is 16 bytes larger than the plaintext). Since packet
+  // numbers could be as small as 1 byte, but the sample starts 4 bytes after
+  // the packet number, at least 3 bytes of plaintext are needed to make sure
+  // that there is enough ciphertext to sample.
+  //
+  // Google QUIC crypto uses different AEAD algorithms - in particular the auth
+  // tags are only 12 bytes instead of 16 bytes. Since the auth tag is 4 bytes
+  // shorter, 4 more bytes of plaintext are needed to guarantee there is enough
+  // ciphertext to sample.
+  //
+  // This method could check for PROTOCOL_TLS1_3 vs PROTOCOL_QUIC_CRYPTO and
+  // return 3 when TLS 1.3 is in use (the use of IETF vs Google QUIC crypters is
+  // determined based on the handshake protocol used). However, even when TLS
+  // 1.3 is used, unittests still use NullEncrypter/NullDecrypter (and other
+  // test crypters) which also only use 12 byte tags.
+  //
+  // TODO(nharper): Set this based on the handshake protocol in use.
+  return 7;
 }
 
 #undef ENDPOINT  // undef for jumbo builds

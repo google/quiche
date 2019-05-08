@@ -815,6 +815,11 @@ TEST_F(QuicDispatcherTest, OKSeqNoPacketProcessed) {
 }
 
 TEST_F(QuicDispatcherTest, TooBigSeqNoPacketToTimeWaitListManager) {
+  if (CurrentSupportedVersions().front().HasHeaderProtection()) {
+    // When header protection is in use, we don't put packets in the time wait
+    // list manager based on packet number.
+    return;
+  }
   CreateTimeWaitListManager();
   SetQuicRestartFlag(quic_enable_accept_random_ipn, false);
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);

@@ -33,6 +33,9 @@ class QUIC_EXPORT_PRIVATE QuicDataReader {
  public:
   // Constructs a reader using NETWORK_BYTE_ORDER endianness.
   // Caller must provide an underlying buffer to work on.
+  explicit QuicDataReader(QuicStringPiece data);
+  // Constructs a reader using NETWORK_BYTE_ORDER endianness.
+  // Caller must provide an underlying buffer to work on.
   QuicDataReader(const char* data, const size_t len);
   // Constructs a reader using the specified endianness.
   // Caller must provide an underlying buffer to work on.
@@ -107,6 +110,11 @@ class QUIC_EXPORT_PRIVATE QuicDataReader {
   // Forwards the internal iterator on success.
   // Returns true on success, false otherwise.
   bool ReadBytes(void* result, size_t size);
+
+  // Skips over |size| bytes from the buffer and forwards the internal iterator.
+  // Returns true if there are at least |size| bytes remaining to read, false
+  // otherwise.
+  bool Seek(size_t size);
 
   // Returns true if the entirety of the underlying buffer has been read via
   // Read*() calls.

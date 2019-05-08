@@ -472,10 +472,20 @@ bool QuicDispatcher::OnUnauthenticatedPublicHeader(
   }
   // Set the framer's version and continue processing.
   framer_.set_version(version);
+
+  if (version.HasHeaderProtection()) {
+    ProcessHeader(header);
+    return false;
+  }
   return true;
 }
 
 bool QuicDispatcher::OnUnauthenticatedHeader(const QuicPacketHeader& header) {
+  ProcessHeader(header);
+  return false;
+}
+
+void QuicDispatcher::ProcessHeader(const QuicPacketHeader& header) {
   QuicConnectionId connection_id = header.destination_connection_id;
   // Packet's connection ID is unknown.  Apply the validity checks.
   QuicPacketFate fate = ValidityChecks(header);
@@ -490,8 +500,6 @@ bool QuicDispatcher::OnUnauthenticatedHeader(const QuicPacketHeader& header) {
     ProcessUnauthenticatedHeaderFate(fate, connection_id, header.form,
                                      header.version_flag, header.version);
   }
-
-  return false;
 }
 
 void QuicDispatcher::ProcessUnauthenticatedHeaderFate(
@@ -566,30 +574,32 @@ QuicDispatcher::QuicPacketFate QuicDispatcher::ValidityChecks(
   }
 
   // initial packet number of 0 is always invalid.
-  if (!header.packet_number.IsInitialized()) {
-    return kFateTimeWait;
-  }
-  if (GetQuicRestartFlag(quic_enable_accept_random_ipn)) {
-    QUIC_RESTART_FLAG_COUNT_N(quic_enable_accept_random_ipn, 1, 2);
-    // Accepting Initial Packet Numbers in 1...((2^31)-1) range... check
-    // maximum accordingly.
-    if (header.packet_number > MaxRandomInitialPacketNumber()) {
+  if (!framer_.version().HasHeaderProtection()) {
+    if (!header.packet_number.IsInitialized()) {
       return kFateTimeWait;
     }
-  } else {
-    // Count those that would have been accepted if FLAGS..random_ipn
-    // were true -- to detect/diagnose potential issues prior to
-    // enabling the flag.
-    if ((header.packet_number >
-         QuicPacketNumber(kMaxReasonableInitialPacketNumber)) &&
-        (header.packet_number <= MaxRandomInitialPacketNumber())) {
-      QUIC_CODE_COUNT_N(had_possibly_random_ipn, 1, 2);
-    }
-    // Check that the sequence number is within the range that the client is
-    // expected to send before receiving a response from the server.
-    if (header.packet_number >
-        QuicPacketNumber(kMaxReasonableInitialPacketNumber)) {
-      return kFateTimeWait;
+    if (GetQuicRestartFlag(quic_enable_accept_random_ipn)) {
+      QUIC_RESTART_FLAG_COUNT_N(quic_enable_accept_random_ipn, 1, 2);
+      // Accepting Initial Packet Numbers in 1...((2^31)-1) range... check
+      // maximum accordingly.
+      if (header.packet_number > MaxRandomInitialPacketNumber()) {
+        return kFateTimeWait;
+      }
+    } else {
+      // Count those that would have been accepted if FLAGS..random_ipn
+      // were true -- to detect/diagnose potential issues prior to
+      // enabling the flag.
+      if ((header.packet_number >
+           QuicPacketNumber(kMaxReasonableInitialPacketNumber)) &&
+          (header.packet_number <= MaxRandomInitialPacketNumber())) {
+        QUIC_CODE_COUNT_N(had_possibly_random_ipn, 1, 2);
+      }
+      // Check that the sequence number is within the range that the client is
+      // expected to send before receiving a response from the server.
+      if (header.packet_number >
+          QuicPacketNumber(kMaxReasonableInitialPacketNumber)) {
+        return kFateTimeWait;
+      }
     }
   }
   return kFateProcess;

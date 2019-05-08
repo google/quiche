@@ -5,8 +5,10 @@
 #include "net/third_party/quiche/src/quic/core/chlo_extractor.h"
 
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_framer.h"
+#include "net/third_party/quiche/src/quic/core/crypto/crypto_handshake.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_handshake_message.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
+#include "net/third_party/quiche/src/quic/core/crypto/crypto_utils.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_decrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/quic_framer.h"
@@ -116,6 +118,23 @@ bool ChloFramerVisitor::OnProtocolVersionMismatch(ParsedQuicVersion version,
 bool ChloFramerVisitor::OnUnauthenticatedPublicHeader(
     const QuicPacketHeader& header) {
   connection_id_ = header.destination_connection_id;
+  // QuicFramer creates a NullEncrypter and NullDecrypter at level
+  // ENCRYPTION_INITIAL, which are the correct ones to use with the QUIC Crypto
+  // handshake. When the TLS handshake is used, the IETF-style initial crypters
+  // are used instead, so those need to be created and installed.
+  if (header.version.handshake_protocol == PROTOCOL_TLS1_3) {
+    CrypterPair crypters;
+    CryptoUtils::CreateTlsInitialCrypters(
+        Perspective::IS_SERVER, header.version.transport_version,
+        header.destination_connection_id, &crypters);
+    framer_->SetEncrypter(ENCRYPTION_INITIAL, std::move(crypters.encrypter));
+    if (framer_->version().KnowsWhichDecrypterToUse()) {
+      framer_->InstallDecrypter(ENCRYPTION_INITIAL,
+                                std::move(crypters.decrypter));
+    } else {
+      framer_->SetDecrypter(ENCRYPTION_INITIAL, std::move(crypters.decrypter));
+    }
+  }
   return true;
 }
 bool ChloFramerVisitor::OnUnauthenticatedHeader(

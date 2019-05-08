@@ -76,10 +76,14 @@ void CryptoUtils::SetKeyAndIV(const EVP_MD* prf,
       prf, pp_secret, "quic key", crypter->GetKeySize());
   std::vector<uint8_t> iv = CryptoUtils::HkdfExpandLabel(
       prf, pp_secret, "quic iv", crypter->GetIVSize());
+  std::vector<uint8_t> pn = CryptoUtils::HkdfExpandLabel(
+      prf, pp_secret, "quic hp", crypter->GetKeySize());
   crypter->SetKey(
       QuicStringPiece(reinterpret_cast<char*>(key.data()), key.size()));
   crypter->SetIV(
       QuicStringPiece(reinterpret_cast<char*>(iv.data()), iv.size()));
+  crypter->SetHeaderProtectionKey(
+      QuicStringPiece(reinterpret_cast<char*>(pn.data()), pn.size()));
 }
 
 namespace {
@@ -224,15 +228,23 @@ bool CryptoUtils::DeriveKeys(QuicStringPiece premaster_secret,
       if (perspective == Perspective::IS_SERVER) {
         if (!crypters->encrypter->SetKey(hkdf.server_write_key()) ||
             !crypters->encrypter->SetNoncePrefix(hkdf.server_write_iv()) ||
+            !crypters->encrypter->SetHeaderProtectionKey(
+                hkdf.server_hp_key()) ||
             !crypters->decrypter->SetKey(hkdf.client_write_key()) ||
-            !crypters->decrypter->SetNoncePrefix(hkdf.client_write_iv())) {
+            !crypters->decrypter->SetNoncePrefix(hkdf.client_write_iv()) ||
+            !crypters->decrypter->SetHeaderProtectionKey(
+                hkdf.client_hp_key())) {
           return false;
         }
       } else {
         if (!crypters->encrypter->SetKey(hkdf.client_write_key()) ||
             !crypters->encrypter->SetNoncePrefix(hkdf.client_write_iv()) ||
+            !crypters->encrypter->SetHeaderProtectionKey(
+                hkdf.client_hp_key()) ||
             !crypters->decrypter->SetKey(hkdf.server_write_key()) ||
-            !crypters->decrypter->SetNoncePrefix(hkdf.server_write_iv())) {
+            !crypters->decrypter->SetNoncePrefix(hkdf.server_write_iv()) ||
+            !crypters->decrypter->SetHeaderProtectionKey(
+                hkdf.server_hp_key())) {
           return false;
         }
       }
@@ -246,8 +258,10 @@ bool CryptoUtils::DeriveKeys(QuicStringPiece premaster_secret,
 
       if (!crypters->encrypter->SetKey(hkdf.client_write_key()) ||
           !crypters->encrypter->SetNoncePrefix(hkdf.client_write_iv()) ||
+          !crypters->encrypter->SetHeaderProtectionKey(hkdf.client_hp_key()) ||
           !crypters->decrypter->SetPreliminaryKey(hkdf.server_write_key()) ||
-          !crypters->decrypter->SetNoncePrefix(hkdf.server_write_iv())) {
+          !crypters->decrypter->SetNoncePrefix(hkdf.server_write_iv()) ||
+          !crypters->decrypter->SetHeaderProtectionKey(hkdf.server_hp_key())) {
         return false;
       }
       break;
@@ -265,8 +279,10 @@ bool CryptoUtils::DeriveKeys(QuicStringPiece premaster_secret,
           &nonce_prefix);
       if (!crypters->decrypter->SetKey(hkdf.client_write_key()) ||
           !crypters->decrypter->SetNoncePrefix(hkdf.client_write_iv()) ||
+          !crypters->decrypter->SetHeaderProtectionKey(hkdf.client_hp_key()) ||
           !crypters->encrypter->SetKey(key) ||
-          !crypters->encrypter->SetNoncePrefix(nonce_prefix)) {
+          !crypters->encrypter->SetNoncePrefix(nonce_prefix) ||
+          !crypters->encrypter->SetHeaderProtectionKey(hkdf.server_hp_key())) {
         return false;
       }
       break;

@@ -12,6 +12,9 @@
 
 namespace quic {
 
+QuicDataReader::QuicDataReader(QuicStringPiece data)
+    : QuicDataReader(data.data(), data.length(), NETWORK_BYTE_ORDER) {}
+
 QuicDataReader::QuicDataReader(const char* data, const size_t len)
     : QuicDataReader(data, len, NETWORK_BYTE_ORDER) {}
 
@@ -177,6 +180,15 @@ bool QuicDataReader::ReadBytes(void* result, size_t size) {
   // Iterate.
   pos_ += size;
 
+  return true;
+}
+
+bool QuicDataReader::Seek(size_t size) {
+  if (!CanRead(size)) {
+    OnFailure();
+    return false;
+  }
+  pos_ += size;
   return true;
 }
 

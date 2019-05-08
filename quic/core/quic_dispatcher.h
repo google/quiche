@@ -132,10 +132,11 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
   // QuicFramerVisitorInterface implementation. Not expected to be called
   // outside of this class.
   void OnPacket() override;
-  // Called when the public header has been parsed.
+  // Called when the public header has been parsed. Returns false when just the
+  // public header is enough to dispatch the packet; true if the framer needs to
+  // continue parsing the packet.
   bool OnUnauthenticatedPublicHeader(const QuicPacketHeader& header) override;
-  // Called when the private header has been parsed of a data packet that is
-  // destined for the time wait manager.
+  // Called when the private header has been parsed.
   bool OnUnauthenticatedHeader(const QuicPacketHeader& header) override;
   void OnError(QuicFramer* framer) override;
   bool OnProtocolVersionMismatch(ParsedQuicVersion received_version,
@@ -377,6 +378,10 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
 
   typedef QuicUnorderedSet<QuicConnectionId, QuicConnectionIdHash>
       QuicConnectionIdSet;
+
+  // Based on an unauthenticated packet header |header|, calls ValidityChecks
+  // and then either MaybeRejectStatelessly or ProcessUnauthenticatedHeaderFate.
+  void ProcessHeader(const QuicPacketHeader& header);
 
   // Attempts to reject the connection statelessly, if stateless rejects are
   // possible and if the current packet contains a CHLO message.  Determines a

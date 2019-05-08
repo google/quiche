@@ -281,6 +281,9 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
     return framer_->transport_version();
   }
 
+  // Returns the minimum size that the plaintext of a packet must be.
+  size_t MinPlaintextPacketSize() const;
+
  private:
   friend class test::QuicPacketCreatorPeer;
 
@@ -338,6 +341,9 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // packet_.packet_number_length should never be read directly, use this
   // function instead.
   QuicPacketNumberLength GetPacketNumberLength() const;
+
+  // Returns the size in bytes of the packet header.
+  size_t PacketHeaderSize() const;
 
   // Returns whether the destination connection ID is sent over the wire.
   QuicConnectionIdIncluded GetDestinationConnectionIdIncluded() const;

@@ -65,8 +65,8 @@ namespace quic {
 namespace test {
 namespace {
 
-const char data1[] = "foo";
-const char data2[] = "bar";
+const char data1[] = "foo data";
+const char data2[] = "bar data";
 
 const bool kHasStopWaiting = true;
 
@@ -1051,8 +1051,9 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     frames.push_back(QuicFrame(frame));
     QuicPacketCreatorPeer::SetSendVersionInPacket(
         &peer_creator_, connection_.perspective() == Perspective::IS_SERVER);
-    if (QuicPacketCreatorPeer::GetEncryptionLevel(&peer_creator_) >
-        ENCRYPTION_INITIAL) {
+    EncryptionLevel peer_encryption_level =
+        QuicPacketCreatorPeer::GetEncryptionLevel(&peer_creator_);
+    if (peer_encryption_level > ENCRYPTION_INITIAL) {
       // Set peer_framer_'s corresponding encrypter.
       peer_creator_.SetEncrypter(
           QuicPacketCreatorPeer::GetEncryptionLevel(&peer_creator_),
@@ -2542,7 +2543,8 @@ TEST_P(QuicConnectionTest, AckReceiptCausesAckSend) {
               OnPacketSent(_, _, _, _, HAS_RETRANSMITTABLE_DATA));
   connection_.SendStreamDataWithString(3, "foo", 6, NO_FIN);
   // No ack sent.
-  EXPECT_EQ(1u, writer_->frame_count());
+  size_t padding_frame_count = writer_->padding_frames().size();
+  EXPECT_EQ(padding_frame_count + 1u, writer_->frame_count());
   EXPECT_EQ(1u, writer_->stream_frames().size());
 
   // No more packet loss for the rest of the test.
@@ -2980,7 +2982,8 @@ TEST_P(QuicConnectionTest, FramePackingCryptoThenNonCrypto) {
   EXPECT_FALSE(connection_.HasQueuedData());
 
   // Parse the last packet and ensure it's the stream frame from stream 3.
-  EXPECT_EQ(1u, writer_->frame_count());
+  size_t padding_frame_count = writer_->padding_frames().size();
+  EXPECT_EQ(padding_frame_count + 1u, writer_->frame_count());
   ASSERT_EQ(1u, writer_->stream_frames().size());
   EXPECT_EQ(GetNthClientInitiatedStreamId(1, connection_.transport_version()),
             writer_->stream_frames()[0]->stream_id);
@@ -3117,9 +3120,16 @@ TEST_P(QuicConnectionTest, SendingZeroBytes) {
   EXPECT_EQ(0u, connection_.NumQueuedPackets());
   EXPECT_FALSE(connection_.HasQueuedData());
 
+  // Padding frames are added by v99 to ensure a minimum packet size.
+  size_t extra_padding_frames = 0;
+  if (GetParam().version.HasHeaderProtection()) {
+    extra_padding_frames = 1;
+  }
+
   // Parse the last packet and ensure it's one stream frame from one stream.
-  EXPECT_EQ(1u, writer_->frame_count());
-  EXPECT_EQ(1u, writer_->stream_frames().size());
+  EXPECT_EQ(1u + extra_padding_frames, writer_->frame_count());
+  EXPECT_EQ(extra_padding_frames, writer_->padding_frames().size());
+  ASSERT_EQ(1u, writer_->stream_frames().size());
   EXPECT_EQ(QuicUtils::GetHeadersStreamId(connection_.transport_version()),
             writer_->stream_frames()[0]->stream_id);
   EXPECT_TRUE(writer_->stream_frames()[0]->fin);
@@ -3157,7 +3167,7 @@ TEST_P(QuicConnectionTest, LargeSendWithPendingAck) {
 
   // Parse the last packet and ensure it's one stream frame with a fin.
   EXPECT_EQ(1u, writer_->frame_count());
-  EXPECT_EQ(1u, writer_->stream_frames().size());
+  ASSERT_EQ(1u, writer_->stream_frames().size());
   EXPECT_EQ(QuicUtils::GetHeadersStreamId(connection_.transport_version()),
             writer_->stream_frames()[0]->stream_id);
   EXPECT_TRUE(writer_->stream_frames()[0]->fin);
@@ -3250,7 +3260,8 @@ TEST_P(QuicConnectionTest, DoNotSendQueuedPacketForResetStream) {
     connection_.SendControlFrame(QuicFrame(new QuicRstStreamFrame(
         1, stream_id, QUIC_ERROR_PROCESSING_STREAM, 14)));
   }
-  EXPECT_EQ(1u, writer_->frame_count());
+  size_t padding_frame_count = writer_->padding_frames().size();
+  EXPECT_EQ(padding_frame_count + 1u, writer_->frame_count());
   EXPECT_EQ(1u, writer_->rst_stream_frames().size());
 }
 
@@ -3277,7 +3288,8 @@ TEST_P(QuicConnectionTest, SendQueuedPacketForQuicRstStreamNoError) {
     connection_.SendControlFrame(QuicFrame(
         new QuicRstStreamFrame(1, stream_id, QUIC_STREAM_NO_ERROR, 14)));
   }
-  EXPECT_EQ(1u, writer_->frame_count());
+  size_t padding_frame_count = writer_->padding_frames().size();
+  EXPECT_EQ(padding_frame_count + 1u, writer_->frame_count());
   EXPECT_EQ(1u, writer_->rst_stream_frames().size());
 }
 
@@ -3343,7 +3355,8 @@ TEST_P(QuicConnectionTest, DoNotRetransmitForResetStreamOnRTO) {
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
   clock_.AdvanceTime(DefaultRetransmissionTime());
   connection_.GetRetransmissionAlarm()->Fire();
-  EXPECT_EQ(1u, writer_->frame_count());
+  size_t padding_frame_count = writer_->padding_frames().size();
+  EXPECT_EQ(padding_frame_count + 1u, writer_->frame_count());
   EXPECT_EQ(1u, writer_->rst_stream_frames().size());
   EXPECT_EQ(stream_id, writer_->rst_stream_frames().front().stream_id);
 }
@@ -3402,7 +3415,8 @@ TEST_P(QuicConnectionTest, RetransmitForQuicRstStreamNoErrorOnRTO) {
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(AtLeast(2));
   clock_.AdvanceTime(DefaultRetransmissionTime());
   connection_.GetRetransmissionAlarm()->Fire();
-  EXPECT_EQ(1u, writer_->frame_count());
+  size_t padding_frame_count = writer_->padding_frames().size();
+  EXPECT_EQ(padding_frame_count + 1u, writer_->frame_count());
   ASSERT_EQ(1u, writer_->rst_stream_frames().size());
   EXPECT_EQ(stream_id, writer_->rst_stream_frames().front().stream_id);
 }
@@ -3438,7 +3452,8 @@ TEST_P(QuicConnectionTest, DoNotSendPendingRetransmissionForResetStream) {
     connection_.SendControlFrame(QuicFrame(new QuicRstStreamFrame(
         1, stream_id, QUIC_ERROR_PROCESSING_STREAM, 14)));
   }
-  EXPECT_EQ(1u, writer_->frame_count());
+  size_t padding_frame_count = writer_->padding_frames().size();
+  EXPECT_EQ(padding_frame_count + 1u, writer_->frame_count());
   ASSERT_EQ(1u, writer_->rst_stream_frames().size());
   EXPECT_EQ(stream_id, writer_->rst_stream_frames().front().stream_id);
 }
@@ -3476,7 +3491,8 @@ TEST_P(QuicConnectionTest, SendPendingRetransmissionForQuicRstStreamNoError) {
   // retransmission.
   connection_.SendControlFrame(QuicFrame(
       new QuicRstStreamFrame(1, stream_id, QUIC_STREAM_NO_ERROR, 14)));
-  EXPECT_EQ(1u, writer_->frame_count());
+  size_t padding_frame_count = writer_->padding_frames().size();
+  EXPECT_EQ(padding_frame_count + 1u, writer_->frame_count());
   EXPECT_EQ(1u, writer_->rst_stream_frames().size());
 }
 
@@ -4655,7 +4671,8 @@ TEST_P(QuicConnectionTest, PingAfterSend) {
   clock_.AdvanceTime(QuicTime::Delta::FromSeconds(15));
   EXPECT_CALL(visitor_, SendPing()).WillOnce(Invoke([this]() { SendPing(); }));
   connection_.GetPingAlarm()->Fire();
-  EXPECT_EQ(1u, writer_->frame_count());
+  size_t padding_frame_count = writer_->padding_frames().size();
+  EXPECT_EQ(padding_frame_count + 1u, writer_->frame_count());
   ASSERT_EQ(1u, writer_->ping_frames().size());
   writer_->Reset();
 
@@ -4710,7 +4727,8 @@ TEST_P(QuicConnectionTest, ReducedPingTimeout) {
     connection_.SendControlFrame(QuicFrame(QuicPingFrame(1)));
   }));
   connection_.GetPingAlarm()->Fire();
-  EXPECT_EQ(1u, writer_->frame_count());
+  size_t padding_frame_count = writer_->padding_frames().size();
+  EXPECT_EQ(padding_frame_count + 1u, writer_->frame_count());
   ASSERT_EQ(1u, writer_->ping_frames().size());
   writer_->Reset();
 
@@ -5679,11 +5697,12 @@ TEST_P(QuicConnectionTest, SendDelayedAck) {
   clock_.AdvanceTime(DefaultDelayedAckTime());
   connection_.GetAckAlarm()->Fire();
   // Check that ack is sent and that delayed ack alarm is reset.
+  size_t padding_frame_count = writer_->padding_frames().size();
   if (GetParam().no_stop_waiting) {
-    EXPECT_EQ(1u, writer_->frame_count());
+    EXPECT_EQ(padding_frame_count + 1u, writer_->frame_count());
     EXPECT_TRUE(writer_->stop_waiting_frames().empty());
   } else {
-    EXPECT_EQ(2u, writer_->frame_count());
+    EXPECT_EQ(padding_frame_count + 2u, writer_->frame_count());
     EXPECT_FALSE(writer_->stop_waiting_frames().empty());
   }
   EXPECT_FALSE(writer_->ack_frames().empty());
@@ -5721,11 +5740,12 @@ TEST_P(QuicConnectionTest, SendDelayedAfterQuiescence) {
   clock_.AdvanceTime(DefaultDelayedAckTime());
   connection_.GetAckAlarm()->Fire();
   // Check that ack is sent and that delayed ack alarm is reset.
+  size_t padding_frame_count = writer_->padding_frames().size();
   if (GetParam().no_stop_waiting) {
-    EXPECT_EQ(1u, writer_->frame_count());
+    EXPECT_EQ(padding_frame_count + 1u, writer_->frame_count());
     EXPECT_TRUE(writer_->stop_waiting_frames().empty());
   } else {
-    EXPECT_EQ(2u, writer_->frame_count());
+    EXPECT_EQ(padding_frame_count + 2u, writer_->frame_count());
     EXPECT_FALSE(writer_->stop_waiting_frames().empty());
   }
   EXPECT_FALSE(writer_->ack_frames().empty());
@@ -5744,11 +5764,12 @@ TEST_P(QuicConnectionTest, SendDelayedAfterQuiescence) {
   clock_.AdvanceTime(DefaultDelayedAckTime());
   connection_.GetAckAlarm()->Fire();
   // Check that ack is sent and that delayed ack alarm is reset.
+  padding_frame_count = writer_->padding_frames().size();
   if (GetParam().no_stop_waiting) {
-    EXPECT_EQ(1u, writer_->frame_count());
+    EXPECT_EQ(padding_frame_count + 1u, writer_->frame_count());
     EXPECT_TRUE(writer_->stop_waiting_frames().empty());
   } else {
-    EXPECT_EQ(2u, writer_->frame_count());
+    EXPECT_EQ(padding_frame_count + 2u, writer_->frame_count());
     EXPECT_FALSE(writer_->stop_waiting_frames().empty());
   }
   EXPECT_FALSE(writer_->ack_frames().empty());
@@ -5864,11 +5885,12 @@ TEST_P(QuicConnectionTest, SendDelayedAckAckDecimationAfterQuiescence) {
   clock_.AdvanceTime(DefaultDelayedAckTime());
   connection_.GetAckAlarm()->Fire();
   // Check that ack is sent and that delayed ack alarm is reset.
+  size_t padding_frame_count = writer_->padding_frames().size();
   if (GetParam().no_stop_waiting) {
-    EXPECT_EQ(1u, writer_->frame_count());
+    EXPECT_EQ(padding_frame_count + 1u, writer_->frame_count());
     EXPECT_TRUE(writer_->stop_waiting_frames().empty());
   } else {
-    EXPECT_EQ(2u, writer_->frame_count());
+    EXPECT_EQ(padding_frame_count + 2u, writer_->frame_count());
     EXPECT_FALSE(writer_->stop_waiting_frames().empty());
   }
   EXPECT_FALSE(writer_->ack_frames().empty());
@@ -5887,11 +5909,12 @@ TEST_P(QuicConnectionTest, SendDelayedAckAckDecimationAfterQuiescence) {
   clock_.AdvanceTime(DefaultDelayedAckTime());
   connection_.GetAckAlarm()->Fire();
   // Check that ack is sent and that delayed ack alarm is reset.
+  padding_frame_count = writer_->padding_frames().size();
   if (GetParam().no_stop_waiting) {
-    EXPECT_EQ(1u, writer_->frame_count());
+    EXPECT_EQ(padding_frame_count + 1u, writer_->frame_count());
     EXPECT_TRUE(writer_->stop_waiting_frames().empty());
   } else {
-    EXPECT_EQ(2u, writer_->frame_count());
+    EXPECT_EQ(padding_frame_count + 2u, writer_->frame_count());
     EXPECT_FALSE(writer_->stop_waiting_frames().empty());
   }
   EXPECT_FALSE(writer_->ack_frames().empty());
@@ -6425,11 +6448,12 @@ TEST_P(QuicConnectionTest, SendDelayedAckOnSecondPacket) {
   ProcessPacket(1);
   ProcessPacket(2);
   // Check that ack is sent and that delayed ack alarm is reset.
+  size_t padding_frame_count = writer_->padding_frames().size();
   if (GetParam().no_stop_waiting) {
-    EXPECT_EQ(1u, writer_->frame_count());
+    EXPECT_EQ(padding_frame_count + 1u, writer_->frame_count());
     EXPECT_TRUE(writer_->stop_waiting_frames().empty());
   } else {
-    EXPECT_EQ(2u, writer_->frame_count());
+    EXPECT_EQ(padding_frame_count + 2u, writer_->frame_count());
     EXPECT_FALSE(writer_->stop_waiting_frames().empty());
   }
   EXPECT_FALSE(writer_->ack_frames().empty());
@@ -6450,14 +6474,16 @@ TEST_P(QuicConnectionTest, NoAckOnOldNacks) {
   ProcessPacket(2);
   size_t frames_per_ack = GetParam().no_stop_waiting ? 1 : 2;
   if (!GetQuicRestartFlag(quic_enable_accept_random_ipn)) {
-    EXPECT_EQ(frames_per_ack, writer_->frame_count());
+    size_t padding_frame_count = writer_->padding_frames().size();
+    EXPECT_EQ(padding_frame_count + frames_per_ack, writer_->frame_count());
     EXPECT_FALSE(writer_->ack_frames().empty());
     writer_->Reset();
   }
 
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
   ProcessPacket(3);
-  EXPECT_EQ(frames_per_ack, writer_->frame_count());
+  size_t padding_frame_count = writer_->padding_frames().size();
+  EXPECT_EQ(padding_frame_count + frames_per_ack, writer_->frame_count());
   EXPECT_FALSE(writer_->ack_frames().empty());
   writer_->Reset();
 
@@ -6470,21 +6496,23 @@ TEST_P(QuicConnectionTest, NoAckOnOldNacks) {
   if (GetQuicRestartFlag(quic_enable_accept_random_ipn)) {
     EXPECT_EQ(0u, writer_->frame_count());
   } else {
-    EXPECT_EQ(frames_per_ack, writer_->frame_count());
+    EXPECT_EQ(padding_frame_count + frames_per_ack, writer_->frame_count());
     EXPECT_FALSE(writer_->ack_frames().empty());
     writer_->Reset();
   }
 
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
   ProcessPacket(5);
-  EXPECT_EQ(frames_per_ack, writer_->frame_count());
+  padding_frame_count = writer_->padding_frames().size();
+  EXPECT_EQ(padding_frame_count + frames_per_ack, writer_->frame_count());
   EXPECT_FALSE(writer_->ack_frames().empty());
   writer_->Reset();
 
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
   // Now only set the timer on the 6th packet, instead of sending another ack.
   ProcessPacket(6);
-  EXPECT_EQ(0u, writer_->frame_count());
+  padding_frame_count = writer_->padding_frames().size();
+  EXPECT_EQ(padding_frame_count, writer_->frame_count());
   EXPECT_TRUE(connection_.GetAckAlarm()->IsSet());
 }
 
@@ -6643,7 +6671,8 @@ TEST_P(QuicConnectionTest, BundleAckWithDataOnIncomingAck) {
       .WillOnce(SetArgPointee<5>(lost_packets));
   EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
   ProcessAckPacket(&ack);
-  EXPECT_EQ(1u, writer_->frame_count());
+  size_t padding_frame_count = writer_->padding_frames().size();
+  EXPECT_EQ(padding_frame_count + 1u, writer_->frame_count());
   EXPECT_EQ(1u, writer_->stream_frames().size());
   writer_->Reset();
 
@@ -7458,7 +7487,8 @@ TEST_P(QuicConnectionTest, ReevaluateTimeUntilSendOnAck) {
   EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
   EXPECT_CALL(*send_algorithm_, CanSend(_)).WillRepeatedly(Return(true));
   ProcessAckPacket(&ack);
-  EXPECT_EQ(1u, writer_->frame_count());
+  size_t padding_frame_count = writer_->padding_frames().size();
+  EXPECT_EQ(padding_frame_count + 1u, writer_->frame_count());
   EXPECT_EQ(1u, writer_->stream_frames().size());
   EXPECT_TRUE(connection_.GetSendAlarm()->IsSet());
   EXPECT_EQ(scheduled_pacing_time, connection_.GetSendAlarm()->deadline());
@@ -8339,10 +8369,11 @@ TEST_P(QuicConnectionTest, PingAfterLastRetransmittablePacketAcked) {
     connection_.SendControlFrame(QuicFrame(QuicPingFrame(1)));
   }));
   connection_.GetPingAlarm()->Fire();
+  size_t padding_frame_count = writer_->padding_frames().size();
   if (GetParam().no_stop_waiting) {
-    EXPECT_EQ(2u, writer_->frame_count());
+    EXPECT_EQ(padding_frame_count + 2u, writer_->frame_count());
   } else {
-    EXPECT_EQ(3u, writer_->frame_count());
+    EXPECT_EQ(padding_frame_count + 3u, writer_->frame_count());
   }
   ASSERT_EQ(1u, writer_->ping_frames().size());
 }
@@ -8414,10 +8445,11 @@ TEST_P(QuicConnectionTest, NoPingIfRetransmittablePacketSent) {
     connection_.SendControlFrame(QuicFrame(QuicPingFrame(1)));
   }));
   connection_.GetPingAlarm()->Fire();
+  size_t padding_frame_count = writer_->padding_frames().size();
   if (GetParam().no_stop_waiting) {
-    EXPECT_EQ(2u, writer_->frame_count());
+    EXPECT_EQ(padding_frame_count + 2u, writer_->frame_count());
   } else {
-    EXPECT_EQ(3u, writer_->frame_count());
+    EXPECT_EQ(padding_frame_count + 3u, writer_->frame_count());
   }
   ASSERT_EQ(1u, writer_->ping_frames().size());
 }
@@ -8566,6 +8598,7 @@ TEST_P(QuicConnectionTest, PathChallengeResponse) {
                                             connection_.peer_address());
   // Save the random contents of the challenge for later comparison to the
   // response.
+  ASSERT_GE(writer_->path_challenge_frames().size(), 1u);
   QuicPathFrameBuffer challenge_data =
       writer_->path_challenge_frames().front().data_buffer;
 

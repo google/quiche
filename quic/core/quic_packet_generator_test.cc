@@ -272,7 +272,11 @@ class QuicPacketGeneratorTest : public QuicTest {
     ASSERT_TRUE(packet.encrypted_buffer != nullptr);
     ASSERT_TRUE(simple_framer_.ProcessPacket(
         QuicEncryptedPacket(packet.encrypted_buffer, packet.encrypted_length)));
-    EXPECT_EQ(num_frames, simple_framer_.num_frames());
+    size_t num_padding_frames = 0;
+    if (contents.num_padding_frames == 0) {
+      num_padding_frames = simple_framer_.padding_frames().size();
+    }
+    EXPECT_EQ(num_frames + num_padding_frames, simple_framer_.num_frames());
     EXPECT_EQ(contents.num_ack_frames, simple_framer_.ack_frames().size());
     EXPECT_EQ(contents.num_connection_close_frames,
               simple_framer_.connection_close_frames().size());
@@ -286,8 +290,10 @@ class QuicPacketGeneratorTest : public QuicTest {
               simple_framer_.crypto_frames().size());
     EXPECT_EQ(contents.num_stop_waiting_frames,
               simple_framer_.stop_waiting_frames().size());
-    EXPECT_EQ(contents.num_padding_frames,
-              simple_framer_.padding_frames().size());
+    if (contents.num_padding_frames != 0) {
+      EXPECT_EQ(contents.num_padding_frames,
+                simple_framer_.padding_frames().size());
+    }
 
     // From the receiver's perspective, MTU discovery frames are ping frames.
     EXPECT_EQ(contents.num_ping_frames + contents.num_mtu_discovery_frames,
@@ -581,11 +587,11 @@ TEST_F(QuicPacketGeneratorTest, ConsumeData_Handshake) {
 
   EXPECT_CALL(delegate_, OnSerializedPacket(_))
       .WillOnce(Invoke(this, &QuicPacketGeneratorTest::SavePacket));
-  MakeIOVector("foo", &iov_);
+  MakeIOVector("foo bar", &iov_);
   QuicConsumedData consumed = generator_.ConsumeData(
       QuicUtils::GetCryptoStreamId(framer_.transport_version()), &iov_, 1u,
       iov_.iov_len, 0, NO_FIN);
-  EXPECT_EQ(3u, consumed.bytes_consumed);
+  EXPECT_EQ(7u, consumed.bytes_consumed);
   EXPECT_FALSE(generator_.HasQueuedFrames());
   EXPECT_FALSE(generator_.HasRetransmittableFrames());
 

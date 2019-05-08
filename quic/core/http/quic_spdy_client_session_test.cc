@@ -8,7 +8,8 @@
 #include <string>
 #include <vector>
 
-#include "net/third_party/quiche/src/quic/core/crypto/aes_128_gcm_12_encrypter.h"
+#include "net/third_party/quiche/src/quic/core/crypto/null_decrypter.h"
+#include "net/third_party/quiche/src/quic/core/crypto/null_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_spdy_client_stream.h"
 #include "net/third_party/quiche/src/quic/core/http/spdy_utils.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
@@ -528,6 +529,15 @@ TEST_P(QuicSpdyClientSessionTest, InvalidPacketReceived) {
 TEST_P(QuicSpdyClientSessionTest, InvalidFramedPacketReceived) {
   QuicSocketAddress server_address(TestPeerIPAddress(), kTestPort);
   QuicSocketAddress client_address(TestPeerIPAddress(), kTestPort);
+  if (GetParam().KnowsWhichDecrypterToUse()) {
+    connection_->InstallDecrypter(
+        ENCRYPTION_FORWARD_SECURE,
+        QuicMakeUnique<NullDecrypter>(Perspective::IS_CLIENT));
+  } else {
+    connection_->SetDecrypter(
+        ENCRYPTION_FORWARD_SECURE,
+        QuicMakeUnique<NullDecrypter>(Perspective::IS_CLIENT));
+  }
 
   EXPECT_CALL(*connection_, ProcessUdpPacket(server_address, client_address, _))
       .WillRepeatedly(Invoke(static_cast<MockQuicConnection*>(connection_),
