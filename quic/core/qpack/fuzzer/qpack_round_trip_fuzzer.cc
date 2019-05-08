@@ -8,6 +8,7 @@
 
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_decoder_test_utils.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_encoder_test_utils.h"
+#include "net/third_party/quiche/src/quic/core/qpack/value_splitting_header_list.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_fuzzed_data_provider.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_header_block.h"
 
@@ -142,8 +143,15 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   CHECK(handler.decoding_completed());
   CHECK(!handler.decoding_error_detected());
 
+  // Encoder splits |header_list| header keys along '\0' characters.  Do the
+  // same so that we get matching results.
+  ValueSplittingHeaderList splitting_header_list(&header_list);
+  spdy::SpdyHeaderBlock expected_header_list;
+  for (const auto& header : splitting_header_list) {
+    expected_header_list.AppendValueOrAddHeader(header.first, header.second);
+  }
   // Compare resulting header list to original.
-  CHECK(header_list == handler.ReleaseHeaderList());
+  CHECK(expected_header_list == handler.ReleaseHeaderList());
 
   return 0;
 }
