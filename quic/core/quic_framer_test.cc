@@ -5398,7 +5398,7 @@ TEST_P(QuicFramerTest, IetfStatelessResetPacketInvalidStatelessResetToken) {
   ASSERT_FALSE(visitor_.stateless_reset_packet_);
 }
 
-TEST_P(QuicFramerTest, VersionNegotiationPacket) {
+TEST_P(QuicFramerTest, VersionNegotiationPacketClient) {
   // clang-format off
   PacketFragments packet = {
       // public flags (version, 8 byte connection_id)
@@ -5451,6 +5451,39 @@ TEST_P(QuicFramerTest, VersionNegotiationPacket) {
     fragments.back().fragment.pop_back();
   }
   CheckFramingBoundaries(fragments, QUIC_INVALID_VERSION_NEGOTIATION_PACKET);
+}
+
+TEST_P(QuicFramerTest, VersionNegotiationPacketServer) {
+  if (!GetQuicRestartFlag(quic_server_drop_version_negotiation)) {
+    return;
+  }
+  if (framer_.transport_version() < QUIC_VERSION_44) {
+    return;
+  }
+
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_SERVER);
+  // clang-format off
+  unsigned char packet[] = {
+      // public flags (long header with all ignored bits set)
+      0xFF,
+      // version
+      0x00, 0x00, 0x00, 0x00,
+      // connection ID lengths
+      0x50,
+      // destination connection ID
+      0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x11,
+      // supported versions
+      QUIC_VERSION_BYTES,
+      'Q', '2', '.', '0',
+  };
+  // clang-format on
+
+  QuicEncryptedPacket encrypted(AsChars(packet), QUIC_ARRAYSIZE(packet), false);
+  EXPECT_FALSE(framer_.ProcessPacket(encrypted));
+  EXPECT_EQ(QUIC_INVALID_VERSION_NEGOTIATION_PACKET, framer_.error());
+  EXPECT_EQ("Server received version negotiation packet.",
+            framer_.detailed_error());
+  EXPECT_FALSE(visitor_.version_negotiation_packet_.get());
 }
 
 TEST_P(QuicFramerTest, OldVersionNegotiationPacket) {
@@ -13323,7 +13356,7 @@ TEST_P(QuicFramerTest, ProcessMismatchedHeaderVersion) {
 
   // clang-format off
   PacketFragments packet = {
-    // public flags (long header with version present)
+    // public flags (Google QUIC header with version present)
     {"Unable to read public flags.",
      {0x09}},
     // connection_id

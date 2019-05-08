@@ -7088,6 +7088,9 @@ TEST_P(QuicConnectionTest, ClientHandlesVersionNegotiation) {
   if (connection_.SupportsMultiplePacketNumberSpaces()) {
     return;
   }
+  if (connection_.transport_version() == QUIC_VERSION_99) {
+    return;
+  }
   // Start out with some unsupported version.
   QuicConnectionPeer::GetFramer(&connection_)
       ->set_version_for_tests(ParsedQuicVersion(

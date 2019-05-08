@@ -281,7 +281,7 @@ bool GetLongHeaderType(QuicTransportVersion version,
         break;
       default:
         QUIC_BUG << "Unreachable statement";
-        *long_header_type = VERSION_NEGOTIATION;
+        *long_header_type = INVALID_PACKET_TYPE;
         return false;
     }
     return true;
@@ -1430,7 +1430,7 @@ QuicFramer::BuildIetfVersionNegotiationPacket(
   QuicDataWriter writer(len, buffer.get());
 
   // TODO(fayang): Randomly select a value for the type.
-  uint8_t type = static_cast<uint8_t>(FLAGS_LONG_HEADER | VERSION_NEGOTIATION);
+  uint8_t type = static_cast<uint8_t>(FLAGS_LONG_HEADER);
   if (!writer.WriteUInt8(type)) {
     return nullptr;
   }
@@ -1497,8 +1497,19 @@ bool QuicFramer::ProcessPacket(const QuicEncryptedPacket& packet) {
   }
 
   if (IsVersionNegotiation(header, packet_has_ietf_packet_header)) {
-    QUIC_DVLOG(1) << ENDPOINT << "Received version negotiation packet";
-    return ProcessVersionNegotiationPacket(&reader, header);
+    if (!GetQuicRestartFlag(quic_server_drop_version_negotiation)) {
+      QUIC_DVLOG(1) << ENDPOINT << "Received version negotiation packet";
+      return ProcessVersionNegotiationPacket(&reader, header);
+    }
+    QUIC_RESTART_FLAG_COUNT_N(quic_server_drop_version_negotiation, 1, 2);
+    if (perspective_ == Perspective::IS_CLIENT) {
+      QUIC_DVLOG(1) << "Client received version negotiation packet";
+      return ProcessVersionNegotiationPacket(&reader, header);
+    } else {
+      QUIC_DLOG(ERROR) << "Server received version negotiation packet";
+      set_detailed_error("Server received version negotiation packet.");
+      return RaiseError(QUIC_INVALID_VERSION_NEGOTIATION_PACKET);
+    }
   }
 
   if (header.version_flag && header.version != version_) {
@@ -1745,6 +1756,10 @@ bool QuicFramer::ProcessIetfDataPacket(QuicDataReader* encrypted_reader,
 
   if (header->form == IETF_QUIC_SHORT_HEADER_PACKET ||
       header->long_packet_type != VERSION_NEGOTIATION) {
+    DCHECK(header->form == IETF_QUIC_SHORT_HEADER_PACKET ||
+           header->long_packet_type == INITIAL ||
+           header->long_packet_type == HANDSHAKE ||
+           header->long_packet_type == ZERO_RTT_PROTECTED);
     // Process packet number.
     QuicPacketNumber base_packet_number;
     if (supports_multiple_packet_number_spaces_) {
@@ -5249,9 +5264,13 @@ bool QuicFramer::IsVersionNegotiation(
     const QuicPacketHeader& header,
     bool packet_has_ietf_packet_header) const {
   if (perspective_ == Perspective::IS_SERVER) {
-    return false;
+    if (!GetQuicRestartFlag(quic_server_drop_version_negotiation)) {
+      return false;
+    }
+    QUIC_RESTART_FLAG_COUNT_N(quic_server_drop_version_negotiation, 2, 2);
   }
-  if (!packet_has_ietf_packet_header) {
+  if (!packet_has_ietf_packet_header &&
+      perspective_ == Perspective::IS_CLIENT) {
     return header.version_flag;
   }
   if (header.form == IETF_QUIC_SHORT_HEADER_PACKET) {
