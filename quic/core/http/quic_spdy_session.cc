@@ -724,4 +724,40 @@ bool QuicSpdySession::HasActiveRequestStreams() const {
   return false;
 }
 
+void QuicSpdySession::ProcessPendingStreamType(PendingStream* pending) {
+  DCHECK(VersionHasControlStreams(connection()->transport_version()));
+  struct iovec iov;
+  if (!pending->sequencer()->GetReadableRegion(&iov)) {
+    // We don't have the first byte yet.
+    return;
+  }
+
+  QuicDataReader reader(static_cast<char*>(iov.iov_base), iov.iov_len);
+  uint64_t stream_type = 0;
+  if (!reader.ReadVarInt62(&stream_type)) {
+    return;
+  }
+  CreateIncomingStreamFromPending(pending->id(), stream_type);
+}
+
+void QuicSpdySession::CreateIncomingStreamFromPending(QuicStreamId id,
+                                                      uint64_t stream_type) {
+  switch (stream_type) {
+    case 0x00:  // HTTP/3 control stream.
+      // TODO(renjietang): Create incoming control stream.
+      break;
+    case 0x01:  // Push Stream.
+      break;
+    case 0x02:  // QPACK encoder stream.
+      // TODO(bnc): Create QPACK encoder stream.
+      break;
+    case 0x03:  // QPACK decoder stream.
+      // TODO(bnc): Create QPACK decoder stream.
+      break;
+    default:
+      SendStopSending(0x0D, id);
+      return;
+  }
+}
+
 }  // namespace quic

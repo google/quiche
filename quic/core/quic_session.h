@@ -575,6 +575,10 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
 
   StreamHandler GetOrCreateStreamImpl(QuicStreamId stream_id, bool may_buffer);
 
+  // Processes the stream type information of |pending| depending on
+  // different kinds of sessions's own rules.
+  virtual void ProcessPendingStreamType(PendingStream* pending) {}
+
   bool eliminate_static_stream_map() const {
     return eliminate_static_stream_map_;
   }

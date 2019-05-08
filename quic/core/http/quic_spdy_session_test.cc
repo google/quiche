@@ -267,6 +267,7 @@ class TestSession : public QuicSpdySession {
 
   using QuicSession::closed_streams;
   using QuicSession::zombie_streams;
+  using QuicSpdySession::ProcessPendingStreamType;
   using QuicSpdySession::ShouldBufferIncomingStream;
 
  private:
@@ -1853,6 +1854,75 @@ TEST_P(QuicSpdySessionTestServer, OnPriorityFrame) {
   TestStream* stream = session_.CreateIncomingStream(stream_id);
   session_.OnPriorityFrame(stream_id, kV3HighestPriority);
   EXPECT_EQ(kV3HighestPriority, stream->priority());
+}
+
+TEST_P(QuicSpdySessionTestServer, SimplePendingStreamType) {
+  if (!VersionHasControlStreams(transport_version())) {
+    return;
+  }
+  PendingStream pending(QuicUtils::GetFirstUnidirectionalStreamId(
+                            transport_version(), Perspective::IS_CLIENT),
+                        &session_);
+  char input[] = {// type
+                  0x04,
+                  // data
+                  'a', 'b', 'c'};
+  QuicStreamFrame data(pending.id(), true, 0, QuicStringPiece(input, 4));
+  pending.OnStreamFrame(data);
+
+  // A stop sending frame will be sent to indicate unknown type.
+  EXPECT_CALL(*connection_, SendControlFrame(_));
+  session_.ProcessPendingStreamType(&pending);
+}
+
+TEST_P(QuicSpdySessionTestServer, SimplePendingStreamTypeOutOfOrderDelivery) {
+  if (!VersionHasControlStreams(transport_version())) {
+    return;
+  }
+  PendingStream pending(QuicUtils::GetFirstUnidirectionalStreamId(
+                            transport_version(), Perspective::IS_CLIENT),
+                        &session_);
+  char input[] = {// type
+                  0x04,
+                  // data
+                  'a', 'b', 'c'};
+  QuicStreamFrame data1(pending.id(), true, 1, QuicStringPiece(&input[1], 3));
+  pending.OnStreamFrame(data1);
+  session_.ProcessPendingStreamType(&pending);
+
+  QuicStreamFrame data2(pending.id(), false, 0, QuicStringPiece(input, 1));
+  pending.OnStreamFrame(data2);
+
+  EXPECT_CALL(*connection_, SendControlFrame(_));
+  session_.ProcessPendingStreamType(&pending);
+}
+
+TEST_P(QuicSpdySessionTestServer,
+       MultipleBytesPendingStreamTypeOutOfOrderDelivery) {
+  if (!VersionHasControlStreams(transport_version())) {
+    return;
+  }
+  PendingStream pending(QuicUtils::GetFirstUnidirectionalStreamId(
+                            transport_version(), Perspective::IS_CLIENT),
+                        &session_);
+  char input[] = {// type (256)
+                  0x40 + 0x01, 0x00,
+                  // data
+                  'a', 'b', 'c'};
+
+  QuicStreamFrame data1(pending.id(), true, 2, QuicStringPiece(&input[2], 3));
+  pending.OnStreamFrame(data1);
+  session_.ProcessPendingStreamType(&pending);
+
+  QuicStreamFrame data2(pending.id(), false, 0, QuicStringPiece(input, 1));
+  pending.OnStreamFrame(data2);
+  session_.ProcessPendingStreamType(&pending);
+
+  QuicStreamFrame data3(pending.id(), false, 1, QuicStringPiece(&input[1], 1));
+  pending.OnStreamFrame(data3);
+
+  EXPECT_CALL(*connection_, SendControlFrame(_));
+  session_.ProcessPendingStreamType(&pending);
 }
 
 }  // namespace

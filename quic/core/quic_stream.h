@@ -73,6 +73,8 @@ class QUIC_EXPORT_PRIVATE PendingStream
   // Returns the number of bytes read on this stream.
   uint64_t stream_bytes_read() { return stream_bytes_read_; }
 
+  const QuicStreamSequencer* sequencer() const { return &sequencer_; }
+
  private:
   friend class QuicStream;
 

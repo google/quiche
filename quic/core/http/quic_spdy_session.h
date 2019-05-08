@@ -198,6 +198,10 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // Overridden to buffer incoming streams for version 99.
   bool ShouldBufferIncomingStream(QuicStreamId id) const override;
 
+  // Overridden to Process HTTP/3 stream types. No action will be taken if
+  // stream type cannot be read.
+  void ProcessPendingStreamType(PendingStream* pending) override;
+
   size_t WriteHeadersOnHeadersStreamImpl(
       QuicStreamId id,
       spdy::SpdyHeaderBlock headers,
@@ -236,6 +240,10 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
 
   void set_max_uncompressed_header_bytes(
       size_t set_max_uncompressed_header_bytes);
+
+  // Creates HTTP/3 unidirectional stream of |id| and |type|. Sends
+  // STOP_SENDING frame if |type| is not supported.
+  void CreateIncomingStreamFromPending(QuicStreamId id, uint64_t type);
 
  private:
   friend class test::QuicSpdySessionPeer;

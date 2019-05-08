@@ -58,8 +58,8 @@ PendingStream::PendingStream(QuicStreamId id, QuicSession* session)
       sequencer_(this) {}
 
 void PendingStream::OnDataAvailable() {
-  QUIC_BUG << "OnDataAvailable should not be called.";
-  CloseConnectionWithDetails(QUIC_INTERNAL_ERROR, "Unexpected data available");
+  // It will be called when pending stream receives its first byte. But this
+  // call should simply be ignored so that data remains in sequencer.
 }
 
 void PendingStream::OnFinRead() {
@@ -92,7 +92,6 @@ const QuicSocketAddress& PendingStream::PeerAddressOfLatestPacket() const {
 
 void PendingStream::OnStreamFrame(const QuicStreamFrame& frame) {
   DCHECK_EQ(frame.stream_id, id_);
-  DCHECK_NE(0u, frame.offset);
 
   bool is_stream_too_long =
       (frame.offset > kMaxStreamLength) ||
