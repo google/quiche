@@ -931,6 +931,11 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     SetQuicFlag(FLAGS_quic_supports_tls_handshake, true);
     connection_.set_defer_send_in_response_to_packets(GetParam().ack_response ==
                                                       AckResponse::kDefer);
+    for (EncryptionLevel level :
+         {ENCRYPTION_ZERO_RTT, ENCRYPTION_FORWARD_SECURE}) {
+      peer_creator_.SetEncrypter(
+          level, QuicMakeUnique<NullEncrypter>(peer_framer_.perspective()));
+    }
     QuicFramerPeer::SetLastSerializedConnectionId(
         QuicConnectionPeer::GetFramer(&connection_), connection_id_);
     if (version().transport_version > QUIC_VERSION_43) {
@@ -1051,14 +1056,6 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     frames.push_back(QuicFrame(frame));
     QuicPacketCreatorPeer::SetSendVersionInPacket(
         &peer_creator_, connection_.perspective() == Perspective::IS_SERVER);
-    EncryptionLevel peer_encryption_level =
-        QuicPacketCreatorPeer::GetEncryptionLevel(&peer_creator_);
-    if (peer_encryption_level > ENCRYPTION_INITIAL) {
-      // Set peer_framer_'s corresponding encrypter.
-      peer_creator_.SetEncrypter(
-          QuicPacketCreatorPeer::GetEncryptionLevel(&peer_creator_),
-          QuicMakeUnique<NullEncrypter>(peer_framer_.perspective()));
-    }
 
     char buffer[kMaxOutgoingPacketSize];
     SerializedPacket serialized_packet =
@@ -1163,11 +1160,12 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
   }
 
   size_t ProcessDataPacket(uint64_t number) {
-    return ProcessDataPacketAtLevel(number, false, ENCRYPTION_INITIAL);
+    return ProcessDataPacketAtLevel(number, false, ENCRYPTION_FORWARD_SECURE);
   }
 
   size_t ProcessDataPacket(QuicPacketNumber packet_number) {
-    return ProcessDataPacketAtLevel(packet_number, false, ENCRYPTION_INITIAL);
+    return ProcessDataPacketAtLevel(packet_number, false,
+                                    ENCRYPTION_FORWARD_SECURE);
   }
 
   size_t ProcessDataPacketAtLevel(QuicPacketNumber packet_number,
@@ -2426,12 +2424,13 @@ TEST_P(QuicConnectionTest, RejectUnencryptedStreamData) {
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   EXPECT_CALL(visitor_, OnConnectionClosed(QUIC_UNENCRYPTED_STREAM_DATA, _,
                                            ConnectionCloseSource::FROM_SELF));
-  EXPECT_QUIC_PEER_BUG(ProcessDataPacket(1), "");
+  EXPECT_QUIC_PEER_BUG(ProcessDataPacketAtLevel(1, false, ENCRYPTION_INITIAL),
+                       "");
   EXPECT_FALSE(QuicConnectionPeer::GetConnectionClosePacket(&connection_) ==
                nullptr);
   const std::vector<QuicConnectionCloseFrame>& connection_close_frames =
       writer_->connection_close_frames();
-  EXPECT_EQ(1u, connection_close_frames.size());
+  ASSERT_EQ(1u, connection_close_frames.size());
   EXPECT_EQ(QUIC_UNENCRYPTED_STREAM_DATA,
             connection_close_frames[0].quic_error_code);
 }
@@ -3018,7 +3017,7 @@ TEST_P(QuicConnectionTest, FramePackingAckResponse) {
                             QuicMakeUnique<TaggingEncrypter>(0x01));
   SetDecrypter(ENCRYPTION_FORWARD_SECURE,
                QuicMakeUnique<StrictTaggingDecrypter>(0x01));
-  ProcessDataPacketAtLevel(2, false, ENCRYPTION_FORWARD_SECURE);
+  ProcessDataPacket(2);
 
   EXPECT_EQ(0u, connection_.NumQueuedPackets());
   EXPECT_FALSE(connection_.HasQueuedData());
@@ -6526,7 +6525,7 @@ TEST_P(QuicConnectionTest, SendDelayedAckOnOutgoingPacket) {
                             QuicMakeUnique<TaggingEncrypter>(0x01));
   SetDecrypter(ENCRYPTION_FORWARD_SECURE,
                QuicMakeUnique<StrictTaggingDecrypter>(0x01));
-  ProcessDataPacketAtLevel(1, false, ENCRYPTION_FORWARD_SECURE);
+  ProcessDataPacket(1);
   connection_.SendStreamDataWithString(
       GetNthClientInitiatedStreamId(1, connection_.transport_version()), "foo",
       0, NO_FIN);
@@ -8864,7 +8863,7 @@ TEST_P(QuicConnectionTest, MultiplePacketNumberSpacesBasicReceiving) {
                QuicMakeUnique<StrictTaggingDecrypter>(0x02));
   // Verify zero rtt and forward secure packets get acked in the same packet.
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
-  ProcessDataPacketAtLevel(1003, false, ENCRYPTION_FORWARD_SECURE);
+  ProcessDataPacket(1003);
   EXPECT_FALSE(connection_.GetAckAlarm()->IsSet());
 }
 
