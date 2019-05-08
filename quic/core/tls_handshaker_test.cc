@@ -47,17 +47,20 @@ class FakeProofVerifier : public ProofVerifier {
   QuicAsyncStatus VerifyCertChain(
       const std::string& hostname,
       const std::vector<std::string>& certs,
+      const std::string& ocsp_response,
+      const std::string& cert_sct,
       const ProofVerifyContext* context,
       std::string* error_details,
       std::unique_ptr<ProofVerifyDetails>* details,
       std::unique_ptr<ProofVerifierCallback> callback) override {
     if (!active_) {
-      return verifier_->VerifyCertChain(hostname, certs, context, error_details,
+      return verifier_->VerifyCertChain(hostname, certs, ocsp_response,
+                                        cert_sct, context, error_details,
                                         details, std::move(callback));
     }
     pending_ops_.push_back(QuicMakeUnique<VerifyChainPendingOp>(
-        hostname, certs, context, error_details, details, std::move(callback),
-        verifier_.get()));
+        hostname, certs, ocsp_response, cert_sct, context, error_details,
+        details, std::move(callback), verifier_.get()));
     return QUIC_PENDING;
   }
 
@@ -92,6 +95,8 @@ class FakeProofVerifier : public ProofVerifier {
    public:
     VerifyChainPendingOp(const std::string& hostname,
                          const std::vector<std::string>& certs,
+                         const std::string& ocsp_response,
+                         const std::string& cert_sct,
                          const ProofVerifyContext* context,
                          std::string* error_details,
                          std::unique_ptr<ProofVerifyDetails>* details,
@@ -99,6 +104,8 @@ class FakeProofVerifier : public ProofVerifier {
                          ProofVerifier* delegate)
         : hostname_(hostname),
           certs_(certs),
+          ocsp_response_(ocsp_response),
+          cert_sct_(cert_sct),
           context_(context),
           error_details_(error_details),
           details_(details),
@@ -111,7 +118,8 @@ class FakeProofVerifier : public ProofVerifier {
       // runs the original callback after asserting that the verification ran
       // synchronously.
       QuicAsyncStatus status = delegate_->VerifyCertChain(
-          hostname_, certs_, context_, error_details_, details_,
+          hostname_, certs_, ocsp_response_, cert_sct_, context_,
+          error_details_, details_,
           QuicMakeUnique<FailingProofVerifierCallback>());
       ASSERT_NE(status, QUIC_PENDING);
       callback_->Run(status == QUIC_SUCCESS, *error_details_, details_);
@@ -120,6 +128,8 @@ class FakeProofVerifier : public ProofVerifier {
    private:
     std::string hostname_;
     std::vector<std::string> certs_;
+    std::string ocsp_response_;
+    std::string cert_sct_;
     const ProofVerifyContext* context_;
     std::string* error_details_;
     std::unique_ptr<ProofVerifyDetails>* details_;

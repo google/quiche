@@ -88,6 +88,8 @@ class InsecureProofVerifier : public ProofVerifier {
   QuicAsyncStatus VerifyCertChain(
       const std::string& hostname,
       const std::vector<std::string>& certs,
+      const std::string& ocsp_response,
+      const std::string& cert_sct,
       const ProofVerifyContext* context,
       std::string* error_details,
       std::unique_ptr<ProofVerifyDetails>* details,

@@ -86,6 +86,8 @@ class FakeProofVerifier : public quic::ProofVerifier {
   quic::QuicAsyncStatus VerifyCertChain(
       const std::string& /*hostname*/,
       const std::vector<std::string>& /*certs*/,
+      const std::string& /*ocsp_response*/,
+      const std::string& /*cert_sct*/,
       const quic::ProofVerifyContext* /*context*/,
       std::string* /*error_details*/,
       std::unique_ptr<quic::ProofVerifyDetails>* /*details*/,

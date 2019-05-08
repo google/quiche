@@ -92,6 +92,8 @@ class RecordingProofVerifier : public ProofVerifier {
   QuicAsyncStatus VerifyCertChain(
       const std::string& hostname,
       const std::vector<std::string>& certs,
+      const std::string& ocsp_response,
+      const std::string& cert_sct,
       const ProofVerifyContext* context,
       std::string* error_details,
       std::unique_ptr<ProofVerifyDetails>* details,
@@ -629,8 +631,8 @@ bool QuicTestClient::WaitUntil(int timeout_ms, std::function<bool()> trigger) {
     epoll_server()->set_timeout_in_us(old_timeout_us);
   }
   if (trigger && !trigger()) {
-    VLOG(1) << "Client WaitUntil returning with trigger returning false."
-            << QuicStackTrace();
+    QUIC_VLOG(1) << "Client WaitUntil returning with trigger returning false."
+                 << QuicStackTrace();
     return false;
   }
   return true;
