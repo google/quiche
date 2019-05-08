@@ -61,7 +61,8 @@ bool ParsedQuicVersion::HasHeaderProtection() const {
 }
 
 bool ParsedQuicVersion::SupportsRetry() const {
-  return transport_version == QUIC_VERSION_99;
+  return transport_version == QUIC_VERSION_99 ||
+         handshake_protocol == PROTOCOL_TLS1_3;
 }
 
 std::ostream& operator<<(std::ostream& os, const ParsedQuicVersion& version) {
