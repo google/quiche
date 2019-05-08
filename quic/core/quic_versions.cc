@@ -434,6 +434,8 @@ void QuicVersionInitializeSupportForIetfDraft(int32_t draft_version) {
   SetQuicReloadableFlag(quic_use_uber_received_packet_manager, true);
   SetQuicReloadableFlag(quic_validate_packet_number_post_decryption, true);
   SetQuicReloadableFlag(quic_print_tag_hex, true);
+  SetQuicReloadableFlag(quic_send_version_negotiation_fixed_bit, true);
+  SetQuicRestartFlag(quic_server_drop_version_negotiation, true);
   SetQuicRestartFlag(quic_enable_accept_random_ipn, true);
 }
 

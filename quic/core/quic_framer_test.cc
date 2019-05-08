@@ -6556,9 +6556,13 @@ TEST_P(QuicFramerTest, BuildVersionNegotiationPacket) {
       // version tag
       QUIC_VERSION_BYTES,
   };
+  unsigned char type44 = 0x80;
+  if (GetQuicReloadableFlag(quic_send_version_negotiation_fixed_bit)) {
+    type44 = 0xC0;
+  }
   unsigned char packet44[] = {
       // type (long header)
-      0x80,
+      type44,
       // version tag
       0x00, 0x00, 0x00, 0x00,
       // connection_id length
