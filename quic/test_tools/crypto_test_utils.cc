@@ -344,7 +344,7 @@ class FullChloGenerator {
     EXPECT_THAT(rej->tag(),
                 testing::AnyOf(testing::Eq(kSREJ), testing::Eq(kREJ)));
 
-    VLOG(1) << "Extract valid STK and SCID from\n" << rej->DebugString();
+    QUIC_VLOG(1) << "Extract valid STK and SCID from\n" << rej->DebugString();
     QuicStringPiece srct;
     ASSERT_TRUE(rej->GetStringPiece(kSourceAddressTokenTag, &srct));
 

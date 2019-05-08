@@ -227,8 +227,8 @@ bool QuicServerSessionBase::ShouldCreateOutgoingBidirectionalStream() {
       connection()->transport_version() != QUIC_VERSION_99) {
     if (GetNumOpenOutgoingStreams() >=
         stream_id_manager().max_open_outgoing_streams()) {
-      VLOG(1) << "No more streams should be created. "
-              << "Already " << GetNumOpenOutgoingStreams() << " open.";
+      QUIC_VLOG(1) << "No more streams should be created. "
+                   << "Already " << GetNumOpenOutgoingStreams() << " open.";
       return false;
     }
   }
@@ -251,8 +251,8 @@ bool QuicServerSessionBase::ShouldCreateOutgoingUnidirectionalStream() {
       connection()->transport_version() != QUIC_VERSION_99) {
     if (GetNumOpenOutgoingStreams() >=
         stream_id_manager().max_open_outgoing_streams()) {
-      VLOG(1) << "No more streams should be created. "
-              << "Already " << GetNumOpenOutgoingStreams() << " open.";
+      QUIC_VLOG(1) << "No more streams should be created. "
+                   << "Already " << GetNumOpenOutgoingStreams() << " open.";
       return false;
     }
   }

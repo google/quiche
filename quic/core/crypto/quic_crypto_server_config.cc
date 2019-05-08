@@ -205,7 +205,7 @@ QuicCryptoServerConfig::ConfigOptions::~ConfigOptions() {}
 QuicCryptoServerConfig::ProcessClientHelloContext::
     ~ProcessClientHelloContext() {
   if (done_cb_ != nullptr) {
-    LOG(WARNING)
+    QUIC_LOG(WARNING)
         << "Deleting ProcessClientHelloContext with a pending callback.";
   }
 }
