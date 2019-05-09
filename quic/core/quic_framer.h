@@ -659,6 +659,20 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   bool ProcessUnauthenticatedHeader(QuicDataReader* encrypted_reader,
                                     QuicPacketHeader* header);
 
+  // Processes the version label in the packet header.
+  static bool ProcessVersionLabel(QuicDataReader* reader,
+                                  QuicVersionLabel* version_label);
+
+  // Validates and updates |destination_connection_id_length| and
+  // |source_connection_id_length|.
+  static bool ValidateIetfConnectionIdLength(
+      uint8_t connection_id_lengths_byte,
+      ParsedQuicVersion version,
+      bool should_update_expected_connection_id_length,
+      uint8_t* expected_connection_id_length,
+      uint8_t* destination_connection_id_length,
+      uint8_t* source_connection_id_length);
+
   bool ProcessIetfHeaderTypeByte(QuicDataReader* reader,
                                  QuicPacketHeader* header);
   bool ProcessIetfPacketHeader(QuicDataReader* reader,

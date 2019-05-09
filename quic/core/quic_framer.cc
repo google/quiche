@@ -1577,14 +1577,12 @@ bool QuicFramer::ProcessVersionNegotiationPacket(
   // Try reading at least once to raise error if the packet is invalid.
   do {
     QuicVersionLabel version_label;
-    if (!reader->ReadTag(&version_label)) {
+    if (!ProcessVersionLabel(reader, &version_label)) {
       set_detailed_error("Unable to read supported version in negotiation.");
       RecordDroppedPacketReason(
           DroppedPacketReason::INVALID_VERSION_NEGOTIATION_PACKET);
       return RaiseError(QUIC_INVALID_VERSION_NEGOTIATION_PACKET);
     }
-    // TODO(rch): Use ReadUInt32() once QUIC_VERSION_35 is removed.
-    version_label = QuicEndian::NetToHost32(version_label);
     packet.versions.push_back(ParseQuicVersionLabel(version_label));
   } while (!reader->IsDoneReading());
 
@@ -2343,13 +2341,10 @@ bool QuicFramer::ProcessPublicHeader(QuicDataReader* reader,
   // version flag from the server means version negotiation packet.
   if (header->version_flag && perspective_ == Perspective::IS_SERVER) {
     QuicVersionLabel version_label;
-    if (!reader->ReadTag(&version_label)) {
+    if (!ProcessVersionLabel(reader, &version_label)) {
       set_detailed_error("Unable to read protocol version.");
       return false;
     }
-    // TODO(rch): Use ReadUInt32() once QUIC_VERSION_35 is removed.
-    version_label = QuicEndian::NetToHost32(version_label);
-
     // If the version from the new packet is the same as the version of this
     // framer, then the public flags should be set to something we understand.
     // If not, this raises an error.
@@ -2528,12 +2523,10 @@ bool QuicFramer::ProcessIetfHeaderTypeByte(QuicDataReader* reader,
                                                : CONNECTION_ID_ABSENT;
     // Read version tag.
     QuicVersionLabel version_label;
-    if (!reader->ReadTag(&version_label)) {
+    if (!ProcessVersionLabel(reader, &version_label)) {
       set_detailed_error("Unable to read protocol version.");
       return false;
     }
-    // TODO(rch): Use ReadUInt32() once QUIC_VERSION_35 is removed.
-    version_label = QuicEndian::NetToHost32(version_label);
     if (!version_label) {
       // Version label is 0 indicating this is a version negotiation packet.
       header->long_packet_type = VERSION_NEGOTIATION;
@@ -2601,6 +2594,57 @@ bool QuicFramer::ProcessIetfHeaderTypeByte(QuicDataReader* reader,
   return true;
 }
 
+// static
+bool QuicFramer::ProcessVersionLabel(QuicDataReader* reader,
+                                     QuicVersionLabel* version_label) {
+  if (!reader->ReadTag(version_label)) {
+    return false;
+  }
+  // TODO(rch): Use ReadUInt32() once QUIC_VERSION_35 is removed.
+  *version_label = QuicEndian::NetToHost32(*version_label);
+  return true;
+}
+
+// static
+bool QuicFramer::ValidateIetfConnectionIdLength(
+    uint8_t connection_id_lengths_byte,
+    ParsedQuicVersion version,
+    bool should_update_expected_connection_id_length,
+    uint8_t* expected_connection_id_length,
+    uint8_t* destination_connection_id_length,
+    uint8_t* source_connection_id_length) {
+  uint8_t dcil =
+      (connection_id_lengths_byte & kDestinationConnectionIdLengthMask) >> 4;
+  if (dcil != 0) {
+    dcil += kConnectionIdLengthAdjustment;
+  }
+  if (should_update_expected_connection_id_length &&
+      *expected_connection_id_length != dcil) {
+    QUIC_DVLOG(1) << "Updating expected_connection_id_length: "
+                  << static_cast<int>(*expected_connection_id_length) << " -> "
+                  << static_cast<int>(dcil);
+    *expected_connection_id_length = dcil;
+  }
+  uint8_t scil = connection_id_lengths_byte & kSourceConnectionIdLengthMask;
+  if (scil != 0) {
+    scil += kConnectionIdLengthAdjustment;
+  }
+  if ((dcil != *destination_connection_id_length ||
+       scil != *source_connection_id_length) &&
+      !should_update_expected_connection_id_length &&
+      !QuicUtils::VariableLengthConnectionIdAllowedForVersion(
+          version.transport_version)) {
+    // TODO(dschinazi): use the framer's version once the
+    // OnProtocolVersionMismatch call is moved to before this is run.
+    QUIC_DVLOG(1) << "dcil: " << static_cast<uint32_t>(dcil)
+                  << ", scil: " << static_cast<uint32_t>(scil);
+    return false;
+  }
+  *destination_connection_id_length = dcil;
+  *source_connection_id_length = scil;
+  return true;
+}
+
 bool QuicFramer::ProcessIetfPacketHeader(QuicDataReader* reader,
                                          QuicPacketHeader* header) {
   if (!ProcessIetfHeaderTypeByte(reader, header)) {
@@ -2622,36 +2666,14 @@ bool QuicFramer::ProcessIetfPacketHeader(QuicDataReader* reader,
       set_detailed_error("Unable to read ConnectionId length.");
       return false;
     }
-    uint8_t dcil =
-        (connection_id_lengths_byte & kDestinationConnectionIdLengthMask) >> 4;
-    if (dcil != 0) {
-      dcil += kConnectionIdLengthAdjustment;
-    }
-    if (should_update_expected_connection_id_length_ &&
-        expected_connection_id_length_ != dcil) {
-      QUIC_DVLOG(1) << ENDPOINT << "Updating expected_connection_id_length: "
-                    << static_cast<int>(expected_connection_id_length_)
-                    << " -> " << static_cast<int>(dcil);
-      expected_connection_id_length_ = dcil;
-    }
-    uint8_t scil = connection_id_lengths_byte & kSourceConnectionIdLengthMask;
-    if (scil != 0) {
-      scil += kConnectionIdLengthAdjustment;
-    }
-    if ((dcil != destination_connection_id_length ||
-         scil != source_connection_id_length) &&
-        !should_update_expected_connection_id_length_ &&
-        !QuicUtils::VariableLengthConnectionIdAllowedForVersion(
-            header->version.transport_version)) {
-      // TODO(dschinazi): use the framer's version once the
-      // OnProtocolVersionMismatch call is moved to before this is run.
-      QUIC_DVLOG(1) << "dcil: " << static_cast<uint32_t>(dcil)
-                    << ", scil: " << static_cast<uint32_t>(scil);
+    if (!ValidateIetfConnectionIdLength(
+            connection_id_lengths_byte, header->version,
+            should_update_expected_connection_id_length_,
+            &expected_connection_id_length_, &destination_connection_id_length,
+            &source_connection_id_length)) {
       set_detailed_error("Invalid ConnectionId length.");
       return false;
     }
-    destination_connection_id_length = dcil;
-    source_connection_id_length = scil;
   }
 
   DCHECK_LE(destination_connection_id_length, kQuicMaxConnectionIdLength);
