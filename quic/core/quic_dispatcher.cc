@@ -803,10 +803,6 @@ void QuicDispatcher::StatelesslyTerminateConnection(
         << " based on an ietf-long packet, which has a supported version:"
         << version << ", error_code:" << error_code
         << ", error_details:" << error_details;
-    // Set framer_ to the packet's version such that the connection close can be
-    // processed by the client.
-    ParsedQuicVersion original_version = framer_.version();
-    framer_.set_version(version);
 
     StatelessConnectionTerminator terminator(
         connection_id, version, helper_.get(), time_wait_list_manager_.get());
@@ -817,9 +813,6 @@ void QuicDispatcher::StatelesslyTerminateConnection(
     }
     terminator.CloseConnection(error_code, error_details,
                                format != GOOGLE_QUIC_PACKET);
-
-    // Restore framer_ to the original version, as if nothing changed in it.
-    framer_.set_version(original_version);
     return;
   }
 
