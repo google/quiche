@@ -111,7 +111,7 @@ class TestStream : public QuicStream {
       : QuicStream(id, session, /*is_static=*/false, type) {}
 
   TestStream(PendingStream pending, StreamType type)
-      : QuicStream(std::move(pending), type) {}
+      : QuicStream(std::move(pending), type, /*is_static=*/false) {}
 
   using QuicStream::CloseReadSide;
   using QuicStream::CloseWriteSide;

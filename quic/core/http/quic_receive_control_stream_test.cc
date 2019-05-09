@@ -100,6 +100,7 @@ INSTANTIATE_TEST_SUITE_P(Tests,
                          ::testing::ValuesIn(GetTestParams()));
 
 TEST_P(QuicReceiveControlStreamTest, ResetControlStream) {
+  EXPECT_TRUE(receive_control_stream_->is_static());
   QuicRstStreamFrame rst_frame(kInvalidControlFrameId,
                                receive_control_stream_->id(),
                                QUIC_STREAM_CANCELLED, 1234);

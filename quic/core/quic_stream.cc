@@ -168,11 +168,11 @@ bool PendingStream::MaybeIncreaseHighestReceivedOffset(
   return true;
 }
 
-QuicStream::QuicStream(PendingStream pending, StreamType type)
+QuicStream::QuicStream(PendingStream pending, StreamType type, bool is_static)
     : QuicStream(pending.id_,
                  pending.session_,
                  std::move(pending.sequencer_),
-                 /*is_static=*/false,
+                 is_static,
                  type,
                  pending.stream_bytes_read_,
                  pending.fin_received_,

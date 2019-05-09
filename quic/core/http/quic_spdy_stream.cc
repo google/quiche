@@ -163,7 +163,7 @@ QuicSpdyStream::QuicSpdyStream(QuicStreamId id,
 QuicSpdyStream::QuicSpdyStream(PendingStream pending,
                                QuicSpdySession* spdy_session,
                                StreamType type)
-    : QuicStream(std::move(pending), type),
+    : QuicStream(std::move(pending), type, /*is_static=*/false),
       spdy_session_(spdy_session),
       visitor_(nullptr),
       headers_decompressed_(false),
