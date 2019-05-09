@@ -48,7 +48,7 @@ class QuartcSession : public QuicSession,
   // support SendMessage API. Other unexpected errors during send will not be
   // returned, because messages can be sent later if connection is congestion
   // controlled.
-  bool SendOrQueueMessage(std::string message);
+  bool SendOrQueueMessage(QuicMemSliceSpan message);
 
   // Returns largest message payload acceptable in SendQuartcMessage.
   QuicPacketLength GetCurrentLargestMessagePayload() const {
@@ -190,7 +190,7 @@ class QuartcSession : public QuicSession,
   // Queue of pending messages sent by SendQuartcMessage that were not sent
   // yet or blocked by congestion control. Messages are queued in the order
   // of sent by SendOrQueueMessage().
-  QuicDeque<std::string> send_message_queue_;
+  QuicDeque<QuicMemSlice> send_message_queue_;
 };
 
 class QuartcClientSession : public QuartcSession,

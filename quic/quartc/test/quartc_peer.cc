@@ -4,6 +4,7 @@
 
 #include "net/third_party/quiche/src/quic/quartc/test/quartc_peer.h"
 
+#include "net/third_party/quiche/src/quic/platform/api/quic_mem_slice_storage.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 
 namespace quic {
@@ -12,10 +13,12 @@ namespace test {
 QuartcPeer::QuartcPeer(const QuicClock* clock,
                        QuicAlarmFactory* alarm_factory,
                        QuicRandom* random,
+                       QuicBufferAllocator* buffer_allocator,
                        const std::vector<QuartcDataSource::Config>& configs)
     : clock_(clock),
       alarm_factory_(alarm_factory),
       random_(random),
+      buffer_allocator_(buffer_allocator),
       enabled_(false),
       session_(nullptr),
       configs_(configs) {}
@@ -118,7 +121,9 @@ void QuartcPeer::OnDataProduced(const char* data, size_t length) {
   // Further packetization is not required, as sources are configured to produce
   // frames that fit within message payloads.
   DCHECK_LE(length, session_->GetCurrentLargestMessagePayload());
-  session_->SendOrQueueMessage(std::string(data, length));
+  struct iovec iov = {const_cast<char*>(data), length};
+  QuicMemSliceStorage storage(&iov, 1, buffer_allocator_, length);
+  session_->SendOrQueueMessage(storage.ToSpan());
 }
 
 }  // namespace test

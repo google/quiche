@@ -40,10 +40,12 @@ class QuartcPeerTest : public QuicTest {
   void CreatePeers(const std::vector<QuartcDataSource::Config>& configs) {
     client_peer_ = QuicMakeUnique<QuartcPeer>(
         simulator_.GetClock(), simulator_.GetAlarmFactory(),
-        simulator_.GetRandomGenerator(), configs);
+        simulator_.GetRandomGenerator(),
+        simulator_.GetStreamSendBufferAllocator(), configs);
     server_peer_ = QuicMakeUnique<QuartcPeer>(
         simulator_.GetClock(), simulator_.GetAlarmFactory(),
-        simulator_.GetRandomGenerator(), configs);
+        simulator_.GetRandomGenerator(),
+        simulator_.GetStreamSendBufferAllocator(), configs);
   }
 
   void Connect() {

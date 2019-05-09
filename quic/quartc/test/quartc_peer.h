@@ -48,6 +48,7 @@ class QuartcPeer : public QuartcEndpoint::Delegate,
   QuartcPeer(const QuicClock* clock,
              QuicAlarmFactory* alarm_factory,
              QuicRandom* random,
+             QuicBufferAllocator* buffer_allocator,
              const std::vector<QuartcDataSource::Config>& configs);
   QuartcPeer(QuartcPeer&) = delete;
   QuartcPeer& operator=(QuartcPeer&) = delete;
@@ -94,6 +95,7 @@ class QuartcPeer : public QuartcEndpoint::Delegate,
   const QuicClock* clock_;
   QuicAlarmFactory* alarm_factory_;
   QuicRandom* random_;
+  QuicBufferAllocator* buffer_allocator_;
 
   // Whether the peer is currently sending.
   bool enabled_;

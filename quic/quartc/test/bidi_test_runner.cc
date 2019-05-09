@@ -90,10 +90,12 @@ BidiTestRunner::~BidiTestRunner() {
 bool BidiTestRunner::RunTest(QuicTime::Delta test_duration) {
   client_peer_ = QuicMakeUnique<QuartcPeer>(
       simulator_->GetClock(), simulator_->GetAlarmFactory(),
-      simulator_->GetRandomGenerator(), client_configs_);
+      simulator_->GetRandomGenerator(),
+      simulator_->GetStreamSendBufferAllocator(), client_configs_);
   server_peer_ = QuicMakeUnique<QuartcPeer>(
       simulator_->GetClock(), simulator_->GetAlarmFactory(),
-      simulator_->GetRandomGenerator(), server_configs_);
+      simulator_->GetRandomGenerator(),
+      simulator_->GetStreamSendBufferAllocator(), server_configs_);
 
   QuartcEndpoint::Delegate* server_delegate = server_peer_.get();
   if (server_interceptor_) {

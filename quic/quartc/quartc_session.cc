@@ -41,14 +41,15 @@ QuartcStream* QuartcSession::CreateOutgoingBidirectionalStream() {
       GetNextOutgoingBidirectionalStreamId(), QuicStream::kDefaultPriority));
 }
 
-bool QuartcSession::SendOrQueueMessage(std::string message) {
+bool QuartcSession::SendOrQueueMessage(QuicMemSliceSpan message) {
   if (!CanSendMessage()) {
     QUIC_LOG(ERROR) << "Quic session does not support SendMessage";
     return false;
   }
 
-  if (message.size() > GetCurrentLargestMessagePayload()) {
-    QUIC_LOG(ERROR) << "Message is too big, message_size=" << message.size()
+  if (message.total_length() > GetCurrentLargestMessagePayload()) {
+    QUIC_LOG(ERROR) << "Message is too big, message_size="
+                    << message.total_length()
                     << ", GetCurrentLargestMessagePayload="
                     << GetCurrentLargestMessagePayload();
     return false;
@@ -56,7 +57,9 @@ bool QuartcSession::SendOrQueueMessage(std::string message) {
 
   // There may be other messages in send queue, so we have to add message
   // to the queue and call queue processing helper.
-  send_message_queue_.emplace_back(std::move(message));
+  message.ConsumeAll([this](QuicMemSlice slice) {
+    send_message_queue_.emplace_back(std::move(slice));
+  });
 
   ProcessSendMessageQueue();
 
@@ -74,7 +77,7 @@ void QuartcSession::ProcessSendMessageQueue() {
         send_message_queue_.front().length());
     MessageResult result = SendMessage(storage.ToSpan());
 
-    const size_t message_size = send_message_queue_.front().size();
+    const size_t message_size = send_message_queue_.front().length();
 
     // Handle errors.
     switch (result.status) {
