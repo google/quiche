@@ -1424,7 +1424,8 @@ std::unique_ptr<QuicEncryptedPacket>
 QuicFramer::BuildIetfVersionNegotiationPacket(
     QuicConnectionId connection_id,
     const ParsedQuicVersionVector& versions) {
-  QUIC_DVLOG(1) << "Building IETF version negotiation packet.";
+  QUIC_DVLOG(1) << "Building IETF version negotiation packet: "
+                << ParsedQuicVersionVectorToString(versions);
   DCHECK(!versions.empty());
   size_t len = kPacketHeaderTypeSize + kConnectionIdLengthSize +
                connection_id.length() +
@@ -1585,6 +1586,9 @@ bool QuicFramer::ProcessVersionNegotiationPacket(
     }
     packet.versions.push_back(ParseQuicVersionLabel(version_label));
   } while (!reader->IsDoneReading());
+
+  QUIC_DLOG(INFO) << ENDPOINT << "parsed version negotiation: "
+                  << ParsedQuicVersionVectorToString(packet.versions);
 
   visitor_->OnVersionNegotiationPacket(packet);
   return true;

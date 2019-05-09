@@ -7114,16 +7114,13 @@ TEST_P(QuicConnectionTest, ClientHandlesVersionNegotiation) {
   if (connection_.SupportsMultiplePacketNumberSpaces()) {
     return;
   }
-  if (connection_.transport_version() == QUIC_VERSION_99) {
-    return;
-  }
-  // Start out with some unsupported version.
+  const bool expect_failure =
+      GetQuicReloadableFlag(quic_no_client_conn_ver_negotiation) ||
+      connection_.version().handshake_protocol !=
+          QuicVersionReservedForNegotiation().handshake_protocol;
+  // Start out with an unsupported version.
   QuicConnectionPeer::GetFramer(&connection_)
-      ->set_version_for_tests(ParsedQuicVersion(
-          PROTOCOL_UNSUPPORTED,
-          GetParam().version.transport_version == QUIC_VERSION_99
-              ? QUIC_VERSION_99
-              : QUIC_VERSION_UNSUPPORTED));
+      ->set_version_for_tests(QuicVersionReservedForNegotiation());
 
   // Send a version negotiation packet.
   std::unique_ptr<QuicEncryptedPacket> encrypted(
@@ -7132,12 +7129,12 @@ TEST_P(QuicConnectionTest, ClientHandlesVersionNegotiation) {
           AllSupportedVersions()));
   std::unique_ptr<QuicReceivedPacket> received(
       ConstructReceivedPacket(*encrypted, QuicTime::Zero()));
-  if (GetQuicReloadableFlag(quic_no_client_conn_ver_negotiation)) {
+  if (expect_failure) {
     EXPECT_CALL(visitor_, OnConnectionClosed(QUIC_INVALID_VERSION, _,
                                              ConnectionCloseSource::FROM_SELF));
   }
   connection_.ProcessUdpPacket(kSelfAddress, kPeerAddress, *received);
-  if (GetQuicReloadableFlag(quic_no_client_conn_ver_negotiation)) {
+  if (expect_failure) {
     EXPECT_FALSE(connection_.connected());
     return;
   }

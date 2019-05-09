@@ -98,9 +98,12 @@ QuicVersionLabel CreateQuicVersionLabel(ParsedQuicVersion parsed_version) {
     case QUIC_VERSION_99:
       if (parsed_version.handshake_protocol == PROTOCOL_TLS1_3 &&
           GetQuicFlag(FLAGS_quic_ietf_draft_version) != 0) {
-        return 0xff000000 + GetQuicFlag(FLAGS_quic_ietf_draft_version);
+        return MakeVersionLabel(0xff, 0x00, 0x00,
+                                GetQuicFlag(FLAGS_quic_ietf_draft_version));
       }
       return MakeVersionLabel(proto, '0', '9', '9');
+    case QUIC_VERSION_RESERVED_FOR_NEGOTIATION:
+      return MakeVersionLabel(0xda, 0x5a, 0x3a, 0x3a);
     default:
       // This shold be an ERROR because we should never attempt to convert an
       // invalid QuicTransportVersion to be written to the wire.
@@ -404,6 +407,11 @@ ParsedQuicVersion UnsupportedQuicVersion() {
   return ParsedQuicVersion(PROTOCOL_UNSUPPORTED, QUIC_VERSION_UNSUPPORTED);
 }
 
+ParsedQuicVersion QuicVersionReservedForNegotiation() {
+  return ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO,
+                           QUIC_VERSION_RESERVED_FOR_NEGOTIATION);
+}
+
 std::string AlpnForVersion(ParsedQuicVersion parsed_version) {
   if (parsed_version.handshake_protocol == PROTOCOL_TLS1_3 &&
       parsed_version.transport_version == QUIC_VERSION_99 &&
@@ -435,6 +443,8 @@ void QuicVersionInitializeSupportForIetfDraft(int32_t draft_version) {
   SetQuicReloadableFlag(quic_validate_packet_number_post_decryption, true);
   SetQuicReloadableFlag(quic_print_tag_hex, true);
   SetQuicReloadableFlag(quic_send_version_negotiation_fixed_bit, true);
+  SetQuicReloadableFlag(quic_no_client_conn_ver_negotiation, true);
+  SetQuicRestartFlag(quic_no_server_conn_ver_negotiation2, true);
   SetQuicRestartFlag(quic_server_drop_version_negotiation, true);
   SetQuicRestartFlag(quic_enable_accept_random_ipn, true);
 }

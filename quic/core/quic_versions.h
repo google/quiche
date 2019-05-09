@@ -106,6 +106,11 @@ enum QuicTransportVersion {
   QUIC_VERSION_47 = 47,  // Allow variable-length QUIC connection IDs.
   QUIC_VERSION_99 = 99,  // Dumping ground for IETF QUIC changes which are not
                          // yet ready for production.
+  // QUIC_VERSION_RESERVED_FOR_NEGOTIATION is sent over the wire as da5a3a3a
+  // which is part of a range reserved by the IETF for version negotiation
+  // testing. It is intentionally meant to never be supported by servers to
+  // trigger version negotiation when proposed by clients.
+  QUIC_VERSION_RESERVED_FOR_NEGOTIATION = 999,
 };
 
 // The crypto handshake protocols that can be used with QUIC.
@@ -160,6 +165,8 @@ struct QUIC_EXPORT_PRIVATE ParsedQuicVersion {
 };
 
 QUIC_EXPORT_PRIVATE ParsedQuicVersion UnsupportedQuicVersion();
+
+QUIC_EXPORT_PRIVATE ParsedQuicVersion QuicVersionReservedForNegotiation();
 
 QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                              const ParsedQuicVersion& version);

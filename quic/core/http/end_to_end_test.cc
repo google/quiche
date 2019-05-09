@@ -569,8 +569,7 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
 
   // Client supports IETF QUIC, while it is not supported by server.
   bool ClientSupportsIetfQuicNotSupportedByServer() {
-    return GetParam().client_supported_versions[0].transport_version >
-               QUIC_VERSION_43 &&
+    return client_supported_versions_[0].transport_version > QUIC_VERSION_43 &&
            FilterSupportedVersions(GetParam().server_supported_versions)[0]
                    .transport_version <= QUIC_VERSION_43;
   }
@@ -579,8 +578,7 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
   // closes connection when version negotiation is received.
   bool ServerSendsVersionNegotiation() {
     return GetQuicReloadableFlag(quic_no_client_conn_ver_negotiation) &&
-           GetParam().client_supported_versions[0] !=
-               GetParam().negotiated_version;
+           client_supported_versions_[0] != GetParam().negotiated_version;
   }
 
   bool SupportsIetfQuicWithTls(ParsedQuicVersion version) {
@@ -708,6 +706,24 @@ TEST_P(EndToEndTest, SimpleRequestResponse) {
       ++expected_num_client_hellos;
     }
   }
+  EXPECT_EQ(expected_num_client_hellos,
+            client_->client()->GetNumSentClientHellos());
+}
+
+TEST_P(EndToEndTest, SimpleRequestResponseForcedVersionNegotiation) {
+  client_supported_versions_.insert(client_supported_versions_.begin(),
+                                    QuicVersionReservedForNegotiation());
+  ASSERT_TRUE(Initialize());
+  ASSERT_TRUE(ServerSendsVersionNegotiation());
+
+  EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
+  EXPECT_EQ("200", client_->response_headers()->find(":status")->second);
+
+  int expected_num_client_hellos = 3;
+  if (BothSidesSupportStatelessRejects()) {
+    ++expected_num_client_hellos;
+  }
+
   EXPECT_EQ(expected_num_client_hellos,
             client_->client()->GetNumSentClientHellos());
 }

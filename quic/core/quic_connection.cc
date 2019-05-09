@@ -686,7 +686,7 @@ void QuicConnection::OnVersionNegotiationPacket(
   DCHECK_EQ(connection_id_, packet.connection_id);
   if (perspective_ == Perspective::IS_SERVER) {
     const std::string error_details =
-        "Server receieved version negotiation packet.";
+        "Server received version negotiation packet.";
     QUIC_BUG << error_details;
     QUIC_CODE_COUNT(quic_tear_down_local_connection_on_version_negotiation);
     TearDownLocalConnectionState(QUIC_INTERNAL_ERROR, error_details,
@@ -729,6 +729,7 @@ void QuicConnection::OnVersionNegotiationPacket(
     return;
   }
 
+  ParsedQuicVersion original_version = version();
   if (!SelectMutualVersion(packet.versions)) {
     CloseConnection(
         QUIC_INVALID_VERSION,
@@ -741,10 +742,23 @@ void QuicConnection::OnVersionNegotiationPacket(
     return;
   }
 
+  if (original_version.handshake_protocol != version().handshake_protocol) {
+    const std::string error_details =
+        "In-connection version negotiation between mismatched handshake "
+        " protocols " +
+        ParsedQuicVersionToString(original_version) + " and " +
+        ParsedQuicVersionToString(version()) + " is currently unsupported.";
+    QUIC_DLOG(WARNING) << error_details;
+    TearDownLocalConnectionState(QUIC_INVALID_VERSION, error_details,
+                                 ConnectionCloseSource::FROM_SELF);
+    return;
+  }
+
   QUIC_DLOG(INFO) << ENDPOINT << "Negotiated version: "
-                  << QuicVersionToString(transport_version());
+                  << ParsedQuicVersionToString(version());
   no_stop_waiting_frames_ = transport_version() > QUIC_VERSION_43;
   version_negotiation_state_ = NEGOTIATION_IN_PROGRESS;
+
   RetransmitUnackedPackets(ALL_UNACKED_RETRANSMISSION);
 }
 

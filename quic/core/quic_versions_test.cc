@@ -630,6 +630,17 @@ TEST_F(QuicVersionsTest, QuicEnableVersion) {
   EXPECT_TRUE(GetQuicReloadableFlag(quic_enable_version_99));
 }
 
+TEST_F(QuicVersionsTest, ReservedForNegotiation) {
+  EXPECT_EQ(QUIC_VERSION_RESERVED_FOR_NEGOTIATION,
+            QuicVersionReservedForNegotiation().transport_version);
+  // QUIC_VERSION_RESERVED_FOR_NEGOTIATION MUST NOT be added to
+  // kSupportedTransportVersions.
+  for (size_t i = 0; i < QUIC_ARRAYSIZE(kSupportedTransportVersions); ++i) {
+    EXPECT_NE(QUIC_VERSION_RESERVED_FOR_NEGOTIATION,
+              kSupportedTransportVersions[i]);
+  }
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

@@ -179,6 +179,13 @@ DEFINE_QUIC_COMMAND_LINE_FLAG(
 
 DEFINE_QUIC_COMMAND_LINE_FLAG(
     bool,
+    force_version_negotiation,
+    false,
+    "If true, start by proposing a version that is reserved for version "
+    "negotiation.");
+
+DEFINE_QUIC_COMMAND_LINE_FLAG(
+    bool,
     redirect_is_success,
     true,
     "If true, an HTTP response code of 3xx is considered to be a "
@@ -263,6 +270,11 @@ int main(int argc, char* argv[]) {
     versions.clear();
     versions.push_back(parsed_quic_version);
     quic::QuicEnableVersion(parsed_quic_version);
+  }
+
+  if (GetQuicFlag(FLAGS_force_version_negotiation)) {
+    versions.insert(versions.begin(),
+                    quic::QuicVersionReservedForNegotiation());
   }
 
   const int32_t num_requests(GetQuicFlag(FLAGS_num_requests));
