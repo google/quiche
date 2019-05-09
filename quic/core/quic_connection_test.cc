@@ -2616,9 +2616,7 @@ TEST_P(QuicConnectionTest, AckDecimationReducesAcks) {
 }
 
 TEST_P(QuicConnectionTest, AckNeedsRetransmittableFrames) {
-  if (connection_.SupportsMultiplePacketNumberSpaces()) {
-    return;
-  }
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(99);
 
