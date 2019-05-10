@@ -70,14 +70,9 @@ void QuartcSession::ProcessSendMessageQueue() {
   QuicConnection::ScopedPacketFlusher flusher(
       connection(), QuicConnection::AckBundling::NO_ACK);
   while (!send_message_queue_.empty()) {
-    struct iovec iov = {const_cast<char*>(send_message_queue_.front().data()),
-                        send_message_queue_.front().length()};
-    QuicMemSliceStorage storage(
-        &iov, 1, connection()->helper()->GetStreamSendBufferAllocator(),
-        send_message_queue_.front().length());
-    MessageResult result = SendMessage(storage.ToSpan());
-
     const size_t message_size = send_message_queue_.front().length();
+    MessageResult result =
+        SendMessage(QuicMemSliceSpan(&send_message_queue_.front()));
 
     // Handle errors.
     switch (result.status) {

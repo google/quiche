@@ -22,6 +22,9 @@ class QUIC_EXPORT_PRIVATE QuicMemSliceSpan {
  public:
   explicit QuicMemSliceSpan(QuicMemSliceSpanImpl impl) : impl_(impl) {}
 
+  // Constructs a span with a single QuicMemSlice.
+  explicit QuicMemSliceSpan(QuicMemSlice* slice) : impl_(slice->impl()) {}
+
   QuicMemSliceSpan(const QuicMemSliceSpan& other) = default;
   QuicMemSliceSpan& operator=(const QuicMemSliceSpan& other) = default;
   QuicMemSliceSpan(QuicMemSliceSpan&& other) = default;

@@ -60,6 +60,8 @@ class QUIC_EXPORT_PRIVATE QuicMemSlice {
 
   bool empty() const { return impl_.empty(); }
 
+  QuicMemSliceImpl* impl() { return &impl_; }
+
  private:
   QuicMemSliceImpl impl_;
 };
