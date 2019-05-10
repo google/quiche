@@ -355,6 +355,8 @@ void BbrSender::AdjustNetworkParameters(QuicBandwidth bandwidth,
     if (new_cwnd > congestion_window_) {
       QUIC_RELOADABLE_FLAG_COUNT_N(quic_fix_bbr_cwnd_in_bandwidth_resumption, 1,
                                    2);
+      // Decrease cwnd gain when cwnd increases.
+      set_high_cwnd_gain(kDerivedHighCWNDGain);
     } else {
       QUIC_RELOADABLE_FLAG_COUNT_N(quic_fix_bbr_cwnd_in_bandwidth_resumption, 2,
                                    2);
