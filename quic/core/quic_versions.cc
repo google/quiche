@@ -446,6 +446,8 @@ void QuicVersionInitializeSupportForIetfDraft(int32_t draft_version) {
   SetQuicRestartFlag(quic_no_server_conn_ver_negotiation2, true);
   SetQuicRestartFlag(quic_server_drop_version_negotiation, true);
   SetQuicRestartFlag(quic_enable_accept_random_ipn, true);
+  SetQuicRestartFlag(quic_allow_variable_length_connection_id_for_negotiation,
+                     true);
 }
 
 void QuicEnableVersion(ParsedQuicVersion parsed_version) {

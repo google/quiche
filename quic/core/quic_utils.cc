@@ -15,6 +15,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_endian.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_prefetch.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_uint128.h"
@@ -505,7 +506,16 @@ QuicConnectionId QuicUtils::CreateRandomConnectionId(
 // static
 bool QuicUtils::VariableLengthConnectionIdAllowedForVersion(
     QuicTransportVersion version) {
-  return version >= QUIC_VERSION_47;
+  if (!GetQuicRestartFlag(
+          quic_allow_variable_length_connection_id_for_negotiation)) {
+    return version >= QUIC_VERSION_47;
+  }
+  QUIC_RESTART_FLAG_COUNT(
+      quic_allow_variable_length_connection_id_for_negotiation);
+  // We allow variable length connection IDs for unsupported versions to
+  // ensure that IETF version negotiation works when other implementations
+  // trigger version negotiation with custom connection ID lengths.
+  return version >= QUIC_VERSION_47 || version == QUIC_VERSION_UNSUPPORTED;
 }
 
 // static

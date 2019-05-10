@@ -770,6 +770,33 @@ TEST_P(EndToEndTest, BadConnectionIdLength) {
                                                 .length());
 }
 
+TEST_P(EndToEndTest, ForcedVersionNegotiationAndBadConnectionIdLength) {
+  if (!GetQuicRestartFlag(
+          quic_allow_variable_length_connection_id_for_negotiation)) {
+    ASSERT_TRUE(Initialize());
+    return;
+  }
+  if (!QuicUtils::VariableLengthConnectionIdAllowedForVersion(
+          GetParam().negotiated_version.transport_version)) {
+    ASSERT_TRUE(Initialize());
+    return;
+  }
+  client_supported_versions_.insert(client_supported_versions_.begin(),
+                                    QuicVersionReservedForNegotiation());
+  QuicConnectionId connection_id =
+      TestConnectionIdNineBytesLong(UINT64_C(0xBADbadBADbad));
+  override_connection_id_ = &connection_id;
+  ASSERT_TRUE(Initialize());
+  ASSERT_TRUE(ServerSendsVersionNegotiation());
+  EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
+  EXPECT_EQ("200", client_->response_headers()->find(":status")->second);
+  EXPECT_EQ(kQuicDefaultConnectionIdLength, client_->client()
+                                                ->client_session()
+                                                ->connection()
+                                                ->connection_id()
+                                                .length());
+}
+
 TEST_P(EndToEndTest, MixGoodAndBadConnectionIdLengths) {
   if (!QuicUtils::VariableLengthConnectionIdAllowedForVersion(
           GetParam().negotiated_version.transport_version)) {
