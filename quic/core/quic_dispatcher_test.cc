@@ -855,7 +855,6 @@ TEST_F(QuicDispatcherTest, SupportedTransportVersionsChangeInFlight) {
   static_assert(QUIC_ARRAYSIZE(kSupportedTransportVersions) == 6u,
                 "Supported versions out of sync");
   SetQuicReloadableFlag(quic_disable_version_39, false);
-  SetQuicReloadableFlag(quic_enable_version_43, true);
   SetQuicReloadableFlag(quic_enable_version_44, true);
   SetQuicReloadableFlag(quic_enable_version_46, true);
   SetQuicReloadableFlag(quic_enable_version_47, true);
@@ -1007,39 +1006,6 @@ TEST_F(QuicDispatcherTest, SupportedTransportVersionsChangeInFlight) {
               ShouldCreateOrBufferPacketForConnection(connection_id, _));
   ProcessPacket(client_address, connection_id, true,
                 ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_44),
-                SerializeCHLO(), CONNECTION_ID_PRESENT,
-                PACKET_4BYTE_PACKET_NUMBER, 1);
-
-  // Turn off version 43.
-  SetQuicReloadableFlag(quic_enable_version_43, false);
-  connection_id = TestConnectionId(++conn_id);
-  EXPECT_CALL(*dispatcher_, CreateQuicSession(connection_id, client_address,
-                                              QuicStringPiece("hq"), _))
-      .Times(0);
-  ProcessPacket(client_address, connection_id, true,
-                ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_43),
-                SerializeCHLO(), CONNECTION_ID_PRESENT,
-                PACKET_4BYTE_PACKET_NUMBER, 1);
-
-  // Turn on version 43.
-  SetQuicReloadableFlag(quic_enable_version_43, true);
-  connection_id = TestConnectionId(++conn_id);
-  EXPECT_CALL(*dispatcher_, CreateQuicSession(connection_id, client_address,
-                                              QuicStringPiece("hq"), _))
-      .WillOnce(testing::Return(CreateSession(
-          dispatcher_.get(), config_, connection_id, client_address,
-          &mock_helper_, &mock_alarm_factory_, &crypto_config_,
-          QuicDispatcherPeer::GetCache(dispatcher_.get()), &session1_)));
-  EXPECT_CALL(*reinterpret_cast<MockQuicConnection*>(session1_->connection()),
-              ProcessUdpPacket(_, _, _))
-      .WillOnce(WithArg<2>(
-          Invoke([this, connection_id](const QuicEncryptedPacket& packet) {
-            ValidatePacket(connection_id, packet);
-          })));
-  EXPECT_CALL(*dispatcher_,
-              ShouldCreateOrBufferPacketForConnection(connection_id, _));
-  ProcessPacket(client_address, connection_id, true,
-                ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_43),
                 SerializeCHLO(), CONNECTION_ID_PRESENT,
                 PACKET_4BYTE_PACKET_NUMBER, 1);
 
@@ -2833,7 +2799,6 @@ TEST_F(AsyncGetProofTest, DispatcherFailedToPickUpVersionForAsyncProof) {
   // because of QUIC_INVALID_STREAM_DATA.
 
   SetQuicReloadableFlag(quic_disable_version_39, false);
-  SetQuicReloadableFlag(quic_enable_version_43, true);
   ParsedQuicVersion chlo_version(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_43);
   chlo_.SetVersion(kVER, chlo_version);
   // Send a CHLO with v43. Dispatcher framer's version is set to v43.

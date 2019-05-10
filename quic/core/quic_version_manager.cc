@@ -18,7 +18,6 @@ QuicVersionManager::QuicVersionManager(
       enable_version_47_(GetQuicReloadableFlag(quic_enable_version_47)),
       enable_version_46_(GetQuicReloadableFlag(quic_enable_version_46)),
       enable_version_44_(GetQuicReloadableFlag(quic_enable_version_44)),
-      enable_version_43_(GetQuicReloadableFlag(quic_enable_version_43)),
       disable_version_39_(GetQuicReloadableFlag(quic_disable_version_39)),
       allowed_supported_versions_(std::move(supported_versions)) {
   RefilterSupportedVersions();
@@ -42,13 +41,11 @@ void QuicVersionManager::MaybeRefilterSupportedVersions() {
       enable_version_47_ != GetQuicReloadableFlag(quic_enable_version_47) ||
       enable_version_46_ != GetQuicReloadableFlag(quic_enable_version_46) ||
       enable_version_44_ != GetQuicReloadableFlag(quic_enable_version_44) ||
-      enable_version_43_ != GetQuicReloadableFlag(quic_enable_version_43) ||
       disable_version_39_ != GetQuicReloadableFlag(quic_disable_version_39)) {
     enable_version_99_ = GetQuicReloadableFlag(quic_enable_version_99);
     enable_version_47_ = GetQuicReloadableFlag(quic_enable_version_47);
     enable_version_46_ = GetQuicReloadableFlag(quic_enable_version_46);
     enable_version_44_ = GetQuicReloadableFlag(quic_enable_version_44);
-    enable_version_43_ = GetQuicReloadableFlag(quic_enable_version_43);
     disable_version_39_ = GetQuicReloadableFlag(quic_disable_version_39);
     RefilterSupportedVersions();
   }

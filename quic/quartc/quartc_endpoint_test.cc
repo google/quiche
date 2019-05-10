@@ -88,7 +88,6 @@ TEST_F(QuartcEndpointTest,
   // matter, but they must be enabled so that the version manager doesn't filter
   // them out.
   SetQuicReloadableFlag(quic_enable_version_46, true);
-  SetQuicReloadableFlag(quic_enable_version_43, true);
 
   // Reset the client endpoint to prefer version 46 but also be capable of
   // speaking version 43.
@@ -135,7 +134,6 @@ TEST_F(QuartcEndpointTest,
   // matter, but they must be enabled so that the version manager doesn't filter
   // them out.
   SetQuicReloadableFlag(quic_enable_version_46, true);
-  SetQuicReloadableFlag(quic_enable_version_43, true);
 
   // Reset the client endpoint to only speak version 43.
   ParsedQuicVersionVector client_versions;
@@ -182,7 +180,6 @@ TEST_F(QuartcEndpointTest,
   // matter, but they must be enabled so that the version manager doesn't filter
   // them out.
   SetQuicReloadableFlag(quic_enable_version_46, true);
-  SetQuicReloadableFlag(quic_enable_version_43, true);
 
   // Reset the client endpoint to only speak version 43.
   ParsedQuicVersionVector client_versions;
