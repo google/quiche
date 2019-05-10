@@ -77,6 +77,9 @@ class QUIC_EXPORT_PRIVATE QuicBandwidth {
   }
 
   inline bool IsZero() const { return bits_per_second_ == 0; }
+  inline bool IsInfinite() const {
+    return bits_per_second_ == Infinite().ToBitsPerSecond();
+  }
 
   inline QuicTime::Delta TransferTime(QuicByteCount bytes) const {
     if (bits_per_second_ == 0) {
