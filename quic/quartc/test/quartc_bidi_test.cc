@@ -61,7 +61,7 @@ class QuartcBidiTest : public QuicTest {
     server_switch_ = QuicMakeUnique<simulator::Switch>(
         &simulator_, "server_switch", /*port_count=*/8, 2 * queue_length);
 
-    // Links to the switch have significantly higher bandwdith than the
+    // Links to the switch have significantly higher bandwidth than the
     // bottleneck and insignificant propagation delay.
     client_link_ = QuicMakeUnique<simulator::SymmetricLink>(
         client_filter_.get(), client_switch_->port(1), 10 * bandwidth,
