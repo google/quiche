@@ -66,6 +66,9 @@ class QUIC_EXPORT_PRIVATE PacingSender {
   // making up for lost time.
   void OnApplicationLimited();
 
+  // Set burst_tokens_ and initial_burst_size_.
+  void SetBurstTokens(uint32_t burst_tokens);
+
   QuicTime::Delta TimeUntilSend(QuicTime now,
                                 QuicByteCount bytes_in_flight) const;
 

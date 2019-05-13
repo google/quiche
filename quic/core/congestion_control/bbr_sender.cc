@@ -355,12 +355,14 @@ void BbrSender::AdjustNetworkParameters(QuicBandwidth bandwidth,
     if (new_cwnd > congestion_window_) {
       QUIC_RELOADABLE_FLAG_COUNT_N(quic_fix_bbr_cwnd_in_bandwidth_resumption, 1,
                                    2);
-      // Decrease cwnd gain when cwnd increases.
-      set_high_cwnd_gain(kDerivedHighCWNDGain);
     } else {
       QUIC_RELOADABLE_FLAG_COUNT_N(quic_fix_bbr_cwnd_in_bandwidth_resumption, 2,
                                    2);
     }
+    // Decreases cwnd gain and pacing gain. Please note, if pacing_rate_ has
+    // been calculated, it cannot decrease in STARTUP phase.
+    set_high_gain(kDerivedHighCWNDGain);
+    set_high_cwnd_gain(kDerivedHighCWNDGain);
     congestion_window_ = std::max(new_cwnd, congestion_window_);
   }
 }

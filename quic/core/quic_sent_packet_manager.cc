@@ -66,6 +66,11 @@ inline bool ShouldForceRetransmission(TransmissionType transmission_type) {
          transmission_type == RTO_RETRANSMISSION;
 }
 
+// If pacing rate is accurate, > 2 burst token is not likely to help first ACK
+// to arrive earlier, and overly large burst token could cause incast packet
+// losses.
+static const uint32_t kConservativeUnpacedBurst = 2;
+
 }  // namespace
 
 #define ENDPOINT                                                         \
@@ -268,6 +273,10 @@ void QuicSentPacketManager::AdjustNetworkParameters(QuicBandwidth bandwidth,
     SetInitialRtt(rtt);
   }
   const QuicByteCount old_cwnd = send_algorithm_->GetCongestionWindow();
+  if (GetQuicReloadableFlag(quic_conservative_bursts) && using_pacing_) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_conservative_bursts);
+    pacing_sender_.SetBurstTokens(kConservativeUnpacedBurst);
+  }
   send_algorithm_->AdjustNetworkParameters(bandwidth, rtt);
   if (debug_delegate_ != nullptr) {
     debug_delegate_->OnAdjustNetworkParameters(

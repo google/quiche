@@ -122,6 +122,13 @@ void PacingSender::OnApplicationLimited() {
   pacing_limited_ = false;
 }
 
+void PacingSender::SetBurstTokens(uint32_t burst_tokens) {
+  initial_burst_size_ = burst_tokens;
+  burst_tokens_ = std::min(
+      initial_burst_size_,
+      static_cast<uint32_t>(sender_->GetCongestionWindow() / kDefaultTCPMSS));
+}
+
 QuicTime::Delta PacingSender::TimeUntilSend(
     QuicTime now,
     QuicByteCount bytes_in_flight) const {
