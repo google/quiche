@@ -163,10 +163,14 @@ class QuartcSessionTest : public QuicTest {
     ASSERT_TRUE(server_peer_->CanSendMessage());
     ASSERT_TRUE(client_peer_->CanSendMessage());
 
+    int64_t server_datagram_id = 111;
+    int64_t client_datagram_id = 222;
+
     // Send message from peer 1 to peer 2.
     test::QuicTestMemSliceVector message =
         CreateMemSliceVector("Message from server");
-    ASSERT_TRUE(server_peer_->SendOrQueueMessage(message.span()));
+    ASSERT_TRUE(
+        server_peer_->SendOrQueueMessage(message.span(), server_datagram_id));
 
     // First message in each direction should not be queued.
     EXPECT_EQ(server_peer_->send_message_queue_size(), 0u);
@@ -177,9 +181,13 @@ class QuartcSessionTest : public QuicTest {
     EXPECT_THAT(client_session_delegate_->incoming_messages(),
                 testing::ElementsAre("Message from server"));
 
+    EXPECT_THAT(server_session_delegate_->sent_datagram_ids(),
+                testing::ElementsAre(server_datagram_id));
+
     // Send message from peer 2 to peer 1.
     message = CreateMemSliceVector("Message from client");
-    ASSERT_TRUE(client_peer_->SendOrQueueMessage(message.span()));
+    ASSERT_TRUE(
+        client_peer_->SendOrQueueMessage(message.span(), client_datagram_id));
 
     // First message in each direction should not be queued.
     EXPECT_EQ(client_peer_->send_message_queue_size(), 0u);
@@ -189,6 +197,9 @@ class QuartcSessionTest : public QuicTest {
 
     EXPECT_THAT(server_session_delegate_->incoming_messages(),
                 testing::ElementsAre("Message from client"));
+
+    EXPECT_THAT(client_session_delegate_->sent_datagram_ids(),
+                testing::ElementsAre(client_datagram_id));
   }
 
   // Test for sending multiple messages that also result in queueing.
@@ -207,23 +218,34 @@ class QuartcSessionTest : public QuicTest {
         direction_from_server ? client_session_delegate_.get()
                               : server_session_delegate_.get();
 
+    FakeQuartcSessionDelegate* const delegate_sending =
+        direction_from_server ? server_session_delegate_.get()
+                              : client_session_delegate_.get();
+
     // There should be no messages in the queue before we start sending.
     EXPECT_EQ(peer_sending->send_message_queue_size(), 0u);
 
     // Send messages from peer 1 to peer 2 until required number of messages
     // are queued in unsent message queue.
     std::vector<std::string> sent_messages;
+    std::vector<int64_t> sent_datagram_ids;
+    int64_t current_datagram_id = 0;
     while (peer_sending->send_message_queue_size() < queue_size) {
       sent_messages.push_back(
           QuicStrCat("Sending message, index=", sent_messages.size()));
       ASSERT_TRUE(peer_sending->SendOrQueueMessage(
-          CreateMemSliceVector(sent_messages.back()).span()));
+          CreateMemSliceVector(sent_messages.back()).span(),
+          current_datagram_id));
+
+      sent_datagram_ids.push_back(current_datagram_id);
+      ++current_datagram_id;
     }
 
     // Wait for peer 2 to receive all messages.
     RunTasks();
 
     EXPECT_EQ(delegate_receiving->incoming_messages(), sent_messages);
+    EXPECT_EQ(delegate_sending->sent_datagram_ids(), sent_datagram_ids);
   }
 
   // Test sending long messages:
@@ -238,13 +260,15 @@ class QuartcSessionTest : public QuicTest {
         std::string(server_peer_->GetCurrentLargestMessagePayload(), 'A');
     test::QuicTestMemSliceVector message =
         CreateMemSliceVector(message_max_long);
-    ASSERT_TRUE(server_peer_->SendOrQueueMessage(message.span()));
+    ASSERT_TRUE(
+        server_peer_->SendOrQueueMessage(message.span(), /*datagram_id=*/0));
 
     // Send long message which should fail.
     std::string message_too_long =
         std::string(server_peer_->GetCurrentLargestMessagePayload() + 1, 'B');
     message = CreateMemSliceVector(message_too_long);
-    ASSERT_FALSE(server_peer_->SendOrQueueMessage(message.span()));
+    ASSERT_FALSE(
+        server_peer_->SendOrQueueMessage(message.span(), /*datagram_id=*/0));
 
     // Wait for peer 2 to receive message.
     RunTasks();

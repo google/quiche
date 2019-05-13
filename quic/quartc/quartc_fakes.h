@@ -79,24 +79,34 @@ class FakeQuartcSessionDelegate : public QuartcSession::Delegate {
     incoming_messages_.emplace_back(message);
   }
 
+  void OnMessageSent(int64_t datagram_id) override {
+    sent_datagram_ids_.push_back(datagram_id);
+  }
+
   void OnCongestionControlChange(QuicBandwidth bandwidth_estimate,
                                  QuicBandwidth pacing_rate,
                                  QuicTime::Delta latest_rtt) override {}
 
-  QuartcStream* last_incoming_stream() { return last_incoming_stream_; }
+  QuartcStream* last_incoming_stream() const { return last_incoming_stream_; }
 
   // Returns all received messages.
-  const std::vector<std::string>& incoming_messages() {
+  const std::vector<std::string>& incoming_messages() const {
     return incoming_messages_;
   }
 
-  bool connected() { return connected_; }
+  // Returns all sent datagram ids in the order sent.
+  const std::vector<int64_t>& sent_datagram_ids() const {
+    return sent_datagram_ids_;
+  }
+
+  bool connected() const { return connected_; }
   QuicTime writable_time() const { return writable_time_; }
   QuicTime crypto_handshake_time() const { return crypto_handshake_time_; }
 
  private:
   QuartcStream* last_incoming_stream_;
   std::vector<std::string> incoming_messages_;
+  std::vector<int64_t> sent_datagram_ids_;
   bool connected_ = true;
   QuartcStream::Delegate* stream_delegate_;
   QuicTime writable_time_ = QuicTime::Zero();

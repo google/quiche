@@ -41,7 +41,8 @@ QuartcStream* QuartcSession::CreateOutgoingBidirectionalStream() {
       GetNextOutgoingBidirectionalStreamId(), QuicStream::kDefaultPriority));
 }
 
-bool QuartcSession::SendOrQueueMessage(QuicMemSliceSpan message) {
+bool QuartcSession::SendOrQueueMessage(QuicMemSliceSpan message,
+                                       int64_t datagram_id) {
   if (!CanSendMessage()) {
     QUIC_LOG(ERROR) << "Quic session does not support SendMessage";
     return false;
@@ -57,8 +58,8 @@ bool QuartcSession::SendOrQueueMessage(QuicMemSliceSpan message) {
 
   // There may be other messages in send queue, so we have to add message
   // to the queue and call queue processing helper.
-  message.ConsumeAll([this](QuicMemSlice slice) {
-    send_message_queue_.emplace_back(std::move(slice));
+  message.ConsumeAll([this, datagram_id](QuicMemSlice slice) {
+    send_message_queue_.emplace_back(std::move(slice), datagram_id);
   });
 
   ProcessSendMessageQueue();
@@ -70,15 +71,19 @@ void QuartcSession::ProcessSendMessageQueue() {
   QuicConnection::ScopedPacketFlusher flusher(
       connection(), QuicConnection::AckBundling::NO_ACK);
   while (!send_message_queue_.empty()) {
-    const size_t message_size = send_message_queue_.front().length();
-    MessageResult result =
-        SendMessage(QuicMemSliceSpan(&send_message_queue_.front()));
+    QueuedMessage& it = send_message_queue_.front();
+    const size_t message_size = it.message.length();
+    MessageResult result = SendMessage(QuicMemSliceSpan(&it.message));
 
     // Handle errors.
     switch (result.status) {
       case MESSAGE_STATUS_SUCCESS:
         QUIC_VLOG(1) << "Quartc message sent, message_id=" << result.message_id
                      << ", message_size=" << message_size;
+
+        // Notify that datagram was sent.
+        session_delegate_->OnMessageSent(it.datagram_id);
+
         break;
 
       // If connection is congestion controlled or not writable yet, stop

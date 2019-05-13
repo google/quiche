@@ -48,7 +48,18 @@ class QuartcSession : public QuicSession,
   // support SendMessage API. Other unexpected errors during send will not be
   // returned, because messages can be sent later if connection is congestion
   // controlled.
-  bool SendOrQueueMessage(QuicMemSliceSpan message);
+  //
+  // |datagram_id| is used to notify when message was sent in
+  // Delegate::OnMessageSent.
+  //
+  // TODO(sukhanov): We can not use QUIC message ID for notifications, because
+  // QUIC does not take ownership of messages and if connection is congestion
+  // controlled, message is not sent and does not get message id until it is
+  // sent successfully. It also creates problem of flow control between
+  // messages and streams if they are used together. We discussed it with QUIC
+  // team and there are multiple solutions, but for now we have to use our
+  // own datagram identification.
+  bool SendOrQueueMessage(QuicMemSliceSpan message, int64_t datagram_id);
 
   // Returns largest message payload acceptable in SendQuartcMessage.
   QuicPacketLength GetCurrentLargestMessagePayload() const {
@@ -129,6 +140,22 @@ class QuartcSession : public QuicSession,
     // Called when message (sent as SendMessage) is received.
     virtual void OnMessageReceived(QuicStringPiece message) = 0;
 
+    // Called when message is sent to QUIC.
+    //
+    // Takes into account delay due to congestion control, but does not take
+    // into account any additional socket delays.
+    //
+    // Passed |datagram_id| is the same used in SendOrQueueMessage.
+    //
+    // TODO(sukhanov): We can take into account socket delay, but it's not clear
+    // if it's worth doing if we eventually plan to move congestion control to
+    // QUIC in QRTP model. If we need to do it, mellem@ thinks it's fairly
+    // strtaightforward: QUIC does not know about socket delay, but ICE does. We
+    // can tell ICE the QUIC packet number for each packet sent, and it will
+    // echo it back to us when the packet actually goes out.  We just need to
+    // plumb that signal up to RTP's congestion control.
+    virtual void OnMessageSent(int64_t datagram_id) = 0;
+
     // TODO(zhihuang): Add proof verification.
   };
 
@@ -171,6 +198,14 @@ class QuartcSession : public QuicSession,
       std::unique_ptr<QuartcStream> stream,
       spdy::SpdyPriority priority);
 
+  // Holds message until it's sent.
+  struct QueuedMessage {
+    QueuedMessage(QuicMemSlice the_message, int64_t the_datagram_id)
+        : message(std::move(the_message)), datagram_id(the_datagram_id) {}
+    QuicMemSlice message;
+    int64_t datagram_id;
+  };
+
   void ProcessSendMessageQueue();
 
   // Take ownership of the QuicConnection.  Note: if |connection_| changes,
@@ -190,7 +225,7 @@ class QuartcSession : public QuicSession,
   // Queue of pending messages sent by SendQuartcMessage that were not sent
   // yet or blocked by congestion control. Messages are queued in the order
   // of sent by SendOrQueueMessage().
-  QuicDeque<QuicMemSlice> send_message_queue_;
+  QuicDeque<QueuedMessage> send_message_queue_;
 };
 
 class QuartcClientSession : public QuartcSession,

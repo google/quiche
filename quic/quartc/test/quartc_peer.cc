@@ -123,7 +123,7 @@ void QuartcPeer::OnDataProduced(const char* data, size_t length) {
   DCHECK_LE(length, session_->GetCurrentLargestMessagePayload());
   struct iovec iov = {const_cast<char*>(data), length};
   QuicMemSliceStorage storage(&iov, 1, buffer_allocator_, length);
-  session_->SendOrQueueMessage(storage.ToSpan());
+  session_->SendOrQueueMessage(storage.ToSpan(), /*datagram_id=*/0);
 }
 
 }  // namespace test
