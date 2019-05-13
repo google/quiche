@@ -152,11 +152,10 @@ class QuicSpdyClientSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
     session_->CryptoConnect();
     QuicCryptoClientStream* stream = static_cast<QuicCryptoClientStream*>(
         session_->GetMutableCryptoStream());
-    crypto_test_utils::FakeServerOptions options;
     QuicConfig config = DefaultQuicConfig();
     config.SetMaxIncomingDynamicStreamsToSend(server_max_incoming_streams);
     crypto_test_utils::HandshakeWithFakeServer(
-        &config, &helper_, &alarm_factory_, connection_, stream, options);
+        &config, &helper_, &alarm_factory_, connection_, stream);
   }
 
   QuicCryptoClientConfig crypto_config_;

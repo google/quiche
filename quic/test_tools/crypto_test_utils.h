@@ -53,16 +53,6 @@ class CallbackSource {
   virtual void RunPendingCallbacks() = 0;
 };
 
-// FakeServerOptions bundles together a number of options for configuring the
-// server in HandshakeWithFakeServer.
-struct FakeServerOptions {
-  FakeServerOptions();
-  ~FakeServerOptions();
-
-  // The Token Binding params that the server supports and will negotiate.
-  QuicTagVector token_binding_params;
-};
-
 // FakeClientOptions bundles together a number of options for configuring
 // HandshakeWithFakeClient.
 struct FakeClientOptions {
@@ -79,8 +69,7 @@ int HandshakeWithFakeServer(QuicConfig* server_quic_config,
                             MockQuicConnectionHelper* helper,
                             MockAlarmFactory* alarm_factory,
                             PacketSavingConnection* client_conn,
-                            QuicCryptoClientStream* client,
-                            const FakeServerOptions& options);
+                            QuicCryptoClientStream* client);
 
 // returns: the number of client hellos that the client sent.
 int HandshakeWithFakeClient(MockQuicConnectionHelper* helper,
@@ -94,8 +83,7 @@ int HandshakeWithFakeClient(MockQuicConnectionHelper* helper,
 // with sensible defaults for testing.
 void SetupCryptoServerConfigForTest(const QuicClock* clock,
                                     QuicRandom* rand,
-                                    QuicCryptoServerConfig* crypto_config,
-                                    const FakeServerOptions& options);
+                                    QuicCryptoServerConfig* crypto_config);
 
 // Sends the handshake message |message| to stream |stream| with the perspective
 // that the message is coming from |perspective|.

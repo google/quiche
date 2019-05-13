@@ -89,10 +89,6 @@ bool HexChar(char c, uint8_t* value) {
 
 }  // anonymous namespace
 
-FakeServerOptions::FakeServerOptions() {}
-
-FakeServerOptions::~FakeServerOptions() {}
-
 FakeClientOptions::FakeClientOptions() {}
 
 FakeClientOptions::~FakeClientOptions() {}
@@ -219,8 +215,7 @@ int HandshakeWithFakeServer(QuicConfig* server_quic_config,
                             MockQuicConnectionHelper* helper,
                             MockAlarmFactory* alarm_factory,
                             PacketSavingConnection* client_conn,
-                            QuicCryptoClientStream* client,
-                            const FakeServerOptions& options) {
+                            QuicCryptoClientStream* client) {
   PacketSavingConnection* server_conn = new PacketSavingConnection(
       helper, alarm_factory, Perspective::IS_SERVER,
       ParsedVersionOfIndex(client_conn->supported_versions(), 0));
@@ -231,9 +226,8 @@ int HandshakeWithFakeServer(QuicConfig* server_quic_config,
       TlsServerHandshaker::CreateSslCtx());
   QuicCompressedCertsCache compressed_certs_cache(
       QuicCompressedCertsCache::kQuicCompressedCertsCacheSize);
-  SetupCryptoServerConfigForTest(server_conn->clock(),
-                                 server_conn->random_generator(),
-                                 &crypto_config, options);
+  SetupCryptoServerConfigForTest(
+      server_conn->clock(), server_conn->random_generator(), &crypto_config);
 
   TestQuicSpdyServerSession server_session(
       server_conn, *server_quic_config, client_conn->supported_versions(),
@@ -307,11 +301,9 @@ int HandshakeWithFakeClient(MockQuicConnectionHelper* helper,
 
 void SetupCryptoServerConfigForTest(const QuicClock* clock,
                                     QuicRandom* rand,
-                                    QuicCryptoServerConfig* crypto_config,
-                                    const FakeServerOptions& fake_options) {
+                                    QuicCryptoServerConfig* crypto_config) {
   QuicCryptoServerConfig::ConfigOptions options;
   options.channel_id_enabled = true;
-  options.token_binding_params = fake_options.token_binding_params;
   std::unique_ptr<CryptoHandshakeMessage> scfg =
       crypto_config->AddDefaultConfig(rand, clock, options);
 }

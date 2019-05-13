@@ -96,11 +96,9 @@ class QuicCryptoServerStreamTest : public QuicTestWithParam<bool> {
         .Times(testing::AnyNumber());
     EXPECT_CALL(*server_session_->helper(), GenerateConnectionIdForReject(_, _))
         .Times(testing::AnyNumber());
-    crypto_test_utils::FakeServerOptions options;
-    options.token_binding_params = QuicTagVector{kTB10};
     crypto_test_utils::SetupCryptoServerConfigForTest(
         server_connection_->clock(), server_connection_->random_generator(),
-        &server_crypto_config_, options);
+        &server_crypto_config_);
     server_session_->GetMutableCryptoStream()->OnSuccessfulVersionNegotiation(
         supported_versions_.front());
   }

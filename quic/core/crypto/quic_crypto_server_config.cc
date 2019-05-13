@@ -341,10 +341,6 @@ QuicServerConfigProtobuf QuicCryptoServerConfig::GenerateConfig(
     msg.SetVector(kPDMD, QuicTagVector{kCHID});
   }
 
-  if (!options.token_binding_params.empty()) {
-    msg.SetVector(kTBKP, options.token_binding_params);
-  }
-
   if (options.id.empty()) {
     // We need to ensure that the SCID changes whenever the server config does
     // thus we make it a hash of the rest of the server config.

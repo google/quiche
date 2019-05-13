@@ -64,9 +64,8 @@ class QuicCryptoClientStreamTest : public QuicTest {
         .Times(testing::AnyNumber());
     stream()->CryptoConnect();
     QuicConfig config;
-    crypto_test_utils::HandshakeWithFakeServer(&config, &server_helper_,
-                                               &alarm_factory_, connection_,
-                                               stream(), server_options_);
+    crypto_test_utils::HandshakeWithFakeServer(
+        &config, &server_helper_, &alarm_factory_, connection_, stream());
   }
 
   QuicCryptoClientStream* stream() {
@@ -82,7 +81,6 @@ class QuicCryptoClientStreamTest : public QuicTest {
   QuicServerId server_id_;
   CryptoHandshakeMessage message_;
   QuicCryptoClientConfig crypto_config_;
-  crypto_test_utils::FakeServerOptions server_options_;
 };
 
 TEST_F(QuicCryptoClientStreamTest, NotInitiallyConected) {
@@ -262,9 +260,8 @@ TEST_F(QuicCryptoClientStreamTest, ServerConfigUpdateWithCert) {
       QuicCryptoServerConfig::TESTING, QuicRandom::GetInstance(),
       crypto_test_utils::ProofSourceForTesting(), KeyExchangeSource::Default(),
       TlsServerHandshaker::CreateSslCtx());
-  crypto_test_utils::FakeServerOptions options;
   crypto_test_utils::SetupCryptoServerConfigForTest(
-      connection_->clock(), QuicRandom::GetInstance(), &crypto_config, options);
+      connection_->clock(), QuicRandom::GetInstance(), &crypto_config);
   SourceAddressTokens tokens;
   QuicCompressedCertsCache cache(1);
   CachedNetworkParameters network_params;
