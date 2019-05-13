@@ -788,14 +788,6 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
 
   static AckFrameInfo GetAckFrameInfo(const QuicAckFrame& frame);
 
-  static bool AppendIetfConnectionId(
-      bool version_flag,
-      QuicConnectionId destination_connection_id,
-      QuicConnectionIdLength destination_connection_id_length,
-      QuicConnectionId source_connection_id,
-      QuicConnectionIdLength source_connection_id_length,
-      QuicDataWriter* writer);
-
   // The Append* methods attempt to write the provided header or frame using the
   // |writer|, and return true if successful.
 

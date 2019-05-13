@@ -407,10 +407,10 @@ bool IsValidFullPacketNumber(uint64_t full_packet_number,
   return full_packet_number > 0 || version == QUIC_VERSION_99;
 }
 
-bool AppendIetfConnectionIdsNew(bool version_flag,
-                                QuicConnectionId destination_connection_id,
-                                QuicConnectionId source_connection_id,
-                                QuicDataWriter* writer) {
+bool AppendIetfConnectionIds(bool version_flag,
+                             QuicConnectionId destination_connection_id,
+                             QuicConnectionId source_connection_id,
+                             QuicDataWriter* writer) {
   if (!version_flag) {
     return writer->WriteConnectionId(destination_connection_id);
   }
@@ -1452,18 +1452,9 @@ QuicFramer::BuildIetfVersionNegotiationPacket(
     return nullptr;
   }
 
-  if (!GetQuicReloadableFlag(quic_use_new_append_connection_id)) {
-    if (!AppendIetfConnectionId(true, EmptyQuicConnectionId(),
-                                PACKET_0BYTE_CONNECTION_ID, connection_id,
-                                PACKET_8BYTE_CONNECTION_ID, &writer)) {
-      return nullptr;
-    }
-  } else {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_use_new_append_connection_id, 1, 2);
-    if (!AppendIetfConnectionIdsNew(true, EmptyQuicConnectionId(),
-                                    connection_id, &writer)) {
-      return nullptr;
-    }
+  if (!AppendIetfConnectionIds(true, EmptyQuicConnectionId(), connection_id,
+                               &writer)) {
+    return nullptr;
   }
 
   for (const ParsedQuicVersion& version : versions) {
@@ -2181,30 +2172,18 @@ bool QuicFramer::AppendIetfPacketHeader(const QuicPacketHeader& header,
   }
 
   // Append connection ID.
-  if (!QuicUtils::VariableLengthConnectionIdAllowedForVersion(
-          transport_version()) &&
-      !GetQuicReloadableFlag(quic_use_new_append_connection_id)) {
-    if (!AppendIetfConnectionId(
-            header.version_flag, header.destination_connection_id,
-            GetIncludedDestinationConnectionIdLength(header),
-            header.source_connection_id,
-            GetIncludedSourceConnectionIdLength(header), writer)) {
-      return false;
-    }
-  } else {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_use_new_append_connection_id, 2, 2);
-    if (!AppendIetfConnectionIdsNew(
-            header.version_flag,
-            header.destination_connection_id_included != CONNECTION_ID_ABSENT
-                ? header.destination_connection_id
-                : EmptyQuicConnectionId(),
-            header.source_connection_id_included != CONNECTION_ID_ABSENT
-                ? header.source_connection_id
-                : EmptyQuicConnectionId(),
-            writer)) {
-      return false;
-    }
+  if (!AppendIetfConnectionIds(
+          header.version_flag,
+          header.destination_connection_id_included != CONNECTION_ID_ABSENT
+              ? header.destination_connection_id
+              : EmptyQuicConnectionId(),
+          header.source_connection_id_included != CONNECTION_ID_ABSENT
+              ? header.source_connection_id
+              : EmptyQuicConnectionId(),
+          writer)) {
+    return false;
   }
+
   last_serialized_connection_id_ = header.destination_connection_id;
 
   if (QuicVersionHasLongHeaderLengths(transport_version()) &&
@@ -4864,34 +4843,6 @@ bool QuicFramer::AppendStreamFrame(const QuicStreamFrame& frame,
 
   if (!writer->WriteBytes(frame.data_buffer, frame.data_length)) {
     QUIC_BUG << "Writing frame data failed.";
-    return false;
-  }
-  return true;
-}
-
-// static
-bool QuicFramer::AppendIetfConnectionId(
-    bool version_flag,
-    QuicConnectionId destination_connection_id,
-    QuicConnectionIdLength destination_connection_id_length,
-    QuicConnectionId source_connection_id,
-    QuicConnectionIdLength source_connection_id_length,
-    QuicDataWriter* writer) {
-  if (version_flag) {
-    // Append connection ID length byte.
-    uint8_t dcil = GetConnectionIdLengthValue(destination_connection_id_length);
-    uint8_t scil = GetConnectionIdLengthValue(source_connection_id_length);
-    uint8_t connection_id_length = dcil << 4 | scil;
-    if (!writer->WriteBytes(&connection_id_length, 1)) {
-      return false;
-    }
-  }
-  if (destination_connection_id_length == PACKET_8BYTE_CONNECTION_ID &&
-      !writer->WriteConnectionId(destination_connection_id)) {
-    return false;
-  }
-  if (source_connection_id_length == PACKET_8BYTE_CONNECTION_ID &&
-      !writer->WriteConnectionId(source_connection_id)) {
     return false;
   }
   return true;
