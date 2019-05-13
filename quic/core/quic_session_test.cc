@@ -952,6 +952,11 @@ TEST_P(QuicSessionTestServer, OnCanWriteWriterBlocks) {
 }
 
 TEST_P(QuicSessionTestServer, BufferedHandshake) {
+  // This test is testing behavior of crypto stream flow control, but when
+  // CRYPTO frames are used, there is no flow control for the crypto handshake.
+  if (QuicVersionUsesCryptoFrames(connection_->transport_version())) {
+    return;
+  }
   session_.set_writev_consumes_all_data(true);
   EXPECT_FALSE(session_.HasPendingHandshake());  // Default value.
 
@@ -1038,8 +1043,10 @@ TEST_P(QuicSessionTestServer, OnCanWriteLimitsNumWritesIfFlowControlBlocked) {
 
   // Mark the crypto and headers streams as write blocked, we expect them to be
   // allowed to write later.
-  session_.MarkConnectionLevelWriteBlocked(
-      QuicUtils::GetCryptoStreamId(connection_->transport_version()));
+  if (!QuicVersionUsesCryptoFrames(connection_->transport_version())) {
+    session_.MarkConnectionLevelWriteBlocked(
+        QuicUtils::GetCryptoStreamId(connection_->transport_version()));
+  }
 
   // Create a data stream, and although it is write blocked we never expect it
   // to be allowed to write as we are connection level flow control blocked.
@@ -1049,8 +1056,10 @@ TEST_P(QuicSessionTestServer, OnCanWriteLimitsNumWritesIfFlowControlBlocked) {
 
   // The crypto and headers streams should be called even though we are
   // connection flow control blocked.
-  TestCryptoStream* crypto_stream = session_.GetMutableCryptoStream();
-  EXPECT_CALL(*crypto_stream, OnCanWrite());
+  if (!QuicVersionUsesCryptoFrames(connection_->transport_version())) {
+    TestCryptoStream* crypto_stream = session_.GetMutableCryptoStream();
+    EXPECT_CALL(*crypto_stream, OnCanWrite());
+  }
 
   // After the crypto and header streams perform a write, the connection will be
   // blocked by the flow control, hence it should become application-limited.

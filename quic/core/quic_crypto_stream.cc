@@ -28,7 +28,10 @@ QuicCryptoStream::QuicCryptoStream(QuicSession* session)
                      session->connection()->transport_version()),
                  session,
                  /*is_static=*/true,
-                 BIDIRECTIONAL),
+                 QuicVersionUsesCryptoFrames(
+                     session->connection()->transport_version())
+                     ? CRYPTO
+                     : BIDIRECTIONAL),
       substreams_{{this, ENCRYPTION_INITIAL},
                   {this, ENCRYPTION_HANDSHAKE},
                   {this, ENCRYPTION_ZERO_RTT},

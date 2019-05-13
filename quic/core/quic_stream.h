@@ -30,6 +30,7 @@
 #include "net/third_party/quiche/src/quic/core/session_notifier_interface.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_mem_slice_span.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_optional.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_reference_counted.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
@@ -224,7 +225,7 @@ class QUIC_EXPORT_PRIVATE QuicStream
   int num_frames_received() const;
   int num_duplicate_frames_received() const;
 
-  QuicFlowController* flow_controller() { return &flow_controller_; }
+  QuicFlowController* flow_controller() { return &*flow_controller_; }
 
   // Called when endpoint receives a frame which could increase the highest
   // offset.
@@ -433,7 +434,7 @@ class QUIC_EXPORT_PRIVATE QuicStream
              StreamType type,
              uint64_t stream_bytes_read,
              bool fin_received,
-             QuicFlowController flow_controller,
+             QuicOptional<QuicFlowController> flow_controller,
              QuicFlowController* connection_flow_controller);
 
   // Subclasses and consumers should use reading_stopped.
@@ -504,7 +505,7 @@ class QUIC_EXPORT_PRIVATE QuicStream
   // server or a client.
   Perspective perspective_;
 
-  QuicFlowController flow_controller_;
+  QuicOptional<QuicFlowController> flow_controller_;
 
   // The connection level flow controller. Not owned.
   QuicFlowController* connection_flow_controller_;

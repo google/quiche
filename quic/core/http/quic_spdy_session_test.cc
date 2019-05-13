@@ -823,6 +823,12 @@ TEST_P(QuicSpdySessionTestServer, OnCanWriteWriterBlocks) {
 }
 
 TEST_P(QuicSpdySessionTestServer, BufferedHandshake) {
+  // This tests prioritization of the crypto stream when flow control limits are
+  // reached. When CRYPTO frames are in use, there is no flow control for the
+  // crypto handshake, so this test is irrelevant.
+  if (QuicVersionUsesCryptoFrames(connection_->transport_version())) {
+    return;
+  }
   session_.set_writev_consumes_all_data(true);
   EXPECT_FALSE(session_.HasPendingHandshake());  // Default value.
 
@@ -910,8 +916,10 @@ TEST_P(QuicSpdySessionTestServer,
 
   // Mark the crypto and headers streams as write blocked, we expect them to be
   // allowed to write later.
-  session_.MarkConnectionLevelWriteBlocked(
-      QuicUtils::GetCryptoStreamId(connection_->transport_version()));
+  if (!QuicVersionUsesCryptoFrames(connection_->transport_version())) {
+    session_.MarkConnectionLevelWriteBlocked(
+        QuicUtils::GetCryptoStreamId(connection_->transport_version()));
+  }
 
   // Create a data stream, and although it is write blocked we never expect it
   // to be allowed to write as we are connection level flow control blocked.
@@ -921,10 +929,13 @@ TEST_P(QuicSpdySessionTestServer,
 
   // The crypto and headers streams should be called even though we are
   // connection flow control blocked.
-  TestCryptoStream* crypto_stream = session_.GetMutableCryptoStream();
-  EXPECT_CALL(*crypto_stream, OnCanWrite());
+  if (!QuicVersionUsesCryptoFrames(connection_->transport_version())) {
+    TestCryptoStream* crypto_stream = session_.GetMutableCryptoStream();
+    EXPECT_CALL(*crypto_stream, OnCanWrite());
+  }
   TestHeadersStream* headers_stream;
-  if (!GetQuicReloadableFlag(quic_eliminate_static_stream_map_2)) {
+  if (!GetQuicReloadableFlag(quic_eliminate_static_stream_map_2) &&
+      !QuicVersionUsesCryptoFrames(connection_->transport_version())) {
     QuicSpdySessionPeer::SetHeadersStream(&session_, nullptr);
     headers_stream = new TestHeadersStream(&session_);
     QuicSpdySessionPeer::SetHeadersStream(&session_, headers_stream);
@@ -1213,6 +1224,11 @@ TEST_P(QuicSpdySessionTestServer,
 // various names that are dependent on the parameters passed.
 TEST_P(QuicSpdySessionTestServer,
        HandshakeUnblocksFlowControlBlockedHeadersStream) {
+  // This test depends on stream-level flow control for the crypto stream, which
+  // doesn't exist when CRYPTO frames are used.
+  if (QuicVersionUsesCryptoFrames(connection_->transport_version())) {
+    return;
+  }
   // Test that if the header stream is flow control blocked, then if the SHLO
   // contains a larger send window offset, the stream becomes unblocked.
   session_.set_writev_consumes_all_data(true);
@@ -1644,7 +1660,8 @@ TEST_P(QuicSpdySessionTestClient, RecordFinAfterReadSideClosed) {
 
 TEST_P(QuicSpdySessionTestClient, WritePriority) {
   TestHeadersStream* headers_stream;
-  if (!GetQuicReloadableFlag(quic_eliminate_static_stream_map_2)) {
+  if (!GetQuicReloadableFlag(quic_eliminate_static_stream_map_2) &&
+      !QuicVersionUsesCryptoFrames(connection_->transport_version())) {
     QuicSpdySessionPeer::SetHeadersStream(&session_, nullptr);
     headers_stream = new TestHeadersStream(&session_);
     QuicSpdySessionPeer::SetHeadersStream(&session_, headers_stream);

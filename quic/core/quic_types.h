@@ -584,6 +584,9 @@ enum StreamType {
   // Unidirectional streams carry data in one direction only.
   WRITE_UNIDIRECTIONAL,
   READ_UNIDIRECTIONAL,
+  // Not actually a stream type. Used only by QuicCryptoStream when it uses
+  // CRYPTO frames and isn't actually a QuicStream.
+  CRYPTO,
 };
 
 // A packet number space is the context in which a packet can be processed and

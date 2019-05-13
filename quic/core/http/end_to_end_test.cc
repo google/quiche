@@ -2005,11 +2005,16 @@ TEST_P(EndToEndTest, FlowControlsSynced) {
   auto* server_session = static_cast<QuicSpdySession*>(GetServerSession());
   ExpectFlowControlsSynced(client_session->flow_controller(),
                            server_session->flow_controller());
-  ExpectFlowControlsSynced(
-      QuicSessionPeer::GetMutableCryptoStream(client_session)
-          ->flow_controller(),
-      QuicSessionPeer::GetMutableCryptoStream(server_session)
-          ->flow_controller());
+  if (!QuicVersionUsesCryptoFrames(client_->client()
+                                       ->client_session()
+                                       ->connection()
+                                       ->transport_version())) {
+    ExpectFlowControlsSynced(
+        QuicSessionPeer::GetMutableCryptoStream(client_session)
+            ->flow_controller(),
+        QuicSessionPeer::GetMutableCryptoStream(server_session)
+            ->flow_controller());
+  }
   SpdyFramer spdy_framer(SpdyFramer::ENABLE_COMPRESSION);
   SpdySettingsIR settings_frame;
   settings_frame.AddSetting(SETTINGS_MAX_HEADER_LIST_SIZE,

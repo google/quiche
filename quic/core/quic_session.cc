@@ -86,7 +86,8 @@ QuicSession::QuicSession(QuicConnection* connection,
       closed_streams_clean_up_alarm_(nullptr),
       supported_versions_(supported_versions),
       eliminate_static_stream_map_(
-          GetQuicReloadableFlag(quic_eliminate_static_stream_map_2)) {
+          GetQuicReloadableFlag(quic_eliminate_static_stream_map_2) ||
+          QuicVersionUsesCryptoFrames(connection->transport_version())) {
   closed_streams_clean_up_alarm_ =
       QuicWrapUnique<QuicAlarm>(connection_->alarm_factory()->CreateAlarm(
           new ClosedStreamsCleanUpDelegate(this)));
@@ -1024,7 +1025,8 @@ void QuicSession::AdjustInitialFlowControlWindows(size_t stream_window) {
   for (auto const& kv : dynamic_stream_map_) {
     kv.second->flow_controller()->UpdateReceiveWindowSize(stream_window);
   }
-  if (eliminate_static_stream_map_) {
+  if (eliminate_static_stream_map_ &&
+      !QuicVersionUsesCryptoFrames(connection_->transport_version())) {
     QUIC_RELOADABLE_FLAG_COUNT_N(quic_eliminate_static_stream_map_2, 11, 17);
     GetMutableCryptoStream()->flow_controller()->UpdateReceiveWindowSize(
         stream_window);
@@ -1074,7 +1076,8 @@ void QuicSession::OnNewStreamFlowControlWindow(QuicStreamOffset new_window) {
   for (auto const& kv : dynamic_stream_map_) {
     kv.second->UpdateSendWindowOffset(new_window);
   }
-  if (eliminate_static_stream_map_) {
+  if (eliminate_static_stream_map_ &&
+      !QuicVersionUsesCryptoFrames(connection_->transport_version())) {
     QUIC_RELOADABLE_FLAG_COUNT_N(quic_eliminate_static_stream_map_2, 12, 17);
     GetMutableCryptoStream()->UpdateSendWindowOffset(new_window);
   }
@@ -1454,6 +1457,7 @@ bool QuicSession::IsStreamFlowControlBlocked() {
     }
   }
   if (eliminate_static_stream_map_ &&
+      !QuicVersionUsesCryptoFrames(connection_->transport_version()) &&
       GetMutableCryptoStream()->flow_controller()->IsBlocked()) {
     QUIC_RELOADABLE_FLAG_COUNT_N(quic_eliminate_static_stream_map_2, 14, 17);
     return true;
