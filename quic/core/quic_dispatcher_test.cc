@@ -815,7 +815,8 @@ TEST_F(QuicDispatcherTest, OKSeqNoPacketProcessed) {
 }
 
 TEST_F(QuicDispatcherTest, TooBigSeqNoPacketToTimeWaitListManager) {
-  if (CurrentSupportedVersions().front().HasHeaderProtection()) {
+  if (CurrentSupportedVersions().front().HasHeaderProtection() ||
+      GetQuicRestartFlag(quic_no_framer_object_in_dispatcher)) {
     // When header protection is in use, we don't put packets in the time wait
     // list manager based on packet number.
     return;

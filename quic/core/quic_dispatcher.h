@@ -131,6 +131,9 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
 
   // QuicFramerVisitorInterface implementation. Not expected to be called
   // outside of this class.
+  // TODO(fayang): Make QuicDispatcher no longer implement
+  // QuicFramerVisitorInterface when deprecating
+  // quic_no_framer_object_in_dispatcher.
   void OnPacket() override;
   // Called when the public header has been parsed. Returns false when just the
   // public header is enough to dispatch the packet; true if the framer needs to
@@ -361,8 +364,13 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
   // to the received destination connection ID length of all IETF long headers.
   void SetShouldUpdateExpectedConnectionIdLength(
       bool should_update_expected_connection_id_length) {
-    framer_.SetShouldUpdateExpectedConnectionIdLength(
-        should_update_expected_connection_id_length);
+    if (!no_framer_) {
+      framer_.SetShouldUpdateExpectedConnectionIdLength(
+          should_update_expected_connection_id_length);
+      return;
+    }
+    should_update_expected_connection_id_length_ =
+        should_update_expected_connection_id_length;
   }
 
   // If true, the dispatcher will allow incoming initial packets that have
@@ -434,6 +442,9 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
   // and save it to make sure the mapping is persistent.
   QuicConnectionId MaybeReplaceConnectionId(QuicConnectionId connection_id,
                                             ParsedQuicVersion version);
+
+  // Returns true if |version| is a supported protocol version.
+  bool IsSupportedVersion(const ParsedQuicVersion version);
 
   void set_new_sessions_allowed_per_event_loop(
       int16_t new_sessions_allowed_per_event_loop) {
@@ -515,6 +526,28 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
   // If false, the dispatcher follows the IETF spec and rejects packets with
   // invalid connection IDs lengths below 64 bits. If true they are allowed.
   bool allow_short_initial_connection_ids_;
+
+  // The last QUIC version label received. Used when no_framer_ is true.
+  // TODO(fayang): remove this member variable, instead, add an argument to
+  // OnUnauthenticatedPublicHeader when deprecating
+  // quic_no_framer_object_in_dispatcher.
+  QuicVersionLabel last_version_label_;
+
+  // IETF short headers contain a destination connection ID but do not
+  // encode its length. This variable contains the length we expect to read.
+  // This is also used to signal an error when a long header packet with
+  // different destination connection ID length is received when
+  // should_update_expected_connection_id_length_ is false and packet's version
+  // does not allow variable length connection ID. Used when no_framer_ is true.
+  uint8_t expected_connection_id_length_;
+
+  // If true, change expected_connection_id_length_ to be the received
+  // destination connection ID length of all IETF long headers. Used when
+  // no_framer_ is true.
+  bool should_update_expected_connection_id_length_;
+
+  // Latched value of quic_no_framer_object_in_dispatcher.
+  const bool no_framer_;
 };
 
 }  // namespace quic

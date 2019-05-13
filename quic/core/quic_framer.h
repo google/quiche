@@ -373,6 +373,21 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
       uint64_t retry_token_length,
       QuicVariableLengthIntegerLength length_length);
 
+  // Lightweight parsing of |packet| and populates |format|, |version_flag|,
+  // |version_label|, |destination_connection_id_length|,
+  // |destination_connection_id| and |detailed_error|. Please note,
+  // |expected_connection_id_length| is only used to determine IETF short header
+  // packet's destination connection ID length.
+  static QuicErrorCode ProcessPacketDispatcher(
+      const QuicEncryptedPacket& packet,
+      uint8_t expected_connection_id_length,
+      PacketHeaderFormat* format,
+      bool* version_flag,
+      QuicVersionLabel* version_label,
+      uint8_t* destination_connection_id_length,
+      QuicConnectionId* destination_connection_id,
+      std::string* detailed_error);
+
   // Serializes a packet containing |frames| into |buffer|.
   // Returns the length of the packet, which must not be longer than
   // |packet_length|.  Returns 0 if it fails to serialize.
@@ -665,13 +680,14 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
 
   // Validates and updates |destination_connection_id_length| and
   // |source_connection_id_length|.
-  static bool ValidateIetfConnectionIdLength(
-      uint8_t connection_id_lengths_byte,
+  static bool ProcessAndValidateIetfConnectionIdLength(
+      QuicDataReader* reader,
       ParsedQuicVersion version,
       bool should_update_expected_connection_id_length,
       uint8_t* expected_connection_id_length,
       uint8_t* destination_connection_id_length,
-      uint8_t* source_connection_id_length);
+      uint8_t* source_connection_id_length,
+      std::string* detailed_error);
 
   bool ProcessIetfHeaderTypeByte(QuicDataReader* reader,
                                  QuicPacketHeader* header);
@@ -921,6 +937,8 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   // Updated by WritePacketHeader.
   QuicConnectionId last_serialized_connection_id_;
   // The last QUIC version label received.
+  // TODO(fayang): Remove this when deprecating
+  // quic_no_framer_object_in_dispatcher.
   QuicVersionLabel last_version_label_;
   // Version of the protocol being used.
   ParsedQuicVersion version_;
@@ -975,10 +993,14 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   // encode its length. This variable contains the length we expect to read.
   // This is also used to validate the long header connection ID lengths in
   // older versions of QUIC.
+  // TODO(fayang): Remove this when deprecating
+  // quic_no_framer_object_in_dispatcher.
   uint8_t expected_connection_id_length_;
 
   // When this is true, QuicFramer will change expected_connection_id_length_
   // to the received destination connection ID length of all IETF long headers.
+  // TODO(fayang): Remove this when deprecating
+  // quic_no_framer_object_in_dispatcher.
   bool should_update_expected_connection_id_length_;
 
   // Indicates whether this framer supports multiple packet number spaces.

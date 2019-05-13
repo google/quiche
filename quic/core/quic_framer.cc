@@ -449,6 +449,11 @@ void RecordDroppedPacketReason(DroppedPacketReason reason) {
                              "each time such a packet is dropped");
 }
 
+PacketHeaderFormat GetIetfPacketHeaderFormat(uint8_t type_byte) {
+  return type_byte & FLAGS_LONG_HEADER ? IETF_QUIC_LONG_HEADER_PACKET
+                                       : IETF_QUIC_SHORT_HEADER_PACKET;
+}
+
 }  // namespace
 
 QuicFramer::QuicFramer(const ParsedQuicVersionVector& supported_versions,
@@ -2511,8 +2516,7 @@ bool QuicFramer::ProcessIetfHeaderTypeByte(QuicDataReader* reader,
   }
   header->type_byte = type;
   // Determine whether this is a long or short header.
-  header->form = type & FLAGS_LONG_HEADER ? IETF_QUIC_LONG_HEADER_PACKET
-                                          : IETF_QUIC_SHORT_HEADER_PACKET;
+  header->form = GetIetfPacketHeaderFormat(type);
   if (header->form == IETF_QUIC_LONG_HEADER_PACKET) {
     // Version is always present in long headers.
     header->version_flag = true;
@@ -2610,13 +2614,19 @@ bool QuicFramer::ProcessVersionLabel(QuicDataReader* reader,
 }
 
 // static
-bool QuicFramer::ValidateIetfConnectionIdLength(
-    uint8_t connection_id_lengths_byte,
+bool QuicFramer::ProcessAndValidateIetfConnectionIdLength(
+    QuicDataReader* reader,
     ParsedQuicVersion version,
     bool should_update_expected_connection_id_length,
     uint8_t* expected_connection_id_length,
     uint8_t* destination_connection_id_length,
-    uint8_t* source_connection_id_length) {
+    uint8_t* source_connection_id_length,
+    std::string* detailed_error) {
+  uint8_t connection_id_lengths_byte;
+  if (!reader->ReadBytes(&connection_id_lengths_byte, 1)) {
+    *detailed_error = "Unable to read ConnectionId length.";
+    return false;
+  }
   uint8_t dcil =
       (connection_id_lengths_byte & kDestinationConnectionIdLengthMask) >> 4;
   if (dcil != 0) {
@@ -2642,6 +2652,7 @@ bool QuicFramer::ValidateIetfConnectionIdLength(
     // OnProtocolVersionMismatch call is moved to before this is run.
     QUIC_DVLOG(1) << "dcil: " << static_cast<uint32_t>(dcil)
                   << ", scil: " << static_cast<uint32_t>(scil);
+    *detailed_error = "Invalid ConnectionId length.";
     return false;
   }
   *destination_connection_id_length = dcil;
@@ -2664,18 +2675,11 @@ bool QuicFramer::ProcessIetfPacketHeader(QuicDataReader* reader,
           ? expected_connection_id_length_
           : 0;
   if (header->form == IETF_QUIC_LONG_HEADER_PACKET) {
-    // Read and validate connection ID length.
-    uint8_t connection_id_lengths_byte;
-    if (!reader->ReadBytes(&connection_id_lengths_byte, 1)) {
-      set_detailed_error("Unable to read ConnectionId length.");
-      return false;
-    }
-    if (!ValidateIetfConnectionIdLength(
-            connection_id_lengths_byte, header->version,
+    if (!ProcessAndValidateIetfConnectionIdLength(
+            reader, header->version,
             should_update_expected_connection_id_length_,
             &expected_connection_id_length_, &destination_connection_id_length,
-            &source_connection_id_length)) {
-      set_detailed_error("Invalid ConnectionId length.");
+            &source_connection_id_length, &detailed_error_)) {
       return false;
     }
   }
@@ -6052,6 +6056,76 @@ void QuicFramer::EnableMultiplePacketNumberSpacesSupport() {
   }
 
   supports_multiple_packet_number_spaces_ = true;
+}
+
+// static
+QuicErrorCode QuicFramer::ProcessPacketDispatcher(
+    const QuicEncryptedPacket& packet,
+    uint8_t expected_connection_id_length,
+    PacketHeaderFormat* format,
+    bool* version_flag,
+    QuicVersionLabel* version_label,
+    uint8_t* destination_connection_id_length,
+    QuicConnectionId* destination_connection_id,
+    std::string* detailed_error) {
+  QuicDataReader reader(packet.data(), packet.length());
+
+  uint8_t first_byte;
+  if (!reader.ReadBytes(&first_byte, 1)) {
+    *detailed_error = "Unable to read first byte.";
+    return QUIC_INVALID_PACKET_HEADER;
+  }
+  if (!QuicUtils::IsIetfPacketHeader(first_byte)) {
+    *format = GOOGLE_QUIC_PACKET;
+    *version_flag = (first_byte & PACKET_PUBLIC_FLAGS_VERSION) != 0;
+    *destination_connection_id_length =
+        first_byte & PACKET_PUBLIC_FLAGS_8BYTE_CONNECTION_ID;
+    if (*destination_connection_id_length == 0 ||
+        !reader.ReadConnectionId(destination_connection_id,
+                                 *destination_connection_id_length)) {
+      *detailed_error = "Unable to read ConnectionId.";
+      return QUIC_INVALID_PACKET_HEADER;
+    }
+    if (*version_flag && !ProcessVersionLabel(&reader, version_label)) {
+      *detailed_error = "Unable to read protocol version.";
+      return QUIC_INVALID_PACKET_HEADER;
+    }
+    return QUIC_NO_ERROR;
+  }
+
+  *format = GetIetfPacketHeaderFormat(first_byte);
+  QUIC_DVLOG(1) << "Dispatcher: Processing IETF QUIC packet, format: "
+                << *format;
+  *version_flag = *format == IETF_QUIC_LONG_HEADER_PACKET;
+  if (*format == IETF_QUIC_LONG_HEADER_PACKET) {
+    if (!ProcessVersionLabel(&reader, version_label)) {
+      *detailed_error = "Unable to read protocol version.";
+      return QUIC_INVALID_PACKET_HEADER;
+    }
+    // Set should_update_expected_connection_id_length to true to bypass
+    // connection ID lengths validation.
+    uint8_t unused_source_connection_id_length = 0;
+    uint8_t unused_expected_connection_id_length = 0;
+    if (!ProcessAndValidateIetfConnectionIdLength(
+            &reader, ParseQuicVersionLabel(*version_label),
+            /*should_update_expected_connection_id_length=*/true,
+            &unused_expected_connection_id_length,
+            destination_connection_id_length,
+            &unused_source_connection_id_length, detailed_error)) {
+      return QUIC_INVALID_PACKET_HEADER;
+    }
+  } else {
+    // For short header packets, expected_connection_id_length is used to
+    // determine the destination_connection_id_length.
+    *destination_connection_id_length = expected_connection_id_length;
+  }
+  // Read destination connection ID.
+  if (!reader.ReadConnectionId(destination_connection_id,
+                               *destination_connection_id_length)) {
+    *detailed_error = "Unable to read Destination ConnectionId.";
+    return QUIC_INVALID_PACKET_HEADER;
+  }
+  return QUIC_NO_ERROR;
 }
 
 #undef ENDPOINT  // undef for jumbo builds

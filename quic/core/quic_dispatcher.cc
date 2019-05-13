@@ -10,6 +10,7 @@
 #include "net/third_party/quiche/src/quic/core/chlo_extractor.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"
+#include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
 #include "net/third_party/quiche/src/quic/core/quic_time_wait_list_manager.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
@@ -303,8 +304,14 @@ QuicDispatcher::QuicDispatcher(
       last_error_(QUIC_NO_ERROR),
       new_sessions_allowed_per_event_loop_(0u),
       accept_new_connections_(true),
-      allow_short_initial_connection_ids_(false) {
-  framer_.set_visitor(this);
+      allow_short_initial_connection_ids_(false),
+      last_version_label_(0),
+      expected_connection_id_length_(expected_connection_id_length),
+      should_update_expected_connection_id_length_(false),
+      no_framer_(GetQuicRestartFlag(quic_no_framer_object_in_dispatcher)) {
+  if (!no_framer_) {
+    framer_.set_visitor(this);
+  }
 }
 
 QuicDispatcher::~QuicDispatcher() {
@@ -326,21 +333,60 @@ void QuicDispatcher::ProcessPacket(const QuicSocketAddress& self_address,
   // GetClientAddress must be called after current_peer_address_ is set.
   current_client_address_ = GetClientAddress();
   current_packet_ = &packet;
-  // ProcessPacket will cause the packet to be dispatched in
-  // OnUnauthenticatedPublicHeader, or sent to the time wait list manager
-  // in OnUnauthenticatedHeader.
-  framer_.ProcessPacket(packet);
-  // TODO(rjshade): Return a status describing if/why a packet was dropped,
-  //                and log somehow.  Maybe expose as a varz.
-  // TODO(wub): Consider invalidate the current_* variables so processing of the
-  //            next packet does not use them incorrectly.
+  if (!no_framer_) {
+    // ProcessPacket will cause the packet to be dispatched in
+    // OnUnauthenticatedPublicHeader, or sent to the time wait list manager
+    // in OnUnauthenticatedHeader.
+    framer_.ProcessPacket(packet);
+    // TODO(rjshade): Return a status describing if/why a packet was dropped,
+    //                and log somehow.  Maybe expose as a varz.
+    return;
+  }
+  QUIC_RESTART_FLAG_COUNT(quic_no_framer_object_in_dispatcher);
+  QuicPacketHeader header;
+  uint8_t destination_connection_id_length;
+  string detailed_error;
+  const QuicErrorCode error = QuicFramer::ProcessPacketDispatcher(
+      packet, expected_connection_id_length_, &header.form,
+      &header.version_flag, &last_version_label_,
+      &destination_connection_id_length, &header.destination_connection_id,
+      &detailed_error);
+  if (error != QUIC_NO_ERROR) {
+    // Packet has framing error.
+    SetLastError(error);
+    QUIC_DLOG(ERROR) << detailed_error;
+    return;
+  }
+  header.version = ParseQuicVersionLabel(last_version_label_);
+  if (destination_connection_id_length != expected_connection_id_length_ &&
+      !should_update_expected_connection_id_length_ &&
+      !QuicUtils::VariableLengthConnectionIdAllowedForVersion(
+          header.version.transport_version)) {
+    SetLastError(QUIC_INVALID_PACKET_HEADER);
+    QUIC_DLOG(ERROR) << "Invalid Connection Id Length";
+    return;
+  }
+  if (should_update_expected_connection_id_length_) {
+    expected_connection_id_length_ = destination_connection_id_length;
+  }
+  // TODO(fayang): Instead of passing in QuicPacketHeader, pass format,
+  // version_flag, version and destination_connection_id. Combine
+  // OnUnauthenticatedPublicHeader and OnUnauthenticatedHeader to a single
+  // function when deprecating quic_no_framer_object_in_dispatcher.
+  if (!OnUnauthenticatedPublicHeader(header)) {
+    return;
+  }
+  OnUnauthenticatedHeader(header);
+  // TODO(wub): Consider invalidate the current_* variables so processing of
+  //            the next packet does not use them incorrectly.
 }
 
 QuicConnectionId QuicDispatcher::MaybeReplaceConnectionId(
     QuicConnectionId connection_id,
     ParsedQuicVersion version) {
   const uint8_t expected_connection_id_length =
-      framer_.GetExpectedConnectionIdLength();
+      no_framer_ ? expected_connection_id_length_
+                 : framer_.GetExpectedConnectionIdLength();
   if (connection_id.length() == expected_connection_id_length) {
     return connection_id;
   }
@@ -383,16 +429,18 @@ bool QuicDispatcher::OnUnauthenticatedPublicHeader(
   // connection ID, the dispatcher picks a new one of its expected length.
   // Therefore we should never receive a connection ID that is smaller
   // than 64 bits and smaller than what we expect.
+  const uint8_t expected_connection_id_length =
+      no_framer_ ? expected_connection_id_length_
+                 : framer_.GetExpectedConnectionIdLength();
   if (connection_id.length() < kQuicMinimumInitialConnectionIdLength &&
-      connection_id.length() < framer_.GetExpectedConnectionIdLength() &&
+      connection_id.length() < expected_connection_id_length &&
       !allow_short_initial_connection_ids_) {
     DCHECK(header.version_flag);
     DCHECK(QuicUtils::VariableLengthConnectionIdAllowedForVersion(
         header.version.transport_version));
     QUIC_DLOG(INFO) << "Packet with short destination connection ID "
                     << connection_id << " expected "
-                    << static_cast<int>(
-                           framer_.GetExpectedConnectionIdLength());
+                    << static_cast<int>(expected_connection_id_length);
     ProcessUnauthenticatedHeaderFate(kFateTimeWait, connection_id, header.form,
                                      header.version_flag, header.version);
     return false;
@@ -449,12 +497,14 @@ bool QuicDispatcher::OnUnauthenticatedPublicHeader(
   ParsedQuicVersion version = GetSupportedVersions().front();
   if (header.version_flag) {
     ParsedQuicVersion packet_version = header.version;
-    if (framer_.supported_versions() != GetSupportedVersions()) {
+    if (!no_framer_ && framer_.supported_versions() != GetSupportedVersions()) {
       // Reset framer's version if version flags change in flight.
       framer_.SetSupportedVersions(GetSupportedVersions());
     }
-    if (!framer_.IsSupportedVersion(packet_version)) {
-      if (ShouldCreateSessionForUnknownVersion(framer_.last_version_label())) {
+    if (!IsSupportedVersion(packet_version)) {
+      if (ShouldCreateSessionForUnknownVersion(
+              no_framer_ ? last_version_label_
+                         : framer_.last_version_label())) {
         return true;
       }
       if (!crypto_config()->validate_chlo_size() ||
@@ -470,8 +520,10 @@ bool QuicDispatcher::OnUnauthenticatedPublicHeader(
     }
     version = packet_version;
   }
-  // Set the framer's version and continue processing.
-  framer_.set_version(version);
+  if (!no_framer_) {
+    // Set the framer's version and continue processing.
+    framer_.set_version(version);
+  }
 
   if (version.HasHeaderProtection()) {
     ProcessHeader(header);
@@ -571,6 +623,11 @@ QuicDispatcher::QuicPacketFate QuicDispatcher::ValidityChecks(
         << "Packet without version arrived for unknown connection ID "
         << header.destination_connection_id;
     return kFateTimeWait;
+  }
+
+  if (no_framer_) {
+    // Let the connection parse and validate packet number.
+    return kFateProcess;
   }
 
   // initial packet number of 0 is always invalid.
@@ -797,7 +854,7 @@ void QuicDispatcher::StatelesslyTerminateConnection(
   }
 
   // If the version is known and supported by framer, send a connection close.
-  if (framer_.IsSupportedVersion(version)) {
+  if (IsSupportedVersion(version)) {
     QUIC_DVLOG(1)
         << "Statelessly terminating " << connection_id
         << " based on an ietf-long packet, which has a supported version:"
@@ -852,6 +909,7 @@ bool QuicDispatcher::ShouldCreateSessionForUnknownVersion(
 bool QuicDispatcher::OnProtocolVersionMismatch(
     ParsedQuicVersion /*received_version*/,
     PacketHeaderFormat /*form*/) {
+  DCHECK(!no_framer_);
   QUIC_BUG_IF(
       !time_wait_list_manager_->IsConnectionIdInTimeWait(
           current_connection_id_) &&
@@ -1146,7 +1204,7 @@ void QuicDispatcher::ProcessChlo(PacketHeaderFormat form,
     EnqueuePacketResult rs = buffered_packets_.EnqueuePacket(
         current_connection_id_, form != GOOGLE_QUIC_PACKET, *current_packet_,
         current_self_address_, current_peer_address_,
-        /*is_chlo=*/true, current_alpn_, framer_.version());
+        /*is_chlo=*/true, current_alpn_, version);
     if (rs != EnqueuePacketResult::SUCCESS) {
       OnBufferPacketFailure(rs, current_connection_id_);
     }
@@ -1155,11 +1213,10 @@ void QuicDispatcher::ProcessChlo(PacketHeaderFormat form,
 
   QuicConnectionId original_connection_id = current_connection_id_;
   current_connection_id_ =
-      MaybeReplaceConnectionId(current_connection_id_, framer_.version());
+      MaybeReplaceConnectionId(current_connection_id_, version);
   // Creates a new session and process all buffered packets for this connection.
-  QuicSession* session =
-      CreateQuicSession(current_connection_id_, current_peer_address_,
-                        current_alpn_, framer_.version());
+  QuicSession* session = CreateQuicSession(
+      current_connection_id_, current_peer_address_, current_alpn_, version);
   if (original_connection_id != current_connection_id_) {
     session->connection()->AddIncomingConnectionId(original_connection_id);
   }
@@ -1338,7 +1395,9 @@ void QuicDispatcher::OnStatelessRejectorProcessDone(
   current_self_address_ = current_self_address;
   current_packet_ = current_packet.get();
   current_connection_id_ = rejector->connection_id();
-  framer_.set_version(first_version);
+  if (!no_framer_) {
+    framer_.set_version(first_version);
+  }
 
   // Stop buffering packets on this connection
   const auto num_erased =
@@ -1391,7 +1450,7 @@ void QuicDispatcher::ProcessStatelessRejectorState(
       break;
 
     case StatelessRejector::REJECTED: {
-      QUIC_BUG_IF(first_version != framer_.version())
+      QUIC_BUG_IF(!no_framer_ && first_version != framer_.version())
           << "SREJ: Client's version: "
           << QuicVersionToString(first_version.transport_version)
           << " is different from current dispatcher framer's version: "
@@ -1438,7 +1497,22 @@ void QuicDispatcher::DeliverPacketsToSession(
 }
 
 void QuicDispatcher::DisableFlagValidation() {
-  framer_.set_validate_flags(false);
+  if (!no_framer_) {
+    framer_.set_validate_flags(false);
+  }
+}
+
+bool QuicDispatcher::IsSupportedVersion(const ParsedQuicVersion version) {
+  if (!no_framer_) {
+    return framer_.IsSupportedVersion(version);
+  }
+  for (const ParsedQuicVersion& supported_version :
+       version_manager_->GetSupportedVersions()) {
+    if (version == supported_version) {
+      return true;
+    }
+  }
+  return false;
 }
 
 }  // namespace quic
