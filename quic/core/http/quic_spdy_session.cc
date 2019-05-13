@@ -558,9 +558,9 @@ bool QuicSpdySession::ShouldKeepConnectionAlive() const {
   return GetNumOpenDynamicStreams() > 0;
 }
 
-bool QuicSpdySession::ShouldBufferIncomingStream(QuicStreamId id) const {
-  DCHECK_EQ(QUIC_VERSION_99, connection()->transport_version());
-  return !QuicUtils::IsBidirectionalStreamId(id);
+bool QuicSpdySession::UsesPendingStreams() const {
+  DCHECK(VersionHasControlStreams(connection()->transport_version()));
+  return true;
 }
 
 size_t QuicSpdySession::WriteHeadersOnHeadersStreamImpl(
@@ -724,7 +724,7 @@ bool QuicSpdySession::HasActiveRequestStreams() const {
   return false;
 }
 
-void QuicSpdySession::ProcessPendingStreamType(PendingStream* pending) {
+void QuicSpdySession::ProcessPendingStream(PendingStream* pending) {
   DCHECK(VersionHasControlStreams(connection()->transport_version()));
   struct iovec iov;
   if (!pending->sequencer()->GetReadableRegion(&iov)) {

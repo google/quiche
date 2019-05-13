@@ -195,12 +195,12 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // Returns true if there are open HTTP requests.
   bool ShouldKeepConnectionAlive() const override;
 
-  // Overridden to buffer incoming streams for version 99.
-  bool ShouldBufferIncomingStream(QuicStreamId id) const override;
+  // Overridden to buffer incoming unidirectional streams for version 99.
+  bool UsesPendingStreams() const override;
 
   // Overridden to Process HTTP/3 stream types. No action will be taken if
   // stream type cannot be read.
-  void ProcessPendingStreamType(PendingStream* pending) override;
+  void ProcessPendingStream(PendingStream* pending) override;
 
   size_t WriteHeadersOnHeadersStreamImpl(
       QuicStreamId id,

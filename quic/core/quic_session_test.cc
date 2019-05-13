@@ -138,7 +138,7 @@ class TestSession : public QuicSession {
                     CurrentSupportedVersions()),
         crypto_stream_(this),
         writev_consumes_all_data_(false),
-        should_buffer_incoming_streams_(false),
+        uses_pending_streams_(false),
         num_incoming_streams_created_(0) {
     Initialize();
     this->connection()->SetEncrypter(
@@ -207,6 +207,17 @@ class TestSession : public QuicSession {
     ActivateStream(QuicWrapUnique(stream));
     ++num_incoming_streams_created_;
     return stream;
+  }
+
+  // QuicSession doesn't do anything in this method. So it's overridden here to
+  // test that the session handles pending streams correctly in terms of
+  // receiving stream frames.
+  void ProcessPendingStream(PendingStream* pending) override {
+    struct iovec iov;
+    if (pending->sequencer()->GetReadableRegion(&iov)) {
+      // Create TestStream once the first byte is received.
+      CreateIncomingStream(std::move(*pending));
+    }
   }
 
   bool IsClosedStream(QuicStreamId id) {
@@ -279,12 +290,10 @@ class TestSession : public QuicSession {
     return WritevData(stream, stream->id(), bytes, 0, FIN);
   }
 
-  bool ShouldBufferIncomingStream(QuicStreamId id) const override {
-    return should_buffer_incoming_streams_;
-  }
+  bool UsesPendingStreams() const override { return uses_pending_streams_; }
 
-  void set_should_buffer_incoming_streams(bool should_buffer_incoming_streams) {
-    should_buffer_incoming_streams_ = should_buffer_incoming_streams;
+  void set_uses_pending_streams(bool uses_pending_streams) {
+    uses_pending_streams_ = uses_pending_streams;
   }
 
   int num_incoming_streams_created() const {
@@ -299,7 +308,7 @@ class TestSession : public QuicSession {
   StrictMock<TestCryptoStream> crypto_stream_;
 
   bool writev_consumes_all_data_;
-  bool should_buffer_incoming_streams_;
+  bool uses_pending_streams_;
   QuicFrame save_frame_;
   int num_incoming_streams_created_;
 };
@@ -1575,7 +1584,7 @@ TEST_P(QuicSessionTestServer, DrainingStreamsDoNotCountAsOpenedOutgoing) {
 }
 
 TEST_P(QuicSessionTestServer, NoPendingStreams) {
-  session_.set_should_buffer_incoming_streams(false);
+  session_.set_uses_pending_streams(false);
 
   QuicStreamId stream_id = QuicUtils::GetFirstUnidirectionalStreamId(
       transport_version(), Perspective::IS_CLIENT);
@@ -1592,7 +1601,7 @@ TEST_P(QuicSessionTestServer, PendingStreams) {
   if (connection_->transport_version() != QUIC_VERSION_99) {
     return;
   }
-  session_.set_should_buffer_incoming_streams(true);
+  session_.set_uses_pending_streams(true);
 
   QuicStreamId stream_id = QuicUtils::GetFirstUnidirectionalStreamId(
       transport_version(), Perspective::IS_CLIENT);
@@ -1609,7 +1618,7 @@ TEST_P(QuicSessionTestServer, RstPendingStreams) {
   if (connection_->transport_version() != QUIC_VERSION_99) {
     return;
   }
-  session_.set_should_buffer_incoming_streams(true);
+  session_.set_uses_pending_streams(true);
 
   QuicStreamId stream_id = QuicUtils::GetFirstUnidirectionalStreamId(
       transport_version(), Perspective::IS_CLIENT);

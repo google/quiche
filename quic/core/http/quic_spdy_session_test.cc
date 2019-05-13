@@ -267,8 +267,8 @@ class TestSession : public QuicSpdySession {
 
   using QuicSession::closed_streams;
   using QuicSession::zombie_streams;
-  using QuicSpdySession::ProcessPendingStreamType;
-  using QuicSpdySession::ShouldBufferIncomingStream;
+  using QuicSpdySession::ProcessPendingStream;
+  using QuicSpdySession::UsesPendingStreams;
 
  private:
   StrictMock<TestCryptoStream> crypto_stream_;
@@ -417,22 +417,11 @@ INSTANTIATE_TEST_SUITE_P(Tests,
                          QuicSpdySessionTestServer,
                          ::testing::ValuesIn(AllSupportedVersions()));
 
-TEST_P(QuicSpdySessionTestServer, ShouldBufferIncomingStreamUnidirectional) {
-  if (!IsVersion99()) {
+TEST_P(QuicSpdySessionTestServer, UsesPendingStreams) {
+  if (!VersionHasControlStreams(transport_version())) {
     return;
   }
-  EXPECT_TRUE(session_.ShouldBufferIncomingStream(
-      QuicUtils::GetFirstUnidirectionalStreamId(
-          connection_->transport_version(), Perspective::IS_CLIENT)));
-}
-
-TEST_P(QuicSpdySessionTestServer, ShouldBufferIncomingStreamBidirectional) {
-  if (!IsVersion99()) {
-    return;
-  }
-  EXPECT_FALSE(session_.ShouldBufferIncomingStream(
-      QuicUtils::GetFirstBidirectionalStreamId(connection_->transport_version(),
-                                               Perspective::IS_CLIENT)));
+  EXPECT_TRUE(session_.UsesPendingStreams());
 }
 
 TEST_P(QuicSpdySessionTestServer, PeerAddress) {
@@ -1609,6 +1598,13 @@ INSTANTIATE_TEST_SUITE_P(Tests,
                          QuicSpdySessionTestClient,
                          ::testing::ValuesIn(AllSupportedVersions()));
 
+TEST_P(QuicSpdySessionTestClient, UsesPendingStreams) {
+  if (!VersionHasControlStreams(transport_version())) {
+    return;
+  }
+  EXPECT_TRUE(session_.UsesPendingStreams());
+}
+
 TEST_P(QuicSpdySessionTestClient, AvailableStreamsClient) {
   ASSERT_TRUE(session_.GetOrCreateDynamicStream(
                   GetNthServerInitiatedBidirectionalId(2)) != nullptr);
@@ -1889,7 +1885,7 @@ TEST_P(QuicSpdySessionTestServer, SimplePendingStreamType) {
 
   // A stop sending frame will be sent to indicate unknown type.
   EXPECT_CALL(*connection_, SendControlFrame(_));
-  session_.ProcessPendingStreamType(&pending);
+  session_.ProcessPendingStream(&pending);
 }
 
 TEST_P(QuicSpdySessionTestServer, SimplePendingStreamTypeOutOfOrderDelivery) {
@@ -1905,13 +1901,13 @@ TEST_P(QuicSpdySessionTestServer, SimplePendingStreamTypeOutOfOrderDelivery) {
                   'a', 'b', 'c'};
   QuicStreamFrame data1(pending.id(), true, 1, QuicStringPiece(&input[1], 3));
   pending.OnStreamFrame(data1);
-  session_.ProcessPendingStreamType(&pending);
+  session_.ProcessPendingStream(&pending);
 
   QuicStreamFrame data2(pending.id(), false, 0, QuicStringPiece(input, 1));
   pending.OnStreamFrame(data2);
 
   EXPECT_CALL(*connection_, SendControlFrame(_));
-  session_.ProcessPendingStreamType(&pending);
+  session_.ProcessPendingStream(&pending);
 }
 
 TEST_P(QuicSpdySessionTestServer,
@@ -1929,17 +1925,17 @@ TEST_P(QuicSpdySessionTestServer,
 
   QuicStreamFrame data1(pending.id(), true, 2, QuicStringPiece(&input[2], 3));
   pending.OnStreamFrame(data1);
-  session_.ProcessPendingStreamType(&pending);
+  session_.ProcessPendingStream(&pending);
 
   QuicStreamFrame data2(pending.id(), false, 0, QuicStringPiece(input, 1));
   pending.OnStreamFrame(data2);
-  session_.ProcessPendingStreamType(&pending);
+  session_.ProcessPendingStream(&pending);
 
   QuicStreamFrame data3(pending.id(), false, 1, QuicStringPiece(&input[1], 1));
   pending.OnStreamFrame(data3);
 
   EXPECT_CALL(*connection_, SendControlFrame(_));
-  session_.ProcessPendingStreamType(&pending);
+  session_.ProcessPendingStream(&pending);
 }
 
 }  // namespace

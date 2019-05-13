@@ -483,11 +483,11 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
   virtual void OnFinalByteOffsetReceived(QuicStreamId id,
                                          QuicStreamOffset final_byte_offset);
 
-  // Returns true if incoming streams should be buffered until the first
-  // byte of the stream arrives.
-  virtual bool ShouldBufferIncomingStream(QuicStreamId id) const {
-    return false;
-  }
+  // Returns true if incoming unidirectional streams should be buffered until
+  // the first byte of the stream arrives.
+  // If a subclass returns true here, it should make sure to implement
+  // ProcessPendingStream().
+  virtual bool UsesPendingStreams() const { return false; }
 
   // Register (|id|, |stream|) with the static stream map. Override previous
   // registrations with the same id.
@@ -573,11 +573,11 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
     };
   };
 
-  StreamHandler GetOrCreateStreamImpl(QuicStreamId stream_id, bool may_buffer);
+  StreamHandler GetOrCreateStreamImpl(QuicStreamId stream_id);
 
   // Processes the stream type information of |pending| depending on
-  // different kinds of sessions's own rules.
-  virtual void ProcessPendingStreamType(PendingStream* pending) {}
+  // different kinds of sessions' own rules.
+  virtual void ProcessPendingStream(PendingStream* pending) {}
 
   bool eliminate_static_stream_map() const {
     return eliminate_static_stream_map_;
@@ -613,8 +613,9 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
   // closed.
   QuicStream* GetStream(QuicStreamId id) const;
 
-  StreamHandler GetOrCreateDynamicStreamImpl(QuicStreamId stream_id,
-                                             bool may_buffer);
+  StreamHandler GetOrCreateDynamicStreamImpl(QuicStreamId stream_id);
+
+  PendingStream* GetOrCreatePendingStream(QuicStreamId stream_id);
 
   // Let streams and control frame managers retransmit lost data, returns true
   // if all lost data is retransmitted. Returns false otherwise.
@@ -622,6 +623,14 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
 
   // Closes the pending stream |stream_id| before it has been created.
   void ClosePendingStream(QuicStreamId stream_id);
+
+  // Creates or gets pending stream, feeds it with |frame|, and processes the
+  // pending stream.
+  void PendingStreamOnStreamFrame(const QuicStreamFrame& frame);
+
+  // Creates or gets pending strea, feed it with |frame|, and closes the pending
+  // stream.
+  void PendingStreamOnRstStream(const QuicRstStreamFrame& frame);
 
   // Keep track of highest received byte offset of locally closed streams, while
   // waiting for a definitive final highest offset from the peer.
