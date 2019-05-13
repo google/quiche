@@ -4363,7 +4363,8 @@ bool QuicFramer::DecryptPayload(QuicStringPiece encrypted,
   }
 
   if (decrypter == nullptr) {
-    QUIC_BUG << "Attempting to decrypt without decrypter";
+    QUIC_BUG << "Attempting to decrypt without decrypter, encryption level:"
+             << level << " version:" << version();
     return false;
   }
 
