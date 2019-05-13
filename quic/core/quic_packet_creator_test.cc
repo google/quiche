@@ -601,6 +601,7 @@ TEST_P(QuicPacketCreatorTest, ConsumeCryptoData) {
   std::string data = "crypto data";
   QuicFrame frame;
   ASSERT_TRUE(creator_.ConsumeCryptoData(ENCRYPTION_INITIAL, data.length(), 0,
+                                         /*needs_full_padding=*/true,
                                          NOT_RETRANSMISSION, &frame));
   EXPECT_EQ(frame.crypto_frame->data_length, data.length());
   EXPECT_TRUE(creator_.HasPendingFrames());
@@ -745,9 +746,9 @@ TEST_P(QuicPacketCreatorTest, CryptoStreamFramePacketPadding) {
       EXPECT_LT(0u, bytes_consumed);
     } else {
       producer_.SaveCryptoData(ENCRYPTION_INITIAL, kOffset, data);
-      ASSERT_TRUE(creator_.ConsumeCryptoData(ENCRYPTION_INITIAL, data.length(),
-                                             kOffset, NOT_RETRANSMISSION,
-                                             &frame));
+      ASSERT_TRUE(creator_.ConsumeCryptoData(
+          ENCRYPTION_INITIAL, data.length(), kOffset,
+          /*needs_full_padding=*/true, NOT_RETRANSMISSION, &frame));
       size_t bytes_consumed = frame.crypto_frame->data_length;
       EXPECT_LT(0u, bytes_consumed);
     }

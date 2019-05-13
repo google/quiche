@@ -161,6 +161,7 @@ void QuicPacketCreator::UpdatePacketNumberLength(
 bool QuicPacketCreator::ConsumeCryptoData(EncryptionLevel level,
                                           size_t write_length,
                                           QuicStreamOffset offset,
+                                          bool needs_full_padding,
                                           TransmissionType transmission_type,
                                           QuicFrame* frame) {
   if (!CreateCryptoFrame(level, write_length, offset, frame)) {
@@ -172,7 +173,9 @@ bool QuicPacketCreator::ConsumeCryptoData(EncryptionLevel level,
   //
   // TODO(nharper): Check what the IETF drafts say about padding out initial
   // messages and change this as appropriate.
-  needs_full_padding_ = true;
+  if (needs_full_padding) {
+    needs_full_padding_ = true;
+  }
   return AddFrame(*frame, /*save_retransmittable_frames*/ true,
                   transmission_type);
 }

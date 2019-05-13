@@ -614,16 +614,29 @@ TEST_F(QuicPacketGeneratorTest, ConsumeData_Handshake_PaddingDisabled) {
 
   EXPECT_CALL(delegate_, OnSerializedPacket(_))
       .WillOnce(Invoke(this, &QuicPacketGeneratorTest::SavePacket));
-  MakeIOVector("foo", &iov_);
-  QuicConsumedData consumed = generator_.ConsumeData(
-      QuicUtils::GetCryptoStreamId(framer_.transport_version()), &iov_, 1u,
-      iov_.iov_len, 0, NO_FIN);
-  EXPECT_EQ(3u, consumed.bytes_consumed);
+  std::string data = "foo";
+  MakeIOVector(data, &iov_);
+  size_t bytes_consumed = 0;
+  if (QuicVersionUsesCryptoFrames(framer_.transport_version())) {
+    bytes_consumed = generator_.ConsumeCryptoData(ENCRYPTION_INITIAL, data, 0);
+  } else {
+    bytes_consumed =
+        generator_
+            .ConsumeData(
+                QuicUtils::GetCryptoStreamId(framer_.transport_version()),
+                &iov_, 1u, iov_.iov_len, 0, NO_FIN)
+            .bytes_consumed;
+  }
+  EXPECT_EQ(3u, bytes_consumed);
   EXPECT_FALSE(generator_.HasQueuedFrames());
   EXPECT_FALSE(generator_.HasRetransmittableFrames());
 
   PacketContents contents;
-  contents.num_stream_frames = 1;
+  if (QuicVersionUsesCryptoFrames(framer_.transport_version())) {
+    contents.num_crypto_frames = 1;
+  } else {
+    contents.num_stream_frames = 1;
+  }
   contents.num_padding_frames = 0;
   CheckPacketContains(contents, 0);
 
@@ -631,7 +644,13 @@ TEST_F(QuicPacketGeneratorTest, ConsumeData_Handshake_PaddingDisabled) {
 
   // Packet is not fully padded, but we want to future packets to be larger.
   ASSERT_EQ(kDefaultMaxPacketSize, generator_.GetCurrentMaxPacketLength());
-  EXPECT_EQ(27, packets_[0].encrypted_length);
+  size_t expected_packet_length = 27;
+  if (QuicVersionUsesCryptoFrames(framer_.transport_version())) {
+    // The framing of CRYPTO frames is slightly different than that of stream
+    // frames, so the expected packet length differs slightly.
+    expected_packet_length = 28;
+  }
+  EXPECT_EQ(expected_packet_length, packets_[0].encrypted_length);
 }
 
 TEST_F(QuicPacketGeneratorTest, ConsumeData_EmptyData) {

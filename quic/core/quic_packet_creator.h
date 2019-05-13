@@ -112,6 +112,7 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   bool ConsumeCryptoData(EncryptionLevel level,
                          size_t write_length,
                          QuicStreamOffset offset,
+                         bool needs_full_padding,
                          TransmissionType transmission_type,
                          QuicFrame* frame);
 

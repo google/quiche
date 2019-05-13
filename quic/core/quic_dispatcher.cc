@@ -178,9 +178,9 @@ class StatelessConnectionTerminator {
         }
         offset += frame.stream_frame.data_length;
       } else {
-        if (!creator_.ConsumeCryptoData(ENCRYPTION_INITIAL,
-                                        reject.length() - offset, offset,
-                                        NOT_RETRANSMISSION, &frame)) {
+        if (!creator_.ConsumeCryptoData(
+                ENCRYPTION_INITIAL, reject.length() - offset, offset,
+                /*needs_full_padding=*/true, NOT_RETRANSMISSION, &frame)) {
           QUIC_BUG << "Unable to consume crypto data into an empty packet.";
           return;
         }

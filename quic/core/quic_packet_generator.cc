@@ -111,7 +111,8 @@ size_t QuicPacketGenerator::ConsumeCryptoData(EncryptionLevel level,
     QuicFrame frame;
     if (!packet_creator_.ConsumeCryptoData(
             level, write_length - total_bytes_consumed,
-            offset + total_bytes_consumed, next_transmission_type_, &frame)) {
+            offset + total_bytes_consumed, fully_pad_crypto_handshake_packets_,
+            next_transmission_type_, &frame)) {
       // The only pending data in the packet is non-retransmittable frames. I'm
       // assuming here that they won't occupy so much of the packet that a
       // CRYPTO frame won't fit.
