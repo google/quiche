@@ -45,14 +45,6 @@ using testing::NiceMock;
 namespace quic {
 namespace test {
 
-class QuicCryptoServerStreamPeer {
- public:
-  static bool DoesPeerSupportStatelessRejects(
-      const CryptoHandshakeMessage& message) {
-    return QuicCryptoServerStream::DoesPeerSupportStatelessRejects(message);
-  }
-};
-
 namespace {
 
 const char kServerHostname[] = "test.example.com";
@@ -74,9 +66,7 @@ class QuicCryptoServerStreamTest : public QuicTestWithParam<bool> {
             QuicCompressedCertsCache::kQuicCompressedCertsCacheSize),
         server_id_(kServerHostname, kServerPort, false),
         client_crypto_config_(crypto_test_utils::ProofVerifierForTesting(),
-                              TlsClientHandshaker::CreateSslCtx()) {
-    SetQuicReloadableFlag(enable_quic_stateless_reject_support, false);
-  }
+                              TlsClientHandshaker::CreateSslCtx()) {}
 
   void Initialize() { InitializeServer(); }
 
@@ -197,12 +187,6 @@ TEST_P(QuicCryptoServerStreamTest, NotInitiallyConected) {
   EXPECT_FALSE(server_stream()->handshake_confirmed());
 }
 
-TEST_P(QuicCryptoServerStreamTest, NotInitiallySendingStatelessRejects) {
-  Initialize();
-  EXPECT_FALSE(server_stream()->UseStatelessRejectsIfPeerSupported());
-  EXPECT_FALSE(server_stream()->PeerSupportsStatelessRejects());
-}
-
 TEST_P(QuicCryptoServerStreamTest, ConnectedAfterCHLO) {
   // CompleteCryptoHandshake returns the number of client hellos sent. This
   // test should send:
@@ -249,109 +233,6 @@ TEST_P(QuicCryptoServerStreamTest, ForwardSecureAfterCHLO) {
   EXPECT_TRUE(server_stream()->handshake_confirmed());
   EXPECT_EQ(ENCRYPTION_FORWARD_SECURE,
             server_session_->connection()->encryption_level());
-}
-
-TEST_P(QuicCryptoServerStreamTest, StatelessRejectAfterCHLO) {
-  SetQuicReloadableFlag(enable_quic_stateless_reject_support, true);
-  Initialize();
-
-  InitializeFakeClient(/* supports_stateless_rejects= */ true);
-  EXPECT_CALL(*server_connection_,
-              CloseConnection(QUIC_CRYPTO_HANDSHAKE_STATELESS_REJECT, _, _));
-  EXPECT_CALL(*client_connection_,
-              CloseConnection(QUIC_CRYPTO_HANDSHAKE_STATELESS_REJECT, _, _));
-  AdvanceHandshakeWithFakeClient();
-
-  // Check the server to make the sure the handshake did not succeed.
-  EXPECT_FALSE(server_stream()->encryption_established());
-  EXPECT_FALSE(server_stream()->handshake_confirmed());
-
-  // Check the client state to make sure that it received a server-designated
-  // connection id.
-  QuicCryptoClientConfig::CachedState* client_state =
-      client_crypto_config_.LookupOrCreate(server_id_);
-
-  ASSERT_TRUE(client_state->has_server_nonce());
-  ASSERT_FALSE(client_state->GetNextServerNonce().empty());
-  ASSERT_FALSE(client_state->has_server_nonce());
-
-  ASSERT_TRUE(client_state->has_server_designated_connection_id());
-  const QuicConnectionId server_designated_connection_id =
-      client_state->GetNextServerDesignatedConnectionId();
-  const QuicConnectionId expected_id = QuicUtils::CreateRandomConnectionId(
-      server_connection_->random_generator());
-  EXPECT_EQ(expected_id, server_designated_connection_id);
-  EXPECT_FALSE(client_state->has_server_designated_connection_id());
-  ASSERT_TRUE(client_state->IsComplete(QuicWallTime::FromUNIXSeconds(0)));
-}
-
-TEST_P(QuicCryptoServerStreamTest, ConnectedAfterStatelessHandshake) {
-  SetQuicReloadableFlag(enable_quic_stateless_reject_support, true);
-  Initialize();
-
-  InitializeFakeClient(/* supports_stateless_rejects= */ true);
-  EXPECT_CALL(*server_connection_,
-              CloseConnection(QUIC_CRYPTO_HANDSHAKE_STATELESS_REJECT, _, _));
-  EXPECT_CALL(*client_connection_,
-              CloseConnection(QUIC_CRYPTO_HANDSHAKE_STATELESS_REJECT, _, _));
-  AdvanceHandshakeWithFakeClient();
-
-  // On the first round, encryption will not be established.
-  EXPECT_FALSE(server_stream()->encryption_established());
-  EXPECT_FALSE(server_stream()->handshake_confirmed());
-  EXPECT_EQ(1, server_stream()->NumHandshakeMessages());
-  EXPECT_EQ(0, server_stream()->NumHandshakeMessagesWithServerNonces());
-
-  // Now check the client state.
-  QuicCryptoClientConfig::CachedState* client_state =
-      client_crypto_config_.LookupOrCreate(server_id_);
-
-  ASSERT_TRUE(client_state->has_server_designated_connection_id());
-  const QuicConnectionId server_designated_connection_id =
-      client_state->GetNextServerDesignatedConnectionId();
-  const QuicConnectionId expected_id = QuicUtils::CreateRandomConnectionId(
-      server_connection_->random_generator());
-  EXPECT_EQ(expected_id, server_designated_connection_id);
-  EXPECT_FALSE(client_state->has_server_designated_connection_id());
-  ASSERT_TRUE(client_state->IsComplete(QuicWallTime::FromUNIXSeconds(0)));
-
-  // Now create new client and server streams with the existing config
-  // and try the handshake again (0-RTT handshake).
-  InitializeServer();
-
-  InitializeFakeClient(/* supports_stateless_rejects= */ true);
-  // In the stateless case, the second handshake contains a server-nonce, so the
-  // AsyncStrikeRegisterVerification() case will still succeed (unlike a 0-RTT
-  // handshake).
-  AdvanceHandshakeWithFakeClient();
-
-  // On the second round, encryption will be established.
-  EXPECT_TRUE(server_stream()->encryption_established());
-  EXPECT_TRUE(server_stream()->handshake_confirmed());
-  EXPECT_EQ(1, server_stream()->NumHandshakeMessages());
-  EXPECT_EQ(1, server_stream()->NumHandshakeMessagesWithServerNonces());
-}
-
-TEST_P(QuicCryptoServerStreamTest, NoStatelessRejectIfNoClientSupport) {
-  SetQuicReloadableFlag(enable_quic_stateless_reject_support, true);
-  Initialize();
-
-  // The server is configured to use stateless rejects, but the client does not
-  // support it.
-  InitializeFakeClient(/* supports_stateless_rejects= */ false);
-  AdvanceHandshakeWithFakeClient();
-
-  // Check the server to make the sure the handshake did not succeed.
-  EXPECT_FALSE(server_stream()->encryption_established());
-  EXPECT_FALSE(server_stream()->handshake_confirmed());
-
-  // Check the client state to make sure that it did not receive a
-  // server-designated connection id.
-  QuicCryptoClientConfig::CachedState* client_state =
-      client_crypto_config_.LookupOrCreate(server_id_);
-
-  ASSERT_FALSE(client_state->has_server_designated_connection_id());
-  ASSERT_TRUE(client_state->IsComplete(QuicWallTime::FromUNIXSeconds(0)));
 }
 
 TEST_P(QuicCryptoServerStreamTest, ZeroRTT) {
@@ -448,21 +329,6 @@ TEST_P(QuicCryptoServerStreamTest, SendSCUPAfterHandshakeComplete) {
 
   EXPECT_EQ(1, server_stream()->NumServerConfigUpdateMessagesSent());
   EXPECT_EQ(1, client_stream()->num_scup_messages_received());
-}
-
-TEST_P(QuicCryptoServerStreamTest, DoesPeerSupportStatelessRejects) {
-  Initialize();
-
-  QuicConfig stateless_reject_config = DefaultQuicConfigStatelessRejects();
-  stateless_reject_config.ToHandshakeMessage(&message_);
-  EXPECT_TRUE(
-      QuicCryptoServerStreamPeer::DoesPeerSupportStatelessRejects(message_));
-
-  message_.Clear();
-  QuicConfig stateful_reject_config = DefaultQuicConfig();
-  stateful_reject_config.ToHandshakeMessage(&message_);
-  EXPECT_FALSE(
-      QuicCryptoServerStreamPeer::DoesPeerSupportStatelessRejects(message_));
 }
 
 class QuicCryptoServerStreamTestWithFailingProofSource

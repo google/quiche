@@ -97,21 +97,8 @@ QuicCryptoServerStream::PreviousCachedNetworkParams() const {
   return handshaker()->PreviousCachedNetworkParams();
 }
 
-bool QuicCryptoServerStream::UseStatelessRejectsIfPeerSupported() const {
-  return use_stateless_rejects_if_peer_supported_;
-}
-
-bool QuicCryptoServerStream::PeerSupportsStatelessRejects() const {
-  return peer_supports_stateless_rejects_;
-}
-
 bool QuicCryptoServerStream::ZeroRttAttempted() const {
   return handshaker()->ZeroRttAttempted();
-}
-
-void QuicCryptoServerStream::SetPeerSupportsStatelessRejects(
-    bool peer_supports_stateless_rejects) {
-  peer_supports_stateless_rejects_ = peer_supports_stateless_rejects;
 }
 
 void QuicCryptoServerStream::SetPreviousCachedNetworkParams(
