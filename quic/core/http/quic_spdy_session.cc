@@ -331,6 +331,9 @@ QuicSpdySession::~QuicSpdySession() {
     static_cast<QuicSpdyStream*>(kv.second.get())->ClearSession();
   }
   for (auto const& kv : dynamic_streams()) {
+    if (eliminate_static_stream_map() && kv.second->is_static()) {
+      continue;
+    }
     static_cast<QuicSpdyStream*>(kv.second.get())->ClearSession();
   }
 }
