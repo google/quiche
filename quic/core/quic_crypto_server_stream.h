@@ -194,17 +194,6 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerStream
  private:
   std::unique_ptr<HandshakerDelegate> handshaker_;
 
-  // If true, the server should use stateless rejects, so long as the
-  // client supports them, as indicated by
-  // peer_supports_stateless_rejects_.
-  bool use_stateless_rejects_if_peer_supported_;
-
-  // Set to true, once the server has received information from the
-  // client that it supports stateless reject.
-  //  TODO(jokulik): Remove once client stateless reject support
-  // becomes the default.
-  bool peer_supports_stateless_rejects_;
-
   // Arguments from QuicCryptoServerStream constructor that might need to be
   // passed to the HandshakerDelegate constructor in its late construction.
   const QuicCryptoServerConfig* crypto_config_;
