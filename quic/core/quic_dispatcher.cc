@@ -345,7 +345,7 @@ void QuicDispatcher::ProcessPacket(const QuicSocketAddress& self_address,
   QUIC_RESTART_FLAG_COUNT(quic_no_framer_object_in_dispatcher);
   QuicPacketHeader header;
   uint8_t destination_connection_id_length;
-  string detailed_error;
+  std::string detailed_error;
   const QuicErrorCode error = QuicFramer::ProcessPacketDispatcher(
       packet, expected_connection_id_length_, &header.form,
       &header.version_flag, &last_version_label_,
