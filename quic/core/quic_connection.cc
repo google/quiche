@@ -346,8 +346,6 @@ QuicConnection::QuicConnection(
       supports_release_time_(false),
       release_time_into_future_(QuicTime::Delta::Zero()),
       no_version_negotiation_(supported_versions.size() == 1),
-      fix_termination_packets_(
-          GetQuicReloadableFlag(quic_fix_termination_packets)),
       send_ack_when_on_can_write_(false),
       retry_has_been_parsed_(false),
       validate_packet_number_post_decryption_(
@@ -3085,10 +3083,7 @@ void QuicConnection::CloseConnection(
 void QuicConnection::SendConnectionClosePacket(QuicErrorCode error,
                                                const std::string& details) {
   QUIC_DLOG(INFO) << ENDPOINT << "Sending connection close packet.";
-  if (fix_termination_packets_) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_fix_termination_packets);
-    SetDefaultEncryptionLevel(GetConnectionCloseEncryptionLevel());
-  }
+  SetDefaultEncryptionLevel(GetConnectionCloseEncryptionLevel());
   ClearQueuedPackets();
   // If there was a packet write error, write the smallest close possible.
   AckBundling ack_mode = (error == QUIC_PACKET_WRITE_ERROR) ? NO_ACK : SEND_ACK;
@@ -4008,7 +4003,6 @@ bool QuicConnection::ShouldSetAckAlarm() const {
 }
 
 EncryptionLevel QuicConnection::GetConnectionCloseEncryptionLevel() const {
-  DCHECK(fix_termination_packets_);
   if (perspective_ == Perspective::IS_CLIENT) {
     return encryption_level_;
   }

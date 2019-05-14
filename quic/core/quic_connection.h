@@ -1503,9 +1503,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // vector to improve performance since it is expected to be very small.
   std::vector<QuicConnectionId> incoming_connection_ids_;
 
-  // Latched value of quic_fix_termination_packets.
-  const bool fix_termination_packets_;
-
   // Indicates whether an ACK needs to be sent in OnCanWrite(). Only used when
   // deprecate_ack_bundling_mode is true.
   // TODO(fayang): Remove this when ACK sending logic is moved to received
