@@ -89,7 +89,7 @@ class QUIC_EXPORT_PRIVATE QuicBandwidth {
                                              bits_per_second_);
   }
 
-  std::string ToDebugValue() const;
+  std::string ToDebuggingValue() const;
 
  private:
   explicit constexpr QuicBandwidth(int64_t bits_per_second)
@@ -146,7 +146,7 @@ inline QuicByteCount operator*(QuicTime::Delta lhs, QuicBandwidth rhs) {
 // Override stream output operator for gtest.
 inline std::ostream& operator<<(std::ostream& output,
                                 const QuicBandwidth bandwidth) {
-  output << bandwidth.ToDebugValue();
+  output << bandwidth.ToDebuggingValue();
   return output;
 }
 

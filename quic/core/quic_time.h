@@ -75,7 +75,7 @@ class QUIC_EXPORT_PRIVATE QuicTime {
       return time_offset_ == kQuicInfiniteTimeUs;
     }
 
-    std::string ToDebugValue() const;
+    std::string ToDebuggingValue() const;
 
    private:
     friend inline bool operator==(QuicTime::Delta lhs, QuicTime::Delta rhs);
@@ -275,7 +275,7 @@ inline QuicTime::Delta operator-(QuicTime lhs, QuicTime rhs) {
 // Override stream output operator for gtest.
 inline std::ostream& operator<<(std::ostream& output,
                                 const QuicTime::Delta delta) {
-  output << delta.ToDebugValue();
+  output << delta.ToDebuggingValue();
   return output;
 }
 }  // namespace quic

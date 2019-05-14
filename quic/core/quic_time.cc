@@ -13,7 +13,7 @@
 
 namespace quic {
 
-std::string QuicTime::Delta::ToDebugValue() const {
+std::string QuicTime::Delta::ToDebuggingValue() const {
   const int64_t one_ms = 1000;
   const int64_t one_s = 1000 * one_ms;
 

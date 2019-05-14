@@ -82,18 +82,18 @@ TEST_F(QuicTimeDeltaTest, NotEqual) {
                QuicTime::Delta::FromSeconds(0));
 }
 
-TEST_F(QuicTimeDeltaTest, DebugValue) {
+TEST_F(QuicTimeDeltaTest, DebuggingValue) {
   const QuicTime::Delta one_us = QuicTime::Delta::FromMicroseconds(1);
   const QuicTime::Delta one_ms = QuicTime::Delta::FromMilliseconds(1);
   const QuicTime::Delta one_s = QuicTime::Delta::FromSeconds(1);
 
-  EXPECT_EQ("3s", (3 * one_s).ToDebugValue());
-  EXPECT_EQ("3ms", (3 * one_ms).ToDebugValue());
-  EXPECT_EQ("3us", (3 * one_us).ToDebugValue());
+  EXPECT_EQ("3s", (3 * one_s).ToDebuggingValue());
+  EXPECT_EQ("3ms", (3 * one_ms).ToDebuggingValue());
+  EXPECT_EQ("3us", (3 * one_us).ToDebuggingValue());
 
-  EXPECT_EQ("3001us", (3 * one_ms + one_us).ToDebugValue());
-  EXPECT_EQ("3001ms", (3 * one_s + one_ms).ToDebugValue());
-  EXPECT_EQ("3000001us", (3 * one_s + one_us).ToDebugValue());
+  EXPECT_EQ("3001us", (3 * one_ms + one_us).ToDebuggingValue());
+  EXPECT_EQ("3001ms", (3 * one_s + one_ms).ToDebuggingValue());
+  EXPECT_EQ("3000001us", (3 * one_s + one_us).ToDebuggingValue());
 }
 
 class QuicTimeTest : public QuicTest {
