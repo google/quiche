@@ -264,11 +264,13 @@ void QuicSentPacketManager::ResumeConnectionState(
           : cached_network_params.bandwidth_estimate_bytes_per_second());
   QuicTime::Delta rtt =
       QuicTime::Delta::FromMilliseconds(cached_network_params.min_rtt_ms());
-  AdjustNetworkParameters(bandwidth, rtt);
+  AdjustNetworkParameters(bandwidth, rtt, /*allow_cwnd_to_decrease=*/false);
 }
 
-void QuicSentPacketManager::AdjustNetworkParameters(QuicBandwidth bandwidth,
-                                                    QuicTime::Delta rtt) {
+void QuicSentPacketManager::AdjustNetworkParameters(
+    QuicBandwidth bandwidth,
+    QuicTime::Delta rtt,
+    bool allow_cwnd_to_decrease) {
   if (!rtt.IsZero()) {
     SetInitialRtt(rtt);
   }
@@ -277,7 +279,8 @@ void QuicSentPacketManager::AdjustNetworkParameters(QuicBandwidth bandwidth,
     QUIC_RELOADABLE_FLAG_COUNT(quic_conservative_bursts);
     pacing_sender_.SetBurstTokens(kConservativeUnpacedBurst);
   }
-  send_algorithm_->AdjustNetworkParameters(bandwidth, rtt);
+  send_algorithm_->AdjustNetworkParameters(bandwidth, rtt,
+                                           allow_cwnd_to_decrease);
   if (debug_delegate_ != nullptr) {
     debug_delegate_->OnAdjustNetworkParameters(
         bandwidth, rtt.IsZero() ? rtt_stats_.SmoothedOrInitialRtt() : rtt,

@@ -61,6 +61,9 @@ const QuicPacketCount kInitialCongestionWindow = 32;
 // Do not allow initial congestion window to be greater than 200 packets.
 const QuicPacketCount kMaxInitialCongestionWindow = 200;
 
+// Do not allow initial congestion window to be smaller than 10 packets.
+const QuicPacketCount kMinInitialCongestionWindow = 10;
+
 // Minimum size of initial flow control window, for both stream and session.
 // This is only enforced when version.AllowsLowFlowControlLimits() is false.
 const uint32_t kMinimumFlowControlSendWindow = 16 * 1024;  // 16 KB

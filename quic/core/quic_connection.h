@@ -374,7 +374,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // Allows the client to adjust network parameters based on external
   // information.
-  void AdjustNetworkParameters(QuicBandwidth bandwidth, QuicTime::Delta rtt);
+  void AdjustNetworkParameters(QuicBandwidth bandwidth,
+                               QuicTime::Delta rtt,
+                               bool allow_cwnd_to_decrease);
 
   // Returns the max pacing rate for the connection.
   virtual QuicBandwidth MaxPacingRate() const;

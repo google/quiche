@@ -340,7 +340,8 @@ void BbrSender::SetFromConfig(const QuicConfig& config,
 }
 
 void BbrSender::AdjustNetworkParameters(QuicBandwidth bandwidth,
-                                        QuicTime::Delta rtt) {
+                                        QuicTime::Delta rtt,
+                                        bool allow_cwnd_to_decrease) {
   if (!bandwidth.IsZero()) {
     max_bandwidth_.Update(bandwidth, round_trip_count_);
   }
@@ -350,8 +351,13 @@ void BbrSender::AdjustNetworkParameters(QuicBandwidth bandwidth,
   if (GetQuicReloadableFlag(quic_fix_bbr_cwnd_in_bandwidth_resumption) &&
       mode_ == STARTUP) {
     const QuicByteCount new_cwnd =
-        std::min(kMaxInitialCongestionWindow * kDefaultTCPMSS,
-                 bandwidth * rtt_stats_->SmoothedOrInitialRtt());
+        std::max(kMinInitialCongestionWindow * kDefaultTCPMSS,
+                 std::min(kMaxInitialCongestionWindow * kDefaultTCPMSS,
+                          bandwidth * rtt_stats_->SmoothedOrInitialRtt()));
+    // Decreases cwnd gain and pacing gain. Please note, if pacing_rate_ has
+    // been calculated, it cannot decrease in STARTUP phase.
+    set_high_gain(kDerivedHighCWNDGain);
+    set_high_cwnd_gain(kDerivedHighCWNDGain);
     if (new_cwnd > congestion_window_) {
       QUIC_RELOADABLE_FLAG_COUNT_N(quic_fix_bbr_cwnd_in_bandwidth_resumption, 1,
                                    2);
@@ -359,11 +365,13 @@ void BbrSender::AdjustNetworkParameters(QuicBandwidth bandwidth,
       QUIC_RELOADABLE_FLAG_COUNT_N(quic_fix_bbr_cwnd_in_bandwidth_resumption, 2,
                                    2);
     }
-    // Decreases cwnd gain and pacing gain. Please note, if pacing_rate_ has
-    // been calculated, it cannot decrease in STARTUP phase.
-    set_high_gain(kDerivedHighCWNDGain);
-    set_high_cwnd_gain(kDerivedHighCWNDGain);
-    congestion_window_ = std::max(new_cwnd, congestion_window_);
+    if (bandwidth.IsZero() ||
+        (new_cwnd < congestion_window_ && !allow_cwnd_to_decrease)) {
+      // Ignore bad bandwidth samples. Only decrease cwnd if
+      // allow_cwnd_to_decrease is true.
+      return;
+    }
+    congestion_window_ = new_cwnd;
   }
 }
 

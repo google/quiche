@@ -105,8 +105,10 @@ void TcpCubicSenderBytes::SetFromConfig(const QuicConfig& config,
   }
 }
 
-void TcpCubicSenderBytes::AdjustNetworkParameters(QuicBandwidth bandwidth,
-                                                  QuicTime::Delta rtt) {
+void TcpCubicSenderBytes::AdjustNetworkParameters(
+    QuicBandwidth bandwidth,
+    QuicTime::Delta rtt,
+    bool /*allow_cwnd_to_decrease*/) {
   if (bandwidth.IsZero() || rtt.IsZero()) {
     return;
   }

@@ -1292,7 +1292,7 @@ TEST_F(BbrSenderTest, ResumeConnectionState) {
   CreateDefaultSetup();
 
   bbr_sender_.connection()->AdjustNetworkParameters(kTestLinkBandwidth,
-                                                    kTestRtt);
+                                                    kTestRtt, false);
   EXPECT_EQ(kTestLinkBandwidth, sender_->ExportDebugState().max_bandwidth);
   EXPECT_EQ(kTestLinkBandwidth, sender_->BandwidthEstimate());
   EXPECT_APPROX_EQ(kTestRtt, sender_->ExportDebugState().min_rtt, 0.01f);

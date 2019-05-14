@@ -677,11 +677,11 @@ TEST_F(TcpCubicSenderBytesTest, BandwidthResumption) {
   const QuicBandwidth kBandwidthEstimate =
       QuicBandwidth::FromBytesPerSecond(kNumberOfPackets * kDefaultTCPMSS);
   const QuicTime::Delta kRttEstimate = QuicTime::Delta::FromSeconds(1);
-  sender_->AdjustNetworkParameters(kBandwidthEstimate, kRttEstimate);
+  sender_->AdjustNetworkParameters(kBandwidthEstimate, kRttEstimate, false);
   EXPECT_EQ(kNumberOfPackets * kDefaultTCPMSS, sender_->GetCongestionWindow());
 
   // Resume with an illegal value of 0 and verify the server ignores it.
-  sender_->AdjustNetworkParameters(QuicBandwidth::Zero(), kRttEstimate);
+  sender_->AdjustNetworkParameters(QuicBandwidth::Zero(), kRttEstimate, false);
   EXPECT_EQ(kNumberOfPackets * kDefaultTCPMSS, sender_->GetCongestionWindow());
 
   // Resumed CWND is limited to be in a sensible range.
@@ -689,7 +689,7 @@ TEST_F(TcpCubicSenderBytesTest, BandwidthResumption) {
       QuicBandwidth::FromBytesPerSecond((kMaxCongestionWindowPackets + 1) *
                                         kDefaultTCPMSS);
   sender_->AdjustNetworkParameters(kUnreasonableBandwidth,
-                                   QuicTime::Delta::FromSeconds(1));
+                                   QuicTime::Delta::FromSeconds(1), false);
   EXPECT_EQ(kMaxCongestionWindowPackets * kDefaultTCPMSS,
             sender_->GetCongestionWindow());
 }

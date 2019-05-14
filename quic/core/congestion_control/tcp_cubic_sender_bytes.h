@@ -47,7 +47,8 @@ class QUIC_EXPORT_PRIVATE TcpCubicSenderBytes : public SendAlgorithmInterface {
   void SetFromConfig(const QuicConfig& config,
                      Perspective perspective) override;
   void AdjustNetworkParameters(QuicBandwidth bandwidth,
-                               QuicTime::Delta rtt) override;
+                               QuicTime::Delta rtt,
+                               bool allow_cwnd_to_decrease) override;
   void SetNumEmulatedConnections(int num_connections) override;
   void SetInitialCongestionWindowInPackets(
       QuicPacketCount congestion_window) override;

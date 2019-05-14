@@ -120,7 +120,8 @@ class QUIC_EXPORT_PRIVATE SendAlgorithmInterface {
   // measurement or prediction.  Either |bandwidth| or |rtt| may be zero if no
   // sample is available.
   virtual void AdjustNetworkParameters(QuicBandwidth bandwidth,
-                                       QuicTime::Delta rtt) = 0;
+                                       QuicTime::Delta rtt,
+                                       bool allow_cwnd_to_decrease) = 0;
 
   // Retrieves debugging information about the current state of the
   // send algorithm.
