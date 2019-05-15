@@ -394,18 +394,18 @@ int main(int argc, char* argv[]) {
 
     size_t response_code = client.latest_response_code();
     if (response_code >= 200 && response_code < 300) {
-      std::cerr << "Request succeeded (" << response_code << ")." << std::endl;
+      std::cout << "Request succeeded (" << response_code << ")." << std::endl;
     } else if (response_code >= 300 && response_code < 400) {
       if (GetQuicFlag(FLAGS_redirect_is_success)) {
-        std::cerr << "Request succeeded (redirect " << response_code << ")."
+        std::cout << "Request succeeded (redirect " << response_code << ")."
                   << std::endl;
       } else {
-        std::cerr << "Request failed (redirect " << response_code << ")."
+        std::cout << "Request failed (redirect " << response_code << ")."
                   << std::endl;
         return 1;
       }
     } else {
-      std::cerr << "Request failed (" << response_code << ")." << std::endl;
+      std::cout << "Request failed (" << response_code << ")." << std::endl;
       return 1;
     }
 
