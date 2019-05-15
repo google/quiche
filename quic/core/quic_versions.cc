@@ -38,9 +38,7 @@ ParsedQuicVersion::ParsedQuicVersion(HandshakeProtocol handshake_protocol,
 }
 
 bool ParsedQuicVersion::KnowsWhichDecrypterToUse() const {
-  return (GetQuicReloadableFlag(quic_v44_disable_trial_decryption) &&
-          transport_version >= QUIC_VERSION_44) ||
-         transport_version == QUIC_VERSION_99 ||
+  return transport_version >= QUIC_VERSION_47 ||
          handshake_protocol == PROTOCOL_TLS1_3;
 }
 
@@ -50,14 +48,7 @@ bool ParsedQuicVersion::AllowsLowFlowControlLimits() const {
 }
 
 bool ParsedQuicVersion::HasHeaderProtection() const {
-  // Header protection support hasn't landed yet, so right now no version
-  // supports header protection. When support for header protection lands, this
-  // check will be revised to return true for versions that support header
-  // protection (i.e. transport_version == QUIC_VERSION_99).
-  //
-  // Returning false right now allows code to land in chromium that needs to be
-  // on only when header protection is supported.
-  return false;
+  return transport_version == QUIC_VERSION_99;
 }
 
 bool ParsedQuicVersion::SupportsRetry() const {
@@ -440,6 +431,7 @@ void QuicVersionInitializeSupportForIetfDraft(int32_t draft_version) {
   SetQuicRestartFlag(quic_enable_accept_random_ipn, true);
   SetQuicRestartFlag(quic_allow_variable_length_connection_id_for_negotiation,
                      true);
+  SetQuicRestartFlag(quic_do_not_override_connection_id, true);
 }
 
 void QuicEnableVersion(ParsedQuicVersion parsed_version) {

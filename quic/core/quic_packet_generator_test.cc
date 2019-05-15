@@ -650,6 +650,9 @@ TEST_F(QuicPacketGeneratorTest, ConsumeData_Handshake_PaddingDisabled) {
     // frames, so the expected packet length differs slightly.
     expected_packet_length = 28;
   }
+  if (framer_.version().HasHeaderProtection()) {
+    expected_packet_length = 29;
+  }
   EXPECT_EQ(expected_packet_length, packets_[0].encrypted_length);
 }
 

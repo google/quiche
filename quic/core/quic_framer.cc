@@ -1570,7 +1570,8 @@ bool QuicFramer::ProcessVersionNegotiationPacket(
     const QuicPacketHeader& header) {
   DCHECK_EQ(Perspective::IS_CLIENT, perspective_);
 
-  QuicVersionNegotiationPacket packet(header.destination_connection_id);
+  QuicVersionNegotiationPacket packet(
+      GetServerConnectionIdAsRecipient(header, perspective_));
   // Try reading at least once to raise error if the packet is invalid.
   do {
     QuicVersionLabel version_label;
@@ -1982,7 +1983,8 @@ bool QuicFramer::ProcessDataPacket(QuicDataReader* encrypted_reader,
 
 bool QuicFramer::ProcessPublicResetPacket(QuicDataReader* reader,
                                           const QuicPacketHeader& header) {
-  QuicPublicResetPacket packet(header.destination_connection_id);
+  QuicPublicResetPacket packet(
+      GetServerConnectionIdAsRecipient(header, perspective_));
 
   std::unique_ptr<CryptoHandshakeMessage> reset(
       CryptoFramer::ParseMessage(reader->ReadRemainingPayload()));
@@ -2061,8 +2063,15 @@ bool QuicFramer::AppendPacketHeader(const QuicPacketHeader& header,
     DCHECK_EQ(Perspective::IS_SERVER, perspective_);
     public_flags |= PACKET_PUBLIC_FLAGS_NONCE;
   }
-  DCHECK_EQ(CONNECTION_ID_ABSENT, header.source_connection_id_included);
-  switch (header.destination_connection_id_included) {
+
+  QuicConnectionId connection_id =
+      GetServerConnectionIdAsSender(header, perspective_);
+  QuicConnectionIdIncluded connection_id_included =
+      GetServerConnectionIdIncludedAsSender(header, perspective_);
+  DCHECK_EQ(CONNECTION_ID_ABSENT,
+            GetClientConnectionIdIncludedAsSender(header, perspective_));
+
+  switch (connection_id_included) {
     case CONNECTION_ID_ABSENT:
       if (!writer->WriteUInt8(public_flags |
                               PACKET_PUBLIC_FLAGS_0BYTE_CONNECTION_ID)) {
@@ -2071,10 +2080,9 @@ bool QuicFramer::AppendPacketHeader(const QuicPacketHeader& header,
       break;
     case CONNECTION_ID_PRESENT:
       QUIC_BUG_IF(!QuicUtils::IsConnectionIdValidForVersion(
-          header.destination_connection_id, transport_version()))
+          connection_id, transport_version()))
           << "AppendPacketHeader: attempted to use connection ID "
-          << header.destination_connection_id
-          << " which is invalid with version "
+          << connection_id << " which is invalid with version "
           << QuicVersionToString(transport_version());
 
       public_flags |= PACKET_PUBLIC_FLAGS_8BYTE_CONNECTION_ID;
@@ -2082,12 +2090,12 @@ bool QuicFramer::AppendPacketHeader(const QuicPacketHeader& header,
         public_flags |= PACKET_PUBLIC_FLAGS_8BYTE_CONNECTION_ID_OLD;
       }
       if (!writer->WriteUInt8(public_flags) ||
-          !writer->WriteConnectionId(header.destination_connection_id)) {
+          !writer->WriteConnectionId(connection_id)) {
         return false;
       }
       break;
   }
-  last_serialized_connection_id_ = header.destination_connection_id;
+  last_serialized_connection_id_ = connection_id;
 
   if (header.version_flag) {
     DCHECK_EQ(Perspective::IS_CLIENT, perspective_);
@@ -2153,10 +2161,12 @@ bool QuicFramer::AppendIetfPacketHeader(const QuicPacketHeader& header,
                                         QuicDataWriter* writer,
                                         size_t* length_field_offset) {
   QUIC_DVLOG(1) << ENDPOINT << "Appending IETF header: " << header;
-  QUIC_BUG_IF(!QuicUtils::IsConnectionIdValidForVersion(
-      header.destination_connection_id, transport_version()))
+  QuicConnectionId server_connection_id =
+      GetServerConnectionIdAsSender(header, perspective_);
+  QUIC_BUG_IF(!QuicUtils::IsConnectionIdValidForVersion(server_connection_id,
+                                                        transport_version()))
       << "AppendIetfPacketHeader: attempted to use connection ID "
-      << header.destination_connection_id << " which is invalid with version "
+      << server_connection_id << " which is invalid with version "
       << QuicVersionToString(transport_version());
   if (!AppendIetfHeaderTypeByte(header, writer)) {
     return false;
@@ -2184,7 +2194,7 @@ bool QuicFramer::AppendIetfPacketHeader(const QuicPacketHeader& header,
     return false;
   }
 
-  last_serialized_connection_id_ = header.destination_connection_id;
+  last_serialized_connection_id_ = server_connection_id;
 
   if (QuicVersionHasLongHeaderLengths(transport_version()) &&
       header.version_flag) {
@@ -2307,18 +2317,26 @@ bool QuicFramer::ProcessPublicHeader(QuicDataReader* reader,
     return false;
   }
 
+  QuicConnectionId* header_connection_id = &header->destination_connection_id;
+  QuicConnectionIdIncluded* header_connection_id_included =
+      &header->destination_connection_id_included;
+  if (perspective_ == Perspective::IS_CLIENT &&
+      GetQuicRestartFlag(quic_do_not_override_connection_id)) {
+    header_connection_id = &header->source_connection_id;
+    header_connection_id_included = &header->source_connection_id_included;
+  }
   switch (public_flags & PACKET_PUBLIC_FLAGS_8BYTE_CONNECTION_ID) {
     case PACKET_PUBLIC_FLAGS_8BYTE_CONNECTION_ID:
-      if (!reader->ReadConnectionId(&header->destination_connection_id,
+      if (!reader->ReadConnectionId(header_connection_id,
                                     kQuicDefaultConnectionIdLength)) {
         set_detailed_error("Unable to read ConnectionId.");
         return false;
       }
-      header->destination_connection_id_included = CONNECTION_ID_PRESENT;
+      *header_connection_id_included = CONNECTION_ID_PRESENT;
       break;
     case PACKET_PUBLIC_FLAGS_0BYTE_CONNECTION_ID:
-      header->destination_connection_id_included = CONNECTION_ID_ABSENT;
-      header->destination_connection_id = last_serialized_connection_id_;
+      *header_connection_id_included = CONNECTION_ID_ABSENT;
+      *header_connection_id = last_serialized_connection_id_;
       break;
   }
 
@@ -2679,13 +2697,21 @@ bool QuicFramer::ProcessIetfPacketHeader(QuicDataReader* reader,
     return false;
   }
 
-  if (header->source_connection_id_included == CONNECTION_ID_PRESENT) {
-    // Set destination connection ID to source connection ID.
-    DCHECK_EQ(EmptyQuicConnectionId(), header->destination_connection_id);
-    header->destination_connection_id = header->source_connection_id;
-  } else if (header->destination_connection_id_included ==
-             CONNECTION_ID_ABSENT) {
-    header->destination_connection_id = last_serialized_connection_id_;
+  if (!GetQuicRestartFlag(quic_do_not_override_connection_id)) {
+    if (header->source_connection_id_included == CONNECTION_ID_PRESENT) {
+      // Set destination connection ID to source connection ID.
+      DCHECK_EQ(EmptyQuicConnectionId(), header->destination_connection_id);
+      header->destination_connection_id = header->source_connection_id;
+    } else if (header->destination_connection_id_included ==
+               CONNECTION_ID_ABSENT) {
+      header->destination_connection_id = last_serialized_connection_id_;
+    }
+  } else {
+    QUIC_RESTART_FLAG_COUNT_N(quic_do_not_override_connection_id, 5, 5);
+    if (header->source_connection_id_included == CONNECTION_ID_ABSENT) {
+      DCHECK_EQ(EmptyQuicConnectionId(), header->source_connection_id);
+      header->source_connection_id = last_serialized_connection_id_;
+    }
   }
 
   return true;
@@ -4318,7 +4344,6 @@ bool QuicFramer::DecryptPayload(QuicStringPiece encrypted,
   QuicDecrypter* decrypter = decrypter_[level].get();
   QuicDecrypter* alternative_decrypter = nullptr;
   if (version().KnowsWhichDecrypterToUse()) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_v44_disable_trial_decryption);
     if (header.form == GOOGLE_QUIC_PACKET) {
       QUIC_BUG << "Attempted to decrypt GOOGLE_QUIC_PACKET with a version that "
                   "knows which decrypter to use";

@@ -34,6 +34,11 @@
 //
 // Try to connect to a host which does not speak QUIC:
 //   quic_client www.example.com
+//
+// This tool is available as a built binary at:
+// /google/data/ro/teams/quic/tools/quic_client
+// After submitting changes to this file, you will need to follow the
+// instructions at go/quic_client_binary_update
 
 #include <netdb.h>
 #include <sys/socket.h>

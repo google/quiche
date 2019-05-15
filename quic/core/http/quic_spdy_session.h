@@ -135,7 +135,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
                                   spdy::SpdyHeaderBlock headers);
 
   // Sends SETTINGS_MAX_HEADER_LIST_SIZE SETTINGS frame.
-  size_t SendMaxHeaderListSize(size_t value);
+  void SendMaxHeaderListSize(size_t value);
 
   QpackEncoder* qpack_encoder();
   QpackDecoder* qpack_decoder();

@@ -1069,8 +1069,12 @@ TEST_P(QuicFramerTest, PacketHeaderWith0ByteConnectionId) {
   EXPECT_FALSE(framer_.ProcessPacket(*encrypted));
   EXPECT_EQ(QUIC_MISSING_PAYLOAD, framer_.error());
   ASSERT_TRUE(visitor_.header_.get());
-  EXPECT_EQ(FramerTestConnectionId(),
-            visitor_.header_->destination_connection_id);
+  if (!GetQuicRestartFlag(quic_do_not_override_connection_id)) {
+    EXPECT_EQ(FramerTestConnectionId(),
+              visitor_.header_->destination_connection_id);
+  } else {
+    EXPECT_EQ(FramerTestConnectionId(), visitor_.header_->source_connection_id);
+  }
   EXPECT_FALSE(visitor_.header_->reset_flag);
   EXPECT_FALSE(visitor_.header_->version_flag);
   EXPECT_EQ(kPacketNumber, visitor_.header_->packet_number);
@@ -5726,6 +5730,7 @@ TEST_P(QuicFramerTest, RejectIetfRetryPacketAsServer) {
 }
 
 TEST_P(QuicFramerTest, BuildPaddingFramePacket) {
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
   QuicPacketHeader header;
   header.destination_connection_id = FramerTestConnectionId();
   header.reset_flag = false;
@@ -5737,7 +5742,7 @@ TEST_P(QuicFramerTest, BuildPaddingFramePacket) {
   // clang-format off
   unsigned char packet[kMaxOutgoingPacketSize] = {
     // public flags (8 byte connection_id)
-    0x28,
+    0x2C,
     // connection_id
     0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
     // packet number
@@ -5814,6 +5819,7 @@ TEST_P(QuicFramerTest, BuildPaddingFramePacket) {
 }
 
 TEST_P(QuicFramerTest, BuildStreamFramePacketWithNewPaddingFrame) {
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
   QuicPacketHeader header;
   header.destination_connection_id = FramerTestConnectionId();
   header.reset_flag = false;
@@ -5828,7 +5834,7 @@ TEST_P(QuicFramerTest, BuildStreamFramePacketWithNewPaddingFrame) {
   // clang-format off
   unsigned char packet[] = {
     // public flags (8 byte connection_id)
-    0x28,
+    0x2C,
     // connection_id
     0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
     // packet number
@@ -5957,6 +5963,7 @@ TEST_P(QuicFramerTest, BuildStreamFramePacketWithNewPaddingFrame) {
 }
 
 TEST_P(QuicFramerTest, Build4ByteSequenceNumberPaddingFramePacket) {
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
   QuicPacketHeader header;
   header.destination_connection_id = FramerTestConnectionId();
   header.reset_flag = false;
@@ -5969,7 +5976,7 @@ TEST_P(QuicFramerTest, Build4ByteSequenceNumberPaddingFramePacket) {
   // clang-format off
   unsigned char packet[kMaxOutgoingPacketSize] = {
     // public flags (8 byte connection_id and 4 byte packet number)
-    0x28,
+    0x2C,
     // connection_id
     0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
     // packet number
@@ -6046,6 +6053,7 @@ TEST_P(QuicFramerTest, Build4ByteSequenceNumberPaddingFramePacket) {
 }
 
 TEST_P(QuicFramerTest, Build2ByteSequenceNumberPaddingFramePacket) {
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
   QuicPacketHeader header;
   header.destination_connection_id = FramerTestConnectionId();
   header.reset_flag = false;
@@ -6058,7 +6066,7 @@ TEST_P(QuicFramerTest, Build2ByteSequenceNumberPaddingFramePacket) {
   // clang-format off
   unsigned char packet[kMaxOutgoingPacketSize] = {
     // public flags (8 byte connection_id and 2 byte packet number)
-    0x18,
+    0x1C,
     // connection_id
     0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
     // packet number
@@ -6135,6 +6143,7 @@ TEST_P(QuicFramerTest, Build2ByteSequenceNumberPaddingFramePacket) {
 }
 
 TEST_P(QuicFramerTest, Build1ByteSequenceNumberPaddingFramePacket) {
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
   QuicPacketHeader header;
   header.destination_connection_id = FramerTestConnectionId();
   header.reset_flag = false;
@@ -6147,7 +6156,7 @@ TEST_P(QuicFramerTest, Build1ByteSequenceNumberPaddingFramePacket) {
   // clang-format off
   unsigned char packet[kMaxOutgoingPacketSize] = {
     // public flags (8 byte connection_id and 1 byte packet number)
-    0x08,
+    0x0C,
     // connection_id
     0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
     // packet number
@@ -6224,6 +6233,7 @@ TEST_P(QuicFramerTest, Build1ByteSequenceNumberPaddingFramePacket) {
 }
 
 TEST_P(QuicFramerTest, BuildStreamFramePacket) {
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
   QuicPacketHeader header;
   header.destination_connection_id = FramerTestConnectionId();
   header.reset_flag = false;
@@ -6241,7 +6251,7 @@ TEST_P(QuicFramerTest, BuildStreamFramePacket) {
   // clang-format off
   unsigned char packet[] = {
     // public flags (8 byte connection_id)
-    0x28,
+    0x2C,
     // connection_id
     0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
     // packet number
@@ -6475,6 +6485,7 @@ TEST_P(QuicFramerTest, BuildCryptoFramePacket) {
     // CRYPTO frames aren't supported prior to v46.
     return;
   }
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
   QuicPacketHeader header;
   header.destination_connection_id = FramerTestConnectionId();
   header.reset_flag = false;
@@ -6622,6 +6633,7 @@ TEST_P(QuicFramerTest, BuildVersionNegotiationPacket) {
 }
 
 TEST_P(QuicFramerTest, BuildAckFramePacketOneAckBlock) {
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
   QuicPacketHeader header;
   header.destination_connection_id = FramerTestConnectionId();
   header.reset_flag = false;
@@ -6637,7 +6649,7 @@ TEST_P(QuicFramerTest, BuildAckFramePacketOneAckBlock) {
   // clang-format off
   unsigned char packet[] = {
       // public flags (8 byte connection_id)
-      0x28,
+      0x2C,
       // connection_id
       0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
       // packet number
@@ -6738,6 +6750,7 @@ TEST_P(QuicFramerTest, BuildAckFramePacketOneAckBlock) {
 }
 
 TEST_P(QuicFramerTest, BuildAckFramePacketOneAckBlockMaxLength) {
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
   QuicPacketHeader header;
   header.destination_connection_id = FramerTestConnectionId();
   header.reset_flag = false;
@@ -6752,7 +6765,7 @@ TEST_P(QuicFramerTest, BuildAckFramePacketOneAckBlockMaxLength) {
   // clang-format off
   unsigned char packet[] = {
       // public flags (8 byte connection_id)
-      0x28,
+      0x2C,
       // connection_id
       0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
       // packet number
@@ -6854,6 +6867,7 @@ TEST_P(QuicFramerTest, BuildAckFramePacketOneAckBlockMaxLength) {
 }
 
 TEST_P(QuicFramerTest, BuildAckFramePacketMultipleAckBlocks) {
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
   QuicPacketHeader header;
   header.destination_connection_id = FramerTestConnectionId();
   header.reset_flag = false;
@@ -6873,7 +6887,7 @@ TEST_P(QuicFramerTest, BuildAckFramePacketMultipleAckBlocks) {
   // clang-format off
   unsigned char packet[] = {
       // public flags (8 byte connection_id)
-      0x28,
+      0x2C,
       // connection_id
       0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
       // packet number
@@ -7044,6 +7058,7 @@ TEST_P(QuicFramerTest, BuildAckFramePacketMultipleAckBlocks) {
 }
 
 TEST_P(QuicFramerTest, BuildAckFramePacketMaxAckBlocks) {
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
   QuicPacketHeader header;
   header.destination_connection_id = FramerTestConnectionId();
   header.reset_flag = false;
@@ -7065,7 +7080,7 @@ TEST_P(QuicFramerTest, BuildAckFramePacketMaxAckBlocks) {
   // clang-format off
   unsigned char packet[] = {
       // public flags (8 byte connection_id)
-      0x28,
+      0x2C,
       // connection_id
       0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
       // packet number
@@ -7451,6 +7466,7 @@ TEST_P(QuicFramerTest, BuildNewStopWaitingPacket) {
   if (version_.transport_version > QUIC_VERSION_43) {
     return;
   }
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
   QuicPacketHeader header;
   header.destination_connection_id = FramerTestConnectionId();
   header.reset_flag = false;
@@ -7465,7 +7481,7 @@ TEST_P(QuicFramerTest, BuildNewStopWaitingPacket) {
   // clang-format off
   unsigned char packet[] = {
     // public flags (8 byte connection_id)
-    0x28,
+    0x2C,
     // connection_id
     0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
     // packet number
@@ -7488,6 +7504,7 @@ TEST_P(QuicFramerTest, BuildNewStopWaitingPacket) {
 }
 
 TEST_P(QuicFramerTest, BuildRstFramePacketQuic) {
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
   QuicPacketHeader header;
   header.destination_connection_id = FramerTestConnectionId();
   header.reset_flag = false;
@@ -7506,7 +7523,7 @@ TEST_P(QuicFramerTest, BuildRstFramePacketQuic) {
   // clang-format off
   unsigned char packet[] = {
     // public flags (8 byte connection_id)
-    0x28,
+    0x2C,
     // connection_id
     0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
     // packet number
@@ -7604,6 +7621,7 @@ TEST_P(QuicFramerTest, BuildRstFramePacketQuic) {
 }
 
 TEST_P(QuicFramerTest, BuildCloseFramePacket) {
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
   QuicPacketHeader header;
   header.destination_connection_id = FramerTestConnectionId();
   header.reset_flag = false;
@@ -7626,7 +7644,7 @@ TEST_P(QuicFramerTest, BuildCloseFramePacket) {
   // clang-format off
   unsigned char packet[] = {
     // public flags (8 byte connection_id)
-    0x28,
+    0x2C,
     // connection_id
     0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
     // packet number
@@ -7732,6 +7750,7 @@ TEST_P(QuicFramerTest, BuildCloseFramePacket) {
 }
 
 TEST_P(QuicFramerTest, BuildTruncatedCloseFramePacket) {
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
   QuicPacketHeader header;
   header.destination_connection_id = FramerTestConnectionId();
   header.reset_flag = false;
@@ -7752,7 +7771,7 @@ TEST_P(QuicFramerTest, BuildTruncatedCloseFramePacket) {
   // clang-format off
   unsigned char packet[] = {
     // public flags (8 byte connection_id)
-    0x28,
+    0x2C,
     // connection_id
     0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
     // packet number
@@ -7974,6 +7993,7 @@ TEST_P(QuicFramerTest, BuildApplicationCloseFramePacket) {
     // Versions other than 99 do not have ApplicationClose
     return;
   }
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
   QuicPacketHeader header;
   header.destination_connection_id = FramerTestConnectionId();
   header.reset_flag = false;
@@ -8024,6 +8044,7 @@ TEST_P(QuicFramerTest, BuildTruncatedApplicationCloseFramePacket) {
     // Versions other than 99 do not have this frame.
     return;
   }
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
   QuicPacketHeader header;
   header.destination_connection_id = FramerTestConnectionId();
   header.reset_flag = false;
@@ -8101,6 +8122,7 @@ TEST_P(QuicFramerTest, BuildGoAwayPacket) {
     // This frame type is not supported in version 99.
     return;
   }
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
   QuicPacketHeader header;
   header.destination_connection_id = FramerTestConnectionId();
   header.reset_flag = false;
@@ -8117,7 +8139,7 @@ TEST_P(QuicFramerTest, BuildGoAwayPacket) {
   // clang-format off
   unsigned char packet[] = {
     // public flags (8 byte connection_id)
-    0x28,
+    0x2C,
     // connection_id
     0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
     // packet number
@@ -8208,6 +8230,7 @@ TEST_P(QuicFramerTest, BuildTruncatedGoAwayPacket) {
     // This frame type is not supported in version 99.
     return;
   }
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
   QuicPacketHeader header;
   header.destination_connection_id = FramerTestConnectionId();
   header.reset_flag = false;
@@ -8224,7 +8247,7 @@ TEST_P(QuicFramerTest, BuildTruncatedGoAwayPacket) {
   // clang-format off
   unsigned char packet[] = {
     // public flags (8 byte connection_id)
-    0x28,
+    0x2C,
     // connection_id
     0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
     // packet number
@@ -8394,6 +8417,7 @@ TEST_P(QuicFramerTest, BuildTruncatedGoAwayPacket) {
 }
 
 TEST_P(QuicFramerTest, BuildWindowUpdatePacket) {
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
   QuicPacketHeader header;
   header.destination_connection_id = FramerTestConnectionId();
   header.reset_flag = false;
@@ -8409,7 +8433,7 @@ TEST_P(QuicFramerTest, BuildWindowUpdatePacket) {
   // clang-format off
   unsigned char packet[] = {
     // public flags (8 byte connection_id)
-    0x28,
+    0x2C,
     // connection_id
     0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
     // packet number
@@ -8501,6 +8525,7 @@ TEST_P(QuicFramerTest, BuildMaxStreamDataPacket) {
     // This frame is available only in this version.
     return;
   }
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
   QuicPacketHeader header;
   header.destination_connection_id = FramerTestConnectionId();
   header.reset_flag = false;
@@ -8545,6 +8570,7 @@ TEST_P(QuicFramerTest, BuildMaxDataPacket) {
     // This frame is available only in this version.
     return;
   }
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
   QuicPacketHeader header;
   header.destination_connection_id = FramerTestConnectionId();
   header.reset_flag = false;
@@ -8584,6 +8610,7 @@ TEST_P(QuicFramerTest, BuildMaxDataPacket) {
 }
 
 TEST_P(QuicFramerTest, BuildBlockedPacket) {
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
   QuicPacketHeader header;
   header.destination_connection_id = FramerTestConnectionId();
   header.reset_flag = false;
@@ -8607,7 +8634,7 @@ TEST_P(QuicFramerTest, BuildBlockedPacket) {
   // clang-format off
   unsigned char packet[] = {
     // public flags (8 byte connection_id)
-    0x28,
+    0x2C,
     // connection_id
     0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
     // packet number
@@ -8683,6 +8710,7 @@ TEST_P(QuicFramerTest, BuildBlockedPacket) {
 }
 
 TEST_P(QuicFramerTest, BuildPingPacket) {
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
   QuicPacketHeader header;
   header.destination_connection_id = FramerTestConnectionId();
   header.reset_flag = false;
@@ -8694,7 +8722,7 @@ TEST_P(QuicFramerTest, BuildPingPacket) {
   // clang-format off
   unsigned char packet[] = {
     // public flags (8 byte connection_id)
-    0x28,
+    0x2C,
     // connection_id
     0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
     // packet number
@@ -8763,6 +8791,7 @@ TEST_P(QuicFramerTest, BuildMessagePacket) {
   if (framer_.transport_version() <= QUIC_VERSION_44) {
     return;
   }
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
   QuicPacketHeader header;
   header.destination_connection_id = FramerTestConnectionId();
   header.reset_flag = false;
@@ -8854,6 +8883,7 @@ TEST_P(QuicFramerTest, BuildMessagePacket) {
 // Test that the connectivity probing packet is serialized correctly as a
 // padded PING packet.
 TEST_P(QuicFramerTest, BuildConnectivityProbingPacket) {
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
   QuicPacketHeader header;
   header.destination_connection_id = FramerTestConnectionId();
   header.reset_flag = false;
@@ -8863,7 +8893,7 @@ TEST_P(QuicFramerTest, BuildConnectivityProbingPacket) {
   // clang-format off
   unsigned char packet[] = {
     // public flags (8 byte connection_id)
-    0x28,
+    0x2C,
     // connection_id
     0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
     // packet number
@@ -9201,6 +9231,7 @@ TEST_P(QuicFramerTest, BuildPathResponsePacket3ResponsesPadded) {
 
 // Test that the MTU discovery packet is serialized correctly as a PING packet.
 TEST_P(QuicFramerTest, BuildMtuDiscoveryPacket) {
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
   QuicPacketHeader header;
   header.destination_connection_id = FramerTestConnectionId();
   header.reset_flag = false;
@@ -9212,7 +9243,7 @@ TEST_P(QuicFramerTest, BuildMtuDiscoveryPacket) {
   // clang-format off
   unsigned char packet[] = {
     // public flags (8 byte connection_id)
-    0x28,
+    0x2C,
     // connection_id
     0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
     // packet number
@@ -11322,6 +11353,7 @@ TEST_P(QuicFramerTest, BuildNewConnectionIdFramePacket) {
     // This frame is only for version 99.
     return;
   }
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
   QuicPacketHeader header;
   header.destination_connection_id = FramerTestConnectionId();
   header.reset_flag = false;
@@ -11422,6 +11454,7 @@ TEST_P(QuicFramerTest, BuildNewTokenFramePacket) {
     // This frame is only for version 99.
     return;
   }
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
   QuicPacketHeader header;
   header.destination_connection_id = FramerTestConnectionId();
   header.reset_flag = false;
@@ -12484,6 +12517,7 @@ TEST_P(QuicFramerTest, BuildRetireConnectionIdFramePacket) {
     // This frame is only for version 99.
     return;
   }
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
   QuicPacketHeader header;
   header.destination_connection_id = FramerTestConnectionId();
   header.reset_flag = false;

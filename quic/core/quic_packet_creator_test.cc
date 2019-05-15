@@ -653,7 +653,8 @@ TEST_P(QuicPacketCreatorTest, CreateAllFreeBytesForStreamFrames) {
   const size_t overhead =
       GetPacketHeaderOverhead(client_framer_.transport_version()) +
       GetEncryptionOverhead();
-  for (size_t i = overhead + creator_.MinPlaintextPacketSize();
+  for (size_t i = overhead + QuicPacketCreator::MinPlaintextPacketSize(
+                                 client_framer_.version());
        i < overhead + 100; ++i) {
     SCOPED_TRACE(i);
     creator_.SetMaxPacketLength(i);
@@ -1860,6 +1861,16 @@ TEST_P(QuicPacketCreatorTest, RetryToken) {
       "retry token", header.retry_token.data(), header.retry_token.length(),
       retry_token_bytes, sizeof(retry_token_bytes));
   DeleteFrames(&frames_);
+}
+
+TEST_P(QuicPacketCreatorTest, GetConnectionId) {
+  if (!GetQuicRestartFlag(quic_do_not_override_connection_id)) {
+    EXPECT_EQ(TestConnectionId(2), creator_.GetDestinationConnectionId());
+    EXPECT_EQ(TestConnectionId(2), creator_.GetSourceConnectionId());
+    return;
+  }
+  EXPECT_EQ(TestConnectionId(2), creator_.GetDestinationConnectionId());
+  EXPECT_EQ(EmptyQuicConnectionId(), creator_.GetSourceConnectionId());
 }
 
 }  // namespace

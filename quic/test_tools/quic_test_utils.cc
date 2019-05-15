@@ -911,12 +911,13 @@ QuicEncryptedPacket* ConstructEncryptedPacket(
     QuicFrame frame(new QuicCryptoFrame(level, 0, data));
     frames.push_back(frame);
   }
-  // We need a minimum of 7 bytes of encrypted payload. (See
-  // QuicPacketCreator::kMinPlaintextPacketSize.) This will guarantee that we
-  // have at least that much. (It ignores the overhead of the stream/crypto
-  // framing, so it overpads slightly.)
-  if (data.length() < 7) {
-    size_t padding_length = 7 - data.length();
+  // We need a minimum number of bytes of encrypted payload. This will
+  // guarantee that we have at least that much. (It ignores the overhead of the
+  // stream/crypto framing, so it overpads slightly.)
+  size_t min_plaintext_size =
+      QuicPacketCreator::MinPlaintextPacketSize(version);
+  if (data.length() < min_plaintext_size) {
+    size_t padding_length = min_plaintext_size - data.length();
     frames.push_back(QuicFrame(QuicPaddingFrame(padding_length)));
   }
 

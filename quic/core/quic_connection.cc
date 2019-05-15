@@ -346,8 +346,6 @@ QuicConnection::QuicConnection(
       supports_release_time_(false),
       release_time_into_future_(QuicTime::Delta::Zero()),
       no_version_negotiation_(supported_versions.size() == 1),
-      fix_termination_packets_(
-          GetQuicReloadableFlag(quic_fix_termination_packets)),
       send_ack_when_on_can_write_(false),
       retry_has_been_parsed_(false),
       validate_packet_number_post_decryption_(
@@ -816,25 +814,26 @@ void QuicConnection::AddIncomingConnectionId(QuicConnectionId connection_id) {
 
 bool QuicConnection::OnUnauthenticatedPublicHeader(
     const QuicPacketHeader& header) {
-  if (header.destination_connection_id == connection_id_ ||
-      HasIncomingConnectionId(header.destination_connection_id)) {
+  QuicConnectionId server_connection_id =
+      GetServerConnectionIdAsRecipient(header, perspective_);
+
+  if (server_connection_id == connection_id_ ||
+      HasIncomingConnectionId(server_connection_id)) {
     return true;
   }
 
   if (PacketCanReplaceConnectionId(header, perspective_)) {
     QUIC_DLOG(INFO) << ENDPOINT << "Accepting packet with new connection ID "
-                    << header.destination_connection_id << " instead of "
-                    << connection_id_;
+                    << server_connection_id << " instead of " << connection_id_;
     return true;
   }
 
   ++stats_.packets_dropped;
   QUIC_DLOG(INFO) << ENDPOINT
                   << "Ignoring packet from unexpected ConnectionId: "
-                  << header.destination_connection_id << " instead of "
-                  << connection_id_;
+                  << server_connection_id << " instead of " << connection_id_;
   if (debug_visitor_ != nullptr) {
-    debug_visitor_->OnIncorrectConnectionId(header.destination_connection_id);
+    debug_visitor_->OnIncorrectConnectionId(server_connection_id);
   }
   // If this is a server, the dispatcher routes each packet to the
   // QuicConnection responsible for the packet's connection ID.  So if control
@@ -851,8 +850,10 @@ bool QuicConnection::OnUnauthenticatedHeader(const QuicPacketHeader& header) {
   // Check that any public reset packet with a different connection ID that was
   // routed to this QuicConnection has been redirected before control reaches
   // here.
-  DCHECK(header.destination_connection_id == connection_id_ ||
-         HasIncomingConnectionId(header.destination_connection_id) ||
+  DCHECK(GetServerConnectionIdAsRecipient(header, perspective_) ==
+             connection_id_ ||
+         HasIncomingConnectionId(
+             GetServerConnectionIdAsRecipient(header, perspective_)) ||
          PacketCanReplaceConnectionId(header, perspective_));
 
   if (!packet_generator_.IsPendingPacketEmpty()) {
@@ -1480,7 +1481,8 @@ void QuicConnection::OnPacketComplete() {
   }
 
   QUIC_DVLOG(1) << ENDPOINT << "Got packet " << last_header_.packet_number
-                << " for " << last_header_.destination_connection_id;
+                << " for "
+                << GetServerConnectionIdAsRecipient(last_header_, perspective_);
 
   QUIC_DLOG_IF(INFO, current_packet_content_ == SECOND_FRAME_IS_PADDING)
       << ENDPOINT << "Received a padded PING packet. is_probing: "
@@ -1489,7 +1491,8 @@ void QuicConnection::OnPacketComplete() {
   if (perspective_ == Perspective::IS_CLIENT) {
     QUIC_DVLOG(1) << ENDPOINT
                   << "Received a speculative connectivity probing packet for "
-                  << last_header_.destination_connection_id
+                  << GetServerConnectionIdAsRecipient(last_header_,
+                                                      perspective_)
                   << " from ip:port: " << last_packet_source_address_.ToString()
                   << " to ip:port: "
                   << last_packet_destination_address_.ToString();
@@ -1500,7 +1503,8 @@ void QuicConnection::OnPacketComplete() {
     // This node is not a client (is a server) AND the received packet was
     // connectivity-probing, send an appropriate response.
     QUIC_DVLOG(1) << ENDPOINT << "Received a connectivity probing packet for "
-                  << last_header_.destination_connection_id
+                  << GetServerConnectionIdAsRecipient(last_header_,
+                                                      perspective_)
                   << " from ip:port: " << last_packet_source_address_.ToString()
                   << " to ip:port: "
                   << last_packet_destination_address_.ToString();
@@ -3085,10 +3089,7 @@ void QuicConnection::CloseConnection(
 void QuicConnection::SendConnectionClosePacket(QuicErrorCode error,
                                                const std::string& details) {
   QUIC_DLOG(INFO) << ENDPOINT << "Sending connection close packet.";
-  if (fix_termination_packets_) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_fix_termination_packets);
-    SetDefaultEncryptionLevel(GetConnectionCloseEncryptionLevel());
-  }
+  SetDefaultEncryptionLevel(GetConnectionCloseEncryptionLevel());
   ClearQueuedPackets();
   // If there was a packet write error, write the smallest close possible.
   AckBundling ack_mode = (error == QUIC_PACKET_WRITE_ERROR) ? NO_ACK : SEND_ACK;
@@ -4008,7 +4009,6 @@ bool QuicConnection::ShouldSetAckAlarm() const {
 }
 
 EncryptionLevel QuicConnection::GetConnectionCloseEncryptionLevel() const {
-  DCHECK(fix_termination_packets_);
   if (perspective_ == Perspective::IS_CLIENT) {
     return encryption_level_;
   }

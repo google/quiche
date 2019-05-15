@@ -1107,7 +1107,8 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     header.destination_connection_id = connection_id_;
     header.packet_number_length = packet_number_length_;
     header.destination_connection_id_included = connection_id_included_;
-    if (peer_framer_.transport_version() > QUIC_VERSION_43 &&
+    if ((peer_framer_.transport_version() > QUIC_VERSION_43 ||
+         GetQuicRestartFlag(quic_do_not_override_connection_id)) &&
         peer_framer_.perspective() == Perspective::IS_SERVER) {
       header.destination_connection_id_included = CONNECTION_ID_ABSENT;
     }
@@ -1116,10 +1117,14 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
       header.version_flag = true;
       header.retry_token_length_length = VARIABLE_LENGTH_INTEGER_LENGTH_1;
       header.length_length = VARIABLE_LENGTH_INTEGER_LENGTH_2;
-      if (peer_framer_.perspective() == Perspective::IS_SERVER) {
-        header.source_connection_id = connection_id_;
-        header.source_connection_id_included = CONNECTION_ID_PRESENT;
-      }
+    }
+    if ((GetQuicRestartFlag(quic_do_not_override_connection_id) ||
+         (level == ENCRYPTION_INITIAL &&
+          peer_framer_.version().KnowsWhichDecrypterToUse())) &&
+        header.version_flag &&
+        peer_framer_.perspective() == Perspective::IS_SERVER) {
+      header.source_connection_id = connection_id_;
+      header.source_connection_id_included = CONNECTION_ID_PRESENT;
     }
     header.packet_number = QuicPacketNumber(number);
     QuicFrames frames;
@@ -1316,9 +1321,15 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     }
     // Set connection_id to peer's in memory representation as this data packet
     // is created by peer_framer.
-    header.destination_connection_id = connection_id_;
-    header.packet_number_length = packet_number_length_;
-    header.destination_connection_id_included = connection_id_included_;
+    if (GetQuicRestartFlag(quic_do_not_override_connection_id) &&
+        peer_framer_.perspective() == Perspective::IS_SERVER) {
+      header.source_connection_id = connection_id_;
+      header.source_connection_id_included = connection_id_included_;
+      header.destination_connection_id_included = CONNECTION_ID_ABSENT;
+    } else {
+      header.destination_connection_id = connection_id_;
+      header.destination_connection_id_included = connection_id_included_;
+    }
     if (peer_framer_.transport_version() > QUIC_VERSION_43 &&
         peer_framer_.perspective() == Perspective::IS_SERVER) {
       header.destination_connection_id_included = CONNECTION_ID_ABSENT;
@@ -1331,6 +1342,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
         }
       }
     }
+    header.packet_number_length = packet_number_length_;
     header.packet_number = QuicPacketNumber(number);
 
     QuicFrames frames;
@@ -1357,12 +1369,21 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     QuicPacketHeader header;
     // Set connection_id to peer's in memory representation as this connection
     // close packet is created by peer_framer.
-    header.destination_connection_id = connection_id_;
-    header.packet_number = QuicPacketNumber(number);
-    if (peer_framer_.transport_version() > QUIC_VERSION_43 &&
+    if (GetQuicRestartFlag(quic_do_not_override_connection_id) &&
         peer_framer_.perspective() == Perspective::IS_SERVER) {
+      header.source_connection_id = connection_id_;
       header.destination_connection_id_included = CONNECTION_ID_ABSENT;
+      if (peer_framer_.transport_version() <= QUIC_VERSION_43) {
+        header.source_connection_id_included = CONNECTION_ID_PRESENT;
+      }
+    } else {
+      header.destination_connection_id = connection_id_;
+      if (peer_framer_.transport_version() > QUIC_VERSION_43) {
+        header.destination_connection_id_included = CONNECTION_ID_ABSENT;
+      }
     }
+
+    header.packet_number = QuicPacketNumber(number);
 
     QuicConnectionCloseFrame qccf(QUIC_PEER_GOING_AWAY);
     if (peer_framer_.transport_version() == QUIC_VERSION_99) {
@@ -6764,8 +6785,12 @@ TEST_P(QuicConnectionTest, ClientHandlesVersionNegotiation) {
   // Now force another packet.  The connection should transition into
   // NEGOTIATED_VERSION state and tell the packet creator to StopSendingVersion.
   QuicPacketHeader header;
-  header.destination_connection_id = connection_id_;
   header.destination_connection_id_included = CONNECTION_ID_ABSENT;
+  if (!GetQuicRestartFlag(quic_do_not_override_connection_id)) {
+    header.destination_connection_id = connection_id_;
+  } else {
+    header.source_connection_id = connection_id_;
+  }
   header.packet_number = QuicPacketNumber(12);
   header.version_flag = false;
   QuicFrames frames;
@@ -6865,9 +6890,18 @@ TEST_P(QuicConnectionTest, CheckSendStats) {
 TEST_P(QuicConnectionTest, ProcessFramesIfPacketClosedConnection) {
   // Construct a packet with stream frame and connection close frame.
   QuicPacketHeader header;
-  header.destination_connection_id = connection_id_;
-  if (peer_framer_.transport_version() > QUIC_VERSION_43) {
+  if (GetQuicRestartFlag(quic_do_not_override_connection_id) &&
+      peer_framer_.perspective() == Perspective::IS_SERVER) {
+    header.source_connection_id = connection_id_;
     header.destination_connection_id_included = CONNECTION_ID_ABSENT;
+    if (peer_framer_.transport_version() <= QUIC_VERSION_43) {
+      header.source_connection_id_included = CONNECTION_ID_PRESENT;
+    }
+  } else {
+    header.destination_connection_id = connection_id_;
+    if (peer_framer_.transport_version() > QUIC_VERSION_43) {
+      header.destination_connection_id_included = CONNECTION_ID_ABSENT;
+    }
   }
   header.packet_number = QuicPacketNumber(1);
   header.version_flag = false;

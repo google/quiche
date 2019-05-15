@@ -1640,7 +1640,11 @@ TEST_P(EndToEndTest, 0ByteConnectionId) {
       client_->client()->client_session()->connection();
   QuicPacketHeader* header =
       QuicConnectionPeer::GetLastHeader(client_connection);
-  EXPECT_EQ(CONNECTION_ID_ABSENT, header->destination_connection_id_included);
+  if (!GetQuicRestartFlag(quic_do_not_override_connection_id)) {
+    EXPECT_EQ(CONNECTION_ID_ABSENT, header->destination_connection_id_included);
+  } else {
+    EXPECT_EQ(CONNECTION_ID_ABSENT, header->source_connection_id_included);
+  }
 }
 
 TEST_P(EndToEndTestWithTls, 8ByteConnectionId) {
@@ -3753,7 +3757,6 @@ class BadShloPacketWriter2 : public QuicPacketWriterWrapper {
 TEST_P(EndToEndTest, ForwardSecureConnectionClose) {
   // This test ensures ZERO_RTT_PROTECTED connection close is sent to a client
   // which has ZERO_RTT_PROTECTED encryption level.
-  SetQuicReloadableFlag(quic_fix_termination_packets, true);
   connect_to_server_on_initialize_ =
       negotiated_version_.transport_version <= QUIC_VERSION_43;
   ASSERT_TRUE(Initialize());

@@ -210,6 +210,12 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // Returns a dummy packet that is valid but contains no useful information.
   static SerializedPacket NoPacket();
 
+  // Returns the destination connection ID to send over the wire.
+  QuicConnectionId GetDestinationConnectionId() const;
+
+  // Returns the source connection ID to send over the wire.
+  QuicConnectionId GetSourceConnectionId() const;
+
   // Returns length of destination connection ID to send over the wire.
   QuicConnectionIdLength GetDestinationConnectionIdLength() const;
 
@@ -283,7 +289,7 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   }
 
   // Returns the minimum size that the plaintext of a packet must be.
-  size_t MinPlaintextPacketSize() const;
+  static size_t MinPlaintextPacketSize(const ParsedQuicVersion& version);
 
  private:
   friend class test::QuicPacketCreatorPeer;

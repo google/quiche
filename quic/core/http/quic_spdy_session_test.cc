@@ -421,7 +421,7 @@ TEST_P(QuicSpdySessionTestServer, UsesPendingStreams) {
   if (!VersionHasControlStreams(transport_version())) {
     return;
   }
-  EXPECT_TRUE(session_.UsesPendingStreams());
+  EXPECT_FALSE(session_.UsesPendingStreams());
 }
 
 TEST_P(QuicSpdySessionTestServer, PeerAddress) {
@@ -1602,7 +1602,7 @@ TEST_P(QuicSpdySessionTestClient, UsesPendingStreams) {
   if (!VersionHasControlStreams(transport_version())) {
     return;
   }
-  EXPECT_TRUE(session_.UsesPendingStreams());
+  EXPECT_FALSE(session_.UsesPendingStreams());
 }
 
 TEST_P(QuicSpdySessionTestClient, AvailableStreamsClient) {

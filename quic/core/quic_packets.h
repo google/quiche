@@ -32,6 +32,32 @@ namespace quic {
 class QuicPacket;
 struct QuicPacketHeader;
 
+// Returns the destination connection ID of |header| when |perspective| is
+// server, and the source connection ID when |perspective| is client.
+QUIC_EXPORT_PRIVATE QuicConnectionId
+GetServerConnectionIdAsRecipient(const QuicPacketHeader& header,
+                                 Perspective perspective);
+
+// Returns the destination connection ID of |header| when |perspective| is
+// client, and the source connection ID when |perspective| is server.
+QUIC_EXPORT_PRIVATE QuicConnectionId
+GetServerConnectionIdAsSender(const QuicPacketHeader& header,
+                              Perspective perspective);
+
+// Returns the destination connection ID included of |header| when |perspective|
+// is client, and the source connection ID included when |perspective| is
+// server.
+QUIC_EXPORT_PRIVATE QuicConnectionIdIncluded
+GetServerConnectionIdIncludedAsSender(const QuicPacketHeader& header,
+                                      Perspective perspective);
+
+// Returns the destination connection ID included of |header| when |perspective|
+// is server, and the source connection ID included when |perspective| is
+// client.
+QUIC_EXPORT_PRIVATE QuicConnectionIdIncluded
+GetClientConnectionIdIncludedAsSender(const QuicPacketHeader& header,
+                                      Perspective perspective);
+
 // Number of connection ID bytes that are actually included over the wire.
 QUIC_EXPORT_PRIVATE QuicConnectionIdLength
 GetIncludedConnectionIdLength(QuicConnectionId connection_id,

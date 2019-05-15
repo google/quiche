@@ -519,14 +519,13 @@ size_t QuicSpdySession::WritePushPromise(QuicStreamId original_stream_id,
   return frame.size();
 }
 
-size_t QuicSpdySession::SendMaxHeaderListSize(size_t value) {
+void QuicSpdySession::SendMaxHeaderListSize(size_t value) {
   SpdySettingsIR settings_frame;
   settings_frame.AddSetting(SETTINGS_MAX_HEADER_LIST_SIZE, value);
 
   SpdySerializedFrame frame(spdy_framer_.SerializeFrame(settings_frame));
   headers_stream()->WriteOrBufferData(
       QuicStringPiece(frame.data(), frame.size()), false, nullptr);
-  return frame.size();
 }
 
 QpackEncoder* QuicSpdySession::qpack_encoder() {
@@ -563,7 +562,7 @@ bool QuicSpdySession::ShouldKeepConnectionAlive() const {
 
 bool QuicSpdySession::UsesPendingStreams() const {
   DCHECK(VersionHasControlStreams(connection()->transport_version()));
-  return true;
+  return false;
 }
 
 size_t QuicSpdySession::WriteHeadersOnHeadersStreamImpl(

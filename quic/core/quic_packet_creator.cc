@@ -114,7 +114,7 @@ void QuicPacketCreator::SetMaxPacketLength(QuicByteCount length) {
   max_packet_length_ = length;
   max_plaintext_size_ = framer_->GetMaxPlaintextSize(max_packet_length_);
   QUIC_BUG_IF(max_plaintext_size_ - PacketHeaderSize() <
-              MinPlaintextPacketSize())
+              MinPlaintextPacketSize(framer_->version()))
       << "Attempted to set max packet length too small";
 }
 
@@ -466,8 +466,8 @@ void QuicPacketCreator::CreateAndSerializeStreamFrame(
     QUIC_BUG << "AppendStreamFrame failed";
     return;
   }
-  if (plaintext_bytes_written < MinPlaintextPacketSize() &&
-      !writer.WritePaddingBytes(MinPlaintextPacketSize() -
+  if (plaintext_bytes_written < MinPlaintextPacketSize(framer_->version()) &&
+      !writer.WritePaddingBytes(MinPlaintextPacketSize(framer_->version()) -
                                 plaintext_bytes_written)) {
     QUIC_BUG << "Unable to add padding bytes";
     return;
@@ -735,9 +735,32 @@ SerializedPacket QuicPacketCreator::NoPacket() {
                           nullptr, 0, false, false);
 }
 
+QuicConnectionId QuicPacketCreator::GetDestinationConnectionId() const {
+  if (!GetQuicRestartFlag(quic_do_not_override_connection_id)) {
+    return connection_id_;
+  }
+  QUIC_RESTART_FLAG_COUNT_N(quic_do_not_override_connection_id, 1, 5);
+  if (framer_->perspective() == Perspective::IS_SERVER) {
+    return EmptyQuicConnectionId();
+  }
+  return connection_id_;
+}
+
+QuicConnectionId QuicPacketCreator::GetSourceConnectionId() const {
+  if (!GetQuicRestartFlag(quic_do_not_override_connection_id)) {
+    return connection_id_;
+  }
+  QUIC_RESTART_FLAG_COUNT_N(quic_do_not_override_connection_id, 6, 6);
+  if (framer_->perspective() == Perspective::IS_CLIENT) {
+    return EmptyQuicConnectionId();
+  }
+  return connection_id_;
+}
+
 QuicConnectionIdIncluded QuicPacketCreator::GetDestinationConnectionIdIncluded()
     const {
-  if (framer_->transport_version() > QUIC_VERSION_43) {
+  if (framer_->transport_version() > QUIC_VERSION_43 ||
+      GetQuicRestartFlag(quic_do_not_override_connection_id)) {
     // Packets sent by client always include destination connection ID, and
     // those sent by the server do not include destination connection ID.
     return framer_->perspective() == Perspective::IS_CLIENT
@@ -753,6 +776,11 @@ QuicConnectionIdIncluded QuicPacketCreator::GetSourceConnectionIdIncluded()
   if (HasIetfLongHeader() && framer_->perspective() == Perspective::IS_SERVER) {
     return CONNECTION_ID_PRESENT;
   }
+  if (GetQuicRestartFlag(quic_do_not_override_connection_id) &&
+      framer_->perspective() == Perspective::IS_SERVER) {
+    QUIC_RESTART_FLAG_COUNT_N(quic_do_not_override_connection_id, 2, 5);
+    return connection_id_included_;
+  }
   return CONNECTION_ID_ABSENT;
 }
 
@@ -761,7 +789,8 @@ QuicConnectionIdLength QuicPacketCreator::GetDestinationConnectionIdLength()
   DCHECK(QuicUtils::IsConnectionIdValidForVersion(connection_id_,
                                                   transport_version()));
   return GetDestinationConnectionIdIncluded() == CONNECTION_ID_PRESENT
-             ? static_cast<QuicConnectionIdLength>(connection_id_.length())
+             ? static_cast<QuicConnectionIdLength>(
+                   GetDestinationConnectionId().length())
              : PACKET_0BYTE_CONNECTION_ID;
 }
 
@@ -769,7 +798,8 @@ QuicConnectionIdLength QuicPacketCreator::GetSourceConnectionIdLength() const {
   DCHECK(QuicUtils::IsConnectionIdValidForVersion(connection_id_,
                                                   transport_version()));
   return GetSourceConnectionIdIncluded() == CONNECTION_ID_PRESENT
-             ? static_cast<QuicConnectionIdLength>(connection_id_.length())
+             ? static_cast<QuicConnectionIdLength>(
+                   GetSourceConnectionId().length())
              : PACKET_0BYTE_CONNECTION_ID;
 }
 
@@ -820,10 +850,10 @@ QuicVariableLengthIntegerLength QuicPacketCreator::GetLengthLength() const {
 }
 
 void QuicPacketCreator::FillPacketHeader(QuicPacketHeader* header) {
-  header->destination_connection_id = connection_id_;
+  header->destination_connection_id = GetDestinationConnectionId();
   header->destination_connection_id_included =
       GetDestinationConnectionIdIncluded();
-  header->source_connection_id = connection_id_;
+  header->source_connection_id = GetSourceConnectionId();
   header->source_connection_id_included = GetSourceConnectionIdIncluded();
   header->reset_flag = false;
   header->version_flag = IncludeVersionInHeader();
@@ -931,9 +961,11 @@ void QuicPacketCreator::MaybeAddPadding() {
   if (framer_->version().HasHeaderProtection()) {
     size_t frame_bytes = PacketSize() - PacketHeaderSize();
 
-    if (frame_bytes + pending_padding_bytes_ < MinPlaintextPacketSize() &&
+    if (frame_bytes + pending_padding_bytes_ <
+            MinPlaintextPacketSize(framer_->version()) &&
         !needs_full_padding_) {
-      extra_padding_bytes = MinPlaintextPacketSize() - frame_bytes;
+      extra_padding_bytes =
+          MinPlaintextPacketSize(framer_->version()) - frame_bytes;
     }
   }
 
@@ -1063,8 +1095,9 @@ bool QuicPacketCreator::HasIetfLongHeader() const {
          packet_.encryption_level < ENCRYPTION_FORWARD_SECURE;
 }
 
-size_t QuicPacketCreator::MinPlaintextPacketSize() const {
-  if (!framer_->version().HasHeaderProtection()) {
+size_t QuicPacketCreator::MinPlaintextPacketSize(
+    const ParsedQuicVersion& version) {
+  if (!version.HasHeaderProtection()) {
     return 0;
   }
   // Header protection samples 16 bytes of ciphertext starting 4 bytes after the

@@ -511,10 +511,16 @@ TEST_P(QuicSpdyClientSessionTest, InvalidPacketReceived) {
   QuicFramerPeer::SetLastSerializedConnectionId(
       QuicConnectionPeer::GetFramer(connection_), connection_id);
   ParsedQuicVersionVector versions = SupportedVersions(GetParam());
+  QuicConnectionId destination_connection_id = EmptyQuicConnectionId();
+  QuicConnectionId source_connection_id = connection_id;
+  if (!GetQuicRestartFlag(quic_do_not_override_connection_id)) {
+    destination_connection_id = connection_id;
+    source_connection_id = EmptyQuicConnectionId();
+  }
   std::unique_ptr<QuicEncryptedPacket> packet(ConstructEncryptedPacket(
-      connection_id, EmptyQuicConnectionId(), false, false, 100, "data",
-      CONNECTION_ID_ABSENT, CONNECTION_ID_ABSENT, PACKET_4BYTE_PACKET_NUMBER,
-      &versions, Perspective::IS_SERVER));
+      destination_connection_id, source_connection_id, false, false, 100,
+      "data", CONNECTION_ID_ABSENT, CONNECTION_ID_ABSENT,
+      PACKET_4BYTE_PACKET_NUMBER, &versions, Perspective::IS_SERVER));
   std::unique_ptr<QuicReceivedPacket> received(
       ConstructReceivedPacket(*packet, QuicTime::Zero()));
   // Change the last byte of the encrypted data.

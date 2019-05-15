@@ -16,6 +16,47 @@
 
 namespace quic {
 
+QuicConnectionId GetServerConnectionIdAsRecipient(
+    const QuicPacketHeader& header,
+    Perspective perspective) {
+  if (perspective == Perspective::IS_SERVER ||
+      !GetQuicRestartFlag(quic_do_not_override_connection_id)) {
+    return header.destination_connection_id;
+  }
+  return header.source_connection_id;
+}
+
+QuicConnectionId GetServerConnectionIdAsSender(const QuicPacketHeader& header,
+                                               Perspective perspective) {
+  if (perspective == Perspective::IS_CLIENT ||
+      !GetQuicRestartFlag(quic_do_not_override_connection_id)) {
+    return header.destination_connection_id;
+  }
+  QUIC_RESTART_FLAG_COUNT_N(quic_do_not_override_connection_id, 3, 5);
+  return header.source_connection_id;
+}
+
+QuicConnectionIdIncluded GetServerConnectionIdIncludedAsSender(
+    const QuicPacketHeader& header,
+    Perspective perspective) {
+  if (perspective == Perspective::IS_CLIENT ||
+      !GetQuicRestartFlag(quic_do_not_override_connection_id)) {
+    return header.destination_connection_id_included;
+  }
+  QUIC_RESTART_FLAG_COUNT_N(quic_do_not_override_connection_id, 4, 5);
+  return header.source_connection_id_included;
+}
+
+QuicConnectionIdIncluded GetClientConnectionIdIncludedAsSender(
+    const QuicPacketHeader& header,
+    Perspective perspective) {
+  if (perspective == Perspective::IS_CLIENT ||
+      !GetQuicRestartFlag(quic_do_not_override_connection_id)) {
+    return header.source_connection_id_included;
+  }
+  return header.destination_connection_id_included;
+}
+
 QuicConnectionIdLength GetIncludedConnectionIdLength(
     QuicConnectionId connection_id,
     QuicConnectionIdIncluded connection_id_included) {
@@ -74,7 +115,13 @@ size_t GetPacketHeaderSize(
     return kPacketHeaderTypeSize + destination_connection_id_length +
            packet_number_length;
   }
+  // Google QUIC versions <= 43 can only carry one connection ID.
+  DCHECK(destination_connection_id_length == 0 ||
+         source_connection_id_length == 0);
+  DCHECK(source_connection_id_length == 0 ||
+         GetQuicRestartFlag(quic_do_not_override_connection_id));
   return kPublicFlagsSize + destination_connection_id_length +
+         source_connection_id_length +
          (include_version ? kQuicVersionSize : 0) + packet_number_length +
          (include_diversification_nonce ? kDiversificationNonceSize : 0);
 }
