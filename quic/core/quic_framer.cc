@@ -6104,5 +6104,162 @@ QuicErrorCode QuicFramer::ProcessPacketDispatcher(
   return QUIC_NO_ERROR;
 }
 
+// static
+bool QuicFramer::WriteClientVersionNegotiationProbePacket(
+    char* packet_bytes,
+    QuicByteCount packet_length,
+    const char* destination_connection_id_bytes,
+    uint8_t destination_connection_id_length) {
+  if (packet_bytes == nullptr) {
+    QUIC_BUG << "Invalid packet_bytes";
+    return false;
+  }
+  if (packet_length < kMinPacketSizeForVersionNegotiation ||
+      packet_length > 65535) {
+    QUIC_BUG << "Invalid packet_length";
+    return false;
+  }
+  if (destination_connection_id_length > kQuicMaxConnectionIdLength ||
+      (destination_connection_id_length > 0 &&
+       destination_connection_id_length < 4)) {
+    QUIC_BUG << "Invalid connection_id_length";
+    return false;
+  }
+  // clang-format off
+  static const unsigned char packet_start_bytes[] = {
+    // IETF long header with fixed bit set, type initial, all-0 encrypted bits.
+    0xc0,
+    // Version, part of the IETF space reserved for negotiation.
+    // This intentionally differs from QuicVersionReservedForNegotiation()
+    // to allow differentiating them over the wire.
+    0xca, 0xba, 0xda, 0xba,
+  };
+  // clang-format on
+  static_assert(sizeof(packet_start_bytes) == 5, "bad packet_start_bytes size");
+  QuicDataWriter writer(packet_length, packet_bytes);
+  if (!writer.WriteBytes(packet_start_bytes, sizeof(packet_start_bytes))) {
+    QUIC_BUG << "Failed to write packet start";
+    return false;
+  }
+
+  QuicConnectionId destination_connection_id(destination_connection_id_bytes,
+                                             destination_connection_id_length);
+  if (!AppendIetfConnectionIds(/*version_flag=*/true, destination_connection_id,
+                               EmptyQuicConnectionId(), &writer)) {
+    QUIC_BUG << "Failed to write connection IDs";
+    return false;
+  }
+  // Add 8 bytes of zeroes followed by 8 bytes of ones to ensure that this does
+  // not parse with any known version. The zeroes make sure that packet numbers,
+  // retry token lengths and payload lengths are parsed as zero, and if the
+  // zeroes are treated as padding frames, 0xff is known to not parse as a
+  // valid frame type.
+  if (!writer.WriteUInt64(0) ||
+      !writer.WriteUInt64(std::numeric_limits<uint64_t>::max())) {
+    QUIC_BUG << "Failed to write 18 bytes";
+    return false;
+  }
+  // Make sure the polite greeting below is padded to a 16-byte boundary to
+  // make it easier to read in tcpdump.
+  while (writer.length() % 16 != 0) {
+    if (!writer.WriteUInt8(0)) {
+      QUIC_BUG << "Failed to write padding byte";
+      return false;
+    }
+  }
+  // Add a polite greeting in case a human sees this in tcpdump.
+  static const char polite_greeting[] =
+      "This packet only exists to trigger IETF QUIC version negotiation. "
+      "Please respond with a Version Negotiation packet indicating what "
+      "versions you support. Thank you and have a nice day.";
+  if (!writer.WriteBytes(polite_greeting, sizeof(polite_greeting))) {
+    QUIC_BUG << "Failed to write polite greeting";
+    return false;
+  }
+  // Fill the rest of the packet with zeroes.
+  writer.WritePadding();
+  DCHECK_EQ(0u, writer.remaining());
+  return true;
+}
+
+// static
+bool QuicFramer::ParseServerVersionNegotiationProbeResponse(
+    const char* packet_bytes,
+    QuicByteCount packet_length,
+    char* source_connection_id_bytes,
+    uint8_t* source_connection_id_length_out,
+    std::string* detailed_error) {
+  if (detailed_error == nullptr) {
+    QUIC_BUG << "Invalid error_details";
+    return false;
+  }
+  *detailed_error = "";
+  if (packet_bytes == nullptr) {
+    *detailed_error = "Invalid packet_bytes";
+    return false;
+  }
+  if (packet_length < 6) {
+    *detailed_error = "Invalid packet_length";
+    return false;
+  }
+  if (source_connection_id_bytes == nullptr) {
+    *detailed_error = "Invalid source_connection_id_bytes";
+    return false;
+  }
+  if (source_connection_id_length_out == nullptr) {
+    *detailed_error = "Invalid source_connection_id_length_out";
+    return false;
+  }
+  QuicDataReader reader(packet_bytes, packet_length);
+  uint8_t type_byte = 0;
+  if (!reader.ReadUInt8(&type_byte)) {
+    *detailed_error = "Failed to read type byte";
+    return false;
+  }
+  if ((type_byte & 0x80) == 0) {
+    *detailed_error = "Packet does not have long header";
+    return false;
+  }
+  uint32_t version = 0;
+  if (!reader.ReadUInt32(&version)) {
+    *detailed_error = "Failed to read version";
+    return false;
+  }
+  if (version != 0) {
+    *detailed_error = "Packet is not a version negotiation packet";
+    return false;
+  }
+  uint8_t expected_connection_id_length = 0,
+          destination_connection_id_length = 0, source_connection_id_length = 0;
+  if (!ProcessAndValidateIetfConnectionIdLength(
+          &reader, UnsupportedQuicVersion(),
+          /*should_update_expected_connection_id_length=*/true,
+          &expected_connection_id_length, &destination_connection_id_length,
+          &source_connection_id_length, detailed_error)) {
+    return false;
+  }
+  if (destination_connection_id_length != 0) {
+    *detailed_error = "Received unexpected destination connection ID length";
+    return false;
+  }
+  QuicConnectionId destination_connection_id, source_connection_id;
+  if (!reader.ReadConnectionId(&destination_connection_id,
+                               destination_connection_id_length)) {
+    *detailed_error = "Failed to read destination connection ID";
+    return false;
+  }
+  if (!reader.ReadConnectionId(&source_connection_id,
+                               source_connection_id_length)) {
+    *detailed_error = "Failed to read source connection ID";
+    return false;
+  }
+
+  memcpy(source_connection_id_bytes, source_connection_id.data(),
+         source_connection_id_length);
+  *source_connection_id_length_out = source_connection_id_length;
+
+  return true;
+}
+
 #undef ENDPOINT  // undef for jumbo builds
 }  // namespace quic

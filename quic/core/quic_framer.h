@@ -588,6 +588,38 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
 
   void EnableMultiplePacketNumberSpacesSupport();
 
+  // Writes an array of bytes that, if sent as a UDP datagram, will trigger
+  // IETF QUIC Version Negotiation on servers. The bytes will be written to
+  // |packet_bytes|, which must point to |packet_length| bytes of memory.
+  // |packet_length| must be in the range [1200, 65535].
+  // |destination_connection_id_bytes| will be sent as the destination
+  // connection ID, and must point to |destination_connection_id_length| bytes
+  // of memory. |destination_connection_id_length| must be either 0 or in the
+  // range [4,18]. When targeting Google servers, it is recommended to use a
+  // |destination_connection_id_length| of 8.
+  static bool WriteClientVersionNegotiationProbePacket(
+      char* packet_bytes,
+      QuicByteCount packet_length,
+      const char* destination_connection_id_bytes,
+      uint8_t destination_connection_id_length);
+
+  // Parses a packet which a QUIC server sent in response to a packet sent by
+  // WriteClientVersionNegotiationProbePacket. |packet_bytes| must point to
+  // |packet_length| bytes in memory which represent the response.
+  // |packet_length| must be greater or equal to 6. This method will fill in
+  // |source_connection_id_bytes| which must point to at least 18 bytes in
+  // memory. |source_connection_id_length_out| will contain the length of the
+  // received source connection ID, which on success will match the contents of
+  // the destination connection ID passed in to
+  // WriteClientVersionNegotiationProbePacket. In the case of a failure,
+  // |detailed_error| will be filled in with an explanation of what failed.
+  static bool ParseServerVersionNegotiationProbeResponse(
+      const char* packet_bytes,
+      QuicByteCount packet_length,
+      char* source_connection_id_bytes,
+      uint8_t* source_connection_id_length_out,
+      std::string* detailed_error);
+
  private:
   friend class test::QuicFramerPeer;
 
