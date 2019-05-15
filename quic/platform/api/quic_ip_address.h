@@ -76,8 +76,6 @@ class QUIC_EXPORT_PRIVATE QuicIpAddress {
   in_addr GetIPv4() const;
   in6_addr GetIPv6() const;
 
-  const QuicIpAddressImpl& impl() const { return impl_; }
-
  private:
   QuicIpAddressImpl impl_;
 };

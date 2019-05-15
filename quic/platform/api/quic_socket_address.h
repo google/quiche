@@ -39,7 +39,6 @@ class QUIC_EXPORT_PRIVATE QuicSocketAddress {
   QuicIpAddress host() const;
   uint16_t port() const;
   sockaddr_storage generic_address() const;
-  const QuicSocketAddressImpl& impl() const { return impl_; }
 
  private:
   QuicSocketAddressImpl impl_;
