@@ -39,7 +39,6 @@ struct ReceivedMessage {
 // datagram frames.  It also adjusts the bitrate of each source to fit within
 // the bandwidth available to the session.
 class QuartcPeer : public QuartcEndpoint::Delegate,
-                   public QuartcSession::Delegate,
                    public QuartcDataSource::Delegate {
  public:
   // Creates a QuartcPeer that sends data from a set of sources described by
@@ -73,8 +72,6 @@ class QuartcPeer : public QuartcEndpoint::Delegate,
 
   // QuartcEndpoint::Delegate overrides.
   void OnSessionCreated(QuartcSession* session) override;
-  void OnConnectError(QuicErrorCode error,
-                      const std::string& error_details) override;
 
   // QuartcSession::Delegate overrides.
   void OnCryptoHandshakeComplete() override;

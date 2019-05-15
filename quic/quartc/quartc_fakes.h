@@ -18,36 +18,16 @@ namespace quic {
 
 class FakeQuartcEndpointDelegate : public QuartcEndpoint::Delegate {
  public:
-  explicit FakeQuartcEndpointDelegate(QuartcSession::Delegate* session_delegate)
-      : session_delegate_(session_delegate) {}
+  explicit FakeQuartcEndpointDelegate(QuartcStream::Delegate* stream_delegate,
+                                      const QuicClock* clock)
+      : stream_delegate_(stream_delegate), clock_(clock) {}
 
   void OnSessionCreated(QuartcSession* session) override {
-    CHECK_EQ(session_, nullptr);
     CHECK_NE(session, nullptr);
     session_ = session;
-    session_->SetDelegate(session_delegate_);
     session_->StartCryptoHandshake();
+    ++num_sessions_created_;
   }
-
-  void OnConnectError(QuicErrorCode error,
-                      const std::string& error_details) override {
-    QUIC_LOG(FATAL)
-        << "Unexpected error during QuartcEndpoint::Connect(); error=" << error
-        << ", error_details=" << error_details;
-  }
-
-  QuartcSession* session() { return session_; }
-
- private:
-  QuartcSession::Delegate* session_delegate_;
-  QuartcSession* session_ = nullptr;
-};
-
-class FakeQuartcSessionDelegate : public QuartcSession::Delegate {
- public:
-  explicit FakeQuartcSessionDelegate(QuartcStream::Delegate* stream_delegate,
-                                     const QuicClock* clock)
-      : stream_delegate_(stream_delegate), clock_(clock) {}
 
   void OnConnectionWritable() override {
     QUIC_LOG(INFO) << "Connection writable!";
@@ -87,6 +67,10 @@ class FakeQuartcSessionDelegate : public QuartcSession::Delegate {
                                  QuicBandwidth pacing_rate,
                                  QuicTime::Delta latest_rtt) override {}
 
+  QuartcSession* session() { return session_; }
+
+  int num_sessions_created() const { return num_sessions_created_; }
+
   QuartcStream* last_incoming_stream() const { return last_incoming_stream_; }
 
   // Returns all received messages.
@@ -104,6 +88,12 @@ class FakeQuartcSessionDelegate : public QuartcSession::Delegate {
   QuicTime crypto_handshake_time() const { return crypto_handshake_time_; }
 
  private:
+  // Current session.
+  QuartcSession* session_ = nullptr;
+
+  // Number of new sessions created by the endpoint.
+  int num_sessions_created_ = 0;
+
   QuartcStream* last_incoming_stream_;
   std::vector<std::string> incoming_messages_;
   std::vector<int64_t> sent_datagram_ids_;

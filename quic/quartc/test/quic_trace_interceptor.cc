@@ -33,9 +33,38 @@ void QuicTraceInterceptor::OnSessionCreated(QuartcSession* session) {
   delegate_->OnSessionCreated(session);
 }
 
-void QuicTraceInterceptor::OnConnectError(QuicErrorCode error,
-                                          const std::string& details) {
-  delegate_->OnConnectError(error, details);
+void QuicTraceInterceptor::OnCryptoHandshakeComplete() {
+  delegate_->OnCryptoHandshakeComplete();
+}
+
+void QuicTraceInterceptor::OnConnectionWritable() {
+  delegate_->OnConnectionWritable();
+}
+
+void QuicTraceInterceptor::OnIncomingStream(QuartcStream* stream) {
+  delegate_->OnIncomingStream(stream);
+}
+
+void QuicTraceInterceptor::OnCongestionControlChange(
+    QuicBandwidth bandwidth_estimate,
+    QuicBandwidth pacing_rate,
+    QuicTime::Delta latest_rtt) {
+  delegate_->OnCongestionControlChange(bandwidth_estimate, pacing_rate,
+                                       latest_rtt);
+}
+
+void QuicTraceInterceptor::OnConnectionClosed(QuicErrorCode error_code,
+                                              const std::string& error_details,
+                                              ConnectionCloseSource source) {
+  delegate_->OnConnectionClosed(error_code, error_details, source);
+}
+
+void QuicTraceInterceptor::OnMessageReceived(QuicStringPiece message) {
+  delegate_->OnMessageReceived(message);
+}
+
+void QuicTraceInterceptor::OnMessageSent(int64_t datagram_id) {
+  delegate_->OnMessageSent(datagram_id);
 }
 
 void QuicTraceInterceptor::SetDelegate(QuartcEndpoint::Delegate* delegate) {

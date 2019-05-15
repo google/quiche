@@ -10,6 +10,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_alarm_factory.h"
 #include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_clock.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 #include "net/third_party/quiche/src/quic/quartc/quartc_connection_helper.h"
 #include "net/third_party/quiche/src/quic/quartc/quartc_crypto_helpers.h"
 #include "net/third_party/quiche/src/quic/quartc/quartc_dispatcher.h"
@@ -29,22 +30,23 @@ class QuartcEndpointImpl {
 // Endpoint (client or server) in a peer-to-peer Quartc connection.
 class QuartcEndpoint {
  public:
-  class Delegate {
+  class Delegate : public QuartcSession::Delegate {
    public:
     virtual ~Delegate() = default;
 
     // Called when an endpoint creates a new session, before any packets are
     // processed or sent.  The callee should perform any additional
-    // configuration required, such as setting a session delegate, before
+    // configuration required, such as setting up congestion control, before
     // returning.  |session| is owned by the endpoint, but remains safe to use
-    // until another call to |OnSessionCreated| occurs, at which point previous
-    // session is destroyed.
+    // until another call to |OnSessionCreated| or |OnConnectionClosed| occurs,
+    // at which point previous session may be destroyed.
+    //
+    // Callees must not change the |session|'s delegate.  The Endpoint itself
+    // manages the delegate and will forward calls.
+    //
+    // New calls to |OnSessionCreated| will only occur prior to
+    // |OnConnectionWritable|, during initial connection negotiation.
     virtual void OnSessionCreated(QuartcSession* session) = 0;
-
-    // Called if the endpoint fails to establish a session after a call to
-    // Connect.  (The most likely cause is a network idle timeout.)
-    virtual void OnConnectError(QuicErrorCode error,
-                                const std::string& error_details) = 0;
   };
 
   virtual ~QuartcEndpoint() = default;
@@ -58,7 +60,8 @@ class QuartcEndpoint {
 // Implementation of QuartcEndpoint which immediately (but asynchronously)
 // creates a session by scheduling a QuicAlarm.  Only suitable for use with the
 // client perspective.
-class QuartcClientEndpoint : public QuartcEndpoint {
+class QuartcClientEndpoint : public QuartcEndpoint,
+                             public QuartcSession::Delegate {
  public:
   // |alarm_factory|, |clock|, and |delegate| are owned by the caller and must
   // outlive the endpoint.
@@ -66,12 +69,25 @@ class QuartcClientEndpoint : public QuartcEndpoint {
       QuicAlarmFactory* alarm_factory,
       const QuicClock* clock,
       QuicRandom* random,
-      Delegate* delegate,
+      QuartcEndpoint::Delegate* delegate,
       const QuartcSessionConfig& config,
       QuicStringPiece serialized_server_config,
       std::unique_ptr<QuicVersionManager> version_manager = nullptr);
 
   void Connect(QuartcPacketTransport* packet_transport) override;
+
+  // QuartcSession::Delegate overrides.
+  void OnCryptoHandshakeComplete() override;
+  void OnConnectionWritable() override;
+  void OnIncomingStream(QuartcStream* stream) override;
+  void OnCongestionControlChange(QuicBandwidth bandwidth_estimate,
+                                 QuicBandwidth pacing_rate,
+                                 QuicTime::Delta latest_rtt) override;
+  void OnConnectionClosed(QuicErrorCode error_code,
+                          const std::string& error_details,
+                          ConnectionCloseSource source) override;
+  void OnMessageReceived(QuicStringPiece message) override;
+  void OnMessageSent(int64_t datagram_id) override;
 
  private:
   friend class CreateSessionDelegate;
@@ -103,6 +119,18 @@ class QuartcClientEndpoint : public QuartcEndpoint {
 
   // Version manager.  May be injected to control version negotiation in tests.
   std::unique_ptr<QuicVersionManager> version_manager_;
+
+  // Versions to be used when the next session is created.  The session will
+  // choose one of these versions for its connection attempt.
+  //
+  // If the connection does not succeed, the client session MAY try again using
+  // another version from this list, or it MAY simply fail with a
+  // QUIC_INVALID_VERSION error.  The latter occurs when it is not possible to
+  // upgrade a connection in-place (for example, if the way stream ids are
+  // allocated changes between versions).  This failure mode is handled by
+  // narrowing |current_versions_| to one of that is mutually-supported and
+  // reconnecting (with a new session).
+  ParsedQuicVersionVector current_versions_;
 
   // Alarm for creating sessions asynchronously.  The alarm is set when
   // Connect() is called.  When it fires, the endpoint creates a session and

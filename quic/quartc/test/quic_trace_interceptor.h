@@ -28,7 +28,17 @@ class QuicTraceInterceptor : public QuartcEndpointInterceptor {
 
   // QuartcEndpointIntercept overrides.
   void OnSessionCreated(QuartcSession* session) override;
-  void OnConnectError(QuicErrorCode error, const std::string& details) override;
+  void OnCryptoHandshakeComplete() override;
+  void OnConnectionWritable() override;
+  void OnIncomingStream(QuartcStream* stream) override;
+  void OnCongestionControlChange(QuicBandwidth bandwidth_estimate,
+                                 QuicBandwidth pacing_rate,
+                                 QuicTime::Delta latest_rtt) override;
+  void OnConnectionClosed(QuicErrorCode error_code,
+                          const std::string& error_details,
+                          ConnectionCloseSource source) override;
+  void OnMessageReceived(QuicStringPiece message) override;
+  void OnMessageSent(int64_t datagram_id) override;
   void SetDelegate(QuartcEndpoint::Delegate* delegate) override;
 
  private:

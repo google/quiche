@@ -61,29 +61,25 @@ class QuartcSessionTest : public QuicTest {
         QuicBandwidth::FromKBitsPerSecond(10 * 1000), kPropagationDelay);
 
     client_stream_delegate_ = QuicMakeUnique<FakeQuartcStreamDelegate>();
-    client_session_delegate_ = QuicMakeUnique<FakeQuartcSessionDelegate>(
+    client_session_delegate_ = QuicMakeUnique<FakeQuartcEndpointDelegate>(
         client_stream_delegate_.get(), simulator_.GetClock());
-    client_endpoint_delegate_ = QuicMakeUnique<FakeQuartcEndpointDelegate>(
-        client_session_delegate_.get());
 
     server_stream_delegate_ = QuicMakeUnique<FakeQuartcStreamDelegate>();
-    server_session_delegate_ = QuicMakeUnique<FakeQuartcSessionDelegate>(
+    server_session_delegate_ = QuicMakeUnique<FakeQuartcEndpointDelegate>(
         server_stream_delegate_.get(), simulator_.GetClock());
-    server_endpoint_delegate_ = QuicMakeUnique<FakeQuartcEndpointDelegate>(
-        server_session_delegate_.get());
 
     // No 0-rtt setup, because server config is empty.
     // CannotCreateDataStreamBeforeHandshake depends on 1-rtt setup.
     if (create_client_endpoint) {
       client_endpoint_ = QuicMakeUnique<QuartcClientEndpoint>(
           simulator_.GetAlarmFactory(), simulator_.GetClock(),
-          simulator_.GetRandomGenerator(), client_endpoint_delegate_.get(),
+          simulator_.GetRandomGenerator(), client_session_delegate_.get(),
           quic::QuartcSessionConfig(),
           /*serialized_server_config=*/"");
     }
     server_endpoint_ = QuicMakeUnique<QuartcServerEndpoint>(
         simulator_.GetAlarmFactory(), simulator_.GetClock(),
-        simulator_.GetRandomGenerator(), server_endpoint_delegate_.get(),
+        simulator_.GetRandomGenerator(), server_session_delegate_.get(),
         quic::QuartcSessionConfig());
   }
 
@@ -99,12 +95,12 @@ class QuartcSessionTest : public QuicTest {
     client_endpoint_->Connect(client_transport_.get());
 
     CHECK(simulator_.RunUntil([this] {
-      return client_endpoint_delegate_->session() != nullptr &&
-             server_endpoint_delegate_->session() != nullptr;
+      return client_session_delegate_->session() != nullptr &&
+             server_session_delegate_->session() != nullptr;
     }));
 
-    client_peer_ = client_endpoint_delegate_->session();
-    server_peer_ = server_endpoint_delegate_->session();
+    client_peer_ = client_session_delegate_->session();
+    server_peer_ = server_session_delegate_->session();
   }
 
   // Runs all tasks scheduled in the next 200 ms.
@@ -214,11 +210,11 @@ class QuartcSessionTest : public QuicTest {
     QuartcSession* const peer_sending =
         direction_from_server ? server_peer_ : client_peer_;
 
-    FakeQuartcSessionDelegate* const delegate_receiving =
+    FakeQuartcEndpointDelegate* const delegate_receiving =
         direction_from_server ? client_session_delegate_.get()
                               : server_session_delegate_.get();
 
-    FakeQuartcSessionDelegate* const delegate_sending =
+    FakeQuartcEndpointDelegate* const delegate_sending =
         direction_from_server ? server_session_delegate_.get()
                               : client_session_delegate_.get();
 
@@ -299,11 +295,9 @@ class QuartcSessionTest : public QuicTest {
   std::unique_ptr<simulator::SymmetricLink> client_server_link_;
 
   std::unique_ptr<FakeQuartcStreamDelegate> client_stream_delegate_;
-  std::unique_ptr<FakeQuartcSessionDelegate> client_session_delegate_;
-  std::unique_ptr<FakeQuartcEndpointDelegate> client_endpoint_delegate_;
+  std::unique_ptr<FakeQuartcEndpointDelegate> client_session_delegate_;
   std::unique_ptr<FakeQuartcStreamDelegate> server_stream_delegate_;
-  std::unique_ptr<FakeQuartcSessionDelegate> server_session_delegate_;
-  std::unique_ptr<FakeQuartcEndpointDelegate> server_endpoint_delegate_;
+  std::unique_ptr<FakeQuartcEndpointDelegate> server_session_delegate_;
 
   std::unique_ptr<QuartcClientEndpoint> client_endpoint_;
   std::unique_ptr<QuartcServerEndpoint> server_endpoint_;
@@ -537,7 +531,7 @@ TEST_F(QuartcSessionTest, PreSharedKeyHandshakeIs0RTT) {
 
   client_endpoint_ = QuicMakeUnique<QuartcClientEndpoint>(
       simulator_.GetAlarmFactory(), simulator_.GetClock(),
-      simulator_.GetRandomGenerator(), client_endpoint_delegate_.get(),
+      simulator_.GetRandomGenerator(), client_session_delegate_.get(),
       QuartcSessionConfig(),
       // This is the key line here. It passes through the server config
       // from the server to the client.
@@ -549,8 +543,8 @@ TEST_F(QuartcSessionTest, PreSharedKeyHandshakeIs0RTT) {
   // client session should be created, but server won't be created yet.
   simulator_.RunFor(QuicTime::Delta::FromMilliseconds(1));
 
-  client_peer_ = client_endpoint_delegate_->session();
-  server_peer_ = server_endpoint_delegate_->session();
+  client_peer_ = client_session_delegate_->session();
+  server_peer_ = server_session_delegate_->session();
 
   ASSERT_NE(client_peer_, nullptr);
   ASSERT_EQ(server_peer_, nullptr);

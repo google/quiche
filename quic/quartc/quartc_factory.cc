@@ -71,16 +71,6 @@ void ConfigureGlobalQuicSettings() {
   SetQuicFlag(FLAGS_quic_buffered_data_threshold,
               std::numeric_limits<int>::max());
 
-  // TODO(b/117157454): Perform version negotiation for Quartc outside of
-  // QuicSession/QuicConnection. Currently default of
-  // gfe2_restart_flag_quic_no_server_conn_ver_negotiation2 is false,
-  // but we fail blueprint test that sets all QUIC flags to true.
-  //
-  // Forcing flag to false to pass blueprint tests, but eventually we'll have
-  // to implement negotiation outside of QuicConnection.
-  SetQuicRestartFlag(quic_no_server_conn_ver_negotiation2, false);
-  SetQuicReloadableFlag(quic_no_client_conn_ver_negotiation, false);
-
   // Enable and request QUIC to include receive timestamps in ACK frames.
   SetQuicReloadableFlag(quic_send_timestamps, true);
 
