@@ -60,6 +60,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_system_event_loop.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
+#include "net/third_party/quiche/src/quic/tools/fake_proof_verifier.h"
 #include "net/third_party/quiche/src/quic/tools/quic_client.h"
 #include "net/third_party/quiche/src/quic/tools/quic_url.h"
 
@@ -69,40 +70,6 @@ using quic::QuicSocketAddress;
 using quic::QuicStringPiece;
 using quic::QuicTextUtils;
 using quic::QuicUrl;
-
-class FakeProofVerifier : public quic::ProofVerifier {
- public:
-  ~FakeProofVerifier() override {}
-  quic::QuicAsyncStatus VerifyProof(
-      const std::string& /*hostname*/,
-      const uint16_t /*port*/,
-      const std::string& /*server_config*/,
-      quic::QuicTransportVersion /*quic_version*/,
-      quic::QuicStringPiece /*chlo_hash*/,
-      const std::vector<std::string>& /*certs*/,
-      const std::string& /*cert_sct*/,
-      const std::string& /*signature*/,
-      const quic::ProofVerifyContext* /*context*/,
-      std::string* /*error_details*/,
-      std::unique_ptr<quic::ProofVerifyDetails>* /*details*/,
-      std::unique_ptr<quic::ProofVerifierCallback> /*callback*/) override {
-    return quic::QUIC_SUCCESS;
-  }
-  quic::QuicAsyncStatus VerifyCertChain(
-      const std::string& /*hostname*/,
-      const std::vector<std::string>& /*certs*/,
-      const std::string& /*ocsp_response*/,
-      const std::string& /*cert_sct*/,
-      const quic::ProofVerifyContext* /*context*/,
-      std::string* /*error_details*/,
-      std::unique_ptr<quic::ProofVerifyDetails>* /*details*/,
-      std::unique_ptr<quic::ProofVerifierCallback> /*callback*/) override {
-    return quic::QUIC_SUCCESS;
-  }
-  std::unique_ptr<quic::ProofVerifyContext> CreateDefaultContext() override {
-    return nullptr;
-  }
-};
 
 QuicSocketAddress LookupAddress(std::string host, std::string port) {
   addrinfo hint;
@@ -285,7 +252,7 @@ int main(int argc, char* argv[]) {
   const int32_t num_requests(GetQuicFlag(FLAGS_num_requests));
   std::unique_ptr<quic::ProofVerifier> proof_verifier;
   if (GetQuicFlag(FLAGS_disable_certificate_verification)) {
-    proof_verifier = quic::QuicMakeUnique<FakeProofVerifier>();
+    proof_verifier = quic::QuicMakeUnique<quic::FakeProofVerifier>();
   } else {
     proof_verifier = quic::CreateDefaultProofVerifier();
   }
