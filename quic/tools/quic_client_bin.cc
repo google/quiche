@@ -331,8 +331,8 @@ int main(int argc, char* argv[]) {
   header_block[":path"] = url.PathParamsQuery();
 
   // Append any additional headers supplied on the command line.
-  for (QuicStringPiece sp :
-       QuicTextUtils::Split(GetQuicFlag(FLAGS_headers), ';')) {
+  const std::string headers = GetQuicFlag(FLAGS_headers);
+  for (QuicStringPiece sp : QuicTextUtils::Split(headers, ';')) {
     QuicTextUtils::RemoveLeadingAndTrailingWhitespace(&sp);
     if (sp.empty()) {
       continue;

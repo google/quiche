@@ -73,7 +73,7 @@ void ConfigureGlobalQuicSettings() {
 
   // TODO(b/117157454): Perform version negotiation for Quartc outside of
   // QuicSession/QuicConnection. Currently default of
-  // quic_restart_flag_quic_no_server_conn_ver_negotiation2 is false,
+  // gfe2_restart_flag_quic_no_server_conn_ver_negotiation2 is false,
   // but we fail blueprint test that sets all QUIC flags to true.
   //
   // Forcing flag to false to pass blueprint tests, but eventually we'll have
