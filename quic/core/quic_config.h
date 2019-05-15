@@ -305,14 +305,24 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
 
   bool SilentClose() const;
 
-  void SetMaxIncomingDynamicStreamsToSend(
-      uint32_t max_incoming_dynamic_streams);
+  // Configuration for the Google QUIC and IETF QUIC stream ID managers. Note
+  // that the naming is a bit  weird; it is from the perspective of the node
+  // generating (sending) the configuration and, thus, The "incoming" counts are
+  // the number of streams that the node sending the configuration is willing to
+  // accept and therefore the number that the node receiving the confguration
+  // can create .. the number of outbound streams that may be intiated..
+  // There are two sets, one for unidirectional streams and one for
+  // bidirectional. The bidirectional set also covers Google-QUICs
+  // dynamic stream count (which are bidirectional streams).
+  void SetMaxIncomingBidirectionalStreamsToSend(uint32_t max_streams);
+  uint32_t GetMaxIncomingBidirectionalStreamsToSend();
+  bool HasReceivedMaxIncomingBidirectionalStreams();
+  uint32_t ReceivedMaxIncomingBidirectionalStreams();
 
-  uint32_t GetMaxIncomingDynamicStreamsToSend();
-
-  bool HasReceivedMaxIncomingDynamicStreams();
-
-  uint32_t ReceivedMaxIncomingDynamicStreams();
+  void SetMaxIncomingUnidirectionalStreamsToSend(uint32_t max_streams);
+  uint32_t GetMaxIncomingUnidirectionalStreamsToSend();
+  bool HasReceivedMaxIncomingUnidirectionalStreams();
+  uint32_t ReceivedMaxIncomingUnidirectionalStreams();
 
   void set_max_time_before_crypto_handshake(
       QuicTime::Delta max_time_before_crypto_handshake) {
@@ -412,7 +422,8 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
 
   // ToHandshakeMessage serialises the settings in this object as a series of
   // tags /value pairs and adds them to |out|.
-  void ToHandshakeMessage(CryptoHandshakeMessage* out) const;
+  void ToHandshakeMessage(CryptoHandshakeMessage* out,
+                          QuicTransportVersion transport_version) const;
 
   // Calls ProcessPeerHello on each negotiable parameter. On failure returns
   // the corresponding QuicErrorCode and sets detailed error in |error_details|.
@@ -456,8 +467,10 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   QuicNegotiableUint32 idle_network_timeout_seconds_;
   // Whether to use silent close.  Defaults to 0 (false) and is otherwise true.
   QuicNegotiableUint32 silent_close_;
-  // Maximum number of incoming dynamic streams that the connection can support.
-  QuicFixedUint32 max_incoming_dynamic_streams_;
+  // Maximum number of incoming dynamic streams that a Google QUIC connection
+  // can support or the maximum number of incoming bidirectional streams that
+  // an IETF QUIC connection can support.
+  QuicFixedUint32 max_incoming_bidirectional_streams_;
   // The number of bytes required for the connection ID.
   QuicFixedUint32 bytes_for_connection_id_;
   // Initial round trip time estimate in microseconds.
@@ -484,6 +497,10 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   // be created. This allows for CHLOs that are larger than a single
   // packet to be processed.
   QuicTagVector create_session_tag_indicators_;
+
+  // Maximum number of incoming unidirectional streams that the connection can
+  // support.
+  QuicFixedUint32 max_incoming_unidirectional_streams_;
 };
 
 }  // namespace quic

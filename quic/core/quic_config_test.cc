@@ -21,12 +21,17 @@ namespace quic {
 namespace test {
 namespace {
 
-class QuicConfigTest : public QuicTest {
+class QuicConfigTest : public QuicTestWithParam<QuicTransportVersion> {
  protected:
   QuicConfig config_;
 };
 
-TEST_F(QuicConfigTest, ToHandshakeMessage) {
+// Run all tests with all versions of QUIC.
+INSTANTIATE_TEST_SUITE_P(QuicConfigTests,
+                         QuicConfigTest,
+                         ::testing::ValuesIn(AllSupportedTransportVersions()));
+
+TEST_P(QuicConfigTest, ToHandshakeMessage) {
   config_.SetInitialStreamFlowControlWindowToSend(
       kInitialStreamFlowControlWindowForTest);
   config_.SetInitialSessionFlowControlWindowToSend(
@@ -34,7 +39,7 @@ TEST_F(QuicConfigTest, ToHandshakeMessage) {
   config_.SetIdleNetworkTimeout(QuicTime::Delta::FromSeconds(5),
                                 QuicTime::Delta::FromSeconds(2));
   CryptoHandshakeMessage msg;
-  config_.ToHandshakeMessage(&msg);
+  config_.ToHandshakeMessage(&msg, GetParam());
 
   uint32_t value;
   QuicErrorCode error = msg.GetUint32(kICSL, &value);
@@ -50,7 +55,7 @@ TEST_F(QuicConfigTest, ToHandshakeMessage) {
   EXPECT_EQ(kInitialSessionFlowControlWindowForTest, value);
 }
 
-TEST_F(QuicConfigTest, ProcessClientHello) {
+TEST_P(QuicConfigTest, ProcessClientHello) {
   QuicConfig client_config;
   QuicTagVector cgst;
   cgst.push_back(kQBIC);
@@ -66,7 +71,7 @@ TEST_F(QuicConfigTest, ProcessClientHello) {
   copt.push_back(kTBBR);
   client_config.SetConnectionOptionsToSend(copt);
   CryptoHandshakeMessage msg;
-  client_config.ToHandshakeMessage(&msg);
+  client_config.ToHandshakeMessage(&msg, GetParam());
 
   std::string error_details;
   QuicTagVector initial_received_options;
@@ -96,7 +101,7 @@ TEST_F(QuicConfigTest, ProcessClientHello) {
             2 * kInitialSessionFlowControlWindowForTest);
 }
 
-TEST_F(QuicConfigTest, ProcessServerHello) {
+TEST_P(QuicConfigTest, ProcessServerHello) {
   QuicIpAddress host;
   host.FromString("127.0.3.1");
   const QuicSocketAddress kTestServerAddress = QuicSocketAddress(host, 1234);
@@ -115,7 +120,7 @@ TEST_F(QuicConfigTest, ProcessServerHello) {
   server_config.SetAlternateServerAddressToSend(kTestServerAddress);
   server_config.SetStatelessResetTokenToSend(kTestResetToken);
   CryptoHandshakeMessage msg;
-  server_config.ToHandshakeMessage(&msg);
+  server_config.ToHandshakeMessage(&msg, GetParam());
   std::string error_details;
   const QuicErrorCode error =
       config_.ProcessPeerHello(msg, SERVER, &error_details);
@@ -134,13 +139,13 @@ TEST_F(QuicConfigTest, ProcessServerHello) {
   EXPECT_EQ(kTestResetToken, config_.ReceivedStatelessResetToken());
 }
 
-TEST_F(QuicConfigTest, MissingOptionalValuesInCHLO) {
+TEST_P(QuicConfigTest, MissingOptionalValuesInCHLO) {
   CryptoHandshakeMessage msg;
   msg.SetValue(kICSL, 1);
 
   // Set all REQUIRED tags.
   msg.SetValue(kICSL, 1);
-  msg.SetValue(kMIDS, 1);
+  msg.SetValue(kMIBS, 1);
 
   // No error, as rest are optional.
   std::string error_details;
@@ -150,12 +155,12 @@ TEST_F(QuicConfigTest, MissingOptionalValuesInCHLO) {
   EXPECT_TRUE(config_.negotiated());
 }
 
-TEST_F(QuicConfigTest, MissingOptionalValuesInSHLO) {
+TEST_P(QuicConfigTest, MissingOptionalValuesInSHLO) {
   CryptoHandshakeMessage msg;
 
   // Set all REQUIRED tags.
   msg.SetValue(kICSL, 1);
-  msg.SetValue(kMIDS, 1);
+  msg.SetValue(kMIBS, 1);
 
   // No error, as rest are optional.
   std::string error_details;
@@ -165,7 +170,7 @@ TEST_F(QuicConfigTest, MissingOptionalValuesInSHLO) {
   EXPECT_TRUE(config_.negotiated());
 }
 
-TEST_F(QuicConfigTest, MissingValueInCHLO) {
+TEST_P(QuicConfigTest, MissingValueInCHLO) {
   // Server receives CHLO with missing kICSL.
   CryptoHandshakeMessage msg;
   std::string error_details;
@@ -174,7 +179,7 @@ TEST_F(QuicConfigTest, MissingValueInCHLO) {
   EXPECT_EQ(QUIC_CRYPTO_MESSAGE_PARAMETER_NOT_FOUND, error);
 }
 
-TEST_F(QuicConfigTest, MissingValueInSHLO) {
+TEST_P(QuicConfigTest, MissingValueInSHLO) {
   // Client receives SHLO with missing kICSL.
   CryptoHandshakeMessage msg;
   std::string error_details;
@@ -183,21 +188,21 @@ TEST_F(QuicConfigTest, MissingValueInSHLO) {
   EXPECT_EQ(QUIC_CRYPTO_MESSAGE_PARAMETER_NOT_FOUND, error);
 }
 
-TEST_F(QuicConfigTest, OutOfBoundSHLO) {
+TEST_P(QuicConfigTest, OutOfBoundSHLO) {
   QuicConfig server_config;
   server_config.SetIdleNetworkTimeout(
       QuicTime::Delta::FromSeconds(2 * kMaximumIdleTimeoutSecs),
       QuicTime::Delta::FromSeconds(2 * kMaximumIdleTimeoutSecs));
 
   CryptoHandshakeMessage msg;
-  server_config.ToHandshakeMessage(&msg);
+  server_config.ToHandshakeMessage(&msg, GetParam());
   std::string error_details;
   const QuicErrorCode error =
       config_.ProcessPeerHello(msg, SERVER, &error_details);
   EXPECT_EQ(QUIC_INVALID_NEGOTIATED_VALUE, error);
 }
 
-TEST_F(QuicConfigTest, InvalidFlowControlWindow) {
+TEST_P(QuicConfigTest, InvalidFlowControlWindow) {
   // QuicConfig should not accept an invalid flow control window to send to the
   // peer: the receive window must be at least the default of 16 Kb.
   QuicConfig config;
@@ -210,7 +215,7 @@ TEST_F(QuicConfigTest, InvalidFlowControlWindow) {
             config.GetInitialStreamFlowControlWindowToSend());
 }
 
-TEST_F(QuicConfigTest, HasClientSentConnectionOption) {
+TEST_P(QuicConfigTest, HasClientSentConnectionOption) {
   QuicConfig client_config;
   QuicTagVector copt;
   copt.push_back(kTBBR);
@@ -219,7 +224,7 @@ TEST_F(QuicConfigTest, HasClientSentConnectionOption) {
       kTBBR, Perspective::IS_CLIENT));
 
   CryptoHandshakeMessage msg;
-  client_config.ToHandshakeMessage(&msg);
+  client_config.ToHandshakeMessage(&msg, GetParam());
 
   std::string error_details;
   const QuicErrorCode error =
@@ -233,14 +238,14 @@ TEST_F(QuicConfigTest, HasClientSentConnectionOption) {
       config_.HasClientSentConnectionOption(kTBBR, Perspective::IS_SERVER));
 }
 
-TEST_F(QuicConfigTest, DontSendClientConnectionOptions) {
+TEST_P(QuicConfigTest, DontSendClientConnectionOptions) {
   QuicConfig client_config;
   QuicTagVector copt;
   copt.push_back(kTBBR);
   client_config.SetClientConnectionOptions(copt);
 
   CryptoHandshakeMessage msg;
-  client_config.ToHandshakeMessage(&msg);
+  client_config.ToHandshakeMessage(&msg, GetParam());
 
   std::string error_details;
   const QuicErrorCode error =
@@ -251,7 +256,7 @@ TEST_F(QuicConfigTest, DontSendClientConnectionOptions) {
   EXPECT_FALSE(config_.HasReceivedConnectionOptions());
 }
 
-TEST_F(QuicConfigTest, HasClientRequestedIndependentOption) {
+TEST_P(QuicConfigTest, HasClientRequestedIndependentOption) {
   QuicConfig client_config;
   QuicTagVector client_opt;
   client_opt.push_back(kRENO);
@@ -267,7 +272,7 @@ TEST_F(QuicConfigTest, HasClientRequestedIndependentOption) {
       kTBBR, Perspective::IS_CLIENT));
 
   CryptoHandshakeMessage msg;
-  client_config.ToHandshakeMessage(&msg);
+  client_config.ToHandshakeMessage(&msg, GetParam());
 
   std::string error_details;
   const QuicErrorCode error =

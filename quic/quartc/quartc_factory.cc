@@ -190,7 +190,7 @@ QuicConfig CreateQuicConfig(const QuartcSessionConfig& quartc_session_config) {
   // incomplete streams, but targets 1 second for recovery. Increasing the
   // number of open streams gives sufficient headroom to recover before QUIC
   // refuses new streams.
-  quic_config.SetMaxIncomingDynamicStreamsToSend(1000);
+  quic_config.SetMaxIncomingBidirectionalStreamsToSend(1000);
 
   return quic_config;
 }

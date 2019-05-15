@@ -69,7 +69,8 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
         kInitialStreamFlowControlWindowForTest);
     session()->config()->SetInitialSessionFlowControlWindowToSend(
         kInitialSessionFlowControlWindowForTest);
-    session()->config()->ToHandshakeMessage(&msg);
+    session()->config()->ToHandshakeMessage(
+        &msg, session()->connection()->transport_version());
     const QuicErrorCode error =
         session()->config()->ProcessPeerHello(msg, CLIENT, &error_details);
     EXPECT_EQ(QUIC_NO_ERROR, error);
@@ -707,31 +708,86 @@ TEST_P(QuicSessionTestServer, TooManyAvailableUnidirectionalStreams) {
 TEST_P(QuicSessionTestServer, ManyAvailableBidirectionalStreams) {
   // When max_open_streams_ is 200, should be able to create 200 streams
   // out-of-order, that is, creating the one with the largest stream ID first.
-  QuicSessionPeer::SetMaxOpenIncomingStreams(&session_, 200);
+  if (transport_version() == QUIC_VERSION_99) {
+    QuicSessionPeer::SetMaxOpenIncomingBidirectionalStreams(&session_, 200);
+    // Smaller limit on unidirectional streams to help detect crossed wires.
+    QuicSessionPeer::SetMaxOpenIncomingUnidirectionalStreams(&session_, 50);
+  } else {
+    QuicSessionPeer::SetMaxOpenIncomingStreams(&session_, 200);
+  }
+  // Create a stream at the start of the range.
   QuicStreamId stream_id = GetNthClientInitiatedBidirectionalId(0);
-  // Create one stream.
   EXPECT_NE(nullptr, session_.GetOrCreateDynamicStream(stream_id));
-  EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(0);
 
   // Create the largest stream ID of a threatened total of 200 streams.
   // GetNth... starts at 0, so for 200 streams, get the 199th.
+  EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(0);
   EXPECT_NE(nullptr, session_.GetOrCreateDynamicStream(
                          GetNthClientInitiatedBidirectionalId(199)));
+
+  if (transport_version() == QUIC_VERSION_99) {
+    // If IETF QUIC, check to make sure that creating bidirectional
+    // streams does not mess up the unidirectional streams.
+    stream_id = GetNthClientInitiatedUnidirectionalId(0);
+    EXPECT_NE(nullptr, session_.GetOrCreateDynamicStream(stream_id));
+    // Now try to get the last possible unidirectional stream.
+    EXPECT_NE(nullptr, session_.GetOrCreateDynamicStream(
+                           GetNthClientInitiatedUnidirectionalId(49)));
+    // and this should fail because it exceeds the unidirectional limit
+    // (but not the bi-)
+    EXPECT_CALL(
+        *connection_,
+        CloseConnection(QUIC_INVALID_STREAM_ID,
+                        "Stream id 798 would exceed stream count limit 50",
+                        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET
+
+                        ))
+        .Times(1);
+    EXPECT_EQ(nullptr, session_.GetOrCreateDynamicStream(
+                           GetNthClientInitiatedUnidirectionalId(199)));
+  }
 }
 
 TEST_P(QuicSessionTestServer, ManyAvailableUnidirectionalStreams) {
   // When max_open_streams_ is 200, should be able to create 200 streams
   // out-of-order, that is, creating the one with the largest stream ID first.
-  QuicSessionPeer::SetMaxOpenIncomingStreams(&session_, 200);
-  QuicStreamId stream_id = GetNthClientInitiatedUnidirectionalId(0);
+  if (transport_version() == QUIC_VERSION_99) {
+    QuicSessionPeer::SetMaxOpenIncomingUnidirectionalStreams(&session_, 200);
+    // Smaller limit on unidirectional streams to help detect crossed wires.
+    QuicSessionPeer::SetMaxOpenIncomingBidirectionalStreams(&session_, 50);
+  } else {
+    QuicSessionPeer::SetMaxOpenIncomingStreams(&session_, 200);
+  }
   // Create one stream.
+  QuicStreamId stream_id = GetNthClientInitiatedUnidirectionalId(0);
   EXPECT_NE(nullptr, session_.GetOrCreateDynamicStream(stream_id));
-  EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(0);
 
   // Create the largest stream ID of a threatened total of 200 streams.
   // GetNth... starts at 0, so for 200 streams, get the 199th.
+  EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(0);
   EXPECT_NE(nullptr, session_.GetOrCreateDynamicStream(
                          GetNthClientInitiatedUnidirectionalId(199)));
+  if (transport_version() == QUIC_VERSION_99) {
+    // If IETF QUIC, check to make sure that creating unidirectional
+    // streams does not mess up the bidirectional streams.
+    stream_id = GetNthClientInitiatedBidirectionalId(0);
+    EXPECT_NE(nullptr, session_.GetOrCreateDynamicStream(stream_id));
+    // Now try to get the last possible bidirectional stream.
+    EXPECT_NE(nullptr, session_.GetOrCreateDynamicStream(
+                           GetNthClientInitiatedBidirectionalId(49)));
+    // and this should fail because it exceeds the bnidirectional limit
+    // (but not the uni-)
+    EXPECT_CALL(
+        *connection_,
+        CloseConnection(QUIC_INVALID_STREAM_ID,
+                        "Stream id 800 would exceed stream count limit 51",
+                        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET
+
+                        ))
+        .Times(1);
+    EXPECT_EQ(nullptr, session_.GetOrCreateDynamicStream(
+                           GetNthClientInitiatedBidirectionalId(199)));
+  }
 }
 
 TEST_P(QuicSessionTestServer, DebugDFatalIfMarkingClosedStreamWriteBlocked) {
@@ -1304,7 +1360,7 @@ TEST_P(QuicSessionTestServer, HandshakeUnblocksFlowControlBlockedCryptoStream) {
     QuicStreamOffset offset = crypto_stream->stream_bytes_written();
     QuicConfig config;
     CryptoHandshakeMessage crypto_message;
-    config.ToHandshakeMessage(&crypto_message);
+    config.ToHandshakeMessage(&crypto_message, transport_version());
     crypto_stream->SendHandshakeMessage(crypto_message);
     char buf[1000];
     QuicDataWriter writer(1000, buf, NETWORK_BYTE_ORDER);
@@ -1528,7 +1584,12 @@ TEST_P(QuicSessionTestServer, TooManyUnfinishedStreamsCauseServerRejectStream) {
   // with a FIN or RST then we send an RST to refuse streams. For V99 the
   // connection is closed.
   const QuicStreamId kMaxStreams = 5;
-  QuicSessionPeer::SetMaxOpenIncomingStreams(&session_, kMaxStreams);
+  if (transport_version() == QUIC_VERSION_99) {
+    QuicSessionPeer::SetMaxOpenIncomingBidirectionalStreams(&session_,
+                                                            kMaxStreams);
+  } else {
+    QuicSessionPeer::SetMaxOpenIncomingStreams(&session_, kMaxStreams);
+  }
   const QuicStreamId kFirstStreamId = GetNthClientInitiatedBidirectionalId(0);
   const QuicStreamId kFinalStreamId =
       GetNthClientInitiatedBidirectionalId(kMaxStreams);
@@ -1653,7 +1714,12 @@ TEST_P(QuicSessionTestServer, DrainingStreamsDoNotCountAsOpened) {
   }
   EXPECT_CALL(*connection_, OnStreamReset(_, QUIC_REFUSED_STREAM)).Times(0);
   const QuicStreamId kMaxStreams = 5;
-  QuicSessionPeer::SetMaxOpenIncomingStreams(&session_, kMaxStreams);
+  if (transport_version() == QUIC_VERSION_99) {
+    QuicSessionPeer::SetMaxOpenIncomingBidirectionalStreams(&session_,
+                                                            kMaxStreams);
+  } else {
+    QuicSessionPeer::SetMaxOpenIncomingStreams(&session_, kMaxStreams);
+  }
 
   // Create kMaxStreams + 1 data streams, and mark them draining.
   const QuicStreamId kFirstStreamId = GetNthClientInitiatedBidirectionalId(0);

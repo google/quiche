@@ -39,20 +39,70 @@ void QuicSessionPeer::SetNextOutgoingBidirectionalStreamId(QuicSession* session,
 void QuicSessionPeer::SetMaxOpenIncomingStreams(QuicSession* session,
                                                 uint32_t max_streams) {
   if (session->connection()->transport_version() == QUIC_VERSION_99) {
-    session->v99_streamid_manager_.SetMaxOpenIncomingStreams(max_streams);
+    QUIC_BUG << "SetmaxOpenIncomingStreams deprecated for IETF QUIC/V99";
+    session->v99_streamid_manager_.SetMaxOpenIncomingUnidirectionalStreams(
+        max_streams);
+    session->v99_streamid_manager_.SetMaxOpenIncomingBidirectionalStreams(
+        max_streams);
     return;
   }
   session->stream_id_manager_.set_max_open_incoming_streams(max_streams);
 }
 
 // static
+void QuicSessionPeer::SetMaxOpenIncomingBidirectionalStreams(
+    QuicSession* session,
+    uint32_t max_streams) {
+  DCHECK_EQ(QUIC_VERSION_99, session->connection()->transport_version())
+      << "SetmaxOpenIncomingBidirectionalStreams not supported for Google "
+         "QUIC/not-V99";
+  session->v99_streamid_manager_.SetMaxOpenIncomingBidirectionalStreams(
+      max_streams);
+}
+// static
+void QuicSessionPeer::SetMaxOpenIncomingUnidirectionalStreams(
+    QuicSession* session,
+    uint32_t max_streams) {
+  DCHECK_EQ(QUIC_VERSION_99, session->connection()->transport_version())
+      << "SetmaxOpenIncomingUnidirectionalStreams not supported for Google "
+         "QUIC/not-V99";
+  session->v99_streamid_manager_.SetMaxOpenIncomingUnidirectionalStreams(
+      max_streams);
+}
+
+// static
 void QuicSessionPeer::SetMaxOpenOutgoingStreams(QuicSession* session,
                                                 uint32_t max_streams) {
   if (session->connection()->transport_version() == QUIC_VERSION_99) {
-    session->v99_streamid_manager_.SetMaxOpenOutgoingStreams(max_streams);
+    QUIC_BUG << "SetmaxOpenOutgoingStreams deprecated for IETF QUIC/V99";
+    session->v99_streamid_manager_.SetMaxOpenOutgoingUnidirectionalStreams(
+        max_streams);
+    session->v99_streamid_manager_.SetMaxOpenOutgoingBidirectionalStreams(
+        max_streams);
     return;
   }
   session->stream_id_manager_.set_max_open_outgoing_streams(max_streams);
+}
+
+// static
+void QuicSessionPeer::SetMaxOpenOutgoingBidirectionalStreams(
+    QuicSession* session,
+    uint32_t max_streams) {
+  DCHECK_EQ(QUIC_VERSION_99, session->connection()->transport_version())
+      << "SetmaxOpenOutgoingBidirectionalStreams not supported for Google "
+         "QUIC/not-V99";
+  session->v99_streamid_manager_.SetMaxOpenOutgoingBidirectionalStreams(
+      max_streams);
+}
+// static
+void QuicSessionPeer::SetMaxOpenOutgoingUnidirectionalStreams(
+    QuicSession* session,
+    uint32_t max_streams) {
+  DCHECK_EQ(QUIC_VERSION_99, session->connection()->transport_version())
+      << "SetmaxOpenOutgoingUnidirectionalStreams not supported for Google "
+         "QUIC/not-V99";
+  session->v99_streamid_manager_.SetMaxOpenOutgoingUnidirectionalStreams(
+      max_streams);
 }
 
 // static

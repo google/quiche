@@ -4988,7 +4988,7 @@ TEST_P(QuicConnectionTest, NewTimeoutAfterSendSilentClose) {
   client_config.SetIdleNetworkTimeout(
       QuicTime::Delta::FromSeconds(kDefaultIdleTimeoutSecs),
       QuicTime::Delta::FromSeconds(kDefaultIdleTimeoutSecs));
-  client_config.ToHandshakeMessage(&msg);
+  client_config.ToHandshakeMessage(&msg, connection_.transport_version());
   const QuicErrorCode error =
       config.ProcessPeerHello(msg, CLIENT, &error_details);
   EXPECT_EQ(QUIC_NO_ERROR, error);
@@ -5055,7 +5055,7 @@ TEST_P(QuicConnectionTest, TimeoutAfterSendSilentCloseAndTLP) {
   client_config.SetIdleNetworkTimeout(
       QuicTime::Delta::FromSeconds(kDefaultIdleTimeoutSecs),
       QuicTime::Delta::FromSeconds(kDefaultIdleTimeoutSecs));
-  client_config.ToHandshakeMessage(&msg);
+  client_config.ToHandshakeMessage(&msg, connection_.transport_version());
   const QuicErrorCode error =
       config.ProcessPeerHello(msg, CLIENT, &error_details);
   EXPECT_EQ(QUIC_NO_ERROR, error);
@@ -5111,7 +5111,7 @@ TEST_P(QuicConnectionTest, TimeoutAfterSendSilentCloseWithOpenStreams) {
   client_config.SetIdleNetworkTimeout(
       QuicTime::Delta::FromSeconds(kDefaultIdleTimeoutSecs),
       QuicTime::Delta::FromSeconds(kDefaultIdleTimeoutSecs));
-  client_config.ToHandshakeMessage(&msg);
+  client_config.ToHandshakeMessage(&msg, connection_.transport_version());
   const QuicErrorCode error =
       config.ProcessPeerHello(msg, CLIENT, &error_details);
   EXPECT_EQ(QUIC_NO_ERROR, error);

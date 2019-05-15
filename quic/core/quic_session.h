@@ -419,6 +419,10 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
   static void RecordConnectionCloseAtServer(QuicErrorCode error,
                                             ConnectionCloseSource source);
 
+  inline QuicTransportVersion transport_version() const {
+    return connection_->transport_version();
+  }
+
  protected:
   using StaticStreamMap = QuicSmallMap<QuicStreamId, QuicStream*, 2>;
 

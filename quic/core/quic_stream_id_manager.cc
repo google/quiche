@@ -130,12 +130,13 @@ bool QuicStreamIdManager::ConfigureMaxOpenOutgoingStreams(
   outgoing_max_streams_ = std::min(
       static_cast<QuicStreamCount>(max_open_streams),
       QuicUtils::GetMaxStreamCount(unidirectional_, session_->perspective()));
-
   return true;
 }
 
 void QuicStreamIdManager::SetMaxOpenOutgoingStreams(size_t max_open_streams) {
   QUIC_BUG_IF(!using_default_max_streams_);
+  // TODO(fkastenholz): when static streams are removed from I-Quic, this
+  // should be revised to invoke ConfigureMaxOpen...
   AdjustMaxOpenOutgoingStreams(max_open_streams);
 }
 
@@ -143,8 +144,8 @@ void QuicStreamIdManager::SetMaxOpenOutgoingStreams(size_t max_open_streams) {
 // including static streams. If the new stream limit wraps, will peg
 // the limit at the implementation max.
 // TODO(fkastenholz): AdjustMax is cognizant of the number of static streams and
-// sets the maximum to be max_streams + number_of_statics. This should
-// eventually be removed from IETF QUIC.
+// sets the maximum to be max_streams + number_of_statics. This should be
+// removed from IETF QUIC when static streams are gone.
 void QuicStreamIdManager::AdjustMaxOpenOutgoingStreams(
     size_t max_open_streams) {
   if ((outgoing_static_stream_count_ + max_open_streams) < max_open_streams) {

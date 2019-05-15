@@ -208,7 +208,7 @@ void QuicCryptoServerHandshaker::
 
   session()->OnConfigNegotiated();
 
-  config->ToHandshakeMessage(reply.get());
+  config->ToHandshakeMessage(reply.get(), session()->transport_version());
 
   // Receiving a full CHLO implies the client is prepared to decrypt with
   // the new server write key.  We can start to encrypt with the new server

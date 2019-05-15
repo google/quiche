@@ -45,10 +45,16 @@ void QuicConfigPeer::SetReceivedDisableConnectionMigration(QuicConfig* config) {
 }
 
 // static
-void QuicConfigPeer::SetReceivedMaxIncomingDynamicStreams(
+void QuicConfigPeer::SetReceivedMaxIncomingBidirectionalStreams(
     QuicConfig* config,
     uint32_t max_streams) {
-  config->max_incoming_dynamic_streams_.SetReceivedValue(max_streams);
+  config->max_incoming_bidirectional_streams_.SetReceivedValue(max_streams);
+}
+// static
+void QuicConfigPeer::SetReceivedMaxIncomingUnidirectionalStreams(
+    QuicConfig* config,
+    uint32_t max_streams) {
+  config->max_incoming_unidirectional_streams_.SetReceivedValue(max_streams);
 }
 
 // static
