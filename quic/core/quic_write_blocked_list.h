@@ -24,7 +24,7 @@ class QUIC_EXPORT_PRIVATE QuicWriteBlockedList {
   typedef spdy::PriorityWriteScheduler<QuicStreamId> QuicPriorityWriteScheduler;
 
  public:
-  explicit QuicWriteBlockedList();
+  explicit QuicWriteBlockedList(QuicTransportVersion version);
   QuicWriteBlockedList(const QuicWriteBlockedList&) = delete;
   QuicWriteBlockedList& operator=(const QuicWriteBlockedList&) = delete;
   ~QuicWriteBlockedList();

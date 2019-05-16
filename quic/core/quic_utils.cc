@@ -399,7 +399,7 @@ bool QuicUtils::IsCryptoStreamId(QuicTransportVersion version,
 
 // static
 QuicStreamId QuicUtils::GetHeadersStreamId(QuicTransportVersion version) {
-  return version == QUIC_VERSION_99 ? 4 : 3;
+  return GetFirstBidirectionalStreamId(version, Perspective::IS_CLIENT);
 }
 
 // static
@@ -461,19 +461,26 @@ QuicStreamId QuicUtils::StreamIdDelta(QuicTransportVersion version) {
 QuicStreamId QuicUtils::GetFirstBidirectionalStreamId(
     QuicTransportVersion version,
     Perspective perspective) {
-  if (perspective == Perspective::IS_CLIENT) {
-    // TODO(nharper): Return 0 instead of 4 when CRYPTO frames are used.
-    return version == QUIC_VERSION_99 ? 4 : 3;
+  if (version == QUIC_VERSION_99) {
+    return perspective == Perspective::IS_CLIENT ? 0 : 1;
+  } else if (QuicVersionUsesCryptoFrames(version)) {
+    return perspective == Perspective::IS_CLIENT ? 1 : 2;
   }
-  return version == QUIC_VERSION_99 ? 1 : 2;
+  return perspective == Perspective::IS_CLIENT ? 3 : 2;
 }
 
 // static
 QuicStreamId QuicUtils::GetFirstUnidirectionalStreamId(
     QuicTransportVersion version,
     Perspective perspective) {
+  if (version == QUIC_VERSION_99) {
+    return perspective == Perspective::IS_CLIENT ? 2 : 3;
+  } else if (QuicVersionUsesCryptoFrames(version)) {
+    return perspective == Perspective::IS_CLIENT ? 1 : 2;
+  }
+  return perspective == Perspective::IS_CLIENT ? 3 : 2;
   if (perspective == Perspective::IS_CLIENT) {
-    return version == QUIC_VERSION_99 ? 2 : 3;
+    return version == QUIC_VERSION_99 ? 2 : 1;
   }
   return version == QUIC_VERSION_99 ? 3 : 2;
 }

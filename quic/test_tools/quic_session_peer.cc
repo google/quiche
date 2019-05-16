@@ -181,19 +181,16 @@ void QuicSessionPeer::RegisterStaticStreamNew(
 
 // static
 bool QuicSessionPeer::IsStreamClosed(QuicSession* session, QuicStreamId id) {
-  DCHECK_NE(0u, id);
   return session->IsClosedStream(id);
 }
 
 // static
 bool QuicSessionPeer::IsStreamCreated(QuicSession* session, QuicStreamId id) {
-  DCHECK_NE(0u, id);
   return QuicContainsKey(session->dynamic_streams(), id);
 }
 
 // static
 bool QuicSessionPeer::IsStreamAvailable(QuicSession* session, QuicStreamId id) {
-  DCHECK_NE(0u, id);
   if (session->connection()->transport_version() == QUIC_VERSION_99) {
     if (id % QuicUtils::StreamIdDelta(QUIC_VERSION_99) < 2) {
       return QuicContainsKey(

@@ -282,7 +282,7 @@ TEST_P(UberQuicStreamIdManagerTest, MaybeIncreaseLargestPeerStreamId) {
 
   std::string error_details =
       GetParam() == Perspective::IS_SERVER
-          ? "Stream id 404 would exceed stream count limit 100"
+          ? "Stream id 400 would exceed stream count limit 100"
           : "Stream id 401 would exceed stream count limit 100";
 
   EXPECT_CALL(*connection_,

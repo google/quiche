@@ -9,7 +9,11 @@
 
 namespace quic {
 
-QuicWriteBlockedList::QuicWriteBlockedList() : last_priority_popped_(0) {
+QuicWriteBlockedList::QuicWriteBlockedList(QuicTransportVersion version)
+    : priority_write_scheduler_(QuicVersionUsesCryptoFrames(version)
+                                    ? std::numeric_limits<QuicStreamId>::max()
+                                    : 0),
+      last_priority_popped_(0) {
   memset(batch_write_stream_id_, 0, sizeof(batch_write_stream_id_));
   memset(bytes_left_for_batch_write_, 0, sizeof(bytes_left_for_batch_write_));
 }

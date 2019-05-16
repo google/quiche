@@ -51,7 +51,7 @@ QuicSession::QuicSession(QuicConnection* connection,
                          const ParsedQuicVersionVector& supported_versions)
     : connection_(connection),
       visitor_(owner),
-      write_blocked_streams_(),
+      write_blocked_streams_(connection->transport_version()),
       config_(config),
       stream_id_manager_(this,
                          kDefaultMaxStreamsPerConnection,

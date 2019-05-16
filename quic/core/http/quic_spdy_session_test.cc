@@ -395,12 +395,6 @@ class QuicSpdySessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
     if (perspective == Perspective::IS_SERVER) {
       id |= 0x1;
     }
-    if (bidirectional && perspective == Perspective::IS_CLIENT &&
-        QuicVersionUsesCryptoFrames(transport_version())) {
-      // Once stream ID 0 is used as a normal client initiated bidirectional
-      // stream, this shouldn't be needed any more.
-      id += 4;
-    }
     return id;
   }
 
@@ -1564,7 +1558,7 @@ TEST_P(QuicSpdySessionTestServer,
     EXPECT_CALL(
         *connection_,
         CloseConnection(QUIC_INVALID_STREAM_ID,
-                        "Stream id 28 would exceed stream count limit 6", _));
+                        "Stream id 24 would exceed stream count limit 6", _));
   }
   // Create one more data streams to exceed limit of open stream.
   QuicStreamFrame data1(kFinalStreamId, false, 0, QuicStringPiece("HT"));

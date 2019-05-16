@@ -423,10 +423,6 @@ class QuicSessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
     if (perspective == Perspective::IS_SERVER) {
       id |= 0x1;
     }
-    if (QuicVersionUsesCryptoFrames(connection_->transport_version()) &&
-        bidirectional && perspective == Perspective::IS_CLIENT) {
-      id += 4;
-    }
     return id;
   }
 
@@ -787,13 +783,16 @@ TEST_P(QuicSessionTestServer, ManyAvailableUnidirectionalStreams) {
                            GetNthClientInitiatedBidirectionalId(49)));
     // and this should fail because it exceeds the bnidirectional limit
     // (but not the uni-)
+    std::string error_detail;
+    if (QuicVersionUsesCryptoFrames(transport_version())) {
+      error_detail = "Stream id 796 would exceed stream count limit 50";
+    } else {
+      error_detail = "Stream id 800 would exceed stream count limit 50";
+    }
     EXPECT_CALL(
         *connection_,
-        CloseConnection(QUIC_INVALID_STREAM_ID,
-                        "Stream id 800 would exceed stream count limit 50",
-                        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET
-
-                        ))
+        CloseConnection(QUIC_INVALID_STREAM_ID, error_detail,
+                        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET))
         .Times(1);
     EXPECT_EQ(nullptr, session_.GetOrCreateDynamicStream(
                            GetNthClientInitiatedBidirectionalId(199)));
@@ -1648,7 +1647,7 @@ TEST_P(QuicSessionTestServer, TooManyUnfinishedStreamsCauseServerRejectStream) {
     EXPECT_CALL(
         *connection_,
         CloseConnection(QUIC_INVALID_STREAM_ID,
-                        "Stream id 24 would exceed stream count limit 5", _));
+                        "Stream id 20 would exceed stream count limit 5", _));
   } else {
     EXPECT_CALL(*connection_, SendControlFrame(_)).Times(1);
     EXPECT_CALL(*connection_,
@@ -2385,7 +2384,7 @@ TEST_P(QuicSessionTestServer, NewStreamIdAboveLimit) {
   EXPECT_CALL(
       *connection_,
       CloseConnection(QUIC_INVALID_STREAM_ID,
-                      "Stream id 404 would exceed stream count limit 100", _));
+                      "Stream id 400 would exceed stream count limit 100", _));
   session_.OnStreamFrame(bidirectional_stream_frame);
 
   QuicStreamId unidirectional_stream_id = StreamCountToId(
