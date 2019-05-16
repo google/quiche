@@ -69,7 +69,7 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
         kInitialStreamFlowControlWindowForTest);
     session()->config()->SetInitialSessionFlowControlWindowToSend(
         kInitialSessionFlowControlWindowForTest);
-    session()->config()->ToHandshakeMessage(&msg);
+    session()->config()->ToHandshakeMessage(&msg, transport_version());
     const QuicErrorCode error =
         session()->config()->ProcessPeerHello(msg, CLIENT, &error_details);
     EXPECT_EQ(QUIC_NO_ERROR, error);
@@ -565,7 +565,11 @@ TEST_P(QuicSpdySessionTestServer, TooManyAvailableStreams) {
 TEST_P(QuicSpdySessionTestServer, ManyAvailableStreams) {
   // When max_open_streams_ is 200, should be able to create 200 streams
   // out-of-order, that is, creating the one with the largest stream ID first.
-  QuicSessionPeer::SetMaxOpenIncomingStreams(&session_, 200);
+  if (IsVersion99()) {
+    QuicSessionPeer::SetMaxOpenIncomingBidirectionalStreams(&session_, 200);
+  } else {
+    QuicSessionPeer::SetMaxOpenIncomingStreams(&session_, 200);
+  }
   QuicStreamId stream_id = GetNthClientInitiatedBidirectionalId(0);
   // Create one stream.
   session_.GetOrCreateDynamicStream(stream_id);
@@ -1179,7 +1183,7 @@ TEST_P(QuicSpdySessionTestServer,
     QuicStreamOffset offset = crypto_stream->stream_bytes_written();
     QuicConfig config;
     CryptoHandshakeMessage crypto_message;
-    config.ToHandshakeMessage(&crypto_message);
+    config.ToHandshakeMessage(&crypto_message, transport_version());
     crypto_stream->SendHandshakeMessage(crypto_message);
     char buf[1000];
     QuicDataWriter writer(1000, buf, NETWORK_BYTE_ORDER);
@@ -1500,7 +1504,12 @@ TEST_P(QuicSpdySessionTestServer,
   // with a FIN or RST then we send an RST to refuse streams for versions other
   // than version 99. In version 99 the connection gets closed.
   const QuicStreamId kMaxStreams = 5;
-  QuicSessionPeer::SetMaxOpenIncomingStreams(&session_, kMaxStreams);
+  if (IsVersion99()) {
+    QuicSessionPeer::SetMaxOpenIncomingBidirectionalStreams(&session_,
+                                                            kMaxStreams);
+  } else {
+    QuicSessionPeer::SetMaxOpenIncomingStreams(&session_, kMaxStreams);
+  }
   // GetNth assumes that both the crypto and header streams have been
   // open, but the stream id manager, using GetFirstBidirectional... only
   // assumes that the crypto stream is open. This means that GetNth...(0)
@@ -1573,7 +1582,12 @@ TEST_P(QuicSpdySessionTestServer, DrainingStreamsDoNotCountAsOpened) {
   }
   EXPECT_CALL(*connection_, OnStreamReset(_, QUIC_REFUSED_STREAM)).Times(0);
   const QuicStreamId kMaxStreams = 5;
-  QuicSessionPeer::SetMaxOpenIncomingStreams(&session_, kMaxStreams);
+  if (IsVersion99()) {
+    QuicSessionPeer::SetMaxOpenIncomingBidirectionalStreams(&session_,
+                                                            kMaxStreams);
+  } else {
+    QuicSessionPeer::SetMaxOpenIncomingStreams(&session_, kMaxStreams);
+  }
 
   // Create kMaxStreams + 1 data streams, and mark them draining.
   const QuicStreamId kFirstStreamId = GetNthClientInitiatedBidirectionalId(0);

@@ -46,7 +46,6 @@ IdToSequenceNumberMap QuartcPeer::GetLastSequenceNumbers() const {
 void QuartcPeer::OnSessionCreated(QuartcSession* session) {
   session_ = session;
 
-  session_->SetDelegate(this);
   session_->StartCryptoHandshake();
 
   QuicByteCount largest_message_payload =
@@ -63,13 +62,6 @@ void QuartcPeer::OnSessionCreated(QuartcSession* session) {
     data_sources_.push_back(QuicMakeUnique<QuartcDataSource>(
         clock_, alarm_factory_, random_, config, this));
   }
-}
-
-void QuartcPeer::OnConnectError(QuicErrorCode error,
-                                const std::string& error_details) {
-  QUIC_LOG(WARNING) << "Connect failed, error=" << error
-                    << ", details=" << error_details;
-  SetEnabled(false);
 }
 
 void QuartcPeer::OnCryptoHandshakeComplete() {

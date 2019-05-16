@@ -67,13 +67,8 @@ class QuicClient : public QuicSpdyClientBase {
   QuicClientEpollNetworkHelper* epoll_network_helper();
   const QuicClientEpollNetworkHelper* epoll_network_helper() const;
 
-  void set_drop_response_body(bool drop_response_body) {
-    drop_response_body_ = drop_response_body;
-  }
-
  private:
   friend class test::QuicClientPeer;
-  bool drop_response_body_ = false;
 };
 
 }  // namespace quic

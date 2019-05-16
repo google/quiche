@@ -1389,7 +1389,7 @@ TEST_P(EndToEndTestWithTls, MaxIncomingDynamicStreamsLimitRespected) {
   // Set a limit on maximum number of incoming dynamic streams.
   // Make sure the limit is respected.
   const uint32_t kServerMaxIncomingDynamicStreams = 1;
-  server_config_.SetMaxIncomingDynamicStreamsToSend(
+  server_config_.SetMaxIncomingBidirectionalStreamsToSend(
       kServerMaxIncomingDynamicStreams);
   ASSERT_TRUE(Initialize());
   if (GetParam().negotiated_version.transport_version == QUIC_VERSION_99) {
@@ -1430,10 +1430,15 @@ TEST_P(EndToEndTest, SetIndependentMaxIncomingDynamicStreamsLimits) {
   // Each endpoint can set max incoming dynamic streams independently.
   const uint32_t kClientMaxIncomingDynamicStreams = 2;
   const uint32_t kServerMaxIncomingDynamicStreams = 1;
-  client_config_.SetMaxIncomingDynamicStreamsToSend(
+  client_config_.SetMaxIncomingBidirectionalStreamsToSend(
       kClientMaxIncomingDynamicStreams);
-  server_config_.SetMaxIncomingDynamicStreamsToSend(
+  server_config_.SetMaxIncomingBidirectionalStreamsToSend(
       kServerMaxIncomingDynamicStreams);
+  client_config_.SetMaxIncomingUnidirectionalStreamsToSend(
+      kClientMaxIncomingDynamicStreams);
+  server_config_.SetMaxIncomingUnidirectionalStreamsToSend(
+      kServerMaxIncomingDynamicStreams);
+
   ASSERT_TRUE(Initialize());
   EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
 
@@ -2739,8 +2744,10 @@ class EndToEndTestServerPush : public EndToEndTest {
   const size_t kNumMaxStreams = 10;
 
   EndToEndTestServerPush() : EndToEndTest() {
-    client_config_.SetMaxIncomingDynamicStreamsToSend(kNumMaxStreams);
-    server_config_.SetMaxIncomingDynamicStreamsToSend(kNumMaxStreams);
+    client_config_.SetMaxIncomingBidirectionalStreamsToSend(kNumMaxStreams);
+    server_config_.SetMaxIncomingBidirectionalStreamsToSend(kNumMaxStreams);
+    client_config_.SetMaxIncomingUnidirectionalStreamsToSend(kNumMaxStreams);
+    server_config_.SetMaxIncomingUnidirectionalStreamsToSend(kNumMaxStreams);
     support_server_push_ = true;
   }
 

@@ -1051,7 +1051,7 @@ QuicConfig DefaultQuicConfig() {
       kInitialStreamFlowControlWindowForTest);
   config.SetInitialSessionFlowControlWindowToSend(
       kInitialSessionFlowControlWindowForTest);
-  QuicConfigPeer::SetReceivedMaxIncomingDynamicStreams(
+  QuicConfigPeer::SetReceivedMaxIncomingBidirectionalStreams(
       &config, kDefaultMaxStreamsPerConnection);
   // Default enable NSTP.
   // This is unnecessary for versions > 44

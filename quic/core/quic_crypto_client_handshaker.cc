@@ -263,7 +263,7 @@ void QuicCryptoClientHandshaker::DoSendCHLO(
   DCHECK(session()->config() != nullptr);
   // Send all the options, regardless of whether we're sending an
   // inchoate or subsequent hello.
-  session()->config()->ToHandshakeMessage(&out);
+  session()->config()->ToHandshakeMessage(&out, session()->transport_version());
 
   if (!cached->IsComplete(session()->connection()->clock()->WallNow())) {
     crypto_config_->FillInchoateClientHello(

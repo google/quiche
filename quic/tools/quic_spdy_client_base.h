@@ -135,6 +135,11 @@ class QuicSpdyClientBase : public QuicClientBase,
     response_listener_ = std::move(listener);
   }
 
+  void set_drop_response_body(bool drop_response_body) {
+    drop_response_body_ = drop_response_body;
+  }
+  bool drop_response_body() const { return drop_response_body_; }
+
  protected:
   int GetNumSentClientHellosFromSession() override;
   int GetNumReceivedServerConfigUpdatesFromSession() override;
@@ -209,6 +214,8 @@ class QuicSpdyClientBase : public QuicClientBase,
   std::vector<std::unique_ptr<QuicDataToResend>> data_to_resend_on_connect_;
 
   std::unique_ptr<ClientQuicDataToResend> push_promise_data_to_resend_;
+
+  bool drop_response_body_ = false;
 };
 
 }  // namespace quic

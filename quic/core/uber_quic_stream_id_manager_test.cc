@@ -60,6 +60,28 @@ class UberQuicStreamIdManagerTest : public QuicTestWithParam<Perspective> {
            kV99StreamIdIncrement * n;
   }
 
+  // TODO(fkastenholz): Existing tests can use these helper functions.
+  QuicStreamId GetNthPeerInitiatedBidirectionalStreamId(int n) {
+    return ((GetParam() == Perspective::IS_SERVER)
+                ? GetNthClientInitiatedBidirectionalId(n)
+                : GetNthServerInitiatedBidirectionalId(n));
+  }
+  QuicStreamId GetNthPeerInitiatedUnidirectionalStreamId(int n) {
+    return ((GetParam() == Perspective::IS_SERVER)
+                ? GetNthClientInitiatedUnidirectionalId(n)
+                : GetNthServerInitiatedUnidirectionalId(n));
+  }
+  QuicStreamId GetNthSelfInitiatedBidirectionalStreamId(int n) {
+    return ((GetParam() == Perspective::IS_CLIENT)
+                ? GetNthClientInitiatedBidirectionalId(n)
+                : GetNthServerInitiatedBidirectionalId(n));
+  }
+  QuicStreamId GetNthSelfInitiatedUnidirectionalStreamId(int n) {
+    return ((GetParam() == Perspective::IS_CLIENT)
+                ? GetNthClientInitiatedUnidirectionalId(n)
+                : GetNthServerInitiatedUnidirectionalId(n));
+  }
+
   QuicStreamId StreamCountToId(QuicStreamCount stream_count,
                                Perspective perspective,
                                bool bidirectional) {
@@ -129,17 +151,39 @@ TEST_P(UberQuicStreamIdManagerTest, RegisterStaticStream) {
 
 TEST_P(UberQuicStreamIdManagerTest, SetMaxOpenOutgoingStreams) {
   const size_t kNumMaxOutgoingStream = 123;
-  manager_->SetMaxOpenOutgoingStreams(kNumMaxOutgoingStream);
+  // Set the uni- and bi- directional limits to different values to ensure
+  // that they are managed separately.
+  manager_->SetMaxOpenOutgoingBidirectionalStreams(kNumMaxOutgoingStream);
+  manager_->SetMaxOpenOutgoingUnidirectionalStreams(kNumMaxOutgoingStream + 1);
   EXPECT_EQ(kNumMaxOutgoingStream,
             manager_->max_allowed_outgoing_bidirectional_streams());
-  EXPECT_EQ(kNumMaxOutgoingStream,
+  EXPECT_EQ(kNumMaxOutgoingStream + 1,
             manager_->max_allowed_outgoing_unidirectional_streams());
+  // Check that, for each directionality, we can open the correct number of
+  // streams.
+  int i = kNumMaxOutgoingStream;
+  while (i) {
+    EXPECT_TRUE(manager_->CanOpenNextOutgoingBidirectionalStream());
+    manager_->GetNextOutgoingBidirectionalStreamId();
+    EXPECT_TRUE(manager_->CanOpenNextOutgoingUnidirectionalStream());
+    manager_->GetNextOutgoingUnidirectionalStreamId();
+    i--;
+  }
+  // One more unidirectional
+  EXPECT_TRUE(manager_->CanOpenNextOutgoingUnidirectionalStream());
+  manager_->GetNextOutgoingUnidirectionalStreamId();
+
+  // Both should be exhausted...
+  EXPECT_FALSE(manager_->CanOpenNextOutgoingUnidirectionalStream());
+  EXPECT_FALSE(manager_->CanOpenNextOutgoingBidirectionalStream());
 }
 
 TEST_P(UberQuicStreamIdManagerTest, SetMaxOpenIncomingStreams) {
   const size_t kNumMaxIncomingStreams = 456;
-  manager_->SetMaxOpenIncomingStreams(kNumMaxIncomingStreams);
-  EXPECT_EQ(kNumMaxIncomingStreams,
+  manager_->SetMaxOpenIncomingUnidirectionalStreams(kNumMaxIncomingStreams);
+  // Do +1 for bidirectional to ensure that uni- and bi- get properly set.
+  manager_->SetMaxOpenIncomingBidirectionalStreams(kNumMaxIncomingStreams + 1);
+  EXPECT_EQ(kNumMaxIncomingStreams + 1,
             manager_->GetMaxAllowdIncomingBidirectionalStreams());
   EXPECT_EQ(kNumMaxIncomingStreams,
             manager_->GetMaxAllowdIncomingUnidirectionalStreams());
@@ -147,6 +191,24 @@ TEST_P(UberQuicStreamIdManagerTest, SetMaxOpenIncomingStreams) {
             manager_->advertised_max_allowed_incoming_bidirectional_streams());
   EXPECT_EQ(manager_->actual_max_allowed_incoming_unidirectional_streams(),
             manager_->advertised_max_allowed_incoming_unidirectional_streams());
+  // Make sure that we can create kNumMaxIncomingStreams incoming unidirectional
+  // streams and kNumMaxIncomingStreams+1 incoming bidirectional streams.
+  size_t i;
+  for (i = 0; i < kNumMaxIncomingStreams; i++) {
+    EXPECT_TRUE(manager_->MaybeIncreaseLargestPeerStreamId(
+        GetNthPeerInitiatedUnidirectionalStreamId(i)));
+    EXPECT_TRUE(manager_->MaybeIncreaseLargestPeerStreamId(
+        GetNthPeerInitiatedBidirectionalStreamId(i)));
+  }
+  // Should be able to open the next bidirectional stream
+  EXPECT_TRUE(manager_->MaybeIncreaseLargestPeerStreamId(
+      GetNthPeerInitiatedBidirectionalStreamId(i)));
+
+  // We should have exhausted the counts, the next streams should fail
+  EXPECT_FALSE(manager_->MaybeIncreaseLargestPeerStreamId(
+      GetNthPeerInitiatedUnidirectionalStreamId(i)));
+  EXPECT_FALSE(manager_->MaybeIncreaseLargestPeerStreamId(
+      GetNthPeerInitiatedBidirectionalStreamId(i + 1)));
 }
 
 TEST_P(UberQuicStreamIdManagerTest, GetNextOutgoingStreamId) {
@@ -337,6 +399,44 @@ TEST_P(UberQuicStreamIdManagerTest, IsIncomingStream) {
     EXPECT_TRUE(
         manager_->IsIncomingStream(GetNthServerInitiatedUnidirectionalId(0)));
   }
+}
+
+TEST_P(UberQuicStreamIdManagerTest, SetMaxOpenOutgoingStreamsPlusFrame) {
+  const size_t kNumMaxOutgoingStream = 123;
+  // Set the uni- and bi- directional limits to different values to ensure
+  // that they are managed separately.
+  manager_->SetMaxOpenOutgoingBidirectionalStreams(kNumMaxOutgoingStream);
+  manager_->SetMaxOpenOutgoingUnidirectionalStreams(kNumMaxOutgoingStream + 1);
+  EXPECT_EQ(kNumMaxOutgoingStream,
+            manager_->max_allowed_outgoing_bidirectional_streams());
+  EXPECT_EQ(kNumMaxOutgoingStream + 1,
+            manager_->max_allowed_outgoing_unidirectional_streams());
+  // Check that, for each directionality, we can open the correct number of
+  // streams.
+  int i = kNumMaxOutgoingStream;
+  while (i) {
+    EXPECT_TRUE(manager_->CanOpenNextOutgoingBidirectionalStream());
+    manager_->GetNextOutgoingBidirectionalStreamId();
+    EXPECT_TRUE(manager_->CanOpenNextOutgoingUnidirectionalStream());
+    manager_->GetNextOutgoingUnidirectionalStreamId();
+    i--;
+  }
+  // One more unidirectional
+  EXPECT_TRUE(manager_->CanOpenNextOutgoingUnidirectionalStream());
+  manager_->GetNextOutgoingUnidirectionalStreamId();
+
+  // Both should be exhausted...
+  EXPECT_FALSE(manager_->CanOpenNextOutgoingUnidirectionalStream());
+  EXPECT_FALSE(manager_->CanOpenNextOutgoingBidirectionalStream());
+
+  // Now cons a MAX STREAMS frame for unidirectional streams to raise
+  // the limit.
+  QuicMaxStreamsFrame frame(1, kNumMaxOutgoingStream + 10,
+                            /*unidirectional=*/true);
+  manager_->OnMaxStreamsFrame(frame);
+  // We now should be able to get another uni- stream, but not a bi.
+  EXPECT_TRUE(manager_->CanOpenNextOutgoingUnidirectionalStream());
+  EXPECT_FALSE(manager_->CanOpenNextOutgoingBidirectionalStream());
 }
 
 }  // namespace

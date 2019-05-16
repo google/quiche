@@ -32,10 +32,24 @@ class QuicSessionPeer {
       QuicSession* session);
   static void SetNextOutgoingBidirectionalStreamId(QuicSession* session,
                                                    QuicStreamId id);
+  // Following is only for Google-QUIC, will QUIC_BUG if called for IETF
+  // QUIC.
   static void SetMaxOpenIncomingStreams(QuicSession* session,
                                         uint32_t max_streams);
+  // Following two are only for IETF-QUIC, will QUIC_BUG if called for Google
+  // QUIC.
+  static void SetMaxOpenIncomingBidirectionalStreams(QuicSession* session,
+                                                     uint32_t max_streams);
+  static void SetMaxOpenIncomingUnidirectionalStreams(QuicSession* session,
+                                                      uint32_t max_streams);
+
   static void SetMaxOpenOutgoingStreams(QuicSession* session,
                                         uint32_t max_streams);
+  static void SetMaxOpenOutgoingBidirectionalStreams(QuicSession* session,
+                                                     uint32_t max_streams);
+  static void SetMaxOpenOutgoingUnidirectionalStreams(QuicSession* session,
+                                                      uint32_t max_streams);
+
   static QuicCryptoStream* GetMutableCryptoStream(QuicSession* session);
   static QuicWriteBlockedList* GetWriteBlockedStreams(QuicSession* session);
   static QuicStream* GetOrCreateDynamicStream(QuicSession* session,

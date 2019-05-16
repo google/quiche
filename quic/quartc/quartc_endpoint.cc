@@ -67,15 +67,70 @@ QuartcClientEndpoint::QuartcClientEndpoint(
 
 void QuartcClientEndpoint::Connect(QuartcPacketTransport* packet_transport) {
   packet_transport_ = packet_transport;
+  // For the first attempt to connect, use any version that the client supports.
+  current_versions_ = version_manager_->GetSupportedVersions();
   create_session_alarm_->Set(clock_->Now());
 }
 
 void QuartcClientEndpoint::OnCreateSessionAlarm() {
   session_ = CreateQuartcClientSession(
       config_, clock_, alarm_factory_, connection_helper_.get(),
-      version_manager_->GetSupportedVersions(), serialized_server_config_,
-      packet_transport_);
+      current_versions_, serialized_server_config_, packet_transport_);
+  session_->SetDelegate(this);
   delegate_->OnSessionCreated(session_.get());
+}
+
+void QuartcClientEndpoint::OnCryptoHandshakeComplete() {
+  delegate_->OnCryptoHandshakeComplete();
+}
+
+void QuartcClientEndpoint::OnConnectionWritable() {
+  delegate_->OnConnectionWritable();
+}
+
+void QuartcClientEndpoint::OnIncomingStream(QuartcStream* stream) {
+  delegate_->OnIncomingStream(stream);
+}
+
+void QuartcClientEndpoint::OnCongestionControlChange(
+    QuicBandwidth bandwidth_estimate,
+    QuicBandwidth pacing_rate,
+    QuicTime::Delta latest_rtt) {
+  delegate_->OnCongestionControlChange(bandwidth_estimate, pacing_rate,
+                                       latest_rtt);
+}
+
+void QuartcClientEndpoint::OnConnectionClosed(QuicErrorCode error_code,
+                                              const std::string& error_details,
+                                              ConnectionCloseSource source) {
+  // First, see if we can restart the session with a mutually-supported version.
+  if (error_code == QUIC_INVALID_VERSION && session_ &&
+      session_->connection() &&
+      !session_->connection()->server_supported_versions().empty()) {
+    for (const auto& client_version :
+         version_manager_->GetSupportedVersions()) {
+      if (QuicContainsValue(session_->connection()->server_supported_versions(),
+                            client_version)) {
+        // Found a mutually-supported version.  Reconnect using that version.
+        current_versions_.clear();
+        current_versions_.push_back(client_version);
+        create_session_alarm_->Set(clock_->Now());
+        return;
+      }
+    }
+  }
+
+  // Permanent version negotiation errors are forwarded to the |delegate_|,
+  // along with all other errors.
+  delegate_->OnConnectionClosed(error_code, error_details, source);
+}
+
+void QuartcClientEndpoint::OnMessageReceived(QuicStringPiece message) {
+  delegate_->OnMessageReceived(message);
+}
+
+void QuartcClientEndpoint::OnMessageSent(int64_t datagram_id) {
+  delegate_->OnMessageSent(datagram_id);
 }
 
 QuartcServerEndpoint::QuartcServerEndpoint(
@@ -115,6 +170,7 @@ void QuartcServerEndpoint::Connect(QuartcPacketTransport* packet_transport) {
 }
 
 void QuartcServerEndpoint::OnSessionCreated(QuartcSession* session) {
+  session->SetDelegate(delegate_);
   delegate_->OnSessionCreated(session);
 }
 

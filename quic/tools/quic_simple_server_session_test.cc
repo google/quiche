@@ -200,9 +200,13 @@ class QuicSimpleServerSessionTest
                        TlsServerHandshaker::CreateSslCtx()),
         compressed_certs_cache_(
             QuicCompressedCertsCache::kQuicCompressedCertsCacheSize) {
-    config_.SetMaxIncomingDynamicStreamsToSend(kMaxStreamsForTest);
-    QuicConfigPeer::SetReceivedMaxIncomingDynamicStreams(&config_,
-                                                         kMaxStreamsForTest);
+    config_.SetMaxIncomingBidirectionalStreamsToSend(kMaxStreamsForTest);
+    QuicConfigPeer::SetReceivedMaxIncomingBidirectionalStreams(
+        &config_, kMaxStreamsForTest);
+    config_.SetMaxIncomingUnidirectionalStreamsToSend(kMaxStreamsForTest);
+    QuicConfigPeer::SetReceivedMaxIncomingUnidirectionalStreams(
+        &config_, kMaxStreamsForTest);
+
     config_.SetInitialStreamFlowControlWindowToSend(
         kInitialStreamFlowControlWindowForTest);
     config_.SetInitialSessionFlowControlWindowToSend(

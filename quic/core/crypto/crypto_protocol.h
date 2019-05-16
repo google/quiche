@@ -218,7 +218,8 @@ const QuicTag kCOPT = TAG('C', 'O', 'P', 'T');   // Connection options
 const QuicTag kCLOP = TAG('C', 'L', 'O', 'P');   // Client connection options
 const QuicTag kICSL = TAG('I', 'C', 'S', 'L');   // Idle network timeout
 const QuicTag kSCLS = TAG('S', 'C', 'L', 'S');   // Silently close on timeout
-const QuicTag kMIDS = TAG('M', 'I', 'D', 'S');   // Max incoming dynamic streams
+const QuicTag kMIBS = TAG('M', 'I', 'D', 'S');   // Max incoming bidi streams
+const QuicTag kMIUS = TAG('M', 'I', 'U', 'S');   // Max incoming unidi streams
 const QuicTag kIRTT = TAG('I', 'R', 'T', 'T');   // Estimated initial RTT in us.
 const QuicTag kSNI  = TAG('S', 'N', 'I', '\0');  // Server name
                                                  // indication

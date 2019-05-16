@@ -100,8 +100,15 @@ class MockQuicSimpleServerSession : public QuicSimpleServerSession {
                                 crypto_config,
                                 compressed_certs_cache,
                                 quic_simple_server_backend) {
-    QuicSessionPeer::SetMaxOpenIncomingStreams(this, kMaxStreamsForTest);
-    QuicSessionPeer::SetMaxOpenOutgoingStreams(this, kMaxStreamsForTest);
+    if (connection->transport_version() == QUIC_VERSION_99) {
+      QuicSessionPeer::SetMaxOpenIncomingUnidirectionalStreams(
+          this, kMaxStreamsForTest);
+      QuicSessionPeer::SetMaxOpenIncomingBidirectionalStreams(
+          this, kMaxStreamsForTest);
+    } else {
+      QuicSessionPeer::SetMaxOpenIncomingStreams(this, kMaxStreamsForTest);
+      QuicSessionPeer::SetMaxOpenOutgoingStreams(this, kMaxStreamsForTest);
+    }
     ON_CALL(*this, WritevData(_, _, _, _, _))
         .WillByDefault(Invoke(MockQuicSession::ConsumeData));
   }

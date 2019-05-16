@@ -153,7 +153,15 @@ class QuicSpdyClientSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
     QuicCryptoClientStream* stream = static_cast<QuicCryptoClientStream*>(
         session_->GetMutableCryptoStream());
     QuicConfig config = DefaultQuicConfig();
-    config.SetMaxIncomingDynamicStreamsToSend(server_max_incoming_streams);
+    if (connection_->transport_version() == QUIC_VERSION_99) {
+      config.SetMaxIncomingUnidirectionalStreamsToSend(
+          server_max_incoming_streams);
+      config.SetMaxIncomingBidirectionalStreamsToSend(
+          server_max_incoming_streams);
+    } else {
+      config.SetMaxIncomingBidirectionalStreamsToSend(
+          server_max_incoming_streams);
+    }
     crypto_test_utils::HandshakeWithFakeServer(
         &config, &helper_, &alarm_factory_, connection_, stream);
   }

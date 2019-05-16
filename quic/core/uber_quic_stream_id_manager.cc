@@ -11,17 +11,19 @@ namespace quic {
 
 UberQuicStreamIdManager::UberQuicStreamIdManager(
     QuicSession* session,
-    QuicStreamCount max_open_outgoing_streams,
-    QuicStreamCount max_open_incoming_streams)
+    QuicStreamCount max_open_outgoing_bidirectional_streams,
+    QuicStreamCount max_open_outgoing_unidirectional_streams,
+    QuicStreamCount max_open_incoming_bidirectional_streams,
+    QuicStreamCount max_open_incoming_unidirectional_streams)
     : bidirectional_stream_id_manager_(session,
                                        /*unidirectional=*/false,
-                                       max_open_outgoing_streams,
-                                       max_open_incoming_streams),
-      unidirectional_stream_id_manager_(session,
-                                        /*unidirectional=*/true,
-                                        max_open_outgoing_streams,
-                                        max_open_incoming_streams) {}
-
+                                       max_open_outgoing_bidirectional_streams,
+                                       max_open_incoming_bidirectional_streams),
+      unidirectional_stream_id_manager_(
+          session,
+          /*unidirectional=*/true,
+          max_open_outgoing_unidirectional_streams,
+          max_open_incoming_unidirectional_streams) {}
 void UberQuicStreamIdManager::RegisterStaticStream(QuicStreamId id) {
   if (QuicUtils::IsBidirectionalStreamId(id)) {
     bidirectional_stream_id_manager_.RegisterStaticStream(id);
@@ -30,35 +32,42 @@ void UberQuicStreamIdManager::RegisterStaticStream(QuicStreamId id) {
   unidirectional_stream_id_manager_.RegisterStaticStream(id);
 }
 
-void UberQuicStreamIdManager::ConfigureMaxOpenOutgoingStreams(
+void UberQuicStreamIdManager::AdjustMaxOpenOutgoingUnidirectionalStreams(
     size_t max_streams) {
-  // TODO(fkastenholz): When transport configuration negotiation knows uni- vs
-  // bi- directionality, this method needs modifying to select the correct
-  // manager to configure.
-  bidirectional_stream_id_manager_.ConfigureMaxOpenOutgoingStreams(max_streams);
-  unidirectional_stream_id_manager_.ConfigureMaxOpenOutgoingStreams(
-      max_streams);
+  unidirectional_stream_id_manager_.AdjustMaxOpenOutgoingStreams(max_streams);
+}
+void UberQuicStreamIdManager::AdjustMaxOpenOutgoingBidirectionalStreams(
+    size_t max_streams) {
+  bidirectional_stream_id_manager_.AdjustMaxOpenOutgoingStreams(max_streams);
 }
 
-void UberQuicStreamIdManager::AdjustMaxOpenOutgoingStreams(size_t max_streams) {
-  // TODO(fkastenholz): When transport configuration negotiation knows uni- vs
-  // bi- directionality, this method needs modifying to select the correct
-  // manager to configure.
-  bidirectional_stream_id_manager_.AdjustMaxOpenOutgoingStreams(max_streams);
-  unidirectional_stream_id_manager_.AdjustMaxOpenOutgoingStreams(max_streams);
+void UberQuicStreamIdManager::ConfigureMaxOpenOutgoingBidirectionalStreams(
+    size_t max_streams) {
+  bidirectional_stream_id_manager_.ConfigureMaxOpenOutgoingStreams(max_streams);
+}
+void UberQuicStreamIdManager::ConfigureMaxOpenOutgoingUnidirectionalStreams(
+    size_t max_streams) {
+  unidirectional_stream_id_manager_.ConfigureMaxOpenOutgoingStreams(
+      max_streams);
 }
 
 // TODO(fkastenholz): SetMax is cognizant of the number of static streams and
 // sets the maximum to be max_streams + number_of_statics. This should
 // eventually be removed from IETF QUIC.
-void UberQuicStreamIdManager::SetMaxOpenOutgoingStreams(
+void UberQuicStreamIdManager::SetMaxOpenOutgoingBidirectionalStreams(
     size_t max_open_streams) {
   bidirectional_stream_id_manager_.SetMaxOpenOutgoingStreams(max_open_streams);
+}
+void UberQuicStreamIdManager::SetMaxOpenOutgoingUnidirectionalStreams(
+    size_t max_open_streams) {
   unidirectional_stream_id_manager_.SetMaxOpenOutgoingStreams(max_open_streams);
 }
-void UberQuicStreamIdManager::SetMaxOpenIncomingStreams(
+void UberQuicStreamIdManager::SetMaxOpenIncomingBidirectionalStreams(
     size_t max_open_streams) {
   bidirectional_stream_id_manager_.SetMaxOpenIncomingStreams(max_open_streams);
+}
+void UberQuicStreamIdManager::SetMaxOpenIncomingUnidirectionalStreams(
+    size_t max_open_streams) {
   unidirectional_stream_id_manager_.SetMaxOpenIncomingStreams(max_open_streams);
 }
 

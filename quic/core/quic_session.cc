@@ -55,10 +55,13 @@ QuicSession::QuicSession(QuicConnection* connection,
       config_(config),
       stream_id_manager_(this,
                          kDefaultMaxStreamsPerConnection,
-                         config_.GetMaxIncomingDynamicStreamsToSend()),
-      v99_streamid_manager_(this,
-                            kDefaultMaxStreamsPerConnection,
-                            config_.GetMaxIncomingDynamicStreamsToSend()),
+                         config_.GetMaxIncomingBidirectionalStreamsToSend()),
+      v99_streamid_manager_(
+          this,
+          kDefaultMaxStreamsPerConnection,
+          kDefaultMaxStreamsPerConnection,
+          config_.GetMaxIncomingBidirectionalStreamsToSend(),
+          config_.GetMaxIncomingUnidirectionalStreamsToSend()),
       num_dynamic_incoming_streams_(0),
       num_draining_incoming_streams_(0),
       num_outgoing_static_streams_(0),
@@ -973,23 +976,33 @@ bool QuicSession::IsCryptoHandshakeConfirmed() const {
 void QuicSession::OnConfigNegotiated() {
   connection_->SetFromConfig(config_);
 
-  uint32_t max_streams = 0;
-  if (config_.HasReceivedMaxIncomingDynamicStreams()) {
-    max_streams = config_.ReceivedMaxIncomingDynamicStreams();
-  }
-  QUIC_DVLOG(1) << "Setting max_open_outgoing_streams_ to " << max_streams;
   if (connection_->transport_version() == QUIC_VERSION_99) {
-    // TODO: When transport negotiation knows about bi- and uni- directional
-    // streams, this should be modified to indicate which one to the manager.
-    // Currently, BOTH are set to the same value.
-    // TODO(fkastenholz): AdjustMax is cognizant of the number of static streams
-    // and sets the maximum to be max_streams + number_of_statics. This should
-    // eventually be removed from IETF QUIC. -- Replace the call with
-    // ConfigureMaxOpen...
-    v99_streamid_manager_.AdjustMaxOpenOutgoingStreams(max_streams);
+    uint32_t max_streams = 0;
+    if (config_.HasReceivedMaxIncomingBidirectionalStreams()) {
+      max_streams = config_.ReceivedMaxIncomingBidirectionalStreams();
+    }
+    QUIC_DVLOG(1) << "Setting Bidirectional outgoing_max_streams_ to "
+                  << max_streams;
+    v99_streamid_manager_.AdjustMaxOpenOutgoingBidirectionalStreams(
+        max_streams);
+
+    max_streams = 0;
+    if (config_.HasReceivedMaxIncomingUnidirectionalStreams()) {
+      max_streams = config_.ReceivedMaxIncomingUnidirectionalStreams();
+    }
+    QUIC_DVLOG(1) << "Setting Unidirectional outgoing_max_streams_ to "
+                  << max_streams;
+    v99_streamid_manager_.AdjustMaxOpenOutgoingUnidirectionalStreams(
+        max_streams);
   } else {
+    uint32_t max_streams = 0;
+    if (config_.HasReceivedMaxIncomingBidirectionalStreams()) {
+      max_streams = config_.ReceivedMaxIncomingBidirectionalStreams();
+    }
+    QUIC_DVLOG(1) << "Setting max_open_outgoing_streams_ to " << max_streams;
     stream_id_manager_.set_max_open_outgoing_streams(max_streams);
   }
+
   if (perspective() == Perspective::IS_SERVER) {
     if (config_.HasReceivedConnectionOptions()) {
       // The following variations change the initial receive flow control
@@ -1014,17 +1027,19 @@ void QuicSession::OnConfigNegotiated() {
     config_.SetStatelessResetTokenToSend(GetStatelessResetToken());
   }
 
-  // A small number of additional incoming streams beyond the limit should be
-  // allowed. This helps avoid early connection termination when FIN/RSTs for
-  // old streams are lost or arrive out of order.
-  // Use a minimum number of additional streams, or a percentage increase,
-  // whichever is larger.
-  uint32_t max_incoming_streams_to_send =
-      config_.GetMaxIncomingDynamicStreamsToSend();
   if (connection_->transport_version() == QUIC_VERSION_99) {
-    v99_streamid_manager_.SetMaxOpenIncomingStreams(
-        max_incoming_streams_to_send);
+    v99_streamid_manager_.SetMaxOpenIncomingBidirectionalStreams(
+        config_.GetMaxIncomingBidirectionalStreamsToSend());
+    v99_streamid_manager_.SetMaxOpenIncomingUnidirectionalStreams(
+        config_.GetMaxIncomingUnidirectionalStreamsToSend());
   } else {
+    // A small number of additional incoming streams beyond the limit should be
+    // allowed. This helps avoid early connection termination when FIN/RSTs for
+    // old streams are lost or arrive out of order.
+    // Use a minimum number of additional streams, or a percentage increase,
+    // whichever is larger.
+    uint32_t max_incoming_streams_to_send =
+        config_.GetMaxIncomingBidirectionalStreamsToSend();
     uint32_t max_incoming_streams =
         std::max(max_incoming_streams_to_send + kMaxStreamsMinimumIncrement,
                  static_cast<uint32_t>(max_incoming_streams_to_send *

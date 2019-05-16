@@ -20,9 +20,12 @@ class QuicSession;
 // unidirectional stream IDs, respectively.
 class QUIC_EXPORT_PRIVATE UberQuicStreamIdManager {
  public:
-  UberQuicStreamIdManager(QuicSession* session,
-                          QuicStreamCount max_open_outgoing_streams,
-                          QuicStreamCount max_open_incoming_streams);
+  UberQuicStreamIdManager(
+      QuicSession* session,
+      QuicStreamCount max_open_outgoing_bidirectional_streams,
+      QuicStreamCount max_open_outgoing_unidirectional_streams,
+      QuicStreamCount max_open_incoming_bidirectional_streams,
+      QuicStreamCount max_open_incoming_unidirectional_streams);
 
   // Called when a stream with |stream_id| is registered as a static stream.
   void RegisterStaticStream(QuicStreamId id);
@@ -30,21 +33,26 @@ class QUIC_EXPORT_PRIVATE UberQuicStreamIdManager {
   // Sets the maximum outgoing stream count as a result of doing the transport
   // configuration negotiation. Forces the limit to max_streams, regardless of
   // static streams.
-  void ConfigureMaxOpenOutgoingStreams(size_t max_streams);
+  void ConfigureMaxOpenOutgoingBidirectionalStreams(size_t max_streams);
+  void ConfigureMaxOpenOutgoingUnidirectionalStreams(size_t max_streams);
 
   // Sets the limits to max_open_streams + number of static streams
   // in existence. SetMaxOpenOutgoingStreams will QUIC_BUG if it is called
-  // after getting the first MAX_STREAMS frame.
+  // after getting the first MAX_STREAMS frame or the transport configuration
+  // was done.
   // TODO(fkastenholz): SetMax is cognizant of the number of static streams and
   // sets the maximum to be max_streams + number_of_statics. This should
   // eventually be removed from IETF QUIC.
-  void SetMaxOpenOutgoingStreams(size_t max_open_streams);
-  void SetMaxOpenIncomingStreams(size_t max_open_streams);
+  void SetMaxOpenOutgoingBidirectionalStreams(size_t max_open_streams);
+  void SetMaxOpenOutgoingUnidirectionalStreams(size_t max_open_streams);
+  void SetMaxOpenIncomingBidirectionalStreams(size_t max_open_streams);
+  void SetMaxOpenIncomingUnidirectionalStreams(size_t max_open_streams);
 
   // Sets the outgoing stream count to the number of static streams + max
   // outgoing streams.  Unlike SetMaxOpenOutgoingStreams, this method will
   // not QUIC_BUG if called after getting  the first MAX_STREAMS frame.
-  void AdjustMaxOpenOutgoingStreams(size_t max_streams);
+  void AdjustMaxOpenOutgoingBidirectionalStreams(size_t max_streams);
+  void AdjustMaxOpenOutgoingUnidirectionalStreams(size_t max_streams);
 
   // Returns true if next outgoing bidirectional stream ID can be allocated.
   bool CanOpenNextOutgoingBidirectionalStream();
@@ -58,7 +66,7 @@ class QUIC_EXPORT_PRIVATE UberQuicStreamIdManager {
   // Returns the next outgoing unidirectional stream id.
   QuicStreamId GetNextOutgoingUnidirectionalStreamId();
 
-  // Returns true if allow to open the incoming |id|.
+  // Returns true if the incoming |id| is within the limit.
   bool MaybeIncreaseLargestPeerStreamId(QuicStreamId id);
 
   // Called when |id| is released.

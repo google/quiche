@@ -404,7 +404,7 @@ QuicConfig::QuicConfig()
       client_connection_options_(kCLOP, PRESENCE_OPTIONAL),
       idle_network_timeout_seconds_(kICSL, PRESENCE_REQUIRED),
       silent_close_(kSCLS, PRESENCE_OPTIONAL),
-      max_incoming_dynamic_streams_(kMIDS, PRESENCE_REQUIRED),
+      max_incoming_bidirectional_streams_(kMIBS, PRESENCE_REQUIRED),
       bytes_for_connection_id_(kTCID, PRESENCE_OPTIONAL),
       initial_round_trip_time_us_(kIRTT, PRESENCE_OPTIONAL),
       initial_stream_flow_control_window_bytes_(kSFCW, PRESENCE_OPTIONAL),
@@ -412,7 +412,8 @@ QuicConfig::QuicConfig()
       connection_migration_disabled_(kNCMR, PRESENCE_OPTIONAL),
       alternate_server_address_(kASAD, PRESENCE_OPTIONAL),
       support_max_header_list_size_(kSMHL, PRESENCE_OPTIONAL),
-      stateless_reset_token_(kSRST, PRESENCE_OPTIONAL) {
+      stateless_reset_token_(kSRST, PRESENCE_OPTIONAL),
+      max_incoming_unidirectional_streams_(kMIUS, PRESENCE_OPTIONAL) {
   SetDefaults();
 }
 
@@ -505,21 +506,38 @@ bool QuicConfig::SilentClose() const {
   return silent_close_.GetUint32() > 0;
 }
 
-void QuicConfig::SetMaxIncomingDynamicStreamsToSend(
-    uint32_t max_incoming_dynamic_streams) {
-  max_incoming_dynamic_streams_.SetSendValue(max_incoming_dynamic_streams);
+void QuicConfig::SetMaxIncomingBidirectionalStreamsToSend(
+    uint32_t max_streams) {
+  max_incoming_bidirectional_streams_.SetSendValue(max_streams);
 }
 
-uint32_t QuicConfig::GetMaxIncomingDynamicStreamsToSend() {
-  return max_incoming_dynamic_streams_.GetSendValue();
+uint32_t QuicConfig::GetMaxIncomingBidirectionalStreamsToSend() {
+  return max_incoming_bidirectional_streams_.GetSendValue();
 }
 
-bool QuicConfig::HasReceivedMaxIncomingDynamicStreams() {
-  return max_incoming_dynamic_streams_.HasReceivedValue();
+bool QuicConfig::HasReceivedMaxIncomingBidirectionalStreams() {
+  return max_incoming_bidirectional_streams_.HasReceivedValue();
 }
 
-uint32_t QuicConfig::ReceivedMaxIncomingDynamicStreams() {
-  return max_incoming_dynamic_streams_.GetReceivedValue();
+uint32_t QuicConfig::ReceivedMaxIncomingBidirectionalStreams() {
+  return max_incoming_bidirectional_streams_.GetReceivedValue();
+}
+
+void QuicConfig::SetMaxIncomingUnidirectionalStreamsToSend(
+    uint32_t max_streams) {
+  max_incoming_unidirectional_streams_.SetSendValue(max_streams);
+}
+
+uint32_t QuicConfig::GetMaxIncomingUnidirectionalStreamsToSend() {
+  return max_incoming_unidirectional_streams_.GetSendValue();
+}
+
+bool QuicConfig::HasReceivedMaxIncomingUnidirectionalStreams() {
+  return max_incoming_unidirectional_streams_.HasReceivedValue();
+}
+
+uint32_t QuicConfig::ReceivedMaxIncomingUnidirectionalStreams() {
+  return max_incoming_unidirectional_streams_.GetReceivedValue();
 }
 
 bool QuicConfig::HasSetBytesForConnectionIdToSend() const {
@@ -664,7 +682,8 @@ void QuicConfig::SetDefaults() {
   idle_network_timeout_seconds_.set(kMaximumIdleTimeoutSecs,
                                     kDefaultIdleTimeoutSecs);
   silent_close_.set(1, 0);
-  SetMaxIncomingDynamicStreamsToSend(kDefaultMaxStreamsPerConnection);
+  SetMaxIncomingBidirectionalStreamsToSend(kDefaultMaxStreamsPerConnection);
+  SetMaxIncomingUnidirectionalStreamsToSend(kDefaultMaxStreamsPerConnection);
   max_time_before_crypto_handshake_ =
       QuicTime::Delta::FromSeconds(kMaxTimeForCryptoHandshakeSecs);
   max_idle_time_before_crypto_handshake_ =
@@ -676,10 +695,18 @@ void QuicConfig::SetDefaults() {
   SetSupportMaxHeaderListSize();
 }
 
-void QuicConfig::ToHandshakeMessage(CryptoHandshakeMessage* out) const {
+void QuicConfig::ToHandshakeMessage(
+    CryptoHandshakeMessage* out,
+    QuicTransportVersion transport_version) const {
   idle_network_timeout_seconds_.ToHandshakeMessage(out);
   silent_close_.ToHandshakeMessage(out);
-  max_incoming_dynamic_streams_.ToHandshakeMessage(out);
+  // Do not need a version check here, max...bi... will encode
+  // as "MIDS" -- the max initial dynamic streams tag -- if
+  // doing some version other than IETF QUIC/V99.
+  max_incoming_bidirectional_streams_.ToHandshakeMessage(out);
+  if (transport_version == QUIC_VERSION_99) {
+    max_incoming_unidirectional_streams_.ToHandshakeMessage(out);
+  }
   bytes_for_connection_id_.ToHandshakeMessage(out);
   initial_round_trip_time_us_.ToHandshakeMessage(out);
   initial_stream_flow_control_window_bytes_.ToHandshakeMessage(out);
@@ -707,7 +734,11 @@ QuicErrorCode QuicConfig::ProcessPeerHello(
         silent_close_.ProcessPeerHello(peer_hello, hello_type, error_details);
   }
   if (error == QUIC_NO_ERROR) {
-    error = max_incoming_dynamic_streams_.ProcessPeerHello(
+    error = max_incoming_bidirectional_streams_.ProcessPeerHello(
+        peer_hello, hello_type, error_details);
+  }
+  if (error == QUIC_NO_ERROR) {
+    error = max_incoming_unidirectional_streams_.ProcessPeerHello(
         peer_hello, hello_type, error_details);
   }
   if (error == QUIC_NO_ERROR) {
@@ -771,9 +802,9 @@ bool QuicConfig::FillTransportParameters(TransportParameters* params) const {
   params->initial_max_stream_data_uni.set_value(
       initial_stream_flow_control_window_bytes_.GetSendValue());
   params->initial_max_streams_bidi.set_value(
-      max_incoming_dynamic_streams_.GetSendValue());
+      max_incoming_bidirectional_streams_.GetSendValue());
   params->initial_max_streams_uni.set_value(
-      max_incoming_dynamic_streams_.GetSendValue());
+      max_incoming_unidirectional_streams_.GetSendValue());
   params->max_ack_delay.set_value(kDefaultDelayedAckTimeMs);
   params->disable_migration =
       connection_migration_disabled_.HasSendValue() &&
@@ -846,9 +877,11 @@ QuicErrorCode QuicConfig::ProcessTransportParameters(
   initial_session_flow_control_window_bytes_.SetReceivedValue(
       std::min<uint64_t>(params.initial_max_data.value(),
                          std::numeric_limits<uint32_t>::max()));
-
-  max_incoming_dynamic_streams_.SetReceivedValue(
+  max_incoming_bidirectional_streams_.SetReceivedValue(
       std::min<uint64_t>(params.initial_max_streams_bidi.value(),
+                         std::numeric_limits<uint32_t>::max()));
+  max_incoming_unidirectional_streams_.SetReceivedValue(
+      std::min<uint64_t>(params.initial_max_streams_uni.value(),
                          std::numeric_limits<uint32_t>::max()));
 
   initial_stream_flow_control_window_bytes_.SetReceivedValue(

@@ -9,7 +9,7 @@
 namespace quic {
 
 QuicSocketAddress::QuicSocketAddress(QuicIpAddress address, uint16_t port)
-    : impl_(address.impl(), port) {}
+    : impl_(address, port) {}
 
 QuicSocketAddress::QuicSocketAddress(const struct sockaddr_storage& saddr)
     : impl_(saddr) {}

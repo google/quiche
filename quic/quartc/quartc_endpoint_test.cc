@@ -30,18 +30,16 @@ class QuartcEndpointTest : public QuicTest {
                             &server_transport_,
                             QuicBandwidth::FromKBitsPerSecond(10000),
                             QuicTime::Delta::FromMilliseconds(1)),
-        server_session_delegate_(&server_stream_delegate_,
-                                 simulator_.GetClock()),
-        server_endpoint_delegate_(&server_session_delegate_),
+        server_endpoint_delegate_(&server_stream_delegate_,
+                                  simulator_.GetClock()),
         server_endpoint_(QuicMakeUnique<QuartcServerEndpoint>(
             simulator_.GetAlarmFactory(),
             simulator_.GetClock(),
             simulator_.GetRandomGenerator(),
             &server_endpoint_delegate_,
             QuartcSessionConfig())),
-        client_session_delegate_(&client_stream_delegate_,
-                                 simulator_.GetClock()),
-        client_endpoint_delegate_(&client_session_delegate_),
+        client_endpoint_delegate_(&client_stream_delegate_,
+                                  simulator_.GetClock()),
         client_endpoint_(QuicMakeUnique<QuartcClientEndpoint>(
             simulator_.GetAlarmFactory(),
             simulator_.GetClock(),
@@ -57,13 +55,11 @@ class QuartcEndpointTest : public QuicTest {
   simulator::SymmetricLink client_server_link_;
 
   FakeQuartcStreamDelegate server_stream_delegate_;
-  FakeQuartcSessionDelegate server_session_delegate_;
   FakeQuartcEndpointDelegate server_endpoint_delegate_;
 
   std::unique_ptr<QuartcServerEndpoint> server_endpoint_;
 
   FakeQuartcStreamDelegate client_stream_delegate_;
-  FakeQuartcSessionDelegate client_session_delegate_;
   FakeQuartcEndpointDelegate client_endpoint_delegate_;
 
   std::unique_ptr<QuartcClientEndpoint> client_endpoint_;
@@ -213,6 +209,58 @@ TEST_F(QuartcEndpointTest,
            client_endpoint_delegate_.session()->error() != QUIC_NO_ERROR;
   }));
   EXPECT_EQ(client_endpoint_delegate_.session()->error(), QUIC_INVALID_VERSION);
+}
+
+// Tests that the client endpoint can create a new session in order to continue
+// version negotiation.
+TEST_F(QuartcEndpointTest,
+       QUIC_TEST_DISABLED_IN_CHROME(CreatesNewSessionWhenRequired)) {
+  // Setting this flag to true requires the client to create a new session when
+  // version negotiation fails.
+  SetQuicReloadableFlag(quic_no_client_conn_ver_negotiation, true);
+
+  // Note: for this test, we need support for two versions.  Which two shouldn't
+  // matter, but they must be enabled so that the version manager doesn't filter
+  // them out.
+  SetQuicReloadableFlag(quic_enable_version_46, true);
+
+  // Reset the client endpoint to prefer version 46 but also be capable of
+  // speaking version 43.
+  ParsedQuicVersionVector client_versions;
+  client_versions.push_back({PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_46});
+  client_versions.push_back({PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_43});
+  client_endpoint_ = QuicMakeUnique<QuartcClientEndpoint>(
+      simulator_.GetAlarmFactory(), simulator_.GetClock(),
+      simulator_.GetRandomGenerator(), &client_endpoint_delegate_,
+      QuartcSessionConfig(),
+      /*serialized_server_config=*/"",
+      QuicMakeUnique<QuicVersionManager>(client_versions));
+
+  // Reset the server endpoint to only speak version 43.
+  ParsedQuicVersionVector server_versions;
+  server_versions.push_back({PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_43});
+  server_endpoint_ = QuicMakeUnique<QuartcServerEndpoint>(
+      simulator_.GetAlarmFactory(), simulator_.GetClock(),
+      simulator_.GetRandomGenerator(), &server_endpoint_delegate_,
+      QuartcSessionConfig(),
+      QuicMakeUnique<QuicVersionManager>(server_versions));
+
+  // The endpoints should be able to establish a connection using version 46.
+  server_endpoint_->Connect(&server_transport_);
+  client_endpoint_->Connect(&client_transport_);
+
+  ASSERT_TRUE(simulator_.RunUntil([this] {
+    return client_endpoint_delegate_.session() != nullptr &&
+           client_endpoint_delegate_.session()->IsEncryptionEstablished() &&
+           server_endpoint_delegate_.session() != nullptr &&
+           server_endpoint_delegate_.session()->IsEncryptionEstablished();
+  }));
+  EXPECT_EQ(client_endpoint_delegate_.session()->connection()->version(),
+            server_versions[0]);
+  EXPECT_EQ(server_endpoint_delegate_.session()->connection()->version(),
+            server_versions[0]);
+
+  EXPECT_EQ(2, client_endpoint_delegate_.num_sessions_created());
 }
 
 }  // namespace
