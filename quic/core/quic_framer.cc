@@ -2640,9 +2640,9 @@ bool QuicFramer::ProcessAndValidateIetfConnectionIdLength(
   if (scil != 0) {
     scil += kConnectionIdLengthAdjustment;
   }
-  if ((dcil != *destination_connection_id_length ||
+  if (!should_update_expected_connection_id_length &&
+      (dcil != *destination_connection_id_length ||
        scil != *source_connection_id_length) &&
-      !should_update_expected_connection_id_length &&
       !QuicUtils::VariableLengthConnectionIdAllowedForVersion(
           version.transport_version)) {
     // TODO(dschinazi): use the framer's version once the
