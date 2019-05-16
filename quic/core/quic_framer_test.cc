@@ -13701,6 +13701,49 @@ TEST_P(QuicFramerTest, ParseServerVersionNegotiationProbeResponse) {
       parsed_probe_payload_bytes, parsed_probe_payload_length);
 }
 
+TEST_P(QuicFramerTest, ClientConnectionIdNotSupportedYet) {
+  if (GetQuicRestartFlag(quic_do_not_override_connection_id)) {
+    // This check is currently only performed when this flag is disabled.
+    return;
+  }
+  if (framer_.transport_version() <= QUIC_VERSION_43) {
+    // This test requires an IETF long header.
+    return;
+  }
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
+  const unsigned char type_byte =
+      framer_.transport_version() == QUIC_VERSION_44 ? 0xFC : 0xD3;
+  // clang-format off
+  unsigned char packet[] = {
+    // public flags (long header with packet type ZERO_RTT_PROTECTED and
+    // 4-byte packet number)
+    type_byte,
+    // version
+    QUIC_VERSION_BYTES,
+    // destination connection ID length
+    0x50,
+    // destination connection ID
+    0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+    // long header packet length
+    0x05,
+    // packet number
+    0x12, 0x34, 0x56, 0x00,
+    // padding frame
+    0x00,
+  };
+  // clang-format on
+  EXPECT_FALSE(framer_.ProcessPacket(
+      QuicEncryptedPacket(AsChars(packet), QUIC_ARRAYSIZE(packet), false)));
+  EXPECT_EQ(QUIC_INVALID_PACKET_HEADER, framer_.error());
+  if (!QuicUtils::VariableLengthConnectionIdAllowedForVersion(
+          framer_.transport_version())) {
+    EXPECT_EQ("Invalid ConnectionId length.", framer_.detailed_error());
+  } else {
+    EXPECT_EQ("Client connection ID not supported yet.",
+              framer_.detailed_error());
+  }
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

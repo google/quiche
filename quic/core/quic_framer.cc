@@ -2699,8 +2699,13 @@ bool QuicFramer::ProcessIetfPacketHeader(QuicDataReader* reader,
 
   if (!GetQuicRestartFlag(quic_do_not_override_connection_id)) {
     if (header->source_connection_id_included == CONNECTION_ID_PRESENT) {
+      DCHECK_EQ(Perspective::IS_CLIENT, perspective_);
+      DCHECK_EQ(IETF_QUIC_LONG_HEADER_PACKET, header->form);
+      if (!header->destination_connection_id.IsEmpty()) {
+        set_detailed_error("Client connection ID not supported yet.");
+        return false;
+      }
       // Set destination connection ID to source connection ID.
-      DCHECK_EQ(EmptyQuicConnectionId(), header->destination_connection_id);
       header->destination_connection_id = header->source_connection_id;
     } else if (header->destination_connection_id_included ==
                CONNECTION_ID_ABSENT) {
