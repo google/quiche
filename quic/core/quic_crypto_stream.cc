@@ -24,8 +24,12 @@ namespace quic {
                                                         " ")
 
 QuicCryptoStream::QuicCryptoStream(QuicSession* session)
-    : QuicStream(QuicUtils::GetCryptoStreamId(
-                     session->connection()->transport_version()),
+    : QuicStream(QuicVersionUsesCryptoFrames(
+                     session->connection()->transport_version())
+                     ? QuicUtils::GetInvalidStreamId(
+                           session->connection()->transport_version())
+                     : QuicUtils::GetCryptoStreamId(
+                           session->connection()->transport_version()),
                  session,
                  /*is_static=*/true,
                  QuicVersionUsesCryptoFrames(
@@ -159,6 +163,9 @@ void QuicCryptoStream::WriteCryptoData(EncryptionLevel level,
   size_t bytes_consumed =
       session()->connection()->SendCryptoData(level, data.length(), offset);
   session()->connection()->SetDefaultEncryptionLevel(current_level);
+  // Since CRYPTO frames aren't flow controlled, SendCryptoData should have sent
+  // all data we asked it to send.
+  DCHECK_EQ(bytes_consumed, data.length());
 
   send_buffer->OnStreamDataConsumed(bytes_consumed);
 }
@@ -213,7 +220,7 @@ void QuicCryptoStream::OnStreamDataConsumed(size_t bytes_consumed) {
   QuicStream::OnStreamDataConsumed(bytes_consumed);
 }
 
-bool QuicCryptoStream::HasPendingCryptoRetransmission() {
+bool QuicCryptoStream::HasPendingCryptoRetransmission() const {
   if (!QuicVersionUsesCryptoFrames(
           session()->connection()->transport_version())) {
     return false;

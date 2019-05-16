@@ -94,7 +94,7 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
   }
 
   MOCK_METHOD0(OnCanWrite, void());
-  bool HasPendingCryptoRetransmission() override { return false; }
+  bool HasPendingCryptoRetransmission() const override { return false; }
 
   MOCK_CONST_METHOD0(HasPendingRetransmission, bool());
 
@@ -109,7 +109,13 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
 class TestStream : public QuicStream {
  public:
   TestStream(QuicStreamId id, QuicSession* session, StreamType type)
-      : QuicStream(id, session, /*is_static=*/false, type) {}
+      : TestStream(id, session, /*is_static=*/false, type) {}
+
+  TestStream(QuicStreamId id,
+             QuicSession* session,
+             bool is_static,
+             StreamType type)
+      : QuicStream(id, session, is_static, type) {}
 
   TestStream(PendingStream pending, StreamType type)
       : QuicStream(std::move(pending), type, /*is_static=*/false) {}
@@ -260,8 +266,8 @@ class TestSession : public QuicSession {
 
   QuicConsumedData SendStreamData(QuicStream* stream) {
     struct iovec iov;
-    if (stream->id() !=
-            QuicUtils::GetCryptoStreamId(connection()->transport_version()) &&
+    if (!QuicUtils::IsCryptoStreamId(connection()->transport_version(),
+                                     stream->id()) &&
         this->connection()->encryption_level() != ENCRYPTION_FORWARD_SECURE) {
       this->connection()->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
     }
@@ -416,6 +422,10 @@ class QuicSessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
     }
     if (perspective == Perspective::IS_SERVER) {
       id |= 0x1;
+    }
+    if (QuicVersionUsesCryptoFrames(connection_->transport_version()) &&
+        bidirectional && perspective == Perspective::IS_CLIENT) {
+      id += 4;
     }
     return id;
   }
@@ -780,7 +790,7 @@ TEST_P(QuicSessionTestServer, ManyAvailableUnidirectionalStreams) {
     EXPECT_CALL(
         *connection_,
         CloseConnection(QUIC_INVALID_STREAM_ID,
-                        "Stream id 800 would exceed stream count limit 51",
+                        "Stream id 800 would exceed stream count limit 50",
                         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET
 
                         ))
@@ -1255,10 +1265,19 @@ TEST_P(QuicSessionTestServer, IncreasedTimeoutAfterCryptoHandshake) {
 }
 
 TEST_P(QuicSessionTestServer, OnStreamFrameFinStaticStreamId) {
+  QuicStreamId headers_stream_id =
+      QuicUtils::GetHeadersStreamId(connection_->transport_version());
+  std::unique_ptr<TestStream> fake_headers_stream = QuicMakeUnique<TestStream>(
+      headers_stream_id, &session_, /*is_static*/ true, BIDIRECTIONAL);
+  if (GetQuicReloadableFlag(quic_eliminate_static_stream_map_2)) {
+    QuicSessionPeer::RegisterStaticStreamNew(&session_,
+                                             std::move(fake_headers_stream));
+  } else {
+    QuicSessionPeer::RegisterStaticStream(&session_, headers_stream_id,
+                                          fake_headers_stream.get());
+  }
   // Send two bytes of payload.
-  QuicStreamFrame data1(
-      QuicUtils::GetCryptoStreamId(connection_->transport_version()), true, 0,
-      QuicStringPiece("HT"));
+  QuicStreamFrame data1(headers_stream_id, true, 0, QuicStringPiece("HT"));
   EXPECT_CALL(*connection_,
               CloseConnection(
                   QUIC_INVALID_STREAM_ID, "Attempt to close a static stream",
@@ -1267,11 +1286,20 @@ TEST_P(QuicSessionTestServer, OnStreamFrameFinStaticStreamId) {
 }
 
 TEST_P(QuicSessionTestServer, OnRstStreamStaticStreamId) {
+  QuicStreamId headers_stream_id =
+      QuicUtils::GetHeadersStreamId(connection_->transport_version());
+  std::unique_ptr<TestStream> fake_headers_stream = QuicMakeUnique<TestStream>(
+      headers_stream_id, &session_, /*is_static*/ true, BIDIRECTIONAL);
+  if (GetQuicReloadableFlag(quic_eliminate_static_stream_map_2)) {
+    QuicSessionPeer::RegisterStaticStreamNew(&session_,
+                                             std::move(fake_headers_stream));
+  } else {
+    QuicSessionPeer::RegisterStaticStream(&session_, headers_stream_id,
+                                          fake_headers_stream.get());
+  }
   // Send two bytes of payload.
-  QuicRstStreamFrame rst1(
-      kInvalidControlFrameId,
-      QuicUtils::GetCryptoStreamId(connection_->transport_version()),
-      QUIC_ERROR_PROCESSING_STREAM, 0);
+  QuicRstStreamFrame rst1(kInvalidControlFrameId, headers_stream_id,
+                          QUIC_ERROR_PROCESSING_STREAM, 0);
   EXPECT_CALL(*connection_,
               CloseConnection(
                   QUIC_INVALID_STREAM_ID, "Attempt to reset a static stream",
@@ -1620,7 +1648,7 @@ TEST_P(QuicSessionTestServer, TooManyUnfinishedStreamsCauseServerRejectStream) {
     EXPECT_CALL(
         *connection_,
         CloseConnection(QUIC_INVALID_STREAM_ID,
-                        "Stream id 24 would exceed stream count limit 6", _));
+                        "Stream id 24 would exceed stream count limit 5", _));
   } else {
     EXPECT_CALL(*connection_, SendControlFrame(_)).Times(1);
     EXPECT_CALL(*connection_,
@@ -1916,9 +1944,12 @@ TEST_P(QuicSessionTestServer, OnStreamFrameLost) {
   TestStream* stream2 = session_.CreateOutgoingBidirectionalStream();
   TestStream* stream4 = session_.CreateOutgoingBidirectionalStream();
 
-  QuicStreamFrame frame1(
-      QuicUtils::GetCryptoStreamId(connection_->transport_version()), false, 0,
-      1300);
+  QuicStreamFrame frame1;
+  if (!QuicVersionUsesCryptoFrames(connection_->transport_version())) {
+    frame1 = QuicStreamFrame(
+        QuicUtils::GetCryptoStreamId(connection_->transport_version()), false,
+        0, 1300);
+  }
   QuicStreamFrame frame2(stream2->id(), false, 0, 9);
   QuicStreamFrame frame3(stream4->id(), false, 0, 9);
 
@@ -2354,7 +2385,7 @@ TEST_P(QuicSessionTestServer, NewStreamIdAboveLimit) {
   EXPECT_CALL(
       *connection_,
       CloseConnection(QUIC_INVALID_STREAM_ID,
-                      "Stream id 404 would exceed stream count limit 101", _));
+                      "Stream id 404 would exceed stream count limit 100", _));
   session_.OnStreamFrame(bidirectional_stream_frame);
 
   QuicStreamId unidirectional_stream_id = StreamCountToId(
@@ -2395,9 +2426,19 @@ TEST_P(QuicSessionTestServer, OnStopSendingInputStaticStreams) {
     // Applicable only to V99
     return;
   }
+  QuicStreamId stream_id = 0;
+  std::unique_ptr<TestStream> fake_static_stream = QuicMakeUnique<TestStream>(
+      stream_id, &session_, /*is_static*/ true, BIDIRECTIONAL);
+  if (GetQuicReloadableFlag(quic_eliminate_static_stream_map_2)) {
+    QuicSessionPeer::RegisterStaticStreamNew(&session_,
+                                             std::move(fake_static_stream));
+  } else {
+    QuicSessionPeer::RegisterStaticStream(&session_, stream_id,
+                                          fake_static_stream.get());
+  }
   // Check that a stream id in the static stream map is ignored.
   // Note that the notion of a static stream is Google-specific.
-  QuicStopSendingFrame frame(1, 0, 123);
+  QuicStopSendingFrame frame(1, stream_id, 123);
   EXPECT_CALL(*connection_,
               CloseConnection(QUIC_INVALID_STREAM_ID,
                               "Received STOP_SENDING for a static stream", _));

@@ -31,12 +31,17 @@ class UberLossAlgorithmTest : public QuicTest {
 
   void SendPacket(uint64_t packet_number, EncryptionLevel encryption_level) {
     QuicStreamFrame frame;
-    frame.stream_id =
-        encryption_level == ENCRYPTION_INITIAL
-            ? QuicUtils::GetCryptoStreamId(
-                  CurrentSupportedVersions()[0].transport_version)
-            : QuicUtils::GetHeadersStreamId(
-                  CurrentSupportedVersions()[0].transport_version);
+    QuicTransportVersion version =
+        CurrentSupportedVersions()[0].transport_version;
+    frame.stream_id = QuicUtils::GetHeadersStreamId(version);
+    if (encryption_level == ENCRYPTION_INITIAL) {
+      if (QuicVersionUsesCryptoFrames(version)) {
+        frame.stream_id = QuicUtils::GetFirstBidirectionalStreamId(
+            version, Perspective::IS_CLIENT);
+      } else {
+        frame.stream_id = QuicUtils::GetCryptoStreamId(version);
+      }
+    }
     SerializedPacket packet(QuicPacketNumber(packet_number),
                             PACKET_1BYTE_PACKET_NUMBER, nullptr, kDefaultLength,
                             false, false);

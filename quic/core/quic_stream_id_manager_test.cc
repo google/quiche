@@ -202,10 +202,14 @@ TEST_P(QuicStreamIdManagerTestClient, StreamIdManagerClientInitialization) {
   // If bidi, Crypto stream default created  at start up, it is one
   // more stream to account for since initialization is "number of
   // request/responses" & crypto is added in to that, not streams.
-  EXPECT_EQ(kDefaultMaxStreamsPerConnection + (GetParam() ? 1u : 0u),
+  size_t extra_stream_count = 0;
+  if (GetParam() && !QuicVersionUsesCryptoFrames(transport_version())) {
+    extra_stream_count = 1;
+  }
+  EXPECT_EQ(kDefaultMaxStreamsPerConnection + extra_stream_count,
             stream_id_manager_->outgoing_max_streams());
   // Test is predicated on having 1 static stream going if bidi, 0 if not...)
-  EXPECT_EQ((GetParam() ? 1u : 0u),
+  EXPECT_EQ(extra_stream_count,
             stream_id_manager_->outgoing_static_stream_count());
 
   EXPECT_EQ(kDefaultMaxStreamsPerConnection,
@@ -243,7 +247,11 @@ TEST_P(QuicStreamIdManagerTestClient, CheckMaxStreamsBadValuesToMaxOkOutgoing) {
   // If bidi, Crypto stream default created  at start up, it is one
   // more stream to account for since initialization is "number of
   // request/responses" & crypto is added in to that, not streams.
-  EXPECT_EQ(implementation_max - 1u + (GetParam() ? 1u : 0u),
+  size_t extra_stream_count = 0;
+  if (GetParam() && !QuicVersionUsesCryptoFrames(transport_version())) {
+    extra_stream_count = 1;
+  }
+  EXPECT_EQ(implementation_max - 1u + extra_stream_count,
             stream_id_manager_->outgoing_max_streams());
 
   stream_id_manager_->AdjustMaxOpenOutgoingStreams(implementation_max);
@@ -496,7 +504,11 @@ TEST_P(QuicStreamIdManagerTestClient, StreamIdManagerGetNextOutgoingStream) {
   // If bidi, Crypto stream default created  at start up, it is one
   // more stream to account for since initialization is "number of
   // request/responses" & crypto is added in to that, not streams.
-  EXPECT_EQ(number_of_streams + (IsBidi() ? 1u : 0u),
+  size_t extra_stream_count = 0;
+  if (IsBidi() && !QuicVersionUsesCryptoFrames(transport_version())) {
+    extra_stream_count = 1;
+  }
+  EXPECT_EQ(number_of_streams + extra_stream_count,
             stream_id_manager_->outgoing_max_streams());
   while (number_of_streams) {
     EXPECT_TRUE(stream_id_manager_->CanOpenNextOutgoingStream());
@@ -515,7 +527,7 @@ TEST_P(QuicStreamIdManagerTestClient, StreamIdManagerGetNextOutgoingStream) {
   // If bidi, Crypto stream default created  at start up, it is one
   // more stream to account for since initialization is "number of
   // request/responses" & crypto is added in to that, not streams.
-  EXPECT_EQ(kDefaultMaxStreamsPerConnection + (IsBidi() ? 1u : 0u),
+  EXPECT_EQ(kDefaultMaxStreamsPerConnection + extra_stream_count,
             session_->save_frame().max_streams_frame.stream_count);
   // If we try to get the next id (above the limit), it should cause a quic-bug.
   EXPECT_QUIC_BUG(
@@ -783,7 +795,11 @@ TEST_P(QuicStreamIdManagerTestServer, StreamIdManagerServerInitialization) {
   // more stream to account for since initialization is "number of
   // request/responses" & crypto is added in to that, not streams.
   // Since this is the server, the stream is incoming.
-  EXPECT_EQ(kDefaultMaxStreamsPerConnection + (IsBidi() ? 1u : 0u),
+  size_t extra_stream_count = 0;
+  if (IsBidi() && !QuicVersionUsesCryptoFrames(transport_version())) {
+    extra_stream_count = 1;
+  }
+  EXPECT_EQ(kDefaultMaxStreamsPerConnection + extra_stream_count,
             stream_id_manager_->incoming_actual_max_streams());
   EXPECT_EQ(kDefaultMaxStreamsPerConnection,
             stream_id_manager_->outgoing_max_streams());
@@ -814,9 +830,17 @@ TEST_P(QuicStreamIdManagerTestServer, ExtremeMaybeIncreaseLargestPeerStreamId) {
       stream_id_manager_->incoming_actual_max_streams() + 20,
       Perspective::IS_CLIENT);  // This node is a server, incoming stream
                                 // ids must be client-originated.
-  std::string error_details =
-      IsBidi() ? "Stream id 480 would exceed stream count limit 101"
-               : "Stream id 478 would exceed stream count limit 100";
+  std::string error_details;
+  if (IsBidi()) {
+    if (QuicVersionUsesCryptoFrames(transport_version())) {
+      error_details = "Stream id 476 would exceed stream count limit 100";
+    } else {
+      error_details = "Stream id 480 would exceed stream count limit 101";
+    }
+  } else {
+    error_details = "Stream id 478 would exceed stream count limit 100";
+  }
+
   EXPECT_CALL(*connection_,
               CloseConnection(QUIC_INVALID_STREAM_ID, error_details, _));
   EXPECT_FALSE(

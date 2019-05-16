@@ -138,7 +138,7 @@ QuicConsumedData QuicPacketGenerator::ConsumeData(QuicStreamId id,
   QUIC_BUG_IF(!flusher_attached_) << "Packet flusher is not attached when "
                                      "generator tries to write stream data.";
   bool has_handshake =
-      (id == QuicUtils::GetCryptoStreamId(packet_creator_.transport_version()));
+      QuicUtils::IsCryptoStreamId(packet_creator_.transport_version(), id);
   if (deprecate_ack_bundling_mode_) {
     MaybeBundleAckOpportunistically();
   }
@@ -228,8 +228,7 @@ QuicConsumedData QuicPacketGenerator::ConsumeDataFastPath(
     QuicStreamOffset offset,
     bool fin,
     size_t total_bytes_consumed) {
-  DCHECK_NE(id,
-            QuicUtils::GetCryptoStreamId(packet_creator_.transport_version()));
+  DCHECK(!QuicUtils::IsCryptoStreamId(packet_creator_.transport_version(), id));
 
   while (total_bytes_consumed < write_length &&
          delegate_->ShouldGeneratePacket(HAS_RETRANSMITTABLE_DATA,

@@ -54,9 +54,11 @@ class QuicSimpleServerSessionPeer {
   static void SetCryptoStream(QuicSimpleServerSession* s,
                               QuicCryptoServerStream* crypto_stream) {
     s->crypto_stream_.reset(crypto_stream);
-    s->RegisterStaticStream(
-        QuicUtils::GetCryptoStreamId(s->connection()->transport_version()),
-        crypto_stream);
+    if (!QuicVersionUsesCryptoFrames(s->connection()->transport_version())) {
+      s->RegisterStaticStream(
+          QuicUtils::GetCryptoStreamId(s->connection()->transport_version()),
+          crypto_stream);
+    }
   }
 
   static QuicSpdyStream* CreateIncomingStream(QuicSimpleServerSession* s,

@@ -92,7 +92,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoStream : public QuicStream {
 
   // Returns whether there are any bytes pending retransmission in CRYPTO
   // frames.
-  virtual bool HasPendingCryptoRetransmission();
+  virtual bool HasPendingCryptoRetransmission() const;
 
   // Writes any pending CRYPTO frame retransmissions.
   void WritePendingCryptoRetransmission();

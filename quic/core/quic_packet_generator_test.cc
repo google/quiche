@@ -587,16 +587,29 @@ TEST_F(QuicPacketGeneratorTest, ConsumeData_Handshake) {
 
   EXPECT_CALL(delegate_, OnSerializedPacket(_))
       .WillOnce(Invoke(this, &QuicPacketGeneratorTest::SavePacket));
-  MakeIOVector("foo bar", &iov_);
-  QuicConsumedData consumed = generator_.ConsumeData(
-      QuicUtils::GetCryptoStreamId(framer_.transport_version()), &iov_, 1u,
-      iov_.iov_len, 0, NO_FIN);
-  EXPECT_EQ(7u, consumed.bytes_consumed);
+  std::string data = "foo bar";
+  MakeIOVector(data, &iov_);
+  size_t consumed_bytes = 0;
+  if (QuicVersionUsesCryptoFrames(framer_.transport_version())) {
+    consumed_bytes = generator_.ConsumeCryptoData(ENCRYPTION_INITIAL, data, 0);
+  } else {
+    consumed_bytes =
+        generator_
+            .ConsumeData(
+                QuicUtils::GetCryptoStreamId(framer_.transport_version()),
+                &iov_, 1u, iov_.iov_len, 0, NO_FIN)
+            .bytes_consumed;
+  }
+  EXPECT_EQ(7u, consumed_bytes);
   EXPECT_FALSE(generator_.HasQueuedFrames());
   EXPECT_FALSE(generator_.HasRetransmittableFrames());
 
   PacketContents contents;
-  contents.num_stream_frames = 1;
+  if (QuicVersionUsesCryptoFrames(framer_.transport_version())) {
+    contents.num_crypto_frames = 1;
+  } else {
+    contents.num_stream_frames = 1;
+  }
   contents.num_padding_frames = 1;
   CheckPacketContains(contents, 0);
 

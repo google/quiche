@@ -660,7 +660,7 @@ class TestConnection : public QuicConnection {
                                             QuicStreamOffset offset,
                                             StreamSendingState state) {
     ScopedPacketFlusher flusher(this, NO_ACK);
-    if (id != QuicUtils::GetCryptoStreamId(transport_version()) &&
+    if (!QuicUtils::IsCryptoStreamId(transport_version(), id) &&
         this->encryption_level() == ENCRYPTION_INITIAL) {
       this->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
     }
@@ -709,6 +709,11 @@ class TestConnection : public QuicConnection {
   QuicConsumedData SendCryptoStreamData() {
     QuicStreamOffset offset = 0;
     QuicStringPiece data("chlo");
+    return SendCryptoDataWithString(data, offset);
+  }
+
+  QuicConsumedData SendCryptoDataWithString(QuicStringPiece data,
+                                            QuicStreamOffset offset) {
     if (!QuicVersionUsesCryptoFrames(transport_version())) {
       return SendStreamDataWithString(
           QuicUtils::GetCryptoStreamId(transport_version()), data, offset,
@@ -815,6 +820,8 @@ class TestConnection : public QuicConnection {
     next_effective_peer_addr_ = QuicMakeUnique<QuicSocketAddress>(addr);
   }
 
+  SimpleDataProducer* producer() { return &producer_; }
+
   using QuicConnection::active_effective_peer_migration_type;
   using QuicConnection::IsCurrentPacketConnectivityProbing;
   using QuicConnection::SelectMutualVersion;
@@ -917,14 +924,9 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
         creator_(QuicConnectionPeer::GetPacketCreator(&connection_)),
         generator_(QuicConnectionPeer::GetPacketGenerator(&connection_)),
         manager_(QuicConnectionPeer::GetSentPacketManager(&connection_)),
-        frame1_(QuicUtils::GetCryptoStreamId(version().transport_version),
-                false,
-                0,
-                QuicStringPiece(data1)),
-        frame2_(QuicUtils::GetCryptoStreamId(version().transport_version),
-                false,
-                3,
-                QuicStringPiece(data2)),
+        frame1_(0, false, 0, QuicStringPiece(data1)),
+        frame2_(0, false, 3, QuicStringPiece(data2)),
+        crypto_frame_(ENCRYPTION_INITIAL, 0, QuicStringPiece(data1)),
         packet_number_length_(PACKET_4BYTE_PACKET_NUMBER),
         connection_id_included_(CONNECTION_ID_PRESENT),
         notifier_(&connection_) {
@@ -944,6 +946,15 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
       QuicConnectionPeer::SetNoStopWaitingFrames(&connection_,
                                                  GetParam().no_stop_waiting);
     }
+    QuicStreamId stream_id;
+    if (QuicVersionUsesCryptoFrames(version().transport_version)) {
+      stream_id = QuicUtils::GetFirstBidirectionalStreamId(
+          version().transport_version, Perspective::IS_CLIENT);
+    } else {
+      stream_id = QuicUtils::GetCryptoStreamId(version().transport_version);
+    }
+    frame1_.stream_id = stream_id;
+    frame2_.stream_id = stream_id;
     connection_.set_visitor(&visitor_);
     if (connection_.session_decides_what_to_write()) {
       connection_.SetSessionNotifier(&notifier_);
@@ -1180,6 +1191,29 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
                                     level);
   }
 
+  size_t ProcessCryptoPacketAtLevel(uint64_t number, EncryptionLevel level) {
+    QuicPacketHeader header = ConstructPacketHeader(1000, ENCRYPTION_INITIAL);
+    QuicFrames frames;
+    if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
+      frames.push_back(QuicFrame(&crypto_frame_));
+    } else {
+      frames.push_back(QuicFrame(frame1_));
+    }
+    std::unique_ptr<QuicPacket> packet = ConstructPacket(header, frames);
+    char buffer[kMaxOutgoingPacketSize];
+    peer_creator_.set_encryption_level(ENCRYPTION_INITIAL);
+    size_t encrypted_length =
+        peer_framer_.EncryptPayload(ENCRYPTION_INITIAL, QuicPacketNumber(1000),
+                                    *packet, buffer, kMaxOutgoingPacketSize);
+    connection_.ProcessUdpPacket(
+        kSelfAddress, kPeerAddress,
+        QuicReceivedPacket(buffer, encrypted_length, clock_.Now(), false));
+    if (connection_.GetSendAlarm()->IsSet()) {
+      connection_.GetSendAlarm()->Fire();
+    }
+    return encrypted_length;
+  }
+
   size_t ProcessDataPacketAtLevel(uint64_t number,
                                   bool has_stop_waiting,
                                   EncryptionLevel level) {
@@ -1302,9 +1336,8 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     return packet;
   }
 
-  std::unique_ptr<QuicPacket> ConstructDataPacket(uint64_t number,
-                                                  bool has_stop_waiting,
-                                                  EncryptionLevel level) {
+  QuicPacketHeader ConstructPacketHeader(uint64_t number,
+                                         EncryptionLevel level) {
     QuicPacketHeader header;
     if (peer_framer_.transport_version() > QUIC_VERSION_43 &&
         level < ENCRYPTION_FORWARD_SECURE) {
@@ -1344,7 +1377,13 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     }
     header.packet_number_length = packet_number_length_;
     header.packet_number = QuicPacketNumber(number);
+    return header;
+  }
 
+  std::unique_ptr<QuicPacket> ConstructDataPacket(uint64_t number,
+                                                  bool has_stop_waiting,
+                                                  EncryptionLevel level) {
+    QuicPacketHeader header = ConstructPacketHeader(number, level);
     QuicFrames frames;
     frames.push_back(QuicFrame(frame1_));
     if (has_stop_waiting) {
@@ -1514,6 +1553,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
 
   QuicStreamFrame frame1_;
   QuicStreamFrame frame2_;
+  QuicCryptoFrame crypto_frame_;
   QuicAckFrame ack_;
   QuicStopWaitingFrame stop_waiting_;
   QuicPacketNumberLength packet_number_length_;
@@ -1533,19 +1573,27 @@ TEST_P(QuicConnectionTest, SelfAddressChangeAtClient) {
   EXPECT_EQ(Perspective::IS_CLIENT, connection_.perspective());
   EXPECT_TRUE(connection_.connected());
 
-  QuicStreamFrame stream_frame(
-      QuicUtils::GetCryptoStreamId(connection_.transport_version()), false, 0u,
-      QuicStringPiece());
-  EXPECT_CALL(visitor_, OnStreamFrame(_));
-  ProcessFramePacketWithAddresses(QuicFrame(stream_frame), kSelfAddress,
-                                  kPeerAddress);
+  QuicFrame frame;
+  if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
+    frame = QuicFrame(&crypto_frame_);
+    EXPECT_CALL(visitor_, OnCryptoFrame(_));
+  } else {
+    frame = QuicFrame(QuicStreamFrame(
+        QuicUtils::GetCryptoStreamId(connection_.transport_version()), false,
+        0u, QuicStringPiece()));
+    EXPECT_CALL(visitor_, OnStreamFrame(_));
+  }
+  ProcessFramePacketWithAddresses(frame, kSelfAddress, kPeerAddress);
   // Cause change in self_address.
   QuicIpAddress host;
   host.FromString("1.1.1.1");
   QuicSocketAddress self_address(host, 123);
-  EXPECT_CALL(visitor_, OnStreamFrame(_));
-  ProcessFramePacketWithAddresses(QuicFrame(stream_frame), self_address,
-                                  kPeerAddress);
+  if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
+    EXPECT_CALL(visitor_, OnCryptoFrame(_));
+  } else {
+    EXPECT_CALL(visitor_, OnStreamFrame(_));
+  }
+  ProcessFramePacketWithAddresses(frame, self_address, kPeerAddress);
   EXPECT_TRUE(connection_.connected());
 }
 
@@ -1558,20 +1606,24 @@ TEST_P(QuicConnectionTest, SelfAddressChangeAtServer) {
   EXPECT_EQ(Perspective::IS_SERVER, connection_.perspective());
   EXPECT_TRUE(connection_.connected());
 
-  QuicStreamFrame stream_frame(
-      QuicUtils::GetCryptoStreamId(connection_.transport_version()), false, 0u,
-      QuicStringPiece());
-  EXPECT_CALL(visitor_, OnStreamFrame(_));
-  ProcessFramePacketWithAddresses(QuicFrame(stream_frame), kSelfAddress,
-                                  kPeerAddress);
+  QuicFrame frame;
+  if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
+    frame = QuicFrame(&crypto_frame_);
+    EXPECT_CALL(visitor_, OnCryptoFrame(_));
+  } else {
+    frame = QuicFrame(QuicStreamFrame(
+        QuicUtils::GetCryptoStreamId(connection_.transport_version()), false,
+        0u, QuicStringPiece()));
+    EXPECT_CALL(visitor_, OnStreamFrame(_));
+  }
+  ProcessFramePacketWithAddresses(frame, kSelfAddress, kPeerAddress);
   // Cause change in self_address.
   QuicIpAddress host;
   host.FromString("1.1.1.1");
   QuicSocketAddress self_address(host, 123);
   EXPECT_CALL(visitor_, AllowSelfAddressChange()).WillOnce(Return(false));
   EXPECT_CALL(visitor_, OnConnectionClosed(QUIC_ERROR_MIGRATING_ADDRESS, _, _));
-  ProcessFramePacketWithAddresses(QuicFrame(stream_frame), self_address,
-                                  kPeerAddress);
+  ProcessFramePacketWithAddresses(frame, self_address, kPeerAddress);
   EXPECT_FALSE(connection_.connected());
 }
 
@@ -1584,26 +1636,29 @@ TEST_P(QuicConnectionTest, AllowSelfAddressChangeToMappedIpv4AddressAtServer) {
   EXPECT_EQ(Perspective::IS_SERVER, connection_.perspective());
   EXPECT_TRUE(connection_.connected());
 
-  QuicStreamFrame stream_frame(
-      QuicUtils::GetCryptoStreamId(connection_.transport_version()), false, 0u,
-      QuicStringPiece());
-  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(3);
+  QuicFrame frame;
+  if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
+    frame = QuicFrame(&crypto_frame_);
+    EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(3);
+  } else {
+    frame = QuicFrame(QuicStreamFrame(
+        QuicUtils::GetCryptoStreamId(connection_.transport_version()), false,
+        0u, QuicStringPiece()));
+    EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(3);
+  }
   QuicIpAddress host;
   host.FromString("1.1.1.1");
   QuicSocketAddress self_address1(host, 443);
-  ProcessFramePacketWithAddresses(QuicFrame(stream_frame), self_address1,
-                                  kPeerAddress);
+  ProcessFramePacketWithAddresses(frame, self_address1, kPeerAddress);
   // Cause self_address change to mapped Ipv4 address.
   QuicIpAddress host2;
   host2.FromString(
       QuicStrCat("::ffff:", connection_.self_address().host().ToString()));
   QuicSocketAddress self_address2(host2, connection_.self_address().port());
-  ProcessFramePacketWithAddresses(QuicFrame(stream_frame), self_address2,
-                                  kPeerAddress);
+  ProcessFramePacketWithAddresses(frame, self_address2, kPeerAddress);
   EXPECT_TRUE(connection_.connected());
   // self_address change back to Ipv4 address.
-  ProcessFramePacketWithAddresses(QuicFrame(stream_frame), self_address1,
-                                  kPeerAddress);
+  ProcessFramePacketWithAddresses(frame, self_address1, kPeerAddress);
   EXPECT_TRUE(connection_.connected());
 }
 
@@ -1619,16 +1674,21 @@ TEST_P(QuicConnectionTest, ClientAddressChangeAndPacketReordered) {
   QuicConnectionPeer::SetEffectivePeerAddress(&connection_,
                                               QuicSocketAddress());
 
+  QuicFrame frame;
+  if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
+    frame = QuicFrame(&crypto_frame_);
+    EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(AnyNumber());
+  } else {
+    frame = QuicFrame(QuicStreamFrame(
+        QuicUtils::GetCryptoStreamId(connection_.transport_version()), false,
+        0u, QuicStringPiece()));
+    EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
+  }
   QuicPacketCreatorPeer::SetPacketNumber(&peer_creator_, 5);
-  QuicStreamFrame stream_frame(
-      QuicUtils::GetCryptoStreamId(connection_.transport_version()), false, 0u,
-      QuicStringPiece());
-  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
   const QuicSocketAddress kNewPeerAddress =
       QuicSocketAddress(QuicIpAddress::Loopback6(),
                         /*port=*/23456);
-  ProcessFramePacketWithAddresses(QuicFrame(stream_frame), kSelfAddress,
-                                  kNewPeerAddress);
+  ProcessFramePacketWithAddresses(frame, kSelfAddress, kNewPeerAddress);
   EXPECT_EQ(kNewPeerAddress, connection_.peer_address());
   EXPECT_EQ(kNewPeerAddress, connection_.effective_peer_address());
 
@@ -1636,8 +1696,7 @@ TEST_P(QuicConnectionTest, ClientAddressChangeAndPacketReordered) {
   QuicPacketCreatorPeer::SetPacketNumber(&peer_creator_, 4);
   // This is an old packet, do not migrate.
   EXPECT_CALL(visitor_, OnConnectionMigration(PORT_CHANGE)).Times(0);
-  ProcessFramePacketWithAddresses(QuicFrame(stream_frame), kSelfAddress,
-                                  kPeerAddress);
+  ProcessFramePacketWithAddresses(frame, kSelfAddress, kPeerAddress);
   EXPECT_EQ(kNewPeerAddress, connection_.peer_address());
   EXPECT_EQ(kNewPeerAddress, connection_.effective_peer_address());
 }
@@ -1656,12 +1715,17 @@ TEST_P(QuicConnectionTest, PeerAddressChangeAtServer) {
                                               QuicSocketAddress());
   EXPECT_FALSE(connection_.effective_peer_address().IsInitialized());
 
-  QuicStreamFrame stream_frame(
-      QuicUtils::GetCryptoStreamId(connection_.transport_version()), false, 0u,
-      QuicStringPiece());
-  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
-  ProcessFramePacketWithAddresses(QuicFrame(stream_frame), kSelfAddress,
-                                  kPeerAddress);
+  QuicFrame frame;
+  if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
+    frame = QuicFrame(&crypto_frame_);
+    EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(AnyNumber());
+  } else {
+    frame = QuicFrame(QuicStreamFrame(
+        QuicUtils::GetCryptoStreamId(connection_.transport_version()), false,
+        0u, QuicStringPiece()));
+    EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
+  }
+  ProcessFramePacketWithAddresses(frame, kSelfAddress, kPeerAddress);
   EXPECT_EQ(kPeerAddress, connection_.peer_address());
   EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
 
@@ -1670,8 +1734,7 @@ TEST_P(QuicConnectionTest, PeerAddressChangeAtServer) {
   const QuicSocketAddress kNewPeerAddress =
       QuicSocketAddress(QuicIpAddress::Loopback6(), /*port=*/23456);
   EXPECT_CALL(visitor_, OnConnectionMigration(PORT_CHANGE)).Times(1);
-  ProcessFramePacketWithAddresses(QuicFrame(stream_frame), kSelfAddress,
-                                  kNewPeerAddress);
+  ProcessFramePacketWithAddresses(frame, kSelfAddress, kNewPeerAddress);
   EXPECT_EQ(kNewPeerAddress, connection_.peer_address());
   EXPECT_EQ(kNewPeerAddress, connection_.effective_peer_address());
 }
@@ -1692,12 +1755,17 @@ TEST_P(QuicConnectionTest, EffectivePeerAddressChangeAtServer) {
       QuicSocketAddress(QuicIpAddress::Loopback6(), /*port=*/43210);
   connection_.ReturnEffectivePeerAddressForNextPacket(kEffectivePeerAddress);
 
-  QuicStreamFrame stream_frame(
-      QuicUtils::GetCryptoStreamId(connection_.transport_version()), false, 0u,
-      QuicStringPiece());
-  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
-  ProcessFramePacketWithAddresses(QuicFrame(stream_frame), kSelfAddress,
-                                  kPeerAddress);
+  QuicFrame frame;
+  if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
+    frame = QuicFrame(&crypto_frame_);
+    EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(AnyNumber());
+  } else {
+    frame = QuicFrame(QuicStreamFrame(
+        QuicUtils::GetCryptoStreamId(connection_.transport_version()), false,
+        0u, QuicStringPiece()));
+    EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
+  }
+  ProcessFramePacketWithAddresses(frame, kSelfAddress, kPeerAddress);
   EXPECT_EQ(kPeerAddress, connection_.peer_address());
   EXPECT_EQ(kEffectivePeerAddress, connection_.effective_peer_address());
 
@@ -1707,8 +1775,7 @@ TEST_P(QuicConnectionTest, EffectivePeerAddressChangeAtServer) {
       QuicSocketAddress(QuicIpAddress::Loopback6(), /*port=*/54321);
   connection_.ReturnEffectivePeerAddressForNextPacket(kNewEffectivePeerAddress);
   EXPECT_CALL(visitor_, OnConnectionMigration(PORT_CHANGE)).Times(1);
-  ProcessFramePacketWithAddresses(QuicFrame(stream_frame), kSelfAddress,
-                                  kPeerAddress);
+  ProcessFramePacketWithAddresses(frame, kSelfAddress, kPeerAddress);
   EXPECT_EQ(kPeerAddress, connection_.peer_address());
   EXPECT_EQ(kNewEffectivePeerAddress, connection_.effective_peer_address());
 
@@ -1737,8 +1804,7 @@ TEST_P(QuicConnectionTest, EffectivePeerAddressChangeAtServer) {
   connection_.ReturnEffectivePeerAddressForNextPacket(
       kNewerEffectivePeerAddress);
   EXPECT_CALL(visitor_, OnConnectionMigration(PORT_CHANGE)).Times(1);
-  ProcessFramePacketWithAddresses(QuicFrame(stream_frame), kSelfAddress,
-                                  kFinalPeerAddress);
+  ProcessFramePacketWithAddresses(frame, kSelfAddress, kFinalPeerAddress);
   EXPECT_EQ(kFinalPeerAddress, connection_.peer_address());
   EXPECT_EQ(kNewerEffectivePeerAddress, connection_.effective_peer_address());
   EXPECT_EQ(PORT_CHANGE, connection_.active_effective_peer_migration_type());
@@ -1752,8 +1818,7 @@ TEST_P(QuicConnectionTest, EffectivePeerAddressChangeAtServer) {
       kNewestEffectivePeerAddress);
   EXPECT_CALL(visitor_, OnConnectionMigration(IPV6_TO_IPV4_CHANGE)).Times(1);
   EXPECT_CALL(*send_algorithm_, OnConnectionMigration()).Times(1);
-  ProcessFramePacketWithAddresses(QuicFrame(stream_frame), kSelfAddress,
-                                  kFinalPeerAddress);
+  ProcessFramePacketWithAddresses(frame, kSelfAddress, kFinalPeerAddress);
   EXPECT_EQ(kFinalPeerAddress, connection_.peer_address());
   EXPECT_EQ(kNewestEffectivePeerAddress, connection_.effective_peer_address());
   EXPECT_EQ(IPV6_TO_IPV4_CHANGE,
@@ -1774,12 +1839,17 @@ TEST_P(QuicConnectionTest, ReceivePaddedPingAtServer) {
                                               QuicSocketAddress());
   EXPECT_FALSE(connection_.effective_peer_address().IsInitialized());
 
-  QuicStreamFrame stream_frame(
-      QuicUtils::GetCryptoStreamId(connection_.transport_version()), false, 0u,
-      QuicStringPiece());
-  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
-  ProcessFramePacketWithAddresses(QuicFrame(stream_frame), kSelfAddress,
-                                  kPeerAddress);
+  QuicFrame frame;
+  if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
+    frame = QuicFrame(&crypto_frame_);
+    EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(AnyNumber());
+  } else {
+    frame = QuicFrame(QuicStreamFrame(
+        QuicUtils::GetCryptoStreamId(connection_.transport_version()), false,
+        0u, QuicStringPiece()));
+    EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
+  }
+  ProcessFramePacketWithAddresses(frame, kSelfAddress, kPeerAddress);
   EXPECT_EQ(kPeerAddress, connection_.peer_address());
   EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
 
@@ -1881,12 +1951,17 @@ TEST_P(QuicConnectionTest, ReceiveConnectivityProbingAtServer) {
                                               QuicSocketAddress());
   EXPECT_FALSE(connection_.effective_peer_address().IsInitialized());
 
-  QuicStreamFrame stream_frame(
-      QuicUtils::GetCryptoStreamId(connection_.transport_version()), false, 0u,
-      QuicStringPiece());
-  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
-  ProcessFramePacketWithAddresses(QuicFrame(stream_frame), kSelfAddress,
-                                  kPeerAddress);
+  QuicFrame frame;
+  if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
+    frame = QuicFrame(&crypto_frame_);
+    EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(AnyNumber());
+  } else {
+    frame = QuicFrame(QuicStreamFrame(
+        QuicUtils::GetCryptoStreamId(connection_.transport_version()), false,
+        0u, QuicStringPiece()));
+    EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
+  }
+  ProcessFramePacketWithAddresses(frame, kSelfAddress, kPeerAddress);
   EXPECT_EQ(kPeerAddress, connection_.peer_address());
   EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
 
@@ -1916,8 +1991,7 @@ TEST_P(QuicConnectionTest, ReceiveConnectivityProbingAtServer) {
   // Process another packet with the old peer address on server side will not
   // start peer migration.
   EXPECT_CALL(visitor_, OnConnectionMigration(PORT_CHANGE)).Times(0);
-  ProcessFramePacketWithAddresses(QuicFrame(stream_frame), kSelfAddress,
-                                  kPeerAddress);
+  ProcessFramePacketWithAddresses(frame, kSelfAddress, kPeerAddress);
   EXPECT_EQ(kPeerAddress, connection_.peer_address());
   EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
 }
@@ -1936,13 +2010,18 @@ TEST_P(QuicConnectionTest, ReceiveReorderedConnectivityProbingAtServer) {
                                               QuicSocketAddress());
   EXPECT_FALSE(connection_.effective_peer_address().IsInitialized());
 
+  QuicFrame frame;
+  if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
+    frame = QuicFrame(&crypto_frame_);
+    EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(AnyNumber());
+  } else {
+    frame = QuicFrame(QuicStreamFrame(
+        QuicUtils::GetCryptoStreamId(connection_.transport_version()), false,
+        0u, QuicStringPiece()));
+    EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
+  }
   QuicPacketCreatorPeer::SetPacketNumber(&peer_creator_, 5);
-  QuicStreamFrame stream_frame(
-      QuicUtils::GetCryptoStreamId(connection_.transport_version()), false, 0u,
-      QuicStringPiece());
-  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
-  ProcessFramePacketWithAddresses(QuicFrame(stream_frame), kSelfAddress,
-                                  kPeerAddress);
+  ProcessFramePacketWithAddresses(frame, kSelfAddress, kPeerAddress);
   EXPECT_EQ(kPeerAddress, connection_.peer_address());
   EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
 
@@ -1988,12 +2067,17 @@ TEST_P(QuicConnectionTest, MigrateAfterProbingAtServer) {
                                               QuicSocketAddress());
   EXPECT_FALSE(connection_.effective_peer_address().IsInitialized());
 
-  QuicStreamFrame stream_frame(
-      QuicUtils::GetCryptoStreamId(connection_.transport_version()), false, 0u,
-      QuicStringPiece());
-  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
-  ProcessFramePacketWithAddresses(QuicFrame(stream_frame), kSelfAddress,
-                                  kPeerAddress);
+  QuicFrame frame;
+  if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
+    frame = QuicFrame(&crypto_frame_);
+    EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(AnyNumber());
+  } else {
+    frame = QuicFrame(QuicStreamFrame(
+        QuicUtils::GetCryptoStreamId(connection_.transport_version()), false,
+        0u, QuicStringPiece()));
+    EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
+  }
+  ProcessFramePacketWithAddresses(frame, kSelfAddress, kPeerAddress);
   EXPECT_EQ(kPeerAddress, connection_.peer_address());
   EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
 
@@ -2018,8 +2102,7 @@ TEST_P(QuicConnectionTest, MigrateAfterProbingAtServer) {
   // side will start peer migration.
   EXPECT_CALL(visitor_, OnConnectionMigration(PORT_CHANGE)).Times(1);
 
-  ProcessFramePacketWithAddresses(QuicFrame(stream_frame), kSelfAddress,
-                                  kNewPeerAddress);
+  ProcessFramePacketWithAddresses(frame, kSelfAddress, kNewPeerAddress);
   EXPECT_EQ(kNewPeerAddress, connection_.peer_address());
   EXPECT_EQ(kNewPeerAddress, connection_.effective_peer_address());
 }
@@ -2037,12 +2120,17 @@ TEST_P(QuicConnectionTest, ReceivePaddedPingAtClient) {
                                               QuicSocketAddress());
   EXPECT_FALSE(connection_.effective_peer_address().IsInitialized());
 
-  QuicStreamFrame stream_frame(
-      QuicUtils::GetCryptoStreamId(connection_.transport_version()), false, 0u,
-      QuicStringPiece());
-  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
-  ProcessFramePacketWithAddresses(QuicFrame(stream_frame), kSelfAddress,
-                                  kPeerAddress);
+  QuicFrame frame;
+  if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
+    frame = QuicFrame(&crypto_frame_);
+    EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(AnyNumber());
+  } else {
+    frame = QuicFrame(QuicStreamFrame(
+        QuicUtils::GetCryptoStreamId(connection_.transport_version()), false,
+        0u, QuicStringPiece()));
+    EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
+  }
+  ProcessFramePacketWithAddresses(frame, kSelfAddress, kPeerAddress);
   EXPECT_EQ(kPeerAddress, connection_.peer_address());
   EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
 
@@ -2079,12 +2167,17 @@ TEST_P(QuicConnectionTest, ReceiveConnectivityProbingAtClient) {
                                               QuicSocketAddress());
   EXPECT_FALSE(connection_.effective_peer_address().IsInitialized());
 
-  QuicStreamFrame stream_frame(
-      QuicUtils::GetCryptoStreamId(connection_.transport_version()), false, 0u,
-      QuicStringPiece());
-  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
-  ProcessFramePacketWithAddresses(QuicFrame(stream_frame), kSelfAddress,
-                                  kPeerAddress);
+  QuicFrame frame;
+  if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
+    frame = QuicFrame(&crypto_frame_);
+    EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(AnyNumber());
+  } else {
+    frame = QuicFrame(QuicStreamFrame(
+        QuicUtils::GetCryptoStreamId(connection_.transport_version()), false,
+        0u, QuicStringPiece()));
+    EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
+  }
+  ProcessFramePacketWithAddresses(frame, kSelfAddress, kPeerAddress);
   EXPECT_EQ(kPeerAddress, connection_.peer_address());
   EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
 
@@ -2124,12 +2217,17 @@ TEST_P(QuicConnectionTest, PeerAddressChangeAtClient) {
                                               QuicSocketAddress());
   EXPECT_FALSE(connection_.effective_peer_address().IsInitialized());
 
-  QuicStreamFrame stream_frame(
-      QuicUtils::GetCryptoStreamId(connection_.transport_version()), false, 0u,
-      QuicStringPiece());
-  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
-  ProcessFramePacketWithAddresses(QuicFrame(stream_frame), kSelfAddress,
-                                  kPeerAddress);
+  QuicFrame frame;
+  if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
+    frame = QuicFrame(&crypto_frame_);
+    EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(AnyNumber());
+  } else {
+    frame = QuicFrame(QuicStreamFrame(
+        QuicUtils::GetCryptoStreamId(connection_.transport_version()), false,
+        0u, QuicStringPiece()));
+    EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
+  }
+  ProcessFramePacketWithAddresses(frame, kSelfAddress, kPeerAddress);
   EXPECT_EQ(kPeerAddress, connection_.peer_address());
   EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
 
@@ -2138,8 +2236,7 @@ TEST_P(QuicConnectionTest, PeerAddressChangeAtClient) {
   const QuicSocketAddress kNewPeerAddress =
       QuicSocketAddress(QuicIpAddress::Loopback6(), /*port=*/23456);
   EXPECT_CALL(visitor_, OnConnectionMigration(PORT_CHANGE)).Times(0);
-  ProcessFramePacketWithAddresses(QuicFrame(stream_frame), kSelfAddress,
-                                  kNewPeerAddress);
+  ProcessFramePacketWithAddresses(frame, kSelfAddress, kNewPeerAddress);
   EXPECT_EQ(kNewPeerAddress, connection_.peer_address());
   EXPECT_EQ(kNewPeerAddress, connection_.effective_peer_address());
 }
@@ -2177,7 +2274,11 @@ TEST_P(QuicConnectionTest, IncreaseServerMaxPacketSize) {
 
   QuicFrames frames;
   QuicPaddingFrame padding;
-  frames.push_back(QuicFrame(frame1_));
+  if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
+    frames.push_back(QuicFrame(&crypto_frame_));
+  } else {
+    frames.push_back(QuicFrame(frame1_));
+  }
   frames.push_back(QuicFrame(padding));
   std::unique_ptr<QuicPacket> packet(ConstructPacket(header, frames));
   char buffer[kMaxOutgoingPacketSize];
@@ -2187,7 +2288,11 @@ TEST_P(QuicConnectionTest, IncreaseServerMaxPacketSize) {
   EXPECT_EQ(kMaxOutgoingPacketSize, encrypted_length);
 
   framer_.set_version(version());
-  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
+  if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
+    EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(1);
+  } else {
+    EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
+  }
   connection_.ProcessUdpPacket(
       kSelfAddress, kPeerAddress,
       QuicReceivedPacket(buffer, encrypted_length, QuicTime::Zero(), false));
@@ -2218,7 +2323,11 @@ TEST_P(QuicConnectionTest, IncreaseServerMaxPacketSizeWhileWriterLimited) {
 
   QuicFrames frames;
   QuicPaddingFrame padding;
-  frames.push_back(QuicFrame(frame1_));
+  if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
+    frames.push_back(QuicFrame(&crypto_frame_));
+  } else {
+    frames.push_back(QuicFrame(frame1_));
+  }
   frames.push_back(QuicFrame(padding));
   std::unique_ptr<QuicPacket> packet(ConstructPacket(header, frames));
   char buffer[kMaxOutgoingPacketSize];
@@ -2228,7 +2337,11 @@ TEST_P(QuicConnectionTest, IncreaseServerMaxPacketSizeWhileWriterLimited) {
   EXPECT_EQ(kMaxOutgoingPacketSize, encrypted_length);
 
   framer_.set_version(version());
-  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
+  if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
+    EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(1);
+  } else {
+    EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
+  }
   connection_.ProcessUdpPacket(
       kSelfAddress, kPeerAddress,
       QuicReceivedPacket(buffer, encrypted_length, QuicTime::Zero(), false));
@@ -2587,7 +2700,8 @@ TEST_P(QuicConnectionTest, AckNeedsRetransmittableFrames) {
   }
   // Send a packet containing stream frame.
   SendStreamDataToPeer(
-      QuicUtils::GetCryptoStreamId(connection_.version().transport_version),
+      QuicUtils::GetFirstBidirectionalStreamId(
+          connection_.version().transport_version, Perspective::IS_CLIENT),
       "bar", 0, NO_FIN, nullptr);
 
   // Session will not be informed until receiving another 20 packets.
@@ -2917,9 +3031,13 @@ TEST_P(QuicConnectionTest, FramePackingAckResponse) {
   EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
   ProcessDataPacket(1);
   QuicPacketNumber last_packet;
-  SendStreamDataToPeer(
-      QuicUtils::GetCryptoStreamId(connection_.version().transport_version),
-      "foo", 0, NO_FIN, &last_packet);
+  if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
+    connection_.SendCryptoDataWithString("foo", 0);
+  } else {
+    SendStreamDataToPeer(
+        QuicUtils::GetCryptoStreamId(connection_.transport_version()), "foo", 0,
+        NO_FIN, &last_packet);
+  }
   // Verify ack is bundled with outging packet.
   EXPECT_FALSE(writer_->ack_frames().empty());
 
@@ -2960,6 +3078,7 @@ TEST_P(QuicConnectionTest, FramePackingAckResponse) {
 }
 
 TEST_P(QuicConnectionTest, FramePackingSendv) {
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   // Send data in 1 packet by writing multiple blocks in a single iovector
   // using writev.
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _));
@@ -2970,25 +3089,25 @@ TEST_P(QuicConnectionTest, FramePackingSendv) {
   iov[0].iov_len = 4;
   iov[1].iov_base = data + 4;
   iov[1].iov_len = 2;
-  connection_.SaveAndSendStreamData(
-      QuicUtils::GetCryptoStreamId(connection_.transport_version()), iov, 2, 6,
-      0, NO_FIN);
+  QuicStreamId stream_id = QuicUtils::GetFirstBidirectionalStreamId(
+      connection_.transport_version(), Perspective::IS_CLIENT);
+  connection_.SaveAndSendStreamData(stream_id, iov, 2, 6, 0, NO_FIN);
 
   EXPECT_EQ(0u, connection_.NumQueuedPackets());
   EXPECT_FALSE(connection_.HasQueuedData());
 
   // Parse the last packet and ensure multiple iovector blocks have
   // been packed into a single stream frame from one stream.
-  EXPECT_EQ(2u, writer_->frame_count());
+  EXPECT_EQ(1u, writer_->frame_count());
   EXPECT_EQ(1u, writer_->stream_frames().size());
-  EXPECT_EQ(1u, writer_->padding_frames().size());
+  EXPECT_EQ(0u, writer_->padding_frames().size());
   QuicStreamFrame* frame = writer_->stream_frames()[0].get();
-  EXPECT_EQ(QuicUtils::GetCryptoStreamId(connection_.transport_version()),
-            frame->stream_id);
+  EXPECT_EQ(stream_id, frame->stream_id);
   EXPECT_EQ("ABCDEF", QuicStringPiece(frame->data_buffer, frame->data_length));
 }
 
 TEST_P(QuicConnectionTest, FramePackingSendvQueued) {
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   // Try to send two stream frames in 1 packet by using writev.
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _));
 
@@ -2999,9 +3118,9 @@ TEST_P(QuicConnectionTest, FramePackingSendvQueued) {
   iov[0].iov_len = 4;
   iov[1].iov_base = data + 4;
   iov[1].iov_len = 2;
-  connection_.SaveAndSendStreamData(
-      QuicUtils::GetCryptoStreamId(connection_.transport_version()), iov, 2, 6,
-      0, NO_FIN);
+  QuicStreamId stream_id = QuicUtils::GetFirstBidirectionalStreamId(
+      connection_.transport_version(), Perspective::IS_CLIENT);
+  connection_.SaveAndSendStreamData(stream_id, iov, 2, 6, 0, NO_FIN);
 
   EXPECT_EQ(1u, connection_.NumQueuedPackets());
   EXPECT_TRUE(connection_.HasQueuedData());
@@ -3012,20 +3131,19 @@ TEST_P(QuicConnectionTest, FramePackingSendvQueued) {
   EXPECT_EQ(0u, connection_.NumQueuedPackets());
 
   // Parse the last packet and ensure it's one stream frame from one stream.
-  EXPECT_EQ(2u, writer_->frame_count());
+  EXPECT_EQ(1u, writer_->frame_count());
   EXPECT_EQ(1u, writer_->stream_frames().size());
-  EXPECT_EQ(1u, writer_->padding_frames().size());
-  EXPECT_EQ(QuicUtils::GetCryptoStreamId(connection_.transport_version()),
-            writer_->stream_frames()[0]->stream_id);
+  EXPECT_EQ(0u, writer_->padding_frames().size());
+  EXPECT_EQ(stream_id, writer_->stream_frames()[0]->stream_id);
 }
 
 TEST_P(QuicConnectionTest, SendingZeroBytes) {
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   // Send a zero byte write with a fin using writev.
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _));
-  connection_.SaveAndSendStreamData(
-      QuicUtils::GetHeadersStreamId(connection_.transport_version()), nullptr,
-      0, 0, 0, FIN);
+  QuicStreamId stream_id = QuicUtils::GetFirstBidirectionalStreamId(
+      connection_.transport_version(), Perspective::IS_CLIENT);
+  connection_.SaveAndSendStreamData(stream_id, nullptr, 0, 0, 0, FIN);
 
   EXPECT_EQ(0u, connection_.NumQueuedPackets());
   EXPECT_FALSE(connection_.HasQueuedData());
@@ -3040,8 +3158,7 @@ TEST_P(QuicConnectionTest, SendingZeroBytes) {
   EXPECT_EQ(1u + extra_padding_frames, writer_->frame_count());
   EXPECT_EQ(extra_padding_frames, writer_->padding_frames().size());
   ASSERT_EQ(1u, writer_->stream_frames().size());
-  EXPECT_EQ(QuicUtils::GetHeadersStreamId(connection_.transport_version()),
-            writer_->stream_frames()[0]->stream_id);
+  EXPECT_EQ(stream_id, writer_->stream_frames()[0]->stream_id);
   EXPECT_TRUE(writer_->stream_frames()[0]->fin);
 }
 
@@ -3563,7 +3680,7 @@ TEST_P(QuicConnectionTest, NoSendAlarmAfterProcessPacketWhenWriteBlocked) {
   const bool has_stop_waiting = false;
   const EncryptionLevel level = ENCRYPTION_INITIAL;
   std::unique_ptr<QuicPacket> packet(ConstructDataPacket(
-      received_packet_num, has_stop_waiting, ENCRYPTION_INITIAL));
+      received_packet_num, has_stop_waiting, ENCRYPTION_FORWARD_SECURE));
   char buffer[kMaxOutgoingPacketSize];
   size_t encrypted_length =
       peer_framer_.EncryptPayload(level, QuicPacketNumber(received_packet_num),
@@ -3953,9 +4070,11 @@ TEST_P(QuicConnectionTest, RetransmitWithSameEncryptionLevel) {
   // the end of the packet. We can test this to check which encrypter was used.
   connection_.SetEncrypter(ENCRYPTION_INITIAL,
                            QuicMakeUnique<TaggingEncrypter>(0x01));
-  SendStreamDataToPeer(
-      QuicUtils::GetCryptoStreamId(connection_.transport_version()), "foo", 0,
-      NO_FIN, nullptr);
+  QuicByteCount packet_size;
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
+      .WillOnce(SaveArg<3>(&packet_size));
+  connection_.SendCryptoDataWithString("foo", 0);
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(AnyNumber());
   EXPECT_EQ(0x01010101u, writer_->final_bytes_of_last_packet());
 
   connection_.SetEncrypter(ENCRYPTION_ZERO_RTT,
@@ -3992,9 +4111,7 @@ TEST_P(QuicConnectionTest, SendHandshakeMessages) {
   // Attempt to send a handshake message and have the socket block.
   EXPECT_CALL(*send_algorithm_, CanSend(_)).WillRepeatedly(Return(true));
   BlockOnNextWrite();
-  connection_.SendStreamDataWithString(
-      QuicUtils::GetCryptoStreamId(connection_.transport_version()), "foo", 0,
-      NO_FIN);
+  connection_.SendCryptoDataWithString("foo", 0);
   // The packet should be serialized, but not queued.
   EXPECT_EQ(1u, connection_.NumQueuedPackets());
 
@@ -4046,9 +4163,7 @@ TEST_P(QuicConnectionTest, RetransmitPacketsWithInitialEncryption) {
                            QuicMakeUnique<TaggingEncrypter>(0x01));
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_INITIAL);
 
-  SendStreamDataToPeer(
-      QuicUtils::GetCryptoStreamId(connection_.transport_version()), "foo", 0,
-      NO_FIN, nullptr);
+  connection_.SendCryptoDataWithString("foo", 0);
 
   connection_.SetEncrypter(ENCRYPTION_ZERO_RTT,
                            QuicMakeUnique<TaggingEncrypter>(0x02));
@@ -6235,9 +6350,7 @@ TEST_P(QuicConnectionTest, SendDelayedAckOnOutgoingCryptoPacket) {
   }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   ProcessPacket(1);
-  connection_.SendStreamDataWithString(
-      QuicUtils::GetCryptoStreamId(connection_.transport_version()), "foo", 0,
-      NO_FIN);
+  connection_.SendCryptoDataWithString("foo", 0);
   // Check that ack is bundled with outgoing crypto data.
   if (GetParam().no_stop_waiting) {
     EXPECT_EQ(3u, writer_->frame_count());
@@ -6254,14 +6367,10 @@ TEST_P(QuicConnectionTest, BlockAndBufferOnFirstCHLOPacketOfTwo) {
   ProcessPacket(1);
   BlockOnNextWrite();
   writer_->set_is_write_blocked_data_buffered(true);
-  connection_.SendStreamDataWithString(
-      QuicUtils::GetCryptoStreamId(connection_.transport_version()), "foo", 0,
-      NO_FIN);
+  connection_.SendCryptoDataWithString("foo", 0);
   EXPECT_TRUE(writer_->IsWriteBlocked());
   EXPECT_FALSE(connection_.HasQueuedData());
-  connection_.SendStreamDataWithString(
-      QuicUtils::GetCryptoStreamId(connection_.transport_version()), "bar", 3,
-      NO_FIN);
+  connection_.SendCryptoDataWithString("bar", 3);
   EXPECT_TRUE(writer_->IsWriteBlocked());
   EXPECT_TRUE(connection_.HasQueuedData());
 }
@@ -8209,13 +8318,18 @@ TEST_P(QuicConnectionTest, StopProcessingGQuicPacketInIetfQuicConnection) {
     return;
   }
   set_perspective(Perspective::IS_SERVER);
-  QuicStreamFrame stream_frame(
-      QuicUtils::GetCryptoStreamId(connection_.transport_version()), false, 0u,
-      QuicStringPiece());
+  QuicFrame frame;
+  if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
+    frame = QuicFrame(&crypto_frame_);
+    EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(1);
+  } else {
+    frame = QuicFrame(QuicStreamFrame(
+        QuicUtils::GetCryptoStreamId(connection_.transport_version()), false,
+        0u, QuicStringPiece()));
+    EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
+  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
-  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
-  ProcessFramePacketWithAddresses(QuicFrame(stream_frame), kSelfAddress,
-                                  kPeerAddress);
+  ProcessFramePacketWithAddresses(frame, kSelfAddress, kPeerAddress);
 
   // Let connection process a Google QUIC packet.
   peer_framer_.set_version_for_tests(
@@ -8334,10 +8448,13 @@ TEST_P(QuicConnectionTest, MultiplePacketNumberSpacesBasicReceiving) {
     return;
   }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
+  if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
+    EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(AnyNumber());
+  }
   EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
   use_tagging_decrypter();
   // Receives packet 1000 in initial data.
-  ProcessDataPacketAtLevel(1000, false, ENCRYPTION_INITIAL);
+  ProcessCryptoPacketAtLevel(1000, ENCRYPTION_INITIAL);
   EXPECT_TRUE(connection_.GetAckAlarm()->IsSet());
   peer_framer_.SetEncrypter(ENCRYPTION_ZERO_RTT,
                             QuicMakeUnique<TaggingEncrypter>(0x02));
@@ -8382,10 +8499,13 @@ TEST_P(QuicConnectionTest, CancelAckAlarmOnWriteBlocked) {
     return;
   }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
+  if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
+    EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(AnyNumber());
+  }
   EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
   use_tagging_decrypter();
   // Receives packet 1000 in initial data.
-  ProcessDataPacketAtLevel(1000, false, ENCRYPTION_INITIAL);
+  ProcessCryptoPacketAtLevel(1000, ENCRYPTION_INITIAL);
   EXPECT_TRUE(connection_.GetAckAlarm()->IsSet());
   peer_framer_.SetEncrypter(ENCRYPTION_ZERO_RTT,
                             QuicMakeUnique<TaggingEncrypter>(0x02));

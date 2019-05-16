@@ -383,9 +383,18 @@ QuicStreamId QuicUtils::GetInvalidStreamId(QuicTransportVersion version) {
 
 // static
 QuicStreamId QuicUtils::GetCryptoStreamId(QuicTransportVersion version) {
-  // TODO(nharper): Change this to return GetInvalidStreamId for version 47 or
-  // greater. Currently, too many things break with that change.
-  return version == QUIC_VERSION_99 ? 0 : 1;
+  QUIC_BUG_IF(QuicVersionUsesCryptoFrames(version))
+      << "CRYPTO data aren't in stream frames; they have no stream ID.";
+  return QuicVersionUsesCryptoFrames(version) ? GetInvalidStreamId(version) : 1;
+}
+
+// static
+bool QuicUtils::IsCryptoStreamId(QuicTransportVersion version,
+                                 QuicStreamId stream_id) {
+  if (QuicVersionUsesCryptoFrames(version)) {
+    return false;
+  }
+  return stream_id == GetCryptoStreamId(version);
 }
 
 // static
@@ -453,6 +462,7 @@ QuicStreamId QuicUtils::GetFirstBidirectionalStreamId(
     QuicTransportVersion version,
     Perspective perspective) {
   if (perspective == Perspective::IS_CLIENT) {
+    // TODO(nharper): Return 0 instead of 4 when CRYPTO frames are used.
     return version == QUIC_VERSION_99 ? 4 : 3;
   }
   return version == QUIC_VERSION_99 ? 1 : 2;

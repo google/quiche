@@ -94,7 +94,7 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
 
   MOCK_METHOD0(OnCanWrite, void());
 
-  bool HasPendingCryptoRetransmission() override { return false; }
+  bool HasPendingCryptoRetransmission() const override { return false; }
 
   MOCK_CONST_METHOD0(HasPendingRetransmission, bool());
 
@@ -241,9 +241,8 @@ class TestSession : public QuicSpdySession {
 
   QuicConsumedData SendStreamData(QuicStream* stream) {
     struct iovec iov;
-    if ((QuicVersionUsesCryptoFrames(connection()->transport_version()) ||
-         stream->id() !=
-             QuicUtils::GetCryptoStreamId(connection()->transport_version())) &&
+    if (!QuicUtils::IsCryptoStreamId(connection()->transport_version(),
+                                     stream->id()) &&
         connection()->encryption_level() != ENCRYPTION_FORWARD_SECURE) {
       this->connection()->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
     }
@@ -395,6 +394,12 @@ class QuicSpdySessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
     }
     if (perspective == Perspective::IS_SERVER) {
       id |= 0x1;
+    }
+    if (bidirectional && perspective == Perspective::IS_CLIENT &&
+        QuicVersionUsesCryptoFrames(transport_version())) {
+      // Once stream ID 0 is used as a normal client initiated bidirectional
+      // stream, this shouldn't be needed any more.
+      id += 4;
     }
     return id;
   }
@@ -1072,7 +1077,7 @@ TEST_P(QuicSpdySessionTestServer, RstStreamBeforeHeadersDecompressed) {
 TEST_P(QuicSpdySessionTestServer, OnStreamFrameFinStaticStreamId) {
   // Send two bytes of payload.
   QuicStreamFrame data1(
-      QuicUtils::GetCryptoStreamId(connection_->transport_version()), true, 0,
+      QuicUtils::GetHeadersStreamId(connection_->transport_version()), true, 0,
       QuicStringPiece("HT"));
   EXPECT_CALL(*connection_,
               CloseConnection(
@@ -1085,7 +1090,7 @@ TEST_P(QuicSpdySessionTestServer, OnRstStreamStaticStreamId) {
   // Send two bytes of payload.
   QuicRstStreamFrame rst1(
       kInvalidControlFrameId,
-      QuicUtils::GetCryptoStreamId(connection_->transport_version()),
+      QuicUtils::GetHeadersStreamId(connection_->transport_version()),
       QUIC_ERROR_PROCESSING_STREAM, 0);
   EXPECT_CALL(*connection_,
               CloseConnection(
@@ -1559,7 +1564,7 @@ TEST_P(QuicSpdySessionTestServer,
     EXPECT_CALL(
         *connection_,
         CloseConnection(QUIC_INVALID_STREAM_ID,
-                        "Stream id 28 would exceed stream count limit 7", _));
+                        "Stream id 28 would exceed stream count limit 6", _));
   }
   // Create one more data streams to exceed limit of open stream.
   QuicStreamFrame data1(kFinalStreamId, false, 0, QuicStringPiece("HT"));

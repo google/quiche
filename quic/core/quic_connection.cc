@@ -1027,7 +1027,7 @@ bool QuicConnection::OnStreamFrame(const QuicStreamFrame& frame) {
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnStreamFrame(frame);
   }
-  if (frame.stream_id != QuicUtils::GetCryptoStreamId(transport_version()) &&
+  if (!QuicUtils::IsCryptoStreamId(transport_version(), frame.stream_id) &&
       last_decrypted_packet_level_ == ENCRYPTION_INITIAL) {
     if (MaybeConsiderAsMemoryCorruption(frame)) {
       CloseConnection(QUIC_MAYBE_CORRUPTED_MEMORY,
@@ -3744,7 +3744,7 @@ QuicStringPiece QuicConnection::GetCurrentPacket() {
 
 bool QuicConnection::MaybeConsiderAsMemoryCorruption(
     const QuicStreamFrame& frame) {
-  if (frame.stream_id == QuicUtils::GetCryptoStreamId(transport_version()) ||
+  if (QuicUtils::IsCryptoStreamId(transport_version(), frame.stream_id) ||
       last_decrypted_packet_level_ != ENCRYPTION_INITIAL) {
     return false;
   }

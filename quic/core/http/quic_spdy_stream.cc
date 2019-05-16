@@ -146,9 +146,8 @@ QuicSpdyStream::QuicSpdyStream(QuicStreamId id,
       http_decoder_visitor_(new HttpDecoderVisitor(this)),
       body_buffer_(sequencer()),
       ack_listener_(nullptr) {
-  DCHECK_NE(QuicUtils::GetCryptoStreamId(
-                spdy_session->connection()->transport_version()),
-            id);
+  DCHECK(!QuicUtils::IsCryptoStreamId(
+      spdy_session->connection()->transport_version(), id));
   // Don't receive any callbacks from the sequencer until headers
   // are complete.
   sequencer()->SetBlockedUntilFlush();
@@ -172,9 +171,8 @@ QuicSpdyStream::QuicSpdyStream(PendingStream pending,
       http_decoder_visitor_(new HttpDecoderVisitor(this)),
       body_buffer_(sequencer()),
       ack_listener_(nullptr) {
-  DCHECK_NE(QuicUtils::GetCryptoStreamId(
-                spdy_session->connection()->transport_version()),
-            id());
+  DCHECK(!QuicUtils::IsCryptoStreamId(
+      spdy_session->connection()->transport_version(), id()));
   // Don't receive any callbacks from the sequencer until headers
   // are complete.
   sequencer()->SetBlockedUntilFlush();

@@ -151,8 +151,8 @@ bool ChloFramerVisitor::OnStreamFrame(const QuicStreamFrame& frame) {
     return false;
   }
   QuicStringPiece data(frame.data_buffer, frame.data_length);
-  if (frame.stream_id ==
-          QuicUtils::GetCryptoStreamId(framer_->transport_version()) &&
+  if (QuicUtils::IsCryptoStreamId(framer_->transport_version(),
+                                  frame.stream_id) &&
       frame.offset == 0 && QuicTextUtils::StartsWith(data, "CHLO")) {
     return OnHandshakeData(data);
   }

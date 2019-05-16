@@ -283,24 +283,6 @@ bool QuicStreamIdManager::RegisterStaticStream(QuicStreamId stream_id) {
     return false;
   }
 
-  // This is a stream id for a stream that is started by this node
-  if (perspective() == Perspective::IS_CLIENT &&
-      stream_id == QuicUtils::GetCryptoStreamId(transport_version())) {
-    // TODO(fkastenholz): When crypto is moved into the CRYPTO_STREAM
-    // and streamID 0 is no longer special, this needs to be removed.
-    // Stream-id-0 seems not be allocated via get-next-stream-id,
-    // which would increment outgoing_stream_count_, so increment
-    // the count here to account for it.
-    // Do not need to update next_outgoing_stream_id_ because it is
-    // initiated to 4 (that is, it skips the crypto stream ID).
-    if (outgoing_stream_count_ >=
-        QuicUtils::GetMaxStreamCount(unidirectional_, perspective())) {
-      // Already at the implementation limit, return false...
-      return false;
-    }
-    outgoing_stream_count_++;
-  }
-
   // Increase the outgoing_max_streams_ limit to reflect the semantic that
   // outgoing_max_streams_ was inialized to a "maximum request/response" count
   // and only becomes a maximum stream count when we receive the first

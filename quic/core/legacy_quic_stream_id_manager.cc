@@ -19,14 +19,18 @@ LegacyQuicStreamIdManager::LegacyQuicStreamIdManager(
     : session_(session),
       max_open_outgoing_streams_(max_open_outgoing_streams),
       max_open_incoming_streams_(max_open_incoming_streams),
-      next_outgoing_stream_id_(
-          QuicUtils::GetCryptoStreamId(
-              session->connection()->transport_version()) +
-          (session->perspective() == Perspective::IS_SERVER ? 1 : 2)),
+      next_outgoing_stream_id_(QuicUtils::GetFirstBidirectionalStreamId(
+          session->connection()->transport_version(),
+          session->perspective())),
       largest_peer_created_stream_id_(
           session->perspective() == Perspective::IS_SERVER
-              ? QuicUtils::GetCryptoStreamId(
-                    session->connection()->transport_version())
+              ? (QuicVersionUsesCryptoFrames(
+                     session->connection()->transport_version())
+                     ? QuicUtils::GetFirstBidirectionalStreamId(
+                           session->connection()->transport_version(),
+                           Perspective::IS_CLIENT)
+                     : QuicUtils::GetCryptoStreamId(
+                           session->connection()->transport_version()))
               : QuicUtils::GetInvalidStreamId(
                     session->connection()->transport_version())) {}
 

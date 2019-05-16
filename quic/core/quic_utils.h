@@ -116,6 +116,11 @@ class QUIC_EXPORT_PRIVATE QuicUtils {
   // Returns crypto stream ID of |version|.
   static QuicStreamId GetCryptoStreamId(QuicTransportVersion version);
 
+  // Returns whether |id| is the stream ID for the crypto stream. If |version|
+  // is a version where crypto data doesn't go over stream frames, this function
+  // will always return false.
+  static bool IsCryptoStreamId(QuicTransportVersion version, QuicStreamId id);
+
   // Returns headers stream ID of |version|.
   static QuicStreamId GetHeadersStreamId(QuicTransportVersion version);
 

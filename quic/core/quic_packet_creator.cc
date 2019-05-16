@@ -887,8 +887,8 @@ bool QuicPacketCreator::AddFrame(const QuicFrame& frame,
   QUIC_DVLOG(1) << ENDPOINT << "Adding frame with transmission type "
                 << transmission_type << ": " << frame;
   if (frame.type == STREAM_FRAME &&
-      frame.stream_frame.stream_id !=
-          QuicUtils::GetCryptoStreamId(framer_->transport_version()) &&
+      !QuicUtils::IsCryptoStreamId(framer_->transport_version(),
+                                   frame.stream_frame.stream_id) &&
       (packet_.encryption_level == ENCRYPTION_INITIAL ||
        packet_.encryption_level == ENCRYPTION_HANDSHAKE)) {
     const std::string error_details = QuicStrCat(
@@ -1011,8 +1011,8 @@ void QuicPacketCreator::AddPendingPadding(QuicByteCount size) {
 bool QuicPacketCreator::StreamFrameIsClientHello(
     const QuicStreamFrame& frame) const {
   if (framer_->perspective() == Perspective::IS_SERVER ||
-      frame.stream_id !=
-          QuicUtils::GetCryptoStreamId(framer_->transport_version())) {
+      !QuicUtils::IsCryptoStreamId(framer_->transport_version(),
+                                   frame.stream_id)) {
     return false;
   }
   // The ClientHello is always sent with INITIAL encryption.

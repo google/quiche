@@ -10012,7 +10012,7 @@ static char kTestString[] = "At least 20 characters.";
 static QuicStreamId kTestQuicStreamId = 1;
 static bool ExpectedStreamFrame(const QuicStreamFrame& frame) {
   return (frame.stream_id == kTestQuicStreamId ||
-          frame.stream_id == QuicUtils::GetCryptoStreamId(QUIC_VERSION_99)) &&
+          QuicUtils::IsCryptoStreamId(QUIC_VERSION_99, frame.stream_id)) &&
          !frame.fin && frame.offset == 0 &&
          std::string(frame.data_buffer, frame.data_length) == kTestString;
   // FIN is hard-coded false in ConstructEncryptedPacket.

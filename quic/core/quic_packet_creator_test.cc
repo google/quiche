@@ -1285,8 +1285,14 @@ TEST_P(QuicPacketCreatorTest, AddFrameAndFlush) {
   const size_t max_plaintext_size =
       client_framer_.GetMaxPlaintextSize(creator_.max_packet_length());
   EXPECT_FALSE(creator_.HasPendingFrames());
-  EXPECT_FALSE(creator_.HasPendingStreamFramesOfStream(
-      QuicUtils::GetCryptoStreamId(client_framer_.transport_version())));
+  creator_.set_encryption_level(ENCRYPTION_FORWARD_SECURE);
+  QuicStreamId stream_id = QuicUtils::GetFirstBidirectionalStreamId(
+      client_framer_.transport_version(), Perspective::IS_CLIENT);
+  if (!QuicVersionUsesCryptoFrames(client_framer_.transport_version())) {
+    stream_id =
+        QuicUtils::GetCryptoStreamId(client_framer_.transport_version());
+  }
+  EXPECT_FALSE(creator_.HasPendingStreamFramesOfStream(stream_id));
   EXPECT_EQ(max_plaintext_size -
                 GetPacketHeaderSize(
                     client_framer_.transport_version(),
@@ -1307,20 +1313,17 @@ TEST_P(QuicPacketCreatorTest, AddFrameAndFlush) {
   EXPECT_TRUE(
       creator_.AddSavedFrame(QuicFrame(&ack_frame), NOT_RETRANSMISSION));
   EXPECT_TRUE(creator_.HasPendingFrames());
-  EXPECT_FALSE(creator_.HasPendingStreamFramesOfStream(
-      QuicUtils::GetCryptoStreamId(client_framer_.transport_version())));
+  EXPECT_FALSE(creator_.HasPendingStreamFramesOfStream(stream_id));
 
   QuicFrame frame;
   MakeIOVector("test", &iov_);
   EXPECT_CALL(debug, OnFrameAddedToPacket(_));
-  ASSERT_TRUE(creator_.ConsumeData(
-      QuicUtils::GetCryptoStreamId(client_framer_.transport_version()), &iov_,
-      1u, iov_.iov_len, 0u, 0u, false, false, NOT_RETRANSMISSION, &frame));
+  ASSERT_TRUE(creator_.ConsumeData(stream_id, &iov_, 1u, iov_.iov_len, 0u, 0u,
+                                   false, false, NOT_RETRANSMISSION, &frame));
   size_t consumed = frame.stream_frame.data_length;
   EXPECT_EQ(4u, consumed);
   EXPECT_TRUE(creator_.HasPendingFrames());
-  EXPECT_TRUE(creator_.HasPendingStreamFramesOfStream(
-      QuicUtils::GetCryptoStreamId(client_framer_.transport_version())));
+  EXPECT_TRUE(creator_.HasPendingStreamFramesOfStream(stream_id));
 
   QuicPaddingFrame padding_frame;
   EXPECT_CALL(debug, OnFrameAddedToPacket(_));
@@ -1346,8 +1349,7 @@ TEST_P(QuicPacketCreatorTest, AddFrameAndFlush) {
   DeleteSerializedPacket();
 
   EXPECT_FALSE(creator_.HasPendingFrames());
-  EXPECT_FALSE(creator_.HasPendingStreamFramesOfStream(
-      QuicUtils::GetCryptoStreamId(client_framer_.transport_version())));
+  EXPECT_FALSE(creator_.HasPendingStreamFramesOfStream(stream_id));
   EXPECT_EQ(max_plaintext_size -
                 GetPacketHeaderSize(
                     client_framer_.transport_version(),

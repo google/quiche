@@ -186,7 +186,8 @@ class StatelessConnectionTerminator {
         }
         offset += frame.crypto_frame->data_length;
       }
-      if (offset < reject.length()) {
+      if (offset < reject.length() &&
+          !QuicVersionUsesCryptoFrames(framer_.transport_version())) {
         DCHECK(!creator_.HasRoomForStreamFrame(
             QuicUtils::GetCryptoStreamId(framer_.transport_version()), offset,
             frame.stream_frame.data_length));

@@ -166,6 +166,20 @@ void QuicSessionPeer::ActivateStream(QuicSession* session,
 }
 
 // static
+void QuicSessionPeer::RegisterStaticStream(QuicSession* session,
+                                           QuicStreamId id,
+                                           QuicStream* stream) {
+  return session->RegisterStaticStream(id, stream);
+}
+
+// static
+void QuicSessionPeer::RegisterStaticStreamNew(
+    QuicSession* session,
+    std::unique_ptr<QuicStream> stream) {
+  return session->RegisterStaticStreamNew(std::move(stream));
+}
+
+// static
 bool QuicSessionPeer::IsStreamClosed(QuicSession* session, QuicStreamId id) {
   DCHECK_NE(0u, id);
   return session->IsClosedStream(id);

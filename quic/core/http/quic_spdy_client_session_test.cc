@@ -207,10 +207,8 @@ TEST_P(QuicSpdyClientSessionTest, NoEncryptionAfterInitialEncryption) {
   EXPECT_TRUE(session_->IsEncryptionEstablished());
   QuicSpdyClientStream* stream = session_->CreateOutgoingBidirectionalStream();
   ASSERT_TRUE(stream != nullptr);
-  if (!QuicVersionUsesCryptoFrames(GetParam().transport_version)) {
-    EXPECT_NE(QuicUtils::GetCryptoStreamId(connection_->transport_version()),
-              stream->id());
-  }
+  EXPECT_FALSE(QuicUtils::IsCryptoStreamId(connection_->transport_version(),
+                                           stream->id()));
 
   // Process an "inchoate" REJ from the server which will cause
   // an inchoate CHLO to be sent and will leave the encryption level
@@ -300,11 +298,8 @@ TEST_P(QuicSpdyClientSessionTest, MaxNumStreamsWithRst) {
     // frame; pretend we got one.
 
     // Note that this is to be the second stream created, hence
-    // the stream count is 4 (the two streams created as a part of
-    // the test plus the crypto and header stream, internally created).
-    // TODO(nharper): Change 4 to 3 & update comment accordingly when the crypto
-    // stuff is no longer in a regular stream.
-    // TODO(fkastenholz): do above if nharper doesn't :-)
+    // the stream count is 3 (the two streams created as a part of
+    // the test plus the header stream, internally created).
     QuicMaxStreamsFrame frame(
         0,
         QuicSessionPeer::v99_bidirectional_stream_id_manager(&*session_)
@@ -316,11 +311,9 @@ TEST_P(QuicSpdyClientSessionTest, MaxNumStreamsWithRst) {
   stream = session_->CreateOutgoingBidirectionalStream();
   EXPECT_NE(nullptr, stream);
   if (GetParam().transport_version == QUIC_VERSION_99) {
-    // Ensure that we have/have had four open streams, crypto, header, and the
-    // two test streams. Primary purpose of this is to fail when crypto
-    // no longer uses a normal stream. Some above constants will then need
-    // to be changed.
-    EXPECT_EQ(4u,
+    // Ensure that we have/have had three open streams: two test streams and the
+    // header stream.
+    EXPECT_EQ(3u,
               QuicSessionPeer::v99_bidirectional_stream_id_manager(&*session_)
                   ->outgoing_stream_count());
   }
@@ -384,11 +377,8 @@ TEST_P(QuicSpdyClientSessionTest, ResetAndTrailers) {
   EXPECT_EQ(0u, session_->GetNumOpenOutgoingStreams());
   if (GetParam().transport_version == QUIC_VERSION_99) {
     // Note that this is to be the second stream created, hence
-    // the stream count is 4 (the two streams created as a part of
-    // the test plus the crypto and header stream, internally created).
-    // TODO(nharper): Change 4 to 3 & update comment accordingly when the crypto
-    // stuff is no longer in a regular stream.
-    // TODO(fkastenholz): do above if nharper doesn't :-)
+    // the stream count is 3 (the two streams created as a part of
+    // the test plus the header stream, internally created).
     QuicMaxStreamsFrame frame(
         0,
         QuicSessionPeer::v99_bidirectional_stream_id_manager(&*session_)
@@ -401,11 +391,9 @@ TEST_P(QuicSpdyClientSessionTest, ResetAndTrailers) {
   stream = session_->CreateOutgoingBidirectionalStream();
   EXPECT_NE(nullptr, stream);
   if (GetParam().transport_version == QUIC_VERSION_99) {
-    // Ensure that we have/have had four open streams, crypto, header, and the
-    // two test streams. Primary purpose of this is to fail when crypto
-    // no longer uses a normal stream. Some above constants will then need
-    // to be changed.
-    EXPECT_EQ(4u,
+    // Ensure that we have/have had three open streams: two test streams and the
+    // header stream.
+    EXPECT_EQ(3u,
               QuicSessionPeer::v99_bidirectional_stream_id_manager(&*session_)
                   ->outgoing_stream_count());
   }
@@ -448,7 +436,7 @@ TEST_P(QuicSpdyClientSessionTest, OnStreamHeaderListWithStaticStream) {
 
   EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(1);
   session_->OnStreamHeaderList(
-      QuicUtils::GetCryptoStreamId(connection_->transport_version()),
+      QuicUtils::GetHeadersStreamId(connection_->transport_version()),
       /*fin=*/false, 0, trailers);
 }
 
@@ -464,7 +452,7 @@ TEST_P(QuicSpdyClientSessionTest, OnPromiseHeaderListWithStaticStream) {
 
   EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(1);
   session_->OnPromiseHeaderList(
-      QuicUtils::GetCryptoStreamId(connection_->transport_version()),
+      QuicUtils::GetHeadersStreamId(connection_->transport_version()),
       promised_stream_id_, 0, trailers);
 }
 
