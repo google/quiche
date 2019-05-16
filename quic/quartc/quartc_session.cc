@@ -408,8 +408,7 @@ QuicCryptoStream* QuartcServerSession::GetMutableCryptoStream() {
 
 void QuartcServerSession::StartCryptoHandshake() {
   crypto_stream_ = QuicMakeUnique<QuicCryptoServerStream>(
-      server_crypto_config_, compressed_certs_cache_,
-      /*use_stateless_rejects_if_peer_supported=*/false, this, stream_helper_);
+      server_crypto_config_, compressed_certs_cache_, this, stream_helper_);
   Initialize();
 }
 

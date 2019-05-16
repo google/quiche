@@ -151,7 +151,6 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerStream
   // |helper| must outlive the stream.
   QuicCryptoServerStream(const QuicCryptoServerConfig* crypto_config,
                          QuicCompressedCertsCache* compressed_certs_cache,
-                         bool use_stateless_rejects_if_peer_supported,
                          QuicSession* session,
                          Helper* helper);
   QuicCryptoServerStream(const QuicCryptoServerStream&) = delete;

@@ -84,8 +84,6 @@ class MockQuicCryptoServerStream : public QuicCryptoServerStream {
       : QuicCryptoServerStream(
             crypto_config,
             compressed_certs_cache,
-            GetQuicReloadableFlag(
-                enable_quic_stateless_reject_support),  // NOLINT
             session,
             helper) {}
   MockQuicCryptoServerStream(const MockQuicCryptoServerStream&) = delete;

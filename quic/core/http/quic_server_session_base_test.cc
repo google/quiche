@@ -105,10 +105,8 @@ class TestServerSession : public QuicServerSessionBase {
   QuicCryptoServerStreamBase* CreateQuicCryptoServerStream(
       const QuicCryptoServerConfig* crypto_config,
       QuicCompressedCertsCache* compressed_certs_cache) override {
-    return new QuicCryptoServerStream(
-        crypto_config, compressed_certs_cache,
-        GetQuicReloadableFlag(enable_quic_stateless_reject_support), this,
-        stream_helper());
+    return new QuicCryptoServerStream(crypto_config, compressed_certs_cache,
+                                      this, stream_helper());
   }
 
  private:
@@ -463,12 +461,10 @@ class MockQuicCryptoServerStream : public QuicCryptoServerStream {
       QuicCompressedCertsCache* compressed_certs_cache,
       QuicServerSessionBase* session,
       QuicCryptoServerStream::Helper* helper)
-      : QuicCryptoServerStream(
-            crypto_config,
-            compressed_certs_cache,
-            GetQuicReloadableFlag(enable_quic_stateless_reject_support),
-            session,
-            helper) {}
+      : QuicCryptoServerStream(crypto_config,
+                               compressed_certs_cache,
+                               session,
+                               helper) {}
   MockQuicCryptoServerStream(const MockQuicCryptoServerStream&) = delete;
   MockQuicCryptoServerStream& operator=(const MockQuicCryptoServerStream&) =
       delete;

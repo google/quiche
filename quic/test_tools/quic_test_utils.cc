@@ -638,10 +638,8 @@ QuicCryptoServerStreamBase*
 TestQuicSpdyServerSession::CreateQuicCryptoServerStream(
     const QuicCryptoServerConfig* crypto_config,
     QuicCompressedCertsCache* compressed_certs_cache) {
-  return new QuicCryptoServerStream(
-      crypto_config, compressed_certs_cache,
-      GetQuicReloadableFlag(enable_quic_stateless_reject_support), this,
-      &helper_);
+  return new QuicCryptoServerStream(crypto_config, compressed_certs_cache, this,
+                                    &helper_);
 }
 
 void TestQuicSpdyServerSession::OnCryptoHandshakeEvent(

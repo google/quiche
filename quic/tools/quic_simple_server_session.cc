@@ -45,10 +45,8 @@ QuicCryptoServerStreamBase*
 QuicSimpleServerSession::CreateQuicCryptoServerStream(
     const QuicCryptoServerConfig* crypto_config,
     QuicCompressedCertsCache* compressed_certs_cache) {
-  return new QuicCryptoServerStream(
-      crypto_config, compressed_certs_cache,
-      GetQuicReloadableFlag(enable_quic_stateless_reject_support), this,
-      stream_helper());
+  return new QuicCryptoServerStream(crypto_config, compressed_certs_cache, this,
+                                    stream_helper());
 }
 
 void QuicSimpleServerSession::OnStreamFrame(const QuicStreamFrame& frame) {

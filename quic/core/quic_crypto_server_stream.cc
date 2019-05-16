@@ -49,7 +49,6 @@ bool QuicCryptoServerStreamBase::DoesPeerSupportStatelessRejects(
 QuicCryptoServerStream::QuicCryptoServerStream(
     const QuicCryptoServerConfig* crypto_config,
     QuicCompressedCertsCache* compressed_certs_cache,
-    bool /*use_stateless_rejects_if_peer_supported*/,
     QuicSession* session,
     Helper* helper)
     : QuicCryptoServerStreamBase(session),
