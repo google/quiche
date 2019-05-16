@@ -526,6 +526,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   bool ShouldGeneratePacket(HasRetransmittableData retransmittable,
                             IsHandshake handshake) override;
   const QuicFrames MaybeBundleAckOpportunistically() override;
+  // Please note, this is not a const function. For logging purpose, please use
+  // ack_frame().
   const QuicFrame GetUpdatedAckFrame() override;
   void PopulateStopWaitingFrame(QuicStopWaitingFrame* stop_waiting) override;
 
@@ -886,6 +888,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // Returns true if this connection supports multiple packet number spaces.
   bool SupportsMultiplePacketNumberSpaces() const;
+
+  // For logging purpose.
+  const QuicAckFrame& ack_frame() const;
 
  protected:
   // Calls cancel() on all the alarms owned by this connection.

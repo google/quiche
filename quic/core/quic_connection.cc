@@ -1040,7 +1040,7 @@ bool QuicConnection::OnStreamFrame(const QuicStreamFrame& frame) {
                   << "Received an unencrypted data frame: closing connection"
                   << " packet_number:" << last_header_.packet_number
                   << " stream_id:" << frame.stream_id
-                  << " received_packets:" << GetUpdatedAckFrame();
+                  << " received_packets:" << ack_frame();
     CloseConnection(QUIC_UNENCRYPTED_STREAM_DATA,
                     "Unencrypted stream data seen.",
                     ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
@@ -4202,6 +4202,17 @@ void QuicConnection::set_ack_frequency_before_ack_decimation(size_t new_value) {
   } else {
     ack_frequency_before_ack_decimation_ = new_value;
   }
+}
+
+const QuicAckFrame& QuicConnection::ack_frame() const {
+  if (SupportsMultiplePacketNumberSpaces()) {
+    return uber_received_packet_manager_.GetAckFrame(
+        QuicUtils::GetPacketNumberSpace(last_decrypted_packet_level_));
+  }
+  if (use_uber_received_packet_manager_) {
+    return uber_received_packet_manager_.ack_frame();
+  }
+  return received_packet_manager_.ack_frame();
 }
 
 #undef ENDPOINT  // undef for jumbo builds

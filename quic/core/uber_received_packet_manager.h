@@ -85,6 +85,7 @@ class QUIC_EXPORT_PRIVATE UberReceivedPacketManager {
 
   // For logging purposes.
   const QuicAckFrame& ack_frame() const;
+  const QuicAckFrame& GetAckFrame(PacketNumberSpace packet_number_space) const;
 
   void set_max_ack_ranges(size_t max_ack_ranges);
 

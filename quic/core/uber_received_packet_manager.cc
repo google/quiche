@@ -195,6 +195,12 @@ const QuicAckFrame& UberReceivedPacketManager::ack_frame() const {
   return received_packet_managers_[0].ack_frame();
 }
 
+const QuicAckFrame& UberReceivedPacketManager::GetAckFrame(
+    PacketNumberSpace packet_number_space) const {
+  DCHECK(supports_multiple_packet_number_spaces_);
+  return received_packet_managers_[packet_number_space].ack_frame();
+}
+
 void UberReceivedPacketManager::set_max_ack_ranges(size_t max_ack_ranges) {
   for (auto& received_packet_manager : received_packet_managers_) {
     received_packet_manager.set_max_ack_ranges(max_ack_ranges);
