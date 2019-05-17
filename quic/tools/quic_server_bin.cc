@@ -8,31 +8,21 @@
 #include <vector>
 
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_default_proof_providers.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
-#include "net/third_party/quiche/src/quic/tools/quic_memory_cache_backend.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
 #include "net/third_party/quiche/src/quic/tools/quic_server.h"
+#include "net/third_party/quiche/src/quic/tools/quic_simple_server_backend.h"
+#include "net/third_party/quiche/src/quic/tools/quic_toy_server.h"
 
-DEFINE_QUIC_COMMAND_LINE_FLAG(int32_t,
-                              port,
-                              6121,
-                              "The port the quic server will listen on.");
-
-DEFINE_QUIC_COMMAND_LINE_FLAG(
-    std::string,
-    quic_response_cache_dir,
-    "",
-    "Specifies the directory used during QuicHttpResponseCache "
-    "construction to seed the cache. Cache directory can be "
-    "generated using `wget -p --save-headers <url>`");
-
-DEFINE_QUIC_COMMAND_LINE_FLAG(
-    int32_t,
-    quic_ietf_draft,
-    0,
-    "QUIC IETF draft number to use over the wire, e.g. 18. "
-    "This also enables required internal QUIC flags.");
+class SimpleServerFactory : public quic::QuicToyServer::ServerFactory {
+ public:
+  std::unique_ptr<quic::QuicSpdyServerBase> CreateServer(
+      quic::QuicSimpleServerBackend* backend,
+      std::unique_ptr<quic::ProofSource> proof_source) override {
+    return quic::QuicMakeUnique<quic::QuicServer>(std::move(proof_source),
+                                                  backend);
+  }
+};
 
 int main(int argc, char* argv[]) {
   const char* usage = "Usage: quic_server [options]";
@@ -43,28 +33,8 @@ int main(int argc, char* argv[]) {
     exit(0);
   }
 
-  const int32_t quic_ietf_draft = GetQuicFlag(FLAGS_quic_ietf_draft);
-  if (quic_ietf_draft > 0) {
-    quic::QuicVersionInitializeSupportForIetfDraft(quic_ietf_draft);
-    quic::QuicEnableVersion(
-        quic::ParsedQuicVersion(quic::PROTOCOL_TLS1_3, quic::QUIC_VERSION_99));
-  }
-
-  quic::QuicMemoryCacheBackend memory_cache_backend;
-  if (!GetQuicFlag(FLAGS_quic_response_cache_dir).empty()) {
-    memory_cache_backend.InitializeBackend(
-        GetQuicFlag(FLAGS_quic_response_cache_dir));
-  }
-
-  quic::QuicServer server(quic::CreateDefaultProofSource(),
-                          &memory_cache_backend);
-
-  if (!server.CreateUDPSocketAndListen(quic::QuicSocketAddress(
-          quic::QuicIpAddress::Any6(), GetQuicFlag(FLAGS_port)))) {
-    return 1;
-  }
-
-  while (true) {
-    server.WaitForEvents();
-  }
+  quic::QuicToyServer::MemoryCacheBackendFactory backend_factory;
+  SimpleServerFactory server_factory;
+  quic::QuicToyServer server(&backend_factory, &server_factory);
+  return server.Start();
 }

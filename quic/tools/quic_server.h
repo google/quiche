@@ -22,6 +22,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_epoll.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
 #include "net/third_party/quiche/src/quic/tools/quic_simple_server_backend.h"
+#include "net/third_party/quiche/src/quic/tools/quic_spdy_server_base.h"
 
 namespace quic {
 
@@ -32,7 +33,8 @@ class QuicServerPeer;
 class QuicDispatcher;
 class QuicPacketReader;
 
-class QuicServer : public QuicEpollCallbackInterface {
+class QuicServer : public QuicSpdyServerBase,
+                   public QuicEpollCallbackInterface {
  public:
   QuicServer(std::unique_ptr<ProofSource> proof_source,
              QuicSimpleServerBackend* quic_simple_server_backend);
@@ -50,7 +52,9 @@ class QuicServer : public QuicEpollCallbackInterface {
   std::string Name() const override { return "QuicServer"; }
 
   // Start listening on the specified address.
-  bool CreateUDPSocketAndListen(const QuicSocketAddress& address);
+  bool CreateUDPSocketAndListen(const QuicSocketAddress& address) override;
+  // Handles all events. Does not return.
+  void HandleEventsForever() override;
 
   // Wait up to 50ms, and handle any events which occur.
   void WaitForEvents();

@@ -162,6 +162,12 @@ QuicDispatcher* QuicServer::CreateQuicDispatcher() {
       quic_simple_server_backend_, expected_connection_id_length_);
 }
 
+void QuicServer::HandleEventsForever() {
+  while (true) {
+    WaitForEvents();
+  }
+}
+
 void QuicServer::WaitForEvents() {
   epoll_server_.WaitForEventsAndExecuteCallbacks();
 }
