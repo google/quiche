@@ -42,10 +42,6 @@
 
 #include "net/third_party/quiche/src/quic/tools/quic_toy_client.h"
 
-#include <netdb.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-
 #include <iostream>
 #include <memory>
 #include <string>
