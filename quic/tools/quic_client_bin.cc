@@ -40,70 +40,13 @@
 // After submitting changes to this file, you will need to follow the
 // instructions at go/quic_client_binary_update
 
-#include <netdb.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-
 #include <iostream>
 #include <memory>
 #include <string>
-#include <vector>
 
-#include "net/third_party/quiche/src/quic/core/quic_packets.h"
-#include "net/third_party/quiche/src/quic/core/quic_server_id.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_system_event_loop.h"
-#include "net/third_party/quiche/src/quic/tools/quic_client.h"
+#include "net/third_party/quiche/src/quic/tools/quic_epoll_client_factory.h"
 #include "net/third_party/quiche/src/quic/tools/quic_toy_client.h"
-
-namespace {
-
-using quic::QuicSocketAddress;
-using quic::QuicStringPiece;
-
-QuicSocketAddress LookupAddress(std::string host, std::string port) {
-  addrinfo hint;
-  memset(&hint, 0, sizeof(hint));
-  hint.ai_protocol = IPPROTO_UDP;
-
-  addrinfo* info_list = nullptr;
-  int result = getaddrinfo(host.c_str(), port.c_str(), &hint, &info_list);
-  if (result != 0) {
-    QUIC_LOG(ERROR) << "Failed to look up " << host << ": "
-                    << gai_strerror(result);
-    return QuicSocketAddress();
-  }
-
-  CHECK(info_list != nullptr);
-  std::unique_ptr<addrinfo, void (*)(addrinfo*)> info_list_owned(info_list,
-                                                                 freeaddrinfo);
-  return QuicSocketAddress(*info_list->ai_addr);
-}
-
-class QuicEpollClientFactory : public quic::QuicToyClient::ClientFactory {
- public:
-  std::unique_ptr<quic::QuicSpdyClientBase> CreateClient(
-      std::string host,
-      uint16_t port,
-      quic::ParsedQuicVersionVector versions,
-      std::unique_ptr<quic::ProofVerifier> verifier) {
-    quic::QuicSocketAddress addr = LookupAddress(host, quic::QuicStrCat(port));
-    if (!addr.IsInitialized()) {
-      QUIC_LOG(ERROR) << "Unable to resolve address: " << host;
-      return nullptr;
-    }
-    quic::QuicServerId server_id(host, port, false);
-    return quic::QuicMakeUnique<quic::QuicClient>(
-        addr, server_id, versions, &epoll_server_, std::move(verifier));
-  }
-
- private:
-  quic::QuicEpollServer epoll_server_;
-};
-
-}  // namespace
 
 int main(int argc, char* argv[]) {
   QuicSystemEventLoop event_loop("quic_client");
@@ -117,7 +60,7 @@ int main(int argc, char* argv[]) {
     exit(0);
   }
 
-  QuicEpollClientFactory factory;
+  quic::QuicEpollClientFactory factory;
   quic::QuicToyClient client(&factory);
   return client.SendRequestsAndPrintResponses(urls);
 }
