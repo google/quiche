@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 
+#include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
 #include "net/quic/platform/impl/quic_flags_impl.h"
 
 // Define a command-line flag that can be automatically set via
