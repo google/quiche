@@ -1268,7 +1268,7 @@ TEST_P(QuicSessionTestServer, OnStreamFrameFinStaticStreamId) {
       QuicUtils::GetHeadersStreamId(connection_->transport_version());
   std::unique_ptr<TestStream> fake_headers_stream = QuicMakeUnique<TestStream>(
       headers_stream_id, &session_, /*is_static*/ true, BIDIRECTIONAL);
-  if (GetQuicReloadableFlag(quic_eliminate_static_stream_map_2)) {
+  if (GetQuicReloadableFlag(quic_eliminate_static_stream_map_3)) {
     QuicSessionPeer::RegisterStaticStreamNew(&session_,
                                              std::move(fake_headers_stream));
   } else {
@@ -1289,7 +1289,7 @@ TEST_P(QuicSessionTestServer, OnRstStreamStaticStreamId) {
       QuicUtils::GetHeadersStreamId(connection_->transport_version());
   std::unique_ptr<TestStream> fake_headers_stream = QuicMakeUnique<TestStream>(
       headers_stream_id, &session_, /*is_static*/ true, BIDIRECTIONAL);
-  if (GetQuicReloadableFlag(quic_eliminate_static_stream_map_2)) {
+  if (GetQuicReloadableFlag(quic_eliminate_static_stream_map_3)) {
     QuicSessionPeer::RegisterStaticStreamNew(&session_,
                                              std::move(fake_headers_stream));
   } else {
@@ -2428,7 +2428,7 @@ TEST_P(QuicSessionTestServer, OnStopSendingInputStaticStreams) {
   QuicStreamId stream_id = 0;
   std::unique_ptr<TestStream> fake_static_stream = QuicMakeUnique<TestStream>(
       stream_id, &session_, /*is_static*/ true, BIDIRECTIONAL);
-  if (GetQuicReloadableFlag(quic_eliminate_static_stream_map_2)) {
+  if (GetQuicReloadableFlag(quic_eliminate_static_stream_map_3)) {
     QuicSessionPeer::RegisterStaticStreamNew(&session_,
                                              std::move(fake_static_stream));
   } else {

@@ -525,6 +525,9 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
   // Returns true if the stream is still active.
   bool IsOpenStream(QuicStreamId id);
 
+  // Returns true if the stream is a static stream.
+  bool IsStaticStream(QuicStreamId id) const;
+
   // Close connection when receive a frame for a locally-created nonexistant
   // stream.
   // Prerequisite: IsClosedStream(stream_id) == false

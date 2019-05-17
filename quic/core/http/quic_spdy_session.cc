@@ -363,7 +363,7 @@ void QuicSpdySession::Initialize() {
         QuicUtils::GetHeadersStreamId(connection()->transport_version()),
         headers_stream_.get());
   } else {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_eliminate_static_stream_map_2, 7, 17);
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_eliminate_static_stream_map_3, 7, 17);
     unowned_headers_stream_ = headers_stream_.get();
     RegisterStaticStreamNew(std::move(headers_stream_));
   }
@@ -416,7 +416,7 @@ void QuicSpdySession::OnStreamHeaderList(QuicStreamId stream_id,
                                          bool fin,
                                          size_t frame_len,
                                          const QuicHeaderList& header_list) {
-  if (QuicContainsKey(static_streams(), stream_id)) {
+  if (IsStaticStream(stream_id)) {
     connection()->CloseConnection(
         QUIC_INVALID_HEADERS_STREAM_DATA, "stream is static",
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
@@ -445,13 +445,6 @@ void QuicSpdySession::OnStreamHeaderList(QuicStreamId stream_id,
     }
 
     // It's quite possible to receive headers after a stream has been reset.
-    return;
-  }
-  if (eliminate_static_stream_map() && stream->is_static()) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_eliminate_static_stream_map_2, 8, 17);
-    connection()->CloseConnection(
-        QUIC_INVALID_HEADERS_STREAM_DATA, "stream is static",
-        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return;
   }
   stream->OnStreamHeaderList(fin, frame_len, header_list);
@@ -542,7 +535,9 @@ QpackDecoder* QuicSpdySession::qpack_decoder() {
 
 QuicSpdyStream* QuicSpdySession::GetSpdyDataStream(
     const QuicStreamId stream_id) {
-  return static_cast<QuicSpdyStream*>(GetOrCreateDynamicStream(stream_id));
+  QuicStream* stream = GetOrCreateDynamicStream(stream_id);
+  DCHECK(!stream || !stream->is_static());
+  return static_cast<QuicSpdyStream*>(stream);
 }
 
 void QuicSpdySession::OnCryptoHandshakeEvent(CryptoHandshakeEvent event) {
@@ -716,7 +711,7 @@ bool QuicSpdySession::HasActiveRequestStreams() const {
   // In the case where session is destructed by calling
   // dynamic_streams().clear(), we will have incorrect accounting here.
   // TODO(renjietang): Modify destructors and make this a DCHECK.
-  QUIC_RELOADABLE_FLAG_COUNT_N(quic_eliminate_static_stream_map_2, 9, 17);
+  QUIC_RELOADABLE_FLAG_COUNT_N(quic_eliminate_static_stream_map_3, 9, 17);
   if (static_cast<size_t>(dynamic_streams().size()) >
       num_incoming_static_streams() + num_outgoing_static_streams()) {
     return dynamic_streams().size() - num_incoming_static_streams() -
