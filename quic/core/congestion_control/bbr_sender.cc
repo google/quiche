@@ -350,6 +350,12 @@ void BbrSender::AdjustNetworkParameters(QuicBandwidth bandwidth,
   }
   if (GetQuicReloadableFlag(quic_fix_bbr_cwnd_in_bandwidth_resumption) &&
       mode_ == STARTUP) {
+    if (bandwidth.IsZero()) {
+      // Ignore bad bandwidth samples.
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_fix_bbr_cwnd_in_bandwidth_resumption, 3,
+                                   3);
+      return;
+    }
     const QuicByteCount new_cwnd =
         std::max(kMinInitialCongestionWindow * kDefaultTCPMSS,
                  std::min(kMaxInitialCongestionWindow * kDefaultTCPMSS,
@@ -360,15 +366,13 @@ void BbrSender::AdjustNetworkParameters(QuicBandwidth bandwidth,
     set_high_cwnd_gain(kDerivedHighCWNDGain);
     if (new_cwnd > congestion_window_) {
       QUIC_RELOADABLE_FLAG_COUNT_N(quic_fix_bbr_cwnd_in_bandwidth_resumption, 1,
-                                   2);
+                                   3);
     } else {
       QUIC_RELOADABLE_FLAG_COUNT_N(quic_fix_bbr_cwnd_in_bandwidth_resumption, 2,
-                                   2);
+                                   3);
     }
-    if (bandwidth.IsZero() ||
-        (new_cwnd < congestion_window_ && !allow_cwnd_to_decrease)) {
-      // Ignore bad bandwidth samples. Only decrease cwnd if
-      // allow_cwnd_to_decrease is true.
+    if (new_cwnd < congestion_window_ && !allow_cwnd_to_decrease) {
+      // Only decrease cwnd if allow_cwnd_to_decrease is true.
       return;
     }
     congestion_window_ = new_cwnd;
