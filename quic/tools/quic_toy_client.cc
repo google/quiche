@@ -165,10 +165,10 @@ DEFINE_QUIC_COMMAND_LINE_FLAG(
 
 namespace quic {
 
-QuicToyClientBase::QuicToyClientBase(ClientFactory* client_factory)
+QuicToyClient::QuicToyClient(ClientFactory* client_factory)
     : client_factory_(client_factory) {}
 
-int QuicToyClientBase::SendRequestsAndPrintResponses(
+int QuicToyClient::SendRequestsAndPrintResponses(
     std::vector<std::string> urls) {
   QuicUrl url(urls[0], "https");
   std::string host = GetQuicFlag(FLAGS_host);

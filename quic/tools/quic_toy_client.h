@@ -12,7 +12,7 @@
 
 namespace quic {
 
-class QuicToyClientBase {
+class QuicToyClient {
  public:
   class ClientFactory {
    public:
@@ -29,7 +29,7 @@ class QuicToyClientBase {
 
   // Constructs a new toy client that will use |client_factory| to create the
   // actual QuicSpdyClientBase instance.
-  QuicToyClientBase(ClientFactory* client_factory);
+  QuicToyClient(ClientFactory* client_factory);
 
   // Connects to the QUIC server based on the various flags defined in the
   // .cc file, sends requests and prints the responses. Returns 0 on success

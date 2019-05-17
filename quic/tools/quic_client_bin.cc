@@ -82,7 +82,7 @@ QuicSocketAddress LookupAddress(std::string host, std::string port) {
   return QuicSocketAddress(*info_list->ai_addr);
 }
 
-class QuicEpollClientFactory : public quic::QuicToyClientBase::ClientFactory {
+class QuicEpollClientFactory : public quic::QuicToyClient::ClientFactory {
  public:
   std::unique_ptr<quic::QuicSpdyClientBase> CreateClient(
       std::string host,
@@ -118,6 +118,6 @@ int main(int argc, char* argv[]) {
   }
 
   QuicEpollClientFactory factory;
-  quic::QuicToyClientBase client(&factory);
+  quic::QuicToyClient client(&factory);
   return client.SendRequestsAndPrintResponses(urls);
 }
