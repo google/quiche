@@ -219,7 +219,7 @@ bool PacketCanReplaceConnectionId(const QuicPacketHeader& header,
   (perspective_ == Perspective::IS_SERVER ? "Server: " : "Client: ")
 
 QuicConnection::QuicConnection(
-    QuicConnectionId connection_id,
+    QuicConnectionId server_connection_id,
     QuicSocketAddress initial_peer_address,
     QuicConnectionHelperInterface* helper,
     QuicAlarmFactory* alarm_factory,
@@ -230,7 +230,7 @@ QuicConnection::QuicConnection(
     : framer_(supported_versions,
               helper->GetClock()->ApproximateNow(),
               perspective,
-              connection_id.length()),
+              server_connection_id.length()),
       current_packet_content_(NO_FRAMES_RECEIVED),
       is_current_packet_connectivity_probing_(false),
       current_effective_peer_migration_type_(NO_CHANGE),
@@ -242,7 +242,7 @@ QuicConnection::QuicConnection(
       encryption_level_(ENCRYPTION_INITIAL),
       clock_(helper->GetClock()),
       random_generator_(helper->GetRandomGenerator()),
-      connection_id_(connection_id),
+      server_connection_id_(server_connection_id),
       peer_address_(initial_peer_address),
       direct_peer_address_(initial_peer_address),
       active_effective_peer_migration_type_(NO_CHANGE),
@@ -302,7 +302,10 @@ QuicConnection::QuicConnection(
           &arena_)),
       visitor_(nullptr),
       debug_visitor_(nullptr),
-      packet_generator_(connection_id_, &framer_, random_generator_, this),
+      packet_generator_(server_connection_id_,
+                        &framer_,
+                        random_generator_,
+                        this),
       idle_network_timeout_(QuicTime::Delta::Infinite()),
       handshake_timeout_(QuicTime::Delta::Infinite()),
       time_of_first_packet_sent_after_receiving_(
@@ -374,13 +377,14 @@ QuicConnection::QuicConnection(
     QUIC_RELOADABLE_FLAG_COUNT(quic_use_uber_received_packet_manager);
   }
   QUIC_DLOG(INFO) << ENDPOINT
-                  << "Created connection with connection_id: " << connection_id
+                  << "Created connection with server connection_id: "
+                  << server_connection_id
                   << " and version: " << ParsedQuicVersionToString(version());
 
-  QUIC_BUG_IF(!QuicUtils::IsConnectionIdValidForVersion(connection_id,
+  QUIC_BUG_IF(!QuicUtils::IsConnectionIdValidForVersion(server_connection_id,
                                                         transport_version()))
-      << "QuicConnection: attempted to use connection ID " << connection_id
-      << " which is invalid with version "
+      << "QuicConnection: attempted to use server connection ID "
+      << server_connection_id << " which is invalid with version "
       << QuicVersionToString(transport_version());
 
   framer_.set_visitor(this);
@@ -444,7 +448,7 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
   sent_packet_manager_.SetFromConfig(config);
   if (config.HasReceivedBytesForConnectionId() &&
       can_truncate_connection_ids_) {
-    packet_generator_.SetConnectionIdLength(
+    packet_generator_.SetServerConnectionIdLength(
         config.ReceivedBytesForConnectionId());
   }
   max_undecryptable_packets_ = config.max_undecryptable_packets();
@@ -592,7 +596,7 @@ void QuicConnection::OnPublicResetPacket(const QuicPublicResetPacket& packet) {
   // Check that any public reset packet with a different connection ID that was
   // routed to this QuicConnection has been redirected before control reaches
   // here.  (Check for a bug regression.)
-  DCHECK_EQ(connection_id_, packet.connection_id);
+  DCHECK_EQ(server_connection_id_, packet.connection_id);
   DCHECK_EQ(perspective_, Perspective::IS_CLIENT);
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnPublicResetPacket(packet);
@@ -683,7 +687,7 @@ void QuicConnection::OnVersionNegotiationPacket(
   // Check that any public reset packet with a different connection ID that was
   // routed to this QuicConnection has been redirected before control reaches
   // here.  (Check for a bug regression.)
-  DCHECK_EQ(connection_id_, packet.connection_id);
+  DCHECK_EQ(server_connection_id_, packet.connection_id);
   if (perspective_ == Perspective::IS_SERVER) {
     const std::string error_details =
         "Server received version negotiation packet.";
@@ -766,10 +770,10 @@ void QuicConnection::OnVersionNegotiationPacket(
 void QuicConnection::OnRetryPacket(QuicConnectionId original_connection_id,
                                    QuicConnectionId new_connection_id,
                                    QuicStringPiece retry_token) {
-  if (original_connection_id != connection_id_) {
+  if (original_connection_id != server_connection_id_) {
     QUIC_DLOG(ERROR) << "Ignoring RETRY with original connection ID "
                      << original_connection_id << " not matching expected "
-                     << connection_id_ << " token "
+                     << server_connection_id_ << " token "
                      << QuicTextUtils::HexEncode(retry_token);
     return;
   }
@@ -780,17 +784,18 @@ void QuicConnection::OnRetryPacket(QuicConnectionId original_connection_id,
   }
   retry_has_been_parsed_ = true;
   QUIC_DLOG(INFO) << "Received RETRY, replacing connection ID "
-                  << connection_id_ << " with " << new_connection_id
+                  << server_connection_id_ << " with " << new_connection_id
                   << ", received token "
                   << QuicTextUtils::HexEncode(retry_token);
-  connection_id_ = new_connection_id;
-  packet_generator_.SetConnectionId(connection_id_);
+  server_connection_id_ = new_connection_id;
+  packet_generator_.SetServerConnectionId(server_connection_id_);
   packet_generator_.SetRetryToken(retry_token);
 
   // Reinstall initial crypters because the connection ID changed.
   CrypterPair crypters;
-  CryptoUtils::CreateTlsInitialCrypters(
-      Perspective::IS_CLIENT, transport_version(), connection_id_, &crypters);
+  CryptoUtils::CreateTlsInitialCrypters(Perspective::IS_CLIENT,
+                                        transport_version(),
+                                        server_connection_id_, &crypters);
   SetEncrypter(ENCRYPTION_INITIAL, std::move(crypters.encrypter));
   InstallDecrypter(ENCRYPTION_INITIAL, std::move(crypters.decrypter));
 }
@@ -817,21 +822,23 @@ bool QuicConnection::OnUnauthenticatedPublicHeader(
   QuicConnectionId server_connection_id =
       GetServerConnectionIdAsRecipient(header, perspective_);
 
-  if (server_connection_id == connection_id_ ||
+  if (server_connection_id == server_connection_id_ ||
       HasIncomingConnectionId(server_connection_id)) {
     return true;
   }
 
   if (PacketCanReplaceConnectionId(header, perspective_)) {
     QUIC_DLOG(INFO) << ENDPOINT << "Accepting packet with new connection ID "
-                    << server_connection_id << " instead of " << connection_id_;
+                    << server_connection_id << " instead of "
+                    << server_connection_id_;
     return true;
   }
 
   ++stats_.packets_dropped;
   QUIC_DLOG(INFO) << ENDPOINT
                   << "Ignoring packet from unexpected ConnectionId: "
-                  << server_connection_id << " instead of " << connection_id_;
+                  << server_connection_id << " instead of "
+                  << server_connection_id_;
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnIncorrectConnectionId(server_connection_id);
   }
@@ -851,7 +858,7 @@ bool QuicConnection::OnUnauthenticatedHeader(const QuicPacketHeader& header) {
   // routed to this QuicConnection has been redirected before control reaches
   // here.
   DCHECK(GetServerConnectionIdAsRecipient(header, perspective_) ==
-             connection_id_ ||
+             server_connection_id_ ||
          HasIncomingConnectionId(
              GetServerConnectionIdAsRecipient(header, perspective_)) ||
          PacketCanReplaceConnectionId(header, perspective_));
@@ -1109,7 +1116,7 @@ bool QuicConnection::OnAckFrameStart(QuicPacketNumber largest_acked,
                    << " packet_number:" << last_header_.packet_number
                    << " largest seen with ack:"
                    << GetLargestReceivedPacketWithAck()
-                   << " connection_id: " << connection_id_;
+                   << " server_connection_id: " << server_connection_id_;
     // A new ack has a diminished largest_observed value.
     // If this was an old packet, we wouldn't even have checked.
     CloseConnection(QUIC_INVALID_ACK_DATA, "Largest observed too low.",
@@ -2132,11 +2139,12 @@ bool QuicConnection::ProcessValidatedPacket(const QuicPacketHeader& header) {
   }
 
   if (PacketCanReplaceConnectionId(header, perspective_) &&
-      connection_id_ != header.source_connection_id) {
-    QUIC_DLOG(INFO) << ENDPOINT << "Replacing connection ID " << connection_id_
-                    << " with " << header.source_connection_id;
-    connection_id_ = header.source_connection_id;
-    packet_generator_.SetConnectionId(connection_id_);
+      server_connection_id_ != header.source_connection_id) {
+    QUIC_DLOG(INFO) << ENDPOINT << "Replacing connection ID "
+                    << server_connection_id_ << " with "
+                    << header.source_connection_id;
+    server_connection_id_ = header.source_connection_id;
+    packet_generator_.SetServerConnectionId(server_connection_id_);
   }
 
   if (!ValidateReceivedPacketNumber(header.packet_number)) {
@@ -3578,7 +3586,7 @@ bool QuicConnection::SendGenericPathProbePacket(
 
   QUIC_DLOG(INFO) << ENDPOINT
                   << "Sending path probe packet for connection_id = "
-                  << connection_id_;
+                  << server_connection_id_;
 
   OwningSerializedPacketPointer probing_packet;
   if (transport_version() != QUIC_VERSION_99) {

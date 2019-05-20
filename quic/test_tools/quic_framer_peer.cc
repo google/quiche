@@ -22,10 +22,10 @@ uint64_t QuicFramerPeer::CalculatePacketNumberFromWire(
 }
 
 // static
-void QuicFramerPeer::SetLastSerializedConnectionId(
+void QuicFramerPeer::SetLastSerializedServerConnectionId(
     QuicFramer* framer,
-    QuicConnectionId connection_id) {
-  framer->last_serialized_connection_id_ = connection_id;
+    QuicConnectionId server_connection_id) {
+  framer->last_serialized_server_connection_id_ = server_connection_id;
 }
 
 // static

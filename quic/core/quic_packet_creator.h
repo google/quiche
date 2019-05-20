@@ -56,10 +56,10 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
     virtual void OnFrameAddedToPacket(const QuicFrame& frame) {}
   };
 
-  QuicPacketCreator(QuicConnectionId connection_id,
+  QuicPacketCreator(QuicConnectionId server_connection_id,
                     QuicFramer* framer,
                     DelegateInterface* delegate);
-  QuicPacketCreator(QuicConnectionId connection_id,
+  QuicPacketCreator(QuicConnectionId server_connection_id,
                     QuicFramer* framer,
                     QuicRandom* random,
                     DelegateInterface* delegate);
@@ -222,11 +222,12 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // Returns length of source connection ID to send over the wire.
   QuicConnectionIdLength GetSourceConnectionIdLength() const;
 
-  // Sets whether the connection ID should be sent over the wire.
-  void SetConnectionIdIncluded(QuicConnectionIdIncluded connection_id_included);
+  // Sets whether the server connection ID should be sent over the wire.
+  void SetServerConnectionIdIncluded(
+      QuicConnectionIdIncluded server_connection_id_included);
 
   // Update the connection ID used in outgoing packets.
-  void SetConnectionId(QuicConnectionId connection_id);
+  void SetServerConnectionId(QuicConnectionId server_connection_id);
 
   // Sets the encryption level that will be applied to new packets.
   void set_encryption_level(EncryptionLevel level) {
@@ -393,8 +394,8 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // Maximum length including headers and encryption (UDP payload length.)
   QuicByteCount max_packet_length_;
   size_t max_plaintext_size_;
-  // Whether the connection_id is sent over the wire.
-  QuicConnectionIdIncluded connection_id_included_;
+  // Whether the server_connection_id is sent over the wire.
+  QuicConnectionIdIncluded server_connection_id_included_;
 
   // Frames to be added to the next SerializedPacket
   QuicFrames queued_frames_;
@@ -403,7 +404,7 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // TODO(ianswett): Move packet_size_ into SerializedPacket once
   // QuicEncryptedPacket has been flattened into SerializedPacket.
   size_t packet_size_;
-  QuicConnectionId connection_id_;
+  QuicConnectionId server_connection_id_;
 
   // Packet used to invoke OnSerializedPacket.
   SerializedPacket packet_;

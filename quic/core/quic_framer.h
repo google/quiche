@@ -441,7 +441,7 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
 
   // Returns a new IETF version negotiation packet.
   static std::unique_ptr<QuicEncryptedPacket> BuildIetfVersionNegotiationPacket(
-      QuicConnectionId connection_id,
+      QuicConnectionId source_connection_id,
       const ParsedQuicVersionVector& versions);
 
   // If header.version_flag is set, the version in the
@@ -958,8 +958,8 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   // Largest successfully decrypted packet number per packet number space. Only
   // used when supports_multiple_packet_number_spaces_ is true.
   QuicPacketNumber largest_decrypted_packet_numbers_[NUM_PACKET_NUMBER_SPACES];
-  // Updated by WritePacketHeader.
-  QuicConnectionId last_serialized_connection_id_;
+  // Last server connection ID seen on the wire.
+  QuicConnectionId last_serialized_server_connection_id_;
   // The last QUIC version label received.
   // TODO(fayang): Remove this when deprecating
   // quic_no_framer_object_in_dispatcher.

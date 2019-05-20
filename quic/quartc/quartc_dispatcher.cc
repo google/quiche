@@ -39,7 +39,7 @@ QuartcDispatcher::QuartcDispatcher(
   // Allow incoming packets to set our expected connection ID length.
   SetShouldUpdateExpectedConnectionIdLength(true);
   // Allow incoming packets with connection ID lengths shorter than allowed.
-  SetAllowShortInitialConnectionIds(true);
+  SetAllowShortInitialServerConnectionIds(true);
   // QuicDispatcher takes ownership of the writer.
   QuicDispatcher::InitializeWithWriter(packet_writer.release());
   // NB: This must happen *after* InitializeWithWriter.  It can call us back

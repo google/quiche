@@ -1011,8 +1011,8 @@ TEST_P(QuicFramerTest, LongPacketHeader) {
 
 TEST_P(QuicFramerTest, PacketHeaderWith0ByteConnectionId) {
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
-  QuicFramerPeer::SetLastSerializedConnectionId(&framer_,
-                                                FramerTestConnectionId());
+  QuicFramerPeer::SetLastSerializedServerConnectionId(&framer_,
+                                                      FramerTestConnectionId());
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
 
   // clang-format off

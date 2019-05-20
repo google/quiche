@@ -17,12 +17,12 @@
 
 namespace quic {
 
-QuicPacketGenerator::QuicPacketGenerator(QuicConnectionId connection_id,
+QuicPacketGenerator::QuicPacketGenerator(QuicConnectionId server_connection_id,
                                          QuicFramer* framer,
                                          QuicRandom* random_generator,
                                          DelegateInterface* delegate)
     : delegate_(delegate),
-      packet_creator_(connection_id, framer, random_generator, delegate),
+      packet_creator_(server_connection_id, framer, random_generator, delegate),
       next_transmission_type_(NOT_RETRANSMISSION),
       flusher_attached_(false),
       should_send_ack_(false),
@@ -438,11 +438,11 @@ void QuicPacketGenerator::UpdatePacketNumberLength(
                                                   max_packets_in_flight);
 }
 
-void QuicPacketGenerator::SetConnectionIdLength(uint32_t length) {
+void QuicPacketGenerator::SetServerConnectionIdLength(uint32_t length) {
   if (length == 0) {
-    packet_creator_.SetConnectionIdIncluded(CONNECTION_ID_ABSENT);
+    packet_creator_.SetServerConnectionIdIncluded(CONNECTION_ID_ABSENT);
   } else {
-    packet_creator_.SetConnectionIdIncluded(CONNECTION_ID_PRESENT);
+    packet_creator_.SetServerConnectionIdIncluded(CONNECTION_ID_PRESENT);
   }
 }
 
@@ -569,8 +569,9 @@ QuicPacketLength QuicPacketGenerator::GetGuaranteedLargestMessagePayload()
   return packet_creator_.GetGuaranteedLargestMessagePayload();
 }
 
-void QuicPacketGenerator::SetConnectionId(QuicConnectionId connection_id) {
-  packet_creator_.SetConnectionId(connection_id);
+void QuicPacketGenerator::SetServerConnectionId(
+    QuicConnectionId server_connection_id) {
+  packet_creator_.SetServerConnectionId(server_connection_id);
 }
 
 }  // namespace quic

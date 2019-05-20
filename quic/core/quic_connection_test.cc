@@ -938,7 +938,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
       peer_creator_.SetEncrypter(
           level, QuicMakeUnique<NullEncrypter>(peer_framer_.perspective()));
     }
-    QuicFramerPeer::SetLastSerializedConnectionId(
+    QuicFramerPeer::SetLastSerializedServerConnectionId(
         QuicConnectionPeer::GetFramer(&connection_), connection_id_);
     if (version().transport_version > QUIC_VERSION_43) {
       EXPECT_TRUE(QuicConnectionPeer::GetNoStopWaitingFrames(&connection_));

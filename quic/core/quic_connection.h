@@ -341,7 +341,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // |initial_peer_address| using |writer| to write packets. |owns_writer|
   // specifies whether the connection takes ownership of |writer|. |helper| must
   // outlive this connection.
-  QuicConnection(QuicConnectionId connection_id,
+  QuicConnection(QuicConnectionId server_connection_id,
                  QuicSocketAddress initial_peer_address,
                  QuicConnectionHelperInterface* helper,
                  QuicAlarmFactory* alarm_factory,
@@ -582,7 +582,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   const QuicSocketAddress& effective_peer_address() const {
     return effective_peer_address_;
   }
-  QuicConnectionId connection_id() const { return connection_id_; }
+  QuicConnectionId connection_id() const { return server_connection_id_; }
   const QuicClock* clock() const { return clock_; }
   QuicRandom* random_generator() const { return random_generator_; }
   QuicByteCount max_packet_length() const;
@@ -1168,7 +1168,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   const QuicClock* clock_;
   QuicRandom* random_generator_;
 
-  QuicConnectionId connection_id_;
+  QuicConnectionId server_connection_id_;
   // Address on the last successfully processed packet received from the
   // direct peer.
   QuicSocketAddress self_address_;

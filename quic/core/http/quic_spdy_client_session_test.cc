@@ -504,7 +504,7 @@ TEST_P(QuicSpdyClientSessionTest, InvalidPacketReceived) {
   session_->ProcessUdpPacket(client_address, server_address, valid_packet);
 
   // Verify that a non-decryptable packet doesn't close the connection.
-  QuicFramerPeer::SetLastSerializedConnectionId(
+  QuicFramerPeer::SetLastSerializedServerConnectionId(
       QuicConnectionPeer::GetFramer(connection_), connection_id);
   ParsedQuicVersionVector versions = SupportedVersions(GetParam());
   QuicConnectionId destination_connection_id = EmptyQuicConnectionId();
@@ -549,7 +549,7 @@ TEST_P(QuicSpdyClientSessionTest, InvalidFramedPacketReceived) {
   QuicConnectionId destination_connection_id =
       session_->connection()->connection_id();
   QuicConnectionId source_connection_id = EmptyQuicConnectionId();
-  QuicFramerPeer::SetLastSerializedConnectionId(
+  QuicFramerPeer::SetLastSerializedServerConnectionId(
       QuicConnectionPeer::GetFramer(connection_), destination_connection_id);
   ParsedQuicVersionVector versions = {GetParam()};
   bool version_flag = false;

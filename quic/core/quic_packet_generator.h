@@ -76,7 +76,7 @@ class QUIC_EXPORT_PRIVATE QuicPacketGenerator {
         QuicStopWaitingFrame* stop_waiting) = 0;
   };
 
-  QuicPacketGenerator(QuicConnectionId connection_id,
+  QuicPacketGenerator(QuicConnectionId server_connection_id,
                       QuicFramer* framer,
                       QuicRandom* random_generator,
                       DelegateInterface* delegate);
@@ -185,8 +185,8 @@ class QUIC_EXPORT_PRIVATE QuicPacketGenerator {
   void UpdatePacketNumberLength(QuicPacketNumber least_packet_awaited_by_peer,
                                 QuicPacketCount max_packets_in_flight);
 
-  // Set the minimum number of bytes for the connection id length;
-  void SetConnectionIdLength(uint32_t length);
+  // Set the minimum number of bytes for the server connection id length;
+  void SetServerConnectionIdLength(uint32_t length);
 
   // Sets the encrypter to use for the encryption level.
   void SetEncrypter(EncryptionLevel level,
@@ -235,8 +235,8 @@ class QUIC_EXPORT_PRIVATE QuicPacketGenerator {
   QuicPacketLength GetCurrentLargestMessagePayload() const;
   QuicPacketLength GetGuaranteedLargestMessagePayload() const;
 
-  // Update the connection ID used in outgoing packets.
-  void SetConnectionId(QuicConnectionId connection_id);
+  // Update the server connection ID used in outgoing packets.
+  void SetServerConnectionId(QuicConnectionId server_connection_id);
 
   void set_debug_delegate(QuicPacketCreator::DebugDelegate* debug_delegate) {
     packet_creator_.set_debug_delegate(debug_delegate);

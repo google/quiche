@@ -76,7 +76,7 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
   // QuicSession::Visitor interface implementation (via inheritance of
   // QuicTimeWaitListManager::Visitor):
   // Ensure that the closed connection is cleaned up asynchronously.
-  void OnConnectionClosed(QuicConnectionId connection_id,
+  void OnConnectionClosed(QuicConnectionId server_connection_id,
                           QuicErrorCode error,
                           const std::string& error_details,
                           ConnectionCloseSource source) override;
@@ -99,7 +99,8 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
   // QuicTimeWaitListManager::Visitor interface implementation
   // Called whenever the time wait list manager adds a new connection to the
   // time-wait list.
-  void OnConnectionAddedToTimeWaitList(QuicConnectionId connection_id) override;
+  void OnConnectionAddedToTimeWaitList(
+      QuicConnectionId server_connection_id) override;
 
   using SessionMap = QuicUnorderedMap<QuicConnectionId,
                                       std::unique_ptr<QuicSession>,
@@ -191,7 +192,7 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
       const QuicIetfStatelessResetPacket& packet) override;
 
   // QuicBufferedPacketStore::VisitorInterface implementation.
-  void OnExpiredPackets(QuicConnectionId connection_id,
+  void OnExpiredPackets(QuicConnectionId server_connection_id,
                         QuicBufferedPacketStore::BufferedPacketList
                             early_arrived_packets) override;
 
@@ -202,7 +203,7 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
   virtual bool HasChlosBuffered() const;
 
  protected:
-  virtual QuicSession* CreateQuicSession(QuicConnectionId connection_id,
+  virtual QuicSession* CreateQuicSession(QuicConnectionId server_connection_id,
                                          const QuicSocketAddress& peer_address,
                                          QuicStringPiece alpn,
                                          const ParsedQuicVersion& version) = 0;
@@ -238,9 +239,9 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
   // will be owned by the dispatcher as time_wait_list_manager_
   virtual QuicTimeWaitListManager* CreateQuicTimeWaitListManager();
 
-  // Called when |connection_id| doesn't have an open connection yet, to buffer
-  // |current_packet_| until it can be delivered to the connection.
-  void BufferEarlyPacket(QuicConnectionId connection_id,
+  // Called when |server_connection_id| doesn't have an open connection yet,
+  // to buffer |current_packet_| until it can be delivered to the connection.
+  void BufferEarlyPacket(QuicConnectionId server_connection_id,
                          bool ietf_quic,
                          ParsedQuicVersion version);
 
@@ -269,8 +270,8 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
 
   const ParsedQuicVersionVector& GetSupportedVersions();
 
-  QuicConnectionId current_connection_id() const {
-    return current_connection_id_;
+  QuicConnectionId current_server_connection_id() const {
+    return current_server_connection_id_;
   }
   const QuicSocketAddress& current_self_address() const {
     return current_self_address_;
@@ -319,15 +320,15 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
   // for CHLO. Returns true if a new connection should be created or its packets
   // should be buffered, false otherwise.
   virtual bool ShouldCreateOrBufferPacketForConnection(
-      QuicConnectionId connection_id,
+      QuicConnectionId server_connection_id,
       bool ietf_quic);
 
-  bool HasBufferedPackets(QuicConnectionId connection_id);
+  bool HasBufferedPackets(QuicConnectionId server_connection_id);
 
   // Called when BufferEarlyPacket() fail to buffer the packet.
   virtual void OnBufferPacketFailure(
       QuicBufferedPacketStore::EnqueuePacketResult result,
-      QuicConnectionId connection_id);
+      QuicConnectionId server_connection_id);
 
   // Removes the session from the session map and write blocked list, and adds
   // the ConnectionId to the time-wait list.  If |session_closed_statelessly| is
@@ -344,7 +345,7 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
   // connection to time wait list or 2) directly add connection to time wait
   // list with |action|.
   void StatelesslyTerminateConnection(
-      QuicConnectionId connection_id,
+      QuicConnectionId server_connection_id,
       PacketHeaderFormat format,
       bool version_flag,
       ParsedQuicVersion version,
@@ -374,10 +375,11 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
   }
 
   // If true, the dispatcher will allow incoming initial packets that have
-  // connection IDs shorter than 64 bits.
-  void SetAllowShortInitialConnectionIds(
-      bool allow_short_initial_connection_ids) {
-    allow_short_initial_connection_ids_ = allow_short_initial_connection_ids;
+  // destination connection IDs shorter than 64 bits.
+  void SetAllowShortInitialServerConnectionIds(
+      bool allow_short_initial_server_connection_ids) {
+    allow_short_initial_server_connection_ids_ =
+        allow_short_initial_server_connection_ids;
   }
 
  private:
@@ -395,7 +397,7 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
   // possible and if the current packet contains a CHLO message.  Determines a
   // fate which describes what subsequent processing should be performed on the
   // packets, like ValidityChecks, and invokes ProcessUnauthenticatedHeaderFate.
-  void MaybeRejectStatelessly(QuicConnectionId connection_id,
+  void MaybeRejectStatelessly(QuicConnectionId server_connection_id,
                               PacketHeaderFormat form,
                               bool version_flag,
                               ParsedQuicVersion version);
@@ -408,7 +410,7 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
   // Perform the appropriate actions on the current packet based on |fate| -
   // either process, buffer, or drop it.
   void ProcessUnauthenticatedHeaderFate(QuicPacketFate fate,
-                                        QuicConnectionId connection_id,
+                                        QuicConnectionId server_connection_id,
                                         PacketHeaderFormat form,
                                         bool version_flag,
                                         ParsedQuicVersion version);
@@ -440,8 +442,9 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
   // If the connection ID length is different from what the dispatcher expects,
   // replace the connection ID with a random one of the right length,
   // and save it to make sure the mapping is persistent.
-  QuicConnectionId MaybeReplaceConnectionId(QuicConnectionId connection_id,
-                                            ParsedQuicVersion version);
+  QuicConnectionId MaybeReplaceServerConnectionId(
+      QuicConnectionId server_connection_id,
+      ParsedQuicVersion version);
 
   // Returns true if |version| is a supported protocol version.
   bool IsSupportedVersion(const ParsedQuicVersion version);
@@ -505,7 +508,7 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
   const QuicReceivedPacket* current_packet_;
   // If |current_packet_| is a CHLO packet, the extracted alpn.
   std::string current_alpn_;
-  QuicConnectionId current_connection_id_;
+  QuicConnectionId current_server_connection_id_;
 
   // Used to get the supported versions based on flag. Does not own.
   QuicVersionManager* version_manager_;
@@ -524,8 +527,9 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
   bool accept_new_connections_;
 
   // If false, the dispatcher follows the IETF spec and rejects packets with
-  // invalid connection IDs lengths below 64 bits. If true they are allowed.
-  bool allow_short_initial_connection_ids_;
+  // invalid destination connection IDs lengths below 64 bits.
+  // If true they are allowed.
+  bool allow_short_initial_server_connection_ids_;
 
   // The last QUIC version label received. Used when no_framer_ is true.
   // TODO(fayang): remove this member variable, instead, add an argument to

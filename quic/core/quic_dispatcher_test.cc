@@ -156,7 +156,7 @@ class TestDispatcher : public QuicDispatcher {
   using QuicDispatcher::current_client_address;
   using QuicDispatcher::current_peer_address;
   using QuicDispatcher::current_self_address;
-  using QuicDispatcher::SetAllowShortInitialConnectionIds;
+  using QuicDispatcher::SetAllowShortInitialServerConnectionIds;
   using QuicDispatcher::writer;
 };
 
@@ -686,7 +686,7 @@ TEST_F(QuicDispatcherTest, InvalidShortConnectionIdLengthReplaced) {
       QuicUtils::CreateRandomConnectionId(mock_helper_.GetRandomGenerator());
 
   // Disable validation of invalid short connection IDs.
-  dispatcher_->SetAllowShortInitialConnectionIds(true);
+  dispatcher_->SetAllowShortInitialServerConnectionIds(true);
   // Note that StrayPacketTruncatedConnectionId covers the case where the
   // validation is still enabled.
 
