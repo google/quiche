@@ -829,7 +829,12 @@ QuicVariableLengthIntegerLength QuicPacketCreator::GetRetryTokenLengthLength()
 }
 
 QuicStringPiece QuicPacketCreator::GetRetryToken() const {
-  return retry_token_;
+  if (QuicVersionHasLongHeaderLengths(framer_->transport_version()) &&
+      HasIetfLongHeader() &&
+      EncryptionlevelToLongHeaderType(packet_.encryption_level) == INITIAL) {
+    return retry_token_;
+  }
+  return QuicStringPiece();
 }
 
 void QuicPacketCreator::SetRetryToken(QuicStringPiece retry_token) {
