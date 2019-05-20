@@ -78,6 +78,11 @@ class TestStream : public QuicSpdyStream {
                               ack_listener) override {
     saved_headers_ = std::move(header_block);
     WriteHeadersMock(fin);
+    if (VersionUsesQpack(transport_version())) {
+      // In this case, call QuicSpdyStream::WriteHeadersImpl() that does the
+      // actual work of closing the stream.
+      QuicSpdyStream::WriteHeadersImpl(saved_headers_.Clone(), fin, nullptr);
+    }
     return 0;
   }
 
@@ -212,10 +217,23 @@ TEST_P(QuicSpdyStreamTest, ProcessTooLargeHeaderList) {
   QuicHeaderList headers;
   stream_->OnStreamHeadersPriority(kV3HighestPriority);
 
-  EXPECT_CALL(*session_,
-              SendRstStream(stream_->id(), QUIC_HEADERS_TOO_LARGE, 0));
+  const bool version_uses_qpack =
+      VersionUsesQpack(connection_->transport_version());
+
+  if (version_uses_qpack) {
+    EXPECT_CALL(*connection_,
+                CloseConnection(QUIC_HEADERS_STREAM_DATA_DECOMPRESS_FAILURE,
+                                "Too large headers received on stream 4", _));
+  } else {
+    EXPECT_CALL(*session_,
+                SendRstStream(stream_->id(), QUIC_HEADERS_TOO_LARGE, 0));
+  }
+
   stream_->OnStreamHeaderList(false, 1 << 20, headers);
-  EXPECT_EQ(QUIC_HEADERS_TOO_LARGE, stream_->stream_error());
+
+  if (!version_uses_qpack) {
+    EXPECT_EQ(QUIC_HEADERS_TOO_LARGE, stream_->stream_error());
+  }
 }
 
 TEST_P(QuicSpdyStreamTest, ProcessHeaderListWithFin) {
@@ -919,7 +937,11 @@ TEST_P(QuicSpdyStreamTest, ReceivingTrailersViaHeaderList) {
   trailers_block["key2"] = "value2";
   trailers_block["key3"] = "value3";
   SpdyHeaderBlock trailers_block_with_final_offset = trailers_block.Clone();
-  trailers_block_with_final_offset[kFinalOffsetHeaderKey] = "0";
+  if (!VersionUsesQpack(GetParam().transport_version)) {
+    // :final-offset pseudo-header is only added if trailers are sent
+    // on the headers stream.
+    trailers_block_with_final_offset[kFinalOffsetHeaderKey] = "0";
+  }
   total_bytes = 0;
   QuicHeaderList trailers;
   for (const auto& p : trailers_block_with_final_offset) {
@@ -942,6 +964,12 @@ TEST_P(QuicSpdyStreamTest, ReceivingTrailersWithOffset) {
   // Test that when receiving trailing headers with an offset before response
   // body, stream is closed at the right offset.
   Initialize(kShouldProcessData);
+
+  // kFinalOffsetHeaderKey is not used when HEADERS are sent on the
+  // request/response stream.
+  if (VersionUsesQpack(GetParam().transport_version)) {
+    return;
+  }
 
   // Receive initial headers.
   QuicHeaderList headers = ProcessHeaders(false, headers_);
@@ -988,6 +1016,12 @@ TEST_P(QuicSpdyStreamTest, ReceivingTrailersWithoutOffset) {
   // Test that receiving trailers without a final offset field is an error.
   Initialize(kShouldProcessData);
 
+  // kFinalOffsetHeaderKey is not used when HEADERS are sent on the
+  // request/response stream.
+  if (VersionUsesQpack(GetParam().transport_version)) {
+    return;
+  }
+
   // Receive initial headers.
   ProcessHeaders(false, headers_);
   stream_->ConsumeHeaderList();
@@ -1010,9 +1044,59 @@ TEST_P(QuicSpdyStreamTest, ReceivingTrailersWithoutOffset) {
                               trailers.uncompressed_header_bytes(), trailers);
 }
 
+TEST_P(QuicSpdyStreamTest, ReceivingTrailersOnRequestStream) {
+  Initialize(kShouldProcessData);
+
+  if (!VersionUsesQpack(GetParam().transport_version)) {
+    return;
+  }
+
+  // Receive initial headers.
+  QuicHeaderList headers = ProcessHeaders(false, headers_);
+  stream_->ConsumeHeaderList();
+
+  const std::string body = "this is the body";
+  std::unique_ptr<char[]> buf;
+  QuicByteCount header_length =
+      encoder_.SerializeDataFrameHeader(body.length(), &buf);
+  std::string header = std::string(buf.get(), header_length);
+  std::string data = HasFrameHeader() ? header + body : body;
+
+  // Receive trailing headers.
+  SpdyHeaderBlock trailers_block;
+  trailers_block["key1"] = "value1";
+  trailers_block["key2"] = "value2";
+  trailers_block["key3"] = "value3";
+
+  QuicHeaderList trailers = ProcessHeaders(true, trailers_block);
+
+  // The trailers should be decompressed, and readable from the stream.
+  EXPECT_TRUE(stream_->trailers_decompressed());
+
+  EXPECT_EQ(trailers_block, stream_->received_trailers());
+
+  // Consuming the trailers erases them from the stream.
+  stream_->MarkTrailersConsumed();
+  EXPECT_TRUE(stream_->FinishedReadingTrailers());
+  EXPECT_TRUE(stream_->IsDoneReading());
+
+  // Receive and consume body.
+  QuicStreamFrame frame(GetNthClientInitiatedBidirectionalId(0), /*fin=*/false,
+                        0, data);
+  stream_->OnStreamFrame(frame);
+  EXPECT_EQ(body, stream_->data());
+  EXPECT_TRUE(stream_->IsDoneReading());
+}
+
 TEST_P(QuicSpdyStreamTest, ReceivingTrailersWithoutFin) {
   // Test that received Trailers must always have the FIN set.
   Initialize(kShouldProcessData);
+
+  // In IETF QUIC, there is no such thing as FIN flag on HTTP/3 frames like the
+  // HEADERS frame.
+  if (VersionUsesQpack(GetParam().transport_version)) {
+    return;
+  }
 
   // Receive initial headers.
   auto headers = AsHeaderList(headers_);
@@ -1052,6 +1136,13 @@ TEST_P(QuicSpdyStreamTest, ReceivingTrailersAfterHeadersWithFin) {
 TEST_P(QuicSpdyStreamTest, ReceivingTrailersAfterBodyWithFin) {
   // If body data are received with a FIN, no trailers should then arrive.
   Initialize(kShouldProcessData);
+
+  // If HEADERS frames are sent on the request/response stream,
+  // then the sequencer will block them from reaching QuicSpdyStream
+  // after the stream is closed.
+  if (VersionUsesQpack(GetParam().transport_version)) {
+    return;
+  }
 
   // Receive initial headers without FIN set.
   ProcessHeaders(false, headers_);
@@ -1101,6 +1192,12 @@ TEST_P(QuicSpdyStreamTest, WritingTrailersSendsAFin) {
   // to be sent on a stream.
   Initialize(kShouldProcessData);
 
+  if (VersionUsesQpack(GetParam().transport_version)) {
+    // In this case, TestStream::WriteHeadersImpl() does not prevent writes.
+    EXPECT_CALL(*session_, WritevData(stream_, stream_->id(), _, _, _))
+        .Times(AtLeast(1));
+  }
+
   // Write the initial headers, without a FIN.
   EXPECT_CALL(*stream_, WriteHeadersMock(false));
   stream_->WriteHeaders(SpdyHeaderBlock(), /*fin=*/false, nullptr);
@@ -1117,6 +1214,12 @@ TEST_P(QuicSpdyStreamTest, WritingTrailersFinalOffset) {
   // Test that when writing trailers, the trailers that are actually sent to the
   // peer contain the final offset field indicating last byte of data.
   Initialize(kShouldProcessData);
+
+  if (VersionUsesQpack(GetParam().transport_version)) {
+    // In this case, TestStream::WriteHeadersImpl() does not prevent writes.
+    EXPECT_CALL(*session_, WritevData(stream_, stream_->id(), _, _, _))
+        .Times(AtLeast(1));
+  }
 
   // Write the initial headers.
   EXPECT_CALL(*stream_, WriteHeadersMock(false));
@@ -1137,12 +1240,18 @@ TEST_P(QuicSpdyStreamTest, WritingTrailersFinalOffset) {
   // number of body bytes written (including queued bytes).
   SpdyHeaderBlock trailers;
   trailers["trailer key"] = "trailer value";
-  SpdyHeaderBlock trailers_with_offset(trailers.Clone());
-  trailers_with_offset[kFinalOffsetHeaderKey] =
-      QuicTextUtils::Uint64ToString(body.length() + header_length);
+
+  SpdyHeaderBlock expected_trailers(trailers.Clone());
+  // :final-offset pseudo-header is only added if trailers are sent
+  // on the headers stream.
+  if (!VersionUsesQpack(GetParam().transport_version)) {
+    expected_trailers[kFinalOffsetHeaderKey] =
+        QuicTextUtils::Uint64ToString(body.length() + header_length);
+  }
+
   EXPECT_CALL(*stream_, WriteHeadersMock(true));
   stream_->WriteTrailers(std::move(trailers), nullptr);
-  EXPECT_EQ(trailers_with_offset, stream_->saved_headers());
+  EXPECT_EQ(expected_trailers, stream_->saved_headers());
 }
 
 TEST_P(QuicSpdyStreamTest, WritingTrailersClosesWriteSide) {
@@ -1150,12 +1259,16 @@ TEST_P(QuicSpdyStreamTest, WritingTrailersClosesWriteSide) {
   // (headers and body), that this closes the stream for writing.
   Initialize(kShouldProcessData);
 
+  // Expect data being written on the stream.  In addition to that, headers are
+  // also written on the stream in case of IETF QUIC.
+  EXPECT_CALL(*session_, WritevData(stream_, stream_->id(), _, _, _))
+      .Times(AtLeast(1));
+
   // Write the initial headers.
   EXPECT_CALL(*stream_, WriteHeadersMock(false));
   stream_->WriteHeaders(SpdyHeaderBlock(), /*fin=*/false, nullptr);
 
   // Write non-zero body data.
-  EXPECT_CALL(*session_, WritevData(_, _, _, _, _)).Times(AtLeast(1));
   const int kBodySize = 1 * 1024;  // 1 kB
   stream_->WriteOrBufferBody(std::string(kBodySize, 'x'), false);
   EXPECT_EQ(0u, stream_->BufferedDataBytes());
@@ -1168,6 +1281,13 @@ TEST_P(QuicSpdyStreamTest, WritingTrailersClosesWriteSide) {
 }
 
 TEST_P(QuicSpdyStreamTest, WritingTrailersWithQueuedBytes) {
+  // This test exercises sending trailers on the headers stream while data is
+  // still queued on the response/request stream.  In IETF QUIC, data and
+  // trailers are sent on the same stream, so this test does not apply.
+  if (VersionUsesQpack(GetParam().transport_version)) {
+    return;
+  }
+
   // Test that the stream is not closed for writing when trailers are sent
   // while there are still body bytes queued.
   testing::InSequence seq;
@@ -1202,7 +1322,10 @@ TEST_P(QuicSpdyStreamTest, WritingTrailersWithQueuedBytes) {
 
 TEST_P(QuicSpdyStreamTest, WritingTrailersAfterFIN) {
   // EXPECT_QUIC_BUG tests are expensive so only run one instance of them.
-  if (GetParam() != AllSupportedVersions()[0]) {
+  // In IETF QUIC, there is no such thing as FIN flag on HTTP/3 frames like the
+  // HEADERS frame.  That is version 99, which is element 0 of the array, so
+  // pick another element.
+  if (GetParam() != AllSupportedVersions()[1]) {
     return;
   }
 
@@ -1552,6 +1675,65 @@ TEST_P(QuicSpdyStreamTest, HeaderBytesNotReportedOnRetransmission) {
 
   EXPECT_FALSE(
       QuicSpdyStreamPeer::unacked_frame_headers_offsets(stream_).Empty());
+}
+
+TEST_P(QuicSpdyStreamTest, HeadersFrameOnRequestStream) {
+  if (!VersionUsesQpack(GetParam().transport_version)) {
+    return;
+  }
+
+  Initialize(kShouldProcessData);
+
+  // QPACK encoded header block with single header field "foo: bar".
+  std::string headers_frame_payload =
+      QuicTextUtils::HexDecode("00002a94e703626172");
+  std::unique_ptr<char[]> headers_buffer;
+  QuicByteCount headers_frame_header_length =
+      encoder_.SerializeHeadersFrameHeader(headers_frame_payload.length(),
+                                           &headers_buffer);
+  QuicStringPiece headers_frame_header(headers_buffer.get(),
+                                       headers_frame_header_length);
+
+  std::string data_frame_payload = "some data";
+  std::unique_ptr<char[]> data_buffer;
+  QuicByteCount data_frame_header_length = encoder_.SerializeDataFrameHeader(
+      data_frame_payload.length(), &data_buffer);
+  QuicStringPiece data_frame_header(data_buffer.get(),
+                                    data_frame_header_length);
+
+  // QPACK encoded header block with single header field
+  // "custom-key: custom-value".
+  std::string trailers_frame_payload =
+      QuicTextUtils::HexDecode("00002f0125a849e95ba97d7f8925a849e95bb8e8b4bf");
+  std::unique_ptr<char[]> trailers_buffer;
+  QuicByteCount trailers_frame_header_length =
+      encoder_.SerializeHeadersFrameHeader(trailers_frame_payload.length(),
+                                           &trailers_buffer);
+  QuicStringPiece trailers_frame_header(trailers_buffer.get(),
+                                        trailers_frame_header_length);
+
+  std::string stream_frame_payload = QuicStrCat(
+      headers_frame_header, headers_frame_payload, data_frame_header,
+      data_frame_payload, trailers_frame_header, trailers_frame_payload);
+  QuicStreamFrame frame(stream_->id(), false, 0, stream_frame_payload);
+  stream_->OnStreamFrame(frame);
+
+  auto it = stream_->header_list().begin();
+  ASSERT_TRUE(it != stream_->header_list().end());
+  EXPECT_EQ("foo", it->first);
+  EXPECT_EQ("bar", it->second);
+  ++it;
+  EXPECT_TRUE(it == stream_->header_list().end());
+
+  // QuicSpdyStream only calls OnBodyAvailable()
+  // after the header list has been consumed.
+  EXPECT_EQ("", stream_->data());
+  stream_->ConsumeHeaderList();
+  EXPECT_EQ("some data", stream_->data());
+
+  const spdy::SpdyHeaderBlock& trailers = stream_->received_trailers();
+  EXPECT_THAT(trailers, testing::ElementsAre(
+                            testing::Pair("custom-key", "custom-value")));
 }
 
 }  // namespace

@@ -34,6 +34,7 @@ class QuicSpdyStreamPeer;
 class QuicStreamPeer;
 }  // namespace test
 
+class QpackDecodedHeadersAccumulator;
 class QuicSpdySession;
 
 // A QUIC stream that can send and receive HTTP2 (SPDY) headers.
@@ -105,8 +106,8 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream : public QuicStream {
   // Called in OnDataAvailable() after it finishes the decoding job.
   virtual void OnBodyAvailable() = 0;
 
-  // Writes the headers contained in |header_block| to the dedicated
-  // headers stream.
+  // Writes the headers contained in |header_block| on the dedicated headers
+  // stream or on this stream, depending on VersionUsesQpack().
   virtual size_t WriteHeaders(
       spdy::SpdyHeaderBlock header_block,
       bool fin,
@@ -115,8 +116,9 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream : public QuicStream {
   // Sends |data| to the peer, or buffers if it can't be sent immediately.
   void WriteOrBufferBody(QuicStringPiece data, bool fin);
 
-  // Writes the trailers contained in |trailer_block| to the dedicated
-  // headers stream. Trailers will always have the FIN set.
+  // Writes the trailers contained in |trailer_block| on the dedicated headers
+  // stream or on this stream, depending on VersionUsesQpack().  Trailers will
+  // always have the FIN flag set.
   virtual size_t WriteTrailers(
       spdy::SpdyHeaderBlock trailer_block,
       QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener);
@@ -247,12 +249,18 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream : public QuicStream {
 
   QuicSpdySession* spdy_session_;
 
+  bool on_body_available_called_because_sequencer_is_closed_;
+
   Visitor* visitor_;
   // True if the headers have been completely decompressed.
   bool headers_decompressed_;
   // Contains a copy of the decompressed header (name, value) pairs until they
   // are consumed via Readv.
   QuicHeaderList header_list_;
+  // Length of HEADERS frame, including frame header and payload.
+  Http3FrameLengths headers_length_;
+  // Length of TRAILERS frame, including frame header and payload.
+  Http3FrameLengths trailers_length_;
 
   // True if the trailers have been completely decompressed.
   bool trailers_decompressed_;
@@ -265,6 +273,9 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream : public QuicStream {
   HttpEncoder encoder_;
   // Http decoder for processing raw incoming stream frames.
   HttpDecoder decoder_;
+  // Headers accumulator for decoding HEADERS frame payload.
+  std::unique_ptr<QpackDecodedHeadersAccumulator>
+      qpack_decoded_headers_accumulator_;
   // Visitor of the HttpDecoder.
   std::unique_ptr<HttpDecoderVisitor> http_decoder_visitor_;
   // Buffer that contains decoded data of the stream.

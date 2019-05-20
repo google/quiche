@@ -370,6 +370,10 @@ TEST_P(QuicHeadersStreamTest, StreamId) {
 }
 
 TEST_P(QuicHeadersStreamTest, WriteHeaders) {
+  if (VersionUsesQpack(transport_version())) {
+    return;
+  }
+
   for (QuicStreamId stream_id = client_id_1_; stream_id < client_id_3_;
        stream_id += next_stream_id_) {
     for (bool fin : {false, true}) {
@@ -421,6 +425,10 @@ TEST_P(QuicHeadersStreamTest, WritePushPromises) {
 }
 
 TEST_P(QuicHeadersStreamTest, ProcessRawData) {
+  if (VersionUsesQpack(transport_version())) {
+    return;
+  }
+
   for (QuicStreamId stream_id = client_id_1_; stream_id < client_id_3_;
        stream_id += next_stream_id_) {
     for (bool fin : {false, true}) {
@@ -536,6 +544,10 @@ TEST_P(QuicHeadersStreamTest, ProcessPushPromiseDisabledSetting) {
 }
 
 TEST_P(QuicHeadersStreamTest, ProcessLargeRawData) {
+  if (VersionUsesQpack(transport_version())) {
+    return;
+  }
+
   QuicSpdySessionPeer::SetMaxUncompressedHeaderBytes(&session_, 256 * 1024);
   // We want to create a frame that is more than the SPDY Framer's max control
   // frame size, which is 16K, but less than the HPACK decoders max decode
@@ -710,6 +722,10 @@ TEST_P(QuicHeadersStreamTest, NoConnectionLevelFlowControl) {
 }
 
 TEST_P(QuicHeadersStreamTest, HpackDecoderDebugVisitor) {
+  if (VersionUsesQpack(transport_version())) {
+    return;
+  }
+
   auto hpack_decoder_visitor =
       QuicMakeUnique<StrictMock<MockQuicHpackDebugVisitor>>();
   {
@@ -762,6 +778,10 @@ TEST_P(QuicHeadersStreamTest, HpackDecoderDebugVisitor) {
 }
 
 TEST_P(QuicHeadersStreamTest, HpackEncoderDebugVisitor) {
+  if (VersionUsesQpack(transport_version())) {
+    return;
+  }
+
   auto hpack_encoder_visitor =
       QuicMakeUnique<StrictMock<MockQuicHpackDebugVisitor>>();
   if (perspective() == Perspective::IS_SERVER) {

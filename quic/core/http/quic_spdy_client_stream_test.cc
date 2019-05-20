@@ -193,9 +193,14 @@ TEST_P(QuicSpdyClientStreamTest,
   EXPECT_NE(QUIC_STREAM_NO_ERROR, stream_->stream_error());
 }
 
+// Test that receiving trailing headers (on the headers stream), containing a
+// final offset, results in the stream being closed at that byte offset.
 TEST_P(QuicSpdyClientStreamTest, ReceivingTrailers) {
-  // Test that receiving trailing headers, containing a final offset, results in
-  // the stream being closed at that byte offset.
+  // There is no kFinalOffsetHeaderKey if trailers are sent on the
+  // request/response stream.
+  if (VersionUsesQpack(connection_->transport_version())) {
+    return;
+  }
 
   // Send headers as usual.
   auto headers = AsHeaderList(headers_);
