@@ -46,7 +46,12 @@ using testing::StrictMock;
 namespace quic {
 namespace test {
 namespace {
+
 typedef QuicSimpleServerSession::PromisedStreamInfo PromisedStreamInfo;
+
+const QuicByteCount kHeadersFrameHeaderLength = 2;
+const QuicByteCount kHeadersFramePayloadLength = 9;
+
 }  // namespace
 
 class QuicSimpleServerSessionPeer {
@@ -643,6 +648,16 @@ class QuicSimpleServerSessionServerPushTest
         // Since flow control window is smaller than response body, not the
         // whole body will be sent.
         QuicStreamOffset offset = 0;
+        if (VersionUsesQpack(connection_->transport_version())) {
+          EXPECT_CALL(*connection_,
+                      SendStreamData(stream_id, kHeadersFrameHeaderLength,
+                                     offset, NO_FIN));
+          offset += kHeadersFrameHeaderLength;
+          EXPECT_CALL(*connection_,
+                      SendStreamData(stream_id, kHeadersFramePayloadLength,
+                                     offset, NO_FIN));
+          offset += kHeadersFramePayloadLength;
+        }
         if (VersionHasDataFrameHeader(connection_->transport_version())) {
           EXPECT_CALL(*connection_,
                       SendStreamData(stream_id, data_frame_header_length,
@@ -661,11 +676,13 @@ class QuicSimpleServerSessionServerPushTest
     return data_frame_header_length;
   }
 
-  void ConsumeHeadersStreamData() {
-    QuicStreamId headers_stream_id =
-        QuicUtils::GetHeadersStreamId(connection_->transport_version());
-    EXPECT_CALL(*connection_, SendStreamData(headers_stream_id, _, _, _))
-        .Times(AtLeast(1));
+  void MaybeConsumeHeadersStreamData() {
+    if (!VersionUsesQpack(connection_->transport_version())) {
+      QuicStreamId headers_stream_id =
+          QuicUtils::GetHeadersStreamId(connection_->transport_version());
+      EXPECT_CALL(*connection_, SendStreamData(headers_stream_id, _, _, _))
+          .Times(AtLeast(1));
+    }
   }
 };
 
@@ -677,7 +694,7 @@ INSTANTIATE_TEST_SUITE_P(Tests,
 // PUSH_PROMISE's will be sent out and only kMaxStreamsForTest streams will be
 // opened and send push response.
 TEST_P(QuicSimpleServerSessionServerPushTest, TestPromisePushResources) {
-  ConsumeHeadersStreamData();
+  MaybeConsumeHeadersStreamData();
   size_t num_resources = kMaxStreamsForTest + 5;
   PromisePushResources(num_resources);
   EXPECT_EQ(kMaxStreamsForTest, session_->GetNumOpenOutgoingStreams());
@@ -687,7 +704,7 @@ TEST_P(QuicSimpleServerSessionServerPushTest, TestPromisePushResources) {
 // draining, a queued promised stream will become open and send push response.
 TEST_P(QuicSimpleServerSessionServerPushTest,
        HandlePromisedPushRequestsAfterStreamDraining) {
-  ConsumeHeadersStreamData();
+  MaybeConsumeHeadersStreamData();
   size_t num_resources = kMaxStreamsForTest + 1;
   QuicByteCount data_frame_header_length = PromisePushResources(num_resources);
   QuicStreamId next_out_going_stream_id =
@@ -696,6 +713,16 @@ TEST_P(QuicSimpleServerSessionServerPushTest,
   // After an open stream is marked draining, a new stream is expected to be
   // created and a response sent on the stream.
   QuicStreamOffset offset = 0;
+  if (VersionUsesQpack(connection_->transport_version())) {
+    EXPECT_CALL(*connection_,
+                SendStreamData(next_out_going_stream_id,
+                               kHeadersFrameHeaderLength, offset, NO_FIN));
+    offset += kHeadersFrameHeaderLength;
+    EXPECT_CALL(*connection_,
+                SendStreamData(next_out_going_stream_id,
+                               kHeadersFramePayloadLength, offset, NO_FIN));
+    offset += kHeadersFramePayloadLength;
+  }
   if (VersionHasDataFrameHeader(connection_->transport_version())) {
     EXPECT_CALL(*connection_,
                 SendStreamData(next_out_going_stream_id,
@@ -728,7 +755,7 @@ TEST_P(QuicSimpleServerSessionServerPushTest,
 // prevent a promised resource to be send out.
 TEST_P(QuicSimpleServerSessionServerPushTest,
        ResetPromisedStreamToCancelServerPush) {
-  ConsumeHeadersStreamData();
+  MaybeConsumeHeadersStreamData();
 
   // Having two extra resources to be send later. One of them will be reset, so
   // when opened stream become close, only one will become open.
@@ -763,6 +790,16 @@ TEST_P(QuicSimpleServerSessionServerPushTest,
       GetNthServerInitiatedUnidirectionalId(kMaxStreamsForTest);
   InSequence s;
   QuicStreamOffset offset = 0;
+  if (VersionUsesQpack(connection_->transport_version())) {
+    EXPECT_CALL(*connection_,
+                SendStreamData(stream_not_reset, kHeadersFrameHeaderLength,
+                               offset, NO_FIN));
+    offset += kHeadersFrameHeaderLength;
+    EXPECT_CALL(*connection_,
+                SendStreamData(stream_not_reset, kHeadersFramePayloadLength,
+                               offset, NO_FIN));
+    offset += kHeadersFramePayloadLength;
+  }
   if (VersionHasDataFrameHeader(connection_->transport_version())) {
     EXPECT_CALL(*connection_,
                 SendStreamData(stream_not_reset, data_frame_header_length,
@@ -791,7 +828,7 @@ TEST_P(QuicSimpleServerSessionServerPushTest,
 // the queue to be send out.
 TEST_P(QuicSimpleServerSessionServerPushTest,
        CloseStreamToHandleMorePromisedStream) {
-  ConsumeHeadersStreamData();
+  MaybeConsumeHeadersStreamData();
   size_t num_resources = kMaxStreamsForTest + 1;
   if (IsVersion99()) {
     // V99 will send out a stream-id-blocked frame when the we desired to exceed
@@ -816,6 +853,16 @@ TEST_P(QuicSimpleServerSessionServerPushTest,
                 OnStreamReset(stream_got_reset, QUIC_RST_ACKNOWLEDGEMENT));
   }
   QuicStreamOffset offset = 0;
+  if (VersionUsesQpack(connection_->transport_version())) {
+    EXPECT_CALL(*connection_,
+                SendStreamData(stream_to_open, kHeadersFrameHeaderLength,
+                               offset, NO_FIN));
+    offset += kHeadersFrameHeaderLength;
+    EXPECT_CALL(*connection_,
+                SendStreamData(stream_to_open, kHeadersFramePayloadLength,
+                               offset, NO_FIN));
+    offset += kHeadersFramePayloadLength;
+  }
   if (VersionHasDataFrameHeader(connection_->transport_version())) {
     EXPECT_CALL(*connection_,
                 SendStreamData(stream_to_open, data_frame_header_length, offset,

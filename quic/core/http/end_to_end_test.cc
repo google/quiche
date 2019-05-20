@@ -13,6 +13,7 @@
 
 #include "net/third_party/quiche/src/quic/core/crypto/null_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_spdy_client_stream.h"
+#include "net/third_party/quiche/src/quic/core/qpack/qpack_encoder_test_utils.h"
 #include "net/third_party/quiche/src/quic/core/quic_epoll_connection_helper.h"
 #include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
 #include "net/third_party/quiche/src/quic/core/quic_framer.h"
@@ -1326,8 +1327,17 @@ TEST_P(EndToEndTest, LargeHeaders) {
   headers["key3"] = std::string(15 * 1024, 'a');
 
   client_->SendCustomSynchronousRequest(headers, body);
-  EXPECT_EQ(QUIC_HEADERS_TOO_LARGE, client_->stream_error());
-  EXPECT_EQ(QUIC_NO_ERROR, client_->connection_error());
+
+  if (VersionUsesQpack(client_->client()
+                           ->client_session()
+                           ->connection()
+                           ->transport_version())) {
+    EXPECT_EQ(QUIC_HEADERS_STREAM_DATA_DECOMPRESS_FAILURE,
+              client_->connection_error());
+  } else {
+    EXPECT_EQ(QUIC_HEADERS_TOO_LARGE, client_->stream_error());
+    EXPECT_EQ(QUIC_NO_ERROR, client_->connection_error());
+  }
 }
 
 TEST_P(EndToEndTest, EarlyResponseWithQuicStreamNoError) {
@@ -1965,10 +1975,9 @@ TEST_P(EndToEndTest, HeadersAndCryptoStreamsNoConnectionFlowControl) {
       client_->client()->client_session());
   // In v47 and later, the crypto handshake (sent in CRYPTO frames) is not
   // subject to flow control.
-  if (!QuicVersionUsesCryptoFrames(client_->client()
-                                       ->client_session()
-                                       ->connection()
-                                       ->transport_version())) {
+  const QuicTransportVersion transport_version =
+      client_->client()->client_session()->connection()->transport_version();
+  if (!QuicVersionUsesCryptoFrames(transport_version)) {
     EXPECT_LT(QuicFlowControllerPeer::SendWindowSize(
                   crypto_stream->flow_controller()),
               kStreamIFCW);
@@ -1980,6 +1989,11 @@ TEST_P(EndToEndTest, HeadersAndCryptoStreamsNoConnectionFlowControl) {
   // Send a request with no body, and verify that the connection level window
   // has not been affected.
   EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
+
+  // No headers stream in IETF QUIC.
+  if (VersionUsesQpack(transport_version)) {
+    return;
+  }
 
   QuicHeadersStream* headers_stream = QuicSpdySessionPeer::GetHeadersStream(
       client_->client()->client_session());
@@ -2145,6 +2159,29 @@ TEST_P(EndToEndTest, AckNotifierWithPacketLossAndBlockedSocket) {
 
   client_->SendMessage(headers, "", /*fin=*/false);
 
+  // Size of headers on the request stream.  Zero if headers are sent on the
+  // header stream.
+  size_t header_size = 0;
+  if (VersionUsesQpack(client_->client()
+                           ->client_session()
+                           ->connection()
+                           ->transport_version())) {
+    // Determine size of compressed headers.
+    NoopDecoderStreamErrorDelegate decoder_stream_error_delegate;
+    NoopEncoderStreamSenderDelegate encoder_stream_sender_delegate;
+    QpackEncoder qpack_encoder(&decoder_stream_error_delegate,
+                               &encoder_stream_sender_delegate);
+    auto progressive_encoder =
+        qpack_encoder.EncodeHeaderList(/* stream_id = */ 0, &headers);
+    std::string encoded_headers;
+    while (progressive_encoder->HasNext()) {
+      progressive_encoder->Next(
+          /* max_encoded_bytes = */ std::numeric_limits<size_t>::max(),
+          &encoded_headers);
+    }
+    header_size = encoded_headers.size();
+  }
+
   // Test the AckNotifier's ability to track multiple packets by making the
   // request body exceed the size of a single packet.
   std::string request_string = "a request body bigger than one packet" +
@@ -2152,7 +2189,7 @@ TEST_P(EndToEndTest, AckNotifierWithPacketLossAndBlockedSocket) {
 
   // The TestAckListener will cause a failure if not notified.
   QuicReferenceCountedPointer<TestAckListener> ack_listener(
-      new TestAckListener(request_string.length()));
+      new TestAckListener(header_size + request_string.length()));
 
   // Send the request, and register the delegate for ACKs.
   client_->SendData(request_string, true, ack_listener);

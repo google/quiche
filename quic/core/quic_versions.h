@@ -340,13 +340,23 @@ QUIC_EXPORT_PRIVATE inline bool VersionHasDataFrameHeader(
   return transport_version == QUIC_VERSION_99;
 }
 
-// Returns true if QuicSpdySession instantiates a QPACK encoder and decoder.
+// If true:
+// * QuicSpdySession instantiates a QPACK encoder and decoder;
+// * HEADERS frames (containing headers or trailers) are sent on
+//   request/response streams, compressed with QPACK;
+// * trailers must not contain :final-offset key.
+// If false:
+// * HEADERS frames (containing headers or trailers) are sent on the headers
+//   stream, compressed with HPACK;
+// * trailers must contain :final-offset key.
+//
 // TODO(123528590): Implement the following features and gate them on this
-// function as well, optionally renaming this function as appropriate.
-// Send HEADERS on the request/response stream instead of the headers stream.
-// Send PUSH_PROMISE on the request/response stream instead of headers stream.
-// Send PRIORITY on the request/response stream instead of the headers stream.
-// Do not instantiate the headers stream object.
+// function as well, optionally renaming this function as appropriate:
+// * send PUSH_PROMISE frames on the request/response stream instead of the
+//   headers stream;
+// * send PRIORITY frames on the request/response stream instead of the headers
+//   stream;
+// * do not instantiate the headers stream object.
 QUIC_EXPORT_PRIVATE inline bool VersionUsesQpack(
     QuicTransportVersion transport_version) {
   const bool uses_qpack = (transport_version == QUIC_VERSION_99);

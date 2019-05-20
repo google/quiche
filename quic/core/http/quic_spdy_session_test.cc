@@ -1221,6 +1221,13 @@ TEST_P(QuicSpdySessionTestServer,
   if (QuicVersionUsesCryptoFrames(connection_->transport_version())) {
     return;
   }
+
+  // This test depends on the headers stream, which does not exist when QPACK is
+  // used.
+  if (VersionUsesQpack(transport_version())) {
+    return;
+  }
+
   // Test that if the header stream is flow control blocked, then if the SHLO
   // contains a larger send window offset, the stream becomes unblocked.
   session_.set_writev_consumes_all_data(true);

@@ -204,6 +204,12 @@ class QuicSpdySession::SpdyFramerVisitor
       return;
     }
 
+    if (VersionUsesQpack(session_->connection()->transport_version())) {
+      CloseConnection("HEADERS frame not allowed on headers stream.",
+                      QUIC_INVALID_HEADERS_STREAM_DATA);
+      return;
+    }
+
     // TODO(mpw): avoid down-conversion and plumb SpdyStreamPrecedence through
     // QuicHeadersStream.
     SpdyPriority priority =
@@ -399,7 +405,6 @@ void QuicSpdySession::WriteDecoderStreamData(QuicStringPiece data) {
   DCHECK(VersionUsesQpack(connection()->transport_version()));
 
   // TODO(112770235): Send decoder stream data on decoder stream.
-  QUIC_NOTREACHED();
 }
 
 void QuicSpdySession::OnStreamHeadersPriority(QuicStreamId stream_id,
@@ -472,6 +477,8 @@ size_t QuicSpdySession::WriteHeadersOnHeadersStream(
     bool fin,
     SpdyPriority priority,
     QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener) {
+  DCHECK(!VersionUsesQpack(connection()->transport_version()));
+
   return WriteHeadersOnHeadersStreamImpl(
       id, std::move(headers), fin,
       /* parent_stream_id = */ 0, Spdy3PriorityToHttp2Weight(priority),
@@ -568,6 +575,8 @@ size_t QuicSpdySession::WriteHeadersOnHeadersStreamImpl(
     int weight,
     bool exclusive,
     QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener) {
+  DCHECK(!VersionUsesQpack(connection()->transport_version()));
+
   SpdyHeadersIR headers_frame(id, std::move(headers));
   headers_frame.set_fin(fin);
   if (perspective() == Perspective::IS_CLIENT) {
