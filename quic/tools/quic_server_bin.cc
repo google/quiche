@@ -9,20 +9,8 @@
 
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
-#include "net/third_party/quiche/src/quic/tools/quic_server.h"
-#include "net/third_party/quiche/src/quic/tools/quic_simple_server_backend.h"
+#include "net/third_party/quiche/src/quic/tools/quic_epoll_server_factory.h"
 #include "net/third_party/quiche/src/quic/tools/quic_toy_server.h"
-
-class SimpleServerFactory : public quic::QuicToyServer::ServerFactory {
- public:
-  std::unique_ptr<quic::QuicSpdyServerBase> CreateServer(
-      quic::QuicSimpleServerBackend* backend,
-      std::unique_ptr<quic::ProofSource> proof_source) override {
-    return quic::QuicMakeUnique<quic::QuicServer>(std::move(proof_source),
-                                                  backend);
-  }
-};
 
 int main(int argc, char* argv[]) {
   const char* usage = "Usage: quic_server [options]";
@@ -34,7 +22,7 @@ int main(int argc, char* argv[]) {
   }
 
   quic::QuicToyServer::MemoryCacheBackendFactory backend_factory;
-  SimpleServerFactory server_factory;
+  quic::QuicEpollServerFactory server_factory;
   quic::QuicToyServer server(&backend_factory, &server_factory);
   return server.Start();
 }
