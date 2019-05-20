@@ -535,7 +535,7 @@ TEST_F(QuicCryptoClientConfigTest, ClearCachedStates) {
 
 TEST_F(QuicCryptoClientConfigTest, ProcessReject) {
   CryptoHandshakeMessage rej;
-  crypto_test_utils::FillInDummyReject(&rej, /* stateless */ false);
+  crypto_test_utils::FillInDummyReject(&rej);
 
   // Now process the rejection.
   QuicCryptoClientConfig::CachedState cached;
@@ -554,7 +554,7 @@ TEST_F(QuicCryptoClientConfigTest, ProcessReject) {
 
 TEST_F(QuicCryptoClientConfigTest, ProcessRejectWithLongTTL) {
   CryptoHandshakeMessage rej;
-  crypto_test_utils::FillInDummyReject(&rej, /* stateless */ false);
+  crypto_test_utils::FillInDummyReject(&rej);
   QuicTime::Delta one_week = QuicTime::Delta::FromSeconds(kNumSecondsPerWeek);
   int64_t long_ttl = 3 * one_week.ToSeconds();
   rej.SetValue(kSTTL, long_ttl);
@@ -576,55 +576,6 @@ TEST_F(QuicCryptoClientConfigTest, ProcessRejectWithLongTTL) {
       cached.IsComplete(QuicWallTime::FromUNIXSeconds(one_week.ToSeconds())));
   EXPECT_TRUE(cached.IsComplete(
       QuicWallTime::FromUNIXSeconds(one_week.ToSeconds() - 1)));
-}
-
-TEST_F(QuicCryptoClientConfigTest, ProcessStatelessReject) {
-  // Create a dummy reject message and mark it as stateless.
-  CryptoHandshakeMessage rej;
-  crypto_test_utils::FillInDummyReject(&rej, /* stateless */ true);
-  const QuicConnectionId kConnectionId = TestConnectionId(0xdeadbeef);
-  const std::string server_nonce = "SERVER_NONCE";
-  const uint64_t kConnectionId64 = TestConnectionIdToUInt64(kConnectionId);
-  rej.SetValue(kRCID, kConnectionId64);
-  rej.SetStringPiece(kServerNonceTag, server_nonce);
-
-  // Now process the rejection.
-  QuicCryptoClientConfig::CachedState cached;
-  QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> out_params(
-      new QuicCryptoNegotiatedParameters);
-  std::string error;
-  QuicCryptoClientConfig config(crypto_test_utils::ProofVerifierForTesting(),
-                                TlsClientHandshaker::CreateSslCtx());
-  EXPECT_EQ(QUIC_NO_ERROR,
-            config.ProcessRejection(rej, QuicWallTime::FromUNIXSeconds(0),
-                                    AllSupportedTransportVersions().front(), "",
-                                    &cached, out_params, &error));
-  EXPECT_TRUE(cached.has_server_designated_connection_id());
-  EXPECT_EQ(TestConnectionId(QuicEndian::NetToHost64(
-                TestConnectionIdToUInt64(kConnectionId))),
-            cached.GetNextServerDesignatedConnectionId());
-  EXPECT_EQ(server_nonce, cached.GetNextServerNonce());
-}
-
-TEST_F(QuicCryptoClientConfigTest, BadlyFormattedStatelessReject) {
-  // Create a dummy reject message and mark it as stateless.  Do not
-  // add an server-designated connection-id.
-  CryptoHandshakeMessage rej;
-  crypto_test_utils::FillInDummyReject(&rej, /* stateless */ true);
-
-  // Now process the rejection.
-  QuicCryptoClientConfig::CachedState cached;
-  QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> out_params(
-      new QuicCryptoNegotiatedParameters);
-  std::string error;
-  QuicCryptoClientConfig config(crypto_test_utils::ProofVerifierForTesting(),
-                                TlsClientHandshaker::CreateSslCtx());
-  EXPECT_EQ(QUIC_CRYPTO_MESSAGE_PARAMETER_NOT_FOUND,
-            config.ProcessRejection(rej, QuicWallTime::FromUNIXSeconds(0),
-                                    AllSupportedTransportVersions().front(), "",
-                                    &cached, out_params, &error));
-  EXPECT_FALSE(cached.has_server_designated_connection_id());
-  EXPECT_EQ("Missing kRCID", error);
 }
 
 TEST_F(QuicCryptoClientConfigTest, ServerNonceinSHLO) {

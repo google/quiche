@@ -214,7 +214,7 @@ TEST_P(QuicSpdyClientSessionTest, NoEncryptionAfterInitialEncryption) {
   // an inchoate CHLO to be sent and will leave the encryption level
   // at NONE.
   CryptoHandshakeMessage rej;
-  crypto_test_utils::FillInDummyReject(&rej, /* stateless */ false);
+  crypto_test_utils::FillInDummyReject(&rej);
   EXPECT_TRUE(session_->IsEncryptionEstablished());
   crypto_test_utils::SendHandshakeMessageToStream(
       session_->GetMutableCryptoStream(), rej, Perspective::IS_CLIENT);

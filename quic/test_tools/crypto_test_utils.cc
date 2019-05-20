@@ -481,12 +481,8 @@ CommonCertSets* MockCommonCertSets(QuicStringPiece cert,
   return new class MockCommonCertSets(cert, hash, index);
 }
 
-void FillInDummyReject(CryptoHandshakeMessage* rej, bool reject_is_stateless) {
-  if (reject_is_stateless) {
-    rej->set_tag(kSREJ);
-  } else {
-    rej->set_tag(kREJ);
-  }
+void FillInDummyReject(CryptoHandshakeMessage* rej) {
+  rej->set_tag(kREJ);
 
   // Minimum SCFG that passes config validation checks.
   // clang-format off

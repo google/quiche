@@ -132,7 +132,7 @@ CommonCertSets* MockCommonCertSets(QuicStringPiece cert,
 // Creates a minimal dummy reject message that will pass the client-config
 // validation tests. This will include a server config, but no certs, proof
 // source address token, or server nonce.
-void FillInDummyReject(CryptoHandshakeMessage* rej, bool reject_is_stateless);
+void FillInDummyReject(CryptoHandshakeMessage* rej);
 
 // ParseTag returns a QuicTag from parsing |tagstr|. |tagstr| may either be
 // in the format "EXMP" (i.e. ASCII format), or "#11223344" (an explicit hex
