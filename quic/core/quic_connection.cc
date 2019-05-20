@@ -4043,7 +4043,7 @@ EncryptionLevel QuicConnection::GetConnectionCloseEncryptionLevel() const {
   }
   if (sent_packet_manager_.handshake_confirmed()) {
     // A forward secure packet has been received.
-    QUIC_BUG_IF(encryption_level_ != ENCRYPTION_FORWARD_SECURE);
+    // QUIC_BUG_IF(encryption_level_ != ENCRYPTION_FORWARD_SECURE);
     return ENCRYPTION_FORWARD_SECURE;
   }
   if (framer_.HasEncrypterOfEncryptionLevel(ENCRYPTION_ZERO_RTT)) {

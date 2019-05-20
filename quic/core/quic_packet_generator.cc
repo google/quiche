@@ -540,6 +540,9 @@ bool QuicPacketGenerator::FlushAckFrame(const QuicFrames& frames) {
                                      "generator tries to send ACK frame.";
   for (const auto& frame : frames) {
     DCHECK(frame.type == ACK_FRAME || frame.type == STOP_WAITING_FRAME);
+    if (frame.type == ACK_FRAME && frame.ack_frame->packets.Empty()) {
+      continue;
+    }
     if (packet_creator_.HasPendingFrames()) {
       if (packet_creator_.AddSavedFrame(frame, next_transmission_type_)) {
         // There is pending frames and current frame fits.
