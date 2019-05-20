@@ -938,7 +938,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
       peer_creator_.SetEncrypter(
           level, QuicMakeUnique<NullEncrypter>(peer_framer_.perspective()));
     }
-    QuicFramerPeer::SetLastSerializedConnectionId(
+    QuicFramerPeer::SetLastSerializedServerConnectionId(
         QuicConnectionPeer::GetFramer(&connection_), connection_id_);
     if (version().transport_version > QUIC_VERSION_43) {
       EXPECT_TRUE(QuicConnectionPeer::GetNoStopWaitingFrames(&connection_));
@@ -6877,7 +6877,8 @@ TEST_P(QuicConnectionTest, ClientHandlesVersionNegotiation) {
   // Send a version negotiation packet.
   std::unique_ptr<QuicEncryptedPacket> encrypted(
       peer_framer_.BuildVersionNegotiationPacket(
-          connection_id_, connection_.transport_version() > QUIC_VERSION_43,
+          connection_id_, EmptyQuicConnectionId(),
+          connection_.transport_version() > QUIC_VERSION_43,
           AllSupportedVersions()));
   std::unique_ptr<QuicReceivedPacket> received(
       ConstructReceivedPacket(*encrypted, QuicTime::Zero()));

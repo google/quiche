@@ -156,7 +156,7 @@ class TestDispatcher : public QuicDispatcher {
   using QuicDispatcher::current_client_address;
   using QuicDispatcher::current_peer_address;
   using QuicDispatcher::current_self_address;
-  using QuicDispatcher::SetAllowShortInitialConnectionIds;
+  using QuicDispatcher::SetAllowShortInitialServerConnectionIds;
   using QuicDispatcher::writer;
 };
 
@@ -493,7 +493,7 @@ TEST_F(QuicDispatcherTest, StatelessVersionNegotiation) {
 
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _)).Times(0);
   EXPECT_CALL(*time_wait_list_manager_,
-              SendVersionNegotiationPacket(_, _, _, _, _, _))
+              SendVersionNegotiationPacket(_, _, _, _, _, _, _))
       .Times(1);
   QuicTransportVersion version =
       static_cast<QuicTransportVersion>(QuicTransportVersionMin() - 1);
@@ -512,7 +512,7 @@ TEST_F(QuicDispatcherTest, NoVersionNegotiationWithSmallPacket) {
 
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _)).Times(0);
   EXPECT_CALL(*time_wait_list_manager_,
-              SendVersionNegotiationPacket(_, _, _, _, _, _))
+              SendVersionNegotiationPacket(_, _, _, _, _, _, _))
       .Times(0);
   QuicTransportVersion version =
       static_cast<QuicTransportVersion>(QuicTransportVersionMin() - 1);
@@ -538,7 +538,7 @@ TEST_F(QuicDispatcherTest, VersionNegotiationWithoutChloSizeValidation) {
 
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _)).Times(0);
   EXPECT_CALL(*time_wait_list_manager_,
-              SendVersionNegotiationPacket(_, _, _, _, _, _))
+              SendVersionNegotiationPacket(_, _, _, _, _, _, _))
       .Times(1);
   QuicTransportVersion version =
       static_cast<QuicTransportVersion>(QuicTransportVersionMin() - 1);
@@ -686,7 +686,7 @@ TEST_F(QuicDispatcherTest, InvalidShortConnectionIdLengthReplaced) {
       QuicUtils::CreateRandomConnectionId(mock_helper_.GetRandomGenerator());
 
   // Disable validation of invalid short connection IDs.
-  dispatcher_->SetAllowShortInitialConnectionIds(true);
+  dispatcher_->SetAllowShortInitialServerConnectionIds(true);
   // Note that StrayPacketTruncatedConnectionId covers the case where the
   // validation is still enabled.
 

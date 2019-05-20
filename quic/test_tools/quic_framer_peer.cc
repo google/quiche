@@ -22,10 +22,10 @@ uint64_t QuicFramerPeer::CalculatePacketNumberFromWire(
 }
 
 // static
-void QuicFramerPeer::SetLastSerializedConnectionId(
+void QuicFramerPeer::SetLastSerializedServerConnectionId(
     QuicFramer* framer,
-    QuicConnectionId connection_id) {
-  framer->last_serialized_connection_id_ = connection_id;
+    QuicConnectionId server_connection_id) {
+  framer->last_serialized_server_connection_id_ = server_connection_id;
 }
 
 // static
@@ -337,11 +337,11 @@ void QuicFramerPeer::SetFirstSendingPacketNumber(QuicFramer* framer,
 }
 
 // static
-void QuicFramerPeer::SetExpectedConnectionIDLength(
+void QuicFramerPeer::SetExpectedServerConnectionIDLength(
     QuicFramer* framer,
-    uint8_t expected_connection_id_length) {
-  *const_cast<uint8_t*>(&framer->expected_connection_id_length_) =
-      expected_connection_id_length;
+    uint8_t expected_server_connection_id_length) {
+  *const_cast<uint8_t*>(&framer->expected_server_connection_id_length_) =
+      expected_server_connection_id_length;
 }
 
 // static

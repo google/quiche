@@ -209,8 +209,10 @@ MockableQuicClient::MockableQuicClient(
                                                                this),
           QuicWrapUnique(
               new RecordingProofVerifier(std::move(proof_verifier)))),
-      override_connection_id_(EmptyQuicConnectionId()),
-      connection_id_overridden_(false) {}
+      override_server_connection_id_(EmptyQuicConnectionId()),
+      server_connection_id_overridden_(false),
+      override_client_connection_id_(EmptyQuicConnectionId()),
+      client_connection_id_overridden_(false) {}
 
 MockableQuicClient::~MockableQuicClient() {
   if (connected()) {
@@ -231,13 +233,26 @@ MockableQuicClient::mockable_network_helper() const {
 }
 
 QuicConnectionId MockableQuicClient::GenerateNewConnectionId() {
-  return connection_id_overridden_ ? override_connection_id_
-                                   : QuicClient::GenerateNewConnectionId();
+  return server_connection_id_overridden_
+             ? override_server_connection_id_
+             : QuicClient::GenerateNewConnectionId();
 }
 
-void MockableQuicClient::UseConnectionId(QuicConnectionId connection_id) {
-  connection_id_overridden_ = true;
-  override_connection_id_ = connection_id;
+void MockableQuicClient::UseConnectionId(
+    QuicConnectionId server_connection_id) {
+  server_connection_id_overridden_ = true;
+  override_server_connection_id_ = server_connection_id;
+}
+
+QuicConnectionId MockableQuicClient::GetClientConnectionId() {
+  return client_connection_id_overridden_ ? override_client_connection_id_
+                                          : QuicClient::GetClientConnectionId();
+}
+
+void MockableQuicClient::UseClientConnectionId(
+    QuicConnectionId client_connection_id) {
+  client_connection_id_overridden_ = true;
+  override_client_connection_id_ = client_connection_id;
 }
 
 void MockableQuicClient::UseWriter(QuicPacketWriterWrapper* writer) {
@@ -759,9 +774,15 @@ void QuicTestClient::UseWriter(QuicPacketWriterWrapper* writer) {
   client_->UseWriter(writer);
 }
 
-void QuicTestClient::UseConnectionId(QuicConnectionId connection_id) {
+void QuicTestClient::UseConnectionId(QuicConnectionId server_connection_id) {
   DCHECK(!connected());
-  client_->UseConnectionId(connection_id);
+  client_->UseConnectionId(server_connection_id);
+}
+
+void QuicTestClient::UseClientConnectionId(
+    QuicConnectionId client_connection_id) {
+  DCHECK(!connected());
+  client_->UseClientConnectionId(client_connection_id);
 }
 
 bool QuicTestClient::MigrateSocket(const QuicIpAddress& new_host) {

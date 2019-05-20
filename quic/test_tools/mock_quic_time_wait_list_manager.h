@@ -45,8 +45,9 @@ class MockTimeWaitListManager : public QuicTimeWaitListManager {
                     PacketHeaderFormat header_format,
                     std::unique_ptr<QuicPerPacketContext> packet_context));
 
-  MOCK_METHOD6(SendVersionNegotiationPacket,
-               void(QuicConnectionId connection_id,
+  MOCK_METHOD7(SendVersionNegotiationPacket,
+               void(QuicConnectionId server_connection_id,
+                    QuicConnectionId client_connection_id,
                     bool ietf_quic,
                     const ParsedQuicVersionVector& supported_versions,
                     const QuicSocketAddress& server_address,

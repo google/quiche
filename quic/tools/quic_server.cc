@@ -64,7 +64,7 @@ QuicServer::QuicServer(
     const QuicCryptoServerConfig::ConfigOptions& crypto_config_options,
     const ParsedQuicVersionVector& supported_versions,
     QuicSimpleServerBackend* quic_simple_server_backend,
-    uint8_t expected_connection_id_length)
+    uint8_t expected_server_connection_id_length)
     : port_(0),
       fd_(-1),
       packets_dropped_(0),
@@ -80,7 +80,8 @@ QuicServer::QuicServer(
       version_manager_(supported_versions),
       packet_reader_(new QuicPacketReader()),
       quic_simple_server_backend_(quic_simple_server_backend),
-      expected_connection_id_length_(expected_connection_id_length) {
+      expected_server_connection_id_length_(
+          expected_server_connection_id_length) {
   DCHECK(quic_simple_server_backend_);
   Initialize();
 }
@@ -159,7 +160,7 @@ QuicDispatcher* QuicServer::CreateQuicDispatcher() {
           new QuicSimpleCryptoServerStreamHelper(QuicRandom::GetInstance())),
       std::unique_ptr<QuicEpollAlarmFactory>(
           new QuicEpollAlarmFactory(&epoll_server_)),
-      quic_simple_server_backend_, expected_connection_id_length_);
+      quic_simple_server_backend_, expected_server_connection_id_length_);
 }
 
 void QuicServer::HandleEventsForever() {

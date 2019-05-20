@@ -200,7 +200,8 @@ void QuicTimeWaitListManager::ProcessPacket(
 }
 
 void QuicTimeWaitListManager::SendVersionNegotiationPacket(
-    QuicConnectionId connection_id,
+    QuicConnectionId server_connection_id,
+    QuicConnectionId client_connection_id,
     bool ietf_quic,
     const ParsedQuicVersionVector& supported_versions,
     const QuicSocketAddress& self_address,
@@ -209,7 +210,8 @@ void QuicTimeWaitListManager::SendVersionNegotiationPacket(
   SendOrQueuePacket(QuicMakeUnique<QueuedPacket>(
                         self_address, peer_address,
                         QuicFramer::BuildVersionNegotiationPacket(
-                            connection_id, ietf_quic, supported_versions)),
+                            server_connection_id, client_connection_id,
+                            ietf_quic, supported_versions)),
                     packet_context.get());
 }
 

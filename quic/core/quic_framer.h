@@ -226,7 +226,7 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   QuicFramer(const ParsedQuicVersionVector& supported_versions,
              QuicTime creation_time,
              Perspective perspective,
-             uint8_t expected_connection_id_length);
+             uint8_t expected_server_connection_id_length);
   QuicFramer(const QuicFramer&) = delete;
   QuicFramer& operator=(const QuicFramer&) = delete;
 
@@ -374,18 +374,18 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
       QuicVariableLengthIntegerLength length_length);
 
   // Lightweight parsing of |packet| and populates |format|, |version_flag|,
-  // |version_label|, |destination_connection_id_length|,
-  // |destination_connection_id| and |detailed_error|. Please note,
-  // |expected_connection_id_length| is only used to determine IETF short header
-  // packet's destination connection ID length.
+  // |version_label|, |destination_connection_id|, |source_connection_id| and
+  // |detailed_error|. Please note, |expected_server_connection_id_length| is
+  // only used to determine IETF short header packet's destination connection ID
+  // length.
   static QuicErrorCode ProcessPacketDispatcher(
       const QuicEncryptedPacket& packet,
-      uint8_t expected_connection_id_length,
+      uint8_t expected_server_connection_id_length,
       PacketHeaderFormat* format,
       bool* version_flag,
       QuicVersionLabel* version_label,
-      uint8_t* destination_connection_id_length,
       QuicConnectionId* destination_connection_id,
+      QuicConnectionId* source_connection_id,
       std::string* detailed_error);
 
   // Serializes a packet containing |frames| into |buffer|.
@@ -435,13 +435,15 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
 
   // Returns a new version negotiation packet.
   static std::unique_ptr<QuicEncryptedPacket> BuildVersionNegotiationPacket(
-      QuicConnectionId connection_id,
+      QuicConnectionId server_connection_id,
+      QuicConnectionId client_connection_id,
       bool ietf_quic,
       const ParsedQuicVersionVector& versions);
 
   // Returns a new IETF version negotiation packet.
   static std::unique_ptr<QuicEncryptedPacket> BuildIetfVersionNegotiationPacket(
-      QuicConnectionId connection_id,
+      QuicConnectionId server_connection_id,
+      QuicConnectionId client_connection_id,
       const ParsedQuicVersionVector& versions);
 
   // If header.version_flag is set, the version in the
@@ -576,14 +578,23 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   // If true, QuicFramer will change its expected connection ID length
   // to the received destination connection ID length of all IETF long headers.
   void SetShouldUpdateExpectedConnectionIdLength(
-      bool should_update_expected_connection_id_length) {
-    should_update_expected_connection_id_length_ =
-        should_update_expected_connection_id_length;
+      bool should_update_expected_server_connection_id_length) {
+    should_update_expected_server_connection_id_length_ =
+        should_update_expected_server_connection_id_length;
   }
 
-  // The connection ID length the framer expects on incoming IETF short headers.
-  uint8_t GetExpectedConnectionIdLength() {
-    return expected_connection_id_length_;
+  // The connection ID length the framer expects on incoming IETF short headers
+  // on the server.
+  uint8_t GetExpectedServerConnectionIdLength() {
+    return expected_server_connection_id_length_;
+  }
+
+  // Change the expected destination connection ID length for short headers on
+  // the client.
+  void SetExpectedClientConnectionIdLength(
+      uint8_t expected_client_connection_id_length) {
+    expected_client_connection_id_length_ =
+        expected_client_connection_id_length;
   }
 
   void EnableMultiplePacketNumberSpacesSupport();
@@ -715,8 +726,9 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   static bool ProcessAndValidateIetfConnectionIdLength(
       QuicDataReader* reader,
       ParsedQuicVersion version,
-      bool should_update_expected_connection_id_length,
-      uint8_t* expected_connection_id_length,
+      Perspective perspective,
+      bool should_update_expected_server_connection_id_length,
+      uint8_t* expected_server_connection_id_length,
       uint8_t* destination_connection_id_length,
       uint8_t* source_connection_id_length,
       std::string* detailed_error);
@@ -958,8 +970,10 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   // Largest successfully decrypted packet number per packet number space. Only
   // used when supports_multiple_packet_number_spaces_ is true.
   QuicPacketNumber largest_decrypted_packet_numbers_[NUM_PACKET_NUMBER_SPACES];
-  // Updated by WritePacketHeader.
-  QuicConnectionId last_serialized_connection_id_;
+  // Last server connection ID seen on the wire.
+  QuicConnectionId last_serialized_server_connection_id_;
+  // Last client connection ID seen on the wire.
+  QuicConnectionId last_serialized_client_connection_id_;
   // The last QUIC version label received.
   // TODO(fayang): Remove this when deprecating
   // quic_no_framer_object_in_dispatcher.
@@ -1014,18 +1028,18 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   bool infer_packet_header_type_from_version_;
 
   // IETF short headers contain a destination connection ID but do not
-  // encode its length. This variable contains the length we expect to read.
-  // This is also used to validate the long header connection ID lengths in
-  // older versions of QUIC.
-  // TODO(fayang): Remove this when deprecating
-  // quic_no_framer_object_in_dispatcher.
-  uint8_t expected_connection_id_length_;
+  // encode its length. These variables contains the length we expect to read.
+  // This is also used to validate the long header destination connection ID
+  // lengths in older versions of QUIC.
+  uint8_t expected_server_connection_id_length_;
+  uint8_t expected_client_connection_id_length_;
 
-  // When this is true, QuicFramer will change expected_connection_id_length_
-  // to the received destination connection ID length of all IETF long headers.
+  // When this is true, QuicFramer will change
+  // expected_server_connection_id_length_ to the received destination
+  // connection ID length of all IETF long headers.
   // TODO(fayang): Remove this when deprecating
   // quic_no_framer_object_in_dispatcher.
-  bool should_update_expected_connection_id_length_;
+  bool should_update_expected_server_connection_id_length_;
 
   // Indicates whether this framer supports multiple packet number spaces.
   bool supports_multiple_packet_number_spaces_;

@@ -41,7 +41,7 @@ class QuartcDispatcher : public QuicDispatcher,
       Delegate* delegate);
   ~QuartcDispatcher() override;
 
-  QuartcSession* CreateQuicSession(QuicConnectionId connection_id,
+  QuartcSession* CreateQuicSession(QuicConnectionId server_connection_id,
                                    const QuicSocketAddress& client_address,
                                    QuicStringPiece alpn,
                                    const ParsedQuicVersion& version) override;

@@ -121,7 +121,8 @@ class QuicTimeWaitListManager : public QuicBlockedWriterInterface {
   // Sends a version negotiation packet for |connection_id| announcing support
   // for |supported_versions| to |peer_address| from |self_address|.
   virtual void SendVersionNegotiationPacket(
-      QuicConnectionId connection_id,
+      QuicConnectionId server_connection_id,
+      QuicConnectionId client_connection_id,
       bool ietf_quic,
       const ParsedQuicVersionVector& supported_versions,
       const QuicSocketAddress& self_address,

@@ -41,6 +41,12 @@ GetServerConnectionIdAsRecipient(const QuicPacketHeader& header,
 // Returns the destination connection ID of |header| when |perspective| is
 // client, and the source connection ID when |perspective| is server.
 QUIC_EXPORT_PRIVATE QuicConnectionId
+GetClientConnectionIdAsRecipient(const QuicPacketHeader& header,
+                                 Perspective perspective);
+
+// Returns the destination connection ID of |header| when |perspective| is
+// client, and the source connection ID when |perspective| is server.
+QUIC_EXPORT_PRIVATE QuicConnectionId
 GetServerConnectionIdAsSender(const QuicPacketHeader& header,
                               Perspective perspective);
 
@@ -50,6 +56,12 @@ GetServerConnectionIdAsSender(const QuicPacketHeader& header,
 QUIC_EXPORT_PRIVATE QuicConnectionIdIncluded
 GetServerConnectionIdIncludedAsSender(const QuicPacketHeader& header,
                                       Perspective perspective);
+
+// Returns the destination connection ID of |header| when |perspective| is
+// server, and the source connection ID when |perspective| is client.
+QUIC_EXPORT_PRIVATE QuicConnectionId
+GetClientConnectionIdAsSender(const QuicPacketHeader& header,
+                              Perspective perspective);
 
 // Returns the destination connection ID included of |header| when |perspective|
 // is server, and the source connection ID included when |perspective| is

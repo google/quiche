@@ -16,14 +16,14 @@ QuicSimpleDispatcher::QuicSimpleDispatcher(
     std::unique_ptr<QuicCryptoServerStream::Helper> session_helper,
     std::unique_ptr<QuicAlarmFactory> alarm_factory,
     QuicSimpleServerBackend* quic_simple_server_backend,
-    uint8_t expected_connection_id_length)
+    uint8_t expected_server_connection_id_length)
     : QuicDispatcher(config,
                      crypto_config,
                      version_manager,
                      std::move(helper),
                      std::move(session_helper),
                      std::move(alarm_factory),
-                     expected_connection_id_length),
+                     expected_server_connection_id_length),
       quic_simple_server_backend_(quic_simple_server_backend) {}
 
 QuicSimpleDispatcher::~QuicSimpleDispatcher() = default;

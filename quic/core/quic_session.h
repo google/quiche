@@ -52,7 +52,7 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
     virtual ~Visitor() {}
 
     // Called when the connection is closed after the streams have been closed.
-    virtual void OnConnectionClosed(QuicConnectionId connection_id,
+    virtual void OnConnectionClosed(QuicConnectionId server_connection_id,
                                     QuicErrorCode error,
                                     const std::string& error_details,
                                     ConnectionCloseSource source) = 0;

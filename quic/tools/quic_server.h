@@ -43,7 +43,7 @@ class QuicServer : public QuicSpdyServerBase,
              const QuicCryptoServerConfig::ConfigOptions& server_config_options,
              const ParsedQuicVersionVector& supported_versions,
              QuicSimpleServerBackend* quic_simple_server_backend,
-             uint8_t expected_connection_id_length);
+             uint8_t expected_server_connection_id_length);
   QuicServer(const QuicServer&) = delete;
   QuicServer& operator=(const QuicServer&) = delete;
 
@@ -103,8 +103,8 @@ class QuicServer : public QuicSpdyServerBase,
 
   void set_silent_close(bool value) { silent_close_ = value; }
 
-  uint8_t expected_connection_id_length() {
-    return expected_connection_id_length_;
+  uint8_t expected_server_connection_id_length() {
+    return expected_server_connection_id_length_;
   }
 
  private:
@@ -155,7 +155,7 @@ class QuicServer : public QuicSpdyServerBase,
   QuicSimpleServerBackend* quic_simple_server_backend_;  // unowned.
 
   // Connection ID length expected to be read on incoming IETF short headers.
-  uint8_t expected_connection_id_length_;
+  uint8_t expected_server_connection_id_length_;
 };
 
 }  // namespace quic
