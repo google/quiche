@@ -202,9 +202,9 @@ void QuicSession::OnStreamFrame(const QuicStreamFrame& frame) {
     return;
   }
 
-  StreamHandler handler = GetOrCreateStreamImpl(stream_id);
+  QuicStream* stream = GetOrCreateStream(stream_id);
 
-  if (!handler.stream) {
+  if (!stream) {
     // The stream no longer exists, but we may still be interested in the
     // final stream byte offset sent by the peer. A frame with a FIN can give
     // us this offset.
@@ -214,15 +214,14 @@ void QuicSession::OnStreamFrame(const QuicStreamFrame& frame) {
     }
     return;
   }
-  if (eliminate_static_stream_map_ && frame.fin &&
-      handler.stream->is_static()) {
+  if (eliminate_static_stream_map_ && frame.fin && stream->is_static()) {
     QUIC_RELOADABLE_FLAG_COUNT_N(quic_eliminate_static_stream_map_3, 1, 17);
     connection()->CloseConnection(
         QUIC_INVALID_STREAM_ID, "Attempt to close a static stream",
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return;
   }
-  handler.stream->OnStreamFrame(frame);
+  stream->OnStreamFrame(frame);
 }
 
 void QuicSession::OnCryptoFrame(const QuicCryptoFrame& frame) {
@@ -373,20 +372,20 @@ void QuicSession::OnRstStream(const QuicRstStreamFrame& frame) {
     return;
   }
 
-  StreamHandler handler = GetOrCreateStreamImpl(stream_id);
+  QuicStream* stream = GetOrCreateStream(stream_id);
 
-  if (!handler.stream) {
+  if (!stream) {
     HandleRstOnValidNonexistentStream(frame);
     return;  // Errors are handled by GetOrCreateStream.
   }
-  if (eliminate_static_stream_map_ && handler.stream->is_static()) {
+  if (eliminate_static_stream_map_ && stream->is_static()) {
     QUIC_RELOADABLE_FLAG_COUNT_N(quic_eliminate_static_stream_map_3, 3, 17);
     connection()->CloseConnection(
         QUIC_INVALID_STREAM_ID, "Attempt to reset a static stream",
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return;
   }
-  handler.stream->OnStreamReset(frame);
+  stream->OnStreamReset(frame);
 }
 
 void QuicSession::OnGoAway(const QuicGoAwayFrame& frame) {
@@ -1266,24 +1265,17 @@ bool QuicSession::CanOpenNextOutgoingUnidirectionalStream() {
 }
 
 QuicStream* QuicSession::GetOrCreateStream(const QuicStreamId stream_id) {
-  StreamHandler handler = GetOrCreateStreamImpl(stream_id);
-  DCHECK(!handler.is_pending);
-  return handler.stream;
-}
-
-QuicSession::StreamHandler QuicSession::GetOrCreateStreamImpl(
-    QuicStreamId stream_id) {
   if (eliminate_static_stream_map_ &&
       QuicUtils::IsCryptoStreamId(connection_->transport_version(),
                                   stream_id)) {
     QUIC_RELOADABLE_FLAG_COUNT_N(quic_eliminate_static_stream_map_3, 13, 17);
-    return StreamHandler(GetMutableCryptoStream());
+    return GetMutableCryptoStream();
   }
   StaticStreamMap::iterator it = static_stream_map_.find(stream_id);
   if (it != static_stream_map_.end()) {
-    return StreamHandler(it->second);
+    return it->second;
   }
-  return GetOrCreateDynamicStreamImpl(stream_id);
+  return GetOrCreateDynamicStream(stream_id);
 }
 
 void QuicSession::StreamDraining(QuicStreamId stream_id) {
@@ -1337,28 +1329,21 @@ PendingStream* QuicSession::GetOrCreatePendingStream(QuicStreamId stream_id) {
 
 QuicStream* QuicSession::GetOrCreateDynamicStream(
     const QuicStreamId stream_id) {
-  StreamHandler handler = GetOrCreateDynamicStreamImpl(stream_id);
-  DCHECK(!handler.is_pending);
-  return handler.stream;
-}
-
-QuicSession::StreamHandler QuicSession::GetOrCreateDynamicStreamImpl(
-    QuicStreamId stream_id) {
   DCHECK(!QuicContainsKey(static_stream_map_, stream_id))
       << "Attempt to call GetOrCreateDynamicStream for a static stream";
 
   DynamicStreamMap::iterator it = dynamic_stream_map_.find(stream_id);
   if (it != dynamic_stream_map_.end()) {
-    return StreamHandler(it->second.get());
+    return it->second.get();
   }
 
   if (IsClosedStream(stream_id)) {
-    return StreamHandler();
+    return nullptr;
   }
 
   if (!IsIncomingStream(stream_id)) {
     HandleFrameOnNonexistentOutgoingStream(stream_id);
-    return StreamHandler();
+    return nullptr;
   }
 
   // TODO(fkastenholz): If we are creating a new stream and we have
@@ -1367,7 +1352,7 @@ QuicSession::StreamHandler QuicSession::GetOrCreateDynamicStreamImpl(
   // B) reject stream creation ("return nullptr")
 
   if (!MaybeIncreaseLargestPeerStreamId(stream_id)) {
-    return StreamHandler();
+    return nullptr;
   }
 
   if (connection_->transport_version() != QUIC_VERSION_99) {
@@ -1377,11 +1362,11 @@ QuicSession::StreamHandler QuicSession::GetOrCreateDynamicStreamImpl(
             GetNumOpenIncomingStreams())) {
       // Refuse to open the stream.
       SendRstStream(stream_id, QUIC_REFUSED_STREAM, 0);
-      return StreamHandler();
+      return nullptr;
     }
   }
 
-  return StreamHandler(CreateIncomingStream(stream_id));
+  return CreateIncomingStream(stream_id);
 }
 
 void QuicSession::set_largest_peer_created_stream_id(

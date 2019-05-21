@@ -557,31 +557,6 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
     return stream_id_manager_;
   }
 
-  // A StreamHandler represents an object which can receive a STREAM or
-  // or RST_STREAM frame.
-  struct StreamHandler {
-    StreamHandler() : is_pending(false), stream(nullptr) {}
-
-    // Creates a StreamHandler wrapping a QuicStream.
-    explicit StreamHandler(QuicStream* stream)
-        : is_pending(false), stream(stream) {}
-
-    // Creates a StreamHandler wrapping a PendingStream.
-    explicit StreamHandler(PendingStream* pending)
-        : is_pending(true), pending(pending) {
-      DCHECK(pending != nullptr);
-    }
-
-    // True if this handler contains a non-null PendingStream, false otherwise.
-    bool is_pending;
-    union {
-      QuicStream* stream;
-      PendingStream* pending;
-    };
-  };
-
-  StreamHandler GetOrCreateStreamImpl(QuicStreamId stream_id);
-
   // Processes the stream type information of |pending| depending on
   // different kinds of sessions' own rules.
   virtual void ProcessPendingStream(PendingStream* pending) {}
@@ -619,8 +594,6 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
   // Find stream with |id|, returns nullptr if the stream does not exist or
   // closed.
   QuicStream* GetStream(QuicStreamId id) const;
-
-  StreamHandler GetOrCreateDynamicStreamImpl(QuicStreamId stream_id);
 
   PendingStream* GetOrCreatePendingStream(QuicStreamId stream_id);
 
