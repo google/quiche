@@ -692,15 +692,11 @@ TEST_P(StreamMemberLifetimeTest, Basic) {
     // TODO(nharper): Fix this test so it doesn't rely on QUIC crypto.
     return;
   }
-  if (GetQuicReloadableFlag(enable_quic_stateless_reject_support) ||
-      GetQuicReloadableFlag(quic_use_cheap_stateless_rejects)) {
-    return;
-  }
 
   const QuicClock* clock = helper_.GetClock();
   CryptoHandshakeMessage chlo = crypto_test_utils::GenerateDefaultInchoateCHLO(
       clock, GetParam().transport_version, &crypto_config_);
-  chlo.SetVector(kCOPT, QuicTagVector{kSREJ});
+  chlo.SetVector(kCOPT, QuicTagVector{kREJ});
   std::vector<ParsedQuicVersion> packet_version_list = {GetParam()};
   std::unique_ptr<QuicEncryptedPacket> packet(ConstructEncryptedPacket(
       TestConnectionId(1), EmptyQuicConnectionId(), true, false, 1,

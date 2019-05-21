@@ -57,29 +57,15 @@ const char kOldConfigId[] = "old-config-id";
 }  // namespace
 
 struct TestParams {
-  TestParams(bool enable_stateless_rejects,
-             bool use_stateless_rejects,
-             ParsedQuicVersionVector supported_versions)
-      : enable_stateless_rejects(enable_stateless_rejects),
-        use_stateless_rejects(use_stateless_rejects),
-        supported_versions(std::move(supported_versions)) {}
+  TestParams(ParsedQuicVersionVector supported_versions)
+      : supported_versions(std::move(supported_versions)) {}
 
   friend std::ostream& operator<<(std::ostream& os, const TestParams& p) {
-    os << "  enable_stateless_rejects: " << p.enable_stateless_rejects
-       << std::endl;
-    os << "  use_stateless_rejects: " << p.use_stateless_rejects << std::endl;
     os << "  versions: "
        << ParsedQuicVersionVectorToString(p.supported_versions) << " }";
     return os;
   }
 
-  // This only enables the stateless reject feature via the feature-flag.
-  // It does not force the crypto server to emit stateless rejects.
-  bool enable_stateless_rejects;
-  // If true, this forces the server to send a stateless reject when
-  // rejecting messages.  This should be a no-op if
-  // enable_stateless_rejects is false.
-  bool use_stateless_rejects;
   // Versions supported by client and server.
   ParsedQuicVersionVector supported_versions;
 };
@@ -87,18 +73,14 @@ struct TestParams {
 // Constructs various test permutations.
 std::vector<TestParams> GetTestParams() {
   std::vector<TestParams> params;
-  static const bool kTrueFalse[] = {true, false};
-  for (bool enable_stateless_rejects : kTrueFalse) {
-    for (bool use_stateless_rejects : kTrueFalse) {
-      // Start with all versions, remove highest on each iteration.
-      ParsedQuicVersionVector supported_versions = AllSupportedVersions();
-      while (!supported_versions.empty()) {
-        params.push_back(TestParams(enable_stateless_rejects,
-                                    use_stateless_rejects, supported_versions));
-        supported_versions.erase(supported_versions.begin());
-      }
-    }
+
+  // Start with all versions, remove highest on each iteration.
+  ParsedQuicVersionVector supported_versions = AllSupportedVersions();
+  while (!supported_versions.empty()) {
+    params.push_back(TestParams(supported_versions));
+    supported_versions.erase(supported_versions.begin());
   }
+
   return params;
 }
 
@@ -124,10 +106,6 @@ class CryptoServerTest : public QuicTestWithParam<TestParams> {
 
     client_version_ = supported_versions_.front();
     client_version_string_ = ParsedQuicVersionToString(client_version_);
-
-    SetQuicReloadableFlag(enable_quic_stateless_reject_support,
-                          GetParam().enable_stateless_rejects);
-    use_stateless_rejects_ = GetParam().use_stateless_rejects;
   }
 
   void SetUp() override {
@@ -169,7 +147,14 @@ class CryptoServerTest : public QuicTestWithParam<TestParams> {
     const HandshakeFailureReason kRejectReasons[] = {
         SERVER_CONFIG_INCHOATE_HELLO_FAILURE};
     CheckRejectReasons(kRejectReasons, QUIC_ARRAYSIZE(kRejectReasons));
-    CheckForServerDesignatedConnectionId();
+
+    // TODO(wub): Delete this block when deprecating RCID.
+    {
+      uint64_t server_designated_connection_id;
+      EXPECT_EQ(QUIC_CRYPTO_MESSAGE_PARAMETER_NOT_FOUND,
+                out_.GetUint64(kRCID, &server_designated_connection_id));
+      rand_for_id_generation_.ChangeValue();
+    }
 
     QuicStringPiece srct;
     ASSERT_TRUE(out_.GetStringPiece(kSourceAddressTokenTag, &srct));
@@ -320,8 +305,8 @@ class CryptoServerTest : public QuicTestWithParam<TestParams> {
         result, /*reject_only=*/false,
         /*connection_id=*/TestConnectionId(1), server_address, client_address_,
         supported_versions_.front(), supported_versions_,
-        use_stateless_rejects_, server_designated_connection_id, &clock_, rand_,
-        &compressed_certs_cache_, params_, signed_config_,
+        /*use_stateless_rejects=*/false, server_designated_connection_id,
+        &clock_, rand_, &compressed_certs_cache_, params_, signed_config_,
         /*total_framing_overhead=*/50, chlo_packet_size_,
         QuicMakeUnique<ProcessCallback>(result, should_succeed, error_substr,
                                         &called, &out_));
@@ -352,36 +337,8 @@ class CryptoServerTest : public QuicTestWithParam<TestParams> {
     }
   }
 
-  // If the server is rejecting statelessly, make sure it contains a
-  // server-designated connection id.  Once the check is complete,
-  // allow the random id-generator to move to the next value.
-  void CheckForServerDesignatedConnectionId() {
-    uint64_t server_designated_connection_id;
-    if (!RejectsAreStateless()) {
-      EXPECT_EQ(QUIC_CRYPTO_MESSAGE_PARAMETER_NOT_FOUND,
-                out_.GetUint64(kRCID, &server_designated_connection_id));
-    } else {
-      ASSERT_EQ(QUIC_NO_ERROR,
-                out_.GetUint64(kRCID, &server_designated_connection_id));
-      server_designated_connection_id =
-          QuicEndian::NetToHost64(server_designated_connection_id);
-      EXPECT_EQ(rand_for_id_generation_.RandUint64(),
-                server_designated_connection_id);
-    }
-    rand_for_id_generation_.ChangeValue();
-  }
-
   void CheckRejectTag() {
-    if (RejectsAreStateless()) {
-      ASSERT_EQ(kSREJ, out_.tag()) << QuicTagToString(out_.tag());
-    } else {
-      ASSERT_EQ(kREJ, out_.tag()) << QuicTagToString(out_.tag());
-    }
-  }
-
-  bool RejectsAreStateless() {
-    return GetParam().enable_stateless_rejects &&
-           GetParam().use_stateless_rejects;
+    ASSERT_EQ(kREJ, out_.tag()) << QuicTagToString(out_.tag());
   }
 
   std::string XlctHexString() {
@@ -406,7 +363,6 @@ class CryptoServerTest : public QuicTestWithParam<TestParams> {
   QuicReferenceCountedPointer<QuicSignedServerConfig> signed_config_;
   CryptoHandshakeMessage out_;
   uint8_t orbit_[kOrbitSize];
-  bool use_stateless_rejects_;
   size_t chlo_packet_size_;
 
   // These strings contain hex escaped values from the server suitable for using
