@@ -275,7 +275,8 @@ void QuicSentPacketManager::AdjustNetworkParameters(
     SetInitialRtt(rtt);
   }
   const QuicByteCount old_cwnd = send_algorithm_->GetCongestionWindow();
-  if (GetQuicReloadableFlag(quic_conservative_bursts) && using_pacing_) {
+  if (GetQuicReloadableFlag(quic_conservative_bursts) && using_pacing_ &&
+      !bandwidth.IsZero()) {
     QUIC_RELOADABLE_FLAG_COUNT(quic_conservative_bursts);
     pacing_sender_.SetBurstTokens(kConservativeUnpacedBurst);
   }
