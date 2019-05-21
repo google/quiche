@@ -76,9 +76,11 @@ void QuicSpdyClientBase::OnClose(QuicSpdyStream* stream) {
   // Store response headers and body.
   if (store_response_) {
     auto status = response_headers.find(":status");
-    if (status == response_headers.end() ||
-        !QuicTextUtils::StringToInt(status->second, &latest_response_code_)) {
-      QUIC_LOG(ERROR) << "Invalid response headers";
+    if (status == response_headers.end()) {
+      QUIC_LOG(ERROR) << "Missing :status response header";
+    } else if (!QuicTextUtils::StringToInt(status->second,
+                                           &latest_response_code_)) {
+      QUIC_LOG(ERROR) << "Invalid :status response header: " << status->second;
     }
     latest_response_headers_ = response_headers.DebugString();
     preliminary_response_headers_ =
