@@ -376,8 +376,7 @@ QuicConnection::QuicConnection(
   if (use_uber_received_packet_manager_) {
     QUIC_RELOADABLE_FLAG_COUNT(quic_use_uber_received_packet_manager);
   }
-  QUIC_DLOG(INFO) << ENDPOINT
-                  << "Created connection with server connection_id: "
+  QUIC_DLOG(INFO) << ENDPOINT << "Created connection with server connection ID "
                   << server_connection_id
                   << " and version: " << ParsedQuicVersionToString(version());
 
@@ -822,31 +821,55 @@ bool QuicConnection::OnUnauthenticatedPublicHeader(
   QuicConnectionId server_connection_id =
       GetServerConnectionIdAsRecipient(header, perspective_);
 
-  if (server_connection_id == server_connection_id_ ||
-      HasIncomingConnectionId(server_connection_id)) {
-    return true;
-  }
+  if (server_connection_id != server_connection_id_ &&
+      !HasIncomingConnectionId(server_connection_id)) {
+    if (PacketCanReplaceConnectionId(header, perspective_)) {
+      QUIC_DLOG(INFO) << ENDPOINT << "Accepting packet with new connection ID "
+                      << server_connection_id << " instead of "
+                      << server_connection_id_;
+      return true;
+    }
 
-  if (PacketCanReplaceConnectionId(header, perspective_)) {
-    QUIC_DLOG(INFO) << ENDPOINT << "Accepting packet with new connection ID "
+    ++stats_.packets_dropped;
+    QUIC_DLOG(INFO) << ENDPOINT
+                    << "Ignoring packet from unexpected server connection ID "
                     << server_connection_id << " instead of "
                     << server_connection_id_;
+    QUIC_BUG << ENDPOINT
+             << "Ignoring packet from unexpected server connection ID "
+             << server_connection_id << " instead of " << server_connection_id_
+             << " header " << header;
+    if (debug_visitor_ != nullptr) {
+      debug_visitor_->OnIncorrectConnectionId(server_connection_id);
+    }
+    // If this is a server, the dispatcher routes each packet to the
+    // QuicConnection responsible for the packet's connection ID.  So if control
+    // arrives here and this is a server, the dispatcher must be malfunctioning.
+    DCHECK_NE(Perspective::IS_SERVER, perspective_);
+    return false;
+  }
+
+  if (!version().SupportsClientConnectionIds()) {
     return true;
   }
 
-  ++stats_.packets_dropped;
-  QUIC_DLOG(INFO) << ENDPOINT
-                  << "Ignoring packet from unexpected ConnectionId: "
-                  << server_connection_id << " instead of "
-                  << server_connection_id_;
-  if (debug_visitor_ != nullptr) {
-    debug_visitor_->OnIncorrectConnectionId(server_connection_id);
+  QuicConnectionId client_connection_id =
+      GetClientConnectionIdAsRecipient(header, perspective_);
+
+  if (client_connection_id != client_connection_id_) {
+    ++stats_.packets_dropped;
+    QUIC_DLOG(INFO) << ENDPOINT
+                    << "Ignoring packet from unexpected client connection ID "
+                    << client_connection_id << " instead of "
+                    << client_connection_id_;
+    QUIC_BUG << ENDPOINT
+             << "Ignoring packet from unexpected client connection ID "
+             << client_connection_id << " instead of " << client_connection_id_
+             << " header " << header;
+    return false;
   }
-  // If this is a server, the dispatcher routes each packet to the
-  // QuicConnection responsible for the packet's connection ID.  So if control
-  // arrives here and this is a server, the dispatcher must be malfunctioning.
-  DCHECK_NE(Perspective::IS_SERVER, perspective_);
-  return false;
+
+  return true;
 }
 
 bool QuicConnection::OnUnauthenticatedHeader(const QuicPacketHeader& header) {
@@ -2396,8 +2419,17 @@ const QuicFrames QuicConnection::MaybeBundleAckOpportunistically() {
   }
   ResetAckStates();
 
-  QUIC_DVLOG(1) << ENDPOINT << "Bundle an ACK opportunistically";
-  frames.push_back(GetUpdatedAckFrame());
+  QuicFrame updated_ack_frame = GetUpdatedAckFrame();
+  if (!updated_ack_frame.ack_frame->packets.Empty()) {
+    QUIC_DVLOG(1) << ENDPOINT << "Bundle an ACK opportunistically";
+    frames.push_back(updated_ack_frame);
+  } else {
+    QUIC_BUG << "Trying to opportunistically bundle ACK at "
+             << QuicUtils::EncryptionLevelToString(encryption_level_) << " "
+             << (has_pending_ack ? "" : "!")
+             << "has_pending_ack, stop_waiting_count_ " << stop_waiting_count_;
+  }
+
   if (!no_stop_waiting_frames_) {
     QuicStopWaitingFrame stop_waiting;
     PopulateStopWaitingFrame(&stop_waiting);
@@ -4022,7 +4054,9 @@ EncryptionLevel QuicConnection::GetConnectionCloseEncryptionLevel() const {
   }
   if (sent_packet_manager_.handshake_confirmed()) {
     // A forward secure packet has been received.
-    QUIC_BUG_IF(encryption_level_ != ENCRYPTION_FORWARD_SECURE);
+    QUIC_BUG_IF(encryption_level_ != ENCRYPTION_FORWARD_SECURE)
+        << "Unexpected connection close encryption level "
+        << QuicUtils::EncryptionLevelToString(encryption_level_);
     return ENCRYPTION_FORWARD_SECURE;
   }
   if (framer_.HasEncrypterOfEncryptionLevel(ENCRYPTION_ZERO_RTT)) {
@@ -4221,6 +4255,23 @@ const QuicAckFrame& QuicConnection::ack_frame() const {
     return uber_received_packet_manager_.ack_frame();
   }
   return received_packet_manager_.ack_frame();
+}
+
+void QuicConnection::set_client_connection_id(
+    QuicConnectionId client_connection_id) {
+  if (!version().SupportsClientConnectionIds()) {
+    QUIC_BUG_IF(!client_connection_id.IsEmpty())
+        << ENDPOINT << "Attempted to use client connection ID "
+        << client_connection_id << " with unsupported version " << version();
+    return;
+  }
+  client_connection_id_ = client_connection_id;
+  QUIC_DLOG(INFO) << ENDPOINT << "setting client connection ID to "
+                  << client_connection_id_
+                  << " for connection with server connection ID "
+                  << server_connection_id_;
+  packet_generator_.SetClientConnectionId(client_connection_id_);
+  framer_.SetExpectedClientConnectionIdLength(client_connection_id_.length());
 }
 
 #undef ENDPOINT  // undef for jumbo builds

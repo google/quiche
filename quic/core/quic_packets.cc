@@ -27,6 +27,16 @@ QuicConnectionId GetServerConnectionIdAsRecipient(
   return header.source_connection_id;
 }
 
+QuicConnectionId GetClientConnectionIdAsRecipient(
+    const QuicPacketHeader& header,
+    Perspective perspective) {
+  DCHECK(GetQuicRestartFlag(quic_do_not_override_connection_id));
+  if (perspective == Perspective::IS_CLIENT) {
+    return header.destination_connection_id;
+  }
+  return header.source_connection_id;
+}
+
 QuicConnectionId GetServerConnectionIdAsSender(const QuicPacketHeader& header,
                                                Perspective perspective) {
   if (perspective == Perspective::IS_CLIENT ||
@@ -46,6 +56,16 @@ QuicConnectionIdIncluded GetServerConnectionIdIncludedAsSender(
   }
   QUIC_RESTART_FLAG_COUNT_N(quic_do_not_override_connection_id, 4, 5);
   return header.source_connection_id_included;
+}
+
+QuicConnectionId GetClientConnectionIdAsSender(const QuicPacketHeader& header,
+                                               Perspective perspective) {
+  if (perspective == Perspective::IS_CLIENT ||
+      !GetQuicRestartFlag(quic_do_not_override_connection_id)) {
+    return header.source_connection_id;
+  }
+  QUIC_RESTART_FLAG_COUNT_N(quic_do_not_override_connection_id, 3, 5);
+  return header.destination_connection_id;
 }
 
 QuicConnectionIdIncluded GetClientConnectionIdIncludedAsSender(

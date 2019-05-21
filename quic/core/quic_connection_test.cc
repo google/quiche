@@ -6877,7 +6877,8 @@ TEST_P(QuicConnectionTest, ClientHandlesVersionNegotiation) {
   // Send a version negotiation packet.
   std::unique_ptr<QuicEncryptedPacket> encrypted(
       peer_framer_.BuildVersionNegotiationPacket(
-          connection_id_, connection_.transport_version() > QUIC_VERSION_43,
+          connection_id_, EmptyQuicConnectionId(),
+          connection_.transport_version() > QUIC_VERSION_43,
           AllSupportedVersions()));
   std::unique_ptr<QuicReceivedPacket> received(
       ConstructReceivedPacket(*encrypted, QuicTime::Zero()));
@@ -6932,7 +6933,8 @@ TEST_P(QuicConnectionTest, BadVersionNegotiation) {
                                  ConnectionCloseSource::FROM_SELF));
   std::unique_ptr<QuicEncryptedPacket> encrypted(
       framer_.BuildVersionNegotiationPacket(
-          connection_id_, connection_.transport_version() > QUIC_VERSION_43,
+          connection_id_, EmptyQuicConnectionId(),
+          connection_.transport_version() > QUIC_VERSION_43,
           AllSupportedVersions()));
   std::unique_ptr<QuicReceivedPacket> received(
       ConstructReceivedPacket(*encrypted, QuicTime::Zero()));

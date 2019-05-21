@@ -162,6 +162,9 @@ struct QUIC_EXPORT_PRIVATE ParsedQuicVersion {
 
   // Returns whether this version supports IETF RETRY packets.
   bool SupportsRetry() const;
+
+  // Returns whether this version supports client connection ID.
+  bool SupportsClientConnectionIds() const;
 };
 
 QUIC_EXPORT_PRIVATE ParsedQuicVersion UnsupportedQuicVersion();

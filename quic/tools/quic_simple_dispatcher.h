@@ -21,7 +21,7 @@ class QuicSimpleDispatcher : public QuicDispatcher {
       std::unique_ptr<QuicCryptoServerStream::Helper> session_helper,
       std::unique_ptr<QuicAlarmFactory> alarm_factory,
       QuicSimpleServerBackend* quic_simple_server_backend,
-      uint8_t expected_connection_id_length);
+      uint8_t expected_server_connection_id_length);
 
   ~QuicSimpleDispatcher() override;
 

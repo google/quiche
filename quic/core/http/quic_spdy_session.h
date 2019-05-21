@@ -9,6 +9,22 @@
 #include <memory>
 #include <string>
 
+<<<<<<<
+|||||||
+#include "net/third_party/quic/core/http/quic_header_list.h"
+#include "net/third_party/quic/core/http/quic_headers_stream.h"
+#include "net/third_party/quic/core/http/quic_spdy_stream.h"
+#include "net/third_party/quic/core/qpack/qpack_decoder.h"
+#include "net/third_party/quic/core/qpack/qpack_decoder_stream_sender.h"
+=======
+#include "net/third_party/quic/core/http/quic_header_list.h"
+#include "net/third_party/quic/core/http/quic_headers_stream.h"
+#include "net/third_party/quic/core/http/quic_receive_control_stream.h"
+#include "net/third_party/quic/core/http/quic_send_control_stream.h"
+#include "net/third_party/quic/core/http/quic_spdy_stream.h"
+#include "net/third_party/quic/core/qpack/qpack_decoder.h"
+#include "net/third_party/quic/core/qpack/qpack_decoder_stream_sender.h"
+>>>>>>>
 #include "net/third_party/quiche/src/quic/core/http/quic_header_list.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_headers_stream.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_spdy_stream.h"
@@ -243,7 +259,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
 
   // Creates HTTP/3 unidirectional stream of |id| and |type|. Sends
   // STOP_SENDING frame if |type| is not supported.
-  void CreateIncomingStreamFromPending(QuicStreamId id, uint64_t type);
+  void CreateIncomingStreamFromPending(PendingStream* pending, uint64_t type);
 
  private:
   friend class test::QuicSpdySessionPeer;
@@ -284,6 +300,10 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // static_stream_map logic when flag eliminate_static_stream_map
   // is deprecated.
   QuicHeadersStream* unowned_headers_stream_;
+
+  // HTTP/3 control streams.
+  QuicSendControlStream* send_control_stream_;
+  QuicReceiveControlStream* receive_control_stream_;
 
   // The maximum size of a header block that will be accepted from the peer,
   // defined per spec as key + value + overhead per field (uncompressed).

@@ -583,6 +583,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
     return effective_peer_address_;
   }
   QuicConnectionId connection_id() const { return server_connection_id_; }
+  QuicConnectionId client_connection_id() const {
+    return client_connection_id_;
+  }
+  void set_client_connection_id(QuicConnectionId client_connection_id);
   const QuicClock* clock() const { return clock_; }
   QuicRandom* random_generator() const { return random_generator_; }
   QuicByteCount max_packet_length() const;
@@ -1169,6 +1173,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   QuicRandom* random_generator_;
 
   QuicConnectionId server_connection_id_;
+  QuicConnectionId client_connection_id_;
   // Address on the last successfully processed packet received from the
   // direct peer.
   QuicSocketAddress self_address_;

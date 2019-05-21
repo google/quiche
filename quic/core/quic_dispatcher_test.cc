@@ -493,7 +493,7 @@ TEST_F(QuicDispatcherTest, StatelessVersionNegotiation) {
 
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _)).Times(0);
   EXPECT_CALL(*time_wait_list_manager_,
-              SendVersionNegotiationPacket(_, _, _, _, _, _))
+              SendVersionNegotiationPacket(_, _, _, _, _, _, _))
       .Times(1);
   QuicTransportVersion version =
       static_cast<QuicTransportVersion>(QuicTransportVersionMin() - 1);
@@ -512,7 +512,7 @@ TEST_F(QuicDispatcherTest, NoVersionNegotiationWithSmallPacket) {
 
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _)).Times(0);
   EXPECT_CALL(*time_wait_list_manager_,
-              SendVersionNegotiationPacket(_, _, _, _, _, _))
+              SendVersionNegotiationPacket(_, _, _, _, _, _, _))
       .Times(0);
   QuicTransportVersion version =
       static_cast<QuicTransportVersion>(QuicTransportVersionMin() - 1);
@@ -538,7 +538,7 @@ TEST_F(QuicDispatcherTest, VersionNegotiationWithoutChloSizeValidation) {
 
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _)).Times(0);
   EXPECT_CALL(*time_wait_list_manager_,
-              SendVersionNegotiationPacket(_, _, _, _, _, _))
+              SendVersionNegotiationPacket(_, _, _, _, _, _, _))
       .Times(1);
   QuicTransportVersion version =
       static_cast<QuicTransportVersion>(QuicTransportVersionMin() - 1);

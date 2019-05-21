@@ -380,6 +380,13 @@ class QuicSpdySessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
     return QuicUtils::StreamIdDelta(connection_->transport_version());
   }
 
+  std::string EncodeSettings(const SettingsFrame& settings) {
+    HttpEncoder encoder;
+    std::unique_ptr<char[]> buffer;
+    auto header_length = encoder.SerializeSettingsFrame(settings, &buffer);
+    return std::string(buffer.get(), header_length);
+  }
+
   QuicStreamId StreamCountToId(QuicStreamCount stream_count,
                                Perspective perspective,
                                bool bidirectional) {
@@ -420,7 +427,7 @@ TEST_P(QuicSpdySessionTestServer, UsesPendingStreams) {
   if (!VersionHasControlStreams(transport_version())) {
     return;
   }
-  EXPECT_FALSE(session_.UsesPendingStreams());
+  EXPECT_TRUE(session_.UsesPendingStreams());
 }
 
 TEST_P(QuicSpdySessionTestServer, PeerAddress) {
@@ -705,7 +712,7 @@ TEST_P(QuicSpdySessionTestServer, OnCanWriteBundlesStreams) {
   MockPacketWriter* writer = static_cast<MockPacketWriter*>(
       QuicConnectionPeer::GetWriter(session_.connection()));
   EXPECT_CALL(*writer, WritePacket(_, _, _, _, _))
-      .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 0)));
+      .WillRepeatedly(Return(WriteResult(WRITE_STATUS_OK, 0)));
   session_.GetMutableCryptoStream()->OnHandshakeMessage(msg);
 
   // Drive congestion control manually.
@@ -1622,7 +1629,7 @@ TEST_P(QuicSpdySessionTestClient, UsesPendingStreams) {
   if (!VersionHasControlStreams(transport_version())) {
     return;
   }
-  EXPECT_FALSE(session_.UsesPendingStreams());
+  EXPECT_TRUE(session_.UsesPendingStreams());
 }
 
 TEST_P(QuicSpdySessionTestClient, AvailableStreamsClient) {
@@ -1956,6 +1963,32 @@ TEST_P(QuicSpdySessionTestServer,
 
   EXPECT_CALL(*connection_, SendControlFrame(_));
   session_.ProcessPendingStream(&pending);
+}
+
+TEST_P(QuicSpdySessionTestServer, ReceiveControlStream) {
+  if (!VersionHasControlStreams(transport_version()) ||
+      !GetQuicReloadableFlag(quic_eliminate_static_stream_map_2)) {
+    return;
+  }
+  // Use a arbitrary stream id.
+  QuicStreamId stream_id =
+      GetNthClientInitiatedUnidirectionalStreamId(transport_version(), 3);
+  char type[] = {0x00};
+
+  QuicStreamFrame data1(stream_id, false, 0, QuicStringPiece(type, 1));
+  session_.OnStreamFrame(data1);
+  EXPECT_EQ(stream_id,
+            QuicSpdySessionPeer::GetReceiveControlStream(&session_)->id());
+
+  SettingsFrame settings;
+  settings.values[3] = 2;
+  settings.values[6] = 5;
+  std::string data = EncodeSettings(settings);
+  QuicStreamFrame frame(stream_id, false, 1, QuicStringPiece(data));
+
+  EXPECT_NE(5u, session_.max_inbound_header_list_size());
+  session_.OnStreamFrame(frame);
+  EXPECT_EQ(5u, session_.max_inbound_header_list_size());
 }
 
 }  // namespace

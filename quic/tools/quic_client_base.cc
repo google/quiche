@@ -109,6 +109,11 @@ bool QuicClientBase::Connect() {
 void QuicClientBase::StartConnect() {
   DCHECK(initialized_);
   DCHECK(!connected());
+  network_helper_->CleanUpAllUDPSockets();
+  if (!network_helper_->CreateUDPSocketAndBind(server_address_,
+                                               bind_to_address_, local_port_)) {
+    return;
+  }
   QuicPacketWriter* writer = network_helper_->CreateQuicPacketWriter();
   ParsedQuicVersion mutual_version = UnsupportedQuicVersion();
   const bool can_reconnect_with_different_version =
@@ -135,6 +140,7 @@ void QuicClientBase::StartConnect() {
                          can_reconnect_with_different_version
                              ? ParsedQuicVersionVector{mutual_version}
                              : supported_versions()));
+  session()->connection()->set_client_connection_id(GetClientConnectionId());
   if (initial_max_packet_length_ != 0) {
     session()->connection()->SetMaxPacketLength(initial_max_packet_length_);
   }
@@ -331,6 +337,10 @@ QuicConnectionId QuicClientBase::GetNextServerDesignatedConnectionId() {
 
 QuicConnectionId QuicClientBase::GenerateNewConnectionId() {
   return QuicUtils::CreateRandomConnectionId();
+}
+
+QuicConnectionId QuicClientBase::GetClientConnectionId() {
+  return EmptyQuicConnectionId();
 }
 
 bool QuicClientBase::CanReconnectWithDifferentVersion(

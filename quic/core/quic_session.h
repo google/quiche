@@ -506,6 +506,8 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
     return dynamic_stream_map_;
   }
 
+  PendingStreamMap& pending_streams() { return pending_stream_map_; }
+
   ClosedStreams* closed_streams() { return &closed_streams_; }
 
   const ZombieStreamMap& zombie_streams() const { return zombie_streams_; }

@@ -160,9 +160,9 @@ class QuicFramerPeer {
                                    QuicPacketNumberLength packet_number_length);
   static void SetFirstSendingPacketNumber(QuicFramer* framer,
                                           uint64_t packet_number);
-  static void SetExpectedConnectionIDLength(
+  static void SetExpectedServerConnectionIDLength(
       QuicFramer* framer,
-      uint8_t expected_connection_id_length);
+      uint8_t expected_server_connection_id_length);
   static QuicPacketNumber GetLargestDecryptedPacketNumber(
       QuicFramer* framer,
       PacketNumberSpace packet_number_space);

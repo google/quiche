@@ -14,7 +14,9 @@ namespace quic {
 QuicSendControlStream::QuicSendControlStream(QuicStreamId id,
                                              QuicSpdySession* session)
     : QuicStream(id, session, /*is_static = */ true, WRITE_UNIDIRECTIONAL),
-      settings_sent_(false) {}
+      settings_sent_(false) {
+  DisableConnectionFlowControlForThisStream();
+}
 
 void QuicSendControlStream::OnStreamReset(const QuicRstStreamFrame& frame) {
   // TODO(renjietang) Change the error code to H/3 specific
@@ -26,6 +28,10 @@ void QuicSendControlStream::OnStreamReset(const QuicRstStreamFrame& frame) {
 
 void QuicSendControlStream::SendSettingsFrame(const SettingsFrame& settings) {
   DCHECK(!settings_sent_);
+  // Send the stream type byte on the wire so peer knows about this stream.
+  char type[] = {0x00};
+  WriteOrBufferData(QuicStringPiece(type, 1), false, nullptr);
+
   std::unique_ptr<char[]> buffer;
   QuicByteCount frame_length =
       encoder_.SerializeSettingsFrame(settings, &buffer);
@@ -33,5 +39,4 @@ void QuicSendControlStream::SendSettingsFrame(const SettingsFrame& settings) {
                     /*fin = */ false, nullptr);
   settings_sent_ = true;
 }
-
 }  // namespace quic

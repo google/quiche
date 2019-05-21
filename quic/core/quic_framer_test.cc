@@ -916,18 +916,17 @@ TEST_P(QuicFramerTest, PacketHeader) {
 
   PacketHeaderFormat format;
   bool version_flag;
-  uint8_t destination_connection_id_length;
-  QuicConnectionId destination_connection_id;
+  QuicConnectionId destination_connection_id, source_connection_id;
   QuicVersionLabel version_label;
   std::string detailed_error;
-  EXPECT_EQ(QUIC_NO_ERROR, QuicFramer::ProcessPacketDispatcher(
-                               *encrypted, kQuicDefaultConnectionIdLength,
-                               &format, &version_flag, &version_label,
-                               &destination_connection_id_length,
-                               &destination_connection_id, &detailed_error));
+  EXPECT_EQ(QUIC_NO_ERROR,
+            QuicFramer::ProcessPacketDispatcher(
+                *encrypted, kQuicDefaultConnectionIdLength, &format,
+                &version_flag, &version_label, &destination_connection_id,
+                &source_connection_id, &detailed_error));
   EXPECT_EQ(GOOGLE_QUIC_PACKET, format);
   EXPECT_FALSE(version_flag);
-  EXPECT_EQ(kQuicDefaultConnectionIdLength, destination_connection_id_length);
+  EXPECT_EQ(kQuicDefaultConnectionIdLength, destination_connection_id.length());
   EXPECT_EQ(FramerTestConnectionId(), destination_connection_id);
 }
 
@@ -994,18 +993,17 @@ TEST_P(QuicFramerTest, LongPacketHeader) {
 
   PacketHeaderFormat format;
   bool version_flag;
-  uint8_t destination_connection_id_length;
-  QuicConnectionId destination_connection_id;
+  QuicConnectionId destination_connection_id, source_connection_id;
   QuicVersionLabel version_label;
   std::string detailed_error;
-  EXPECT_EQ(QUIC_NO_ERROR, QuicFramer::ProcessPacketDispatcher(
-                               *encrypted, kQuicDefaultConnectionIdLength,
-                               &format, &version_flag, &version_label,
-                               &destination_connection_id_length,
-                               &destination_connection_id, &detailed_error));
+  EXPECT_EQ(QUIC_NO_ERROR,
+            QuicFramer::ProcessPacketDispatcher(
+                *encrypted, kQuicDefaultConnectionIdLength, &format,
+                &version_flag, &version_label, &destination_connection_id,
+                &source_connection_id, &detailed_error));
   EXPECT_EQ(IETF_QUIC_LONG_HEADER_PACKET, format);
   EXPECT_TRUE(version_flag);
-  EXPECT_EQ(kQuicDefaultConnectionIdLength, destination_connection_id_length);
+  EXPECT_EQ(kQuicDefaultConnectionIdLength, destination_connection_id.length());
   EXPECT_EQ(FramerTestConnectionId(), destination_connection_id);
 }
 
@@ -6626,7 +6624,8 @@ TEST_P(QuicFramerTest, BuildVersionNegotiationPacket) {
   QuicConnectionId connection_id = FramerTestConnectionId();
   std::unique_ptr<QuicEncryptedPacket> data(
       framer_.BuildVersionNegotiationPacket(
-          connection_id, framer_.transport_version() > QUIC_VERSION_43,
+          connection_id, EmptyQuicConnectionId(),
+          framer_.transport_version() > QUIC_VERSION_43,
           SupportedVersions(GetParam())));
   test::CompareCharArraysWithHexError("constructed packet", data->data(),
                                       data->length(), AsChars(p), p_size);
@@ -13182,8 +13181,8 @@ TEST_P(QuicFramerTest, PacketHeaderWithVariableLengthConnectionId) {
   QuicConnectionId connection_id(connection_id_bytes,
                                  sizeof(connection_id_bytes));
   QuicFramerPeer::SetLargestPacketNumber(&framer_, kPacketNumber - 2);
-  QuicFramerPeer::SetExpectedConnectionIDLength(&framer_,
-                                                connection_id.length());
+  QuicFramerPeer::SetExpectedServerConnectionIDLength(&framer_,
+                                                      connection_id.length());
 
   // clang-format off
   PacketFragments packet = {
@@ -13320,8 +13319,7 @@ TEST_P(QuicFramerTest, UpdateExpectedConnectionIdLength) {
 
   PacketHeaderFormat format;
   bool version_flag;
-  uint8_t destination_connection_id_length;
-  QuicConnectionId destination_connection_id;
+  QuicConnectionId destination_connection_id, source_connection_id;
   QuicVersionLabel version_label;
   std::string detailed_error;
   EXPECT_EQ(QUIC_NO_ERROR,
@@ -13329,21 +13327,21 @@ TEST_P(QuicFramerTest, UpdateExpectedConnectionIdLength) {
                 QuicEncryptedPacket(AsChars(long_header_packet),
                                     QUIC_ARRAYSIZE(long_header_packet)),
                 kQuicDefaultConnectionIdLength, &format, &version_flag,
-                &version_label, &destination_connection_id_length,
-                &destination_connection_id, &detailed_error));
+                &version_label, &destination_connection_id,
+                &source_connection_id, &detailed_error));
   EXPECT_EQ(IETF_QUIC_LONG_HEADER_PACKET, format);
   EXPECT_TRUE(version_flag);
-  EXPECT_EQ(9, destination_connection_id_length);
+  EXPECT_EQ(9, destination_connection_id.length());
   EXPECT_EQ(FramerTestConnectionIdNineBytes(), destination_connection_id);
 
-  EXPECT_EQ(QUIC_NO_ERROR,
-            QuicFramer::ProcessPacketDispatcher(
-                short_header_encrypted, 9, &format, &version_flag,
-                &version_label, &destination_connection_id_length,
-                &destination_connection_id, &detailed_error));
+  EXPECT_EQ(
+      QUIC_NO_ERROR,
+      QuicFramer::ProcessPacketDispatcher(
+          short_header_encrypted, 9, &format, &version_flag, &version_label,
+          &destination_connection_id, &source_connection_id, &detailed_error));
   EXPECT_EQ(IETF_QUIC_SHORT_HEADER_PACKET, format);
   EXPECT_FALSE(version_flag);
-  EXPECT_EQ(9, destination_connection_id_length);
+  EXPECT_EQ(9, destination_connection_id.length());
   EXPECT_EQ(FramerTestConnectionIdNineBytes(), destination_connection_id);
 }
 

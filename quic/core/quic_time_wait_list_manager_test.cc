@@ -251,15 +251,16 @@ TEST_F(QuicTimeWaitListManagerTest, CheckStatelessConnectionIdInTimeWait) {
 
 TEST_F(QuicTimeWaitListManagerTest, SendVersionNegotiationPacket) {
   std::unique_ptr<QuicEncryptedPacket> packet(
-      QuicFramer::BuildVersionNegotiationPacket(connection_id_, false,
+      QuicFramer::BuildVersionNegotiationPacket(connection_id_,
+                                                EmptyQuicConnectionId(), false,
                                                 AllSupportedVersions()));
   EXPECT_CALL(writer_, WritePacket(_, packet->length(), self_address_.host(),
                                    peer_address_, _))
       .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 1)));
 
   time_wait_list_manager_.SendVersionNegotiationPacket(
-      connection_id_, false, AllSupportedVersions(), self_address_,
-      peer_address_, QuicMakeUnique<QuicPerPacketContext>());
+      connection_id_, EmptyQuicConnectionId(), false, AllSupportedVersions(),
+      self_address_, peer_address_, QuicMakeUnique<QuicPerPacketContext>());
   EXPECT_EQ(0u, time_wait_list_manager_.num_connections());
 }
 
