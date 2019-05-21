@@ -127,8 +127,8 @@ bool QuicStreamIdManager::ConfigureMaxOpenOutgoingStreams(
 
   // This implementation only supports 32 bit Stream IDs, so limit max streams
   // if it would exceed the max 32 bits can express.
-  outgoing_max_streams_ = std::min(
-      static_cast<QuicStreamCount>(max_open_streams),
+  outgoing_max_streams_ = std::min<size_t>(
+      max_open_streams,
       QuicUtils::GetMaxStreamCount(unidirectional_, session_->perspective()));
   return true;
 }
