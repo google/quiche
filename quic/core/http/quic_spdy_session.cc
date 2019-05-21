@@ -9,21 +9,6 @@
 #include <string>
 #include <utility>
 
-<<<<<<<
-|||||||
-#include "net/third_party/quic/core/http/quic_headers_stream.h"
-#include "net/third_party/quic/core/quic_utils.h"
-#include "net/third_party/quic/platform/api/quic_bug_tracker.h"
-#include "net/third_party/quic/platform/api/quic_fallthrough.h"
-#include "net/third_party/quic/platform/api/quic_flag_utils.h"
-=======
-#include "net/third_party/quic/core/http/quic_headers_stream.h"
-#include "net/third_party/quic/core/quic_utils.h"
-#include "net/third_party/quic/core/quic_versions.h"
-#include "net/third_party/quic/platform/api/quic_bug_tracker.h"
-#include "net/third_party/quic/platform/api/quic_fallthrough.h"
-#include "net/third_party/quic/platform/api/quic_flag_utils.h"
->>>>>>>
 #include "net/third_party/quiche/src/quic/core/http/quic_headers_stream.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"

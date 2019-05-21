@@ -9,22 +9,8 @@
 #include <memory>
 #include <string>
 
-<<<<<<<
-|||||||
-#include "net/third_party/quic/core/http/quic_header_list.h"
-#include "net/third_party/quic/core/http/quic_headers_stream.h"
-#include "net/third_party/quic/core/http/quic_spdy_stream.h"
-#include "net/third_party/quic/core/qpack/qpack_decoder.h"
-#include "net/third_party/quic/core/qpack/qpack_decoder_stream_sender.h"
-=======
-#include "net/third_party/quic/core/http/quic_header_list.h"
-#include "net/third_party/quic/core/http/quic_headers_stream.h"
-#include "net/third_party/quic/core/http/quic_receive_control_stream.h"
-#include "net/third_party/quic/core/http/quic_send_control_stream.h"
-#include "net/third_party/quic/core/http/quic_spdy_stream.h"
-#include "net/third_party/quic/core/qpack/qpack_decoder.h"
-#include "net/third_party/quic/core/qpack/qpack_decoder_stream_sender.h"
->>>>>>>
+#include "net/third_party/quiche/src/quic/core/http/quic_receive_control_stream.h"
+#include "net/third_party/quiche/src/quic/core/http/quic_send_control_stream.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_header_list.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_headers_stream.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_spdy_stream.h"
