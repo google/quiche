@@ -318,6 +318,11 @@ class QUIC_EXPORT_PRIVATE QuicPacketGenerator {
   // Whether crypto handshake packets should be fully padded.
   bool fully_pad_crypto_handshake_packets_;
 
+  // Packet number of the first packet of a write operation. This gets set
+  // when the out-most flusher attaches and gets cleared when the out-most
+  // flusher detaches.
+  QuicPacketNumber write_start_packet_number_;
+
   // Latched value of quic_deprecate_ack_bundling_mode.
   const bool deprecate_ack_bundling_mode_;
 

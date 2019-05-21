@@ -14,6 +14,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_server_stats.h"
 
 namespace quic {
 
@@ -317,6 +318,9 @@ bool QuicPacketGenerator::PacketFlusherAttached() const {
 
 void QuicPacketGenerator::AttachPacketFlusher() {
   flusher_attached_ = true;
+  if (!write_start_packet_number_.IsInitialized()) {
+    write_start_packet_number_ = packet_creator_.NextSendingPacketNumber();
+  }
 }
 
 void QuicPacketGenerator::Flush() {
@@ -324,6 +328,17 @@ void QuicPacketGenerator::Flush() {
   packet_creator_.Flush();
   SendRemainingPendingPadding();
   flusher_attached_ = false;
+  if (GetQuicFlag(FLAGS_quic_export_server_num_packets_per_write_histogram)) {
+    if (!write_start_packet_number_.IsInitialized()) {
+      QUIC_BUG << "write_start_packet_number is not initialized";
+      return;
+    }
+    QUIC_SERVER_HISTOGRAM_COUNTS(
+        "quic_server_num_written_packets_per_write",
+        packet_creator_.NextSendingPacketNumber() - write_start_packet_number_,
+        1, 200, 50, "Number of QUIC packets written per write operation");
+  }
+  write_start_packet_number_.Clear();
 }
 
 void QuicPacketGenerator::FlushAllQueuedFrames() {

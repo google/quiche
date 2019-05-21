@@ -868,11 +868,7 @@ void QuicPacketCreator::FillPacketHeader(QuicPacketHeader* header) {
   } else {
     header->nonce = nullptr;
   }
-  if (!packet_.packet_number.IsInitialized()) {
-    packet_.packet_number = framer_->first_sending_packet_number();
-  } else {
-    ++packet_.packet_number;
-  }
+  packet_.packet_number = NextSendingPacketNumber();
   header->packet_number = packet_.packet_number;
   header->packet_number_length = GetPacketNumberLength();
   header->retry_token_length_length = GetRetryTokenLengthLength();
@@ -1126,6 +1122,13 @@ size_t QuicPacketCreator::MinPlaintextPacketSize(
   //
   // TODO(nharper): Set this based on the handshake protocol in use.
   return 7;
+}
+
+QuicPacketNumber QuicPacketCreator::NextSendingPacketNumber() const {
+  if (!packet_number().IsInitialized()) {
+    return framer_->first_sending_packet_number();
+  }
+  return packet_number() + 1;
 }
 
 #undef ENDPOINT  // undef for jumbo builds

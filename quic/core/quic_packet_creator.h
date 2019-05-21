@@ -273,6 +273,9 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // connection ID lengths do not change.
   QuicPacketLength GetGuaranteedLargestMessagePayload() const;
 
+  // Packet number of next created packet.
+  QuicPacketNumber NextSendingPacketNumber() const;
+
   void set_debug_delegate(DebugDelegate* debug_delegate) {
     debug_delegate_ = debug_delegate;
   }
