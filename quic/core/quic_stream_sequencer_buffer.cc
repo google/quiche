@@ -34,9 +34,7 @@ QuicStreamSequencerBuffer::QuicStreamSequencerBuffer(size_t max_capacity_bytes)
       blocks_count_(CalculateBlockCount(max_capacity_bytes)),
       total_bytes_read_(0),
       blocks_(nullptr),
-      total_bytes_prefetched_(0),
-      faster_interval_add_in_sequence_buffer_(
-          GetQuicReloadableFlag(quic_faster_interval_add_in_sequence_buffer)) {
+      total_bytes_prefetched_(0) {
   Clear();
 }
 
@@ -90,35 +88,15 @@ QuicErrorCode QuicStreamSequencerBuffer::OnStreamData(
       bytes_received_.IsDisjoint(QuicInterval<QuicStreamOffset>(
           starting_offset, starting_offset + size))) {
     // Optimization for the typical case, when all data is newly received.
-    if (faster_interval_add_in_sequence_buffer_) {
-      QUIC_RELOADABLE_FLAG_COUNT(quic_faster_interval_add_in_sequence_buffer);
-      bytes_received_.AddOptimizedForAppend(starting_offset,
-                                            starting_offset + size);
-      if (bytes_received_.Size() >= kMaxNumDataIntervalsAllowed) {
-        // This frame is going to create more intervals than allowed. Stop
-        // processing.
-        *error_details = "Too many data intervals received for this stream.";
-        return QUIC_TOO_MANY_STREAM_DATA_INTERVALS;
-      }
-    } else {
-      if (!bytes_received_.Empty() &&
-          starting_offset == bytes_received_.rbegin()->max()) {
-        // Extend the right edge of last interval.
-        // TODO(fayang): Encapsulate this into a future version of
-        // QuicIntervalSet if this is more efficient than Add.
-        const_cast<QuicInterval<QuicStreamOffset>*>(
-            &(*bytes_received_.rbegin()))
-            ->SetMax(starting_offset + size);
-      } else {
-        bytes_received_.Add(starting_offset, starting_offset + size);
-        if (bytes_received_.Size() >= kMaxNumDataIntervalsAllowed) {
-          // This frame is going to create more intervals than allowed. Stop
-          // processing.
-          *error_details = "Too many data intervals received for this stream.";
-          return QUIC_TOO_MANY_STREAM_DATA_INTERVALS;
-        }
-      }
+    bytes_received_.AddOptimizedForAppend(starting_offset,
+                                          starting_offset + size);
+    if (bytes_received_.Size() >= kMaxNumDataIntervalsAllowed) {
+      // This frame is going to create more intervals than allowed. Stop
+      // processing.
+      *error_details = "Too many data intervals received for this stream.";
+      return QUIC_TOO_MANY_STREAM_DATA_INTERVALS;
     }
+
     size_t bytes_copy = 0;
     if (!CopyStreamData(starting_offset, data, &bytes_copy, error_details)) {
       return QUIC_STREAM_SEQUENCER_INVALID_STATE;
