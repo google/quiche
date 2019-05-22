@@ -160,9 +160,6 @@ void CompareCharArraysWithHexError(const std::string& description,
 // Returns QuicConfig set to default values.
 QuicConfig DefaultQuicConfig();
 
-// Returns a QuicConfig set to default values that supports stateless rejects.
-QuicConfig DefaultQuicConfigStatelessRejects();
-
 // Returns a version vector consisting of |version|.
 QuicTransportVersionVector SupportedTransportVersions(
     QuicTransportVersion version);
@@ -1072,7 +1069,6 @@ class MockSessionNotifier : public SessionNotifierInterface {
 // Creates a client session for testing.
 //
 // server_id: The server id associated with this stream.
-// supports_stateless_rejects:  Does this client support stateless rejects.
 // connection_start_time: The time to set for the connection clock.
 //   Needed for strike-register nonce verification.  The client
 //   connection_start_time should be synchronized witht the server
@@ -1087,7 +1083,6 @@ class MockSessionNotifier : public SessionNotifierInterface {
 //   session.  The new object will be owned by the caller.
 void CreateClientSessionForTest(
     QuicServerId server_id,
-    bool supports_stateless_rejects,
     QuicTime::Delta connection_start_time,
     const ParsedQuicVersionVector& supported_versions,
     MockQuicConnectionHelper* helper,

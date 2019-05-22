@@ -113,13 +113,12 @@ class QuicCryptoServerStreamTest : public QuicTestWithParam<bool> {
 
   // Initializes a fake client, and all its associated state, for
   // testing.  May be called multiple times.
-  void InitializeFakeClient(bool supports_stateless_rejects) {
+  void InitializeFakeClient() {
     TestQuicSpdyClientSession* client_session = nullptr;
     helpers_.push_back(QuicMakeUnique<NiceMock<MockQuicConnectionHelper>>());
     alarm_factories_.push_back(QuicMakeUnique<MockAlarmFactory>());
     CreateClientSessionForTest(
-        server_id_, supports_stateless_rejects,
-        QuicTime::Delta::FromSeconds(100000), supported_versions_,
+        server_id_, QuicTime::Delta::FromSeconds(100000), supported_versions_,
         helpers_.back().get(), alarm_factories_.back().get(),
         &client_crypto_config_, &client_connection_, &client_session);
     CHECK(client_session);
@@ -214,7 +213,7 @@ TEST_P(QuicCryptoServerStreamTest, ConnectedAfterTlsHandshake) {
 
 TEST_P(QuicCryptoServerStreamTest, ForwardSecureAfterCHLO) {
   Initialize();
-  InitializeFakeClient(/* supports_stateless_rejects= */ false);
+  InitializeFakeClient();
 
   // Do a first handshake in order to prime the client config with the server's
   // information.
@@ -224,7 +223,7 @@ TEST_P(QuicCryptoServerStreamTest, ForwardSecureAfterCHLO) {
 
   // Now do another handshake, with the blocking SHLO connection option.
   InitializeServer();
-  InitializeFakeClient(/* supports_stateless_rejects= */ false);
+  InitializeFakeClient();
 
   AdvanceHandshakeWithFakeClient();
   EXPECT_TRUE(server_stream()->encryption_established());
@@ -235,7 +234,7 @@ TEST_P(QuicCryptoServerStreamTest, ForwardSecureAfterCHLO) {
 
 TEST_P(QuicCryptoServerStreamTest, ZeroRTT) {
   Initialize();
-  InitializeFakeClient(/* supports_stateless_rejects= */ false);
+  InitializeFakeClient();
 
   // Do a first handshake in order to prime the client config with the server's
   // information.
@@ -244,7 +243,7 @@ TEST_P(QuicCryptoServerStreamTest, ZeroRTT) {
 
   // Now do another handshake, hopefully in 0-RTT.
   QUIC_LOG(INFO) << "Resetting for 0-RTT handshake attempt";
-  InitializeFakeClient(/* supports_stateless_rejects= */ false);
+  InitializeFakeClient();
   InitializeServer();
 
   EXPECT_CALL(*client_session_, OnProofValid(_)).Times(testing::AnyNumber());
@@ -266,7 +265,7 @@ TEST_P(QuicCryptoServerStreamTest, ZeroRTT) {
 
 TEST_P(QuicCryptoServerStreamTest, FailByPolicy) {
   Initialize();
-  InitializeFakeClient(/* supports_stateless_rejects= */ false);
+  InitializeFakeClient();
 
   EXPECT_CALL(*server_session_->helper(), CanAcceptClientHello(_, _, _, _, _))
       .WillOnce(testing::Return(false));
@@ -308,7 +307,7 @@ TEST_P(QuicCryptoServerStreamTest, OnlySendSCUPAfterHandshakeComplete) {
 TEST_P(QuicCryptoServerStreamTest, SendSCUPAfterHandshakeComplete) {
   Initialize();
 
-  InitializeFakeClient(/* supports_stateless_rejects= */ false);
+  InitializeFakeClient();
 
   // Do a first handshake in order to prime the client config with the server's
   // information.
@@ -316,7 +315,7 @@ TEST_P(QuicCryptoServerStreamTest, SendSCUPAfterHandshakeComplete) {
 
   // Now do another handshake, with the blocking SHLO connection option.
   InitializeServer();
-  InitializeFakeClient(/* supports_stateless_rejects= */ false);
+  InitializeFakeClient();
   AdvanceHandshakeWithFakeClient();
 
   // Send a SCUP message and ensure that the client was able to verify it.
@@ -343,7 +342,7 @@ INSTANTIATE_TEST_SUITE_P(MoreTests,
 
 TEST_P(QuicCryptoServerStreamTestWithFailingProofSource, Test) {
   Initialize();
-  InitializeFakeClient(/* supports_stateless_rejects= */ false);
+  InitializeFakeClient();
 
   EXPECT_CALL(*server_session_->helper(), CanAcceptClientHello(_, _, _, _, _))
       .WillOnce(testing::Return(true));

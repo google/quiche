@@ -1062,14 +1062,6 @@ QuicConfig DefaultQuicConfig() {
   return config;
 }
 
-QuicConfig DefaultQuicConfigStatelessRejects() {
-  QuicConfig config = DefaultQuicConfig();
-  QuicTagVector copt;
-  copt.push_back(kSREJ);
-  config.SetConnectionOptionsToSend(copt);
-  return config;
-}
-
 QuicTransportVersionVector SupportedTransportVersions(
     QuicTransportVersion version) {
   QuicTransportVersionVector versions;
@@ -1100,7 +1092,6 @@ MockSessionNotifier::~MockSessionNotifier() {}
 
 void CreateClientSessionForTest(
     QuicServerId server_id,
-    bool supports_stateless_rejects,
     QuicTime::Delta connection_start_time,
     const ParsedQuicVersionVector& supported_versions,
     MockQuicConnectionHelper* helper,
@@ -1115,9 +1106,7 @@ void CreateClientSessionForTest(
       << "Connections must start at non-zero times, otherwise the "
       << "strike-register will be unhappy.";
 
-  QuicConfig config = supports_stateless_rejects
-                          ? DefaultQuicConfigStatelessRejects()
-                          : DefaultQuicConfig();
+  QuicConfig config = DefaultQuicConfig();
   *client_connection = new PacketSavingConnection(
       helper, alarm_factory, Perspective::IS_CLIENT, supported_versions);
   *client_session = new TestQuicSpdyClientSession(*client_connection, config,
