@@ -412,6 +412,19 @@ QuicConnection::QuicConnection(
   DCHECK(!GetQuicRestartFlag(quic_no_server_conn_ver_negotiation2) ||
          perspective_ == Perspective::IS_CLIENT ||
          supported_versions.size() == 1);
+  InstallInitialCrypters();
+}
+
+void QuicConnection::InstallInitialCrypters() {
+  if (version().handshake_protocol != PROTOCOL_TLS1_3) {
+    // Initial crypters are currently only supported with TLS.
+    return;
+  }
+  CrypterPair crypters;
+  CryptoUtils::CreateTlsInitialCrypters(perspective_, transport_version(),
+                                        server_connection_id_, &crypters);
+  SetEncrypter(ENCRYPTION_INITIAL, std::move(crypters.encrypter));
+  InstallDecrypter(ENCRYPTION_INITIAL, std::move(crypters.decrypter));
 }
 
 QuicConnection::~QuicConnection() {
@@ -770,6 +783,7 @@ void QuicConnection::OnVersionNegotiationPacket(
 void QuicConnection::OnRetryPacket(QuicConnectionId original_connection_id,
                                    QuicConnectionId new_connection_id,
                                    QuicStringPiece retry_token) {
+  DCHECK_EQ(Perspective::IS_CLIENT, perspective_);
   if (original_connection_id != server_connection_id_) {
     QUIC_DLOG(ERROR) << "Ignoring RETRY with original connection ID "
                      << original_connection_id << " not matching expected "
@@ -792,12 +806,7 @@ void QuicConnection::OnRetryPacket(QuicConnectionId original_connection_id,
   packet_generator_.SetRetryToken(retry_token);
 
   // Reinstall initial crypters because the connection ID changed.
-  CrypterPair crypters;
-  CryptoUtils::CreateTlsInitialCrypters(Perspective::IS_CLIENT,
-                                        transport_version(),
-                                        server_connection_id_, &crypters);
-  SetEncrypter(ENCRYPTION_INITIAL, std::move(crypters.encrypter));
-  InstallDecrypter(ENCRYPTION_INITIAL, std::move(crypters.decrypter));
+  InstallInitialCrypters();
 }
 
 bool QuicConnection::HasIncomingConnectionId(QuicConnectionId connection_id) {
@@ -1997,6 +2006,7 @@ void QuicConnection::ProcessUdpPacket(const QuicSocketAddress& self_address,
     // If we are unable to decrypt this packet, it might be
     // because the CHLO or SHLO packet was lost.
     if (framer_.error() == QUIC_DECRYPTION_FAILURE) {
+      ++stats_.undecryptable_packets_received;
       if (encryption_level_ != ENCRYPTION_FORWARD_SECURE &&
           undecryptable_packets_.size() < max_undecryptable_packets_) {
         QueueUndecryptablePacket(packet);
@@ -3051,6 +3061,7 @@ void QuicConnection::MaybeProcessCoalescedPackets() {
       // If we are unable to decrypt this packet, it might be
       // because the CHLO or SHLO packet was lost.
       if (framer_.error() == QUIC_DECRYPTION_FAILURE) {
+        ++stats_.undecryptable_packets_received;
         if (encryption_level_ != ENCRYPTION_FORWARD_SECURE &&
             undecryptable_packets_.size() < max_undecryptable_packets_) {
           QueueUndecryptablePacket(*packet);

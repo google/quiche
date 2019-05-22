@@ -731,6 +731,20 @@ TEST_P(EndToEndTestWithTls, SimpleRequestResponsev6) {
   EXPECT_EQ("200", client_->response_headers()->find(":status")->second);
 }
 
+TEST_P(EndToEndTestWithTls, NoUndecryptablePackets) {
+  ASSERT_TRUE(Initialize());
+
+  EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
+  EXPECT_EQ("200", client_->response_headers()->find(":status")->second);
+
+  QuicConnectionStats client_stats =
+      client_->client()->client_session()->connection()->GetStats();
+  QuicConnectionStats server_stats = GetServerConnection()->GetStats();
+
+  EXPECT_EQ(0u, client_stats.undecryptable_packets_received);
+  EXPECT_EQ(0u, server_stats.undecryptable_packets_received);
+}
+
 TEST_P(EndToEndTestWithTls, SeparateFinPacket) {
   ASSERT_TRUE(Initialize());
 

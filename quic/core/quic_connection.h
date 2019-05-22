@@ -1143,6 +1143,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Whether incoming_connection_ids_ contains connection_id.
   bool HasIncomingConnectionId(QuicConnectionId connection_id);
 
+  // Install encrypter and decrypter for ENCRYPTION_INITIAL.
+  void InstallInitialCrypters();
+
   QuicFramer framer_;
 
   // Contents received in the current packet, especially used to identify

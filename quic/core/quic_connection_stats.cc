@@ -29,6 +29,7 @@ QuicConnectionStats::QuicConnectionStats()
       slowstart_duration(QuicTime::Delta::Zero()),
       slowstart_start_time(QuicTime::Zero()),
       packets_dropped(0),
+      undecryptable_packets_received(0),
       crypto_retransmit_count(0),
       loss_timeout_count(0),
       tlp_count(0),
@@ -71,6 +72,7 @@ std::ostream& operator<<(std::ostream& os, const QuicConnectionStats& s) {
   os << " slowstart_packets_lost: " << s.slowstart_packets_lost;
   os << " slowstart_bytes_lost: " << s.slowstart_bytes_lost;
   os << " packets_dropped: " << s.packets_dropped;
+  os << " undecryptable_packets_received: " << s.undecryptable_packets_received;
   os << " crypto_retransmit_count: " << s.crypto_retransmit_count;
   os << " loss_timeout_count: " << s.loss_timeout_count;
   os << " tlp_count: " << s.tlp_count;

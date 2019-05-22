@@ -938,6 +938,14 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
       peer_creator_.SetEncrypter(
           level, QuicMakeUnique<NullEncrypter>(peer_framer_.perspective()));
     }
+    if (version().handshake_protocol == PROTOCOL_TLS1_3) {
+      connection_.SetEncrypter(
+          ENCRYPTION_INITIAL,
+          QuicMakeUnique<NullEncrypter>(Perspective::IS_CLIENT));
+      connection_.InstallDecrypter(
+          ENCRYPTION_INITIAL,
+          QuicMakeUnique<NullDecrypter>(Perspective::IS_CLIENT));
+    }
     QuicFramerPeer::SetLastSerializedServerConnectionId(
         QuicConnectionPeer::GetFramer(&connection_), connection_id_);
     if (version().transport_version > QUIC_VERSION_43) {
