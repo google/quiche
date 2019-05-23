@@ -883,11 +883,11 @@ std::vector<TestParams> GetTestParams() {
          {AckResponse::kDefer, AckResponse::kImmediate}) {
       for (bool no_stop_waiting : {true, false}) {
         // After version 43, never use STOP_WAITING.
-        if (all_supported_versions[i].transport_version <= QUIC_VERSION_43 ||
-            no_stop_waiting) {
-          params.push_back(TestParams(all_supported_versions[i], ack_response,
-                                      no_stop_waiting));
-        }
+        params.push_back(TestParams(
+            all_supported_versions[i], ack_response,
+            all_supported_versions[i].transport_version <= QUIC_VERSION_43
+                ? no_stop_waiting
+                : true));
       }
     }
   }
@@ -2622,15 +2622,25 @@ TEST_P(QuicConnectionTest, AckReceiptCausesAckSend) {
   ProcessAckPacket(&frame2);
   EXPECT_CALL(*send_algorithm_,
               OnPacketSent(_, _, _, _, HAS_RETRANSMITTABLE_DATA));
-  connection_.SendStreamDataWithString(3, "foo", 9, NO_FIN);
+  connection_.SendStreamDataWithString(3, "foofoofoo", 9, NO_FIN);
   // Ack bundled.
   if (GetParam().no_stop_waiting) {
-    EXPECT_EQ(2u, writer_->frame_count());
+    if (GetQuicReloadableFlag(quic_simplify_stop_waiting)) {
+      // Do not ACK acks.
+      EXPECT_EQ(1u, writer_->frame_count());
+    } else {
+      EXPECT_EQ(2u, writer_->frame_count());
+    }
   } else {
     EXPECT_EQ(3u, writer_->frame_count());
   }
   EXPECT_EQ(1u, writer_->stream_frames().size());
-  EXPECT_FALSE(writer_->ack_frames().empty());
+  if (GetParam().no_stop_waiting &&
+      GetQuicReloadableFlag(quic_simplify_stop_waiting)) {
+    EXPECT_TRUE(writer_->ack_frames().empty());
+  } else {
+    EXPECT_FALSE(writer_->ack_frames().empty());
+  }
 
   // But an ack with no missing packets will not send an ack.
   AckPacket(original, &frame2);
@@ -6496,14 +6506,25 @@ TEST_P(QuicConnectionTest, BundleAckWithDataOnIncomingAck) {
   // Check that ack is bundled with outgoing data and the delayed ack
   // alarm is reset.
   if (GetParam().no_stop_waiting) {
-    EXPECT_EQ(2u, writer_->frame_count());
-    EXPECT_TRUE(writer_->stop_waiting_frames().empty());
+    if (GetQuicReloadableFlag(quic_simplify_stop_waiting)) {
+      // Do not ACK acks.
+      EXPECT_EQ(1u, writer_->frame_count());
+    } else {
+      EXPECT_EQ(2u, writer_->frame_count());
+      EXPECT_TRUE(writer_->stop_waiting_frames().empty());
+    }
   } else {
     EXPECT_EQ(3u, writer_->frame_count());
     EXPECT_FALSE(writer_->stop_waiting_frames().empty());
   }
-  EXPECT_FALSE(writer_->ack_frames().empty());
-  EXPECT_EQ(QuicPacketNumber(3u), LargestAcked(writer_->ack_frames().front()));
+  if (GetParam().no_stop_waiting &&
+      GetQuicReloadableFlag(quic_simplify_stop_waiting)) {
+    EXPECT_TRUE(writer_->ack_frames().empty());
+  } else {
+    EXPECT_FALSE(writer_->ack_frames().empty());
+    EXPECT_EQ(QuicPacketNumber(3u),
+              LargestAcked(writer_->ack_frames().front()));
+  }
   EXPECT_EQ(1u, writer_->stream_frames().size());
   EXPECT_FALSE(connection_.GetAckAlarm()->IsSet());
 }
@@ -8094,7 +8115,12 @@ TEST_P(QuicConnectionTest, NoPingIfRetransmittablePacketSent) {
   connection_.GetPingAlarm()->Fire();
   size_t padding_frame_count = writer_->padding_frames().size();
   if (GetParam().no_stop_waiting) {
-    EXPECT_EQ(padding_frame_count + 2u, writer_->frame_count());
+    if (GetQuicReloadableFlag(quic_simplify_stop_waiting)) {
+      // Do not ACK acks.
+      EXPECT_EQ(padding_frame_count + 1u, writer_->frame_count());
+    } else {
+      EXPECT_EQ(padding_frame_count + 2u, writer_->frame_count());
+    }
   } else {
     EXPECT_EQ(padding_frame_count + 3u, writer_->frame_count());
   }

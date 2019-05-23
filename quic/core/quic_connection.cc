@@ -1205,7 +1205,13 @@ bool QuicConnection::OnAckFrameEnd(QuicPacketNumber start) {
   // If the incoming ack's packets set expresses received packets: peer is still
   // acking packets which we never care about.
   // Send an ack to raise the high water mark.
-  PostProcessAfterAckFrame(GetLeastUnacked() > start,
+  bool send_stop_waiting = GetLeastUnacked() > start;
+  if (GetQuicReloadableFlag(quic_simplify_stop_waiting) &&
+      no_stop_waiting_frames_) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_simplify_stop_waiting);
+    send_stop_waiting = false;
+  }
+  PostProcessAfterAckFrame(send_stop_waiting,
                            ack_result == PACKETS_NEWLY_ACKED);
   processing_ack_frame_ = false;
 
@@ -3910,8 +3916,6 @@ void QuicConnection::PostProcessAfterAckFrame(bool send_stop_waiting,
   SetRetransmissionAlarm();
   MaybeSetPathDegradingAlarm(acked_new_packet);
 
-  // TODO(ianswett): Only increment stop_waiting_count_ if StopWaiting frames
-  // are sent.
   if (send_stop_waiting) {
     ++stop_waiting_count_;
   } else {

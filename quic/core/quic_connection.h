@@ -1287,6 +1287,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   QuicPacketCount num_packets_received_since_last_ack_sent_;
   // Indicates how many consecutive times an ack has arrived which indicates
   // the peer needs to stop waiting for some packets.
+  // TODO(fayang): remove this when deprecating quic_simplify_stop_waiting.
   int stop_waiting_count_;
   // TODO(fayang): Remove ack_mode_, ack_decimation_delay_,
   // unlimited_ack_decimation_, fast_ack_after_quiescence_ when deprecating
