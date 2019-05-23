@@ -1809,10 +1809,15 @@ void QuicConnection::SendVersionNegotiationPacket(bool ietf_quic) {
   QUIC_DLOG(INFO) << ENDPOINT << "Sending version negotiation packet: {"
                   << ParsedQuicVersionVectorToString(
                          framer_.supported_versions())
-                  << "}, ietf_quic: " << ietf_quic;
+                  << "}, " << (ietf_quic ? "" : "!") << "ietf_quic";
   std::unique_ptr<QuicEncryptedPacket> version_packet(
       packet_generator_.SerializeVersionNegotiationPacket(
           ietf_quic, framer_.supported_versions()));
+  QUIC_DVLOG(2) << ENDPOINT << "Sending version negotiation packet: {"
+                << ParsedQuicVersionVectorToString(framer_.supported_versions())
+                << "}, " << (ietf_quic ? "" : "!") << "ietf_quic:" << std::endl
+                << QuicTextUtils::HexDump(QuicStringPiece(
+                       version_packet->data(), version_packet->length()));
   WriteResult result = writer_->WritePacket(
       version_packet->data(), version_packet->length(), self_address().host(),
       peer_address(), per_packet_options_);
@@ -3652,6 +3657,12 @@ bool QuicConnection::SendGenericPathProbePacket(
   DCHECK_EQ(IsRetransmittable(*probing_packet), NO_RETRANSMITTABLE_DATA);
 
   const QuicTime packet_send_time = clock_->Now();
+  QUIC_DVLOG(2) << ENDPOINT
+                << "Sending path probe packet for server connection ID "
+                << server_connection_id_ << std::endl
+                << QuicTextUtils::HexDump(
+                       QuicStringPiece(probing_packet->encrypted_buffer,
+                                       probing_packet->encrypted_length));
   WriteResult result = probing_writer->WritePacket(
       probing_packet->encrypted_buffer, probing_packet->encrypted_length,
       self_address().host(), peer_address, per_packet_options_);
@@ -4044,7 +4055,9 @@ EncryptionLevel QuicConnection::GetConnectionCloseEncryptionLevel() const {
   }
   if (sent_packet_manager_.handshake_confirmed()) {
     // A forward secure packet has been received.
-    QUIC_BUG_IF(encryption_level_ != ENCRYPTION_FORWARD_SECURE);
+    QUIC_BUG_IF(encryption_level_ != ENCRYPTION_FORWARD_SECURE)
+        << ENDPOINT << "Unexpected connection close encryption level "
+        << QuicUtils::EncryptionLevelToString(encryption_level_);
     return ENCRYPTION_FORWARD_SECURE;
   }
   if (framer_.HasEncrypterOfEncryptionLevel(ENCRYPTION_ZERO_RTT)) {

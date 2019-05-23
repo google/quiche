@@ -22,6 +22,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_stack_trace.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
 
 namespace quic {
 
@@ -331,6 +332,10 @@ void QuicDispatcher::InitializeWithWriter(QuicPacketWriter* writer) {
 void QuicDispatcher::ProcessPacket(const QuicSocketAddress& self_address,
                                    const QuicSocketAddress& peer_address,
                                    const QuicReceivedPacket& packet) {
+  QUIC_DVLOG(2) << "Dispatcher received encrypted " << packet.length()
+                << " bytes:" << std::endl
+                << QuicTextUtils::HexDump(
+                       QuicStringPiece(packet.data(), packet.length()));
   current_self_address_ = self_address;
   current_peer_address_ = peer_address;
   // GetClientAddress must be called after current_peer_address_ is set.

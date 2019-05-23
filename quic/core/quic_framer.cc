@@ -4432,8 +4432,7 @@ bool QuicFramer::DecryptPayload(QuicStringPiece encrypted,
   }
 
   if (!success) {
-    QUIC_DVLOG(1) << ENDPOINT << "DecryptPacket failed for packet_number:"
-                  << header.packet_number;
+    QUIC_DVLOG(1) << ENDPOINT << "DecryptPacket failed for: " << header;
     return false;
   }
 

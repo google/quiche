@@ -101,6 +101,10 @@ void CryptoUtils::CreateTlsInitialCrypters(Perspective perspective,
                                            QuicTransportVersion version,
                                            QuicConnectionId connection_id,
                                            CrypterPair* crypters) {
+  QUIC_DLOG(INFO) << "Creating "
+                  << (perspective == Perspective::IS_CLIENT ? "client"
+                                                            : "server")
+                  << " TLS crypters for " << connection_id;
   QUIC_BUG_IF(!QuicUtils::IsConnectionIdValidForVersion(connection_id, version))
       << "CreateTlsInitialCrypters: attempted to use connection ID "
       << connection_id << " which is invalid with version "
