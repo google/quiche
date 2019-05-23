@@ -93,37 +93,11 @@ TEST(CryptoHandshakeMessageTest, DebugStringWithTagVector) {
   EXPECT_EQ(str, message5.DebugString());
 }
 
-TEST(CryptoHandshakeMessageTest, ServerDesignatedConnectionId) {
-  const char* str = "SREJ<\n  RCID: 18364758544493064720\n>";
-
-  CryptoHandshakeMessage message;
-  message.set_tag(kSREJ);
-  message.SetValue(kRCID,
-                   QuicEndian::NetToHost64(UINT64_C(18364758544493064720)));
-  EXPECT_EQ(str, message.DebugString());
-
-  // Test copy
-  CryptoHandshakeMessage message2(message);
-  EXPECT_EQ(str, message2.DebugString());
-
-  // Test move
-  CryptoHandshakeMessage message3(std::move(message));
-  EXPECT_EQ(str, message3.DebugString());
-
-  // Test assign
-  CryptoHandshakeMessage message4 = message3;
-  EXPECT_EQ(str, message4.DebugString());
-
-  // Test move-assign
-  CryptoHandshakeMessage message5 = std::move(message3);
-  EXPECT_EQ(str, message5.DebugString());
-}
-
 TEST(CryptoHandshakeMessageTest, HasStringPiece) {
   CryptoHandshakeMessage message;
-  EXPECT_FALSE(message.HasStringPiece(kRCID));
-  message.SetStringPiece(kRCID, "foo");
-  EXPECT_TRUE(message.HasStringPiece(kRCID));
+  EXPECT_FALSE(message.HasStringPiece(kALPN));
+  message.SetStringPiece(kALPN, "foo");
+  EXPECT_TRUE(message.HasStringPiece(kALPN));
 }
 
 }  // namespace
