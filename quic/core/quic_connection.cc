@@ -2413,7 +2413,14 @@ const QuicFrames QuicConnection::MaybeBundleAckOpportunistically() {
   ResetAckStates();
 
   QUIC_DVLOG(1) << ENDPOINT << "Bundle an ACK opportunistically";
-  frames.push_back(GetUpdatedAckFrame());
+  QuicFrame updated_ack_frame = GetUpdatedAckFrame();
+  QUIC_BUG_IF(updated_ack_frame.ack_frame->packets.Empty())
+      << ENDPOINT << "Attempted to opportunistically bundle an empty "
+      << QuicUtils::EncryptionLevelToString(encryption_level_) << " ACK, "
+      << (has_pending_ack ? "" : "!") << "has_pending_ack, stop_waiting_count_ "
+      << stop_waiting_count_;
+  frames.push_back(updated_ack_frame);
+
   if (!no_stop_waiting_frames_) {
     QuicStopWaitingFrame stop_waiting;
     PopulateStopWaitingFrame(&stop_waiting);
