@@ -13142,6 +13142,60 @@ TEST_P(QuicFramerTest, InvalidCoalescedPacket) {
   ASSERT_EQ(visitor_.coalesced_packets_.size(), 0u);
 }
 
+// Some IETF implementations send an initial followed by zeroes instead of
+// padding inside the initial. We need to make sure that we still process
+// the initial correctly and ignore the zeroes.
+TEST_P(QuicFramerTest, CoalescedPacketWithZeroesRoundTrip) {
+  if (!QuicVersionHasLongHeaderLengths(framer_.transport_version())) {
+    return;
+  }
+  ASSERT_TRUE(framer_.version().KnowsWhichDecrypterToUse());
+  QuicConnectionId connection_id = FramerTestConnectionId();
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
+
+  CrypterPair client_crypters;
+  CryptoUtils::CreateTlsInitialCrypters(Perspective::IS_CLIENT,
+                                        framer_.transport_version(),
+                                        connection_id, &client_crypters);
+  framer_.SetEncrypter(ENCRYPTION_INITIAL,
+                       std::move(client_crypters.encrypter));
+
+  QuicPacketHeader header;
+  header.destination_connection_id = connection_id;
+  header.version_flag = true;
+  header.packet_number = kPacketNumber;
+  header.packet_number_length = PACKET_4BYTE_PACKET_NUMBER;
+  header.long_packet_type = INITIAL;
+  header.length_length = VARIABLE_LENGTH_INTEGER_LENGTH_2;
+  header.retry_token_length_length = VARIABLE_LENGTH_INTEGER_LENGTH_1;
+  QuicFrames frames = {QuicFrame(QuicPingFrame())};
+
+  std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
+  ASSERT_NE(nullptr, data);
+
+  // Add zeroes after the valid initial packet.
+  unsigned char packet[kMaxOutgoingPacketSize] = {};
+  size_t encrypted_length =
+      framer_.EncryptPayload(ENCRYPTION_INITIAL, header.packet_number, *data,
+                             AsChars(packet), QUIC_ARRAYSIZE(packet));
+  ASSERT_NE(0u, encrypted_length);
+
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_SERVER);
+  CrypterPair server_crypters;
+  CryptoUtils::CreateTlsInitialCrypters(Perspective::IS_SERVER,
+                                        framer_.transport_version(),
+                                        connection_id, &server_crypters);
+  framer_.InstallDecrypter(ENCRYPTION_INITIAL,
+                           std::move(server_crypters.decrypter));
+
+  // Make sure the first long header initial packet parses correctly.
+  QuicEncryptedPacket encrypted(AsChars(packet), QUIC_ARRAYSIZE(packet), false);
+
+  // Make sure we discard the subsequent zeroes.
+  EXPECT_QUIC_PEER_BUG(EXPECT_TRUE(framer_.ProcessPacket(encrypted)),
+                       "Server: Received mismatched coalesced header.*");
+}
+
 TEST_P(QuicFramerTest, ClientReceivesInvalidVersion) {
   if (framer_.transport_version() < QUIC_VERSION_44) {
     return;
