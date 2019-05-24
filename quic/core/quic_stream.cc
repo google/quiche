@@ -68,8 +68,9 @@ void PendingStream::OnFinRead() {
 }
 
 void PendingStream::AddBytesConsumed(QuicByteCount bytes) {
-  QUIC_BUG << "AddBytesConsumed should not be called.";
-  CloseConnectionWithDetails(QUIC_INTERNAL_ERROR, "Unexpected bytes consumed");
+  // It will be called when the metadata of the stream is consumed.
+  flow_controller_.AddBytesConsumed(bytes);
+  connection_flow_controller_->AddBytesConsumed(bytes);
 }
 
 void PendingStream::Reset(QuicRstStreamErrorCode error) {
@@ -166,6 +167,10 @@ bool PendingStream::MaybeIncreaseHighestReceivedOffset(
   connection_flow_controller_->UpdateHighestReceivedOffset(
       connection_flow_controller_->highest_received_byte_offset() + increment);
   return true;
+}
+
+void PendingStream::MarkConsumed(size_t num_bytes) {
+  sequencer_.MarkConsumed(num_bytes);
 }
 
 QuicStream::QuicStream(PendingStream pending, StreamType type, bool is_static)

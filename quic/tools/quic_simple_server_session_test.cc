@@ -648,6 +648,12 @@ class QuicSimpleServerSessionServerPushTest
         // Since flow control window is smaller than response body, not the
         // whole body will be sent.
         QuicStreamOffset offset = 0;
+        if (VersionHasStreamType(connection_->transport_version())) {
+          EXPECT_CALL(*connection_,
+                      SendStreamData(stream_id, 1, offset, NO_FIN));
+          offset++;
+        }
+
         if (VersionUsesQpack(connection_->transport_version())) {
           EXPECT_CALL(*connection_,
                       SendStreamData(stream_id, kHeadersFrameHeaderLength,
@@ -713,6 +719,11 @@ TEST_P(QuicSimpleServerSessionServerPushTest,
   // After an open stream is marked draining, a new stream is expected to be
   // created and a response sent on the stream.
   QuicStreamOffset offset = 0;
+  if (VersionHasStreamType(connection_->transport_version())) {
+    EXPECT_CALL(*connection_,
+                SendStreamData(next_out_going_stream_id, 1, offset, NO_FIN));
+    offset++;
+  }
   if (VersionUsesQpack(connection_->transport_version())) {
     EXPECT_CALL(*connection_,
                 SendStreamData(next_out_going_stream_id,
@@ -790,6 +801,11 @@ TEST_P(QuicSimpleServerSessionServerPushTest,
       GetNthServerInitiatedUnidirectionalId(kMaxStreamsForTest);
   InSequence s;
   QuicStreamOffset offset = 0;
+  if (VersionHasStreamType(connection_->transport_version())) {
+    EXPECT_CALL(*connection_,
+                SendStreamData(stream_not_reset, 1, offset, NO_FIN));
+    offset++;
+  }
   if (VersionUsesQpack(connection_->transport_version())) {
     EXPECT_CALL(*connection_,
                 SendStreamData(stream_not_reset, kHeadersFrameHeaderLength,
@@ -853,6 +869,11 @@ TEST_P(QuicSimpleServerSessionServerPushTest,
                 OnStreamReset(stream_got_reset, QUIC_RST_ACKNOWLEDGEMENT));
   }
   QuicStreamOffset offset = 0;
+  if (VersionHasStreamType(connection_->transport_version())) {
+    EXPECT_CALL(*connection_,
+                SendStreamData(stream_to_open, 1, offset, NO_FIN));
+    offset++;
+  }
   if (VersionUsesQpack(connection_->transport_version())) {
     EXPECT_CALL(*connection_,
                 SendStreamData(stream_to_open, kHeadersFrameHeaderLength,

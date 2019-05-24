@@ -76,6 +76,8 @@ class QUIC_EXPORT_PRIVATE PendingStream
 
   const QuicStreamSequencer* sequencer() const { return &sequencer_; }
 
+  void MarkConsumed(size_t num_bytes);
+
  private:
   friend class QuicStream;
 

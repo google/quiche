@@ -157,7 +157,7 @@ void QuicSession::RegisterStaticStreamNew(std::unique_ptr<QuicStream> stream) {
 }
 
 void QuicSession::PendingStreamOnStreamFrame(const QuicStreamFrame& frame) {
-  DCHECK(VersionHasControlStreams(connection()->transport_version()));
+  DCHECK(VersionHasStreamType(connection()->transport_version()));
   QuicStreamId stream_id = frame.stream_id;
 
   PendingStream* pending = GetOrCreatePendingStream(stream_id);
@@ -171,7 +171,12 @@ void QuicSession::PendingStreamOnStreamFrame(const QuicStreamFrame& frame) {
   }
 
   pending->OnStreamFrame(frame);
-  ProcessPendingStream(pending);
+  if (ProcessPendingStream(pending)) {
+    // The pending stream should now be in the scope of normal streams.
+    DCHECK(IsClosedStream(stream_id) || IsOpenStream(stream_id))
+        << "Stream " << stream_id << " not created";
+    pending_stream_map_.erase(stream_id);
+  }
 }
 
 void QuicSession::OnStreamFrame(const QuicStreamFrame& frame) {
@@ -192,7 +197,7 @@ void QuicSession::OnStreamFrame(const QuicStreamFrame& frame) {
     return;
   }
 
-  if (VersionHasControlStreams(connection()->transport_version()) &&
+  if (VersionHasStreamType(connection()->transport_version()) &&
       UsesPendingStreams() &&
       QuicUtils::GetStreamType(stream_id, perspective(),
                                IsIncomingStream(stream_id)) ==
@@ -327,7 +332,7 @@ bool QuicSession::OnStopSendingFrame(const QuicStopSendingFrame& frame) {
 }
 
 void QuicSession::PendingStreamOnRstStream(const QuicRstStreamFrame& frame) {
-  DCHECK(VersionHasControlStreams(connection()->transport_version()));
+  DCHECK(VersionHasStreamType(connection()->transport_version()));
   QuicStreamId stream_id = frame.stream_id;
 
   PendingStream* pending = GetOrCreatePendingStream(stream_id);
@@ -362,7 +367,7 @@ void QuicSession::OnRstStream(const QuicRstStreamFrame& frame) {
     visitor_->OnRstStreamReceived(frame);
   }
 
-  if (VersionHasControlStreams(connection()->transport_version()) &&
+  if (VersionHasStreamType(connection()->transport_version()) &&
       UsesPendingStreams() &&
       QuicUtils::GetStreamType(stream_id, perspective(),
                                IsIncomingStream(stream_id)) ==

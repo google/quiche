@@ -16,6 +16,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/core/quic_write_blocked_list.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
@@ -205,6 +206,23 @@ size_t QuicSpdyStream::WriteHeaders(
     SpdyHeaderBlock header_block,
     bool fin,
     QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener) {
+  QuicConnection::ScopedPacketFlusher flusher(
+      spdy_session_->connection(), QuicConnection::SEND_ACK_IF_PENDING);
+  // Send stream type for server push stream
+  if (VersionHasStreamType(session()->connection()->transport_version()) &&
+      type() == WRITE_UNIDIRECTIONAL && send_buffer().stream_offset() == 0) {
+    char data[sizeof(kServerPushStream)];
+    QuicDataWriter writer(QUIC_ARRAYSIZE(data), data);
+    writer.WriteVarInt62(kServerPushStream);
+
+    // Similar to frame headers, stream type byte shouldn't be exposed to upper
+    // layer applications.
+    unacked_frame_headers_offsets_.Add(0, writer.length());
+
+    QUIC_LOG(INFO) << "Stream " << id() << " is writing type as server push";
+    WriteOrBufferData(QuicStringPiece(writer.data(), writer.length()), false,
+                      nullptr);
+  }
   size_t bytes_written =
       WriteHeadersImpl(std::move(header_block), fin, std::move(ack_listener));
   if (!VersionUsesQpack(spdy_session_->connection()->transport_version()) &&

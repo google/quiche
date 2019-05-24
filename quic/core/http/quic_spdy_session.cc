@@ -51,6 +51,9 @@ namespace quic {
 
 namespace {
 
+// TODO(renjietang): remove this once HTTP/3 error codes are adopted.
+const uint16_t kHttpUnknownStreamType = 0x0D;
+
 class HeaderTableDebugVisitor : public HpackHeaderTable::DebugVisitorInterface {
  public:
   HeaderTableDebugVisitor(const QuicClock* clock,
@@ -563,8 +566,8 @@ bool QuicSpdySession::ShouldKeepConnectionAlive() const {
 }
 
 bool QuicSpdySession::UsesPendingStreams() const {
-  DCHECK(VersionHasControlStreams(connection()->transport_version()));
-  return false;
+  DCHECK(VersionHasStreamType(connection()->transport_version()));
+  return true;
 }
 
 size_t QuicSpdySession::WriteHeadersOnHeadersStreamImpl(
@@ -730,40 +733,41 @@ bool QuicSpdySession::HasActiveRequestStreams() const {
   return false;
 }
 
-void QuicSpdySession::ProcessPendingStream(PendingStream* pending) {
-  DCHECK(VersionHasControlStreams(connection()->transport_version()));
+bool QuicSpdySession::ProcessPendingStream(PendingStream* pending) {
+  DCHECK(VersionHasStreamType(connection()->transport_version()));
   struct iovec iov;
   if (!pending->sequencer()->GetReadableRegion(&iov)) {
-    // We don't have the first byte yet.
-    return;
+    // The first byte hasn't been received yet.
+    return false;
   }
 
   QuicDataReader reader(static_cast<char*>(iov.iov_base), iov.iov_len);
+  uint8_t stream_type_length = reader.PeekVarInt62Length();
   uint64_t stream_type = 0;
   if (!reader.ReadVarInt62(&stream_type)) {
-    return;
+    return false;
   }
-  CreateIncomingStreamFromPending(pending->id(), stream_type);
-}
+  pending->MarkConsumed(stream_type_length);
 
-void QuicSpdySession::CreateIncomingStreamFromPending(QuicStreamId id,
-                                                      uint64_t stream_type) {
   switch (stream_type) {
-    case 0x00:  // HTTP/3 control stream.
+    case kControlStream:  // HTTP/3 control stream.
       // TODO(renjietang): Create incoming control stream.
       break;
-    case 0x01:  // Push Stream.
-      break;
-    case 0x02:  // QPACK encoder stream.
+    case kServerPushStream: {  // Push Stream.
+      QuicSpdyStream* stream = CreateIncomingStream(std::move(*pending));
+      stream->SetUnblocked();
+      return true;
+    }
+    case kQpackEncoderStream:  // QPACK encoder stream.
       // TODO(bnc): Create QPACK encoder stream.
       break;
-    case 0x03:  // QPACK decoder stream.
+    case kQpackDecoderStream:  // QPACK decoder stream.
       // TODO(bnc): Create QPACK decoder stream.
       break;
     default:
-      SendStopSending(0x0D, id);
-      return;
+      SendStopSending(kHttpUnknownStreamType, pending->id());
   }
+  return false;
 }
 
 }  // namespace quic

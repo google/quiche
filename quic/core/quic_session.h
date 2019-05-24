@@ -558,8 +558,9 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
   }
 
   // Processes the stream type information of |pending| depending on
-  // different kinds of sessions' own rules.
-  virtual void ProcessPendingStream(PendingStream* pending) {}
+  // different kinds of sessions' own rules. Returns true if the pending stream
+  // is converted into a normal stream.
+  virtual bool ProcessPendingStream(PendingStream* pending) { return false; }
 
   bool eliminate_static_stream_map() const {
     return eliminate_static_stream_map_;

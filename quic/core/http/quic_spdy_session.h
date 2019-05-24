@@ -28,6 +28,12 @@ namespace test {
 class QuicSpdySessionPeer;
 }  // namespace test
 
+// Unidirectional stream types define by IETF HTTP/3 draft in section 3.2.
+const uint64_t kControlStream = 0;
+const uint64_t kServerPushStream = 1;
+const uint64_t kQpackEncoderStream = 2;
+const uint64_t kQpackDecoderStream = 3;
+
 // QuicHpackDebugVisitor gathers data used for understanding HPACK HoL
 // dynamics.  Specifically, it is to help predict the compression
 // penalty of avoiding HoL by chagning how the dynamic table is used.
@@ -198,9 +204,10 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // Overridden to buffer incoming unidirectional streams for version 99.
   bool UsesPendingStreams() const override;
 
-  // Overridden to Process HTTP/3 stream types. No action will be taken if
-  // stream type cannot be read.
-  void ProcessPendingStream(PendingStream* pending) override;
+  // Overridden to Process HTTP/3 stream types. H/3 streams will be created from
+  // pending streams accordingly if the stream type can be read. Returns true if
+  // unidirectional streams are created.
+  bool ProcessPendingStream(PendingStream* pending) override;
 
   size_t WriteHeadersOnHeadersStreamImpl(
       QuicStreamId id,
@@ -240,10 +247,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
 
   void set_max_uncompressed_header_bytes(
       size_t set_max_uncompressed_header_bytes);
-
-  // Creates HTTP/3 unidirectional stream of |id| and |type|. Sends
-  // STOP_SENDING frame if |type| is not supported.
-  void CreateIncomingStreamFromPending(QuicStreamId id, uint64_t type);
 
  private:
   friend class test::QuicSpdySessionPeer;

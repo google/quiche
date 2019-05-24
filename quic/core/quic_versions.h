@@ -382,8 +382,8 @@ QUIC_EXPORT_PRIVATE inline bool QuicVersionUsesCryptoFrames(
   return transport_version == QUIC_VERSION_99;
 }
 
-// Returns whether |transport_version| has HTTP/3 Control stream.
-QUIC_EXPORT_PRIVATE inline bool VersionHasControlStreams(
+// Returns whether |transport_version| has HTTP/3 stream type.
+QUIC_EXPORT_PRIVATE inline bool VersionHasStreamType(
     QuicTransportVersion transport_version) {
   return transport_version == QUIC_VERSION_99;
 }

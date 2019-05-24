@@ -417,10 +417,10 @@ INSTANTIATE_TEST_SUITE_P(Tests,
                          ::testing::ValuesIn(AllSupportedVersions()));
 
 TEST_P(QuicSpdySessionTestServer, UsesPendingStreams) {
-  if (!VersionHasControlStreams(transport_version())) {
+  if (!VersionHasStreamType(transport_version())) {
     return;
   }
-  EXPECT_FALSE(session_.UsesPendingStreams());
+  EXPECT_TRUE(session_.UsesPendingStreams());
 }
 
 TEST_P(QuicSpdySessionTestServer, PeerAddress) {
@@ -1619,10 +1619,10 @@ INSTANTIATE_TEST_SUITE_P(Tests,
                          ::testing::ValuesIn(AllSupportedVersions()));
 
 TEST_P(QuicSpdySessionTestClient, UsesPendingStreams) {
-  if (!VersionHasControlStreams(transport_version())) {
+  if (!VersionHasStreamType(transport_version())) {
     return;
   }
-  EXPECT_FALSE(session_.UsesPendingStreams());
+  EXPECT_TRUE(session_.UsesPendingStreams());
 }
 
 TEST_P(QuicSpdySessionTestClient, AvailableStreamsClient) {
@@ -1716,6 +1716,55 @@ TEST_P(QuicSpdySessionTestClient, WritePriority) {
   } else {
     EXPECT_EQ(0u, send_buffer.size());
   }
+}
+
+TEST_P(QuicSpdySessionTestClient, Http3ServerPush) {
+  if (!VersionHasStreamType(transport_version())) {
+    return;
+  }
+
+  char type[] = {0x01};
+  std::string data = std::string(type, 1) + "header";
+  EXPECT_EQ(0u, session_.GetNumOpenIncomingStreams());
+  QuicStreamId stream_id1 =
+      GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 0);
+  QuicStreamFrame data1(stream_id1, false, 0, QuicStringPiece(data));
+  session_.OnStreamFrame(data1);
+  EXPECT_EQ(1u, session_.GetNumOpenIncomingStreams());
+  QuicStream* stream = session_.GetOrCreateDynamicStream(stream_id1);
+  EXPECT_EQ(1u, stream->flow_controller()->bytes_consumed());
+  EXPECT_EQ(1u, session_.flow_controller()->bytes_consumed());
+
+  char unoptimized_type[] = {0x80, 0x00, 0x00, 0x01};
+  data = std::string(unoptimized_type, 4) + "header";
+  QuicStreamId stream_id2 =
+      GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 1);
+  QuicStreamFrame data2(stream_id2, false, 0, QuicStringPiece(data));
+  session_.OnStreamFrame(data2);
+  EXPECT_EQ(2u, session_.GetNumOpenIncomingStreams());
+  stream = session_.GetOrCreateDynamicStream(stream_id2);
+  EXPECT_EQ(4u, stream->flow_controller()->bytes_consumed());
+  EXPECT_EQ(5u, session_.flow_controller()->bytes_consumed());
+}
+
+TEST_P(QuicSpdySessionTestClient, Http3ServerPushOutofOrderFrame) {
+  if (!VersionHasStreamType(transport_version())) {
+    return;
+  }
+
+  char type[] = {0x01};
+  EXPECT_EQ(0u, session_.GetNumOpenIncomingStreams());
+  QuicStreamFrame data1(
+      GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 0),
+      false, 1, QuicStringPiece("header"));
+  session_.OnStreamFrame(data1);
+  EXPECT_EQ(0u, session_.GetNumOpenIncomingStreams());
+
+  QuicStreamFrame data2(
+      GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 0),
+      false, 0, QuicStringPiece(type, 1));
+  session_.OnStreamFrame(data2);
+  EXPECT_EQ(1u, session_.GetNumOpenIncomingStreams());
 }
 
 TEST_P(QuicSpdySessionTestServer, ZombieStreams) {
@@ -1890,7 +1939,7 @@ TEST_P(QuicSpdySessionTestServer, OnPriorityFrame) {
 }
 
 TEST_P(QuicSpdySessionTestServer, SimplePendingStreamType) {
-  if (!VersionHasControlStreams(transport_version())) {
+  if (!VersionHasStreamType(transport_version())) {
     return;
   }
   PendingStream pending(QuicUtils::GetFirstUnidirectionalStreamId(
@@ -1909,7 +1958,7 @@ TEST_P(QuicSpdySessionTestServer, SimplePendingStreamType) {
 }
 
 TEST_P(QuicSpdySessionTestServer, SimplePendingStreamTypeOutOfOrderDelivery) {
-  if (!VersionHasControlStreams(transport_version())) {
+  if (!VersionHasStreamType(transport_version())) {
     return;
   }
   PendingStream pending(QuicUtils::GetFirstUnidirectionalStreamId(
@@ -1932,7 +1981,7 @@ TEST_P(QuicSpdySessionTestServer, SimplePendingStreamTypeOutOfOrderDelivery) {
 
 TEST_P(QuicSpdySessionTestServer,
        MultipleBytesPendingStreamTypeOutOfOrderDelivery) {
-  if (!VersionHasControlStreams(transport_version())) {
+  if (!VersionHasStreamType(transport_version())) {
     return;
   }
   PendingStream pending(QuicUtils::GetFirstUnidirectionalStreamId(
