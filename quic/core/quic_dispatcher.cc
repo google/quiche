@@ -237,7 +237,7 @@ QuicDispatcher::QuicDispatcher(
     std::unique_ptr<QuicConnectionHelperInterface> helper,
     std::unique_ptr<QuicCryptoServerStream::Helper> session_helper,
     std::unique_ptr<QuicAlarmFactory> alarm_factory,
-    uint8_t expected_connection_id_length)
+    uint8_t expected_server_connection_id_length)
     : config_(config),
       crypto_config_(crypto_config),
       compressed_certs_cache_(
@@ -253,14 +253,15 @@ QuicDispatcher::QuicDispatcher(
       framer_(GetSupportedVersions(),
               /*unused*/ QuicTime::Zero(),
               Perspective::IS_SERVER,
-              expected_connection_id_length),
+              expected_server_connection_id_length),
       last_error_(QUIC_NO_ERROR),
       new_sessions_allowed_per_event_loop_(0u),
       accept_new_connections_(true),
       allow_short_initial_server_connection_ids_(false),
       last_version_label_(0),
-      expected_connection_id_length_(expected_connection_id_length),
-      should_update_expected_connection_id_length_(false),
+      expected_server_connection_id_length_(
+          expected_server_connection_id_length),
+      should_update_expected_server_connection_id_length_(false),
       no_framer_(GetQuicRestartFlag(quic_no_framer_object_in_dispatcher)) {
   if (!no_framer_) {
     framer_.set_visitor(this);
@@ -304,7 +305,7 @@ void QuicDispatcher::ProcessPacket(const QuicSocketAddress& self_address,
   uint8_t destination_connection_id_length;
   std::string detailed_error;
   const QuicErrorCode error = QuicFramer::ProcessPacketDispatcher(
-      packet, expected_connection_id_length_, &header.form,
+      packet, expected_server_connection_id_length_, &header.form,
       &header.version_flag, &last_version_label_,
       &destination_connection_id_length, &header.destination_connection_id,
       &detailed_error);
@@ -315,16 +316,17 @@ void QuicDispatcher::ProcessPacket(const QuicSocketAddress& self_address,
     return;
   }
   header.version = ParseQuicVersionLabel(last_version_label_);
-  if (destination_connection_id_length != expected_connection_id_length_ &&
-      !should_update_expected_connection_id_length_ &&
+  if (destination_connection_id_length !=
+          expected_server_connection_id_length_ &&
+      !should_update_expected_server_connection_id_length_ &&
       !QuicUtils::VariableLengthConnectionIdAllowedForVersion(
           header.version.transport_version)) {
     SetLastError(QUIC_INVALID_PACKET_HEADER);
     QUIC_DLOG(ERROR) << "Invalid Connection Id Length";
     return;
   }
-  if (should_update_expected_connection_id_length_) {
-    expected_connection_id_length_ = destination_connection_id_length;
+  if (should_update_expected_server_connection_id_length_) {
+    expected_server_connection_id_length_ = destination_connection_id_length;
   }
   // TODO(fayang): Instead of passing in QuicPacketHeader, pass format,
   // version_flag, version and destination_connection_id. Combine
@@ -341,10 +343,10 @@ void QuicDispatcher::ProcessPacket(const QuicSocketAddress& self_address,
 QuicConnectionId QuicDispatcher::MaybeReplaceServerConnectionId(
     QuicConnectionId server_connection_id,
     ParsedQuicVersion version) {
-  const uint8_t expected_connection_id_length =
-      no_framer_ ? expected_connection_id_length_
-                 : framer_.GetExpectedConnectionIdLength();
-  if (server_connection_id.length() == expected_connection_id_length) {
+  const uint8_t expected_server_connection_id_length =
+      no_framer_ ? expected_server_connection_id_length_
+                 : framer_.GetExpectedServerConnectionIdLength();
+  if (server_connection_id.length() == expected_server_connection_id_length) {
     return server_connection_id;
   }
   DCHECK(QuicUtils::VariableLengthConnectionIdAllowedForVersion(
@@ -356,7 +358,7 @@ QuicConnectionId QuicDispatcher::MaybeReplaceServerConnectionId(
   QuicConnectionId new_connection_id =
       session_helper_->GenerateConnectionIdForReject(version.transport_version,
                                                      server_connection_id);
-  DCHECK_EQ(expected_connection_id_length, new_connection_id.length());
+  DCHECK_EQ(expected_server_connection_id_length, new_connection_id.length());
   connection_id_map_.insert(
       std::make_pair(server_connection_id, new_connection_id));
   QUIC_DLOG(INFO) << "Replacing incoming connection ID " << server_connection_id
@@ -387,18 +389,18 @@ bool QuicDispatcher::OnUnauthenticatedPublicHeader(
   // connection ID, the dispatcher picks a new one of its expected length.
   // Therefore we should never receive a connection ID that is smaller
   // than 64 bits and smaller than what we expect.
-  const uint8_t expected_connection_id_length =
-      no_framer_ ? expected_connection_id_length_
-                 : framer_.GetExpectedConnectionIdLength();
+  const uint8_t expected_server_connection_id_length =
+      no_framer_ ? expected_server_connection_id_length_
+                 : framer_.GetExpectedServerConnectionIdLength();
   if (server_connection_id.length() < kQuicMinimumInitialConnectionIdLength &&
-      server_connection_id.length() < expected_connection_id_length &&
+      server_connection_id.length() < expected_server_connection_id_length &&
       !allow_short_initial_server_connection_ids_) {
     DCHECK(header.version_flag);
     DCHECK(QuicUtils::VariableLengthConnectionIdAllowedForVersion(
         header.version.transport_version));
     QUIC_DLOG(INFO) << "Packet with short destination connection ID "
                     << server_connection_id << " expected "
-                    << static_cast<int>(expected_connection_id_length);
+                    << static_cast<int>(expected_server_connection_id_length);
     ProcessUnauthenticatedHeaderFate(kFateTimeWait, server_connection_id,
                                      header.form, header.version_flag,
                                      header.version);

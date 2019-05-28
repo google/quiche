@@ -69,7 +69,7 @@ class QuicTestServer : public QuicServer {
                  const QuicConfig& config,
                  const ParsedQuicVersionVector& supported_versions,
                  QuicSimpleServerBackend* quic_simple_server_backend,
-                 uint8_t expected_connection_id_length);
+                 uint8_t expected_server_connection_id_length);
 
   // Create a custom dispatcher which creates custom sessions.
   QuicDispatcher* CreateQuicDispatcher() override;

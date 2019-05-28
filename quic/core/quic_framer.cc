@@ -459,7 +459,7 @@ PacketHeaderFormat GetIetfPacketHeaderFormat(uint8_t type_byte) {
 QuicFramer::QuicFramer(const ParsedQuicVersionVector& supported_versions,
                        QuicTime creation_time,
                        Perspective perspective,
-                       uint8_t expected_connection_id_length)
+                       uint8_t expected_server_connection_id_length)
     : visitor_(nullptr),
       error_(QUIC_NO_ERROR),
       last_serialized_server_connection_id_(EmptyQuicConnectionId()),
@@ -478,8 +478,9 @@ QuicFramer::QuicFramer(const ParsedQuicVersionVector& supported_versions,
       data_producer_(nullptr),
       infer_packet_header_type_from_version_(perspective ==
                                              Perspective::IS_CLIENT),
-      expected_connection_id_length_(expected_connection_id_length),
-      should_update_expected_connection_id_length_(false),
+      expected_server_connection_id_length_(
+          expected_server_connection_id_length),
+      should_update_expected_server_connection_id_length_(false),
       supports_multiple_packet_number_spaces_(false),
       last_written_packet_number_length_(0) {
   DCHECK(!supported_versions.empty());
@@ -1387,14 +1388,14 @@ std::unique_ptr<QuicEncryptedPacket> QuicFramer::BuildIetfStatelessResetPacket(
 
 // static
 std::unique_ptr<QuicEncryptedPacket> QuicFramer::BuildVersionNegotiationPacket(
-    QuicConnectionId connection_id,
+    QuicConnectionId server_connection_id,
     bool ietf_quic,
     const ParsedQuicVersionVector& versions) {
   if (ietf_quic) {
-    return BuildIetfVersionNegotiationPacket(connection_id, versions);
+    return BuildIetfVersionNegotiationPacket(server_connection_id, versions);
   }
   DCHECK(!versions.empty());
-  size_t len = kPublicFlagsSize + connection_id.length() +
+  size_t len = kPublicFlagsSize + server_connection_id.length() +
                versions.size() * kQuicVersionSize;
   std::unique_ptr<char[]> buffer(new char[len]);
   // Endianness is not a concern here, version negotiation packet does not have
@@ -1409,7 +1410,7 @@ std::unique_ptr<QuicEncryptedPacket> QuicFramer::BuildVersionNegotiationPacket(
     return nullptr;
   }
 
-  if (!writer.WriteConnectionId(connection_id)) {
+  if (!writer.WriteConnectionId(server_connection_id)) {
     return nullptr;
   }
 
@@ -2614,8 +2615,8 @@ bool QuicFramer::ProcessVersionLabel(QuicDataReader* reader,
 bool QuicFramer::ProcessAndValidateIetfConnectionIdLength(
     QuicDataReader* reader,
     ParsedQuicVersion version,
-    bool should_update_expected_connection_id_length,
-    uint8_t* expected_connection_id_length,
+    bool should_update_expected_server_connection_id_length,
+    uint8_t* expected_server_connection_id_length,
     uint8_t* destination_connection_id_length,
     uint8_t* source_connection_id_length,
     std::string* detailed_error) {
@@ -2629,18 +2630,18 @@ bool QuicFramer::ProcessAndValidateIetfConnectionIdLength(
   if (dcil != 0) {
     dcil += kConnectionIdLengthAdjustment;
   }
-  if (should_update_expected_connection_id_length &&
-      *expected_connection_id_length != dcil) {
-    QUIC_DVLOG(1) << "Updating expected_connection_id_length: "
-                  << static_cast<int>(*expected_connection_id_length) << " -> "
-                  << static_cast<int>(dcil);
-    *expected_connection_id_length = dcil;
+  if (should_update_expected_server_connection_id_length &&
+      *expected_server_connection_id_length != dcil) {
+    QUIC_DVLOG(1) << "Updating expected_server_connection_id_length: "
+                  << static_cast<int>(*expected_server_connection_id_length)
+                  << " -> " << static_cast<int>(dcil);
+    *expected_server_connection_id_length = dcil;
   }
   uint8_t scil = connection_id_lengths_byte & kSourceConnectionIdLengthMask;
   if (scil != 0) {
     scil += kConnectionIdLengthAdjustment;
   }
-  if (!should_update_expected_connection_id_length &&
+  if (!should_update_expected_server_connection_id_length &&
       (dcil != *destination_connection_id_length ||
        scil != *source_connection_id_length) &&
       !QuicUtils::VariableLengthConnectionIdAllowedForVersion(
@@ -2665,18 +2666,19 @@ bool QuicFramer::ProcessIetfPacketHeader(QuicDataReader* reader,
 
   uint8_t destination_connection_id_length =
       header->destination_connection_id_included == CONNECTION_ID_PRESENT
-          ? expected_connection_id_length_
+          ? expected_server_connection_id_length_
           : 0;
   uint8_t source_connection_id_length =
       header->source_connection_id_included == CONNECTION_ID_PRESENT
-          ? expected_connection_id_length_
+          ? expected_server_connection_id_length_
           : 0;
   if (header->form == IETF_QUIC_LONG_HEADER_PACKET) {
     if (!ProcessAndValidateIetfConnectionIdLength(
             reader, header->version,
-            should_update_expected_connection_id_length_,
-            &expected_connection_id_length_, &destination_connection_id_length,
-            &source_connection_id_length, &detailed_error_)) {
+            should_update_expected_server_connection_id_length_,
+            &expected_server_connection_id_length_,
+            &destination_connection_id_length, &source_connection_id_length,
+            &detailed_error_)) {
       return false;
     }
   }
@@ -6082,14 +6084,14 @@ QuicErrorCode QuicFramer::ProcessPacketDispatcher(
       *detailed_error = "Unable to read protocol version.";
       return QUIC_INVALID_PACKET_HEADER;
     }
-    // Set should_update_expected_connection_id_length to true to bypass
+    // Set should_update_expected_server_connection_id_length to true to bypass
     // connection ID lengths validation.
     uint8_t unused_source_connection_id_length = 0;
-    uint8_t unused_expected_connection_id_length = 0;
+    uint8_t unused_expected_server_connection_id_length = 0;
     if (!ProcessAndValidateIetfConnectionIdLength(
             &reader, ParseQuicVersionLabel(*version_label),
-            /*should_update_expected_connection_id_length=*/true,
-            &unused_expected_connection_id_length,
+            /*should_update_expected_server_connection_id_length=*/true,
+            &unused_expected_server_connection_id_length,
             destination_connection_id_length,
             &unused_source_connection_id_length, detailed_error)) {
       return QUIC_INVALID_PACKET_HEADER;
@@ -6233,13 +6235,14 @@ bool QuicFramer::ParseServerVersionNegotiationProbeResponse(
     *detailed_error = "Packet is not a version negotiation packet";
     return false;
   }
-  uint8_t expected_connection_id_length = 0,
+  uint8_t expected_server_connection_id_length = 0,
           destination_connection_id_length = 0, source_connection_id_length = 0;
   if (!ProcessAndValidateIetfConnectionIdLength(
           &reader, UnsupportedQuicVersion(),
-          /*should_update_expected_connection_id_length=*/true,
-          &expected_connection_id_length, &destination_connection_id_length,
-          &source_connection_id_length, detailed_error)) {
+          /*should_update_expected_server_connection_id_length=*/true,
+          &expected_server_connection_id_length,
+          &destination_connection_id_length, &source_connection_id_length,
+          detailed_error)) {
     return false;
   }
   if (destination_connection_id_length != 0) {

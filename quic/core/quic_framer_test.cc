@@ -13236,8 +13236,8 @@ TEST_P(QuicFramerTest, PacketHeaderWithVariableLengthConnectionId) {
   QuicConnectionId connection_id(connection_id_bytes,
                                  sizeof(connection_id_bytes));
   QuicFramerPeer::SetLargestPacketNumber(&framer_, kPacketNumber - 2);
-  QuicFramerPeer::SetExpectedConnectionIDLength(&framer_,
-                                                connection_id.length());
+  QuicFramerPeer::SetExpectedServerConnectionIDLength(&framer_,
+                                                      connection_id.length());
 
   // clang-format off
   PacketFragments packet = {
@@ -13293,7 +13293,7 @@ TEST_P(QuicFramerTest, UpdateExpectedConnectionIdLength) {
     return;
   }
   SetDecrypterLevel(ENCRYPTION_ZERO_RTT);
-  framer_.SetShouldUpdateExpectedConnectionIdLength(true);
+  framer_.SetShouldUpdateExpectedServerConnectionIdLength(true);
 
   // clang-format off
   unsigned char long_header_packet[] = {
@@ -13405,7 +13405,7 @@ TEST_P(QuicFramerTest, MultiplePacketNumberSpaces) {
   if (framer_.transport_version() < QUIC_VERSION_46) {
     return;
   }
-  framer_.SetShouldUpdateExpectedConnectionIdLength(true);
+  framer_.SetShouldUpdateExpectedServerConnectionIdLength(true);
   framer_.EnableMultiplePacketNumberSpacesSupport();
 
   // clang-format off

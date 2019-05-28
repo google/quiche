@@ -48,7 +48,7 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
                  std::unique_ptr<QuicConnectionHelperInterface> helper,
                  std::unique_ptr<QuicCryptoServerStream::Helper> session_helper,
                  std::unique_ptr<QuicAlarmFactory> alarm_factory,
-                 uint8_t expected_connection_id_length);
+                 uint8_t expected_server_connection_id_length);
   QuicDispatcher(const QuicDispatcher&) = delete;
   QuicDispatcher& operator=(const QuicDispatcher&) = delete;
 
@@ -356,15 +356,15 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
 
   // If true, our framer will change its expected connection ID length
   // to the received destination connection ID length of all IETF long headers.
-  void SetShouldUpdateExpectedConnectionIdLength(
-      bool should_update_expected_connection_id_length) {
+  void SetShouldUpdateExpectedServerConnectionIdLength(
+      bool should_update_expected_server_connection_id_length) {
     if (!no_framer_) {
-      framer_.SetShouldUpdateExpectedConnectionIdLength(
-          should_update_expected_connection_id_length);
+      framer_.SetShouldUpdateExpectedServerConnectionIdLength(
+          should_update_expected_server_connection_id_length);
       return;
     }
-    should_update_expected_connection_id_length_ =
-        should_update_expected_connection_id_length;
+    should_update_expected_server_connection_id_length_ =
+        should_update_expected_server_connection_id_length;
   }
 
   // If true, the dispatcher will allow incoming initial packets that have
@@ -508,14 +508,15 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
   // encode its length. This variable contains the length we expect to read.
   // This is also used to signal an error when a long header packet with
   // different destination connection ID length is received when
-  // should_update_expected_connection_id_length_ is false and packet's version
-  // does not allow variable length connection ID. Used when no_framer_ is true.
-  uint8_t expected_connection_id_length_;
+  // should_update_expected_server_connection_id_length_ is false and packet's
+  // version does not allow variable length connection ID. Used when no_framer_
+  // is true.
+  uint8_t expected_server_connection_id_length_;
 
-  // If true, change expected_connection_id_length_ to be the received
+  // If true, change expected_server_connection_id_length_ to be the received
   // destination connection ID length of all IETF long headers. Used when
   // no_framer_ is true.
-  bool should_update_expected_connection_id_length_;
+  bool should_update_expected_server_connection_id_length_;
 
   // Latched value of quic_no_framer_object_in_dispatcher.
   const bool no_framer_;

@@ -376,8 +376,7 @@ QuicConnection::QuicConnection(
   if (use_uber_received_packet_manager_) {
     QUIC_RELOADABLE_FLAG_COUNT(quic_use_uber_received_packet_manager);
   }
-  QUIC_DLOG(INFO) << ENDPOINT
-                  << "Created connection with server connection_id: "
+  QUIC_DLOG(INFO) << ENDPOINT << "Created connection with server connection ID "
                   << server_connection_id
                   << " and version: " << ParsedQuicVersionToString(version());
 

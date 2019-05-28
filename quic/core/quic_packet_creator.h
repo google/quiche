@@ -225,7 +225,7 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   void SetServerConnectionIdIncluded(
       QuicConnectionIdIncluded server_connection_id_included);
 
-  // Update the connection ID used in outgoing packets.
+  // Update the server connection ID used in outgoing packets.
   void SetServerConnectionId(QuicConnectionId server_connection_id);
 
   // Sets the encryption level that will be applied to new packets.
