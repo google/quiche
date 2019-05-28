@@ -1662,6 +1662,11 @@ TEST_P(EndToEndTest, MinInitialRTT) {
 }
 
 TEST_P(EndToEndTest, 0ByteConnectionId) {
+  if (GetParam().negotiated_version.transport_version > QUIC_VERSION_43) {
+    // SetBytesForConnectionIdToSend only applies to Google QUIC encoding.
+    ASSERT_TRUE(Initialize());
+    return;
+  }
   client_config_.SetBytesForConnectionIdToSend(0);
   ASSERT_TRUE(Initialize());
 
@@ -1679,6 +1684,11 @@ TEST_P(EndToEndTest, 0ByteConnectionId) {
 }
 
 TEST_P(EndToEndTestWithTls, 8ByteConnectionId) {
+  if (GetParam().negotiated_version.transport_version > QUIC_VERSION_43) {
+    // SetBytesForConnectionIdToSend only applies to Google QUIC encoding.
+    ASSERT_TRUE(Initialize());
+    return;
+  }
   client_config_.SetBytesForConnectionIdToSend(8);
   ASSERT_TRUE(Initialize());
 
@@ -1688,15 +1698,15 @@ TEST_P(EndToEndTestWithTls, 8ByteConnectionId) {
       client_->client()->client_session()->connection();
   QuicPacketHeader* header =
       QuicConnectionPeer::GetLastHeader(client_connection);
-  if (client_connection->transport_version() > QUIC_VERSION_43) {
-    EXPECT_EQ(CONNECTION_ID_ABSENT, header->destination_connection_id_included);
-  } else {
-    EXPECT_EQ(CONNECTION_ID_PRESENT,
-              header->destination_connection_id_included);
-  }
+  EXPECT_EQ(CONNECTION_ID_PRESENT, header->destination_connection_id_included);
 }
 
 TEST_P(EndToEndTestWithTls, 15ByteConnectionId) {
+  if (GetParam().negotiated_version.transport_version > QUIC_VERSION_43) {
+    // SetBytesForConnectionIdToSend only applies to Google QUIC encoding.
+    ASSERT_TRUE(Initialize());
+    return;
+  }
   client_config_.SetBytesForConnectionIdToSend(15);
   ASSERT_TRUE(Initialize());
 
@@ -1707,12 +1717,7 @@ TEST_P(EndToEndTestWithTls, 15ByteConnectionId) {
       client_->client()->client_session()->connection();
   QuicPacketHeader* header =
       QuicConnectionPeer::GetLastHeader(client_connection);
-  if (client_connection->transport_version() > QUIC_VERSION_43) {
-    EXPECT_EQ(CONNECTION_ID_ABSENT, header->destination_connection_id_included);
-  } else {
-    EXPECT_EQ(CONNECTION_ID_PRESENT,
-              header->destination_connection_id_included);
-  }
+  EXPECT_EQ(CONNECTION_ID_PRESENT, header->destination_connection_id_included);
 }
 
 TEST_P(EndToEndTestWithTls, ResetConnection) {
