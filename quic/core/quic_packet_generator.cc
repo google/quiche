@@ -302,8 +302,7 @@ void QuicPacketGenerator::SendQueuedFrames(bool flush) {
         QUIC_LOG(INFO) << queued_control_frames_[0];
       }
       delegate_->OnUnrecoverableError(QUIC_FAILED_TO_SERIALIZE_PACKET,
-                                      "Single frame cannot fit into a packet",
-                                      ConnectionCloseSource::FROM_SELF);
+                                      "Single frame cannot fit into a packet");
       return;
     }
   }

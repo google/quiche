@@ -200,8 +200,7 @@ bool QuicPacketCreator::ConsumeData(QuicStreamId id,
     QUIC_BUG << error_details << " Constructed stream frame length: "
              << frame->stream_frame.data_length
              << " CHLO length: " << data_size;
-    delegate_->OnUnrecoverableError(QUIC_CRYPTO_CHLO_TOO_LARGE, error_details,
-                                    ConnectionCloseSource::FROM_SELF);
+    delegate_->OnUnrecoverableError(QUIC_CRYPTO_CHLO_TOO_LARGE, error_details);
     return false;
   }
   if (!AddFrame(*frame, /*save_retransmittable_frames=*/true,
@@ -384,8 +383,7 @@ void QuicPacketCreator::OnSerializedPacket() {
     const std::string error_details = "Failed to SerializePacket.";
     QUIC_BUG << error_details;
     delegate_->OnUnrecoverableError(QUIC_FAILED_TO_SERIALIZE_PACKET,
-                                    error_details,
-                                    ConnectionCloseSource::FROM_SELF);
+                                    error_details);
     return;
   }
 
@@ -897,8 +895,7 @@ bool QuicPacketCreator::AddFrame(const QuicFrame& frame,
         QuicUtils::EncryptionLevelToString(packet_.encryption_level));
     QUIC_BUG << error_details;
     delegate_->OnUnrecoverableError(
-        QUIC_ATTEMPT_TO_SEND_UNENCRYPTED_STREAM_DATA, error_details,
-        ConnectionCloseSource::FROM_SELF);
+        QUIC_ATTEMPT_TO_SEND_UNENCRYPTED_STREAM_DATA, error_details);
     return false;
   }
   size_t frame_len = framer_->GetSerializedFrameLength(

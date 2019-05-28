@@ -73,8 +73,7 @@ class PacketCollector : public QuicPacketCreator::DelegateInterface,
   }
 
   void OnUnrecoverableError(QuicErrorCode error,
-                            const std::string& error_details,
-                            ConnectionCloseSource source) override {}
+                            const std::string& error_details) override {}
 
   void SaveStatelessRejectFrameData(QuicStringPiece reject) {
     struct iovec iovec;

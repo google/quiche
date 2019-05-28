@@ -241,6 +241,7 @@ TEST_F(SimpleSessionNotifierTest, OnCanWriteCryptoFrames) {
   EXPECT_CALL(connection_, SendCryptoData(ENCRYPTION_INITIAL, 1024, 0))
       .WillOnce(Invoke(&connection_,
                        &MockQuicConnection::QuicConnection_SendCryptoData));
+  EXPECT_CALL(connection_, CloseConnection(QUIC_PACKET_WRITE_ERROR, _, _));
   producer.SaveCryptoData(ENCRYPTION_INITIAL, 0, std::string(1024, 'a'));
   producer.SaveCryptoData(ENCRYPTION_INITIAL, 500, std::string(524, 'a'));
   notifier_.WriteCryptoData(ENCRYPTION_INITIAL, 1024, 0);

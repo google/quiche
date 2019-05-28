@@ -433,6 +433,7 @@ TEST_P(QuicSpdySessionTestServer, SelfAddress) {
 }
 
 TEST_P(QuicSpdySessionTestServer, IsCryptoHandshakeConfirmed) {
+  EXPECT_CALL(*connection_, CloseConnection(_, _, _));
   EXPECT_FALSE(session_.IsCryptoHandshakeConfirmed());
   CryptoHandshakeMessage message;
   session_.GetMutableCryptoStream()->OnHandshakeMessage(message);
@@ -1020,6 +1021,7 @@ TEST_P(QuicSpdySessionTestServer, ServerReplyToConnecitivityProbe) {
 }
 
 TEST_P(QuicSpdySessionTestServer, IncreasedTimeoutAfterCryptoHandshake) {
+  EXPECT_CALL(*connection_, CloseConnection(_, _, _));
   EXPECT_EQ(kInitialIdleTimeoutSecs + 3,
             QuicConnectionPeer::GetNetworkTimeout(connection_).ToSeconds());
   CryptoHandshakeMessage msg;

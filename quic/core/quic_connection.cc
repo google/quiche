@@ -632,8 +632,8 @@ bool QuicConnection::OnProtocolVersionMismatch(
   if (perspective_ == Perspective::IS_CLIENT) {
     const std::string error_details = "Protocol version mismatch.";
     QUIC_BUG << ENDPOINT << error_details;
-    TearDownLocalConnectionState(QUIC_INTERNAL_ERROR, error_details,
-                                 ConnectionCloseSource::FROM_SELF);
+    CloseConnection(QUIC_INTERNAL_ERROR, error_details,
+                    ConnectionCloseBehavior::SILENT_CLOSE);
     return false;
   }
   if (no_version_negotiation_) {
@@ -706,8 +706,8 @@ void QuicConnection::OnVersionNegotiationPacket(
         "Server received version negotiation packet.";
     QUIC_BUG << error_details;
     QUIC_CODE_COUNT(quic_tear_down_local_connection_on_version_negotiation);
-    TearDownLocalConnectionState(QUIC_INTERNAL_ERROR, error_details,
-                                 ConnectionCloseSource::FROM_SELF);
+    CloseConnection(QUIC_INTERNAL_ERROR, error_details,
+                    ConnectionCloseBehavior::SILENT_CLOSE);
     return;
   }
   if (debug_visitor_ != nullptr) {
@@ -724,9 +724,8 @@ void QuicConnection::OnVersionNegotiationPacket(
         "Server already supports client's version and should have accepted the "
         "connection.";
     QUIC_DLOG(WARNING) << error_details;
-    TearDownLocalConnectionState(QUIC_INVALID_VERSION_NEGOTIATION_PACKET,
-                                 error_details,
-                                 ConnectionCloseSource::FROM_SELF);
+    CloseConnection(QUIC_INVALID_VERSION_NEGOTIATION_PACKET, error_details,
+                    ConnectionCloseBehavior::SILENT_CLOSE);
     return;
   }
 
@@ -766,8 +765,8 @@ void QuicConnection::OnVersionNegotiationPacket(
         ParsedQuicVersionToString(original_version) + " and " +
         ParsedQuicVersionToString(version()) + " is currently unsupported.";
     QUIC_DLOG(WARNING) << error_details;
-    TearDownLocalConnectionState(QUIC_INVALID_VERSION, error_details,
-                                 ConnectionCloseSource::FROM_SELF);
+    CloseConnection(QUIC_INVALID_VERSION, error_details,
+                    ConnectionCloseBehavior::SILENT_CLOSE);
     return;
   }
 
@@ -2735,8 +2734,8 @@ void QuicConnection::OnWriteError(int error_code) {
         QUIC_CODE_COUNT(
             quic_tear_down_local_connection_on_write_error_non_ietf);
       }
-      TearDownLocalConnectionState(QUIC_PACKET_WRITE_ERROR, error_details,
-                                   ConnectionCloseSource::FROM_SELF);
+      CloseConnection(QUIC_PACKET_WRITE_ERROR, error_details,
+                      ConnectionCloseBehavior::SILENT_CLOSE);
   }
 }
 
@@ -2747,7 +2746,7 @@ char* QuicConnection::GetPacketBuffer() {
 void QuicConnection::OnSerializedPacket(SerializedPacket* serialized_packet) {
   if (serialized_packet->encrypted_buffer == nullptr) {
     // We failed to serialize the packet, so close the connection.
-    // TearDownLocalConnectionState does not send close packet, so no infinite
+    // Specify that the close is silent, that no packet be sent, so no infinite
     // loop here.
     // TODO(ianswett): This is actually an internal error, not an
     // encryption failure.
@@ -2758,10 +2757,9 @@ void QuicConnection::OnSerializedPacket(SerializedPacket* serialized_packet) {
       QUIC_CODE_COUNT(
           quic_tear_down_local_connection_on_serialized_packet_non_ietf);
     }
-    TearDownLocalConnectionState(
-        QUIC_ENCRYPTION_FAILURE,
-        "Serialized packet does not have an encrypted buffer.",
-        ConnectionCloseSource::FROM_SELF);
+    CloseConnection(QUIC_ENCRYPTION_FAILURE,
+                    "Serialized packet does not have an encrypted buffer.",
+                    ConnectionCloseBehavior::SILENT_CLOSE);
     return;
   }
 
@@ -2777,8 +2775,7 @@ void QuicConnection::OnSerializedPacket(SerializedPacket* serialized_packet) {
 }
 
 void QuicConnection::OnUnrecoverableError(QuicErrorCode error,
-                                          const std::string& error_details,
-                                          ConnectionCloseSource source) {
+                                          const std::string& error_details) {
   // The packet creator or generator encountered an unrecoverable error: tear
   // down local connection state immediately.
   if (transport_version() > QUIC_VERSION_43) {
@@ -2788,7 +2785,7 @@ void QuicConnection::OnUnrecoverableError(QuicErrorCode error,
     QUIC_CODE_COUNT(
         quic_tear_down_local_connection_on_unrecoverable_error_non_ietf);
   }
-  TearDownLocalConnectionState(error, error_details, source);
+  CloseConnection(error, error_details, ConnectionCloseBehavior::SILENT_CLOSE);
 }
 
 void QuicConnection::OnCongestionChange() {
@@ -3120,6 +3117,7 @@ void QuicConnection::CloseConnection(
     // Regard stateless rejected connection as closed by server.
     source = ConnectionCloseSource::FROM_PEER;
   }
+
   TearDownLocalConnectionState(error, error_details, source);
 }
 

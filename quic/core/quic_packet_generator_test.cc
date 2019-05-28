@@ -51,8 +51,7 @@ class MockDelegate : public QuicPacketGenerator::DelegateInterface {
   MOCK_METHOD1(PopulateStopWaitingFrame, void(QuicStopWaitingFrame*));
   MOCK_METHOD0(GetPacketBuffer, char*());
   MOCK_METHOD1(OnSerializedPacket, void(SerializedPacket* packet));
-  MOCK_METHOD3(OnUnrecoverableError,
-               void(QuicErrorCode, const std::string&, ConnectionCloseSource));
+  MOCK_METHOD2(OnUnrecoverableError, void(QuicErrorCode, const std::string&));
 
   void SetCanWriteAnything() {
     EXPECT_CALL(*this, ShouldGeneratePacket(_, _)).WillRepeatedly(Return(true));
@@ -1452,8 +1451,7 @@ TEST_F(QuicPacketGeneratorTest, DontCrashOnInvalidStopWaiting) {
 
   // This will not serialize any packets, because of the invalid frame.
   EXPECT_CALL(delegate_,
-              OnUnrecoverableError(QUIC_FAILED_TO_SERIALIZE_PACKET, _,
-                                   ConnectionCloseSource::FROM_SELF));
+              OnUnrecoverableError(QUIC_FAILED_TO_SERIALIZE_PACKET, _));
   EXPECT_QUIC_BUG(generator_.Flush(),
                   "packet_number_length 1 is too small "
                   "for least_unacked_delta: 1001");

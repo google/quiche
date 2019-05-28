@@ -1402,7 +1402,7 @@ TEST_P(QuicPacketCreatorTest, AddUnencryptedStreamDataClosesConnection) {
   }
 
   creator_.set_encryption_level(ENCRYPTION_INITIAL);
-  EXPECT_CALL(delegate_, OnUnrecoverableError(_, _, _));
+  EXPECT_CALL(delegate_, OnUnrecoverableError(_, _));
   QuicStreamFrame stream_frame(
       QuicUtils::GetHeadersStreamId(client_framer_.transport_version()),
       /*fin=*/false, 0u, QuicStringPiece());
@@ -1418,7 +1418,7 @@ TEST_P(QuicPacketCreatorTest, SendStreamDataWithEncryptionHandshake) {
   }
 
   creator_.set_encryption_level(ENCRYPTION_HANDSHAKE);
-  EXPECT_CALL(delegate_, OnUnrecoverableError(_, _, _));
+  EXPECT_CALL(delegate_, OnUnrecoverableError(_, _));
   QuicStreamFrame stream_frame(
       QuicUtils::GetHeadersStreamId(client_framer_.transport_version()),
       /*fin=*/false, 0u, QuicStringPiece());
@@ -1451,8 +1451,7 @@ TEST_P(QuicPacketCreatorTest, ChloTooLarge) {
   MakeIOVector(QuicStringPiece(message_data->data(), message_data->length()),
                &iov);
   QuicFrame frame;
-  EXPECT_CALL(delegate_,
-              OnUnrecoverableError(QUIC_CRYPTO_CHLO_TOO_LARGE, _, _));
+  EXPECT_CALL(delegate_, OnUnrecoverableError(QUIC_CRYPTO_CHLO_TOO_LARGE, _));
   EXPECT_QUIC_BUG(creator_.ConsumeData(QuicUtils::GetCryptoStreamId(
                                            client_framer_.transport_version()),
                                        &iov, 1u, iov.iov_len, 0u, 0u, false,

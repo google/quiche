@@ -535,8 +535,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   char* GetPacketBuffer() override;
   void OnSerializedPacket(SerializedPacket* packet) override;
   void OnUnrecoverableError(QuicErrorCode error,
-                            const std::string& error_details,
-                            ConnectionCloseSource source) override;
+                            const std::string& error_details) override;
 
   // QuicSentPacketManager::NetworkChangeVisitor
   void OnCongestionChange() override;
@@ -974,7 +973,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   typedef std::list<SerializedPacket> QueuedPacketList;
 
   // Notifies the visitor of the close and marks the connection as disconnected.
-  // Does not send a connection close frame to the peer.
+  // Does not send a connection close frame to the peer. It should only be
+  // called by CloseConnection or OnConnectionCloseFrame, OnPublicResetPacket,
+  // and OnAuthenticatedIetfStatelessResetPacket.
   void TearDownLocalConnectionState(QuicErrorCode error,
                                     const std::string& details,
                                     ConnectionCloseSource source);

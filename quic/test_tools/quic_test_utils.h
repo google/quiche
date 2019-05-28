@@ -1046,10 +1046,7 @@ class MockPacketCreatorDelegate : public QuicPacketCreator::DelegateInterface {
 
   MOCK_METHOD0(GetPacketBuffer, char*());
   MOCK_METHOD1(OnSerializedPacket, void(SerializedPacket* packet));
-  MOCK_METHOD3(OnUnrecoverableError,
-               void(QuicErrorCode,
-                    const std::string&,
-                    ConnectionCloseSource source));
+  MOCK_METHOD2(OnUnrecoverableError, void(QuicErrorCode, const std::string&));
 };
 
 class MockSessionNotifier : public SessionNotifierInterface {

@@ -41,8 +41,7 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
 
     // Called when an unrecoverable error is encountered.
     virtual void OnUnrecoverableError(QuicErrorCode error,
-                                      const std::string& error_details,
-                                      ConnectionCloseSource source) = 0;
+                                      const std::string& error_details) = 0;
   };
 
   // Interface which gets callbacks from the QuicPacketCreator at interesting
