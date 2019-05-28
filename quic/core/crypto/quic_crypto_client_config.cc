@@ -761,8 +761,8 @@ QuicErrorCode QuicCryptoClientConfig::ProcessRejection(
     std::string* error_details) {
   DCHECK(error_details != nullptr);
 
-  if ((rej.tag() != kREJ) && (rej.tag() != kSREJ)) {
-    *error_details = "Message is not REJ or SREJ";
+  if (rej.tag() != kREJ) {
+    *error_details = "Message is not REJ";
     return QUIC_CRYPTO_INTERNAL_ERROR;
   }
 
@@ -776,30 +776,6 @@ QuicErrorCode QuicCryptoClientConfig::ProcessRejection(
   QuicStringPiece nonce;
   if (rej.GetStringPiece(kServerNonceTag, &nonce)) {
     out_params->server_nonce = std::string(nonce);
-  }
-
-  if (rej.tag() == kSREJ) {
-    QuicConnectionId connection_id;
-
-    QuicStringPiece connection_id_bytes;
-    if (!rej.GetStringPiece(kRCID, &connection_id_bytes)) {
-      *error_details = "Missing kRCID";
-      return QUIC_CRYPTO_MESSAGE_PARAMETER_NOT_FOUND;
-    }
-    connection_id = QuicConnectionId(connection_id_bytes.data(),
-                                     connection_id_bytes.length());
-    if (!QuicUtils::IsConnectionIdValidForVersion(connection_id, version)) {
-      QUIC_PEER_BUG << "Received server-designated connection ID "
-                    << connection_id << " which is invalid with version "
-                    << QuicVersionToString(version);
-      *error_details = "Bad kRCID length";
-      return QUIC_CRYPTO_INTERNAL_ERROR;
-    }
-    cached->add_server_designated_connection_id(connection_id);
-    if (!nonce.empty()) {
-      cached->add_server_nonce(std::string(nonce));
-    }
-    return QUIC_NO_ERROR;
   }
 
   return QUIC_NO_ERROR;

@@ -27,14 +27,13 @@ namespace quic {
 typedef std::string ServerConfigID;
 
 // The following tags have been deprecated and should not be reused:
-// "BBQ4"
+// "BBQ4", "RCID", "SREJ"
 
 // clang-format off
 const QuicTag kCHLO = TAG('C', 'H', 'L', 'O');   // Client hello
 const QuicTag kSHLO = TAG('S', 'H', 'L', 'O');   // Server hello
 const QuicTag kSCFG = TAG('S', 'C', 'F', 'G');   // Server config
 const QuicTag kREJ  = TAG('R', 'E', 'J', '\0');  // Reject
-const QuicTag kSREJ = TAG('S', 'R', 'E', 'J');   // Stateless reject
 const QuicTag kCETV = TAG('C', 'E', 'T', 'V');   // Client encrypted tag-value
                                                  // pairs
 const QuicTag kPRST = TAG('P', 'R', 'S', 'T');   // Public reset
@@ -245,9 +244,7 @@ const QuicTag kTB10 = TAG('T', 'B', '1', '0');   // TB draft 10 with P256.
 
 // Rejection tags
 const QuicTag kRREJ = TAG('R', 'R', 'E', 'J');   // Reasons for server sending
-// Stateless Reject tags
-const QuicTag kRCID = TAG('R', 'C', 'I', 'D');   // Server-designated
-                                                 // connection ID
+
 // Server hello tags
 const QuicTag kCADR = TAG('C', 'A', 'D', 'R');   // Client IP address and port
 const QuicTag kASAD = TAG('A', 'S', 'A', 'D');   // Alternate Server IP address

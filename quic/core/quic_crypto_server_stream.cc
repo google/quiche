@@ -28,24 +28,6 @@ namespace quic {
 QuicCryptoServerStreamBase::QuicCryptoServerStreamBase(QuicSession* session)
     : QuicCryptoStream(session) {}
 
-// TODO(jokulik): Once stateless rejects support is inherent in the version
-// number, this function will likely go away entirely.
-// static
-bool QuicCryptoServerStreamBase::DoesPeerSupportStatelessRejects(
-    const CryptoHandshakeMessage& message) {
-  QuicTagVector received_tags;
-  QuicErrorCode error = message.GetTaglist(kCOPT, &received_tags);
-  if (error != QUIC_NO_ERROR) {
-    return false;
-  }
-  for (const QuicTag tag : received_tags) {
-    if (tag == kSREJ) {
-      return true;
-    }
-  }
-  return false;
-}
-
 QuicCryptoServerStream::QuicCryptoServerStream(
     const QuicCryptoServerConfig* crypto_config,
     QuicCompressedCertsCache* compressed_certs_cache,

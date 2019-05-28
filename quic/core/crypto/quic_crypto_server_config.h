@@ -338,6 +338,8 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
       const QuicSocketAddress& client_address,
       ParsedQuicVersion version,
       const ParsedQuicVersionVector& supported_versions,
+      // TODO(wub): Deprecate use_stateless_rejects and
+      // server_designated_connection_id.
       bool use_stateless_rejects,
       QuicConnectionId server_designated_connection_id,
       const QuicClock* clock,

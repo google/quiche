@@ -1437,28 +1437,8 @@ void QuicCryptoServerConfig::BuildRejection(
     const std::vector<uint32_t>& reject_reasons,
     CryptoHandshakeMessage* out) const {
   const QuicWallTime now = context.clock()->WallNow();
-  if (GetQuicReloadableFlag(enable_quic_stateless_reject_support) &&
-      context.use_stateless_rejects()) {
-    QUIC_DVLOG(1) << "QUIC Crypto server config returning stateless reject "
-                  << "with server-designated connection ID "
-                  << context.server_designated_connection_id();
-    out->set_tag(kSREJ);
-    if (!QuicUtils::IsConnectionIdValidForVersion(
-            context.server_designated_connection_id(),
-            context.transport_version())) {
-      QUIC_BUG << "Tried to send server designated connection ID "
-               << context.server_designated_connection_id()
-               << " which is invalid with version "
-               << QuicVersionToString(context.transport_version());
-      return;
-    }
-    out->SetStringPiece(
-        kRCID,
-        QuicStringPiece(context.server_designated_connection_id().data(),
-                        context.server_designated_connection_id().length()));
-  } else {
-    out->set_tag(kREJ);
-  }
+
+  out->set_tag(kREJ);
   out->SetStringPiece(kSCFG, config.serialized);
   out->SetStringPiece(
       kSourceAddressTokenTag,

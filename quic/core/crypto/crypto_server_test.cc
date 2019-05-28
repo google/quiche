@@ -148,14 +148,6 @@ class CryptoServerTest : public QuicTestWithParam<TestParams> {
         SERVER_CONFIG_INCHOATE_HELLO_FAILURE};
     CheckRejectReasons(kRejectReasons, QUIC_ARRAYSIZE(kRejectReasons));
 
-    // TODO(wub): Delete this block when deprecating RCID.
-    {
-      uint64_t server_designated_connection_id;
-      EXPECT_EQ(QUIC_CRYPTO_MESSAGE_PARAMETER_NOT_FOUND,
-                out_.GetUint64(kRCID, &server_designated_connection_id));
-      rand_for_id_generation_.ChangeValue();
-    }
-
     QuicStringPiece srct;
     ASSERT_TRUE(out_.GetStringPiece(kSourceAddressTokenTag, &srct));
     srct_hex_ = "#" + QuicTextUtils::HexEncode(srct);

@@ -149,13 +149,6 @@ class QuicSpdyClientBase : public QuicClientBase,
       const quic::ParsedQuicVersionVector& supported_versions,
       QuicConnection* connection) override;
 
-  // If the crypto handshake has not yet been confirmed, adds the data to the
-  // queue of data to resend if the client receives a stateless reject.
-  // Otherwise, deletes the data.
-  void MaybeAddDataToResend(const spdy::SpdyHeaderBlock& headers,
-                            QuicStringPiece body,
-                            bool fin);
-
   void ClearDataToResend() override;
 
   void ResendSavedData() override;

@@ -164,11 +164,6 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientHandshaker
   std::string verify_error_details_;
   std::unique_ptr<ProofVerifyDetails> verify_details_;
 
-  // True if the server responded to a previous CHLO with a stateless
-  // reject.  Used for book-keeping between the STATE_RECV_REJ,
-  // STATE_VERIFY_PROOF*, and subsequent STATE_SEND_CHLO state.
-  bool stateless_reject_received_;
-
   QuicTime proof_verify_start_time_;
 
   int num_scup_messages_received_;

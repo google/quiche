@@ -19,7 +19,6 @@
 #include "net/third_party/quiche/src/quic/core/quic_time_wait_list_manager.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
-#include "net/third_party/quiche/src/quic/core/stateless_rejector.h"
 #include "net/third_party/quiche/src/quic/core/tls_server_handshaker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_expect_bug.h"
@@ -1401,56 +1400,14 @@ TEST_F(QuicDispatcherWriteBlockedListTest,
   MarkSession1Deleted();
 }
 
-// Tests that bufferring packets works in stateful reject, expensive stateless
-// reject and cheap stateless reject.
-struct BufferedPacketStoreTestParams {
-  BufferedPacketStoreTestParams(bool enable_stateless_rejects_via_flag,
-                                bool support_cheap_stateless_reject)
-      : enable_stateless_rejects_via_flag(enable_stateless_rejects_via_flag),
-        support_cheap_stateless_reject(support_cheap_stateless_reject) {}
-
-  friend std::ostream& operator<<(std::ostream& os,
-                                  const BufferedPacketStoreTestParams& p) {
-    os << "{  enable_stateless_rejects_via_flag: "
-       << p.enable_stateless_rejects_via_flag << std::endl;
-    os << "  support_cheap_stateless_reject: "
-       << p.support_cheap_stateless_reject << " }";
-    return os;
-  }
-
-  // This only enables the stateless reject feature via the feature-flag.
-  // This should be a no-op if the peer does not support them.
-  bool enable_stateless_rejects_via_flag;
-  // Whether to do cheap stateless or not.
-  bool support_cheap_stateless_reject;
-};
-
-std::vector<BufferedPacketStoreTestParams> GetBufferedPacketStoreTestParams() {
-  std::vector<BufferedPacketStoreTestParams> params;
-  for (bool enable_stateless_rejects_via_flag : {true, false}) {
-    for (bool support_cheap_stateless_reject : {true, false}) {
-      params.push_back(BufferedPacketStoreTestParams(
-          enable_stateless_rejects_via_flag, support_cheap_stateless_reject));
-    }
-  }
-  return params;
-}
-
 // A dispatcher whose stateless rejector will always ACCEPTs CHLO.
-class BufferedPacketStoreTest
-    : public QuicDispatcherTest,
-      public testing::WithParamInterface<BufferedPacketStoreTestParams> {
+class BufferedPacketStoreTest : public QuicDispatcherTest {
  public:
   BufferedPacketStoreTest()
       : QuicDispatcherTest(),
         server_addr_(QuicSocketAddress(QuicIpAddress::Any4(), 5)),
         client_addr_(QuicIpAddress::Loopback4(), 1234),
-        signed_config_(new QuicSignedServerConfig) {
-    SetQuicReloadableFlag(quic_use_cheap_stateless_rejects,
-                          GetParam().support_cheap_stateless_reject);
-    SetQuicReloadableFlag(enable_quic_stateless_reject_support,
-                          GetParam().enable_stateless_rejects_via_flag);
-  }
+        signed_config_(new QuicSignedServerConfig) {}
 
   void SetUp() override {
     QuicDispatcherTest::SetUp();
@@ -1460,7 +1417,6 @@ class BufferedPacketStoreTest
     CryptoHandshakeMessage chlo =
         crypto_test_utils::GenerateDefaultInchoateCHLO(clock_, version,
                                                        &crypto_config_);
-    chlo.SetVector(kCOPT, QuicTagVector{kSREJ});
     // Pass an inchoate CHLO.
     crypto_test_utils::GenerateFullCHLO(
         chlo, &crypto_config_, server_addr_, client_addr_, version, clock_,
@@ -1480,12 +1436,7 @@ class BufferedPacketStoreTest
   CryptoHandshakeMessage full_chlo_;
 };
 
-INSTANTIATE_TEST_SUITE_P(
-    BufferedPacketStoreTests,
-    BufferedPacketStoreTest,
-    ::testing::ValuesIn(GetBufferedPacketStoreTestParams()));
-
-TEST_P(BufferedPacketStoreTest, ProcessNonChloPacketsUptoLimitAndProcessChlo) {
+TEST_F(BufferedPacketStoreTest, ProcessNonChloPacketsUptoLimitAndProcessChlo) {
   InSequence s;
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
   QuicConnectionId conn_id = TestConnectionId(1);
@@ -1524,7 +1475,7 @@ TEST_P(BufferedPacketStoreTest, ProcessNonChloPacketsUptoLimitAndProcessChlo) {
   ProcessPacket(client_address, conn_id, true, SerializeFullCHLO());
 }
 
-TEST_P(BufferedPacketStoreTest,
+TEST_F(BufferedPacketStoreTest,
        ProcessNonChloPacketsForDifferentConnectionsUptoLimit) {
   InSequence s;
   // A bunch of non-CHLO should be buffered upon arrival.
@@ -1578,7 +1529,7 @@ TEST_P(BufferedPacketStoreTest,
 }
 
 // Tests that store delivers empty packet list if CHLO arrives firstly.
-TEST_P(BufferedPacketStoreTest, DeliverEmptyPackets) {
+TEST_F(BufferedPacketStoreTest, DeliverEmptyPackets) {
   QuicConnectionId conn_id = TestConnectionId(1);
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
   EXPECT_CALL(*dispatcher_,
@@ -1596,7 +1547,7 @@ TEST_P(BufferedPacketStoreTest, DeliverEmptyPackets) {
 
 // Tests that a retransmitted CHLO arrives after a connection for the
 // CHLO has been created.
-TEST_P(BufferedPacketStoreTest, ReceiveRetransmittedCHLO) {
+TEST_F(BufferedPacketStoreTest, ReceiveRetransmittedCHLO) {
   InSequence s;
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
   QuicConnectionId conn_id = TestConnectionId(1);
@@ -1626,7 +1577,7 @@ TEST_P(BufferedPacketStoreTest, ReceiveRetransmittedCHLO) {
 }
 
 // Tests that expiration of a connection add connection id to time wait list.
-TEST_P(BufferedPacketStoreTest, ReceiveCHLOAfterExpiration) {
+TEST_F(BufferedPacketStoreTest, ReceiveCHLOAfterExpiration) {
   InSequence s;
   CreateTimeWaitListManager();
   QuicBufferedPacketStore* store =
@@ -1652,7 +1603,7 @@ TEST_P(BufferedPacketStoreTest, ReceiveCHLOAfterExpiration) {
   ProcessPacket(client_address, conn_id, true, SerializeFullCHLO());
 }
 
-TEST_P(BufferedPacketStoreTest, ProcessCHLOsUptoLimitAndBufferTheRest) {
+TEST_F(BufferedPacketStoreTest, ProcessCHLOsUptoLimitAndBufferTheRest) {
   // Process more than (|kMaxNumSessionsToCreate| +
   // |kDefaultMaxConnectionsInStore|) CHLOs,
   // the first |kMaxNumSessionsToCreate| should create connections immediately,
@@ -1729,7 +1680,7 @@ TEST_P(BufferedPacketStoreTest, ProcessCHLOsUptoLimitAndBufferTheRest) {
 }
 
 // Duplicated CHLO shouldn't be buffered.
-TEST_P(BufferedPacketStoreTest, BufferDuplicatedCHLO) {
+TEST_F(BufferedPacketStoreTest, BufferDuplicatedCHLO) {
   for (uint64_t conn_id = 1; conn_id <= kMaxNumSessionsToCreate + 1;
        ++conn_id) {
     // Last CHLO will be buffered. Others will create connection right away.
@@ -1778,7 +1729,7 @@ TEST_P(BufferedPacketStoreTest, BufferDuplicatedCHLO) {
   dispatcher_->ProcessBufferedChlos(kMaxNumSessionsToCreate);
 }
 
-TEST_P(BufferedPacketStoreTest, BufferNonChloPacketsUptoLimitWithChloBuffered) {
+TEST_F(BufferedPacketStoreTest, BufferNonChloPacketsUptoLimitWithChloBuffered) {
   uint64_t last_conn_id = kMaxNumSessionsToCreate + 1;
   QuicConnectionId last_connection_id = TestConnectionId(last_conn_id);
   for (uint64_t conn_id = 1; conn_id <= last_conn_id; ++conn_id) {
@@ -1832,7 +1783,7 @@ TEST_P(BufferedPacketStoreTest, BufferNonChloPacketsUptoLimitWithChloBuffered) {
 
 // Tests that when dispatcher's packet buffer is full, a CHLO on connection
 // which doesn't have buffered CHLO should be buffered.
-TEST_P(BufferedPacketStoreTest, ReceiveCHLOForBufferedConnection) {
+TEST_F(BufferedPacketStoreTest, ReceiveCHLOForBufferedConnection) {
   QuicBufferedPacketStore* store =
       QuicDispatcherPeer::GetBufferedPackets(dispatcher_.get());
 
@@ -1877,7 +1828,7 @@ TEST_P(BufferedPacketStoreTest, ReceiveCHLOForBufferedConnection) {
 }
 
 // Regression test for b/117874922.
-TEST_P(BufferedPacketStoreTest, ProcessBufferedChloWithDifferentVersion) {
+TEST_F(BufferedPacketStoreTest, ProcessBufferedChloWithDifferentVersion) {
   // Turn off version 99, such that the preferred version is not supported by
   // the server.
   SetQuicReloadableFlag(quic_enable_version_99, false);

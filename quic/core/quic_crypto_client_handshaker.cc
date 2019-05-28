@@ -65,7 +65,6 @@ QuicCryptoClientHandshaker::QuicCryptoClientHandshaker(
       proof_verify_callback_(nullptr),
       proof_handler_(proof_handler),
       verify_ok_(false),
-      stateless_reject_received_(false),
       proof_verify_start_time_(QuicTime::Zero()),
       num_scup_messages_received_(0),
       encryption_established_(false),
@@ -232,20 +231,6 @@ void QuicCryptoClientHandshaker::DoInitialize(
 
 void QuicCryptoClientHandshaker::DoSendCHLO(
     QuicCryptoClientConfig::CachedState* cached) {
-  if (stateless_reject_received_) {
-    // If we've gotten to this point, we've sent at least one hello
-    // and received a stateless reject in response.  We cannot
-    // continue to send hellos because the server has abandoned state
-    // for this connection.  Abandon further handshakes.
-    next_state_ = STATE_NONE;
-    if (session()->connection()->connected()) {
-      session()->connection()->CloseConnection(
-          QUIC_CRYPTO_HANDSHAKE_STATELESS_REJECT, "stateless reject received",
-          ConnectionCloseBehavior::SILENT_CLOSE);
-    }
-    return;
-  }
-
   // Send the client hello in plaintext.
   session()->connection()->SetDefaultEncryptionLevel(ENCRYPTION_INITIAL);
   encryption_established_ = false;
@@ -293,15 +278,6 @@ void QuicCryptoClientHandshaker::DoSendCHLO(
         crypto_config_->pad_inchoate_hello());
     SendHandshakeMessage(out);
     return;
-  }
-
-  // If the server nonce is empty, copy over the server nonce from a previous
-  // SREJ, if there is one.
-  if (GetQuicReloadableFlag(enable_quic_stateless_reject_support) &&
-      crypto_negotiated_params_->server_nonce.empty() &&
-      cached->has_server_nonce()) {
-    crypto_negotiated_params_->server_nonce = cached->GetNextServerNonce();
-    DCHECK(!crypto_negotiated_params_->server_nonce.empty());
   }
 
   std::string error_details;
@@ -358,7 +334,7 @@ void QuicCryptoClientHandshaker::DoReceiveREJ(
   // perform a handshake, or we sent a full hello that the server
   // rejected. Here we hope to have a REJ that contains the information
   // that we need.
-  if ((in->tag() != kREJ) && (in->tag() != kSREJ)) {
+  if (in->tag() != kREJ) {
     next_state_ = STATE_NONE;
     stream_->CloseConnectionWithDetails(QUIC_INVALID_CRYPTO_MESSAGE_TYPE,
                                         "Expected REJ");
@@ -391,7 +367,6 @@ void QuicCryptoClientHandshaker::DoReceiveREJ(
   // so we can cancel and retransmissions.
   session()->NeuterUnencryptedData();
 
-  stateless_reject_received_ = in->tag() == kSREJ;
   std::string error_details;
   QuicErrorCode error = crypto_config_->ProcessRejection(
       *in, session()->connection()->clock()->WallNow(),
@@ -500,7 +475,7 @@ void QuicCryptoClientHandshaker::DoReceiveSHLO(
   // hoping for a SHLO from the server to confirm that.  First check
   // to see whether the response was a reject, and if so, move on to
   // the reject-processing state.
-  if ((in->tag() == kREJ) || (in->tag() == kSREJ)) {
+  if (in->tag() == kREJ) {
     // A reject message must be sent in ENCRYPTION_INITIAL.
     if (session()->connection()->last_decrypted_level() != ENCRYPTION_INITIAL) {
       // The rejection was sent encrypted!

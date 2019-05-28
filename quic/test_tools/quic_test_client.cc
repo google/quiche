@@ -398,16 +398,6 @@ ssize_t QuicTestClient::GetOrCreateStreamAndSendRequest(
     stream->WriteOrBufferBody(std::string(body), fin);
     ret = body.length();
   }
-  if (GetQuicReloadableFlag(enable_quic_stateless_reject_support)) {
-    std::unique_ptr<spdy::SpdyHeaderBlock> new_headers;
-    if (headers) {
-      new_headers = QuicMakeUnique<spdy::SpdyHeaderBlock>(headers->Clone());
-    }
-    std::unique_ptr<QuicSpdyClientBase::QuicDataToResend> data_to_resend(
-        new TestClientDataToResend(std::move(new_headers), body, fin, this,
-                                   ack_listener));
-    client()->MaybeAddQuicDataToResend(std::move(data_to_resend));
-  }
   return ret;
 }
 

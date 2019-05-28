@@ -81,11 +81,6 @@ bool QuicClientBase::Connect() {
     while (EncryptionBeingEstablished()) {
       WaitForEvents();
     }
-    if (GetQuicReloadableFlag(enable_quic_stateless_reject_support) &&
-        connected()) {
-      // Resend any previously queued data.
-      ResendSavedData();
-    }
     ParsedQuicVersion version = UnsupportedQuicVersion();
     if (session() != nullptr &&
         session()->error() != QUIC_CRYPTO_HANDSHAKE_STATELESS_REJECT &&
@@ -181,16 +176,13 @@ bool QuicClientBase::WaitForEvents() {
   DCHECK(session() != nullptr);
   ParsedQuicVersion version = UnsupportedQuicVersion();
   if (!connected() &&
-      (session()->error() == QUIC_CRYPTO_HANDSHAKE_STATELESS_REJECT ||
-       CanReconnectWithDifferentVersion(&version))) {
-    if (session()->error() == QUIC_CRYPTO_HANDSHAKE_STATELESS_REJECT) {
-      DCHECK(GetQuicReloadableFlag(enable_quic_stateless_reject_support));
-      QUIC_DLOG(INFO) << "Detected stateless reject while waiting for events.  "
-                      << "Attempting to reconnect.";
-    } else {
-      QUIC_DLOG(INFO) << "Can reconnect with version: " << version
-                      << ", attempting to reconnect.";
-    }
+
+      CanReconnectWithDifferentVersion(&version)) {
+    DCHECK_NE(session()->error(), QUIC_CRYPTO_HANDSHAKE_STATELESS_REJECT);
+
+    QUIC_DLOG(INFO) << "Can reconnect with version: " << version
+                    << ", attempting to reconnect.";
+
     Connect();
   }
 

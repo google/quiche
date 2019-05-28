@@ -120,8 +120,6 @@ void QuicSpdyClientBase::SendRequest(const SpdyHeaderBlock& headers,
     return;
   }
   stream->SendRequest(headers.Clone(), body, fin);
-  // Record this in case we need to resend.
-  MaybeAddDataToResend(headers, body, fin);
 }
 
 void QuicSpdyClientBase::SendRequestAndWaitForResponse(
@@ -167,29 +165,6 @@ int QuicSpdyClientBase::GetNumSentClientHellosFromSession() {
 
 int QuicSpdyClientBase::GetNumReceivedServerConfigUpdatesFromSession() {
   return client_session()->GetNumReceivedServerConfigUpdates();
-}
-
-void QuicSpdyClientBase::MaybeAddDataToResend(const SpdyHeaderBlock& headers,
-                                              QuicStringPiece body,
-                                              bool fin) {
-  if (!GetQuicReloadableFlag(enable_quic_stateless_reject_support)) {
-    return;
-  }
-
-  if (client_session()->IsCryptoHandshakeConfirmed()) {
-    // The handshake is confirmed.  No need to continue saving requests to
-    // resend.
-    data_to_resend_on_connect_.clear();
-    return;
-  }
-
-  // The handshake is not confirmed.  Push the data onto the queue of data to
-  // resend if statelessly rejected.
-  std::unique_ptr<SpdyHeaderBlock> new_headers(
-      new SpdyHeaderBlock(headers.Clone()));
-  std::unique_ptr<QuicDataToResend> data_to_resend(
-      new ClientQuicDataToResend(std::move(new_headers), body, fin, this));
-  MaybeAddQuicDataToResend(std::move(data_to_resend));
 }
 
 void QuicSpdyClientBase::MaybeAddQuicDataToResend(

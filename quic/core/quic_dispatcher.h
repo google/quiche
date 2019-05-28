@@ -23,7 +23,6 @@
 #include "net/third_party/quiche/src/quic/core/quic_session.h"
 #include "net/third_party/quiche/src/quic/core/quic_time_wait_list_manager.h"
 #include "net/third_party/quiche/src/quic/core/quic_version_manager.h"
-#include "net/third_party/quiche/src/quic/core/stateless_rejector.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
 
@@ -208,12 +207,6 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
                                          QuicStringPiece alpn,
                                          const ParsedQuicVersion& version) = 0;
 
-  // Called when a connection is rejected statelessly.
-  virtual void OnConnectionRejectedStatelessly() {}
-
-  // Returns true if cheap stateless rejection should be attempted.
-  virtual bool ShouldAttemptCheapStatelessRejection();
-
   // Values to be returned by ValidityChecks() to indicate what should be done
   // with a packet.  Fates with greater values are considered to be higher
   // priority, in that if one validity check indicates a lower-valued fate and
@@ -384,23 +377,21 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
 
  private:
   friend class test::QuicDispatcherPeer;
-  friend class StatelessRejectorProcessDoneCallback;
 
   typedef QuicUnorderedSet<QuicConnectionId, QuicConnectionIdHash>
       QuicConnectionIdSet;
 
   // Based on an unauthenticated packet header |header|, calls ValidityChecks
-  // and then either MaybeRejectStatelessly or ProcessUnauthenticatedHeaderFate.
+  // and then ProcessUnauthenticatedHeaderFate.
   void ProcessHeader(const QuicPacketHeader& header);
 
-  // Attempts to reject the connection statelessly, if stateless rejects are
-  // possible and if the current packet contains a CHLO message.  Determines a
-  // fate which describes what subsequent processing should be performed on the
-  // packets, like ValidityChecks, and invokes ProcessUnauthenticatedHeaderFate.
-  void MaybeRejectStatelessly(QuicConnectionId server_connection_id,
-                              PacketHeaderFormat form,
-                              bool version_flag,
-                              ParsedQuicVersion version);
+  // TODO(wub): Move the body to ProcessHeader, then remove this function.
+  // Determine whether the current packet needs to be processed now or buffered
+  // for later processing, then invokes ProcessUnauthenticatedHeaderFate.
+  void ProcessOrBufferPacket(QuicConnectionId server_connection_id,
+                             PacketHeaderFormat form,
+                             bool version_flag,
+                             ParsedQuicVersion version);
 
   // Deliver |packets| to |session| for further processing.
   void DeliverPacketsToSession(
@@ -414,30 +405,6 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
                                         PacketHeaderFormat form,
                                         bool version_flag,
                                         ParsedQuicVersion version);
-
-  // Invoked when StatelessRejector::Process completes. |first_version| is the
-  // version of the packet which initiated the stateless reject.
-  // WARNING: This function can be called when a async proof returns, i.e. not
-  // from a stack traceable to ProcessPacket().
-  // TODO(fayang): maybe consider not using callback when there is no crypto
-  // involved.
-  void OnStatelessRejectorProcessDone(
-      std::unique_ptr<StatelessRejector> rejector,
-      const QuicSocketAddress& current_client_address,
-      const QuicSocketAddress& current_peer_address,
-      const QuicSocketAddress& current_self_address,
-      std::unique_ptr<QuicReceivedPacket> current_packet,
-      ParsedQuicVersion first_version,
-      PacketHeaderFormat current_packet_format,
-      bool current_version_flag);
-
-  // Examine the state of the rejector and decide what to do with the current
-  // packet.
-  void ProcessStatelessRejectorState(
-      std::unique_ptr<StatelessRejector> rejector,
-      ParsedQuicVersion first_version,
-      PacketHeaderFormat form,
-      bool version_flag);
 
   // If the connection ID length is different from what the dispatcher expects,
   // replace the connection ID with a random one of the right length,

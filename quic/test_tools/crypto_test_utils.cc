@@ -95,7 +95,7 @@ FakeClientOptions::~FakeClientOptions() {}
 
 namespace {
 // This class is used by GenerateFullCHLO() to extract SCID and STK from
-// REJ/SREJ and to construct a full CHLO with these fields and given inchoate
+// REJ and to construct a full CHLO with these fields and given inchoate
 // CHLO.
 class FullChloGenerator {
  public:
@@ -172,9 +172,8 @@ class FullChloGenerator {
   }
 
   void ProcessClientHelloDone(std::unique_ptr<CryptoHandshakeMessage> rej) {
-    // Verify output is a REJ or SREJ.
-    EXPECT_THAT(rej->tag(),
-                testing::AnyOf(testing::Eq(kSREJ), testing::Eq(kREJ)));
+    // Verify output is a REJ.
+    EXPECT_THAT(rej->tag(), testing::Eq(kREJ));
 
     QUIC_VLOG(1) << "Extract valid STK and SCID from\n" << rej->DebugString();
     QuicStringPiece srct;

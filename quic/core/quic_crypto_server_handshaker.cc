@@ -169,27 +169,9 @@ void QuicCryptoServerHandshaker::
   }
 
   if (reply->tag() != kSHLO) {
-    if (reply->tag() == kSREJ) {
-      DCHECK(false) << "Unexpected SREJ reply.";
-      // Before sending the SREJ, cause the connection to save crypto packets
-      // so that they can be added to the time wait list manager and
-      // retransmitted.
-      session()->connection()->EnableSavingCryptoPackets();
-    }
     session()->connection()->set_fully_pad_crypto_hadshake_packets(
         crypto_config_->pad_rej());
     SendHandshakeMessage(*reply);
-
-    if (reply->tag() == kSREJ) {
-      DCHECK(false) << "Unexpected SREJ reply.";
-      DCHECK(!handshake_confirmed());
-      QUIC_DLOG(INFO) << "Closing connection "
-                      << session()->connection()->connection_id()
-                      << " because of a stateless reject.";
-      session()->connection()->CloseConnection(
-          QUIC_CRYPTO_HANDSHAKE_STATELESS_REJECT, "stateless reject",
-          ConnectionCloseBehavior::SILENT_CLOSE);
-    }
     return;
   }
 
