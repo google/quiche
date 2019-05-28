@@ -739,10 +739,12 @@ TEST_P(EndToEndTestWithTls, NoUndecryptablePackets) {
 
   QuicConnectionStats client_stats =
       client_->client()->client_session()->connection()->GetStats();
-  QuicConnectionStats server_stats = GetServerConnection()->GetStats();
-
   EXPECT_EQ(0u, client_stats.undecryptable_packets_received);
+
+  server_thread_->Pause();
+  QuicConnectionStats server_stats = GetServerConnection()->GetStats();
   EXPECT_EQ(0u, server_stats.undecryptable_packets_received);
+  server_thread_->Resume();
 }
 
 TEST_P(EndToEndTestWithTls, SeparateFinPacket) {
