@@ -14,6 +14,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
 #include "net/third_party/quiche/src/quic/core/quic_session.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
 #include "net/third_party/quiche/src/quic/quartc/quartc_packet_writer.h"
 #include "net/third_party/quiche/src/quic/quartc/quartc_stream.h"
 
@@ -156,6 +157,9 @@ class QuartcSession : public QuicSession,
     // plumb that signal up to RTP's congestion control.
     virtual void OnMessageSent(int64_t datagram_id) = 0;
 
+    // Called when message with |datagram_id| gets acked.
+    virtual void OnMessageAcked(int64_t datagram_id) = 0;
+
     // TODO(zhihuang): Add proof verification.
   };
 
@@ -170,6 +174,9 @@ class QuartcSession : public QuicSession,
   void OnTransportReceived(const char* data, size_t data_len) override;
 
   void OnMessageReceived(QuicStringPiece message) override;
+
+  // Called when message with |message_id| gets acked.
+  void OnMessageAcked(QuicMessageId message_id) override;
 
   // Returns number of queued (not sent) messages submitted by
   // SendOrQueueMessage. Messages are queued if connection is congestion
@@ -226,6 +233,10 @@ class QuartcSession : public QuicSession,
   // yet or blocked by congestion control. Messages are queued in the order
   // of sent by SendOrQueueMessage().
   QuicDeque<QueuedMessage> send_message_queue_;
+
+  // Maps message ids to datagram ids, so we could translate message ACKs
+  // received from QUIC to datagram ACKs that are propagated up the stack.
+  QuicUnorderedMap<QuicMessageId, int64_t> message_to_datagram_id_;
 };
 
 class QuartcClientSession : public QuartcSession,

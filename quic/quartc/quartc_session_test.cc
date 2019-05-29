@@ -180,6 +180,9 @@ class QuartcSessionTest : public QuicTest {
     EXPECT_THAT(server_session_delegate_->sent_datagram_ids(),
                 testing::ElementsAre(server_datagram_id));
 
+    EXPECT_THAT(server_session_delegate_->acked_datagram_ids(),
+                testing::ElementsAre(server_datagram_id));
+
     // Send message from peer 2 to peer 1.
     message = CreateMemSliceVector("Message from client");
     ASSERT_TRUE(
@@ -195,6 +198,9 @@ class QuartcSessionTest : public QuicTest {
                 testing::ElementsAre("Message from client"));
 
     EXPECT_THAT(client_session_delegate_->sent_datagram_ids(),
+                testing::ElementsAre(client_datagram_id));
+
+    EXPECT_THAT(client_session_delegate_->acked_datagram_ids(),
                 testing::ElementsAre(client_datagram_id));
   }
 
@@ -242,6 +248,7 @@ class QuartcSessionTest : public QuicTest {
 
     EXPECT_EQ(delegate_receiving->incoming_messages(), sent_messages);
     EXPECT_EQ(delegate_sending->sent_datagram_ids(), sent_datagram_ids);
+    EXPECT_EQ(delegate_sending->acked_datagram_ids(), sent_datagram_ids);
   }
 
   // Test sending long messages:

@@ -77,14 +77,21 @@ void QuartcSession::ProcessSendMessageQueue() {
 
     // Handle errors.
     switch (result.status) {
-      case MESSAGE_STATUS_SUCCESS:
+      case MESSAGE_STATUS_SUCCESS: {
         QUIC_VLOG(1) << "Quartc message sent, message_id=" << result.message_id
                      << ", message_size=" << message_size;
 
+        auto element = message_to_datagram_id_.find(result.message_id);
+
+        DCHECK(element == message_to_datagram_id_.end())
+            << "Mapped message_id already exists, message_id="
+            << result.message_id << ", datagram_id=" << element->second;
+
+        message_to_datagram_id_[result.message_id] = it.datagram_id;
+
         // Notify that datagram was sent.
         session_delegate_->OnMessageSent(it.datagram_id);
-
-        break;
+      } break;
 
       // If connection is congestion controlled or not writable yet, stop
       // send loop and we'll retry again when we get OnCanWrite notification.
@@ -237,6 +244,21 @@ void QuartcSession::OnTransportReceived(const char* data, size_t data_len) {
 
 void QuartcSession::OnMessageReceived(QuicStringPiece message) {
   session_delegate_->OnMessageReceived(message);
+}
+
+void QuartcSession::OnMessageAcked(QuicMessageId message_id) {
+  auto element = message_to_datagram_id_.find(message_id);
+
+  if (element == message_to_datagram_id_.end()) {
+    QUIC_DLOG(DFATAL) << "ACKed message_id was not found, message_id="
+                      << message_id;
+    return;
+  }
+
+  session_delegate_->OnMessageAcked(/*datagram_id=*/element->second);
+
+  // Free up space -- we should never see message_id again.
+  message_to_datagram_id_.erase(element);
 }
 
 QuicStream* QuartcSession::CreateIncomingStream(QuicStreamId id) {

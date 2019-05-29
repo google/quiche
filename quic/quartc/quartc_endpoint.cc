@@ -133,6 +133,10 @@ void QuartcClientEndpoint::OnMessageSent(int64_t datagram_id) {
   delegate_->OnMessageSent(datagram_id);
 }
 
+void QuartcClientEndpoint::OnMessageAcked(int64_t datagram_id) {
+  delegate_->OnMessageAcked(datagram_id);
+}
+
 QuartcServerEndpoint::QuartcServerEndpoint(
     QuicAlarmFactory* alarm_factory,
     const QuicClock* clock,
