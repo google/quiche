@@ -473,9 +473,10 @@ bool QuicDispatcher::OnUnauthenticatedPublicHeader(
         // Since the version is not supported, send a version negotiation
         // packet and stop processing the current packet.
         time_wait_list_manager()->SendVersionNegotiationPacket(
-            server_connection_id, header.form != GOOGLE_QUIC_PACKET,
-            GetSupportedVersions(), current_self_address_,
-            current_peer_address_, GetPerPacketContext());
+            server_connection_id, EmptyQuicConnectionId(),
+            header.form != GOOGLE_QUIC_PACKET, GetSupportedVersions(),
+            current_self_address_, current_peer_address_,
+            GetPerPacketContext());
       }
       return false;
     }
@@ -840,7 +841,8 @@ void QuicDispatcher::StatelesslyTerminateConnection(
   // with an empty version list, which can be understood by the client.
   std::vector<std::unique_ptr<QuicEncryptedPacket>> termination_packets;
   termination_packets.push_back(QuicFramer::BuildVersionNegotiationPacket(
-      server_connection_id, /*ietf_quic=*/format != GOOGLE_QUIC_PACKET,
+      server_connection_id, EmptyQuicConnectionId(),
+      /*ietf_quic=*/format != GOOGLE_QUIC_PACKET,
       ParsedQuicVersionVector{UnsupportedQuicVersion()}));
   if (format == GOOGLE_QUIC_PACKET) {
     QUIC_RELOADABLE_FLAG_COUNT_N(quic_terminate_gquic_connection_as_ietf, 2, 2);

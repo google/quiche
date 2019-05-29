@@ -201,14 +201,16 @@ void QuicTimeWaitListManager::ProcessPacket(
 }
 
 void QuicTimeWaitListManager::SendVersionNegotiationPacket(
-    QuicConnectionId connection_id,
+    QuicConnectionId server_connection_id,
+    QuicConnectionId client_connection_id,
     bool ietf_quic,
     const ParsedQuicVersionVector& supported_versions,
     const QuicSocketAddress& self_address,
     const QuicSocketAddress& peer_address,
     std::unique_ptr<QuicPerPacketContext> packet_context) {
   std::unique_ptr<QuicEncryptedPacket> version_packet =
-      QuicFramer::BuildVersionNegotiationPacket(connection_id, ietf_quic,
+      QuicFramer::BuildVersionNegotiationPacket(server_connection_id,
+                                                client_connection_id, ietf_quic,
                                                 supported_versions);
   QUIC_DVLOG(2) << "Dispatcher sending version negotiation packet: {"
                 << ParsedQuicVersionVectorToString(supported_versions) << "}, "

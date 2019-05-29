@@ -625,6 +625,7 @@ QuicPacketCreator::SerializeVersionNegotiationPacket(
   DCHECK_EQ(Perspective::IS_SERVER, framer_->perspective());
   std::unique_ptr<QuicEncryptedPacket> encrypted =
       QuicFramer::BuildVersionNegotiationPacket(server_connection_id_,
+                                                EmptyQuicConnectionId(),
                                                 ietf_quic, supported_versions);
   DCHECK(encrypted);
   DCHECK_GE(max_packet_length_, encrypted->length());

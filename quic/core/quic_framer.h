@@ -435,13 +435,15 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
 
   // Returns a new version negotiation packet.
   static std::unique_ptr<QuicEncryptedPacket> BuildVersionNegotiationPacket(
-      QuicConnectionId connection_id,
+      QuicConnectionId server_connection_id,
+      QuicConnectionId client_connection_id,
       bool ietf_quic,
       const ParsedQuicVersionVector& versions);
 
   // Returns a new IETF version negotiation packet.
   static std::unique_ptr<QuicEncryptedPacket> BuildIetfVersionNegotiationPacket(
-      QuicConnectionId source_connection_id,
+      QuicConnectionId server_connection_id,
+      QuicConnectionId client_connection_id,
       const ParsedQuicVersionVector& versions);
 
   // If header.version_flag is set, the version in the

@@ -118,10 +118,12 @@ class QuicTimeWaitListManager : public QuicBlockedWriterInterface {
   // The number of connections on the time-wait list.
   size_t num_connections() const { return connection_id_map_.size(); }
 
-  // Sends a version negotiation packet for |connection_id| announcing support
-  // for |supported_versions| to |peer_address| from |self_address|.
+  // Sends a version negotiation packet for |server_connection_id| and
+  // |client_connection_id| announcing support for |supported_versions| to
+  // |peer_address| from |self_address|.
   virtual void SendVersionNegotiationPacket(
-      QuicConnectionId connection_id,
+      QuicConnectionId server_connection_id,
+      QuicConnectionId client_connection_id,
       bool ietf_quic,
       const ParsedQuicVersionVector& supported_versions,
       const QuicSocketAddress& self_address,

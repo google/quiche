@@ -55,6 +55,12 @@ bool ParsedQuicVersion::SupportsRetry() const {
   return transport_version > QUIC_VERSION_46;
 }
 
+bool ParsedQuicVersion::SupportsClientConnectionIds() const {
+  // This will be enabled in v99 after the rest of the client connection ID
+  // code lands.
+  return false;
+}
+
 std::ostream& operator<<(std::ostream& os, const ParsedQuicVersion& version) {
   os << ParsedQuicVersionToString(version);
   return os;

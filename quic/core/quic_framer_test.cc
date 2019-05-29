@@ -6625,11 +6625,53 @@ TEST_P(QuicFramerTest, BuildVersionNegotiationPacket) {
 
   QuicConnectionId connection_id = FramerTestConnectionId();
   std::unique_ptr<QuicEncryptedPacket> data(
-      framer_.BuildVersionNegotiationPacket(
-          connection_id, framer_.transport_version() > QUIC_VERSION_43,
+      QuicFramer::BuildVersionNegotiationPacket(
+          connection_id, EmptyQuicConnectionId(),
+          framer_.transport_version() > QUIC_VERSION_43,
           SupportedVersions(GetParam())));
   test::CompareCharArraysWithHexError("constructed packet", data->data(),
                                       data->length(), AsChars(p), p_size);
+}
+
+TEST_P(QuicFramerTest, BuildVersionNegotiationPacketWithClientConnectionId) {
+  if (framer_.transport_version() <= QUIC_VERSION_43) {
+    // The GQUIC encoding does not support encoding client connection IDs.
+    return;
+  }
+
+  // Client connection IDs cannot be used unless this flag is true.
+  SetQuicRestartFlag(quic_do_not_override_connection_id, true);
+
+  unsigned char type_byte = 0x80;
+  if (GetQuicReloadableFlag(quic_send_version_negotiation_fixed_bit)) {
+    type_byte = 0xC0;
+  }
+  // clang-format off
+  unsigned char packet[] = {
+      // type (long header)
+      type_byte,
+      // version tag
+      0x00, 0x00, 0x00, 0x00,
+      // connection ID lengths
+      0x55,
+      // client/destination connection ID
+      0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x11,
+      // server/source connection ID
+      0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+      // version tag
+      QUIC_VERSION_BYTES,
+  };
+  // clang-format on
+
+  QuicConnectionId server_connection_id = FramerTestConnectionId();
+  QuicConnectionId client_connection_id = FramerTestConnectionIdPlusOne();
+  std::unique_ptr<QuicEncryptedPacket> data(
+      QuicFramer::BuildVersionNegotiationPacket(server_connection_id,
+                                                client_connection_id, true,
+                                                SupportedVersions(GetParam())));
+  test::CompareCharArraysWithHexError("constructed packet", data->data(),
+                                      data->length(), AsChars(packet),
+                                      QUIC_ARRAYSIZE(packet));
 }
 
 TEST_P(QuicFramerTest, BuildAckFramePacketOneAckBlock) {

@@ -1389,11 +1389,17 @@ std::unique_ptr<QuicEncryptedPacket> QuicFramer::BuildIetfStatelessResetPacket(
 // static
 std::unique_ptr<QuicEncryptedPacket> QuicFramer::BuildVersionNegotiationPacket(
     QuicConnectionId server_connection_id,
+    QuicConnectionId client_connection_id,
     bool ietf_quic,
     const ParsedQuicVersionVector& versions) {
   if (ietf_quic) {
-    return BuildIetfVersionNegotiationPacket(server_connection_id, versions);
+    return BuildIetfVersionNegotiationPacket(server_connection_id,
+                                             client_connection_id, versions);
   }
+
+  // The GQUIC encoding does not support encoding client connection IDs.
+  DCHECK(client_connection_id.IsEmpty());
+
   DCHECK(!versions.empty());
   size_t len = kPublicFlagsSize + server_connection_id.length() +
                versions.size() * kQuicVersionSize;
@@ -1428,13 +1434,16 @@ std::unique_ptr<QuicEncryptedPacket> QuicFramer::BuildVersionNegotiationPacket(
 // static
 std::unique_ptr<QuicEncryptedPacket>
 QuicFramer::BuildIetfVersionNegotiationPacket(
-    QuicConnectionId source_connection_id,
+    QuicConnectionId server_connection_id,
+    QuicConnectionId client_connection_id,
     const ParsedQuicVersionVector& versions) {
   QUIC_DVLOG(1) << "Building IETF version negotiation packet: "
                 << ParsedQuicVersionVectorToString(versions);
+  DCHECK(client_connection_id.IsEmpty() ||
+         GetQuicRestartFlag(quic_do_not_override_connection_id));
   DCHECK(!versions.empty());
   size_t len = kPacketHeaderTypeSize + kConnectionIdLengthSize +
-               source_connection_id.length() +
+               client_connection_id.length() + server_connection_id.length() +
                (versions.size() + 1) * kQuicVersionSize;
   std::unique_ptr<char[]> buffer(new char[len]);
   QuicDataWriter writer(len, buffer.get());
@@ -1453,8 +1462,8 @@ QuicFramer::BuildIetfVersionNegotiationPacket(
     return nullptr;
   }
 
-  if (!AppendIetfConnectionIds(true, EmptyQuicConnectionId(),
-                               source_connection_id, &writer)) {
+  if (!AppendIetfConnectionIds(true, client_connection_id, server_connection_id,
+                               &writer)) {
     return nullptr;
   }
 

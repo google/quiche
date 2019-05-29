@@ -2376,7 +2376,7 @@ TEST_P(EndToEndTestWithTls,
       TestConnectionIdToUInt64(client_connection->connection_id()) + 1);
   std::unique_ptr<QuicEncryptedPacket> packet(
       QuicFramer::BuildVersionNegotiationPacket(
-          incorrect_connection_id,
+          incorrect_connection_id, EmptyQuicConnectionId(),
           client_connection->transport_version() > QUIC_VERSION_43,
           server_supported_versions_));
   testing::NiceMock<MockQuicConnectionDebugVisitor> visitor;
