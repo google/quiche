@@ -170,10 +170,10 @@ QuicSpdyStream::QuicSpdyStream(QuicStreamId id,
   decoder_.set_visitor(http_decoder_visitor_.get());
 }
 
-QuicSpdyStream::QuicSpdyStream(PendingStream pending,
+QuicSpdyStream::QuicSpdyStream(PendingStream* pending,
                                QuicSpdySession* spdy_session,
                                StreamType type)
-    : QuicStream(std::move(pending), type, /*is_static=*/false),
+    : QuicStream(pending, type, /*is_static=*/false),
       spdy_session_(spdy_session),
       on_body_available_called_because_sequencer_is_closed_(false),
       visitor_(nullptr),

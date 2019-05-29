@@ -111,8 +111,8 @@ QuicReceiveControlStream::QuicReceiveControlStream(QuicStreamId id,
   sequencer()->set_level_triggered(true);
 }
 
-QuicReceiveControlStream::QuicReceiveControlStream(PendingStream pending)
-    : QuicStream(std::move(pending), READ_UNIDIRECTIONAL, /*is_static=*/true),
+QuicReceiveControlStream::QuicReceiveControlStream(PendingStream* pending)
+    : QuicStream(pending, READ_UNIDIRECTIONAL, /*is_static=*/true),
       received_settings_length_(0),
       http_decoder_visitor_(new HttpDecoderVisitor(this)) {
   decoder_.set_visitor(http_decoder_visitor_.get());

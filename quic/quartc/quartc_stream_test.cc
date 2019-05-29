@@ -86,7 +86,7 @@ class MockQuicSession : public QuicSession {
     return nullptr;
   }
 
-  QuartcStream* CreateIncomingStream(PendingStream pending) override {
+  QuartcStream* CreateIncomingStream(PendingStream* pending) override {
     return nullptr;
   }
 

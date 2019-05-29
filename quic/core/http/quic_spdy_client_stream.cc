@@ -28,10 +28,10 @@ QuicSpdyClientStream::QuicSpdyClientStream(QuicStreamId id,
       session_(session),
       has_preliminary_headers_(false) {}
 
-QuicSpdyClientStream::QuicSpdyClientStream(PendingStream pending,
+QuicSpdyClientStream::QuicSpdyClientStream(PendingStream* pending,
                                            QuicSpdyClientSession* session,
                                            StreamType type)
-    : QuicSpdyStream(std::move(pending), session, type),
+    : QuicSpdyStream(pending, session, type),
       content_length_(-1),
       response_code_(0),
       header_bytes_read_(0),

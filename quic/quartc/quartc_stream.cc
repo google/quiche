@@ -24,8 +24,8 @@ QuartcStream::QuartcStream(QuicStreamId id, QuicSession* session)
   sequencer()->set_level_triggered(true);
 }
 
-QuartcStream::QuartcStream(PendingStream pending)
-    : QuicStream(std::move(pending), BIDIRECTIONAL, /*is_static=*/false) {
+QuartcStream::QuartcStream(PendingStream* pending)
+    : QuicStream(pending, BIDIRECTIONAL, /*is_static=*/false) {
   sequencer()->set_level_triggered(true);
 }
 

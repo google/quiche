@@ -26,7 +26,7 @@ namespace quic {
 class QuartcStream : public QuicStream {
  public:
   QuartcStream(QuicStreamId id, QuicSession* session);
-  explicit QuartcStream(PendingStream pending);
+  explicit QuartcStream(PendingStream* pending);
 
   ~QuartcStream() override;
 

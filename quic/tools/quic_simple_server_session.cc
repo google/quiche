@@ -96,9 +96,9 @@ QuicSpdyStream* QuicSimpleServerSession::CreateIncomingStream(QuicStreamId id) {
 }
 
 QuicSpdyStream* QuicSimpleServerSession::CreateIncomingStream(
-    PendingStream pending) {
+    PendingStream* pending) {
   QuicSpdyStream* stream = new QuicSimpleServerStream(
-      std::move(pending), this, BIDIRECTIONAL, quic_simple_server_backend_);
+      pending, this, BIDIRECTIONAL, quic_simple_server_backend_);
   ActivateStream(QuicWrapUnique(stream));
   return stream;
 }

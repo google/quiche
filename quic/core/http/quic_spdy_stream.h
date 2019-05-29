@@ -61,7 +61,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream : public QuicStream {
   QuicSpdyStream(QuicStreamId id,
                  QuicSpdySession* spdy_session,
                  StreamType type);
-  QuicSpdyStream(PendingStream pending,
+  QuicSpdyStream(PendingStream* pending,
                  QuicSpdySession* spdy_session,
                  StreamType type);
   QuicSpdyStream(const QuicSpdyStream&) = delete;

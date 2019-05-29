@@ -151,9 +151,9 @@ bool QuicSpdyClientSession::ShouldCreateIncomingStream(QuicStreamId id) {
 }
 
 QuicSpdyStream* QuicSpdyClientSession::CreateIncomingStream(
-    PendingStream pending) {
+    PendingStream* pending) {
   QuicSpdyStream* stream =
-      new QuicSpdyClientStream(std::move(pending), this, READ_UNIDIRECTIONAL);
+      new QuicSpdyClientStream(pending, this, READ_UNIDIRECTIONAL);
   ActivateStream(QuicWrapUnique(stream));
   return stream;
 }

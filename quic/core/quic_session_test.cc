@@ -117,8 +117,8 @@ class TestStream : public QuicStream {
              StreamType type)
       : QuicStream(id, session, is_static, type) {}
 
-  TestStream(PendingStream pending, StreamType type)
-      : QuicStream(std::move(pending), type, /*is_static=*/false) {}
+  TestStream(PendingStream* pending, StreamType type)
+      : QuicStream(pending, type, /*is_static=*/false) {}
 
   using QuicStream::CloseReadSide;
   using QuicStream::CloseWriteSide;
@@ -204,13 +204,12 @@ class TestSession : public QuicSession {
     return stream;
   }
 
-  TestStream* CreateIncomingStream(PendingStream pending) override {
-    QuicStreamId id = pending.id();
-    TestStream* stream =
-        new TestStream(std::move(pending),
-                       DetermineStreamType(
-                           id, connection()->transport_version(), perspective(),
-                           /*is_incoming=*/true, BIDIRECTIONAL));
+  TestStream* CreateIncomingStream(PendingStream* pending) override {
+    QuicStreamId id = pending->id();
+    TestStream* stream = new TestStream(
+        pending, DetermineStreamType(id, connection()->transport_version(),
+                                     perspective(),
+                                     /*is_incoming=*/true, BIDIRECTIONAL));
     ActivateStream(QuicWrapUnique(stream));
     ++num_incoming_streams_created_;
     return stream;
@@ -223,7 +222,7 @@ class TestSession : public QuicSession {
     struct iovec iov;
     if (pending->sequencer()->GetReadableRegion(&iov)) {
       // Create TestStream once the first byte is received.
-      CreateIncomingStream(std::move(*pending));
+      CreateIncomingStream(pending);
       return true;
     }
     return false;

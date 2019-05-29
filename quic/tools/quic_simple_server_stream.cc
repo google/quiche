@@ -34,11 +34,11 @@ QuicSimpleServerStream::QuicSimpleServerStream(
 }
 
 QuicSimpleServerStream::QuicSimpleServerStream(
-    PendingStream pending,
+    PendingStream* pending,
     QuicSpdySession* session,
     StreamType type,
     QuicSimpleServerBackend* quic_simple_server_backend)
-    : QuicSpdyServerStreamBase(std::move(pending), session, type),
+    : QuicSpdyServerStreamBase(pending, session, type),
       content_length_(-1),
       quic_simple_server_backend_(quic_simple_server_backend) {
   DCHECK(quic_simple_server_backend_);

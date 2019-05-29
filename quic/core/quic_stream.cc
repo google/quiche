@@ -173,16 +173,16 @@ void PendingStream::MarkConsumed(size_t num_bytes) {
   sequencer_.MarkConsumed(num_bytes);
 }
 
-QuicStream::QuicStream(PendingStream pending, StreamType type, bool is_static)
-    : QuicStream(pending.id_,
-                 pending.session_,
-                 std::move(pending.sequencer_),
+QuicStream::QuicStream(PendingStream* pending, StreamType type, bool is_static)
+    : QuicStream(pending->id_,
+                 pending->session_,
+                 std::move(pending->sequencer_),
                  is_static,
                  type,
-                 pending.stream_bytes_read_,
-                 pending.fin_received_,
-                 std::move(pending.flow_controller_),
-                 pending.connection_flow_controller_) {
+                 pending->stream_bytes_read_,
+                 pending->fin_received_,
+                 std::move(pending->flow_controller_),
+                 pending->connection_flow_controller_) {
   sequencer_.set_stream(this);
 }
 

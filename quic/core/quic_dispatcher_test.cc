@@ -78,7 +78,7 @@ class TestQuicSpdyServerSession : public QuicServerSessionBase {
                     const std::string& error_details,
                     ConnectionCloseSource source));
   MOCK_METHOD1(CreateIncomingStream, QuicSpdyStream*(QuicStreamId id));
-  MOCK_METHOD1(CreateIncomingStream, QuicSpdyStream*(PendingStream pending));
+  MOCK_METHOD1(CreateIncomingStream, QuicSpdyStream*(PendingStream* pending));
   MOCK_METHOD0(CreateOutgoingBidirectionalStream, QuicSpdyStream*());
   MOCK_METHOD0(CreateOutgoingUnidirectionalStream, QuicSpdyStream*());
 

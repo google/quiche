@@ -126,7 +126,7 @@ class QUIC_EXPORT_PRIVATE QuicStream
              QuicSession* session,
              bool is_static,
              StreamType type);
-  QuicStream(PendingStream pending, StreamType type, bool is_static);
+  QuicStream(PendingStream* pending, StreamType type, bool is_static);
   QuicStream(const QuicStream&) = delete;
   QuicStream& operator=(const QuicStream&) = delete;
 

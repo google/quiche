@@ -15,10 +15,10 @@ QuicSpdyServerStreamBase::QuicSpdyServerStreamBase(QuicStreamId id,
                                                    StreamType type)
     : QuicSpdyStream(id, session, type) {}
 
-QuicSpdyServerStreamBase::QuicSpdyServerStreamBase(PendingStream pending,
+QuicSpdyServerStreamBase::QuicSpdyServerStreamBase(PendingStream* pending,
                                                    QuicSpdySession* session,
                                                    StreamType type)
-    : QuicSpdyStream(std::move(pending), session, type) {}
+    : QuicSpdyStream(pending, session, type) {}
 
 void QuicSpdyServerStreamBase::CloseWriteSide() {
   if (!fin_received() && !rst_received() && sequencer()->ignore_read_data() &&

@@ -179,11 +179,11 @@ class QuartcSession : public QuicSession,
  protected:
   // QuicSession override.
   QuicStream* CreateIncomingStream(QuicStreamId id) override;
-  QuicStream* CreateIncomingStream(PendingStream pending) override;
+  QuicStream* CreateIncomingStream(PendingStream* pending) override;
 
   std::unique_ptr<QuartcStream> CreateDataStream(QuicStreamId id,
                                                  spdy::SpdyPriority priority);
-  std::unique_ptr<QuartcStream> CreateDataStream(PendingStream pending,
+  std::unique_ptr<QuartcStream> CreateDataStream(PendingStream* pending,
                                                  spdy::SpdyPriority priority);
   // Activates a QuartcStream.  The session takes ownership of the stream, but
   // returns an unowned pointer to the stream for convenience.

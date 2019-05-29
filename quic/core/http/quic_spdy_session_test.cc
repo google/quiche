@@ -119,8 +119,8 @@ class TestStream : public QuicSpdyStream {
   TestStream(QuicStreamId id, QuicSpdySession* session, StreamType type)
       : QuicSpdyStream(id, session, type) {}
 
-  TestStream(PendingStream pending, QuicSpdySession* session, StreamType type)
-      : QuicSpdyStream(std::move(pending), session, type) {}
+  TestStream(PendingStream* pending, QuicSpdySession* session, StreamType type)
+      : QuicSpdyStream(pending, session, type) {}
 
   using QuicStream::CloseWriteSide;
 
@@ -192,10 +192,10 @@ class TestSession : public QuicSpdySession {
     }
   }
 
-  TestStream* CreateIncomingStream(PendingStream pending) override {
-    QuicStreamId id = pending.id();
+  TestStream* CreateIncomingStream(PendingStream* pending) override {
+    QuicStreamId id = pending->id();
     TestStream* stream =
-        new TestStream(std::move(pending), this,
+        new TestStream(pending, this,
                        DetermineStreamType(
                            id, connection()->transport_version(), perspective(),
                            /*is_incoming=*/true, BIDIRECTIONAL));

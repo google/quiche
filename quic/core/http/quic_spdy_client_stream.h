@@ -24,7 +24,7 @@ class QuicSpdyClientStream : public QuicSpdyStream {
   QuicSpdyClientStream(QuicStreamId id,
                        QuicSpdyClientSession* session,
                        StreamType type);
-  QuicSpdyClientStream(PendingStream pending,
+  QuicSpdyClientStream(PendingStream* pending,
                        QuicSpdyClientSession* spdy_session,
                        StreamType type);
   QuicSpdyClientStream(const QuicSpdyClientStream&) = delete;

@@ -23,7 +23,7 @@ class QuicSimpleServerStream : public QuicSpdyServerStreamBase,
                          QuicSpdySession* session,
                          StreamType type,
                          QuicSimpleServerBackend* quic_simple_server_backend);
-  QuicSimpleServerStream(PendingStream pending,
+  QuicSimpleServerStream(PendingStream* pending,
                          QuicSpdySession* session,
                          StreamType type,
                          QuicSimpleServerBackend* quic_simple_server_backend);

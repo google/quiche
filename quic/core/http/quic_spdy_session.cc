@@ -754,7 +754,7 @@ bool QuicSpdySession::ProcessPendingStream(PendingStream* pending) {
       // TODO(renjietang): Create incoming control stream.
       break;
     case kServerPushStream: {  // Push Stream.
-      QuicSpdyStream* stream = CreateIncomingStream(std::move(*pending));
+      QuicSpdyStream* stream = CreateIncomingStream(pending);
       stream->SetUnblocked();
       return true;
     }
