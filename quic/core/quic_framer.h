@@ -714,10 +714,15 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
                                   QuicVersionLabel* version_label);
 
   // Validates and updates |destination_connection_id_length| and
-  // |source_connection_id_length|.
+  // |source_connection_id_length|. When
+  // |should_update_expected_server_connection_id_length| is true, length
+  // validation is disabled and |expected_server_connection_id_length| is set
+  // to the appropriate length.
+  // TODO(b/133873272) refactor this method.
   static bool ProcessAndValidateIetfConnectionIdLength(
       QuicDataReader* reader,
       ParsedQuicVersion version,
+      Perspective perspective,
       bool should_update_expected_server_connection_id_length,
       uint8_t* expected_server_connection_id_length,
       uint8_t* destination_connection_id_length,

@@ -13840,6 +13840,82 @@ TEST_P(QuicFramerTest, ClientConnectionIdNotSupportedYet) {
   }
 }
 
+TEST_P(QuicFramerTest, ProcessAndValidateIetfConnectionIdLengthClient) {
+  if (framer_.transport_version() <= QUIC_VERSION_43) {
+    // This test requires an IETF long header.
+    return;
+  }
+  char connection_id_lengths = 0x05;
+  QuicDataReader reader(&connection_id_lengths, 1);
+
+  bool should_update_expected_server_connection_id_length = false;
+  uint8_t expected_server_connection_id_length = 8;
+  uint8_t destination_connection_id_length = 0;
+  uint8_t source_connection_id_length = 8;
+  std::string detailed_error = "";
+
+  EXPECT_TRUE(QuicFramerPeer::ProcessAndValidateIetfConnectionIdLength(
+      &reader, framer_.version(), Perspective::IS_CLIENT,
+      should_update_expected_server_connection_id_length,
+      &expected_server_connection_id_length, &destination_connection_id_length,
+      &source_connection_id_length, &detailed_error));
+  EXPECT_EQ(8, expected_server_connection_id_length);
+  EXPECT_EQ(0, destination_connection_id_length);
+  EXPECT_EQ(8, source_connection_id_length);
+  EXPECT_EQ("", detailed_error);
+
+  QuicDataReader reader2(&connection_id_lengths, 1);
+  should_update_expected_server_connection_id_length = true;
+  expected_server_connection_id_length = 33;
+  EXPECT_TRUE(QuicFramerPeer::ProcessAndValidateIetfConnectionIdLength(
+      &reader2, framer_.version(), Perspective::IS_CLIENT,
+      should_update_expected_server_connection_id_length,
+      &expected_server_connection_id_length, &destination_connection_id_length,
+      &source_connection_id_length, &detailed_error));
+  EXPECT_EQ(8, expected_server_connection_id_length);
+  EXPECT_EQ(0, destination_connection_id_length);
+  EXPECT_EQ(8, source_connection_id_length);
+  EXPECT_EQ("", detailed_error);
+}
+
+TEST_P(QuicFramerTest, ProcessAndValidateIetfConnectionIdLengthServer) {
+  if (framer_.transport_version() <= QUIC_VERSION_43) {
+    // This test requires an IETF long header.
+    return;
+  }
+  char connection_id_lengths = 0x50;
+  QuicDataReader reader(&connection_id_lengths, 1);
+
+  bool should_update_expected_server_connection_id_length = false;
+  uint8_t expected_server_connection_id_length = 8;
+  uint8_t destination_connection_id_length = 8;
+  uint8_t source_connection_id_length = 0;
+  std::string detailed_error = "";
+
+  EXPECT_TRUE(QuicFramerPeer::ProcessAndValidateIetfConnectionIdLength(
+      &reader, framer_.version(), Perspective::IS_SERVER,
+      should_update_expected_server_connection_id_length,
+      &expected_server_connection_id_length, &destination_connection_id_length,
+      &source_connection_id_length, &detailed_error));
+  EXPECT_EQ(8, expected_server_connection_id_length);
+  EXPECT_EQ(8, destination_connection_id_length);
+  EXPECT_EQ(0, source_connection_id_length);
+  EXPECT_EQ("", detailed_error);
+
+  QuicDataReader reader2(&connection_id_lengths, 1);
+  should_update_expected_server_connection_id_length = true;
+  expected_server_connection_id_length = 33;
+  EXPECT_TRUE(QuicFramerPeer::ProcessAndValidateIetfConnectionIdLength(
+      &reader2, framer_.version(), Perspective::IS_SERVER,
+      should_update_expected_server_connection_id_length,
+      &expected_server_connection_id_length, &destination_connection_id_length,
+      &source_connection_id_length, &detailed_error));
+  EXPECT_EQ(8, expected_server_connection_id_length);
+  EXPECT_EQ(8, destination_connection_id_length);
+  EXPECT_EQ(0, source_connection_id_length);
+  EXPECT_EQ("", detailed_error);
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

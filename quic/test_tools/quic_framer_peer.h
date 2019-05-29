@@ -166,6 +166,16 @@ class QuicFramerPeer {
   static QuicPacketNumber GetLargestDecryptedPacketNumber(
       QuicFramer* framer,
       PacketNumberSpace packet_number_space);
+
+  static bool ProcessAndValidateIetfConnectionIdLength(
+      QuicDataReader* reader,
+      ParsedQuicVersion version,
+      Perspective perspective,
+      bool should_update_expected_server_connection_id_length,
+      uint8_t* expected_server_connection_id_length,
+      uint8_t* destination_connection_id_length,
+      uint8_t* source_connection_id_length,
+      std::string* detailed_error);
 };
 
 }  // namespace test
