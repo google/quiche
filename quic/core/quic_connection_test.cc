@@ -883,11 +883,12 @@ std::vector<TestParams> GetTestParams() {
          {AckResponse::kDefer, AckResponse::kImmediate}) {
       for (bool no_stop_waiting : {true, false}) {
         // After version 43, never use STOP_WAITING.
-        params.push_back(TestParams(
-            all_supported_versions[i], ack_response,
-            all_supported_versions[i].transport_version <= QUIC_VERSION_43
-                ? no_stop_waiting
-                : true));
+        params.push_back(
+            TestParams(all_supported_versions[i], ack_response,
+                       !VersionHasIetfInvariantHeader(
+                           all_supported_versions[i].transport_version)
+                           ? no_stop_waiting
+                           : true));
       }
     }
   }
@@ -948,7 +949,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     }
     QuicFramerPeer::SetLastSerializedServerConnectionId(
         QuicConnectionPeer::GetFramer(&connection_), connection_id_);
-    if (version().transport_version > QUIC_VERSION_43) {
+    if (VersionHasIetfInvariantHeader(version().transport_version)) {
       EXPECT_TRUE(QuicConnectionPeer::GetNoStopWaitingFrames(&connection_));
     } else {
       QuicConnectionPeer::SetNoStopWaitingFrames(&connection_,
@@ -1126,7 +1127,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     header.destination_connection_id = connection_id_;
     header.packet_number_length = packet_number_length_;
     header.destination_connection_id_included = connection_id_included_;
-    if ((peer_framer_.transport_version() > QUIC_VERSION_43 ||
+    if ((VersionHasIetfInvariantHeader(peer_framer_.transport_version()) ||
          GetQuicRestartFlag(quic_do_not_override_connection_id)) &&
         peer_framer_.perspective() == Perspective::IS_SERVER) {
       header.destination_connection_id_included = CONNECTION_ID_ABSENT;
@@ -1347,7 +1348,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
   QuicPacketHeader ConstructPacketHeader(uint64_t number,
                                          EncryptionLevel level) {
     QuicPacketHeader header;
-    if (peer_framer_.transport_version() > QUIC_VERSION_43 &&
+    if (VersionHasIetfInvariantHeader(peer_framer_.transport_version()) &&
         level < ENCRYPTION_FORWARD_SECURE) {
       // Set long header type accordingly.
       header.version_flag = true;
@@ -1371,7 +1372,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
       header.destination_connection_id = connection_id_;
       header.destination_connection_id_included = connection_id_included_;
     }
-    if (peer_framer_.transport_version() > QUIC_VERSION_43 &&
+    if (VersionHasIetfInvariantHeader(peer_framer_.transport_version()) &&
         peer_framer_.perspective() == Perspective::IS_SERVER) {
       header.destination_connection_id_included = CONNECTION_ID_ABSENT;
       if (header.version_flag) {
@@ -1420,12 +1421,12 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
         peer_framer_.perspective() == Perspective::IS_SERVER) {
       header.source_connection_id = connection_id_;
       header.destination_connection_id_included = CONNECTION_ID_ABSENT;
-      if (peer_framer_.transport_version() <= QUIC_VERSION_43) {
+      if (!VersionHasIetfInvariantHeader(peer_framer_.transport_version())) {
         header.source_connection_id_included = CONNECTION_ID_PRESENT;
       }
     } else {
       header.destination_connection_id = connection_id_;
-      if (peer_framer_.transport_version() > QUIC_VERSION_43) {
+      if (VersionHasIetfInvariantHeader(peer_framer_.transport_version())) {
         header.destination_connection_id_included = CONNECTION_ID_ABSENT;
       }
     }
@@ -2589,13 +2590,13 @@ TEST_P(QuicConnectionTest, AckReceiptCausesAckSend) {
   QuicPacketNumber retransmission;
   // Packet 1 is short header for IETF QUIC because the encryption level
   // switched to ENCRYPTION_FORWARD_SECURE in SendStreamDataToPeer.
-  EXPECT_CALL(
-      *send_algorithm_,
-      OnPacketSent(_, _, _,
-                   GetParam().version.transport_version > QUIC_VERSION_43
-                       ? packet_size
-                       : packet_size - kQuicVersionSize,
-                   _))
+  EXPECT_CALL(*send_algorithm_,
+              OnPacketSent(_, _, _,
+                           VersionHasIetfInvariantHeader(
+                               GetParam().version.transport_version)
+                               ? packet_size
+                               : packet_size - kQuicVersionSize,
+                           _))
       .WillOnce(SaveArg<2>(&retransmission));
 
   ProcessAckPacket(&frame);
@@ -2742,7 +2743,7 @@ TEST_P(QuicConnectionTest, AckNeedsRetransmittableFrames) {
 }
 
 TEST_P(QuicConnectionTest, LeastUnackedLower) {
-  if (GetParam().version.transport_version > QUIC_VERSION_43 ||
+  if (VersionHasIetfInvariantHeader(GetParam().version.transport_version) ||
       connection_.SupportsMultiplePacketNumberSpaces()) {
     return;
   }
@@ -3564,13 +3565,13 @@ TEST_P(QuicConnectionTest, RetransmitNackedLargestObserved) {
   EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
   // Packet 1 is short header for IETF QUIC because the encryption level
   // switched to ENCRYPTION_FORWARD_SECURE in SendStreamDataToPeer.
-  EXPECT_CALL(
-      *send_algorithm_,
-      OnPacketSent(_, _, _,
-                   GetParam().version.transport_version > QUIC_VERSION_43
-                       ? packet_size
-                       : packet_size - kQuicVersionSize,
-                   _));
+  EXPECT_CALL(*send_algorithm_,
+              OnPacketSent(_, _, _,
+                           VersionHasIetfInvariantHeader(
+                               GetParam().version.transport_version)
+                               ? packet_size
+                               : packet_size - kQuicVersionSize,
+                           _));
   ProcessAckPacket(&frame);
 }
 
@@ -5493,7 +5494,7 @@ TEST_P(QuicConnectionTest, SendingThreePackets) {
 
 TEST_P(QuicConnectionTest, LoopThroughSendingPacketsWithTruncation) {
   set_perspective(Perspective::IS_SERVER);
-  if (GetParam().version.transport_version <= QUIC_VERSION_43) {
+  if (!VersionHasIetfInvariantHeader(GetParam().version.transport_version)) {
     // For IETF QUIC, encryption level will be switched to FORWARD_SECURE in
     // SendStreamDataWithString.
     QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
@@ -5519,7 +5520,7 @@ TEST_P(QuicConnectionTest, LoopThroughSendingPacketsWithTruncation) {
   EXPECT_EQ(payload.size(),
             connection_.SendStreamDataWithString(3, payload, 1350, NO_FIN)
                 .bytes_consumed);
-  if (connection_.transport_version() > QUIC_VERSION_43) {
+  if (VersionHasIetfInvariantHeader(connection_.transport_version())) {
     // Short header packets sent from server omit connection ID already, and
     // stream offset size increases from 0 to 2.
     EXPECT_EQ(non_truncated_packet_size, writer_->last_packet_size() - 2);
@@ -6642,7 +6643,7 @@ TEST_P(QuicConnectionTest, WriterErrorWhenServerSendsConnectivityProbe) {
 }
 
 TEST_P(QuicConnectionTest, PublicReset) {
-  if (GetParam().version.transport_version > QUIC_VERSION_43 ||
+  if (VersionHasIetfInvariantHeader(GetParam().version.transport_version) ||
       connection_.SupportsMultiplePacketNumberSpaces()) {
     return;
   }
@@ -6659,7 +6660,7 @@ TEST_P(QuicConnectionTest, PublicReset) {
 }
 
 TEST_P(QuicConnectionTest, IetfStatelessReset) {
-  if (GetParam().version.transport_version <= QUIC_VERSION_43 ||
+  if (!VersionHasIetfInvariantHeader(GetParam().version.transport_version) ||
       connection_.SupportsMultiplePacketNumberSpaces()) {
     return;
   }
@@ -6725,7 +6726,7 @@ TEST_P(QuicConnectionTest, ZeroBytePacket) {
 }
 
 TEST_P(QuicConnectionTest, MissingPacketsBeforeLeastUnacked) {
-  if (GetParam().version.transport_version > QUIC_VERSION_43) {
+  if (VersionHasIetfInvariantHeader(GetParam().version.transport_version)) {
     return;
   }
   // Set the packet number of the ack packet to be least unacked (4).
@@ -6740,7 +6741,7 @@ TEST_P(QuicConnectionTest, ServerSendsVersionNegotiationPacket) {
   SetQuicReloadableFlag(quic_enable_version_99, false);
   connection_.SetSupportedVersions(CurrentSupportedVersions());
   set_perspective(Perspective::IS_SERVER);
-  if (GetParam().version.transport_version > QUIC_VERSION_43) {
+  if (VersionHasIetfInvariantHeader(GetParam().version.transport_version)) {
     peer_framer_.set_version_for_tests(
         ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_99));
   } else {
@@ -6793,7 +6794,7 @@ TEST_P(QuicConnectionTest, ServerSendsVersionNegotiationPacketSocketBlocked) {
   SetQuicReloadableFlag(quic_enable_version_99, false);
   connection_.SetSupportedVersions(CurrentSupportedVersions());
   set_perspective(Perspective::IS_SERVER);
-  if (GetParam().version.transport_version > QUIC_VERSION_43) {
+  if (VersionHasIetfInvariantHeader(GetParam().version.transport_version)) {
     peer_framer_.set_version_for_tests(
         ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_99));
   } else {
@@ -6853,7 +6854,7 @@ TEST_P(QuicConnectionTest,
   SetQuicReloadableFlag(quic_enable_version_99, false);
   connection_.SetSupportedVersions(CurrentSupportedVersions());
   set_perspective(Perspective::IS_SERVER);
-  if (GetParam().version.transport_version > QUIC_VERSION_43) {
+  if (VersionHasIetfInvariantHeader(GetParam().version.transport_version)) {
     peer_framer_.set_version_for_tests(
         ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_99));
   } else {
@@ -6907,7 +6908,7 @@ TEST_P(QuicConnectionTest, ClientHandlesVersionNegotiation) {
   std::unique_ptr<QuicEncryptedPacket> encrypted(
       QuicFramer::BuildVersionNegotiationPacket(
           connection_id_, EmptyQuicConnectionId(),
-          connection_.transport_version() > QUIC_VERSION_43,
+          VersionHasIetfInvariantHeader(connection_.transport_version()),
           AllSupportedVersions()));
   std::unique_ptr<QuicReceivedPacket> received(
       ConstructReceivedPacket(*encrypted, QuicTime::Zero()));
@@ -6945,7 +6946,7 @@ TEST_P(QuicConnectionTest, ClientHandlesVersionNegotiation) {
   connection_.ProcessUdpPacket(
       kSelfAddress, kPeerAddress,
       QuicReceivedPacket(buffer, encrypted_length, QuicTime::Zero(), false));
-  if (GetParam().version.transport_version > QUIC_VERSION_43) {
+  if (VersionHasIetfInvariantHeader(GetParam().version.transport_version)) {
     // IETF QUIC stops sending version when switch to FORWARD_SECURE.
     EXPECT_NE(ENCRYPTION_FORWARD_SECURE, connection_.encryption_level());
     ASSERT_TRUE(QuicPacketCreatorPeer::SendVersionInPacket(creator_));
@@ -6963,7 +6964,7 @@ TEST_P(QuicConnectionTest, BadVersionNegotiation) {
   std::unique_ptr<QuicEncryptedPacket> encrypted(
       QuicFramer::BuildVersionNegotiationPacket(
           connection_id_, EmptyQuicConnectionId(),
-          connection_.transport_version() > QUIC_VERSION_43,
+          VersionHasIetfInvariantHeader(connection_.transport_version()),
           AllSupportedVersions()));
   std::unique_ptr<QuicReceivedPacket> received(
       ConstructReceivedPacket(*encrypted, QuicTime::Zero()));
@@ -7015,8 +7016,9 @@ TEST_P(QuicConnectionTest, CheckSendStats) {
   // For IETF QUIC, version is not included as the encryption level switches to
   // FORWARD_SECURE in SendStreamDataWithString.
   size_t save_on_version =
-      GetParam().version.transport_version > QUIC_VERSION_43 ? 0
-                                                             : kQuicVersionSize;
+      VersionHasIetfInvariantHeader(GetParam().version.transport_version)
+          ? 0
+          : kQuicVersionSize;
   EXPECT_EQ(3 * first_packet_size + 2 * second_packet_size - save_on_version,
             stats.bytes_sent);
   EXPECT_EQ(5u, stats.packets_sent);
@@ -7034,12 +7036,12 @@ TEST_P(QuicConnectionTest, ProcessFramesIfPacketClosedConnection) {
       peer_framer_.perspective() == Perspective::IS_SERVER) {
     header.source_connection_id = connection_id_;
     header.destination_connection_id_included = CONNECTION_ID_ABSENT;
-    if (peer_framer_.transport_version() <= QUIC_VERSION_43) {
+    if (!VersionHasIetfInvariantHeader(peer_framer_.transport_version())) {
       header.source_connection_id_included = CONNECTION_ID_PRESENT;
     }
   } else {
     header.destination_connection_id = connection_id_;
-    if (peer_framer_.transport_version() > QUIC_VERSION_43) {
+    if (VersionHasIetfInvariantHeader(peer_framer_.transport_version())) {
       header.destination_connection_id_included = CONNECTION_ID_ABSENT;
     }
   }
@@ -7143,7 +7145,7 @@ TEST_P(QuicConnectionTest, OnPacketSentDebugVisitor) {
 TEST_P(QuicConnectionTest, OnPacketHeaderDebugVisitor) {
   QuicPacketHeader header;
   header.packet_number = QuicPacketNumber(1);
-  if (GetParam().version.transport_version > QUIC_VERSION_43) {
+  if (VersionHasIetfInvariantHeader(GetParam().version.transport_version)) {
     header.form = IETF_QUIC_LONG_HEADER_PACKET;
   }
 
@@ -8198,7 +8200,7 @@ TEST_P(QuicConnectionTest, WriteBlockedWithInvalidAck) {
 }
 
 TEST_P(QuicConnectionTest, SendMessage) {
-  if (connection_.transport_version() <= QUIC_VERSION_44 ||
+  if (!VersionSupportsMessageFrames(connection_.transport_version()) ||
       connection_.SupportsMultiplePacketNumberSpaces()) {
     return;
   }
@@ -8350,7 +8352,7 @@ TEST_P(QuicConnectionTest, StopProcessingGQuicPacketInIetfQuicConnection) {
   // This test mimics a problematic scenario where an IETF QUIC connection
   // receives a Google QUIC packet and continue processing it using Google QUIC
   // wire format.
-  if (version().transport_version <= QUIC_VERSION_43) {
+  if (!VersionHasIetfInvariantHeader(version().transport_version)) {
     return;
   }
   set_perspective(Perspective::IS_SERVER);

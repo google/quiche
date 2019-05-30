@@ -901,7 +901,7 @@ TEST_F(QuicPacketGeneratorTest, ConsumeDataLargeSendAckFalse) {
 }
 
 TEST_F(QuicPacketGeneratorTest, ConsumeDataLargeSendAckTrue) {
-  if (framer_.transport_version() > QUIC_VERSION_43) {
+  if (VersionHasIetfInvariantHeader(framer_.transport_version())) {
     return;
   }
   delegate_.SetCanNotWrite();
@@ -1144,7 +1144,7 @@ TEST_F(QuicPacketGeneratorTest, TestConnectionIdLength) {
 
   for (size_t i = 1; i < 10; i++) {
     generator_.SetServerConnectionIdLength(i);
-    if (framer_.transport_version() > QUIC_VERSION_43) {
+    if (VersionHasIetfInvariantHeader(framer_.transport_version())) {
       EXPECT_EQ(PACKET_0BYTE_CONNECTION_ID,
                 creator_->GetDestinationConnectionIdLength());
     } else {
@@ -1423,7 +1423,7 @@ TEST_F(QuicPacketGeneratorTest, GenerateMtuDiscoveryPacket_SurroundedByData) {
 }
 
 TEST_F(QuicPacketGeneratorTest, DontCrashOnInvalidStopWaiting) {
-  if (framer_.transport_version() > QUIC_VERSION_43) {
+  if (VersionSupportsMessageFrames(framer_.transport_version())) {
     return;
   }
   // Test added to ensure the generator does not crash when an invalid frame is
@@ -1627,7 +1627,7 @@ TEST_F(QuicPacketGeneratorTest,
 }
 
 TEST_F(QuicPacketGeneratorTest, AddMessageFrame) {
-  if (framer_.transport_version() <= QUIC_VERSION_44) {
+  if (!VersionSupportsMessageFrames(framer_.transport_version())) {
     return;
   }
   quic::QuicMemSliceStorage storage(nullptr, 0, nullptr, 0);

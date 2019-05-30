@@ -634,10 +634,10 @@ void QuicDispatcher::CleanUpSession(SessionMap::iterator it,
   if (connection->termination_packets() != nullptr &&
       !connection->termination_packets()->empty()) {
     action = QuicTimeWaitListManager::SEND_TERMINATION_PACKETS;
-  } else if (connection->transport_version() > QUIC_VERSION_43 ||
+  } else if (VersionHasIetfInvariantHeader(connection->transport_version()) ||
              GetQuicReloadableFlag(quic_terminate_gquic_connection_as_ietf)) {
     if (!connection->IsHandshakeConfirmed()) {
-      if (connection->transport_version() <= QUIC_VERSION_43) {
+      if (!VersionHasIetfInvariantHeader(connection->transport_version())) {
         QUIC_CODE_COUNT(gquic_add_to_time_wait_list_with_handshake_failed);
       } else {
         QUIC_CODE_COUNT(quic_v44_add_to_time_wait_list_with_handshake_failed);
@@ -647,7 +647,7 @@ void QuicDispatcher::CleanUpSession(SessionMap::iterator it,
       // QUIC_HANDSHAKE_FAILED and adds the connection to the time wait list.
       StatelesslyTerminateConnection(
           connection->connection_id(),
-          connection->transport_version() > QUIC_VERSION_43
+          VersionHasIetfInvariantHeader(connection->transport_version())
               ? IETF_QUIC_LONG_HEADER_PACKET
               : GOOGLE_QUIC_PACKET,
           /*version_flag=*/true, connection->version(), QUIC_HANDSHAKE_FAILED,
@@ -662,8 +662,9 @@ void QuicDispatcher::CleanUpSession(SessionMap::iterator it,
     QUIC_CODE_COUNT(quic_v44_add_to_time_wait_list_with_stateless_reset);
   }
   time_wait_list_manager_->AddConnectionIdToTimeWait(
-      it->first, connection->transport_version() > QUIC_VERSION_43, action,
-      connection->encryption_level(), connection->termination_packets());
+      it->first, VersionHasIetfInvariantHeader(connection->transport_version()),
+      action, connection->encryption_level(),
+      connection->termination_packets());
   session_map_.erase(it);
 }
 

@@ -336,6 +336,18 @@ QUIC_EXPORT_PRIVATE inline std::string ParsedQuicVersionVectorToString(
                                          std::numeric_limits<size_t>::max());
 }
 
+// Returns true if |transport_version| uses IETF invariant headers.
+QUIC_EXPORT_PRIVATE inline bool VersionHasIetfInvariantHeader(
+    QuicTransportVersion transport_version) {
+  return transport_version > QUIC_VERSION_43;
+}
+
+// Returns true if |transport_version| supports MESSAGE frames.
+QUIC_EXPORT_PRIVATE inline bool VersionSupportsMessageFrames(
+    QuicTransportVersion transport_version) {
+  return transport_version > QUIC_VERSION_44;
+}
+
 // Returns true if QuicSpdyStream encodes body using HTTP/3 specification and
 // sends data frame header along with body.
 QUIC_EXPORT_PRIVATE inline bool VersionHasDataFrameHeader(

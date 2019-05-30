@@ -121,7 +121,7 @@ size_t GetPacketHeaderSize(
     QuicVariableLengthIntegerLength retry_token_length_length,
     QuicByteCount retry_token_length,
     QuicVariableLengthIntegerLength length_length) {
-  if (version > QUIC_VERSION_43) {
+  if (VersionHasIetfInvariantHeader(version)) {
     if (include_version) {
       // Long header.
       return kPacketHeaderTypeSize + kConnectionIdLengthSize +

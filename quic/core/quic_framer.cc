@@ -520,7 +520,7 @@ size_t QuicFramer::GetMinCryptoFrameSize(QuicStreamOffset offset,
 size_t QuicFramer::GetMessageFrameSize(QuicTransportVersion version,
                                        bool last_frame_in_packet,
                                        QuicByteCount length) {
-  QUIC_BUG_IF(version <= QUIC_VERSION_44)
+  QUIC_BUG_IF(!VersionSupportsMessageFrames(version))
       << "Try to serialize MESSAGE frame in " << version;
   return kQuicFrameTypeSize +
          (last_frame_in_packet ? 0 : QuicDataWriter::GetVarInt62Len(length)) +
@@ -1484,7 +1484,7 @@ bool QuicFramer::ProcessPacket(const QuicEncryptedPacket& packet) {
   bool packet_has_ietf_packet_header = false;
   if (infer_packet_header_type_from_version_) {
     packet_has_ietf_packet_header =
-        version_.transport_version > QUIC_VERSION_43;
+        VersionHasIetfInvariantHeader(version_.transport_version);
   } else if (!reader.IsDoneReading()) {
     uint8_t type = reader.PeekByte();
     packet_has_ietf_packet_header = QuicUtils::IsIetfPacketHeader(type);
@@ -2054,7 +2054,7 @@ bool QuicFramer::HasEncrypterOfEncryptionLevel(EncryptionLevel level) const {
 bool QuicFramer::AppendPacketHeader(const QuicPacketHeader& header,
                                     QuicDataWriter* writer,
                                     size_t* length_field_offset) {
-  if (transport_version() > QUIC_VERSION_43) {
+  if (VersionHasIetfInvariantHeader(transport_version())) {
     return AppendIetfPacketHeader(header, writer, length_field_offset);
   }
   QUIC_DVLOG(1) << ENDPOINT << "Appending header: " << header;
@@ -5220,7 +5220,7 @@ bool QuicFramer::AppendTimestampsToAckFrame(const QuicAckFrame& frame,
 bool QuicFramer::AppendStopWaitingFrame(const QuicPacketHeader& header,
                                         const QuicStopWaitingFrame& frame,
                                         QuicDataWriter* writer) {
-  DCHECK_GE(QUIC_VERSION_43, version_.transport_version);
+  DCHECK(!VersionHasIetfInvariantHeader(version_.transport_version));
   DCHECK(frame.least_unacked.IsInitialized() &&
          header.packet_number >= frame.least_unacked);
   const uint64_t least_unacked_delta =

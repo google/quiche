@@ -560,7 +560,7 @@ TEST_P(QuicSpdyClientSessionTest, InvalidFramedPacketReceived) {
   ParsedQuicVersionVector versions = {GetParam()};
   bool version_flag = false;
   QuicConnectionIdIncluded scid_included = CONNECTION_ID_ABSENT;
-  if (GetParam().transport_version > QUIC_VERSION_43) {
+  if (VersionHasIetfInvariantHeader(GetParam().transport_version)) {
     version_flag = true;
     source_connection_id = destination_connection_id;
     scid_included = CONNECTION_ID_PRESENT;

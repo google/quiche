@@ -104,7 +104,7 @@ class TestPacketCreator : public QuicPacketCreator {
   }
 
   void StopSendingVersion() {
-    if (version_ > QUIC_VERSION_43) {
+    if (VersionHasIetfInvariantHeader(version_)) {
       set_encryption_level(ENCRYPTION_FORWARD_SECURE);
       return;
     }
@@ -331,7 +331,7 @@ TEST_P(QuicPacketCreatorTest, SerializeFrames) {
 }
 
 TEST_P(QuicPacketCreatorTest, ReserializeFramesWithSequenceNumberLength) {
-  if (client_framer_.transport_version() > QUIC_VERSION_43) {
+  if (VersionHasIetfInvariantHeader(client_framer_.transport_version())) {
     creator_.set_encryption_level(ENCRYPTION_FORWARD_SECURE);
   }
   // If the original packet number length, the current packet number
@@ -808,7 +808,8 @@ TEST_P(QuicPacketCreatorTest, SerializeVersionNegotiationPacket) {
   QuicFramerPeer::SetPerspective(&client_framer_, Perspective::IS_SERVER);
   ParsedQuicVersionVector versions;
   versions.push_back(test::QuicVersionMax());
-  const bool ietf_quic = GetParam().version.transport_version > QUIC_VERSION_43;
+  const bool ietf_quic =
+      VersionHasIetfInvariantHeader(GetParam().version.transport_version);
   std::unique_ptr<QuicEncryptedPacket> encrypted(
       creator_.SerializeVersionNegotiationPacket(ietf_quic, versions));
 
@@ -1106,7 +1107,7 @@ TEST_P(QuicPacketCreatorTest,
 }
 
 TEST_P(QuicPacketCreatorTest, UpdatePacketSequenceNumberLengthLeastAwaiting) {
-  if (GetParam().version.transport_version > QUIC_VERSION_43 &&
+  if (VersionHasIetfInvariantHeader(GetParam().version.transport_version) &&
       GetParam().version.transport_version != QUIC_VERSION_99) {
     EXPECT_EQ(PACKET_4BYTE_PACKET_NUMBER,
               QuicPacketCreatorPeer::GetPacketNumberLength(&creator_));
@@ -1144,7 +1145,7 @@ TEST_P(QuicPacketCreatorTest, UpdatePacketSequenceNumberLengthLeastAwaiting) {
 
 TEST_P(QuicPacketCreatorTest, UpdatePacketSequenceNumberLengthCwnd) {
   QuicPacketCreatorPeer::SetPacketNumber(&creator_, 1);
-  if (GetParam().version.transport_version > QUIC_VERSION_43 &&
+  if (VersionHasIetfInvariantHeader(GetParam().version.transport_version) &&
       GetParam().version.transport_version != QUIC_VERSION_99) {
     EXPECT_EQ(PACKET_4BYTE_PACKET_NUMBER,
               QuicPacketCreatorPeer::GetPacketNumberLength(&creator_));
@@ -1674,7 +1675,7 @@ TEST_P(QuicPacketCreatorTest, IetfAckGapErrorRegression) {
 }
 
 TEST_P(QuicPacketCreatorTest, AddMessageFrame) {
-  if (client_framer_.transport_version() <= QUIC_VERSION_44) {
+  if (!VersionSupportsMessageFrames(client_framer_.transport_version())) {
     return;
   }
   creator_.set_encryption_level(ENCRYPTION_FORWARD_SECURE);
@@ -1726,7 +1727,7 @@ TEST_P(QuicPacketCreatorTest, AddMessageFrame) {
 }
 
 TEST_P(QuicPacketCreatorTest, MessageFrameConsumption) {
-  if (client_framer_.transport_version() <= QUIC_VERSION_44) {
+  if (!VersionSupportsMessageFrames(client_framer_.transport_version())) {
     return;
   }
   std::string message_data(kDefaultMaxPacketSize, 'a');

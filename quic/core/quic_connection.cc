@@ -332,7 +332,8 @@ QuicConnection::QuicConnection(
       next_mtu_probe_at_(kPacketsBetweenMtuProbesBase),
       largest_received_packet_size_(0),
       write_error_occurred_(false),
-      no_stop_waiting_frames_(transport_version() > QUIC_VERSION_43),
+      no_stop_waiting_frames_(
+          VersionHasIetfInvariantHeader(transport_version())),
       consecutive_num_packets_with_no_retransmittable_frames_(0),
       max_consecutive_num_packets_with_no_retransmittable_frames_(
           kMaxConsecutiveNonRetransmittablePackets),
@@ -685,7 +686,7 @@ bool QuicConnection::OnProtocolVersionMismatch(
 
   MaybeEnableSessionDecidesWhatToWrite();
   no_stop_waiting_frames_ =
-      received_version.transport_version > QUIC_VERSION_43;
+      VersionHasIetfInvariantHeader(received_version.transport_version);
 
   // TODO(satyamshekhar): Store the packet number of this packet and close the
   // connection if we ever received a packet with incorrect version and whose
@@ -771,7 +772,7 @@ void QuicConnection::OnVersionNegotiationPacket(
 
   QUIC_DLOG(INFO) << ENDPOINT << "Negotiated version: "
                   << ParsedQuicVersionToString(version());
-  no_stop_waiting_frames_ = transport_version() > QUIC_VERSION_43;
+  no_stop_waiting_frames_ = VersionHasIetfInvariantHeader(transport_version());
   version_negotiation_state_ = NEGOTIATION_IN_PROGRESS;
 
   RetransmitUnackedPackets(ALL_UNACKED_RETRANSMISSION);
@@ -2173,7 +2174,7 @@ bool QuicConnection::ProcessValidatedPacket(const QuicPacketHeader& header) {
   if (version_negotiation_state_ != NEGOTIATED_VERSION) {
     if (perspective_ == Perspective::IS_CLIENT) {
       DCHECK(!header.version_flag || header.form != GOOGLE_QUIC_PACKET);
-      if (framer_.transport_version() <= QUIC_VERSION_43) {
+      if (!VersionHasIetfInvariantHeader(framer_.transport_version())) {
         // If the client gets a packet without the version flag from the server
         // it should stop sending version since the version negotiation is done.
         // IETF QUIC stops sending version once encryption level switches to
@@ -2727,7 +2728,7 @@ void QuicConnection::OnWriteError(int error_code) {
       break;
     default:
       // We can't send an error as the socket is presumably borked.
-      if (transport_version() > QUIC_VERSION_43) {
+      if (VersionHasIetfInvariantHeader(transport_version())) {
         QUIC_CODE_COUNT(quic_tear_down_local_connection_on_write_error_ietf);
       } else {
         QUIC_CODE_COUNT(
@@ -2749,7 +2750,7 @@ void QuicConnection::OnSerializedPacket(SerializedPacket* serialized_packet) {
     // loop here.
     // TODO(ianswett): This is actually an internal error, not an
     // encryption failure.
-    if (transport_version() > QUIC_VERSION_43) {
+    if (VersionHasIetfInvariantHeader(transport_version())) {
       QUIC_CODE_COUNT(
           quic_tear_down_local_connection_on_serialized_packet_ietf);
     } else {
@@ -2777,7 +2778,7 @@ void QuicConnection::OnUnrecoverableError(QuicErrorCode error,
                                           const std::string& error_details) {
   // The packet creator or generator encountered an unrecoverable error: tear
   // down local connection state immediately.
-  if (transport_version() > QUIC_VERSION_43) {
+  if (VersionHasIetfInvariantHeader(transport_version())) {
     QUIC_CODE_COUNT(
         quic_tear_down_local_connection_on_unrecoverable_error_ietf);
   } else {
@@ -3999,7 +4000,7 @@ void QuicConnection::ResetAckStates() {
 
 MessageStatus QuicConnection::SendMessage(QuicMessageId message_id,
                                           QuicMemSliceSpan message) {
-  if (transport_version() <= QUIC_VERSION_44) {
+  if (!VersionSupportsMessageFrames(transport_version())) {
     QUIC_BUG << "MESSAGE frame is not supported for version "
              << transport_version();
     return MESSAGE_STATUS_UNSUPPORTED;
@@ -4059,7 +4060,7 @@ EncryptionLevel QuicConnection::GetConnectionCloseEncryptionLevel() const {
   }
   if (framer_.HasEncrypterOfEncryptionLevel(ENCRYPTION_ZERO_RTT)) {
     if (encryption_level_ != ENCRYPTION_ZERO_RTT) {
-      if (transport_version() > QUIC_VERSION_43) {
+      if (VersionHasIetfInvariantHeader(transport_version())) {
         QUIC_CODE_COUNT(quic_wrong_encryption_level_connection_close_ietf);
       } else {
         QUIC_CODE_COUNT(quic_wrong_encryption_level_connection_close);

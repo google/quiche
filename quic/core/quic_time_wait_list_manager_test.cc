@@ -163,8 +163,8 @@ class QuicTimeWaitListManagerTest : public QuicTest {
       QuicTimeWaitListManager::TimeWaitAction action,
       std::vector<std::unique_ptr<QuicEncryptedPacket>>* packets) {
     time_wait_list_manager_.AddConnectionIdToTimeWait(
-        connection_id, version.transport_version > QUIC_VERSION_43, action,
-        ENCRYPTION_INITIAL, packets);
+        connection_id, VersionHasIetfInvariantHeader(version.transport_version),
+        action, ENCRYPTION_INITIAL, packets);
   }
 
   bool IsConnectionIdInTimeWait(QuicConnectionId connection_id) {

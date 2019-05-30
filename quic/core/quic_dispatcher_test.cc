@@ -1073,7 +1073,8 @@ TEST_F(QuicDispatcherTestStrayPacketConnectionId,
   QuicConnectionId connection_id = TestConnectionId(1);
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, QuicStringPiece("hq"), _))
       .Times(0);
-  if (CurrentSupportedVersions()[0].transport_version > QUIC_VERSION_43 &&
+  if (VersionHasIetfInvariantHeader(
+          CurrentSupportedVersions()[0].transport_version) &&
       !QuicUtils::VariableLengthConnectionIdAllowedForVersion(
           CurrentSupportedVersions()[0].transport_version)) {
     // This IETF packet has invalid connection ID length.

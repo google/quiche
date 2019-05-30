@@ -472,9 +472,11 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
 
   // Client supports IETF QUIC, while it is not supported by server.
   bool ClientSupportsIetfQuicNotSupportedByServer() {
-    return client_supported_versions_[0].transport_version > QUIC_VERSION_43 &&
-           FilterSupportedVersions(GetParam().server_supported_versions)[0]
-                   .transport_version <= QUIC_VERSION_43;
+    return VersionHasIetfInvariantHeader(
+               client_supported_versions_[0].transport_version) &&
+           !VersionHasIetfInvariantHeader(
+               FilterSupportedVersions(GetParam().server_supported_versions)[0]
+                   .transport_version);
   }
 
   // Returns true when client starts with an unsupported version, and client
@@ -485,7 +487,7 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
   }
 
   bool SupportsIetfQuicWithTls(ParsedQuicVersion version) {
-    return version.transport_version > QUIC_VERSION_43 &&
+    return VersionHasIetfInvariantHeader(version.transport_version) &&
            version.handshake_protocol == PROTOCOL_TLS1_3;
   }
 
@@ -1662,7 +1664,8 @@ TEST_P(EndToEndTest, MinInitialRTT) {
 }
 
 TEST_P(EndToEndTest, 0ByteConnectionId) {
-  if (GetParam().negotiated_version.transport_version > QUIC_VERSION_43) {
+  if (VersionHasIetfInvariantHeader(
+          GetParam().negotiated_version.transport_version)) {
     // SetBytesForConnectionIdToSend only applies to Google QUIC encoding.
     ASSERT_TRUE(Initialize());
     return;
@@ -1684,7 +1687,8 @@ TEST_P(EndToEndTest, 0ByteConnectionId) {
 }
 
 TEST_P(EndToEndTestWithTls, 8ByteConnectionId) {
-  if (GetParam().negotiated_version.transport_version > QUIC_VERSION_43) {
+  if (VersionHasIetfInvariantHeader(
+          GetParam().negotiated_version.transport_version)) {
     // SetBytesForConnectionIdToSend only applies to Google QUIC encoding.
     ASSERT_TRUE(Initialize());
     return;
@@ -1702,7 +1706,8 @@ TEST_P(EndToEndTestWithTls, 8ByteConnectionId) {
 }
 
 TEST_P(EndToEndTestWithTls, 15ByteConnectionId) {
-  if (GetParam().negotiated_version.transport_version > QUIC_VERSION_43) {
+  if (VersionHasIetfInvariantHeader(
+          GetParam().negotiated_version.transport_version)) {
     // SetBytesForConnectionIdToSend only applies to Google QUIC encoding.
     ASSERT_TRUE(Initialize());
     return;
@@ -2253,7 +2258,7 @@ TEST_P(EndToEndTestWithTls, ServerSendPublicReset) {
   QuicFramer framer(server_supported_versions_, QuicTime::Zero(),
                     Perspective::IS_SERVER, kQuicDefaultConnectionIdLength);
   std::unique_ptr<QuicEncryptedPacket> packet;
-  if (client_connection->transport_version() > QUIC_VERSION_43) {
+  if (VersionHasIetfInvariantHeader(client_connection->transport_version())) {
     packet = framer.BuildIetfStatelessResetPacket(connection_id,
                                                   stateless_reset_token);
   } else {
@@ -2302,7 +2307,7 @@ TEST_P(EndToEndTestWithTls, ServerSendPublicResetWithDifferentConnectionId) {
   testing::NiceMock<MockQuicConnectionDebugVisitor> visitor;
   client_->client()->client_session()->connection()->set_debug_visitor(
       &visitor);
-  if (client_connection->transport_version() > QUIC_VERSION_43) {
+  if (VersionHasIetfInvariantHeader(client_connection->transport_version())) {
     packet = framer.BuildIetfStatelessResetPacket(incorrect_connection_id,
                                                   stateless_reset_token);
     EXPECT_CALL(visitor, OnIncorrectConnectionId(incorrect_connection_id))
@@ -2320,7 +2325,7 @@ TEST_P(EndToEndTestWithTls, ServerSendPublicResetWithDifferentConnectionId) {
       client_->client()->network_helper()->GetLatestClientAddress(), nullptr);
   server_thread_->Resume();
 
-  if (client_connection->transport_version() > QUIC_VERSION_43) {
+  if (VersionHasIetfInvariantHeader(client_connection->transport_version())) {
     // The request should fail. IETF stateless reset does not include connection
     // ID.
     EXPECT_EQ("", client_->SendSynchronousRequest("/foo"));
@@ -2377,7 +2382,7 @@ TEST_P(EndToEndTestWithTls,
   std::unique_ptr<QuicEncryptedPacket> packet(
       QuicFramer::BuildVersionNegotiationPacket(
           incorrect_connection_id, EmptyQuicConnectionId(),
-          client_connection->transport_version() > QUIC_VERSION_43,
+          VersionHasIetfInvariantHeader(client_connection->transport_version()),
           server_supported_versions_));
   testing::NiceMock<MockQuicConnectionDebugVisitor> visitor;
   client_connection->set_debug_visitor(&visitor);
@@ -3285,8 +3290,10 @@ TEST_P(EndToEndTest,
   client_.reset(CreateQuicClient(client_writer_));
   EXPECT_EQ("", client_->SendSynchronousRequest("/foo"));
 
-  if (client_->client()->client_session()->connection()->transport_version() >
-          QUIC_VERSION_43 ||
+  if (VersionHasIetfInvariantHeader(client_->client()
+                                        ->client_session()
+                                        ->connection()
+                                        ->transport_version()) ||
       GetQuicReloadableFlag(quic_terminate_gquic_connection_as_ietf)) {
     EXPECT_EQ(QUIC_HANDSHAKE_FAILED, client_->connection_error());
   } else {
@@ -3486,7 +3493,7 @@ TEST_P(EndToEndTest, SendMessages) {
   EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
   QuicSession* client_session = client_->client()->client_session();
   QuicConnection* client_connection = client_session->connection();
-  if (client_connection->transport_version() <= QUIC_VERSION_44) {
+  if (!VersionSupportsMessageFrames(client_connection->transport_version())) {
     return;
   }
 
@@ -3762,9 +3769,9 @@ TEST_P(EndToEndTest, ZeroRttProtectedConnectionClose) {
   // This test ensures ZERO_RTT_PROTECTED connection close could close a client
   // which has switched to forward secure.
   connect_to_server_on_initialize_ =
-      negotiated_version_.transport_version <= QUIC_VERSION_43;
+      !VersionHasIetfInvariantHeader(negotiated_version_.transport_version);
   ASSERT_TRUE(Initialize());
-  if (negotiated_version_.transport_version <= QUIC_VERSION_43) {
+  if (!VersionHasIetfInvariantHeader(negotiated_version_.transport_version)) {
     // Only runs for IETF QUIC header.
     return;
   }
@@ -3823,9 +3830,9 @@ TEST_P(EndToEndTest, ForwardSecureConnectionClose) {
   // This test ensures ZERO_RTT_PROTECTED connection close is sent to a client
   // which has ZERO_RTT_PROTECTED encryption level.
   connect_to_server_on_initialize_ =
-      negotiated_version_.transport_version <= QUIC_VERSION_43;
+      !VersionHasIetfInvariantHeader(negotiated_version_.transport_version);
   ASSERT_TRUE(Initialize());
-  if (negotiated_version_.transport_version <= QUIC_VERSION_43) {
+  if (!VersionHasIetfInvariantHeader(negotiated_version_.transport_version)) {
     // Only runs for IETF QUIC header.
     return;
   }

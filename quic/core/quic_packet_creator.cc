@@ -123,7 +123,7 @@ void QuicPacketCreator::SetMaxPacketLength(QuicByteCount length) {
 // maximum packet size if we stop sending version before it is serialized.
 void QuicPacketCreator::StopSendingVersion() {
   DCHECK(send_version_in_packet_);
-  DCHECK_LE(framer_->transport_version(), QUIC_VERSION_43);
+  DCHECK(!VersionHasIetfInvariantHeader(framer_->transport_version()));
   send_version_in_packet_ = false;
   if (packet_size_ > 0) {
     DCHECK_LT(kQuicVersionSize, packet_size_);
@@ -758,7 +758,7 @@ QuicConnectionId QuicPacketCreator::GetSourceConnectionId() const {
 
 QuicConnectionIdIncluded QuicPacketCreator::GetDestinationConnectionIdIncluded()
     const {
-  if (framer_->transport_version() > QUIC_VERSION_43 ||
+  if (VersionHasIetfInvariantHeader(framer_->transport_version()) ||
       GetQuicRestartFlag(quic_do_not_override_connection_id)) {
     // Packets sent by client always include destination connection ID, and
     // those sent by the server do not include destination connection ID.
@@ -997,7 +997,7 @@ bool QuicPacketCreator::IncludeNonceInPublicHeader() const {
 }
 
 bool QuicPacketCreator::IncludeVersionInHeader() const {
-  if (framer_->transport_version() > QUIC_VERSION_43) {
+  if (VersionHasIetfInvariantHeader(framer_->transport_version())) {
     return packet_.encryption_level < ENCRYPTION_FORWARD_SECURE;
   }
   return send_version_in_packet_;
@@ -1045,7 +1045,7 @@ void QuicPacketCreator::SetTransmissionType(TransmissionType type) {
 }
 
 QuicPacketLength QuicPacketCreator::GetCurrentLargestMessagePayload() const {
-  if (framer_->transport_version() <= QUIC_VERSION_44) {
+  if (!VersionSupportsMessageFrames(framer_->transport_version())) {
     return 0;
   }
   const size_t packet_header_size = GetPacketHeaderSize(
@@ -1061,7 +1061,7 @@ QuicPacketLength QuicPacketCreator::GetCurrentLargestMessagePayload() const {
 }
 
 QuicPacketLength QuicPacketCreator::GetGuaranteedLargestMessagePayload() const {
-  if (framer_->transport_version() <= QUIC_VERSION_44) {
+  if (!VersionSupportsMessageFrames(framer_->transport_version())) {
     return 0;
   }
   // QUIC Crypto server packets may include a diversification nonce.
@@ -1091,7 +1091,7 @@ QuicPacketLength QuicPacketCreator::GetGuaranteedLargestMessagePayload() const {
 }
 
 bool QuicPacketCreator::HasIetfLongHeader() const {
-  return framer_->transport_version() > QUIC_VERSION_43 &&
+  return VersionHasIetfInvariantHeader(framer_->transport_version()) &&
          packet_.encryption_level < ENCRYPTION_FORWARD_SECURE;
 }
 
