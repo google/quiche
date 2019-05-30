@@ -191,15 +191,10 @@ class QuicDispatcherTest : public QuicTest {
   QuicDispatcherTest()
       : QuicDispatcherTest(crypto_test_utils::ProofSourceForTesting()) {}
 
-  ParsedQuicVersionVector AllSupportedVersionsIncludingTls() {
-    SetQuicFlag(FLAGS_quic_supports_tls_handshake, true);
-    return AllSupportedVersions();
-  }
-
   explicit QuicDispatcherTest(std::unique_ptr<ProofSource> proof_source)
       :
 
-        version_manager_(AllSupportedVersionsIncludingTls()),
+        version_manager_(AllSupportedVersions()),
         crypto_config_(QuicCryptoServerConfig::TESTING,
                        QuicRandom::GetInstance(),
                        std::move(proof_source),
@@ -352,8 +347,6 @@ class QuicDispatcherTest : public QuicTest {
     client_hello.SetStringPiece(kALPN, "hq");
     return std::string(client_hello.GetSerialized().AsStringPiece());
   }
-
-  std::string SerializeTlsClientHello() { return ""; }
 
   void MarkSession1Deleted() { session1_ = nullptr; }
 

@@ -68,6 +68,7 @@ class QuicSpdyClientStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
                  connection_,
                  &push_promise_index_),
         body_("hello world") {
+    SetQuicFlag(FLAGS_quic_supports_tls_handshake, true);
     session_.Initialize();
 
     headers_[":status"] = "200";

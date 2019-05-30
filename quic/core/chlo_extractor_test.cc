@@ -76,7 +76,8 @@ class ChloExtractorTest : public QuicTest {
                                             version.transport_version,
                                             TestConnectionId(), &crypters);
       framer.SetEncrypter(ENCRYPTION_INITIAL, std::move(crypters.encrypter));
-      framer.SetDecrypter(ENCRYPTION_INITIAL, std::move(crypters.decrypter));
+      framer.InstallDecrypter(ENCRYPTION_INITIAL,
+                              std::move(crypters.decrypter));
     }
     if (!QuicVersionUsesCryptoFrames(version.transport_version) ||
         munge_stream_id) {

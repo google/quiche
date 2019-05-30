@@ -30,12 +30,7 @@ QuicVersionLabel MakeVersionLabel(char a, char b, char c, char d) {
 ParsedQuicVersion::ParsedQuicVersion(HandshakeProtocol handshake_protocol,
                                      QuicTransportVersion transport_version)
     : handshake_protocol(handshake_protocol),
-      transport_version(transport_version) {
-  if (handshake_protocol == PROTOCOL_TLS1_3 &&
-      !GetQuicFlag(FLAGS_quic_supports_tls_handshake)) {
-    QUIC_BUG << "TLS use attempted when not enabled";
-  }
-}
+      transport_version(transport_version) {}
 
 bool ParsedQuicVersion::KnowsWhichDecrypterToUse() const {
   return transport_version >= QUIC_VERSION_47 ||
@@ -120,10 +115,8 @@ QuicVersionLabelVector CreateQuicVersionLabelVector(
 }
 
 ParsedQuicVersion ParseQuicVersionLabel(QuicVersionLabel version_label) {
-  std::vector<HandshakeProtocol> protocols = {PROTOCOL_QUIC_CRYPTO};
-  if (GetQuicFlag(FLAGS_quic_supports_tls_handshake)) {
-    protocols.push_back(PROTOCOL_TLS1_3);
-  }
+  std::vector<HandshakeProtocol> protocols = {PROTOCOL_QUIC_CRYPTO,
+                                              PROTOCOL_TLS1_3};
   for (QuicTransportVersion version : kSupportedTransportVersions) {
     for (HandshakeProtocol handshake : protocols) {
       if (version_label ==
@@ -185,10 +178,6 @@ QuicTransportVersionVector AllSupportedTransportVersions() {
 ParsedQuicVersionVector AllSupportedVersions() {
   ParsedQuicVersionVector supported_versions;
   for (HandshakeProtocol protocol : kSupportedHandshakeProtocols) {
-    if (protocol == PROTOCOL_TLS1_3 &&
-        !GetQuicFlag(FLAGS_quic_supports_tls_handshake)) {
-      continue;
-    }
     for (QuicTransportVersion version : kSupportedTransportVersions) {
       if (protocol == PROTOCOL_TLS1_3 &&
           !QuicVersionUsesCryptoFrames(version)) {
@@ -232,6 +221,10 @@ ParsedQuicVersionVector FilterSupportedVersions(
   ParsedQuicVersionVector filtered_versions;
   filtered_versions.reserve(versions.size());
   for (ParsedQuicVersion version : versions) {
+    if (version.handshake_protocol == PROTOCOL_TLS1_3 &&
+        !GetQuicFlag(FLAGS_quic_supports_tls_handshake)) {
+      continue;
+    }
     if (version.transport_version == QUIC_VERSION_99) {
       if (GetQuicReloadableFlag(quic_enable_version_99) &&
           GetQuicReloadableFlag(quic_enable_version_47) &&

@@ -441,12 +441,6 @@ struct PacketFragment {
 
 using PacketFragments = std::vector<struct PacketFragment>;
 
-ParsedQuicVersionVector AllSupportedVersionsIncludingTls() {
-  QuicFlagSaver flags;
-  SetQuicFlag(FLAGS_quic_supports_tls_handshake, true);
-  return AllSupportedVersions();
-}
-
 class QuicFramerTest : public QuicTestWithParam<ParsedQuicVersion> {
  public:
   QuicFramerTest()
@@ -454,7 +448,7 @@ class QuicFramerTest : public QuicTestWithParam<ParsedQuicVersion> {
         decrypter_(new test::TestDecrypter()),
         version_(GetParam()),
         start_(QuicTime::Zero() + QuicTime::Delta::FromMicroseconds(0x10)),
-        framer_(AllSupportedVersionsIncludingTls(),
+        framer_(AllSupportedVersions(),
                 start_,
                 Perspective::IS_SERVER,
                 kQuicDefaultConnectionIdLength) {
@@ -701,10 +695,9 @@ class QuicFramerTest : public QuicTestWithParam<ParsedQuicVersion> {
       GetQuicVersionDigitOnes()
 
 // Run all framer tests with all supported versions of QUIC.
-INSTANTIATE_TEST_SUITE_P(
-    QuicFramerTests,
-    QuicFramerTest,
-    ::testing::ValuesIn(AllSupportedVersionsIncludingTls()));
+INSTANTIATE_TEST_SUITE_P(QuicFramerTests,
+                         QuicFramerTest,
+                         ::testing::ValuesIn(AllSupportedVersions()));
 
 TEST_P(QuicFramerTest, CalculatePacketNumberFromWireNearEpochStart) {
   // A few quick manual sanity checks.

@@ -981,7 +981,7 @@ QuicEncryptedPacket* ConstructMisFramedEncryptedPacket(
                                           version.transport_version,
                                           destination_connection_id, &crypters);
     framer.SetEncrypter(ENCRYPTION_INITIAL, std::move(crypters.encrypter));
-    framer.SetDecrypter(ENCRYPTION_INITIAL, std::move(crypters.decrypter));
+    framer.InstallDecrypter(ENCRYPTION_INITIAL, std::move(crypters.decrypter));
   }
   // We need a minimum of 7 bytes of encrypted payload. This will guarantee that
   // we have at least that much. (It ignores the overhead of the stream/crypto
