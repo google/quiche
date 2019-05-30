@@ -86,6 +86,31 @@ TEST_F(QuicPacketsTest, GetClientConnectionIdIncludedAsSender) {
                                       header, Perspective::IS_CLIENT));
 }
 
+TEST_F(QuicPacketsTest, GetClientConnectionIdAsRecipient) {
+  SetQuicRestartFlag(quic_do_not_override_connection_id, true);
+  QuicPacketHeader header = CreateFakePacketHeader();
+  EXPECT_EQ(TestConnectionId(2),
+            GetClientConnectionIdAsRecipient(header, Perspective::IS_SERVER));
+  EXPECT_EQ(TestConnectionId(1),
+            GetClientConnectionIdAsRecipient(header, Perspective::IS_CLIENT));
+}
+
+TEST_F(QuicPacketsTest, GetClientConnectionIdAsSender) {
+  QuicPacketHeader header = CreateFakePacketHeader();
+  if (!GetQuicRestartFlag(quic_do_not_override_connection_id)) {
+    EXPECT_EQ(TestConnectionId(2),
+              GetClientConnectionIdAsSender(header, Perspective::IS_SERVER));
+    EXPECT_EQ(TestConnectionId(2),
+              GetClientConnectionIdAsSender(header, Perspective::IS_CLIENT));
+    return;
+  }
+
+  EXPECT_EQ(TestConnectionId(1),
+            GetClientConnectionIdAsSender(header, Perspective::IS_SERVER));
+  EXPECT_EQ(TestConnectionId(2),
+            GetClientConnectionIdAsSender(header, Perspective::IS_CLIENT));
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic
