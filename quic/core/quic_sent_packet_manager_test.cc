@@ -110,7 +110,7 @@ class QuicSentPacketManagerTest : public QuicTestWithParam<bool> {
     EXPECT_CALL(notifier_, HasUnackedCryptoData())
         .WillRepeatedly(Return(false));
     EXPECT_CALL(notifier_, OnStreamFrameRetransmitted(_)).Times(AnyNumber());
-    EXPECT_CALL(notifier_, OnFrameAcked(_, _)).WillRepeatedly(Return(true));
+    EXPECT_CALL(notifier_, OnFrameAcked(_, _, _)).WillRepeatedly(Return(true));
   }
 
   ~QuicSentPacketManagerTest() override {}
@@ -469,7 +469,7 @@ TEST_P(QuicSentPacketManagerTest, RetransmitThenAckPrevious) {
   VerifyRetransmittablePackets(nullptr, 0);
   if (manager_.session_decides_what_to_write()) {
     // Ack 2 causes 2 be considered as spurious retransmission.
-    EXPECT_CALL(notifier_, OnFrameAcked(_, _)).WillOnce(Return(false));
+    EXPECT_CALL(notifier_, OnFrameAcked(_, _, _)).WillOnce(Return(false));
     ExpectAck(2);
     manager_.OnAckFrameStart(QuicPacketNumber(2), QuicTime::Delta::Infinite(),
                              clock_.Now());
@@ -623,7 +623,7 @@ TEST_P(QuicSentPacketManagerTest, RetransmitTwiceThenAckFirst) {
   SendDataPacket(4);
   if (manager_.session_decides_what_to_write()) {
     // No new data gets acked in packet 3.
-    EXPECT_CALL(notifier_, OnFrameAcked(_, _))
+    EXPECT_CALL(notifier_, OnFrameAcked(_, _, _))
         .WillOnce(Return(false))
         .WillRepeatedly(Return(true));
   }
@@ -727,7 +727,7 @@ TEST_P(QuicSentPacketManagerTest, AckOriginalTransmission) {
       // data gets acked.
       ExpectAck(5);
       EXPECT_CALL(*loss_algorithm, DetectLosses(_, _, _, _, _, _));
-      EXPECT_CALL(notifier_, OnFrameAcked(_, _)).WillOnce(Return(false));
+      EXPECT_CALL(notifier_, OnFrameAcked(_, _, _)).WillOnce(Return(false));
       manager_.OnAckFrameStart(QuicPacketNumber(5), QuicTime::Delta::Infinite(),
                                clock_.Now());
       manager_.OnAckRange(QuicPacketNumber(3), QuicPacketNumber(6));

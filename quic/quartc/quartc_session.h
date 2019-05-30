@@ -176,7 +176,8 @@ class QuartcSession : public QuicSession,
   void OnMessageReceived(QuicStringPiece message) override;
 
   // Called when message with |message_id| gets acked.
-  void OnMessageAcked(QuicMessageId message_id) override;
+  void OnMessageAcked(QuicMessageId message_id,
+                      QuicTime receive_timestamp) override;
 
   // Returns number of queued (not sent) messages submitted by
   // SendOrQueueMessage. Messages are queued if connection is congestion

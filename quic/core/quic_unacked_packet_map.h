@@ -50,7 +50,8 @@ class QUIC_EXPORT_PRIVATE QuicUnackedPacketMap {
   // Notifies session_notifier that frames have been acked. Returns true if any
   // new data gets acked, returns false otherwise.
   bool NotifyFramesAcked(const QuicTransmissionInfo& info,
-                         QuicTime::Delta ack_delay);
+                         QuicTime::Delta ack_delay,
+                         QuicTime receive_timestamp);
 
   // Notifies session_notifier that frames in |info| are considered as lost.
   void NotifyFramesLost(const QuicTransmissionInfo& info,
@@ -179,7 +180,8 @@ class QUIC_EXPORT_PRIVATE QuicUnackedPacketMap {
   // frames or control frames, notify the session notifier they get acked
   // immediately.
   void MaybeAggregateAckedStreamFrame(const QuicTransmissionInfo& info,
-                                      QuicTime::Delta ack_delay);
+                                      QuicTime::Delta ack_delay,
+                                      QuicTime receive_timestamp);
 
   // Notify the session notifier of any stream data aggregated in
   // aggregated_stream_frame_.  No effect if the stream frame has an invalid

@@ -610,7 +610,8 @@ QuicPacketNumber QuicSentPacketManager::GetNewestRetransmission(
 
 void QuicSentPacketManager::MarkPacketHandled(QuicPacketNumber packet_number,
                                               QuicTransmissionInfo* info,
-                                              QuicTime::Delta ack_delay_time) {
+                                              QuicTime::Delta ack_delay_time,
+                                              QuicTime receive_timestamp) {
   QuicPacketNumber newest_transmission =
       GetNewestRetransmission(packet_number, *info);
   // Remove the most recent packet, if it is pending retransmission.
@@ -622,13 +623,14 @@ void QuicSentPacketManager::MarkPacketHandled(QuicPacketNumber packet_number,
     const bool fast_path = session_decides_what_to_write() &&
                            info->transmission_type == NOT_RETRANSMISSION;
     if (fast_path) {
-      unacked_packets_.MaybeAggregateAckedStreamFrame(*info, ack_delay_time);
+      unacked_packets_.MaybeAggregateAckedStreamFrame(*info, ack_delay_time,
+                                                      receive_timestamp);
     } else {
       if (session_decides_what_to_write()) {
         unacked_packets_.NotifyAggregatedStreamFrameAcked(ack_delay_time);
       }
-      const bool new_data_acked =
-          unacked_packets_.NotifyFramesAcked(*info, ack_delay_time);
+      const bool new_data_acked = unacked_packets_.NotifyFramesAcked(
+          *info, ack_delay_time, receive_timestamp);
       if (session_decides_what_to_write() && !new_data_acked &&
           info->transmission_type != NOT_RETRANSMISSION) {
         // Record as a spurious retransmission if this packet is a
@@ -651,8 +653,8 @@ void QuicSentPacketManager::MarkPacketHandled(QuicPacketNumber packet_number,
     // only handle nullptr encrypted packets in a special way.
     const QuicTransmissionInfo& newest_transmission_info =
         unacked_packets_.GetTransmissionInfo(newest_transmission);
-    unacked_packets_.NotifyFramesAcked(newest_transmission_info,
-                                       ack_delay_time);
+    unacked_packets_.NotifyFramesAcked(newest_transmission_info, ack_delay_time,
+                                       receive_timestamp);
     if (HasCryptoHandshake(newest_transmission_info)) {
       unacked_packets_.RemoveFromInFlight(newest_transmission);
     }
@@ -1241,7 +1243,8 @@ AckResult QuicSentPacketManager::OnAckFrameEnd(
           packet_number_space, acked_packet.packet_number);
     }
     MarkPacketHandled(acked_packet.packet_number, info,
-                      last_ack_frame_.ack_delay_time);
+                      last_ack_frame_.ack_delay_time,
+                      acked_packet.receive_timestamp);
   }
   const bool acked_new_packet = !packets_acked_.empty();
   PostProcessNewlyAckedPackets(last_ack_frame_, ack_receive_time, rtt_updated_,

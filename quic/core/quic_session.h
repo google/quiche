@@ -142,7 +142,8 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
 
   // SessionNotifierInterface methods:
   bool OnFrameAcked(const QuicFrame& frame,
-                    QuicTime::Delta ack_delay_time) override;
+                    QuicTime::Delta ack_delay_time,
+                    QuicTime receive_timestamp) override;
   void OnStreamFrameRetransmitted(const QuicStreamFrame& frame) override;
   void OnFrameLost(const QuicFrame& frame) override;
   void RetransmitFrames(const QuicFrames& frames,
@@ -189,7 +190,8 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
   MessageResult SendMessage(QuicMemSliceSpan message);
 
   // Called when message with |message_id| gets acked.
-  virtual void OnMessageAcked(QuicMessageId message_id);
+  virtual void OnMessageAcked(QuicMessageId message_id,
+                              QuicTime receive_timestamp);
 
   // Called when message with |message_id| is considered as lost.
   virtual void OnMessageLost(QuicMessageId message_id);

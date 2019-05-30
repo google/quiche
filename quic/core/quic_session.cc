@@ -1582,9 +1582,10 @@ QuicStream* QuicSession::GetStream(QuicStreamId id) const {
 }
 
 bool QuicSession::OnFrameAcked(const QuicFrame& frame,
-                               QuicTime::Delta ack_delay_time) {
+                               QuicTime::Delta ack_delay_time,
+                               QuicTime receive_timestamp) {
   if (frame.type == MESSAGE_FRAME) {
-    OnMessageAcked(frame.message_frame->message_id);
+    OnMessageAcked(frame.message_frame->message_id, receive_timestamp);
     return true;
   }
   if (frame.type == CRYPTO_FRAME) {
@@ -1839,7 +1840,8 @@ MessageResult QuicSession::SendMessage(QuicMemSliceSpan message) {
   return {result, 0};
 }
 
-void QuicSession::OnMessageAcked(QuicMessageId message_id) {
+void QuicSession::OnMessageAcked(QuicMessageId message_id,
+                                 QuicTime receive_timestamp) {
   QUIC_DVLOG(1) << ENDPOINT << "message " << message_id << " gets acked.";
 }
 

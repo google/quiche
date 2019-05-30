@@ -407,13 +407,14 @@ void QuicUnackedPacketMap::SetSessionNotifier(
 }
 
 bool QuicUnackedPacketMap::NotifyFramesAcked(const QuicTransmissionInfo& info,
-                                             QuicTime::Delta ack_delay) {
+                                             QuicTime::Delta ack_delay,
+                                             QuicTime receive_timestamp) {
   if (session_notifier_ == nullptr) {
     return false;
   }
   bool new_data_acked = false;
   for (const QuicFrame& frame : info.retransmittable_frames) {
-    if (session_notifier_->OnFrameAcked(frame, ack_delay)) {
+    if (session_notifier_->OnFrameAcked(frame, ack_delay, receive_timestamp)) {
       new_data_acked = true;
     }
   }
@@ -436,7 +437,8 @@ void QuicUnackedPacketMap::RetransmitFrames(const QuicTransmissionInfo& info,
 
 void QuicUnackedPacketMap::MaybeAggregateAckedStreamFrame(
     const QuicTransmissionInfo& info,
-    QuicTime::Delta ack_delay) {
+    QuicTime::Delta ack_delay,
+    QuicTime receive_timestamp) {
   if (session_notifier_ == nullptr) {
     return;
   }
@@ -468,7 +470,7 @@ void QuicUnackedPacketMap::MaybeAggregateAckedStreamFrame(
 
     NotifyAggregatedStreamFrameAcked(ack_delay);
     if (frame.type != STREAM_FRAME || frame.stream_frame.fin) {
-      session_notifier_->OnFrameAcked(frame, ack_delay);
+      session_notifier_->OnFrameAcked(frame, ack_delay, receive_timestamp);
       continue;
     }
 
@@ -488,8 +490,11 @@ void QuicUnackedPacketMap::NotifyAggregatedStreamFrameAcked(
     // Aggregated stream frame is empty.
     return;
   }
+  // Note: there is no receive_timestamp for an aggregated stream frame.  The
+  // frames that are aggregated may not have been received at the same time.
   session_notifier_->OnFrameAcked(QuicFrame(aggregated_stream_frame_),
-                                  ack_delay);
+                                  ack_delay,
+                                  /*receive_timestamp=*/QuicTime::Zero());
   // Clear aggregated stream frame.
   aggregated_stream_frame_.stream_id = -1;
 }

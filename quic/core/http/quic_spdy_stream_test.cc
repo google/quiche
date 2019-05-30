@@ -1406,17 +1406,17 @@ TEST_P(QuicSpdyStreamTest, HeaderStreamNotiferCorrespondingSpdyStream) {
   session_->OnStreamFrameRetransmitted(frame1);
 
   EXPECT_CALL(*ack_listener1, OnPacketAcked(7, _));
-  EXPECT_TRUE(
-      session_->OnFrameAcked(QuicFrame(frame1), QuicTime::Delta::Zero()));
+  EXPECT_TRUE(session_->OnFrameAcked(QuicFrame(frame1), QuicTime::Delta::Zero(),
+                                     QuicTime::Zero()));
   EXPECT_CALL(*ack_listener1, OnPacketAcked(5, _));
-  EXPECT_TRUE(
-      session_->OnFrameAcked(QuicFrame(frame2), QuicTime::Delta::Zero()));
+  EXPECT_TRUE(session_->OnFrameAcked(QuicFrame(frame2), QuicTime::Delta::Zero(),
+                                     QuicTime::Zero()));
   EXPECT_CALL(*ack_listener2, OnPacketAcked(7, _));
-  EXPECT_TRUE(
-      session_->OnFrameAcked(QuicFrame(frame3), QuicTime::Delta::Zero()));
+  EXPECT_TRUE(session_->OnFrameAcked(QuicFrame(frame3), QuicTime::Delta::Zero(),
+                                     QuicTime::Zero()));
   EXPECT_CALL(*ack_listener2, OnPacketAcked(5, _));
-  EXPECT_TRUE(
-      session_->OnFrameAcked(QuicFrame(frame4), QuicTime::Delta::Zero()));
+  EXPECT_TRUE(session_->OnFrameAcked(QuicFrame(frame4), QuicTime::Delta::Zero(),
+                                     QuicTime::Zero()));
 }
 
 TEST_P(QuicSpdyStreamTest, StreamBecomesZombieWithWriteThatCloses) {
@@ -1631,20 +1631,20 @@ TEST_P(QuicSpdyStreamTest, HeadersAckNotReportedWriteOrBufferBody) {
 
   EXPECT_CALL(*mock_ack_listener, OnPacketAcked(body.length(), _));
   QuicStreamFrame frame(stream_->id(), false, 0, header + body);
-  EXPECT_TRUE(
-      session_->OnFrameAcked(QuicFrame(frame), QuicTime::Delta::Zero()));
+  EXPECT_TRUE(session_->OnFrameAcked(QuicFrame(frame), QuicTime::Delta::Zero(),
+                                     QuicTime::Zero()));
 
   EXPECT_CALL(*mock_ack_listener, OnPacketAcked(0, _));
   QuicStreamFrame frame2(stream_->id(), false, (header + body).length(),
                          header2);
-  EXPECT_TRUE(
-      session_->OnFrameAcked(QuicFrame(frame2), QuicTime::Delta::Zero()));
+  EXPECT_TRUE(session_->OnFrameAcked(QuicFrame(frame2), QuicTime::Delta::Zero(),
+                                     QuicTime::Zero()));
 
   EXPECT_CALL(*mock_ack_listener, OnPacketAcked(body2.length(), _));
   QuicStreamFrame frame3(stream_->id(), true,
                          (header + body).length() + header2.length(), body2);
-  EXPECT_TRUE(
-      session_->OnFrameAcked(QuicFrame(frame3), QuicTime::Delta::Zero()));
+  EXPECT_TRUE(session_->OnFrameAcked(QuicFrame(frame3), QuicTime::Delta::Zero(),
+                                     QuicTime::Zero()));
 
   EXPECT_TRUE(
       QuicSpdyStreamPeer::unacked_frame_headers_offsets(stream_).Empty());
@@ -1688,8 +1688,8 @@ TEST_P(QuicSpdyStreamTest, HeadersAckNotReportedWriteBodySlices) {
               OnPacketAcked(body.length() + body2.length(), _));
   QuicStreamFrame frame(stream_->id(), true, 0,
                         header + body + header2 + body2);
-  EXPECT_TRUE(
-      session_->OnFrameAcked(QuicFrame(frame), QuicTime::Delta::Zero()));
+  EXPECT_TRUE(session_->OnFrameAcked(QuicFrame(frame), QuicTime::Delta::Zero(),
+                                     QuicTime::Zero()));
 
   EXPECT_TRUE(
       QuicSpdyStreamPeer::unacked_frame_headers_offsets(stream_).Empty());

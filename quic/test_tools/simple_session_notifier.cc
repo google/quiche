@@ -135,7 +135,8 @@ void SimpleSessionNotifier::NeuterUnencryptedData() {
     QuicStreamFrame stream_frame(
         QuicUtils::GetCryptoStreamId(connection_->transport_version()), false,
         interval.min(), interval.max() - interval.min());
-    OnFrameAcked(QuicFrame(stream_frame), QuicTime::Delta::Zero());
+    OnFrameAcked(QuicFrame(stream_frame), QuicTime::Delta::Zero(),
+                 QuicTime::Zero());
   }
 }
 
@@ -202,7 +203,8 @@ QuicByteCount SimpleSessionNotifier::StreamBytesToSend() const {
 }
 
 bool SimpleSessionNotifier::OnFrameAcked(const QuicFrame& frame,
-                                         QuicTime::Delta /*ack_delay_time*/) {
+                                         QuicTime::Delta /*ack_delay_time*/,
+                                         QuicTime /*receive_timestamp*/) {
   QUIC_DVLOG(1) << "Acking " << frame;
   if (frame.type == CRYPTO_FRAME) {
     StreamState* state = &crypto_state_[frame.crypto_frame->level];

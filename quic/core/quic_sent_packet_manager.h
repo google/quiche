@@ -481,7 +481,8 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // |info| due to receipt by the peer.
   void MarkPacketHandled(QuicPacketNumber packet_number,
                          QuicTransmissionInfo* info,
-                         QuicTime::Delta ack_delay_time);
+                         QuicTime::Delta ack_delay_time,
+                         QuicTime receive_timestamp);
 
   // Request that |packet_number| be retransmitted after the other pending
   // retransmissions.  Does not add it to the retransmissions if it's already

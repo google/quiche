@@ -2209,7 +2209,7 @@ TEST_P(QuicSessionTestServer, SendMessage) {
   EXPECT_FALSE(session_.IsFrameOutstanding(QuicFrame(&frame2)));
 
   // message 1 gets acked.
-  session_.OnMessageAcked(1);
+  session_.OnMessageAcked(1, QuicTime::Zero());
   EXPECT_FALSE(session_.IsFrameOutstanding(QuicFrame(&frame)));
 }
 

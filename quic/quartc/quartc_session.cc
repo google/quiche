@@ -246,7 +246,8 @@ void QuartcSession::OnMessageReceived(QuicStringPiece message) {
   session_delegate_->OnMessageReceived(message);
 }
 
-void QuartcSession::OnMessageAcked(QuicMessageId message_id) {
+void QuartcSession::OnMessageAcked(QuicMessageId message_id,
+                                   QuicTime receive_timestamp) {
   auto element = message_to_datagram_id_.find(message_id);
 
   if (element == message_to_datagram_id_.end()) {
@@ -255,6 +256,7 @@ void QuartcSession::OnMessageAcked(QuicMessageId message_id) {
     return;
   }
 
+  // TODO(mellem): Pass receive_timestamp to |delegate_|.
   session_delegate_->OnMessageAcked(/*datagram_id=*/element->second);
 
   // Free up space -- we should never see message_id again.

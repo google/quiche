@@ -154,7 +154,8 @@ TEST_F(SimpleSessionNotifierTest, NeuterUnencryptedData) {
   QuicStreamFrame stream_frame(
       QuicUtils::GetCryptoStreamId(connection_.transport_version()), false,
       1024, 1024);
-  notifier_.OnFrameAcked(QuicFrame(stream_frame), QuicTime::Delta::Zero());
+  notifier_.OnFrameAcked(QuicFrame(stream_frame), QuicTime::Delta::Zero(),
+                         QuicTime::Zero());
   EXPECT_TRUE(notifier_.StreamIsWaitingForAcks(
       QuicUtils::GetCryptoStreamId(connection_.transport_version())));
   // Neuters unencrypted data.
@@ -315,8 +316,10 @@ TEST_F(SimpleSessionNotifierTest, RetransmitFrames) {
   // Ack stream 3 [3, 7), and stream 5 [8, 10).
   QuicStreamFrame ack_frame1(3, false, 3, 4);
   QuicStreamFrame ack_frame2(5, false, 8, 2);
-  notifier_.OnFrameAcked(QuicFrame(ack_frame1), QuicTime::Delta::Zero());
-  notifier_.OnFrameAcked(QuicFrame(ack_frame2), QuicTime::Delta::Zero());
+  notifier_.OnFrameAcked(QuicFrame(ack_frame1), QuicTime::Delta::Zero(),
+                         QuicTime::Zero());
+  notifier_.OnFrameAcked(QuicFrame(ack_frame2), QuicTime::Delta::Zero(),
+                         QuicTime::Zero());
   EXPECT_FALSE(notifier_.WillingToWrite());
 
   // Force to send.
