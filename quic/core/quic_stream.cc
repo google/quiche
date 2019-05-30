@@ -608,7 +608,7 @@ QuicConsumedData QuicStream::WriteMemSlices(QuicMemSliceSpan span, bool fin) {
 
   if (write_side_closed_) {
     QUIC_DLOG(ERROR) << ENDPOINT << "Stream " << id()
-                     << "attempting to write when the write side is closed";
+                     << " attempting to write when the write side is closed";
     if (type_ == READ_UNIDIRECTIONAL) {
       CloseConnectionWithDetails(
           QUIC_TRY_TO_WRITE_DATA_ON_READ_UNIDIRECTIONAL_STREAM,
