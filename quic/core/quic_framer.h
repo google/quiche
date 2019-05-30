@@ -374,18 +374,18 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
       QuicVariableLengthIntegerLength length_length);
 
   // Lightweight parsing of |packet| and populates |format|, |version_flag|,
-  // |version_label|, |destination_connection_id_length|,
-  // |destination_connection_id| and |detailed_error|. Please note,
-  // |expected_connection_id_length| is only used to determine IETF short header
-  // packet's destination connection ID length.
+  // |version_label|, |destination_connection_id|, |source_connection_id| and
+  // |detailed_error|. Please note, |expected_destination_connection_id_length|
+  // is only used to determine IETF short header packet's destination
+  // connection ID length.
   static QuicErrorCode ProcessPacketDispatcher(
       const QuicEncryptedPacket& packet,
-      uint8_t expected_connection_id_length,
+      uint8_t expected_destination_connection_id_length,
       PacketHeaderFormat* format,
       bool* version_flag,
       QuicVersionLabel* version_label,
-      uint8_t* destination_connection_id_length,
       QuicConnectionId* destination_connection_id,
+      QuicConnectionId* source_connection_id,
       std::string* detailed_error);
 
   // Serializes a packet containing |frames| into |buffer|.

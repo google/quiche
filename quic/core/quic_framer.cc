@@ -6056,28 +6056,30 @@ void QuicFramer::EnableMultiplePacketNumberSpacesSupport() {
 // static
 QuicErrorCode QuicFramer::ProcessPacketDispatcher(
     const QuicEncryptedPacket& packet,
-    uint8_t expected_connection_id_length,
+    uint8_t expected_destination_connection_id_length,
     PacketHeaderFormat* format,
     bool* version_flag,
     QuicVersionLabel* version_label,
-    uint8_t* destination_connection_id_length,
     QuicConnectionId* destination_connection_id,
+    QuicConnectionId* source_connection_id,
     std::string* detailed_error) {
   QuicDataReader reader(packet.data(), packet.length());
 
+  *source_connection_id = EmptyQuicConnectionId();
   uint8_t first_byte;
   if (!reader.ReadBytes(&first_byte, 1)) {
     *detailed_error = "Unable to read first byte.";
     return QUIC_INVALID_PACKET_HEADER;
   }
+  uint8_t destination_connection_id_length = 0, source_connection_id_length = 0;
   if (!QuicUtils::IsIetfPacketHeader(first_byte)) {
     *format = GOOGLE_QUIC_PACKET;
     *version_flag = (first_byte & PACKET_PUBLIC_FLAGS_VERSION) != 0;
-    *destination_connection_id_length =
+    destination_connection_id_length =
         first_byte & PACKET_PUBLIC_FLAGS_8BYTE_CONNECTION_ID;
-    if (*destination_connection_id_length == 0 ||
+    if (destination_connection_id_length == 0 ||
         !reader.ReadConnectionId(destination_connection_id,
-                                 *destination_connection_id_length)) {
+                                 destination_connection_id_length)) {
       *detailed_error = "Unable to read ConnectionId.";
       return QUIC_INVALID_PACKET_HEADER;
     }
@@ -6099,26 +6101,34 @@ QuicErrorCode QuicFramer::ProcessPacketDispatcher(
     }
     // Set should_update_expected_server_connection_id_length to true to bypass
     // connection ID lengths validation.
-    uint8_t unused_source_connection_id_length = 0;
     uint8_t unused_expected_server_connection_id_length = 0;
     if (!ProcessAndValidateIetfConnectionIdLength(
             &reader, ParseQuicVersionLabel(*version_label),
             Perspective::IS_SERVER,
             /*should_update_expected_server_connection_id_length=*/true,
             &unused_expected_server_connection_id_length,
-            destination_connection_id_length,
-            &unused_source_connection_id_length, detailed_error)) {
+            &destination_connection_id_length, &source_connection_id_length,
+            detailed_error)) {
       return QUIC_INVALID_PACKET_HEADER;
     }
   } else {
-    // For short header packets, expected_connection_id_length is used to
-    // determine the destination_connection_id_length.
-    *destination_connection_id_length = expected_connection_id_length;
+    // For short header packets, expected_destination_connection_id_length
+    // is used to determine the destination_connection_id_length.
+    destination_connection_id_length =
+        expected_destination_connection_id_length;
+    DCHECK_EQ(0, source_connection_id_length);
   }
   // Read destination connection ID.
   if (!reader.ReadConnectionId(destination_connection_id,
-                               *destination_connection_id_length)) {
-    *detailed_error = "Unable to read Destination ConnectionId.";
+                               destination_connection_id_length)) {
+    *detailed_error = "Unable to read destination connection ID.";
+    return QUIC_INVALID_PACKET_HEADER;
+  }
+  // Read source connection ID.
+  if (GetQuicRestartFlag(quic_do_not_override_connection_id) &&
+      !reader.ReadConnectionId(source_connection_id,
+                               source_connection_id_length)) {
+    *detailed_error = "Unable to read source connection ID.";
     return QUIC_INVALID_PACKET_HEADER;
   }
   return QUIC_NO_ERROR;

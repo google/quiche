@@ -302,12 +302,11 @@ void QuicDispatcher::ProcessPacket(const QuicSocketAddress& self_address,
   }
   QUIC_RESTART_FLAG_COUNT(quic_no_framer_object_in_dispatcher);
   QuicPacketHeader header;
-  uint8_t destination_connection_id_length;
   std::string detailed_error;
   const QuicErrorCode error = QuicFramer::ProcessPacketDispatcher(
       packet, expected_server_connection_id_length_, &header.form,
       &header.version_flag, &last_version_label_,
-      &destination_connection_id_length, &header.destination_connection_id,
+      &header.destination_connection_id, &header.source_connection_id,
       &detailed_error);
   if (error != QUIC_NO_ERROR) {
     // Packet has framing error.
@@ -316,7 +315,7 @@ void QuicDispatcher::ProcessPacket(const QuicSocketAddress& self_address,
     return;
   }
   header.version = ParseQuicVersionLabel(last_version_label_);
-  if (destination_connection_id_length !=
+  if (header.destination_connection_id.length() !=
           expected_server_connection_id_length_ &&
       !should_update_expected_server_connection_id_length_ &&
       !QuicUtils::VariableLengthConnectionIdAllowedForVersion(
@@ -326,7 +325,8 @@ void QuicDispatcher::ProcessPacket(const QuicSocketAddress& self_address,
     return;
   }
   if (should_update_expected_server_connection_id_length_) {
-    expected_server_connection_id_length_ = destination_connection_id_length;
+    expected_server_connection_id_length_ =
+        header.destination_connection_id.length();
   }
   // TODO(fayang): Instead of passing in QuicPacketHeader, pass format,
   // version_flag, version and destination_connection_id. Combine
