@@ -51,6 +51,11 @@ std::unique_ptr<QuartcSession> CreateQuartcClientSession(
 }
 
 void ConfigureGlobalQuicSettings() {
+  // TODO(b/134054062): quic_optimize_inflight_check is incompatible with
+  // datagram/message-only flows.  Remove this if/when the optimization is
+  // fixed.
+  SetQuicReloadableFlag(quic_optimize_inflight_check, false);
+
   // Fixes behavior of StopReading() with level-triggered stream sequencers.
   SetQuicReloadableFlag(quic_stop_reading_when_level_triggered, true);
 
