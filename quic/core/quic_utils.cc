@@ -479,10 +479,6 @@ QuicStreamId QuicUtils::GetFirstUnidirectionalStreamId(
     return perspective == Perspective::IS_CLIENT ? 1 : 2;
   }
   return perspective == Perspective::IS_CLIENT ? 3 : 2;
-  if (perspective == Perspective::IS_CLIENT) {
-    return version == QUIC_VERSION_99 ? 2 : 1;
-  }
-  return version == QUIC_VERSION_99 ? 3 : 2;
 }
 
 // static
