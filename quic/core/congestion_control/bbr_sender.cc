@@ -137,9 +137,7 @@ BbrSender::BbrSender(QuicTime now,
       probe_rtt_skipped_if_similar_rtt_(false),
       probe_rtt_disabled_if_app_limited_(false),
       app_limited_since_last_probe_rtt_(false),
-      min_rtt_since_last_probe_rtt_(QuicTime::Delta::Infinite()),
-      always_get_bw_sample_when_acked_(
-          GetQuicReloadableFlag(quic_always_get_bw_sample_when_acked)) {
+      min_rtt_since_last_probe_rtt_(QuicTime::Delta::Infinite()) {
   if (stats_) {
     stats_->slowstart_count = 0;
     stats_->slowstart_start_time = QuicTime::Zero();
@@ -526,14 +524,9 @@ bool BbrSender::UpdateBandwidthAndMinRtt(
     const AckedPacketVector& acked_packets) {
   QuicTime::Delta sample_min_rtt = QuicTime::Delta::Infinite();
   for (const auto& packet : acked_packets) {
-    if (!always_get_bw_sample_when_acked_ && packet.bytes_acked == 0) {
-      // Skip acked packets with 0 in flight bytes when updating bandwidth.
-      continue;
-    }
     BandwidthSample bandwidth_sample =
         sampler_.OnPacketAcknowledged(now, packet.packet_number);
-    if (always_get_bw_sample_when_acked_ &&
-        !bandwidth_sample.state_at_send.is_valid) {
+    if (!bandwidth_sample.state_at_send.is_valid) {
       // From the sampler's perspective, the packet has never been sent, or the
       // packet has been acked or marked as lost previously.
       continue;
