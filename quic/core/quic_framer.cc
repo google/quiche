@@ -33,7 +33,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_client_stats.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_endian.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_fallthrough.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
@@ -1319,8 +1318,6 @@ std::unique_ptr<QuicEncryptedPacket> QuicFramer::BuildPublicResetPacket(
   size_t len = kPublicFlagsSize + packet.connection_id.length() +
                reset_serialized.length();
   std::unique_ptr<char[]> buffer(new char[len]);
-  // Endianness is not a concern here, as writer is not going to write integers
-  // or floating numbers.
   QuicDataWriter writer(len, buffer.get());
 
   uint8_t flags = static_cast<uint8_t>(PACKET_PUBLIC_FLAGS_RST |
@@ -1394,8 +1391,6 @@ std::unique_ptr<QuicEncryptedPacket> QuicFramer::BuildVersionNegotiationPacket(
   size_t len = kPublicFlagsSize + server_connection_id.length() +
                versions.size() * kQuicVersionSize;
   std::unique_ptr<char[]> buffer(new char[len]);
-  // Endianness is not a concern here, version negotiation packet does not have
-  // integers or floating numbers.
   QuicDataWriter writer(len, buffer.get());
 
   uint8_t flags = static_cast<uint8_t>(
@@ -1411,9 +1406,7 @@ std::unique_ptr<QuicEncryptedPacket> QuicFramer::BuildVersionNegotiationPacket(
   }
 
   for (const ParsedQuicVersion& version : versions) {
-    // TODO(rch): Use WriteUInt32() once QUIC_VERSION_35 is removed.
-    if (!writer.WriteTag(
-            QuicEndian::HostToNet32(CreateQuicVersionLabel(version)))) {
+    if (!writer.WriteUInt32(CreateQuicVersionLabel(version))) {
       return nullptr;
     }
   }
@@ -1458,9 +1451,7 @@ QuicFramer::BuildIetfVersionNegotiationPacket(
   }
 
   for (const ParsedQuicVersion& version : versions) {
-    // TODO(rch): Use WriteUInt32() once QUIC_VERSION_35 is removed.
-    if (!writer.WriteTag(
-            QuicEndian::HostToNet32(CreateQuicVersionLabel(version)))) {
+    if (!writer.WriteUInt32(CreateQuicVersionLabel(version))) {
       return nullptr;
     }
   }
@@ -2100,8 +2091,7 @@ bool QuicFramer::AppendPacketHeader(const QuicPacketHeader& header,
   if (header.version_flag) {
     DCHECK_EQ(Perspective::IS_CLIENT, perspective_);
     QuicVersionLabel version_label = CreateQuicVersionLabel(version_);
-    // TODO(rch): Use WriteUInt32() once QUIC_VERSION_35 is removed.
-    if (!writer->WriteTag(QuicEndian::NetToHost32(version_label))) {
+    if (!writer->WriteUInt32(version_label)) {
       return false;
     }
 
@@ -2156,8 +2146,7 @@ bool QuicFramer::AppendIetfPacketHeader(const QuicPacketHeader& header,
   if (header.version_flag) {
     // Append version for long header.
     QuicVersionLabel version_label = CreateQuicVersionLabel(version_);
-    // TODO(rch): Use WriteUInt32() once QUIC_VERSION_35 is removed.
-    if (!writer->WriteTag(QuicEndian::NetToHost32(version_label))) {
+    if (!writer->WriteUInt32(version_label)) {
       return false;
     }
   }
@@ -2587,11 +2576,9 @@ bool QuicFramer::ProcessIetfHeaderTypeByte(QuicDataReader* reader,
 // static
 bool QuicFramer::ProcessVersionLabel(QuicDataReader* reader,
                                      QuicVersionLabel* version_label) {
-  if (!reader->ReadTag(version_label)) {
+  if (!reader->ReadUInt32(version_label)) {
     return false;
   }
-  // TODO(rch): Use ReadUInt32() once QUIC_VERSION_35 is removed.
-  *version_label = QuicEndian::NetToHost32(*version_label);
   return true;
 }
 
