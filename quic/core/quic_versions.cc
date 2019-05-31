@@ -80,8 +80,6 @@ QuicVersionLabel CreateQuicVersionLabel(ParsedQuicVersion parsed_version) {
       return MakeVersionLabel(proto, '0', '3', '9');
     case QUIC_VERSION_43:
       return MakeVersionLabel(proto, '0', '4', '3');
-    case QUIC_VERSION_44:
-      return MakeVersionLabel(proto, '0', '4', '4');
     case QUIC_VERSION_46:
       return MakeVersionLabel(proto, '0', '4', '6');
     case QUIC_VERSION_47:
@@ -228,23 +226,16 @@ ParsedQuicVersionVector FilterSupportedVersions(
     if (version.transport_version == QUIC_VERSION_99) {
       if (GetQuicReloadableFlag(quic_enable_version_99) &&
           GetQuicReloadableFlag(quic_enable_version_47) &&
-          GetQuicReloadableFlag(quic_enable_version_46) &&
-          GetQuicReloadableFlag(quic_enable_version_44)) {
+          GetQuicReloadableFlag(quic_enable_version_46)) {
         filtered_versions.push_back(version);
       }
     } else if (version.transport_version == QUIC_VERSION_47) {
       if (GetQuicReloadableFlag(quic_enable_version_47) &&
-          GetQuicReloadableFlag(quic_enable_version_46) &&
-          GetQuicReloadableFlag(quic_enable_version_44)) {
+          GetQuicReloadableFlag(quic_enable_version_46)) {
         filtered_versions.push_back(version);
       }
     } else if (version.transport_version == QUIC_VERSION_46) {
-      if (GetQuicReloadableFlag(quic_enable_version_46) &&
-          GetQuicReloadableFlag(quic_enable_version_44)) {
-        filtered_versions.push_back(version);
-      }
-    } else if (version.transport_version == QUIC_VERSION_44) {
-      if (GetQuicReloadableFlag(quic_enable_version_44)) {
+      if (GetQuicReloadableFlag(quic_enable_version_46)) {
         filtered_versions.push_back(version);
       }
     } else if (version.transport_version == QUIC_VERSION_39) {
@@ -341,7 +332,6 @@ std::string QuicVersionToString(QuicTransportVersion transport_version) {
   switch (transport_version) {
     RETURN_STRING_LITERAL(QUIC_VERSION_39);
     RETURN_STRING_LITERAL(QUIC_VERSION_43);
-    RETURN_STRING_LITERAL(QUIC_VERSION_44);
     RETURN_STRING_LITERAL(QUIC_VERSION_46);
     RETURN_STRING_LITERAL(QUIC_VERSION_47);
     RETURN_STRING_LITERAL(QUIC_VERSION_99);
@@ -441,7 +431,7 @@ void QuicEnableVersion(ParsedQuicVersion parsed_version) {
   if (parsed_version.handshake_protocol == PROTOCOL_TLS1_3) {
     SetQuicFlag(FLAGS_quic_supports_tls_handshake, true);
   }
-  static_assert(QUIC_ARRAYSIZE(kSupportedTransportVersions) == 6u,
+  static_assert(QUIC_ARRAYSIZE(kSupportedTransportVersions) == 5u,
                 "Supported versions out of sync");
   if (parsed_version.transport_version >= QUIC_VERSION_99) {
     SetQuicReloadableFlag(quic_enable_version_99, true);
@@ -451,9 +441,6 @@ void QuicEnableVersion(ParsedQuicVersion parsed_version) {
   }
   if (parsed_version.transport_version >= QUIC_VERSION_46) {
     SetQuicReloadableFlag(quic_enable_version_46, true);
-  }
-  if (parsed_version.transport_version >= QUIC_VERSION_44) {
-    SetQuicReloadableFlag(quic_enable_version_44, true);
   }
 }
 

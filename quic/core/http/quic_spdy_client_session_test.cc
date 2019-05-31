@@ -498,7 +498,7 @@ TEST_P(QuicSpdyClientSessionTest, InvalidPacketReceived) {
   QuicReceivedPacket valid_packet(buf, 2, QuicTime::Zero(), false);
   // Close connection shouldn't be called.
   EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(0);
-  if (connection_->transport_version() > QUIC_VERSION_44) {
+  if (connection_->transport_version() >= QUIC_VERSION_46) {
     // Illegal fixed bit value.
     EXPECT_CALL(*connection_, OnError(_)).Times(1);
   }

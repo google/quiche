@@ -126,9 +126,7 @@ size_t GetPacketHeaderSize(
       // Long header.
       return kPacketHeaderTypeSize + kConnectionIdLengthSize +
              destination_connection_id_length + source_connection_id_length +
-             (version > QUIC_VERSION_44 ? packet_number_length
-                                        : PACKET_4BYTE_PACKET_NUMBER) +
-             kQuicVersionSize +
+             packet_number_length + kQuicVersionSize +
              (include_diversification_nonce ? kDiversificationNonceSize : 0) +
              retry_token_length_length + retry_token_length + length_length;
     }
