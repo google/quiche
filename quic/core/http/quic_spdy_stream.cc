@@ -152,6 +152,7 @@ QuicSpdyStream::QuicSpdyStream(QuicStreamId id,
       trailers_length_(0, 0),
       trailers_decompressed_(false),
       trailers_consumed_(false),
+      trailers_consumed_in_sequencer_(false),
       http_decoder_visitor_(new HttpDecoderVisitor(this)),
       body_buffer_(sequencer()),
       ack_listener_(nullptr) {
@@ -182,6 +183,7 @@ QuicSpdyStream::QuicSpdyStream(PendingStream* pending,
       trailers_length_(0, 0),
       trailers_decompressed_(false),
       trailers_consumed_(false),
+      trailers_consumed_in_sequencer_(false),
       http_decoder_visitor_(new HttpDecoderVisitor(this)),
       body_buffer_(sequencer()),
       ack_listener_(nullptr) {
@@ -362,7 +364,11 @@ size_t QuicSpdyStream::Readv(const struct iovec* iov, size_t iov_len) {
           spdy_session_->connection()->transport_version())) {
     return sequencer()->Readv(iov, iov_len);
   }
-  return body_buffer_.ReadBody(iov, iov_len);
+  size_t bytes_read = body_buffer_.ReadBody(iov, iov_len);
+  if (trailers_consumed_) {
+    MarkTrailersConsumed();
+  }
+  return bytes_read;
 }
 
 int QuicSpdyStream::GetReadableRegions(iovec* iov, size_t iov_len) const {
@@ -382,6 +388,9 @@ void QuicSpdyStream::MarkConsumed(size_t num_bytes) {
     return;
   }
   body_buffer_.MarkBodyConsumed(num_bytes);
+  if (trailers_consumed_) {
+    MarkTrailersConsumed();
+  }
 }
 
 bool QuicSpdyStream::IsDoneReading() const {
@@ -401,11 +410,13 @@ bool QuicSpdyStream::HasBytesToRead() const {
 
 void QuicSpdyStream::MarkTrailersConsumed() {
   if (VersionUsesQpack(spdy_session_->connection()->transport_version()) &&
-      !reading_stopped()) {
+      !reading_stopped() && !body_buffer_.HasBytesToRead() &&
+      !trailers_consumed_in_sequencer_) {
     const QuicByteCount trailers_total_length =
         trailers_length_.header_length + trailers_length_.payload_length;
     if (trailers_total_length > 0) {
       sequencer()->MarkConsumed(trailers_total_length);
+      trailers_consumed_in_sequencer_ = true;
     }
   }
 

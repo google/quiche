@@ -148,6 +148,18 @@ class QuicSpdyStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
         "JBCScs_ejbKaqBDoB7ZGxTvqlrB__2ZmnHHjCr8RgMRtKNtIeuZAo ";
   }
 
+  std::string EncodeQpackHeaders(QuicStreamId id, SpdyHeaderBlock* header) {
+    auto qpack_encoder =
+        QuicMakeUnique<QpackEncoder>(session_.get(), session_.get());
+    auto progreesive_encoder = qpack_encoder->EncodeHeaderList(id, header);
+    std::string encoded_headers;
+    while (progreesive_encoder->HasNext()) {
+      progreesive_encoder->Next(std::numeric_limits<size_t>::max(),
+                                &encoded_headers);
+    }
+    return encoded_headers;
+  }
+
   void Initialize(bool stream_should_process_data) {
     connection_ = new StrictMock<MockQuicConnection>(
         &helper_, &alarm_factory_, Perspective::IS_SERVER,
@@ -1794,6 +1806,61 @@ TEST_P(QuicSpdyStreamTest, HeadersFrameOnRequestStream) {
   const spdy::SpdyHeaderBlock& trailers = stream_->received_trailers();
   EXPECT_THAT(trailers, testing::ElementsAre(
                             testing::Pair("custom-key", "custom-value")));
+}
+
+TEST_P(QuicSpdyStreamTest, ProcessBodyAfterTrailers) {
+  if (!VersionUsesQpack(GetParam().transport_version)) {
+    return;
+  }
+  Initialize(false);
+
+  // QPACK encoded header block with single header field "foo: bar".
+  std::string headers_frame_payload =
+      QuicTextUtils::HexDecode("00002a94e703626172");
+  std::unique_ptr<char[]> headers_buffer;
+  QuicByteCount headers_frame_header_length =
+      encoder_.SerializeHeadersFrameHeader(headers_frame_payload.length(),
+                                           &headers_buffer);
+  QuicStringPiece headers_frame_header(headers_buffer.get(),
+                                       headers_frame_header_length);
+
+  std::string data_frame_payload = "some data";
+  std::unique_ptr<char[]> data_buffer;
+  QuicByteCount data_frame_header_length = encoder_.SerializeDataFrameHeader(
+      data_frame_payload.length(), &data_buffer);
+  QuicStringPiece data_frame_header(data_buffer.get(),
+                                    data_frame_header_length);
+
+  // A header block that will take more than one block of sequencer buffer.
+  // This ensures that when the trailers are consumed, some buffer buckets will
+  // be freed.
+  SpdyHeaderBlock trailers_block;
+  trailers_block["key1"] = std::string(10000, 'x');
+  std::string trailers_frame_payload =
+      EncodeQpackHeaders(stream_->id(), &trailers_block);
+
+  std::unique_ptr<char[]> trailers_buffer;
+  QuicByteCount trailers_frame_header_length =
+      encoder_.SerializeHeadersFrameHeader(trailers_frame_payload.length(),
+                                           &trailers_buffer);
+  QuicStringPiece trailers_frame_header(trailers_buffer.get(),
+                                        trailers_frame_header_length);
+
+  std::string stream_frame_payload = QuicStrCat(
+      headers_frame_header, headers_frame_payload, data_frame_header,
+      data_frame_payload, trailers_frame_header, trailers_frame_payload);
+  QuicStreamFrame frame(stream_->id(), false, 0, stream_frame_payload);
+  stream_->OnStreamFrame(frame);
+
+  stream_->ConsumeHeaderList();
+  stream_->MarkTrailersConsumed();
+  char buffer[2048];
+  struct iovec vec;
+  vec.iov_base = buffer;
+  vec.iov_len = QUIC_ARRAYSIZE(buffer);
+  size_t bytes_read = stream_->Readv(&vec, 1);
+  std::string data(buffer, bytes_read);
+  EXPECT_EQ("some data", data);
 }
 
 }  // namespace

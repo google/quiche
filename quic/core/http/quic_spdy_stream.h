@@ -147,7 +147,8 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream : public QuicStream {
 
   // Marks the trailers as consumed. This applies to the case where this object
   // receives headers and trailers as QuicHeaderLists via calls to
-  // OnStreamHeaderList().
+  // OnStreamHeaderList(). Trailer data will be consumed from the sequencer only
+  // once all body data has been consumed.
   void MarkTrailersConsumed();
 
   // Clears |header_list_|.
@@ -268,6 +269,8 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream : public QuicStream {
   bool trailers_decompressed_;
   // True if the trailers have been consumed.
   bool trailers_consumed_;
+  // True if the trailers have actually been consumed in the stream sequencer.
+  bool trailers_consumed_in_sequencer_;
   // The parsed trailers received from the peer.
   spdy::SpdyHeaderBlock received_trailers_;
 
