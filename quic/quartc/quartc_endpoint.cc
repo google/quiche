@@ -133,8 +133,13 @@ void QuartcClientEndpoint::OnMessageSent(int64_t datagram_id) {
   delegate_->OnMessageSent(datagram_id);
 }
 
-void QuartcClientEndpoint::OnMessageAcked(int64_t datagram_id) {
-  delegate_->OnMessageAcked(datagram_id);
+void QuartcClientEndpoint::OnMessageAcked(int64_t datagram_id,
+                                          QuicTime receive_timestamp) {
+  delegate_->OnMessageAcked(datagram_id, receive_timestamp);
+}
+
+void QuartcClientEndpoint::OnMessageLost(int64_t datagram_id) {
+  delegate_->OnMessageLost(datagram_id);
 }
 
 QuartcServerEndpoint::QuartcServerEndpoint(

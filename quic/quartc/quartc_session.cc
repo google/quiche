@@ -251,16 +251,26 @@ void QuartcSession::OnMessageAcked(QuicMessageId message_id,
   auto element = message_to_datagram_id_.find(message_id);
 
   if (element == message_to_datagram_id_.end()) {
-    QUIC_DLOG(DFATAL) << "ACKed message_id was not found, message_id="
-                      << message_id;
     return;
   }
 
-  // TODO(mellem): Pass receive_timestamp to |delegate_|.
-  session_delegate_->OnMessageAcked(/*datagram_id=*/element->second);
+  session_delegate_->OnMessageAcked(/*datagram_id=*/element->second,
+                                    receive_timestamp);
 
   // Free up space -- we should never see message_id again.
   message_to_datagram_id_.erase(element);
+}
+
+void QuartcSession::OnMessageLost(QuicMessageId message_id) {
+  auto it = message_to_datagram_id_.find(message_id);
+  if (it == message_to_datagram_id_.end()) {
+    return;
+  }
+
+  session_delegate_->OnMessageLost(/*datagram_id=*/it->second);
+
+  // Free up space.
+  message_to_datagram_id_.erase(it);
 }
 
 QuicStream* QuartcSession::CreateIncomingStream(QuicStreamId id) {

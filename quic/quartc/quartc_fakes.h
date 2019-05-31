@@ -63,8 +63,13 @@ class FakeQuartcEndpointDelegate : public QuartcEndpoint::Delegate {
     sent_datagram_ids_.push_back(datagram_id);
   }
 
-  void OnMessageAcked(int64_t datagram_id) {
-    acked_datagram_ids_.push_back(datagram_id);
+  void OnMessageAcked(int64_t datagram_id, QuicTime receive_timestamp) {
+    acked_datagram_id_to_receive_timestamp_.emplace(datagram_id,
+                                                    receive_timestamp);
+  }
+
+  void OnMessageLost(int64_t datagram_id) {
+    lost_datagram_ids_.push_back(datagram_id);
   }
 
   void OnCongestionControlChange(QuicBandwidth bandwidth_estimate,
@@ -88,8 +93,13 @@ class FakeQuartcEndpointDelegate : public QuartcEndpoint::Delegate {
   }
 
   // Returns all ACKEd datagram ids in the order ACKs were received.
-  const std::vector<int64_t>& acked_datagram_ids() const {
-    return acked_datagram_ids_;
+  const std::map<int64_t, QuicTime>& acked_datagram_id_to_receive_timestamp()
+      const {
+    return acked_datagram_id_to_receive_timestamp_;
+  }
+
+  const std::vector<int64_t>& lost_datagram_ids() const {
+    return lost_datagram_ids_;
   }
 
   bool connected() const { return connected_; }
@@ -106,7 +116,8 @@ class FakeQuartcEndpointDelegate : public QuartcEndpoint::Delegate {
   QuartcStream* last_incoming_stream_;
   std::vector<std::string> incoming_messages_;
   std::vector<int64_t> sent_datagram_ids_;
-  std::vector<int64_t> acked_datagram_ids_;
+  std::map<int64_t, QuicTime> acked_datagram_id_to_receive_timestamp_;
+  std::vector<int64_t> lost_datagram_ids_;
   bool connected_ = true;
   QuartcStream::Delegate* stream_delegate_;
   QuicTime writable_time_ = QuicTime::Zero();

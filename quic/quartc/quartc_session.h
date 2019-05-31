@@ -157,8 +157,14 @@ class QuartcSession : public QuicSession,
     // plumb that signal up to RTP's congestion control.
     virtual void OnMessageSent(int64_t datagram_id) = 0;
 
-    // Called when message with |datagram_id| gets acked.
-    virtual void OnMessageAcked(int64_t datagram_id) = 0;
+    // Called when message with |datagram_id| gets acked.  |receive_timestamp|
+    // indicates when the peer received this message, according to its own
+    // clock.
+    virtual void OnMessageAcked(int64_t datagram_id,
+                                QuicTime receive_timestamp) = 0;
+
+    // Called when message with |datagram_id| is lost.
+    virtual void OnMessageLost(int64_t datagram_id) = 0;
 
     // TODO(zhihuang): Add proof verification.
   };
@@ -178,6 +184,8 @@ class QuartcSession : public QuicSession,
   // Called when message with |message_id| gets acked.
   void OnMessageAcked(QuicMessageId message_id,
                       QuicTime receive_timestamp) override;
+
+  void OnMessageLost(QuicMessageId message_id) override;
 
   // Returns number of queued (not sent) messages submitted by
   // SendOrQueueMessage. Messages are queued if connection is congestion

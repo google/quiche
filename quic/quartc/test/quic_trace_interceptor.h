@@ -39,7 +39,8 @@ class QuicTraceInterceptor : public QuartcEndpointInterceptor {
                           ConnectionCloseSource source) override;
   void OnMessageReceived(QuicStringPiece message) override;
   void OnMessageSent(int64_t datagram_id) override;
-  void OnMessageAcked(int64_t datagram_id) override;
+  void OnMessageAcked(int64_t datagram_id, QuicTime receive_timestamp) override;
+  void OnMessageLost(int64_t datagram_id) override;
   void SetDelegate(QuartcEndpoint::Delegate* delegate) override;
 
  private:

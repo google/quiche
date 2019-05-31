@@ -67,8 +67,13 @@ void QuicTraceInterceptor::OnMessageSent(int64_t datagram_id) {
   delegate_->OnMessageSent(datagram_id);
 }
 
-void QuicTraceInterceptor::OnMessageAcked(int64_t datagram_id) {
-  delegate_->OnMessageAcked(datagram_id);
+void QuicTraceInterceptor::OnMessageAcked(int64_t datagram_id,
+                                          QuicTime receive_timestamp) {
+  delegate_->OnMessageAcked(datagram_id, receive_timestamp);
+}
+
+void QuicTraceInterceptor::OnMessageLost(int64_t datagram_id) {
+  delegate_->OnMessageLost(datagram_id);
 }
 
 void QuicTraceInterceptor::SetDelegate(QuartcEndpoint::Delegate* delegate) {
