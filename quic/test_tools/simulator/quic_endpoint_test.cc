@@ -189,7 +189,7 @@ TEST_F(QuicEndpointTest, Competition) {
   endpoint_b->AddBytesToTransfer(2 * 1024 * 1024);
   endpoint_c->AddBytesToTransfer(2 * 1024 * 1024);
   QuicTime end_time =
-      simulator_.GetClock()->Now() + QuicTime::Delta::FromSeconds(10);
+      simulator_.GetClock()->Now() + QuicTime::Delta::FromSeconds(12);
   simulator_.RunUntil(
       [this, end_time]() { return simulator_.GetClock()->Now() >= end_time; });
 
