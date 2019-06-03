@@ -36,8 +36,8 @@ class QUIC_EXPORT_PRIVATE QuicReceiveControlStream : public QuicStream {
 
  protected:
   // Called from HttpDecoderVisitor.
-  void OnSettingsFrameStart(Http3FrameLengths frame_lengths);
-  void OnSettingsFrame(const SettingsFrame& settings);
+  bool OnSettingsFrameStart(Http3FrameLengths frame_lengths);
+  bool OnSettingsFrame(const SettingsFrame& settings);
 
  private:
   class HttpDecoderVisitor;

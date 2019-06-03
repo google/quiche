@@ -10,7 +10,9 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 
-using testing::InSequence;
+using ::testing::_;
+using ::testing::InSequence;
+using ::testing::Return;
 
 namespace quic {
 
@@ -21,30 +23,49 @@ class MockVisitor : public HttpDecoder::Visitor {
   // Called if an error is detected.
   MOCK_METHOD1(OnError, void(HttpDecoder* decoder));
 
-  MOCK_METHOD1(OnPriorityFrame, void(const PriorityFrame& frame));
-  MOCK_METHOD1(OnCancelPushFrame, void(const CancelPushFrame& frame));
-  MOCK_METHOD1(OnMaxPushIdFrame, void(const MaxPushIdFrame& frame));
-  MOCK_METHOD1(OnGoAwayFrame, void(const GoAwayFrame& frame));
-  MOCK_METHOD1(OnSettingsFrameStart, void(Http3FrameLengths frame_lengths));
-  MOCK_METHOD1(OnSettingsFrame, void(const SettingsFrame& frame));
-  MOCK_METHOD1(OnDuplicatePushFrame, void(const DuplicatePushFrame& frame));
+  MOCK_METHOD1(OnPriorityFrame, bool(const PriorityFrame& frame));
+  MOCK_METHOD1(OnCancelPushFrame, bool(const CancelPushFrame& frame));
+  MOCK_METHOD1(OnMaxPushIdFrame, bool(const MaxPushIdFrame& frame));
+  MOCK_METHOD1(OnGoAwayFrame, bool(const GoAwayFrame& frame));
+  MOCK_METHOD1(OnSettingsFrameStart, bool(Http3FrameLengths frame_lengths));
+  MOCK_METHOD1(OnSettingsFrame, bool(const SettingsFrame& frame));
+  MOCK_METHOD1(OnDuplicatePushFrame, bool(const DuplicatePushFrame& frame));
 
-  MOCK_METHOD1(OnDataFrameStart, void(Http3FrameLengths frame_lengths));
-  MOCK_METHOD1(OnDataFramePayload, void(QuicStringPiece payload));
-  MOCK_METHOD0(OnDataFrameEnd, void());
+  MOCK_METHOD1(OnDataFrameStart, bool(Http3FrameLengths frame_lengths));
+  MOCK_METHOD1(OnDataFramePayload, bool(QuicStringPiece payload));
+  MOCK_METHOD0(OnDataFrameEnd, bool());
 
-  MOCK_METHOD1(OnHeadersFrameStart, void(Http3FrameLengths frame_lengths));
-  MOCK_METHOD1(OnHeadersFramePayload, void(QuicStringPiece payload));
-  MOCK_METHOD0(OnHeadersFrameEnd, void());
+  MOCK_METHOD1(OnHeadersFrameStart, bool(Http3FrameLengths frame_lengths));
+  MOCK_METHOD1(OnHeadersFramePayload, bool(QuicStringPiece payload));
+  MOCK_METHOD0(OnHeadersFrameEnd, bool());
 
-  MOCK_METHOD1(OnPushPromiseFrameStart, void(PushId push_id));
-  MOCK_METHOD1(OnPushPromiseFramePayload, void(QuicStringPiece payload));
-  MOCK_METHOD0(OnPushPromiseFrameEnd, void());
+  MOCK_METHOD1(OnPushPromiseFrameStart, bool(PushId push_id));
+  MOCK_METHOD1(OnPushPromiseFramePayload, bool(QuicStringPiece payload));
+  MOCK_METHOD0(OnPushPromiseFrameEnd, bool());
 };
 
 class HttpDecoderTest : public QuicTest {
  public:
-  HttpDecoderTest() { decoder_.set_visitor(&visitor_); }
+  HttpDecoderTest() {
+    ON_CALL(visitor_, OnPriorityFrame(_)).WillByDefault(Return(true));
+    ON_CALL(visitor_, OnCancelPushFrame(_)).WillByDefault(Return(true));
+    ON_CALL(visitor_, OnMaxPushIdFrame(_)).WillByDefault(Return(true));
+    ON_CALL(visitor_, OnGoAwayFrame(_)).WillByDefault(Return(true));
+    ON_CALL(visitor_, OnSettingsFrameStart(_)).WillByDefault(Return(true));
+    ON_CALL(visitor_, OnSettingsFrame(_)).WillByDefault(Return(true));
+    ON_CALL(visitor_, OnDuplicatePushFrame(_)).WillByDefault(Return(true));
+    ON_CALL(visitor_, OnDataFrameStart(_)).WillByDefault(Return(true));
+    ON_CALL(visitor_, OnDataFramePayload(_)).WillByDefault(Return(true));
+    ON_CALL(visitor_, OnDataFrameEnd()).WillByDefault(Return(true));
+    ON_CALL(visitor_, OnHeadersFrameStart(_)).WillByDefault(Return(true));
+    ON_CALL(visitor_, OnHeadersFramePayload(_)).WillByDefault(Return(true));
+    ON_CALL(visitor_, OnHeadersFrameEnd()).WillByDefault(Return(true));
+    ON_CALL(visitor_, OnPushPromiseFrameStart(_)).WillByDefault(Return(true));
+    ON_CALL(visitor_, OnPushPromiseFramePayload(_)).WillByDefault(Return(true));
+    ON_CALL(visitor_, OnPushPromiseFrameEnd()).WillByDefault(Return(true));
+    decoder_.set_visitor(&visitor_);
+  }
+
   HttpDecoder decoder_;
   testing::StrictMock<MockVisitor> visitor_;
 };
@@ -172,6 +193,13 @@ TEST_F(HttpDecoderTest, CancelPush) {
   }
   EXPECT_EQ(QUIC_NO_ERROR, decoder_.error());
   EXPECT_EQ("", decoder_.error_detail());
+
+  // Test on the situation when the visitor wants to stop processing.
+  EXPECT_CALL(visitor_, OnCancelPushFrame(CancelPushFrame({1})))
+      .WillOnce(Return(false));
+  EXPECT_EQ(0u, decoder_.ProcessInput(input, QUIC_ARRAYSIZE(input)));
+  EXPECT_EQ(QUIC_INTERNAL_ERROR, decoder_.error());
+  EXPECT_EQ("Visitor shut down.", decoder_.error_detail());
 }
 
 TEST_F(HttpDecoderTest, PushPromiseFrame) {
@@ -209,6 +237,12 @@ TEST_F(HttpDecoderTest, PushPromiseFrame) {
   }
   EXPECT_EQ(QUIC_NO_ERROR, decoder_.error());
   EXPECT_EQ("", decoder_.error_detail());
+
+  // Test on the situation when the visitor wants to stop processing.
+  EXPECT_CALL(visitor_, OnPushPromiseFrameStart(1)).WillOnce(Return(false));
+  EXPECT_EQ(0u, decoder_.ProcessInput(input, QUIC_ARRAYSIZE(input)));
+  EXPECT_EQ(QUIC_INTERNAL_ERROR, decoder_.error());
+  EXPECT_EQ("Visitor shut down.", decoder_.error_detail());
 }
 
 TEST_F(HttpDecoderTest, MaxPushId) {
@@ -233,6 +267,13 @@ TEST_F(HttpDecoderTest, MaxPushId) {
   }
   EXPECT_EQ(QUIC_NO_ERROR, decoder_.error());
   EXPECT_EQ("", decoder_.error_detail());
+
+  // Test on the situation when the visitor wants to stop processing.
+  EXPECT_CALL(visitor_, OnMaxPushIdFrame(MaxPushIdFrame({1})))
+      .WillOnce(Return(false));
+  EXPECT_EQ(0u, decoder_.ProcessInput(input, QUIC_ARRAYSIZE(input)));
+  EXPECT_EQ(QUIC_INTERNAL_ERROR, decoder_.error());
+  EXPECT_EQ("Visitor shut down.", decoder_.error_detail());
 }
 
 TEST_F(HttpDecoderTest, DuplicatePush) {
@@ -256,6 +297,13 @@ TEST_F(HttpDecoderTest, DuplicatePush) {
   }
   EXPECT_EQ(QUIC_NO_ERROR, decoder_.error());
   EXPECT_EQ("", decoder_.error_detail());
+
+  // Test on the situation when the visitor wants to stop processing.
+  EXPECT_CALL(visitor_, OnDuplicatePushFrame(DuplicatePushFrame({1})))
+      .WillOnce(Return(false));
+  EXPECT_EQ(0u, decoder_.ProcessInput(input, QUIC_ARRAYSIZE(input)));
+  EXPECT_EQ(QUIC_INTERNAL_ERROR, decoder_.error());
+  EXPECT_EQ("Visitor shut down.", decoder_.error_detail());
 }
 
 TEST_F(HttpDecoderTest, PriorityFrame) {
@@ -287,7 +335,6 @@ TEST_F(HttpDecoderTest, PriorityFrame) {
   EXPECT_EQ(QUIC_NO_ERROR, decoder_.error());
   EXPECT_EQ("", decoder_.error_detail());
 
-  /*
   // Process the frame incremently.
   EXPECT_CALL(visitor_, OnPriorityFrame(frame));
   for (char c : input) {
@@ -295,7 +342,12 @@ TEST_F(HttpDecoderTest, PriorityFrame) {
   }
   EXPECT_EQ(QUIC_NO_ERROR, decoder_.error());
   EXPECT_EQ("", decoder_.error_detail());
-  */
+
+  // Test on the situation when the visitor wants to stop processing.
+  EXPECT_CALL(visitor_, OnPriorityFrame(frame)).WillOnce(Return(false));
+  EXPECT_EQ(0u, decoder_.ProcessInput(input, QUIC_ARRAYSIZE(input)));
+  EXPECT_EQ(QUIC_INTERNAL_ERROR, decoder_.error());
+  EXPECT_EQ("Visitor shut down.", decoder_.error_detail());
 }
 
 TEST_F(HttpDecoderTest, SettingsFrame) {
@@ -341,6 +393,13 @@ TEST_F(HttpDecoderTest, SettingsFrame) {
   }
   EXPECT_EQ(QUIC_NO_ERROR, decoder_.error());
   EXPECT_EQ("", decoder_.error_detail());
+
+  // Test on the situation when the visitor wants to stop processing.
+  EXPECT_CALL(visitor_, OnSettingsFrameStart(Http3FrameLengths(2, 7)))
+      .WillOnce(Return(false));
+  EXPECT_EQ(0u, decoder_.ProcessInput(input, QUIC_ARRAYSIZE(input)));
+  EXPECT_EQ(QUIC_INTERNAL_ERROR, decoder_.error());
+  EXPECT_EQ("Visitor shut down.", decoder_.error_detail());
 }
 
 TEST_F(HttpDecoderTest, DataFrame) {
@@ -374,6 +433,13 @@ TEST_F(HttpDecoderTest, DataFrame) {
   }
   EXPECT_EQ(QUIC_NO_ERROR, decoder_.error());
   EXPECT_EQ("", decoder_.error_detail());
+
+  // Test on the situation when the visitor wants to stop processing.
+  EXPECT_CALL(visitor_, OnDataFrameStart(Http3FrameLengths(2, 5)))
+      .WillOnce(Return(false));
+  EXPECT_EQ(0u, decoder_.ProcessInput(input, QUIC_ARRAYSIZE(input)));
+  EXPECT_EQ(QUIC_INTERNAL_ERROR, decoder_.error());
+  EXPECT_EQ("Visitor shut down.", decoder_.error_detail());
 }
 
 TEST_F(HttpDecoderTest, FrameHeaderPartialDelivery) {

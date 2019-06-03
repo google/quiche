@@ -45,55 +45,71 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
     virtual void OnError(HttpDecoder* decoder) = 0;
 
     // Called when a PRIORITY frame has been successfully parsed.
-    virtual void OnPriorityFrame(const PriorityFrame& frame) = 0;
+    // Returns true to permit furthuring decoding, and false to prevent it.
+    virtual bool OnPriorityFrame(const PriorityFrame& frame) = 0;
 
     // Called when a CANCEL_PUSH frame has been successfully parsed.
-    virtual void OnCancelPushFrame(const CancelPushFrame& frame) = 0;
+    // Returns true to permit furthuring decoding, and false to prevent it.
+    virtual bool OnCancelPushFrame(const CancelPushFrame& frame) = 0;
 
     // Called when a MAX_PUSH_ID frame has been successfully parsed.
-    virtual void OnMaxPushIdFrame(const MaxPushIdFrame& frame) = 0;
+    // Returns true to permit furthuring decoding, and false to prevent it.
+    virtual bool OnMaxPushIdFrame(const MaxPushIdFrame& frame) = 0;
 
     // Called when a GOAWAY frame has been successfully parsed.
-    virtual void OnGoAwayFrame(const GoAwayFrame& frame) = 0;
+    // Returns true to permit furthuring decoding, and false to prevent it.
+    virtual bool OnGoAwayFrame(const GoAwayFrame& frame) = 0;
 
     // Called when a SETTINGS frame has been received.
-    virtual void OnSettingsFrameStart(Http3FrameLengths frame_length) = 0;
+    // Returns true to permit furthuring decoding, and false to prevent it.
+    virtual bool OnSettingsFrameStart(Http3FrameLengths frame_length) = 0;
 
     // Called when a SETTINGS frame has been successfully parsed.
-    virtual void OnSettingsFrame(const SettingsFrame& frame) = 0;
+    // Returns true to permit furthuring decoding, and false to prevent it.
+    virtual bool OnSettingsFrame(const SettingsFrame& frame) = 0;
 
     // Called when a DUPLICATE_PUSH frame has been successfully parsed.
-    virtual void OnDuplicatePushFrame(const DuplicatePushFrame& frame) = 0;
+    // Returns true to permit furthuring decoding, and false to prevent it.
+    virtual bool OnDuplicatePushFrame(const DuplicatePushFrame& frame) = 0;
 
     // Called when a DATA frame has been received.
     // |frame_length| contains DATA frame length and payload length.
-    virtual void OnDataFrameStart(Http3FrameLengths frame_length) = 0;
+    // Returns true to permit furthuring decoding, and false to prevent it.
+    virtual bool OnDataFrameStart(Http3FrameLengths frame_length) = 0;
     // Called when part of the payload of a DATA frame has been read.  May be
     // called multiple times for a single frame.  |payload| is guaranteed to be
     // non-empty.
-    virtual void OnDataFramePayload(QuicStringPiece payload) = 0;
+    // Returns true to permit furthuring decoding, and false to prevent it.
+    virtual bool OnDataFramePayload(QuicStringPiece payload) = 0;
     // Called when a DATA frame has been completely processed.
-    virtual void OnDataFrameEnd() = 0;
+    // Returns true to permit furthuring decoding, and false to prevent it.
+    virtual bool OnDataFrameEnd() = 0;
 
     // Called when a HEADERS frame has been received.
     // |frame_length| contains HEADERS frame length and payload length.
-    virtual void OnHeadersFrameStart(Http3FrameLengths frame_length) = 0;
+    // Returns true to permit furthuring decoding, and false to prevent it.
+    virtual bool OnHeadersFrameStart(Http3FrameLengths frame_length) = 0;
     // Called when part of the payload of a HEADERS frame has been read.  May be
     // called multiple times for a single frame.  |payload| is guaranteed to be
     // non-empty.
-    virtual void OnHeadersFramePayload(QuicStringPiece payload) = 0;
+    // Returns true to permit furthuring decoding, and false to prevent it.
+    virtual bool OnHeadersFramePayload(QuicStringPiece payload) = 0;
     // Called when a HEADERS frame has been completely processed.
     // |frame_len| is the length of the HEADERS frame payload.
-    virtual void OnHeadersFrameEnd() = 0;
+    // Returns true to permit furthuring decoding, and false to prevent it.
+    virtual bool OnHeadersFrameEnd() = 0;
 
     // Called when a PUSH_PROMISE frame has been received for |push_id|.
-    virtual void OnPushPromiseFrameStart(PushId push_id) = 0;
+    // Returns true to permit furthuring decoding, and false to prevent it.
+    virtual bool OnPushPromiseFrameStart(PushId push_id) = 0;
     // Called when part of the payload of a PUSH_PROMISE frame has been read.
     // May be called multiple times for a single frame.  |payload| is guaranteed
     // to be non-empty.
-    virtual void OnPushPromiseFramePayload(QuicStringPiece payload) = 0;
+    // Returns true to permit furthuring decoding, and false to prevent it.
+    virtual bool OnPushPromiseFramePayload(QuicStringPiece payload) = 0;
     // Called when a PUSH_PROMISE frame has been completely processed.
-    virtual void OnPushPromiseFrameEnd() = 0;
+    // Returns true to permit furthuring decoding, and false to prevent it.
+    virtual bool OnPushPromiseFrameEnd() = 0;
 
     // TODO(rch): Consider adding methods like:
     // OnUnknownFrame{Start,Payload,End}()

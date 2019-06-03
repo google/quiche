@@ -45,84 +45,94 @@ class QuicSpdyStream::HttpDecoderVisitor : public HttpDecoder::Visitor {
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
   }
 
-  void OnPriorityFrame(const PriorityFrame& frame) override {
+  bool OnPriorityFrame(const PriorityFrame& frame) override {
     CloseConnectionOnWrongFrame("Priority");
+    return false;
   }
 
-  void OnCancelPushFrame(const CancelPushFrame& frame) override {
+  bool OnCancelPushFrame(const CancelPushFrame& frame) override {
     CloseConnectionOnWrongFrame("Cancel Push");
+    return false;
   }
 
-  void OnMaxPushIdFrame(const MaxPushIdFrame& frame) override {
+  bool OnMaxPushIdFrame(const MaxPushIdFrame& frame) override {
     CloseConnectionOnWrongFrame("Max Push Id");
+    return false;
   }
 
-  void OnGoAwayFrame(const GoAwayFrame& frame) override {
+  bool OnGoAwayFrame(const GoAwayFrame& frame) override {
     CloseConnectionOnWrongFrame("Goaway");
+    return false;
   }
 
-  void OnSettingsFrameStart(Http3FrameLengths frame_lengths) override {
+  bool OnSettingsFrameStart(Http3FrameLengths frame_lengths) override {
     CloseConnectionOnWrongFrame("Settings");
+    return false;
   }
 
-  void OnSettingsFrame(const SettingsFrame& frame) override {
+  bool OnSettingsFrame(const SettingsFrame& frame) override {
     CloseConnectionOnWrongFrame("Settings");
+    return false;
   }
 
-  void OnDuplicatePushFrame(const DuplicatePushFrame& frame) override {
+  bool OnDuplicatePushFrame(const DuplicatePushFrame& frame) override {
     CloseConnectionOnWrongFrame("Duplicate Push");
+    return false;
   }
 
-  void OnDataFrameStart(Http3FrameLengths frame_lengths) override {
-    stream_->OnDataFrameStart(frame_lengths);
+  bool OnDataFrameStart(Http3FrameLengths frame_lengths) override {
+    return stream_->OnDataFrameStart(frame_lengths);
   }
 
-  void OnDataFramePayload(QuicStringPiece payload) override {
+  bool OnDataFramePayload(QuicStringPiece payload) override {
     DCHECK(!payload.empty());
-    stream_->OnDataFramePayload(payload);
+    return stream_->OnDataFramePayload(payload);
   }
 
-  void OnDataFrameEnd() override { stream_->OnDataFrameEnd(); }
+  bool OnDataFrameEnd() override { return stream_->OnDataFrameEnd(); }
 
-  void OnHeadersFrameStart(Http3FrameLengths frame_length) override {
+  bool OnHeadersFrameStart(Http3FrameLengths frame_length) override {
     if (!VersionUsesQpack(
             stream_->session()->connection()->transport_version())) {
       CloseConnectionOnWrongFrame("Headers");
-      return;
+      return false;
     }
-    stream_->OnHeadersFrameStart(frame_length);
+    return stream_->OnHeadersFrameStart(frame_length);
   }
 
-  void OnHeadersFramePayload(QuicStringPiece payload) override {
+  bool OnHeadersFramePayload(QuicStringPiece payload) override {
     DCHECK(!payload.empty());
     if (!VersionUsesQpack(
             stream_->session()->connection()->transport_version())) {
       CloseConnectionOnWrongFrame("Headers");
-      return;
+      return false;
     }
-    stream_->OnHeadersFramePayload(payload);
+    return stream_->OnHeadersFramePayload(payload);
   }
 
-  void OnHeadersFrameEnd() override {
+  bool OnHeadersFrameEnd() override {
     if (!VersionUsesQpack(
             stream_->session()->connection()->transport_version())) {
       CloseConnectionOnWrongFrame("Headers");
-      return;
+      return false;
     }
-    stream_->OnHeadersFrameEnd();
+    return stream_->OnHeadersFrameEnd();
   }
 
-  void OnPushPromiseFrameStart(PushId push_id) override {
+  bool OnPushPromiseFrameStart(PushId push_id) override {
     CloseConnectionOnWrongFrame("Push Promise");
+    return false;
   }
 
-  void OnPushPromiseFramePayload(QuicStringPiece payload) override {
+  bool OnPushPromiseFramePayload(QuicStringPiece payload) override {
     DCHECK(!payload.empty());
     CloseConnectionOnWrongFrame("Push Promise");
+    return false;
   }
 
-  void OnPushPromiseFrameEnd() override {
+  bool OnPushPromiseFrameEnd() override {
     CloseConnectionOnWrongFrame("Push Promise");
+    return false;
   }
 
  private:
@@ -470,7 +480,7 @@ void QuicSpdyStream::OnStreamHeadersPriority(SpdyPriority priority) {
   SetPriority(priority);
 }
 
-void QuicSpdyStream::OnStreamHeaderList(bool fin,
+bool QuicSpdyStream::OnStreamHeaderList(bool fin,
                                         size_t frame_len,
                                         const QuicHeaderList& header_list) {
   // The headers list avoid infinite buffering by clearing the headers list
@@ -482,7 +492,7 @@ void QuicSpdyStream::OnStreamHeaderList(bool fin,
   if (header_list.empty()) {
     OnHeadersTooLarge();
     if (IsDoneReading()) {
-      return;
+      return false;
     }
   }
   if (!headers_decompressed_) {
@@ -490,6 +500,7 @@ void QuicSpdyStream::OnStreamHeaderList(bool fin,
   } else {
     OnTrailingHeadersComplete(fin, frame_len, header_list);
   }
+  return !reading_stopped();
 }
 
 void QuicSpdyStream::OnHeadersTooLarge() {
@@ -701,25 +712,27 @@ void QuicSpdyStream::ClearSession() {
   spdy_session_ = nullptr;
 }
 
-void QuicSpdyStream::OnDataFrameStart(Http3FrameLengths frame_lengths) {
+bool QuicSpdyStream::OnDataFrameStart(Http3FrameLengths frame_lengths) {
   DCHECK(
       VersionHasDataFrameHeader(session()->connection()->transport_version()));
-
   body_buffer_.OnDataHeader(frame_lengths);
+  return true;
 }
 
-void QuicSpdyStream::OnDataFramePayload(QuicStringPiece payload) {
+bool QuicSpdyStream::OnDataFramePayload(QuicStringPiece payload) {
   DCHECK(
       VersionHasDataFrameHeader(session()->connection()->transport_version()));
 
   body_buffer_.OnDataPayload(payload);
+  return true;
 }
 
-void QuicSpdyStream::OnDataFrameEnd() {
+bool QuicSpdyStream::OnDataFrameEnd() {
   DCHECK(
       VersionHasDataFrameHeader(session()->connection()->transport_version()));
   QUIC_DVLOG(1) << "Reaches the end of a data frame. Total bytes received are "
                 << body_buffer_.total_body_bytes_received();
+  return true;
 }
 
 bool QuicSpdyStream::OnStreamFrameAcked(QuicStreamOffset offset,
@@ -769,7 +782,7 @@ QuicByteCount QuicSpdyStream::GetNumFrameHeadersInInterval(
   return header_acked_length;
 }
 
-void QuicSpdyStream::OnHeadersFrameStart(Http3FrameLengths frame_length) {
+bool QuicSpdyStream::OnHeadersFrameStart(Http3FrameLengths frame_length) {
   DCHECK(VersionUsesQpack(spdy_session_->connection()->transport_version()));
   DCHECK(!qpack_decoded_headers_accumulator_);
 
@@ -783,9 +796,10 @@ void QuicSpdyStream::OnHeadersFrameStart(Http3FrameLengths frame_length) {
       QuicMakeUnique<QpackDecodedHeadersAccumulator>(
           id(), spdy_session_->qpack_decoder(),
           spdy_session_->max_inbound_header_list_size());
+  return true;
 }
 
-void QuicSpdyStream::OnHeadersFramePayload(QuicStringPiece payload) {
+bool QuicSpdyStream::OnHeadersFramePayload(QuicStringPiece payload) {
   DCHECK(VersionUsesQpack(spdy_session_->connection()->transport_version()));
 
   if (!qpack_decoded_headers_accumulator_->Decode(payload)) {
@@ -794,11 +808,12 @@ void QuicSpdyStream::OnHeadersFramePayload(QuicStringPiece payload) {
         QuicStrCat("Error decompressing header block on stream ", id(), ": ",
                    qpack_decoded_headers_accumulator_->error_message());
     CloseConnectionWithDetails(QUIC_DECOMPRESSION_FAILURE, error_message);
-    return;
+    return false;
   }
+  return true;
 }
 
-void QuicSpdyStream::OnHeadersFrameEnd() {
+bool QuicSpdyStream::OnHeadersFrameEnd() {
   DCHECK(VersionUsesQpack(spdy_session_->connection()->transport_version()));
 
   if (!qpack_decoded_headers_accumulator_->EndHeaderBlock()) {
@@ -807,16 +822,18 @@ void QuicSpdyStream::OnHeadersFrameEnd() {
         QuicStrCat("Error decompressing header block on stream ", id(), ": ",
                    qpack_decoded_headers_accumulator_->error_message());
     CloseConnectionWithDetails(QUIC_DECOMPRESSION_FAILURE, error_message);
-    return;
+    return false;
   }
 
   const QuicByteCount frame_length = headers_decompressed_
                                          ? trailers_length_.payload_length
                                          : headers_length_.payload_length;
-  OnStreamHeaderList(/* fin = */ false, frame_length,
-                     qpack_decoded_headers_accumulator_->quic_header_list());
+  bool result = OnStreamHeaderList(
+      /* fin = */ false, frame_length,
+      qpack_decoded_headers_accumulator_->quic_header_list());
 
   qpack_decoded_headers_accumulator_.reset();
+  return result;
 }
 
 size_t QuicSpdyStream::WriteHeadersImpl(

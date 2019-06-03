@@ -165,17 +165,26 @@ void HttpDecoder::ReadFrameLength(QuicDataReader* reader) {
   // Calling the following two visitor methods does not require parsing of any
   // frame payload.
   if (current_frame_type_ == 0x0) {
-    visitor_->OnDataFrameStart(Http3FrameLengths(
-        current_length_field_length_ + current_type_field_length_,
-        current_frame_length_));
+    if (!visitor_->OnDataFrameStart(Http3FrameLengths(
+            current_length_field_length_ + current_type_field_length_,
+            current_frame_length_))) {
+      RaiseError(QUIC_INTERNAL_ERROR, "Visitor shut down.");
+      return;
+    }
   } else if (current_frame_type_ == 0x1) {
-    visitor_->OnHeadersFrameStart(Http3FrameLengths(
-        current_length_field_length_ + current_type_field_length_,
-        current_frame_length_));
+    if (!visitor_->OnHeadersFrameStart(Http3FrameLengths(
+            current_length_field_length_ + current_type_field_length_,
+            current_frame_length_))) {
+      RaiseError(QUIC_INTERNAL_ERROR, "Visitor shut down.");
+      return;
+    }
   } else if (current_frame_type_ == 0x4) {
-    visitor_->OnSettingsFrameStart(Http3FrameLengths(
-        current_length_field_length_ + current_type_field_length_,
-        current_frame_length_));
+    if (!visitor_->OnSettingsFrameStart(Http3FrameLengths(
+            current_length_field_length_ + current_type_field_length_,
+            current_frame_length_))) {
+      RaiseError(QUIC_INTERNAL_ERROR, "Visitor shut down.");
+      return;
+    }
   }
 
   remaining_frame_length_ = current_frame_length_;
@@ -196,7 +205,10 @@ void HttpDecoder::ReadFramePayload(QuicDataReader* reader) {
         return;
       }
       DCHECK(!payload.empty());
-      visitor_->OnDataFramePayload(payload);
+      if (!visitor_->OnDataFramePayload(payload)) {
+        RaiseError(QUIC_INTERNAL_ERROR, "Visitor shut down.");
+        return;
+      }
       remaining_frame_length_ -= payload.length();
       break;
     }
@@ -209,7 +221,10 @@ void HttpDecoder::ReadFramePayload(QuicDataReader* reader) {
         return;
       }
       DCHECK(!payload.empty());
-      visitor_->OnHeadersFramePayload(payload);
+      if (!visitor_->OnHeadersFramePayload(payload)) {
+        RaiseError(QUIC_INTERNAL_ERROR, "Visitor shut down.");
+        return;
+      }
       remaining_frame_length_ -= payload.length();
       break;
     }
@@ -237,7 +252,10 @@ void HttpDecoder::ReadFramePayload(QuicDataReader* reader) {
           return;
         }
         remaining_frame_length_ -= bytes_remaining - reader->BytesRemaining();
-        visitor_->OnPushPromiseFrameStart(push_id);
+        if (!visitor_->OnPushPromiseFrameStart(push_id)) {
+          RaiseError(QUIC_INTERNAL_ERROR, "Visitor shut down.");
+          return;
+        }
       }
       DCHECK_LT(remaining_frame_length_, current_frame_length_);
       QuicByteCount bytes_to_read = std::min<QuicByteCount>(
@@ -251,7 +269,10 @@ void HttpDecoder::ReadFramePayload(QuicDataReader* reader) {
         return;
       }
       DCHECK(!payload.empty());
-      visitor_->OnPushPromiseFramePayload(payload);
+      if (!visitor_->OnPushPromiseFramePayload(payload)) {
+        RaiseError(QUIC_INTERNAL_ERROR, "Visitor shut down.");
+        return;
+      }
       remaining_frame_length_ -= payload.length();
       break;
     }
@@ -303,11 +324,17 @@ void HttpDecoder::FinishParsing() {
   DCHECK_EQ(0u, remaining_frame_length_);
   switch (current_frame_type_) {
     case 0x0: {  // DATA
-      visitor_->OnDataFrameEnd();
+      if (!visitor_->OnDataFrameEnd()) {
+        RaiseError(QUIC_INTERNAL_ERROR, "Visitor shut down.");
+        return;
+      }
       break;
     }
     case 0x1: {  // HEADERS
-      visitor_->OnHeadersFrameEnd();
+      if (!visitor_->OnHeadersFrameEnd()) {
+        RaiseError(QUIC_INTERNAL_ERROR, "Visitor shut down.");
+        return;
+      }
       break;
     }
     case 0x2: {  // PRIORITY
@@ -318,7 +345,10 @@ void HttpDecoder::FinishParsing() {
       if (!ParsePriorityFrame(&reader, &frame)) {
         return;
       }
-      visitor_->OnPriorityFrame(frame);
+      if (!visitor_->OnPriorityFrame(frame)) {
+        RaiseError(QUIC_INTERNAL_ERROR, "Visitor shut down.");
+        return;
+      }
       break;
     }
     case 0x3: {  // CANCEL_PUSH
@@ -329,7 +359,10 @@ void HttpDecoder::FinishParsing() {
         RaiseError(QUIC_INTERNAL_ERROR, "Unable to read push_id");
         return;
       }
-      visitor_->OnCancelPushFrame(frame);
+      if (!visitor_->OnCancelPushFrame(frame)) {
+        RaiseError(QUIC_INTERNAL_ERROR, "Visitor shut down.");
+        return;
+      }
       break;
     }
     case 0x4: {  // SETTINGS
@@ -338,11 +371,17 @@ void HttpDecoder::FinishParsing() {
       if (!ParseSettingsFrame(&reader, &frame)) {
         return;
       }
-      visitor_->OnSettingsFrame(frame);
+      if (!visitor_->OnSettingsFrame(frame)) {
+        RaiseError(QUIC_INTERNAL_ERROR, "Visitor shut down.");
+        return;
+      }
       break;
     }
     case 0x5: {  // PUSH_PROMISE
-      visitor_->OnPushPromiseFrameEnd();
+      if (!visitor_->OnPushPromiseFrameEnd()) {
+        RaiseError(QUIC_INTERNAL_ERROR, "Visitor shut down.");
+        return;
+      }
       break;
     }
     case 0x7: {  // GOAWAY
@@ -358,7 +397,10 @@ void HttpDecoder::FinishParsing() {
         return;
       }
       frame.stream_id = static_cast<QuicStreamId>(stream_id);
-      visitor_->OnGoAwayFrame(frame);
+      if (!visitor_->OnGoAwayFrame(frame)) {
+        RaiseError(QUIC_INTERNAL_ERROR, "Visitor shut down.");
+        return;
+      }
       break;
     }
 
@@ -369,7 +411,10 @@ void HttpDecoder::FinishParsing() {
         RaiseError(QUIC_INTERNAL_ERROR, "Unable to read push_id");
         return;
       }
-      visitor_->OnMaxPushIdFrame(frame);
+      if (!visitor_->OnMaxPushIdFrame(frame)) {
+        RaiseError(QUIC_INTERNAL_ERROR, "Visitor shut down.");
+        return;
+      }
       break;
     }
 
@@ -380,7 +425,10 @@ void HttpDecoder::FinishParsing() {
         RaiseError(QUIC_INTERNAL_ERROR, "Unable to read push_id");
         return;
       }
-      visitor_->OnDuplicatePushFrame(frame);
+      if (!visitor_->OnDuplicatePushFrame(frame)) {
+        RaiseError(QUIC_INTERNAL_ERROR, "Visitor shut down.");
+        return;
+      }
       break;
     }
   }

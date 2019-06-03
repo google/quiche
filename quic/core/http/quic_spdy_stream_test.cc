@@ -1863,6 +1863,63 @@ TEST_P(QuicSpdyStreamTest, ProcessBodyAfterTrailers) {
   EXPECT_EQ("some data", data);
 }
 
+TEST_P(QuicSpdyStreamTest, MalformedHeadersStopHttpDecoder) {
+  // The test stream will receive a stream frame containing malformed headers
+  // and normal body. Make sure the http decoder stops processing body after the
+  // connection shuts down.
+  testing::InSequence s;
+  if (!VersionUsesQpack(GetParam().transport_version)) {
+    return;
+  }
+
+  Initialize(kShouldProcessData);
+  connection_->AdvanceTime(QuicTime::Delta::FromSeconds(1));
+
+  // Random bad headers.
+  std::string headers_frame_payload =
+      QuicTextUtils::HexDecode("00002a94e7036261");
+  std::unique_ptr<char[]> headers_buffer;
+  QuicByteCount headers_frame_header_length =
+      encoder_.SerializeHeadersFrameHeader(headers_frame_payload.length(),
+                                           &headers_buffer);
+  QuicStringPiece headers_frame_header(headers_buffer.get(),
+                                       headers_frame_header_length);
+
+  std::string data_frame_payload = "some data";
+  std::unique_ptr<char[]> data_buffer;
+  QuicByteCount data_frame_header_length = encoder_.SerializeDataFrameHeader(
+      data_frame_payload.length(), &data_buffer);
+  QuicStringPiece data_frame_header(data_buffer.get(),
+                                    data_frame_header_length);
+
+  std::string stream_frame_payload =
+      QuicStrCat(headers_frame_header, headers_frame_payload, data_frame_header,
+                 data_frame_payload);
+  QuicStreamFrame frame(stream_->id(), false, 0, stream_frame_payload);
+
+  EXPECT_CALL(*connection_,
+              CloseConnection(QUIC_DECOMPRESSION_FAILURE,
+                              "Error decompressing header block on stream 4: "
+                              "Incomplete header block.",
+                              _))
+      .WillOnce(
+          (Invoke([this](QuicErrorCode error, const std::string& error_details,
+                         ConnectionCloseBehavior connection_close_behavior) {
+            connection_->ReallyCloseConnection(error, error_details,
+                                               connection_close_behavior);
+          })));
+  EXPECT_CALL(*connection_, SendConnectionClosePacket(_, _));
+  EXPECT_CALL(*session_, OnConnectionClosed(_, _, _))
+      .WillOnce(
+          Invoke([this](QuicErrorCode error, const std::string& error_details,
+                        ConnectionCloseSource source) {
+            session_->ReallyOnConnectionClosed(error, error_details, source);
+          }));
+  EXPECT_CALL(*session_, SendRstStream(_, _, _));
+  EXPECT_CALL(*session_, SendRstStream(_, _, _));
+  stream_->OnStreamFrame(frame);
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

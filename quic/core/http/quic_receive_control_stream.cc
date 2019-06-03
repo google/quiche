@@ -30,64 +30,82 @@ class QuicReceiveControlStream::HttpDecoderVisitor
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
   }
 
-  void OnPriorityFrame(const PriorityFrame& frame) override {
+  bool OnPriorityFrame(const PriorityFrame& frame) override {
     CloseConnectionOnWrongFrame("Priority");
+    return false;
   }
 
-  void OnCancelPushFrame(const CancelPushFrame& frame) override {
+  bool OnCancelPushFrame(const CancelPushFrame& frame) override {
     CloseConnectionOnWrongFrame("Cancel Push");
+    return false;
   }
 
-  void OnMaxPushIdFrame(const MaxPushIdFrame& frame) override {
+  bool OnMaxPushIdFrame(const MaxPushIdFrame& frame) override {
     CloseConnectionOnWrongFrame("Max Push Id");
+    return false;
   }
 
-  void OnGoAwayFrame(const GoAwayFrame& frame) override {
+  bool OnGoAwayFrame(const GoAwayFrame& frame) override {
     CloseConnectionOnWrongFrame("Goaway");
+    return false;
   }
 
-  void OnSettingsFrameStart(Http3FrameLengths frame_lengths) override {
-    stream_->OnSettingsFrameStart(frame_lengths);
+  bool OnSettingsFrameStart(Http3FrameLengths frame_lengths) override {
+    return stream_->OnSettingsFrameStart(frame_lengths);
   }
 
-  void OnSettingsFrame(const SettingsFrame& frame) override {
-    stream_->OnSettingsFrame(frame);
+  bool OnSettingsFrame(const SettingsFrame& frame) override {
+    return stream_->OnSettingsFrame(frame);
   }
 
-  void OnDuplicatePushFrame(const DuplicatePushFrame& frame) override {
+  bool OnDuplicatePushFrame(const DuplicatePushFrame& frame) override {
     CloseConnectionOnWrongFrame("Duplicate Push");
+    return false;
   }
 
-  void OnDataFrameStart(Http3FrameLengths frame_lengths) override {
+  bool OnDataFrameStart(Http3FrameLengths frame_lengths) override {
     CloseConnectionOnWrongFrame("Data");
+    return false;
   }
 
-  void OnDataFramePayload(QuicStringPiece payload) override {
+  bool OnDataFramePayload(QuicStringPiece payload) override {
     CloseConnectionOnWrongFrame("Data");
+    return false;
   }
 
-  void OnDataFrameEnd() override { CloseConnectionOnWrongFrame("Data"); }
+  bool OnDataFrameEnd() override {
+    CloseConnectionOnWrongFrame("Data");
+    return false;
+  }
 
-  void OnHeadersFrameStart(Http3FrameLengths frame_length) override {
+  bool OnHeadersFrameStart(Http3FrameLengths frame_length) override {
     CloseConnectionOnWrongFrame("Headers");
+    return false;
   }
 
-  void OnHeadersFramePayload(QuicStringPiece payload) override {
+  bool OnHeadersFramePayload(QuicStringPiece payload) override {
     CloseConnectionOnWrongFrame("Headers");
+    return false;
   }
 
-  void OnHeadersFrameEnd() override { CloseConnectionOnWrongFrame("Headers"); }
-
-  void OnPushPromiseFrameStart(PushId push_id) override {
-    CloseConnectionOnWrongFrame("Push Promise");
+  bool OnHeadersFrameEnd() override {
+    CloseConnectionOnWrongFrame("Headers");
+    return false;
   }
 
-  void OnPushPromiseFramePayload(QuicStringPiece payload) override {
+  bool OnPushPromiseFrameStart(PushId push_id) override {
     CloseConnectionOnWrongFrame("Push Promise");
+    return false;
   }
 
-  void OnPushPromiseFrameEnd() override {
+  bool OnPushPromiseFramePayload(QuicStringPiece payload) override {
     CloseConnectionOnWrongFrame("Push Promise");
+    return false;
+  }
+
+  bool OnPushPromiseFrameEnd() override {
+    CloseConnectionOnWrongFrame("Push Promise");
+    return false;
   }
 
  private:
@@ -137,20 +155,21 @@ void QuicReceiveControlStream::OnDataAvailable() {
   }
 }
 
-void QuicReceiveControlStream::OnSettingsFrameStart(
+bool QuicReceiveControlStream::OnSettingsFrameStart(
     Http3FrameLengths frame_lengths) {
   if (received_settings_length_ != 0) {
     // TODO(renjietang): Change error code to HTTP_UNEXPECTED_FRAME.
     session()->connection()->CloseConnection(
         QUIC_INVALID_STREAM_ID, "Settings frames are received twice.",
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
-    return;
+    return false;
   }
   received_settings_length_ +=
       frame_lengths.header_length + frame_lengths.payload_length;
+  return true;
 }
 
-void QuicReceiveControlStream::OnSettingsFrame(const SettingsFrame& settings) {
+bool QuicReceiveControlStream::OnSettingsFrame(const SettingsFrame& settings) {
   QuicSpdySession* spdy_session = static_cast<QuicSpdySession*>(session());
   for (auto& it : settings.values) {
     uint16_t setting_id = it.first;
@@ -166,6 +185,7 @@ void QuicReceiveControlStream::OnSettingsFrame(const SettingsFrame& settings) {
     }
   }
   sequencer()->MarkConsumed(received_settings_length_);
+  return true;
 }
 
 }  // namespace quic

@@ -80,8 +80,9 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream : public QuicStream {
 
   // Called by the session when decompressed headers have been completely
   // delivered to this stream.  If |fin| is true, then this stream
-  // should be closed; no more data will be sent by the peer.
-  virtual void OnStreamHeaderList(bool fin,
+  // should be closed; no more data will be sent by the peer. Returns true if
+  // the headers are processed successfully without error.
+  virtual bool OnStreamHeaderList(bool fin,
                                   size_t frame_len,
                                   const QuicHeaderList& header_list);
 
@@ -207,12 +208,12 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream : public QuicStream {
 
  protected:
   // HTTP/3
-  void OnDataFrameStart(Http3FrameLengths frame_lengths);
-  void OnDataFramePayload(QuicStringPiece payload);
-  void OnDataFrameEnd();
-  void OnHeadersFrameStart(Http3FrameLengths frame_length);
-  void OnHeadersFramePayload(QuicStringPiece payload);
-  void OnHeadersFrameEnd();
+  bool OnDataFrameStart(Http3FrameLengths frame_lengths);
+  bool OnDataFramePayload(QuicStringPiece payload);
+  bool OnDataFrameEnd();
+  bool OnHeadersFrameStart(Http3FrameLengths frame_length);
+  bool OnHeadersFramePayload(QuicStringPiece payload);
+  bool OnHeadersFrameEnd();
 
   // Called when the received headers are too large. By default this will
   // reset the stream.
