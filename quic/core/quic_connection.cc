@@ -1742,9 +1742,12 @@ void QuicConnection::CloseIfTooManyOutstandingSentPackets() {
           sent_packet_manager_.GetLeastUnacked() + max_tracked_packets_) {
     CloseConnection(
         QUIC_TOO_MANY_OUTSTANDING_SENT_PACKETS,
-        QuicStrCat("More than ", max_tracked_packets_,
-                   " outstanding, least_unacked: ",
-                   sent_packet_manager_.GetLeastUnacked().ToUint64()),
+        QuicStrCat(
+            "More than ", max_tracked_packets_, " outstanding, least_unacked: ",
+            sent_packet_manager_.GetLeastUnacked().ToUint64(),
+            ", packets_processed: ", stats_.packets_processed,
+            ", last_decrypted_packet_level: ",
+            QuicUtils::EncryptionLevelToString(last_decrypted_packet_level_)),
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
   }
 }
