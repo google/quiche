@@ -14,7 +14,6 @@ namespace quic {
 QuartcDispatcher::QuartcDispatcher(
     std::unique_ptr<QuicConfig> config,
     std::unique_ptr<QuicCryptoServerConfig> crypto_config,
-    QuicStringPiece crypto_config_serialized,
     QuicVersionManager* version_manager,
     std::unique_ptr<QuicConnectionHelperInterface> helper,
     std::unique_ptr<QuicCryptoServerStream::Helper> session_helper,
@@ -33,7 +32,6 @@ QuartcDispatcher::QuartcDispatcher(
               .length()),
       owned_quic_config_(std::move(config)),
       owned_crypto_config_(std::move(crypto_config)),
-      crypto_config_(crypto_config_serialized),
       delegate_(delegate),
       packet_writer_(packet_writer.get()) {
   // Allow incoming packets to set our expected connection ID length.

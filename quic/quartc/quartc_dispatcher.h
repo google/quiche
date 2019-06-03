@@ -32,7 +32,6 @@ class QuartcDispatcher : public QuicDispatcher,
   QuartcDispatcher(
       std::unique_ptr<QuicConfig> config,
       std::unique_ptr<QuicCryptoServerConfig> crypto_config,
-      QuicStringPiece crypto_config_serialized,
       QuicVersionManager* version_manager,
       std::unique_ptr<QuicConnectionHelperInterface> helper,
       std::unique_ptr<QuicCryptoServerStream::Helper> session_helper,
@@ -50,14 +49,10 @@ class QuartcDispatcher : public QuicDispatcher,
   void OnTransportCanWrite() override;
   void OnTransportReceived(const char* data, size_t data_len) override;
 
-  // A serialized server config in quic wire format.
-  QuicStringPiece server_crypto_config() const { return crypto_config_; }
-
  private:
   // Members owned by QuartcDispatcher but not QuicDispatcher.
   std::unique_ptr<QuicConfig> owned_quic_config_;
   std::unique_ptr<QuicCryptoServerConfig> owned_crypto_config_;
-  std::string crypto_config_;
 
   // Delegate invoked when the dispatcher creates a new session.
   Delegate* delegate_;

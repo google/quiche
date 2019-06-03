@@ -166,8 +166,8 @@ void QuartcServerEndpoint::Connect(QuartcPacketTransport* packet_transport) {
   DCHECK(pre_connection_helper_ != nullptr);
   dispatcher_ = QuicMakeUnique<QuartcDispatcher>(
       QuicMakeUnique<QuicConfig>(CreateQuicConfig(config_)),
-      std::move(crypto_config_.config), crypto_config_.serialized_crypto_config,
-      version_manager_.get(), std::move(pre_connection_helper_),
+      std::move(crypto_config_.config), version_manager_.get(),
+      std::move(pre_connection_helper_),
       QuicMakeUnique<QuartcCryptoServerStreamHelper>(),
       QuicMakeUnique<QuartcAlarmFactoryWrapper>(alarm_factory_),
       QuicMakeUnique<QuartcPacketWriter>(packet_transport,
