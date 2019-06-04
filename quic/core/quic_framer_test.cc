@@ -4751,7 +4751,7 @@ TEST_P(QuicFramerTest, VersionNegotiationPacketClient) {
   EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
   ASSERT_EQ(QUIC_NO_ERROR, framer_.error());
   ASSERT_TRUE(visitor_.version_negotiation_packet_.get());
-  EXPECT_EQ(2u, visitor_.version_negotiation_packet_->versions.size());
+  EXPECT_EQ(1u, visitor_.version_negotiation_packet_->versions.size());
   EXPECT_EQ(GetParam(), visitor_.version_negotiation_packet_->versions[0]);
 
   // Remove the last version from the packet so that every truncated
@@ -4823,7 +4823,7 @@ TEST_P(QuicFramerTest, OldVersionNegotiationPacket) {
   EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
   ASSERT_EQ(QUIC_NO_ERROR, framer_.error());
   ASSERT_TRUE(visitor_.version_negotiation_packet_.get());
-  EXPECT_EQ(2u, visitor_.version_negotiation_packet_->versions.size());
+  EXPECT_EQ(1u, visitor_.version_negotiation_packet_->versions.size());
   EXPECT_EQ(GetParam(), visitor_.version_negotiation_packet_->versions[0]);
 
   // Remove the last version from the packet so that every truncated

@@ -487,14 +487,12 @@ TEST_F(QuicDispatcherTest, StatelessVersionNegotiation) {
   EXPECT_CALL(*time_wait_list_manager_,
               SendVersionNegotiationPacket(_, _, _, _, _, _, _))
       .Times(1);
-  QuicTransportVersion version =
-      static_cast<QuicTransportVersion>(QuicTransportVersionMin() - 1);
-  ParsedQuicVersion parsed_version(PROTOCOL_QUIC_CRYPTO, version);
   // Pad the CHLO message with enough data to make the packet large enough
   // to trigger version negotiation.
   std::string chlo = SerializeCHLO() + std::string(1200, 'a');
   DCHECK_LE(1200u, chlo.length());
-  ProcessPacket(client_address, TestConnectionId(1), true, parsed_version, chlo,
+  ProcessPacket(client_address, TestConnectionId(1), true,
+                QuicVersionReservedForNegotiation(), chlo,
                 CONNECTION_ID_PRESENT, PACKET_4BYTE_PACKET_NUMBER, 1);
 }
 
@@ -506,18 +504,15 @@ TEST_F(QuicDispatcherTest, NoVersionNegotiationWithSmallPacket) {
   EXPECT_CALL(*time_wait_list_manager_,
               SendVersionNegotiationPacket(_, _, _, _, _, _, _))
       .Times(0);
-  QuicTransportVersion version =
-      static_cast<QuicTransportVersion>(QuicTransportVersionMin() - 1);
-  ParsedQuicVersion parsed_version(PROTOCOL_QUIC_CRYPTO, version);
   std::string chlo = SerializeCHLO() + std::string(1200, 'a');
   // Truncate to 1100 bytes of payload which results in a packet just
   // under 1200 bytes after framing, packet, and encryption overhead.
   DCHECK_LE(1200u, chlo.length());
   std::string truncated_chlo = chlo.substr(0, 1100);
   DCHECK_EQ(1100u, truncated_chlo.length());
-  ProcessPacket(client_address, TestConnectionId(1), true, parsed_version,
-                truncated_chlo, CONNECTION_ID_PRESENT,
-                PACKET_4BYTE_PACKET_NUMBER, 1);
+  ProcessPacket(client_address, TestConnectionId(1), true,
+                QuicVersionReservedForNegotiation(), truncated_chlo,
+                CONNECTION_ID_PRESENT, PACKET_4BYTE_PACKET_NUMBER, 1);
 }
 
 // Disabling CHLO size validation allows the dispatcher to send version
@@ -532,18 +527,15 @@ TEST_F(QuicDispatcherTest, VersionNegotiationWithoutChloSizeValidation) {
   EXPECT_CALL(*time_wait_list_manager_,
               SendVersionNegotiationPacket(_, _, _, _, _, _, _))
       .Times(1);
-  QuicTransportVersion version =
-      static_cast<QuicTransportVersion>(QuicTransportVersionMin() - 1);
-  ParsedQuicVersion parsed_version(PROTOCOL_QUIC_CRYPTO, version);
   std::string chlo = SerializeCHLO() + std::string(1200, 'a');
   // Truncate to 1100 bytes of payload which results in a packet just
   // under 1200 bytes after framing, packet, and encryption overhead.
   DCHECK_LE(1200u, chlo.length());
   std::string truncated_chlo = chlo.substr(0, 1100);
   DCHECK_EQ(1100u, truncated_chlo.length());
-  ProcessPacket(client_address, TestConnectionId(1), true, parsed_version,
-                truncated_chlo, CONNECTION_ID_PRESENT,
-                PACKET_4BYTE_PACKET_NUMBER, 1);
+  ProcessPacket(client_address, TestConnectionId(1), true,
+                QuicVersionReservedForNegotiation(), truncated_chlo,
+                CONNECTION_ID_PRESENT, PACKET_4BYTE_PACKET_NUMBER, 1);
 }
 
 TEST_F(QuicDispatcherTest, Shutdown) {
@@ -856,10 +848,8 @@ TEST_F(QuicDispatcherTest, SupportedTransportVersionsChangeInFlight) {
   EXPECT_CALL(*dispatcher_, CreateQuicSession(connection_id, client_address,
                                               QuicStringPiece("hq"), _))
       .Times(0);
-  ParsedQuicVersion version(
-      PROTOCOL_QUIC_CRYPTO,
-      static_cast<QuicTransportVersion>(QuicTransportVersionMin() - 1));
-  ProcessPacket(client_address, connection_id, true, version, SerializeCHLO(),
+  ProcessPacket(client_address, connection_id, true,
+                QuicVersionReservedForNegotiation(), SerializeCHLO(),
                 CONNECTION_ID_PRESENT, PACKET_4BYTE_PACKET_NUMBER, 1);
   connection_id = TestConnectionId(++conn_id);
   EXPECT_CALL(*dispatcher_, CreateQuicSession(connection_id, client_address,

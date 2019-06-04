@@ -844,7 +844,7 @@ void QuicDispatcher::StatelesslyTerminateConnection(
   termination_packets.push_back(QuicFramer::BuildVersionNegotiationPacket(
       server_connection_id, EmptyQuicConnectionId(),
       /*ietf_quic=*/format != GOOGLE_QUIC_PACKET,
-      ParsedQuicVersionVector{UnsupportedQuicVersion()}));
+      ParsedQuicVersionVector{QuicVersionReservedForNegotiation()}));
   if (format == GOOGLE_QUIC_PACKET) {
     QUIC_RELOADABLE_FLAG_COUNT_N(quic_terminate_gquic_connection_as_ietf, 2, 2);
   }

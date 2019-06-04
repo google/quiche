@@ -71,8 +71,8 @@ QuicVersionLabel CreateQuicVersionLabel(ParsedQuicVersion parsed_version) {
       proto = 'T';
       break;
     default:
-      QUIC_LOG(ERROR) << "Invalid HandshakeProtocol: "
-                      << parsed_version.handshake_protocol;
+      QUIC_BUG << "Invalid HandshakeProtocol: "
+               << parsed_version.handshake_protocol;
       return 0;
   }
   switch (parsed_version.transport_version) {
@@ -94,10 +94,10 @@ QuicVersionLabel CreateQuicVersionLabel(ParsedQuicVersion parsed_version) {
     case QUIC_VERSION_RESERVED_FOR_NEGOTIATION:
       return MakeVersionLabel(0xda, 0x5a, 0x3a, 0x3a);
     default:
-      // This shold be an ERROR because we should never attempt to convert an
-      // invalid QuicTransportVersion to be written to the wire.
-      QUIC_LOG(ERROR) << "Unsupported QuicTransportVersion: "
-                      << parsed_version.transport_version;
+      // This is a bug because we should never attempt to convert an invalid
+      // QuicTransportVersion to be written to the wire.
+      QUIC_BUG << "Unsupported QuicTransportVersion: "
+               << parsed_version.transport_version;
       return 0;
   }
 }
@@ -341,6 +341,9 @@ std::string QuicVersionToString(QuicTransportVersion transport_version) {
 }
 
 std::string ParsedQuicVersionToString(ParsedQuicVersion version) {
+  if (version == UnsupportedQuicVersion()) {
+    return "0";
+  }
   return QuicVersionLabelToString(CreateQuicVersionLabel(version));
 }
 

@@ -1572,7 +1572,10 @@ bool QuicFramer::ProcessVersionNegotiationPacket(
           DroppedPacketReason::INVALID_VERSION_NEGOTIATION_PACKET);
       return RaiseError(QUIC_INVALID_VERSION_NEGOTIATION_PACKET);
     }
-    packet.versions.push_back(ParseQuicVersionLabel(version_label));
+    ParsedQuicVersion parsed_version = ParseQuicVersionLabel(version_label);
+    if (parsed_version != UnsupportedQuicVersion()) {
+      packet.versions.push_back(parsed_version);
+    }
   } while (!reader->IsDoneReading());
 
   QUIC_DLOG(INFO) << ENDPOINT << "parsed version negotiation: "

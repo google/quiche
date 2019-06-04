@@ -5,6 +5,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 
 #include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_expect_bug.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_mock_log.h"
@@ -47,18 +48,8 @@ TEST_F(QuicVersionsTest, QuicVersionToQuicVersionLabel) {
 }
 
 TEST_F(QuicVersionsTest, QuicVersionToQuicVersionLabelUnsupported) {
-  // TODO(rjshade): Change to DFATAL once we actually support multiple versions,
-  // and QuicConnectionTest::SendVersionNegotiationPacket can be changed to use
-  // mis-matched versions rather than relying on QUIC_VERSION_UNSUPPORTED.
-  CREATE_QUIC_MOCK_LOG(log);
-  log.StartCapturingLogs();
-
-  if (QUIC_LOG_ERROR_IS_ON()) {
-    EXPECT_QUIC_LOG_CALL_CONTAINS(log, ERROR,
-                                  "Unsupported QuicTransportVersion: 0");
-  }
-
-  EXPECT_EQ(0u, QuicVersionToQuicVersionLabel(QUIC_VERSION_UNSUPPORTED));
+  EXPECT_QUIC_BUG(QuicVersionToQuicVersionLabel(QUIC_VERSION_UNSUPPORTED),
+                  "Unsupported QuicTransportVersion: 0");
 }
 
 TEST_F(QuicVersionsTest, QuicVersionLabelToQuicTransportVersion) {
