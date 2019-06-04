@@ -1396,6 +1396,47 @@ TEST_P(QuicPacketCreatorTest, SerializeAndSendStreamFrame) {
   EXPECT_FALSE(creator_.HasPendingFrames());
 }
 
+TEST_P(QuicPacketCreatorTest, SerializeStreamFrameWithPadding) {
+  // Regression test to check that CreateAndSerializeStreamFrame uses a
+  // correctly formatted stream frame header when appending padding.
+
+  if (!GetParam().version_serialization) {
+    creator_.StopSendingVersion();
+  }
+  EXPECT_FALSE(creator_.HasPendingFrames());
+
+  // Send one byte of stream data.
+  MakeIOVector("a", &iov_);
+  producer_.SaveStreamData(
+      QuicUtils::GetHeadersStreamId(client_framer_.transport_version()), &iov_,
+      1u, 0u, iov_.iov_len);
+  EXPECT_CALL(delegate_, OnSerializedPacket(_))
+      .WillOnce(Invoke(this, &QuicPacketCreatorTest::SaveSerializedPacket));
+  size_t num_bytes_consumed;
+  creator_.CreateAndSerializeStreamFrame(
+      QuicUtils::GetHeadersStreamId(client_framer_.transport_version()),
+      iov_.iov_len, 0, 0, true, NOT_RETRANSMISSION, &num_bytes_consumed);
+  EXPECT_EQ(1u, num_bytes_consumed);
+
+  // Check that a packet is created.
+  ASSERT_TRUE(serialized_packet_.encrypted_buffer);
+  ASSERT_FALSE(serialized_packet_.retransmittable_frames.empty());
+  {
+    InSequence s;
+    EXPECT_CALL(framer_visitor_, OnPacket());
+    EXPECT_CALL(framer_visitor_, OnUnauthenticatedPublicHeader(_));
+    EXPECT_CALL(framer_visitor_, OnUnauthenticatedHeader(_));
+    EXPECT_CALL(framer_visitor_, OnDecryptedPacket(_));
+    EXPECT_CALL(framer_visitor_, OnPacketHeader(_));
+    EXPECT_CALL(framer_visitor_, OnStreamFrame(_));
+    if (client_framer_.version().HasHeaderProtection()) {
+      EXPECT_CALL(framer_visitor_, OnPaddingFrame(_));
+    }
+    EXPECT_CALL(framer_visitor_, OnPacketComplete());
+  }
+  ProcessPacket(serialized_packet_);
+}
+
 TEST_P(QuicPacketCreatorTest, AddUnencryptedStreamDataClosesConnection) {
   // EXPECT_QUIC_BUG tests are expensive so only run one instance of them.
   if (!IsDefaultTestConfiguration()) {

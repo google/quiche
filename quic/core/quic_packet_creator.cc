@@ -436,14 +436,25 @@ void QuicPacketCreator::CreateAndSerializeStreamFrame(
   QUIC_BUG_IF(iov_offset == write_length && !fin)
       << "Creating a stream frame with no data or fin.";
   const size_t remaining_data_size = write_length - iov_offset;
-  const size_t min_frame_size = QuicFramer::GetMinStreamFrameSize(
+  size_t min_frame_size = QuicFramer::GetMinStreamFrameSize(
       framer_->transport_version(), id, stream_offset,
       /* last_frame_in_packet= */ true, remaining_data_size);
-  const size_t available_size =
+  size_t available_size =
       max_plaintext_size_ - writer.length() - min_frame_size;
-  const size_t bytes_consumed =
-      std::min<size_t>(available_size, remaining_data_size);
-  const size_t plaintext_bytes_written = min_frame_size + bytes_consumed;
+  size_t bytes_consumed = std::min<size_t>(available_size, remaining_data_size);
+  size_t plaintext_bytes_written = min_frame_size + bytes_consumed;
+  bool needs_padding = false;
+  if (plaintext_bytes_written < MinPlaintextPacketSize(framer_->version())) {
+    needs_padding = true;
+    // Recalculate sizes with the stream frame not being marked as the last
+    // frame in the packet.
+    min_frame_size = QuicFramer::GetMinStreamFrameSize(
+        framer_->transport_version(), id, stream_offset,
+        /* last_frame_in_packet= */ false, remaining_data_size);
+    available_size = max_plaintext_size_ - writer.length() - min_frame_size;
+    bytes_consumed = std::min<size_t>(available_size, remaining_data_size);
+    plaintext_bytes_written = min_frame_size + bytes_consumed;
+  }
 
   const bool set_fin = fin && (bytes_consumed == remaining_data_size);
   QuicStreamFrame frame(id, set_fin, stream_offset, bytes_consumed);
@@ -454,17 +465,17 @@ void QuicPacketCreator::CreateAndSerializeStreamFrame(
 
   // TODO(ianswett): AppendTypeByte and AppendStreamFrame could be optimized
   // into one method that takes a QuicStreamFrame, if warranted.
-  if (!framer_->AppendTypeByte(QuicFrame(frame),
-                               /* no stream frame length */ true, &writer)) {
+  bool omit_frame_length = !needs_padding;
+  if (!framer_->AppendTypeByte(QuicFrame(frame), omit_frame_length, &writer)) {
     QUIC_BUG << "AppendTypeByte failed";
     return;
   }
-  if (!framer_->AppendStreamFrame(frame, /* no stream frame length */ true,
-                                  &writer)) {
+  if (!framer_->AppendStreamFrame(frame, omit_frame_length, &writer)) {
     QUIC_BUG << "AppendStreamFrame failed";
     return;
   }
-  if (plaintext_bytes_written < MinPlaintextPacketSize(framer_->version()) &&
+  if (needs_padding &&
+      plaintext_bytes_written < MinPlaintextPacketSize(framer_->version()) &&
       !writer.WritePaddingBytes(MinPlaintextPacketSize(framer_->version()) -
                                 plaintext_bytes_written)) {
     QUIC_BUG << "Unable to add padding bytes";
