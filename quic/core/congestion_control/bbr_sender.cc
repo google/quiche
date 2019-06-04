@@ -369,10 +369,13 @@ void BbrSender::AdjustNetworkParameters(QuicBandwidth bandwidth,
       // Only decrease cwnd if allow_cwnd_to_decrease is true.
       return;
     }
-    // Decreases cwnd gain and pacing gain. Please note, if pacing_rate_ has
-    // been calculated, it cannot decrease in STARTUP phase.
-    set_high_gain(kDerivedHighCWNDGain);
-    set_high_cwnd_gain(kDerivedHighCWNDGain);
+    if (GetQuicReloadableFlag(quic_conservative_cwnd_and_pacing_gains)) {
+      // Decreases cwnd gain and pacing gain. Please note, if pacing_rate_ has
+      // been calculated, it cannot decrease in STARTUP phase.
+      QUIC_RELOADABLE_FLAG_COUNT(quic_conservative_cwnd_and_pacing_gains);
+      set_high_gain(kDerivedHighCWNDGain);
+      set_high_cwnd_gain(kDerivedHighCWNDGain);
+    }
     congestion_window_ = new_cwnd;
   }
 }
