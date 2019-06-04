@@ -358,6 +358,14 @@ void BbrSender::AdjustNetworkParameters(QuicBandwidth bandwidth,
         std::max(kMinInitialCongestionWindow * kDefaultTCPMSS,
                  std::min(kMaxInitialCongestionWindow * kDefaultTCPMSS,
                           bandwidth * rtt_stats_->SmoothedOrInitialRtt()));
+    if (!rtt_stats_->smoothed_rtt().IsZero()) {
+      QUIC_CODE_COUNT(quic_smoothed_rtt_available);
+    } else if (rtt_stats_->initial_rtt() !=
+               QuicTime::Delta::FromMilliseconds(kInitialRttMs)) {
+      QUIC_CODE_COUNT(quic_client_initial_rtt_available);
+    } else {
+      QUIC_CODE_COUNT(quic_default_initial_rtt);
+    }
     if (new_cwnd > congestion_window_) {
       QUIC_RELOADABLE_FLAG_COUNT_N(quic_fix_bbr_cwnd_in_bandwidth_resumption, 1,
                                    3);

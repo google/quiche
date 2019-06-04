@@ -14,8 +14,6 @@ namespace quic {
 
 namespace {
 
-// Default initial rtt used before any samples are received.
-const int kInitialRttMs = 100;
 const float kAlpha = 0.125f;
 const float kOneMinusAlpha = (1 - kAlpha);
 const float kBeta = 0.25f;

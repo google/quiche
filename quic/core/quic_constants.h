@@ -236,6 +236,9 @@ const size_t kMinRandomBytesLengthInStatelessReset = 24;
 // Maximum length allowed for the token in a NEW_TOKEN frame.
 const size_t kMaxNewTokenTokenLength = 0xffff;
 
+// Default initial rtt used before any samples are received.
+const int kInitialRttMs = 100;
+
 // Packet number of first sending packet of a connection. Please note, this
 // cannot be used as first received packet because peer can choose its starting
 // packet number.
