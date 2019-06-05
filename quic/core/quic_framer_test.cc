@@ -1017,6 +1017,73 @@ TEST_P(QuicFramerTest, LongPacketHeaderWithBothConnectionIds) {
   EXPECT_EQ(FramerTestConnectionIdPlusOne(), source_connection_id);
 }
 
+TEST_P(QuicFramerTest, ClientConnectionIdFromShortHeaderToClient) {
+  SetQuicRestartFlag(quic_do_not_override_connection_id, true);
+  if (!framer_.version().SupportsClientConnectionIds()) {
+    return;
+  }
+  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
+  QuicFramerPeer::SetLastSerializedServerConnectionId(&framer_,
+                                                      TestConnectionId(0x33));
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
+  framer_.SetExpectedClientConnectionIdLength(kQuicDefaultConnectionIdLength);
+  // clang-format off
+  unsigned char packet[] = {
+    // type (short header, 4 byte packet number)
+    0x43,
+    // connection_id
+    0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+    // packet number
+    0x13, 0x37, 0x42, 0x33,
+    // padding frame
+    0x00,
+  };
+  // clang-format on
+  QuicEncryptedPacket encrypted(AsChars(packet), QUIC_ARRAYSIZE(packet), false);
+  EXPECT_TRUE(framer_.ProcessPacket(encrypted));
+  EXPECT_EQ(QUIC_NO_ERROR, framer_.error());
+  EXPECT_EQ("", framer_.detailed_error());
+  ASSERT_TRUE(visitor_.header_.get());
+  EXPECT_EQ(FramerTestConnectionId(),
+            visitor_.header_->destination_connection_id);
+  EXPECT_EQ(TestConnectionId(0x33), visitor_.header_->source_connection_id);
+}
+
+// In short header packets from client to server, the client connection ID
+// is omitted, but the framer adds it to the header struct using its
+// last serialized client connection ID. This test ensures that this
+// mechanism behaves as expected.
+TEST_P(QuicFramerTest, ClientConnectionIdFromShortHeaderToServer) {
+  SetQuicRestartFlag(quic_do_not_override_connection_id, true);
+  if (!framer_.version().SupportsClientConnectionIds()) {
+    return;
+  }
+  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
+  QuicFramerPeer::SetLastSerializedClientConnectionId(&framer_,
+                                                      TestConnectionId(0x33));
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_SERVER);
+  // clang-format off
+  unsigned char packet[] = {
+    // type (short header, 4 byte packet number)
+    0x43,
+    // connection_id
+    0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+    // packet number
+    0x13, 0x37, 0x42, 0x33,
+    // padding frame
+    0x00,
+  };
+  // clang-format on
+  QuicEncryptedPacket encrypted(AsChars(packet), QUIC_ARRAYSIZE(packet), false);
+  EXPECT_TRUE(framer_.ProcessPacket(encrypted));
+  EXPECT_EQ(QUIC_NO_ERROR, framer_.error());
+  EXPECT_EQ("", framer_.detailed_error());
+  ASSERT_TRUE(visitor_.header_.get());
+  EXPECT_EQ(FramerTestConnectionId(),
+            visitor_.header_->destination_connection_id);
+  EXPECT_EQ(TestConnectionId(0x33), visitor_.header_->source_connection_id);
+}
+
 TEST_P(QuicFramerTest, PacketHeaderWith0ByteConnectionId) {
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
   QuicFramerPeer::SetLastSerializedServerConnectionId(&framer_,
@@ -12188,24 +12255,21 @@ TEST_P(QuicFramerTest, ParseServerVersionNegotiationProbeResponse) {
       parsed_probe_payload_bytes, parsed_probe_payload_length);
 }
 
-TEST_P(QuicFramerTest, ClientConnectionIdNotSupportedYet) {
-  if (GetQuicRestartFlag(quic_do_not_override_connection_id)) {
-    // This check is currently only performed when this flag is disabled.
-    return;
-  }
+TEST_P(QuicFramerTest, ClientConnectionIdFromLongHeaderToClient) {
   if (framer_.transport_version() <= QUIC_VERSION_43) {
     // This test requires an IETF long header.
     return;
   }
+  SetDecrypterLevel(ENCRYPTION_HANDSHAKE);
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
   // clang-format off
   unsigned char packet[] = {
-    // public flags (long header with packet type ZERO_RTT_PROTECTED and
+    // public flags (long header with packet type HANDSHAKE and
     // 4-byte packet number)
-      0xD3,
+    0xE3,
     // version
     QUIC_VERSION_BYTES,
-    // destination connection ID length
+    // connection ID lengths
     0x50,
     // destination connection ID
     0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
@@ -12217,16 +12281,80 @@ TEST_P(QuicFramerTest, ClientConnectionIdNotSupportedYet) {
     0x00,
   };
   // clang-format on
-  EXPECT_FALSE(framer_.ProcessPacket(
-      QuicEncryptedPacket(AsChars(packet), QUIC_ARRAYSIZE(packet), false)));
-  EXPECT_EQ(QUIC_INVALID_PACKET_HEADER, framer_.error());
+  const bool parse_success = framer_.ProcessPacket(
+      QuicEncryptedPacket(AsChars(packet), QUIC_ARRAYSIZE(packet), false));
   if (!QuicUtils::VariableLengthConnectionIdAllowedForVersion(
           framer_.transport_version())) {
+    EXPECT_FALSE(parse_success);
+    EXPECT_EQ(QUIC_INVALID_PACKET_HEADER, framer_.error());
     EXPECT_EQ("Invalid ConnectionId length.", framer_.detailed_error());
-  } else {
+    return;
+  }
+  if (!GetQuicRestartFlag(quic_do_not_override_connection_id)) {
+    // When the flag is disabled we expect processing to fail.
+    EXPECT_FALSE(parse_success);
+    EXPECT_EQ(QUIC_INVALID_PACKET_HEADER, framer_.error());
     EXPECT_EQ("Client connection ID not supported yet.",
               framer_.detailed_error());
+    return;
   }
+  EXPECT_TRUE(parse_success);
+  EXPECT_EQ(QUIC_NO_ERROR, framer_.error());
+  EXPECT_EQ("", framer_.detailed_error());
+  ASSERT_TRUE(visitor_.header_.get());
+  EXPECT_EQ(FramerTestConnectionId(),
+            visitor_.header_.get()->destination_connection_id);
+}
+
+TEST_P(QuicFramerTest, ClientConnectionIdFromLongHeaderToServer) {
+  if (framer_.transport_version() <= QUIC_VERSION_43) {
+    // This test requires an IETF long header.
+    return;
+  }
+  SetDecrypterLevel(ENCRYPTION_HANDSHAKE);
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_SERVER);
+  // clang-format off
+  unsigned char packet[] = {
+    // public flags (long header with packet type HANDSHAKE and
+    // 4-byte packet number)
+    0xE3,
+    // version
+    QUIC_VERSION_BYTES,
+    // connection ID lengths
+    0x05,
+    // source connection ID
+    0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+    // long header packet length
+    0x05,
+    // packet number
+    0x12, 0x34, 0x56, 0x00,
+    // padding frame
+    0x00,
+  };
+  // clang-format on
+  const bool parse_success = framer_.ProcessPacket(
+      QuicEncryptedPacket(AsChars(packet), QUIC_ARRAYSIZE(packet), false));
+  if (!QuicUtils::VariableLengthConnectionIdAllowedForVersion(
+          framer_.transport_version())) {
+    EXPECT_FALSE(parse_success);
+    EXPECT_EQ(QUIC_INVALID_PACKET_HEADER, framer_.error());
+    EXPECT_EQ("Invalid ConnectionId length.", framer_.detailed_error());
+    return;
+  }
+  if (!framer_.version().SupportsClientConnectionIds() &&
+      GetQuicRestartFlag(quic_do_not_override_connection_id)) {
+    EXPECT_FALSE(parse_success);
+    EXPECT_EQ(QUIC_INVALID_PACKET_HEADER, framer_.error());
+    EXPECT_EQ("Client connection ID not supported in this version.",
+              framer_.detailed_error());
+    return;
+  }
+  EXPECT_TRUE(parse_success);
+  EXPECT_EQ(QUIC_NO_ERROR, framer_.error());
+  EXPECT_EQ("", framer_.detailed_error());
+  ASSERT_TRUE(visitor_.header_.get());
+  EXPECT_EQ(FramerTestConnectionId(),
+            visitor_.header_.get()->source_connection_id);
 }
 
 TEST_P(QuicFramerTest, ProcessAndValidateIetfConnectionIdLengthClient) {

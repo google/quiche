@@ -472,8 +472,9 @@ bool QuicDispatcher::OnUnauthenticatedPublicHeader(
           current_packet_->length() >= kMinPacketSizeForVersionNegotiation) {
         // Since the version is not supported, send a version negotiation
         // packet and stop processing the current packet.
+        QuicConnectionId client_connection_id = header.source_connection_id;
         time_wait_list_manager()->SendVersionNegotiationPacket(
-            server_connection_id, EmptyQuicConnectionId(),
+            server_connection_id, client_connection_id,
             header.form != GOOGLE_QUIC_PACKET, GetSupportedVersions(),
             current_self_address_, current_peer_address_,
             GetPerPacketContext());

@@ -130,6 +130,7 @@ void QuicClientBase::StartConnect() {
                          can_reconnect_with_different_version
                              ? ParsedQuicVersionVector{mutual_version}
                              : supported_versions()));
+  session()->connection()->set_client_connection_id(GetClientConnectionId());
   if (initial_max_packet_length_ != 0) {
     session()->connection()->SetMaxPacketLength(initial_max_packet_length_);
   }
@@ -323,6 +324,10 @@ QuicConnectionId QuicClientBase::GetNextServerDesignatedConnectionId() {
 
 QuicConnectionId QuicClientBase::GenerateNewConnectionId() {
   return QuicUtils::CreateRandomConnectionId();
+}
+
+QuicConnectionId QuicClientBase::GetClientConnectionId() {
+  return EmptyQuicConnectionId();
 }
 
 bool QuicClientBase::CanReconnectWithDifferentVersion(

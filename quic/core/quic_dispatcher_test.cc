@@ -238,64 +238,82 @@ class QuicDispatcherTest : public QuicTest {
   // 6 byte packet number, default path id, and packet number 1,
   // using the first supported version.
   void ProcessPacket(QuicSocketAddress peer_address,
-                     QuicConnectionId connection_id,
+                     QuicConnectionId server_connection_id,
                      bool has_version_flag,
                      const std::string& data) {
-    ProcessPacket(peer_address, connection_id, has_version_flag, data,
+    ProcessPacket(peer_address, server_connection_id, has_version_flag, data,
                   CONNECTION_ID_PRESENT, PACKET_4BYTE_PACKET_NUMBER);
   }
 
   // Process a packet with a default path id, and packet number 1,
   // using the first supported version.
   void ProcessPacket(QuicSocketAddress peer_address,
-                     QuicConnectionId connection_id,
+                     QuicConnectionId server_connection_id,
                      bool has_version_flag,
                      const std::string& data,
-                     QuicConnectionIdIncluded connection_id_included,
+                     QuicConnectionIdIncluded server_connection_id_included,
                      QuicPacketNumberLength packet_number_length) {
-    ProcessPacket(peer_address, connection_id, has_version_flag, data,
-                  connection_id_included, packet_number_length, 1);
+    ProcessPacket(peer_address, server_connection_id, has_version_flag, data,
+                  server_connection_id_included, packet_number_length, 1);
   }
 
   // Process a packet using the first supported version.
   void ProcessPacket(QuicSocketAddress peer_address,
-                     QuicConnectionId connection_id,
+                     QuicConnectionId server_connection_id,
                      bool has_version_flag,
                      const std::string& data,
-                     QuicConnectionIdIncluded connection_id_included,
+                     QuicConnectionIdIncluded server_connection_id_included,
                      QuicPacketNumberLength packet_number_length,
                      uint64_t packet_number) {
-    ProcessPacket(peer_address, connection_id, has_version_flag,
+    ProcessPacket(peer_address, server_connection_id, has_version_flag,
                   CurrentSupportedVersions().front(), data,
-                  connection_id_included, packet_number_length, packet_number);
+                  server_connection_id_included, packet_number_length,
+                  packet_number);
   }
 
   // Processes a packet.
   void ProcessPacket(QuicSocketAddress peer_address,
-                     QuicConnectionId connection_id,
+                     QuicConnectionId server_connection_id,
                      bool has_version_flag,
                      ParsedQuicVersion version,
                      const std::string& data,
-                     QuicConnectionIdIncluded connection_id_included,
+                     QuicConnectionIdIncluded server_connection_id_included,
+                     QuicPacketNumberLength packet_number_length,
+                     uint64_t packet_number) {
+    ProcessPacket(peer_address, server_connection_id, EmptyQuicConnectionId(),
+                  has_version_flag, version, data,
+                  server_connection_id_included, CONNECTION_ID_ABSENT,
+                  packet_number_length, packet_number);
+  }
+
+  // Processes a packet.
+  void ProcessPacket(QuicSocketAddress peer_address,
+                     QuicConnectionId server_connection_id,
+                     QuicConnectionId client_connection_id,
+                     bool has_version_flag,
+                     ParsedQuicVersion version,
+                     const std::string& data,
+                     QuicConnectionIdIncluded server_connection_id_included,
+                     QuicConnectionIdIncluded client_connection_id_included,
                      QuicPacketNumberLength packet_number_length,
                      uint64_t packet_number) {
     ParsedQuicVersionVector versions(SupportedVersions(version));
     std::unique_ptr<QuicEncryptedPacket> packet(ConstructEncryptedPacket(
-        connection_id, EmptyQuicConnectionId(), has_version_flag, false,
-        packet_number, data, connection_id_included, CONNECTION_ID_ABSENT,
-        packet_number_length, &versions));
+        server_connection_id, client_connection_id, has_version_flag, false,
+        packet_number, data, server_connection_id_included,
+        client_connection_id_included, packet_number_length, &versions));
     std::unique_ptr<QuicReceivedPacket> received_packet(
         ConstructReceivedPacket(*packet, mock_helper_.GetClock()->Now()));
 
     if (ChloExtractor::Extract(*packet, versions, {}, nullptr,
-                               connection_id.length())) {
+                               server_connection_id.length())) {
       // Add CHLO packet to the beginning to be verified first, because it is
       // also processed first by new session.
-      data_connection_map_[connection_id].push_front(
+      data_connection_map_[server_connection_id].push_front(
           std::string(packet->data(), packet->length()));
     } else {
       // For non-CHLO, always append to last.
-      data_connection_map_[connection_id].push_back(
+      data_connection_map_[server_connection_id].push_back(
           std::string(packet->data(), packet->length()));
     }
     dispatcher_->ProcessPacket(server_address_, peer_address, *received_packet);
@@ -484,8 +502,9 @@ TEST_F(QuicDispatcherTest, StatelessVersionNegotiation) {
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
 
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _)).Times(0);
-  EXPECT_CALL(*time_wait_list_manager_,
-              SendVersionNegotiationPacket(_, _, _, _, _, _, _))
+  EXPECT_CALL(
+      *time_wait_list_manager_,
+      SendVersionNegotiationPacket(TestConnectionId(1), _, _, _, _, _, _))
       .Times(1);
   // Pad the CHLO message with enough data to make the packet large enough
   // to trigger version negotiation.
@@ -494,6 +513,26 @@ TEST_F(QuicDispatcherTest, StatelessVersionNegotiation) {
   ProcessPacket(client_address, TestConnectionId(1), true,
                 QuicVersionReservedForNegotiation(), chlo,
                 CONNECTION_ID_PRESENT, PACKET_4BYTE_PACKET_NUMBER, 1);
+}
+
+TEST_F(QuicDispatcherTest, StatelessVersionNegotiationWithClientConnectionId) {
+  SetQuicRestartFlag(quic_do_not_override_connection_id, true);
+  CreateTimeWaitListManager();
+  QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
+
+  EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _)).Times(0);
+  EXPECT_CALL(*time_wait_list_manager_,
+              SendVersionNegotiationPacket(TestConnectionId(1),
+                                           TestConnectionId(2), _, _, _, _, _))
+      .Times(1);
+  // Pad the CHLO message with enough data to make the packet large enough
+  // to trigger version negotiation.
+  std::string chlo = SerializeCHLO() + std::string(1200, 'a');
+  DCHECK_LE(1200u, chlo.length());
+  ProcessPacket(client_address, TestConnectionId(1), TestConnectionId(2), true,
+                QuicVersionReservedForNegotiation(), chlo,
+                CONNECTION_ID_PRESENT, CONNECTION_ID_PRESENT,
+                PACKET_4BYTE_PACKET_NUMBER, 1);
 }
 
 TEST_F(QuicDispatcherTest, NoVersionNegotiationWithSmallPacket) {

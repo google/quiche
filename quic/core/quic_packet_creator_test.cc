@@ -1916,6 +1916,18 @@ TEST_P(QuicPacketCreatorTest, GetConnectionId) {
   EXPECT_EQ(EmptyQuicConnectionId(), creator_.GetSourceConnectionId());
 }
 
+TEST_P(QuicPacketCreatorTest, ClientConnectionId) {
+  SetQuicRestartFlag(quic_do_not_override_connection_id, true);
+  if (!client_framer_.version().SupportsClientConnectionIds()) {
+    return;
+  }
+  EXPECT_EQ(TestConnectionId(2), creator_.GetDestinationConnectionId());
+  EXPECT_EQ(EmptyQuicConnectionId(), creator_.GetSourceConnectionId());
+  creator_.SetClientConnectionId(TestConnectionId(0x33));
+  EXPECT_EQ(TestConnectionId(2), creator_.GetDestinationConnectionId());
+  EXPECT_EQ(TestConnectionId(0x33), creator_.GetSourceConnectionId());
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

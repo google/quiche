@@ -588,6 +588,14 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
     return expected_server_connection_id_length_;
   }
 
+  // Change the expected destination connection ID length for short headers on
+  // the client.
+  void SetExpectedClientConnectionIdLength(
+      uint8_t expected_client_connection_id_length) {
+    expected_client_connection_id_length_ =
+        expected_client_connection_id_length;
+  }
+
   void EnableMultiplePacketNumberSpacesSupport();
 
   // Writes an array of bytes that, if sent as a UDP datagram, will trigger
@@ -967,6 +975,8 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   QuicPacketNumber largest_decrypted_packet_numbers_[NUM_PACKET_NUMBER_SPACES];
   // Last server connection ID seen on the wire.
   QuicConnectionId last_serialized_server_connection_id_;
+  // Last client connection ID seen on the wire.
+  QuicConnectionId last_serialized_client_connection_id_;
   // The last QUIC version label received.
   // TODO(fayang): Remove this when deprecating
   // quic_no_framer_object_in_dispatcher.
@@ -1021,10 +1031,11 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   bool infer_packet_header_type_from_version_;
 
   // IETF short headers contain a destination connection ID but do not
-  // encode its length. This variable contains the length we expect to read.
-  // This is also used to validate the long header connection ID lengths in
-  // older versions of QUIC.
+  // encode its length. These variables contains the length we expect to read.
+  // This is also used to validate the long header destination connection ID
+  // lengths in older versions of QUIC.
   uint8_t expected_server_connection_id_length_;
+  uint8_t expected_client_connection_id_length_;
 
   // When this is true, QuicFramer will change
   // expected_server_connection_id_length_ to the received destination

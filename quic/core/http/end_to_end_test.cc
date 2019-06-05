@@ -212,6 +212,7 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
         stream_factory_(nullptr),
         support_server_push_(false),
         override_server_connection_id_(nullptr),
+        override_client_connection_id_(nullptr),
         expected_server_connection_id_length_(kQuicDefaultConnectionIdLength) {
     SetQuicFlag(FLAGS_quic_supports_tls_handshake, true);
     SetQuicRestartFlag(quic_no_server_conn_ver_negotiation2, true);
@@ -261,6 +262,9 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     }
     if (override_server_connection_id_ != nullptr) {
       client->UseConnectionId(*override_server_connection_id_);
+    }
+    if (override_client_connection_id_ != nullptr) {
+      client->UseClientConnectionId(*override_client_connection_id_);
     }
     client->Connect();
     return client;
@@ -541,6 +545,7 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
   std::string pre_shared_key_client_;
   std::string pre_shared_key_server_;
   QuicConnectionId* override_server_connection_id_;
+  QuicConnectionId* override_client_connection_id_;
   uint8_t expected_server_connection_id_length_;
 };
 
@@ -639,6 +644,43 @@ TEST_P(EndToEndTest, BadConnectionIdLength) {
                                                 ->connection()
                                                 ->connection_id()
                                                 .length());
+}
+
+TEST_P(EndToEndTest, ClientConnectionId) {
+  if (!GetParam().negotiated_version.SupportsClientConnectionIds()) {
+    ASSERT_TRUE(Initialize());
+    return;
+  }
+  QuicConnectionId client_connection_id =
+      TestConnectionId(UINT64_C(0xc1c2c3c4c5c6c7c8));
+  override_client_connection_id_ = &client_connection_id;
+  ASSERT_TRUE(Initialize());
+  EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
+  EXPECT_EQ("200", client_->response_headers()->find(":status")->second);
+  EXPECT_EQ(client_connection_id, client_->client()
+                                      ->client_session()
+                                      ->connection()
+                                      ->client_connection_id());
+}
+
+TEST_P(EndToEndTest, ForcedVersionNegotiationAndClientConnectionId) {
+  if (!GetParam().negotiated_version.SupportsClientConnectionIds()) {
+    ASSERT_TRUE(Initialize());
+    return;
+  }
+  client_supported_versions_.insert(client_supported_versions_.begin(),
+                                    QuicVersionReservedForNegotiation());
+  QuicConnectionId client_connection_id =
+      TestConnectionId(UINT64_C(0xc1c2c3c4c5c6c7c8));
+  override_client_connection_id_ = &client_connection_id;
+  ASSERT_TRUE(Initialize());
+  ASSERT_TRUE(ServerSendsVersionNegotiation());
+  EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
+  EXPECT_EQ("200", client_->response_headers()->find(":status")->second);
+  EXPECT_EQ(client_connection_id, client_->client()
+                                      ->client_session()
+                                      ->connection()
+                                      ->client_connection_id());
 }
 
 TEST_P(EndToEndTest, ForcedVersionNegotiationAndBadConnectionIdLength) {

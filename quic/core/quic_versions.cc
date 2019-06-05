@@ -51,9 +51,12 @@ bool ParsedQuicVersion::SupportsRetry() const {
 }
 
 bool ParsedQuicVersion::SupportsClientConnectionIds() const {
-  // This will be enabled in v99 after the rest of the client connection ID
-  // code lands.
-  return false;
+  if (!GetQuicRestartFlag(quic_do_not_override_connection_id)) {
+    // Do not enable this feature in a production version until this flag has
+    // been deprecated.
+    return false;
+  }
+  return transport_version >= QUIC_VERSION_99;
 }
 
 std::ostream& operator<<(std::ostream& os, const ParsedQuicVersion& version) {

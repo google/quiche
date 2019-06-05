@@ -588,4 +588,9 @@ void QuicPacketGenerator::SetServerConnectionId(
   packet_creator_.SetServerConnectionId(server_connection_id);
 }
 
+void QuicPacketGenerator::SetClientConnectionId(
+    QuicConnectionId client_connection_id) {
+  packet_creator_.SetClientConnectionId(client_connection_id);
+}
+
 }  // namespace quic

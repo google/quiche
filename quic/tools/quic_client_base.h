@@ -268,6 +268,9 @@ class QuicClientBase {
   // connection ID).
   virtual QuicConnectionId GenerateNewConnectionId();
 
+  // Returns the client connection ID to use.
+  virtual QuicConnectionId GetClientConnectionId();
+
   QuicAlarmFactory* alarm_factory() { return alarm_factory_.get(); }
 
   // Subclasses may need to explicitly clear the session on destruction

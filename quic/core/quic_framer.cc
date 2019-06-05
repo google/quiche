@@ -453,6 +453,7 @@ QuicFramer::QuicFramer(const ParsedQuicVersionVector& supported_versions,
     : visitor_(nullptr),
       error_(QUIC_NO_ERROR),
       last_serialized_server_connection_id_(EmptyQuicConnectionId()),
+      last_serialized_client_connection_id_(EmptyQuicConnectionId()),
       last_version_label_(0),
       version_(PROTOCOL_UNSUPPORTED, QUIC_VERSION_UNSUPPORTED),
       supported_versions_(supported_versions),
@@ -470,6 +471,7 @@ QuicFramer::QuicFramer(const ParsedQuicVersionVector& supported_versions,
                                              Perspective::IS_CLIENT),
       expected_server_connection_id_length_(
           expected_server_connection_id_length),
+      expected_client_connection_id_length_(0),
       should_update_expected_server_connection_id_length_(false),
       supports_multiple_packet_number_spaces_(false),
       last_written_packet_number_length_(0) {
@@ -2168,6 +2170,10 @@ bool QuicFramer::AppendIetfPacketHeader(const QuicPacketHeader& header,
   }
 
   last_serialized_server_connection_id_ = server_connection_id;
+  if (version_.SupportsClientConnectionIds()) {
+    last_serialized_client_connection_id_ =
+        GetClientConnectionIdAsSender(header, perspective_);
+  }
 
   if (QuicVersionHasLongHeaderLengths(transport_version()) &&
       header.version_flag) {
@@ -2490,15 +2496,18 @@ bool QuicFramer::ProcessIetfHeaderTypeByte(QuicDataReader* reader,
   if (header->form == IETF_QUIC_LONG_HEADER_PACKET) {
     // Version is always present in long headers.
     header->version_flag = true;
-    // Long header packets received by client must include 8-byte source
-    // connection ID, and those received by server must include 8-byte
-    // destination connection ID.
+    // In versions that do not support client connection IDs, we mark the
+    // corresponding connection ID as absent.
     header->destination_connection_id_included =
-        perspective_ == Perspective::IS_CLIENT ? CONNECTION_ID_ABSENT
-                                               : CONNECTION_ID_PRESENT;
+        (perspective_ == Perspective::IS_SERVER ||
+         version_.SupportsClientConnectionIds())
+            ? CONNECTION_ID_PRESENT
+            : CONNECTION_ID_ABSENT;
     header->source_connection_id_included =
-        perspective_ == Perspective::IS_CLIENT ? CONNECTION_ID_PRESENT
-                                               : CONNECTION_ID_ABSENT;
+        (perspective_ == Perspective::IS_CLIENT ||
+         version_.SupportsClientConnectionIds())
+            ? CONNECTION_ID_PRESENT
+            : CONNECTION_ID_ABSENT;
     // Read version tag.
     QuicVersionLabel version_label;
     if (!ProcessVersionLabel(reader, &version_label)) {
@@ -2552,11 +2561,13 @@ bool QuicFramer::ProcessIetfHeaderTypeByte(QuicDataReader* reader,
   QUIC_DVLOG(1) << ENDPOINT << "Received IETF short header";
   // Version is not present in short headers.
   header->version_flag = false;
-  // Connection ID length depends on the perspective. Client does not expect
-  // destination connection ID, and server expects destination connection ID.
+  // In versions that do not support client connection IDs, the client will not
+  // receive destination connection IDs.
   header->destination_connection_id_included =
-      perspective_ == Perspective::IS_CLIENT ? CONNECTION_ID_ABSENT
-                                             : CONNECTION_ID_PRESENT;
+      (perspective_ == Perspective::IS_SERVER ||
+       version_.SupportsClientConnectionIds())
+          ? CONNECTION_ID_PRESENT
+          : CONNECTION_ID_ABSENT;
   header->source_connection_id_included = CONNECTION_ID_ABSENT;
   // TODO(fayang): remove version check when deprecating
   // quic_no_framer_object_in_dispatcher.
@@ -2644,11 +2655,15 @@ bool QuicFramer::ProcessIetfPacketHeader(QuicDataReader* reader,
 
   uint8_t destination_connection_id_length =
       header->destination_connection_id_included == CONNECTION_ID_PRESENT
-          ? expected_server_connection_id_length_
+          ? (perspective_ == Perspective::IS_SERVER
+                 ? expected_server_connection_id_length_
+                 : expected_client_connection_id_length_)
           : 0;
   uint8_t source_connection_id_length =
       header->source_connection_id_included == CONNECTION_ID_PRESENT
-          ? expected_server_connection_id_length_
+          ? (perspective_ == Perspective::IS_CLIENT
+                 ? expected_server_connection_id_length_
+                 : expected_client_connection_id_length_)
           : 0;
   if (header->form == IETF_QUIC_LONG_HEADER_PACKET) {
     if (!ProcessAndValidateIetfConnectionIdLength(
@@ -2694,8 +2709,17 @@ bool QuicFramer::ProcessIetfPacketHeader(QuicDataReader* reader,
   } else {
     QUIC_RESTART_FLAG_COUNT_N(quic_do_not_override_connection_id, 5, 5);
     if (header->source_connection_id_included == CONNECTION_ID_ABSENT) {
-      DCHECK_EQ(EmptyQuicConnectionId(), header->source_connection_id);
-      header->source_connection_id = last_serialized_server_connection_id_;
+      if (!header->source_connection_id.IsEmpty()) {
+        DCHECK(!version_.SupportsClientConnectionIds());
+        set_detailed_error(
+            "Client connection ID not supported in this version.");
+        return false;
+      }
+      if (perspective_ == Perspective::IS_CLIENT) {
+        header->source_connection_id = last_serialized_server_connection_id_;
+      } else {
+        header->source_connection_id = last_serialized_client_connection_id_;
+      }
     }
   }
 

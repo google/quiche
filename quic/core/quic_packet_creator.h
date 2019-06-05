@@ -228,6 +228,9 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // Update the server connection ID used in outgoing packets.
   void SetServerConnectionId(QuicConnectionId server_connection_id);
 
+  // Update the client connection ID used in outgoing packets.
+  void SetClientConnectionId(QuicConnectionId client_connection_id);
+
   // Sets the encryption level that will be applied to new packets.
   void set_encryption_level(EncryptionLevel level) {
     packet_.encryption_level = level;
@@ -407,6 +410,7 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // QuicEncryptedPacket has been flattened into SerializedPacket.
   size_t packet_size_;
   QuicConnectionId server_connection_id_;
+  QuicConnectionId client_connection_id_;
 
   // Packet used to invoke OnSerializedPacket.
   SerializedPacket packet_;

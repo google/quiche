@@ -8415,6 +8415,96 @@ TEST_P(QuicConnectionTest, CancelAckAlarmOnWriteBlocked) {
   EXPECT_FALSE(connection_.GetAckAlarm()->IsSet());
 }
 
+// Make sure a packet received with the right client connection ID is processed.
+TEST_P(QuicConnectionTest, ValidClientConnectionId) {
+  SetQuicRestartFlag(quic_do_not_override_connection_id, true);
+  if (!framer_.version().SupportsClientConnectionIds()) {
+    return;
+  }
+  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
+  connection_.set_client_connection_id(TestConnectionId(0x33));
+  QuicPacketHeader header = ConstructPacketHeader(1, ENCRYPTION_FORWARD_SECURE);
+  header.destination_connection_id = TestConnectionId(0x33);
+  header.destination_connection_id_included = CONNECTION_ID_PRESENT;
+  header.source_connection_id_included = CONNECTION_ID_ABSENT;
+  QuicFrames frames;
+  QuicPingFrame ping_frame;
+  QuicPaddingFrame padding_frame;
+  frames.push_back(QuicFrame(ping_frame));
+  frames.push_back(QuicFrame(padding_frame));
+  std::unique_ptr<QuicPacket> packet =
+      BuildUnsizedDataPacket(&framer_, header, frames);
+  char buffer[kMaxOutgoingPacketSize];
+  size_t encrypted_length = peer_framer_.EncryptPayload(
+      ENCRYPTION_FORWARD_SECURE, QuicPacketNumber(1), *packet, buffer,
+      kMaxOutgoingPacketSize);
+  QuicReceivedPacket received_packet(buffer, encrypted_length, clock_.Now(),
+                                     false);
+  EXPECT_EQ(0u, connection_.GetStats().packets_dropped);
+  ProcessReceivedPacket(kSelfAddress, kPeerAddress, received_packet);
+  EXPECT_EQ(0u, connection_.GetStats().packets_dropped);
+}
+
+// Make sure a packet received with a different client connection ID is dropped.
+TEST_P(QuicConnectionTest, InvalidClientConnectionId) {
+  SetQuicRestartFlag(quic_do_not_override_connection_id, true);
+  if (!framer_.version().SupportsClientConnectionIds()) {
+    return;
+  }
+  connection_.set_client_connection_id(TestConnectionId(0x33));
+  QuicPacketHeader header = ConstructPacketHeader(1, ENCRYPTION_FORWARD_SECURE);
+  header.destination_connection_id = TestConnectionId(0xbad);
+  header.destination_connection_id_included = CONNECTION_ID_PRESENT;
+  header.source_connection_id_included = CONNECTION_ID_ABSENT;
+  QuicFrames frames;
+  QuicPingFrame ping_frame;
+  QuicPaddingFrame padding_frame;
+  frames.push_back(QuicFrame(ping_frame));
+  frames.push_back(QuicFrame(padding_frame));
+  std::unique_ptr<QuicPacket> packet =
+      BuildUnsizedDataPacket(&framer_, header, frames);
+  char buffer[kMaxOutgoingPacketSize];
+  size_t encrypted_length = peer_framer_.EncryptPayload(
+      ENCRYPTION_FORWARD_SECURE, QuicPacketNumber(1), *packet, buffer,
+      kMaxOutgoingPacketSize);
+  QuicReceivedPacket received_packet(buffer, encrypted_length, clock_.Now(),
+                                     false);
+  EXPECT_EQ(0u, connection_.GetStats().packets_dropped);
+  ProcessReceivedPacket(kSelfAddress, kPeerAddress, received_packet);
+  EXPECT_EQ(1u, connection_.GetStats().packets_dropped);
+}
+
+// Make sure the first packet received with a different client connection ID on
+// the server is processed and it changes the client connection ID.
+TEST_P(QuicConnectionTest, UpdateClientConnectionIdFromFirstPacket) {
+  SetQuicRestartFlag(quic_do_not_override_connection_id, true);
+  if (!framer_.version().SupportsClientConnectionIds()) {
+    return;
+  }
+  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
+  set_perspective(Perspective::IS_SERVER);
+  QuicPacketHeader header = ConstructPacketHeader(1, ENCRYPTION_INITIAL);
+  header.source_connection_id = TestConnectionId(0x33);
+  header.source_connection_id_included = CONNECTION_ID_PRESENT;
+  QuicFrames frames;
+  QuicPingFrame ping_frame;
+  QuicPaddingFrame padding_frame;
+  frames.push_back(QuicFrame(ping_frame));
+  frames.push_back(QuicFrame(padding_frame));
+  std::unique_ptr<QuicPacket> packet =
+      BuildUnsizedDataPacket(&framer_, header, frames);
+  char buffer[kMaxOutgoingPacketSize];
+  size_t encrypted_length = peer_framer_.EncryptPayload(
+      ENCRYPTION_FORWARD_SECURE, QuicPacketNumber(1), *packet, buffer,
+      kMaxOutgoingPacketSize);
+  QuicReceivedPacket received_packet(buffer, encrypted_length, clock_.Now(),
+                                     false);
+  EXPECT_EQ(0u, connection_.GetStats().packets_dropped);
+  ProcessReceivedPacket(kSelfAddress, kPeerAddress, received_packet);
+  EXPECT_EQ(0u, connection_.GetStats().packets_dropped);
+  EXPECT_EQ(TestConnectionId(0x33), connection_.client_connection_id());
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

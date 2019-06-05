@@ -56,6 +56,8 @@ class MockableQuicClient : public QuicClient {
 
   QuicConnectionId GenerateNewConnectionId() override;
   void UseConnectionId(QuicConnectionId server_connection_id);
+  QuicConnectionId GetClientConnectionId() override;
+  void UseClientConnectionId(QuicConnectionId client_connection_id);
 
   void UseWriter(QuicPacketWriterWrapper* writer);
   void set_peer_address(const QuicSocketAddress& address);
@@ -72,6 +74,9 @@ class MockableQuicClient : public QuicClient {
   // Server connection ID to use, if server_connection_id_overridden_
   QuicConnectionId override_server_connection_id_;
   bool server_connection_id_overridden_;
+  // Client connection ID to use, if client_connection_id_overridden_
+  QuicConnectionId override_client_connection_id_;
+  bool client_connection_id_overridden_;
   CachedNetworkParameters cached_network_paramaters_;
 };
 
@@ -222,6 +227,9 @@ class QuicTestClient : public QuicSpdyStream::Visitor,
   // Configures client_ to use a specific server connection ID instead of a
   // random one.
   void UseConnectionId(QuicConnectionId server_connection_id);
+  // Configures client_ to use a specific client connection ID instead of an
+  // empty one.
+  void UseClientConnectionId(QuicConnectionId client_connection_id);
 
   // Returns nullptr if the maximum number of streams have already been created.
   QuicSpdyClientStream* GetOrCreateStream();

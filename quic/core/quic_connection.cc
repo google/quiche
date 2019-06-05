@@ -243,6 +243,8 @@ QuicConnection::QuicConnection(
       clock_(helper->GetClock()),
       random_generator_(helper->GetRandomGenerator()),
       server_connection_id_(server_connection_id),
+      client_connection_id_(EmptyQuicConnectionId()),
+      client_connection_id_is_set_(false),
       peer_address_(initial_peer_address),
       direct_peer_address_(initial_peer_address),
       active_effective_peer_migration_type_(NO_CHANGE),
@@ -830,30 +832,54 @@ bool QuicConnection::OnUnauthenticatedPublicHeader(
   QuicConnectionId server_connection_id =
       GetServerConnectionIdAsRecipient(header, perspective_);
 
-  if (server_connection_id == server_connection_id_ ||
-      HasIncomingConnectionId(server_connection_id)) {
+  if (server_connection_id != server_connection_id_ &&
+      !HasIncomingConnectionId(server_connection_id)) {
+    if (PacketCanReplaceConnectionId(header, perspective_)) {
+      QUIC_DLOG(INFO) << ENDPOINT << "Accepting packet with new connection ID "
+                      << server_connection_id << " instead of "
+                      << server_connection_id_;
+      return true;
+    }
+
+    ++stats_.packets_dropped;
+    QUIC_DLOG(INFO) << ENDPOINT
+                    << "Ignoring packet from unexpected server connection ID "
+                    << server_connection_id << " instead of "
+                    << server_connection_id_;
+    if (debug_visitor_ != nullptr) {
+      debug_visitor_->OnIncorrectConnectionId(server_connection_id);
+    }
+    // If this is a server, the dispatcher routes each packet to the
+    // QuicConnection responsible for the packet's connection ID.  So if control
+    // arrives here and this is a server, the dispatcher must be malfunctioning.
+    DCHECK_NE(Perspective::IS_SERVER, perspective_);
+    return false;
+  }
+
+  if (!version().SupportsClientConnectionIds()) {
     return true;
   }
 
-  if (PacketCanReplaceConnectionId(header, perspective_)) {
-    QUIC_DLOG(INFO) << ENDPOINT << "Accepting packet with new connection ID "
-                    << server_connection_id << " instead of "
-                    << server_connection_id_;
+  QuicConnectionId client_connection_id =
+      GetClientConnectionIdAsRecipient(header, perspective_);
+
+  if (client_connection_id == client_connection_id_) {
+    return true;
+  }
+
+  if (!client_connection_id_is_set_ && perspective_ == Perspective::IS_SERVER) {
+    QUIC_DLOG(INFO) << ENDPOINT
+                    << "Setting client connection ID from first packet to "
+                    << client_connection_id;
+    set_client_connection_id(client_connection_id);
     return true;
   }
 
   ++stats_.packets_dropped;
   QUIC_DLOG(INFO) << ENDPOINT
-                  << "Ignoring packet from unexpected ConnectionId: "
-                  << server_connection_id << " instead of "
-                  << server_connection_id_;
-  if (debug_visitor_ != nullptr) {
-    debug_visitor_->OnIncorrectConnectionId(server_connection_id);
-  }
-  // If this is a server, the dispatcher routes each packet to the
-  // QuicConnection responsible for the packet's connection ID.  So if control
-  // arrives here and this is a server, the dispatcher must be malfunctioning.
-  DCHECK_NE(Perspective::IS_SERVER, perspective_);
+                  << "Ignoring packet from unexpected client connection ID "
+                  << client_connection_id << " instead of "
+                  << client_connection_id_;
   return false;
 }
 
@@ -4257,6 +4283,24 @@ const QuicAckFrame& QuicConnection::ack_frame() const {
     return uber_received_packet_manager_.ack_frame();
   }
   return received_packet_manager_.ack_frame();
+}
+
+void QuicConnection::set_client_connection_id(
+    QuicConnectionId client_connection_id) {
+  if (!version().SupportsClientConnectionIds()) {
+    QUIC_BUG_IF(!client_connection_id.IsEmpty())
+        << ENDPOINT << "Attempted to use client connection ID "
+        << client_connection_id << " with unsupported version " << version();
+    return;
+  }
+  client_connection_id_ = client_connection_id;
+  client_connection_id_is_set_ = true;
+  QUIC_DLOG(INFO) << ENDPOINT << "setting client connection ID to "
+                  << client_connection_id_
+                  << " for connection with server connection ID "
+                  << server_connection_id_;
+  packet_generator_.SetClientConnectionId(client_connection_id_);
+  framer_.SetExpectedClientConnectionIdLength(client_connection_id_.length());
 }
 
 #undef ENDPOINT  // undef for jumbo builds

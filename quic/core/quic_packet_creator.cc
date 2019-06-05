@@ -75,6 +75,7 @@ QuicPacketCreator::QuicPacketCreator(QuicConnectionId server_connection_id,
       server_connection_id_included_(CONNECTION_ID_PRESENT),
       packet_size_(0),
       server_connection_id_(server_connection_id),
+      client_connection_id_(EmptyQuicConnectionId()),
       packet_(QuicPacketNumber(),
               PACKET_1BYTE_PACKET_NUMBER,
               nullptr,
@@ -636,7 +637,7 @@ QuicPacketCreator::SerializeVersionNegotiationPacket(
   DCHECK_EQ(Perspective::IS_SERVER, framer_->perspective());
   std::unique_ptr<QuicEncryptedPacket> encrypted =
       QuicFramer::BuildVersionNegotiationPacket(server_connection_id_,
-                                                EmptyQuicConnectionId(),
+                                                client_connection_id_,
                                                 ietf_quic, supported_versions);
   DCHECK(encrypted);
   DCHECK_GE(max_packet_length_, encrypted->length());
@@ -751,7 +752,7 @@ QuicConnectionId QuicPacketCreator::GetDestinationConnectionId() const {
   }
   QUIC_RESTART_FLAG_COUNT_N(quic_do_not_override_connection_id, 1, 5);
   if (framer_->perspective() == Perspective::IS_SERVER) {
-    return EmptyQuicConnectionId();
+    return client_connection_id_;
   }
   return server_connection_id_;
 }
@@ -762,7 +763,7 @@ QuicConnectionId QuicPacketCreator::GetSourceConnectionId() const {
   }
   QUIC_RESTART_FLAG_COUNT_N(quic_do_not_override_connection_id, 6, 6);
   if (framer_->perspective() == Perspective::IS_CLIENT) {
-    return EmptyQuicConnectionId();
+    return client_connection_id_;
   }
   return server_connection_id_;
 }
@@ -771,9 +772,10 @@ QuicConnectionIdIncluded QuicPacketCreator::GetDestinationConnectionIdIncluded()
     const {
   if (VersionHasIetfInvariantHeader(framer_->transport_version()) ||
       GetQuicRestartFlag(quic_do_not_override_connection_id)) {
-    // Packets sent by client always include destination connection ID, and
-    // those sent by the server do not include destination connection ID.
-    return framer_->perspective() == Perspective::IS_CLIENT
+    // In versions that do not support client connection IDs, the destination
+    // connection ID is only sent from client to server.
+    return (framer_->perspective() == Perspective::IS_CLIENT ||
+            framer_->version().SupportsClientConnectionIds())
                ? CONNECTION_ID_PRESENT
                : CONNECTION_ID_ABSENT;
   }
@@ -783,7 +785,11 @@ QuicConnectionIdIncluded QuicPacketCreator::GetDestinationConnectionIdIncluded()
 QuicConnectionIdIncluded QuicPacketCreator::GetSourceConnectionIdIncluded()
     const {
   // Long header packets sent by server include source connection ID.
-  if (HasIetfLongHeader() && framer_->perspective() == Perspective::IS_SERVER) {
+  // Ones sent by the client only include source connection ID if the version
+  // supports client connection IDs.
+  if (HasIetfLongHeader() &&
+      (framer_->perspective() == Perspective::IS_SERVER ||
+       framer_->version().SupportsClientConnectionIds())) {
     return CONNECTION_ID_PRESENT;
   }
   if (GetQuicRestartFlag(quic_do_not_override_connection_id) &&
@@ -1041,6 +1047,15 @@ void QuicPacketCreator::SetServerConnectionIdIncluded(
 void QuicPacketCreator::SetServerConnectionId(
     QuicConnectionId server_connection_id) {
   server_connection_id_ = server_connection_id;
+}
+
+void QuicPacketCreator::SetClientConnectionId(
+    QuicConnectionId client_connection_id) {
+  DCHECK(client_connection_id.IsEmpty() ||
+         framer_->version().SupportsClientConnectionIds());
+  DCHECK(client_connection_id.IsEmpty() ||
+         GetQuicRestartFlag(quic_do_not_override_connection_id));
+  client_connection_id_ = client_connection_id;
 }
 
 void QuicPacketCreator::SetTransmissionType(TransmissionType type) {

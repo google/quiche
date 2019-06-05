@@ -238,6 +238,9 @@ class QUIC_EXPORT_PRIVATE QuicPacketGenerator {
   // Update the server connection ID used in outgoing packets.
   void SetServerConnectionId(QuicConnectionId server_connection_id);
 
+  // Update the client connection ID used in outgoing packets.
+  void SetClientConnectionId(QuicConnectionId client_connection_id);
+
   void set_debug_delegate(QuicPacketCreator::DebugDelegate* debug_delegate) {
     packet_creator_.set_debug_delegate(debug_delegate);
   }
