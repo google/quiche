@@ -290,15 +290,12 @@ class CryptoServerTest : public QuicTestWithParam<TestParams> {
       bool should_succeed,
       const char* error_substr) {
     QuicSocketAddress server_address(QuicIpAddress::Any4(), 5);
-    QuicConnectionId server_designated_connection_id =
-        TestConnectionId(rand_for_id_generation_.RandUint64());
     bool called;
     config_.ProcessClientHello(
         result, /*reject_only=*/false,
         /*connection_id=*/TestConnectionId(1), server_address, client_address_,
-        supported_versions_.front(), supported_versions_,
-        /*use_stateless_rejects=*/false, server_designated_connection_id,
-        &clock_, rand_, &compressed_certs_cache_, params_, signed_config_,
+        supported_versions_.front(), supported_versions_, &clock_, rand_,
+        &compressed_certs_cache_, params_, signed_config_,
         /*total_framing_overhead=*/50, chlo_packet_size_,
         QuicMakeUnique<ProcessCallback>(result, should_succeed, error_substr,
                                         &called, &out_));

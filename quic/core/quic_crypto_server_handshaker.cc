@@ -405,13 +405,10 @@ void QuicCryptoServerHandshaker::ProcessClientHello(
   previous_source_address_tokens_ = result->info.source_address_tokens;
 
   QuicConnection* connection = session()->connection();
-  const QuicConnectionId server_designated_connection_id =
-      GenerateConnectionIdForReject(/*use_stateless_rejects=*/false);
   crypto_config_->ProcessClientHello(
       result, /*reject_only=*/false, connection->connection_id(),
       connection->self_address(), GetClientAddress(), connection->version(),
-      session()->supported_versions(), /*use_stateless_rejects=*/false,
-      server_designated_connection_id, connection->clock(),
+      session()->supported_versions(), connection->clock(),
       connection->random_generator(), compressed_certs_cache_,
       crypto_negotiated_params_, signed_config_,
       QuicCryptoStream::CryptoMessageFramingOverhead(
@@ -437,15 +434,6 @@ void QuicCryptoServerHandshaker::ValidateCallback::Run(
     parent_->FinishProcessingHandshakeMessage(std::move(result),
                                               std::move(details));
   }
-}
-
-QuicConnectionId QuicCryptoServerHandshaker::GenerateConnectionIdForReject(
-    bool use_stateless_rejects) {
-  if (!use_stateless_rejects) {
-    return EmptyQuicConnectionId();
-  }
-  return helper_->GenerateConnectionIdForReject(
-      transport_version(), session()->connection()->connection_id());
 }
 
 const QuicSocketAddress QuicCryptoServerHandshaker::GetClientAddress() {

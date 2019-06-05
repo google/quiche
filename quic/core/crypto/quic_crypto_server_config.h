@@ -338,10 +338,6 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
       const QuicSocketAddress& client_address,
       ParsedQuicVersion version,
       const ParsedQuicVersionVector& supported_versions,
-      // TODO(wub): Deprecate use_stateless_rejects and
-      // server_designated_connection_id.
-      bool use_stateless_rejects,
-      QuicConnectionId server_designated_connection_id,
       const QuicClock* clock,
       QuicRandom* rand,
       QuicCompressedCertsCache* compressed_certs_cache,
@@ -568,8 +564,6 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
         const QuicSocketAddress& client_address,
         ParsedQuicVersion version,
         const ParsedQuicVersionVector& supported_versions,
-        bool use_stateless_rejects,
-        QuicConnectionId server_designated_connection_id,
         const QuicClock* clock,
         QuicRandom* rand,
         QuicCompressedCertsCache* compressed_certs_cache,
@@ -585,8 +579,6 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
           client_address_(client_address),
           version_(version),
           supported_versions_(supported_versions),
-          use_stateless_rejects_(use_stateless_rejects),
-          server_designated_connection_id_(server_designated_connection_id),
           clock_(clock),
           rand_(rand),
           compressed_certs_cache_(compressed_certs_cache),
@@ -618,10 +610,6 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
     ParsedQuicVersion version() const { return version_; }
     ParsedQuicVersionVector supported_versions() const {
       return supported_versions_;
-    }
-    bool use_stateless_rejects() const { return use_stateless_rejects_; }
-    QuicConnectionId server_designated_connection_id() const {
-      return server_designated_connection_id_;
     }
     const QuicClock* clock() const { return clock_; }
     QuicRandom* rand() const { return rand_; }  // NOLINT
@@ -657,8 +645,6 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
     const QuicSocketAddress client_address_;
     const ParsedQuicVersion version_;
     const ParsedQuicVersionVector supported_versions_;
-    const bool use_stateless_rejects_;
-    const QuicConnectionId server_designated_connection_id_;
     const QuicClock* const clock_;
     QuicRandom* const rand_;
     QuicCompressedCertsCache* const compressed_certs_cache_;

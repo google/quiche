@@ -152,10 +152,6 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerHandshaker
   void FinishSendServerConfigUpdate(bool ok,
                                     const CryptoHandshakeMessage& message);
 
-  // Returns a new ConnectionId to be used for statelessly rejected connections
-  // if |use_stateless_rejects| is true. Returns 0 otherwise.
-  QuicConnectionId GenerateConnectionIdForReject(bool use_stateless_rejects);
-
   // Returns the QuicTransportVersion of the connection.
   QuicTransportVersion transport_version() const {
     return session_->connection()->transport_version();

@@ -126,7 +126,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerStream
     virtual ~Helper() {}
 
     // Given the current connection_id, generates a new ConnectionId to
-    // be returned with a stateless reject.
+    // be returned with a reject.
     virtual QuicConnectionId GenerateConnectionIdForReject(
         QuicTransportVersion version,
         QuicConnectionId connection_id) const = 0;
