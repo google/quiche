@@ -177,10 +177,6 @@ class QUIC_EXPORT_PRIVATE QuicCryptoConfig {
   // Authenticated encryption with associated data (AEAD) algorithms.
   QuicTagVector aead;
 
-  // Supported Token Binding key parameters that can be negotiated in the client
-  // hello.
-  QuicTagVector tb_key_params;
-
   const CommonCertSets* common_cert_sets;
 };
 

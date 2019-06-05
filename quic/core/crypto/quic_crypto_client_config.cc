@@ -575,24 +575,6 @@ QuicErrorCode QuicCryptoClientConfig::FillClientHello(
   out->SetVector(kAEAD, QuicTagVector{out_params->aead});
   out->SetVector(kKEXS, QuicTagVector{out_params->key_exchange});
 
-  if (!tb_key_params.empty() && !server_id.privacy_mode_enabled()) {
-    QuicTagVector their_tbkps;
-    switch (scfg->GetTaglist(kTBKP, &their_tbkps)) {
-      case QUIC_CRYPTO_MESSAGE_PARAMETER_NOT_FOUND:
-        break;
-      case QUIC_NO_ERROR:
-        if (FindMutualQuicTag(tb_key_params, their_tbkps,
-                              &out_params->token_binding_key_param, nullptr)) {
-          out->SetVector(kTBKP,
-                         QuicTagVector{out_params->token_binding_key_param});
-        }
-        break;
-      default:
-        *error_details = "Invalid TBKP";
-        return QUIC_INVALID_CRYPTO_MESSAGE_PARAMETER;
-    }
-  }
-
   QuicStringPiece public_value;
   if (scfg->GetNthValue24(kPUBS, key_exchange_index, &public_value) !=
       QUIC_NO_ERROR) {

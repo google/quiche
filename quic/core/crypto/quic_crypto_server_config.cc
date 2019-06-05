@@ -784,25 +784,6 @@ void QuicCryptoServerConfig::ProcessClientHelloAfterGetProof(
     return;
   }
 
-  if (!configs.requested->tb_key_params.empty()) {
-    QuicTagVector their_tbkps;
-    switch (context->client_hello().GetTaglist(kTBKP, &their_tbkps)) {
-      case QUIC_CRYPTO_MESSAGE_PARAMETER_NOT_FOUND:
-        break;
-      case QUIC_NO_ERROR:
-        if (FindMutualQuicTag(configs.requested->tb_key_params, their_tbkps,
-                              &context->params()->token_binding_key_param,
-                              nullptr)) {
-          break;
-        }
-        QUIC_FALLTHROUGH_INTENDED;
-      default:
-        context->Fail(QUIC_INVALID_CRYPTO_MESSAGE_PARAMETER,
-                      "Invalid Token Binding key parameter");
-        return;
-    }
-  }
-
   QuicStringPiece public_value;
   if (!context->client_hello().GetStringPiece(kPUBS, &public_value)) {
     context->Fail(QUIC_INVALID_CRYPTO_MESSAGE_PARAMETER,
@@ -1601,14 +1582,6 @@ QuicCryptoServerConfig::ParseConfigProtobuf(
   QuicTagVector kexs_tags;
   if (msg->GetTaglist(kKEXS, &kexs_tags) != QUIC_NO_ERROR) {
     QUIC_LOG(WARNING) << "Server config message is missing KEXS";
-    return nullptr;
-  }
-
-  QuicErrorCode err;
-  if ((err = msg->GetTaglist(kTBKP, &config->tb_key_params)) !=
-          QUIC_CRYPTO_MESSAGE_PARAMETER_NOT_FOUND &&
-      err != QUIC_NO_ERROR) {
-    QUIC_LOG(WARNING) << "Server config message is missing or has invalid TBKP";
     return nullptr;
   }
 

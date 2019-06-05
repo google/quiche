@@ -27,7 +27,7 @@ namespace quic {
 typedef std::string ServerConfigID;
 
 // The following tags have been deprecated and should not be reused:
-// "BBQ4", "RCID", "SREJ"
+// "BBQ4", "RCID", "SREJ", "TBKP", "TB10"
 
 // clang-format off
 const QuicTag kCHLO = TAG('C', 'H', 'L', 'O');   // Client hello
@@ -237,10 +237,6 @@ const QuicTag kCFCW = TAG('C', 'F', 'C', 'W');   // Initial session/connection
                                                  // flow control receive window.
 const QuicTag kUAID = TAG('U', 'A', 'I', 'D');   // Client's User Agent ID.
 const QuicTag kXLCT = TAG('X', 'L', 'C', 'T');   // Expected leaf certificate.
-const QuicTag kTBKP = TAG('T', 'B', 'K', 'P');   // Token Binding key params.
-
-// Token Binding tags
-const QuicTag kTB10 = TAG('T', 'B', '1', '0');   // TB draft 10 with P256.
 
 // Rejection tags
 const QuicTag kRREJ = TAG('R', 'R', 'E', 'J');   // Reasons for server sending
