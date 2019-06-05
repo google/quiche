@@ -5,6 +5,8 @@
 #ifndef QUICHE_QUIC_CORE_CRYPTO_QUIC_HKDF_H_
 #define QUICHE_QUIC_CORE_CRYPTO_QUIC_HKDF_H_
 
+#include <vector>
+
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 
