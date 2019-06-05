@@ -2094,6 +2094,10 @@ void QuicConnection::OnBlockedWriterCanWrite() {
 }
 
 void QuicConnection::OnCanWrite() {
+  if (GetQuicReloadableFlag(quic_check_connected_before_flush) && !connected_) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_check_connected_before_flush, 2, 2);
+    return;
+  }
   DCHECK(!writer_->IsWriteBlocked());
 
   // Add a flusher to ensure the connection is marked app-limited.
@@ -3457,6 +3461,11 @@ bool QuicConnection::ScopedPacketFlusher::ShouldSendAck(
 
 QuicConnection::ScopedPacketFlusher::~ScopedPacketFlusher() {
   if (connection_ == nullptr) {
+    return;
+  }
+  if (GetQuicReloadableFlag(quic_check_connected_before_flush) &&
+      !connection_->connected()) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_check_connected_before_flush, 1, 2);
     return;
   }
 

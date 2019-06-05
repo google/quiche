@@ -1943,7 +1943,11 @@ TEST_P(QuicConnectionTest, DiscardQueuedPacketsAfterConnectionClose) {
 
   EXPECT_EQ(0u, connection_.GetStats().packets_discarded);
   connection_.OnCanWrite();
-  EXPECT_EQ(1u, connection_.GetStats().packets_discarded);
+  if (GetQuicReloadableFlag(quic_check_connected_before_flush)) {
+    EXPECT_EQ(0u, connection_.GetStats().packets_discarded);
+  } else {
+    EXPECT_EQ(1u, connection_.GetStats().packets_discarded);
+  }
 }
 
 TEST_P(QuicConnectionTest, ReceiveConnectivityProbingAtServer) {
@@ -8503,6 +8507,44 @@ TEST_P(QuicConnectionTest, UpdateClientConnectionIdFromFirstPacket) {
   ProcessReceivedPacket(kSelfAddress, kPeerAddress, received_packet);
   EXPECT_EQ(0u, connection_.GetStats().packets_dropped);
   EXPECT_EQ(TestConnectionId(0x33), connection_.client_connection_id());
+}
+
+// Regression test for b/134416344.
+TEST_P(QuicConnectionTest, CheckConnectedBeforeFlush) {
+  // This test mimics a scenario where a connection processes 2 packets and the
+  // 2nd packet contains connection close frame. When the 2nd flusher goes out
+  // of scope, a delayed ACK is pending, and ACK alarm should not be scheduled
+  // because connection is disconnected.
+  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
+  EXPECT_CALL(visitor_, OnConnectionClosed(_, _, _));
+  EXPECT_EQ(Perspective::IS_CLIENT, connection_.perspective());
+  std::unique_ptr<QuicConnectionCloseFrame> connection_close_frame(
+      new QuicConnectionCloseFrame(QUIC_INTERNAL_ERROR));
+  if (connection_.transport_version() == QUIC_VERSION_99) {
+    connection_close_frame->close_type = IETF_QUIC_TRANSPORT_CONNECTION_CLOSE;
+  }
+  // Received 2 packets.
+  QuicFrame frame;
+  if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
+    frame = QuicFrame(&crypto_frame_);
+    EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(AnyNumber());
+  } else {
+    frame = QuicFrame(QuicStreamFrame(
+        QuicUtils::GetCryptoStreamId(connection_.transport_version()), false,
+        0u, QuicStringPiece()));
+    EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
+  }
+  ProcessFramePacketWithAddresses(frame, kSelfAddress, kPeerAddress);
+  QuicAlarm* ack_alarm = QuicConnectionPeer::GetAckAlarm(&connection_);
+  EXPECT_TRUE(ack_alarm->IsSet());
+  ProcessFramePacketWithAddresses(QuicFrame(connection_close_frame.get()),
+                                  kSelfAddress, kPeerAddress);
+  if (GetQuicReloadableFlag(quic_check_connected_before_flush)) {
+    // Verify ack alarm is not set.
+    EXPECT_FALSE(ack_alarm->IsSet());
+  } else {
+    EXPECT_TRUE(ack_alarm->IsSet());
+  }
 }
 
 }  // namespace
