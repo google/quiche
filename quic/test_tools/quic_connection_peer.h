@@ -40,8 +40,6 @@ class QuicConnectionPeer {
   static void SetLossAlgorithm(QuicConnection* connection,
                                LossDetectionInterface* loss_algorithm);
 
-  static const QuicFrame GetUpdatedAckFrame(QuicConnection* connection);
-
   static void PopulateStopWaitingFrame(QuicConnection* connection,
                                        QuicStopWaitingFrame* stop_waiting);
 

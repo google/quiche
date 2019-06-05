@@ -1018,12 +1018,6 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
 
   ParsedQuicVersion version() { return GetParam().version; }
 
-  QuicAckFrame* outgoing_ack() {
-    QuicFrame ack_frame = QuicConnectionPeer::GetUpdatedAckFrame(&connection_);
-    ack_ = *ack_frame.ack_frame;
-    return &ack_;
-  }
-
   QuicStopWaitingFrame* stop_waiting() {
     QuicConnectionPeer::PopulateStopWaitingFrame(&connection_, &stop_waiting_);
     return &stop_waiting_;
@@ -1201,7 +1195,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
   }
 
   size_t ProcessCryptoPacketAtLevel(uint64_t number, EncryptionLevel level) {
-    QuicPacketHeader header = ConstructPacketHeader(1000, ENCRYPTION_INITIAL);
+    QuicPacketHeader header = ConstructPacketHeader(number, ENCRYPTION_INITIAL);
     QuicFrames frames;
     if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
       frames.push_back(QuicFrame(&crypto_frame_));
@@ -1211,9 +1205,9 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     std::unique_ptr<QuicPacket> packet = ConstructPacket(header, frames);
     char buffer[kMaxOutgoingPacketSize];
     peer_creator_.set_encryption_level(ENCRYPTION_INITIAL);
-    size_t encrypted_length =
-        peer_framer_.EncryptPayload(ENCRYPTION_INITIAL, QuicPacketNumber(1000),
-                                    *packet, buffer, kMaxOutgoingPacketSize);
+    size_t encrypted_length = peer_framer_.EncryptPayload(
+        ENCRYPTION_INITIAL, QuicPacketNumber(number), *packet, buffer,
+        kMaxOutgoingPacketSize);
     connection_.ProcessUdpPacket(
         kSelfAddress, kPeerAddress,
         QuicReceivedPacket(buffer, encrypted_length, clock_.Now(), false));
@@ -1334,7 +1328,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
   }
 
   bool IsMissing(uint64_t number) {
-    return IsAwaitingPacket(*outgoing_ack(), QuicPacketNumber(number),
+    return IsAwaitingPacket(connection_.ack_frame(), QuicPacketNumber(number),
                             QuicPacketNumber());
   }
 
@@ -1895,8 +1889,7 @@ TEST_P(QuicConnectionTest, ReceivePaddedPingAtServer) {
 
 TEST_P(QuicConnectionTest, WriteOutOfOrderQueuedPackets) {
   // EXPECT_QUIC_BUG tests are expensive so only run one instance of them.
-  if (!IsDefaultTestConfiguration() ||
-      connection_.SupportsMultiplePacketNumberSpaces()) {
+  if (!IsDefaultTestConfiguration()) {
     return;
   }
 
@@ -2387,61 +2380,52 @@ TEST_P(QuicConnectionTest, LimitMaxPacketSizeByWriterForNewConnection) {
 }
 
 TEST_P(QuicConnectionTest, PacketsInOrder) {
-  if (connection_.SupportsMultiplePacketNumberSpaces()) {
-    return;
-  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
 
   ProcessPacket(1);
-  EXPECT_EQ(QuicPacketNumber(1u), LargestAcked(*outgoing_ack()));
-  EXPECT_EQ(1u, outgoing_ack()->packets.NumIntervals());
+  EXPECT_EQ(QuicPacketNumber(1u), LargestAcked(connection_.ack_frame()));
+  EXPECT_EQ(1u, connection_.ack_frame().packets.NumIntervals());
 
   ProcessPacket(2);
-  EXPECT_EQ(QuicPacketNumber(2u), LargestAcked(*outgoing_ack()));
-  EXPECT_EQ(1u, outgoing_ack()->packets.NumIntervals());
+  EXPECT_EQ(QuicPacketNumber(2u), LargestAcked(connection_.ack_frame()));
+  EXPECT_EQ(1u, connection_.ack_frame().packets.NumIntervals());
 
   ProcessPacket(3);
-  EXPECT_EQ(QuicPacketNumber(3u), LargestAcked(*outgoing_ack()));
-  EXPECT_EQ(1u, outgoing_ack()->packets.NumIntervals());
+  EXPECT_EQ(QuicPacketNumber(3u), LargestAcked(connection_.ack_frame()));
+  EXPECT_EQ(1u, connection_.ack_frame().packets.NumIntervals());
 }
 
 TEST_P(QuicConnectionTest, PacketsOutOfOrder) {
-  if (connection_.SupportsMultiplePacketNumberSpaces()) {
-    return;
-  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
 
   ProcessPacket(3);
-  EXPECT_EQ(QuicPacketNumber(3u), LargestAcked(*outgoing_ack()));
+  EXPECT_EQ(QuicPacketNumber(3u), LargestAcked(connection_.ack_frame()));
   EXPECT_TRUE(IsMissing(2));
   EXPECT_TRUE(IsMissing(1));
 
   ProcessPacket(2);
-  EXPECT_EQ(QuicPacketNumber(3u), LargestAcked(*outgoing_ack()));
+  EXPECT_EQ(QuicPacketNumber(3u), LargestAcked(connection_.ack_frame()));
   EXPECT_FALSE(IsMissing(2));
   EXPECT_TRUE(IsMissing(1));
 
   ProcessPacket(1);
-  EXPECT_EQ(QuicPacketNumber(3u), LargestAcked(*outgoing_ack()));
+  EXPECT_EQ(QuicPacketNumber(3u), LargestAcked(connection_.ack_frame()));
   EXPECT_FALSE(IsMissing(2));
   EXPECT_FALSE(IsMissing(1));
 }
 
 TEST_P(QuicConnectionTest, DuplicatePacket) {
-  if (connection_.SupportsMultiplePacketNumberSpaces()) {
-    return;
-  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
 
   ProcessPacket(3);
-  EXPECT_EQ(QuicPacketNumber(3u), LargestAcked(*outgoing_ack()));
+  EXPECT_EQ(QuicPacketNumber(3u), LargestAcked(connection_.ack_frame()));
   EXPECT_TRUE(IsMissing(2));
   EXPECT_TRUE(IsMissing(1));
 
   // Send packet 3 again, but do not set the expectation that
   // the visitor OnStreamFrame() will be called.
   ProcessDataPacket(3);
-  EXPECT_EQ(QuicPacketNumber(3u), LargestAcked(*outgoing_ack()));
+  EXPECT_EQ(QuicPacketNumber(3u), LargestAcked(connection_.ack_frame()));
   EXPECT_TRUE(IsMissing(2));
   EXPECT_TRUE(IsMissing(1));
 }
@@ -2453,16 +2437,16 @@ TEST_P(QuicConnectionTest, PacketsOutOfOrderWithAdditionsAndLeastAwaiting) {
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
 
   ProcessPacket(3);
-  EXPECT_EQ(QuicPacketNumber(3u), LargestAcked(*outgoing_ack()));
+  EXPECT_EQ(QuicPacketNumber(3u), LargestAcked(connection_.ack_frame()));
   EXPECT_TRUE(IsMissing(2));
   EXPECT_TRUE(IsMissing(1));
 
   ProcessPacket(2);
-  EXPECT_EQ(QuicPacketNumber(3u), LargestAcked(*outgoing_ack()));
+  EXPECT_EQ(QuicPacketNumber(3u), LargestAcked(connection_.ack_frame()));
   EXPECT_TRUE(IsMissing(1));
 
   ProcessPacket(5);
-  EXPECT_EQ(QuicPacketNumber(5u), LargestAcked(*outgoing_ack()));
+  EXPECT_EQ(QuicPacketNumber(5u), LargestAcked(connection_.ack_frame()));
   EXPECT_TRUE(IsMissing(1));
   EXPECT_TRUE(IsMissing(4));
 
@@ -2747,8 +2731,7 @@ TEST_P(QuicConnectionTest, AckNeedsRetransmittableFrames) {
 }
 
 TEST_P(QuicConnectionTest, LeastUnackedLower) {
-  if (VersionHasIetfInvariantHeader(GetParam().version.transport_version) ||
-      connection_.SupportsMultiplePacketNumberSpaces()) {
+  if (VersionHasIetfInvariantHeader(GetParam().version.transport_version)) {
     return;
   }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
@@ -6368,11 +6351,13 @@ TEST_P(QuicConnectionTest, SendDelayedAckOnOutgoingPacket) {
 }
 
 TEST_P(QuicConnectionTest, SendDelayedAckOnOutgoingCryptoPacket) {
-  if (connection_.SupportsMultiplePacketNumberSpaces()) {
-    return;
-  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
-  ProcessPacket(1);
+  if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
+    EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(1);
+  } else {
+    EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
+  }
+  ProcessCryptoPacketAtLevel(1, ENCRYPTION_INITIAL);
   connection_.SendCryptoDataWithString("foo", 0);
   // Check that ack is bundled with outgoing crypto data.
   if (GetParam().no_stop_waiting) {
@@ -6399,9 +6384,6 @@ TEST_P(QuicConnectionTest, BlockAndBufferOnFirstCHLOPacketOfTwo) {
 }
 
 TEST_P(QuicConnectionTest, BundleAckForSecondCHLO) {
-  if (connection_.SupportsMultiplePacketNumberSpaces()) {
-    return;
-  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   EXPECT_FALSE(connection_.GetAckAlarm()->IsSet());
   EXPECT_CALL(visitor_, OnCanWrite())
@@ -6410,7 +6392,12 @@ TEST_P(QuicConnectionTest, BundleAckForSecondCHLO) {
   // Process a packet from the crypto stream, which is frame1_'s default.
   // Receiving the CHLO as packet 2 first will cause the connection to
   // immediately send an ack, due to the packet gap.
-  ProcessPacket(2);
+  if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
+    EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(1);
+  } else {
+    EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
+  }
+  ProcessCryptoPacketAtLevel(2, ENCRYPTION_INITIAL);
   // Check that ack is sent and that delayed ack alarm is reset.
   if (GetParam().no_stop_waiting) {
     EXPECT_EQ(3u, writer_->frame_count());
@@ -6431,21 +6418,29 @@ TEST_P(QuicConnectionTest, BundleAckForSecondCHLO) {
 }
 
 TEST_P(QuicConnectionTest, BundleAckForSecondCHLOTwoPacketReject) {
-  if (connection_.SupportsMultiplePacketNumberSpaces()) {
-    return;
-  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   EXPECT_FALSE(connection_.GetAckAlarm()->IsSet());
 
   // Process two packets from the crypto stream, which is frame1_'s default,
   // simulating a 2 packet reject.
   {
-    ProcessPacket(1);
+    if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
+      EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(1);
+    } else {
+      EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
+    }
+    ProcessCryptoPacketAtLevel(1, ENCRYPTION_INITIAL);
     // Send the new CHLO when the REJ is processed.
-    EXPECT_CALL(visitor_, OnStreamFrame(_))
-        .WillOnce(IgnoreResult(InvokeWithoutArgs(
-            &connection_, &TestConnection::SendCryptoStreamData)));
-    ProcessDataPacket(2);
+    if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
+      EXPECT_CALL(visitor_, OnCryptoFrame(_))
+          .WillOnce(IgnoreResult(InvokeWithoutArgs(
+              &connection_, &TestConnection::SendCryptoStreamData)));
+    } else {
+      EXPECT_CALL(visitor_, OnStreamFrame(_))
+          .WillOnce(IgnoreResult(InvokeWithoutArgs(
+              &connection_, &TestConnection::SendCryptoStreamData)));
+    }
+    ProcessCryptoPacketAtLevel(2, ENCRYPTION_INITIAL);
   }
   // Check that ack is sent and that delayed ack alarm is reset.
   if (GetParam().no_stop_waiting) {
@@ -6561,8 +6556,7 @@ TEST_P(QuicConnectionTest, SendWhenDisconnected) {
 
 TEST_P(QuicConnectionTest, SendConnectivityProbingWhenDisconnected) {
   // EXPECT_QUIC_BUG tests are expensive so only run one instance of them.
-  if (!IsDefaultTestConfiguration() ||
-      connection_.SupportsMultiplePacketNumberSpaces()) {
+  if (!IsDefaultTestConfiguration()) {
     return;
   }
 
@@ -6647,8 +6641,7 @@ TEST_P(QuicConnectionTest, WriterErrorWhenServerSendsConnectivityProbe) {
 }
 
 TEST_P(QuicConnectionTest, PublicReset) {
-  if (VersionHasIetfInvariantHeader(GetParam().version.transport_version) ||
-      connection_.SupportsMultiplePacketNumberSpaces()) {
+  if (VersionHasIetfInvariantHeader(GetParam().version.transport_version)) {
     return;
   }
   QuicPublicResetPacket header;
@@ -6664,8 +6657,7 @@ TEST_P(QuicConnectionTest, PublicReset) {
 }
 
 TEST_P(QuicConnectionTest, IetfStatelessReset) {
-  if (!VersionHasIetfInvariantHeader(GetParam().version.transport_version) ||
-      connection_.SupportsMultiplePacketNumberSpaces()) {
+  if (!VersionHasIetfInvariantHeader(GetParam().version.transport_version)) {
     return;
   }
   const QuicUint128 kTestStatelessResetToken = 1010101;
@@ -6685,8 +6677,7 @@ TEST_P(QuicConnectionTest, IetfStatelessReset) {
 }
 
 TEST_P(QuicConnectionTest, GoAway) {
-  if (GetParam().version.transport_version == QUIC_VERSION_99 ||
-      connection_.SupportsMultiplePacketNumberSpaces()) {
+  if (GetParam().version.transport_version == QUIC_VERSION_99) {
     // GoAway is not available in version 99.
     return;
   }
@@ -6737,7 +6728,7 @@ TEST_P(QuicConnectionTest, MissingPacketsBeforeLeastUnacked) {
   QuicPacketCreatorPeer::SetPacketNumber(&peer_creator_, 3);
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   ProcessStopWaitingPacket(InitStopWaitingFrame(4));
-  EXPECT_FALSE(outgoing_ack()->packets.Empty());
+  EXPECT_FALSE(connection_.ack_frame().packets.Empty());
 }
 
 TEST_P(QuicConnectionTest, ClientHandlesVersionNegotiation) {
@@ -8045,8 +8036,7 @@ TEST_P(QuicConnectionTest, WriteBlockedWithInvalidAck) {
 }
 
 TEST_P(QuicConnectionTest, SendMessage) {
-  if (!VersionSupportsMessageFrames(connection_.transport_version()) ||
-      connection_.SupportsMultiplePacketNumberSpaces()) {
+  if (!VersionSupportsMessageFrames(connection_.transport_version())) {
     return;
   }
   std::string message(connection_.GetCurrentLargestMessagePayload() * 2, 'a');
@@ -8092,8 +8082,7 @@ TEST_P(QuicConnectionTest, SendMessage) {
 // Test to check that the path challenge/path response logic works
 // correctly. This test is only for version-99
 TEST_P(QuicConnectionTest, PathChallengeResponse) {
-  if (connection_.version().transport_version != QUIC_VERSION_99 ||
-      connection_.SupportsMultiplePacketNumberSpaces()) {
+  if (connection_.version().transport_version != QUIC_VERSION_99) {
     return;
   }
   // First check if we can probe from server to client and back
@@ -8234,8 +8223,7 @@ TEST_P(QuicConnectionTest, StopProcessingGQuicPacketInIetfQuicConnection) {
 }
 
 TEST_P(QuicConnectionTest, AcceptPacketNumberZero) {
-  if (version().transport_version != QUIC_VERSION_99 ||
-      connection_.SupportsMultiplePacketNumberSpaces()) {
+  if (version().transport_version != QUIC_VERSION_99) {
     return;
   }
   // Set first_sending_packet_number to be 0 to allow successfully processing
@@ -8244,16 +8232,16 @@ TEST_P(QuicConnectionTest, AcceptPacketNumberZero) {
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
 
   ProcessPacket(0);
-  EXPECT_EQ(QuicPacketNumber(0), LargestAcked(*outgoing_ack()));
-  EXPECT_EQ(1u, outgoing_ack()->packets.NumIntervals());
+  EXPECT_EQ(QuicPacketNumber(0), LargestAcked(connection_.ack_frame()));
+  EXPECT_EQ(1u, connection_.ack_frame().packets.NumIntervals());
 
   ProcessPacket(1);
-  EXPECT_EQ(QuicPacketNumber(1), LargestAcked(*outgoing_ack()));
-  EXPECT_EQ(1u, outgoing_ack()->packets.NumIntervals());
+  EXPECT_EQ(QuicPacketNumber(1), LargestAcked(connection_.ack_frame()));
+  EXPECT_EQ(1u, connection_.ack_frame().packets.NumIntervals());
 
   ProcessPacket(2);
-  EXPECT_EQ(QuicPacketNumber(2), LargestAcked(*outgoing_ack()));
-  EXPECT_EQ(1u, outgoing_ack()->packets.NumIntervals());
+  EXPECT_EQ(QuicPacketNumber(2), LargestAcked(connection_.ack_frame()));
+  EXPECT_EQ(1u, connection_.ack_frame().packets.NumIntervals());
 }
 
 TEST_P(QuicConnectionTest, MultiplePacketNumberSpacesBasicSending) {

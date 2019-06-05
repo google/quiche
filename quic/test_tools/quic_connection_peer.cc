@@ -35,22 +35,6 @@ void QuicConnectionPeer::SetLossAlgorithm(
 }
 
 // static
-const QuicFrame QuicConnectionPeer::GetUpdatedAckFrame(
-    QuicConnection* connection) {
-  const bool ack_frame_updated = connection->ack_frame_updated();
-  const QuicFrame ack_frame = connection->GetUpdatedAckFrame();
-  if (connection->use_uber_received_packet_manager_) {
-    DCHECK(!connection->uber_received_packet_manager_
-                .supports_multiple_packet_number_spaces());
-    connection->uber_received_packet_manager_.received_packet_managers_[0]
-        .ack_frame_updated_ = ack_frame_updated;
-  } else {
-    connection->received_packet_manager_.ack_frame_updated_ = ack_frame_updated;
-  }
-  return ack_frame;
-}
-
-// static
 void QuicConnectionPeer::PopulateStopWaitingFrame(
     QuicConnection* connection,
     QuicStopWaitingFrame* stop_waiting) {
