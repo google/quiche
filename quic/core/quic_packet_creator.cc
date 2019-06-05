@@ -750,7 +750,7 @@ QuicConnectionId QuicPacketCreator::GetDestinationConnectionId() const {
   if (!GetQuicRestartFlag(quic_do_not_override_connection_id)) {
     return server_connection_id_;
   }
-  QUIC_RESTART_FLAG_COUNT_N(quic_do_not_override_connection_id, 1, 5);
+  QUIC_RESTART_FLAG_COUNT_N(quic_do_not_override_connection_id, 1, 7);
   if (framer_->perspective() == Perspective::IS_SERVER) {
     return client_connection_id_;
   }
@@ -761,7 +761,7 @@ QuicConnectionId QuicPacketCreator::GetSourceConnectionId() const {
   if (!GetQuicRestartFlag(quic_do_not_override_connection_id)) {
     return server_connection_id_;
   }
-  QUIC_RESTART_FLAG_COUNT_N(quic_do_not_override_connection_id, 6, 6);
+  QUIC_RESTART_FLAG_COUNT_N(quic_do_not_override_connection_id, 6, 7);
   if (framer_->perspective() == Perspective::IS_CLIENT) {
     return client_connection_id_;
   }
@@ -794,7 +794,7 @@ QuicConnectionIdIncluded QuicPacketCreator::GetSourceConnectionIdIncluded()
   }
   if (GetQuicRestartFlag(quic_do_not_override_connection_id) &&
       framer_->perspective() == Perspective::IS_SERVER) {
-    QUIC_RESTART_FLAG_COUNT_N(quic_do_not_override_connection_id, 2, 5);
+    QUIC_RESTART_FLAG_COUNT_N(quic_do_not_override_connection_id, 2, 7);
     return server_connection_id_included_;
   }
   return CONNECTION_ID_ABSENT;

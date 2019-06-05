@@ -43,7 +43,7 @@ QuicConnectionId GetServerConnectionIdAsSender(const QuicPacketHeader& header,
       !GetQuicRestartFlag(quic_do_not_override_connection_id)) {
     return header.destination_connection_id;
   }
-  QUIC_RESTART_FLAG_COUNT_N(quic_do_not_override_connection_id, 3, 5);
+  QUIC_RESTART_FLAG_COUNT_N(quic_do_not_override_connection_id, 3, 7);
   return header.source_connection_id;
 }
 
@@ -54,7 +54,7 @@ QuicConnectionIdIncluded GetServerConnectionIdIncludedAsSender(
       !GetQuicRestartFlag(quic_do_not_override_connection_id)) {
     return header.destination_connection_id_included;
   }
-  QUIC_RESTART_FLAG_COUNT_N(quic_do_not_override_connection_id, 4, 5);
+  QUIC_RESTART_FLAG_COUNT_N(quic_do_not_override_connection_id, 4, 7);
   return header.source_connection_id_included;
 }
 
@@ -64,7 +64,7 @@ QuicConnectionId GetClientConnectionIdAsSender(const QuicPacketHeader& header,
       !GetQuicRestartFlag(quic_do_not_override_connection_id)) {
     return header.source_connection_id;
   }
-  QUIC_RESTART_FLAG_COUNT_N(quic_do_not_override_connection_id, 3, 5);
+  QUIC_RESTART_FLAG_COUNT_N(quic_do_not_override_connection_id, 7, 7);
   return header.destination_connection_id;
 }
 

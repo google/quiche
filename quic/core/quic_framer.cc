@@ -2707,7 +2707,7 @@ bool QuicFramer::ProcessIetfPacketHeader(QuicDataReader* reader,
       header->destination_connection_id = last_serialized_server_connection_id_;
     }
   } else {
-    QUIC_RESTART_FLAG_COUNT_N(quic_do_not_override_connection_id, 5, 5);
+    QUIC_RESTART_FLAG_COUNT_N(quic_do_not_override_connection_id, 5, 7);
     if (header->source_connection_id_included == CONNECTION_ID_ABSENT) {
       if (!header->source_connection_id.IsEmpty()) {
         DCHECK(!version_.SupportsClientConnectionIds());
