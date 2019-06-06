@@ -194,12 +194,24 @@ QuicPacketNumberLength ReadAckPacketNumberLength(QuicTransportVersion version,
 }
 
 uint8_t PacketNumberLengthToOnWireValue(
+    QuicTransportVersion version,
     QuicPacketNumberLength packet_number_length) {
-  return packet_number_length - 1;
+  if (version > QUIC_VERSION_44) {
+    return packet_number_length - 1;
+  }
+  switch (packet_number_length) {
+    case PACKET_1BYTE_PACKET_NUMBER:
+      return 0;
+    case PACKET_2BYTE_PACKET_NUMBER:
+      return 1;
+    case PACKET_4BYTE_PACKET_NUMBER:
+      return 2;
+    default:
+      QUIC_BUG << "Invalid packet number length.";
+      return 0;
+  }
 }
 
-// TODO(fayang): Remove |version| when deprecating
-// quic_no_framer_object_in_dispatcher.
 bool GetShortHeaderPacketNumberLength(
     QuicTransportVersion version,
     uint8_t type,
@@ -207,7 +219,7 @@ bool GetShortHeaderPacketNumberLength(
     QuicPacketNumberLength* packet_number_length) {
   DCHECK(!(type & FLAGS_LONG_HEADER));
   const bool two_bits_packet_number_length =
-      infer_packet_header_type_from_version ? version > 44
+      infer_packet_header_type_from_version ? version > QUIC_VERSION_44
                                             : (type & FLAGS_FIXED_BIT);
   if (two_bits_packet_number_length) {
     *packet_number_length =
@@ -231,16 +243,17 @@ bool GetShortHeaderPacketNumberLength(
   return true;
 }
 
-uint8_t LongHeaderTypeToOnWireValue(QuicLongHeaderType type) {
+uint8_t LongHeaderTypeToOnWireValue(QuicTransportVersion version,
+                                    QuicLongHeaderType type) {
   switch (type) {
     case INITIAL:
-      return 0;
+      return version > QUIC_VERSION_44 ? 0 : 0x7F;
     case ZERO_RTT_PROTECTED:
-      return 1 << 4;
+      return version > QUIC_VERSION_44 ? 1 << 4 : 0x7C;
     case HANDSHAKE:
-      return 2 << 4;
+      return version > QUIC_VERSION_44 ? 2 << 4 : 0x7D;
     case RETRY:
-      return 3 << 4;
+      return version > QUIC_VERSION_44 ? 3 << 4 : 0x7E;
     case VERSION_NEGOTIATION:
       return 0xF0;  // Value does not matter
     default:
@@ -249,13 +262,11 @@ uint8_t LongHeaderTypeToOnWireValue(QuicLongHeaderType type) {
   }
 }
 
-// TODO(fayang): Remove |version| when deprecating
-// quic_no_framer_object_in_dispatcher.
 bool GetLongHeaderType(QuicTransportVersion version,
                        uint8_t type,
                        QuicLongHeaderType* long_header_type) {
   DCHECK((type & FLAGS_LONG_HEADER) && version != QUIC_VERSION_UNSUPPORTED);
-  if (version > 44) {
+  if (version > QUIC_VERSION_44) {
     switch ((type & 0x30) >> 4) {
       case 0:
         *long_header_type = INITIAL;
@@ -299,12 +310,10 @@ bool GetLongHeaderType(QuicTransportVersion version,
   return true;
 }
 
-// TODO(fayang): Remove |version| when deprecating
-// quic_no_framer_object_in_dispatcher.
 QuicPacketNumberLength GetLongHeaderPacketNumberLength(
     QuicTransportVersion version,
     uint8_t type) {
-  if (version > 44) {
+  if (version > QUIC_VERSION_44) {
     return static_cast<QuicPacketNumberLength>((type & 0x03) + 1);
   }
   return PACKET_4BYTE_PACKET_NUMBER;
@@ -1355,7 +1364,8 @@ std::unique_ptr<QuicEncryptedPacket> QuicFramer::BuildIetfStatelessResetPacket(
   type |= FLAGS_FIXED_BIT;
   type |= FLAGS_SHORT_HEADER_RESERVED_1;
   type |= FLAGS_SHORT_HEADER_RESERVED_2;
-  type |= PacketNumberLengthToOnWireValue(PACKET_1BYTE_PACKET_NUMBER);
+  type |= PacketNumberLengthToOnWireValue(QUIC_VERSION_UNSUPPORTED,
+                                          PACKET_1BYTE_PACKET_NUMBER);
 
   // Append type byte.
   if (!writer.WriteUInt8(type)) {
@@ -2120,15 +2130,34 @@ bool QuicFramer::AppendPacketHeader(const QuicPacketHeader& header,
 bool QuicFramer::AppendIetfHeaderTypeByte(const QuicPacketHeader& header,
                                           QuicDataWriter* writer) {
   uint8_t type = 0;
+  if (transport_version() > QUIC_VERSION_44) {
+    if (header.version_flag) {
+      type = static_cast<uint8_t>(
+          FLAGS_LONG_HEADER | FLAGS_FIXED_BIT |
+          LongHeaderTypeToOnWireValue(transport_version(),
+                                      header.long_packet_type) |
+          PacketNumberLengthToOnWireValue(transport_version(),
+                                          header.packet_number_length));
+    } else {
+      type = static_cast<uint8_t>(
+          FLAGS_FIXED_BIT |
+          PacketNumberLengthToOnWireValue(transport_version(),
+                                          header.packet_number_length));
+    }
+    return writer->WriteUInt8(type);
+  }
+
   if (header.version_flag) {
     type = static_cast<uint8_t>(
-        FLAGS_LONG_HEADER | FLAGS_FIXED_BIT |
-        LongHeaderTypeToOnWireValue(header.long_packet_type) |
-        PacketNumberLengthToOnWireValue(header.packet_number_length));
+        FLAGS_LONG_HEADER | LongHeaderTypeToOnWireValue(
+                                transport_version(), header.long_packet_type));
+    DCHECK_EQ(PACKET_4BYTE_PACKET_NUMBER, header.packet_number_length);
   } else {
-    type = static_cast<uint8_t>(
-        FLAGS_FIXED_BIT |
-        PacketNumberLengthToOnWireValue(header.packet_number_length));
+    type |= FLAGS_SHORT_HEADER_RESERVED_1;
+    type |= FLAGS_SHORT_HEADER_RESERVED_2;
+    DCHECK_GE(PACKET_4BYTE_PACKET_NUMBER, header.packet_number_length);
+    type |= PacketNumberLengthToOnWireValue(transport_version(),
+                                            header.packet_number_length);
   }
   return writer->WriteUInt8(type);
 }
@@ -2520,9 +2549,7 @@ bool QuicFramer::ProcessIetfHeaderTypeByte(QuicDataReader* reader,
     } else {
       header->version = ParseQuicVersionLabel(version_label);
       if (header->version.transport_version != QUIC_VERSION_UNSUPPORTED) {
-        // TODO(fayang): remove version check when deprecating
-        // quic_no_framer_object_in_dispatcher.
-        if (header->version.transport_version > 44 &&
+        if (header->version.transport_version > QUIC_VERSION_44 &&
             !(type & FLAGS_FIXED_BIT)) {
           set_detailed_error("Fixed bit is 0 in long header.");
           return false;
@@ -2569,10 +2596,8 @@ bool QuicFramer::ProcessIetfHeaderTypeByte(QuicDataReader* reader,
           ? CONNECTION_ID_PRESENT
           : CONNECTION_ID_ABSENT;
   header->source_connection_id_included = CONNECTION_ID_ABSENT;
-  // TODO(fayang): remove version check when deprecating
-  // quic_no_framer_object_in_dispatcher.
-  if (infer_packet_header_type_from_version_ && transport_version() > 44 &&
-      !(type & FLAGS_FIXED_BIT)) {
+  if (infer_packet_header_type_from_version_ &&
+      transport_version() > QUIC_VERSION_44 && !(type & FLAGS_FIXED_BIT)) {
     set_detailed_error("Fixed bit is 0 in short header.");
     return false;
   }
@@ -2757,7 +2782,7 @@ bool QuicFramer::ProcessFrameData(QuicDataReader* reader,
       set_detailed_error("Unable to read frame type.");
       return RaiseError(QUIC_INVALID_FRAME_DATA);
     }
-    const uint8_t special_mask = transport_version() <= QUIC_VERSION_43
+    const uint8_t special_mask = transport_version() <= QUIC_VERSION_44
                                      ? kQuicFrameTypeBrokenMask
                                      : kQuicFrameTypeSpecialMask;
     if (frame_type & special_mask) {
@@ -2876,7 +2901,7 @@ bool QuicFramer::ProcessFrameData(QuicDataReader* reader,
 
       case STOP_WAITING_FRAME: {
         if (GetQuicReloadableFlag(quic_do_not_accept_stop_waiting) &&
-            version_.transport_version > QUIC_VERSION_43) {
+            version_.transport_version >= QUIC_VERSION_44) {
           QUIC_RELOADABLE_FLAG_COUNT(quic_do_not_accept_stop_waiting);
           set_detailed_error("STOP WAITING not supported in version 44+.");
           return RaiseError(QUIC_INVALID_STOP_WAITING_DATA);

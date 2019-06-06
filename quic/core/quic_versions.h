@@ -97,7 +97,7 @@ enum QuicTransportVersion {
 
   QUIC_VERSION_43 = 43,  // PRIORITY frames are sent by client and accepted by
                          // server.
-  // Version 44 added IETF header format.
+  QUIC_VERSION_44 = 44,  // Use IETF header format.
 
   // Version 45 added MESSAGE frame.
 
@@ -189,7 +189,7 @@ using QuicVersionLabelVector = std::vector<QuicVersionLabel>;
 // See go/new-quic-version for more details on how to roll out new versions.
 static const QuicTransportVersion kSupportedTransportVersions[] = {
     QUIC_VERSION_99, QUIC_VERSION_47, QUIC_VERSION_46,
-    QUIC_VERSION_43, QUIC_VERSION_39,
+    QUIC_VERSION_44, QUIC_VERSION_43, QUIC_VERSION_39,
 };
 
 // This vector contains all crypto handshake protocols that are supported.
@@ -345,7 +345,7 @@ QUIC_EXPORT_PRIVATE inline bool VersionHasIetfInvariantHeader(
 // Returns true if |transport_version| supports MESSAGE frames.
 QUIC_EXPORT_PRIVATE inline bool VersionSupportsMessageFrames(
     QuicTransportVersion transport_version) {
-  return transport_version > QUIC_VERSION_43;
+  return transport_version > QUIC_VERSION_44;
 }
 
 // Returns true if QuicSpdyStream encodes body using HTTP/3 specification and
