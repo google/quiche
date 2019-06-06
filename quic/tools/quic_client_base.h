@@ -331,9 +331,7 @@ class QuicClientBase {
 
   // The number of stateless rejects received during the current/latest
   // connection.
-  // TODO(jokulik): Consider some consistent naming scheme (or other) for member
-  // variables that are kept per-request, per-connection, and over the client's
-  // lifetime.
+  // TODO(wub): Remove this.
   int num_stateless_rejects_received_;
 
   // The number of hellos sent during the current/latest connection.

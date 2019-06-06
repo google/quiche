@@ -623,13 +623,8 @@ QuicDispatcher::QuicPacketFate QuicDispatcher::ValidityChecks(
 
 void QuicDispatcher::CleanUpSession(SessionMap::iterator it,
                                     QuicConnection* connection,
-                                    bool should_close_statelessly,
                                     ConnectionCloseSource source) {
   write_blocked_list_.erase(connection);
-  if (should_close_statelessly) {
-    DCHECK(connection->termination_packets() != nullptr &&
-           !connection->termination_packets()->empty());
-  }
   QuicTimeWaitListManager::TimeWaitAction action =
       QuicTimeWaitListManager::SEND_STATELESS_RESET;
   if (connection->termination_packets() != nullptr &&
@@ -762,9 +757,7 @@ void QuicDispatcher::OnConnectionClosed(QuicConnectionId server_connection_id,
     }
     closed_session_list_.push_back(std::move(it->second));
   }
-  const bool should_close_statelessly =
-      (error == QUIC_CRYPTO_HANDSHAKE_STATELESS_REJECT);
-  CleanUpSession(it, connection, should_close_statelessly, source);
+  CleanUpSession(it, connection, source);
 }
 
 void QuicDispatcher::OnWriteBlocked(

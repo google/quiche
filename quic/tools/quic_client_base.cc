@@ -83,20 +83,11 @@ bool QuicClientBase::Connect() {
     }
     ParsedQuicVersion version = UnsupportedQuicVersion();
     if (session() != nullptr &&
-        session()->error() != QUIC_CRYPTO_HANDSHAKE_STATELESS_REJECT &&
         !CanReconnectWithDifferentVersion(&version)) {
-      // We've successfully created a session but we're not connected, and there
-      // is no stateless reject to recover from and cannot try to reconnect with
-      // different version.  Give up trying.
+      // We've successfully created a session but we're not connected, and we
+      // cannot reconnect with a different version.  Give up trying.
       break;
     }
-  }
-  if (!connected() &&
-      GetNumSentClientHellos() > QuicCryptoClientStream::kMaxClientHellos &&
-      session() != nullptr &&
-      session()->error() == QUIC_CRYPTO_HANDSHAKE_STATELESS_REJECT) {
-    // The overall connection failed due too many stateless rejects.
-    set_connection_error(QUIC_CRYPTO_TOO_MANY_REJECTS);
   }
   return session()->connection()->connected();
 }
@@ -109,12 +100,9 @@ void QuicClientBase::StartConnect() {
   const bool can_reconnect_with_different_version =
       CanReconnectWithDifferentVersion(&mutual_version);
   if (connected_or_attempting_connect()) {
-    // If the last error was not a stateless reject, then the queued up data
-    // does not need to be resent.
-    // Keep queued up data if client can try to connect with a different
+    // Clear queued up data if client can not try to connect with a different
     // version.
-    if (session()->error() != QUIC_CRYPTO_HANDSHAKE_STATELESS_REJECT &&
-        !can_reconnect_with_different_version) {
+    if (!can_reconnect_with_different_version) {
       ClearDataToResend();
     }
     // Before we destroy the last session and create a new one, gather its stats
@@ -176,11 +164,7 @@ bool QuicClientBase::WaitForEvents() {
 
   DCHECK(session() != nullptr);
   ParsedQuicVersion version = UnsupportedQuicVersion();
-  if (!connected() &&
-
-      CanReconnectWithDifferentVersion(&version)) {
-    DCHECK_NE(session()->error(), QUIC_CRYPTO_HANDSHAKE_STATELESS_REJECT);
-
+  if (!connected() && CanReconnectWithDifferentVersion(&version)) {
     QUIC_DLOG(INFO) << "Can reconnect with version: " << version
                     << ", attempting to reconnect.";
 
@@ -276,9 +260,6 @@ int QuicClientBase::GetNumSentClientHellos() {
 
 void QuicClientBase::UpdateStats() {
   num_sent_client_hellos_ += GetNumSentClientHellosFromSession();
-  if (session()->error() == QUIC_CRYPTO_HANDSHAKE_STATELESS_REJECT) {
-    ++num_stateless_rejects_received_;
-  }
 }
 
 int QuicClientBase::GetNumReceivedServerConfigUpdates() {

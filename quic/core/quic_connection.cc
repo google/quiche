@@ -3144,14 +3144,8 @@ void QuicConnection::CloseConnection(
     SendConnectionClosePacket(error, error_details);
   }
 
-  ConnectionCloseSource source = ConnectionCloseSource::FROM_SELF;
-  if (perspective_ == Perspective::IS_CLIENT &&
-      error == QUIC_CRYPTO_HANDSHAKE_STATELESS_REJECT) {
-    // Regard stateless rejected connection as closed by server.
-    source = ConnectionCloseSource::FROM_PEER;
-  }
-
-  TearDownLocalConnectionState(error, error_details, source);
+  TearDownLocalConnectionState(error, error_details,
+                               ConnectionCloseSource::FROM_SELF);
 }
 
 void QuicConnection::SendConnectionClosePacket(QuicErrorCode error,

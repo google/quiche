@@ -7685,17 +7685,6 @@ TEST_P(QuicConnectionTest, DonotForceSendingAckOnPacketTooLarge) {
   EXPECT_TRUE(writer_->ack_frames().empty());
 }
 
-TEST_P(QuicConnectionTest, CloseConnectionForStatelessReject) {
-  std::string error_details("stateless reject");
-  EXPECT_CALL(visitor_, OnConnectionClosed(
-                            QUIC_CRYPTO_HANDSHAKE_STATELESS_REJECT,
-                            error_details, ConnectionCloseSource::FROM_PEER));
-  connection_.set_perspective(Perspective::IS_CLIENT);
-  connection_.CloseConnection(QUIC_CRYPTO_HANDSHAKE_STATELESS_REJECT,
-                              error_details,
-                              ConnectionCloseBehavior::SILENT_CLOSE);
-}
-
 // Regression test for b/63620844.
 TEST_P(QuicConnectionTest, FailedToWriteHandshakePacket) {
   SimulateNextPacketTooLarge();

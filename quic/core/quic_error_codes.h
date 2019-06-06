@@ -216,8 +216,8 @@ enum QuicErrorCode {
   QUIC_CRYPTO_INTERNAL_ERROR = 38,
   // A crypto handshake message specified an unsupported version.
   QUIC_CRYPTO_VERSION_NOT_SUPPORTED = 39,
-  // A crypto handshake message resulted in a stateless reject.
-  QUIC_CRYPTO_HANDSHAKE_STATELESS_REJECT = 72,
+  // (Deprecated) A crypto handshake message resulted in a stateless reject.
+  // QUIC_CRYPTO_HANDSHAKE_STATELESS_REJECT = 72,
   // There was no intersection between the crypto primitives supported by the
   // peer and ourselves.
   QUIC_CRYPTO_NO_SUPPORT = 40,

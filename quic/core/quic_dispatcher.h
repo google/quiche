@@ -324,11 +324,9 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
       QuicConnectionId server_connection_id);
 
   // Removes the session from the session map and write blocked list, and adds
-  // the ConnectionId to the time-wait list.  If |session_closed_statelessly| is
-  // true, any future packets for the ConnectionId will be black-holed.
+  // the ConnectionId to the time-wait list.
   virtual void CleanUpSession(SessionMap::iterator it,
                               QuicConnection* connection,
-                              bool session_closed_statelessly,
                               ConnectionCloseSource source);
 
   void StopAcceptingNewConnections();
