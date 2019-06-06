@@ -460,8 +460,6 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
       EXPECT_EQ(client_stats.packets_received, client_stats.packets_processed);
     }
 
-    EXPECT_EQ(0, client_->client()->num_stateless_rejects_received());
-
     server_thread_->Pause();
     QuicConnectionStats server_stats = GetServerConnection()->GetStats();
     if (!had_packet_loss) {

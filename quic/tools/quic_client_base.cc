@@ -35,7 +35,6 @@ QuicClientBase::QuicClientBase(
       alarm_factory_(alarm_factory),
       supported_versions_(supported_versions),
       initial_max_packet_length_(0),
-      num_stateless_rejects_received_(0),
       num_sent_client_hellos_(0),
       connection_error_(QUIC_NO_ERROR),
       connected_or_attempting_connect_(false),
@@ -45,7 +44,6 @@ QuicClientBase::~QuicClientBase() = default;
 
 bool QuicClientBase::Initialize() {
   num_sent_client_hellos_ = 0;
-  num_stateless_rejects_received_ = 0;
   connection_error_ = QUIC_NO_ERROR;
   connected_or_attempting_connect_ = false;
 
@@ -265,9 +263,6 @@ void QuicClientBase::UpdateStats() {
 int QuicClientBase::GetNumReceivedServerConfigUpdates() {
   // If we are not actively attempting to connect, the session object
   // corresponds to the previous connection and should not be used.
-  // We do not need to take stateless rejects into account, since we
-  // don't expect any scup messages to be sent during a
-  // statelessly-rejected connection.
   return !connected_or_attempting_connect_
              ? 0
              : GetNumReceivedServerConfigUpdatesFromSession();

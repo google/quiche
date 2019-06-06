@@ -149,31 +149,17 @@ class QuicClientBase {
     initial_max_packet_length_ = initial_max_packet_length;
   }
 
-  int num_stateless_rejects_received() const {
-    return num_stateless_rejects_received_;
-  }
-
-  // The number of client hellos sent, taking stateless rejects into
-  // account.  In the case of a stateless reject, the initial
-  // connection object may be torn down and a new one created.  The
-  // user cannot rely upon the latest connection object to get the
-  // total number of client hellos sent, and should use this function
-  // instead.
+  // The number of client hellos sent.
   int GetNumSentClientHellos();
 
   // Gather the stats for the last session and update the stats for the overall
   // connection.
   void UpdateStats();
 
-  // The number of server config updates received.  We assume no
-  // updates can be sent during a previously, statelessly rejected
-  // connection, so only the latest session is taken into account.
+  // The number of server config updates received.
   int GetNumReceivedServerConfigUpdates();
 
-  // Returns any errors that occurred at the connection-level (as
-  // opposed to the session-level).  When a stateless reject occurs,
-  // the error of the last session may not reflect the overall state
-  // of the connection.
+  // Returns any errors that occurred at the connection-level.
   QuicErrorCode connection_error() const;
   void set_connection_error(QuicErrorCode connection_error) {
     connection_error_ = connection_error;
@@ -236,9 +222,7 @@ class QuicClientBase {
   // Extract the number of sent client hellos from the session.
   virtual int GetNumSentClientHellosFromSession() = 0;
 
-  // The number of server config updates received.  We assume no
-  // updates can be sent during a previously, statelessly rejected
-  // connection, so only the latest session is taken into account.
+  // The number of server config updates received.
   virtual int GetNumReceivedServerConfigUpdatesFromSession() = 0;
 
   // If this client supports buffering data, resend it.
@@ -329,11 +313,6 @@ class QuicClientBase {
   // zero, the default is used.
   QuicByteCount initial_max_packet_length_;
 
-  // The number of stateless rejects received during the current/latest
-  // connection.
-  // TODO(wub): Remove this.
-  int num_stateless_rejects_received_;
-
   // The number of hellos sent during the current/latest connection.
   int num_sent_client_hellos_;
 
@@ -341,9 +320,8 @@ class QuicClientBase {
   // opposed to that associated with the last session object).
   QuicErrorCode connection_error_;
 
-  // True when the client is attempting to connect or re-connect the session (in
-  // the case of a stateless reject).  Set to false  between a call to
-  // Disconnect() and the subsequent call to StartConnect().  When
+  // True when the client is attempting to connect.  Set to false between a call
+  // to Disconnect() and the subsequent call to StartConnect().  When
   // connected_or_attempting_connect_ is false, the session object corresponds
   // to the previous client-level connection.
   bool connected_or_attempting_connect_;
