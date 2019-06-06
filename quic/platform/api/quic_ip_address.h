@@ -9,6 +9,7 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #else
+#include <arpa/inet.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -17,18 +18,18 @@
 #include <string>
 
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/quic/platform/impl/quic_ip_address_impl.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_ip_address_family.h"
 
 namespace quic {
 
+// Represents an IP address.
 class QUIC_EXPORT_PRIVATE QuicIpAddress {
-  // A class representing an IPv4 or IPv6 address in QUIC. The actual
-  // implementation (platform dependent) of an IP address is in
-  // QuicIpAddressImpl.
  public:
+  // Sizes of IP addresses of different types, in bytes.
   enum : size_t {
-    kIPv4AddressSize = QuicIpAddressImpl::kIPv4AddressSize,
-    kIPv6AddressSize = QuicIpAddressImpl::kIPv6AddressSize
+    kIPv4AddressSize = 32 / 8,
+    kIPv6AddressSize = 128 / 8,
+    kMaxAddressSize = kIPv6AddressSize,
   };
 
   // TODO(fayang): Remove Loopback*() and use TestLoopback*() in tests.
@@ -37,9 +38,8 @@ class QUIC_EXPORT_PRIVATE QuicIpAddress {
   static QuicIpAddress Any4();
   static QuicIpAddress Any6();
 
-  QuicIpAddress() = default;
+  QuicIpAddress();
   QuicIpAddress(const QuicIpAddress& other) = default;
-  explicit QuicIpAddress(const QuicIpAddressImpl& impl);
   explicit QuicIpAddress(const in_addr& ipv4_address);
   explicit QuicIpAddress(const in6_addr& ipv6_address);
   QuicIpAddress& operator=(const QuicIpAddress& other) = default;
@@ -77,8 +77,19 @@ class QUIC_EXPORT_PRIVATE QuicIpAddress {
   in6_addr GetIPv6() const;
 
  private:
-  QuicIpAddressImpl impl_;
+  union {
+    in_addr v4;
+    in6_addr v6;
+    uint8_t bytes[kMaxAddressSize];
+    char chars[kMaxAddressSize];
+  } address_;
+  IpAddressFamily family_;
 };
+
+inline std::ostream& operator<<(std::ostream& os, const QuicIpAddress address) {
+  os << address.ToString();
+  return os;
+}
 
 }  // namespace quic
 

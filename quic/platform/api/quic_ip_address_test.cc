@@ -56,6 +56,84 @@ TEST(QuicIpAddressTest, IPv6) {
   EXPECT_EQ(0xff01u, *(v6_address_ptr + 5));
   EXPECT_EQ(0x23feu, *(v6_address_ptr + 6));
   EXPECT_EQ(0x6745u, *(v6_address_ptr + 7));
+
+  EXPECT_EQ(ip_address, ip_address.Normalized());
+  EXPECT_EQ(ip_address, ip_address.DualStacked());
+}
+
+TEST(QuicIpAddressTest, FromPackedString) {
+  QuicIpAddress loopback4, loopback6;
+  const char loopback4_packed[] = "\x7f\0\0\x01";
+  const char loopback6_packed[] = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\x01";
+  EXPECT_TRUE(loopback4.FromPackedString(loopback4_packed, 4));
+  EXPECT_TRUE(loopback6.FromPackedString(loopback6_packed, 16));
+  EXPECT_EQ(loopback4, QuicIpAddress::Loopback4());
+  EXPECT_EQ(loopback6, QuicIpAddress::Loopback6());
+}
+
+TEST(QuicIpAddressTest, MappedAddress) {
+  QuicIpAddress ipv4_address;
+  QuicIpAddress mapped_address;
+
+  EXPECT_TRUE(ipv4_address.FromString("127.0.0.1"));
+  EXPECT_TRUE(mapped_address.FromString("::ffff:7f00:1"));
+
+  EXPECT_EQ(mapped_address, ipv4_address.DualStacked());
+  EXPECT_EQ(ipv4_address, mapped_address.Normalized());
+}
+
+TEST(QuicIpAddressTest, Subnets) {
+  struct {
+    const char* address1;
+    const char* address2;
+    int subnet_size;
+    bool same_subnet;
+  } test_cases[] = {
+      {"127.0.0.1", "127.0.0.2", 24, true},
+      {"8.8.8.8", "127.0.0.1", 24, false},
+      {"8.8.8.8", "127.0.0.1", 16, false},
+      {"8.8.8.8", "127.0.0.1", 8, false},
+      {"8.8.8.8", "127.0.0.1", 2, false},
+      {"8.8.8.8", "127.0.0.1", 1, true},
+
+      {"127.0.0.1", "127.0.0.128", 24, true},
+      {"127.0.0.1", "127.0.0.128", 25, false},
+      {"127.0.0.1", "127.0.0.127", 25, true},
+
+      {"127.0.0.1", "127.0.0.0", 30, true},
+      {"127.0.0.1", "127.0.0.1", 30, true},
+      {"127.0.0.1", "127.0.0.2", 30, true},
+      {"127.0.0.1", "127.0.0.3", 30, true},
+      {"127.0.0.1", "127.0.0.4", 30, false},
+
+      {"127.0.0.1", "127.0.0.2", 31, false},
+      {"127.0.0.1", "127.0.0.0", 31, true},
+
+      {"::1", "fe80::1", 8, false},
+      {"::1", "fe80::1", 1, false},
+      {"::1", "fe80::1", 0, true},
+      {"fe80::1", "fe80::2", 126, true},
+      {"fe80::1", "fe80::2", 127, false},
+  };
+
+  for (const auto& test_case : test_cases) {
+    QuicIpAddress address1, address2;
+    ASSERT_TRUE(address1.FromString(test_case.address1));
+    ASSERT_TRUE(address2.FromString(test_case.address2));
+    EXPECT_EQ(test_case.same_subnet,
+              address1.InSameSubnet(address2, test_case.subnet_size))
+        << "Addresses: " << test_case.address1 << ", " << test_case.address2
+        << "; subnet: /" << test_case.subnet_size;
+  }
+}
+
+TEST(QuicIpAddress, LoopbackAddresses) {
+  QuicIpAddress loopback4;
+  QuicIpAddress loopback6;
+  ASSERT_TRUE(loopback4.FromString("127.0.0.1"));
+  ASSERT_TRUE(loopback6.FromString("::1"));
+  EXPECT_EQ(loopback4, QuicIpAddress::Loopback4());
+  EXPECT_EQ(loopback6, QuicIpAddress::Loopback6());
 }
 
 }  // namespace
