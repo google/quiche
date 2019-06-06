@@ -16,6 +16,7 @@ QuicVersionManager::QuicVersionManager(
     ParsedQuicVersionVector supported_versions)
     : enable_version_99_(GetQuicReloadableFlag(quic_enable_version_99)),
       enable_version_47_(GetQuicReloadableFlag(quic_enable_version_47)),
+      enable_version_46_(GetQuicReloadableFlag(quic_enable_version_46)),
       disable_version_39_(GetQuicReloadableFlag(quic_disable_version_39)),
       enable_tls_(GetQuicFlag(FLAGS_quic_supports_tls_handshake)),
       allowed_supported_versions_(std::move(supported_versions)) {
@@ -38,10 +39,12 @@ const ParsedQuicVersionVector& QuicVersionManager::GetSupportedVersions() {
 void QuicVersionManager::MaybeRefilterSupportedVersions() {
   if (enable_version_99_ != GetQuicReloadableFlag(quic_enable_version_99) ||
       enable_version_47_ != GetQuicReloadableFlag(quic_enable_version_47) ||
+      enable_version_46_ != GetQuicReloadableFlag(quic_enable_version_46) ||
       disable_version_39_ != GetQuicReloadableFlag(quic_disable_version_39) ||
       enable_tls_ != GetQuicFlag(FLAGS_quic_supports_tls_handshake)) {
     enable_version_99_ = GetQuicReloadableFlag(quic_enable_version_99);
     enable_version_47_ = GetQuicReloadableFlag(quic_enable_version_47);
+    enable_version_46_ = GetQuicReloadableFlag(quic_enable_version_46);
     disable_version_39_ = GetQuicReloadableFlag(quic_disable_version_39);
     enable_tls_ = GetQuicFlag(FLAGS_quic_supports_tls_handshake);
     RefilterSupportedVersions();
