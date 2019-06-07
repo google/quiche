@@ -5,6 +5,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_ip_address.h"
 
 #include <algorithm>
+#include <cstdint>
 #include <cstring>
 #include <string>
 
@@ -21,6 +22,8 @@ static int ToPlatformAddressFamily(IpAddressFamily family) {
     case IpAddressFamily::IP_UNSPEC:
       return AF_UNSPEC;
   }
+  QUIC_BUG << "Invalid IpAddressFamily " << static_cast<int32_t>(family);
+  return AF_UNSPEC;
 }
 
 QuicIpAddress QuicIpAddress::Loopback4() {
@@ -81,6 +84,8 @@ bool operator==(QuicIpAddress lhs, QuicIpAddress rhs) {
     case IpAddressFamily::IP_UNSPEC:
       return true;
   }
+  QUIC_BUG << "Invalid IpAddressFamily " << static_cast<int32_t>(lhs.family_);
+  return false;
 }
 
 bool operator!=(QuicIpAddress lhs, QuicIpAddress rhs) {
@@ -108,6 +113,8 @@ std::string QuicIpAddress::ToPackedString() const {
     case IpAddressFamily::IP_UNSPEC:
       return "";
   }
+  QUIC_BUG << "Invalid IpAddressFamily " << static_cast<int32_t>(family_);
+  return "";
 }
 
 std::string QuicIpAddress::ToString() const {
@@ -211,7 +218,7 @@ bool QuicIpAddress::InSameSubnet(const QuicIpAddress& other,
     return true;
   }
   DCHECK_LT(static_cast<size_t>(bytes_to_check), sizeof(address_.bytes));
-  int mask = (~0) << (8 - bits_to_check);
+  int mask = (~0) << (8u - bits_to_check);
   return (lhs[bytes_to_check] & mask) == (rhs[bytes_to_check] & mask);
 }
 
