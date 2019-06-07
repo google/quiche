@@ -191,7 +191,7 @@ class QuicSpdyStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
   }
 
   bool HasFrameHeader() const {
-    return VersionHasDataFrameHeader(connection_->transport_version());
+    return VersionHasDataFrameHeader(GetParam().transport_version);
   }
 
  protected:
@@ -230,7 +230,7 @@ TEST_P(QuicSpdyStreamTest, ProcessTooLargeHeaderList) {
   stream_->OnStreamHeadersPriority(kV3HighestPriority);
 
   const bool version_uses_qpack =
-      VersionUsesQpack(connection_->transport_version());
+      VersionUsesQpack(GetParam().transport_version);
 
   if (version_uses_qpack) {
     EXPECT_CALL(*connection_,
@@ -265,9 +265,9 @@ TEST_P(QuicSpdyStreamTest, ProcessHeaderListWithFin) {
   EXPECT_TRUE(stream_->HasFinalReceivedByteOffset());
 }
 
+// A valid status code should be 3-digit integer. The first digit should be in
+// the range of [1, 5]. All the others are invalid.
 TEST_P(QuicSpdyStreamTest, ParseHeaderStatusCode) {
-  // A valid status code should be 3-digit integer. The first digit should be in
-  // the range of [1, 5]. All the others are invalid.
   Initialize(kShouldProcessData);
   int status_code = 0;
 
@@ -335,11 +335,12 @@ TEST_P(QuicSpdyStreamTest, MarkHeadersConsumed) {
 }
 
 TEST_P(QuicSpdyStreamTest, ProcessWrongFramesOnSpdyStream) {
-  testing::InSequence s;
-  Initialize(kShouldProcessData);
   if (!HasFrameHeader()) {
     return;
   }
+
+  testing::InSequence s;
+  Initialize(kShouldProcessData);
   connection_->AdvanceTime(QuicTime::Delta::FromSeconds(1));
   GoAwayFrame goaway;
   goaway.stream_id = 0x1;
@@ -617,15 +618,16 @@ TEST_P(QuicSpdyStreamTest, ProcessHeadersUsingReadvWithMultipleIovecs) {
   }
 }
 
+// Tests that we send a BLOCKED frame to the peer when we attempt to write, but
+// are flow control blocked.
 TEST_P(QuicSpdyStreamTest, StreamFlowControlBlocked) {
   if (GetParam().handshake_protocol == PROTOCOL_TLS1_3) {
     // TODO(nharper, b/112643533): Figure out why this test fails when TLS is
     // enabled and fix it.
     return;
   }
+
   testing::InSequence seq;
-  // Tests that we send a BLOCKED frame to the peer when we attempt to write,
-  // but are flow control blocked.
   Initialize(kShouldProcessData);
 
   // Set a small flow control limit.
@@ -656,12 +658,10 @@ TEST_P(QuicSpdyStreamTest, StreamFlowControlBlocked) {
   EXPECT_EQ(kOverflow + kHeaderLength, stream_->BufferedDataBytes());
 }
 
+// The flow control receive window decreases whenever we add new bytes to the
+// sequencer, whether they are consumed immediately or buffered. However we only
+// send WINDOW_UPDATE frames based on increasing number of bytes consumed.
 TEST_P(QuicSpdyStreamTest, StreamFlowControlNoWindowUpdateIfNotConsumed) {
-  // The flow control receive window decreases whenever we add new bytes to the
-  // sequencer, whether they are consumed immediately or buffered. However we
-  // only send WINDOW_UPDATE frames based on increasing number of bytes
-  // consumed.
-
   // Don't process data - it will be buffered instead.
   Initialize(!kShouldProcessData);
 
@@ -711,10 +711,10 @@ TEST_P(QuicSpdyStreamTest, StreamFlowControlNoWindowUpdateIfNotConsumed) {
       QuicFlowControllerPeer::ReceiveWindowSize(stream_->flow_controller()));
 }
 
+// Tests that on receipt of data, the stream updates its receive window offset
+// appropriately, and sends WINDOW_UPDATE frames when its receive window drops
+// too low.
 TEST_P(QuicSpdyStreamTest, StreamFlowControlWindowUpdate) {
-  // Tests that on receipt of data, the stream updates its receive window offset
-  // appropriately, and sends WINDOW_UPDATE frames when its receive window drops
-  // too low.
   Initialize(kShouldProcessData);
 
   // Set a small flow control limit.
@@ -762,10 +762,10 @@ TEST_P(QuicSpdyStreamTest, StreamFlowControlWindowUpdate) {
                          stream_->flow_controller()));
 }
 
+// Tests that on receipt of data, the connection updates its receive window
+// offset appropriately, and sends WINDOW_UPDATE frames when its receive window
+// drops too low.
 TEST_P(QuicSpdyStreamTest, ConnectionFlowControlWindowUpdate) {
-  // Tests that on receipt of data, the connection updates its receive window
-  // offset appropriately, and sends WINDOW_UPDATE frames when its receive
-  // window drops too low.
   Initialize(kShouldProcessData);
 
   // Set a small flow control limit for streams and connection.
@@ -833,10 +833,9 @@ TEST_P(QuicSpdyStreamTest, ConnectionFlowControlWindowUpdate) {
   stream_->OnStreamFrame(frame3);
 }
 
+// Tests that on if the peer sends too much data (i.e. violates the flow control
+// protocol), then we terminate the connection.
 TEST_P(QuicSpdyStreamTest, StreamFlowControlViolation) {
-  // Tests that on if the peer sends too much data (i.e. violates the flow
-  // control protocol), then we terminate the connection.
-
   // Stream should not process data, so that data gets buffered in the
   // sequencer, triggering flow control limits.
   Initialize(!kShouldProcessData);
@@ -872,11 +871,10 @@ TEST_P(QuicSpdyStreamTest, TestHandlingQuicRstStreamNoError) {
   EXPECT_FALSE(stream_->reading_stopped());
 }
 
+// Tests that on if the peer sends too much data (i.e. violates the flow control
+// protocol), at the connection level (rather than the stream level) then we
+// terminate the connection.
 TEST_P(QuicSpdyStreamTest, ConnectionFlowControlViolation) {
-  // Tests that on if the peer sends too much data (i.e. violates the flow
-  // control protocol), at the connection level (rather than the stream level)
-  // then we terminate the connection.
-
   // Stream should not process data, so that data gets buffered in the
   // sequencer, triggering flow control limits.
   Initialize(!kShouldProcessData);
@@ -908,10 +906,9 @@ TEST_P(QuicSpdyStreamTest, ConnectionFlowControlViolation) {
   stream_->OnStreamFrame(frame);
 }
 
+// An attempt to write a FIN with no data should not be flow control blocked,
+// even if the send window is 0.
 TEST_P(QuicSpdyStreamTest, StreamFlowControlFinNotBlocked) {
-  // An attempt to write a FIN with no data should not be flow control blocked,
-  // even if the send window is 0.
-
   Initialize(kShouldProcessData);
 
   // Set a flow control limit of zero.
@@ -931,9 +928,9 @@ TEST_P(QuicSpdyStreamTest, StreamFlowControlFinNotBlocked) {
   stream_->WriteOrBufferBody(body, fin);
 }
 
+// Test that receiving trailing headers from the peer via OnStreamHeaderList()
+// works, and can be read from the stream and consumed.
 TEST_P(QuicSpdyStreamTest, ReceivingTrailersViaHeaderList) {
-  // Test that receiving trailing headers from the peer via
-  // OnStreamHeaderList() works, and can be read from the stream and consumed.
   Initialize(kShouldProcessData);
 
   // Receive initial headers.
@@ -977,16 +974,16 @@ TEST_P(QuicSpdyStreamTest, ReceivingTrailersViaHeaderList) {
   EXPECT_TRUE(stream_->IsDoneReading());
 }
 
+// Test that when receiving trailing headers with an offset before response
+// body, stream is closed at the right offset.
 TEST_P(QuicSpdyStreamTest, ReceivingTrailersWithOffset) {
-  // Test that when receiving trailing headers with an offset before response
-  // body, stream is closed at the right offset.
-  Initialize(kShouldProcessData);
-
   // kFinalOffsetHeaderKey is not used when HEADERS are sent on the
   // request/response stream.
   if (VersionUsesQpack(GetParam().transport_version)) {
     return;
   }
+
+  Initialize(kShouldProcessData);
 
   // Receive initial headers.
   QuicHeaderList headers = ProcessHeaders(false, headers_);
@@ -1029,15 +1026,15 @@ TEST_P(QuicSpdyStreamTest, ReceivingTrailersWithOffset) {
   EXPECT_TRUE(stream_->IsDoneReading());
 }
 
+// Test that receiving trailers without a final offset field is an error.
 TEST_P(QuicSpdyStreamTest, ReceivingTrailersWithoutOffset) {
-  // Test that receiving trailers without a final offset field is an error.
-  Initialize(kShouldProcessData);
-
   // kFinalOffsetHeaderKey is not used when HEADERS are sent on the
   // request/response stream.
   if (VersionUsesQpack(GetParam().transport_version)) {
     return;
   }
+
+  Initialize(kShouldProcessData);
 
   // Receive initial headers.
   ProcessHeaders(false, headers_);
@@ -1062,11 +1059,11 @@ TEST_P(QuicSpdyStreamTest, ReceivingTrailersWithoutOffset) {
 }
 
 TEST_P(QuicSpdyStreamTest, ReceivingTrailersOnRequestStream) {
-  Initialize(kShouldProcessData);
-
   if (!VersionUsesQpack(GetParam().transport_version)) {
     return;
   }
+
+  Initialize(kShouldProcessData);
 
   // Receive initial headers.
   QuicHeaderList headers = ProcessHeaders(false, headers_);
@@ -1105,15 +1102,15 @@ TEST_P(QuicSpdyStreamTest, ReceivingTrailersOnRequestStream) {
   EXPECT_TRUE(stream_->IsDoneReading());
 }
 
+// Test that received Trailers must always have the FIN set.
 TEST_P(QuicSpdyStreamTest, ReceivingTrailersWithoutFin) {
-  // Test that received Trailers must always have the FIN set.
-  Initialize(kShouldProcessData);
-
   // In IETF QUIC, there is no such thing as FIN flag on HTTP/3 frames like the
   // HEADERS frame.
   if (VersionUsesQpack(GetParam().transport_version)) {
     return;
   }
+
+  Initialize(kShouldProcessData);
 
   // Receive initial headers.
   auto headers = AsHeaderList(headers_);
@@ -1150,16 +1147,16 @@ TEST_P(QuicSpdyStreamTest, ReceivingTrailersAfterHeadersWithFin) {
   ProcessHeaders(true, trailers_block);
 }
 
+// If body data are received with a FIN, no trailers should then arrive.
 TEST_P(QuicSpdyStreamTest, ReceivingTrailersAfterBodyWithFin) {
-  // If body data are received with a FIN, no trailers should then arrive.
-  Initialize(kShouldProcessData);
-
   // If HEADERS frames are sent on the request/response stream,
   // then the sequencer will block them from reaching QuicSpdyStream
   // after the stream is closed.
   if (VersionUsesQpack(GetParam().transport_version)) {
     return;
   }
+
+  Initialize(kShouldProcessData);
 
   // Receive initial headers without FIN set.
   ProcessHeaders(false, headers_);
@@ -1204,14 +1201,15 @@ TEST_P(QuicSpdyStreamTest, ClosingStreamWithNoTrailers) {
   EXPECT_TRUE(stream_->IsDoneReading());
 }
 
+// Test that writing trailers will send a FIN, as Trailers are the last thing to
+// be sent on a stream.
 TEST_P(QuicSpdyStreamTest, WritingTrailersSendsAFin) {
   if (GetParam().handshake_protocol == PROTOCOL_TLS1_3) {
     // TODO(nharper, b/112643533): Figure out why this test fails when TLS is
     // enabled and fix it.
     return;
   }
-  // Test that writing trailers will send a FIN, as Trailers are the last thing
-  // to be sent on a stream.
+
   Initialize(kShouldProcessData);
 
   if (VersionUsesQpack(GetParam().transport_version)) {
@@ -1232,14 +1230,15 @@ TEST_P(QuicSpdyStreamTest, WritingTrailersSendsAFin) {
   EXPECT_TRUE(stream_->fin_sent());
 }
 
+// Test that when writing trailers, the trailers that are actually sent to the
+// peer contain the final offset field indicating last byte of data.
 TEST_P(QuicSpdyStreamTest, WritingTrailersFinalOffset) {
   if (GetParam().handshake_protocol == PROTOCOL_TLS1_3) {
     // TODO(nharper, b/112643533): Figure out why this test fails when TLS is
     // enabled and fix it.
     return;
   }
-  // Test that when writing trailers, the trailers that are actually sent to the
-  // peer contain the final offset field indicating last byte of data.
+
   Initialize(kShouldProcessData);
 
   if (VersionUsesQpack(GetParam().transport_version)) {
@@ -1281,14 +1280,15 @@ TEST_P(QuicSpdyStreamTest, WritingTrailersFinalOffset) {
   EXPECT_EQ(expected_trailers, stream_->saved_headers());
 }
 
+// Test that if trailers are written after all other data has been written
+// (headers and body), that this closes the stream for writing.
 TEST_P(QuicSpdyStreamTest, WritingTrailersClosesWriteSide) {
   if (GetParam().handshake_protocol == PROTOCOL_TLS1_3) {
     // TODO(nharper, b/112643533): Figure out why this test fails when TLS is
     // enabled and fix it.
     return;
   }
-  // Test that if trailers are written after all other data has been written
-  // (headers and body), that this closes the stream for writing.
+
   Initialize(kShouldProcessData);
 
   // Expect data being written on the stream.  In addition to that, headers are
@@ -1312,6 +1312,8 @@ TEST_P(QuicSpdyStreamTest, WritingTrailersClosesWriteSide) {
   EXPECT_TRUE(stream_->write_side_closed());
 }
 
+// Test that the stream is not closed for writing when trailers are sent while
+// there are still body bytes queued.
 TEST_P(QuicSpdyStreamTest, WritingTrailersWithQueuedBytes) {
   // This test exercises sending trailers on the headers stream while data is
   // still queued on the response/request stream.  In IETF QUIC, data and
@@ -1320,8 +1322,6 @@ TEST_P(QuicSpdyStreamTest, WritingTrailersWithQueuedBytes) {
     return;
   }
 
-  // Test that the stream is not closed for writing when trailers are sent
-  // while there are still body bytes queued.
   testing::InSequence seq;
   Initialize(kShouldProcessData);
 
@@ -1352,6 +1352,7 @@ TEST_P(QuicSpdyStreamTest, WritingTrailersWithQueuedBytes) {
   EXPECT_TRUE(stream_->write_side_closed());
 }
 
+// Test that it is not possible to write Trailers after a FIN has been sent.
 TEST_P(QuicSpdyStreamTest, WritingTrailersAfterFIN) {
   // EXPECT_QUIC_BUG tests are expensive so only run one instance of them.
   // In IETF QUIC, there is no such thing as FIN flag on HTTP/3 frames like the
@@ -1361,7 +1362,6 @@ TEST_P(QuicSpdyStreamTest, WritingTrailersAfterFIN) {
     return;
   }
 
-  // Test that it is not possible to write Trailers after a FIN has been sent.
   Initialize(kShouldProcessData);
 
   // Write the initial headers, with a FIN.
@@ -1381,6 +1381,7 @@ TEST_P(QuicSpdyStreamTest, HeaderStreamNotiferCorrespondingSpdyStream) {
     // enabled and fix it.
     return;
   }
+
   Initialize(kShouldProcessData);
   EXPECT_CALL(*session_, WritevData(_, _, _, _, _)).Times(AtLeast(1));
   testing::InSequence s;
@@ -1437,6 +1438,7 @@ TEST_P(QuicSpdyStreamTest, StreamBecomesZombieWithWriteThatCloses) {
     // enabled and fix it.
     return;
   }
+
   Initialize(kShouldProcessData);
   EXPECT_CALL(*session_, WritevData(_, _, _, _, _)).Times(AtLeast(1));
   QuicStreamPeer::CloseReadSide(stream_);
@@ -1460,6 +1462,7 @@ TEST_P(QuicSpdyStreamTest, OnPriorityFrameAfterSendingData) {
     // enabled and fix it.
     return;
   }
+
   testing::InSequence seq;
   Initialize(kShouldProcessData);
 
@@ -1503,6 +1506,7 @@ TEST_P(QuicSpdyStreamTest, StreamWaitsForAcks) {
     // enabled and fix it.
     return;
   }
+
   Initialize(kShouldProcessData);
   QuicReferenceCountedPointer<MockAckListener> mock_ack_listener(
       new StrictMock<MockAckListener>);
@@ -1559,6 +1563,7 @@ TEST_P(QuicSpdyStreamTest, StreamDataGetAckedMultipleTimes) {
     // enabled and fix it.
     return;
   }
+
   Initialize(kShouldProcessData);
   QuicReferenceCountedPointer<MockAckListener> mock_ack_listener(
       new StrictMock<MockAckListener>);
@@ -1619,10 +1624,12 @@ TEST_P(QuicSpdyStreamTest, HeadersAckNotReportedWriteOrBufferBody) {
     // enabled and fix it.
     return;
   }
-  Initialize(kShouldProcessData);
+
   if (!HasFrameHeader()) {
     return;
   }
+
+  Initialize(kShouldProcessData);
   QuicReferenceCountedPointer<MockAckListener> mock_ack_listener(
       new StrictMock<MockAckListener>);
   stream_->set_ack_listener(mock_ack_listener);
@@ -1669,10 +1676,12 @@ TEST_P(QuicSpdyStreamTest, HeadersAckNotReportedWriteBodySlices) {
     // enabled and fix it.
     return;
   }
-  Initialize(kShouldProcessData);
+
   if (!HasFrameHeader()) {
     return;
   }
+
+  Initialize(kShouldProcessData);
   QuicReferenceCountedPointer<MockAckListener> mock_ack_listener(
       new StrictMock<MockAckListener>);
   stream_->set_ack_listener(mock_ack_listener);
@@ -1714,10 +1723,11 @@ TEST_P(QuicSpdyStreamTest, HeaderBytesNotReportedOnRetransmission) {
     // enabled and fix it.
     return;
   }
-  Initialize(kShouldProcessData);
   if (!HasFrameHeader()) {
     return;
   }
+
+  Initialize(kShouldProcessData);
   QuicReferenceCountedPointer<MockAckListener> mock_ack_listener(
       new StrictMock<MockAckListener>);
   stream_->set_ack_listener(mock_ack_listener);
@@ -1812,7 +1822,8 @@ TEST_P(QuicSpdyStreamTest, ProcessBodyAfterTrailers) {
   if (!VersionUsesQpack(GetParam().transport_version)) {
     return;
   }
-  Initialize(false);
+
+  Initialize(!kShouldProcessData);
 
   // QPACK encoded header block with single header field "foo: bar".
   std::string headers_frame_payload =
@@ -1863,14 +1874,15 @@ TEST_P(QuicSpdyStreamTest, ProcessBodyAfterTrailers) {
   EXPECT_EQ("some data", data);
 }
 
+// The test stream will receive a stream frame containing malformed headers and
+// normal body. Make sure the http decoder stops processing body after the
+// connection shuts down.
 TEST_P(QuicSpdyStreamTest, MalformedHeadersStopHttpDecoder) {
-  // The test stream will receive a stream frame containing malformed headers
-  // and normal body. Make sure the http decoder stops processing body after the
-  // connection shuts down.
-  testing::InSequence s;
   if (!VersionUsesQpack(GetParam().transport_version)) {
     return;
   }
+
+  testing::InSequence s;
 
   Initialize(kShouldProcessData);
   connection_->AdvanceTime(QuicTime::Delta::FromSeconds(1));
