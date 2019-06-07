@@ -258,7 +258,6 @@ QuicConnection::QuicConnection(
       max_tracked_packets_(kMaxTrackedPackets),
       pending_version_negotiation_packet_(false),
       send_ietf_version_negotiation_packet_(false),
-      save_crypto_packets_as_termination_packets_(false),
       idle_timeout_connection_close_behavior_(
           ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET),
       close_connection_after_five_rtos_(false),
@@ -3223,10 +3222,6 @@ bool QuicConnection::HasQueuedData() const {
          packet_generator_.HasQueuedFrames();
 }
 
-void QuicConnection::EnableSavingCryptoPackets() {
-  save_crypto_packets_as_termination_packets_ = true;
-}
-
 bool QuicConnection::CanWriteStreamData() {
   // Don't write stream data if there are negotiation or queued data packets
   // to send. Otherwise, continue and bundle as many frames as possible.
@@ -3558,10 +3553,6 @@ bool QuicConnection::IsTerminationPacket(const SerializedPacket& packet) {
   }
   for (const QuicFrame& frame : packet.retransmittable_frames) {
     if (frame.type == CONNECTION_CLOSE_FRAME) {
-      return true;
-    }
-    if (save_crypto_packets_as_termination_packets_ &&
-        QuicUtils::IsHandshakeFrame(frame, transport_version())) {
       return true;
     }
   }

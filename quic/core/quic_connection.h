@@ -604,10 +604,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Testing only.
   size_t NumQueuedPackets() const { return queued_packets_.size(); }
 
-  // Once called, any sent crypto packets to be saved as the
-  // termination packet, for use with stateless rejections.
-  void EnableSavingCryptoPackets();
-
   // Returns true if the underlying UDP socket is writable, there is
   // no queued data and the connection is not congestion-control
   // blocked.
@@ -1259,9 +1255,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // fields are owned by the QueuedPacketList, in order to ensure they outlast
   // the original scope of the SerializedPacket.
   QueuedPacketList queued_packets_;
-
-  // If true, then crypto packets will be saved as termination packets.
-  bool save_crypto_packets_as_termination_packets_;
 
   // Contains the connection close packets if the connection has been closed.
   std::unique_ptr<std::vector<std::unique_ptr<QuicEncryptedPacket>>>
