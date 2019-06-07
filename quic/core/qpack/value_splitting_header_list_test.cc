@@ -4,6 +4,7 @@
 
 #include "net/third_party/quiche/src/quic/core/qpack/value_splitting_header_list.h"
 
+#include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 
 namespace quic {
@@ -17,10 +18,11 @@ TEST(ValueSplittingHeaderListTest, Comparison) {
   spdy::SpdyHeaderBlock block;
   block["foo"] = QuicStringPiece("bar\0baz", 7);
   block["baz"] = "qux";
+  block["cookie"] = "foo; bar";
 
   ValueSplittingHeaderList headers(&block);
   ValueSplittingHeaderList::const_iterator it1 = headers.begin();
-  const int kEnd = 4;
+  const int kEnd = 6;
   for (int i = 0; i < kEnd; ++i) {
     // Compare to begin().
     if (i == 0) {
@@ -73,47 +75,75 @@ TEST(ValueSplittingHeaderListTest, Empty) {
   EXPECT_EQ(headers.begin(), headers.end());
 }
 
-TEST(ValueSplittingHeaderListTest, Simple) {
-  spdy::SpdyHeaderBlock block;
-  block["foo"] = "bar";
-  block["baz"] = "qux";
+struct {
+  const char* name;
+  QuicStringPiece value;
+  std::vector<const char*> expected_values;
+} kTestData[]{
+    // Empty value.
+    {"foo", "", {""}},
+    // Trivial case.
+    {"foo", "bar", {"bar"}},
+    // Simple split.
+    {"foo", {"bar\0baz", 7}, {"bar", "baz"}},
+    {"cookie", "foo;bar", {"foo", "bar"}},
+    {"cookie", "foo; bar", {"foo", "bar"}},
+    // Empty fragments with \0 separator.
+    {"foo", {"\0", 1}, {"", ""}},
+    {"bar", {"foo\0", 4}, {"foo", ""}},
+    {"baz", {"\0bar", 4}, {"", "bar"}},
+    {"qux", {"\0foobar\0", 8}, {"", "foobar", ""}},
+    // Empty fragments with ";" separator.
+    {"cookie", ";", {"", ""}},
+    {"cookie", "foo;", {"foo", ""}},
+    {"cookie", ";bar", {"", "bar"}},
+    {"cookie", ";foobar;", {"", "foobar", ""}},
+    // Empty fragments with "; " separator.
+    {"cookie", "; ", {"", ""}},
+    {"cookie", "foo; ", {"foo", ""}},
+    {"cookie", "; bar", {"", "bar"}},
+    {"cookie", "; foobar; ", {"", "foobar", ""}},
+};
 
-  ValueSplittingHeaderList headers(&block);
-  EXPECT_THAT(headers, ElementsAre(Pair("foo", "bar"), Pair("baz", "qux")));
-  EXPECT_NE(headers.begin(), headers.end());
+TEST(ValueSplittingHeaderListTest, Split) {
+  for (size_t i = 0; i < QUIC_ARRAYSIZE(kTestData); ++i) {
+    spdy::SpdyHeaderBlock block;
+    block[kTestData[i].name] = kTestData[i].value;
+
+    ValueSplittingHeaderList headers(&block);
+    auto it = headers.begin();
+    for (const char* expected_value : kTestData[i].expected_values) {
+      ASSERT_NE(it, headers.end());
+      EXPECT_EQ(it->first, kTestData[i].name);
+      EXPECT_EQ(it->second, expected_value);
+      ++it;
+    }
+    EXPECT_EQ(it, headers.end());
+  }
 }
 
-TEST(ValueSplittingHeaderListTest, EmptyValue) {
+TEST(ValueSplittingHeaderListTest, MultipleFields) {
   spdy::SpdyHeaderBlock block;
-  block["foo"] = "";
-
-  ValueSplittingHeaderList headers(&block);
-  EXPECT_THAT(headers, ElementsAre(Pair("foo", "")));
-}
-
-TEST(ValueSplittingHeaderListTest, SimpleSplit) {
-  spdy::SpdyHeaderBlock block;
-  block["foo"] = QuicStringPiece("bar\0baz", 7);
-  block["baz"] = QuicStringPiece("foo\0foo", 7);
+  block["foo"] = QuicStringPiece("bar\0baz\0", 8);
+  block["cookie"] = "foo; bar";
+  block["bar"] = QuicStringPiece("qux\0foo", 7);
 
   ValueSplittingHeaderList headers(&block);
   EXPECT_THAT(headers, ElementsAre(Pair("foo", "bar"), Pair("foo", "baz"),
-                                   Pair("baz", "foo"), Pair("baz", "foo")));
+                                   Pair("foo", ""), Pair("cookie", "foo"),
+                                   Pair("cookie", "bar"), Pair("bar", "qux"),
+                                   Pair("bar", "foo")));
 }
 
-TEST(ValueSplittingHeaderListTest, EmptyFragments) {
+TEST(ValueSplittingHeaderListTest, CookieStartsWithSpace) {
   spdy::SpdyHeaderBlock block;
-  block["foo"] = QuicStringPiece("\0", 1);
-  block["bar"] = QuicStringPiece("foo\0", 4);
-  block["baz"] = QuicStringPiece("\0bar", 4);
-  block["qux"] = QuicStringPiece("\0foobar\0", 8);
+  block["foo"] = "bar";
+  block["cookie"] = " foo";
+  block["bar"] = "baz";
 
   ValueSplittingHeaderList headers(&block);
-  EXPECT_THAT(
-      headers,
-      ElementsAre(Pair("foo", ""), Pair("foo", ""), Pair("bar", "foo"),
-                  Pair("bar", ""), Pair("baz", ""), Pair("baz", "bar"),
-                  Pair("qux", ""), Pair("qux", "foobar"), Pair("qux", "")));
+  EXPECT_THAT(headers, ElementsAre(Pair("foo", "bar"), Pair("cookie", " foo"),
+                                   Pair("bar", "baz")));
 }
 
 }  // namespace

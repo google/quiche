@@ -11,8 +11,9 @@
 
 namespace quic {
 
-// A wrapper class around SpdyHeaderBlock that splits header values along '\0'
-// characters.
+// A wrapper class around SpdyHeaderBlock that splits header values along ';'
+// separators (while also removing optional space following separator) for
+// cookies and along '\0' separators for other header fields.
 class QUIC_EXPORT_PRIVATE ValueSplittingHeaderList {
  public:
   using value_type = spdy::SpdyHeaderBlock::value_type;
@@ -34,7 +35,7 @@ class QUIC_EXPORT_PRIVATE ValueSplittingHeaderList {
     const value_type* operator->() const;
 
    private:
-    // Find next '\0' character; update |value_end_| and |header_field_|.
+    // Find next separator; update |value_end_| and |header_field_|.
     void UpdateHeaderField();
 
     const spdy::SpdyHeaderBlock* const header_list_;

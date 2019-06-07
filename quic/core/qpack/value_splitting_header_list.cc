@@ -5,6 +5,14 @@
 #include "net/third_party/quiche/src/quic/core/qpack/value_splitting_header_list.h"
 
 namespace quic {
+namespace {
+
+const char kCookieKey[] = "cookie";
+const char kCookieSeparator = ';';
+const char kOptionalSpaceAfterCookieSeparator = ' ';
+const char kNonCookieSeparator = '\0';
+
+}  // namespace
 
 ValueSplittingHeaderList::const_iterator::const_iterator(
     const spdy::SpdyHeaderBlock* header_list,
@@ -59,15 +67,24 @@ void ValueSplittingHeaderList::const_iterator::UpdateHeaderField() {
   }
 
   const QuicStringPiece name = header_list_iterator_->first;
+  const QuicStringPiece original_value = header_list_iterator_->second;
 
-  value_end_ = header_list_iterator_->second.find('\0', value_start_);
-  const QuicStringPiece::size_type value_length =
-      value_end_ == QuicStringPiece::npos ? QuicStringPiece::npos
-                                          : value_end_ - value_start_;
+  if (name == kCookieKey) {
+    value_end_ = original_value.find(kCookieSeparator, value_start_);
+  } else {
+    value_end_ = original_value.find(kNonCookieSeparator, value_start_);
+  }
+
   const QuicStringPiece value =
-      header_list_iterator_->second.substr(value_start_, value_length);
-
+      original_value.substr(value_start_, value_end_ - value_start_);
   header_field_ = std::make_pair(name, value);
+
+  // Skip character after ';' separator if it is a space.
+  if (name == kCookieKey && value_end_ != QuicStringPiece::npos &&
+      value_end_ + 1 < original_value.size() &&
+      original_value[value_end_ + 1] == kOptionalSpaceAfterCookieSeparator) {
+    ++value_end_;
+  }
 }
 
 ValueSplittingHeaderList::ValueSplittingHeaderList(

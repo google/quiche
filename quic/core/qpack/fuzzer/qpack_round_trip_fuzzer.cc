@@ -143,8 +143,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   CHECK(handler.decoding_completed());
   CHECK(!handler.decoding_error_detected());
 
-  // Encoder splits |header_list| header keys along '\0' characters.  Do the
-  // same so that we get matching results.
+  // Encoder splits |header_list| header values along '\0' or ';' separators.
+  // Do the same here so that we get matching results.
   ValueSplittingHeaderList splitting_header_list(&header_list);
   spdy::SpdyHeaderBlock expected_header_list;
   for (const auto& header : splitting_header_list) {
