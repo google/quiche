@@ -517,6 +517,8 @@ TEST_F(QuicDispatcherTest, StatelessVersionNegotiation) {
 
 TEST_F(QuicDispatcherTest, StatelessVersionNegotiationWithClientConnectionId) {
   SetQuicRestartFlag(quic_do_not_override_connection_id, true);
+  SetQuicRestartFlag(quic_allow_variable_length_connection_id_for_negotiation,
+                     true);
   CreateTimeWaitListManager();
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
 
