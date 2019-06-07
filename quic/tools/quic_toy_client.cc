@@ -221,7 +221,7 @@ int QuicToyClient::SendRequestsAndPrintResponses(
 
   // Build the client, and try to connect.
   std::unique_ptr<QuicSpdyClientBase> client = client_factory_->CreateClient(
-      host, port, versions, std::move(proof_verifier));
+      url.host(), port, versions, std::move(proof_verifier));
 
   int32_t initial_mtu = GetQuicFlag(FLAGS_initial_mtu);
   client->set_initial_max_packet_length(
