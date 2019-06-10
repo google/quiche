@@ -246,6 +246,10 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream : public QuicStream {
   friend class QuicStreamUtils;
   class HttpDecoderVisitor;
 
+  // Call QuicStreamSequencer::MarkConsumed() with
+  // |headers_bytes_to_be_marked_consumed_| if appropriate.
+  void MaybeMarkHeadersBytesConsumed();
+
   // Given the interval marked by [|offset|, |offset| + |data_length|), return
   // the number of frame header bytes contained in it.
   QuicByteCount GetNumFrameHeadersInInterval(QuicStreamOffset offset,
@@ -270,8 +274,9 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream : public QuicStream {
   bool trailers_decompressed_;
   // True if the trailers have been consumed.
   bool trailers_consumed_;
-  // True if the trailers have actually been consumed in the stream sequencer.
-  bool trailers_consumed_in_sequencer_;
+  // Number of bytes consumed while decoding HEADERS frames that cannot be
+  // marked consumed in QuicStreamSequencer until later.
+  QuicByteCount headers_bytes_to_be_marked_consumed_;
   // The parsed trailers received from the peer.
   spdy::SpdyHeaderBlock received_trailers_;
 
