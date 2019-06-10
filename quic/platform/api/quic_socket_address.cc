@@ -14,8 +14,8 @@ QuicSocketAddress::QuicSocketAddress(QuicIpAddress address, uint16_t port)
 QuicSocketAddress::QuicSocketAddress(const struct sockaddr_storage& saddr)
     : impl_(saddr) {}
 
-QuicSocketAddress::QuicSocketAddress(const struct sockaddr& saddr)
-    : impl_(saddr) {}
+QuicSocketAddress::QuicSocketAddress(const sockaddr* saddr, socklen_t len)
+    : impl_(saddr, len) {}
 
 QuicSocketAddress::QuicSocketAddress(const QuicSocketAddressImpl& impl)
     : impl_(impl) {}

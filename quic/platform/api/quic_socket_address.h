@@ -21,7 +21,7 @@ class QUIC_EXPORT_PRIVATE QuicSocketAddress {
   QuicSocketAddress() = default;
   QuicSocketAddress(QuicIpAddress address, uint16_t port);
   explicit QuicSocketAddress(const struct sockaddr_storage& saddr);
-  explicit QuicSocketAddress(const struct sockaddr& saddr);
+  explicit QuicSocketAddress(const sockaddr* saddr, socklen_t len);
   explicit QuicSocketAddress(const QuicSocketAddressImpl& impl);
   QuicSocketAddress(const QuicSocketAddress& other) = default;
   QuicSocketAddress& operator=(const QuicSocketAddress& other) = default;

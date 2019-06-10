@@ -32,7 +32,7 @@ QuicSocketAddress LookupAddress(std::string host, std::string port) {
   CHECK(info_list != nullptr);
   std::unique_ptr<addrinfo, void (*)(addrinfo*)> info_list_owned(info_list,
                                                                  freeaddrinfo);
-  return QuicSocketAddress(*info_list->ai_addr);
+  return QuicSocketAddress(info_list->ai_addr, info_list->ai_addrlen);
 }
 
 }  // namespace

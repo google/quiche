@@ -38,7 +38,8 @@ TEST(QuicSocketAddress, FromSockaddrIPv4) {
   address.v4.sin_family = AF_INET;
   address.v4.sin_addr = QuicIpAddress::Loopback4().GetIPv4();
   address.v4.sin_port = htons(443);
-  EXPECT_EQ("127.0.0.1:443", QuicSocketAddress(address.addr).ToString());
+  EXPECT_EQ("127.0.0.1:443",
+            QuicSocketAddress(&address.addr, sizeof(address.v4)).ToString());
   EXPECT_EQ("127.0.0.1:443", QuicSocketAddress(address.storage).ToString());
 }
 
@@ -53,7 +54,8 @@ TEST(QuicSocketAddress, FromSockaddrIPv6) {
   address.v6.sin6_family = AF_INET6;
   address.v6.sin6_addr = QuicIpAddress::Loopback6().GetIPv6();
   address.v6.sin6_port = htons(443);
-  EXPECT_EQ("[::1]:443", QuicSocketAddress(address.addr).ToString());
+  EXPECT_EQ("[::1]:443",
+            QuicSocketAddress(&address.addr, sizeof(address.v6)).ToString());
   EXPECT_EQ("[::1]:443", QuicSocketAddress(address.storage).ToString());
 }
 
