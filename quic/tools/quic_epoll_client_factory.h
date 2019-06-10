@@ -14,7 +14,8 @@ namespace quic {
 class QuicEpollClientFactory : public QuicToyClient::ClientFactory {
  public:
   std::unique_ptr<QuicSpdyClientBase> CreateClient(
-      std::string host,
+      std::string host_for_handshake,
+      std::string host_for_lookup,
       uint16_t port,
       ParsedQuicVersionVector versions,
       std::unique_ptr<ProofVerifier> verifier) override;

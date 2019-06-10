@@ -18,10 +18,12 @@ class QuicToyClient {
    public:
     virtual ~ClientFactory() = default;
 
-    // Creates a new client configured to connect to |host:port| supporting
-    // |versions|, and using |verifier| to verify proofs.
+    // Creates a new client configured to connect to |host_for_lookup:port|
+    // supporting |versions|, using |host_for_handshake| for handshake and
+    // |verifier| to verify proofs.
     virtual std::unique_ptr<QuicSpdyClientBase> CreateClient(
-        std::string host,
+        std::string host_for_handshake,
+        std::string host_for_lookup,
         uint16_t port,
         ParsedQuicVersionVector versions,
         std::unique_ptr<ProofVerifier> verifier) = 0;
