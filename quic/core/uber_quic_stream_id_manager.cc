@@ -24,12 +24,16 @@ UberQuicStreamIdManager::UberQuicStreamIdManager(
           /*unidirectional=*/true,
           max_open_outgoing_unidirectional_streams,
           max_open_incoming_unidirectional_streams) {}
-void UberQuicStreamIdManager::RegisterStaticStream(QuicStreamId id) {
+void UberQuicStreamIdManager::RegisterStaticStream(
+    QuicStreamId id,
+    bool stream_already_counted) {
   if (QuicUtils::IsBidirectionalStreamId(id)) {
-    bidirectional_stream_id_manager_.RegisterStaticStream(id);
+    bidirectional_stream_id_manager_.RegisterStaticStream(
+        id, stream_already_counted);
     return;
   }
-  unidirectional_stream_id_manager_.RegisterStaticStream(id);
+  unidirectional_stream_id_manager_.RegisterStaticStream(
+      id, stream_already_counted);
 }
 
 void UberQuicStreamIdManager::AdjustMaxOpenOutgoingUnidirectionalStreams(

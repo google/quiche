@@ -6,6 +6,7 @@
 
 #include "net/third_party/quiche/src/quic/core/http/quic_spdy_session.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 
@@ -26,6 +27,16 @@ void QuicSendControlStream::OnStreamReset(const QuicRstStreamFrame& frame) {
 
 void QuicSendControlStream::SendSettingsFrame(const SettingsFrame& settings) {
   DCHECK(!settings_sent_);
+
+  QuicConnection::ScopedPacketFlusher flusher(
+      session()->connection(), QuicConnection::SEND_ACK_IF_PENDING);
+  // Send the stream type on so the peer knows about this stream.
+  char data[sizeof(kControlStream)];
+  QuicDataWriter writer(QUIC_ARRAYSIZE(data), data);
+  writer.WriteVarInt62(kControlStream);
+  WriteOrBufferData(QuicStringPiece(writer.data(), writer.length()), false,
+                    nullptr);
+
   std::unique_ptr<char[]> buffer;
   QuicByteCount frame_length =
       encoder_.SerializeSettingsFrame(settings, &buffer);

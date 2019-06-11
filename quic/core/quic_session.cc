@@ -118,7 +118,7 @@ void QuicSession::Initialize() {
         QuicUtils::GetCryptoStreamId(connection_->transport_version());
     largest_static_stream_id_ = std::max(id, largest_static_stream_id_);
     if (connection_->transport_version() == QUIC_VERSION_99) {
-      v99_streamid_manager_.RegisterStaticStream(id);
+      v99_streamid_manager_.RegisterStaticStream(id, false);
     }
   }
 }
@@ -138,16 +138,18 @@ void QuicSession::RegisterStaticStream(QuicStreamId id, QuicStream* stream) {
   largest_static_stream_id_ = std::max(id, largest_static_stream_id_);
 
   if (connection_->transport_version() == QUIC_VERSION_99) {
-    v99_streamid_manager_.RegisterStaticStream(id);
+    v99_streamid_manager_.RegisterStaticStream(id, false);
   }
 }
 
-void QuicSession::RegisterStaticStreamNew(std::unique_ptr<QuicStream> stream) {
+void QuicSession::RegisterStaticStreamNew(std::unique_ptr<QuicStream> stream,
+                                          bool stream_already_counted) {
   DCHECK(eliminate_static_stream_map_);
   QuicStreamId stream_id = stream->id();
   dynamic_stream_map_[stream_id] = std::move(stream);
   if (connection_->transport_version() == QUIC_VERSION_99) {
-    v99_streamid_manager_.RegisterStaticStream(stream_id);
+    v99_streamid_manager_.RegisterStaticStream(stream_id,
+                                               stream_already_counted);
   }
   if (IsIncomingStream(stream_id)) {
     ++num_incoming_static_streams_;

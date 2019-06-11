@@ -1170,6 +1170,9 @@ QuicStreamId GetNthServerInitiatedBidirectionalStreamId(
 QuicStreamId GetNthServerInitiatedUnidirectionalStreamId(
     QuicTransportVersion version,
     int n);
+QuicStreamId GetNthClientInitiatedUnidirectionalStreamId(
+    QuicTransportVersion version,
+    int n);
 
 StreamType DetermineStreamType(QuicStreamId id,
                                QuicTransportVersion version,

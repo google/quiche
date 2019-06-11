@@ -437,9 +437,9 @@ TEST_P(QuicServerSessionBaseTest, MaxAvailableBidirectionalStreams) {
 TEST_P(QuicServerSessionBaseTest, GetEvenIncomingError) {
   // Incoming streams on the server session must be odd.
   EXPECT_CALL(*connection_, CloseConnection(QUIC_INVALID_STREAM_ID, _, _));
-  EXPECT_EQ(nullptr,
-            QuicServerSessionBasePeer::GetOrCreateDynamicStream(
-                session_.get(), GetNthServerInitiatedUnidirectionalId(0)));
+  EXPECT_EQ(nullptr, QuicServerSessionBasePeer::GetOrCreateDynamicStream(
+                         session_.get(),
+                         session_->next_outgoing_unidirectional_stream_id()));
 }
 
 TEST_P(QuicServerSessionBaseTest, GetStreamDisconnected) {

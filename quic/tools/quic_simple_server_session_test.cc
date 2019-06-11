@@ -502,7 +502,12 @@ TEST_P(QuicSimpleServerSessionTest, CreateOutgoingDynamicStreamUptoLimit) {
     QuicSpdyStream* created_stream =
         QuicSimpleServerSessionPeer::CreateOutgoingUnidirectionalStream(
             session_.get());
-    EXPECT_EQ(GetNthServerInitiatedUnidirectionalId(i), created_stream->id());
+    if (VersionHasStreamType(connection_->transport_version())) {
+      EXPECT_EQ(GetNthServerInitiatedUnidirectionalId(i + 1),
+                created_stream->id());
+    } else {
+      EXPECT_EQ(GetNthServerInitiatedUnidirectionalId(i), created_stream->id());
+    }
     EXPECT_EQ(i + 1, session_->GetNumOpenOutgoingStreams());
   }
 
@@ -617,7 +622,12 @@ class QuicSimpleServerSessionServerPushTest
     std::string scheme = "http";
     QuicByteCount data_frame_header_length = 0;
     for (unsigned int i = 1; i <= num_resources; ++i) {
-      QuicStreamId stream_id = GetNthServerInitiatedUnidirectionalId(i - 1);
+      QuicStreamId stream_id;
+      if (VersionHasStreamType(connection_->transport_version())) {
+        stream_id = GetNthServerInitiatedUnidirectionalId(i);
+      } else {
+        stream_id = GetNthServerInitiatedUnidirectionalId(i - 1);
+      }
       std::string path =
           partial_push_resource_path + QuicTextUtils::Uint64ToString(i);
       std::string url = scheme + "://" + resource_host + path;
@@ -714,8 +724,14 @@ TEST_P(QuicSimpleServerSessionServerPushTest,
   MaybeConsumeHeadersStreamData();
   size_t num_resources = kMaxStreamsForTest + 1;
   QuicByteCount data_frame_header_length = PromisePushResources(num_resources);
-  QuicStreamId next_out_going_stream_id =
-      GetNthServerInitiatedUnidirectionalId(kMaxStreamsForTest);
+  QuicStreamId next_out_going_stream_id;
+  if (VersionHasStreamType(connection_->transport_version())) {
+    next_out_going_stream_id =
+        GetNthServerInitiatedUnidirectionalId(kMaxStreamsForTest + 1);
+  } else {
+    next_out_going_stream_id =
+        GetNthServerInitiatedUnidirectionalId(kMaxStreamsForTest);
+  }
 
   // After an open stream is marked draining, a new stream is expected to be
   // created and a response sent on the stream.
@@ -753,11 +769,17 @@ TEST_P(QuicSimpleServerSessionServerPushTest,
     // a MAX_STREAMS frame is received. This emulates the reception of one.
     // For pre-v-99, the node monitors its own stream usage and makes streams
     // available as it closes/etc them.
+    // Version 99 also has unidirectional static streams, so we need to send
+    // MaxStreamFrame of the number of resources + number of static streams.
     session_->OnMaxStreamsFrame(
-        QuicMaxStreamsFrame(0, num_resources, /*unidirectional=*/true));
+        QuicMaxStreamsFrame(0, num_resources + 1, /*unidirectional=*/true));
   }
 
-  session_->StreamDraining(GetNthServerInitiatedUnidirectionalId(0));
+  if (VersionHasStreamType(connection_->transport_version())) {
+    session_->StreamDraining(GetNthServerInitiatedUnidirectionalId(1));
+  } else {
+    session_->StreamDraining(GetNthServerInitiatedUnidirectionalId(0));
+  }
   // Number of open outgoing streams should still be the same, because a new
   // stream is opened. And the queue should be empty.
   EXPECT_EQ(kMaxStreamsForTest, session_->GetNumOpenOutgoingStreams());
@@ -783,8 +805,14 @@ TEST_P(QuicSimpleServerSessionServerPushTest,
   QuicByteCount data_frame_header_length = PromisePushResources(num_resources);
 
   // Reset the last stream in the queue. It should be marked cancelled.
-  QuicStreamId stream_got_reset =
-      GetNthServerInitiatedUnidirectionalId(kMaxStreamsForTest + 1);
+  QuicStreamId stream_got_reset;
+  if (VersionHasStreamType(connection_->transport_version())) {
+    stream_got_reset =
+        GetNthServerInitiatedUnidirectionalId(kMaxStreamsForTest + 2);
+  } else {
+    stream_got_reset =
+        GetNthServerInitiatedUnidirectionalId(kMaxStreamsForTest + 1);
+  }
   QuicRstStreamFrame rst(kInvalidControlFrameId, stream_got_reset,
                          QUIC_STREAM_CANCELLED, 0);
   EXPECT_CALL(owner_, OnRstStreamReceived(_)).Times(1);
@@ -798,8 +826,14 @@ TEST_P(QuicSimpleServerSessionServerPushTest,
   // When the first 2 streams becomes draining, the two queued up stream could
   // be created. But since one of them was marked cancelled due to RST frame,
   // only one queued resource will be sent out.
-  QuicStreamId stream_not_reset =
-      GetNthServerInitiatedUnidirectionalId(kMaxStreamsForTest);
+  QuicStreamId stream_not_reset;
+  if (VersionHasStreamType(connection_->transport_version())) {
+    stream_not_reset =
+        GetNthServerInitiatedUnidirectionalId(kMaxStreamsForTest + 1);
+  } else {
+    stream_not_reset =
+        GetNthServerInitiatedUnidirectionalId(kMaxStreamsForTest);
+  }
   InSequence s;
   QuicStreamOffset offset = 0;
   if (VersionHasStreamType(connection_->transport_version())) {
@@ -835,10 +869,10 @@ TEST_P(QuicSimpleServerSessionServerPushTest,
     // For pre-v-99, the node monitors its own stream usage and makes streams
     // available as it closes/etc them.
     session_->OnMaxStreamsFrame(
-        QuicMaxStreamsFrame(0, num_resources, /*unidirectional=*/true));
+        QuicMaxStreamsFrame(0, num_resources + 1, /*unidirectional=*/true));
   }
-  session_->StreamDraining(GetNthServerInitiatedUnidirectionalId(0));
   session_->StreamDraining(GetNthServerInitiatedUnidirectionalId(1));
+  session_->StreamDraining(GetNthServerInitiatedUnidirectionalId(2));
 }
 
 // Tests that closing a open outgoing stream can trigger a promised resource in
@@ -856,12 +890,17 @@ TEST_P(QuicSimpleServerSessionServerPushTest,
             this, &QuicSimpleServerSessionServerPushTest::ClearControlFrame));
   }
   QuicByteCount data_frame_header_length = PromisePushResources(num_resources);
-  QuicStreamId stream_to_open =
-      GetNthServerInitiatedUnidirectionalId(kMaxStreamsForTest);
+  QuicStreamId stream_to_open;
+  if (VersionHasStreamType(connection_->transport_version())) {
+    stream_to_open =
+        GetNthServerInitiatedUnidirectionalId(kMaxStreamsForTest + 1);
+  } else {
+    stream_to_open = GetNthServerInitiatedUnidirectionalId(kMaxStreamsForTest);
+  }
 
-  // Resetting 1st open stream will close the stream and give space for extra
+  // Resetting an open stream will close the stream and give space for extra
   // stream to be opened.
-  QuicStreamId stream_got_reset = GetNthServerInitiatedUnidirectionalId(0);
+  QuicStreamId stream_got_reset = GetNthServerInitiatedUnidirectionalId(1);
   EXPECT_CALL(owner_, OnRstStreamReceived(_)).Times(1);
   EXPECT_CALL(*connection_, SendControlFrame(_));
   if (!IsVersion99()) {
@@ -905,7 +944,7 @@ TEST_P(QuicSimpleServerSessionServerPushTest,
     // For pre-v-99, the node monitors its own stream usage and makes streams
     // available as it closes/etc them.
     session_->OnMaxStreamsFrame(
-        QuicMaxStreamsFrame(0, num_resources, /*unidirectional=*/true));
+        QuicMaxStreamsFrame(0, num_resources + 1, /*unidirectional=*/true));
   }
   visitor_->OnRstStream(rst);
   // Create and inject a STOP_SENDING frame. In GOOGLE QUIC, receiving a

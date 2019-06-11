@@ -133,7 +133,8 @@ TEST_P(UberQuicStreamIdManagerTest, RegisterStaticStream) {
       manager_->actual_max_allowed_incoming_bidirectional_streams();
   QuicStreamCount actual_max_allowed_incoming_unidirectional_streams =
       manager_->actual_max_allowed_incoming_unidirectional_streams();
-  manager_->RegisterStaticStream(first_incoming_bidirectional_stream_id);
+  manager_->RegisterStaticStream(first_incoming_bidirectional_stream_id,
+                                 /*stream_already_counted = */ false);
   // Verify actual_max_allowed_incoming_bidirectional_streams increases.
   EXPECT_EQ(actual_max_allowed_incoming_bidirectional_streams + 1u,
             manager_->actual_max_allowed_incoming_bidirectional_streams());
@@ -142,7 +143,8 @@ TEST_P(UberQuicStreamIdManagerTest, RegisterStaticStream) {
   EXPECT_EQ(actual_max_allowed_incoming_unidirectional_streams,
             manager_->actual_max_allowed_incoming_unidirectional_streams());
 
-  manager_->RegisterStaticStream(first_incoming_unidirectional_stream_id);
+  manager_->RegisterStaticStream(first_incoming_unidirectional_stream_id,
+                                 /*stream_already_counted = */ false);
   EXPECT_EQ(actual_max_allowed_incoming_bidirectional_streams + 1u,
             manager_->actual_max_allowed_incoming_bidirectional_streams());
   EXPECT_EQ(actual_max_allowed_incoming_unidirectional_streams + 1u,

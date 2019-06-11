@@ -11,6 +11,8 @@
 
 #include "net/third_party/quiche/src/quic/core/http/quic_header_list.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_headers_stream.h"
+#include "net/third_party/quiche/src/quic/core/http/quic_receive_control_stream.h"
+#include "net/third_party/quiche/src/quic/core/http/quic_send_control_stream.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_spdy_stream.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_decoder.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_decoder_stream_sender.h"
@@ -28,11 +30,15 @@ namespace test {
 class QuicSpdySessionPeer;
 }  // namespace test
 
-// Unidirectional stream types define by IETF HTTP/3 draft in section 3.2.
+// Unidirectional stream types defined by IETF HTTP/3 draft in section 3.2.
 const uint64_t kControlStream = 0;
 const uint64_t kServerPushStream = 1;
 const uint64_t kQpackEncoderStream = 2;
 const uint64_t kQpackDecoderStream = 3;
+
+// Supported Settings id as defined by IETF HTTP/3 draft in section 7.2.5.1.
+const uint64_t kSettingsMaxHeaderListSize = 6;
+const uint64_t kSettingsNumPlaceholders = 8;
 
 // QuicHpackDebugVisitor gathers data used for understanding HPACK HoL
 // dynamics.  Specifically, it is to help predict the compression
@@ -172,6 +178,14 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
     max_inbound_header_list_size_ = max_inbound_header_list_size;
   }
 
+  void set_max_outbound_header_list_size(size_t max_outbound_header_list_size) {
+    max_outbound_header_list_size_ = max_outbound_header_list_size;
+  }
+
+  size_t max_outbound_header_list_size() const {
+    return max_outbound_header_list_size_;
+  }
+
   size_t max_inbound_header_list_size() const {
     return max_inbound_header_list_size_;
   }
@@ -288,9 +302,19 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // is deprecated.
   QuicHeadersStream* unowned_headers_stream_;
 
+  // HTTP/3 control streams. They are owned by QuicSession inside dynamic
+  // stream map, and can be accessed by those unowned pointers below.
+  QuicSendControlStream* send_control_stream_;
+  QuicReceiveControlStream* receive_control_stream_;
+
   // The maximum size of a header block that will be accepted from the peer,
   // defined per spec as key + value + overhead per field (uncompressed).
   size_t max_inbound_header_list_size_;
+
+  // The maximum size of a header block that can be sent to the peer. This field
+  // is informed and set by the peer via SETTINGS frame.
+  // TODO(renjietang): Honor this field when sending headers.
+  size_t max_outbound_header_list_size_;
 
   // Set during handshake. If true, resources in x-associated-content and link
   // headers will be pushed.

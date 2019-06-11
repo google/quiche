@@ -11,9 +11,6 @@
 
 namespace quic {
 
-const uint16_t kSettingsMaxHeaderListSize = 6;
-const uint16_t kSettingsNumPlaceholders = 8;
-
 // Visitor of HttpDecoder that passes data frame to QuicSpdyStream and closes
 // the connection on unexpected frames.
 class QuicReceiveControlStream::HttpDecoderVisitor
@@ -172,10 +169,10 @@ bool QuicReceiveControlStream::OnSettingsFrameStart(
 bool QuicReceiveControlStream::OnSettingsFrame(const SettingsFrame& settings) {
   QuicSpdySession* spdy_session = static_cast<QuicSpdySession*>(session());
   for (auto& it : settings.values) {
-    uint16_t setting_id = it.first;
+    uint64_t setting_id = it.first;
     switch (setting_id) {
       case kSettingsMaxHeaderListSize:
-        spdy_session->set_max_inbound_header_list_size(it.second);
+        spdy_session->set_max_outbound_header_list_size(it.second);
         break;
       case kSettingsNumPlaceholders:
         // TODO: Support placeholder setting

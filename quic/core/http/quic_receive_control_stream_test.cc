@@ -111,19 +111,19 @@ TEST_P(QuicReceiveControlStreamTest, ResetControlStream) {
 TEST_P(QuicReceiveControlStreamTest, ReceiveSettings) {
   SettingsFrame settings;
   settings.values[3] = 2;
-  settings.values[6] = 5;
+  settings.values[kSettingsMaxHeaderListSize] = 5;
   std::string data = EncodeSettings(settings);
   QuicStreamFrame frame(receive_control_stream_->id(), false, 0,
                         QuicStringPiece(data));
-  EXPECT_NE(5u, session_.max_inbound_header_list_size());
+  EXPECT_NE(5u, session_.max_outbound_header_list_size());
   receive_control_stream_->OnStreamFrame(frame);
-  EXPECT_EQ(5u, session_.max_inbound_header_list_size());
+  EXPECT_EQ(5u, session_.max_outbound_header_list_size());
 }
 
 TEST_P(QuicReceiveControlStreamTest, ReceiveSettingsTwice) {
   SettingsFrame settings;
   settings.values[3] = 2;
-  settings.values[6] = 5;
+  settings.values[kSettingsMaxHeaderListSize] = 5;
   std::string data = EncodeSettings(settings);
   QuicStreamFrame frame(receive_control_stream_->id(), false, 0,
                         QuicStringPiece(data));
@@ -139,7 +139,7 @@ TEST_P(QuicReceiveControlStreamTest, ReceiveSettingsTwice) {
 TEST_P(QuicReceiveControlStreamTest, ReceiveSettingsFragments) {
   SettingsFrame settings;
   settings.values[3] = 2;
-  settings.values[6] = 5;
+  settings.values[kSettingsMaxHeaderListSize] = 5;
   std::string data = EncodeSettings(settings);
   std::string data1 = data.substr(0, 1);
   std::string data2 = data.substr(1, data.length() - 1);
@@ -148,10 +148,10 @@ TEST_P(QuicReceiveControlStreamTest, ReceiveSettingsFragments) {
                         QuicStringPiece(data.data(), 1));
   QuicStreamFrame frame2(receive_control_stream_->id(), false, 1,
                          QuicStringPiece(data.data() + 1, data.length() - 1));
-  EXPECT_NE(5u, session_.max_inbound_header_list_size());
+  EXPECT_NE(5u, session_.max_outbound_header_list_size());
   receive_control_stream_->OnStreamFrame(frame);
   receive_control_stream_->OnStreamFrame(frame2);
-  EXPECT_EQ(5u, session_.max_inbound_header_list_size());
+  EXPECT_EQ(5u, session_.max_outbound_header_list_size());
 }
 
 TEST_P(QuicReceiveControlStreamTest, ReceiveWrongFrame) {

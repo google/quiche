@@ -380,6 +380,13 @@ class QuicSpdySessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
     return QuicUtils::StreamIdDelta(connection_->transport_version());
   }
 
+  std::string EncodeSettings(const SettingsFrame& settings) {
+    HttpEncoder encoder;
+    std::unique_ptr<char[]> buffer;
+    auto header_length = encoder.SerializeSettingsFrame(settings, &buffer);
+    return std::string(buffer.get(), header_length);
+  }
+
   QuicStreamId StreamCountToId(QuicStreamCount stream_count,
                                Perspective perspective,
                                bool bidirectional) {
@@ -2062,6 +2069,55 @@ TEST_P(QuicSpdySessionTestServer,
 
   EXPECT_CALL(*connection_, SendControlFrame(_));
   session_.ProcessPendingStream(&pending);
+}
+
+TEST_P(QuicSpdySessionTestServer, ReceiveControlStream) {
+  if (!VersionHasStreamType(transport_version()) ||
+      !GetQuicReloadableFlag(quic_eliminate_static_stream_map_3)) {
+    return;
+  }
+  // Use a arbitrary stream id.
+  QuicStreamId stream_id =
+      GetNthClientInitiatedUnidirectionalStreamId(transport_version(), 3);
+  char type[] = {kControlStream};
+
+  QuicStreamFrame data1(stream_id, false, 0, QuicStringPiece(type, 1));
+  session_.OnStreamFrame(data1);
+  EXPECT_EQ(stream_id,
+            QuicSpdySessionPeer::GetReceiveControlStream(&session_)->id());
+
+  SettingsFrame settings;
+  settings.values[3] = 2;
+  settings.values[kSettingsMaxHeaderListSize] = 5;
+  std::string data = EncodeSettings(settings);
+  QuicStreamFrame frame(stream_id, false, 1, QuicStringPiece(data));
+
+  EXPECT_NE(5u, session_.max_outbound_header_list_size());
+  session_.OnStreamFrame(frame);
+  EXPECT_EQ(5u, session_.max_outbound_header_list_size());
+}
+
+TEST_P(QuicSpdySessionTestServer, ReceiveControlStreamOutOfOrderDelivery) {
+  if (!VersionHasStreamType(transport_version()) ||
+      !GetQuicReloadableFlag(quic_eliminate_static_stream_map_3)) {
+    return;
+  }
+  // Use an arbitrary stream id.
+  QuicStreamId stream_id =
+      GetNthClientInitiatedUnidirectionalStreamId(transport_version(), 3);
+  char type[] = {kControlStream};
+  SettingsFrame settings;
+  settings.values[3] = 2;
+  settings.values[kSettingsMaxHeaderListSize] = 5;
+  std::string data = EncodeSettings(settings);
+
+  QuicStreamFrame data1(stream_id, false, 1, QuicStringPiece(data));
+  QuicStreamFrame data2(stream_id, false, 0, QuicStringPiece(type, 1));
+
+  session_.OnStreamFrame(data1);
+  EXPECT_NE(5u, session_.max_outbound_header_list_size());
+  session_.OnStreamFrame(data2);
+  EXPECT_EQ(5u, session_.max_outbound_header_list_size());
 }
 
 }  // namespace

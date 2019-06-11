@@ -500,7 +500,8 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
   void RegisterStaticStream(QuicStreamId id, QuicStream* stream);
   // TODO(renjietang): Replace the original Register method with the new one
   // once flag is deprecated.
-  void RegisterStaticStreamNew(std::unique_ptr<QuicStream> stream);
+  void RegisterStaticStreamNew(std::unique_ptr<QuicStream> stream,
+                               bool stream_already_counted);
   const StaticStreamMap& static_streams() const { return static_stream_map_; }
 
   DynamicStreamMap& dynamic_streams() { return dynamic_stream_map_; }

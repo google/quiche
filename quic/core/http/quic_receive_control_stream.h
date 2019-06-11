@@ -34,6 +34,8 @@ class QUIC_EXPORT_PRIVATE QuicReceiveControlStream : public QuicStream {
   // Implementation of QuicStream.
   void OnDataAvailable() override;
 
+  void SetUnblocked() { sequencer()->SetUnblocked(); }
+
  protected:
   // Called from HttpDecoderVisitor.
   bool OnSettingsFrameStart(Http3FrameLengths frame_lengths);

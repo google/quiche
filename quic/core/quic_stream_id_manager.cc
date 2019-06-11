@@ -239,7 +239,8 @@ bool QuicStreamIdManager::CanOpenNextOutgoingStream() {
   return false;
 }
 
-bool QuicStreamIdManager::RegisterStaticStream(QuicStreamId stream_id) {
+bool QuicStreamIdManager::RegisterStaticStream(QuicStreamId stream_id,
+                                               bool stream_already_counted) {
   DCHECK_NE(QuicUtils::IsBidirectionalStreamId(stream_id), unidirectional_);
   if (IsIncomingStream(stream_id)) {
     // This code is predicated on static stream ids being allocated densely, in
@@ -267,7 +268,10 @@ bool QuicStreamIdManager::RegisterStaticStream(QuicStreamId stream_id) {
         QuicUtils::GetMaxStreamCount(unidirectional_, perspective())) {
       incoming_advertised_max_streams_++;
     }
-    incoming_stream_count_++;
+
+    if (!stream_already_counted) {
+      incoming_stream_count_++;
+    }
     incoming_static_stream_count_++;
     return true;
   }

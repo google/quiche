@@ -5,6 +5,7 @@
 #ifndef QUICHE_QUIC_TEST_TOOLS_QUIC_SPDY_SESSION_PEER_H_
 #define QUICHE_QUIC_TEST_TOOLS_QUIC_SPDY_SESSION_PEER_H_
 
+#include "net/third_party/quiche/src/quic/core/http/quic_receive_control_stream.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_write_blocked_list.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_framer.h"
@@ -45,6 +46,8 @@ class QuicSpdySessionPeer {
       QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener);
   // |session| can't be nullptr.
   static QuicStreamId GetNextOutgoingUnidirectionalStreamId(
+      QuicSpdySession* session);
+  static QuicReceiveControlStream* GetReceiveControlStream(
       QuicSpdySession* session);
 };
 

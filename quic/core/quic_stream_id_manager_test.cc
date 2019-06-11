@@ -640,7 +640,8 @@ TEST_P(QuicStreamIdManagerTestClient, TestStaticStreamAdjustment) {
 
   // First test will register the first dynamic stream id as being for a static
   // stream.
-  stream_id_manager_->RegisterStaticStream(first_dynamic);
+  stream_id_manager_->RegisterStaticStream(first_dynamic,
+                                           /*stream_already_counted = */ false);
   // Should go up by 1 stream/stream id.
   EXPECT_EQ(actual_max + 1u, stream_id_manager_->incoming_actual_max_streams());
 }

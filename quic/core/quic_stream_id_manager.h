@@ -113,9 +113,12 @@ class QUIC_EXPORT_PRIVATE QuicStreamIdManager {
   // advertised MAX STREAMS can be calculated based on the start of the
   // dynamic stream space. This method will take any stream ID, one that either
   // this node or the peer will initiate.
+  // If |stream_already_counted| is true, the stream is already counted as an
+  // open stream else where, so no need to count it again.
   // Returns false if this fails because the new static stream would cause the
   // stream limit to be exceeded.
-  bool RegisterStaticStream(QuicStreamId stream_id);
+  bool RegisterStaticStream(QuicStreamId stream_id,
+                            bool stream_already_counted);
 
   // Checks if the incoming stream ID exceeds the MAX_STREAMS limit.  If the
   // limit is exceeded, closes the connection and returns false.  Uses the

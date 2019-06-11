@@ -104,6 +104,7 @@ TEST_P(QuicSendControlStreamTest, WriteSettingsOnStartUp) {
   QuicByteCount frame_length =
       encoder_.SerializeSettingsFrame(settings, &buffer);
 
+  EXPECT_CALL(session_, WritevData(_, _, 1, _, _));
   EXPECT_CALL(session_, WritevData(_, _, frame_length, _, _));
   send_control_stream_->SendSettingsFrame(settings);
 }

@@ -32,7 +32,11 @@ QuicSimpleServerSession::QuicSimpleServerSession(
                             crypto_config,
                             compressed_certs_cache),
       highest_promised_stream_id_(
-          QuicUtils::GetInvalidStreamId(connection->transport_version())),
+          VersionHasStreamType(connection->transport_version())
+              ? QuicUtils::GetFirstUnidirectionalStreamId(
+                    connection->transport_version(),
+                    Perspective::IS_SERVER)
+              : QuicUtils::GetInvalidStreamId(connection->transport_version())),
       quic_simple_server_backend_(quic_simple_server_backend) {
   DCHECK(quic_simple_server_backend_);
 }

@@ -28,7 +28,9 @@ class QUIC_EXPORT_PRIVATE UberQuicStreamIdManager {
       QuicStreamCount max_open_incoming_unidirectional_streams);
 
   // Called when a stream with |stream_id| is registered as a static stream.
-  void RegisterStaticStream(QuicStreamId id);
+  // If |stream_already_counted| is true, the static stream is already counted
+  // as an open stream earlier, so no need to count it again.
+  void RegisterStaticStream(QuicStreamId id, bool stream_already_counted);
 
   // Sets the maximum outgoing stream count as a result of doing the transport
   // configuration negotiation. Forces the limit to max_streams, regardless of

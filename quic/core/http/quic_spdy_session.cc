@@ -314,6 +314,7 @@ QuicSpdySession::QuicSpdySession(
     const ParsedQuicVersionVector& supported_versions)
     : QuicSession(connection, visitor, config, supported_versions),
       max_inbound_header_list_size_(kDefaultMaxUncompressedHeaderSize),
+      max_outbound_header_list_size_(kDefaultMaxUncompressedHeaderSize),
       server_push_enabled_(true),
       stream_id_(
           QuicUtils::GetInvalidStreamId(connection->transport_version())),
@@ -374,7 +375,17 @@ void QuicSpdySession::Initialize() {
   } else {
     QUIC_RELOADABLE_FLAG_COUNT_N(quic_eliminate_static_stream_map_3, 7, 17);
     unowned_headers_stream_ = headers_stream_.get();
-    RegisterStaticStreamNew(std::move(headers_stream_));
+    RegisterStaticStreamNew(std::move(headers_stream_),
+                            /*stream_already_counted = */ false);
+  }
+
+  if (VersionHasStreamType(connection()->transport_version()) &&
+      eliminate_static_stream_map()) {
+    auto send_control = QuicMakeUnique<QuicSendControlStream>(
+        GetNextOutgoingUnidirectionalStreamId(), this);
+    send_control_stream_ = send_control.get();
+    RegisterStaticStreamNew(std::move(send_control),
+                            /*stream_already_counted = */ false);
   }
 
   set_max_uncompressed_header_bytes(max_inbound_header_list_size_);
@@ -523,6 +534,12 @@ size_t QuicSpdySession::WritePushPromise(QuicStreamId original_stream_id,
 }
 
 void QuicSpdySession::SendMaxHeaderListSize(size_t value) {
+  if (VersionHasStreamType(connection()->transport_version())) {
+    SettingsFrame settings;
+    settings.values[kSettingsMaxHeaderListSize] = value;
+    send_control_stream_->SendSettingsFrame(settings);
+    return;
+  }
   SpdySettingsIR settings_frame;
   settings_frame.AddSetting(SETTINGS_MAX_HEADER_LIST_SIZE, value);
 
@@ -750,9 +767,14 @@ bool QuicSpdySession::ProcessPendingStream(PendingStream* pending) {
   pending->MarkConsumed(stream_type_length);
 
   switch (stream_type) {
-    case kControlStream:  // HTTP/3 control stream.
-      // TODO(renjietang): Create incoming control stream.
-      break;
+    case kControlStream: {  // HTTP/3 control stream.
+      auto receive_stream = QuicMakeUnique<QuicReceiveControlStream>(pending);
+      receive_control_stream_ = receive_stream.get();
+      RegisterStaticStreamNew(std::move(receive_stream),
+                              /*stream_already_counted = */ true);
+      receive_control_stream_->SetUnblocked();
+      return true;
+    }
     case kServerPushStream: {  // Push Stream.
       QuicSpdyStream* stream = CreateIncomingStream(pending);
       stream->SetUnblocked();

@@ -1530,7 +1530,10 @@ TEST_P(EndToEndTest, SetIndependentMaxIncomingDynamicStreamsLimits) {
   size_t client_max_open_outgoing_unidirectional_streams =
       client_session->connection()->transport_version() == QUIC_VERSION_99
           ? QuicSessionPeer::v99_streamid_manager(client_session)
-                ->max_allowed_outgoing_unidirectional_streams()
+                    ->max_allowed_outgoing_unidirectional_streams() -
+                QuicSessionPeer::v99_unidirectional_stream_id_manager(
+                    client_session)
+                    ->outgoing_static_stream_count()
           : QuicSessionPeer::GetStreamIdManager(client_session)
                 ->max_open_outgoing_streams();
   EXPECT_EQ(kServerMaxIncomingDynamicStreams,
@@ -1548,7 +1551,10 @@ TEST_P(EndToEndTest, SetIndependentMaxIncomingDynamicStreamsLimits) {
   size_t server_max_open_outgoing_unidirectional_streams =
       server_session->connection()->transport_version() == QUIC_VERSION_99
           ? QuicSessionPeer::v99_streamid_manager(server_session)
-                ->max_allowed_outgoing_unidirectional_streams()
+                    ->max_allowed_outgoing_unidirectional_streams() -
+                QuicSessionPeer::v99_unidirectional_stream_id_manager(
+                    server_session)
+                    ->outgoing_static_stream_count()
           : QuicSessionPeer::GetStreamIdManager(server_session)
                 ->max_open_outgoing_streams();
   EXPECT_EQ(kClientMaxIncomingDynamicStreams,
@@ -2048,9 +2054,13 @@ TEST_P(EndToEndTest, HeadersAndCryptoStreamsNoConnectionFlowControl) {
                   crypto_stream->flow_controller()),
               kStreamIFCW);
   }
-  EXPECT_EQ(kSessionIFCW,
-            QuicFlowControllerPeer::SendWindowSize(
-                client_->client()->client_session()->flow_controller()));
+  // When stream type is enabled, control streams will send settings and
+  // contribute to flow control windows, so this expectation is no longer valid.
+  if (!VersionHasStreamType(transport_version)) {
+    EXPECT_EQ(kSessionIFCW,
+              QuicFlowControllerPeer::SendWindowSize(
+                  client_->client()->client_session()->flow_controller()));
+  }
 
   // Send a request with no body, and verify that the connection level window
   // has not been affected.
@@ -2092,6 +2102,40 @@ TEST_P(EndToEndTest, FlowControlsSynced) {
   server_thread_->Pause();
   QuicSpdySession* const client_session = client_->client()->client_session();
   auto* server_session = static_cast<QuicSpdySession*>(GetServerSession());
+
+  if (VersionHasStreamType(client_->client()
+                               ->client_session()
+                               ->connection()
+                               ->transport_version())) {
+    // Settings frame will be sent through control streams, which contribute
+    // to the session's flow controller. And due to the timing issue described
+    // below, the settings frame might not be received.
+    HttpEncoder encoder;
+    SettingsFrame settings;
+    settings.values[6] = kDefaultMaxUncompressedHeaderSize;
+    std::unique_ptr<char[]> buffer;
+    auto header_length = encoder.SerializeSettingsFrame(settings, &buffer);
+    QuicByteCount win_difference1 = QuicFlowControllerPeer::ReceiveWindowSize(
+                                        server_session->flow_controller()) -
+                                    QuicFlowControllerPeer::SendWindowSize(
+                                        client_session->flow_controller());
+    QuicByteCount win_difference2 = QuicFlowControllerPeer::ReceiveWindowSize(
+                                        client_session->flow_controller()) -
+                                    QuicFlowControllerPeer::SendWindowSize(
+                                        server_session->flow_controller());
+    EXPECT_TRUE(win_difference1 == 0 ||
+                win_difference1 ==
+                    header_length +
+                        QuicDataWriter::GetVarInt62Len(kControlStream));
+    EXPECT_TRUE(win_difference2 == 0 ||
+                win_difference2 ==
+                    header_length +
+                        QuicDataWriter::GetVarInt62Len(kControlStream));
+    // The test returns early because in this version, headers stream no longer
+    // sends settings.
+    return;
+  }
+
   ExpectFlowControlsSynced(client_session->flow_controller(),
                            server_session->flow_controller());
   if (!QuicVersionUsesCryptoFrames(client_->client()

@@ -81,5 +81,11 @@ QuicStreamId QuicSpdySessionPeer::GetNextOutgoingUnidirectionalStreamId(
   return session->GetNextOutgoingUnidirectionalStreamId();
 }
 
+// static
+QuicReceiveControlStream* QuicSpdySessionPeer::GetReceiveControlStream(
+    QuicSpdySession* session) {
+  return session->receive_control_stream_;
+}
+
 }  // namespace test
 }  // namespace quic
