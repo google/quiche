@@ -67,12 +67,12 @@ class QUIC_EXPORT_PRIVATE QuicBandwidth {
   inline int64_t ToKBytesPerSecond() const { return bits_per_second_ / 8000; }
 
   inline QuicByteCount ToBytesPerPeriod(QuicTime::Delta time_period) const {
-    return ToBytesPerSecond() * time_period.ToMicroseconds() /
+    return bits_per_second_ * time_period.ToMicroseconds() / 8 /
            kNumMicrosPerSecond;
   }
 
   inline int64_t ToKBytesPerPeriod(QuicTime::Delta time_period) const {
-    return ToKBytesPerSecond() * time_period.ToMicroseconds() /
+    return bits_per_second_ * time_period.ToMicroseconds() / 8000 /
            kNumMicrosPerSecond;
   }
 

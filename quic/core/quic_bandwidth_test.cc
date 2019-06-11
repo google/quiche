@@ -84,6 +84,13 @@ TEST_F(QuicBandwidthTest, BytesPerPeriod) {
                          QuicTime::Delta::FromMilliseconds(100)));
   EXPECT_EQ(200u, QuicBandwidth::FromKBytesPerSecond(2000).ToKBytesPerPeriod(
                       QuicTime::Delta::FromMilliseconds(100)));
+
+  // 1599 * 1001 = 1600599 bits/ms = 200.074875 bytes/s.
+  EXPECT_EQ(200u, QuicBandwidth::FromBitsPerSecond(1599).ToBytesPerPeriod(
+                      QuicTime::Delta::FromMilliseconds(1001)));
+
+  EXPECT_EQ(200u, QuicBandwidth::FromBitsPerSecond(1599).ToKBytesPerPeriod(
+                      QuicTime::Delta::FromSeconds(1001)));
 }
 
 TEST_F(QuicBandwidthTest, TransferTime) {
