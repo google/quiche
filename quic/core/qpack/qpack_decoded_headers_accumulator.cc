@@ -12,7 +12,7 @@ QpackDecodedHeadersAccumulator::QpackDecodedHeadersAccumulator(
     QuicStreamId id,
     QpackDecoder* qpack_decoder,
     size_t max_header_list_size)
-    : decoder_(qpack_decoder->DecodeHeaderBlock(id, this)),
+    : decoder_(qpack_decoder->CreateProgressiveDecoder(id, this)),
       uncompressed_header_bytes_(0),
       compressed_header_bytes_(0),
       error_detected_(false) {

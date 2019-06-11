@@ -147,7 +147,7 @@ bool QpackOfflineDecoder::DecodeHeaderBlocksFromFile(
     test::TestHeadersHandler headers_handler;
 
     auto progressive_decoder =
-        decoder_.DecodeHeaderBlock(stream_id, &headers_handler);
+        decoder_.CreateProgressiveDecoder(stream_id, &headers_handler);
     progressive_decoder->Decode(data);
     progressive_decoder->EndHeaderBlock();
 

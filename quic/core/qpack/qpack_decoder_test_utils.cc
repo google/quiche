@@ -69,7 +69,7 @@ void QpackDecode(
   QpackDecoder decoder(encoder_stream_error_delegate,
                        decoder_stream_sender_delegate);
   auto progressive_decoder =
-      decoder.DecodeHeaderBlock(/* stream_id = */ 1, handler);
+      decoder.CreateProgressiveDecoder(/* stream_id = */ 1, handler);
   while (!data.empty()) {
     size_t fragment_size = std::min(fragment_size_generator(), data.size());
     progressive_decoder->Decode(data.substr(0, fragment_size));

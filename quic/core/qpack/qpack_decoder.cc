@@ -131,7 +131,7 @@ bool QpackDecoder::EncoderStreamRelativeIndexToAbsoluteIndex(
   return true;
 }
 
-std::unique_ptr<QpackProgressiveDecoder> QpackDecoder::DecodeHeaderBlock(
+std::unique_ptr<QpackProgressiveDecoder> QpackDecoder::CreateProgressiveDecoder(
     QuicStreamId stream_id,
     QpackProgressiveDecoder::HeadersHandlerInterface* handler) {
   return QuicMakeUnique<QpackProgressiveDecoder>(

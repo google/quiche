@@ -65,7 +65,7 @@ class QUIC_EXPORT_PRIVATE QpackDecoder
   // block.  |handler| must remain valid until the returned
   // QpackProgressiveDecoder instance is destroyed or the decoder calls
   // |handler->OnHeaderBlockEnd()|.
-  std::unique_ptr<QpackProgressiveDecoder> DecodeHeaderBlock(
+  std::unique_ptr<QpackProgressiveDecoder> CreateProgressiveDecoder(
       QuicStreamId stream_id,
       QpackProgressiveDecoder::HeadersHandlerInterface* handler);
 

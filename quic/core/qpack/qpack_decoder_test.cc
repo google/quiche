@@ -44,7 +44,7 @@ class QpackDecoderTest : public QuicTestWithParam<FragmentMode> {
     auto fragment_size_generator =
         FragmentModeToFragmentSizeGenerator(fragment_mode_);
     auto progressive_decoder =
-        qpack_decoder_.DecodeHeaderBlock(/* stream_id = */ 1, &handler_);
+        qpack_decoder_.CreateProgressiveDecoder(/* stream_id = */ 1, &handler_);
     while (!data.empty()) {
       size_t fragment_size = std::min(fragment_size_generator(), data.size());
       progressive_decoder->Decode(data.substr(0, fragment_size));
