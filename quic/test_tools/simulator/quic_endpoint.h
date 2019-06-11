@@ -213,7 +213,7 @@ class QuicEndpointMultiplexer : public Endpoint,
                                 public UnconstrainedPortInterface {
  public:
   QuicEndpointMultiplexer(std::string name,
-                          std::initializer_list<QuicEndpoint*> endpoints);
+                          const std::vector<QuicEndpoint*>& endpoints);
   ~QuicEndpointMultiplexer() override;
 
   // Receives a packet and passes it to the specified endpoint if that endpoint

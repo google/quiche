@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"
+#include "net/third_party/quiche/src/quic/core/quic_bandwidth.h"
 #include "net/third_party/quiche/src/quic/test_tools/simulator/actor.h"
 #include "net/third_party/quiche/src/quic/test_tools/simulator/port.h"
 
@@ -33,6 +34,9 @@ class OneWayLink : public Actor, public ConstrainedPortInterface {
   void Act() override;
 
   inline QuicBandwidth bandwidth() const { return bandwidth_; }
+  inline void set_bandwidth(QuicBandwidth new_bandwidth) {
+    bandwidth_ = new_bandwidth;
+  }
 
  protected:
   // Get the value of a random delay imposed on each packet.  By default, this
@@ -58,7 +62,7 @@ class OneWayLink : public Actor, public ConstrainedPortInterface {
   UnconstrainedPortInterface* sink_;
   QuicDeque<QueuedPacket> packets_in_transit_;
 
-  const QuicBandwidth bandwidth_;
+  QuicBandwidth bandwidth_;
   const QuicTime::Delta propagation_delay_;
 
   QuicTime next_write_at_;
@@ -82,6 +86,10 @@ class SymmetricLink {
   SymmetricLink& operator=(const SymmetricLink&) = delete;
 
   inline QuicBandwidth bandwidth() { return a_to_b_link_.bandwidth(); }
+  inline void set_bandwidth(QuicBandwidth new_bandwidth) {
+    a_to_b_link_.set_bandwidth(new_bandwidth);
+    b_to_a_link_.set_bandwidth(new_bandwidth);
+  }
 
  private:
   OneWayLink a_to_b_link_;

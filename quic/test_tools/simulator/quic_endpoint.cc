@@ -401,7 +401,7 @@ void QuicEndpoint::WriteStreamData() {
 
 QuicEndpointMultiplexer::QuicEndpointMultiplexer(
     std::string name,
-    std::initializer_list<QuicEndpoint*> endpoints)
+    const std::vector<QuicEndpoint*>& endpoints)
     : Endpoint((*endpoints.begin())->simulator(), name) {
   for (QuicEndpoint* endpoint : endpoints) {
     mapping_.insert(std::make_pair(endpoint->name(), endpoint));
