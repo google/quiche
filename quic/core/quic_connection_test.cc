@@ -610,8 +610,6 @@ class TestConnection : public QuicConnection {
   TestConnection(const TestConnection&) = delete;
   TestConnection& operator=(const TestConnection&) = delete;
 
-  void SendAck() { QuicConnectionPeer::SendAck(this); }
-
   void SetSendAlgorithm(SendAlgorithmInterface* send_algorithm) {
     QuicConnectionPeer::SetSendAlgorithm(this, send_algorithm);
   }
@@ -3029,13 +3027,15 @@ TEST_P(QuicConnectionTest, FramePackingCryptoThenNonCrypto) {
 }
 
 TEST_P(QuicConnectionTest, FramePackingAckResponse) {
-  if (connection_.SupportsMultiplePacketNumberSpaces()) {
-    return;
-  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   // Process a data packet to queue up a pending ack.
-  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
-  ProcessDataPacket(1);
+  if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
+    EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(1);
+  } else {
+    EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
+  }
+  ProcessCryptoPacketAtLevel(1, ENCRYPTION_INITIAL);
+
   QuicPacketNumber last_packet;
   if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
     connection_.SendCryptoDataWithString("foo", 0);

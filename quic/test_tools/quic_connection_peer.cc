@@ -16,11 +16,6 @@ namespace quic {
 namespace test {
 
 // static
-void QuicConnectionPeer::SendAck(QuicConnection* connection) {
-  connection->SendAck();
-}
-
-// static
 void QuicConnectionPeer::SetSendAlgorithm(
     QuicConnection* connection,
     SendAlgorithmInterface* send_algorithm) {

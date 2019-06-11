@@ -32,8 +32,6 @@ class QuicConnectionPeer {
  public:
   QuicConnectionPeer() = delete;
 
-  static void SendAck(QuicConnection* connection);
-
   static void SetSendAlgorithm(QuicConnection* connection,
                                SendAlgorithmInterface* send_algorithm);
 
