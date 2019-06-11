@@ -441,6 +441,7 @@ void QuicVersionInitializeSupportForIetfDraft(int32_t draft_version) {
                      true);
   SetQuicRestartFlag(quic_do_not_override_connection_id, true);
   SetQuicRestartFlag(quic_no_framer_object_in_dispatcher, true);
+  SetQuicRestartFlag(quic_use_allocated_connection_ids, true);
 }
 
 void QuicEnableVersion(ParsedQuicVersion parsed_version) {

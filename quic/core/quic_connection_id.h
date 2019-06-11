@@ -6,6 +6,7 @@
 #define QUICHE_QUIC_CORE_QUIC_CONNECTION_ID_H_
 
 #include <string>
+#include <vector>
 
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_uint128.h"
@@ -43,12 +44,21 @@ class QUIC_EXPORT_PRIVATE QuicConnectionId {
   // Creates a connection ID from network order bytes.
   QuicConnectionId(const char* data, uint8_t length);
 
+  // Creates a connection ID from another connection ID.
+  QuicConnectionId(const QuicConnectionId& other);
+
+  // Assignment operator.
+  QuicConnectionId& operator=(const QuicConnectionId& other);
+
   ~QuicConnectionId();
 
   // Returns the length of the connection ID, in bytes.
   uint8_t length() const;
 
   // Sets the length of the connection ID, in bytes.
+  // WARNING: Calling set_length() can change the in-memory location of the
+  // connection ID. Callers must therefore ensure they call data() or
+  // mutable_data() after they call set_length().
   void set_length(uint8_t length);
 
   // Returns a pointer to the connection ID bytes, in network byte order.
@@ -79,10 +89,21 @@ class QUIC_EXPORT_PRIVATE QuicConnectionId {
   bool operator<(const QuicConnectionId& v) const;
 
  private:
-  // The connection ID is represented in network byte order
-  // in the first |length_| bytes of |data_|.
-  char data_[kQuicMaxConnectionIdLength];
-  uint8_t length_;
+  uint8_t length_;  // length of the connection ID, in bytes.
+  // The connection ID is represented in network byte order.
+  union {
+    // When quic_use_allocated_connection_ids is false, the connection ID is
+    // stored in the first |length_| bytes of |data_|.
+    char data_[kQuicMaxConnectionIdLength];
+    // When quic_use_allocated_connection_ids is true, if the connection ID
+    // fits in |data_short_|, it is stored in the first |length_| bytes of
+    // |data_short_|. Otherwise it is stored in |data_long_| which is
+    // guaranteed to have a size equal to |length_|. A value of 11 was chosen
+    // because our commonly used connection ID length is 8 and with the length,
+    // the class is padded to 12 bytes anyway.
+    char data_short_[11];
+    char* data_long_;
+  };
 };
 
 // Creates a connection ID of length zero, unless the restart flag
