@@ -542,12 +542,14 @@ TEST_F(QuicTimeWaitListManagerTest, ConnectionIdsOrderedByTime) {
 
 TEST_F(QuicTimeWaitListManagerTest, MaxConnectionsTest) {
   // Basically, shut off time-based eviction.
-  FLAGS_quic_time_wait_list_seconds = 10000000000;
-  FLAGS_quic_time_wait_list_max_connections = 5;
+  SetQuicFlag(FLAGS_quic_time_wait_list_seconds, 10000000000);
+  SetQuicFlag(FLAGS_quic_time_wait_list_max_connections, 5);
 
   uint64_t current_conn_id = 0;
+  const int64_t kMaxConnections =
+      GetQuicFlag(FLAGS_quic_time_wait_list_max_connections);
   // Add exactly the maximum number of connections
-  for (int64_t i = 0; i < FLAGS_quic_time_wait_list_max_connections; ++i) {
+  for (int64_t i = 0; i < kMaxConnections; ++i) {
     ++current_conn_id;
     QuicConnectionId current_connection_id = TestConnectionId(current_conn_id);
     EXPECT_FALSE(IsConnectionIdInTimeWait(current_connection_id));
@@ -560,17 +562,17 @@ TEST_F(QuicTimeWaitListManagerTest, MaxConnectionsTest) {
 
   // Now keep adding.  Since we're already at the max, every new connection-id
   // will evict the oldest one.
-  for (int64_t i = 0; i < FLAGS_quic_time_wait_list_max_connections; ++i) {
+  for (int64_t i = 0; i < kMaxConnections; ++i) {
     ++current_conn_id;
     QuicConnectionId current_connection_id = TestConnectionId(current_conn_id);
-    const QuicConnectionId id_to_evict = TestConnectionId(
-        current_conn_id - FLAGS_quic_time_wait_list_max_connections);
+    const QuicConnectionId id_to_evict =
+        TestConnectionId(current_conn_id - kMaxConnections);
     EXPECT_TRUE(IsConnectionIdInTimeWait(id_to_evict));
     EXPECT_FALSE(IsConnectionIdInTimeWait(current_connection_id));
     EXPECT_CALL(visitor_,
                 OnConnectionAddedToTimeWaitList(current_connection_id));
     AddConnectionId(current_connection_id, QuicTimeWaitListManager::DO_NOTHING);
-    EXPECT_EQ(static_cast<size_t>(FLAGS_quic_time_wait_list_max_connections),
+    EXPECT_EQ(static_cast<size_t>(kMaxConnections),
               time_wait_list_manager_.num_connections());
     EXPECT_FALSE(IsConnectionIdInTimeWait(id_to_evict));
     EXPECT_TRUE(IsConnectionIdInTimeWait(current_connection_id));

@@ -51,8 +51,8 @@ QuicTimeWaitListManager::QuicTimeWaitListManager(
     Visitor* visitor,
     const QuicClock* clock,
     QuicAlarmFactory* alarm_factory)
-    : time_wait_period_(
-          QuicTime::Delta::FromSeconds(FLAGS_quic_time_wait_list_seconds)),
+    : time_wait_period_(QuicTime::Delta::FromSeconds(
+          GetQuicFlag(FLAGS_quic_time_wait_list_seconds))),
       connection_id_clean_up_alarm_(
           alarm_factory->CreateAlarm(new ConnectionIdCleanUpAlarm(this))),
       clock_(clock),
@@ -81,8 +81,9 @@ void QuicTimeWaitListManager::AddConnectionIdToTimeWait(
     connection_id_map_.erase(it);
   }
   TrimTimeWaitListIfNeeded();
-  DCHECK_LT(num_connections(),
-            static_cast<size_t>(FLAGS_quic_time_wait_list_max_connections));
+  int64_t max_connections =
+      GetQuicFlag(FLAGS_quic_time_wait_list_max_connections);
+  DCHECK_LT(num_connections(), static_cast<size_t>(max_connections));
   ConnectionIdData data(num_packets, ietf_quic, clock_->ApproximateNow(),
                         action);
   if (termination_packets != nullptr) {
@@ -371,11 +372,12 @@ void QuicTimeWaitListManager::CleanUpOldConnectionIds() {
 }
 
 void QuicTimeWaitListManager::TrimTimeWaitListIfNeeded() {
-  if (FLAGS_quic_time_wait_list_max_connections < 0) {
+  const int64_t kMaxConnections =
+      GetQuicFlag(FLAGS_quic_time_wait_list_max_connections);
+  if (kMaxConnections < 0) {
     return;
   }
-  while (num_connections() >=
-         static_cast<size_t>(FLAGS_quic_time_wait_list_max_connections)) {
+  while (num_connections() >= static_cast<size_t>(kMaxConnections)) {
     MaybeExpireOldestConnection(QuicTime::Infinite());
   }
 }

@@ -109,7 +109,7 @@ BbrSender::BbrSender(QuicTime now,
       pacing_gain_(1),
       congestion_window_gain_(1),
       congestion_window_gain_constant_(
-          static_cast<float>(FLAGS_quic_bbr_cwnd_gain)),
+          static_cast<float>(GetQuicFlag(FLAGS_quic_bbr_cwnd_gain))),
       num_startup_rtts_(kRoundTripsWithoutGrowthBeforeExitingStartup),
       exit_startup_on_loss_(false),
       cycle_current_offset_(0),

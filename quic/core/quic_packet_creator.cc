@@ -193,7 +193,7 @@ bool QuicPacketCreator::ConsumeData(QuicStreamId id,
   }
   CreateStreamFrame(id, data_size, offset, fin, frame);
   // Explicitly disallow multi-packet CHLOs.
-  if (FLAGS_quic_enforce_single_packet_chlo &&
+  if (GetQuicFlag(FLAGS_quic_enforce_single_packet_chlo) &&
       StreamFrameIsClientHello(frame->stream_frame) &&
       frame->stream_frame.data_length < data_size) {
     const std::string error_details =

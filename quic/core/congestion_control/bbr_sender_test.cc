@@ -374,7 +374,7 @@ TEST_F(BbrSenderTest, SimpleTransfer2RTTAggregationBytes) {
 // Test a simple long data transfer with 2 rtts of aggregation.
 TEST_F(BbrSenderTest, SimpleTransferAckDecimation) {
   // Decrease the CWND gain so extra CWND is required with stretch acks.
-  FLAGS_quic_bbr_cwnd_gain = 1.0;
+  SetQuicFlag(FLAGS_quic_bbr_cwnd_gain, 1.0);
   sender_ = new BbrSender(
       bbr_sender_.connection()->clock()->Now(), rtt_stats_,
       QuicSentPacketManagerPeer::GetUnackedPacketMap(
