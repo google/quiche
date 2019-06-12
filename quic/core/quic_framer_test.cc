@@ -6590,8 +6590,7 @@ TEST_P(QuicFramerTest, BuildStreamFramePacketWithVersionFlag) {
 }
 
 TEST_P(QuicFramerTest, BuildCryptoFramePacket) {
-  if (framer_.transport_version() < QUIC_VERSION_99) {
-    // CRYPTO frames aren't supported prior to v46.
+  if (!QuicVersionUsesCryptoFrames(framer_.transport_version())) {
     return;
   }
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
