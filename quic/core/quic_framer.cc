@@ -5118,7 +5118,6 @@ bool QuicFramer::AppendAckFrameAndTypeByte(const QuicAckFrame& frame,
       const size_t num_encoded_gaps =
           (total_gap + std::numeric_limits<uint8_t>::max() - 1) /
           std::numeric_limits<uint8_t>::max();
-      DCHECK_LE(0u, num_encoded_gaps);
 
       // Append empty ACK blocks because the gap is longer than a single gap.
       for (size_t i = 1;

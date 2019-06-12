@@ -112,6 +112,9 @@ EncryptionLevel TlsHandshaker::QuicEncryptionLevel(
       return ENCRYPTION_HANDSHAKE;
     case ssl_encryption_application:
       return ENCRYPTION_FORWARD_SECURE;
+    default:
+      QUIC_BUG << "Invalid ssl_encryption_level_t " << static_cast<int>(level);
+      return ENCRYPTION_INITIAL;
   }
 }
 
@@ -128,7 +131,7 @@ enum ssl_encryption_level_t TlsHandshaker::BoringEncryptionLevel(
     case ENCRYPTION_FORWARD_SECURE:
       return ssl_encryption_application;
     default:
-      QUIC_BUG << "Invalid encryption level " << level;
+      QUIC_BUG << "Invalid encryption level " << static_cast<int>(level);
       return ssl_encryption_initial;
   }
 }

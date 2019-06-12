@@ -218,7 +218,7 @@ bool QuicIpAddress::InSameSubnet(const QuicIpAddress& other,
     return true;
   }
   DCHECK_LT(static_cast<size_t>(bytes_to_check), sizeof(address_.bytes));
-  int mask = (~0) << (8u - bits_to_check);
+  int mask = (~0u) << (8u - bits_to_check);
   return (lhs[bytes_to_check] & mask) == (rhs[bytes_to_check] & mask);
 }
 
