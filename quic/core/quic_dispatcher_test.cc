@@ -1031,32 +1031,6 @@ TEST_F(QuicDispatcherTest, SupportedTransportVersionsChangeInFlight) {
                 PACKET_4BYTE_PACKET_NUMBER, 1);
 }
 
-// Enables mocking of the handshake-confirmation for stateless rejects.
-class MockQuicCryptoServerStream : public QuicCryptoServerStream {
- public:
-  MockQuicCryptoServerStream(const QuicCryptoServerConfig& crypto_config,
-                             QuicCompressedCertsCache* compressed_certs_cache,
-                             QuicServerSessionBase* session,
-                             QuicCryptoServerStream::Helper* helper)
-      : QuicCryptoServerStream(&crypto_config,
-                               compressed_certs_cache,
-                               session,
-                               helper),
-        handshake_confirmed_(false) {}
-  MockQuicCryptoServerStream(const MockQuicCryptoServerStream&) = delete;
-  MockQuicCryptoServerStream& operator=(const MockQuicCryptoServerStream&) =
-      delete;
-
-  void set_handshake_confirmed_for_testing(bool handshake_confirmed) {
-    handshake_confirmed_ = handshake_confirmed;
-  }
-
-  bool handshake_confirmed() const override { return handshake_confirmed_; }
-
- private:
-  bool handshake_confirmed_;
-};
-
 // Verify the stopgap test: Packets with truncated connection IDs should be
 // dropped.
 class QuicDispatcherTestStrayPacketConnectionId : public QuicDispatcherTest {};
@@ -1391,7 +1365,6 @@ TEST_F(QuicDispatcherWriteBlockedListTest,
   MarkSession1Deleted();
 }
 
-// A dispatcher whose stateless rejector will always ACCEPTs CHLO.
 class BufferedPacketStoreTest : public QuicDispatcherTest {
  public:
   BufferedPacketStoreTest()

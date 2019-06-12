@@ -78,8 +78,7 @@ QuicConnectionId QuartcCryptoServerStreamHelper::GenerateConnectionIdForReject(
     QuicTransportVersion version,
     QuicConnectionId connection_id) const {
   // TODO(b/124399417):  Request a zero-length connection id here when the QUIC
-  // server perspective supports it.  Right now, the stateless rejector requires
-  // a connection id that is not the same as the client-chosen connection id.
+  // server perspective supports it.
   return QuicUtils::CreateRandomConnectionId();
 }
 

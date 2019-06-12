@@ -11,7 +11,7 @@
 namespace quic {
 
 // Simple helper for server crypto streams which generates a new random
-// connection ID for stateless rejects.
+// connection ID for rejects.
 class QuicSimpleCryptoServerStreamHelper
     : public QuicCryptoServerStream::Helper {
  public:

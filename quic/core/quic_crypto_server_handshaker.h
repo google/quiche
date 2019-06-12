@@ -204,9 +204,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerHandshaker
   // Contains any source address tokens which were present in the CHLO.
   SourceAddressTokens previous_source_address_tokens_;
 
-  // True if client attempts 0-rtt handshake (which can succeed or fail). If
-  // stateless rejects are used, this variable will be false for the stateless
-  // rejected connection and true for subsequent connections.
+  // True if client attempts 0-rtt handshake (which can succeed or fail).
   bool zero_rtt_attempted_;
 
   // Size of the packet containing the most recently received CHLO.

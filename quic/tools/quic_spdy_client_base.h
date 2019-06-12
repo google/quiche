@@ -39,13 +39,9 @@ class QuicSpdyClientBase : public QuicClientBase,
         const std::string& response_body) = 0;
   };
 
-  // The client uses these objects to keep track of any data to resend upon
-  // receipt of a stateless reject.  Recall that the client API allows callers
-  // to optimistically send data to the server prior to handshake-confirmation.
-  // If the client subsequently receives a stateless reject, it must tear down
-  // its existing session, create a new session, and resend all previously sent
-  // data.  It uses these objects to keep track of all the sent data, and to
-  // resend the data upon a subsequent connection.
+  // A piece of data that can be sent multiple times. For example, it can be a
+  // HTTP request that is resent after a connect=>version negotiation=>reconnect
+  // sequence.
   class QuicDataToResend {
    public:
     // |headers| may be null, since it's possible to send data without headers.
