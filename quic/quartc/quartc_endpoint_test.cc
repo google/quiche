@@ -80,11 +80,6 @@ TEST_F(QuartcEndpointTest, ClientCreatesSessionAsynchronously) {
 // attempts to connect using a newer version.
 TEST_F(QuartcEndpointTest,
        QUIC_TEST_DISABLED_IN_CHROME(ServerNegotiatesForOldVersion)) {
-  // Note: for this test, we need support for two versions.  Which two shouldn't
-  // matter, but they must be enabled so that the version manager doesn't filter
-  // them out.
-  SetQuicReloadableFlag(quic_enable_version_46, true);
-
   // Reset the client endpoint to prefer version 46 but also be capable of
   // speaking version 43.
   ParsedQuicVersionVector client_versions;
@@ -126,11 +121,6 @@ TEST_F(QuartcEndpointTest,
 // QUIC versions.
 TEST_F(QuartcEndpointTest,
        QUIC_TEST_DISABLED_IN_CHROME(ServerAcceptsOldVersion)) {
-  // Note: for this test, we need support for two versions.  Which two shouldn't
-  // matter, but they must be enabled so that the version manager doesn't filter
-  // them out.
-  SetQuicReloadableFlag(quic_enable_version_46, true);
-
   // Reset the client endpoint to only speak version 43.
   ParsedQuicVersionVector client_versions;
   client_versions.push_back({PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_43});
@@ -172,11 +162,6 @@ TEST_F(QuartcEndpointTest,
 // completely disjoint sets of versions.
 TEST_F(QuartcEndpointTest,
        QUIC_TEST_DISABLED_IN_CHROME(VersionNegotiationWithDisjointVersions)) {
-  // Note: for this test, we need support for two versions.  Which two shouldn't
-  // matter, but they must be enabled so that the version manager doesn't filter
-  // them out.
-  SetQuicReloadableFlag(quic_enable_version_46, true);
-
   // Reset the client endpoint to only speak version 43.
   ParsedQuicVersionVector client_versions;
   client_versions.push_back({PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_43});
@@ -218,11 +203,6 @@ TEST_F(QuartcEndpointTest,
   // Setting this flag to true requires the client to create a new session when
   // version negotiation fails.
   SetQuicReloadableFlag(quic_no_client_conn_ver_negotiation, true);
-
-  // Note: for this test, we need support for two versions.  Which two shouldn't
-  // matter, but they must be enabled so that the version manager doesn't filter
-  // them out.
-  SetQuicReloadableFlag(quic_enable_version_46, true);
 
   // Reset the client endpoint to prefer version 46 but also be capable of
   // speaking version 43.

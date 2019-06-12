@@ -62,9 +62,6 @@ void ConfigureGlobalQuicSettings() {
   // Fix b/110259444.
   SetQuicReloadableFlag(quic_fix_spurious_ack_alarm, true);
 
-  // Enable version 46 to enable SendMessage API and 'quic bit' per draft 17.
-  SetQuicReloadableFlag(quic_enable_version_46, true);
-
   // Enable version 47 to enable variable-length connection ids.
   SetQuicReloadableFlag(quic_enable_version_47, true);
 
@@ -101,7 +98,7 @@ QuicConfig CreateQuicConfig(const QuartcSessionConfig& quartc_session_config) {
 
   // In exoblaze this may return false. DCHECK to avoid problems caused by
   // incorrect flags configuration.
-  DCHECK(GetQuicReloadableFlag(quic_enable_version_46))
+  DCHECK(GetQuicReloadableFlag(quic_enable_version_47))
       << "Your build does not support quic reloadable flags and shouldn't "
          "place Quartc calls";
 
