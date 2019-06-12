@@ -231,23 +231,16 @@ ParsedQuicVersionVector FilterSupportedVersions(
     if (version.transport_version == QUIC_VERSION_99) {
       if (GetQuicReloadableFlag(quic_enable_version_99) &&
           GetQuicReloadableFlag(quic_enable_version_47) &&
-          GetQuicReloadableFlag(quic_enable_version_46) &&
-          GetQuicReloadableFlag(quic_enable_version_44)) {
+          GetQuicReloadableFlag(quic_enable_version_46)) {
         filtered_versions.push_back(version);
       }
     } else if (version.transport_version == QUIC_VERSION_47) {
       if (GetQuicReloadableFlag(quic_enable_version_47) &&
-          GetQuicReloadableFlag(quic_enable_version_46) &&
-          GetQuicReloadableFlag(quic_enable_version_44)) {
+          GetQuicReloadableFlag(quic_enable_version_46)) {
         filtered_versions.push_back(version);
       }
     } else if (version.transport_version == QUIC_VERSION_46) {
-      if (GetQuicReloadableFlag(quic_enable_version_46) &&
-          GetQuicReloadableFlag(quic_enable_version_44)) {
-        filtered_versions.push_back(version);
-      }
-    } else if (version.transport_version == QUIC_VERSION_44) {
-      if (GetQuicReloadableFlag(quic_enable_version_44)) {
+      if (GetQuicReloadableFlag(quic_enable_version_46)) {
         filtered_versions.push_back(version);
       }
     } else if (version.transport_version == QUIC_VERSION_39) {
@@ -458,9 +451,6 @@ void QuicEnableVersion(ParsedQuicVersion parsed_version) {
   }
   if (parsed_version.transport_version >= QUIC_VERSION_46) {
     SetQuicReloadableFlag(quic_enable_version_46, true);
-  }
-  if (parsed_version.transport_version >= QUIC_VERSION_44) {
-    SetQuicReloadableFlag(quic_enable_version_44, true);
   }
 }
 
