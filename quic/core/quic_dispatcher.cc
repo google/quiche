@@ -1153,7 +1153,7 @@ void QuicDispatcher::ProcessChlo(PacketHeaderFormat form,
                                                form != GOOGLE_QUIC_PACKET)) {
     return;
   }
-  if (GetQuicFlag(FLAGS_quic_allow_chlo_buffering) &&
+  if (FLAGS_quic_allow_chlo_buffering &&
       new_sessions_allowed_per_event_loop_ <= 0) {
     // Can't create new session any more. Wait till next event loop.
     QUIC_BUG_IF(
@@ -1225,7 +1225,7 @@ void QuicDispatcher::ProcessOrBufferPacket(
   }
 
   ChloAlpnExtractor alpn_extractor;
-  if (GetQuicFlag(FLAGS_quic_allow_chlo_buffering) &&
+  if (FLAGS_quic_allow_chlo_buffering &&
       !ChloExtractor::Extract(*current_packet_, GetSupportedVersions(),
                               config_->create_session_tag_indicators(),
                               &alpn_extractor, server_connection_id.length())) {
