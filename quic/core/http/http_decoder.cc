@@ -4,8 +4,6 @@
 
 #include "net/third_party/quiche/src/quic/core/http/http_decoder.h"
 
-#include <type_traits>
-
 #include "net/third_party/quiche/src/quic/core/quic_data_reader.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_fallthrough.h"
