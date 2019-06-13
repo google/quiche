@@ -88,7 +88,7 @@ EnqueuePacketResult QuicBufferedPacketStore::EnqueuePacket(
     bool is_chlo,
     const std::string& alpn,
     const ParsedQuicVersion& version) {
-  QUIC_BUG_IF(!FLAGS_quic_allow_chlo_buffering)
+  QUIC_BUG_IF(!GetQuicFlag(FLAGS_quic_allow_chlo_buffering))
       << "Shouldn't buffer packets if disabled via flag.";
   QUIC_BUG_IF(is_chlo && QuicContainsKey(connections_with_chlo_, connection_id))
       << "Shouldn't buffer duplicated CHLO on connection " << connection_id;
