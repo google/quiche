@@ -114,15 +114,6 @@ class QuicReceiveControlStream::HttpDecoderVisitor
   QuicReceiveControlStream* stream_;
 };
 
-QuicReceiveControlStream::QuicReceiveControlStream(QuicStreamId id,
-                                                   QuicSpdySession* session)
-    : QuicStream(id, session, /*is_static = */ true, READ_UNIDIRECTIONAL),
-      received_settings_length_(0),
-      http_decoder_visitor_(new HttpDecoderVisitor(this)) {
-  decoder_.set_visitor(http_decoder_visitor_.get());
-  sequencer()->set_level_triggered(true);
-}
-
 QuicReceiveControlStream::QuicReceiveControlStream(PendingStream* pending)
     : QuicStream(pending, READ_UNIDIRECTIONAL, /*is_static=*/true),
       received_settings_length_(0),

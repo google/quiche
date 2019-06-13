@@ -17,11 +17,6 @@ class QuicSpdySession;
 // The receive control stream is peer initiated and is read only.
 class QUIC_EXPORT_PRIVATE QuicReceiveControlStream : public QuicStream {
  public:
-  // |session| can't be nullptr, and the ownership is not passed. The stream can
-  // only be accessed through the session.
-  explicit QuicReceiveControlStream(QuicStreamId id, QuicSpdySession* session);
-  // Construct control stream from pending stream, the |pending| object will no
-  // longer exist after the construction.
   explicit QuicReceiveControlStream(PendingStream* pending);
   QuicReceiveControlStream(const QuicReceiveControlStream&) = delete;
   QuicReceiveControlStream& operator=(const QuicReceiveControlStream&) = delete;

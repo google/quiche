@@ -54,12 +54,14 @@ class QuicReceiveControlStreamTest : public QuicTestWithParam<TestParams> {
             SupportedVersions(GetParam().version))),
         session_(connection_) {
     session_.Initialize();
-    receive_control_stream_ = QuicMakeUnique<QuicReceiveControlStream>(
+    auto pending = QuicMakeUnique<PendingStream>(
         QuicUtils::GetFirstUnidirectionalStreamId(
             GetParam().version.transport_version,
             perspective() == Perspective::IS_CLIENT ? Perspective::IS_SERVER
                                                     : Perspective::IS_CLIENT),
         &session_);
+    receive_control_stream_ =
+        QuicMakeUnique<QuicReceiveControlStream>(pending.get());
   }
 
   Perspective perspective() const { return GetParam().perspective; }
