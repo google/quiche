@@ -9,20 +9,17 @@
 
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ip_address.h"
-#include "net/quic/platform/impl/quic_socket_address_impl.h"
 
 namespace quic {
 
+// A class representing a socket endpoint address (i.e., IP address plus a
+// port) in QUIC.
 class QUIC_EXPORT_PRIVATE QuicSocketAddress {
-  // A class representing a socket endpoint address (i.e., IP address plus a
-  // port) in QUIC. The actual implementation (platform dependent) of a socket
-  // address is in QuicSocketAddressImpl.
  public:
-  QuicSocketAddress() = default;
+  QuicSocketAddress() {}
   QuicSocketAddress(QuicIpAddress address, uint16_t port);
   explicit QuicSocketAddress(const struct sockaddr_storage& saddr);
   explicit QuicSocketAddress(const sockaddr* saddr, socklen_t len);
-  explicit QuicSocketAddress(const QuicSocketAddressImpl& impl);
   QuicSocketAddress(const QuicSocketAddress& other) = default;
   QuicSocketAddress& operator=(const QuicSocketAddress& other) = default;
   QuicSocketAddress& operator=(QuicSocketAddress&& other) = default;
@@ -41,7 +38,8 @@ class QUIC_EXPORT_PRIVATE QuicSocketAddress {
   sockaddr_storage generic_address() const;
 
  private:
-  QuicSocketAddressImpl impl_;
+  QuicIpAddress host_;
+  uint16_t port_ = 0;
 };
 
 }  // namespace quic
