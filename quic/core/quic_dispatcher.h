@@ -244,9 +244,8 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
 
   // Returns the actual client address of the current packet.
   // This function should only be called once per packet at the very beginning
-  // of ProcessPacket(), its result is saved to |current_client_address_|, which
-  // is guaranteed to be valid even in the stateless rejector's callback(i.e.
-  // OnStatelessRejectorProcessDone).
+  // of ProcessPacket(), its result is saved to |current_client_address_| while
+  // the packet is being processed.
   // By default, this function returns |current_peer_address_|, subclasses have
   // the option to override this function to return a different address.
   virtual const QuicSocketAddress GetClientAddress() const;
@@ -344,7 +343,7 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
       const std::string& error_details,
       QuicTimeWaitListManager::TimeWaitAction action);
 
-  // Save/Restore per packet context. Used by async stateless rejector.
+  // Save/Restore per packet context.
   virtual std::unique_ptr<QuicPerPacketContext> GetPerPacketContext() const;
   virtual void RestorePerPacketContext(
       std::unique_ptr<QuicPerPacketContext> /*context*/) {}
@@ -382,14 +381,6 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
   // Based on an unauthenticated packet header |header|, calls ValidityChecks
   // and then ProcessUnauthenticatedHeaderFate.
   void ProcessHeader(const QuicPacketHeader& header);
-
-  // TODO(wub): Move the body to ProcessHeader, then remove this function.
-  // Determine whether the current packet needs to be processed now or buffered
-  // for later processing, then invokes ProcessUnauthenticatedHeaderFate.
-  void ProcessOrBufferPacket(QuicConnectionId server_connection_id,
-                             PacketHeaderFormat form,
-                             bool version_flag,
-                             ParsedQuicVersion version);
 
   // Deliver |packets| to |session| for further processing.
   void DeliverPacketsToSession(
@@ -465,8 +456,6 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
   QuicConnectionIdSet temporarily_buffered_connections_;
 
   // Information about the packet currently being handled.
-
-  // Used for stateless rejector to generate and validate source address token.
   QuicSocketAddress current_client_address_;
   QuicSocketAddress current_peer_address_;
   QuicSocketAddress current_self_address_;

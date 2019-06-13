@@ -74,13 +74,6 @@ class PacketCollector : public QuicPacketCreator::DelegateInterface,
   void OnUnrecoverableError(QuicErrorCode error,
                             const std::string& error_details) override {}
 
-  void SaveStatelessRejectFrameData(QuicStringPiece reject) {
-    struct iovec iovec;
-    iovec.iov_base = const_cast<char*>(reject.data());
-    iovec.iov_len = reject.length();
-    send_buffer_.SaveStreamData(&iovec, 1, 0, iovec.iov_len);
-  }
-
   // QuicStreamFrameDataProducer
   WriteStreamDataResult WriteStreamData(QuicStreamId id,
                                         QuicStreamOffset offset,
@@ -156,49 +149,6 @@ class StatelessConnectionTerminator {
         server_connection_id_, ietf_quic,
         QuicTimeWaitListManager::SEND_TERMINATION_PACKETS,
         quic::ENCRYPTION_INITIAL, collector_.packets());
-  }
-
-  // Generates a series of termination packets containing the crypto handshake
-  // message |reject|.  Adds the connection to time wait list with the
-  // generated packets.
-  void RejectConnection(QuicStringPiece reject, bool ietf_quic) {
-    QuicStreamOffset offset = 0;
-    collector_.SaveStatelessRejectFrameData(reject);
-    while (offset < reject.length()) {
-      QuicFrame frame;
-      if (!QuicVersionUsesCryptoFrames(framer_.transport_version())) {
-        if (!creator_.ConsumeData(
-                QuicUtils::GetCryptoStreamId(framer_.transport_version()),
-                reject.length() - offset, offset,
-                /*fin=*/false,
-                /*needs_full_padding=*/true, NOT_RETRANSMISSION, &frame)) {
-          QUIC_BUG << "Unable to consume data into an empty packet.";
-          return;
-        }
-        offset += frame.stream_frame.data_length;
-      } else {
-        if (!creator_.ConsumeCryptoData(
-                ENCRYPTION_INITIAL, reject.length() - offset, offset,
-                /*needs_full_padding=*/true, NOT_RETRANSMISSION, &frame)) {
-          QUIC_BUG << "Unable to consume crypto data into an empty packet.";
-          return;
-        }
-        offset += frame.crypto_frame->data_length;
-      }
-      if (offset < reject.length() &&
-          !QuicVersionUsesCryptoFrames(framer_.transport_version())) {
-        DCHECK(!creator_.HasRoomForStreamFrame(
-            QuicUtils::GetCryptoStreamId(framer_.transport_version()), offset,
-            frame.stream_frame.data_length));
-      }
-      creator_.Flush();
-    }
-    time_wait_list_manager_->AddConnectionIdToTimeWait(
-        server_connection_id_, ietf_quic,
-        QuicTimeWaitListManager::SEND_TERMINATION_PACKETS, ENCRYPTION_INITIAL,
-        collector_.packets());
-    DCHECK(time_wait_list_manager_->IsConnectionIdInTimeWait(
-        server_connection_id_));
   }
 
  private:
@@ -503,16 +453,41 @@ bool QuicDispatcher::OnUnauthenticatedHeader(const QuicPacketHeader& header) {
 void QuicDispatcher::ProcessHeader(const QuicPacketHeader& header) {
   QuicConnectionId server_connection_id = header.destination_connection_id;
   // Packet's connection ID is unknown.  Apply the validity checks.
+  // TODO(wub): Determine the fate completely in ValidityChecks, then call
+  // ProcessUnauthenticatedHeaderFate in one place.
   QuicPacketFate fate = ValidityChecks(header);
   if (fate == kFateProcess) {
-    ProcessOrBufferPacket(server_connection_id, header.form,
-                          header.version_flag, header.version);
-  } else {
-    // If the fate is already known, process it without executing stateless
-    // rejection logic.
-    ProcessUnauthenticatedHeaderFate(fate, server_connection_id, header.form,
-                                     header.version_flag, header.version);
+    if (header.version.handshake_protocol == PROTOCOL_TLS1_3) {
+      ProcessUnauthenticatedHeaderFate(kFateProcess, server_connection_id,
+                                       header.form, header.version_flag,
+                                       header.version);
+      return;
+      // TODO(nharper): Support buffering non-ClientHello packets when using
+      // TLS.
+    }
+
+    ChloAlpnExtractor alpn_extractor;
+    if (GetQuicFlag(FLAGS_quic_allow_chlo_buffering) &&
+        !ChloExtractor::Extract(*current_packet_, GetSupportedVersions(),
+                                config_->create_session_tag_indicators(),
+                                &alpn_extractor,
+                                server_connection_id.length())) {
+      // Buffer non-CHLO packets.
+      ProcessUnauthenticatedHeaderFate(kFateBuffer, server_connection_id,
+                                       header.form, header.version_flag,
+                                       header.version);
+      return;
+    }
+    current_alpn_ = alpn_extractor.ConsumeAlpn();
+    ProcessUnauthenticatedHeaderFate(kFateProcess, server_connection_id,
+                                     header.form, header.version_flag,
+                                     header.version);
+    return;
   }
+
+  // Fate is already known.
+  ProcessUnauthenticatedHeaderFate(fate, server_connection_id, header.form,
+                                   header.version_flag, header.version);
 }
 
 void QuicDispatcher::ProcessUnauthenticatedHeaderFate(
@@ -543,10 +518,6 @@ void QuicDispatcher::ProcessUnauthenticatedHeaderFate(
           current_self_address_, current_peer_address_, server_connection_id,
           form, GetPerPacketContext());
 
-      // Any packets which were buffered while the stateless rejector logic was
-      // running should be discarded.  Do not inform the time wait list manager,
-      // which should already have a made a decision about sending a reject
-      // based on the CHLO alone.
       buffered_packets_.DiscardPackets(server_connection_id);
       break;
     case kFateBuffer:
@@ -1210,33 +1181,6 @@ void QuicDispatcher::SetLastError(QuicErrorCode error) {
 bool QuicDispatcher::OnUnauthenticatedUnknownPublicHeader(
     const QuicPacketHeader& header) {
   return true;
-}
-
-void QuicDispatcher::ProcessOrBufferPacket(
-    QuicConnectionId server_connection_id,
-    PacketHeaderFormat form,
-    bool version_flag,
-    ParsedQuicVersion version) {
-  if (version.handshake_protocol == PROTOCOL_TLS1_3) {
-    ProcessUnauthenticatedHeaderFate(kFateProcess, server_connection_id, form,
-                                     version_flag, version);
-    return;
-    // TODO(nharper): Support buffering non-ClientHello packets when using TLS.
-  }
-
-  ChloAlpnExtractor alpn_extractor;
-  if (GetQuicFlag(FLAGS_quic_allow_chlo_buffering) &&
-      !ChloExtractor::Extract(*current_packet_, GetSupportedVersions(),
-                              config_->create_session_tag_indicators(),
-                              &alpn_extractor, server_connection_id.length())) {
-    // Buffer non-CHLO packets.
-    ProcessUnauthenticatedHeaderFate(kFateBuffer, server_connection_id, form,
-                                     version_flag, version);
-    return;
-  }
-  current_alpn_ = alpn_extractor.ConsumeAlpn();
-  ProcessUnauthenticatedHeaderFate(kFateProcess, server_connection_id, form,
-                                   version_flag, version);
 }
 
 const QuicTransportVersionVector&
