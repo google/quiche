@@ -54,7 +54,7 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
   CryptoMessageParser* crypto_message_parser() override;
 
  protected:
-  TlsConnection* tls_connection() { return &tls_connection_; }
+  TlsConnection* tls_connection() override { return &tls_connection_; }
 
   void AdvanceHandshake() override;
   void CloseConnection(QuicErrorCode error,

@@ -60,7 +60,7 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
   CryptoMessageParser* crypto_message_parser() override;
 
  protected:
-  TlsConnection* tls_connection() { return &tls_connection_; }
+  TlsConnection* tls_connection() override { return &tls_connection_; }
 
   // Called when a new message is received on the crypto stream and is available
   // for the TLS stack to read.
