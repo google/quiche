@@ -63,12 +63,13 @@ class FakeQuartcEndpointDelegate : public QuartcEndpoint::Delegate {
     sent_datagram_ids_.push_back(datagram_id);
   }
 
-  void OnMessageAcked(int64_t datagram_id, QuicTime receive_timestamp) {
+  void OnMessageAcked(int64_t datagram_id,
+                      QuicTime receive_timestamp) override {
     acked_datagram_id_to_receive_timestamp_.emplace(datagram_id,
                                                     receive_timestamp);
   }
 
-  void OnMessageLost(int64_t datagram_id) {
+  void OnMessageLost(int64_t datagram_id) override {
     lost_datagram_ids_.push_back(datagram_id);
   }
 

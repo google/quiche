@@ -422,7 +422,7 @@ class TestPacketWriter : public QuicPacketWriter {
     return max_packet_size_;
   }
 
-  bool SupportsReleaseTime() const { return supports_release_time_; }
+  bool SupportsReleaseTime() const override { return supports_release_time_; }
 
   bool IsBatchMode() const override { return is_batch_mode_; }
 
