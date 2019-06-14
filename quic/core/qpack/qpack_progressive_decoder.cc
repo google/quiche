@@ -94,6 +94,10 @@ void QpackProgressiveDecoder::Decode(QuicStringPiece data) {
   // decoded.
   while (!prefix_decoded_) {
     prefix_decoder_->Decode(data.substr(0, 1));
+    if (error_detected_) {
+      return;
+    }
+
     data = data.substr(1);
     if (data.empty()) {
       return;

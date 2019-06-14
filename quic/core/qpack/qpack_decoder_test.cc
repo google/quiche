@@ -551,6 +551,15 @@ TEST_P(QpackDecoderTest, InvalidEncodedRequiredInsertCount) {
   DecodeHeaderBlock(QuicTextUtils::HexDecode("4100"));
 }
 
+// Regression test for https://crbug.com/970218:  Decoder must stop processing
+// after a Header Block Prefix with an invalid Encoded Required Insert Count.
+TEST_P(QpackDecoderTest, DataAfterInvalidEncodedRequiredInsertCount) {
+  EXPECT_CALL(handler_, OnDecodingErrorDetected(
+                            Eq("Error decoding Required Insert Count.")));
+  // Header Block Prefix followed by some extra data.
+  DecodeHeaderBlock(QuicTextUtils::HexDecode("410000"));
+}
+
 TEST_P(QpackDecoderTest, WrappedRequiredInsertCount) {
   // Maximum dynamic table capacity is 1024.
   // MaxEntries is 1024 / 32 = 32.
