@@ -153,6 +153,12 @@ class QUIC_EXPORT_PRIVATE QuicUnackedPacketMap {
   // HasUnackedCryptoData() when session_decides_what_to_write_ is default true.
   bool HasPendingCryptoPackets() const;
 
+  // Returns true if there is any unacked non-crypto stream data.
+  bool HasUnackedStreamData() const {
+    DCHECK(session_decides_what_to_write());
+    return session_notifier_->HasUnackedStreamData();
+  }
+
   // Removes any retransmittable frames from this transmission or an associated
   // transmission.  It removes now useless transmissions, and disconnects any
   // other packets from other transmissions.

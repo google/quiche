@@ -88,6 +88,8 @@ TEST_F(SimpleSessionNotifierTest, WriteOrBufferRstStream) {
   EXPECT_CALL(connection_, SendStreamData(5, 1024, 0, FIN))
       .WillOnce(Return(QuicConsumedData(1024, true)));
   notifier_.WriteOrBufferData(5, 1024, FIN);
+  EXPECT_TRUE(notifier_.StreamIsWaitingForAcks(5));
+  EXPECT_TRUE(notifier_.HasUnackedStreamData());
 
   // Reset stream 5 with no error.
   EXPECT_CALL(connection_, SendControlFrame(_))
@@ -96,10 +98,12 @@ TEST_F(SimpleSessionNotifierTest, WriteOrBufferRstStream) {
   notifier_.WriteOrBufferRstStream(5, QUIC_STREAM_NO_ERROR, 1024);
   // Verify stream 5 is waiting for acks.
   EXPECT_TRUE(notifier_.StreamIsWaitingForAcks(5));
+  EXPECT_TRUE(notifier_.HasUnackedStreamData());
 
   // Reset stream 5 with error.
   notifier_.WriteOrBufferRstStream(5, QUIC_ERROR_PROCESSING_STREAM, 1024);
   EXPECT_FALSE(notifier_.StreamIsWaitingForAcks(5));
+  EXPECT_FALSE(notifier_.HasUnackedStreamData());
 }
 
 TEST_F(SimpleSessionNotifierTest, WriteOrBufferPing) {
@@ -158,10 +162,13 @@ TEST_F(SimpleSessionNotifierTest, NeuterUnencryptedData) {
                          QuicTime::Zero());
   EXPECT_TRUE(notifier_.StreamIsWaitingForAcks(
       QuicUtils::GetCryptoStreamId(connection_.transport_version())));
+  EXPECT_TRUE(notifier_.HasUnackedStreamData());
+
   // Neuters unencrypted data.
   notifier_.NeuterUnencryptedData();
   EXPECT_FALSE(notifier_.StreamIsWaitingForAcks(
       QuicUtils::GetCryptoStreamId(connection_.transport_version())));
+  EXPECT_FALSE(notifier_.HasUnackedStreamData());
 }
 
 TEST_F(SimpleSessionNotifierTest, OnCanWrite) {
@@ -178,6 +185,7 @@ TEST_F(SimpleSessionNotifierTest, OnCanWrite) {
   notifier_.WriteOrBufferData(
       QuicUtils::GetCryptoStreamId(connection_.transport_version()), 1024,
       NO_FIN);
+
   // Send crypto data [1024, 2048) in ENCRYPTION_ZERO_RTT.
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_ZERO_RTT);
   EXPECT_CALL(connection_, SendStreamData(QuicUtils::GetCryptoStreamId(

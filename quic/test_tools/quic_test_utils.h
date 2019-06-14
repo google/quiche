@@ -1061,6 +1061,7 @@ class MockSessionNotifier : public SessionNotifierInterface {
                void(const QuicFrames&, TransmissionType type));
   MOCK_CONST_METHOD1(IsFrameOutstanding, bool(const QuicFrame&));
   MOCK_CONST_METHOD0(HasUnackedCryptoData, bool());
+  MOCK_CONST_METHOD0(HasUnackedStreamData, bool());
 };
 
 // Creates a client session for testing.

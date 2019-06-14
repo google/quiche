@@ -267,6 +267,14 @@ class QuicSentPacketManagerTest : public QuicTestWithParam<bool> {
     return packet;
   }
 
+  SerializedPacket CreatePingPacket(uint64_t packet_number) {
+    SerializedPacket packet(QuicPacketNumber(packet_number),
+                            PACKET_4BYTE_PACKET_NUMBER, nullptr, kDefaultLength,
+                            false, false);
+    packet.retransmittable_frames.push_back(QuicFrame(QuicPingFrame()));
+    return packet;
+  }
+
   void SendDataPacket(uint64_t packet_number) {
     SendDataPacket(packet_number, ENCRYPTION_INITIAL);
   }
@@ -277,6 +285,17 @@ class QuicSentPacketManagerTest : public QuicTestWithParam<bool> {
                 OnPacketSent(_, BytesInFlight(),
                              QuicPacketNumber(packet_number), _, _));
     SerializedPacket packet(CreateDataPacket(packet_number));
+    packet.encryption_level = encryption_level;
+    manager_.OnPacketSent(&packet, QuicPacketNumber(), clock_.Now(),
+                          NOT_RETRANSMISSION, HAS_RETRANSMITTABLE_DATA);
+  }
+
+  void SendPingPacket(uint64_t packet_number,
+                      EncryptionLevel encryption_level) {
+    EXPECT_CALL(*send_algorithm_,
+                OnPacketSent(_, BytesInFlight(),
+                             QuicPacketNumber(packet_number), _, _));
+    SerializedPacket packet(CreatePingPacket(packet_number));
     packet.encryption_level = encryption_level;
     manager_.OnPacketSent(&packet, QuicPacketNumber(), clock_.Now(),
                           NOT_RETRANSMISSION, HAS_RETRANSMITTABLE_DATA);
@@ -1759,6 +1778,118 @@ TEST_P(QuicSentPacketManagerTest, GetTransmissionTimeTailLossProbe) {
 
   expected_time = clock_.Now() + expected_tlp_delay;
   EXPECT_EQ(expected_time, manager_.GetRetransmissionTime());
+}
+
+TEST_P(QuicSentPacketManagerTest, TLPRWithPendingStreamData) {
+  if (!manager_.session_decides_what_to_write()) {
+    return;
+  }
+
+  QuicConfig config;
+  QuicTagVector options;
+
+  options.push_back(kTLPR);
+  QuicConfigPeer::SetReceivedConnectionOptions(&config, options);
+  EXPECT_CALL(*network_change_visitor_, OnCongestionChange());
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  EXPECT_CALL(*send_algorithm_, PacingRate(_))
+      .WillRepeatedly(Return(QuicBandwidth::Zero()));
+  EXPECT_CALL(*send_algorithm_, GetCongestionWindow())
+      .WillOnce(Return(10 * kDefaultTCPMSS));
+  manager_.SetFromConfig(config);
+  EXPECT_TRUE(
+      QuicSentPacketManagerPeer::GetEnableHalfRttTailLossProbe(&manager_));
+
+  QuicSentPacketManagerPeer::SetMaxTailLossProbes(&manager_, 2);
+
+  SendDataPacket(1);
+  SendDataPacket(2);
+
+  // Test with a standard smoothed RTT.
+  RttStats* rtt_stats = const_cast<RttStats*>(manager_.GetRttStats());
+  rtt_stats->set_initial_rtt(QuicTime::Delta::FromMilliseconds(100));
+  QuicTime::Delta srtt = rtt_stats->initial_rtt();
+  // With pending stream data, TLPR is used.
+  QuicTime::Delta expected_tlp_delay = 0.5 * srtt;
+  EXPECT_CALL(notifier_, HasUnackedStreamData()).WillRepeatedly(Return(true));
+
+  EXPECT_EQ(expected_tlp_delay,
+            manager_.GetRetransmissionTime() - clock_.Now());
+
+  // Retransmit the packet by invoking the retransmission timeout.
+  clock_.AdvanceTime(expected_tlp_delay);
+  manager_.OnRetransmissionTimeout();
+  EXPECT_EQ(QuicTime::Delta::Zero(), manager_.TimeUntilSend(clock_.Now()));
+  EXPECT_FALSE(manager_.HasPendingRetransmissions());
+  EXPECT_CALL(notifier_, RetransmitFrames(_, _))
+      .WillOnce(WithArgs<1>(Invoke(
+          [this](TransmissionType type) { RetransmitDataPacket(3, type); })));
+  EXPECT_TRUE(manager_.MaybeRetransmitTailLossProbe());
+
+  EXPECT_CALL(*send_algorithm_, CanSend(_)).WillOnce(Return(false));
+  EXPECT_EQ(QuicTime::Delta::Infinite(), manager_.TimeUntilSend(clock_.Now()));
+  EXPECT_FALSE(manager_.HasPendingRetransmissions());
+
+  // 2nd TLP.
+  expected_tlp_delay = 2 * srtt;
+  EXPECT_EQ(expected_tlp_delay,
+            manager_.GetRetransmissionTime() - clock_.Now());
+}
+
+TEST_P(QuicSentPacketManagerTest, TLPRWithoutPendingStreamData) {
+  if (!manager_.session_decides_what_to_write()) {
+    return;
+  }
+
+  QuicConfig config;
+  QuicTagVector options;
+
+  options.push_back(kTLPR);
+  QuicConfigPeer::SetReceivedConnectionOptions(&config, options);
+  EXPECT_CALL(*network_change_visitor_, OnCongestionChange());
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  EXPECT_CALL(*send_algorithm_, PacingRate(_))
+      .WillRepeatedly(Return(QuicBandwidth::Zero()));
+  EXPECT_CALL(*send_algorithm_, GetCongestionWindow())
+      .WillOnce(Return(10 * kDefaultTCPMSS));
+  manager_.SetFromConfig(config);
+  EXPECT_TRUE(
+      QuicSentPacketManagerPeer::GetEnableHalfRttTailLossProbe(&manager_));
+  QuicSentPacketManagerPeer::SetMaxTailLossProbes(&manager_, 2);
+
+  SendPingPacket(1, ENCRYPTION_INITIAL);
+  SendPingPacket(2, ENCRYPTION_INITIAL);
+
+  // Test with a standard smoothed RTT.
+  RttStats* rtt_stats = const_cast<RttStats*>(manager_.GetRttStats());
+  rtt_stats->set_initial_rtt(QuicTime::Delta::FromMilliseconds(100));
+  QuicTime::Delta srtt = rtt_stats->initial_rtt();
+  QuicTime::Delta expected_tlp_delay = 0.5 * srtt;
+  if (GetQuicReloadableFlag(quic_ignore_tlpr_if_no_pending_stream_data)) {
+    // With no pending stream data, TLPR is ignored.
+    expected_tlp_delay = 2 * srtt;
+  }
+  EXPECT_CALL(notifier_, HasUnackedStreamData()).WillRepeatedly(Return(false));
+  EXPECT_EQ(expected_tlp_delay,
+            manager_.GetRetransmissionTime() - clock_.Now());
+
+  // Retransmit the packet by invoking the retransmission timeout.
+  clock_.AdvanceTime(expected_tlp_delay);
+  manager_.OnRetransmissionTimeout();
+  EXPECT_EQ(QuicTime::Delta::Zero(), manager_.TimeUntilSend(clock_.Now()));
+  EXPECT_FALSE(manager_.HasPendingRetransmissions());
+  EXPECT_CALL(notifier_, RetransmitFrames(_, _))
+      .WillOnce(WithArgs<1>(Invoke(
+          [this](TransmissionType type) { RetransmitDataPacket(3, type); })));
+  EXPECT_TRUE(manager_.MaybeRetransmitTailLossProbe());
+  EXPECT_CALL(*send_algorithm_, CanSend(_)).WillOnce(Return(false));
+  EXPECT_EQ(QuicTime::Delta::Infinite(), manager_.TimeUntilSend(clock_.Now()));
+  EXPECT_FALSE(manager_.HasPendingRetransmissions());
+
+  // 2nd TLP.
+  expected_tlp_delay = 2 * srtt;
+  EXPECT_EQ(expected_tlp_delay,
+            manager_.GetRetransmissionTime() - clock_.Now());
 }
 
 TEST_P(QuicSentPacketManagerTest, GetTransmissionTimeSpuriousRTO) {

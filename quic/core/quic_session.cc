@@ -8,9 +8,11 @@
 #include <string>
 #include <utility>
 
+#include "base/logging.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection.h"
 #include "net/third_party/quiche/src/quic/core/quic_flow_controller.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
+#include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
@@ -869,6 +871,13 @@ void QuicSession::CloseStreamInner(QuicStreamId stream_id, bool locally_reset) {
   if (stream->IsWaitingForAcks()) {
     zombie_streams_[stream->id()] = std::move(it->second);
   } else {
+    // Clean up the stream since it is no longer waiting for acks.
+    if (ignore_tlpr_if_no_pending_stream_data() &&
+        session_decides_what_to_write()) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_ignore_tlpr_if_no_pending_stream_data,
+                                   2, 5);
+      streams_waiting_for_acks_.erase(stream->id());
+    }
     closed_streams_.push_back(std::move(it->second));
     // Do not retransmit data of a closed stream.
     streams_with_pending_retransmission_.erase(stream_id);
@@ -1543,6 +1552,13 @@ bool QuicSession::IsIncomingStream(QuicStreamId id) const {
 }
 
 void QuicSession::OnStreamDoneWaitingForAcks(QuicStreamId id) {
+  if (ignore_tlpr_if_no_pending_stream_data() &&
+      session_decides_what_to_write()) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_ignore_tlpr_if_no_pending_stream_data, 3,
+                                 5);
+    streams_waiting_for_acks_.erase(id);
+  }
+
   auto it = zombie_streams_.find(id);
   if (it == zombie_streams_.end()) {
     return;
@@ -1555,6 +1571,34 @@ void QuicSession::OnStreamDoneWaitingForAcks(QuicStreamId id) {
   zombie_streams_.erase(it);
   // Do not retransmit data of a closed stream.
   streams_with_pending_retransmission_.erase(id);
+}
+
+void QuicSession::OnStreamWaitingForAcks(QuicStreamId id) {
+  if (!ignore_tlpr_if_no_pending_stream_data() ||
+      !session_decides_what_to_write())
+    return;
+
+  // Exclude crypto stream's status since it is counted in HasUnackedCryptoData.
+  if (GetCryptoStream() != nullptr && id == GetCryptoStream()->id()) {
+    return;
+  }
+
+  QUIC_RELOADABLE_FLAG_COUNT_N(quic_ignore_tlpr_if_no_pending_stream_data, 4,
+                               5);
+  streams_waiting_for_acks_.insert(id);
+
+  // The number of the streams waiting for acks should not be larger than the
+  // number of streams.
+  if (dynamic_stream_map_.size() + static_stream_map_.size() +
+          zombie_streams_.size() <
+      static_cast<int>(streams_waiting_for_acks_.size())) {
+    QUIC_BUG << "More streams are waiting for acks than the number of streams. "
+             << "Sizes: dynamic streams: " << dynamic_stream_map_.size()
+             << ", static streams: " << static_stream_map_.size()
+             << ", zombie streams: " << zombie_streams_.size()
+             << ", vs streams waiting for acks: "
+             << streams_waiting_for_acks_.size();
+  }
 }
 
 QuicStream* QuicSession::GetStream(QuicStreamId id) const {
@@ -1714,6 +1758,17 @@ bool QuicSession::HasUnackedCryptoData() const {
     return true;
   }
   return false;
+}
+
+bool QuicSession::HasUnackedStreamData() const {
+  DCHECK(ignore_tlpr_if_no_pending_stream_data());
+  if (ignore_tlpr_if_no_pending_stream_data()) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_ignore_tlpr_if_no_pending_stream_data, 5,
+                                 5);
+    return !streams_waiting_for_acks_.empty();
+  }
+
+  return true;
 }
 
 WriteStreamDataResult QuicSession::WriteStreamData(QuicStreamId id,

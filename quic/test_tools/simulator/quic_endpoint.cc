@@ -293,6 +293,13 @@ bool QuicEndpoint::HasUnackedCryptoData() const {
   return false;
 }
 
+bool QuicEndpoint::HasUnackedStreamData() const {
+  if (notifier_ != nullptr) {
+    return notifier_->HasUnackedStreamData();
+  }
+  return false;
+}
+
 QuicEndpoint::Writer::Writer(QuicEndpoint* endpoint)
     : endpoint_(endpoint), is_blocked_(false) {}
 

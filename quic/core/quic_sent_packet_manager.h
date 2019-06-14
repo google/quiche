@@ -360,15 +360,6 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
     delayed_ack_time_ = delayed_ack_time;
   }
 
-  bool enable_half_rtt_tail_loss_probe() const {
-    return enable_half_rtt_tail_loss_probe_;
-  }
-
-  void set_enable_half_rtt_tail_loss_probe(
-      bool enable_half_rtt_tail_loss_probe) {
-    enable_half_rtt_tail_loss_probe_ = enable_half_rtt_tail_loss_probe;
-  }
-
   const QuicUnackedPacketMap& unacked_packets() const {
     return unacked_packets_;
   }
@@ -391,6 +382,10 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
 
   bool use_uber_loss_algorithm() const {
     return unacked_packets_.use_uber_loss_algorithm();
+  }
+
+  bool ignore_tlpr_if_no_pending_stream_data() const {
+    return ignore_tlpr_if_no_pending_stream_data_;
   }
 
  private:
@@ -637,6 +632,9 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
 
   // Latched value of quic_loss_removes_from_inflight.
   const bool loss_removes_from_inflight_;
+
+  // Latched value of quic_ignore_tlpr_if_no_pending_stream_data.
+  const bool ignore_tlpr_if_no_pending_stream_data_;
 };
 
 }  // namespace quic

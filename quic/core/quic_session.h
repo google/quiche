@@ -150,6 +150,7 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
                         TransmissionType type) override;
   bool IsFrameOutstanding(const QuicFrame& frame) const override;
   bool HasUnackedCryptoData() const override;
+  bool HasUnackedStreamData() const override;
 
   // Called on every incoming packet. Passes |packet| through to |connection_|.
   virtual void ProcessUdpPacket(const QuicSocketAddress& self_address,
@@ -323,6 +324,9 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
   // gets acked or is not interested in data being acked (which happens when
   // a stream is reset because of an error).
   void OnStreamDoneWaitingForAcks(QuicStreamId id);
+
+  // Called when stream |id| is newly waiting for acks.
+  void OnStreamWaitingForAcks(QuicStreamId id);
 
   // Called to cancel retransmission of unencypted crypto stream data.
   void NeuterUnencryptedData();
@@ -616,6 +620,11 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
   // stream.
   void PendingStreamOnRstStream(const QuicRstStreamFrame& frame);
 
+  bool ignore_tlpr_if_no_pending_stream_data() const {
+    return connection_->sent_packet_manager()
+        .ignore_tlpr_if_no_pending_stream_data();
+  }
+
   // Keep track of highest received byte offset of locally closed streams, while
   // waiting for a definitive final highest offset from the peer.
   std::map<QuicStreamId, QuicStreamOffset>
@@ -653,6 +662,9 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
   // but the stream object still exists because not all the received data has
   // been consumed.
   QuicUnorderedSet<QuicStreamId> draining_streams_;
+
+  // Set of stream ids that are waiting for acks excluding crypto stream id.
+  QuicUnorderedSet<QuicStreamId> streams_waiting_for_acks_;
 
   // TODO(fayang): Consider moving LegacyQuicStreamIdManager into
   // UberQuicStreamIdManager.
@@ -719,7 +731,7 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
   // list may be a superset of the connection framer's supported versions.
   ParsedQuicVersionVector supported_versions_;
 
-  //  Latched value of quic_eliminate_static_stream_map.
+  // Latched value of quic_eliminate_static_stream_map.
   const bool eliminate_static_stream_map_;
 };
 

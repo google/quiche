@@ -1011,6 +1011,10 @@ void QuicStream::WriteBufferedData() {
   if (consumed_data.bytes_consumed > 0 || consumed_data.fin_consumed) {
     busy_counter_ = 0;
   }
+
+  if (IsWaitingForAcks()) {
+    session_->OnStreamWaitingForAcks(id_);
+  }
 }
 
 uint64_t QuicStream::BufferedDataBytes() const {

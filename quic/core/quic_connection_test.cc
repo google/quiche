@@ -3898,6 +3898,10 @@ TEST_P(QuicConnectionTest, TLP) {
 }
 
 TEST_P(QuicConnectionTest, TailLossProbeDelayForStreamDataInTLPR) {
+  if (!connection_.session_decides_what_to_write()) {
+    return;
+  }
+
   // Set TLPR from QuicConfig.
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
   QuicConfig config;
@@ -3929,6 +3933,10 @@ TEST_P(QuicConnectionTest, TailLossProbeDelayForStreamDataInTLPR) {
 }
 
 TEST_P(QuicConnectionTest, TailLossProbeDelayForNonStreamDataInTLPR) {
+  if (!connection_.session_decides_what_to_write()) {
+    return;
+  }
+
   // Set TLPR from QuicConfig.
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
   QuicConfig config;
@@ -4014,7 +4022,7 @@ TEST_P(QuicConnectionTest, TailLossProbeDelayForNonStreamDataInTLPR) {
   QuicTime::Delta min_rto_timeout =
       QuicTime::Delta::FromMilliseconds(kMinRetransmissionTimeMs);
   srtt = manager_->GetRttStats()->SmoothedOrInitialRtt();
-  if (GetQuicReloadableFlag(quic_ignore_tlpr_if_sending_ping)) {
+  if (GetQuicReloadableFlag(quic_ignore_tlpr_if_no_pending_stream_data)) {
     // First TLP without unacked stream data will no longer use TLPR.
     expected_delay = std::max(2 * srtt, 1.5 * srtt + 0.5 * min_rto_timeout);
   } else {
@@ -4025,11 +4033,7 @@ TEST_P(QuicConnectionTest, TailLossProbeDelayForNonStreamDataInTLPR) {
   EXPECT_EQ(expected_delay,
             connection_.GetRetransmissionAlarm()->deadline() - clock_.Now());
 
-  // Verify the path degrading delay.
-  // Path degrading delay will count TLPR for the tail loss probe delay.
-  expected_delay =
-      std::max(QuicTime::Delta::FromMilliseconds(kMinTailLossProbeTimeoutMs),
-               srtt * 0.5);
+  // Verify the path degrading delay = TLP delay + 1st RTO + 2nd RTO.
   // Add 1st RTO.
   retransmission_delay =
       std::max(manager_->GetRttStats()->smoothed_rtt() +
@@ -4047,6 +4051,26 @@ TEST_P(QuicConnectionTest, TailLossProbeDelayForNonStreamDataInTLPR) {
   EXPECT_TRUE(connection_.GetPingAlarm()->IsSet());
   EXPECT_EQ(QuicTime::Delta::FromSeconds(kPingTimeoutSecs),
             connection_.GetPingAlarm()->deadline() - clock_.ApproximateNow());
+
+  // Advance a small period of time: 5ms. And receive a retransmitted ACK.
+  // This will update the retransmission alarm, verify the retransmission delay
+  // is correct.
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(5));
+  QuicAckFrame ack = InitAckFrame({{QuicPacketNumber(1), QuicPacketNumber(2)}});
+  ProcessAckPacket(&ack);
+
+  // Verify the retransmission delay.
+  if (GetQuicReloadableFlag(quic_ignore_tlpr_if_no_pending_stream_data)) {
+    // First TLP without unacked stream data will no longer use TLPR.
+    expected_delay = std::max(2 * srtt, 1.5 * srtt + 0.5 * min_rto_timeout);
+  } else {
+    expected_delay =
+        std::max(QuicTime::Delta::FromMilliseconds(kMinTailLossProbeTimeoutMs),
+                 srtt * 0.5);
+  }
+  expected_delay = expected_delay - QuicTime::Delta::FromMilliseconds(5);
+  EXPECT_EQ(expected_delay,
+            connection_.GetRetransmissionAlarm()->deadline() - clock_.Now());
 }
 
 TEST_P(QuicConnectionTest, RTO) {

@@ -73,6 +73,7 @@ class SimpleSessionNotifier : public SessionNotifierInterface {
                         TransmissionType type) override;
   bool IsFrameOutstanding(const QuicFrame& frame) const override;
   bool HasUnackedCryptoData() const override;
+  bool HasUnackedStreamData() const override;
 
  private:
   struct StreamState {

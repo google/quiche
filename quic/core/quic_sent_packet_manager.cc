@@ -118,7 +118,9 @@ QuicSentPacketManager::QuicSentPacketManager(
       acked_packets_iter_(last_ack_frame_.packets.rbegin()),
       tolerate_reneging_(GetQuicReloadableFlag(quic_tolerate_reneging)),
       loss_removes_from_inflight_(
-          GetQuicReloadableFlag(quic_loss_removes_from_inflight)) {
+          GetQuicReloadableFlag(quic_loss_removes_from_inflight)),
+      ignore_tlpr_if_no_pending_stream_data_(
+          GetQuicReloadableFlag(quic_ignore_tlpr_if_no_pending_stream_data)) {
   if (tolerate_reneging_) {
     QUIC_RELOADABLE_FLAG_COUNT(quic_tolerate_reneging);
   }
@@ -1017,7 +1019,16 @@ const QuicTime::Delta QuicSentPacketManager::GetTailLossProbeDelay(
     size_t consecutive_tlp_count) const {
   QuicTime::Delta srtt = rtt_stats_.SmoothedOrInitialRtt();
   if (enable_half_rtt_tail_loss_probe_ && consecutive_tlp_count == 0u) {
-    return std::max(min_tlp_timeout_, srtt * 0.5);
+    if (!ignore_tlpr_if_no_pending_stream_data_ ||
+        !session_decides_what_to_write()) {
+      return std::max(min_tlp_timeout_, srtt * 0.5);
+    }
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_ignore_tlpr_if_no_pending_stream_data, 1,
+                                 5);
+    if (unacked_packets().HasUnackedStreamData()) {
+      // Enable TLPR if there are pending data packets.
+      return std::max(min_tlp_timeout_, srtt * 0.5);
+    }
   }
   if (ietf_style_tlp_) {
     return std::max(min_tlp_timeout_, 1.5 * srtt + rtt_stats_.max_ack_delay());

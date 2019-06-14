@@ -434,6 +434,14 @@ bool SimpleSessionNotifier::HasUnackedCryptoData() const {
   return !bytes_to_ack.Empty();
 }
 
+bool SimpleSessionNotifier::HasUnackedStreamData() const {
+  for (auto it : stream_map_) {
+    if (StreamIsWaitingForAcks(it.first))
+      return true;
+  }
+  return false;
+}
+
 bool SimpleSessionNotifier::OnControlFrameAcked(const QuicFrame& frame) {
   QuicControlFrameId id = GetControlFrameId(frame);
   if (id == kInvalidControlFrameId) {
