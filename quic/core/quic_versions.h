@@ -355,6 +355,12 @@ QUIC_EXPORT_PRIVATE inline bool VersionHasDataFrameHeader(
   return transport_version == QUIC_VERSION_99;
 }
 
+// Returns whether |transport_version| has HTTP/3 unidirectional stream type.
+QUIC_EXPORT_PRIVATE inline bool VersionHasStreamType(
+    QuicTransportVersion transport_version) {
+  return transport_version == QUIC_VERSION_99;
+}
+
 // If true:
 // * QuicSpdySession instantiates a QPACK encoder and decoder;
 // * HEADERS frames (containing headers or trailers) are sent on
@@ -377,6 +383,7 @@ QUIC_EXPORT_PRIVATE inline bool VersionUsesQpack(
   const bool uses_qpack = (transport_version == QUIC_VERSION_99);
   if (uses_qpack) {
     DCHECK(VersionHasDataFrameHeader(transport_version));
+    DCHECK(VersionHasStreamType(transport_version));
   }
   return uses_qpack;
 }
@@ -393,12 +400,6 @@ QUIC_EXPORT_PRIVATE inline bool QuicVersionHasLongHeaderLengths(
 // Returns whether |transport_version| uses CRYPTO frames for the handshake
 // instead of stream 1.
 QUIC_EXPORT_PRIVATE inline bool QuicVersionUsesCryptoFrames(
-    QuicTransportVersion transport_version) {
-  return transport_version == QUIC_VERSION_99;
-}
-
-// Returns whether |transport_version| has HTTP/3 stream type.
-QUIC_EXPORT_PRIVATE inline bool VersionHasStreamType(
     QuicTransportVersion transport_version) {
   return transport_version == QUIC_VERSION_99;
 }
