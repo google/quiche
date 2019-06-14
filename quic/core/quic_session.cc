@@ -1589,9 +1589,9 @@ void QuicSession::OnStreamWaitingForAcks(QuicStreamId id) {
 
   // The number of the streams waiting for acks should not be larger than the
   // number of streams.
-  if (dynamic_stream_map_.size() + static_stream_map_.size() +
-          zombie_streams_.size() <
-      static_cast<int>(streams_waiting_for_acks_.size())) {
+  if (static_cast<size_t>(dynamic_stream_map_.size() +
+                          static_stream_map_.size() + zombie_streams_.size()) <
+      streams_waiting_for_acks_.size()) {
     QUIC_BUG << "More streams are waiting for acks than the number of streams. "
              << "Sizes: dynamic streams: " << dynamic_stream_map_.size()
              << ", static streams: " << static_stream_map_.size()
