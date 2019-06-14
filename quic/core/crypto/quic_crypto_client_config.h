@@ -203,6 +203,9 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
     virtual bool Matches(const QuicServerId& server_id) const = 0;
   };
 
+  explicit QuicCryptoClientConfig(
+      std::unique_ptr<ProofVerifier> proof_verifier);
+  // Deprecated. Use the single-arg constructor instead.
   QuicCryptoClientConfig(std::unique_ptr<ProofVerifier> proof_verifier,
                          bssl::UniquePtr<SSL_CTX> ssl_ctx);
   QuicCryptoClientConfig(const QuicCryptoClientConfig&) = delete;

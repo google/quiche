@@ -218,6 +218,11 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
                          std::unique_ptr<ProofSource> proof_source,
                          std::unique_ptr<KeyExchangeSource> key_exchange_source,
                          bssl::UniquePtr<SSL_CTX> ssl_ctx);
+  QuicCryptoServerConfig(
+      QuicStringPiece source_address_token_secret,
+      QuicRandom* server_nonce_entropy,
+      std::unique_ptr<ProofSource> proof_source,
+      std::unique_ptr<KeyExchangeSource> key_exchange_source);
   QuicCryptoServerConfig(const QuicCryptoServerConfig&) = delete;
   QuicCryptoServerConfig& operator=(const QuicCryptoServerConfig&) = delete;
   ~QuicCryptoServerConfig();

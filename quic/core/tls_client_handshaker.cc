@@ -53,7 +53,8 @@ TlsClientHandshaker::TlsClientHandshaker(
       proof_verifier_(proof_verifier),
       verify_context_(std::move(verify_context)),
       user_agent_id_(user_agent_id),
-      crypto_negotiated_params_(new QuicCryptoNegotiatedParameters) {}
+      crypto_negotiated_params_(new QuicCryptoNegotiatedParameters),
+      tls_connection_(ssl_ctx, this) {}
 
 TlsClientHandshaker::~TlsClientHandshaker() {
   if (proof_verify_callback_) {
@@ -63,7 +64,7 @@ TlsClientHandshaker::~TlsClientHandshaker() {
 
 // static
 bssl::UniquePtr<SSL_CTX> TlsClientHandshaker::CreateSslCtx() {
-  return TlsHandshaker::CreateSslCtx();
+  return TlsClientConnection::CreateSslCtx();
 }
 
 bool TlsClientHandshaker::CryptoConnect() {
@@ -76,12 +77,6 @@ bool TlsClientHandshaker::CryptoConnect() {
   session()->connection()->InstallDecrypter(ENCRYPTION_INITIAL,
                                             std::move(crypters.decrypter));
   state_ = STATE_HANDSHAKE_RUNNING;
-  // Configure certificate verification.
-  // TODO(nharper): This only verifies certs on initial connection, not on
-  // resumption. Chromium has this callback be a no-op and verifies the
-  // certificate after the connection is complete. We need to re-verify on
-  // resumption in case of expiration or revocation/distrust.
-  SSL_set_custom_verify(ssl(), SSL_VERIFY_PEER, &VerifyCallback);
 
   // Configure the SSL to be a client.
   SSL_set_connect_state(ssl());
@@ -296,19 +291,6 @@ void TlsClientHandshaker::FinishHandshake() {
   session()->NeuterUnencryptedData();
   encryption_established_ = true;
   handshake_confirmed_ = true;
-}
-
-// static
-TlsClientHandshaker* TlsClientHandshaker::HandshakerFromSsl(SSL* ssl) {
-  return static_cast<TlsClientHandshaker*>(
-      TlsHandshaker::HandshakerFromSsl(ssl));
-}
-
-// static
-enum ssl_verify_result_t TlsClientHandshaker::VerifyCallback(
-    SSL* ssl,
-    uint8_t* out_alert) {
-  return HandshakerFromSsl(ssl)->VerifyCert(out_alert);
 }
 
 enum ssl_verify_result_t TlsClientHandshaker::VerifyCert(uint8_t* out_alert) {

@@ -27,6 +27,7 @@
 #include "net/third_party/quiche/src/quic/core/crypto/quic_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_hkdf.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"
+#include "net/third_party/quiche/src/quic/core/crypto/tls_server_connection.h"
 #include "net/third_party/quiche/src/quic/core/proto/crypto_server_config.pb.h"
 #include "net/third_party/quiche/src/quic/core/proto/source_address_token.pb.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
@@ -226,6 +227,17 @@ void QuicCryptoServerConfig::ProcessClientHelloContext::Succeed(
                 std::move(proof_source_details));
   done_cb_ = nullptr;
 }
+
+QuicCryptoServerConfig::QuicCryptoServerConfig(
+    QuicStringPiece source_address_token_secret,
+    QuicRandom* server_nonce_entropy,
+    std::unique_ptr<ProofSource> proof_source,
+    std::unique_ptr<KeyExchangeSource> key_exchange_source)
+    : QuicCryptoServerConfig(source_address_token_secret,
+                             server_nonce_entropy,
+                             std::move(proof_source),
+                             std::move(key_exchange_source),
+                             TlsServerConnection::CreateSslCtx()) {}
 
 QuicCryptoServerConfig::QuicCryptoServerConfig(
     QuicStringPiece source_address_token_secret,

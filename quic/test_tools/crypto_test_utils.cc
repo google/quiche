@@ -25,8 +25,6 @@
 #include "net/third_party/quiche/src/quic/core/quic_crypto_stream.h"
 #include "net/third_party/quiche/src/quic/core/quic_server_id.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
-#include "net/third_party/quiche/src/quic/core/tls_client_handshaker.h"
-#include "net/third_party/quiche/src/quic/core/tls_server_handshaker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_clock.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
@@ -219,8 +217,7 @@ int HandshakeWithFakeServer(QuicConfig* server_quic_config,
 
   QuicCryptoServerConfig crypto_config(
       QuicCryptoServerConfig::TESTING, QuicRandom::GetInstance(),
-      ProofSourceForTesting(), KeyExchangeSource::Default(),
-      TlsServerHandshaker::CreateSslCtx());
+      ProofSourceForTesting(), KeyExchangeSource::Default());
   QuicCompressedCertsCache compressed_certs_cache(
       QuicCompressedCertsCache::kQuicCompressedCertsCacheSize);
   SetupCryptoServerConfigForTest(
@@ -271,8 +268,7 @@ int HandshakeWithFakeClient(MockQuicConnectionHelper* helper,
   // Advance the time, because timers do not like uninitialized times.
   client_conn->AdvanceTime(QuicTime::Delta::FromSeconds(1));
 
-  QuicCryptoClientConfig crypto_config(ProofVerifierForTesting(),
-                                       TlsClientHandshaker::CreateSslCtx());
+  QuicCryptoClientConfig crypto_config(ProofVerifierForTesting());
   TestQuicSpdyClientSession client_session(client_conn, DefaultQuicConfig(),
                                            supported_versions, server_id,
                                            &crypto_config);

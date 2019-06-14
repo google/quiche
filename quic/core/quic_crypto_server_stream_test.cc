@@ -21,8 +21,6 @@
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_session.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
-#include "net/third_party/quiche/src/quic/core/tls_client_handshaker.h"
-#include "net/third_party/quiche/src/quic/core/tls_server_handshaker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
@@ -60,13 +58,11 @@ class QuicCryptoServerStreamTest : public QuicTestWithParam<bool> {
       : server_crypto_config_(QuicCryptoServerConfig::TESTING,
                               QuicRandom::GetInstance(),
                               std::move(proof_source),
-                              KeyExchangeSource::Default(),
-                              TlsServerHandshaker::CreateSslCtx()),
+                              KeyExchangeSource::Default()),
         server_compressed_certs_cache_(
             QuicCompressedCertsCache::kQuicCompressedCertsCacheSize),
         server_id_(kServerHostname, kServerPort, false),
-        client_crypto_config_(crypto_test_utils::ProofVerifierForTesting(),
-                              TlsClientHandshaker::CreateSslCtx()) {}
+        client_crypto_config_(crypto_test_utils::ProofVerifierForTesting()) {}
 
   void Initialize() { InitializeServer(); }
 

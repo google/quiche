@@ -8,7 +8,6 @@
 #include "net/third_party/quiche/src/quic/core/quic_epoll_alarm_factory.h"
 #include "net/third_party/quiche/src/quic/core/quic_epoll_connection_helper.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
-#include "net/third_party/quiche/src/quic/core/tls_server_handshaker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
@@ -154,8 +153,7 @@ class QuicServerDispatchPacketTest : public QuicTest {
       : crypto_config_("blah",
                        QuicRandom::GetInstance(),
                        crypto_test_utils::ProofSourceForTesting(),
-                       KeyExchangeSource::Default(),
-                       TlsServerHandshaker::CreateSslCtx()),
+                       KeyExchangeSource::Default()),
         version_manager_(AllSupportedVersions()),
         dispatcher_(
             &config_,

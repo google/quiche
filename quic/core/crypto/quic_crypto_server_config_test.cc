@@ -16,7 +16,6 @@
 #include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"
 #include "net/third_party/quiche/src/quic/core/proto/crypto_server_config.pb.h"
 #include "net/third_party/quiche/src/quic/core/quic_time.h"
-#include "net/third_party/quiche/src/quic/core/tls_server_handshaker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/crypto_test_utils.h"
@@ -43,8 +42,7 @@ TEST_F(QuicCryptoServerConfigTest, ServerConfig) {
   QuicRandom* rand = QuicRandom::GetInstance();
   QuicCryptoServerConfig server(QuicCryptoServerConfig::TESTING, rand,
                                 crypto_test_utils::ProofSourceForTesting(),
-                                KeyExchangeSource::Default(),
-                                TlsServerHandshaker::CreateSslCtx());
+                                KeyExchangeSource::Default());
   MockClock clock;
 
   std::unique_ptr<CryptoHandshakeMessage> message(server.AddDefaultConfig(
@@ -65,8 +63,7 @@ TEST_F(QuicCryptoServerConfigTest, CompressCerts) {
   QuicRandom* rand = QuicRandom::GetInstance();
   QuicCryptoServerConfig server(QuicCryptoServerConfig::TESTING, rand,
                                 crypto_test_utils::ProofSourceForTesting(),
-                                KeyExchangeSource::Default(),
-                                TlsServerHandshaker::CreateSslCtx());
+                                KeyExchangeSource::Default());
   QuicCryptoServerConfigPeer peer(&server);
 
   std::vector<std::string> certs = {"testcert"};
@@ -86,8 +83,7 @@ TEST_F(QuicCryptoServerConfigTest, CompressSameCertsTwice) {
   QuicRandom* rand = QuicRandom::GetInstance();
   QuicCryptoServerConfig server(QuicCryptoServerConfig::TESTING, rand,
                                 crypto_test_utils::ProofSourceForTesting(),
-                                KeyExchangeSource::Default(),
-                                TlsServerHandshaker::CreateSslCtx());
+                                KeyExchangeSource::Default());
   QuicCryptoServerConfigPeer peer(&server);
 
   // Compress the certs for the first time.
@@ -117,8 +113,7 @@ TEST_F(QuicCryptoServerConfigTest, CompressDifferentCerts) {
   QuicRandom* rand = QuicRandom::GetInstance();
   QuicCryptoServerConfig server(QuicCryptoServerConfig::TESTING, rand,
                                 crypto_test_utils::ProofSourceForTesting(),
-                                KeyExchangeSource::Default(),
-                                TlsServerHandshaker::CreateSslCtx());
+                                KeyExchangeSource::Default());
   QuicCryptoServerConfigPeer peer(&server);
 
   std::vector<std::string> certs = {"testcert"};
@@ -162,8 +157,7 @@ class SourceAddressTokenTest : public QuicTest {
         server_(QuicCryptoServerConfig::TESTING,
                 rand_,
                 crypto_test_utils::ProofSourceForTesting(),
-                KeyExchangeSource::Default(),
-                TlsServerHandshaker::CreateSslCtx()),
+                KeyExchangeSource::Default()),
         peer_(&server_) {
     // Advance the clock to some non-zero time.
     clock_.AdvanceTime(QuicTime::Delta::FromSeconds(1000000));
@@ -305,8 +299,7 @@ class CryptoServerConfigsTest : public QuicTest {
         config_(QuicCryptoServerConfig::TESTING,
                 rand_,
                 crypto_test_utils::ProofSourceForTesting(),
-                KeyExchangeSource::Default(),
-                TlsServerHandshaker::CreateSslCtx()),
+                KeyExchangeSource::Default()),
         test_peer_(&config_) {}
 
   void SetUp() override {

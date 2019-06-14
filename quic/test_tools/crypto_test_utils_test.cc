@@ -6,7 +6,6 @@
 
 #include "net/third_party/quiche/src/quic/core/proto/crypto_server_config.pb.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
-#include "net/third_party/quiche/src/quic/core/tls_server_handshaker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
@@ -110,8 +109,7 @@ TEST_F(CryptoTestUtilsTest, TestGenerateFullCHLO) {
   MockClock clock;
   QuicCryptoServerConfig crypto_config(
       QuicCryptoServerConfig::TESTING, QuicRandom::GetInstance(),
-      crypto_test_utils::ProofSourceForTesting(), KeyExchangeSource::Default(),
-      TlsServerHandshaker::CreateSslCtx());
+      crypto_test_utils::ProofSourceForTesting(), KeyExchangeSource::Default());
   QuicSocketAddress server_addr(QuicIpAddress::Any4(), 5);
   QuicSocketAddress client_addr(QuicIpAddress::Loopback4(), 1);
   QuicReferenceCountedPointer<QuicSignedServerConfig> signed_config(

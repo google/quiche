@@ -13,7 +13,6 @@
 #include "net/third_party/quiche/src/quic/core/http/quic_spdy_client_stream.h"
 #include "net/third_party/quiche/src/quic/core/http/spdy_utils.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
-#include "net/third_party/quiche/src/quic/core/tls_client_handshaker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
@@ -77,8 +76,7 @@ class TestQuicSpdyClientSession : public QuicSpdyClientSession {
 class QuicSpdyClientSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
  protected:
   QuicSpdyClientSessionTest()
-      : crypto_config_(crypto_test_utils::ProofVerifierForTesting(),
-                       TlsClientHandshaker::CreateSslCtx()),
+      : crypto_config_(crypto_test_utils::ProofVerifierForTesting()),
         promised_stream_id_(
             QuicUtils::GetInvalidStreamId(GetParam().transport_version)),
         associated_stream_id_(

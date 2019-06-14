@@ -24,7 +24,6 @@
 #include "net/third_party/quiche/src/quic/core/quic_epoll_connection_helper.h"
 #include "net/third_party/quiche/src/quic/core/quic_packet_reader.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
-#include "net/third_party/quiche/src/quic/core/tls_server_handshaker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_clock.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
@@ -74,8 +73,7 @@ QuicServer::QuicServer(
       crypto_config_(kSourceAddressTokenSecret,
                      QuicRandom::GetInstance(),
                      std::move(proof_source),
-                     KeyExchangeSource::Default(),
-                     TlsServerHandshaker::CreateSslCtx()),
+                     KeyExchangeSource::Default()),
       crypto_config_options_(crypto_config_options),
       version_manager_(supported_versions),
       packet_reader_(new QuicPacketReader()),

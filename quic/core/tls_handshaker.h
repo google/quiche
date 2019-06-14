@@ -11,6 +11,7 @@
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_message_parser.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_decrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_encrypter.h"
+#include "net/third_party/quiche/src/quic/core/crypto/tls_connection.h"
 #include "net/third_party/quiche/src/quic/core/quic_session.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 
@@ -22,7 +23,8 @@ class QuicCryptoStream;
 // provides functionality common to both the client and server, such as moving
 // messages between the TLS stack and the QUIC crypto stream, and handling
 // derivation of secrets.
-class QUIC_EXPORT_PRIVATE TlsHandshaker : public CryptoMessageParser {
+class QUIC_EXPORT_PRIVATE TlsHandshaker : public TlsConnection::Delegate,
+                                          public CryptoMessageParser {
  public:
   // TlsHandshaker does not take ownership of any of its arguments; they must
   // outlive the TlsHandshaker.
@@ -55,21 +57,6 @@ class QUIC_EXPORT_PRIVATE TlsHandshaker : public CryptoMessageParser {
   virtual void CloseConnection(QuicErrorCode error,
                                const std::string& reason_phrase) = 0;
 
-  // Creates an SSL_CTX and configures it with the options that are appropriate
-  // for both client and server. The caller is responsible for ownership of the
-  // newly created struct.
-  static bssl::UniquePtr<SSL_CTX> CreateSslCtx();
-
-  // From a given SSL* |ssl|, returns a pointer to the TlsHandshaker that it
-  // belongs to. This is a helper method for implementing callbacks set on an
-  // SSL, as it allows the callback function to find the TlsHandshaker instance
-  // and call an instance method.
-  static TlsHandshaker* HandshakerFromSsl(const SSL* ssl);
-
-  static EncryptionLevel QuicEncryptionLevel(enum ssl_encryption_level_t level);
-  static enum ssl_encryption_level_t BoringEncryptionLevel(
-      EncryptionLevel level);
-
   // Returns the PRF used by the cipher suite negotiated in the TLS handshake.
   const EVP_MD* Prf();
 
@@ -78,34 +65,12 @@ class QUIC_EXPORT_PRIVATE TlsHandshaker : public CryptoMessageParser {
   std::unique_ptr<QuicDecrypter> CreateDecrypter(
       const std::vector<uint8_t>& pp_secret);
 
-  SSL* ssl() { return ssl_.get(); }
+  virtual TlsConnection* tls_connection() = 0;
+
+  SSL* ssl() { return tls_connection()->ssl(); }
+
   QuicCryptoStream* stream() { return stream_; }
   QuicSession* session() { return session_; }
-
- private:
-  // TlsHandshaker implements SSL_QUIC_METHOD, which provides the interface
-  // between BoringSSL's TLS stack and a QUIC implementation.
-  static const SSL_QUIC_METHOD kSslQuicMethod;
-
-  // Pointers to the following 4 functions form |kSslQuicMethod|. Each one
-  // is a wrapper around the corresponding instance method below. The |ssl|
-  // argument is used to look up correct TlsHandshaker instance on which to call
-  // the method. According to the BoringSSL documentation, these functions
-  // return 0 on error and 1 otherwise; here they never error and thus always
-  // return 1.
-  static int SetEncryptionSecretCallback(SSL* ssl,
-                                         enum ssl_encryption_level_t level,
-                                         const uint8_t* read_key,
-                                         const uint8_t* write_key,
-                                         size_t secret_len);
-  static int WriteMessageCallback(SSL* ssl,
-                                  enum ssl_encryption_level_t level,
-                                  const uint8_t* data,
-                                  size_t len);
-  static int FlushFlightCallback(SSL* ssl);
-  static int SendAlertCallback(SSL* ssl,
-                               enum ssl_encryption_level_t level,
-                               uint8_t alert);
 
   // SetEncryptionSecret provides the encryption secret to use at a particular
   // encryption level. The secrets provided here are the ones from the TLS 1.3
@@ -115,29 +80,28 @@ class QUIC_EXPORT_PRIVATE TlsHandshaker : public CryptoMessageParser {
   // indicates whether it is used for encryption or decryption.
   void SetEncryptionSecret(EncryptionLevel level,
                            const std::vector<uint8_t>& read_secret,
-                           const std::vector<uint8_t>& write_secret);
+                           const std::vector<uint8_t>& write_secret) override;
 
   // WriteMessage is called when there is |data| from the TLS stack ready for
   // the QUIC stack to write in a crypto frame. The data must be transmitted at
   // encryption level |level|.
-  void WriteMessage(EncryptionLevel level, QuicStringPiece data);
+  void WriteMessage(EncryptionLevel level, QuicStringPiece data) override;
 
   // FlushFlight is called to signal that the current flight of
   // messages have all been written (via calls to WriteMessage) and can be
   // flushed to the underlying transport.
-  void FlushFlight();
+  void FlushFlight() override;
 
   // SendAlert causes this TlsHandshaker to close the QUIC connection with an
   // error code corresponding to the TLS alert description |desc|.
-  void SendAlert(EncryptionLevel level, uint8_t desc);
+  void SendAlert(EncryptionLevel level, uint8_t desc) override;
 
+ private:
   QuicCryptoStream* stream_;
   QuicSession* session_;
 
   QuicErrorCode parser_error_ = QUIC_NO_ERROR;
   std::string parser_error_detail_;
-
-  bssl::UniquePtr<SSL> ssl_;
 };
 
 }  // namespace quic

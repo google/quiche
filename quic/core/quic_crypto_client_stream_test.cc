@@ -13,8 +13,6 @@
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_server_id.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
-#include "net/third_party/quiche/src/quic/core/tls_client_handshaker.h"
-#include "net/third_party/quiche/src/quic/core/tls_server_handshaker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
@@ -39,8 +37,7 @@ class QuicCryptoClientStreamTest : public QuicTest {
   QuicCryptoClientStreamTest()
       : supported_versions_(AllSupportedVersions()),
         server_id_(kServerHostname, kServerPort, false),
-        crypto_config_(crypto_test_utils::ProofVerifierForTesting(),
-                       TlsClientHandshaker::CreateSslCtx()) {
+        crypto_config_(crypto_test_utils::ProofVerifierForTesting()) {
     CreateConnection();
   }
 
@@ -258,8 +255,7 @@ TEST_F(QuicCryptoClientStreamTest, ServerConfigUpdateWithCert) {
   // Build a server config update message with certificates
   QuicCryptoServerConfig crypto_config(
       QuicCryptoServerConfig::TESTING, QuicRandom::GetInstance(),
-      crypto_test_utils::ProofSourceForTesting(), KeyExchangeSource::Default(),
-      TlsServerHandshaker::CreateSslCtx());
+      crypto_test_utils::ProofSourceForTesting(), KeyExchangeSource::Default());
   crypto_test_utils::SetupCryptoServerConfigForTest(
       connection_->clock(), QuicRandom::GetInstance(), &crypto_config);
   SourceAddressTokens tokens;

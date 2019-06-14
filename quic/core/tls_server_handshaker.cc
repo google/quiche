@@ -40,20 +40,9 @@ void TlsServerHandshaker::SignatureCallback::Cancel() {
   handshaker_ = nullptr;
 }
 
-const SSL_PRIVATE_KEY_METHOD TlsServerHandshaker::kPrivateKeyMethod{
-    &TlsServerHandshaker::PrivateKeySign,
-    nullptr,  // decrypt
-    &TlsServerHandshaker::PrivateKeyComplete,
-};
-
 // static
 bssl::UniquePtr<SSL_CTX> TlsServerHandshaker::CreateSslCtx() {
-  bssl::UniquePtr<SSL_CTX> ssl_ctx = TlsHandshaker::CreateSslCtx();
-  SSL_CTX_set_tlsext_servername_callback(
-      ssl_ctx.get(), TlsServerHandshaker::SelectCertificateCallback);
-  SSL_CTX_set_alpn_select_cb(ssl_ctx.get(),
-                             TlsServerHandshaker::SelectAlpnCallback, nullptr);
-  return ssl_ctx;
+  return TlsServerConnection::CreateSslCtx();
 }
 
 TlsServerHandshaker::TlsServerHandshaker(QuicCryptoStream* stream,
@@ -62,7 +51,8 @@ TlsServerHandshaker::TlsServerHandshaker(QuicCryptoStream* stream,
                                          ProofSource* proof_source)
     : TlsHandshaker(stream, session, ssl_ctx),
       proof_source_(proof_source),
-      crypto_negotiated_params_(new QuicCryptoNegotiatedParameters) {
+      crypto_negotiated_params_(new QuicCryptoNegotiatedParameters),
+      tls_connection_(ssl_ctx, this) {
   DCHECK_EQ(PROTOCOL_TLS1_3,
             session->connection()->version().handshake_protocol);
   CrypterPair crypters;
@@ -264,25 +254,6 @@ void TlsServerHandshaker::FinishHandshake() {
   handshake_confirmed_ = true;
 }
 
-// static
-TlsServerHandshaker* TlsServerHandshaker::HandshakerFromSsl(SSL* ssl) {
-  return static_cast<TlsServerHandshaker*>(
-      TlsHandshaker::HandshakerFromSsl(ssl));
-}
-
-// static
-ssl_private_key_result_t TlsServerHandshaker::PrivateKeySign(SSL* ssl,
-                                                             uint8_t* out,
-                                                             size_t* out_len,
-                                                             size_t max_out,
-                                                             uint16_t sig_alg,
-                                                             const uint8_t* in,
-                                                             size_t in_len) {
-  return HandshakerFromSsl(ssl)->PrivateKeySign(
-      out, out_len, max_out, sig_alg,
-      QuicStringPiece(reinterpret_cast<const char*>(in), in_len));
-}
-
 ssl_private_key_result_t TlsServerHandshaker::PrivateKeySign(
     uint8_t* out,
     size_t* out_len,
@@ -300,15 +271,6 @@ ssl_private_key_result_t TlsServerHandshaker::PrivateKeySign(
   return ssl_private_key_retry;
 }
 
-// static
-ssl_private_key_result_t TlsServerHandshaker::PrivateKeyComplete(
-    SSL* ssl,
-    uint8_t* out,
-    size_t* out_len,
-    size_t max_out) {
-  return HandshakerFromSsl(ssl)->PrivateKeyComplete(out, out_len, max_out);
-}
-
 ssl_private_key_result_t TlsServerHandshaker::PrivateKeyComplete(
     uint8_t* out,
     size_t* out_len,
@@ -324,13 +286,6 @@ ssl_private_key_result_t TlsServerHandshaker::PrivateKeyComplete(
   cert_verify_sig_.clear();
   cert_verify_sig_.shrink_to_fit();
   return ssl_private_key_success;
-}
-
-// static
-int TlsServerHandshaker::SelectCertificateCallback(SSL* ssl,
-                                                   int* out_alert,
-                                                   void* arg) {
-  return HandshakerFromSsl(ssl)->SelectCertificate(out_alert);
 }
 
 int TlsServerHandshaker::SelectCertificate(int* out_alert) {
@@ -357,8 +312,7 @@ int TlsServerHandshaker::SelectCertificate(int* out_alert) {
         chain->certs[i].length(), nullptr);
   }
 
-  SSL_set_chain_and_key(ssl(), certs.data(), certs.size(), nullptr,
-                        &kPrivateKeyMethod);
+  tls_connection_.SetCertChain(certs);
 
   for (size_t i = 0; i < certs.size(); i++) {
     CRYPTO_BUFFER_free(certs[i]);
@@ -373,16 +327,6 @@ int TlsServerHandshaker::SelectCertificate(int* out_alert) {
 
   QUIC_LOG(INFO) << "Set " << chain->certs.size() << " certs for server";
   return SSL_TLSEXT_ERR_OK;
-}
-
-// static
-int TlsServerHandshaker::SelectAlpnCallback(SSL* ssl,
-                                            const uint8_t** out,
-                                            uint8_t* out_len,
-                                            const uint8_t* in,
-                                            unsigned in_len,
-                                            void* arg) {
-  return HandshakerFromSsl(ssl)->SelectAlpn(out, out_len, in, in_len);
 }
 
 int TlsServerHandshaker::SelectAlpn(const uint8_t** out,

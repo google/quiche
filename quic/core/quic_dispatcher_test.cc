@@ -19,7 +19,6 @@
 #include "net/third_party/quiche/src/quic/core/quic_time_wait_list_manager.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
-#include "net/third_party/quiche/src/quic/core/tls_server_handshaker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_expect_bug.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
@@ -198,8 +197,7 @@ class QuicDispatcherTest : public QuicTest {
         crypto_config_(QuicCryptoServerConfig::TESTING,
                        QuicRandom::GetInstance(),
                        std::move(proof_source),
-                       KeyExchangeSource::Default(),
-                       TlsServerHandshaker::CreateSslCtx()),
+                       KeyExchangeSource::Default()),
         server_address_(QuicIpAddress::Any4(), 5),
         dispatcher_(
             new NiceMock<TestDispatcher>(&config_,

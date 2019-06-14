@@ -9,6 +9,7 @@
 
 #include "third_party/boringssl/src/include/openssl/ssl.h"
 #include "net/third_party/quiche/src/quic/core/crypto/proof_verifier.h"
+#include "net/third_party/quiche/src/quic/core/crypto/tls_client_connection.h"
 #include "net/third_party/quiche/src/quic/core/quic_crypto_client_stream.h"
 #include "net/third_party/quiche/src/quic/core/quic_crypto_stream.h"
 #include "net/third_party/quiche/src/quic/core/tls_handshaker.h"
@@ -19,8 +20,9 @@ namespace quic {
 // An implementation of QuicCryptoClientStream::HandshakerDelegate which uses
 // TLS 1.3 for the crypto handshake protocol.
 class QUIC_EXPORT_PRIVATE TlsClientHandshaker
-    : public QuicCryptoClientStream::HandshakerDelegate,
-      public TlsHandshaker {
+    : public TlsHandshaker,
+      public QuicCryptoClientStream::HandshakerDelegate,
+      public TlsClientConnection::Delegate {
  public:
   TlsClientHandshaker(QuicCryptoStream* stream,
                       QuicSession* session,
@@ -50,6 +52,17 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
   const QuicCryptoNegotiatedParameters& crypto_negotiated_params()
       const override;
   CryptoMessageParser* crypto_message_parser() override;
+
+ protected:
+  TlsConnection* tls_connection() { return &tls_connection_; }
+
+  void AdvanceHandshake() override;
+  void CloseConnection(QuicErrorCode error,
+                       const std::string& reason_phrase) override;
+
+  // TlsClientConnection::Delegate implementation:
+  enum ssl_verify_result_t VerifyCert(uint8_t* out_alert) override;
+  TlsConnection::Delegate* ConnectionDelegate() override { return this; }
 
  private:
   // ProofVerifierCallbackImpl handles the result of an asynchronous certificate
@@ -83,21 +96,6 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
   bool ProcessTransportParameters(std::string* error_details);
   void FinishHandshake();
 
-  void AdvanceHandshake() override;
-  void CloseConnection(QuicErrorCode error,
-                       const std::string& reason_phrase) override;
-
-  // Certificate verification functions:
-
-  enum ssl_verify_result_t VerifyCert(uint8_t* out_alert);
-  // Static method to supply to SSL_set_custom_verify.
-  static enum ssl_verify_result_t VerifyCallback(SSL* ssl, uint8_t* out_alert);
-
-  // Takes an SSL* |ssl| and returns a pointer to the TlsClientHandshaker that
-  // it belongs to. This is a specialization of
-  // TlsHandshaker::HandshakerFromSsl.
-  static TlsClientHandshaker* HandshakerFromSsl(SSL* ssl);
-
   QuicServerId server_id_;
 
   // Objects used for verifying the server's certificate chain.
@@ -119,6 +117,8 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
   bool handshake_confirmed_ = false;
   QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters>
       crypto_negotiated_params_;
+
+  TlsClientConnection tls_connection_;
 };
 
 }  // namespace quic

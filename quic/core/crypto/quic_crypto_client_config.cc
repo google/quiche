@@ -21,6 +21,7 @@
 #include "net/third_party/quiche/src/quic/core/crypto/proof_verifier.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"
+#include "net/third_party/quiche/src/quic/core/crypto/tls_client_connection.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection_id.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
@@ -57,6 +58,11 @@ void RecordDiskCacheServerConfigState(
 }
 
 }  // namespace
+
+QuicCryptoClientConfig::QuicCryptoClientConfig(
+    std::unique_ptr<ProofVerifier> proof_verifier)
+    : QuicCryptoClientConfig(std::move(proof_verifier),
+                             TlsClientConnection::CreateSslCtx()) {}
 
 QuicCryptoClientConfig::QuicCryptoClientConfig(
     std::unique_ptr<ProofVerifier> proof_verifier,

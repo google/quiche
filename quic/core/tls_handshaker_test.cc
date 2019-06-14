@@ -4,6 +4,8 @@
 
 #include <string>
 
+#include "net/third_party/quiche/src/quic/core/crypto/tls_client_connection.h"
+#include "net/third_party/quiche/src/quic/core/crypto/tls_server_connection.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/core/tls_client_handshaker.h"
 #include "net/third_party/quiche/src/quic/core/tls_server_handshaker.h"
@@ -210,7 +212,7 @@ class TestQuicCryptoClientStream : public TestQuicCryptoStream {
   explicit TestQuicCryptoClientStream(QuicSession* session)
       : TestQuicCryptoStream(session),
         proof_verifier_(new FakeProofVerifier),
-        ssl_ctx_(TlsClientHandshaker::CreateSslCtx()),
+        ssl_ctx_(TlsClientConnection::CreateSslCtx()),
         handshaker_(new TlsClientHandshaker(
             this,
             session,
@@ -242,7 +244,7 @@ class TestQuicCryptoServerStream : public TestQuicCryptoStream {
                              FakeProofSource* proof_source)
       : TestQuicCryptoStream(session),
         proof_source_(proof_source),
-        ssl_ctx_(TlsServerHandshaker::CreateSslCtx()),
+        ssl_ctx_(TlsServerConnection::CreateSslCtx()),
         handshaker_(new TlsServerHandshaker(this,
                                             session,
                                             ssl_ctx_.get(),
