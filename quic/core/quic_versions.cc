@@ -237,6 +237,10 @@ ParsedQuicVersionVector FilterSupportedVersions(
       if (GetQuicReloadableFlag(quic_enable_version_47)) {
         filtered_versions.push_back(version);
       }
+    } else if (version.transport_version == QUIC_VERSION_44) {
+      if (!GetQuicReloadableFlag(quic_disable_version_44)) {
+        filtered_versions.push_back(version);
+      }
     } else if (version.transport_version == QUIC_VERSION_39) {
       if (!GetQuicReloadableFlag(quic_disable_version_39)) {
         filtered_versions.push_back(version);
