@@ -521,8 +521,13 @@ void QuicSpdyStream::OnInitialHeadersComplete(
   }
 
   if (fin) {
-    OnStreamFrame(
-        QuicStreamFrame(id(), fin, /* offset = */ 0, QuicStringPiece()));
+    if (rst_sent() &&
+        GetQuicReloadableFlag(quic_avoid_empty_frame_after_empty_headers)) {
+      QUIC_RELOADABLE_FLAG_COUNT(quic_avoid_empty_frame_after_empty_headers);
+    } else {
+      OnStreamFrame(
+          QuicStreamFrame(id(), fin, /* offset = */ 0, QuicStringPiece()));
+    }
   }
   if (FinishedReadingHeaders()) {
     sequencer()->SetUnblocked();

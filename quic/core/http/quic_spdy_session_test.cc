@@ -1668,6 +1668,35 @@ TEST_P(QuicSpdySessionTestClient, AvailableStreamsClient) {
       &session_, GetNthClientInitiatedBidirectionalId(0)));
 }
 
+// Regression test for b/130740258 and https://crbug.com/971779.
+// If headers that are too large or empty are received (these cases are handled
+// the same way, as QuicHeaderList clears itself when headers exceed the limit),
+// then the stream is reset.  No more frames must be sent in this case.
+TEST_P(QuicSpdySessionTestClient, TooLargeHeadersMustNotCauseWriteAfterReset) {
+  // In IETF QUIC, HEADERS do not carry FIN flag, and OnStreamHeaderList() is
+  // never called after an error, including too large headers.
+  if (VersionUsesQpack(transport_version())) {
+    return;
+  }
+
+  SetQuicReloadableFlag(quic_avoid_empty_frame_after_empty_headers, true);
+
+  TestStream* stream = session_.CreateOutgoingBidirectionalStream();
+
+  // Write headers with FIN set to close write side of stream.
+  // Header block does not matter.
+  stream->WriteHeaders(SpdyHeaderBlock(), /* fin = */ true, nullptr);
+
+  // Receive headers that are too large or empty, with FIN set.
+  // This causes the stream to be reset.  No frames must be written after this.
+  QuicHeaderList headers;
+  EXPECT_CALL(*connection_, SendControlFrame(_));
+  EXPECT_CALL(*connection_,
+              OnStreamReset(stream->id(), QUIC_HEADERS_TOO_LARGE));
+  stream->OnStreamHeaderList(/* fin = */ true,
+                             headers.uncompressed_header_bytes(), headers);
+}
+
 TEST_P(QuicSpdySessionTestClient, RecordFinAfterReadSideClosed) {
   // Verify that an incoming FIN is recorded in a stream object even if the read
   // side has been closed.  This prevents an entry from being made in
