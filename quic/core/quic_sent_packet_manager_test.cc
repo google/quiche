@@ -68,14 +68,21 @@ class QuicSentPacketManagerTest : public QuicTestWithParam<bool> {
                           HANDSHAKE_RETRANSMISSION, HAS_RETRANSMITTABLE_DATA);
   }
 
-  void RetransmitDataPacket(uint64_t packet_number, TransmissionType type) {
+  void RetransmitDataPacket(uint64_t packet_number,
+                            TransmissionType type,
+                            EncryptionLevel level) {
     EXPECT_CALL(
         *send_algorithm_,
         OnPacketSent(_, BytesInFlight(), QuicPacketNumber(packet_number),
                      kDefaultLength, HAS_RETRANSMITTABLE_DATA));
     SerializedPacket packet(CreatePacket(packet_number, true));
+    packet.encryption_level = level;
     manager_.OnPacketSent(&packet, QuicPacketNumber(), clock_.Now(), type,
                           HAS_RETRANSMITTABLE_DATA);
+  }
+
+  void RetransmitDataPacket(uint64_t packet_number, TransmissionType type) {
+    RetransmitDataPacket(packet_number, type, ENCRYPTION_INITIAL);
   }
 
  protected:
@@ -319,12 +326,19 @@ class QuicSentPacketManagerTest : public QuicTestWithParam<bool> {
   }
 
   void SendAckPacket(uint64_t packet_number, uint64_t largest_acked) {
+    SendAckPacket(packet_number, largest_acked, ENCRYPTION_INITIAL);
+  }
+
+  void SendAckPacket(uint64_t packet_number,
+                     uint64_t largest_acked,
+                     EncryptionLevel level) {
     EXPECT_CALL(
         *send_algorithm_,
         OnPacketSent(_, BytesInFlight(), QuicPacketNumber(packet_number),
                      kDefaultLength, NO_RETRANSMITTABLE_DATA));
     SerializedPacket packet(CreatePacket(packet_number, false));
     packet.largest_acked = QuicPacketNumber(largest_acked);
+    packet.encryption_level = level;
     manager_.OnPacketSent(&packet, QuicPacketNumber(), clock_.Now(),
                           NOT_RETRANSMISSION, NO_RETRANSMITTABLE_DATA);
   }
@@ -2828,6 +2842,65 @@ TEST_P(QuicSentPacketManagerTest,
   manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(4));
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
             manager_.OnAckFrameEnd(clock_.Now(), ENCRYPTION_HANDSHAKE));
+}
+
+// Regression test for b/133771183.
+TEST_P(QuicSentPacketManagerTest, PacketInLimbo) {
+  if (!manager_.session_decides_what_to_write()) {
+    return;
+  }
+  QuicSentPacketManagerPeer::SetMaxTailLossProbes(&manager_, 2);
+  // Send SHLO.
+  SendCryptoPacket(1);
+  // Send data packet.
+  SendDataPacket(2, ENCRYPTION_FORWARD_SECURE);
+  // Send Ack Packet.
+  SendAckPacket(3, 1, ENCRYPTION_FORWARD_SECURE);
+  // Retransmit SHLO.
+  EXPECT_CALL(notifier_, RetransmitFrames(_, _))
+      .WillOnce(InvokeWithoutArgs([this]() { RetransmitCryptoPacket(4); }));
+  manager_.OnRetransmissionTimeout();
+
+  // Successfully decrypt a forward secure packet.
+  manager_.SetHandshakeConfirmed();
+  EXPECT_CALL(notifier_, HasUnackedCryptoData()).WillRepeatedly(Return(false));
+  // Send Ack packet.
+  SendAckPacket(5, 2, ENCRYPTION_FORWARD_SECURE);
+
+  // Retransmission alarm fires.
+  manager_.OnRetransmissionTimeout();
+  EXPECT_CALL(notifier_, RetransmitFrames(_, _))
+      .WillOnce(WithArgs<1>(Invoke([this](TransmissionType type) {
+        RetransmitDataPacket(6, type, ENCRYPTION_FORWARD_SECURE);
+      })));
+  manager_.MaybeRetransmitTailLossProbe();
+
+  // Received Ack of packets 1, 3 and 4.
+  uint64_t acked[] = {1, 3, 4};
+  ExpectAcksAndLosses(true, acked, QUIC_ARRAYSIZE(acked), nullptr, 0);
+  manager_.OnAckFrameStart(QuicPacketNumber(4), QuicTime::Delta::Infinite(),
+                           clock_.Now());
+  manager_.OnAckRange(QuicPacketNumber(3), QuicPacketNumber(5));
+  manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(2));
+  EXPECT_EQ(PACKETS_NEWLY_ACKED,
+            manager_.OnAckFrameEnd(clock_.Now(), ENCRYPTION_INITIAL));
+
+  uint64_t acked2[] = {5, 6};
+  uint64_t loss[] = {2};
+  if (GetQuicReloadableFlag(quic_fix_packets_acked)) {
+    // Verify packet 2 is detected lost.
+    EXPECT_CALL(notifier_, OnFrameLost(_)).Times(1);
+    ExpectAcksAndLosses(true, acked2, QUIC_ARRAYSIZE(acked2), loss,
+                        QUIC_ARRAYSIZE(loss));
+  } else {
+    // Packet 2 in limbo, bummer.
+    ExpectAcksAndLosses(true, acked2, QUIC_ARRAYSIZE(acked2), nullptr, 0);
+  }
+  manager_.OnAckFrameStart(QuicPacketNumber(6), QuicTime::Delta::Infinite(),
+                           clock_.Now());
+  manager_.OnAckRange(QuicPacketNumber(3), QuicPacketNumber(7));
+  EXPECT_EQ(PACKETS_NEWLY_ACKED,
+            manager_.OnAckFrameEnd(clock_.Now(), ENCRYPTION_INITIAL));
 }
 
 }  // namespace

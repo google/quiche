@@ -159,6 +159,40 @@ TEST_F(UberLossAlgorithmTest, ScenarioC) {
   VerifyLosses(5, packets_acked_, std::vector<uint64_t>{2, 3});
 }
 
+// Regression test for b/133771183.
+TEST_F(UberLossAlgorithmTest, PacketInLimbo) {
+  // This test mimics a scenario: server sends 1-SHLO, 2-1RTT, 3-1RTT,
+  // 4-retransmit SHLO. Client receives and ACKs packets 1, 3 and 4.
+  QuicUnackedPacketMapPeer::SetPerspective(unacked_packets_.get(),
+                                           Perspective::IS_SERVER);
+
+  SendPacket(1, ENCRYPTION_ZERO_RTT);
+  SendPacket(2, ENCRYPTION_FORWARD_SECURE);
+  SendPacket(3, ENCRYPTION_FORWARD_SECURE);
+  SendPacket(4, ENCRYPTION_ZERO_RTT);
+
+  SendPacket(5, ENCRYPTION_FORWARD_SECURE);
+  AckPackets({1, 3, 4});
+  unacked_packets_->MaybeUpdateLargestAckedOfPacketNumberSpace(
+      APPLICATION_DATA, QuicPacketNumber(3));
+  unacked_packets_->MaybeUpdateLargestAckedOfPacketNumberSpace(
+      HANDSHAKE_DATA, QuicPacketNumber(4));
+  // No packet loss detected.
+  VerifyLosses(4, packets_acked_, std::vector<uint64_t>{});
+
+  SendPacket(6, ENCRYPTION_FORWARD_SECURE);
+  AckPackets({5, 6});
+  unacked_packets_->MaybeUpdateLargestAckedOfPacketNumberSpace(
+      APPLICATION_DATA, QuicPacketNumber(6));
+  if (GetQuicReloadableFlag(quic_fix_packets_acked)) {
+    // Verify packet 2 is detected lost.
+    VerifyLosses(6, packets_acked_, std::vector<uint64_t>{2});
+  } else {
+    // No losses, packet 2 is in limbo.
+    VerifyLosses(6, packets_acked_, std::vector<uint64_t>{});
+  }
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

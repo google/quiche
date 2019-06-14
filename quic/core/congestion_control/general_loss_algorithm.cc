@@ -66,8 +66,16 @@ void GeneralLossAlgorithm::DetectLosses(
   loss_detection_timeout_ = QuicTime::Zero();
   if (!packets_acked.empty() &&
       packets_acked.front().packet_number == least_in_flight_) {
-    if (least_in_flight_ + packets_acked.size() - 1 == largest_newly_acked) {
-      // Optimization for the case when no packet is missing.
+    if (GetQuicReloadableFlag(quic_fix_packets_acked)) {
+      QUIC_RELOADABLE_FLAG_COUNT(quic_fix_packets_acked);
+    }
+    if ((!GetQuicReloadableFlag(quic_fix_packets_acked) ||
+         packets_acked.back().packet_number == largest_newly_acked) &&
+        least_in_flight_ + packets_acked.size() - 1 == largest_newly_acked) {
+      // Optimization for the case when no packet is missing. Please note,
+      // packets_acked can include packets of different packet number space, so
+      // do not use this optimization if largest_newly_acked is not the largest
+      // packet in packets_acked.
       least_in_flight_ = largest_newly_acked + 1;
       largest_previously_acked_ = largest_newly_acked;
       return;
