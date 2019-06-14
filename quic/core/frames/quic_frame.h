@@ -140,6 +140,9 @@ QUIC_EXPORT_PRIVATE void SetControlFrameId(QuicControlFrameId control_frame_id,
 QUIC_EXPORT_PRIVATE QuicFrame
 CopyRetransmittableControlFrame(const QuicFrame& frame);
 
+// Human-readable description suitable for logging.
+QUIC_EXPORT_PRIVATE std::string QuicFramesToString(const QuicFrames& frames);
+
 }  // namespace quic
 
 #endif  // QUICHE_QUIC_CORE_FRAMES_QUIC_FRAME_H_

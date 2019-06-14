@@ -2776,6 +2776,7 @@ bool QuicFramer::ProcessFrameData(QuicDataReader* reader,
     set_detailed_error("Packet has no frames.");
     return RaiseError(QUIC_MISSING_PAYLOAD);
   }
+  QUIC_DVLOG(2) << ENDPOINT << "Processing packet with header " << header;
   while (!reader->IsDoneReading()) {
     uint8_t frame_type;
     if (!reader->ReadBytes(&frame_type, 1)) {
@@ -2792,6 +2793,7 @@ bool QuicFramer::ProcessFrameData(QuicDataReader* reader,
         if (!ProcessStreamFrame(reader, frame_type, &frame)) {
           return RaiseError(QUIC_INVALID_STREAM_DATA);
         }
+        QUIC_DVLOG(2) << ENDPOINT << "Processing stream frame " << frame;
         if (!visitor_->OnStreamFrame(frame)) {
           QUIC_DVLOG(1) << ENDPOINT
                         << "Visitor asked to stop further processing.";
@@ -2806,6 +2808,7 @@ bool QuicFramer::ProcessFrameData(QuicDataReader* reader,
         if (!ProcessAckFrame(reader, frame_type)) {
           return RaiseError(QUIC_INVALID_ACK_DATA);
         }
+        QUIC_DVLOG(2) << ENDPOINT << "Processing ACK frame";
         continue;
       }
 
@@ -2821,6 +2824,7 @@ bool QuicFramer::ProcessFrameData(QuicDataReader* reader,
       case PADDING_FRAME: {
         QuicPaddingFrame frame;
         ProcessPaddingFrame(reader, &frame);
+        QUIC_DVLOG(2) << ENDPOINT << "Processing padding frame " << frame;
         if (!visitor_->OnPaddingFrame(frame)) {
           QUIC_DVLOG(1) << "Visitor asked to stop further processing.";
           // Returning true since there was no parsing error.
@@ -2834,6 +2838,7 @@ bool QuicFramer::ProcessFrameData(QuicDataReader* reader,
         if (!ProcessRstStreamFrame(reader, &frame)) {
           return RaiseError(QUIC_INVALID_RST_STREAM_DATA);
         }
+        QUIC_DVLOG(2) << ENDPOINT << "Processing reset stream frame " << frame;
         if (!visitor_->OnRstStreamFrame(frame)) {
           QUIC_DVLOG(1) << "Visitor asked to stop further processing.";
           // Returning true since there was no parsing error.
@@ -2848,6 +2853,8 @@ bool QuicFramer::ProcessFrameData(QuicDataReader* reader,
           return RaiseError(QUIC_INVALID_CONNECTION_CLOSE_DATA);
         }
 
+        QUIC_DVLOG(2) << ENDPOINT << "Processing connection close frame "
+                      << frame;
         if (!visitor_->OnConnectionCloseFrame(frame)) {
           QUIC_DVLOG(1) << ENDPOINT
                         << "Visitor asked to stop further processing.";
@@ -2862,6 +2869,8 @@ bool QuicFramer::ProcessFrameData(QuicDataReader* reader,
         if (!ProcessGoAwayFrame(reader, &goaway_frame)) {
           return RaiseError(QUIC_INVALID_GOAWAY_DATA);
         }
+        QUIC_DVLOG(2) << ENDPOINT << "Processing go away frame "
+                      << goaway_frame;
         if (!visitor_->OnGoAwayFrame(goaway_frame)) {
           QUIC_DVLOG(1) << ENDPOINT
                         << "Visitor asked to stop further processing.";
@@ -2876,6 +2885,8 @@ bool QuicFramer::ProcessFrameData(QuicDataReader* reader,
         if (!ProcessWindowUpdateFrame(reader, &window_update_frame)) {
           return RaiseError(QUIC_INVALID_WINDOW_UPDATE_DATA);
         }
+        QUIC_DVLOG(2) << ENDPOINT << "Processing window update frame "
+                      << window_update_frame;
         if (!visitor_->OnWindowUpdateFrame(window_update_frame)) {
           QUIC_DVLOG(1) << ENDPOINT
                         << "Visitor asked to stop further processing.";
@@ -2890,6 +2901,8 @@ bool QuicFramer::ProcessFrameData(QuicDataReader* reader,
         if (!ProcessBlockedFrame(reader, &blocked_frame)) {
           return RaiseError(QUIC_INVALID_BLOCKED_DATA);
         }
+        QUIC_DVLOG(2) << ENDPOINT << "Processing blocked frame "
+                      << blocked_frame;
         if (!visitor_->OnBlockedFrame(blocked_frame)) {
           QUIC_DVLOG(1) << ENDPOINT
                         << "Visitor asked to stop further processing.";
@@ -2910,6 +2923,8 @@ bool QuicFramer::ProcessFrameData(QuicDataReader* reader,
         if (!ProcessStopWaitingFrame(reader, header, &stop_waiting_frame)) {
           return RaiseError(QUIC_INVALID_STOP_WAITING_DATA);
         }
+        QUIC_DVLOG(2) << ENDPOINT << "Processing stop waiting frame "
+                      << stop_waiting_frame;
         if (!visitor_->OnStopWaitingFrame(stop_waiting_frame)) {
           QUIC_DVLOG(1) << ENDPOINT
                         << "Visitor asked to stop further processing.";
@@ -2927,6 +2942,7 @@ bool QuicFramer::ProcessFrameData(QuicDataReader* reader,
           // Returning true since there was no parsing error.
           return true;
         }
+        QUIC_DVLOG(2) << ENDPOINT << "Processing ping frame " << ping_frame;
         continue;
       }
       case IETF_EXTENSION_MESSAGE_NO_LENGTH:
@@ -2938,6 +2954,8 @@ bool QuicFramer::ProcessFrameData(QuicDataReader* reader,
                                  &message_frame)) {
           return RaiseError(QUIC_INVALID_MESSAGE_DATA);
         }
+        QUIC_DVLOG(2) << ENDPOINT << "Processing message frame "
+                      << message_frame;
         if (!visitor_->OnMessageFrame(message_frame)) {
           QUIC_DVLOG(1) << ENDPOINT
                         << "Visitor asked to stop further processing.";
@@ -2955,6 +2973,7 @@ bool QuicFramer::ProcessFrameData(QuicDataReader* reader,
         if (!ProcessCryptoFrame(reader, &frame)) {
           return RaiseError(QUIC_INVALID_FRAME_DATA);
         }
+        QUIC_DVLOG(2) << ENDPOINT << "Processing crypto frame " << frame;
         if (!visitor_->OnCryptoFrame(frame)) {
           QUIC_DVLOG(1) << "Visitor asked to stop further processing.";
           // Returning true since there was no parsing error.
@@ -2983,6 +3002,8 @@ bool QuicFramer::ProcessIetfFrameData(QuicDataReader* reader,
     set_detailed_error("Packet has no frames.");
     return RaiseError(QUIC_MISSING_PAYLOAD);
   }
+
+  QUIC_DVLOG(2) << ENDPOINT << "Processing IETF packet with header " << header;
   while (!reader->IsDoneReading()) {
     uint64_t frame_type;
     // Will be the number of bytes into which frame_type was encoded.
@@ -3008,6 +3029,7 @@ bool QuicFramer::ProcessIetfFrameData(QuicDataReader* reader,
       if (!ProcessIetfStreamFrame(reader, frame_type, &frame)) {
         return RaiseError(QUIC_INVALID_STREAM_DATA);
       }
+      QUIC_DVLOG(2) << ENDPOINT << "Processing IETF stream frame " << frame;
       if (!visitor_->OnStreamFrame(frame)) {
         QUIC_DVLOG(1) << ENDPOINT
                       << "Visitor asked to stop further processing.";
@@ -3019,6 +3041,8 @@ bool QuicFramer::ProcessIetfFrameData(QuicDataReader* reader,
         case IETF_PADDING: {
           QuicPaddingFrame frame;
           ProcessPaddingFrame(reader, &frame);
+          QUIC_DVLOG(2) << ENDPOINT << "Processing IETF padding frame "
+                        << frame;
           if (!visitor_->OnPaddingFrame(frame)) {
             QUIC_DVLOG(1) << "Visitor asked to stop further processing.";
             // Returning true since there was no parsing error.
@@ -3031,6 +3055,8 @@ bool QuicFramer::ProcessIetfFrameData(QuicDataReader* reader,
           if (!ProcessIetfResetStreamFrame(reader, &frame)) {
             return RaiseError(QUIC_INVALID_RST_STREAM_DATA);
           }
+          QUIC_DVLOG(2) << ENDPOINT << "Processing IETF reset stream frame "
+                        << frame;
           if (!visitor_->OnRstStreamFrame(frame)) {
             QUIC_DVLOG(1) << "Visitor asked to stop further processing.";
             // Returning true since there was no parsing error.
@@ -3049,6 +3075,8 @@ bool QuicFramer::ProcessIetfFrameData(QuicDataReader* reader,
                   &frame)) {
             return RaiseError(QUIC_INVALID_CONNECTION_CLOSE_DATA);
           }
+          QUIC_DVLOG(2) << ENDPOINT << "Processing IETF connection close frame "
+                        << frame;
           if (!visitor_->OnConnectionCloseFrame(frame)) {
             QUIC_DVLOG(1) << "Visitor asked to stop further processing.";
             // Returning true since there was no parsing error.
@@ -3063,6 +3091,8 @@ bool QuicFramer::ProcessIetfFrameData(QuicDataReader* reader,
           }
           // TODO(fkastenholz): Or should we create a new visitor function,
           // OnMaxDataFrame()?
+          QUIC_DVLOG(2) << ENDPOINT << "Processing IETF max data frame "
+                        << frame;
           if (!visitor_->OnWindowUpdateFrame(frame)) {
             QUIC_DVLOG(1) << "Visitor asked to stop further processing.";
             // Returning true since there was no parsing error.
@@ -3077,6 +3107,8 @@ bool QuicFramer::ProcessIetfFrameData(QuicDataReader* reader,
           }
           // TODO(fkastenholz): Or should we create a new visitor function,
           // OnMaxStreamDataFrame()?
+          QUIC_DVLOG(2) << ENDPOINT << "Processing IETF max stream data frame "
+                        << frame;
           if (!visitor_->OnWindowUpdateFrame(frame)) {
             QUIC_DVLOG(1) << "Visitor asked to stop further processing.";
             // Returning true since there was no parsing error.
@@ -3091,6 +3123,8 @@ bool QuicFramer::ProcessIetfFrameData(QuicDataReader* reader,
             return RaiseError(QUIC_MAX_STREAMS_DATA);
           }
           QUIC_CODE_COUNT_N(quic_max_streams_received, 1, 2);
+          QUIC_DVLOG(2) << ENDPOINT << "Processing IETF max streams frame "
+                        << frame;
           if (!visitor_->OnMaxStreamsFrame(frame)) {
             QUIC_DVLOG(1) << "Visitor asked to stop further processing.";
             // Returning true since there was no parsing error.
@@ -3101,6 +3135,8 @@ bool QuicFramer::ProcessIetfFrameData(QuicDataReader* reader,
         case IETF_PING: {
           // Ping has no payload.
           QuicPingFrame ping_frame;
+          QUIC_DVLOG(2) << ENDPOINT << "Processing IETF ping frame "
+                        << ping_frame;
           if (!visitor_->OnPingFrame(ping_frame)) {
             QUIC_DVLOG(1) << "Visitor asked to stop further processing.";
             // Returning true since there was no parsing error.
@@ -3113,6 +3149,8 @@ bool QuicFramer::ProcessIetfFrameData(QuicDataReader* reader,
           if (!ProcessIetfBlockedFrame(reader, &frame)) {
             return RaiseError(QUIC_INVALID_BLOCKED_DATA);
           }
+          QUIC_DVLOG(2) << ENDPOINT << "Processing IETF blocked frame "
+                        << frame;
           if (!visitor_->OnBlockedFrame(frame)) {
             QUIC_DVLOG(1) << "Visitor asked to stop further processing.";
             // Returning true since there was no parsing error.
@@ -3125,6 +3163,8 @@ bool QuicFramer::ProcessIetfFrameData(QuicDataReader* reader,
           if (!ProcessStreamBlockedFrame(reader, &frame)) {
             return RaiseError(QUIC_INVALID_STREAM_BLOCKED_DATA);
           }
+          QUIC_DVLOG(2) << ENDPOINT << "Processing IETF stream blocked frame "
+                        << frame;
           if (!visitor_->OnBlockedFrame(frame)) {
             QUIC_DVLOG(1) << "Visitor asked to stop further processing.";
             // Returning true since there was no parsing error.
@@ -3139,6 +3179,8 @@ bool QuicFramer::ProcessIetfFrameData(QuicDataReader* reader,
             return RaiseError(QUIC_STREAMS_BLOCKED_DATA);
           }
           QUIC_CODE_COUNT_N(quic_streams_blocked_received, 1, 2);
+          QUIC_DVLOG(2) << ENDPOINT << "Processing IETF streams blocked frame "
+                        << frame;
           if (!visitor_->OnStreamsBlockedFrame(frame)) {
             QUIC_DVLOG(1) << "Visitor asked to stop further processing.";
             // Returning true since there was no parsing error.
@@ -3151,6 +3193,8 @@ bool QuicFramer::ProcessIetfFrameData(QuicDataReader* reader,
           if (!ProcessNewConnectionIdFrame(reader, &frame)) {
             return RaiseError(QUIC_INVALID_NEW_CONNECTION_ID_DATA);
           }
+          QUIC_DVLOG(2) << ENDPOINT
+                        << "Processing IETF new connection ID frame " << frame;
           if (!visitor_->OnNewConnectionIdFrame(frame)) {
             QUIC_DVLOG(1) << "Visitor asked to stop further processing.";
             // Returning true since there was no parsing error.
@@ -3163,6 +3207,9 @@ bool QuicFramer::ProcessIetfFrameData(QuicDataReader* reader,
           if (!ProcessRetireConnectionIdFrame(reader, &frame)) {
             return RaiseError(QUIC_INVALID_RETIRE_CONNECTION_ID_DATA);
           }
+          QUIC_DVLOG(2) << ENDPOINT
+                        << "Processing IETF retire connection ID frame "
+                        << frame;
           if (!visitor_->OnRetireConnectionIdFrame(frame)) {
             QUIC_DVLOG(1) << "Visitor asked to stop further processing.";
             // Returning true since there was no parsing error.
@@ -3175,6 +3222,8 @@ bool QuicFramer::ProcessIetfFrameData(QuicDataReader* reader,
           if (!ProcessNewTokenFrame(reader, &frame)) {
             return RaiseError(QUIC_INVALID_NEW_TOKEN);
           }
+          QUIC_DVLOG(2) << ENDPOINT << "Processing IETF new token frame "
+                        << frame;
           if (!visitor_->OnNewTokenFrame(frame)) {
             QUIC_DVLOG(1) << "Visitor asked to stop further processing.";
             // Returning true since there was no parsing error.
@@ -3187,6 +3236,8 @@ bool QuicFramer::ProcessIetfFrameData(QuicDataReader* reader,
           if (!ProcessStopSendingFrame(reader, &frame)) {
             return RaiseError(QUIC_INVALID_STOP_SENDING_FRAME_DATA);
           }
+          QUIC_DVLOG(2) << ENDPOINT << "Processing IETF stop sending frame "
+                        << frame;
           if (!visitor_->OnStopSendingFrame(frame)) {
             QUIC_DVLOG(1) << "Visitor asked to stop further processing.";
             // Returning true since there was no parsing error.
@@ -3200,6 +3251,7 @@ bool QuicFramer::ProcessIetfFrameData(QuicDataReader* reader,
           if (!ProcessIetfAckFrame(reader, frame_type, &frame)) {
             return RaiseError(QUIC_INVALID_ACK_DATA);
           }
+          QUIC_DVLOG(2) << ENDPOINT << "Processing IETF ACK frame " << frame;
           break;
         }
         case IETF_PATH_CHALLENGE: {
@@ -3207,6 +3259,8 @@ bool QuicFramer::ProcessIetfFrameData(QuicDataReader* reader,
           if (!ProcessPathChallengeFrame(reader, &frame)) {
             return RaiseError(QUIC_INVALID_PATH_CHALLENGE_DATA);
           }
+          QUIC_DVLOG(2) << ENDPOINT << "Processing IETF path challenge frame "
+                        << frame;
           if (!visitor_->OnPathChallengeFrame(frame)) {
             QUIC_DVLOG(1) << "Visitor asked to stop further processing.";
             // Returning true since there was no parsing error.
@@ -3219,6 +3273,8 @@ bool QuicFramer::ProcessIetfFrameData(QuicDataReader* reader,
           if (!ProcessPathResponseFrame(reader, &frame)) {
             return RaiseError(QUIC_INVALID_PATH_RESPONSE_DATA);
           }
+          QUIC_DVLOG(2) << ENDPOINT << "Processing IETF path response frame "
+                        << frame;
           if (!visitor_->OnPathResponseFrame(frame)) {
             QUIC_DVLOG(1) << "Visitor asked to stop further processing.";
             // Returning true since there was no parsing error.
@@ -3235,6 +3291,8 @@ bool QuicFramer::ProcessIetfFrameData(QuicDataReader* reader,
                   &message_frame)) {
             return RaiseError(QUIC_INVALID_MESSAGE_DATA);
           }
+          QUIC_DVLOG(2) << ENDPOINT << "Processing IETF message frame "
+                        << message_frame;
           if (!visitor_->OnMessageFrame(message_frame)) {
             QUIC_DVLOG(1) << ENDPOINT
                           << "Visitor asked to stop further processing.";
@@ -3248,6 +3306,7 @@ bool QuicFramer::ProcessIetfFrameData(QuicDataReader* reader,
           if (!ProcessCryptoFrame(reader, &frame)) {
             return RaiseError(QUIC_INVALID_FRAME_DATA);
           }
+          QUIC_DVLOG(2) << ENDPOINT << "Processing IETF crypto frame " << frame;
           if (!visitor_->OnCryptoFrame(frame)) {
             QUIC_DVLOG(1) << "Visitor asked to stop further processing.";
             // Returning true since there was no parsing error.

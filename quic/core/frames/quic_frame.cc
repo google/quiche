@@ -341,4 +341,12 @@ std::ostream& operator<<(std::ostream& os, const QuicFrame& frame) {
   return os;
 }
 
+std::string QuicFramesToString(const QuicFrames& frames) {
+  std::ostringstream os;
+  for (const QuicFrame& frame : frames) {
+    os << frame;
+  }
+  return os.str();
+}
+
 }  // namespace quic

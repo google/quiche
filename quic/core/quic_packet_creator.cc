@@ -464,6 +464,8 @@ void QuicPacketCreator::CreateAndSerializeStreamFrame(
   }
   QUIC_DVLOG(1) << ENDPOINT << "Adding frame: " << frame;
 
+  QUIC_DVLOG(2) << ENDPOINT << "Serializing stream packet " << header << frame;
+
   // TODO(ianswett): AppendTypeByte and AppendStreamFrame could be optimized
   // into one method that takes a QuicStreamFrame, if warranted.
   bool omit_frame_length = !needs_padding;
@@ -592,6 +594,9 @@ void QuicPacketCreator::SerializePacket(char* encrypted_buffer,
 
   MaybeAddPadding();
 
+  QUIC_DVLOG(2) << ENDPOINT << "Serializing packet " << header
+                << QuicFramesToString(queued_frames_);
+
   DCHECK_GE(max_plaintext_size_, packet_size_);
   // Use the packet_size_ instead of the buffer size to ensure smaller
   // packet sizes are properly used.
@@ -652,6 +657,9 @@ QuicPacketCreator::SerializeConnectivityProbingPacket() {
   // FillPacketHeader increments packet_number_.
   FillPacketHeader(&header);
 
+  QUIC_DVLOG(2) << ENDPOINT << "Serializing connectivity probing packet "
+                << header;
+
   std::unique_ptr<char[]> buffer(new char[kMaxOutgoingPacketSize]);
   size_t length = framer_->BuildConnectivityProbingPacket(
       header, buffer.get(), max_plaintext_size_, packet_.encryption_level);
@@ -683,6 +691,8 @@ QuicPacketCreator::SerializePathChallengeConnectivityProbingPacket(
   QuicPacketHeader header;
   // FillPacketHeader increments packet_number_.
   FillPacketHeader(&header);
+
+  QUIC_DVLOG(2) << ENDPOINT << "Serializing path challenge packet " << header;
 
   std::unique_ptr<char[]> buffer(new char[kMaxOutgoingPacketSize]);
   size_t length = framer_->BuildPaddedPathChallengePacket(
@@ -717,6 +727,8 @@ QuicPacketCreator::SerializePathResponseConnectivityProbingPacket(
   QuicPacketHeader header;
   // FillPacketHeader increments packet_number_.
   FillPacketHeader(&header);
+
+  QUIC_DVLOG(2) << ENDPOINT << "Serializing path response packet " << header;
 
   std::unique_ptr<char[]> buffer(new char[kMaxOutgoingPacketSize]);
   size_t length = framer_->BuildPathResponsePacket(
