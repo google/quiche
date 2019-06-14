@@ -50,6 +50,10 @@ bool ParsedQuicVersion::SupportsRetry() const {
   return transport_version > QUIC_VERSION_46;
 }
 
+bool ParsedQuicVersion::SendsVariableLengthPacketNumberInLongHeader() const {
+  return transport_version > QUIC_VERSION_46;
+}
+
 bool ParsedQuicVersion::SupportsClientConnectionIds() const {
   if (!GetQuicRestartFlag(quic_do_not_override_connection_id)) {
     // Do not enable this feature in a production version until this flag has

@@ -1108,7 +1108,7 @@ TEST_P(QuicPacketCreatorTest,
 
 TEST_P(QuicPacketCreatorTest, UpdatePacketSequenceNumberLengthLeastAwaiting) {
   if (VersionHasIetfInvariantHeader(GetParam().version.transport_version) &&
-      GetParam().version.transport_version != QUIC_VERSION_99) {
+      !GetParam().version.SendsVariableLengthPacketNumberInLongHeader()) {
     EXPECT_EQ(PACKET_4BYTE_PACKET_NUMBER,
               QuicPacketCreatorPeer::GetPacketNumberLength(&creator_));
     creator_.set_encryption_level(ENCRYPTION_FORWARD_SECURE);
@@ -1146,7 +1146,7 @@ TEST_P(QuicPacketCreatorTest, UpdatePacketSequenceNumberLengthLeastAwaiting) {
 TEST_P(QuicPacketCreatorTest, UpdatePacketSequenceNumberLengthCwnd) {
   QuicPacketCreatorPeer::SetPacketNumber(&creator_, 1);
   if (VersionHasIetfInvariantHeader(GetParam().version.transport_version) &&
-      GetParam().version.transport_version != QUIC_VERSION_99) {
+      !GetParam().version.SendsVariableLengthPacketNumberInLongHeader()) {
     EXPECT_EQ(PACKET_4BYTE_PACKET_NUMBER,
               QuicPacketCreatorPeer::GetPacketNumberLength(&creator_));
     creator_.set_encryption_level(ENCRYPTION_FORWARD_SECURE);

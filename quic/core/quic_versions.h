@@ -163,6 +163,10 @@ struct QUIC_EXPORT_PRIVATE ParsedQuicVersion {
   // Returns whether this version supports IETF RETRY packets.
   bool SupportsRetry() const;
 
+  // Returns true if this version sends variable length packet number in long
+  // header.
+  bool SendsVariableLengthPacketNumberInLongHeader() const;
+
   // Returns whether this version supports client connection ID.
   bool SupportsClientConnectionIds() const;
 };
