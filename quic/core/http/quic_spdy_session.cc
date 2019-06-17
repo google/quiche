@@ -236,7 +236,7 @@ class QuicSpdySession::SpdyFramerVisitor
     if (!session_->IsConnected()) {
       return;
     }
-    session_->OnPushPromise(stream_id, promised_stream_id, end);
+    session_->OnPushPromise(stream_id, promised_stream_id);
   }
 
   void OnContinuation(SpdyStreamId stream_id, bool end) override {}
@@ -654,8 +654,7 @@ void QuicSpdySession::OnHeaders(SpdyStreamId stream_id,
 }
 
 void QuicSpdySession::OnPushPromise(SpdyStreamId stream_id,
-                                    SpdyStreamId promised_stream_id,
-                                    bool end) {
+                                    SpdyStreamId promised_stream_id) {
   DCHECK_EQ(QuicUtils::GetInvalidStreamId(connection()->transport_version()),
             stream_id_);
   DCHECK_EQ(QuicUtils::GetInvalidStreamId(connection()->transport_version()),

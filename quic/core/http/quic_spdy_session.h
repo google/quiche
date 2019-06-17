@@ -277,8 +277,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
 
   // Called when a PUSH_PROMISE frame has been received.
   void OnPushPromise(spdy::SpdyStreamId stream_id,
-                     spdy::SpdyStreamId promised_stream_id,
-                     bool end);
+                     spdy::SpdyStreamId promised_stream_id);
 
   // Called when a PRIORITY frame has been received.
   void OnPriority(spdy::SpdyStreamId stream_id, spdy::SpdyPriority priority);
