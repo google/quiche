@@ -2267,7 +2267,7 @@ TEST_P(QuicConnectionTest, IncreaseServerMaxPacketSize) {
   QuicPacketHeader header;
   header.destination_connection_id = connection_id_;
   header.version_flag = true;
-  header.packet_number = QuicPacketNumber(1);
+  header.packet_number = QuicPacketNumber(12);
 
   if (QuicVersionHasLongHeaderLengths(
           peer_framer_.version().transport_version)) {
@@ -2316,7 +2316,7 @@ TEST_P(QuicConnectionTest, IncreaseServerMaxPacketSizeWhileWriterLimited) {
   QuicPacketHeader header;
   header.destination_connection_id = connection_id_;
   header.version_flag = true;
-  header.packet_number = QuicPacketNumber(1);
+  header.packet_number = QuicPacketNumber(12);
 
   if (QuicVersionHasLongHeaderLengths(
           peer_framer_.version().transport_version)) {
