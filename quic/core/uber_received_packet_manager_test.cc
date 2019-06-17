@@ -239,13 +239,8 @@ TEST_F(UberReceivedPacketManagerTest, OutOfOrderReceiptCausesAckSent) {
 
   RecordPacketReceipt(3, clock_.ApproximateNow());
   MaybeUpdateAckTimeout(kInstigateAck, 3);
-  if (GetQuicRestartFlag(quic_enable_accept_random_ipn)) {
-    // Delayed ack is scheduled.
-    CheckAckTimeout(clock_.ApproximateNow() + kDelayedAckTime);
-  } else {
-    // Should ack immediately since we have missing packets.
-    CheckAckTimeout(clock_.ApproximateNow());
-  }
+  // Delayed ack is scheduled.
+  CheckAckTimeout(clock_.ApproximateNow() + kDelayedAckTime);
 
   RecordPacketReceipt(2, clock_.ApproximateNow());
   MaybeUpdateAckTimeout(kInstigateAck, 2);
@@ -764,7 +759,6 @@ TEST_F(UberReceivedPacketManagerTest,
 
 TEST_F(UberReceivedPacketManagerTest, AckSendingDifferentPacketNumberSpaces) {
   manager_->EnableMultiplePacketNumberSpacesSupport();
-  SetQuicRestartFlag(quic_enable_accept_random_ipn, true);
   EXPECT_FALSE(HasPendingAck());
   EXPECT_FALSE(manager_->IsAckFrameUpdated());
 

@@ -868,44 +868,6 @@ TEST_F(QuicDispatcherTest, OKSeqNoPacketProcessed) {
   EXPECT_EQ(server_address_, dispatcher_->current_self_address());
 }
 
-TEST_F(QuicDispatcherTest, TooBigSeqNoPacketToTimeWaitListManager) {
-  if (CurrentSupportedVersions().front().HasHeaderProtection() ||
-      GetQuicRestartFlag(quic_no_framer_object_in_dispatcher)) {
-    // When header protection is in use, we don't put packets in the time wait
-    // list manager based on packet number.
-    return;
-  }
-  CreateTimeWaitListManager();
-  SetQuicRestartFlag(quic_enable_accept_random_ipn, false);
-  QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
-  QuicConnectionId connection_id = TestConnectionId(1);
-
-  // Dispatcher forwards this packet for this connection_id to the time wait
-  // list manager.
-  EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, QuicStringPiece("hq"), _))
-      .Times(0);
-  EXPECT_CALL(*time_wait_list_manager_,
-              ProcessPacket(_, _, TestConnectionId(1), _, _))
-      .Times(1);
-  EXPECT_CALL(*time_wait_list_manager_,
-              ProcessPacket(_, _, TestConnectionId(2), _, _))
-      .Times(1);
-  EXPECT_CALL(*time_wait_list_manager_,
-              AddConnectionIdToTimeWait(_, _, _, _, _))
-      .Times(2);
-  // A packet whose packet number is one to large to be allowed to start a
-  // connection.
-  ProcessPacket(client_address, connection_id, true, SerializeCHLO(),
-                CONNECTION_ID_PRESENT, PACKET_4BYTE_PACKET_NUMBER,
-                QuicDispatcher::kMaxReasonableInitialPacketNumber + 1);
-  connection_id = TestConnectionId(2);
-  SetQuicRestartFlag(quic_enable_accept_random_ipn, true);
-  ProcessPacket(client_address, connection_id, true, SerializeCHLO(),
-                CONNECTION_ID_PRESENT, PACKET_4BYTE_PACKET_NUMBER,
-                MaxRandomInitialPacketNumber().ToUint64() +
-                    QuicDispatcher::kMaxReasonableInitialPacketNumber + 1);
-}
-
 TEST_F(QuicDispatcherTest, SupportedTransportVersionsChangeInFlight) {
   static_assert(QUIC_ARRAYSIZE(kSupportedTransportVersions) == 6u,
                 "Supported versions out of sync");

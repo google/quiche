@@ -431,7 +431,6 @@ void QuicVersionInitializeSupportForIetfDraft(int32_t draft_version) {
   SetQuicReloadableFlag(quic_simplify_stop_waiting, true);
   SetQuicRestartFlag(quic_no_server_conn_ver_negotiation2, true);
   SetQuicRestartFlag(quic_server_drop_version_negotiation, true);
-  SetQuicRestartFlag(quic_enable_accept_random_ipn, true);
   SetQuicRestartFlag(quic_allow_variable_length_connection_id_for_negotiation,
                      true);
   SetQuicRestartFlag(quic_do_not_override_connection_id, true);

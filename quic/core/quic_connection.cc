@@ -2263,61 +2263,24 @@ bool QuicConnection::ValidateReceivedPacketNumber(
     return true;
   }
 
-  if (GetQuicRestartFlag(quic_enable_accept_random_ipn)) {
-    QUIC_RESTART_FLAG_COUNT_N(quic_enable_accept_random_ipn, 2, 2);
-    // Configured to accept any packet number in range 1...0x7fffffff as initial
-    // packet number.
-    bool out_of_bound = false;
-    std::string error_detail = "Packet number out of bounds.";
-    if (last_header_.packet_number.IsInitialized()) {
-      out_of_bound = !Near(packet_number, last_header_.packet_number);
-    } else if ((packet_number > MaxRandomInitialPacketNumber())) {
-      out_of_bound = true;
-      error_detail = "Initial packet number out of bounds.";
-    }
-    if (out_of_bound) {
-      QUIC_DLOG(INFO) << ENDPOINT << "Packet " << packet_number
-                      << " out of bounds.  Discarding";
-      CloseConnection(QUIC_INVALID_PACKET_HEADER, error_detail,
-                      ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
-      return false;
-    }
-    return true;
+  // Configured to accept any packet number in range 1...0x7fffffff as initial
+  // packet number.
+  bool out_of_bound = false;
+  std::string error_detail = "Packet number out of bounds.";
+  if (last_header_.packet_number.IsInitialized()) {
+    out_of_bound = !Near(packet_number, last_header_.packet_number);
+  } else if ((packet_number > MaxRandomInitialPacketNumber())) {
+    out_of_bound = true;
+    error_detail = "Initial packet number out of bounds.";
   }
-
-  if (packet_number > received_packet_manager_.PeerFirstSendingPacketNumber() &&
-      packet_number <= MaxRandomInitialPacketNumber()) {
-    QUIC_CODE_COUNT_N(had_possibly_random_ipn, 2, 2);
+  if (out_of_bound) {
+    QUIC_DLOG(INFO) << ENDPOINT << "Packet " << packet_number
+                    << " out of bounds.  Discarding";
+    CloseConnection(QUIC_INVALID_PACKET_HEADER, error_detail,
+                    ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    return false;
   }
-  const bool out_of_bound =
-      last_header_.packet_number.IsInitialized()
-          ? !Near(packet_number, last_header_.packet_number)
-          : packet_number >=
-                (received_packet_manager_.PeerFirstSendingPacketNumber() +
-                 kMaxPacketGap);
-  if (!out_of_bound) {
-    return true;
-  }
-  QUIC_DLOG(INFO) << ENDPOINT << "Packet " << packet_number
-                  << " out of bounds.  Discarding";
-  QuicStringPiece packet_data = GetCurrentPacket();
-  const size_t kMaxPacketLengthInErrorDetails = 64;
-  CloseConnection(
-      QUIC_INVALID_PACKET_HEADER,
-      QuicStrCat(
-          "Packet number out of bounds. ",
-          last_header_.packet_number.IsInitialized()
-              ? QuicStrCat("last_pkn=", last_header_.packet_number.ToUint64())
-              : "first received packet",
-          ", current_pkn=", packet_number.ToUint64(),
-          ", current_pkt_len=", packet_data.length(), ", current_hdr=",
-          QuicTextUtils::HexEncode(
-              packet_data.length() > kMaxPacketLengthInErrorDetails
-                  ? QuicStringPiece(packet_data.data(),
-                                    kMaxPacketLengthInErrorDetails)
-                  : packet_data)),
-      ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
-  return false;
+  return true;
 }
 
 void QuicConnection::WriteQueuedPackets() {
@@ -4148,8 +4111,7 @@ void QuicConnection::MaybeEnableMultiplePacketNumberSpacesSupport() {
   const bool enable_multiple_packet_number_spaces =
       version().handshake_protocol == PROTOCOL_TLS1_3 &&
       use_uber_received_packet_manager_ &&
-      sent_packet_manager_.use_uber_loss_algorithm() &&
-      GetQuicRestartFlag(quic_enable_accept_random_ipn);
+      sent_packet_manager_.use_uber_loss_algorithm();
   if (!enable_multiple_packet_number_spaces) {
     return;
   }

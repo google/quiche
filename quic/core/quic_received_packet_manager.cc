@@ -321,12 +321,6 @@ bool QuicReceivedPacketManager::HasMissingPackets() const {
   if (ack_frame_.packets.NumIntervals() > 1) {
     return true;
   }
-  if (!GetQuicRestartFlag(quic_enable_accept_random_ipn)) {
-    return ack_frame_.packets.Min() >
-           (peer_least_packet_awaiting_ack_.IsInitialized()
-                ? peer_least_packet_awaiting_ack_
-                : QuicPacketNumber(1));
-  }
   return peer_least_packet_awaiting_ack_.IsInitialized() &&
          ack_frame_.packets.Min() > peer_least_packet_awaiting_ack_;
 }
@@ -346,9 +340,6 @@ QuicPacketNumber QuicReceivedPacketManager::GetLargestObserved() const {
 
 QuicPacketNumber QuicReceivedPacketManager::PeerFirstSendingPacketNumber()
     const {
-  if (!GetQuicRestartFlag(quic_enable_accept_random_ipn)) {
-    return QuicPacketNumber(1);
-  }
   if (!least_received_packet_number_.IsInitialized()) {
     QUIC_BUG << "No packets have been received yet";
     return QuicPacketNumber(1);

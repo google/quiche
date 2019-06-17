@@ -85,11 +85,10 @@ class QUIC_EXPORT_PRIVATE QuicReceivedPacketManager {
 
   QuicPacketNumber GetLargestObserved() const;
 
-  // Returns peer first sending packet number to our best knowledge. If
-  // GetQuicRestartFlag(quic_enable_accept_random_ipn) is false, returns 1.
-  // Otherwise considers least_received_packet_number_ as peer first sending
-  // packet number. Please note, this function should only be called when at
-  // least one packet has been received.
+  // Returns peer first sending packet number to our best knowledge. Considers
+  // least_received_packet_number_ as peer first sending packet number. Please
+  // note, this function should only be called when at least one packet has been
+  // received.
   QuicPacketNumber PeerFirstSendingPacketNumber() const;
 
   void set_connection_stats(QuicConnectionStats* stats) { stats_ = stats; }

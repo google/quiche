@@ -2470,11 +2470,7 @@ TEST_P(QuicConnectionTest, RejectPacketTooFarOut) {
 
   // Call ProcessDataPacket rather than ProcessPacket, as we should not get a
   // packet call to the visitor.
-  if (GetQuicRestartFlag(quic_enable_accept_random_ipn)) {
-    ProcessDataPacket(MaxRandomInitialPacketNumber() + 6000);
-  } else {
-    ProcessDataPacket(6000);
-  }
+  ProcessDataPacket(MaxRandomInitialPacketNumber() + 6000);
   EXPECT_FALSE(QuicConnectionPeer::GetConnectionClosePacket(&connection_) ==
                nullptr);
 }
@@ -2505,38 +2501,20 @@ TEST_P(QuicConnectionTest, OutOfOrderReceiptCausesAckSend) {
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
 
   ProcessPacket(3);
-  if (GetQuicRestartFlag(quic_enable_accept_random_ipn)) {
-    // Should not cause an ack.
-    EXPECT_EQ(0u, writer_->packets_write_attempts());
-  } else {
-    // Should ack immediately since we have missing packets.
-    EXPECT_EQ(1u, writer_->packets_write_attempts());
-  }
+  // Should not cause an ack.
+  EXPECT_EQ(0u, writer_->packets_write_attempts());
 
   ProcessPacket(2);
-  if (GetQuicRestartFlag(quic_enable_accept_random_ipn)) {
-    // Should ack immediately, since this fills the last hole.
-    EXPECT_EQ(1u, writer_->packets_write_attempts());
-  } else {
-    // Should ack immediately since we have missing packets.
-    EXPECT_EQ(2u, writer_->packets_write_attempts());
-  }
+  // Should ack immediately, since this fills the last hole.
+  EXPECT_EQ(1u, writer_->packets_write_attempts());
 
   ProcessPacket(1);
   // Should ack immediately, since this fills the last hole.
-  if (GetQuicRestartFlag(quic_enable_accept_random_ipn)) {
-    EXPECT_EQ(2u, writer_->packets_write_attempts());
-  } else {
-    EXPECT_EQ(3u, writer_->packets_write_attempts());
-  }
+  EXPECT_EQ(2u, writer_->packets_write_attempts());
 
   ProcessPacket(4);
   // Should not cause an ack.
-  if (GetQuicRestartFlag(quic_enable_accept_random_ipn)) {
-    EXPECT_EQ(2u, writer_->packets_write_attempts());
-  } else {
-    EXPECT_EQ(3u, writer_->packets_write_attempts());
-  }
+  EXPECT_EQ(2u, writer_->packets_write_attempts());
 }
 
 TEST_P(QuicConnectionTest, OutOfOrderAckReceiptCausesNoAck) {
@@ -6299,20 +6277,9 @@ TEST_P(QuicConnectionTest, SendDelayedAckOnSecondPacket) {
 
 TEST_P(QuicConnectionTest, NoAckOnOldNacks) {
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
-  // Drop one packet, triggering a sequence of acks.
-  if (GetQuicRestartFlag(quic_enable_accept_random_ipn)) {
-    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
-  } else {
-    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
-  }
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
   ProcessPacket(2);
   size_t frames_per_ack = GetParam().no_stop_waiting ? 1 : 2;
-  if (!GetQuicRestartFlag(quic_enable_accept_random_ipn)) {
-    size_t padding_frame_count = writer_->padding_frames().size();
-    EXPECT_EQ(padding_frame_count + frames_per_ack, writer_->frame_count());
-    EXPECT_FALSE(writer_->ack_frames().empty());
-    writer_->Reset();
-  }
 
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
   ProcessPacket(3);
@@ -6321,19 +6288,9 @@ TEST_P(QuicConnectionTest, NoAckOnOldNacks) {
   EXPECT_FALSE(writer_->ack_frames().empty());
   writer_->Reset();
 
-  if (GetQuicRestartFlag(quic_enable_accept_random_ipn)) {
-    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
-  } else {
-    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
-  }
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
   ProcessPacket(4);
-  if (GetQuicRestartFlag(quic_enable_accept_random_ipn)) {
-    EXPECT_EQ(0u, writer_->frame_count());
-  } else {
-    EXPECT_EQ(padding_frame_count + frames_per_ack, writer_->frame_count());
-    EXPECT_FALSE(writer_->ack_frames().empty());
-    writer_->Reset();
-  }
+  EXPECT_EQ(0u, writer_->frame_count());
 
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
   ProcessPacket(5);

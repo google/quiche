@@ -223,33 +223,16 @@ TEST_P(QuicReceivedPacketManagerTest, IgnoreOutOfOrderTimestamps) {
 }
 
 TEST_P(QuicReceivedPacketManagerTest, HasMissingPackets) {
-  if (GetQuicRestartFlag(quic_enable_accept_random_ipn)) {
-    EXPECT_QUIC_BUG(received_manager_.PeerFirstSendingPacketNumber(),
-                    "No packets have been received yet");
-  } else {
-    EXPECT_EQ(QuicPacketNumber(1),
-              received_manager_.PeerFirstSendingPacketNumber());
-  }
+  EXPECT_QUIC_BUG(received_manager_.PeerFirstSendingPacketNumber(),
+                  "No packets have been received yet");
   RecordPacketReceipt(4, QuicTime::Zero());
-  if (GetQuicRestartFlag(quic_enable_accept_random_ipn)) {
-    EXPECT_EQ(QuicPacketNumber(4),
-              received_manager_.PeerFirstSendingPacketNumber());
-    EXPECT_FALSE(received_manager_.HasMissingPackets());
-  } else {
-    EXPECT_TRUE(received_manager_.HasMissingPackets());
-    EXPECT_EQ(QuicPacketNumber(1),
-              received_manager_.PeerFirstSendingPacketNumber());
-  }
+  EXPECT_EQ(QuicPacketNumber(4),
+            received_manager_.PeerFirstSendingPacketNumber());
+  EXPECT_FALSE(received_manager_.HasMissingPackets());
   RecordPacketReceipt(3, QuicTime::Zero());
-  if (GetQuicRestartFlag(quic_enable_accept_random_ipn)) {
-    EXPECT_FALSE(received_manager_.HasMissingPackets());
-    EXPECT_EQ(QuicPacketNumber(3),
-              received_manager_.PeerFirstSendingPacketNumber());
-  } else {
-    EXPECT_TRUE(received_manager_.HasMissingPackets());
-    EXPECT_EQ(QuicPacketNumber(1),
-              received_manager_.PeerFirstSendingPacketNumber());
-  }
+  EXPECT_FALSE(received_manager_.HasMissingPackets());
+  EXPECT_EQ(QuicPacketNumber(3),
+            received_manager_.PeerFirstSendingPacketNumber());
   RecordPacketReceipt(1, QuicTime::Zero());
   EXPECT_EQ(QuicPacketNumber(1),
             received_manager_.PeerFirstSendingPacketNumber());
@@ -268,13 +251,8 @@ TEST_P(QuicReceivedPacketManagerTest, OutOfOrderReceiptCausesAckSent) {
 
   RecordPacketReceipt(3, clock_.ApproximateNow());
   MaybeUpdateAckTimeout(kInstigateAck, 3);
-  if (GetQuicRestartFlag(quic_enable_accept_random_ipn)) {
-    // Delayed ack is scheduled.
-    CheckAckTimeout(clock_.ApproximateNow() + kDelayedAckTime);
-  } else {
-    // Should ack immediately since we have missing packets.
-    CheckAckTimeout(clock_.ApproximateNow());
-  }
+  // Delayed ack is scheduled.
+  CheckAckTimeout(clock_.ApproximateNow() + kDelayedAckTime);
 
   RecordPacketReceipt(2, clock_.ApproximateNow());
   MaybeUpdateAckTimeout(kInstigateAck, 2);
