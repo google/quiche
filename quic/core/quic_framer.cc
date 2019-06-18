@@ -4937,8 +4937,12 @@ bool QuicFramer::AppendStreamFrame(const QuicStreamFrame& frame,
     return false;
   }
   if (!no_stream_frame_length) {
-    if ((frame.data_length > std::numeric_limits<uint16_t>::max()) ||
-        !writer->WriteUInt16(static_cast<uint16_t>(frame.data_length))) {
+    static_assert(
+        std::numeric_limits<typeof(frame.data_length)>::max() <=
+            std::numeric_limits<uint16_t>::max(),
+        "If frame.data_length can hold more than a uint16_t than we need to "
+        "check that frame.data_length <= std::numeric_limits<uint16_t>::max()");
+    if (!writer->WriteUInt16(static_cast<uint16_t>(frame.data_length))) {
       QUIC_BUG << "Writing stream frame length failed";
       return false;
     }

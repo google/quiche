@@ -38,12 +38,14 @@ QuicSocketAddress::QuicSocketAddress(const struct sockaddr_storage& saddr) {
 
 QuicSocketAddress::QuicSocketAddress(const sockaddr* saddr, socklen_t len) {
   sockaddr_storage storage;
-  if (len < 0 ||
+  static_assert(std::numeric_limits<socklen_t>::max() >= sizeof(storage),
+                "Cannot cast sizeof(storage) to socklen_t as it does not fit");
+  if (len < static_cast<socklen_t>(sizeof(sockaddr)) ||
       (saddr->sa_family == AF_INET &&
-       static_cast<size_t>(len) < sizeof(sockaddr_in)) ||
+       len < static_cast<socklen_t>(sizeof(sockaddr_in))) ||
       (saddr->sa_family == AF_INET6 &&
-       static_cast<size_t>(len) < sizeof(sockaddr_in6)) ||
-      static_cast<size_t>(len) > sizeof(storage)) {
+       len < static_cast<socklen_t>(sizeof(sockaddr_in6))) ||
+      len > static_cast<socklen_t>(sizeof(storage))) {
     QUIC_BUG << "Socket address of invalid length provided";
     return;
   }
