@@ -377,8 +377,9 @@ bool QuicUtils::IsIetfPacketShortHeader(uint8_t first_byte) {
 
 // static
 QuicStreamId QuicUtils::GetInvalidStreamId(QuicTransportVersion version) {
-  return version == QUIC_VERSION_99 ? std::numeric_limits<QuicStreamId>::max()
-                                    : 0;
+  return VersionHasIetfQuicFrames(version)
+             ? std::numeric_limits<QuicStreamId>::max()
+             : 0;
 }
 
 // static
@@ -413,7 +414,7 @@ bool QuicUtils::IsClientInitiatedStreamId(QuicTransportVersion version,
   if (id == GetInvalidStreamId(version)) {
     return false;
   }
-  return version == QUIC_VERSION_99 ? id % 2 == 0 : id % 2 != 0;
+  return VersionHasIetfQuicFrames(version) ? id % 2 == 0 : id % 2 != 0;
 }
 
 // static
@@ -422,7 +423,7 @@ bool QuicUtils::IsServerInitiatedStreamId(QuicTransportVersion version,
   if (id == GetInvalidStreamId(version)) {
     return false;
   }
-  return version == QUIC_VERSION_99 ? id % 2 != 0 : id % 2 == 0;
+  return VersionHasIetfQuicFrames(version) ? id % 2 != 0 : id % 2 == 0;
 }
 
 // static
@@ -459,14 +460,14 @@ StreamType QuicUtils::GetStreamType(QuicStreamId id,
 
 // static
 QuicStreamId QuicUtils::StreamIdDelta(QuicTransportVersion version) {
-  return version == QUIC_VERSION_99 ? 4 : 2;
+  return VersionHasIetfQuicFrames(version) ? 4 : 2;
 }
 
 // static
 QuicStreamId QuicUtils::GetFirstBidirectionalStreamId(
     QuicTransportVersion version,
     Perspective perspective) {
-  if (version == QUIC_VERSION_99) {
+  if (VersionHasIetfQuicFrames(version)) {
     return perspective == Perspective::IS_CLIENT ? 0 : 1;
   } else if (QuicVersionUsesCryptoFrames(version)) {
     return perspective == Perspective::IS_CLIENT ? 1 : 2;
@@ -478,7 +479,7 @@ QuicStreamId QuicUtils::GetFirstBidirectionalStreamId(
 QuicStreamId QuicUtils::GetFirstUnidirectionalStreamId(
     QuicTransportVersion version,
     Perspective perspective) {
-  if (version == QUIC_VERSION_99) {
+  if (VersionHasIetfQuicFrames(version)) {
     return perspective == Perspective::IS_CLIENT ? 2 : 3;
   } else if (QuicVersionUsesCryptoFrames(version)) {
     return perspective == Perspective::IS_CLIENT ? 1 : 2;

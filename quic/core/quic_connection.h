@@ -1497,7 +1497,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // provided in constructor.
   const bool no_version_negotiation_;
 
-  // Payload of most recently transmitted QUIC_VERSION_99 connectivity
+  // Payload of most recently transmitted IETF QUIC connectivity
   // probe packet (the PATH_CHALLENGE payload). This implementation transmits
   // only one PATH_CHALLENGE per connectivity probe, so only one
   // QuicPathFrameBuffer is needed.

@@ -1560,7 +1560,7 @@ void QuicConnection::OnPacketComplete() {
     // This node is not a client (is a server) AND the received packet was
     // NOT connectivity-probing. If the packet had PATH CHALLENGES, send
     // appropriate RESPONSE. Then deal with possible peer migration.
-    if (transport_version() == QUIC_VERSION_99 &&
+    if (VersionHasIetfQuicFrames(transport_version()) &&
         !received_path_challenge_payloads_.empty()) {
       // If a PATH CHALLENGE was in a "Padded PING (or PATH CHALLENGE)"
       // then it is taken care of above. This handles the case where a PATH
@@ -3117,7 +3117,7 @@ void QuicConnection::SendConnectionClosePacket(QuicErrorCode error,
       new QuicConnectionCloseFrame(error, details);
   // If version99/IETF QUIC set the close type. Default close type is Google
   // QUIC.
-  if (transport_version() == QUIC_VERSION_99) {
+  if (VersionHasIetfQuicFrames(transport_version())) {
     frame->close_type = IETF_QUIC_TRANSPORT_CONNECTION_CLOSE;
   }
   packet_generator_.ConsumeRetransmittableControlFrame(QuicFrame(frame));
@@ -3590,7 +3590,7 @@ bool QuicConnection::SendGenericPathProbePacket(
                   << server_connection_id_;
 
   OwningSerializedPacketPointer probing_packet;
-  if (transport_version() != QUIC_VERSION_99) {
+  if (!VersionHasIetfQuicFrames(transport_version())) {
     // Non-IETF QUIC, generate a padded ping regardless of whether this is a
     // request or a response.
     probing_packet = packet_generator_.SerializeConnectivityProbingPacket();

@@ -1473,8 +1473,9 @@ TEST_P(EndToEndTestWithTls, MaxIncomingDynamicStreamsLimitRespected) {
   server_config_.SetMaxIncomingBidirectionalStreamsToSend(
       kServerMaxIncomingDynamicStreams);
   ASSERT_TRUE(Initialize());
-  if (GetParam().negotiated_version.transport_version == QUIC_VERSION_99) {
-    // Do not run this test for version 99/IETF QUIC. Note that the test needs
+  if (VersionHasIetfQuicFrames(
+          GetParam().negotiated_version.transport_version)) {
+    // Do not run this test for /IETF QUIC. Note that the test needs
     // to be here, after calling Initialize(), because all tests end up calling
     // EndToEndTest::TearDown(), which asserts that Initialize has been called
     // and then proceeds to tear things down -- which fails if they are not
@@ -1532,7 +1533,8 @@ TEST_P(EndToEndTest, SetIndependentMaxIncomingDynamicStreamsLimits) {
   // returned by max_allowed... by 2 to remove the static streams from the
   // count.
   size_t client_max_open_outgoing_bidirectional_streams =
-      client_session->connection()->transport_version() == QUIC_VERSION_99
+      VersionHasIetfQuicFrames(
+          client_session->connection()->transport_version())
           ? QuicSessionPeer::v99_streamid_manager(client_session)
                     ->max_allowed_outgoing_bidirectional_streams() -
                 QuicSessionPeer::v99_bidirectional_stream_id_manager(
@@ -1541,7 +1543,8 @@ TEST_P(EndToEndTest, SetIndependentMaxIncomingDynamicStreamsLimits) {
           : QuicSessionPeer::GetStreamIdManager(client_session)
                 ->max_open_outgoing_streams();
   size_t client_max_open_outgoing_unidirectional_streams =
-      client_session->connection()->transport_version() == QUIC_VERSION_99
+      VersionHasIetfQuicFrames(
+          client_session->connection()->transport_version())
           ? QuicSessionPeer::v99_streamid_manager(client_session)
                     ->max_allowed_outgoing_unidirectional_streams() -
                 QuicSessionPeer::v99_unidirectional_stream_id_manager(
@@ -1556,13 +1559,15 @@ TEST_P(EndToEndTest, SetIndependentMaxIncomingDynamicStreamsLimits) {
   server_thread_->Pause();
   QuicSession* server_session = GetServerSession();
   size_t server_max_open_outgoing_bidirectional_streams =
-      server_session->connection()->transport_version() == QUIC_VERSION_99
+      VersionHasIetfQuicFrames(
+          server_session->connection()->transport_version())
           ? QuicSessionPeer::v99_streamid_manager(server_session)
                 ->max_allowed_outgoing_bidirectional_streams()
           : QuicSessionPeer::GetStreamIdManager(server_session)
                 ->max_open_outgoing_streams();
   size_t server_max_open_outgoing_unidirectional_streams =
-      server_session->connection()->transport_version() == QUIC_VERSION_99
+      VersionHasIetfQuicFrames(
+          server_session->connection()->transport_version())
           ? QuicSessionPeer::v99_streamid_manager(server_session)
                     ->max_allowed_outgoing_unidirectional_streams() -
                 QuicSessionPeer::v99_unidirectional_stream_id_manager(
@@ -3765,7 +3770,7 @@ TEST_P(EndToEndPacketReorderingTest, Buffer0RttRequest) {
 TEST_P(EndToEndTest, SimpleStopSendingTest) {
   const uint16_t kStopSendingTestCode = 123;
   ASSERT_TRUE(Initialize());
-  if (negotiated_version_.transport_version != QUIC_VERSION_99) {
+  if (!VersionHasIetfQuicFrames(negotiated_version_.transport_version)) {
     return;
   }
   QuicSession* client_session = client_->client()->client_session();
@@ -3959,7 +3964,7 @@ TEST_P(EndToEndTest, ForwardSecureConnectionClose) {
 TEST_P(EndToEndTest, TooBigStreamIdClosesConnection) {
   // Has to be before version test, see EndToEndTest::TearDown()
   ASSERT_TRUE(Initialize());
-  if (negotiated_version_.transport_version != QUIC_VERSION_99) {
+  if (!VersionHasIetfQuicFrames(negotiated_version_.transport_version)) {
     // Only runs for IETF QUIC.
     return;
   }

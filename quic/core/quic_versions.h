@@ -416,6 +416,13 @@ QUIC_EXPORT_PRIVATE inline bool QuicVersionUsesCryptoFrames(
 QUIC_EXPORT_PRIVATE bool VersionLacksHeadersStream(
     QuicTransportVersion transport_version);
 
+// Returns whether |transport_version| makes use of IETF QUIC
+// frames or not.
+QUIC_EXPORT_PRIVATE inline bool VersionHasIetfQuicFrames(
+    QuicTransportVersion transport_version) {
+  return transport_version >= QUIC_VERSION_99;
+}
+
 // Returns the ALPN string to use in TLS for this version of QUIC.
 QUIC_EXPORT_PRIVATE std::string AlpnForVersion(
     ParsedQuicVersion parsed_version);

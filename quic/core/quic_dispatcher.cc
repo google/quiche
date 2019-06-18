@@ -134,7 +134,7 @@ class StatelessConnectionTerminator {
                        bool ietf_quic) {
     QuicConnectionCloseFrame* frame =
         new QuicConnectionCloseFrame(error_code, error_details);
-    if (framer_.transport_version() == QUIC_VERSION_99) {
+    if (VersionHasIetfQuicFrames(framer_.transport_version())) {
       frame->close_type = IETF_QUIC_TRANSPORT_CONNECTION_CLOSE;
     }
 

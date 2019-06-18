@@ -576,7 +576,7 @@ TEST_P(QuicPacketCreatorTest, ReserializeFramesWithFullPacketAndPadding) {
 
 TEST_P(QuicPacketCreatorTest, SerializeConnectionClose) {
   QuicConnectionCloseFrame frame(QUIC_NO_ERROR, "error");
-  if (GetParam().version.transport_version == QUIC_VERSION_99) {
+  if (VersionHasIetfQuicFrames(GetParam().version.transport_version)) {
     frame.close_type = IETF_QUIC_TRANSPORT_CONNECTION_CLOSE;
   }
 
@@ -832,7 +832,7 @@ TEST_P(QuicPacketCreatorTest, SerializeConnectivityProbingPacket) {
     creator_.set_encryption_level(level);
 
     OwningSerializedPacketPointer encrypted;
-    if (GetParam().version.transport_version == QUIC_VERSION_99) {
+    if (VersionHasIetfQuicFrames(GetParam().version.transport_version)) {
       QuicPathFrameBuffer payload = {
           {0xde, 0xad, 0xbe, 0xef, 0xba, 0xdc, 0x0f, 0xfe}};
       encrypted =
@@ -847,7 +847,7 @@ TEST_P(QuicPacketCreatorTest, SerializeConnectivityProbingPacket) {
       EXPECT_CALL(framer_visitor_, OnUnauthenticatedHeader(_));
       EXPECT_CALL(framer_visitor_, OnDecryptedPacket(_));
       EXPECT_CALL(framer_visitor_, OnPacketHeader(_));
-      if (GetParam().version.transport_version == QUIC_VERSION_99) {
+      if (VersionHasIetfQuicFrames(GetParam().version.transport_version)) {
         EXPECT_CALL(framer_visitor_, OnPathChallengeFrame(_));
         EXPECT_CALL(framer_visitor_, OnPaddingFrame(_));
       } else {
@@ -863,7 +863,7 @@ TEST_P(QuicPacketCreatorTest, SerializeConnectivityProbingPacket) {
 }
 
 TEST_P(QuicPacketCreatorTest, SerializePathChallengeProbePacket) {
-  if (GetParam().version.transport_version != QUIC_VERSION_99) {
+  if (!VersionHasIetfQuicFrames(GetParam().version.transport_version)) {
     return;
   }
   QuicPathFrameBuffer payload = {
@@ -894,7 +894,7 @@ TEST_P(QuicPacketCreatorTest, SerializePathChallengeProbePacket) {
 }
 
 TEST_P(QuicPacketCreatorTest, SerializePathResponseProbePacket1PayloadPadded) {
-  if (GetParam().version.transport_version != QUIC_VERSION_99) {
+  if (!VersionHasIetfQuicFrames(GetParam().version.transport_version)) {
     return;
   }
   QuicPathFrameBuffer payload0 = {
@@ -928,7 +928,7 @@ TEST_P(QuicPacketCreatorTest, SerializePathResponseProbePacket1PayloadPadded) {
 
 TEST_P(QuicPacketCreatorTest,
        SerializePathResponseProbePacket1PayloadUnPadded) {
-  if (GetParam().version.transport_version != QUIC_VERSION_99) {
+  if (!VersionHasIetfQuicFrames(GetParam().version.transport_version)) {
     return;
   }
   QuicPathFrameBuffer payload0 = {
@@ -960,7 +960,7 @@ TEST_P(QuicPacketCreatorTest,
 }
 
 TEST_P(QuicPacketCreatorTest, SerializePathResponseProbePacket2PayloadsPadded) {
-  if (GetParam().version.transport_version != QUIC_VERSION_99) {
+  if (!VersionHasIetfQuicFrames(GetParam().version.transport_version)) {
     return;
   }
   QuicPathFrameBuffer payload0 = {
@@ -997,7 +997,7 @@ TEST_P(QuicPacketCreatorTest, SerializePathResponseProbePacket2PayloadsPadded) {
 
 TEST_P(QuicPacketCreatorTest,
        SerializePathResponseProbePacket2PayloadsUnPadded) {
-  if (GetParam().version.transport_version != QUIC_VERSION_99) {
+  if (!VersionHasIetfQuicFrames(GetParam().version.transport_version)) {
     return;
   }
   QuicPathFrameBuffer payload0 = {
@@ -1032,7 +1032,7 @@ TEST_P(QuicPacketCreatorTest,
 }
 
 TEST_P(QuicPacketCreatorTest, SerializePathResponseProbePacket3PayloadsPadded) {
-  if (GetParam().version.transport_version != QUIC_VERSION_99) {
+  if (!VersionHasIetfQuicFrames(GetParam().version.transport_version)) {
     return;
   }
   QuicPathFrameBuffer payload0 = {
@@ -1072,7 +1072,7 @@ TEST_P(QuicPacketCreatorTest, SerializePathResponseProbePacket3PayloadsPadded) {
 
 TEST_P(QuicPacketCreatorTest,
        SerializePathResponseProbePacket3PayloadsUnpadded) {
-  if (GetParam().version.transport_version != QUIC_VERSION_99) {
+  if (!VersionHasIetfQuicFrames(GetParam().version.transport_version)) {
     return;
   }
   QuicPathFrameBuffer payload0 = {

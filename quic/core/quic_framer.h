@@ -559,15 +559,6 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
     data_producer_ = data_producer;
   }
 
-  // Returns true if we are doing IETF-formatted packets.
-  // In the future this could encompass a wide variety of
-  // versions. Doing the test by name ("ietf format") rather
-  // than version number localizes the version/ietf-ness binding
-  // to this method.
-  bool is_ietf_format() {
-    return version_.transport_version == QUIC_VERSION_99;
-  }
-
   QuicTime creation_time() const { return creation_time_; }
 
   QuicPacketNumber first_sending_packet_number() const {

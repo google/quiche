@@ -232,7 +232,7 @@ class QuicSimpleServerSessionTest
         ->OnSuccessfulVersionNegotiation(supported_versions.front());
     visitor_ = QuicConnectionPeer::GetVisitor(connection_);
 
-    if (IsVersion99()) {
+    if (VersionHasIetfQuicFrames(transport_version())) {
       EXPECT_CALL(*connection_, SendControlFrame(_))
           .WillRepeatedly(Invoke(
               this, &QuicSimpleServerSessionTest::ClearMaxStreamsControlFrame));
@@ -250,8 +250,8 @@ class QuicSimpleServerSessionTest
         connection_->transport_version(), n);
   }
 
-  bool IsVersion99() const {
-    return connection_->transport_version() == QUIC_VERSION_99;
+  QuicTransportVersion transport_version() const {
+    return connection_->transport_version();
   }
 
   void InjectStopSending(QuicStreamId stream_id,
@@ -259,7 +259,7 @@ class QuicSimpleServerSessionTest
     // Create and inject a STOP_SENDING frame. In GOOGLE QUIC, receiving a
     // RST_STREAM frame causes a two-way close. For IETF QUIC, RST_STREAM causes
     // a one-way close.
-    if (!IsVersion99()) {
+    if (!VersionHasIetfQuicFrames(transport_version())) {
       // Only needed for version 99/IETF QUIC.
       return;
     }
@@ -305,7 +305,7 @@ TEST_P(QuicSimpleServerSessionTest, CloseStreamDueToReset) {
                           QUIC_ERROR_PROCESSING_STREAM, 0);
   EXPECT_CALL(owner_, OnRstStreamReceived(_)).Times(1);
   EXPECT_CALL(*connection_, SendControlFrame(_));
-  if (!IsVersion99()) {
+  if (!VersionHasIetfQuicFrames(transport_version())) {
     // For version 99, this is covered in InjectStopSending()
     EXPECT_CALL(*connection_,
                 OnStreamReset(GetNthClientInitiatedBidirectionalId(0),
@@ -333,7 +333,7 @@ TEST_P(QuicSimpleServerSessionTest, NeverOpenStreamDueToReset) {
                           GetNthClientInitiatedBidirectionalId(0),
                           QUIC_ERROR_PROCESSING_STREAM, 0);
   EXPECT_CALL(owner_, OnRstStreamReceived(_)).Times(1);
-  if (!IsVersion99()) {
+  if (!VersionHasIetfQuicFrames(transport_version())) {
     EXPECT_CALL(*connection_, SendControlFrame(_));
     // For version 99, this is covered in InjectStopSending()
     EXPECT_CALL(*connection_,
@@ -374,7 +374,7 @@ TEST_P(QuicSimpleServerSessionTest, AcceptClosedStream) {
                          GetNthClientInitiatedBidirectionalId(0),
                          QUIC_ERROR_PROCESSING_STREAM, 0);
   EXPECT_CALL(owner_, OnRstStreamReceived(_)).Times(1);
-  if (!IsVersion99()) {
+  if (!VersionHasIetfQuicFrames(transport_version())) {
     EXPECT_CALL(*connection_, SendControlFrame(_));
     // For version 99, this is covered in InjectStopSending()
     EXPECT_CALL(*connection_,
@@ -575,7 +575,7 @@ class QuicSimpleServerSessionServerPushTest
         ->OnSuccessfulVersionNegotiation(supported_versions.front());
     // Needed to make new session flow control window and server push work.
 
-    if (IsVersion99()) {
+    if (VersionHasIetfQuicFrames(transport_version())) {
       EXPECT_CALL(*connection_, SendControlFrame(_))
           .WillRepeatedly(Invoke(this, &QuicSimpleServerSessionServerPushTest::
                                            ClearMaxStreamsControlFrame));
@@ -761,7 +761,7 @@ TEST_P(QuicSimpleServerSessionServerPushTest,
           QuicConsumedData(kStreamFlowControlWindowSize - offset, false)));
   EXPECT_CALL(*session_, SendBlocked(next_out_going_stream_id));
 
-  if (IsVersion99()) {
+  if (VersionHasIetfQuicFrames(transport_version())) {
     // The PromisePushedResources call, above, will have used all available
     // stream ids.  For version 99, stream ids are not made available until
     // a MAX_STREAMS frame is received. This emulates the reception of one.
@@ -792,7 +792,7 @@ TEST_P(QuicSimpleServerSessionServerPushTest,
   // Having two extra resources to be send later. One of them will be reset, so
   // when opened stream become close, only one will become open.
   size_t num_resources = kMaxStreamsForTest + 2;
-  if (IsVersion99()) {
+  if (VersionHasIetfQuicFrames(transport_version())) {
     // V99 will send out a STREAMS_BLOCKED frame when it tries to exceed the
     // limit. This will clear the frames so that they do not block the later
     // rst-stream frame.
@@ -860,7 +860,7 @@ TEST_P(QuicSimpleServerSessionServerPushTest,
           QuicConsumedData(kStreamFlowControlWindowSize - offset, false)));
   EXPECT_CALL(*session_, SendBlocked(stream_not_reset));
 
-  if (IsVersion99()) {
+  if (VersionHasIetfQuicFrames(transport_version())) {
     // The PromisePushedResources call, above, will have used all available
     // stream ids.  For version 99, stream ids are not made available until
     // a MAX_STREAMS frame is received. This emulates the reception of one.
@@ -879,7 +879,7 @@ TEST_P(QuicSimpleServerSessionServerPushTest,
        CloseStreamToHandleMorePromisedStream) {
   MaybeConsumeHeadersStreamData();
   size_t num_resources = kMaxStreamsForTest + 1;
-  if (IsVersion99()) {
+  if (VersionHasIetfQuicFrames(transport_version())) {
     // V99 will send out a stream-id-blocked frame when the we desired to exceed
     // the limit. This will clear the frames so that they do not block the later
     // rst-stream frame.
@@ -901,7 +901,7 @@ TEST_P(QuicSimpleServerSessionServerPushTest,
   QuicStreamId stream_got_reset = GetNthServerInitiatedUnidirectionalId(1);
   EXPECT_CALL(owner_, OnRstStreamReceived(_)).Times(1);
   EXPECT_CALL(*connection_, SendControlFrame(_));
-  if (!IsVersion99()) {
+  if (!VersionHasIetfQuicFrames(transport_version())) {
     // For version 99, this is covered in InjectStopSending()
     EXPECT_CALL(*connection_,
                 OnStreamReset(stream_got_reset, QUIC_RST_ACKNOWLEDGEMENT));
@@ -935,7 +935,7 @@ TEST_P(QuicSimpleServerSessionServerPushTest,
   EXPECT_CALL(*session_, SendBlocked(stream_to_open));
   QuicRstStreamFrame rst(kInvalidControlFrameId, stream_got_reset,
                          QUIC_STREAM_CANCELLED, 0);
-  if (IsVersion99()) {
+  if (VersionHasIetfQuicFrames(transport_version())) {
     // The PromisePushedResources call, above, will have used all available
     // stream ids.  For version 99, stream ids are not made available until
     // a MAX_STREAMS frame is received. This emulates the reception of one.

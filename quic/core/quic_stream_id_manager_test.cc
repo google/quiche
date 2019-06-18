@@ -161,7 +161,7 @@ class QuicStreamIdManagerTestBase : public QuicTestWithParam<bool> {
     // needs to do the stream count where #1 is 0/1/2/3, and not
     // take into account that stream 0 is special.
     QuicStreamId id =
-        ((stream_count - 1) * QuicUtils::StreamIdDelta(QUIC_VERSION_99));
+        ((stream_count - 1) * QuicUtils::StreamIdDelta(transport_version()));
     if (IsUnidi()) {
       id |= 0x2;
     }

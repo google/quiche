@@ -99,7 +99,7 @@ class MockQuicSimpleServerSession : public QuicSimpleServerSession {
                                 crypto_config,
                                 compressed_certs_cache,
                                 quic_simple_server_backend) {
-    if (connection->transport_version() == QUIC_VERSION_99) {
+    if (VersionHasIetfQuicFrames(connection->transport_version())) {
       QuicSessionPeer::SetMaxOpenIncomingUnidirectionalStreams(
           this, kMaxStreamsForTest);
       QuicSessionPeer::SetMaxOpenIncomingBidirectionalStreams(
@@ -215,10 +215,6 @@ class QuicSimpleServerStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
 
   std::string StreamHeadersValue(const std::string& key) {
     return (*stream_->mutable_headers())[key].as_string();
-  }
-
-  bool IsVersion99() const {
-    return connection_->transport_version() == QUIC_VERSION_99;
   }
 
   bool HasFrameHeader() const {
@@ -684,7 +680,7 @@ TEST_P(QuicSimpleServerStreamTest,
   QuicRstStreamFrame rst_frame(kInvalidControlFrameId, stream_->id(),
                                QUIC_STREAM_CANCELLED, 1234);
   stream_->OnStreamReset(rst_frame);
-  if (IsVersion99()) {
+  if (VersionHasIetfQuicFrames(connection_->transport_version())) {
     // For V99 receiving a RST_STREAM causes a 1-way close; the test requires
     // a full close. A CloseWriteSide closes the other half of the stream.
     // Everything should then work properly.

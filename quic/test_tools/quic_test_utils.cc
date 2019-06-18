@@ -1185,7 +1185,7 @@ StreamType DetermineStreamType(QuicStreamId id,
                                Perspective perspective,
                                bool is_incoming,
                                StreamType default_type) {
-  return version == QUIC_VERSION_99
+  return VersionHasIetfQuicFrames(version)
              ? QuicUtils::GetStreamType(id, perspective, is_incoming)
              : default_type;
 }

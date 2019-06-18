@@ -19,7 +19,7 @@ bool QuicPacketCreatorPeer::SendVersionInPacket(QuicPacketCreator* creator) {
 void QuicPacketCreatorPeer::SetSendVersionInPacket(
     QuicPacketCreator* creator,
     bool send_version_in_packet) {
-  if (creator->framer_->transport_version() != QUIC_VERSION_99) {
+  if (!VersionHasIetfQuicFrames(creator->framer_->transport_version())) {
     creator->send_version_in_packet_ = send_version_in_packet;
     return;
   }

@@ -53,7 +53,7 @@ bool QuicSpdyClientSession::ShouldCreateOutgoingBidirectionalStream() {
     return false;
   }
   if (!GetQuicReloadableFlag(quic_use_common_stream_check) &&
-      connection()->transport_version() != QUIC_VERSION_99) {
+      !VersionHasIetfQuicFrames(connection()->transport_version())) {
     if (GetNumOpenOutgoingStreams() >=
         stream_id_manager().max_open_outgoing_streams()) {
       QUIC_DLOG(INFO) << "Failed to create a new outgoing stream. "
@@ -138,7 +138,7 @@ bool QuicSpdyClientSession::ShouldCreateIncomingStream(QuicStreamId id) {
   }
   if (QuicUtils::IsClientInitiatedStreamId(connection()->transport_version(),
                                            id) ||
-      (connection()->transport_version() == QUIC_VERSION_99 &&
+      (VersionHasIetfQuicFrames(connection()->transport_version()) &&
        QuicUtils::IsBidirectionalStreamId(id))) {
     QUIC_LOG(WARNING) << "Received invalid push stream id " << id;
     connection()->CloseConnection(

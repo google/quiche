@@ -260,7 +260,8 @@ QuicStream::QuicStream(QuicStreamId id,
       buffered_data_threshold_(GetQuicFlag(FLAGS_quic_buffered_data_threshold)),
       is_static_(is_static),
       deadline_(QuicTime::Zero()),
-      type_(session->connection()->transport_version() == QUIC_VERSION_99 &&
+      type_(VersionHasIetfQuicFrames(
+                session->connection()->transport_version()) &&
                     type != CRYPTO
                 ? QuicUtils::GetStreamType(id_,
                                            perspective_,
@@ -387,7 +388,7 @@ void QuicStream::OnStreamReset(const QuicRstStreamFrame& frame) {
   stream_error_ = frame.error_code;
   // Google QUIC closes both sides of the stream in response to a
   // RESET_STREAM, IETF QUIC closes only the read side.
-  if (transport_version() != QUIC_VERSION_99) {
+  if (!VersionHasIetfQuicFrames(transport_version())) {
     CloseWriteSide();
   }
   CloseReadSide();
@@ -1119,7 +1120,7 @@ void QuicStream::OnDeadlinePassed() {
 }
 
 void QuicStream::SendStopSending(uint16_t code) {
-  if (transport_version() != QUIC_VERSION_99) {
+  if (!VersionHasIetfQuicFrames(transport_version())) {
     // If the connection is not version 99, do nothing.
     // Do not QUIC_BUG or anything; the application really does not need to know
     // what version the connection is in.

@@ -980,7 +980,7 @@ TEST_F(QuicPacketGeneratorTest, NotWritableThenBatchOperations) {
   // Send some data and a control frame
   MakeIOVector("quux", &iov_);
   generator_.ConsumeData(3, &iov_, 1u, iov_.iov_len, 0, NO_FIN);
-  if (framer_.transport_version() != QUIC_VERSION_99) {
+  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
     generator_.ConsumeRetransmittableControlFrame(
         QuicFrame(CreateGoAwayFrame()),
         /*bundle_ack=*/false);
@@ -1002,7 +1002,7 @@ TEST_F(QuicPacketGeneratorTest, NotWritableThenBatchOperations) {
   } else {
     contents.num_ack_frames = 1;
   }
-  if (framer_.transport_version() != QUIC_VERSION_99) {
+  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
     contents.num_goaway_frames = 1;
   } else {
     contents.num_goaway_frames = 0;
@@ -1060,7 +1060,7 @@ TEST_F(QuicPacketGeneratorTest, NotWritableThenBatchOperations2) {
       generator_.ConsumeData(3, &iov_, 1u, iov_.iov_len, 0, FIN);
   EXPECT_EQ(data_len, consumed.bytes_consumed);
   EXPECT_TRUE(consumed.fin_consumed);
-  if (framer_.transport_version() != QUIC_VERSION_99) {
+  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
     generator_.ConsumeRetransmittableControlFrame(
         QuicFrame(CreateGoAwayFrame()),
         /*bundle_ack=*/false);
@@ -1084,7 +1084,7 @@ TEST_F(QuicPacketGeneratorTest, NotWritableThenBatchOperations2) {
 
   // The second should have the remainder of the stream data.
   PacketContents contents2;
-  if (framer_.transport_version() != QUIC_VERSION_99) {
+  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
     contents2.num_goaway_frames = 1;
   } else {
     contents2.num_goaway_frames = 0;
@@ -1313,7 +1313,7 @@ TEST_F(QuicPacketGeneratorTest, GenerateConnectivityProbingPacket) {
   delegate_.SetCanWriteAnything();
 
   OwningSerializedPacketPointer probing_packet;
-  if (framer_.transport_version() == QUIC_VERSION_99) {
+  if (VersionHasIetfQuicFrames(framer_.transport_version())) {
     QuicPathFrameBuffer payload = {
         {0xde, 0xad, 0xbe, 0xef, 0xba, 0xdc, 0x0f, 0xfe}};
     probing_packet =
@@ -1326,7 +1326,7 @@ TEST_F(QuicPacketGeneratorTest, GenerateConnectivityProbingPacket) {
       probing_packet->encrypted_buffer, probing_packet->encrypted_length)));
 
   EXPECT_EQ(2u, simple_framer_.num_frames());
-  if (framer_.transport_version() == QUIC_VERSION_99) {
+  if (VersionHasIetfQuicFrames(framer_.transport_version())) {
     EXPECT_EQ(1u, simple_framer_.path_challenge_frames().size());
   } else {
     EXPECT_EQ(1u, simple_framer_.ping_frames().size());
@@ -1464,7 +1464,7 @@ TEST_F(QuicPacketGeneratorTest, ConnectionCloseFrameLargerThanPacketSize) {
   QuicStringPiece error_details(buf, 2000);
   QuicConnectionCloseFrame* frame = new QuicConnectionCloseFrame(
       QUIC_PACKET_WRITE_ERROR, std::string(error_details));
-  if (framer_.transport_version() == QUIC_VERSION_99) {
+  if (VersionHasIetfQuicFrames(framer_.transport_version())) {
     frame->close_type = IETF_QUIC_TRANSPORT_CONNECTION_CLOSE;
   }
   generator_.ConsumeRetransmittableControlFrame(QuicFrame(frame),

@@ -702,9 +702,9 @@ void QuicConfig::ToHandshakeMessage(
   silent_close_.ToHandshakeMessage(out);
   // Do not need a version check here, max...bi... will encode
   // as "MIDS" -- the max initial dynamic streams tag -- if
-  // doing some version other than IETF QUIC/V99.
+  // doing some version other than IETF QUIC.
   max_incoming_bidirectional_streams_.ToHandshakeMessage(out);
-  if (transport_version == QUIC_VERSION_99) {
+  if (VersionHasIetfQuicFrames(transport_version)) {
     max_incoming_unidirectional_streams_.ToHandshakeMessage(out);
   }
   bytes_for_connection_id_.ToHandshakeMessage(out);

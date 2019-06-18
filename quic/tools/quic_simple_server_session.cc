@@ -149,7 +149,7 @@ void QuicSimpleServerSession::HandleRstOnValidNonexistentStream(
     // Since PromisedStreamInfo are queued in sequence, the corresponding
     // index for it in promised_streams_ can be calculated.
     QuicStreamId next_stream_id = next_outgoing_unidirectional_stream_id();
-    if (connection()->transport_version() == QUIC_VERSION_99) {
+    if (VersionHasIetfQuicFrames(connection()->transport_version())) {
       DCHECK(!QuicUtils::IsBidirectionalStreamId(frame.stream_id));
     }
     DCHECK_GE(frame.stream_id, next_stream_id);

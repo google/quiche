@@ -498,7 +498,7 @@ size_t QuicFramer::GetMinStreamFrameSize(QuicTransportVersion version,
                                          QuicStreamOffset offset,
                                          bool last_frame_in_packet,
                                          QuicPacketLength data_length) {
-  if (version == QUIC_VERSION_99) {
+  if (VersionHasIetfQuicFrames(version)) {
     return kQuicFrameTypeSize + QuicDataWriter::GetVarInt62Len(stream_id) +
            (last_frame_in_packet
                 ? 0
@@ -532,7 +532,7 @@ size_t QuicFramer::GetMessageFrameSize(QuicTransportVersion version,
 size_t QuicFramer::GetMinAckFrameSize(
     QuicTransportVersion version,
     QuicPacketNumberLength largest_observed_length) {
-  if (version == QUIC_VERSION_99) {
+  if (VersionHasIetfQuicFrames(version)) {
     // The minimal ack frame consists of the following four fields: Largest
     // Acknowledged, ACK Delay, ACK Block Count, and First ACK Block. Minimum
     // size of each is 1 byte.
@@ -554,7 +554,7 @@ size_t QuicFramer::GetStopWaitingFrameSize(
 // static
 size_t QuicFramer::GetRstStreamFrameSize(QuicTransportVersion version,
                                          const QuicRstStreamFrame& frame) {
-  if (version == QUIC_VERSION_99) {
+  if (VersionHasIetfQuicFrames(version)) {
     return QuicDataWriter::GetVarInt62Len(frame.stream_id) +
            QuicDataWriter::GetVarInt62Len(frame.byte_offset) +
            kQuicFrameTypeSize + kQuicIetfQuicErrorCodeSize;
@@ -567,8 +567,8 @@ size_t QuicFramer::GetRstStreamFrameSize(QuicTransportVersion version,
 size_t QuicFramer::GetConnectionCloseFrameSize(
     QuicTransportVersion version,
     const QuicConnectionCloseFrame& frame) {
-  if (version != QUIC_VERSION_99) {
-    // Not version 99/IETF QUIC, return Google QUIC CONNECTION CLOSE frame size.
+  if (!VersionHasIetfQuicFrames(version)) {
+    // Not IETF QUIC, return Google QUIC CONNECTION CLOSE frame size.
     return kQuicFrameTypeSize + kQuicErrorCodeSize +
            kQuicErrorDetailsLengthSize +
            TruncatedErrorStringSize(frame.error_details);
@@ -601,7 +601,7 @@ size_t QuicFramer::GetMinGoAwayFrameSize() {
 size_t QuicFramer::GetWindowUpdateFrameSize(
     QuicTransportVersion version,
     const QuicWindowUpdateFrame& frame) {
-  if (version != QUIC_VERSION_99) {
+  if (!VersionHasIetfQuicFrames(version)) {
     return kQuicFrameTypeSize + kQuicMaxStreamIdSize + kQuicMaxStreamOffsetSize;
   }
   if (frame.stream_id == QuicUtils::GetInvalidStreamId(version)) {
@@ -619,9 +619,10 @@ size_t QuicFramer::GetWindowUpdateFrameSize(
 // static
 size_t QuicFramer::GetMaxStreamsFrameSize(QuicTransportVersion version,
                                           const QuicMaxStreamsFrame& frame) {
-  if (version != QUIC_VERSION_99) {
+  if (!VersionHasIetfQuicFrames(version)) {
     QUIC_BUG << "In version " << version
-             << " - not 99 - and tried to serialize MaxStreams Frame.";
+             << ", which does not support IETF Frames, and tried to serialize "
+                "MaxStreams Frame.";
   }
   return kQuicFrameTypeSize +
          QuicDataWriter::GetVarInt62Len(frame.stream_count);
@@ -631,9 +632,10 @@ size_t QuicFramer::GetMaxStreamsFrameSize(QuicTransportVersion version,
 size_t QuicFramer::GetStreamsBlockedFrameSize(
     QuicTransportVersion version,
     const QuicStreamsBlockedFrame& frame) {
-  if (version != QUIC_VERSION_99) {
+  if (!VersionHasIetfQuicFrames(version)) {
     QUIC_BUG << "In version " << version
-             << " - not 99 - and tried to serialize StreamsBlocked Frame.";
+             << ", which does not support IETF frames, and tried to serialize "
+                "StreamsBlocked Frame.";
   }
 
   return kQuicFrameTypeSize +
@@ -643,7 +645,7 @@ size_t QuicFramer::GetStreamsBlockedFrameSize(
 // static
 size_t QuicFramer::GetBlockedFrameSize(QuicTransportVersion version,
                                        const QuicBlockedFrame& frame) {
-  if (version != QUIC_VERSION_99) {
+  if (!VersionHasIetfQuicFrames(version)) {
     return kQuicFrameTypeSize + kQuicMaxStreamIdSize;
   }
   if (frame.stream_id == QuicUtils::GetInvalidStreamId(version)) {
@@ -690,7 +692,7 @@ size_t QuicFramer::GetRetransmittableControlFrameSize(
       return GetMinGoAwayFrameSize() +
              TruncatedErrorStringSize(frame.goaway_frame->reason_phrase);
     case WINDOW_UPDATE_FRAME:
-      // For version 99, this could be either a MAX DATA or MAX STREAM DATA.
+      // For IETF QUIC, this could be either a MAX DATA or MAX STREAM DATA.
       // GetWindowUpdateFrameSize figures this out and returns the correct
       // length.
       return GetWindowUpdateFrameSize(version, *frame.window_update_frame);
@@ -909,7 +911,7 @@ size_t QuicFramer::BuildDataPacket(const QuicPacketHeader& header,
     return 0;
   }
 
-  if (transport_version() == QUIC_VERSION_99) {
+  if (VersionHasIetfQuicFrames(transport_version())) {
     if (AppendIetfFrames(frames, &writer) == 0) {
       return 0;
     }
@@ -999,36 +1001,36 @@ size_t QuicFramer::BuildDataPacket(const QuicPacketHeader& header,
         break;
       case NEW_CONNECTION_ID_FRAME:
         set_detailed_error(
-            "Attempt to append NEW_CONNECTION_ID frame and not in version 99.");
+            "Attempt to append NEW_CONNECTION_ID frame and not in IETF QUIC.");
         return RaiseError(QUIC_INTERNAL_ERROR);
       case RETIRE_CONNECTION_ID_FRAME:
         set_detailed_error(
-            "Attempt to append RETIRE_CONNECTION_ID frame and not in version "
-            "99.");
+            "Attempt to append RETIRE_CONNECTION_ID frame and not in IETF "
+            "QUIC.");
         return RaiseError(QUIC_INTERNAL_ERROR);
       case NEW_TOKEN_FRAME:
         set_detailed_error(
-            "Attempt to append NEW_TOKEN_ID frame and not in version 99.");
+            "Attempt to append NEW_TOKEN_ID frame and not in IETF QUIC.");
         return RaiseError(QUIC_INTERNAL_ERROR);
       case MAX_STREAMS_FRAME:
         set_detailed_error(
-            "Attempt to append MAX_STREAMS frame and not in version 99.");
+            "Attempt to append MAX_STREAMS frame and not in IETF QUIC.");
         return RaiseError(QUIC_INTERNAL_ERROR);
       case STREAMS_BLOCKED_FRAME:
         set_detailed_error(
-            "Attempt to append STREAMS_BLOCKED frame and not in version 99.");
+            "Attempt to append STREAMS_BLOCKED frame and not in IETF QUIC.");
         return RaiseError(QUIC_INTERNAL_ERROR);
       case PATH_RESPONSE_FRAME:
         set_detailed_error(
-            "Attempt to append PATH_RESPONSE frame and not in version 99.");
+            "Attempt to append PATH_RESPONSE frame and not in IETF QUIC.");
         return RaiseError(QUIC_INTERNAL_ERROR);
       case PATH_CHALLENGE_FRAME:
         set_detailed_error(
-            "Attempt to append PATH_CHALLENGE frame and not in version 99.");
+            "Attempt to append PATH_CHALLENGE frame and not in IETF QUIC.");
         return RaiseError(QUIC_INTERNAL_ERROR);
       case STOP_SENDING_FRAME:
         set_detailed_error(
-            "Attempt to append STOP_SENDING frame and not in version 99.");
+            "Attempt to append STOP_SENDING frame and not in IETF QUIC.");
         return RaiseError(QUIC_INTERNAL_ERROR);
       case MESSAGE_FRAME:
         if (!AppendMessageFrameAndTypeByte(*frame.message_frame,
@@ -1095,7 +1097,7 @@ size_t QuicFramer::AppendIetfFrames(const QuicFrames& frames,
         break;
       case STOP_WAITING_FRAME:
         set_detailed_error(
-            "Attempt to append STOP WAITING frame in version 99.");
+            "Attempt to append STOP WAITING frame in IETF QUIC.");
         return RaiseError(QUIC_INTERNAL_ERROR);
       case MTU_DISCOVERY_FRAME:
         // MTU discovery frames are serialized as ping frames.
@@ -1118,7 +1120,7 @@ size_t QuicFramer::AppendIetfFrames(const QuicFrames& frames,
         }
         break;
       case GOAWAY_FRAME:
-        set_detailed_error("Attempt to append GOAWAY frame in version 99.");
+        set_detailed_error("Attempt to append GOAWAY frame in IETF QUIC.");
         return RaiseError(QUIC_INTERNAL_ERROR);
       case WINDOW_UPDATE_FRAME:
         // Depending on whether there is a stream ID or not, will be either a
@@ -1243,7 +1245,7 @@ size_t QuicFramer::BuildPaddedPathChallengePacket(
     QuicPathFrameBuffer* payload,
     QuicRandom* randomizer,
     EncryptionLevel level) {
-  if (version_.transport_version != QUIC_VERSION_99) {
+  if (!VersionHasIetfQuicFrames(version_.transport_version)) {
     QUIC_BUG << "Attempt to build a PATH_CHALLENGE Connectivity Probing "
                 "packet and not doing IETF QUIC";
     return 0;
@@ -1276,7 +1278,7 @@ size_t QuicFramer::BuildPathResponsePacket(
         << "Attempt to generate connectivity response with no request payloads";
     return 0;
   }
-  if (version_.transport_version != QUIC_VERSION_99) {
+  if (!VersionHasIetfQuicFrames(version_.transport_version)) {
     QUIC_BUG << "Attempt to build a PATH_RESPONSE Connectivity Probing "
                 "packet and not doing IETF QUIC";
     return 0;
@@ -1897,7 +1899,7 @@ bool QuicFramer::ProcessIetfDataPacket(QuicDataReader* encrypted_reader,
   }
 
   // Handle the payload.
-  if (version_.transport_version == QUIC_VERSION_99) {
+  if (VersionHasIetfQuicFrames(version_.transport_version)) {
     if (!ProcessIetfFrameData(&reader, *header)) {
       DCHECK_NE(QUIC_NO_ERROR, error_);  // ProcessIetfFrameData sets the error.
       DCHECK_NE("", detailed_error_);
@@ -2770,8 +2772,9 @@ bool QuicFramer::ProcessAndCalculatePacketNumber(
 
 bool QuicFramer::ProcessFrameData(QuicDataReader* reader,
                                   const QuicPacketHeader& header) {
-  DCHECK_NE(QUIC_VERSION_99, version_.transport_version)
-      << "Version 99 negotiated, but not processing frames as version 99.";
+  DCHECK(!VersionHasIetfQuicFrames(version_.transport_version))
+      << "IETF QUIC Framing negotiated but attempting to process frames as "
+         "non-IETF QUIC.";
   if (reader->IsDoneReading()) {
     set_detailed_error("Packet has no frames.");
     return RaiseError(QUIC_MISSING_PAYLOAD);
@@ -2995,9 +2998,10 @@ bool QuicFramer::ProcessFrameData(QuicDataReader* reader,
 
 bool QuicFramer::ProcessIetfFrameData(QuicDataReader* reader,
                                       const QuicPacketHeader& header) {
-  DCHECK_EQ(QUIC_VERSION_99, version_.transport_version)
-      << "Attempt to process frames as IETF frames but version is "
-      << version_.transport_version << ", not 99.";
+  DCHECK(VersionHasIetfQuicFrames(version_.transport_version))
+      << "Attempt to process frames as IETF frames but version ("
+      << version_.transport_version << ") does not support IETF Framing.";
+
   if (reader->IsDoneReading()) {
     set_detailed_error("Packet has no frames.");
     return RaiseError(QUIC_MISSING_PAYLOAD);
@@ -3984,8 +3988,8 @@ bool QuicFramer::ProcessWindowUpdateFrame(QuicDataReader* reader,
 
 bool QuicFramer::ProcessBlockedFrame(QuicDataReader* reader,
                                      QuicBlockedFrame* frame) {
-  DCHECK_NE(QUIC_VERSION_99, version_.transport_version)
-      << "Attempt to process non-IETF frames but version is 99";
+  DCHECK(!VersionHasIetfQuicFrames(version_.transport_version))
+      << "Attempt to process non-IETF QUIC frames in an IETF QUIC version.";
 
   if (!reader->ReadUInt32(&frame->stream_id)) {
     set_detailed_error("Unable to read stream_id.");
@@ -4621,7 +4625,7 @@ size_t QuicFramer::GetAckFrameSize(
   DCHECK(!ack.packets.Empty());
   size_t ack_size = 0;
 
-  if (version_.transport_version == QUIC_VERSION_99) {
+  if (VersionHasIetfQuicFrames(version_.transport_version)) {
     return GetIetfAckFrameSize(ack);
   }
   AckFrameInfo ack_info = GetAckFrameInfo(ack);
@@ -4698,7 +4702,7 @@ size_t QuicFramer::ComputeFrameLength(
 bool QuicFramer::AppendTypeByte(const QuicFrame& frame,
                                 bool last_frame_in_packet,
                                 QuicDataWriter* writer) {
-  if (version_.transport_version == QUIC_VERSION_99) {
+  if (VersionHasIetfQuicFrames(version_.transport_version)) {
     return AppendIetfTypeByte(frame, last_frame_in_packet, writer);
   }
   uint8_t type_byte = 0;
@@ -4714,36 +4718,35 @@ bool QuicFramer::AppendTypeByte(const QuicFrame& frame,
       break;
     case NEW_CONNECTION_ID_FRAME:
       set_detailed_error(
-          "Attempt to append NEW_CONNECTION_ID frame and not in version 99.");
+          "Attempt to append NEW_CONNECTION_ID frame and not in IETF QUIC.");
       return RaiseError(QUIC_INTERNAL_ERROR);
     case RETIRE_CONNECTION_ID_FRAME:
       set_detailed_error(
-          "Attempt to append RETIRE_CONNECTION_ID frame and not in version "
-          "99.");
+          "Attempt to append RETIRE_CONNECTION_ID frame and not in IETF QUIC.");
       return RaiseError(QUIC_INTERNAL_ERROR);
     case NEW_TOKEN_FRAME:
       set_detailed_error(
-          "Attempt to append NEW_TOKEN frame and not in version 99.");
+          "Attempt to append NEW_TOKEN frame and not in IETF QUIC.");
       return RaiseError(QUIC_INTERNAL_ERROR);
     case MAX_STREAMS_FRAME:
       set_detailed_error(
-          "Attempt to append MAX_STREAMS frame and not in version 99.");
+          "Attempt to append MAX_STREAMS frame and not in IETF QUIC.");
       return RaiseError(QUIC_INTERNAL_ERROR);
     case STREAMS_BLOCKED_FRAME:
       set_detailed_error(
-          "Attempt to append STREAMS_BLOCKED frame and not in version 99.");
+          "Attempt to append STREAMS_BLOCKED frame and not in IETF QUIC.");
       return RaiseError(QUIC_INTERNAL_ERROR);
     case PATH_RESPONSE_FRAME:
       set_detailed_error(
-          "Attempt to append PATH_RESPONSE frame and not in version 99.");
+          "Attempt to append PATH_RESPONSE frame and not in IETF QUIC.");
       return RaiseError(QUIC_INTERNAL_ERROR);
     case PATH_CHALLENGE_FRAME:
       set_detailed_error(
-          "Attempt to append PATH_CHALLENGE frame and not in version 99.");
+          "Attempt to append PATH_CHALLENGE frame and not in IETF QUIC.");
       return RaiseError(QUIC_INTERNAL_ERROR);
     case STOP_SENDING_FRAME:
       set_detailed_error(
-          "Attempt to append STOP_SENDING frame and not in version 99.");
+          "Attempt to append STOP_SENDING frame and not in IETF QUIC.");
       return RaiseError(QUIC_INTERNAL_ERROR);
     case MESSAGE_FRAME:
       return true;
@@ -4782,7 +4785,7 @@ bool QuicFramer::AppendIetfTypeByte(const QuicFrame& frame,
       break;
     case GOAWAY_FRAME:
       set_detailed_error(
-          "Attempt to create non-version-99 GOAWAY frame in version 99.");
+          "Attempt to create non-IETF QUIC GOAWAY frame in IETF QUIC.");
       return RaiseError(QUIC_INTERNAL_ERROR);
     case WINDOW_UPDATE_FRAME:
       // Depending on whether there is a stream ID or not, will be either a
@@ -4804,7 +4807,7 @@ bool QuicFramer::AppendIetfTypeByte(const QuicFrame& frame,
       break;
     case STOP_WAITING_FRAME:
       set_detailed_error(
-          "Attempt to append type byte of STOP WAITING frame in version 99.");
+          "Attempt to append type byte of STOP WAITING frame in IETF QUIC.");
       return RaiseError(QUIC_INTERNAL_ERROR);
     case PING_FRAME:
       type_byte = IETF_PING;
@@ -4922,7 +4925,7 @@ bool QuicFramer::AppendAckBlock(uint8_t gap,
 bool QuicFramer::AppendStreamFrame(const QuicStreamFrame& frame,
                                    bool no_stream_frame_length,
                                    QuicDataWriter* writer) {
-  if (version_.transport_version == QUIC_VERSION_99) {
+  if (VersionHasIetfQuicFrames(version_.transport_version)) {
     return AppendIetfStreamFrame(frame, no_stream_frame_length, writer);
   }
   if (!AppendStreamId(GetStreamIdSize(frame.stream_id), frame.stream_id,
@@ -5083,7 +5086,7 @@ void QuicFramer::set_version(const ParsedQuicVersion version) {
 
 bool QuicFramer::AppendAckFrameAndTypeByte(const QuicAckFrame& frame,
                                            QuicDataWriter* writer) {
-  if (transport_version() == QUIC_VERSION_99) {
+  if (VersionHasIetfQuicFrames(transport_version())) {
     return AppendIetfAckFrameAndTypeByte(frame, writer);
   }
 
@@ -5499,7 +5502,7 @@ bool QuicFramer::AppendIetfAckFrameAndTypeByte(const QuicAckFrame& frame,
 
 bool QuicFramer::AppendRstStreamFrame(const QuicRstStreamFrame& frame,
                                       QuicDataWriter* writer) {
-  if (version_.transport_version == QUIC_VERSION_99) {
+  if (VersionHasIetfQuicFrames(version_.transport_version)) {
     return AppendIetfResetStreamFrame(frame, writer);
   }
   if (!writer->WriteUInt32(frame.stream_id)) {
@@ -5521,7 +5524,7 @@ bool QuicFramer::AppendRstStreamFrame(const QuicRstStreamFrame& frame,
 bool QuicFramer::AppendConnectionCloseFrame(
     const QuicConnectionCloseFrame& frame,
     QuicDataWriter* writer) {
-  if (version_.transport_version == QUIC_VERSION_99) {
+  if (VersionHasIetfQuicFrames(version_.transport_version)) {
     return AppendIetfConnectionCloseFrame(frame, writer);
   }
   uint32_t error_code = static_cast<uint32_t>(frame.quic_error_code);
@@ -5564,7 +5567,7 @@ bool QuicFramer::AppendWindowUpdateFrame(const QuicWindowUpdateFrame& frame,
 
 bool QuicFramer::AppendBlockedFrame(const QuicBlockedFrame& frame,
                                     QuicDataWriter* writer) {
-  if (version_.transport_version == QUIC_VERSION_99) {
+  if (VersionHasIetfQuicFrames(version_.transport_version)) {
     if (frame.stream_id == QuicUtils::GetInvalidStreamId(transport_version())) {
       return AppendIetfBlockedFrame(frame, writer);
     }
@@ -6063,7 +6066,7 @@ bool QuicFramer::ProcessRetireConnectionIdFrame(
 
 uint8_t QuicFramer::GetStreamFrameTypeByte(const QuicStreamFrame& frame,
                                            bool last_frame_in_packet) const {
-  if (version_.transport_version == QUIC_VERSION_99) {
+  if (VersionHasIetfQuicFrames(version_.transport_version)) {
     return GetIetfStreamFrameTypeByte(frame, last_frame_in_packet);
   }
   uint8_t type_byte = 0;
@@ -6093,7 +6096,7 @@ uint8_t QuicFramer::GetStreamFrameTypeByte(const QuicStreamFrame& frame,
 uint8_t QuicFramer::GetIetfStreamFrameTypeByte(
     const QuicStreamFrame& frame,
     bool last_frame_in_packet) const {
-  DCHECK_EQ(QUIC_VERSION_99, version_.transport_version);
+  DCHECK(VersionHasIetfQuicFrames(version_.transport_version));
   uint8_t type_byte = IETF_STREAM;
   if (!last_frame_in_packet) {
     type_byte |= IETF_STREAM_FRAME_LEN_BIT;

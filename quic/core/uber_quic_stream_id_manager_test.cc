@@ -37,26 +37,26 @@ class UberQuicStreamIdManagerTest : public QuicTestWithParam<Perspective> {
   }
 
   QuicStreamId GetNthClientInitiatedBidirectionalId(int n) {
-    return QuicUtils::GetFirstBidirectionalStreamId(
-               connection_->transport_version(), Perspective::IS_CLIENT) +
+    return QuicUtils::GetFirstBidirectionalStreamId(transport_version(),
+                                                    Perspective::IS_CLIENT) +
            kV99StreamIdIncrement * n;
   }
 
   QuicStreamId GetNthClientInitiatedUnidirectionalId(int n) {
-    return QuicUtils::GetFirstUnidirectionalStreamId(
-               connection_->transport_version(), Perspective::IS_CLIENT) +
+    return QuicUtils::GetFirstUnidirectionalStreamId(transport_version(),
+                                                     Perspective::IS_CLIENT) +
            kV99StreamIdIncrement * n;
   }
 
   QuicStreamId GetNthServerInitiatedBidirectionalId(int n) {
-    return QuicUtils::GetFirstBidirectionalStreamId(
-               connection_->transport_version(), Perspective::IS_SERVER) +
+    return QuicUtils::GetFirstBidirectionalStreamId(transport_version(),
+                                                    Perspective::IS_SERVER) +
            kV99StreamIdIncrement * n;
   }
 
   QuicStreamId GetNthServerInitiatedUnidirectionalId(int n) {
-    return QuicUtils::GetFirstUnidirectionalStreamId(
-               connection_->transport_version(), Perspective::IS_SERVER) +
+    return QuicUtils::GetFirstUnidirectionalStreamId(transport_version(),
+                                                     Perspective::IS_SERVER) +
            kV99StreamIdIncrement * n;
   }
 
@@ -86,10 +86,14 @@ class UberQuicStreamIdManagerTest : public QuicTestWithParam<Perspective> {
                                Perspective perspective,
                                bool bidirectional) {
     return ((bidirectional) ? QuicUtils::GetFirstBidirectionalStreamId(
-                                  QUIC_VERSION_99, perspective)
+                                  transport_version(), perspective)
                             : QuicUtils::GetFirstUnidirectionalStreamId(
-                                  QUIC_VERSION_99, perspective)) +
-           ((stream_count - 1) * QuicUtils::StreamIdDelta(QUIC_VERSION_99));
+                                  transport_version(), perspective)) +
+           ((stream_count - 1) * QuicUtils::StreamIdDelta(transport_version()));
+  }
+
+  QuicTransportVersion transport_version() {
+    return connection_->transport_version();
   }
 
   MockQuicConnectionHelper helper_;

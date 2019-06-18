@@ -229,7 +229,7 @@ QuicStreamId QuicStreamIdManager::GetNextOutgoingStreamId() {
 }
 
 bool QuicStreamIdManager::CanOpenNextOutgoingStream() {
-  DCHECK_EQ(QUIC_VERSION_99, transport_version());
+  DCHECK(VersionHasIetfQuicFrames(transport_version()));
   if (outgoing_stream_count_ < outgoing_max_streams_) {
     return true;
   }

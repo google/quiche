@@ -1396,7 +1396,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
   }
 
   OwningSerializedPacketPointer ConstructProbingPacket() {
-    if (version().transport_version == QUIC_VERSION_99) {
+    if (VersionHasIetfQuicFrames(version().transport_version)) {
       QuicPathFrameBuffer payload = {
           {0xde, 0xad, 0xbe, 0xef, 0xba, 0xdc, 0x0f, 0xfe}};
       return QuicPacketCreatorPeer::
@@ -1428,8 +1428,8 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     header.packet_number = QuicPacketNumber(number);
 
     QuicConnectionCloseFrame qccf(QUIC_PEER_GOING_AWAY);
-    if (peer_framer_.transport_version() == QUIC_VERSION_99) {
-      // Default close-type is Google QUIC. If doing IETF/V99 then
+    if (VersionHasIetfQuicFrames(peer_framer_.transport_version())) {
+      // Default close-type is Google QUIC. If doing IETF QUIC then
       // set close type to be IETF CC/T.
       qccf.close_type = IETF_QUIC_TRANSPORT_CONNECTION_CLOSE;
     }
@@ -1862,7 +1862,7 @@ TEST_P(QuicConnectionTest, ReceivePaddedPingAtServer) {
   // Process a padded PING or PATH CHALLENGE packet with no peer address change
   // on server side will be ignored.
   OwningSerializedPacketPointer probing_packet;
-  if (version().transport_version == QUIC_VERSION_99) {
+  if (VersionHasIetfQuicFrames(version().transport_version)) {
     QuicPathFrameBuffer payload = {
         {0xde, 0xad, 0xbe, 0xef, 0xba, 0xdc, 0x0f, 0xfe}};
     probing_packet =
@@ -6660,7 +6660,7 @@ TEST_P(QuicConnectionTest, IetfStatelessReset) {
 }
 
 TEST_P(QuicConnectionTest, GoAway) {
-  if (GetParam().version.transport_version == QUIC_VERSION_99) {
+  if (VersionHasIetfQuicFrames(GetParam().version.transport_version)) {
     // GoAway is not available in version 99.
     return;
   }
@@ -6868,8 +6868,8 @@ TEST_P(QuicConnectionTest, ProcessFramesIfPacketClosedConnection) {
   header.version_flag = false;
 
   QuicConnectionCloseFrame qccf(QUIC_PEER_GOING_AWAY);
-  if (peer_framer_.transport_version() == QUIC_VERSION_99) {
-    // Default close-type is Google QUIC. If doing IETF/V99 then
+  if (VersionHasIetfQuicFrames(peer_framer_.transport_version())) {
+    // Default close-type is Google QUIC. If doing IETF QUIC then
     // set close type to be IETF CC/T.
     qccf.close_type = IETF_QUIC_TRANSPORT_CONNECTION_CLOSE;
   }
@@ -8054,7 +8054,7 @@ TEST_P(QuicConnectionTest, SendMessage) {
 // Test to check that the path challenge/path response logic works
 // correctly. This test is only for version-99
 TEST_P(QuicConnectionTest, PathChallengeResponse) {
-  if (connection_.version().transport_version != QUIC_VERSION_99) {
+  if (!VersionHasIetfQuicFrames(connection_.version().transport_version)) {
     return;
   }
   // First check if we can probe from server to client and back
@@ -8195,7 +8195,7 @@ TEST_P(QuicConnectionTest, StopProcessingGQuicPacketInIetfQuicConnection) {
 }
 
 TEST_P(QuicConnectionTest, AcceptPacketNumberZero) {
-  if (version().transport_version != QUIC_VERSION_99) {
+  if (!VersionHasIetfQuicFrames(version().transport_version)) {
     return;
   }
   // Set first_sending_packet_number to be 0 to allow successfully processing
@@ -8480,7 +8480,7 @@ TEST_P(QuicConnectionTest, CheckConnectedBeforeFlush) {
   EXPECT_EQ(Perspective::IS_CLIENT, connection_.perspective());
   std::unique_ptr<QuicConnectionCloseFrame> connection_close_frame(
       new QuicConnectionCloseFrame(QUIC_INTERNAL_ERROR));
-  if (connection_.transport_version() == QUIC_VERSION_99) {
+  if (VersionHasIetfQuicFrames(connection_.transport_version())) {
     connection_close_frame->close_type = IETF_QUIC_TRANSPORT_CONNECTION_CLOSE;
   }
   // Received 2 packets.

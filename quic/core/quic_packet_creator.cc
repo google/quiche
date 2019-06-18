@@ -545,7 +545,7 @@ size_t QuicPacketCreator::ExpansionOnNewFrame() const {
   if (!has_trailing_stream_frame) {
     return 0;
   }
-  if (framer_->transport_version() == QUIC_VERSION_99) {
+  if (VersionHasIetfQuicFrames(framer_->transport_version())) {
     return QuicDataWriter::GetVarInt62Len(
         queued_frames_.back().stream_frame.data_length);
   }
@@ -651,7 +651,7 @@ QuicPacketCreator::SerializeVersionNegotiationPacket(
 
 OwningSerializedPacketPointer
 QuicPacketCreator::SerializeConnectivityProbingPacket() {
-  QUIC_BUG_IF(framer_->transport_version() == QUIC_VERSION_99)
+  QUIC_BUG_IF(VersionHasIetfQuicFrames(framer_->transport_version()))
       << "Must not be version 99 to serialize padded ping connectivity probe";
   QuicPacketHeader header;
   // FillPacketHeader increments packet_number_.
@@ -684,7 +684,7 @@ QuicPacketCreator::SerializeConnectivityProbingPacket() {
 OwningSerializedPacketPointer
 QuicPacketCreator::SerializePathChallengeConnectivityProbingPacket(
     QuicPathFrameBuffer* payload) {
-  QUIC_BUG_IF(framer_->transport_version() != QUIC_VERSION_99)
+  QUIC_BUG_IF(!VersionHasIetfQuicFrames(framer_->transport_version()))
       << "Must be version 99 to serialize path challenge connectivity probe, "
          "is version "
       << framer_->transport_version();
@@ -720,7 +720,7 @@ OwningSerializedPacketPointer
 QuicPacketCreator::SerializePathResponseConnectivityProbingPacket(
     const QuicDeque<QuicPathFrameBuffer>& payloads,
     const bool is_padded) {
-  QUIC_BUG_IF(framer_->transport_version() != QUIC_VERSION_99)
+  QUIC_BUG_IF(!VersionHasIetfQuicFrames(framer_->transport_version()))
       << "Must be version 99 to serialize path response connectivity probe, is "
          "version "
       << framer_->transport_version();

@@ -224,7 +224,7 @@ bool QuicServerSessionBase::ShouldCreateOutgoingBidirectionalStream() {
   }
 
   if (!GetQuicReloadableFlag(quic_use_common_stream_check) &&
-      connection()->transport_version() != QUIC_VERSION_99) {
+      !VersionHasIetfQuicFrames(connection()->transport_version())) {
     if (GetNumOpenOutgoingStreams() >=
         stream_id_manager().max_open_outgoing_streams()) {
       QUIC_VLOG(1) << "No more streams should be created. "
@@ -248,7 +248,7 @@ bool QuicServerSessionBase::ShouldCreateOutgoingUnidirectionalStream() {
   }
 
   if (!GetQuicReloadableFlag(quic_use_common_stream_check) &&
-      connection()->transport_version() != QUIC_VERSION_99) {
+      !VersionHasIetfQuicFrames(connection()->transport_version())) {
     if (GetNumOpenOutgoingStreams() >=
         stream_id_manager().max_open_outgoing_streams()) {
       QUIC_VLOG(1) << "No more streams should be created. "

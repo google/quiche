@@ -1621,7 +1621,7 @@ TEST_P(QuicParameterizedStreamTest, CheckStopSending) {
   EXPECT_FALSE(stream_->write_side_closed());
   EXPECT_FALSE(QuicStreamPeer::read_side_closed(stream_));
   // Expect to actually see a stop sending if and only if we are in version 99.
-  if (connection_->transport_version() == QUIC_VERSION_99) {
+  if (VersionHasIetfQuicFrames(connection_->transport_version())) {
     EXPECT_CALL(*session_, SendStopSending(kStopSendingCode, stream_->id()))
         .Times(1);
   } else {
@@ -1645,7 +1645,7 @@ TEST_P(QuicStreamTest, OnStreamResetReadOrReadWrite) {
   QuicRstStreamFrame rst_frame(kInvalidControlFrameId, stream_->id(),
                                QUIC_STREAM_CANCELLED, 1234);
   stream_->OnStreamReset(rst_frame);
-  if (connection_->transport_version() == QUIC_VERSION_99) {
+  if (VersionHasIetfQuicFrames(connection_->transport_version())) {
     // Version 99/IETF QUIC should close just the read side.
     EXPECT_TRUE(QuicStreamPeer::read_side_closed(stream_));
     EXPECT_FALSE(stream_->write_side_closed());
@@ -1660,7 +1660,7 @@ TEST_P(QuicStreamTest, OnStreamResetReadOrReadWrite) {
 // If not V99, the test is a noop (no STOP_SENDING in Google QUIC).
 TEST_P(QuicStreamTest, OnStopSendingReadOrReadWrite) {
   Initialize();
-  if (connection_->transport_version() != QUIC_VERSION_99) {
+  if (!VersionHasIetfQuicFrames(connection_->transport_version())) {
     return;
   }
 
@@ -1678,7 +1678,7 @@ TEST_P(QuicStreamTest, OnStopSendingReadOrReadWrite) {
 // SendOnlyRstStream must only send a RESET_STREAM (no bundled STOP_SENDING).
 TEST_P(QuicStreamTest, SendOnlyRstStream) {
   Initialize();
-  if (connection_->transport_version() != QUIC_VERSION_99) {
+  if (!VersionHasIetfQuicFrames(connection_->transport_version())) {
     return;
   }
 
