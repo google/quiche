@@ -475,7 +475,6 @@ TEST_F(BbrSenderTest, PacketLossOnSmallBufferStartup) {
 // Test the number of losses incurred by the startup phase in a situation when
 // the buffer is less than BDP, with a STARTUP CWND gain of 2.
 TEST_F(BbrSenderTest, PacketLossOnSmallBufferStartupDerivedCWNDGain) {
-  SetQuicReloadableFlag(quic_bbr_slower_startup3, true);
   CreateSmallBufferSetup();
 
   SetConnectionOption(kBBQ2);
@@ -620,7 +619,6 @@ TEST_F(BbrSenderTest, Drain) {
 // TODO(wub): Re-enable this test once default drain_gain changed to 0.75.
 // Verify that the DRAIN phase works correctly.
 TEST_F(BbrSenderTest, DISABLED_ShallowDrain) {
-  SetQuicReloadableFlag(quic_bbr_slower_startup3, true);
   // Disable Ack Decimation on the receiver, because it can increase srtt.
   QuicConnectionPeer::SetAckMode(receiver_.connection(), AckMode::TCP_ACKING);
 
@@ -1171,7 +1169,6 @@ TEST_F(BbrSenderTest, SimpleTransferDoubleStartupRateReduction) {
 }
 
 TEST_F(BbrSenderTest, DerivedPacingGainStartup) {
-  SetQuicReloadableFlag(quic_bbr_slower_startup3, true);
   CreateDefaultSetup();
 
   SetConnectionOption(kBBQ1);
@@ -1199,7 +1196,6 @@ TEST_F(BbrSenderTest, DerivedPacingGainStartup) {
 }
 
 TEST_F(BbrSenderTest, DerivedCWNDGainStartup) {
-  SetQuicReloadableFlag(quic_bbr_slower_startup3, true);
   CreateSmallBufferSetup();
 
   SetConnectionOption(kBBQ2);
@@ -1232,7 +1228,6 @@ TEST_F(BbrSenderTest, DerivedCWNDGainStartup) {
 }
 
 TEST_F(BbrSenderTest, AckAggregationInStartup) {
-  SetQuicReloadableFlag(quic_bbr_slower_startup3, true);
   // Disable Ack Decimation on the receiver to avoid loss and make results
   // consistent.
   QuicConnectionPeer::SetAckMode(receiver_.connection(), AckMode::TCP_ACKING);

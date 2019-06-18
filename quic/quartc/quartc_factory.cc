@@ -84,7 +84,6 @@ void ConfigureGlobalQuicSettings() {
   // SetQuicReloadableFlag() gets stubbed out.
   SetQuicReloadableFlag(quic_bbr_less_probe_rtt, true);   // Enable BBR6,7,8.
   SetQuicReloadableFlag(quic_unified_iw_options, true);   // Enable IWXX opts.
-  SetQuicReloadableFlag(quic_bbr_slower_startup3, true);  // Enable BBQX opts.
   SetQuicReloadableFlag(quic_bbr_flexible_app_limited, true);  // Enable BBR9.
 }
 

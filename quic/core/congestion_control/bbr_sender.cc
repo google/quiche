@@ -310,21 +310,15 @@ void BbrSender::SetFromConfig(const QuicConfig& config,
     QUIC_RELOADABLE_FLAG_COUNT(quic_bbr_flexible_app_limited);
     flexible_app_limited_ = true;
   }
-  if (GetQuicReloadableFlag(quic_bbr_slower_startup3) &&
-      config.HasClientRequestedIndependentOption(kBBQ1, perspective)) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr_slower_startup3, 1, 4);
+  if (config.HasClientRequestedIndependentOption(kBBQ1, perspective)) {
     set_high_gain(kDerivedHighGain);
     set_high_cwnd_gain(kDerivedHighGain);
     set_drain_gain(1.f / kDerivedHighGain);
   }
-  if (GetQuicReloadableFlag(quic_bbr_slower_startup3) &&
-      config.HasClientRequestedIndependentOption(kBBQ2, perspective)) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr_slower_startup3, 2, 4);
+  if (config.HasClientRequestedIndependentOption(kBBQ2, perspective)) {
     set_high_cwnd_gain(kDerivedHighCWNDGain);
   }
-  if (GetQuicReloadableFlag(quic_bbr_slower_startup3) &&
-      config.HasClientRequestedIndependentOption(kBBQ3, perspective)) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr_slower_startup3, 3, 4);
+  if (config.HasClientRequestedIndependentOption(kBBQ3, perspective)) {
     enable_ack_aggregation_during_startup_ = true;
   }
   if (GetQuicReloadableFlag(quic_bbr_slower_startup4) &&
