@@ -85,13 +85,13 @@ void TlsServerHandshaker::CancelOutstandingCallbacks() {
 }
 
 bool TlsServerHandshaker::GetBase64SHA256ClientChannelID(
-    std::string* output) const {
+    std::string* /*output*/) const {
   // Channel ID is not supported when TLS is used in QUIC.
   return false;
 }
 
 void TlsServerHandshaker::SendServerConfigUpdate(
-    const CachedNetworkParameters* cached_network_params) {
+    const CachedNetworkParameters* /*cached_network_params*/) {
   // SCUP messages aren't supported when using the TLS handshake.
 }
 
@@ -121,7 +121,7 @@ bool TlsServerHandshaker::ZeroRttAttempted() const {
 }
 
 void TlsServerHandshaker::SetPreviousCachedNetworkParams(
-    CachedNetworkParameters cached_network_params) {}
+    CachedNetworkParameters /*cached_network_params*/) {}
 
 bool TlsServerHandshaker::ShouldSendExpectCTHeader() const {
   return false;

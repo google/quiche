@@ -14,7 +14,7 @@ QuicSendControlStream::QuicSendControlStream(QuicStreamId id,
     : QuicStream(id, session, /*is_static = */ true, WRITE_UNIDIRECTIONAL),
       settings_sent_(false) {}
 
-void QuicSendControlStream::OnStreamReset(const QuicRstStreamFrame& frame) {
+void QuicSendControlStream::OnStreamReset(const QuicRstStreamFrame& /*frame*/) {
   // TODO(renjietang) Change the error code to H/3 specific
   // HTTP_CLOSED_CRITICAL_STREAM.
   session()->connection()->CloseConnection(

@@ -12,7 +12,7 @@ RandomPacketFilter::RandomPacketFilter(Simulator* simulator,
                                        Endpoint* endpoint)
     : PacketFilter(simulator, name, endpoint), simulator_(simulator) {}
 
-bool RandomPacketFilter::FilterPacket(const Packet& packet) {
+bool RandomPacketFilter::FilterPacket(const Packet& /*packet*/) {
   uint64_t random = simulator_->GetRandomGenerator()->RandUint64();
   return 100 * static_cast<double>(random) /
              std::numeric_limits<uint64_t>::max() >=

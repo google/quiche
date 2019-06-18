@@ -90,8 +90,9 @@ class QuartcSessionTest : public QuicTest {
 
   // Note that input session config will apply to both server and client.
   // Perspective and packet_transport will be overwritten.
-  void CreateClientAndServerSessions(const QuartcSessionConfig& session_config,
-                                     bool init = true) {
+  void CreateClientAndServerSessions(
+      const QuartcSessionConfig& /*session_config*/,
+      bool init = true) {
     if (init) {
       Init();
     }

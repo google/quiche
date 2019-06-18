@@ -30,19 +30,19 @@ class ChloFramerVisitor : public QuicFramerVisitorInterface,
   ~ChloFramerVisitor() override = default;
 
   // QuicFramerVisitorInterface implementation
-  void OnError(QuicFramer* framer) override {}
+  void OnError(QuicFramer* /*framer*/) override {}
   bool OnProtocolVersionMismatch(ParsedQuicVersion version,
                                  PacketHeaderFormat form) override;
   void OnPacket() override {}
-  void OnPublicResetPacket(const QuicPublicResetPacket& packet) override {}
+  void OnPublicResetPacket(const QuicPublicResetPacket& /*packet*/) override {}
   void OnVersionNegotiationPacket(
-      const QuicVersionNegotiationPacket& packet) override {}
-  void OnRetryPacket(QuicConnectionId original_connection_id,
-                     QuicConnectionId new_connection_id,
-                     QuicStringPiece retry_token) override {}
+      const QuicVersionNegotiationPacket& /*packet*/) override {}
+  void OnRetryPacket(QuicConnectionId /*original_connection_id*/,
+                     QuicConnectionId /*new_connection_id*/,
+                     QuicStringPiece /*retry_token*/) override {}
   bool OnUnauthenticatedPublicHeader(const QuicPacketHeader& header) override;
   bool OnUnauthenticatedHeader(const QuicPacketHeader& header) override;
-  void OnDecryptedPacket(EncryptionLevel level) override {}
+  void OnDecryptedPacket(EncryptionLevel /*level*/) override {}
   bool OnPacketHeader(const QuicPacketHeader& header) override;
   void OnCoalescedPacket(const QuicEncryptedPacket& packet) override;
   bool OnStreamFrame(const QuicStreamFrame& frame) override;
@@ -74,7 +74,7 @@ class ChloFramerVisitor : public QuicFramerVisitorInterface,
   void OnPacketComplete() override {}
   bool IsValidStatelessResetToken(QuicUint128 token) const override;
   void OnAuthenticatedIetfStatelessResetPacket(
-      const QuicIetfStatelessResetPacket& packet) override {}
+      const QuicIetfStatelessResetPacket& /*packet*/) override {}
 
   // CryptoFramerVisitorInterface implementation.
   void OnError(CryptoFramer* framer) override;
@@ -138,13 +138,14 @@ bool ChloFramerVisitor::OnUnauthenticatedPublicHeader(
   return true;
 }
 bool ChloFramerVisitor::OnUnauthenticatedHeader(
-    const QuicPacketHeader& header) {
+    const QuicPacketHeader& /*header*/) {
   return true;
 }
-bool ChloFramerVisitor::OnPacketHeader(const QuicPacketHeader& header) {
+bool ChloFramerVisitor::OnPacketHeader(const QuicPacketHeader& /*header*/) {
   return true;
 }
-void ChloFramerVisitor::OnCoalescedPacket(const QuicEncryptedPacket& packet) {}
+void ChloFramerVisitor::OnCoalescedPacket(
+    const QuicEncryptedPacket& /*packet*/) {}
 bool ChloFramerVisitor::OnStreamFrame(const QuicStreamFrame& frame) {
   if (QuicVersionUsesCryptoFrames(framer_->transport_version())) {
     // CHLO will be sent in CRYPTO frames in v47 and above.
@@ -215,86 +216,90 @@ bool ChloFramerVisitor::OnAckFrameEnd(QuicPacketNumber /*start*/) {
   return true;
 }
 
-bool ChloFramerVisitor::OnStopWaitingFrame(const QuicStopWaitingFrame& frame) {
+bool ChloFramerVisitor::OnStopWaitingFrame(
+    const QuicStopWaitingFrame& /*frame*/) {
   return true;
 }
 
-bool ChloFramerVisitor::OnPingFrame(const QuicPingFrame& frame) {
+bool ChloFramerVisitor::OnPingFrame(const QuicPingFrame& /*frame*/) {
   return true;
 }
 
-bool ChloFramerVisitor::OnRstStreamFrame(const QuicRstStreamFrame& frame) {
+bool ChloFramerVisitor::OnRstStreamFrame(const QuicRstStreamFrame& /*frame*/) {
   return true;
 }
 
 bool ChloFramerVisitor::OnConnectionCloseFrame(
-    const QuicConnectionCloseFrame& frame) {
+    const QuicConnectionCloseFrame& /*frame*/) {
   return true;
 }
 
-bool ChloFramerVisitor::OnStopSendingFrame(const QuicStopSendingFrame& frame) {
+bool ChloFramerVisitor::OnStopSendingFrame(
+    const QuicStopSendingFrame& /*frame*/) {
   return true;
 }
 
 bool ChloFramerVisitor::OnPathChallengeFrame(
-    const QuicPathChallengeFrame& frame) {
+    const QuicPathChallengeFrame& /*frame*/) {
   return true;
 }
 
 bool ChloFramerVisitor::OnPathResponseFrame(
-    const QuicPathResponseFrame& frame) {
+    const QuicPathResponseFrame& /*frame*/) {
   return true;
 }
 
-bool ChloFramerVisitor::OnGoAwayFrame(const QuicGoAwayFrame& frame) {
+bool ChloFramerVisitor::OnGoAwayFrame(const QuicGoAwayFrame& /*frame*/) {
   return true;
 }
 
 bool ChloFramerVisitor::OnWindowUpdateFrame(
-    const QuicWindowUpdateFrame& frame) {
+    const QuicWindowUpdateFrame& /*frame*/) {
   return true;
 }
 
-bool ChloFramerVisitor::OnBlockedFrame(const QuicBlockedFrame& frame) {
+bool ChloFramerVisitor::OnBlockedFrame(const QuicBlockedFrame& /*frame*/) {
   return true;
 }
 
 bool ChloFramerVisitor::OnNewConnectionIdFrame(
-    const QuicNewConnectionIdFrame& frame) {
+    const QuicNewConnectionIdFrame& /*frame*/) {
   return true;
 }
 
 bool ChloFramerVisitor::OnRetireConnectionIdFrame(
-    const QuicRetireConnectionIdFrame& frame) {
+    const QuicRetireConnectionIdFrame& /*frame*/) {
   return true;
 }
 
-bool ChloFramerVisitor::OnNewTokenFrame(const QuicNewTokenFrame& frame) {
+bool ChloFramerVisitor::OnNewTokenFrame(const QuicNewTokenFrame& /*frame*/) {
   return true;
 }
 
-bool ChloFramerVisitor::OnPaddingFrame(const QuicPaddingFrame& frame) {
+bool ChloFramerVisitor::OnPaddingFrame(const QuicPaddingFrame& /*frame*/) {
   return true;
 }
 
-bool ChloFramerVisitor::OnMessageFrame(const QuicMessageFrame& frame) {
+bool ChloFramerVisitor::OnMessageFrame(const QuicMessageFrame& /*frame*/) {
   return true;
 }
 
-bool ChloFramerVisitor::IsValidStatelessResetToken(QuicUint128 token) const {
+bool ChloFramerVisitor::IsValidStatelessResetToken(
+    QuicUint128 /*token*/) const {
   return false;
 }
 
-bool ChloFramerVisitor::OnMaxStreamsFrame(const QuicMaxStreamsFrame& frame) {
+bool ChloFramerVisitor::OnMaxStreamsFrame(
+    const QuicMaxStreamsFrame& /*frame*/) {
   return true;
 }
 
 bool ChloFramerVisitor::OnStreamsBlockedFrame(
-    const QuicStreamsBlockedFrame& frame) {
+    const QuicStreamsBlockedFrame& /*frame*/) {
   return true;
 }
 
-void ChloFramerVisitor::OnError(CryptoFramer* framer) {}
+void ChloFramerVisitor::OnError(CryptoFramer* /*framer*/) {}
 
 void ChloFramerVisitor::OnHandshakeMessage(
     const CryptoHandshakeMessage& message) {

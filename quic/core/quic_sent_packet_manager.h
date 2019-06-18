@@ -54,25 +54,26 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
 
     // Called when a spurious retransmission is detected.
     virtual void OnSpuriousPacketRetransmission(
-        TransmissionType transmission_type,
-        QuicByteCount byte_size) {}
+        TransmissionType /*transmission_type*/,
+        QuicByteCount /*byte_size*/) {}
 
-    virtual void OnIncomingAck(const QuicAckFrame& ack_frame,
-                               QuicTime ack_receive_time,
-                               QuicPacketNumber largest_observed,
-                               bool rtt_updated,
-                               QuicPacketNumber least_unacked_sent_packet) {}
+    virtual void OnIncomingAck(const QuicAckFrame& /*ack_frame*/,
+                               QuicTime /*ack_receive_time*/,
+                               QuicPacketNumber /*largest_observed*/,
+                               bool /*rtt_updated*/,
+                               QuicPacketNumber /*least_unacked_sent_packet*/) {
+    }
 
-    virtual void OnPacketLoss(QuicPacketNumber lost_packet_number,
-                              TransmissionType transmission_type,
-                              QuicTime detection_time) {}
+    virtual void OnPacketLoss(QuicPacketNumber /*lost_packet_number*/,
+                              TransmissionType /*transmission_type*/,
+                              QuicTime /*detection_time*/) {}
 
     virtual void OnApplicationLimited() {}
 
-    virtual void OnAdjustNetworkParameters(QuicBandwidth bandwidth,
-                                           QuicTime::Delta rtt,
-                                           QuicByteCount old_cwnd,
-                                           QuicByteCount new_cwnd) {}
+    virtual void OnAdjustNetworkParameters(QuicBandwidth /*bandwidth*/,
+                                           QuicTime::Delta /*rtt*/,
+                                           QuicByteCount /*old_cwnd*/,
+                                           QuicByteCount /*new_cwnd*/) {}
   };
 
   // Interface which gets callbacks from the QuicSentPacketManager when

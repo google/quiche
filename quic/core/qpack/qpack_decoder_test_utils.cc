@@ -14,10 +14,10 @@ namespace quic {
 namespace test {
 
 void NoopEncoderStreamErrorDelegate::OnEncoderStreamError(
-    QuicStringPiece error_message) {}
+    QuicStringPiece /*error_message*/) {}
 
 void NoopDecoderStreamSenderDelegate::WriteDecoderStreamData(
-    QuicStringPiece data) {}
+    QuicStringPiece /*data*/) {}
 
 TestHeadersHandler::TestHeadersHandler()
     : decoding_completed_(false), decoding_error_detected_(false) {}
@@ -38,7 +38,7 @@ void TestHeadersHandler::OnDecodingCompleted() {
 }
 
 void TestHeadersHandler::OnDecodingErrorDetected(
-    QuicStringPiece error_message) {
+    QuicStringPiece /*error_message*/) {
   ASSERT_FALSE(decoding_completed_);
   ASSERT_FALSE(decoding_error_detected_);
 

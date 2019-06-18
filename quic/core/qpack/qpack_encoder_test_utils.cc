@@ -10,10 +10,10 @@ namespace quic {
 namespace test {
 
 void NoopDecoderStreamErrorDelegate::OnDecoderStreamError(
-    QuicStringPiece error_message) {}
+    QuicStringPiece /*error_message*/) {}
 
 void NoopEncoderStreamSenderDelegate::WriteEncoderStreamData(
-    QuicStringPiece data) {}
+    QuicStringPiece /*data*/) {}
 
 std::string QpackEncode(
     QpackEncoder::DecoderStreamErrorDelegate* decoder_stream_error_delegate,

@@ -229,7 +229,7 @@ void QuicEndpoint::OnStreamFrame(const QuicStreamFrame& frame) {
   DCHECK_LE(offsets_received_.Size(), 1000u);
 }
 
-void QuicEndpoint::OnCryptoFrame(const QuicCryptoFrame& frame) {}
+void QuicEndpoint::OnCryptoFrame(const QuicCryptoFrame& /*frame*/) {}
 
 void QuicEndpoint::OnCanWrite() {
   if (notifier_ != nullptr) {
@@ -308,8 +308,8 @@ QuicEndpoint::Writer::~Writer() {}
 WriteResult QuicEndpoint::Writer::WritePacket(
     const char* buffer,
     size_t buf_len,
-    const QuicIpAddress& self_address,
-    const QuicSocketAddress& peer_address,
+    const QuicIpAddress& /*self_address*/,
+    const QuicSocketAddress& /*peer_address*/,
     PerPacketOptions* options) {
   DCHECK(!IsWriteBlocked());
   DCHECK(options == nullptr);
@@ -358,8 +358,8 @@ bool QuicEndpoint::Writer::IsBatchMode() const {
 }
 
 char* QuicEndpoint::Writer::GetNextWriteLocation(
-    const QuicIpAddress& self_address,
-    const QuicSocketAddress& peer_address) {
+    const QuicIpAddress& /*self_address*/,
+    const QuicSocketAddress& /*peer_address*/) {
   return nullptr;
 }
 
@@ -368,18 +368,18 @@ WriteResult QuicEndpoint::Writer::Flush() {
 }
 
 WriteStreamDataResult QuicEndpoint::DataProducer::WriteStreamData(
-    QuicStreamId id,
-    QuicStreamOffset offset,
+    QuicStreamId /*id*/,
+    QuicStreamOffset /*offset*/,
     QuicByteCount data_length,
     QuicDataWriter* writer) {
   writer->WriteRepeatedByte(kStreamDataContents, data_length);
   return WRITE_SUCCESS;
 }
 
-bool QuicEndpoint::DataProducer::WriteCryptoData(EncryptionLevel leve,
-                                                 QuicStreamOffset offset,
-                                                 QuicByteCount data_length,
-                                                 QuicDataWriter* writer) {
+bool QuicEndpoint::DataProducer::WriteCryptoData(EncryptionLevel /*level*/,
+                                                 QuicStreamOffset /*offset*/,
+                                                 QuicByteCount /*data_length*/,
+                                                 QuicDataWriter* /*writer*/) {
   QUIC_BUG << "QuicEndpoint::DataProducer::WriteCryptoData is unimplemented";
   return false;
 }

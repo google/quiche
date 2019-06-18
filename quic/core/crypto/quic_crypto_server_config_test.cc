@@ -465,8 +465,8 @@ TEST_F(CryptoServerConfigsTest, AdvancePrimary) {
 
 class ValidateCallback : public ValidateClientHelloResultCallback {
  public:
-  void Run(QuicReferenceCountedPointer<Result> result,
-           std::unique_ptr<ProofSource::Details> /* details */) override {}
+  void Run(QuicReferenceCountedPointer<Result> /*result*/,
+           std::unique_ptr<ProofSource::Details> /*details*/) override {}
 };
 
 TEST_F(CryptoServerConfigsTest, AdvancePrimaryViaValidate) {

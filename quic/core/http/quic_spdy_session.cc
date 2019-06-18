@@ -106,19 +106,19 @@ class QuicSpdySession::SpdyFramerVisitor
     header_list_.Clear();
   }
 
-  void OnStreamFrameData(SpdyStreamId stream_id,
-                         const char* data,
-                         size_t len) override {
+  void OnStreamFrameData(SpdyStreamId /*stream_id*/,
+                         const char* /*data*/,
+                         size_t /*len*/) override {
     CloseConnection("SPDY DATA frame received.",
                     QUIC_INVALID_HEADERS_STREAM_DATA);
   }
 
-  void OnStreamEnd(SpdyStreamId stream_id) override {
+  void OnStreamEnd(SpdyStreamId /*stream_id*/) override {
     // The framer invokes OnStreamEnd after processing a frame that had the fin
     // bit set.
   }
 
-  void OnStreamPadding(SpdyStreamId stream_id, size_t len) override {
+  void OnStreamPadding(SpdyStreamId /*stream_id*/, size_t /*len*/) override {
     CloseConnection("SPDY frame padding received.",
                     QUIC_INVALID_HEADERS_STREAM_DATA);
   }
@@ -138,14 +138,15 @@ class QuicSpdySession::SpdyFramerVisitor
         code);
   }
 
-  void OnDataFrameHeader(SpdyStreamId stream_id,
-                         size_t length,
-                         bool fin) override {
+  void OnDataFrameHeader(SpdyStreamId /*stream_id*/,
+                         size_t /*length*/,
+                         bool /*fin*/) override {
     CloseConnection("SPDY DATA frame received.",
                     QUIC_INVALID_HEADERS_STREAM_DATA);
   }
 
-  void OnRstStream(SpdyStreamId stream_id, SpdyErrorCode error_code) override {
+  void OnRstStream(SpdyStreamId /*stream_id*/,
+                   SpdyErrorCode /*error_code*/) override {
     CloseConnection("SPDY RST_STREAM frame received.",
                     QUIC_INVALID_HEADERS_STREAM_DATA);
   }
@@ -185,13 +186,13 @@ class QuicSpdySession::SpdyFramerVisitor
 
   void OnSettingsEnd() override {}
 
-  void OnPing(SpdyPingId unique_id, bool is_ack) override {
+  void OnPing(SpdyPingId /*unique_id*/, bool /*is_ack*/) override {
     CloseConnection("SPDY PING frame received.",
                     QUIC_INVALID_HEADERS_STREAM_DATA);
   }
 
-  void OnGoAway(SpdyStreamId last_accepted_stream_id,
-                SpdyErrorCode error_code) override {
+  void OnGoAway(SpdyStreamId /*last_accepted_stream_id*/,
+                SpdyErrorCode /*error_code*/) override {
     CloseConnection("SPDY GOAWAY frame received.",
                     QUIC_INVALID_HEADERS_STREAM_DATA);
   }
@@ -202,7 +203,7 @@ class QuicSpdySession::SpdyFramerVisitor
                  SpdyStreamId /*parent_stream_id*/,
                  bool /*exclusive*/,
                  bool fin,
-                 bool end) override {
+                 bool /*end*/) override {
     if (!session_->IsConnected()) {
       return;
     }
@@ -220,14 +221,15 @@ class QuicSpdySession::SpdyFramerVisitor
     session_->OnHeaders(stream_id, has_priority, priority, fin);
   }
 
-  void OnWindowUpdate(SpdyStreamId stream_id, int delta_window_size) override {
+  void OnWindowUpdate(SpdyStreamId /*stream_id*/,
+                      int /*delta_window_size*/) override {
     CloseConnection("SPDY WINDOW_UPDATE frame received.",
                     QUIC_INVALID_HEADERS_STREAM_DATA);
   }
 
   void OnPushPromise(SpdyStreamId stream_id,
                      SpdyStreamId promised_stream_id,
-                     bool end) override {
+                     bool /*end*/) override {
     if (!session_->supports_push_promise()) {
       CloseConnection("PUSH_PROMISE not supported.",
                       QUIC_INVALID_HEADERS_STREAM_DATA);
@@ -239,12 +241,12 @@ class QuicSpdySession::SpdyFramerVisitor
     session_->OnPushPromise(stream_id, promised_stream_id);
   }
 
-  void OnContinuation(SpdyStreamId stream_id, bool end) override {}
+  void OnContinuation(SpdyStreamId /*stream_id*/, bool /*end*/) override {}
 
   void OnPriority(SpdyStreamId stream_id,
-                  SpdyStreamId parent_id,
+                  SpdyStreamId /*parent_id*/,
                   int weight,
-                  bool exclusive) override {
+                  bool /*exclusive*/) override {
     if (session_->connection()->transport_version() <= QUIC_VERSION_39) {
       CloseConnection("SPDY PRIORITY frame received.",
                       QUIC_INVALID_HEADERS_STREAM_DATA);
@@ -259,15 +261,16 @@ class QuicSpdySession::SpdyFramerVisitor
     session_->OnPriority(stream_id, priority);
   }
 
-  bool OnUnknownFrame(SpdyStreamId stream_id, uint8_t frame_type) override {
+  bool OnUnknownFrame(SpdyStreamId /*stream_id*/,
+                      uint8_t /*frame_type*/) override {
     CloseConnection("Unknown frame type received.",
                     QUIC_INVALID_HEADERS_STREAM_DATA);
     return false;
   }
 
   // SpdyFramerDebugVisitorInterface implementation
-  void OnSendCompressedFrame(SpdyStreamId stream_id,
-                             SpdyFrameType type,
+  void OnSendCompressedFrame(SpdyStreamId /*stream_id*/,
+                             SpdyFrameType /*type*/,
                              size_t payload_len,
                              size_t frame_len) override {
     if (payload_len == 0) {
@@ -278,8 +281,8 @@ class QuicSpdySession::SpdyFramerVisitor
     QUIC_DVLOG(1) << "Net.QuicHpackCompressionPercentage: " << compression_pct;
   }
 
-  void OnReceiveCompressedFrame(SpdyStreamId stream_id,
-                                SpdyFrameType type,
+  void OnReceiveCompressedFrame(SpdyStreamId /*stream_id*/,
+                                SpdyFrameType /*type*/,
                                 size_t frame_len) override {
     if (session_->IsConnected()) {
       session_->OnCompressedFrameSize(frame_len);
@@ -396,28 +399,28 @@ void QuicSpdySession::Initialize() {
   set_max_decode_buffer_size_bytes(2 * max_inbound_header_list_size_);
 }
 
-void QuicSpdySession::OnDecoderStreamError(QuicStringPiece error_message) {
+void QuicSpdySession::OnDecoderStreamError(QuicStringPiece /*error_message*/) {
   DCHECK(VersionUsesQpack(connection()->transport_version()));
 
   // TODO(112770235): Signal connection error on decoder stream errors.
   QUIC_NOTREACHED();
 }
 
-void QuicSpdySession::WriteEncoderStreamData(QuicStringPiece data) {
+void QuicSpdySession::WriteEncoderStreamData(QuicStringPiece /*data*/) {
   DCHECK(VersionUsesQpack(connection()->transport_version()));
 
   // TODO(112770235): Send encoder stream data on encoder stream.
   QUIC_NOTREACHED();
 }
 
-void QuicSpdySession::OnEncoderStreamError(QuicStringPiece error_message) {
+void QuicSpdySession::OnEncoderStreamError(QuicStringPiece /*error_message*/) {
   DCHECK(VersionUsesQpack(connection()->transport_version()));
 
   // TODO(112770235): Signal connection error on encoder stream errors.
   QUIC_NOTREACHED();
 }
 
-void QuicSpdySession::WriteDecoderStreamData(QuicStringPiece data) {
+void QuicSpdySession::WriteDecoderStreamData(QuicStringPiece /*data*/) {
   DCHECK(VersionUsesQpack(connection()->transport_version()));
 
   // TODO(112770235): Send decoder stream data on decoder stream.
@@ -614,10 +617,11 @@ size_t QuicSpdySession::WriteHeadersOnHeadersStreamImpl(
   return frame.size();
 }
 
-void QuicSpdySession::OnPromiseHeaderList(QuicStreamId stream_id,
-                                          QuicStreamId promised_stream_id,
-                                          size_t frame_len,
-                                          const QuicHeaderList& header_list) {
+void QuicSpdySession::OnPromiseHeaderList(
+    QuicStreamId /*stream_id*/,
+    QuicStreamId /*promised_stream_id*/,
+    size_t /*frame_len*/,
+    const QuicHeaderList& /*header_list*/) {
   std::string error =
       "OnPromiseHeaderList should be overridden in client code.";
   QUIC_BUG << error;

@@ -40,7 +40,7 @@ TlsServerConnection* TlsServerConnection::ConnectionFromSsl(SSL* ssl) {
 // static
 int TlsServerConnection::SelectCertificateCallback(SSL* ssl,
                                                    int* out_alert,
-                                                   void* arg) {
+                                                   void* /*arg*/) {
   return ConnectionFromSsl(ssl)->delegate_->SelectCertificate(out_alert);
 }
 
@@ -50,7 +50,7 @@ int TlsServerConnection::SelectAlpnCallback(SSL* ssl,
                                             uint8_t* out_len,
                                             const uint8_t* in,
                                             unsigned in_len,
-                                            void* arg) {
+                                            void* /*arg*/) {
   return ConnectionFromSsl(ssl)->delegate_->SelectAlpn(out, out_len, in,
                                                        in_len);
 }

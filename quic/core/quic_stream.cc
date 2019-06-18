@@ -810,7 +810,7 @@ void QuicStream::AddRandomPaddingAfterFin() {
 bool QuicStream::OnStreamFrameAcked(QuicStreamOffset offset,
                                     QuicByteCount data_length,
                                     bool fin_acked,
-                                    QuicTime::Delta ack_delay_time,
+                                    QuicTime::Delta /*ack_delay_time*/,
                                     QuicByteCount* newly_acked_length) {
   QUIC_DVLOG(1) << ENDPOINT << "stream " << id_ << " Acking "
                 << "[" << offset << ", " << offset + data_length << "]"
@@ -1129,6 +1129,6 @@ void QuicStream::SendStopSending(uint16_t code) {
   session_->SendStopSending(code, id_);
 }
 
-void QuicStream::OnStopSending(uint16_t code) {}
+void QuicStream::OnStopSending(uint16_t /*code*/) {}
 
 }  // namespace quic

@@ -422,7 +422,7 @@ bool QuicUnackedPacketMap::NotifyFramesAcked(const QuicTransmissionInfo& info,
 }
 
 void QuicUnackedPacketMap::NotifyFramesLost(const QuicTransmissionInfo& info,
-                                            TransmissionType type) {
+                                            TransmissionType /*type*/) {
   DCHECK(session_decides_what_to_write_);
   for (const QuicFrame& frame : info.retransmittable_frames) {
     session_notifier_->OnFrameLost(frame);

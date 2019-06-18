@@ -35,15 +35,15 @@ void QpackEncoder::DecodeDecoderStreamData(QuicStringPiece data) {
   decoder_stream_receiver_.Decode(data);
 }
 
-void QpackEncoder::OnInsertCountIncrement(uint64_t increment) {
+void QpackEncoder::OnInsertCountIncrement(uint64_t /*increment*/) {
   // TODO(bnc): Implement dynamic table management for encoding.
 }
 
-void QpackEncoder::OnHeaderAcknowledgement(QuicStreamId stream_id) {
+void QpackEncoder::OnHeaderAcknowledgement(QuicStreamId /*stream_id*/) {
   // TODO(bnc): Implement dynamic table management for encoding.
 }
 
-void QpackEncoder::OnStreamCancellation(QuicStreamId stream_id) {
+void QpackEncoder::OnStreamCancellation(QuicStreamId /*stream_id*/) {
   // TODO(bnc): Implement dynamic table management for encoding.
 }
 

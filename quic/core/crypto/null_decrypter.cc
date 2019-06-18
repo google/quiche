@@ -32,12 +32,13 @@ bool NullDecrypter::SetHeaderProtectionKey(QuicStringPiece key) {
   return key.empty();
 }
 
-bool NullDecrypter::SetPreliminaryKey(QuicStringPiece key) {
+bool NullDecrypter::SetPreliminaryKey(QuicStringPiece /*key*/) {
   QUIC_BUG << "Should not be called";
   return false;
 }
 
-bool NullDecrypter::SetDiversificationNonce(const DiversificationNonce& nonce) {
+bool NullDecrypter::SetDiversificationNonce(
+    const DiversificationNonce& /*nonce*/) {
   QUIC_BUG << "Should not be called";
   return true;
 }
@@ -71,7 +72,7 @@ bool NullDecrypter::DecryptPacket(uint64_t /*packet_number*/,
 }
 
 std::string NullDecrypter::GenerateHeaderProtectionMask(
-    QuicDataReader* sample_reader) {
+    QuicDataReader* /*sample_reader*/) {
   return std::string(5, 0);
 }
 

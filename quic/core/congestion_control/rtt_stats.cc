@@ -41,7 +41,7 @@ void RttStats::ExpireSmoothedMetrics() {
 // Updates the RTT based on a new sample.
 void RttStats::UpdateRtt(QuicTime::Delta send_delta,
                          QuicTime::Delta ack_delay,
-                         QuicTime now) {
+                         QuicTime /*now*/) {
   if (send_delta.IsInfinite() || send_delta <= QuicTime::Delta::Zero()) {
     QUIC_LOG_FIRST_N(WARNING, 3)
         << "Ignoring measured send_delta, because it's is "

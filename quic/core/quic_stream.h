@@ -377,10 +377,10 @@ class QUIC_EXPORT_PRIVATE QuicStream
   // Called when data of [offset, offset + data_length] is buffered in send
   // buffer.
   virtual void OnDataBuffered(
-      QuicStreamOffset offset,
-      QuicByteCount data_length,
+      QuicStreamOffset /*offset*/,
+      QuicByteCount /*data_length*/,
       const QuicReferenceCountedPointer<QuicAckListenerInterface>&
-          ack_listener) {}
+      /*ack_listener*/) {}
 
   // True if buffered data in send buffer is below buffered_data_threshold_.
   bool CanWriteNewData() const;

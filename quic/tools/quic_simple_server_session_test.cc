@@ -124,8 +124,8 @@ class MockQuicConnectionWithSendStreamData : public MockQuicConnection {
                            alarm_factory,
                            perspective,
                            supported_versions) {
-    auto consume_all_data = [](QuicStreamId id, size_t write_length,
-                               QuicStreamOffset offset,
+    auto consume_all_data = [](QuicStreamId /*id*/, size_t write_length,
+                               QuicStreamOffset /*offset*/,
                                StreamSendingState state) {
       return QuicConsumedData(write_length, state != NO_FIN);
     };

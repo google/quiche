@@ -25,7 +25,7 @@ class CountingPacketFilter : public simulator::PacketFilter {
   void set_packets_to_drop(int count) { packets_to_drop_ = count; }
 
  protected:
-  bool FilterPacket(const simulator::Packet& packet) override {
+  bool FilterPacket(const simulator::Packet& /*packet*/) override {
     if (packets_to_drop_ > 0) {
       --packets_to_drop_;
       return false;

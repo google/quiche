@@ -176,8 +176,9 @@ QuicPacketNumberLength ReadSequenceNumberLength(uint8_t flags) {
   }
 }
 
-QuicPacketNumberLength ReadAckPacketNumberLength(QuicTransportVersion version,
-                                                 uint8_t flags) {
+QuicPacketNumberLength ReadAckPacketNumberLength(
+    QuicTransportVersion /*version*/,
+    uint8_t flags) {
   switch (flags & PACKET_FLAGS_8BYTE_PACKET) {
     case PACKET_FLAGS_8BYTE_PACKET:
       return PACKET_6BYTE_PACKET_NUMBER;
@@ -545,7 +546,7 @@ size_t QuicFramer::GetMinAckFrameSize(
 
 // static
 size_t QuicFramer::GetStopWaitingFrameSize(
-    QuicTransportVersion version,
+    QuicTransportVersion /*version*/,
     QuicPacketNumberLength packet_number_length) {
   size_t min_size = kQuicFrameTypeSize + packet_number_length;
   return min_size;
@@ -746,7 +747,7 @@ size_t QuicFramer::GetStreamIdSize(QuicStreamId stream_id) {
 }
 
 // static
-size_t QuicFramer::GetStreamOffsetSize(QuicTransportVersion version,
+size_t QuicFramer::GetStreamOffsetSize(QuicTransportVersion /*version*/,
                                        QuicStreamOffset offset) {
   // 0 is a special case.
   if (offset == 0) {
@@ -1354,7 +1355,7 @@ std::unique_ptr<QuicEncryptedPacket> QuicFramer::BuildPublicResetPacket(
 
 // static
 std::unique_ptr<QuicEncryptedPacket> QuicFramer::BuildIetfStatelessResetPacket(
-    QuicConnectionId connection_id,
+    QuicConnectionId /*connection_id*/,
     QuicUint128 stateless_reset_token) {
   QUIC_DVLOG(1) << "Building IETF stateless reset packet.";
   size_t len = kPacketHeaderTypeSize + kMinRandomBytesLengthInStatelessReset +
@@ -2396,7 +2397,7 @@ bool QuicFramer::ProcessPublicHeader(QuicDataReader* reader,
 
 // static
 QuicPacketNumberLength QuicFramer::GetMinPacketNumberLength(
-    QuicTransportVersion version,
+    QuicTransportVersion /*version*/,
     QuicPacketNumber packet_number) {
   DCHECK(packet_number.IsInitialized());
   if (packet_number < QuicPacketNumber(1 << (PACKET_1BYTE_PACKET_NUMBER * 8))) {
@@ -4621,7 +4622,7 @@ size_t QuicFramer::GetIetfAckFrameSize(const QuicAckFrame& frame) {
 
 size_t QuicFramer::GetAckFrameSize(
     const QuicAckFrame& ack,
-    QuicPacketNumberLength packet_number_length) {
+    QuicPacketNumberLength /*packet_number_length*/) {
   DCHECK(!ack.packets.Empty());
   size_t ack_size = 0;
 
@@ -5328,7 +5329,7 @@ bool QuicFramer::AppendStopWaitingFrame(const QuicPacketHeader& header,
 }
 
 int QuicFramer::CalculateIetfAckBlockCount(const QuicAckFrame& frame,
-                                           QuicDataWriter* writer,
+                                           QuicDataWriter* /*writer*/,
                                            size_t available_space) {
   // Number of blocks requested in the frame
   uint64_t ack_block_count = frame.packets.NumIntervals();

@@ -18,28 +18,28 @@ class QuicReceiveControlStream::HttpDecoderVisitor
   HttpDecoderVisitor(const HttpDecoderVisitor&) = delete;
   HttpDecoderVisitor& operator=(const HttpDecoderVisitor&) = delete;
 
-  void OnError(HttpDecoder* decoder) override {
+  void OnError(HttpDecoder* /*decoder*/) override {
     stream_->session()->connection()->CloseConnection(
         QUIC_HTTP_DECODER_ERROR, "Http decoder internal error",
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
   }
 
-  bool OnPriorityFrame(const PriorityFrame& frame) override {
+  bool OnPriorityFrame(const PriorityFrame& /*frame*/) override {
     CloseConnectionOnWrongFrame("Priority");
     return false;
   }
 
-  bool OnCancelPushFrame(const CancelPushFrame& frame) override {
+  bool OnCancelPushFrame(const CancelPushFrame& /*frame*/) override {
     CloseConnectionOnWrongFrame("Cancel Push");
     return false;
   }
 
-  bool OnMaxPushIdFrame(const MaxPushIdFrame& frame) override {
+  bool OnMaxPushIdFrame(const MaxPushIdFrame& /*frame*/) override {
     CloseConnectionOnWrongFrame("Max Push Id");
     return false;
   }
 
-  bool OnGoAwayFrame(const GoAwayFrame& frame) override {
+  bool OnGoAwayFrame(const GoAwayFrame& /*frame*/) override {
     CloseConnectionOnWrongFrame("Goaway");
     return false;
   }
@@ -52,17 +52,17 @@ class QuicReceiveControlStream::HttpDecoderVisitor
     return stream_->OnSettingsFrame(frame);
   }
 
-  bool OnDuplicatePushFrame(const DuplicatePushFrame& frame) override {
+  bool OnDuplicatePushFrame(const DuplicatePushFrame& /*frame*/) override {
     CloseConnectionOnWrongFrame("Duplicate Push");
     return false;
   }
 
-  bool OnDataFrameStart(Http3FrameLengths frame_lengths) override {
+  bool OnDataFrameStart(Http3FrameLengths /*frame_lengths*/) override {
     CloseConnectionOnWrongFrame("Data");
     return false;
   }
 
-  bool OnDataFramePayload(QuicStringPiece payload) override {
+  bool OnDataFramePayload(QuicStringPiece /*payload*/) override {
     CloseConnectionOnWrongFrame("Data");
     return false;
   }
@@ -72,12 +72,12 @@ class QuicReceiveControlStream::HttpDecoderVisitor
     return false;
   }
 
-  bool OnHeadersFrameStart(Http3FrameLengths frame_length) override {
+  bool OnHeadersFrameStart(Http3FrameLengths /*frame_length*/) override {
     CloseConnectionOnWrongFrame("Headers");
     return false;
   }
 
-  bool OnHeadersFramePayload(QuicStringPiece payload) override {
+  bool OnHeadersFramePayload(QuicStringPiece /*payload*/) override {
     CloseConnectionOnWrongFrame("Headers");
     return false;
   }
@@ -87,12 +87,12 @@ class QuicReceiveControlStream::HttpDecoderVisitor
     return false;
   }
 
-  bool OnPushPromiseFrameStart(PushId push_id) override {
+  bool OnPushPromiseFrameStart(PushId /*push_id*/) override {
     CloseConnectionOnWrongFrame("Push Promise");
     return false;
   }
 
-  bool OnPushPromiseFramePayload(QuicStringPiece payload) override {
+  bool OnPushPromiseFramePayload(QuicStringPiece /*payload*/) override {
     CloseConnectionOnWrongFrame("Push Promise");
     return false;
   }
@@ -124,7 +124,8 @@ QuicReceiveControlStream::QuicReceiveControlStream(PendingStream* pending)
 
 QuicReceiveControlStream::~QuicReceiveControlStream() {}
 
-void QuicReceiveControlStream::OnStreamReset(const QuicRstStreamFrame& frame) {
+void QuicReceiveControlStream::OnStreamReset(
+    const QuicRstStreamFrame& /*frame*/) {
   // TODO(renjietang) Change the error code to H/3 specific
   // HTTP_CLOSED_CRITICAL_STREAM.
   session()->connection()->CloseConnection(

@@ -46,7 +46,7 @@ class MockQuicSpdyClientSession : public QuicSpdyClientSession {
       delete;
   ~MockQuicSpdyClientSession() override {}
 
-  bool IsAuthorized(const std::string& authority) override {
+  bool IsAuthorized(const std::string& /*authority*/) override {
     return authorized_;
   }
 

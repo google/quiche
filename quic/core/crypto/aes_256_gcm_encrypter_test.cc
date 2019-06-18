@@ -81,7 +81,7 @@ const TestVector test_group_0[] = {
     {"5fe0861cdc2690ce69b3658c7f26f8458eec1c9243c5ba0845305d897e96ca0f",
      "770ac1a5a3d476d5d96944a1", "", "", "",
      "196d691e1047093ca4b3d2ef4baba216"},
-    {nullptr}};
+    {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr}};
 
 const TestVector test_group_1[] = {
     {"78dc4e0aaf52d935c3c01eea57428f00ca1fd475f5da86a49c8dd73d68c8e223",
@@ -90,7 +90,7 @@ const TestVector test_group_1[] = {
     {"4457ff33683cca6ca493878bdc00373893a9763412eef8cddb54f91318e0da88",
      "699d1f29d7b8c55300bb1fd2", "", "6749daeea367d0e9809e2dc2f309e6e3", "",
      "d60c74d2517fde4a74e0cd4709ed43a9"},
-    {nullptr}};
+    {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr}};
 
 const TestVector test_group_2[] = {
     {"31bdadd96698c204aa9ce1448ea94ae1fb4a9a0b3c9d773b51bb1822666b8f22",
@@ -99,7 +99,7 @@ const TestVector test_group_2[] = {
     {"460fc864972261c2560e1eb88761ff1c992b982497bd2ac36c04071cbb8e5d99",
      "8a4a16b9e210eb68bcb6f58d", "99e4e926ffe927f691893fb79a96b067", "",
      "133fc15751621b5f325c7ff71ce08324", "ec4e87e0cf74a13618d0b68636ba9fa7"},
-    {nullptr}};
+    {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr}};
 
 const TestVector test_group_3[] = {
     {"24501ad384e473963d476edcfe08205237acfd49b5b8f33857f8114e863fec7f",
@@ -118,7 +118,7 @@ const TestVector test_group_3[] = {
      "871cd53d95a8b806bd4821e6c4456204d27fd704ba3d07ce25872dc604ea5c5ea13322186"
      "b7489db4fa060c1fd4159692612c8",
      "07b48e4a32fac47e115d7ac7445d8330"},
-    {nullptr}};
+    {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr}};
 
 const TestVector test_group_4[] = {
     {"148579a3cbca86d5520d66c0ec71ca5f7e41ba78e56dc6eebd566fed547fe691",
@@ -141,7 +141,7 @@ const TestVector test_group_4[] = {
      "32ca3588e3e56eb4c8301b009d8b84b8a900b2b88ca3c21944205e9dd7311757b51394ae9"
      "0d8bb3807b471677614f4198af909",
      "3e403d035c71d88f1be1a256c89ba6ad"},
-    {nullptr}};
+    {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr}};
 
 const TestVector test_group_5[] = {
     {"82c4f12eeec3b2d3d157b0f992d292b237478d2cecc1d5f161389b97f999057a",
@@ -150,7 +150,7 @@ const TestVector test_group_5[] = {
     {"db4340af2f835a6c6d7ea0ca9d83ca81ba02c29b7410f221cb6071114e393240",
      "40e438357dd80a85cac3349e", "8ddb3397bd42853193cb0f80c9", "",
      "b694118c85c41abf69e229cb0f", "c07f1b8aafbd152f697eb67f2a85fe45"},
-    {nullptr}};
+    {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr}};
 
 const TestVector* const test_group_array[] = {
     test_group_0, test_group_1, test_group_2,

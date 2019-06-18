@@ -86,9 +86,9 @@ class FakeProofVerifier : public ProofVerifier {
   // run.
   class FailingProofVerifierCallback : public ProofVerifierCallback {
    public:
-    void Run(bool ok,
-             const std::string& error_details,
-             std::unique_ptr<ProofVerifyDetails>* details) override {
+    void Run(bool /*ok*/,
+             const std::string& /*error_details*/,
+             std::unique_ptr<ProofVerifyDetails>* /*details*/) override {
       FAIL();
     }
   };

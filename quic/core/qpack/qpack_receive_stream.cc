@@ -10,7 +10,7 @@ namespace quic {
 QpackReceiveStream::QpackReceiveStream(PendingStream* pending)
     : QuicStream(pending, READ_UNIDIRECTIONAL, /*is_static=*/true) {}
 
-void QpackReceiveStream::OnStreamReset(const QuicRstStreamFrame& frame) {
+void QpackReceiveStream::OnStreamReset(const QuicRstStreamFrame& /*frame*/) {
   // TODO(renjietang) Change the error code to H/3 specific
   // HTTP_CLOSED_CRITICAL_STREAM.
   session()->connection()->CloseConnection(

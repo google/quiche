@@ -17,8 +17,8 @@ QuartcPacketWriter::QuartcPacketWriter(QuartcPacketTransport* packet_transport,
 WriteResult QuartcPacketWriter::WritePacket(
     const char* buffer,
     size_t buf_len,
-    const QuicIpAddress& self_address,
-    const QuicSocketAddress& peer_address,
+    const QuicIpAddress& /*self_address*/,
+    const QuicSocketAddress& /*peer_address*/,
     PerPacketOptions* options) {
   DCHECK(packet_transport_);
 
@@ -42,7 +42,7 @@ bool QuartcPacketWriter::IsWriteBlocked() const {
 }
 
 QuicByteCount QuartcPacketWriter::GetMaxPacketSize(
-    const QuicSocketAddress& peer_address) const {
+    const QuicSocketAddress& /*peer_address*/) const {
   return max_packet_size_;
 }
 
@@ -59,8 +59,8 @@ bool QuartcPacketWriter::IsBatchMode() const {
 }
 
 char* QuartcPacketWriter::GetNextWriteLocation(
-    const QuicIpAddress& self_address,
-    const QuicSocketAddress& peer_address) {
+    const QuicIpAddress& /*self_address*/,
+    const QuicSocketAddress& /*peer_address*/) {
   return nullptr;
 }
 

@@ -50,7 +50,7 @@ class CryptoFramerVisitor : public CryptoFramerVisitorInterface {
  public:
   CryptoFramerVisitor() : error_(false) {}
 
-  void OnError(CryptoFramer* framer) override { error_ = true; }
+  void OnError(CryptoFramer* /*framer*/) override { error_ = true; }
 
   void OnHandshakeMessage(const CryptoHandshakeMessage& message) override {
     messages_.push_back(message);
@@ -150,12 +150,12 @@ class FullChloGenerator {
    public:
     explicit ProcessClientHelloCallback(FullChloGenerator* generator)
         : generator_(generator) {}
-    void Run(
-        QuicErrorCode error,
-        const std::string& error_details,
-        std::unique_ptr<CryptoHandshakeMessage> message,
-        std::unique_ptr<DiversificationNonce> diversification_nonce,
-        std::unique_ptr<ProofSource::Details> proof_source_details) override {
+    void Run(QuicErrorCode /*error*/,
+             const std::string& /*error_details*/,
+             std::unique_ptr<CryptoHandshakeMessage> message,
+             std::unique_ptr<DiversificationNonce> /*diversification_nonce*/,
+             std::unique_ptr<ProofSource::Details> /*proof_source_details*/)
+        override {
       generator_->ProcessClientHelloDone(std::move(message));
     }
 
@@ -303,7 +303,7 @@ void SetupCryptoServerConfigForTest(const QuicClock* clock,
 
 void SendHandshakeMessageToStream(QuicCryptoStream* stream,
                                   const CryptoHandshakeMessage& message,
-                                  Perspective perspective) {
+                                  Perspective /*perspective*/) {
   const QuicData& data = message.GetSerialized();
   QuicSession* session = QuicStreamPeer::session(stream);
   if (!QuicVersionUsesCryptoFrames(

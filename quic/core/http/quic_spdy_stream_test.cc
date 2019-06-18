@@ -78,7 +78,7 @@ class TestStream : public QuicSpdyStream {
   size_t WriteHeadersImpl(spdy::SpdyHeaderBlock header_block,
                           bool fin,
                           QuicReferenceCountedPointer<QuicAckListenerInterface>
-                              ack_listener) override {
+                          /*ack_listener*/) override {
     saved_headers_ = std::move(header_block);
     WriteHeadersMock(fin);
     if (VersionUsesQpack(transport_version())) {

@@ -51,8 +51,8 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream : public QuicStream {
     virtual void OnClose(QuicSpdyStream* stream) = 0;
 
     // Allows subclasses to override and do work.
-    virtual void OnPromiseHeadersComplete(QuicStreamId promised_id,
-                                          size_t frame_len) {}
+    virtual void OnPromiseHeadersComplete(QuicStreamId /*promised_id*/,
+                                          size_t /*frame_len*/) {}
 
    protected:
     virtual ~Visitor() {}

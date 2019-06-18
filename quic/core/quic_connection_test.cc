@@ -124,16 +124,18 @@ class TaggingEncrypter : public QuicEncrypter {
   ~TaggingEncrypter() override {}
 
   // QuicEncrypter interface.
-  bool SetKey(QuicStringPiece key) override { return true; }
+  bool SetKey(QuicStringPiece /*key*/) override { return true; }
 
-  bool SetNoncePrefix(QuicStringPiece nonce_prefix) override { return true; }
+  bool SetNoncePrefix(QuicStringPiece /*nonce_prefix*/) override {
+    return true;
+  }
 
-  bool SetIV(QuicStringPiece iv) override { return true; }
+  bool SetIV(QuicStringPiece /*iv*/) override { return true; }
 
-  bool SetHeaderProtectionKey(QuicStringPiece key) override { return true; }
+  bool SetHeaderProtectionKey(QuicStringPiece /*key*/) override { return true; }
 
-  bool EncryptPacket(uint64_t packet_number,
-                     QuicStringPiece associated_data,
+  bool EncryptPacket(uint64_t /*packet_number*/,
+                     QuicStringPiece /*associated_data*/,
                      QuicStringPiece plaintext,
                      char* output,
                      size_t* output_length,
@@ -150,7 +152,8 @@ class TaggingEncrypter : public QuicEncrypter {
     return true;
   }
 
-  std::string GenerateHeaderProtectionMask(QuicStringPiece sample) override {
+  std::string GenerateHeaderProtectionMask(
+      QuicStringPiece /*sample*/) override {
     return std::string(5, 0);
   }
 
@@ -185,29 +188,31 @@ class TaggingDecrypter : public QuicDecrypter {
   ~TaggingDecrypter() override {}
 
   // QuicDecrypter interface
-  bool SetKey(QuicStringPiece key) override { return true; }
+  bool SetKey(QuicStringPiece /*key*/) override { return true; }
 
-  bool SetNoncePrefix(QuicStringPiece nonce_prefix) override { return true; }
+  bool SetNoncePrefix(QuicStringPiece /*nonce_prefix*/) override {
+    return true;
+  }
 
-  bool SetIV(QuicStringPiece iv) override { return true; }
+  bool SetIV(QuicStringPiece /*iv*/) override { return true; }
 
-  bool SetHeaderProtectionKey(QuicStringPiece key) override { return true; }
+  bool SetHeaderProtectionKey(QuicStringPiece /*key*/) override { return true; }
 
-  bool SetPreliminaryKey(QuicStringPiece key) override {
+  bool SetPreliminaryKey(QuicStringPiece /*key*/) override {
     QUIC_BUG << "should not be called";
     return false;
   }
 
-  bool SetDiversificationNonce(const DiversificationNonce& key) override {
+  bool SetDiversificationNonce(const DiversificationNonce& /*key*/) override {
     return true;
   }
 
-  bool DecryptPacket(uint64_t packet_number,
-                     QuicStringPiece associated_data,
+  bool DecryptPacket(uint64_t /*packet_number*/,
+                     QuicStringPiece /*associated_data*/,
                      QuicStringPiece ciphertext,
                      char* output,
                      size_t* output_length,
-                     size_t max_output_length) override {
+                     size_t /*max_output_length*/) override {
     if (ciphertext.size() < kTagSize) {
       return false;
     }
@@ -220,7 +225,7 @@ class TaggingDecrypter : public QuicDecrypter {
   }
 
   std::string GenerateHeaderProtectionMask(
-      QuicDataReader* sample_reader) override {
+      QuicDataReader* /*sample_reader*/) override {
     return std::string(5, 0);
   }
 
@@ -260,7 +265,7 @@ class StrictTaggingDecrypter : public TaggingDecrypter {
   ~StrictTaggingDecrypter() override {}
 
   // TaggingQuicDecrypter
-  uint8_t GetTag(QuicStringPiece ciphertext) override { return tag_; }
+  uint8_t GetTag(QuicStringPiece /*ciphertext*/) override { return tag_; }
 
   // Use a distinct value starting with 0xFFFFFF, which is never used by TLS.
   uint32_t cipher_id() const override { return 0xFFFFFFF1; }
@@ -348,9 +353,9 @@ class TestPacketWriter : public QuicPacketWriter {
   // QuicPacketWriter interface
   WriteResult WritePacket(const char* buffer,
                           size_t buf_len,
-                          const QuicIpAddress& self_address,
-                          const QuicSocketAddress& peer_address,
-                          PerPacketOptions* options) override {
+                          const QuicIpAddress& /*self_address*/,
+                          const QuicSocketAddress& /*peer_address*/,
+                          PerPacketOptions* /*options*/) override {
     QuicEncryptedPacket packet(buffer, buf_len);
     ++packets_write_attempts_;
 
@@ -428,8 +433,9 @@ class TestPacketWriter : public QuicPacketWriter {
 
   bool IsBatchMode() const override { return is_batch_mode_; }
 
-  char* GetNextWriteLocation(const QuicIpAddress& self_address,
-                             const QuicSocketAddress& peer_address) override {
+  char* GetNextWriteLocation(
+      const QuicIpAddress& /*self_address*/,
+      const QuicSocketAddress& /*peer_address*/) override {
     return nullptr;
   }
 
@@ -620,7 +626,7 @@ class TestConnection : public QuicConnection {
     QuicConnectionPeer::SetLossAlgorithm(this, loss_algorithm);
   }
 
-  void SendPacket(EncryptionLevel level,
+  void SendPacket(EncryptionLevel /*level*/,
                   uint64_t packet_number,
                   std::unique_ptr<QuicPacket> packet,
                   HasRetransmittableData retransmittable,
@@ -1194,7 +1200,8 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
                                     level);
   }
 
-  size_t ProcessCryptoPacketAtLevel(uint64_t number, EncryptionLevel level) {
+  size_t ProcessCryptoPacketAtLevel(uint64_t number,
+                                    EncryptionLevel /*level*/) {
     QuicPacketHeader header = ConstructPacketHeader(number, ENCRYPTION_INITIAL);
     QuicFrames frames;
     if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
@@ -1317,7 +1324,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
 
   size_t ProcessStopWaitingPacketAtLevel(uint64_t number,
                                          QuicStopWaitingFrame frame,
-                                         EncryptionLevel level) {
+                                         EncryptionLevel /*level*/) {
     return ProcessFramePacketAtLevel(number, QuicFrame(frame),
                                      ENCRYPTION_ZERO_RTT);
   }

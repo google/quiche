@@ -1460,16 +1460,16 @@ bool QuicConnection::OnWindowUpdateFrame(const QuicWindowUpdateFrame& frame) {
 }
 
 bool QuicConnection::OnNewConnectionIdFrame(
-    const QuicNewConnectionIdFrame& frame) {
+    const QuicNewConnectionIdFrame& /*frame*/) {
   return true;
 }
 
 bool QuicConnection::OnRetireConnectionIdFrame(
-    const QuicRetireConnectionIdFrame& frame) {
+    const QuicRetireConnectionIdFrame& /*frame*/) {
   return true;
 }
 
-bool QuicConnection::OnNewTokenFrame(const QuicNewTokenFrame& frame) {
+bool QuicConnection::OnNewTokenFrame(const QuicNewTokenFrame& /*frame*/) {
   return true;
 }
 
@@ -1630,7 +1630,7 @@ bool QuicConnection::IsValidStatelessResetToken(QuicUint128 token) const {
 }
 
 void QuicConnection::OnAuthenticatedIetfStatelessResetPacket(
-    const QuicIetfStatelessResetPacket& packet) {
+    const QuicIetfStatelessResetPacket& /*packet*/) {
   // TODO(fayang): Add OnAuthenticatedIetfStatelessResetPacket to
   // debug_visitor_.
   const std::string error_details = "Received stateless reset.";

@@ -186,7 +186,8 @@ void QuicSpdyClientSessionBase::DeletePromised(
   headers_stream()->MaybeReleaseSequencerBuffer();
 }
 
-void QuicSpdyClientSessionBase::OnPushStreamTimedOut(QuicStreamId stream_id) {}
+void QuicSpdyClientSessionBase::OnPushStreamTimedOut(
+    QuicStreamId /*stream_id*/) {}
 
 void QuicSpdyClientSessionBase::ResetPromised(
     QuicStreamId id,

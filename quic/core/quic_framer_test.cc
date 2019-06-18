@@ -88,16 +88,18 @@ const uint8_t kVarInt62EightBytes = 0xc0;
 class TestEncrypter : public QuicEncrypter {
  public:
   ~TestEncrypter() override {}
-  bool SetKey(QuicStringPiece key) override { return true; }
-  bool SetNoncePrefix(QuicStringPiece nonce_prefix) override { return true; }
-  bool SetIV(QuicStringPiece iv) override { return true; }
-  bool SetHeaderProtectionKey(QuicStringPiece key) override { return true; }
+  bool SetKey(QuicStringPiece /*key*/) override { return true; }
+  bool SetNoncePrefix(QuicStringPiece /*nonce_prefix*/) override {
+    return true;
+  }
+  bool SetIV(QuicStringPiece /*iv*/) override { return true; }
+  bool SetHeaderProtectionKey(QuicStringPiece /*key*/) override { return true; }
   bool EncryptPacket(uint64_t packet_number,
                      QuicStringPiece associated_data,
                      QuicStringPiece plaintext,
                      char* output,
                      size_t* output_length,
-                     size_t max_output_length) override {
+                     size_t /*max_output_length*/) override {
     packet_number_ = QuicPacketNumber(packet_number);
     associated_data_ = std::string(associated_data);
     plaintext_ = std::string(plaintext);
@@ -105,7 +107,8 @@ class TestEncrypter : public QuicEncrypter {
     *output_length = plaintext.length();
     return true;
   }
-  std::string GenerateHeaderProtectionMask(QuicStringPiece sample) override {
+  std::string GenerateHeaderProtectionMask(
+      QuicStringPiece /*sample*/) override {
     return std::string(5, 0);
   }
   size_t GetKeySize() const override { return 0; }
@@ -128,15 +131,17 @@ class TestEncrypter : public QuicEncrypter {
 class TestDecrypter : public QuicDecrypter {
  public:
   ~TestDecrypter() override {}
-  bool SetKey(QuicStringPiece key) override { return true; }
-  bool SetNoncePrefix(QuicStringPiece nonce_prefix) override { return true; }
-  bool SetIV(QuicStringPiece iv) override { return true; }
-  bool SetHeaderProtectionKey(QuicStringPiece key) override { return true; }
-  bool SetPreliminaryKey(QuicStringPiece key) override {
+  bool SetKey(QuicStringPiece /*key*/) override { return true; }
+  bool SetNoncePrefix(QuicStringPiece /*nonce_prefix*/) override {
+    return true;
+  }
+  bool SetIV(QuicStringPiece /*iv*/) override { return true; }
+  bool SetHeaderProtectionKey(QuicStringPiece /*key*/) override { return true; }
+  bool SetPreliminaryKey(QuicStringPiece /*key*/) override {
     QUIC_BUG << "should not be called";
     return false;
   }
-  bool SetDiversificationNonce(const DiversificationNonce& key) override {
+  bool SetDiversificationNonce(const DiversificationNonce& /*key*/) override {
     return true;
   }
   bool DecryptPacket(uint64_t packet_number,
@@ -144,7 +149,7 @@ class TestDecrypter : public QuicDecrypter {
                      QuicStringPiece ciphertext,
                      char* output,
                      size_t* output_length,
-                     size_t max_output_length) override {
+                     size_t /*max_output_length*/) override {
     packet_number_ = QuicPacketNumber(packet_number);
     associated_data_ = std::string(associated_data);
     ciphertext_ = std::string(ciphertext);
@@ -153,7 +158,7 @@ class TestDecrypter : public QuicDecrypter {
     return true;
   }
   std::string GenerateHeaderProtectionMask(
-      QuicDataReader* sample_reader) override {
+      QuicDataReader* /*sample_reader*/) override {
     return std::string(5, 0);
   }
   size_t GetKeySize() const override { return 0; }
@@ -221,11 +226,11 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
     return accept_public_header_;
   }
 
-  bool OnUnauthenticatedHeader(const QuicPacketHeader& header) override {
+  bool OnUnauthenticatedHeader(const QuicPacketHeader& /*header*/) override {
     return true;
   }
 
-  void OnDecryptedPacket(EncryptionLevel level) override {}
+  void OnDecryptedPacket(EncryptionLevel /*level*/) override {}
 
   bool OnPacketHeader(const QuicPacketHeader& header) override {
     ++packet_count_;

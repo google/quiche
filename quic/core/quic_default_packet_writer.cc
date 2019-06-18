@@ -39,7 +39,7 @@ void QuicDefaultPacketWriter::SetWritable() {
 }
 
 QuicByteCount QuicDefaultPacketWriter::GetMaxPacketSize(
-    const QuicSocketAddress& peer_address) const {
+    const QuicSocketAddress& /*peer_address*/) const {
   return kMaxOutgoingPacketSize;
 }
 
@@ -52,8 +52,8 @@ bool QuicDefaultPacketWriter::IsBatchMode() const {
 }
 
 char* QuicDefaultPacketWriter::GetNextWriteLocation(
-    const QuicIpAddress& self_address,
-    const QuicSocketAddress& peer_address) {
+    const QuicIpAddress& /*self_address*/,
+    const QuicSocketAddress& /*peer_address*/) {
   return nullptr;
 }
 

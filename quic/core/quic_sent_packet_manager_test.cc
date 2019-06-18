@@ -161,7 +161,7 @@ class QuicSentPacketManagerTest : public QuicTestWithParam<bool> {
     EXPECT_CALL(*network_change_visitor_, OnCongestionChange());
   }
 
-  void ExpectUpdatedRtt(uint64_t largest_observed) {
+  void ExpectUpdatedRtt(uint64_t /*largest_observed*/) {
     EXPECT_CALL(*send_algorithm_,
                 OnCongestionEvent(true, _, _, IsEmpty(), IsEmpty()));
     EXPECT_CALL(*network_change_visitor_, OnCongestionChange());

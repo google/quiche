@@ -103,7 +103,7 @@ const TestVector test_vectors[] = {
      "1ae10b594f09e26a7e902ecb",  // "d0600691" truncated
 
      nullptr},
-    {nullptr}};
+    {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr}};
 
 }  // namespace
 

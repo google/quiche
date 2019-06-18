@@ -76,7 +76,7 @@ class DefaultKeyExchangeSource : public KeyExchangeSource {
   ~DefaultKeyExchangeSource() override = default;
 
   std::unique_ptr<AsynchronousKeyExchange> Create(
-      std::string server_config_id,
+      std::string /*server_config_id*/,
       bool /* is_fallback */,
       QuicTag type,
       QuicStringPiece private_key) override {
@@ -1199,7 +1199,7 @@ void QuicCryptoServerConfig::SelectNewPrimaryConfig(
 
 void QuicCryptoServerConfig::EvaluateClientHello(
     const QuicSocketAddress& server_address,
-    QuicTransportVersion version,
+    QuicTransportVersion /*version*/,
     const Configs& configs,
     QuicReferenceCountedPointer<ValidateClientHelloResultCallback::Result>
         client_hello_state,
@@ -1384,7 +1384,7 @@ void QuicCryptoServerConfig::FinishBuildServerConfigUpdateMessage(
     const QuicReferenceCountedPointer<ProofSource::Chain>& chain,
     const std::string& signature,
     const std::string& leaf_cert_sct,
-    std::unique_ptr<ProofSource::Details> details,
+    std::unique_ptr<ProofSource::Details> /*details*/,
     CryptoHandshakeMessage message,
     std::unique_ptr<BuildServerConfigUpdateMessageResultCallback> cb) const {
   if (!ok) {

@@ -261,7 +261,8 @@ std::string TcpCubicSenderBytes::GetDebugState() const {
   return "";
 }
 
-void TcpCubicSenderBytes::OnApplicationLimited(QuicByteCount bytes_in_flight) {}
+void TcpCubicSenderBytes::OnApplicationLimited(
+    QuicByteCount /*bytes_in_flight*/) {}
 
 void TcpCubicSenderBytes::SetCongestionWindowFromBandwidthAndRtt(
     QuicBandwidth bandwidth,
@@ -360,7 +361,7 @@ QuicByteCount TcpCubicSenderBytes::GetSlowStartThreshold() const {
 // Called when we receive an ack. Normal TCP tracks how many packets one ack
 // represents, but quic has a separate ack for each packet.
 void TcpCubicSenderBytes::MaybeIncreaseCwnd(
-    QuicPacketNumber acked_packet_number,
+    QuicPacketNumber /*acked_packet_number*/,
     QuicByteCount acked_bytes,
     QuicByteCount prior_in_flight,
     QuicTime event_time) {

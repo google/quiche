@@ -53,7 +53,7 @@ QuartcDispatcher::~QuartcDispatcher() {
 QuartcSession* QuartcDispatcher::CreateQuicSession(
     QuicConnectionId connection_id,
     const QuicSocketAddress& client_address,
-    QuicStringPiece alpn,
+    QuicStringPiece /*alpn*/,
     const ParsedQuicVersion& version) {
   // Make our expected connection ID non-mutable since we have a connection.
   SetShouldUpdateExpectedServerConnectionIdLength(false);

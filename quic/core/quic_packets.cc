@@ -300,7 +300,7 @@ QuicPacket::QuicPacket(
       retry_token_length_(retry_token_length),
       length_length_(length_length) {}
 
-QuicPacket::QuicPacket(QuicTransportVersion version,
+QuicPacket::QuicPacket(QuicTransportVersion /*version*/,
                        char* buffer,
                        size_t length,
                        bool owns_buffer,

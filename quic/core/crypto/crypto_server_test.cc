@@ -44,9 +44,9 @@ class DummyProofVerifierCallback : public ProofVerifierCallback {
   DummyProofVerifierCallback() {}
   ~DummyProofVerifierCallback() override {}
 
-  void Run(bool ok,
-           const std::string& error_details,
-           std::unique_ptr<ProofVerifyDetails>* details) override {
+  void Run(bool /*ok*/,
+           const std::string& /*error_details*/,
+           std::unique_ptr<ProofVerifyDetails>* /*details*/) override {
     DCHECK(false);
   }
 };
@@ -252,12 +252,12 @@ class CryptoServerTest : public QuicTestWithParam<TestParams> {
       *called_ = false;
     }
 
-    void Run(
-        QuicErrorCode error,
-        const std::string& error_details,
-        std::unique_ptr<CryptoHandshakeMessage> message,
-        std::unique_ptr<DiversificationNonce> diversification_nonce,
-        std::unique_ptr<ProofSource::Details> proof_source_details) override {
+    void Run(QuicErrorCode error,
+             const std::string& error_details,
+             std::unique_ptr<CryptoHandshakeMessage> message,
+             std::unique_ptr<DiversificationNonce> /*diversification_nonce*/,
+             std::unique_ptr<ProofSource::Details> /*proof_source_details*/)
+        override {
       if (should_succeed_) {
         ASSERT_EQ(error, QUIC_NO_ERROR)
             << "Message failed with error " << error_details << ": "

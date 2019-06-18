@@ -107,7 +107,7 @@ class QuicStreamSequencerTest : public QuicTest {
            VerifyIovecs(sequencer, iovecs, num_iovecs, expected);
   }
 
-  bool VerifyIovecs(const QuicStreamSequencer& sequencer,
+  bool VerifyIovecs(const QuicStreamSequencer& /*sequencer*/,
                     iovec* iovecs,
                     size_t num_iovecs,
                     const std::vector<std::string>& expected) {

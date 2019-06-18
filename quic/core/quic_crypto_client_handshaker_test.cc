@@ -17,9 +17,9 @@ class TestProofHandler : public QuicCryptoClientStream::ProofHandler {
  public:
   ~TestProofHandler() override {}
   void OnProofValid(
-      const QuicCryptoClientConfig::CachedState& cached) override {}
+      const QuicCryptoClientConfig::CachedState& /*cached*/) override {}
   void OnProofVerifyDetailsAvailable(
-      const ProofVerifyDetails& verify_details) override {}
+      const ProofVerifyDetails& /*verify_details*/) override {}
 };
 
 class InsecureProofVerifier : public ProofVerifier {
@@ -29,30 +29,30 @@ class InsecureProofVerifier : public ProofVerifier {
 
   // ProofVerifier override.
   QuicAsyncStatus VerifyProof(
-      const std::string& hostname,
-      const uint16_t port,
-      const std::string& server_config,
-      QuicTransportVersion transport_version,
-      QuicStringPiece chlo_hash,
-      const std::vector<std::string>& certs,
-      const std::string& cert_sct,
-      const std::string& signature,
-      const ProofVerifyContext* context,
-      std::string* error_details,
-      std::unique_ptr<ProofVerifyDetails>* verify_details,
-      std::unique_ptr<ProofVerifierCallback> callback) override {
+      const std::string& /*hostname*/,
+      const uint16_t /*port*/,
+      const std::string& /*server_config*/,
+      QuicTransportVersion /*transport_version*/,
+      QuicStringPiece /*chlo_hash*/,
+      const std::vector<std::string>& /*certs*/,
+      const std::string& /*cert_sct*/,
+      const std::string& /*signature*/,
+      const ProofVerifyContext* /*context*/,
+      std::string* /*error_details*/,
+      std::unique_ptr<ProofVerifyDetails>* /*verify_details*/,
+      std::unique_ptr<ProofVerifierCallback> /*callback*/) override {
     return QUIC_SUCCESS;
   }
 
   QuicAsyncStatus VerifyCertChain(
-      const std::string& hostname,
-      const std::vector<std::string>& certs,
-      const std::string& ocsp_response,
-      const std::string& cert_sct,
-      const ProofVerifyContext* context,
-      std::string* error_details,
-      std::unique_ptr<ProofVerifyDetails>* details,
-      std::unique_ptr<ProofVerifierCallback> callback) override {
+      const std::string& /*hostname*/,
+      const std::vector<std::string>& /*certs*/,
+      const std::string& /*ocsp_response*/,
+      const std::string& /*cert_sct*/,
+      const ProofVerifyContext* /*context*/,
+      std::string* /*error_details*/,
+      std::unique_ptr<ProofVerifyDetails>* /*details*/,
+      std::unique_ptr<ProofVerifierCallback> /*callback*/) override {
     return QUIC_SUCCESS;
   }
 
@@ -69,21 +69,21 @@ class DummyProofSource : public ProofSource {
   // ProofSource override.
   void GetProof(const QuicSocketAddress& server_address,
                 const std::string& hostname,
-                const std::string& server_config,
-                QuicTransportVersion transport_version,
-                QuicStringPiece chlo_hash,
+                const std::string& /*server_config*/,
+                QuicTransportVersion /*transport_version*/,
+                QuicStringPiece /*chlo_hash*/,
                 std::unique_ptr<Callback> callback) override {
     QuicReferenceCountedPointer<ProofSource::Chain> chain =
         GetCertChain(server_address, hostname);
     QuicCryptoProof proof;
     proof.signature = "Dummy signature";
     proof.leaf_cert_scts = "Dummy timestamp";
-    callback->Run(true, chain, proof, nullptr /* details */);
+    callback->Run(true, chain, proof, /*details=*/nullptr);
   }
 
   QuicReferenceCountedPointer<Chain> GetCertChain(
-      const QuicSocketAddress& server_address,
-      const std::string& hostname) override {
+      const QuicSocketAddress& /*server_address*/,
+      const std::string& /*hostname*/) override {
     std::vector<std::string> certs;
     certs.push_back("Dummy cert");
     return QuicReferenceCountedPointer<ProofSource::Chain>(
@@ -91,10 +91,10 @@ class DummyProofSource : public ProofSource {
   }
 
   void ComputeTlsSignature(
-      const QuicSocketAddress& server_address,
-      const std::string& hostname,
-      uint16_t signature_algorithm,
-      QuicStringPiece in,
+      const QuicSocketAddress& /*server_address*/,
+      const std::string& /*hostname*/,
+      uint16_t /*signature_algorit*/,
+      QuicStringPiece /*in*/,
       std::unique_ptr<SignatureCallback> callback) override {
     callback->Run(true, "Dummy signature");
   }

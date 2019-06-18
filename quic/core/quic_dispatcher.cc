@@ -71,11 +71,11 @@ class PacketCollector : public QuicPacketCreator::DelegateInterface,
     return nullptr;
   }
 
-  void OnUnrecoverableError(QuicErrorCode error,
-                            const std::string& error_details) override {}
+  void OnUnrecoverableError(QuicErrorCode /*error*/,
+                            const std::string& /*error_details*/) override {}
 
   // QuicStreamFrameDataProducer
-  WriteStreamDataResult WriteStreamData(QuicStreamId id,
+  WriteStreamDataResult WriteStreamData(QuicStreamId /*id*/,
                                         QuicStreamOffset offset,
                                         QuicByteCount data_length,
                                         QuicDataWriter* writer) override {
@@ -84,7 +84,7 @@ class PacketCollector : public QuicPacketCreator::DelegateInterface,
     }
     return WRITE_FAILED;
   }
-  bool WriteCryptoData(EncryptionLevel level,
+  bool WriteCryptoData(EncryptionLevel /*level*/,
                        QuicStreamOffset offset,
                        QuicByteCount data_length,
                        QuicDataWriter* writer) override {
@@ -163,8 +163,8 @@ class StatelessConnectionTerminator {
 // Class which extracts the ALPN from a CHLO packet.
 class ChloAlpnExtractor : public ChloExtractor::Delegate {
  public:
-  void OnChlo(QuicTransportVersion version,
-              QuicConnectionId server_connection_id,
+  void OnChlo(QuicTransportVersion /*version*/,
+              QuicConnectionId /*server_connection_id*/,
               const CryptoHandshakeMessage& chlo) override {
     QuicStringPiece alpn_value;
     if (chlo.GetStringPiece(kALPN, &alpn_value)) {
@@ -581,7 +581,7 @@ QuicDispatcher::QuicPacketFate QuicDispatcher::ValidityChecks(
 
 void QuicDispatcher::CleanUpSession(SessionMap::iterator it,
                                     QuicConnection* connection,
-                                    ConnectionCloseSource source) {
+                                    ConnectionCloseSource /*source*/) {
   write_blocked_list_.erase(connection);
   QuicTimeWaitListManager::TimeWaitAction action =
       QuicTimeWaitListManager::SEND_STATELESS_RESET;
@@ -733,9 +733,10 @@ void QuicDispatcher::OnWriteBlocked(
   write_blocked_list_.insert(std::make_pair(blocked_writer, true));
 }
 
-void QuicDispatcher::OnRstStreamReceived(const QuicRstStreamFrame& frame) {}
+void QuicDispatcher::OnRstStreamReceived(const QuicRstStreamFrame& /*frame*/) {}
 
-void QuicDispatcher::OnStopSendingReceived(const QuicStopSendingFrame& frame) {}
+void QuicDispatcher::OnStopSendingReceived(
+    const QuicStopSendingFrame& /*frame*/) {}
 
 void QuicDispatcher::OnConnectionAddedToTimeWaitList(
     QuicConnectionId server_connection_id) {
@@ -851,7 +852,7 @@ void QuicDispatcher::OnRetryPacket(QuicConnectionId /*original_connection_id*/,
   DCHECK(false);
 }
 
-void QuicDispatcher::OnDecryptedPacket(EncryptionLevel level) {
+void QuicDispatcher::OnDecryptedPacket(EncryptionLevel /*level*/) {
   DCHECK(false);
 }
 
@@ -923,12 +924,12 @@ bool QuicDispatcher::OnConnectionCloseFrame(
   return false;
 }
 
-bool QuicDispatcher::OnMaxStreamsFrame(const QuicMaxStreamsFrame& frame) {
+bool QuicDispatcher::OnMaxStreamsFrame(const QuicMaxStreamsFrame& /*frame*/) {
   return true;
 }
 
 bool QuicDispatcher::OnStreamsBlockedFrame(
-    const QuicStreamsBlockedFrame& frame) {
+    const QuicStreamsBlockedFrame& /*frame*/) {
   return true;
 }
 
@@ -960,29 +961,29 @@ bool QuicDispatcher::OnWindowUpdateFrame(
   return false;
 }
 
-bool QuicDispatcher::OnBlockedFrame(const QuicBlockedFrame& frame) {
+bool QuicDispatcher::OnBlockedFrame(const QuicBlockedFrame& /*frame*/) {
   DCHECK(false);
   return false;
 }
 
 bool QuicDispatcher::OnNewConnectionIdFrame(
-    const QuicNewConnectionIdFrame& frame) {
+    const QuicNewConnectionIdFrame& /*frame*/) {
   DCHECK(false);
   return false;
 }
 
 bool QuicDispatcher::OnRetireConnectionIdFrame(
-    const QuicRetireConnectionIdFrame& frame) {
+    const QuicRetireConnectionIdFrame& /*frame*/) {
   DCHECK(false);
   return false;
 }
 
-bool QuicDispatcher::OnNewTokenFrame(const QuicNewTokenFrame& frame) {
+bool QuicDispatcher::OnNewTokenFrame(const QuicNewTokenFrame& /*frame*/) {
   DCHECK(false);
   return false;
 }
 
-bool QuicDispatcher::OnMessageFrame(const QuicMessageFrame& frame) {
+bool QuicDispatcher::OnMessageFrame(const QuicMessageFrame& /*frame*/) {
   DCHECK(false);
   return false;
 }
@@ -991,13 +992,13 @@ void QuicDispatcher::OnPacketComplete() {
   DCHECK(false);
 }
 
-bool QuicDispatcher::IsValidStatelessResetToken(QuicUint128 token) const {
+bool QuicDispatcher::IsValidStatelessResetToken(QuicUint128 /*token*/) const {
   DCHECK(false);
   return false;
 }
 
 void QuicDispatcher::OnAuthenticatedIetfStatelessResetPacket(
-    const QuicIetfStatelessResetPacket& packet) {
+    const QuicIetfStatelessResetPacket& /*packet*/) {
   DCHECK(false);
 }
 
@@ -1049,7 +1050,7 @@ bool QuicDispatcher::HasChlosBuffered() const {
 
 bool QuicDispatcher::ShouldCreateOrBufferPacketForConnection(
     QuicConnectionId server_connection_id,
-    bool ietf_quic) {
+    bool /*ietf_quic*/) {
   QUIC_VLOG(1) << "Received packet from new connection "
                << server_connection_id;
   return true;
@@ -1166,7 +1167,7 @@ void QuicDispatcher::SetLastError(QuicErrorCode error) {
 }
 
 bool QuicDispatcher::OnUnauthenticatedUnknownPublicHeader(
-    const QuicPacketHeader& header) {
+    const QuicPacketHeader& /*header*/) {
   return true;
 }
 

@@ -88,7 +88,7 @@ const TestVector test_group_0[] = {
         "51e43385bf533e168427e1ad", "", "", "38fe845c66e66bdd884c2aecafd280e6",
         nullptr  // FAIL
     },
-    {nullptr}};
+    {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr}};
 
 const TestVector test_group_1[] = {
     {"6dfdafd6703c285c01f14fd10a6012862b2af950d4733abb403b2e745b26945d",
@@ -99,7 +99,7 @@ const TestVector test_group_1[] = {
         "0723fb84a08f4ea09841f32a", "", "140be561b6171eab942c486a94d33d43",
         "aa0e1c9b57975bfc91aa137231977d2c", nullptr  // FAIL
     },
-    {nullptr}};
+    {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr}};
 
 const TestVector test_group_2[] = {
     {"4c8ebfe1444ec1b2d503c6986659af2c94fafe945f72c1e8486a5acfedb8a0f8",
@@ -113,7 +113,7 @@ const TestVector test_group_2[] = {
         "835090aed9552dbdd45277e2", "9f6607d68e22ccf21928db0986be126e", "",
         "f32617f67c574fd9f44ef76ff880ab9f", nullptr  // FAIL
     },
-    {nullptr}};
+    {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr}};
 
 const TestVector test_group_3[] = {
     {
@@ -141,7 +141,7 @@ const TestVector test_group_3[] = {
      "9cb3d04637048bc0bddef803ffbb56cf",
      "1d21639640e11638a2769e3fab78778f84be3f4a8ce28dfd99cb2e75171e05ea8e94e30aa"
      "78b54bb402b39d613616a8ed951dc"},
-    {nullptr}};
+    {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr}};
 
 const TestVector test_group_4[] = {
     {
@@ -175,7 +175,7 @@ const TestVector test_group_4[] = {
      "e0299e079bff46fd12e36d1c60e41434",
      "e5a3ce804a8516cdd12122c091256b789076576040dbf3c55e8be3c016025896b8a72532b"
      "fd51196cc82efca47aa0fd8e2e0dc"},
-    {nullptr}};
+    {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr}};
 
 const TestVector test_group_5[] = {
     {
@@ -189,7 +189,7 @@ const TestVector test_group_5[] = {
     {"dc1f64681014be221b00793bbcf5a5bc675b968eb7a3a3d5aa5978ef4fa45ecc",
      "056ae9a1a69e38af603924fe", "33013a48d9ea0df2911d583271", "",
      "5b8f9cc22303e979cd1524187e9f70fe", "2a7e05612191c8bce2f529dca9"},
-    {nullptr}};
+    {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr}};
 
 const TestVector* const test_group_array[] = {
     test_group_0, test_group_1, test_group_2,

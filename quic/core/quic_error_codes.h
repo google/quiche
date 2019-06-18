@@ -352,7 +352,7 @@ QUIC_EXPORT_PRIVATE inline std::string HistogramEnumString(
 }
 
 QUIC_EXPORT_PRIVATE inline std::string HistogramEnumDescription(
-    QuicErrorCode dummy) {
+    QuicErrorCode /*dummy*/) {
   return "cause";
 }
 

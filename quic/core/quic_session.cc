@@ -397,7 +397,7 @@ void QuicSession::OnRstStream(const QuicRstStreamFrame& frame) {
   stream->OnStreamReset(frame);
 }
 
-void QuicSession::OnGoAway(const QuicGoAwayFrame& frame) {
+void QuicSession::OnGoAway(const QuicGoAwayFrame& /*frame*/) {
   goaway_received_ = true;
 }
 
@@ -496,7 +496,7 @@ void QuicSession::OnSuccessfulVersionNegotiation(
 }
 
 void QuicSession::OnConnectivityProbeReceived(
-    const QuicSocketAddress& self_address,
+    const QuicSocketAddress& /*self_address*/,
     const QuicSocketAddress& peer_address) {
   if (perspective() == Perspective::IS_SERVER) {
     // Server only sends back a connectivity probe after received a
@@ -1894,7 +1894,7 @@ MessageResult QuicSession::SendMessage(QuicMemSliceSpan message) {
 }
 
 void QuicSession::OnMessageAcked(QuicMessageId message_id,
-                                 QuicTime receive_timestamp) {
+                                 QuicTime /*receive_timestamp*/) {
   QUIC_DVLOG(1) << ENDPOINT << "message " << message_id << " gets acked.";
 }
 

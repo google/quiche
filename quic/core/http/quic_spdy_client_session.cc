@@ -176,7 +176,7 @@ QuicSpdyClientSession::CreateQuicCryptoStream() {
       this);
 }
 
-bool QuicSpdyClientSession::IsAuthorized(const std::string& authority) {
+bool QuicSpdyClientSession::IsAuthorized(const std::string& /*authority*/) {
   return true;
 }
 

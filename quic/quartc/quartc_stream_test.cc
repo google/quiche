@@ -62,7 +62,7 @@ class MockQuicSession : public QuicSession {
 
   // Writes outgoing data from QuicStream to a string.
   QuicConsumedData WritevData(QuicStream* stream,
-                              QuicStreamId id,
+                              QuicStreamId /*id*/,
                               size_t write_length,
                               QuicStreamOffset offset,
                               StreamSendingState state) override {
@@ -82,11 +82,11 @@ class MockQuicSession : public QuicSession {
     return QuicConsumedData(write_length, state != StreamSendingState::NO_FIN);
   }
 
-  QuartcStream* CreateIncomingStream(QuicStreamId id) override {
+  QuartcStream* CreateIncomingStream(QuicStreamId /*id*/) override {
     return nullptr;
   }
 
-  QuartcStream* CreateIncomingStream(PendingStream* pending) override {
+  QuartcStream* CreateIncomingStream(PendingStream* /*pending*/) override {
     return nullptr;
   }
 
@@ -97,9 +97,9 @@ class MockQuicSession : public QuicSession {
   }
 
   // Called by QuicStream when they want to close stream.
-  void SendRstStream(QuicStreamId id,
-                     QuicRstStreamErrorCode error,
-                     QuicStreamOffset bytes_written) override {}
+  void SendRstStream(QuicStreamId /*id*/,
+                     QuicRstStreamErrorCode /*error*/,
+                     QuicStreamOffset /*bytes_written*/) override {}
 
   // Sets whether data is written to buffer, or else if this is write blocked.
   void set_writable(bool writable) { writable_ = writable; }
@@ -131,11 +131,11 @@ class DummyPacketWriter : public QuicPacketWriter {
   DummyPacketWriter() {}
 
   // QuicPacketWriter overrides.
-  WriteResult WritePacket(const char* buffer,
-                          size_t buf_len,
-                          const QuicIpAddress& self_address,
-                          const QuicSocketAddress& peer_address,
-                          PerPacketOptions* options) override {
+  WriteResult WritePacket(const char* /*buffer*/,
+                          size_t /*buf_len*/,
+                          const QuicIpAddress& /*self_address*/,
+                          const QuicSocketAddress& /*peer_address*/,
+                          PerPacketOptions* /*options*/) override {
     return WriteResult(WRITE_STATUS_ERROR, 0);
   }
 
@@ -144,7 +144,7 @@ class DummyPacketWriter : public QuicPacketWriter {
   void SetWritable() override {}
 
   QuicByteCount GetMaxPacketSize(
-      const QuicSocketAddress& peer_address) const override {
+      const QuicSocketAddress& /*peer_address*/) const override {
     return 0;
   }
 
@@ -152,8 +152,9 @@ class DummyPacketWriter : public QuicPacketWriter {
 
   bool IsBatchMode() const override { return false; }
 
-  char* GetNextWriteLocation(const QuicIpAddress& self_address,
-                             const QuicSocketAddress& peer_address) override {
+  char* GetNextWriteLocation(
+      const QuicIpAddress& /*self_address*/,
+      const QuicSocketAddress& /*peer_address*/) override {
     return nullptr;
   }
 
@@ -173,7 +174,7 @@ class MockQuartcStreamDelegate : public QuartcStream::Delegate {
   size_t OnReceived(QuartcStream* stream,
                     iovec* iov,
                     size_t iov_length,
-                    bool fin) override {
+                    bool /*fin*/) override {
     EXPECT_EQ(id_, stream->id());
     EXPECT_EQ(stream->ReadOffset(), read_buffer_->size());
     size_t bytes_consumed = 0;
@@ -185,7 +186,7 @@ class MockQuartcStreamDelegate : public QuartcStream::Delegate {
     return bytes_consumed;
   }
 
-  void OnClose(QuartcStream* stream) override { closed_ = true; }
+  void OnClose(QuartcStream* /*stream*/) override { closed_ = true; }
 
   bool closed() { return closed_; }
 

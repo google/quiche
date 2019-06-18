@@ -58,7 +58,7 @@ bool NullEncrypter::EncryptPacket(uint64_t /*packet_number*/,
 }
 
 std::string NullEncrypter::GenerateHeaderProtectionMask(
-    QuicStringPiece sample) {
+    QuicStringPiece /*sample*/) {
   return std::string(5, 0);
 }
 

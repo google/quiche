@@ -197,7 +197,7 @@ const TestVector test_vector[] = {
         "62b5cdd591e5b507e560167ba8f6f7cda74673eb315680cb89ccbc4eec477dce",
         true  // P (0 )
     },
-    {nullptr}};
+    {nullptr, nullptr, nullptr, nullptr, nullptr, false}};
 
 // Returns true if |ch| is a lowercase hexadecimal digit.
 bool IsHexDigit(char ch) {

@@ -66,9 +66,10 @@ void QuartcStream::OnStreamDataConsumed(size_t bytes_consumed) {
 }
 
 void QuartcStream::OnDataBuffered(
-    QuicStreamOffset offset,
-    QuicByteCount data_length,
-    const QuicReferenceCountedPointer<QuicAckListenerInterface>& ack_listener) {
+    QuicStreamOffset /*offset*/,
+    QuicByteCount /*data_length*/,
+    const QuicReferenceCountedPointer<
+        QuicAckListenerInterface>& /*ack_listener*/) {
   DCHECK(delegate_);
   delegate_->OnBufferChanged(this);
 }

@@ -22,14 +22,14 @@ class NoOpDelegate : public QpackEncoderStreamReceiver::Delegate {
   NoOpDelegate() : error_detected_(false) {}
   ~NoOpDelegate() override = default;
 
-  void OnInsertWithNameReference(bool is_static,
-                                 uint64_t name_index,
-                                 QuicStringPiece value) override {}
-  void OnInsertWithoutNameReference(QuicStringPiece name,
-                                    QuicStringPiece value) override {}
-  void OnDuplicate(uint64_t index) override {}
-  void OnSetDynamicTableCapacity(uint64_t capacity) override {}
-  void OnErrorDetected(QuicStringPiece error_message) override {
+  void OnInsertWithNameReference(bool /*is_static*/,
+                                 uint64_t /*name_index*/,
+                                 QuicStringPiece /*value*/) override {}
+  void OnInsertWithoutNameReference(QuicStringPiece /*name*/,
+                                    QuicStringPiece /*value*/) override {}
+  void OnDuplicate(uint64_t /*index*/) override {}
+  void OnSetDynamicTableCapacity(uint64_t /*capacity*/) override {}
+  void OnErrorDetected(QuicStringPiece /*error_message*/) override {
     error_detected_ = true;
   }
 

@@ -145,7 +145,7 @@ class QuicTimeWaitListManager : public QuicBlockedWriterInterface {
       bool ietf_quic,
       std::unique_ptr<QuicPerPacketContext> packet_context);
 
-  virtual void GetEndpointId(std::string* endpoint_id) {}
+  virtual void GetEndpointId(std::string* /*endpoint_id*/) {}
 
   // Returns a stateless reset token which will be included in the public reset
   // packet.

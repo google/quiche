@@ -195,9 +195,10 @@ void QuicSpdyClientBase::AddPromiseDataToResend(const SpdyHeaderBlock& headers,
       new ClientQuicDataToResend(std::move(new_headers), body, fin, this));
 }
 
-bool QuicSpdyClientBase::CheckVary(const SpdyHeaderBlock& client_request,
-                                   const SpdyHeaderBlock& promise_request,
-                                   const SpdyHeaderBlock& promise_response) {
+bool QuicSpdyClientBase::CheckVary(
+    const SpdyHeaderBlock& /*client_request*/,
+    const SpdyHeaderBlock& /*promise_request*/,
+    const SpdyHeaderBlock& /*promise_response*/) {
   return true;
 }
 

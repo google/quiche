@@ -15,7 +15,7 @@ namespace quic {
 
 TlsHandshaker::TlsHandshaker(QuicCryptoStream* stream,
                              QuicSession* session,
-                             SSL_CTX* ssl_ctx)
+                             SSL_CTX* /*ssl_ctx*/)
     : stream_(stream), session_(session) {
   QUIC_BUG_IF(!GetQuicFlag(FLAGS_quic_supports_tls_handshake))
       << "Attempted to create TLS handshaker when TLS is disabled";
@@ -93,7 +93,7 @@ void TlsHandshaker::WriteMessage(EncryptionLevel level, QuicStringPiece data) {
 
 void TlsHandshaker::FlushFlight() {}
 
-void TlsHandshaker::SendAlert(EncryptionLevel level, uint8_t desc) {
+void TlsHandshaker::SendAlert(EncryptionLevel /*level*/, uint8_t desc) {
   // TODO(nharper): Alerts should be sent on the wire as a 16-bit QUIC error
   // code computed to be 0x100 | desc (draft-ietf-quic-tls-14, section 4.8).
   // This puts it in the range reserved for CRYPTO_ERROR

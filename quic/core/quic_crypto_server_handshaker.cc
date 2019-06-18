@@ -156,7 +156,7 @@ void QuicCryptoServerHandshaker::
         const std::string& error_details,
         std::unique_ptr<CryptoHandshakeMessage> reply,
         std::unique_ptr<DiversificationNonce> diversification_nonce,
-        std::unique_ptr<ProofSource::Details> proof_source_details) {
+        std::unique_ptr<ProofSource::Details> /*proof_source_details*/) {
   // Clear the callback that got us here.
   DCHECK(process_client_hello_cb_ != nullptr);
   DCHECK(validate_client_hello_cb_ == nullptr);
@@ -376,7 +376,7 @@ CryptoMessageParser* QuicCryptoServerHandshaker::crypto_message_parser() {
 void QuicCryptoServerHandshaker::ProcessClientHello(
     QuicReferenceCountedPointer<ValidateClientHelloResultCallback::Result>
         result,
-    std::unique_ptr<ProofSource::Details> proof_source_details,
+    std::unique_ptr<ProofSource::Details> /*proof_source_details*/,
     std::unique_ptr<ProcessClientHelloResultCallback> done_cb) {
   const CryptoHandshakeMessage& message = result->client_hello;
   std::string error_details;
@@ -417,7 +417,7 @@ void QuicCryptoServerHandshaker::ProcessClientHello(
 }
 
 void QuicCryptoServerHandshaker::OverrideQuicConfigDefaults(
-    QuicConfig* config) {}
+    QuicConfig* /*config*/) {}
 
 QuicCryptoServerHandshaker::ValidateCallback::ValidateCallback(
     QuicCryptoServerHandshaker* parent)

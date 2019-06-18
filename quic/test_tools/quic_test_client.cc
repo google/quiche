@@ -90,14 +90,14 @@ class RecordingProofVerifier : public ProofVerifier {
   }
 
   QuicAsyncStatus VerifyCertChain(
-      const std::string& hostname,
-      const std::vector<std::string>& certs,
-      const std::string& ocsp_response,
-      const std::string& cert_sct,
-      const ProofVerifyContext* context,
-      std::string* error_details,
-      std::unique_ptr<ProofVerifyDetails>* details,
-      std::unique_ptr<ProofVerifierCallback> callback) override {
+      const std::string& /*hostname*/,
+      const std::vector<std::string>& /*certs*/,
+      const std::string& /*ocsp_response*/,
+      const std::string& /*cert_sct*/,
+      const ProofVerifyContext* /*context*/,
+      std::string* /*error_details*/,
+      std::unique_ptr<ProofVerifyDetails>* /*details*/,
+      std::unique_ptr<ProofVerifierCallback> /*callback*/) override {
     return QUIC_SUCCESS;
   }
 
@@ -742,9 +742,10 @@ void QuicTestClient::OnClose(QuicSpdyStream* stream) {
   open_streams_.erase(id);
 }
 
-bool QuicTestClient::CheckVary(const spdy::SpdyHeaderBlock& client_request,
-                               const spdy::SpdyHeaderBlock& promise_request,
-                               const spdy::SpdyHeaderBlock& promise_response) {
+bool QuicTestClient::CheckVary(
+    const spdy::SpdyHeaderBlock& /*client_request*/,
+    const spdy::SpdyHeaderBlock& /*promise_request*/,
+    const spdy::SpdyHeaderBlock& /*promise_response*/) {
   return true;
 }
 

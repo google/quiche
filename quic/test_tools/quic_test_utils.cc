@@ -232,130 +232,135 @@ MockFramerVisitor::MockFramerVisitor() {
 
 MockFramerVisitor::~MockFramerVisitor() {}
 
-bool NoOpFramerVisitor::OnProtocolVersionMismatch(ParsedQuicVersion version,
-                                                  PacketHeaderFormat form) {
+bool NoOpFramerVisitor::OnProtocolVersionMismatch(ParsedQuicVersion /*version*/,
+                                                  PacketHeaderFormat /*form*/) {
   return false;
 }
 
 bool NoOpFramerVisitor::OnUnauthenticatedPublicHeader(
-    const QuicPacketHeader& header) {
+    const QuicPacketHeader& /*header*/) {
   return true;
 }
 
 bool NoOpFramerVisitor::OnUnauthenticatedHeader(
-    const QuicPacketHeader& header) {
+    const QuicPacketHeader& /*header*/) {
   return true;
 }
 
-bool NoOpFramerVisitor::OnPacketHeader(const QuicPacketHeader& header) {
+bool NoOpFramerVisitor::OnPacketHeader(const QuicPacketHeader& /*header*/) {
   return true;
 }
 
-void NoOpFramerVisitor::OnCoalescedPacket(const QuicEncryptedPacket& packet) {}
+void NoOpFramerVisitor::OnCoalescedPacket(
+    const QuicEncryptedPacket& /*packet*/) {}
 
-bool NoOpFramerVisitor::OnStreamFrame(const QuicStreamFrame& frame) {
+bool NoOpFramerVisitor::OnStreamFrame(const QuicStreamFrame& /*frame*/) {
   return true;
 }
 
-bool NoOpFramerVisitor::OnCryptoFrame(const QuicCryptoFrame& frame) {
+bool NoOpFramerVisitor::OnCryptoFrame(const QuicCryptoFrame& /*frame*/) {
   return true;
 }
 
-bool NoOpFramerVisitor::OnAckFrameStart(QuicPacketNumber largest_acked,
-                                        QuicTime::Delta ack_delay_time) {
+bool NoOpFramerVisitor::OnAckFrameStart(QuicPacketNumber /*largest_acked*/,
+                                        QuicTime::Delta /*ack_delay_time*/) {
   return true;
 }
 
-bool NoOpFramerVisitor::OnAckRange(QuicPacketNumber start,
-                                   QuicPacketNumber end) {
+bool NoOpFramerVisitor::OnAckRange(QuicPacketNumber /*start*/,
+                                   QuicPacketNumber /*end*/) {
   return true;
 }
 
-bool NoOpFramerVisitor::OnAckTimestamp(QuicPacketNumber packet_number,
-                                       QuicTime timestamp) {
+bool NoOpFramerVisitor::OnAckTimestamp(QuicPacketNumber /*packet_number*/,
+                                       QuicTime /*timestamp*/) {
   return true;
 }
 
-bool NoOpFramerVisitor::OnAckFrameEnd(QuicPacketNumber start) {
+bool NoOpFramerVisitor::OnAckFrameEnd(QuicPacketNumber /*start*/) {
   return true;
 }
 
-bool NoOpFramerVisitor::OnStopWaitingFrame(const QuicStopWaitingFrame& frame) {
+bool NoOpFramerVisitor::OnStopWaitingFrame(
+    const QuicStopWaitingFrame& /*frame*/) {
   return true;
 }
 
-bool NoOpFramerVisitor::OnPaddingFrame(const QuicPaddingFrame& frame) {
+bool NoOpFramerVisitor::OnPaddingFrame(const QuicPaddingFrame& /*frame*/) {
   return true;
 }
 
-bool NoOpFramerVisitor::OnPingFrame(const QuicPingFrame& frame) {
+bool NoOpFramerVisitor::OnPingFrame(const QuicPingFrame& /*frame*/) {
   return true;
 }
 
-bool NoOpFramerVisitor::OnRstStreamFrame(const QuicRstStreamFrame& frame) {
+bool NoOpFramerVisitor::OnRstStreamFrame(const QuicRstStreamFrame& /*frame*/) {
   return true;
 }
 
 bool NoOpFramerVisitor::OnConnectionCloseFrame(
-    const QuicConnectionCloseFrame& frame) {
+    const QuicConnectionCloseFrame& /*frame*/) {
   return true;
 }
 
 bool NoOpFramerVisitor::OnNewConnectionIdFrame(
-    const QuicNewConnectionIdFrame& frame) {
+    const QuicNewConnectionIdFrame& /*frame*/) {
   return true;
 }
 
 bool NoOpFramerVisitor::OnRetireConnectionIdFrame(
-    const QuicRetireConnectionIdFrame& frame) {
+    const QuicRetireConnectionIdFrame& /*frame*/) {
   return true;
 }
 
-bool NoOpFramerVisitor::OnNewTokenFrame(const QuicNewTokenFrame& frame) {
+bool NoOpFramerVisitor::OnNewTokenFrame(const QuicNewTokenFrame& /*frame*/) {
   return true;
 }
 
-bool NoOpFramerVisitor::OnStopSendingFrame(const QuicStopSendingFrame& frame) {
+bool NoOpFramerVisitor::OnStopSendingFrame(
+    const QuicStopSendingFrame& /*frame*/) {
   return true;
 }
 
 bool NoOpFramerVisitor::OnPathChallengeFrame(
-    const QuicPathChallengeFrame& frame) {
+    const QuicPathChallengeFrame& /*frame*/) {
   return true;
 }
 
 bool NoOpFramerVisitor::OnPathResponseFrame(
-    const QuicPathResponseFrame& frame) {
+    const QuicPathResponseFrame& /*frame*/) {
   return true;
 }
 
-bool NoOpFramerVisitor::OnGoAwayFrame(const QuicGoAwayFrame& frame) {
+bool NoOpFramerVisitor::OnGoAwayFrame(const QuicGoAwayFrame& /*frame*/) {
   return true;
 }
 
-bool NoOpFramerVisitor::OnMaxStreamsFrame(const QuicMaxStreamsFrame& frame) {
+bool NoOpFramerVisitor::OnMaxStreamsFrame(
+    const QuicMaxStreamsFrame& /*frame*/) {
   return true;
 }
 
 bool NoOpFramerVisitor::OnStreamsBlockedFrame(
-    const QuicStreamsBlockedFrame& frame) {
+    const QuicStreamsBlockedFrame& /*frame*/) {
   return true;
 }
 
 bool NoOpFramerVisitor::OnWindowUpdateFrame(
-    const QuicWindowUpdateFrame& frame) {
+    const QuicWindowUpdateFrame& /*frame*/) {
   return true;
 }
 
-bool NoOpFramerVisitor::OnBlockedFrame(const QuicBlockedFrame& frame) {
+bool NoOpFramerVisitor::OnBlockedFrame(const QuicBlockedFrame& /*frame*/) {
   return true;
 }
 
-bool NoOpFramerVisitor::OnMessageFrame(const QuicMessageFrame& frame) {
+bool NoOpFramerVisitor::OnMessageFrame(const QuicMessageFrame& /*frame*/) {
   return true;
 }
 
-bool NoOpFramerVisitor::IsValidStatelessResetToken(QuicUint128 token) const {
+bool NoOpFramerVisitor::IsValidStatelessResetToken(
+    QuicUint128 /*token*/) const {
   return false;
 }
 
@@ -473,8 +478,9 @@ void MockQuicConnection::AdvanceTime(QuicTime::Delta delta) {
   static_cast<MockQuicConnectionHelper*>(helper())->AdvanceTime(delta);
 }
 
-bool MockQuicConnection::OnProtocolVersionMismatch(ParsedQuicVersion version,
-                                                   PacketHeaderFormat form) {
+bool MockQuicConnection::OnProtocolVersionMismatch(
+    ParsedQuicVersion /*version*/,
+    PacketHeaderFormat /*form*/) {
   return false;
 }
 
@@ -676,7 +682,7 @@ TestQuicSpdyClientSession::TestQuicSpdyClientSession(
 
 TestQuicSpdyClientSession::~TestQuicSpdyClientSession() {}
 
-bool TestQuicSpdyClientSession::IsAuthorized(const std::string& authority) {
+bool TestQuicSpdyClientSession::IsAuthorized(const std::string& /*authority*/) {
   return true;
 }
 
@@ -698,9 +704,9 @@ TestPushPromiseDelegate::TestPushPromiseDelegate(bool match)
     : match_(match), rendezvous_fired_(false), rendezvous_stream_(nullptr) {}
 
 bool TestPushPromiseDelegate::CheckVary(
-    const spdy::SpdyHeaderBlock& client_request,
-    const spdy::SpdyHeaderBlock& promise_request,
-    const spdy::SpdyHeaderBlock& promise_response) {
+    const spdy::SpdyHeaderBlock& /*client_request*/,
+    const spdy::SpdyHeaderBlock& /*promise_request*/,
+    const spdy::SpdyHeaderBlock& /*promise_response*/) {
   QUIC_DVLOG(1) << "match " << match_;
   return match_;
 }
@@ -1116,7 +1122,7 @@ void CreateClientSessionForTest(
 }
 
 void CreateServerSessionForTest(
-    QuicServerId server_id,
+    QuicServerId /*server_id*/,
     QuicTime::Delta connection_start_time,
     ParsedQuicVersionVector supported_versions,
     MockQuicConnectionHelper* helper,

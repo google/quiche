@@ -298,19 +298,19 @@ class NoOpFramerVisitor : public QuicFramerVisitorInterface {
   NoOpFramerVisitor(const NoOpFramerVisitor&) = delete;
   NoOpFramerVisitor& operator=(const NoOpFramerVisitor&) = delete;
 
-  void OnError(QuicFramer* framer) override {}
+  void OnError(QuicFramer* /*framer*/) override {}
   void OnPacket() override {}
-  void OnPublicResetPacket(const QuicPublicResetPacket& packet) override {}
+  void OnPublicResetPacket(const QuicPublicResetPacket& /*packet*/) override {}
   void OnVersionNegotiationPacket(
-      const QuicVersionNegotiationPacket& packet) override {}
-  void OnRetryPacket(QuicConnectionId original_connection_id,
-                     QuicConnectionId new_connection_id,
-                     QuicStringPiece retry_token) override {}
+      const QuicVersionNegotiationPacket& /*packet*/) override {}
+  void OnRetryPacket(QuicConnectionId /*original_connection_id*/,
+                     QuicConnectionId /*new_connection_id*/,
+                     QuicStringPiece /*retry_token*/) override {}
   bool OnProtocolVersionMismatch(ParsedQuicVersion version,
                                  PacketHeaderFormat form) override;
   bool OnUnauthenticatedHeader(const QuicPacketHeader& header) override;
   bool OnUnauthenticatedPublicHeader(const QuicPacketHeader& header) override;
-  void OnDecryptedPacket(EncryptionLevel level) override {}
+  void OnDecryptedPacket(EncryptionLevel /*level*/) override {}
   bool OnPacketHeader(const QuicPacketHeader& header) override;
   void OnCoalescedPacket(const QuicEncryptedPacket& packet) override;
   bool OnStreamFrame(const QuicStreamFrame& frame) override;
@@ -342,7 +342,7 @@ class NoOpFramerVisitor : public QuicFramerVisitorInterface {
   void OnPacketComplete() override {}
   bool IsValidStatelessResetToken(QuicUint128 token) const override;
   void OnAuthenticatedIetfStatelessResetPacket(
-      const QuicIetfStatelessResetPacket& packet) override {}
+      const QuicIetfStatelessResetPacket& /*packet*/) override {}
 };
 
 class MockQuicConnectionVisitor : public QuicConnectionVisitorInterface {

@@ -184,7 +184,7 @@ void QuartcSession::ResetStream(QuicStreamId stream_id,
   }
 }
 
-void QuartcSession::OnCongestionWindowChange(QuicTime now) {
+void QuartcSession::OnCongestionWindowChange(QuicTime /*now*/) {
   DCHECK(session_delegate_);
   const RttStats* rtt_stats = connection_->sent_packet_manager().GetRttStats();
 
@@ -401,12 +401,12 @@ void QuartcClientSession::StartCryptoHandshake() {
 }
 
 void QuartcClientSession::OnProofValid(
-    const QuicCryptoClientConfig::CachedState& cached) {
+    const QuicCryptoClientConfig::CachedState& /*cached*/) {
   // TODO(zhihuang): Handle the proof verification.
 }
 
 void QuartcClientSession::OnProofVerifyDetailsAvailable(
-    const ProofVerifyDetails& verify_details) {
+    const ProofVerifyDetails& /*verify_details*/) {
   // TODO(zhihuang): Handle the proof verification.
 }
 

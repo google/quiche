@@ -39,43 +39,43 @@ class QuicSpdyStream::HttpDecoderVisitor : public HttpDecoder::Visitor {
   HttpDecoderVisitor(const HttpDecoderVisitor&) = delete;
   HttpDecoderVisitor& operator=(const HttpDecoderVisitor&) = delete;
 
-  void OnError(HttpDecoder* decoder) override {
+  void OnError(HttpDecoder* /*decoder*/) override {
     stream_->session()->connection()->CloseConnection(
         QUIC_HTTP_DECODER_ERROR, "Http decoder internal error",
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
   }
 
-  bool OnPriorityFrame(const PriorityFrame& frame) override {
+  bool OnPriorityFrame(const PriorityFrame& /*frame*/) override {
     CloseConnectionOnWrongFrame("Priority");
     return false;
   }
 
-  bool OnCancelPushFrame(const CancelPushFrame& frame) override {
+  bool OnCancelPushFrame(const CancelPushFrame& /*frame*/) override {
     CloseConnectionOnWrongFrame("Cancel Push");
     return false;
   }
 
-  bool OnMaxPushIdFrame(const MaxPushIdFrame& frame) override {
+  bool OnMaxPushIdFrame(const MaxPushIdFrame& /*frame*/) override {
     CloseConnectionOnWrongFrame("Max Push Id");
     return false;
   }
 
-  bool OnGoAwayFrame(const GoAwayFrame& frame) override {
+  bool OnGoAwayFrame(const GoAwayFrame& /*frame*/) override {
     CloseConnectionOnWrongFrame("Goaway");
     return false;
   }
 
-  bool OnSettingsFrameStart(Http3FrameLengths frame_lengths) override {
+  bool OnSettingsFrameStart(Http3FrameLengths /*frame_lengths*/) override {
     CloseConnectionOnWrongFrame("Settings");
     return false;
   }
 
-  bool OnSettingsFrame(const SettingsFrame& frame) override {
+  bool OnSettingsFrame(const SettingsFrame& /*frame*/) override {
     CloseConnectionOnWrongFrame("Settings");
     return false;
   }
 
-  bool OnDuplicatePushFrame(const DuplicatePushFrame& frame) override {
+  bool OnDuplicatePushFrame(const DuplicatePushFrame& /*frame*/) override {
     CloseConnectionOnWrongFrame("Duplicate Push");
     return false;
   }
@@ -119,7 +119,7 @@ class QuicSpdyStream::HttpDecoderVisitor : public HttpDecoder::Visitor {
     return stream_->OnHeadersFrameEnd();
   }
 
-  bool OnPushPromiseFrameStart(PushId push_id) override {
+  bool OnPushPromiseFrameStart(PushId /*push_id*/) override {
     CloseConnectionOnWrongFrame("Push Promise");
     return false;
   }

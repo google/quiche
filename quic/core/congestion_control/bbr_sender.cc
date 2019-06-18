@@ -187,7 +187,7 @@ bool BbrSender::CanSend(QuicByteCount bytes_in_flight) {
   return bytes_in_flight < GetCongestionWindow();
 }
 
-QuicBandwidth BbrSender::PacingRate(QuicByteCount bytes_in_flight) const {
+QuicBandwidth BbrSender::PacingRate(QuicByteCount /*bytes_in_flight*/) const {
   if (pacing_rate_.IsZero()) {
     return high_gain_ * QuicBandwidth::FromBytesAndTimeDelta(
                             initial_congestion_window_, GetMinRtt());

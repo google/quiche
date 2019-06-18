@@ -171,10 +171,10 @@ void QuicCryptoStream::WriteCryptoData(EncryptionLevel level,
 }
 
 void QuicCryptoStream::OnSuccessfulVersionNegotiation(
-    const ParsedQuicVersion& version) {}
+    const ParsedQuicVersion& /*version*/) {}
 
 bool QuicCryptoStream::OnCryptoFrameAcked(const QuicCryptoFrame& frame,
-                                          QuicTime::Delta ack_delay_time) {
+                                          QuicTime::Delta /*ack_delay_time*/) {
   QuicByteCount newly_acked_length = 0;
   if (!substreams_[frame.level].send_buffer.OnStreamDataAcked(
           frame.offset, frame.data_length, &newly_acked_length)) {

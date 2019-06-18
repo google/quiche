@@ -122,12 +122,15 @@ void QuicClientEpollNetworkHelper::RunEventLoop() {
   epoll_server_->WaitForEventsAndExecuteCallbacks();
 }
 
-void QuicClientEpollNetworkHelper::OnRegistration(QuicEpollServer* eps,
-                                                  int fd,
-                                                  int event_mask) {}
-void QuicClientEpollNetworkHelper::OnModification(int fd, int event_mask) {}
-void QuicClientEpollNetworkHelper::OnUnregistration(int fd, bool replaced) {}
-void QuicClientEpollNetworkHelper::OnShutdown(QuicEpollServer* eps, int fd) {}
+void QuicClientEpollNetworkHelper::OnRegistration(QuicEpollServer* /*eps*/,
+                                                  int /*fd*/,
+                                                  int /*event_mask*/) {}
+void QuicClientEpollNetworkHelper::OnModification(int /*fd*/,
+                                                  int /*event_mask*/) {}
+void QuicClientEpollNetworkHelper::OnUnregistration(int /*fd*/,
+                                                    bool /*replaced*/) {}
+void QuicClientEpollNetworkHelper::OnShutdown(QuicEpollServer* /*eps*/,
+                                              int /*fd*/) {}
 
 void QuicClientEpollNetworkHelper::OnEvent(int fd, QuicEpollEvent* event) {
   DCHECK_EQ(fd, GetLatestFD());

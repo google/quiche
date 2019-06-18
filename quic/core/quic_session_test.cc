@@ -442,9 +442,9 @@ class QuicSessionTestServer : public QuicSessionTestBase {
   // contains both expected path responses.
   WriteResult CheckMultiPathResponse(const char* buffer,
                                      size_t buf_len,
-                                     const QuicIpAddress& self_address,
-                                     const QuicSocketAddress& peer_address,
-                                     PerPacketOptions* options) {
+                                     const QuicIpAddress& /*self_address*/,
+                                     const QuicSocketAddress& /*peer_address*/,
+                                     PerPacketOptions* /*options*/) {
     QuicEncryptedPacket packet(buffer, buf_len);
     {
       InSequence s;

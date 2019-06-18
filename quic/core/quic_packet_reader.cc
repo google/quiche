@@ -179,6 +179,11 @@ bool QuicPacketReader::ReadAndDispatchManyPackets(
   // We may not have read all of the packets available on the socket.
   return packets_read == kNumPacketsPerReadMmsgCall;
 #else
+  (void)fd;
+  (void)port;
+  (void)clock;
+  (void)processor;
+  (void)packets_dropped;
   QUIC_LOG(FATAL) << "Unsupported";
   return false;
 #endif

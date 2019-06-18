@@ -31,7 +31,8 @@ RandomDelayLink::RandomDelayLink(Simulator* simulator,
 
 RandomDelayLink::~RandomDelayLink() {}
 
-QuicTime::Delta RandomDelayLink::GetRandomDelay(QuicTime::Delta transfer_time) {
+QuicTime::Delta RandomDelayLink::GetRandomDelay(
+    QuicTime::Delta /*transfer_time*/) {
   // Computes a random delay following an exponential distribution, with median
   // value |median_random_delay_|.  Choose a uniform random value between 1 and
   // kNumBuckets, convert this to an exponential, then scale it such that a

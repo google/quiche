@@ -86,7 +86,7 @@ const TestVector test_group_0[] = {
         "a2be08210d8c470a8df6e8fbd79ec5cf",
         nullptr  // FAIL
     },
-    {nullptr}};
+    {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr}};
 
 const TestVector test_group_1[] = {
     {
@@ -97,7 +97,7 @@ const TestVector test_group_1[] = {
     {"2370e320d4344208e0ff5683f243b213", "04dbb82f044d30831c441228", "",
      "d43a8e5089eea0d026c03a85178b27da", "2a049c049d25aa95969b451d93c31c6e",
      ""},
-    {nullptr}};
+    {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr}};
 
 const TestVector test_group_2[] = {
     {"e98b72a9881a84ca6b76e0f43e68647a", "8b23299fde174053f3d652ba",
@@ -112,7 +112,7 @@ const TestVector test_group_2[] = {
         "a145319896329c96df291f64efbe0e3a",
         nullptr  // FAIL
     },
-    {nullptr}};
+    {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr}};
 
 const TestVector test_group_3[] = {
     {"af57f42c60c0fc5a09adb81ab86ca1c3", "a2dc01871f37025dc0fc9a79",
@@ -137,7 +137,7 @@ const TestVector test_group_3[] = {
         "8ca4e38aa3dfa6b1d0297021ccf3ea5f",
         nullptr  // FAIL
     },
-    {nullptr}};
+    {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr}};
 
 const TestVector test_group_4[] = {
     {"da2bb7d581493d692380c77105590201", "44aa3e7856ca279d2eb020c6",
@@ -168,7 +168,7 @@ const TestVector test_group_4[] = {
         "8b347853f11d75e81e8a95010be81f17",
         nullptr  // FAIL
     },
-    {nullptr}};
+    {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr}};
 
 const TestVector test_group_5[] = {
     {"387218b246c1a8257748b56980e50c94", "dd7e014198672be39f95b69d",
@@ -185,7 +185,7 @@ const TestVector test_group_5[] = {
         "a85b66c3cb5eab91d5bdc8bc0e", "", "dc054efc01f3afd21d9c2484819f569a",
         nullptr  // FAIL
     },
-    {nullptr}};
+    {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr}};
 
 const TestVector* const test_group_array[] = {
     test_group_0, test_group_1, test_group_2,

@@ -63,12 +63,14 @@ class QuicServer : public QuicSpdyServerBase,
   virtual void Shutdown();
 
   // From EpollCallbackInterface
-  void OnRegistration(QuicEpollServer* eps, int fd, int event_mask) override {}
-  void OnModification(int fd, int event_mask) override {}
-  void OnEvent(int fd, QuicEpollEvent* event) override;
-  void OnUnregistration(int fd, bool replaced) override {}
+  void OnRegistration(QuicEpollServer* /*eps*/,
+                      int /*fd*/,
+                      int /*event_mask*/) override {}
+  void OnModification(int /*fd*/, int /*event_mask*/) override {}
+  void OnEvent(int /*fd*/, QuicEpollEvent* /*event*/) override;
+  void OnUnregistration(int /*fd*/, bool /*replaced*/) override {}
 
-  void OnShutdown(QuicEpollServer* eps, int fd) override {}
+  void OnShutdown(QuicEpollServer* /*eps*/, int /*fd*/) override {}
 
   void SetChloMultiplier(size_t multiplier) {
     crypto_config_.set_chlo_multiplier(multiplier);

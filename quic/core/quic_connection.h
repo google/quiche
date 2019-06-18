@@ -201,107 +201,108 @@ class QUIC_EXPORT_PRIVATE QuicConnectionDebugVisitor
   ~QuicConnectionDebugVisitor() override {}
 
   // Called when a packet has been sent.
-  virtual void OnPacketSent(const SerializedPacket& serialized_packet,
-                            QuicPacketNumber original_packet_number,
-                            TransmissionType transmission_type,
-                            QuicTime sent_time) {}
+  virtual void OnPacketSent(const SerializedPacket& /*serialized_packet*/,
+                            QuicPacketNumber /*original_packet_number*/,
+                            TransmissionType /*transmission_type*/,
+                            QuicTime /*sent_time*/) {}
 
   // Called when a PING frame has been sent.
   virtual void OnPingSent() {}
 
   // Called when a packet has been received, but before it is
   // validated or parsed.
-  virtual void OnPacketReceived(const QuicSocketAddress& self_address,
-                                const QuicSocketAddress& peer_address,
-                                const QuicEncryptedPacket& packet) {}
+  virtual void OnPacketReceived(const QuicSocketAddress& /*self_address*/,
+                                const QuicSocketAddress& /*peer_address*/,
+                                const QuicEncryptedPacket& /*packet*/) {}
 
   // Called when the unauthenticated portion of the header has been parsed.
-  virtual void OnUnauthenticatedHeader(const QuicPacketHeader& header) {}
+  virtual void OnUnauthenticatedHeader(const QuicPacketHeader& /*header*/) {}
 
   // Called when a packet is received with a connection id that does not
   // match the ID of this connection.
-  virtual void OnIncorrectConnectionId(QuicConnectionId connection_id) {}
+  virtual void OnIncorrectConnectionId(QuicConnectionId /*connection_id*/) {}
 
   // Called when an undecryptable packet has been received.
   virtual void OnUndecryptablePacket() {}
 
   // Called when a duplicate packet has been received.
-  virtual void OnDuplicatePacket(QuicPacketNumber packet_number) {}
+  virtual void OnDuplicatePacket(QuicPacketNumber /*packet_number*/) {}
 
   // Called when the protocol version on the received packet doensn't match
   // current protocol version of the connection.
-  virtual void OnProtocolVersionMismatch(ParsedQuicVersion version) {}
+  virtual void OnProtocolVersionMismatch(ParsedQuicVersion /*version*/) {}
 
   // Called when the complete header of a packet has been parsed.
-  virtual void OnPacketHeader(const QuicPacketHeader& header) {}
+  virtual void OnPacketHeader(const QuicPacketHeader& /*header*/) {}
 
   // Called when a StreamFrame has been parsed.
-  virtual void OnStreamFrame(const QuicStreamFrame& frame) {}
+  virtual void OnStreamFrame(const QuicStreamFrame& /*frame*/) {}
 
   // Called when a StopWaitingFrame has been parsed.
-  virtual void OnStopWaitingFrame(const QuicStopWaitingFrame& frame) {}
+  virtual void OnStopWaitingFrame(const QuicStopWaitingFrame& /*frame*/) {}
 
   // Called when a QuicPaddingFrame has been parsed.
-  virtual void OnPaddingFrame(const QuicPaddingFrame& frame) {}
+  virtual void OnPaddingFrame(const QuicPaddingFrame& /*frame*/) {}
 
   // Called when a Ping has been parsed.
-  virtual void OnPingFrame(const QuicPingFrame& frame) {}
+  virtual void OnPingFrame(const QuicPingFrame& /*frame*/) {}
 
   // Called when a GoAway has been parsed.
-  virtual void OnGoAwayFrame(const QuicGoAwayFrame& frame) {}
+  virtual void OnGoAwayFrame(const QuicGoAwayFrame& /*frame*/) {}
 
   // Called when a RstStreamFrame has been parsed.
-  virtual void OnRstStreamFrame(const QuicRstStreamFrame& frame) {}
+  virtual void OnRstStreamFrame(const QuicRstStreamFrame& /*frame*/) {}
 
   // Called when a ConnectionCloseFrame has been parsed. All forms
   // of CONNECTION CLOSE are handled, Google QUIC, IETF QUIC
   // CONNECTION CLOSE/Transport and IETF QUIC CONNECTION CLOSE/Application
-  virtual void OnConnectionCloseFrame(const QuicConnectionCloseFrame& frame) {}
+  virtual void OnConnectionCloseFrame(
+      const QuicConnectionCloseFrame& /*frame*/) {}
 
   // Called when a WindowUpdate has been parsed.
-  virtual void OnWindowUpdateFrame(const QuicWindowUpdateFrame& frame,
-                                   const QuicTime& receive_time) {}
+  virtual void OnWindowUpdateFrame(const QuicWindowUpdateFrame& /*frame*/,
+                                   const QuicTime& /*receive_time*/) {}
 
   // Called when a BlockedFrame has been parsed.
-  virtual void OnBlockedFrame(const QuicBlockedFrame& frame) {}
+  virtual void OnBlockedFrame(const QuicBlockedFrame& /*frame*/) {}
 
   // Called when a MessageFrame has been parsed.
-  virtual void OnMessageFrame(const QuicMessageFrame& frame) {}
+  virtual void OnMessageFrame(const QuicMessageFrame& /*frame*/) {}
 
   // Called when a public reset packet has been received.
-  virtual void OnPublicResetPacket(const QuicPublicResetPacket& packet) {}
+  virtual void OnPublicResetPacket(const QuicPublicResetPacket& /*packet*/) {}
 
   // Called when a version negotiation packet has been received.
   virtual void OnVersionNegotiationPacket(
-      const QuicVersionNegotiationPacket& packet) {}
+      const QuicVersionNegotiationPacket& /*packet*/) {}
 
   // Called when the connection is closed.
-  virtual void OnConnectionClosed(QuicErrorCode error,
-                                  const std::string& error_details,
-                                  ConnectionCloseSource source) {}
+  virtual void OnConnectionClosed(QuicErrorCode /*error*/,
+                                  const std::string& /*error_details*/,
+                                  ConnectionCloseSource /*source*/) {}
 
   // Called when the version negotiation is successful.
   virtual void OnSuccessfulVersionNegotiation(
-      const ParsedQuicVersion& version) {}
+      const ParsedQuicVersion& /*version*/) {}
 
   // Called when a CachedNetworkParameters is sent to the client.
   virtual void OnSendConnectionState(
-      const CachedNetworkParameters& cached_network_params) {}
+      const CachedNetworkParameters& /*cached_network_params*/) {}
 
   // Called when a CachedNetworkParameters are received from the client.
   virtual void OnReceiveConnectionState(
-      const CachedNetworkParameters& cached_network_params) {}
+      const CachedNetworkParameters& /*cached_network_params*/) {}
 
   // Called when the connection parameters are set from the supplied
   // |config|.
-  virtual void OnSetFromConfig(const QuicConfig& config) {}
+  virtual void OnSetFromConfig(const QuicConfig& /*config*/) {}
 
   // Called when RTT may have changed, including when an RTT is read from
   // the config.
-  virtual void OnRttChanged(QuicTime::Delta rtt) const {}
+  virtual void OnRttChanged(QuicTime::Delta /*rtt*/) const {}
 
   // Called when a StopSendingFrame has been parsed.
-  virtual void OnStopSendingFrame(const QuicStopSendingFrame& frame) {}
+  virtual void OnStopSendingFrame(const QuicStopSendingFrame& /*frame*/) {}
 };
 
 class QUIC_EXPORT_PRIVATE QuicConnectionHelperInterface {

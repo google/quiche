@@ -330,7 +330,7 @@ class QuicDispatcherTest : public QuicTest {
       TestDispatcher* dispatcher,
       const QuicConfig& config,
       QuicConnectionId connection_id,
-      const QuicSocketAddress& peer_address,
+      const QuicSocketAddress& /*peer_address*/,
       MockQuicConnectionHelper* helper,
       MockAlarmFactory* alarm_factory,
       const QuicCryptoServerConfig* crypto_config,
@@ -972,11 +972,11 @@ class BlockingWriter : public QuicPacketWriterWrapper {
   bool IsWriteBlocked() const override { return write_blocked_; }
   void SetWritable() override { write_blocked_ = false; }
 
-  WriteResult WritePacket(const char* buffer,
-                          size_t buf_len,
-                          const QuicIpAddress& self_client_address,
-                          const QuicSocketAddress& peer_client_address,
-                          PerPacketOptions* options) override {
+  WriteResult WritePacket(const char* /*buffer*/,
+                          size_t /*buf_len*/,
+                          const QuicIpAddress& /*self_client_address*/,
+                          const QuicSocketAddress& /*peer_client_address*/,
+                          PerPacketOptions* /*options*/) override {
     // It would be quite possible to actually implement this method here with
     // the fake blocked status, but it would be significantly more work in
     // Chromium, and since it's not called anyway, don't bother.

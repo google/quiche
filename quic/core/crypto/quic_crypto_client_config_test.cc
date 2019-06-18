@@ -46,7 +46,9 @@ class OneServerIdFilter : public QuicCryptoClientConfig::ServerIdFilter {
 
 class AllServerIdsFilter : public QuicCryptoClientConfig::ServerIdFilter {
  public:
-  bool Matches(const QuicServerId& server_id) const override { return true; }
+  bool Matches(const QuicServerId& /*server_id*/) const override {
+    return true;
+  }
 };
 
 }  // namespace

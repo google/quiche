@@ -45,7 +45,7 @@ class QuicPacketWriterWrapper : public QuicPacketWriter {
   // Does not take ownership of |writer|.
   void set_non_owning_writer(QuicPacketWriter* writer);
 
-  virtual void set_peer_address(const QuicSocketAddress& peer_address) {}
+  virtual void set_peer_address(const QuicSocketAddress& /*peer_address*/) {}
 
   QuicPacketWriter* writer() { return writer_; }
 

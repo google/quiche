@@ -78,7 +78,7 @@ void QuartcPeer::OnIncomingStream(QuartcStream* stream) {
 
 void QuartcPeer::OnCongestionControlChange(QuicBandwidth bandwidth_estimate,
                                            QuicBandwidth pacing_rate,
-                                           QuicTime::Delta latest_rtt) {
+                                           QuicTime::Delta /*latest_rtt*/) {
   // Note: this is fairly crude rate adaptation and makes no effort to account
   // for overhead.  The congestion controller is assumed to account for this.
   // It may do so by detecting overuse and pushing back on its bandwidth
@@ -92,7 +92,7 @@ void QuartcPeer::OnCongestionControlChange(QuicBandwidth bandwidth_estimate,
 
 void QuartcPeer::OnConnectionClosed(QuicErrorCode error_code,
                                     const std::string& error_details,
-                                    ConnectionCloseSource source) {
+                                    ConnectionCloseSource /*source*/) {
   QUIC_LOG(INFO) << "Connection closed, error=" << error_code
                  << ", details=" << error_details;
   SetEnabled(false);

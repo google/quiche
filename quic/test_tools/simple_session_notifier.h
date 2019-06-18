@@ -67,7 +67,7 @@ class SimpleSessionNotifier : public SessionNotifierInterface {
   bool OnFrameAcked(const QuicFrame& frame,
                     QuicTime::Delta ack_delay_time,
                     QuicTime receive_timestamp) override;
-  void OnStreamFrameRetransmitted(const QuicStreamFrame& frame) override {}
+  void OnStreamFrameRetransmitted(const QuicStreamFrame& /*frame*/) override {}
   void OnFrameLost(const QuicFrame& frame) override;
   void RetransmitFrames(const QuicFrames& frames,
                         TransmissionType type) override;

@@ -170,7 +170,7 @@ void QuicFixedUint32::ToHandshakeMessage(CryptoHandshakeMessage* out) const {
 
 QuicErrorCode QuicFixedUint32::ProcessPeerHello(
     const CryptoHandshakeMessage& peer_hello,
-    HelloType hello_type,
+    HelloType /*hello_type*/,
     std::string* error_details) {
   DCHECK(error_details != nullptr);
   QuicErrorCode error = peer_hello.GetUint32(tag_, &receive_value_);
@@ -235,7 +235,7 @@ void QuicFixedUint128::ToHandshakeMessage(CryptoHandshakeMessage* out) const {
 
 QuicErrorCode QuicFixedUint128::ProcessPeerHello(
     const CryptoHandshakeMessage& peer_hello,
-    HelloType hello_type,
+    HelloType /*hello_type*/,
     std::string* error_details) {
   DCHECK(error_details != nullptr);
   QuicErrorCode error = peer_hello.GetUint128(tag_, &receive_value_);
@@ -305,7 +305,7 @@ void QuicFixedTagVector::ToHandshakeMessage(CryptoHandshakeMessage* out) const {
 
 QuicErrorCode QuicFixedTagVector::ProcessPeerHello(
     const CryptoHandshakeMessage& peer_hello,
-    HelloType hello_type,
+    HelloType /*hello_type*/,
     std::string* error_details) {
   DCHECK(error_details != nullptr);
   QuicTagVector values;
@@ -378,7 +378,7 @@ void QuicFixedSocketAddress::ToHandshakeMessage(
 
 QuicErrorCode QuicFixedSocketAddress::ProcessPeerHello(
     const CryptoHandshakeMessage& peer_hello,
-    HelloType hello_type,
+    HelloType /*hello_type*/,
     std::string* error_details) {
   QuicStringPiece address;
   if (!peer_hello.GetStringPiece(tag_, &address)) {

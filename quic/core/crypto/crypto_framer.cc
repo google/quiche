@@ -29,7 +29,7 @@ class OneShotVisitor : public CryptoFramerVisitorInterface {
  public:
   OneShotVisitor() : error_(false) {}
 
-  void OnError(CryptoFramer* framer) override { error_ = true; }
+  void OnError(CryptoFramer* /*framer*/) override { error_ = true; }
 
   void OnHandshakeMessage(const CryptoHandshakeMessage& message) override {
     out_ = QuicMakeUnique<CryptoHandshakeMessage>(message);
@@ -80,7 +80,8 @@ const std::string& CryptoFramer::error_detail() const {
   return error_detail_;
 }
 
-bool CryptoFramer::ProcessInput(QuicStringPiece input, EncryptionLevel level) {
+bool CryptoFramer::ProcessInput(QuicStringPiece input,
+                                EncryptionLevel /*level*/) {
   return ProcessInput(input);
 }
 

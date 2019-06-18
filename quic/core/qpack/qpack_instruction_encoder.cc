@@ -107,7 +107,7 @@ void QpackInstructionEncoder::DoStaticBit() {
   state_ = State::kStartField;
 }
 
-size_t QpackInstructionEncoder::DoVarintStart(size_t max_encoded_bytes,
+size_t QpackInstructionEncoder::DoVarintStart(size_t /*max_encoded_bytes*/,
                                               std::string* output) {
   DCHECK(field_->type == QpackInstructionFieldType::kVarint ||
          field_->type == QpackInstructionFieldType::kVarint2 ||

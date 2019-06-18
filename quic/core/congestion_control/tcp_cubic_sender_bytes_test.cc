@@ -64,7 +64,7 @@ class TcpCubicSenderBytesTest : public QuicTest {
     return SendAvailableSendWindow(kDefaultTCPMSS);
   }
 
-  int SendAvailableSendWindow(QuicPacketLength packet_length) {
+  int SendAvailableSendWindow(QuicPacketLength /*packet_length*/) {
     // Send as long as TimeUntilSend returns Zero.
     int packets_sent = 0;
     bool can_send = sender_->CanSend(bytes_in_flight_);

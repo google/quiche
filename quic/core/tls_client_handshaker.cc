@@ -23,7 +23,7 @@ TlsClientHandshaker::ProofVerifierCallbackImpl::~ProofVerifierCallbackImpl() {}
 
 void TlsClientHandshaker::ProofVerifierCallbackImpl::Run(
     bool ok,
-    const std::string& error_details,
+    const std::string& /*error_details*/,
     std::unique_ptr<ProofVerifyDetails>* details) {
   if (parent_ == nullptr) {
     return;

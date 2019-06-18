@@ -282,7 +282,7 @@ bool QuicMemoryCacheBackend::IsBackendInitialized() const {
 
 void QuicMemoryCacheBackend::FetchResponseFromBackend(
     const SpdyHeaderBlock& request_headers,
-    const std::string& request_body,
+    const std::string& /*request_body*/,
     QuicSimpleServerBackend::RequestHandler* quic_stream) {
   const QuicBackendResponse* quic_response = nullptr;
   // Find response in cache. If not found, send error response.
@@ -303,7 +303,7 @@ void QuicMemoryCacheBackend::FetchResponseFromBackend(
 
 // The memory cache does not have a per-stream handler
 void QuicMemoryCacheBackend::CloseBackendResponseStream(
-    QuicSimpleServerBackend::RequestHandler* quic_stream) {}
+    QuicSimpleServerBackend::RequestHandler* /*quic_stream*/) {}
 
 std::list<ServerPushInfo> QuicMemoryCacheBackend::GetServerPushResources(
     std::string request_url) {

@@ -117,7 +117,7 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
   void OnCanWrite() override;
   bool SendProbingData() override;
   void OnCongestionWindowChange(QuicTime /*now*/) override {}
-  void OnConnectionMigration(AddressChangeType type) override {}
+  void OnConnectionMigration(AddressChangeType /*type*/) override {}
   // Adds a connection level WINDOW_UPDATE frame.
   void OnAckNeedsRetransmittableFrame() override;
   void SendPing() override;
@@ -567,7 +567,9 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
   // Processes the stream type information of |pending| depending on
   // different kinds of sessions' own rules. Returns true if the pending stream
   // is converted into a normal stream.
-  virtual bool ProcessPendingStream(PendingStream* pending) { return false; }
+  virtual bool ProcessPendingStream(PendingStream* /*pending*/) {
+    return false;
+  }
 
   bool eliminate_static_stream_map() const {
     return eliminate_static_stream_map_;

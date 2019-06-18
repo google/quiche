@@ -15,7 +15,7 @@ QpackSendStream::QpackSendStream(QuicStreamId id,
       stream_type_(stream_type),
       stream_type_sent_(false) {}
 
-void QpackSendStream::OnStreamReset(const QuicRstStreamFrame& frame) {
+void QpackSendStream::OnStreamReset(const QuicRstStreamFrame& /*frame*/) {
   // TODO(renjietang) Change the error code to H/3 specific
   // HTTP_CLOSED_CRITICAL_STREAM.
   session()->connection()->CloseConnection(

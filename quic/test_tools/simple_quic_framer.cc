@@ -24,8 +24,8 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
 
   void OnError(QuicFramer* framer) override { error_ = framer->error(); }
 
-  bool OnProtocolVersionMismatch(ParsedQuicVersion version,
-                                 PacketHeaderFormat form) override {
+  bool OnProtocolVersionMismatch(ParsedQuicVersion /*version*/,
+                                 PacketHeaderFormat /*form*/) override {
     return false;
   }
 
@@ -39,14 +39,15 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
         QuicMakeUnique<QuicVersionNegotiationPacket>((packet));
   }
 
-  void OnRetryPacket(QuicConnectionId original_connection_id,
-                     QuicConnectionId new_connection_id,
-                     QuicStringPiece retry_token) override {}
+  void OnRetryPacket(QuicConnectionId /*original_connection_id*/,
+                     QuicConnectionId /*new_connection_id*/,
+                     QuicStringPiece /*retry_token*/) override {}
 
-  bool OnUnauthenticatedPublicHeader(const QuicPacketHeader& header) override {
+  bool OnUnauthenticatedPublicHeader(
+      const QuicPacketHeader& /*header*/) override {
     return true;
   }
-  bool OnUnauthenticatedHeader(const QuicPacketHeader& header) override {
+  bool OnUnauthenticatedHeader(const QuicPacketHeader& /*header*/) override {
     return true;
   }
   void OnDecryptedPacket(EncryptionLevel level) override {
@@ -58,7 +59,7 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
     return true;
   }
 
-  void OnCoalescedPacket(const QuicEncryptedPacket& packet) override {}
+  void OnCoalescedPacket(const QuicEncryptedPacket& /*packet*/) override {}
 
   bool OnStreamFrame(const QuicStreamFrame& frame) override {
     // Save a copy of the data so it is valid after the packet is processed.
@@ -97,8 +98,8 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
     return true;
   }
 
-  bool OnAckTimestamp(QuicPacketNumber packet_number,
-                      QuicTime timestamp) override {
+  bool OnAckTimestamp(QuicPacketNumber /*packet_number*/,
+                      QuicTime /*timestamp*/) override {
     return true;
   }
 
@@ -191,7 +192,7 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
 
   void OnPacketComplete() override {}
 
-  bool IsValidStatelessResetToken(QuicUint128 token) const override {
+  bool IsValidStatelessResetToken(QuicUint128 /*token*/) const override {
     return false;
   }
 

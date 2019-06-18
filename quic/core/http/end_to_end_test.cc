@@ -3328,12 +3328,14 @@ class WindowUpdateObserver : public QuicConnectionDebugVisitor {
 
   size_t num_ping_frames() const { return num_ping_frames_; }
 
-  void OnWindowUpdateFrame(const QuicWindowUpdateFrame& frame,
-                           const QuicTime& receive_time) override {
+  void OnWindowUpdateFrame(const QuicWindowUpdateFrame& /*frame*/,
+                           const QuicTime& /*receive_time*/) override {
     ++num_window_update_frames_;
   }
 
-  void OnPingFrame(const QuicPingFrame& frame) override { ++num_ping_frames_; }
+  void OnPingFrame(const QuicPingFrame& /*frame*/) override {
+    ++num_ping_frames_;
+  }
 
  private:
   size_t num_window_update_frames_;

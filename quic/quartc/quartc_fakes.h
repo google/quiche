@@ -43,9 +43,9 @@ class FakeQuartcEndpointDelegate : public QuartcEndpoint::Delegate {
   }
 
   // Called when connection closes locally, or remotely by peer.
-  void OnConnectionClosed(QuicErrorCode error_code,
-                          const std::string& error_details,
-                          ConnectionCloseSource source) override {
+  void OnConnectionClosed(QuicErrorCode /*error_code*/,
+                          const std::string& /*error_details*/,
+                          ConnectionCloseSource /*source*/) override {
     connected_ = false;
   }
 
@@ -73,9 +73,9 @@ class FakeQuartcEndpointDelegate : public QuartcEndpoint::Delegate {
     lost_datagram_ids_.push_back(datagram_id);
   }
 
-  void OnCongestionControlChange(QuicBandwidth bandwidth_estimate,
-                                 QuicBandwidth pacing_rate,
-                                 QuicTime::Delta latest_rtt) override {}
+  void OnCongestionControlChange(QuicBandwidth /*bandwidth_estimate*/,
+                                 QuicBandwidth /*pacing_rate*/,
+                                 QuicTime::Delta /*latest_rtt*/) override {}
 
   QuartcSession* session() { return session_; }
 
@@ -131,7 +131,7 @@ class FakeQuartcStreamDelegate : public QuartcStream::Delegate {
   size_t OnReceived(QuartcStream* stream,
                     iovec* iov,
                     size_t iov_length,
-                    bool fin) override {
+                    bool /*fin*/) override {
     size_t bytes_consumed = 0;
     for (size_t i = 0; i < iov_length; ++i) {
       received_data_[stream->id()] += std::string(
@@ -145,7 +145,7 @@ class FakeQuartcStreamDelegate : public QuartcStream::Delegate {
     errors_[stream->id()] = stream->stream_error();
   }
 
-  void OnBufferChanged(QuartcStream* stream) override {}
+  void OnBufferChanged(QuartcStream* /*stream*/) override {}
 
   bool has_data() { return !received_data_.empty(); }
   std::map<QuicStreamId, std::string> data() { return received_data_; }

@@ -54,10 +54,10 @@ class TestStream : public QuicSimpleServerStream {
 
   MOCK_METHOD1(WriteHeadersMock, void(bool fin));
 
-  size_t WriteHeaders(spdy::SpdyHeaderBlock header_block,
+  size_t WriteHeaders(spdy::SpdyHeaderBlock /*header_block*/,
                       bool fin,
                       QuicReferenceCountedPointer<QuicAckListenerInterface>
-                          ack_listener) override {
+                      /*ack_listener*/) override {
     WriteHeadersMock(fin);
     return 0;
   }

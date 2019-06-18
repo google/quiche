@@ -36,7 +36,7 @@ class QuicBufferedPacketStoreVisitor
 
   ~QuicBufferedPacketStoreVisitor() override {}
 
-  void OnExpiredPackets(QuicConnectionId connection_id,
+  void OnExpiredPackets(QuicConnectionId /*connection_id*/,
                         BufferedPacketList early_arrived_packets) override {
     last_expired_packet_queue_ = std::move(early_arrived_packets);
   }

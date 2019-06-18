@@ -62,9 +62,9 @@ void QuicSimpleServerStream::OnInitialHeadersComplete(
 }
 
 void QuicSimpleServerStream::OnTrailingHeadersComplete(
-    bool fin,
-    size_t frame_len,
-    const QuicHeaderList& header_list) {
+    bool /*fin*/,
+    size_t /*frame_len*/,
+    const QuicHeaderList& /*header_list*/) {
   QUIC_BUG << "Server does not support receiving Trailers.";
   SendErrorResponse();
 }
