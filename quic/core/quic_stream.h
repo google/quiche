@@ -529,7 +529,7 @@ class QUIC_EXPORT_PRIVATE QuicStream
   // or discarded.
   QuicStreamSendBuffer send_buffer_;
 
-  // Latched value of FLAGS_quic_buffered_data_threshold.
+  // Latched value of quic_buffered_data_threshold.
   const QuicByteCount buffered_data_threshold_;
 
   // If true, then this stream has precedence over other streams for write
