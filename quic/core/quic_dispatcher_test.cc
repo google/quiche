@@ -840,6 +840,23 @@ TEST_F(QuicDispatcherTest, ProcessPacketWithZeroPort) {
   ProcessPacket(client_address, TestConnectionId(1), true, SerializeCHLO());
 }
 
+TEST_F(QuicDispatcherTest, ProcessPacketWithInvalidShortInitialConnectionId) {
+  SetQuicReloadableFlag(quic_drop_invalid_small_initial_connection_id, true);
+  CreateTimeWaitListManager();
+
+  QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
+
+  // dispatcher_ should drop this packet.
+  EXPECT_CALL(*dispatcher_,
+              CreateQuicSession(_, client_address, QuicStringPiece("hq"), _))
+      .Times(0);
+  EXPECT_CALL(*time_wait_list_manager_, ProcessPacket(_, _, _, _, _)).Times(0);
+  EXPECT_CALL(*time_wait_list_manager_,
+              AddConnectionIdToTimeWait(_, _, _, _, _))
+      .Times(0);
+  ProcessPacket(client_address, EmptyQuicConnectionId(), true, SerializeCHLO());
+}
+
 TEST_F(QuicDispatcherTest, OKSeqNoPacketProcessed) {
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
   QuicConnectionId connection_id = TestConnectionId(1);
@@ -920,6 +937,7 @@ class QuicDispatcherTestStrayPacketConnectionId : public QuicDispatcherTest {};
 // Packets with truncated connection IDs should be dropped.
 TEST_F(QuicDispatcherTestStrayPacketConnectionId,
        StrayPacketTruncatedConnectionId) {
+  SetQuicReloadableFlag(quic_drop_invalid_small_initial_connection_id, true);
   CreateTimeWaitListManager();
 
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
@@ -927,8 +945,6 @@ TEST_F(QuicDispatcherTestStrayPacketConnectionId,
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, QuicStringPiece("hq"), _))
       .Times(0);
   if (VersionHasIetfInvariantHeader(
-          CurrentSupportedVersions()[0].transport_version) &&
-      !QuicUtils::VariableLengthConnectionIdAllowedForVersion(
           CurrentSupportedVersions()[0].transport_version)) {
     // This IETF packet has invalid connection ID length.
     EXPECT_CALL(*time_wait_list_manager_, ProcessPacket(_, _, _, _, _))
@@ -937,10 +953,8 @@ TEST_F(QuicDispatcherTestStrayPacketConnectionId,
                 AddConnectionIdToTimeWait(_, _, _, _, _))
         .Times(0);
   } else {
-    // This is either:
-    // - a GQUIC packet considered as IETF QUIC packet with short header
-    // with unacceptable packet number or
-    // - an IETF QUIC packet with bad connection ID length which is rejected.
+    // This is a GQUIC packet considered as IETF QUIC packet with short header
+    // with unacceptable packet number.
     EXPECT_CALL(*time_wait_list_manager_, ProcessPacket(_, _, _, _, _))
         .Times(1);
     EXPECT_CALL(*time_wait_list_manager_,
