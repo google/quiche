@@ -1013,7 +1013,7 @@ class SPDY_EXPORT_PRIVATE SpdyFrameVisitor {
   virtual void VisitAltSvc(const SpdyAltSvcIR& altsvc) = 0;
   virtual void VisitPriority(const SpdyPriorityIR& priority) = 0;
   virtual void VisitData(const SpdyDataIR& data) = 0;
-  virtual void VisitUnknown(const SpdyUnknownIR& unknown) {
+  virtual void VisitUnknown(const SpdyUnknownIR& /*unknown*/) {
     // TODO(birenroy): make abstract.
   }
 
@@ -1038,17 +1038,17 @@ class SPDY_EXPORT_PRIVATE SpdyFramerDebugVisitorInterface {
   // a list of name-value pairs.
   // |payload_len| is the uncompressed payload size.
   // |frame_len| is the compressed frame size.
-  virtual void OnSendCompressedFrame(SpdyStreamId stream_id,
-                                     SpdyFrameType type,
-                                     size_t payload_len,
-                                     size_t frame_len) {}
+  virtual void OnSendCompressedFrame(SpdyStreamId /*stream_id*/,
+                                     SpdyFrameType /*type*/,
+                                     size_t /*payload_len*/,
+                                     size_t /*frame_len*/) {}
 
   // Called when a frame containing a compressed payload of
   // name-value pairs is received.
   // |frame_len| is the compressed frame size.
-  virtual void OnReceiveCompressedFrame(SpdyStreamId stream_id,
-                                        SpdyFrameType type,
-                                        size_t frame_len) {}
+  virtual void OnReceiveCompressedFrame(SpdyStreamId /*stream_id*/,
+                                        SpdyFrameType /*type*/,
+                                        size_t /*frame_len*/) {}
 };
 
 // Calculates the number of bytes required to serialize a SpdyHeadersIR, not

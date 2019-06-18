@@ -134,7 +134,7 @@ class PriorityWriteScheduler : public WriteScheduler<StreamIdType> {
   }
 
   std::vector<StreamIdType> GetStreamChildren(
-      StreamIdType stream_id) const override {
+      StreamIdType /*stream_id*/) const override {
     return std::vector<StreamIdType>();
   }
 
