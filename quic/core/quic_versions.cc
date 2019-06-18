@@ -63,6 +63,17 @@ bool ParsedQuicVersion::SupportsClientConnectionIds() const {
   return transport_version >= QUIC_VERSION_99;
 }
 
+bool ParsedQuicVersion::DoesNotHaveHeadersStream() const {
+  return VersionLacksHeadersStream(transport_version);
+}
+
+bool VersionLacksHeadersStream(QuicTransportVersion transport_version) {
+  if (GetQuicFlag(FLAGS_quic_headers_stream_id_in_v99) == 0) {
+    return false;
+  }
+  return transport_version == QUIC_VERSION_99;
+}
+
 std::ostream& operator<<(std::ostream& os, const ParsedQuicVersion& version) {
   os << ParsedQuicVersionToString(version);
   return os;
@@ -418,6 +429,8 @@ void QuicVersionInitializeSupportForIetfDraft(int32_t draft_version) {
 
   // Enable necessary flags.
   SetQuicFlag(FLAGS_quic_supports_tls_handshake, true);
+  // 60 is the highest multiple of 4 and one-byte variable length integer.
+  SetQuicFlag(FLAGS_quic_headers_stream_id_in_v99, 60);
   SetQuicReloadableFlag(quic_deprecate_ack_bundling_mode, true);
   SetQuicReloadableFlag(quic_rpm_decides_when_to_send_acks, true);
   SetQuicReloadableFlag(quic_use_uber_loss_algorithm, true);

@@ -399,6 +399,11 @@ bool QuicUtils::IsCryptoStreamId(QuicTransportVersion version,
 
 // static
 QuicStreamId QuicUtils::GetHeadersStreamId(QuicTransportVersion version) {
+  if (version == QUIC_VERSION_99) {
+    // TODO(b/130659182) Turn this into a QUIC_BUG once we've fully removed
+    // the headers stream in those versions.
+    return GetQuicFlag(FLAGS_quic_headers_stream_id_in_v99);
+  }
   return GetFirstBidirectionalStreamId(version, Perspective::IS_CLIENT);
 }
 

@@ -483,9 +483,12 @@ TEST_P(QuicSpdySessionTestServer, MaximumAvailableOpenedStreams) {
     // stream ID, the next ID should fail. Since the actual limit
     // is not the number of open streams, we allocate the max and the max+2.
     // Get the max allowed stream ID, this should succeed.
+    QuicStreamCount headers_stream_offset =
+        VersionLacksHeadersStream(QUIC_VERSION_99) ? 1 : 0;
     QuicStreamId stream_id = StreamCountToId(
         QuicSessionPeer::v99_streamid_manager(&session_)
-            ->actual_max_allowed_incoming_bidirectional_streams(),
+                ->actual_max_allowed_incoming_bidirectional_streams() -
+            headers_stream_offset,
         Perspective::IS_CLIENT,  // Client initates stream, allocs stream id.
         /*bidirectional=*/true);
     EXPECT_NE(nullptr, session_.GetOrCreateDynamicStream(stream_id));
@@ -500,7 +503,7 @@ TEST_P(QuicSpdySessionTestServer, MaximumAvailableOpenedStreams) {
     stream_id = StreamCountToId(
         QuicSessionPeer::v99_streamid_manager(&session_)
                 ->actual_max_allowed_incoming_bidirectional_streams() +
-            1,
+            1 - headers_stream_offset,
         Perspective::IS_CLIENT,
         /*bidirectional=*/true);
     EXPECT_EQ(nullptr, session_.GetOrCreateDynamicStream(stream_id));
@@ -1588,10 +1591,12 @@ TEST_P(QuicSpdySessionTestServer,
         .Times(1);
   } else {
     // On version 99 opening such a stream results in a connection close.
-    EXPECT_CALL(
-        *connection_,
-        CloseConnection(QUIC_INVALID_STREAM_ID,
-                        "Stream id 24 would exceed stream count limit 6", _));
+    EXPECT_CALL(*connection_,
+                CloseConnection(
+                    QUIC_INVALID_STREAM_ID,
+                    testing::MatchesRegex(
+                        "Stream id [0-9]+ would exceed stream count limit 6"),
+                    _));
   }
   // Create one more data streams to exceed limit of open stream.
   QuicStreamFrame data1(kFinalStreamId, false, 0, QuicStringPiece("HT"));

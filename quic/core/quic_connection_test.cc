@@ -92,7 +92,9 @@ Perspective InvertPerspective(Perspective perspective) {
 
 QuicStreamId GetNthClientInitiatedStreamId(int n,
                                            QuicTransportVersion version) {
-  return QuicUtils::GetHeadersStreamId(version) + n * 2;
+  return QuicUtils::GetFirstBidirectionalStreamId(version,
+                                                  Perspective::IS_CLIENT) +
+         n * 2;
 }
 
 QuicLongHeaderType EncryptionlevelToLongHeaderType(EncryptionLevel level) {
@@ -3166,8 +3168,8 @@ TEST_P(QuicConnectionTest, LargeSendWithPendingAck) {
   iov.iov_base = data_array.get();
   iov.iov_len = len;
   QuicConsumedData consumed = connection_.SaveAndSendStreamData(
-      QuicUtils::GetHeadersStreamId(connection_.transport_version()), &iov, 1,
-      len, 0, FIN);
+      GetNthClientInitiatedStreamId(0, connection_.transport_version()), &iov,
+      1, len, 0, FIN);
   EXPECT_EQ(len, consumed.bytes_consumed);
   EXPECT_TRUE(consumed.fin_consumed);
   EXPECT_EQ(0u, connection_.NumQueuedPackets());
@@ -3176,7 +3178,7 @@ TEST_P(QuicConnectionTest, LargeSendWithPendingAck) {
   // Parse the last packet and ensure it's one stream frame with a fin.
   EXPECT_EQ(1u, writer_->frame_count());
   ASSERT_EQ(1u, writer_->stream_frames().size());
-  EXPECT_EQ(QuicUtils::GetHeadersStreamId(connection_.transport_version()),
+  EXPECT_EQ(GetNthClientInitiatedStreamId(0, connection_.transport_version()),
             writer_->stream_frames()[0]->stream_id);
   EXPECT_TRUE(writer_->stream_frames()[0]->fin);
   // Ensure the ack alarm was cancelled when the ack was sent.
@@ -4517,8 +4519,8 @@ TEST_P(QuicConnectionTest, HandshakeTimeout) {
 
   // Send and ack new data 3 seconds later to lengthen the idle timeout.
   SendStreamDataToPeer(
-      QuicUtils::GetHeadersStreamId(connection_.transport_version()), "GET /",
-      0, FIN, nullptr);
+      GetNthClientInitiatedStreamId(0, connection_.transport_version()),
+      "GET /", 0, FIN, nullptr);
   clock_.AdvanceTime(QuicTime::Delta::FromSeconds(3));
   QuicAckFrame frame = InitAckFrame(1);
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
@@ -4560,8 +4562,8 @@ TEST_P(QuicConnectionTest, PingAfterSend) {
   clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(5));
   EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
   SendStreamDataToPeer(
-      QuicUtils::GetHeadersStreamId(connection_.transport_version()), "GET /",
-      0, FIN, nullptr);
+      GetNthClientInitiatedStreamId(0, connection_.transport_version()),
+      "GET /", 0, FIN, nullptr);
   EXPECT_TRUE(connection_.GetPingAlarm()->IsSet());
   EXPECT_EQ(clock_.ApproximateNow() + QuicTime::Delta::FromSeconds(15),
             connection_.GetPingAlarm()->deadline());
@@ -4614,8 +4616,8 @@ TEST_P(QuicConnectionTest, ReducedPingTimeout) {
   clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(5));
   EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
   SendStreamDataToPeer(
-      QuicUtils::GetHeadersStreamId(connection_.transport_version()), "GET /",
-      0, FIN, nullptr);
+      GetNthClientInitiatedStreamId(0, connection_.transport_version()),
+      "GET /", 0, FIN, nullptr);
   EXPECT_TRUE(connection_.GetPingAlarm()->IsSet());
   EXPECT_EQ(clock_.ApproximateNow() + QuicTime::Delta::FromSeconds(10),
             connection_.GetPingAlarm()->deadline());

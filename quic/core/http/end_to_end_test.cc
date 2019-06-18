@@ -751,6 +751,19 @@ TEST_P(EndToEndTest, MixGoodAndBadConnectionIdLengths) {
                                                 .length());
 }
 
+TEST_P(EndToEndTestWithTls, SimpleRequestResponseWithIetfDraftSupport) {
+  if (GetParam().negotiated_version.transport_version != QUIC_VERSION_99 ||
+      GetParam().negotiated_version.handshake_protocol != PROTOCOL_TLS1_3) {
+    ASSERT_TRUE(Initialize());
+    return;
+  }
+  QuicVersionInitializeSupportForIetfDraft(1);
+  ASSERT_TRUE(Initialize());
+
+  EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
+  EXPECT_EQ("200", client_->response_headers()->find(":status")->second);
+}
+
 TEST_P(EndToEndTest, SimpleRequestResponseWithLargeReject) {
   chlo_multiplier_ = 1;
   ASSERT_TRUE(Initialize());
@@ -1785,6 +1798,7 @@ TEST_P(EndToEndTestWithTls, ResetConnection) {
 // TODO(nharper): Needs to get turned back to EndToEndTestWithTls
 // when we figure out why the test doesn't work on chrome.
 TEST_P(EndToEndTest, MaxStreamsUberTest) {
+  SetQuicFlag(FLAGS_quic_headers_stream_id_in_v99, 0);
   // Connect with lower fake packet loss than we'd like to test.  Until
   // b/10126687 is fixed, losing handshake packets is pretty brutal.
   SetPacketLossPercentage(1);
@@ -2891,6 +2905,7 @@ class EndToEndTestServerPush : public EndToEndTest {
   const size_t kNumMaxStreams = 10;
 
   EndToEndTestServerPush() : EndToEndTest() {
+    SetQuicFlag(FLAGS_quic_headers_stream_id_in_v99, 0);
     client_config_.SetMaxIncomingBidirectionalStreamsToSend(kNumMaxStreams);
     server_config_.SetMaxIncomingBidirectionalStreamsToSend(kNumMaxStreams);
     client_config_.SetMaxIncomingUnidirectionalStreamsToSend(kNumMaxStreams);
@@ -3389,7 +3404,7 @@ TEST_P(EndToEndTest,
 TEST_P(EndToEndTest,
        SendStatelessResetIfServerConnectionClosedLocallyAfterHandshake) {
   // Prevent the connection from expiring in the time wait list.
-  FLAGS_quic_time_wait_list_seconds = 10000;
+  SetQuicFlag(FLAGS_quic_time_wait_list_seconds, 10000);
   connect_to_server_on_initialize_ = false;
   ASSERT_TRUE(Initialize());
 

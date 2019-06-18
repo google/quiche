@@ -1295,6 +1295,9 @@ TEST_P(QuicSessionTestServer, IncreasedTimeoutAfterCryptoHandshake) {
 }
 
 TEST_P(QuicSessionTestServer, OnStreamFrameFinStaticStreamId) {
+  if (connection_->version().DoesNotHaveHeadersStream()) {
+    return;
+  }
   QuicStreamId headers_stream_id =
       QuicUtils::GetHeadersStreamId(connection_->transport_version());
   std::unique_ptr<TestStream> fake_headers_stream = QuicMakeUnique<TestStream>(
@@ -1316,6 +1319,9 @@ TEST_P(QuicSessionTestServer, OnStreamFrameFinStaticStreamId) {
 }
 
 TEST_P(QuicSessionTestServer, OnRstStreamStaticStreamId) {
+  if (connection_->version().DoesNotHaveHeadersStream()) {
+    return;
+  }
   QuicStreamId headers_stream_id =
       QuicUtils::GetHeadersStreamId(connection_->transport_version());
   std::unique_ptr<TestStream> fake_headers_stream = QuicMakeUnique<TestStream>(

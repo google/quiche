@@ -241,7 +241,10 @@ TEST_P(QuicSpdyClientSessionTest, MaxNumStreamsWithNoFinOrRst) {
   EXPECT_CALL(*connection_, SendControlFrame(_)).Times(AnyNumber());
   EXPECT_CALL(*connection_, OnStreamReset(_, _)).Times(AnyNumber());
 
-  const uint32_t kServerMaxIncomingStreams = 1;
+  uint32_t kServerMaxIncomingStreams = 1;
+  if (VersionLacksHeadersStream(GetParam().transport_version)) {
+    kServerMaxIncomingStreams = 0;
+  }
   CompleteCryptoHandshake(kServerMaxIncomingStreams);
 
   QuicSpdyClientStream* stream = session_->CreateOutgoingBidirectionalStream();
@@ -257,15 +260,22 @@ TEST_P(QuicSpdyClientSessionTest, MaxNumStreamsWithNoFinOrRst) {
   EXPECT_FALSE(stream);
 
   if (GetParam().transport_version == QUIC_VERSION_99) {
-    // Ensure that we have/have had 3 open streams, crypto, header, and the
-    // 1 test stream. Primary purpose of this is to fail when crypto
-    // no longer uses a normal stream. Some above constants will then need
-    // to be changed.
-    EXPECT_EQ(QuicSessionPeer::v99_bidirectional_stream_id_manager(&*session_)
-                      ->outgoing_static_stream_count() +
-                  1,
-              QuicSessionPeer::v99_bidirectional_stream_id_manager(&*session_)
-                  ->outgoing_stream_count());
+    if (VersionLacksHeadersStream(GetParam().transport_version)) {
+      EXPECT_EQ(1u,
+                QuicSessionPeer::v99_bidirectional_stream_id_manager(&*session_)
+                    ->outgoing_stream_count());
+
+    } else {
+      // Ensure that we have/have had 3 open streams, crypto, header, and the
+      // 1 test stream. Primary purpose of this is to fail when crypto
+      // no longer uses a normal stream. Some above constants will then need
+      // to be changed.
+      EXPECT_EQ(QuicSessionPeer::v99_bidirectional_stream_id_manager(&*session_)
+                        ->outgoing_static_stream_count() +
+                    1,
+                QuicSessionPeer::v99_bidirectional_stream_id_manager(&*session_)
+                    ->outgoing_stream_count());
+    }
   }
 }
 
@@ -279,7 +289,10 @@ TEST_P(QuicSpdyClientSessionTest, MaxNumStreamsWithRst) {
   EXPECT_CALL(*connection_, SendControlFrame(_)).Times(AnyNumber());
   EXPECT_CALL(*connection_, OnStreamReset(_, _)).Times(AnyNumber());
 
-  const uint32_t kServerMaxIncomingStreams = 1;
+  uint32_t kServerMaxIncomingStreams = 1;
+  if (VersionLacksHeadersStream(GetParam().transport_version)) {
+    kServerMaxIncomingStreams = 0;
+  }
   CompleteCryptoHandshake(kServerMaxIncomingStreams);
 
   QuicSpdyClientStream* stream = session_->CreateOutgoingBidirectionalStream();
@@ -312,7 +325,11 @@ TEST_P(QuicSpdyClientSessionTest, MaxNumStreamsWithRst) {
   if (GetParam().transport_version == QUIC_VERSION_99) {
     // Ensure that we have/have had three open streams: two test streams and the
     // header stream.
-    EXPECT_EQ(3u,
+    QuicStreamCount expected_stream_count = 3;
+    if (VersionLacksHeadersStream(GetParam().transport_version)) {
+      expected_stream_count = 2;
+    }
+    EXPECT_EQ(expected_stream_count,
               QuicSessionPeer::v99_bidirectional_stream_id_manager(&*session_)
                   ->outgoing_stream_count());
   }
@@ -329,7 +346,10 @@ TEST_P(QuicSpdyClientSessionTest, ResetAndTrailers) {
   // the server sends trailing headers (trailers). Receipt of the trailers by
   // the client should result in all outstanding stream state being tidied up
   // (including flow control, and number of available outgoing streams).
-  const uint32_t kServerMaxIncomingStreams = 1;
+  uint32_t kServerMaxIncomingStreams = 1;
+  if (VersionLacksHeadersStream(GetParam().transport_version)) {
+    kServerMaxIncomingStreams = 0;
+  }
   CompleteCryptoHandshake(kServerMaxIncomingStreams);
 
   QuicSpdyClientStream* stream = session_->CreateOutgoingBidirectionalStream();
@@ -392,7 +412,11 @@ TEST_P(QuicSpdyClientSessionTest, ResetAndTrailers) {
   if (GetParam().transport_version == QUIC_VERSION_99) {
     // Ensure that we have/have had three open streams: two test streams and the
     // header stream.
-    EXPECT_EQ(3u,
+    QuicStreamCount expected_stream_count = 3;
+    if (VersionLacksHeadersStream(GetParam().transport_version)) {
+      expected_stream_count = 2;
+    }
+    EXPECT_EQ(expected_stream_count,
               QuicSessionPeer::v99_bidirectional_stream_id_manager(&*session_)
                   ->outgoing_stream_count());
   }

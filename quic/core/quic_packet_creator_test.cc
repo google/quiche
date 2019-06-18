@@ -261,7 +261,9 @@ class QuicPacketCreatorTest : public QuicTestWithParam<TestParams> {
   }
 
   QuicStreamId GetNthClientInitiatedStreamId(int n) const {
-    return QuicUtils::GetHeadersStreamId(creator_.transport_version()) + n * 2;
+    return QuicUtils::GetFirstBidirectionalStreamId(
+               creator_.transport_version(), Perspective::IS_CLIENT) +
+           n * 2;
   }
 
   static const QuicStreamOffset kOffset = 0u;
@@ -1371,9 +1373,8 @@ TEST_P(QuicPacketCreatorTest, SerializeAndSendStreamFrame) {
   EXPECT_FALSE(creator_.HasPendingFrames());
 
   MakeIOVector("test", &iov_);
-  producer_.SaveStreamData(
-      QuicUtils::GetHeadersStreamId(client_framer_.transport_version()), &iov_,
-      1u, 0u, iov_.iov_len);
+  producer_.SaveStreamData(GetNthClientInitiatedStreamId(0), &iov_, 1u, 0u,
+                           iov_.iov_len);
   EXPECT_CALL(delegate_, OnSerializedPacket(_))
       .WillOnce(Invoke(this, &QuicPacketCreatorTest::SaveSerializedPacket));
   size_t num_bytes_consumed;
@@ -1381,8 +1382,8 @@ TEST_P(QuicPacketCreatorTest, SerializeAndSendStreamFrame) {
   creator_.set_debug_delegate(&debug);
   EXPECT_CALL(debug, OnFrameAddedToPacket(_));
   creator_.CreateAndSerializeStreamFrame(
-      QuicUtils::GetHeadersStreamId(client_framer_.transport_version()),
-      iov_.iov_len, 0, 0, true, NOT_RETRANSMISSION, &num_bytes_consumed);
+      GetNthClientInitiatedStreamId(0), iov_.iov_len, 0, 0, true,
+      NOT_RETRANSMISSION, &num_bytes_consumed);
   EXPECT_EQ(4u, num_bytes_consumed);
 
   // Ensure the packet is successfully created.
@@ -1407,15 +1408,14 @@ TEST_P(QuicPacketCreatorTest, SerializeStreamFrameWithPadding) {
 
   // Send one byte of stream data.
   MakeIOVector("a", &iov_);
-  producer_.SaveStreamData(
-      QuicUtils::GetHeadersStreamId(client_framer_.transport_version()), &iov_,
-      1u, 0u, iov_.iov_len);
+  producer_.SaveStreamData(GetNthClientInitiatedStreamId(0), &iov_, 1u, 0u,
+                           iov_.iov_len);
   EXPECT_CALL(delegate_, OnSerializedPacket(_))
       .WillOnce(Invoke(this, &QuicPacketCreatorTest::SaveSerializedPacket));
   size_t num_bytes_consumed;
   creator_.CreateAndSerializeStreamFrame(
-      QuicUtils::GetHeadersStreamId(client_framer_.transport_version()),
-      iov_.iov_len, 0, 0, true, NOT_RETRANSMISSION, &num_bytes_consumed);
+      GetNthClientInitiatedStreamId(0), iov_.iov_len, 0, 0, true,
+      NOT_RETRANSMISSION, &num_bytes_consumed);
   EXPECT_EQ(1u, num_bytes_consumed);
 
   // Check that a packet is created.
@@ -1445,9 +1445,8 @@ TEST_P(QuicPacketCreatorTest, AddUnencryptedStreamDataClosesConnection) {
 
   creator_.set_encryption_level(ENCRYPTION_INITIAL);
   EXPECT_CALL(delegate_, OnUnrecoverableError(_, _));
-  QuicStreamFrame stream_frame(
-      QuicUtils::GetHeadersStreamId(client_framer_.transport_version()),
-      /*fin=*/false, 0u, QuicStringPiece());
+  QuicStreamFrame stream_frame(GetNthClientInitiatedStreamId(0),
+                               /*fin=*/false, 0u, QuicStringPiece());
   EXPECT_QUIC_BUG(
       creator_.AddSavedFrame(QuicFrame(stream_frame), NOT_RETRANSMISSION),
       "Cannot send stream data with level: ENCRYPTION_INITIAL");
@@ -1461,9 +1460,8 @@ TEST_P(QuicPacketCreatorTest, SendStreamDataWithEncryptionHandshake) {
 
   creator_.set_encryption_level(ENCRYPTION_HANDSHAKE);
   EXPECT_CALL(delegate_, OnUnrecoverableError(_, _));
-  QuicStreamFrame stream_frame(
-      QuicUtils::GetHeadersStreamId(client_framer_.transport_version()),
-      /*fin=*/false, 0u, QuicStringPiece());
+  QuicStreamFrame stream_frame(GetNthClientInitiatedStreamId(0),
+                               /*fin=*/false, 0u, QuicStringPiece());
   EXPECT_QUIC_BUG(
       creator_.AddSavedFrame(QuicFrame(stream_frame), NOT_RETRANSMISSION),
       "Cannot send stream data with level: ENCRYPTION_HANDSHAKE");

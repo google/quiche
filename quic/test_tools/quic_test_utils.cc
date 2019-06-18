@@ -1147,10 +1147,13 @@ void CreateServerSessionForTest(
 QuicStreamId GetNthClientInitiatedBidirectionalStreamId(
     QuicTransportVersion version,
     int n) {
+  int num = n;
+  if (!VersionLacksHeadersStream(version)) {
+    num++;  // + 1 because spdy_session contains headers stream.
+  }
   return QuicUtils::GetFirstBidirectionalStreamId(version,
                                                   Perspective::IS_CLIENT) +
-         // + 1 because spdy_session contains headers stream.
-         QuicUtils::StreamIdDelta(version) * (n + 1);
+         QuicUtils::StreamIdDelta(version) * num;
 }
 
 QuicStreamId GetNthServerInitiatedBidirectionalStreamId(

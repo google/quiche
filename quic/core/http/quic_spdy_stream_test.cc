@@ -260,9 +260,12 @@ TEST_P(QuicSpdyStreamTest, ProcessTooLargeHeaderList) {
       VersionUsesQpack(GetParam().transport_version);
 
   if (version_uses_qpack) {
-    EXPECT_CALL(*connection_,
-                CloseConnection(QUIC_HEADERS_STREAM_DATA_DECOMPRESS_FAILURE,
-                                "Too large headers received on stream 4", _));
+    EXPECT_CALL(
+        *connection_,
+        CloseConnection(QUIC_HEADERS_STREAM_DATA_DECOMPRESS_FAILURE,
+                        testing::MatchesRegex(
+                            "Too large headers received on stream [0-9]+"),
+                        _));
   } else {
     EXPECT_CALL(*session_,
                 SendRstStream(stream_->id(), QUIC_HEADERS_TOO_LARGE, 0));
@@ -1817,11 +1820,13 @@ TEST_P(QuicSpdyStreamTest, MalformedHeadersStopHttpDecoder) {
   std::string stream_frame_payload = QuicStrCat(headers, data);
   QuicStreamFrame frame(stream_->id(), false, 0, stream_frame_payload);
 
-  EXPECT_CALL(*connection_,
-              CloseConnection(QUIC_DECOMPRESSION_FAILURE,
-                              "Error decompressing header block on stream 4: "
-                              "Incomplete header block.",
-                              _))
+  EXPECT_CALL(
+      *connection_,
+      CloseConnection(QUIC_DECOMPRESSION_FAILURE,
+                      testing::MatchesRegex(
+                          "Error decompressing header block on stream [0-9]+: "
+                          "Incomplete header block."),
+                      _))
       .WillOnce(
           (Invoke([this](QuicErrorCode error, const std::string& error_details,
                          ConnectionCloseBehavior connection_close_behavior) {

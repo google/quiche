@@ -351,13 +351,15 @@ QuicSpdySession::~QuicSpdySession() {
 void QuicSpdySession::Initialize() {
   QuicSession::Initialize();
 
-  if (perspective() == Perspective::IS_SERVER) {
-    set_largest_peer_created_stream_id(
-        QuicUtils::GetHeadersStreamId(connection()->transport_version()));
-  } else {
-    QuicStreamId headers_stream_id = GetNextOutgoingBidirectionalStreamId();
-    DCHECK_EQ(headers_stream_id,
-              QuicUtils::GetHeadersStreamId(connection()->transport_version()));
+  if (!connection()->version().DoesNotHaveHeadersStream()) {
+    if (perspective() == Perspective::IS_SERVER) {
+      set_largest_peer_created_stream_id(
+          QuicUtils::GetHeadersStreamId(connection()->transport_version()));
+    } else {
+      QuicStreamId headers_stream_id = GetNextOutgoingBidirectionalStreamId();
+      DCHECK_EQ(headers_stream_id, QuicUtils::GetHeadersStreamId(
+                                       connection()->transport_version()));
+    }
   }
 
   if (VersionUsesQpack(connection()->transport_version())) {
