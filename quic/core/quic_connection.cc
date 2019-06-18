@@ -81,15 +81,12 @@ class AckAlarmDelegate : public QuicAlarm::Delegate {
 
   void OnAlarm() override {
     DCHECK(connection_->ack_frame_updated());
-    QuicConnection::ScopedPacketFlusher flusher(connection_,
-                                                QuicConnection::SEND_ACK);
-    if (connection_->packet_generator().deprecate_ack_bundling_mode()) {
-      if (connection_->SupportsMultiplePacketNumberSpaces()) {
-        connection_->SendAllPendingAcks();
-      } else {
-        DCHECK(!connection_->GetUpdatedAckFrame().ack_frame->packets.Empty());
-        connection_->SendAck();
-      }
+    QuicConnection::ScopedPacketFlusher flusher(connection_);
+    if (connection_->SupportsMultiplePacketNumberSpaces()) {
+      connection_->SendAllPendingAcks();
+    } else {
+      DCHECK(!connection_->GetUpdatedAckFrame().ack_frame->packets.Empty());
+      connection_->SendAck();
     }
   }
 
@@ -193,8 +190,7 @@ class ProcessUndecryptablePacketsAlarmDelegate : public QuicAlarm::Delegate {
       const ProcessUndecryptablePacketsAlarmDelegate&) = delete;
 
   void OnAlarm() override {
-    QuicConnection::ScopedPacketFlusher flusher(connection_,
-                                                QuicConnection::NO_ACK);
+    QuicConnection::ScopedPacketFlusher flusher(connection_);
     connection_->MaybeProcessUndecryptablePackets();
   }
 
@@ -263,7 +259,6 @@ QuicConnection::QuicConnection(
       close_connection_after_five_rtos_(false),
       received_packet_manager_(&stats_),
       uber_received_packet_manager_(&stats_),
-      ack_queued_(false),
       num_retransmittable_packets_received_since_last_ack_sent_(0),
       num_packets_received_since_last_ack_sent_(0),
       stop_waiting_count_(0),
@@ -365,9 +360,6 @@ QuicConnection::QuicConnection(
   if (perspective_ == Perspective::IS_SERVER &&
       supported_versions.size() == 1) {
     QUIC_RESTART_FLAG_COUNT(quic_no_server_conn_ver_negotiation2);
-  }
-  if (packet_generator_.deprecate_ack_bundling_mode()) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_deprecate_ack_bundling_mode);
   }
   if (received_packet_manager_.decide_when_to_send_acks()) {
     QUIC_RELOADABLE_FLAG_COUNT(quic_rpm_decides_when_to_send_acks);
@@ -1659,15 +1651,11 @@ void QuicConnection::MaybeQueueAck(bool was_missing) {
         sent_packet_manager_.unacked_packets().largest_sent_largest_acked();
     if (largest_sent_largest_acked.IsInitialized() &&
         last_header_.packet_number < largest_sent_largest_acked) {
-      if (packet_generator_.deprecate_ack_bundling_mode()) {
-        MaybeSetAckAlarmTo(clock_->ApproximateNow());
-      } else {
-        ack_queued_ = true;
-      }
+      MaybeSetAckAlarmTo(clock_->ApproximateNow());
     }
   }
 
-  if (should_last_packet_instigate_acks_ && !ack_queued_) {
+  if (should_last_packet_instigate_acks_) {
     ++num_retransmittable_packets_received_since_last_ack_sent_;
     if (ack_mode_ != TCP_ACKING &&
         last_header_.packet_number >=
@@ -1677,12 +1665,8 @@ void QuicConnection::MaybeQueueAck(bool was_missing) {
       if (!unlimited_ack_decimation_ &&
           num_retransmittable_packets_received_since_last_ack_sent_ >=
               kMaxRetransmittablePacketsBeforeAck) {
-        if (packet_generator_.deprecate_ack_bundling_mode()) {
-          MaybeSetAckAlarmTo(clock_->ApproximateNow());
-        } else {
-          ack_queued_ = true;
-        }
-      } else if (ShouldSetAckAlarm()) {
+        MaybeSetAckAlarmTo(clock_->ApproximateNow());
+      } else if (!ack_alarm_->IsSet()) {
         // Wait for the minimum of the ack decimation delay or the delayed ack
         // time before sending an ack.
         QuicTime::Delta ack_delay =
@@ -1704,12 +1688,8 @@ void QuicConnection::MaybeQueueAck(bool was_missing) {
       // Ack with a timer or every 2 packets by default.
       if (num_retransmittable_packets_received_since_last_ack_sent_ >=
           ack_frequency_before_ack_decimation_) {
-        if (packet_generator_.deprecate_ack_bundling_mode()) {
-          MaybeSetAckAlarmTo(clock_->ApproximateNow());
-        } else {
-          ack_queued_ = true;
-        }
-      } else if (ShouldSetAckAlarm()) {
+        MaybeSetAckAlarmTo(clock_->ApproximateNow());
+      } else if (!ack_alarm_->IsSet()) {
         const QuicTime approximate_now = clock_->ApproximateNow();
         if (fast_ack_after_quiescence_ &&
             (approximate_now - time_of_previous_received_packet_) >
@@ -1733,25 +1713,17 @@ void QuicConnection::MaybeQueueAck(bool was_missing) {
         QuicTime ack_time =
             clock_->ApproximateNow() +
             0.125 * sent_packet_manager_.GetRttStats()->min_rtt();
-        if (ShouldSetAckAlarm() || ack_alarm_->deadline() > ack_time) {
+        if (!ack_alarm_->IsSet() || ack_alarm_->deadline() > ack_time) {
           ack_alarm_->Update(ack_time, QuicTime::Delta::Zero());
         }
       } else {
-        if (packet_generator_.deprecate_ack_bundling_mode()) {
-          MaybeSetAckAlarmTo(clock_->ApproximateNow());
-        } else {
-          ack_queued_ = true;
-        }
+        MaybeSetAckAlarmTo(clock_->ApproximateNow());
       }
     }
 
     if (fast_ack_after_quiescence_) {
       time_of_previous_received_packet_ = time_of_last_received_packet_;
     }
-  }
-
-  if (ack_queued_) {
-    ack_alarm_->Cancel();
   }
 }
 
@@ -1872,7 +1844,7 @@ size_t QuicConnection::SendCryptoData(EncryptionLevel level,
     return 0;
   }
 
-  ScopedPacketFlusher flusher(this, SEND_ACK_IF_PENDING);
+  ScopedPacketFlusher flusher(this);
   return packet_generator_.ConsumeCryptoData(level, write_length, offset);
 }
 
@@ -1890,7 +1862,7 @@ QuicConsumedData QuicConnection::SendStreamData(QuicStreamId id,
   // which decrypter will be used on an ack packet following a handshake
   // packet (a handshake packet from client to server could result in a REJ or a
   // SHLO from the server, leading to two different decrypters at the server.)
-  ScopedPacketFlusher flusher(this, SEND_ACK_IF_PENDING);
+  ScopedPacketFlusher flusher(this);
   return packet_generator_.ConsumeData(id, write_length, offset, state);
 }
 
@@ -1901,7 +1873,7 @@ bool QuicConnection::SendControlFrame(const QuicFrame& frame) {
     // Do not check congestion window for ping.
     return false;
   }
-  ScopedPacketFlusher flusher(this, SEND_ACK_IF_PENDING);
+  ScopedPacketFlusher flusher(this);
   const bool consumed =
       packet_generator_.ConsumeRetransmittableControlFrame(frame);
   if (packet_generator_.deprecate_queued_control_frames() && !consumed) {
@@ -1930,7 +1902,7 @@ void QuicConnection::OnStreamReset(QuicStreamId id,
   }
   // Flush stream frames of reset stream.
   if (packet_generator_.HasPendingStreamFramesOfStream(id)) {
-    ScopedPacketFlusher flusher(this, SEND_ACK_IF_PENDING);
+    ScopedPacketFlusher flusher(this);
     packet_generator_.FlushAllQueuedFrames();
   }
 
@@ -2039,7 +2011,7 @@ void QuicConnection::ProcessUdpPacket(const QuicSocketAddress& self_address,
   QUIC_DVLOG(1) << ENDPOINT << "time of last received packet: "
                 << time_of_last_received_packet_.ToDebuggingValue();
 
-  ScopedPacketFlusher flusher(this, NO_ACK);
+  ScopedPacketFlusher flusher(this);
   if (!framer_.ProcessPacket(packet)) {
     // If we are unable to decrypt this packet, it might be
     // because the CHLO or SHLO packet was lost.
@@ -2100,7 +2072,7 @@ void QuicConnection::OnCanWrite() {
   DCHECK(!writer_->IsWriteBlocked());
 
   // Add a flusher to ensure the connection is marked app-limited.
-  ScopedPacketFlusher flusher(this, NO_ACK);
+  ScopedPacketFlusher flusher(this);
 
   WriteQueuedPackets();
   if (received_packet_manager_.decide_when_to_send_acks()) {
@@ -2123,7 +2095,6 @@ void QuicConnection::OnCanWrite() {
     // Send an ACK now because either 1) we were write blocked when we last
     // tried to send an ACK, or 2) both ack alarm and send alarm were set to go
     // off together.
-    DCHECK(packet_generator_.deprecate_ack_bundling_mode());
     SendAck();
   }
   if (!session_decides_what_to_write()) {
@@ -2143,7 +2114,7 @@ void QuicConnection::WriteNewData() {
   }
 
   {
-    ScopedPacketFlusher flusher(this, SEND_ACK_IF_QUEUED);
+    ScopedPacketFlusher flusher(this);
     visitor_->OnCanWrite();
   }
 
@@ -2166,7 +2137,7 @@ void QuicConnection::WriteIfNotBlocked() {
 
 void QuicConnection::WriteAndBundleAcksIfNotBlocked() {
   if (!HandleWriteBlocked()) {
-    ScopedPacketFlusher flusher(this, SEND_ACK_IF_QUEUED);
+    ScopedPacketFlusher flusher(this);
     WriteIfNotBlocked();
   }
 }
@@ -2338,7 +2309,7 @@ void QuicConnection::WritePendingRetransmissions() {
     // be moved outside of the loop. Also, CanWrite is not checked after the
     // generator is flushed.
     {
-      ScopedPacketFlusher flusher(this, NO_ACK);
+      ScopedPacketFlusher flusher(this);
       packet_generator_.FlushAllQueuedFrames();
     }
     DCHECK(!packet_generator_.HasQueuedFrames());
@@ -2390,7 +2361,6 @@ bool QuicConnection::ShouldGeneratePacket(
 }
 
 const QuicFrames QuicConnection::MaybeBundleAckOpportunistically() {
-  DCHECK(packet_generator_.deprecate_ack_bundling_mode());
   QuicFrames frames;
   bool has_pending_ack = false;
   if (received_packet_manager_.decide_when_to_send_acks()) {
@@ -2811,8 +2781,7 @@ void QuicConnection::OnHandshakeComplete() {
   }
   // The client should immediately ack the SHLO to confirm the handshake is
   // complete with the server.
-  if (perspective_ == Perspective::IS_CLIENT && !ack_queued_ &&
-      ack_frame_updated()) {
+  if (perspective_ == Perspective::IS_CLIENT && ack_frame_updated()) {
     ack_alarm_->Update(clock_->ApproximateNow(), QuicTime::Delta::Zero());
   }
 }
@@ -2849,25 +2818,21 @@ void QuicConnection::SendAck() {
     ResetAckStates();
   }
 
-  if (packet_generator_.deprecate_ack_bundling_mode()) {
-    QUIC_DVLOG(1) << ENDPOINT << "Sending an ACK proactively";
-    QuicFrames frames;
-    frames.push_back(GetUpdatedAckFrame());
-    if (!no_stop_waiting_frames_) {
-      QuicStopWaitingFrame stop_waiting;
-      PopulateStopWaitingFrame(&stop_waiting);
-      frames.push_back(QuicFrame(stop_waiting));
+  QUIC_DVLOG(1) << ENDPOINT << "Sending an ACK proactively";
+  QuicFrames frames;
+  frames.push_back(GetUpdatedAckFrame());
+  if (!no_stop_waiting_frames_) {
+    QuicStopWaitingFrame stop_waiting;
+    PopulateStopWaitingFrame(&stop_waiting);
+    frames.push_back(QuicFrame(stop_waiting));
+  }
+  if (received_packet_manager_.decide_when_to_send_acks()) {
+    if (!packet_generator_.FlushAckFrame(frames)) {
+      return;
     }
-    if (received_packet_manager_.decide_when_to_send_acks()) {
-      if (!packet_generator_.FlushAckFrame(frames)) {
-        return;
-      }
-      ResetAckStates();
-    } else {
-      send_ack_when_on_can_write_ = !packet_generator_.FlushAckFrame(frames);
-    }
+    ResetAckStates();
   } else {
-    packet_generator_.SetShouldSendAck(!no_stop_waiting_frames_);
+    send_ack_when_on_can_write_ = !packet_generator_.FlushAckFrame(frames);
   }
   if (consecutive_num_packets_with_no_retransmittable_frames_ <
       max_consecutive_num_packets_with_no_retransmittable_frames_) {
@@ -2937,7 +2902,7 @@ void QuicConnection::SetDiversificationNonce(
 void QuicConnection::SetDefaultEncryptionLevel(EncryptionLevel level) {
   if (level != encryption_level_ && packet_generator_.HasQueuedFrames()) {
     // Flush all queued frames when encryption level changes.
-    ScopedPacketFlusher flusher(this, NO_ACK);
+    ScopedPacketFlusher flusher(this);
     packet_generator_.FlushAllQueuedFrames();
   }
   encryption_level_ = level;
@@ -3104,12 +3069,11 @@ void QuicConnection::SendConnectionClosePacket(QuicErrorCode error,
   SetDefaultEncryptionLevel(GetConnectionCloseEncryptionLevel());
   ClearQueuedPackets();
   // If there was a packet write error, write the smallest close possible.
-  AckBundling ack_mode = (error == QUIC_PACKET_WRITE_ERROR) ? NO_ACK : SEND_ACK;
-  ScopedPacketFlusher flusher(this, ack_mode);
+  ScopedPacketFlusher flusher(this);
   // When multiple packet number spaces is supported, an ACK frame will be
   // bundled when connection is not write blocked.
   if (!SupportsMultiplePacketNumberSpaces() &&
-      packet_generator_.deprecate_ack_bundling_mode() && ack_mode == SEND_ACK &&
+      error != QUIC_PACKET_WRITE_ERROR &&
       !GetUpdatedAckFrame().ack_frame->packets.Empty()) {
     SendAck();
   }
@@ -3344,15 +3308,13 @@ void QuicConnection::MaybeSetMtuAlarm(QuicPacketNumber sent_packet_number) {
 }
 
 void QuicConnection::MaybeSetAckAlarmTo(QuicTime time) {
-  DCHECK(packet_generator_.deprecate_ack_bundling_mode());
   if (!ack_alarm_->IsSet() || ack_alarm_->deadline() > time) {
     ack_alarm_->Update(time, QuicTime::Delta::Zero());
   }
 }
 
 QuicConnection::ScopedPacketFlusher::ScopedPacketFlusher(
-    QuicConnection* connection,
-    AckBundling ack_mode)
+    QuicConnection* connection)
     : connection_(connection),
       flush_and_set_pending_retransmission_alarm_on_delete_(false) {
   if (connection_ == nullptr) {
@@ -3362,40 +3324,6 @@ QuicConnection::ScopedPacketFlusher::ScopedPacketFlusher(
   if (!connection_->packet_generator_.PacketFlusherAttached()) {
     flush_and_set_pending_retransmission_alarm_on_delete_ = true;
     connection->packet_generator_.AttachPacketFlusher();
-  }
-  if (connection_->packet_generator_.deprecate_ack_bundling_mode()) {
-    return;
-  }
-
-  // If caller wants us to include an ack, check the delayed-ack timer to see if
-  // there's ack info to be sent.
-  if (ShouldSendAck(ack_mode)) {
-    if (!connection_->GetUpdatedAckFrame().ack_frame->packets.Empty()) {
-      QUIC_DVLOG(1) << "Bundling ack with outgoing packet.";
-      connection_->SendAck();
-    }
-  }
-}
-
-bool QuicConnection::ScopedPacketFlusher::ShouldSendAck(
-    AckBundling ack_mode) const {
-  DCHECK(!connection_->packet_generator_.deprecate_ack_bundling_mode());
-  // If the ack alarm is set, make sure the ack has been updated.
-  DCHECK(!connection_->ack_alarm_->IsSet() || connection_->ack_frame_updated())
-      << "ack_mode:" << ack_mode;
-  switch (ack_mode) {
-    case SEND_ACK:
-      return true;
-    case SEND_ACK_IF_QUEUED:
-      return connection_->ack_queued();
-    case SEND_ACK_IF_PENDING:
-      return connection_->ack_alarm_->IsSet() ||
-             connection_->stop_waiting_count_ > 1;
-    case NO_ACK:
-      return false;
-    default:
-      QUIC_BUG << "Unsupported ack_mode.";
-      return true;
   }
 }
 
@@ -3410,44 +3338,41 @@ QuicConnection::ScopedPacketFlusher::~ScopedPacketFlusher() {
   }
 
   if (flush_and_set_pending_retransmission_alarm_on_delete_) {
-    if (connection_->packet_generator_.deprecate_ack_bundling_mode()) {
-      if (connection_->received_packet_manager_.decide_when_to_send_acks()) {
-        const QuicTime ack_timeout =
-            connection_->use_uber_received_packet_manager_
-                ? connection_->uber_received_packet_manager_
-                      .GetEarliestAckTimeout()
-                : connection_->received_packet_manager_.ack_timeout();
-        if (ack_timeout.IsInitialized()) {
-          if (ack_timeout <= connection_->clock_->ApproximateNow() &&
-              !connection_->CanWrite(NO_RETRANSMITTABLE_DATA)) {
-            // Cancel ACK alarm if connection is write blocked, and ACK will be
-            // sent when connection gets unblocked.
-            connection_->ack_alarm_->Cancel();
-          } else {
-            connection_->MaybeSetAckAlarmTo(ack_timeout);
-          }
+    if (connection_->received_packet_manager_.decide_when_to_send_acks()) {
+      const QuicTime ack_timeout =
+          connection_->use_uber_received_packet_manager_
+              ? connection_->uber_received_packet_manager_
+                    .GetEarliestAckTimeout()
+              : connection_->received_packet_manager_.ack_timeout();
+      if (ack_timeout.IsInitialized()) {
+        if (ack_timeout <= connection_->clock_->ApproximateNow() &&
+            !connection_->CanWrite(NO_RETRANSMITTABLE_DATA)) {
+          // Cancel ACK alarm if connection is write blocked, and ACK will be
+          // sent when connection gets unblocked.
+          connection_->ack_alarm_->Cancel();
+        } else {
+          connection_->MaybeSetAckAlarmTo(ack_timeout);
         }
       }
-      if (connection_->ack_alarm_->IsSet() &&
-          connection_->ack_alarm_->deadline() <=
+    }
+    if (connection_->ack_alarm_->IsSet() &&
+        connection_->ack_alarm_->deadline() <=
+            connection_->clock_->ApproximateNow()) {
+      // An ACK needs to be sent right now. This ACK did not get bundled
+      // because either there was no data to write or packets were marked as
+      // received after frames were queued in the generator.
+      if (connection_->send_alarm_->IsSet() &&
+          connection_->send_alarm_->deadline() <=
               connection_->clock_->ApproximateNow()) {
-        // An ACK needs to be sent right now. This ACK did not get bundled
-        // because either there was no data to write or packets were marked as
-        // received after frames were queued in the generator.
-        if (connection_->send_alarm_->IsSet() &&
-            connection_->send_alarm_->deadline() <=
-                connection_->clock_->ApproximateNow()) {
-          // If send alarm will go off soon, let send alarm send the ACK.
-          connection_->ack_alarm_->Cancel();
-          if (!connection_->received_packet_manager_
-                   .decide_when_to_send_acks()) {
-            connection_->send_ack_when_on_can_write_ = true;
-          }
-        } else if (connection_->SupportsMultiplePacketNumberSpaces()) {
-          connection_->SendAllPendingAcks();
-        } else {
-          connection_->SendAck();
+        // If send alarm will go off soon, let send alarm send the ACK.
+        connection_->ack_alarm_->Cancel();
+        if (!connection_->received_packet_manager_.decide_when_to_send_acks()) {
+          connection_->send_ack_when_on_can_write_ = true;
         }
+      } else if (connection_->SupportsMultiplePacketNumberSpaces()) {
+        connection_->SendAllPendingAcks();
+      } else {
+        connection_->SendAck();
       }
     }
     connection_->packet_generator_.Flush();
@@ -3959,7 +3884,6 @@ void QuicConnection::UpdateReleaseTimeIntoFuture() {
 
 void QuicConnection::ResetAckStates() {
   ack_alarm_->Cancel();
-  ack_queued_ = false;
   stop_waiting_count_ = 0;
   num_retransmittable_packets_received_since_last_ack_sent_ = 0;
   num_packets_received_since_last_ack_sent_ = 0;
@@ -3985,7 +3909,7 @@ MessageStatus QuicConnection::SendMessage(QuicMessageId message_id,
   if (!CanWrite(HAS_RETRANSMITTABLE_DATA)) {
     return MESSAGE_STATUS_BLOCKED;
   }
-  ScopedPacketFlusher flusher(this, SEND_ACK_IF_PENDING);
+  ScopedPacketFlusher flusher(this);
   return packet_generator_.AddMessageFrame(message_id, message);
 }
 
@@ -4002,23 +3926,6 @@ uint32_t QuicConnection::cipher_id() const {
     return framer_.GetDecrypter(last_decrypted_packet_level_)->cipher_id();
   }
   return framer_.decrypter()->cipher_id();
-}
-
-bool QuicConnection::ShouldSetAckAlarm() const {
-  DCHECK(ack_frame_updated());
-  if (ack_alarm_->IsSet()) {
-    // ACK alarm has been set.
-    return false;
-  }
-  if (GetQuicReloadableFlag(quic_fix_spurious_ack_alarm) &&
-      packet_generator_.should_send_ack()) {
-    // If the generator is already configured to send an ACK, then there is no
-    // need to schedule the ACK alarm. The updated ACK information will be sent
-    // when the generator flushes.
-    QUIC_RELOADABLE_FLAG_COUNT(quic_fix_spurious_ack_alarm);
-    return false;
-  }
-  return true;
 }
 
 EncryptionLevel QuicConnection::GetConnectionCloseEncryptionLevel() const {

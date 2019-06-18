@@ -386,8 +386,7 @@ bool QuicEndpoint::DataProducer::WriteCryptoData(EncryptionLevel leve,
 
 void QuicEndpoint::WriteStreamData() {
   // Instantiate a flusher which would normally be here due to QuicSession.
-  QuicConnection::ScopedPacketFlusher flusher(
-      &connection_, QuicConnection::SEND_ACK_IF_QUEUED);
+  QuicConnection::ScopedPacketFlusher flusher(&connection_);
 
   while (bytes_to_transfer_ > 0) {
     // Transfer data in chunks of size at most |kWriteChunkSize|.

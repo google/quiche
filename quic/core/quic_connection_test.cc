@@ -647,7 +647,7 @@ class TestConnection : public QuicConnection {
                                          size_t total_length,
                                          QuicStreamOffset offset,
                                          StreamSendingState state) {
-    ScopedPacketFlusher flusher(this, NO_ACK);
+    ScopedPacketFlusher flusher(this);
     producer_.SaveStreamData(id, iov, iov_count, 0u, total_length);
     if (notifier_ != nullptr) {
       return notifier_->WriteOrBufferData(id, total_length, state);
@@ -659,7 +659,7 @@ class TestConnection : public QuicConnection {
                                             QuicStringPiece data,
                                             QuicStreamOffset offset,
                                             StreamSendingState state) {
-    ScopedPacketFlusher flusher(this, NO_ACK);
+    ScopedPacketFlusher flusher(this);
     if (!QuicUtils::IsCryptoStreamId(transport_version(), id) &&
         this->encryption_level() == ENCRYPTION_INITIAL) {
       this->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
@@ -674,7 +674,7 @@ class TestConnection : public QuicConnection {
                                               QuicStringPiece data,
                                               QuicStreamOffset offset,
                                               StreamSendingState state) {
-    ScopedPacketFlusher flusher(this, NO_ACK);
+    ScopedPacketFlusher flusher(this);
     DCHECK(encryption_level >= ENCRYPTION_ZERO_RTT);
     SetEncrypter(encryption_level, QuicMakeUnique<TaggingEncrypter>(0x01));
     SetDefaultEncryptionLevel(encryption_level);
@@ -1267,8 +1267,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
   void SendAckPacketToPeer() {
     EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
     {
-      QuicConnection::ScopedPacketFlusher flusher(&connection_,
-                                                  QuicConnection::NO_ACK);
+      QuicConnection::ScopedPacketFlusher flusher(&connection_);
       connection_.SendAck();
     }
     EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
@@ -2930,8 +2929,7 @@ TEST_P(QuicConnectionTest, FramePacking) {
   // Send two stream frames in 1 packet by queueing them.
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   {
-    QuicConnection::ScopedPacketFlusher flusher(&connection_,
-                                                QuicConnection::SEND_ACK);
+    QuicConnection::ScopedPacketFlusher flusher(&connection_);
     connection_.SendStreamData3();
     connection_.SendStreamData5();
     EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
@@ -2964,8 +2962,7 @@ TEST_P(QuicConnectionTest, FramePackingNonCryptoThenCrypto) {
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   {
     EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(2);
-    QuicConnection::ScopedPacketFlusher flusher(&connection_,
-                                                QuicConnection::SEND_ACK);
+    QuicConnection::ScopedPacketFlusher flusher(&connection_);
     connection_.SendStreamData3();
     connection_.SendCryptoStreamData();
   }
@@ -2990,8 +2987,7 @@ TEST_P(QuicConnectionTest, FramePackingCryptoThenNonCrypto) {
   {
     connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
     EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(2);
-    QuicConnection::ScopedPacketFlusher flusher(&connection_,
-                                                QuicConnection::SEND_ACK);
+    QuicConnection::ScopedPacketFlusher flusher(&connection_);
     connection_.SendCryptoStreamData();
     connection_.SendStreamData3();
   }
@@ -3702,8 +3698,7 @@ TEST_P(QuicConnectionTest, DoNotAddToWriteBlockedListAfterDisconnect) {
   EXPECT_CALL(visitor_, OnWriteBlocked()).Times(0);
 
   {
-    QuicConnection::ScopedPacketFlusher flusher(&connection_,
-                                                QuicConnection::NO_ACK);
+    QuicConnection::ScopedPacketFlusher flusher(&connection_);
     connection_.CloseConnection(QUIC_PEER_GOING_AWAY, "no reason",
                                 ConnectionCloseBehavior::SILENT_CLOSE);
 
@@ -3718,8 +3713,7 @@ TEST_P(QuicConnectionTest, AddToWriteBlockedListIfBlockedOnFlushPackets) {
 
   EXPECT_CALL(visitor_, OnWriteBlocked()).Times(1);
   {
-    QuicConnection::ScopedPacketFlusher flusher(&connection_,
-                                                QuicConnection::NO_ACK);
+    QuicConnection::ScopedPacketFlusher flusher(&connection_);
     // flusher's destructor will call connection_.FlushPackets, which should add
     // the connection to the write blocked list.
   }
@@ -8015,8 +8009,7 @@ TEST_P(QuicConnectionTest, SendMessage) {
   QuicStringPiece message_data(message);
   QuicMemSliceStorage storage(nullptr, 0, nullptr, 0);
   {
-    QuicConnection::ScopedPacketFlusher flusher(&connection_,
-                                                QuicConnection::SEND_ACK);
+    QuicConnection::ScopedPacketFlusher flusher(&connection_);
     connection_.SendStreamData3();
     // Send a message which cannot fit into current open packet, and 2 packets
     // get sent, one contains stream frame, and the other only contains the

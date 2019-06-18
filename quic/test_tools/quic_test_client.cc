@@ -352,8 +352,7 @@ ssize_t QuicTestClient::SendRequestAndRstTogether(const std::string& uri) {
   }
 
   QuicSpdyClientSession* session = client()->client_session();
-  QuicConnection::ScopedPacketFlusher flusher(
-      session->connection(), QuicConnection::SEND_ACK_IF_PENDING);
+  QuicConnection::ScopedPacketFlusher flusher(session->connection());
   ssize_t ret = SendMessage(headers, "", /*fin=*/true, /*flush=*/false);
 
   QuicStreamId stream_id = GetNthClientInitiatedBidirectionalStreamId(

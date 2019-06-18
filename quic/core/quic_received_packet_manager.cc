@@ -62,7 +62,6 @@ QuicReceivedPacketManager::QuicReceivedPacketManager(QuicConnectionStats* stats)
       time_of_previous_received_packet_(QuicTime::Zero()),
       was_last_packet_missing_(false),
       decide_when_to_send_acks_(
-          GetQuicReloadableFlag(quic_deprecate_ack_bundling_mode) &&
           GetQuicReloadableFlag(quic_rpm_decides_when_to_send_acks)) {}
 
 QuicReceivedPacketManager::~QuicReceivedPacketManager() {}

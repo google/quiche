@@ -26,35 +26,13 @@ QuicPacketGenerator::QuicPacketGenerator(QuicConnectionId server_connection_id,
       packet_creator_(server_connection_id, framer, random_generator, delegate),
       next_transmission_type_(NOT_RETRANSMISSION),
       flusher_attached_(false),
-      should_send_ack_(false),
-      should_send_stop_waiting_(false),
       random_generator_(random_generator),
       fully_pad_crypto_handshake_packets_(true),
-      deprecate_ack_bundling_mode_(
-          GetQuicReloadableFlag(quic_deprecate_ack_bundling_mode)),
       deprecate_queued_control_frames_(
-          deprecate_ack_bundling_mode_ &&
           GetQuicReloadableFlag(quic_deprecate_queued_control_frames)) {}
 
 QuicPacketGenerator::~QuicPacketGenerator() {
   DeleteFrames(&queued_control_frames_);
-}
-
-void QuicPacketGenerator::SetShouldSendAck(bool also_send_stop_waiting) {
-  DCHECK(!deprecate_ack_bundling_mode_);
-  if (packet_creator_.has_ack()) {
-    // Ack already queued, nothing to do.
-    return;
-  }
-
-  if (also_send_stop_waiting && packet_creator_.has_stop_waiting()) {
-    QUIC_BUG << "Should only ever be one pending stop waiting frame.";
-    return;
-  }
-
-  should_send_ack_ = true;
-  should_send_stop_waiting_ = also_send_stop_waiting;
-  SendQueuedFrames(/*flush=*/false);
 }
 
 bool QuicPacketGenerator::ConsumeRetransmittableControlFrame(
@@ -62,9 +40,7 @@ bool QuicPacketGenerator::ConsumeRetransmittableControlFrame(
   QUIC_BUG_IF(IsControlFrame(frame.type) && !GetControlFrameId(frame))
       << "Adding a control frame with no control frame id: " << frame;
   DCHECK(QuicUtils::IsRetransmittableFrame(frame.type)) << frame;
-  if (deprecate_ack_bundling_mode_) {
-    MaybeBundleAckOpportunistically();
-  }
+  MaybeBundleAckOpportunistically();
   if (deprecate_queued_control_frames_) {
     QUIC_RELOADABLE_FLAG_COUNT(quic_deprecate_queued_control_frames);
     if (packet_creator_.HasPendingFrames()) {
@@ -95,9 +71,7 @@ size_t QuicPacketGenerator::ConsumeCryptoData(EncryptionLevel level,
                                               QuicStreamOffset offset) {
   QUIC_BUG_IF(!flusher_attached_) << "Packet flusher is not attached when "
                                      "generator tries to write crypto data.";
-  if (deprecate_ack_bundling_mode_) {
-    MaybeBundleAckOpportunistically();
-  }
+  MaybeBundleAckOpportunistically();
   // To make reasoning about crypto frames easier, we don't combine them with
   // other retransmittable frames in a single packet.
   // TODO(nharper): Once we have separate packet number spaces, everything
@@ -140,9 +114,7 @@ QuicConsumedData QuicPacketGenerator::ConsumeData(QuicStreamId id,
                                      "generator tries to write stream data.";
   bool has_handshake =
       QuicUtils::IsCryptoStreamId(packet_creator_.transport_version(), id);
-  if (deprecate_ack_bundling_mode_) {
-    MaybeBundleAckOpportunistically();
-  }
+  MaybeBundleAckOpportunistically();
   bool fin = state != NO_FIN;
   QUIC_BUG_IF(has_handshake && fin)
       << "Handshake packets should never send a fin";
@@ -276,10 +248,8 @@ void QuicPacketGenerator::GenerateMtuDiscoveryPacket(QuicByteCount target_mtu) {
 bool QuicPacketGenerator::CanSendWithNextPendingFrameAddition() const {
   DCHECK(HasPendingFrames() || packet_creator_.pending_padding_bytes() > 0);
   HasRetransmittableData retransmittable =
-      (should_send_ack_ || should_send_stop_waiting_ ||
-       packet_creator_.pending_padding_bytes() > 0)
-          ? NO_RETRANSMITTABLE_DATA
-          : HAS_RETRANSMITTABLE_DATA;
+      packet_creator_.pending_padding_bytes() > 0 ? NO_RETRANSMITTABLE_DATA
+                                                  : HAS_RETRANSMITTABLE_DATA;
   if (retransmittable == HAS_RETRANSMITTABLE_DATA) {
     DCHECK(!queued_control_frames_.empty());  // These are retransmittable.
   }
@@ -294,8 +264,6 @@ void QuicPacketGenerator::SendQueuedFrames(bool flush) {
     if (!AddNextPendingFrame() && first_frame) {
       // A single frame cannot fit into the packet, tear down the connection.
       QUIC_BUG << "A single frame cannot fit into packet."
-               << " should_send_ack: " << should_send_ack_
-               << " should_send_stop_waiting: " << should_send_stop_waiting_
                << " number of queued_control_frames: "
                << queued_control_frames_.size();
       if (!queued_control_frames_.empty()) {
@@ -353,29 +321,12 @@ bool QuicPacketGenerator::IsPendingPacketEmpty() const {
 }
 
 bool QuicPacketGenerator::HasPendingFrames() const {
-  return should_send_ack_ || should_send_stop_waiting_ ||
-         !queued_control_frames_.empty();
+  return !queued_control_frames_.empty();
 }
 
 bool QuicPacketGenerator::AddNextPendingFrame() {
   QUIC_BUG_IF(!flusher_attached_) << "Packet flusher is not attached when "
                                      "generator tries to write control frames.";
-  if (should_send_ack_) {
-    should_send_ack_ = !packet_creator_.AddSavedFrame(
-        delegate_->GetUpdatedAckFrame(), next_transmission_type_);
-    return !should_send_ack_;
-  }
-
-  if (should_send_stop_waiting_) {
-    delegate_->PopulateStopWaitingFrame(&pending_stop_waiting_frame_);
-    // If we can't this add the frame now, then we still need to do so later.
-    should_send_stop_waiting_ = !packet_creator_.AddSavedFrame(
-        QuicFrame(pending_stop_waiting_frame_), next_transmission_type_);
-    // Return success if we have cleared out this flag (i.e., added the frame).
-    // If we still need to send, then the frame is full, and we have failed.
-    return !should_send_stop_waiting_;
-  }
-
   QUIC_BUG_IF(queued_control_frames_.empty())
       << "AddNextPendingFrame called with no queued control frames.";
 
@@ -512,9 +463,7 @@ MessageStatus QuicPacketGenerator::AddMessageFrame(QuicMessageId message_id,
                                                    QuicMemSliceSpan message) {
   QUIC_BUG_IF(!flusher_attached_) << "Packet flusher is not attached when "
                                      "generator tries to add message frame.";
-  if (deprecate_ack_bundling_mode_) {
-    MaybeBundleAckOpportunistically();
-  }
+  MaybeBundleAckOpportunistically();
   const QuicByteCount message_length = message.total_length();
   if (message_length > GetCurrentLargestMessagePayload()) {
     return MESSAGE_STATUS_TOO_LARGE;
@@ -535,7 +484,6 @@ MessageStatus QuicPacketGenerator::AddMessageFrame(QuicMessageId message_id,
 }
 
 void QuicPacketGenerator::MaybeBundleAckOpportunistically() {
-  DCHECK(deprecate_ack_bundling_mode_);
   if (packet_creator_.has_ack()) {
     // Ack already queued, nothing to do.
     return;

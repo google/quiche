@@ -68,8 +68,7 @@ bool QuartcSession::SendOrQueueMessage(QuicMemSliceSpan message,
 }
 
 void QuartcSession::ProcessSendMessageQueue() {
-  QuicConnection::ScopedPacketFlusher flusher(
-      connection(), QuicConnection::AckBundling::NO_ACK);
+  QuicConnection::ScopedPacketFlusher flusher(connection());
   while (!send_message_queue_.empty()) {
     QueuedMessage& it = send_message_queue_.front();
     const size_t message_size = it.message.length();

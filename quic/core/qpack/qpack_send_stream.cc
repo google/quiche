@@ -24,8 +24,7 @@ void QpackSendStream::OnStreamReset(const QuicRstStreamFrame& frame) {
 }
 
 void QpackSendStream::WriteStreamData(QuicStringPiece data) {
-  QuicConnection::ScopedPacketFlusher flusher(
-      session()->connection(), QuicConnection::SEND_ACK_IF_PENDING);
+  QuicConnection::ScopedPacketFlusher flusher(session()->connection());
   if (!stream_type_sent_) {
     char type[sizeof(stream_type_)];
     QuicDataWriter writer(QUIC_ARRAYSIZE(type), type);

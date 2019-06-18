@@ -429,9 +429,7 @@ void QuicVersionInitializeSupportForIetfDraft(int32_t draft_version) {
 
   // Enable necessary flags.
   SetQuicFlag(FLAGS_quic_supports_tls_handshake, true);
-  // 60 is the highest multiple of 4 and one-byte variable length integer.
   SetQuicFlag(FLAGS_quic_headers_stream_id_in_v99, 60);
-  SetQuicReloadableFlag(quic_deprecate_ack_bundling_mode, true);
   SetQuicReloadableFlag(quic_rpm_decides_when_to_send_acks, true);
   SetQuicReloadableFlag(quic_use_uber_loss_algorithm, true);
   SetQuicReloadableFlag(quic_use_uber_received_packet_manager, true);

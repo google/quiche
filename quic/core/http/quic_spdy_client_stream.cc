@@ -142,8 +142,7 @@ void QuicSpdyClientStream::OnBodyAvailable() {
 size_t QuicSpdyClientStream::SendRequest(SpdyHeaderBlock headers,
                                          QuicStringPiece body,
                                          bool fin) {
-  QuicConnection::ScopedPacketFlusher flusher(
-      session_->connection(), QuicConnection::SEND_ACK_IF_QUEUED);
+  QuicConnection::ScopedPacketFlusher flusher(session_->connection());
   bool send_fin_with_headers = fin && body.empty();
   size_t bytes_sent = body.size();
   header_bytes_written_ =

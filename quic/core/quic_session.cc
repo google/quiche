@@ -611,8 +611,7 @@ void QuicSession::OnCanWrite() {
     return;
   }
 
-  QuicConnection::ScopedPacketFlusher flusher(
-      connection_, QuicConnection::SEND_ACK_IF_QUEUED);
+  QuicConnection::ScopedPacketFlusher flusher(connection_);
   if (control_frame_manager_.WillingToWrite()) {
     control_frame_manager_.OnCanWrite();
   }
@@ -754,8 +753,7 @@ void QuicSession::SendRstStreamInner(QuicStreamId id,
       // QUIC STOP_SENDING frame. Both sre sent to emulate
       // the two-way close that Google QUIC's RST_STREAM does.
       if (VersionHasIetfQuicFrames(connection_->transport_version())) {
-        QuicConnection::ScopedPacketFlusher flusher(
-            connection(), QuicConnection::SEND_ACK_IF_QUEUED);
+        QuicConnection::ScopedPacketFlusher flusher(connection());
         control_frame_manager_.WriteOrBufferRstStream(id, error, bytes_written);
         control_frame_manager_.WriteOrBufferStopSending(error, id);
       } else {
@@ -1700,8 +1698,7 @@ void QuicSession::OnFrameLost(const QuicFrame& frame) {
 
 void QuicSession::RetransmitFrames(const QuicFrames& frames,
                                    TransmissionType type) {
-  QuicConnection::ScopedPacketFlusher retransmission_flusher(
-      connection_, QuicConnection::NO_ACK);
+  QuicConnection::ScopedPacketFlusher retransmission_flusher(connection_);
   SetTransmissionType(type);
   for (const QuicFrame& frame : frames) {
     if (frame.type == MESSAGE_FRAME) {
@@ -1802,8 +1799,7 @@ QuicUint128 QuicSession::GetStatelessResetToken() const {
 }
 
 bool QuicSession::RetransmitLostData() {
-  QuicConnection::ScopedPacketFlusher retransmission_flusher(
-      connection_, QuicConnection::SEND_ACK_IF_QUEUED);
+  QuicConnection::ScopedPacketFlusher retransmission_flusher(connection_);
   // Retransmit crypto data first.
   bool uses_crypto_frames =
       QuicVersionUsesCryptoFrames(connection_->transport_version());

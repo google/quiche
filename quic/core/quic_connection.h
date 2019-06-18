@@ -324,19 +324,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
       public QuicPacketGenerator::DelegateInterface,
       public QuicSentPacketManager::NetworkChangeVisitor {
  public:
-  // TODO(fayang): Remove this enum when deprecating
-  // quic_deprecate_ack_bundling_mode.
-  enum AckBundling {
-    // Send an ack if it's already queued in the connection.
-    SEND_ACK_IF_QUEUED,
-    // Always send an ack.
-    SEND_ACK,
-    // Bundle an ack with outgoing data.
-    SEND_ACK_IF_PENDING,
-    // Do not send ack.
-    NO_ACK,
-  };
-
   // Constructs a new QuicConnection for |connection_id| and
   // |initial_peer_address| using |writer| to write packets. |owns_writer|
   // specifies whether the connection takes ownership of |writer|. |helper| must
@@ -526,10 +513,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   bool ShouldGeneratePacket(HasRetransmittableData retransmittable,
                             IsHandshake handshake) override;
   const QuicFrames MaybeBundleAckOpportunistically() override;
-  // Please note, this is not a const function. For logging purpose, please use
-  // ack_frame().
-  const QuicFrame GetUpdatedAckFrame() override;
-  void PopulateStopWaitingFrame(QuicStopWaitingFrame* stop_waiting) override;
 
   // QuicPacketCreator::DelegateInterface
   char* GetPacketBuffer() override;
@@ -540,6 +523,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // QuicSentPacketManager::NetworkChangeVisitor
   void OnCongestionChange() override;
   void OnPathMtuIncreased(QuicPacketLength packet_size) override;
+
+  // Please note, this is not a const function. For logging purpose, please use
+  // ack_frame().
+  const QuicFrame GetUpdatedAckFrame();
 
   // Called by the crypto stream when the handshake completes. In the server's
   // case this is when the SHLO has been ACKed. Clients call this on receipt of
@@ -707,16 +694,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // information to be sent.
   class QUIC_EXPORT_PRIVATE ScopedPacketFlusher {
    public:
-    // Setting |include_ack| to true ensures that an ACK frame is
-    // opportunistically bundled with the first outgoing packet.
-    // TODO(fayang): Remove |ack_mode| when deprecating
-    // quic_deprecate_ack_bundling_mode.
-    ScopedPacketFlusher(QuicConnection* connection, AckBundling ack_mode);
+    explicit ScopedPacketFlusher(QuicConnection* connection);
     ~ScopedPacketFlusher();
 
    private:
-    bool ShouldSendAck(AckBundling ack_mode) const;
-
     QuicConnection* connection_;
     // If true, when this flusher goes out of scope, flush connection and set
     // retransmission alarm if there is one pending.
@@ -779,8 +760,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   std::vector<std::unique_ptr<QuicEncryptedPacket>>* termination_packets() {
     return termination_packets_.get();
   }
-
-  bool ack_queued() const { return ack_queued_; }
 
   bool ack_frame_updated() const;
 
@@ -1116,13 +1095,11 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // num_retransmittable_packets_received_since_last_ack_sent_ etc.
   void ResetAckStates();
 
+  void PopulateStopWaitingFrame(QuicStopWaitingFrame* stop_waiting);
+
   // Enables multiple packet number spaces support based on handshake protocol
   // and flags.
   void MaybeEnableMultiplePacketNumberSpacesSupport();
-
-  // Returns true if ack alarm is not set and there is no pending ack in the
-  // generator.
-  bool ShouldSetAckAlarm() const;
 
   // Returns the encryption level the connection close packet should be sent at,
   // which is the highest encryption level that peer can guarantee to process.
@@ -1276,10 +1253,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Used when use_uber_received_packet_manager_ is true.
   UberReceivedPacketManager uber_received_packet_manager_;
 
-  // Indicates whether an ack should be sent the next time we try to write.
-  // TODO(fayang): Remove ack_queued_ when deprecating
-  // quic_deprecate_ack_bundling_mode.
-  bool ack_queued_;
   // How many retransmittable packets have arrived without sending an ack.
   // TODO(fayang): Remove
   // num_retransmittable_packets_received_since_last_ack_sent_ when deprecating
@@ -1514,8 +1487,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // vector to improve performance since it is expected to be very small.
   std::vector<QuicConnectionId> incoming_connection_ids_;
 
-  // Indicates whether an ACK needs to be sent in OnCanWrite(). Only used when
-  // deprecate_ack_bundling_mode is true.
+  // Indicates whether an ACK needs to be sent in OnCanWrite().
   // TODO(fayang): Remove this when ACK sending logic is moved to received
   // packet manager, and an ACK timeout would be used to record when an ACK
   // needs to be sent.

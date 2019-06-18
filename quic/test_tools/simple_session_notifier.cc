@@ -283,8 +283,7 @@ void SimpleSessionNotifier::OnFrameLost(const QuicFrame& frame) {
 
 void SimpleSessionNotifier::RetransmitFrames(const QuicFrames& frames,
                                              TransmissionType type) {
-  QuicConnection::ScopedPacketFlusher retransmission_flusher(
-      connection_, QuicConnection::SEND_ACK_IF_QUEUED);
+  QuicConnection::ScopedPacketFlusher retransmission_flusher(connection_);
   connection_->SetTransmissionType(type);
   for (const QuicFrame& frame : frames) {
     if (frame.type == CRYPTO_FRAME) {

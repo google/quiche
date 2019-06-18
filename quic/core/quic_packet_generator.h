@@ -69,11 +69,6 @@ class QUIC_EXPORT_PRIVATE QuicPacketGenerator {
     // Called when there is data to be sent. Retrieves updated ACK frame from
     // the delegate.
     virtual const QuicFrames MaybeBundleAckOpportunistically() = 0;
-    // TODO(fayang): Remove these two interfaces when deprecating
-    // quic_deprecate_ack_bundling_mode.
-    virtual const QuicFrame GetUpdatedAckFrame() = 0;
-    virtual void PopulateStopWaitingFrame(
-        QuicStopWaitingFrame* stop_waiting) = 0;
   };
 
   QuicPacketGenerator(QuicConnectionId server_connection_id,
@@ -84,13 +79,6 @@ class QUIC_EXPORT_PRIVATE QuicPacketGenerator {
   QuicPacketGenerator& operator=(const QuicPacketGenerator&) = delete;
 
   ~QuicPacketGenerator();
-
-  // Indicates that an ACK frame should be sent.
-  // If |also_send_stop_waiting| is true, then it also indicates that a
-  // STOP_WAITING frame should be sent as well.
-  // The contents of the frame(s) will be generated via a call to the delegate
-  // CreateAckFrame() when the packet is serialized.
-  void SetShouldSendAck(bool also_send_stop_waiting);
 
   // Consumes retransmittable control |frame|. Returns true if the frame is
   // successfully consumed. Returns false otherwise.
@@ -245,18 +233,12 @@ class QUIC_EXPORT_PRIVATE QuicPacketGenerator {
     packet_creator_.set_debug_delegate(debug_delegate);
   }
 
-  bool should_send_ack() const { return should_send_ack_; }
-
   void set_fully_pad_crypto_hadshake_packets(bool new_value) {
     fully_pad_crypto_handshake_packets_ = new_value;
   }
 
   bool fully_pad_crypto_handshake_packets() const {
     return fully_pad_crypto_handshake_packets_;
-  }
-
-  bool deprecate_ack_bundling_mode() const {
-    return deprecate_ack_bundling_mode_;
   }
 
   bool deprecate_queued_control_frames() const {
@@ -303,19 +285,6 @@ class QUIC_EXPORT_PRIVATE QuicPacketGenerator {
   // True if packet flusher is currently attached.
   bool flusher_attached_;
 
-  // Flags to indicate the need for just-in-time construction of a frame.
-  // TODO(fayang): Remove these two booleans when deprecating
-  // quic_deprecate_ack_bundling_mode.
-  bool should_send_ack_;
-  bool should_send_stop_waiting_;
-  // If we put a non-retransmittable frame in this packet, then we have to hold
-  // a reference to it until we flush (and serialize it). Retransmittable frames
-  // are referenced elsewhere so that they can later be (optionally)
-  // retransmitted.
-  // TODO(fayang): Remove this when deprecating
-  // quic_deprecate_ack_bundling_mode.
-  QuicStopWaitingFrame pending_stop_waiting_frame_;
-
   QuicRandom* random_generator_;
 
   // Whether crypto handshake packets should be fully padded.
@@ -325,9 +294,6 @@ class QUIC_EXPORT_PRIVATE QuicPacketGenerator {
   // when the out-most flusher attaches and gets cleared when the out-most
   // flusher detaches.
   QuicPacketNumber write_start_packet_number_;
-
-  // Latched value of quic_deprecate_ack_bundling_mode.
-  const bool deprecate_ack_bundling_mode_;
 
   // Latched value of quic_deprecate_queued_control_frames.
   const bool deprecate_queued_control_frames_;

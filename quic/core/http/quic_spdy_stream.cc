@@ -218,8 +218,7 @@ size_t QuicSpdyStream::WriteHeaders(
     SpdyHeaderBlock header_block,
     bool fin,
     QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener) {
-  QuicConnection::ScopedPacketFlusher flusher(
-      spdy_session_->connection(), QuicConnection::SEND_ACK_IF_PENDING);
+  QuicConnection::ScopedPacketFlusher flusher(spdy_session_->connection());
   // Send stream type for server push stream
   if (VersionHasStreamType(session()->connection()->transport_version()) &&
       type() == WRITE_UNIDIRECTIONAL && send_buffer().stream_offset() == 0) {
@@ -256,8 +255,7 @@ void QuicSpdyStream::WriteOrBufferBody(QuicStringPiece data, bool fin) {
     WriteOrBufferData(data, fin, nullptr);
     return;
   }
-  QuicConnection::ScopedPacketFlusher flusher(
-      spdy_session_->connection(), QuicConnection::SEND_ACK_IF_PENDING);
+  QuicConnection::ScopedPacketFlusher flusher(spdy_session_->connection());
 
   // Write frame header.
   std::unique_ptr<char[]> buffer;
@@ -344,8 +342,7 @@ QuicConsumedData QuicSpdyStream::WriteBodySlices(QuicMemSliceSpan slices,
     return {0, false};
   }
 
-  QuicConnection::ScopedPacketFlusher flusher(
-      spdy_session_->connection(), QuicConnection::SEND_ACK_IF_PENDING);
+  QuicConnection::ScopedPacketFlusher flusher(spdy_session_->connection());
 
   // Write frame header.
   struct iovec header_iov = {static_cast<void*>(buffer.get()), header_length};

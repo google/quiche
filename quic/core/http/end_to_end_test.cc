@@ -3612,8 +3612,7 @@ TEST_P(EndToEndTest, SendMessages) {
       QuicConnectionPeer::GetHelper(client_connection)->GetRandomGenerator();
   QuicMemSliceStorage storage(nullptr, 0, nullptr, 0);
   {
-    QuicConnection::ScopedPacketFlusher flusher(
-        client_session->connection(), QuicConnection::SEND_ACK_IF_PENDING);
+    QuicConnection::ScopedPacketFlusher flusher(client_session->connection());
     // Verify the largest message gets successfully sent.
     EXPECT_EQ(
         MessageResult(MESSAGE_STATUS_SUCCESS, 1),

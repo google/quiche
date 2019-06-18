@@ -25,8 +25,7 @@ void QuicSendControlStream::OnStreamReset(const QuicRstStreamFrame& frame) {
 void QuicSendControlStream::SendSettingsFrame(const SettingsFrame& settings) {
   DCHECK(!settings_sent_);
 
-  QuicConnection::ScopedPacketFlusher flusher(
-      session()->connection(), QuicConnection::SEND_ACK_IF_PENDING);
+  QuicConnection::ScopedPacketFlusher flusher(session()->connection());
   // Send the stream type on so the peer knows about this stream.
   char data[sizeof(kControlStream)];
   QuicDataWriter writer(QUIC_ARRAYSIZE(data), data);
