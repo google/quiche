@@ -94,6 +94,9 @@ class SPDY_EXPORT_PRIVATE Http2DecoderAdapter
   // Set extension callbacks to be called from the framer or decoder. Optional.
   // If called multiple times, only the last visitor will be used.
   void set_extension_visitor(spdy::ExtensionVisitorInterface* visitor);
+  spdy::ExtensionVisitorInterface* extension_visitor() const {
+    return extension_;
+  }
 
   // Set debug callbacks to be called from the framer. The debug visitor is
   // completely optional and need not be set in order for normal operation.
