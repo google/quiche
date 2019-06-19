@@ -1589,12 +1589,12 @@ TEST_P(QuicSpdySessionTestServer,
         .Times(1);
   } else {
     // On version 99 opening such a stream results in a connection close.
-    EXPECT_CALL(*connection_,
-                CloseConnection(
-                    QUIC_INVALID_STREAM_ID,
-                    testing::MatchesRegex(
-                        "Stream id [0-9]+ would exceed stream count limit 6"),
-                    _));
+    EXPECT_CALL(
+        *connection_,
+        CloseConnection(QUIC_INVALID_STREAM_ID,
+                        testing::MatchesRegex(
+                            "Stream id \\d+ would exceed stream count limit 6"),
+                        _));
   }
   // Create one more data streams to exceed limit of open stream.
   QuicStreamFrame data1(kFinalStreamId, false, 0, QuicStringPiece("HT"));
