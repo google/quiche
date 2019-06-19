@@ -682,11 +682,6 @@ TEST_P(EndToEndTest, ForcedVersionNegotiationAndClientConnectionId) {
 }
 
 TEST_P(EndToEndTest, ForcedVersionNegotiationAndBadConnectionIdLength) {
-  if (!GetQuicRestartFlag(
-          quic_allow_variable_length_connection_id_for_negotiation)) {
-    ASSERT_TRUE(Initialize());
-    return;
-  }
   if (!QuicUtils::VariableLengthConnectionIdAllowedForVersion(
           GetParam().negotiated_version.transport_version)) {
     ASSERT_TRUE(Initialize());

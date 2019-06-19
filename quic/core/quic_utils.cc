@@ -525,12 +525,6 @@ QuicConnectionId QuicUtils::CreateRandomConnectionId(
 // static
 bool QuicUtils::VariableLengthConnectionIdAllowedForVersion(
     QuicTransportVersion version) {
-  if (!GetQuicRestartFlag(
-          quic_allow_variable_length_connection_id_for_negotiation)) {
-    return version >= QUIC_VERSION_47;
-  }
-  QUIC_RESTART_FLAG_COUNT(
-      quic_allow_variable_length_connection_id_for_negotiation);
   // We allow variable length connection IDs for unsupported versions to
   // ensure that IETF version negotiation works when other implementations
   // trigger version negotiation with custom connection ID lengths.
