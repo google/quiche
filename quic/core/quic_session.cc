@@ -8,7 +8,6 @@
 #include <string>
 #include <utility>
 
-#include "base/logging.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection.h"
 #include "net/third_party/quiche/src/quic/core/quic_flow_controller.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
