@@ -351,14 +351,9 @@ bool QuicDispatcher::OnUnauthenticatedPublicHeader(
     QUIC_DLOG(INFO) << "Packet with short destination connection ID "
                     << server_connection_id << " expected "
                     << static_cast<int>(expected_server_connection_id_length);
-    QuicPacketFate fate = kFateDrop;
-    if (!GetQuicReloadableFlag(quic_drop_invalid_small_initial_connection_id)) {
-      fate = kFateTimeWait;
-    } else {
-      QUIC_RELOADABLE_FLAG_COUNT(quic_drop_invalid_small_initial_connection_id);
-    }
-    ProcessUnauthenticatedHeaderFate(fate, server_connection_id, header.form,
-                                     header.version_flag, header.version);
+    ProcessUnauthenticatedHeaderFate(kFateTimeWait, server_connection_id,
+                                     header.form, header.version_flag,
+                                     header.version);
     return false;
   }
 
