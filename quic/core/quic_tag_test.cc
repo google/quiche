@@ -19,10 +19,6 @@ TEST_F(QuicTagTest, TagToString) {
   EXPECT_EQ("SNO ", QuicTagToString(kServerNonceTag));
   EXPECT_EQ("CRT ", QuicTagToString(kCertificateTag));
   EXPECT_EQ("CHLO", QuicTagToString(MakeQuicTag('C', 'H', 'L', 'O')));
-  if (!GetQuicReloadableFlag(quic_print_tag_hex)) {
-    EXPECT_EQ("525092931", QuicTagToString(MakeQuicTag('C', 'H', 'L', '\x1f')));
-    return;
-  }
   // A tag that contains a non-printing character will be printed as hex.
   EXPECT_EQ("43484c1f", QuicTagToString(MakeQuicTag('C', 'H', 'L', '\x1f')));
 }

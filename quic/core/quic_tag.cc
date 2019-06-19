@@ -36,7 +36,7 @@ bool FindMutualQuicTag(const QuicTagVector& our_tags,
 }
 
 std::string QuicTagToString(QuicTag tag) {
-  if (GetQuicReloadableFlag(quic_print_tag_hex) && tag == 0) {
+  if (tag == 0) {
     return "0";
   }
   char chars[sizeof tag];
@@ -59,12 +59,6 @@ std::string QuicTagToString(QuicTag tag) {
   if (ascii) {
     return std::string(chars, sizeof(chars));
   }
-
-  if (!GetQuicReloadableFlag(quic_print_tag_hex)) {
-    return QuicTextUtils::Uint64ToString(orig_tag);
-  }
-
-  QUIC_RELOADABLE_FLAG_COUNT(quic_print_tag_hex);
 
   return QuicTextUtils::HexEncode(reinterpret_cast<const char*>(&orig_tag),
                                   sizeof(orig_tag));
