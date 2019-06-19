@@ -6718,13 +6718,9 @@ TEST_P(QuicFramerTest, BuildVersionNegotiationPacket) {
       // version tag
       QUIC_VERSION_BYTES,
   };
-  unsigned char type44 = 0x80;
-  if (GetQuicReloadableFlag(quic_send_version_negotiation_fixed_bit)) {
-    type44 = 0xC0;
-  }
   unsigned char packet44[] = {
       // type (long header)
-      type44,
+      0xC0,
       // version tag
       0x00, 0x00, 0x00, 0x00,
       // connection_id length
@@ -6761,14 +6757,10 @@ TEST_P(QuicFramerTest, BuildVersionNegotiationPacketWithClientConnectionId) {
   // Client connection IDs cannot be used unless this flag is true.
   SetQuicRestartFlag(quic_do_not_override_connection_id, true);
 
-  unsigned char type_byte = 0x80;
-  if (GetQuicReloadableFlag(quic_send_version_negotiation_fixed_bit)) {
-    type_byte = 0xC0;
-  }
   // clang-format off
   unsigned char packet[] = {
       // type (long header)
-      type_byte,
+      0xC0,
       // version tag
       0x00, 0x00, 0x00, 0x00,
       // connection ID lengths

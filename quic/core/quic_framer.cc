@@ -1447,11 +1447,7 @@ QuicFramer::BuildIetfVersionNegotiationPacket(
   QuicDataWriter writer(len, buffer.get());
 
   // TODO(fayang): Randomly select a value for the type.
-  uint8_t type = static_cast<uint8_t>(FLAGS_LONG_HEADER);
-  if (GetQuicReloadableFlag(quic_send_version_negotiation_fixed_bit)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_send_version_negotiation_fixed_bit);
-    type |= static_cast<uint8_t>(FLAGS_FIXED_BIT);
-  }
+  uint8_t type = static_cast<uint8_t>(FLAGS_LONG_HEADER | FLAGS_FIXED_BIT);
   if (!writer.WriteUInt8(type)) {
     return nullptr;
   }
