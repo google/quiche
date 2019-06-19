@@ -1503,11 +1503,6 @@ bool QuicFramer::ProcessPacket(const QuicEncryptedPacket& packet) {
   }
 
   if (IsVersionNegotiation(header, packet_has_ietf_packet_header)) {
-    if (!GetQuicRestartFlag(quic_server_drop_version_negotiation)) {
-      QUIC_DVLOG(1) << ENDPOINT << "Received version negotiation packet";
-      return ProcessVersionNegotiationPacket(&reader, header);
-    }
-    QUIC_RESTART_FLAG_COUNT_N(quic_server_drop_version_negotiation, 1, 2);
     if (perspective_ == Perspective::IS_CLIENT) {
       QUIC_DVLOG(1) << "Client received version negotiation packet";
       return ProcessVersionNegotiationPacket(&reader, header);
@@ -5623,12 +5618,6 @@ bool QuicFramer::RaiseError(QuicErrorCode error) {
 bool QuicFramer::IsVersionNegotiation(
     const QuicPacketHeader& header,
     bool packet_has_ietf_packet_header) const {
-  if (perspective_ == Perspective::IS_SERVER) {
-    if (!GetQuicRestartFlag(quic_server_drop_version_negotiation)) {
-      return false;
-    }
-    QUIC_RESTART_FLAG_COUNT_N(quic_server_drop_version_negotiation, 2, 2);
-  }
   if (!packet_has_ietf_packet_header &&
       perspective_ == Perspective::IS_CLIENT) {
     return header.version_flag;

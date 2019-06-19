@@ -5706,9 +5706,6 @@ TEST_P(QuicFramerTest, VersionNegotiationPacketClient) {
 }
 
 TEST_P(QuicFramerTest, VersionNegotiationPacketServer) {
-  if (!GetQuicRestartFlag(quic_server_drop_version_negotiation)) {
-    return;
-  }
   if (framer_.transport_version() < QUIC_VERSION_44) {
     return;
   }
