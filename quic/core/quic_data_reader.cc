@@ -153,6 +153,7 @@ bool QuicDataReader::ReadConnectionId(QuicConnectionId* connection_id,
     }
     return ok;
   }
+  QUIC_RESTART_FLAG_COUNT_N(quic_use_allocated_connection_ids, 6, 6);
 
   if (BytesRemaining() < length) {
     return false;

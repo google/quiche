@@ -37,6 +37,7 @@ QuicConnectionId::QuicConnectionId(const char* data, uint8_t length) {
     memcpy(data_, data, length_);
     return;
   }
+  QUIC_RESTART_FLAG_COUNT_N(quic_use_allocated_connection_ids, 1, 6);
   if (length_ <= sizeof(data_short_)) {
     memcpy(data_short_, data, length_);
     return;
@@ -50,6 +51,7 @@ QuicConnectionId::~QuicConnectionId() {
   if (!GetQuicRestartFlag(quic_use_allocated_connection_ids)) {
     return;
   }
+  QUIC_RESTART_FLAG_COUNT_N(quic_use_allocated_connection_ids, 2, 6);
   if (length_ > sizeof(data_short_)) {
     free(data_long_);
     data_long_ = nullptr;
@@ -69,6 +71,7 @@ const char* QuicConnectionId::data() const {
   if (!GetQuicRestartFlag(quic_use_allocated_connection_ids)) {
     return data_;
   }
+  QUIC_RESTART_FLAG_COUNT_N(quic_use_allocated_connection_ids, 3, 6);
   if (length_ <= sizeof(data_short_)) {
     return data_short_;
   }
@@ -79,6 +82,7 @@ char* QuicConnectionId::mutable_data() {
   if (!GetQuicRestartFlag(quic_use_allocated_connection_ids)) {
     return data_;
   }
+  QUIC_RESTART_FLAG_COUNT_N(quic_use_allocated_connection_ids, 4, 6);
   if (length_ <= sizeof(data_short_)) {
     return data_short_;
   }
@@ -91,6 +95,7 @@ uint8_t QuicConnectionId::length() const {
 
 void QuicConnectionId::set_length(uint8_t length) {
   if (GetQuicRestartFlag(quic_use_allocated_connection_ids)) {
+    QUIC_RESTART_FLAG_COUNT_N(quic_use_allocated_connection_ids, 5, 6);
     char temporary_data[sizeof(data_short_)];
     if (length > sizeof(data_short_)) {
       if (length_ <= sizeof(data_short_)) {
