@@ -304,11 +304,7 @@ QuicConnection::QuicConnection(
                         this),
       idle_network_timeout_(QuicTime::Delta::Infinite()),
       handshake_timeout_(QuicTime::Delta::Infinite()),
-      time_of_first_packet_sent_after_receiving_(
-          GetQuicReloadableFlag(
-              quic_fix_time_of_first_packet_sent_after_receiving)
-              ? QuicTime::Zero()
-              : clock_->ApproximateNow()),
+      time_of_first_packet_sent_after_receiving_(QuicTime::Zero()),
       time_of_last_received_packet_(clock_->ApproximateNow()),
       time_of_previous_received_packet_(QuicTime::Zero()),
       sent_packet_manager_(
@@ -2569,27 +2565,13 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
       SetPathDegradingAlarm();
     }
 
-    if (GetQuicReloadableFlag(
-            quic_fix_time_of_first_packet_sent_after_receiving)) {
-      // Update |time_of_first_packet_sent_after_receiving_| if this is the
-      // first packet sent after the last packet was received. If it were
-      // updated on every sent packet, then sending into a black hole might
-      // never timeout.
-      if (time_of_first_packet_sent_after_receiving_ <
-          time_of_last_received_packet_) {
-        QUIC_RELOADABLE_FLAG_COUNT(
-            quic_fix_time_of_first_packet_sent_after_receiving);
-        time_of_first_packet_sent_after_receiving_ = packet_send_time;
-      }
-    } else {
-      // Only adjust the last sent time (for the purpose of tracking the idle
-      // timeout) if this is the first retransmittable packet sent after a
-      // packet is received. If it were updated on every sent packet, then
-      // sending into a black hole might never timeout.
-      if (time_of_first_packet_sent_after_receiving_ <=
-          time_of_last_received_packet_) {
-        time_of_first_packet_sent_after_receiving_ = packet_send_time;
-      }
+    // Update |time_of_first_packet_sent_after_receiving_| if this is the
+    // first packet sent after the last packet was received. If it were
+    // updated on every sent packet, then sending into a black hole might
+    // never timeout.
+    if (time_of_first_packet_sent_after_receiving_ <
+        time_of_last_received_packet_) {
+      time_of_first_packet_sent_after_receiving_ = packet_send_time;
     }
   }
 

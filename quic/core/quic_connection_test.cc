@@ -4473,28 +4473,11 @@ TEST_P(QuicConnectionTest, IdleTimeoutAfterSendTwoPackets) {
   SendStreamDataToPeer(1, "foo", 0, NO_FIN, &last_packet);
   EXPECT_EQ(QuicPacketNumber(2u), last_packet);
 
-  if (GetQuicReloadableFlag(
-          quic_fix_time_of_first_packet_sent_after_receiving)) {
-    // Simulate the timeout alarm firing, the connection will be closed.
-    EXPECT_CALL(visitor_, OnConnectionClosed(QUIC_NETWORK_IDLE_TIMEOUT, _,
-                                             ConnectionCloseSource::FROM_SELF));
-    clock_.AdvanceTime(initial_ddl - clock_.ApproximateNow());
-    connection_.GetTimeoutAlarm()->Fire();
-  } else {
-    // Simulate the timeout alarm firing, the connection will not be closed.
-    EXPECT_CALL(visitor_, OnConnectionClosed(_, _, _)).Times(0);
-    clock_.AdvanceTime(initial_ddl - clock_.ApproximateNow());
-    connection_.GetTimeoutAlarm()->Fire();
-    EXPECT_TRUE(connection_.GetTimeoutAlarm()->IsSet());
-    EXPECT_TRUE(connection_.connected());
-
-    // Advance another 20ms, and fire the alarm again. The connection will be
-    // closed.
-    EXPECT_CALL(visitor_, OnConnectionClosed(QUIC_NETWORK_IDLE_TIMEOUT, _,
-                                             ConnectionCloseSource::FROM_SELF));
-    clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(20));
-    connection_.GetTimeoutAlarm()->Fire();
-  }
+  // Simulate the timeout alarm firing, the connection will be closed.
+  EXPECT_CALL(visitor_, OnConnectionClosed(QUIC_NETWORK_IDLE_TIMEOUT, _,
+                                           ConnectionCloseSource::FROM_SELF));
+  clock_.AdvanceTime(initial_ddl - clock_.ApproximateNow());
+  connection_.GetTimeoutAlarm()->Fire();
 
   EXPECT_FALSE(connection_.GetTimeoutAlarm()->IsSet());
   EXPECT_FALSE(connection_.connected());
