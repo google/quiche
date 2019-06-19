@@ -618,6 +618,7 @@ void QuicSpdyStream::OnDataAvailable() {
 
   iovec iov;
   while (!reading_stopped() && sequencer()->PrefetchNextRegion(&iov)) {
+    DCHECK(!sequencer()->IsClosed());
     decoder_.ProcessInput(reinterpret_cast<const char*>(iov.iov_base),
                           iov.iov_len);
   }

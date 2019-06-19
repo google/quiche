@@ -1038,46 +1038,6 @@ TEST_P(QuicSpdyStreamTest, ReceivingTrailersWithoutOffset) {
                               trailers.uncompressed_header_bytes(), trailers);
 }
 
-TEST_P(QuicSpdyStreamTest, ReceivingTrailersOnRequestStream) {
-  if (!VersionUsesQpack(GetParam().transport_version)) {
-    return;
-  }
-
-  Initialize(kShouldProcessData);
-
-  // Receive initial headers.
-  QuicHeaderList headers = ProcessHeaders(false, headers_);
-  stream_->ConsumeHeaderList();
-
-  const std::string body = "this is the body";
-  std::string data = HasFrameHeader() ? DataFrame(body) : body;
-
-  // Receive trailing headers.
-  SpdyHeaderBlock trailers_block;
-  trailers_block["key1"] = "value1";
-  trailers_block["key2"] = "value2";
-  trailers_block["key3"] = "value3";
-
-  QuicHeaderList trailers = ProcessHeaders(true, trailers_block);
-
-  // The trailers should be decompressed, and readable from the stream.
-  EXPECT_TRUE(stream_->trailers_decompressed());
-
-  EXPECT_EQ(trailers_block, stream_->received_trailers());
-
-  // Consuming the trailers erases them from the stream.
-  stream_->MarkTrailersConsumed();
-  EXPECT_TRUE(stream_->FinishedReadingTrailers());
-  EXPECT_TRUE(stream_->IsDoneReading());
-
-  // Receive and consume body.
-  QuicStreamFrame frame(GetNthClientInitiatedBidirectionalId(0), /*fin=*/false,
-                        0, data);
-  stream_->OnStreamFrame(frame);
-  EXPECT_EQ(body, stream_->data());
-  EXPECT_TRUE(stream_->IsDoneReading());
-}
-
 // Test that received Trailers must always have the FIN set.
 TEST_P(QuicSpdyStreamTest, ReceivingTrailersWithoutFin) {
   // In IETF QUIC, there is no such thing as FIN flag on HTTP/3 frames like the
@@ -1774,6 +1734,8 @@ TEST_P(QuicSpdyStreamTest, ProcessBodyAfterTrailers) {
   // HEADERS frame with QPACK encoded single header field "foo: bar".
   std::string headers =
       HeadersFrame(QuicTextUtils::HexDecode("00002a94e703626172"));
+
+  // DATA frame.
   std::string data = DataFrame(kDataFramePayload);
 
   // A header block that will take more than one block of sequencer buffer.
@@ -1785,18 +1747,28 @@ TEST_P(QuicSpdyStreamTest, ProcessBodyAfterTrailers) {
       EncodeQpackHeaders(stream_->id(), &trailers_block);
   std::string trailers = HeadersFrame(trailers_frame_payload);
 
+  // Feed all three HTTP/3 frames in a single stream frame.
   std::string stream_frame_payload = QuicStrCat(headers, data, trailers);
   QuicStreamFrame frame(stream_->id(), false, 0, stream_frame_payload);
   stream_->OnStreamFrame(frame);
 
   stream_->ConsumeHeaderList();
   stream_->MarkTrailersConsumed();
+
+  EXPECT_TRUE(stream_->trailers_decompressed());
+  EXPECT_EQ(trailers_block, stream_->received_trailers());
+
+  EXPECT_FALSE(stream_->IsDoneReading());
+
+  // Consume data.
   char buffer[2048];
   struct iovec vec;
   vec.iov_base = buffer;
   vec.iov_len = QUIC_ARRAYSIZE(buffer);
   size_t bytes_read = stream_->Readv(&vec, 1);
   EXPECT_EQ(kDataFramePayload, QuicStringPiece(buffer, bytes_read));
+
+  EXPECT_TRUE(stream_->IsDoneReading());
 }
 
 // The test stream will receive a stream frame containing malformed headers and
