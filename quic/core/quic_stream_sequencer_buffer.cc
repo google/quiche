@@ -53,6 +53,7 @@ void QuicStreamSequencerBuffer::Clear() {
   num_bytes_buffered_ = 0;
   bytes_received_.Clear();
   bytes_received_.Add(0, total_bytes_read_);
+  total_bytes_prefetched_ = total_bytes_read_;
 }
 
 bool QuicStreamSequencerBuffer::RetireBlock(size_t idx) {
@@ -336,6 +337,8 @@ bool QuicStreamSequencerBuffer::GetReadableRegion(iovec* iov) const {
 
 bool QuicStreamSequencerBuffer::PrefetchNextRegion(iovec* iov) {
   DCHECK(iov != nullptr);
+  DCHECK_LE(total_bytes_read_, total_bytes_prefetched_);
+  DCHECK_LE(total_bytes_prefetched_, FirstMissingByte());
 
   if (total_bytes_prefetched_ == FirstMissingByte()) {
     return false;

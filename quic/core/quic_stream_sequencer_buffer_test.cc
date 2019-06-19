@@ -1078,6 +1078,31 @@ TEST_F(QuicStreamSequencerBufferRandomIOTest, RandomWriteAndConsumeInPlace) {
   EXPECT_LE(bytes_to_buffer_, total_bytes_written_);
 }
 
+// Regression test for https://crbug.com/969391.
+TEST_F(QuicStreamSequencerBufferTest, PrefetchAfterClear) {
+  // Write a few bytes.
+  const std::string kData("foo");
+  size_t written = 0;
+  EXPECT_EQ(QUIC_NO_ERROR, buffer_->OnStreamData(/* offset = */ 0, kData,
+                                                 &written, &error_details_));
+  EXPECT_EQ(kData.size(), written);
+
+  // Prefetch all buffered data.
+  iovec iov;
+  EXPECT_TRUE(buffer_->PrefetchNextRegion(&iov));
+  EXPECT_EQ(kData, QuicStringPiece(reinterpret_cast<const char*>(iov.iov_base),
+                                   iov.iov_len));
+
+  // No more data to prefetch.
+  EXPECT_FALSE(buffer_->PrefetchNextRegion(&iov));
+
+  // Clear all buffered data.
+  buffer_->Clear();
+
+  // Still no data to prefetch.
+  EXPECT_FALSE(buffer_->PrefetchNextRegion(&iov));
+}
+
 }  // anonymous namespace
 
 }  // namespace test
