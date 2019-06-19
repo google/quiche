@@ -30,6 +30,8 @@ void ValidateLangague(const QpackLanguage* language) {
     }
     DCHECK_EQ(1u, match_count) << static_cast<int>(byte);
   }
+#else
+  (void)language;
 #endif
 }
 
