@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "net/third_party/quiche/src/quic/core/http/http_encoder.h"
+
 #include "net/third_party/quiche/src/quic/core/quic_data_writer.h"
 
 namespace quic {
@@ -43,6 +44,8 @@ uint8_t SetPriorityFields(uint8_t num,
 static const size_t kPriorityWeightLength = 1;
 // Length of a priority frame's first byte.
 static const size_t kPriorityFirstByteLength = 1;
+// The bit that indicates Priority frame is exclusive.
+static const uint8_t kPriorityExclusiveBit = 1;
 
 }  // namespace
 
@@ -95,8 +98,12 @@ QuicByteCount HttpEncoder::SerializePriorityFrame(
     std::unique_ptr<char[]>* output) {
   QuicByteCount payload_length =
       kPriorityFirstByteLength +
-      QuicDataWriter::GetVarInt62Len(priority.prioritized_element_id) +
-      QuicDataWriter::GetVarInt62Len(priority.element_dependency_id) +
+      (priority.prioritized_type == ROOT_OF_TREE
+           ? 0
+           : QuicDataWriter::GetVarInt62Len(priority.prioritized_element_id)) +
+      (priority.dependency_type == ROOT_OF_TREE
+           ? 0
+           : QuicDataWriter::GetVarInt62Len(priority.element_dependency_id)) +
       kPriorityWeightLength;
   QuicByteCount total_length =
       GetTotalLength(payload_length, HttpFrameType::PRIORITY);
@@ -111,16 +118,14 @@ QuicByteCount HttpEncoder::SerializePriorityFrame(
   }
 
   // Set the first byte of the payload.
-  uint8_t bits = 0;
-  bits = SetPriorityFields(bits, priority.prioritized_type, true);
-  bits = SetPriorityFields(bits, priority.dependency_type, false);
+  uint8_t firstByte = 0;
+  firstByte = SetPriorityFields(firstByte, priority.prioritized_type, true);
+  firstByte = SetPriorityFields(firstByte, priority.dependency_type, false);
   if (priority.exclusive) {
-    bits |= 1;
+    firstByte |= kPriorityExclusiveBit;
   }
 
-  if (writer.WriteUInt8(bits) &&
-      writer.WriteVarInt62(priority.prioritized_element_id) &&
-      writer.WriteVarInt62(priority.element_dependency_id) &&
+  if (writer.WriteUInt8(firstByte) && MaybeWriteIds(priority, &writer) &&
       writer.WriteUInt8(priority.weight)) {
     return total_length;
   }
@@ -280,6 +285,29 @@ QuicByteCount HttpEncoder::GetTotalLength(QuicByteCount payload_length,
   return QuicDataWriter::GetVarInt62Len(payload_length) +
          QuicDataWriter::GetVarInt62Len(static_cast<uint64_t>(type)) +
          payload_length;
+}
+
+bool HttpEncoder::MaybeWriteIds(const PriorityFrame& priority,
+                                QuicDataWriter* writer) {
+  if (priority.prioritized_type != ROOT_OF_TREE) {
+    if (!writer->WriteVarInt62(priority.prioritized_element_id)) {
+      return false;
+    }
+  } else {
+    DCHECK_EQ(0u, priority.prioritized_element_id)
+        << "Prioritized element id should be 0 when prioritized type is "
+           "ROOT_OF_TREE";
+  }
+  if (priority.dependency_type != ROOT_OF_TREE) {
+    if (!writer->WriteVarInt62(priority.element_dependency_id)) {
+      return false;
+    }
+  } else {
+    DCHECK_EQ(0u, priority.element_dependency_id)
+        << "Element dependency id should be 0 when dependency type is "
+           "ROOT_OF_TREE";
+  }
+  return true;
 }
 
 }  // namespace quic

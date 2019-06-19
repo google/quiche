@@ -76,6 +76,9 @@ class QUIC_EXPORT_PRIVATE HttpEncoder {
 
   QuicByteCount GetTotalLength(QuicByteCount payload_length,
                                HttpFrameType type);
+
+  // Write prioritized element id and element dependency id if needed.
+  bool MaybeWriteIds(const PriorityFrame& priority, QuicDataWriter* writer);
 };
 
 }  // namespace quic

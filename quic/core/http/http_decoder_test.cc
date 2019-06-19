@@ -343,6 +343,26 @@ TEST_F(HttpDecoderTest, PriorityFrame) {
   EXPECT_EQ(QUIC_NO_ERROR, decoder_.error());
   EXPECT_EQ("", decoder_.error_detail());
 
+  char input2[] = {// type (PRIORITY)
+                   0x2,
+                   // length
+                   0x2,
+                   // root of tree, root of tree, exclusive
+                   0xf1,
+                   // weight
+                   0xFF};
+  PriorityFrame frame2;
+  frame2.prioritized_type = ROOT_OF_TREE;
+  frame2.dependency_type = ROOT_OF_TREE;
+  frame2.exclusive = true;
+  frame2.weight = 0xFF;
+
+  EXPECT_CALL(visitor_, OnPriorityFrame(frame2));
+  EXPECT_EQ(QUIC_ARRAYSIZE(input2),
+            decoder_.ProcessInput(input2, QUIC_ARRAYSIZE(input2)));
+  EXPECT_EQ(QUIC_NO_ERROR, decoder_.error());
+  EXPECT_EQ("", decoder_.error_detail());
+
   // Test on the situation when the visitor wants to stop processing.
   EXPECT_CALL(visitor_, OnPriorityFrame(frame)).WillOnce(Return(false));
   EXPECT_EQ(0u, decoder_.ProcessInput(input, QUIC_ARRAYSIZE(input)));

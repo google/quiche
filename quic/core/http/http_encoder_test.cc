@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "net/third_party/quiche/src/quic/core/http/http_encoder.h"
+
 #include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
@@ -68,6 +69,45 @@ TEST_F(HttpEncoderTest, SerializePriorityFrame) {
   EXPECT_EQ(QUIC_ARRAYSIZE(output), length);
   CompareCharArraysWithHexError("PRIORITY", buffer.get(), length, output,
                                 QUIC_ARRAYSIZE(output));
+
+  PriorityFrame priority2;
+  priority2.prioritized_type = ROOT_OF_TREE;
+  priority2.dependency_type = REQUEST_STREAM;
+  priority2.exclusive = true;
+  priority2.element_dependency_id = 0x04;
+  priority2.weight = 0xFF;
+  char output2[] = {// type (PRIORIRTY)
+                    0x2,
+                    // length
+                    0x3,
+                    // root of tree, request stream, exclusive
+                    0xc1,
+                    // element_dependency_id
+                    0x04,
+                    // weight
+                    0xff};
+  length = encoder_.SerializePriorityFrame(priority2, &buffer);
+  EXPECT_EQ(QUIC_ARRAYSIZE(output2), length);
+  CompareCharArraysWithHexError("PRIORITY", buffer.get(), length, output2,
+                                QUIC_ARRAYSIZE(output2));
+
+  PriorityFrame priority3;
+  priority3.prioritized_type = ROOT_OF_TREE;
+  priority3.dependency_type = ROOT_OF_TREE;
+  priority3.exclusive = true;
+  priority3.weight = 0xFF;
+  char output3[] = {// type (PRIORITY)
+                    0x2,
+                    // length
+                    0x2,
+                    // root of tree, root of tree, exclusive
+                    0xf1,
+                    // weight
+                    0xff};
+  length = encoder_.SerializePriorityFrame(priority3, &buffer);
+  EXPECT_EQ(QUIC_ARRAYSIZE(output3), length);
+  CompareCharArraysWithHexError("PRIORITY", buffer.get(), length, output3,
+                                QUIC_ARRAYSIZE(output3));
 }
 
 TEST_F(HttpEncoderTest, SerializeCancelPushFrame) {

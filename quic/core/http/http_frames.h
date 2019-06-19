@@ -53,12 +53,12 @@ enum PriorityElementType {
 };
 
 struct PriorityFrame {
-  PriorityElementType prioritized_type;
-  PriorityElementType dependency_type;
-  bool exclusive;
-  uint64_t prioritized_element_id;
-  uint64_t element_dependency_id;
-  uint8_t weight;
+  PriorityElementType prioritized_type = REQUEST_STREAM;
+  PriorityElementType dependency_type = REQUEST_STREAM;
+  bool exclusive = false;
+  uint64_t prioritized_element_id = 0;
+  uint64_t element_dependency_id = 0;
+  uint8_t weight = 0;
 
   bool operator==(const PriorityFrame& rhs) const {
     return prioritized_type == rhs.prioritized_type &&

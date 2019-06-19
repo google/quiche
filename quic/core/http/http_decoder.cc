@@ -519,11 +519,13 @@ bool HttpDecoder::ParsePriorityFrame(QuicDataReader* reader,
   frame->dependency_type =
       static_cast<PriorityElementType>(ExtractBits(flags, 2, 4));
   frame->exclusive = flags % 2 == 1;
-  if (!reader->ReadVarInt62(&frame->prioritized_element_id)) {
+  if (frame->prioritized_type != ROOT_OF_TREE &&
+      !reader->ReadVarInt62(&frame->prioritized_element_id)) {
     RaiseError(QUIC_INTERNAL_ERROR, "Unable to read prioritized_element_id");
     return false;
   }
-  if (!reader->ReadVarInt62(&frame->element_dependency_id)) {
+  if (frame->dependency_type != ROOT_OF_TREE &&
+      !reader->ReadVarInt62(&frame->element_dependency_id)) {
     RaiseError(QUIC_INTERNAL_ERROR, "Unable to read element_dependency_id");
     return false;
   }
