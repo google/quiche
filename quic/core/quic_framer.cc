@@ -464,7 +464,6 @@ QuicFramer::QuicFramer(const ParsedQuicVersionVector& supported_versions,
       error_(QUIC_NO_ERROR),
       last_serialized_server_connection_id_(EmptyQuicConnectionId()),
       last_serialized_client_connection_id_(EmptyQuicConnectionId()),
-      last_version_label_(0),
       version_(PROTOCOL_UNSUPPORTED, QUIC_VERSION_UNSUPPORTED),
       supported_versions_(supported_versions),
       decrypter_level_(ENCRYPTION_INITIAL),
@@ -482,7 +481,6 @@ QuicFramer::QuicFramer(const ParsedQuicVersionVector& supported_versions,
       expected_server_connection_id_length_(
           expected_server_connection_id_length),
       expected_client_connection_id_length_(0),
-      should_update_expected_server_connection_id_length_(false),
       supports_multiple_packet_number_spaces_(false),
       last_written_packet_number_length_(0) {
   DCHECK(!supported_versions.empty());
@@ -2356,7 +2354,6 @@ bool QuicFramer::ProcessPublicHeader(QuicDataReader* reader,
     // If the version from the new packet is the same as the version of this
     // framer, then the public flags should be set to something we understand.
     // If not, this raises an error.
-    last_version_label_ = version_label;
     ParsedQuicVersion version = ParseQuicVersionLabel(version_label);
     if (version == version_ && public_flags > PACKET_PUBLIC_FLAGS_MAX) {
       set_detailed_error("Illegal public flags value.");
@@ -2568,10 +2565,6 @@ bool QuicFramer::ProcessIetfHeaderTypeByte(QuicDataReader* reader,
         }
       }
     }
-    if (header->long_packet_type != VERSION_NEGOTIATION) {
-      // Do not save version of version negotiation packet.
-      last_version_label_ = version_label;
-    }
 
     QUIC_DVLOG(1) << ENDPOINT << "Received IETF long header: "
                   << QuicUtils::QuicLongHeaderTypetoString(
@@ -2687,7 +2680,7 @@ bool QuicFramer::ProcessIetfPacketHeader(QuicDataReader* reader,
   if (header->form == IETF_QUIC_LONG_HEADER_PACKET) {
     if (!ProcessAndValidateIetfConnectionIdLength(
             reader, header->version, perspective_,
-            should_update_expected_server_connection_id_length_,
+            /*should_update_expected_server_connection_id_length=*/false,
             &expected_server_connection_id_length_,
             &destination_connection_id_length, &source_connection_id_length,
             &detailed_error_)) {

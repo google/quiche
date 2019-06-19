@@ -13439,125 +13439,10 @@ TEST_P(QuicFramerTest, PacketHeaderWithVariableLengthConnectionId) {
   CheckFramingBoundaries(fragments, QUIC_INVALID_PACKET_HEADER);
 }
 
-TEST_P(QuicFramerTest, UpdateExpectedConnectionIdLength) {
-  if (framer_.transport_version() < QUIC_VERSION_46) {
-    return;
-  }
-  SetDecrypterLevel(ENCRYPTION_ZERO_RTT);
-  framer_.SetShouldUpdateExpectedServerConnectionIdLength(true);
-
-  // clang-format off
-  unsigned char long_header_packet[] = {
-      // public flags (long header with packet type ZERO_RTT_PROTECTED and
-      // 4-byte packet number)
-      0xD3,
-      // version
-      QUIC_VERSION_BYTES,
-      // destination connection ID length
-      0x60,
-      // destination connection ID
-      0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10, 0x42,
-      // packet number
-      0x12, 0x34, 0x56, 0x78,
-      // padding frame
-      0x00,
-  };
-  unsigned char long_header_packet99[] = {
-      // public flags (long header with packet type ZERO_RTT_PROTECTED and
-      // 4-byte packet number)
-      0xD3,
-      // version
-      QUIC_VERSION_BYTES,
-      // destination connection ID length
-      0x60,
-      // destination connection ID
-      0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10, 0x42,
-      // long header packet length
-      0x05,
-      // packet number
-      0x12, 0x34, 0x56, 0x78,
-      // padding frame
-      0x00,
-  };
-  // clang-format on
-
-  if (!QuicVersionHasLongHeaderLengths(framer_.transport_version())) {
-    EXPECT_TRUE(framer_.ProcessPacket(
-        QuicEncryptedPacket(AsChars(long_header_packet),
-                            QUIC_ARRAYSIZE(long_header_packet), false)));
-  } else {
-    EXPECT_TRUE(framer_.ProcessPacket(
-        QuicEncryptedPacket(AsChars(long_header_packet99),
-                            QUIC_ARRAYSIZE(long_header_packet99), false)));
-  }
-
-  EXPECT_EQ(QUIC_NO_ERROR, framer_.error());
-  ASSERT_TRUE(visitor_.header_.get());
-  EXPECT_EQ(visitor_.header_.get()->destination_connection_id,
-            FramerTestConnectionIdNineBytes());
-  EXPECT_EQ(visitor_.header_.get()->packet_number,
-            QuicPacketNumber(UINT64_C(0x12345678)));
-
-  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
-  // clang-format off
-  unsigned char short_header_packet[] = {
-    // type (short header, 4 byte packet number)
-    0x43,
-    // connection_id
-    0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10, 0x42,
-    // packet number
-    0x13, 0x37, 0x42, 0x33,
-    // padding frame
-    0x00,
-  };
-  // clang-format on
-
-  QuicEncryptedPacket short_header_encrypted(
-      AsChars(short_header_packet), QUIC_ARRAYSIZE(short_header_packet), false);
-  EXPECT_TRUE(framer_.ProcessPacket(short_header_encrypted));
-
-  EXPECT_EQ(QUIC_NO_ERROR, framer_.error());
-  ASSERT_TRUE(visitor_.header_.get());
-  EXPECT_EQ(visitor_.header_.get()->destination_connection_id,
-            FramerTestConnectionIdNineBytes());
-  EXPECT_EQ(visitor_.header_.get()->packet_number,
-            QuicPacketNumber(UINT64_C(0x13374233)));
-
-  PacketHeaderFormat format;
-  bool version_flag;
-  QuicConnectionId destination_connection_id, source_connection_id;
-  QuicVersionLabel version_label;
-  std::string detailed_error;
-  EXPECT_EQ(QUIC_NO_ERROR,
-            QuicFramer::ProcessPacketDispatcher(
-                QuicEncryptedPacket(AsChars(long_header_packet),
-                                    QUIC_ARRAYSIZE(long_header_packet)),
-                kQuicDefaultConnectionIdLength, &format, &version_flag,
-                &version_label, &destination_connection_id,
-                &source_connection_id, &detailed_error));
-  EXPECT_EQ(IETF_QUIC_LONG_HEADER_PACKET, format);
-  EXPECT_TRUE(version_flag);
-  EXPECT_EQ(9, destination_connection_id.length());
-  EXPECT_EQ(FramerTestConnectionIdNineBytes(), destination_connection_id);
-  EXPECT_EQ(EmptyQuicConnectionId(), source_connection_id);
-
-  EXPECT_EQ(
-      QUIC_NO_ERROR,
-      QuicFramer::ProcessPacketDispatcher(
-          short_header_encrypted, 9, &format, &version_flag, &version_label,
-          &destination_connection_id, &source_connection_id, &detailed_error));
-  EXPECT_EQ(IETF_QUIC_SHORT_HEADER_PACKET, format);
-  EXPECT_FALSE(version_flag);
-  EXPECT_EQ(9, destination_connection_id.length());
-  EXPECT_EQ(FramerTestConnectionIdNineBytes(), destination_connection_id);
-  EXPECT_EQ(EmptyQuicConnectionId(), source_connection_id);
-}
-
 TEST_P(QuicFramerTest, MultiplePacketNumberSpaces) {
   if (framer_.transport_version() < QUIC_VERSION_46) {
     return;
   }
-  framer_.SetShouldUpdateExpectedServerConnectionIdLength(true);
   framer_.EnableMultiplePacketNumberSpacesSupport();
 
   // clang-format off
@@ -13568,9 +13453,9 @@ TEST_P(QuicFramerTest, MultiplePacketNumberSpaces) {
        // version
        QUIC_VERSION_BYTES,
        // destination connection ID length
-       0x60,
+       0x50,
        // destination connection ID
-       0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10, 0x42,
+       0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
        // packet number
        0x12, 0x34, 0x56, 0x78,
        // padding frame
@@ -13583,9 +13468,9 @@ TEST_P(QuicFramerTest, MultiplePacketNumberSpaces) {
        // version
        QUIC_VERSION_BYTES,
        // destination connection ID length
-       0x60,
+       0x50,
        // destination connection ID
-       0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10, 0x42,
+       0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
        // long header packet length
        0x05,
        // packet number
@@ -13627,7 +13512,7 @@ TEST_P(QuicFramerTest, MultiplePacketNumberSpaces) {
      // type (short header, 1 byte packet number)
      0x40,
      // connection_id
-     0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10, 0x42,
+     0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
      // packet number
      0x79,
      // padding frame

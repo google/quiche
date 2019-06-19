@@ -36,7 +36,6 @@ class QuicCryptoServerConfig;
 
 class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
                        public ProcessPacketInterface,
-                       public QuicFramerVisitorInterface,
                        public QuicBufferedPacketStore::VisitorInterface {
  public:
   // Ideally we'd have a linked_hash_set: the  boolean is unused.
@@ -129,66 +128,6 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
                 "kMaxReasonableInitialPacketNumber is unreasonably small "
                 "relative to kInitialCongestionWindow.");
 
-  // QuicFramerVisitorInterface implementation. Not expected to be called
-  // outside of this class.
-  // TODO(fayang): Make QuicDispatcher no longer implement
-  // QuicFramerVisitorInterface when deprecating
-  // quic_no_framer_object_in_dispatcher.
-  void OnPacket() override;
-  // Called when the public header has been parsed. Returns false when just the
-  // public header is enough to dispatch the packet; true if the framer needs to
-  // continue parsing the packet.
-  bool OnUnauthenticatedPublicHeader(const QuicPacketHeader& header) override;
-  // Called when the private header has been parsed.
-  bool OnUnauthenticatedHeader(const QuicPacketHeader& header) override;
-  void OnError(QuicFramer* framer) override;
-  bool OnProtocolVersionMismatch(ParsedQuicVersion received_version,
-                                 PacketHeaderFormat form) override;
-
-  // The following methods should never get called because
-  // OnUnauthenticatedPublicHeader() or OnUnauthenticatedHeader() (whichever
-  // was called last), will return false and prevent a subsequent invocation
-  // of these methods. Thus, the payload of the packet is never processed in
-  // the dispatcher.
-  void OnPublicResetPacket(const QuicPublicResetPacket& packet) override;
-  void OnVersionNegotiationPacket(
-      const QuicVersionNegotiationPacket& packet) override;
-  void OnRetryPacket(QuicConnectionId original_connection_id,
-                     QuicConnectionId new_connection_id,
-                     QuicStringPiece retry_token) override;
-  void OnDecryptedPacket(EncryptionLevel level) override;
-  bool OnPacketHeader(const QuicPacketHeader& header) override;
-  void OnCoalescedPacket(const QuicEncryptedPacket& packet) override;
-  bool OnStreamFrame(const QuicStreamFrame& frame) override;
-  bool OnCryptoFrame(const QuicCryptoFrame& frame) override;
-  bool OnAckFrameStart(QuicPacketNumber largest_acked,
-                       QuicTime::Delta ack_delay_time) override;
-  bool OnAckRange(QuicPacketNumber start, QuicPacketNumber end) override;
-  bool OnAckTimestamp(QuicPacketNumber packet_number,
-                      QuicTime timestamp) override;
-  bool OnAckFrameEnd(QuicPacketNumber start) override;
-  bool OnStopWaitingFrame(const QuicStopWaitingFrame& frame) override;
-  bool OnPaddingFrame(const QuicPaddingFrame& frame) override;
-  bool OnPingFrame(const QuicPingFrame& frame) override;
-  bool OnRstStreamFrame(const QuicRstStreamFrame& frame) override;
-  bool OnConnectionCloseFrame(const QuicConnectionCloseFrame& frame) override;
-  bool OnStopSendingFrame(const QuicStopSendingFrame& frame) override;
-  bool OnPathChallengeFrame(const QuicPathChallengeFrame& frame) override;
-  bool OnPathResponseFrame(const QuicPathResponseFrame& frame) override;
-  bool OnGoAwayFrame(const QuicGoAwayFrame& frame) override;
-  bool OnMaxStreamsFrame(const QuicMaxStreamsFrame& frame) override;
-  bool OnStreamsBlockedFrame(const QuicStreamsBlockedFrame& frame) override;
-  bool OnWindowUpdateFrame(const QuicWindowUpdateFrame& frame) override;
-  bool OnBlockedFrame(const QuicBlockedFrame& frame) override;
-  bool OnNewConnectionIdFrame(const QuicNewConnectionIdFrame& frame) override;
-  bool OnRetireConnectionIdFrame(
-      const QuicRetireConnectionIdFrame& frame) override;
-  bool OnNewTokenFrame(const QuicNewTokenFrame& frame) override;
-  bool OnMessageFrame(const QuicMessageFrame& frame) override;
-  void OnPacketComplete() override;
-  bool IsValidStatelessResetToken(QuicUint128 token) const override;
-  void OnAuthenticatedIetfStatelessResetPacket(
-      const QuicIetfStatelessResetPacket& packet) override;
 
   // QuicBufferedPacketStore::VisitorInterface implementation.
   void OnExpiredPackets(QuicConnectionId server_connection_id,
@@ -207,6 +146,17 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
                                          QuicStringPiece alpn,
                                          const ParsedQuicVersion& version) = 0;
 
+  // Tries to validate and dispatch packet based on available information.
+  // Returns true if packet is dropped or successfully dispatched (e.g.,
+  // processed by existing session, processed by time wait list, etc.),
+  // otherwise, returns false and the packet needs further processing.
+  virtual bool MaybeDispatchPacket(PacketHeaderFormat form,
+                                   bool version_flag,
+                                   QuicVersionLabel version_label,
+                                   quic::ParsedQuicVersion version,
+                                   QuicConnectionId destination_connection_id,
+                                   QuicConnectionId source_connection_id);
+
   // Values to be returned by ValidityChecks() to indicate what should be done
   // with a packet.  Fates with greater values are considered to be higher
   // priority, in that if one validity check indicates a lower-valued fate and
@@ -223,10 +173,13 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
     kFateDrop,
   };
 
-  // This method is called by OnUnauthenticatedHeader on packets not associated
-  // with a known connection ID.  It applies validity checks and returns a
+  // This method is called by ProcessHeader on packets not associated with a
+  // known connection ID.  It applies validity checks and returns a
   // QuicPacketFate to tell what should be done with the packet.
-  virtual QuicPacketFate ValidityChecks(const QuicPacketHeader& header);
+  virtual QuicPacketFate ValidityChecks(
+      bool version_flag,
+      ParsedQuicVersion version,
+      QuicConnectionId destination_connection_id);
 
   // Create and return the time wait list manager for this dispatcher, which
   // will be owned by the dispatcher as time_wait_list_manager_
@@ -301,11 +254,11 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
 
   void SetLastError(QuicErrorCode error);
 
-  // Called when the public header has been parsed and the session has been
-  // looked up, and the session was not found in the active list of sessions.
-  // Returns false if processing should stop after this call.
-  virtual bool OnUnauthenticatedUnknownPublicHeader(
-      const QuicPacketHeader& header);
+  // Called by MaybeDispatchPacket when current packet cannot be dispatched.
+  // Used by subclasses to conduct specific logic to dispatch packet. Returns
+  // true if packet is successfully dispatched.
+  virtual bool OnFailedToDispatchPacket(
+      QuicConnectionId destination_connection_id);
 
   // Called when a new connection starts to be handled by this dispatcher.
   // Either this connection is created or its packets is buffered while waiting
@@ -348,18 +301,10 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
   virtual void RestorePerPacketContext(
       std::unique_ptr<QuicPerPacketContext> /*context*/) {}
 
-  // Skip validating that the public flags are set to legal values.
-  void DisableFlagValidation();
-
   // If true, our framer will change its expected connection ID length
   // to the received destination connection ID length of all IETF long headers.
   void SetShouldUpdateExpectedServerConnectionIdLength(
       bool should_update_expected_server_connection_id_length) {
-    if (!no_framer_) {
-      framer_.SetShouldUpdateExpectedServerConnectionIdLength(
-          should_update_expected_server_connection_id_length);
-      return;
-    }
     should_update_expected_server_connection_id_length_ =
         should_update_expected_server_connection_id_length;
   }
@@ -378,9 +323,11 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
   typedef QuicUnorderedSet<QuicConnectionId, QuicConnectionIdHash>
       QuicConnectionIdSet;
 
-  // Based on an unauthenticated packet header |header|, calls ValidityChecks
-  // and then ProcessUnauthenticatedHeaderFate.
-  void ProcessHeader(const QuicPacketHeader& header);
+  // Calls ValidityChecks and then ProcessUnauthenticatedHeaderFate.
+  void ProcessHeader(PacketHeaderFormat form,
+                     bool version_flag,
+                     ParsedQuicVersion version,
+                     QuicConnectionId destination_connection_id);
 
   // Deliver |packets| to |session| for further processing.
   void DeliverPacketsToSession(
@@ -467,8 +414,6 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
   // Used to get the supported versions based on flag. Does not own.
   QuicVersionManager* version_manager_;
 
-  QuicFramer framer_;
-
   // The last error set by SetLastError(), which is called by
   // framer_visitor_->OnError().
   QuicErrorCode last_error_;
@@ -485,12 +430,6 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
   // If true they are allowed.
   bool allow_short_initial_server_connection_ids_;
 
-  // The last QUIC version label received. Used when no_framer_ is true.
-  // TODO(fayang): remove this member variable, instead, add an argument to
-  // OnUnauthenticatedPublicHeader when deprecating
-  // quic_no_framer_object_in_dispatcher.
-  QuicVersionLabel last_version_label_;
-
   // IETF short headers contain a destination connection ID but do not
   // encode its length. This variable contains the length we expect to read.
   // This is also used to signal an error when a long header packet with
@@ -504,9 +443,6 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
   // destination connection ID length of all IETF long headers. Used when
   // no_framer_ is true.
   bool should_update_expected_server_connection_id_length_;
-
-  // Latched value of quic_no_framer_object_in_dispatcher.
-  const bool no_framer_;
 };
 
 }  // namespace quic

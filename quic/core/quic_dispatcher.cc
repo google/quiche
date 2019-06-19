@@ -200,23 +200,13 @@ QuicDispatcher::QuicDispatcher(
       buffered_packets_(this, helper_->GetClock(), alarm_factory_.get()),
       current_packet_(nullptr),
       version_manager_(version_manager),
-      framer_(GetSupportedVersions(),
-              /*unused*/ QuicTime::Zero(),
-              Perspective::IS_SERVER,
-              expected_server_connection_id_length),
       last_error_(QUIC_NO_ERROR),
       new_sessions_allowed_per_event_loop_(0u),
       accept_new_connections_(true),
       allow_short_initial_server_connection_ids_(false),
-      last_version_label_(0),
       expected_server_connection_id_length_(
           expected_server_connection_id_length),
-      should_update_expected_server_connection_id_length_(false),
-      no_framer_(GetQuicRestartFlag(quic_no_framer_object_in_dispatcher)) {
-  if (!no_framer_) {
-    framer_.set_visitor(this);
-  }
-}
+      should_update_expected_server_connection_id_length_(false) {}
 
 QuicDispatcher::~QuicDispatcher() {
   session_map_.clear();
@@ -241,22 +231,16 @@ void QuicDispatcher::ProcessPacket(const QuicSocketAddress& self_address,
   // GetClientAddress must be called after current_peer_address_ is set.
   current_client_address_ = GetClientAddress();
   current_packet_ = &packet;
-  if (!no_framer_) {
-    // ProcessPacket will cause the packet to be dispatched in
-    // OnUnauthenticatedPublicHeader, or sent to the time wait list manager
-    // in OnUnauthenticatedHeader.
-    framer_.ProcessPacket(packet);
-    // TODO(rjshade): Return a status describing if/why a packet was dropped,
-    //                and log somehow.  Maybe expose as a varz.
-    return;
-  }
-  QUIC_RESTART_FLAG_COUNT(quic_no_framer_object_in_dispatcher);
-  QuicPacketHeader header;
+
+  PacketHeaderFormat form = GOOGLE_QUIC_PACKET;
+  bool version_flag = false;
+  QuicVersionLabel version_label = 0;
+  QuicConnectionId destination_connection_id = EmptyQuicConnectionId();
+  QuicConnectionId source_connection_id = EmptyQuicConnectionId();
   std::string detailed_error;
   const QuicErrorCode error = QuicFramer::ProcessPacketDispatcher(
-      packet, expected_server_connection_id_length_, &header.form,
-      &header.version_flag, &last_version_label_,
-      &header.destination_connection_id, &header.source_connection_id,
+      packet, expected_server_connection_id_length_, &form, &version_flag,
+      &version_label, &destination_connection_id, &source_connection_id,
       &detailed_error);
   if (error != QUIC_NO_ERROR) {
     // Packet has framing error.
@@ -264,28 +248,26 @@ void QuicDispatcher::ProcessPacket(const QuicSocketAddress& self_address,
     QUIC_DLOG(ERROR) << detailed_error;
     return;
   }
-  header.version = ParseQuicVersionLabel(last_version_label_);
-  if (header.destination_connection_id.length() !=
+  ParsedQuicVersion version = ParseQuicVersionLabel(version_label);
+  if (destination_connection_id.length() !=
           expected_server_connection_id_length_ &&
       !should_update_expected_server_connection_id_length_ &&
       !QuicUtils::VariableLengthConnectionIdAllowedForVersion(
-          header.version.transport_version)) {
+          version.transport_version)) {
     SetLastError(QUIC_INVALID_PACKET_HEADER);
     QUIC_DLOG(ERROR) << "Invalid Connection Id Length";
     return;
   }
   if (should_update_expected_server_connection_id_length_) {
-    expected_server_connection_id_length_ =
-        header.destination_connection_id.length();
+    expected_server_connection_id_length_ = destination_connection_id.length();
   }
-  // TODO(fayang): Instead of passing in QuicPacketHeader, pass format,
-  // version_flag, version and destination_connection_id. Combine
-  // OnUnauthenticatedPublicHeader and OnUnauthenticatedHeader to a single
-  // function when deprecating quic_no_framer_object_in_dispatcher.
-  if (!OnUnauthenticatedPublicHeader(header)) {
+
+  if (MaybeDispatchPacket(form, version_flag, version_label, version,
+                          destination_connection_id, source_connection_id)) {
+    // Packet has been dropped or successfully dispatched, stop processing.
     return;
   }
-  OnUnauthenticatedHeader(header);
+  ProcessHeader(form, version_flag, version, destination_connection_id);
   // TODO(wub): Consider invalidate the current_* variables so processing of
   //            the next packet does not use them incorrectly.
 }
@@ -293,10 +275,7 @@ void QuicDispatcher::ProcessPacket(const QuicSocketAddress& self_address,
 QuicConnectionId QuicDispatcher::MaybeReplaceServerConnectionId(
     QuicConnectionId server_connection_id,
     ParsedQuicVersion version) {
-  const uint8_t expected_server_connection_id_length =
-      no_framer_ ? expected_server_connection_id_length_
-                 : framer_.GetExpectedServerConnectionIdLength();
-  if (server_connection_id.length() == expected_server_connection_id_length) {
+  if (server_connection_id.length() == expected_server_connection_id_length_) {
     return server_connection_id;
   }
   DCHECK(QuicUtils::VariableLengthConnectionIdAllowedForVersion(
@@ -308,7 +287,7 @@ QuicConnectionId QuicDispatcher::MaybeReplaceServerConnectionId(
   QuicConnectionId new_connection_id =
       session_helper_->GenerateConnectionIdForReject(version.transport_version,
                                                      server_connection_id);
-  DCHECK_EQ(expected_server_connection_id_length, new_connection_id.length());
+  DCHECK_EQ(expected_server_connection_id_length_, new_connection_id.length());
   connection_id_map_.insert(
       std::make_pair(server_connection_id, new_connection_id));
   QUIC_DLOG(INFO) << "Replacing incoming connection ID " << server_connection_id
@@ -316,45 +295,41 @@ QuicConnectionId QuicDispatcher::MaybeReplaceServerConnectionId(
   return new_connection_id;
 }
 
-bool QuicDispatcher::OnUnauthenticatedPublicHeader(
-    const QuicPacketHeader& header) {
-  current_server_connection_id_ = header.destination_connection_id;
+bool QuicDispatcher::MaybeDispatchPacket(
+    PacketHeaderFormat form,
+    bool version_flag,
+    QuicVersionLabel version_label,
+    quic::ParsedQuicVersion version,
+    QuicConnectionId destination_connection_id,
+    QuicConnectionId source_connection_id) {
+  current_server_connection_id_ = destination_connection_id;
 
   // Port zero is only allowed for unidirectional UDP, so is disallowed by QUIC.
   // Given that we can't even send a reply rejecting the packet, just drop the
   // packet.
   if (current_peer_address_.port() == 0) {
-    return false;
+    return true;
   }
 
-  // The dispatcher requires the connection ID to be present in order to
-  // look up the matching QuicConnection, so we error out if it is absent.
-  if (header.destination_connection_id_included != CONNECTION_ID_PRESENT) {
-    return false;
-  }
-  QuicConnectionId server_connection_id = header.destination_connection_id;
+  QuicConnectionId server_connection_id = destination_connection_id;
 
   // The IETF spec requires the client to generate an initial server
   // connection ID that is at least 64 bits long. After that initial
   // connection ID, the dispatcher picks a new one of its expected length.
   // Therefore we should never receive a connection ID that is smaller
   // than 64 bits and smaller than what we expect.
-  const uint8_t expected_server_connection_id_length =
-      no_framer_ ? expected_server_connection_id_length_
-                 : framer_.GetExpectedServerConnectionIdLength();
   if (server_connection_id.length() < kQuicMinimumInitialConnectionIdLength &&
-      server_connection_id.length() < expected_server_connection_id_length &&
+      server_connection_id.length() < expected_server_connection_id_length_ &&
       !allow_short_initial_server_connection_ids_) {
-    DCHECK(header.version_flag);
+    DCHECK(version_flag);
     DCHECK(QuicUtils::VariableLengthConnectionIdAllowedForVersion(
-        header.version.transport_version));
+        version.transport_version));
     QUIC_DLOG(INFO) << "Packet with short destination connection ID "
                     << server_connection_id << " expected "
-                    << static_cast<int>(expected_server_connection_id_length);
-    ProcessUnauthenticatedHeaderFate(kFateTimeWait, server_connection_id,
-                                     header.form, header.version_flag,
-                                     header.version);
-    return false;
+                    << static_cast<int>(expected_server_connection_id_length_);
+    ProcessUnauthenticatedHeaderFate(kFateTimeWait, server_connection_id, form,
+                                     version_flag, version);
+    return true;
   }
 
   // Packets with connection IDs for active connections are processed
@@ -364,13 +339,13 @@ bool QuicDispatcher::OnUnauthenticatedPublicHeader(
     DCHECK(!buffered_packets_.HasBufferedPackets(server_connection_id));
     it->second->ProcessUdpPacket(current_self_address_, current_peer_address_,
                                  *current_packet_);
-    return false;
+    return true;
   }
 
   if (buffered_packets_.HasChloForConnection(server_connection_id)) {
-    BufferEarlyPacket(server_connection_id, header.form != GOOGLE_QUIC_PACKET,
-                      header.version);
-    return false;
+    BufferEarlyPacket(server_connection_id, form != GOOGLE_QUIC_PACKET,
+                      version);
+    return true;
   }
 
   // Check if we are buffering packets for this connection ID
@@ -378,89 +353,64 @@ bool QuicDispatcher::OnUnauthenticatedPublicHeader(
       temporarily_buffered_connections_.end()) {
     // This packet was received while the a CHLO for the same connection ID was
     // being processed.  Buffer it.
-    BufferEarlyPacket(server_connection_id, header.form != GOOGLE_QUIC_PACKET,
-                      header.version);
-    return false;
+    BufferEarlyPacket(server_connection_id, form != GOOGLE_QUIC_PACKET,
+                      version);
+    return true;
   }
 
-  if (!OnUnauthenticatedUnknownPublicHeader(header)) {
-    return false;
-  }
-
-  // If the packet is a public reset for a connection ID that is not active,
-  // there is nothing we must do or can do.
-  if (header.reset_flag) {
-    return false;
+  if (OnFailedToDispatchPacket(destination_connection_id)) {
+    return true;
   }
 
   if (time_wait_list_manager_->IsConnectionIdInTimeWait(server_connection_id)) {
     // This connection ID is already in time-wait state.
     time_wait_list_manager_->ProcessPacket(
-        current_self_address_, current_peer_address_,
-        header.destination_connection_id, header.form, GetPerPacketContext());
-    return false;
+        current_self_address_, current_peer_address_, destination_connection_id,
+        form, GetPerPacketContext());
+    return true;
   }
 
   // The packet has an unknown connection ID.
 
   // Unless the packet provides a version, assume that we can continue
   // processing using our preferred version.
-  ParsedQuicVersion version = GetSupportedVersions().front();
-  if (header.version_flag) {
-    ParsedQuicVersion packet_version = header.version;
-    if (!no_framer_ && framer_.supported_versions() != GetSupportedVersions()) {
-      // Reset framer's version if version flags change in flight.
-      framer_.SetSupportedVersions(GetSupportedVersions());
-    }
-    if (!IsSupportedVersion(packet_version)) {
-      if (ShouldCreateSessionForUnknownVersion(
-              no_framer_ ? last_version_label_
-                         : framer_.last_version_label())) {
-        return true;
+  if (version_flag) {
+    if (!IsSupportedVersion(version)) {
+      if (ShouldCreateSessionForUnknownVersion(version_label)) {
+        return false;
       }
       if (!crypto_config()->validate_chlo_size() ||
           current_packet_->length() >= kMinPacketSizeForVersionNegotiation) {
         // Since the version is not supported, send a version negotiation
         // packet and stop processing the current packet.
-        QuicConnectionId client_connection_id = header.source_connection_id;
+        QuicConnectionId client_connection_id = source_connection_id;
         time_wait_list_manager()->SendVersionNegotiationPacket(
             server_connection_id, client_connection_id,
-            header.form != GOOGLE_QUIC_PACKET, GetSupportedVersions(),
+            form != GOOGLE_QUIC_PACKET, GetSupportedVersions(),
             current_self_address_, current_peer_address_,
             GetPerPacketContext());
       }
-      return false;
+      return true;
     }
-    version = packet_version;
-  }
-  if (!no_framer_) {
-    // Set the framer's version and continue processing.
-    framer_.set_version(version);
   }
 
-  if (version.HasHeaderProtection()) {
-    ProcessHeader(header);
-    return false;
-  }
-  return true;
-}
-
-bool QuicDispatcher::OnUnauthenticatedHeader(const QuicPacketHeader& header) {
-  ProcessHeader(header);
   return false;
 }
 
-void QuicDispatcher::ProcessHeader(const QuicPacketHeader& header) {
-  QuicConnectionId server_connection_id = header.destination_connection_id;
+void QuicDispatcher::ProcessHeader(PacketHeaderFormat form,
+                                   bool version_flag,
+                                   ParsedQuicVersion version,
+                                   QuicConnectionId destination_connection_id) {
+  QuicConnectionId server_connection_id = destination_connection_id;
   // Packet's connection ID is unknown.  Apply the validity checks.
   // TODO(wub): Determine the fate completely in ValidityChecks, then call
   // ProcessUnauthenticatedHeaderFate in one place.
-  QuicPacketFate fate = ValidityChecks(header);
+  QuicPacketFate fate =
+      ValidityChecks(version_flag, version, destination_connection_id);
   if (fate == kFateProcess) {
-    if (header.version.handshake_protocol == PROTOCOL_TLS1_3) {
-      ProcessUnauthenticatedHeaderFate(kFateProcess, server_connection_id,
-                                       header.form, header.version_flag,
-                                       header.version);
+    if (version.handshake_protocol == PROTOCOL_TLS1_3) {
+      ProcessUnauthenticatedHeaderFate(kFateProcess, server_connection_id, form,
+                                       version_flag, version);
       return;
       // TODO(nharper): Support buffering non-ClientHello packets when using
       // TLS.
@@ -473,21 +423,19 @@ void QuicDispatcher::ProcessHeader(const QuicPacketHeader& header) {
                                 &alpn_extractor,
                                 server_connection_id.length())) {
       // Buffer non-CHLO packets.
-      ProcessUnauthenticatedHeaderFate(kFateBuffer, server_connection_id,
-                                       header.form, header.version_flag,
-                                       header.version);
+      ProcessUnauthenticatedHeaderFate(kFateBuffer, server_connection_id, form,
+                                       version_flag, version);
       return;
     }
     current_alpn_ = alpn_extractor.ConsumeAlpn();
-    ProcessUnauthenticatedHeaderFate(kFateProcess, server_connection_id,
-                                     header.form, header.version_flag,
-                                     header.version);
+    ProcessUnauthenticatedHeaderFate(kFateProcess, server_connection_id, form,
+                                     version_flag, version);
     return;
   }
 
   // Fate is already known.
-  ProcessUnauthenticatedHeaderFate(fate, server_connection_id, header.form,
-                                   header.version_flag, header.version);
+  ProcessUnauthenticatedHeaderFate(fate, server_connection_id, form,
+                                   version_flag, version);
 }
 
 void QuicDispatcher::ProcessUnauthenticatedHeaderFate(
@@ -534,7 +482,9 @@ void QuicDispatcher::ProcessUnauthenticatedHeaderFate(
 }
 
 QuicDispatcher::QuicPacketFate QuicDispatcher::ValidityChecks(
-    const QuicPacketHeader& header) {
+    bool version_flag,
+    ParsedQuicVersion /*version*/,
+    QuicConnectionId destination_connection_id) {
   // To have all the checks work properly without tears, insert any new check
   // into the framework of this method in the section for checks that return the
   // check's fate value.  The sections for checks must be ordered with the
@@ -548,29 +498,14 @@ QuicDispatcher::QuicPacketFate QuicDispatcher::ValidityChecks(
   // response from the server are required to have the version negotiation flag
   // set.  Since this may be a client continuing a connection we lost track of
   // via server restart, send a rejection to fast-fail the connection.
-  if (!header.version_flag) {
+  if (!version_flag) {
     QUIC_DLOG(INFO)
         << "Packet without version arrived for unknown connection ID "
-        << header.destination_connection_id;
+        << destination_connection_id;
     return kFateTimeWait;
   }
 
-  if (no_framer_) {
-    // Let the connection parse and validate packet number.
-    return kFateProcess;
-  }
-
-  // initial packet number of 0 is always invalid.
-  if (!framer_.version().HasHeaderProtection()) {
-    if (!header.packet_number.IsInitialized()) {
-      return kFateTimeWait;
-    }
-    // Accepting Initial Packet Numbers in 1...((2^31)-1) range... check
-    // maximum accordingly.
-    if (header.packet_number > MaxRandomInitialPacketNumber()) {
-      return kFateTimeWait;
-    }
-  }
+  // Let the connection parse and validate packet number.
   return kFateProcess;
 }
 
@@ -802,199 +737,9 @@ void QuicDispatcher::StatelesslyTerminateConnection(
       &termination_packets);
 }
 
-void QuicDispatcher::OnPacket() {}
-
-void QuicDispatcher::OnError(QuicFramer* framer) {
-  QuicErrorCode error = framer->error();
-  SetLastError(error);
-  QUIC_DLOG(INFO) << QuicErrorCodeToString(error);
-}
-
 bool QuicDispatcher::ShouldCreateSessionForUnknownVersion(
     QuicVersionLabel /*version_label*/) {
   return false;
-}
-
-bool QuicDispatcher::OnProtocolVersionMismatch(
-    ParsedQuicVersion /*received_version*/,
-    PacketHeaderFormat /*form*/) {
-  DCHECK(!no_framer_);
-  QUIC_BUG_IF(
-      !time_wait_list_manager_->IsConnectionIdInTimeWait(
-          current_server_connection_id_) &&
-      !ShouldCreateSessionForUnknownVersion(framer_.last_version_label()))
-      << "Unexpected version mismatch: "
-      << QuicVersionLabelToString(framer_.last_version_label());
-
-  // Keep processing after protocol mismatch - this will be dealt with by the
-  // time wait list or connection that we will create.
-  return true;
-}
-
-void QuicDispatcher::OnPublicResetPacket(
-    const QuicPublicResetPacket& /*packet*/) {
-  DCHECK(false);
-}
-
-void QuicDispatcher::OnVersionNegotiationPacket(
-    const QuicVersionNegotiationPacket& /*packet*/) {
-  DCHECK(false);
-}
-
-void QuicDispatcher::OnRetryPacket(QuicConnectionId /*original_connection_id*/,
-                                   QuicConnectionId /*new_connection_id*/,
-                                   QuicStringPiece /*retry_token*/) {
-  DCHECK(false);
-}
-
-void QuicDispatcher::OnDecryptedPacket(EncryptionLevel /*level*/) {
-  DCHECK(false);
-}
-
-bool QuicDispatcher::OnPacketHeader(const QuicPacketHeader& /*header*/) {
-  DCHECK(false);
-  return false;
-}
-
-void QuicDispatcher::OnCoalescedPacket(const QuicEncryptedPacket& /*packet*/) {
-  DCHECK(false);
-}
-
-bool QuicDispatcher::OnStreamFrame(const QuicStreamFrame& /*frame*/) {
-  DCHECK(false);
-  return false;
-}
-
-bool QuicDispatcher::OnCryptoFrame(const QuicCryptoFrame& /*frame*/) {
-  DCHECK(false);
-  return false;
-}
-
-bool QuicDispatcher::OnAckFrameStart(QuicPacketNumber /*largest_acked*/,
-                                     QuicTime::Delta /*ack_delay_time*/) {
-  DCHECK(false);
-  return false;
-}
-
-bool QuicDispatcher::OnAckRange(QuicPacketNumber /*start*/,
-                                QuicPacketNumber /*end*/) {
-  DCHECK(false);
-  return false;
-}
-
-bool QuicDispatcher::OnAckTimestamp(QuicPacketNumber /*packet_number*/,
-                                    QuicTime /*timestamp*/) {
-  DCHECK(false);
-  return false;
-}
-
-bool QuicDispatcher::OnAckFrameEnd(QuicPacketNumber /*start*/) {
-  DCHECK(false);
-  return false;
-}
-
-bool QuicDispatcher::OnStopWaitingFrame(const QuicStopWaitingFrame& /*frame*/) {
-  DCHECK(false);
-  return false;
-}
-
-bool QuicDispatcher::OnPaddingFrame(const QuicPaddingFrame& /*frame*/) {
-  DCHECK(false);
-  return false;
-}
-
-bool QuicDispatcher::OnPingFrame(const QuicPingFrame& /*frame*/) {
-  DCHECK(false);
-  return false;
-}
-
-bool QuicDispatcher::OnRstStreamFrame(const QuicRstStreamFrame& /*frame*/) {
-  DCHECK(false);
-  return false;
-}
-
-bool QuicDispatcher::OnConnectionCloseFrame(
-    const QuicConnectionCloseFrame& /*frame*/) {
-  DCHECK(false);
-  return false;
-}
-
-bool QuicDispatcher::OnMaxStreamsFrame(const QuicMaxStreamsFrame& /*frame*/) {
-  return true;
-}
-
-bool QuicDispatcher::OnStreamsBlockedFrame(
-    const QuicStreamsBlockedFrame& /*frame*/) {
-  return true;
-}
-
-bool QuicDispatcher::OnStopSendingFrame(const QuicStopSendingFrame& /*frame*/) {
-  DCHECK(false);
-  return false;
-}
-
-bool QuicDispatcher::OnPathChallengeFrame(
-    const QuicPathChallengeFrame& /*frame*/) {
-  DCHECK(false);
-  return false;
-}
-
-bool QuicDispatcher::OnPathResponseFrame(
-    const QuicPathResponseFrame& /*frame*/) {
-  DCHECK(false);
-  return false;
-}
-
-bool QuicDispatcher::OnGoAwayFrame(const QuicGoAwayFrame& /*frame*/) {
-  DCHECK(false);
-  return false;
-}
-
-bool QuicDispatcher::OnWindowUpdateFrame(
-    const QuicWindowUpdateFrame& /*frame*/) {
-  DCHECK(false);
-  return false;
-}
-
-bool QuicDispatcher::OnBlockedFrame(const QuicBlockedFrame& /*frame*/) {
-  DCHECK(false);
-  return false;
-}
-
-bool QuicDispatcher::OnNewConnectionIdFrame(
-    const QuicNewConnectionIdFrame& /*frame*/) {
-  DCHECK(false);
-  return false;
-}
-
-bool QuicDispatcher::OnRetireConnectionIdFrame(
-    const QuicRetireConnectionIdFrame& /*frame*/) {
-  DCHECK(false);
-  return false;
-}
-
-bool QuicDispatcher::OnNewTokenFrame(const QuicNewTokenFrame& /*frame*/) {
-  DCHECK(false);
-  return false;
-}
-
-bool QuicDispatcher::OnMessageFrame(const QuicMessageFrame& /*frame*/) {
-  DCHECK(false);
-  return false;
-}
-
-void QuicDispatcher::OnPacketComplete() {
-  DCHECK(false);
-}
-
-bool QuicDispatcher::IsValidStatelessResetToken(QuicUint128 /*token*/) const {
-  DCHECK(false);
-  return false;
-}
-
-void QuicDispatcher::OnAuthenticatedIetfStatelessResetPacket(
-    const QuicIetfStatelessResetPacket& /*packet*/) {
-  DCHECK(false);
 }
 
 void QuicDispatcher::OnExpiredPackets(
@@ -1161,9 +906,9 @@ void QuicDispatcher::SetLastError(QuicErrorCode error) {
   last_error_ = error;
 }
 
-bool QuicDispatcher::OnUnauthenticatedUnknownPublicHeader(
-    const QuicPacketHeader& /*header*/) {
-  return true;
+bool QuicDispatcher::OnFailedToDispatchPacket(
+    QuicConnectionId /*destination_connection_id*/) {
+  return false;
 }
 
 const QuicTransportVersionVector&
@@ -1184,16 +929,7 @@ void QuicDispatcher::DeliverPacketsToSession(
   }
 }
 
-void QuicDispatcher::DisableFlagValidation() {
-  if (!no_framer_) {
-    framer_.set_validate_flags(false);
-  }
-}
-
 bool QuicDispatcher::IsSupportedVersion(const ParsedQuicVersion version) {
-  if (!no_framer_) {
-    return framer_.IsSupportedVersion(version);
-  }
   for (const ParsedQuicVersion& supported_version :
        version_manager_->GetSupportedVersions()) {
     if (version == supported_version) {

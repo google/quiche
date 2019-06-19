@@ -553,8 +553,6 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
 
   Perspective perspective() const { return perspective_; }
 
-  QuicVersionLabel last_version_label() const { return last_version_label_; }
-
   void set_data_producer(QuicStreamFrameDataProducer* data_producer) {
     data_producer_ = data_producer;
   }
@@ -563,14 +561,6 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
 
   QuicPacketNumber first_sending_packet_number() const {
     return first_sending_packet_number_;
-  }
-
-  // If true, QuicFramer will change its expected connection ID length
-  // to the received destination connection ID length of all IETF long headers.
-  void SetShouldUpdateExpectedServerConnectionIdLength(
-      bool should_update_expected_server_connection_id_length) {
-    should_update_expected_server_connection_id_length_ =
-        should_update_expected_server_connection_id_length;
   }
 
   // The connection ID length the framer expects on incoming IETF short headers
@@ -968,10 +958,6 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   QuicConnectionId last_serialized_server_connection_id_;
   // Last client connection ID seen on the wire.
   QuicConnectionId last_serialized_client_connection_id_;
-  // The last QUIC version label received.
-  // TODO(fayang): Remove this when deprecating
-  // quic_no_framer_object_in_dispatcher.
-  QuicVersionLabel last_version_label_;
   // Version of the protocol being used.
   ParsedQuicVersion version_;
   // This vector contains QUIC versions which we currently support.
@@ -1027,13 +1013,6 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   // lengths in older versions of QUIC.
   uint8_t expected_server_connection_id_length_;
   uint8_t expected_client_connection_id_length_;
-
-  // When this is true, QuicFramer will change
-  // expected_server_connection_id_length_ to the received destination
-  // connection ID length of all IETF long headers.
-  // TODO(fayang): Remove this when deprecating
-  // quic_no_framer_object_in_dispatcher.
-  bool should_update_expected_server_connection_id_length_;
 
   // Indicates whether this framer supports multiple packet number spaces.
   bool supports_multiple_packet_number_spaces_;
