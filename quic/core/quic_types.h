@@ -146,7 +146,8 @@ struct QUIC_EXPORT_PRIVATE WriteResult {
 enum TransmissionType : int8_t {
   NOT_RETRANSMISSION,
   FIRST_TRANSMISSION_TYPE = NOT_RETRANSMISSION,
-  HANDSHAKE_RETRANSMISSION,    // Retransmits due to handshake timeouts.
+  HANDSHAKE_RETRANSMISSION,  // Retransmits due to handshake timeouts.
+  // TODO(fayang): remove ALL_UNACKED_RETRANSMISSION.
   ALL_UNACKED_RETRANSMISSION,  // Retransmits all unacked packets.
   ALL_INITIAL_RETRANSMISSION,  // Retransmits all initially encrypted packets.
   LOSS_RETRANSMISSION,         // Retransmits due to loss detection.

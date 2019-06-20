@@ -216,7 +216,6 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
         expected_server_connection_id_length_(kQuicDefaultConnectionIdLength) {
     SetQuicFlag(FLAGS_quic_supports_tls_handshake, true);
     SetQuicRestartFlag(quic_no_server_conn_ver_negotiation2, true);
-    SetQuicReloadableFlag(quic_no_client_conn_ver_negotiation, true);
     client_supported_versions_ = GetParam().client_supported_versions;
     server_supported_versions_ = GetParam().server_supported_versions;
     negotiated_version_ = GetParam().negotiated_version;
@@ -484,8 +483,7 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
   // Returns true when client starts with an unsupported version, and client
   // closes connection when version negotiation is received.
   bool ServerSendsVersionNegotiation() {
-    return GetQuicReloadableFlag(quic_no_client_conn_ver_negotiation) &&
-           client_supported_versions_[0] != GetParam().negotiated_version;
+    return client_supported_versions_[0] != GetParam().negotiated_version;
   }
 
   bool SupportsIetfQuicWithTls(ParsedQuicVersion version) {

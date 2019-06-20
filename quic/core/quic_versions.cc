@@ -432,7 +432,6 @@ void QuicVersionInitializeSupportForIetfDraft(int32_t draft_version) {
   SetQuicFlag(FLAGS_quic_headers_stream_id_in_v99, 60);
   SetQuicReloadableFlag(quic_use_uber_loss_algorithm, true);
   SetQuicReloadableFlag(quic_use_uber_received_packet_manager, true);
-  SetQuicReloadableFlag(quic_no_client_conn_ver_negotiation, true);
   SetQuicReloadableFlag(quic_eliminate_static_stream_map_3, true);
   SetQuicReloadableFlag(quic_tolerate_reneging, true);
   SetQuicReloadableFlag(quic_simplify_stop_waiting, true);

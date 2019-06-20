@@ -665,52 +665,15 @@ void QuicConnection::OnVersionNegotiationPacket(
   }
 
   server_supported_versions_ = packet.versions;
-
-  if (GetQuicReloadableFlag(quic_no_client_conn_ver_negotiation)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_no_client_conn_ver_negotiation);
-    CloseConnection(
-        QUIC_INVALID_VERSION,
-        QuicStrCat(
-            "Client may support one of the versions in the server's list, but "
-            "it's going to close the connection anyway. Supported versions: {",
-            ParsedQuicVersionVectorToString(framer_.supported_versions()),
-            "}, peer supported versions: {",
-            ParsedQuicVersionVectorToString(packet.versions), "}"),
-        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
-    return;
-  }
-
-  ParsedQuicVersion original_version = version();
-  if (!SelectMutualVersion(packet.versions)) {
-    CloseConnection(
-        QUIC_INVALID_VERSION,
-        QuicStrCat(
-            "No common version found. Supported versions: {",
-            ParsedQuicVersionVectorToString(framer_.supported_versions()),
-            "}, peer supported versions: {",
-            ParsedQuicVersionVectorToString(packet.versions), "}"),
-        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
-    return;
-  }
-
-  if (original_version.handshake_protocol != version().handshake_protocol) {
-    const std::string error_details =
-        "In-connection version negotiation between mismatched handshake "
-        " protocols " +
-        ParsedQuicVersionToString(original_version) + " and " +
-        ParsedQuicVersionToString(version()) + " is currently unsupported.";
-    QUIC_DLOG(WARNING) << error_details;
-    CloseConnection(QUIC_INVALID_VERSION, error_details,
-                    ConnectionCloseBehavior::SILENT_CLOSE);
-    return;
-  }
-
-  QUIC_DLOG(INFO) << ENDPOINT << "Negotiated version: "
-                  << ParsedQuicVersionToString(version());
-  no_stop_waiting_frames_ = VersionHasIetfInvariantHeader(transport_version());
-  version_negotiation_state_ = NEGOTIATION_IN_PROGRESS;
-
-  RetransmitUnackedPackets(ALL_UNACKED_RETRANSMISSION);
+  CloseConnection(
+      QUIC_INVALID_VERSION,
+      QuicStrCat(
+          "Client may support one of the versions in the server's list, but "
+          "it's going to close the connection anyway. Supported versions: {",
+          ParsedQuicVersionVectorToString(framer_.supported_versions()),
+          "}, peer supported versions: {",
+          ParsedQuicVersionVectorToString(packet.versions), "}"),
+      ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
 }
 
 // Handles retry for client connection.

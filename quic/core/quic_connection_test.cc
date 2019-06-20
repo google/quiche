@@ -6699,10 +6699,6 @@ TEST_P(QuicConnectionTest, MissingPacketsBeforeLeastUnacked) {
 }
 
 TEST_P(QuicConnectionTest, ClientHandlesVersionNegotiation) {
-  const bool expect_failure =
-      GetQuicReloadableFlag(quic_no_client_conn_ver_negotiation) ||
-      connection_.version().handshake_protocol !=
-          QuicVersionReservedForNegotiation().handshake_protocol;
   // Start out with an unsupported version.
   QuicConnectionPeer::GetFramer(&connection_)
       ->set_version_for_tests(QuicVersionReservedForNegotiation());
@@ -6715,47 +6711,10 @@ TEST_P(QuicConnectionTest, ClientHandlesVersionNegotiation) {
           AllSupportedVersions()));
   std::unique_ptr<QuicReceivedPacket> received(
       ConstructReceivedPacket(*encrypted, QuicTime::Zero()));
-  if (expect_failure) {
-    EXPECT_CALL(visitor_, OnConnectionClosed(QUIC_INVALID_VERSION, _,
-                                             ConnectionCloseSource::FROM_SELF));
-  }
+  EXPECT_CALL(visitor_, OnConnectionClosed(QUIC_INVALID_VERSION, _,
+                                           ConnectionCloseSource::FROM_SELF));
   connection_.ProcessUdpPacket(kSelfAddress, kPeerAddress, *received);
-  if (expect_failure) {
-    EXPECT_FALSE(connection_.connected());
-    return;
-  }
-
-  // Now force another packet.  The connection should transition into
-  // NEGOTIATED_VERSION state and tell the packet creator to StopSendingVersion.
-  QuicPacketHeader header;
-  header.destination_connection_id_included = CONNECTION_ID_ABSENT;
-  if (!GetQuicRestartFlag(quic_do_not_override_connection_id)) {
-    header.destination_connection_id = connection_id_;
-  } else {
-    header.source_connection_id = connection_id_;
-  }
-  header.packet_number = QuicPacketNumber(12);
-  header.version_flag = false;
-  QuicFrames frames;
-  frames.push_back(QuicFrame(frame1_));
-  std::unique_ptr<QuicPacket> packet(ConstructPacket(header, frames));
-  char buffer[kMaxOutgoingPacketSize];
-  size_t encrypted_length =
-      peer_framer_.EncryptPayload(ENCRYPTION_INITIAL, QuicPacketNumber(12),
-                                  *packet, buffer, kMaxOutgoingPacketSize);
-  ASSERT_NE(0u, encrypted_length);
-  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
-  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
-  connection_.ProcessUdpPacket(
-      kSelfAddress, kPeerAddress,
-      QuicReceivedPacket(buffer, encrypted_length, QuicTime::Zero(), false));
-  if (VersionHasIetfInvariantHeader(GetParam().version.transport_version)) {
-    // IETF QUIC stops sending version when switch to FORWARD_SECURE.
-    EXPECT_NE(ENCRYPTION_FORWARD_SECURE, connection_.encryption_level());
-    ASSERT_TRUE(QuicPacketCreatorPeer::SendVersionInPacket(creator_));
-  } else {
-    ASSERT_FALSE(QuicPacketCreatorPeer::SendVersionInPacket(creator_));
-  }
+  EXPECT_FALSE(connection_.connected());
 }
 
 TEST_P(QuicConnectionTest, BadVersionNegotiation) {

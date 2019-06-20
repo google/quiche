@@ -200,10 +200,6 @@ TEST_F(QuartcEndpointTest,
 // version negotiation.
 TEST_F(QuartcEndpointTest,
        QUIC_TEST_DISABLED_IN_CHROME(CreatesNewSessionWhenRequired)) {
-  // Setting this flag to true requires the client to create a new session when
-  // version negotiation fails.
-  SetQuicReloadableFlag(quic_no_client_conn_ver_negotiation, true);
-
   // Reset the client endpoint to prefer version 46 but also be capable of
   // speaking version 43.
   ParsedQuicVersionVector client_versions;
