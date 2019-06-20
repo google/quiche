@@ -244,13 +244,9 @@ void QuicConnectionPeer::SetNextMtuProbeAt(QuicConnection* connection,
 // static
 void QuicConnectionPeer::SetAckMode(QuicConnection* connection,
                                     AckMode ack_mode) {
-  if (connection->use_uber_received_packet_manager_) {
-    for (auto& received_packet_manager :
-         connection->uber_received_packet_manager_.received_packet_managers_) {
-      received_packet_manager.ack_mode_ = ack_mode;
-    }
-  } else {
-    connection->received_packet_manager_.ack_mode_ = ack_mode;
+  for (auto& received_packet_manager :
+       connection->uber_received_packet_manager_.received_packet_managers_) {
+    received_packet_manager.ack_mode_ = ack_mode;
   }
 }
 
@@ -258,14 +254,9 @@ void QuicConnectionPeer::SetAckMode(QuicConnection* connection,
 void QuicConnectionPeer::SetFastAckAfterQuiescence(
     QuicConnection* connection,
     bool fast_ack_after_quiescence) {
-  if (connection->use_uber_received_packet_manager_) {
-    for (auto& received_packet_manager :
-         connection->uber_received_packet_manager_.received_packet_managers_) {
-      received_packet_manager.fast_ack_after_quiescence_ =
-          fast_ack_after_quiescence;
-    }
-  } else {
-    connection->received_packet_manager_.fast_ack_after_quiescence_ =
+  for (auto& received_packet_manager :
+       connection->uber_received_packet_manager_.received_packet_managers_) {
+    received_packet_manager.fast_ack_after_quiescence_ =
         fast_ack_after_quiescence;
   }
 }
@@ -273,14 +264,9 @@ void QuicConnectionPeer::SetFastAckAfterQuiescence(
 // static
 void QuicConnectionPeer::SetAckDecimationDelay(QuicConnection* connection,
                                                float ack_decimation_delay) {
-  if (connection->use_uber_received_packet_manager_) {
-    for (auto& received_packet_manager :
-         connection->uber_received_packet_manager_.received_packet_managers_) {
-      received_packet_manager.ack_decimation_delay_ = ack_decimation_delay;
-    }
-  } else {
-    connection->received_packet_manager_.ack_decimation_delay_ =
-        ack_decimation_delay;
+  for (auto& received_packet_manager :
+       connection->uber_received_packet_manager_.received_packet_managers_) {
+    received_packet_manager.ack_decimation_delay_ = ack_decimation_delay;
   }
 }
 

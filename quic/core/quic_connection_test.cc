@@ -2469,20 +2469,6 @@ TEST_P(QuicConnectionTest, PacketsOutOfOrderWithAdditionsAndLeastAwaiting) {
   EXPECT_TRUE(IsMissing(4));
 }
 
-TEST_P(QuicConnectionTest, RejectPacketTooFarOut) {
-  if (GetQuicReloadableFlag(quic_use_uber_received_packet_manager)) {
-    return;
-  }
-  EXPECT_CALL(visitor_, OnConnectionClosed(QUIC_INVALID_PACKET_HEADER, _,
-                                           ConnectionCloseSource::FROM_SELF));
-
-  // Call ProcessDataPacket rather than ProcessPacket, as we should not get a
-  // packet call to the visitor.
-  ProcessDataPacket(MaxRandomInitialPacketNumber() + 6000);
-  EXPECT_FALSE(QuicConnectionPeer::GetConnectionClosePacket(&connection_) ==
-               nullptr);
-}
-
 TEST_P(QuicConnectionTest, RejectUnencryptedStreamData) {
   // EXPECT_QUIC_BUG tests are expensive so only run one instance of them.
   if (!IsDefaultTestConfiguration()) {

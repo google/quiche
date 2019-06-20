@@ -1240,10 +1240,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // 200ms, this is over 5 seconds.
   bool close_connection_after_five_rtos_;
 
-  // TODO(fayang): remove received_packet_manager_ when deprecating
-  // quic_use_uber_received_packet_manager.
-  QuicReceivedPacketManager received_packet_manager_;
-  // Used when use_uber_received_packet_manager_ is true.
   UberReceivedPacketManager uber_received_packet_manager_;
 
   // Indicates how many consecutive times an ack has arrived which indicates
@@ -1447,9 +1443,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // Indicates whether a RETRY packet has been parsed.
   bool retry_has_been_parsed_;
-
-  // Latched value of quic_use_uber_received_packet_manager.
-  const bool use_uber_received_packet_manager_;
 };
 
 }  // namespace quic
