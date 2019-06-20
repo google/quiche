@@ -107,14 +107,12 @@ void GeneralLossAlgorithm::DetectLosses(
   }
   // Clear least_in_flight_.
   least_in_flight_.Clear();
-  DCHECK(!unacked_packets.use_uber_loss_algorithm() ||
-         packet_number_space_ ==
-             unacked_packets.GetPacketNumberSpace(largest_newly_acked));
+  DCHECK_EQ(packet_number_space_,
+            unacked_packets.GetPacketNumberSpace(largest_newly_acked));
   for (; it != unacked_packets.end() && packet_number <= largest_newly_acked;
        ++it, ++packet_number) {
-    if (unacked_packets.use_uber_loss_algorithm() &&
-        unacked_packets.GetPacketNumberSpace(it->encryption_level) !=
-            packet_number_space_) {
+    if (unacked_packets.GetPacketNumberSpace(it->encryption_level) !=
+        packet_number_space_) {
       // Skip packets of different packet number space.
       continue;
     }
@@ -146,16 +144,11 @@ void GeneralLossAlgorithm::DetectLosses(
     // there are retransmittable packets in flight.
     // This also implements a timer-protected variant of FACK.
     QuicPacketNumber largest_sent_retransmittable_packet;
-    if (unacked_packets.use_uber_loss_algorithm()) {
-      // Use largest_sent_retransmittable_packet of corresponding packet number
-      // space for timer based loss detection.
-      largest_sent_retransmittable_packet =
-          unacked_packets.GetLargestSentRetransmittableOfPacketNumberSpace(
-              packet_number_space_);
-    } else {
-      largest_sent_retransmittable_packet =
-          unacked_packets.largest_sent_retransmittable_packet();
-    }
+    // Use largest_sent_retransmittable_packet of corresponding packet number
+    // space for timer based loss detection.
+    largest_sent_retransmittable_packet =
+        unacked_packets.GetLargestSentRetransmittableOfPacketNumberSpace(
+            packet_number_space_);
     if (largest_sent_retransmittable_packet <= largest_newly_acked ||
         loss_type_ == kTime || loss_type_ == kAdaptiveTime) {
       QuicTime when_lost = it->sent_time + loss_delay;

@@ -675,9 +675,6 @@ TEST_P(QuicUnackedPacketMapTest, CannotAggregateAckedControlFrames) {
 }
 
 TEST_P(QuicUnackedPacketMapTest, LargestSentPacketMultiplePacketNumberSpaces) {
-  if (!GetQuicReloadableFlag(quic_use_uber_loss_algorithm)) {
-    return;
-  }
   unacked_packets_.EnableMultiplePacketNumberSpacesSupport();
   EXPECT_FALSE(unacked_packets_
                    .GetLargestSentPacketOfPacketNumberSpace(ENCRYPTION_INITIAL)

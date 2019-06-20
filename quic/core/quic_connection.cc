@@ -817,10 +817,8 @@ void QuicConnection::OnDecryptedPacket(EncryptionLevel level) {
   if (level == ENCRYPTION_FORWARD_SECURE &&
       perspective_ == Perspective::IS_SERVER) {
     sent_packet_manager_.SetHandshakeConfirmed();
-    if (sent_packet_manager_.unacked_packets().use_uber_loss_algorithm()) {
-      // This may have changed the retransmission timer, so re-arm it.
-      SetRetransmissionAlarm();
-    }
+    // This may have changed the retransmission timer, so re-arm it.
+    SetRetransmissionAlarm();
   }
 }
 
@@ -2443,10 +2441,8 @@ void QuicConnection::OnPathMtuIncreased(QuicPacketLength packet_size) {
 
 void QuicConnection::OnHandshakeComplete() {
   sent_packet_manager_.SetHandshakeConfirmed();
-  if (sent_packet_manager_.unacked_packets().use_uber_loss_algorithm()) {
-    // This may have changed the retransmission timer, so re-arm it.
-    SetRetransmissionAlarm();
-  }
+  // This may have changed the retransmission timer, so re-arm it.
+  SetRetransmissionAlarm();
   // The client should immediately ack the SHLO to confirm the handshake is
   // complete with the server.
   if (perspective_ == Perspective::IS_CLIENT && ack_frame_updated()) {
@@ -3649,10 +3645,7 @@ void QuicConnection::SendAllPendingAcks() {
 }
 
 void QuicConnection::MaybeEnableMultiplePacketNumberSpacesSupport() {
-  const bool enable_multiple_packet_number_spaces =
-      version().handshake_protocol == PROTOCOL_TLS1_3 &&
-      sent_packet_manager_.use_uber_loss_algorithm();
-  if (!enable_multiple_packet_number_spaces) {
+  if (version().handshake_protocol != PROTOCOL_TLS1_3) {
     return;
   }
   QUIC_DVLOG(1) << ENDPOINT << "connection " << connection_id()

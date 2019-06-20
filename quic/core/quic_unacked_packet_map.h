@@ -91,12 +91,6 @@ class QUIC_EXPORT_PRIVATE QuicUnackedPacketMap {
   // Returns the largest packet number that has been sent.
   QuicPacketNumber largest_sent_packet() const { return largest_sent_packet_; }
 
-  // Returns the largest retransmittable packet number that has been sent.
-  QuicPacketNumber largest_sent_retransmittable_packet() const {
-    DCHECK(!use_uber_loss_algorithm_);
-    return largest_sent_retransmittable_packet_;
-  }
-
   QuicPacketNumber largest_sent_largest_acked() const {
     return largest_sent_largest_acked_;
   }
@@ -227,8 +221,6 @@ class QUIC_EXPORT_PRIVATE QuicUnackedPacketMap {
     return session_decides_what_to_write_;
   }
 
-  bool use_uber_loss_algorithm() const { return use_uber_loss_algorithm_; }
-
   Perspective perspective() const { return perspective_; }
 
   bool supports_multiple_packet_number_spaces() const {
@@ -269,12 +261,8 @@ class QUIC_EXPORT_PRIVATE QuicUnackedPacketMap {
   QuicPacketNumber largest_sent_packet_;
   // Only used when supports_multiple_packet_number_spaces_ is true.
   QuicPacketNumber largest_sent_packets_[NUM_PACKET_NUMBER_SPACES];
-  // The largest sent packet we expect to receive an ack for.
-  // TODO(fayang): Remove largest_sent_retransmittable_packet_ when deprecating
-  // quic_use_uber_loss_algorithm.
-  QuicPacketNumber largest_sent_retransmittable_packet_;
   // The largest sent packet we expect to receive an ack for per packet number
-  // space. Only used if use_uber_loss_algorithm_ is true.
+  // space.
   QuicPacketNumber
       largest_sent_retransmittable_packets_[NUM_PACKET_NUMBER_SPACES];
   // The largest sent largest_acked in an ACK frame.
@@ -282,7 +270,6 @@ class QUIC_EXPORT_PRIVATE QuicUnackedPacketMap {
   // The largest received largest_acked from an ACK frame.
   QuicPacketNumber largest_acked_;
   // The largest received largest_acked from ACK frame per packet number space.
-  // Only used if use_uber_loss_algorithm_ is true.
   QuicPacketNumber largest_acked_packets_[NUM_PACKET_NUMBER_SPACES];
 
   // Newly serialized retransmittable packets are added to this map, which
@@ -313,9 +300,6 @@ class QUIC_EXPORT_PRIVATE QuicUnackedPacketMap {
 
   // If true, let session decides what to write.
   bool session_decides_what_to_write_;
-
-  // Latched value of quic_use_uber_loss_algorithm.
-  const bool use_uber_loss_algorithm_;
 
   // If true, supports multiple packet number spaces.
   bool supports_multiple_packet_number_spaces_;

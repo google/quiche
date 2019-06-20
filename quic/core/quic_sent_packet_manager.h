@@ -144,8 +144,7 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
 
   // Removes the retransmittable frames from all unencrypted packets to ensure
   // they don't get retransmitted.
-  // TODO(fayang): Consider remove this function when deprecating
-  // quic_use_uber_loss_algorithm.
+  // TODO(fayang): Consider replace this function with NeuterHandshakePackets.
   void NeuterUnencryptedPackets();
 
   // Returns true if there are pending retransmissions.
@@ -381,10 +380,6 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
     return unacked_packets_.supports_multiple_packet_number_spaces();
   }
 
-  bool use_uber_loss_algorithm() const {
-    return unacked_packets_.use_uber_loss_algorithm();
-  }
-
   bool ignore_tlpr_if_no_pending_stream_data() const {
     return ignore_tlpr_if_no_pending_stream_data_;
   }
@@ -518,9 +513,8 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // Called when handshake is confirmed to remove the retransmittable frames
   // from all packets of HANDSHAKE_DATA packet number space to ensure they don't
   // get retransmitted and will eventually be removed from unacked packets map.
-  // Only used when quic_use_uber_loss_algorithm is true. Please note, this only
-  // applies to QUIC Crypto and needs to be changed when switches to IETF QUIC
-  // with QUIC TLS.
+  // Please note, this only applies to QUIC Crypto and needs to be changed when
+  // switches to IETF QUIC with QUIC TLS.
   void NeuterHandshakePackets();
 
   // Newly serialized retransmittable packets are added to this map, which
@@ -547,9 +541,6 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   std::unique_ptr<SendAlgorithmInterface> send_algorithm_;
   // Not owned. Always points to |general_loss_algorithm_| outside of tests.
   LossDetectionInterface* loss_algorithm_;
-  // TODO(fayang): Remove general_loss_algorithm_ when deprecating
-  // quic_use_uber_loss_algorithm.
-  GeneralLossAlgorithm general_loss_algorithm_;
   UberLossAlgorithm uber_loss_algorithm_;
 
   // Tracks the first RTO packet.  If any packet before that packet gets acked,

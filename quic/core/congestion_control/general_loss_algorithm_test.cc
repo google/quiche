@@ -27,9 +27,7 @@ class GeneralLossAlgorithmTest : public QuicTest {
     rtt_stats_.UpdateRtt(QuicTime::Delta::FromMilliseconds(100),
                          QuicTime::Delta::Zero(), clock_.Now());
     EXPECT_LT(0, rtt_stats_.smoothed_rtt().ToMicroseconds());
-    if (unacked_packets_.use_uber_loss_algorithm()) {
-      loss_algorithm_.SetPacketNumberSpace(HANDSHAKE_DATA);
-    }
+    loss_algorithm_.SetPacketNumberSpace(HANDSHAKE_DATA);
   }
 
   ~GeneralLossAlgorithmTest() override {}
@@ -57,15 +55,8 @@ class GeneralLossAlgorithmTest : public QuicTest {
   void VerifyLosses(uint64_t largest_newly_acked,
                     const AckedPacketVector& packets_acked,
                     const std::vector<uint64_t>& losses_expected) {
-    if (unacked_packets_.use_uber_loss_algorithm()) {
-      unacked_packets_.MaybeUpdateLargestAckedOfPacketNumberSpace(
-          APPLICATION_DATA, QuicPacketNumber(largest_newly_acked));
-    } else if (!unacked_packets_.largest_acked().IsInitialized() ||
-               QuicPacketNumber(largest_newly_acked) >
-                   unacked_packets_.largest_acked()) {
-      unacked_packets_.IncreaseLargestAcked(
-          QuicPacketNumber(largest_newly_acked));
-    }
+    unacked_packets_.MaybeUpdateLargestAckedOfPacketNumberSpace(
+        APPLICATION_DATA, QuicPacketNumber(largest_newly_acked));
     LostPacketVector lost_packets;
     loss_algorithm_.DetectLosses(unacked_packets_, clock_.Now(), rtt_stats_,
                                  QuicPacketNumber(largest_newly_acked),
@@ -215,12 +206,8 @@ TEST_F(GeneralLossAlgorithmTest, DontEarlyRetransmitNeuteredPacket) {
   clock_.AdvanceTime(rtt_stats_.smoothed_rtt());
 
   // Early retransmit when the final packet gets acked and the first is nacked.
-  if (unacked_packets_.use_uber_loss_algorithm()) {
-    unacked_packets_.MaybeUpdateLargestAckedOfPacketNumberSpace(
-        APPLICATION_DATA, QuicPacketNumber(2));
-  } else {
-    unacked_packets_.IncreaseLargestAcked(QuicPacketNumber(2));
-  }
+  unacked_packets_.MaybeUpdateLargestAckedOfPacketNumberSpace(
+      APPLICATION_DATA, QuicPacketNumber(2));
   unacked_packets_.RemoveFromInFlight(QuicPacketNumber(2));
   packets_acked.push_back(AckedPacket(
       QuicPacketNumber(2), kMaxOutgoingPacketSize, QuicTime::Zero()));
@@ -238,12 +225,8 @@ TEST_F(GeneralLossAlgorithmTest, EarlyRetransmitWithLargerUnackablePackets) {
   clock_.AdvanceTime(rtt_stats_.smoothed_rtt());
 
   // Early retransmit when the final packet gets acked and the first is nacked.
-  if (unacked_packets_.use_uber_loss_algorithm()) {
-    unacked_packets_.MaybeUpdateLargestAckedOfPacketNumberSpace(
-        APPLICATION_DATA, QuicPacketNumber(2));
-  } else {
-    unacked_packets_.IncreaseLargestAcked(QuicPacketNumber(2));
-  }
+  unacked_packets_.MaybeUpdateLargestAckedOfPacketNumberSpace(
+      APPLICATION_DATA, QuicPacketNumber(2));
   unacked_packets_.RemoveFromInFlight(QuicPacketNumber(2));
   packets_acked.push_back(AckedPacket(
       QuicPacketNumber(2), kMaxOutgoingPacketSize, QuicTime::Zero()));
@@ -270,12 +253,8 @@ TEST_F(GeneralLossAlgorithmTest, AlwaysLosePacketSent1RTTEarlier) {
   AckedPacketVector packets_acked;
   // Wait another RTT and ack 2.
   clock_.AdvanceTime(rtt_stats_.smoothed_rtt());
-  if (unacked_packets_.use_uber_loss_algorithm()) {
-    unacked_packets_.MaybeUpdateLargestAckedOfPacketNumberSpace(
-        APPLICATION_DATA, QuicPacketNumber(2));
-  } else {
-    unacked_packets_.IncreaseLargestAcked(QuicPacketNumber(2));
-  }
+  unacked_packets_.MaybeUpdateLargestAckedOfPacketNumberSpace(
+      APPLICATION_DATA, QuicPacketNumber(2));
   unacked_packets_.RemoveFromInFlight(QuicPacketNumber(2));
   packets_acked.push_back(AckedPacket(
       QuicPacketNumber(2), kMaxOutgoingPacketSize, QuicTime::Zero()));

@@ -430,7 +430,6 @@ void QuicVersionInitializeSupportForIetfDraft(int32_t draft_version) {
   // Enable necessary flags.
   SetQuicFlag(FLAGS_quic_supports_tls_handshake, true);
   SetQuicFlag(FLAGS_quic_headers_stream_id_in_v99, 60);
-  SetQuicReloadableFlag(quic_use_uber_loss_algorithm, true);
   SetQuicReloadableFlag(quic_eliminate_static_stream_map_3, true);
   SetQuicReloadableFlag(quic_tolerate_reneging, true);
   SetQuicReloadableFlag(quic_simplify_stop_waiting, true);

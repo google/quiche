@@ -21,7 +21,6 @@ const uint32_t kDefaultLength = 1000;
 class UberLossAlgorithmTest : public QuicTest {
  protected:
   UberLossAlgorithmTest() {
-    SetQuicReloadableFlag(quic_use_uber_loss_algorithm, true);
     unacked_packets_ =
         QuicMakeUnique<QuicUnackedPacketMap>(Perspective::IS_CLIENT);
     rtt_stats_.UpdateRtt(QuicTime::Delta::FromMilliseconds(100),

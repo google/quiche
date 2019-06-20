@@ -32,13 +32,7 @@ QuicUnackedPacketMap::QuicUnackedPacketMap(Perspective perspective)
       last_crypto_packet_sent_time_(QuicTime::Zero()),
       session_notifier_(nullptr),
       session_decides_what_to_write_(false),
-      use_uber_loss_algorithm_(
-          GetQuicReloadableFlag(quic_use_uber_loss_algorithm)),
-      supports_multiple_packet_number_spaces_(false) {
-  if (use_uber_loss_algorithm_) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_use_uber_loss_algorithm);
-  }
-}
+      supports_multiple_packet_number_spaces_(false) {}
 
 QuicUnackedPacketMap::~QuicUnackedPacketMap() {
   for (QuicTransmissionInfo& transmission_info : unacked_packets_) {
@@ -83,12 +77,8 @@ void QuicUnackedPacketMap::AddSentPacket(SerializedPacket* packet,
   if (set_in_flight) {
     bytes_in_flight_ += bytes_sent;
     info.in_flight = true;
-    if (use_uber_loss_algorithm_) {
-      largest_sent_retransmittable_packets_[GetPacketNumberSpace(
-          info.encryption_level)] = packet_number;
-    } else {
-      largest_sent_retransmittable_packet_ = packet_number;
-    }
+    largest_sent_retransmittable_packets_[GetPacketNumberSpace(
+        info.encryption_level)] = packet_number;
   }
   unacked_packets_.push_back(info);
   // Swap the retransmittable frames to avoid allocations.
@@ -231,7 +221,6 @@ void QuicUnackedPacketMap::IncreaseLargestAcked(
 void QuicUnackedPacketMap::MaybeUpdateLargestAckedOfPacketNumberSpace(
     PacketNumberSpace packet_number_space,
     QuicPacketNumber packet_number) {
-  DCHECK(use_uber_loss_algorithm_);
   largest_acked_packets_[packet_number_space].UpdateMax(packet_number);
 }
 
@@ -501,14 +490,12 @@ void QuicUnackedPacketMap::NotifyAggregatedStreamFrameAcked(
 
 PacketNumberSpace QuicUnackedPacketMap::GetPacketNumberSpace(
     QuicPacketNumber packet_number) const {
-  DCHECK(use_uber_loss_algorithm_);
   return GetPacketNumberSpace(
       GetTransmissionInfo(packet_number).encryption_level);
 }
 
 PacketNumberSpace QuicUnackedPacketMap::GetPacketNumberSpace(
     EncryptionLevel encryption_level) const {
-  DCHECK(use_uber_loss_algorithm_);
   if (supports_multiple_packet_number_spaces_) {
     return QuicUtils::GetPacketNumberSpace(encryption_level);
   }
@@ -522,7 +509,6 @@ PacketNumberSpace QuicUnackedPacketMap::GetPacketNumberSpace(
 
 QuicPacketNumber QuicUnackedPacketMap::GetLargestAckedOfPacketNumberSpace(
     PacketNumberSpace packet_number_space) const {
-  DCHECK(use_uber_loss_algorithm_);
   if (packet_number_space >= NUM_PACKET_NUMBER_SPACES) {
     QUIC_BUG << "Invalid packet number space: " << packet_number_space;
     return QuicPacketNumber();
@@ -533,7 +519,6 @@ QuicPacketNumber QuicUnackedPacketMap::GetLargestAckedOfPacketNumberSpace(
 QuicPacketNumber
 QuicUnackedPacketMap::GetLargestSentRetransmittableOfPacketNumberSpace(
     PacketNumberSpace packet_number_space) const {
-  DCHECK(use_uber_loss_algorithm_);
   if (packet_number_space >= NUM_PACKET_NUMBER_SPACES) {
     QUIC_BUG << "Invalid packet number space: " << packet_number_space;
     return QuicPacketNumber();

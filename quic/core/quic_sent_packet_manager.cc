@@ -92,7 +92,6 @@ QuicSentPacketManager::QuicSentPacketManager(
       network_change_visitor_(nullptr),
       initial_congestion_window_(kInitialCongestionWindow),
       loss_algorithm_(GetInitialLossAlgorithm()),
-      general_loss_algorithm_(loss_type),
       uber_loss_algorithm_(loss_type),
       consecutive_rto_count_(0),
       consecutive_tlp_count_(0),
@@ -131,10 +130,7 @@ QuicSentPacketManager::QuicSentPacketManager(
 }
 
 LossDetectionInterface* QuicSentPacketManager::GetInitialLossAlgorithm() {
-  if (unacked_packets_.use_uber_loss_algorithm()) {
-    return &uber_loss_algorithm_;
-  }
-  return &general_loss_algorithm_;
+  return &uber_loss_algorithm_;
 }
 
 QuicSentPacketManager::~QuicSentPacketManager() {}
@@ -227,25 +223,13 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
   }
   // Configure loss detection.
   if (config.HasClientRequestedIndependentOption(kTIME, perspective)) {
-    if (unacked_packets_.use_uber_loss_algorithm()) {
-      uber_loss_algorithm_.SetLossDetectionType(kTime);
-    } else {
-      general_loss_algorithm_.SetLossDetectionType(kTime);
-    }
+    uber_loss_algorithm_.SetLossDetectionType(kTime);
   }
   if (config.HasClientRequestedIndependentOption(kATIM, perspective)) {
-    if (unacked_packets_.use_uber_loss_algorithm()) {
-      uber_loss_algorithm_.SetLossDetectionType(kAdaptiveTime);
-    } else {
-      general_loss_algorithm_.SetLossDetectionType(kAdaptiveTime);
-    }
+    uber_loss_algorithm_.SetLossDetectionType(kAdaptiveTime);
   }
   if (config.HasClientRequestedIndependentOption(kLFAK, perspective)) {
-    if (unacked_packets_.use_uber_loss_algorithm()) {
-      uber_loss_algorithm_.SetLossDetectionType(kLazyFack);
-    } else {
-      general_loss_algorithm_.SetLossDetectionType(kLazyFack);
-    }
+    uber_loss_algorithm_.SetLossDetectionType(kLazyFack);
   }
   if (config.HasClientSentConnectionOption(kCONH, perspective)) {
     conservative_handshake_retransmits_ = true;
@@ -293,9 +277,7 @@ void QuicSentPacketManager::AdjustNetworkParameters(
 
 void QuicSentPacketManager::SetHandshakeConfirmed() {
   handshake_confirmed_ = true;
-  if (unacked_packets_.use_uber_loss_algorithm()) {
-    NeuterHandshakePackets();
-  }
+  NeuterHandshakePackets();
 }
 
 void QuicSentPacketManager::PostProcessNewlyAckedPackets(
@@ -434,7 +416,6 @@ void QuicSentPacketManager::NeuterUnencryptedPackets() {
 }
 
 void QuicSentPacketManager::NeuterHandshakePackets() {
-  DCHECK(unacked_packets_.use_uber_loss_algorithm());
   QuicPacketNumber packet_number = unacked_packets_.GetLeastUnacked();
   for (QuicUnackedPacketMap::const_iterator it = unacked_packets_.begin();
        it != unacked_packets_.end(); ++it, ++packet_number) {
@@ -1227,9 +1208,7 @@ AckResult QuicSentPacketManager::OnAckFrameEnd(
                   << QuicUtils::EncryptionLevelToString(ack_decrypted_level)
                   << " ack for packet " << acked_packet.packet_number;
     const PacketNumberSpace packet_number_space =
-        unacked_packets_.use_uber_loss_algorithm()
-            ? unacked_packets_.GetPacketNumberSpace(info->encryption_level)
-            : NUM_PACKET_NUMBER_SPACES;
+        unacked_packets_.GetPacketNumberSpace(info->encryption_level);
     if (supports_multiple_packet_number_spaces() &&
         QuicUtils::GetPacketNumberSpace(ack_decrypted_level) !=
             packet_number_space) {
@@ -1249,10 +1228,8 @@ AckResult QuicSentPacketManager::OnAckFrameEnd(
       // Unackable packets are skipped earlier.
       largest_newly_acked_ = acked_packet.packet_number;
     }
-    if (unacked_packets_.use_uber_loss_algorithm()) {
-      unacked_packets_.MaybeUpdateLargestAckedOfPacketNumberSpace(
-          packet_number_space, acked_packet.packet_number);
-    }
+    unacked_packets_.MaybeUpdateLargestAckedOfPacketNumberSpace(
+        packet_number_space, acked_packet.packet_number);
     MarkPacketHandled(acked_packet.packet_number, info,
                       last_ack_frame_.ack_delay_time,
                       acked_packet.receive_timestamp);

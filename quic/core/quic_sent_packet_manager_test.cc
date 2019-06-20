@@ -2666,9 +2666,6 @@ TEST_P(QuicSentPacketManagerTest, TolerateReneging) {
 }
 
 TEST_P(QuicSentPacketManagerTest, MultiplePacketNumberSpaces) {
-  if (!GetQuicReloadableFlag(quic_use_uber_loss_algorithm)) {
-    return;
-  }
   manager_.EnableMultiplePacketNumberSpacesSupport();
   EXPECT_FALSE(
       manager_.GetLargestSentPacket(ENCRYPTION_INITIAL).IsInitialized());
@@ -2776,9 +2773,6 @@ TEST_P(QuicSentPacketManagerTest, MultiplePacketNumberSpaces) {
 }
 
 TEST_P(QuicSentPacketManagerTest, PacketsGetAckedInWrongPacketNumberSpace) {
-  if (!GetQuicReloadableFlag(quic_use_uber_loss_algorithm)) {
-    return;
-  }
   manager_.EnableMultiplePacketNumberSpacesSupport();
   // Send packet 1.
   SendDataPacket(1, ENCRYPTION_INITIAL);
@@ -2795,9 +2789,6 @@ TEST_P(QuicSentPacketManagerTest, PacketsGetAckedInWrongPacketNumberSpace) {
 }
 
 TEST_P(QuicSentPacketManagerTest, PacketsGetAckedInWrongPacketNumberSpace2) {
-  if (!GetQuicReloadableFlag(quic_use_uber_loss_algorithm)) {
-    return;
-  }
   manager_.EnableMultiplePacketNumberSpacesSupport();
   // Send packet 1.
   SendDataPacket(1, ENCRYPTION_INITIAL);
@@ -2815,9 +2806,6 @@ TEST_P(QuicSentPacketManagerTest, PacketsGetAckedInWrongPacketNumberSpace2) {
 
 TEST_P(QuicSentPacketManagerTest,
        ToleratePacketsGetAckedInWrongPacketNumberSpace) {
-  if (!GetQuicReloadableFlag(quic_use_uber_loss_algorithm)) {
-    return;
-  }
   manager_.EnableMultiplePacketNumberSpacesSupport();
   // Send packet 1.
   SendDataPacket(1, ENCRYPTION_INITIAL);

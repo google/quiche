@@ -75,7 +75,6 @@ class QUIC_EXPORT_PRIVATE GeneralLossAlgorithm : public LossDetectionInterface {
   // The least in flight packet. Loss detection should start from this. Please
   // note, least_in_flight_ could be largest packet ever sent + 1.
   QuicPacketNumber least_in_flight_;
-  // This is only used when quic_use_uber_loss_algorithm is true.
   PacketNumberSpace packet_number_space_;
 };
 
