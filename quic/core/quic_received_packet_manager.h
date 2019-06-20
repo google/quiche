@@ -121,8 +121,6 @@ class QUIC_EXPORT_PRIVATE QuicReceivedPacketManager {
 
   QuicTime ack_timeout() const { return ack_timeout_; }
 
-  bool decide_when_to_send_acks() const { return decide_when_to_send_acks_; }
-
  private:
   friend class test::QuicConnectionPeer;
   friend class test::QuicReceivedPacketManagerPeer;
@@ -185,9 +183,6 @@ class QUIC_EXPORT_PRIVATE QuicReceivedPacketManager {
 
   // Last sent largest acked, which gets updated when ACK was successfully sent.
   QuicPacketNumber last_sent_largest_acked_;
-
-  // Latched value of quic_rpm_decides_when_to_send_acks.
-  const bool decide_when_to_send_acks_;
 };
 
 }  // namespace quic

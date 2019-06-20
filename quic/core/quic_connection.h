@@ -1008,10 +1008,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // acks and pending writes if an ack opened the congestion window.
   void MaybeSendInResponseToPacket();
 
-  // Queue an ack or set the ack alarm if needed.  |was_missing| is true if
-  // the most recently received packet was formerly missing.
-  void MaybeQueueAck(bool was_missing);
-
   // Gets the least unacked packet number, which is the next packet number to be
   // sent if there are no outstanding packets.
   QuicPacketNumber GetLeastUnacked() const;
@@ -1187,10 +1183,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   EncryptionLevel last_decrypted_packet_level_;
   QuicPacketHeader last_header_;
   bool should_last_packet_instigate_acks_;
-  // Whether the most recent packet was missing before it was received.
-  // TODO(fayang): Remove was_last_packet_missing_ when deprecating
-  // quic_rpm_decides_when_to_send_acks.
-  bool was_last_packet_missing_;
 
   // Track some peer state so we can do less bookkeeping
   // Largest sequence sent by the peer which had an ack frame (latest ack info).
@@ -1254,30 +1246,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Used when use_uber_received_packet_manager_ is true.
   UberReceivedPacketManager uber_received_packet_manager_;
 
-  // How many retransmittable packets have arrived without sending an ack.
-  // TODO(fayang): Remove
-  // num_retransmittable_packets_received_since_last_ack_sent_ when deprecating
-  // quic_rpm_decides_when_to_send_acks.
-  QuicPacketCount num_retransmittable_packets_received_since_last_ack_sent_;
-  // How many consecutive packets have arrived without sending an ack.
-  QuicPacketCount num_packets_received_since_last_ack_sent_;
   // Indicates how many consecutive times an ack has arrived which indicates
   // the peer needs to stop waiting for some packets.
   // TODO(fayang): remove this when deprecating quic_simplify_stop_waiting.
   int stop_waiting_count_;
-  // TODO(fayang): Remove ack_mode_, ack_decimation_delay_,
-  // unlimited_ack_decimation_, fast_ack_after_quiescence_ when deprecating
-  // quic_rpm_decides_when_to_send_acks.
-  // Indicates the current ack mode, defaults to acking every 2 packets.
-  AckMode ack_mode_;
-  // The max delay in fraction of min_rtt to use when sending decimated acks.
-  float ack_decimation_delay_;
-  // When true, removes ack decimation's max number of packets(10) before
-  // sending an ack.
-  bool unlimited_ack_decimation_;
-  // When true, use a 1ms delayed ack timer if it's been an SRTT since a packet
-  // was received.
-  bool fast_ack_after_quiescence_;
 
   // Indicates the retransmission alarm needs to be set.
   bool pending_retransmission_alarm_;
@@ -1337,11 +1309,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // connection creation time.
   // This is used for timeouts, and does not indicate the packet was processed.
   QuicTime time_of_last_received_packet_;
-
-  // The time the previous ack-instigating packet was received and processed.
-  // TODO(fayang): Remove time_of_previous_received_packet_ when deprecating
-  // quic_rpm_decides_when_to_send_acks.
-  QuicTime time_of_previous_received_packet_;
 
   // Sent packet manager which tracks the status of packets sent by this
   // connection and contains the send and receive algorithms to determine when
@@ -1423,16 +1390,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // from the peer. Default to kMaxConsecutiveNonRetransmittablePackets.
   size_t max_consecutive_num_packets_with_no_retransmittable_frames_;
 
-  // Ack decimation will start happening after this many packets are received.
-  // TODO(fayang): Remove min_received_before_ack_decimation_ when deprecating
-  // quic_rpm_decides_when_to_send_acks.
-  size_t min_received_before_ack_decimation_;
-
-  // Before ack decimation starts (if enabled), we ack every n-th packet.
-  // TODO(fayang): Remove ack_frequency_before_ack_decimation_ when deprecating
-  // quic_rpm_decides_when_to_send_acks.
-  size_t ack_frequency_before_ack_decimation_;
-
   // If true, the connection will fill up the pipe with extra data whenever the
   // congestion controller needs it in order to make a bandwidth estimate.  This
   // is useful if the application pesistently underutilizes the link, but still
@@ -1488,20 +1445,13 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // vector to improve performance since it is expected to be very small.
   std::vector<QuicConnectionId> incoming_connection_ids_;
 
-  // Indicates whether an ACK needs to be sent in OnCanWrite().
-  // TODO(fayang): Remove this when ACK sending logic is moved to received
-  // packet manager, and an ACK timeout would be used to record when an ACK
-  // needs to be sent.
-  bool send_ack_when_on_can_write_;
-
   // Indicates whether a RETRY packet has been parsed.
   bool retry_has_been_parsed_;
 
   // Latched value of quic_validate_packet_number_post_decryption.
   const bool validate_packet_number_post_decryption_;
 
-  // Latched value of quic_rpm_decides_when_to_send_acks and
-  // quic_use_uber_received_packet_manager.
+  // Latched value of quic_use_uber_received_packet_manager.
   const bool use_uber_received_packet_manager_;
 };
 

@@ -49,7 +49,6 @@ const QuicTime::Delta kDelayedAckTime =
 class UberReceivedPacketManagerTest : public QuicTest {
  protected:
   UberReceivedPacketManagerTest() {
-    SetQuicReloadableFlag(quic_rpm_decides_when_to_send_acks, true);
     manager_ = QuicMakeUnique<UberReceivedPacketManager>(&stats_);
     clock_.AdvanceTime(QuicTime::Delta::FromSeconds(1));
     rtt_stats_.UpdateRtt(kMinRttMs, QuicTime::Delta::Zero(), QuicTime::Zero());

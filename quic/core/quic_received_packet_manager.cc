@@ -60,15 +60,16 @@ QuicReceivedPacketManager::QuicReceivedPacketManager(QuicConnectionStats* stats)
       fast_ack_after_quiescence_(false),
       ack_timeout_(QuicTime::Zero()),
       time_of_previous_received_packet_(QuicTime::Zero()),
-      was_last_packet_missing_(false),
-      decide_when_to_send_acks_(
-          GetQuicReloadableFlag(quic_rpm_decides_when_to_send_acks)) {}
+      was_last_packet_missing_(false) {
+  if (ack_mode_ == ACK_DECIMATION) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_enable_ack_decimation);
+  }
+}
 
 QuicReceivedPacketManager::~QuicReceivedPacketManager() {}
 
 void QuicReceivedPacketManager::SetFromConfig(const QuicConfig& config,
                                               Perspective perspective) {
-  DCHECK(decide_when_to_send_acks_);
   if (GetQuicReloadableFlag(quic_enable_ack_decimation) &&
       config.HasClientSentConnectionOption(kACD0, perspective)) {
     ack_mode_ = TCP_ACKING;
@@ -100,9 +101,7 @@ void QuicReceivedPacketManager::RecordPacketReceived(
     QuicTime receipt_time) {
   const QuicPacketNumber packet_number = header.packet_number;
   DCHECK(IsAwaitingPacket(packet_number)) << " packet_number:" << packet_number;
-  if (decide_when_to_send_acks_) {
-    was_last_packet_missing_ = IsMissing(packet_number);
-  }
+  was_last_packet_missing_ = IsMissing(packet_number);
   if (!ack_frame_updated_) {
     ack_frame_.received_packet_times.clear();
   }
@@ -163,9 +162,6 @@ bool QuicReceivedPacketManager::IsAwaitingPacket(
 
 const QuicFrame QuicReceivedPacketManager::GetUpdatedAckFrame(
     QuicTime approximate_now) {
-  if (!decide_when_to_send_acks_) {
-    ack_frame_updated_ = false;
-  }
   if (time_largest_observed_ == QuicTime::Zero()) {
     // We have received no packets.
     ack_frame_.ack_delay_time = QuicTime::Delta::Infinite();
@@ -224,7 +220,6 @@ void QuicReceivedPacketManager::MaybeUpdateAckTimeout(
     QuicTime now,
     const RttStats* rtt_stats,
     QuicTime::Delta delayed_ack_time) {
-  DCHECK(decide_when_to_send_acks_);
   if (!ack_frame_updated_) {
     // ACK frame has not been updated, nothing to do.
     return;
@@ -299,7 +294,6 @@ void QuicReceivedPacketManager::MaybeUpdateAckTimeout(
 }
 
 void QuicReceivedPacketManager::ResetAckStates() {
-  DCHECK(decide_when_to_send_acks_);
   ack_frame_updated_ = false;
   ack_timeout_ = QuicTime::Zero();
   num_retransmittable_packets_received_since_last_ack_sent_ = 0;
@@ -307,7 +301,6 @@ void QuicReceivedPacketManager::ResetAckStates() {
 }
 
 void QuicReceivedPacketManager::MaybeUpdateAckTimeoutTo(QuicTime time) {
-  DCHECK(decide_when_to_send_acks_);
   if (!ack_timeout_.IsInitialized() || ack_timeout_ > time) {
     ack_timeout_ = time;
   }
