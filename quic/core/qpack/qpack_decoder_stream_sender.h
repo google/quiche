@@ -8,6 +8,7 @@
 #include <cstdint>
 
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_instruction_encoder.h"
+#include "net/third_party/quiche/src/quic/core/qpack/qpack_stream_sender_delegate.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
@@ -18,19 +19,7 @@ namespace quic {
 // stream.
 class QUIC_EXPORT_PRIVATE QpackDecoderStreamSender {
  public:
-  // An interface for handling encoded data.
-  class Delegate {
-   public:
-    virtual ~Delegate() = default;
-
-    // Encoded |data| is ready to be written on the decoder stream.
-    // WriteDecoderStreamData() is called exactly once for each instruction.
-    // |data| contains the entire encoded instruction and it is guaranteed to be
-    // not empty.
-    virtual void WriteDecoderStreamData(QuicStringPiece data) = 0;
-  };
-
-  explicit QpackDecoderStreamSender(Delegate* delegate);
+  explicit QpackDecoderStreamSender(QpackStreamSenderDelegate* delegate);
   QpackDecoderStreamSender() = delete;
   QpackDecoderStreamSender(const QpackDecoderStreamSender&) = delete;
   QpackDecoderStreamSender& operator=(const QpackDecoderStreamSender&) = delete;
@@ -46,7 +35,7 @@ class QUIC_EXPORT_PRIVATE QpackDecoderStreamSender {
   void SendStreamCancellation(QuicStreamId stream_id);
 
  private:
-  Delegate* const delegate_;
+  QpackStreamSenderDelegate* const delegate_;
   QpackInstructionEncoder instruction_encoder_;
 };
 

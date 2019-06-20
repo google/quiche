@@ -2290,7 +2290,7 @@ TEST_P(EndToEndTest, AckNotifierWithPacketLossAndBlockedSocket) {
                            ->transport_version())) {
     // Determine size of compressed headers.
     NoopDecoderStreamErrorDelegate decoder_stream_error_delegate;
-    NoopEncoderStreamSenderDelegate encoder_stream_sender_delegate;
+    NoopQpackStreamSenderDelegate encoder_stream_sender_delegate;
     QpackEncoder qpack_encoder(&decoder_stream_error_delegate,
                                &encoder_stream_sender_delegate);
     auto progressive_encoder =

@@ -9,6 +9,7 @@
 
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_decoder.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_decoder_test_utils.h"
+#include "net/third_party/quiche/src/quic/core/qpack/qpack_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_header_block.h"
 
@@ -61,7 +62,7 @@ class QpackOfflineDecoder : public QpackDecoder::EncoderStreamErrorDelegate {
                            spdy::SpdyHeaderBlock expected_header_list);
 
   bool encoder_stream_error_detected_;
-  test::NoopDecoderStreamSenderDelegate decoder_stream_sender_delegate_;
+  NoopQpackStreamSenderDelegate decoder_stream_sender_delegate_;
   QpackDecoder decoder_;
   std::list<spdy::SpdyHeaderBlock> decoded_header_lists_;
 };

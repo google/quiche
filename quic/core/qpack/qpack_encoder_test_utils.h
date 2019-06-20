@@ -34,27 +34,9 @@ class MockDecoderStreamErrorDelegate
   MOCK_METHOD1(OnDecoderStreamError, void(QuicStringPiece error_message));
 };
 
-// QpackEncoderStreamSender::Delegate implementation that does nothing.
-class NoopEncoderStreamSenderDelegate
-    : public QpackEncoderStreamSender::Delegate {
- public:
-  ~NoopEncoderStreamSenderDelegate() override = default;
-
-  void WriteEncoderStreamData(QuicStringPiece data) override;
-};
-
-// Mock QpackEncoderStreamSender::Delegate implementation.
-class MockEncoderStreamSenderDelegate
-    : public QpackEncoderStreamSender::Delegate {
- public:
-  ~MockEncoderStreamSenderDelegate() override = default;
-
-  MOCK_METHOD1(WriteEncoderStreamData, void(QuicStringPiece data));
-};
-
 std::string QpackEncode(
     QpackEncoder::DecoderStreamErrorDelegate* decoder_stream_error_delegate,
-    QpackEncoderStreamSender::Delegate* encoder_stream_sender_delegate,
+    QpackStreamSenderDelegate* encoder_stream_sender_delegate,
     const FragmentSizeGenerator& fragment_size_generator,
     const spdy::SpdyHeaderBlock* header_list);
 

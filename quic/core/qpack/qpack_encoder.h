@@ -40,9 +40,8 @@ class QUIC_EXPORT_PRIVATE QpackEncoder
     virtual void OnDecoderStreamError(QuicStringPiece error_message) = 0;
   };
 
-  QpackEncoder(
-      DecoderStreamErrorDelegate* decoder_stream_error_delegate,
-      QpackEncoderStreamSender::Delegate* encoder_stream_sender_delegate);
+  QpackEncoder(DecoderStreamErrorDelegate* decoder_stream_error_delegate,
+               QpackStreamSenderDelegate* encoder_stream_sender_delegate);
   ~QpackEncoder() override;
 
   // This factory method is called to start encoding a header list.

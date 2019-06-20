@@ -20,61 +20,51 @@ class QpackDecoderStreamSenderTest : public QuicTest {
   QpackDecoderStreamSenderTest() : stream_(&delegate_) {}
   ~QpackDecoderStreamSenderTest() override = default;
 
-  StrictMock<MockDecoderStreamSenderDelegate> delegate_;
+  StrictMock<MockQpackStreamSenderDelegate> delegate_;
   QpackDecoderStreamSender stream_;
 };
 
 TEST_F(QpackDecoderStreamSenderTest, InsertCountIncrement) {
-  EXPECT_CALL(delegate_,
-              WriteDecoderStreamData(Eq(QuicTextUtils::HexDecode("00"))));
+  EXPECT_CALL(delegate_, WriteStreamData(Eq(QuicTextUtils::HexDecode("00"))));
   stream_.SendInsertCountIncrement(0);
 
-  EXPECT_CALL(delegate_,
-              WriteDecoderStreamData(Eq(QuicTextUtils::HexDecode("0a"))));
+  EXPECT_CALL(delegate_, WriteStreamData(Eq(QuicTextUtils::HexDecode("0a"))));
   stream_.SendInsertCountIncrement(10);
 
-  EXPECT_CALL(delegate_,
-              WriteDecoderStreamData(Eq(QuicTextUtils::HexDecode("3f00"))));
+  EXPECT_CALL(delegate_, WriteStreamData(Eq(QuicTextUtils::HexDecode("3f00"))));
   stream_.SendInsertCountIncrement(63);
 
   EXPECT_CALL(delegate_,
-              WriteDecoderStreamData(Eq(QuicTextUtils::HexDecode("3f8901"))));
+              WriteStreamData(Eq(QuicTextUtils::HexDecode("3f8901"))));
   stream_.SendInsertCountIncrement(200);
 }
 
 TEST_F(QpackDecoderStreamSenderTest, HeaderAcknowledgement) {
-  EXPECT_CALL(delegate_,
-              WriteDecoderStreamData(Eq(QuicTextUtils::HexDecode("80"))));
+  EXPECT_CALL(delegate_, WriteStreamData(Eq(QuicTextUtils::HexDecode("80"))));
   stream_.SendHeaderAcknowledgement(0);
 
-  EXPECT_CALL(delegate_,
-              WriteDecoderStreamData(Eq(QuicTextUtils::HexDecode("a5"))));
+  EXPECT_CALL(delegate_, WriteStreamData(Eq(QuicTextUtils::HexDecode("a5"))));
   stream_.SendHeaderAcknowledgement(37);
 
-  EXPECT_CALL(delegate_,
-              WriteDecoderStreamData(Eq(QuicTextUtils::HexDecode("ff00"))));
+  EXPECT_CALL(delegate_, WriteStreamData(Eq(QuicTextUtils::HexDecode("ff00"))));
   stream_.SendHeaderAcknowledgement(127);
 
   EXPECT_CALL(delegate_,
-              WriteDecoderStreamData(Eq(QuicTextUtils::HexDecode("fff802"))));
+              WriteStreamData(Eq(QuicTextUtils::HexDecode("fff802"))));
   stream_.SendHeaderAcknowledgement(503);
 }
 
 TEST_F(QpackDecoderStreamSenderTest, StreamCancellation) {
-  EXPECT_CALL(delegate_,
-              WriteDecoderStreamData(Eq(QuicTextUtils::HexDecode("40"))));
+  EXPECT_CALL(delegate_, WriteStreamData(Eq(QuicTextUtils::HexDecode("40"))));
   stream_.SendStreamCancellation(0);
 
-  EXPECT_CALL(delegate_,
-              WriteDecoderStreamData(Eq(QuicTextUtils::HexDecode("53"))));
+  EXPECT_CALL(delegate_, WriteStreamData(Eq(QuicTextUtils::HexDecode("53"))));
   stream_.SendStreamCancellation(19);
 
-  EXPECT_CALL(delegate_,
-              WriteDecoderStreamData(Eq(QuicTextUtils::HexDecode("7f00"))));
+  EXPECT_CALL(delegate_, WriteStreamData(Eq(QuicTextUtils::HexDecode("7f00"))));
   stream_.SendStreamCancellation(63);
 
-  EXPECT_CALL(delegate_,
-              WriteDecoderStreamData(Eq(QuicTextUtils::HexDecode("7f2f"))));
+  EXPECT_CALL(delegate_, WriteStreamData(Eq(QuicTextUtils::HexDecode("7f2f"))));
   stream_.SendStreamCancellation(110);
 }
 

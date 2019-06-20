@@ -8,6 +8,7 @@
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_decoder_test_utils.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_encoder_test_utils.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_test_utils.h"
+#include "net/third_party/quiche/src/quic/core/qpack/qpack_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_header_block.h"
@@ -30,7 +31,7 @@ class QpackRoundTripTest
   spdy::SpdyHeaderBlock EncodeThenDecode(
       const spdy::SpdyHeaderBlock& header_list) {
     NoopDecoderStreamErrorDelegate decoder_stream_error_delegate;
-    NoopEncoderStreamSenderDelegate encoder_stream_sender_delegate;
+    NoopQpackStreamSenderDelegate encoder_stream_sender_delegate;
     std::string encoded_header_block = QpackEncode(
         &decoder_stream_error_delegate, &encoder_stream_sender_delegate,
         FragmentModeToFragmentSizeGenerator(encoding_fragment_mode_),
@@ -38,7 +39,7 @@ class QpackRoundTripTest
 
     TestHeadersHandler handler;
     NoopEncoderStreamErrorDelegate encoder_stream_error_delegate;
-    NoopDecoderStreamSenderDelegate decoder_stream_sender_delegate;
+    NoopQpackStreamSenderDelegate decoder_stream_sender_delegate;
     QpackDecode(&encoder_stream_error_delegate, &decoder_stream_sender_delegate,
                 &handler,
                 FragmentModeToFragmentSizeGenerator(decoding_fragment_mode_),

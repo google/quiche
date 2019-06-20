@@ -8,6 +8,7 @@
 
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_encoder_test_utils.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_test_utils.h"
+#include "net/third_party/quiche/src/quic/core/qpack/qpack_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
 
@@ -31,7 +32,7 @@ class QpackEncoderTest : public QuicTestWithParam<FragmentMode> {
   }
 
   StrictMock<MockDecoderStreamErrorDelegate> decoder_stream_error_delegate_;
-  NoopEncoderStreamSenderDelegate encoder_stream_sender_delegate_;
+  NoopQpackStreamSenderDelegate encoder_stream_sender_delegate_;
 
  private:
   const FragmentMode fragment_mode_;

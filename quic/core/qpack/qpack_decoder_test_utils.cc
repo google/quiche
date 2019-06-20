@@ -16,9 +16,6 @@ namespace test {
 void NoopEncoderStreamErrorDelegate::OnEncoderStreamError(
     QuicStringPiece /*error_message*/) {}
 
-void NoopDecoderStreamSenderDelegate::WriteDecoderStreamData(
-    QuicStringPiece /*data*/) {}
-
 TestHeadersHandler::TestHeadersHandler()
     : decoding_completed_(false), decoding_error_detected_(false) {}
 
@@ -62,7 +59,7 @@ bool TestHeadersHandler::decoding_error_detected() const {
 
 void QpackDecode(
     QpackDecoder::EncoderStreamErrorDelegate* encoder_stream_error_delegate,
-    QpackDecoderStreamSender::Delegate* decoder_stream_sender_delegate,
+    QpackStreamSenderDelegate* decoder_stream_sender_delegate,
     QpackProgressiveDecoder::HeadersHandlerInterface* handler,
     const FragmentSizeGenerator& fragment_size_generator,
     QuicStringPiece data) {

@@ -34,9 +34,8 @@ class QUIC_EXPORT_PRIVATE QpackDecoder
     virtual void OnEncoderStreamError(QuicStringPiece error_message) = 0;
   };
 
-  QpackDecoder(
-      EncoderStreamErrorDelegate* encoder_stream_error_delegate,
-      QpackDecoderStreamSender::Delegate* decoder_stream_sender_delegate);
+  QpackDecoder(EncoderStreamErrorDelegate* encoder_stream_error_delegate,
+               QpackStreamSenderDelegate* decoder_stream_sender_delegate);
   ~QpackDecoder() override;
 
   // Set maximum capacity of dynamic table.

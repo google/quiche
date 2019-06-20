@@ -8,6 +8,9 @@
 #include <cstddef>
 #include <functional>
 
+#include "net/third_party/quiche/src/quic/core/qpack/qpack_stream_sender_delegate.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
+
 namespace quic {
 namespace test {
 
@@ -22,6 +25,14 @@ enum class FragmentMode {
 
 FragmentSizeGenerator FragmentModeToFragmentSizeGenerator(
     FragmentMode fragment_mode);
+
+// Mock QpackUnidirectionalStreamSenderDelegate implementation.
+class MockQpackStreamSenderDelegate : public QpackStreamSenderDelegate {
+ public:
+  ~MockQpackStreamSenderDelegate() override = default;
+
+  MOCK_METHOD1(WriteStreamData, void(QuicStringPiece data));
+};
 
 }  // namespace test
 }  // namespace quic

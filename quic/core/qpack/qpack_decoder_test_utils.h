@@ -33,24 +33,6 @@ class MockEncoderStreamErrorDelegate
   MOCK_METHOD1(OnEncoderStreamError, void(QuicStringPiece error_message));
 };
 
-// QpackDecoderStreamSender::Delegate implementation that does nothing.
-class NoopDecoderStreamSenderDelegate
-    : public QpackDecoderStreamSender::Delegate {
- public:
-  ~NoopDecoderStreamSenderDelegate() override = default;
-
-  void WriteDecoderStreamData(QuicStringPiece data) override;
-};
-
-// Mock QpackDecoderStreamSender::Delegate implementation.
-class MockDecoderStreamSenderDelegate
-    : public QpackDecoderStreamSender::Delegate {
- public:
-  ~MockDecoderStreamSenderDelegate() override = default;
-
-  MOCK_METHOD1(WriteDecoderStreamData, void(QuicStringPiece data));
-};
-
 // HeadersHandlerInterface implementation that collects decoded headers
 // into a SpdyHeaderBlock.
 class TestHeadersHandler
@@ -104,7 +86,7 @@ class NoOpHeadersHandler
 
 void QpackDecode(
     QpackDecoder::EncoderStreamErrorDelegate* encoder_stream_error_delegate,
-    QpackDecoderStreamSender::Delegate* decoder_stream_sender_delegate,
+    QpackStreamSenderDelegate* decoder_stream_sender_delegate,
     QpackProgressiveDecoder::HeadersHandlerInterface* handler,
     const FragmentSizeGenerator& fragment_size_generator,
     QuicStringPiece data);

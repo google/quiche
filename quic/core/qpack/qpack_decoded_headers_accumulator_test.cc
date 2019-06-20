@@ -39,7 +39,7 @@ class QpackDecodedHeadersAccumulatorTest : public QuicTest {
         accumulator_(kTestStreamId, &qpack_decoder_, kMaxHeaderListSize) {}
 
   NoopEncoderStreamErrorDelegate encoder_stream_error_delegate_;
-  StrictMock<MockDecoderStreamSenderDelegate> decoder_stream_sender_delegate_;
+  StrictMock<MockQpackStreamSenderDelegate> decoder_stream_sender_delegate_;
   QpackDecoder qpack_decoder_;
   QpackDecodedHeadersAccumulator accumulator_;
 };
@@ -59,7 +59,7 @@ TEST_F(QpackDecodedHeadersAccumulatorTest, TruncatedHeaderBlockPrefix) {
 
 TEST_F(QpackDecodedHeadersAccumulatorTest, EmptyHeaderList) {
   EXPECT_CALL(decoder_stream_sender_delegate_,
-              WriteDecoderStreamData(Eq(kHeaderAcknowledgement)));
+              WriteStreamData(Eq(kHeaderAcknowledgement)));
 
   EXPECT_TRUE(accumulator_.Decode(QuicTextUtils::HexDecode("0000")));
   EXPECT_TRUE(accumulator_.EndHeaderBlock());
@@ -83,7 +83,7 @@ TEST_F(QpackDecodedHeadersAccumulatorTest, InvalidPayload) {
 
 TEST_F(QpackDecodedHeadersAccumulatorTest, Success) {
   EXPECT_CALL(decoder_stream_sender_delegate_,
-              WriteDecoderStreamData(Eq(kHeaderAcknowledgement)));
+              WriteStreamData(Eq(kHeaderAcknowledgement)));
 
   std::string encoded_data(QuicTextUtils::HexDecode("000023666f6f03626172"));
   EXPECT_TRUE(accumulator_.Decode(encoded_data));
@@ -99,7 +99,7 @@ TEST_F(QpackDecodedHeadersAccumulatorTest, Success) {
 
 TEST_F(QpackDecodedHeadersAccumulatorTest, ExceedingLimit) {
   EXPECT_CALL(decoder_stream_sender_delegate_,
-              WriteDecoderStreamData(Eq(kHeaderAcknowledgement)));
+              WriteStreamData(Eq(kHeaderAcknowledgement)));
 
   // Total length of header list exceeds kMaxHeaderListSize.
   EXPECT_TRUE(accumulator_.Decode(QuicTextUtils::HexDecode(

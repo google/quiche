@@ -159,8 +159,9 @@ class QuicSpdyStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
   ~QuicSpdyStreamTest() override = default;
 
   std::string EncodeQpackHeaders(QuicStreamId id, SpdyHeaderBlock* header) {
-    auto qpack_encoder =
-        QuicMakeUnique<QpackEncoder>(session_.get(), session_.get());
+    NoopQpackStreamSenderDelegate encoder_stream_sender_delegate;
+    auto qpack_encoder = QuicMakeUnique<QpackEncoder>(
+        session_.get(), &encoder_stream_sender_delegate);
     auto progressive_encoder = qpack_encoder->EncodeHeaderList(id, header);
     std::string encoded_headers;
     while (progressive_encoder->HasNext()) {

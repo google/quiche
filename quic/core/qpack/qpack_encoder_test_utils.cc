@@ -12,12 +12,9 @@ namespace test {
 void NoopDecoderStreamErrorDelegate::OnDecoderStreamError(
     QuicStringPiece /*error_message*/) {}
 
-void NoopEncoderStreamSenderDelegate::WriteEncoderStreamData(
-    QuicStringPiece /*data*/) {}
-
 std::string QpackEncode(
     QpackEncoder::DecoderStreamErrorDelegate* decoder_stream_error_delegate,
-    QpackEncoderStreamSender::Delegate* encoder_stream_sender_delegate,
+    QpackStreamSenderDelegate* encoder_stream_sender_delegate,
     const FragmentSizeGenerator& fragment_size_generator,
     const spdy::SpdyHeaderBlock* header_list) {
   QpackEncoder encoder(decoder_stream_error_delegate,

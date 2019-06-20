@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/core/qpack/qpack_decoder.h"
-
 #include <cstddef>
 #include <cstdint>
 #include <limits>
 
+#include "net/third_party/quiche/src/quic/core/qpack/qpack_decoder.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_decoder_test_utils.h"
+#include "net/third_party/quiche/src/quic/core/qpack/qpack_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_fuzzed_data_provider.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 
@@ -31,7 +31,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
                 &provider, 1, std::numeric_limits<uint16_t>::max());
 
   NoopEncoderStreamErrorDelegate encoder_stream_error_delegate;
-  NoopDecoderStreamSenderDelegate decoder_stream_sender_delegate;
+  NoopQpackStreamSenderDelegate decoder_stream_sender_delegate;
   QpackDecode(&encoder_stream_error_delegate, &decoder_stream_sender_delegate,
               &handler, fragment_size_generator,
               provider.ConsumeRemainingBytesAsString());

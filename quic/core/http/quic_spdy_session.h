@@ -18,6 +18,7 @@
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_decoder_stream_sender.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_encoder.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_encoder_stream_sender.h"
+#include "net/third_party/quiche/src/quic/core/qpack/qpack_utils.h"
 #include "net/third_party/quiche/src/quic/core/quic_session.h"
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
@@ -63,9 +64,7 @@ class QUIC_EXPORT_PRIVATE QuicHpackDebugVisitor {
 class QUIC_EXPORT_PRIVATE QuicSpdySession
     : public QuicSession,
       public QpackEncoder::DecoderStreamErrorDelegate,
-      public QpackEncoderStreamSender::Delegate,
-      public QpackDecoder::EncoderStreamErrorDelegate,
-      public QpackDecoderStreamSender::Delegate {
+      public QpackDecoder::EncoderStreamErrorDelegate {
  public:
   // Does not take ownership of |connection| or |visitor|.
   QuicSpdySession(QuicConnection* connection,
@@ -82,14 +81,8 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // QpackEncoder::DecoderStreamErrorDelegate implementation.
   void OnDecoderStreamError(QuicStringPiece error_message) override;
 
-  // QpackEncoderStreamSender::Delegate implemenation.
-  void WriteEncoderStreamData(QuicStringPiece data) override;
-
   // QpackDecoder::EncoderStreamErrorDelegate implementation.
   void OnEncoderStreamError(QuicStringPiece error_message) override;
-
-  // QpackDecoderStreamSender::Delegate implementation.
-  void WriteDecoderStreamData(QuicStringPiece data) override;
 
   // Called by |headers_stream_| when headers with a priority have been
   // received for a stream.  This method will only be called for server streams.
@@ -331,6 +324,10 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   spdy::SpdyFramer spdy_framer_;
   http2::Http2DecoderAdapter h2_deframer_;
   std::unique_ptr<SpdyFramerVisitor> spdy_framer_visitor_;
+
+  // TODO(renjietang): Replace these two members with actual QPACK send streams.
+  NoopQpackStreamSenderDelegate encoder_stream_sender_delegate_;
+  NoopQpackStreamSenderDelegate decoder_stream_sender_delegate_;
 };
 
 }  // namespace quic

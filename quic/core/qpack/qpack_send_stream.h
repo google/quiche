@@ -5,6 +5,7 @@
 #ifndef QUICHE_QUIC_CORE_QPACK_QPACK_SEND_STREAM_H_
 #define QUICHE_QUIC_CORE_QPACK_QPACK_SEND_STREAM_H_
 
+#include "net/third_party/quiche/src/quic/core/qpack/qpack_stream_sender_delegate.h"
 #include "net/third_party/quiche/src/quic/core/quic_stream.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 
@@ -14,7 +15,8 @@ class QuicSpdySession;
 
 // QPACK 4.2.1 Encoder and Decoder Streams.
 // The QPACK send stream is self initiated and is write only.
-class QUIC_EXPORT_PRIVATE QpackSendStream : public QuicStream {
+class QUIC_EXPORT_PRIVATE QpackSendStream : public QuicStream,
+                                            public QpackStreamSenderDelegate {
  public:
   // |session| can't be nullptr, and the ownership is not passed. |session| owns
   // this stream.
@@ -35,7 +37,7 @@ class QUIC_EXPORT_PRIVATE QpackSendStream : public QuicStream {
 
   // Writes the instructions to peer. The stream type will be sent
   // before the first instruction so that the peer can open an qpack stream.
-  void WriteStreamData(QuicStringPiece data);
+  void WriteStreamData(QuicStringPiece data) override;
 
  private:
   const uint64_t stream_type_;

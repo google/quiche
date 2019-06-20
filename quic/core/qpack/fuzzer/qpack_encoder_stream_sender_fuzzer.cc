@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/core/qpack/qpack_encoder_stream_sender.h"
-
 #include <cstddef>
 #include <cstdint>
 #include <limits>
 #include <string>
 
+#include "net/third_party/quiche/src/quic/core/qpack/qpack_encoder_stream_sender.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_encoder_test_utils.h"
+#include "net/third_party/quiche/src/quic/core/qpack/qpack_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_fuzzed_data_provider.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 
@@ -21,7 +21,7 @@ namespace test {
 // decoded instructions directly compared to input.  Figure out how to get gMock
 // enabled for cc_fuzz_target target types.
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
-  NoopEncoderStreamSenderDelegate delegate;
+  NoopQpackStreamSenderDelegate delegate;
   QpackEncoderStreamSender sender(&delegate);
 
   QuicFuzzedDataProvider provider(data, size);

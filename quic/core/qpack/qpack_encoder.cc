@@ -14,7 +14,7 @@ namespace quic {
 
 QpackEncoder::QpackEncoder(
     DecoderStreamErrorDelegate* decoder_stream_error_delegate,
-    QpackEncoderStreamSender::Delegate* encoder_stream_sender_delegate)
+    QpackStreamSenderDelegate* encoder_stream_sender_delegate)
     : decoder_stream_error_delegate_(decoder_stream_error_delegate),
       decoder_stream_receiver_(this),
       encoder_stream_sender_(encoder_stream_sender_delegate) {
