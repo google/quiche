@@ -330,17 +330,11 @@ QuicConnection::QuicConnection(
       release_time_into_future_(QuicTime::Delta::Zero()),
       no_version_negotiation_(supported_versions.size() == 1),
       retry_has_been_parsed_(false),
-      validate_packet_number_post_decryption_(
-          GetQuicReloadableFlag(quic_validate_packet_number_post_decryption)),
       use_uber_received_packet_manager_(
-          validate_packet_number_post_decryption_ &&
           GetQuicReloadableFlag(quic_use_uber_received_packet_manager)) {
   if (perspective_ == Perspective::IS_SERVER &&
       supported_versions.size() == 1) {
     QUIC_RESTART_FLAG_COUNT(quic_no_server_conn_ver_negotiation2);
-  }
-  if (validate_packet_number_post_decryption_) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_validate_packet_number_post_decryption);
   }
   if (use_uber_received_packet_manager_) {
     QUIC_RELOADABLE_FLAG_COUNT(quic_use_uber_received_packet_manager);
@@ -845,31 +839,6 @@ bool QuicConnection::OnUnauthenticatedHeader(const QuicPacketHeader& header) {
     CloseConnection(QUIC_INTERNAL_ERROR, error_details,
                     ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return false;
-  }
-
-  // If this packet has already been seen, or the sender has told us that it
-  // will not be retransmitted, then stop processing the packet.
-  if (!validate_packet_number_post_decryption_) {
-    const bool is_awaiting =
-        use_uber_received_packet_manager_
-            ? uber_received_packet_manager_.IsAwaitingPacket(
-                  last_decrypted_packet_level_, header.packet_number)
-            : received_packet_manager_.IsAwaitingPacket(header.packet_number);
-    if (!is_awaiting) {
-      if (framer_.IsIetfStatelessResetPacket(header)) {
-        QuicIetfStatelessResetPacket packet(
-            header, header.possible_stateless_reset_token);
-        OnAuthenticatedIetfStatelessResetPacket(packet);
-        return false;
-      }
-      QUIC_DLOG(INFO) << ENDPOINT << "Packet " << header.packet_number
-                      << " no longer being waited for.  Discarding.";
-      if (debug_visitor_ != nullptr) {
-        debug_visitor_->OnDuplicatePacket(header.packet_number);
-      }
-      ++stats_.packets_dropped;
-      return false;
-    }
   }
 
   if (version_negotiation_state_ != NEGOTIATED_VERSION &&
@@ -2043,27 +2012,27 @@ bool QuicConnection::ProcessValidatedPacket(const QuicPacketHeader& header) {
 
 bool QuicConnection::ValidateReceivedPacketNumber(
     QuicPacketNumber packet_number) {
-  if (validate_packet_number_post_decryption_) {
-    const bool is_awaiting =
-        use_uber_received_packet_manager_
-            ? uber_received_packet_manager_.IsAwaitingPacket(
-                  last_decrypted_packet_level_, packet_number)
-            : received_packet_manager_.IsAwaitingPacket(packet_number);
-    if (!is_awaiting) {
-      if (use_uber_received_packet_manager_) {
-        QUIC_DLOG(INFO) << ENDPOINT << "Packet " << packet_number
-                        << " no longer being waited for at level "
-                        << static_cast<int>(last_decrypted_packet_level_)
-                        << ".  Discarding.";
-      } else {
-        QUIC_DLOG(INFO) << ENDPOINT << "Packet " << packet_number
-                        << " no longer being waited for.  Discarding.";
-      }
-      if (debug_visitor_ != nullptr) {
-        debug_visitor_->OnDuplicatePacket(packet_number);
-      }
-      return false;
+  // If this packet has already been seen, or the sender has told us that it
+  // will not be retransmitted, then stop processing the packet.
+  const bool is_awaiting =
+      use_uber_received_packet_manager_
+          ? uber_received_packet_manager_.IsAwaitingPacket(
+                last_decrypted_packet_level_, packet_number)
+          : received_packet_manager_.IsAwaitingPacket(packet_number);
+  if (!is_awaiting) {
+    if (use_uber_received_packet_manager_) {
+      QUIC_DLOG(INFO) << ENDPOINT << "Packet " << packet_number
+                      << " no longer being waited for at level "
+                      << static_cast<int>(last_decrypted_packet_level_)
+                      << ".  Discarding.";
+    } else {
+      QUIC_DLOG(INFO) << ENDPOINT << "Packet " << packet_number
+                      << " no longer being waited for.  Discarding.";
     }
+    if (debug_visitor_ != nullptr) {
+      debug_visitor_->OnDuplicatePacket(packet_number);
+    }
+    return false;
   }
 
   if (use_uber_received_packet_manager_) {
