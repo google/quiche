@@ -40,6 +40,11 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
     // Called if an error is detected.
     virtual void OnError(HttpDecoder* decoder) = 0;
 
+    // Called when a PRIORITY frame has been received.
+    // |frame_length| contains PRIORITY frame length and payload length.
+    // Returns true to permit furthuring decoding, and false to prevent it.
+    virtual bool OnPriorityFrameStart(Http3FrameLengths frame_length) = 0;
+
     // Called when a PRIORITY frame has been successfully parsed.
     // Returns true to permit furthuring decoding, and false to prevent it.
     virtual bool OnPriorityFrame(const PriorityFrame& frame) = 0;

@@ -4,6 +4,7 @@
 
 #include "net/third_party/quiche/src/quic/core/http/quic_receive_control_stream.h"
 
+#include "net/third_party/quiche/src/quic/core/http/http_decoder.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_spdy_session.h"
 
 namespace quic {
@@ -22,6 +23,11 @@ class QuicReceiveControlStream::HttpDecoderVisitor
     stream_->session()->connection()->CloseConnection(
         QUIC_HTTP_DECODER_ERROR, "Http decoder internal error",
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+  }
+
+  bool OnPriorityFrameStart(Http3FrameLengths /*frame_lengths*/) override {
+    CloseConnectionOnWrongFrame("Priority");
+    return false;
   }
 
   bool OnPriorityFrame(const PriorityFrame& /*frame*/) override {

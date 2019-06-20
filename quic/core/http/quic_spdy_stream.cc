@@ -8,6 +8,7 @@
 #include <string>
 #include <utility>
 
+#include "net/third_party/quiche/src/quic/core/http/http_decoder.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_spdy_session.h"
 #include "net/third_party/quiche/src/quic/core/http/spdy_utils.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_decoded_headers_accumulator.h"
@@ -43,6 +44,11 @@ class QuicSpdyStream::HttpDecoderVisitor : public HttpDecoder::Visitor {
     stream_->session()->connection()->CloseConnection(
         QUIC_HTTP_DECODER_ERROR, "Http decoder internal error",
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+  }
+
+  bool OnPriorityFrameStart(Http3FrameLengths /*frame_lengths*/) override {
+    CloseConnectionOnWrongFrame("Priority");
+    return false;
   }
 
   bool OnPriorityFrame(const PriorityFrame& /*frame*/) override {

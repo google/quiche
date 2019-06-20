@@ -23,6 +23,7 @@ class MockVisitor : public HttpDecoder::Visitor {
   // Called if an error is detected.
   MOCK_METHOD1(OnError, void(HttpDecoder* decoder));
 
+  MOCK_METHOD1(OnPriorityFrameStart, bool(Http3FrameLengths frame_lengths));
   MOCK_METHOD1(OnPriorityFrame, bool(const PriorityFrame& frame));
   MOCK_METHOD1(OnCancelPushFrame, bool(const CancelPushFrame& frame));
   MOCK_METHOD1(OnMaxPushIdFrame, bool(const MaxPushIdFrame& frame));
@@ -47,6 +48,7 @@ class MockVisitor : public HttpDecoder::Visitor {
 class HttpDecoderTest : public QuicTest {
  public:
   HttpDecoderTest() {
+    ON_CALL(visitor_, OnPriorityFrameStart(_)).WillByDefault(Return(true));
     ON_CALL(visitor_, OnPriorityFrame(_)).WillByDefault(Return(true));
     ON_CALL(visitor_, OnCancelPushFrame(_)).WillByDefault(Return(true));
     ON_CALL(visitor_, OnMaxPushIdFrame(_)).WillByDefault(Return(true));
@@ -199,7 +201,7 @@ TEST_F(HttpDecoderTest, CancelPush) {
       .WillOnce(Return(false));
   EXPECT_EQ(0u, decoder_.ProcessInput(input, QUIC_ARRAYSIZE(input)));
   EXPECT_EQ(QUIC_INTERNAL_ERROR, decoder_.error());
-  EXPECT_EQ("Visitor shut down.", decoder_.error_detail());
+  EXPECT_EQ("Visitor shut down on CANCEL_PUSH frame.", decoder_.error_detail());
 }
 
 TEST_F(HttpDecoderTest, PushPromiseFrame) {
@@ -242,7 +244,8 @@ TEST_F(HttpDecoderTest, PushPromiseFrame) {
   EXPECT_CALL(visitor_, OnPushPromiseFrameStart(1)).WillOnce(Return(false));
   EXPECT_EQ(0u, decoder_.ProcessInput(input, QUIC_ARRAYSIZE(input)));
   EXPECT_EQ(QUIC_INTERNAL_ERROR, decoder_.error());
-  EXPECT_EQ("Visitor shut down.", decoder_.error_detail());
+  EXPECT_EQ("Visitor shut down on PUSH_PROMISE frame start.",
+            decoder_.error_detail());
 }
 
 TEST_F(HttpDecoderTest, MaxPushId) {
@@ -273,7 +276,7 @@ TEST_F(HttpDecoderTest, MaxPushId) {
       .WillOnce(Return(false));
   EXPECT_EQ(0u, decoder_.ProcessInput(input, QUIC_ARRAYSIZE(input)));
   EXPECT_EQ(QUIC_INTERNAL_ERROR, decoder_.error());
-  EXPECT_EQ("Visitor shut down.", decoder_.error_detail());
+  EXPECT_EQ("Visitor shut down on MAX_PUSH_ID frame.", decoder_.error_detail());
 }
 
 TEST_F(HttpDecoderTest, DuplicatePush) {
@@ -303,7 +306,8 @@ TEST_F(HttpDecoderTest, DuplicatePush) {
       .WillOnce(Return(false));
   EXPECT_EQ(0u, decoder_.ProcessInput(input, QUIC_ARRAYSIZE(input)));
   EXPECT_EQ(QUIC_INTERNAL_ERROR, decoder_.error());
-  EXPECT_EQ("Visitor shut down.", decoder_.error_detail());
+  EXPECT_EQ("Visitor shut down on DUPLICATE_PUSH frame.",
+            decoder_.error_detail());
 }
 
 TEST_F(HttpDecoderTest, PriorityFrame) {
@@ -329,6 +333,7 @@ TEST_F(HttpDecoderTest, PriorityFrame) {
   frame.weight = 0xFF;
 
   // Process the full frame.
+  EXPECT_CALL(visitor_, OnPriorityFrameStart(Http3FrameLengths(2, 4)));
   EXPECT_CALL(visitor_, OnPriorityFrame(frame));
   EXPECT_EQ(QUIC_ARRAYSIZE(input),
             decoder_.ProcessInput(input, QUIC_ARRAYSIZE(input)));
@@ -336,6 +341,7 @@ TEST_F(HttpDecoderTest, PriorityFrame) {
   EXPECT_EQ("", decoder_.error_detail());
 
   // Process the frame incremently.
+  EXPECT_CALL(visitor_, OnPriorityFrameStart(Http3FrameLengths(2, 4)));
   EXPECT_CALL(visitor_, OnPriorityFrame(frame));
   for (char c : input) {
     EXPECT_EQ(1u, decoder_.ProcessInput(&c, 1));
@@ -357,6 +363,7 @@ TEST_F(HttpDecoderTest, PriorityFrame) {
   frame2.exclusive = true;
   frame2.weight = 0xFF;
 
+  EXPECT_CALL(visitor_, OnPriorityFrameStart(Http3FrameLengths(2, 2)));
   EXPECT_CALL(visitor_, OnPriorityFrame(frame2));
   EXPECT_EQ(QUIC_ARRAYSIZE(input2),
             decoder_.ProcessInput(input2, QUIC_ARRAYSIZE(input2)));
@@ -364,10 +371,11 @@ TEST_F(HttpDecoderTest, PriorityFrame) {
   EXPECT_EQ("", decoder_.error_detail());
 
   // Test on the situation when the visitor wants to stop processing.
+  EXPECT_CALL(visitor_, OnPriorityFrameStart(Http3FrameLengths(2, 4)));
   EXPECT_CALL(visitor_, OnPriorityFrame(frame)).WillOnce(Return(false));
   EXPECT_EQ(0u, decoder_.ProcessInput(input, QUIC_ARRAYSIZE(input)));
   EXPECT_EQ(QUIC_INTERNAL_ERROR, decoder_.error());
-  EXPECT_EQ("Visitor shut down.", decoder_.error_detail());
+  EXPECT_EQ("Visitor shut down on PRIORITY frame.", decoder_.error_detail());
 }
 
 TEST_F(HttpDecoderTest, SettingsFrame) {
@@ -419,7 +427,8 @@ TEST_F(HttpDecoderTest, SettingsFrame) {
       .WillOnce(Return(false));
   EXPECT_EQ(0u, decoder_.ProcessInput(input, QUIC_ARRAYSIZE(input)));
   EXPECT_EQ(QUIC_INTERNAL_ERROR, decoder_.error());
-  EXPECT_EQ("Visitor shut down.", decoder_.error_detail());
+  EXPECT_EQ("Visitor shut down on SETTINGS frame start.",
+            decoder_.error_detail());
 }
 
 TEST_F(HttpDecoderTest, DataFrame) {
@@ -459,7 +468,7 @@ TEST_F(HttpDecoderTest, DataFrame) {
       .WillOnce(Return(false));
   EXPECT_EQ(0u, decoder_.ProcessInput(input, QUIC_ARRAYSIZE(input)));
   EXPECT_EQ(QUIC_INTERNAL_ERROR, decoder_.error());
-  EXPECT_EQ("Visitor shut down.", decoder_.error_detail());
+  EXPECT_EQ("Visitor shut down on DATA frame start.", decoder_.error_detail());
 }
 
 TEST_F(HttpDecoderTest, FrameHeaderPartialDelivery) {
