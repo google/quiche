@@ -4,6 +4,7 @@
 
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
 
+#include <limits>
 #include <string>
 
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
