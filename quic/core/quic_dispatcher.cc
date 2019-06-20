@@ -354,16 +354,6 @@ bool QuicDispatcher::MaybeDispatchPacket(
     return true;
   }
 
-  // Check if we are buffering packets for this connection ID
-  if (temporarily_buffered_connections_.find(server_connection_id) !=
-      temporarily_buffered_connections_.end()) {
-    // This packet was received while the a CHLO for the same connection ID was
-    // being processed.  Buffer it.
-    BufferEarlyPacket(server_connection_id, form != GOOGLE_QUIC_PACKET,
-                      version);
-    return true;
-  }
-
   if (OnFailedToDispatchPacket(destination_connection_id)) {
     return true;
   }

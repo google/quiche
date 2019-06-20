@@ -397,11 +397,6 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
   // them.
   QuicBufferedPacketStore buffered_packets_;
 
-  // Set of connection IDs for which asynchronous CHLO processing is in
-  // progress, making it necessary to buffer any other packets which arrive on
-  // that connection until CHLO processing is complete.
-  QuicConnectionIdSet temporarily_buffered_connections_;
-
   // Information about the packet currently being handled.
   QuicSocketAddress current_client_address_;
   QuicSocketAddress current_peer_address_;
