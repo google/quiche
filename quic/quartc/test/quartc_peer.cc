@@ -90,11 +90,9 @@ void QuartcPeer::OnCongestionControlChange(QuicBandwidth bandwidth_estimate,
   }
 }
 
-void QuartcPeer::OnConnectionClosed(QuicErrorCode error_code,
-                                    const std::string& error_details,
+void QuartcPeer::OnConnectionClosed(const QuicConnectionCloseFrame& frame,
                                     ConnectionCloseSource /*source*/) {
-  QUIC_LOG(INFO) << "Connection closed, error=" << error_code
-                 << ", details=" << error_details;
+  QUIC_LOG(INFO) << "Connection closed, frame=" << frame;
   SetEnabled(false);
 }
 

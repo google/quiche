@@ -2755,7 +2755,10 @@ void QuicConnection::TearDownLocalConnectionState(
   FlushPackets();
   connected_ = false;
   DCHECK(visitor_ != nullptr);
-  visitor_->OnConnectionClosed(error, error_details, source);
+  // TODO(fkastenholz): When the IETF Transport Connection Close information
+  // gets plumbed in, expand this constructor to include that information.
+  QuicConnectionCloseFrame frame(error, error_details);
+  visitor_->OnConnectionClosed(frame, source);
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnConnectionClosed(error, error_details, source);
   }

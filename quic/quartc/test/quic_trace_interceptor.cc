@@ -53,10 +53,10 @@ void QuicTraceInterceptor::OnCongestionControlChange(
                                        latest_rtt);
 }
 
-void QuicTraceInterceptor::OnConnectionClosed(QuicErrorCode error_code,
-                                              const std::string& error_details,
-                                              ConnectionCloseSource source) {
-  delegate_->OnConnectionClosed(error_code, error_details, source);
+void QuicTraceInterceptor::OnConnectionClosed(
+    const QuicConnectionCloseFrame& frame,
+    ConnectionCloseSource source) {
+  delegate_->OnConnectionClosed(frame, source);
 }
 
 void QuicTraceInterceptor::OnMessageReceived(QuicStringPiece message) {

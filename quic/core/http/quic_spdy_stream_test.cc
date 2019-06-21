@@ -388,12 +388,11 @@ TEST_P(QuicSpdyStreamTest, ProcessWrongFramesOnSpdyStream) {
                                                connection_close_behavior);
           })));
   EXPECT_CALL(*connection_, SendConnectionClosePacket(_, _));
-  EXPECT_CALL(*session_, OnConnectionClosed(_, _, _))
-      .WillOnce(
-          Invoke([this](QuicErrorCode error, const std::string& error_details,
-                        ConnectionCloseSource source) {
-            session_->ReallyOnConnectionClosed(error, error_details, source);
-          }));
+  EXPECT_CALL(*session_, OnConnectionClosed(_, _))
+      .WillOnce(Invoke([this](const QuicConnectionCloseFrame& frame,
+                              ConnectionCloseSource source) {
+        session_->ReallyOnConnectionClosed(frame, source);
+      }));
   EXPECT_CALL(*session_, SendRstStream(_, _, _));
   EXPECT_CALL(*session_, SendRstStream(_, _, _));
 
@@ -1801,12 +1800,11 @@ TEST_P(QuicSpdyStreamTest, MalformedHeadersStopHttpDecoder) {
                                                connection_close_behavior);
           })));
   EXPECT_CALL(*connection_, SendConnectionClosePacket(_, _));
-  EXPECT_CALL(*session_, OnConnectionClosed(_, _, _))
-      .WillOnce(
-          Invoke([this](QuicErrorCode error, const std::string& error_details,
-                        ConnectionCloseSource source) {
-            session_->ReallyOnConnectionClosed(error, error_details, source);
-          }));
+  EXPECT_CALL(*session_, OnConnectionClosed(_, _))
+      .WillOnce(Invoke([this](const QuicConnectionCloseFrame& frame,
+                              ConnectionCloseSource source) {
+        session_->ReallyOnConnectionClosed(frame, source);
+      }));
   EXPECT_CALL(*session_, SendRstStream(_, _, _));
   EXPECT_CALL(*session_, SendRstStream(_, _, _));
   stream_->OnStreamFrame(frame);

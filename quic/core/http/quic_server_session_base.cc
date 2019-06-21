@@ -80,10 +80,10 @@ void QuicServerSessionBase::OnConfigNegotiated() {
   }
 }
 
-void QuicServerSessionBase::OnConnectionClosed(QuicErrorCode error,
-                                               const std::string& error_details,
-                                               ConnectionCloseSource source) {
-  QuicSession::OnConnectionClosed(error, error_details, source);
+void QuicServerSessionBase::OnConnectionClosed(
+    const QuicConnectionCloseFrame& frame,
+    ConnectionCloseSource source) {
+  QuicSession::OnConnectionClosed(frame, source);
   // In the unlikely event we get a connection close while doing an asynchronous
   // crypto event, make sure we cancel the callback.
   if (crypto_stream_ != nullptr) {

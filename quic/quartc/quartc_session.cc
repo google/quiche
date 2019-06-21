@@ -206,12 +206,11 @@ bool QuartcSession::ShouldKeepConnectionAlive() const {
   return GetNumOpenDynamicStreams() > 0;
 }
 
-void QuartcSession::OnConnectionClosed(QuicErrorCode error,
-                                       const std::string& error_details,
+void QuartcSession::OnConnectionClosed(const QuicConnectionCloseFrame& frame,
                                        ConnectionCloseSource source) {
-  QuicSession::OnConnectionClosed(error, error_details, source);
+  QuicSession::OnConnectionClosed(frame, source);
   DCHECK(session_delegate_);
-  session_delegate_->OnConnectionClosed(error, error_details, source);
+  session_delegate_->OnConnectionClosed(frame, source);
 }
 
 void QuartcSession::CloseConnection(const std::string& details) {

@@ -72,9 +72,8 @@ class TestQuicSpdyServerSession : public QuicServerSessionBase {
 
   ~TestQuicSpdyServerSession() override { delete connection(); }
 
-  MOCK_METHOD3(OnConnectionClosed,
-               void(QuicErrorCode error,
-                    const std::string& error_details,
+  MOCK_METHOD2(OnConnectionClosed,
+               void(const QuicConnectionCloseFrame& frame,
                     ConnectionCloseSource source));
   MOCK_METHOD1(CreateIncomingStream, QuicSpdyStream*(QuicStreamId id));
   MOCK_METHOD1(CreateIncomingStream, QuicSpdyStream*(PendingStream* pending));

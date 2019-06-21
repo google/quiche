@@ -45,8 +45,7 @@ class QUIC_EXPORT_PRIVATE QuicServerSessionBase : public QuicSpdySession {
   QuicServerSessionBase& operator=(const QuicServerSessionBase&) = delete;
 
   // Override the base class to cancel any ongoing asychronous crypto.
-  void OnConnectionClosed(QuicErrorCode error,
-                          const std::string& error_details,
+  void OnConnectionClosed(const QuicConnectionCloseFrame& frame,
                           ConnectionCloseSource source) override;
 
   // Sends a server config update to the client, containing new bandwidth

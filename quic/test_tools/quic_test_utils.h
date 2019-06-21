@@ -360,9 +360,8 @@ class MockQuicConnectionVisitor : public QuicConnectionVisitorInterface {
   MOCK_METHOD1(OnRstStream, void(const QuicRstStreamFrame& frame));
   MOCK_METHOD1(OnGoAway, void(const QuicGoAwayFrame& frame));
   MOCK_METHOD1(OnMessageReceived, void(QuicStringPiece message));
-  MOCK_METHOD3(OnConnectionClosed,
-               void(QuicErrorCode error,
-                    const std::string& error_details,
+  MOCK_METHOD2(OnConnectionClosed,
+               void(const QuicConnectionCloseFrame& frame,
                     ConnectionCloseSource source));
   MOCK_METHOD0(OnWriteBlocked, void());
   MOCK_METHOD0(OnCanWrite, void());
@@ -596,9 +595,8 @@ class MockQuicSession : public QuicSession {
   const QuicCryptoStream* GetCryptoStream() const override;
   void SetCryptoStream(QuicCryptoStream* crypto_stream);
 
-  MOCK_METHOD3(OnConnectionClosed,
-               void(QuicErrorCode error,
-                    const std::string& error_details,
+  MOCK_METHOD2(OnConnectionClosed,
+               void(const QuicConnectionCloseFrame& frame,
                     ConnectionCloseSource source));
   MOCK_METHOD1(CreateIncomingStream, QuicStream*(QuicStreamId id));
   MOCK_METHOD1(CreateIncomingStream, QuicSpdyStream*(PendingStream* stream));
@@ -673,16 +671,14 @@ class MockQuicSpdySession : public QuicSpdySession {
   const QuicCryptoStream* GetCryptoStream() const override;
   void SetCryptoStream(QuicCryptoStream* crypto_stream);
 
-  void ReallyOnConnectionClosed(QuicErrorCode error,
-                                const std::string& error_details,
+  void ReallyOnConnectionClosed(const QuicConnectionCloseFrame& frame,
                                 ConnectionCloseSource source) {
-    QuicSession::OnConnectionClosed(error, error_details, source);
+    QuicSession::OnConnectionClosed(frame, source);
   }
 
   // From QuicSession.
-  MOCK_METHOD3(OnConnectionClosed,
-               void(QuicErrorCode error,
-                    const std::string& error_details,
+  MOCK_METHOD2(OnConnectionClosed,
+               void(const QuicConnectionCloseFrame& frame,
                     ConnectionCloseSource source));
   MOCK_METHOD1(CreateIncomingStream, QuicSpdyStream*(QuicStreamId id));
   MOCK_METHOD1(CreateIncomingStream, QuicSpdyStream*(PendingStream* stream));

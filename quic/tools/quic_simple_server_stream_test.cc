@@ -117,9 +117,8 @@ class MockQuicSimpleServerSession : public QuicSimpleServerSession {
       delete;
   ~MockQuicSimpleServerSession() override = default;
 
-  MOCK_METHOD3(OnConnectionClosed,
-               void(QuicErrorCode error,
-                    const std::string& error_details,
+  MOCK_METHOD2(OnConnectionClosed,
+               void(const QuicConnectionCloseFrame& frame,
                     ConnectionCloseSource source));
   MOCK_METHOD1(CreateIncomingStream, QuicSpdyStream*(QuicStreamId id));
   MOCK_METHOD5(WritevData,

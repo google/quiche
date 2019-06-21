@@ -80,8 +80,7 @@ class QuartcPeer : public QuartcEndpoint::Delegate,
   void OnCongestionControlChange(QuicBandwidth bandwidth_estimate,
                                  QuicBandwidth pacing_rate,
                                  QuicTime::Delta latest_rtt) override;
-  void OnConnectionClosed(QuicErrorCode error_code,
-                          const std::string& error_details,
+  void OnConnectionClosed(const QuicConnectionCloseFrame& frame,
                           ConnectionCloseSource source) override;
   void OnMessageReceived(QuicStringPiece message) override;
   void OnMessageSent(int64_t /*datagram_id*/) override {}

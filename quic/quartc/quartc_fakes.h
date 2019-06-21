@@ -43,8 +43,7 @@ class FakeQuartcEndpointDelegate : public QuartcEndpoint::Delegate {
   }
 
   // Called when connection closes locally, or remotely by peer.
-  void OnConnectionClosed(QuicErrorCode /*error_code*/,
-                          const std::string& /*error_details*/,
+  void OnConnectionClosed(const QuicConnectionCloseFrame& /*frame*/,
                           ConnectionCloseSource /*source*/) override {
     connected_ = false;
   }

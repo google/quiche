@@ -419,23 +419,22 @@ void QuicSession::RecordConnectionCloseAtServer(QuicErrorCode error,
   }
 }
 
-void QuicSession::OnConnectionClosed(QuicErrorCode error,
-                                     const std::string& error_details,
+void QuicSession::OnConnectionClosed(const QuicConnectionCloseFrame& frame,
                                      ConnectionCloseSource source) {
   DCHECK(!connection_->connected());
   if (perspective() == Perspective::IS_SERVER) {
-    RecordConnectionCloseAtServer(error, source);
+    RecordConnectionCloseAtServer(frame.quic_error_code, source);
   }
 
   if (error_ == QUIC_NO_ERROR) {
-    error_ = error;
+    error_ = frame.quic_error_code;
   }
 
   if (!eliminate_static_stream_map_) {
     while (!dynamic_stream_map_.empty()) {
       DynamicStreamMap::iterator it = dynamic_stream_map_.begin();
       QuicStreamId id = it->first;
-      it->second->OnConnectionClosed(error, source);
+      it->second->OnConnectionClosed(frame.quic_error_code, source);
       // The stream should call CloseStream as part of OnConnectionClosed.
       if (dynamic_stream_map_.find(id) != dynamic_stream_map_.end()) {
         QUIC_BUG << ENDPOINT << "Stream " << id
@@ -454,7 +453,7 @@ void QuicSession::OnConnectionClosed(QuicErrorCode error,
     }
     for (const auto& it : non_static_streams) {
       QuicStreamId id = it.first;
-      it.second->OnConnectionClosed(error, source);
+      it.second->OnConnectionClosed(frame.quic_error_code, source);
       if (dynamic_stream_map_.find(id) != dynamic_stream_map_.end()) {
         QUIC_BUG << ENDPOINT << "Stream " << id
                  << " failed to close under OnConnectionClosed";
@@ -473,8 +472,9 @@ void QuicSession::OnConnectionClosed(QuicErrorCode error,
   closed_streams_clean_up_alarm_->Cancel();
 
   if (visitor_) {
-    visitor_->OnConnectionClosed(connection_->connection_id(), error,
-                                 error_details, source);
+    visitor_->OnConnectionClosed(connection_->connection_id(),
+                                 frame.quic_error_code, frame.error_details,
+                                 source);
   }
 }
 

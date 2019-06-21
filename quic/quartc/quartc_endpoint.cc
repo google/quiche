@@ -100,11 +100,11 @@ void QuartcClientEndpoint::OnCongestionControlChange(
                                        latest_rtt);
 }
 
-void QuartcClientEndpoint::OnConnectionClosed(QuicErrorCode error_code,
-                                              const std::string& error_details,
-                                              ConnectionCloseSource source) {
+void QuartcClientEndpoint::OnConnectionClosed(
+    const QuicConnectionCloseFrame& frame,
+    ConnectionCloseSource source) {
   // First, see if we can restart the session with a mutually-supported version.
-  if (error_code == QUIC_INVALID_VERSION && session_ &&
+  if (frame.quic_error_code == QUIC_INVALID_VERSION && session_ &&
       session_->connection() &&
       !session_->connection()->server_supported_versions().empty()) {
     for (const auto& client_version :
@@ -122,7 +122,7 @@ void QuartcClientEndpoint::OnConnectionClosed(QuicErrorCode error_code,
 
   // Permanent version negotiation errors are forwarded to the |delegate_|,
   // along with all other errors.
-  delegate_->OnConnectionClosed(error_code, error_details, source);
+  delegate_->OnConnectionClosed(frame, source);
 }
 
 void QuartcClientEndpoint::OnMessageReceived(QuicStringPiece message) {

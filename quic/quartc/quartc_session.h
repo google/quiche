@@ -81,8 +81,7 @@ class QuartcSession : public QuicSession,
   void OnCanWrite() override;
   bool SendProbingData() override;
 
-  void OnConnectionClosed(QuicErrorCode error,
-                          const std::string& error_details,
+  void OnConnectionClosed(const QuicConnectionCloseFrame& frame,
                           ConnectionCloseSource source) override;
 
   // QuartcSession methods.
@@ -134,8 +133,7 @@ class QuartcSession : public QuicSession,
 
     // Called when the connection is closed. This means all of the streams will
     // be closed and no new streams can be created.
-    virtual void OnConnectionClosed(QuicErrorCode error_code,
-                                    const std::string& error_details,
+    virtual void OnConnectionClosed(const QuicConnectionCloseFrame& frame,
                                     ConnectionCloseSource source) = 0;
 
     // Called when message (sent as SendMessage) is received.

@@ -105,8 +105,7 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
   void OnMessageReceived(QuicStringPiece message) override;
   void OnWindowUpdateFrame(const QuicWindowUpdateFrame& frame) override;
   void OnBlockedFrame(const QuicBlockedFrame& frame) override;
-  void OnConnectionClosed(QuicErrorCode error,
-                          const std::string& error_details,
+  void OnConnectionClosed(const QuicConnectionCloseFrame& frame,
                           ConnectionCloseSource source) override;
   void OnWriteBlocked() override;
   void OnSuccessfulVersionNegotiation(

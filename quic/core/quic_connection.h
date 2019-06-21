@@ -124,8 +124,7 @@ class QUIC_EXPORT_PRIVATE QuicConnectionVisitorInterface {
 
   // Called when the connection is closed either locally by the framer, or
   // remotely by the peer.
-  virtual void OnConnectionClosed(QuicErrorCode error,
-                                  const std::string& error_details,
+  virtual void OnConnectionClosed(const QuicConnectionCloseFrame& frame,
                                   ConnectionCloseSource source) = 0;
 
   // Called when the connection failed to write because the socket was blocked.
