@@ -50,19 +50,6 @@ namespace {
 // Maximum number of consecutive sent nonretransmittable packets.
 const QuicPacketCount kMaxConsecutiveNonRetransmittablePackets = 19;
 
-// Maximum number of retransmittable packets received before sending an ack.
-const QuicPacketCount kDefaultRetransmittablePacketsBeforeAck = 2;
-// Minimum number of packets received before ack decimation is enabled.
-// This intends to avoid the beginning of slow start, when CWNDs may be
-// rapidly increasing.
-const QuicPacketCount kMinReceivedBeforeAckDecimation = 100;
-// Wait for up to 10 retransmittable packets before sending an ack.
-const QuicPacketCount kMaxRetransmittablePacketsBeforeAck = 10;
-// One quarter RTT delay when doing ack decimation.
-const float kAckDecimationDelay = 0.25;
-// One eighth RTT delay when doing ack decimation.
-const float kShortAckDecimationDelay = 0.125;
-
 // The minimum release time into future in ms.
 const int kMinReleaseTimeIntoFutureMs = 1;
 
