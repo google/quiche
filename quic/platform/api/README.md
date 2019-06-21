@@ -13,43 +13,48 @@ QUIC data types, such as QuicClock and QuicSleep.
 
     Most APIs are used by QUIC core to interact with platform infrastructure
     (i.e. QUIC_LOG) or to wrap around platform dependent data types (i.e.
-    QuicIntervalSet), the dependency is:
+    QuicThread), the dependency is:
 
-    ```dot
-    digraph {
-    application -> quic_core -> quic_platform_api -> quic_platform_impl -> platform_infrastructure
-    application -> platform_infrastructure
-    }
-    ```
+```
+application -> quic_core -> quic_platform_api
+      |                             |
+      v                             v
+platform_infrastructure <- quic_platform_impl
+```
 
 -   APIs used by applications:
 
     Some APIs are used by applications to interact with QUIC core (i.e.
     QuicMemSlice). For such APIs, their dependency model is:
 
-    ```dot
-    digraph {
-    application -> quic_platform_impl -> platform_infrastructure
-    application -> quic_core -> quic_platform_api
-    quic_platform_impl -> quic_platform_api
-    application -> platform_infrastructure
-    }
-    ```
+```
+application -> quic_core -> quic_platform_api
+    |                            ^
+    |                            |
+     -------------------> quic_platform_impl
+    |                            |
+    |                            v
+     -------------------> platform_infrastructure
+```
 
-    An example for such dependency is QuicClock.
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;An example for such dependency
+is QuicClock.
 
-    Or
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Or
 
-    ```dot
-    digraph {
-    application -> quic_platform_impl -> platform_infrastructure
-    application -> quic_core -> quic_platform_api -> quic_platform_impl
-    quic_platform_impl -> quic_platform_api
-    application -> platform_infrastructure
-    }
-    ```
+```
+application -> quic_core -> quic_platform_api
+    |                            ^
+    |                            |
+    |                            v
+     -------------------> quic_platform_impl
+    |                            |
+    |                            v
+     -------------------> platform_infrastructure
+```
 
-    An example for such dependency is QuicMemSlice.
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;An example for such dependency
+is QuicMemSlice.
 
 # Documentation of each API and its usage.
 
