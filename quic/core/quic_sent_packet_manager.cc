@@ -115,14 +115,10 @@ QuicSentPacketManager::QuicSentPacketManager(
           QuicTime::Delta::FromMilliseconds(kDefaultDelayedAckTimeMs)),
       rtt_updated_(false),
       acked_packets_iter_(last_ack_frame_.packets.rbegin()),
-      tolerate_reneging_(GetQuicReloadableFlag(quic_tolerate_reneging)),
       loss_removes_from_inflight_(
           GetQuicReloadableFlag(quic_loss_removes_from_inflight)),
       ignore_tlpr_if_no_pending_stream_data_(
           GetQuicReloadableFlag(quic_ignore_tlpr_if_no_pending_stream_data)) {
-  if (tolerate_reneging_) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_tolerate_reneging);
-  }
   if (loss_removes_from_inflight_) {
     QUIC_RELOADABLE_FLAG_COUNT(quic_loss_removes_from_inflight);
   }
@@ -1117,9 +1113,6 @@ void QuicSentPacketManager::OnAckFrameStart(QuicPacketNumber largest_acked,
   DCHECK_LE(largest_acked, unacked_packets_.largest_sent_packet());
   rtt_updated_ =
       MaybeUpdateRTT(largest_acked, ack_delay_time, ack_receive_time);
-  DCHECK(!unacked_packets_.largest_acked().IsInitialized() ||
-         largest_acked >= unacked_packets_.largest_acked() ||
-         tolerate_reneging_);
   last_ack_frame_.ack_delay_time = ack_delay_time;
   acked_packets_iter_ = last_ack_frame_.packets.rbegin();
 }

@@ -905,19 +905,6 @@ bool QuicConnection::OnAckFrameStart(QuicPacketNumber largest_acked,
   if (!GetLargestAckedPacket().IsInitialized() ||
       largest_acked > GetLargestAckedPacket()) {
     visitor_->OnForwardProgressConfirmed();
-  } else if (!sent_packet_manager_.tolerate_reneging() &&
-             largest_acked < GetLargestAckedPacket()) {
-    QUIC_LOG(INFO) << ENDPOINT << "Peer's largest_observed packet decreased:"
-                   << largest_acked << " vs " << GetLargestAckedPacket()
-                   << " packet_number:" << last_header_.packet_number
-                   << " largest seen with ack:"
-                   << GetLargestReceivedPacketWithAck()
-                   << " server_connection_id: " << server_connection_id_;
-    // A new ack has a diminished largest_observed value.
-    // If this was an old packet, we wouldn't even have checked.
-    CloseConnection(QUIC_INVALID_ACK_DATA, "Largest observed too low.",
-                    ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
-    return false;
   }
   processing_ack_frame_ = true;
   sent_packet_manager_.OnAckFrameStart(largest_acked, ack_delay_time,

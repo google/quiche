@@ -2632,9 +2632,6 @@ TEST_P(QuicSentPacketManagerTest, OnAckRangeSlowPath) {
 }
 
 TEST_P(QuicSentPacketManagerTest, TolerateReneging) {
-  if (!manager_.tolerate_reneging()) {
-    return;
-  }
   // Send packets 1 - 20.
   for (size_t i = 1; i <= 20; ++i) {
     SendDataPacket(i);
