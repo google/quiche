@@ -13,6 +13,7 @@ namespace test {
 
 namespace {
 using ::testing::_;
+using ::testing::AtLeast;
 using ::testing::StrictMock;
 
 struct TestParams {
@@ -151,6 +152,22 @@ TEST_P(QuicReceiveControlStreamTest, ReceiveWrongFrame) {
   QuicStreamFrame frame(receive_control_stream_->id(), false, 0,
                         QuicStringPiece(data));
   EXPECT_CALL(*connection_, CloseConnection(QUIC_HTTP_DECODER_ERROR, _, _));
+  receive_control_stream_->OnStreamFrame(frame);
+}
+
+TEST_P(QuicReceiveControlStreamTest, PushPromiseOnControlStreamShouldClose) {
+  PushPromiseFrame push_promise;
+  push_promise.push_id = 0x01;
+  push_promise.headers = "Headers";
+  std::unique_ptr<char[]> buffer;
+  HttpEncoder encoder;
+  uint64_t length =
+      encoder.SerializePushPromiseFrameWithOnlyPushId(push_promise, &buffer);
+  QuicStreamFrame frame(receive_control_stream_->id(), false, 0, buffer.get(),
+                        length);
+  // TODO(lassey) Check for HTTP_WRONG_STREAM error code.
+  EXPECT_CALL(*connection_, CloseConnection(QUIC_HTTP_DECODER_ERROR, _, _))
+      .Times(AtLeast(1));
   receive_control_stream_->OnStreamFrame(frame);
 }
 
