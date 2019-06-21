@@ -577,8 +577,10 @@ bool QuicSpdySession::ShouldKeepConnectionAlive() const {
 }
 
 bool QuicSpdySession::UsesPendingStreams() const {
-  DCHECK(VersionHasStreamType(connection()->transport_version()));
-  return true;
+  // QuicSpdySession supports PendingStreams, therefore this method should
+  // eventually just return true.  However, pending streams can only be used if
+  // unidirectional stream type is supported.
+  return VersionHasStreamType(connection()->transport_version());
 }
 
 size_t QuicSpdySession::WriteHeadersOnHeadersStreamImpl(

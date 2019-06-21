@@ -200,8 +200,7 @@ void QuicSession::OnStreamFrame(const QuicStreamFrame& frame) {
     return;
   }
 
-  if (VersionHasStreamType(connection()->transport_version()) &&
-      UsesPendingStreams() &&
+  if (UsesPendingStreams() &&
       QuicUtils::GetStreamType(stream_id, perspective(),
                                IsIncomingStream(stream_id)) ==
           READ_UNIDIRECTIONAL &&
@@ -370,8 +369,7 @@ void QuicSession::OnRstStream(const QuicRstStreamFrame& frame) {
     visitor_->OnRstStreamReceived(frame);
   }
 
-  if (VersionHasStreamType(connection()->transport_version()) &&
-      UsesPendingStreams() &&
+  if (UsesPendingStreams() &&
       QuicUtils::GetStreamType(stream_id, perspective(),
                                IsIncomingStream(stream_id)) ==
           READ_UNIDIRECTIONAL &&
