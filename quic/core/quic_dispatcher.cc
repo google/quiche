@@ -327,14 +327,27 @@ bool QuicDispatcher::MaybeDispatchPacket(
     QUIC_DLOG(INFO) << "Packet with short destination connection ID "
                     << server_connection_id << " expected "
                     << static_cast<int>(expected_server_connection_id_length_);
-    QuicPacketFate fate = kFateDrop;
     if (!GetQuicReloadableFlag(quic_drop_invalid_small_initial_connection_id)) {
-      fate = kFateTimeWait;
+      // Add this connection_id to the time-wait state, to safely reject
+      // future packets.
+      QUIC_DLOG(INFO) << "Adding connection ID " << server_connection_id
+                      << " to time-wait list.";
+      StatelesslyTerminateConnection(
+          server_connection_id, form, version_flag, version,
+          QUIC_HANDSHAKE_FAILED, "Reject connection",
+          quic::QuicTimeWaitListManager::SEND_STATELESS_RESET);
+
+      DCHECK(time_wait_list_manager_->IsConnectionIdInTimeWait(
+          server_connection_id));
+      time_wait_list_manager_->ProcessPacket(
+          current_self_address_, current_peer_address_, server_connection_id,
+          form, GetPerPacketContext());
+
+      buffered_packets_.DiscardPackets(server_connection_id);
     } else {
       QUIC_RELOADABLE_FLAG_COUNT(quic_drop_invalid_small_initial_connection_id);
+      // Drop the packet silently.
     }
-    ProcessUnauthenticatedHeaderFate(fate, server_connection_id, form,
-                                     version_flag, version);
     return true;
   }
 
@@ -403,48 +416,28 @@ void QuicDispatcher::ProcessHeader(PacketHeaderFormat form,
   // ProcessUnauthenticatedHeaderFate in one place.
   QuicPacketFate fate =
       ValidityChecks(version_flag, version, destination_connection_id);
-  if (fate == kFateProcess) {
-    if (version.handshake_protocol == PROTOCOL_TLS1_3) {
-      ProcessUnauthenticatedHeaderFate(kFateProcess, server_connection_id, form,
-                                       version_flag, version);
-      return;
-      // TODO(nharper): Support buffering non-ClientHello packets when using
-      // TLS.
-    }
-
-    ChloAlpnExtractor alpn_extractor;
-    if (GetQuicFlag(FLAGS_quic_allow_chlo_buffering) &&
-        !ChloExtractor::Extract(*current_packet_, GetSupportedVersions(),
-                                config_->create_session_tag_indicators(),
-                                &alpn_extractor,
-                                server_connection_id.length())) {
-      // Buffer non-CHLO packets.
-      ProcessUnauthenticatedHeaderFate(kFateBuffer, server_connection_id, form,
-                                       version_flag, version);
-      return;
-    }
-    current_alpn_ = alpn_extractor.ConsumeAlpn();
-    ProcessUnauthenticatedHeaderFate(kFateProcess, server_connection_id, form,
-                                     version_flag, version);
-    return;
-  }
-
-  // Fate is already known.
-  ProcessUnauthenticatedHeaderFate(fate, server_connection_id, form,
-                                   version_flag, version);
-}
-
-void QuicDispatcher::ProcessUnauthenticatedHeaderFate(
-    QuicPacketFate fate,
-    QuicConnectionId server_connection_id,
-    PacketHeaderFormat form,
-    bool version_flag,
-    ParsedQuicVersion version) {
+  ChloAlpnExtractor alpn_extractor;
   switch (fate) {
-    case kFateProcess: {
+    case kFateProcess:
+      if (version.handshake_protocol == PROTOCOL_TLS1_3) {
+        // TODO(nharper): Support buffering non-ClientHello packets when using
+        // TLS.
+        ProcessChlo(form, version);
+        break;
+      }
+      if (GetQuicFlag(FLAGS_quic_allow_chlo_buffering) &&
+          !ChloExtractor::Extract(*current_packet_, GetSupportedVersions(),
+                                  config_->create_session_tag_indicators(),
+                                  &alpn_extractor,
+                                  server_connection_id.length())) {
+        // Buffer non-CHLO packets.
+        BufferEarlyPacket(server_connection_id, form != GOOGLE_QUIC_PACKET,
+                          version);
+        break;
+      }
+      current_alpn_ = alpn_extractor.ConsumeAlpn();
       ProcessChlo(form, version);
       break;
-    }
     case kFateTimeWait:
       // Add this connection_id to the time-wait state, to safely reject
       // future packets.
@@ -463,16 +456,6 @@ void QuicDispatcher::ProcessUnauthenticatedHeaderFate(
           form, GetPerPacketContext());
 
       buffered_packets_.DiscardPackets(server_connection_id);
-      break;
-    case kFateBuffer:
-      // This packet is a non-CHLO packet which has arrived before the
-      // corresponding CHLO, *or* this packet was received while the
-      // corresponding CHLO was being processed.  Buffer it.
-      BufferEarlyPacket(server_connection_id, form != GOOGLE_QUIC_PACKET,
-                        version);
-      break;
-    case kFateDrop:
-      // Do nothing with the packet.
       break;
   }
 }

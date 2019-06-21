@@ -158,19 +158,12 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
                                    QuicConnectionId source_connection_id);
 
   // Values to be returned by ValidityChecks() to indicate what should be done
-  // with a packet.  Fates with greater values are considered to be higher
-  // priority, in that if one validity check indicates a lower-valued fate and
-  // another validity check indicates a higher-valued fate, the higher-valued
-  // fate should be obeyed.
+  // with a packet.
   enum QuicPacketFate {
     // Process the packet normally, which is usually to establish a connection.
     kFateProcess,
     // Put the connection ID into time-wait state and send a public reset.
     kFateTimeWait,
-    // Buffer the packet.
-    kFateBuffer,
-    // Drop the packet (ignore and give no response).
-    kFateDrop,
   };
 
   // This method is called by ProcessHeader on packets not associated with a
@@ -333,14 +326,6 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
   void DeliverPacketsToSession(
       const std::list<QuicBufferedPacketStore::BufferedPacket>& packets,
       QuicSession* session);
-
-  // Perform the appropriate actions on the current packet based on |fate| -
-  // either process, buffer, or drop it.
-  void ProcessUnauthenticatedHeaderFate(QuicPacketFate fate,
-                                        QuicConnectionId server_connection_id,
-                                        PacketHeaderFormat form,
-                                        bool version_flag,
-                                        ParsedQuicVersion version);
 
   // If the connection ID length is different from what the dispatcher expects,
   // replace the connection ID with a random one of the right length,
