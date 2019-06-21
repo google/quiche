@@ -1920,6 +1920,27 @@ TEST_P(QuicSpdyStreamIncrementalConsumptionTest, IncrementalConsumptionTest) {
               ElementsAre(Pair("custom-key", "custom-value")));
 }
 
+TEST_P(QuicSpdyStreamTest, PushPromiseOnDataStreamShouldClose) {
+  Initialize(kShouldProcessData);
+  if (!HasFrameHeader()) {
+    return;
+  }
+  PushPromiseFrame push_promise;
+  push_promise.push_id = 0x01;
+  push_promise.headers = "Headers";
+  std::unique_ptr<char[]> buffer;
+  HttpEncoder encoder;
+  uint64_t length =
+      encoder.SerializePushPromiseFrameWithOnlyPushId(push_promise, &buffer);
+  QuicStreamFrame frame(stream_->id(), false, 0, buffer.get(), length);
+  // TODO(lassey): Check for HTTP_WRONG_STREAM error code.
+  EXPECT_CALL(*connection_, CloseConnection(QUIC_HTTP_DECODER_ERROR, _, _));
+  stream_->OnStreamHeadersPriority(kV3HighestPriority);
+  ProcessHeaders(false, headers_);
+  stream_->ConsumeHeaderList();
+  stream_->OnStreamFrame(frame);
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic
