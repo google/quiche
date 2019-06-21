@@ -35,6 +35,7 @@ std::ostream& operator<<(std::ostream& os,
                          const QuicRstStreamFrame& rst_frame) {
   os << "{ control_frame_id: " << rst_frame.control_frame_id
      << ", stream_id: " << rst_frame.stream_id
+     << ", byte_offset: " << rst_frame.byte_offset
      << ", error_code: " << rst_frame.error_code << " }\n";
   return os;
 }
