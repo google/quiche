@@ -7,8 +7,8 @@
 
 #include <string>
 
-#include "net/third_party/quiche/src/quic/core/proto/cached_network_parameters.pb.h"
-#include "net/third_party/quiche/src/quic/core/proto/source_address_token.pb.h"
+#include "net/third_party/quiche/src/quic/core/proto/cached_network_parameters_proto.h"
+#include "net/third_party/quiche/src/quic/core/proto/source_address_token_proto.h"
 #include "net/third_party/quiche/src/quic/core/quic_crypto_handshaker.h"
 #include "net/third_party/quiche/src/quic/core/quic_crypto_server_stream.h"
 #include "net/third_party/quiche/src/quic/core/quic_session.h"

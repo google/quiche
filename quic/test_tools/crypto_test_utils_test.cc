@@ -4,7 +4,7 @@
 
 #include "net/third_party/quiche/src/quic/test_tools/crypto_test_utils.h"
 
-#include "net/third_party/quiche/src/quic/core/proto/crypto_server_config.pb.h"
+#include "net/third_party/quiche/src/quic/core/proto/crypto_server_config_proto.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"

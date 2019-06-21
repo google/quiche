@@ -10,7 +10,7 @@
 #include "net/third_party/quiche/src/quic/core/congestion_control/general_loss_algorithm.h"
 #include "net/third_party/quiche/src/quic/core/congestion_control/pacing_sender.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
-#include "net/third_party/quiche/src/quic/core/proto/cached_network_parameters.pb.h"
+#include "net/third_party/quiche/src/quic/core/proto/cached_network_parameters_proto.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection_stats.h"
 #include "net/third_party/quiche/src/quic/core/quic_pending_retransmission.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
