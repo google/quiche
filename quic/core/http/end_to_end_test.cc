@@ -2293,14 +2293,8 @@ TEST_P(EndToEndTest, AckNotifierWithPacketLossAndBlockedSocket) {
     NoopQpackStreamSenderDelegate encoder_stream_sender_delegate;
     QpackEncoder qpack_encoder(&decoder_stream_error_delegate,
                                &encoder_stream_sender_delegate);
-    auto progressive_encoder =
+    std::string encoded_headers =
         qpack_encoder.EncodeHeaderList(/* stream_id = */ 0, &headers);
-    std::string encoded_headers;
-    while (progressive_encoder->HasNext()) {
-      progressive_encoder->Next(
-          /* max_encoded_bytes = */ std::numeric_limits<size_t>::max(),
-          &encoded_headers);
-    }
     header_size = encoded_headers.size();
   }
 

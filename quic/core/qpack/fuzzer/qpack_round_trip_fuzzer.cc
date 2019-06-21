@@ -128,9 +128,10 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   // Encode header list.
   NoopDecoderStreamErrorDelegate decoder_stream_error_delegate;
   NoopQpackStreamSenderDelegate encoder_stream_sender_delegate;
-  std::string encoded_header_block = QpackEncode(
-      &decoder_stream_error_delegate, &encoder_stream_sender_delegate,
-      fragment_size_generator, &header_list);
+  QpackEncoder encoder(&decoder_stream_error_delegate,
+                       &encoder_stream_sender_delegate);
+  std::string encoded_header_block =
+      encoder.EncodeHeaderList(/* stream_id = */ 1, &header_list);
 
   // Decode header block.
   TestHeadersHandler handler;

@@ -863,14 +863,8 @@ size_t QuicSpdyStream::WriteHeadersImpl(
   }
 
   // Encode header list.
-  auto progressive_encoder = spdy_session_->qpack_encoder()->EncodeHeaderList(
-      /* stream_id = */ id(), &header_block);
-  std::string encoded_headers;
-  while (progressive_encoder->HasNext()) {
-    progressive_encoder->Next(
-        /* max_encoded_bytes = */ std::numeric_limits<size_t>::max(),
-        &encoded_headers);
-  }
+  std::string encoded_headers =
+      spdy_session_->qpack_encoder()->EncodeHeaderList(id(), &header_block);
 
   // Write HEADERS frame.
   std::unique_ptr<char[]> headers_frame_header;

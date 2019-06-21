@@ -20,37 +20,29 @@ namespace quic {
 namespace test {
 namespace {
 
-class QpackEncoderTest : public QuicTestWithParam<FragmentMode> {
+class QpackEncoderTest : public QuicTest {
  protected:
-  QpackEncoderTest() : fragment_mode_(GetParam()) {}
+  QpackEncoderTest() = default;
   ~QpackEncoderTest() override = default;
 
   std::string Encode(const spdy::SpdyHeaderBlock* header_list) {
-    return QpackEncode(
-        &decoder_stream_error_delegate_, &encoder_stream_sender_delegate_,
-        FragmentModeToFragmentSizeGenerator(fragment_mode_), header_list);
+    QpackEncoder encoder(&decoder_stream_error_delegate_,
+                         &encoder_stream_sender_delegate_);
+    return encoder.EncodeHeaderList(/* stream_id = */ 1, header_list);
   }
 
   StrictMock<MockDecoderStreamErrorDelegate> decoder_stream_error_delegate_;
   NoopQpackStreamSenderDelegate encoder_stream_sender_delegate_;
-
- private:
-  const FragmentMode fragment_mode_;
 };
 
-INSTANTIATE_TEST_SUITE_P(,
-                         QpackEncoderTest,
-                         Values(FragmentMode::kSingleChunk,
-                                FragmentMode::kOctetByOctet));
-
-TEST_P(QpackEncoderTest, Empty) {
+TEST_F(QpackEncoderTest, Empty) {
   spdy::SpdyHeaderBlock header_list;
   std::string output = Encode(&header_list);
 
   EXPECT_EQ(QuicTextUtils::HexDecode("0000"), output);
 }
 
-TEST_P(QpackEncoderTest, EmptyName) {
+TEST_F(QpackEncoderTest, EmptyName) {
   spdy::SpdyHeaderBlock header_list;
   header_list[""] = "foo";
   std::string output = Encode(&header_list);
@@ -58,7 +50,7 @@ TEST_P(QpackEncoderTest, EmptyName) {
   EXPECT_EQ(QuicTextUtils::HexDecode("0000208294e7"), output);
 }
 
-TEST_P(QpackEncoderTest, EmptyValue) {
+TEST_F(QpackEncoderTest, EmptyValue) {
   spdy::SpdyHeaderBlock header_list;
   header_list["foo"] = "";
   std::string output = Encode(&header_list);
@@ -66,7 +58,7 @@ TEST_P(QpackEncoderTest, EmptyValue) {
   EXPECT_EQ(QuicTextUtils::HexDecode("00002a94e700"), output);
 }
 
-TEST_P(QpackEncoderTest, EmptyNameAndValue) {
+TEST_F(QpackEncoderTest, EmptyNameAndValue) {
   spdy::SpdyHeaderBlock header_list;
   header_list[""] = "";
   std::string output = Encode(&header_list);
@@ -74,7 +66,7 @@ TEST_P(QpackEncoderTest, EmptyNameAndValue) {
   EXPECT_EQ(QuicTextUtils::HexDecode("00002000"), output);
 }
 
-TEST_P(QpackEncoderTest, Simple) {
+TEST_F(QpackEncoderTest, Simple) {
   spdy::SpdyHeaderBlock header_list;
   header_list["foo"] = "bar";
   std::string output = Encode(&header_list);
@@ -82,7 +74,7 @@ TEST_P(QpackEncoderTest, Simple) {
   EXPECT_EQ(QuicTextUtils::HexDecode("00002a94e703626172"), output);
 }
 
-TEST_P(QpackEncoderTest, Multiple) {
+TEST_F(QpackEncoderTest, Multiple) {
   spdy::SpdyHeaderBlock header_list;
   header_list["foo"] = "bar";
   // 'Z' would be Huffman encoded to 8 bits, so no Huffman encoding is used.
@@ -104,7 +96,7 @@ TEST_P(QpackEncoderTest, Multiple) {
       output);
 }
 
-TEST_P(QpackEncoderTest, StaticTable) {
+TEST_F(QpackEncoderTest, StaticTable) {
   {
     spdy::SpdyHeaderBlock header_list;
     header_list[":method"] = "GET";
@@ -134,26 +126,7 @@ TEST_P(QpackEncoderTest, StaticTable) {
   }
 }
 
-TEST_P(QpackEncoderTest, SimpleIndexed) {
-  spdy::SpdyHeaderBlock header_list;
-  header_list[":path"] = "/";
-
-  QpackEncoder encoder(&decoder_stream_error_delegate_,
-                       &encoder_stream_sender_delegate_);
-  auto progressive_encoder =
-      encoder.EncodeHeaderList(/* stream_id = */ 1, &header_list);
-  EXPECT_TRUE(progressive_encoder->HasNext());
-
-  // This indexed header field takes exactly three bytes:
-  // two for the prefix, one for the indexed static entry.
-  std::string output;
-  progressive_encoder->Next(3, &output);
-
-  EXPECT_EQ(QuicTextUtils::HexDecode("0000c1"), output);
-  EXPECT_FALSE(progressive_encoder->HasNext());
-}
-
-TEST_P(QpackEncoderTest, DecoderStreamError) {
+TEST_F(QpackEncoderTest, DecoderStreamError) {
   EXPECT_CALL(decoder_stream_error_delegate_,
               OnDecoderStreamError(Eq("Encoded integer too large.")));
 
@@ -163,7 +136,7 @@ TEST_P(QpackEncoderTest, DecoderStreamError) {
       QuicTextUtils::HexDecode("ffffffffffffffffffffff"));
 }
 
-TEST_P(QpackEncoderTest, SplitAlongNullCharacter) {
+TEST_F(QpackEncoderTest, SplitAlongNullCharacter) {
   spdy::SpdyHeaderBlock header_list;
   header_list["foo"] = QuicStringPiece("bar\0bar\0baz", 11);
   std::string output = Encode(&header_list);

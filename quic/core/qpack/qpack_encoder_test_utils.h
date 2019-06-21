@@ -34,12 +34,6 @@ class MockDecoderStreamErrorDelegate
   MOCK_METHOD1(OnDecoderStreamError, void(QuicStringPiece error_message));
 };
 
-std::string QpackEncode(
-    QpackEncoder::DecoderStreamErrorDelegate* decoder_stream_error_delegate,
-    QpackStreamSenderDelegate* encoder_stream_sender_delegate,
-    const FragmentSizeGenerator& fragment_size_generator,
-    const spdy::SpdyHeaderBlock* header_list);
-
 }  // namespace test
 }  // namespace quic
 

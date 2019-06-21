@@ -24,11 +24,18 @@ QpackEncoder::QpackEncoder(
 
 QpackEncoder::~QpackEncoder() {}
 
-std::unique_ptr<spdy::HpackEncoder::ProgressiveEncoder>
-QpackEncoder::EncodeHeaderList(QuicStreamId stream_id,
-                               const spdy::SpdyHeaderBlock* header_list) {
-  return QuicMakeUnique<QpackProgressiveEncoder>(
+std::string QpackEncoder::EncodeHeaderList(
+    QuicStreamId stream_id,
+    const spdy::SpdyHeaderBlock* header_list) {
+  std::string encoded_headers;
+  auto progressive_encoder = QuicMakeUnique<QpackProgressiveEncoder>(
       stream_id, &header_table_, &encoder_stream_sender_, header_list);
+  while (progressive_encoder->HasNext()) {
+    progressive_encoder->Next(
+        /* max_encoded_bytes = */ std::numeric_limits<size_t>::max(),
+        &encoded_headers);
+  }
+  return encoded_headers;
 }
 
 void QpackEncoder::DecodeDecoderStreamData(QuicStringPiece data) {

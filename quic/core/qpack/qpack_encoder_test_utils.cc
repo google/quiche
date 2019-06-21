@@ -12,23 +12,5 @@ namespace test {
 void NoopDecoderStreamErrorDelegate::OnDecoderStreamError(
     QuicStringPiece /*error_message*/) {}
 
-std::string QpackEncode(
-    QpackEncoder::DecoderStreamErrorDelegate* decoder_stream_error_delegate,
-    QpackStreamSenderDelegate* encoder_stream_sender_delegate,
-    const FragmentSizeGenerator& fragment_size_generator,
-    const spdy::SpdyHeaderBlock* header_list) {
-  QpackEncoder encoder(decoder_stream_error_delegate,
-                       encoder_stream_sender_delegate);
-  auto progressive_encoder =
-      encoder.EncodeHeaderList(/* stream_id = */ 1, header_list);
-
-  std::string output;
-  while (progressive_encoder->HasNext()) {
-    progressive_encoder->Next(fragment_size_generator(), &output);
-  }
-
-  return output;
-}
-
 }  // namespace test
 }  // namespace quic

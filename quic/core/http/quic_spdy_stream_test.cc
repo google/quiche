@@ -162,13 +162,7 @@ class QuicSpdyStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
     NoopQpackStreamSenderDelegate encoder_stream_sender_delegate;
     auto qpack_encoder = QuicMakeUnique<QpackEncoder>(
         session_.get(), &encoder_stream_sender_delegate);
-    auto progressive_encoder = qpack_encoder->EncodeHeaderList(id, header);
-    std::string encoded_headers;
-    while (progressive_encoder->HasNext()) {
-      progressive_encoder->Next(std::numeric_limits<size_t>::max(),
-                                &encoded_headers);
-    }
-    return encoded_headers;
+    return qpack_encoder->EncodeHeaderList(id, header);
   }
 
   void Initialize(bool stream_should_process_data) {
