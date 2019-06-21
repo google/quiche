@@ -7,7 +7,6 @@
 #include <string>
 
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_encoder_test_utils.h"
-#include "net/third_party/quiche/src/quic/core/qpack/qpack_test_utils.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
