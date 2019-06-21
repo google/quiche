@@ -1513,7 +1513,7 @@ bool QuicFramer::ProcessPacket(const QuicEncryptedPacket& packet) {
 
   if (header.version_flag && header.version != version_) {
     if (perspective_ == Perspective::IS_SERVER) {
-      if (!visitor_->OnProtocolVersionMismatch(header.version, header.form)) {
+      if (!visitor_->OnProtocolVersionMismatch(header.version)) {
         RecordDroppedPacketReason(DroppedPacketReason::VERSION_MISMATCH);
         return true;
       }

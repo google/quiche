@@ -464,8 +464,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // From QuicFramerVisitorInterface
   void OnError(QuicFramer* framer) override;
-  bool OnProtocolVersionMismatch(ParsedQuicVersion received_version,
-                                 PacketHeaderFormat form) override;
+  bool OnProtocolVersionMismatch(ParsedQuicVersion received_version) override;
   void OnPacket() override;
   void OnPublicResetPacket(const QuicPublicResetPacket& packet) override;
   void OnVersionNegotiationPacket(
@@ -1310,21 +1309,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // to send packets.
   QuicSentPacketManager sent_packet_manager_;
 
-  // The state of connection in version negotiation finite state machine.
-  enum QuicVersionNegotiationState {
-    START_NEGOTIATION = 0,
-    // Server-side this implies we've sent a version negotiation packet and are
-    // waiting on the client to select a compatible version.  Client-side this
-    // implies we've gotten a version negotiation packet, are retransmitting the
-    // initial packets with a supported version and are waiting for our first
-    // packet from the server.
-    NEGOTIATION_IN_PROGRESS,
-    // This indicates this endpoint has received a packet from the peer with a
-    // version this endpoint supports.  Version negotiation is complete, and the
-    // version number will no longer be sent with future packets.
-    NEGOTIATED_VERSION
-  };
-  QuicVersionNegotiationState version_negotiation_state_;
+  // Indicates whether connection version has been negotiated.
+  bool version_negotiated_;
 
   // Tracks if the connection was created by the server or the client.
   Perspective perspective_;
@@ -1417,11 +1403,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // Time this connection can release packets into the future.
   QuicTime::Delta release_time_into_future_;
-
-  // Indicates whether server connection does version negotiation. Server
-  // connection does not support version negotiation if a single version is
-  // provided in constructor.
-  const bool no_version_negotiation_;
 
   // Payload of most recently transmitted IETF QUIC connectivity
   // probe packet (the PATH_CHALLENGE payload). This implementation transmits

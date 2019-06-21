@@ -241,8 +241,7 @@ class MockFramerVisitor : public QuicFramerVisitorInterface {
 
   MOCK_METHOD1(OnError, void(QuicFramer* framer));
   // The constructor sets this up to return false by default.
-  MOCK_METHOD2(OnProtocolVersionMismatch,
-               bool(ParsedQuicVersion version, PacketHeaderFormat form));
+  MOCK_METHOD1(OnProtocolVersionMismatch, bool(ParsedQuicVersion version));
   MOCK_METHOD0(OnPacket, void());
   MOCK_METHOD1(OnPublicResetPacket, void(const QuicPublicResetPacket& header));
   MOCK_METHOD1(OnVersionNegotiationPacket,
@@ -306,8 +305,7 @@ class NoOpFramerVisitor : public QuicFramerVisitorInterface {
   void OnRetryPacket(QuicConnectionId /*original_connection_id*/,
                      QuicConnectionId /*new_connection_id*/,
                      QuicStringPiece /*retry_token*/) override {}
-  bool OnProtocolVersionMismatch(ParsedQuicVersion version,
-                                 PacketHeaderFormat form) override;
+  bool OnProtocolVersionMismatch(ParsedQuicVersion version) override;
   bool OnUnauthenticatedHeader(const QuicPacketHeader& header) override;
   bool OnUnauthenticatedPublicHeader(const QuicPacketHeader& header) override;
   void OnDecryptedPacket(EncryptionLevel /*level*/) override {}
@@ -530,8 +528,7 @@ class MockQuicConnection : public QuicConnection {
     QuicConnection::ProcessUdpPacket(self_address, peer_address, packet);
   }
 
-  bool OnProtocolVersionMismatch(ParsedQuicVersion version,
-                                 PacketHeaderFormat form) override;
+  bool OnProtocolVersionMismatch(ParsedQuicVersion version) override;
 
   bool ReallySendControlFrame(const QuicFrame& frame) {
     return QuicConnection::SendControlFrame(frame);

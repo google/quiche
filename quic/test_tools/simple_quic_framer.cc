@@ -24,8 +24,7 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
 
   void OnError(QuicFramer* framer) override { error_ = framer->error(); }
 
-  bool OnProtocolVersionMismatch(ParsedQuicVersion /*version*/,
-                                 PacketHeaderFormat /*form*/) override {
+  bool OnProtocolVersionMismatch(ParsedQuicVersion /*version*/) override {
     return false;
   }
 

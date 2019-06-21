@@ -100,8 +100,8 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
                      QuicConnectionId /*new_connection_id*/,
                      QuicStringPiece /*retry_token*/) override {}
 
-  bool OnProtocolVersionMismatch(ParsedQuicVersion /*received_version*/,
-                                 PacketHeaderFormat /*form*/) override {
+  bool OnProtocolVersionMismatch(
+      ParsedQuicVersion /*received_version*/) override {
     return true;
   }
 

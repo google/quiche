@@ -304,7 +304,7 @@ void QuicConnectionPeer::SetSessionDecidesWhatToWrite(
 
 // static
 void QuicConnectionPeer::SetNegotiatedVersion(QuicConnection* connection) {
-  connection->version_negotiation_state_ = QuicConnection::NEGOTIATED_VERSION;
+  connection->version_negotiated_ = true;
 }
 
 // static
@@ -313,13 +313,6 @@ void QuicConnectionPeer::SetMaxConsecutiveNumPacketsWithNoRetransmittableFrames(
     size_t new_value) {
   connection->max_consecutive_num_packets_with_no_retransmittable_frames_ =
       new_value;
-}
-
-// static
-void QuicConnectionPeer::SetNoVersionNegotiation(QuicConnection* connection,
-                                                 bool no_version_negotiation) {
-  *const_cast<bool*>(&connection->no_version_negotiation_) =
-      no_version_negotiation;
 }
 
 // static

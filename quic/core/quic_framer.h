@@ -76,8 +76,8 @@ class QUIC_EXPORT_PRIVATE QuicFramerVisitorInterface {
   // |quic_version_|. The visitor should return true after it updates the
   // version of the |framer_| to |received_version| or false to stop processing
   // this packet.
-  virtual bool OnProtocolVersionMismatch(ParsedQuicVersion received_version,
-                                         PacketHeaderFormat form) = 0;
+  virtual bool OnProtocolVersionMismatch(
+      ParsedQuicVersion received_version) = 0;
 
   // Called when a new packet has been received, before it
   // has been validated or processed.

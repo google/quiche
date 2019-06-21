@@ -31,8 +31,7 @@ class ChloFramerVisitor : public QuicFramerVisitorInterface,
 
   // QuicFramerVisitorInterface implementation
   void OnError(QuicFramer* /*framer*/) override {}
-  bool OnProtocolVersionMismatch(ParsedQuicVersion version,
-                                 PacketHeaderFormat form) override;
+  bool OnProtocolVersionMismatch(ParsedQuicVersion version) override;
   void OnPacket() override {}
   void OnPublicResetPacket(const QuicPublicResetPacket& /*packet*/) override {}
   void OnVersionNegotiationPacket(
@@ -106,8 +105,7 @@ ChloFramerVisitor::ChloFramerVisitor(
       chlo_contains_tags_(false),
       connection_id_(EmptyQuicConnectionId()) {}
 
-bool ChloFramerVisitor::OnProtocolVersionMismatch(ParsedQuicVersion version,
-                                                  PacketHeaderFormat /*form*/) {
+bool ChloFramerVisitor::OnProtocolVersionMismatch(ParsedQuicVersion version) {
   if (!framer_->IsSupportedVersion(version)) {
     return false;
   }

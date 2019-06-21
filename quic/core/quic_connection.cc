@@ -298,7 +298,7 @@ QuicConnection::QuicConnection(
           &stats_,
           GetQuicReloadableFlag(quic_default_to_bbr) ? kBBR : kCubicBytes,
           kNack),
-      version_negotiation_state_(START_NEGOTIATION),
+      version_negotiated_(false),
       perspective_(perspective),
       connected_(true),
       can_truncate_connection_ids_(perspective == Perspective::IS_SERVER),
@@ -322,12 +322,7 @@ QuicConnection::QuicConnection(
       processing_ack_frame_(false),
       supports_release_time_(false),
       release_time_into_future_(QuicTime::Delta::Zero()),
-      no_version_negotiation_(supported_versions.size() == 1),
       retry_has_been_parsed_(false) {
-  if (perspective_ == Perspective::IS_SERVER &&
-      supported_versions.size() == 1) {
-    QUIC_RESTART_FLAG_COUNT(quic_no_server_conn_ver_negotiation2);
-  }
   QUIC_DLOG(INFO) << ENDPOINT << "Created connection with server connection ID "
                   << server_connection_id
                   << " and version: " << ParsedQuicVersionToString(version());
@@ -356,8 +351,7 @@ QuicConnection::QuicConnection(
   uber_received_packet_manager_.set_max_ack_ranges(255);
   MaybeEnableSessionDecidesWhatToWrite();
   MaybeEnableMultiplePacketNumberSpacesSupport();
-  DCHECK(!GetQuicRestartFlag(quic_no_server_conn_ver_negotiation2) ||
-         perspective_ == Perspective::IS_CLIENT ||
+  DCHECK(perspective_ == Perspective::IS_CLIENT ||
          supported_versions.size() == 1);
   InstallInitialCrypters();
 }
@@ -537,8 +531,7 @@ void QuicConnection::OnPublicResetPacket(const QuicPublicResetPacket& packet) {
 }
 
 bool QuicConnection::OnProtocolVersionMismatch(
-    ParsedQuicVersion received_version,
-    PacketHeaderFormat form) {
+    ParsedQuicVersion received_version) {
   QUIC_DLOG(INFO) << ENDPOINT << "Received packet with mismatched version "
                   << ParsedQuicVersionToString(received_version);
   if (perspective_ == Perspective::IS_CLIENT) {
@@ -546,64 +539,11 @@ bool QuicConnection::OnProtocolVersionMismatch(
     QUIC_BUG << ENDPOINT << error_details;
     CloseConnection(QUIC_INTERNAL_ERROR, error_details,
                     ConnectionCloseBehavior::SILENT_CLOSE);
-    return false;
-  }
-  if (no_version_negotiation_) {
-    // Drop old packets that were sent by the client before the version was
-    // negotiated.
-    return false;
-  }
-  DCHECK_NE(version(), received_version);
-
-  if (debug_visitor_ != nullptr) {
-    debug_visitor_->OnProtocolVersionMismatch(received_version);
   }
 
-  switch (version_negotiation_state_) {
-    case START_NEGOTIATION:
-      if (!framer_.IsSupportedVersion(received_version)) {
-        SendVersionNegotiationPacket(form != GOOGLE_QUIC_PACKET);
-        version_negotiation_state_ = NEGOTIATION_IN_PROGRESS;
-        return false;
-      }
-      break;
-
-    case NEGOTIATION_IN_PROGRESS:
-      if (!framer_.IsSupportedVersion(received_version)) {
-        SendVersionNegotiationPacket(form != GOOGLE_QUIC_PACKET);
-        return false;
-      }
-      break;
-
-    case NEGOTIATED_VERSION:
-      // Might be old packets that were sent by the client before the version
-      // was negotiated. Drop these.
-      return false;
-
-    default:
-      DCHECK(false);
-  }
-
-  // Store the new version.
-  framer_.set_version(received_version);
-  framer_.InferPacketHeaderTypeFromVersion();
-
-  version_negotiation_state_ = NEGOTIATED_VERSION;
-  visitor_->OnSuccessfulVersionNegotiation(received_version);
-  if (debug_visitor_ != nullptr) {
-    debug_visitor_->OnSuccessfulVersionNegotiation(received_version);
-  }
-  QUIC_DLOG(INFO) << ENDPOINT << "version negotiated "
-                  << ParsedQuicVersionToString(received_version);
-
-  MaybeEnableSessionDecidesWhatToWrite();
-  no_stop_waiting_frames_ =
-      VersionHasIetfInvariantHeader(received_version.transport_version);
-
-  // TODO(satyamshekhar): Store the packet number of this packet and close the
-  // connection if we ever received a packet with incorrect version and whose
-  // packet number is greater.
-  return true;
+  // Server drops old packets that were sent by the client before the version
+  // was negotiated.
+  return false;
 }
 
 // Handles version negotiation for client connection.
@@ -626,7 +566,7 @@ void QuicConnection::OnVersionNegotiationPacket(
     debug_visitor_->OnVersionNegotiationPacket(packet);
   }
 
-  if (version_negotiation_state_ != START_NEGOTIATION) {
+  if (version_negotiated_) {
     // Possibly a duplicate version negotiation packet.
     return;
   }
@@ -781,8 +721,7 @@ bool QuicConnection::OnUnauthenticatedHeader(const QuicPacketHeader& header) {
     return false;
   }
 
-  if (version_negotiation_state_ != NEGOTIATED_VERSION &&
-      perspective_ == Perspective::IS_SERVER) {
+  if (!version_negotiated_ && perspective_ == Perspective::IS_SERVER) {
     if (!header.version_flag) {
       // Packets should have the version flag till version negotiation is
       // done.
@@ -795,14 +734,14 @@ bool QuicConnection::OnUnauthenticatedHeader(const QuicPacketHeader& header) {
       return false;
     } else {
       DCHECK_EQ(header.version, version());
-      version_negotiation_state_ = NEGOTIATED_VERSION;
+      version_negotiated_ = true;
       framer_.InferPacketHeaderTypeFromVersion();
       visitor_->OnSuccessfulVersionNegotiation(version());
       if (debug_visitor_ != nullptr) {
         debug_visitor_->OnSuccessfulVersionNegotiation(version());
       }
     }
-    DCHECK_EQ(NEGOTIATED_VERSION, version_negotiation_state_);
+    DCHECK(version_negotiated_);
   }
 
   return true;
@@ -1894,7 +1833,7 @@ bool QuicConnection::ProcessValidatedPacket(const QuicPacketHeader& header) {
     return false;
   }
 
-  if (version_negotiation_state_ != NEGOTIATED_VERSION) {
+  if (!version_negotiated_) {
     if (perspective_ == Perspective::IS_CLIENT) {
       DCHECK(!header.version_flag || header.form != GOOGLE_QUIC_PACKET);
       if (!VersionHasIetfInvariantHeader(framer_.transport_version())) {
@@ -1904,7 +1843,7 @@ bool QuicConnection::ProcessValidatedPacket(const QuicPacketHeader& header) {
         // forward secure.
         packet_generator_.StopSendingVersion();
       }
-      version_negotiation_state_ = NEGOTIATED_VERSION;
+      version_negotiated_ = true;
       visitor_->OnSuccessfulVersionNegotiation(version());
       if (debug_visitor_ != nullptr) {
         debug_visitor_->OnSuccessfulVersionNegotiation(version());

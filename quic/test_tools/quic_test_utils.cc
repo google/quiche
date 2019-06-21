@@ -192,7 +192,7 @@ void SimpleRandom::set_seed(uint64_t seed) {
 
 MockFramerVisitor::MockFramerVisitor() {
   // By default, we want to accept packets.
-  ON_CALL(*this, OnProtocolVersionMismatch(_, _))
+  ON_CALL(*this, OnProtocolVersionMismatch(_))
       .WillByDefault(testing::Return(false));
 
   // By default, we want to accept packets.
@@ -232,8 +232,8 @@ MockFramerVisitor::MockFramerVisitor() {
 
 MockFramerVisitor::~MockFramerVisitor() {}
 
-bool NoOpFramerVisitor::OnProtocolVersionMismatch(ParsedQuicVersion /*version*/,
-                                                  PacketHeaderFormat /*form*/) {
+bool NoOpFramerVisitor::OnProtocolVersionMismatch(
+    ParsedQuicVersion /*version*/) {
   return false;
 }
 
@@ -479,8 +479,7 @@ void MockQuicConnection::AdvanceTime(QuicTime::Delta delta) {
 }
 
 bool MockQuicConnection::OnProtocolVersionMismatch(
-    ParsedQuicVersion /*version*/,
-    PacketHeaderFormat /*form*/) {
+    ParsedQuicVersion /*version*/) {
   return false;
 }
 

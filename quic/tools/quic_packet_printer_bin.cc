@@ -48,8 +48,7 @@ class QuicPacketPrinter : public QuicFramerVisitorInterface {
     std::cerr << "OnError: " << QuicErrorCodeToString(framer->error())
               << " detail: " << framer->detailed_error() << "\n";
   }
-  bool OnProtocolVersionMismatch(ParsedQuicVersion received_version,
-                                 PacketHeaderFormat /*form*/) override {
+  bool OnProtocolVersionMismatch(ParsedQuicVersion received_version) override {
     framer_->set_version(received_version);
     std::cerr << "OnProtocolVersionMismatch: "
               << ParsedQuicVersionToString(received_version) << "\n";

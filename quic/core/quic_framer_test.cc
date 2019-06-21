@@ -213,8 +213,7 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
     retry_token_ = QuicMakeUnique<std::string>(std::string(retry_token));
   }
 
-  bool OnProtocolVersionMismatch(ParsedQuicVersion received_version,
-                                 PacketHeaderFormat /*form*/) override {
+  bool OnProtocolVersionMismatch(ParsedQuicVersion received_version) override {
     QUIC_DLOG(INFO) << "QuicFramer Version Mismatch, version: "
                     << received_version;
     ++version_mismatch_;

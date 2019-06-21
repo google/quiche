@@ -215,7 +215,6 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
         override_client_connection_id_(nullptr),
         expected_server_connection_id_length_(kQuicDefaultConnectionIdLength) {
     SetQuicFlag(FLAGS_quic_supports_tls_handshake, true);
-    SetQuicRestartFlag(quic_no_server_conn_ver_negotiation2, true);
     client_supported_versions_ = GetParam().client_supported_versions;
     server_supported_versions_ = GetParam().server_supported_versions;
     negotiated_version_ = GetParam().negotiated_version;

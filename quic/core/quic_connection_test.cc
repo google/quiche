@@ -743,7 +743,6 @@ class TestConnection : public QuicConnection {
 
   void SetSupportedVersions(const ParsedQuicVersionVector& versions) {
     QuicConnectionPeer::GetFramer(this)->SetSupportedVersions(versions);
-    QuicConnectionPeer::SetNoVersionNegotiation(this, versions.size() == 1);
     writer()->SetSupportedVersions(versions);
   }
 
