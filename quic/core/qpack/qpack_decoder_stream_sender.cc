@@ -22,13 +22,8 @@ QpackDecoderStreamSender::QpackDecoderStreamSender(
 void QpackDecoderStreamSender::SendInsertCountIncrement(uint64_t increment) {
   instruction_encoder_.set_varint(increment);
 
-  instruction_encoder_.Encode(InsertCountIncrementInstruction());
-
   std::string output;
-
-  instruction_encoder_.Next(std::numeric_limits<size_t>::max(), &output);
-  DCHECK(!instruction_encoder_.HasNext());
-
+  instruction_encoder_.Encode(InsertCountIncrementInstruction(), &output);
   delegate_->WriteStreamData(output);
 }
 
@@ -36,26 +31,16 @@ void QpackDecoderStreamSender::SendHeaderAcknowledgement(
     QuicStreamId stream_id) {
   instruction_encoder_.set_varint(stream_id);
 
-  instruction_encoder_.Encode(HeaderAcknowledgementInstruction());
-
   std::string output;
-
-  instruction_encoder_.Next(std::numeric_limits<size_t>::max(), &output);
-  DCHECK(!instruction_encoder_.HasNext());
-
+  instruction_encoder_.Encode(HeaderAcknowledgementInstruction(), &output);
   delegate_->WriteStreamData(output);
 }
 
 void QpackDecoderStreamSender::SendStreamCancellation(QuicStreamId stream_id) {
   instruction_encoder_.set_varint(stream_id);
 
-  instruction_encoder_.Encode(StreamCancellationInstruction());
-
   std::string output;
-
-  instruction_encoder_.Next(std::numeric_limits<size_t>::max(), &output);
-  DCHECK(!instruction_encoder_.HasNext());
-
+  instruction_encoder_.Encode(StreamCancellationInstruction(), &output);
   delegate_->WriteStreamData(output);
 }
 

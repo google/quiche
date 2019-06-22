@@ -27,13 +27,8 @@ void QpackEncoderStreamSender::SendInsertWithNameReference(
   instruction_encoder_.set_varint(name_index);
   instruction_encoder_.set_value(value);
 
-  instruction_encoder_.Encode(InsertWithNameReferenceInstruction());
-
   std::string output;
-
-  instruction_encoder_.Next(std::numeric_limits<size_t>::max(), &output);
-  DCHECK(!instruction_encoder_.HasNext());
-
+  instruction_encoder_.Encode(InsertWithNameReferenceInstruction(), &output);
   delegate_->WriteStreamData(output);
 }
 
@@ -43,39 +38,24 @@ void QpackEncoderStreamSender::SendInsertWithoutNameReference(
   instruction_encoder_.set_name(name);
   instruction_encoder_.set_value(value);
 
-  instruction_encoder_.Encode(InsertWithoutNameReferenceInstruction());
-
   std::string output;
-
-  instruction_encoder_.Next(std::numeric_limits<size_t>::max(), &output);
-  DCHECK(!instruction_encoder_.HasNext());
-
+  instruction_encoder_.Encode(InsertWithoutNameReferenceInstruction(), &output);
   delegate_->WriteStreamData(output);
 }
 
 void QpackEncoderStreamSender::SendDuplicate(uint64_t index) {
   instruction_encoder_.set_varint(index);
 
-  instruction_encoder_.Encode(DuplicateInstruction());
-
   std::string output;
-
-  instruction_encoder_.Next(std::numeric_limits<size_t>::max(), &output);
-  DCHECK(!instruction_encoder_.HasNext());
-
+  instruction_encoder_.Encode(DuplicateInstruction(), &output);
   delegate_->WriteStreamData(output);
 }
 
 void QpackEncoderStreamSender::SendSetDynamicTableCapacity(uint64_t capacity) {
   instruction_encoder_.set_varint(capacity);
 
-  instruction_encoder_.Encode(SetDynamicTableCapacityInstruction());
-
   std::string output;
-
-  instruction_encoder_.Next(std::numeric_limits<size_t>::max(), &output);
-  DCHECK(!instruction_encoder_.HasNext());
-
+  instruction_encoder_.Encode(SetDynamicTableCapacityInstruction(), &output);
   delegate_->WriteStreamData(output);
 }
 

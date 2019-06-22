@@ -4,6 +4,8 @@
 
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_instruction_encoder.h"
 
+#include <limits>
+
 #include "net/third_party/quiche/src/http2/hpack/huffman/hpack_huffman_encoder.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_utils.h"
@@ -18,7 +20,16 @@ QpackInstructionEncoder::QpackInstructionEncoder()
       state_(State::kOpcode),
       instruction_(nullptr) {}
 
-void QpackInstructionEncoder::Encode(const QpackInstruction* instruction) {
+void QpackInstructionEncoder::Encode(const QpackInstruction* instruction,
+                                     std::string* output) {
+  StartEncode(instruction);
+  DCHECK(HasNext());
+
+  Next(std::numeric_limits<size_t>::max(), output);
+  DCHECK(!HasNext());
+}
+
+void QpackInstructionEncoder::StartEncode(const QpackInstruction* instruction) {
   DCHECK(!HasNext());
 
   state_ = State::kOpcode;

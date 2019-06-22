@@ -33,9 +33,13 @@ class QUIC_EXPORT_PRIVATE QpackInstructionEncoder {
   void set_name(QuicStringPiece name) { name_ = name; }
   void set_value(QuicStringPiece value) { value_ = value; }
 
+  // Append encoded instruction to |output|.
+  void Encode(const QpackInstruction* instruction, std::string* output);
+
+ private:
   // Start encoding an instruction.  Must only be called after the previous
   // instruction has been completely encoded.
-  void Encode(const QpackInstruction* instruction);
+  void StartEncode(const QpackInstruction* instruction);
 
   // Returns true iff more data remains to be encoded for the current
   // instruction.  Returns false if there is no current instruction, that is, if
@@ -47,7 +51,6 @@ class QUIC_EXPORT_PRIVATE QpackInstructionEncoder {
   // returns true.  |max_encoded_bytes| must be positive.
   void Next(size_t max_encoded_bytes, std::string* output);
 
- private:
   enum class State {
     // Write instruction opcode to |byte_|.
     kOpcode,

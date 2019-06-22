@@ -38,11 +38,7 @@ std::string QpackEncoder::EncodeHeaderList(
   instruction_encoder.set_varint2(0);
   instruction_encoder.set_s_bit(false);
 
-  instruction_encoder.Encode(QpackPrefixInstruction());
-  DCHECK(instruction_encoder.HasNext());
-  instruction_encoder.Next(std::numeric_limits<size_t>::max(),
-                           &encoded_headers);
-  DCHECK(!instruction_encoder.HasNext());
+  instruction_encoder.Encode(QpackPrefixInstruction(), &encoded_headers);
 
   for (const auto& header : ValueSplittingHeaderList(header_list)) {
     QuicStringPiece name = header.first;
@@ -61,7 +57,8 @@ std::string QpackEncoder::EncodeHeaderList(
         instruction_encoder.set_s_bit(is_static);
         instruction_encoder.set_varint(index);
 
-        instruction_encoder.Encode(QpackIndexedHeaderFieldInstruction());
+        instruction_encoder.Encode(QpackIndexedHeaderFieldInstruction(),
+                                   &encoded_headers);
 
         break;
       case QpackHeaderTable::MatchType::kName:
@@ -72,22 +69,19 @@ std::string QpackEncoder::EncodeHeaderList(
         instruction_encoder.set_value(value);
 
         instruction_encoder.Encode(
-            QpackLiteralHeaderFieldNameReferenceInstruction());
+            QpackLiteralHeaderFieldNameReferenceInstruction(),
+            &encoded_headers);
 
         break;
       case QpackHeaderTable::MatchType::kNoMatch:
         instruction_encoder.set_name(name);
         instruction_encoder.set_value(value);
 
-        instruction_encoder.Encode(QpackLiteralHeaderFieldInstruction());
+        instruction_encoder.Encode(QpackLiteralHeaderFieldInstruction(),
+                                   &encoded_headers);
 
         break;
     }
-
-    DCHECK(instruction_encoder.HasNext());
-    instruction_encoder.Next(std::numeric_limits<size_t>::max(),
-                             &encoded_headers);
-    DCHECK(!instruction_encoder.HasNext());
   }
 
   return encoded_headers;
