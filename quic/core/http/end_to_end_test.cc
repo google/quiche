@@ -3381,16 +3381,7 @@ TEST_P(EndToEndTest,
 
   client_.reset(CreateQuicClient(client_writer_));
   EXPECT_EQ("", client_->SendSynchronousRequest("/foo"));
-
-  if (VersionHasIetfInvariantHeader(client_->client()
-                                        ->client_session()
-                                        ->connection()
-                                        ->transport_version()) ||
-      GetQuicReloadableFlag(quic_terminate_gquic_connection_as_ietf)) {
-    EXPECT_EQ(QUIC_HANDSHAKE_FAILED, client_->connection_error());
-  } else {
-    EXPECT_EQ(QUIC_PUBLIC_RESET, client_->connection_error());
-  }
+  EXPECT_EQ(QUIC_HANDSHAKE_FAILED, client_->connection_error());
 }
 
 // Regression test for b/116200989.

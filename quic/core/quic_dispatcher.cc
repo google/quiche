@@ -497,8 +497,7 @@ void QuicDispatcher::CleanUpSession(SessionMap::iterator it,
   if (connection->termination_packets() != nullptr &&
       !connection->termination_packets()->empty()) {
     action = QuicTimeWaitListManager::SEND_TERMINATION_PACKETS;
-  } else if (VersionHasIetfInvariantHeader(connection->transport_version()) ||
-             GetQuicReloadableFlag(quic_terminate_gquic_connection_as_ietf)) {
+  } else {
     if (!connection->IsHandshakeConfirmed()) {
       if (!VersionHasIetfInvariantHeader(connection->transport_version())) {
         QUIC_CODE_COUNT(gquic_add_to_time_wait_list_with_handshake_failed);
@@ -661,9 +660,7 @@ void QuicDispatcher::StatelesslyTerminateConnection(
     QuicErrorCode error_code,
     const std::string& error_details,
     QuicTimeWaitListManager::TimeWaitAction action) {
-  if (format != IETF_QUIC_LONG_HEADER_PACKET &&
-      (!GetQuicReloadableFlag(quic_terminate_gquic_connection_as_ietf) ||
-       !version_flag)) {
+  if (format != IETF_QUIC_LONG_HEADER_PACKET && !version_flag) {
     QUIC_DVLOG(1) << "Statelessly terminating " << server_connection_id
                   << " based on a non-ietf-long packet, action:" << action
                   << ", error_code:" << error_code
@@ -686,10 +683,6 @@ void QuicDispatcher::StatelesslyTerminateConnection(
                                              helper_.get(),
                                              time_wait_list_manager_.get());
     // This also adds the connection to time wait list.
-    if (format == GOOGLE_QUIC_PACKET) {
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_terminate_gquic_connection_as_ietf, 1,
-                                   2);
-    }
     terminator.CloseConnection(error_code, error_details,
                                format != GOOGLE_QUIC_PACKET);
     return;
@@ -707,9 +700,6 @@ void QuicDispatcher::StatelesslyTerminateConnection(
       server_connection_id, EmptyQuicConnectionId(),
       /*ietf_quic=*/format != GOOGLE_QUIC_PACKET,
       ParsedQuicVersionVector{QuicVersionReservedForNegotiation()}));
-  if (format == GOOGLE_QUIC_PACKET) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_terminate_gquic_connection_as_ietf, 2, 2);
-  }
   time_wait_list_manager()->AddConnectionIdToTimeWait(
       server_connection_id, /*ietf_quic=*/format != GOOGLE_QUIC_PACKET,
       QuicTimeWaitListManager::SEND_TERMINATION_PACKETS, ENCRYPTION_INITIAL,
