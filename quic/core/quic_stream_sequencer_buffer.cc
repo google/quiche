@@ -335,18 +335,23 @@ bool QuicStreamSequencerBuffer::GetReadableRegion(iovec* iov) const {
   return GetReadableRegions(iov, 1) == 1;
 }
 
-bool QuicStreamSequencerBuffer::PrefetchNextRegion(iovec* iov) {
-  DCHECK(iov != nullptr);
-  DCHECK_LE(total_bytes_read_, total_bytes_prefetched_);
-  DCHECK_LE(total_bytes_prefetched_, FirstMissingByte());
+bool QuicStreamSequencerBuffer::PeekRegion(QuicStreamOffset offset,
+                                           iovec* iov) const {
+  DCHECK(iov);
 
-  if (total_bytes_prefetched_ == FirstMissingByte()) {
+  if (offset < total_bytes_read_) {
+    // Data at |offset| has already been consumed.
+    return false;
+  }
+
+  if (offset >= FirstMissingByte()) {
+    // Data at |offset| has not been received yet.
     return false;
   }
 
   // Beginning of region.
-  size_t block_idx = GetBlockIndex(total_bytes_prefetched_);
-  size_t block_offset = GetInBlockOffset(total_bytes_prefetched_);
+  size_t block_idx = GetBlockIndex(offset);
+  size_t block_offset = GetInBlockOffset(offset);
   iov->iov_base = blocks_[block_idx]->buffer + block_offset;
 
   // Determine if entire block has been received.
@@ -357,6 +362,18 @@ bool QuicStreamSequencerBuffer::PrefetchNextRegion(iovec* iov) {
   } else {
     // Read entire block.
     iov->iov_len = GetBlockCapacity(block_idx) - block_offset;
+  }
+
+  return true;
+}
+
+bool QuicStreamSequencerBuffer::PrefetchNextRegion(iovec* iov) {
+  DCHECK(iov);
+  DCHECK_LE(total_bytes_read_, total_bytes_prefetched_);
+  DCHECK_LE(total_bytes_prefetched_, FirstMissingByte());
+
+  if (!PeekRegion(total_bytes_prefetched_, iov)) {
+    return false;
   }
 
   total_bytes_prefetched_ += iov->iov_len;

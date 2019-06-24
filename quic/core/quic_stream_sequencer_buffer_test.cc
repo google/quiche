@@ -602,14 +602,14 @@ TEST_F(QuicStreamSequencerBufferTest, PrefetchBufferWithOffset) {
   iovec iov;
   EXPECT_TRUE(buffer_->PrefetchNextRegion(&iov));
   EXPECT_EQ(source, IovecToStringPiece(iov));
-  // The second frame goes into the same bucket.
+  // The second frame goes into the same block.
   std::string source2(800, 'a');
   buffer_->OnStreamData(1024, source2, &written_, &error_details_);
   EXPECT_TRUE(buffer_->PrefetchNextRegion(&iov));
   EXPECT_EQ(source2, IovecToStringPiece(iov));
 }
 
-TEST_F(QuicStreamSequencerBufferTest, PrefetchBufferWithMultipleBucket) {
+TEST_F(QuicStreamSequencerBufferTest, PrefetchBufferWithMultipleBlocks) {
   const size_t data_size = 1024;
   std::string source(data_size, 'a');
   buffer_->OnStreamData(0, source, &written_, &error_details_);
@@ -676,6 +676,164 @@ TEST_F(QuicStreamSequencerBufferTest, PrefetchMoreThanBufferHas) {
   EXPECT_TRUE(buffer_->PrefetchNextRegion(&iov));
   EXPECT_EQ(std::string(100, 'a'), IovecToStringPiece(iov));
   EXPECT_FALSE(buffer_->PrefetchNextRegion(&iov));
+}
+
+TEST_F(QuicStreamSequencerBufferTest, PeekEmptyBuffer) {
+  iovec iov;
+  EXPECT_FALSE(buffer_->PeekRegion(0, &iov));
+  EXPECT_FALSE(buffer_->PeekRegion(1, &iov));
+  EXPECT_FALSE(buffer_->PeekRegion(100, &iov));
+}
+
+TEST_F(QuicStreamSequencerBufferTest, PeekSingleBlock) {
+  std::string source(kBlockSizeBytes, 'a');
+  buffer_->OnStreamData(0, source, &written_, &error_details_);
+
+  iovec iov;
+  EXPECT_TRUE(buffer_->PeekRegion(0, &iov));
+  EXPECT_EQ(source, IovecToStringPiece(iov));
+
+  // Peeking again gives the same result.
+  EXPECT_TRUE(buffer_->PeekRegion(0, &iov));
+  EXPECT_EQ(source, IovecToStringPiece(iov));
+
+  // Peek at a different offset.
+  EXPECT_TRUE(buffer_->PeekRegion(100, &iov));
+  EXPECT_EQ(QuicStringPiece(source).substr(100), IovecToStringPiece(iov));
+
+  // Peeking at or after FirstMissingByte() returns false.
+  EXPECT_FALSE(buffer_->PeekRegion(kBlockSizeBytes, &iov));
+  EXPECT_FALSE(buffer_->PeekRegion(kBlockSizeBytes + 1, &iov));
+}
+
+TEST_F(QuicStreamSequencerBufferTest, PeekTwoWritesInSingleBlock) {
+  const size_t length1 = 1024;
+  std::string source1(length1, 'a');
+  buffer_->OnStreamData(0, source1, &written_, &error_details_);
+
+  iovec iov;
+  EXPECT_TRUE(buffer_->PeekRegion(0, &iov));
+  EXPECT_EQ(source1, IovecToStringPiece(iov));
+
+  // The second frame goes into the same block.
+  const size_t length2 = 800;
+  std::string source2(length2, 'b');
+  buffer_->OnStreamData(length1, source2, &written_, &error_details_);
+
+  EXPECT_TRUE(buffer_->PeekRegion(length1, &iov));
+  EXPECT_EQ(source2, IovecToStringPiece(iov));
+
+  // Peek with an offset inside the first write.
+  const QuicStreamOffset offset1 = 500;
+  EXPECT_TRUE(buffer_->PeekRegion(offset1, &iov));
+  EXPECT_EQ(QuicStringPiece(source1).substr(offset1),
+            IovecToStringPiece(iov).substr(0, length1 - offset1));
+  EXPECT_EQ(QuicStringPiece(source2),
+            IovecToStringPiece(iov).substr(length1 - offset1));
+
+  // Peek with an offset inside the second write.
+  const QuicStreamOffset offset2 = 1500;
+  EXPECT_TRUE(buffer_->PeekRegion(offset2, &iov));
+  EXPECT_EQ(QuicStringPiece(source2).substr(offset2 - length1),
+            IovecToStringPiece(iov));
+
+  // Peeking at or after FirstMissingByte() returns false.
+  EXPECT_FALSE(buffer_->PeekRegion(length1 + length2, &iov));
+  EXPECT_FALSE(buffer_->PeekRegion(length1 + length2 + 1, &iov));
+}
+
+TEST_F(QuicStreamSequencerBufferTest, PeekBufferWithMultipleBlocks) {
+  const size_t length1 = 1024;
+  std::string source1(length1, 'a');
+  buffer_->OnStreamData(0, source1, &written_, &error_details_);
+
+  iovec iov;
+  EXPECT_TRUE(buffer_->PeekRegion(0, &iov));
+  EXPECT_EQ(source1, IovecToStringPiece(iov));
+
+  const size_t length2 = kBlockSizeBytes + 2;
+  std::string source2(length2, 'b');
+  buffer_->OnStreamData(length1, source2, &written_, &error_details_);
+
+  // Peek with offset 0 returns the entire block.
+  EXPECT_TRUE(buffer_->PeekRegion(0, &iov));
+  EXPECT_EQ(kBlockSizeBytes, iov.iov_len);
+  EXPECT_EQ(source1, IovecToStringPiece(iov).substr(0, length1));
+  EXPECT_EQ(QuicStringPiece(source2).substr(0, kBlockSizeBytes - length1),
+            IovecToStringPiece(iov).substr(length1));
+
+  EXPECT_TRUE(buffer_->PeekRegion(length1, &iov));
+  EXPECT_EQ(QuicStringPiece(source2).substr(0, kBlockSizeBytes - length1),
+            IovecToStringPiece(iov));
+
+  EXPECT_TRUE(buffer_->PeekRegion(kBlockSizeBytes, &iov));
+  EXPECT_EQ(QuicStringPiece(source2).substr(kBlockSizeBytes - length1),
+            IovecToStringPiece(iov));
+
+  // Peeking at or after FirstMissingByte() returns false.
+  EXPECT_FALSE(buffer_->PeekRegion(length1 + length2, &iov));
+  EXPECT_FALSE(buffer_->PeekRegion(length1 + length2 + 1, &iov));
+}
+
+TEST_F(QuicStreamSequencerBufferTest, PeekAfterConsumed) {
+  std::string source1(kBlockSizeBytes, 'a');
+  buffer_->OnStreamData(0, source1, &written_, &error_details_);
+
+  iovec iov;
+  EXPECT_TRUE(buffer_->PeekRegion(0, &iov));
+  EXPECT_EQ(source1, IovecToStringPiece(iov));
+
+  // Consume some data.
+  EXPECT_TRUE(buffer_->MarkConsumed(1024));
+
+  // Peeking into consumed data fails.
+  EXPECT_FALSE(buffer_->PeekRegion(0, &iov));
+  EXPECT_FALSE(buffer_->PeekRegion(512, &iov));
+
+  EXPECT_TRUE(buffer_->PeekRegion(1024, &iov));
+  EXPECT_EQ(QuicStringPiece(source1).substr(1024), IovecToStringPiece(iov));
+
+  EXPECT_TRUE(buffer_->PeekRegion(1500, &iov));
+  EXPECT_EQ(QuicStringPiece(source1).substr(1500), IovecToStringPiece(iov));
+
+  // Consume rest of block.
+  EXPECT_TRUE(buffer_->MarkConsumed(kBlockSizeBytes - 1024));
+
+  // Read new data.
+  std::string source2(300, 'b');
+  buffer_->OnStreamData(kBlockSizeBytes, source2, &written_, &error_details_);
+
+  // Peek into new data.
+  EXPECT_TRUE(buffer_->PeekRegion(kBlockSizeBytes, &iov));
+  EXPECT_EQ(source2, IovecToStringPiece(iov));
+
+  EXPECT_TRUE(buffer_->PeekRegion(kBlockSizeBytes + 128, &iov));
+  EXPECT_EQ(QuicStringPiece(source2).substr(128), IovecToStringPiece(iov));
+
+  // Peeking into consumed data still fails.
+  EXPECT_FALSE(buffer_->PeekRegion(0, &iov));
+  EXPECT_FALSE(buffer_->PeekRegion(512, &iov));
+  EXPECT_FALSE(buffer_->PeekRegion(1024, &iov));
+  EXPECT_FALSE(buffer_->PeekRegion(1500, &iov));
+}
+
+TEST_F(QuicStreamSequencerBufferTest, PeekContinously) {
+  std::string source1(kBlockSizeBytes, 'a');
+  buffer_->OnStreamData(0, source1, &written_, &error_details_);
+
+  iovec iov;
+  EXPECT_TRUE(buffer_->PeekRegion(0, &iov));
+  EXPECT_EQ(source1, IovecToStringPiece(iov));
+
+  std::string source2(kBlockSizeBytes, 'b');
+  buffer_->OnStreamData(kBlockSizeBytes, source2, &written_, &error_details_);
+
+  EXPECT_TRUE(buffer_->PeekRegion(kBlockSizeBytes, &iov));
+  EXPECT_EQ(source2, IovecToStringPiece(iov));
+
+  // First block is still there.
+  EXPECT_TRUE(buffer_->PeekRegion(0, &iov));
+  EXPECT_EQ(source1, IovecToStringPiece(iov));
 }
 
 TEST_F(QuicStreamSequencerBufferTest, MarkConsumedInOneBlock) {

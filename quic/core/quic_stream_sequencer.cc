@@ -156,6 +156,12 @@ bool QuicStreamSequencer::GetReadableRegion(iovec* iov) const {
   return buffered_frames_.GetReadableRegion(iov);
 }
 
+bool QuicStreamSequencer::PeekRegion(QuicStreamOffset offset,
+                                     iovec* iov) const {
+  DCHECK(!blocked_);
+  return buffered_frames_.PeekRegion(offset, iov);
+}
+
 bool QuicStreamSequencer::PrefetchNextRegion(iovec* iov) {
   DCHECK(!blocked_);
   return buffered_frames_.PrefetchNextRegion(iov);

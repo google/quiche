@@ -81,7 +81,12 @@ class QUIC_EXPORT_PRIVATE QuicStreamSequencer {
   // is no readable region available.
   bool GetReadableRegion(iovec* iov) const;
 
-  // Fill in one iovec with the next unread region for the quic spdy stream.
+  // Fills in one iovec with the region starting at |offset| and returns true.
+  // Returns false if no readable region is available, either because data has
+  // not been received yet or has already been consumed.
+  bool PeekRegion(QuicStreamOffset offset, iovec* iov) const;
+
+  // Fills in one iovec with the next unread region.
   // Returns false if no readable region is available.
   bool PrefetchNextRegion(iovec* iov);
 

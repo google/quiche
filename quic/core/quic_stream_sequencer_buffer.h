@@ -131,10 +131,17 @@ class QUIC_EXPORT_PRIVATE QuicStreamSequencerBuffer {
   // Returns false if there is no readable region available.
   bool GetReadableRegion(iovec* iov) const;
 
+  // Returns true and sets |*iov| to point to a region starting at |offset|.
+  // Returns false if no data can be read at |offset|, which can be because data
+  // has not been received yet or it is already consumed.
+  // Does not consume data.
+  bool PeekRegion(QuicStreamOffset offset, iovec* iov) const;
+
+  // DEPRECATED, use PeekRegion() instead.
   // Called to return the next region that has not been returned by this method
-  // previously.
-  // If this method is to be used along with Readv() or MarkConsumed(), make
-  // sure that they are consuming less data than is read by this method.
+  // previously, except if Clear() has been called then prefetch offset is set
+  // to BytesConsumed(), and if Readv() or MarkConsumed() reads further than
+  // prefetch offset, then offset is set to beginning of not yet consumed area.
   // This method only returns reference of underlying data. The caller is
   // responsible for copying and consuming the data.
   // Returns true if the data is read, false otherwise.
