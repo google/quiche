@@ -61,13 +61,8 @@ void RecordDiskCacheServerConfigState(
 
 QuicCryptoClientConfig::QuicCryptoClientConfig(
     std::unique_ptr<ProofVerifier> proof_verifier)
-    : QuicCryptoClientConfig(std::move(proof_verifier),
-                             TlsClientConnection::CreateSslCtx()) {}
-
-QuicCryptoClientConfig::QuicCryptoClientConfig(
-    std::unique_ptr<ProofVerifier> proof_verifier,
-    bssl::UniquePtr<SSL_CTX> ssl_ctx)
-    : proof_verifier_(std::move(proof_verifier)), ssl_ctx_(std::move(ssl_ctx)) {
+    : proof_verifier_(std::move(proof_verifier)),
+      ssl_ctx_(TlsClientConnection::CreateSslCtx()) {
   DCHECK(proof_verifier_.get());
   SetDefaults();
 }

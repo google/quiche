@@ -212,12 +212,6 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
   //     server. Not owned.
   // |proof_source|: provides certificate chains and signatures.
   // |key_exchange_source|: provides key-exchange functionality.
-  // |ssl_ctx|: The SSL_CTX used for doing TLS handshakes.
-  QuicCryptoServerConfig(QuicStringPiece source_address_token_secret,
-                         QuicRandom* server_nonce_entropy,
-                         std::unique_ptr<ProofSource> proof_source,
-                         std::unique_ptr<KeyExchangeSource> key_exchange_source,
-                         bssl::UniquePtr<SSL_CTX> ssl_ctx);
   QuicCryptoServerConfig(
       QuicStringPiece source_address_token_secret,
       QuicRandom* server_nonce_entropy,

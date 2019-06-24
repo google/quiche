@@ -233,18 +233,6 @@ QuicCryptoServerConfig::QuicCryptoServerConfig(
     QuicRandom* server_nonce_entropy,
     std::unique_ptr<ProofSource> proof_source,
     std::unique_ptr<KeyExchangeSource> key_exchange_source)
-    : QuicCryptoServerConfig(source_address_token_secret,
-                             server_nonce_entropy,
-                             std::move(proof_source),
-                             std::move(key_exchange_source),
-                             TlsServerConnection::CreateSslCtx()) {}
-
-QuicCryptoServerConfig::QuicCryptoServerConfig(
-    QuicStringPiece source_address_token_secret,
-    QuicRandom* server_nonce_entropy,
-    std::unique_ptr<ProofSource> proof_source,
-    std::unique_ptr<KeyExchangeSource> key_exchange_source,
-    bssl::UniquePtr<SSL_CTX> ssl_ctx)
     : replay_protection_(true),
       chlo_multiplier_(kMultiplier),
       configs_lock_(),
@@ -252,7 +240,7 @@ QuicCryptoServerConfig::QuicCryptoServerConfig(
       next_config_promotion_time_(QuicWallTime::Zero()),
       proof_source_(std::move(proof_source)),
       key_exchange_source_(std::move(key_exchange_source)),
-      ssl_ctx_(std::move(ssl_ctx)),
+      ssl_ctx_(TlsServerConnection::CreateSslCtx()),
       source_address_token_future_secs_(3600),
       source_address_token_lifetime_secs_(86400),
       enable_serving_sct_(false),

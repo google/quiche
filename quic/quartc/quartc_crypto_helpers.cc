@@ -4,8 +4,6 @@
 
 #include "net/third_party/quiche/src/quic/quartc/quartc_crypto_helpers.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
-#include "net/third_party/quiche/src/quic/core/tls_client_handshaker.h"
-#include "net/third_party/quiche/src/quic/core/tls_server_handshaker.h"
 
 namespace quic {
 
@@ -94,8 +92,7 @@ bool QuartcCryptoServerStreamHelper::CanAcceptClientHello(
 std::unique_ptr<QuicCryptoClientConfig> CreateCryptoClientConfig(
     QuicStringPiece pre_shared_key) {
   auto config = QuicMakeUnique<QuicCryptoClientConfig>(
-      QuicMakeUnique<InsecureProofVerifier>(),
-      TlsClientHandshaker::CreateSslCtx());
+      QuicMakeUnique<InsecureProofVerifier>());
   config->set_pad_inchoate_hello(false);
   config->set_pad_full_hello(false);
   if (!pre_shared_key.empty()) {
@@ -116,8 +113,7 @@ CryptoServerConfig CreateCryptoServerConfig(QuicRandom* random,
   random->RandBytes(source_address_token_secret, kInputKeyingMaterialLength);
   auto config = QuicMakeUnique<QuicCryptoServerConfig>(
       std::string(source_address_token_secret, kInputKeyingMaterialLength),
-      random, QuicMakeUnique<DummyProofSource>(), KeyExchangeSource::Default(),
-      TlsServerHandshaker::CreateSslCtx());
+      random, QuicMakeUnique<DummyProofSource>(), KeyExchangeSource::Default());
 
   // We run QUIC over ICE, and ICE is verifying remote side with STUN pings.
   // We disable source address token validation in order to allow for 0-rtt
