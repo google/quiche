@@ -43,11 +43,9 @@ class QUIC_EXPORT_PRIVATE QpackInstructionEncoder {
     kStartField,
     // Write static bit to |byte_|.
     kSbit,
-    // Start encoding an integer (|varint_| or |varint2_| or string length) with
-    // a prefix, using |byte_| for the high bits.
-    kVarintStart,
-    // Resume encoding an integer.
-    kVarintResume,
+    // Encode an integer (|varint_| or |varint2_| or string length) with a
+    // prefix, using |byte_| for the high bits.
+    kVarintEncode,
     // Determine if Huffman encoding should be used for |name_| or |value_|, set
     // up |name_| or |value_| and |huffman_encoded_string_| accordingly, and
     // write the Huffman bit to |byte_|.
@@ -61,8 +59,7 @@ class QUIC_EXPORT_PRIVATE QpackInstructionEncoder {
   void DoOpcode();
   void DoStartField();
   void DoStaticBit();
-  void DoVarintStart(std::string* output);
-  void DoVarintResume(std::string* output);
+  void DoVarintEncode(std::string* output);
   void DoStartString();
   void DoWriteString(std::string* output);
 

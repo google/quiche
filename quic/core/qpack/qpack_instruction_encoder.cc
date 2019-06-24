@@ -42,11 +42,8 @@ void QpackInstructionEncoder::Encode(const QpackInstruction* instruction,
       case State::kSbit:
         DoStaticBit();
         break;
-      case State::kVarintStart:
-        DoVarintStart(output);
-        break;
-      case State::kVarintResume:
-        DoVarintResume(output);
+      case State::kVarintEncode:
+        DoVarintEncode(output);
         break;
       case State::kStartString:
         DoStartString();
@@ -73,7 +70,7 @@ void QpackInstructionEncoder::DoStartField() {
       return;
     case QpackInstructionFieldType::kVarint:
     case QpackInstructionFieldType::kVarint2:
-      state_ = State::kVarintStart;
+      state_ = State::kVarintEncode;
       return;
     case QpackInstructionFieldType::kName:
     case QpackInstructionFieldType::kValue:
@@ -95,13 +92,11 @@ void QpackInstructionEncoder::DoStaticBit() {
   state_ = State::kStartField;
 }
 
-void QpackInstructionEncoder::DoVarintStart(std::string* output) {
+void QpackInstructionEncoder::DoVarintEncode(std::string* output) {
   DCHECK(field_->type == QpackInstructionFieldType::kVarint ||
          field_->type == QpackInstructionFieldType::kVarint2 ||
          field_->type == QpackInstructionFieldType::kName ||
          field_->type == QpackInstructionFieldType::kValue);
-  DCHECK(!varint_encoder_.IsEncodingInProgress());
-
   uint64_t integer_to_encode;
   switch (field_->type) {
     case QpackInstructionFieldType::kVarint:
@@ -115,34 +110,8 @@ void QpackInstructionEncoder::DoVarintStart(std::string* output) {
       break;
   }
 
-  output->push_back(
-      varint_encoder_.StartEncoding(byte_, field_->param, integer_to_encode));
+  varint_encoder_.Encode(byte_, field_->param, integer_to_encode, output);
   byte_ = 0;
-
-  if (varint_encoder_.IsEncodingInProgress()) {
-    state_ = State::kVarintResume;
-    return;
-  }
-
-  if (field_->type == QpackInstructionFieldType::kVarint ||
-      field_->type == QpackInstructionFieldType::kVarint2) {
-    ++field_;
-    state_ = State::kStartField;
-    return;
-  }
-
-  state_ = State::kWriteString;
-}
-
-void QpackInstructionEncoder::DoVarintResume(std::string* output) {
-  DCHECK(field_->type == QpackInstructionFieldType::kVarint ||
-         field_->type == QpackInstructionFieldType::kVarint2 ||
-         field_->type == QpackInstructionFieldType::kName ||
-         field_->type == QpackInstructionFieldType::kValue);
-  DCHECK(varint_encoder_.IsEncodingInProgress());
-
-  varint_encoder_.ResumeEncoding(std::numeric_limits<size_t>::max(), output);
-  DCHECK(!varint_encoder_.IsEncodingInProgress());
 
   if (field_->type == QpackInstructionFieldType::kVarint ||
       field_->type == QpackInstructionFieldType::kVarint2) {
@@ -169,7 +138,7 @@ void QpackInstructionEncoder::DoStartString() {
     string_to_write_ = huffman_encoded_string_;
   }
 
-  state_ = State::kVarintStart;
+  state_ = State::kVarintEncode;
 }
 
 void QpackInstructionEncoder::DoWriteString(std::string* output) {

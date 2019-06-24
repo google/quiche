@@ -18,20 +18,7 @@ void HpackBlockBuilder::AppendHighBitsAndVarint(uint8_t high_bits,
   EXPECT_LE(prefix_length, 8);
 
   HpackVarintEncoder varint_encoder;
-
-  unsigned char c =
-      varint_encoder.StartEncoding(high_bits, prefix_length, varint);
-  buffer_.push_back(c);
-
-  if (!varint_encoder.IsEncodingInProgress()) {
-    return;
-  }
-
-  // After the prefix, at most 63 bits can remain to be encoded.
-  // Each octet holds 7 bits, so at most 9 octets are necessary.
-  // TODO(bnc): Move this into a constant in HpackVarintEncoder.
-  varint_encoder.ResumeEncoding(/* max_encoded_bytes = */ 10, &buffer_);
-  DCHECK(!varint_encoder.IsEncodingInProgress());
+  varint_encoder.Encode(high_bits, prefix_length, varint, &buffer_);
 }
 
 void HpackBlockBuilder::AppendEntryTypeAndVarint(HpackEntryType entry_type,

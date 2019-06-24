@@ -4,12 +4,28 @@
 
 #include "net/third_party/quiche/src/http2/hpack/varint/hpack_varint_encoder.h"
 
+#include <limits>
+
 #include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 
 namespace http2 {
 
 HpackVarintEncoder::HpackVarintEncoder()
     : varint_(0), encoding_in_progress_(false) {}
+
+void HpackVarintEncoder::Encode(uint8_t high_bits,
+                                uint8_t prefix_length,
+                                uint64_t varint,
+                                Http2String* output) {
+  unsigned char first_byte = StartEncoding(high_bits, prefix_length, varint);
+  output->push_back(first_byte);
+  if (!IsEncodingInProgress()) {
+    return;
+  }
+
+  ResumeEncoding(std::numeric_limits<size_t>::max(), output);
+  DCHECK(!IsEncodingInProgress());
+}
 
 unsigned char HpackVarintEncoder::StartEncoding(uint8_t high_bits,
                                                 uint8_t prefix_length,

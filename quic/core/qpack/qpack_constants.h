@@ -77,11 +77,6 @@ struct QUIC_EXPORT_PRIVATE QpackInstruction {
 // Every possible input must match exactly one instruction.
 using QpackLanguage = std::vector<const QpackInstruction*>;
 
-// TODO(bnc): Move this into HpackVarintEncoder.
-// The integer encoder can encode up to 2^64-1, which can take up to 10 bytes
-// (each carrying 7 bits) after the prefix.
-const uint8_t kMaxExtensionBytesForVarintEncoding = 10;
-
 // Wire format defined in
 // https://quicwg.org/base-drafts/draft-ietf-quic-qpack.html#rfc.section.5
 

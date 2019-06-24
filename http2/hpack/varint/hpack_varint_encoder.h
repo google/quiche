@@ -5,6 +5,7 @@
 #ifndef QUICHE_HTTP2_HPACK_VARINT_HPACK_VARINT_ENCODER_H_
 #define QUICHE_HTTP2_HPACK_VARINT_HPACK_VARINT_ENCODER_H_
 
+#include <cstddef>
 #include <cstdint>
 
 #include "net/third_party/quiche/src/http2/platform/api/http2_export.h"
@@ -19,6 +20,16 @@ class HTTP2_EXPORT_PRIVATE HpackVarintEncoder {
  public:
   HpackVarintEncoder();
 
+  // Encode |varint|, appending encoded data to |*output|.  Appends between 1
+  // and 11 bytes in total.  Must not be called when another encoding task
+  // previously started by StartEncoding() is still in progress.  No encoding
+  // will be in progress after this method finishes.
+  void Encode(uint8_t high_bits,
+              uint8_t prefix_length,
+              uint64_t varint,
+              Http2String* output);
+
+ private:
   // Start encoding an integer.  Return the first encoded byte (composed of
   // optional high bits and 1 to 8 bit long prefix).  It is possible that this
   // completes the encoding.  Must not be called when previously started
@@ -36,7 +47,6 @@ class HTTP2_EXPORT_PRIVATE HpackVarintEncoder {
   // Returns true if encoding an integer has started and is not completed yet.
   bool IsEncodingInProgress() const;
 
- private:
   // The original integer shifted to the right by the number of bits already
   // encoded.  The lower bits shifted away have already been encoded, and
   // |varint_| has the higher bits that remain to be encoded.
