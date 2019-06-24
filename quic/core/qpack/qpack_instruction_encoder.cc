@@ -7,6 +7,7 @@
 #include <limits>
 
 #include "net/third_party/quiche/src/http2/hpack/huffman/hpack_huffman_encoder.h"
+#include "net/third_party/quiche/src/http2/hpack/varint/hpack_varint_encoder.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_utils.h"
 
@@ -110,7 +111,8 @@ void QpackInstructionEncoder::DoVarintEncode(std::string* output) {
       break;
   }
 
-  varint_encoder_.Encode(byte_, field_->param, integer_to_encode, output);
+  http2::HpackVarintEncoder::Encode(byte_, field_->param, integer_to_encode,
+                                    output);
   byte_ = 0;
 
   if (field_->type == QpackInstructionFieldType::kVarint ||

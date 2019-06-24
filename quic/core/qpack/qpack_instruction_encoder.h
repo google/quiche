@@ -8,7 +8,6 @@
 #include <cstdint>
 #include <string>
 
-#include "net/third_party/quiche/src/http2/hpack/varint/hpack_varint_encoder.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_constants.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
@@ -93,9 +92,6 @@ class QUIC_EXPORT_PRIVATE QpackInstructionEncoder {
 
   // Field currently being decoded.
   QpackInstructionFields::const_iterator field_;
-
-  // Decoder instance for decoding integers.
-  http2::HpackVarintEncoder varint_encoder_;
 };
 
 }  // namespace quic

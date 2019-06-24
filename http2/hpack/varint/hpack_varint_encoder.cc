@@ -10,28 +10,11 @@
 
 namespace http2 {
 
-HpackVarintEncoder::HpackVarintEncoder()
-    : varint_(0), encoding_in_progress_(false) {}
-
+// static
 void HpackVarintEncoder::Encode(uint8_t high_bits,
                                 uint8_t prefix_length,
                                 uint64_t varint,
                                 Http2String* output) {
-  unsigned char first_byte = StartEncoding(high_bits, prefix_length, varint);
-  output->push_back(first_byte);
-  if (!IsEncodingInProgress()) {
-    return;
-  }
-
-  ResumeEncoding(std::numeric_limits<size_t>::max(), output);
-  DCHECK(!IsEncodingInProgress());
-}
-
-unsigned char HpackVarintEncoder::StartEncoding(uint8_t high_bits,
-                                                uint8_t prefix_length,
-                                                uint64_t varint) {
-  DCHECK(!encoding_in_progress_);
-  DCHECK_EQ(0u, varint_);
   DCHECK_LE(1u, prefix_length);
   DCHECK_LE(prefix_length, 8u);
 
@@ -43,39 +26,24 @@ unsigned char HpackVarintEncoder::StartEncoding(uint8_t high_bits,
 
   if (varint < prefix_mask) {
     // The integer fits into the prefix in its entirety.
-    return high_bits | static_cast<unsigned char>(varint);
+    unsigned char first_byte = high_bits | static_cast<unsigned char>(varint);
+    output->push_back(first_byte);
+    return;
   }
 
-  // We need extension bytes.
-  varint_ = varint - prefix_mask;
-  encoding_in_progress_ = true;
-  return high_bits | prefix_mask;
-}
+  // Extension bytes are needed.
+  unsigned char first_byte = high_bits | prefix_mask;
+  output->push_back(first_byte);
 
-size_t HpackVarintEncoder::ResumeEncoding(size_t max_encoded_bytes,
-                                          Http2String* output) {
-  DCHECK(encoding_in_progress_);
-  DCHECK_NE(0u, max_encoded_bytes);
-
-  size_t encoded_bytes = 0;
-  while (encoded_bytes < max_encoded_bytes) {
-    ++encoded_bytes;
-    if (varint_ < 128) {
-      // Encode final seven bits, with continuation bit set to zero.
-      output->push_back(varint_);
-      varint_ = 0;
-      encoding_in_progress_ = false;
-      break;
-    }
+  varint -= prefix_mask;
+  while (varint >= 128) {
     // Encode the next seven bits, with continuation bit set to one.
-    output->push_back(0b10000000 | (varint_ % 128));
-    varint_ >>= 7;
+    output->push_back(0b10000000 | (varint % 128));
+    varint >>= 7;
   }
-  return encoded_bytes;
-}
 
-bool HpackVarintEncoder::IsEncodingInProgress() const {
-  return encoding_in_progress_;
+  // Encode final seven bits, with continuation bit set to zero.
+  output->push_back(varint);
 }
 
 }  // namespace http2

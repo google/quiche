@@ -30,13 +30,11 @@ struct {
 
 // Encode integers that fit in the prefix.
 TEST(HpackVarintEncoderTest, Short) {
-  HpackVarintEncoder varint_encoder;
-
   for (size_t i = 0; i < HTTP2_ARRAYSIZE(kShortTestData); ++i) {
     Http2String output;
-    varint_encoder.Encode(kShortTestData[i].high_bits,
-                          kShortTestData[i].prefix_length,
-                          kShortTestData[i].value, &output);
+    HpackVarintEncoder::Encode(kShortTestData[i].high_bits,
+                               kShortTestData[i].prefix_length,
+                               kShortTestData[i].value, &output);
     ASSERT_EQ(1u, output.size());
     EXPECT_EQ(kShortTestData[i].expected_encoding, output[0]);
   }
@@ -102,8 +100,6 @@ struct {
 
 // Encode integers that do not fit in the prefix.
 TEST(HpackVarintEncoderTest, Long) {
-  HpackVarintEncoder varint_encoder;
-
   // Test encoding byte by byte, also test encoding in
   // a single ResumeEncoding() call.
     for (size_t i = 0; i < HTTP2_ARRAYSIZE(kLongTestData); ++i) {
@@ -111,9 +107,9 @@ TEST(HpackVarintEncoderTest, Long) {
           Http2HexDecode(kLongTestData[i].expected_encoding);
 
       Http2String output;
-      varint_encoder.Encode(kLongTestData[i].high_bits,
-                            kLongTestData[i].prefix_length,
-                            kLongTestData[i].value, &output);
+      HpackVarintEncoder::Encode(kLongTestData[i].high_bits,
+                                 kLongTestData[i].prefix_length,
+                                 kLongTestData[i].value, &output);
 
       EXPECT_EQ(expected_encoding, output);
     }
@@ -133,13 +129,11 @@ struct {
 // Make sure that the encoder outputs the last byte even when it is zero.  This
 // happens exactly when encoding  the value 2^prefix_length - 1.
 TEST(HpackVarintEncoderTest, LastByteIsZero) {
-  HpackVarintEncoder varint_encoder;
-
   for (size_t i = 0; i < HTTP2_ARRAYSIZE(kLastByteIsZeroTestData); ++i) {
     Http2String output;
-    varint_encoder.Encode(kLastByteIsZeroTestData[i].high_bits,
-                          kLastByteIsZeroTestData[i].prefix_length,
-                          kLastByteIsZeroTestData[i].value, &output);
+    HpackVarintEncoder::Encode(kLastByteIsZeroTestData[i].high_bits,
+                               kLastByteIsZeroTestData[i].prefix_length,
+                               kLastByteIsZeroTestData[i].value, &output);
     ASSERT_EQ(2u, output.size());
     EXPECT_EQ(kLastByteIsZeroTestData[i].expected_encoding_first_byte,
               output[0]);
@@ -149,17 +143,16 @@ TEST(HpackVarintEncoderTest, LastByteIsZero) {
 
 // Test that encoder appends correctly to non-empty string.
 TEST(HpackVarintEncoderTest, Append) {
-  HpackVarintEncoder varint_encoder;
   Http2String output("foo");
   EXPECT_EQ(Http2HexDecode("666f6f"), output);
 
-  varint_encoder.Encode(0b10011000, 3, 103, &output);
+  HpackVarintEncoder::Encode(0b10011000, 3, 103, &output);
   EXPECT_EQ(Http2HexDecode("666f6f9f60"), output);
 
-  varint_encoder.Encode(0b10100000, 5, 8, &output);
+  HpackVarintEncoder::Encode(0b10100000, 5, 8, &output);
   EXPECT_EQ(Http2HexDecode("666f6f9f60a8"), output);
 
-  varint_encoder.Encode(0b10011000, 3, 202147110, &output);
+  HpackVarintEncoder::Encode(0b10011000, 3, 202147110, &output);
   EXPECT_EQ(Http2HexDecode("666f6f9f60a89f9f8ab260"), output);
 }
 

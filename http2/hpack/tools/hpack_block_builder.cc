@@ -17,8 +17,7 @@ void HpackBlockBuilder::AppendHighBitsAndVarint(uint8_t high_bits,
   EXPECT_LE(3, prefix_length);
   EXPECT_LE(prefix_length, 8);
 
-  HpackVarintEncoder varint_encoder;
-  varint_encoder.Encode(high_bits, prefix_length, varint, &buffer_);
+  HpackVarintEncoder::Encode(high_bits, prefix_length, varint, &buffer_);
 }
 
 void HpackBlockBuilder::AppendEntryTypeAndVarint(HpackEntryType entry_type,
