@@ -748,6 +748,7 @@ bool QuicSpdySession::HasActiveRequestStreams() const {
 
 bool QuicSpdySession::ProcessPendingStream(PendingStream* pending) {
   DCHECK(VersionHasStreamType(connection()->transport_version()));
+  DCHECK(connection()->connected());
   struct iovec iov;
   if (!pending->sequencer()->GetReadableRegion(&iov)) {
     // The first byte hasn't been received yet.

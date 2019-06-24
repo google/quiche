@@ -174,6 +174,9 @@ void QuicSession::PendingStreamOnStreamFrame(const QuicStreamFrame& frame) {
   }
 
   pending->OnStreamFrame(frame);
+  if (!connection()->connected()) {
+    return;
+  }
   if (ProcessPendingStream(pending)) {
     // The pending stream should now be in the scope of normal streams.
     DCHECK(IsClosedStream(stream_id) || IsOpenStream(stream_id))

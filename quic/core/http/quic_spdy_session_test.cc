@@ -1654,6 +1654,24 @@ TEST_P(QuicSpdySessionTestClient, UsesPendingStreams) {
   EXPECT_TRUE(session_.UsesPendingStreams());
 }
 
+// Regression test for crbug.com/977581.
+TEST_P(QuicSpdySessionTestClient, BadStreamFramePendingStream) {
+  if (!VersionHasStreamType(transport_version())) {
+    return;
+  }
+
+  EXPECT_EQ(0u, session_.GetNumOpenIncomingStreams());
+  QuicStreamId stream_id1 =
+      GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 0);
+  // A bad stream frame with no data and no fin.
+  QuicStreamFrame data1(stream_id1, false, 0, 0);
+  EXPECT_CALL(*connection_, CloseConnection(_, _, _))
+      .WillOnce(
+          Invoke(connection_, &MockQuicConnection::ReallyCloseConnection));
+  EXPECT_CALL(*connection_, SendConnectionClosePacket(_, _));
+  session_.OnStreamFrame(data1);
+}
+
 TEST_P(QuicSpdySessionTestClient, AvailableStreamsClient) {
   ASSERT_TRUE(session_.GetOrCreateDynamicStream(
                   GetNthServerInitiatedBidirectionalId(2)) != nullptr);
