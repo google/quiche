@@ -11,6 +11,12 @@
 
 namespace quic {
 
+namespace test {
+
+class HttpDecoderPeer;
+
+}  // namespace test
+
 class QuicDataReader;
 
 // Struct that stores meta data of an HTTP/3 frame.
@@ -134,9 +140,10 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
 
   QuicErrorCode error() const { return error_; }
   const std::string& error_detail() const { return error_detail_; }
-  uint64_t current_frame_type() const { return current_frame_type_; }
 
  private:
+  friend test::HttpDecoderPeer;
+
   // Represents the current state of the parsing state machine.
   enum HttpDecoderState {
     STATE_READING_FRAME_LENGTH,

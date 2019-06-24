@@ -16,9 +16,18 @@ using ::testing::Return;
 
 namespace quic {
 
+namespace test {
+
+class HttpDecoderPeer {
+ public:
+  static uint64_t current_frame_type(HttpDecoder* decoder) {
+    return decoder->current_frame_type_;
+  }
+};
+
 class MockVisitor : public HttpDecoder::Visitor {
  public:
-  virtual ~MockVisitor() = default;
+  ~MockVisitor() override = default;
 
   // Called if an error is detected.
   MOCK_METHOD1(OnError, void(HttpDecoder* decoder));
@@ -67,6 +76,11 @@ class HttpDecoderTest : public QuicTest {
     ON_CALL(visitor_, OnPushPromiseFrameEnd()).WillByDefault(Return(true));
     decoder_.set_visitor(&visitor_);
   }
+  ~HttpDecoderTest() override = default;
+
+  uint64_t current_frame_type() {
+    return HttpDecoderPeer::current_frame_type(&decoder_);
+  }
 
   HttpDecoder decoder_;
   testing::StrictMock<MockVisitor> visitor_;
@@ -92,7 +106,7 @@ TEST_F(HttpDecoderTest, ReservedFramesNoPayload) {
         << n;
     EXPECT_EQ(QUIC_NO_ERROR, decoder_.error());
     ASSERT_EQ("", decoder_.error_detail());
-    EXPECT_EQ(type, decoder_.current_frame_type());
+    EXPECT_EQ(type, current_frame_type());
   }
   // Test on a arbitrary reserved frame with 2-byte type field by hard coding
   // variable length integer.
@@ -103,7 +117,7 @@ TEST_F(HttpDecoderTest, ReservedFramesNoPayload) {
   EXPECT_EQ(3u, decoder_.ProcessInput(in, QUIC_ARRAYSIZE(in)));
   EXPECT_EQ(QUIC_NO_ERROR, decoder_.error());
   ASSERT_EQ("", decoder_.error_detail());
-  EXPECT_EQ(0xB + 0x1F * 3u, decoder_.current_frame_type());
+  EXPECT_EQ(0xB + 0x1F * 3u, current_frame_type());
 }
 
 TEST_F(HttpDecoderTest, ReservedFramesSmallPayload) {
@@ -124,7 +138,7 @@ TEST_F(HttpDecoderTest, ReservedFramesSmallPayload) {
         << n;
     EXPECT_EQ(QUIC_NO_ERROR, decoder_.error());
     ASSERT_EQ("", decoder_.error_detail());
-    EXPECT_EQ(type, decoder_.current_frame_type());
+    EXPECT_EQ(type, current_frame_type());
   }
 
   // Test on a arbitrary reserved frame with 2-byte type field by hard coding
@@ -136,7 +150,7 @@ TEST_F(HttpDecoderTest, ReservedFramesSmallPayload) {
   EXPECT_EQ(QUIC_ARRAYSIZE(in), decoder_.ProcessInput(in, QUIC_ARRAYSIZE(in)));
   EXPECT_EQ(QUIC_NO_ERROR, decoder_.error());
   ASSERT_EQ("", decoder_.error_detail());
-  EXPECT_EQ(0xB + 0x1F * 3u, decoder_.current_frame_type());
+  EXPECT_EQ(0xB + 0x1F * 3u, current_frame_type());
 }
 
 TEST_F(HttpDecoderTest, ReservedFramesLargePayload) {
@@ -158,7 +172,7 @@ TEST_F(HttpDecoderTest, ReservedFramesLargePayload) {
         << n;
     EXPECT_EQ(QUIC_NO_ERROR, decoder_.error());
     ASSERT_EQ("", decoder_.error_detail());
-    EXPECT_EQ(type, decoder_.current_frame_type());
+    EXPECT_EQ(type, current_frame_type());
   }
 
   // Test on a arbitrary reserved frame with 2-byte type field by hard coding
@@ -170,7 +184,7 @@ TEST_F(HttpDecoderTest, ReservedFramesLargePayload) {
   EXPECT_EQ(QUIC_ARRAYSIZE(in), decoder_.ProcessInput(in, QUIC_ARRAYSIZE(in)));
   EXPECT_EQ(QUIC_NO_ERROR, decoder_.error());
   ASSERT_EQ("", decoder_.error_detail());
-  EXPECT_EQ(0xB + 0x1F * 3u, decoder_.current_frame_type());
+  EXPECT_EQ(0xB + 0x1F * 3u, current_frame_type());
 }
 
 TEST_F(HttpDecoderTest, CancelPush) {
@@ -517,7 +531,7 @@ TEST_F(HttpDecoderTest, PartialDeliveryOfLargeFrameType) {
   }
   EXPECT_EQ(QUIC_NO_ERROR, decoder_.error());
   EXPECT_EQ("", decoder_.error_detail());
-  EXPECT_EQ(type, decoder_.current_frame_type());
+  EXPECT_EQ(type, current_frame_type());
 }
 
 TEST_F(HttpDecoderTest, GoAway) {
@@ -674,5 +688,7 @@ TEST_F(HttpDecoderTest, MalformedSettingsFrame) {
   EXPECT_EQ(QUIC_INTERNAL_ERROR, decoder_.error());
   EXPECT_EQ("Frame is too large", decoder_.error_detail());
 }
+
+}  // namespace test
 
 }  // namespace quic
