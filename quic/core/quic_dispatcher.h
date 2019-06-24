@@ -150,12 +150,7 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
   // Returns true if packet is dropped or successfully dispatched (e.g.,
   // processed by existing session, processed by time wait list, etc.),
   // otherwise, returns false and the packet needs further processing.
-  virtual bool MaybeDispatchPacket(PacketHeaderFormat form,
-                                   bool version_flag,
-                                   QuicVersionLabel version_label,
-                                   quic::ParsedQuicVersion version,
-                                   QuicConnectionId destination_connection_id,
-                                   QuicConnectionId source_connection_id);
+  virtual bool MaybeDispatchPacket(const ReceivedPacketInfo& packet_info);
 
   // Values to be returned by ValidityChecks() to indicate what should be done
   // with a packet.
@@ -169,32 +164,19 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
   // This method is called by ProcessHeader on packets not associated with a
   // known connection ID.  It applies validity checks and returns a
   // QuicPacketFate to tell what should be done with the packet.
-  virtual QuicPacketFate ValidityChecks(
-      bool version_flag,
-      ParsedQuicVersion version,
-      QuicConnectionId destination_connection_id);
+  // TODO(fayang): Merge ValidityChecks into MaybeDispatchPacket.
+  virtual QuicPacketFate ValidityChecks(const ReceivedPacketInfo& packet_info);
 
   // Create and return the time wait list manager for this dispatcher, which
   // will be owned by the dispatcher as time_wait_list_manager_
   virtual QuicTimeWaitListManager* CreateQuicTimeWaitListManager();
 
-  // Called when |server_connection_id| doesn't have an open connection yet,
-  // to buffer |current_packet_| until it can be delivered to the connection.
-  void BufferEarlyPacket(QuicConnectionId server_connection_id,
-                         bool ietf_quic,
-                         ParsedQuicVersion version);
+  // Buffers packet until it can be delivered to a connection.
+  void BufferEarlyPacket(const ReceivedPacketInfo& packet_info);
 
-  // Called when |current_packet_| is a CHLO packet. Creates a new connection
-  // and delivers any buffered packets for that connection id.
-  void ProcessChlo(PacketHeaderFormat form, ParsedQuicVersion version);
-
-  // Returns the actual client address of the current packet.
-  // This function should only be called once per packet at the very beginning
-  // of ProcessPacket(), its result is saved to |current_client_address_| while
-  // the packet is being processed.
-  // By default, this function returns |current_peer_address_|, subclasses have
-  // the option to override this function to return a different address.
-  virtual const QuicSocketAddress GetClientAddress() const;
+  // Called when |packet_info| is a CHLO packet. Creates a new connection and
+  // delivers any buffered packets for that connection id.
+  void ProcessChlo(const std::string& alpn, ReceivedPacketInfo* packet_info);
 
   // Return true if dispatcher wants to destroy session outside of
   // OnConnectionClosed() call stack.
@@ -207,20 +189,6 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
   const QuicTransportVersionVector& GetSupportedTransportVersions();
 
   const ParsedQuicVersionVector& GetSupportedVersions();
-
-  QuicConnectionId current_server_connection_id() const {
-    return current_server_connection_id_;
-  }
-  const QuicSocketAddress& current_self_address() const {
-    return current_self_address_;
-  }
-  const QuicSocketAddress& current_peer_address() const {
-    return current_peer_address_;
-  }
-  const QuicSocketAddress& current_client_address() const {
-    return current_client_address_;
-  }
-  const QuicReceivedPacket& current_packet() const { return *current_packet_; }
 
   const QuicConfig& config() const { return *config_; }
 
@@ -250,16 +218,14 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
   // Called by MaybeDispatchPacket when current packet cannot be dispatched.
   // Used by subclasses to conduct specific logic to dispatch packet. Returns
   // true if packet is successfully dispatched.
-  virtual bool OnFailedToDispatchPacket(
-      QuicConnectionId destination_connection_id);
+  virtual bool OnFailedToDispatchPacket(const ReceivedPacketInfo& packet_info);
 
   // Called when a new connection starts to be handled by this dispatcher.
   // Either this connection is created or its packets is buffered while waiting
   // for CHLO. Returns true if a new connection should be created or its packets
   // should be buffered, false otherwise.
   virtual bool ShouldCreateOrBufferPacketForConnection(
-      QuicConnectionId server_connection_id,
-      bool ietf_quic);
+      const ReceivedPacketInfo& packet_info);
 
   bool HasBufferedPackets(QuicConnectionId server_connection_id);
 
@@ -316,11 +282,9 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
   typedef QuicUnorderedSet<QuicConnectionId, QuicConnectionIdHash>
       QuicConnectionIdSet;
 
-  // Calls ValidityChecks and then ProcessUnauthenticatedHeaderFate.
-  void ProcessHeader(PacketHeaderFormat form,
-                     bool version_flag,
-                     ParsedQuicVersion version,
-                     QuicConnectionId destination_connection_id);
+  // TODO(fayang): Consider to rename this function to
+  // ProcessValidatedPacketWithUnknownConnectionId.
+  void ProcessHeader(ReceivedPacketInfo* packet_info);
 
   // Deliver |packets| to |session| for further processing.
   void DeliverPacketsToSession(
@@ -382,20 +346,11 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
   // them.
   QuicBufferedPacketStore buffered_packets_;
 
-  // Information about the packet currently being handled.
-  QuicSocketAddress current_client_address_;
-  QuicSocketAddress current_peer_address_;
-  QuicSocketAddress current_self_address_;
-  const QuicReceivedPacket* current_packet_;
-  // If |current_packet_| is a CHLO packet, the extracted alpn.
-  std::string current_alpn_;
-  QuicConnectionId current_server_connection_id_;
-
   // Used to get the supported versions based on flag. Does not own.
   QuicVersionManager* version_manager_;
 
-  // The last error set by SetLastError(), which is called by
-  // framer_visitor_->OnError().
+  // The last error set by SetLastError().
+  // TODO(fayang): consider removing last_error_.
   QuicErrorCode last_error_;
 
   // A backward counter of how many new sessions can be create within current
@@ -415,13 +370,11 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
   // This is also used to signal an error when a long header packet with
   // different destination connection ID length is received when
   // should_update_expected_server_connection_id_length_ is false and packet's
-  // version does not allow variable length connection ID. Used when no_framer_
-  // is true.
+  // version does not allow variable length connection ID.
   uint8_t expected_server_connection_id_length_;
 
   // If true, change expected_server_connection_id_length_ to be the received
-  // destination connection ID length of all IETF long headers. Used when
-  // no_framer_ is true.
+  // destination connection ID length of all IETF long headers.
   bool should_update_expected_server_connection_id_length_;
 };
 

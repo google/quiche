@@ -1180,6 +1180,15 @@ QuicMemSliceSpan MakeSpan(QuicBufferAllocator* allocator,
                           QuicStringPiece message_data,
                           QuicMemSliceStorage* storage);
 
+// Used to compare ReceivedPacketInfo.
+MATCHER_P(ReceivedPacketInfoEquals, info, "") {
+  return info.ToString() == arg.ToString();
+}
+
+MATCHER_P(ReceivedPacketInfoConnectionIdEquals, destination_connection_id, "") {
+  return arg.destination_connection_id == destination_connection_id;
+}
+
 }  // namespace test
 }  // namespace quic
 

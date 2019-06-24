@@ -13,6 +13,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_string_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
 
 namespace quic {
@@ -485,6 +486,43 @@ char* CopyBuffer(const SerializedPacket& packet) {
   char* dst_buffer = new char[packet.encrypted_length];
   memcpy(dst_buffer, packet.encrypted_buffer, packet.encrypted_length);
   return dst_buffer;
+}
+
+ReceivedPacketInfo::ReceivedPacketInfo(const QuicSocketAddress& self_address,
+                                       const QuicSocketAddress& peer_address,
+                                       const QuicReceivedPacket& packet)
+    : self_address(self_address),
+      peer_address(peer_address),
+      packet(packet),
+      form(GOOGLE_QUIC_PACKET),
+      version_flag(false),
+      version_label(0),
+      version(PROTOCOL_UNSUPPORTED, QUIC_VERSION_UNSUPPORTED),
+      destination_connection_id(EmptyQuicConnectionId()),
+      source_connection_id(EmptyQuicConnectionId()) {}
+
+ReceivedPacketInfo::~ReceivedPacketInfo() {}
+
+std::string ReceivedPacketInfo::ToString() const {
+  std::string output =
+      QuicStrCat("{ self_address: ", self_address.ToString(),
+                 ", peer_address: ", peer_address.ToString(),
+                 ", packet_length: ", packet.length(),
+                 ", header_format: ", form, ", version_flag: ", version_flag);
+  if (version_flag) {
+    QuicStrAppend(&output, ", version: ", ParsedQuicVersionToString(version));
+  }
+  QuicStrAppend(
+      &output,
+      ", destination_connection_id: ", destination_connection_id.ToString(),
+      ", source_connection_id: ", source_connection_id.ToString(), " }\n");
+  return output;
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         const ReceivedPacketInfo& packet_info) {
+  os << packet_info.ToString();
+  return os;
 }
 
 }  // namespace quic

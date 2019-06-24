@@ -198,7 +198,6 @@ QuicDispatcher::QuicDispatcher(
       delete_sessions_alarm_(
           alarm_factory_->CreateAlarm(new DeleteSessionsAlarm(this))),
       buffered_packets_(this, helper_->GetClock(), alarm_factory_.get()),
-      current_packet_(nullptr),
       version_manager_(version_manager),
       last_error_(QUIC_NO_ERROR),
       new_sessions_allowed_per_event_loop_(0u),
@@ -226,21 +225,12 @@ void QuicDispatcher::ProcessPacket(const QuicSocketAddress& self_address,
                 << " bytes:" << std::endl
                 << QuicTextUtils::HexDump(
                        QuicStringPiece(packet.data(), packet.length()));
-  current_self_address_ = self_address;
-  current_peer_address_ = peer_address;
-  // GetClientAddress must be called after current_peer_address_ is set.
-  current_client_address_ = GetClientAddress();
-  current_packet_ = &packet;
-
-  PacketHeaderFormat form = GOOGLE_QUIC_PACKET;
-  bool version_flag = false;
-  QuicVersionLabel version_label = 0;
-  QuicConnectionId destination_connection_id = EmptyQuicConnectionId();
-  QuicConnectionId source_connection_id = EmptyQuicConnectionId();
+  ReceivedPacketInfo packet_info(self_address, peer_address, packet);
   std::string detailed_error;
   const QuicErrorCode error = QuicFramer::ProcessPacketDispatcher(
-      packet, expected_server_connection_id_length_, &form, &version_flag,
-      &version_label, &destination_connection_id, &source_connection_id,
+      packet, expected_server_connection_id_length_, &packet_info.form,
+      &packet_info.version_flag, &packet_info.version_label,
+      &packet_info.destination_connection_id, &packet_info.source_connection_id,
       &detailed_error);
   if (error != QUIC_NO_ERROR) {
     // Packet has framing error.
@@ -248,28 +238,26 @@ void QuicDispatcher::ProcessPacket(const QuicSocketAddress& self_address,
     QUIC_DLOG(ERROR) << detailed_error;
     return;
   }
-  ParsedQuicVersion version = ParseQuicVersionLabel(version_label);
-  if (destination_connection_id.length() !=
+  packet_info.version = ParseQuicVersionLabel(packet_info.version_label);
+  if (packet_info.destination_connection_id.length() !=
           expected_server_connection_id_length_ &&
       !should_update_expected_server_connection_id_length_ &&
       !QuicUtils::VariableLengthConnectionIdAllowedForVersion(
-          version.transport_version)) {
+          packet_info.version.transport_version)) {
     SetLastError(QUIC_INVALID_PACKET_HEADER);
     QUIC_DLOG(ERROR) << "Invalid Connection Id Length";
     return;
   }
   if (should_update_expected_server_connection_id_length_) {
-    expected_server_connection_id_length_ = destination_connection_id.length();
+    expected_server_connection_id_length_ =
+        packet_info.destination_connection_id.length();
   }
 
-  if (MaybeDispatchPacket(form, version_flag, version_label, version,
-                          destination_connection_id, source_connection_id)) {
+  if (MaybeDispatchPacket(packet_info)) {
     // Packet has been dropped or successfully dispatched, stop processing.
     return;
   }
-  ProcessHeader(form, version_flag, version, destination_connection_id);
-  // TODO(wub): Consider invalidate the current_* variables so processing of
-  //            the next packet does not use them incorrectly.
+  ProcessHeader(&packet_info);
 }
 
 QuicConnectionId QuicDispatcher::MaybeReplaceServerConnectionId(
@@ -296,22 +284,15 @@ QuicConnectionId QuicDispatcher::MaybeReplaceServerConnectionId(
 }
 
 bool QuicDispatcher::MaybeDispatchPacket(
-    PacketHeaderFormat form,
-    bool version_flag,
-    QuicVersionLabel version_label,
-    quic::ParsedQuicVersion version,
-    QuicConnectionId destination_connection_id,
-    QuicConnectionId source_connection_id) {
-  current_server_connection_id_ = destination_connection_id;
-
+    const ReceivedPacketInfo& packet_info) {
   // Port zero is only allowed for unidirectional UDP, so is disallowed by QUIC.
   // Given that we can't even send a reply rejecting the packet, just drop the
   // packet.
-  if (current_peer_address_.port() == 0) {
+  if (packet_info.peer_address.port() == 0) {
     return true;
   }
 
-  QuicConnectionId server_connection_id = destination_connection_id;
+  QuicConnectionId server_connection_id = packet_info.destination_connection_id;
 
   // The IETF spec requires the client to generate an initial server
   // connection ID that is at least 64 bits long. After that initial
@@ -321,9 +302,9 @@ bool QuicDispatcher::MaybeDispatchPacket(
   if (server_connection_id.length() < kQuicMinimumInitialConnectionIdLength &&
       server_connection_id.length() < expected_server_connection_id_length_ &&
       !allow_short_initial_server_connection_ids_) {
-    DCHECK(version_flag);
+    DCHECK(packet_info.version_flag);
     DCHECK(QuicUtils::VariableLengthConnectionIdAllowedForVersion(
-        version.transport_version));
+        packet_info.version.transport_version));
     QUIC_DLOG(INFO) << "Packet with short destination connection ID "
                     << server_connection_id << " expected "
                     << static_cast<int>(expected_server_connection_id_length_);
@@ -333,15 +314,15 @@ bool QuicDispatcher::MaybeDispatchPacket(
       QUIC_DLOG(INFO) << "Adding connection ID " << server_connection_id
                       << " to time-wait list.";
       StatelesslyTerminateConnection(
-          server_connection_id, form, version_flag, version,
-          QUIC_HANDSHAKE_FAILED, "Reject connection",
+          server_connection_id, packet_info.form, packet_info.version_flag,
+          packet_info.version, QUIC_HANDSHAKE_FAILED, "Reject connection",
           quic::QuicTimeWaitListManager::SEND_STATELESS_RESET);
 
       DCHECK(time_wait_list_manager_->IsConnectionIdInTimeWait(
           server_connection_id));
       time_wait_list_manager_->ProcessPacket(
-          current_self_address_, current_peer_address_, server_connection_id,
-          form, GetPerPacketContext());
+          packet_info.self_address, packet_info.peer_address,
+          server_connection_id, packet_info.form, GetPerPacketContext());
 
       buffered_packets_.DiscardPackets(server_connection_id);
     } else {
@@ -356,26 +337,26 @@ bool QuicDispatcher::MaybeDispatchPacket(
   auto it = session_map_.find(server_connection_id);
   if (it != session_map_.end()) {
     DCHECK(!buffered_packets_.HasBufferedPackets(server_connection_id));
-    it->second->ProcessUdpPacket(current_self_address_, current_peer_address_,
-                                 *current_packet_);
+    it->second->ProcessUdpPacket(packet_info.self_address,
+                                 packet_info.peer_address, packet_info.packet);
     return true;
   }
 
   if (buffered_packets_.HasChloForConnection(server_connection_id)) {
-    BufferEarlyPacket(server_connection_id, form != GOOGLE_QUIC_PACKET,
-                      version);
+    BufferEarlyPacket(packet_info);
     return true;
   }
 
-  if (OnFailedToDispatchPacket(destination_connection_id)) {
+  if (OnFailedToDispatchPacket(packet_info)) {
     return true;
   }
 
   if (time_wait_list_manager_->IsConnectionIdInTimeWait(server_connection_id)) {
     // This connection ID is already in time-wait state.
     time_wait_list_manager_->ProcessPacket(
-        current_self_address_, current_peer_address_, destination_connection_id,
-        form, GetPerPacketContext());
+        packet_info.self_address, packet_info.peer_address,
+        packet_info.destination_connection_id, packet_info.form,
+        GetPerPacketContext());
     return true;
   }
 
@@ -383,20 +364,21 @@ bool QuicDispatcher::MaybeDispatchPacket(
 
   // Unless the packet provides a version, assume that we can continue
   // processing using our preferred version.
-  if (version_flag) {
-    if (!IsSupportedVersion(version)) {
-      if (ShouldCreateSessionForUnknownVersion(version_label)) {
+  if (packet_info.version_flag) {
+    if (!IsSupportedVersion(packet_info.version)) {
+      if (ShouldCreateSessionForUnknownVersion(packet_info.version_label)) {
         return false;
       }
       if (!crypto_config()->validate_chlo_size() ||
-          current_packet_->length() >= kMinPacketSizeForVersionNegotiation) {
+          packet_info.packet.length() >= kMinPacketSizeForVersionNegotiation) {
         // Since the version is not supported, send a version negotiation
         // packet and stop processing the current packet.
-        QuicConnectionId client_connection_id = source_connection_id;
+        QuicConnectionId client_connection_id =
+            packet_info.source_connection_id;
         time_wait_list_manager()->SendVersionNegotiationPacket(
             server_connection_id, client_connection_id,
-            form != GOOGLE_QUIC_PACKET, GetSupportedVersions(),
-            current_self_address_, current_peer_address_,
+            packet_info.form != GOOGLE_QUIC_PACKET, GetSupportedVersions(),
+            packet_info.self_address, packet_info.peer_address,
             GetPerPacketContext());
       }
       return true;
@@ -406,37 +388,32 @@ bool QuicDispatcher::MaybeDispatchPacket(
   return false;
 }
 
-void QuicDispatcher::ProcessHeader(PacketHeaderFormat form,
-                                   bool version_flag,
-                                   ParsedQuicVersion version,
-                                   QuicConnectionId destination_connection_id) {
-  QuicConnectionId server_connection_id = destination_connection_id;
+void QuicDispatcher::ProcessHeader(ReceivedPacketInfo* packet_info) {
+  QuicConnectionId server_connection_id =
+      packet_info->destination_connection_id;
   // Packet's connection ID is unknown.  Apply the validity checks.
   // TODO(wub): Determine the fate completely in ValidityChecks, then call
   // ProcessUnauthenticatedHeaderFate in one place.
-  QuicPacketFate fate =
-      ValidityChecks(version_flag, version, destination_connection_id);
+  QuicPacketFate fate = ValidityChecks(*packet_info);
   ChloAlpnExtractor alpn_extractor;
   switch (fate) {
     case kFateProcess:
-      if (version.handshake_protocol == PROTOCOL_TLS1_3) {
+      if (packet_info->version.handshake_protocol == PROTOCOL_TLS1_3) {
         // TODO(nharper): Support buffering non-ClientHello packets when using
         // TLS.
-        ProcessChlo(form, version);
+        ProcessChlo(/*alpn=*/"", packet_info);
         break;
       }
       if (GetQuicFlag(FLAGS_quic_allow_chlo_buffering) &&
-          !ChloExtractor::Extract(*current_packet_, GetSupportedVersions(),
+          !ChloExtractor::Extract(packet_info->packet, GetSupportedVersions(),
                                   config_->create_session_tag_indicators(),
                                   &alpn_extractor,
                                   server_connection_id.length())) {
         // Buffer non-CHLO packets.
-        BufferEarlyPacket(server_connection_id, form != GOOGLE_QUIC_PACKET,
-                          version);
+        BufferEarlyPacket(*packet_info);
         break;
       }
-      current_alpn_ = alpn_extractor.ConsumeAlpn();
-      ProcessChlo(form, version);
+      ProcessChlo(alpn_extractor.ConsumeAlpn(), packet_info);
       break;
     case kFateTimeWait:
       // Add this connection_id to the time-wait state, to safely reject
@@ -445,15 +422,15 @@ void QuicDispatcher::ProcessHeader(PacketHeaderFormat form,
                       << " to time-wait list.";
       QUIC_CODE_COUNT(quic_reject_fate_time_wait);
       StatelesslyTerminateConnection(
-          server_connection_id, form, version_flag, version,
-          QUIC_HANDSHAKE_FAILED, "Reject connection",
+          server_connection_id, packet_info->form, packet_info->version_flag,
+          packet_info->version, QUIC_HANDSHAKE_FAILED, "Reject connection",
           quic::QuicTimeWaitListManager::SEND_STATELESS_RESET);
 
       DCHECK(time_wait_list_manager_->IsConnectionIdInTimeWait(
           server_connection_id));
       time_wait_list_manager_->ProcessPacket(
-          current_self_address_, current_peer_address_, server_connection_id,
-          form, GetPerPacketContext());
+          packet_info->self_address, packet_info->peer_address,
+          server_connection_id, packet_info->form, GetPerPacketContext());
 
       buffered_packets_.DiscardPackets(server_connection_id);
       break;
@@ -461,26 +438,20 @@ void QuicDispatcher::ProcessHeader(PacketHeaderFormat form,
 }
 
 QuicDispatcher::QuicPacketFate QuicDispatcher::ValidityChecks(
-    bool version_flag,
-    ParsedQuicVersion /*version*/,
-    QuicConnectionId destination_connection_id) {
+    const ReceivedPacketInfo& packet_info) {
   // To have all the checks work properly without tears, insert any new check
   // into the framework of this method in the section for checks that return the
   // check's fate value.  The sections for checks must be ordered with the
   // highest priority fate first.
 
-  // Checks that return kFateDrop.
-
-  // Checks that return kFateTimeWait.
-
   // All packets within a connection sent by a client before receiving a
   // response from the server are required to have the version negotiation flag
   // set.  Since this may be a client continuing a connection we lost track of
   // via server restart, send a rejection to fast-fail the connection.
-  if (!version_flag) {
+  if (!packet_info.version_flag) {
     QUIC_DLOG(INFO)
         << "Packet without version arrived for unknown connection ID "
-        << destination_connection_id;
+        << packet_info.destination_connection_id;
     return kFateTimeWait;
   }
 
@@ -758,10 +729,9 @@ bool QuicDispatcher::HasChlosBuffered() const {
 }
 
 bool QuicDispatcher::ShouldCreateOrBufferPacketForConnection(
-    QuicConnectionId server_connection_id,
-    bool /*ietf_quic*/) {
+    const ReceivedPacketInfo& packet_info) {
   QUIC_VLOG(1) << "Received packet from new connection "
-               << server_connection_id;
+               << packet_info.destination_connection_id;
   return true;
 }
 
@@ -782,89 +752,88 @@ QuicTimeWaitListManager* QuicDispatcher::CreateQuicTimeWaitListManager() {
                                      alarm_factory_.get());
 }
 
-void QuicDispatcher::BufferEarlyPacket(QuicConnectionId server_connection_id,
-                                       bool ietf_quic,
-                                       ParsedQuicVersion version) {
-  bool is_new_connection =
-      !buffered_packets_.HasBufferedPackets(server_connection_id);
-  if (is_new_connection && !ShouldCreateOrBufferPacketForConnection(
-                               server_connection_id, ietf_quic)) {
+void QuicDispatcher::BufferEarlyPacket(const ReceivedPacketInfo& packet_info) {
+  bool is_new_connection = !buffered_packets_.HasBufferedPackets(
+      packet_info.destination_connection_id);
+  if (is_new_connection &&
+      !ShouldCreateOrBufferPacketForConnection(packet_info)) {
     return;
   }
 
   EnqueuePacketResult rs = buffered_packets_.EnqueuePacket(
-      server_connection_id, ietf_quic, *current_packet_, current_self_address_,
-      current_peer_address_, /*is_chlo=*/false,
-      /*alpn=*/"", version);
+      packet_info.destination_connection_id,
+      packet_info.form != GOOGLE_QUIC_PACKET, packet_info.packet,
+      packet_info.self_address, packet_info.peer_address, /*is_chlo=*/false,
+      /*alpn=*/"", packet_info.version);
   if (rs != EnqueuePacketResult::SUCCESS) {
-    OnBufferPacketFailure(rs, server_connection_id);
+    OnBufferPacketFailure(rs, packet_info.destination_connection_id);
   }
 }
 
-void QuicDispatcher::ProcessChlo(PacketHeaderFormat form,
-                                 ParsedQuicVersion version) {
+void QuicDispatcher::ProcessChlo(const std::string& alpn,
+                                 ReceivedPacketInfo* packet_info) {
   if (!accept_new_connections_) {
     // Don't any create new connection.
     QUIC_CODE_COUNT(quic_reject_stop_accepting_new_connections);
     StatelesslyTerminateConnection(
-        current_server_connection_id(), form, /*version_flag=*/true, version,
-        QUIC_HANDSHAKE_FAILED, "Stop accepting new connections",
+        packet_info->destination_connection_id, packet_info->form,
+        /*version_flag=*/true, packet_info->version, QUIC_HANDSHAKE_FAILED,
+        "Stop accepting new connections",
         quic::QuicTimeWaitListManager::SEND_STATELESS_RESET);
     // Time wait list will reject the packet correspondingly.
     time_wait_list_manager()->ProcessPacket(
-        current_self_address(), current_peer_address(),
-        current_server_connection_id(), form, GetPerPacketContext());
+        packet_info->self_address, packet_info->peer_address,
+        packet_info->destination_connection_id, packet_info->form,
+        GetPerPacketContext());
     return;
   }
-  if (!buffered_packets_.HasBufferedPackets(current_server_connection_id_) &&
-      !ShouldCreateOrBufferPacketForConnection(current_server_connection_id_,
-                                               form != GOOGLE_QUIC_PACKET)) {
+  if (!buffered_packets_.HasBufferedPackets(
+          packet_info->destination_connection_id) &&
+      !ShouldCreateOrBufferPacketForConnection(*packet_info)) {
     return;
   }
   if (GetQuicFlag(FLAGS_quic_allow_chlo_buffering) &&
       new_sessions_allowed_per_event_loop_ <= 0) {
     // Can't create new session any more. Wait till next event loop.
-    QUIC_BUG_IF(
-        buffered_packets_.HasChloForConnection(current_server_connection_id_));
+    QUIC_BUG_IF(buffered_packets_.HasChloForConnection(
+        packet_info->destination_connection_id));
     EnqueuePacketResult rs = buffered_packets_.EnqueuePacket(
-        current_server_connection_id_, form != GOOGLE_QUIC_PACKET,
-        *current_packet_, current_self_address_, current_peer_address_,
-        /*is_chlo=*/true, current_alpn_, version);
+        packet_info->destination_connection_id,
+        packet_info->form != GOOGLE_QUIC_PACKET, packet_info->packet,
+        packet_info->self_address, packet_info->peer_address,
+        /*is_chlo=*/true, alpn, packet_info->version);
     if (rs != EnqueuePacketResult::SUCCESS) {
-      OnBufferPacketFailure(rs, current_server_connection_id_);
+      OnBufferPacketFailure(rs, packet_info->destination_connection_id);
     }
     return;
   }
 
-  QuicConnectionId original_connection_id = current_server_connection_id_;
-  current_server_connection_id_ =
-      MaybeReplaceServerConnectionId(current_server_connection_id_, version);
+  QuicConnectionId original_connection_id =
+      packet_info->destination_connection_id;
+  packet_info->destination_connection_id = MaybeReplaceServerConnectionId(
+      original_connection_id, packet_info->version);
   // Creates a new session and process all buffered packets for this connection.
   QuicSession* session =
-      CreateQuicSession(current_server_connection_id_, current_peer_address_,
-                        current_alpn_, version);
-  if (original_connection_id != current_server_connection_id_) {
+      CreateQuicSession(packet_info->destination_connection_id,
+                        packet_info->peer_address, alpn, packet_info->version);
+  if (original_connection_id != packet_info->destination_connection_id) {
     session->connection()->AddIncomingConnectionId(original_connection_id);
   }
   QUIC_DLOG(INFO) << "Created new session for "
-                  << current_server_connection_id_;
-  session_map_.insert(
-      std::make_pair(current_server_connection_id_, QuicWrapUnique(session)));
+                  << packet_info->destination_connection_id;
+  session_map_.insert(std::make_pair(packet_info->destination_connection_id,
+                                     QuicWrapUnique(session)));
   std::list<BufferedPacket> packets =
-      buffered_packets_.DeliverPackets(current_server_connection_id_)
+      buffered_packets_.DeliverPackets(packet_info->destination_connection_id)
           .buffered_packets;
   // Process CHLO at first.
-  session->ProcessUdpPacket(current_self_address_, current_peer_address_,
-                            *current_packet_);
+  session->ProcessUdpPacket(packet_info->self_address,
+                            packet_info->peer_address, packet_info->packet);
   // Deliver queued-up packets in the same order as they arrived.
   // Do this even when flag is off because there might be still some packets
   // buffered in the store before flag is turned off.
   DeliverPacketsToSession(packets, session);
   --new_sessions_allowed_per_event_loop_;
-}
-
-const QuicSocketAddress QuicDispatcher::GetClientAddress() const {
-  return current_peer_address_;
 }
 
 bool QuicDispatcher::ShouldDestroySessionAsynchronously() {
@@ -876,7 +845,7 @@ void QuicDispatcher::SetLastError(QuicErrorCode error) {
 }
 
 bool QuicDispatcher::OnFailedToDispatchPacket(
-    QuicConnectionId /*destination_connection_id*/) {
+    const ReceivedPacketInfo& /*packet_info*/) {
   return false;
 }
 

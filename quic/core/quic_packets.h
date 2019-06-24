@@ -402,6 +402,35 @@ struct QUIC_EXPORT_PRIVATE QuicPerPacketContext {
   virtual ~QuicPerPacketContext() {}
 };
 
+// ReceivedPacketInfo comprises information obtained by parsing the unencrypted
+// bytes of a received packet.
+struct QUIC_EXPORT_PRIVATE ReceivedPacketInfo {
+  ReceivedPacketInfo(const QuicSocketAddress& self_address,
+                     const QuicSocketAddress& peer_address,
+                     const QuicReceivedPacket& packet);
+  ReceivedPacketInfo(const ReceivedPacketInfo& other) = default;
+
+  ~ReceivedPacketInfo();
+
+  std::string ToString() const;
+
+  QUIC_EXPORT_PRIVATE friend std::ostream& operator<<(
+      std::ostream& os,
+      const ReceivedPacketInfo& packet_info);
+
+  const QuicSocketAddress& self_address;
+  const QuicSocketAddress& peer_address;
+  const QuicReceivedPacket& packet;
+
+  // Fields below are populated by QuicFramer::ProcessPacketDispatcher.
+  PacketHeaderFormat form;
+  bool version_flag;
+  QuicVersionLabel version_label;
+  ParsedQuicVersion version;
+  QuicConnectionId destination_connection_id;
+  QuicConnectionId source_connection_id;
+};
+
 }  // namespace quic
 
 #endif  // QUICHE_QUIC_CORE_QUIC_PACKETS_H_
