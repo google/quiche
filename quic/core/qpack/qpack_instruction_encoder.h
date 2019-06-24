@@ -5,7 +5,6 @@
 #ifndef QUICHE_QUIC_CORE_QPACK_QPACK_INSTRUCTION_ENCODER_H_
 #define QUICHE_QUIC_CORE_QPACK_QPACK_INSTRUCTION_ENCODER_H_
 
-#include <cstddef>
 #include <cstdint>
 #include <string>
 
@@ -37,20 +36,6 @@ class QUIC_EXPORT_PRIVATE QpackInstructionEncoder {
   void Encode(const QpackInstruction* instruction, std::string* output);
 
  private:
-  // Start encoding an instruction.  Must only be called after the previous
-  // instruction has been completely encoded.
-  void StartEncode(const QpackInstruction* instruction);
-
-  // Returns true iff more data remains to be encoded for the current
-  // instruction.  Returns false if there is no current instruction, that is, if
-  // Encode() has never been called.
-  bool HasNext() const;
-
-  // Encodes the next up to |max_encoded_bytes| octets of the current
-  // instruction, appending to |output|.  Must only be called when HasNext()
-  // returns true.  |max_encoded_bytes| must be positive.
-  void Next(size_t max_encoded_bytes, std::string* output);
-
   enum class State {
     // Write instruction opcode to |byte_|.
     kOpcode,
@@ -71,15 +56,15 @@ class QUIC_EXPORT_PRIVATE QpackInstructionEncoder {
     kWriteString
   };
 
-  // One method for each state.  Some encode up to |max_encoded_bytes| octets,
-  // appending to |output|.  Some only change internal state.
+  // One method for each state.  Some append encoded bytes to |output|.
+  // Some only change internal state.
   void DoOpcode();
   void DoStartField();
   void DoStaticBit();
-  size_t DoVarintStart(size_t max_encoded_bytes, std::string* output);
-  size_t DoVarintResume(size_t max_encoded_bytes, std::string* output);
+  void DoVarintStart(std::string* output);
+  void DoVarintResume(std::string* output);
   void DoStartString();
-  size_t DoWriteString(size_t max_encoded_bytes, std::string* output);
+  void DoWriteString(std::string* output);
 
   // Storage for field values to be encoded.
   bool s_bit_;

@@ -22,15 +22,7 @@ QpackInstructionEncoder::QpackInstructionEncoder()
 
 void QpackInstructionEncoder::Encode(const QpackInstruction* instruction,
                                      std::string* output) {
-  StartEncode(instruction);
-  DCHECK(HasNext());
-
-  Next(std::numeric_limits<size_t>::max(), output);
-  DCHECK(!HasNext());
-}
-
-void QpackInstructionEncoder::StartEncode(const QpackInstruction* instruction) {
-  DCHECK(!HasNext());
+  DCHECK(instruction);
 
   state_ = State::kOpcode;
   instruction_ = instruction;
@@ -38,20 +30,8 @@ void QpackInstructionEncoder::StartEncode(const QpackInstruction* instruction) {
 
   // Field list must not be empty.
   DCHECK(field_ != instruction_->fields.end());
-}
 
-bool QpackInstructionEncoder::HasNext() const {
-  return instruction_ && (field_ != instruction_->fields.end());
-}
-
-void QpackInstructionEncoder::Next(size_t max_encoded_bytes,
-                                   std::string* output) {
-  DCHECK(HasNext());
-  DCHECK_NE(0u, max_encoded_bytes);
-
-  while (max_encoded_bytes > 0 && HasNext()) {
-    size_t encoded_bytes = 0;
-
+  do {
     switch (state_) {
       case State::kOpcode:
         DoOpcode();
@@ -63,22 +43,19 @@ void QpackInstructionEncoder::Next(size_t max_encoded_bytes,
         DoStaticBit();
         break;
       case State::kVarintStart:
-        encoded_bytes = DoVarintStart(max_encoded_bytes, output);
+        DoVarintStart(output);
         break;
       case State::kVarintResume:
-        encoded_bytes = DoVarintResume(max_encoded_bytes, output);
+        DoVarintResume(output);
         break;
       case State::kStartString:
         DoStartString();
         break;
       case State::kWriteString:
-        encoded_bytes = DoWriteString(max_encoded_bytes, output);
+        DoWriteString(output);
         break;
     }
-
-    DCHECK_LE(encoded_bytes, max_encoded_bytes);
-    max_encoded_bytes -= encoded_bytes;
-  }
+  } while (field_ != instruction_->fields.end());
 }
 
 void QpackInstructionEncoder::DoOpcode() {
@@ -118,8 +95,7 @@ void QpackInstructionEncoder::DoStaticBit() {
   state_ = State::kStartField;
 }
 
-size_t QpackInstructionEncoder::DoVarintStart(size_t /*max_encoded_bytes*/,
-                                              std::string* output) {
+void QpackInstructionEncoder::DoVarintStart(std::string* output) {
   DCHECK(field_->type == QpackInstructionFieldType::kVarint ||
          field_->type == QpackInstructionFieldType::kVarint2 ||
          field_->type == QpackInstructionFieldType::kName ||
@@ -145,46 +121,37 @@ size_t QpackInstructionEncoder::DoVarintStart(size_t /*max_encoded_bytes*/,
 
   if (varint_encoder_.IsEncodingInProgress()) {
     state_ = State::kVarintResume;
-    return 1;
+    return;
   }
 
   if (field_->type == QpackInstructionFieldType::kVarint ||
       field_->type == QpackInstructionFieldType::kVarint2) {
     ++field_;
     state_ = State::kStartField;
-    return 1;
+    return;
   }
 
   state_ = State::kWriteString;
-  return 1;
 }
 
-size_t QpackInstructionEncoder::DoVarintResume(size_t max_encoded_bytes,
-                                               std::string* output) {
+void QpackInstructionEncoder::DoVarintResume(std::string* output) {
   DCHECK(field_->type == QpackInstructionFieldType::kVarint ||
          field_->type == QpackInstructionFieldType::kVarint2 ||
          field_->type == QpackInstructionFieldType::kName ||
          field_->type == QpackInstructionFieldType::kValue);
   DCHECK(varint_encoder_.IsEncodingInProgress());
 
-  const size_t encoded_bytes =
-      varint_encoder_.ResumeEncoding(max_encoded_bytes, output);
-  if (varint_encoder_.IsEncodingInProgress()) {
-    DCHECK_EQ(encoded_bytes, max_encoded_bytes);
-    return encoded_bytes;
-  }
-
-  DCHECK_LE(encoded_bytes, max_encoded_bytes);
+  varint_encoder_.ResumeEncoding(std::numeric_limits<size_t>::max(), output);
+  DCHECK(!varint_encoder_.IsEncodingInProgress());
 
   if (field_->type == QpackInstructionFieldType::kVarint ||
       field_->type == QpackInstructionFieldType::kVarint2) {
     ++field_;
     state_ = State::kStartField;
-    return encoded_bytes;
+    return;
   }
 
   state_ = State::kWriteString;
-  return encoded_bytes;
 }
 
 void QpackInstructionEncoder::DoStartString() {
@@ -205,24 +172,14 @@ void QpackInstructionEncoder::DoStartString() {
   state_ = State::kVarintStart;
 }
 
-size_t QpackInstructionEncoder::DoWriteString(size_t max_encoded_bytes,
-                                              std::string* output) {
+void QpackInstructionEncoder::DoWriteString(std::string* output) {
   DCHECK(field_->type == QpackInstructionFieldType::kName ||
          field_->type == QpackInstructionFieldType::kValue);
 
-  if (max_encoded_bytes < string_to_write_.size()) {
-    const size_t encoded_bytes = max_encoded_bytes;
-    QuicStrAppend(output, string_to_write_.substr(0, encoded_bytes));
-    string_to_write_ = string_to_write_.substr(encoded_bytes);
-    return encoded_bytes;
-  }
-
-  const size_t encoded_bytes = string_to_write_.size();
   QuicStrAppend(output, string_to_write_);
 
   ++field_;
   state_ = State::kStartField;
-  return encoded_bytes;
 }
 
 }  // namespace quic
