@@ -276,8 +276,7 @@ class QUIC_EXPORT_PRIVATE QuicConnectionDebugVisitor
       const QuicVersionNegotiationPacket& /*packet*/) {}
 
   // Called when the connection is closed.
-  virtual void OnConnectionClosed(QuicErrorCode /*error*/,
-                                  const std::string& /*error_details*/,
+  virtual void OnConnectionClosed(const QuicConnectionCloseFrame& /*frame*/,
                                   ConnectionCloseSource /*source*/) {}
 
   // Called when the version negotiation is successful.

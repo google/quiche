@@ -2673,7 +2673,7 @@ void QuicConnection::TearDownLocalConnectionState(
   QuicConnectionCloseFrame frame(error, error_details);
   visitor_->OnConnectionClosed(frame, source);
   if (debug_visitor_ != nullptr) {
-    debug_visitor_->OnConnectionClosed(error, error_details, source);
+    debug_visitor_->OnConnectionClosed(frame, source);
   }
   // Cancel the alarms so they don't trigger any action now that the
   // connection is closed.
