@@ -500,12 +500,12 @@ size_t QuicStreamSequencerBuffer::GetBlockCapacity(size_t block_index) const {
   }
 }
 
-std::string QuicStreamSequencerBuffer::GapsDebugString() {
+std::string QuicStreamSequencerBuffer::GapsDebugString() const {
   // TODO(vasilvv): this should return the complement of |bytes_received_|.
   return bytes_received_.ToString();
 }
 
-std::string QuicStreamSequencerBuffer::ReceivedFramesDebugString() {
+std::string QuicStreamSequencerBuffer::ReceivedFramesDebugString() const {
   return bytes_received_.ToString();
 }
 

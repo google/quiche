@@ -219,10 +219,10 @@ class QUIC_EXPORT_PRIVATE QuicStreamSequencerBuffer {
   QuicStreamOffset NextExpectedByte() const;
 
   // Return |gaps_| as a string: [1024, 1500) [1800, 2048)... for debugging.
-  std::string GapsDebugString();
+  std::string GapsDebugString() const;
 
   // Return all received frames as a string in same format as GapsDebugString();
-  std::string ReceivedFramesDebugString();
+  std::string ReceivedFramesDebugString() const;
 
   // The maximum total capacity of this buffer in byte, as constructed.
   const size_t max_buffer_capacity_bytes_;
