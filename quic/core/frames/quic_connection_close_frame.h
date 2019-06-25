@@ -26,7 +26,6 @@ QUIC_EXPORT_PRIVATE std::ostream& operator<<(
 
 struct QUIC_EXPORT_PRIVATE QuicConnectionCloseFrame {
   QuicConnectionCloseFrame();
-  QuicConnectionCloseFrame(QuicErrorCode error_code);
   QuicConnectionCloseFrame(QuicErrorCode error_code, std::string error_details);
   QuicConnectionCloseFrame(QuicIetfTransportErrorCodes transport_error_code,
                            QuicErrorCode extracted_error_code,

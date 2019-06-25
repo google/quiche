@@ -1444,7 +1444,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
 
     header.packet_number = QuicPacketNumber(number);
 
-    QuicConnectionCloseFrame qccf(QUIC_PEER_GOING_AWAY);
+    QuicConnectionCloseFrame qccf(QUIC_PEER_GOING_AWAY, "");
     if (VersionHasIetfQuicFrames(peer_framer_.transport_version())) {
       // Default close-type is Google QUIC. If doing IETF QUIC then
       // set close type to be IETF CC/T.
@@ -6862,7 +6862,7 @@ TEST_P(QuicConnectionTest, ProcessFramesIfPacketClosedConnection) {
   header.packet_number = QuicPacketNumber(1);
   header.version_flag = false;
 
-  QuicConnectionCloseFrame qccf(QUIC_PEER_GOING_AWAY);
+  QuicConnectionCloseFrame qccf(QUIC_PEER_GOING_AWAY, "");
   if (VersionHasIetfQuicFrames(peer_framer_.transport_version())) {
     // Default close-type is Google QUIC. If doing IETF QUIC then
     // set close type to be IETF CC/T.
@@ -8486,7 +8486,7 @@ TEST_P(QuicConnectionTest, CheckConnectedBeforeFlush) {
   EXPECT_CALL(visitor_, OnConnectionClosed(_, _));
   EXPECT_EQ(Perspective::IS_CLIENT, connection_.perspective());
   std::unique_ptr<QuicConnectionCloseFrame> connection_close_frame(
-      new QuicConnectionCloseFrame(QUIC_INTERNAL_ERROR));
+      new QuicConnectionCloseFrame(QUIC_INTERNAL_ERROR, ""));
   if (VersionHasIetfQuicFrames(connection_.transport_version())) {
     connection_close_frame->close_type = IETF_QUIC_TRANSPORT_CONNECTION_CLOSE;
   }

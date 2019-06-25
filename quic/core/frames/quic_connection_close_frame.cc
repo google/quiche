@@ -15,13 +15,6 @@ QuicConnectionCloseFrame::QuicConnectionCloseFrame()
       extracted_error_code(QUIC_IETF_GQUIC_ERROR_MISSING),
       transport_close_frame_type(0) {}
 
-QuicConnectionCloseFrame::QuicConnectionCloseFrame(QuicErrorCode error_code)
-    // Default close type ensures that existing, pre-V99 code works as expected.
-    : close_type(GOOGLE_QUIC_CONNECTION_CLOSE),
-      quic_error_code(error_code),
-      extracted_error_code(QUIC_IETF_GQUIC_ERROR_MISSING),
-      transport_close_frame_type(0) {}
-
 QuicConnectionCloseFrame::QuicConnectionCloseFrame(QuicErrorCode error_code,
                                                    std::string error_details)
     // Default close type ensures that existing, pre-V99 code works as expected.
