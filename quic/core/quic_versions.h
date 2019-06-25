@@ -106,10 +106,12 @@ enum QuicTransportVersion {
   QUIC_VERSION_47 = 47,  // Allow variable-length QUIC connection IDs.
   QUIC_VERSION_99 = 99,  // Dumping ground for IETF QUIC changes which are not
                          // yet ready for production.
-  // QUIC_VERSION_RESERVED_FOR_NEGOTIATION is sent over the wire as da5a3a3a
+  // QUIC_VERSION_RESERVED_FOR_NEGOTIATION is sent over the wire as ?a?a?a?a
   // which is part of a range reserved by the IETF for version negotiation
-  // testing. It is intentionally meant to never be supported by servers to
-  // trigger version negotiation when proposed by clients.
+  // testing (see the "Versions" section of draft-ietf-quic-transport).
+  // This version is intentionally meant to never be supported to trigger
+  // version negotiation when proposed by clients and to prevent client
+  // ossification when sent by servers.
   QUIC_VERSION_RESERVED_FOR_NEGOTIATION = 999,
 };
 

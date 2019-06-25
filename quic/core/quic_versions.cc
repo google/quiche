@@ -6,6 +6,7 @@
 
 #include <string>
 
+#include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"
 #include "net/third_party/quiche/src/quic/core/quic_tag.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
@@ -23,6 +24,22 @@ namespace {
 // order will be: d, c, b, a.
 QuicVersionLabel MakeVersionLabel(char a, char b, char c, char d) {
   return MakeQuicTag(d, c, b, a);
+}
+
+QuicVersionLabel CreateRandomVersionLabelForNegotiation() {
+  if (!GetQuicReloadableFlag(quic_version_negotiation_grease)) {
+    return MakeVersionLabel(0xda, 0x5a, 0x3a, 0x3a);
+  }
+  QUIC_RELOADABLE_FLAG_COUNT_N(quic_version_negotiation_grease, 2, 2);
+  QuicVersionLabel result;
+  if (!GetQuicFlag(FLAGS_quic_disable_version_negotiation_grease_randomness)) {
+    QuicRandom::GetInstance()->RandBytes(&result, sizeof(result));
+  } else {
+    result = MakeVersionLabel(0xd1, 0x57, 0x38, 0x3f);
+  }
+  result &= 0xf0f0f0f0;
+  result |= 0x0a0a0a0a;
+  return result;
 }
 
 }  // namespace
@@ -112,7 +129,7 @@ QuicVersionLabel CreateQuicVersionLabel(ParsedQuicVersion parsed_version) {
       }
       return MakeVersionLabel(proto, '0', '9', '9');
     case QUIC_VERSION_RESERVED_FOR_NEGOTIATION:
-      return MakeVersionLabel(0xda, 0x5a, 0x3a, 0x3a);
+      return CreateRandomVersionLabelForNegotiation();
     default:
       // This is a bug because we should never attempt to convert an invalid
       // QuicTransportVersion to be written to the wire.

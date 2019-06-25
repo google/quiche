@@ -6705,13 +6705,16 @@ TEST_P(QuicFramerTest, CryptoFrame) {
 }
 
 TEST_P(QuicFramerTest, BuildVersionNegotiationPacket) {
+  SetQuicReloadableFlag(quic_version_negotiation_grease, true);
+  SetQuicFlag(FLAGS_quic_disable_version_negotiation_grease_randomness, true);
   // clang-format off
   unsigned char packet[] = {
       // public flags (version, 8 byte connection_id)
       0x0D,
       // connection_id
       0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
-      // version tag
+      // supported versions
+      0xDA, 0x5A, 0x3A, 0x3A,
       QUIC_VERSION_BYTES,
   };
   unsigned char packet44[] = {
@@ -6723,7 +6726,8 @@ TEST_P(QuicFramerTest, BuildVersionNegotiationPacket) {
       0x05,
       // connection_id
       0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
-      // version tag
+      // supported versions
+      0xDA, 0x5A, 0x3A, 0x3A,
       QUIC_VERSION_BYTES,
   };
   // clang-format on
@@ -6752,6 +6756,8 @@ TEST_P(QuicFramerTest, BuildVersionNegotiationPacketWithClientConnectionId) {
 
   // Client connection IDs cannot be used unless this flag is true.
   SetQuicRestartFlag(quic_do_not_override_connection_id, true);
+  SetQuicReloadableFlag(quic_version_negotiation_grease, true);
+  SetQuicFlag(FLAGS_quic_disable_version_negotiation_grease_randomness, true);
 
   // clang-format off
   unsigned char packet[] = {
@@ -6765,7 +6771,8 @@ TEST_P(QuicFramerTest, BuildVersionNegotiationPacketWithClientConnectionId) {
       0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x11,
       // server/source connection ID
       0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
-      // version tag
+      // supported versions
+      0xDA, 0x5A, 0x3A, 0x3A,
       QUIC_VERSION_BYTES,
   };
   // clang-format on

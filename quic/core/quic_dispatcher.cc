@@ -670,7 +670,7 @@ void QuicDispatcher::StatelesslyTerminateConnection(
   termination_packets.push_back(QuicFramer::BuildVersionNegotiationPacket(
       server_connection_id, EmptyQuicConnectionId(),
       /*ietf_quic=*/format != GOOGLE_QUIC_PACKET,
-      ParsedQuicVersionVector{QuicVersionReservedForNegotiation()}));
+      /*versions=*/{}));
   time_wait_list_manager()->AddConnectionIdToTimeWait(
       server_connection_id, /*ietf_quic=*/format != GOOGLE_QUIC_PACKET,
       QuicTimeWaitListManager::SEND_TERMINATION_PACKETS, ENCRYPTION_INITIAL,
