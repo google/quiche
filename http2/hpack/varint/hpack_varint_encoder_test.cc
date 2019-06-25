@@ -36,7 +36,8 @@ TEST(HpackVarintEncoderTest, Short) {
                                kShortTestData[i].prefix_length,
                                kShortTestData[i].value, &output);
     ASSERT_EQ(1u, output.size());
-    EXPECT_EQ(kShortTestData[i].expected_encoding, output[0]);
+    EXPECT_EQ(kShortTestData[i].expected_encoding,
+              static_cast<uint8_t>(output[0]));
   }
 }
 
@@ -136,7 +137,7 @@ TEST(HpackVarintEncoderTest, LastByteIsZero) {
                                kLastByteIsZeroTestData[i].value, &output);
     ASSERT_EQ(2u, output.size());
     EXPECT_EQ(kLastByteIsZeroTestData[i].expected_encoding_first_byte,
-              output[0]);
+              static_cast<uint8_t>(output[0]));
     EXPECT_EQ(0b00000000, output[1]);
   }
 }
