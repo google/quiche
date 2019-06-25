@@ -1005,6 +1005,22 @@ TEST_P(QuicHeadersStreamTest, HeadersGetAckedMultipleTimes) {
   EXPECT_EQ(17u, newly_acked_length);
 }
 
+TEST_P(QuicHeadersStreamTest, CloseOnPushPromiseToServer) {
+  if (perspective() == Perspective::IS_CLIENT) {
+    return;
+  }
+  QuicStreamId promised_id = 1;
+  SpdyPushPromiseIR push_promise(client_id_1_, promised_id, headers_.Clone());
+  SpdySerializedFrame frame = framer_->SerializeFrame(push_promise);
+  stream_frame_.data_buffer = frame.data();
+  stream_frame_.data_length = frame.size();
+  EXPECT_CALL(session_, OnStreamHeaderList(_, _, _, _));
+  // TODO(lassey): Check for HTTP_WRONG_STREAM error code.
+  EXPECT_CALL(*connection_, CloseConnection(QUIC_INVALID_HEADERS_STREAM_DATA,
+                                            "PUSH_PROMISE not supported.", _));
+  headers_stream_->OnStreamFrame(stream_frame_);
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic
