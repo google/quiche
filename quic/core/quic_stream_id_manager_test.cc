@@ -77,11 +77,6 @@ class TestQuicSession : public MockQuicSession {
 
   const QuicFrame& save_frame() { return save_frame_; }
 
-  bool ClearControlFrame(const QuicFrame& frame) {
-    DeleteFrame(&const_cast<QuicFrame&>(frame));
-    return true;
-  }
-
   TestQuicStream* CreateOutgoingBidirectionalStream() {
     if (!CanOpenNextOutgoingBidirectionalStream()) {
       return nullptr;

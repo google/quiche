@@ -153,6 +153,11 @@ std::string Sha1Hash(QuicStringPiece data) {
   return std::string(buffer, QUIC_ARRAYSIZE(buffer));
 }
 
+bool ClearControlFrame(const QuicFrame& frame) {
+  DeleteFrame(&const_cast<QuicFrame&>(frame));
+  return true;
+}
+
 uint64_t SimpleRandom::RandUint64() {
   uint64_t result;
   RandBytes(&result, sizeof(result));

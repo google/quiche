@@ -16,6 +16,7 @@
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 
 using testing::_;
+using testing::Invoke;
 
 namespace quic {
 namespace test {
@@ -43,11 +44,6 @@ class QuicFlowControllerTest : public QuicTest {
         session_.get(), stream_id_, /*is_connection_flow_controller*/ false,
         send_window_, receive_window_, kStreamReceiveWindowLimit,
         should_auto_tune_receive_window_, &session_flow_controller_);
-  }
-
-  bool ClearControlFrame(const QuicFrame& frame) {
-    DeleteFrame(&const_cast<QuicFrame&>(frame));
-    return true;
   }
 
  protected:
@@ -243,7 +239,7 @@ TEST_F(QuicFlowControllerTest, ReceivingBytesFastNoAutoTune) {
   // This test will generate two WINDOW_UPDATE frames.
   EXPECT_CALL(*connection_, SendControlFrame(_))
       .Times(2)
-      .WillRepeatedly(Invoke(this, &QuicFlowControllerTest::ClearControlFrame));
+      .WillRepeatedly(Invoke(&ClearControlFrame));
   EXPECT_FALSE(flow_controller_->auto_tune_receive_window());
 
   // Make sure clock is inititialized.
@@ -353,7 +349,7 @@ TEST_F(QuicFlowControllerTest, ReceivingBytesNormalNoAutoTune) {
   // This test will generate two WINDOW_UPDATE frames.
   EXPECT_CALL(*connection_, SendControlFrame(_))
       .Times(2)
-      .WillRepeatedly(Invoke(this, &QuicFlowControllerTest::ClearControlFrame));
+      .WillRepeatedly(Invoke(&ClearControlFrame));
   EXPECT_FALSE(flow_controller_->auto_tune_receive_window());
 
   // Make sure clock is inititialized.

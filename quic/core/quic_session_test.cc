@@ -280,11 +280,6 @@ class TestSession : public QuicSession {
     return consumed;
   }
 
-  bool ClearControlFrame(const QuicFrame& frame) {
-    DeleteFrame(&const_cast<QuicFrame&>(frame));
-    return true;
-  }
-
   bool SaveFrame(const QuicFrame& frame) {
     save_frame_ = frame;
     DeleteFrame(&const_cast<QuicFrame&>(frame));
@@ -371,10 +366,10 @@ class QuicSessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
         // Once for the RST_STREAM, Once for the STOP_SENDING
         EXPECT_CALL(*connection_, SendControlFrame(_))
             .Times(2)
-            .WillRepeatedly(Invoke(&session_, &TestSession::ClearControlFrame));
+            .WillRepeatedly(Invoke(&ClearControlFrame));
       } else {
         EXPECT_CALL(*connection_, SendControlFrame(_))
-            .WillOnce(Invoke(&session_, &TestSession::ClearControlFrame));
+            .WillOnce(Invoke(&ClearControlFrame));
       }
       EXPECT_CALL(*connection_, OnStreamReset(id, _));
     }
@@ -1118,7 +1113,7 @@ TEST_P(QuicSessionTestServer, OnCanWriteWithClosedStream) {
 
   InSequence s;
   EXPECT_CALL(*connection_, SendControlFrame(_))
-      .WillRepeatedly(Invoke(&session_, &TestSession::ClearControlFrame));
+      .WillRepeatedly(Invoke(&ClearControlFrame));
   EXPECT_CALL(*stream2, OnCanWrite()).WillOnce(Invoke([this, stream2]() {
     session_.SendStreamData(stream2);
   }));
@@ -1201,7 +1196,7 @@ TEST_P(QuicSessionTestServer, DoNotSendGoAwayTwice) {
     return;
   }
   EXPECT_CALL(*connection_, SendControlFrame(_))
-      .WillOnce(Invoke(&session_, &TestSession::ClearControlFrame));
+      .WillOnce(Invoke(&ClearControlFrame));
   session_.SendGoAway(QUIC_PEER_GOING_AWAY, "Going Away.");
   EXPECT_TRUE(session_.goaway_sent());
   session_.SendGoAway(QUIC_PEER_GOING_AWAY, "Going Away.");
@@ -1422,7 +1417,7 @@ TEST_P(QuicSessionTestServer, HandshakeUnblocksFlowControlBlockedCryptoStream) {
   EXPECT_FALSE(session_.IsConnectionFlowControlBlocked());
   EXPECT_FALSE(session_.IsStreamFlowControlBlocked());
   EXPECT_CALL(*connection_, SendControlFrame(_))
-      .WillOnce(Invoke(&session_, &TestSession::ClearControlFrame));
+      .WillOnce(Invoke(&ClearControlFrame));
   for (QuicStreamId i = 0;
        !crypto_stream->flow_controller()->IsBlocked() && i < 1000u; i++) {
     EXPECT_FALSE(session_.IsConnectionFlowControlBlocked());
@@ -1467,7 +1462,7 @@ TEST_P(QuicSessionTestServer, ConnectionFlowControlAccountingRstOutOfOrder) {
 
   EXPECT_CALL(*connection_, SendControlFrame(_))
       .Times(2)
-      .WillRepeatedly(Invoke(&session_, &TestSession::ClearControlFrame));
+      .WillRepeatedly(Invoke(&ClearControlFrame));
   EXPECT_CALL(*connection_, OnStreamReset(stream->id(), _));
 
   QuicRstStreamFrame rst_frame(kInvalidControlFrameId, stream->id(),
@@ -1674,11 +1669,11 @@ TEST_P(QuicSessionTestServer, TooManyUnfinishedStreamsCauseServerRejectStream) {
       // Expect two control frames, RST STREAM and STOP SENDING
       EXPECT_CALL(*connection_, SendControlFrame(_))
           .Times(2)
-          .WillRepeatedly(Invoke(&session_, &TestSession::ClearControlFrame));
+          .WillRepeatedly(Invoke(&ClearControlFrame));
     } else {
       // Expect one control frame, just RST STREAM
       EXPECT_CALL(*connection_, SendControlFrame(_))
-          .WillOnce(Invoke(&session_, &TestSession::ClearControlFrame));
+          .WillOnce(Invoke(&ClearControlFrame));
     }
     // Close stream. Should not make new streams available since
     // the stream is not finished.
@@ -1934,7 +1929,7 @@ TEST_P(QuicSessionTestServer, TestZombieStreams) {
                                QUIC_STREAM_CANCELLED, 1234);
   // Just for the RST_STREAM
   EXPECT_CALL(*connection_, SendControlFrame(_))
-      .WillOnce(Invoke(&session_, &TestSession::ClearControlFrame));
+      .WillOnce(Invoke(&ClearControlFrame));
   if (VersionHasIetfQuicFrames(transport_version())) {
     EXPECT_CALL(*connection_,
                 OnStreamReset(stream2->id(), QUIC_STREAM_CANCELLED));
@@ -1962,7 +1957,7 @@ TEST_P(QuicSessionTestServer, TestZombieStreams) {
     // Once for the RST_STREAM, once for the STOP_SENDING
     EXPECT_CALL(*connection_, SendControlFrame(_))
         .Times(2)
-        .WillRepeatedly(Invoke(&session_, &TestSession::ClearControlFrame));
+        .WillRepeatedly(Invoke(&ClearControlFrame));
   } else {
     // Just for the RST_STREAM
     EXPECT_CALL(*connection_, SendControlFrame(_)).Times(1);
@@ -2100,7 +2095,7 @@ TEST_P(QuicSessionTestServer, DonotRetransmitDataOfClosedStreams) {
   EXPECT_CALL(*stream2, OnCanWrite());
   EXPECT_CALL(*stream2, HasPendingRetransmission()).WillOnce(Return(false));
   EXPECT_CALL(*connection_, SendControlFrame(_))
-      .WillRepeatedly(Invoke(&session_, &TestSession::ClearControlFrame));
+      .WillRepeatedly(Invoke(&ClearControlFrame));
   EXPECT_CALL(*stream2, OnCanWrite());
   EXPECT_CALL(*stream6, OnCanWrite());
   session_.OnCanWrite();
@@ -2116,7 +2111,7 @@ TEST_P(QuicSessionTestServer, RetransmitFrames) {
   TestStream* stream4 = session_.CreateOutgoingBidirectionalStream();
   TestStream* stream6 = session_.CreateOutgoingBidirectionalStream();
   EXPECT_CALL(*connection_, SendControlFrame(_))
-      .WillOnce(Invoke(&session_, &TestSession::ClearControlFrame));
+      .WillOnce(Invoke(&ClearControlFrame));
   session_.SendWindowUpdate(stream2->id(), 9);
 
   QuicStreamFrame frame1(stream2->id(), false, 0, 9);
@@ -2132,7 +2127,7 @@ TEST_P(QuicSessionTestServer, RetransmitFrames) {
 
   EXPECT_CALL(*stream2, RetransmitStreamData(_, _, _)).WillOnce(Return(true));
   EXPECT_CALL(*connection_, SendControlFrame(_))
-      .WillOnce(Invoke(&session_, &TestSession::ClearControlFrame));
+      .WillOnce(Invoke(&ClearControlFrame));
   EXPECT_CALL(*stream4, RetransmitStreamData(_, _, _)).WillOnce(Return(true));
   EXPECT_CALL(*stream6, RetransmitStreamData(_, _, _)).WillOnce(Return(true));
   EXPECT_CALL(*send_algorithm, OnApplicationLimited(_));
@@ -2245,7 +2240,7 @@ TEST_P(QuicSessionTestServer, LocallyResetZombieStreams) {
 
   // Reset stream2 locally.
   EXPECT_CALL(*connection_, SendControlFrame(_))
-      .WillRepeatedly(Invoke(&session_, &TestSession::ClearControlFrame));
+      .WillRepeatedly(Invoke(&ClearControlFrame));
   EXPECT_CALL(*connection_, OnStreamReset(stream2->id(), _));
   stream2->Reset(QUIC_STREAM_CANCELLED);
 

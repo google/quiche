@@ -254,11 +254,6 @@ class TestSession : public QuicSpdySession {
     return consumed;
   }
 
-  bool ClearControlFrame(const QuicFrame& frame) {
-    DeleteFrame(&const_cast<QuicFrame&>(frame));
-    return true;
-  }
-
   QuicConsumedData SendLargeFakeData(QuicStream* stream, int bytes) {
     DCHECK(writev_consumes_all_data_);
     return WritevData(stream, stream->id(), bytes, 0, FIN);
@@ -322,12 +317,12 @@ class QuicSpdySessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
   void CloseStream(QuicStreamId id) {
     if (!VersionHasIetfQuicFrames(transport_version())) {
       EXPECT_CALL(*connection_, SendControlFrame(_))
-          .WillOnce(Invoke(&session_, &TestSession::ClearControlFrame));
+          .WillOnce(Invoke(&ClearControlFrame));
     } else {
       // V99 has two frames, RST_STREAM and STOP_SENDING
       EXPECT_CALL(*connection_, SendControlFrame(_))
           .Times(2)
-          .WillRepeatedly(Invoke(&session_, &TestSession::ClearControlFrame));
+          .WillRepeatedly(Invoke(&ClearControlFrame));
     }
     EXPECT_CALL(*connection_, OnStreamReset(id, _));
     session_.CloseStream(id);
@@ -887,7 +882,7 @@ TEST_P(QuicSpdySessionTestServer, OnCanWriteWithClosedStream) {
 
   InSequence s;
   EXPECT_CALL(*connection_, SendControlFrame(_))
-      .WillRepeatedly(Invoke(&session_, &TestSession::ClearControlFrame));
+      .WillRepeatedly(Invoke(&ClearControlFrame));
   EXPECT_CALL(*stream2, OnCanWrite()).WillOnce(Invoke([this, stream2]() {
     session_.SendStreamData(stream2);
   }));
@@ -985,7 +980,7 @@ TEST_P(QuicSpdySessionTestServer, DoNotSendGoAwayTwice) {
     return;
   }
   EXPECT_CALL(*connection_, SendControlFrame(_))
-      .WillOnce(Invoke(&session_, &TestSession::ClearControlFrame));
+      .WillOnce(Invoke(&ClearControlFrame));
   session_.SendGoAway(QUIC_PEER_GOING_AWAY, "Going Away.");
   EXPECT_TRUE(session_.goaway_sent());
   session_.SendGoAway(QUIC_PEER_GOING_AWAY, "Going Away.");
@@ -1182,10 +1177,10 @@ TEST_P(QuicSpdySessionTestServer,
   EXPECT_FALSE(session_.IsStreamFlowControlBlocked());
   if (VersionHasIetfQuicFrames(transport_version())) {
     EXPECT_CALL(*connection_, SendControlFrame(_))
-        .WillOnce(Invoke(&session_, &TestSession::ClearControlFrame));
+        .WillOnce(Invoke(&ClearControlFrame));
   } else {
     EXPECT_CALL(*connection_, SendControlFrame(_))
-        .WillOnce(Invoke(&session_, &TestSession::ClearControlFrame));
+        .WillOnce(Invoke(&ClearControlFrame));
   }
   for (QuicStreamId i = 0;
        !crypto_stream->flow_controller()->IsBlocked() && i < 1000u; i++) {
@@ -1255,7 +1250,7 @@ TEST_P(QuicSpdySessionTestServer,
   QuicStreamId stream_id = 5;
   // Write until the header stream is flow control blocked.
   EXPECT_CALL(*connection_, SendControlFrame(_))
-      .WillOnce(Invoke(&session_, &TestSession::ClearControlFrame));
+      .WillOnce(Invoke(&ClearControlFrame));
   SpdyHeaderBlock headers;
   SimpleRandom random;
   while (!headers_stream->flow_controller()->IsBlocked() && stream_id < 2000) {
@@ -1308,7 +1303,7 @@ TEST_P(QuicSpdySessionTestServer,
 
   EXPECT_CALL(*connection_, SendControlFrame(_))
       .Times(2)
-      .WillRepeatedly(Invoke(&session_, &TestSession::ClearControlFrame));
+      .WillRepeatedly(Invoke(&ClearControlFrame));
   if (!VersionHasIetfQuicFrames(transport_version())) {
     // For version99 the call to OnStreamReset happens as a result of receiving
     // the STOP_SENDING, so set up the EXPECT there.
@@ -1566,12 +1561,12 @@ TEST_P(QuicSpdySessionTestServer,
     // EXPECT_EQ(1u, session_.GetNumOpenStreams());
     if (!VersionHasIetfQuicFrames(transport_version())) {
       EXPECT_CALL(*connection_, SendControlFrame(_))
-          .WillOnce(Invoke(&session_, &TestSession::ClearControlFrame));
+          .WillOnce(Invoke(&ClearControlFrame));
     } else {
       // V99 has two frames, RST_STREAM and STOP_SENDING
       EXPECT_CALL(*connection_, SendControlFrame(_))
           .Times(2)
-          .WillRepeatedly(Invoke(&session_, &TestSession::ClearControlFrame));
+          .WillRepeatedly(Invoke(&ClearControlFrame));
     }
     // Close the stream only if not version 99. If we are version 99
     // then closing the stream opens up the available stream id space,
@@ -1978,7 +1973,7 @@ TEST_P(QuicSpdySessionTestServer, DonotRetransmitDataOfClosedStreams) {
   EXPECT_CALL(*stream2, OnCanWrite());
   EXPECT_CALL(*stream2, HasPendingRetransmission()).WillOnce(Return(false));
   EXPECT_CALL(*connection_, SendControlFrame(_))
-      .WillRepeatedly(Invoke(&session_, &TestSession::ClearControlFrame));
+      .WillRepeatedly(Invoke(&ClearControlFrame));
   EXPECT_CALL(*stream2, OnCanWrite());
   EXPECT_CALL(*stream6, OnCanWrite());
   session_.OnCanWrite();
@@ -1994,7 +1989,7 @@ TEST_P(QuicSpdySessionTestServer, RetransmitFrames) {
   TestStream* stream4 = session_.CreateOutgoingBidirectionalStream();
   TestStream* stream6 = session_.CreateOutgoingBidirectionalStream();
   EXPECT_CALL(*connection_, SendControlFrame(_))
-      .WillOnce(Invoke(&session_, &TestSession::ClearControlFrame));
+      .WillOnce(Invoke(&ClearControlFrame));
   session_.SendWindowUpdate(stream2->id(), 9);
 
   QuicStreamFrame frame1(stream2->id(), false, 0, 9);
@@ -2010,7 +2005,7 @@ TEST_P(QuicSpdySessionTestServer, RetransmitFrames) {
 
   EXPECT_CALL(*stream2, RetransmitStreamData(_, _, _)).WillOnce(Return(true));
   EXPECT_CALL(*connection_, SendControlFrame(_))
-      .WillOnce(Invoke(&session_, &TestSession::ClearControlFrame));
+      .WillOnce(Invoke(&ClearControlFrame));
   EXPECT_CALL(*stream4, RetransmitStreamData(_, _, _)).WillOnce(Return(true));
   EXPECT_CALL(*stream6, RetransmitStreamData(_, _, _)).WillOnce(Return(true));
   EXPECT_CALL(*send_algorithm, OnApplicationLimited(_));

@@ -121,11 +121,6 @@ class QuicStreamTestBase : public QuicTestWithParam<ParsedQuicVersion> {
     return QuicConsumedData(1, false);
   }
 
-  bool ClearControlFrame(const QuicFrame& frame) {
-    DeleteFrame(&const_cast<QuicFrame&>(frame));
-    return true;
-  }
-
   bool ClearResetStreamFrame(const QuicFrame& frame) {
     EXPECT_EQ(RST_STREAM_FRAME, frame.type);
     DeleteFrame(&const_cast<QuicFrame&>(frame));
@@ -610,7 +605,7 @@ TEST_P(QuicStreamTest, StopReadingSendsFlowControl) {
       .Times(0);
   EXPECT_CALL(*connection_, SendControlFrame(_))
       .Times(AtLeast(1))
-      .WillRepeatedly(Invoke(this, &QuicStreamTest::ClearControlFrame));
+      .WillRepeatedly(Invoke(&ClearControlFrame));
 
   std::string data(1000, 'x');
   for (QuicStreamOffset offset = 0;
@@ -1493,7 +1488,7 @@ TEST_P(QuicStreamTest, MarkConnectionLevelWriteBlockedOnWindowUpdateFrame) {
   EXPECT_CALL(*session_, WritevData(_, _, _, _, _))
       .WillRepeatedly(Invoke(MockQuicSession::ConsumeData));
   EXPECT_CALL(*connection_, SendControlFrame(_))
-      .WillOnce(Invoke(this, &QuicStreamTest::ClearControlFrame));
+      .WillOnce(Invoke(&ClearControlFrame));
   std::string data(1024, '.');
   stream_->WriteOrBufferData(data, false, nullptr);
   EXPECT_FALSE(HasWriteBlockedStreams());
@@ -1519,7 +1514,7 @@ TEST_P(QuicStreamTest,
   EXPECT_CALL(*session_, WritevData(_, _, _, _, _))
       .WillRepeatedly(Invoke(MockQuicSession::ConsumeData));
   EXPECT_CALL(*connection_, SendControlFrame(_))
-      .WillOnce(Invoke(this, &QuicStreamTest::ClearControlFrame));
+      .WillOnce(Invoke(&ClearControlFrame));
   stream_->WriteOrBufferData(data, false, nullptr);
   EXPECT_FALSE(HasWriteBlockedStreams());
 

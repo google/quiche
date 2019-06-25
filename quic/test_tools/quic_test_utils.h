@@ -208,6 +208,9 @@ std::unique_ptr<QuicPacket> BuildUnsizedDataPacket(
 // Compute SHA-1 hash of the supplied std::string.
 std::string Sha1Hash(QuicStringPiece data);
 
+// Delete |frame| and return true.
+bool ClearControlFrame(const QuicFrame& frame);
+
 // Simple random number generator used to compute random numbers suitable
 // for pseudo-randomly dropping packets in tests.
 class SimpleRandom : public QuicRandom {

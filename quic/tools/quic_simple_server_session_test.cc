@@ -177,11 +177,6 @@ class MockQuicSimpleServerSession : public QuicSimpleServerSession {
 class QuicSimpleServerSessionTest
     : public QuicTestWithParam<ParsedQuicVersion> {
  public:
-  bool ClearControlFrame(const QuicFrame& frame) {
-    DeleteFrame(&const_cast<QuicFrame&>(frame));
-    return true;
-  }
-
   // The function ensures that A) the MAX_STREAMS frames get properly deleted
   // (since the test uses a 'did we leak memory' check ... if we just lose the
   // frame, the test fails) and B) returns true (instead of the default, false)
@@ -797,8 +792,7 @@ TEST_P(QuicSimpleServerSessionServerPushTest,
     // limit. This will clear the frames so that they do not block the later
     // rst-stream frame.
     EXPECT_CALL(*connection_, SendControlFrame(_))
-        .WillOnce(Invoke(
-            this, &QuicSimpleServerSessionServerPushTest::ClearControlFrame));
+        .WillOnce(Invoke(&ClearControlFrame));
   }
   QuicByteCount data_frame_header_length = PromisePushResources(num_resources);
 
@@ -815,8 +809,7 @@ TEST_P(QuicSimpleServerSessionServerPushTest,
                          QUIC_STREAM_CANCELLED, 0);
   EXPECT_CALL(owner_, OnRstStreamReceived(_)).Times(1);
   EXPECT_CALL(*connection_, SendControlFrame(_))
-      .WillOnce(Invoke(
-          this, &QuicSimpleServerSessionServerPushTest::ClearControlFrame));
+      .WillOnce(Invoke(&ClearControlFrame));
   EXPECT_CALL(*connection_,
               OnStreamReset(stream_got_reset, QUIC_RST_ACKNOWLEDGEMENT));
   visitor_->OnRstStream(rst);
@@ -884,8 +877,7 @@ TEST_P(QuicSimpleServerSessionServerPushTest,
     // the limit. This will clear the frames so that they do not block the later
     // rst-stream frame.
     EXPECT_CALL(*connection_, SendControlFrame(_))
-        .WillOnce(Invoke(
-            this, &QuicSimpleServerSessionServerPushTest::ClearControlFrame));
+        .WillOnce(Invoke(&ClearControlFrame));
   }
   QuicByteCount data_frame_header_length = PromisePushResources(num_resources);
   QuicStreamId stream_to_open;
