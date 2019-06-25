@@ -8,11 +8,11 @@
 #include <cstdint>
 #include <memory>
 
-#include "testing/gmock/include/gmock/gmock.h"
 #include "net/third_party/quiche/src/spdy/core/http2_frame_decoder_adapter.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_test_utils.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_ptr_util.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_piece.h"
+#include "net/third_party/quiche/src/spdy/platform/api/spdy_test.h"
 
 namespace spdy {
 

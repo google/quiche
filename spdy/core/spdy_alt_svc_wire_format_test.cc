@@ -4,9 +4,8 @@
 
 #include "net/third_party/quiche/src/spdy/core/spdy_alt_svc_wire_format.h"
 
-#include "testing/gmock/include/gmock/gmock.h"
-#include "testing/gtest/include/gtest/gtest.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_logging.h"
+#include "net/third_party/quiche/src/spdy/platform/api/spdy_test.h"
 
 namespace spdy {
 

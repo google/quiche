@@ -32,8 +32,8 @@ namespace test {
 }
 
 ::testing::AssertionResult VerifySpdyFrameIREquals(
-    const SpdyContinuationIR& expected,
-    const SpdyContinuationIR& actual) {
+    const SpdyContinuationIR& /*expected*/,
+    const SpdyContinuationIR& /*actual*/) {
   return ::testing::AssertionFailure()
          << "VerifySpdyFrameIREquals SpdyContinuationIR not yet implemented";
 }

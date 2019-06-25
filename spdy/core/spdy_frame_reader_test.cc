@@ -6,9 +6,9 @@
 
 #include <cstdint>
 
-#include "testing/gtest/include/gtest/gtest.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_arraysize.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_endianness_util.h"
+#include "net/third_party/quiche/src/spdy/platform/api/spdy_test.h"
 
 namespace spdy {
 

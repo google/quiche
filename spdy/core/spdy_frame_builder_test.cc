@@ -6,11 +6,11 @@
 
 #include <memory>
 
-#include "testing/gtest/include/gtest/gtest.h"
 #include "net/third_party/quiche/src/spdy/core/array_output_buffer.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_framer.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_export.h"
+#include "net/third_party/quiche/src/spdy/platform/api/spdy_test.h"
 
 namespace spdy {
 

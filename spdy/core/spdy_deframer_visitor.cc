@@ -11,7 +11,6 @@
 #include <limits>
 #include <memory>
 
-#include "testing/gmock/include/gmock/gmock.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_macros.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_constants.h"
 #include "net/third_party/quiche/src/spdy/core/mock_spdy_framer_visitor.h"
@@ -498,7 +497,7 @@ bool SpdyTestDeframerImpl::OnGoAwayFrameData(const char* goaway_data,
 }
 
 SpdyHeadersHandlerInterface* SpdyTestDeframerImpl::OnHeaderFrameStart(
-    SpdyStreamId stream_id) {
+    SpdyStreamId /*stream_id*/) {
   return this;
 }
 
@@ -736,7 +735,7 @@ void SpdyTestDeframerImpl::OnWindowUpdate(SpdyStreamId stream_id,
 // of the set of currently open streams. For now we'll assume that unknown
 // frame types are unsupported.
 bool SpdyTestDeframerImpl::OnUnknownFrame(SpdyStreamId stream_id,
-                                          uint8_t frame_type) {
+                                          uint8_t /*frame_type*/) {
   SPDY_DVLOG(1) << "OnAltSvc stream_id: " << stream_id;
   CHECK_EQ(frame_type_, UNSET)
       << "   frame_type_=" << Http2FrameTypeToString(frame_type_);
@@ -1018,8 +1017,8 @@ void DeframerCallbackCollector::OnWindowUpdate(
 
 // The SpdyFramer will not process any more data at this point.
 void DeframerCallbackCollector::OnError(
-    http2::Http2DecoderAdapter::SpdyFramerError error,
-    SpdyTestDeframer* deframer) {
+    http2::Http2DecoderAdapter::SpdyFramerError /*error*/,
+    SpdyTestDeframer* /*deframer*/) {
   CollectedFrame cf;
   cf.error_reported = true;
   collected_frames_->push_back(std::move(cf));

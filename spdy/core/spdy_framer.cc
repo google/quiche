@@ -840,7 +840,7 @@ class FlagsSerializationVisitor : public SpdyFrameVisitor {
     }
   }
 
-  void VisitRstStream(const SpdyRstStreamIR& rst_stream) override {
+  void VisitRstStream(const SpdyRstStreamIR& /*rst_stream*/) override {
     flags_ = kNoFlags;
   }
 
@@ -858,7 +858,9 @@ class FlagsSerializationVisitor : public SpdyFrameVisitor {
     }
   }
 
-  void VisitGoAway(const SpdyGoAwayIR& goaway) override { flags_ = kNoFlags; }
+  void VisitGoAway(const SpdyGoAwayIR& /*goaway*/) override {
+    flags_ = kNoFlags;
+  }
 
   // TODO(diannahu): The END_HEADERS flag is incorrect for HEADERS that require
   //     CONTINUATION frames.
@@ -875,7 +877,7 @@ class FlagsSerializationVisitor : public SpdyFrameVisitor {
     }
   }
 
-  void VisitWindowUpdate(const SpdyWindowUpdateIR& window_update) override {
+  void VisitWindowUpdate(const SpdyWindowUpdateIR& /*window_update*/) override {
     flags_ = kNoFlags;
   }
 
@@ -890,13 +892,15 @@ class FlagsSerializationVisitor : public SpdyFrameVisitor {
 
   // TODO(diannahu): The END_HEADERS flag is incorrect for CONTINUATIONs that
   //     require CONTINUATION frames.
-  void VisitContinuation(const SpdyContinuationIR& continuation) override {
+  void VisitContinuation(const SpdyContinuationIR& /*continuation*/) override {
     flags_ = HEADERS_FLAG_END_HEADERS;
   }
 
-  void VisitAltSvc(const SpdyAltSvcIR& altsvc) override { flags_ = kNoFlags; }
+  void VisitAltSvc(const SpdyAltSvcIR& /*altsvc*/) override {
+    flags_ = kNoFlags;
+  }
 
-  void VisitPriority(const SpdyPriorityIR& priority) override {
+  void VisitPriority(const SpdyPriorityIR& /*priority*/) override {
     flags_ = kNoFlags;
   }
 

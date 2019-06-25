@@ -4,8 +4,7 @@
 
 #include "net/third_party/quiche/src/spdy/core/array_output_buffer.h"
 
-#include "testing/gmock/include/gmock/gmock.h"
-#include "testing/gtest/include/gtest/gtest.h"
+#include "net/third_party/quiche/src/spdy/platform/api/spdy_test.h"
 
 namespace spdy {
 namespace test {

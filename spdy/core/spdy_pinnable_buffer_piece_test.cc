@@ -4,10 +4,9 @@
 
 #include "net/third_party/quiche/src/spdy/core/spdy_pinnable_buffer_piece.h"
 
-#include "testing/gmock/include/gmock/gmock.h"
-#include "testing/gtest/include/gtest/gtest.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_prefixed_buffer_reader.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string.h"
+#include "net/third_party/quiche/src/spdy/platform/api/spdy_test.h"
 
 namespace spdy {
 

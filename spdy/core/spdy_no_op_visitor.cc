@@ -16,12 +16,12 @@ SpdyNoOpVisitor::SpdyNoOpVisitor() {
 SpdyNoOpVisitor::~SpdyNoOpVisitor() = default;
 
 SpdyHeadersHandlerInterface* SpdyNoOpVisitor::OnHeaderFrameStart(
-    SpdyStreamId stream_id) {
+    SpdyStreamId /*stream_id*/) {
   return this;
 }
 
-bool SpdyNoOpVisitor::OnUnknownFrame(SpdyStreamId stream_id,
-                                     uint8_t frame_type) {
+bool SpdyNoOpVisitor::OnUnknownFrame(SpdyStreamId /*stream_id*/,
+                                     uint8_t /*frame_type*/) {
   return true;
 }
 

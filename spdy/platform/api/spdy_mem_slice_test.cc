@@ -6,7 +6,11 @@
 
 #include <utility>
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Weverything"
+
 #include "testing/gtest/include/gtest/gtest.h"
+#pragma clang diagnostic pop
 
 namespace spdy {
 namespace test {

@@ -76,8 +76,9 @@ uint64_t ToSpdyPingId(const Http2PingFields& ping) {
 // Overwrites the fields of the header with invalid values, for the purpose
 // of identifying reading of unset fields. Only takes effect for debug builds.
 // In Address Sanatizer builds, it also marks the fields as un-readable.
-void CorruptFrameHeader(Http2FrameHeader* header) {
+void CorruptFrameHeader(Http2FrameHeader*
 #ifndef NDEBUG
+                            header) {
   // Beyond a valid payload length, which is 2^24 - 1.
   header->payload_length = 0x1010dead;
   // An unsupported frame type.
@@ -88,6 +89,8 @@ void CorruptFrameHeader(Http2FrameHeader* header) {
   // A stream id with the reserved high-bit (R in the RFC) set.
   // 2129510127 when the high-bit is cleared.
   header->stream_id = 0xfeedbeef;
+#else
+                        /*header*/) {
 #endif
 }
 
@@ -455,7 +458,7 @@ void Http2DecoderAdapter::OnPadLength(size_t trailing_length) {
   }
 }
 
-void Http2DecoderAdapter::OnPadding(const char* padding,
+void Http2DecoderAdapter::OnPadding(const char* /*padding*/,
                                     size_t skipped_length) {
   SPDY_DVLOG(1) << "OnPadding: " << skipped_length;
   if (frame_header_.type == Http2FrameType::DATA) {
@@ -1015,8 +1018,8 @@ void Http2DecoderAdapter::CommonHpackFragmentEnd() {
 
 namespace spdy {
 
-bool SpdyFramerVisitorInterface::OnGoAwayFrameData(const char* goaway_data,
-                                                   size_t len) {
+bool SpdyFramerVisitorInterface::OnGoAwayFrameData(const char* /*goaway_data*/,
+                                                   size_t /*len*/) {
   return true;
 }
 

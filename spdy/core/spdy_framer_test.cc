@@ -12,8 +12,6 @@
 #include <tuple>
 #include <vector>
 
-#include "testing/gmock/include/gmock/gmock.h"
-#include "testing/gtest/include/gtest/gtest.h"
 #include "net/third_party/quiche/src/spdy/core/array_output_buffer.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_constants.h"
 #include "net/third_party/quiche/src/spdy/core/mock_spdy_framer_visitor.h"
@@ -28,6 +26,7 @@
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_ptr_util.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_utils.h"
+#include "net/third_party/quiche/src/spdy/platform/api/spdy_test.h"
 
 using ::http2::Http2DecoderAdapter;
 using ::testing::_;
@@ -315,14 +314,14 @@ class TestSpdyVisitor : public SpdyFramerVisitorInterface,
   }
 
   SpdyHeadersHandlerInterface* OnHeaderFrameStart(
-      SpdyStreamId stream_id) override {
+      SpdyStreamId /*stream_id*/) override {
     if (headers_handler_ == nullptr) {
       headers_handler_ = SpdyMakeUnique<TestHeadersHandler>();
     }
     return headers_handler_.get();
   }
 
-  void OnHeaderFrameEnd(SpdyStreamId stream_id) override {
+  void OnHeaderFrameEnd(SpdyStreamId /*stream_id*/) override {
     CHECK(headers_handler_ != nullptr);
     headers_ = headers_handler_->decoded_block().Clone();
     header_bytes_received_ = headers_handler_->header_bytes_parsed();

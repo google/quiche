@@ -4,6 +4,7 @@
 
 #include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
 
+#include <limits>
 #include <ostream>
 
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_bug_tracker.h"
@@ -24,10 +25,9 @@ std::ostream& operator<<(std::ostream& out, SpdyFrameType frame_type) {
 }
 
 SpdyPriority ClampSpdy3Priority(SpdyPriority priority) {
-  if (priority < kV3HighestPriority) {
-    SPDY_BUG << "Invalid priority: " << static_cast<int>(priority);
-    return kV3HighestPriority;
-  }
+  static_assert(std::numeric_limits<SpdyPriority>::min() == kV3HighestPriority,
+                "The value of given priority shouldn't be smaller than highest "
+                "priority. Check this invariant explicitly.");
   if (priority > kV3LowestPriority) {
     SPDY_BUG << "Invalid priority: " << static_cast<int>(priority);
     return kV3LowestPriority;
