@@ -207,14 +207,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream : public QuicStream {
   using QuicStream::CloseWriteSide;
 
  protected:
-  // HTTP/3
-  bool OnDataFrameStart(Http3FrameLengths frame_lengths);
-  bool OnDataFramePayload(QuicStringPiece payload);
-  bool OnDataFrameEnd();
-  bool OnHeadersFrameStart(Http3FrameLengths frame_length);
-  bool OnHeadersFramePayload(QuicStringPiece payload);
-  bool OnHeadersFrameEnd();
-
   // Called when the received headers are too large. By default this will
   // reset the stream.
   virtual void OnHeadersTooLarge();
@@ -245,6 +237,14 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream : public QuicStream {
   friend class test::QuicStreamPeer;
   friend class QuicStreamUtils;
   class HttpDecoderVisitor;
+
+  // Called by HttpDecoderVisitor.
+  bool OnDataFrameStart(Http3FrameLengths frame_lengths);
+  bool OnDataFramePayload(QuicStringPiece payload);
+  bool OnDataFrameEnd();
+  bool OnHeadersFrameStart(Http3FrameLengths frame_length);
+  bool OnHeadersFramePayload(QuicStringPiece payload);
+  bool OnHeadersFrameEnd();
 
   // Call QuicStreamSequencer::MarkConsumed() with
   // |headers_bytes_to_be_marked_consumed_| if appropriate.
