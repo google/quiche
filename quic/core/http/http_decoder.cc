@@ -45,10 +45,17 @@ HttpDecoder::HttpDecoder()
 HttpDecoder::~HttpDecoder() {}
 
 QuicByteCount HttpDecoder::ProcessInput(const char* data, QuicByteCount len) {
+  DCHECK_EQ(QUIC_NO_ERROR, error_);
+  DCHECK_NE(STATE_ERROR, state_);
+
   QuicDataReader reader(data, len);
   bool continue_processing = true;
-  while (continue_processing && error_ == QUIC_NO_ERROR &&
+  while (continue_processing &&
          (reader.BytesRemaining() != 0 || state_ == STATE_FINISH_PARSING)) {
+    // |continue_processing| must have been set to false upon error.
+    DCHECK_EQ(QUIC_NO_ERROR, error_);
+    DCHECK_NE(STATE_ERROR, state_);
+
     switch (state_) {
       case STATE_READING_FRAME_TYPE:
         ReadFrameType(&reader);

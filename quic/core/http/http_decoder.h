@@ -124,10 +124,14 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
   // visitor method returns false or an error occurs.  Returns the number of
   // bytes processed.  Does not process any input if called after an error.
   // Paused processing can be resumed by calling ProcessInput() again with the
-  // unprocessed portion of data.
+  // unprocessed portion of data.  Must not be called after an error has
+  // occurred.
   QuicByteCount ProcessInput(const char* data, QuicByteCount len);
 
+  // Returns an error code other than QUIC_NO_ERROR if and only if
+  // Visitor::OnError() has been called.
   QuicErrorCode error() const { return error_; }
+
   const std::string& error_detail() const { return error_detail_; }
 
  private:
