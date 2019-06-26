@@ -672,8 +672,9 @@ bool QuicSpdyStream::FinishedReadingHeaders() const {
   return headers_decompressed_ && header_list_.empty();
 }
 
+// static
 bool QuicSpdyStream::ParseHeaderStatusCode(const SpdyHeaderBlock& header,
-                                           int* status_code) const {
+                                           int* status_code) {
   SpdyHeaderBlock::const_iterator it = header.find(spdy::kHttp2StatusHeader);
   if (it == header.end()) {
     return false;
