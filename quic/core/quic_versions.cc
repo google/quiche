@@ -458,10 +458,10 @@ void QuicEnableVersion(ParsedQuicVersion parsed_version) {
   }
   static_assert(QUIC_ARRAYSIZE(kSupportedTransportVersions) == 6u,
                 "Supported versions out of sync");
-  if (parsed_version.transport_version >= QUIC_VERSION_99) {
+  if (parsed_version.transport_version == QUIC_VERSION_99) {
     SetQuicReloadableFlag(quic_enable_version_99, true);
   }
-  if (parsed_version.transport_version >= QUIC_VERSION_47) {
+  if (parsed_version.transport_version == QUIC_VERSION_47) {
     SetQuicReloadableFlag(quic_enable_version_47, true);
   }
 }
