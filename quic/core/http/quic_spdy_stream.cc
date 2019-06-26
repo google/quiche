@@ -469,7 +469,7 @@ void QuicSpdyStream::OnStreamHeadersPriority(SpdyPriority priority) {
   SetPriority(priority);
 }
 
-bool QuicSpdyStream::OnStreamHeaderList(bool fin,
+void QuicSpdyStream::OnStreamHeaderList(bool fin,
                                         size_t frame_len,
                                         const QuicHeaderList& header_list) {
   // TODO(b/134706391): remove |fin| argument.
@@ -482,7 +482,7 @@ bool QuicSpdyStream::OnStreamHeaderList(bool fin,
   if (header_list.empty()) {
     OnHeadersTooLarge();
     if (IsDoneReading()) {
-      return false;
+      return;
     }
   }
   if (!headers_decompressed_) {
@@ -490,7 +490,6 @@ bool QuicSpdyStream::OnStreamHeaderList(bool fin,
   } else {
     OnTrailingHeadersComplete(fin, frame_len, header_list);
   }
-  return !reading_stopped();
 }
 
 void QuicSpdyStream::OnHeadersTooLarge() {
@@ -846,12 +845,10 @@ bool QuicSpdyStream::OnHeadersFrameEnd() {
   const QuicByteCount frame_length = headers_decompressed_
                                          ? trailers_length_.payload_length
                                          : headers_length_.payload_length;
-  bool result = OnStreamHeaderList(
-      /* fin = */ false, frame_length,
-      qpack_decoded_headers_accumulator_->quic_header_list());
-
+  OnStreamHeaderList(/* fin = */ false, frame_length,
+                     qpack_decoded_headers_accumulator_->quic_header_list());
   qpack_decoded_headers_accumulator_.reset();
-  return result;
+  return !sequencer()->IsClosed() && !reading_stopped();
 }
 
 size_t QuicSpdyStream::WriteHeadersImpl(
