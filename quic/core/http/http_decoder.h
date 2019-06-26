@@ -47,76 +47,62 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
     // Called if an error is detected.
     virtual void OnError(HttpDecoder* decoder) = 0;
 
+    // All the following methods return true to continue decoding,
+    // and false to pause it.
+
     // Called when a PRIORITY frame has been received.
     // |frame_length| contains PRIORITY frame length and payload length.
-    // Returns true to permit furthuring decoding, and false to prevent it.
     virtual bool OnPriorityFrameStart(Http3FrameLengths frame_length) = 0;
 
     // Called when a PRIORITY frame has been successfully parsed.
-    // Returns true to permit furthuring decoding, and false to prevent it.
     virtual bool OnPriorityFrame(const PriorityFrame& frame) = 0;
 
     // Called when a CANCEL_PUSH frame has been successfully parsed.
-    // Returns true to permit furthuring decoding, and false to prevent it.
     virtual bool OnCancelPushFrame(const CancelPushFrame& frame) = 0;
 
     // Called when a MAX_PUSH_ID frame has been successfully parsed.
-    // Returns true to permit furthuring decoding, and false to prevent it.
     virtual bool OnMaxPushIdFrame(const MaxPushIdFrame& frame) = 0;
 
     // Called when a GOAWAY frame has been successfully parsed.
-    // Returns true to permit furthuring decoding, and false to prevent it.
     virtual bool OnGoAwayFrame(const GoAwayFrame& frame) = 0;
 
     // Called when a SETTINGS frame has been received.
-    // Returns true to permit furthuring decoding, and false to prevent it.
     virtual bool OnSettingsFrameStart(Http3FrameLengths frame_length) = 0;
 
     // Called when a SETTINGS frame has been successfully parsed.
-    // Returns true to permit furthuring decoding, and false to prevent it.
     virtual bool OnSettingsFrame(const SettingsFrame& frame) = 0;
 
     // Called when a DUPLICATE_PUSH frame has been successfully parsed.
-    // Returns true to permit furthuring decoding, and false to prevent it.
     virtual bool OnDuplicatePushFrame(const DuplicatePushFrame& frame) = 0;
 
     // Called when a DATA frame has been received.
     // |frame_length| contains DATA frame length and payload length.
-    // Returns true to permit furthuring decoding, and false to prevent it.
     virtual bool OnDataFrameStart(Http3FrameLengths frame_length) = 0;
     // Called when part of the payload of a DATA frame has been read.  May be
     // called multiple times for a single frame.  |payload| is guaranteed to be
     // non-empty.
-    // Returns true to permit furthuring decoding, and false to prevent it.
     virtual bool OnDataFramePayload(QuicStringPiece payload) = 0;
     // Called when a DATA frame has been completely processed.
-    // Returns true to permit furthuring decoding, and false to prevent it.
     virtual bool OnDataFrameEnd() = 0;
 
     // Called when a HEADERS frame has been received.
     // |frame_length| contains HEADERS frame length and payload length.
-    // Returns true to permit furthuring decoding, and false to prevent it.
     virtual bool OnHeadersFrameStart(Http3FrameLengths frame_length) = 0;
     // Called when part of the payload of a HEADERS frame has been read.  May be
     // called multiple times for a single frame.  |payload| is guaranteed to be
     // non-empty.
-    // Returns true to permit furthuring decoding, and false to prevent it.
     virtual bool OnHeadersFramePayload(QuicStringPiece payload) = 0;
     // Called when a HEADERS frame has been completely processed.
     // |frame_len| is the length of the HEADERS frame payload.
-    // Returns true to permit furthuring decoding, and false to prevent it.
     virtual bool OnHeadersFrameEnd() = 0;
 
     // Called when a PUSH_PROMISE frame has been received for |push_id|.
-    // Returns true to permit furthuring decoding, and false to prevent it.
     virtual bool OnPushPromiseFrameStart(PushId push_id) = 0;
     // Called when part of the payload of a PUSH_PROMISE frame has been read.
     // May be called multiple times for a single frame.  |payload| is guaranteed
     // to be non-empty.
-    // Returns true to permit furthuring decoding, and false to prevent it.
     virtual bool OnPushPromiseFramePayload(QuicStringPiece payload) = 0;
     // Called when a PUSH_PROMISE frame has been completely processed.
-    // Returns true to permit furthuring decoding, and false to prevent it.
     virtual bool OnPushPromiseFrameEnd() = 0;
 
     // TODO(rch): Consider adding methods like:
@@ -134,9 +120,11 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
   // will be used.  |visitor| will be owned by the caller.
   void set_visitor(Visitor* visitor) { visitor_ = visitor; }
 
-  // Processes the input and invokes the visitor for any frames.
-  // Returns the number of bytes consumed, or 0 if there was an error, in which
-  // case error() should be consulted.
+  // Processes the input and invokes the appropriate visitor methods, until a
+  // visitor method returns false or an error occurs.  Returns the number of
+  // bytes processed.  Does not process any input if called after an error.
+  // Paused processing can be resumed by calling ProcessInput() again with the
+  // unprocessed portion of data.
   QuicByteCount ProcessInput(const char* data, QuicByteCount len);
 
   QuicErrorCode error() const { return error_; }
@@ -160,16 +148,17 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
   void ReadFrameType(QuicDataReader* reader);
 
   // Reads the length of a frame from |reader|. Sets error_ and error_detail_
-  // if there are any errors.
-  void ReadFrameLength(QuicDataReader* reader);
+  // if there are any errors.  Returns whether processing should continue.
+  bool ReadFrameLength(QuicDataReader* reader);
 
   // Reads the payload of the current frame from |reader| and processes it,
-  // possibly buffering the data or invoking the visitor.
-  void ReadFramePayload(QuicDataReader* reader);
+  // possibly buffering the data or invoking the visitor.  Returns whether
+  // processing should continue.
+  bool ReadFramePayload(QuicDataReader* reader);
 
   // Optionally parses buffered data; calls visitor method to signal that frame
-  // had been parsed completely.
-  void FinishParsing();
+  // had been parsed completely.  Returns whether processing should continue.
+  bool FinishParsing();
 
   // Discards any remaining frame payload from |reader|.
   void DiscardFramePayload(QuicDataReader* reader);
