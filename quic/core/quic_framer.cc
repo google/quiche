@@ -2096,7 +2096,9 @@ bool QuicFramer::AppendPacketHeader(const QuicPacketHeader& header,
   QuicConnectionIdIncluded server_connection_id_included =
       GetServerConnectionIdIncludedAsSender(header, perspective_);
   DCHECK_EQ(CONNECTION_ID_ABSENT,
-            GetClientConnectionIdIncludedAsSender(header, perspective_));
+            GetClientConnectionIdIncludedAsSender(header, perspective_))
+      << ENDPOINT << ParsedQuicVersionToString(version_)
+      << " invalid header: " << header;
 
   switch (server_connection_id_included) {
     case CONNECTION_ID_ABSENT:
@@ -2228,6 +2230,10 @@ bool QuicFramer::AppendIetfPacketHeader(const QuicPacketHeader& header,
   if (QuicVersionHasLongHeaderLengths(transport_version()) &&
       header.version_flag) {
     if (header.long_packet_type == INITIAL) {
+      DCHECK_NE(VARIABLE_LENGTH_INTEGER_LENGTH_0,
+                header.retry_token_length_length)
+          << ENDPOINT << ParsedQuicVersionToString(version_)
+          << " bad retry token length length in header: " << header;
       // Write retry token length.
       if (!writer->WriteVarInt62(header.retry_token.length(),
                                  header.retry_token_length_length)) {
