@@ -163,6 +163,8 @@ bool QuicReceiveControlStream::OnSettingsFrameStart(
 }
 
 bool QuicReceiveControlStream::OnSettingsFrame(const SettingsFrame& settings) {
+  QUIC_DVLOG(1) << "Control Stream " << id()
+                << " received settings frame: " << settings;
   QuicSpdySession* spdy_session = static_cast<QuicSpdySession*>(session());
   for (auto& it : settings.values) {
     uint64_t setting_id = it.first;

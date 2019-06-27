@@ -36,6 +36,8 @@ void QuicSendControlStream::SendSettingsFrame(const SettingsFrame& settings) {
   std::unique_ptr<char[]> buffer;
   QuicByteCount frame_length =
       encoder_.SerializeSettingsFrame(settings, &buffer);
+  QUIC_DVLOG(1) << "Control stream " << id() << " is writing settings frame "
+                << settings;
   WriteOrBufferData(QuicStringPiece(buffer.get(), frame_length),
                     /*fin = */ false, nullptr);
   settings_sent_ = true;

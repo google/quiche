@@ -6,9 +6,12 @@
 #define QUICHE_QUIC_CORE_HTTP_HTTP_FRAMES_H_
 
 #include <map>
+#include <ostream>
 
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_string_utils.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_framer.h"
 
 namespace quic {
@@ -97,6 +100,21 @@ struct SettingsFrame {
 
   bool operator==(const SettingsFrame& rhs) const {
     return values == rhs.values;
+  }
+
+  std::string ToString() const {
+    std::string s;
+    for (auto it : values) {
+      std::string setting =
+          QuicStrCat("[id->", it.first, " | value->", it.second, "] ");
+      QuicStrAppend(&s, setting);
+    }
+    return s;
+  }
+  friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                                      const SettingsFrame& s) {
+    os << s.ToString();
+    return os;
   }
 };
 
