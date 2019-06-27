@@ -402,8 +402,7 @@ Perspective QuicStreamIdManager::perspective() const {
 }
 
 Perspective QuicStreamIdManager::peer_perspective() const {
-  return (perspective() == Perspective::IS_SERVER) ? Perspective::IS_CLIENT
-                                                   : Perspective::IS_SERVER;
+  return QuicUtils::InvertPerspective(perspective());
 }
 
 QuicTransportVersion QuicStreamIdManager::transport_version() const {

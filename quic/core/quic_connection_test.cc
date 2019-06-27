@@ -85,11 +85,6 @@ const QuicSocketAddress kSelfAddress =
     QuicSocketAddress(QuicIpAddress::Loopback6(),
                       /*port=*/443);
 
-Perspective InvertPerspective(Perspective perspective) {
-  return perspective == Perspective::IS_CLIENT ? Perspective::IS_SERVER
-                                               : Perspective::IS_CLIENT;
-}
-
 QuicStreamId GetNthClientInitiatedStreamId(int n,
                                            QuicTransportVersion version) {
   return QuicUtils::GetFirstBidirectionalStreamId(version,
@@ -533,7 +528,7 @@ class TestPacketWriter : public QuicPacketWriter {
     // We invert perspective here, because the framer needs to parse packets
     // we send.
     QuicFramerPeer::SetPerspective(framer_.framer(),
-                                   InvertPerspective(perspective));
+                                   QuicUtils::InvertPerspective(perspective));
   }
 
   // final_bytes_of_last_packet_ returns the last four bytes of the previous
@@ -1539,7 +1534,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
       connection_.set_can_truncate_connection_ids(true);
     }
     QuicFramerPeer::SetPerspective(&peer_framer_,
-                                   InvertPerspective(perspective));
+                                   QuicUtils::InvertPerspective(perspective));
   }
 
   void set_packets_between_probes_base(

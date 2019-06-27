@@ -58,8 +58,7 @@ class QuicReceiveControlStreamTest : public QuicTestWithParam<TestParams> {
     auto pending = QuicMakeUnique<PendingStream>(
         QuicUtils::GetFirstUnidirectionalStreamId(
             GetParam().version.transport_version,
-            perspective() == Perspective::IS_CLIENT ? Perspective::IS_SERVER
-                                                    : Perspective::IS_CLIENT),
+            QuicUtils::InvertPerspective(perspective())),
         &session_);
     receive_control_stream_ =
         QuicMakeUnique<QuicReceiveControlStream>(pending.get());

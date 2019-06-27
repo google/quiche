@@ -85,6 +85,12 @@ class QUIC_EXPORT_PRIVATE QuicUtils {
   // Creates an iovec pointing to the same data as |data|.
   static struct iovec MakeIovec(QuicStringPiece data);
 
+  // Returns the opposite Perspective of the |perspective| passed in.
+  static constexpr Perspective InvertPerspective(Perspective perspective) {
+    return perspective == Perspective::IS_CLIENT ? Perspective::IS_SERVER
+                                                 : Perspective::IS_CLIENT;
+  }
+
   // Returns true if a packet is ackable. A packet is unackable if it can never
   // be acked. Occurs when a packet is never sent, after it is acknowledged
   // once, or if it's a crypto packet we never expect to receive an ack for.

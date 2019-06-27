@@ -55,12 +55,11 @@ class QpackReceiveStreamTest : public QuicTestWithParam<TestParams> {
             SupportedVersions(GetParam().version))),
         session_(connection_) {
     session_.Initialize();
-    PendingStream* pending = new PendingStream(
-        QuicUtils::GetFirstUnidirectionalStreamId(
-            GetParam().version.transport_version,
-            perspective() == Perspective::IS_CLIENT ? Perspective::IS_SERVER
-                                                    : Perspective::IS_CLIENT),
-        &session_);
+    PendingStream* pending =
+        new PendingStream(QuicUtils::GetFirstUnidirectionalStreamId(
+                              GetParam().version.transport_version,
+                              QuicUtils::InvertPerspective(perspective())),
+                          &session_);
     qpack_receive_stream_ = QuicMakeUnique<QpackReceiveStream>(pending);
     delete pending;
   }
