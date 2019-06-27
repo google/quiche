@@ -26,9 +26,8 @@ LegacyQuicStreamIdManager::LegacyQuicStreamIdManager(
           session->perspective() == Perspective::IS_SERVER
               ? (QuicVersionUsesCryptoFrames(
                      session->connection()->transport_version())
-                     ? QuicUtils::GetFirstBidirectionalStreamId(
-                           session->connection()->transport_version(),
-                           Perspective::IS_CLIENT)
+                     ? QuicUtils::GetInvalidStreamId(
+                           session->connection()->transport_version())
                      : QuicUtils::GetCryptoStreamId(
                            session->connection()->transport_version()))
               : QuicUtils::GetInvalidStreamId(
@@ -83,6 +82,11 @@ bool LegacyQuicStreamIdManager::MaybeIncreaseLargestPeerStreamId(
   // only alternately-numbered streams.
   size_t additional_available_streams =
       (stream_id - largest_peer_created_stream_id_) / 2 - 1;
+  if (largest_peer_created_stream_id_ ==
+      QuicUtils::GetInvalidStreamId(
+          session_->connection()->transport_version())) {
+    additional_available_streams = (stream_id + 1) / 2 - 1;
+  }
   size_t new_num_available_streams =
       GetNumAvailableStreams() + additional_available_streams;
   if (new_num_available_streams > MaxAvailableStreams()) {
@@ -99,8 +103,15 @@ bool LegacyQuicStreamIdManager::MaybeIncreaseLargestPeerStreamId(
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return false;
   }
-  for (QuicStreamId id = largest_peer_created_stream_id_ + 2; id < stream_id;
-       id += 2) {
+  QuicStreamId first_available_stream = largest_peer_created_stream_id_ + 2;
+  if (largest_peer_created_stream_id_ ==
+      QuicUtils::GetInvalidStreamId(
+          session_->connection()->transport_version())) {
+    first_available_stream = QuicUtils::GetFirstBidirectionalStreamId(
+        session_->connection()->transport_version(),
+        QuicUtils::InvertPerspective(session_->perspective()));
+  }
+  for (QuicStreamId id = first_available_stream; id < stream_id; id += 2) {
     available_streams_.insert(id);
   }
   largest_peer_created_stream_id_ = stream_id;
