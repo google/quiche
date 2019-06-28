@@ -291,6 +291,16 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream : public QuicStream {
   // Buffer that contains decoded data of the stream.
   QuicSpdyStreamBodyBuffer body_buffer_;
 
+  // Sequencer offset keeping track of how much data HttpDecoder has processed.
+  // Initial value is zero for fresh streams, or sequencer()->NumBytesConsumed()
+  // at time of construction if a PendingStream is converted to account for the
+  // length of the unidirectional stream type at the beginning of the stream.
+  QuicStreamOffset sequencer_offset_;
+
+  // True when inside an HttpDecoder::ProcessInput() call.
+  // Used for detecting reentrancy.
+  bool is_decoder_processing_input_;
+
   // Ack listener of this stream, and it is notified when any of written bytes
   // are acked or retransmitted.
   QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener_;

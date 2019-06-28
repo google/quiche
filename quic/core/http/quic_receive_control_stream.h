@@ -46,6 +46,12 @@ class QUIC_EXPORT_PRIVATE QuicReceiveControlStream : public QuicStream {
 
   // HttpDecoder's visitor.
   std::unique_ptr<HttpDecoderVisitor> http_decoder_visitor_;
+
+  // Sequencer offset keeping track of how much data HttpDecoder has processed.
+  // Initial value is sequencer()->NumBytesConsumed() at time of
+  // QuicReceiveControlStream construction: that is the length of the
+  // unidirectional stream type at the beginning of the stream.
+  QuicStreamOffset sequencer_offset_;
 };
 
 }  // namespace quic

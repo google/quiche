@@ -171,9 +171,12 @@ QuicSpdyStream::QuicSpdyStream(QuicStreamId id,
       headers_bytes_to_be_marked_consumed_(0),
       http_decoder_visitor_(new HttpDecoderVisitor(this)),
       body_buffer_(sequencer()),
+      sequencer_offset_(0),
+      is_decoder_processing_input_(false),
       ack_listener_(nullptr) {
   DCHECK(!QuicUtils::IsCryptoStreamId(
       spdy_session->connection()->transport_version(), id));
+  DCHECK_EQ(0u, sequencer()->NumBytesConsumed());
   // If headers are sent on the headers stream, then do not receive any
   // callbacks from the sequencer until headers are complete.
   if (!VersionUsesQpack(spdy_session_->connection()->transport_version())) {
@@ -202,6 +205,8 @@ QuicSpdyStream::QuicSpdyStream(PendingStream* pending,
       headers_bytes_to_be_marked_consumed_(0),
       http_decoder_visitor_(new HttpDecoderVisitor(this)),
       body_buffer_(sequencer()),
+      sequencer_offset_(sequencer()->NumBytesConsumed()),
+      is_decoder_processing_input_(false),
       ack_listener_(nullptr) {
   DCHECK(!QuicUtils::IsCryptoStreamId(
       spdy_session->connection()->transport_version(), id()));
@@ -621,12 +626,24 @@ void QuicSpdyStream::OnDataAvailable() {
     return;
   }
 
+  if (is_decoder_processing_input_) {
+    // Let the outermost nested OnDataAvailable() call do the work.
+    return;
+  }
+
   iovec iov;
-  while (!reading_stopped() && decoder_.error() == QUIC_NO_ERROR &&
-         sequencer()->PrefetchNextRegion(&iov)) {
+  while (!reading_stopped() && decoder_.error() == QUIC_NO_ERROR) {
+    DCHECK_GE(sequencer_offset_, sequencer()->NumBytesConsumed());
+    if (!sequencer()->PeekRegion(sequencer_offset_, &iov)) {
+      break;
+    }
+
     DCHECK(!sequencer()->IsClosed());
-    decoder_.ProcessInput(reinterpret_cast<const char*>(iov.iov_base),
-                          iov.iov_len);
+    is_decoder_processing_input_ = true;
+    QuicByteCount processed_bytes = decoder_.ProcessInput(
+        reinterpret_cast<const char*>(iov.iov_base), iov.iov_len);
+    is_decoder_processing_input_ = false;
+    sequencer_offset_ += processed_bytes;
   }
 
   // Do not call OnBodyAvailable() until headers are consumed.

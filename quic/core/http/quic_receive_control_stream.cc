@@ -123,7 +123,8 @@ class QuicReceiveControlStream::HttpDecoderVisitor
 QuicReceiveControlStream::QuicReceiveControlStream(PendingStream* pending)
     : QuicStream(pending, READ_UNIDIRECTIONAL, /*is_static=*/true),
       received_settings_length_(0),
-      http_decoder_visitor_(new HttpDecoderVisitor(this)) {
+      http_decoder_visitor_(new HttpDecoderVisitor(this)),
+      sequencer_offset_(sequencer()->NumBytesConsumed()) {
   decoder_.set_visitor(http_decoder_visitor_.get());
   sequencer()->set_level_triggered(true);
 }
@@ -141,10 +142,16 @@ void QuicReceiveControlStream::OnStreamReset(
 
 void QuicReceiveControlStream::OnDataAvailable() {
   iovec iov;
-  while (!reading_stopped() && decoder_.error() == QUIC_NO_ERROR &&
-         sequencer()->PrefetchNextRegion(&iov)) {
-    decoder_.ProcessInput(reinterpret_cast<const char*>(iov.iov_base),
-                          iov.iov_len);
+  while (!reading_stopped() && decoder_.error() == QUIC_NO_ERROR) {
+    DCHECK_GE(sequencer_offset_, sequencer()->NumBytesConsumed());
+    if (!sequencer()->PeekRegion(sequencer_offset_, &iov)) {
+      break;
+    }
+
+    DCHECK(!sequencer()->IsClosed());
+    QuicByteCount processed_bytes = decoder_.ProcessInput(
+        reinterpret_cast<const char*>(iov.iov_base), iov.iov_len);
+    sequencer_offset_ += processed_bytes;
   }
 }
 
