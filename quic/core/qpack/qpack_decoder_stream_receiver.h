@@ -8,6 +8,7 @@
 #include <cstdint>
 
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_instruction_decoder.h"
+#include "net/third_party/quiche/src/quic/core/qpack/qpack_stream_receiver.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
@@ -17,7 +18,8 @@ namespace quic {
 // This class decodes data received on the decoder stream,
 // and passes it along to its Delegate.
 class QUIC_EXPORT_PRIVATE QpackDecoderStreamReceiver
-    : public QpackInstructionDecoder::Delegate {
+    : public QpackInstructionDecoder::Delegate,
+      public QpackStreamReceiver {
  public:
   // An interface for handling instructions decoded from the decoder stream, see
   // https://quicwg.org/base-drafts/draft-ietf-quic-qpack.html#rfc.section.5.3
@@ -41,10 +43,11 @@ class QUIC_EXPORT_PRIVATE QpackDecoderStreamReceiver
   QpackDecoderStreamReceiver& operator=(const QpackDecoderStreamReceiver&) =
       delete;
 
+  // Implements QpackStreamReceiver::Decode().
   // Decode data and call appropriate Delegate method after each decoded
   // instruction.  Once an error occurs, Delegate::OnErrorDetected() is called,
   // and all further data is ignored.
-  void Decode(QuicStringPiece data);
+  void Decode(QuicStringPiece data) override;
 
   // QpackInstructionDecoder::Delegate implementation.
   bool OnInstructionDecoded(const QpackInstruction* instruction) override;
