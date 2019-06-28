@@ -589,12 +589,13 @@ void QuicSpdyStream::OnTrailingHeadersComplete(
     return;
   }
   trailers_decompressed_ = true;
-  const QuicStreamOffset offset =
-      VersionUsesQpack(spdy_session_->connection()->transport_version())
-          ? flow_controller()->highest_received_byte_offset()
-          : final_byte_offset;
-  OnStreamFrame(
-      QuicStreamFrame(id(), /* fin = */ true, offset, QuicStringPiece()));
+  if (fin) {
+    const QuicStreamOffset offset =
+        VersionUsesQpack(transport_version())
+            ? flow_controller()->highest_received_byte_offset()
+            : final_byte_offset;
+    OnStreamFrame(QuicStreamFrame(id(), fin, offset, QuicStringPiece()));
+  }
 }
 
 void QuicSpdyStream::OnPriorityFrame(SpdyPriority priority) {

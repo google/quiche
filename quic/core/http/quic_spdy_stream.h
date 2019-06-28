@@ -168,7 +168,8 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream : public QuicStream {
   static bool ParseHeaderStatusCode(const spdy::SpdyHeaderBlock& header,
                                     int* status_code);
 
-  // Returns true when all data has been read from the peer, including the fin.
+  // Returns true when all data from the peer has been read and consumed,
+  // including the fin.
   bool IsDoneReading() const;
   bool HasBytesToRead() const;
 
@@ -191,8 +192,8 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream : public QuicStream {
   // Returns true if headers have been fully read and consumed.
   bool FinishedReadingHeaders() const;
 
-  // Returns true if trailers have been fully read and consumed, or FIN has
-  // been received and there are no trailers.
+  // Returns true if FIN has been received and either trailers have been fully
+  // read and consumed or there are no trailers.
   bool FinishedReadingTrailers() const;
 
   // Called when owning session is getting deleted to avoid subsequent

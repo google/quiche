@@ -1752,7 +1752,7 @@ TEST_P(QuicSpdyStreamTest, ProcessBodyAfterTrailers) {
   EXPECT_TRUE(stream_->trailers_decompressed());
   EXPECT_EQ(trailers_block, stream_->received_trailers());
 
-  EXPECT_FALSE(stream_->IsDoneReading());
+  EXPECT_TRUE(stream_->HasBytesToRead());
 
   // Consume data.
   char buffer[2048];
@@ -1762,7 +1762,7 @@ TEST_P(QuicSpdyStreamTest, ProcessBodyAfterTrailers) {
   size_t bytes_read = stream_->Readv(&vec, 1);
   EXPECT_EQ(kDataFramePayload, QuicStringPiece(buffer, bytes_read));
 
-  EXPECT_TRUE(stream_->IsDoneReading());
+  EXPECT_FALSE(stream_->HasBytesToRead());
 }
 
 // The test stream will receive a stream frame containing malformed headers and
