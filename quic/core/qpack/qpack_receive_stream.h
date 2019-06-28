@@ -9,6 +9,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 
 namespace quic {
+
 class QuicSpdySession;
 
 // QPACK 4.2.1 Encoder and Decoder Streams.
