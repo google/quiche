@@ -883,6 +883,33 @@ TEST_P(QuicSpdyClientSessionTest,
       connection_->transport_version(), 0));
 }
 
+TEST_P(QuicSpdyClientSessionTest, TooManyPushPromises) {
+  // Initialize crypto before the client session will create a stream.
+  CompleteCryptoHandshake();
+  QuicStreamId stream_id =
+      QuicSessionPeer::GetNextOutgoingBidirectionalStreamId(session_.get());
+  QuicSessionPeer::ActivateStream(
+      session_.get(), QuicMakeUnique<QuicSpdyClientStream>(
+                          stream_id, session_.get(), BIDIRECTIONAL));
+
+  EXPECT_CALL(*connection_, OnStreamReset(_, QUIC_REFUSED_STREAM));
+
+  for (size_t promise_count = 0; promise_count <= session_->get_max_promises();
+       promise_count++) {
+    auto promise_id = GetNthServerInitiatedUnidirectionalStreamId(
+        connection_->transport_version(), promise_count);
+    auto headers = QuicHeaderList();
+    headers.OnHeaderBlockStart();
+    headers.OnHeader(":path", QuicStrCat("/", promise_count));
+    headers.OnHeader(":authority", "www.google.com");
+    headers.OnHeader(":version", "HTTP/1.1");
+    headers.OnHeader(":method", "GET");
+    headers.OnHeader(":scheme", "https");
+    headers.OnHeaderBlockEnd(0, 0);
+    session_->OnPromiseHeaderList(stream_id, promise_id, 0, headers);
+  }
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic
