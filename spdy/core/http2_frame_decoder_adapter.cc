@@ -6,8 +6,8 @@
 
 // Logging policy: If an error in the input is detected, SPDY_VLOG(n) is used so
 // that the option exists to debug the situation. Otherwise, this code mostly
-// uses DVLOG so that the logging does not slow down production code when things
-// are working OK.
+// uses SPDY_DVLOG so that the logging does not slow down production code when
+// things are working OK.
 
 #include <stddef.h>
 
@@ -617,7 +617,7 @@ void Http2DecoderAdapter::OnAltSvcEnd() {
   SpdyAltSvcWireFormat::AlternativeServiceVector altsvc_vector;
   if (!SpdyAltSvcWireFormat::ParseHeaderFieldValue(alt_svc_value_,
                                                    &altsvc_vector)) {
-    DLOG(ERROR) << "SpdyAltSvcWireFormat::ParseHeaderFieldValue failed.";
+    SPDY_DLOG(ERROR) << "SpdyAltSvcWireFormat::ParseHeaderFieldValue failed.";
     SetSpdyErrorAndNotify(SpdyFramerError::SPDY_INVALID_CONTROL_FRAME);
     return;
   }
