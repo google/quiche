@@ -1746,15 +1746,7 @@ bool QuicSession::IsFrameOutstanding(const QuicFrame& frame) const {
 
 bool QuicSession::HasUnackedCryptoData() const {
   const QuicCryptoStream* crypto_stream = GetCryptoStream();
-  if (crypto_stream->IsWaitingForAcks()) {
-    return true;
-  }
-  if (GetQuicReloadableFlag(quic_fix_has_pending_crypto_data) &&
-      crypto_stream->HasBufferedData()) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_fix_has_pending_crypto_data);
-    return true;
-  }
-  return false;
+  return crypto_stream->IsWaitingForAcks() || crypto_stream->HasBufferedData();
 }
 
 bool QuicSession::HasUnackedStreamData() const {

@@ -65,9 +65,6 @@ void ConfigureGlobalQuicSettings() {
   // Enable version 47 to enable variable-length connection ids.
   SetQuicReloadableFlag(quic_enable_version_47, true);
 
-  // Fix for inconsistent reporting of crypto handshake.
-  SetQuicReloadableFlag(quic_fix_has_pending_crypto_data, true);
-
   // Ensure that we don't drop data because QUIC streams refuse to buffer it.
   // TODO(b/120099046):  Replace this with correct handling of WriteMemSlices().
   SetQuicFlag(FLAGS_quic_buffered_data_threshold,

@@ -484,8 +484,7 @@ TEST_F(QuicCryptoStreamTest, HasUnackedCryptoData) {
   EXPECT_FALSE(stream_->IsWaitingForAcks());
   // Although there is no outstanding data, verify session has pending crypto
   // data.
-  EXPECT_EQ(GetQuicReloadableFlag(quic_fix_has_pending_crypto_data),
-            session_.HasUnackedCryptoData());
+  EXPECT_TRUE(session_.HasUnackedCryptoData());
 
   EXPECT_CALL(
       session_,
