@@ -924,6 +924,23 @@ TEST_F(QuicDispatcherTest, SupportedTransportVersionsChangeInFlight) {
       ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_39));
 }
 
+TEST_F(QuicDispatcherTest, RejectDeprecatedVersionsWithVersionNegotiation) {
+  static_assert(QUIC_ARRAYSIZE(kSupportedTransportVersions) == 6u,
+                "Please add deprecated versions to this test");
+  QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
+  CreateTimeWaitListManager();
+
+  char packet45[kMinPacketSizeForVersionNegotiation] = {
+      0xC0, 'Q', '0', '4', '5', /*connection ID length byte*/ 0x50};
+  QuicReceivedPacket packet(packet45, kMinPacketSizeForVersionNegotiation,
+                            QuicTime::Zero());
+  EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _)).Times(0);
+  EXPECT_CALL(*time_wait_list_manager_,
+              SendVersionNegotiationPacket(_, _, _, _, _, _, _))
+      .Times(1);
+  dispatcher_->ProcessPacket(server_address_, client_address, packet);
+}
+
 // Verify the stopgap test: Packets with truncated connection IDs should be
 // dropped.
 class QuicDispatcherTestStrayPacketConnectionId : public QuicDispatcherTest {};
