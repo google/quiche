@@ -1141,8 +1141,10 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     if (level == ENCRYPTION_INITIAL &&
         peer_framer_.version().KnowsWhichDecrypterToUse()) {
       header.version_flag = true;
-      header.retry_token_length_length = VARIABLE_LENGTH_INTEGER_LENGTH_1;
-      header.length_length = VARIABLE_LENGTH_INTEGER_LENGTH_2;
+      if (QuicVersionHasLongHeaderLengths(peer_framer_.transport_version())) {
+        header.retry_token_length_length = VARIABLE_LENGTH_INTEGER_LENGTH_1;
+        header.length_length = VARIABLE_LENGTH_INTEGER_LENGTH_2;
+      }
     }
     if ((GetQuicRestartFlag(quic_do_not_override_connection_id) ||
          (level == ENCRYPTION_INITIAL &&

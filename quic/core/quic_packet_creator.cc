@@ -84,7 +84,9 @@ QuicPacketCreator::QuicPacketCreator(QuicConnectionId server_connection_id,
               false),
       pending_padding_bytes_(0),
       needs_full_padding_(false),
-      can_set_transmission_type_(false) {
+      can_set_transmission_type_(false),
+      fix_get_packet_header_size_(
+          GetQuicReloadableFlag(quic_fix_get_packet_header_size)) {
   SetMaxPacketLength(kDefaultMaxPacketSize);
 }
 
@@ -1109,9 +1111,15 @@ QuicPacketLength QuicPacketCreator::GetGuaranteedLargestMessagePayload() const {
       framer_->perspective() == Perspective::IS_SERVER;
   // IETF QUIC long headers include a length on client 0RTT packets.
   QuicVariableLengthIntegerLength length_length =
-      framer_->perspective() == Perspective::IS_CLIENT
-          ? VARIABLE_LENGTH_INTEGER_LENGTH_2
-          : VARIABLE_LENGTH_INTEGER_LENGTH_0;
+      VARIABLE_LENGTH_INTEGER_LENGTH_0;
+  if (framer_->perspective() == Perspective::IS_CLIENT) {
+    length_length = VARIABLE_LENGTH_INTEGER_LENGTH_2;
+  }
+  if (!QuicVersionHasLongHeaderLengths(framer_->transport_version()) &&
+      fix_get_packet_header_size_) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_fix_get_packet_header_size, 3, 3);
+    length_length = VARIABLE_LENGTH_INTEGER_LENGTH_0;
+  }
   const size_t packet_header_size = GetPacketHeaderSize(
       framer_->transport_version(), GetDestinationConnectionIdLength(),
       // Assume CID lengths don't change, but version may be present.

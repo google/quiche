@@ -512,6 +512,23 @@ TEST_F(QuicCryptoStreamTest, HasUnackedCryptoDataWithCryptoFrames) {
   EXPECT_TRUE(session_.HasUnackedCryptoData());
 }
 
+// Regression test for bugfix of GetPacketHeaderSize.
+TEST_F(QuicCryptoStreamTest, CryptoMessageFramingOverhead) {
+  SetQuicReloadableFlag(quic_fix_get_packet_header_size, true);
+  for (auto version : AllSupportedTransportVersions()) {
+    SCOPED_TRACE(version);
+    QuicByteCount expected_overhead = 48;
+    if (VersionHasIetfInvariantHeader(version)) {
+      expected_overhead = 52;
+    }
+    if (QuicVersionHasLongHeaderLengths(version)) {
+      expected_overhead = 55;
+    }
+    EXPECT_EQ(expected_overhead, QuicCryptoStream::CryptoMessageFramingOverhead(
+                                     version, TestConnectionId()));
+  }
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

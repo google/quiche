@@ -125,13 +125,24 @@ size_t GetPacketHeaderSize(
   if (VersionHasIetfInvariantHeader(version)) {
     if (include_version) {
       // Long header.
-      return kPacketHeaderTypeSize + kConnectionIdLengthSize +
-             destination_connection_id_length + source_connection_id_length +
-             (version > QUIC_VERSION_44 ? packet_number_length
-                                        : PACKET_4BYTE_PACKET_NUMBER) +
-             kQuicVersionSize +
-             (include_diversification_nonce ? kDiversificationNonceSize : 0) +
-             retry_token_length_length + retry_token_length + length_length;
+      size_t size = kPacketHeaderTypeSize + kConnectionIdLengthSize +
+                    destination_connection_id_length +
+                    source_connection_id_length +
+                    (version > QUIC_VERSION_44 ? packet_number_length
+                                               : PACKET_4BYTE_PACKET_NUMBER) +
+                    kQuicVersionSize;
+      if (include_diversification_nonce) {
+        size += kDiversificationNonceSize;
+      }
+      DCHECK(QuicVersionHasLongHeaderLengths(version) ||
+             retry_token_length_length + retry_token_length + length_length ==
+                 0);
+      if (QuicVersionHasLongHeaderLengths(version) ||
+          !GetQuicReloadableFlag(quic_fix_get_packet_header_size)) {
+        QUIC_RELOADABLE_FLAG_COUNT_N(quic_fix_get_packet_header_size, 1, 3);
+        size += retry_token_length_length + retry_token_length + length_length;
+      }
+      return size;
     }
     // Short header.
     return kPacketHeaderTypeSize + destination_connection_id_length +

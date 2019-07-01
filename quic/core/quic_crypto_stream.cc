@@ -51,6 +51,16 @@ QuicByteCount QuicCryptoStream::CryptoMessageFramingOverhead(
     QuicTransportVersion version,
     QuicConnectionId connection_id) {
   DCHECK(QuicUtils::IsConnectionIdValidForVersion(connection_id, version));
+  QuicVariableLengthIntegerLength retry_token_length_length =
+      VARIABLE_LENGTH_INTEGER_LENGTH_1;
+  QuicVariableLengthIntegerLength length_length =
+      VARIABLE_LENGTH_INTEGER_LENGTH_2;
+  if (!QuicVersionHasLongHeaderLengths(version) &&
+      GetQuicReloadableFlag(quic_fix_get_packet_header_size)) {
+    retry_token_length_length = VARIABLE_LENGTH_INTEGER_LENGTH_0;
+    length_length = VARIABLE_LENGTH_INTEGER_LENGTH_0;
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_fix_get_packet_header_size, 2, 3);
+  }
   return QuicPacketCreator::StreamFramePacketOverhead(
       version, static_cast<QuicConnectionIdLength>(connection_id.length()),
       PACKET_0BYTE_CONNECTION_ID,
@@ -58,7 +68,7 @@ QuicByteCount QuicCryptoStream::CryptoMessageFramingOverhead(
       /*include_diversification_nonce=*/true,
       VersionHasIetfInvariantHeader(version) ? PACKET_4BYTE_PACKET_NUMBER
                                              : PACKET_1BYTE_PACKET_NUMBER,
-      VARIABLE_LENGTH_INTEGER_LENGTH_1, VARIABLE_LENGTH_INTEGER_LENGTH_2,
+      retry_token_length_length, length_length,
       /*offset=*/0);
 }
 

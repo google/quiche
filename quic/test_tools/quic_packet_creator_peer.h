@@ -57,6 +57,7 @@ class QuicPacketCreatorPeer {
 
   static EncryptionLevel GetEncryptionLevel(QuicPacketCreator* creator);
   static QuicFramer* framer(QuicPacketCreator* creator);
+  static void EnableGetPacketHeaderSizeBugFix(QuicPacketCreator* creator);
 };
 
 }  // namespace test

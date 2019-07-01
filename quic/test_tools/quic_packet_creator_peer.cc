@@ -137,5 +137,11 @@ QuicFramer* QuicPacketCreatorPeer::framer(QuicPacketCreator* creator) {
   return creator->framer_;
 }
 
+// static
+void QuicPacketCreatorPeer::EnableGetPacketHeaderSizeBugFix(
+    QuicPacketCreator* creator) {
+  creator->fix_get_packet_header_size_ = true;
+}
+
 }  // namespace test
 }  // namespace quic

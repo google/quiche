@@ -154,6 +154,7 @@ class QuicPacketCreatorTest : public QuicTestWithParam<TestParams> {
         data_("foo"),
         creator_(connection_id_, &client_framer_, &delegate_, &producer_),
         serialized_packet_(creator_.NoPacket()) {
+    QuicPacketCreatorPeer::EnableGetPacketHeaderSizeBugFix(&creator_);
     EXPECT_CALL(delegate_, GetPacketBuffer()).WillRepeatedly(Return(nullptr));
     creator_.SetEncrypter(ENCRYPTION_HANDSHAKE, QuicMakeUnique<NullEncrypter>(
                                                     Perspective::IS_CLIENT));
@@ -1807,6 +1808,20 @@ TEST_P(QuicPacketCreatorTest, MessageFrameConsumption) {
       DeleteSerializedPacket();
     }
   }
+}
+
+// Regression test for bugfix of GetPacketHeaderSize.
+TEST_P(QuicPacketCreatorTest, GetGuaranteedLargestMessagePayload) {
+  QuicTransportVersion version = GetParam().version.transport_version;
+  if (!VersionSupportsMessageFrames(version)) {
+    return;
+  }
+  QuicPacketLength expected_largest_payload = 1319;
+  if (QuicVersionHasLongHeaderLengths(version)) {
+    expected_largest_payload -= 2;
+  }
+  EXPECT_EQ(expected_largest_payload,
+            creator_.GetGuaranteedLargestMessagePayload());
 }
 
 TEST_P(QuicPacketCreatorTest, PacketTransmissionType) {
