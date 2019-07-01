@@ -737,6 +737,15 @@ void QuicStream::OnClose() {
 }
 
 void QuicStream::OnWindowUpdateFrame(const QuicWindowUpdateFrame& frame) {
+  if (GetQuicReloadableFlag(quic_no_window_update_on_read_only_stream) &&
+      type_ == READ_UNIDIRECTIONAL) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_no_window_update_on_read_only_stream);
+    CloseConnectionWithDetails(
+        QUIC_WINDOW_UPDATE_RECEIVED_ON_READ_UNIDIRECTIONAL_STREAM,
+        "WindowUpdateFrame received on READ_UNIDIRECTIONAL stream.");
+    return;
+  }
+
   if (flow_controller_->UpdateSendWindowOffset(frame.byte_offset)) {
     // Let session unblock this stream.
     session_->MarkConnectionLevelWriteBlocked(id_);

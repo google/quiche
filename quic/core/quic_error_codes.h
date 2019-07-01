@@ -331,8 +331,11 @@ enum QuicErrorCode {
   // not available in a received CONNECTION_CLOSE frame.
   QUIC_IETF_GQUIC_ERROR_MISSING = 122,
 
+  // Received WindowUpdate on a READ_UNIDIRECTIONAL stream.
+  QUIC_WINDOW_UPDATE_RECEIVED_ON_READ_UNIDIRECTIONAL_STREAM = 123,
+
   // No error. Used as bound while iterating.
-  QUIC_LAST_ERROR = 123,
+  QUIC_LAST_ERROR = 124,
 };
 // QuicErrorCodes is encoded as a single octet on-the-wire.
 static_assert(static_cast<int>(QUIC_LAST_ERROR) <=

@@ -1693,6 +1693,23 @@ TEST_P(QuicStreamTest, SendOnlyRstStream) {
   EXPECT_TRUE(stream_->write_side_closed());
 }
 
+TEST_P(QuicStreamTest, WindowUpdateForReadOnlyStream) {
+  SetQuicReloadableFlag(quic_no_window_update_on_read_only_stream, true);
+  Initialize();
+
+  QuicStreamId stream_id = QuicUtils::GetFirstUnidirectionalStreamId(
+      connection_->transport_version(), Perspective::IS_CLIENT);
+  TestStream stream(stream_id, session_.get(), READ_UNIDIRECTIONAL);
+  QuicWindowUpdateFrame window_update_frame(kInvalidControlFrameId, stream_id,
+                                            0);
+  EXPECT_CALL(
+      *connection_,
+      CloseConnection(
+          QUIC_WINDOW_UPDATE_RECEIVED_ON_READ_UNIDIRECTIONAL_STREAM,
+          "WindowUpdateFrame received on READ_UNIDIRECTIONAL stream.", _));
+  stream.OnWindowUpdateFrame(window_update_frame);
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

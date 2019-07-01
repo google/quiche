@@ -528,6 +528,18 @@ void QuicSession::OnWindowUpdateFrame(const QuicWindowUpdateFrame& frame) {
     flow_controller_.UpdateSendWindowOffset(frame.byte_offset);
     return;
   }
+
+  if (VersionHasIetfQuicFrames(connection_->transport_version()) &&
+      QuicUtils::GetStreamType(stream_id, perspective(),
+                               IsIncomingStream(stream_id)) ==
+          READ_UNIDIRECTIONAL) {
+    connection()->CloseConnection(
+        QUIC_WINDOW_UPDATE_RECEIVED_ON_READ_UNIDIRECTIONAL_STREAM,
+        "WindowUpdateFrame received on READ_UNIDIRECTIONAL stream.",
+        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    return;
+  }
+
   QuicStream* stream = GetOrCreateStream(stream_id);
   if (stream != nullptr) {
     stream->OnWindowUpdateFrame(frame);
@@ -1279,6 +1291,7 @@ bool QuicSession::CanOpenNextOutgoingUnidirectionalStream() {
 }
 
 QuicStream* QuicSession::GetOrCreateStream(const QuicStreamId stream_id) {
+  DCHECK(!QuicContainsKey(pending_stream_map_, stream_id));
   if (eliminate_static_stream_map_ &&
       QuicUtils::IsCryptoStreamId(connection_->transport_version(),
                                   stream_id)) {

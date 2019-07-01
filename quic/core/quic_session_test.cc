@@ -1766,6 +1766,27 @@ TEST_P(QuicSessionTestServer, RstPendingStreams) {
   EXPECT_EQ(0, session_.num_incoming_streams_created());
 }
 
+TEST_P(QuicSessionTestServer, PendingStreamOnWindowUpdate) {
+  if (!VersionHasIetfQuicFrames(transport_version())) {
+    return;
+  }
+
+  session_.set_uses_pending_streams(true);
+  QuicStreamId stream_id = QuicUtils::GetFirstUnidirectionalStreamId(
+      transport_version(), Perspective::IS_CLIENT);
+  QuicStreamFrame data1(stream_id, true, 10, QuicStringPiece("HT"));
+  session_.OnStreamFrame(data1);
+  EXPECT_EQ(0, session_.num_incoming_streams_created());
+  QuicWindowUpdateFrame window_update_frame(kInvalidControlFrameId, stream_id,
+                                            0);
+  EXPECT_CALL(
+      *connection_,
+      CloseConnection(
+          QUIC_WINDOW_UPDATE_RECEIVED_ON_READ_UNIDIRECTIONAL_STREAM,
+          "WindowUpdateFrame received on READ_UNIDIRECTIONAL stream.", _));
+  session_.OnWindowUpdateFrame(window_update_frame);
+}
+
 TEST_P(QuicSessionTestServer, DrainingStreamsDoNotCountAsOpened) {
   // Verify that a draining stream (which has received a FIN but not consumed
   // it) does not count against the open quota (because it is closed from the
