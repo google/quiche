@@ -362,12 +362,6 @@ class QUIC_EXPORT_PRIVATE QuicStream
   // TODO(fayang): Let WritevData return boolean.
   QuicConsumedData WritevData(const struct iovec* iov, int iov_count, bool fin);
 
-  // Allows override of the session level writev, for the force HOL
-  // blocking experiment.
-  virtual QuicConsumedData WritevDataInner(size_t write_length,
-                                           QuicStreamOffset offset,
-                                           bool fin);
-
   // Close the read side of the socket.  May cause the stream to be closed.
   // Subclasses and consumers should use StopReading to terminate reading early
   // if expecting a FIN. Can be used directly by subclasses if not expecting a

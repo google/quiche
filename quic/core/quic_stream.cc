@@ -657,16 +657,6 @@ bool QuicStream::IsStreamFrameOutstanding(QuicStreamOffset offset,
          (fin && fin_outstanding_);
 }
 
-QuicConsumedData QuicStream::WritevDataInner(size_t write_length,
-                                             QuicStreamOffset offset,
-                                             bool fin) {
-  StreamSendingState state = fin ? FIN : NO_FIN;
-  if (fin && add_random_padding_after_fin_) {
-    state = FIN_AND_PADDING;
-  }
-  return session()->WritevData(this, id(), write_length, offset, state);
-}
-
 void QuicStream::CloseReadSide() {
   if (read_side_closed_) {
     return;
@@ -974,8 +964,13 @@ void QuicStream::WriteBufferedData() {
   if (session_->session_decides_what_to_write()) {
     session_->SetTransmissionType(NOT_RETRANSMISSION);
   }
-  QuicConsumedData consumed_data =
-      WritevDataInner(write_length, stream_bytes_written(), fin);
+
+  StreamSendingState state = fin ? FIN : NO_FIN;
+  if (fin && add_random_padding_after_fin_) {
+    state = FIN_AND_PADDING;
+  }
+  QuicConsumedData consumed_data = session_->WritevData(
+      this, id(), write_length, stream_bytes_written(), state);
 
   OnStreamDataConsumed(consumed_data.bytes_consumed);
 
