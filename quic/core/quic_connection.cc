@@ -2653,6 +2653,10 @@ void QuicConnection::SendConnectionClosePacket(QuicErrorCode error,
   }
   packet_generator_.ConsumeRetransmittableControlFrame(QuicFrame(frame));
   packet_generator_.FlushAllQueuedFrames();
+  if (GetQuicReloadableFlag(quic_clear_queued_packets_on_connection_close)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_clear_queued_packets_on_connection_close);
+    ClearQueuedPackets();
+  }
 }
 
 void QuicConnection::TearDownLocalConnectionState(

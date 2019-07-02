@@ -7551,6 +7551,34 @@ TEST_P(QuicConnectionTest, AlwaysGetPacketTooLarge) {
   TestConnectionCloseQuicErrorCode(QUIC_PACKET_WRITE_ERROR);
 }
 
+TEST_P(QuicConnectionTest, CloseConnectionOnQueuedWriteError) {
+  SetQuicReloadableFlag(quic_clear_queued_packets_on_connection_close, true);
+  // Regression test for crbug.com/979507.
+  //
+  // If we get a write error when writing queued packets, we should attempt to
+  // send a connection close packet, but if sending that fails, it shouldn't get
+  // queued.
+
+  // Queue a packet to write.
+  BlockOnNextWrite();
+  connection_.SendStreamDataWithString(3, "foo", 0, NO_FIN);
+  EXPECT_EQ(1u, connection_.NumQueuedPackets());
+
+  // Configure writer to always fail.
+  AlwaysGetPacketTooLarge();
+
+  // Expect that we attempt to close the connection exactly once.
+  EXPECT_CALL(visitor_, OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF))
+      .Times(1);
+
+  // Unblock the writes and actually send.
+  writer_->SetWritable();
+  connection_.OnCanWrite();
+  EXPECT_EQ(0u, connection_.NumQueuedPackets());
+
+  TestConnectionCloseQuicErrorCode(QUIC_PACKET_WRITE_ERROR);
+}
+
 // Verify that if connection has no outstanding data, it notifies the send
 // algorithm after the write.
 TEST_P(QuicConnectionTest, SendDataAndBecomeApplicationLimited) {
