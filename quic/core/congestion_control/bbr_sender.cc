@@ -125,7 +125,6 @@ BbrSender::BbrSender(QuicTime now,
       flexible_app_limited_(false),
       recovery_state_(NOT_IN_RECOVERY),
       recovery_window_(max_congestion_window_),
-      is_app_limited_recovery_(false),
       slower_startup_(false),
       rate_based_startup_(false),
       startup_rate_reduction_multiplier_(0),
@@ -750,11 +749,6 @@ void BbrSender::UpdateRecoveryState(QuicPacketNumber last_acked_packet,
         // Since the conservation phase is meant to be lasting for a whole
         // round, extend the current round as if it were started right now.
         current_round_trip_end_ = last_sent_packet_;
-        if (GetQuicReloadableFlag(quic_bbr_app_limited_recovery) &&
-            last_sample_is_app_limited_) {
-          QUIC_RELOADABLE_FLAG_COUNT(quic_bbr_app_limited_recovery);
-          is_app_limited_recovery_ = true;
-        }
       }
       break;
 
@@ -768,13 +762,9 @@ void BbrSender::UpdateRecoveryState(QuicPacketNumber last_acked_packet,
       // Exit recovery if appropriate.
       if (!has_losses && last_acked_packet > end_recovery_at_) {
         recovery_state_ = NOT_IN_RECOVERY;
-        is_app_limited_recovery_ = false;
       }
 
       break;
-  }
-  if (recovery_state_ != NOT_IN_RECOVERY && is_app_limited_recovery_) {
-    sampler_.OnAppLimited();
   }
 }
 

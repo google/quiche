@@ -706,47 +706,6 @@ TEST_F(BbrSenderTest, ProbeRtt) {
   EXPECT_GE(sender_->ExportDebugState().min_rtt_timestamp, probe_rtt_start);
 }
 
-// Verify that the first sample after PROBE_RTT is not used as the bandwidth,
-// because the round counter doesn't advance during PROBE_RTT.
-TEST_F(BbrSenderTest, AppLimitedRecoveryNoBandwidthDecrease) {
-  SetQuicReloadableFlag(quic_bbr_app_limited_recovery, true);
-  CreateDefaultSetup();
-  DriveOutOfStartup();
-
-  // We have no intention of ever finishing this transfer.
-  bbr_sender_.AddBytesToTransfer(100 * 1024 * 1024);
-
-  // Wait until the connection enters PROBE_RTT.
-  const QuicTime::Delta timeout = QuicTime::Delta::FromSeconds(12);
-  bool simulator_result = simulator_.RunUntilOrTimeout(
-      [this]() {
-        return sender_->ExportDebugState().mode == BbrSender::PROBE_RTT;
-      },
-      timeout);
-  ASSERT_TRUE(simulator_result);
-  ASSERT_EQ(BbrSender::PROBE_RTT, sender_->ExportDebugState().mode);
-
-  const QuicBandwidth beginning_bw = sender_->BandwidthEstimate();
-
-  // Run for most of PROBE_RTT.
-  const QuicTime probe_rtt_start = clock_->Now();
-  const QuicTime::Delta time_to_exit_probe_rtt =
-      kTestRtt + QuicTime::Delta::FromMilliseconds(200);
-  simulator_.RunFor(0.60 * time_to_exit_probe_rtt);
-  EXPECT_EQ(BbrSender::PROBE_RTT, sender_->ExportDebugState().mode);
-  // Lose a packet before exiting PROBE_RTT, which puts us in packet
-  // conservation and then continue there for a while and ensure the bandwidth
-  // estimate doesn't decrease.
-  for (int i = 0; i < 20; ++i) {
-    receiver_.DropNextIncomingPacket();
-    simulator_.RunFor(0.9 * kTestRtt);
-    // Ensure the bandwidth didn't decrease and the samples are app limited.
-    EXPECT_LE(beginning_bw, sender_->BandwidthEstimate());
-    EXPECT_TRUE(sender_->ExportDebugState().last_sample_is_app_limited);
-  }
-  EXPECT_GE(sender_->ExportDebugState().min_rtt_timestamp, probe_rtt_start);
-}
-
 // Verify that the connection enters and exits PROBE_RTT correctly.
 TEST_F(BbrSenderTest, ProbeRttBDPBasedCWNDTarget) {
   CreateDefaultSetup();
