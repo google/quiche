@@ -280,8 +280,9 @@ TEST_F(PacingSenderTest, InitialBurstNoRttMeasurement) {
 }
 
 TEST_F(PacingSenderTest, FastSending) {
-  // Ensure the pacing sender paces, even when the inter-packet spacing is less
-  // than the pacing granularity.
+  SetQuicReloadableFlag(quic_change_default_lumpy_pacing_size_to_two, true);
+  // Ensure the pacing sender paces, even when the inter-packet spacing(0.5ms)
+  // is less than the pacing granularity(1ms).
   InitPacingRate(10, QuicBandwidth::FromBytesAndTimeDelta(
                          2 * kMaxOutgoingPacketSize,
                          QuicTime::Delta::FromMilliseconds(1)));
@@ -293,12 +294,11 @@ TEST_F(PacingSenderTest, FastSending) {
     CheckPacketIsSentImmediately();
   }
 
-  // The first packet was a "make up", then we sent two packets "into the
-  // future", since it's 2 packets/ms, so the delay should be 1.5ms.
-  CheckPacketIsSentImmediately();
-  CheckPacketIsSentImmediately();
-  CheckPacketIsSentImmediately();
-  CheckPacketIsDelayed(QuicTime::Delta::FromMicroseconds(1500));
+  CheckPacketIsSentImmediately();  // Make up
+  CheckPacketIsSentImmediately();  // Lumpy token
+  CheckPacketIsSentImmediately();  // "In the future" but within granularity.
+  CheckPacketIsSentImmediately();  // Lumpy token
+  CheckPacketIsDelayed(QuicTime::Delta::FromMicroseconds(2000));
 
   clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(5));
   CheckPacketIsSentImmediately();
@@ -312,10 +312,11 @@ TEST_F(PacingSenderTest, FastSending) {
 
   // The first packet was a "make up", then we sent two packets "into the
   // future", so the delay should be 1.5ms.
-  CheckPacketIsSentImmediately();
-  CheckPacketIsSentImmediately();
-  CheckPacketIsSentImmediately();
-  CheckPacketIsDelayed(QuicTime::Delta::FromMicroseconds(1500));
+  CheckPacketIsSentImmediately();  // Make up
+  CheckPacketIsSentImmediately();  // Lumpy token
+  CheckPacketIsSentImmediately();  // "In the future" but within granularity.
+  CheckPacketIsSentImmediately();  // Lumpy token
+  CheckPacketIsDelayed(QuicTime::Delta::FromMicroseconds(2000));
 }
 
 TEST_F(PacingSenderTest, NoBurstEnteringRecovery) {

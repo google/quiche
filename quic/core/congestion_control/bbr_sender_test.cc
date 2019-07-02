@@ -417,7 +417,8 @@ TEST_F(BbrSenderTest, SimpleTransfer2RTTAggregationBytes20RTTWindow) {
 
   // Transfer 12MB.
   DoSimpleTransfer(12 * 1024 * 1024, QuicTime::Delta::FromSeconds(35));
-  EXPECT_EQ(BbrSender::PROBE_BW, sender_->ExportDebugState().mode);
+  EXPECT_TRUE(sender_->ExportDebugState().mode == BbrSender::PROBE_BW ||
+              sender_->ExportDebugState().mode == BbrSender::PROBE_RTT);
   // It's possible to read a bandwidth as much as 50% too high with aggregation.
   EXPECT_LE(kTestLinkBandwidth * 0.99f,
             sender_->ExportDebugState().max_bandwidth);
@@ -430,7 +431,7 @@ TEST_F(BbrSenderTest, SimpleTransfer2RTTAggregationBytes20RTTWindow) {
   // The margin here is high, because the aggregation greatly increases
   // smoothed rtt.
   EXPECT_GE(kTestRtt * 4, rtt_stats_->smoothed_rtt());
-  EXPECT_APPROX_EQ(kTestRtt, rtt_stats_->min_rtt(), 0.12f);
+  EXPECT_APPROX_EQ(kTestRtt, rtt_stats_->min_rtt(), 0.25f);
 }
 
 // Test a simple long data transfer with 2 rtts of aggregation.
@@ -444,7 +445,8 @@ TEST_F(BbrSenderTest, SimpleTransfer2RTTAggregationBytes40RTTWindow) {
 
   // Transfer 12MB.
   DoSimpleTransfer(12 * 1024 * 1024, QuicTime::Delta::FromSeconds(35));
-  EXPECT_EQ(BbrSender::PROBE_BW, sender_->ExportDebugState().mode);
+  EXPECT_TRUE(sender_->ExportDebugState().mode == BbrSender::PROBE_BW ||
+              sender_->ExportDebugState().mode == BbrSender::PROBE_RTT);
   // It's possible to read a bandwidth as much as 50% too high with aggregation.
   EXPECT_LE(kTestLinkBandwidth * 0.99f,
             sender_->ExportDebugState().max_bandwidth);
@@ -457,7 +459,7 @@ TEST_F(BbrSenderTest, SimpleTransfer2RTTAggregationBytes40RTTWindow) {
   // The margin here is high, because the aggregation greatly increases
   // smoothed rtt.
   EXPECT_GE(kTestRtt * 4, rtt_stats_->smoothed_rtt());
-  EXPECT_APPROX_EQ(kTestRtt, rtt_stats_->min_rtt(), 0.12f);
+  EXPECT_APPROX_EQ(kTestRtt, rtt_stats_->min_rtt(), 0.25f);
 }
 
 // Test the number of losses incurred by the startup phase in a situation when
