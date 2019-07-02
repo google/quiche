@@ -1810,6 +1810,146 @@ TEST_P(QuicSpdyStreamTest, MalformedHeadersStopHttpDecoder) {
   stream_->OnStreamFrame(frame);
 }
 
+TEST_P(QuicSpdyStreamTest, BlockedHeaderDecoding) {
+  if (!VersionUsesQpack(GetParam().transport_version)) {
+    return;
+  }
+
+  Initialize(kShouldProcessData);
+  QuicSpdyStreamPeer::pretend_blocked_decoding(stream_);
+
+  // HEADERS frame with QPACK encoded single header field "foo: bar".
+  std::string headers =
+      HeadersFrame(QuicTextUtils::HexDecode("00002a94e703626172"));
+  stream_->OnStreamFrame(QuicStreamFrame(stream_->id(), false, 0, headers));
+
+  // Even though entire header block is received, it cannot be decoded.
+  EXPECT_FALSE(stream_->headers_decompressed());
+
+  // Signal to QpackDecodedHeadersAccumulator that the header block has been
+  // decoded.  (OnDecodingCompleted() has already been called by the QPACK
+  // decoder, so technically quic_header_list_.OnHeaderBlockEnd() is called
+  // twice, which is a no-op.)
+  QuicSpdyStreamPeer::qpack_decoded_headers_accumulator(stream_)
+      ->OnDecodingCompleted();
+
+  EXPECT_TRUE(stream_->headers_decompressed());
+
+  EXPECT_THAT(stream_->header_list(), ElementsAre(Pair("foo", "bar")));
+  stream_->ConsumeHeaderList();
+
+  std::string data = DataFrame(kDataFramePayload);
+  stream_->OnStreamFrame(QuicStreamFrame(stream_->id(), false, /* offset = */
+                                         headers.length(), data));
+  EXPECT_EQ(kDataFramePayload, stream_->data());
+
+  // Trailing HEADERS frame with QPACK encoded
+  // single header field "custom-key: custom-value".
+  std::string trailers = HeadersFrame(
+      QuicTextUtils::HexDecode("00002f0125a849e95ba97d7f8925a849e95bb8e8b4bf"));
+  stream_->OnStreamFrame(QuicStreamFrame(stream_->id(), true, /* offset = */
+                                         headers.length() + data.length(),
+                                         trailers));
+
+  // Even though entire header block is received, it cannot be decoded.
+  EXPECT_FALSE(stream_->trailers_decompressed());
+
+  // Signal to QpackDecodedHeadersAccumulator that the header block has been
+  // decoded.
+  QuicSpdyStreamPeer::qpack_decoded_headers_accumulator(stream_)
+      ->OnDecodingCompleted();
+  EXPECT_TRUE(stream_->trailers_decompressed());
+
+  // Verify trailers.
+  EXPECT_THAT(stream_->received_trailers(),
+              ElementsAre(Pair("custom-key", "custom-value")));
+  stream_->MarkTrailersConsumed();
+}
+
+TEST_P(QuicSpdyStreamTest, AsyncErrorDecodingHeaders) {
+  if (!VersionUsesQpack(GetParam().transport_version)) {
+    return;
+  }
+
+  Initialize(kShouldProcessData);
+  QuicSpdyStreamPeer::pretend_blocked_decoding(stream_);
+
+  // HEADERS frame with QPACK encoded single header field "foo: bar".
+  std::string headers =
+      HeadersFrame(QuicTextUtils::HexDecode("00002a94e703626172"));
+  stream_->OnStreamFrame(QuicStreamFrame(stream_->id(), false, 0, headers));
+
+  // Even though entire header block is received, it cannot be decoded.
+  EXPECT_FALSE(stream_->headers_decompressed());
+
+  // Signal a decoding error to QpackDecodedHeadersAccumulator.
+  std::string expected_error_message =
+      QuicStrCat("Error during async decoding of headers on stream ",
+                 stream_->id(), ": unexpected error");
+  EXPECT_CALL(
+      *connection_,
+      CloseConnection(QUIC_DECOMPRESSION_FAILURE, expected_error_message,
+                      ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET));
+  QuicSpdyStreamPeer::qpack_decoded_headers_accumulator(stream_)
+      ->OnDecodingErrorDetected("unexpected error");
+}
+
+TEST_P(QuicSpdyStreamTest, AsyncErrorDecodingTrailers) {
+  if (!VersionUsesQpack(GetParam().transport_version)) {
+    return;
+  }
+
+  Initialize(kShouldProcessData);
+  QuicSpdyStreamPeer::pretend_blocked_decoding(stream_);
+
+  // HEADERS frame with QPACK encoded single header field "foo: bar".
+  std::string headers =
+      HeadersFrame(QuicTextUtils::HexDecode("00002a94e703626172"));
+  stream_->OnStreamFrame(QuicStreamFrame(stream_->id(), false, 0, headers));
+
+  // Even though entire header block is received, it cannot be decoded.
+  EXPECT_FALSE(stream_->headers_decompressed());
+
+  // Signal to QpackDecodedHeadersAccumulator that the header block has been
+  // decoded.  (OnDecodingCompleted() has already been called by the QPACK
+  // decoder, so technically quic_header_list_.OnHeaderBlockEnd() is called
+  // twice, which is a no-op.)
+  QuicSpdyStreamPeer::qpack_decoded_headers_accumulator(stream_)
+      ->OnDecodingCompleted();
+
+  EXPECT_TRUE(stream_->headers_decompressed());
+
+  EXPECT_THAT(stream_->header_list(), ElementsAre(Pair("foo", "bar")));
+  stream_->ConsumeHeaderList();
+
+  std::string data = DataFrame(kDataFramePayload);
+  stream_->OnStreamFrame(QuicStreamFrame(stream_->id(), false, /* offset = */
+                                         headers.length(), data));
+  EXPECT_EQ(kDataFramePayload, stream_->data());
+
+  // Trailing HEADERS frame with QPACK encoded
+  // single header field "custom-key: custom-value".
+  std::string trailers = HeadersFrame(
+      QuicTextUtils::HexDecode("00002f0125a849e95ba97d7f8925a849e95bb8e8b4bf"));
+  stream_->OnStreamFrame(QuicStreamFrame(stream_->id(), true, /* offset = */
+                                         headers.length() + data.length(),
+                                         trailers));
+
+  // Even though entire header block is received, it cannot be decoded.
+  EXPECT_FALSE(stream_->trailers_decompressed());
+
+  // Signal a decoding error to QpackDecodedHeadersAccumulator.
+  std::string expected_error_message =
+      QuicStrCat("Error during async decoding of trailers on stream ",
+                 stream_->id(), ": unexpected error");
+  EXPECT_CALL(
+      *connection_,
+      CloseConnection(QUIC_DECOMPRESSION_FAILURE, expected_error_message,
+                      ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET));
+  QuicSpdyStreamPeer::qpack_decoded_headers_accumulator(stream_)
+      ->OnDecodingErrorDetected("unexpected error");
+}
+
 class QuicSpdyStreamIncrementalConsumptionTest : public QuicSpdyStreamTest {
  protected:
   QuicSpdyStreamIncrementalConsumptionTest() : offset_(0), consumed_bytes_(0) {}

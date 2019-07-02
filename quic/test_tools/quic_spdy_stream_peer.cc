@@ -5,6 +5,7 @@
 #include "net/third_party/quiche/src/quic/test_tools/quic_spdy_stream_peer.h"
 
 #include "net/third_party/quiche/src/quic/core/http/quic_spdy_stream.h"
+#include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 
 namespace quic {
 namespace test {
@@ -20,6 +21,17 @@ void QuicSpdyStreamPeer::set_ack_listener(
 const QuicIntervalSet<QuicStreamOffset>&
 QuicSpdyStreamPeer::unacked_frame_headers_offsets(QuicSpdyStream* stream) {
   return stream->unacked_frame_headers_offsets_;
+}
+
+// static
+void QuicSpdyStreamPeer::pretend_blocked_decoding(QuicSpdyStream* stream) {
+  stream->pretend_blocked_decoding_for_tests_ = true;
+}
+
+// static
+QpackDecodedHeadersAccumulator*
+QuicSpdyStreamPeer::qpack_decoded_headers_accumulator(QuicSpdyStream* stream) {
+  return stream->qpack_decoded_headers_accumulator_.get();
 }
 
 }  // namespace test

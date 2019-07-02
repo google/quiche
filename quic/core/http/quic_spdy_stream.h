@@ -19,6 +19,7 @@
 #include "net/third_party/quiche/src/quic/core/http/http_encoder.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_header_list.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_spdy_stream_body_buffer.h"
+#include "net/third_party/quiche/src/quic/core/qpack/qpack_decoded_headers_accumulator.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_stream.h"
 #include "net/third_party/quiche/src/quic/core/quic_stream_sequencer.h"
@@ -34,11 +35,12 @@ class QuicSpdyStreamPeer;
 class QuicStreamPeer;
 }  // namespace test
 
-class QpackDecodedHeadersAccumulator;
 class QuicSpdySession;
 
 // A QUIC stream that can send and receive HTTP2 (SPDY) headers.
-class QUIC_EXPORT_PRIVATE QuicSpdyStream : public QuicStream {
+class QUIC_EXPORT_PRIVATE QuicSpdyStream
+    : public QuicStream,
+      public QpackDecodedHeadersAccumulator::Visitor {
  public:
   // Visitor receives callbacks from the stream.
   class QUIC_EXPORT_PRIVATE Visitor {
@@ -206,6 +208,10 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream : public QuicStream {
 
   using QuicStream::CloseWriteSide;
 
+  // QpackDecodedHeadersAccumulator::Visitor implementation.
+  void OnHeadersDecoded(QuicHeaderList headers) override;
+  void OnHeaderDecodingError() override;
+
  protected:
   // Called when the received headers are too large. By default this will
   // reset the stream.
@@ -246,6 +252,9 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream : public QuicStream {
   bool OnHeadersFramePayload(QuicStringPiece payload);
   bool OnHeadersFrameEnd();
 
+  // Called internally when headers are decoded.
+  void ProcessDecodedHeaders(const QuicHeaderList& headers);
+
   // Call QuicStreamSequencer::MarkConsumed() with
   // |headers_bytes_to_be_marked_consumed_| if appropriate.
   void MaybeMarkHeadersBytesConsumed();
@@ -260,6 +269,10 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream : public QuicStream {
   bool on_body_available_called_because_sequencer_is_closed_;
 
   Visitor* visitor_;
+
+  // True if read side processing is blocked while waiting for callback from
+  // QPACK decoder.
+  bool blocked_on_decoding_headers_;
   // True if the headers have been completely decompressed.
   bool headers_decompressed_;
   // Contains a copy of the decompressed header (name, value) pairs until they
@@ -284,6 +297,9 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream : public QuicStream {
   HttpEncoder encoder_;
   // Http decoder for processing raw incoming stream frames.
   HttpDecoder decoder_;
+  // TODO(b/112770235): Remove once blocked decoding is implemented
+  // and can be tested with delayed encoder stream data.
+  bool pretend_blocked_decoding_for_tests_;
   // Headers accumulator for decoding HEADERS frame payload.
   std::unique_ptr<QpackDecodedHeadersAccumulator>
       qpack_decoded_headers_accumulator_;

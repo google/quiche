@@ -16,6 +16,7 @@ using ::testing::ElementsAre;
 using ::testing::Eq;
 using ::testing::Pair;
 using ::testing::StrictMock;
+using Status = quic::QpackDecodedHeadersAccumulator::Status;
 
 namespace quic {
 namespace test {
@@ -32,29 +33,41 @@ const char* const kHeaderAcknowledgement = "\x81";
 
 }  // anonymous namespace
 
+class NoopVisitor : public QpackDecodedHeadersAccumulator::Visitor {
+ public:
+  ~NoopVisitor() override = default;
+  void OnHeadersDecoded(QuicHeaderList /* headers */) override {}
+  void OnHeaderDecodingError() override {}
+};
+
 class QpackDecodedHeadersAccumulatorTest : public QuicTest {
  protected:
   QpackDecodedHeadersAccumulatorTest()
       : qpack_decoder_(&encoder_stream_error_delegate_,
                        &decoder_stream_sender_delegate_),
-        accumulator_(kTestStreamId, &qpack_decoder_, kMaxHeaderListSize) {}
+        accumulator_(kTestStreamId,
+                     &qpack_decoder_,
+                     &visitor_,
+                     kMaxHeaderListSize,
+                     false) {}
 
   NoopEncoderStreamErrorDelegate encoder_stream_error_delegate_;
   StrictMock<MockQpackStreamSenderDelegate> decoder_stream_sender_delegate_;
   QpackDecoder qpack_decoder_;
+  NoopVisitor visitor_;
   QpackDecodedHeadersAccumulator accumulator_;
 };
 
 // HEADERS frame payload must have a complete Header Block Prefix.
 TEST_F(QpackDecodedHeadersAccumulatorTest, EmptyPayload) {
-  EXPECT_FALSE(accumulator_.EndHeaderBlock());
+  EXPECT_EQ(Status::kError, accumulator_.EndHeaderBlock());
   EXPECT_EQ("Incomplete header data prefix.", accumulator_.error_message());
 }
 
 // HEADERS frame payload must have a complete Header Block Prefix.
 TEST_F(QpackDecodedHeadersAccumulatorTest, TruncatedHeaderBlockPrefix) {
   EXPECT_TRUE(accumulator_.Decode(QuicTextUtils::HexDecode("00")));
-  EXPECT_FALSE(accumulator_.EndHeaderBlock());
+  EXPECT_EQ(Status::kError, accumulator_.EndHeaderBlock());
   EXPECT_EQ("Incomplete header data prefix.", accumulator_.error_message());
 }
 
@@ -63,7 +76,7 @@ TEST_F(QpackDecodedHeadersAccumulatorTest, EmptyHeaderList) {
               WriteStreamData(Eq(kHeaderAcknowledgement)));
 
   EXPECT_TRUE(accumulator_.Decode(QuicTextUtils::HexDecode("0000")));
-  EXPECT_TRUE(accumulator_.EndHeaderBlock());
+  EXPECT_EQ(Status::kSuccess, accumulator_.EndHeaderBlock());
 
   EXPECT_TRUE(accumulator_.quic_header_list().empty());
 }
@@ -72,7 +85,7 @@ TEST_F(QpackDecodedHeadersAccumulatorTest, EmptyHeaderList) {
 // before it can be completely decoded.
 TEST_F(QpackDecodedHeadersAccumulatorTest, TruncatedPayload) {
   EXPECT_TRUE(accumulator_.Decode(QuicTextUtils::HexDecode("00002366")));
-  EXPECT_FALSE(accumulator_.EndHeaderBlock());
+  EXPECT_EQ(Status::kError, accumulator_.EndHeaderBlock());
   EXPECT_EQ("Incomplete header block.", accumulator_.error_message());
 }
 
@@ -88,7 +101,7 @@ TEST_F(QpackDecodedHeadersAccumulatorTest, Success) {
 
   std::string encoded_data(QuicTextUtils::HexDecode("000023666f6f03626172"));
   EXPECT_TRUE(accumulator_.Decode(encoded_data));
-  EXPECT_TRUE(accumulator_.EndHeaderBlock());
+  EXPECT_EQ(Status::kSuccess, accumulator_.EndHeaderBlock());
 
   const QuicHeaderList& header_list = accumulator_.quic_header_list();
   EXPECT_THAT(header_list, ElementsAre(Pair("foo", "bar")));
@@ -110,10 +123,24 @@ TEST_F(QpackDecodedHeadersAccumulatorTest, ExceedingLimit) {
       "616161616161616161616161616161616161616161616161616161616161616161616161"
       "616161616161616161616161616161616161616161616161616161616161616161616161"
       "61616161616161616161616161616161616161616161616161616161616161616161")));
-  EXPECT_TRUE(accumulator_.EndHeaderBlock());
+  EXPECT_EQ(Status::kSuccess, accumulator_.EndHeaderBlock());
 
   // QuicHeaderList signals header list over limit by clearing it.
   EXPECT_TRUE(accumulator_.quic_header_list().empty());
+}
+
+// TODO(b/112770235): Remove once blocked decoding is implemented
+// and can be tested with delayed encoder stream data.
+TEST_F(QpackDecodedHeadersAccumulatorTest, PretendBlockedEncoding) {
+  QpackDecodedHeadersAccumulator accumulator(
+      kTestStreamId, &qpack_decoder_, &visitor_, kMaxHeaderListSize,
+      /* pretend_blocked_decoding_for_tests = */ true);
+
+  EXPECT_CALL(decoder_stream_sender_delegate_,
+              WriteStreamData(Eq(kHeaderAcknowledgement)));
+
+  EXPECT_TRUE(accumulator.Decode(QuicTextUtils::HexDecode("0000")));
+  EXPECT_EQ(Status::kBlocked, accumulator.EndHeaderBlock());
 }
 
 }  // namespace test

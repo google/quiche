@@ -24,9 +24,35 @@ class QpackDecoder;
 class QUIC_EXPORT_PRIVATE QpackDecodedHeadersAccumulator
     : public QpackProgressiveDecoder::HeadersHandlerInterface {
  public:
+  // Return value for EndHeaderBlock().
+  enum class Status {
+    // Headers have been successfully decoded.
+    kSuccess,
+    // An error has occurred.
+    kError,
+    // Decoding is blocked.
+    kBlocked
+  };
+
+  // Visitor interface used for blocked decoding.  Exactly one visitor method
+  // will be called if EndHeaderBlock() returned kBlocked.  No visitor method
+  // will be called if EndHeaderBlock() returned any other value.
+  class Visitor {
+   public:
+    virtual ~Visitor() = default;
+
+    // Called when headers are successfully decoded.
+    virtual void OnHeadersDecoded(QuicHeaderList headers) = 0;
+
+    // Called when an error has occurred.
+    virtual void OnHeaderDecodingError() = 0;
+  };
+
   QpackDecodedHeadersAccumulator(QuicStreamId id,
                                  QpackDecoder* qpack_decoder,
-                                 size_t max_header_list_size);
+                                 Visitor* visitor,
+                                 size_t max_header_list_size,
+                                 bool pretend_blocked_decoding_for_tests);
   virtual ~QpackDecodedHeadersAccumulator() = default;
 
   // QpackProgressiveDecoder::HeadersHandlerInterface implementation.
@@ -40,23 +66,36 @@ class QUIC_EXPORT_PRIVATE QpackDecodedHeadersAccumulator
   // Must not be called after EndHeaderBlock().
   bool Decode(QuicStringPiece data);
 
-  // Signal end of HEADERS frame.  Returns true on success, false on error.
+  // Signal end of HEADERS frame.
   // Must not be called if an error has been detected.
   // Must not be called more that once.
-  bool EndHeaderBlock();
+  // Returns kSuccess if headers can be readily decoded.
+  // Returns kError if an error occurred.
+  // Returns kBlocked if headers cannot be decoded at the moment, in which case
+  // exactly one Visitor method will be called as soon as sufficient data
+  // is received on the QPACK decoder stream.
+  Status EndHeaderBlock();
 
   // Returns accumulated header list.
   const QuicHeaderList& quic_header_list() const;
 
   // Returns error message.
   // Must not be called unless an error has been detected.
+  // TODO(b/124216424): Add accessor for error code, return HTTP_EXCESSIVE_LOAD
+  // or HTTP_QPACK_DECOMPRESSION_FAILED.
   QuicStringPiece error_message() const;
 
  private:
   std::unique_ptr<QpackProgressiveDecoder> decoder_;
+  Visitor* visitor_;
   QuicHeaderList quic_header_list_;
   size_t uncompressed_header_bytes_;
   size_t compressed_header_bytes_;
+  // Set to true when EndHeaderBlock() returns kBlocked.
+  bool blocked_;
+  // TODO(b/112770235): Remove once blocked decoding is implemented
+  // and can be tested with delayed encoder stream data.
+  bool pretend_blocked_decoding_for_tests_;
   bool error_detected_;
   std::string error_message_;
 };
