@@ -212,7 +212,8 @@ class SimpleLinkedHashMap {
     return std::make_pair(last, true);
   }
 
-  size_type size() const { return list_.size(); }
+  // Derive size_ from map_, as list::size might be O(N).
+  size_type size() const { return map_.size(); }
 
   template <typename... Args>
   std::pair<iterator, bool> emplace(Args&&... args) {
