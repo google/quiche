@@ -135,6 +135,7 @@ size_t GetPacketHeaderSize(
         size += kDiversificationNonceSize;
       }
       DCHECK(QuicVersionHasLongHeaderLengths(version) ||
+             !GetQuicReloadableFlag(quic_fix_get_packet_header_size) ||
              retry_token_length_length + retry_token_length + length_length ==
                  0);
       if (QuicVersionHasLongHeaderLengths(version) ||
