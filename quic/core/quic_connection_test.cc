@@ -8131,7 +8131,6 @@ TEST_P(QuicConnectionTest, PathChallengeResponse) {
 
 // Regression test for b/110259444
 TEST_P(QuicConnectionTest, DoNotScheduleSpuriousAckAlarm) {
-  SetQuicReloadableFlag(quic_fix_spurious_ack_alarm, true);
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   EXPECT_CALL(visitor_, OnWriteBlocked()).Times(AtLeast(1));
   writer_->SetWriteBlocked();

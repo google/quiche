@@ -59,9 +59,6 @@ void ConfigureGlobalQuicSettings() {
   // Fixes behavior of StopReading() with level-triggered stream sequencers.
   SetQuicReloadableFlag(quic_stop_reading_when_level_triggered, true);
 
-  // Fix b/110259444.
-  SetQuicReloadableFlag(quic_fix_spurious_ack_alarm, true);
-
   // Enable version 47 to enable variable-length connection ids.
   SetQuicReloadableFlag(quic_enable_version_47, true);
 
