@@ -122,6 +122,8 @@ TEST_F(QuicVersionsTest, ParseQuicVersionLabel) {
             ParseQuicVersionLabel(MakeVersionLabel('Q', '0', '4', '6')));
   EXPECT_EQ(ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_47),
             ParseQuicVersionLabel(MakeVersionLabel('Q', '0', '4', '7')));
+  EXPECT_EQ(ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_48),
+            ParseQuicVersionLabel(MakeVersionLabel('Q', '0', '4', '8')));
 
   // Test TLS versions:
   EXPECT_EQ(ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_39),
@@ -134,6 +136,8 @@ TEST_F(QuicVersionsTest, ParseQuicVersionLabel) {
             ParseQuicVersionLabel(MakeVersionLabel('T', '0', '4', '6')));
   EXPECT_EQ(ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_47),
             ParseQuicVersionLabel(MakeVersionLabel('T', '0', '4', '7')));
+  EXPECT_EQ(ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_48),
+            ParseQuicVersionLabel(MakeVersionLabel('T', '0', '4', '8')));
 }
 
 TEST_F(QuicVersionsTest, ParseQuicVersionString) {
@@ -147,6 +151,8 @@ TEST_F(QuicVersionsTest, ParseQuicVersionString) {
             ParseQuicVersionString("Q046"));
   EXPECT_EQ(ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_47),
             ParseQuicVersionString("Q047"));
+  EXPECT_EQ(ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_48),
+            ParseQuicVersionString("Q048"));
 
   EXPECT_EQ(UnsupportedQuicVersion(), ParseQuicVersionString(""));
   EXPECT_EQ(UnsupportedQuicVersion(), ParseQuicVersionString("Q 47"));
@@ -164,6 +170,8 @@ TEST_F(QuicVersionsTest, ParseQuicVersionString) {
             ParseQuicVersionString("T046"));
   EXPECT_EQ(ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_47),
             ParseQuicVersionString("T047"));
+  EXPECT_EQ(ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_48),
+            ParseQuicVersionString("T048"));
 }
 
 TEST_F(QuicVersionsTest, CreateQuicVersionLabel) {
@@ -182,6 +190,9 @@ TEST_F(QuicVersionsTest, CreateQuicVersionLabel) {
   EXPECT_EQ(MakeVersionLabel('Q', '0', '4', '7'),
             CreateQuicVersionLabel(
                 ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_47)));
+  EXPECT_EQ(MakeVersionLabel('Q', '0', '4', '8'),
+            CreateQuicVersionLabel(
+                ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_48)));
 
   // Test a TLS version:
   EXPECT_EQ(MakeVersionLabel('T', '0', '3', '9'),
@@ -199,6 +210,9 @@ TEST_F(QuicVersionsTest, CreateQuicVersionLabel) {
   EXPECT_EQ(MakeVersionLabel('T', '0', '4', '7'),
             CreateQuicVersionLabel(
                 ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_47)));
+  EXPECT_EQ(MakeVersionLabel('T', '0', '4', '8'),
+            CreateQuicVersionLabel(
+                ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_48)));
 
   // Make sure the negotiation reserved version is in the IETF reserved space.
   EXPECT_EQ(MakeVersionLabel(0xda, 0x5a, 0x3a, 0x3a) & 0x0f0f0f0f,
@@ -296,13 +310,14 @@ TEST_F(QuicVersionsTest, FilterSupportedTransportVersionsAllVersions) {
   SetQuicReloadableFlag(quic_disable_version_39, false);
   SetQuicReloadableFlag(quic_disable_version_44, false);
   SetQuicReloadableFlag(quic_enable_version_47, true);
+  SetQuicReloadableFlag(quic_enable_version_48, true);
   SetQuicReloadableFlag(quic_enable_version_99, true);
   ParsedQuicVersionVector parsed_versions;
   for (QuicTransportVersion version : all_versions) {
     parsed_versions.push_back(ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, version));
   }
   QuicTransportVersionVector expected_versions = {
-      QUIC_VERSION_99, QUIC_VERSION_47, QUIC_VERSION_46,
+      QUIC_VERSION_99, QUIC_VERSION_48, QUIC_VERSION_47, QUIC_VERSION_46,
       QUIC_VERSION_44, QUIC_VERSION_43, QUIC_VERSION_39};
   ParsedQuicVersionVector expected_parsed_versions;
   for (QuicTransportVersion version : expected_versions) {
@@ -319,6 +334,31 @@ TEST_F(QuicVersionsTest, FilterSupportedTransportVersionsNo99) {
   SetQuicReloadableFlag(quic_disable_version_39, false);
   SetQuicReloadableFlag(quic_disable_version_44, false);
   SetQuicReloadableFlag(quic_enable_version_47, true);
+  SetQuicReloadableFlag(quic_enable_version_48, true);
+  SetQuicReloadableFlag(quic_enable_version_99, false);
+  ParsedQuicVersionVector parsed_versions;
+  for (QuicTransportVersion version : all_versions) {
+    parsed_versions.push_back(ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, version));
+  }
+  QuicTransportVersionVector expected_versions = {
+      QUIC_VERSION_48, QUIC_VERSION_47, QUIC_VERSION_46,
+      QUIC_VERSION_44, QUIC_VERSION_43, QUIC_VERSION_39};
+  ParsedQuicVersionVector expected_parsed_versions;
+  for (QuicTransportVersion version : expected_versions) {
+    expected_parsed_versions.push_back(
+        ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, version));
+  }
+
+  ASSERT_EQ(expected_versions, FilterSupportedTransportVersions(all_versions));
+  ASSERT_EQ(expected_parsed_versions, FilterSupportedVersions(parsed_versions));
+}
+
+TEST_F(QuicVersionsTest, FilterSupportedTransportVersionsNo48) {
+  QuicTransportVersionVector all_versions = AllSupportedTransportVersions();
+  SetQuicReloadableFlag(quic_disable_version_39, false);
+  SetQuicReloadableFlag(quic_disable_version_44, false);
+  SetQuicReloadableFlag(quic_enable_version_47, true);
+  SetQuicReloadableFlag(quic_enable_version_48, false);
   SetQuicReloadableFlag(quic_enable_version_99, false);
   ParsedQuicVersionVector parsed_versions;
   for (QuicTransportVersion version : all_versions) {
@@ -342,6 +382,7 @@ TEST_F(QuicVersionsTest, FilterSupportedTransportVersionsNo47) {
   SetQuicReloadableFlag(quic_disable_version_39, false);
   SetQuicReloadableFlag(quic_disable_version_44, false);
   SetQuicReloadableFlag(quic_enable_version_47, false);
+  SetQuicReloadableFlag(quic_enable_version_48, false);
   SetQuicReloadableFlag(quic_enable_version_99, false);
   ParsedQuicVersionVector parsed_versions;
   for (QuicTransportVersion version : all_versions) {
@@ -364,6 +405,7 @@ TEST_F(QuicVersionsTest, FilterSupportedTransportVersionsNo44) {
   SetQuicReloadableFlag(quic_disable_version_39, false);
   SetQuicReloadableFlag(quic_disable_version_44, true);
   SetQuicReloadableFlag(quic_enable_version_47, false);
+  SetQuicReloadableFlag(quic_enable_version_48, false);
   SetQuicReloadableFlag(quic_enable_version_99, false);
   ParsedQuicVersionVector parsed_versions;
   for (QuicTransportVersion version : all_versions) {
@@ -386,6 +428,7 @@ TEST_F(QuicVersionsTest, FilterSupportedTransportVersionsNo39) {
   SetQuicReloadableFlag(quic_disable_version_39, true);
   SetQuicReloadableFlag(quic_disable_version_44, false);
   SetQuicReloadableFlag(quic_enable_version_47, false);
+  SetQuicReloadableFlag(quic_enable_version_48, false);
   SetQuicReloadableFlag(quic_enable_version_99, false);
   ParsedQuicVersionVector parsed_versions;
   for (QuicTransportVersion version : all_versions) {
@@ -442,13 +485,14 @@ TEST_F(QuicVersionsTest, ParsedVersionsToTransportVersions) {
 // yet a typo was made in doing the #defines and it was caught
 // only in some test far removed from here... Better safe than sorry.
 TEST_F(QuicVersionsTest, CheckVersionNumbersForTypos) {
-  static_assert(QUIC_ARRAYSIZE(kSupportedTransportVersions) == 6u,
+  static_assert(QUIC_ARRAYSIZE(kSupportedTransportVersions) == 7u,
                 "Supported versions out of sync");
   EXPECT_EQ(QUIC_VERSION_39, 39);
   EXPECT_EQ(QUIC_VERSION_43, 43);
   EXPECT_EQ(QUIC_VERSION_44, 44);
   EXPECT_EQ(QUIC_VERSION_46, 46);
   EXPECT_EQ(QUIC_VERSION_47, 47);
+  EXPECT_EQ(QUIC_VERSION_48, 48);
   EXPECT_EQ(QUIC_VERSION_99, 99);
 }
 
@@ -457,11 +501,17 @@ TEST_F(QuicVersionsTest, AlpnForVersion) {
       ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_47);
   ParsedQuicVersion parsed_version_t047 =
       ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_47);
+  ParsedQuicVersion parsed_version_q048 =
+      ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_48);
+  ParsedQuicVersion parsed_version_t048 =
+      ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_48);
   ParsedQuicVersion parsed_version_t099 =
       ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_99);
 
   EXPECT_EQ("h3-google-Q047", AlpnForVersion(parsed_version_q047));
   EXPECT_EQ("h3-google-T047", AlpnForVersion(parsed_version_t047));
+  EXPECT_EQ("h3-google-Q048", AlpnForVersion(parsed_version_q048));
+  EXPECT_EQ("h3-google-T048", AlpnForVersion(parsed_version_t048));
   EXPECT_EQ("h3-google-T099", AlpnForVersion(parsed_version_t099));
 }
 
@@ -496,28 +546,63 @@ TEST_F(QuicVersionsTest, QuicEnableVersion) {
       ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_47);
   ParsedQuicVersion parsed_version_t047 =
       ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_47);
+  ParsedQuicVersion parsed_version_q048 =
+      ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_48);
+  ParsedQuicVersion parsed_version_t048 =
+      ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_48);
   ParsedQuicVersion parsed_version_t099 =
       ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_99);
   SetQuicFlag(FLAGS_quic_supports_tls_handshake, false);
   SetQuicReloadableFlag(quic_disable_version_39, false);
   SetQuicReloadableFlag(quic_disable_version_44, false);
   SetQuicReloadableFlag(quic_enable_version_47, false);
+  SetQuicReloadableFlag(quic_enable_version_48, false);
   SetQuicReloadableFlag(quic_enable_version_99, false);
 
-  QuicEnableVersion(parsed_version_q047);
-  EXPECT_FALSE(GetQuicFlag(FLAGS_quic_supports_tls_handshake));
-  EXPECT_TRUE(GetQuicReloadableFlag(quic_enable_version_47));
-  EXPECT_FALSE(GetQuicReloadableFlag(quic_enable_version_99));
+  {
+    QuicFlagSaver flag_saver;
+    QuicEnableVersion(parsed_version_q047);
+    EXPECT_FALSE(GetQuicFlag(FLAGS_quic_supports_tls_handshake));
+    EXPECT_TRUE(GetQuicReloadableFlag(quic_enable_version_47));
+    EXPECT_FALSE(GetQuicReloadableFlag(quic_enable_version_48));
+    EXPECT_FALSE(GetQuicReloadableFlag(quic_enable_version_99));
+  }
 
-  QuicEnableVersion(parsed_version_t047);
-  EXPECT_TRUE(GetQuicFlag(FLAGS_quic_supports_tls_handshake));
-  EXPECT_TRUE(GetQuicReloadableFlag(quic_enable_version_47));
-  EXPECT_FALSE(GetQuicReloadableFlag(quic_enable_version_99));
+  {
+    QuicFlagSaver flag_saver;
+    QuicEnableVersion(parsed_version_t047);
+    EXPECT_TRUE(GetQuicFlag(FLAGS_quic_supports_tls_handshake));
+    EXPECT_TRUE(GetQuicReloadableFlag(quic_enable_version_47));
+    EXPECT_FALSE(GetQuicReloadableFlag(quic_enable_version_48));
+    EXPECT_FALSE(GetQuicReloadableFlag(quic_enable_version_99));
+  }
 
-  QuicEnableVersion(parsed_version_t099);
-  EXPECT_TRUE(GetQuicFlag(FLAGS_quic_supports_tls_handshake));
-  EXPECT_TRUE(GetQuicReloadableFlag(quic_enable_version_47));
-  EXPECT_TRUE(GetQuicReloadableFlag(quic_enable_version_99));
+  {
+    QuicFlagSaver flag_saver;
+    QuicEnableVersion(parsed_version_q048);
+    EXPECT_FALSE(GetQuicFlag(FLAGS_quic_supports_tls_handshake));
+    EXPECT_FALSE(GetQuicReloadableFlag(quic_enable_version_47));
+    EXPECT_TRUE(GetQuicReloadableFlag(quic_enable_version_48));
+    EXPECT_FALSE(GetQuicReloadableFlag(quic_enable_version_99));
+  }
+
+  {
+    QuicFlagSaver flag_saver;
+    QuicEnableVersion(parsed_version_t048);
+    EXPECT_TRUE(GetQuicFlag(FLAGS_quic_supports_tls_handshake));
+    EXPECT_FALSE(GetQuicReloadableFlag(quic_enable_version_47));
+    EXPECT_TRUE(GetQuicReloadableFlag(quic_enable_version_48));
+    EXPECT_FALSE(GetQuicReloadableFlag(quic_enable_version_99));
+  }
+
+  {
+    QuicFlagSaver flag_saver;
+    QuicEnableVersion(parsed_version_t099);
+    EXPECT_TRUE(GetQuicFlag(FLAGS_quic_supports_tls_handshake));
+    EXPECT_FALSE(GetQuicReloadableFlag(quic_enable_version_47));
+    EXPECT_FALSE(GetQuicReloadableFlag(quic_enable_version_48));
+    EXPECT_TRUE(GetQuicReloadableFlag(quic_enable_version_99));
+  }
 }
 
 TEST_F(QuicVersionsTest, ReservedForNegotiation) {

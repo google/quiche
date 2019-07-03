@@ -6619,7 +6619,28 @@ TEST_P(QuicFramerTest, BuildCryptoFramePacket) {
   QuicFrames frames = {QuicFrame(&crypto_frame)};
 
   // clang-format off
-  unsigned char packet[] = {
+  unsigned char packet48[] = {
+    // type (short header, 4 byte packet number)
+    0x43,
+    // connection_id
+    0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+    // packet number
+    0x12, 0x34, 0x56, 0x78,
+
+    // frame type (QuicFrameType CRYPTO_FRAME)
+    0x08,
+    // offset
+    kVarInt62EightBytes + 0x3A, 0x98, 0xFE, 0xDC,
+    0x32, 0x10, 0x76, 0x54,
+    // length
+    kVarInt62OneByte + 12,
+    // data
+    'h',  'e',  'l',  'l',
+    'o',  ' ',  'w',  'o',
+    'r',  'l',  'd',  '!',
+  };
+
+  unsigned char packet99[] = {
     // type (short header, 4 byte packet number)
     0x43,
     // connection_id
@@ -6641,7 +6662,12 @@ TEST_P(QuicFramerTest, BuildCryptoFramePacket) {
   };
   // clang-format on
 
-  size_t packet_size = QUIC_ARRAYSIZE(packet);
+  unsigned char* packet = packet48;
+  size_t packet_size = QUIC_ARRAYSIZE(packet48);
+  if (framer_.transport_version() == QUIC_VERSION_99) {
+    packet = packet99;
+    packet_size = QUIC_ARRAYSIZE(packet99);
+  }
 
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
@@ -6651,14 +6677,41 @@ TEST_P(QuicFramerTest, BuildCryptoFramePacket) {
 }
 
 TEST_P(QuicFramerTest, CryptoFrame) {
-  if (framer_.transport_version() < QUIC_VERSION_99) {
-    // CRYPTO frames aren't supported prior to v46.
+  if (framer_.transport_version() < QUIC_VERSION_48) {
+    // CRYPTO frames aren't supported prior to v48.
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
 
   // clang-format off
-  PacketFragments packet = {
+  PacketFragments packet48 = {
+      // type (short header, 4 byte packet number)
+      {"",
+       {0x43}},
+      // connection_id
+      {"",
+       {0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10}},
+      // packet number
+      {"",
+       {0x12, 0x34, 0x56, 0x78}},
+      // frame type (QuicFrameType CRYPTO_FRAME)
+      {"",
+       {0x08}},
+      // offset
+      {"",
+       {kVarInt62EightBytes + 0x3A, 0x98, 0xFE, 0xDC,
+        0x32, 0x10, 0x76, 0x54}},
+      // data length
+      {"Invalid data length.",
+       {kVarInt62OneByte + 12}},
+      // data
+      {"Unable to read frame data.",
+       {'h',  'e',  'l',  'l',
+        'o',  ' ',  'w',  'o',
+        'r',  'l',  'd',  '!'}},
+  };
+
+  PacketFragments packet99 = {
       // type (short header, 4 byte packet number)
       {"",
        {0x43}},
@@ -6686,8 +6739,10 @@ TEST_P(QuicFramerTest, CryptoFrame) {
   };
   // clang-format on
 
+  PacketFragments& fragments =
+      framer_.transport_version() == QUIC_VERSION_99 ? packet99 : packet48;
   std::unique_ptr<QuicEncryptedPacket> encrypted(
-      AssemblePacketFromFragments(packet));
+      AssemblePacketFromFragments(fragments));
   EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
 
   EXPECT_EQ(QUIC_NO_ERROR, framer_.error());
@@ -6701,7 +6756,7 @@ TEST_P(QuicFramerTest, CryptoFrame) {
   EXPECT_EQ("hello world!",
             std::string(frame->data_buffer, frame->data_length));
 
-  CheckFramingBoundaries(packet, QUIC_INVALID_FRAME_DATA);
+  CheckFramingBoundaries(fragments, QUIC_INVALID_FRAME_DATA);
 }
 
 TEST_P(QuicFramerTest, BuildVersionNegotiationPacket) {
