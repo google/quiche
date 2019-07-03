@@ -12,7 +12,7 @@
 #include "net/third_party/quiche/src/quic/core/http/quic_header_list.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/spdy/core/spdy_framer.h"
+#include "net/third_party/quiche/src/spdy/core/spdy_header_block.h"
 
 namespace quic {
 
@@ -46,32 +46,10 @@ class QUIC_EXPORT_PRIVATE SpdyUtils {
                                       size_t* final_byte_offset,
                                       spdy::SpdyHeaderBlock* trailers);
 
-  // Returns a canonicalized URL composed from the :scheme, :authority, and
-  // :path headers of a PUSH_PROMISE. Returns empty string if the headers do not
-  // conform to HTTP/2 spec or if the ":method" header contains a forbidden
-  // method for PUSH_PROMISE.
-  static std::string GetPromisedUrlFromHeaders(
-      const spdy::SpdyHeaderBlock& headers);
-
-  // Returns hostname, or empty string if missing.
-  static std::string GetPromisedHostNameFromHeaders(
-      const spdy::SpdyHeaderBlock& headers);
-
-  // Returns true if result of |GetPromisedUrlFromHeaders()| is non-empty
-  // and is a well-formed URL.
-  static bool PromisedUrlIsValid(const spdy::SpdyHeaderBlock& headers);
-
   // Populates the fields of |headers| to make a GET request of |url|,
   // which must be fully-qualified.
   static bool PopulateHeaderBlockFromUrl(const std::string url,
                                          spdy::SpdyHeaderBlock* headers);
-
-  // Returns a canonical, valid URL for a PUSH_PROMISE with the specified
-  // ":scheme", ":authority", and ":path" header fields, or an empty
-  // string if the resulting URL is not valid or supported.
-  static std::string GetPushPromiseUrl(QuicStringPiece scheme,
-                                       QuicStringPiece authority,
-                                       QuicStringPiece path);
 };
 
 }  // namespace quic

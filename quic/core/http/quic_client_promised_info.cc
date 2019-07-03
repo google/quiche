@@ -7,7 +7,7 @@
 #include <string>
 #include <utility>
 
-#include "net/third_party/quiche/src/quic/core/http/spdy_utils.h"
+#include "net/third_party/quiche/src/quic/core/http/spdy_server_push_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
@@ -56,14 +56,14 @@ bool QuicClientPromisedInfo::OnPromiseHeaders(const SpdyHeaderBlock& headers) {
     Reset(QUIC_INVALID_PROMISE_METHOD);
     return false;
   }
-  if (!SpdyUtils::PromisedUrlIsValid(headers)) {
+  if (!SpdyServerPushUtils::PromisedUrlIsValid(headers)) {
     QUIC_DVLOG(1) << "Promise for stream " << id_ << " has invalid URL "
                   << url_;
     Reset(QUIC_INVALID_PROMISE_URL);
     return false;
   }
   if (!session_->IsAuthorized(
-          SpdyUtils::GetPromisedHostNameFromHeaders(headers))) {
+          SpdyServerPushUtils::GetPromisedHostNameFromHeaders(headers))) {
     Reset(QUIC_UNAUTHORIZED_PROMISE_URL);
     return false;
   }

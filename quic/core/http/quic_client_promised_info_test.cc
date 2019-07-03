@@ -8,7 +8,7 @@
 #include <string>
 
 #include "net/third_party/quiche/src/quic/core/http/quic_spdy_client_session.h"
-#include "net/third_party/quiche/src/quic/core/http/spdy_utils.h"
+#include "net/third_party/quiche/src/quic/core/http/spdy_server_push_utils.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
@@ -93,7 +93,8 @@ class QuicClientPromisedInfoTest : public QuicTest {
     push_promise_[":method"] = "GET";
     push_promise_[":scheme"] = "https";
 
-    promise_url_ = SpdyUtils::GetPromisedUrlFromHeaders(push_promise_);
+    promise_url_ =
+        SpdyServerPushUtils::GetPromisedUrlFromHeaders(push_promise_);
 
     client_request_ = push_promise_.Clone();
     promise_id_ = GetNthServerInitiatedUnidirectionalStreamId(

@@ -7,7 +7,7 @@
 #include <string>
 
 #include "net/third_party/quiche/src/quic/core/http/quic_spdy_client_session.h"
-#include "net/third_party/quiche/src/quic/core/http/spdy_utils.h"
+#include "net/third_party/quiche/src/quic/core/http/spdy_server_push_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/crypto_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/mock_quic_client_promised_info.h"
@@ -63,7 +63,7 @@ class QuicClientPushPromiseIndexTest : public QuicTest {
     request_[":version"] = "HTTP/1.1";
     request_[":method"] = "GET";
     request_[":scheme"] = "https";
-    url_ = SpdyUtils::GetPromisedUrlFromHeaders(request_);
+    url_ = SpdyServerPushUtils::GetPromisedUrlFromHeaders(request_);
   }
 
   MockQuicConnectionHelper helper_;

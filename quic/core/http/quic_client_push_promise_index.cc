@@ -7,7 +7,7 @@
 #include <string>
 
 #include "net/third_party/quiche/src/quic/core/http/quic_client_promised_info.h"
-#include "net/third_party/quiche/src/quic/core/http/spdy_utils.h"
+#include "net/third_party/quiche/src/quic/core/http/spdy_server_push_utils.h"
 
 using spdy::SpdyHeaderBlock;
 
@@ -32,7 +32,7 @@ QuicAsyncStatus QuicClientPushPromiseIndex::Try(
     const spdy::SpdyHeaderBlock& request,
     QuicClientPushPromiseIndex::Delegate* delegate,
     TryHandle** handle) {
-  std::string url(SpdyUtils::GetPromisedUrlFromHeaders(request));
+  std::string url(SpdyServerPushUtils::GetPromisedUrlFromHeaders(request));
   auto it = promised_by_url_.find(url);
   if (it != promised_by_url_.end()) {
     QuicClientPromisedInfo* promised = it->second;

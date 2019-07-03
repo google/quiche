@@ -11,7 +11,7 @@
 #include "net/third_party/quiche/src/quic/core/crypto/null_decrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/null_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_spdy_client_stream.h"
-#include "net/third_party/quiche/src/quic/core/http/spdy_utils.h"
+#include "net/third_party/quiche/src/quic/core/http/spdy_server_push_utils.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
@@ -107,7 +107,8 @@ class QuicSpdyClientSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
     push_promise_[":version"] = "HTTP/1.1";
     push_promise_[":method"] = "GET";
     push_promise_[":scheme"] = "https";
-    promise_url_ = SpdyUtils::GetPromisedUrlFromHeaders(push_promise_);
+    promise_url_ =
+        SpdyServerPushUtils::GetPromisedUrlFromHeaders(push_promise_);
     promised_stream_id_ = GetNthServerInitiatedUnidirectionalStreamId(
         connection_->transport_version(), 0);
     associated_stream_id_ = GetNthClientInitiatedBidirectionalStreamId(
@@ -736,7 +737,7 @@ TEST_P(QuicSpdyClientSessionTest, ReceivingPromiseEnhanceYourCalm) {
 
     // Verify that the promise is in the unclaimed streams map.
     std::string promise_url(
-        SpdyUtils::GetPromisedUrlFromHeaders(push_promise_));
+        SpdyServerPushUtils::GetPromisedUrlFromHeaders(push_promise_));
     EXPECT_NE(session_->GetPromisedByUrl(promise_url), nullptr);
     EXPECT_NE(session_->GetPromisedById(id), nullptr);
   }
@@ -754,7 +755,8 @@ TEST_P(QuicSpdyClientSessionTest, ReceivingPromiseEnhanceYourCalm) {
       session_->HandlePromised(associated_stream_id_, id, push_promise_));
 
   // Verify that the promise was not created.
-  std::string promise_url(SpdyUtils::GetPromisedUrlFromHeaders(push_promise_));
+  std::string promise_url(
+      SpdyServerPushUtils::GetPromisedUrlFromHeaders(push_promise_));
   EXPECT_EQ(session_->GetPromisedById(id), nullptr);
   EXPECT_EQ(session_->GetPromisedByUrl(promise_url), nullptr);
 }
