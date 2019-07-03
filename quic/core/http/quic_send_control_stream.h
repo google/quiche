@@ -19,7 +19,9 @@ class QUIC_EXPORT_PRIVATE QuicSendControlStream : public QuicStream {
  public:
   // |session| can't be nullptr, and the ownership is not passed. The stream can
   // only be accessed through the session.
-  explicit QuicSendControlStream(QuicStreamId id, QuicSpdySession* session);
+  explicit QuicSendControlStream(QuicStreamId id,
+                                 QuicSpdySession* session,
+                                 uint64_t max_inbound_header_list_size);
   QuicSendControlStream(const QuicSendControlStream&) = delete;
   QuicSendControlStream& operator=(const QuicSendControlStream&) = delete;
   ~QuicSendControlStream() override = default;
@@ -28,9 +30,12 @@ class QUIC_EXPORT_PRIVATE QuicSendControlStream : public QuicStream {
   // closed before connection.
   void OnStreamReset(const QuicRstStreamFrame& frame) override;
 
-  // Send |settings| on this stream.
-  // Settings frame must be the first frame sent on this stream.
-  void SendSettingsFrame(const SettingsFrame& settings);
+  // Consult the Spdy session to construct Settings frame and sends it on this
+  // stream. Settings frame must be the first frame sent on this stream.
+  void SendSettingsFrame();
+
+  // Send |Priority| on this stream. It must be sent after settings.
+  void WritePriority(const PriorityFrame& priority);
 
   // The send control stream is write unidirectional, so this method should
   // never be called.
@@ -40,6 +45,9 @@ class QUIC_EXPORT_PRIVATE QuicSendControlStream : public QuicStream {
   HttpEncoder encoder_;
   // Track if a settings frame is already sent.
   bool settings_sent_;
+
+  // Max inbound header list size that will send as setting.
+  const uint64_t max_inbound_header_list_size_;
 };
 
 }  // namespace quic

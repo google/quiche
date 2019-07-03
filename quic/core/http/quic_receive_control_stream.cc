@@ -25,14 +25,24 @@ class QuicReceiveControlStream::HttpDecoderVisitor
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
   }
 
-  bool OnPriorityFrameStart(Http3FrameLengths /*frame_lengths*/) override {
-    CloseConnectionOnWrongFrame("Priority");
-    return false;
+  bool OnPriorityFrameStart(Http3FrameLengths frame_lengths) override {
+    if (stream_->session()->perspective() == Perspective::IS_CLIENT) {
+      stream_->session()->connection()->CloseConnection(
+          QUIC_HTTP_DECODER_ERROR, "Server must not send Priority frames.",
+          ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+      return false;
+    }
+    return stream_->OnPriorityFrameStart(frame_lengths);
   }
 
-  bool OnPriorityFrame(const PriorityFrame& /*frame*/) override {
-    CloseConnectionOnWrongFrame("Priority");
-    return false;
+  bool OnPriorityFrame(const PriorityFrame& frame) override {
+    if (stream_->session()->perspective() == Perspective::IS_CLIENT) {
+      stream_->session()->connection()->CloseConnection(
+          QUIC_HTTP_DECODER_ERROR, "Server must not send Priority frames.",
+          ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+      return false;
+    }
+    return stream_->OnPriorityFrame(frame);
   }
 
   bool OnCancelPushFrame(const CancelPushFrame& /*frame*/) override {
@@ -122,6 +132,7 @@ class QuicReceiveControlStream::HttpDecoderVisitor
 
 QuicReceiveControlStream::QuicReceiveControlStream(PendingStream* pending)
     : QuicStream(pending, READ_UNIDIRECTIONAL, /*is_static=*/true),
+      current_priority_length_(0),
       received_settings_length_(0),
       http_decoder_visitor_(new HttpDecoderVisitor(this)),
       sequencer_offset_(sequencer()->NumBytesConsumed()) {
@@ -187,6 +198,30 @@ bool QuicReceiveControlStream::OnSettingsFrame(const SettingsFrame& settings) {
     }
   }
   sequencer()->MarkConsumed(received_settings_length_);
+  return true;
+}
+
+bool QuicReceiveControlStream::OnPriorityFrameStart(
+    Http3FrameLengths frame_lengths) {
+  DCHECK_EQ(Perspective::IS_SERVER, session()->perspective());
+  DCHECK_EQ(0u, current_priority_length_);
+  current_priority_length_ =
+      frame_lengths.header_length + frame_lengths.payload_length;
+  return true;
+}
+
+bool QuicReceiveControlStream::OnPriorityFrame(const PriorityFrame& priority) {
+  DCHECK_EQ(Perspective::IS_SERVER, session()->perspective());
+  QuicStream* stream =
+      session()->GetOrCreateStream(priority.prioritized_element_id);
+  // It's possible that the client sends a Priority frame for a request stream
+  // that the server is not permitted to open. In that case, simply drop the
+  // frame.
+  if (stream) {
+    stream->SetPriority(priority.weight);
+  }
+  sequencer()->MarkConsumed(current_priority_length_);
+  current_priority_length_ = 0;
   return true;
 }
 

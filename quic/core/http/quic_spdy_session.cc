@@ -389,7 +389,8 @@ void QuicSpdySession::Initialize() {
   if (VersionHasStreamType(connection()->transport_version()) &&
       eliminate_static_stream_map()) {
     auto send_control = QuicMakeUnique<QuicSendControlStream>(
-        GetNextOutgoingUnidirectionalStreamId(), this);
+        GetNextOutgoingUnidirectionalStreamId(), this,
+        max_inbound_header_list_size_);
     send_control_stream_ = send_control.get();
     RegisterStaticStreamNew(std::move(send_control),
                             /*stream_already_counted = */ false);
@@ -507,6 +508,14 @@ size_t QuicSpdySession::WritePriority(QuicStreamId id,
   return frame.size();
 }
 
+void QuicSpdySession::WriteH3Priority(const PriorityFrame& priority) {
+  DCHECK(VersionHasStreamType(connection()->transport_version()));
+  DCHECK(perspective() == Perspective::IS_CLIENT)
+      << "Server must not send priority";
+
+  send_control_stream_->WritePriority(priority);
+}
+
 size_t QuicSpdySession::WritePushPromise(QuicStreamId original_stream_id,
                                          QuicStreamId promised_stream_id,
                                          SpdyHeaderBlock headers) {
@@ -529,9 +538,7 @@ size_t QuicSpdySession::WritePushPromise(QuicStreamId original_stream_id,
 
 void QuicSpdySession::SendMaxHeaderListSize(size_t value) {
   if (VersionHasStreamType(connection()->transport_version())) {
-    SettingsFrame settings;
-    settings.values[kSettingsMaxHeaderListSize] = value;
-    send_control_stream_->SendSettingsFrame(settings);
+    send_control_stream_->SendSettingsFrame();
     return;
   }
   SpdySettingsIR settings_frame;

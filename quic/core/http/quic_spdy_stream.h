@@ -238,6 +238,9 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
     ack_listener_ = std::move(ack_listener);
   }
 
+  // Fills in |frame| with appropriate fields.
+  virtual void PopulatePriorityFrame(PriorityFrame* frame);
+
  private:
   friend class test::QuicSpdyStreamPeer;
   friend class test::QuicStreamPeer;
@@ -287,6 +290,10 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   bool trailers_decompressed_;
   // True if the trailers have been consumed.
   bool trailers_consumed_;
+
+  // True if the stream has already sent an priority frame.
+  bool priority_sent_;
+
   // Number of bytes consumed while decoding HEADERS frames that cannot be
   // marked consumed in QuicStreamSequencer until later.
   QuicByteCount headers_bytes_to_be_marked_consumed_;

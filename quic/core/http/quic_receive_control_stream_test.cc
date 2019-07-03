@@ -45,6 +45,15 @@ std::vector<TestParams> GetTestParams() {
   return params;
 }
 
+class TestStream : public QuicSpdyStream {
+ public:
+  TestStream(QuicStreamId id, QuicSpdySession* session)
+      : QuicSpdyStream(id, session, BIDIRECTIONAL) {}
+  ~TestStream() override = default;
+
+  void OnBodyAvailable() override {}
+};
+
 class QuicReceiveControlStreamTest : public QuicTestWithParam<TestParams> {
  public:
   QuicReceiveControlStreamTest()
@@ -62,6 +71,10 @@ class QuicReceiveControlStreamTest : public QuicTestWithParam<TestParams> {
         &session_);
     receive_control_stream_ =
         QuicMakeUnique<QuicReceiveControlStream>(pending.get());
+    stream_ = new TestStream(GetNthClientInitiatedBidirectionalStreamId(
+                                 GetParam().version.transport_version, 0),
+                             &session_);
+    session_.ActivateStream(QuicWrapUnique(stream_));
   }
 
   Perspective perspective() const { return GetParam().perspective; }
@@ -73,12 +86,21 @@ class QuicReceiveControlStreamTest : public QuicTestWithParam<TestParams> {
     return std::string(buffer.get(), header_length);
   }
 
+  std::string PriorityFrame(const PriorityFrame& frame) {
+    HttpEncoder encoder;
+    std::unique_ptr<char[]> priority_buffer;
+    QuicByteCount priority_frame_length =
+        encoder.SerializePriorityFrame(frame, &priority_buffer);
+    return std::string(priority_buffer.get(), priority_frame_length);
+  }
+
   MockQuicConnectionHelper helper_;
   MockAlarmFactory alarm_factory_;
   StrictMock<MockQuicConnection>* connection_;
   StrictMock<MockQuicSpdySession> session_;
   HttpDecoder decoder_;
   std::unique_ptr<QuicReceiveControlStream> receive_control_stream_;
+  TestStream* stream_;
 };
 
 INSTANTIATE_TEST_SUITE_P(Tests,
@@ -152,6 +174,24 @@ TEST_P(QuicReceiveControlStreamTest, ReceiveWrongFrame) {
                         QuicStringPiece(data));
   EXPECT_CALL(*connection_, CloseConnection(QUIC_HTTP_DECODER_ERROR, _, _));
   receive_control_stream_->OnStreamFrame(frame);
+}
+
+TEST_P(QuicReceiveControlStreamTest, ReceivePriorityFrame) {
+  if (perspective() == Perspective::IS_CLIENT) {
+    return;
+  }
+  struct PriorityFrame frame;
+  frame.prioritized_type = REQUEST_STREAM;
+  frame.dependency_type = ROOT_OF_TREE;
+  frame.prioritized_element_id = stream_->id();
+  frame.weight = 1;
+  std::string serialized_frame = PriorityFrame(frame);
+  QuicStreamFrame data(receive_control_stream_->id(), false, 0,
+                       QuicStringPiece(serialized_frame));
+
+  EXPECT_EQ(3u, stream_->priority());
+  receive_control_stream_->OnStreamFrame(data);
+  EXPECT_EQ(1u, stream_->priority());
 }
 
 TEST_P(QuicReceiveControlStreamTest, PushPromiseOnControlStreamShouldClose) {

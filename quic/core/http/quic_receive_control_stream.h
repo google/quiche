@@ -31,15 +31,20 @@ class QUIC_EXPORT_PRIVATE QuicReceiveControlStream : public QuicStream {
 
   void SetUnblocked() { sequencer()->SetUnblocked(); }
 
- protected:
-  // Called from HttpDecoderVisitor.
-  bool OnSettingsFrameStart(Http3FrameLengths frame_lengths);
-  bool OnSettingsFrame(const SettingsFrame& settings);
-
  private:
   class HttpDecoderVisitor;
 
+  // Called from HttpDecoderVisitor.
+  bool OnSettingsFrameStart(Http3FrameLengths frame_lengths);
+  bool OnSettingsFrame(const SettingsFrame& settings);
+  bool OnPriorityFrameStart(Http3FrameLengths frame_lengths);
+  // TODO(renjietang): Decode Priority in HTTP/3 style.
+  bool OnPriorityFrame(const PriorityFrame& priority);
+
   HttpDecoder decoder_;
+
+  // Track the current priority frame length.
+  QuicByteCount current_priority_length_;
 
   // Track the number of settings bytes received.
   size_t received_settings_length_;

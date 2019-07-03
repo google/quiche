@@ -9,10 +9,13 @@
 
 namespace quic {
 
-QuicSendControlStream::QuicSendControlStream(QuicStreamId id,
-                                             QuicSpdySession* session)
+QuicSendControlStream::QuicSendControlStream(
+    QuicStreamId id,
+    QuicSpdySession* session,
+    uint64_t max_inbound_header_list_size)
     : QuicStream(id, session, /*is_static = */ true, WRITE_UNIDIRECTIONAL),
-      settings_sent_(false) {}
+      settings_sent_(false),
+      max_inbound_header_list_size_(max_inbound_header_list_size) {}
 
 void QuicSendControlStream::OnStreamReset(const QuicRstStreamFrame& /*frame*/) {
   // TODO(renjietang) Change the error code to H/3 specific
@@ -22,8 +25,10 @@ void QuicSendControlStream::OnStreamReset(const QuicRstStreamFrame& /*frame*/) {
       ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
 }
 
-void QuicSendControlStream::SendSettingsFrame(const SettingsFrame& settings) {
-  DCHECK(!settings_sent_);
+void QuicSendControlStream::SendSettingsFrame() {
+  if (settings_sent_) {
+    return;
+  }
 
   QuicConnection::ScopedPacketFlusher flusher(session()->connection());
   // Send the stream type on so the peer knows about this stream.
@@ -33,6 +38,8 @@ void QuicSendControlStream::SendSettingsFrame(const SettingsFrame& settings) {
   WriteOrBufferData(QuicStringPiece(writer.data(), writer.length()), false,
                     nullptr);
 
+  SettingsFrame settings;
+  settings.values[kSettingsMaxHeaderListSize] = max_inbound_header_list_size_;
   std::unique_ptr<char[]> buffer;
   QuicByteCount frame_length =
       encoder_.SerializeSettingsFrame(settings, &buffer);
@@ -41,6 +48,18 @@ void QuicSendControlStream::SendSettingsFrame(const SettingsFrame& settings) {
   WriteOrBufferData(QuicStringPiece(buffer.get(), frame_length),
                     /*fin = */ false, nullptr);
   settings_sent_ = true;
+}
+
+void QuicSendControlStream::WritePriority(const PriorityFrame& priority) {
+  QuicConnection::ScopedPacketFlusher flusher(session()->connection());
+  if (!settings_sent_) {
+    SendSettingsFrame();
+  }
+  std::unique_ptr<char[]> buffer;
+  QuicByteCount frame_length =
+      encoder_.SerializePriorityFrame(priority, &buffer);
+  WriteOrBufferData(QuicStringPiece(buffer.get(), frame_length), false,
+                    nullptr);
 }
 
 }  // namespace quic

@@ -56,7 +56,7 @@ class QuicSendControlStreamTest : public QuicTestWithParam<TestParams> {
     session_.Initialize();
     send_control_stream_ = QuicMakeUnique<QuicSendControlStream>(
         QuicSpdySessionPeer::GetNextOutgoingUnidirectionalStreamId(&session_),
-        &session_);
+        &session_, /* max_inbound_header_list_size = */ 100);
     ON_CALL(session_, WritevData(_, _, _, _, _))
         .WillByDefault(Invoke(MockQuicSession::ConsumeData));
   }
@@ -75,22 +75,40 @@ INSTANTIATE_TEST_SUITE_P(Tests,
                          QuicSendControlStreamTest,
                          ::testing::ValuesIn(GetTestParams()));
 
-TEST_P(QuicSendControlStreamTest, WriteSettingsOnStartUp) {
+TEST_P(QuicSendControlStreamTest, WriteSettingsOnlyForOnce) {
   if (GetParam().version.handshake_protocol == PROTOCOL_TLS1_3) {
     // TODO(nharper, b/112643533): Figure out why this test fails when TLS is
     // enabled and fix it.
     return;
   }
-  SettingsFrame settings;
-  settings.values[3] = 2;
-  settings.values[6] = 5;
-  std::unique_ptr<char[]> buffer;
-  QuicByteCount frame_length =
-      encoder_.SerializeSettingsFrame(settings, &buffer);
+  testing::InSequence s;
 
   EXPECT_CALL(session_, WritevData(_, _, 1, _, _));
-  EXPECT_CALL(session_, WritevData(_, _, frame_length, _, _));
-  send_control_stream_->SendSettingsFrame(settings);
+  EXPECT_CALL(session_, WritevData(_, _, _, _, _));
+  send_control_stream_->SendSettingsFrame();
+
+  // No data should be written the sencond time SendSettingsFrame() is called.
+  send_control_stream_->SendSettingsFrame();
+}
+
+TEST_P(QuicSendControlStreamTest, WritePriorityBeforeSettings) {
+  if (GetParam().version.handshake_protocol == PROTOCOL_TLS1_3) {
+    // TODO(nharper, b/112643533): Figure out why this test fails when TLS is
+    // enabled and fix it.
+    return;
+  }
+
+  testing::InSequence s;
+
+  // The first write will trigger the control stream to write stream type and a
+  // Settings frame before the Priority frame.
+  EXPECT_CALL(session_, WritevData(_, send_control_stream_->id(), _, _, _))
+      .Times(3);
+  PriorityFrame frame;
+  send_control_stream_->WritePriority(frame);
+
+  EXPECT_CALL(session_, WritevData(_, send_control_stream_->id(), _, _, _));
+  send_control_stream_->WritePriority(frame);
 }
 
 TEST_P(QuicSendControlStreamTest, ResetControlStream) {

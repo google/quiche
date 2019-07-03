@@ -166,9 +166,14 @@ class QuicSpdyStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
   }
 
   void Initialize(bool stream_should_process_data) {
+    InitializeWithPerspective(stream_should_process_data,
+                              Perspective::IS_SERVER);
+  }
+
+  void InitializeWithPerspective(bool stream_should_process_data,
+                                 Perspective perspective) {
     connection_ = new StrictMock<MockQuicConnection>(
-        &helper_, &alarm_factory_, Perspective::IS_SERVER,
-        SupportedVersions(GetParam()));
+        &helper_, &alarm_factory_, perspective, SupportedVersions(GetParam()));
     session_ = QuicMakeUnique<StrictMock<MockQuicSpdySession>>(connection_);
     session_->Initialize();
     ON_CALL(*session_, WritevData(_, _, _, _, _))
@@ -1149,6 +1154,42 @@ TEST_P(QuicSpdyStreamTest, WritingTrailersSendsAFin) {
     // In this case, TestStream::WriteHeadersImpl() does not prevent writes.
     EXPECT_CALL(*session_, WritevData(stream_, stream_->id(), _, _, _))
         .Times(AtLeast(1));
+  }
+
+  // Write the initial headers, without a FIN.
+  EXPECT_CALL(*stream_, WriteHeadersMock(false));
+  stream_->WriteHeaders(SpdyHeaderBlock(), /*fin=*/false, nullptr);
+
+  // Writing trailers implicitly sends a FIN.
+  SpdyHeaderBlock trailers;
+  trailers["trailer key"] = "trailer value";
+  EXPECT_CALL(*stream_, WriteHeadersMock(true));
+  stream_->WriteTrailers(std::move(trailers), nullptr);
+  EXPECT_TRUE(stream_->fin_sent());
+}
+
+TEST_P(QuicSpdyStreamTest, ClientWritesPriority) {
+  if (GetParam().handshake_protocol == PROTOCOL_TLS1_3) {
+    // TODO(nharper, b/112643533): Figure out why this test fails when TLS is
+    // enabled and fix it.
+    return;
+  }
+
+  InitializeWithPerspective(kShouldProcessData, Perspective::IS_CLIENT);
+
+  if (VersionUsesQpack(GetParam().transport_version)) {
+    // In this case, TestStream::WriteHeadersImpl() does not prevent writes.
+    // Six writes include priority for headers, headers frame header, headers
+    // frame, priority of trailers, trailing headers frame header, and trailers.
+    EXPECT_CALL(*session_, WritevData(stream_, stream_->id(), _, _, _))
+        .Times(4);
+    auto send_control_stream =
+        QuicSpdySessionPeer::GetSendControlStream(session_.get());
+    // The control stream will write 3 times, including stream type, settings
+    // frame, priority for headers.
+    EXPECT_CALL(*session_, WritevData(send_control_stream,
+                                      send_control_stream->id(), _, _, _))
+        .Times(3);
   }
 
   // Write the initial headers, without a FIN.

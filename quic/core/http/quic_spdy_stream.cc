@@ -168,6 +168,7 @@ QuicSpdyStream::QuicSpdyStream(QuicStreamId id,
       trailers_length_(0, 0),
       trailers_decompressed_(false),
       trailers_consumed_(false),
+      priority_sent_(false),
       headers_bytes_to_be_marked_consumed_(0),
       pretend_blocked_decoding_for_tests_(false),
       http_decoder_visitor_(new HttpDecoderVisitor(this)),
@@ -204,6 +205,7 @@ QuicSpdyStream::QuicSpdyStream(PendingStream* pending,
       trailers_length_(0, 0),
       trailers_decompressed_(false),
       trailers_consumed_(false),
+      priority_sent_(false),
       headers_bytes_to_be_marked_consumed_(0),
       pretend_blocked_decoding_for_tests_(false),
       http_decoder_visitor_(new HttpDecoderVisitor(this)),
@@ -920,6 +922,13 @@ size_t QuicSpdyStream::WriteHeadersImpl(
         std::move(ack_listener));
   }
 
+  if (session()->perspective() == Perspective::IS_CLIENT && !priority_sent_) {
+    PriorityFrame frame;
+    PopulatePriorityFrame(&frame);
+    spdy_session_->WriteH3Priority(frame);
+    priority_sent_ = true;
+  }
+
   // Encode header list.
   std::string encoded_headers =
       spdy_session_->qpack_encoder()->EncodeHeaderList(id(), &header_block);
@@ -946,6 +955,13 @@ size_t QuicSpdyStream::WriteHeadersImpl(
   WriteOrBufferData(encoded_headers, fin, nullptr);
 
   return encoded_headers.size();
+}
+
+void QuicSpdyStream::PopulatePriorityFrame(PriorityFrame* frame) {
+  frame->weight = priority();
+  frame->dependency_type = ROOT_OF_TREE;
+  frame->prioritized_type = REQUEST_STREAM;
+  frame->prioritized_element_id = id();
 }
 
 #undef ENDPOINT  // undef for jumbo builds

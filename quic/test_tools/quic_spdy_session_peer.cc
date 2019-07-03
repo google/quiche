@@ -87,5 +87,11 @@ QuicReceiveControlStream* QuicSpdySessionPeer::GetReceiveControlStream(
   return session->receive_control_stream_;
 }
 
+// static
+QuicSendControlStream* QuicSpdySessionPeer::GetSendControlStream(
+    QuicSpdySession* session) {
+  return session->send_control_stream_;
+}
+
 }  // namespace test
 }  // namespace quic
