@@ -197,8 +197,6 @@ class QuartcSession : public QuicSession,
 
   std::unique_ptr<QuartcStream> CreateDataStream(QuicStreamId id,
                                                  spdy::SpdyPriority priority);
-  std::unique_ptr<QuartcStream> CreateDataStream(PendingStream* pending,
-                                                 spdy::SpdyPriority priority);
   // Activates a QuartcStream.  The session takes ownership of the stream, but
   // returns an unowned pointer to the stream for convenience.
   QuartcStream* ActivateDataStream(std::unique_ptr<QuartcStream> stream);

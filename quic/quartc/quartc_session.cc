@@ -275,9 +275,9 @@ QuicStream* QuartcSession::CreateIncomingStream(QuicStreamId id) {
   return ActivateDataStream(CreateDataStream(id, QuicStream::kDefaultPriority));
 }
 
-QuicStream* QuartcSession::CreateIncomingStream(PendingStream* pending) {
-  return ActivateDataStream(
-      CreateDataStream(pending, QuicStream::kDefaultPriority));
+QuicStream* QuartcSession::CreateIncomingStream(PendingStream* /*pending*/) {
+  QUIC_NOTREACHED();
+  return nullptr;
 }
 
 std::unique_ptr<QuartcStream> QuartcSession::CreateDataStream(
@@ -289,12 +289,6 @@ std::unique_ptr<QuartcStream> QuartcSession::CreateDataStream(
     return nullptr;
   }
   return InitializeDataStream(QuicMakeUnique<QuartcStream>(id, this), priority);
-}
-
-std::unique_ptr<QuartcStream> QuartcSession::CreateDataStream(
-    PendingStream* pending,
-    spdy::SpdyPriority priority) {
-  return InitializeDataStream(QuicMakeUnique<QuartcStream>(pending), priority);
 }
 
 std::unique_ptr<QuartcStream> QuartcSession::InitializeDataStream(
