@@ -2608,18 +2608,13 @@ TEST_P(QuicConnectionTest, AckReceiptCausesAckSend) {
   connection_.SendStreamDataWithString(3, "foofoofoo", 9, NO_FIN);
   // Ack bundled.
   if (GetParam().no_stop_waiting) {
-    if (GetQuicReloadableFlag(quic_simplify_stop_waiting)) {
-      // Do not ACK acks.
-      EXPECT_EQ(1u, writer_->frame_count());
-    } else {
-      EXPECT_EQ(2u, writer_->frame_count());
-    }
+    // Do not ACK acks.
+    EXPECT_EQ(1u, writer_->frame_count());
   } else {
     EXPECT_EQ(3u, writer_->frame_count());
   }
   EXPECT_EQ(1u, writer_->stream_frames().size());
-  if (GetParam().no_stop_waiting &&
-      GetQuicReloadableFlag(quic_simplify_stop_waiting)) {
+  if (GetParam().no_stop_waiting) {
     EXPECT_TRUE(writer_->ack_frames().empty());
   } else {
     EXPECT_FALSE(writer_->ack_frames().empty());
@@ -6504,19 +6499,13 @@ TEST_P(QuicConnectionTest, BundleAckWithDataOnIncomingAck) {
   // Check that ack is bundled with outgoing data and the delayed ack
   // alarm is reset.
   if (GetParam().no_stop_waiting) {
-    if (GetQuicReloadableFlag(quic_simplify_stop_waiting)) {
-      // Do not ACK acks.
-      EXPECT_EQ(1u, writer_->frame_count());
-    } else {
-      EXPECT_EQ(2u, writer_->frame_count());
-      EXPECT_TRUE(writer_->stop_waiting_frames().empty());
-    }
+    // Do not ACK acks.
+    EXPECT_EQ(1u, writer_->frame_count());
   } else {
     EXPECT_EQ(3u, writer_->frame_count());
     EXPECT_FALSE(writer_->stop_waiting_frames().empty());
   }
-  if (GetParam().no_stop_waiting &&
-      GetQuicReloadableFlag(quic_simplify_stop_waiting)) {
+  if (GetParam().no_stop_waiting) {
     EXPECT_TRUE(writer_->ack_frames().empty());
   } else {
     EXPECT_FALSE(writer_->ack_frames().empty());
@@ -7956,12 +7945,8 @@ TEST_P(QuicConnectionTest, NoPingIfRetransmittablePacketSent) {
   connection_.GetPingAlarm()->Fire();
   size_t padding_frame_count = writer_->padding_frames().size();
   if (GetParam().no_stop_waiting) {
-    if (GetQuicReloadableFlag(quic_simplify_stop_waiting)) {
-      // Do not ACK acks.
-      EXPECT_EQ(padding_frame_count + 1u, writer_->frame_count());
-    } else {
-      EXPECT_EQ(padding_frame_count + 2u, writer_->frame_count());
-    }
+    // Do not ACK acks.
+    EXPECT_EQ(padding_frame_count + 1u, writer_->frame_count());
   } else {
     EXPECT_EQ(padding_frame_count + 3u, writer_->frame_count());
   }

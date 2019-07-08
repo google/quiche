@@ -453,7 +453,6 @@ void QuicVersionInitializeSupportForIetfDraft(int32_t draft_version) {
   SetQuicFlag(FLAGS_quic_supports_tls_handshake, true);
   SetQuicFlag(FLAGS_quic_headers_stream_id_in_v99, 60);
   SetQuicReloadableFlag(quic_eliminate_static_stream_map_3, true);
-  SetQuicReloadableFlag(quic_simplify_stop_waiting, true);
   SetQuicRestartFlag(quic_do_not_override_connection_id, true);
   SetQuicRestartFlag(quic_use_allocated_connection_ids, true);
 }
