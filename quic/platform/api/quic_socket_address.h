@@ -42,6 +42,12 @@ class QUIC_EXPORT_PRIVATE QuicSocketAddress {
   uint16_t port_ = 0;
 };
 
+inline std::ostream& operator<<(std::ostream& os,
+                                const QuicSocketAddress address) {
+  os << address.ToString();
+  return os;
+}
+
 }  // namespace quic
 
 #endif  // QUICHE_QUIC_PLATFORM_API_QUIC_SOCKET_ADDRESS_H_

@@ -5,6 +5,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
 
 #include <memory>
+#include <sstream>
 
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 
@@ -25,6 +26,13 @@ TEST(QuicSocketAddress, ExplicitConstruction) {
   EXPECT_EQ(QuicIpAddress::Loopback4(), ipv4_address.host());
   EXPECT_EQ(QuicIpAddress::Loopback6(), ipv6_address.host());
   EXPECT_EQ(443, ipv4_address.port());
+}
+
+TEST(QuicSocketAddress, OutputToStream) {
+  QuicSocketAddress ipv4_address(QuicIpAddress::Loopback4(), 443);
+  std::stringstream stream;
+  stream << ipv4_address;
+  EXPECT_EQ("127.0.0.1:443", stream.str());
 }
 
 TEST(QuicSocketAddress, FromSockaddrIPv4) {
