@@ -927,16 +927,10 @@ TEST_P(QuicSpdySessionTestServer,
     EXPECT_CALL(*crypto_stream, OnCanWrite());
   }
   TestHeadersStream* headers_stream;
-  if (!GetQuicReloadableFlag(quic_eliminate_static_stream_map_3) &&
-      !QuicVersionUsesCryptoFrames(connection_->transport_version())) {
-    QuicSpdySessionPeer::SetHeadersStream(&session_, nullptr);
-    headers_stream = new TestHeadersStream(&session_);
-    QuicSpdySessionPeer::SetHeadersStream(&session_, headers_stream);
-  } else {
-    QuicSpdySessionPeer::SetUnownedHeadersStream(&session_, nullptr);
-    headers_stream = new TestHeadersStream(&session_);
-    QuicSpdySessionPeer::SetUnownedHeadersStream(&session_, headers_stream);
-  }
+
+  QuicSpdySessionPeer::SetUnownedHeadersStream(&session_, nullptr);
+  headers_stream = new TestHeadersStream(&session_);
+  QuicSpdySessionPeer::SetUnownedHeadersStream(&session_, headers_stream);
   session_.MarkConnectionLevelWriteBlocked(
       QuicUtils::GetHeadersStreamId(connection_->transport_version()));
   EXPECT_CALL(*headers_stream, OnCanWrite());
@@ -1747,16 +1741,9 @@ TEST_P(QuicSpdySessionTestClient, RecordFinAfterReadSideClosed) {
 
 TEST_P(QuicSpdySessionTestClient, WritePriority) {
   TestHeadersStream* headers_stream;
-  if (!GetQuicReloadableFlag(quic_eliminate_static_stream_map_3) &&
-      !QuicVersionUsesCryptoFrames(connection_->transport_version())) {
-    QuicSpdySessionPeer::SetHeadersStream(&session_, nullptr);
-    headers_stream = new TestHeadersStream(&session_);
-    QuicSpdySessionPeer::SetHeadersStream(&session_, headers_stream);
-  } else {
-    QuicSpdySessionPeer::SetUnownedHeadersStream(&session_, nullptr);
-    headers_stream = new TestHeadersStream(&session_);
-    QuicSpdySessionPeer::SetUnownedHeadersStream(&session_, headers_stream);
-  }
+  QuicSpdySessionPeer::SetUnownedHeadersStream(&session_, nullptr);
+  headers_stream = new TestHeadersStream(&session_);
+  QuicSpdySessionPeer::SetUnownedHeadersStream(&session_, headers_stream);
 
   // Make packet writer blocked so |headers_stream| will buffer its write data.
   MockPacketWriter* writer = static_cast<MockPacketWriter*>(
@@ -2089,8 +2076,7 @@ TEST_P(QuicSpdySessionTestServer,
 }
 
 TEST_P(QuicSpdySessionTestServer, ReceiveControlStream) {
-  if (!VersionHasStreamType(transport_version()) ||
-      !GetQuicReloadableFlag(quic_eliminate_static_stream_map_3)) {
+  if (!VersionHasStreamType(transport_version())) {
     return;
   }
   // Use a arbitrary stream id.
@@ -2115,8 +2101,7 @@ TEST_P(QuicSpdySessionTestServer, ReceiveControlStream) {
 }
 
 TEST_P(QuicSpdySessionTestServer, ReceiveControlStreamOutOfOrderDelivery) {
-  if (!VersionHasStreamType(transport_version()) ||
-      !GetQuicReloadableFlag(quic_eliminate_static_stream_map_3)) {
+  if (!VersionHasStreamType(transport_version())) {
     return;
   }
   // Use an arbitrary stream id.

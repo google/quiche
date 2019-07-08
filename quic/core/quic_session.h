@@ -570,10 +570,6 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
     return false;
   }
 
-  bool eliminate_static_stream_map() const {
-    return eliminate_static_stream_map_;
-  }
-
  private:
   friend class test::QuicSessionPeer;
 
@@ -731,9 +727,6 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
   // Supported version list used by the crypto handshake only. Please note, this
   // list may be a superset of the connection framer's supported versions.
   ParsedQuicVersionVector supported_versions_;
-
-  // Latched value of quic_eliminate_static_stream_map.
-  const bool eliminate_static_stream_map_;
 };
 
 }  // namespace quic

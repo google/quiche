@@ -344,10 +344,9 @@ QuicSpdySession::~QuicSpdySession() {
     static_cast<QuicSpdyStream*>(kv.second.get())->ClearSession();
   }
   for (auto const& kv : dynamic_streams()) {
-    if (eliminate_static_stream_map() && kv.second->is_static()) {
-      continue;
+    if (!kv.second->is_static()) {
+      static_cast<QuicSpdyStream*>(kv.second.get())->ClearSession();
     }
-    static_cast<QuicSpdyStream*>(kv.second.get())->ClearSession();
   }
 }
 
@@ -375,19 +374,12 @@ void QuicSpdySession::Initialize() {
   headers_stream_ = QuicMakeUnique<QuicHeadersStream>((this));
   DCHECK_EQ(QuicUtils::GetHeadersStreamId(connection()->transport_version()),
             headers_stream_->id());
-  if (!eliminate_static_stream_map()) {
-    RegisterStaticStream(
-        QuicUtils::GetHeadersStreamId(connection()->transport_version()),
-        headers_stream_.get());
-  } else {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_eliminate_static_stream_map_3, 7, 17);
-    unowned_headers_stream_ = headers_stream_.get();
-    RegisterStaticStreamNew(std::move(headers_stream_),
-                            /*stream_already_counted = */ false);
-  }
 
-  if (VersionHasStreamType(connection()->transport_version()) &&
-      eliminate_static_stream_map()) {
+  unowned_headers_stream_ = headers_stream_.get();
+  RegisterStaticStreamNew(std::move(headers_stream_),
+                          /*stream_already_counted = */ false);
+
+  if (VersionHasStreamType(connection()->transport_version())) {
     auto send_control = QuicMakeUnique<QuicSendControlStream>(
         GetNextOutgoingUnidirectionalStreamId(), this,
         max_inbound_header_list_size_);
@@ -737,13 +729,9 @@ void QuicSpdySession::CloseConnectionWithDetails(QuicErrorCode error,
 }
 
 bool QuicSpdySession::HasActiveRequestStreams() const {
-  if (!eliminate_static_stream_map()) {
-    return !dynamic_streams().empty();
-  }
   // In the case where session is destructed by calling
   // dynamic_streams().clear(), we will have incorrect accounting here.
   // TODO(renjietang): Modify destructors and make this a DCHECK.
-  QUIC_RELOADABLE_FLAG_COUNT_N(quic_eliminate_static_stream_map_3, 9, 17);
   if (static_cast<size_t>(dynamic_streams().size()) >
       num_incoming_static_streams() + num_outgoing_static_streams()) {
     return dynamic_streams().size() - num_incoming_static_streams() -
