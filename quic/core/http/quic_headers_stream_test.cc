@@ -188,6 +188,7 @@ class QuicHeadersStreamTest : public QuicTestWithParam<TestParams> {
             /*offset=*/0,
             ""),
         next_promised_stream_id_(2) {
+    QuicSpdySessionPeer::SetMaxInboundHeaderListSize(&session_, 256 * 1024);
     session_.Initialize();
     headers_stream_ = QuicSpdySessionPeer::GetHeadersStream(&session_);
     headers_[":version"] = "HTTP/1.1";
@@ -569,7 +570,6 @@ TEST_P(QuicHeadersStreamTest, ProcessLargeRawData) {
     return;
   }
 
-  QuicSpdySessionPeer::SetMaxUncompressedHeaderBytes(&session_, 256 * 1024);
   // We want to create a frame that is more than the SPDY Framer's max control
   // frame size, which is 16K, but less than the HPACK decoders max decode
   // buffer size, which is 32K.

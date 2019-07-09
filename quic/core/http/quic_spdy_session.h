@@ -166,6 +166,8 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   void CloseConnectionWithDetails(QuicErrorCode error,
                                   const std::string& details);
 
+  // Must be called before Initialize().
+  // TODO(bnc): Move to constructor argument.
   void set_max_inbound_header_list_size(size_t max_inbound_header_list_size) {
     max_inbound_header_list_size_ = max_inbound_header_list_size;
   }

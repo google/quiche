@@ -57,10 +57,10 @@ void QuicSpdySessionPeer::SetHpackDecoderDebugVisitor(
   session->SetHpackDecoderDebugVisitor(std::move(visitor));
 }
 
-void QuicSpdySessionPeer::SetMaxUncompressedHeaderBytes(
+void QuicSpdySessionPeer::SetMaxInboundHeaderListSize(
     QuicSpdySession* session,
-    size_t set_max_uncompressed_header_bytes) {
-  session->set_max_uncompressed_header_bytes(set_max_uncompressed_header_bytes);
+    size_t max_inbound_header_size) {
+  session->set_max_inbound_header_list_size(max_inbound_header_size);
 }
 
 // static

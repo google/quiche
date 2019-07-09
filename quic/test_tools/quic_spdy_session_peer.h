@@ -35,9 +35,9 @@ class QuicSpdySessionPeer {
   static void SetHpackDecoderDebugVisitor(
       QuicSpdySession* session,
       std::unique_ptr<QuicHpackDebugVisitor> visitor);
-  static void SetMaxUncompressedHeaderBytes(
-      QuicSpdySession* session,
-      size_t set_max_uncompressed_header_bytes);
+  // Must be called before Initialize().
+  static void SetMaxInboundHeaderListSize(QuicSpdySession* session,
+                                          size_t max_inbound_header_size);
   static size_t WriteHeadersOnHeadersStream(
       QuicSpdySession* session,
       QuicStreamId id,
