@@ -11,6 +11,7 @@
 
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_decoder_stream_sender.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_encoder_stream_receiver.h"
+#include "net/third_party/quiche/src/quic/core/qpack/qpack_header_table.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_instruction_decoder.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
@@ -22,7 +23,8 @@ class QpackHeaderTable;
 
 // Class to decode a single header block.
 class QUIC_EXPORT_PRIVATE QpackProgressiveDecoder
-    : public QpackInstructionDecoder::Delegate {
+    : public QpackInstructionDecoder::Delegate,
+      public QpackHeaderTable::Observer {
  public:
   // Interface for receiving decoded header block from the decoder.
   class QUIC_EXPORT_PRIVATE HeadersHandlerInterface {
@@ -39,7 +41,7 @@ class QUIC_EXPORT_PRIVATE QpackProgressiveDecoder
     // The decoder will not access the handler after this call.
     // Note that this method might not be called synchronously when the header
     // block is received on the wire, in case decoding is blocked on receiving
-    // entries on the encoder stream.  TODO(bnc): Implement blocked decoding.
+    // entries on the encoder stream.
     virtual void OnDecodingCompleted() = 0;
 
     // Called when a decoding error has occurred.  No other methods will be
@@ -76,6 +78,9 @@ class QUIC_EXPORT_PRIVATE QpackProgressiveDecoder
   bool OnInstructionDecoded(const QpackInstruction* instruction) override;
   void OnError(QuicStringPiece error_message) override;
 
+  // QpackHeaderTable::Observer implementation.
+  void OnInsertCountReachedThreshold() override;
+
  private:
   bool DoIndexedHeaderFieldInstruction();
   bool DoIndexedHeaderFieldPostBaseInstruction();
@@ -83,6 +88,9 @@ class QUIC_EXPORT_PRIVATE QpackProgressiveDecoder
   bool DoLiteralHeaderFieldPostBaseInstruction();
   bool DoLiteralHeaderFieldInstruction();
   bool DoPrefixInstruction();
+
+  // Called as soon as EndHeaderBlock() is called and decoding is not blocked.
+  void FinishDecoding();
 
   // Calculates Base from |required_insert_count_|, which must be set before
   // calling this method, and sign bit and Delta Base in the Header Data Prefix,
@@ -110,7 +118,7 @@ class QUIC_EXPORT_PRIVATE QpackProgressiveDecoder
   std::unique_ptr<QpackInstructionDecoder> prefix_decoder_;
   QpackInstructionDecoder instruction_decoder_;
 
-  const QpackHeaderTable* const header_table_;
+  QpackHeaderTable* const header_table_;
   QpackDecoderStreamSender* const decoder_stream_sender_;
   HeadersHandlerInterface* const handler_;
 
@@ -127,6 +135,12 @@ class QUIC_EXPORT_PRIVATE QpackProgressiveDecoder
 
   // False until prefix is fully read and decoded.
   bool prefix_decoded_;
+
+  // True if waiting for dynamic table entries to arrive.
+  bool blocked_;
+
+  // Buffer the entire header block after the prefix while decoding is blocked.
+  std::string buffer_;
 
   // True until EndHeaderBlock() is called.
   bool decoding_;
