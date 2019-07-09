@@ -173,6 +173,14 @@ std::vector<TestParams> GetTestParams(bool use_tls_handshake) {
   return params;
 }
 
+void WriteHeadersOnStream(QuicSpdyStream* stream) {
+  // Since QuicSpdyStream uses QuicHeaderList::empty() to detect too large
+  // headers, it also fails when receiving empty headers.
+  SpdyHeaderBlock headers;
+  headers["foo"] = "bar";
+  stream->WriteHeaders(std::move(headers), /* fin = */ false, nullptr);
+}
+
 class ServerDelegate : public PacketDroppingTestWriter::Delegate {
  public:
   explicit ServerDelegate(QuicDispatcher* dispatcher)
@@ -1960,6 +1968,7 @@ TEST_P(EndToEndTest, DifferentFlowControlWindows) {
 
   // Open a data stream to make sure the stream level flow control is updated.
   QuicSpdyClientStream* stream = client_->GetOrCreateStream();
+  WriteHeadersOnStream(stream);
   stream->WriteOrBufferBody("hello", false);
 
   // Client should have the right values for server's receive window.
@@ -2016,6 +2025,7 @@ TEST_P(EndToEndTest, NegotiatedServerInitialFlowControlWindow) {
 
   // Open a data stream to make sure the stream level flow control is updated.
   QuicSpdyClientStream* stream = client_->GetOrCreateStream();
+  WriteHeadersOnStream(stream);
   stream->WriteOrBufferBody("hello", false);
 
   // Client should have the right values for server's receive window.
@@ -3564,6 +3574,7 @@ TEST_P(EndToEndTest, ResetStreamOnTtlExpires) {
   // Set a TTL which expires immediately.
   stream->MaybeSetTtl(QuicTime::Delta::FromMicroseconds(1));
 
+  WriteHeadersOnStream(stream);
   // 1 MB body.
   std::string body(1024 * 1024, 'a');
   stream->WriteOrBufferBody(body, true);

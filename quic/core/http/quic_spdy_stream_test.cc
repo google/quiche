@@ -37,6 +37,7 @@ using testing::_;
 using testing::AtLeast;
 using testing::ElementsAre;
 using testing::Invoke;
+using testing::InvokeWithoutArgs;
 using testing::Pair;
 using testing::Return;
 using testing::StrictMock;
@@ -2120,6 +2121,133 @@ TEST_P(QuicSpdyStreamTest, PushPromiseOnDataStreamShouldClose) {
   ProcessHeaders(false, headers_);
   stream_->ConsumeHeaderList();
   stream_->OnStreamFrame(frame);
+}
+
+// Close connection if a DATA frame is received before a HEADERS frame.
+TEST_P(QuicSpdyStreamTest, DataBeforeHeaders) {
+  if (!VersionUsesQpack(GetParam().transport_version)) {
+    return;
+  }
+
+  Initialize(kShouldProcessData);
+
+  // Closing the connection is mocked out in tests.  Instead, simply stop
+  // reading data at the stream level to prevent QuicSpdyStream from blowing up.
+  // TODO(b/124216424): Change error code to HTTP_UNEXPECTED_FRAME.
+  EXPECT_CALL(
+      *connection_,
+      CloseConnection(QUIC_INVALID_HEADERS_STREAM_DATA,
+                      "Unexpected DATA frame received.",
+                      ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET))
+      .WillOnce(InvokeWithoutArgs([this]() { stream_->StopReading(); }));
+
+  std::string data = DataFrame(kDataFramePayload);
+  stream_->OnStreamFrame(QuicStreamFrame(stream_->id(), false, 0, data));
+}
+
+// Close connection if a HEADERS frame is received after the trailing HEADERS.
+TEST_P(QuicSpdyStreamTest, TrailersAfterTrailers) {
+  if (!VersionUsesQpack(GetParam().transport_version)) {
+    return;
+  }
+
+  Initialize(kShouldProcessData);
+
+  // Receive and consume headers, with single header field "foo: bar".
+  std::string headers =
+      HeadersFrame(QuicTextUtils::HexDecode("00002a94e703626172"));
+  QuicStreamOffset offset = 0;
+  stream_->OnStreamFrame(
+      QuicStreamFrame(stream_->id(), false, offset, headers));
+  offset += headers.size();
+
+  EXPECT_THAT(stream_->header_list(), ElementsAre(Pair("foo", "bar")));
+  stream_->ConsumeHeaderList();
+
+  // Receive data.  It is consumed by TestStream.
+  std::string data = DataFrame(kDataFramePayload);
+  stream_->OnStreamFrame(QuicStreamFrame(stream_->id(), false, offset, data));
+  offset += data.size();
+
+  EXPECT_EQ(kDataFramePayload, stream_->data());
+
+  // Receive and consume trailers, with single header field
+  // "custom-key: custom-value".
+  std::string trailers1 = HeadersFrame(
+      QuicTextUtils::HexDecode("00002f0125a849e95ba97d7f8925a849e95bb8e8b4bf"));
+  stream_->OnStreamFrame(
+      QuicStreamFrame(stream_->id(), false, offset, trailers1));
+  offset += trailers1.size();
+
+  EXPECT_TRUE(stream_->trailers_decompressed());
+  EXPECT_THAT(stream_->received_trailers(),
+              ElementsAre(Pair("custom-key", "custom-value")));
+
+  // Closing the connection is mocked out in tests.  Instead, simply stop
+  // reading data at the stream level to prevent QuicSpdyStream from blowing up.
+  // TODO(b/124216424): Change error code to HTTP_UNEXPECTED_FRAME.
+  EXPECT_CALL(
+      *connection_,
+      CloseConnection(QUIC_INVALID_HEADERS_STREAM_DATA,
+                      "HEADERS frame received after trailing HEADERS.",
+                      ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET))
+      .WillOnce(InvokeWithoutArgs([this]() { stream_->StopReading(); }));
+
+  // Receive another HEADERS frame, with no header fields.
+  std::string trailers2 = HeadersFrame(QuicTextUtils::HexDecode("0000"));
+  stream_->OnStreamFrame(
+      QuicStreamFrame(stream_->id(), false, offset, trailers2));
+}
+
+// Regression test for https://crbug.com/978733.
+// Close connection if a DATA frame is received after the trailing HEADERS.
+TEST_P(QuicSpdyStreamTest, DataAfterTrailers) {
+  if (!VersionUsesQpack(GetParam().transport_version)) {
+    return;
+  }
+
+  Initialize(kShouldProcessData);
+
+  // Receive and consume headers, with single header field "foo: bar".
+  std::string headers =
+      HeadersFrame(QuicTextUtils::HexDecode("00002a94e703626172"));
+  QuicStreamOffset offset = 0;
+  stream_->OnStreamFrame(
+      QuicStreamFrame(stream_->id(), false, offset, headers));
+  offset += headers.size();
+
+  EXPECT_THAT(stream_->header_list(), ElementsAre(Pair("foo", "bar")));
+  stream_->ConsumeHeaderList();
+
+  // Receive data.  It is consumed by TestStream.
+  std::string data1 = DataFrame(kDataFramePayload);
+  stream_->OnStreamFrame(QuicStreamFrame(stream_->id(), false, offset, data1));
+  offset += data1.size();
+  EXPECT_EQ(kDataFramePayload, stream_->data());
+
+  // Receive trailers, with single header field "custom-key: custom-value".
+  std::string trailers = HeadersFrame(
+      QuicTextUtils::HexDecode("00002f0125a849e95ba97d7f8925a849e95bb8e8b4bf"));
+  stream_->OnStreamFrame(
+      QuicStreamFrame(stream_->id(), false, offset, trailers));
+  offset += trailers.size();
+
+  EXPECT_THAT(stream_->received_trailers(),
+              ElementsAre(Pair("custom-key", "custom-value")));
+
+  // Closing the connection is mocked out in tests.  Instead, simply stop
+  // reading data at the stream level to prevent QuicSpdyStream from blowing up.
+  // TODO(b/124216424): Change error code to HTTP_UNEXPECTED_FRAME.
+  EXPECT_CALL(
+      *connection_,
+      CloseConnection(QUIC_INVALID_HEADERS_STREAM_DATA,
+                      "Unexpected DATA frame received.",
+                      ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET))
+      .WillOnce(InvokeWithoutArgs([this]() { stream_->StopReading(); }));
+
+  // Receive more data.
+  std::string data2 = DataFrame("This payload should not be proccessed.");
+  stream_->OnStreamFrame(QuicStreamFrame(stream_->id(), false, offset, data2));
 }
 
 }  // namespace

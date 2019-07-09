@@ -760,6 +760,14 @@ void QuicSpdyStream::ClearSession() {
 bool QuicSpdyStream::OnDataFrameStart(Http3FrameLengths frame_lengths) {
   DCHECK(
       VersionHasDataFrameHeader(session()->connection()->transport_version()));
+  if (!headers_decompressed_ || trailers_decompressed_) {
+    // TODO(b/124216424): Change error code to HTTP_UNEXPECTED_FRAME.
+    session()->connection()->CloseConnection(
+        QUIC_INVALID_HEADERS_STREAM_DATA, "Unexpected DATA frame received.",
+        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    return false;
+  }
+
   body_buffer_.OnDataHeader(frame_lengths);
   return true;
 }
@@ -840,6 +848,15 @@ QuicByteCount QuicSpdyStream::GetNumFrameHeadersInInterval(
 bool QuicSpdyStream::OnHeadersFrameStart(Http3FrameLengths frame_length) {
   DCHECK(VersionUsesQpack(spdy_session_->connection()->transport_version()));
   DCHECK(!qpack_decoded_headers_accumulator_);
+
+  if (trailers_decompressed_) {
+    // TODO(b/124216424): Change error code to HTTP_UNEXPECTED_FRAME.
+    session()->connection()->CloseConnection(
+        QUIC_INVALID_HEADERS_STREAM_DATA,
+        "HEADERS frame received after trailing HEADERS.",
+        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    return false;
+  }
 
   if (headers_decompressed_) {
     trailers_length_ = frame_length;
