@@ -191,6 +191,18 @@ bool PacketCanReplaceConnectionId(const QuicPacketHeader& header,
           header.long_packet_type == RETRY);
 }
 
+CongestionControlType GetDefaultCongestionControlType() {
+  if (GetQuicReloadableFlag(quic_default_to_bbr_v2)) {
+    return kBBRv2;
+  }
+
+  if (GetQuicReloadableFlag(quic_default_to_bbr)) {
+    return kBBR;
+  }
+
+  return kCubicBytes;
+}
+
 }  // namespace
 
 #define ENDPOINT \
@@ -278,13 +290,12 @@ QuicConnection::QuicConnection(
       handshake_timeout_(QuicTime::Delta::Infinite()),
       time_of_first_packet_sent_after_receiving_(QuicTime::Zero()),
       time_of_last_received_packet_(clock_->ApproximateNow()),
-      sent_packet_manager_(
-          perspective,
-          clock_,
-          random_generator_,
-          &stats_,
-          GetQuicReloadableFlag(quic_default_to_bbr) ? kBBR : kCubicBytes,
-          kNack),
+      sent_packet_manager_(perspective,
+                           clock_,
+                           random_generator_,
+                           &stats_,
+                           GetDefaultCongestionControlType(),
+                           kNack),
       version_negotiated_(false),
       perspective_(perspective),
       connected_(true),

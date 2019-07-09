@@ -29,6 +29,7 @@ RttStats::RttStats()
       mean_deviation_(QuicTime::Delta::Zero()),
       initial_rtt_(QuicTime::Delta::FromMilliseconds(kInitialRttMs)),
       max_ack_delay_(QuicTime::Delta::Zero()),
+      last_update_time_(QuicTime::Zero()),
       ignore_max_ack_delay_(false) {}
 
 void RttStats::ExpireSmoothedMetrics() {
@@ -41,7 +42,7 @@ void RttStats::ExpireSmoothedMetrics() {
 // Updates the RTT based on a new sample.
 void RttStats::UpdateRtt(QuicTime::Delta send_delta,
                          QuicTime::Delta ack_delay,
-                         QuicTime /*now*/) {
+                         QuicTime now) {
   if (send_delta.IsInfinite() || send_delta <= QuicTime::Delta::Zero()) {
     QUIC_LOG_FIRST_N(WARNING, 3)
         << "Ignoring measured send_delta, because it's is "
@@ -49,6 +50,8 @@ void RttStats::UpdateRtt(QuicTime::Delta send_delta,
         << send_delta.ToMicroseconds();
     return;
   }
+
+  last_update_time_ = now;
 
   // Update min_rtt_ first. min_rtt_ does not use an rtt_sample corrected for
   // ack_delay but the raw observed send_delta, since poor clock granularity at
