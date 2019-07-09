@@ -398,6 +398,11 @@ void Http2DecoderAdapter::OnHeadersPriority(
   DCHECK(!on_headers_called_);
   on_headers_called_ = true;
   ReportReceiveCompressedFrame(frame_header_);
+  if (!visitor()) {
+    SPDY_BUG << "Visitor is nullptr, handling priority in headers failed."
+             << " priority:" << priority << " frame_header:" << frame_header_;
+    return;
+  }
   visitor()->OnHeaders(frame_header_.stream_id, kHasPriorityFields,
                        priority.weight, priority.stream_dependency,
                        priority.is_exclusive, frame_header_.IsEndStream(),
