@@ -28,6 +28,9 @@ QuicStreamId kTestStreamId = 1;
 // Limit on header list size.
 const size_t kMaxHeaderListSize = 100;
 
+// Maximum dynamic table capacity.
+const size_t kMaxDynamicTableCapacity = 100;
+
 // Header Acknowledgement decoder stream instruction with stream_id = 1.
 const char* const kHeaderAcknowledgement = "\x81";
 
@@ -48,8 +51,7 @@ class QpackDecodedHeadersAccumulatorTest : public QuicTest {
         accumulator_(kTestStreamId,
                      &qpack_decoder_,
                      &visitor_,
-                     kMaxHeaderListSize,
-                     false) {}
+                     kMaxHeaderListSize) {}
 
   NoopEncoderStreamErrorDelegate encoder_stream_error_delegate_;
   StrictMock<MockQpackStreamSenderDelegate> decoder_stream_sender_delegate_;
@@ -129,18 +131,39 @@ TEST_F(QpackDecodedHeadersAccumulatorTest, ExceedingLimit) {
   EXPECT_TRUE(accumulator_.quic_header_list().empty());
 }
 
-// TODO(b/112770235): Remove once blocked decoding is implemented
-// and can be tested with delayed encoder stream data.
-TEST_F(QpackDecodedHeadersAccumulatorTest, PretendBlockedEncoding) {
-  QpackDecodedHeadersAccumulator accumulator(
-      kTestStreamId, &qpack_decoder_, &visitor_, kMaxHeaderListSize,
-      /* pretend_blocked_decoding_for_tests = */ true);
+TEST_F(QpackDecodedHeadersAccumulatorTest, BlockedDecoding) {
+  qpack_decoder_.SetMaximumDynamicTableCapacity(kMaxDynamicTableCapacity);
 
+  // Reference to dynamic table entry not yet received.
+  EXPECT_TRUE(accumulator_.Decode(QuicTextUtils::HexDecode("020080")));
+  EXPECT_EQ(Status::kBlocked, accumulator_.EndHeaderBlock());
+
+  // Adding dynamic table entry unblocks decoding.
   EXPECT_CALL(decoder_stream_sender_delegate_,
               WriteStreamData(Eq(kHeaderAcknowledgement)));
+  qpack_decoder_.OnInsertWithoutNameReference("foo", "bar");
 
-  EXPECT_TRUE(accumulator.Decode(QuicTextUtils::HexDecode("0000")));
-  EXPECT_EQ(Status::kBlocked, accumulator.EndHeaderBlock());
+  EXPECT_THAT(accumulator_.quic_header_list(), ElementsAre(Pair("foo", "bar")));
+}
+
+TEST_F(QpackDecodedHeadersAccumulatorTest,
+       BlockedDecodingUnblockedBeforeEndOfHeaderBlock) {
+  qpack_decoder_.SetMaximumDynamicTableCapacity(kMaxDynamicTableCapacity);
+
+  // Reference to dynamic table entry not yet received.
+  EXPECT_TRUE(accumulator_.Decode(QuicTextUtils::HexDecode("020080")));
+
+  // Adding dynamic table entry unblocks decoding.
+  qpack_decoder_.OnInsertWithoutNameReference("foo", "bar");
+
+  // Rest of header block: same entry again.
+  EXPECT_CALL(decoder_stream_sender_delegate_,
+              WriteStreamData(Eq(kHeaderAcknowledgement)));
+  EXPECT_TRUE(accumulator_.Decode(QuicTextUtils::HexDecode("80")));
+  EXPECT_EQ(Status::kSuccess, accumulator_.EndHeaderBlock());
+
+  EXPECT_THAT(accumulator_.quic_header_list(),
+              ElementsAre(Pair("foo", "bar"), Pair("foo", "bar")));
 }
 
 }  // namespace test

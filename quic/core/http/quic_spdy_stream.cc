@@ -170,7 +170,6 @@ QuicSpdyStream::QuicSpdyStream(QuicStreamId id,
       trailers_consumed_(false),
       priority_sent_(false),
       headers_bytes_to_be_marked_consumed_(0),
-      pretend_blocked_decoding_for_tests_(false),
       http_decoder_visitor_(new HttpDecoderVisitor(this)),
       body_buffer_(sequencer()),
       sequencer_offset_(0),
@@ -207,7 +206,6 @@ QuicSpdyStream::QuicSpdyStream(PendingStream* pending,
       trailers_consumed_(false),
       priority_sent_(false),
       headers_bytes_to_be_marked_consumed_(0),
-      pretend_blocked_decoding_for_tests_(false),
       http_decoder_visitor_(new HttpDecoderVisitor(this)),
       body_buffer_(sequencer()),
       sequencer_offset_(sequencer()->NumBytesConsumed()),
@@ -867,8 +865,7 @@ bool QuicSpdyStream::OnHeadersFrameStart(Http3FrameLengths frame_length) {
   qpack_decoded_headers_accumulator_ =
       QuicMakeUnique<QpackDecodedHeadersAccumulator>(
           id(), spdy_session_->qpack_decoder(), this,
-          spdy_session_->max_inbound_header_list_size(),
-          pretend_blocked_decoding_for_tests_);
+          spdy_session_->max_inbound_header_list_size());
 
   // Do not call MaybeMarkHeadersBytesConsumed() yet, because
   // HEADERS frame header bytes might not have been parsed completely.

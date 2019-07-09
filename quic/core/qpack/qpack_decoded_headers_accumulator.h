@@ -51,8 +51,7 @@ class QUIC_EXPORT_PRIVATE QpackDecodedHeadersAccumulator
   QpackDecodedHeadersAccumulator(QuicStreamId id,
                                  QpackDecoder* qpack_decoder,
                                  Visitor* visitor,
-                                 size_t max_header_list_size,
-                                 bool pretend_blocked_decoding_for_tests);
+                                 size_t max_header_list_size);
   virtual ~QpackDecodedHeadersAccumulator() = default;
 
   // QpackProgressiveDecoder::HeadersHandlerInterface implementation.
@@ -91,11 +90,10 @@ class QUIC_EXPORT_PRIVATE QpackDecodedHeadersAccumulator
   QuicHeaderList quic_header_list_;
   size_t uncompressed_header_bytes_;
   size_t compressed_header_bytes_;
+  // Set to true when OnDecodingCompleted() is called.
+  bool headers_decoded_;
   // Set to true when EndHeaderBlock() returns kBlocked.
   bool blocked_;
-  // TODO(b/112770235): Remove once blocked decoding is implemented
-  // and can be tested with delayed encoder stream data.
-  bool pretend_blocked_decoding_for_tests_;
   bool error_detected_;
   std::string error_message_;
 };

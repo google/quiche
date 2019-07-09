@@ -38,6 +38,7 @@ using testing::AtLeast;
 using testing::ElementsAre;
 using testing::Invoke;
 using testing::InvokeWithoutArgs;
+using testing::MatchesRegex;
 using testing::Pair;
 using testing::Return;
 using testing::StrictMock;
@@ -265,8 +266,7 @@ TEST_P(QuicSpdyStreamTest, ProcessTooLargeHeaderList) {
         *connection_,
         CloseConnection(
             QUIC_HEADERS_STREAM_DATA_DECOMPRESS_FAILURE,
-            testing::MatchesRegex("Too large headers received on stream \\d+"),
-            _));
+            MatchesRegex("Too large headers received on stream \\d+"), _));
   } else {
     EXPECT_CALL(*session_,
                 SendRstStream(stream_->id(), QUIC_HEADERS_TOO_LARGE, 0));
@@ -1830,11 +1830,11 @@ TEST_P(QuicSpdyStreamTest, MalformedHeadersStopHttpDecoder) {
 
   EXPECT_CALL(
       *connection_,
-      CloseConnection(QUIC_DECOMPRESSION_FAILURE,
-                      testing::MatchesRegex(
-                          "Error decompressing header block on stream \\d+: "
-                          "Incomplete header block."),
-                      _))
+      CloseConnection(
+          QUIC_DECOMPRESSION_FAILURE,
+          MatchesRegex("Error decompressing header block on stream \\d+: "
+                       "Incomplete header block."),
+          _))
       .WillOnce(
           (Invoke([this](QuicErrorCode error, const std::string& error_details,
                          ConnectionCloseBehavior connection_close_behavior) {
@@ -1852,59 +1852,95 @@ TEST_P(QuicSpdyStreamTest, MalformedHeadersStopHttpDecoder) {
   stream_->OnStreamFrame(frame);
 }
 
+TEST_P(QuicSpdyStreamTest, ImmediateHeaderDecodingWithDynamicTableEntries) {
+  if (!VersionUsesQpack(GetParam().transport_version)) {
+    return;
+  }
+
+  Initialize(kShouldProcessData);
+
+  // Deliver dynamic table entry to decoder.
+  session_->qpack_decoder()->OnInsertWithoutNameReference("foo", "bar");
+
+  // HEADERS frame referencing first dynamic table entry.
+  std::string headers = HeadersFrame(QuicTextUtils::HexDecode("020080"));
+  stream_->OnStreamFrame(QuicStreamFrame(stream_->id(), false, 0, headers));
+
+  // Headers can be decoded immediately.
+  EXPECT_TRUE(stream_->headers_decompressed());
+
+  // Verify headers.
+  EXPECT_THAT(stream_->header_list(), ElementsAre(Pair("foo", "bar")));
+  stream_->ConsumeHeaderList();
+
+  // DATA frame.
+  std::string data = DataFrame(kDataFramePayload);
+  stream_->OnStreamFrame(QuicStreamFrame(stream_->id(), false, /* offset = */
+                                         headers.length(), data));
+  EXPECT_EQ(kDataFramePayload, stream_->data());
+
+  // Deliver second dynamic table entry to decoder.
+  session_->qpack_decoder()->OnInsertWithoutNameReference("trailing", "foobar");
+
+  // Trailing HEADERS frame referencing second dynamic table entry.
+  std::string trailers = HeadersFrame(QuicTextUtils::HexDecode("030080"));
+  stream_->OnStreamFrame(QuicStreamFrame(stream_->id(), true, /* offset = */
+                                         headers.length() + data.length(),
+                                         trailers));
+
+  // Trailers can be decoded immediately.
+  EXPECT_TRUE(stream_->trailers_decompressed());
+
+  // Verify trailers.
+  EXPECT_THAT(stream_->received_trailers(),
+              ElementsAre(Pair("trailing", "foobar")));
+  stream_->MarkTrailersConsumed();
+}
+
 TEST_P(QuicSpdyStreamTest, BlockedHeaderDecoding) {
   if (!VersionUsesQpack(GetParam().transport_version)) {
     return;
   }
 
   Initialize(kShouldProcessData);
-  QuicSpdyStreamPeer::pretend_blocked_decoding(stream_);
 
-  // HEADERS frame with QPACK encoded single header field "foo: bar".
-  std::string headers =
-      HeadersFrame(QuicTextUtils::HexDecode("00002a94e703626172"));
+  // HEADERS frame referencing first dynamic table entry.
+  std::string headers = HeadersFrame(QuicTextUtils::HexDecode("020080"));
   stream_->OnStreamFrame(QuicStreamFrame(stream_->id(), false, 0, headers));
 
-  // Even though entire header block is received, it cannot be decoded.
+  // Decoding is blocked because dynamic table entry has not been received yet.
   EXPECT_FALSE(stream_->headers_decompressed());
 
-  // Signal to QpackDecodedHeadersAccumulator that the header block has been
-  // decoded.  (OnDecodingCompleted() has already been called by the QPACK
-  // decoder, so technically quic_header_list_.OnHeaderBlockEnd() is called
-  // twice, which is a no-op.)
-  QuicSpdyStreamPeer::qpack_decoded_headers_accumulator(stream_)
-      ->OnDecodingCompleted();
-
+  // Deliver dynamic table entry to decoder.
+  session_->qpack_decoder()->OnInsertWithoutNameReference("foo", "bar");
   EXPECT_TRUE(stream_->headers_decompressed());
 
+  // Verify headers.
   EXPECT_THAT(stream_->header_list(), ElementsAre(Pair("foo", "bar")));
   stream_->ConsumeHeaderList();
 
+  // DATA frame.
   std::string data = DataFrame(kDataFramePayload);
   stream_->OnStreamFrame(QuicStreamFrame(stream_->id(), false, /* offset = */
                                          headers.length(), data));
   EXPECT_EQ(kDataFramePayload, stream_->data());
 
-  // Trailing HEADERS frame with QPACK encoded
-  // single header field "custom-key: custom-value".
-  std::string trailers = HeadersFrame(
-      QuicTextUtils::HexDecode("00002f0125a849e95ba97d7f8925a849e95bb8e8b4bf"));
+  // Trailing HEADERS frame referencing second dynamic table entry.
+  std::string trailers = HeadersFrame(QuicTextUtils::HexDecode("030080"));
   stream_->OnStreamFrame(QuicStreamFrame(stream_->id(), true, /* offset = */
                                          headers.length() + data.length(),
                                          trailers));
 
-  // Even though entire header block is received, it cannot be decoded.
+  // Decoding is blocked because dynamic table entry has not been received yet.
   EXPECT_FALSE(stream_->trailers_decompressed());
 
-  // Signal to QpackDecodedHeadersAccumulator that the header block has been
-  // decoded.
-  QuicSpdyStreamPeer::qpack_decoded_headers_accumulator(stream_)
-      ->OnDecodingCompleted();
+  // Deliver second dynamic table entry to decoder.
+  session_->qpack_decoder()->OnInsertWithoutNameReference("trailing", "foobar");
   EXPECT_TRUE(stream_->trailers_decompressed());
 
   // Verify trailers.
   EXPECT_THAT(stream_->received_trailers(),
-              ElementsAre(Pair("custom-key", "custom-value")));
+              ElementsAre(Pair("trailing", "foobar")));
   stream_->MarkTrailersConsumed();
 }
 
@@ -1914,26 +1950,29 @@ TEST_P(QuicSpdyStreamTest, AsyncErrorDecodingHeaders) {
   }
 
   Initialize(kShouldProcessData);
-  QuicSpdyStreamPeer::pretend_blocked_decoding(stream_);
 
-  // HEADERS frame with QPACK encoded single header field "foo: bar".
-  std::string headers =
-      HeadersFrame(QuicTextUtils::HexDecode("00002a94e703626172"));
+  // HEADERS frame only referencing entry with absolute index 0 but with
+  // Required Insert Count = 2, which is incorrect.
+  std::string headers = HeadersFrame(QuicTextUtils::HexDecode("030081"));
   stream_->OnStreamFrame(QuicStreamFrame(stream_->id(), false, 0, headers));
 
-  // Even though entire header block is received, it cannot be decoded.
+  // Even though entire header block is received and every referenced entry is
+  // available, decoding is blocked until insert count reaches the Required
+  // Insert Count value advertised in the header block prefix.
   EXPECT_FALSE(stream_->headers_decompressed());
 
-  // Signal a decoding error to QpackDecodedHeadersAccumulator.
-  std::string expected_error_message =
-      QuicStrCat("Error during async decoding of headers on stream ",
-                 stream_->id(), ": unexpected error");
   EXPECT_CALL(
       *connection_,
-      CloseConnection(QUIC_DECOMPRESSION_FAILURE, expected_error_message,
-                      ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET));
-  QuicSpdyStreamPeer::qpack_decoded_headers_accumulator(stream_)
-      ->OnDecodingErrorDetected("unexpected error");
+      CloseConnection(
+          QUIC_DECOMPRESSION_FAILURE,
+          MatchesRegex("Error during async decoding of headers on stream \\d+: "
+                       "Required Insert Count too large."),
+          ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET));
+
+  // Deliver two dynamic table entries to decoder
+  // to trigger decoding of header block.
+  session_->qpack_decoder()->OnInsertWithoutNameReference("foo", "bar");
+  session_->qpack_decoder()->OnInsertWithoutNameReference("foo", "bar");
 }
 
 TEST_P(QuicSpdyStreamTest, AsyncErrorDecodingTrailers) {
@@ -1942,54 +1981,51 @@ TEST_P(QuicSpdyStreamTest, AsyncErrorDecodingTrailers) {
   }
 
   Initialize(kShouldProcessData);
-  QuicSpdyStreamPeer::pretend_blocked_decoding(stream_);
 
-  // HEADERS frame with QPACK encoded single header field "foo: bar".
-  std::string headers =
-      HeadersFrame(QuicTextUtils::HexDecode("00002a94e703626172"));
+  // HEADERS frame referencing first dynamic table entry.
+  std::string headers = HeadersFrame(QuicTextUtils::HexDecode("020080"));
   stream_->OnStreamFrame(QuicStreamFrame(stream_->id(), false, 0, headers));
 
-  // Even though entire header block is received, it cannot be decoded.
+  // Decoding is blocked because dynamic table entry has not been received yet.
   EXPECT_FALSE(stream_->headers_decompressed());
 
-  // Signal to QpackDecodedHeadersAccumulator that the header block has been
-  // decoded.  (OnDecodingCompleted() has already been called by the QPACK
-  // decoder, so technically quic_header_list_.OnHeaderBlockEnd() is called
-  // twice, which is a no-op.)
-  QuicSpdyStreamPeer::qpack_decoded_headers_accumulator(stream_)
-      ->OnDecodingCompleted();
-
+  // Deliver dynamic table entry to decoder.
+  session_->qpack_decoder()->OnInsertWithoutNameReference("foo", "bar");
   EXPECT_TRUE(stream_->headers_decompressed());
 
+  // Verify headers.
   EXPECT_THAT(stream_->header_list(), ElementsAre(Pair("foo", "bar")));
   stream_->ConsumeHeaderList();
 
+  // DATA frame.
   std::string data = DataFrame(kDataFramePayload);
   stream_->OnStreamFrame(QuicStreamFrame(stream_->id(), false, /* offset = */
                                          headers.length(), data));
   EXPECT_EQ(kDataFramePayload, stream_->data());
 
-  // Trailing HEADERS frame with QPACK encoded
-  // single header field "custom-key: custom-value".
-  std::string trailers = HeadersFrame(
-      QuicTextUtils::HexDecode("00002f0125a849e95ba97d7f8925a849e95bb8e8b4bf"));
+  // Trailing HEADERS frame only referencing entry with absolute index 0 but
+  // with Required Insert Count = 2, which is incorrect.
+  std::string trailers = HeadersFrame(QuicTextUtils::HexDecode("030081"));
   stream_->OnStreamFrame(QuicStreamFrame(stream_->id(), true, /* offset = */
                                          headers.length() + data.length(),
                                          trailers));
 
-  // Even though entire header block is received, it cannot be decoded.
+  // Even though entire header block is received and every referenced entry is
+  // available, decoding is blocked until insert count reaches the Required
+  // Insert Count value advertised in the header block prefix.
   EXPECT_FALSE(stream_->trailers_decompressed());
 
-  // Signal a decoding error to QpackDecodedHeadersAccumulator.
-  std::string expected_error_message =
-      QuicStrCat("Error during async decoding of trailers on stream ",
-                 stream_->id(), ": unexpected error");
-  EXPECT_CALL(
-      *connection_,
-      CloseConnection(QUIC_DECOMPRESSION_FAILURE, expected_error_message,
-                      ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET));
-  QuicSpdyStreamPeer::qpack_decoded_headers_accumulator(stream_)
-      ->OnDecodingErrorDetected("unexpected error");
+  EXPECT_CALL(*connection_,
+              CloseConnection(
+                  QUIC_DECOMPRESSION_FAILURE,
+                  MatchesRegex(
+                      "Error during async decoding of trailers on stream \\d+: "
+                      "Required Insert Count too large."),
+                  ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET));
+
+  // Deliver second dynamic table entry to decoder
+  // to trigger decoding of trailing header block.
+  session_->qpack_decoder()->OnInsertWithoutNameReference("trailing", "foobar");
 }
 
 class QuicSpdyStreamIncrementalConsumptionTest : public QuicSpdyStreamTest {

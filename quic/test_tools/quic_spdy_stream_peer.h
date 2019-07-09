@@ -24,12 +24,6 @@ class QuicSpdyStreamPeer {
       QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener);
   static const QuicIntervalSet<QuicStreamOffset>& unacked_frame_headers_offsets(
       QuicSpdyStream* stream);
-
-  // TODO(b/112770235): Remove once blocked decoding is implemented
-  // and can be tested with delayed encoder stream data.
-  static void pretend_blocked_decoding(QuicSpdyStream* stream);
-  static QpackDecodedHeadersAccumulator* qpack_decoded_headers_accumulator(
-      QuicSpdyStream* stream);
 };
 
 }  // namespace test

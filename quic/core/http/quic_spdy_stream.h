@@ -304,9 +304,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   HttpEncoder encoder_;
   // Http decoder for processing raw incoming stream frames.
   HttpDecoder decoder_;
-  // TODO(b/112770235): Remove once blocked decoding is implemented
-  // and can be tested with delayed encoder stream data.
-  bool pretend_blocked_decoding_for_tests_;
   // Headers accumulator for decoding HEADERS frame payload.
   std::unique_ptr<QpackDecodedHeadersAccumulator>
       qpack_decoded_headers_accumulator_;

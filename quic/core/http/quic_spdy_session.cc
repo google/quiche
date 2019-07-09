@@ -369,6 +369,10 @@ void QuicSpdySession::Initialize() {
         QuicMakeUnique<QpackEncoder>(this, &encoder_stream_sender_delegate_);
     qpack_decoder_ =
         QuicMakeUnique<QpackDecoder>(this, &decoder_stream_sender_delegate_);
+    // TODO(b/112770235): Send SETTINGS_QPACK_MAX_TABLE_CAPACITY with value
+    // kDefaultQpackMaxDynamicTableCapacity.
+    qpack_decoder_->SetMaximumDynamicTableCapacity(
+        kDefaultQpackMaxDynamicTableCapacity);
   }
 
   headers_stream_ = QuicMakeUnique<QuicHeadersStream>((this));
