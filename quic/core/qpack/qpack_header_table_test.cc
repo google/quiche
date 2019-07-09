@@ -9,11 +9,21 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_entry.h"
 
+using ::testing::Mock;
+using ::testing::StrictMock;
+
 namespace quic {
 namespace test {
 namespace {
 
 const uint64_t kMaximumDynamicTableCapacityForTesting = 1024 * 1024;
+
+class MockObserver : public QpackHeaderTable::Observer {
+ public:
+  ~MockObserver() override = default;
+
+  MOCK_METHOD0(OnInsertCountReachedThreshold, void());
+};
 
 class QpackHeaderTableTest : public QuicTest {
  protected:
@@ -76,6 +86,11 @@ class QpackHeaderTableTest : public QuicTest {
 
   bool SetDynamicTableCapacity(uint64_t capacity) {
     return table_.SetDynamicTableCapacity(capacity);
+  }
+
+  void RegisterObserver(QpackHeaderTable::Observer* observer,
+                        uint64_t required_insert_count) {
+    table_.RegisterObserver(observer, required_insert_count);
   }
 
   uint64_t max_entries() const { return table_.max_entries(); }
@@ -348,6 +363,45 @@ TEST_F(QpackHeaderTableTest, EvictOldestOfSameName) {
               /* expected_is_static = */ false, 1u);
   ExpectMatch("baz", "qux", QpackHeaderTable::MatchType::kNameAndValue,
               /* expected_is_static = */ false, 2u);
+}
+
+TEST_F(QpackHeaderTableTest, Observer) {
+  StrictMock<MockObserver> observer1;
+  RegisterObserver(&observer1, 1);
+  EXPECT_CALL(observer1, OnInsertCountReachedThreshold);
+  InsertEntry("foo", "bar");
+  EXPECT_EQ(1u, inserted_entry_count());
+  Mock::VerifyAndClearExpectations(&observer1);
+
+  // Registration order does not matter.
+  StrictMock<MockObserver> observer2;
+  StrictMock<MockObserver> observer3;
+  RegisterObserver(&observer3, 3);
+  RegisterObserver(&observer2, 2);
+
+  EXPECT_CALL(observer2, OnInsertCountReachedThreshold);
+  InsertEntry("foo", "bar");
+  EXPECT_EQ(2u, inserted_entry_count());
+  Mock::VerifyAndClearExpectations(&observer3);
+
+  EXPECT_CALL(observer3, OnInsertCountReachedThreshold);
+  InsertEntry("foo", "bar");
+  EXPECT_EQ(3u, inserted_entry_count());
+  Mock::VerifyAndClearExpectations(&observer2);
+
+  // Multiple observers with identical |required_insert_count| should all be
+  // notified.
+  StrictMock<MockObserver> observer4;
+  StrictMock<MockObserver> observer5;
+  RegisterObserver(&observer4, 4);
+  RegisterObserver(&observer5, 4);
+
+  EXPECT_CALL(observer4, OnInsertCountReachedThreshold);
+  EXPECT_CALL(observer5, OnInsertCountReachedThreshold);
+  InsertEntry("foo", "bar");
+  EXPECT_EQ(4u, inserted_entry_count());
+  Mock::VerifyAndClearExpectations(&observer4);
+  Mock::VerifyAndClearExpectations(&observer5);
 }
 
 }  // namespace

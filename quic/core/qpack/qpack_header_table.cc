@@ -140,6 +140,14 @@ const QpackEntry* QpackHeaderTable::InsertEntry(QuicStringPiece name,
     CHECK(result.second);
   }
 
+  // Notify and deregister observers whose threshold is met, if any.
+  while (!observers_.empty() &&
+         observers_.top().required_insert_count <= inserted_entry_count()) {
+    Observer* observer = observers_.top().observer;
+    observers_.pop();
+    observer->OnInsertCountReachedThreshold();
+  }
+
   return new_entry;
 }
 
@@ -167,6 +175,17 @@ void QpackHeaderTable::SetMaximumDynamicTableCapacity(
   dynamic_table_capacity_ = maximum_dynamic_table_capacity;
   maximum_dynamic_table_capacity_ = maximum_dynamic_table_capacity;
   max_entries_ = maximum_dynamic_table_capacity / 32;
+}
+
+void QpackHeaderTable::RegisterObserver(Observer* observer,
+                                        uint64_t required_insert_count) {
+  DCHECK_GT(required_insert_count, 0u);
+  observers_.push({observer, required_insert_count});
+}
+
+bool QpackHeaderTable::ObserverWithThreshold::operator>(
+    const ObserverWithThreshold& other) const {
+  return required_insert_count > other.required_insert_count;
 }
 
 void QpackHeaderTable::EvictDownToCurrentCapacity() {

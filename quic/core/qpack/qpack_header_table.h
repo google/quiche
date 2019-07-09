@@ -6,6 +6,9 @@
 #define QUICHE_QUIC_CORE_QPACK_QPACK_HEADER_TABLE_H_
 
 #include <cstdint>
+#include <functional>
+#include <queue>
+#include <vector>
 
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
@@ -29,6 +32,17 @@ class QUIC_EXPORT_PRIVATE QpackHeaderTable {
 
   // Result of header table lookup.
   enum class MatchType { kNameAndValue, kName, kNoMatch };
+
+  // Observer interface for dynamic table insertion.
+  class Observer {
+   public:
+    virtual ~Observer() = default;
+
+    // Called when inserted_entry_count() reaches the threshold the Observer was
+    // registered with.  After this call the Observer automatically gets
+    // deregistered.
+    virtual void OnInsertCountReachedThreshold() = 0;
+  };
 
   QpackHeaderTable();
   QpackHeaderTable(const QpackHeaderTable&) = delete;
@@ -67,6 +81,11 @@ class QUIC_EXPORT_PRIVATE QpackHeaderTable {
   // context it can be set when the SETTINGS frame is received.
   // This method must only be called at most once.
   void SetMaximumDynamicTableCapacity(uint64_t maximum_dynamic_table_capacity);
+
+  // Register an observer to be notified when inserted_entry_count() reaches
+  // |required_insert_count|.  After the notification, |observer| automatically
+  // gets unregistered.
+  void RegisterObserver(Observer* observer, uint64_t required_insert_count);
 
   // Used on request streams to encode and decode Required Insert Count.
   uint64_t max_entries() const { return max_entries_; }
@@ -137,6 +156,22 @@ class QUIC_EXPORT_PRIVATE QpackHeaderTable {
 
   // The number of entries dropped from the dynamic table.
   uint64_t dropped_entry_count_;
+
+  // Data structure to hold an Observer and its threshold.
+  struct ObserverWithThreshold {
+    Observer* observer;
+    uint64_t required_insert_count;
+    bool operator>(const ObserverWithThreshold& other) const;
+  };
+
+  // Use std::greater so that entry with smallest |required_insert_count|
+  // is on top.
+  using ObserverHeap = std::priority_queue<ObserverWithThreshold,
+                                           std::vector<ObserverWithThreshold>,
+                                           std::greater<ObserverWithThreshold>>;
+
+  // Observers waiting to be notified.
+  ObserverHeap observers_;
 };
 
 }  // namespace quic
