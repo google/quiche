@@ -302,13 +302,13 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
 
   // Http encoder for writing streams.
   HttpEncoder encoder_;
-  // Http decoder for processing raw incoming stream frames.
-  HttpDecoder decoder_;
   // Headers accumulator for decoding HEADERS frame payload.
   std::unique_ptr<QpackDecodedHeadersAccumulator>
       qpack_decoded_headers_accumulator_;
   // Visitor of the HttpDecoder.
   std::unique_ptr<HttpDecoderVisitor> http_decoder_visitor_;
+  // HttpDecoder for processing raw incoming stream frames.
+  HttpDecoder decoder_;
   // Buffer that contains decoded data of the stream.
   QuicSpdyStreamBodyBuffer body_buffer_;
 

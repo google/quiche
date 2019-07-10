@@ -6,6 +6,7 @@
 
 #include "net/third_party/quiche/src/quic/core/http/http_decoder.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_spdy_session.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
 
 namespace quic {
 
@@ -134,9 +135,9 @@ QuicReceiveControlStream::QuicReceiveControlStream(PendingStream* pending)
     : QuicStream(pending, READ_UNIDIRECTIONAL, /*is_static=*/true),
       current_priority_length_(0),
       received_settings_length_(0),
-      http_decoder_visitor_(new HttpDecoderVisitor(this)),
+      http_decoder_visitor_(QuicMakeUnique<HttpDecoderVisitor>(this)),
+      decoder_(http_decoder_visitor_.get()),
       sequencer_offset_(sequencer()->NumBytesConsumed()) {
-  decoder_.set_visitor(http_decoder_visitor_.get());
   sequencer()->set_level_triggered(true);
 }
 

@@ -5,6 +5,7 @@
 #include "net/third_party/quiche/src/quic/core/http/quic_receive_control_stream.h"
 
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_spdy_session_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 
@@ -98,7 +99,6 @@ class QuicReceiveControlStreamTest : public QuicTestWithParam<TestParams> {
   MockAlarmFactory alarm_factory_;
   StrictMock<MockQuicConnection>* connection_;
   StrictMock<MockQuicSpdySession> session_;
-  HttpDecoder decoder_;
   std::unique_ptr<QuicReceiveControlStream> receive_control_stream_;
   TestStream* stream_;
 };

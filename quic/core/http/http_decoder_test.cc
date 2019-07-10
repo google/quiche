@@ -57,7 +57,7 @@ class MockVisitor : public HttpDecoder::Visitor {
 
 class HttpDecoderTest : public QuicTest {
  public:
-  HttpDecoderTest() {
+  HttpDecoderTest() : decoder_(&visitor_) {
     ON_CALL(visitor_, OnPriorityFrameStart(_)).WillByDefault(Return(true));
     ON_CALL(visitor_, OnPriorityFrame(_)).WillByDefault(Return(true));
     ON_CALL(visitor_, OnCancelPushFrame(_)).WillByDefault(Return(true));
@@ -75,7 +75,6 @@ class HttpDecoderTest : public QuicTest {
     ON_CALL(visitor_, OnPushPromiseFrameStart(_)).WillByDefault(Return(true));
     ON_CALL(visitor_, OnPushPromiseFramePayload(_)).WillByDefault(Return(true));
     ON_CALL(visitor_, OnPushPromiseFrameEnd()).WillByDefault(Return(true));
-    decoder_.set_visitor(&visitor_);
   }
   ~HttpDecoderTest() override = default;
 
@@ -112,8 +111,8 @@ class HttpDecoderTest : public QuicTest {
     return processed_bytes;
   }
 
-  HttpDecoder decoder_;
   testing::StrictMock<MockVisitor> visitor_;
+  HttpDecoder decoder_;
 };
 
 TEST_F(HttpDecoderTest, InitialState) {

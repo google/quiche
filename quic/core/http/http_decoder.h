@@ -110,15 +110,10 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
     // to allow callers to handle unknown frames.
   };
 
-  HttpDecoder();
+  // |visitor| must be non-null, and must outlive HttpDecoder.
+  explicit HttpDecoder(Visitor* visitor);
 
   ~HttpDecoder();
-
-  // Set callbacks to be called from the decoder.  A visitor must be set, or
-  // else the decoder will crash.  It is acceptable for the visitor to do
-  // nothing.  If this is called multiple times, only the last visitor
-  // will be used.  |visitor| will be owned by the caller.
-  void set_visitor(Visitor* visitor) { visitor_ = visitor; }
 
   // Processes the input and invokes the appropriate visitor methods, until a
   // visitor method returns false or an error occurs.  Returns the number of
@@ -190,7 +185,7 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
   QuicByteCount MaxFrameLength(uint8_t frame_type);
 
   // Visitor to invoke when messages are parsed.
-  Visitor* visitor_;  // Unowned.
+  Visitor* const visitor_;  // Unowned.
   // Current state of the parsing.
   HttpDecoderState state_;
   // Type of the frame currently being parsed.

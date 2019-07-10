@@ -22,6 +22,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_mem_slice_storage.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
@@ -170,7 +171,8 @@ QuicSpdyStream::QuicSpdyStream(QuicStreamId id,
       trailers_consumed_(false),
       priority_sent_(false),
       headers_bytes_to_be_marked_consumed_(0),
-      http_decoder_visitor_(new HttpDecoderVisitor(this)),
+      http_decoder_visitor_(QuicMakeUnique<HttpDecoderVisitor>(this)),
+      decoder_(http_decoder_visitor_.get()),
       body_buffer_(sequencer()),
       sequencer_offset_(0),
       is_decoder_processing_input_(false),
@@ -188,7 +190,6 @@ QuicSpdyStream::QuicSpdyStream(QuicStreamId id,
           spdy_session_->connection()->transport_version())) {
     sequencer()->set_level_triggered(true);
   }
-  decoder_.set_visitor(http_decoder_visitor_.get());
 }
 
 QuicSpdyStream::QuicSpdyStream(PendingStream* pending,
@@ -206,7 +207,8 @@ QuicSpdyStream::QuicSpdyStream(PendingStream* pending,
       trailers_consumed_(false),
       priority_sent_(false),
       headers_bytes_to_be_marked_consumed_(0),
-      http_decoder_visitor_(new HttpDecoderVisitor(this)),
+      http_decoder_visitor_(QuicMakeUnique<HttpDecoderVisitor>(this)),
+      decoder_(http_decoder_visitor_.get()),
       body_buffer_(sequencer()),
       sequencer_offset_(sequencer()->NumBytesConsumed()),
       is_decoder_processing_input_(false),
@@ -223,7 +225,6 @@ QuicSpdyStream::QuicSpdyStream(PendingStream* pending,
           spdy_session_->connection()->transport_version())) {
     sequencer()->set_level_triggered(true);
   }
-  decoder_.set_visitor(http_decoder_visitor_.get());
 }
 
 QuicSpdyStream::~QuicSpdyStream() {}

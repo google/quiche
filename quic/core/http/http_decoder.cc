@@ -29,8 +29,8 @@ static const size_t kPriorityFirstByteLength = 1;
 
 }  // namespace
 
-HttpDecoder::HttpDecoder()
-    : visitor_(nullptr),
+HttpDecoder::HttpDecoder(Visitor* visitor)
+    : visitor_(visitor),
       state_(STATE_READING_FRAME_TYPE),
       current_frame_type_(0),
       current_length_field_length_(0),
@@ -40,7 +40,9 @@ HttpDecoder::HttpDecoder()
       current_type_field_length_(0),
       remaining_type_field_length_(0),
       error_(QUIC_NO_ERROR),
-      error_detail_("") {}
+      error_detail_("") {
+  DCHECK(visitor_);
+}
 
 HttpDecoder::~HttpDecoder() {}
 
