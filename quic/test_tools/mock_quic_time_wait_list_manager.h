@@ -53,6 +53,13 @@ class MockTimeWaitListManager : public QuicTimeWaitListManager {
                     const QuicSocketAddress& server_address,
                     const QuicSocketAddress& client_address,
                     std::unique_ptr<QuicPerPacketContext> packet_context));
+
+  MOCK_METHOD5(SendPublicReset,
+               void(const QuicSocketAddress&,
+                    const QuicSocketAddress&,
+                    QuicConnectionId,
+                    bool,
+                    std::unique_ptr<QuicPerPacketContext>));
 };
 
 }  // namespace test

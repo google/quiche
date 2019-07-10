@@ -153,12 +153,16 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
   virtual bool MaybeDispatchPacket(const ReceivedPacketInfo& packet_info);
 
   // Values to be returned by ValidityChecks() to indicate what should be done
-  // with a packet.
+  // with a packet. Fates with greater values are considered to be higher
+  // priority. ValidityChecks should return fate based on the priority order
+  // (i.e., returns higher priority fate first)
   enum QuicPacketFate {
     // Process the packet normally, which is usually to establish a connection.
     kFateProcess,
     // Put the connection ID into time-wait state and send a public reset.
     kFateTimeWait,
+    // Drop the packet.
+    kFateDrop,
   };
 
   // This method is called by ProcessHeader on packets not associated with a
@@ -300,6 +304,10 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
 
   // Returns true if |version| is a supported protocol version.
   bool IsSupportedVersion(const ParsedQuicVersion version);
+
+  // Sends public/stateless reset packets with no version and unknown
+  // connection ID according to the packet's size.
+  void MaybeResetPacketsWithNoVersion(const ReceivedPacketInfo& packet_info);
 
   void set_new_sessions_allowed_per_event_loop(
       int16_t new_sessions_allowed_per_event_loop) {

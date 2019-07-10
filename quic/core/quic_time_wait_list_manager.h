@@ -130,13 +130,6 @@ class QuicTimeWaitListManager : public QuicBlockedWriterInterface {
       const QuicSocketAddress& peer_address,
       std::unique_ptr<QuicPerPacketContext> packet_context);
 
-  // Return a non-owning pointer to the packet writer.
-  QuicPacketWriter* writer() { return writer_; }
-
- protected:
-  virtual std::unique_ptr<QuicEncryptedPacket> BuildPublicReset(
-      const QuicPublicResetPacket& packet);
-
   // Creates a public reset packet and sends it or queues it to be sent later.
   virtual void SendPublicReset(
       const QuicSocketAddress& self_address,
@@ -144,6 +137,13 @@ class QuicTimeWaitListManager : public QuicBlockedWriterInterface {
       QuicConnectionId connection_id,
       bool ietf_quic,
       std::unique_ptr<QuicPerPacketContext> packet_context);
+
+  // Return a non-owning pointer to the packet writer.
+  QuicPacketWriter* writer() { return writer_; }
+
+ protected:
+  virtual std::unique_ptr<QuicEncryptedPacket> BuildPublicReset(
+      const QuicPublicResetPacket& packet);
 
   virtual void GetEndpointId(std::string* /*endpoint_id*/) {}
 

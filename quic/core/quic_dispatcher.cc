@@ -434,6 +434,8 @@ void QuicDispatcher::ProcessHeader(ReceivedPacketInfo* packet_info) {
 
       buffered_packets_.DiscardPackets(server_connection_id);
       break;
+    case kFateDrop:
+      break;
   }
 }
 
@@ -452,6 +454,11 @@ QuicDispatcher::QuicPacketFate QuicDispatcher::ValidityChecks(
     QUIC_DLOG(INFO)
         << "Packet without version arrived for unknown connection ID "
         << packet_info.destination_connection_id;
+    if (GetQuicReloadableFlag(quic_reject_unprocessable_packets_statelessly)) {
+      QUIC_RELOADABLE_FLAG_COUNT(quic_reject_unprocessable_packets_statelessly);
+      MaybeResetPacketsWithNoVersion(packet_info);
+      return kFateDrop;
+    }
     return kFateTimeWait;
   }
 
@@ -875,6 +882,26 @@ bool QuicDispatcher::IsSupportedVersion(const ParsedQuicVersion version) {
     }
   }
   return false;
+}
+
+void QuicDispatcher::MaybeResetPacketsWithNoVersion(
+    const ReceivedPacketInfo& packet_info) {
+  DCHECK(!packet_info.version_flag);
+  const size_t MinValidPacketLength =
+      kPacketHeaderTypeSize + expected_server_connection_id_length_ +
+      PACKET_1BYTE_PACKET_NUMBER + /*payload size=*/1 + /*tag size=*/12;
+  if (packet_info.packet.length() < MinValidPacketLength) {
+    // The packet size is too small.
+    QUIC_CODE_COUNT(drop_too_small_packets);
+    return;
+  }
+  // TODO(fayang): Consider rate limiting reset packets if reset packet size >
+  // packet_length.
+
+  time_wait_list_manager()->SendPublicReset(
+      packet_info.self_address, packet_info.peer_address,
+      packet_info.destination_connection_id,
+      packet_info.form != GOOGLE_QUIC_PACKET, GetPerPacketContext());
 }
 
 }  // namespace quic
