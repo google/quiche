@@ -246,6 +246,16 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
 
   bool IsConnected() { return connection()->connected(); }
 
+  // Sets how much encoded data the hpack decoder of h2_deframer_ is willing to
+  // buffer.
+  void set_max_decode_buffer_size_bytes(size_t max_decode_buffer_size_bytes) {
+    h2_deframer_.GetHpackDecoder()->set_max_decode_buffer_size_bytes(
+        max_decode_buffer_size_bytes);
+  }
+
+  void set_max_uncompressed_header_bytes(
+      size_t set_max_uncompressed_header_bytes);
+
  private:
   friend class test::QuicSpdySessionPeer;
 
