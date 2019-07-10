@@ -560,6 +560,15 @@ QpackDecoder* QuicSpdySession::qpack_decoder() {
 QuicSpdyStream* QuicSpdySession::GetSpdyDataStream(
     const QuicStreamId stream_id) {
   QuicStream* stream = GetOrCreateDynamicStream(stream_id);
+  if (GetQuicReloadableFlag(quic_handle_staticness_for_spdy_stream) && stream &&
+      stream->is_static()) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_handle_staticness_for_spdy_stream);
+    QUIC_BUG << "GetSpdyDataStream returns static stream";
+    connection()->CloseConnection(
+        QUIC_INVALID_STREAM_ID, "stream is static",
+        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    return nullptr;
+  }
   DCHECK(!stream || !stream->is_static());
   return static_cast<QuicSpdyStream*>(stream);
 }
