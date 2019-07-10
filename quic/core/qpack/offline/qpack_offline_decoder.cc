@@ -152,7 +152,8 @@ bool QpackOfflineDecoder::DecodeHeaderBlocksFromFile(
     progressive_decoder->EndHeaderBlock();
 
     if (headers_handler.decoding_error_detected()) {
-      QUIC_LOG(ERROR) << "Decoding error on stream " << stream_id;
+      QUIC_LOG(ERROR) << "Decoding error on stream " << stream_id << ": "
+                      << headers_handler.error_message();
       return false;
     }
 

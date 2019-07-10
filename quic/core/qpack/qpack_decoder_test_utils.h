@@ -5,6 +5,8 @@
 #ifndef QUICHE_QUIC_CORE_QPACK_QPACK_DECODER_TEST_UTILS_H_
 #define QUICHE_QUIC_CORE_QPACK_QPACK_DECODER_TEST_UTILS_H_
 
+#include <string>
+
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_decoder.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_progressive_decoder.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_test_utils.h"
@@ -52,11 +54,13 @@ class TestHeadersHandler
 
   bool decoding_completed() const;
   bool decoding_error_detected() const;
+  const std::string& error_message() const;
 
  private:
   spdy::SpdyHeaderBlock header_list_;
   bool decoding_completed_;
   bool decoding_error_detected_;
+  std::string error_message_;
 };
 
 class MockHeadersHandler

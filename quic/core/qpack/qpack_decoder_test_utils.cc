@@ -35,11 +35,12 @@ void TestHeadersHandler::OnDecodingCompleted() {
 }
 
 void TestHeadersHandler::OnDecodingErrorDetected(
-    QuicStringPiece /*error_message*/) {
+    QuicStringPiece error_message) {
   ASSERT_FALSE(decoding_completed_);
   ASSERT_FALSE(decoding_error_detected_);
 
   decoding_error_detected_ = true;
+  error_message_.assign(error_message.data(), error_message.size());
 }
 
 spdy::SpdyHeaderBlock TestHeadersHandler::ReleaseHeaderList() {
@@ -55,6 +56,11 @@ bool TestHeadersHandler::decoding_completed() const {
 
 bool TestHeadersHandler::decoding_error_detected() const {
   return decoding_error_detected_;
+}
+
+const std::string& TestHeadersHandler::error_message() const {
+  DCHECK(decoding_error_detected_);
+  return error_message_;
 }
 
 void QpackDecode(
