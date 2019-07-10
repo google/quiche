@@ -136,6 +136,7 @@ void QuicSession::RegisterStaticStream(QuicStreamId id, QuicStream* stream) {
 
 void QuicSession::RegisterStaticStreamNew(std::unique_ptr<QuicStream> stream,
                                           bool stream_already_counted) {
+  DCHECK(stream->is_static());
   QuicStreamId stream_id = stream->id();
   dynamic_stream_map_[stream_id] = std::move(stream);
   if (VersionHasIetfQuicFrames(connection_->transport_version())) {
