@@ -351,17 +351,17 @@ QuicConnection::QuicConnection(
   MaybeEnableMultiplePacketNumberSpacesSupport();
   DCHECK(perspective_ == Perspective::IS_CLIENT ||
          supported_versions.size() == 1);
-  InstallInitialCrypters();
+  InstallInitialCrypters(server_connection_id_);
 }
 
-void QuicConnection::InstallInitialCrypters() {
+void QuicConnection::InstallInitialCrypters(QuicConnectionId connection_id) {
   if (version().handshake_protocol != PROTOCOL_TLS1_3) {
     // Initial crypters are currently only supported with TLS.
     return;
   }
   CrypterPair crypters;
   CryptoUtils::CreateTlsInitialCrypters(perspective_, transport_version(),
-                                        server_connection_id_, &crypters);
+                                        connection_id, &crypters);
   SetEncrypter(ENCRYPTION_INITIAL, std::move(crypters.encrypter));
   InstallDecrypter(ENCRYPTION_INITIAL, std::move(crypters.decrypter));
 }
@@ -618,7 +618,7 @@ void QuicConnection::OnRetryPacket(QuicConnectionId original_connection_id,
   packet_generator_.SetRetryToken(retry_token);
 
   // Reinstall initial crypters because the connection ID changed.
-  InstallInitialCrypters();
+  InstallInitialCrypters(server_connection_id_);
 }
 
 bool QuicConnection::HasIncomingConnectionId(QuicConnectionId connection_id) {

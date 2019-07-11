@@ -276,6 +276,9 @@ QuicConnectionId QuicDispatcher::MaybeReplaceServerConnectionId(
       session_helper_->GenerateConnectionIdForReject(version.transport_version,
                                                      server_connection_id);
   DCHECK_EQ(expected_server_connection_id_length_, new_connection_id.length());
+  // TODO(dschinazi) Prevent connection_id_map_ from growing indefinitely
+  // before we ship a version that supports variable length connection IDs
+  // to production.
   connection_id_map_.insert(
       std::make_pair(server_connection_id, new_connection_id));
   QUIC_DLOG(INFO) << "Replacing incoming connection ID " << server_connection_id
@@ -340,6 +343,21 @@ bool QuicDispatcher::MaybeDispatchPacket(
     it->second->ProcessUdpPacket(packet_info.self_address,
                                  packet_info.peer_address, packet_info.packet);
     return true;
+  } else {
+    // We did not find the connection ID, check if we've replaced it.
+    QuicConnectionId replaced_connection_id = MaybeReplaceServerConnectionId(
+        server_connection_id, packet_info.version);
+    if (replaced_connection_id != server_connection_id) {
+      // Search for the replacement.
+      auto it2 = session_map_.find(replaced_connection_id);
+      if (it2 != session_map_.end()) {
+        DCHECK(!buffered_packets_.HasBufferedPackets(replaced_connection_id));
+        it2->second->ProcessUdpPacket(packet_info.self_address,
+                                      packet_info.peer_address,
+                                      packet_info.packet);
+        return true;
+      }
+    }
   }
 
   if (buffered_packets_.HasChloForConnection(server_connection_id)) {
@@ -723,8 +741,13 @@ void QuicDispatcher::ProcessBufferedChlos(size_t max_connections_to_create) {
                           packet_list.alpn, packet_list.version);
     if (original_connection_id != server_connection_id) {
       session->connection()->AddIncomingConnectionId(original_connection_id);
+      session->connection()->InstallInitialCrypters(original_connection_id);
     }
     QUIC_DLOG(INFO) << "Created new session for " << server_connection_id;
+
+    DCHECK(session_map_.find(server_connection_id) == session_map_.end())
+        << "Tried to add session map existing entry " << server_connection_id;
+
     session_map_.insert(
         std::make_pair(server_connection_id, QuicWrapUnique(session)));
     DeliverPacketsToSession(packets, session);
@@ -825,9 +848,16 @@ void QuicDispatcher::ProcessChlo(const std::string& alpn,
                         packet_info->peer_address, alpn, packet_info->version);
   if (original_connection_id != packet_info->destination_connection_id) {
     session->connection()->AddIncomingConnectionId(original_connection_id);
+    session->connection()->InstallInitialCrypters(original_connection_id);
   }
   QUIC_DLOG(INFO) << "Created new session for "
                   << packet_info->destination_connection_id;
+
+  DCHECK(session_map_.find(packet_info->destination_connection_id) ==
+         session_map_.end())
+      << "Tried to add session map existing entry "
+      << packet_info->destination_connection_id;
+
   session_map_.insert(std::make_pair(packet_info->destination_connection_id,
                                      QuicWrapUnique(session)));
   std::list<BufferedPacket> packets =

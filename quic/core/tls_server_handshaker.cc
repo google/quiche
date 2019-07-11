@@ -55,14 +55,6 @@ TlsServerHandshaker::TlsServerHandshaker(QuicCryptoStream* stream,
       tls_connection_(ssl_ctx, this) {
   DCHECK_EQ(PROTOCOL_TLS1_3,
             session->connection()->version().handshake_protocol);
-  CrypterPair crypters;
-  CryptoUtils::CreateTlsInitialCrypters(
-      Perspective::IS_SERVER, session->connection()->transport_version(),
-      session->connection_id(), &crypters);
-  session->connection()->SetEncrypter(ENCRYPTION_INITIAL,
-                                      std::move(crypters.encrypter));
-  session->connection()->InstallDecrypter(ENCRYPTION_INITIAL,
-                                          std::move(crypters.decrypter));
 
   // Configure the SSL to be a server.
   SSL_set_accept_state(ssl());

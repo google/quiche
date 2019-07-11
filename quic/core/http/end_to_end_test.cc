@@ -646,7 +646,21 @@ TEST_P(EndToEndTest, SimpleRequestResponseZeroConnectionID) {
                 GetParam().negotiated_version.transport_version));
 }
 
-TEST_P(EndToEndTest, BadConnectionIdLength) {
+TEST_P(EndToEndTestWithTls, ZeroConnectionID) {
+  QuicConnectionId connection_id = QuicUtils::CreateZeroConnectionId(
+      GetParam().negotiated_version.transport_version);
+  override_server_connection_id_ = &connection_id;
+  expected_server_connection_id_length_ = connection_id.length();
+  ASSERT_TRUE(Initialize());
+
+  EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
+  EXPECT_EQ("200", client_->response_headers()->find(":status")->second);
+  EXPECT_EQ(client_->client()->client_session()->connection()->connection_id(),
+            QuicUtils::CreateZeroConnectionId(
+                GetParam().negotiated_version.transport_version));
+}
+
+TEST_P(EndToEndTestWithTls, BadConnectionIdLength) {
   if (!QuicUtils::VariableLengthConnectionIdAllowedForVersion(
           GetParam().negotiated_version.transport_version)) {
     ASSERT_TRUE(Initialize());
@@ -665,7 +679,31 @@ TEST_P(EndToEndTest, BadConnectionIdLength) {
                                                 .length());
 }
 
-TEST_P(EndToEndTest, ClientConnectionId) {
+// Tests a very long (16-byte) initial destination connection ID to make
+// sure the dispatcher properly replaces it with an 8-byte one.
+TEST_P(EndToEndTestWithTls, LongBadConnectionIdLength) {
+  if (!QuicUtils::VariableLengthConnectionIdAllowedForVersion(
+          GetParam().negotiated_version.transport_version)) {
+    ASSERT_TRUE(Initialize());
+    return;
+  }
+  const char connection_id_bytes[16] = {0xb0, 0xb1, 0xb2, 0xb3, 0xb4, 0xb5,
+                                        0xb6, 0xb7, 0xb8, 0xb9, 0xba, 0xbb,
+                                        0xbc, 0xbd, 0xbe, 0xbf};
+  QuicConnectionId connection_id =
+      QuicConnectionId(connection_id_bytes, sizeof(connection_id_bytes));
+  override_server_connection_id_ = &connection_id;
+  ASSERT_TRUE(Initialize());
+  EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
+  EXPECT_EQ("200", client_->response_headers()->find(":status")->second);
+  EXPECT_EQ(kQuicDefaultConnectionIdLength, client_->client()
+                                                ->client_session()
+                                                ->connection()
+                                                ->connection_id()
+                                                .length());
+}
+
+TEST_P(EndToEndTestWithTls, ClientConnectionId) {
   if (!GetParam().negotiated_version.SupportsClientConnectionIds()) {
     ASSERT_TRUE(Initialize());
     return;
@@ -682,7 +720,7 @@ TEST_P(EndToEndTest, ClientConnectionId) {
                                       ->client_connection_id());
 }
 
-TEST_P(EndToEndTest, ForcedVersionNegotiationAndClientConnectionId) {
+TEST_P(EndToEndTestWithTls, ForcedVersionNegotiationAndClientConnectionId) {
   if (!GetParam().negotiated_version.SupportsClientConnectionIds()) {
     ASSERT_TRUE(Initialize());
     return;
@@ -702,7 +740,7 @@ TEST_P(EndToEndTest, ForcedVersionNegotiationAndClientConnectionId) {
                                       ->client_connection_id());
 }
 
-TEST_P(EndToEndTest, ForcedVersionNegotiationAndBadConnectionIdLength) {
+TEST_P(EndToEndTestWithTls, ForcedVersionNegotiationAndBadConnectionIdLength) {
   if (!QuicUtils::VariableLengthConnectionIdAllowedForVersion(
           GetParam().negotiated_version.transport_version)) {
     ASSERT_TRUE(Initialize());
@@ -722,6 +760,44 @@ TEST_P(EndToEndTest, ForcedVersionNegotiationAndBadConnectionIdLength) {
                                                 ->connection()
                                                 ->connection_id()
                                                 .length());
+}
+
+// Forced Version Negotiation with a client connection ID and a long
+// connection ID.
+TEST_P(EndToEndTestWithTls, ForcedVersNegoAndClientCIDAndLongCID) {
+  if (!GetParam().negotiated_version.SupportsClientConnectionIds() ||
+      !QuicUtils::VariableLengthConnectionIdAllowedForVersion(
+          GetParam().negotiated_version.transport_version)) {
+    ASSERT_TRUE(Initialize());
+    return;
+  }
+  client_supported_versions_.insert(client_supported_versions_.begin(),
+                                    QuicVersionReservedForNegotiation());
+  const char connection_id_bytes[16] = {0xb0, 0xb1, 0xb2, 0xb3, 0xb4, 0xb5,
+                                        0xb6, 0xb7, 0xb8, 0xb9, 0xba, 0xbb,
+                                        0xbc, 0xbd, 0xbe, 0xbf};
+  QuicConnectionId connection_id =
+      QuicConnectionId(connection_id_bytes, sizeof(connection_id_bytes));
+  override_server_connection_id_ = &connection_id;
+  const char client_connection_id_bytes[18] = {
+      0xc0, 0xc1, 0xc2, 0xc3, 0xc4, 0xc5, 0xc6, 0xc7, 0xc8,
+      0xc9, 0xca, 0xcb, 0xcc, 0xcd, 0xce, 0xcf, 0xc0, 0xc1};
+  QuicConnectionId client_connection_id = QuicConnectionId(
+      client_connection_id_bytes, sizeof(client_connection_id_bytes));
+  override_client_connection_id_ = &client_connection_id;
+  ASSERT_TRUE(Initialize());
+  ASSERT_TRUE(ServerSendsVersionNegotiation());
+  EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
+  EXPECT_EQ("200", client_->response_headers()->find(":status")->second);
+  EXPECT_EQ(kQuicDefaultConnectionIdLength, client_->client()
+                                                ->client_session()
+                                                ->connection()
+                                                ->connection_id()
+                                                .length());
+  EXPECT_EQ(client_connection_id, client_->client()
+                                      ->client_session()
+                                      ->connection()
+                                      ->client_connection_id());
 }
 
 TEST_P(EndToEndTest, MixGoodAndBadConnectionIdLengths) {

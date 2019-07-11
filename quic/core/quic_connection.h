@@ -868,6 +868,11 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // For logging purpose.
   const QuicAckFrame& ack_frame() const;
 
+  // Install encrypter and decrypter for ENCRYPTION_INITIAL using
+  // |connection_id| as the first client-sent destination connection ID,
+  // or the one sent after an IETF Retry.
+  void InstallInitialCrypters(QuicConnectionId connection_id);
+
  protected:
   // Calls cancel() on all the alarms owned by this connection.
   void CancelAllAlarms();
@@ -1114,9 +1119,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // Whether incoming_connection_ids_ contains connection_id.
   bool HasIncomingConnectionId(QuicConnectionId connection_id);
-
-  // Install encrypter and decrypter for ENCRYPTION_INITIAL.
-  void InstallInitialCrypters();
 
   QuicFramer framer_;
 
