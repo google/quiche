@@ -380,16 +380,16 @@ void QuicSpdySession::Initialize() {
             headers_stream_->id());
 
   unowned_headers_stream_ = headers_stream_.get();
-  RegisterStaticStreamNew(std::move(headers_stream_),
-                          /*stream_already_counted = */ false);
+  RegisterStaticStream(std::move(headers_stream_),
+                       /*stream_already_counted = */ false);
 
   if (VersionHasStreamType(connection()->transport_version())) {
     auto send_control = QuicMakeUnique<QuicSendControlStream>(
         GetNextOutgoingUnidirectionalStreamId(), this,
         max_inbound_header_list_size_);
     send_control_stream_ = send_control.get();
-    RegisterStaticStreamNew(std::move(send_control),
-                            /*stream_already_counted = */ false);
+    RegisterStaticStream(std::move(send_control),
+                         /*stream_already_counted = */ false);
   }
 
   set_max_uncompressed_header_bytes(max_inbound_header_list_size_);
@@ -775,8 +775,8 @@ bool QuicSpdySession::ProcessPendingStream(PendingStream* pending) {
     case kControlStream: {  // HTTP/3 control stream.
       auto receive_stream = QuicMakeUnique<QuicReceiveControlStream>(pending);
       receive_control_stream_ = receive_stream.get();
-      RegisterStaticStreamNew(std::move(receive_stream),
-                              /*stream_already_counted = */ true);
+      RegisterStaticStream(std::move(receive_stream),
+                           /*stream_already_counted = */ true);
       receive_control_stream_->SetUnblocked();
       return true;
     }

@@ -429,8 +429,6 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
   }
 
  protected:
-  using StaticStreamMap = QuicSmallMap<QuicStreamId, QuicStream*, 2>;
-
   using DynamicStreamMap =
       QuicSmallMap<QuicStreamId, std::unique_ptr<QuicStream>, 10>;
 
@@ -498,14 +496,12 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
   // ProcessPendingStream().
   virtual bool UsesPendingStreams() const { return false; }
 
-  // Register (|id|, |stream|) with the static stream map. Override previous
-  // registrations with the same id.
-  void RegisterStaticStream(QuicStreamId id, QuicStream* stream);
-  // TODO(renjietang): Replace the original Register method with the new one
-  // once flag is deprecated.
-  void RegisterStaticStreamNew(std::unique_ptr<QuicStream> stream,
-                               bool stream_already_counted);
-  const StaticStreamMap& static_streams() const { return static_stream_map_; }
+  // Transfer ownership of |stream| to dynamic_stream_map_, and register
+  // |stream| as static in stream id manager. |stream_already_counted| is true
+  // if |stream| is created from pending stream and is already known as an open
+  // stream.
+  void RegisterStaticStream(std::unique_ptr<QuicStream> stream,
+                            bool stream_already_counted);
 
   DynamicStreamMap& dynamic_streams() { return dynamic_stream_map_; }
   const DynamicStreamMap& dynamic_streams() const {
@@ -644,10 +640,6 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
 
   QuicConfig config_;
 
-  // Static streams, such as crypto and header streams. Owned by child classes
-  // that create these streams.
-  StaticStreamMap static_stream_map_;
-
   // Map from StreamId to pointers to streams. Owns the streams.
   DynamicStreamMap dynamic_stream_map_;
 
@@ -698,9 +690,6 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
   // The stream id which was last popped in OnCanWrite, or 0, if not under the
   // call stack of OnCanWrite.
   QuicStreamId currently_writing_stream_id_;
-
-  // The largest stream id in |static_stream_map_|.
-  QuicStreamId largest_static_stream_id_;
 
   // Cached value of whether the crypto handshake has been confirmed.
   bool is_handshake_confirmed_;

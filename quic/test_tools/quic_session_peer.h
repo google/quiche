@@ -56,7 +56,6 @@ class QuicSessionPeer {
                                               QuicStreamId stream_id);
   static std::map<QuicStreamId, QuicStreamOffset>&
   GetLocallyClosedStreamsHighestOffset(QuicSession* session);
-  static QuicSession::StaticStreamMap& static_streams(QuicSession* session);
   static QuicSession::DynamicStreamMap& dynamic_streams(QuicSession* session);
   static const QuicSession::ClosedStreams& closed_streams(QuicSession* session);
   static QuicSession::ZombieStreamMap& zombie_streams(QuicSession* session);
@@ -65,9 +64,6 @@ class QuicSessionPeer {
   static void ActivateStream(QuicSession* session,
                              std::unique_ptr<QuicStream> stream);
   static void RegisterStaticStream(QuicSession* session,
-                                   QuicStreamId stream_id,
-                                   QuicStream* stream);
-  static void RegisterStaticStreamNew(QuicSession* session,
                                       std::unique_ptr<QuicStream> stream);
 
   // Discern the state of a stream.  Exactly one of these should be true at a

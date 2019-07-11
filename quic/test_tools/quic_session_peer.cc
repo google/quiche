@@ -130,12 +130,6 @@ QuicSessionPeer::GetLocallyClosedStreamsHighestOffset(QuicSession* session) {
 }
 
 // static
-QuicSession::StaticStreamMap& QuicSessionPeer::static_streams(
-    QuicSession* session) {
-  return session->static_stream_map_;
-}
-
-// static
 QuicSession::DynamicStreamMap& QuicSessionPeer::dynamic_streams(
     QuicSession* session) {
   return session->dynamic_streams();
@@ -167,17 +161,9 @@ void QuicSessionPeer::ActivateStream(QuicSession* session,
 
 // static
 void QuicSessionPeer::RegisterStaticStream(QuicSession* session,
-                                           QuicStreamId id,
-                                           QuicStream* stream) {
-  return session->RegisterStaticStream(id, stream);
-}
-
-// static
-void QuicSessionPeer::RegisterStaticStreamNew(
-    QuicSession* session,
-    std::unique_ptr<QuicStream> stream) {
-  return session->RegisterStaticStreamNew(std::move(stream),
-                                          /*stream_already_counted = */ false);
+                                           std::unique_ptr<QuicStream> stream) {
+  return session->RegisterStaticStream(std::move(stream),
+                                       /*stream_already_counted = */ false);
 }
 
 // static

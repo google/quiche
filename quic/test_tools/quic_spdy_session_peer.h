@@ -24,8 +24,6 @@ class QuicSpdySessionPeer {
   QuicSpdySessionPeer() = delete;
 
   static QuicHeadersStream* GetHeadersStream(QuicSpdySession* session);
-  static void SetHeadersStream(QuicSpdySession* session,
-                               QuicHeadersStream* headers_stream);
   static void SetUnownedHeadersStream(QuicSpdySession* session,
                                       QuicHeadersStream* headers_stream);
   static const spdy::SpdyFramer& GetSpdyFramer(QuicSpdySession* session);

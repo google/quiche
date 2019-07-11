@@ -81,7 +81,6 @@ QuicSession::QuicSession(QuicConnection* connection,
           perspective() == Perspective::IS_SERVER,
           nullptr),
       currently_writing_stream_id_(0),
-      largest_static_stream_id_(0),
       is_handshake_confirmed_(false),
       goaway_sent_(false),
       goaway_received_(false),
@@ -109,7 +108,6 @@ void QuicSession::Initialize() {
 
   QuicStreamId id =
       QuicUtils::GetCryptoStreamId(connection_->transport_version());
-  largest_static_stream_id_ = std::max(id, largest_static_stream_id_);
   if (VersionHasIetfQuicFrames(connection_->transport_version())) {
     v99_streamid_manager_.RegisterStaticStream(id, false);
   }
@@ -119,23 +117,8 @@ QuicSession::~QuicSession() {
   QUIC_LOG_IF(WARNING, !zombie_streams_.empty()) << "Still have zombie streams";
 }
 
-void QuicSession::RegisterStaticStream(QuicStreamId id, QuicStream* stream) {
-  static_stream_map_[id] = stream;
-
-  QUIC_BUG_IF(id >
-              largest_static_stream_id_ +
-                  QuicUtils::StreamIdDelta(connection_->transport_version()))
-      << ENDPOINT << "Static stream registered out of order: " << id
-      << " vs: " << largest_static_stream_id_;
-  largest_static_stream_id_ = std::max(id, largest_static_stream_id_);
-
-  if (VersionHasIetfQuicFrames(connection_->transport_version())) {
-    v99_streamid_manager_.RegisterStaticStream(id, false);
-  }
-}
-
-void QuicSession::RegisterStaticStreamNew(std::unique_ptr<QuicStream> stream,
-                                          bool stream_already_counted) {
+void QuicSession::RegisterStaticStream(std::unique_ptr<QuicStream> stream,
+                                       bool stream_already_counted) {
   DCHECK(stream->is_static());
   QuicStreamId stream_id = stream->id();
   dynamic_stream_map_[stream_id] = std::move(stream);
@@ -183,13 +166,6 @@ void QuicSession::OnStreamFrame(const QuicStreamFrame& frame) {
       QuicUtils::GetInvalidStreamId(connection()->transport_version())) {
     connection()->CloseConnection(
         QUIC_INVALID_STREAM_ID, "Received data for an invalid stream",
-        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
-    return;
-  }
-
-  if (frame.fin && QuicContainsKey(static_stream_map_, stream_id)) {
-    connection()->CloseConnection(
-        QUIC_INVALID_STREAM_ID, "Attempt to close a static stream",
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return;
   }
@@ -252,8 +228,7 @@ bool QuicSession::OnStopSendingFrame(const QuicStopSendingFrame& frame) {
   // TODO(fkastenholz): IETF Quic does not have static streams and does not
   // make exceptions for them with respect to processing things like
   // STOP_SENDING.
-  if (QuicContainsKey(static_stream_map_, stream_id) ||
-      QuicUtils::IsCryptoStreamId(connection_->transport_version(),
+  if (QuicUtils::IsCryptoStreamId(connection_->transport_version(),
                                   stream_id)) {
     QUIC_DVLOG(1) << ENDPOINT
                   << "Received STOP_SENDING for a static stream, id: "
@@ -346,13 +321,6 @@ void QuicSession::OnRstStream(const QuicRstStreamFrame& frame) {
       QuicUtils::GetInvalidStreamId(connection()->transport_version())) {
     connection()->CloseConnection(
         QUIC_INVALID_STREAM_ID, "Received data for an invalid stream",
-        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
-    return;
-  }
-
-  if (QuicContainsKey(static_stream_map_, stream_id)) {
-    connection()->CloseConnection(
-        QUIC_INVALID_STREAM_ID, "Attempt to reset a static stream",
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return;
   }
@@ -1081,9 +1049,6 @@ void QuicSession::AdjustInitialFlowControlWindows(size_t stream_window) {
   config_.SetInitialSessionFlowControlWindowToSend(session_window);
   flow_controller_.UpdateReceiveWindowSize(session_window);
   // Inform all existing streams about the new window.
-  for (auto const& kv : static_stream_map_) {
-    kv.second->flow_controller()->UpdateReceiveWindowSize(stream_window);
-  }
   for (auto const& kv : dynamic_stream_map_) {
     kv.second->flow_controller()->UpdateReceiveWindowSize(stream_window);
   }
@@ -1130,9 +1095,6 @@ void QuicSession::OnNewStreamFlowControlWindow(QuicStreamOffset new_window) {
   }
 
   // Inform all existing streams about the new window.
-  for (auto const& kv : static_stream_map_) {
-    kv.second->UpdateSendWindowOffset(new_window);
-  }
   for (auto const& kv : dynamic_stream_map_) {
     kv.second->UpdateSendWindowOffset(new_window);
   }
@@ -1220,7 +1182,6 @@ void QuicSession::ActivateStream(std::unique_ptr<QuicStream> stream) {
   QUIC_DVLOG(1) << ENDPOINT << "num_streams: " << dynamic_stream_map_.size()
                 << ". activating " << stream_id;
   DCHECK(!QuicContainsKey(dynamic_stream_map_, stream_id));
-  DCHECK(!QuicContainsKey(static_stream_map_, stream_id));
   dynamic_stream_map_[stream_id] = std::move(stream);
   if (IsIncomingStream(stream_id)) {
     ++num_dynamic_incoming_streams_;
@@ -1262,10 +1223,6 @@ QuicStream* QuicSession::GetOrCreateStream(const QuicStreamId stream_id) {
   if (QuicUtils::IsCryptoStreamId(connection_->transport_version(),
                                   stream_id)) {
     return GetMutableCryptoStream();
-  }
-  StaticStreamMap::iterator it = static_stream_map_.find(stream_id);
-  if (it != static_stream_map_.end()) {
-    return it->second;
   }
   return GetOrCreateDynamicStream(stream_id);
 }
@@ -1321,8 +1278,6 @@ PendingStream* QuicSession::GetOrCreatePendingStream(QuicStreamId stream_id) {
 
 QuicStream* QuicSession::GetOrCreateDynamicStream(
     const QuicStreamId stream_id) {
-  DCHECK(!QuicContainsKey(static_stream_map_, stream_id))
-      << "Attempt to call GetOrCreateDynamicStream for a static stream";
 
   DynamicStreamMap::iterator it = dynamic_stream_map_.find(stream_id);
   if (it != dynamic_stream_map_.end()) {
@@ -1390,8 +1345,7 @@ bool QuicSession::IsClosedStream(QuicStreamId id) {
 bool QuicSession::IsOpenStream(QuicStreamId id) {
   DCHECK_NE(QuicUtils::GetInvalidStreamId(connection_->transport_version()),
             id);
-  if (QuicContainsKey(static_stream_map_, id) ||
-      QuicContainsKey(dynamic_stream_map_, id) ||
+  if (QuicContainsKey(dynamic_stream_map_, id) ||
       QuicContainsKey(pending_stream_map_, id) ||
       QuicUtils::IsCryptoStreamId(connection_->transport_version(), id)) {
     // Stream is active
@@ -1483,11 +1437,6 @@ bool QuicSession::IsConnectionFlowControlBlocked() const {
 }
 
 bool QuicSession::IsStreamFlowControlBlocked() {
-  for (auto const& kv : static_stream_map_) {
-    if (kv.second->flow_controller()->IsBlocked()) {
-      return true;
-    }
-  }
   for (auto const& kv : dynamic_stream_map_) {
     if (kv.second->flow_controller()->IsBlocked()) {
       return true;
@@ -1559,12 +1508,10 @@ void QuicSession::OnStreamWaitingForAcks(QuicStreamId id) {
 
   // The number of the streams waiting for acks should not be larger than the
   // number of streams.
-  if (static_cast<size_t>(dynamic_stream_map_.size() +
-                          static_stream_map_.size() + zombie_streams_.size()) <
+  if (static_cast<size_t>(dynamic_stream_map_.size() + zombie_streams_.size()) <
       streams_waiting_for_acks_.size()) {
     QUIC_BUG << "More streams are waiting for acks than the number of streams. "
              << "Sizes: dynamic streams: " << dynamic_stream_map_.size()
-             << ", static streams: " << static_stream_map_.size()
              << ", zombie streams: " << zombie_streams_.size()
              << ", vs streams waiting for acks: "
              << streams_waiting_for_acks_.size();
@@ -1572,13 +1519,6 @@ void QuicSession::OnStreamWaitingForAcks(QuicStreamId id) {
 }
 
 QuicStream* QuicSession::GetStream(QuicStreamId id) const {
-  if (id <= largest_static_stream_id_) {
-    auto static_stream = static_stream_map_.find(id);
-    if (static_stream != static_stream_map_.end()) {
-      return static_stream->second;
-    }
-  }
-
   auto active_stream = dynamic_stream_map_.find(id);
   if (active_stream != dynamic_stream_map_.end()) {
     return active_stream->second.get();
