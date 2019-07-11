@@ -84,8 +84,7 @@ bool TlsClientHandshaker::CryptoConnect() {
     return false;
   }
 
-  std::string alpn_string =
-      AlpnForVersion(session()->supported_versions().front());
+  std::string alpn_string = AlpnForVersion(session()->connection()->version());
   if (alpn_string.length() > std::numeric_limits<uint8_t>::max()) {
     QUIC_BUG << "ALPN too long: '" << alpn_string << "'";
     CloseConnection(QUIC_HANDSHAKE_FAILED, "ALPN too long");
@@ -273,7 +272,7 @@ void TlsClientHandshaker::FinishHandshake() {
     std::string received_alpn_string(reinterpret_cast<const char*>(alpn_data),
                                      alpn_length);
     std::string sent_alpn_string =
-        AlpnForVersion(session()->supported_versions().front());
+        AlpnForVersion(session()->connection()->version());
     if (received_alpn_string != sent_alpn_string) {
       QUIC_LOG(ERROR) << "Client: received mismatched ALPN '"
                       << received_alpn_string << "', expected '"

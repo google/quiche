@@ -598,6 +598,12 @@ TEST_P(EndToEndTest, SimpleRequestResponse) {
             client_->client()->GetNumSentClientHellos());
 }
 
+TEST_P(EndToEndTestWithTls, SimpleRequestResponse) {
+  ASSERT_TRUE(Initialize());
+  EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
+  EXPECT_EQ("200", client_->response_headers()->find(":status")->second);
+}
+
 TEST_P(EndToEndTest, SimpleRequestResponseForcedVersionNegotiation) {
   client_supported_versions_.insert(client_supported_versions_.begin(),
                                     QuicVersionReservedForNegotiation());
@@ -608,6 +614,16 @@ TEST_P(EndToEndTest, SimpleRequestResponseForcedVersionNegotiation) {
   EXPECT_EQ("200", client_->response_headers()->find(":status")->second);
 
   EXPECT_EQ(3, client_->client()->GetNumSentClientHellos());
+}
+
+TEST_P(EndToEndTestWithTls, ForcedVersionNegotiation) {
+  client_supported_versions_.insert(client_supported_versions_.begin(),
+                                    QuicVersionReservedForNegotiation());
+  ASSERT_TRUE(Initialize());
+  ASSERT_TRUE(ServerSendsVersionNegotiation());
+
+  EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
+  EXPECT_EQ("200", client_->response_headers()->find(":status")->second);
 }
 
 TEST_P(EndToEndTest, SimpleRequestResponseZeroConnectionID) {
