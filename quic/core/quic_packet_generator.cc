@@ -27,13 +27,9 @@ QuicPacketGenerator::QuicPacketGenerator(QuicConnectionId server_connection_id,
       next_transmission_type_(NOT_RETRANSMISSION),
       flusher_attached_(false),
       random_generator_(random_generator),
-      fully_pad_crypto_handshake_packets_(true),
-      deprecate_queued_control_frames_(
-          GetQuicReloadableFlag(quic_deprecate_queued_control_frames)) {}
+      fully_pad_crypto_handshake_packets_(true) {}
 
-QuicPacketGenerator::~QuicPacketGenerator() {
-  DeleteFrames(&queued_control_frames_);
-}
+QuicPacketGenerator::~QuicPacketGenerator() {}
 
 bool QuicPacketGenerator::ConsumeRetransmittableControlFrame(
     const QuicFrame& frame) {
@@ -41,29 +37,23 @@ bool QuicPacketGenerator::ConsumeRetransmittableControlFrame(
       << "Adding a control frame with no control frame id: " << frame;
   DCHECK(QuicUtils::IsRetransmittableFrame(frame.type)) << frame;
   MaybeBundleAckOpportunistically();
-  if (deprecate_queued_control_frames_) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_deprecate_queued_control_frames);
-    if (packet_creator_.HasPendingFrames()) {
-      if (packet_creator_.AddSavedFrame(frame, next_transmission_type_)) {
-        // There is pending frames and current frame fits.
-        return true;
-      }
+  if (packet_creator_.HasPendingFrames()) {
+    if (packet_creator_.AddSavedFrame(frame, next_transmission_type_)) {
+      // There is pending frames and current frame fits.
+      return true;
     }
-    DCHECK(!packet_creator_.HasPendingFrames());
-    if (frame.type != PING_FRAME && frame.type != CONNECTION_CLOSE_FRAME &&
-        !delegate_->ShouldGeneratePacket(HAS_RETRANSMITTABLE_DATA,
-                                         NOT_HANDSHAKE)) {
-      // Do not check congestion window for ping or connection close frames.
-      return false;
-    }
-    const bool success =
-        packet_creator_.AddSavedFrame(frame, next_transmission_type_);
-    DCHECK(success);
-    return success;
   }
-  queued_control_frames_.push_back(frame);
-  SendQueuedFrames(/*flush=*/false);
-  return true;
+  DCHECK(!packet_creator_.HasPendingFrames());
+  if (frame.type != PING_FRAME && frame.type != CONNECTION_CLOSE_FRAME &&
+      !delegate_->ShouldGeneratePacket(HAS_RETRANSMITTABLE_DATA,
+                                       NOT_HANDSHAKE)) {
+    // Do not check congestion window for ping or connection close frames.
+    return false;
+  }
+  const bool success =
+      packet_creator_.AddSavedFrame(frame, next_transmission_type_);
+  DCHECK(success);
+  return success;
 }
 
 size_t QuicPacketGenerator::ConsumeCryptoData(EncryptionLevel level,
@@ -77,8 +67,9 @@ size_t QuicPacketGenerator::ConsumeCryptoData(EncryptionLevel level,
   // TODO(nharper): Once we have separate packet number spaces, everything
   // should be driven by encryption level, and we should stop flushing in this
   // spot.
-  const bool flush = packet_creator_.HasPendingRetransmittableFrames();
-  SendQueuedFrames(flush);
+  if (packet_creator_.HasPendingRetransmittableFrames()) {
+    packet_creator_.Flush();
+  }
 
   size_t total_bytes_consumed = 0;
 
@@ -101,7 +92,7 @@ size_t QuicPacketGenerator::ConsumeCryptoData(EncryptionLevel level,
   }
 
   // Don't allow the handshake to be bundled with other retransmittable frames.
-  SendQueuedFrames(/*flush=*/true);
+  packet_creator_.Flush();
 
   return total_bytes_consumed;
 }
@@ -120,9 +111,9 @@ QuicConsumedData QuicPacketGenerator::ConsumeData(QuicStreamId id,
       << "Handshake packets should never send a fin";
   // To make reasoning about crypto frames easier, we don't combine them with
   // other retransmittable frames in a single packet.
-  const bool flush =
-      has_handshake && packet_creator_.HasPendingRetransmittableFrames();
-  SendQueuedFrames(flush);
+  if (has_handshake && packet_creator_.HasPendingRetransmittableFrames()) {
+    packet_creator_.Flush();
+  }
 
   size_t total_bytes_consumed = 0;
   bool fin_consumed = false;
@@ -138,7 +129,7 @@ QuicConsumedData QuicPacketGenerator::ConsumeData(QuicStreamId id,
   // We determine if we can enter the fast path before executing
   // the slow path loop.
   bool run_fast_path =
-      !has_handshake && state != FIN_AND_PADDING && !HasQueuedFrames() &&
+      !has_handshake && state != FIN_AND_PADDING && !HasPendingFrames() &&
       write_length - total_bytes_consumed > kMaxOutgoingPacketSize;
 
   while (!run_fast_path && delegate_->ShouldGeneratePacket(
@@ -178,7 +169,7 @@ QuicConsumedData QuicPacketGenerator::ConsumeData(QuicStreamId id,
     packet_creator_.Flush();
 
     run_fast_path =
-        !has_handshake && state != FIN_AND_PADDING && !HasQueuedFrames() &&
+        !has_handshake && state != FIN_AND_PADDING && !HasPendingFrames() &&
         write_length - total_bytes_consumed > kMaxOutgoingPacketSize;
   }
 
@@ -189,7 +180,7 @@ QuicConsumedData QuicPacketGenerator::ConsumeData(QuicStreamId id,
 
   // Don't allow the handshake to be bundled with other retransmittable frames.
   if (has_handshake) {
-    SendQueuedFrames(/*flush=*/true);
+    packet_creator_.Flush();
   }
 
   return QuicConsumedData(total_bytes_consumed, fin_consumed);
@@ -245,40 +236,6 @@ void QuicPacketGenerator::GenerateMtuDiscoveryPacket(QuicByteCount target_mtu) {
   SetMaxPacketLength(current_mtu);
 }
 
-bool QuicPacketGenerator::CanSendWithNextPendingFrameAddition() const {
-  DCHECK(HasPendingFrames() || packet_creator_.pending_padding_bytes() > 0);
-  HasRetransmittableData retransmittable =
-      packet_creator_.pending_padding_bytes() > 0 ? NO_RETRANSMITTABLE_DATA
-                                                  : HAS_RETRANSMITTABLE_DATA;
-  if (retransmittable == HAS_RETRANSMITTABLE_DATA) {
-    DCHECK(!queued_control_frames_.empty());  // These are retransmittable.
-  }
-  return delegate_->ShouldGeneratePacket(retransmittable, NOT_HANDSHAKE);
-}
-
-void QuicPacketGenerator::SendQueuedFrames(bool flush) {
-  // Only add pending frames if we are SURE we can then send the whole packet.
-  while (HasPendingFrames() &&
-         (flush || CanSendWithNextPendingFrameAddition())) {
-    bool first_frame = packet_creator_.CanSetMaxPacketLength();
-    if (!AddNextPendingFrame() && first_frame) {
-      // A single frame cannot fit into the packet, tear down the connection.
-      QUIC_BUG << "A single frame cannot fit into packet."
-               << " number of queued_control_frames: "
-               << queued_control_frames_.size();
-      if (!queued_control_frames_.empty()) {
-        QUIC_LOG(INFO) << queued_control_frames_[0];
-      }
-      delegate_->OnUnrecoverableError(QUIC_FAILED_TO_SERIALIZE_PACKET,
-                                      "Single frame cannot fit into a packet");
-      return;
-    }
-  }
-  if (flush) {
-    packet_creator_.Flush();
-  }
-}
-
 bool QuicPacketGenerator::PacketFlusherAttached() const {
   return flusher_attached_;
 }
@@ -291,7 +248,6 @@ void QuicPacketGenerator::AttachPacketFlusher() {
 }
 
 void QuicPacketGenerator::Flush() {
-  SendQueuedFrames(/*flush=*/false);
   packet_creator_.Flush();
   SendRemainingPendingPadding();
   flusher_attached_ = false;
@@ -309,34 +265,11 @@ void QuicPacketGenerator::Flush() {
 }
 
 void QuicPacketGenerator::FlushAllQueuedFrames() {
-  SendQueuedFrames(/*flush=*/true);
-}
-
-bool QuicPacketGenerator::HasQueuedFrames() const {
-  return packet_creator_.HasPendingFrames() || HasPendingFrames();
-}
-
-bool QuicPacketGenerator::IsPendingPacketEmpty() const {
-  return !packet_creator_.HasPendingFrames();
+  packet_creator_.Flush();
 }
 
 bool QuicPacketGenerator::HasPendingFrames() const {
-  return !queued_control_frames_.empty();
-}
-
-bool QuicPacketGenerator::AddNextPendingFrame() {
-  QUIC_BUG_IF(!flusher_attached_) << "Packet flusher is not attached when "
-                                     "generator tries to write control frames.";
-  QUIC_BUG_IF(queued_control_frames_.empty())
-      << "AddNextPendingFrame called with no queued control frames.";
-
-  if (!packet_creator_.AddSavedFrame(queued_control_frames_.back(),
-                                     next_transmission_type_)) {
-    // Packet was full.
-    return false;
-  }
-  queued_control_frames_.pop_back();
-  return true;
+  return packet_creator_.HasPendingFrames();
 }
 
 void QuicPacketGenerator::StopSendingVersion() {
@@ -427,15 +360,15 @@ void QuicPacketGenerator::AddRandomPadding() {
 }
 
 void QuicPacketGenerator::SendRemainingPendingPadding() {
-  while (packet_creator_.pending_padding_bytes() > 0 && !HasQueuedFrames() &&
-         CanSendWithNextPendingFrameAddition()) {
+  while (
+      packet_creator_.pending_padding_bytes() > 0 && !HasPendingFrames() &&
+      delegate_->ShouldGeneratePacket(NO_RETRANSMITTABLE_DATA, NOT_HANDSHAKE)) {
     packet_creator_.Flush();
   }
 }
 
 bool QuicPacketGenerator::HasRetransmittableFrames() const {
-  return !queued_control_frames_.empty() ||
-         packet_creator_.HasPendingRetransmittableFrames();
+  return packet_creator_.HasPendingRetransmittableFrames();
 }
 
 bool QuicPacketGenerator::HasPendingStreamFramesOfStream(
@@ -468,7 +401,6 @@ MessageStatus QuicPacketGenerator::AddMessageFrame(QuicMessageId message_id,
   if (message_length > GetCurrentLargestMessagePayload()) {
     return MESSAGE_STATUS_TOO_LARGE;
   }
-  SendQueuedFrames(/*flush=*/false);
   if (!packet_creator_.HasRoomForMessageFrame(message_length)) {
     packet_creator_.Flush();
   }

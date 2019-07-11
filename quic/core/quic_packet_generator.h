@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Responsible for generating packets on behalf of a QuicConnection.
-// Packets are serialized just-in-time.  Control frames are queued.
+// Packets are serialized just-in-time.
 // Ack and Feedback frames will be requested from the Connection
 // just-in-time.  When a packet needs to be sent, the Generator
 // will serialize a packet and pass it to QuicConnection::SendOrQueuePacket()
@@ -121,16 +121,14 @@ class QUIC_EXPORT_PRIVATE QuicPacketGenerator {
   bool PacketFlusherAttached() const;
   // Attaches packet flusher.
   void AttachPacketFlusher();
-  // Flushes everything, including all queued frames and pending padding.
+  // Flushes everything, including current open packet and pending padding.
   void Flush();
 
-  // Flushes all queued frames, even frames which are not sendable.
+  // Flushes current open packet.
   void FlushAllQueuedFrames();
 
-  bool HasQueuedFrames() const;
-
-  // Whether the pending packet has no frames in it at the moment.
-  bool IsPendingPacketEmpty() const;
+  // Returns true if there are frames pending to be serialized.
+  bool HasPendingFrames() const;
 
   // Makes the framer not serialize the protocol version in sent packets.
   void StopSendingVersion();
@@ -241,25 +239,8 @@ class QUIC_EXPORT_PRIVATE QuicPacketGenerator {
     return fully_pad_crypto_handshake_packets_;
   }
 
-  bool deprecate_queued_control_frames() const {
-    return deprecate_queued_control_frames_;
-  }
-
  private:
   friend class test::QuicPacketGeneratorPeer;
-
-  void SendQueuedFrames(bool flush);
-
-  // Test to see if we have pending ack, or control frames.
-  bool HasPendingFrames() const;
-  // Returns true if addition of a pending frame (which might be
-  // retransmittable) would still allow the resulting packet to be sent now.
-  bool CanSendWithNextPendingFrameAddition() const;
-  // Add exactly one pending frame, preferring ack frames over control frames.
-  // Returns true if a pending frame is successfully added.
-  // Returns false and flushes current open packet if the pending frame cannot
-  // fit into current open packet.
-  bool AddNextPendingFrame();
 
   // Adds a random amount of padding (between 1 to 256 bytes).
   void AddRandomPadding();
@@ -275,9 +256,6 @@ class QUIC_EXPORT_PRIVATE QuicPacketGenerator {
   DelegateInterface* delegate_;
 
   QuicPacketCreator packet_creator_;
-  // TODO(fayang): remove this when deprecating
-  // quic_deprecate_queued_control_frames.
-  QuicFrames queued_control_frames_;
 
   // Transmission type of the next serialized packet.
   TransmissionType next_transmission_type_;
@@ -294,9 +272,6 @@ class QUIC_EXPORT_PRIVATE QuicPacketGenerator {
   // when the out-most flusher attaches and gets cleared when the out-most
   // flusher detaches.
   QuicPacketNumber write_start_packet_number_;
-
-  // Latched value of quic_deprecate_queued_control_frames.
-  const bool deprecate_queued_control_frames_;
 };
 
 }  // namespace quic

@@ -708,7 +708,7 @@ bool QuicConnection::OnUnauthenticatedHeader(const QuicPacketHeader& header) {
              GetServerConnectionIdAsRecipient(header, perspective_)) ||
          PacketCanReplaceConnectionId(header, perspective_));
 
-  if (!packet_generator_.IsPendingPacketEmpty()) {
+  if (packet_generator_.HasPendingFrames()) {
     // Incoming packets may change a queued ACK frame.
     const std::string error_details =
         "Pending frames must be serialized before incoming packets are "
@@ -1517,16 +1517,10 @@ QuicConsumedData QuicConnection::SendStreamData(QuicStreamId id,
 }
 
 bool QuicConnection::SendControlFrame(const QuicFrame& frame) {
-  if (!packet_generator_.deprecate_queued_control_frames() &&
-      !CanWrite(HAS_RETRANSMITTABLE_DATA) && frame.type != PING_FRAME) {
-    QUIC_DVLOG(1) << ENDPOINT << "Failed to send control frame: " << frame;
-    // Do not check congestion window for ping.
-    return false;
-  }
   ScopedPacketFlusher flusher(this);
   const bool consumed =
       packet_generator_.ConsumeRetransmittableControlFrame(frame);
-  if (packet_generator_.deprecate_queued_control_frames() && !consumed) {
+  if (!consumed) {
     QUIC_DVLOG(1) << ENDPOINT << "Failed to send control frame: " << frame;
     return false;
   }
@@ -1921,7 +1915,7 @@ void QuicConnection::WritePendingRetransmissions() {
       ScopedPacketFlusher flusher(this);
       packet_generator_.FlushAllQueuedFrames();
     }
-    DCHECK(!packet_generator_.HasQueuedFrames());
+    DCHECK(!packet_generator_.HasPendingFrames());
     char buffer[kMaxOutgoingPacketSize];
     packet_generator_.ReserializeAllFrames(pending, buffer,
                                            kMaxOutgoingPacketSize);
@@ -2474,7 +2468,7 @@ void QuicConnection::SetDiversificationNonce(
 }
 
 void QuicConnection::SetDefaultEncryptionLevel(EncryptionLevel level) {
-  if (level != encryption_level_ && packet_generator_.HasQueuedFrames()) {
+  if (level != encryption_level_ && packet_generator_.HasPendingFrames()) {
     // Flush all queued frames when encryption level changes.
     ScopedPacketFlusher flusher(this);
     packet_generator_.FlushAllQueuedFrames();
@@ -2715,7 +2709,7 @@ void QuicConnection::SetMaxPacketLength(QuicByteCount length) {
 
 bool QuicConnection::HasQueuedData() const {
   return pending_version_negotiation_packet_ || !queued_packets_.empty() ||
-         packet_generator_.HasQueuedFrames();
+         packet_generator_.HasPendingFrames();
 }
 
 bool QuicConnection::CanWriteStreamData() {
