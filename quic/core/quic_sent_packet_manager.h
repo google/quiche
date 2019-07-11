@@ -339,6 +339,7 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   }
 
   QuicPacketNumber largest_packet_peer_knows_is_acked() const {
+    DCHECK(!supports_multiple_packet_number_spaces());
     return largest_packet_peer_knows_is_acked_;
   }
 

@@ -3383,7 +3383,10 @@ void QuicConnection::PostProcessAfterAckFrame(bool send_stop_waiting,
   if (no_stop_waiting_frames_) {
     uber_received_packet_manager_.DontWaitForPacketsBefore(
         last_decrypted_packet_level_,
-        sent_packet_manager_.largest_packet_peer_knows_is_acked());
+        SupportsMultiplePacketNumberSpaces()
+            ? sent_packet_manager_.GetLargestPacketPeerKnowsIsAcked(
+                  last_decrypted_packet_level_)
+            : sent_packet_manager_.largest_packet_peer_knows_is_acked());
   }
   // Always reset the retransmission alarm when an ack comes in, since we now
   // have a better estimate of the current rtt than when it was set.
