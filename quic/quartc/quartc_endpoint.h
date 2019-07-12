@@ -18,15 +18,6 @@
 
 namespace quic {
 
-// Private implementation of QuartcEndpoint.  Enables different implementations
-// for client and server endpoints.
-class QuartcEndpointImpl {
- public:
-  virtual ~QuartcEndpointImpl() = default;
-
-  virtual QuicStringPiece server_crypto_config() const = 0;
-};
-
 // Endpoint (client or server) in a peer-to-peer Quartc connection.
 class QuartcEndpoint {
  public:
