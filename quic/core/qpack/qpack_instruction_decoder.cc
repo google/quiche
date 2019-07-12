@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <utility>
 
+#include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 
 namespace quic {
@@ -172,6 +173,9 @@ size_t QpackInstructionDecoder::DoVarintStart(QuicStringPiece data) {
     case http2::DecodeStatus::kDecodeError:
       OnError("Encoded integer too large.");
       return bytes_consumed;
+    default:
+      QUIC_BUG << "Unknown decode status " << status;
+      return bytes_consumed;
   }
 }
 
@@ -196,6 +200,9 @@ size_t QpackInstructionDecoder::DoVarintResume(QuicStringPiece data) {
       return bytes_consumed;
     case http2::DecodeStatus::kDecodeError:
       OnError("Encoded integer too large.");
+      return bytes_consumed;
+    default:
+      QUIC_BUG << "Unknown decode status " << status;
       return bytes_consumed;
   }
 }

@@ -56,7 +56,6 @@ bool FrameDecoderState::SkipPadding(DecodeBuffer* db) {
                  << ", header: " << frame_header();
   DCHECK_EQ(remaining_payload_, 0u);
   DCHECK(IsPaddable()) << "header: " << frame_header();
-  DCHECK_GE(remaining_padding_, 0u);
   DCHECK(remaining_padding_ == 0 || frame_header().IsPadded())
       << "remaining_padding_=" << remaining_padding_
       << ", header: " << frame_header();
