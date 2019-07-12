@@ -171,8 +171,8 @@ QuicClientPromisedInfo* QuicSpdyClientSessionBase::GetPromisedById(
 
 QuicSpdyStream* QuicSpdyClientSessionBase::GetPromisedStream(
     const QuicStreamId id) {
-  DynamicStreamMap::iterator it = dynamic_streams().find(id);
-  if (it != dynamic_streams().end()) {
+  StreamMap::iterator it = stream_map().find(id);
+  if (it != stream_map().end()) {
     return static_cast<QuicSpdyStream*>(it->second.get());
   }
   return nullptr;

@@ -366,8 +366,8 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
   size_t MaxAvailableBidirectionalStreams() const;
   size_t MaxAvailableUnidirectionalStreams() const;
 
-  // Returns existing static or dynamic stream with id = |stream_id|. If no
-  // such stream exists, and |stream_id| is a peer-created dynamic stream id,
+  // Returns existing stream with id = |stream_id|. If no
+  // such stream exists, and |stream_id| is a peer-created stream id,
   // then a new stream is created and returned. In all other cases, nullptr is
   // returned.
   QuicStream* GetOrCreateStream(const QuicStreamId stream_id);
@@ -429,8 +429,7 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
   }
 
  protected:
-  using DynamicStreamMap =
-      QuicSmallMap<QuicStreamId, std::unique_ptr<QuicStream>, 10>;
+  using StreamMap = QuicSmallMap<QuicStreamId, std::unique_ptr<QuicStream>, 10>;
 
   using PendingStreamMap =
       QuicSmallMap<QuicStreamId, std::unique_ptr<PendingStream>, 10>;
@@ -452,7 +451,7 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
   // Return the reserved crypto stream as a constant pointer.
   virtual const QuicCryptoStream* GetCryptoStream() const = 0;
 
-  // Adds |stream| to the dynamic stream map.
+  // Adds |stream| to the stream map.
   virtual void ActivateStream(std::unique_ptr<QuicStream> stream);
 
   // Returns the stream ID for a new outgoing bidirectional/unidirectional
@@ -496,17 +495,15 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
   // ProcessPendingStream().
   virtual bool UsesPendingStreams() const { return false; }
 
-  // Transfer ownership of |stream| to dynamic_stream_map_, and register
+  // Transfer ownership of |stream| to stream_map_, and register
   // |stream| as static in stream id manager. |stream_already_counted| is true
   // if |stream| is created from pending stream and is already known as an open
   // stream.
   void RegisterStaticStream(std::unique_ptr<QuicStream> stream,
                             bool stream_already_counted);
 
-  DynamicStreamMap& dynamic_streams() { return dynamic_stream_map_; }
-  const DynamicStreamMap& dynamic_streams() const {
-    return dynamic_stream_map_;
-  }
+  StreamMap& stream_map() { return stream_map_; }
+  const StreamMap& stream_map() const { return stream_map_; }
 
   ClosedStreams* closed_streams() { return &closed_streams_; }
 
@@ -641,7 +638,7 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
   QuicConfig config_;
 
   // Map from StreamId to pointers to streams. Owns the streams.
-  DynamicStreamMap dynamic_stream_map_;
+  StreamMap stream_map_;
 
   // Map from StreamId to PendingStreams for peer-created unidirectional streams
   // which are waiting for the first byte of payload to arrive.
@@ -663,18 +660,18 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
   // Manages stream IDs for version99/IETF QUIC
   UberQuicStreamIdManager v99_streamid_manager_;
 
-  // A counter for peer initiated streams which are in the dynamic_stream_map_.
+  // A counter for peer initiated dynamic streams which are in the stream_map_.
   size_t num_dynamic_incoming_streams_;
 
   // A counter for peer initiated streams which are in the draining_streams_.
   size_t num_draining_incoming_streams_;
 
   // A counter for self initiated static streams which are in
-  // dynamic_stream_map_.
+  // stream_map_.
   size_t num_outgoing_static_streams_;
 
   // A counter for peer initiated static streams which are in
-  // dynamic_stream_map_.
+  // stream_map_.
   size_t num_incoming_static_streams_;
 
   // A counter for peer initiated streams which are in the

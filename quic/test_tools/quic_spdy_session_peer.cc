@@ -19,7 +19,7 @@ QuicHeadersStream* QuicSpdySessionPeer::GetHeadersStream(
 void QuicSpdySessionPeer::SetUnownedHeadersStream(
     QuicSpdySession* session,
     QuicHeadersStream* headers_stream) {
-  for (auto& it : session->dynamic_streams()) {
+  for (auto& it : session->stream_map()) {
     if (it.first == QuicUtils::GetHeadersStreamId(
                         session->connection()->transport_version())) {
       it.second.reset(headers_stream);

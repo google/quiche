@@ -343,7 +343,7 @@ QuicSpdySession::~QuicSpdySession() {
   for (auto const& kv : zombie_streams()) {
     static_cast<QuicSpdyStream*>(kv.second.get())->ClearSession();
   }
-  for (auto const& kv : dynamic_streams()) {
+  for (auto const& kv : stream_map()) {
     if (!kv.second->is_static()) {
       static_cast<QuicSpdyStream*>(kv.second.get())->ClearSession();
     }
@@ -743,11 +743,11 @@ void QuicSpdySession::CloseConnectionWithDetails(QuicErrorCode error,
 
 bool QuicSpdySession::HasActiveRequestStreams() const {
   // In the case where session is destructed by calling
-  // dynamic_streams().clear(), we will have incorrect accounting here.
+  // stream_map().clear(), we will have incorrect accounting here.
   // TODO(renjietang): Modify destructors and make this a DCHECK.
-  if (static_cast<size_t>(dynamic_streams().size()) >
+  if (static_cast<size_t>(stream_map().size()) >
       num_incoming_static_streams() + num_outgoing_static_streams()) {
-    return dynamic_streams().size() - num_incoming_static_streams() -
+    return stream_map().size() - num_incoming_static_streams() -
                num_outgoing_static_streams() >
            0;
   }
