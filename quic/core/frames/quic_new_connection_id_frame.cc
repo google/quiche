@@ -16,17 +16,22 @@ QuicNewConnectionIdFrame::QuicNewConnectionIdFrame(
     QuicControlFrameId control_frame_id,
     QuicConnectionId connection_id,
     QuicConnectionIdSequenceNumber sequence_number,
-    const QuicUint128 stateless_reset_token)
+    const QuicUint128 stateless_reset_token,
+    uint64_t retire_prior_to)
     : control_frame_id(control_frame_id),
       connection_id(connection_id),
       sequence_number(sequence_number),
-      stateless_reset_token(stateless_reset_token) {}
+      stateless_reset_token(stateless_reset_token),
+      retire_prior_to(retire_prior_to) {
+  DCHECK(retire_prior_to <= sequence_number);
+}
 
 std::ostream& operator<<(std::ostream& os,
                          const QuicNewConnectionIdFrame& frame) {
   os << "{ control_frame_id: " << frame.control_frame_id
      << ", connection_id: " << frame.connection_id
-     << ", sequence_number: " << frame.sequence_number << " }\n";
+     << ", sequence_number: " << frame.sequence_number
+     << ", retire_prior_to: " << frame.retire_prior_to << " }\n";
   return os;
 }
 

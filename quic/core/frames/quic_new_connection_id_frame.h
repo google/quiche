@@ -18,7 +18,8 @@ struct QUIC_EXPORT_PRIVATE QuicNewConnectionIdFrame {
   QuicNewConnectionIdFrame(QuicControlFrameId control_frame_id,
                            QuicConnectionId connection_id,
                            QuicConnectionIdSequenceNumber sequence_number,
-                           const QuicUint128 stateless_reset_token);
+                           const QuicUint128 stateless_reset_token,
+                           uint64_t retire_prior_to);
 
   friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
       std::ostream& os,
@@ -30,6 +31,7 @@ struct QUIC_EXPORT_PRIVATE QuicNewConnectionIdFrame {
   QuicConnectionId connection_id;
   QuicConnectionIdSequenceNumber sequence_number;
   QuicUint128 stateless_reset_token;
+  uint64_t retire_prior_to;
 };
 
 }  // namespace quic

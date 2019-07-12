@@ -768,6 +768,7 @@ size_t QuicFramer::GetNewConnectionIdFrameSize(
     const QuicNewConnectionIdFrame& frame) {
   return kQuicFrameTypeSize +
          QuicDataWriter::GetVarInt62Len(frame.sequence_number) +
+         QuicDataWriter::GetVarInt62Len(frame.retire_prior_to) +
          kConnectionIdLengthSize + frame.connection_id.length() +
          sizeof(frame.stateless_reset_token);
 }
@@ -5998,6 +5999,10 @@ bool QuicFramer::AppendNewConnectionIdFrame(
     set_detailed_error("Can not write New Connection ID sequence number");
     return false;
   }
+  if (!writer->WriteVarInt62(frame.retire_prior_to)) {
+    set_detailed_error("Can not write New Connection ID retire_prior_to");
+    return false;
+  }
   if (!writer->WriteUInt8(frame.connection_id.length())) {
     set_detailed_error(
         "Can not write New Connection ID frame connection ID Length");
@@ -6025,6 +6030,15 @@ bool QuicFramer::ProcessNewConnectionIdFrame(QuicDataReader* reader,
     return false;
   }
 
+  if (!reader->ReadVarInt62(&frame->retire_prior_to)) {
+    set_detailed_error(
+        "Unable to read new connection ID frame retire_prior_to.");
+    return false;
+  }
+  if (frame->retire_prior_to > frame->sequence_number) {
+    set_detailed_error("Retire_prior_to > sequence_number.");
+    return false;
+  }
   uint8_t connection_id_length;
   if (!reader->ReadUInt8(&connection_id_length)) {
     set_detailed_error(

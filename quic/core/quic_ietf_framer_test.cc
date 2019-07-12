@@ -1380,6 +1380,7 @@ TEST_F(QuicIetfFramerTest, NewConnectionIdFrame) {
   QuicNewConnectionIdFrame transmit_frame;
   transmit_frame.connection_id = TestConnectionId(UINT64_C(0x0edcba9876543201));
   transmit_frame.sequence_number = 0x01020304;
+  transmit_frame.retire_prior_to = 0x00020304;
   // The token is defined as a uint128 -- a 16-byte integer.
   // The value is set in this manner because we want each
   // byte to have a specific value so that the binary
@@ -1401,12 +1402,12 @@ TEST_F(QuicIetfFramerTest, NewConnectionIdFrame) {
   // Add the frame.
   EXPECT_TRUE(QuicFramerPeer::AppendNewConnectionIdFrame(
       &framer_, transmit_frame, &writer));
-  // Check that buffer length is correct
-  EXPECT_EQ(29u, writer.length());
   // clang-format off
   uint8_t packet[] = {
     // sequence number, 0x80 for varint62 encoding
     0x80 + 0x01, 0x02, 0x03, 0x04,
+    // retire_prior_to, 0x80 for varint62 encoding
+    0x80 + 0x00, 0x02, 0x03, 0x04,
     // new connection id length, is not varint62 encoded.
     0x08,
     // new connection id, is not varint62 encoded.
@@ -1415,8 +1416,10 @@ TEST_F(QuicIetfFramerTest, NewConnectionIdFrame) {
     0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
     0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f
   };
-
   // clang-format on
+
+  // Check that buffer length is correct
+  EXPECT_EQ(sizeof(packet), writer.length());
   EXPECT_EQ(0, memcmp(packet_buffer, packet, sizeof(packet)));
 
   // Set up reader and empty receive QuicPaddingFrame.
@@ -1430,6 +1433,7 @@ TEST_F(QuicIetfFramerTest, NewConnectionIdFrame) {
   // Now check that received == sent
   EXPECT_EQ(transmit_frame.connection_id, receive_frame.connection_id);
   EXPECT_EQ(transmit_frame.sequence_number, receive_frame.sequence_number);
+  EXPECT_EQ(transmit_frame.retire_prior_to, receive_frame.retire_prior_to);
   EXPECT_EQ(transmit_frame.stateless_reset_token,
             receive_frame.stateless_reset_token);
 }

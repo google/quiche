@@ -11289,6 +11289,8 @@ TEST_P(QuicFramerTest, NewConnectionIdFrame) {
       // error code
       {"Unable to read new connection ID frame sequence number.",
        {kVarInt62OneByte + 0x11}},
+      {"Unable to read new connection ID frame retire_prior_to.",
+       {kVarInt62OneByte + 0x09}},
       {"Unable to read new connection ID frame connection id length.",
        {0x08}},  // connection ID length
       {"Unable to read new connection ID frame connection id.",
@@ -11314,6 +11316,7 @@ TEST_P(QuicFramerTest, NewConnectionIdFrame) {
   EXPECT_EQ(FramerTestConnectionIdPlusOne(),
             visitor_.new_connection_id_.connection_id);
   EXPECT_EQ(0x11u, visitor_.new_connection_id_.sequence_number);
+  EXPECT_EQ(0x09u, visitor_.new_connection_id_.retire_prior_to);
   EXPECT_EQ(kTestStatelessResetToken,
             visitor_.new_connection_id_.stateless_reset_token);
 
@@ -11345,6 +11348,8 @@ TEST_P(QuicFramerTest, NewConnectionIdFrameVariableLength) {
       // error code
       {"Unable to read new connection ID frame sequence number.",
        {kVarInt62OneByte + 0x11}},
+      {"Unable to read new connection ID frame retire_prior_to.",
+       {kVarInt62OneByte + 0x0a}},
       {"Unable to read new connection ID frame connection id length.",
        {0x09}},  // connection ID length
       {"Unable to read new connection ID frame connection id.",
@@ -11370,6 +11375,7 @@ TEST_P(QuicFramerTest, NewConnectionIdFrameVariableLength) {
   EXPECT_EQ(FramerTestConnectionIdNineBytes(),
             visitor_.new_connection_id_.connection_id);
   EXPECT_EQ(0x11u, visitor_.new_connection_id_.sequence_number);
+  EXPECT_EQ(0x0au, visitor_.new_connection_id_.retire_prior_to);
   EXPECT_EQ(kTestStatelessResetToken,
             visitor_.new_connection_id_.stateless_reset_token);
 
@@ -11403,6 +11409,8 @@ TEST_P(QuicFramerTest, InvalidLongNewConnectionIdFrame) {
       // error code
       {"Unable to read new connection ID frame sequence number.",
        {kVarInt62OneByte + 0x11}},
+      {"Unable to read new connection ID frame retire_prior_to.",
+       {kVarInt62OneByte + 0x0b}},
       {"Unable to read new connection ID frame connection id length.",
        {0x13}},  // connection ID length
       {"Unable to read new connection ID frame connection id.",
@@ -11422,6 +11430,50 @@ TEST_P(QuicFramerTest, InvalidLongNewConnectionIdFrame) {
   EXPECT_EQ("New connection ID length too high.", framer_.detailed_error());
 }
 
+// Verifies that parsing a NEW_CONNECTION_ID frame with an invalid
+// retire-prior-to fails.
+TEST_P(QuicFramerTest, InvalidRetirePriorToNewConnectionIdFrame) {
+  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+    // The NEW_CONNECTION_ID frame is only for version 99.
+    return;
+  }
+  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
+  // clang-format off
+  PacketFragments packet99 = {
+      // type (short header, 4 byte packet number)
+      {"",
+       {0x43}},
+      // connection_id
+      {"",
+       {0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10}},
+      // packet number
+      {"",
+       {0x12, 0x34, 0x56, 0x78}},
+      // frame type (IETF_NEW_CONNECTION_ID frame)
+      {"",
+       {0x18}},
+      // sequence number
+      {"Unable to read new connection ID frame sequence number.",
+       {kVarInt62OneByte + 0x11}},
+      {"Unable to read new connection ID frame retire_prior_to.",
+       {kVarInt62OneByte + 0x1b}},
+      {"Unable to read new connection ID frame connection id length.",
+       {0x08}},  // connection ID length
+      {"Unable to read new connection ID frame connection id.",
+       {0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x11}},
+      {"Can not read new connection ID frame reset token.",
+       {0xb5, 0x69, 0x0f, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}}
+  };
+  // clang-format on
+
+  std::unique_ptr<QuicEncryptedPacket> encrypted(
+      AssemblePacketFromFragments(packet99));
+  EXPECT_FALSE(framer_.ProcessPacket(*encrypted));
+  EXPECT_EQ(QUIC_INVALID_NEW_CONNECTION_ID_DATA, framer_.error());
+  EXPECT_EQ("Retire_prior_to > sequence_number.", framer_.detailed_error());
+}
+
 TEST_P(QuicFramerTest, BuildNewConnectionIdFramePacket) {
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
     // This frame is only for version 99.
@@ -11436,6 +11488,7 @@ TEST_P(QuicFramerTest, BuildNewConnectionIdFramePacket) {
 
   QuicNewConnectionIdFrame frame;
   frame.sequence_number = 0x11;
+  frame.retire_prior_to = 0x0c;
   // Use this value to force a 4-byte encoded variable length connection ID
   // in the frame.
   frame.connection_id = FramerTestConnectionIdPlusOne();
@@ -11456,6 +11509,8 @@ TEST_P(QuicFramerTest, BuildNewConnectionIdFramePacket) {
     0x18,
     // sequence number
     kVarInt62OneByte + 0x11,
+    // retire_prior_to
+    kVarInt62OneByte + 0x0c,
     // new connection id length
     0x08,
     // new connection id
@@ -11862,7 +11917,8 @@ TEST_P(QuicFramerTest, GetRetransmittableControlFrameSize) {
     return;
   }
 
-  QuicNewConnectionIdFrame new_connection_id(5, TestConnectionId(), 1, 101111);
+  QuicNewConnectionIdFrame new_connection_id(5, TestConnectionId(), 1, 101111,
+                                             1);
   EXPECT_EQ(QuicFramer::GetNewConnectionIdFrameSize(new_connection_id),
             QuicFramer::GetRetransmittableControlFrameSize(
                 framer_.transport_version(), QuicFrame(&new_connection_id)));
