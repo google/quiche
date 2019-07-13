@@ -1,8 +1,8 @@
-// Copyright (c) 2018 The Chromium Authors. All rights reserved.
+// Copyright (c) 2019 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/core/qpack/qpack_progressive_decoder.h"
+#include "net/third_party/quiche/src/quic/core/qpack/qpack_required_insert_count.h"
 
 #include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
@@ -10,6 +10,16 @@
 namespace quic {
 namespace test {
 namespace {
+
+TEST(QpackRequiredInsertCountTest, QpackEncodeRequiredInsertCount) {
+  EXPECT_EQ(0u, QpackEncodeRequiredInsertCount(0, 0));
+  EXPECT_EQ(0u, QpackEncodeRequiredInsertCount(0, 8));
+  EXPECT_EQ(0u, QpackEncodeRequiredInsertCount(0, 1024));
+
+  EXPECT_EQ(2u, QpackEncodeRequiredInsertCount(1, 8));
+  EXPECT_EQ(5u, QpackEncodeRequiredInsertCount(20, 8));
+  EXPECT_EQ(7u, QpackEncodeRequiredInsertCount(106, 10));
+}
 
 // For testing valid decodings, the Encoded Required Insert Count is calculated
 // from Required Insert Count, so that there is an expected value to compare
@@ -39,16 +49,7 @@ struct {
     {401, 100, 500},
     {600, 100, 500}};
 
-uint64_t EncodeRequiredInsertCount(uint64_t required_insert_count,
-                                   uint64_t max_entries) {
-  if (required_insert_count == 0) {
-    return 0;
-  }
-
-  return required_insert_count % (2 * max_entries) + 1;
-}
-
-TEST(QpackProgressiveDecoderTest, DecodeRequiredInsertCount) {
+TEST(QpackRequiredInsertCountTest, QpackDecodeRequiredInsertCount) {
   for (size_t i = 0; i < QUIC_ARRAYSIZE(kTestData); ++i) {
     const uint64_t required_insert_count = kTestData[i].required_insert_count;
     const uint64_t max_entries = kTestData[i].max_entries;
@@ -71,13 +72,13 @@ TEST(QpackProgressiveDecoderTest, DecodeRequiredInsertCount) {
     }
 
     uint64_t encoded_required_insert_count =
-        EncodeRequiredInsertCount(required_insert_count, max_entries);
+        QpackEncodeRequiredInsertCount(required_insert_count, max_entries);
 
     // Initialize to a value different from the expected output to confirm that
-    // DecodeRequiredInsertCount() modifies the value of
+    // QpackDecodeRequiredInsertCount() modifies the value of
     // |decoded_required_insert_count|.
     uint64_t decoded_required_insert_count = required_insert_count + 1;
-    EXPECT_TRUE(QpackProgressiveDecoder::DecodeRequiredInsertCount(
+    EXPECT_TRUE(QpackDecodeRequiredInsertCount(
         encoded_required_insert_count, max_entries, total_number_of_inserts,
         &decoded_required_insert_count))
         << i;
@@ -107,10 +108,10 @@ struct {
     {400, 100, 500},
     {601, 100, 500}};
 
-TEST(QpackProgressiveDecoderTest, DecodeRequiredInsertCountError) {
+TEST(QpackRequiredInsertCountTest, DecodeRequiredInsertCountError) {
   for (size_t i = 0; i < QUIC_ARRAYSIZE(kInvalidTestData); ++i) {
     uint64_t decoded_required_insert_count = 0;
-    EXPECT_FALSE(QpackProgressiveDecoder::DecodeRequiredInsertCount(
+    EXPECT_FALSE(QpackDecodeRequiredInsertCount(
         kInvalidTestData[i].encoded_required_insert_count,
         kInvalidTestData[i].max_entries,
         kInvalidTestData[i].total_number_of_inserts,

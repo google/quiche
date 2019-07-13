@@ -58,15 +58,6 @@ class QUIC_EXPORT_PRIVATE QpackProgressiveDecoder
   QpackProgressiveDecoder& operator=(const QpackProgressiveDecoder&) = delete;
   ~QpackProgressiveDecoder() override = default;
 
-  // Calculate Required Insert Count from Encoded Required Insert Count,
-  // MaxEntries, and total number of dynamic table insertions according to
-  // https://quicwg.org/base-drafts/draft-ietf-quic-qpack.html#ric.
-  // Returns true on success, false on invalid input or overflow/underflow.
-  static bool DecodeRequiredInsertCount(uint64_t encoded_required_insert_count,
-                                        uint64_t max_entries,
-                                        uint64_t total_number_of_inserts,
-                                        uint64_t* required_insert_count);
-
   // Provide a data fragment to decode.
   void Decode(QuicStringPiece data);
 
