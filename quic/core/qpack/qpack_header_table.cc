@@ -9,16 +9,6 @@
 
 namespace quic {
 
-namespace {
-
-const uint64_t kEntrySizeOverhead = 32;
-
-uint64_t EntrySize(QuicStringPiece name, QuicStringPiece value) {
-  return name.size() + value.size() + kEntrySizeOverhead;
-}
-
-}  // anonymous namespace
-
 QpackHeaderTable::QpackHeaderTable()
     : static_entries_(ObtainQpackStaticTable().GetStaticEntries()),
       static_index_(ObtainQpackStaticTable().GetStaticIndex()),
@@ -102,7 +92,7 @@ QpackHeaderTable::MatchType QpackHeaderTable::FindHeaderField(
 
 const QpackEntry* QpackHeaderTable::InsertEntry(QuicStringPiece name,
                                                 QuicStringPiece value) {
-  const uint64_t entry_size = EntrySize(name, value);
+  const uint64_t entry_size = QpackEntry::Size(name, value);
   if (entry_size > dynamic_table_capacity_) {
     return nullptr;
   }
@@ -193,7 +183,7 @@ void QpackHeaderTable::EvictDownToCurrentCapacity() {
     DCHECK(!dynamic_entries_.empty());
 
     QpackEntry* const entry = &dynamic_entries_.front();
-    const uint64_t entry_size = EntrySize(entry->name(), entry->value());
+    const uint64_t entry_size = entry->Size();
 
     DCHECK_GE(dynamic_table_size_, entry_size);
     dynamic_table_size_ -= entry_size;
