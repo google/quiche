@@ -219,7 +219,7 @@ void QuicReceivedPacketManager::MaybeUpdateAckTimeout(
     QuicTime time_of_last_received_packet,
     QuicTime now,
     const RttStats* rtt_stats,
-    QuicTime::Delta delayed_ack_time) {
+    QuicTime::Delta local_max_ack_delay) {
   if (!ack_frame_updated_) {
     // ACK frame has not been updated, nothing to do.
     return;
@@ -251,7 +251,7 @@ void QuicReceivedPacketManager::MaybeUpdateAckTimeout(
     // Wait for the minimum of the ack decimation delay or the delayed ack time
     // before sending an ack.
     QuicTime::Delta ack_delay = std::min(
-        delayed_ack_time, rtt_stats->min_rtt() * ack_decimation_delay_);
+        local_max_ack_delay, rtt_stats->min_rtt() * ack_decimation_delay_);
     if (fast_ack_after_quiescence_ && now - time_of_previous_received_packet_ >
                                           rtt_stats->SmoothedOrInitialRtt()) {
       // Ack the first packet out of queiscence faster, because QUIC does
@@ -273,7 +273,7 @@ void QuicReceivedPacketManager::MaybeUpdateAckTimeout(
       // or TLP packets, which we'd like to acknowledge quickly.
       MaybeUpdateAckTimeoutTo(now + QuicTime::Delta::FromMilliseconds(1));
     } else {
-      MaybeUpdateAckTimeoutTo(now + delayed_ack_time);
+      MaybeUpdateAckTimeoutTo(now + local_max_ack_delay);
     }
   }
 

@@ -211,7 +211,9 @@ std::unique_ptr<QuicConnection> CreateQuicConnection(
   // The p-time can go up to as high as 120ms, and when it does, it's
   // when the low overhead is the most important thing. Ideally it should be
   // above 120ms, but it cannot be higher than 0.5*RTO, which equals to 100ms.
-  sent_packet_manager.set_delayed_ack_time(
+  sent_packet_manager.set_local_max_ack_delay(
+      QuicTime::Delta::FromMilliseconds(100));
+  sent_packet_manager.set_peer_max_ack_delay(
       QuicTime::Delta::FromMilliseconds(100));
 
   quic_connection->set_fill_up_link_during_probing(true);

@@ -111,7 +111,9 @@ QuicSentPacketManager::QuicSentPacketManager(
       ietf_style_2x_tlp_(false),
       largest_mtu_acked_(0),
       handshake_confirmed_(false),
-      delayed_ack_time_(
+      local_max_ack_delay_(
+          QuicTime::Delta::FromMilliseconds(kDefaultDelayedAckTimeMs)),
+      peer_max_ack_delay_(
           QuicTime::Delta::FromMilliseconds(kDefaultDelayedAckTimeMs)),
       rtt_updated_(false),
       acked_packets_iter_(last_ack_frame_.packets.rbegin()),
@@ -148,7 +150,7 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
     rtt_stats_.set_ignore_max_ack_delay(true);
   }
   if (config.HasClientSentConnectionOption(kMAD1, perspective)) {
-    rtt_stats_.set_initial_max_ack_delay(delayed_ack_time_);
+    rtt_stats_.set_initial_max_ack_delay(local_max_ack_delay_);
   }
   if (config.HasClientSentConnectionOption(kMAD2, perspective)) {
     min_tlp_timeout_ = QuicTime::Delta::Zero();
@@ -982,7 +984,7 @@ const QuicTime::Delta QuicSentPacketManager::GetCryptoRetransmissionDelay()
   if (conservative_handshake_retransmits_) {
     // Using the delayed ack time directly could cause conservative handshake
     // retransmissions to actually be more aggressive than the default.
-    delay_ms = std::max(delayed_ack_time_.ToMilliseconds(),
+    delay_ms = std::max(peer_max_ack_delay_.ToMilliseconds(),
                         static_cast<int64_t>(2 * srtt.ToMilliseconds()));
   } else {
     delay_ms = std::max(kMinHandshakeTimeoutMs,

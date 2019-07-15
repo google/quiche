@@ -1353,7 +1353,7 @@ void QuicConnection::OnPacketComplete() {
         should_last_packet_instigate_acks_, last_decrypted_packet_level_,
         last_header_.packet_number, time_of_last_received_packet_,
         clock_->ApproximateNow(), sent_packet_manager_.GetRttStats(),
-        sent_packet_manager_.delayed_ack_time());
+        sent_packet_manager_.local_max_ack_delay());
   } else {
     QUIC_DLOG(INFO) << ENDPOINT << "Not updating ACK timeout for "
                     << QuicUtils::EncryptionLevelToString(

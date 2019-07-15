@@ -78,18 +78,18 @@ void UberReceivedPacketManager::MaybeUpdateAckTimeout(
     QuicTime time_of_last_received_packet,
     QuicTime now,
     const RttStats* rtt_stats,
-    QuicTime::Delta delayed_ack_time) {
+    QuicTime::Delta local_max_ack_delay) {
   if (!supports_multiple_packet_number_spaces_) {
     received_packet_managers_[0].MaybeUpdateAckTimeout(
         should_last_packet_instigate_acks, last_received_packet_number,
-        time_of_last_received_packet, now, rtt_stats, delayed_ack_time);
+        time_of_last_received_packet, now, rtt_stats, local_max_ack_delay);
     return;
   }
   received_packet_managers_[QuicUtils::GetPacketNumberSpace(
                                 decrypted_packet_level)]
       .MaybeUpdateAckTimeout(
           should_last_packet_instigate_acks, last_received_packet_number,
-          time_of_last_received_packet, now, rtt_stats, delayed_ack_time);
+          time_of_last_received_packet, now, rtt_stats, local_max_ack_delay);
 }
 
 void UberReceivedPacketManager::ResetAckStates(

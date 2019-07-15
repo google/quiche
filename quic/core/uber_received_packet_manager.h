@@ -49,7 +49,7 @@ class QUIC_EXPORT_PRIVATE UberReceivedPacketManager {
                              QuicTime time_of_last_received_packet,
                              QuicTime now,
                              const RttStats* rtt_stats,
-                             QuicTime::Delta delayed_ack_time);
+                             QuicTime::Delta local_max_ack_delay);
 
   // Resets ACK related states, called after an ACK is successfully sent.
   void ResetAckStates(EncryptionLevel encryption_level);
