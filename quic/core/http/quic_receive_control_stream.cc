@@ -133,11 +133,9 @@ class QuicReceiveControlStream::HttpDecoderVisitor
 
 QuicReceiveControlStream::QuicReceiveControlStream(PendingStream* pending)
     : QuicStream(pending, READ_UNIDIRECTIONAL, /*is_static=*/true),
-      current_priority_length_(0),
-      received_settings_length_(0),
+      settings_frame_received_(false),
       http_decoder_visitor_(QuicMakeUnique<HttpDecoderVisitor>(this)),
-      decoder_(http_decoder_visitor_.get()),
-      sequencer_offset_(sequencer()->NumBytesConsumed()) {
+      decoder_(http_decoder_visitor_.get()) {
   sequencer()->set_level_triggered(true);
 }
 
@@ -154,31 +152,36 @@ void QuicReceiveControlStream::OnStreamReset(
 
 void QuicReceiveControlStream::OnDataAvailable() {
   iovec iov;
-  while (session()->connection()->connected() && !reading_stopped() &&
-         decoder_.error() == QUIC_NO_ERROR) {
-    DCHECK_GE(sequencer_offset_, sequencer()->NumBytesConsumed());
-    if (!sequencer()->PeekRegion(sequencer_offset_, &iov)) {
-      break;
-    }
-
+  while (!reading_stopped() && decoder_.error() == QUIC_NO_ERROR &&
+         sequencer()->GetReadableRegion(&iov)) {
     DCHECK(!sequencer()->IsClosed());
+
     QuicByteCount processed_bytes = decoder_.ProcessInput(
         reinterpret_cast<const char*>(iov.iov_base), iov.iov_len);
-    sequencer_offset_ += processed_bytes;
+    sequencer()->MarkConsumed(processed_bytes);
+
+    if (!session()->connection()->connected()) {
+      return;
+    }
+
+    // The only reason QuicReceiveControlStream pauses HttpDecoder is an error,
+    // in which case the connection would have already been closed.
+    DCHECK_EQ(iov.iov_len, processed_bytes);
   }
 }
 
 bool QuicReceiveControlStream::OnSettingsFrameStart(
-    Http3FrameLengths frame_lengths) {
-  if (received_settings_length_ != 0) {
+    Http3FrameLengths /* frame_lengths */) {
+  if (settings_frame_received_) {
     // TODO(renjietang): Change error code to HTTP_UNEXPECTED_FRAME.
     session()->connection()->CloseConnection(
         QUIC_INVALID_STREAM_ID, "Settings frames are received twice.",
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return false;
   }
-  received_settings_length_ +=
-      frame_lengths.header_length + frame_lengths.payload_length;
+
+  settings_frame_received_ = true;
+
   return true;
 }
 
@@ -199,16 +202,12 @@ bool QuicReceiveControlStream::OnSettingsFrame(const SettingsFrame& settings) {
         break;
     }
   }
-  sequencer()->MarkConsumed(received_settings_length_);
   return true;
 }
 
 bool QuicReceiveControlStream::OnPriorityFrameStart(
-    Http3FrameLengths frame_lengths) {
+    Http3FrameLengths /* frame_lengths */) {
   DCHECK_EQ(Perspective::IS_SERVER, session()->perspective());
-  DCHECK_EQ(0u, current_priority_length_);
-  current_priority_length_ =
-      frame_lengths.header_length + frame_lengths.payload_length;
   return true;
 }
 
@@ -222,8 +221,6 @@ bool QuicReceiveControlStream::OnPriorityFrame(const PriorityFrame& priority) {
   if (stream) {
     stream->SetPriority(priority.weight);
   }
-  sequencer()->MarkConsumed(current_priority_length_);
-  current_priority_length_ = 0;
   return true;
 }
 

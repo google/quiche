@@ -41,21 +41,12 @@ class QUIC_EXPORT_PRIVATE QuicReceiveControlStream : public QuicStream {
   // TODO(renjietang): Decode Priority in HTTP/3 style.
   bool OnPriorityFrame(const PriorityFrame& priority);
 
-  // Track the current priority frame length.
-  QuicByteCount current_priority_length_;
-
-  // Track the number of settings bytes received.
-  size_t received_settings_length_;
+  // False until a SETTINGS frame is received.
+  bool settings_frame_received_;
 
   // HttpDecoder and its visitor.
   std::unique_ptr<HttpDecoderVisitor> http_decoder_visitor_;
   HttpDecoder decoder_;
-
-  // Sequencer offset keeping track of how much data HttpDecoder has processed.
-  // Initial value is sequencer()->NumBytesConsumed() at time of
-  // QuicReceiveControlStream construction: that is the length of the
-  // unidirectional stream type at the beginning of the stream.
-  QuicStreamOffset sequencer_offset_;
 };
 
 }  // namespace quic

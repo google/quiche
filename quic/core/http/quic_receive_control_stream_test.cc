@@ -135,20 +135,45 @@ TEST_P(QuicReceiveControlStreamTest, ReceiveSettings) {
   EXPECT_EQ(5u, session_.max_outbound_header_list_size());
 }
 
+// Regression test for https://crbug.com/982648.
+// QuicReceiveControlStream::OnDataAvailable() must stop processing input as
+// soon as OnSettingsFrameStart() is called by HttpDecoder for the second frame.
 TEST_P(QuicReceiveControlStreamTest, ReceiveSettingsTwice) {
   SettingsFrame settings;
-  settings.values[3] = 2;
-  settings.values[kSettingsMaxHeaderListSize] = 5;
-  std::string data = EncodeSettings(settings);
-  QuicStreamFrame frame(receive_control_stream_->id(), false, 0,
-                        QuicStringPiece(data));
-  QuicStreamFrame frame2(receive_control_stream_->id(), false, data.length(),
-                         QuicStringPiece(data));
-  receive_control_stream_->OnStreamFrame(frame);
+  // Reserved identifiers, must be ignored.
+  settings.values[0x21] = 100;
+  settings.values[0x40] = 200;
+
+  std::string settings_frame = EncodeSettings(settings);
+
+  EXPECT_EQ(0u, NumBytesConsumed());
+
+  // Receive first SETTINGS frame.
+  receive_control_stream_->OnStreamFrame(
+      QuicStreamFrame(receive_control_stream_->id(), /* fin = */ false,
+                      /* offset = */ 0, settings_frame));
+
+  // First SETTINGS frame is consumed.
+  EXPECT_EQ(settings_frame.size(), NumBytesConsumed());
+
+  // Second SETTINGS frame causes the connection to be closed.
   EXPECT_CALL(*connection_,
               CloseConnection(QUIC_INVALID_STREAM_ID,
-                              "Settings frames are received twice.", _));
-  receive_control_stream_->OnStreamFrame(frame2);
+                              "Settings frames are received twice.", _))
+      .WillOnce(
+          Invoke(connection_, &MockQuicConnection::ReallyCloseConnection));
+  EXPECT_CALL(*connection_, SendConnectionClosePacket(_, _));
+  EXPECT_CALL(session_, OnConnectionClosed(_, _));
+
+  // Receive second SETTINGS frame.
+  receive_control_stream_->OnStreamFrame(
+      QuicStreamFrame(receive_control_stream_->id(), /* fin = */ false,
+                      /* offset = */ settings_frame.size(), settings_frame));
+
+  // Frame header of second SETTINGS frame is consumed, but not frame payload.
+  QuicByteCount settings_frame_header_length = 2;
+  EXPECT_EQ(settings_frame.size() + settings_frame_header_length,
+            NumBytesConsumed());
 }
 
 TEST_P(QuicReceiveControlStreamTest, ReceiveSettingsFragments) {
@@ -215,43 +240,6 @@ TEST_P(QuicReceiveControlStreamTest, PushPromiseOnControlStreamShouldClose) {
   EXPECT_CALL(*connection_, CloseConnection(QUIC_HTTP_DECODER_ERROR, _, _))
       .Times(AtLeast(1));
   receive_control_stream_->OnStreamFrame(frame);
-}
-
-// Regression test for https://crbug.com/982648.
-// QuicReceiveControlStream::OnDataAvailable() must stop processing input as
-// soon as OnSettingsFrameStart() is called by HttpDecoder for the second frame.
-TEST_P(QuicReceiveControlStreamTest, StopProcessingIfConnectionClosed) {
-  SettingsFrame settings;
-  // Reserved identifiers, must be ignored.
-  settings.values[0x21] = 100;
-  settings.values[0x40] = 200;
-
-  std::string settings_frame = EncodeSettings(settings);
-
-  EXPECT_EQ(0u, NumBytesConsumed());
-
-  // Receive first SETTINGS frame.
-  receive_control_stream_->OnStreamFrame(
-      QuicStreamFrame(receive_control_stream_->id(), /* fin = */ false,
-                      /* offset = */ 0, settings_frame));
-
-  // First SETTINGS frame is consumed.
-  EXPECT_EQ(settings_frame.size(), NumBytesConsumed());
-
-  // Second SETTINGS frame causes the connection to be closed.
-  EXPECT_CALL(*connection_, CloseConnection(QUIC_INVALID_STREAM_ID, _, _))
-      .WillOnce(
-          Invoke(connection_, &MockQuicConnection::ReallyCloseConnection));
-  EXPECT_CALL(*connection_, SendConnectionClosePacket(_, _));
-  EXPECT_CALL(session_, OnConnectionClosed(_, _));
-
-  // Receive second SETTINGS frame.
-  receive_control_stream_->OnStreamFrame(
-      QuicStreamFrame(receive_control_stream_->id(), /* fin = */ false,
-                      /* offset = */ settings_frame.size(), settings_frame));
-
-  // No new data is consumed.
-  EXPECT_EQ(settings_frame.size(), NumBytesConsumed());
 }
 
 }  // namespace
