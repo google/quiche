@@ -45,10 +45,6 @@ class QUIC_EXPORT_PRIVATE SendAlgorithmInterface {
   virtual void SetFromConfig(const QuicConfig& config,
                              Perspective perspective) = 0;
 
-  // Sets the number of connections to emulate when doing congestion control,
-  // particularly for congestion avoidance.  Can be set any time.
-  virtual void SetNumEmulatedConnections(int num_connections) = 0;
-
   // Sets the initial congestion window in number of packets.  May be ignored
   // if called after the initial congestion window is no longer relevant.
   virtual void SetInitialCongestionWindowInPackets(QuicPacketCount packets) = 0;

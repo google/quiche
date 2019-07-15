@@ -2202,26 +2202,6 @@ TEST_P(QuicSentPacketManagerTest, NegotiateClientCongestionControlFromOptions) {
                             ->GetCongestionControlType());
 }
 
-TEST_P(QuicSentPacketManagerTest, NegotiateNumConnectionsFromOptions) {
-  QuicConfig config;
-  QuicTagVector options;
-
-  options.push_back(k1CON);
-  QuicConfigPeer::SetReceivedConnectionOptions(&config, options);
-  EXPECT_CALL(*network_change_visitor_, OnCongestionChange());
-  EXPECT_CALL(*send_algorithm_, SetNumEmulatedConnections(1));
-  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
-  manager_.SetFromConfig(config);
-
-  QuicSentPacketManagerPeer::SetPerspective(&manager_, Perspective::IS_CLIENT);
-  QuicConfig client_config;
-  client_config.SetConnectionOptionsToSend(options);
-  EXPECT_CALL(*network_change_visitor_, OnCongestionChange());
-  EXPECT_CALL(*send_algorithm_, SetNumEmulatedConnections(1));
-  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
-  manager_.SetFromConfig(client_config);
-}
-
 TEST_P(QuicSentPacketManagerTest, NegotiateNoMinTLPFromOptionsAtServer) {
   QuicConfig config;
   QuicTagVector options;

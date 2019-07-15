@@ -201,9 +201,6 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
 
   using_pacing_ = !GetQuicFlag(FLAGS_quic_disable_pacing_for_perf_tests);
 
-  if (config.HasClientSentConnectionOption(k1CON, perspective)) {
-    send_algorithm_->SetNumEmulatedConnections(1);
-  }
   if (config.HasClientSentConnectionOption(kNTLP, perspective)) {
     max_tail_loss_probes_ = 0;
   }
