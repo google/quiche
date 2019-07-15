@@ -3379,12 +3379,6 @@ TEST_P(QuicConnectionTest, CancelRetransmissionAlarmAfterResetStream) {
   // Ensure that the data is still in flight, but the retransmission alarm is no
   // longer set.
   EXPECT_GT(manager_->GetBytesInFlight(), 0u);
-  if (GetQuicReloadableFlag(quic_optimize_inflight_check)) {
-    EXPECT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
-    // Firing the alarm should remove all bytes_in_flight.
-    connection_.GetRetransmissionAlarm()->Fire();
-    EXPECT_EQ(0u, manager_->GetBytesInFlight());
-  }
   EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
 }
 
@@ -3628,13 +3622,6 @@ TEST_P(QuicConnectionTest, RetransmitWriteBlockedAckedOriginalThenSent) {
 
   writer_->SetWritable();
   connection_.OnCanWrite();
-  // There is now a pending packet, but with no retransmittable frames.
-  if (GetQuicReloadableFlag(quic_optimize_inflight_check)) {
-    EXPECT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
-    // Firing the alarm should remove all bytes_in_flight.
-    connection_.GetRetransmissionAlarm()->Fire();
-    EXPECT_EQ(0u, manager_->GetBytesInFlight());
-  }
   EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
   EXPECT_FALSE(QuicConnectionPeer::HasRetransmittableFrames(&connection_, 2));
 }

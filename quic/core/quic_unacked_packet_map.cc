@@ -376,7 +376,6 @@ bool QuicUnackedPacketMap::HasPendingCryptoPackets() const {
 }
 
 bool QuicUnackedPacketMap::HasUnackedRetransmittableFrames() const {
-  DCHECK(!GetQuicReloadableFlag(quic_optimize_inflight_check));
   for (auto it = unacked_packets_.rbegin(); it != unacked_packets_.rend();
        ++it) {
     if (it->in_flight && HasRetransmittableFrames(*it)) {

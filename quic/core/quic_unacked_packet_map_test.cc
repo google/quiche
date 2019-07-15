@@ -125,9 +125,7 @@ class QuicUnackedPacketMapTest : public QuicTestWithParam<TestParams> {
     unacked_packets_.RemoveObsoletePackets();
     if (num_packets == 0) {
       EXPECT_TRUE(unacked_packets_.empty());
-      if (!GetQuicReloadableFlag(quic_optimize_inflight_check)) {
-        EXPECT_FALSE(unacked_packets_.HasUnackedRetransmittableFrames());
-      }
+      EXPECT_FALSE(unacked_packets_.HasUnackedRetransmittableFrames());
       return;
     }
     EXPECT_FALSE(unacked_packets_.empty());

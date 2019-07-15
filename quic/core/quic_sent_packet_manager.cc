@@ -756,13 +756,6 @@ bool QuicSentPacketManager::MaybeRetransmitTailLossProbe() {
     return false;
   }
   if (!MaybeRetransmitOldestPacket(TLP_RETRANSMISSION)) {
-    // If no tail loss probe can be sent, because there are no retransmittable
-    // packets, execute a conventional RTO to abandon old packets.
-    if (GetQuicReloadableFlag(quic_optimize_inflight_check)) {
-      QUIC_RELOADABLE_FLAG_COUNT(quic_optimize_inflight_check);
-      pending_timer_transmission_count_ = 0;
-      RetransmitRtoPackets();
-    }
     return false;
   }
   return true;
@@ -845,8 +838,7 @@ QuicSentPacketManager::GetRetransmissionMode() const {
     return LOSS_MODE;
   }
   if (consecutive_tlp_count_ < max_tail_loss_probes_) {
-    if (GetQuicReloadableFlag(quic_optimize_inflight_check) ||
-        unacked_packets_.HasUnackedRetransmittableFrames()) {
+    if (unacked_packets_.HasUnackedRetransmittableFrames()) {
       return TLP_MODE;
     }
   }
@@ -928,8 +920,7 @@ const QuicTime QuicSentPacketManager::GetRetransmissionTime() const {
       pending_timer_transmission_count_ > 0) {
     return QuicTime::Zero();
   }
-  if (!GetQuicReloadableFlag(quic_optimize_inflight_check) &&
-      !unacked_packets_.HasUnackedRetransmittableFrames()) {
+  if (!unacked_packets_.HasUnackedRetransmittableFrames()) {
     return QuicTime::Zero();
   }
   switch (GetRetransmissionMode()) {
