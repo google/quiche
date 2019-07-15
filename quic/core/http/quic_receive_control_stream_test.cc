@@ -7,6 +7,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_spdy_session_peer.h"
+#include "net/third_party/quiche/src/quic/test_tools/quic_stream_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 
 namespace quic {
@@ -83,8 +84,9 @@ class QuicReceiveControlStreamTest : public QuicTestWithParam<TestParams> {
   std::string EncodeSettings(const SettingsFrame& settings) {
     HttpEncoder encoder;
     std::unique_ptr<char[]> buffer;
-    auto header_length = encoder.SerializeSettingsFrame(settings, &buffer);
-    return std::string(buffer.get(), header_length);
+    QuicByteCount settings_frame_length =
+        encoder.SerializeSettingsFrame(settings, &buffer);
+    return std::string(buffer.get(), settings_frame_length);
   }
 
   std::string PriorityFrame(const PriorityFrame& frame) {
@@ -93,6 +95,11 @@ class QuicReceiveControlStreamTest : public QuicTestWithParam<TestParams> {
     QuicByteCount priority_frame_length =
         encoder.SerializePriorityFrame(frame, &priority_buffer);
     return std::string(priority_buffer.get(), priority_frame_length);
+  }
+
+  QuicStreamOffset NumBytesConsumed() {
+    return QuicStreamPeer::sequencer(receive_control_stream_.get())
+        ->NumBytesConsumed();
   }
 
   MockQuicConnectionHelper helper_;
@@ -208,6 +215,43 @@ TEST_P(QuicReceiveControlStreamTest, PushPromiseOnControlStreamShouldClose) {
   EXPECT_CALL(*connection_, CloseConnection(QUIC_HTTP_DECODER_ERROR, _, _))
       .Times(AtLeast(1));
   receive_control_stream_->OnStreamFrame(frame);
+}
+
+// Regression test for https://crbug.com/982648.
+// QuicReceiveControlStream::OnDataAvailable() must stop processing input as
+// soon as OnSettingsFrameStart() is called by HttpDecoder for the second frame.
+TEST_P(QuicReceiveControlStreamTest, StopProcessingIfConnectionClosed) {
+  SettingsFrame settings;
+  // Reserved identifiers, must be ignored.
+  settings.values[0x21] = 100;
+  settings.values[0x40] = 200;
+
+  std::string settings_frame = EncodeSettings(settings);
+
+  EXPECT_EQ(0u, NumBytesConsumed());
+
+  // Receive first SETTINGS frame.
+  receive_control_stream_->OnStreamFrame(
+      QuicStreamFrame(receive_control_stream_->id(), /* fin = */ false,
+                      /* offset = */ 0, settings_frame));
+
+  // First SETTINGS frame is consumed.
+  EXPECT_EQ(settings_frame.size(), NumBytesConsumed());
+
+  // Second SETTINGS frame causes the connection to be closed.
+  EXPECT_CALL(*connection_, CloseConnection(QUIC_INVALID_STREAM_ID, _, _))
+      .WillOnce(
+          Invoke(connection_, &MockQuicConnection::ReallyCloseConnection));
+  EXPECT_CALL(*connection_, SendConnectionClosePacket(_, _));
+  EXPECT_CALL(session_, OnConnectionClosed(_, _));
+
+  // Receive second SETTINGS frame.
+  receive_control_stream_->OnStreamFrame(
+      QuicStreamFrame(receive_control_stream_->id(), /* fin = */ false,
+                      /* offset = */ settings_frame.size(), settings_frame));
+
+  // No new data is consumed.
+  EXPECT_EQ(settings_frame.size(), NumBytesConsumed());
 }
 
 }  // namespace
