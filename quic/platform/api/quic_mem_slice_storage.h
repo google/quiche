@@ -30,6 +30,8 @@ class QUIC_EXPORT_PRIVATE QuicMemSliceStorage {
   // Return a QuicMemSliceSpan form of the storage.
   QuicMemSliceSpan ToSpan() { return impl_.ToSpan(); }
 
+  void Append(QuicMemSlice slice) { impl_.Append(std::move(*slice.impl())); }
+
  private:
   QuicMemSliceStorageImpl impl_;
 };

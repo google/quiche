@@ -58,9 +58,12 @@ bool QuartcSession::SendOrQueueMessage(QuicMemSliceSpan message,
 
   // There may be other messages in send queue, so we have to add message
   // to the queue and call queue processing helper.
-  message.ConsumeAll([this, datagram_id](QuicMemSlice slice) {
-    send_message_queue_.emplace_back(std::move(slice), datagram_id);
+  QueuedMessage queued_message;
+  queued_message.datagram_id = datagram_id;
+  message.ConsumeAll([&queued_message](QuicMemSlice slice) {
+    queued_message.message.Append(std::move(slice));
   });
+  send_message_queue_.push_back(std::move(queued_message));
 
   ProcessSendMessageQueue();
 
@@ -71,8 +74,9 @@ void QuartcSession::ProcessSendMessageQueue() {
   QuicConnection::ScopedPacketFlusher flusher(connection());
   while (!send_message_queue_.empty()) {
     QueuedMessage& it = send_message_queue_.front();
-    const size_t message_size = it.message.length();
-    MessageResult result = SendMessage(QuicMemSliceSpan(&it.message));
+    QuicMemSliceSpan span = it.message.ToSpan();
+    const size_t message_size = span.total_length();
+    MessageResult result = SendMessage(span);
 
     // Handle errors.
     switch (result.status) {

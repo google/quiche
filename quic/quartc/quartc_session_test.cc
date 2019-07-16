@@ -351,6 +351,28 @@ TEST_F(QuartcSessionTest, SendReceiveQueuedMessages) {
   TestSendReceiveQueuedMessages(/*direction_from_server=*/false);
 }
 
+TEST_F(QuartcSessionTest, SendMultiMemSliceMessage) {
+  CreateClientAndServerSessions(QuartcSessionConfig());
+  AwaitHandshake();
+  ASSERT_TRUE(server_peer_->CanSendMessage());
+
+  std::vector<std::pair<char*, size_t>> buffers;
+  char first_piece[] = "Hello, ";
+  char second_piece[] = "world!";
+  buffers.emplace_back(first_piece, 7);
+  buffers.emplace_back(second_piece, 6);
+  test::QuicTestMemSliceVector message(buffers);
+  ASSERT_TRUE(
+      server_peer_->SendOrQueueMessage(message.span(), /*datagram_id=*/1));
+
+  // Wait for the client to receive the message.
+  RunTasks();
+
+  // The message is not fragmented along MemSlice boundaries.
+  EXPECT_THAT(client_session_delegate_->incoming_messages(),
+              testing::ElementsAre("Hello, world!"));
+}
+
 TEST_F(QuartcSessionTest, SendMessageFails) {
   CreateClientAndServerSessions(QuartcSessionConfig());
   AwaitHandshake();

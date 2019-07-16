@@ -3,8 +3,10 @@
 // found in the LICENSE file.
 
 #include "net/third_party/quiche/src/quic/platform/api/quic_mem_slice_storage.h"
+
 #include "net/third_party/quiche/src/quic/core/quic_simple_buffer_allocator.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_test_mem_slice_vector.h"
 
 namespace quic {
 namespace test {
@@ -53,6 +55,24 @@ TEST_F(QuicMemSliceStorageImplTest, MultipleIovInMultipleSlice) {
   auto span = storage.ToSpan();
   EXPECT_EQ("aaaa", span.GetData(0));
   EXPECT_EQ("bbbb", span.GetData(1));
+}
+
+TEST_F(QuicMemSliceStorageImplTest, AppendMemSlices) {
+  std::string body1(3, 'a');
+  std::string body2(4, 'b');
+  std::vector<std::pair<char*, size_t>> buffers;
+  buffers.push_back(
+      std::make_pair(const_cast<char*>(body1.data()), body1.length()));
+  buffers.push_back(
+      std::make_pair(const_cast<char*>(body2.data()), body2.length()));
+  QuicTestMemSliceVector mem_slices(buffers);
+
+  QuicMemSliceStorage storage(nullptr, 0, nullptr, 0);
+  mem_slices.span().ConsumeAll(
+      [&storage](QuicMemSlice slice) { storage.Append(std::move(slice)); });
+
+  EXPECT_EQ("aaa", storage.ToSpan().GetData(0));
+  EXPECT_EQ("bbbb", storage.ToSpan().GetData(1));
 }
 
 }  // namespace

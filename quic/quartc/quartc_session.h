@@ -15,6 +15,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_session.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_mem_slice_storage.h"
 #include "net/third_party/quiche/src/quic/quartc/quartc_packet_writer.h"
 #include "net/third_party/quiche/src/quic/quartc/quartc_stream.h"
 
@@ -212,9 +213,9 @@ class QuartcSession : public QuicSession,
 
   // Holds message until it's sent.
   struct QueuedMessage {
-    QueuedMessage(QuicMemSlice the_message, int64_t the_datagram_id)
-        : message(std::move(the_message)), datagram_id(the_datagram_id) {}
-    QuicMemSlice message;
+    QueuedMessage() : message(nullptr, 0, nullptr, 0), datagram_id(0) {}
+
+    QuicMemSliceStorage message;
     int64_t datagram_id;
   };
 
