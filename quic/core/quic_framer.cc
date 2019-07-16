@@ -578,10 +578,16 @@ size_t QuicFramer::GetConnectionCloseFrameSize(
   // extend the error string to include " QuicErrorCode: #"
   const size_t truncated_error_string_size =
       TruncatedErrorStringSize(frame.error_details);
+  uint64_t close_code = 0;
+  if (frame.close_type == IETF_QUIC_TRANSPORT_CONNECTION_CLOSE) {
+    close_code = static_cast<uint64_t>(frame.transport_error_code);
+  } else if (frame.close_type == IETF_QUIC_APPLICATION_CONNECTION_CLOSE) {
+    close_code = static_cast<uint64_t>(frame.application_error_code);
+  }
   const size_t frame_size =
       truncated_error_string_size +
       QuicDataWriter::GetVarInt62Len(truncated_error_string_size) +
-      kQuicFrameTypeSize + kQuicIetfQuicErrorCodeSize;
+      kQuicFrameTypeSize + QuicDataWriter::GetVarInt62Len(close_code);
   if (frame.close_type == IETF_QUIC_APPLICATION_CONNECTION_CLOSE) {
     return frame_size;
   }
@@ -5667,7 +5673,14 @@ bool QuicFramer::AppendIetfConnectionCloseFrame(
     return false;
   }
 
-  if (!writer->WriteUInt16(frame.application_error_code)) {
+  uint64_t close_code = 0;
+  if (frame.close_type == IETF_QUIC_TRANSPORT_CONNECTION_CLOSE) {
+    close_code = static_cast<uint64_t>(frame.transport_error_code);
+  } else if (frame.close_type == IETF_QUIC_APPLICATION_CONNECTION_CLOSE) {
+    close_code = static_cast<uint64_t>(frame.application_error_code);
+  }
+
+  if (!writer->WriteVarInt62(close_code)) {
     set_detailed_error("Can not write connection close frame error code");
     return false;
   }
@@ -5698,13 +5711,30 @@ bool QuicFramer::ProcessIetfConnectionCloseFrame(
     QuicConnectionCloseType type,
     QuicConnectionCloseFrame* frame) {
   frame->close_type = type;
-  uint16_t code;
-  if (!reader->ReadUInt16(&code)) {
+  uint64_t error_code;
+  if (!reader->ReadVarInt62(&error_code)) {
     set_detailed_error("Unable to read connection close error code.");
     return false;
   }
-  frame->transport_error_code = static_cast<QuicIetfTransportErrorCodes>(code);
 
+  if (frame->close_type == IETF_QUIC_TRANSPORT_CONNECTION_CLOSE) {
+    if (error_code > 0xffff) {
+      frame->transport_error_code =
+          static_cast<QuicIetfTransportErrorCodes>(0xffff);
+      QUIC_DLOG(ERROR) << "Transport error code " << error_code << " > 0xffff";
+    } else {
+      frame->transport_error_code =
+          static_cast<QuicIetfTransportErrorCodes>(error_code);
+    }
+  } else if (frame->close_type == IETF_QUIC_APPLICATION_CONNECTION_CLOSE) {
+    if (error_code > 0xffff) {
+      frame->application_error_code = 0xffff;
+      QUIC_DLOG(ERROR) << "Application error code " << error_code
+                       << " > 0xffff";
+    } else {
+      frame->application_error_code = static_cast<uint16_t>(error_code);
+    }
+  }
   if (type == IETF_QUIC_TRANSPORT_CONNECTION_CLOSE) {
     // The frame-type of the frame causing the error is present only
     // if it's a CONNECTION_CLOSE/Transport.

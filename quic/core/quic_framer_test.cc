@@ -4676,7 +4676,7 @@ TEST_P(QuicFramerTest, ConnectionCloseFrame) {
        {0x1c}},
       // error code
       {"Unable to read connection close error code.",
-       {0x00, 0x11}},
+       {kVarInt62TwoBytes + 0x00, 0x11}},
       {"Unable to read connection close frame type.",
        {kVarInt62TwoBytes + 0x12, 0x34 }},
       {"Unable to read connection close error details.",
@@ -4747,7 +4747,7 @@ TEST_P(QuicFramerTest, ApplicationCloseFrame) {
        {0x1d}},
       // error code
       {"Unable to read connection close error code.",
-       {0x00, 0x11}},
+       {kVarInt62TwoBytes + 0x00, 0x11}},
       {"Unable to read connection close error details.",
        {
          // error details length
@@ -7927,7 +7927,7 @@ TEST_P(QuicFramerTest, BuildCloseFramePacket) {
     // frame type (IETF_CONNECTION_CLOSE frame)
     0x1c,
     // error code
-    0x00, 0x11,
+    kVarInt62OneByte + 0x11,
     // Frame type within the CONNECTION_CLOSE frame
     kVarInt62OneByte + 0x05,
     // error details length
@@ -8138,7 +8138,7 @@ TEST_P(QuicFramerTest, BuildTruncatedCloseFramePacket) {
     // frame type (IETF_CONNECTION_CLOSE frame)
     0x1c,
     // error code
-    0x00, 0x0a,
+    kVarInt62OneByte + 0x0a,
     // Frame type within the CONNECTION_CLOSE frame
     kVarInt62OneByte + 0x00,
     // error details length
@@ -8212,7 +8212,8 @@ TEST_P(QuicFramerTest, BuildApplicationCloseFramePacket) {
   header.packet_number = kPacketNumber;
 
   QuicConnectionCloseFrame app_close_frame;
-  app_close_frame.quic_error_code = static_cast<QuicErrorCode>(0x11);
+  app_close_frame.application_error_code =
+      static_cast<uint64_t>(QUIC_INVALID_STREAM_ID);
   app_close_frame.error_details = "because I can";
   app_close_frame.close_type = IETF_QUIC_APPLICATION_CONNECTION_CLOSE;
 
@@ -8231,7 +8232,7 @@ TEST_P(QuicFramerTest, BuildApplicationCloseFramePacket) {
     // frame type (IETF_APPLICATION_CLOSE frame)
     0x1d,
     // error code
-    0x00, 0x11,
+    kVarInt62OneByte + 0x11,
     // error details length
     kVarInt62OneByte + 0x0d,
     // error details
@@ -8263,7 +8264,8 @@ TEST_P(QuicFramerTest, BuildTruncatedApplicationCloseFramePacket) {
   header.packet_number = kPacketNumber;
 
   QuicConnectionCloseFrame app_close_frame;
-  app_close_frame.quic_error_code = static_cast<QuicErrorCode>(0x11);
+  app_close_frame.application_error_code =
+      static_cast<uint64_t>(QUIC_INVALID_STREAM_ID);
   app_close_frame.error_details = std::string(2048, 'A');
   app_close_frame.close_type = IETF_QUIC_APPLICATION_CONNECTION_CLOSE;
 
@@ -8281,7 +8283,7 @@ TEST_P(QuicFramerTest, BuildTruncatedApplicationCloseFramePacket) {
     // frame type (IETF_APPLICATION_CLOSE frame)
     0x1d,
     // error code
-    0x00, 0x11,
+    kVarInt62OneByte + 0x11,
     // error details length
     kVarInt62TwoBytes + 0x01, 0x00,
     // error details (truncated to 256 bytes)
