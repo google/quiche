@@ -11650,7 +11650,7 @@ TEST_P(QuicFramerTest, IetfStopSendingFrame) {
       {"Unable to read stop sending stream id.",
        {kVarInt62FourBytes + 0x01, 0x02, 0x03, 0x04}},
       {"Unable to read stop sending application error code.",
-       {0x76, 0x54}},
+       {kVarInt62FourBytes + 0x00, 0x00, 0x76, 0x54}},
   };
   // clang-format on
 
@@ -11701,7 +11701,7 @@ TEST_P(QuicFramerTest, BuildIetfStopSendingPacket) {
     // Stream ID
     kVarInt62FourBytes + 0x01, 0x02, 0x03, 0x04,
     // Application error code
-    0xff, 0xff
+    kVarInt62FourBytes + 0x00, 0x00, 0xff, 0xff
   };
   // clang-format on
 

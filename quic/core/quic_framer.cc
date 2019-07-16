@@ -665,7 +665,7 @@ size_t QuicFramer::GetBlockedFrameSize(QuicTransportVersion version,
 // static
 size_t QuicFramer::GetStopSendingFrameSize(const QuicStopSendingFrame& frame) {
   return kQuicFrameTypeSize + QuicDataWriter::GetVarInt62Len(frame.stream_id) +
-         sizeof(QuicApplicationErrorCode);
+         QuicDataWriter::GetVarInt62Len(frame.application_error_code);
 }
 
 // static
@@ -5853,9 +5853,19 @@ bool QuicFramer::ProcessStopSendingFrame(
     return false;
   }
 
-  if (!reader->ReadUInt16(&stop_sending_frame->application_error_code)) {
+  uint64_t error_code;
+  if (!reader->ReadVarInt62(&error_code)) {
     set_detailed_error("Unable to read stop sending application error code.");
     return false;
+  }
+  // TODO(fkastenholz): when error codes go to uint64_t, remove this.
+  if (error_code > 0xffff) {
+    stop_sending_frame->application_error_code = 0xffff;
+    QUIC_DLOG(ERROR) << "Stop sending error code (" << error_code
+                     << ") > 0xffff";
+  } else {
+    stop_sending_frame->application_error_code =
+        static_cast<uint16_t>(error_code);
   }
   return true;
 }
@@ -5867,7 +5877,8 @@ bool QuicFramer::AppendStopSendingFrame(
     set_detailed_error("Can not write stop sending stream id");
     return false;
   }
-  if (!writer->WriteUInt16(stop_sending_frame.application_error_code)) {
+  if (!writer->WriteVarInt62(
+          static_cast<uint64_t>(stop_sending_frame.application_error_code))) {
     set_detailed_error("Can not write application error code");
     return false;
   }
