@@ -556,7 +556,8 @@ size_t QuicFramer::GetRstStreamFrameSize(QuicTransportVersion version,
   if (VersionHasIetfQuicFrames(version)) {
     return QuicDataWriter::GetVarInt62Len(frame.stream_id) +
            QuicDataWriter::GetVarInt62Len(frame.byte_offset) +
-           kQuicFrameTypeSize + kQuicIetfQuicErrorCodeSize;
+           kQuicFrameTypeSize +
+           QuicDataWriter::GetVarInt62Len(frame.ietf_error_code);
   }
   return kQuicFrameTypeSize + kQuicMaxStreamIdSize + kQuicMaxStreamOffsetSize +
          kQuicErrorCodeSize;
@@ -5812,7 +5813,7 @@ bool QuicFramer::AppendIetfResetStreamFrame(const QuicRstStreamFrame& frame,
     set_detailed_error("Writing reset-stream stream id failed.");
     return false;
   }
-  if (!writer->WriteUInt16(frame.ietf_error_code)) {
+  if (!writer->WriteVarInt62(static_cast<uint64_t>(frame.ietf_error_code))) {
     set_detailed_error("Writing reset-stream error code failed.");
     return false;
   }
@@ -5833,9 +5834,17 @@ bool QuicFramer::ProcessIetfResetStreamFrame(QuicDataReader* reader,
     return false;
   }
 
-  if (!reader->ReadUInt16(&frame->ietf_error_code)) {
+  uint64_t error_code;
+  if (!reader->ReadVarInt62(&error_code)) {
     set_detailed_error("Unable to read rst stream error code.");
     return false;
+  }
+  if (error_code > 0xffff) {
+    frame->ietf_error_code = 0xffff;
+    QUIC_DLOG(ERROR) << "Reset stream error code (" << error_code
+                     << ") > 0xffff";
+  } else {
+    frame->ietf_error_code = static_cast<uint16_t>(error_code);
   }
 
   if (!reader->ReadVarInt62(&frame->byte_offset)) {

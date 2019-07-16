@@ -4544,7 +4544,7 @@ TEST_P(QuicFramerTest, RstStreamFrame) {
        {kVarInt62FourBytes + 0x01, 0x02, 0x03, 0x04}},
       // application error code
       {"Unable to read rst stream error code.",
-       {0x00, 0x01}},   // Not varint62 encoded
+       {kVarInt62OneByte + 0x01}},
       // Final Offset
       {"Unable to read rst stream sent byte offset.",
        {kVarInt62EightBytes + 0x3a, 0x98, 0xFE, 0xDC, 0x32, 0x10, 0x76, 0x54}}
@@ -7801,8 +7801,8 @@ TEST_P(QuicFramerTest, BuildRstFramePacketQuic) {
     0x04,
     // stream id
     kVarInt62FourBytes + 0x01, 0x02, 0x03, 0x04,
-    // error code (not VarInt32 encoded)
-    0x00, 0x01,
+    // error code
+    kVarInt62OneByte + 0x01,
     // sent byte offset
     kVarInt62EightBytes + 0x08, 0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01
   };

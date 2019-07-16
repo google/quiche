@@ -39,6 +39,7 @@ struct QUIC_EXPORT_PRIVATE QuicRstStreamFrame {
     QuicRstStreamErrorCode error_code;
     // In IETF QUIC the code is up to the app on top of quic, so is
     // more general than QuicRstStreamErrorCode allows.
+    // TODO(fkastenholz): Upgrade to uint64_t
     uint16_t ietf_error_code;
   };
 

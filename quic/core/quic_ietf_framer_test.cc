@@ -457,9 +457,10 @@ class QuicIetfFramerTest : public QuicTestWithParam<ParsedQuicVersion> {
     // Write the frame to the packet buffer.
     EXPECT_TRUE(QuicFramerPeer::AppendIetfResetStreamFrame(
         &framer_, transmit_frame, &writer));
-    // Check that the size of the serialzed frame is in the allowed range.
-    EXPECT_LT(3u, writer.length());
-    EXPECT_GT(19u, writer.length());
+    // Check that the size of the serialzed frame is in the allowed range (3 to
+    // 24 bytes, inclusive).
+    EXPECT_LT(2u, writer.length());
+    EXPECT_GT(25u, writer.length());
     // Now set up a reader to read in the thing in.
     QuicDataReader reader(packet_buffer, writer.length(), NETWORK_BYTE_ORDER);
 
