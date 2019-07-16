@@ -449,27 +449,42 @@ void HttpDecoder::RaiseError(QuicErrorCode error, std::string error_detail) {
 bool HttpDecoder::ParsePriorityFrame(QuicDataReader* reader,
                                      PriorityFrame* frame) {
   uint8_t flags;
-  bool success = reader->ReadUInt8(&flags);
-  DCHECK(success);
+  if (!reader->ReadUInt8(&flags)) {
+    // TODO(b/124216424): Use HTTP_MALFORMED_FRAME.
+    RaiseError(QUIC_INVALID_FRAME_DATA, "Unable to read PRIORITY frame flags.");
+    return false;
+  }
 
   frame->prioritized_type =
       static_cast<PriorityElementType>(ExtractBits(flags, 2, 6));
   frame->dependency_type =
       static_cast<PriorityElementType>(ExtractBits(flags, 2, 4));
+  // TODO(b/137662729): Update bitmask for exclusive flag.
   frame->exclusive = flags % 2 == 1;
-  // TODO(bnc): Handle partial delivery.
+  // TODO(b/137359636): Handle partial delivery.
   if (frame->prioritized_type != ROOT_OF_TREE &&
       !reader->ReadVarInt62(&frame->prioritized_element_id)) {
-    RaiseError(QUIC_INTERNAL_ERROR, "Unable to read prioritized_element_id");
+    // TODO(b/124216424): Use HTTP_MALFORMED_FRAME.
+    RaiseError(QUIC_INVALID_FRAME_DATA,
+               "Unable to read prioritized_element_id.");
     return false;
   }
   if (frame->dependency_type != ROOT_OF_TREE &&
       !reader->ReadVarInt62(&frame->element_dependency_id)) {
-    RaiseError(QUIC_INTERNAL_ERROR, "Unable to read element_dependency_id");
+    // TODO(b/124216424): Use HTTP_MALFORMED_FRAME.
+    RaiseError(QUIC_INVALID_FRAME_DATA,
+               "Unable to read element_dependency_id.");
     return false;
   }
   if (!reader->ReadUInt8(&frame->weight)) {
-    RaiseError(QUIC_INTERNAL_ERROR, "Unable to read priority frame weight");
+    // TODO(b/124216424): Use HTTP_MALFORMED_FRAME.
+    RaiseError(QUIC_INVALID_FRAME_DATA,
+               "Unable to read priority frame weight.");
+    return false;
+  }
+  if (!reader->IsDoneReading()) {
+    // TODO(b/124216424): Use HTTP_MALFORMED_FRAME.
+    RaiseError(QUIC_INVALID_FRAME_DATA, "Superfluous data in priority frame.");
     return false;
   }
   return true;

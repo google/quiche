@@ -411,6 +411,52 @@ TEST_F(HttpDecoderTest, PriorityFrame) {
   EXPECT_EQ("", decoder_.error_detail());
 }
 
+// Regression test for https://crbug.com/981291 and https://crbug.com/981646.
+TEST_F(HttpDecoderTest, CorruptPriorityFrame) {
+  const char* const payload1 =
+      "\x01"   // request stream, request stream, exclusive
+      "\x03"   // prioritized_element_id
+      "\x04"   // element_dependency_id
+      "\xFF"   // weight
+      "\xFF";  // superfluous data
+  const char* const payload2 =
+      "\xf1"   // root of tree, root of tree, exclusive
+      "\xFF"   // weight
+      "\xFF";  // superfluous data
+  struct {
+    const char* const payload;
+    size_t payload_length;
+    const char* const error_message;
+  } kTestData[] = {
+      {payload1, 0, "Unable to read PRIORITY frame flags."},
+      {payload1, 1, "Unable to read prioritized_element_id."},
+      {payload1, 2, "Unable to read element_dependency_id."},
+      {payload1, 3, "Unable to read priority frame weight."},
+      {payload1, 5, "Superfluous data in priority frame."},
+      {payload2, 0, "Unable to read PRIORITY frame flags."},
+      {payload2, 1, "Unable to read priority frame weight."},
+      {payload2, 3, "Superfluous data in priority frame."},
+  };
+
+  for (const auto& test_data : kTestData) {
+    std::string input;
+    input.push_back(2u);  // type PRIORITY
+    input.push_back(test_data.payload_length);
+    size_t header_length = input.size();
+    input.append(test_data.payload, test_data.payload_length);
+
+    HttpDecoder decoder(&visitor_);
+    EXPECT_CALL(visitor_, OnPriorityFrameStart(Http3FrameLengths(
+                              header_length, test_data.payload_length)));
+
+    QuicByteCount processed_bytes =
+        decoder.ProcessInput(input.data(), input.size());
+    EXPECT_EQ(input.size(), processed_bytes);
+    EXPECT_EQ(QUIC_INVALID_FRAME_DATA, decoder.error());
+    EXPECT_EQ(test_data.error_message, decoder.error_detail());
+  }
+}
+
 TEST_F(HttpDecoderTest, SettingsFrame) {
   InSequence s;
   std::string input(
