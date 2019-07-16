@@ -244,7 +244,7 @@ QuicConnection::QuicConnection(
       last_decrypted_packet_level_(ENCRYPTION_INITIAL),
       should_last_packet_instigate_acks_(false),
       max_undecryptable_packets_(0),
-      max_tracked_packets_(kMaxTrackedPackets),
+      max_tracked_packets_(GetQuicFlag(FLAGS_quic_max_tracked_packet_count)),
       pending_version_negotiation_packet_(false),
       send_ietf_version_negotiation_packet_(false),
       idle_timeout_connection_close_behavior_(

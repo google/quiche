@@ -324,6 +324,9 @@ class QUIC_EXPORT_PRIVATE BandwidthSampler : public BandwidthSamplerInterface {
   // sent, indexed by the packet number.
   PacketNumberIndexedQueue<ConnectionStateOnSentPacket> connection_state_map_;
 
+  // Maximum number of tracked packets.
+  const QuicPacketCount max_tracked_packets_;
+
   // Handles the actual bandwidth calculations, whereas the outer method handles
   // retrieving and removing |sent_packet|.
   BandwidthSample OnPacketAcknowledgedInner(

@@ -20,7 +20,8 @@ BandwidthSampler::BandwidthSampler()
       last_acked_packet_sent_time_(QuicTime::Zero()),
       last_acked_packet_ack_time_(QuicTime::Zero()),
       is_app_limited_(false),
-      connection_state_map_() {}
+      connection_state_map_(),
+      max_tracked_packets_(GetQuicFlag(FLAGS_quic_max_tracked_packet_count)) {}
 
 BandwidthSampler::~BandwidthSampler() {}
 
@@ -55,7 +56,7 @@ void BandwidthSampler::OnPacketSent(
 
   if (!connection_state_map_.IsEmpty() &&
       packet_number >
-          connection_state_map_.last_packet() + kMaxTrackedPackets) {
+          connection_state_map_.last_packet() + max_tracked_packets_) {
     QUIC_BUG << "BandwidthSampler in-flight packet map has exceeded maximum "
                 "number "
                 "of tracked packets.";
