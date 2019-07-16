@@ -963,7 +963,8 @@ bool QuicConnection::OnAckFrameEnd(QuicPacketNumber start) {
     return true;
   }
   const AckResult ack_result = sent_packet_manager_.OnAckFrameEnd(
-      time_of_last_received_packet_, last_decrypted_packet_level_);
+      time_of_last_received_packet_, last_header_.packet_number,
+      last_decrypted_packet_level_);
   if (ack_result != PACKETS_NEWLY_ACKED &&
       ack_result != NO_PACKETS_NEWLY_ACKED) {
     // Error occurred (e.g., this ACK tries to ack packets in wrong packet

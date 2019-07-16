@@ -23,7 +23,8 @@ class QuicTraceVisitor : public QuicConnectionDebugVisitor {
                     TransmissionType transmission_type,
                     QuicTime sent_time) override;
 
-  void OnIncomingAck(const QuicAckFrame& ack_frame,
+  void OnIncomingAck(QuicPacketNumber ack_packet_number,
+                     const QuicAckFrame& ack_frame,
                      QuicTime ack_receive_time,
                      QuicPacketNumber largest_observed,
                      bool rtt_updated,

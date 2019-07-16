@@ -404,7 +404,8 @@ TEST_P(QuicSentPacketManagerTest, RetransmitThenAck) {
                            clock_.Now());
   manager_.OnAckRange(QuicPacketNumber(2), QuicPacketNumber(3));
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
-            manager_.OnAckFrameEnd(clock_.Now(), ENCRYPTION_INITIAL));
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
+                                   ENCRYPTION_INITIAL));
   if (manager_.session_decides_what_to_write()) {
     EXPECT_CALL(notifier_, IsFrameOutstanding(_)).WillRepeatedly(Return(false));
   }
@@ -436,7 +437,8 @@ TEST_P(QuicSentPacketManagerTest, RetransmitThenAckBeforeSend) {
                            clock_.Now());
   manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(2));
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
-            manager_.OnAckFrameEnd(clock_.Now(), ENCRYPTION_INITIAL));
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
+                                   ENCRYPTION_INITIAL));
 
   // There should no longer be a pending retransmission.
   EXPECT_FALSE(manager_.HasPendingRetransmissions());
@@ -491,7 +493,8 @@ TEST_P(QuicSentPacketManagerTest, RetransmitThenAckPrevious) {
                            clock_.Now());
   manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(2));
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
-            manager_.OnAckFrameEnd(clock_.Now(), ENCRYPTION_INITIAL));
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
+                                   ENCRYPTION_INITIAL));
   if (manager_.session_decides_what_to_write()) {
     EXPECT_CALL(notifier_, IsFrameOutstanding(_)).WillRepeatedly(Return(false));
   }
@@ -508,7 +511,8 @@ TEST_P(QuicSentPacketManagerTest, RetransmitThenAckPrevious) {
                              clock_.Now());
     manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(3));
     EXPECT_EQ(PACKETS_NEWLY_ACKED,
-              manager_.OnAckFrameEnd(clock_.Now(), ENCRYPTION_INITIAL));
+              manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(2),
+                                     ENCRYPTION_INITIAL));
   }
 
   EXPECT_EQ(1u, stats_.packets_spuriously_retransmitted);
@@ -526,7 +530,8 @@ TEST_P(QuicSentPacketManagerTest, RetransmitThenAckPreviousThenNackRetransmit) {
                            clock_.Now());
   manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(2));
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
-            manager_.OnAckFrameEnd(clock_.Now(), ENCRYPTION_INITIAL));
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
+                                   ENCRYPTION_INITIAL));
 
   SendDataPacket(3);
   SendDataPacket(4);
@@ -540,7 +545,8 @@ TEST_P(QuicSentPacketManagerTest, RetransmitThenAckPreviousThenNackRetransmit) {
   manager_.OnAckRange(QuicPacketNumber(3), QuicPacketNumber(4));
   manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(2));
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
-            manager_.OnAckFrameEnd(clock_.Now(), ENCRYPTION_INITIAL));
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(2),
+                                   ENCRYPTION_INITIAL));
 
   ExpectAck(4);
   manager_.OnAckFrameStart(QuicPacketNumber(4), QuicTime::Delta::Infinite(),
@@ -548,7 +554,8 @@ TEST_P(QuicSentPacketManagerTest, RetransmitThenAckPreviousThenNackRetransmit) {
   manager_.OnAckRange(QuicPacketNumber(3), QuicPacketNumber(5));
   manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(2));
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
-            manager_.OnAckFrameEnd(clock_.Now(), ENCRYPTION_INITIAL));
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(3),
+                                   ENCRYPTION_INITIAL));
 
   ExpectAckAndLoss(true, 5, 2);
   if (manager_.session_decides_what_to_write()) {
@@ -563,7 +570,8 @@ TEST_P(QuicSentPacketManagerTest, RetransmitThenAckPreviousThenNackRetransmit) {
   manager_.OnAckRange(QuicPacketNumber(3), QuicPacketNumber(6));
   manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(2));
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
-            manager_.OnAckFrameEnd(clock_.Now(), ENCRYPTION_INITIAL));
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(4),
+                                   ENCRYPTION_INITIAL));
 
   if (manager_.session_decides_what_to_write()) {
     uint64_t unacked[] = {2};
@@ -600,7 +608,8 @@ TEST_P(QuicSentPacketManagerTest,
                            clock_.Now());
   manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(2));
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
-            manager_.OnAckFrameEnd(clock_.Now(), ENCRYPTION_INITIAL));
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
+                                   ENCRYPTION_INITIAL));
 
   // Since 2 was marked for retransmit, when 1 is acked, 2 is kept for RTT.
   uint64_t unacked[] = {2};
@@ -638,7 +647,8 @@ TEST_P(QuicSentPacketManagerTest, RetransmitTwiceThenAckFirst) {
                            clock_.Now());
   manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(2));
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
-            manager_.OnAckFrameEnd(clock_.Now(), ENCRYPTION_INITIAL));
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
+                                   ENCRYPTION_INITIAL));
   if (manager_.session_decides_what_to_write()) {
     // Frames in packets 2 and 3 are acked.
     EXPECT_CALL(notifier_, IsFrameOutstanding(_))
@@ -667,7 +677,8 @@ TEST_P(QuicSentPacketManagerTest, RetransmitTwiceThenAckFirst) {
   manager_.OnAckRange(QuicPacketNumber(3), QuicPacketNumber(5));
   manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(2));
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
-            manager_.OnAckFrameEnd(clock_.Now(), ENCRYPTION_INITIAL));
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(2),
+                                   ENCRYPTION_INITIAL));
 
   uint64_t unacked2[] = {2};
   VerifyUnackedPackets(unacked2, QUIC_ARRAYSIZE(unacked2));
@@ -689,7 +700,8 @@ TEST_P(QuicSentPacketManagerTest, RetransmitTwiceThenAckFirst) {
   manager_.OnAckRange(QuicPacketNumber(3), QuicPacketNumber(6));
   manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(2));
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
-            manager_.OnAckFrameEnd(clock_.Now(), ENCRYPTION_INITIAL));
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(3),
+                                   ENCRYPTION_INITIAL));
 
   if (manager_.session_decides_what_to_write()) {
     uint64_t unacked[] = {2};
@@ -723,7 +735,8 @@ TEST_P(QuicSentPacketManagerTest, AckOriginalTransmission) {
                              clock_.Now());
     manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(2));
     EXPECT_EQ(PACKETS_NEWLY_ACKED,
-              manager_.OnAckFrameEnd(clock_.Now(), ENCRYPTION_INITIAL));
+              manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
+                                     ENCRYPTION_INITIAL));
   }
 
   SendDataPacket(3);
@@ -737,7 +750,8 @@ TEST_P(QuicSentPacketManagerTest, AckOriginalTransmission) {
     manager_.OnAckRange(QuicPacketNumber(4), QuicPacketNumber(5));
     manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(2));
     EXPECT_EQ(PACKETS_NEWLY_ACKED,
-              manager_.OnAckFrameEnd(clock_.Now(), ENCRYPTION_INITIAL));
+              manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(2),
+                                     ENCRYPTION_INITIAL));
     RetransmitAndSendPacket(3, 5, LOSS_RETRANSMISSION);
   }
 
@@ -753,7 +767,8 @@ TEST_P(QuicSentPacketManagerTest, AckOriginalTransmission) {
     manager_.OnAckRange(QuicPacketNumber(3), QuicPacketNumber(5));
     manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(2));
     EXPECT_EQ(PACKETS_NEWLY_ACKED,
-              manager_.OnAckFrameEnd(clock_.Now(), ENCRYPTION_INITIAL));
+              manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(3),
+                                     ENCRYPTION_INITIAL));
     if (manager_.session_decides_what_to_write()) {
       // Ack 3 will not cause 5 be considered as a spurious retransmission. Ack
       // 5 will cause 5 be considered as a spurious retransmission as no new
@@ -766,7 +781,8 @@ TEST_P(QuicSentPacketManagerTest, AckOriginalTransmission) {
       manager_.OnAckRange(QuicPacketNumber(3), QuicPacketNumber(6));
       manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(2));
       EXPECT_EQ(PACKETS_NEWLY_ACKED,
-                manager_.OnAckFrameEnd(clock_.Now(), ENCRYPTION_INITIAL));
+                manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(4),
+                                       ENCRYPTION_INITIAL));
     }
   }
 }
@@ -792,7 +808,8 @@ TEST_P(QuicSentPacketManagerTest, AckAckAndUpdateRtt) {
                            QuicTime::Delta::FromMilliseconds(5), clock_.Now());
   manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(3));
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
-            manager_.OnAckFrameEnd(clock_.Now(), ENCRYPTION_INITIAL));
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
+                                   ENCRYPTION_INITIAL));
   EXPECT_EQ(QuicPacketNumber(1), manager_.largest_packet_peer_knows_is_acked());
 
   SendAckPacket(3, 3);
@@ -804,7 +821,8 @@ TEST_P(QuicSentPacketManagerTest, AckAckAndUpdateRtt) {
                            clock_.Now());
   manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(4));
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
-            manager_.OnAckFrameEnd(clock_.Now(), ENCRYPTION_INITIAL));
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(2),
+                                   ENCRYPTION_INITIAL));
   EXPECT_EQ(QuicPacketNumber(3u),
             manager_.largest_packet_peer_knows_is_acked());
 }
@@ -819,7 +837,8 @@ TEST_P(QuicSentPacketManagerTest, Rtt) {
                            clock_.Now());
   manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(2));
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
-            manager_.OnAckFrameEnd(clock_.Now(), ENCRYPTION_INITIAL));
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
+                                   ENCRYPTION_INITIAL));
   EXPECT_EQ(expected_rtt, manager_.GetRttStats()->latest_rtt());
 }
 
@@ -836,7 +855,8 @@ TEST_P(QuicSentPacketManagerTest, RttWithInvalidDelta) {
                            QuicTime::Delta::FromMilliseconds(11), clock_.Now());
   manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(2));
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
-            manager_.OnAckFrameEnd(clock_.Now(), ENCRYPTION_INITIAL));
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
+                                   ENCRYPTION_INITIAL));
   EXPECT_EQ(expected_rtt, manager_.GetRttStats()->latest_rtt());
 }
 
@@ -852,7 +872,8 @@ TEST_P(QuicSentPacketManagerTest, RttWithInfiniteDelta) {
                            clock_.Now());
   manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(2));
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
-            manager_.OnAckFrameEnd(clock_.Now(), ENCRYPTION_INITIAL));
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
+                                   ENCRYPTION_INITIAL));
   EXPECT_EQ(expected_rtt, manager_.GetRttStats()->latest_rtt());
 }
 
@@ -868,7 +889,8 @@ TEST_P(QuicSentPacketManagerTest, RttZeroDelta) {
                            clock_.Now());
   manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(2));
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
-            manager_.OnAckFrameEnd(clock_.Now(), ENCRYPTION_INITIAL));
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
+                                   ENCRYPTION_INITIAL));
   EXPECT_EQ(expected_rtt, manager_.GetRttStats()->latest_rtt());
 }
 
@@ -919,7 +941,8 @@ TEST_P(QuicSentPacketManagerTest, TailLossProbeTimeout) {
                            clock_.Now());
   manager_.OnAckRange(QuicPacketNumber(3), QuicPacketNumber(4));
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
-            manager_.OnAckFrameEnd(clock_.Now(), ENCRYPTION_INITIAL));
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
+                                   ENCRYPTION_INITIAL));
 
   EXPECT_TRUE(manager_.HasInFlightPackets());
 
@@ -941,7 +964,8 @@ TEST_P(QuicSentPacketManagerTest, TailLossProbeTimeout) {
                            clock_.Now());
   manager_.OnAckRange(QuicPacketNumber(3), QuicPacketNumber(6));
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
-            manager_.OnAckFrameEnd(clock_.Now(), ENCRYPTION_INITIAL));
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(2),
+                                   ENCRYPTION_INITIAL));
 
   EXPECT_FALSE(manager_.HasPendingRetransmissions());
   EXPECT_FALSE(manager_.HasInFlightPackets());
@@ -1048,7 +1072,8 @@ TEST_P(QuicSentPacketManagerTest, TailLossProbeThenRTO) {
                            clock_.Now());
   manager_.OnAckRange(QuicPacketNumber(103), QuicPacketNumber(104));
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
-            manager_.OnAckFrameEnd(clock_.Now(), ENCRYPTION_INITIAL));
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
+                                   ENCRYPTION_INITIAL));
   // All packets before 103 should be lost.
   if (manager_.session_decides_what_to_write()) {
     // Packet 104 is still in flight.
@@ -1134,7 +1159,8 @@ TEST_P(QuicSentPacketManagerTest, CryptoHandshakeTimeout) {
   manager_.OnAckRange(QuicPacketNumber(8), QuicPacketNumber(10));
   manager_.OnAckRange(QuicPacketNumber(3), QuicPacketNumber(6));
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
-            manager_.OnAckFrameEnd(clock_.Now(), ENCRYPTION_INITIAL));
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
+                                   ENCRYPTION_INITIAL));
 
   EXPECT_FALSE(manager_.HasUnackedCryptoPackets());
 }
@@ -1206,7 +1232,8 @@ TEST_P(QuicSentPacketManagerTest, CryptoHandshakeTimeoutVersionNegotiation) {
                            clock_.Now());
   manager_.OnAckRange(QuicPacketNumber(8), QuicPacketNumber(10));
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
-            manager_.OnAckFrameEnd(clock_.Now(), ENCRYPTION_INITIAL));
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
+                                   ENCRYPTION_INITIAL));
   if (manager_.session_decides_what_to_write()) {
     EXPECT_CALL(notifier_, HasUnackedCryptoData())
         .WillRepeatedly(Return(false));
@@ -1252,7 +1279,8 @@ TEST_P(QuicSentPacketManagerTest, CryptoHandshakeSpuriousRetransmission) {
                            clock_.Now());
   manager_.OnAckRange(QuicPacketNumber(2), QuicPacketNumber(3));
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
-            manager_.OnAckFrameEnd(clock_.Now(), ENCRYPTION_INITIAL));
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
+                                   ENCRYPTION_INITIAL));
 
   EXPECT_FALSE(manager_.HasUnackedCryptoPackets());
   if (GetQuicReloadableFlag(quic_loss_removes_from_inflight)) {
@@ -1378,7 +1406,8 @@ TEST_P(QuicSentPacketManagerTest,
                            clock_.Now());
   manager_.OnAckRange(QuicPacketNumber(3), QuicPacketNumber(4));
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
-            manager_.OnAckFrameEnd(clock_.Now(), ENCRYPTION_INITIAL));
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
+                                   ENCRYPTION_INITIAL));
   VerifyUnackedPackets(nullptr, 0);
   VerifyRetransmittablePackets(nullptr, 0);
 }
@@ -1441,7 +1470,8 @@ TEST_P(QuicSentPacketManagerTest, RetransmissionTimeout) {
                            clock_.Now());
   manager_.OnAckRange(QuicPacketNumber(102), QuicPacketNumber(103));
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
-            manager_.OnAckFrameEnd(clock_.Now(), ENCRYPTION_INITIAL));
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
+                                   ENCRYPTION_INITIAL));
 }
 
 TEST_P(QuicSentPacketManagerTest, RetransmissionTimeoutOnePacket) {
@@ -1550,7 +1580,8 @@ TEST_P(QuicSentPacketManagerTest, NewRetransmissionTimeout) {
                            clock_.Now());
   manager_.OnAckRange(QuicPacketNumber(102), QuicPacketNumber(103));
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
-            manager_.OnAckFrameEnd(clock_.Now(), ENCRYPTION_INITIAL));
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
+                                   ENCRYPTION_INITIAL));
 }
 
 TEST_P(QuicSentPacketManagerTest, TwoRetransmissionTimeoutsAckSecond) {
@@ -1595,7 +1626,8 @@ TEST_P(QuicSentPacketManagerTest, TwoRetransmissionTimeoutsAckSecond) {
                            clock_.Now());
   manager_.OnAckRange(QuicPacketNumber(2), QuicPacketNumber(3));
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
-            manager_.OnAckFrameEnd(clock_.Now(), ENCRYPTION_INITIAL));
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
+                                   ENCRYPTION_INITIAL));
 
   // The original packet and newest should be outstanding.
   EXPECT_EQ(2 * kDefaultLength, manager_.GetBytesInFlight());
@@ -1643,7 +1675,8 @@ TEST_P(QuicSentPacketManagerTest, TwoRetransmissionTimeoutsAckFirst) {
                            clock_.Now());
   manager_.OnAckRange(QuicPacketNumber(3), QuicPacketNumber(4));
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
-            manager_.OnAckFrameEnd(clock_.Now(), ENCRYPTION_INITIAL));
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
+                                   ENCRYPTION_INITIAL));
 
   // The first two packets should still be outstanding.
   EXPECT_EQ(2 * kDefaultLength, manager_.GetBytesInFlight());
@@ -1955,7 +1988,8 @@ TEST_P(QuicSentPacketManagerTest, GetTransmissionTimeSpuriousRTO) {
                            clock_.Now());
   manager_.OnAckRange(QuicPacketNumber(2), QuicPacketNumber(3));
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
-            manager_.OnAckFrameEnd(clock_.Now(), ENCRYPTION_INITIAL));
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
+                                   ENCRYPTION_INITIAL));
   EXPECT_FALSE(manager_.HasPendingRetransmissions());
   EXPECT_EQ(5 * kDefaultLength, manager_.GetBytesInFlight());
 
@@ -2090,7 +2124,8 @@ TEST_P(QuicSentPacketManagerTest, GetLossDelay) {
                            clock_.Now());
   manager_.OnAckRange(QuicPacketNumber(2), QuicPacketNumber(3));
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
-            manager_.OnAckFrameEnd(clock_.Now(), ENCRYPTION_INITIAL));
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
+                                   ENCRYPTION_INITIAL));
 
   QuicTime timeout(clock_.Now() + QuicTime::Delta::FromMilliseconds(10));
   EXPECT_CALL(*loss_algorithm, GetLossTimeout())
@@ -2575,7 +2610,8 @@ TEST_P(QuicSentPacketManagerTest, PathMtuIncreased) {
                            clock_.Now());
   manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(2));
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
-            manager_.OnAckFrameEnd(clock_.Now(), ENCRYPTION_INITIAL));
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
+                                   ENCRYPTION_INITIAL));
 }
 
 TEST_P(QuicSentPacketManagerTest, OnAckRangeSlowPath) {
@@ -2597,7 +2633,8 @@ TEST_P(QuicSentPacketManagerTest, OnAckRangeSlowPath) {
   // Make sure empty range does not harm.
   manager_.OnAckRange(QuicPacketNumber(4), QuicPacketNumber(4));
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
-            manager_.OnAckFrameEnd(clock_.Now(), ENCRYPTION_INITIAL));
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
+                                   ENCRYPTION_INITIAL));
 
   // Ack [4, 8), [9, 13), [14, 21).
   uint64_t acked2[] = {4, 7, 9, 12, 14, 17, 18, 19, 20};
@@ -2608,7 +2645,8 @@ TEST_P(QuicSentPacketManagerTest, OnAckRangeSlowPath) {
   manager_.OnAckRange(QuicPacketNumber(9), QuicPacketNumber(13));
   manager_.OnAckRange(QuicPacketNumber(4), QuicPacketNumber(8));
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
-            manager_.OnAckFrameEnd(clock_.Now(), ENCRYPTION_INITIAL));
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(2),
+                                   ENCRYPTION_INITIAL));
 }
 
 TEST_P(QuicSentPacketManagerTest, TolerateReneging) {
@@ -2628,7 +2666,8 @@ TEST_P(QuicSentPacketManagerTest, TolerateReneging) {
   manager_.OnAckRange(QuicPacketNumber(10), QuicPacketNumber(12));
   manager_.OnAckRange(QuicPacketNumber(5), QuicPacketNumber(7));
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
-            manager_.OnAckFrameEnd(clock_.Now(), ENCRYPTION_INITIAL));
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
+                                   ENCRYPTION_INITIAL));
 
   // Making sure reneged ACK does not harm. Ack [4, 8), [9, 13).
   uint64_t acked2[] = {4, 7, 9, 12};
@@ -2638,7 +2677,8 @@ TEST_P(QuicSentPacketManagerTest, TolerateReneging) {
   manager_.OnAckRange(QuicPacketNumber(9), QuicPacketNumber(13));
   manager_.OnAckRange(QuicPacketNumber(4), QuicPacketNumber(8));
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
-            manager_.OnAckFrameEnd(clock_.Now(), ENCRYPTION_INITIAL));
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(2),
+                                   ENCRYPTION_INITIAL));
   EXPECT_EQ(QuicPacketNumber(16), manager_.GetLargestObserved());
 }
 
@@ -2660,7 +2700,8 @@ TEST_P(QuicSentPacketManagerTest, MultiplePacketNumberSpaces) {
                            clock_.Now());
   manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(2));
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
-            manager_.OnAckFrameEnd(clock_.Now(), ENCRYPTION_INITIAL));
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
+                                   ENCRYPTION_INITIAL));
   EXPECT_EQ(QuicPacketNumber(1),
             manager_.GetLargestAckedPacket(ENCRYPTION_INITIAL));
   EXPECT_FALSE(
@@ -2680,7 +2721,8 @@ TEST_P(QuicSentPacketManagerTest, MultiplePacketNumberSpaces) {
                            clock_.Now());
   manager_.OnAckRange(QuicPacketNumber(2), QuicPacketNumber(3));
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
-            manager_.OnAckFrameEnd(clock_.Now(), ENCRYPTION_HANDSHAKE));
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(2),
+                                   ENCRYPTION_HANDSHAKE));
   EXPECT_EQ(QuicPacketNumber(2),
             manager_.GetLargestAckedPacket(ENCRYPTION_HANDSHAKE));
   EXPECT_FALSE(
@@ -2691,7 +2733,8 @@ TEST_P(QuicSentPacketManagerTest, MultiplePacketNumberSpaces) {
                            clock_.Now());
   manager_.OnAckRange(QuicPacketNumber(2), QuicPacketNumber(4));
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
-            manager_.OnAckFrameEnd(clock_.Now(), ENCRYPTION_HANDSHAKE));
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(3),
+                                   ENCRYPTION_HANDSHAKE));
   EXPECT_EQ(QuicPacketNumber(3),
             manager_.GetLargestAckedPacket(ENCRYPTION_HANDSHAKE));
   EXPECT_FALSE(
@@ -2713,7 +2756,8 @@ TEST_P(QuicSentPacketManagerTest, MultiplePacketNumberSpaces) {
                            clock_.Now());
   manager_.OnAckRange(QuicPacketNumber(5), QuicPacketNumber(6));
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
-            manager_.OnAckFrameEnd(clock_.Now(), ENCRYPTION_FORWARD_SECURE));
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(4),
+                                   ENCRYPTION_FORWARD_SECURE));
   EXPECT_EQ(QuicPacketNumber(3),
             manager_.GetLargestAckedPacket(ENCRYPTION_HANDSHAKE));
   EXPECT_EQ(QuicPacketNumber(5),
@@ -2740,7 +2784,8 @@ TEST_P(QuicSentPacketManagerTest, MultiplePacketNumberSpaces) {
                            clock_.Now());
   manager_.OnAckRange(QuicPacketNumber(4), QuicPacketNumber(9));
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
-            manager_.OnAckFrameEnd(clock_.Now(), ENCRYPTION_FORWARD_SECURE));
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(5),
+                                   ENCRYPTION_FORWARD_SECURE));
   EXPECT_EQ(QuicPacketNumber(3),
             manager_.GetLargestAckedPacket(ENCRYPTION_HANDSHAKE));
   EXPECT_EQ(QuicPacketNumber(8),
@@ -2762,7 +2807,8 @@ TEST_P(QuicSentPacketManagerTest, PacketsGetAckedInWrongPacketNumberSpace) {
                            clock_.Now());
   manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(4));
   EXPECT_EQ(PACKETS_ACKED_IN_WRONG_PACKET_NUMBER_SPACE,
-            manager_.OnAckFrameEnd(clock_.Now(), ENCRYPTION_INITIAL));
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
+                                   ENCRYPTION_INITIAL));
 }
 
 TEST_P(QuicSentPacketManagerTest, PacketsGetAckedInWrongPacketNumberSpace2) {
@@ -2778,7 +2824,8 @@ TEST_P(QuicSentPacketManagerTest, PacketsGetAckedInWrongPacketNumberSpace2) {
                            clock_.Now());
   manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(4));
   EXPECT_EQ(PACKETS_ACKED_IN_WRONG_PACKET_NUMBER_SPACE,
-            manager_.OnAckFrameEnd(clock_.Now(), ENCRYPTION_HANDSHAKE));
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
+                                   ENCRYPTION_HANDSHAKE));
 }
 
 TEST_P(QuicSentPacketManagerTest,
@@ -2792,7 +2839,8 @@ TEST_P(QuicSentPacketManagerTest,
                            clock_.Now());
   manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(2));
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
-            manager_.OnAckFrameEnd(clock_.Now(), ENCRYPTION_INITIAL));
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
+                                   ENCRYPTION_INITIAL));
 
   // Send packets 2 and 3.
   SendDataPacket(2, ENCRYPTION_HANDSHAKE);
@@ -2806,7 +2854,8 @@ TEST_P(QuicSentPacketManagerTest,
                            clock_.Now());
   manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(4));
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
-            manager_.OnAckFrameEnd(clock_.Now(), ENCRYPTION_HANDSHAKE));
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(2),
+                                   ENCRYPTION_HANDSHAKE));
 }
 
 // Regression test for b/133771183.
@@ -2848,7 +2897,8 @@ TEST_P(QuicSentPacketManagerTest, PacketInLimbo) {
   manager_.OnAckRange(QuicPacketNumber(3), QuicPacketNumber(5));
   manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(2));
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
-            manager_.OnAckFrameEnd(clock_.Now(), ENCRYPTION_INITIAL));
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
+                                   ENCRYPTION_INITIAL));
 
   uint64_t acked2[] = {5, 6};
   uint64_t loss[] = {2};
@@ -2865,7 +2915,8 @@ TEST_P(QuicSentPacketManagerTest, PacketInLimbo) {
                            clock_.Now());
   manager_.OnAckRange(QuicPacketNumber(3), QuicPacketNumber(7));
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
-            manager_.OnAckFrameEnd(clock_.Now(), ENCRYPTION_INITIAL));
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(2),
+                                   ENCRYPTION_INITIAL));
 }
 
 TEST_P(QuicSentPacketManagerTest, RtoFiresNoPacketToRetransmit) {

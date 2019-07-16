@@ -281,6 +281,7 @@ void QuicSentPacketManager::SetHandshakeConfirmed() {
 }
 
 void QuicSentPacketManager::PostProcessNewlyAckedPackets(
+    QuicPacketNumber ack_packet_number,
     const QuicAckFrame& ack_frame,
     QuicTime ack_receive_time,
     bool rtt_updated,
@@ -326,9 +327,9 @@ void QuicSentPacketManager::PostProcessNewlyAckedPackets(
   }
 
   if (debug_delegate_ != nullptr) {
-    debug_delegate_->OnIncomingAck(ack_frame, ack_receive_time,
-                                   LargestAcked(ack_frame), rtt_updated,
-                                   GetLeastUnacked());
+    debug_delegate_->OnIncomingAck(ack_packet_number, ack_frame,
+                                   ack_receive_time, LargestAcked(ack_frame),
+                                   rtt_updated, GetLeastUnacked());
   }
   // Remove packets below least unacked from all_packets_acked_ and
   // last_ack_frame_.
@@ -1170,6 +1171,7 @@ void QuicSentPacketManager::OnAckTimestamp(QuicPacketNumber packet_number,
 
 AckResult QuicSentPacketManager::OnAckFrameEnd(
     QuicTime ack_receive_time,
+    QuicPacketNumber ack_packet_number,
     EncryptionLevel ack_decrypted_level) {
   QuicByteCount prior_bytes_in_flight = unacked_packets_.bytes_in_flight();
   // Reverse packets_acked_ so that it is in ascending order.
@@ -1230,7 +1232,8 @@ AckResult QuicSentPacketManager::OnAckFrameEnd(
                       acked_packet.receive_timestamp);
   }
   const bool acked_new_packet = !packets_acked_.empty();
-  PostProcessNewlyAckedPackets(last_ack_frame_, ack_receive_time, rtt_updated_,
+  PostProcessNewlyAckedPackets(ack_packet_number, last_ack_frame_,
+                               ack_receive_time, rtt_updated_,
                                prior_bytes_in_flight);
 
   return acked_new_packet ? PACKETS_NEWLY_ACKED : NO_PACKETS_NEWLY_ACKED;

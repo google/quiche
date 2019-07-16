@@ -225,6 +225,7 @@ void QuicTraceVisitor::PopulateFrameInfo(const QuicFrame& frame,
 }
 
 void QuicTraceVisitor::OnIncomingAck(
+    QuicPacketNumber /*ack_packet_number*/,
     const QuicAckFrame& ack_frame,
     QuicTime ack_receive_time,
     QuicPacketNumber /*largest_observed*/,

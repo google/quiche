@@ -57,7 +57,8 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
         TransmissionType /*transmission_type*/,
         QuicByteCount /*byte_size*/) {}
 
-    virtual void OnIncomingAck(const QuicAckFrame& /*ack_frame*/,
+    virtual void OnIncomingAck(QuicPacketNumber /*ack_packet_number*/,
+                               const QuicAckFrame& /*ack_frame*/,
                                QuicTime /*ack_receive_time*/,
                                QuicPacketNumber /*largest_observed*/,
                                bool /*rtt_updated*/,
@@ -278,6 +279,7 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
 
   // Called when an ack frame is parsed completely.
   AckResult OnAckFrameEnd(QuicTime ack_receive_time,
+                          QuicPacketNumber ack_packet_number,
                           EncryptionLevel ack_decrypted_level);
 
   // Called to enable/disable letting session decide what to write.
@@ -495,7 +497,8 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
                             QuicTransmissionInfo* transmission_info);
 
   // Called after packets have been marked handled with last received ack frame.
-  void PostProcessNewlyAckedPackets(const QuicAckFrame& ack_frame,
+  void PostProcessNewlyAckedPackets(QuicPacketNumber ack_packet_number,
+                                    const QuicAckFrame& ack_frame,
                                     QuicTime ack_receive_time,
                                     bool rtt_updated,
                                     QuicByteCount prior_bytes_in_flight);
