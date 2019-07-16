@@ -375,12 +375,12 @@ void QuicSpdySession::Initialize() {
         kDefaultQpackMaxDynamicTableCapacity);
   }
 
-  headers_stream_ = QuicMakeUnique<QuicHeadersStream>((this));
+  auto headers_stream = QuicMakeUnique<QuicHeadersStream>((this));
   DCHECK_EQ(QuicUtils::GetHeadersStreamId(connection()->transport_version()),
-            headers_stream_->id());
+            headers_stream->id());
 
-  unowned_headers_stream_ = headers_stream_.get();
-  RegisterStaticStream(std::move(headers_stream_),
+  headers_stream_ = headers_stream.get();
+  RegisterStaticStream(std::move(headers_stream),
                        /*stream_already_counted = */ false);
 
   if (VersionHasStreamType(connection()->transport_version())) {

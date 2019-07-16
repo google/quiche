@@ -928,9 +928,9 @@ TEST_P(QuicSpdySessionTestServer,
   }
   TestHeadersStream* headers_stream;
 
-  QuicSpdySessionPeer::SetUnownedHeadersStream(&session_, nullptr);
+  QuicSpdySessionPeer::SetHeadersStream(&session_, nullptr);
   headers_stream = new TestHeadersStream(&session_);
-  QuicSpdySessionPeer::SetUnownedHeadersStream(&session_, headers_stream);
+  QuicSpdySessionPeer::SetHeadersStream(&session_, headers_stream);
   session_.MarkConnectionLevelWriteBlocked(
       QuicUtils::GetHeadersStreamId(connection_->transport_version()));
   EXPECT_CALL(*headers_stream, OnCanWrite());
@@ -1741,9 +1741,9 @@ TEST_P(QuicSpdySessionTestClient, RecordFinAfterReadSideClosed) {
 
 TEST_P(QuicSpdySessionTestClient, WritePriority) {
   TestHeadersStream* headers_stream;
-  QuicSpdySessionPeer::SetUnownedHeadersStream(&session_, nullptr);
+  QuicSpdySessionPeer::SetHeadersStream(&session_, nullptr);
   headers_stream = new TestHeadersStream(&session_);
-  QuicSpdySessionPeer::SetUnownedHeadersStream(&session_, headers_stream);
+  QuicSpdySessionPeer::SetHeadersStream(&session_, headers_stream);
 
   // Make packet writer blocked so |headers_stream| will buffer its write data.
   MockPacketWriter* writer = static_cast<MockPacketWriter*>(

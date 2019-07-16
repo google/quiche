@@ -147,11 +147,9 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
 
   QpackEncoder* qpack_encoder();
   QpackDecoder* qpack_decoder();
-  QuicHeadersStream* headers_stream() { return unowned_headers_stream_; }
+  QuicHeadersStream* headers_stream() { return headers_stream_; }
 
-  const QuicHeadersStream* headers_stream() const {
-    return unowned_headers_stream_;
-  }
+  const QuicHeadersStream* headers_stream() const { return headers_stream_; }
 
   bool server_push_enabled() const { return server_push_enabled_; }
 
@@ -285,15 +283,8 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   std::unique_ptr<QpackEncoder> qpack_encoder_;
   std::unique_ptr<QpackDecoder> qpack_decoder_;
 
-  // TODO(123528590): Remove this member.
-  std::unique_ptr<QuicHeadersStream> headers_stream_;
-
-  // Unowned headers stream pointer that points to the stream
-  // in dynamic_stream_map.
-  // TODO(renjietang): Merge this with headers_stream_ and clean up other
-  // static_stream_map logic when flag eliminate_static_stream_map
-  // is deprecated.
-  QuicHeadersStream* unowned_headers_stream_;
+  // Pointer to the header stream in stream_map_.
+  QuicHeadersStream* headers_stream_;
 
   // HTTP/3 control streams. They are owned by QuicSession inside dynamic
   // stream map, and can be accessed by those unowned pointers below.

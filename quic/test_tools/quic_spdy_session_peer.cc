@@ -16,15 +16,13 @@ QuicHeadersStream* QuicSpdySessionPeer::GetHeadersStream(
   return session->headers_stream();
 }
 
-void QuicSpdySessionPeer::SetUnownedHeadersStream(
-    QuicSpdySession* session,
-    QuicHeadersStream* headers_stream) {
+void QuicSpdySessionPeer::SetHeadersStream(QuicSpdySession* session,
+                                           QuicHeadersStream* headers_stream) {
   for (auto& it : session->stream_map()) {
     if (it.first == QuicUtils::GetHeadersStreamId(
                         session->connection()->transport_version())) {
       it.second.reset(headers_stream);
-      session->unowned_headers_stream_ =
-          static_cast<QuicHeadersStream*>(it.second.get());
+      session->headers_stream_ = static_cast<QuicHeadersStream*>(it.second.get());
       break;
     }
   }
