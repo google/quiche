@@ -389,6 +389,8 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
     return ignore_tlpr_if_no_pending_stream_data_;
   }
 
+  bool fix_rto_retransmission() const { return fix_rto_retransmission_; }
+
  private:
   friend class test::QuicConnectionPeer;
   friend class test::QuicSentPacketManagerPeer;
@@ -634,6 +636,9 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
 
   // Latched value of quic_ignore_tlpr_if_no_pending_stream_data.
   const bool ignore_tlpr_if_no_pending_stream_data_;
+
+  // Latched value of quic_fix_rto_retransmission.
+  const bool fix_rto_retransmission_;
 };
 
 }  // namespace quic

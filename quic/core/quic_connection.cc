@@ -2422,6 +2422,13 @@ void QuicConnection::OnPathDegradingTimeout() {
 
 void QuicConnection::OnRetransmissionTimeout() {
   DCHECK(!sent_packet_manager_.unacked_packets().empty());
+  const QuicPacketNumber previous_created_packet_number =
+      packet_generator_.packet_number();
+  const size_t previous_crypto_retransmit_count =
+      stats_.crypto_retransmit_count;
+  const size_t previous_loss_timeout_count = stats_.loss_timeout_count;
+  const size_t previous_tlp_count = stats_.tlp_count;
+  const size_t pervious_rto_count = stats_.rto_count;
   if (close_connection_after_five_rtos_ &&
       sent_packet_manager_.GetConsecutiveRtoCount() >= 4) {
     // Close on the 5th consecutive RTO, so after 4 previous RTOs have occurred.
@@ -2444,6 +2451,29 @@ void QuicConnection::OnRetransmissionTimeout() {
   if (sent_packet_manager_.MaybeRetransmitTailLossProbe()) {
     // Send the pending retransmission now that it's been queued.
     WriteIfNotBlocked();
+  }
+
+  if (sent_packet_manager_.fix_rto_retransmission()) {
+    // Making sure at least one packet is created when retransmission timer
+    // fires in TLP, RTO or HANDSHAKE mode. It is possible that loss algorithm
+    // invokes timer based loss but the packet does not need to be
+    // retransmitted.
+    QUIC_BUG_IF(stats_.loss_timeout_count == previous_loss_timeout_count &&
+                packet_generator_.packet_number() ==
+                    previous_created_packet_number)
+        << "previous_crypto_retransmit_count: "
+        << previous_crypto_retransmit_count
+        << ", crypto_retransmit_count: " << stats_.crypto_retransmit_count
+        << ", previous_loss_timeout_count: " << previous_loss_timeout_count
+        << ", loss_timeout_count: " << stats_.loss_timeout_count
+        << ", previous_tlp_count: " << previous_tlp_count
+        << ", tlp_count: " << stats_.tlp_count
+        << ", pervious_rto_count: " << pervious_rto_count
+        << ", rto_count: " << stats_.rto_count
+        << ", previous_created_packet_number: "
+        << previous_created_packet_number
+        << ", packet_number: " << packet_generator_.packet_number()
+        << ", session has data to write: " << visitor_->WillingAndAbleToWrite();
   }
 
   // Ensure the retransmission alarm is always set if there are unacked packets

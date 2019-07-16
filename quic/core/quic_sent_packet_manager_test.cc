@@ -2868,6 +2868,37 @@ TEST_P(QuicSentPacketManagerTest, PacketInLimbo) {
             manager_.OnAckFrameEnd(clock_.Now(), ENCRYPTION_INITIAL));
 }
 
+TEST_P(QuicSentPacketManagerTest, RtoFiresNoPacketToRetransmit) {
+  if (!manager_.session_decides_what_to_write()) {
+    return;
+  }
+  // Send 10 packets.
+  for (size_t i = 1; i <= 10; ++i) {
+    SendDataPacket(i);
+  }
+  EXPECT_CALL(notifier_, RetransmitFrames(_, _))
+      .Times(2)
+      .WillOnce(WithArgs<1>(Invoke(
+          [this](TransmissionType type) { RetransmitDataPacket(11, type); })))
+      .WillOnce(WithArgs<1>(Invoke(
+          [this](TransmissionType type) { RetransmitDataPacket(12, type); })));
+  manager_.OnRetransmissionTimeout();
+  EXPECT_EQ(1u, stats_.rto_count);
+  EXPECT_EQ(0u, manager_.pending_timer_transmission_count());
+
+  // RTO fires again, but there is no packet to be RTO retransmitted.
+  EXPECT_CALL(notifier_, IsFrameOutstanding(_)).WillRepeatedly(Return(false));
+  EXPECT_CALL(notifier_, RetransmitFrames(_, _)).Times(0);
+  manager_.OnRetransmissionTimeout();
+  EXPECT_EQ(2u, stats_.rto_count);
+  if (GetQuicReloadableFlag(quic_fix_rto_retransmission)) {
+    // Verify a credit is raised up.
+    EXPECT_EQ(1u, manager_.pending_timer_transmission_count());
+  } else {
+    EXPECT_EQ(0u, manager_.pending_timer_transmission_count());
+  }
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

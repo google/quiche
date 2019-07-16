@@ -4065,6 +4065,54 @@ TEST_P(QuicConnectionTest, RTO) {
   EXPECT_EQ(QuicPacketNumber(1u), stop_waiting()->least_unacked);
 }
 
+// Regression test of b/133771183.
+TEST_P(QuicConnectionTest, RtoWithNoDataToRetransmit) {
+  if (!connection_.session_decides_what_to_write()) {
+    return;
+  }
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
+  connection_.SetMaxTailLossProbes(0);
+
+  SendStreamDataToPeer(3, "foo", 0, NO_FIN, nullptr);
+  // Connection is cwnd limited.
+  CongestionBlockWrites();
+  // Stream gets reset.
+  SendRstStream(3, QUIC_ERROR_PROCESSING_STREAM, 3);
+  // Simulate the retransmission alarm firing.
+  clock_.AdvanceTime(DefaultRetransmissionTime());
+  // RTO fires, but there is no packet to be RTOed.
+  if (GetQuicReloadableFlag(quic_fix_rto_retransmission)) {
+    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
+  } else {
+    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
+  }
+  connection_.GetRetransmissionAlarm()->Fire();
+  if (GetQuicReloadableFlag(quic_fix_rto_retransmission)) {
+    EXPECT_EQ(1u, writer_->rst_stream_frames().size());
+  }
+
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(40);
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(20);
+  if (GetQuicReloadableFlag(quic_fix_rto_retransmission)) {
+    EXPECT_CALL(visitor_, WillingAndAbleToWrite())
+        .WillRepeatedly(Return(false));
+  } else {
+    EXPECT_CALL(visitor_, WillingAndAbleToWrite()).WillRepeatedly(Return(true));
+  }
+  if (GetQuicReloadableFlag(quic_fix_rto_retransmission)) {
+    EXPECT_CALL(visitor_, OnAckNeedsRetransmittableFrame()).Times(1);
+  } else {
+    // Since there is a buffered RST_STREAM, no retransmittable frame is bundled
+    // with ACKs.
+    EXPECT_CALL(visitor_, OnAckNeedsRetransmittableFrame()).Times(0);
+  }
+  // Receives packets 1 - 40.
+  for (size_t i = 1; i <= 40; ++i) {
+    ProcessDataPacket(i);
+  }
+}
+
 TEST_P(QuicConnectionTest, RetransmitWithSameEncryptionLevel) {
   use_tagging_decrypter();
 

@@ -120,9 +120,14 @@ QuicSentPacketManager::QuicSentPacketManager(
       loss_removes_from_inflight_(
           GetQuicReloadableFlag(quic_loss_removes_from_inflight)),
       ignore_tlpr_if_no_pending_stream_data_(
-          GetQuicReloadableFlag(quic_ignore_tlpr_if_no_pending_stream_data)) {
+          GetQuicReloadableFlag(quic_ignore_tlpr_if_no_pending_stream_data)),
+      fix_rto_retransmission_(
+          GetQuicReloadableFlag(quic_fix_rto_retransmission)) {
   if (loss_removes_from_inflight_) {
     QUIC_RELOADABLE_FLAG_COUNT(quic_loss_removes_from_inflight);
+  }
+  if (fix_rto_retransmission_) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_fix_rto_retransmission);
   }
   SetSendAlgorithm(congestion_control_type);
 }
@@ -803,7 +808,7 @@ void QuicSentPacketManager::RetransmitRtoPackets() {
     if (session_decides_what_to_write()) {
       has_retransmissions = it->state != OUTSTANDING;
     }
-    if (it->in_flight && !has_retransmissions &&
+    if (!fix_rto_retransmission_ && it->in_flight && !has_retransmissions &&
         !unacked_packets_.HasRetransmittableFrames(*it)) {
       // Log only for non-retransmittable data.
       // Retransmittable data is marked as lost during loss detection, and will
@@ -824,6 +829,13 @@ void QuicSentPacketManager::RetransmitRtoPackets() {
   if (session_decides_what_to_write()) {
     for (QuicPacketNumber retransmission : retransmissions) {
       MarkForRetransmission(retransmission, RTO_RETRANSMISSION);
+    }
+    if (fix_rto_retransmission_ && retransmissions.empty()) {
+      QUIC_BUG_IF(pending_timer_transmission_count_ != 0);
+      // No packets to be RTO retransmitted, raise up a credit to allow
+      // connection to send.
+      QUIC_CODE_COUNT(no_packets_to_be_rto_retransmitted);
+      pending_timer_transmission_count_ = 1;
     }
   }
 }
