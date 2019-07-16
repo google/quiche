@@ -85,6 +85,10 @@ bool QuicClientBase::Connect() {
       break;
     }
   }
+  if (max_allowed_push_id_ > 0 &&
+      dynamic_cast<QuicSpdyClientSession*>(session()))
+    static_cast<QuicSpdyClientSession*>(session())->set_max_allowed_push_id(
+        max_allowed_push_id_);
   return session()->connection()->connected();
 }
 

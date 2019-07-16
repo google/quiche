@@ -24,7 +24,8 @@ QuicSpdyClientSessionBase::QuicSpdyClientSessionBase(
     : QuicSpdySession(connection, nullptr, config, supported_versions),
       push_promise_index_(push_promise_index),
       largest_promised_stream_id_(
-          QuicUtils::GetInvalidStreamId(connection->transport_version())) {}
+          QuicUtils::GetInvalidStreamId(connection->transport_version())),
+      max_allowed_push_id_(0) {}
 
 QuicSpdyClientSessionBase::~QuicSpdyClientSessionBase() {
   //  all promised streams for this session
@@ -87,6 +88,14 @@ void QuicSpdyClientSessionBase::OnPromiseHeaderList(
         QUIC_INVALID_STREAM_ID, "Received push stream id for outgoing stream.",
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return;
+  }
+
+  if (VersionHasIetfQuicFrames(connection()->transport_version()) &&
+      promised_stream_id > max_allowed_push_id()) {
+    connection()->CloseConnection(
+        QUIC_INVALID_STREAM_ID,
+        "Received push stream id higher than MAX_PUSH_ID.",
+        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
   }
   largest_promised_stream_id_ = promised_stream_id;
 
@@ -207,6 +216,11 @@ void QuicSpdyClientSessionBase::CloseStreamInner(QuicStreamId stream_id,
 
 bool QuicSpdyClientSessionBase::ShouldReleaseHeadersStreamSequencerBuffer() {
   return !HasActiveRequestStreams() && promised_by_id_.empty();
+}
+
+void QuicSpdyClientSessionBase::set_max_allowed_push_id(
+    QuicStreamId max_allowed_push_id) {
+  max_allowed_push_id_ = max_allowed_push_id;
 }
 
 }  // namespace quic
