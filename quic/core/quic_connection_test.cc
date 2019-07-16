@@ -1972,11 +1972,7 @@ TEST_P(QuicConnectionTest, DiscardQueuedPacketsAfterConnectionClose) {
 
   EXPECT_EQ(0u, connection_.GetStats().packets_discarded);
   connection_.OnCanWrite();
-  if (GetQuicReloadableFlag(quic_check_connected_before_flush)) {
-    EXPECT_EQ(0u, connection_.GetStats().packets_discarded);
-  } else {
-    EXPECT_EQ(1u, connection_.GetStats().packets_discarded);
-  }
+  EXPECT_EQ(0u, connection_.GetStats().packets_discarded);
 }
 
 TEST_P(QuicConnectionTest, ReceiveConnectivityProbingAtServer) {
@@ -8502,12 +8498,8 @@ TEST_P(QuicConnectionTest, CheckConnectedBeforeFlush) {
   EXPECT_TRUE(ack_alarm->IsSet());
   ProcessFramePacketWithAddresses(QuicFrame(connection_close_frame.get()),
                                   kSelfAddress, kPeerAddress);
-  if (GetQuicReloadableFlag(quic_check_connected_before_flush)) {
-    // Verify ack alarm is not set.
-    EXPECT_FALSE(ack_alarm->IsSet());
-  } else {
-    EXPECT_TRUE(ack_alarm->IsSet());
-  }
+  // Verify ack alarm is not set.
+  EXPECT_FALSE(ack_alarm->IsSet());
 }
 
 }  // namespace

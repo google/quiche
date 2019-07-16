@@ -1709,8 +1709,7 @@ void QuicConnection::OnBlockedWriterCanWrite() {
 }
 
 void QuicConnection::OnCanWrite() {
-  if (GetQuicReloadableFlag(quic_check_connected_before_flush) && !connected_) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_check_connected_before_flush, 2, 2);
+  if (!connected_) {
     return;
   }
   DCHECK(!writer_->IsWriteBlocked());
@@ -2903,12 +2902,7 @@ QuicConnection::ScopedPacketFlusher::ScopedPacketFlusher(
 }
 
 QuicConnection::ScopedPacketFlusher::~ScopedPacketFlusher() {
-  if (connection_ == nullptr) {
-    return;
-  }
-  if (GetQuicReloadableFlag(quic_check_connected_before_flush) &&
-      !connection_->connected()) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_check_connected_before_flush, 1, 2);
+  if (connection_ == nullptr || !connection_->connected()) {
     return;
   }
 
