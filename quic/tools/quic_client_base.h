@@ -211,9 +211,6 @@ class QuicClientBase {
     crypto_config_.set_pre_shared_key(key);
   }
 
-  // Set the max promise id for the client session.
-  void set_max_allowed_push_id(QuicStreamId max) { max_allowed_push_id_ = max; }
-
  protected:
   // TODO(rch): Move GetNumSentClientHellosFromSession and
   // GetNumReceivedServerConfigUpdatesFromSession into a new/better
@@ -332,9 +329,6 @@ class QuicClientBase {
   // The network helper used to create sockets and manage the event loop.
   // Not owned by this class.
   std::unique_ptr<NetworkHelper> network_helper_;
-
-  // The max promise id to set on the client session when created.
-  QuicStreamId max_allowed_push_id_;
 };
 
 }  // namespace quic

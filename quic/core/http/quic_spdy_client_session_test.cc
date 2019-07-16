@@ -610,38 +610,6 @@ TEST_P(QuicSpdyClientSessionTest, PushPromiseOnPromiseHeaders) {
                                 QuicHeaderList());
 }
 
-TEST_P(QuicSpdyClientSessionTest, PushPromiseStreamIdTooHigh) {
-  // Initialize crypto before the client session will create a stream.
-  CompleteCryptoHandshake();
-  QuicStreamId stream_id =
-      QuicSessionPeer::GetNextOutgoingBidirectionalStreamId(session_.get());
-  QuicSessionPeer::ActivateStream(
-      session_.get(), QuicMakeUnique<QuicSpdyClientStream>(
-                          stream_id, session_.get(), BIDIRECTIONAL));
-
-  session_->set_max_allowed_push_id(GetNthServerInitiatedUnidirectionalStreamId(
-      connection_->transport_version(), 10));
-  if (VersionHasIetfQuicFrames(connection_->transport_version())) {
-    // TODO(b/136295430) Use PushId to represent Push IDs instead of
-    // QuicStreamId.
-    EXPECT_CALL(
-        *connection_,
-        CloseConnection(QUIC_INVALID_STREAM_ID,
-                        "Received push stream id higher than MAX_PUSH_ID.", _));
-  }
-  auto promise_id = GetNthServerInitiatedUnidirectionalStreamId(
-      connection_->transport_version(), 11);
-  auto headers = QuicHeaderList();
-  headers.OnHeaderBlockStart();
-  headers.OnHeader(":path", "/bar");
-  headers.OnHeader(":authority", "www.google.com");
-  headers.OnHeader(":version", "HTTP/1.1");
-  headers.OnHeader(":method", "GET");
-  headers.OnHeader(":scheme", "https");
-  headers.OnHeaderBlockEnd(0, 0);
-  session_->OnPromiseHeaderList(stream_id, promise_id, 0, headers);
-}
-
 TEST_P(QuicSpdyClientSessionTest, PushPromiseOnPromiseHeadersAlreadyClosed) {
   // Initialize crypto before the client session will create a stream.
   CompleteCryptoHandshake();
