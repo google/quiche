@@ -121,6 +121,10 @@ class QUIC_EXPORT_PRIVATE QuicFlowController
   // Double the window size as long as we haven't hit the max window size.
   void IncreaseWindowSize();
 
+  // Returns "stream $ID" (where $ID is set to |id_|) or "connection" based on
+  // |is_connection_flow_controller_|.
+  std::string LogLabel();
+
   // The parent session/connection, used to send connection close on flow
   // control violation, and WINDOW_UPDATE and BLOCKED frames when appropriate.
   // Not owned.
