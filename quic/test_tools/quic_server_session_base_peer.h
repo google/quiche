@@ -14,9 +14,9 @@ namespace test {
 
 class QuicServerSessionBasePeer {
  public:
-  static QuicStream* GetOrCreateDynamicStream(QuicServerSessionBase* s,
-                                              QuicStreamId id) {
-    return s->GetOrCreateDynamicStream(id);
+  static QuicStream* GetOrCreateStream(QuicServerSessionBase* s,
+                                       QuicStreamId id) {
+    return s->GetOrCreateStream(id);
   }
   static void SetCryptoStream(QuicServerSessionBase* s,
                               QuicCryptoServerStream* crypto_stream) {

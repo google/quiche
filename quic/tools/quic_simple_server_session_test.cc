@@ -522,12 +522,12 @@ TEST_P(QuicSimpleServerSessionTest, OnStreamFrameWithEvenStreamId) {
 }
 
 TEST_P(QuicSimpleServerSessionTest, GetEvenIncomingError) {
-  // Tests that calling GetOrCreateDynamicStream() on an outgoing stream not
+  // Tests that calling GetOrCreateStream() on an outgoing stream not
   // promised yet should result close connection.
   EXPECT_CALL(*connection_, CloseConnection(QUIC_INVALID_STREAM_ID,
                                             "Data for nonexistent stream", _));
   EXPECT_EQ(nullptr,
-            QuicSessionPeer::GetOrCreateDynamicStream(
+            QuicSessionPeer::GetOrCreateStream(
                 session_.get(), GetNthServerInitiatedUnidirectionalId(1)));
 }
 

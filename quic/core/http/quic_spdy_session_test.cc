@@ -212,8 +212,8 @@ class TestSession : public QuicSpdySession {
     return QuicSession::IsClosedStream(id);
   }
 
-  QuicStream* GetOrCreateDynamicStream(QuicStreamId stream_id) {
-    return QuicSpdySession::GetOrCreateDynamicStream(stream_id);
+  QuicStream* GetOrCreateStream(QuicStreamId stream_id) {
+    return QuicSpdySession::GetOrCreateStream(stream_id);
   }
 
   QuicConsumedData WritevData(QuicStream* stream,
@@ -426,16 +426,16 @@ TEST_P(QuicSpdySessionTestServer, IsClosedStreamDefault) {
 }
 
 TEST_P(QuicSpdySessionTestServer, AvailableStreams) {
-  ASSERT_TRUE(session_.GetOrCreateDynamicStream(
+  ASSERT_TRUE(session_.GetOrCreateStream(
                   GetNthClientInitiatedBidirectionalId(2)) != nullptr);
   // Both client initiated streams with smaller stream IDs are available.
   EXPECT_TRUE(QuicSessionPeer::IsStreamAvailable(
       &session_, GetNthClientInitiatedBidirectionalId(0)));
   EXPECT_TRUE(QuicSessionPeer::IsStreamAvailable(
       &session_, GetNthClientInitiatedBidirectionalId(1)));
-  ASSERT_TRUE(session_.GetOrCreateDynamicStream(
+  ASSERT_TRUE(session_.GetOrCreateStream(
                   GetNthClientInitiatedBidirectionalId(1)) != nullptr);
-  ASSERT_TRUE(session_.GetOrCreateDynamicStream(
+  ASSERT_TRUE(session_.GetOrCreateStream(
                   GetNthClientInitiatedBidirectionalId(0)) != nullptr);
 }
 
@@ -455,15 +455,15 @@ TEST_P(QuicSpdySessionTestServer, IsClosedStreamLocallyCreated) {
 TEST_P(QuicSpdySessionTestServer, IsClosedStreamPeerCreated) {
   QuicStreamId stream_id1 = GetNthClientInitiatedBidirectionalId(0);
   QuicStreamId stream_id2 = GetNthClientInitiatedBidirectionalId(1);
-  session_.GetOrCreateDynamicStream(stream_id1);
-  session_.GetOrCreateDynamicStream(stream_id2);
+  session_.GetOrCreateStream(stream_id1);
+  session_.GetOrCreateStream(stream_id2);
 
   CheckClosedStreams();
   CloseStream(stream_id1);
   CheckClosedStreams();
   CloseStream(stream_id2);
   // Create a stream, and make another available.
-  QuicStream* stream3 = session_.GetOrCreateDynamicStream(stream_id2 + 4);
+  QuicStream* stream3 = session_.GetOrCreateStream(stream_id2 + 4);
   CheckClosedStreams();
   // Close one, but make sure the other is still not closed
   CloseStream(stream3->id());
@@ -484,13 +484,13 @@ TEST_P(QuicSpdySessionTestServer, MaximumAvailableOpenedStreams) {
             headers_stream_offset,
         Perspective::IS_CLIENT,  // Client initates stream, allocs stream id.
         /*bidirectional=*/true);
-    EXPECT_NE(nullptr, session_.GetOrCreateDynamicStream(stream_id));
+    EXPECT_NE(nullptr, session_.GetOrCreateStream(stream_id));
     stream_id = StreamCountToId(
         QuicSessionPeer::v99_streamid_manager(&session_)
             ->actual_max_allowed_incoming_unidirectional_streams(),
         Perspective::IS_CLIENT,
         /*bidirectional=*/false);
-    EXPECT_NE(nullptr, session_.GetOrCreateDynamicStream(stream_id));
+    EXPECT_NE(nullptr, session_.GetOrCreateStream(stream_id));
     EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(2);
     // Get the (max allowed stream ID)++. These should all fail.
     stream_id = StreamCountToId(
@@ -499,7 +499,7 @@ TEST_P(QuicSpdySessionTestServer, MaximumAvailableOpenedStreams) {
             1 - headers_stream_offset,
         Perspective::IS_CLIENT,
         /*bidirectional=*/true);
-    EXPECT_EQ(nullptr, session_.GetOrCreateDynamicStream(stream_id));
+    EXPECT_EQ(nullptr, session_.GetOrCreateStream(stream_id));
 
     stream_id = StreamCountToId(
         QuicSessionPeer::v99_streamid_manager(&session_)
@@ -507,14 +507,14 @@ TEST_P(QuicSpdySessionTestServer, MaximumAvailableOpenedStreams) {
             1,
         Perspective::IS_CLIENT,
         /*bidirectional=*/false);
-    EXPECT_EQ(nullptr, session_.GetOrCreateDynamicStream(stream_id));
+    EXPECT_EQ(nullptr, session_.GetOrCreateStream(stream_id));
   } else {
     QuicStreamId stream_id = GetNthClientInitiatedBidirectionalId(0);
-    session_.GetOrCreateDynamicStream(stream_id);
+    session_.GetOrCreateStream(stream_id);
     EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(0);
     EXPECT_NE(
         nullptr,
-        session_.GetOrCreateDynamicStream(
+        session_.GetOrCreateStream(
             stream_id +
             IdDelta() *
                 (session_.max_open_incoming_bidirectional_streams() - 1)));
@@ -524,7 +524,7 @@ TEST_P(QuicSpdySessionTestServer, MaximumAvailableOpenedStreams) {
 TEST_P(QuicSpdySessionTestServer, TooManyAvailableStreams) {
   QuicStreamId stream_id1 = GetNthClientInitiatedBidirectionalId(0);
   QuicStreamId stream_id2;
-  EXPECT_NE(nullptr, session_.GetOrCreateDynamicStream(stream_id1));
+  EXPECT_NE(nullptr, session_.GetOrCreateStream(stream_id1));
   // A stream ID which is too large to create.
   stream_id2 = GetNthClientInitiatedBidirectionalId(
       2 * session_.MaxAvailableBidirectionalStreams() + 4);
@@ -534,7 +534,7 @@ TEST_P(QuicSpdySessionTestServer, TooManyAvailableStreams) {
     EXPECT_CALL(*connection_,
                 CloseConnection(QUIC_TOO_MANY_AVAILABLE_STREAMS, _, _));
   }
-  EXPECT_EQ(nullptr, session_.GetOrCreateDynamicStream(stream_id2));
+  EXPECT_EQ(nullptr, session_.GetOrCreateStream(stream_id2));
 }
 
 TEST_P(QuicSpdySessionTestServer, ManyAvailableStreams) {
@@ -547,12 +547,12 @@ TEST_P(QuicSpdySessionTestServer, ManyAvailableStreams) {
   }
   QuicStreamId stream_id = GetNthClientInitiatedBidirectionalId(0);
   // Create one stream.
-  session_.GetOrCreateDynamicStream(stream_id);
+  session_.GetOrCreateStream(stream_id);
   EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(0);
   // Stream count is 200, GetNth... starts counting at 0, so the 200'th stream
   // is 199. BUT actually we need to do 198 because the crypto stream (Stream
   // ID 0) has not been registered, but GetNth... assumes that it has.
-  EXPECT_NE(nullptr, session_.GetOrCreateDynamicStream(
+  EXPECT_NE(nullptr, session_.GetOrCreateStream(
                          GetNthClientInitiatedBidirectionalId(198)));
 }
 
@@ -964,7 +964,7 @@ TEST_P(QuicSpdySessionTestServer, SendGoAway) {
   EXPECT_CALL(*connection_,
               OnStreamReset(kTestStreamId, QUIC_STREAM_PEER_GOING_AWAY))
       .Times(0);
-  EXPECT_TRUE(session_.GetOrCreateDynamicStream(kTestStreamId));
+  EXPECT_TRUE(session_.GetOrCreateStream(kTestStreamId));
 }
 
 TEST_P(QuicSpdySessionTestServer, DoNotSendGoAwayTwice) {
@@ -1662,16 +1662,16 @@ TEST_P(QuicSpdySessionTestClient, BadStreamFramePendingStream) {
 }
 
 TEST_P(QuicSpdySessionTestClient, AvailableStreamsClient) {
-  ASSERT_TRUE(session_.GetOrCreateDynamicStream(
+  ASSERT_TRUE(session_.GetOrCreateStream(
                   GetNthServerInitiatedBidirectionalId(2)) != nullptr);
   // Both server initiated streams with smaller stream IDs should be available.
   EXPECT_TRUE(QuicSessionPeer::IsStreamAvailable(
       &session_, GetNthServerInitiatedBidirectionalId(0)));
   EXPECT_TRUE(QuicSessionPeer::IsStreamAvailable(
       &session_, GetNthServerInitiatedBidirectionalId(1)));
-  ASSERT_TRUE(session_.GetOrCreateDynamicStream(
+  ASSERT_TRUE(session_.GetOrCreateStream(
                   GetNthServerInitiatedBidirectionalId(0)) != nullptr);
-  ASSERT_TRUE(session_.GetOrCreateDynamicStream(
+  ASSERT_TRUE(session_.GetOrCreateStream(
                   GetNthServerInitiatedBidirectionalId(1)) != nullptr);
   // And client initiated stream ID should be not available.
   EXPECT_FALSE(QuicSessionPeer::IsStreamAvailable(
@@ -1789,7 +1789,7 @@ TEST_P(QuicSpdySessionTestClient, Http3ServerPush) {
   QuicStreamFrame data1(stream_id1, false, 0, QuicStringPiece(data));
   session_.OnStreamFrame(data1);
   EXPECT_EQ(1u, session_.GetNumOpenIncomingStreams());
-  QuicStream* stream = session_.GetOrCreateDynamicStream(stream_id1);
+  QuicStream* stream = session_.GetOrCreateStream(stream_id1);
   EXPECT_EQ(1u, stream->flow_controller()->bytes_consumed());
   EXPECT_EQ(1u, session_.flow_controller()->bytes_consumed());
 
@@ -1800,7 +1800,7 @@ TEST_P(QuicSpdySessionTestClient, Http3ServerPush) {
   QuicStreamFrame data2(stream_id2, false, 0, QuicStringPiece(data));
   session_.OnStreamFrame(data2);
   EXPECT_EQ(2u, session_.GetNumOpenIncomingStreams());
-  stream = session_.GetOrCreateDynamicStream(stream_id2);
+  stream = session_.GetOrCreateStream(stream_id2);
   EXPECT_EQ(4u, stream->flow_controller()->bytes_consumed());
   EXPECT_EQ(5u, session_.flow_controller()->bytes_consumed());
 }

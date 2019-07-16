@@ -370,6 +370,7 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
   // such stream exists, and |stream_id| is a peer-created stream id,
   // then a new stream is created and returned. In all other cases, nullptr is
   // returned.
+  // Caller does not own the returned stream.
   QuicStream* GetOrCreateStream(const QuicStreamId stream_id);
 
   // Mark a stream as draining.
@@ -475,6 +476,8 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
   // returned. However if |stream_id| is a locally-created id and no such stream
   // exists, the connection is closed.
   // Caller does not own the returned stream.
+  // TODO(renjietang): Remove this method after
+  // quic_inline_getorcreatedynamicstream is deprecated.
   QuicStream* GetOrCreateDynamicStream(QuicStreamId stream_id);
 
   // Performs the work required to close |stream_id|.  If |locally_reset|

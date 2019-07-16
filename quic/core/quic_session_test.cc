@@ -187,7 +187,7 @@ class TestSession : public QuicSession {
             max_open_incoming_bidirectional_streams() &&
         !VersionHasIetfQuicFrames(connection()->transport_version())) {
       // No need to do this test for version 99; it's done by
-      // QuicSession::GetOrCreateDynamicStream.
+      // QuicSession::GetOrCreateStream.
       connection()->CloseConnection(
           QUIC_TOO_MANY_OPEN_STREAMS, "Too many streams!",
           ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
@@ -232,8 +232,8 @@ class TestSession : public QuicSession {
     return QuicSession::IsClosedStream(id);
   }
 
-  QuicStream* GetOrCreateDynamicStream(QuicStreamId stream_id) {
-    return QuicSession::GetOrCreateDynamicStream(stream_id);
+  QuicStream* GetOrCreateStream(QuicStreamId stream_id) {
+    return QuicSession::GetOrCreateStream(stream_id);
   }
 
   bool ShouldKeepConnectionAlive() const override {
@@ -531,30 +531,30 @@ TEST_P(QuicSessionTestServer, IsClosedStreamDefault) {
 }
 
 TEST_P(QuicSessionTestServer, AvailableBidirectionalStreams) {
-  ASSERT_TRUE(session_.GetOrCreateDynamicStream(
+  ASSERT_TRUE(session_.GetOrCreateStream(
                   GetNthClientInitiatedBidirectionalId(3)) != nullptr);
   // Smaller bidirectional streams should be available.
   EXPECT_TRUE(QuicSessionPeer::IsStreamAvailable(
       &session_, GetNthClientInitiatedBidirectionalId(1)));
   EXPECT_TRUE(QuicSessionPeer::IsStreamAvailable(
       &session_, GetNthClientInitiatedBidirectionalId(2)));
-  ASSERT_TRUE(session_.GetOrCreateDynamicStream(
+  ASSERT_TRUE(session_.GetOrCreateStream(
                   GetNthClientInitiatedBidirectionalId(2)) != nullptr);
-  ASSERT_TRUE(session_.GetOrCreateDynamicStream(
+  ASSERT_TRUE(session_.GetOrCreateStream(
                   GetNthClientInitiatedBidirectionalId(1)) != nullptr);
 }
 
 TEST_P(QuicSessionTestServer, AvailableUnidirectionalStreams) {
-  ASSERT_TRUE(session_.GetOrCreateDynamicStream(
+  ASSERT_TRUE(session_.GetOrCreateStream(
                   GetNthClientInitiatedUnidirectionalId(3)) != nullptr);
   // Smaller unidirectional streams should be available.
   EXPECT_TRUE(QuicSessionPeer::IsStreamAvailable(
       &session_, GetNthClientInitiatedUnidirectionalId(1)));
   EXPECT_TRUE(QuicSessionPeer::IsStreamAvailable(
       &session_, GetNthClientInitiatedUnidirectionalId(2)));
-  ASSERT_TRUE(session_.GetOrCreateDynamicStream(
+  ASSERT_TRUE(session_.GetOrCreateStream(
                   GetNthClientInitiatedUnidirectionalId(2)) != nullptr);
-  ASSERT_TRUE(session_.GetOrCreateDynamicStream(
+  ASSERT_TRUE(session_.GetOrCreateStream(
                   GetNthClientInitiatedUnidirectionalId(1)) != nullptr);
 }
 
@@ -613,15 +613,15 @@ TEST_P(QuicSessionTestServer, IsClosedUnidirectionalStreamLocallyCreated) {
 TEST_P(QuicSessionTestServer, IsClosedBidirectionalStreamPeerCreated) {
   QuicStreamId stream_id1 = GetNthClientInitiatedBidirectionalId(0);
   QuicStreamId stream_id2 = GetNthClientInitiatedBidirectionalId(1);
-  session_.GetOrCreateDynamicStream(stream_id1);
-  session_.GetOrCreateDynamicStream(stream_id2);
+  session_.GetOrCreateStream(stream_id1);
+  session_.GetOrCreateStream(stream_id2);
 
   CheckClosedStreams();
   CloseStream(stream_id1);
   CheckClosedStreams();
   CloseStream(stream_id2);
   // Create a stream, and make another available.
-  QuicStream* stream3 = session_.GetOrCreateDynamicStream(
+  QuicStream* stream3 = session_.GetOrCreateStream(
       stream_id2 +
       2 * QuicUtils::StreamIdDelta(connection_->transport_version()));
   CheckClosedStreams();
@@ -633,15 +633,15 @@ TEST_P(QuicSessionTestServer, IsClosedBidirectionalStreamPeerCreated) {
 TEST_P(QuicSessionTestServer, IsClosedUnidirectionalStreamPeerCreated) {
   QuicStreamId stream_id1 = GetNthClientInitiatedUnidirectionalId(0);
   QuicStreamId stream_id2 = GetNthClientInitiatedUnidirectionalId(1);
-  session_.GetOrCreateDynamicStream(stream_id1);
-  session_.GetOrCreateDynamicStream(stream_id2);
+  session_.GetOrCreateStream(stream_id1);
+  session_.GetOrCreateStream(stream_id2);
 
   CheckClosedStreams();
   CloseStream(stream_id1);
   CheckClosedStreams();
   CloseStream(stream_id2);
   // Create a stream, and make another available.
-  QuicStream* stream3 = session_.GetOrCreateDynamicStream(
+  QuicStream* stream3 = session_.GetOrCreateStream(
       stream_id2 +
       2 * QuicUtils::StreamIdDelta(connection_->transport_version()));
   CheckClosedStreams();
@@ -652,28 +652,26 @@ TEST_P(QuicSessionTestServer, IsClosedUnidirectionalStreamPeerCreated) {
 
 TEST_P(QuicSessionTestServer, MaximumAvailableOpenedBidirectionalStreams) {
   QuicStreamId stream_id = GetNthClientInitiatedBidirectionalId(0);
-  session_.GetOrCreateDynamicStream(stream_id);
+  session_.GetOrCreateStream(stream_id);
   EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(0);
-  EXPECT_NE(
-      nullptr,
-      session_.GetOrCreateDynamicStream(GetNthClientInitiatedBidirectionalId(
-          session_.max_open_incoming_bidirectional_streams() - 1)));
+  EXPECT_NE(nullptr,
+            session_.GetOrCreateStream(GetNthClientInitiatedBidirectionalId(
+                session_.max_open_incoming_bidirectional_streams() - 1)));
 }
 
 TEST_P(QuicSessionTestServer, MaximumAvailableOpenedUnidirectionalStreams) {
   QuicStreamId stream_id = GetNthClientInitiatedUnidirectionalId(0);
-  session_.GetOrCreateDynamicStream(stream_id);
+  session_.GetOrCreateStream(stream_id);
   EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(0);
-  EXPECT_NE(
-      nullptr,
-      session_.GetOrCreateDynamicStream(GetNthClientInitiatedUnidirectionalId(
-          session_.max_open_incoming_unidirectional_streams() - 1)));
+  EXPECT_NE(nullptr,
+            session_.GetOrCreateStream(GetNthClientInitiatedUnidirectionalId(
+                session_.max_open_incoming_unidirectional_streams() - 1)));
 }
 
 TEST_P(QuicSessionTestServer, TooManyAvailableBidirectionalStreams) {
   QuicStreamId stream_id1 = GetNthClientInitiatedBidirectionalId(0);
   QuicStreamId stream_id2;
-  EXPECT_NE(nullptr, session_.GetOrCreateDynamicStream(stream_id1));
+  EXPECT_NE(nullptr, session_.GetOrCreateStream(stream_id1));
   // A stream ID which is too large to create.
   stream_id2 = GetNthClientInitiatedBidirectionalId(
       session_.MaxAvailableBidirectionalStreams() + 2);
@@ -686,13 +684,13 @@ TEST_P(QuicSessionTestServer, TooManyAvailableBidirectionalStreams) {
     EXPECT_CALL(*connection_,
                 CloseConnection(QUIC_TOO_MANY_AVAILABLE_STREAMS, _, _));
   }
-  EXPECT_EQ(nullptr, session_.GetOrCreateDynamicStream(stream_id2));
+  EXPECT_EQ(nullptr, session_.GetOrCreateStream(stream_id2));
 }
 
 TEST_P(QuicSessionTestServer, TooManyAvailableUnidirectionalStreams) {
   QuicStreamId stream_id1 = GetNthClientInitiatedUnidirectionalId(0);
   QuicStreamId stream_id2;
-  EXPECT_NE(nullptr, session_.GetOrCreateDynamicStream(stream_id1));
+  EXPECT_NE(nullptr, session_.GetOrCreateStream(stream_id1));
   // A stream ID which is too large to create.
   stream_id2 = GetNthClientInitiatedUnidirectionalId(
       session_.MaxAvailableUnidirectionalStreams() + 2);
@@ -705,7 +703,7 @@ TEST_P(QuicSessionTestServer, TooManyAvailableUnidirectionalStreams) {
     EXPECT_CALL(*connection_,
                 CloseConnection(QUIC_TOO_MANY_AVAILABLE_STREAMS, _, _));
   }
-  EXPECT_EQ(nullptr, session_.GetOrCreateDynamicStream(stream_id2));
+  EXPECT_EQ(nullptr, session_.GetOrCreateStream(stream_id2));
 }
 
 TEST_P(QuicSessionTestServer, ManyAvailableBidirectionalStreams) {
@@ -720,21 +718,21 @@ TEST_P(QuicSessionTestServer, ManyAvailableBidirectionalStreams) {
   }
   // Create a stream at the start of the range.
   QuicStreamId stream_id = GetNthClientInitiatedBidirectionalId(0);
-  EXPECT_NE(nullptr, session_.GetOrCreateDynamicStream(stream_id));
+  EXPECT_NE(nullptr, session_.GetOrCreateStream(stream_id));
 
   // Create the largest stream ID of a threatened total of 200 streams.
   // GetNth... starts at 0, so for 200 streams, get the 199th.
   EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(0);
-  EXPECT_NE(nullptr, session_.GetOrCreateDynamicStream(
+  EXPECT_NE(nullptr, session_.GetOrCreateStream(
                          GetNthClientInitiatedBidirectionalId(199)));
 
   if (VersionHasIetfQuicFrames(transport_version())) {
     // If IETF QUIC, check to make sure that creating bidirectional
     // streams does not mess up the unidirectional streams.
     stream_id = GetNthClientInitiatedUnidirectionalId(0);
-    EXPECT_NE(nullptr, session_.GetOrCreateDynamicStream(stream_id));
+    EXPECT_NE(nullptr, session_.GetOrCreateStream(stream_id));
     // Now try to get the last possible unidirectional stream.
-    EXPECT_NE(nullptr, session_.GetOrCreateDynamicStream(
+    EXPECT_NE(nullptr, session_.GetOrCreateStream(
                            GetNthClientInitiatedUnidirectionalId(49)));
     // and this should fail because it exceeds the unidirectional limit
     // (but not the bi-)
@@ -746,7 +744,7 @@ TEST_P(QuicSessionTestServer, ManyAvailableBidirectionalStreams) {
 
                         ))
         .Times(1);
-    EXPECT_EQ(nullptr, session_.GetOrCreateDynamicStream(
+    EXPECT_EQ(nullptr, session_.GetOrCreateStream(
                            GetNthClientInitiatedUnidirectionalId(199)));
   }
 }
@@ -763,20 +761,20 @@ TEST_P(QuicSessionTestServer, ManyAvailableUnidirectionalStreams) {
   }
   // Create one stream.
   QuicStreamId stream_id = GetNthClientInitiatedUnidirectionalId(0);
-  EXPECT_NE(nullptr, session_.GetOrCreateDynamicStream(stream_id));
+  EXPECT_NE(nullptr, session_.GetOrCreateStream(stream_id));
 
   // Create the largest stream ID of a threatened total of 200 streams.
   // GetNth... starts at 0, so for 200 streams, get the 199th.
   EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(0);
-  EXPECT_NE(nullptr, session_.GetOrCreateDynamicStream(
+  EXPECT_NE(nullptr, session_.GetOrCreateStream(
                          GetNthClientInitiatedUnidirectionalId(199)));
   if (VersionHasIetfQuicFrames(transport_version())) {
     // If IETF QUIC, check to make sure that creating unidirectional
     // streams does not mess up the bidirectional streams.
     stream_id = GetNthClientInitiatedBidirectionalId(0);
-    EXPECT_NE(nullptr, session_.GetOrCreateDynamicStream(stream_id));
+    EXPECT_NE(nullptr, session_.GetOrCreateStream(stream_id));
     // Now try to get the last possible bidirectional stream.
-    EXPECT_NE(nullptr, session_.GetOrCreateDynamicStream(
+    EXPECT_NE(nullptr, session_.GetOrCreateStream(
                            GetNthClientInitiatedBidirectionalId(49)));
     // and this should fail because it exceeds the bnidirectional limit
     // (but not the uni-)
@@ -791,7 +789,7 @@ TEST_P(QuicSessionTestServer, ManyAvailableUnidirectionalStreams) {
         CloseConnection(QUIC_INVALID_STREAM_ID, error_detail,
                         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET))
         .Times(1);
-    EXPECT_EQ(nullptr, session_.GetOrCreateDynamicStream(
+    EXPECT_EQ(nullptr, session_.GetOrCreateStream(
                            GetNthClientInitiatedBidirectionalId(199)));
   }
 }
@@ -1186,7 +1184,7 @@ TEST_P(QuicSessionTestServer, SendGoAway) {
   EXPECT_CALL(*connection_,
               OnStreamReset(kTestStreamId, QUIC_STREAM_PEER_GOING_AWAY))
       .Times(0);
-  EXPECT_TRUE(session_.GetOrCreateDynamicStream(kTestStreamId));
+  EXPECT_TRUE(session_.GetOrCreateStream(kTestStreamId));
 }
 
 TEST_P(QuicSessionTestServer, DoNotSendGoAwayTwice) {
@@ -1821,16 +1819,16 @@ INSTANTIATE_TEST_SUITE_P(Tests,
                          ::testing::ValuesIn(AllSupportedVersions()));
 
 TEST_P(QuicSessionTestClient, AvailableBidirectionalStreamsClient) {
-  ASSERT_TRUE(session_.GetOrCreateDynamicStream(
+  ASSERT_TRUE(session_.GetOrCreateStream(
                   GetNthServerInitiatedBidirectionalId(2)) != nullptr);
   // Smaller bidirectional streams should be available.
   EXPECT_TRUE(QuicSessionPeer::IsStreamAvailable(
       &session_, GetNthServerInitiatedBidirectionalId(0)));
   EXPECT_TRUE(QuicSessionPeer::IsStreamAvailable(
       &session_, GetNthServerInitiatedBidirectionalId(1)));
-  ASSERT_TRUE(session_.GetOrCreateDynamicStream(
+  ASSERT_TRUE(session_.GetOrCreateStream(
                   GetNthServerInitiatedBidirectionalId(0)) != nullptr);
-  ASSERT_TRUE(session_.GetOrCreateDynamicStream(
+  ASSERT_TRUE(session_.GetOrCreateStream(
                   GetNthServerInitiatedBidirectionalId(1)) != nullptr);
   // And 5 should be not available.
   EXPECT_FALSE(QuicSessionPeer::IsStreamAvailable(
@@ -1838,16 +1836,16 @@ TEST_P(QuicSessionTestClient, AvailableBidirectionalStreamsClient) {
 }
 
 TEST_P(QuicSessionTestClient, AvailableUnidirectionalStreamsClient) {
-  ASSERT_TRUE(session_.GetOrCreateDynamicStream(
+  ASSERT_TRUE(session_.GetOrCreateStream(
                   GetNthServerInitiatedUnidirectionalId(2)) != nullptr);
   // Smaller unidirectional streams should be available.
   EXPECT_TRUE(QuicSessionPeer::IsStreamAvailable(
       &session_, GetNthServerInitiatedUnidirectionalId(0)));
   EXPECT_TRUE(QuicSessionPeer::IsStreamAvailable(
       &session_, GetNthServerInitiatedUnidirectionalId(1)));
-  ASSERT_TRUE(session_.GetOrCreateDynamicStream(
+  ASSERT_TRUE(session_.GetOrCreateStream(
                   GetNthServerInitiatedUnidirectionalId(0)) != nullptr);
-  ASSERT_TRUE(session_.GetOrCreateDynamicStream(
+  ASSERT_TRUE(session_.GetOrCreateStream(
                   GetNthServerInitiatedUnidirectionalId(1)) != nullptr);
   // And 5 should be not available.
   EXPECT_FALSE(QuicSessionPeer::IsStreamAvailable(

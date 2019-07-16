@@ -1071,7 +1071,7 @@ void QuicSession::HandleFrameOnNonexistentOutgoingStream(
 void QuicSession::HandleRstOnValidNonexistentStream(
     const QuicRstStreamFrame& frame) {
   // If the stream is neither originally in active streams nor created in
-  // GetOrCreateDynamicStream(), it could be a closed stream in which case its
+  // GetOrCreateStream(), it could be a closed stream in which case its
   // final received byte offset need to be updated.
   if (IsClosedStream(frame.stream_id)) {
     // The RST frame contains the final byte offset for the stream: we can now
@@ -1224,7 +1224,42 @@ QuicStream* QuicSession::GetOrCreateStream(const QuicStreamId stream_id) {
                                   stream_id)) {
     return GetMutableCryptoStream();
   }
-  return GetOrCreateDynamicStream(stream_id);
+
+  StreamMap::iterator it = stream_map_.find(stream_id);
+  if (it != stream_map_.end()) {
+    return it->second.get();
+  }
+
+  if (IsClosedStream(stream_id)) {
+    return nullptr;
+  }
+
+  if (!IsIncomingStream(stream_id)) {
+    HandleFrameOnNonexistentOutgoingStream(stream_id);
+    return nullptr;
+  }
+
+  // TODO(fkastenholz): If we are creating a new stream and we have
+  // sent a goaway, we should ignore the stream creation. Need to
+  // add code to A) test if goaway was sent ("if (goaway_sent_)") and
+  // B) reject stream creation ("return nullptr")
+
+  if (!MaybeIncreaseLargestPeerStreamId(stream_id)) {
+    return nullptr;
+  }
+
+  if (!VersionHasIetfQuicFrames(connection_->transport_version())) {
+    // TODO(fayang): Let LegacyQuicStreamIdManager count open streams and make
+    // CanOpenIncomingStream interface consistent with that of v99.
+    if (!stream_id_manager_.CanOpenIncomingStream(
+            GetNumOpenIncomingStreams())) {
+      // Refuse to open the stream.
+      SendRstStream(stream_id, QUIC_REFUSED_STREAM, 0);
+      return nullptr;
+    }
+  }
+
+  return CreateIncomingStream(stream_id);
 }
 
 void QuicSession::StreamDraining(QuicStreamId stream_id) {
@@ -1278,6 +1313,7 @@ PendingStream* QuicSession::GetOrCreatePendingStream(QuicStreamId stream_id) {
 
 QuicStream* QuicSession::GetOrCreateDynamicStream(
     const QuicStreamId stream_id) {
+  DCHECK(!GetQuicReloadableFlag(quic_inline_getorcreatedynamicstream));
   StreamMap::iterator it = stream_map_.find(stream_id);
   if (it != stream_map_.end()) {
     return it->second.get();

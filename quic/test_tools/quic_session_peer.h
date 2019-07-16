@@ -52,8 +52,8 @@ class QuicSessionPeer {
 
   static QuicCryptoStream* GetMutableCryptoStream(QuicSession* session);
   static QuicWriteBlockedList* GetWriteBlockedStreams(QuicSession* session);
-  static QuicStream* GetOrCreateDynamicStream(QuicSession* session,
-                                              QuicStreamId stream_id);
+  static QuicStream* GetOrCreateStream(QuicSession* session,
+                                       QuicStreamId stream_id);
   static std::map<QuicStreamId, QuicStreamOffset>&
   GetLocallyClosedStreamsHighestOffset(QuicSession* session);
   static QuicSession::StreamMap& stream_map(QuicSession* session);

@@ -118,9 +118,9 @@ QuicWriteBlockedList* QuicSessionPeer::GetWriteBlockedStreams(
 }
 
 // static
-QuicStream* QuicSessionPeer::GetOrCreateDynamicStream(QuicSession* session,
-                                                      QuicStreamId stream_id) {
-  return session->GetOrCreateDynamicStream(stream_id);
+QuicStream* QuicSessionPeer::GetOrCreateStream(QuicSession* session,
+                                               QuicStreamId stream_id) {
+  return session->GetOrCreateStream(stream_id);
 }
 
 // static

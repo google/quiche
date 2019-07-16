@@ -361,8 +361,8 @@ TEST_P(QuicServerSessionBaseTest, MaxOpenStreams) {
   QuicStreamId stream_id = GetNthClientInitiatedBidirectionalId(0);
   // Open the max configured number of streams, should be no problem.
   for (size_t i = 0; i < kMaxStreamsForTest; ++i) {
-    EXPECT_TRUE(QuicServerSessionBasePeer::GetOrCreateDynamicStream(
-        session_.get(), stream_id));
+    EXPECT_TRUE(QuicServerSessionBasePeer::GetOrCreateStream(session_.get(),
+                                                             stream_id));
     stream_id += QuicUtils::StreamIdDelta(connection_->transport_version());
   }
 
@@ -370,8 +370,8 @@ TEST_P(QuicServerSessionBaseTest, MaxOpenStreams) {
     // Open more streams: server should accept slightly more than the limit.
     // Excess streams are for non-version-99 only.
     for (size_t i = 0; i < kMaxStreamsMinimumIncrement; ++i) {
-      EXPECT_TRUE(QuicServerSessionBasePeer::GetOrCreateDynamicStream(
-          session_.get(), stream_id));
+      EXPECT_TRUE(QuicServerSessionBasePeer::GetOrCreateStream(session_.get(),
+                                                               stream_id));
       stream_id += QuicUtils::StreamIdDelta(connection_->transport_version());
     }
   }
@@ -390,8 +390,8 @@ TEST_P(QuicServerSessionBaseTest, MaxOpenStreams) {
     EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(1);
   }
   // Even if the connection remains open, the stream creation should fail.
-  EXPECT_FALSE(QuicServerSessionBasePeer::GetOrCreateDynamicStream(
-      session_.get(), stream_id));
+  EXPECT_FALSE(
+      QuicServerSessionBasePeer::GetOrCreateStream(session_.get(), stream_id));
 }
 
 TEST_P(QuicServerSessionBaseTest, MaxAvailableBidirectionalStreams) {
@@ -404,7 +404,7 @@ TEST_P(QuicServerSessionBaseTest, MaxAvailableBidirectionalStreams) {
       session_->MaxAvailableBidirectionalStreams();
 
   EXPECT_EQ(0u, session_->GetNumOpenIncomingStreams());
-  EXPECT_TRUE(QuicServerSessionBasePeer::GetOrCreateDynamicStream(
+  EXPECT_TRUE(QuicServerSessionBasePeer::GetOrCreateStream(
       session_.get(), GetNthClientInitiatedBidirectionalId(0)));
 
   // Establish available streams up to the server's limit.
@@ -416,7 +416,7 @@ TEST_P(QuicServerSessionBaseTest, MaxAvailableBidirectionalStreams) {
     // This exceeds the stream limit. In versions other than 99
     // this is allowed. Version 99 hews to the IETF spec and does
     // not allow it.
-    EXPECT_TRUE(QuicServerSessionBasePeer::GetOrCreateDynamicStream(
+    EXPECT_TRUE(QuicServerSessionBasePeer::GetOrCreateStream(
         session_.get(), kLimitingStreamId));
     // A further available stream will result in connection close.
     EXPECT_CALL(*connection_,
@@ -428,14 +428,14 @@ TEST_P(QuicServerSessionBaseTest, MaxAvailableBidirectionalStreams) {
 
   // This forces stream kLimitingStreamId + 2 to become available, which
   // violates the quota.
-  EXPECT_FALSE(QuicServerSessionBasePeer::GetOrCreateDynamicStream(
+  EXPECT_FALSE(QuicServerSessionBasePeer::GetOrCreateStream(
       session_.get(), kLimitingStreamId + 2 * next_id));
 }
 
 TEST_P(QuicServerSessionBaseTest, GetEvenIncomingError) {
   // Incoming streams on the server session must be odd.
   EXPECT_CALL(*connection_, CloseConnection(QUIC_INVALID_STREAM_ID, _, _));
-  EXPECT_EQ(nullptr, QuicServerSessionBasePeer::GetOrCreateDynamicStream(
+  EXPECT_EQ(nullptr, QuicServerSessionBasePeer::GetOrCreateStream(
                          session_.get(),
                          session_->next_outgoing_unidirectional_stream_id()));
 }
@@ -448,7 +448,7 @@ TEST_P(QuicServerSessionBaseTest, GetStreamDisconnected) {
 
   // Don't create new streams if the connection is disconnected.
   QuicConnectionPeer::TearDownLocalConnectionState(connection_);
-  EXPECT_QUIC_BUG(QuicServerSessionBasePeer::GetOrCreateDynamicStream(
+  EXPECT_QUIC_BUG(QuicServerSessionBasePeer::GetOrCreateStream(
                       session_.get(), GetNthClientInitiatedBidirectionalId(0)),
                   "ShouldCreateIncomingStream called when disconnected");
 }

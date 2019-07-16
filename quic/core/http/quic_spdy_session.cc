@@ -559,7 +559,14 @@ QpackDecoder* QuicSpdySession::qpack_decoder() {
 
 QuicSpdyStream* QuicSpdySession::GetSpdyDataStream(
     const QuicStreamId stream_id) {
-  QuicStream* stream = GetOrCreateDynamicStream(stream_id);
+  QuicStream* stream = nullptr;
+  if (GetQuicReloadableFlag(quic_inline_getorcreatedynamicstream) &&
+      GetQuicReloadableFlag(quic_handle_staticness_for_spdy_stream)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_inline_getorcreatedynamicstream);
+    stream = GetOrCreateStream(stream_id);
+  } else {
+    stream = GetOrCreateDynamicStream(stream_id);
+  }
   if (GetQuicReloadableFlag(quic_handle_staticness_for_spdy_stream) && stream &&
       stream->is_static()) {
     QUIC_RELOADABLE_FLAG_COUNT(quic_handle_staticness_for_spdy_stream);
