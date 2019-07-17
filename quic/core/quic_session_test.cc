@@ -1739,8 +1739,8 @@ TEST_P(QuicSessionTestServer, RstPendingStreams) {
   QuicStreamFrame data1(stream_id, true, 10, QuicStringPiece("HT"));
   session_.OnStreamFrame(data1);
   EXPECT_EQ(0, session_.num_incoming_streams_created());
+  EXPECT_EQ(0u, session_.GetNumOpenIncomingStreams());
 
-  EXPECT_CALL(session_, OnCanCreateNewOutgoingStream()).Times(1);
   EXPECT_CALL(*connection_, SendControlFrame(_)).Times(1);
   EXPECT_CALL(*connection_, OnStreamReset(stream_id, QUIC_RST_ACKNOWLEDGEMENT))
       .Times(1);
@@ -1748,10 +1748,12 @@ TEST_P(QuicSessionTestServer, RstPendingStreams) {
                           QUIC_ERROR_PROCESSING_STREAM, 12);
   session_.OnRstStream(rst1);
   EXPECT_EQ(0, session_.num_incoming_streams_created());
+  EXPECT_EQ(0u, session_.GetNumOpenIncomingStreams());
 
   QuicStreamFrame data2(stream_id, false, 0, QuicStringPiece("HT"));
   session_.OnStreamFrame(data2);
   EXPECT_EQ(0, session_.num_incoming_streams_created());
+  EXPECT_EQ(0u, session_.GetNumOpenIncomingStreams());
 }
 
 TEST_P(QuicSessionTestServer, PendingStreamOnWindowUpdate) {

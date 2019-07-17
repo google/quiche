@@ -890,13 +890,9 @@ void QuicSession::ClosePendingStream(QuicStreamId stream_id) {
     pending_stream_map_.erase(stream_id);
   }
 
-  --num_dynamic_incoming_streams_;
-
   if (VersionHasIetfQuicFrames(connection_->transport_version())) {
     v99_streamid_manager_.OnStreamClosed(stream_id);
   }
-
-  OnCanCreateNewOutgoingStream();
 }
 
 void QuicSession::OnFinalByteOffsetReceived(
