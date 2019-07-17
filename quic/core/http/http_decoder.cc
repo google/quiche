@@ -152,14 +152,34 @@ bool HttpDecoder::ReadFrameLength(QuicDataReader* reader) {
   auto frame_meta = Http3FrameLengths(
       current_length_field_length_ + current_type_field_length_,
       current_frame_length_);
-  if (current_frame_type_ == 0x0) {
-    continue_processing = visitor_->OnDataFrameStart(frame_meta);
-  } else if (current_frame_type_ == 0x1) {
-    continue_processing = visitor_->OnHeadersFrameStart(frame_meta);
-  } else if (current_frame_type_ == 0x4) {
-    continue_processing = visitor_->OnSettingsFrameStart(frame_meta);
-  } else if (current_frame_type_ == 0x2) {
-    continue_processing = visitor_->OnPriorityFrameStart(frame_meta);
+
+  switch (current_frame_type_) {
+    case 0x00:  // DATA
+      continue_processing = visitor_->OnDataFrameStart(frame_meta);
+      break;
+    case 0x01:  // HEADERS
+      continue_processing = visitor_->OnHeadersFrameStart(frame_meta);
+      break;
+    case 0x02:  // PRIORITY
+      continue_processing = visitor_->OnPriorityFrameStart(frame_meta);
+      break;
+    case 0x03:  // CANCEL_PUSH
+      break;
+    case 0x04:  // SETTINGS
+      continue_processing = visitor_->OnSettingsFrameStart(frame_meta);
+      break;
+    case 0x05:  // PUSH_PROMISE
+      break;
+    case 0x07:  // GOAWAY
+      break;
+    case 0x0d:  // MAX_PUSH_ID
+      break;
+    case 0x0e:  // DUPLICATE_PUSH
+      break;
+    default:
+      continue_processing =
+          visitor_->OnUnknownFrameStart(current_frame_type_, frame_meta);
+      break;
   }
 
   remaining_frame_length_ = current_frame_length_;
@@ -255,28 +275,17 @@ bool HttpDecoder::ReadFramePayload(QuicDataReader* reader) {
       BufferFramePayload(reader);
       break;
     }
-    // Reserved frame types.
-    // TODO(rch): Since these are actually the same behavior as the
-    // default, we probably don't need to special case them here?
-    case 0xB:
-      QUIC_FALLTHROUGH_INTENDED;
-    case 0xB + 0x1F:
-      QUIC_FALLTHROUGH_INTENDED;
-    case 0xB + 0x1F * 2:
-      QUIC_FALLTHROUGH_INTENDED;
-    case 0xB + 0x1F * 3:
-      QUIC_FALLTHROUGH_INTENDED;
-    case 0xB + 0x1F * 4:
-      QUIC_FALLTHROUGH_INTENDED;
-    case 0xB + 0x1F * 5:
-      QUIC_FALLTHROUGH_INTENDED;
-    case 0xB + 0x1F * 6:
-      QUIC_FALLTHROUGH_INTENDED;
-    case 0xB + 0x1F * 7:
-      QUIC_FALLTHROUGH_INTENDED;
-    default:
-      DiscardFramePayload(reader);
-      return true;
+    default: {
+      QuicByteCount bytes_to_read = std::min<QuicByteCount>(
+          remaining_frame_length_, reader->BytesRemaining());
+      QuicStringPiece payload;
+      bool success = reader->ReadStringPiece(&payload, bytes_to_read);
+      DCHECK(success);
+      DCHECK(!payload.empty());
+      continue_processing = visitor_->OnUnknownFramePayload(payload);
+      remaining_frame_length_ -= payload.length();
+      break;
+    }
   }
 
   if (remaining_frame_length_ == 0) {
@@ -374,6 +383,10 @@ bool HttpDecoder::FinishParsing() {
         return false;
       }
       continue_processing = visitor_->OnDuplicatePushFrame(frame);
+      break;
+    }
+    default: {
+      continue_processing = visitor_->OnUnknownFrameEnd();
       break;
     }
   }

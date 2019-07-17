@@ -105,9 +105,17 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
     // Called when a PUSH_PROMISE frame has been completely processed.
     virtual bool OnPushPromiseFrameEnd() = 0;
 
-    // TODO(rch): Consider adding methods like:
-    // OnUnknownFrame{Start,Payload,End}()
-    // to allow callers to handle unknown frames.
+    // Called when a frame of unknown type |frame_type| has been received.
+    // Frame type might be reserved, Visitor must make sure to ignore.
+    // |frame_length| contains frame length and payload length.
+    virtual bool OnUnknownFrameStart(uint64_t frame_type,
+                                     Http3FrameLengths frame_length) = 0;
+    // Called when part of the payload of the unknown frame has been read.  May
+    // be called multiple times for a single frame.  |payload| is guaranteed to
+    // be non-empty.
+    virtual bool OnUnknownFramePayload(QuicStringPiece payload) = 0;
+    // Called when the unknown frame has been completely processed.
+    virtual bool OnUnknownFrameEnd() = 0;
   };
 
   // |visitor| must be non-null, and must outlive HttpDecoder.

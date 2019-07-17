@@ -53,6 +53,10 @@ class MockVisitor : public HttpDecoder::Visitor {
   MOCK_METHOD1(OnPushPromiseFrameStart, bool(PushId push_id));
   MOCK_METHOD1(OnPushPromiseFramePayload, bool(QuicStringPiece payload));
   MOCK_METHOD0(OnPushPromiseFrameEnd, bool());
+
+  MOCK_METHOD2(OnUnknownFrameStart, bool(uint64_t, Http3FrameLengths));
+  MOCK_METHOD1(OnUnknownFramePayload, bool(QuicStringPiece));
+  MOCK_METHOD0(OnUnknownFrameEnd, bool());
 };
 
 class HttpDecoderTest : public QuicTest {
@@ -75,6 +79,9 @@ class HttpDecoderTest : public QuicTest {
     ON_CALL(visitor_, OnPushPromiseFrameStart(_)).WillByDefault(Return(true));
     ON_CALL(visitor_, OnPushPromiseFramePayload(_)).WillByDefault(Return(true));
     ON_CALL(visitor_, OnPushPromiseFrameEnd()).WillByDefault(Return(true));
+    ON_CALL(visitor_, OnUnknownFrameStart(_, _)).WillByDefault(Return(true));
+    ON_CALL(visitor_, OnUnknownFramePayload(_)).WillByDefault(Return(true));
+    ON_CALL(visitor_, OnUnknownFrameEnd()).WillByDefault(Return(true));
   }
   ~HttpDecoderTest() override = default;
 
@@ -120,100 +127,47 @@ TEST_F(HttpDecoderTest, InitialState) {
   EXPECT_EQ("", decoder_.error_detail());
 }
 
-TEST_F(HttpDecoderTest, ReservedFramesNoPayload) {
+TEST_F(HttpDecoderTest, UnknownFrame) {
   std::unique_ptr<char[]> input;
-  for (int n = 0; n < 8; ++n) {
-    const uint8_t type = 0xB + 0x1F * n;
-    QuicByteCount total_length = QuicDataWriter::GetVarInt62Len(0x00) +
-                                 QuicDataWriter::GetVarInt62Len(type);
-    input = QuicMakeUnique<char[]>(total_length);
-    QuicDataWriter writer(total_length, input.get());
-    writer.WriteVarInt62(type);
-    writer.WriteVarInt62(0x00);
 
-    EXPECT_EQ(total_length, decoder_.ProcessInput(input.get(), total_length))
-        << n;
-    EXPECT_EQ(QUIC_NO_ERROR, decoder_.error());
-    ASSERT_EQ("", decoder_.error_detail());
-    EXPECT_EQ(type, current_frame_type());
+  const QuicByteCount payload_lengths[] = {0, 14, 100};
+  const uint64_t frame_types[] = {
+      0x21, 0x40, 0x5f, 0x7e, 0x9d,  // some reserved frame types
+      0x06, 0x0f, 0x14               // some unknown, not reserved frame types
+  };
+
+  for (auto payload_length : payload_lengths) {
+    std::string data(payload_length, 'a');
+
+    for (auto frame_type : frame_types) {
+      const QuicByteCount total_length =
+          QuicDataWriter::GetVarInt62Len(frame_type) +
+          QuicDataWriter::GetVarInt62Len(payload_length) + payload_length;
+      input = QuicMakeUnique<char[]>(total_length);
+
+      QuicDataWriter writer(total_length, input.get());
+      writer.WriteVarInt62(frame_type);
+      writer.WriteVarInt62(payload_length);
+      const QuicByteCount header_length = writer.length();
+      if (payload_length > 0) {
+        writer.WriteStringPiece(data);
+      }
+
+      EXPECT_CALL(visitor_, OnUnknownFrameStart(
+                                frame_type, Http3FrameLengths(header_length,
+                                                              payload_length)));
+      if (payload_length > 0) {
+        EXPECT_CALL(visitor_, OnUnknownFramePayload(data));
+      }
+      EXPECT_CALL(visitor_, OnUnknownFrameEnd());
+
+      EXPECT_EQ(total_length, decoder_.ProcessInput(input.get(), total_length));
+
+      EXPECT_EQ(QUIC_NO_ERROR, decoder_.error());
+      ASSERT_EQ("", decoder_.error_detail());
+      EXPECT_EQ(frame_type, current_frame_type());
+    }
   }
-  // Test on a arbitrary reserved frame with 2-byte type field by hard coding
-  // variable length integer.
-  char in[] = {// type 0xB + 0x1F*3
-               0x40, 0x68,
-               // length
-               0x00};
-  EXPECT_EQ(3u, decoder_.ProcessInput(in, QUIC_ARRAYSIZE(in)));
-  EXPECT_EQ(QUIC_NO_ERROR, decoder_.error());
-  ASSERT_EQ("", decoder_.error_detail());
-  EXPECT_EQ(0xB + 0x1F * 3u, current_frame_type());
-}
-
-TEST_F(HttpDecoderTest, ReservedFramesSmallPayload) {
-  std::unique_ptr<char[]> input;
-  const uint8_t payload_size = 50;
-  std::string data(payload_size, 'a');
-  for (int n = 0; n < 8; ++n) {
-    const uint8_t type = 0xB + 0x1F * n;
-    QuicByteCount total_length = QuicDataWriter::GetVarInt62Len(payload_size) +
-                                 QuicDataWriter::GetVarInt62Len(type) +
-                                 payload_size;
-    input = QuicMakeUnique<char[]>(total_length);
-    QuicDataWriter writer(total_length, input.get());
-    writer.WriteVarInt62(type);
-    writer.WriteVarInt62(payload_size);
-    writer.WriteStringPiece(data);
-    EXPECT_EQ(total_length, decoder_.ProcessInput(input.get(), total_length))
-        << n;
-    EXPECT_EQ(QUIC_NO_ERROR, decoder_.error());
-    ASSERT_EQ("", decoder_.error_detail());
-    EXPECT_EQ(type, current_frame_type());
-  }
-
-  // Test on a arbitrary reserved frame with 2-byte type field by hard coding
-  // variable length integer.
-  char in[payload_size + 3] = {// type 0xB + 0x1F*3
-                               0x40, 0x68,
-                               // length
-                               payload_size};
-  EXPECT_EQ(QUIC_ARRAYSIZE(in), decoder_.ProcessInput(in, QUIC_ARRAYSIZE(in)));
-  EXPECT_EQ(QUIC_NO_ERROR, decoder_.error());
-  ASSERT_EQ("", decoder_.error_detail());
-  EXPECT_EQ(0xB + 0x1F * 3u, current_frame_type());
-}
-
-TEST_F(HttpDecoderTest, ReservedFramesLargePayload) {
-  std::unique_ptr<char[]> input;
-  const QuicByteCount payload_size = 256;
-  std::string data(payload_size, 'a');
-  for (int n = 0; n < 8; ++n) {
-    const uint8_t type = 0xB + 0x1F * n;
-    QuicByteCount total_length = QuicDataWriter::GetVarInt62Len(payload_size) +
-                                 QuicDataWriter::GetVarInt62Len(type) +
-                                 payload_size;
-    input = QuicMakeUnique<char[]>(total_length);
-    QuicDataWriter writer(total_length, input.get());
-    writer.WriteVarInt62(type);
-    writer.WriteVarInt62(payload_size);
-    writer.WriteStringPiece(data);
-
-    EXPECT_EQ(total_length, decoder_.ProcessInput(input.get(), total_length))
-        << n;
-    EXPECT_EQ(QUIC_NO_ERROR, decoder_.error());
-    ASSERT_EQ("", decoder_.error_detail());
-    EXPECT_EQ(type, current_frame_type());
-  }
-
-  // Test on a arbitrary reserved frame with 2-byte type field by hard coding
-  // variable length integer.
-  char in[payload_size + 4] = {// type 0xB + 0x1F*3
-                               0x40, 0x68,
-                               // length
-                               0x40 + 0x01, 0x00};
-  EXPECT_EQ(QUIC_ARRAYSIZE(in), decoder_.ProcessInput(in, QUIC_ARRAYSIZE(in)));
-  EXPECT_EQ(QUIC_NO_ERROR, decoder_.error());
-  ASSERT_EQ("", decoder_.error_detail());
-  EXPECT_EQ(0xB + 0x1F * 3u, current_frame_type());
 }
 
 TEST_F(HttpDecoderTest, CancelPush) {
@@ -583,24 +537,32 @@ TEST_F(HttpDecoderTest, FrameHeaderPartialDelivery) {
 }
 
 TEST_F(HttpDecoderTest, PartialDeliveryOfLargeFrameType) {
-  // Use a reserved type that's more than 1 byte in VarInt62.
-  const uint8_t type = 0xB + 0x1F * 3;
-  std::unique_ptr<char[]> input;
-  QuicByteCount total_length = QuicDataWriter::GetVarInt62Len(0x00) +
-                               QuicDataWriter::GetVarInt62Len(type);
-  input.reset(new char[total_length]);
+  // Use a reserved type that takes four bytes as a varint.
+  const uint64_t frame_type = 0x1f * 0x222 + 0x21;
+  const QuicByteCount payload_length = 0;
+  const QuicByteCount total_length =
+      QuicDataWriter::GetVarInt62Len(frame_type) +
+      QuicDataWriter::GetVarInt62Len(payload_length);
+
+  auto input = QuicMakeUnique<char[]>(total_length);
   QuicDataWriter writer(total_length, input.get());
-  writer.WriteVarInt62(type);
-  writer.WriteVarInt62(0x00);
+  writer.WriteVarInt62(frame_type);
+  writer.WriteVarInt62(payload_length);
+
+  EXPECT_CALL(visitor_,
+              OnUnknownFrameStart(
+                  frame_type, Http3FrameLengths(total_length, payload_length)));
+  EXPECT_CALL(visitor_, OnUnknownFrameEnd());
 
   auto raw_input = input.get();
   for (uint64_t i = 0; i < total_length; ++i) {
     char c = raw_input[i];
     EXPECT_EQ(1u, decoder_.ProcessInput(&c, 1));
   }
+
   EXPECT_EQ(QUIC_NO_ERROR, decoder_.error());
   EXPECT_EQ("", decoder_.error_detail());
-  EXPECT_EQ(type, current_frame_type());
+  EXPECT_EQ(frame_type, current_frame_type());
 }
 
 TEST_F(HttpDecoderTest, GoAway) {

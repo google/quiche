@@ -6,6 +6,7 @@
 
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_spdy_session_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_stream_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
@@ -240,6 +241,22 @@ TEST_P(QuicReceiveControlStreamTest, PushPromiseOnControlStreamShouldClose) {
   EXPECT_CALL(*connection_, CloseConnection(QUIC_HTTP_DECODER_ERROR, _, _))
       .Times(AtLeast(1));
   receive_control_stream_->OnStreamFrame(frame);
+}
+
+// Regression test for b/137554973: unknown frames should be consumed.
+TEST_P(QuicReceiveControlStreamTest, ConsumeUnknownFrame) {
+  std::string unknown_frame = QuicTextUtils::HexDecode(
+      "21"        // reserved frame type
+      "03"        // payload length
+      "666f6f");  // payload "foo"
+
+  EXPECT_EQ(0u, NumBytesConsumed());
+
+  receive_control_stream_->OnStreamFrame(
+      QuicStreamFrame(receive_control_stream_->id(), /* fin = */ false,
+                      /* offset = */ 0, unknown_frame));
+
+  EXPECT_EQ(unknown_frame.size(), NumBytesConsumed());
 }
 
 }  // namespace

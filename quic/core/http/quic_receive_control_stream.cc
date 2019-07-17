@@ -119,6 +119,22 @@ class QuicReceiveControlStream::HttpDecoderVisitor
     return false;
   }
 
+  bool OnUnknownFrameStart(uint64_t /* frame_type */,
+                           Http3FrameLengths /* frame_length */) override {
+    // Ignore unknown frame types.
+    return true;
+  }
+
+  bool OnUnknownFramePayload(QuicStringPiece /* payload */) override {
+    // Ignore unknown frame types.
+    return true;
+  }
+
+  bool OnUnknownFrameEnd() override {
+    // Ignore unknown frame types.
+    return true;
+  }
+
  private:
   void CloseConnectionOnWrongFrame(std::string frame_type) {
     // TODO(renjietang): Change to HTTP/3 error type.

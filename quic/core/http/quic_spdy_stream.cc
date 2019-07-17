@@ -82,6 +82,7 @@ class QuicSpdyStream::HttpDecoderVisitor : public HttpDecoder::Visitor {
   }
 
   bool OnDuplicatePushFrame(const DuplicatePushFrame& /*frame*/) override {
+    // TODO(b/137554973): Consume frame.
     CloseConnectionOnWrongFrame("Duplicate Push");
     return false;
   }
@@ -123,11 +124,13 @@ class QuicSpdyStream::HttpDecoderVisitor : public HttpDecoder::Visitor {
   }
 
   bool OnPushPromiseFrameStart(PushId /*push_id*/) override {
+    // TODO(b/137554973): Consume frame header.
     CloseConnectionOnWrongFrame("Push Promise");
     return false;
   }
 
   bool OnPushPromiseFramePayload(QuicStringPiece payload) override {
+    // TODO(b/137554973): Consume frame payload.
     DCHECK(!payload.empty());
     CloseConnectionOnWrongFrame("Push Promise");
     return false;
@@ -137,6 +140,19 @@ class QuicSpdyStream::HttpDecoderVisitor : public HttpDecoder::Visitor {
     CloseConnectionOnWrongFrame("Push Promise");
     return false;
   }
+
+  bool OnUnknownFrameStart(uint64_t /* frame_type */,
+                           Http3FrameLengths /* frame_length */) override {
+    // TODO(b/137554973): Consume frame header.
+    return true;
+  }
+
+  bool OnUnknownFramePayload(QuicStringPiece /* payload */) override {
+    // TODO(b/137554973): Consume frame payload.
+    return true;
+  }
+
+  bool OnUnknownFrameEnd() override { return true; }
 
  private:
   void CloseConnectionOnWrongFrame(std::string frame_type) {
