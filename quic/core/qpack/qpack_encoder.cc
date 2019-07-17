@@ -4,7 +4,7 @@
 
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_encoder.h"
 
-#include <string>
+#include <list>
 
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_constants.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_instruction_encoder.h"
@@ -29,18 +29,10 @@ QpackEncoder::~QpackEncoder() {}
 std::string QpackEncoder::EncodeHeaderList(
     QuicStreamId /* stream_id */,
     const spdy::SpdyHeaderBlock* header_list) {
-  QpackInstructionEncoder instruction_encoder;
-  std::string encoded_headers;
+  // First pass.
 
-  // TODO(bnc): Implement dynamic entries and set Required Insert Count and
-  // Delta Base accordingly.
-  QpackInstructionEncoder::Values values;
-  values.varint = 0;
-  values.varint2 = 0;
-  values.s_bit = false;
-
-  instruction_encoder.Encode(QpackPrefixInstruction(), values,
-                             &encoded_headers);
+  // Encode into |instructions| which will be serialized during the second pass.
+  std::list<InstructionWithValues> instructions;
 
   for (const auto& header : ValueSplittingHeaderList(header_list)) {
     QuicStringPiece name = header.first;
@@ -56,34 +48,48 @@ std::string QpackEncoder::EncodeHeaderList(
       case QpackHeaderTable::MatchType::kNameAndValue:
         DCHECK(is_static) << "Dynamic table entries not supported yet.";
 
-        values.s_bit = is_static;
-        values.varint = index;
-
-        instruction_encoder.Encode(QpackIndexedHeaderFieldInstruction(), values,
-                                   &encoded_headers);
+        instructions.push_back({QpackIndexedHeaderFieldInstruction(), {}});
+        instructions.back().values.s_bit = is_static;
+        instructions.back().values.varint = index;
 
         break;
       case QpackHeaderTable::MatchType::kName:
         DCHECK(is_static) << "Dynamic table entries not supported yet.";
 
-        values.s_bit = is_static;
-        values.varint = index;
-        values.value = value;
-
-        instruction_encoder.Encode(
-            QpackLiteralHeaderFieldNameReferenceInstruction(), values,
-            &encoded_headers);
+        instructions.push_back(
+            {QpackLiteralHeaderFieldNameReferenceInstruction(), {}});
+        instructions.back().values.s_bit = is_static;
+        instructions.back().values.varint = index;
+        instructions.back().values.value = value;
 
         break;
       case QpackHeaderTable::MatchType::kNoMatch:
-        values.name = name;
-        values.value = value;
-
-        instruction_encoder.Encode(QpackLiteralHeaderFieldInstruction(), values,
-                                   &encoded_headers);
+        instructions.push_back({QpackLiteralHeaderFieldInstruction(), {}});
+        instructions.back().values.name = name;
+        instructions.back().values.value = value;
 
         break;
     }
+  }
+
+  // Second pass.
+  QpackInstructionEncoder instruction_encoder;
+  std::string encoded_headers;
+
+  // Header block prefix.
+  // TODO(bnc): Implement dynamic entries and set Required Insert Count and
+  // Delta Base accordingly.
+  QpackInstructionEncoder::Values values;
+  values.varint = 0;     // Encoded required insert count.
+  values.varint2 = 0;    // Delta Base.
+  values.s_bit = false;  // Delta Base sign.
+
+  instruction_encoder.Encode(QpackPrefixInstruction(), values,
+                             &encoded_headers);
+
+  for (const auto& instruction : instructions) {
+    instruction_encoder.Encode(instruction.instruction, instruction.values,
+                               &encoded_headers);
   }
 
   return encoded_headers;

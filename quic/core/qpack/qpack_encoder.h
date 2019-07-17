@@ -56,6 +56,17 @@ class QUIC_EXPORT_PRIVATE QpackEncoder
   void OnErrorDetected(QuicStringPiece error_message) override;
 
  private:
+  // TODO(bnc): Consider moving this class to QpackInstructionEncoder or
+  // qpack_constants, adding factory methods, one for each instruction, and
+  // changing QpackInstructionEncoder::Encoder() to take an
+  // InstructionWithValues struct instead of separate |instruction| and |values|
+  // arguments.
+  struct InstructionWithValues {
+    // |instruction| is not owned.
+    const QpackInstruction* instruction;
+    QpackInstructionEncoder::Values values;
+  };
+
   DecoderStreamErrorDelegate* const decoder_stream_error_delegate_;
   QpackDecoderStreamReceiver decoder_stream_receiver_;
   QpackEncoderStreamSender encoder_stream_sender_;
