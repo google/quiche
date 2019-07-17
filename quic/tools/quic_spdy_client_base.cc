@@ -103,14 +103,31 @@ std::unique_ptr<QuicSession> QuicSpdyClientBase::CreateQuicClientSession(
 void QuicSpdyClientBase::SendRequest(const SpdyHeaderBlock& headers,
                                      QuicStringPiece body,
                                      bool fin) {
+  if (GetQuicFlag(FLAGS_quic_client_convert_http_header_name_to_lowercase)) {
+    QUIC_CODE_COUNT(quic_client_convert_http_header_name_to_lowercase);
+    SpdyHeaderBlock sanitized_headers;
+    for (const auto& p : headers) {
+      sanitized_headers[QuicTextUtils::ToLower(p.first)] = p.second;
+    }
+
+    SendRequestInternal(std::move(sanitized_headers), body, fin);
+  } else {
+    SendRequestInternal(headers.Clone(), body, fin);
+  }
+}
+
+void QuicSpdyClientBase::SendRequestInternal(SpdyHeaderBlock sanitized_headers,
+                                             QuicStringPiece body,
+                                             bool fin) {
   QuicClientPushPromiseIndex::TryHandle* handle;
-  QuicAsyncStatus rv = push_promise_index()->Try(headers, this, &handle);
+  QuicAsyncStatus rv =
+      push_promise_index()->Try(sanitized_headers, this, &handle);
   if (rv == QUIC_SUCCESS)
     return;
 
   if (rv == QUIC_PENDING) {
     // May need to retry request if asynchronous rendezvous fails.
-    AddPromiseDataToResend(headers, body, fin);
+    AddPromiseDataToResend(sanitized_headers, body, fin);
     return;
   }
 
@@ -119,7 +136,7 @@ void QuicSpdyClientBase::SendRequest(const SpdyHeaderBlock& headers,
     QUIC_BUG << "stream creation failed!";
     return;
   }
-  stream->SendRequest(headers.Clone(), body, fin);
+  stream->SendRequest(std::move(sanitized_headers), body, fin);
 }
 
 void QuicSpdyClientBase::SendRequestAndWaitForResponse(

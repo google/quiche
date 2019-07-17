@@ -177,6 +177,10 @@ class QuicSpdyClientBase : public QuicClientBase,
     QuicSpdyClientBase* client_;
   };
 
+  void SendRequestInternal(spdy::SpdyHeaderBlock sanitized_headers,
+                           QuicStringPiece body,
+                           bool fin);
+
   // Index of pending promised streams. Must outlive |session_|.
   QuicClientPushPromiseIndex push_promise_index_;
 

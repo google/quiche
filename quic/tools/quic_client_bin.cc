@@ -20,7 +20,7 @@
 //   quic_client www.google.com --body="this is a POST body"
 //
 // Append additional headers to the request:
-//   quic_client www.google.com --headers="Header-A: 1234; Header-B: 5678"
+//   quic_client www.google.com --headers="header-a: 1234; header-b: 5678"
 //
 // Connect to a host different to the URL being requested:
 //   quic_client mail.google.com --host=www.google.com
