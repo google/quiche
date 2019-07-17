@@ -19,20 +19,24 @@ namespace quic {
 // fields that follow each instruction.
 class QUIC_EXPORT_PRIVATE QpackInstructionEncoder {
  public:
+  // Storage for field values to be encoded.
+  // The encoded instruction determines which values are actually used.
+  struct Values {
+    bool s_bit;
+    uint64_t varint;
+    uint64_t varint2;
+    QuicStringPiece name;
+    QuicStringPiece value;
+  };
+
   QpackInstructionEncoder();
   QpackInstructionEncoder(const QpackInstructionEncoder&) = delete;
   QpackInstructionEncoder& operator=(const QpackInstructionEncoder&) = delete;
 
-  // Setters for values to be encoded.
-  // |name| and |value| must remain valid until the instruction is encoded.
-  void set_s_bit(bool s_bit) { s_bit_ = s_bit; }
-  void set_varint(uint64_t varint) { varint_ = varint; }
-  void set_varint2(uint64_t varint2) { varint2_ = varint2; }
-  void set_name(QuicStringPiece name) { name_ = name; }
-  void set_value(QuicStringPiece value) { value_ = value; }
-
   // Append encoded instruction to |output|.
-  void Encode(const QpackInstruction* instruction, std::string* output);
+  void Encode(const QpackInstruction* instruction,
+              const Values& values,
+              std::string* output);
 
  private:
   enum class State {
@@ -57,19 +61,11 @@ class QUIC_EXPORT_PRIVATE QpackInstructionEncoder {
   // Some only change internal state.
   void DoOpcode();
   void DoStartField();
-  void DoStaticBit();
-  void DoVarintEncode(std::string* output);
-  void DoStartString();
+  void DoSBit(bool s_bit);
+  void DoVarintEncode(uint64_t varint, uint64_t varint2, std::string* output);
+  void DoStartString(QuicStringPiece name, QuicStringPiece value);
   void DoWriteString(std::string* output);
 
-  // Storage for field values to be encoded.
-  bool s_bit_;
-  uint64_t varint_;
-  uint64_t varint2_;
-  // The caller must keep the string that |name_| and |value_| point to
-  // valid until they are encoded.
-  QuicStringPiece name_;
-  QuicStringPiece value_;
 
   // Storage for the Huffman encoded string literal to be written if Huffman
   // encoding is used.

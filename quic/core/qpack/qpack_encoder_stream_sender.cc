@@ -23,39 +23,42 @@ void QpackEncoderStreamSender::SendInsertWithNameReference(
     bool is_static,
     uint64_t name_index,
     QuicStringPiece value) {
-  instruction_encoder_.set_s_bit(is_static);
-  instruction_encoder_.set_varint(name_index);
-  instruction_encoder_.set_value(value);
+  values_.s_bit = is_static;
+  values_.varint = name_index;
+  values_.value = value;
 
   std::string output;
-  instruction_encoder_.Encode(InsertWithNameReferenceInstruction(), &output);
+  instruction_encoder_.Encode(InsertWithNameReferenceInstruction(), values_,
+                              &output);
   delegate_->WriteStreamData(output);
 }
 
 void QpackEncoderStreamSender::SendInsertWithoutNameReference(
     QuicStringPiece name,
     QuicStringPiece value) {
-  instruction_encoder_.set_name(name);
-  instruction_encoder_.set_value(value);
+  values_.name = name;
+  values_.value = value;
 
   std::string output;
-  instruction_encoder_.Encode(InsertWithoutNameReferenceInstruction(), &output);
+  instruction_encoder_.Encode(InsertWithoutNameReferenceInstruction(), values_,
+                              &output);
   delegate_->WriteStreamData(output);
 }
 
 void QpackEncoderStreamSender::SendDuplicate(uint64_t index) {
-  instruction_encoder_.set_varint(index);
+  values_.varint = index;
 
   std::string output;
-  instruction_encoder_.Encode(DuplicateInstruction(), &output);
+  instruction_encoder_.Encode(DuplicateInstruction(), values_, &output);
   delegate_->WriteStreamData(output);
 }
 
 void QpackEncoderStreamSender::SendSetDynamicTableCapacity(uint64_t capacity) {
-  instruction_encoder_.set_varint(capacity);
+  values_.varint = capacity;
 
   std::string output;
-  instruction_encoder_.Encode(SetDynamicTableCapacityInstruction(), &output);
+  instruction_encoder_.Encode(SetDynamicTableCapacityInstruction(), values_,
+                              &output);
   delegate_->WriteStreamData(output);
 }
 

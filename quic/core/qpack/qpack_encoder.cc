@@ -34,11 +34,13 @@ std::string QpackEncoder::EncodeHeaderList(
 
   // TODO(bnc): Implement dynamic entries and set Required Insert Count and
   // Delta Base accordingly.
-  instruction_encoder.set_varint(0);
-  instruction_encoder.set_varint2(0);
-  instruction_encoder.set_s_bit(false);
+  QpackInstructionEncoder::Values values;
+  values.varint = 0;
+  values.varint2 = 0;
+  values.s_bit = false;
 
-  instruction_encoder.Encode(QpackPrefixInstruction(), &encoded_headers);
+  instruction_encoder.Encode(QpackPrefixInstruction(), values,
+                             &encoded_headers);
 
   for (const auto& header : ValueSplittingHeaderList(header_list)) {
     QuicStringPiece name = header.first;
@@ -54,30 +56,30 @@ std::string QpackEncoder::EncodeHeaderList(
       case QpackHeaderTable::MatchType::kNameAndValue:
         DCHECK(is_static) << "Dynamic table entries not supported yet.";
 
-        instruction_encoder.set_s_bit(is_static);
-        instruction_encoder.set_varint(index);
+        values.s_bit = is_static;
+        values.varint = index;
 
-        instruction_encoder.Encode(QpackIndexedHeaderFieldInstruction(),
+        instruction_encoder.Encode(QpackIndexedHeaderFieldInstruction(), values,
                                    &encoded_headers);
 
         break;
       case QpackHeaderTable::MatchType::kName:
         DCHECK(is_static) << "Dynamic table entries not supported yet.";
 
-        instruction_encoder.set_s_bit(is_static);
-        instruction_encoder.set_varint(index);
-        instruction_encoder.set_value(value);
+        values.s_bit = is_static;
+        values.varint = index;
+        values.value = value;
 
         instruction_encoder.Encode(
-            QpackLiteralHeaderFieldNameReferenceInstruction(),
+            QpackLiteralHeaderFieldNameReferenceInstruction(), values,
             &encoded_headers);
 
         break;
       case QpackHeaderTable::MatchType::kNoMatch:
-        instruction_encoder.set_name(name);
-        instruction_encoder.set_value(value);
+        values.name = name;
+        values.value = value;
 
-        instruction_encoder.Encode(QpackLiteralHeaderFieldInstruction(),
+        instruction_encoder.Encode(QpackLiteralHeaderFieldInstruction(), values,
                                    &encoded_headers);
 
         break;

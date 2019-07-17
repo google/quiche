@@ -37,6 +37,7 @@ class QUIC_EXPORT_PRIVATE QpackDecoderStreamSender {
  private:
   QpackStreamSenderDelegate* const delegate_;
   QpackInstructionEncoder instruction_encoder_;
+  QpackInstructionEncoder::Values values_;
 };
 
 }  // namespace quic

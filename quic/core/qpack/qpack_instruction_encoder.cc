@@ -14,14 +14,10 @@
 namespace quic {
 
 QpackInstructionEncoder::QpackInstructionEncoder()
-    : s_bit_(false),
-      varint_(0),
-      varint2_(0),
-      byte_(0),
-      state_(State::kOpcode),
-      instruction_(nullptr) {}
+    : byte_(0), state_(State::kOpcode), instruction_(nullptr) {}
 
 void QpackInstructionEncoder::Encode(const QpackInstruction* instruction,
+                                     const Values& values,
                                      std::string* output) {
   DCHECK(instruction);
 
@@ -41,19 +37,21 @@ void QpackInstructionEncoder::Encode(const QpackInstruction* instruction,
         DoStartField();
         break;
       case State::kSbit:
-        DoStaticBit();
+        DoSBit(values.s_bit);
         break;
       case State::kVarintEncode:
-        DoVarintEncode(output);
+        DoVarintEncode(values.varint, values.varint2, output);
         break;
       case State::kStartString:
-        DoStartString();
+        DoStartString(values.name, values.value);
         break;
       case State::kWriteString:
         DoWriteString(output);
         break;
     }
   } while (field_ != instruction_->fields.end());
+
+  DCHECK(state_ == State::kStartField);
 }
 
 void QpackInstructionEncoder::DoOpcode() {
@@ -80,10 +78,10 @@ void QpackInstructionEncoder::DoStartField() {
   }
 }
 
-void QpackInstructionEncoder::DoStaticBit() {
+void QpackInstructionEncoder::DoSBit(bool s_bit) {
   DCHECK(field_->type == QpackInstructionFieldType::kSbit);
 
-  if (s_bit_) {
+  if (s_bit) {
     DCHECK_EQ(0, byte_ & field_->param);
 
     byte_ |= field_->param;
@@ -93,7 +91,9 @@ void QpackInstructionEncoder::DoStaticBit() {
   state_ = State::kStartField;
 }
 
-void QpackInstructionEncoder::DoVarintEncode(std::string* output) {
+void QpackInstructionEncoder::DoVarintEncode(uint64_t varint,
+                                             uint64_t varint2,
+                                             std::string* output) {
   DCHECK(field_->type == QpackInstructionFieldType::kVarint ||
          field_->type == QpackInstructionFieldType::kVarint2 ||
          field_->type == QpackInstructionFieldType::kName ||
@@ -101,10 +101,10 @@ void QpackInstructionEncoder::DoVarintEncode(std::string* output) {
   uint64_t integer_to_encode;
   switch (field_->type) {
     case QpackInstructionFieldType::kVarint:
-      integer_to_encode = varint_;
+      integer_to_encode = varint;
       break;
     case QpackInstructionFieldType::kVarint2:
-      integer_to_encode = varint2_;
+      integer_to_encode = varint2;
       break;
     default:
       integer_to_encode = string_to_write_.size();
@@ -125,12 +125,13 @@ void QpackInstructionEncoder::DoVarintEncode(std::string* output) {
   state_ = State::kWriteString;
 }
 
-void QpackInstructionEncoder::DoStartString() {
+void QpackInstructionEncoder::DoStartString(QuicStringPiece name,
+                                            QuicStringPiece value) {
   DCHECK(field_->type == QpackInstructionFieldType::kName ||
          field_->type == QpackInstructionFieldType::kValue);
 
   string_to_write_ =
-      (field_->type == QpackInstructionFieldType::kName) ? name_ : value_;
+      (field_->type == QpackInstructionFieldType::kName) ? name : value;
   http2::HuffmanEncode(string_to_write_, &huffman_encoded_string_);
 
   if (huffman_encoded_string_.size() < string_to_write_.size()) {

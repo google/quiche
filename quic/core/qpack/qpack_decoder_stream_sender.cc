@@ -20,27 +20,30 @@ QpackDecoderStreamSender::QpackDecoderStreamSender(
 }
 
 void QpackDecoderStreamSender::SendInsertCountIncrement(uint64_t increment) {
-  instruction_encoder_.set_varint(increment);
+  values_.varint = increment;
 
   std::string output;
-  instruction_encoder_.Encode(InsertCountIncrementInstruction(), &output);
+  instruction_encoder_.Encode(InsertCountIncrementInstruction(), values_,
+                              &output);
   delegate_->WriteStreamData(output);
 }
 
 void QpackDecoderStreamSender::SendHeaderAcknowledgement(
     QuicStreamId stream_id) {
-  instruction_encoder_.set_varint(stream_id);
+  values_.varint = stream_id;
 
   std::string output;
-  instruction_encoder_.Encode(HeaderAcknowledgementInstruction(), &output);
+  instruction_encoder_.Encode(HeaderAcknowledgementInstruction(), values_,
+                              &output);
   delegate_->WriteStreamData(output);
 }
 
 void QpackDecoderStreamSender::SendStreamCancellation(QuicStreamId stream_id) {
-  instruction_encoder_.set_varint(stream_id);
+  values_.varint = stream_id;
 
   std::string output;
-  instruction_encoder_.Encode(StreamCancellationInstruction(), &output);
+  instruction_encoder_.Encode(StreamCancellationInstruction(), values_,
+                              &output);
   delegate_->WriteStreamData(output);
 }
 
