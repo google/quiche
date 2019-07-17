@@ -31,16 +31,6 @@ namespace test {
 class QuicSpdySessionPeer;
 }  // namespace test
 
-// Unidirectional stream types defined by IETF HTTP/3 draft in section 3.2.
-const uint64_t kControlStream = 0;
-const uint64_t kServerPushStream = 1;
-const uint64_t kQpackEncoderStream = 2;
-const uint64_t kQpackDecoderStream = 3;
-
-// Supported Settings id as defined by IETF HTTP/3 draft in section 7.2.5.1.
-const uint64_t kSettingsMaxHeaderListSize = 6;
-const uint64_t kSettingsNumPlaceholders = 8;
-
 // QuicHpackDebugVisitor gathers data used for understanding HPACK HoL
 // dynamics.  Specifically, it is to help predict the compression
 // penalty of avoiding HoL by chagning how the dynamic table is used.

@@ -4,6 +4,7 @@
 
 #include "net/third_party/quiche/src/quic/core/http/quic_send_control_stream.h"
 
+#include "net/third_party/quiche/src/quic/core/http/http_constants.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_spdy_session.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 
