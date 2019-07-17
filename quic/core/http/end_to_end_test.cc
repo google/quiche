@@ -143,7 +143,12 @@ std::vector<TestParams> GetTestParams(bool use_tls_handshake) {
   }
 
   std::vector<TestParams> params;
-  for (const QuicTag congestion_control_tag : {kRENO, kTBBR, kQBIC, kTPCC}) {
+  for (const QuicTag congestion_control_tag :
+       {kRENO, kTBBR, kQBIC, kTPCC, kB2ON}) {
+    if (!GetQuicReloadableFlag(quic_allow_client_enabled_bbr_v2) &&
+        congestion_control_tag == kB2ON) {
+      continue;
+    }
     for (const ParsedQuicVersionVector& client_versions : version_buckets) {
       if (FilterSupportedVersions(client_versions).empty()) {
         continue;
@@ -1696,6 +1701,9 @@ TEST_P(EndToEndTest, NegotiateCongestionControl) {
       break;
     case kQBIC:
       expected_congestion_control_type = kCubicBytes;
+      break;
+    case kB2ON:
+      expected_congestion_control_type = kBBRv2;
       break;
     default:
       QUIC_DLOG(FATAL) << "Unexpected congestion control tag";

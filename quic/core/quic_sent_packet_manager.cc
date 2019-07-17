@@ -174,6 +174,12 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
   if (config.HasClientRequestedIndependentOption(kTBBR, perspective)) {
     SetSendAlgorithm(kBBR);
   }
+  if (GetQuicReloadableFlag(quic_allow_client_enabled_bbr_v2) &&
+      config.HasClientRequestedIndependentOption(kB2ON, perspective)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_allow_client_enabled_bbr_v2);
+    SetSendAlgorithm(kBBRv2);
+  }
+
   if (config.HasClientRequestedIndependentOption(kRENO, perspective)) {
     SetSendAlgorithm(kRenoBytes);
   } else if (config.HasClientRequestedIndependentOption(kBYTE, perspective) ||
@@ -184,6 +190,7 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
              config.HasClientRequestedIndependentOption(kTPCC, perspective)) {
     SetSendAlgorithm(kPCC);
   }
+
   // Initial window.
   if (GetQuicReloadableFlag(quic_unified_iw_options)) {
     if (config.HasClientRequestedIndependentOption(kIW03, perspective)) {
