@@ -72,11 +72,6 @@ class QUIC_EXPORT_PRIVATE QuicConnectionId {
   bool IsEmpty() const;
 
   // Hash() is required to use connection IDs as keys in hash tables.
-  // During the lifetime of a process, the output of Hash() is guaranteed to be
-  // the same for connection IDs that are equal to one another. Note however
-  // that this property is not guaranteed across process lifetimes. This makes
-  // Hash() suitable for data structures such as hash tables but not for sending
-  // a hash over the network.
   size_t Hash() const;
 
   // Generates an ASCII string that represents
@@ -117,11 +112,6 @@ class QUIC_EXPORT_PRIVATE QuicConnectionId {
 QUIC_EXPORT_PRIVATE QuicConnectionId EmptyQuicConnectionId();
 
 // QuicConnectionIdHash can be passed as hash argument to hash tables.
-// During the lifetime of a process, the output of QuicConnectionIdHash is
-// guaranteed to be the same for connection IDs that are equal to one another.
-// Note however that this property is not guaranteed across process lifetimes.
-// This makes QuicConnectionIdHash suitable for data structures such as hash
-// tables but not for sending a hash over the network.
 class QuicConnectionIdHash {
  public:
   size_t operator()(QuicConnectionId const& connection_id) const noexcept {

@@ -89,17 +89,6 @@ TEST_F(QuicConnectionIdTest, Hash) {
   EXPECT_NE(connection_id64_1.Hash(), connection_id64_2.Hash());
   EXPECT_NE(connection_id64_1.Hash(), connection_id64_3.Hash());
   EXPECT_NE(connection_id64_2.Hash(), connection_id64_3.Hash());
-
-  // Verify that any two all-zero connection IDs of different lengths never
-  // have the same hash.
-  const char connection_id_bytes[kQuicMaxConnectionIdLength] = {};
-  for (uint8_t i = 0; i < kQuicMaxConnectionIdLength - 1; ++i) {
-    QuicConnectionId connection_id_i(connection_id_bytes, i);
-    for (uint8_t j = i + 1; j < kQuicMaxConnectionIdLength; ++j) {
-      QuicConnectionId connection_id_j(connection_id_bytes, j);
-      EXPECT_NE(connection_id_i.Hash(), connection_id_j.Hash());
-    }
-  }
 }
 
 TEST_F(QuicConnectionIdTest, AssignAndCopy) {
