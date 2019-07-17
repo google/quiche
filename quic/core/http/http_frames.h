@@ -5,6 +5,7 @@
 #ifndef QUICHE_QUIC_CORE_HTTP_HTTP_FRAMES_H_
 #define QUICHE_QUIC_CORE_HTTP_HTTP_FRAMES_H_
 
+#include <cstdint>
 #include <map>
 #include <ostream>
 
@@ -48,7 +49,7 @@ struct HeadersFrame {
 //
 //   The PRIORITY (type=0x02) frame specifies the sender-advised priority
 //   of a stream
-enum PriorityElementType {
+enum PriorityElementType : uint8_t {
   REQUEST_STREAM = 0,
   PUSH_STREAM = 1,
   PLACEHOLDER = 2,

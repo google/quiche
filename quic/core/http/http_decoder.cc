@@ -4,6 +4,9 @@
 
 #include "net/third_party/quiche/src/quic/core/http/http_decoder.h"
 
+#include <cstdint>
+
+#include "net/third_party/quiche/src/quic/core/http/http_frames.h"
 #include "net/third_party/quiche/src/quic/core/quic_data_reader.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_fallthrough.h"
@@ -11,17 +14,6 @@
 namespace quic {
 
 namespace {
-
-// Create a mask that sets the last |num_bits| to 1 and the rest to 0.
-inline uint8_t GetMaskFromNumBits(uint8_t num_bits) {
-  return (1u << num_bits) - 1;
-}
-
-// Extract |num_bits| from |flags| offset by |offset|.
-uint8_t ExtractBits(uint8_t flags, uint8_t num_bits, uint8_t offset) {
-  return (flags >> offset) & GetMaskFromNumBits(num_bits);
-}
-
 // Length of the weight field of a priority frame.
 static const size_t kPriorityWeightLength = 1;
 // Length of a priority frame's first byte.
@@ -468,12 +460,11 @@ bool HttpDecoder::ParsePriorityFrame(QuicDataReader* reader,
     return false;
   }
 
-  frame->prioritized_type =
-      static_cast<PriorityElementType>(ExtractBits(flags, 2, 6));
-  frame->dependency_type =
-      static_cast<PriorityElementType>(ExtractBits(flags, 2, 4));
-  // TODO(b/137662729): Update bitmask for exclusive flag.
-  frame->exclusive = flags % 2 == 1;
+  // Assign two most significant bits to prioritized_type.
+  frame->prioritized_type = static_cast<PriorityElementType>((flags >> 6) & 3);
+  // Assign the next two most significant bits to dependency type.
+  frame->dependency_type = static_cast<PriorityElementType>((flags >> 4) & 3);
+  frame->exclusive = flags >> 3 & 1;
   // TODO(b/137359636): Handle partial delivery.
   if (frame->prioritized_type != ROOT_OF_TREE &&
       !reader->ReadVarInt62(&frame->prioritized_element_id)) {

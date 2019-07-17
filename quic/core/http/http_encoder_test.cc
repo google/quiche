@@ -56,7 +56,7 @@ TEST_F(HttpEncoderTest, SerializePriorityFrame) {
                    // length
                    0x4,
                    // request stream, request stream, exclusive
-                   0x01,
+                   0x08,
                    // prioritized_element_id
                    0x03,
                    // element_dependency_id
@@ -81,7 +81,7 @@ TEST_F(HttpEncoderTest, SerializePriorityFrame) {
                     // length
                     0x3,
                     // root of tree, request stream, exclusive
-                    0xc1,
+                    0xc8,
                     // element_dependency_id
                     0x04,
                     // weight
@@ -101,7 +101,7 @@ TEST_F(HttpEncoderTest, SerializePriorityFrame) {
                     // length
                     0x2,
                     // root of tree, root of tree, exclusive
-                    0xf1,
+                    0xf8,
                     // weight
                     0xff};
   length = encoder_.SerializePriorityFrame(priority3, &buffer);

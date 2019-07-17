@@ -306,7 +306,7 @@ TEST_F(HttpDecoderTest, PriorityFrame) {
   std::string input =
       "\x02"   // type (PRIORITY)
       "\x04"   // length
-      "\x01"   // request stream, request stream, exclusive
+      "\x08"   // request stream, request stream, exclusive
       "\x03"   // prioritized_element_id
       "\x04"   // element_dependency_id
       "\xFF";  // weight
@@ -351,7 +351,7 @@ TEST_F(HttpDecoderTest, PriorityFrame) {
   std::string input2 =
       "\x02"   // type (PRIORITY)
       "\x02"   // length
-      "\xf1"   // root of tree, root of tree, exclusive
+      "\xf8"   // root of tree, root of tree, exclusive
       "\xFF";  // weight
   PriorityFrame frame2;
   frame2.prioritized_type = ROOT_OF_TREE;
