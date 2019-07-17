@@ -36,6 +36,7 @@ const uint64_t kFakeInitialMaxStreamsUni = 22;
 const uint64_t kFakeAckDelayExponent = 10;
 const uint64_t kFakeMaxAckDelay = 51;
 const bool kFakeDisableMigration = true;
+const uint64_t kFakeActiveConnectionIdLimit = 52;
 const QuicConnectionId kFakePreferredConnectionId = TestConnectionId(0xBEEF);
 const uint8_t kFakePreferredStatelessResetTokenData[16] = {
     0x80, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87,
@@ -96,6 +97,8 @@ TEST_F(TransportParametersTest, RoundTripClient) {
   orig_params.ack_delay_exponent.set_value(kFakeAckDelayExponent);
   orig_params.max_ack_delay.set_value(kFakeMaxAckDelay);
   orig_params.disable_migration = kFakeDisableMigration;
+  orig_params.active_connection_id_limit.set_value(
+      kFakeActiveConnectionIdLimit);
 
   std::vector<uint8_t> serialized;
   ASSERT_TRUE(SerializeTransportParameters(orig_params, &serialized));
@@ -126,6 +129,8 @@ TEST_F(TransportParametersTest, RoundTripClient) {
   EXPECT_EQ(kFakeAckDelayExponent, new_params.ack_delay_exponent.value());
   EXPECT_EQ(kFakeMaxAckDelay, new_params.max_ack_delay.value());
   EXPECT_EQ(kFakeDisableMigration, new_params.disable_migration);
+  EXPECT_EQ(kFakeActiveConnectionIdLimit,
+            new_params.active_connection_id_limit.value());
 }
 
 TEST_F(TransportParametersTest, RoundTripServer) {
@@ -151,6 +156,8 @@ TEST_F(TransportParametersTest, RoundTripServer) {
   orig_params.max_ack_delay.set_value(kFakeMaxAckDelay);
   orig_params.disable_migration = kFakeDisableMigration;
   orig_params.preferred_address = CreateFakePreferredAddress();
+  orig_params.active_connection_id_limit.set_value(
+      kFakeActiveConnectionIdLimit);
 
   std::vector<uint8_t> serialized;
   ASSERT_TRUE(SerializeTransportParameters(orig_params, &serialized));
@@ -192,6 +199,8 @@ TEST_F(TransportParametersTest, RoundTripServer) {
             new_params.preferred_address->connection_id);
   EXPECT_EQ(kFakePreferredStatelessResetToken,
             new_params.preferred_address->stateless_reset_token);
+  EXPECT_EQ(kFakeActiveConnectionIdLimit,
+            new_params.active_connection_id_limit.value());
 }
 
 TEST_F(TransportParametersTest, IsValid) {
@@ -252,7 +261,7 @@ TEST_F(TransportParametersTest, NoClientParamsWithStatelessResetToken) {
 TEST_F(TransportParametersTest, ParseClientParams) {
   // clang-format off
   const uint8_t kClientParams[] = {
-      0x00, 0x44,              // length of the parameters array that follows
+      0x00, 0x49,              // length of the parameters array that follows
       // idle_timeout
       0x00, 0x01,  // parameter id
       0x00, 0x02,  // length
@@ -296,6 +305,10 @@ TEST_F(TransportParametersTest, ParseClientParams) {
       // disable_migration
       0x00, 0x0c,  // parameter id
       0x00, 0x00,  // length
+      // active_connection_id_limit
+      0x00, 0x0e,  // parameter id
+      0x00, 0x01,  // length
+      0x34,  // value
       // Google version extension
       0x47, 0x52,  // parameter id
       0x00, 0x04,  // length
@@ -330,6 +343,8 @@ TEST_F(TransportParametersTest, ParseClientParams) {
   EXPECT_EQ(kFakeAckDelayExponent, new_params.ack_delay_exponent.value());
   EXPECT_EQ(kFakeMaxAckDelay, new_params.max_ack_delay.value());
   EXPECT_EQ(kFakeDisableMigration, new_params.disable_migration);
+  EXPECT_EQ(kFakeActiveConnectionIdLimit,
+            new_params.active_connection_id_limit.value());
 }
 
 TEST_F(TransportParametersTest, ParseClientParamsFailsWithStatelessResetToken) {
@@ -418,7 +433,7 @@ TEST_F(TransportParametersTest, ParseClientParametersRepeated) {
 TEST_F(TransportParametersTest, ParseServerParams) {
   // clang-format off
   const uint8_t kServerParams[] = {
-      0x00, 0xa2,  // length of parameters array that follows
+      0x00, 0xa7,  // length of parameters array that follows
       // original_connection_id
       0x00, 0x00,  // parameter id
       0x00, 0x08,  // length
@@ -483,6 +498,10 @@ TEST_F(TransportParametersTest, ParseServerParams) {
       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xBE, 0xEF,  // connection ID
       0x80, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87,  // stateless reset token
       0x88, 0x89, 0x8A, 0x8B, 0x8C, 0x8D, 0x8E, 0x8F,
+      // active_connection_id_limit
+      0x00, 0x0e,  // parameter id
+      0x00, 0x01,  // length
+      0x34,  // value
       // Google version extension
       0x47, 0x52,  // parameter id
       0x00, 0x0d,  // length
@@ -531,6 +550,8 @@ TEST_F(TransportParametersTest, ParseServerParams) {
             new_params.preferred_address->connection_id);
   EXPECT_EQ(kFakePreferredStatelessResetToken,
             new_params.preferred_address->stateless_reset_token);
+  EXPECT_EQ(kFakeActiveConnectionIdLimit,
+            new_params.active_connection_id_limit.value());
 }
 
 TEST_F(TransportParametersTest, ParseServerParametersRepeated) {

@@ -161,6 +161,10 @@ struct QUIC_EXPORT_PRIVATE TransportParameters {
   // Used to effect a change in server address at the end of the handshake.
   std::unique_ptr<PreferredAddress> preferred_address;
 
+  // Maximum number of connection IDs from the peer that an endpoint is willing
+  // to store.
+  IntegerParameter active_connection_id_limit;
+
   // Transport parameters used by Google QUIC but not IETF QUIC. This is
   // serialized into a TransportParameter struct with a TransportParameterId of
   // kGoogleQuicParamId.

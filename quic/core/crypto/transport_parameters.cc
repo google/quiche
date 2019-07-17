@@ -40,6 +40,7 @@ enum TransportParameters::TransportParameterId : uint16_t {
   kMaxAckDelay = 0xb,
   kDisableMigration = 0xc,
   kPreferredAddress = 0xd,
+  kActiveConnectionIdLimit = 0xe,
 
   kGoogleQuicParam = 18257,  // Used for non-standard Google-specific params.
   kGoogleQuicVersion =
@@ -90,6 +91,8 @@ std::string TransportParameterIdToString(
       return "disable_migration";
     case TransportParameters::kPreferredAddress:
       return "preferred_address";
+    case TransportParameters::kActiveConnectionIdLimit:
+      return "active_connection_id_limit";
     case TransportParameters::kGoogleQuicParam:
       return "google";
     case TransportParameters::kGoogleQuicVersion:
@@ -273,6 +276,7 @@ std::string TransportParameters::ToString() const {
     rv += " " + TransportParameterIdToString(kPreferredAddress) + " " +
           preferred_address->ToString();
   }
+  rv += active_connection_id_limit.ToString(/*for_use_in_list=*/true);
   if (google_quic_params) {
     rv += " " + TransportParameterIdToString(kGoogleQuicParam);
   }
@@ -302,7 +306,8 @@ TransportParameters::TransportParameters()
                     kDefaultMaxAckDelayTransportParam,
                     0,
                     kMaxMaxAckDelayTransportParam),
-      disable_migration(false)
+      disable_migration(false),
+      active_connection_id_limit(kActiveConnectionIdLimit)
 // Important note: any new transport parameters must be added
 // to TransportParameters::AreValid, SerializeTransportParameters and
 // ParseTransportParameters.
@@ -350,7 +355,8 @@ bool TransportParameters::AreValid() const {
                   initial_max_stream_data_uni.IsValid() &&
                   initial_max_streams_bidi.IsValid() &&
                   initial_max_streams_uni.IsValid() &&
-                  ack_delay_exponent.IsValid() && max_ack_delay.IsValid();
+                  ack_delay_exponent.IsValid() && max_ack_delay.IsValid() &&
+                  active_connection_id_limit.IsValid();
   if (!ok) {
     QUIC_DLOG(ERROR) << "Invalid transport parameters " << *this;
   }
@@ -431,7 +437,8 @@ bool SerializeTransportParameters(const TransportParameters& in,
       !in.initial_max_streams_bidi.WriteToCbb(&params) ||
       !in.initial_max_streams_uni.WriteToCbb(&params) ||
       !in.ack_delay_exponent.WriteToCbb(&params) ||
-      !in.max_ack_delay.WriteToCbb(&params)) {
+      !in.max_ack_delay.WriteToCbb(&params) ||
+      !in.active_connection_id_limit.WriteToCbb(&params)) {
     QUIC_BUG << "Failed to write integers for " << in;
     return false;
   }
@@ -692,6 +699,9 @@ bool ParseTransportParameters(const uint8_t* in,
             QuicMakeUnique<TransportParameters::PreferredAddress>(
                 preferred_address);
       } break;
+      case TransportParameters::kActiveConnectionIdLimit:
+        parse_success = out->active_connection_id_limit.ReadFromCbs(&value);
+        break;
       case TransportParameters::kGoogleQuicParam: {
         if (out->google_quic_params) {
           QUIC_DLOG(ERROR) << "Received a second Google parameter";
