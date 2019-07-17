@@ -12,6 +12,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 
 using ::testing::_;
+using ::testing::Eq;
 using ::testing::InSequence;
 using ::testing::Return;
 
@@ -157,7 +158,7 @@ TEST_F(HttpDecoderTest, UnknownFrame) {
                                 frame_type, Http3FrameLengths(header_length,
                                                               payload_length)));
       if (payload_length > 0) {
-        EXPECT_CALL(visitor_, OnUnknownFramePayload(data));
+        EXPECT_CALL(visitor_, OnUnknownFramePayload(Eq(data)));
       }
       EXPECT_CALL(visitor_, OnUnknownFrameEnd());
 
