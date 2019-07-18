@@ -6295,8 +6295,8 @@ bool QuicFramer::WriteClientVersionNegotiationProbePacket(
     return false;
   }
   if (destination_connection_id_length > kQuicMaxConnectionIdLength ||
-      (destination_connection_id_length > 0 &&
-       destination_connection_id_length < 4)) {
+      destination_connection_id_length <
+          kQuicMinimumInitialConnectionIdLength) {
     QUIC_BUG << "Invalid connection_id_length";
     return false;
   }

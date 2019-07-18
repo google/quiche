@@ -585,8 +585,8 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   // |packet_length| must be in the range [1200, 65535].
   // |destination_connection_id_bytes| will be sent as the destination
   // connection ID, and must point to |destination_connection_id_length| bytes
-  // of memory. |destination_connection_id_length| must be either 0 or in the
-  // range [4,18]. When targeting Google servers, it is recommended to use a
+  // of memory. |destination_connection_id_length| must be in the range [8,18].
+  // When targeting Google servers, it is recommended to use a
   // |destination_connection_id_length| of 8.
   static bool WriteClientVersionNegotiationProbePacket(
       char* packet_bytes,
