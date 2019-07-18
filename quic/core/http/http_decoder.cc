@@ -13,14 +13,6 @@
 
 namespace quic {
 
-namespace {
-// Length of the weight field of a priority frame.
-static const size_t kPriorityWeightLength = 1;
-// Length of a priority frame's first byte.
-static const size_t kPriorityFirstByteLength = 1;
-
-}  // namespace
-
 HttpDecoder::HttpDecoder(Visitor* visitor)
     : visitor_(visitor),
       state_(STATE_READING_FRAME_TYPE),
@@ -464,7 +456,10 @@ bool HttpDecoder::ParsePriorityFrame(QuicDataReader* reader,
   frame->prioritized_type = static_cast<PriorityElementType>((flags >> 6) & 3);
   // Assign the next two most significant bits to dependency type.
   frame->dependency_type = static_cast<PriorityElementType>((flags >> 4) & 3);
-  frame->exclusive = flags >> 3 & 1;
+  frame->exclusive = flags & kPriorityExclusiveBit;
+  // TODO(bnc): Close connection with HTTP_MALFORMED_FRAME
+  // if lowest three bits are not all zero.
+
   // TODO(b/137359636): Handle partial delivery.
   if (frame->prioritized_type != ROOT_OF_TREE &&
       !reader->ReadVarInt62(&frame->prioritized_element_id)) {

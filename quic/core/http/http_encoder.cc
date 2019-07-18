@@ -40,13 +40,6 @@ uint8_t SetPriorityFields(uint8_t num,
   }
 }
 
-// Length of the weight field of a priority frame.
-static const size_t kPriorityWeightLength = 1;
-// Length of a priority frame's first byte.
-static const size_t kPriorityFirstByteLength = 1;
-// The bit that indicates Priority frame is exclusive.
-static const uint8_t kPriorityExclusiveBit = 8;
-
 }  // namespace
 
 HttpEncoder::HttpEncoder() {}

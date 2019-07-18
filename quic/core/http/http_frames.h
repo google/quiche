@@ -49,6 +49,14 @@ struct HeadersFrame {
 //
 //   The PRIORITY (type=0x02) frame specifies the sender-advised priority
 //   of a stream
+
+// Length of the weight field of a priority frame.
+const QuicByteCount kPriorityWeightLength = 1;
+// Length of a priority frame's first byte.
+const QuicByteCount kPriorityFirstByteLength = 1;
+// The bit that indicates Priority frame is exclusive.
+const uint8_t kPriorityExclusiveBit = 8;
+
 enum PriorityElementType : uint8_t {
   REQUEST_STREAM = 0,
   PUSH_STREAM = 1,
