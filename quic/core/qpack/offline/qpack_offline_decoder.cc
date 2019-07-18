@@ -13,13 +13,15 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_endian.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_file_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
 
 namespace quic {
 
 QpackOfflineDecoder::QpackOfflineDecoder()
     : encoder_stream_error_detected_(false),
-      decoder_(this, &decoder_stream_sender_delegate_) {}
+      qpack_decoder_(this, &decoder_stream_sender_delegate_),
+      max_blocked_streams_(0) {}
 
 bool QpackOfflineDecoder::DecodeAndVerifyOfflineData(
     QuicStringPiece input_filename,
@@ -75,30 +77,24 @@ bool QpackOfflineDecoder::ParseInputFilename(QuicStringPiece input_filename) {
   ++piece_it;
 
   // Maximum allowed number of blocked streams.
-  uint64_t max_blocked_streams = 0;
-  if (!QuicTextUtils::StringToUint64(*piece_it, &max_blocked_streams)) {
+  if (!QuicTextUtils::StringToUint64(*piece_it, &max_blocked_streams_)) {
     QUIC_LOG(ERROR) << "Error parsing part of input filename \"" << *piece_it
                     << "\" as an integer.";
-    return false;
-  }
-
-  if (max_blocked_streams > 0) {
-    // TODO(bnc): Implement blocked streams.
-    QUIC_LOG(ERROR) << "Blocked streams not implemented.";
     return false;
   }
 
   ++piece_it;
 
-  // Dynamic Table Size in bytes
-  uint64_t dynamic_table_size = 0;
-  if (!QuicTextUtils::StringToUint64(*piece_it, &dynamic_table_size)) {
+  // Maximum Dynamic Table Capacity in bytes
+  uint64_t maximum_dynamic_table_capacity = 0;
+  if (!QuicTextUtils::StringToUint64(*piece_it,
+                                     &maximum_dynamic_table_capacity)) {
     QUIC_LOG(ERROR) << "Error parsing part of input filename \"" << *piece_it
                     << "\" as an integer.";
     return false;
   }
 
-  decoder_.SetMaximumDynamicTableCapacity(dynamic_table_size);
+  qpack_decoder_.SetMaximumDynamicTableCapacity(maximum_dynamic_table_capacity);
 
   return true;
 }
@@ -112,6 +108,7 @@ bool QpackOfflineDecoder::DecodeHeaderBlocksFromFile(
   QuicStringPiece input_data(input_data_storage);
 
   while (!input_data.empty()) {
+    // Parse stream_id and length.
     if (input_data.size() < sizeof(uint64_t) + sizeof(uint32_t)) {
       QUIC_LOG(ERROR) << "Unexpected end of input file.";
       return false;
@@ -130,34 +127,84 @@ bool QpackOfflineDecoder::DecodeHeaderBlocksFromFile(
       return false;
     }
 
+    // Parse data.
     QuicStringPiece data = input_data.substr(0, length);
     input_data = input_data.substr(length);
 
+    // Process data.
     if (stream_id == 0) {
-      decoder_.DecodeEncoderStreamData(data);
+      qpack_decoder_.DecodeEncoderStreamData(data);
 
       if (encoder_stream_error_detected_) {
         QUIC_LOG(ERROR) << "Error detected on encoder stream.";
         return false;
       }
+    } else {
+      auto headers_handler = QuicMakeUnique<test::TestHeadersHandler>();
+      auto progressive_decoder = qpack_decoder_.CreateProgressiveDecoder(
+          stream_id, headers_handler.get());
 
-      continue;
+      progressive_decoder->Decode(data);
+      progressive_decoder->EndHeaderBlock();
+
+      if (headers_handler->decoding_error_detected()) {
+        QUIC_LOG(ERROR) << "Sync decoding error on stream " << stream_id << ": "
+                        << headers_handler->error_message();
+        return false;
+      }
+
+      decoders_.push_back({std::move(headers_handler),
+                           std::move(progressive_decoder), stream_id});
     }
 
-    test::TestHeadersHandler headers_handler;
+    // Move decoded header lists from TestHeadersHandlers and append them to
+    // |decoded_header_lists_| while preserving the order in |decoders_|.
+    while (!decoders_.empty() &&
+           decoders_.front().headers_handler->decoding_completed()) {
+      Decoder* decoder = &decoders_.front();
 
-    auto progressive_decoder =
-        decoder_.CreateProgressiveDecoder(stream_id, &headers_handler);
-    progressive_decoder->Decode(data);
-    progressive_decoder->EndHeaderBlock();
+      if (decoder->headers_handler->decoding_error_detected()) {
+        QUIC_LOG(ERROR) << "Async decoding error on stream "
+                        << decoder->stream_id << ": "
+                        << decoder->headers_handler->error_message();
+        return false;
+      }
 
-    if (headers_handler.decoding_error_detected()) {
-      QUIC_LOG(ERROR) << "Decoding error on stream " << stream_id << ": "
-                      << headers_handler.error_message();
+      if (!decoder->headers_handler->decoding_completed()) {
+        QUIC_LOG(ERROR) << "Decoding incomplete after reading entire"
+                           " file, on stream "
+                        << decoder->stream_id;
+        return false;
+      }
+
+      decoded_header_lists_.push_back(
+          decoder->headers_handler->ReleaseHeaderList());
+      decoders_.pop_front();
+    }
+
+    // Enforce limit on blocked streams.
+    uint64_t blocked_streams_count = 0;
+    for (const auto& decoder : decoders_) {
+      if (!decoder.headers_handler->decoding_completed()) {
+        ++blocked_streams_count;
+      }
+    }
+
+    if (blocked_streams_count > max_blocked_streams_) {
+      QUIC_LOG(ERROR) << "Too many blocked streams: limit is "
+                      << max_blocked_streams_ << ", actual count is "
+                      << blocked_streams_count;
       return false;
     }
+  }
 
-    decoded_header_lists_.push_back(headers_handler.ReleaseHeaderList());
+  if (!decoders_.empty()) {
+    DCHECK(!decoders_.front().headers_handler->decoding_completed());
+
+    QUIC_LOG(ERROR) << "Blocked decoding uncomplete after reading entire"
+                       " file, on stream "
+                    << decoders_.front().stream_id;
+    return false;
   }
 
   return true;

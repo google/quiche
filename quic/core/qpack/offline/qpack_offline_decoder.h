@@ -36,12 +36,21 @@ class QpackOfflineDecoder : public QpackDecoder::EncoderStreamErrorDelegate {
   void OnEncoderStreamError(QuicStringPiece error_message) override;
 
  private:
-  // Parse decoder parameters from |input_filename| and set up |decoder_|
+  // Data structure to hold TestHeadersHandler and QpackProgressiveDecoder until
+  // decoding of a header header block (and all preceding header blocks) is
+  // complete.
+  struct Decoder {
+    std::unique_ptr<test::TestHeadersHandler> headers_handler;
+    std::unique_ptr<QpackProgressiveDecoder> progressive_decoder;
+    uint64_t stream_id;
+  };
+
+  // Parse decoder parameters from |input_filename| and set up |qpack_decoder_|
   // accordingly.
   bool ParseInputFilename(QuicStringPiece input_filename);
 
   // Read encoded header blocks and encoder stream data from |input_filename|,
-  // pass them to |decoder_| for decoding, and add decoded header lists to
+  // pass them to |qpack_decoder_| for decoding, and add decoded header lists to
   // |decoded_header_lists_|.
   bool DecodeHeaderBlocksFromFile(QuicStringPiece input_filename);
 
@@ -63,7 +72,13 @@ class QpackOfflineDecoder : public QpackDecoder::EncoderStreamErrorDelegate {
 
   bool encoder_stream_error_detected_;
   NoopQpackStreamSenderDelegate decoder_stream_sender_delegate_;
-  QpackDecoder decoder_;
+  QpackDecoder qpack_decoder_;
+  uint64_t max_blocked_streams_;
+
+  // Objects necessary for decoding, one list element for each header block.
+  std::list<Decoder> decoders_;
+
+  // Decoded header lists.
   std::list<spdy::SpdyHeaderBlock> decoded_header_lists_;
 };
 
