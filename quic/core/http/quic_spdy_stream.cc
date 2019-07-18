@@ -661,7 +661,8 @@ void QuicSpdyStream::OnDataAvailable() {
   }
 
   iovec iov;
-  while (!reading_stopped() && decoder_.error() == QUIC_NO_ERROR) {
+  while (session()->connection()->connected() && !reading_stopped() &&
+         decoder_.error() == QUIC_NO_ERROR) {
     DCHECK_GE(sequencer_offset_, sequencer()->NumBytesConsumed());
     if (!sequencer()->PeekRegion(sequencer_offset_, &iov)) {
       break;

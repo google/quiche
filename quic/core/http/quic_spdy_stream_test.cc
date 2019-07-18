@@ -2286,6 +2286,40 @@ TEST_P(QuicSpdyStreamTest, DataAfterTrailers) {
   stream_->OnStreamFrame(QuicStreamFrame(stream_->id(), false, offset, data2));
 }
 
+// SETTINGS frames are invalid on bidirectional streams.  If one is received,
+// the connection is closed.  No more data should be processed.
+TEST_P(QuicSpdyStreamTest, StopProcessingIfConnectionClosed) {
+  if (!VersionUsesQpack(GetParam().transport_version)) {
+    return;
+  }
+
+  Initialize(kShouldProcessData);
+
+  // SETTINGS frame with empty payload.
+  std::string settings = QuicTextUtils::HexDecode("0400");
+  // HEADERS frame with QPACK encoded single header field "foo: bar".
+  // Since it arrives after a SETTINGS frame, it should never be read.
+  std::string headers =
+      HeadersFrame(QuicTextUtils::HexDecode("00002a94e703626172"));
+
+  // Combine the two frames to make sure they are processed in a single
+  // QuicSpdyStream::OnDataAvailable() call.
+  std::string frames = QuicStrCat(settings, headers);
+
+  EXPECT_EQ(0u, stream_->sequencer()->NumBytesConsumed());
+
+  EXPECT_CALL(*connection_, CloseConnection(QUIC_HTTP_DECODER_ERROR, _, _))
+      .WillOnce(
+          Invoke(connection_, &MockQuicConnection::ReallyCloseConnection));
+  EXPECT_CALL(*connection_, SendConnectionClosePacket(_, _));
+  EXPECT_CALL(*session_, OnConnectionClosed(_, _));
+
+  stream_->OnStreamFrame(QuicStreamFrame(stream_->id(), /* fin = */ false,
+                                         /* offset = */ 0, frames));
+
+  EXPECT_EQ(0u, stream_->sequencer()->NumBytesConsumed());
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic
