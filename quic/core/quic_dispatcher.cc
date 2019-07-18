@@ -14,6 +14,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_time_wait_list_manager.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
+#include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
@@ -415,15 +416,27 @@ void QuicDispatcher::ProcessHeader(ReceivedPacketInfo* packet_info) {
   QuicPacketFate fate = ValidityChecks(*packet_info);
   ChloAlpnExtractor alpn_extractor;
   switch (fate) {
-    case kFateProcess:
+    case kFateProcess: {
       if (packet_info->version.handshake_protocol == PROTOCOL_TLS1_3) {
         // TODO(nharper): Support buffering non-ClientHello packets when using
         // TLS.
         ProcessChlo(/*alpn=*/"", packet_info);
         break;
       }
+      ParsedQuicVersionVector chlo_extractor_versions;
+      if (!GetQuicRestartFlag(
+              quic_dispatcher_hands_chlo_extractor_one_version)) {
+        chlo_extractor_versions = GetSupportedVersions();
+      } else {
+        QUIC_RESTART_FLAG_COUNT(
+            quic_dispatcher_hands_chlo_extractor_one_version);
+        chlo_extractor_versions = {packet_info->version};
+        // TODO(dschinazi) once we deprecate
+        // quic_dispatcher_hands_chlo_extractor_one_version, we should change
+        // ChloExtractor::Extract to only take one version.
+      }
       if (GetQuicFlag(FLAGS_quic_allow_chlo_buffering) &&
-          !ChloExtractor::Extract(packet_info->packet, GetSupportedVersions(),
+          !ChloExtractor::Extract(packet_info->packet, chlo_extractor_versions,
                                   config_->create_session_tag_indicators(),
                                   &alpn_extractor,
                                   server_connection_id.length())) {
@@ -432,7 +445,7 @@ void QuicDispatcher::ProcessHeader(ReceivedPacketInfo* packet_info) {
         break;
       }
       ProcessChlo(alpn_extractor.ConsumeAlpn(), packet_info);
-      break;
+    } break;
     case kFateTimeWait:
       // Add this connection_id to the time-wait state, to safely reject
       // future packets.
