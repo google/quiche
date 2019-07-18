@@ -60,6 +60,9 @@ QuicSpdyClientSession* QuicSpdyClientBase::client_session() {
 void QuicSpdyClientBase::InitializeSession() {
   client_session()->Initialize();
   client_session()->CryptoConnect();
+  if (max_allowed_push_id_ > 0) {
+    client_session()->set_max_allowed_push_id(max_allowed_push_id_);
+  }
 }
 
 void QuicSpdyClientBase::OnClose(QuicSpdyStream* stream) {
