@@ -25,7 +25,7 @@ class QUIC_EXPORT_PRIVATE QpackSendStream : public QuicStream,
   // this stream.
   QpackSendStream(QuicStreamId id,
                   QuicSpdySession* session,
-                  uint64_t stream_type);
+                  uint64_t http3_stream_type);
   QpackSendStream(const QpackSendStream&) = delete;
   QpackSendStream& operator=(const QpackSendStream&) = delete;
   ~QpackSendStream() override = default;
@@ -43,7 +43,7 @@ class QUIC_EXPORT_PRIVATE QpackSendStream : public QuicStream,
   void WriteStreamData(QuicStringPiece data) override;
 
  private:
-  const uint64_t stream_type_;
+  const uint64_t http3_stream_type_;
   bool stream_type_sent_;
 };
 

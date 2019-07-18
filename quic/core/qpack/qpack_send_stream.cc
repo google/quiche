@@ -10,9 +10,9 @@
 namespace quic {
 QpackSendStream::QpackSendStream(QuicStreamId id,
                                  QuicSpdySession* session,
-                                 uint64_t stream_type)
+                                 uint64_t http3_stream_type)
     : QuicStream(id, session, /*is_static = */ true, WRITE_UNIDIRECTIONAL),
-      stream_type_(stream_type),
+      http3_stream_type_(http3_stream_type),
       stream_type_sent_(false) {}
 
 void QpackSendStream::OnStreamReset(const QuicRstStreamFrame& /*frame*/) {
@@ -26,9 +26,9 @@ void QpackSendStream::OnStreamReset(const QuicRstStreamFrame& /*frame*/) {
 void QpackSendStream::WriteStreamData(QuicStringPiece data) {
   QuicConnection::ScopedPacketFlusher flusher(session()->connection());
   if (!stream_type_sent_) {
-    char type[sizeof(stream_type_)];
+    char type[sizeof(http3_stream_type_)];
     QuicDataWriter writer(QUIC_ARRAYSIZE(type), type);
-    writer.WriteVarInt62(stream_type_);
+    writer.WriteVarInt62(http3_stream_type_);
     WriteOrBufferData(QuicStringPiece(writer.data(), writer.length()), false,
                       nullptr);
     stream_type_sent_ = true;
