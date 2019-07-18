@@ -32,10 +32,10 @@ namespace {
 // that they always land in the same hash bucket.
 class QuicConnectionIdHasher {
  public:
-  inline QuicConnectionIdHasher()
+  explicit inline QuicConnectionIdHasher()
       : QuicConnectionIdHasher(QuicRandom::GetInstance()) {}
 
-  inline QuicConnectionIdHasher(QuicRandom* random) {
+  explicit inline QuicConnectionIdHasher(QuicRandom* random) {
     random->RandBytes(&sip_hash_key_, sizeof(sip_hash_key_));
   }
 
