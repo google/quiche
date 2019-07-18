@@ -83,6 +83,11 @@ class QUIC_EXPORT_PRIVATE QuicDataReader {
   // Returns true on success, false otherwise.
   bool ReadConnectionId(QuicConnectionId* connection_id, uint8_t length);
 
+  // Reads 8-bit connection ID length followed by connection ID of that length.
+  // Forwards the internal iterator on success.
+  // Returns true on success, false otherwise.
+  bool ReadLengthPrefixedConnectionId(QuicConnectionId* connection_id);
+
   // Reads tag represented as 32-bit unsigned integer into given output
   // parameter. Tags are in big endian on the wire (e.g., CHLO is
   // 'C','H','L','O') and are read in byte order, so tags in memory are in big

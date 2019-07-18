@@ -165,6 +165,18 @@ bool QuicDataReader::ReadConnectionId(QuicConnectionId* connection_id,
   return ok;
 }
 
+bool QuicDataReader::ReadLengthPrefixedConnectionId(
+    QuicConnectionId* connection_id) {
+  uint8_t connection_id_length;
+  if (!ReadUInt8(&connection_id_length)) {
+    return false;
+  }
+  if (connection_id_length > kQuicMaxConnectionIdLength) {
+    return false;
+  }
+  return ReadConnectionId(connection_id, connection_id_length);
+}
+
 bool QuicDataReader::ReadTag(uint32_t* tag) {
   return ReadBytes(tag, sizeof(*tag));
 }

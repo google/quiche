@@ -108,6 +108,9 @@ class QUIC_EXPORT_PRIVATE QuicDataWriter {
   // Write connection ID to the payload.
   bool WriteConnectionId(QuicConnectionId connection_id);
 
+  // Write 8-bit length followed by connection ID to the payload.
+  bool WriteLengthPrefixedConnectionId(QuicConnectionId connection_id);
+
   // Write tag as a 32-bit unsigned integer to the payload. As tags are already
   // converted to big endian (e.g., CHLO is 'C','H','L','O') in memory by TAG or
   // MakeQuicTag and tags are written in byte order, so tags on the wire are

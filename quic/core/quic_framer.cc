@@ -6053,12 +6053,7 @@ bool QuicFramer::AppendNewConnectionIdFrame(
     set_detailed_error("Can not write New Connection ID retire_prior_to");
     return false;
   }
-  if (!writer->WriteUInt8(frame.connection_id.length())) {
-    set_detailed_error(
-        "Can not write New Connection ID frame connection ID Length");
-    return false;
-  }
-  if (!writer->WriteConnectionId(frame.connection_id)) {
+  if (!writer->WriteLengthPrefixedConnectionId(frame.connection_id)) {
     set_detailed_error("Can not write New Connection ID frame connection ID");
     return false;
   }
@@ -6089,27 +6084,20 @@ bool QuicFramer::ProcessNewConnectionIdFrame(QuicDataReader* reader,
     set_detailed_error("Retire_prior_to > sequence_number.");
     return false;
   }
-  uint8_t connection_id_length;
-  if (!reader->ReadUInt8(&connection_id_length)) {
-    set_detailed_error(
-        "Unable to read new connection ID frame connection id length.");
+
+  if (!reader->ReadLengthPrefixedConnectionId(&frame->connection_id)) {
+    set_detailed_error("Unable to read new connection ID frame connection id.");
     return false;
   }
 
-  if (connection_id_length > kQuicMaxConnectionIdLength) {
+  if (frame->connection_id.length() > kQuicMaxConnectionIdLength) {
     set_detailed_error("New connection ID length too high.");
     return false;
   }
 
-  if (connection_id_length != kQuicDefaultConnectionIdLength &&
-      !QuicUtils::VariableLengthConnectionIdAllowedForVersion(
-          transport_version())) {
+  if (!QuicUtils::IsConnectionIdValidForVersion(frame->connection_id,
+                                                transport_version())) {
     set_detailed_error("Invalid new connection ID length for version.");
-    return false;
-  }
-
-  if (!reader->ReadConnectionId(&frame->connection_id, connection_id_length)) {
-    set_detailed_error("Unable to read new connection ID frame connection id.");
     return false;
   }
 

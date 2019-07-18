@@ -16,6 +16,7 @@
 #include "net/third_party/quiche/src/quic/core/crypto/quic_decrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection_id.h"
+#include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
@@ -11293,7 +11294,7 @@ TEST_P(QuicFramerTest, NewConnectionIdFrame) {
        {kVarInt62OneByte + 0x11}},
       {"Unable to read new connection ID frame retire_prior_to.",
        {kVarInt62OneByte + 0x09}},
-      {"Unable to read new connection ID frame connection id length.",
+      {"Unable to read new connection ID frame connection id.",
        {0x08}},  // connection ID length
       {"Unable to read new connection ID frame connection id.",
        {0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x11}},
@@ -11352,7 +11353,7 @@ TEST_P(QuicFramerTest, NewConnectionIdFrameVariableLength) {
        {kVarInt62OneByte + 0x11}},
       {"Unable to read new connection ID frame retire_prior_to.",
        {kVarInt62OneByte + 0x0a}},
-      {"Unable to read new connection ID frame connection id length.",
+      {"Unable to read new connection ID frame connection id.",
        {0x09}},  // connection ID length
       {"Unable to read new connection ID frame connection id.",
        {0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10, 0x42}},
@@ -11413,7 +11414,7 @@ TEST_P(QuicFramerTest, InvalidLongNewConnectionIdFrame) {
        {kVarInt62OneByte + 0x11}},
       {"Unable to read new connection ID frame retire_prior_to.",
        {kVarInt62OneByte + 0x0b}},
-      {"Unable to read new connection ID frame connection id length.",
+      {"Unable to read new connection ID frame connection id.",
        {0x13}},  // connection ID length
       {"Unable to read new connection ID frame connection id.",
        {0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
@@ -11429,7 +11430,8 @@ TEST_P(QuicFramerTest, InvalidLongNewConnectionIdFrame) {
       AssemblePacketFromFragments(packet99));
   EXPECT_FALSE(framer_.ProcessPacket(*encrypted));
   EXPECT_EQ(QUIC_INVALID_NEW_CONNECTION_ID_DATA, framer_.error());
-  EXPECT_EQ("New connection ID length too high.", framer_.detailed_error());
+  EXPECT_EQ("Unable to read new connection ID frame connection id.",
+            framer_.detailed_error());
 }
 
 // Verifies that parsing a NEW_CONNECTION_ID frame with an invalid

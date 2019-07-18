@@ -181,6 +181,11 @@ bool QuicDataWriter::WriteConnectionId(QuicConnectionId connection_id) {
   return WriteBytes(connection_id.data(), connection_id.length());
 }
 
+bool QuicDataWriter::WriteLengthPrefixedConnectionId(
+    QuicConnectionId connection_id) {
+  return WriteUInt8(connection_id.length()) && WriteConnectionId(connection_id);
+}
+
 bool QuicDataWriter::WriteTag(uint32_t tag) {
   return WriteBytes(&tag, sizeof(tag));
 }
