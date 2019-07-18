@@ -32,7 +32,7 @@ namespace {
 // that they always land in the same hash bucket.
 class QuicConnectionIdHasher {
  public:
-  explicit inline QuicConnectionIdHasher()
+  inline QuicConnectionIdHasher()
       : QuicConnectionIdHasher(QuicRandom::GetInstance()) {}
 
   explicit inline QuicConnectionIdHasher(QuicRandom* random) {
