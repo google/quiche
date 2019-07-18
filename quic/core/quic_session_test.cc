@@ -259,7 +259,7 @@ class TestSession : public QuicSession {
     return consumed;
   }
 
-  MOCK_METHOD0(OnCanCreateNewOutgoingStream, void());
+  MOCK_METHOD1(OnCanCreateNewOutgoingStream, void(bool unidirectional));
 
   void set_writev_consumes_all_data(bool val) {
     writev_consumes_all_data_ = val;
@@ -1693,7 +1693,7 @@ TEST_P(QuicSessionTestServer, DrainingStreamsDoNotCountAsOpenedOutgoing) {
   QuicStreamId stream_id = stream->id();
   QuicStreamFrame data1(stream_id, true, 0, QuicStringPiece("HT"));
   session_.OnStreamFrame(data1);
-  EXPECT_CALL(session_, OnCanCreateNewOutgoingStream()).Times(1);
+  EXPECT_CALL(session_, OnCanCreateNewOutgoingStream(false)).Times(1);
   session_.StreamDraining(stream_id);
 }
 
@@ -1910,13 +1910,13 @@ TEST_P(QuicSessionTestServer, RstStreamReceivedAfterRstStreamSent) {
 
   EXPECT_CALL(*connection_, SendControlFrame(_));
   EXPECT_CALL(*connection_, OnStreamReset(stream2->id(), _));
-  EXPECT_CALL(session_, OnCanCreateNewOutgoingStream()).Times(0);
+  EXPECT_CALL(session_, OnCanCreateNewOutgoingStream(false)).Times(0);
   stream2->Reset(quic::QUIC_STREAM_CANCELLED);
 
   QuicRstStreamFrame rst1(kInvalidControlFrameId, stream2->id(),
                           QUIC_ERROR_PROCESSING_STREAM, 0);
   if (!VersionHasIetfQuicFrames(transport_version())) {
-    EXPECT_CALL(session_, OnCanCreateNewOutgoingStream()).Times(1);
+    EXPECT_CALL(session_, OnCanCreateNewOutgoingStream(false)).Times(1);
   }
   session_.OnRstStream(rst1);
 }

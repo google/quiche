@@ -870,7 +870,9 @@ void QuicSession::CloseStreamInner(QuicStreamId stream_id, bool locally_reset) {
       !VersionHasIetfQuicFrames(connection_->transport_version())) {
     // Streams that first became draining already called OnCanCreate...
     // This covers the case where the stream went directly to being closed.
-    OnCanCreateNewOutgoingStream();
+    // called with unidirectional false because this is for Google QUIC, which
+    // supports only bidirectional streams.
+    OnCanCreateNewOutgoingStream(false);
   }
 }
 
@@ -926,7 +928,7 @@ void QuicSession::OnFinalByteOffsetReceived(
       v99_streamid_manager_.OnStreamClosed(stream_id);
     }
   } else if (!VersionHasIetfQuicFrames(connection_->transport_version())) {
-    OnCanCreateNewOutgoingStream();
+    OnCanCreateNewOutgoingStream(false);
   }
 }
 
@@ -1271,7 +1273,16 @@ void QuicSession::StreamDraining(QuicStreamId stream_id) {
   }
   if (!IsIncomingStream(stream_id)) {
     // Inform application that a stream is available.
-    OnCanCreateNewOutgoingStream();
+    if (VersionHasIetfQuicFrames(connection_->transport_version())) {
+      if (QuicUtils::IsBidirectionalStreamId(stream_id)) {
+        OnCanCreateNewOutgoingStream(false);
+      } else {
+        OnCanCreateNewOutgoingStream(true);
+      }
+    } else {
+      // Google QUIC has only bidirectional streams.
+      OnCanCreateNewOutgoingStream(false);
+    }
   }
 }
 
@@ -1856,7 +1867,7 @@ void QuicSession::SendStopSending(uint16_t code, QuicStreamId stream_id) {
   control_frame_manager_.WriteOrBufferStopSending(code, stream_id);
 }
 
-void QuicSession::OnCanCreateNewOutgoingStream() {}
+void QuicSession::OnCanCreateNewOutgoingStream(bool /*unidirectional*/) {}
 
 QuicStreamId QuicSession::next_outgoing_bidirectional_stream_id() const {
   if (VersionHasIetfQuicFrames(connection_->transport_version())) {

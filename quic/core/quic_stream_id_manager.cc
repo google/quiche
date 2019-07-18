@@ -63,7 +63,7 @@ bool QuicStreamIdManager::OnMaxStreamsFrame(const QuicMaxStreamsFrame& frame) {
   // available.
   if (outgoing_stream_count_ == current_outgoing_max_streams &&
       current_outgoing_max_streams < outgoing_max_streams_) {
-    session_->OnCanCreateNewOutgoingStream();
+    session_->OnCanCreateNewOutgoingStream(unidirectional_);
   }
   return true;
 }

@@ -393,8 +393,11 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
 
   // Called when new outgoing streams are available to be opened. This occurs
   // when an extant, open, stream is moved to draining or closed. The default
-  // implementation does nothing.
-  virtual void OnCanCreateNewOutgoingStream();
+  // implementation does nothing. |unidirectional| indicates whether
+  // unidirectional or bidirectional streams are now available. If both become
+  // available at the same time then there will be two calls to this method, one
+  // with unidirectional==true, the other with it ==false.
+  virtual void OnCanCreateNewOutgoingStream(bool unidirectional);
 
   QuicStreamId next_outgoing_bidirectional_stream_id() const;
   QuicStreamId next_outgoing_unidirectional_stream_id() const;

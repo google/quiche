@@ -226,7 +226,8 @@ void QuicSimpleServerSession::HandlePromisedPushRequests() {
   }
 }
 
-void QuicSimpleServerSession::OnCanCreateNewOutgoingStream() {
+void QuicSimpleServerSession::OnCanCreateNewOutgoingStream(
+    bool /*unidirectional*/) {
   HandlePromisedPushRequests();
 }
 }  // namespace quic

@@ -78,7 +78,7 @@ class QuicSimpleServerSession : public QuicServerSessionBase {
       QuicStreamId original_stream_id,
       const spdy::SpdyHeaderBlock& original_request_headers);
 
-  void OnCanCreateNewOutgoingStream() override;
+  void OnCanCreateNewOutgoingStream(bool unidirectional) override;
 
  protected:
   // QuicSession methods:
