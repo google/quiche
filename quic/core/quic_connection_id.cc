@@ -4,11 +4,14 @@
 
 #include "net/third_party/quiche/src/quic/core/quic_connection_id.h"
 
+#include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <iomanip>
 #include <string>
 
+#include "third_party/boringssl/src/include/openssl/siphash.h"
+#include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_endian.h"
@@ -18,6 +21,34 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
 
 namespace quic {
+
+namespace {
+
+// QuicConnectionIdHasher can be used to generate a stable connection ID hash
+// function that will return the same value for two equal connection IDs for
+// the duration of process lifetime. It is meant to be used as input to data
+// structures that do not outlast process lifetime. A new key is generated once
+// per process to prevent attackers from crafting connection IDs in such a way
+// that they always land in the same hash bucket.
+class QuicConnectionIdHasher {
+ public:
+  explicit inline QuicConnectionIdHasher()
+      : QuicConnectionIdHasher(QuicRandom::GetInstance()) {}
+
+  explicit inline QuicConnectionIdHasher(QuicRandom* random) {
+    random->RandBytes(&sip_hash_key_, sizeof(sip_hash_key_));
+  }
+
+  inline size_t Hash(const char* input, size_t input_len) const {
+    return static_cast<size_t>(SIPHASH_24(
+        sip_hash_key_, reinterpret_cast<const uint8_t*>(input), input_len));
+  }
+
+ private:
+  uint64_t sip_hash_key_[2];
+};
+
+}  // namespace
 
 QuicConnectionId::QuicConnectionId() : QuicConnectionId(nullptr, 0) {}
 
@@ -127,14 +158,20 @@ bool QuicConnectionId::IsEmpty() const {
 }
 
 size_t QuicConnectionId::Hash() const {
-  uint64_t data_bytes[3] = {0, 0, 0};
-  static_assert(sizeof(data_bytes) >= kQuicMaxConnectionIdLength,
-                "kQuicMaxConnectionIdLength changed");
-  memcpy(data_bytes, data(), length_);
-  // This Hash function is designed to return the same value as the host byte
-  // order representation when the connection ID length is 64 bits.
-  return QuicEndian::NetToHost64(kQuicDefaultConnectionIdLength ^ length_ ^
-                                 data_bytes[0] ^ data_bytes[1] ^ data_bytes[2]);
+  if (!GetQuicRestartFlag(quic_connection_id_use_siphash)) {
+    uint64_t data_bytes[3] = {0, 0, 0};
+    static_assert(sizeof(data_bytes) >= kQuicMaxConnectionIdLength,
+                  "kQuicMaxConnectionIdLength changed");
+    memcpy(data_bytes, data(), length_);
+    // This Hash function is designed to return the same value as the host byte
+    // order representation when the connection ID length is 64 bits.
+    return QuicEndian::NetToHost64(kQuicDefaultConnectionIdLength ^ length_ ^
+                                   data_bytes[0] ^ data_bytes[1] ^
+                                   data_bytes[2]);
+  }
+  QUIC_RESTART_FLAG_COUNT(quic_connection_id_use_siphash);
+  static const QuicConnectionIdHasher hasher = QuicConnectionIdHasher();
+  return hasher.Hash(data(), length_);
 }
 
 std::string QuicConnectionId::ToString() const {
