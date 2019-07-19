@@ -10,6 +10,7 @@
 
 #include "net/third_party/quiche/src/quic/core/quic_connection.h"
 #include "net/third_party/quiche/src/quic/core/quic_flow_controller.h"
+#include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
@@ -811,6 +812,7 @@ void QuicSession::CloseStreamInner(QuicStreamId stream_id, bool locally_reset) {
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return;
   }
+  StreamType type = stream->type();
 
   // Tell the stream that a RST has been sent.
   if (locally_reset) {
@@ -870,9 +872,7 @@ void QuicSession::CloseStreamInner(QuicStreamId stream_id, bool locally_reset) {
       !VersionHasIetfQuicFrames(connection_->transport_version())) {
     // Streams that first became draining already called OnCanCreate...
     // This covers the case where the stream went directly to being closed.
-    // called with unidirectional false because this is for Google QUIC, which
-    // supports only bidirectional streams.
-    OnCanCreateNewOutgoingStream(false);
+    OnCanCreateNewOutgoingStream(type != BIDIRECTIONAL);
   }
 }
 
@@ -1274,14 +1274,15 @@ void QuicSession::StreamDraining(QuicStreamId stream_id) {
   if (!IsIncomingStream(stream_id)) {
     // Inform application that a stream is available.
     if (VersionHasIetfQuicFrames(connection_->transport_version())) {
-      if (QuicUtils::IsBidirectionalStreamId(stream_id)) {
-        OnCanCreateNewOutgoingStream(false);
-      } else {
-        OnCanCreateNewOutgoingStream(true);
-      }
+      OnCanCreateNewOutgoingStream(
+          !QuicUtils::IsBidirectionalStreamId(stream_id));
     } else {
-      // Google QUIC has only bidirectional streams.
-      OnCanCreateNewOutgoingStream(false);
+      QuicStream* stream = GetStream(stream_id);
+      if (!stream) {
+        QUIC_BUG << "Stream doesn't exist when draining.";
+        return;
+      }
+      OnCanCreateNewOutgoingStream(stream->type() != BIDIRECTIONAL);
     }
   }
 }

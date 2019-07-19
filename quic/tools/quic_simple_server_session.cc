@@ -227,7 +227,9 @@ void QuicSimpleServerSession::HandlePromisedPushRequests() {
 }
 
 void QuicSimpleServerSession::OnCanCreateNewOutgoingStream(
-    bool /*unidirectional*/) {
-  HandlePromisedPushRequests();
+    bool unidirectional) {
+  if (unidirectional) {
+    HandlePromisedPushRequests();
+  }
 }
 }  // namespace quic
