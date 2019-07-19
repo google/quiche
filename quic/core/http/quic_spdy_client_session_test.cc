@@ -926,6 +926,8 @@ TEST_P(QuicSpdyClientSessionTest, TooManyPushPromises) {
       session_.get(), QuicMakeUnique<QuicSpdyClientStream>(
                           stream_id, session_.get(), BIDIRECTIONAL));
 
+  session_->set_max_allowed_push_id(kMaxQuicStreamId);
+
   EXPECT_CALL(*connection_, OnStreamReset(_, QUIC_REFUSED_STREAM));
 
   for (size_t promise_count = 0; promise_count <= session_->get_max_promises();
