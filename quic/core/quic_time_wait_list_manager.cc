@@ -83,7 +83,8 @@ void QuicTimeWaitListManager::AddConnectionIdToTimeWait(
   TrimTimeWaitListIfNeeded();
   int64_t max_connections =
       GetQuicFlag(FLAGS_quic_time_wait_list_max_connections);
-  DCHECK_LT(num_connections(), static_cast<size_t>(max_connections));
+  DCHECK(connection_id_map_.empty() ||
+         num_connections() < static_cast<size_t>(max_connections));
   ConnectionIdData data(num_packets, ietf_quic, clock_->ApproximateNow(),
                         action);
   if (termination_packets != nullptr) {
@@ -377,7 +378,8 @@ void QuicTimeWaitListManager::TrimTimeWaitListIfNeeded() {
   if (kMaxConnections < 0) {
     return;
   }
-  while (num_connections() >= static_cast<size_t>(kMaxConnections)) {
+  while (!connection_id_map_.empty() &&
+         num_connections() >= static_cast<size_t>(kMaxConnections)) {
     MaybeExpireOldestConnection(QuicTime::Infinite());
   }
 }

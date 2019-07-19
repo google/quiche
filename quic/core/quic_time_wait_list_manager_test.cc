@@ -579,6 +579,27 @@ TEST_F(QuicTimeWaitListManagerTest, MaxConnectionsTest) {
   }
 }
 
+TEST_F(QuicTimeWaitListManagerTest, ZeroMaxConnections) {
+  // Basically, shut off time-based eviction.
+  SetQuicFlag(FLAGS_quic_time_wait_list_seconds, 10000000000);
+  // Keep time wait list empty.
+  SetQuicFlag(FLAGS_quic_time_wait_list_max_connections, 0);
+
+  uint64_t current_conn_id = 0;
+  // Add exactly the maximum number of connections
+  for (int64_t i = 0; i < 10; ++i) {
+    ++current_conn_id;
+    QuicConnectionId current_connection_id = TestConnectionId(current_conn_id);
+    EXPECT_FALSE(IsConnectionIdInTimeWait(current_connection_id));
+    EXPECT_CALL(visitor_,
+                OnConnectionAddedToTimeWaitList(current_connection_id));
+    AddConnectionId(current_connection_id, QuicTimeWaitListManager::DO_NOTHING);
+    // Verify time wait list always has 1 connection.
+    EXPECT_EQ(1u, time_wait_list_manager_.num_connections());
+    EXPECT_TRUE(IsConnectionIdInTimeWait(current_connection_id));
+  }
+}
+
 // Regression test for b/116200989.
 TEST_F(QuicTimeWaitListManagerTest,
        SendStatelessResetInResponseToShortHeaders) {
