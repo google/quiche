@@ -247,6 +247,7 @@ QuicConnection::QuicConnection(
       max_tracked_packets_(GetQuicFlag(FLAGS_quic_max_tracked_packet_count)),
       pending_version_negotiation_packet_(false),
       send_ietf_version_negotiation_packet_(false),
+      send_version_negotiation_packet_with_prefixed_lengths_(false),
       idle_timeout_connection_close_behavior_(
           ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET),
       close_connection_after_five_rtos_(false),
@@ -1452,9 +1453,11 @@ void QuicConnection::MaybeSendInResponseToPacket() {
   }
 }
 
-void QuicConnection::SendVersionNegotiationPacket(bool ietf_quic) {
+void QuicConnection::SendVersionNegotiationPacket(bool ietf_quic,
+                                                  bool has_length_prefix) {
   pending_version_negotiation_packet_ = true;
   send_ietf_version_negotiation_packet_ = ietf_quic;
+  send_version_negotiation_packet_with_prefixed_lengths_ = has_length_prefix;
 
   if (HandleWriteBlocked()) {
     return;
@@ -1466,7 +1469,7 @@ void QuicConnection::SendVersionNegotiationPacket(bool ietf_quic) {
                   << "}, " << (ietf_quic ? "" : "!") << "ietf_quic";
   std::unique_ptr<QuicEncryptedPacket> version_packet(
       packet_generator_.SerializeVersionNegotiationPacket(
-          ietf_quic, framer_.supported_versions()));
+          ietf_quic, has_length_prefix, framer_.supported_versions()));
   QUIC_DVLOG(2) << ENDPOINT << "Sending version negotiation packet: {"
                 << ParsedQuicVersionVectorToString(framer_.supported_versions())
                 << "}, " << (ietf_quic ? "" : "!") << "ietf_quic:" << std::endl
@@ -1865,7 +1868,9 @@ void QuicConnection::WriteQueuedPackets() {
   DCHECK(!writer_->IsWriteBlocked());
 
   if (pending_version_negotiation_packet_) {
-    SendVersionNegotiationPacket(send_ietf_version_negotiation_packet_);
+    SendVersionNegotiationPacket(
+        send_ietf_version_negotiation_packet_,
+        send_version_negotiation_packet_with_prefixed_lengths_);
   }
 
   QUIC_CLIENT_HISTOGRAM_COUNTS("QuicSession.NumQueuedPacketsBeforeWrite",

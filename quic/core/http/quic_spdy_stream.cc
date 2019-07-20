@@ -47,7 +47,7 @@ class QuicSpdyStream::HttpDecoderVisitor : public HttpDecoder::Visitor {
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
   }
 
-  bool OnPriorityFrameStart(Http3FrameLengths /*frame_lengths*/) override {
+  bool OnPriorityFrameStart(Http3FrameLengths /*frame_length*/) override {
     CloseConnectionOnWrongFrame("Priority");
     return false;
   }
@@ -72,7 +72,7 @@ class QuicSpdyStream::HttpDecoderVisitor : public HttpDecoder::Visitor {
     return false;
   }
 
-  bool OnSettingsFrameStart(Http3FrameLengths /*frame_lengths*/) override {
+  bool OnSettingsFrameStart(Http3FrameLengths /*frame_length*/) override {
     CloseConnectionOnWrongFrame("Settings");
     return false;
   }
@@ -88,8 +88,8 @@ class QuicSpdyStream::HttpDecoderVisitor : public HttpDecoder::Visitor {
     return false;
   }
 
-  bool OnDataFrameStart(Http3FrameLengths frame_lengths) override {
-    return stream_->OnDataFrameStart(frame_lengths);
+  bool OnDataFrameStart(Http3FrameLengths frame_length) override {
+    return stream_->OnDataFrameStart(frame_length);
   }
 
   bool OnDataFramePayload(QuicStringPiece payload) override {
@@ -142,18 +142,16 @@ class QuicSpdyStream::HttpDecoderVisitor : public HttpDecoder::Visitor {
     return false;
   }
 
-  bool OnUnknownFrameStart(uint64_t /* frame_type */,
-                           Http3FrameLengths /* frame_length */) override {
-    // TODO(b/137554973): Consume frame header.
-    return true;
+  bool OnUnknownFrameStart(uint64_t frame_type,
+                           Http3FrameLengths frame_length) override {
+    return stream_->OnUnknownFrameStart(frame_type, frame_length);
   }
 
-  bool OnUnknownFramePayload(QuicStringPiece /* payload */) override {
-    // TODO(b/137554973): Consume frame payload.
-    return true;
+  bool OnUnknownFramePayload(QuicStringPiece payload) override {
+    return stream_->OnUnknownFramePayload(payload);
   }
 
-  bool OnUnknownFrameEnd() override { return true; }
+  bool OnUnknownFrameEnd() override { return stream_->OnUnknownFrameEnd(); }
 
  private:
   void CloseConnectionOnWrongFrame(std::string frame_type) {
@@ -184,7 +182,6 @@ QuicSpdyStream::QuicSpdyStream(QuicStreamId id,
       trailers_decompressed_(false),
       trailers_consumed_(false),
       priority_sent_(false),
-      headers_bytes_to_be_marked_consumed_(0),
       http_decoder_visitor_(QuicMakeUnique<HttpDecoderVisitor>(this)),
       decoder_(http_decoder_visitor_.get()),
       body_buffer_(sequencer()),
@@ -221,7 +218,6 @@ QuicSpdyStream::QuicSpdyStream(PendingStream* pending,
       trailers_decompressed_(false),
       trailers_consumed_(false),
       priority_sent_(false),
-      headers_bytes_to_be_marked_consumed_(0),
       http_decoder_visitor_(QuicMakeUnique<HttpDecoderVisitor>(this)),
       decoder_(http_decoder_visitor_.get()),
       body_buffer_(sequencer()),
@@ -398,12 +394,6 @@ size_t QuicSpdyStream::Readv(const struct iovec* iov, size_t iov_len) {
   }
   size_t bytes_read = body_buffer_.ReadBody(iov, iov_len);
 
-  if (VersionUsesQpack(transport_version())) {
-    // Maybe all DATA frame bytes have been read and some trailing HEADERS had
-    // already been processed, in which case MarkConsumed() should be called.
-    MaybeMarkHeadersBytesConsumed();
-  }
-
   return bytes_read;
 }
 
@@ -422,12 +412,6 @@ void QuicSpdyStream::MarkConsumed(size_t num_bytes) {
     return;
   }
   body_buffer_.MarkBodyConsumed(num_bytes);
-
-  if (VersionUsesQpack(transport_version())) {
-    // Maybe all DATA frame bytes have been read and some trailing HEADERS had
-    // already been processed, in which case MarkConsumed() should be called.
-    MaybeMarkHeadersBytesConsumed();
-  }
 }
 
 bool QuicSpdyStream::IsDoneReading() const {
@@ -759,7 +743,7 @@ void QuicSpdyStream::ClearSession() {
   spdy_session_ = nullptr;
 }
 
-bool QuicSpdyStream::OnDataFrameStart(Http3FrameLengths frame_lengths) {
+bool QuicSpdyStream::OnDataFrameStart(Http3FrameLengths frame_length) {
   DCHECK(VersionHasDataFrameHeader(transport_version()));
   if (!headers_decompressed_ || trailers_decompressed_) {
     // TODO(b/124216424): Change error code to HTTP_UNEXPECTED_FRAME.
@@ -769,7 +753,8 @@ bool QuicSpdyStream::OnDataFrameStart(Http3FrameLengths frame_lengths) {
     return false;
   }
 
-  body_buffer_.OnDataHeader(frame_lengths);
+  body_buffer_.OnConsumableBytes(frame_length.header_length);
+
   return true;
 }
 
@@ -777,6 +762,7 @@ bool QuicSpdyStream::OnDataFramePayload(QuicStringPiece payload) {
   DCHECK(VersionHasDataFrameHeader(transport_version()));
 
   body_buffer_.OnDataPayload(payload);
+
   return true;
 }
 
@@ -822,16 +808,6 @@ void QuicSpdyStream::OnStreamFrameRetransmitted(QuicStreamOffset offset,
   }
 }
 
-void QuicSpdyStream::MaybeMarkHeadersBytesConsumed() {
-  DCHECK(VersionUsesQpack(transport_version()));
-
-  if (!body_buffer_.HasBytesToRead() && !reading_stopped() &&
-      headers_bytes_to_be_marked_consumed_ > 0) {
-    sequencer()->MarkConsumed(headers_bytes_to_be_marked_consumed_);
-    headers_bytes_to_be_marked_consumed_ = 0;
-  }
-}
-
 QuicByteCount QuicSpdyStream::GetNumFrameHeadersInInterval(
     QuicStreamOffset offset,
     QuicByteCount data_length) const {
@@ -857,6 +833,8 @@ bool QuicSpdyStream::OnHeadersFrameStart(Http3FrameLengths frame_length) {
     return false;
   }
 
+  body_buffer_.OnConsumableBytes(frame_length.header_length);
+
   if (headers_decompressed_) {
     trailers_length_ = frame_length;
   } else {
@@ -868,10 +846,6 @@ bool QuicSpdyStream::OnHeadersFrameStart(Http3FrameLengths frame_length) {
           id(), spdy_session_->qpack_decoder(), this,
           spdy_session_->max_inbound_header_list_size());
 
-  // Do not call MaybeMarkHeadersBytesConsumed() yet, because
-  // HEADERS frame header bytes might not have been parsed completely.
-  headers_bytes_to_be_marked_consumed_ += frame_length.header_length;
-
   return true;
 }
 
@@ -880,8 +854,7 @@ bool QuicSpdyStream::OnHeadersFramePayload(QuicStringPiece payload) {
 
   const bool success = qpack_decoded_headers_accumulator_->Decode(payload);
 
-  headers_bytes_to_be_marked_consumed_ += payload.size();
-  MaybeMarkHeadersBytesConsumed();
+  body_buffer_.OnConsumableBytes(payload.size());
 
   if (!success) {
     // TODO(124216424): Use HTTP_QPACK_DECOMPRESSION_FAILED error code.
@@ -917,6 +890,23 @@ bool QuicSpdyStream::OnHeadersFrameEnd() {
 
   ProcessDecodedHeaders(qpack_decoded_headers_accumulator_->quic_header_list());
   return !sequencer()->IsClosed() && !reading_stopped();
+}
+
+bool QuicSpdyStream::OnUnknownFrameStart(uint64_t /* frame_type */,
+                                         Http3FrameLengths frame_length) {
+  // Ignore unknown frames, but consume frame header.
+  body_buffer_.OnConsumableBytes(frame_length.header_length);
+  return true;
+}
+
+bool QuicSpdyStream::OnUnknownFramePayload(QuicStringPiece payload) {
+  // Ignore unknown frames, but consume frame payload.
+  body_buffer_.OnConsumableBytes(payload.size());
+  return true;
+}
+
+bool QuicSpdyStream::OnUnknownFrameEnd() {
+  return true;
 }
 
 void QuicSpdyStream::ProcessDecodedHeaders(const QuicHeaderList& headers) {

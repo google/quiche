@@ -1794,8 +1794,7 @@ TEST_P(QuicSpdySessionTestClient, Http3ServerPush) {
   session_.OnStreamFrame(data1);
   EXPECT_EQ(1u, session_.GetNumOpenIncomingStreams());
   QuicStream* stream = session_.GetOrCreateStream(stream_id1);
-  EXPECT_EQ(1u, stream->flow_controller()->bytes_consumed());
-  EXPECT_EQ(1u, session_.flow_controller()->bytes_consumed());
+  EXPECT_EQ(7u, stream->flow_controller()->bytes_consumed());
 
   char unoptimized_type[] = {0x80, 0x00, 0x00, 0x01};
   data = std::string(unoptimized_type, 4) + "header";
@@ -1805,8 +1804,7 @@ TEST_P(QuicSpdySessionTestClient, Http3ServerPush) {
   session_.OnStreamFrame(data2);
   EXPECT_EQ(2u, session_.GetNumOpenIncomingStreams());
   stream = session_.GetOrCreateStream(stream_id2);
-  EXPECT_EQ(4u, stream->flow_controller()->bytes_consumed());
-  EXPECT_EQ(5u, session_.flow_controller()->bytes_consumed());
+  EXPECT_EQ(10u, stream->flow_controller()->bytes_consumed());
 }
 
 TEST_P(QuicSpdySessionTestClient, Http3ServerPushOutofOrderFrame) {

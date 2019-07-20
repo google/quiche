@@ -3,31 +3,117 @@
 // found in the LICENSE file.
 
 #include "net/third_party/quiche/src/quic/core/http/quic_spdy_stream_body_buffer.h"
+
+#include <utility>
+
+#include "net/third_party/quiche/src/quic/core/quic_stream_sequencer.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 
 namespace quic {
 
+QuicSpdyStreamBodyBuffer::QuicSpdyStreamConsumeManager::
+    QuicSpdyStreamConsumeManager(ConsumeFunction consume_function)
+    : consume_function_(std::move(consume_function)) {}
+
+void QuicSpdyStreamBodyBuffer::QuicSpdyStreamConsumeManager::OnConsumableBytes(
+    QuicByteCount length) {
+  DCHECK_NE(0u, length);
+
+  if (fragments_.empty()) {
+    consume_function_(length);
+    return;
+  }
+
+  DCHECK(!fragments_.front().consumable);
+  fragments_.push_back({length, /* consumable = */ true});
+}
+
+void QuicSpdyStreamBodyBuffer::QuicSpdyStreamConsumeManager::OnDataPayload(
+    QuicByteCount length) {
+  DCHECK_NE(0u, length);
+
+  fragments_.push_back({length, /* consumable = */ false});
+}
+
+void QuicSpdyStreamBodyBuffer::QuicSpdyStreamConsumeManager::ConsumeData(
+    QuicByteCount length) {
+  if (length == 0) {
+    return;
+  }
+
+  DCHECK(!fragments_.empty());
+  DCHECK(!fragments_.front().consumable);
+
+  QuicByteCount remaining_length = length;
+  QuicByteCount bytes_to_consume = 0;
+
+  do {
+    const Fragment& fragment = fragments_.front();
+
+    if (fragment.consumable) {
+      bytes_to_consume += fragment.length;
+      fragments_.pop_front();
+      continue;
+    }
+
+    if (remaining_length == 0) {
+      break;
+    }
+
+    if (fragment.length <= remaining_length) {
+      bytes_to_consume += fragment.length;
+      remaining_length -= fragment.length;
+      fragments_.pop_front();
+      // Continue iterating even if |remaining_length| to make sure consumable
+      // bytes on the front of the queue are consumed.
+      continue;
+    }
+
+    bytes_to_consume += remaining_length;
+    QuicByteCount new_fragement_length = fragment.length - remaining_length;
+    remaining_length = 0;
+    fragments_.pop_front();
+    fragments_.push_front({new_fragement_length, /* consumable = */ false});
+    break;
+  } while (!fragments_.empty());
+
+  DCHECK_EQ(0u, remaining_length);
+  if (!fragments_.empty()) {
+    DCHECK(!fragments_.front().consumable);
+  }
+
+  consume_function_(bytes_to_consume);
+}
+
 QuicSpdyStreamBodyBuffer::QuicSpdyStreamBodyBuffer(
     QuicStreamSequencer* sequencer)
+    : QuicSpdyStreamBodyBuffer(std::bind(&QuicStreamSequencer::MarkConsumed,
+                                         sequencer,
+                                         std::placeholders::_1)) {}
+
+QuicSpdyStreamBodyBuffer::QuicSpdyStreamBodyBuffer(
+    ConsumeFunction consume_function)
     : bytes_remaining_(0),
       total_body_bytes_readable_(0),
       total_body_bytes_received_(0),
-      total_payload_lengths_(0),
-      sequencer_(sequencer) {}
+      consume_manager_(std::move(consume_function)) {}
 
 QuicSpdyStreamBodyBuffer::~QuicSpdyStreamBodyBuffer() {}
 
-void QuicSpdyStreamBodyBuffer::OnDataHeader(Http3FrameLengths frame_lengths) {
-  frame_meta_.push_back(frame_lengths);
-  total_payload_lengths_ += frame_lengths.payload_length;
+void QuicSpdyStreamBodyBuffer::OnConsumableBytes(QuicByteCount length) {
+  DCHECK_NE(0u, length);
+
+  consume_manager_.OnConsumableBytes(length);
 }
 
 void QuicSpdyStreamBodyBuffer::OnDataPayload(QuicStringPiece payload) {
   DCHECK(!payload.empty());
+
+  consume_manager_.OnDataPayload(payload.length());
+
   bodies_.push_back(payload);
   total_body_bytes_received_ += payload.length();
   total_body_bytes_readable_ += payload.length();
-  DCHECK_LE(total_body_bytes_received_, total_payload_lengths_);
 }
 
 void QuicSpdyStreamBodyBuffer::MarkBodyConsumed(size_t num_bytes) {
@@ -56,18 +142,11 @@ void QuicSpdyStreamBodyBuffer::MarkBodyConsumed(size_t num_bytes) {
       remaining = 0;
     }
   }
-  // Consume headers.
-  while (bytes_remaining_ < num_bytes) {
-    if (frame_meta_.empty()) {
-      QUIC_BUG << "Faild to consume because frame header buffer is empty.";
-      return;
-    }
-    auto meta = frame_meta_.front();
-    frame_meta_.pop_front();
-    bytes_remaining_ += meta.payload_length;
-    sequencer_->MarkConsumed(meta.header_length);
-  }
-  sequencer_->MarkConsumed(num_bytes);
+
+  // Consume DATA frame payloads and optionally other data (like DATA frame
+  // headers).
+  consume_manager_.ConsumeData(num_bytes);
+
   // Update accountings.
   bytes_remaining_ -= num_bytes;
   total_body_bytes_readable_ -= num_bytes;

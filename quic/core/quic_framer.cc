@@ -408,11 +408,17 @@ bool IsValidFullPacketNumber(uint64_t full_packet_number,
 }
 
 bool AppendIetfConnectionIds(bool version_flag,
+                             bool use_length_prefix,
                              QuicConnectionId destination_connection_id,
                              QuicConnectionId source_connection_id,
                              QuicDataWriter* writer) {
   if (!version_flag) {
     return writer->WriteConnectionId(destination_connection_id);
+  }
+
+  if (use_length_prefix) {
+    return writer->WriteLengthPrefixedConnectionId(destination_connection_id) &&
+           writer->WriteLengthPrefixedConnectionId(source_connection_id);
   }
 
   // Compute connection ID length byte.
@@ -1399,6 +1405,7 @@ std::unique_ptr<QuicEncryptedPacket> QuicFramer::BuildVersionNegotiationPacket(
     QuicConnectionId server_connection_id,
     QuicConnectionId client_connection_id,
     bool ietf_quic,
+    bool use_length_prefix,
     const ParsedQuicVersionVector& versions) {
   ParsedQuicVersionVector wire_versions = versions;
   if (!GetQuicReloadableFlag(quic_version_negotiation_grease)) {
@@ -1431,11 +1438,14 @@ std::unique_ptr<QuicEncryptedPacket> QuicFramer::BuildVersionNegotiationPacket(
   }
   if (ietf_quic) {
     return BuildIetfVersionNegotiationPacket(
-        server_connection_id, client_connection_id, wire_versions);
+        use_length_prefix, server_connection_id, client_connection_id,
+        wire_versions);
   }
 
   // The GQUIC encoding does not support encoding client connection IDs.
   DCHECK(client_connection_id.IsEmpty());
+  // The GQUIC encoding does not support length-prefixed connection IDs.
+  DCHECK(!use_length_prefix);
 
   DCHECK(!wire_versions.empty());
   size_t len = kPublicFlagsSize + server_connection_id.length() +
@@ -1467,10 +1477,15 @@ std::unique_ptr<QuicEncryptedPacket> QuicFramer::BuildVersionNegotiationPacket(
 // static
 std::unique_ptr<QuicEncryptedPacket>
 QuicFramer::BuildIetfVersionNegotiationPacket(
+    bool use_length_prefix,
     QuicConnectionId server_connection_id,
     QuicConnectionId client_connection_id,
     const ParsedQuicVersionVector& versions) {
-  QUIC_DVLOG(1) << "Building IETF version negotiation packet: "
+  QUIC_DVLOG(1) << "Building IETF version negotiation packet with"
+                << (use_length_prefix ? "" : "out")
+                << " length prefix, server_connection_id "
+                << server_connection_id << " client_connection_id "
+                << client_connection_id << " versions "
                 << ParsedQuicVersionVectorToString(versions);
   DCHECK(client_connection_id.IsEmpty() ||
          GetQuicRestartFlag(quic_do_not_override_connection_id));
@@ -1478,6 +1493,11 @@ QuicFramer::BuildIetfVersionNegotiationPacket(
   size_t len = kPacketHeaderTypeSize + kConnectionIdLengthSize +
                client_connection_id.length() + server_connection_id.length() +
                (versions.size() + 1) * kQuicVersionSize;
+  if (use_length_prefix) {
+    // When using length-prefixed connection IDs, packets carry two lengths
+    // instead of one.
+    len += kConnectionIdLengthSize;
+  }
   std::unique_ptr<char[]> buffer(new char[len]);
   QuicDataWriter writer(len, buffer.get());
 
@@ -1491,8 +1511,8 @@ QuicFramer::BuildIetfVersionNegotiationPacket(
     return nullptr;
   }
 
-  if (!AppendIetfConnectionIds(true, client_connection_id, server_connection_id,
-                               &writer)) {
+  if (!AppendIetfConnectionIds(true, use_length_prefix, client_connection_id,
+                               server_connection_id, &writer)) {
     return nullptr;
   }
 
@@ -1630,58 +1650,31 @@ bool QuicFramer::ProcessRetryPacket(QuicDataReader* reader,
                                     const QuicPacketHeader& header) {
   DCHECK_EQ(Perspective::IS_CLIENT, perspective_);
 
-  // Parse Original Destination Connection ID Length.
-  uint8_t odcil = header.type_byte & 0xf;
-  if (odcil != 0) {
-    odcil += kConnectionIdLengthAdjustment;
-  }
-
-  // Parse Original Destination Connection ID.
   QuicConnectionId original_destination_connection_id;
-  if (!reader->ReadConnectionId(&original_destination_connection_id, odcil)) {
-    set_detailed_error("Unable to read Original Destination ConnectionId.");
-    return false;
+  if (version_.HasLengthPrefixedConnectionIds()) {
+    // Parse Original Destination Connection ID.
+    if (!reader->ReadLengthPrefixedConnectionId(
+            &original_destination_connection_id)) {
+      set_detailed_error("Unable to read Original Destination ConnectionId.");
+      return false;
+    }
+  } else {
+    // Parse Original Destination Connection ID Length.
+    uint8_t odcil = header.type_byte & 0xf;
+    if (odcil != 0) {
+      odcil += kConnectionIdLengthAdjustment;
+    }
+
+    // Parse Original Destination Connection ID.
+    if (!reader->ReadConnectionId(&original_destination_connection_id, odcil)) {
+      set_detailed_error("Unable to read Original Destination ConnectionId.");
+      return false;
+    }
   }
 
   QuicStringPiece retry_token = reader->ReadRemainingPayload();
   visitor_->OnRetryPacket(original_destination_connection_id,
                           header.source_connection_id, retry_token);
-  return true;
-}
-
-bool QuicFramer::MaybeProcessIetfInitialRetryToken(
-    QuicDataReader* encrypted_reader,
-    QuicPacketHeader* header) {
-  if (!QuicVersionHasLongHeaderLengths(header->version.transport_version) ||
-      header->form != IETF_QUIC_LONG_HEADER_PACKET ||
-      header->long_packet_type != INITIAL) {
-    return true;
-  }
-  uint64_t retry_token_length = 0;
-  header->retry_token_length_length = encrypted_reader->PeekVarInt62Length();
-  if (!encrypted_reader->ReadVarInt62(&retry_token_length)) {
-    set_detailed_error("Unable to read INITIAL retry token length.");
-    return RaiseError(QUIC_INVALID_PACKET_HEADER);
-  }
-  header->retry_token = encrypted_reader->PeekRemainingPayload();
-  // Safety check to avoid spending ressources if malformed.
-  // At this point header->retry_token contains the rest of the packet
-  // so its length() is the amount of data remaining in the packet.
-  if (retry_token_length > header->retry_token.length()) {
-    set_detailed_error("INITIAL token length longer than packet.");
-    return RaiseError(QUIC_INVALID_PACKET_HEADER);
-  }
-  // Resize retry_token to make it only contain the retry token.
-  header->retry_token.remove_suffix(header->retry_token.length() -
-                                    retry_token_length);
-  // Advance encrypted_reader by retry_token_length.
-  uint8_t wasted_byte;
-  for (uint64_t i = 0; i < retry_token_length; ++i) {
-    if (!encrypted_reader->ReadUInt8(&wasted_byte)) {
-      set_detailed_error("Unable to read INITIAL retry token.");
-      return RaiseError(QUIC_INVALID_PACKET_HEADER);
-    }
-  }
   return true;
 }
 
@@ -1769,8 +1762,6 @@ bool QuicFramer::ProcessIetfDataPacket(QuicDataReader* encrypted_reader,
                                        size_t buffer_length) {
   DCHECK_NE(GOOGLE_QUIC_PACKET, header->form);
   DCHECK(!header->has_possible_stateless_reset_token);
-  header->retry_token_length_length = VARIABLE_LENGTH_INTEGER_LENGTH_0;
-  header->retry_token = QuicStringPiece();
   header->length_length = VARIABLE_LENGTH_INTEGER_LENGTH_0;
   header->remaining_packet_length = 0;
   if (header->form == IETF_QUIC_SHORT_HEADER_PACKET &&
@@ -1785,10 +1776,6 @@ bool QuicFramer::ProcessIetfDataPacket(QuicDataReader* encrypted_reader,
                                sizeof(header->possible_stateless_reset_token)],
              sizeof(header->possible_stateless_reset_token));
     }
-  }
-
-  if (!MaybeProcessIetfInitialRetryToken(encrypted_reader, header)) {
-    return false;
   }
 
   if (!MaybeProcessIetfLength(encrypted_reader, header)) {
@@ -2218,7 +2205,7 @@ bool QuicFramer::AppendIetfPacketHeader(const QuicPacketHeader& header,
 
   // Append connection ID.
   if (!AppendIetfConnectionIds(
-          header.version_flag,
+          header.version_flag, version_.HasLengthPrefixedConnectionIds(),
           header.destination_connection_id_included != CONNECTION_ID_ABSENT
               ? header.destination_connection_id
               : EmptyQuicConnectionId(),
@@ -2550,7 +2537,7 @@ bool QuicFramer::ProcessIetfHeaderTypeByte(QuicDataReader* reader,
                                            QuicPacketHeader* header) {
   uint8_t type;
   if (!reader->ReadBytes(&type, 1)) {
-    set_detailed_error("Unable to read type.");
+    set_detailed_error("Unable to read first byte.");
     return false;
   }
   header->type_byte = type;
@@ -2704,6 +2691,78 @@ bool QuicFramer::ProcessAndValidateIetfConnectionIdLength(
 
 bool QuicFramer::ProcessIetfPacketHeader(QuicDataReader* reader,
                                          QuicPacketHeader* header) {
+  if (version_.HasLengthPrefixedConnectionIds()) {
+    uint8_t expected_destination_connection_id_length =
+        perspective_ == Perspective::IS_CLIENT
+            ? expected_client_connection_id_length_
+            : expected_server_connection_id_length_;
+    QuicVersionLabel version_label;
+    bool has_length_prefix;
+    std::string detailed_error;
+    QuicErrorCode parse_result = QuicFramer::ParsePublicHeader(
+        reader, expected_destination_connection_id_length,
+        VersionHasIetfInvariantHeader(version_.transport_version),
+        &header->type_byte, &header->form, &header->version_flag,
+        &has_length_prefix, &version_label, &header->version,
+        &header->destination_connection_id, &header->source_connection_id,
+        &header->long_packet_type, &header->retry_token_length_length,
+        &header->retry_token, &detailed_error);
+    if (parse_result != QUIC_NO_ERROR) {
+      set_detailed_error(detailed_error);
+      return false;
+    }
+    header->destination_connection_id_included = CONNECTION_ID_PRESENT;
+    header->source_connection_id_included =
+        header->version_flag ? CONNECTION_ID_PRESENT : CONNECTION_ID_ABSENT;
+    if (header->source_connection_id_included == CONNECTION_ID_ABSENT) {
+      DCHECK(header->source_connection_id.IsEmpty());
+      if (perspective_ == Perspective::IS_CLIENT) {
+        header->source_connection_id = last_serialized_server_connection_id_;
+      } else {
+        header->source_connection_id = last_serialized_client_connection_id_;
+      }
+    }
+    if (header->version_flag &&
+        header->version.transport_version > QUIC_VERSION_44 &&
+        !(header->type_byte & FLAGS_FIXED_BIT)) {
+      set_detailed_error("Fixed bit is 0 in long header.");
+      return false;
+    }
+    if (!header->version_flag && version_.transport_version > QUIC_VERSION_44 &&
+        !(header->type_byte & FLAGS_FIXED_BIT)) {
+      set_detailed_error("Fixed bit is 0 in short header.");
+      return false;
+    }
+    if (!header->version_flag) {
+      if (!version_.HasHeaderProtection() &&
+          !GetShortHeaderPacketNumberLength(
+              transport_version(), header->type_byte,
+              infer_packet_header_type_from_version_,
+              &header->packet_number_length)) {
+        set_detailed_error("Failed to get short header packet number length.");
+        return false;
+      }
+      return true;
+    }
+    if (header->long_packet_type == RETRY) {
+      if (!version().SupportsRetry()) {
+        set_detailed_error("RETRY not supported in this version.");
+        return false;
+      }
+      if (perspective_ == Perspective::IS_SERVER) {
+        set_detailed_error("Client-initiated RETRY is invalid.");
+        return false;
+      }
+      return true;
+    }
+    if (!header->version.HasHeaderProtection()) {
+      header->packet_number_length = GetLongHeaderPacketNumberLength(
+          header->version.transport_version, header->type_byte);
+    }
+
+    return true;
+  }
+
   if (!ProcessIetfHeaderTypeByte(reader, header)) {
     return false;
   }
@@ -2737,13 +2796,13 @@ bool QuicFramer::ProcessIetfPacketHeader(QuicDataReader* reader,
   // Read connection ID.
   if (!reader->ReadConnectionId(&header->destination_connection_id,
                                 destination_connection_id_length)) {
-    set_detailed_error("Unable to read Destination ConnectionId.");
+    set_detailed_error("Unable to read destination connection ID.");
     return false;
   }
 
   if (!reader->ReadConnectionId(&header->source_connection_id,
                                 source_connection_id_length)) {
-    set_detailed_error("Unable to read Source ConnectionId.");
+    set_detailed_error("Unable to read source connection ID.");
     return false;
   }
 
@@ -6208,6 +6267,7 @@ QuicErrorCode QuicFramer::ProcessPacketDispatcher(
     QuicConnectionId* destination_connection_id,
     QuicConnectionId* source_connection_id,
     std::string* detailed_error) {
+  DCHECK(!GetQuicReloadableFlag(quic_use_parse_public_header));
   QuicDataReader reader(packet.data(), packet.length());
 
   *source_connection_id = EmptyQuicConnectionId();
@@ -6280,6 +6340,262 @@ QuicErrorCode QuicFramer::ProcessPacketDispatcher(
 }
 
 // static
+QuicErrorCode QuicFramer::ParsePublicHeaderDispatcher(
+    const QuicEncryptedPacket& packet,
+    uint8_t expected_destination_connection_id_length,
+    PacketHeaderFormat* format,
+    bool* version_present,
+    bool* has_length_prefix,
+    QuicVersionLabel* version_label,
+    ParsedQuicVersion* parsed_version,
+    QuicConnectionId* destination_connection_id,
+    QuicConnectionId* source_connection_id,
+    bool* retry_token_present,
+    QuicStringPiece* retry_token,
+    std::string* detailed_error) {
+  QuicDataReader reader(packet.data(), packet.length());
+  if (reader.IsDoneReading()) {
+    *detailed_error = "Unable to read first byte.";
+    return QUIC_INVALID_PACKET_HEADER;
+  }
+  const uint8_t first_byte = reader.PeekByte();
+  const bool ietf_format = QuicUtils::IsIetfPacketHeader(first_byte);
+  uint8_t unused_first_byte;
+  QuicVariableLengthIntegerLength retry_token_length_length;
+  QuicLongHeaderType unused_log_packet_type;
+  const QuicErrorCode error_code = ParsePublicHeader(
+      &reader, expected_destination_connection_id_length, ietf_format,
+      &unused_first_byte, format, version_present, has_length_prefix,
+      version_label, parsed_version, destination_connection_id,
+      source_connection_id, &unused_log_packet_type, &retry_token_length_length,
+      retry_token, detailed_error);
+  *retry_token_present =
+      retry_token_length_length != VARIABLE_LENGTH_INTEGER_LENGTH_0;
+  return error_code;
+}
+
+// static
+QuicErrorCode QuicFramer::ParsePublicHeaderGoogleQuic(
+    QuicDataReader* reader,
+    uint8_t* first_byte,
+    PacketHeaderFormat* format,
+    bool* version_present,
+    QuicVersionLabel* version_label,
+    QuicConnectionId* destination_connection_id,
+    std::string* detailed_error) {
+  *format = GOOGLE_QUIC_PACKET;
+  *version_present = (*first_byte & PACKET_PUBLIC_FLAGS_VERSION) != 0;
+  uint8_t destination_connection_id_length = 0;
+  if ((*first_byte & PACKET_PUBLIC_FLAGS_8BYTE_CONNECTION_ID) != 0) {
+    destination_connection_id_length = kQuicDefaultConnectionIdLength;
+  }
+  if (!reader->ReadConnectionId(destination_connection_id,
+                                destination_connection_id_length)) {
+    *detailed_error = "Unable to read ConnectionId.";
+    return QUIC_INVALID_PACKET_HEADER;
+  }
+  if (*version_present && !ProcessVersionLabel(reader, version_label)) {
+    *detailed_error = "Unable to read protocol version.";
+    return QUIC_INVALID_PACKET_HEADER;
+  }
+  return QUIC_NO_ERROR;
+}
+
+namespace {
+
+inline bool PacketHasLengthPrefixedConnectionIds(
+    const QuicDataReader& reader,
+    ParsedQuicVersion parsed_version,
+    QuicVersionLabel version_label,
+    uint8_t first_byte) {
+  if (parsed_version.transport_version != QUIC_VERSION_UNSUPPORTED) {
+    return parsed_version.HasLengthPrefixedConnectionIds();
+  }
+
+  // Received unsupported version, check known old unsupported versions.
+  if (QuicVersionLabelUses4BitConnectionIdLength(version_label)) {
+    return false;
+  }
+
+  // Received unknown version, check connection ID length byte.
+  if (reader.IsDoneReading()) {
+    // This check is required to safely peek the connection ID length byte.
+    return true;
+  }
+  const uint8_t connection_id_length_byte = reader.PeekByte();
+
+  // Check for packets produced by older versions of
+  // QuicFramer::WriteClientVersionNegotiationProbePacket
+  if (first_byte == 0xc0 && (connection_id_length_byte & 0x0f) == 0 &&
+      connection_id_length_byte >= 0x50 && version_label == 0xcabadaba) {
+    return false;
+  }
+
+  return true;
+}
+
+inline bool ParseLongHeaderConnectionIds(
+    QuicDataReader* reader,
+    bool has_length_prefix,
+    QuicConnectionId* destination_connection_id,
+    QuicConnectionId* source_connection_id,
+    std::string* detailed_error) {
+  if (has_length_prefix) {
+    if (!reader->ReadLengthPrefixedConnectionId(destination_connection_id)) {
+      *detailed_error = "Unable to read destination connection ID.";
+      return false;
+    }
+    if (!reader->ReadLengthPrefixedConnectionId(source_connection_id)) {
+      *detailed_error = "Unable to read source connection ID.";
+      return false;
+    }
+  } else {
+    // Parse connection ID lengths.
+    uint8_t connection_id_lengths_byte;
+    if (!reader->ReadUInt8(&connection_id_lengths_byte)) {
+      *detailed_error = "Unable to read connection ID lengths.";
+      return false;
+    }
+    uint8_t destination_connection_id_length =
+        (connection_id_lengths_byte & kDestinationConnectionIdLengthMask) >> 4;
+    if (destination_connection_id_length != 0) {
+      destination_connection_id_length += kConnectionIdLengthAdjustment;
+    }
+    uint8_t source_connection_id_length =
+        connection_id_lengths_byte & kSourceConnectionIdLengthMask;
+    if (source_connection_id_length != 0) {
+      source_connection_id_length += kConnectionIdLengthAdjustment;
+    }
+
+    // Read destination connection ID.
+    if (!reader->ReadConnectionId(destination_connection_id,
+                                  destination_connection_id_length)) {
+      *detailed_error = "Unable to read destination connection ID.";
+      return false;
+    }
+
+    // Read source connection ID.
+    if (!reader->ReadConnectionId(source_connection_id,
+                                  source_connection_id_length)) {
+      *detailed_error = "Unable to read source connection ID.";
+      return false;
+    }
+  }
+  return true;
+}
+
+}  // namespace
+
+// static
+QuicErrorCode QuicFramer::ParsePublicHeader(
+    QuicDataReader* reader,
+    uint8_t expected_destination_connection_id_length,
+    bool ietf_format,
+    uint8_t* first_byte,
+    PacketHeaderFormat* format,
+    bool* version_present,
+    bool* has_length_prefix,
+    QuicVersionLabel* version_label,
+    ParsedQuicVersion* parsed_version,
+    QuicConnectionId* destination_connection_id,
+    QuicConnectionId* source_connection_id,
+    QuicLongHeaderType* long_packet_type,
+    QuicVariableLengthIntegerLength* retry_token_length_length,
+    QuicStringPiece* retry_token,
+    std::string* detailed_error) {
+  *version_present = false;
+  *has_length_prefix = false;
+  *version_label = 0;
+  *parsed_version = UnsupportedQuicVersion();
+  *source_connection_id = EmptyQuicConnectionId();
+  *long_packet_type = INVALID_PACKET_TYPE;
+  *retry_token_length_length = VARIABLE_LENGTH_INTEGER_LENGTH_0;
+  *retry_token = QuicStringPiece();
+  *detailed_error = "";
+
+  if (!reader->ReadUInt8(first_byte)) {
+    *detailed_error = "Unable to read first byte.";
+    return QUIC_INVALID_PACKET_HEADER;
+  }
+
+  if (!ietf_format) {
+    return ParsePublicHeaderGoogleQuic(
+        reader, first_byte, format, version_present, version_label,
+        destination_connection_id, detailed_error);
+  }
+
+  *format = GetIetfPacketHeaderFormat(*first_byte);
+
+  if (*format == IETF_QUIC_SHORT_HEADER_PACKET) {
+    // Read destination connection ID using
+    // expected_destination_connection_id_length to determine its length.
+    if (!reader->ReadConnectionId(destination_connection_id,
+                                  expected_destination_connection_id_length)) {
+      *detailed_error = "Unable to read destination connection ID.";
+      return QUIC_INVALID_PACKET_HEADER;
+    }
+    return QUIC_NO_ERROR;
+  }
+
+  DCHECK_EQ(IETF_QUIC_LONG_HEADER_PACKET, *format);
+  *version_present = true;
+  if (!ProcessVersionLabel(reader, version_label)) {
+    *detailed_error = "Unable to read protocol version.";
+    return QUIC_INVALID_PACKET_HEADER;
+  }
+
+  if (*version_label == 0) {
+    *long_packet_type = VERSION_NEGOTIATION;
+  }
+
+  // Parse version.
+  *parsed_version = ParseQuicVersionLabel(*version_label);
+
+  // Figure out which IETF QUIC invariants this packet follows.
+  *has_length_prefix = PacketHasLengthPrefixedConnectionIds(
+      *reader, *parsed_version, *version_label, *first_byte);
+
+  // Parse connection IDs.
+  if (!ParseLongHeaderConnectionIds(reader, *has_length_prefix,
+                                    destination_connection_id,
+                                    source_connection_id, detailed_error)) {
+    return QUIC_INVALID_PACKET_HEADER;
+  }
+
+  if (parsed_version->transport_version == QUIC_VERSION_UNSUPPORTED) {
+    // Skip parsing of long packet type and retry token for unknown versions.
+    return QUIC_NO_ERROR;
+  }
+
+  // Parse long packet type.
+  if (!GetLongHeaderType(parsed_version->transport_version, *first_byte,
+                         long_packet_type)) {
+    *detailed_error = "Unable to parse long packet type.";
+    return QUIC_INVALID_PACKET_HEADER;
+  }
+
+  if (!parsed_version->SupportsRetry() || *long_packet_type != INITIAL) {
+    // Retry token is only present on initial packets for some versions.
+    return QUIC_NO_ERROR;
+  }
+
+  *retry_token_length_length = reader->PeekVarInt62Length();
+  uint64_t retry_token_length;
+  if (!reader->ReadVarInt62(&retry_token_length)) {
+    *retry_token_length_length = VARIABLE_LENGTH_INTEGER_LENGTH_0;
+    *detailed_error = "Unable to read retry token length.";
+    return QUIC_INVALID_PACKET_HEADER;
+  }
+
+  if (!reader->ReadStringPiece(retry_token, retry_token_length)) {
+    *detailed_error = "Unable to read retry token.";
+    return QUIC_INVALID_PACKET_HEADER;
+  }
+
+  return QUIC_NO_ERROR;
+}
+
+// static
 bool QuicFramer::WriteClientVersionNegotiationProbePacket(
     char* packet_bytes,
     QuicByteCount packet_length,
@@ -6300,14 +6616,17 @@ bool QuicFramer::WriteClientVersionNegotiationProbePacket(
     QUIC_BUG << "Invalid connection_id_length";
     return false;
   }
+  const bool use_length_prefix =
+      GetQuicFlag(FLAGS_quic_prober_uses_length_prefixed_connection_ids);
+  const uint8_t last_version_byte = use_length_prefix ? 0xda : 0xba;
   // clang-format off
-  static const unsigned char packet_start_bytes[] = {
+  const unsigned char packet_start_bytes[] = {
     // IETF long header with fixed bit set, type initial, all-0 encrypted bits.
     0xc0,
     // Version, part of the IETF space reserved for negotiation.
     // This intentionally differs from QuicVersionReservedForNegotiation()
     // to allow differentiating them over the wire.
-    0xca, 0xba, 0xda, 0xba,
+    0xca, 0xba, 0xda, last_version_byte,
   };
   // clang-format on
   static_assert(sizeof(packet_start_bytes) == 5, "bad packet_start_bytes size");
@@ -6319,8 +6638,9 @@ bool QuicFramer::WriteClientVersionNegotiationProbePacket(
 
   QuicConnectionId destination_connection_id(destination_connection_id_bytes,
                                              destination_connection_id_length);
-  if (!AppendIetfConnectionIds(/*version_flag=*/true, destination_connection_id,
-                               EmptyQuicConnectionId(), &writer)) {
+  if (!AppendIetfConnectionIds(
+          /*version_flag=*/true, use_length_prefix, destination_connection_id,
+          EmptyQuicConnectionId(), &writer)) {
     QUIC_BUG << "Failed to write connection IDs";
     return false;
   }
@@ -6404,35 +6724,50 @@ bool QuicFramer::ParseServerVersionNegotiationProbeResponse(
     *detailed_error = "Packet is not a version negotiation packet";
     return false;
   }
-  uint8_t expected_server_connection_id_length = 0,
-          destination_connection_id_length = 0, source_connection_id_length = 0;
-  if (!ProcessAndValidateIetfConnectionIdLength(
-          &reader, UnsupportedQuicVersion(), Perspective::IS_CLIENT,
-          /*should_update_expected_server_connection_id_length=*/true,
-          &expected_server_connection_id_length,
-          &destination_connection_id_length, &source_connection_id_length,
-          detailed_error)) {
-    return false;
-  }
-  if (destination_connection_id_length != 0) {
-    *detailed_error = "Received unexpected destination connection ID length";
-    return false;
-  }
+  const bool use_length_prefix =
+      GetQuicFlag(FLAGS_quic_prober_uses_length_prefixed_connection_ids);
   QuicConnectionId destination_connection_id, source_connection_id;
-  if (!reader.ReadConnectionId(&destination_connection_id,
-                               destination_connection_id_length)) {
-    *detailed_error = "Failed to read destination connection ID";
-    return false;
+  if (use_length_prefix) {
+    if (!reader.ReadLengthPrefixedConnectionId(&destination_connection_id)) {
+      *detailed_error = "Failed to read destination connection ID";
+      return false;
+    }
+    if (!reader.ReadLengthPrefixedConnectionId(&source_connection_id)) {
+      *detailed_error = "Failed to read source connection ID";
+      return false;
+    }
+  } else {
+    uint8_t expected_server_connection_id_length = 0,
+            destination_connection_id_length = 0,
+            source_connection_id_length = 0;
+    if (!ProcessAndValidateIetfConnectionIdLength(
+            &reader, UnsupportedQuicVersion(), Perspective::IS_CLIENT,
+            /*should_update_expected_server_connection_id_length=*/true,
+            &expected_server_connection_id_length,
+            &destination_connection_id_length, &source_connection_id_length,
+            detailed_error)) {
+      return false;
+    }
+    if (!reader.ReadConnectionId(&destination_connection_id,
+                                 destination_connection_id_length)) {
+      *detailed_error = "Failed to read destination connection ID";
+      return false;
+    }
+    if (!reader.ReadConnectionId(&source_connection_id,
+                                 source_connection_id_length)) {
+      *detailed_error = "Failed to read source connection ID";
+      return false;
+    }
   }
-  if (!reader.ReadConnectionId(&source_connection_id,
-                               source_connection_id_length)) {
-    *detailed_error = "Failed to read source connection ID";
+
+  if (destination_connection_id.length() != 0) {
+    *detailed_error = "Received unexpected destination connection ID length";
     return false;
   }
 
   memcpy(source_connection_id_bytes, source_connection_id.data(),
-         source_connection_id_length);
-  *source_connection_id_length_out = source_connection_id_length;
+         source_connection_id.length());
+  *source_connection_id_length_out = source_connection_id.length();
 
   return true;
 }

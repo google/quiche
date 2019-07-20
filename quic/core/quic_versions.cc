@@ -84,11 +84,20 @@ bool ParsedQuicVersion::DoesNotHaveHeadersStream() const {
   return VersionLacksHeadersStream(transport_version);
 }
 
+bool ParsedQuicVersion::HasLengthPrefixedConnectionIds() const {
+  return VersionHasLengthPrefixedConnectionIds(transport_version);
+}
+
 bool VersionLacksHeadersStream(QuicTransportVersion transport_version) {
   if (GetQuicFlag(FLAGS_quic_headers_stream_id_in_v99) == 0) {
     return false;
   }
   return transport_version == QUIC_VERSION_99;
+}
+
+bool VersionHasLengthPrefixedConnectionIds(
+    QuicTransportVersion transport_version) {
+  return transport_version >= QUIC_VERSION_99;
 }
 
 std::ostream& operator<<(std::ostream& os, const ParsedQuicVersion& version) {
@@ -418,6 +427,34 @@ std::string ParsedQuicVersionVectorToString(
   return result;
 }
 
+bool QuicVersionLabelUses4BitConnectionIdLength(
+    QuicVersionLabel version_label) {
+  // As we deprecate old versions, we still need the ability to send valid
+  // version negotiation packets for those versions. This function keeps track
+  // of the versions that ever supported the 4bit connection ID length encoding
+  // that we know about. Google QUIC 43 and earlier used a different encoding,
+  // and Google QUIC 49 will start using the new length prefixed encoding.
+  // Similarly, only IETF drafts 11 to 21 used this encoding.
+
+  // Check Q044, Q045, Q046, Q047 and Q048.
+  for (uint8_t c = '4'; c <= '8'; ++c) {
+    if (version_label == MakeVersionLabel('Q', '0', '4', c)) {
+      return true;
+    }
+  }
+  // Check T048.
+  if (version_label == MakeVersionLabel('T', '0', '4', '8')) {
+    return true;
+  }
+  // Check IETF draft versions in [11,21].
+  for (uint8_t draft_number = 11; draft_number <= 21; ++draft_number) {
+    if (version_label == MakeVersionLabel(0xff, 0x00, 0x00, draft_number)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 ParsedQuicVersion UnsupportedQuicVersion() {
   return ParsedQuicVersion(PROTOCOL_UNSUPPORTED, QUIC_VERSION_UNSUPPORTED);
 }
@@ -453,6 +490,7 @@ void QuicVersionInitializeSupportForIetfDraft(int32_t draft_version) {
   SetQuicFlag(FLAGS_quic_supports_tls_handshake, true);
   SetQuicFlag(FLAGS_quic_headers_stream_id_in_v99, 60);
   SetQuicReloadableFlag(quic_simplify_stop_waiting, true);
+  SetQuicReloadableFlag(quic_use_parse_public_header, true);
   SetQuicRestartFlag(quic_do_not_override_connection_id, true);
   SetQuicRestartFlag(quic_use_allocated_connection_ids, true);
   SetQuicRestartFlag(quic_dispatcher_hands_chlo_extractor_one_version, true);

@@ -2088,8 +2088,7 @@ TEST_P(QuicSpdyStreamIncrementalConsumptionTest, IncrementalConsumptionTest) {
       HeadersFrame(QuicTextUtils::HexDecode("00002a94e703626172"));
 
   // All HEADERS frame bytes are consumed even if the frame is not received
-  // completely (as long as at least some of the payload is received, which is
-  // an implementation detail that should not be tested).
+  // completely.
   OnStreamFrame(QuicStringPiece(headers).substr(0, headers.size() - 1));
   EXPECT_EQ(headers.size() - 1, NewlyConsumedBytes());
 
@@ -2103,17 +2102,22 @@ TEST_P(QuicSpdyStreamIncrementalConsumptionTest, IncrementalConsumptionTest) {
 
   // DATA frame.
   QuicStringPiece data_payload(kDataFramePayload);
-  std::string data_frame = DataFrame(data_payload);
+  std::unique_ptr<char[]> data_buffer;
+  QuicByteCount data_frame_header_length =
+      encoder_.SerializeDataFrameHeader(data_payload.size(), &data_buffer);
+  QuicStringPiece data_frame_header(data_buffer.get(),
+                                    data_frame_header_length);
+  std::string data_frame = QuicStrCat(data_frame_header, data_payload);
 
-  // DATA frame is not consumed because payload has to be buffered.
-  // TODO(bnc): Consume frame header as soon as possible.
+  // DATA frame header is consumed.
+  // DATA frame payload is not consumed because payload has to be buffered.
   OnStreamFrame(data_frame);
-  EXPECT_EQ(0u, NewlyConsumedBytes());
+  EXPECT_EQ(data_frame_header_length, NewlyConsumedBytes());
 
   // Consume all but last byte of data.
   EXPECT_EQ(data_payload.substr(0, data_payload.size() - 1),
             ReadFromStream(data_payload.size() - 1));
-  EXPECT_EQ(data_frame.size() - 1, NewlyConsumedBytes());
+  EXPECT_EQ(data_payload.size() - 1, NewlyConsumedBytes());
 
   // Trailing HEADERS frame with QPACK encoded
   // single header field "custom-key: custom-value".
@@ -2318,6 +2322,27 @@ TEST_P(QuicSpdyStreamTest, StopProcessingIfConnectionClosed) {
                                          /* offset = */ 0, frames));
 
   EXPECT_EQ(0u, stream_->sequencer()->NumBytesConsumed());
+}
+
+// Regression test for b/137554973: unknown frames should be consumed.
+TEST_P(QuicSpdyStreamTest, ConsumeUnknownFrame) {
+  if (!VersionUsesQpack(GetParam().transport_version)) {
+    return;
+  }
+
+  Initialize(kShouldProcessData);
+
+  std::string unknown_frame = QuicTextUtils::HexDecode(
+      "21"        // reserved frame type
+      "03"        // payload length
+      "666f6f");  // payload "foo"
+
+  EXPECT_EQ(0u, stream_->flow_controller()->bytes_consumed());
+
+  stream_->OnStreamFrame(QuicStreamFrame(stream_->id(), /* fin = */ false,
+                                         /* offset = */ 0, unknown_frame));
+
+  EXPECT_EQ(unknown_frame.size(), stream_->flow_controller()->bytes_consumed());
 }
 
 }  // namespace

@@ -6774,16 +6774,20 @@ TEST_P(QuicConnectionTest, MissingPacketsBeforeLeastUnacked) {
 }
 
 TEST_P(QuicConnectionTest, ClientHandlesVersionNegotiation) {
-  // Start out with an unsupported version.
-  QuicConnectionPeer::GetFramer(&connection_)
-      ->set_version_for_tests(QuicVersionReservedForNegotiation());
+  // All supported versions except the one the connection supports.
+  ParsedQuicVersionVector versions;
+  for (auto version : AllSupportedVersions()) {
+    if (version != connection_.version()) {
+      versions.push_back(version);
+    }
+  }
 
   // Send a version negotiation packet.
   std::unique_ptr<QuicEncryptedPacket> encrypted(
       QuicFramer::BuildVersionNegotiationPacket(
           connection_id_, EmptyQuicConnectionId(),
           VersionHasIetfInvariantHeader(connection_.transport_version()),
-          AllSupportedVersions()));
+          connection_.version().HasLengthPrefixedConnectionIds(), versions));
   std::unique_ptr<QuicReceivedPacket> received(
       ConstructReceivedPacket(*encrypted, QuicTime::Zero()));
   EXPECT_CALL(visitor_, OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF))
@@ -6804,6 +6808,7 @@ TEST_P(QuicConnectionTest, BadVersionNegotiation) {
       QuicFramer::BuildVersionNegotiationPacket(
           connection_id_, EmptyQuicConnectionId(),
           VersionHasIetfInvariantHeader(connection_.transport_version()),
+          connection_.version().HasLengthPrefixedConnectionIds(),
           AllSupportedVersions()));
   std::unique_ptr<QuicReceivedPacket> received(
       ConstructReceivedPacket(*encrypted, QuicTime::Zero()));

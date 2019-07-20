@@ -20,60 +20,47 @@ namespace test {
 
 namespace {
 
-class MockStream : public QuicStreamSequencer::StreamInterface {
+class MockConsumer {
  public:
-  MOCK_METHOD0(OnFinRead, void());
-  MOCK_METHOD0(OnDataAvailable, void());
-  MOCK_METHOD2(CloseConnectionWithDetails,
-               void(QuicErrorCode error, const std::string& details));
-  MOCK_METHOD1(Reset, void(QuicRstStreamErrorCode error));
-  MOCK_METHOD0(OnCanWrite, void());
-  MOCK_METHOD1(AddBytesConsumed, void(QuicByteCount bytes));
-
-  QuicStreamId id() const override { return 1; }
-
-  const QuicSocketAddress& PeerAddressOfLatestPacket() const override {
-    return peer_address_;
-  }
-
- protected:
-  QuicSocketAddress peer_address_ =
-      QuicSocketAddress(QuicIpAddress::Any4(), 65535);
-};
-
-class MockSequencer : public QuicStreamSequencer {
- public:
-  explicit MockSequencer(MockStream* stream) : QuicStreamSequencer(stream) {}
-  virtual ~MockSequencer() = default;
   MOCK_METHOD1(MarkConsumed, void(size_t num_bytes_consumed));
 };
 
 class QuicSpdyStreamBodyBufferTest : public QuicTest {
  public:
   QuicSpdyStreamBodyBufferTest()
-      : sequencer_(&stream_), body_buffer_(&sequencer_) {}
+      : body_buffer_(std::bind(&MockConsumer::MarkConsumed,
+                               &consumer_,
+                               std::placeholders::_1)) {}
 
  protected:
-  MockStream stream_;
-  MockSequencer sequencer_;
+  testing::StrictMock<MockConsumer> consumer_;
   QuicSpdyStreamBodyBuffer body_buffer_;
   HttpEncoder encoder_;
 };
 
-TEST_F(QuicSpdyStreamBodyBufferTest, ReceiveBodies) {
+TEST_F(QuicSpdyStreamBodyBufferTest, HasBytesToRead) {
+  const QuicByteCount header_length = 3;
   std::string body(1024, 'a');
+
+  EXPECT_CALL(consumer_, MarkConsumed(header_length));
+  body_buffer_.OnConsumableBytes(header_length);
+
   EXPECT_FALSE(body_buffer_.HasBytesToRead());
-  body_buffer_.OnDataHeader(Http3FrameLengths(3, 1024));
-  body_buffer_.OnDataPayload(QuicStringPiece(body));
-  EXPECT_EQ(1024u, body_buffer_.total_body_bytes_received());
+  EXPECT_EQ(0u, body_buffer_.total_body_bytes_received());
+
+  body_buffer_.OnDataPayload(body);
   EXPECT_TRUE(body_buffer_.HasBytesToRead());
+  EXPECT_EQ(1024u, body_buffer_.total_body_bytes_received());
 }
 
 TEST_F(QuicSpdyStreamBodyBufferTest, PeekBody) {
+  const QuicByteCount header_length = 3;
   std::string body(1024, 'a');
-  body_buffer_.OnDataHeader(Http3FrameLengths(3, 1024));
-  body_buffer_.OnDataPayload(QuicStringPiece(body));
-  EXPECT_EQ(1024u, body_buffer_.total_body_bytes_received());
+
+  EXPECT_CALL(consumer_, MarkConsumed(header_length));
+  body_buffer_.OnConsumableBytes(header_length);
+  body_buffer_.OnDataPayload(body);
+
   iovec vec;
   EXPECT_EQ(1, body_buffer_.PeekBody(&vec, 1));
   EXPECT_EQ(1024u, vec.iov_len);
@@ -81,67 +68,59 @@ TEST_F(QuicSpdyStreamBodyBufferTest, PeekBody) {
             QuicStringPiece(static_cast<const char*>(vec.iov_base), 1024));
 }
 
-// Buffer only receives 1 frame. Stream consumes less or equal than a frame.
+// Buffer receives one frame. Stream consumes payload in fragments.
 TEST_F(QuicSpdyStreamBodyBufferTest, MarkConsumedPartialSingleFrame) {
   testing::InSequence seq;
+
+  const QuicByteCount header_length = 3;
   std::string body(1024, 'a');
-  std::unique_ptr<char[]> buffer;
-  QuicByteCount header_length =
-      encoder_.SerializeDataFrameHeader(body.length(), &buffer);
-  std::string header = std::string(buffer.get(), header_length);
-  Http3FrameLengths lengths(header_length, 1024);
-  std::string data = header + body;
-  QuicStreamFrame frame(1, false, 0, data);
-  sequencer_.OnStreamFrame(frame);
-  body_buffer_.OnDataHeader(lengths);
-  body_buffer_.OnDataPayload(QuicStringPiece(body));
-  EXPECT_CALL(stream_, AddBytesConsumed(header_length));
-  EXPECT_CALL(stream_, AddBytesConsumed(1024));
-  body_buffer_.MarkBodyConsumed(1024);
+
+  EXPECT_CALL(consumer_, MarkConsumed(header_length));
+  body_buffer_.OnConsumableBytes(header_length);
+  body_buffer_.OnDataPayload(body);
+
+  EXPECT_CALL(consumer_, MarkConsumed(512));
+  body_buffer_.MarkBodyConsumed(512);
+
+  EXPECT_CALL(consumer_, MarkConsumed(512));
+  body_buffer_.MarkBodyConsumed(512);
 }
 
-// Buffer received 2 frames. Stream consumes multiple times.
+// Buffer receives two frames. Stream consumes multiple times.
 TEST_F(QuicSpdyStreamBodyBufferTest, MarkConsumedMultipleFrames) {
   testing::InSequence seq;
-  // 1st frame.
+
+  const QuicByteCount header_length1 = 3;
   std::string body1(1024, 'a');
-  std::unique_ptr<char[]> buffer;
-  QuicByteCount header_length1 =
-      encoder_.SerializeDataFrameHeader(body1.length(), &buffer);
-  std::string header1 = std::string(buffer.get(), header_length1);
-  Http3FrameLengths lengths1(header_length1, 1024);
-  std::string data1 = header1 + body1;
-  QuicStreamFrame frame1(1, false, 0, data1);
-  sequencer_.OnStreamFrame(frame1);
-  body_buffer_.OnDataHeader(lengths1);
-  body_buffer_.OnDataPayload(QuicStringPiece(body1));
 
-  // 2nd frame.
+  EXPECT_CALL(consumer_, MarkConsumed(header_length1));
+  body_buffer_.OnConsumableBytes(header_length1);
+  body_buffer_.OnDataPayload(body1);
+
+  const QuicByteCount header_length2 = 3;
   std::string body2(2048, 'b');
-  QuicByteCount header_length2 =
-      encoder_.SerializeDataFrameHeader(body2.length(), &buffer);
-  std::string header2 = std::string(buffer.get(), header_length2);
-  Http3FrameLengths lengths2(header_length2, 2048);
-  std::string data2 = header2 + body2;
-  QuicStreamFrame frame2(1, false, data1.length(), data2);
-  sequencer_.OnStreamFrame(frame2);
-  body_buffer_.OnDataHeader(lengths2);
-  body_buffer_.OnDataPayload(QuicStringPiece(body2));
+  body_buffer_.OnConsumableBytes(header_length2);
+  body_buffer_.OnDataPayload(body2);
 
-  EXPECT_CALL(stream_, AddBytesConsumed(header_length1));
-  EXPECT_CALL(stream_, AddBytesConsumed(512));
+  // Consume part of the first frame payload.
+  EXPECT_CALL(consumer_, MarkConsumed(512));
   body_buffer_.MarkBodyConsumed(512);
-  EXPECT_CALL(stream_, AddBytesConsumed(header_length2));
-  EXPECT_CALL(stream_, AddBytesConsumed(2048));
+
+  // Consume rest of the first frame and some of the second.
+  EXPECT_CALL(consumer_, MarkConsumed(header_length2 + 2048));
   body_buffer_.MarkBodyConsumed(2048);
-  EXPECT_CALL(stream_, AddBytesConsumed(512));
+
+  // Consume rest of the second frame.
+  EXPECT_CALL(consumer_, MarkConsumed(512));
   body_buffer_.MarkBodyConsumed(512);
 }
 
 TEST_F(QuicSpdyStreamBodyBufferTest, MarkConsumedMoreThanBuffered) {
+  const QuicByteCount header_length = 3;
+  EXPECT_CALL(consumer_, MarkConsumed(header_length));
+  body_buffer_.OnConsumableBytes(header_length);
+
   std::string body(1024, 'a');
-  Http3FrameLengths lengths(3, 1024);
-  body_buffer_.OnDataHeader(lengths);
   body_buffer_.OnDataPayload(body);
   EXPECT_QUIC_BUG(
       body_buffer_.MarkBodyConsumed(2048),
@@ -149,24 +128,18 @@ TEST_F(QuicSpdyStreamBodyBufferTest, MarkConsumedMoreThanBuffered) {
       "enough bytes available. Total bytes readable are: 1024");
 }
 
-// Buffer receives 1 frame. Stream read from the buffer.
+// Buffer receives one frame. Stream reads from the buffer.
 TEST_F(QuicSpdyStreamBodyBufferTest, ReadSingleBody) {
   testing::InSequence seq;
+
+  const QuicByteCount header_length = 3;
   std::string body(1024, 'a');
-  std::unique_ptr<char[]> buffer;
-  QuicByteCount header_length =
-      encoder_.SerializeDataFrameHeader(body.length(), &buffer);
-  std::string header = std::string(buffer.get(), header_length);
-  Http3FrameLengths lengths(header_length, 1024);
-  std::string data = header + body;
-  QuicStreamFrame frame(1, false, 0, data);
-  sequencer_.OnStreamFrame(frame);
-  body_buffer_.OnDataHeader(lengths);
+
+  EXPECT_CALL(consumer_, MarkConsumed(header_length));
+  body_buffer_.OnConsumableBytes(header_length);
   body_buffer_.OnDataPayload(QuicStringPiece(body));
 
-  EXPECT_CALL(stream_, AddBytesConsumed(header_length));
-  EXPECT_CALL(stream_, AddBytesConsumed(1024));
-
+  EXPECT_CALL(consumer_, MarkConsumed(1024));
   char base[1024];
   iovec iov = {&base[0], 1024};
   EXPECT_EQ(1024u, body_buffer_.ReadBody(&iov, 1));
@@ -175,37 +148,24 @@ TEST_F(QuicSpdyStreamBodyBufferTest, ReadSingleBody) {
             QuicStringPiece(static_cast<const char*>(iov.iov_base), 1024));
 }
 
-// Buffer receives 2 frames, stream read from the buffer multiple times.
+// Buffer receives two frames. Stream reads from the buffer multiple times.
 TEST_F(QuicSpdyStreamBodyBufferTest, ReadMultipleBody) {
   testing::InSequence seq;
-  // 1st frame.
+
+  const QuicByteCount header_length1 = 3;
   std::string body1(1024, 'a');
-  std::unique_ptr<char[]> buffer;
-  QuicByteCount header_length1 =
-      encoder_.SerializeDataFrameHeader(body1.length(), &buffer);
-  std::string header1 = std::string(buffer.get(), header_length1);
-  Http3FrameLengths lengths1(header_length1, 1024);
-  std::string data1 = header1 + body1;
-  QuicStreamFrame frame1(1, false, 0, data1);
-  sequencer_.OnStreamFrame(frame1);
-  body_buffer_.OnDataHeader(lengths1);
-  body_buffer_.OnDataPayload(QuicStringPiece(body1));
 
-  // 2nd frame.
+  EXPECT_CALL(consumer_, MarkConsumed(header_length1));
+  body_buffer_.OnConsumableBytes(header_length1);
+  body_buffer_.OnDataPayload(body1);
+
+  const QuicByteCount header_length2 = 3;
   std::string body2(2048, 'b');
-  QuicByteCount header_length2 =
-      encoder_.SerializeDataFrameHeader(body2.length(), &buffer);
-  std::string header2 = std::string(buffer.get(), header_length2);
-  Http3FrameLengths lengths2(header_length2, 2048);
-  std::string data2 = header2 + body2;
-  QuicStreamFrame frame2(1, false, data1.length(), data2);
-  sequencer_.OnStreamFrame(frame2);
-  body_buffer_.OnDataHeader(lengths2);
-  body_buffer_.OnDataPayload(QuicStringPiece(body2));
+  body_buffer_.OnConsumableBytes(header_length2);
+  body_buffer_.OnDataPayload(body2);
 
-  // First read of 512 bytes.
-  EXPECT_CALL(stream_, AddBytesConsumed(header_length1));
-  EXPECT_CALL(stream_, AddBytesConsumed(512));
+  // Read part of the first frame payload.
+  EXPECT_CALL(consumer_, MarkConsumed(512));
   char base[512];
   iovec iov = {&base[0], 512};
   EXPECT_EQ(512u, body_buffer_.ReadBody(&iov, 1));
@@ -213,9 +173,8 @@ TEST_F(QuicSpdyStreamBodyBufferTest, ReadMultipleBody) {
   EXPECT_EQ(body1.substr(0, 512),
             QuicStringPiece(static_cast<const char*>(iov.iov_base), 512));
 
-  // Second read of 2048 bytes.
-  EXPECT_CALL(stream_, AddBytesConsumed(header_length2));
-  EXPECT_CALL(stream_, AddBytesConsumed(2048));
+  // Read rest of the first frame and some of the second.
+  EXPECT_CALL(consumer_, MarkConsumed(header_length2 + 2048));
   char base2[2048];
   iovec iov2 = {&base2[0], 2048};
   EXPECT_EQ(2048u, body_buffer_.ReadBody(&iov2, 1));
@@ -223,8 +182,8 @@ TEST_F(QuicSpdyStreamBodyBufferTest, ReadMultipleBody) {
   EXPECT_EQ(body1.substr(512, 512) + body2.substr(0, 1536),
             QuicStringPiece(static_cast<const char*>(iov2.iov_base), 2048));
 
-  // Third read of the rest 512 bytes.
-  EXPECT_CALL(stream_, AddBytesConsumed(512));
+  // Read rest of the second frame.
+  EXPECT_CALL(consumer_, MarkConsumed(512));
   char base3[512];
   iovec iov3 = {&base3[0], 512};
   EXPECT_EQ(512u, body_buffer_.ReadBody(&iov3, 1));

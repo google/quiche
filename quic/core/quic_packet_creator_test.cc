@@ -813,8 +813,11 @@ TEST_P(QuicPacketCreatorTest, SerializeVersionNegotiationPacket) {
   versions.push_back(test::QuicVersionMax());
   const bool ietf_quic =
       VersionHasIetfInvariantHeader(GetParam().version.transport_version);
+  const bool has_length_prefix =
+      GetParam().version.HasLengthPrefixedConnectionIds();
   std::unique_ptr<QuicEncryptedPacket> encrypted(
-      creator_.SerializeVersionNegotiationPacket(ietf_quic, versions));
+      creator_.SerializeVersionNegotiationPacket(ietf_quic, has_length_prefix,
+                                                 versions));
 
   {
     InSequence s;
@@ -1819,6 +1822,9 @@ TEST_P(QuicPacketCreatorTest, GetGuaranteedLargestMessagePayload) {
   QuicPacketLength expected_largest_payload = 1319;
   if (QuicVersionHasLongHeaderLengths(version)) {
     expected_largest_payload -= 2;
+  }
+  if (GetParam().version.HasLengthPrefixedConnectionIds()) {
+    expected_largest_payload -= 1;
   }
   EXPECT_EQ(expected_largest_payload,
             creator_.GetGuaranteedLargestMessagePayload());

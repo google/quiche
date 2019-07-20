@@ -102,7 +102,7 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
 
   bool OnProtocolVersionMismatch(
       ParsedQuicVersion /*received_version*/) override {
-    return true;
+    return false;
   }
 
   bool OnUnauthenticatedPublicHeader(

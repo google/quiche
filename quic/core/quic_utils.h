@@ -109,7 +109,7 @@ class QUIC_EXPORT_PRIVATE QuicUtils {
       TransmissionType retransmission_type);
 
   // Returns true if header with |first_byte| is considered as an IETF QUIC
-  // packet header.
+  // packet header. This only works on the server.
   static bool IsIetfPacketHeader(uint8_t first_byte);
 
   // Returns true if header with |first_byte| is considered as an IETF QUIC

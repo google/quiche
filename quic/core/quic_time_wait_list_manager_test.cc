@@ -251,31 +251,50 @@ TEST_F(QuicTimeWaitListManagerTest, CheckStatelessConnectionIdInTimeWait) {
 
 TEST_F(QuicTimeWaitListManagerTest, SendVersionNegotiationPacket) {
   std::unique_ptr<QuicEncryptedPacket> packet(
-      QuicFramer::BuildVersionNegotiationPacket(connection_id_,
-                                                EmptyQuicConnectionId(), false,
-                                                AllSupportedVersions()));
+      QuicFramer::BuildVersionNegotiationPacket(
+          connection_id_, EmptyQuicConnectionId(), /*ietf_quic=*/false,
+          /*use_length_prefix=*/false, AllSupportedVersions()));
   EXPECT_CALL(writer_, WritePacket(_, packet->length(), self_address_.host(),
                                    peer_address_, _))
       .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 1)));
 
   time_wait_list_manager_.SendVersionNegotiationPacket(
-      connection_id_, EmptyQuicConnectionId(), false, AllSupportedVersions(),
-      self_address_, peer_address_, QuicMakeUnique<QuicPerPacketContext>());
+      connection_id_, EmptyQuicConnectionId(), /*ietf_quic=*/false,
+      /*use_length_prefix=*/false, AllSupportedVersions(), self_address_,
+      peer_address_, QuicMakeUnique<QuicPerPacketContext>());
+  EXPECT_EQ(0u, time_wait_list_manager_.num_connections());
+}
+
+TEST_F(QuicTimeWaitListManagerTest,
+       SendIetfVersionNegotiationPacketWithoutLengthPrefix) {
+  std::unique_ptr<QuicEncryptedPacket> packet(
+      QuicFramer::BuildVersionNegotiationPacket(
+          connection_id_, EmptyQuicConnectionId(), /*ietf_quic=*/true,
+          /*use_length_prefix=*/false, AllSupportedVersions()));
+  EXPECT_CALL(writer_, WritePacket(_, packet->length(), self_address_.host(),
+                                   peer_address_, _))
+      .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 1)));
+
+  time_wait_list_manager_.SendVersionNegotiationPacket(
+      connection_id_, EmptyQuicConnectionId(), /*ietf_quic=*/true,
+      /*use_length_prefix=*/false, AllSupportedVersions(), self_address_,
+      peer_address_, QuicMakeUnique<QuicPerPacketContext>());
   EXPECT_EQ(0u, time_wait_list_manager_.num_connections());
 }
 
 TEST_F(QuicTimeWaitListManagerTest, SendIetfVersionNegotiationPacket) {
   std::unique_ptr<QuicEncryptedPacket> packet(
-      QuicFramer::BuildVersionNegotiationPacket(connection_id_,
-                                                EmptyQuicConnectionId(), true,
-                                                AllSupportedVersions()));
+      QuicFramer::BuildVersionNegotiationPacket(
+          connection_id_, EmptyQuicConnectionId(), /*ietf_quic=*/true,
+          /*use_length_prefix=*/true, AllSupportedVersions()));
   EXPECT_CALL(writer_, WritePacket(_, packet->length(), self_address_.host(),
                                    peer_address_, _))
       .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 1)));
 
   time_wait_list_manager_.SendVersionNegotiationPacket(
-      connection_id_, EmptyQuicConnectionId(), true, AllSupportedVersions(),
-      self_address_, peer_address_, QuicMakeUnique<QuicPerPacketContext>());
+      connection_id_, EmptyQuicConnectionId(), /*ietf_quic=*/true,
+      /*use_length_prefix=*/true, AllSupportedVersions(), self_address_,
+      peer_address_, QuicMakeUnique<QuicPerPacketContext>());
   EXPECT_EQ(0u, time_wait_list_manager_.num_connections());
 }
 
@@ -285,16 +304,17 @@ TEST_F(QuicTimeWaitListManagerTest,
   SetQuicRestartFlag(quic_do_not_override_connection_id, true);
 
   std::unique_ptr<QuicEncryptedPacket> packet(
-      QuicFramer::BuildVersionNegotiationPacket(connection_id_,
-                                                TestConnectionId(0x33), true,
-                                                AllSupportedVersions()));
+      QuicFramer::BuildVersionNegotiationPacket(
+          connection_id_, TestConnectionId(0x33), /*ietf_quic=*/true,
+          /*use_length_prefix=*/true, AllSupportedVersions()));
   EXPECT_CALL(writer_, WritePacket(_, packet->length(), self_address_.host(),
                                    peer_address_, _))
       .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 1)));
 
   time_wait_list_manager_.SendVersionNegotiationPacket(
-      connection_id_, TestConnectionId(0x33), true, AllSupportedVersions(),
-      self_address_, peer_address_, QuicMakeUnique<QuicPerPacketContext>());
+      connection_id_, TestConnectionId(0x33), /*ietf_quic=*/true,
+      /*use_length_prefix=*/true, AllSupportedVersions(), self_address_,
+      peer_address_, QuicMakeUnique<QuicPerPacketContext>());
   EXPECT_EQ(0u, time_wait_list_manager_.num_connections());
 }
 

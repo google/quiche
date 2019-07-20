@@ -141,6 +141,7 @@ class QUIC_EXPORT_PRIVATE QuicPacketGenerator {
   // Creates a version negotiation packet which supports |supported_versions|.
   std::unique_ptr<QuicEncryptedPacket> SerializeVersionNegotiationPacket(
       bool ietf_quic,
+      bool use_length_prefix,
       const ParsedQuicVersionVector& supported_versions);
 
   // Creates a connectivity probing packet.

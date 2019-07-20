@@ -980,7 +980,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
       const QuicStopWaitingFrame& stop_waiting);
 
   // Sends a version negotiation packet to the peer.
-  void SendVersionNegotiationPacket(bool ietf_quic);
+  void SendVersionNegotiationPacket(bool ietf_quic, bool has_length_prefix);
 
   // Clears any accumulated frames from the last received packet.
   void ClearLastFrames();
@@ -1217,6 +1217,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   bool pending_version_negotiation_packet_;
   // Used when pending_version_negotiation_packet_ is true.
   bool send_ietf_version_negotiation_packet_;
+  bool send_version_negotiation_packet_with_prefixed_lengths_;
 
   // When packets could not be sent because the socket was not writable,
   // they are added to this list.  All corresponding frames are in

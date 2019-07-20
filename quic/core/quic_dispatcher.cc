@@ -228,11 +228,25 @@ void QuicDispatcher::ProcessPacket(const QuicSocketAddress& self_address,
                        QuicStringPiece(packet.data(), packet.length()));
   ReceivedPacketInfo packet_info(self_address, peer_address, packet);
   std::string detailed_error;
-  const QuicErrorCode error = QuicFramer::ProcessPacketDispatcher(
-      packet, expected_server_connection_id_length_, &packet_info.form,
-      &packet_info.version_flag, &packet_info.version_label,
-      &packet_info.destination_connection_id, &packet_info.source_connection_id,
-      &detailed_error);
+  QuicErrorCode error;
+  if (!GetQuicReloadableFlag(quic_use_parse_public_header)) {
+    error = QuicFramer::ProcessPacketDispatcher(
+        packet, expected_server_connection_id_length_, &packet_info.form,
+        &packet_info.version_flag, &packet_info.version_label,
+        &packet_info.destination_connection_id,
+        &packet_info.source_connection_id, &detailed_error);
+  } else {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_use_parse_public_header);
+    bool retry_token_present;
+    QuicStringPiece retry_token;
+    error = QuicFramer::ParsePublicHeaderDispatcher(
+        packet, expected_server_connection_id_length_, &packet_info.form,
+        &packet_info.version_flag, &packet_info.use_length_prefix,
+        &packet_info.version_label, &packet_info.version,
+        &packet_info.destination_connection_id,
+        &packet_info.source_connection_id, &retry_token_present, &retry_token,
+        &detailed_error);
+  }
   if (error != QUIC_NO_ERROR) {
     // Packet has framing error.
     SetLastError(error);
@@ -319,7 +333,8 @@ bool QuicDispatcher::MaybeDispatchPacket(
                       << " to time-wait list.";
       StatelesslyTerminateConnection(
           server_connection_id, packet_info.form, packet_info.version_flag,
-          packet_info.version, QUIC_HANDSHAKE_FAILED, "Reject connection",
+          packet_info.use_length_prefix, packet_info.version,
+          QUIC_HANDSHAKE_FAILED, "Reject connection",
           quic::QuicTimeWaitListManager::SEND_STATELESS_RESET);
 
       DCHECK(time_wait_list_manager_->IsConnectionIdInTimeWait(
@@ -396,9 +411,12 @@ bool QuicDispatcher::MaybeDispatchPacket(
             packet_info.source_connection_id;
         time_wait_list_manager()->SendVersionNegotiationPacket(
             server_connection_id, client_connection_id,
-            packet_info.form != GOOGLE_QUIC_PACKET, GetSupportedVersions(),
-            packet_info.self_address, packet_info.peer_address,
-            GetPerPacketContext());
+            packet_info.form != GOOGLE_QUIC_PACKET,
+            packet_info.form != GOOGLE_QUIC_PACKET &&
+                !QuicVersionLabelUses4BitConnectionIdLength(
+                    packet_info.version_label),
+            GetSupportedVersions(), packet_info.self_address,
+            packet_info.peer_address, GetPerPacketContext());
       }
       return true;
     }
@@ -454,7 +472,8 @@ void QuicDispatcher::ProcessHeader(ReceivedPacketInfo* packet_info) {
       QUIC_CODE_COUNT(quic_reject_fate_time_wait);
       StatelesslyTerminateConnection(
           server_connection_id, packet_info->form, packet_info->version_flag,
-          packet_info->version, QUIC_HANDSHAKE_FAILED, "Reject connection",
+          packet_info->use_length_prefix, packet_info->version,
+          QUIC_HANDSHAKE_FAILED, "Reject connection",
           quic::QuicTimeWaitListManager::SEND_STATELESS_RESET);
 
       DCHECK(time_wait_list_manager_->IsConnectionIdInTimeWait(
@@ -521,7 +540,9 @@ void QuicDispatcher::CleanUpSession(SessionMap::iterator it,
           VersionHasIetfInvariantHeader(connection->transport_version())
               ? IETF_QUIC_LONG_HEADER_PACKET
               : GOOGLE_QUIC_PACKET,
-          /*version_flag=*/true, connection->version(), QUIC_HANDSHAKE_FAILED,
+          /*version_flag=*/true,
+          connection->version().HasLengthPrefixedConnectionIds(),
+          connection->version(), QUIC_HANDSHAKE_FAILED,
           "Connection is closed by server before handshake confirmed",
           // Although it is our intention to send termination packets, the
           // |action| argument is not used by this call to
@@ -665,6 +686,7 @@ void QuicDispatcher::StatelesslyTerminateConnection(
     QuicConnectionId server_connection_id,
     PacketHeaderFormat format,
     bool version_flag,
+    bool use_length_prefix,
     ParsedQuicVersion version,
     QuicErrorCode error_code,
     const std::string& error_details,
@@ -707,7 +729,7 @@ void QuicDispatcher::StatelesslyTerminateConnection(
   std::vector<std::unique_ptr<QuicEncryptedPacket>> termination_packets;
   termination_packets.push_back(QuicFramer::BuildVersionNegotiationPacket(
       server_connection_id, EmptyQuicConnectionId(),
-      /*ietf_quic=*/format != GOOGLE_QUIC_PACKET,
+      /*ietf_quic=*/format != GOOGLE_QUIC_PACKET, use_length_prefix,
       /*versions=*/{}));
   time_wait_list_manager()->AddConnectionIdToTimeWait(
       server_connection_id, /*ietf_quic=*/format != GOOGLE_QUIC_PACKET,
@@ -728,8 +750,10 @@ void QuicDispatcher::OnExpiredPackets(
       server_connection_id,
       early_arrived_packets.ietf_quic ? IETF_QUIC_LONG_HEADER_PACKET
                                       : GOOGLE_QUIC_PACKET,
-      /*version_flag=*/true, early_arrived_packets.version,
-      QUIC_HANDSHAKE_FAILED, "Packets buffered for too long",
+      /*version_flag=*/true,
+      early_arrived_packets.version.HasLengthPrefixedConnectionIds(),
+      early_arrived_packets.version, QUIC_HANDSHAKE_FAILED,
+      "Packets buffered for too long",
       quic::QuicTimeWaitListManager::SEND_STATELESS_RESET);
 }
 
@@ -820,7 +844,8 @@ void QuicDispatcher::ProcessChlo(const std::string& alpn,
     QUIC_CODE_COUNT(quic_reject_stop_accepting_new_connections);
     StatelesslyTerminateConnection(
         packet_info->destination_connection_id, packet_info->form,
-        /*version_flag=*/true, packet_info->version, QUIC_HANDSHAKE_FAILED,
+        /*version_flag=*/true, packet_info->use_length_prefix,
+        packet_info->version, QUIC_HANDSHAKE_FAILED,
         "Stop accepting new connections",
         quic::QuicTimeWaitListManager::SEND_STATELESS_RESET);
     // Time wait list will reject the packet correspondingly.
