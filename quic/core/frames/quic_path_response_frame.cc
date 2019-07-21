@@ -3,8 +3,10 @@
 // found in the LICENSE file.
 
 #include "net/third_party/quiche/src/quic/core/frames/quic_path_response_frame.h"
+
 #include "net/third_party/quiche/src/quic/core/quic_constants.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
 
 namespace quic {
 
@@ -21,15 +23,11 @@ QuicPathResponseFrame::QuicPathResponseFrame(
 QuicPathResponseFrame::~QuicPathResponseFrame() {}
 
 std::ostream& operator<<(std::ostream& os, const QuicPathResponseFrame& frame) {
-  os << "{ control_frame_id: " << frame.control_frame_id
-     << ", data: " << static_cast<unsigned>(frame.data_buffer[0]) << " "
-     << static_cast<unsigned>(frame.data_buffer[1]) << " "
-     << static_cast<unsigned>(frame.data_buffer[2]) << " "
-     << static_cast<unsigned>(frame.data_buffer[3]) << " "
-     << static_cast<unsigned>(frame.data_buffer[4]) << " "
-     << static_cast<unsigned>(frame.data_buffer[5]) << " "
-     << static_cast<unsigned>(frame.data_buffer[6]) << " "
-     << static_cast<unsigned>(frame.data_buffer[7]) << " }\n";
+  os << "{ control_frame_id: " << frame.control_frame_id << ", data: "
+     << QuicTextUtils::HexEncode(
+            reinterpret_cast<const char*>(frame.data_buffer.data()),
+            frame.data_buffer.size())
+     << " }\n";
   return os;
 }
 
