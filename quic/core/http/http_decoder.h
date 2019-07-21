@@ -190,7 +190,7 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
   bool ParseSettingsFrame(QuicDataReader* reader, SettingsFrame* frame);
 
   // Returns the max frame size of a given |frame_type|.
-  QuicByteCount MaxFrameLength(uint8_t frame_type);
+  QuicByteCount MaxFrameLength(uint64_t frame_type);
 
   // Visitor to invoke when messages are parsed.
   Visitor* const visitor_;  // Unowned.

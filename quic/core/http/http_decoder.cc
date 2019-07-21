@@ -138,27 +138,27 @@ bool HttpDecoder::ReadFrameLength(QuicDataReader* reader) {
       current_frame_length_);
 
   switch (current_frame_type_) {
-    case 0x00:  // DATA
+    case static_cast<uint64_t>(HttpFrameType::DATA):
       continue_processing = visitor_->OnDataFrameStart(frame_meta);
       break;
-    case 0x01:  // HEADERS
+    case static_cast<uint64_t>(HttpFrameType::HEADERS):
       continue_processing = visitor_->OnHeadersFrameStart(frame_meta);
       break;
-    case 0x02:  // PRIORITY
+    case static_cast<uint64_t>(HttpFrameType::PRIORITY):
       continue_processing = visitor_->OnPriorityFrameStart(frame_meta);
       break;
-    case 0x03:  // CANCEL_PUSH
+    case static_cast<uint64_t>(HttpFrameType::CANCEL_PUSH):
       break;
-    case 0x04:  // SETTINGS
+    case static_cast<uint64_t>(HttpFrameType::SETTINGS):
       continue_processing = visitor_->OnSettingsFrameStart(frame_meta);
       break;
-    case 0x05:  // PUSH_PROMISE
+    case static_cast<uint64_t>(HttpFrameType::PUSH_PROMISE):
       break;
-    case 0x07:  // GOAWAY
+    case static_cast<uint64_t>(HttpFrameType::GOAWAY):
       break;
-    case 0x0d:  // MAX_PUSH_ID
+    case static_cast<uint64_t>(HttpFrameType::MAX_PUSH_ID):
       break;
-    case 0x0e:  // DUPLICATE_PUSH
+    case static_cast<uint64_t>(HttpFrameType::DUPLICATE_PUSH):
       break;
     default:
       continue_processing =
@@ -179,7 +179,7 @@ bool HttpDecoder::ReadFramePayload(QuicDataReader* reader) {
   bool continue_processing = true;
 
   switch (current_frame_type_) {
-    case 0x0: {  // DATA
+    case static_cast<uint64_t>(HttpFrameType::DATA): {
       QuicByteCount bytes_to_read = std::min<QuicByteCount>(
           remaining_frame_length_, reader->BytesRemaining());
       QuicStringPiece payload;
@@ -190,7 +190,7 @@ bool HttpDecoder::ReadFramePayload(QuicDataReader* reader) {
       remaining_frame_length_ -= payload.length();
       break;
     }
-    case 0x1: {  // HEADERS
+    case static_cast<uint64_t>(HttpFrameType::HEADERS): {
       QuicByteCount bytes_to_read = std::min<QuicByteCount>(
           remaining_frame_length_, reader->BytesRemaining());
       QuicStringPiece payload;
@@ -201,21 +201,21 @@ bool HttpDecoder::ReadFramePayload(QuicDataReader* reader) {
       remaining_frame_length_ -= payload.length();
       break;
     }
-    case 0x2: {  // PRIORITY
+    case static_cast<uint64_t>(HttpFrameType::PRIORITY): {
       // TODO(rch): avoid buffering if the entire frame is present, and
       // instead parse directly out of |reader|.
       BufferFramePayload(reader);
       break;
     }
-    case 0x3: {  // CANCEL_PUSH
+    case static_cast<uint64_t>(HttpFrameType::CANCEL_PUSH): {
       BufferFramePayload(reader);
       break;
     }
-    case 0x4: {  // SETTINGS
+    case static_cast<uint64_t>(HttpFrameType::SETTINGS): {
       BufferFramePayload(reader);
       break;
     }
-    case 0x5: {  // PUSH_PROMISE
+    case static_cast<uint64_t>(HttpFrameType::PUSH_PROMISE): {
       if (current_frame_length_ == remaining_frame_length_) {
         QuicByteCount bytes_remaining = reader->BytesRemaining();
         PushId push_id;
@@ -244,18 +244,16 @@ bool HttpDecoder::ReadFramePayload(QuicDataReader* reader) {
       remaining_frame_length_ -= payload.length();
       break;
     }
-    case 0x7: {  // GOAWAY
+    case static_cast<uint64_t>(HttpFrameType::GOAWAY): {
       BufferFramePayload(reader);
       break;
     }
-
-    case 0xD: {  // MAX_PUSH_ID
+    case static_cast<uint64_t>(HttpFrameType::MAX_PUSH_ID): {
       // TODO(rch): Handle partial delivery.
       BufferFramePayload(reader);
       break;
     }
-
-    case 0xE: {  // DUPLICATE_PUSH
+    case static_cast<uint64_t>(HttpFrameType::DUPLICATE_PUSH): {
       BufferFramePayload(reader);
       break;
     }
@@ -285,15 +283,15 @@ bool HttpDecoder::FinishParsing() {
   bool continue_processing = true;
 
   switch (current_frame_type_) {
-    case 0x0: {  // DATA
+    case static_cast<uint64_t>(HttpFrameType::DATA): {
       continue_processing = visitor_->OnDataFrameEnd();
       break;
     }
-    case 0x1: {  // HEADERS
+    case static_cast<uint64_t>(HttpFrameType::HEADERS): {
       continue_processing = visitor_->OnHeadersFrameEnd();
       break;
     }
-    case 0x2: {  // PRIORITY
+    case static_cast<uint64_t>(HttpFrameType::PRIORITY): {
       // TODO(rch): avoid buffering if the entire frame is present, and
       // instead parse directly out of |reader|.
       PriorityFrame frame;
@@ -304,7 +302,7 @@ bool HttpDecoder::FinishParsing() {
       continue_processing = visitor_->OnPriorityFrame(frame);
       break;
     }
-    case 0x3: {  // CANCEL_PUSH
+    case static_cast<uint64_t>(HttpFrameType::CANCEL_PUSH): {
       // TODO(rch): Handle partial delivery.
       CancelPushFrame frame;
       QuicDataReader reader(buffer_.data(), current_frame_length_);
@@ -315,7 +313,7 @@ bool HttpDecoder::FinishParsing() {
       continue_processing = visitor_->OnCancelPushFrame(frame);
       break;
     }
-    case 0x4: {  // SETTINGS
+    case static_cast<uint64_t>(HttpFrameType::SETTINGS): {
       SettingsFrame frame;
       QuicDataReader reader(buffer_.data(), current_frame_length_);
       if (!ParseSettingsFrame(&reader, &frame)) {
@@ -324,11 +322,11 @@ bool HttpDecoder::FinishParsing() {
       continue_processing = visitor_->OnSettingsFrame(frame);
       break;
     }
-    case 0x5: {  // PUSH_PROMISE
+    case static_cast<uint64_t>(HttpFrameType::PUSH_PROMISE): {
       continue_processing = visitor_->OnPushPromiseFrameEnd();
       break;
     }
-    case 0x7: {  // GOAWAY
+    case static_cast<uint64_t>(HttpFrameType::GOAWAY): {
       // TODO(bnc): Handle partial delivery.
       QuicDataReader reader(buffer_.data(), current_frame_length_);
       GoAwayFrame frame;
@@ -345,8 +343,7 @@ bool HttpDecoder::FinishParsing() {
       continue_processing = visitor_->OnGoAwayFrame(frame);
       break;
     }
-
-    case 0xD: {  // MAX_PUSH_ID
+    case static_cast<uint64_t>(HttpFrameType::MAX_PUSH_ID): {
       // TODO(bnc): Handle partial delivery.
       QuicDataReader reader(buffer_.data(), current_frame_length_);
       MaxPushIdFrame frame;
@@ -357,8 +354,7 @@ bool HttpDecoder::FinishParsing() {
       continue_processing = visitor_->OnMaxPushIdFrame(frame);
       break;
     }
-
-    case 0xE: {  // DUPLICATE_PUSH
+    case static_cast<uint64_t>(HttpFrameType::DUPLICATE_PUSH): {
       // TODO(bnc): Handle partial delivery.
       QuicDataReader reader(buffer_.data(), current_frame_length_);
       DuplicatePushFrame frame;
@@ -509,21 +505,21 @@ bool HttpDecoder::ParseSettingsFrame(QuicDataReader* reader,
   return true;
 }
 
-QuicByteCount HttpDecoder::MaxFrameLength(uint8_t frame_type) {
+QuicByteCount HttpDecoder::MaxFrameLength(uint64_t frame_type) {
   switch (frame_type) {
-    case 0x2:  // PRIORITY
+    case static_cast<uint64_t>(HttpFrameType::PRIORITY):
       return kPriorityFirstByteLength + VARIABLE_LENGTH_INTEGER_LENGTH_8 * 2 +
              kPriorityWeightLength;
-    case 0x3:  // CANCEL_PUSH
+    case static_cast<uint64_t>(HttpFrameType::CANCEL_PUSH):
       return sizeof(PushId);
-    case 0x4:  // SETTINGS
+    case static_cast<uint64_t>(HttpFrameType::SETTINGS):
       // This limit is arbitrary.
       return 1024 * 1024;
-    case 0x7:  // GOAWAY
+    case static_cast<uint64_t>(HttpFrameType::GOAWAY):
       return sizeof(QuicStreamId);
-    case 0xD:  // MAX_PUSH_ID
+    case static_cast<uint64_t>(HttpFrameType::MAX_PUSH_ID):
       return sizeof(PushId);
-    case 0xE:  // DUPLICATE_PUSH
+    case static_cast<uint64_t>(HttpFrameType::DUPLICATE_PUSH):
       return sizeof(PushId);
     default:
       // Other frames require no data buffering, so it's safe to have no limit.
