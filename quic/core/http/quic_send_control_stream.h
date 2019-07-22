@@ -11,7 +11,7 @@
 
 namespace quic {
 
-class QuicSpdySession;
+class QuicSession;
 
 // 3.2.1 Control Stream.
 // The send control stream is self initiated and is write only.
@@ -20,7 +20,7 @@ class QUIC_EXPORT_PRIVATE QuicSendControlStream : public QuicStream {
   // |session| can't be nullptr, and the ownership is not passed. The stream can
   // only be accessed through the session.
   explicit QuicSendControlStream(QuicStreamId id,
-                                 QuicSpdySession* session,
+                                 QuicSession* session,
                                  uint64_t max_inbound_header_list_size);
   QuicSendControlStream(const QuicSendControlStream&) = delete;
   QuicSendControlStream& operator=(const QuicSendControlStream&) = delete;

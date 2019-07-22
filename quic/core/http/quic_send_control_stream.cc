@@ -5,14 +5,14 @@
 #include "net/third_party/quiche/src/quic/core/http/quic_send_control_stream.h"
 
 #include "net/third_party/quiche/src/quic/core/http/http_constants.h"
-#include "net/third_party/quiche/src/quic/core/http/quic_spdy_session.h"
+#include "net/third_party/quiche/src/quic/core/quic_session.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 
 namespace quic {
 
 QuicSendControlStream::QuicSendControlStream(
     QuicStreamId id,
-    QuicSpdySession* session,
+    QuicSession* session,
     uint64_t max_inbound_header_list_size)
     : QuicStream(id, session, /*is_static = */ true, WRITE_UNIDIRECTIONAL),
       settings_sent_(false),
