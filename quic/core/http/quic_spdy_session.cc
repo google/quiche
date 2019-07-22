@@ -513,12 +513,12 @@ void QuicSpdySession::WriteH3Priority(const PriorityFrame& priority) {
   send_control_stream_->WritePriority(priority);
 }
 
-size_t QuicSpdySession::WritePushPromise(QuicStreamId original_stream_id,
-                                         QuicStreamId promised_stream_id,
-                                         SpdyHeaderBlock headers) {
+void QuicSpdySession::WritePushPromise(QuicStreamId original_stream_id,
+                                       QuicStreamId promised_stream_id,
+                                       SpdyHeaderBlock headers) {
   if (perspective() == Perspective::IS_CLIENT) {
     QUIC_BUG << "Client shouldn't send PUSH_PROMISE";
-    return 0;
+    return;
   }
 
   SpdyPushPromiseIR push_promise(original_stream_id, promised_stream_id,
@@ -530,7 +530,6 @@ size_t QuicSpdySession::WritePushPromise(QuicStreamId original_stream_id,
   SpdySerializedFrame frame(spdy_framer_.SerializeFrame(push_promise));
   headers_stream()->WriteOrBufferData(
       QuicStringPiece(frame.data(), frame.size()), false, nullptr);
-  return frame.size();
 }
 
 void QuicSpdySession::SendMaxHeaderListSize(size_t value) {

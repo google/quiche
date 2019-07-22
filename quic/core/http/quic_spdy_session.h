@@ -127,10 +127,9 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
 
   // Write |headers| for |promised_stream_id| on |original_stream_id| in a
   // PUSH_PROMISE frame to peer.
-  // Return the size, in bytes, of the resulting PUSH_PROMISE frame.
-  virtual size_t WritePushPromise(QuicStreamId original_stream_id,
-                                  QuicStreamId promised_stream_id,
-                                  spdy::SpdyHeaderBlock headers);
+  virtual void WritePushPromise(QuicStreamId original_stream_id,
+                                QuicStreamId promised_stream_id,
+                                spdy::SpdyHeaderBlock headers);
 
   // Sends SETTINGS_MAX_HEADER_LIST_SIZE SETTINGS frame.
   void SendMaxHeaderListSize(size_t value);

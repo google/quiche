@@ -155,16 +155,16 @@ class MockQuicSimpleServerSession : public QuicSimpleServerSession {
                                 quic_simple_server_backend) {}
   // Methods taking non-copyable types like SpdyHeaderBlock by value cannot be
   // mocked directly.
-  size_t WritePushPromise(QuicStreamId original_stream_id,
-                          QuicStreamId promised_stream_id,
-                          spdy::SpdyHeaderBlock headers) override {
+  void WritePushPromise(QuicStreamId original_stream_id,
+                        QuicStreamId promised_stream_id,
+                        spdy::SpdyHeaderBlock headers) override {
     return WritePushPromiseMock(original_stream_id, promised_stream_id,
                                 headers);
   }
   MOCK_METHOD3(WritePushPromiseMock,
-               size_t(QuicStreamId original_stream_id,
-                      QuicStreamId promised_stream_id,
-                      const spdy::SpdyHeaderBlock& headers));
+               void(QuicStreamId original_stream_id,
+                    QuicStreamId promised_stream_id,
+                    const spdy::SpdyHeaderBlock& headers));
 
   MOCK_METHOD1(SendBlocked, void(QuicStreamId));
 };

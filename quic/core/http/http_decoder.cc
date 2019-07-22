@@ -225,7 +225,10 @@ bool HttpDecoder::ReadFramePayload(QuicDataReader* reader) {
           return false;
         }
         remaining_frame_length_ -= bytes_remaining - reader->BytesRemaining();
-        if (!visitor_->OnPushPromiseFrameStart(push_id)) {
+        if (!visitor_->OnPushPromiseFrameStart(
+                push_id, Http3FrameLengths(current_length_field_length_ +
+                                               current_type_field_length_,
+                                           current_frame_length_))) {
           continue_processing = false;
           break;
         }

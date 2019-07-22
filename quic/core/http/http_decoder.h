@@ -97,7 +97,8 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
     virtual bool OnHeadersFrameEnd() = 0;
 
     // Called when a PUSH_PROMISE frame has been received for |push_id|.
-    virtual bool OnPushPromiseFrameStart(PushId push_id) = 0;
+    virtual bool OnPushPromiseFrameStart(PushId push_id,
+                                         Http3FrameLengths frame_length) = 0;
     // Called when part of the payload of a PUSH_PROMISE frame has been read.
     // May be called multiple times for a single frame.  |payload| is guaranteed
     // to be non-empty.

@@ -124,7 +124,8 @@ class QuicSpdyStream::HttpDecoderVisitor : public HttpDecoder::Visitor {
     return stream_->OnHeadersFrameEnd();
   }
 
-  bool OnPushPromiseFrameStart(PushId /*push_id*/) override {
+  bool OnPushPromiseFrameStart(PushId /*push_id*/,
+                               Http3FrameLengths /*frame_length*/) override {
     // TODO(b/137554973): Consume frame header.
     CloseConnectionOnWrongFrame("Push Promise");
     return false;
