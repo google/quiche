@@ -80,6 +80,20 @@ struct PriorityFrame {
            element_dependency_id == rhs.element_dependency_id &&
            weight == rhs.weight;
   }
+  std::string ToString() const {
+    return QuicStrCat("Priority Frame : {prioritized_type: ", prioritized_type,
+                      ", dependency_type: ", dependency_type,
+                      ", exclusive: ", exclusive,
+                      ", prioritized_element_id: ", prioritized_element_id,
+                      ", element_dependency_id: ", element_dependency_id,
+                      ", weight: ", weight, "}");
+  }
+
+  friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                                      const PriorityFrame& s) {
+    os << s.ToString();
+    return os;
+  }
 };
 
 // 4.2.4.  CANCEL_PUSH
