@@ -3,6 +3,10 @@
 // found in the LICENSE file.
 
 #include "net/third_party/quiche/src/quic/core/http/quic_spdy_stream_body_buffer.h"
+
+#include <algorithm>
+
+#include "net/third_party/quiche/src/quic/core/quic_stream_sequencer.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 
 namespace quic {

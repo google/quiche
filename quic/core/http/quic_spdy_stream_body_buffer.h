@@ -6,10 +6,14 @@
 #define QUICHE_QUIC_CORE_HTTP_QUIC_SPDY_STREAM_BODY_BUFFER_H_
 
 #include "net/third_party/quiche/src/quic/core/http/http_decoder.h"
-#include "net/third_party/quiche/src/quic/core/quic_stream_sequencer.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_iovec.h"
 
 namespace quic {
+
+class QuicStreamSequencer;
 
 // Buffer decoded body for QuicSpdyStream. It also talks to the sequencer to
 // consume data.
