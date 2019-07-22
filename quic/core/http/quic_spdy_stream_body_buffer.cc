@@ -61,6 +61,7 @@ void QuicSpdyStreamBodyBuffer::MarkBodyConsumed(size_t num_bytes) {
     }
   }
   // Consume headers.
+  size_t bytes_to_consume = 0;
   while (bytes_remaining_ < num_bytes) {
     if (frame_meta_.empty()) {
       QUIC_BUG << "Faild to consume because frame header buffer is empty.";
@@ -69,12 +70,14 @@ void QuicSpdyStreamBodyBuffer::MarkBodyConsumed(size_t num_bytes) {
     auto meta = frame_meta_.front();
     frame_meta_.pop_front();
     bytes_remaining_ += meta.payload_length;
-    sequencer_->MarkConsumed(meta.header_length);
+    bytes_to_consume += meta.header_length;
   }
-  sequencer_->MarkConsumed(num_bytes);
+  bytes_to_consume += num_bytes;
   // Update accountings.
   bytes_remaining_ -= num_bytes;
   total_body_bytes_readable_ -= num_bytes;
+
+  sequencer_->MarkConsumed(bytes_to_consume);
 }
 
 int QuicSpdyStreamBodyBuffer::PeekBody(iovec* iov, size_t iov_len) const {

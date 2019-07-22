@@ -95,8 +95,7 @@ TEST_F(QuicSpdyStreamBodyBufferTest, MarkConsumedPartialSingleFrame) {
   sequencer_.OnStreamFrame(frame);
   body_buffer_.OnDataHeader(lengths);
   body_buffer_.OnDataPayload(QuicStringPiece(body));
-  EXPECT_CALL(stream_, AddBytesConsumed(header_length));
-  EXPECT_CALL(stream_, AddBytesConsumed(1024));
+  EXPECT_CALL(stream_, AddBytesConsumed(header_length + 1024));
   body_buffer_.MarkBodyConsumed(1024);
 }
 
@@ -128,11 +127,9 @@ TEST_F(QuicSpdyStreamBodyBufferTest, MarkConsumedMultipleFrames) {
   body_buffer_.OnDataHeader(lengths2);
   body_buffer_.OnDataPayload(QuicStringPiece(body2));
 
-  EXPECT_CALL(stream_, AddBytesConsumed(header_length1));
-  EXPECT_CALL(stream_, AddBytesConsumed(512));
+  EXPECT_CALL(stream_, AddBytesConsumed(header_length1 + 512));
   body_buffer_.MarkBodyConsumed(512);
-  EXPECT_CALL(stream_, AddBytesConsumed(header_length2));
-  EXPECT_CALL(stream_, AddBytesConsumed(2048));
+  EXPECT_CALL(stream_, AddBytesConsumed(header_length2 + 2048));
   body_buffer_.MarkBodyConsumed(2048);
   EXPECT_CALL(stream_, AddBytesConsumed(512));
   body_buffer_.MarkBodyConsumed(512);
@@ -164,8 +161,7 @@ TEST_F(QuicSpdyStreamBodyBufferTest, ReadSingleBody) {
   body_buffer_.OnDataHeader(lengths);
   body_buffer_.OnDataPayload(QuicStringPiece(body));
 
-  EXPECT_CALL(stream_, AddBytesConsumed(header_length));
-  EXPECT_CALL(stream_, AddBytesConsumed(1024));
+  EXPECT_CALL(stream_, AddBytesConsumed(header_length + 1024));
 
   char base[1024];
   iovec iov = {&base[0], 1024};
@@ -204,8 +200,7 @@ TEST_F(QuicSpdyStreamBodyBufferTest, ReadMultipleBody) {
   body_buffer_.OnDataPayload(QuicStringPiece(body2));
 
   // First read of 512 bytes.
-  EXPECT_CALL(stream_, AddBytesConsumed(header_length1));
-  EXPECT_CALL(stream_, AddBytesConsumed(512));
+  EXPECT_CALL(stream_, AddBytesConsumed(header_length1 + 512));
   char base[512];
   iovec iov = {&base[0], 512};
   EXPECT_EQ(512u, body_buffer_.ReadBody(&iov, 1));
@@ -214,8 +209,7 @@ TEST_F(QuicSpdyStreamBodyBufferTest, ReadMultipleBody) {
             QuicStringPiece(static_cast<const char*>(iov.iov_base), 512));
 
   // Second read of 2048 bytes.
-  EXPECT_CALL(stream_, AddBytesConsumed(header_length2));
-  EXPECT_CALL(stream_, AddBytesConsumed(2048));
+  EXPECT_CALL(stream_, AddBytesConsumed(header_length2 + 2048));
   char base2[2048];
   iovec iov2 = {&base2[0], 2048};
   EXPECT_EQ(2048u, body_buffer_.ReadBody(&iov2, 1));
