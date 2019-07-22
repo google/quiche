@@ -10,7 +10,7 @@
 
 namespace quic {
 
-class QuicSpdySession;
+class QuicSession;
 
 // QPACK 4.2.1 Encoder and Decoder Streams.
 // The QPACK receive stream is peer initiated and is read only.

@@ -4,7 +4,7 @@
 
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_receive_stream.h"
 
-#include "net/third_party/quiche/src/quic/core/http/quic_spdy_session.h"
+#include "net/third_party/quiche/src/quic/core/quic_session.h"
 
 namespace quic {
 QpackReceiveStream::QpackReceiveStream(PendingStream* pending)

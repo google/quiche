@@ -4,12 +4,12 @@
 
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_send_stream.h"
 
-#include "net/third_party/quiche/src/quic/core/http/quic_spdy_session.h"
+#include "net/third_party/quiche/src/quic/core/quic_session.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 
 namespace quic {
 QpackSendStream::QpackSendStream(QuicStreamId id,
-                                 QuicSpdySession* session,
+                                 QuicSession* session,
                                  uint64_t http3_stream_type)
     : QuicStream(id, session, /*is_static = */ true, WRITE_UNIDIRECTIONAL),
       http3_stream_type_(http3_stream_type),

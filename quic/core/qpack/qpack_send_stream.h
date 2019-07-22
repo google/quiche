@@ -14,7 +14,7 @@
 
 namespace quic {
 
-class QuicSpdySession;
+class QuicSession;
 
 // QPACK 4.2.1 Encoder and Decoder Streams.
 // The QPACK send stream is self initiated and is write only.
@@ -24,7 +24,7 @@ class QUIC_EXPORT_PRIVATE QpackSendStream : public QuicStream,
   // |session| can't be nullptr, and the ownership is not passed. |session| owns
   // this stream.
   QpackSendStream(QuicStreamId id,
-                  QuicSpdySession* session,
+                  QuicSession* session,
                   uint64_t http3_stream_type);
   QpackSendStream(const QpackSendStream&) = delete;
   QpackSendStream& operator=(const QpackSendStream&) = delete;
