@@ -45,7 +45,8 @@ QuicSpdyClientBase::QuicSpdyClientBase(
                      std::move(network_helper),
                      std::move(proof_verifier)),
       store_response_(false),
-      latest_response_code_(-1) {}
+      latest_response_code_(-1),
+      max_allowed_push_id_(0) {}
 
 QuicSpdyClientBase::~QuicSpdyClientBase() {
   // We own the push promise index. We need to explicitly kill

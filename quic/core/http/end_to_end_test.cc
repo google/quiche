@@ -278,6 +278,7 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     if (override_client_connection_id_ != nullptr) {
       client->UseClientConnectionId(*override_client_connection_id_);
     }
+    client->client()->set_max_allowed_push_id(kMaxQuicStreamId);
     client->Connect();
     return client;
   }

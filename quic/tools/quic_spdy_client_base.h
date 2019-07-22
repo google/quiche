@@ -214,7 +214,7 @@ class QuicSpdyClientBase : public QuicClientBase,
   bool drop_response_body_ = false;
 
   // The max promise id to set on the client session when created.
-  QuicStreamId max_allowed_push_id_ = std::numeric_limits<QuicStreamId>::max();
+  QuicStreamId max_allowed_push_id_;
 };
 
 }  // namespace quic
