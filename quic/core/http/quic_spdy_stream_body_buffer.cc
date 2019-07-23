@@ -6,20 +6,15 @@
 
 #include <algorithm>
 
-#include "net/third_party/quiche/src/quic/core/quic_stream_sequencer.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 
 namespace quic {
 
-QuicSpdyStreamBodyBuffer::QuicSpdyStreamBodyBuffer(
-    QuicStreamSequencer* sequencer)
+QuicSpdyStreamBodyBuffer::QuicSpdyStreamBodyBuffer()
     : bytes_remaining_(0),
       total_body_bytes_readable_(0),
       total_body_bytes_received_(0),
-      total_payload_lengths_(0),
-      sequencer_(sequencer) {}
-
-QuicSpdyStreamBodyBuffer::~QuicSpdyStreamBodyBuffer() {}
+      total_payload_lengths_(0) {}
 
 void QuicSpdyStreamBodyBuffer::OnDataHeader(Http3FrameLengths frame_lengths) {
   frame_meta_.push_back(frame_lengths);
@@ -34,21 +29,21 @@ void QuicSpdyStreamBodyBuffer::OnDataPayload(QuicStringPiece payload) {
   DCHECK_LE(total_body_bytes_received_, total_payload_lengths_);
 }
 
-void QuicSpdyStreamBodyBuffer::MarkBodyConsumed(size_t num_bytes) {
+size_t QuicSpdyStreamBodyBuffer::OnBodyConsumed(size_t num_bytes) {
   // Check if the stream has enough decoded data.
   if (num_bytes > total_body_bytes_readable_) {
-    QUIC_BUG << "Invalid argument to MarkBodyConsumed."
+    QUIC_BUG << "Invalid argument to OnBodyConsumed."
              << " expect to consume: " << num_bytes
              << ", but not enough bytes available. "
              << "Total bytes readable are: " << total_body_bytes_readable_;
-    return;
+    return 0;
   }
   // Discard references in the stream before the sequencer marks them consumed.
   size_t remaining = num_bytes;
   while (remaining > 0) {
     if (bodies_.empty()) {
       QUIC_BUG << "Failed to consume because body buffer is empty.";
-      return;
+      return 0;
     }
     auto body = bodies_.front();
     bodies_.pop_front();
@@ -60,12 +55,13 @@ void QuicSpdyStreamBodyBuffer::MarkBodyConsumed(size_t num_bytes) {
       remaining = 0;
     }
   }
+
   // Consume headers.
   size_t bytes_to_consume = 0;
   while (bytes_remaining_ < num_bytes) {
     if (frame_meta_.empty()) {
       QUIC_BUG << "Faild to consume because frame header buffer is empty.";
-      return;
+      return 0;
     }
     auto meta = frame_meta_.front();
     frame_meta_.pop_front();
@@ -73,11 +69,12 @@ void QuicSpdyStreamBodyBuffer::MarkBodyConsumed(size_t num_bytes) {
     bytes_to_consume += meta.header_length;
   }
   bytes_to_consume += num_bytes;
+
   // Update accountings.
   bytes_remaining_ -= num_bytes;
   total_body_bytes_readable_ -= num_bytes;
 
-  sequencer_->MarkConsumed(bytes_to_consume);
+  return bytes_to_consume;
 }
 
 int QuicSpdyStreamBodyBuffer::PeekBody(iovec* iov, size_t iov_len) const {
@@ -101,8 +98,9 @@ int QuicSpdyStreamBodyBuffer::PeekBody(iovec* iov, size_t iov_len) const {
 }
 
 size_t QuicSpdyStreamBodyBuffer::ReadBody(const struct iovec* iov,
-                                          size_t iov_len) {
-  size_t total_data_read = 0;
+                                          size_t iov_len,
+                                          size_t* total_bytes_read) {
+  *total_bytes_read = 0;
   QuicByteCount total_remaining = total_body_bytes_readable_;
   size_t index = 0;
   size_t src_offset = 0;
@@ -117,7 +115,7 @@ size_t QuicSpdyStreamBodyBuffer::ReadBody(const struct iovec* iov,
              bytes_to_copy);
       dest += bytes_to_copy;
       dest_remaining -= bytes_to_copy;
-      total_data_read += bytes_to_copy;
+      *total_bytes_read += bytes_to_copy;
       total_remaining -= bytes_to_copy;
       if (bytes_to_copy < body.length() - src_offset) {
         src_offset += bytes_to_copy;
@@ -128,8 +126,7 @@ size_t QuicSpdyStreamBodyBuffer::ReadBody(const struct iovec* iov,
     }
   }
 
-  MarkBodyConsumed(total_data_read);
-  return total_data_read;
+  return OnBodyConsumed(*total_bytes_read);
 }
 
 }  // namespace quic

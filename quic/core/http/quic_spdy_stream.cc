@@ -188,7 +188,6 @@ QuicSpdyStream::QuicSpdyStream(QuicStreamId id,
       headers_bytes_to_be_marked_consumed_(0),
       http_decoder_visitor_(QuicMakeUnique<HttpDecoderVisitor>(this)),
       decoder_(http_decoder_visitor_.get()),
-      body_buffer_(sequencer()),
       sequencer_offset_(0),
       is_decoder_processing_input_(false),
       ack_listener_(nullptr) {
@@ -225,7 +224,6 @@ QuicSpdyStream::QuicSpdyStream(PendingStream* pending,
       headers_bytes_to_be_marked_consumed_(0),
       http_decoder_visitor_(QuicMakeUnique<HttpDecoderVisitor>(this)),
       decoder_(http_decoder_visitor_.get()),
-      body_buffer_(sequencer()),
       sequencer_offset_(sequencer()->NumBytesConsumed()),
       is_decoder_processing_input_(false),
       ack_listener_(nullptr) {
@@ -397,7 +395,8 @@ size_t QuicSpdyStream::Readv(const struct iovec* iov, size_t iov_len) {
   if (!VersionHasDataFrameHeader(transport_version())) {
     return sequencer()->Readv(iov, iov_len);
   }
-  size_t bytes_read = body_buffer_.ReadBody(iov, iov_len);
+  size_t bytes_read = 0;
+  sequencer()->MarkConsumed(body_buffer_.ReadBody(iov, iov_len, &bytes_read));
 
   if (VersionUsesQpack(transport_version())) {
     // Maybe all DATA frame bytes have been read and some trailing HEADERS had
@@ -422,7 +421,7 @@ void QuicSpdyStream::MarkConsumed(size_t num_bytes) {
     sequencer()->MarkConsumed(num_bytes);
     return;
   }
-  body_buffer_.MarkBodyConsumed(num_bytes);
+  sequencer()->MarkConsumed(body_buffer_.OnBodyConsumed(num_bytes));
 
   if (VersionUsesQpack(transport_version())) {
     // Maybe all DATA frame bytes have been read and some trailing HEADERS had
