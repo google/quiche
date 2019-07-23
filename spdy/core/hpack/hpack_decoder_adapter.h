@@ -79,6 +79,10 @@ class SPDY_EXPORT_PRIVATE HpackDecoderAdapter {
   // of individual transport buffers.
   void set_max_decode_buffer_size_bytes(size_t max_decode_buffer_size_bytes);
 
+  // Specifies the maximum size of an on-the-wire header block that will be
+  // accepted.
+  void set_max_header_block_bytes(size_t max_header_block_bytes);
+
   size_t EstimateMemoryUsage() const;
 
  private:
@@ -146,6 +150,9 @@ class SPDY_EXPORT_PRIVATE HpackDecoderAdapter {
 
   // How much encoded data this decoder is willing to buffer.
   size_t max_decode_buffer_size_bytes_;
+
+  // How much encoded data this decoder is willing to process.
+  size_t max_header_block_bytes_;
 
   // Flag to keep track of having seen the header block start. Needed at the
   // moment because HandleControlFrameHeadersStart won't be called if a handler

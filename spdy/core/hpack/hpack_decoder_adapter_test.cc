@@ -331,6 +331,33 @@ TEST_P(HpackDecoderAdapterTest, HeaderTooLongToBuffer) {
   EXPECT_FALSE(HandleControlFrameHeadersData(fragment));
 }
 
+// Verify that a header block that exceeds the maximum length is rejected.
+TEST_P(HpackDecoderAdapterTest, HeaderBlockTooLong) {
+  const SpdyString name = "some-key";
+  const SpdyString value = "some-value";
+  const size_t kMaxBufferSizeBytes = 1024;
+
+  HpackBlockBuilder hbb;
+  hbb.AppendLiteralNameAndValue(HpackEntryType::kIndexedLiteralHeader, false,
+                                name, false, value);
+  while (hbb.size() < kMaxBufferSizeBytes) {
+    hbb.AppendLiteralNameAndValue(HpackEntryType::kIndexedLiteralHeader, false,
+                                  "", false, "");
+  }
+  // With no limit on the maximum header block size, the decoder handles the
+  // entire block successfully.
+  HandleControlFrameHeadersStart();
+  EXPECT_TRUE(HandleControlFrameHeadersData(hbb.buffer()));
+  size_t total_bytes;
+  EXPECT_TRUE(HandleControlFrameHeadersComplete(&total_bytes));
+
+  // When a total byte limit is imposed, the decoder bails before the end of the
+  // block.
+  decoder_.set_max_header_block_bytes(kMaxBufferSizeBytes);
+  HandleControlFrameHeadersStart();
+  EXPECT_FALSE(HandleControlFrameHeadersData(hbb.buffer()));
+}
+
 // Decode with incomplete data in buffer.
 TEST_P(HpackDecoderAdapterTest, DecodeWithIncompleteData) {
   HandleControlFrameHeadersStart();

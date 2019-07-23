@@ -21,6 +21,7 @@ const size_t kMaxDecodeBufferSizeBytes = 32 * 1024;  // 32 KB
 HpackDecoderAdapter::HpackDecoderAdapter()
     : hpack_decoder_(&listener_adapter_, kMaxDecodeBufferSizeBytes),
       max_decode_buffer_size_bytes_(kMaxDecodeBufferSizeBytes),
+      max_header_block_bytes_(0),
       header_block_started_(false) {}
 
 HpackDecoderAdapter::~HpackDecoderAdapter() = default;
@@ -64,6 +65,10 @@ bool HpackDecoderAdapter::HandleControlFrameHeadersData(
       return false;
     }
     listener_adapter_.AddToTotalHpackBytes(headers_data_length);
+    if (max_header_block_bytes_ != 0 &&
+        listener_adapter_.total_hpack_bytes() > max_header_block_bytes_) {
+      return false;
+    }
     http2::DecodeBuffer db(headers_data, headers_data_length);
     bool ok = hpack_decoder_.DecodeFragment(&db);
     DCHECK(!ok || db.Empty()) << "Remaining=" << db.Remaining();
@@ -107,6 +112,11 @@ void HpackDecoderAdapter::set_max_decode_buffer_size_bytes(
   SPDY_DVLOG(2) << "HpackDecoderAdapter::set_max_decode_buffer_size_bytes";
   max_decode_buffer_size_bytes_ = max_decode_buffer_size_bytes;
   hpack_decoder_.set_max_string_size_bytes(max_decode_buffer_size_bytes);
+}
+
+void HpackDecoderAdapter::set_max_header_block_bytes(
+    size_t max_header_block_bytes) {
+  max_header_block_bytes_ = max_header_block_bytes;
 }
 
 size_t HpackDecoderAdapter::EstimateMemoryUsage() const {
