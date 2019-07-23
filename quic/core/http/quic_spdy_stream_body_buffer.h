@@ -10,6 +10,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_iovec.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_macros.h"
 
 namespace quic {
 
@@ -19,11 +20,8 @@ class QuicStreamSequencer;
 // consume data.
 class QUIC_EXPORT_PRIVATE QuicSpdyStreamBodyBuffer {
  public:
-  // QuicSpdyStreamBodyBuffer doesn't own the sequencer and the sequencer can
-  // outlive the buffer.
-  explicit QuicSpdyStreamBodyBuffer(QuicStreamSequencer* sequencer);
-
-  ~QuicSpdyStreamBodyBuffer();
+  QuicSpdyStreamBodyBuffer();
+  ~QuicSpdyStreamBodyBuffer() = default;
 
   // Add metadata of the frame to accountings.
   // Called when QuicSpdyStream receives data frame header.
@@ -35,9 +33,10 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStreamBodyBuffer {
   // QuicStreamSequencer::MarkConsumed().
   void OnDataPayload(QuicStringPiece payload);
 
-  // Take |num_bytes| as the body size, calculate header sizes accordingly, and
-  // consume the right amount of data in the stream sequencer.
-  void MarkBodyConsumed(size_t num_bytes);
+  // Internally marks |num_bytes| of DATA frame payload consumed, and returns
+  // the number of bytes that the caller should mark consumed with the
+  // sequencer, including DATA frame header bytes, if any.
+  QUIC_MUST_USE_RESULT size_t OnBodyConsumed(size_t num_bytes);
 
   // Fill up to |iov_len| with bodies available in buffer. No data is consumed.
   // |iov|.iov_base will point to data in the buffer, and |iov|.iov_len will
@@ -47,9 +46,11 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStreamBodyBuffer {
 
   // Copies from buffer into |iov| up to |iov_len|, and consume data in
   // sequencer. |iov.iov_base| and |iov.iov_len| are preassigned and will not be
-  // changed.
-  // Returns the number of bytes read.
-  size_t ReadBody(const struct iovec* iov, size_t iov_len);
+  // changed.  |*total_bytes_read| is set to the number of bytes read.  Returns
+  // the number of bytes that should be marked consumed with the sequencer.
+  QUIC_MUST_USE_RESULT size_t ReadBody(const struct iovec* iov,
+                                       size_t iov_len,
+                                       size_t* total_bytes_read);
 
   bool HasBytesToRead() const { return !bodies_.empty(); }
 
@@ -70,8 +71,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStreamBodyBuffer {
   QuicByteCount total_body_bytes_received_;
   // Total length of payloads tracked by frame_meta_.
   QuicByteCount total_payload_lengths_;
-  // Stream sequencer that directly manages data in the stream.
-  QuicStreamSequencer* sequencer_;
 };
 
 }  // namespace quic

@@ -59,6 +59,7 @@ void QuicSendControlStream::WritePriority(const PriorityFrame& priority) {
   std::unique_ptr<char[]> buffer;
   QuicByteCount frame_length =
       encoder_.SerializePriorityFrame(priority, &buffer);
+  QUIC_DVLOG(1) << "Control Stream " << id() << " is writing " << priority;
   WriteOrBufferData(QuicStringPiece(buffer.get(), frame_length), false,
                     nullptr);
 }

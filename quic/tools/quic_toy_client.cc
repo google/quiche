@@ -325,7 +325,7 @@ int QuicToyClient::SendRequestsAndPrintResponses(
       return 1;
     }
 
-    size_t response_code = client->latest_response_code();
+    int response_code = client->latest_response_code();
     if (response_code >= 200 && response_code < 300) {
       std::cout << "Request succeeded (" << response_code << ")." << std::endl;
     } else if (response_code >= 300 && response_code < 400) {

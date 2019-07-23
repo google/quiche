@@ -120,7 +120,7 @@ class QuicSpdyClientBase : public QuicClientBase,
 
   void set_store_response(bool val) { store_response_ = val; }
 
-  size_t latest_response_code() const;
+  int latest_response_code() const;
   const std::string& latest_response_headers() const;
   const std::string& preliminary_response_headers() const;
   const spdy::SpdyHeaderBlock& latest_response_header_block() const;
