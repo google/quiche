@@ -234,7 +234,7 @@ void QuicSpdyClientBase::OnRendezvousResult(QuicSpdyStream* stream) {
   }
 }
 
-size_t QuicSpdyClientBase::latest_response_code() const {
+int QuicSpdyClientBase::latest_response_code() const {
   QUIC_BUG_IF(!store_response_) << "Response not stored!";
   return latest_response_code_;
 }
