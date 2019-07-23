@@ -281,10 +281,10 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   // Contains a copy of the decompressed header (name, value) pairs until they
   // are consumed via Readv.
   QuicHeaderList header_list_;
-  // Length of HEADERS frame, including frame header and payload.
-  Http3FrameLengths headers_length_;
-  // Length of TRAILERS frame, including frame header and payload.
-  Http3FrameLengths trailers_length_;
+  // Length of HEADERS frame payload.
+  QuicByteCount headers_payload_length_;
+  // Length of TRAILERS frame payload.
+  QuicByteCount trailers_payload_length_;
 
   // True if the trailers have been completely decompressed.
   bool trailers_decompressed_;

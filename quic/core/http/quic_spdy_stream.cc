@@ -180,8 +180,8 @@ QuicSpdyStream::QuicSpdyStream(QuicStreamId id,
       visitor_(nullptr),
       blocked_on_decoding_headers_(false),
       headers_decompressed_(false),
-      headers_length_(0, 0),
-      trailers_length_(0, 0),
+      headers_payload_length_(0),
+      trailers_payload_length_(0),
       trailers_decompressed_(false),
       trailers_consumed_(false),
       priority_sent_(false),
@@ -216,8 +216,8 @@ QuicSpdyStream::QuicSpdyStream(PendingStream* pending,
       visitor_(nullptr),
       blocked_on_decoding_headers_(false),
       headers_decompressed_(false),
-      headers_length_(0, 0),
-      trailers_length_(0, 0),
+      headers_payload_length_(0),
+      trailers_payload_length_(0),
       trailers_decompressed_(false),
       trailers_consumed_(false),
       priority_sent_(false),
@@ -858,9 +858,9 @@ bool QuicSpdyStream::OnHeadersFrameStart(Http3FrameLengths frame_length) {
   }
 
   if (headers_decompressed_) {
-    trailers_length_ = frame_length;
+    trailers_payload_length_ = frame_length.payload_length;
   } else {
-    headers_length_ = frame_length;
+    headers_payload_length_ = frame_length.payload_length;
   }
 
   qpack_decoded_headers_accumulator_ =
@@ -921,8 +921,8 @@ bool QuicSpdyStream::OnHeadersFrameEnd() {
 
 void QuicSpdyStream::ProcessDecodedHeaders(const QuicHeaderList& headers) {
   const QuicByteCount frame_length = headers_decompressed_
-                                         ? trailers_length_.payload_length
-                                         : headers_length_.payload_length;
+                                         ? trailers_payload_length_
+                                         : headers_payload_length_;
   OnStreamHeaderList(/* fin = */ false, frame_length, headers);
   qpack_decoded_headers_accumulator_.reset();
 }
