@@ -143,8 +143,6 @@ void Bbr2NetworkModel::OnCongestionEventStart(
                             : round_trip_counter_.OnPacketsAcked(
                                   acked_packets.rbegin()->packet_number);
 
-  // TODO(wub): Get the max bandwidth sample from all acked_packets, then use it
-  // to update max_bandwidth_filter_ once after the loop.
   for (const auto& packet : acked_packets) {
     const BandwidthSample bandwidth_sample =
         bandwidth_sampler_.OnPacketAcknowledged(event_time,
@@ -163,7 +161,8 @@ void Bbr2NetworkModel::OnCongestionEventStart(
     }
     if (!bandwidth_sample.state_at_send.is_app_limited ||
         bandwidth_sample.bandwidth > MaxBandwidth()) {
-      max_bandwidth_filter_.Update(bandwidth_sample.bandwidth);
+      congestion_event->sample_max_bandwidth = std::max(
+          congestion_event->sample_max_bandwidth, bandwidth_sample.bandwidth);
     }
 
     if (bandwidth_sample.bandwidth > bandwidth_latest_) {
@@ -182,6 +181,9 @@ void Bbr2NetworkModel::OnCongestionEventStart(
   }
 
   min_rtt_filter_.Update(congestion_event->sample_min_rtt, event_time);
+  if (!congestion_event->sample_max_bandwidth.IsZero()) {
+    max_bandwidth_filter_.Update(congestion_event->sample_max_bandwidth);
+  }
 
   for (const LostPacket& packet : lost_packets) {
     const SendTimeState send_time_state =

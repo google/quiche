@@ -246,6 +246,9 @@ struct QUIC_EXPORT_PRIVATE Bbr2CongestionEvent {
   // QuicTime::Delta::Infinite() if acked_packets is empty.
   QuicTime::Delta sample_min_rtt = QuicTime::Delta::Infinite();
 
+  // Maximum bandwidth of all bandwidth samples from acked_packets.
+  QuicBandwidth sample_max_bandwidth = QuicBandwidth::Zero();
+
   // Send time state of the largest-numbered packet in this event.
   // SendTimeState send_time_state;
   struct {
