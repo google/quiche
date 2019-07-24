@@ -14,36 +14,14 @@
 
 namespace quic {
 
-namespace {
-
-QuicSocketAddress LookupAddress(std::string host, std::string port) {
-  addrinfo hint;
-  memset(&hint, 0, sizeof(hint));
-  hint.ai_protocol = IPPROTO_UDP;
-
-  addrinfo* info_list = nullptr;
-  int result = getaddrinfo(host.c_str(), port.c_str(), &hint, &info_list);
-  if (result != 0) {
-    QUIC_LOG(ERROR) << "Failed to look up " << host << ": "
-                    << gai_strerror(result);
-    return QuicSocketAddress();
-  }
-
-  CHECK(info_list != nullptr);
-  std::unique_ptr<addrinfo, void (*)(addrinfo*)> info_list_owned(info_list,
-                                                                 freeaddrinfo);
-  return QuicSocketAddress(info_list->ai_addr, info_list->ai_addrlen);
-}
-
-}  // namespace
-
 std::unique_ptr<QuicSpdyClientBase> QuicEpollClientFactory::CreateClient(
     std::string host_for_handshake,
     std::string host_for_lookup,
     uint16_t port,
     ParsedQuicVersionVector versions,
     std::unique_ptr<ProofVerifier> verifier) {
-  QuicSocketAddress addr = LookupAddress(host_for_lookup, QuicStrCat(port));
+  QuicSocketAddress addr =
+      tools::LookupAddress(host_for_lookup, QuicStrCat(port));
   if (!addr.IsInitialized()) {
     QUIC_LOG(ERROR) << "Unable to resolve address: " << host_for_lookup;
     return nullptr;

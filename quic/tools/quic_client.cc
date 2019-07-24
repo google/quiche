@@ -5,10 +5,12 @@
 #include "net/third_party/quiche/src/quic/tools/quic_client.h"
 
 #include <errno.h>
+#include <netdb.h>
 #include <netinet/in.h>
 #include <string.h>
 #include <sys/epoll.h>
 #include <sys/socket.h>
+#include <sys/types.h>
 
 #include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"
 #include "net/third_party/quiche/src/quic/core/http/spdy_utils.h"
@@ -21,6 +23,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
 #include "net/quic/platform/impl/quic_socket_utils.h"
 #include "net/third_party/quiche/src/quic/tools/quic_simple_client_session.h"
 
@@ -29,6 +32,29 @@
 #endif
 
 namespace quic {
+
+namespace tools {
+
+QuicSocketAddress LookupAddress(std::string host, std::string port) {
+  addrinfo hint;
+  memset(&hint, 0, sizeof(hint));
+  hint.ai_protocol = IPPROTO_UDP;
+
+  addrinfo* info_list = nullptr;
+  int result = getaddrinfo(host.c_str(), port.c_str(), &hint, &info_list);
+  if (result != 0) {
+    QUIC_LOG(ERROR) << "Failed to look up " << host << ": "
+                    << gai_strerror(result);
+    return QuicSocketAddress();
+  }
+
+  CHECK(info_list != nullptr);
+  std::unique_ptr<addrinfo, void (*)(addrinfo*)> info_list_owned(info_list,
+                                                                 freeaddrinfo);
+  return QuicSocketAddress(info_list->ai_addr, info_list->ai_addrlen);
+}
+
+}  // namespace tools
 
 QuicClient::QuicClient(QuicSocketAddress server_address,
                        const QuicServerId& server_id,

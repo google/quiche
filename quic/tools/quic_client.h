@@ -29,6 +29,12 @@ namespace test {
 class QuicClientPeer;
 }  // namespace test
 
+namespace tools {
+
+QuicSocketAddress LookupAddress(std::string host, std::string port);
+
+}  // namespace tools
+
 class QuicClient : public QuicSpdyClientBase {
  public:
   // This will create its own QuicClientEpollNetworkHelper.
