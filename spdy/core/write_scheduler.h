@@ -150,6 +150,9 @@ class SPDY_EXPORT_PRIVATE WriteScheduler {
   // Returns true if stream with |stream_id| is ready.
   virtual bool IsStreamReady(StreamIdType stream_id) const = 0;
 
+  // Returns the number of registered streams.
+  virtual size_t NumRegisteredStreams() const = 0;
+
   // Returns summary of internal state, for logging/debugging.
   virtual SpdyString DebugString() const = 0;
 };

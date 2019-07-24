@@ -76,10 +76,8 @@ class Http2PriorityWriteScheduler : public WriteScheduler<StreamIdType> {
   PopNextReadyStreamAndPrecedence() override;
   size_t NumReadyStreams() const override;
   bool IsStreamReady(StreamIdType stream_id) const override;
+  size_t NumRegisteredStreams() const override;
   SpdyString DebugString() const override;
-
-  // Return the number of streams currently in the tree.
-  int num_streams() const;
 
  private:
   friend class test::Http2PriorityWriteSchedulerPeer<StreamIdType>;
@@ -198,11 +196,6 @@ Http2PriorityWriteScheduler<StreamIdType>::Http2PriorityWriteScheduler() {
   root_stream_info->priority = 1.0;
   root_stream_info->ready = false;
   all_stream_infos_[kHttp2RootStreamId] = std::move(root_stream_info);
-}
-
-template <typename StreamIdType>
-int Http2PriorityWriteScheduler<StreamIdType>::num_streams() const {
-  return all_stream_infos_.size();
 }
 
 template <typename StreamIdType>
@@ -696,8 +689,14 @@ bool Http2PriorityWriteScheduler<StreamIdType>::IsStreamReady(
 }
 
 template <typename StreamIdType>
+size_t Http2PriorityWriteScheduler<StreamIdType>::NumRegisteredStreams() const {
+  return all_stream_infos_.size();
+}
+
+template <typename StreamIdType>
 SpdyString Http2PriorityWriteScheduler<StreamIdType>::DebugString() const {
-  return SpdyStrCat("Http2PriorityWriteScheduler {num_streams=", num_streams(),
+  return SpdyStrCat("Http2PriorityWriteScheduler {num_registered_streams=",
+                    NumRegisteredStreams(),
                     " num_ready_streams=", NumReadyStreams(), "}");
 }
 
@@ -757,15 +756,15 @@ bool Http2PriorityWriteScheduler<StreamIdType>::ValidateInvariantsForTests()
     }
   }
 
-  // Make sure num_streams reflects the total number of streams the map
-  // contains.
-  if (total_streams != num_streams()) {
+  // Make sure NumRegisteredStreams() reflects the total number of streams the
+  // map contains.
+  if (total_streams != NumRegisteredStreams()) {
     SPDY_DLOG(INFO) << "Map contains incorrect number of streams.";
     return false;
   }
   // Validate the validation function; we should have visited each stream twice
   // (except for the root)
-  DCHECK(streams_visited == 2 * num_streams() - 1);
+  DCHECK(streams_visited == 2 * NumRegisteredStreams() - 1);
   return true;
 }
 

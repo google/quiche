@@ -46,12 +46,12 @@ class Http2PriorityWriteSchedulerTest : public ::testing::Test {
 };
 
 TEST_F(Http2PriorityWriteSchedulerTest, RegisterAndUnregisterStreams) {
-  EXPECT_EQ(1, scheduler_.num_streams());
+  EXPECT_EQ(1u, scheduler_.NumRegisteredStreams());
   EXPECT_TRUE(scheduler_.StreamRegistered(0));
   EXPECT_FALSE(scheduler_.StreamRegistered(1));
 
   scheduler_.RegisterStream(1, SpdyStreamPrecedence(0, 100, false));
-  EXPECT_EQ(2, scheduler_.num_streams());
+  EXPECT_EQ(2u, scheduler_.NumRegisteredStreams());
   ASSERT_TRUE(scheduler_.StreamRegistered(1));
   EXPECT_EQ(100, scheduler_.GetStreamPrecedence(1).weight());
   EXPECT_FALSE(scheduler_.StreamRegistered(5));
@@ -62,14 +62,14 @@ TEST_F(Http2PriorityWriteSchedulerTest, RegisterAndUnregisterStreams) {
   EXPECT_SPDY_BUG(
       scheduler_.RegisterStream(5, SpdyStreamPrecedence(1, 50, false)),
       "Stream 5 already registered");
-  EXPECT_EQ(3, scheduler_.num_streams());
+  EXPECT_EQ(3u, scheduler_.NumRegisteredStreams());
   EXPECT_TRUE(scheduler_.StreamRegistered(1));
   ASSERT_TRUE(scheduler_.StreamRegistered(5));
   EXPECT_EQ(50, scheduler_.GetStreamPrecedence(5).weight());
   EXPECT_FALSE(scheduler_.StreamRegistered(13));
 
   scheduler_.RegisterStream(13, SpdyStreamPrecedence(5, 130, true));
-  EXPECT_EQ(4, scheduler_.num_streams());
+  EXPECT_EQ(4u, scheduler_.NumRegisteredStreams());
   EXPECT_TRUE(scheduler_.StreamRegistered(1));
   EXPECT_TRUE(scheduler_.StreamRegistered(5));
   ASSERT_TRUE(scheduler_.StreamRegistered(13));
@@ -79,7 +79,7 @@ TEST_F(Http2PriorityWriteSchedulerTest, RegisterAndUnregisterStreams) {
   scheduler_.UnregisterStream(5);
   // Cannot remove a stream that has already been removed.
   EXPECT_SPDY_BUG(scheduler_.UnregisterStream(5), "Stream 5 not registered");
-  EXPECT_EQ(3, scheduler_.num_streams());
+  EXPECT_EQ(3u, scheduler_.NumRegisteredStreams());
   EXPECT_TRUE(scheduler_.StreamRegistered(1));
   EXPECT_FALSE(scheduler_.StreamRegistered(5));
   EXPECT_TRUE(scheduler_.StreamRegistered(13));

@@ -258,6 +258,8 @@ class PriorityWriteScheduler : public WriteScheduler<StreamIdType> {
   // Returns the number of ready streams.
   size_t NumReadyStreams() const override { return num_ready_streams_; }
 
+  size_t NumRegisteredStreams() const override { return stream_infos_.size(); }
+
   SpdyString DebugString() const override {
     return SpdyStrCat(
         "PriorityWriteScheduler {num_streams=", stream_infos_.size(),

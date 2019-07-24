@@ -196,6 +196,15 @@ enum SpdyErrorCode : uint32_t {
   ERROR_CODE_MAX = ERROR_CODE_HTTP_1_1_REQUIRED
 };
 
+// Type of priority write scheduler.
+enum class WriteSchedulerType {
+  LIFO,  // Last added stream has the highest priority.
+  SPDY,  // Uses SPDY priorities described in
+         // https://www.chromium.org/spdy/spdy-protocol/spdy-protocol-draft3-1#TOC-2.3.3-Stream-priority.
+  HTTP2,  // Uses HTTP2 (tree-style) priority described in
+          // https://tools.ietf.org/html/rfc7540#section-5.3.
+};
+
 // A SPDY priority is a number between 0 and 7 (inclusive).
 typedef uint8_t SpdyPriority;
 
