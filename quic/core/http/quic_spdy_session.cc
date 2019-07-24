@@ -290,9 +290,8 @@ class QuicSpdySession::SpdyFramerVisitor
     }
   }
 
-  void set_max_uncompressed_header_bytes(
-      size_t set_max_uncompressed_header_bytes) {
-    header_list_.set_max_header_list_size(set_max_uncompressed_header_bytes);
+  void set_max_header_list_size(size_t max_header_list_size) {
+    header_list_.set_max_header_list_size(max_header_list_size);
   }
 
  private:
@@ -393,10 +392,11 @@ void QuicSpdySession::Initialize() {
                          /*stream_already_counted = */ false);
   }
 
-  set_max_uncompressed_header_bytes(max_inbound_header_list_size_);
+  spdy_framer_visitor_->set_max_header_list_size(max_inbound_header_list_size_);
 
   // Limit HPACK buffering to 2x header list size limit.
-  set_max_decode_buffer_size_bytes(2 * max_inbound_header_list_size_);
+  h2_deframer_.GetHpackDecoder()->set_max_decode_buffer_size_bytes(
+      2 * max_inbound_header_list_size_);
 }
 
 void QuicSpdySession::OnDecoderStreamError(QuicStringPiece /*error_message*/) {
@@ -734,12 +734,6 @@ void QuicSpdySession::UpdateHeaderEncoderTableSize(uint32_t value) {
 
 void QuicSpdySession::UpdateEnableServerPush(bool value) {
   set_server_push_enabled(value);
-}
-
-void QuicSpdySession::set_max_uncompressed_header_bytes(
-    size_t set_max_uncompressed_header_bytes) {
-  spdy_framer_visitor_->set_max_uncompressed_header_bytes(
-      set_max_uncompressed_header_bytes);
 }
 
 void QuicSpdySession::CloseConnectionWithDetails(QuicErrorCode error,
