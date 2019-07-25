@@ -325,7 +325,6 @@ QuicSpdySession::QuicSpdySession(
           QuicUtils::GetInvalidStreamId(connection->transport_version())),
       fin_(false),
       frame_len_(0),
-      uncompressed_frame_len_(0),
       supports_push_promise_(perspective() == Perspective::IS_CLIENT),
       spdy_framer_(SpdyFramer::ENABLE_COMPRESSION),
       spdy_framer_visitor_(new SpdyFramerVisitor(this)) {
@@ -707,7 +706,6 @@ void QuicSpdySession::OnHeaderList(const QuicHeaderList& header_list) {
   stream_id_ = QuicUtils::GetInvalidStreamId(connection()->transport_version());
   fin_ = false;
   frame_len_ = 0;
-  uncompressed_frame_len_ = 0;
 }
 
 void QuicSpdySession::OnCompressedFrameSize(size_t frame_len) {

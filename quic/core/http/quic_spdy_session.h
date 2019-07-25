@@ -288,7 +288,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   QuicStreamId promised_stream_id_;
   bool fin_;
   size_t frame_len_;
-  size_t uncompressed_frame_len_;
 
   bool supports_push_promise_;
 
