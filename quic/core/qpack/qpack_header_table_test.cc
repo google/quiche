@@ -404,6 +404,42 @@ TEST_F(QpackHeaderTableTest, Observer) {
   Mock::VerifyAndClearExpectations(&observer5);
 }
 
+TEST_F(QpackHeaderTableTest, DrainingIndex) {
+  QpackHeaderTable table;
+  table.SetMaximumDynamicTableCapacity(4 * QpackEntry::Size("foo", "bar"));
+
+  // Empty table: no draining entry.
+  EXPECT_EQ(0u, table.draining_index(0.0));
+  EXPECT_EQ(0u, table.draining_index(1.0));
+
+  // Table with one entry.
+  EXPECT_TRUE(table.InsertEntry("foo", "bar"));
+  // Any entry can be referenced if none of the table is draining.
+  EXPECT_EQ(0u, table.draining_index(0.0));
+  // No entry can be referenced if all of the table is draining.
+  EXPECT_EQ(1u, table.draining_index(1.0));
+
+  // Table with two entries is at half capacity.
+  EXPECT_TRUE(table.InsertEntry("foo", "bar"));
+  // Any entry can be referenced if at most half of the table is draining,
+  // because current entries only take up half of total capacity.
+  EXPECT_EQ(0u, table.draining_index(0.0));
+  EXPECT_EQ(0u, table.draining_index(0.5));
+  // No entry can be referenced if all of the table is draining.
+  EXPECT_EQ(2u, table.draining_index(1.0));
+
+  // Table with four entries is full.
+  EXPECT_TRUE(table.InsertEntry("foo", "bar"));
+  EXPECT_TRUE(table.InsertEntry("foo", "bar"));
+  // Any entry can be referenced if none of the table is draining.
+  EXPECT_EQ(0u, table.draining_index(0.0));
+  // In a full table with identically sized entries, |draining_fraction| of all
+  // entries are draining.
+  EXPECT_EQ(2u, table.draining_index(0.5));
+  // No entry can be referenced if all of the table is draining.
+  EXPECT_EQ(4u, table.draining_index(1.0));
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

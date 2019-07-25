@@ -173,6 +173,31 @@ void QpackHeaderTable::RegisterObserver(Observer* observer,
   observers_.push({observer, required_insert_count});
 }
 
+uint64_t QpackHeaderTable::draining_index(float draining_fraction) const {
+  DCHECK_LE(0.0, draining_fraction);
+  DCHECK_LE(draining_fraction, 1.0);
+
+  const uint64_t required_space = draining_fraction * dynamic_table_capacity_;
+  uint64_t space_above_draining_index =
+      dynamic_table_capacity_ - dynamic_table_size_;
+
+  if (dynamic_entries_.empty() ||
+      space_above_draining_index >= required_space) {
+    return dropped_entry_count_;
+  }
+
+  auto it = dynamic_entries_.begin();
+  while (space_above_draining_index < required_space) {
+    space_above_draining_index += it->Size();
+    ++it;
+    if (it == dynamic_entries_.end()) {
+      return inserted_entry_count();
+    }
+  }
+
+  return it->InsertionIndex();
+}
+
 bool QpackHeaderTable::ObserverWithThreshold::operator>(
     const ObserverWithThreshold& other) const {
   return required_insert_count > other.required_insert_count;

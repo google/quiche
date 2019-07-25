@@ -99,6 +99,14 @@ class QUIC_EXPORT_PRIVATE QpackHeaderTable {
   // The number of entries dropped from the dynamic table.
   uint64_t dropped_entry_count() const { return dropped_entry_count_; }
 
+  // Returns the draining index described at
+  // https://quicwg.org/base-drafts/draft-ietf-quic-qpack.html#avoiding-blocked-insertions.
+  // Entries with an index larger than or equal to the draining index take up
+  // approximately |1.0 - draining_fraction| of dynamic table capacity.  The
+  // remaining capacity is taken up by draining entries and unused space.
+  // The returned index might not be the index of a valid entry.
+  uint64_t draining_index(float draining_fraction) const;
+
  private:
   // Evict entries from the dynamic table until table size is less than or equal
   // to current value of |dynamic_table_capacity_|.
