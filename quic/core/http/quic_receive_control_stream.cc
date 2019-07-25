@@ -237,7 +237,7 @@ bool QuicReceiveControlStream::OnPriorityFrame(const PriorityFrame& priority) {
   // that the server is not permitted to open. In that case, simply drop the
   // frame.
   if (stream) {
-    stream->SetPriority(priority.weight);
+    stream->SetPriority(spdy::SpdyStreamPrecedence(priority.weight));
   }
   return true;
 }

@@ -479,9 +479,10 @@ void QuicSpdyStream::ConsumeHeaderList() {
   }
 }
 
-void QuicSpdyStream::OnStreamHeadersPriority(SpdyPriority priority) {
+void QuicSpdyStream::OnStreamHeadersPriority(
+    const spdy::SpdyStreamPrecedence& precedence) {
   DCHECK_EQ(Perspective::IS_SERVER, session()->connection()->perspective());
-  SetPriority(priority);
+  SetPriority(precedence);
 }
 
 void QuicSpdyStream::OnStreamHeaderList(bool fin,
@@ -623,9 +624,10 @@ void QuicSpdyStream::OnTrailingHeadersComplete(
   }
 }
 
-void QuicSpdyStream::OnPriorityFrame(SpdyPriority priority) {
+void QuicSpdyStream::OnPriorityFrame(
+    const spdy::SpdyStreamPrecedence& precedence) {
   DCHECK_EQ(Perspective::IS_SERVER, session()->connection()->perspective());
-  SetPriority(priority);
+  SetPriority(precedence);
 }
 
 void QuicSpdyStream::OnStreamReset(const QuicRstStreamFrame& frame) {
@@ -936,7 +938,7 @@ size_t QuicSpdyStream::WriteHeadersImpl(
     QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener) {
   if (!VersionUsesQpack(transport_version())) {
     return spdy_session_->WriteHeadersOnHeadersStream(
-        id(), std::move(header_block), fin, priority(),
+        id(), std::move(header_block), fin, precedence(),
         std::move(ack_listener));
   }
 
@@ -976,7 +978,7 @@ size_t QuicSpdyStream::WriteHeadersImpl(
 }
 
 void QuicSpdyStream::PopulatePriorityFrame(PriorityFrame* frame) {
-  frame->weight = priority();
+  frame->weight = precedence().spdy3_priority();
   frame->dependency_type = ROOT_OF_TREE;
   frame->prioritized_type = REQUEST_STREAM;
   frame->prioritized_element_id = id();

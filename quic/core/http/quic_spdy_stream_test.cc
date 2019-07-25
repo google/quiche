@@ -108,22 +108,26 @@ class TestStream : public QuicSpdyStream {
 class TestMockUpdateStreamSession : public MockQuicSpdySession {
  public:
   explicit TestMockUpdateStreamSession(QuicConnection* connection)
-      : MockQuicSpdySession(connection) {}
+      : MockQuicSpdySession(connection),
+        expected_precedence_(
+            spdy::SpdyStreamPrecedence(QuicStream::kDefaultPriority)) {}
 
-  void UpdateStreamPriority(QuicStreamId id, SpdyPriority priority) override {
+  void UpdateStreamPriority(
+      QuicStreamId id,
+      const spdy::SpdyStreamPrecedence& precedence) override {
     EXPECT_EQ(id, expected_stream_->id());
-    EXPECT_EQ(expected_priority_, priority);
-    EXPECT_EQ(expected_priority_, expected_stream_->priority());
+    EXPECT_EQ(expected_precedence_, precedence);
+    EXPECT_EQ(expected_precedence_, expected_stream_->precedence());
   }
 
   void SetExpectedStream(QuicSpdyStream* stream) { expected_stream_ = stream; }
-  void SetExpectedPriority(SpdyPriority priority) {
-    expected_priority_ = priority;
+  void SetExpectedPriority(const spdy::SpdyStreamPrecedence& precedence) {
+    expected_precedence_ = precedence;
   }
 
  private:
   QuicSpdyStream* expected_stream_;
-  SpdyPriority expected_priority_;
+  spdy::SpdyStreamPrecedence expected_precedence_;
 };
 
 class QuicSpdyStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
@@ -245,7 +249,8 @@ INSTANTIATE_TEST_SUITE_P(Tests,
 TEST_P(QuicSpdyStreamTest, ProcessHeaderList) {
   Initialize(kShouldProcessData);
 
-  stream_->OnStreamHeadersPriority(kV3HighestPriority);
+  stream_->OnStreamHeadersPriority(
+      spdy::SpdyStreamPrecedence(kV3HighestPriority));
   ProcessHeaders(false, headers_);
   EXPECT_EQ("", stream_->data());
   EXPECT_FALSE(stream_->header_list().empty());
@@ -256,7 +261,8 @@ TEST_P(QuicSpdyStreamTest, ProcessTooLargeHeaderList) {
   Initialize(kShouldProcessData);
 
   QuicHeaderList headers;
-  stream_->OnStreamHeadersPriority(kV3HighestPriority);
+  stream_->OnStreamHeadersPriority(
+      spdy::SpdyStreamPrecedence(kV3HighestPriority));
 
   const bool version_uses_qpack =
       VersionUsesQpack(GetParam().transport_version);
@@ -288,7 +294,8 @@ TEST_P(QuicSpdyStreamTest, ProcessHeaderListWithFin) {
     headers.OnHeader(p.first, p.second);
     total_bytes += p.first.size() + p.second.size();
   }
-  stream_->OnStreamHeadersPriority(kV3HighestPriority);
+  stream_->OnStreamHeadersPriority(
+      spdy::SpdyStreamPrecedence(kV3HighestPriority));
   stream_->OnStreamHeaderList(true, total_bytes, headers);
   EXPECT_EQ("", stream_->data());
   EXPECT_FALSE(stream_->header_list().empty());
@@ -925,7 +932,8 @@ TEST_P(QuicSpdyStreamTest, ReceivingTrailersViaHeaderList) {
     total_bytes += p.first.size() + p.second.size();
   }
 
-  stream_->OnStreamHeadersPriority(kV3HighestPriority);
+  stream_->OnStreamHeadersPriority(
+      spdy::SpdyStreamPrecedence(kV3HighestPriority));
   stream_->OnStreamHeaderList(/*fin=*/false, total_bytes, headers);
   stream_->ConsumeHeaderList();
 
@@ -1432,8 +1440,9 @@ TEST_P(QuicSpdyStreamTest, StreamBecomesZombieWithWriteThatCloses) {
 
 TEST_P(QuicSpdyStreamTest, OnPriorityFrame) {
   Initialize(kShouldProcessData);
-  stream_->OnPriorityFrame(kV3HighestPriority);
-  EXPECT_EQ(kV3HighestPriority, stream_->priority());
+  stream_->OnPriorityFrame(spdy::SpdyStreamPrecedence(kV3HighestPriority));
+  EXPECT_EQ(spdy::SpdyStreamPrecedence(kV3HighestPriority),
+            stream_->precedence());
 }
 
 TEST_P(QuicSpdyStreamTest, OnPriorityFrameAfterSendingData) {
@@ -1451,8 +1460,9 @@ TEST_P(QuicSpdyStreamTest, OnPriorityFrameAfterSendingData) {
   }
   EXPECT_CALL(*session_, WritevData(_, _, 4, _, FIN));
   stream_->WriteOrBufferBody("data", true);
-  stream_->OnPriorityFrame(kV3HighestPriority);
-  EXPECT_EQ(kV3HighestPriority, stream_->priority());
+  stream_->OnPriorityFrame(spdy::SpdyStreamPrecedence(kV3HighestPriority));
+  EXPECT_EQ(spdy::SpdyStreamPrecedence(kV3HighestPriority),
+            stream_->precedence());
 }
 
 TEST_P(QuicSpdyStreamTest, SetPriorityBeforeUpdateStreamPriority) {
@@ -1473,11 +1483,11 @@ TEST_P(QuicSpdyStreamTest, SetPriorityBeforeUpdateStreamPriority) {
   // if called within UpdateStreamPriority(). This expectation is enforced in
   // TestMockUpdateStreamSession::UpdateStreamPriority().
   session->SetExpectedStream(stream);
-  session->SetExpectedPriority(kV3HighestPriority);
-  stream->SetPriority(kV3HighestPriority);
+  session->SetExpectedPriority(spdy::SpdyStreamPrecedence(kV3HighestPriority));
+  stream->SetPriority(spdy::SpdyStreamPrecedence(kV3HighestPriority));
 
-  session->SetExpectedPriority(kV3LowestPriority);
-  stream->SetPriority(kV3LowestPriority);
+  session->SetExpectedPriority(spdy::SpdyStreamPrecedence(kV3LowestPriority));
+  stream->SetPriority(spdy::SpdyStreamPrecedence(kV3LowestPriority));
 }
 
 TEST_P(QuicSpdyStreamTest, StreamWaitsForAcks) {
@@ -2155,7 +2165,8 @@ TEST_P(QuicSpdyStreamTest, PushPromiseOnDataStreamShouldClose) {
   QuicStreamFrame frame(stream_->id(), false, 0, buffer.get(), length);
   // TODO(lassey): Check for HTTP_WRONG_STREAM error code.
   EXPECT_CALL(*connection_, CloseConnection(QUIC_HTTP_DECODER_ERROR, _, _));
-  stream_->OnStreamHeadersPriority(kV3HighestPriority);
+  stream_->OnStreamHeadersPriority(
+      spdy::SpdyStreamPrecedence(kV3HighestPriority));
   ProcessHeaders(false, headers_);
   stream_->ConsumeHeaderList();
   stream_->OnStreamFrame(frame);

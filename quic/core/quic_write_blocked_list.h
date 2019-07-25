@@ -92,15 +92,14 @@ class QUIC_EXPORT_PRIVATE QuicWriteBlockedList {
 
   void RegisterStream(QuicStreamId stream_id,
                       bool is_static_stream,
-                      spdy::SpdyPriority priority) {
+                      const spdy::SpdyStreamPrecedence& precedence) {
     DCHECK(!priority_write_scheduler_.StreamRegistered(stream_id));
     if (is_static_stream) {
       static_stream_collection_.Register(stream_id);
       return;
     }
 
-    priority_write_scheduler_.RegisterStream(
-        stream_id, spdy::SpdyStreamPrecedence(priority));
+    priority_write_scheduler_.RegisterStream(stream_id, precedence);
   }
 
   void UnregisterStream(QuicStreamId stream_id, bool is_static) {
@@ -112,10 +111,9 @@ class QUIC_EXPORT_PRIVATE QuicWriteBlockedList {
   }
 
   void UpdateStreamPriority(QuicStreamId stream_id,
-                            spdy::SpdyPriority new_priority) {
+                            const spdy::SpdyStreamPrecedence& new_precedence) {
     DCHECK(!static_stream_collection_.IsRegistered(stream_id));
-    priority_write_scheduler_.UpdateStreamPrecedence(
-        stream_id, spdy::SpdyStreamPrecedence(new_priority));
+    priority_write_scheduler_.UpdateStreamPrecedence(stream_id, new_precedence);
   }
 
   void UpdateBytesForStream(QuicStreamId stream_id, size_t bytes) {

@@ -216,7 +216,8 @@ void QuicSimpleServerSession::HandlePromisedPushRequests() {
     DCHECK_EQ(promised_info.stream_id, promised_stream->id());
     QUIC_DLOG(INFO) << "created server push stream " << promised_stream->id();
 
-    promised_stream->SetPriority(promised_info.priority);
+    promised_stream->SetPriority(
+        spdy::SpdyStreamPrecedence(promised_info.priority));
 
     spdy::SpdyHeaderBlock request_headers(
         std::move(promised_info.request_headers));

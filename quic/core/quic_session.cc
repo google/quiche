@@ -1155,19 +1155,21 @@ void QuicSession::OnCryptoHandshakeMessageSent(
 void QuicSession::OnCryptoHandshakeMessageReceived(
     const CryptoHandshakeMessage& /*message*/) {}
 
-void QuicSession::RegisterStreamPriority(QuicStreamId id,
-                                         bool is_static,
-                                         SpdyPriority priority) {
-  write_blocked_streams()->RegisterStream(id, is_static, priority);
+void QuicSession::RegisterStreamPriority(
+    QuicStreamId id,
+    bool is_static,
+    const spdy::SpdyStreamPrecedence& precedence) {
+  write_blocked_streams()->RegisterStream(id, is_static, precedence);
 }
 
 void QuicSession::UnregisterStreamPriority(QuicStreamId id, bool is_static) {
   write_blocked_streams()->UnregisterStream(id, is_static);
 }
 
-void QuicSession::UpdateStreamPriority(QuicStreamId id,
-                                       SpdyPriority new_priority) {
-  write_blocked_streams()->UpdateStreamPriority(id, new_priority);
+void QuicSession::UpdateStreamPriority(
+    QuicStreamId id,
+    const spdy::SpdyStreamPrecedence& new_precedence) {
+  write_blocked_streams()->UpdateStreamPriority(id, new_precedence);
 }
 
 QuicConfig* QuicSession::config() {

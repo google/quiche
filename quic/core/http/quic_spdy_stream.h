@@ -78,7 +78,8 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
 
   // Called by the session when headers with a priority have been received
   // for this stream.  This method will only be called for server streams.
-  virtual void OnStreamHeadersPriority(spdy::SpdyPriority priority);
+  virtual void OnStreamHeadersPriority(
+      const spdy::SpdyStreamPrecedence& precedence);
 
   // Called by the session when decompressed headers have been completely
   // delivered to this stream.  If |fin| is true, then this stream
@@ -95,7 +96,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
 
   // Called by the session when a PRIORITY frame has been been received for this
   // stream. This method will only be called for server streams.
-  void OnPriorityFrame(spdy::SpdyPriority priority);
+  void OnPriorityFrame(const spdy::SpdyStreamPrecedence& precedence);
 
   // Override the base class to not discard response when receiving
   // QUIC_STREAM_NO_ERROR.

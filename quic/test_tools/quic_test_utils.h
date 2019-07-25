@@ -702,7 +702,8 @@ class MockQuicSpdySession : public QuicSpdySession {
   MOCK_METHOD2(OnStreamHeaders,
                void(QuicStreamId stream_id, QuicStringPiece headers_data));
   MOCK_METHOD2(OnStreamHeadersPriority,
-               void(QuicStreamId stream_id, spdy::SpdyPriority priority));
+               void(QuicStreamId stream_id,
+                    const spdy::SpdyStreamPrecedence& precedence));
   MOCK_METHOD3(OnStreamHeadersComplete,
                void(QuicStreamId stream_id, bool fin, size_t frame_len));
   MOCK_METHOD4(OnStreamHeaderList,
@@ -723,7 +724,8 @@ class MockQuicSpdySession : public QuicSpdySession {
                     size_t frame_len,
                     const QuicHeaderList& header_list));
   MOCK_METHOD2(OnPriorityFrame,
-               void(QuicStreamId id, spdy::SpdyPriority priority));
+               void(QuicStreamId id,
+                    const spdy::SpdyStreamPrecedence& precedence));
 
   MOCK_METHOD1(OnHeadersHeadOfLineBlocking, void(QuicTime::Delta delta));
   MOCK_METHOD4(

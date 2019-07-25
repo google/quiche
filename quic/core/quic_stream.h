@@ -176,11 +176,11 @@ class QUIC_EXPORT_PRIVATE QuicStream
   virtual void OnConnectionClosed(QuicErrorCode error,
                                   ConnectionCloseSource source);
 
-  spdy::SpdyPriority priority() const;
+  const spdy::SpdyStreamPrecedence& precedence() const;
 
   // Sets priority_ to priority.  This should only be called before bytes are
   // written to the server.
-  void SetPriority(spdy::SpdyPriority priority);
+  void SetPriority(const spdy::SpdyStreamPrecedence& precedence);
 
   // Returns true if this stream is still waiting for acks of sent data.
   // This will return false if all data has been acked, or if the stream
@@ -456,8 +456,8 @@ class QUIC_EXPORT_PRIVATE QuicStream
   QuicStreamId id_;
   // Pointer to the owning QuicSession object.
   QuicSession* session_;
-  // The priority of the stream, once parsed.
-  spdy::SpdyPriority priority_;
+  // The precedence of the stream, once parsed.
+  spdy::SpdyStreamPrecedence precedence_;
   // Bytes read refers to payload bytes only: they do not include framing,
   // encryption overhead etc.
   uint64_t stream_bytes_read_;

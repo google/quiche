@@ -174,7 +174,8 @@ QuicSpdyClientStream* QuicSpdyClientBase::CreateClientStream() {
   auto* stream = static_cast<QuicSpdyClientStream*>(
       client_session()->CreateOutgoingBidirectionalStream());
   if (stream) {
-    stream->SetPriority(QuicStream::kDefaultPriority);
+    stream->SetPriority(
+        spdy::SpdyStreamPrecedence(QuicStream::kDefaultPriority));
     stream->set_visitor(this);
   }
   return stream;

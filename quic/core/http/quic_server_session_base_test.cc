@@ -503,7 +503,8 @@ TEST_P(QuicServerSessionBaseTest, BandwidthEstimates) {
   QuicServerSessionBasePeer::SetCryptoStream(session_.get(), crypto_stream);
   session_->RegisterStreamPriority(
       QuicUtils::GetHeadersStreamId(connection_->transport_version()),
-      /*is_static=*/true, QuicStream::kDefaultPriority);
+      /*is_static=*/true,
+      spdy::SpdyStreamPrecedence(QuicStream::kDefaultPriority));
 
   // Set some initial bandwidth values.
   QuicSentPacketManager* sent_packet_manager =

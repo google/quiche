@@ -236,7 +236,7 @@ QuicStream::QuicStream(QuicStreamId id,
     : sequencer_(std::move(sequencer)),
       id_(id),
       session_(session),
-      priority_(kDefaultPriority),
+      precedence_(spdy::SpdyStreamPrecedence(kDefaultPriority)),
       stream_bytes_read_(stream_bytes_read),
       stream_error_(QUIC_STREAM_NO_ERROR),
       connection_error_(QUIC_NO_ERROR),
@@ -276,7 +276,7 @@ QuicStream::QuicStream(QuicStreamId id,
   }
   SetFromConfig();
   if (type_ != CRYPTO) {
-    session_->RegisterStreamPriority(id, is_static_, priority_);
+    session_->RegisterStreamPriority(id, is_static_, precedence_);
   }
 }
 
@@ -432,13 +432,13 @@ void QuicStream::CloseConnectionWithDetails(QuicErrorCode error,
       error, details, ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
 }
 
-SpdyPriority QuicStream::priority() const {
-  return priority_;
+const spdy::SpdyStreamPrecedence& QuicStream::precedence() const {
+  return precedence_;
 }
 
-void QuicStream::SetPriority(SpdyPriority priority) {
-  priority_ = priority;
-  session_->UpdateStreamPriority(id(), priority);
+void QuicStream::SetPriority(const spdy::SpdyStreamPrecedence& precedence) {
+  precedence_ = precedence;
+  session_->UpdateStreamPriority(id(), precedence);
 }
 
 void QuicStream::WriteOrBufferData(

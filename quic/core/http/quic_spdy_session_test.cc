@@ -654,7 +654,7 @@ TEST_P(QuicSpdySessionTestServer, TestBatchedWrites) {
   // Now let stream 4 do the 2nd of its 3 writes, but add a block for a high
   // priority stream 6.  4 should be preempted.  6 will write but *not* block so
   // will cede back to 4.
-  stream6->SetPriority(kV3HighestPriority);
+  stream6->SetPriority(spdy::SpdyStreamPrecedence(kV3HighestPriority));
   EXPECT_CALL(*stream4, OnCanWrite())
       .WillOnce(Invoke([this, stream4, stream6]() {
         session_.SendLargeFakeData(stream4, 6000);
@@ -1253,14 +1253,15 @@ TEST_P(QuicSpdySessionTestServer,
     EXPECT_FALSE(session_.IsStreamFlowControlBlocked());
     headers["header"] = QuicStrCat(random.RandUint64(), random.RandUint64(),
                                    random.RandUint64());
-    session_.WriteHeadersOnHeadersStream(stream_id, headers.Clone(), true, 0,
+    session_.WriteHeadersOnHeadersStream(stream_id, headers.Clone(), true,
+                                         spdy::SpdyStreamPrecedence(0),
                                          nullptr);
     stream_id += IdDelta();
   }
   // Write once more to ensure that the headers stream has buffered data. The
   // random headers may have exactly filled the flow control window.
-  session_.WriteHeadersOnHeadersStream(stream_id, std::move(headers), true, 0,
-                                       nullptr);
+  session_.WriteHeadersOnHeadersStream(stream_id, std::move(headers), true,
+                                       spdy::SpdyStreamPrecedence(0), nullptr);
   EXPECT_TRUE(headers_stream->HasBufferedData());
 
   EXPECT_TRUE(headers_stream->flow_controller()->IsBlocked());
@@ -2006,8 +2007,10 @@ TEST_P(QuicSpdySessionTestServer, RetransmitFrames) {
 TEST_P(QuicSpdySessionTestServer, OnPriorityFrame) {
   QuicStreamId stream_id = GetNthClientInitiatedBidirectionalId(0);
   TestStream* stream = session_.CreateIncomingStream(stream_id);
-  session_.OnPriorityFrame(stream_id, kV3HighestPriority);
-  EXPECT_EQ(kV3HighestPriority, stream->priority());
+  session_.OnPriorityFrame(stream_id,
+                           spdy::SpdyStreamPrecedence(kV3HighestPriority));
+  EXPECT_EQ(spdy::SpdyStreamPrecedence(kV3HighestPriority),
+            stream->precedence());
 }
 
 TEST_P(QuicSpdySessionTestServer, SimplePendingStreamType) {

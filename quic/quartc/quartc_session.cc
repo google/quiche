@@ -301,7 +301,8 @@ std::unique_ptr<QuartcStream> QuartcSession::InitializeDataStream(
   // Register the stream to the QuicWriteBlockedList. |priority| is clamped
   // between 0 and 7, with 0 being the highest priority and 7 the lowest
   // priority.
-  write_blocked_streams()->UpdateStreamPriority(stream->id(), priority);
+  write_blocked_streams()->UpdateStreamPriority(
+      stream->id(), spdy::SpdyStreamPrecedence(priority));
 
   if (IsIncomingStream(stream->id())) {
     DCHECK(session_delegate_);

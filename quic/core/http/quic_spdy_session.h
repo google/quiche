@@ -76,8 +76,9 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
 
   // Called by |headers_stream_| when headers with a priority have been
   // received for a stream.  This method will only be called for server streams.
-  virtual void OnStreamHeadersPriority(QuicStreamId stream_id,
-                                       spdy::SpdyPriority priority);
+  virtual void OnStreamHeadersPriority(
+      QuicStreamId stream_id,
+      const spdy::SpdyStreamPrecedence& precedence);
 
   // Called by |headers_stream_| when headers have been completely received
   // for a stream.  |fin| will be true if the fin flag was set in the headers
@@ -98,7 +99,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // Called by |headers_stream_| when a PRIORITY frame has been received for a
   // stream. This method will only be called for server streams.
   virtual void OnPriorityFrame(QuicStreamId stream_id,
-                               spdy::SpdyPriority priority);
+                               const spdy::SpdyStreamPrecedence& precedence);
 
   // Sends contents of |iov| to h2_deframer_, returns number of bytes processed.
   size_t ProcessHeaderData(const struct iovec& iov);
@@ -111,7 +112,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
       QuicStreamId id,
       spdy::SpdyHeaderBlock headers,
       bool fin,
-      spdy::SpdyPriority priority,
+      const spdy::SpdyStreamPrecedence& precedence,
       QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener);
 
   // Writes a PRIORITY frame the to peer. Returns the size in bytes of the
@@ -243,7 +244,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // Called when a HEADERS frame has been received.
   void OnHeaders(spdy::SpdyStreamId stream_id,
                  bool has_priority,
-                 spdy::SpdyPriority priority,
+                 const spdy::SpdyStreamPrecedence& precedence,
                  bool fin);
 
   // Called when a PUSH_PROMISE frame has been received.
@@ -251,7 +252,8 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
                      spdy::SpdyStreamId promised_stream_id);
 
   // Called when a PRIORITY frame has been received.
-  void OnPriority(spdy::SpdyStreamId stream_id, spdy::SpdyPriority priority);
+  void OnPriority(spdy::SpdyStreamId stream_id,
+                  const spdy::SpdyStreamPrecedence& precedence);
 
   // Called when the complete list of headers is available.
   void OnHeaderList(const QuicHeaderList& header_list);

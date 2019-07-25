@@ -256,16 +256,18 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
       const CryptoHandshakeMessage& message);
 
   // Called by the stream on creation to set priority in the write blocked list.
-  virtual void RegisterStreamPriority(QuicStreamId id,
-                                      bool is_static,
-                                      spdy::SpdyPriority priority);
+  virtual void RegisterStreamPriority(
+      QuicStreamId id,
+      bool is_static,
+      const spdy::SpdyStreamPrecedence& precedence);
   // Called by the stream on deletion to clear priority from the write blocked
   // list.
   virtual void UnregisterStreamPriority(QuicStreamId id, bool is_static);
   // Called by the stream on SetPriority to update priority on the write blocked
   // list.
-  virtual void UpdateStreamPriority(QuicStreamId id,
-                                    spdy::SpdyPriority new_priority);
+  virtual void UpdateStreamPriority(
+      QuicStreamId id,
+      const spdy::SpdyStreamPrecedence& new_precedence);
 
   // Returns mutable config for this session. Returned config is owned
   // by QuicSession.

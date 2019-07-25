@@ -483,7 +483,8 @@ TEST_P(QuicSimpleServerSessionTest, CreateOutgoingDynamicStreamUptoLimit) {
   QuicSimpleServerSessionPeer::SetCryptoStream(session_.get(), crypto_stream);
   session_->RegisterStreamPriority(
       QuicUtils::GetHeadersStreamId(connection_->transport_version()),
-      /*is_static=*/true, QuicStream::kDefaultPriority);
+      /*is_static=*/true,
+      spdy::SpdyStreamPrecedence(QuicStream::kDefaultPriority));
 
   // Create push streams till reaching the upper limit of allowed open streams.
   for (size_t i = 0; i < kMaxStreamsForTest; ++i) {
@@ -587,7 +588,8 @@ class QuicSimpleServerSessionServerPushTest
     QuicSimpleServerSessionPeer::SetCryptoStream(session_.get(), crypto_stream);
     session_->RegisterStreamPriority(
         QuicUtils::GetHeadersStreamId(connection_->transport_version()),
-        /*is_static=*/true, QuicStream::kDefaultPriority);
+        /*is_static=*/true,
+        spdy::SpdyStreamPrecedence(QuicStream::kDefaultPriority));
   }
 
   // Given |num_resources|, create this number of fake push resources and push

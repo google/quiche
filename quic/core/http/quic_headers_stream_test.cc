@@ -284,7 +284,8 @@ class QuicHeadersStreamTest : public QuicTestWithParam<TestParams> {
                                      _, _, NO_FIN))
         .WillOnce(WithArgs<2>(Invoke(this, &QuicHeadersStreamTest::SaveIov)));
     QuicSpdySessionPeer::WriteHeadersOnHeadersStream(
-        &session_, stream_id, headers_.Clone(), fin, priority, nullptr);
+        &session_, stream_id, headers_.Clone(), fin,
+        spdy::SpdyStreamPrecedence(priority), nullptr);
 
     // Parse the outgoing data and check that it matches was was written.
     if (is_request) {
@@ -451,7 +452,8 @@ TEST_P(QuicHeadersStreamTest, ProcessRawData) {
           headers_frame.set_has_priority(true);
           headers_frame.set_weight(Spdy3PriorityToHttp2Weight(0));
           frame = framer_->SerializeFrame(headers_frame);
-          EXPECT_CALL(session_, OnStreamHeadersPriority(stream_id, 0));
+          EXPECT_CALL(session_, OnStreamHeadersPriority(
+                                    stream_id, spdy::SpdyStreamPrecedence(0)));
         } else {
           SpdyHeadersIR headers_frame(stream_id, headers_.Clone());
           headers_frame.set_fin(fin);
@@ -536,7 +538,10 @@ TEST_P(QuicHeadersStreamTest, ProcessPriorityFrame) {
             .WillRepeatedly(InvokeWithoutArgs(
                 this, &QuicHeadersStreamTest::TearDownLocalConnectionState));
       } else {
-        EXPECT_CALL(session_, OnPriorityFrame(stream_id, priority)).Times(1);
+        EXPECT_CALL(
+            session_,
+            OnPriorityFrame(stream_id, spdy::SpdyStreamPrecedence(priority)))
+            .Times(1);
       }
       stream_frame_.data_buffer = frame.data();
       stream_frame_.data_length = frame.size();
@@ -588,7 +593,8 @@ TEST_P(QuicHeadersStreamTest, ProcessLargeRawData) {
           headers_frame.set_has_priority(true);
           headers_frame.set_weight(Spdy3PriorityToHttp2Weight(0));
           frame = framer_->SerializeFrame(headers_frame);
-          EXPECT_CALL(session_, OnStreamHeadersPriority(stream_id, 0));
+          EXPECT_CALL(session_, OnStreamHeadersPriority(
+                                    stream_id, spdy::SpdyStreamPrecedence(0)));
         } else {
           SpdyHeadersIR headers_frame(stream_id, headers_.Clone());
           headers_frame.set_fin(fin);
@@ -778,7 +784,8 @@ TEST_P(QuicHeadersStreamTest, HpackDecoderDebugVisitor) {
           headers_frame.set_has_priority(true);
           headers_frame.set_weight(Spdy3PriorityToHttp2Weight(0));
           frame = framer_->SerializeFrame(headers_frame);
-          EXPECT_CALL(session_, OnStreamHeadersPriority(stream_id, 0));
+          EXPECT_CALL(session_, OnStreamHeadersPriority(
+                                    stream_id, spdy::SpdyStreamPrecedence(0)));
         } else {
           SpdyHeadersIR headers_frame(stream_id, headers_.Clone());
           headers_frame.set_fin(fin);

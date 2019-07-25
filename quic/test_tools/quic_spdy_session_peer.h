@@ -41,7 +41,7 @@ class QuicSpdySessionPeer {
       QuicStreamId id,
       spdy::SpdyHeaderBlock headers,
       bool fin,
-      spdy::SpdyPriority priority,
+      const spdy::SpdyStreamPrecedence& precedence,
       QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener);
   // |session| can't be nullptr.
   static QuicStreamId GetNextOutgoingUnidirectionalStreamId(

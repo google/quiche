@@ -223,9 +223,9 @@ TEST_P(QuicReceiveControlStreamTest, ReceivePriorityFrame) {
   QuicStreamFrame data(receive_control_stream_->id(), false, 0,
                        QuicStringPiece(serialized_frame));
 
-  EXPECT_EQ(3u, stream_->priority());
+  EXPECT_EQ(3u, stream_->precedence().spdy3_priority());
   receive_control_stream_->OnStreamFrame(data);
-  EXPECT_EQ(1u, stream_->priority());
+  EXPECT_EQ(1u, stream_->precedence().spdy3_priority());
 }
 
 TEST_P(QuicReceiveControlStreamTest, PushPromiseOnControlStreamShouldClose) {
