@@ -8,6 +8,7 @@
 
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_constants.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_instruction_encoder.h"
+#include "net/third_party/quiche/src/quic/core/qpack/qpack_required_insert_count.h"
 #include "net/third_party/quiche/src/quic/core/qpack/value_splitting_header_list.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
@@ -72,15 +73,18 @@ std::string QpackEncoder::EncodeHeaderList(
     }
   }
 
+  // TODO(bnc): Implement dynamic entries and set Required Insert Count
+  // accordingly.
+  const uint64_t required_insert_count = 0;
+
   // Second pass.
   QpackInstructionEncoder instruction_encoder;
   std::string encoded_headers;
 
   // Header block prefix.
-  // TODO(bnc): Implement dynamic entries and set Required Insert Count and
-  // Delta Base accordingly.
   QpackInstructionEncoder::Values values;
-  values.varint = 0;     // Encoded required insert count.
+  values.varint = QpackEncodeRequiredInsertCount(required_insert_count,
+                                                 header_table_.max_entries());
   values.varint2 = 0;    // Delta Base.
   values.s_bit = false;  // Delta Base sign.
 
