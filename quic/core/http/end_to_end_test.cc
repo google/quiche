@@ -225,8 +225,6 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
         chlo_multiplier_(0),
         stream_factory_(nullptr),
         support_server_push_(false),
-        override_server_connection_id_(nullptr),
-        override_client_connection_id_(nullptr),
         expected_server_connection_id_length_(kQuicDefaultConnectionIdLength) {
     SetQuicFlag(FLAGS_quic_supports_tls_handshake, true);
     client_supported_versions_ = GetParam().client_supported_versions;
@@ -272,12 +270,8 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     if (!pre_shared_key_client_.empty()) {
       client->client()->SetPreSharedKey(pre_shared_key_client_);
     }
-    if (override_server_connection_id_ != nullptr) {
-      client->UseConnectionId(*override_server_connection_id_);
-    }
-    if (override_client_connection_id_ != nullptr) {
-      client->UseClientConnectionId(*override_client_connection_id_);
-    }
+    client->UseConnectionIdLength(override_server_connection_id_length_);
+    client->UseClientConnectionIdLength(override_client_connection_id_length_);
     client->client()->set_max_allowed_push_id(kMaxQuicStreamId);
     client->Connect();
     return client;
@@ -554,8 +548,8 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
   bool support_server_push_;
   std::string pre_shared_key_client_;
   std::string pre_shared_key_server_;
-  QuicConnectionId* override_server_connection_id_;
-  QuicConnectionId* override_client_connection_id_;
+  int override_server_connection_id_length_ = -1;
+  int override_client_connection_id_length_ = -1;
   uint8_t expected_server_connection_id_length_;
 };
 
@@ -634,10 +628,13 @@ TEST_P(EndToEndTestWithTls, ForcedVersionNegotiation) {
 }
 
 TEST_P(EndToEndTest, SimpleRequestResponseZeroConnectionID) {
-  QuicConnectionId connection_id = QuicUtils::CreateZeroConnectionId(
-      GetParam().negotiated_version.transport_version);
-  override_server_connection_id_ = &connection_id;
-  expected_server_connection_id_length_ = connection_id.length();
+  if (!QuicUtils::VariableLengthConnectionIdAllowedForVersion(
+          GetParam().negotiated_version.transport_version)) {
+    ASSERT_TRUE(Initialize());
+    return;
+  }
+  override_server_connection_id_length_ = 0;
+  expected_server_connection_id_length_ = 0;
   ASSERT_TRUE(Initialize());
 
   EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
@@ -654,10 +651,13 @@ TEST_P(EndToEndTest, SimpleRequestResponseZeroConnectionID) {
 }
 
 TEST_P(EndToEndTestWithTls, ZeroConnectionID) {
-  QuicConnectionId connection_id = QuicUtils::CreateZeroConnectionId(
-      GetParam().negotiated_version.transport_version);
-  override_server_connection_id_ = &connection_id;
-  expected_server_connection_id_length_ = connection_id.length();
+  if (!QuicUtils::VariableLengthConnectionIdAllowedForVersion(
+          GetParam().negotiated_version.transport_version)) {
+    ASSERT_TRUE(Initialize());
+    return;
+  }
+  override_server_connection_id_length_ = 0;
+  expected_server_connection_id_length_ = 0;
   ASSERT_TRUE(Initialize());
 
   EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
@@ -673,9 +673,7 @@ TEST_P(EndToEndTestWithTls, BadConnectionIdLength) {
     ASSERT_TRUE(Initialize());
     return;
   }
-  QuicConnectionId connection_id =
-      TestConnectionIdNineBytesLong(UINT64_C(0xBADbadBADbad));
-  override_server_connection_id_ = &connection_id;
+  override_server_connection_id_length_ = 9;
   ASSERT_TRUE(Initialize());
   EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
   EXPECT_EQ("200", client_->response_headers()->find(":status")->second);
@@ -694,12 +692,7 @@ TEST_P(EndToEndTestWithTls, LongBadConnectionIdLength) {
     ASSERT_TRUE(Initialize());
     return;
   }
-  const char connection_id_bytes[16] = {0xb0, 0xb1, 0xb2, 0xb3, 0xb4, 0xb5,
-                                        0xb6, 0xb7, 0xb8, 0xb9, 0xba, 0xbb,
-                                        0xbc, 0xbd, 0xbe, 0xbf};
-  QuicConnectionId connection_id =
-      QuicConnectionId(connection_id_bytes, sizeof(connection_id_bytes));
-  override_server_connection_id_ = &connection_id;
+  override_server_connection_id_length_ = 16;
   ASSERT_TRUE(Initialize());
   EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
   EXPECT_EQ("200", client_->response_headers()->find(":status")->second);
@@ -715,16 +708,15 @@ TEST_P(EndToEndTestWithTls, ClientConnectionId) {
     ASSERT_TRUE(Initialize());
     return;
   }
-  QuicConnectionId client_connection_id =
-      TestConnectionId(UINT64_C(0xc1c2c3c4c5c6c7c8));
-  override_client_connection_id_ = &client_connection_id;
+  override_client_connection_id_length_ = kQuicDefaultConnectionIdLength;
   ASSERT_TRUE(Initialize());
   EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
   EXPECT_EQ("200", client_->response_headers()->find(":status")->second);
-  EXPECT_EQ(client_connection_id, client_->client()
-                                      ->client_session()
-                                      ->connection()
-                                      ->client_connection_id());
+  EXPECT_EQ(override_client_connection_id_length_, client_->client()
+                                                       ->client_session()
+                                                       ->connection()
+                                                       ->client_connection_id()
+                                                       .length());
 }
 
 TEST_P(EndToEndTestWithTls, ForcedVersionNegotiationAndClientConnectionId) {
@@ -734,17 +726,16 @@ TEST_P(EndToEndTestWithTls, ForcedVersionNegotiationAndClientConnectionId) {
   }
   client_supported_versions_.insert(client_supported_versions_.begin(),
                                     QuicVersionReservedForNegotiation());
-  QuicConnectionId client_connection_id =
-      TestConnectionId(UINT64_C(0xc1c2c3c4c5c6c7c8));
-  override_client_connection_id_ = &client_connection_id;
+  override_client_connection_id_length_ = kQuicDefaultConnectionIdLength;
   ASSERT_TRUE(Initialize());
   ASSERT_TRUE(ServerSendsVersionNegotiation());
   EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
   EXPECT_EQ("200", client_->response_headers()->find(":status")->second);
-  EXPECT_EQ(client_connection_id, client_->client()
-                                      ->client_session()
-                                      ->connection()
-                                      ->client_connection_id());
+  EXPECT_EQ(override_client_connection_id_length_, client_->client()
+                                                       ->client_session()
+                                                       ->connection()
+                                                       ->client_connection_id()
+                                                       .length());
 }
 
 TEST_P(EndToEndTestWithTls, ForcedVersionNegotiationAndBadConnectionIdLength) {
@@ -755,9 +746,7 @@ TEST_P(EndToEndTestWithTls, ForcedVersionNegotiationAndBadConnectionIdLength) {
   }
   client_supported_versions_.insert(client_supported_versions_.begin(),
                                     QuicVersionReservedForNegotiation());
-  QuicConnectionId connection_id =
-      TestConnectionIdNineBytesLong(UINT64_C(0xBADbadBADbad));
-  override_server_connection_id_ = &connection_id;
+  override_server_connection_id_length_ = 9;
   ASSERT_TRUE(Initialize());
   ASSERT_TRUE(ServerSendsVersionNegotiation());
   EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
@@ -780,18 +769,8 @@ TEST_P(EndToEndTestWithTls, ForcedVersNegoAndClientCIDAndLongCID) {
   }
   client_supported_versions_.insert(client_supported_versions_.begin(),
                                     QuicVersionReservedForNegotiation());
-  const char connection_id_bytes[16] = {0xb0, 0xb1, 0xb2, 0xb3, 0xb4, 0xb5,
-                                        0xb6, 0xb7, 0xb8, 0xb9, 0xba, 0xbb,
-                                        0xbc, 0xbd, 0xbe, 0xbf};
-  QuicConnectionId connection_id =
-      QuicConnectionId(connection_id_bytes, sizeof(connection_id_bytes));
-  override_server_connection_id_ = &connection_id;
-  const char client_connection_id_bytes[18] = {
-      0xc0, 0xc1, 0xc2, 0xc3, 0xc4, 0xc5, 0xc6, 0xc7, 0xc8,
-      0xc9, 0xca, 0xcb, 0xcc, 0xcd, 0xce, 0xcf, 0xc0, 0xc1};
-  QuicConnectionId client_connection_id = QuicConnectionId(
-      client_connection_id_bytes, sizeof(client_connection_id_bytes));
-  override_client_connection_id_ = &client_connection_id;
+  override_server_connection_id_length_ = 16;
+  override_client_connection_id_length_ = 18;
   ASSERT_TRUE(Initialize());
   ASSERT_TRUE(ServerSendsVersionNegotiation());
   EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
@@ -801,10 +780,11 @@ TEST_P(EndToEndTestWithTls, ForcedVersNegoAndClientCIDAndLongCID) {
                                                 ->connection()
                                                 ->connection_id()
                                                 .length());
-  EXPECT_EQ(client_connection_id, client_->client()
-                                      ->client_session()
-                                      ->connection()
-                                      ->client_connection_id());
+  EXPECT_EQ(override_client_connection_id_length_, client_->client()
+                                                       ->client_session()
+                                                       ->connection()
+                                                       ->client_connection_id()
+                                                       .length());
 }
 
 TEST_P(EndToEndTest, MixGoodAndBadConnectionIdLengths) {
@@ -815,11 +795,9 @@ TEST_P(EndToEndTest, MixGoodAndBadConnectionIdLengths) {
   }
 
   // Start client_ which will use a bad connection ID length.
-  QuicConnectionId connection_id =
-      TestConnectionIdNineBytesLong(UINT64_C(0xBADbadBADbad));
-  override_server_connection_id_ = &connection_id;
+  override_server_connection_id_length_ = 9;
   ASSERT_TRUE(Initialize());
-  override_server_connection_id_ = nullptr;
+  override_server_connection_id_length_ = -1;
 
   // Start client2 which will use a good connection ID length.
   std::unique_ptr<QuicTestClient> client2(CreateQuicClient(nullptr));
@@ -935,10 +913,13 @@ TEST_P(EndToEndTestWithTls, MultipleRequestResponse) {
 }
 
 TEST_P(EndToEndTest, MultipleRequestResponseZeroConnectionID) {
-  QuicConnectionId connection_id = QuicUtils::CreateZeroConnectionId(
-      GetParam().negotiated_version.transport_version);
-  override_server_connection_id_ = &connection_id;
-  expected_server_connection_id_length_ = connection_id.length();
+  if (!QuicUtils::VariableLengthConnectionIdAllowedForVersion(
+          GetParam().negotiated_version.transport_version)) {
+    ASSERT_TRUE(Initialize());
+    return;
+  }
+  override_server_connection_id_length_ = 0;
+  expected_server_connection_id_length_ = 0;
   ASSERT_TRUE(Initialize());
 
   EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));

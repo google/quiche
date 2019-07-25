@@ -570,9 +570,11 @@ void QuicConnection::OnVersionNegotiationPacket(
   }
 
   if (QuicContainsValue(packet.versions, version())) {
-    const std::string error_details =
-        "Server already supports client's version and should have accepted the "
-        "connection.";
+    const std::string error_details = QuicStrCat(
+        "Server already supports client's version ",
+        ParsedQuicVersionToString(version()),
+        " and should have accepted the connection instead of sending {",
+        ParsedQuicVersionVectorToString(packet.versions), "}.");
     QUIC_DLOG(WARNING) << error_details;
     CloseConnection(QUIC_INVALID_VERSION_NEGOTIATION_PACKET, error_details,
                     ConnectionCloseBehavior::SILENT_CLOSE);

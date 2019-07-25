@@ -233,9 +233,14 @@ MockableQuicClient::mockable_network_helper() const {
 }
 
 QuicConnectionId MockableQuicClient::GenerateNewConnectionId() {
-  return server_connection_id_overridden_
-             ? override_server_connection_id_
-             : QuicClient::GenerateNewConnectionId();
+  if (server_connection_id_overridden_) {
+    return override_server_connection_id_;
+  }
+  if (override_server_connection_id_length_ >= 0) {
+    return QuicUtils::CreateRandomConnectionId(
+        override_server_connection_id_length_);
+  }
+  return QuicClient::GenerateNewConnectionId();
 }
 
 void MockableQuicClient::UseConnectionId(
@@ -244,15 +249,31 @@ void MockableQuicClient::UseConnectionId(
   override_server_connection_id_ = server_connection_id;
 }
 
+void MockableQuicClient::UseConnectionIdLength(
+    int server_connection_id_length) {
+  override_server_connection_id_length_ = server_connection_id_length;
+}
+
 QuicConnectionId MockableQuicClient::GetClientConnectionId() {
-  return client_connection_id_overridden_ ? override_client_connection_id_
-                                          : QuicClient::GetClientConnectionId();
+  if (client_connection_id_overridden_) {
+    return override_client_connection_id_;
+  }
+  if (override_client_connection_id_length_ >= 0) {
+    return QuicUtils::CreateRandomConnectionId(
+        override_client_connection_id_length_);
+  }
+  return QuicClient::GetClientConnectionId();
 }
 
 void MockableQuicClient::UseClientConnectionId(
     QuicConnectionId client_connection_id) {
   client_connection_id_overridden_ = true;
   override_client_connection_id_ = client_connection_id;
+}
+
+void MockableQuicClient::UseClientConnectionIdLength(
+    int client_connection_id_length) {
+  override_client_connection_id_length_ = client_connection_id_length;
 }
 
 void MockableQuicClient::UseWriter(QuicPacketWriterWrapper* writer) {
@@ -769,10 +790,21 @@ void QuicTestClient::UseConnectionId(QuicConnectionId server_connection_id) {
   client_->UseConnectionId(server_connection_id);
 }
 
+void QuicTestClient::UseConnectionIdLength(int server_connection_id_length) {
+  DCHECK(!connected());
+  client_->UseConnectionIdLength(server_connection_id_length);
+}
+
 void QuicTestClient::UseClientConnectionId(
     QuicConnectionId client_connection_id) {
   DCHECK(!connected());
   client_->UseClientConnectionId(client_connection_id);
+}
+
+void QuicTestClient::UseClientConnectionIdLength(
+    int client_connection_id_length) {
+  DCHECK(!connected());
+  client_->UseClientConnectionIdLength(client_connection_id_length);
 }
 
 bool QuicTestClient::MigrateSocket(const QuicIpAddress& new_host) {
