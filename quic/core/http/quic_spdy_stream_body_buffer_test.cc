@@ -4,8 +4,11 @@
 
 #include "net/third_party/quiche/src/quic/core/http/quic_spdy_stream_body_buffer.h"
 
+#include <algorithm>
+#include <numeric>
 #include <string>
 
+#include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_expect_bug.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
@@ -21,139 +24,255 @@ class QuicSpdyStreamBodyBufferTest : public QuicTest {
   QuicSpdyStreamBodyBuffer body_buffer_;
 };
 
-TEST_F(QuicSpdyStreamBodyBufferTest, ReceiveBodies) {
-  std::string body(1024, 'a');
+TEST_F(QuicSpdyStreamBodyBufferTest, HasBytesToRead) {
   EXPECT_FALSE(body_buffer_.HasBytesToRead());
-  body_buffer_.OnDataHeader(Http3FrameLengths(3, 1024));
-  body_buffer_.OnDataPayload(body);
-  EXPECT_EQ(1024u, body_buffer_.total_body_bytes_received());
-  EXPECT_TRUE(body_buffer_.HasBytesToRead());
-}
+  EXPECT_EQ(0u, body_buffer_.total_body_bytes_received());
 
-TEST_F(QuicSpdyStreamBodyBufferTest, PeekBody) {
-  std::string body(1024, 'a');
-  body_buffer_.OnDataHeader(Http3FrameLengths(3, 1024));
-  body_buffer_.OnDataPayload(body);
-  EXPECT_EQ(1024u, body_buffer_.total_body_bytes_received());
-  iovec vec;
-  EXPECT_EQ(1, body_buffer_.PeekBody(&vec, 1));
-  EXPECT_EQ(1024u, vec.iov_len);
-  EXPECT_EQ(body,
-            QuicStringPiece(static_cast<const char*>(vec.iov_base), 1024));
-}
-
-// Buffer only receives 1 frame. Stream consumes less or equal than a frame.
-TEST_F(QuicSpdyStreamBodyBufferTest, MarkConsumedPartialSingleFrame) {
-  testing::InSequence seq;
-  std::string body(1024, 'a');
   const QuicByteCount header_length = 3;
-  Http3FrameLengths lengths(header_length, 1024);
-  body_buffer_.OnDataHeader(lengths);
-  body_buffer_.OnDataPayload(body);
-  EXPECT_EQ(header_length + 1024, body_buffer_.OnBodyConsumed(1024));
-}
+  EXPECT_EQ(header_length, body_buffer_.OnDataHeader(header_length));
 
-// Buffer received 2 frames. Stream consumes multiple times.
-TEST_F(QuicSpdyStreamBodyBufferTest, MarkConsumedMultipleFrames) {
-  testing::InSequence seq;
-  // 1st frame.
-  std::string body1(1024, 'a');
-  const QuicByteCount header_length1 = 2;
-  Http3FrameLengths lengths1(header_length1, 1024);
-  body_buffer_.OnDataHeader(lengths1);
-  body_buffer_.OnDataPayload(body1);
+  EXPECT_FALSE(body_buffer_.HasBytesToRead());
+  EXPECT_EQ(0u, body_buffer_.total_body_bytes_received());
 
-  // 2nd frame.
-  std::string body2(2048, 'b');
-  const QuicByteCount header_length2 = 4;
-  Http3FrameLengths lengths2(header_length2, 2048);
-  body_buffer_.OnDataHeader(lengths2);
-  body_buffer_.OnDataPayload(body2);
-
-  EXPECT_EQ(header_length1 + 512, body_buffer_.OnBodyConsumed(512));
-  EXPECT_EQ(header_length2 + 2048, body_buffer_.OnBodyConsumed(2048));
-  EXPECT_EQ(512u, body_buffer_.OnBodyConsumed(512));
-}
-
-TEST_F(QuicSpdyStreamBodyBufferTest, MarkConsumedMoreThanBuffered) {
   std::string body(1024, 'a');
-  Http3FrameLengths lengths(3, 1024);
-  body_buffer_.OnDataHeader(lengths);
+  body_buffer_.OnDataPayload(body);
+
+  EXPECT_TRUE(body_buffer_.HasBytesToRead());
+  EXPECT_EQ(1024u, body_buffer_.total_body_bytes_received());
+}
+
+TEST_F(QuicSpdyStreamBodyBufferTest, ConsumeMoreThanAvailable) {
+  std::string body(1024, 'a');
   body_buffer_.OnDataPayload(body);
   size_t bytes_to_consume = 0;
-  EXPECT_QUIC_BUG(
-      bytes_to_consume = body_buffer_.OnBodyConsumed(2048),
-      "Invalid argument to OnBodyConsumed. expect to consume: 2048, but not "
-      "enough bytes available. Total bytes readable are: 1024");
+  EXPECT_QUIC_BUG(bytes_to_consume = body_buffer_.OnBodyConsumed(2048),
+                  "Not enough available body to consume.");
   EXPECT_EQ(0u, bytes_to_consume);
 }
 
-// Buffer receives 1 frame. Stream read from the buffer.
-TEST_F(QuicSpdyStreamBodyBufferTest, ReadSingleBody) {
-  testing::InSequence seq;
-  std::string body(1024, 'a');
-  const QuicByteCount header_length = 2;
-  Http3FrameLengths lengths(header_length, 1024);
-  body_buffer_.OnDataHeader(lengths);
-  body_buffer_.OnDataPayload(body);
+struct {
+  std::vector<QuicByteCount> frame_header_lengths;
+  std::vector<const char*> frame_payloads;
+  std::vector<QuicByteCount> body_bytes_to_read;
+  std::vector<QuicByteCount> expected_return_values;
+} const kOnBodyConsumedTestData[] = {
+    // One frame consumed in one call.
+    {{2}, {"foobar"}, {6}, {6}},
+    // Two frames consumed in one call.
+    {{3, 5}, {"foobar", "baz"}, {9}, {14}},
+    // One frame consumed in two calls.
+    {{2}, {"foobar"}, {4, 2}, {4, 2}},
+    // Two frames consumed in two calls matching frame boundaries.
+    {{3, 5}, {"foobar", "baz"}, {6, 3}, {11, 3}},
+    // Two frames consumed in two calls,
+    // the first call only consuming part of the first frame.
+    {{3, 5}, {"foobar", "baz"}, {5, 4}, {5, 9}},
+    // Two frames consumed in two calls,
+    // the first call consuming the entire first frame and part of the second.
+    {{3, 5}, {"foobar", "baz"}, {7, 2}, {12, 2}},
+};
 
-  char base[1024];
-  iovec iov = {&base[0], 1024};
-  size_t total_bytes_read = 0;
-  EXPECT_EQ(header_length + 1024,
-            body_buffer_.ReadBody(&iov, 1, &total_bytes_read));
-  EXPECT_EQ(1024u, total_bytes_read);
-  EXPECT_EQ(1024u, iov.iov_len);
-  EXPECT_EQ(body,
-            QuicStringPiece(static_cast<const char*>(iov.iov_base), 1024));
+TEST_F(QuicSpdyStreamBodyBufferTest, OnBodyConsumed) {
+  for (size_t test_case_index = 0;
+       test_case_index < QUIC_ARRAYSIZE(kOnBodyConsumedTestData);
+       ++test_case_index) {
+    const std::vector<QuicByteCount>& frame_header_lengths =
+        kOnBodyConsumedTestData[test_case_index].frame_header_lengths;
+    const std::vector<const char*>& frame_payloads =
+        kOnBodyConsumedTestData[test_case_index].frame_payloads;
+    const std::vector<QuicByteCount>& body_bytes_to_read =
+        kOnBodyConsumedTestData[test_case_index].body_bytes_to_read;
+    const std::vector<QuicByteCount>& expected_return_values =
+        kOnBodyConsumedTestData[test_case_index].expected_return_values;
+
+    for (size_t frame_index = 0; frame_index < frame_header_lengths.size();
+         ++frame_index) {
+      // Frame header of first frame can immediately be consumed, but not the
+      // other frames.  Each test case start with an empty
+      // QuicSpdyStreamBodyBuffer.
+      EXPECT_EQ(frame_index == 0 ? frame_header_lengths[frame_index] : 0u,
+                body_buffer_.OnDataHeader(frame_header_lengths[frame_index]));
+      body_buffer_.OnDataPayload(frame_payloads[frame_index]);
+    }
+
+    for (size_t call_index = 0; call_index < body_bytes_to_read.size();
+         ++call_index) {
+      EXPECT_EQ(expected_return_values[call_index],
+                body_buffer_.OnBodyConsumed(body_bytes_to_read[call_index]));
+    }
+
+    EXPECT_FALSE(body_buffer_.HasBytesToRead());
+  }
 }
 
-// Buffer receives 2 frames, stream read from the buffer multiple times.
-TEST_F(QuicSpdyStreamBodyBufferTest, ReadMultipleBody) {
-  testing::InSequence seq;
-  // 1st frame.
-  std::string body1(1024, 'a');
-  const QuicByteCount header_length1 = 2;
-  Http3FrameLengths lengths1(header_length1, 1024);
-  body_buffer_.OnDataHeader(lengths1);
-  body_buffer_.OnDataPayload(body1);
+struct {
+  std::vector<QuicByteCount> frame_header_lengths;
+  std::vector<const char*> frame_payloads;
+  size_t iov_len;
+} const kPeekBodyTestData[] = {
+    // No frames, more iovecs than frames.
+    {{}, {}, 1},
+    // One frame, same number of iovecs.
+    {{3}, {"foobar"}, 1},
+    // One frame, more iovecs than frames.
+    {{3}, {"foobar"}, 2},
+    // Two frames, fewer iovecs than frames.
+    {{3, 5}, {"foobar", "baz"}, 1},
+    // Two frames, same number of iovecs.
+    {{3, 5}, {"foobar", "baz"}, 2},
+    // Two frames, more iovecs than frames.
+    {{3, 5}, {"foobar", "baz"}, 3},
+};
 
-  // 2nd frame.
-  std::string body2(2048, 'b');
-  const QuicByteCount header_length2 = 4;
-  Http3FrameLengths lengths2(header_length2, 2048);
-  body_buffer_.OnDataHeader(lengths2);
-  body_buffer_.OnDataPayload(body2);
+TEST_F(QuicSpdyStreamBodyBufferTest, PeekBody) {
+  for (size_t test_case_index = 0;
+       test_case_index < QUIC_ARRAYSIZE(kPeekBodyTestData); ++test_case_index) {
+    const std::vector<QuicByteCount>& frame_header_lengths =
+        kPeekBodyTestData[test_case_index].frame_header_lengths;
+    const std::vector<const char*>& frame_payloads =
+        kPeekBodyTestData[test_case_index].frame_payloads;
+    size_t iov_len = kPeekBodyTestData[test_case_index].iov_len;
 
-  // First read of 512 bytes.
-  char base[512];
-  iovec iov = {&base[0], 512};
-  size_t total_bytes_read = 0;
-  EXPECT_EQ(header_length1 + 512,
-            body_buffer_.ReadBody(&iov, 1, &total_bytes_read));
-  EXPECT_EQ(512u, total_bytes_read);
-  EXPECT_EQ(512u, iov.iov_len);
-  EXPECT_EQ(body1.substr(0, 512),
-            QuicStringPiece(static_cast<const char*>(iov.iov_base), 512));
+    QuicSpdyStreamBodyBuffer body_buffer;
 
-  // Second read of 2048 bytes.
-  char base2[2048];
-  iovec iov2 = {&base2[0], 2048};
-  EXPECT_EQ(header_length2 + 2048,
-            body_buffer_.ReadBody(&iov2, 1, &total_bytes_read));
-  EXPECT_EQ(2048u, total_bytes_read);
-  EXPECT_EQ(2048u, iov2.iov_len);
-  EXPECT_EQ(body1.substr(512, 512) + body2.substr(0, 1536),
-            QuicStringPiece(static_cast<const char*>(iov2.iov_base), 2048));
+    for (size_t frame_index = 0; frame_index < frame_header_lengths.size();
+         ++frame_index) {
+      // Frame header of first frame can immediately be consumed, but not the
+      // other frames.  Each test case uses a new QuicSpdyStreamBodyBuffer
+      // instance.
+      EXPECT_EQ(frame_index == 0 ? frame_header_lengths[frame_index] : 0u,
+                body_buffer.OnDataHeader(frame_header_lengths[frame_index]));
+      body_buffer.OnDataPayload(frame_payloads[frame_index]);
+    }
 
-  // Third read of the rest 512 bytes.
-  char base3[512];
-  iovec iov3 = {&base3[0], 512};
-  EXPECT_EQ(512u, body_buffer_.ReadBody(&iov3, 1, &total_bytes_read));
-  EXPECT_EQ(512u, total_bytes_read);
-  EXPECT_EQ(512u, iov3.iov_len);
-  EXPECT_EQ(body2.substr(1536, 512),
-            QuicStringPiece(static_cast<const char*>(iov3.iov_base), 512));
+    std::vector<iovec> iovecs;
+    iovecs.resize(iov_len);
+    size_t iovs_filled = std::min(frame_payloads.size(), iov_len);
+    ASSERT_EQ(iovs_filled,
+              static_cast<size_t>(body_buffer.PeekBody(&iovecs[0], iov_len)));
+    for (size_t iovec_index = 0; iovec_index < iovs_filled; ++iovec_index) {
+      EXPECT_EQ(frame_payloads[iovec_index],
+                QuicStringPiece(
+                    static_cast<const char*>(iovecs[iovec_index].iov_base),
+                    iovecs[iovec_index].iov_len));
+    }
+  }
+}
+
+struct {
+  std::vector<QuicByteCount> frame_header_lengths;
+  std::vector<const char*> frame_payloads;
+  std::vector<std::vector<QuicByteCount>> iov_lengths;
+  std::vector<QuicByteCount> expected_total_bytes_read;
+  std::vector<QuicByteCount> expected_return_values;
+} const kReadBodyTestData[] = {
+    // One frame, one read with smaller iovec.
+    {{4}, {"foo"}, {{2}}, {2}, {2}},
+    // One frame, one read with same size iovec.
+    {{4}, {"foo"}, {{3}}, {3}, {3}},
+    // One frame, one read with larger iovec.
+    {{4}, {"foo"}, {{5}}, {3}, {3}},
+    // One frame, one read with two iovecs, smaller total size.
+    {{4}, {"foobar"}, {{2, 3}}, {5}, {5}},
+    // One frame, one read with two iovecs, same total size.
+    {{4}, {"foobar"}, {{2, 4}}, {6}, {6}},
+    // One frame, one read with two iovecs, larger total size in last iovec.
+    {{4}, {"foobar"}, {{2, 6}}, {6}, {6}},
+    // One frame, one read with extra iovecs, body ends at iovec boundary.
+    {{4}, {"foobar"}, {{2, 4, 4, 3}}, {6}, {6}},
+    // One frame, one read with extra iovecs, body ends not at iovec boundary.
+    {{4}, {"foobar"}, {{2, 7, 4, 3}}, {6}, {6}},
+    // One frame, two reads with two iovecs each, smaller total size.
+    {{4}, {"foobarbaz"}, {{2, 1}, {3, 2}}, {3, 5}, {3, 5}},
+    // One frame, two reads with two iovecs each, same total size.
+    {{4}, {"foobarbaz"}, {{2, 1}, {4, 2}}, {3, 6}, {3, 6}},
+    // One frame, two reads with two iovecs each, larger total size.
+    {{4}, {"foobarbaz"}, {{2, 1}, {4, 10}}, {3, 6}, {3, 6}},
+    // Two frames, one read with smaller iovec.
+    {{4, 3}, {"foobar", "baz"}, {{8}}, {8}, {11}},
+    // Two frames, one read with same size iovec.
+    {{4, 3}, {"foobar", "baz"}, {{9}}, {9}, {12}},
+    // Two frames, one read with larger iovec.
+    {{4, 3}, {"foobar", "baz"}, {{10}}, {9}, {12}},
+    // Two frames, one read with two iovecs, smaller total size.
+    {{4, 3}, {"foobar", "baz"}, {{4, 3}}, {7}, {10}},
+    // Two frames, one read with two iovecs, same total size.
+    {{4, 3}, {"foobar", "baz"}, {{4, 5}}, {9}, {12}},
+    // Two frames, one read with two iovecs, larger total size in last iovec.
+    {{4, 3}, {"foobar", "baz"}, {{4, 6}}, {9}, {12}},
+    // Two frames, one read with extra iovecs, body ends at iovec boundary.
+    {{4, 3}, {"foobar", "baz"}, {{4, 6, 4, 3}}, {9}, {12}},
+    // Two frames, one read with extra iovecs, body ends not at iovec boundary.
+    {{4, 3}, {"foobar", "baz"}, {{4, 7, 4, 3}}, {9}, {12}},
+    // Two frames, two reads with two iovecs each, reads end on frame boundary.
+    {{4, 3}, {"foobar", "baz"}, {{2, 4}, {2, 1}}, {6, 3}, {9, 3}},
+    // Three frames, three reads, extra iovecs, no iovec ends on frame boundary.
+    {{4, 3, 6},
+     {"foobar", "bazquux", "qux"},
+     {{4, 3}, {2, 3}, {5, 3}},
+     {7, 5, 4},
+     {10, 5, 10}},
+};
+
+TEST_F(QuicSpdyStreamBodyBufferTest, ReadBody) {
+  for (size_t test_case_index = 0;
+       test_case_index < QUIC_ARRAYSIZE(kReadBodyTestData); ++test_case_index) {
+    const std::vector<QuicByteCount>& frame_header_lengths =
+        kReadBodyTestData[test_case_index].frame_header_lengths;
+    const std::vector<const char*>& frame_payloads =
+        kReadBodyTestData[test_case_index].frame_payloads;
+    const std::vector<std::vector<QuicByteCount>>& iov_lengths =
+        kReadBodyTestData[test_case_index].iov_lengths;
+    const std::vector<QuicByteCount>& expected_total_bytes_read =
+        kReadBodyTestData[test_case_index].expected_total_bytes_read;
+    const std::vector<QuicByteCount>& expected_return_values =
+        kReadBodyTestData[test_case_index].expected_return_values;
+
+    QuicSpdyStreamBodyBuffer body_buffer;
+
+    std::string received_body;
+
+    for (size_t frame_index = 0; frame_index < frame_header_lengths.size();
+         ++frame_index) {
+      // Frame header of first frame can immediately be consumed, but not the
+      // other frames.  Each test case uses a new QuicSpdyStreamBodyBuffer
+      // instance.
+      EXPECT_EQ(frame_index == 0 ? frame_header_lengths[frame_index] : 0u,
+                body_buffer.OnDataHeader(frame_header_lengths[frame_index]));
+      body_buffer.OnDataPayload(frame_payloads[frame_index]);
+      received_body.append(frame_payloads[frame_index]);
+    }
+
+    std::string read_body;
+
+    for (size_t call_index = 0; call_index < iov_lengths.size(); ++call_index) {
+      // Allocate single buffer for iovecs.
+      size_t total_iov_length = std::accumulate(iov_lengths[call_index].begin(),
+                                                iov_lengths[call_index].end(),
+                                                static_cast<size_t>(0));
+      std::string buffer(total_iov_length, 'z');
+
+      // Construct iovecs pointing to contiguous areas in the buffer.
+      std::vector<iovec> iovecs;
+      size_t offset = 0;
+      for (size_t iov_length : iov_lengths[call_index]) {
+        CHECK(offset + iov_length <= buffer.size());
+        iovecs.push_back({&buffer[offset], iov_length});
+        offset += iov_length;
+      }
+
+      // Make sure |total_bytes_read| differs from |expected_total_bytes_read|.
+      size_t total_bytes_read = expected_total_bytes_read[call_index] + 12;
+      EXPECT_EQ(
+          expected_return_values[call_index],
+          body_buffer.ReadBody(&iovecs[0], iovecs.size(), &total_bytes_read));
+      read_body.append(buffer.substr(0, total_bytes_read));
+    }
+
+    EXPECT_EQ(received_body.substr(0, read_body.size()), read_body);
+    EXPECT_EQ(read_body.size() < received_body.size(),
+              body_buffer.HasBytesToRead());
+  }
 }
 
 }  // anonymous namespace

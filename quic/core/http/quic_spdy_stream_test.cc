@@ -2104,16 +2104,18 @@ TEST_P(QuicSpdyStreamIncrementalConsumptionTest, IncrementalConsumptionTest) {
   // DATA frame.
   QuicStringPiece data_payload(kDataFramePayload);
   std::string data_frame = DataFrame(data_payload);
+  QuicByteCount data_frame_header_length =
+      data_frame.size() - data_payload.size();
 
-  // DATA frame is not consumed because payload has to be buffered.
-  // TODO(bnc): Consume frame header as soon as possible.
+  // DATA frame header is consumed.
+  // DATA frame payload is not consumed because payload has to be buffered.
   OnStreamFrame(data_frame);
-  EXPECT_EQ(0u, NewlyConsumedBytes());
+  EXPECT_EQ(data_frame_header_length, NewlyConsumedBytes());
 
   // Consume all but last byte of data.
   EXPECT_EQ(data_payload.substr(0, data_payload.size() - 1),
             ReadFromStream(data_payload.size() - 1));
-  EXPECT_EQ(data_frame.size() - 1, NewlyConsumedBytes());
+  EXPECT_EQ(data_payload.size() - 1, NewlyConsumedBytes());
 
   // Trailing HEADERS frame with QPACK encoded
   // single header field "custom-key: custom-value".

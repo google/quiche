@@ -769,7 +769,9 @@ bool QuicSpdyStream::OnDataFrameStart(Http3FrameLengths frame_lengths) {
     return false;
   }
 
-  body_buffer_.OnDataHeader(frame_lengths);
+  sequencer()->MarkConsumed(
+      body_buffer_.OnDataHeader(frame_lengths.header_length));
+
   return true;
 }
 
@@ -777,6 +779,7 @@ bool QuicSpdyStream::OnDataFramePayload(QuicStringPiece payload) {
   DCHECK(VersionHasDataFrameHeader(transport_version()));
 
   body_buffer_.OnDataPayload(payload);
+
   return true;
 }
 

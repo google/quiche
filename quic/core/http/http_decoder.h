@@ -49,6 +49,9 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
 
     // All the following methods return true to continue decoding,
     // and false to pause it.
+    // On*FrameStart() methods are called after the frame header is completely
+    // processed.  At that point it is safe to consume
+    // |frame_length.header_length| bytes.
 
     // Called when a PRIORITY frame has been received.
     // |frame_length| contains PRIORITY frame length and payload length.
