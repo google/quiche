@@ -12,6 +12,7 @@
 #include "net/third_party/quiche/src/quic/core/http/http_constants.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_headers_stream.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
+#include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_fallthrough.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
@@ -315,6 +316,8 @@ QuicSpdySession::QuicSpdySession(
     const QuicConfig& config,
     const ParsedQuicVersionVector& supported_versions)
     : QuicSession(connection, visitor, config, supported_versions),
+      send_control_stream_(nullptr),
+      receive_control_stream_(nullptr),
       max_inbound_header_list_size_(kDefaultMaxUncompressedHeaderSize),
       max_outbound_header_list_size_(kDefaultMaxUncompressedHeaderSize),
       server_push_enabled_(true),
@@ -382,12 +385,7 @@ void QuicSpdySession::Initialize() {
                        /*stream_already_counted = */ false);
 
   if (VersionHasStreamType(connection()->transport_version())) {
-    auto send_control = QuicMakeUnique<QuicSendControlStream>(
-        GetNextOutgoingUnidirectionalStreamId(), this,
-        max_inbound_header_list_size_);
-    send_control_stream_ = send_control.get();
-    RegisterStaticStream(std::move(send_control),
-                         /*stream_already_counted = */ false);
+    MaybeInitializeHttp3UnidirectionalStreams();
   }
 
   spdy_framer_visitor_->set_max_header_list_size(max_inbound_header_list_size_);
@@ -796,6 +794,25 @@ bool QuicSpdySession::ProcessPendingStream(PendingStream* pending) {
       SendStopSending(kHttpUnknownStreamType, pending->id());
   }
   return false;
+}
+
+void QuicSpdySession::MaybeInitializeHttp3UnidirectionalStreams() {
+  DCHECK(VersionHasStreamType(connection()->transport_version()));
+  if (!send_control_stream_ && CanOpenNextOutgoingUnidirectionalStream()) {
+    auto send_control = QuicMakeUnique<QuicSendControlStream>(
+        GetNextOutgoingUnidirectionalStreamId(), this,
+        max_inbound_header_list_size_);
+    send_control_stream_ = send_control.get();
+    RegisterStaticStream(std::move(send_control),
+                         /*stream_already_counted = */ false);
+  }
+}
+
+void QuicSpdySession::OnCanCreateNewOutgoingStream(bool unidirectional) {
+  if (unidirectional &&
+      VersionHasStreamType(connection()->transport_version())) {
+    MaybeInitializeHttp3UnidirectionalStreams();
+  }
 }
 
 }  // namespace quic

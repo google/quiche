@@ -175,6 +175,10 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // Returns true if the session has active request streams.
   bool HasActiveRequestStreams() const;
 
+  // Initialze HTTP/3 unidirectional streams if |unidirectional| is true and
+  // those streams are not initialized yet.
+  void OnCanCreateNewOutgoingStream(bool unidirectional) override;
+
  protected:
   // Override CreateIncomingStream(), CreateOutgoingBidirectionalStream() and
   // CreateOutgoingUnidirectionalStream() with QuicSpdyStream return type to
@@ -260,6 +264,9 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
 
   // Called when the size of the compressed frame payload is available.
   void OnCompressedFrameSize(size_t frame_len);
+
+  // Initializes HTTP/3 unidirectional streams if not yet initialzed.
+  void MaybeInitializeHttp3UnidirectionalStreams();
 
   std::unique_ptr<QpackEncoder> qpack_encoder_;
   std::unique_ptr<QpackDecoder> qpack_decoder_;
