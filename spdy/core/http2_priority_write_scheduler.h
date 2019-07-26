@@ -111,6 +111,17 @@ class Http2PriorityWriteScheduler : public WriteScheduler<StreamIdType> {
     // Time of latest write event for stream of this priority, in microseconds.
     int64_t last_event_time_usec = 0;
 
+    // Returns true if this stream is ancestor of |other|.
+    bool IsAncestorOf(const StreamInfo& other) const {
+      for (const StreamInfo* parent = other.parent; parent != nullptr;
+           parent = parent->parent) {
+        if (parent == this) {
+          return true;
+        }
+      }
+      return false;
+    }
+
     // Whether this stream should be scheduled ahead of another stream.
     bool SchedulesBefore(const StreamInfo& other) const {
       return (priority != other.priority) ? priority > other.priority
@@ -500,13 +511,20 @@ bool Http2PriorityWriteScheduler<StreamIdType>::ShouldYield(
     SPDY_BUG << "Stream " << stream_id << " not registered";
     return false;
   }
+  if (HasReadyAncestor(*stream_info)) {
+    return true;
+  }
   for (const StreamInfo& scheduled : scheduling_queue_) {
-    if (stream_info == &scheduled) {
+    if (HasReadyAncestor(scheduled)) {
+      // Skip streams which cannot be scheduled.
+      continue;
+    }
+    if (stream_info->IsAncestorOf(scheduled)) {
+      // Do not yield to descendants.
       return false;
     }
-    if (!HasReadyAncestor(scheduled)) {
-      return true;
-    }
+    // Yield to streams with higher priorities.
+    return scheduled.SchedulesBefore(*stream_info);
   }
   return false;
 }

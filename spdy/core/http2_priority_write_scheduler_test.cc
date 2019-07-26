@@ -653,6 +653,46 @@ TEST_F(Http2PriorityWriteSchedulerTest, PopNextReadyStreamAndPrecedence) {
             scheduler_.PopNextReadyStreamAndPrecedence());
 }
 
+TEST_F(Http2PriorityWriteSchedulerTest, ShouldYield) {
+  /*
+         0
+        /|\
+       1 2 3
+      /|\ \
+     4 5 6 7
+       |
+       8
+
+  */
+  scheduler_.RegisterStream(1, SpdyStreamPrecedence(0, 100, false));
+  scheduler_.RegisterStream(2, SpdyStreamPrecedence(0, 100, false));
+  scheduler_.RegisterStream(3, SpdyStreamPrecedence(0, 100, false));
+  scheduler_.RegisterStream(4, SpdyStreamPrecedence(1, 100, false));
+  scheduler_.RegisterStream(5, SpdyStreamPrecedence(1, 200, false));
+  scheduler_.RegisterStream(6, SpdyStreamPrecedence(1, 255, false));
+  scheduler_.RegisterStream(7, SpdyStreamPrecedence(2, 100, false));
+  scheduler_.RegisterStream(8, SpdyStreamPrecedence(5, 100, false));
+
+  scheduler_.MarkStreamReady(5, false);
+
+  for (int i = 1; i <= 8; ++i) {
+    // Verify only 4 and 8 should yield to 5.
+    if (i == 4 || i == 8) {
+      EXPECT_TRUE(scheduler_.ShouldYield(i)) << "stream_id: " << i;
+    } else {
+      EXPECT_FALSE(scheduler_.ShouldYield(i)) << "stream_id: " << i;
+    }
+  }
+
+  // Marks streams 1 and 2 ready.
+  scheduler_.MarkStreamReady(1, false);
+  scheduler_.MarkStreamReady(2, false);
+  // 1 should not yield.
+  EXPECT_FALSE(scheduler_.ShouldYield(1));
+  // Verify 2 should yield to 1.
+  EXPECT_TRUE(scheduler_.ShouldYield(2));
+}
+
 class PopNextReadyStreamTest : public Http2PriorityWriteSchedulerTest {
  protected:
   void SetUp() override {
