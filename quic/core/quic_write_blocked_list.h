@@ -9,10 +9,12 @@
 #include <cstdint>
 
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_map_util.h"
-#include "net/third_party/quiche/src/spdy/core/priority_write_scheduler.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
+#include "net/third_party/quiche/src/spdy/core/http2_priority_write_scheduler.h"
 
 namespace quic {
 
@@ -21,7 +23,7 @@ namespace quic {
 // Crypto stream > Headers stream > Data streams by requested priority.
 class QUIC_EXPORT_PRIVATE QuicWriteBlockedList {
  private:
-  typedef spdy::PriorityWriteScheduler<QuicStreamId> QuicPriorityWriteScheduler;
+  typedef spdy::WriteScheduler<QuicStreamId> QuicPriorityWriteScheduler;
 
  public:
   explicit QuicWriteBlockedList(QuicTransportVersion version);
@@ -30,7 +32,7 @@ class QUIC_EXPORT_PRIVATE QuicWriteBlockedList {
   ~QuicWriteBlockedList();
 
   bool HasWriteBlockedDataStreams() const {
-    return priority_write_scheduler_.HasReadyStreams();
+    return priority_write_scheduler_->HasReadyStreams();
   }
 
   bool HasWriteBlockedSpecialStream() const {
@@ -43,7 +45,7 @@ class QUIC_EXPORT_PRIVATE QuicWriteBlockedList {
 
   size_t NumBlockedStreams() const {
     return NumBlockedSpecialStreams() +
-           priority_write_scheduler_.NumReadyStreams();
+           priority_write_scheduler_->NumReadyStreams();
   }
 
   bool ShouldYield(QuicStreamId id) const {
@@ -58,11 +60,28 @@ class QUIC_EXPORT_PRIVATE QuicWriteBlockedList {
       }
     }
 
-    return priority_write_scheduler_.ShouldYield(id);
+    return priority_write_scheduler_->ShouldYield(id);
   }
 
-  // Pops the highest priorty stream, special casing crypto and headers streams.
-  // Latches the most recently popped data stream for batch writing purposes.
+  // Uses HTTP2 (tree-style) priority scheduler. This can only be called before
+  // any stream is registered.
+  bool UseHttp2PriorityScheduler() {
+    if (scheduler_type_ == spdy::WriteSchedulerType::HTTP2) {
+      return true;
+    }
+    if (priority_write_scheduler_->NumRegisteredStreams() != 0) {
+      QUIC_BUG << "Cannot switch scheduler with registered streams";
+      return false;
+    }
+    priority_write_scheduler_ =
+        QuicMakeUnique<spdy::Http2PriorityWriteScheduler<QuicStreamId>>();
+    scheduler_type_ = spdy::WriteSchedulerType::HTTP2;
+    return true;
+  }
+
+  // Pops the highest priority stream, special casing crypto and headers
+  // streams. Latches the most recently popped data stream for batch writing
+  // purposes.
   QuicStreamId PopFront() {
     QuicStreamId static_stream_id;
     if (static_stream_collection_.UnblockFirstBlocked(&static_stream_id)) {
@@ -70,12 +89,16 @@ class QUIC_EXPORT_PRIVATE QuicWriteBlockedList {
     }
 
     const auto id_and_precedence =
-        priority_write_scheduler_.PopNextReadyStreamAndPrecedence();
+        priority_write_scheduler_->PopNextReadyStreamAndPrecedence();
     const QuicStreamId id = std::get<0>(id_and_precedence);
+    if (scheduler_type_ == spdy::WriteSchedulerType::HTTP2) {
+      // No batch writing logic when using HTTP2 priorities.
+      return id;
+    }
     const spdy::SpdyPriority priority =
         std::get<1>(id_and_precedence).spdy3_priority();
 
-    if (!priority_write_scheduler_.HasReadyStreams()) {
+    if (!priority_write_scheduler_->HasReadyStreams()) {
       // If no streams are blocked, don't bother latching.  This stream will be
       // the first popped for its priority anyway.
       batch_write_stream_id_[priority] = 0;
@@ -93,13 +116,14 @@ class QUIC_EXPORT_PRIVATE QuicWriteBlockedList {
   void RegisterStream(QuicStreamId stream_id,
                       bool is_static_stream,
                       const spdy::SpdyStreamPrecedence& precedence) {
-    DCHECK(!priority_write_scheduler_.StreamRegistered(stream_id));
+    DCHECK(!priority_write_scheduler_->StreamRegistered(stream_id) &&
+           PrecedenceMatchesSchedulerType(precedence));
     if (is_static_stream) {
       static_stream_collection_.Register(stream_id);
       return;
     }
 
-    priority_write_scheduler_.RegisterStream(stream_id, precedence);
+    priority_write_scheduler_->RegisterStream(stream_id, precedence);
   }
 
   void UnregisterStream(QuicStreamId stream_id, bool is_static) {
@@ -107,16 +131,21 @@ class QUIC_EXPORT_PRIVATE QuicWriteBlockedList {
       static_stream_collection_.Unregister(stream_id);
       return;
     }
-    priority_write_scheduler_.UnregisterStream(stream_id);
+    priority_write_scheduler_->UnregisterStream(stream_id);
   }
 
   void UpdateStreamPriority(QuicStreamId stream_id,
                             const spdy::SpdyStreamPrecedence& new_precedence) {
-    DCHECK(!static_stream_collection_.IsRegistered(stream_id));
-    priority_write_scheduler_.UpdateStreamPrecedence(stream_id, new_precedence);
+    DCHECK(!static_stream_collection_.IsRegistered(stream_id) &&
+           PrecedenceMatchesSchedulerType(new_precedence));
+    priority_write_scheduler_->UpdateStreamPrecedence(stream_id,
+                                                      new_precedence);
   }
 
   void UpdateBytesForStream(QuicStreamId stream_id, size_t bytes) {
+    if (scheduler_type_ == spdy::WriteSchedulerType::HTTP2) {
+      return;
+    }
     if (batch_write_stream_id_[last_priority_popped_] == stream_id) {
       // If this was the last data stream popped by PopFront, update the
       // bytes remaining in its batch write.
@@ -135,9 +164,10 @@ class QUIC_EXPORT_PRIVATE QuicWriteBlockedList {
     }
 
     bool push_front =
+        scheduler_type_ == spdy::WriteSchedulerType::SPDY &&
         stream_id == batch_write_stream_id_[last_priority_popped_] &&
         bytes_left_for_batch_write_[last_priority_popped_] > 0;
-    priority_write_scheduler_.MarkStreamReady(stream_id, push_front);
+    priority_write_scheduler_->MarkStreamReady(stream_id, push_front);
   }
 
   // Returns true if stream with |stream_id| is write blocked.
@@ -148,11 +178,19 @@ class QUIC_EXPORT_PRIVATE QuicWriteBlockedList {
       }
     }
 
-    return priority_write_scheduler_.IsStreamReady(stream_id);
+    return priority_write_scheduler_->IsStreamReady(stream_id);
   }
 
  private:
-  QuicPriorityWriteScheduler priority_write_scheduler_;
+  bool PrecedenceMatchesSchedulerType(
+      const spdy::SpdyStreamPrecedence& precedence) {
+    if (precedence.is_spdy3_priority()) {
+      return scheduler_type_ == spdy::WriteSchedulerType::SPDY;
+    }
+    return scheduler_type_ == spdy::WriteSchedulerType::HTTP2;
+  }
+
+  std::unique_ptr<QuicPriorityWriteScheduler> priority_write_scheduler_;
 
   // If performing batch writes, this will be the stream ID of the stream doing
   // batch writes for this priority level.  We will allow this stream to write
@@ -252,6 +290,8 @@ class QUIC_EXPORT_PRIVATE QuicWriteBlockedList {
   };
 
   StaticStreamCollection static_stream_collection_;
+
+  spdy::WriteSchedulerType scheduler_type_;
 };
 
 }  // namespace quic
