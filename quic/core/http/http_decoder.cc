@@ -219,6 +219,7 @@ bool HttpDecoder::ReadFramePayload(QuicDataReader* reader) {
       if (current_frame_length_ == remaining_frame_length_) {
         QuicByteCount bytes_remaining = reader->BytesRemaining();
         PushId push_id;
+        QuicByteCount push_id_length = reader->PeekVarInt62Length();
         // TODO(rch): Handle partial delivery of this field.
         if (!reader->ReadVarInt62(&push_id)) {
           RaiseError(QUIC_INTERNAL_ERROR, "Unable to read push_id");
@@ -226,9 +227,11 @@ bool HttpDecoder::ReadFramePayload(QuicDataReader* reader) {
         }
         remaining_frame_length_ -= bytes_remaining - reader->BytesRemaining();
         if (!visitor_->OnPushPromiseFrameStart(
-                push_id, Http3FrameLengths(current_length_field_length_ +
-                                               current_type_field_length_,
-                                           current_frame_length_))) {
+                push_id,
+                Http3FrameLengths(
+                    current_length_field_length_ + current_type_field_length_,
+                    current_frame_length_),
+                push_id_length)) {
           continue_processing = false;
           break;
         }

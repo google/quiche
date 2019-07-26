@@ -2149,25 +2149,28 @@ TEST_P(QuicSpdyStreamIncrementalConsumptionTest, IncrementalConsumptionTest) {
               ElementsAre(Pair("custom-key", "custom-value")));
 }
 
-TEST_P(QuicSpdyStreamTest, PushPromiseOnDataStreamShouldClose) {
+TEST_P(QuicSpdyStreamTest, PushPromiseOnDataStream) {
   Initialize(kShouldProcessData);
   if (!HasFrameHeader()) {
     return;
   }
+
+  // QPACK encoded single header field "foo: bar".
+  std::string headers = QuicTextUtils::HexDecode("00002a94e703626172");
+
   PushPromiseFrame push_promise;
   push_promise.push_id = 0x01;
-  push_promise.headers = "Headers";
+  push_promise.headers = headers;
   std::unique_ptr<char[]> buffer;
   HttpEncoder encoder;
   uint64_t length =
       encoder.SerializePushPromiseFrameWithOnlyPushId(push_promise, &buffer);
-  QuicStreamFrame frame(stream_->id(), false, 0, buffer.get(), length);
-  // TODO(lassey): Check for HTTP_WRONG_STREAM error code.
-  EXPECT_CALL(*connection_, CloseConnection(QUIC_HTTP_DECODER_ERROR, _, _));
-  stream_->OnStreamHeadersPriority(
-      spdy::SpdyStreamPrecedence(kV3HighestPriority));
-  ProcessHeaders(false, headers_);
-  stream_->ConsumeHeaderList();
+  std::string data = std::string(buffer.get(), length) + headers;
+  QuicStreamFrame frame(stream_->id(), false, 0, data);
+
+  EXPECT_CALL(*session_,
+              OnPromiseHeaderList(stream_->id(), push_promise.push_id,
+                                  headers.length(), _));
   stream_->OnStreamFrame(frame);
 }
 

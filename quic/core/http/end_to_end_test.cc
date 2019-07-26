@@ -3067,12 +3067,19 @@ TEST_P(EndToEndTestServerPush, ServerPush) {
   QUIC_DVLOG(1) << "send request for /push_example";
   EXPECT_EQ(kBody, client_->SendSynchronousRequest(
                        "https://example.com/push_example"));
-  QuicHeadersStream* headers_stream = QuicSpdySessionPeer::GetHeadersStream(
-      client_->client()->client_session());
-  QuicStreamSequencer* sequencer = QuicStreamPeer::sequencer(headers_stream);
-  // Headers stream's sequencer buffer shouldn't be released because server push
-  // hasn't finished yet.
-  EXPECT_TRUE(QuicStreamSequencerPeer::IsUnderlyingBufferAllocated(sequencer));
+  QuicStreamSequencer* sequencer;
+  if (!VersionUsesQpack(client_->client()
+                            ->client_session()
+                            ->connection()
+                            ->transport_version())) {
+    QuicHeadersStream* headers_stream = QuicSpdySessionPeer::GetHeadersStream(
+        client_->client()->client_session());
+    sequencer = QuicStreamPeer::sequencer(headers_stream);
+    // Headers stream's sequencer buffer shouldn't be released because server
+    // push hasn't finished yet.
+    EXPECT_TRUE(
+        QuicStreamSequencerPeer::IsUnderlyingBufferAllocated(sequencer));
+  }
 
   for (const std::string& url : push_urls) {
     QUIC_DVLOG(1) << "send request for pushed stream on url " << url;
@@ -3082,7 +3089,13 @@ TEST_P(EndToEndTestServerPush, ServerPush) {
     QUIC_DVLOG(1) << "response body " << response_body;
     EXPECT_EQ(expected_body, response_body);
   }
-  EXPECT_FALSE(QuicStreamSequencerPeer::IsUnderlyingBufferAllocated(sequencer));
+  if (!VersionUsesQpack(client_->client()
+                            ->client_session()
+                            ->connection()
+                            ->transport_version())) {
+    EXPECT_FALSE(
+        QuicStreamSequencerPeer::IsUnderlyingBufferAllocated(sequencer));
+  }
 }
 
 TEST_P(EndToEndTestServerPush, ServerPushUnderLimit) {

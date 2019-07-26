@@ -126,6 +126,9 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
       spdy::SpdyHeaderBlock trailer_block,
       QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener);
 
+  // Serializes |frame| and writes the encoded push promise data.
+  void WritePushPromise(const PushPromiseFrame& frame);
+
   // Override to report newly acked bytes via ack_listener_.
   bool OnStreamFrameAcked(QuicStreamOffset offset,
                           QuicByteCount data_length,
@@ -255,6 +258,11 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   bool OnHeadersFrameStart(Http3FrameLengths frame_length);
   bool OnHeadersFramePayload(QuicStringPiece payload);
   bool OnHeadersFrameEnd();
+  bool OnPushPromiseFrameStart(PushId push_id,
+                               Http3FrameLengths frame_length,
+                               QuicByteCount push_id_length);
+  bool OnPushPromiseFramePayload(QuicStringPiece payload);
+  bool OnPushPromiseFrameEnd();
 
   // Called internally when headers are decoded.
   void ProcessDecodedHeaders(const QuicHeaderList& headers);

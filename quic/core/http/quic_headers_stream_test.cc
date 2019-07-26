@@ -166,6 +166,9 @@ std::vector<TestParams> GetTestParams() {
   std::vector<TestParams> params;
   ParsedQuicVersionVector all_supported_versions = AllSupportedVersions();
   for (size_t i = 0; i < all_supported_versions.size(); ++i) {
+    if (VersionUsesQpack(all_supported_versions[i].transport_version)) {
+      continue;
+    }
     for (Perspective p : {Perspective::IS_SERVER, Perspective::IS_CLIENT}) {
       params.emplace_back(all_supported_versions[i], p);
     }
@@ -378,10 +381,6 @@ TEST_P(QuicHeadersStreamTest, StreamId) {
 }
 
 TEST_P(QuicHeadersStreamTest, WriteHeaders) {
-  if (VersionUsesQpack(transport_version())) {
-    return;
-  }
-
   for (QuicStreamId stream_id = client_id_1_; stream_id < client_id_3_;
        stream_id += next_stream_id_) {
     for (bool fin : {false, true}) {
@@ -398,9 +397,6 @@ TEST_P(QuicHeadersStreamTest, WriteHeaders) {
 }
 
 TEST_P(QuicHeadersStreamTest, WritePushPromises) {
-  if (GetParam().version.DoesNotHaveHeadersStream()) {
-    return;
-  }
   for (QuicStreamId stream_id = client_id_1_; stream_id < client_id_3_;
        stream_id += next_stream_id_) {
     QuicStreamId promised_stream_id = NextPromisedStreamId();
@@ -436,10 +432,6 @@ TEST_P(QuicHeadersStreamTest, WritePushPromises) {
 }
 
 TEST_P(QuicHeadersStreamTest, ProcessRawData) {
-  if (VersionUsesQpack(transport_version())) {
-    return;
-  }
-
   for (QuicStreamId stream_id = client_id_1_; stream_id < client_id_3_;
        stream_id += next_stream_id_) {
     for (bool fin : {false, true}) {
@@ -473,9 +465,6 @@ TEST_P(QuicHeadersStreamTest, ProcessRawData) {
 }
 
 TEST_P(QuicHeadersStreamTest, ProcessPushPromise) {
-  if (GetParam().version.DoesNotHaveHeadersStream()) {
-    return;
-  }
   if (perspective() == Perspective::IS_SERVER) {
     return;
   }
@@ -514,9 +503,6 @@ TEST_P(QuicHeadersStreamTest, ProcessPushPromise) {
 }
 
 TEST_P(QuicHeadersStreamTest, ProcessPriorityFrame) {
-  if (GetParam().version.DoesNotHaveHeadersStream()) {
-    return;
-  }
   QuicStreamId parent_stream_id = 0;
   for (SpdyPriority priority = 0; priority < 7; ++priority) {
     for (QuicStreamId stream_id = client_id_1_; stream_id < client_id_3_;
@@ -571,10 +557,6 @@ TEST_P(QuicHeadersStreamTest, ProcessPushPromiseDisabledSetting) {
 }
 
 TEST_P(QuicHeadersStreamTest, ProcessLargeRawData) {
-  if (VersionUsesQpack(transport_version())) {
-    return;
-  }
-
   // We want to create a frame that is more than the SPDY Framer's max control
   // frame size, which is 16K, but less than the HPACK decoders max decode
   // buffer size, which is 32K.
@@ -749,10 +731,6 @@ TEST_P(QuicHeadersStreamTest, NoConnectionLevelFlowControl) {
 }
 
 TEST_P(QuicHeadersStreamTest, HpackDecoderDebugVisitor) {
-  if (VersionUsesQpack(transport_version())) {
-    return;
-  }
-
   auto hpack_decoder_visitor =
       QuicMakeUnique<StrictMock<MockQuicHpackDebugVisitor>>();
   {
@@ -806,10 +784,6 @@ TEST_P(QuicHeadersStreamTest, HpackDecoderDebugVisitor) {
 }
 
 TEST_P(QuicHeadersStreamTest, HpackEncoderDebugVisitor) {
-  if (VersionUsesQpack(transport_version())) {
-    return;
-  }
-
   auto hpack_encoder_visitor =
       QuicMakeUnique<StrictMock<MockQuicHpackDebugVisitor>>();
   if (perspective() == Perspective::IS_SERVER) {

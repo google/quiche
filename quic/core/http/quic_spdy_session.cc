@@ -520,15 +520,27 @@ void QuicSpdySession::WritePushPromise(QuicStreamId original_stream_id,
     return;
   }
 
-  SpdyPushPromiseIR push_promise(original_stream_id, promised_stream_id,
-                                 std::move(headers));
-  // PUSH_PROMISE must not be the last frame sent out, at least followed by
-  // response headers.
-  push_promise.set_fin(false);
+  if (!VersionHasStreamType(connection()->transport_version())) {
+    SpdyPushPromiseIR push_promise(original_stream_id, promised_stream_id,
+                                   std::move(headers));
+    // PUSH_PROMISE must not be the last frame sent out, at least followed by
+    // response headers.
+    push_promise.set_fin(false);
 
-  SpdySerializedFrame frame(spdy_framer_.SerializeFrame(push_promise));
-  headers_stream()->WriteOrBufferData(
-      QuicStringPiece(frame.data(), frame.size()), false, nullptr);
+    SpdySerializedFrame frame(spdy_framer_.SerializeFrame(push_promise));
+    headers_stream()->WriteOrBufferData(
+        QuicStringPiece(frame.data(), frame.size()), false, nullptr);
+    return;
+  }
+
+  // Encode header list.
+  std::string encoded_headers =
+      qpack_encoder_->EncodeHeaderList(original_stream_id, &headers);
+  PushPromiseFrame frame;
+  frame.push_id = promised_stream_id;
+  frame.headers = encoded_headers;
+  QuicSpdyStream* stream = GetSpdyDataStream(original_stream_id);
+  stream->WritePushPromise(frame);
 }
 
 void QuicSpdySession::SendMaxHeaderListSize(size_t value) {
@@ -693,6 +705,11 @@ void QuicSpdySession::OnPriority(SpdyStreamId stream_id,
 void QuicSpdySession::OnHeaderList(const QuicHeaderList& header_list) {
   QUIC_DVLOG(1) << "Received header list for stream " << stream_id_ << ": "
                 << header_list.DebugString();
+  // This code path is only executed for push promise in IETF QUIC.
+  if (VersionUsesQpack(connection()->transport_version())) {
+    DCHECK(promised_stream_id_ !=
+           QuicUtils::GetInvalidStreamId(connection()->transport_version()));
+  }
   if (promised_stream_id_ ==
       QuicUtils::GetInvalidStreamId(connection()->transport_version())) {
     OnStreamHeaderList(stream_id_, fin_, frame_len_, header_list);

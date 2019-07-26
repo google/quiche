@@ -106,7 +106,8 @@ class QuicReceiveControlStream::HttpDecoderVisitor
   }
 
   bool OnPushPromiseFrameStart(PushId /*push_id*/,
-                               Http3FrameLengths /*frame_length*/) override {
+                               Http3FrameLengths /*frame_length*/,
+                               QuicByteCount /*push_id_length*/) override {
     CloseConnectionOnWrongFrame("Push Promise");
     return false;
   }

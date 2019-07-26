@@ -175,6 +175,18 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // Returns true if the session has active request streams.
   bool HasActiveRequestStreams() const;
 
+  // Called when the size of the compressed frame payload is available.
+  void OnCompressedFrameSize(size_t frame_len);
+
+  // Called when a PUSH_PROMISE frame has been received.
+  void OnPushPromise(spdy::SpdyStreamId stream_id,
+                     spdy::SpdyStreamId promised_stream_id);
+
+  // Called when the complete list of headers is available.
+  void OnHeaderList(const QuicHeaderList& header_list);
+
+  QuicStreamId promised_stream_id() const { return promised_stream_id_; }
+
   // Initialze HTTP/3 unidirectional streams if |unidirectional| is true and
   // those streams are not initialized yet.
   void OnCanCreateNewOutgoingStream(bool unidirectional) override;
@@ -251,19 +263,9 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
                  const spdy::SpdyStreamPrecedence& precedence,
                  bool fin);
 
-  // Called when a PUSH_PROMISE frame has been received.
-  void OnPushPromise(spdy::SpdyStreamId stream_id,
-                     spdy::SpdyStreamId promised_stream_id);
-
   // Called when a PRIORITY frame has been received.
   void OnPriority(spdy::SpdyStreamId stream_id,
                   const spdy::SpdyStreamPrecedence& precedence);
-
-  // Called when the complete list of headers is available.
-  void OnHeaderList(const QuicHeaderList& header_list);
-
-  // Called when the size of the compressed frame payload is available.
-  void OnCompressedFrameSize(size_t frame_len);
 
   // Initializes HTTP/3 unidirectional streams if not yet initialzed.
   void MaybeInitializeHttp3UnidirectionalStreams();
