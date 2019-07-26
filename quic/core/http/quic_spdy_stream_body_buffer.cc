@@ -13,25 +13,25 @@ namespace quic {
 QuicSpdyStreamBodyBuffer::QuicSpdyStreamBodyBuffer()
     : total_body_bytes_received_(0) {}
 
-size_t QuicSpdyStreamBodyBuffer::OnDataHeader(QuicByteCount length) {
+size_t QuicSpdyStreamBodyBuffer::OnNonBody(QuicByteCount length) {
   DCHECK_NE(0u, length);
 
   if (fragments_.empty()) {
-    // DATA frame header can be consumed immediately, because all previously
-    // received DATA frame payload bytes have been read.
+    // Non-body bytes can be consumed immediately, because all previously
+    // received body bytes have been read.
     return length;
   }
 
-  // DATA frame header length will be consumed after last fragment is read.
-  fragments_.back().trailing_consumable_bytes += length;
+  // Non-body bytes will be consumed after last body fragment is read.
+  fragments_.back().trailing_non_body_byte_count += length;
   return 0;
 }
 
-void QuicSpdyStreamBodyBuffer::OnDataPayload(QuicStringPiece payload) {
-  DCHECK(!payload.empty());
+void QuicSpdyStreamBodyBuffer::OnBody(QuicStringPiece body) {
+  DCHECK(!body.empty());
 
-  fragments_.push_back({payload, 0});
-  total_body_bytes_received_ += payload.length();
+  fragments_.push_back({body, 0});
+  total_body_bytes_received_ += body.length();
 }
 
 size_t QuicSpdyStreamBodyBuffer::OnBodyConsumed(size_t num_bytes) {
@@ -55,9 +55,9 @@ size_t QuicSpdyStreamBodyBuffer::OnBodyConsumed(size_t num_bytes) {
     }
 
     // Consume entire fragment and the following
-    // |trailing_consumable_bytes| bytes.
+    // |trailing_non_body_byte_count| bytes.
     remaining_bytes -= body.length();
-    bytes_to_consume += body.length() + fragment.trailing_consumable_bytes;
+    bytes_to_consume += body.length() + fragment.trailing_non_body_byte_count;
     fragments_.pop_front();
   }
 
@@ -111,7 +111,7 @@ size_t QuicSpdyStreamBodyBuffer::ReadBody(const struct iovec* iov,
 
     if (bytes_to_copy == body.length()) {
       // Entire fragment read.
-      bytes_to_consume += fragment.trailing_consumable_bytes;
+      bytes_to_consume += fragment.trailing_non_body_byte_count;
       fragments_.pop_front();
     } else {
       // Consume leading |bytes_to_copy| bytes of body.

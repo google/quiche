@@ -185,7 +185,6 @@ QuicSpdyStream::QuicSpdyStream(QuicStreamId id,
       trailers_decompressed_(false),
       trailers_consumed_(false),
       priority_sent_(false),
-      headers_bytes_to_be_marked_consumed_(0),
       http_decoder_visitor_(QuicMakeUnique<HttpDecoderVisitor>(this)),
       decoder_(http_decoder_visitor_.get()),
       sequencer_offset_(0),
@@ -221,7 +220,6 @@ QuicSpdyStream::QuicSpdyStream(PendingStream* pending,
       trailers_decompressed_(false),
       trailers_consumed_(false),
       priority_sent_(false),
-      headers_bytes_to_be_marked_consumed_(0),
       http_decoder_visitor_(QuicMakeUnique<HttpDecoderVisitor>(this)),
       decoder_(http_decoder_visitor_.get()),
       sequencer_offset_(sequencer()->NumBytesConsumed()),
@@ -398,12 +396,6 @@ size_t QuicSpdyStream::Readv(const struct iovec* iov, size_t iov_len) {
   size_t bytes_read = 0;
   sequencer()->MarkConsumed(body_buffer_.ReadBody(iov, iov_len, &bytes_read));
 
-  if (VersionUsesQpack(transport_version())) {
-    // Maybe all DATA frame bytes have been read and some trailing HEADERS had
-    // already been processed, in which case MarkConsumed() should be called.
-    MaybeMarkHeadersBytesConsumed();
-  }
-
   return bytes_read;
 }
 
@@ -421,13 +413,8 @@ void QuicSpdyStream::MarkConsumed(size_t num_bytes) {
     sequencer()->MarkConsumed(num_bytes);
     return;
   }
-  sequencer()->MarkConsumed(body_buffer_.OnBodyConsumed(num_bytes));
 
-  if (VersionUsesQpack(transport_version())) {
-    // Maybe all DATA frame bytes have been read and some trailing HEADERS had
-    // already been processed, in which case MarkConsumed() should be called.
-    MaybeMarkHeadersBytesConsumed();
-  }
+  sequencer()->MarkConsumed(body_buffer_.OnBodyConsumed(num_bytes));
 }
 
 bool QuicSpdyStream::IsDoneReading() const {
@@ -772,7 +759,7 @@ bool QuicSpdyStream::OnDataFrameStart(Http3FrameLengths frame_lengths) {
   }
 
   sequencer()->MarkConsumed(
-      body_buffer_.OnDataHeader(frame_lengths.header_length));
+      body_buffer_.OnNonBody(frame_lengths.header_length));
 
   return true;
 }
@@ -780,7 +767,7 @@ bool QuicSpdyStream::OnDataFrameStart(Http3FrameLengths frame_lengths) {
 bool QuicSpdyStream::OnDataFramePayload(QuicStringPiece payload) {
   DCHECK(VersionHasDataFrameHeader(transport_version()));
 
-  body_buffer_.OnDataPayload(payload);
+  body_buffer_.OnBody(payload);
 
   return true;
 }
@@ -827,16 +814,6 @@ void QuicSpdyStream::OnStreamFrameRetransmitted(QuicStreamOffset offset,
   }
 }
 
-void QuicSpdyStream::MaybeMarkHeadersBytesConsumed() {
-  DCHECK(VersionUsesQpack(transport_version()));
-
-  if (!body_buffer_.HasBytesToRead() && !reading_stopped() &&
-      headers_bytes_to_be_marked_consumed_ > 0) {
-    sequencer()->MarkConsumed(headers_bytes_to_be_marked_consumed_);
-    headers_bytes_to_be_marked_consumed_ = 0;
-  }
-}
-
 QuicByteCount QuicSpdyStream::GetNumFrameHeadersInInterval(
     QuicStreamOffset offset,
     QuicByteCount data_length) const {
@@ -862,6 +839,8 @@ bool QuicSpdyStream::OnHeadersFrameStart(Http3FrameLengths frame_length) {
     return false;
   }
 
+  sequencer()->MarkConsumed(body_buffer_.OnNonBody(frame_length.header_length));
+
   if (headers_decompressed_) {
     trailers_payload_length_ = frame_length.payload_length;
   } else {
@@ -873,10 +852,6 @@ bool QuicSpdyStream::OnHeadersFrameStart(Http3FrameLengths frame_length) {
           id(), spdy_session_->qpack_decoder(), this,
           spdy_session_->max_inbound_header_list_size());
 
-  // Do not call MaybeMarkHeadersBytesConsumed() yet, because
-  // HEADERS frame header bytes might not have been parsed completely.
-  headers_bytes_to_be_marked_consumed_ += frame_length.header_length;
-
   return true;
 }
 
@@ -885,8 +860,7 @@ bool QuicSpdyStream::OnHeadersFramePayload(QuicStringPiece payload) {
 
   const bool success = qpack_decoded_headers_accumulator_->Decode(payload);
 
-  headers_bytes_to_be_marked_consumed_ += payload.size();
-  MaybeMarkHeadersBytesConsumed();
+  sequencer()->MarkConsumed(body_buffer_.OnNonBody(payload.size()));
 
   if (!success) {
     // TODO(124216424): Use HTTP_QPACK_DECOMPRESSION_FAILED error code.

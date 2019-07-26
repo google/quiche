@@ -259,10 +259,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   // Called internally when headers are decoded.
   void ProcessDecodedHeaders(const QuicHeaderList& headers);
 
-  // Call QuicStreamSequencer::MarkConsumed() with
-  // |headers_bytes_to_be_marked_consumed_| if appropriate.
-  void MaybeMarkHeadersBytesConsumed();
-
   // Given the interval marked by [|offset|, |offset| + |data_length|), return
   // the number of frame header bytes contained in it.
   QuicByteCount GetNumFrameHeadersInInterval(QuicStreamOffset offset,
@@ -295,9 +291,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   // True if the stream has already sent an priority frame.
   bool priority_sent_;
 
-  // Number of bytes consumed while decoding HEADERS frames that cannot be
-  // marked consumed in QuicStreamSequencer until later.
-  QuicByteCount headers_bytes_to_be_marked_consumed_;
   // The parsed trailers received from the peer.
   spdy::SpdyHeaderBlock received_trailers_;
 

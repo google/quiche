@@ -2098,8 +2098,7 @@ TEST_P(QuicSpdyStreamIncrementalConsumptionTest, IncrementalConsumptionTest) {
       HeadersFrame(QuicTextUtils::HexDecode("00002a94e703626172"));
 
   // All HEADERS frame bytes are consumed even if the frame is not received
-  // completely (as long as at least some of the payload is received, which is
-  // an implementation detail that should not be tested).
+  // completely.
   OnStreamFrame(QuicStringPiece(headers).substr(0, headers.size() - 1));
   EXPECT_EQ(headers.size() - 1, NewlyConsumedBytes());
 
