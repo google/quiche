@@ -24,6 +24,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_config_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_connection_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_flow_controller_peer.h"
@@ -1786,24 +1787,27 @@ TEST_P(QuicSpdySessionTestClient, Http3ServerPush) {
     return;
   }
 
-  char type[] = {0x01};
-  std::string data = std::string(type, 1) + "header";
   EXPECT_EQ(0u, session_.GetNumOpenIncomingStreams());
+
+  // Push unidirectional stream is type 0x01.
+  std::string frame_type1 = QuicTextUtils::HexDecode("01");
   QuicStreamId stream_id1 =
       GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 0);
-  QuicStreamFrame data1(stream_id1, false, 0, QuicStringPiece(data));
-  session_.OnStreamFrame(data1);
+  session_.OnStreamFrame(QuicStreamFrame(stream_id1, /* fin = */ false,
+                                         /* offset = */ 0, frame_type1));
+
   EXPECT_EQ(1u, session_.GetNumOpenIncomingStreams());
   QuicStream* stream = session_.GetOrCreateStream(stream_id1);
   EXPECT_EQ(1u, stream->flow_controller()->bytes_consumed());
   EXPECT_EQ(1u, session_.flow_controller()->bytes_consumed());
 
-  char unoptimized_type[] = {0x80, 0x00, 0x00, 0x01};
-  data = std::string(unoptimized_type, 4) + "header";
+  // The same stream type can be encoded differently.
+  std::string frame_type2 = QuicTextUtils::HexDecode("80000001");
   QuicStreamId stream_id2 =
       GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 1);
-  QuicStreamFrame data2(stream_id2, false, 0, QuicStringPiece(data));
-  session_.OnStreamFrame(data2);
+  session_.OnStreamFrame(QuicStreamFrame(stream_id2, /* fin = */ false,
+                                         /* offset = */ 0, frame_type2));
+
   EXPECT_EQ(2u, session_.GetNumOpenIncomingStreams());
   stream = session_.GetOrCreateStream(stream_id2);
   EXPECT_EQ(4u, stream->flow_controller()->bytes_consumed());
@@ -1815,19 +1819,30 @@ TEST_P(QuicSpdySessionTestClient, Http3ServerPushOutofOrderFrame) {
     return;
   }
 
-  char type[] = {0x01};
-  EXPECT_EQ(0u, session_.GetNumOpenIncomingStreams());
-  QuicStreamFrame data1(
-      GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 0),
-      false, 1, QuicStringPiece("header"));
-  session_.OnStreamFrame(data1);
   EXPECT_EQ(0u, session_.GetNumOpenIncomingStreams());
 
-  QuicStreamFrame data2(
-      GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 0),
-      false, 0, QuicStringPiece(type, 1));
+  // Push unidirectional stream is type 0x01.
+  std::string frame_type = QuicTextUtils::HexDecode("01");
+  // The first field of a push stream is the Push ID.
+  std::string push_id = QuicTextUtils::HexDecode("4000");
+
+  QuicStreamId stream_id =
+      GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 0);
+
+  QuicStreamFrame data1(stream_id,
+                        /* fin = */ false, /* offset = */ 0, frame_type);
+  QuicStreamFrame data2(stream_id,
+                        /* fin = */ false, /* offset = */ frame_type.size(),
+                        push_id);
+
+  // Receiving some stream data without stream type does not open the stream.
   session_.OnStreamFrame(data2);
+  EXPECT_EQ(0u, session_.GetNumOpenIncomingStreams());
+
+  session_.OnStreamFrame(data1);
   EXPECT_EQ(1u, session_.GetNumOpenIncomingStreams());
+  QuicStream* stream = session_.GetOrCreateStream(stream_id);
+  EXPECT_EQ(3u, stream->flow_controller()->highest_received_byte_offset());
 }
 
 TEST_P(QuicSpdySessionTestServer, ZombieStreams) {
