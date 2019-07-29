@@ -365,6 +365,55 @@ TEST_F(QpackHeaderTableTest, EvictOldestOfSameName) {
               /* expected_is_static = */ false, 2u);
 }
 
+// Returns the size of the largest entry that could be inserted into the
+// dynamic table without evicting entry |index|.
+TEST_F(QpackHeaderTableTest, MaxInsertSizeWithoutEvictingGivenEntry) {
+  const uint64_t dynamic_table_capacity = 100;
+  QpackHeaderTable table;
+  table.SetMaximumDynamicTableCapacity(dynamic_table_capacity);
+
+  // Empty table can take an entry up to its capacity.
+  EXPECT_EQ(dynamic_table_capacity,
+            table.MaxInsertSizeWithoutEvictingGivenEntry(0));
+
+  const uint64_t entry_size1 = QpackEntry::Size("foo", "bar");
+  EXPECT_TRUE(table.InsertEntry("foo", "bar"));
+  EXPECT_EQ(dynamic_table_capacity - entry_size1,
+            table.MaxInsertSizeWithoutEvictingGivenEntry(0));
+  // Table can take an entry up to its capacity if all entries are allowed to be
+  // evicted.
+  EXPECT_EQ(dynamic_table_capacity,
+            table.MaxInsertSizeWithoutEvictingGivenEntry(1));
+
+  const uint64_t entry_size2 = QpackEntry::Size("baz", "foobar");
+  EXPECT_TRUE(table.InsertEntry("baz", "foobar"));
+  // Table can take an entry up to its capacity if all entries are allowed to be
+  // evicted.
+  EXPECT_EQ(dynamic_table_capacity,
+            table.MaxInsertSizeWithoutEvictingGivenEntry(2));
+  // Second entry must stay.
+  EXPECT_EQ(dynamic_table_capacity - entry_size2,
+            table.MaxInsertSizeWithoutEvictingGivenEntry(1));
+  // First and second entry must stay.
+  EXPECT_EQ(dynamic_table_capacity - entry_size2 - entry_size1,
+            table.MaxInsertSizeWithoutEvictingGivenEntry(0));
+
+  // Third entry evicts first one.
+  const uint64_t entry_size3 = QpackEntry::Size("last", "entry");
+  EXPECT_TRUE(table.InsertEntry("last", "entry"));
+  EXPECT_EQ(1u, table.dropped_entry_count());
+  // Table can take an entry up to its capacity if all entries are allowed to be
+  // evicted.
+  EXPECT_EQ(dynamic_table_capacity,
+            table.MaxInsertSizeWithoutEvictingGivenEntry(3));
+  // Third entry must stay.
+  EXPECT_EQ(dynamic_table_capacity - entry_size3,
+            table.MaxInsertSizeWithoutEvictingGivenEntry(2));
+  // Second and third entry must stay.
+  EXPECT_EQ(dynamic_table_capacity - entry_size3 - entry_size2,
+            table.MaxInsertSizeWithoutEvictingGivenEntry(1));
+}
+
 TEST_F(QpackHeaderTableTest, Observer) {
   StrictMock<MockObserver> observer1;
   RegisterObserver(&observer1, 1);

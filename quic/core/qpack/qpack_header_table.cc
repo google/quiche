@@ -141,6 +141,28 @@ const QpackEntry* QpackHeaderTable::InsertEntry(QuicStringPiece name,
   return new_entry;
 }
 
+uint64_t QpackHeaderTable::MaxInsertSizeWithoutEvictingGivenEntry(
+    uint64_t index) const {
+  DCHECK_LE(dropped_entry_count_, index);
+
+  if (index > inserted_entry_count()) {
+    // All entries are allowed to be evicted.
+    return dynamic_table_capacity_;
+  }
+
+  // Initialize to current available capacity.
+  uint64_t max_insert_size = dynamic_table_capacity_ - dynamic_table_size_;
+
+  for (const auto& entry : dynamic_entries_) {
+    if (entry.InsertionIndex() >= index) {
+      break;
+    }
+    max_insert_size += entry.Size();
+  }
+
+  return max_insert_size;
+}
+
 bool QpackHeaderTable::SetDynamicTableCapacity(uint64_t capacity) {
   if (capacity > maximum_dynamic_table_capacity_) {
     return false;

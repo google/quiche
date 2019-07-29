@@ -70,6 +70,12 @@ class QUIC_EXPORT_PRIVATE QpackHeaderTable {
   // is larger than the capacity of the dynamic table.
   const QpackEntry* InsertEntry(QuicStringPiece name, QuicStringPiece value);
 
+  // Returns the size of the largest entry that could be inserted into the
+  // dynamic table without evicting entry |index|.  |index| might be larger than
+  // inserted_entry_count(), in which case the capacity of the table is
+  // returned.  |index| must not be smaller than dropped_entry_count().
+  uint64_t MaxInsertSizeWithoutEvictingGivenEntry(uint64_t index) const;
+
   // Change dynamic table capacity to |capacity|.  Returns true on success.
   // Returns false is |capacity| exceeds maximum dynamic table capacity.
   bool SetDynamicTableCapacity(uint64_t capacity);
