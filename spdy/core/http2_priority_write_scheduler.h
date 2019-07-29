@@ -405,8 +405,10 @@ void Http2PriorityWriteScheduler<StreamIdType>::UpdateStreamParent(
     return;
   }
 
-  // If the new parent is already the stream's parent, we're done.
-  if (stream_info->parent == new_parent) {
+  if (stream_info->parent == new_parent &&
+      (!exclusive || new_parent->children.size() == 1)) {
+    // If the new parent is already the stream's parent, and exclusivity (if
+    // specified) is already satisfied, we are done.
     return;
   }
 
