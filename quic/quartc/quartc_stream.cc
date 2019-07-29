@@ -27,24 +27,28 @@ QuartcStream::QuartcStream(QuicStreamId id, QuicSession* session)
 QuartcStream::~QuartcStream() {}
 
 void QuartcStream::OnDataAvailable() {
-  bool fin = sequencer()->ReadableBytes() + sequencer()->NumBytesConsumed() ==
-             sequencer()->close_offset();
+  size_t bytes_consumed = 0;
+  do {
+    bool fin = sequencer()->ReadableBytes() + sequencer()->NumBytesConsumed() ==
+               sequencer()->close_offset();
 
-  // Upper bound on number of readable regions.  Each complete block's worth of
-  // data crosses at most one region boundary.  The remainder may cross one more
-  // boundary.  Number of regions is one more than the number of region
-  // boundaries crossed.
-  size_t iov_length = sequencer()->ReadableBytes() /
-                          QuicStreamSequencerBuffer::kBlockSizeBytes +
-                      2;
-  std::unique_ptr<iovec[]> iovecs = QuicMakeUnique<iovec[]>(iov_length);
-  iov_length = sequencer()->GetReadableRegions(iovecs.get(), iov_length);
+    // Upper bound on number of readable regions.  Each complete block's worth
+    // of data crosses at most one region boundary.  The remainder may cross one
+    // more boundary.  Number of regions is one more than the number of region
+    // boundaries crossed.
+    size_t iov_length = sequencer()->ReadableBytes() /
+                            QuicStreamSequencerBuffer::kBlockSizeBytes +
+                        2;
+    std::unique_ptr<iovec[]> iovecs = QuicMakeUnique<iovec[]>(iov_length);
+    iov_length = sequencer()->GetReadableRegions(iovecs.get(), iov_length);
 
-  sequencer()->MarkConsumed(
-      delegate_->OnReceived(this, iovecs.get(), iov_length, fin));
-  if (sequencer()->IsClosed()) {
-    OnFinRead();
-  }
+    bytes_consumed = delegate_->OnReceived(this, iovecs.get(), iov_length, fin);
+    sequencer()->MarkConsumed(bytes_consumed);
+    if (sequencer()->IsClosed()) {
+      OnFinRead();
+      break;
+    }
+  } while (bytes_consumed > 0);
 }
 
 void QuartcStream::OnClose() {
@@ -56,8 +60,9 @@ void QuartcStream::OnClose() {
 void QuartcStream::OnStreamDataConsumed(size_t bytes_consumed) {
   QuicStream::OnStreamDataConsumed(bytes_consumed);
 
-  DCHECK(delegate_);
-  delegate_->OnBufferChanged(this);
+  if (delegate_) {
+    delegate_->OnBufferChanged(this);
+  }
 }
 
 void QuartcStream::OnDataBuffered(
@@ -65,8 +70,9 @@ void QuartcStream::OnDataBuffered(
     QuicByteCount /*data_length*/,
     const QuicReferenceCountedPointer<
         QuicAckListenerInterface>& /*ack_listener*/) {
-  DCHECK(delegate_);
-  delegate_->OnBufferChanged(this);
+  if (delegate_) {
+    delegate_->OnBufferChanged(this);
+  }
 }
 
 bool QuartcStream::OnStreamFrameAcked(QuicStreamOffset offset,
@@ -156,10 +162,6 @@ void QuartcStream::FinishWriting() {
 }
 
 void QuartcStream::SetDelegate(Delegate* delegate) {
-  if (delegate_) {
-    QUIC_LOG(WARNING) << "The delegate for Stream " << id()
-                      << " has already been set.";
-  }
   delegate_ = delegate;
   DCHECK(delegate_);
 }
