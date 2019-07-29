@@ -961,8 +961,7 @@ bool QuicSpdyStream::OnPushPromiseFramePayload(QuicStringPiece payload) {
 bool QuicSpdyStream::OnPushPromiseFrameEnd() {
   DCHECK(VersionUsesQpack(transport_version()));
 
-  OnHeadersFrameEnd();
-  return !sequencer()->IsClosed() && !reading_stopped();
+  return OnHeadersFrameEnd();
 }
 
 bool QuicSpdyStream::OnUnknownFrameStart(uint64_t frame_type,
