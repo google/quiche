@@ -238,6 +238,8 @@ const QuicTag kCFCW = TAG('C', 'F', 'C', 'W');   // Initial session/connection
 const QuicTag kUAID = TAG('U', 'A', 'I', 'D');   // Client's User Agent ID.
 const QuicTag kXLCT = TAG('X', 'L', 'C', 'T');   // Expected leaf certificate.
 
+const QuicTag kMAD  = TAG('M', 'A', 'D', 0);     // Max Ack Delay (IETF QUIC)
+
 // Rejection tags
 const QuicTag kRREJ = TAG('R', 'R', 'E', 'J');   // Reasons for server sending
 

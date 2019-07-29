@@ -43,6 +43,13 @@ std::unique_ptr<QuartcSession> CreateQuartcClientSession(
       dummy_id, dummy_address, connection_helper, alarm_factory, writer.get(),
       Perspective::IS_CLIENT, supported_versions);
 
+  // Quartc sets its own ack delay; get that ack delay and copy it over
+  // to the QuicConfig so that it can be properly advertised to the peer
+  // via transport parameter negotiation.
+  quic_config.SetMaxAckDelayToSendMs(quic_connection->sent_packet_manager()
+                                         .local_max_ack_delay()
+                                         .ToMilliseconds());
+
   return QuicMakeUnique<QuartcClientSession>(
       std::move(quic_connection), quic_config, supported_versions, clock,
       std::move(writer),

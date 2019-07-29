@@ -56,6 +56,8 @@ TEST_P(QuicConfigTest, ToHandshakeMessage) {
 }
 
 TEST_P(QuicConfigTest, ProcessClientHello) {
+  const uint32_t kTestMaxAckDelayMs =
+      static_cast<uint32_t>(kDefaultDelayedAckTimeMs + 1);
   QuicConfig client_config;
   QuicTagVector cgst;
   cgst.push_back(kQBIC);
@@ -70,6 +72,7 @@ TEST_P(QuicConfigTest, ProcessClientHello) {
   QuicTagVector copt;
   copt.push_back(kTBBR);
   client_config.SetConnectionOptionsToSend(copt);
+  client_config.SetMaxAckDelayToSendMs(kTestMaxAckDelayMs);
   CryptoHandshakeMessage msg;
   client_config.ToHandshakeMessage(&msg, GetParam());
 
@@ -99,6 +102,12 @@ TEST_P(QuicConfigTest, ProcessClientHello) {
             2 * kInitialStreamFlowControlWindowForTest);
   EXPECT_EQ(config_.ReceivedInitialSessionFlowControlWindowBytes(),
             2 * kInitialSessionFlowControlWindowForTest);
+  if (GetQuicReloadableFlag(quic_negotiate_ack_delay_time)) {
+    EXPECT_TRUE(config_.HasReceivedMaxAckDelayMs());
+    EXPECT_EQ(kTestMaxAckDelayMs, config_.ReceivedMaxAckDelayMs());
+  } else {
+    EXPECT_FALSE(config_.HasReceivedMaxAckDelayMs());
+  }
 }
 
 TEST_P(QuicConfigTest, ProcessServerHello) {
@@ -106,6 +115,8 @@ TEST_P(QuicConfigTest, ProcessServerHello) {
   host.FromString("127.0.3.1");
   const QuicSocketAddress kTestServerAddress = QuicSocketAddress(host, 1234);
   const QuicUint128 kTestResetToken = MakeQuicUint128(0, 10111100001);
+  const uint32_t kTestMaxAckDelayMs =
+      static_cast<uint32_t>(kDefaultDelayedAckTimeMs + 1);
   QuicConfig server_config;
   QuicTagVector cgst;
   cgst.push_back(kQBIC);
@@ -119,6 +130,7 @@ TEST_P(QuicConfigTest, ProcessServerHello) {
       2 * kInitialSessionFlowControlWindowForTest);
   server_config.SetAlternateServerAddressToSend(kTestServerAddress);
   server_config.SetStatelessResetTokenToSend(kTestResetToken);
+  server_config.SetMaxAckDelayToSendMs(kTestMaxAckDelayMs);
   CryptoHandshakeMessage msg;
   server_config.ToHandshakeMessage(&msg, GetParam());
   std::string error_details;
@@ -137,6 +149,12 @@ TEST_P(QuicConfigTest, ProcessServerHello) {
   EXPECT_EQ(kTestServerAddress, config_.ReceivedAlternateServerAddress());
   EXPECT_TRUE(config_.HasReceivedStatelessResetToken());
   EXPECT_EQ(kTestResetToken, config_.ReceivedStatelessResetToken());
+  if (GetQuicReloadableFlag(quic_negotiate_ack_delay_time)) {
+    EXPECT_TRUE(config_.HasReceivedMaxAckDelayMs());
+    EXPECT_EQ(kTestMaxAckDelayMs, config_.ReceivedMaxAckDelayMs());
+  } else {
+    EXPECT_FALSE(config_.HasReceivedMaxAckDelayMs());
+  }
 }
 
 TEST_P(QuicConfigTest, MissingOptionalValuesInCHLO) {

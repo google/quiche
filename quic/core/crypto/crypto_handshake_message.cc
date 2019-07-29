@@ -278,6 +278,7 @@ std::string CryptoHandshakeMessage::DebugStringInternal(size_t indent) const {
       case kMIBS:
       case kSCLS:
       case kTCID:
+      case kMAD:
         // uint32_t value
         if (it->second.size() == 4) {
           uint32_t value;

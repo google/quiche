@@ -414,6 +414,16 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
 
   QuicUint128 ReceivedStatelessResetToken() const;
 
+  // Manage the IETF QUIC Max ACK Delay transport parameter.
+  // The sent value is the delay that this node uses
+  // (QuicSentPacketManager::local_max_ack_delay_).
+  // The received delay is the value received from
+  // the peer (QuicSentPacketManager::peer_max_ack_delay_).
+  void SetMaxAckDelayToSendMs(uint32_t max_ack_delay_ms);
+  uint32_t GetMaxAckDelayToToSendMs() const;
+  bool HasReceivedMaxAckDelayMs() const;
+  uint32_t ReceivedMaxAckDelayMs() const;
+
   bool negotiated() const;
 
   void SetCreateSessionTagIndicators(QuicTagVector tags);
@@ -501,6 +511,11 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   // Maximum number of incoming unidirectional streams that the connection can
   // support.
   QuicFixedUint32 max_incoming_unidirectional_streams_;
+
+  // Maximum ack delay. The sent value is the value used on this node.
+  // The received value is the value received from the peer and used by
+  // the peer.
+  QuicFixedUint32 max_ack_delay_ms_;
 };
 
 }  // namespace quic

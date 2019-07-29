@@ -243,6 +243,11 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
   }
   send_algorithm_->SetFromConfig(config, perspective);
 
+  if (config.HasReceivedMaxAckDelayMs()) {
+    peer_max_ack_delay_ =
+        QuicTime::Delta::FromMilliseconds(config.ReceivedMaxAckDelayMs());
+  }
+
   if (network_change_visitor_ != nullptr) {
     network_change_visitor_->OnCongestionChange();
   }

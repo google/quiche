@@ -605,6 +605,35 @@ TEST_P(EndToEndTestWithTls, SimpleRequestResponse) {
   EXPECT_EQ("200", client_->response_headers()->find(":status")->second);
 }
 
+// Simple transaction, but set a non-default ack delay at the client
+// and ensure it gets to the server.
+TEST_P(EndToEndTest, SimpleRequestResponseWithAckDelayChange) {
+  // Force the ACK delay to be something other than the default.
+  // Note that it is sent only if doing IETF QUIC.
+  client_config_.SetMaxAckDelayToSendMs(kDefaultDelayedAckTimeMs + 100u);
+  ASSERT_TRUE(Initialize());
+
+  EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
+  EXPECT_EQ("200", client_->response_headers()->find(":status")->second);
+  int expected_num_client_hellos = 2;
+  if (ServerSendsVersionNegotiation()) {
+    ++expected_num_client_hellos;
+  }
+  EXPECT_EQ(expected_num_client_hellos,
+            client_->client()->GetNumSentClientHellos());
+  if (GetQuicReloadableFlag(quic_negotiate_ack_delay_time)) {
+    EXPECT_EQ(kDefaultDelayedAckTimeMs + 100u,
+              GetSentPacketManagerFromFirstServerSession()
+                  ->peer_max_ack_delay()
+                  .ToMilliseconds());
+  } else {
+    EXPECT_EQ(kDefaultDelayedAckTimeMs,
+              GetSentPacketManagerFromFirstServerSession()
+                  ->peer_max_ack_delay()
+                  .ToMilliseconds());
+  }
+}
+
 TEST_P(EndToEndTest, SimpleRequestResponseForcedVersionNegotiation) {
   client_supported_versions_.insert(client_supported_versions_.begin(),
                                     QuicVersionReservedForNegotiation());

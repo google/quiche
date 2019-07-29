@@ -413,7 +413,8 @@ QuicConfig::QuicConfig()
       alternate_server_address_(kASAD, PRESENCE_OPTIONAL),
       support_max_header_list_size_(kSMHL, PRESENCE_OPTIONAL),
       stateless_reset_token_(kSRST, PRESENCE_OPTIONAL),
-      max_incoming_unidirectional_streams_(kMIUS, PRESENCE_OPTIONAL) {
+      max_incoming_unidirectional_streams_(kMIUS, PRESENCE_OPTIONAL),
+      max_ack_delay_ms_(kMAD, PRESENCE_OPTIONAL) {
   SetDefaults();
 }
 
@@ -538,6 +539,22 @@ bool QuicConfig::HasReceivedMaxIncomingUnidirectionalStreams() {
 
 uint32_t QuicConfig::ReceivedMaxIncomingUnidirectionalStreams() {
   return max_incoming_unidirectional_streams_.GetReceivedValue();
+}
+
+void QuicConfig::SetMaxAckDelayToSendMs(uint32_t max_ack_delay_ms) {
+  return max_ack_delay_ms_.SetSendValue(max_ack_delay_ms);
+}
+
+uint32_t QuicConfig::GetMaxAckDelayToToSendMs() const {
+  return max_ack_delay_ms_.GetSendValue();
+}
+
+bool QuicConfig::HasReceivedMaxAckDelayMs() const {
+  return max_ack_delay_ms_.HasReceivedValue();
+}
+
+uint32_t QuicConfig::ReceivedMaxAckDelayMs() const {
+  return max_ack_delay_ms_.GetReceivedValue();
 }
 
 bool QuicConfig::HasSetBytesForConnectionIdToSend() const {
@@ -692,6 +709,7 @@ void QuicConfig::SetDefaults() {
 
   SetInitialStreamFlowControlWindowToSend(kMinimumFlowControlSendWindow);
   SetInitialSessionFlowControlWindowToSend(kMinimumFlowControlSendWindow);
+  SetMaxAckDelayToSendMs(kDefaultDelayedAckTimeMs);
   SetSupportMaxHeaderListSize();
 }
 
@@ -706,6 +724,10 @@ void QuicConfig::ToHandshakeMessage(
   max_incoming_bidirectional_streams_.ToHandshakeMessage(out);
   if (VersionHasIetfQuicFrames(transport_version)) {
     max_incoming_unidirectional_streams_.ToHandshakeMessage(out);
+  }
+  if (GetQuicReloadableFlag(quic_negotiate_ack_delay_time)) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_negotiate_ack_delay_time, 1, 4);
+    max_ack_delay_ms_.ToHandshakeMessage(out);
   }
   bytes_for_connection_id_.ToHandshakeMessage(out);
   initial_round_trip_time_us_.ToHandshakeMessage(out);
@@ -777,6 +799,13 @@ QuicErrorCode QuicConfig::ProcessPeerHello(
     error = stateless_reset_token_.ProcessPeerHello(peer_hello, hello_type,
                                                     error_details);
   }
+
+  if (GetQuicReloadableFlag(quic_negotiate_ack_delay_time) &&
+      error == QUIC_NO_ERROR) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_negotiate_ack_delay_time, 2, 4);
+    error = max_ack_delay_ms_.ProcessPeerHello(peer_hello, hello_type,
+                                               error_details);
+  }
   return error;
 }
 
@@ -805,7 +834,10 @@ bool QuicConfig::FillTransportParameters(TransportParameters* params) const {
       max_incoming_bidirectional_streams_.GetSendValue());
   params->initial_max_streams_uni.set_value(
       max_incoming_unidirectional_streams_.GetSendValue());
-  params->max_ack_delay.set_value(kDefaultDelayedAckTimeMs);
+  if (GetQuicReloadableFlag(quic_negotiate_ack_delay_time)) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_negotiate_ack_delay_time, 3, 4);
+    params->max_ack_delay.set_value(kDefaultDelayedAckTimeMs);
+  }
   params->disable_migration =
       connection_migration_disabled_.HasSendValue() &&
       connection_migration_disabled_.GetSendValue() != 0;
@@ -887,7 +919,11 @@ QuicErrorCode QuicConfig::ProcessTransportParameters(
   initial_stream_flow_control_window_bytes_.SetReceivedValue(
       std::min<uint64_t>(params.initial_max_stream_data_bidi_local.value(),
                          std::numeric_limits<uint32_t>::max()));
-
+  if (GetQuicReloadableFlag(quic_negotiate_ack_delay_time)) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_negotiate_ack_delay_time, 4, 4);
+    max_ack_delay_ms_.SetReceivedValue(std::min<uint32_t>(
+        params.max_ack_delay.value(), std::numeric_limits<uint32_t>::max()));
+  }
   connection_migration_disabled_.SetReceivedValue(
       params.disable_migration ? 1u : 0u);
 
