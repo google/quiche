@@ -40,7 +40,8 @@ void QuicSendControlStream::SendSettingsFrame() {
                     nullptr);
 
   SettingsFrame settings;
-  settings.values[kSettingsMaxHeaderListSize] = max_inbound_header_list_size_;
+  settings.values[SETTINGS_MAX_HEADER_LIST_SIZE] =
+      max_inbound_header_list_size_;
   std::unique_ptr<char[]> buffer;
   QuicByteCount frame_length =
       encoder_.SerializeSettingsFrame(settings, &buffer);

@@ -28,8 +28,6 @@ using spdy::HpackEntry;
 using spdy::HpackHeaderTable;
 using spdy::Http2WeightToSpdy3Priority;
 using spdy::SETTINGS_ENABLE_PUSH;
-using spdy::SETTINGS_HEADER_TABLE_SIZE;
-using spdy::SETTINGS_MAX_HEADER_LIST_SIZE;
 using spdy::Spdy3PriorityToHttp2Weight;
 using spdy::SpdyErrorCode;
 using spdy::SpdyFramer;
@@ -155,10 +153,11 @@ class QuicSpdySession::SpdyFramerVisitor
 
   void OnSetting(SpdySettingsId id, uint32_t value) override {
     switch (id) {
-      case SETTINGS_HEADER_TABLE_SIZE:
+      case SETTINGS_QPACK_MAX_TABLE_CAPACITY:
         session_->UpdateHeaderEncoderTableSize(value);
         break;
       case SETTINGS_ENABLE_PUSH:
+        // TODO(b/138438479): Remove this setting.
         if (session_->perspective() == Perspective::IS_SERVER) {
           // See rfc7540, Section 6.5.2.
           if (value > 1) {
@@ -744,6 +743,7 @@ void QuicSpdySession::SetHpackDecoderDebugVisitor(
 }
 
 void QuicSpdySession::UpdateHeaderEncoderTableSize(uint32_t value) {
+  // TODO(b/112770235): Update QpackEncoder.
   spdy_framer_.UpdateHeaderEncoderTableSize(value);
 }
 

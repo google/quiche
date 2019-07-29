@@ -128,7 +128,7 @@ TEST_P(QuicReceiveControlStreamTest, ResetControlStream) {
 TEST_P(QuicReceiveControlStreamTest, ReceiveSettings) {
   SettingsFrame settings;
   settings.values[3] = 2;
-  settings.values[kSettingsMaxHeaderListSize] = 5;
+  settings.values[SETTINGS_MAX_HEADER_LIST_SIZE] = 5;
   std::string data = EncodeSettings(settings);
   QuicStreamFrame frame(receive_control_stream_->id(), false, 0,
                         QuicStringPiece(data));
@@ -181,7 +181,7 @@ TEST_P(QuicReceiveControlStreamTest, ReceiveSettingsTwice) {
 TEST_P(QuicReceiveControlStreamTest, ReceiveSettingsFragments) {
   SettingsFrame settings;
   settings.values[3] = 2;
-  settings.values[kSettingsMaxHeaderListSize] = 5;
+  settings.values[SETTINGS_MAX_HEADER_LIST_SIZE] = 5;
   std::string data = EncodeSettings(settings);
   std::string data1 = data.substr(0, 1);
   std::string data2 = data.substr(1, data.length() - 1);

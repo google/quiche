@@ -211,10 +211,10 @@ bool QuicReceiveControlStream::OnSettingsFrame(const SettingsFrame& settings) {
   for (auto& it : settings.values) {
     uint64_t setting_id = it.first;
     switch (setting_id) {
-      case kSettingsMaxHeaderListSize:
+      case SETTINGS_MAX_HEADER_LIST_SIZE:
         spdy_session->set_max_outbound_header_list_size(it.second);
         break;
-      case kSettingsNumPlaceholders:
+      case SETTINGS_NUM_PLACEHOLDERS:
         // TODO: Support placeholder setting
         break;
       default:

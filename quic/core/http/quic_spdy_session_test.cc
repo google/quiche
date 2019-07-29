@@ -2113,7 +2113,7 @@ TEST_P(QuicSpdySessionTestServer, ReceiveControlStream) {
 
   SettingsFrame settings;
   settings.values[3] = 2;
-  settings.values[kSettingsMaxHeaderListSize] = 5;
+  settings.values[SETTINGS_MAX_HEADER_LIST_SIZE] = 5;
   std::string data = EncodeSettings(settings);
   QuicStreamFrame frame(stream_id, false, 1, QuicStringPiece(data));
 
@@ -2132,7 +2132,7 @@ TEST_P(QuicSpdySessionTestServer, ReceiveControlStreamOutOfOrderDelivery) {
   char type[] = {kControlStream};
   SettingsFrame settings;
   settings.values[3] = 2;
-  settings.values[kSettingsMaxHeaderListSize] = 5;
+  settings.values[SETTINGS_MAX_HEADER_LIST_SIZE] = 5;
   std::string data = EncodeSettings(settings);
 
   QuicStreamFrame data1(stream_id, false, 1, QuicStringPiece(data));

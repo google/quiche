@@ -7,6 +7,8 @@
 
 #include <cstdint>
 
+#include "net/third_party/quiche/src/quic/core/quic_types.h"
+
 namespace quic {
 
 // Unidirectional stream types.
@@ -18,14 +20,21 @@ const uint64_t kServerPushStream = 0x01;
 const uint64_t kQpackEncoderStream = 0x02;
 const uint64_t kQpackDecoderStream = 0x03;
 
-// Settings identifiers.
-
+// HTTP/3 and QPACK settings identifiers.
 // https://quicwg.org/base-drafts/draft-ietf-quic-http.html#settings-parameters
-const uint64_t kSettingsMaxHeaderListSize = 0x06;
-const uint64_t kSettingsNumPlaceholders = 0x09;
 // https://quicwg.org/base-drafts/draft-ietf-quic-qpack.html#configuration
-const uint64_t kSettingsQpackMaxTableCapacity = 0x01;
-const uint64_t kSettingsQpackBlockedStream = 0x07;
+enum Http3AndQpackSettingsIdentifiers : uint64_t {
+  // Same value as spdy::SETTINGS_HEADER_TABLE_SIZE.
+  SETTINGS_QPACK_MAX_TABLE_CAPACITY = 0x01,
+  // Same value as spdy::SETTINGS_MAX_HEADER_LIST_SIZE.
+  SETTINGS_MAX_HEADER_LIST_SIZE = 0x06,
+  SETTINGS_QPACK_BLOCKED_STREAMS = 0x07,
+  SETTINGS_NUM_PLACEHOLDERS = 0x09,
+};
+
+// Default maximum dynamic table capacity, communicated via
+// SETTINGS_QPACK_MAX_TABLE_CAPACITY.
+const QuicByteCount kDefaultQpackMaxDynamicTableCapacity = 64 * 1024;  // 64 KB
 
 }  // namespace quic
 
