@@ -152,18 +152,16 @@ class QuicSpdyStream::HttpDecoderVisitor : public HttpDecoder::Visitor {
     return stream_->OnPushPromiseFrameEnd();
   }
 
-  bool OnUnknownFrameStart(uint64_t /* frame_type */,
-                           Http3FrameLengths /* frame_length */) override {
-    // TODO(b/137554973): Consume frame header.
-    return true;
+  bool OnUnknownFrameStart(uint64_t frame_type,
+                           Http3FrameLengths frame_length) override {
+    return stream_->OnUnknownFrameStart(frame_type, frame_length);
   }
 
-  bool OnUnknownFramePayload(QuicStringPiece /* payload */) override {
-    // TODO(b/137554973): Consume frame payload.
-    return true;
+  bool OnUnknownFramePayload(QuicStringPiece payload) override {
+    return stream_->OnUnknownFramePayload(payload);
   }
 
-  bool OnUnknownFrameEnd() override { return true; }
+  bool OnUnknownFrameEnd() override { return stream_->OnUnknownFrameEnd(); }
 
  private:
   void CloseConnectionOnWrongFrame(std::string frame_type) {
@@ -965,6 +963,30 @@ bool QuicSpdyStream::OnPushPromiseFrameEnd() {
 
   OnHeadersFrameEnd();
   return !sequencer()->IsClosed() && !reading_stopped();
+}
+
+bool QuicSpdyStream::OnUnknownFrameStart(uint64_t frame_type,
+                                         Http3FrameLengths frame_length) {
+  // Ignore unknown frames, but consume frame header.
+  QUIC_DVLOG(1) << "Discarding " << frame_length.header_length
+                << " byte long frame header of frame of unknown type "
+                << frame_type << ".";
+  QUIC_DVLOG(1) << "Frame total payload length is "
+                << frame_length.payload_length << ".";
+  sequencer()->MarkConsumed(body_buffer_.OnNonBody(frame_length.header_length));
+  return true;
+}
+
+bool QuicSpdyStream::OnUnknownFramePayload(QuicStringPiece payload) {
+  // Ignore unknown frames, but consume frame payload.
+  QUIC_DVLOG(1) << "Discarding " << payload.size()
+                << " bytes of payload of frame of unknown type.";
+  sequencer()->MarkConsumed(body_buffer_.OnNonBody(payload.size()));
+  return true;
+}
+
+bool QuicSpdyStream::OnUnknownFrameEnd() {
+  return true;
 }
 
 void QuicSpdyStream::ProcessDecodedHeaders(const QuicHeaderList& headers) {

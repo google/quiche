@@ -228,6 +228,24 @@ class QuicSpdyStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
     return QuicStrCat(data_frame_header, payload);
   }
 
+  std::string UnknownFrame(uint64_t frame_type, QuicStringPiece payload) {
+    std::string frame;
+    const size_t length = QuicDataWriter::GetVarInt62Len(frame_type) +
+                          QuicDataWriter::GetVarInt62Len(payload.size()) +
+                          payload.size();
+    frame.resize(length);
+
+    QuicDataWriter writer(length, frame.data());
+    writer.WriteVarInt62(frame_type);
+    writer.WriteStringPieceVarInt62(payload);
+    // Even though integers can be encoded with different lengths,
+    // QuicDataWriter is expected to produce an encoding in Write*() of length
+    // promised in GetVarInt62Len().
+    DCHECK_EQ(length, writer.length());
+
+    return frame;
+  }
+
   MockQuicConnectionHelper helper_;
   MockAlarmFactory alarm_factory_;
   MockQuicConnection* connection_;
@@ -2086,7 +2104,7 @@ INSTANTIATE_TEST_SUITE_P(Tests,
 
 // Test that stream bytes are consumed (by calling
 // sequencer()->MarkConsumed()) incrementally, as soon as possible.
-TEST_P(QuicSpdyStreamIncrementalConsumptionTest, IncrementalConsumptionTest) {
+TEST_P(QuicSpdyStreamIncrementalConsumptionTest, OnlyKnownFrames) {
   if (!VersionUsesQpack(GetParam().transport_version)) {
     return;
   }
@@ -2147,6 +2165,92 @@ TEST_P(QuicSpdyStreamIncrementalConsumptionTest, IncrementalConsumptionTest) {
   // Verify trailers.
   EXPECT_THAT(stream_->received_trailers(),
               ElementsAre(Pair("custom-key", "custom-value")));
+}
+
+TEST_P(QuicSpdyStreamIncrementalConsumptionTest, UnknownFramesInterleaved) {
+  if (!VersionUsesQpack(GetParam().transport_version)) {
+    return;
+  }
+
+  Initialize(!kShouldProcessData);
+
+  // Unknown frame of reserved type before HEADERS is consumed immediately.
+  std::string unknown_frame1 = UnknownFrame(0x21, "foo");
+  OnStreamFrame(unknown_frame1);
+  EXPECT_EQ(unknown_frame1.size(), NewlyConsumedBytes());
+
+  // HEADERS frame with QPACK encoded single header field "foo: bar".
+  std::string headers =
+      HeadersFrame(QuicTextUtils::HexDecode("00002a94e703626172"));
+
+  // All HEADERS frame bytes are consumed even if the frame is not received
+  // completely.
+  OnStreamFrame(QuicStringPiece(headers).substr(0, headers.size() - 1));
+  EXPECT_EQ(headers.size() - 1, NewlyConsumedBytes());
+
+  // The rest of the HEADERS frame is also consumed immediately.
+  OnStreamFrame(QuicStringPiece(headers).substr(headers.size() - 1));
+  EXPECT_EQ(1u, NewlyConsumedBytes());
+
+  // Verify headers.
+  EXPECT_THAT(stream_->header_list(), ElementsAre(Pair("foo", "bar")));
+  stream_->ConsumeHeaderList();
+
+  // Frame of unknown, not reserved type between HEADERS and DATA is consumed
+  // immediately.
+  std::string unknown_frame2 = UnknownFrame(0x3a, "");
+  OnStreamFrame(unknown_frame2);
+  EXPECT_EQ(unknown_frame2.size(), NewlyConsumedBytes());
+
+  // DATA frame.
+  QuicStringPiece data_payload(kDataFramePayload);
+  std::string data_frame = DataFrame(data_payload);
+  QuicByteCount data_frame_header_length =
+      data_frame.size() - data_payload.size();
+
+  // DATA frame header is consumed.
+  // DATA frame payload is not consumed because payload has to be buffered.
+  OnStreamFrame(data_frame);
+  EXPECT_EQ(data_frame_header_length, NewlyConsumedBytes());
+
+  // Frame of unknown, not reserved type is not consumed because DATA payload is
+  // still buffered.
+  std::string unknown_frame3 = UnknownFrame(0x39, "bar");
+  OnStreamFrame(unknown_frame3);
+  EXPECT_EQ(0u, NewlyConsumedBytes());
+
+  // Consume all but last byte of data.
+  EXPECT_EQ(data_payload.substr(0, data_payload.size() - 1),
+            ReadFromStream(data_payload.size() - 1));
+  EXPECT_EQ(data_payload.size() - 1, NewlyConsumedBytes());
+
+  // Trailing HEADERS frame with QPACK encoded
+  // single header field "custom-key: custom-value".
+  std::string trailers = HeadersFrame(
+      QuicTextUtils::HexDecode("00002f0125a849e95ba97d7f8925a849e95bb8e8b4bf"));
+
+  // No bytes are consumed, because last byte of DATA payload is still buffered.
+  OnStreamFrame(QuicStringPiece(trailers).substr(0, trailers.size() - 1));
+  EXPECT_EQ(0u, NewlyConsumedBytes());
+
+  // Reading last byte of DATA payload triggers consumption of all data received
+  // so far, even though last HEADERS frame has not been received completely.
+  EXPECT_EQ(data_payload.substr(data_payload.size() - 1), ReadFromStream(1));
+  EXPECT_EQ(1 + unknown_frame3.size() + trailers.size() - 1,
+            NewlyConsumedBytes());
+
+  // Last byte of trailers is immediately consumed.
+  OnStreamFrame(QuicStringPiece(trailers).substr(trailers.size() - 1));
+  EXPECT_EQ(1u, NewlyConsumedBytes());
+
+  // Verify trailers.
+  EXPECT_THAT(stream_->received_trailers(),
+              ElementsAre(Pair("custom-key", "custom-value")));
+
+  // Unknown frame of reserved type after trailers is consumed immediately.
+  std::string unknown_frame4 = UnknownFrame(0x40, "");
+  OnStreamFrame(unknown_frame4);
+  EXPECT_EQ(unknown_frame4.size(), NewlyConsumedBytes());
 }
 
 TEST_P(QuicSpdyStreamTest, PushPromiseOnDataStream) {

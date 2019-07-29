@@ -263,6 +263,9 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
                                QuicByteCount push_id_length);
   bool OnPushPromiseFramePayload(QuicStringPiece payload);
   bool OnPushPromiseFrameEnd();
+  bool OnUnknownFrameStart(uint64_t frame_type, Http3FrameLengths frame_length);
+  bool OnUnknownFramePayload(QuicStringPiece payload);
+  bool OnUnknownFrameEnd();
 
   // Called internally when headers are decoded.
   void ProcessDecodedHeaders(const QuicHeaderList& headers);
