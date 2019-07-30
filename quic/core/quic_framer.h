@@ -611,6 +611,18 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
       uint8_t* source_connection_id_length_out,
       std::string* detailed_error);
 
+  void set_local_ack_delay_exponent(uint32_t exponent) {
+    local_ack_delay_exponent_ = exponent;
+  }
+  uint32_t local_ack_delay_exponent() const {
+    return local_ack_delay_exponent_;
+  }
+
+  void set_peer_ack_delay_exponent(uint32_t exponent) {
+    peer_ack_delay_exponent_ = exponent;
+  }
+  uint32_t peer_ack_delay_exponent() const { return peer_ack_delay_exponent_; }
+
  private:
   friend class test::QuicFramerPeer;
 
@@ -1020,6 +1032,15 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   // The length in bytes of the last packet number written to an IETF-framed
   // packet.
   size_t last_written_packet_number_length_;
+
+  // The amount to shift the ack timestamp in ACK frames. The default is 3.
+  // Local_ is the amount this node shifts timestamps in ACK frames it
+  // generates. it is sent to the peer in a transport parameter negotiation.
+  // Peer_ is the amount the peer shifts timestamps when it sends ACK frames to
+  // this node. This node "unshifts" by this amount. The value is received from
+  // the peer in the transport parameter negotiation. IETF QUIC only.
+  uint32_t peer_ack_delay_exponent_;
+  uint32_t local_ack_delay_exponent_;
 };
 
 }  // namespace quic

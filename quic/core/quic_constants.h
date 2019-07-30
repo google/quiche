@@ -113,6 +113,9 @@ QUIC_EXPORT_PRIVATE extern const char* const kFinalOffsetHeaderKey;
 // in low-bandwidth (< ~384 kbps), where an ack is sent per packet.
 const int64_t kDefaultDelayedAckTimeMs = 25;
 
+// Default shift of the ACK delay in the IETF QUIC ACK frame.
+const uint32_t kDefaultAckDelayExponent = 3;
+
 // Minimum tail loss probe time in ms.
 static const int64_t kMinTailLossProbeTimeoutMs = 10;
 

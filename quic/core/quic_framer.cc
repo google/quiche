@@ -50,11 +50,6 @@ namespace {
 #define ENDPOINT \
   (perspective_ == Perspective::IS_SERVER ? "Server: " : "Client: ")
 
-// How much to shift the timestamp in the IETF Ack frame.
-// TODO(fkastenholz) when we get real IETF QUIC, need to get
-// the currect shift from the transport parameters.
-const int kIetfAckTimestampShift = 3;
-
 // Number of bits the packet number length bits are shifted from the right
 // edge of the header.
 const uint8_t kPublicHeaderSequenceNumberShift = 4;
@@ -482,7 +477,9 @@ QuicFramer::QuicFramer(const ParsedQuicVersionVector& supported_versions,
           expected_server_connection_id_length),
       expected_client_connection_id_length_(0),
       supports_multiple_packet_number_spaces_(false),
-      last_written_packet_number_length_(0) {
+      last_written_packet_number_length_(0),
+      peer_ack_delay_exponent_(kDefaultAckDelayExponent),
+      local_ack_delay_exponent_(kDefaultAckDelayExponent) {
   DCHECK(!supported_versions.empty());
   version_ = supported_versions_[0];
   decrypter_[ENCRYPTION_INITIAL] = QuicMakeUnique<NullDecrypter>(perspective);
@@ -3753,12 +3750,10 @@ bool QuicFramer::ProcessIetfAckFrame(QuicDataReader* reader,
     return false;
   }
 
-  // TODO(fkastenholz) when we get real IETF QUIC, need to get
-  // the currect shift from the transport parameters.
   if (ack_delay_time_in_us == kVarInt62MaxValue) {
     ack_frame->ack_delay_time = QuicTime::Delta::Infinite();
   } else {
-    ack_delay_time_in_us = (ack_delay_time_in_us << kIetfAckTimestampShift);
+    ack_delay_time_in_us = (ack_delay_time_in_us << peer_ack_delay_exponent_);
     ack_frame->ack_delay_time =
         QuicTime::Delta::FromMicroseconds(ack_delay_time_in_us);
   }
@@ -4566,7 +4561,7 @@ size_t QuicFramer::GetIetfAckFrameSize(const QuicAckFrame& frame) {
   ack_frame_size += QuicDataWriter::GetVarInt62Len(largest_acked.ToUint64());
   uint64_t ack_delay_time_us;
   ack_delay_time_us = frame.ack_delay_time.ToMicroseconds();
-  ack_delay_time_us = ack_delay_time_us >> kIetfAckTimestampShift;
+  ack_delay_time_us = ack_delay_time_us >> local_ack_delay_exponent_;
   ack_frame_size += QuicDataWriter::GetVarInt62Len(ack_delay_time_us);
 
   // If |ecn_counters_populated| is true and any of the ecn counters is non-0
@@ -5423,8 +5418,7 @@ bool QuicFramer::AppendIetfAckFrameAndTypeByte(const QuicAckFrame& frame,
   if (!frame.ack_delay_time.IsInfinite()) {
     DCHECK_LE(0u, frame.ack_delay_time.ToMicroseconds());
     ack_delay_time_us = frame.ack_delay_time.ToMicroseconds();
-    // TODO(fkastenholz): Use the shift from TLS transport parameters.
-    ack_delay_time_us = ack_delay_time_us >> kIetfAckTimestampShift;
+    ack_delay_time_us = ack_delay_time_us >> local_ack_delay_exponent_;
   }
 
   if (!writer->WriteVarInt62(ack_delay_time_us)) {

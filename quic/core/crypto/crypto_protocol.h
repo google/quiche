@@ -219,6 +219,8 @@ const QuicTag kICSL = TAG('I', 'C', 'S', 'L');   // Idle network timeout
 const QuicTag kSCLS = TAG('S', 'C', 'L', 'S');   // Silently close on timeout
 const QuicTag kMIBS = TAG('M', 'I', 'D', 'S');   // Max incoming bidi streams
 const QuicTag kMIUS = TAG('M', 'I', 'U', 'S');   // Max incoming unidi streams
+const QuicTag kADE  = TAG('A', 'D', 'E', 0);     // Ack Delay Exponent (IETF
+                                                 // QUIC ACK Frame Only).
 const QuicTag kIRTT = TAG('I', 'R', 'T', 'T');   // Estimated initial RTT in us.
 const QuicTag kSNI  = TAG('S', 'N', 'I', '\0');  // Server name
                                                  // indication

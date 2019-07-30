@@ -425,6 +425,9 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
     stateless_reset_token_received_ = true;
     received_stateless_reset_token_ = config.ReceivedStatelessResetToken();
   }
+  if (config.HasReceivedAckDelayExponent()) {
+    framer_.set_peer_ack_delay_exponent(config.ReceivedAckDelayExponent());
+  }
   if (GetQuicReloadableFlag(quic_send_timestamps) &&
       config.HasClientSentConnectionOption(kSTMP, perspective_)) {
     QUIC_RELOADABLE_FLAG_COUNT(quic_send_timestamps);

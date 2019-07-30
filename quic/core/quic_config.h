@@ -424,6 +424,11 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   bool HasReceivedMaxAckDelayMs() const;
   uint32_t ReceivedMaxAckDelayMs() const;
 
+  void SetAckDelayExponentToSend(uint32_t exponent);
+  uint32_t GetAckDelayExponentToSend();
+  bool HasReceivedAckDelayExponent() const;
+  uint32_t ReceivedAckDelayExponent() const;
+
   bool negotiated() const;
 
   void SetCreateSessionTagIndicators(QuicTagVector tags);
@@ -516,6 +521,13 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   // The received value is the value received from the peer and used by
   // the peer.
   QuicFixedUint32 max_ack_delay_ms_;
+
+  // ack_delay_exponent parameter negotiated in IETF QUIC transport
+  // parameter negotiation. The sent exponent is the exponent that this
+  // node uses when serializing an ACK frame (and the peer should use when
+  // deserializing the frame); the received exponent is the value the peer uses
+  // to serialize frames and this node uses to deserialize them.
+  QuicFixedUint32 ack_delay_exponent_;
 };
 
 }  // namespace quic

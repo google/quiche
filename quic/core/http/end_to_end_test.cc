@@ -634,6 +634,39 @@ TEST_P(EndToEndTest, SimpleRequestResponseWithAckDelayChange) {
   }
 }
 
+// Simple transaction, but set a non-default ack exponent at the client
+// and ensure it gets to the server.
+TEST_P(EndToEndTest, SimpleRequestResponseWithAckExponentChange) {
+  const uint32_t kClientAckDelayExponent = kDefaultAckDelayExponent + 100u;
+  // Force the ACK exponent to be something other than the default.
+  // Note that it is sent only if doing IETF QUIC.
+  client_config_.SetAckDelayExponentToSend(kClientAckDelayExponent);
+  ASSERT_TRUE(Initialize());
+
+  EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
+  EXPECT_EQ("200", client_->response_headers()->find(":status")->second);
+  int expected_num_client_hellos = 2;
+  if (ServerSendsVersionNegotiation()) {
+    ++expected_num_client_hellos;
+  }
+
+  EXPECT_EQ(expected_num_client_hellos,
+            client_->client()->GetNumSentClientHellos());
+  if (VersionHasIetfQuicFrames(
+          GetParam().negotiated_version.transport_version)) {
+    // Should be only for IETF QUIC.
+    EXPECT_EQ(kClientAckDelayExponent,
+              GetServerConnection()->framer().peer_ack_delay_exponent());
+  } else {
+    // No change for Google QUIC.
+    EXPECT_EQ(kDefaultAckDelayExponent,
+              GetServerConnection()->framer().peer_ack_delay_exponent());
+  }
+  // No change, regardless of version.
+  EXPECT_EQ(kDefaultAckDelayExponent,
+            GetServerConnection()->framer().local_ack_delay_exponent());
+}
+
 TEST_P(EndToEndTest, SimpleRequestResponseForcedVersionNegotiation) {
   client_supported_versions_.insert(client_supported_versions_.begin(),
                                     QuicVersionReservedForNegotiation());
