@@ -406,7 +406,7 @@ void Http2PriorityWriteScheduler<StreamIdType>::UpdateStreamParent(
   }
 
   if (stream_info->parent == new_parent &&
-      (!exclusive || new_parent->children.size() == 1)) {
+      (!exclusive || new_parent->children.size() == 1u)) {
     // If the new parent is already the stream's parent, and exclusivity (if
     // specified) is already satisfied, we are done.
     return;
@@ -723,8 +723,8 @@ SpdyString Http2PriorityWriteScheduler<StreamIdType>::DebugString() const {
 template <typename StreamIdType>
 bool Http2PriorityWriteScheduler<StreamIdType>::ValidateInvariantsForTests()
     const {
-  int total_streams = 0;
-  int streams_visited = 0;
+  size_t total_streams = 0;
+  size_t streams_visited = 0;
   // Iterate through all streams in the map.
   for (const auto& kv : all_stream_infos_) {
     ++total_streams;

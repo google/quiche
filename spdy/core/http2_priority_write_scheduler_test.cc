@@ -1,3 +1,7 @@
+// Copyright (c) 2019 The Chromium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
 #include "net/third_party/quiche/src/spdy/core/http2_priority_write_scheduler.h"
 
 #include <initializer_list>
@@ -74,7 +78,7 @@ TEST_F(Http2PriorityWriteSchedulerTest, RegisterAndUnregisterStreams) {
   EXPECT_TRUE(scheduler_.StreamRegistered(5));
   ASSERT_TRUE(scheduler_.StreamRegistered(13));
   EXPECT_EQ(130, scheduler_.GetStreamPrecedence(13).weight());
-  EXPECT_EQ(5, scheduler_.GetStreamPrecedence(13).parent_id());
+  EXPECT_EQ(5u, scheduler_.GetStreamPrecedence(13).parent_id());
 
   scheduler_.UnregisterStream(5);
   // Cannot remove a stream that has already been removed.
@@ -88,7 +92,7 @@ TEST_F(Http2PriorityWriteSchedulerTest, RegisterAndUnregisterStreams) {
   // The parent stream 19 doesn't exist, so this should use 0 as parent stream:
   scheduler_.RegisterStream(7, SpdyStreamPrecedence(19, 70, false));
   EXPECT_TRUE(scheduler_.StreamRegistered(7));
-  EXPECT_EQ(0, scheduler_.GetStreamPrecedence(7).parent_id());
+  EXPECT_EQ(0u, scheduler_.GetStreamPrecedence(7).parent_id());
   // Now stream 7 already exists, so this should fail:
   EXPECT_SPDY_BUG(
       scheduler_.RegisterStream(7, SpdyStreamPrecedence(1, 70, false)),
@@ -105,7 +109,7 @@ TEST_F(Http2PriorityWriteSchedulerTest, RegisterAndUnregisterStreams) {
 TEST_F(Http2PriorityWriteSchedulerTest, RegisterStreamWithSpdy3Priority) {
   EXPECT_FALSE(scheduler_.StreamRegistered(1));
   scheduler_.RegisterStream(1, SpdyStreamPrecedence(3));
-  EXPECT_EQ(0, scheduler_.NumReadyStreams());
+  EXPECT_EQ(0u, scheduler_.NumReadyStreams());
   EXPECT_TRUE(scheduler_.StreamRegistered(1));
   EXPECT_EQ(3, scheduler_.GetStreamPrecedence(1).spdy3_priority());
   EXPECT_EQ(147, scheduler_.GetStreamPrecedence(1).weight());
@@ -113,7 +117,6 @@ TEST_F(Http2PriorityWriteSchedulerTest, RegisterStreamWithSpdy3Priority) {
   EXPECT_THAT(scheduler_.GetStreamChildren(1), IsEmpty());
 
   EXPECT_SPDY_BUG(scheduler_.RegisterStream(1, SpdyStreamPrecedence(4)),
-                  "Expected HTTP/2 stream dependency|"
                   "Stream 1 already registered");
   EXPECT_EQ(3, scheduler_.GetStreamPrecedence(1).spdy3_priority());
 }
@@ -147,7 +150,7 @@ TEST_F(Http2PriorityWriteSchedulerTest, GetStreamParent) {
   EXPECT_EQ(kHttp2RootStreamId, scheduler_.GetStreamPrecedence(3).parent_id());
   scheduler_.RegisterStream(2, SpdyStreamPrecedence(0, 20, false));
   scheduler_.RegisterStream(3, SpdyStreamPrecedence(2, 30, false));
-  EXPECT_EQ(2, scheduler_.GetStreamPrecedence(3).parent_id());
+  EXPECT_EQ(2u, scheduler_.GetStreamPrecedence(3).parent_id());
   scheduler_.UnregisterStream(3);
   EXPECT_EQ(kHttp2RootStreamId, scheduler_.GetStreamPrecedence(3).parent_id());
 }
@@ -609,22 +612,22 @@ TEST_F(Http2PriorityWriteSchedulerTest, BlockAndUnblock) {
   scheduler_.RegisterStream(13, SpdyStreamPrecedence(7, 100, true));
   scheduler_.RegisterStream(14, SpdyStreamPrecedence(7, 100, false));
   scheduler_.UpdateStreamPrecedence(7, SpdyStreamPrecedence(3, 100, false));
-  EXPECT_EQ(0, scheduler_.GetStreamPrecedence(1).parent_id());
-  EXPECT_EQ(0, scheduler_.GetStreamPrecedence(2).parent_id());
-  EXPECT_EQ(0, scheduler_.GetStreamPrecedence(3).parent_id());
-  EXPECT_EQ(1, scheduler_.GetStreamPrecedence(4).parent_id());
-  EXPECT_EQ(1, scheduler_.GetStreamPrecedence(5).parent_id());
-  EXPECT_EQ(2, scheduler_.GetStreamPrecedence(6).parent_id());
-  EXPECT_EQ(3, scheduler_.GetStreamPrecedence(7).parent_id());
-  EXPECT_EQ(4, scheduler_.GetStreamPrecedence(8).parent_id());
-  EXPECT_EQ(4, scheduler_.GetStreamPrecedence(9).parent_id());
-  EXPECT_EQ(5, scheduler_.GetStreamPrecedence(10).parent_id());
-  EXPECT_EQ(5, scheduler_.GetStreamPrecedence(11).parent_id());
-  EXPECT_EQ(6, scheduler_.GetStreamPrecedence(12).parent_id());
-  EXPECT_EQ(7, scheduler_.GetStreamPrecedence(13).parent_id());
-  EXPECT_EQ(7, scheduler_.GetStreamPrecedence(14).parent_id());
-  EXPECT_EQ(8, scheduler_.GetStreamPrecedence(15).parent_id());
-  EXPECT_EQ(8, scheduler_.GetStreamPrecedence(16).parent_id());
+  EXPECT_EQ(0u, scheduler_.GetStreamPrecedence(1).parent_id());
+  EXPECT_EQ(0u, scheduler_.GetStreamPrecedence(2).parent_id());
+  EXPECT_EQ(0u, scheduler_.GetStreamPrecedence(3).parent_id());
+  EXPECT_EQ(1u, scheduler_.GetStreamPrecedence(4).parent_id());
+  EXPECT_EQ(1u, scheduler_.GetStreamPrecedence(5).parent_id());
+  EXPECT_EQ(2u, scheduler_.GetStreamPrecedence(6).parent_id());
+  EXPECT_EQ(3u, scheduler_.GetStreamPrecedence(7).parent_id());
+  EXPECT_EQ(4u, scheduler_.GetStreamPrecedence(8).parent_id());
+  EXPECT_EQ(4u, scheduler_.GetStreamPrecedence(9).parent_id());
+  EXPECT_EQ(5u, scheduler_.GetStreamPrecedence(10).parent_id());
+  EXPECT_EQ(5u, scheduler_.GetStreamPrecedence(11).parent_id());
+  EXPECT_EQ(6u, scheduler_.GetStreamPrecedence(12).parent_id());
+  EXPECT_EQ(7u, scheduler_.GetStreamPrecedence(13).parent_id());
+  EXPECT_EQ(7u, scheduler_.GetStreamPrecedence(14).parent_id());
+  EXPECT_EQ(8u, scheduler_.GetStreamPrecedence(15).parent_id());
+  EXPECT_EQ(8u, scheduler_.GetStreamPrecedence(16).parent_id());
   ASSERT_TRUE(peer_.ValidateInvariants());
 
   EXPECT_EQ(peer_.TotalChildWeights(0),
@@ -727,19 +730,19 @@ TEST_F(Http2PriorityWriteSchedulerTest, MarkReadyFrontAndBack) {
   for (int i = 1; i < 6; ++i) {
     scheduler_.MarkStreamReady(i, false);
   }
-  EXPECT_EQ(5, scheduler_.PopNextReadyStream());
-  EXPECT_EQ(2, scheduler_.PopNextReadyStream());
+  EXPECT_EQ(5u, scheduler_.PopNextReadyStream());
+  EXPECT_EQ(2u, scheduler_.PopNextReadyStream());
   scheduler_.MarkStreamReady(2, false);
-  EXPECT_EQ(3, scheduler_.PopNextReadyStream());
+  EXPECT_EQ(3u, scheduler_.PopNextReadyStream());
   scheduler_.MarkStreamReady(3, false);
-  EXPECT_EQ(4, scheduler_.PopNextReadyStream());
+  EXPECT_EQ(4u, scheduler_.PopNextReadyStream());
   scheduler_.MarkStreamReady(4, false);
-  EXPECT_EQ(2, scheduler_.PopNextReadyStream());
+  EXPECT_EQ(2u, scheduler_.PopNextReadyStream());
   scheduler_.MarkStreamReady(2, true);
-  EXPECT_EQ(2, scheduler_.PopNextReadyStream());
+  EXPECT_EQ(2u, scheduler_.PopNextReadyStream());
   scheduler_.MarkStreamReady(5, false);
   scheduler_.MarkStreamReady(2, true);
-  EXPECT_EQ(5, scheduler_.PopNextReadyStream());
+  EXPECT_EQ(5u, scheduler_.PopNextReadyStream());
 }
 
 // Add ready streams at front and back and pop them with
