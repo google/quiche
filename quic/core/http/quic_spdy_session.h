@@ -143,9 +143,8 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
 
   bool server_push_enabled() const { return server_push_enabled_; }
 
-  // Called by |QuicHeadersStream::UpdateEnableServerPush()| with
-  // value from SETTINGS_ENABLE_PUSH.
-  void set_server_push_enabled(bool enable) { server_push_enabled_ = enable; }
+  // Called when a setting is parsed from an incoming SETTINGS frame.
+  void OnSetting(uint64_t id, uint64_t value);
 
   // Return true if this session wants to release headers stream's buffer
   // aggressively.
@@ -158,10 +157,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // TODO(bnc): Move to constructor argument.
   void set_max_inbound_header_list_size(size_t max_inbound_header_list_size) {
     max_inbound_header_list_size_ = max_inbound_header_list_size;
-  }
-
-  void set_max_outbound_header_list_size(size_t max_outbound_header_list_size) {
-    max_outbound_header_list_size_ = max_outbound_header_list_size;
   }
 
   size_t max_outbound_header_list_size() const {

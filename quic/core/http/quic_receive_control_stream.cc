@@ -208,18 +208,8 @@ bool QuicReceiveControlStream::OnSettingsFrame(const SettingsFrame& settings) {
   QUIC_DVLOG(1) << "Control Stream " << id()
                 << " received settings frame: " << settings;
   QuicSpdySession* spdy_session = static_cast<QuicSpdySession*>(session());
-  for (auto& it : settings.values) {
-    uint64_t setting_id = it.first;
-    switch (setting_id) {
-      case SETTINGS_MAX_HEADER_LIST_SIZE:
-        spdy_session->set_max_outbound_header_list_size(it.second);
-        break;
-      case SETTINGS_NUM_PLACEHOLDERS:
-        // TODO: Support placeholder setting
-        break;
-      default:
-        break;
-    }
+  for (const auto& setting : settings.values) {
+    spdy_session->OnSetting(setting.first, setting.second);
   }
   return true;
 }

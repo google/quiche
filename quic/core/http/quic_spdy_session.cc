@@ -27,7 +27,6 @@ using http2::Http2DecoderAdapter;
 using spdy::HpackEntry;
 using spdy::HpackHeaderTable;
 using spdy::Http2WeightToSpdy3Priority;
-using spdy::SETTINGS_ENABLE_PUSH;
 using spdy::Spdy3PriorityToHttp2Weight;
 using spdy::SpdyErrorCode;
 using spdy::SpdyFramer;
@@ -152,37 +151,7 @@ class QuicSpdySession::SpdyFramerVisitor
   }
 
   void OnSetting(SpdySettingsId id, uint32_t value) override {
-    switch (id) {
-      case SETTINGS_QPACK_MAX_TABLE_CAPACITY:
-        session_->UpdateHeaderEncoderTableSize(value);
-        break;
-      case SETTINGS_ENABLE_PUSH:
-        // TODO(b/138438479): Remove this setting.
-        if (session_->perspective() == Perspective::IS_SERVER) {
-          // See rfc7540, Section 6.5.2.
-          if (value > 1) {
-            CloseConnection(
-                QuicStrCat("Invalid value for SETTINGS_ENABLE_PUSH: ", value),
-                QUIC_INVALID_HEADERS_STREAM_DATA);
-            return;
-          }
-          session_->UpdateEnableServerPush(value > 0);
-          break;
-        } else {
-          CloseConnection(
-              QuicStrCat("Unsupported field of HTTP/2 SETTINGS frame: ", id),
-              QUIC_INVALID_HEADERS_STREAM_DATA);
-        }
-        break;
-      // TODO(fayang): Need to support SETTINGS_MAX_HEADER_LIST_SIZE when
-      // clients are actually sending it.
-      case SETTINGS_MAX_HEADER_LIST_SIZE:
-        break;
-      default:
-        CloseConnection(
-            QuicStrCat("Unsupported field of HTTP/2 SETTINGS frame: ", id),
-            QUIC_INVALID_HEADERS_STREAM_DATA);
-    }
+    session_->OnSetting(id, value);
   }
 
   void OnSettingsEnd() override {}
@@ -649,6 +618,91 @@ void QuicSpdySession::OnPromiseHeaderList(
                                 ConnectionCloseBehavior::SILENT_CLOSE);
 }
 
+void QuicSpdySession::OnSetting(uint64_t id, uint64_t value) {
+  if (VersionHasStreamType(connection()->transport_version())) {
+    // SETTINGS frame received on the control stream.
+    switch (id) {
+      case SETTINGS_QPACK_MAX_TABLE_CAPACITY:
+        QUIC_DVLOG(1)
+            << "SETTINGS_QPACK_MAX_TABLE_CAPACITY received with value "
+            << value;
+        // TODO(b/112770235): implement.
+        break;
+      case SETTINGS_MAX_HEADER_LIST_SIZE:
+        QUIC_DVLOG(1) << "SETTINGS_MAX_HEADER_LIST_SIZE received with value "
+                      << value;
+        max_outbound_header_list_size_ = value;
+        break;
+      case SETTINGS_QPACK_BLOCKED_STREAMS:
+        QUIC_DVLOG(1) << "SETTINGS_QPACK_BLOCKED_STREAMS received with value "
+                      << value;
+        // TODO(b/112770235): implement.
+        break;
+      case SETTINGS_NUM_PLACEHOLDERS:
+        QUIC_DVLOG(1) << "SETTINGS_NUM_PLACEHOLDERS received with value "
+                      << value;
+        // TODO: Support placeholder setting.
+        break;
+      default:
+        QUIC_DVLOG(1) << "Unknown setting identifier " << id
+                      << " received with value " << value;
+        // Ignore unknown settings.
+        break;
+    }
+    return;
+  }
+
+  // SETTINGS frame received on the headers stream.
+  switch (id) {
+    case spdy::SETTINGS_HEADER_TABLE_SIZE:
+      QUIC_DVLOG(1) << "SETTINGS_HEADER_TABLE_SIZE received with value "
+                    << value;
+      spdy_framer_.UpdateHeaderEncoderTableSize(value);
+      break;
+    case spdy::SETTINGS_ENABLE_PUSH:
+      if (perspective() == Perspective::IS_SERVER) {
+        // See rfc7540, Section 6.5.2.
+        if (value > 1) {
+          QUIC_DLOG(ERROR) << "Invalid value " << value
+                           << " received for SETTINGS_ENABLE_PUSH.";
+          if (IsConnected()) {
+            CloseConnectionWithDetails(
+                QUIC_INVALID_HEADERS_STREAM_DATA,
+                QuicStrCat("Invalid value for SETTINGS_ENABLE_PUSH: ", value));
+          }
+          return;
+        }
+        QUIC_DVLOG(1) << "SETTINGS_ENABLE_PUSH received with value " << value;
+        server_push_enabled_ = value;
+        break;
+      } else {
+        QUIC_DLOG(ERROR)
+            << "Invalid SETTINGS_ENABLE_PUSH received by client with value "
+            << value;
+        if (IsConnected()) {
+          CloseConnectionWithDetails(
+              QUIC_INVALID_HEADERS_STREAM_DATA,
+              QuicStrCat("Unsupported field of HTTP/2 SETTINGS frame: ", id));
+        }
+      }
+      break;
+    // TODO(fayang): Need to support SETTINGS_MAX_HEADER_LIST_SIZE when
+    // clients are actually sending it.
+    case spdy::SETTINGS_MAX_HEADER_LIST_SIZE:
+      QUIC_DVLOG(1) << "SETTINGS_MAX_HEADER_LIST_SIZE received with value "
+                    << value;
+      break;
+    default:
+      QUIC_DLOG(ERROR) << "Unknown setting identifier " << id
+                       << " received with value " << value;
+      if (IsConnected()) {
+        CloseConnectionWithDetails(
+            QUIC_INVALID_HEADERS_STREAM_DATA,
+            QuicStrCat("Unsupported field of HTTP/2 SETTINGS frame: ", id));
+      }
+  }
+}
+
 bool QuicSpdySession::ShouldReleaseHeadersStreamSequencerBuffer() {
   return false;
 }
@@ -740,15 +794,6 @@ void QuicSpdySession::SetHpackDecoderDebugVisitor(
   h2_deframer_.SetDecoderHeaderTableDebugVisitor(
       QuicMakeUnique<HeaderTableDebugVisitor>(
           connection()->helper()->GetClock(), std::move(visitor)));
-}
-
-void QuicSpdySession::UpdateHeaderEncoderTableSize(uint32_t value) {
-  // TODO(b/112770235): Update QpackEncoder.
-  spdy_framer_.UpdateHeaderEncoderTableSize(value);
-}
-
-void QuicSpdySession::UpdateEnableServerPush(bool value) {
-  set_server_push_enabled(value);
 }
 
 void QuicSpdySession::CloseConnectionWithDetails(QuicErrorCode error,
