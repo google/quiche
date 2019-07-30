@@ -1289,7 +1289,7 @@ TEST_P(QuicSessionTestServer, IncreasedTimeoutAfterCryptoHandshake) {
 }
 
 TEST_P(QuicSessionTestServer, OnStreamFrameFinStaticStreamId) {
-  if (connection_->version().DoesNotHaveHeadersStream()) {
+  if (VersionUsesQpack(connection_->transport_version())) {
     return;
   }
   QuicStreamId headers_stream_id =
@@ -1308,7 +1308,7 @@ TEST_P(QuicSessionTestServer, OnStreamFrameFinStaticStreamId) {
 }
 
 TEST_P(QuicSessionTestServer, OnRstStreamStaticStreamId) {
-  if (connection_->version().DoesNotHaveHeadersStream()) {
+  if (VersionUsesQpack(connection_->transport_version())) {
     return;
   }
   QuicStreamId headers_stream_id =

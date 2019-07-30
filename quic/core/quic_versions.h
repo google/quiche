@@ -172,9 +172,6 @@ struct QUIC_EXPORT_PRIVATE ParsedQuicVersion {
 
   // Returns whether this version supports client connection ID.
   bool SupportsClientConnectionIds() const;
-
-  // Returns whether this version does not have the Google QUIC headers stream.
-  bool DoesNotHaveHeadersStream() const;
 };
 
 QUIC_EXPORT_PRIVATE ParsedQuicVersion UnsupportedQuicVersion();
@@ -413,11 +410,6 @@ QUIC_EXPORT_PRIVATE inline bool QuicVersionUsesCryptoFrames(
     QuicTransportVersion transport_version) {
   return transport_version >= QUIC_VERSION_48;
 }
-
-// Returns whether |transport_version| does not have the
-// Google QUIC headers stream.
-QUIC_EXPORT_PRIVATE bool VersionLacksHeadersStream(
-    QuicTransportVersion transport_version);
 
 // Returns whether |transport_version| makes use of IETF QUIC
 // frames or not.

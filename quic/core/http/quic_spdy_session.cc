@@ -322,7 +322,7 @@ QuicSpdySession::~QuicSpdySession() {
 void QuicSpdySession::Initialize() {
   QuicSession::Initialize();
 
-  if (!connection()->version().DoesNotHaveHeadersStream()) {
+  if (!VersionUsesQpack(connection()->transport_version())) {
     if (perspective() == Perspective::IS_SERVER) {
       set_largest_peer_created_stream_id(
           QuicUtils::GetHeadersStreamId(connection()->transport_version()));
@@ -331,9 +331,14 @@ void QuicSpdySession::Initialize() {
       DCHECK_EQ(headers_stream_id, QuicUtils::GetHeadersStreamId(
                                        connection()->transport_version()));
     }
-  }
+    auto headers_stream = QuicMakeUnique<QuicHeadersStream>((this));
+    DCHECK_EQ(QuicUtils::GetHeadersStreamId(connection()->transport_version()),
+              headers_stream->id());
 
-  if (VersionUsesQpack(connection()->transport_version())) {
+    headers_stream_ = headers_stream.get();
+    RegisterStaticStream(std::move(headers_stream),
+                         /*stream_already_counted = */ false);
+  } else {
     qpack_encoder_ =
         QuicMakeUnique<QpackEncoder>(this, &encoder_stream_sender_delegate_);
     qpack_decoder_ =
@@ -343,14 +348,6 @@ void QuicSpdySession::Initialize() {
     qpack_decoder_->SetMaximumDynamicTableCapacity(
         kDefaultQpackMaxDynamicTableCapacity);
   }
-
-  auto headers_stream = QuicMakeUnique<QuicHeadersStream>((this));
-  DCHECK_EQ(QuicUtils::GetHeadersStreamId(connection()->transport_version()),
-            headers_stream->id());
-
-  headers_stream_ = headers_stream.get();
-  RegisterStaticStream(std::move(headers_stream),
-                       /*stream_already_counted = */ false);
 
   if (VersionHasStreamType(connection()->transport_version())) {
     MaybeInitializeHttp3UnidirectionalStreams();
@@ -462,6 +459,7 @@ size_t QuicSpdySession::WritePriority(QuicStreamId id,
                                       QuicStreamId parent_stream_id,
                                       int weight,
                                       bool exclusive) {
+  DCHECK(!VersionUsesQpack(connection()->transport_version()));
   if (connection()->transport_version() <= QUIC_VERSION_39) {
     return 0;
   }

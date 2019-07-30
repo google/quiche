@@ -478,12 +478,9 @@ TEST_P(QuicSpdySessionTestServer, MaximumAvailableOpenedStreams) {
     // stream ID, the next ID should fail. Since the actual limit
     // is not the number of open streams, we allocate the max and the max+2.
     // Get the max allowed stream ID, this should succeed.
-    QuicStreamCount headers_stream_offset =
-        VersionLacksHeadersStream(QUIC_VERSION_99) ? 1 : 0;
     QuicStreamId stream_id = StreamCountToId(
         QuicSessionPeer::v99_streamid_manager(&session_)
-                ->actual_max_allowed_incoming_bidirectional_streams() -
-            headers_stream_offset,
+            ->actual_max_allowed_incoming_bidirectional_streams(),
         Perspective::IS_CLIENT,  // Client initates stream, allocs stream id.
         /*bidirectional=*/true);
     EXPECT_NE(nullptr, session_.GetOrCreateStream(stream_id));
@@ -498,7 +495,7 @@ TEST_P(QuicSpdySessionTestServer, MaximumAvailableOpenedStreams) {
     stream_id = StreamCountToId(
         QuicSessionPeer::v99_streamid_manager(&session_)
                 ->actual_max_allowed_incoming_bidirectional_streams() +
-            1 - headers_stream_offset,
+            1,
         Perspective::IS_CLIENT,
         /*bidirectional=*/true);
     EXPECT_EQ(nullptr, session_.GetOrCreateStream(stream_id));
@@ -928,14 +925,16 @@ TEST_P(QuicSpdySessionTestServer,
     TestCryptoStream* crypto_stream = session_.GetMutableCryptoStream();
     EXPECT_CALL(*crypto_stream, OnCanWrite());
   }
-  TestHeadersStream* headers_stream;
 
-  QuicSpdySessionPeer::SetHeadersStream(&session_, nullptr);
-  headers_stream = new TestHeadersStream(&session_);
-  QuicSpdySessionPeer::SetHeadersStream(&session_, headers_stream);
-  session_.MarkConnectionLevelWriteBlocked(
-      QuicUtils::GetHeadersStreamId(connection_->transport_version()));
-  EXPECT_CALL(*headers_stream, OnCanWrite());
+  if (!VersionUsesQpack(connection_->transport_version())) {
+    TestHeadersStream* headers_stream;
+    QuicSpdySessionPeer::SetHeadersStream(&session_, nullptr);
+    headers_stream = new TestHeadersStream(&session_);
+    QuicSpdySessionPeer::SetHeadersStream(&session_, headers_stream);
+    session_.MarkConnectionLevelWriteBlocked(
+        QuicUtils::GetHeadersStreamId(connection_->transport_version()));
+    EXPECT_CALL(*headers_stream, OnCanWrite());
+  }
 
   // After the crypto and header streams perform a write, the connection will be
   // blocked by the flow control, hence it should become application-limited.
@@ -1067,10 +1066,20 @@ TEST_P(QuicSpdySessionTestServer, RstStreamBeforeHeadersDecompressed) {
 }
 
 TEST_P(QuicSpdySessionTestServer, OnStreamFrameFinStaticStreamId) {
+  QuicStreamId id;
+  // Initialize HTTP/3 control stream.
+  if (VersionUsesQpack(transport_version())) {
+    id = GetNthClientInitiatedUnidirectionalStreamId(transport_version(), 3);
+    char type[] = {kControlStream};
+
+    QuicStreamFrame data1(id, false, 0, QuicStringPiece(type, 1));
+    session_.OnStreamFrame(data1);
+  } else {
+    id = QuicUtils::GetHeadersStreamId(connection_->transport_version());
+  }
+
   // Send two bytes of payload.
-  QuicStreamFrame data1(
-      QuicUtils::GetHeadersStreamId(connection_->transport_version()), true, 0,
-      QuicStringPiece("HT"));
+  QuicStreamFrame data1(id, true, 0, QuicStringPiece("HT"));
   EXPECT_CALL(*connection_,
               CloseConnection(
                   QUIC_INVALID_STREAM_ID, "Attempt to close a static stream",
@@ -1079,11 +1088,21 @@ TEST_P(QuicSpdySessionTestServer, OnStreamFrameFinStaticStreamId) {
 }
 
 TEST_P(QuicSpdySessionTestServer, OnRstStreamStaticStreamId) {
+  QuicStreamId id;
+  // Initialize HTTP/3 control stream.
+  if (VersionUsesQpack(transport_version())) {
+    id = GetNthClientInitiatedUnidirectionalStreamId(transport_version(), 3);
+    char type[] = {kControlStream};
+
+    QuicStreamFrame data1(id, false, 0, QuicStringPiece(type, 1));
+    session_.OnStreamFrame(data1);
+  } else {
+    id = QuicUtils::GetHeadersStreamId(connection_->transport_version());
+  }
+
   // Send two bytes of payload.
-  QuicRstStreamFrame rst1(
-      kInvalidControlFrameId,
-      QuicUtils::GetHeadersStreamId(connection_->transport_version()),
-      QUIC_ERROR_PROCESSING_STREAM, 0);
+  QuicRstStreamFrame rst1(kInvalidControlFrameId, id,
+                          QUIC_ERROR_PROCESSING_STREAM, 0);
   EXPECT_CALL(*connection_,
               CloseConnection(
                   QUIC_INVALID_STREAM_ID, "Attempt to reset a static stream",
@@ -1496,11 +1515,10 @@ TEST_P(QuicSpdySessionTestServer, FlowControlWithInvalidFinalOffset) {
 }
 
 TEST_P(QuicSpdySessionTestServer, WindowUpdateUnblocksHeadersStream) {
-  if (GetParam().handshake_protocol == PROTOCOL_TLS1_3) {
-    // TODO(nharper, b/112643533): Figure out why this test fails when TLS is
-    // enabled and fix it.
+  if (VersionUsesQpack(GetParam().transport_version)) {
     return;
   }
+
   // Test that a flow control blocked headers stream gets unblocked on recipt of
   // a WINDOW_UPDATE frame.
 
@@ -1585,7 +1603,7 @@ TEST_P(QuicSpdySessionTestServer,
         *connection_,
         CloseConnection(QUIC_INVALID_STREAM_ID,
                         testing::MatchesRegex(
-                            "Stream id \\d+ would exceed stream count limit 6"),
+                            "Stream id \\d+ would exceed stream count limit 5"),
                         _));
   }
   // Create one more data streams to exceed limit of open stream.

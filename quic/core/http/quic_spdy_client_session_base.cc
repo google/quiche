@@ -193,7 +193,9 @@ void QuicSpdyClientSessionBase::DeletePromised(
   // Since promised_by_id_ contains the unique_ptr, this will destroy
   // promised.
   promised_by_id_.erase(promised->id());
-  headers_stream()->MaybeReleaseSequencerBuffer();
+  if (!VersionUsesQpack(connection()->transport_version())) {
+    headers_stream()->MaybeReleaseSequencerBuffer();
+  }
 }
 
 void QuicSpdyClientSessionBase::OnPushStreamTimedOut(
@@ -211,7 +213,9 @@ void QuicSpdyClientSessionBase::ResetPromised(
 void QuicSpdyClientSessionBase::CloseStreamInner(QuicStreamId stream_id,
                                                  bool locally_reset) {
   QuicSpdySession::CloseStreamInner(stream_id, locally_reset);
-  headers_stream()->MaybeReleaseSequencerBuffer();
+  if (!VersionUsesQpack(connection()->transport_version())) {
+    headers_stream()->MaybeReleaseSequencerBuffer();
+  }
 }
 
 bool QuicSpdyClientSessionBase::ShouldReleaseHeadersStreamSequencerBuffer() {

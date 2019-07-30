@@ -1948,7 +1948,6 @@ TEST_P(EndToEndTestWithTls, ResetConnection) {
 // TODO(nharper): Needs to get turned back to EndToEndTestWithTls
 // when we figure out why the test doesn't work on chrome.
 TEST_P(EndToEndTest, MaxStreamsUberTest) {
-  SetQuicFlag(FLAGS_quic_headers_stream_id_in_v99, 0);
   // Connect with lower fake packet loss than we'd like to test.  Until
   // b/10126687 is fixed, losing handshake packets is pretty brutal.
   SetPacketLossPercentage(1);
@@ -2269,10 +2268,7 @@ TEST_P(EndToEndTest, FlowControlsSynced) {
   QuicSpdySession* const client_session = client_->client()->client_session();
   auto* server_session = static_cast<QuicSpdySession*>(GetServerSession());
 
-  if (VersionHasStreamType(client_->client()
-                               ->client_session()
-                               ->connection()
-                               ->transport_version())) {
+  if (VersionHasStreamType(server_session->connection()->transport_version())) {
     // Settings frame will be sent through control streams, which contribute
     // to the session's flow controller. And due to the timing issue described
     // below, the settings frame might not be received.
@@ -3051,7 +3047,6 @@ class EndToEndTestServerPush : public EndToEndTest {
   const size_t kNumMaxStreams = 10;
 
   EndToEndTestServerPush() : EndToEndTest() {
-    SetQuicFlag(FLAGS_quic_headers_stream_id_in_v99, 0);
     client_config_.SetMaxIncomingBidirectionalStreamsToSend(kNumMaxStreams);
     server_config_.SetMaxIncomingBidirectionalStreamsToSend(kNumMaxStreams);
     client_config_.SetMaxIncomingUnidirectionalStreamsToSend(kNumMaxStreams);
@@ -3453,6 +3448,12 @@ TEST_P(EndToEndTest, ReleaseHeadersStreamBufferWhenIdle) {
   // PUSH_PROMISE, its headers stream's sequencer buffer should be released.
   ASSERT_TRUE(Initialize());
   client_->SendSynchronousRequest("/foo");
+  if (VersionUsesQpack(client_->client()
+                           ->client_session()
+                           ->connection()
+                           ->transport_version())) {
+    return;
+  }
   QuicHeadersStream* headers_stream = QuicSpdySessionPeer::GetHeadersStream(
       client_->client()->client_session());
   QuicStreamSequencer* sequencer = QuicStreamPeer::sequencer(headers_stream);

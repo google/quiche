@@ -1378,7 +1378,7 @@ TEST_P(QuicSpdyStreamTest, WritingTrailersAfterFIN) {
 
 TEST_P(QuicSpdyStreamTest, HeaderStreamNotiferCorrespondingSpdyStream) {
   // There is no headers stream if QPACK is used.
-  if (!VersionUsesQpack(GetParam().transport_version)) {
+  if (VersionUsesQpack(GetParam().transport_version)) {
     return;
   }
 

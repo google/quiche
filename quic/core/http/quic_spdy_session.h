@@ -245,6 +245,10 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
 
   bool IsConnected() { return connection()->connected(); }
 
+  const QuicReceiveControlStream* receive_control_stream() const {
+    return receive_control_stream_;
+  }
+
  private:
   friend class test::QuicSpdySessionPeer;
 

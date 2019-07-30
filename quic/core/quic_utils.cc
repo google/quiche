@@ -11,6 +11,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_connection_id.h"
 #include "net/third_party/quiche/src/quic/core/quic_constants.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
+#include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_aligned.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
@@ -400,11 +401,7 @@ bool QuicUtils::IsCryptoStreamId(QuicTransportVersion version,
 
 // static
 QuicStreamId QuicUtils::GetHeadersStreamId(QuicTransportVersion version) {
-  if (version == QUIC_VERSION_99) {
-    // TODO(b/130659182) Turn this into a QUIC_BUG once we've fully removed
-    // the headers stream in those versions.
-    return GetQuicFlag(FLAGS_quic_headers_stream_id_in_v99);
-  }
+  // TODO(b/138653948): Add DCHECK(!VersionUsesQpack(version));
   return GetFirstBidirectionalStreamId(version, Perspective::IS_CLIENT);
 }
 

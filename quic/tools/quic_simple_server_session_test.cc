@@ -471,9 +471,11 @@ TEST_P(QuicSimpleServerSessionTest, CreateOutgoingDynamicStreamUptoLimit) {
   EXPECT_EQ(1u, session_->GetNumOpenIncomingStreams());
   EXPECT_EQ(0u, session_->GetNumOpenOutgoingStreams());
 
-  session_->UnregisterStreamPriority(
-      QuicUtils::GetHeadersStreamId(connection_->transport_version()),
-      /*is_static=*/true);
+  if (!VersionUsesQpack(connection_->transport_version())) {
+    session_->UnregisterStreamPriority(
+        QuicUtils::GetHeadersStreamId(connection_->transport_version()),
+        /*is_static=*/true);
+  }
   // Assume encryption already established.
   QuicSimpleServerSessionPeer::SetCryptoStream(session_.get(), nullptr);
   MockQuicCryptoServerStream* crypto_stream =
@@ -481,10 +483,12 @@ TEST_P(QuicSimpleServerSessionTest, CreateOutgoingDynamicStreamUptoLimit) {
                                      session_.get(), &stream_helper_);
   crypto_stream->set_encryption_established(true);
   QuicSimpleServerSessionPeer::SetCryptoStream(session_.get(), crypto_stream);
-  session_->RegisterStreamPriority(
-      QuicUtils::GetHeadersStreamId(connection_->transport_version()),
-      /*is_static=*/true,
-      spdy::SpdyStreamPrecedence(QuicStream::kDefaultPriority));
+  if (!VersionUsesQpack(connection_->transport_version())) {
+    session_->RegisterStreamPriority(
+        QuicUtils::GetHeadersStreamId(connection_->transport_version()),
+        /*is_static=*/true,
+        spdy::SpdyStreamPrecedence(QuicStream::kDefaultPriority));
+  }
 
   // Create push streams till reaching the upper limit of allowed open streams.
   for (size_t i = 0; i < kMaxStreamsForTest; ++i) {
@@ -575,9 +579,11 @@ class QuicSimpleServerSessionServerPushTest
 
     visitor_ = QuicConnectionPeer::GetVisitor(connection_);
 
-    session_->UnregisterStreamPriority(
-        QuicUtils::GetHeadersStreamId(connection_->transport_version()),
-        /*is_static=*/true);
+    if (!VersionUsesQpack(connection_->transport_version())) {
+      session_->UnregisterStreamPriority(
+          QuicUtils::GetHeadersStreamId(connection_->transport_version()),
+          /*is_static=*/true);
+    }
     QuicSimpleServerSessionPeer::SetCryptoStream(session_.get(), nullptr);
     // Assume encryption already established.
     MockQuicCryptoServerStream* crypto_stream = new MockQuicCryptoServerStream(
@@ -586,10 +592,12 @@ class QuicSimpleServerSessionServerPushTest
 
     crypto_stream->set_encryption_established(true);
     QuicSimpleServerSessionPeer::SetCryptoStream(session_.get(), crypto_stream);
-    session_->RegisterStreamPriority(
-        QuicUtils::GetHeadersStreamId(connection_->transport_version()),
-        /*is_static=*/true,
-        spdy::SpdyStreamPrecedence(QuicStream::kDefaultPriority));
+    if (!VersionUsesQpack(connection_->transport_version())) {
+      session_->RegisterStreamPriority(
+          QuicUtils::GetHeadersStreamId(connection_->transport_version()),
+          /*is_static=*/true,
+          spdy::SpdyStreamPrecedence(QuicStream::kDefaultPriority));
+    }
   }
 
   // Given |num_resources|, create this number of fake push resources and push

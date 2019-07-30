@@ -1158,8 +1158,8 @@ QuicStreamId GetNthClientInitiatedBidirectionalStreamId(
     QuicTransportVersion version,
     int n) {
   int num = n;
-  if (!VersionLacksHeadersStream(version)) {
-    num++;  // + 1 because spdy_session contains headers stream.
+  if (!VersionUsesQpack(version)) {
+    num++;
   }
   return QuicUtils::GetFirstBidirectionalStreamId(version,
                                                   Perspective::IS_CLIENT) +
