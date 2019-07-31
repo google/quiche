@@ -791,6 +791,7 @@ TEST_P(EndToEndTestWithTls, ForcedVersionNegotiationAndClientConnectionId) {
     ASSERT_TRUE(Initialize());
     return;
   }
+  SetQuicReloadableFlag(quic_use_parse_public_header, true);
   client_supported_versions_.insert(client_supported_versions_.begin(),
                                     QuicVersionReservedForNegotiation());
   override_client_connection_id_length_ = kQuicDefaultConnectionIdLength;
@@ -811,6 +812,7 @@ TEST_P(EndToEndTestWithTls, ForcedVersionNegotiationAndBadConnectionIdLength) {
     ASSERT_TRUE(Initialize());
     return;
   }
+  SetQuicReloadableFlag(quic_use_parse_public_header, true);
   client_supported_versions_.insert(client_supported_versions_.begin(),
                                     QuicVersionReservedForNegotiation());
   override_server_connection_id_length_ = 9;
