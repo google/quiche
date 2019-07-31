@@ -334,8 +334,11 @@ enum QuicErrorCode {
   // Received WindowUpdate on a READ_UNIDIRECTIONAL stream.
   QUIC_WINDOW_UPDATE_RECEIVED_ON_READ_UNIDIRECTIONAL_STREAM = 123,
 
+  // There are too many buffered control frames in control frame manager.
+  QUIC_TOO_MANY_BUFFERED_CONTROL_FRAMES = 124,
+
   // No error. Used as bound while iterating.
-  QUIC_LAST_ERROR = 124,
+  QUIC_LAST_ERROR = 125,
 };
 // QuicErrorCodes is encoded as a single octet on-the-wire.
 static_assert(static_cast<int>(QUIC_LAST_ERROR) <=
