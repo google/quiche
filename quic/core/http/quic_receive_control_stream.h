@@ -7,6 +7,7 @@
 
 #include "net/third_party/quiche/src/quic/core/http/http_decoder.h"
 #include "net/third_party/quiche/src/quic/core/quic_stream.h"
+#include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 
 namespace quic {
@@ -35,9 +36,9 @@ class QUIC_EXPORT_PRIVATE QuicReceiveControlStream : public QuicStream {
   class HttpDecoderVisitor;
 
   // Called from HttpDecoderVisitor.
-  bool OnSettingsFrameStart(Http3FrameLengths frame_lengths);
+  bool OnSettingsFrameStart(QuicByteCount header_length);
   bool OnSettingsFrame(const SettingsFrame& settings);
-  bool OnPriorityFrameStart(Http3FrameLengths frame_lengths);
+  bool OnPriorityFrameStart(QuicByteCount header_length);
   // TODO(renjietang): Decode Priority in HTTP/3 style.
   bool OnPriorityFrame(const PriorityFrame& priority);
 

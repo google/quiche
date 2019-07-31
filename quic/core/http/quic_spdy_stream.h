@@ -252,18 +252,18 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   class HttpDecoderVisitor;
 
   // Called by HttpDecoderVisitor.
-  bool OnDataFrameStart(Http3FrameLengths frame_lengths);
+  bool OnDataFrameStart(QuicByteCount header_length);
   bool OnDataFramePayload(QuicStringPiece payload);
   bool OnDataFrameEnd();
-  bool OnHeadersFrameStart(Http3FrameLengths frame_length);
+  bool OnHeadersFrameStart(QuicByteCount header_length);
   bool OnHeadersFramePayload(QuicStringPiece payload);
   bool OnHeadersFrameEnd();
   bool OnPushPromiseFrameStart(PushId push_id,
-                               Http3FrameLengths frame_length,
+                               QuicByteCount header_length,
                                QuicByteCount push_id_length);
   bool OnPushPromiseFramePayload(QuicStringPiece payload);
   bool OnPushPromiseFrameEnd();
-  bool OnUnknownFrameStart(uint64_t frame_type, Http3FrameLengths frame_length);
+  bool OnUnknownFrameStart(uint64_t frame_type, QuicByteCount header_length);
   bool OnUnknownFramePayload(QuicStringPiece payload);
   bool OnUnknownFrameEnd();
 

@@ -20,22 +20,6 @@ class HttpDecoderPeer;
 
 class QuicDataReader;
 
-// Struct that stores meta data of an HTTP/3 frame.
-// |header_length| is frame header length in bytes.
-// |payload_length| is frame payload length in bytes.
-struct QUIC_EXPORT_PRIVATE Http3FrameLengths {
-  Http3FrameLengths(QuicByteCount header, QuicByteCount payload)
-      : header_length(header), payload_length(payload) {}
-
-  bool operator==(const Http3FrameLengths& other) const {
-    return (header_length == other.header_length) &&
-           (payload_length == other.payload_length);
-  }
-
-  QuicByteCount header_length;
-  QuicByteCount payload_length;
-};
-
 // A class for decoding the HTTP frames that are exchanged in an HTTP over QUIC
 // session.
 class QUIC_EXPORT_PRIVATE HttpDecoder {
@@ -55,7 +39,7 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
 
     // Called when a PRIORITY frame has been received.
     // |frame_length| contains PRIORITY frame length and payload length.
-    virtual bool OnPriorityFrameStart(Http3FrameLengths frame_length) = 0;
+    virtual bool OnPriorityFrameStart(QuicByteCount header_length) = 0;
 
     // Called when a PRIORITY frame has been successfully parsed.
     virtual bool OnPriorityFrame(const PriorityFrame& frame) = 0;
@@ -70,7 +54,7 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
     virtual bool OnGoAwayFrame(const GoAwayFrame& frame) = 0;
 
     // Called when a SETTINGS frame has been received.
-    virtual bool OnSettingsFrameStart(Http3FrameLengths frame_length) = 0;
+    virtual bool OnSettingsFrameStart(QuicByteCount header_length) = 0;
 
     // Called when a SETTINGS frame has been successfully parsed.
     virtual bool OnSettingsFrame(const SettingsFrame& frame) = 0;
@@ -80,7 +64,7 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
 
     // Called when a DATA frame has been received.
     // |frame_length| contains DATA frame length and payload length.
-    virtual bool OnDataFrameStart(Http3FrameLengths frame_length) = 0;
+    virtual bool OnDataFrameStart(QuicByteCount header_length) = 0;
     // Called when part of the payload of a DATA frame has been read.  May be
     // called multiple times for a single frame.  |payload| is guaranteed to be
     // non-empty.
@@ -90,7 +74,7 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
 
     // Called when a HEADERS frame has been received.
     // |frame_length| contains HEADERS frame length and payload length.
-    virtual bool OnHeadersFrameStart(Http3FrameLengths frame_length) = 0;
+    virtual bool OnHeadersFrameStart(QuicByteCount header_length) = 0;
     // Called when part of the payload of a HEADERS frame has been read.  May be
     // called multiple times for a single frame.  |payload| is guaranteed to be
     // non-empty.
@@ -101,7 +85,7 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
 
     // Called when a PUSH_PROMISE frame has been received for |push_id|.
     virtual bool OnPushPromiseFrameStart(PushId push_id,
-                                         Http3FrameLengths frame_length,
+                                         QuicByteCount header_length,
                                          QuicByteCount push_id_length) = 0;
     // Called when part of the payload of a PUSH_PROMISE frame has been read.
     // May be called multiple times for a single frame.  |payload| is guaranteed
@@ -114,7 +98,7 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
     // Frame type might be reserved, Visitor must make sure to ignore.
     // |frame_length| contains frame length and payload length.
     virtual bool OnUnknownFrameStart(uint64_t frame_type,
-                                     Http3FrameLengths frame_length) = 0;
+                                     QuicByteCount header_length) = 0;
     // Called when part of the payload of the unknown frame has been read.  May
     // be called multiple times for a single frame.  |payload| is guaranteed to
     // be non-empty.

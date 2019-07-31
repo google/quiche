@@ -27,14 +27,14 @@ class QuicReceiveControlStream::HttpDecoderVisitor
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
   }
 
-  bool OnPriorityFrameStart(Http3FrameLengths frame_lengths) override {
+  bool OnPriorityFrameStart(QuicByteCount header_length) override {
     if (stream_->session()->perspective() == Perspective::IS_CLIENT) {
       stream_->session()->connection()->CloseConnection(
           QUIC_HTTP_DECODER_ERROR, "Server must not send Priority frames.",
           ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
       return false;
     }
-    return stream_->OnPriorityFrameStart(frame_lengths);
+    return stream_->OnPriorityFrameStart(header_length);
   }
 
   bool OnPriorityFrame(const PriorityFrame& frame) override {
@@ -62,8 +62,8 @@ class QuicReceiveControlStream::HttpDecoderVisitor
     return false;
   }
 
-  bool OnSettingsFrameStart(Http3FrameLengths frame_lengths) override {
-    return stream_->OnSettingsFrameStart(frame_lengths);
+  bool OnSettingsFrameStart(QuicByteCount header_length) override {
+    return stream_->OnSettingsFrameStart(header_length);
   }
 
   bool OnSettingsFrame(const SettingsFrame& frame) override {
@@ -75,7 +75,7 @@ class QuicReceiveControlStream::HttpDecoderVisitor
     return false;
   }
 
-  bool OnDataFrameStart(Http3FrameLengths /*frame_lengths*/) override {
+  bool OnDataFrameStart(QuicByteCount /*header_length*/) override {
     CloseConnectionOnWrongFrame("Data");
     return false;
   }
@@ -90,7 +90,7 @@ class QuicReceiveControlStream::HttpDecoderVisitor
     return false;
   }
 
-  bool OnHeadersFrameStart(Http3FrameLengths /*frame_length*/) override {
+  bool OnHeadersFrameStart(QuicByteCount /*frame_length*/) override {
     CloseConnectionOnWrongFrame("Headers");
     return false;
   }
@@ -106,7 +106,7 @@ class QuicReceiveControlStream::HttpDecoderVisitor
   }
 
   bool OnPushPromiseFrameStart(PushId /*push_id*/,
-                               Http3FrameLengths /*frame_length*/,
+                               QuicByteCount /*frame_length*/,
                                QuicByteCount /*push_id_length*/) override {
     CloseConnectionOnWrongFrame("Push Promise");
     return false;
@@ -123,7 +123,7 @@ class QuicReceiveControlStream::HttpDecoderVisitor
   }
 
   bool OnUnknownFrameStart(uint64_t /* frame_type */,
-                           Http3FrameLengths /* frame_length */) override {
+                           QuicByteCount /* frame_length */) override {
     // Ignore unknown frame types.
     return true;
   }
@@ -190,7 +190,7 @@ void QuicReceiveControlStream::OnDataAvailable() {
 }
 
 bool QuicReceiveControlStream::OnSettingsFrameStart(
-    Http3FrameLengths /* frame_lengths */) {
+    QuicByteCount /* header_length */) {
   if (settings_frame_received_) {
     // TODO(renjietang): Change error code to HTTP_UNEXPECTED_FRAME.
     session()->connection()->CloseConnection(
@@ -215,7 +215,7 @@ bool QuicReceiveControlStream::OnSettingsFrame(const SettingsFrame& settings) {
 }
 
 bool QuicReceiveControlStream::OnPriorityFrameStart(
-    Http3FrameLengths /* frame_lengths */) {
+    QuicByteCount /* header_length */) {
   DCHECK_EQ(Perspective::IS_SERVER, session()->perspective());
   return true;
 }

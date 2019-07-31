@@ -133,24 +133,23 @@ bool HttpDecoder::ReadFrameLength(QuicDataReader* reader) {
   // Calling the following visitor methods does not require parsing of any
   // frame payload.
   bool continue_processing = true;
-  auto frame_meta = Http3FrameLengths(
-      current_length_field_length_ + current_type_field_length_,
-      current_frame_length_);
+  const QuicByteCount header_length =
+      current_length_field_length_ + current_type_field_length_;
 
   switch (current_frame_type_) {
     case static_cast<uint64_t>(HttpFrameType::DATA):
-      continue_processing = visitor_->OnDataFrameStart(frame_meta);
+      continue_processing = visitor_->OnDataFrameStart(header_length);
       break;
     case static_cast<uint64_t>(HttpFrameType::HEADERS):
-      continue_processing = visitor_->OnHeadersFrameStart(frame_meta);
+      continue_processing = visitor_->OnHeadersFrameStart(header_length);
       break;
     case static_cast<uint64_t>(HttpFrameType::PRIORITY):
-      continue_processing = visitor_->OnPriorityFrameStart(frame_meta);
+      continue_processing = visitor_->OnPriorityFrameStart(header_length);
       break;
     case static_cast<uint64_t>(HttpFrameType::CANCEL_PUSH):
       break;
     case static_cast<uint64_t>(HttpFrameType::SETTINGS):
-      continue_processing = visitor_->OnSettingsFrameStart(frame_meta);
+      continue_processing = visitor_->OnSettingsFrameStart(header_length);
       break;
     case static_cast<uint64_t>(HttpFrameType::PUSH_PROMISE):
       break;
@@ -162,7 +161,7 @@ bool HttpDecoder::ReadFrameLength(QuicDataReader* reader) {
       break;
     default:
       continue_processing =
-          visitor_->OnUnknownFrameStart(current_frame_type_, frame_meta);
+          visitor_->OnUnknownFrameStart(current_frame_type_, header_length);
       break;
   }
 
@@ -228,9 +227,7 @@ bool HttpDecoder::ReadFramePayload(QuicDataReader* reader) {
         remaining_frame_length_ -= bytes_remaining - reader->BytesRemaining();
         if (!visitor_->OnPushPromiseFrameStart(
                 push_id,
-                Http3FrameLengths(
                     current_length_field_length_ + current_type_field_length_,
-                    current_frame_length_),
                 push_id_length)) {
           continue_processing = false;
           break;
