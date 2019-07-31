@@ -95,10 +95,12 @@ class QuicSpdySession::SpdyFramerVisitor
 
   SpdyHeadersHandlerInterface* OnHeaderFrameStart(
       SpdyStreamId /* stream_id */) override {
+    DCHECK(!VersionUsesQpack(session_->transport_version()));
     return &header_list_;
   }
 
   void OnHeaderFrameEnd(SpdyStreamId /* stream_id */) override {
+    DCHECK(!VersionUsesQpack(session_->transport_version()));
     if (session_->IsConnected()) {
       session_->OnHeaderList(header_list_);
     }
@@ -108,6 +110,7 @@ class QuicSpdySession::SpdyFramerVisitor
   void OnStreamFrameData(SpdyStreamId /*stream_id*/,
                          const char* /*data*/,
                          size_t /*len*/) override {
+    DCHECK(!VersionUsesQpack(session_->transport_version()));
     CloseConnection("SPDY DATA frame received.",
                     QUIC_INVALID_HEADERS_STREAM_DATA);
   }
@@ -140,6 +143,7 @@ class QuicSpdySession::SpdyFramerVisitor
   void OnDataFrameHeader(SpdyStreamId /*stream_id*/,
                          size_t /*length*/,
                          bool /*fin*/) override {
+    DCHECK(!VersionUsesQpack(session_->transport_version()));
     CloseConnection("SPDY DATA frame received.",
                     QUIC_INVALID_HEADERS_STREAM_DATA);
   }
@@ -151,10 +155,13 @@ class QuicSpdySession::SpdyFramerVisitor
   }
 
   void OnSetting(SpdySettingsId id, uint32_t value) override {
+    DCHECK(!VersionUsesQpack(session_->transport_version()));
     session_->OnSetting(id, value);
   }
 
-  void OnSettingsEnd() override {}
+  void OnSettingsEnd() override {
+    DCHECK(!VersionUsesQpack(session_->transport_version()));
+  }
 
   void OnPing(SpdyPingId /*unique_id*/, bool /*is_ack*/) override {
     CloseConnection("SPDY PING frame received.",
@@ -208,6 +215,7 @@ class QuicSpdySession::SpdyFramerVisitor
   void OnPushPromise(SpdyStreamId stream_id,
                      SpdyStreamId promised_stream_id,
                      bool /*end*/) override {
+    DCHECK(!VersionUsesQpack(session_->transport_version()));
     if (!session_->supports_push_promise()) {
       CloseConnection("PUSH_PROMISE not supported.",
                       QUIC_INVALID_HEADERS_STREAM_DATA);
@@ -225,6 +233,7 @@ class QuicSpdySession::SpdyFramerVisitor
                   SpdyStreamId parent_id,
                   int weight,
                   bool exclusive) override {
+    DCHECK(!VersionUsesQpack(session_->transport_version()));
     if (session_->connection()->transport_version() <= QUIC_VERSION_39) {
       CloseConnection("SPDY PRIORITY frame received.",
                       QUIC_INVALID_HEADERS_STREAM_DATA);
