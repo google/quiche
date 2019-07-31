@@ -145,15 +145,17 @@ class MockQuicSimpleServerSession : public QuicSimpleServerSession {
       const std::string& request_url,
       const std::list<QuicBackendResponse::ServerPushInfo>& resources,
       QuicStreamId original_stream_id,
+      const spdy::SpdyStreamPrecedence& original_precedence,
       const spdy::SpdyHeaderBlock& original_request_headers) override {
     original_request_headers_ = original_request_headers.Clone();
     PromisePushResourcesMock(request_url, resources, original_stream_id,
-                             original_request_headers);
+                             original_precedence, original_request_headers);
   }
-  MOCK_METHOD4(PromisePushResourcesMock,
+  MOCK_METHOD5(PromisePushResourcesMock,
                void(const std::string&,
                     const std::list<QuicBackendResponse::ServerPushInfo>&,
                     QuicStreamId,
+                    const spdy::SpdyStreamPrecedence&,
                     const spdy::SpdyHeaderBlock&));
 
   using QuicSession::ActivateStream;
@@ -515,7 +517,7 @@ TEST_P(QuicSimpleServerStreamTest, SendResponseWithPushResources) {
                             host + request_path, _,
                             GetNthClientInitiatedBidirectionalStreamId(
                                 connection_->transport_version(), 0),
-                            _));
+                            _, _));
   EXPECT_CALL(*stream_, WriteHeadersMock(false));
   if (HasFrameHeader()) {
     EXPECT_CALL(session_, WritevData(_, _, header_length, _, NO_FIN));

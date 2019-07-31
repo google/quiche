@@ -73,6 +73,7 @@ class QUIC_EXPORT_PRIVATE QuicWriteBlockedList {
       QUIC_BUG << "Cannot switch scheduler with registered streams";
       return false;
     }
+    QUIC_DVLOG(1) << "Using HTTP2 Priority Scheduler";
     priority_write_scheduler_ =
         QuicMakeUnique<spdy::Http2PriorityWriteScheduler<QuicStreamId>>();
     scheduler_type_ = spdy::WriteSchedulerType::HTTP2;

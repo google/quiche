@@ -685,9 +685,10 @@ class QuicSimpleServerSessionServerPushTest
         EXPECT_CALL(*session_, SendBlocked(stream_id));
       }
     }
-    session_->PromisePushResources(request_url, push_resources,
-                                   GetNthClientInitiatedBidirectionalId(0),
-                                   request_headers);
+    session_->PromisePushResources(
+        request_url, push_resources, GetNthClientInitiatedBidirectionalId(0),
+        spdy::SpdyStreamPrecedence(0, spdy::kHttp2DefaultStreamWeight, false),
+        request_headers);
     return data_frame_header_length;
   }
 

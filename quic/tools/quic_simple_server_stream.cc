@@ -239,7 +239,7 @@ void QuicSimpleServerStream::OnResponseBackendComplete(
                   << " push resources.";
     QuicSimpleServerSession* session =
         static_cast<QuicSimpleServerSession*>(spdy_session());
-    session->PromisePushResources(request_url, resources, id(),
+    session->PromisePushResources(request_url, resources, id(), precedence(),
                                   request_headers_);
   }
 

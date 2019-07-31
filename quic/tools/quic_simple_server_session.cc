@@ -69,6 +69,7 @@ void QuicSimpleServerSession::PromisePushResources(
     const std::string& request_url,
     const std::list<QuicBackendResponse::ServerPushInfo>& resources,
     QuicStreamId original_stream_id,
+    const spdy::SpdyStreamPrecedence& /*original_precedence*/,
     const spdy::SpdyHeaderBlock& original_request_headers) {
   if (!server_push_enabled()) {
     return;
@@ -81,8 +82,9 @@ void QuicSimpleServerSession::PromisePushResources(
         QuicUtils::StreamIdDelta(connection()->transport_version());
     SendPushPromise(original_stream_id, highest_promised_stream_id_,
                     headers.Clone());
-    promised_streams_.push_back(PromisedStreamInfo(
-        std::move(headers), highest_promised_stream_id_, resource.priority));
+    promised_streams_.push_back(
+        PromisedStreamInfo(std::move(headers), highest_promised_stream_id_,
+                           spdy::SpdyStreamPrecedence(resource.priority)));
   }
 
   // Procese promised push request as many as possible.
@@ -217,8 +219,7 @@ void QuicSimpleServerSession::HandlePromisedPushRequests() {
     DCHECK_EQ(promised_info.stream_id, promised_stream->id());
     QUIC_DLOG(INFO) << "created server push stream " << promised_stream->id();
 
-    promised_stream->SetPriority(
-        spdy::SpdyStreamPrecedence(promised_info.priority));
+    promised_stream->SetPriority(promised_info.precedence);
 
     spdy::SpdyHeaderBlock request_headers(
         std::move(promised_info.request_headers));

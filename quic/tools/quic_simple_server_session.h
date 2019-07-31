@@ -40,14 +40,14 @@ class QuicSimpleServerSession : public QuicServerSessionBase {
    public:
     PromisedStreamInfo(spdy::SpdyHeaderBlock request_headers,
                        QuicStreamId stream_id,
-                       spdy::SpdyPriority priority)
+                       const spdy::SpdyStreamPrecedence& precedence)
         : request_headers(std::move(request_headers)),
           stream_id(stream_id),
-          priority(priority),
+          precedence(precedence),
           is_cancelled(false) {}
     spdy::SpdyHeaderBlock request_headers;
     QuicStreamId stream_id;
-    spdy::SpdyPriority priority;
+    spdy::SpdyStreamPrecedence precedence;
     bool is_cancelled;
   };
 
@@ -76,6 +76,7 @@ class QuicSimpleServerSession : public QuicServerSessionBase {
       const std::string& request_url,
       const std::list<QuicBackendResponse::ServerPushInfo>& resources,
       QuicStreamId original_stream_id,
+      const spdy::SpdyStreamPrecedence& original_precedence,
       const spdy::SpdyHeaderBlock& original_request_headers);
 
   void OnCanCreateNewOutgoingStream(bool unidirectional) override;
