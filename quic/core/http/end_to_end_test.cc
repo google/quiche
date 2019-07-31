@@ -668,6 +668,7 @@ TEST_P(EndToEndTest, SimpleRequestResponseWithAckExponentChange) {
 }
 
 TEST_P(EndToEndTest, SimpleRequestResponseForcedVersionNegotiation) {
+  SetQuicReloadableFlag(quic_use_parse_public_header, true);
   client_supported_versions_.insert(client_supported_versions_.begin(),
                                     QuicVersionReservedForNegotiation());
   ASSERT_TRUE(Initialize());
@@ -680,6 +681,7 @@ TEST_P(EndToEndTest, SimpleRequestResponseForcedVersionNegotiation) {
 }
 
 TEST_P(EndToEndTestWithTls, ForcedVersionNegotiation) {
+  SetQuicReloadableFlag(quic_use_parse_public_header, true);
   client_supported_versions_.insert(client_supported_versions_.begin(),
                                     QuicVersionReservedForNegotiation());
   ASSERT_TRUE(Initialize());
@@ -2623,6 +2625,7 @@ TEST_P(EndToEndTestWithTls,
       QuicFramer::BuildVersionNegotiationPacket(
           incorrect_connection_id, EmptyQuicConnectionId(),
           VersionHasIetfInvariantHeader(client_connection->transport_version()),
+          client_connection->version().HasLengthPrefixedConnectionIds(),
           server_supported_versions_));
   testing::NiceMock<MockQuicConnectionDebugVisitor> visitor;
   client_connection->set_debug_visitor(&visitor);

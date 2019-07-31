@@ -524,13 +524,14 @@ TEST_F(QuicDispatcherTest, DispatcherDoesNotRejectPacketNumberZero) {
 }
 
 TEST_F(QuicDispatcherTest, StatelessVersionNegotiation) {
+  SetQuicReloadableFlag(quic_use_parse_public_header, true);
   CreateTimeWaitListManager();
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
 
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _)).Times(0);
   EXPECT_CALL(
       *time_wait_list_manager_,
-      SendVersionNegotiationPacket(TestConnectionId(1), _, _, _, _, _, _))
+      SendVersionNegotiationPacket(TestConnectionId(1), _, _, _, _, _, _, _))
       .Times(1);
   // Pad the CHLO message with enough data to make the packet large enough
   // to trigger version negotiation.
@@ -543,13 +544,14 @@ TEST_F(QuicDispatcherTest, StatelessVersionNegotiation) {
 
 TEST_F(QuicDispatcherTest, StatelessVersionNegotiationWithClientConnectionId) {
   SetQuicRestartFlag(quic_do_not_override_connection_id, true);
+  SetQuicReloadableFlag(quic_use_parse_public_header, true);
   CreateTimeWaitListManager();
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
 
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _)).Times(0);
   EXPECT_CALL(*time_wait_list_manager_,
-              SendVersionNegotiationPacket(TestConnectionId(1),
-                                           TestConnectionId(2), _, _, _, _, _))
+              SendVersionNegotiationPacket(
+                  TestConnectionId(1), TestConnectionId(2), _, _, _, _, _, _))
       .Times(1);
   // Pad the CHLO message with enough data to make the packet large enough
   // to trigger version negotiation.
@@ -567,7 +569,7 @@ TEST_F(QuicDispatcherTest, NoVersionNegotiationWithSmallPacket) {
 
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _)).Times(0);
   EXPECT_CALL(*time_wait_list_manager_,
-              SendVersionNegotiationPacket(_, _, _, _, _, _, _))
+              SendVersionNegotiationPacket(_, _, _, _, _, _, _, _))
       .Times(0);
   std::string chlo = SerializeCHLO() + std::string(1200, 'a');
   // Truncate to 1100 bytes of payload which results in a packet just
@@ -583,6 +585,7 @@ TEST_F(QuicDispatcherTest, NoVersionNegotiationWithSmallPacket) {
 // Disabling CHLO size validation allows the dispatcher to send version
 // negotiation packets in response to a CHLO that is otherwise too small.
 TEST_F(QuicDispatcherTest, VersionNegotiationWithoutChloSizeValidation) {
+  SetQuicReloadableFlag(quic_use_parse_public_header, true);
   crypto_config_.set_validate_chlo_size(false);
 
   CreateTimeWaitListManager();
@@ -590,7 +593,7 @@ TEST_F(QuicDispatcherTest, VersionNegotiationWithoutChloSizeValidation) {
 
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _)).Times(0);
   EXPECT_CALL(*time_wait_list_manager_,
-              SendVersionNegotiationPacket(_, _, _, _, _, _, _))
+              SendVersionNegotiationPacket(_, _, _, _, _, _, _, _))
       .Times(1);
   std::string chlo = SerializeCHLO() + std::string(1200, 'a');
   // Truncate to 1100 bytes of payload which results in a packet just
@@ -927,6 +930,8 @@ TEST_F(QuicDispatcherTest, OKSeqNoPacketProcessed) {
 }
 
 TEST_F(QuicDispatcherTest, SupportedTransportVersionsChangeInFlight) {
+  SetQuicRestartFlag(quic_dispatcher_hands_chlo_extractor_one_version, true);
+  SetQuicReloadableFlag(quic_use_parse_public_header, true);
   static_assert(QUIC_ARRAYSIZE(kSupportedTransportVersions) == 7u,
                 "Supported versions out of sync");
   SetQuicReloadableFlag(quic_disable_version_39, false);
@@ -994,7 +999,7 @@ TEST_F(QuicDispatcherTest, RejectDeprecatedVersionsWithVersionNegotiation) {
                             QuicTime::Zero());
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _)).Times(0);
   EXPECT_CALL(*time_wait_list_manager_,
-              SendVersionNegotiationPacket(_, _, _, _, _, _, _))
+              SendVersionNegotiationPacket(_, _, _, _, _, _, _, _))
       .Times(1);
   dispatcher_->ProcessPacket(server_address_, client_address, packet);
 }

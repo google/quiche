@@ -125,6 +125,7 @@ class QuicTimeWaitListManager : public QuicBlockedWriterInterface {
       QuicConnectionId server_connection_id,
       QuicConnectionId client_connection_id,
       bool ietf_quic,
+      bool use_length_prefix,
       const ParsedQuicVersionVector& supported_versions,
       const QuicSocketAddress& self_address,
       const QuicSocketAddress& peer_address,

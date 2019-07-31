@@ -425,6 +425,7 @@ struct QUIC_EXPORT_PRIVATE ReceivedPacketInfo {
   // Fields below are populated by QuicFramer::ProcessPacketDispatcher.
   PacketHeaderFormat form;
   bool version_flag;
+  bool use_length_prefix;
   QuicVersionLabel version_label;
   ParsedQuicVersion version;
   QuicConnectionId destination_connection_id;

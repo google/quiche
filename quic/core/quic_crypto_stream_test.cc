@@ -519,10 +519,13 @@ TEST_F(QuicCryptoStreamTest, CryptoMessageFramingOverhead) {
     SCOPED_TRACE(version);
     QuicByteCount expected_overhead = 48;
     if (VersionHasIetfInvariantHeader(version)) {
-      expected_overhead = 52;
+      expected_overhead += 4;
     }
     if (QuicVersionHasLongHeaderLengths(version)) {
-      expected_overhead = 55;
+      expected_overhead += 3;
+    }
+    if (VersionHasLengthPrefixedConnectionIds(version)) {
+      expected_overhead += 1;
     }
     EXPECT_EQ(expected_overhead, QuicCryptoStream::CryptoMessageFramingOverhead(
                                      version, TestConnectionId()));

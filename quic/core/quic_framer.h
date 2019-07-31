@@ -387,6 +387,43 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
       QuicConnectionId* source_connection_id,
       std::string* detailed_error);
 
+  // Parses the unencryoted fields in a QUIC header using |reader| as input,
+  // stores the result in the other parameters.
+  // |expected_destination_connection_id_length| is only used for short headers.
+  static QuicErrorCode ParsePublicHeader(
+      QuicDataReader* reader,
+      uint8_t expected_destination_connection_id_length,
+      bool ietf_format,
+      uint8_t* first_byte,
+      PacketHeaderFormat* format,
+      bool* version_present,
+      bool* has_length_prefix,
+      QuicVersionLabel* version_label,
+      ParsedQuicVersion* parsed_version,
+      QuicConnectionId* destination_connection_id,
+      QuicConnectionId* source_connection_id,
+      QuicLongHeaderType* long_packet_type,
+      QuicVariableLengthIntegerLength* retry_token_length_length,
+      QuicStringPiece* retry_token,
+      std::string* detailed_error);
+
+  // Parses the unencryoted fields in |packet| and stores them in the other
+  // parameters. This can only be called on the server.
+  // |expected_destination_connection_id_length| is only used for short headers.
+  static QuicErrorCode ParsePublicHeaderDispatcher(
+      const QuicEncryptedPacket& packet,
+      uint8_t expected_destination_connection_id_length,
+      PacketHeaderFormat* format,
+      bool* version_present,
+      bool* has_length_prefix,
+      QuicVersionLabel* version_label,
+      ParsedQuicVersion* parsed_version,
+      QuicConnectionId* destination_connection_id,
+      QuicConnectionId* source_connection_id,
+      bool* retry_token_present,
+      QuicStringPiece* retry_token,
+      std::string* detailed_error);
+
   // Serializes a packet containing |frames| into |buffer|.
   // Returns the length of the packet, which must not be longer than
   // |packet_length|.  Returns 0 if it fails to serialize.
@@ -437,10 +474,12 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
       QuicConnectionId server_connection_id,
       QuicConnectionId client_connection_id,
       bool ietf_quic,
+      bool use_length_prefix,
       const ParsedQuicVersionVector& versions);
 
   // Returns a new IETF version negotiation packet.
   static std::unique_ptr<QuicEncryptedPacket> BuildIetfVersionNegotiationPacket(
+      bool use_length_prefix,
       QuicConnectionId server_connection_id,
       QuicConnectionId client_connection_id,
       const ParsedQuicVersionVector& versions);
@@ -690,9 +729,6 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   bool ProcessRetryPacket(QuicDataReader* reader,
                           const QuicPacketHeader& header);
 
-  bool MaybeProcessIetfInitialRetryToken(QuicDataReader* encrypted_reader,
-                                         QuicPacketHeader* header);
-
   void MaybeProcessCoalescedPacket(const QuicDataReader& encrypted_reader,
                                    uint64_t remaining_bytes_length,
                                    const QuicPacketHeader& header);
@@ -828,6 +864,15 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
 
   static AckFrameInfo GetAckFrameInfo(const QuicAckFrame& frame);
 
+  static QuicErrorCode ParsePublicHeaderGoogleQuic(
+      QuicDataReader* reader,
+      uint8_t* first_byte,
+      PacketHeaderFormat* format,
+      bool* version_present,
+      QuicVersionLabel* version_label,
+      QuicConnectionId* destination_connection_id,
+      std::string* detailed_error);
+
   // The Append* methods attempt to write the provided header or frame using the
   // |writer|, and return true if successful.
 
@@ -957,6 +1002,7 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   void set_error(QuicErrorCode error) { error_ = error; }
 
   void set_detailed_error(const char* error) { detailed_error_ = error; }
+  void set_detailed_error(std::string error) { detailed_error_ = error; }
 
   std::string detailed_error_;
   QuicFramerVisitorInterface* visitor_;

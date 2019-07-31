@@ -172,6 +172,11 @@ struct QUIC_EXPORT_PRIVATE ParsedQuicVersion {
 
   // Returns whether this version supports client connection ID.
   bool SupportsClientConnectionIds() const;
+
+  // Returns whether this version supports long header 8-bit encoded
+  // connection ID lengths as described in draft-ietf-quic-invariants-06 and
+  // draft-ietf-quic-transport-22.
+  bool HasLengthPrefixedConnectionIds() const;
 };
 
 QUIC_EXPORT_PRIVATE ParsedQuicVersion UnsupportedQuicVersion();
@@ -417,6 +422,18 @@ QUIC_EXPORT_PRIVATE inline bool VersionHasIetfQuicFrames(
     QuicTransportVersion transport_version) {
   return transport_version >= QUIC_VERSION_99;
 }
+
+// Returns whether this version supports long header 8-bit encoded
+// connection ID lengths as described in draft-ietf-quic-invariants-06 and
+// draft-ietf-quic-transport-22.
+QUIC_EXPORT_PRIVATE bool VersionHasLengthPrefixedConnectionIds(
+    QuicTransportVersion transport_version);
+
+// Returns whether this version label supports long header 4-bit encoded
+// connection ID lengths as described in draft-ietf-quic-invariants-05 and
+// draft-ietf-quic-transport-21.
+QUIC_EXPORT_PRIVATE bool QuicVersionLabelUses4BitConnectionIdLength(
+    QuicVersionLabel version_label);
 
 // Returns the ALPN string to use in TLS for this version of QUIC.
 QUIC_EXPORT_PRIVATE std::string AlpnForVersion(

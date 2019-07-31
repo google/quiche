@@ -134,6 +134,9 @@ size_t GetPacketHeaderSize(
       if (include_diversification_nonce) {
         size += kDiversificationNonceSize;
       }
+      if (VersionHasLengthPrefixedConnectionIds(version)) {
+        size += kConnectionIdLengthSize;
+      }
       DCHECK(QuicVersionHasLongHeaderLengths(version) ||
              !GetQuicReloadableFlag(quic_fix_get_packet_header_size) ||
              retry_token_length_length + retry_token_length + length_length ==
@@ -508,6 +511,7 @@ ReceivedPacketInfo::ReceivedPacketInfo(const QuicSocketAddress& self_address,
       packet(packet),
       form(GOOGLE_QUIC_PACKET),
       version_flag(false),
+      use_length_prefix(false),
       version_label(0),
       version(PROTOCOL_UNSUPPORTED, QUIC_VERSION_UNSUPPORTED),
       destination_connection_id(EmptyQuicConnectionId()),
