@@ -56,7 +56,12 @@ class QUIC_EXPORT_PRIVATE QpackBlockingManager {
   static uint64_t RequiredInsertCount(const IndexSet& indices);
 
  private:
-  using HeaderBlocksForStream = QuicDeque<IndexSet>;
+  // A stream typically has only one header block, except for the rare cases of
+  // 1xx responses, trailers, or push promises.  Even if there are multiple
+  // header blocks sent on a single stream, they might not be blocked at the
+  // same time.  Use std::list instead of QuicDeque because it has lower memory
+  // footprint when holding few elements.
+  using HeaderBlocksForStream = std::list<IndexSet>;
   using HeaderBlocks = QuicUnorderedMap<QuicStreamId, HeaderBlocksForStream>;
 
   // Increase or decrease the reference count for each index in |indices|.
