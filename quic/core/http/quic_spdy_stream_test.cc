@@ -235,7 +235,7 @@ class QuicSpdyStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
                           payload.size();
     frame.resize(length);
 
-    QuicDataWriter writer(length, frame.data());
+    QuicDataWriter writer(length, const_cast<char*>(frame.data()));
     writer.WriteVarInt62(frame_type);
     writer.WriteStringPieceVarInt62(payload);
     // Even though integers can be encoded with different lengths,
