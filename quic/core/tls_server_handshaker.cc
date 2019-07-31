@@ -188,8 +188,9 @@ bool TlsServerHandshaker::ProcessTransportParameters(
   SSL_get_peer_quic_transport_params(ssl(), &client_params_bytes,
                                      &params_bytes_len);
   if (params_bytes_len == 0 ||
-      !ParseTransportParameters(client_params_bytes, params_bytes_len,
-                                Perspective::IS_CLIENT, &client_params)) {
+      !ParseTransportParameters(session()->connection()->version(),
+                                Perspective::IS_CLIENT, client_params_bytes,
+                                params_bytes_len, &client_params)) {
     *error_details = "Unable to parse Transport Parameters";
     return false;
   }
@@ -228,7 +229,8 @@ bool TlsServerHandshaker::SetTransportParameters() {
   // TODO(nharper): Provide an actual value for the stateless reset token.
   server_params.stateless_reset_token.resize(16);
   std::vector<uint8_t> server_params_bytes;
-  if (!SerializeTransportParameters(server_params, &server_params_bytes) ||
+  if (!SerializeTransportParameters(session()->connection()->version(),
+                                    server_params, &server_params_bytes) ||
       SSL_set_quic_transport_params(ssl(), server_params_bytes.data(),
                                     server_params_bytes.size()) != 1) {
     return false;

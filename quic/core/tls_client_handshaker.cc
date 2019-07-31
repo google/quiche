@@ -120,7 +120,8 @@ bool TlsClientHandshaker::SetTransportParameters() {
   params.google_quic_params->SetStringPiece(kUAID, user_agent_id_);
 
   std::vector<uint8_t> param_bytes;
-  return SerializeTransportParameters(params, &param_bytes) &&
+  return SerializeTransportParameters(session()->connection()->version(),
+                                      params, &param_bytes) &&
          SSL_set_quic_transport_params(ssl(), param_bytes.data(),
                                        param_bytes.size()) == 1;
 }
@@ -132,8 +133,9 @@ bool TlsClientHandshaker::ProcessTransportParameters(
   size_t param_bytes_len;
   SSL_get_peer_quic_transport_params(ssl(), &param_bytes, &param_bytes_len);
   if (param_bytes_len == 0 ||
-      !ParseTransportParameters(param_bytes, param_bytes_len,
-                                Perspective::IS_SERVER, &params)) {
+      !ParseTransportParameters(session()->connection()->version(),
+                                Perspective::IS_SERVER, param_bytes,
+                                param_bytes_len, &params)) {
     *error_details = "Unable to parse Transport Parameters";
     return false;
   }

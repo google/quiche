@@ -7,6 +7,7 @@
 #include <cstring>
 
 #include "third_party/boringssl/src/include/openssl/mem.h"
+#include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ip_address.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
@@ -16,6 +17,7 @@
 namespace quic {
 namespace test {
 namespace {
+const ParsedQuicVersion kVersion(PROTOCOL_TLS1_3, QUIC_VERSION_99);
 const QuicVersionLabel kFakeVersionLabel = 0x01234567;
 const QuicVersionLabel kFakeVersionLabel2 = 0x89ABCDEF;
 const QuicConnectionId kFakeOriginalConnectionId = TestConnectionId(0x1337);
@@ -101,11 +103,12 @@ TEST_F(TransportParametersTest, RoundTripClient) {
       kFakeActiveConnectionIdLimit);
 
   std::vector<uint8_t> serialized;
-  ASSERT_TRUE(SerializeTransportParameters(orig_params, &serialized));
+  ASSERT_TRUE(SerializeTransportParameters(kVersion, orig_params, &serialized));
 
   TransportParameters new_params;
-  ASSERT_TRUE(ParseTransportParameters(serialized.data(), serialized.size(),
-                                       Perspective::IS_CLIENT, &new_params));
+  ASSERT_TRUE(ParseTransportParameters(kVersion, Perspective::IS_CLIENT,
+                                       serialized.data(), serialized.size(),
+                                       &new_params));
 
   EXPECT_EQ(Perspective::IS_CLIENT, new_params.perspective);
   EXPECT_EQ(kFakeVersionLabel, new_params.version);
@@ -160,11 +163,12 @@ TEST_F(TransportParametersTest, RoundTripServer) {
       kFakeActiveConnectionIdLimit);
 
   std::vector<uint8_t> serialized;
-  ASSERT_TRUE(SerializeTransportParameters(orig_params, &serialized));
+  ASSERT_TRUE(SerializeTransportParameters(kVersion, orig_params, &serialized));
 
   TransportParameters new_params;
-  ASSERT_TRUE(ParseTransportParameters(serialized.data(), serialized.size(),
-                                       Perspective::IS_SERVER, &new_params));
+  ASSERT_TRUE(ParseTransportParameters(kVersion, Perspective::IS_SERVER,
+                                       serialized.data(), serialized.size(),
+                                       &new_params));
 
   EXPECT_EQ(Perspective::IS_SERVER, new_params.perspective);
   EXPECT_EQ(kFakeVersionLabel, new_params.version);
@@ -255,7 +259,7 @@ TEST_F(TransportParametersTest, NoClientParamsWithStatelessResetToken) {
   orig_params.max_packet_size.set_value(kFakeMaxPacketSize);
 
   std::vector<uint8_t> out;
-  EXPECT_FALSE(SerializeTransportParameters(orig_params, &out));
+  EXPECT_FALSE(SerializeTransportParameters(kVersion, orig_params, &out));
 }
 
 TEST_F(TransportParametersTest, ParseClientParams) {
@@ -317,9 +321,9 @@ TEST_F(TransportParametersTest, ParseClientParams) {
   // clang-format on
 
   TransportParameters new_params;
-  ASSERT_TRUE(ParseTransportParameters(kClientParams,
-                                       QUIC_ARRAYSIZE(kClientParams),
-                                       Perspective::IS_CLIENT, &new_params));
+  ASSERT_TRUE(
+      ParseTransportParameters(kVersion, Perspective::IS_CLIENT, kClientParams,
+                               QUIC_ARRAYSIZE(kClientParams), &new_params));
 
   EXPECT_EQ(Perspective::IS_CLIENT, new_params.perspective);
   EXPECT_EQ(kFakeVersionLabel, new_params.version);
@@ -374,8 +378,8 @@ TEST_F(TransportParametersTest, ParseClientParamsFailsWithStatelessResetToken) {
   // clang-format on
 
   EXPECT_FALSE(ParseTransportParameters(
-      kClientParamsWithFullToken, QUIC_ARRAYSIZE(kClientParamsWithFullToken),
-      Perspective::IS_CLIENT, &out_params));
+      kVersion, Perspective::IS_CLIENT, kClientParamsWithFullToken,
+      QUIC_ARRAYSIZE(kClientParamsWithFullToken), &out_params));
 
   // clang-format off
   const uint8_t kClientParamsWithEmptyToken[] = {
@@ -399,8 +403,8 @@ TEST_F(TransportParametersTest, ParseClientParamsFailsWithStatelessResetToken) {
   // clang-format on
 
   EXPECT_FALSE(ParseTransportParameters(
-      kClientParamsWithEmptyToken, QUIC_ARRAYSIZE(kClientParamsWithEmptyToken),
-      Perspective::IS_CLIENT, &out_params));
+      kVersion, Perspective::IS_CLIENT, kClientParamsWithEmptyToken,
+      QUIC_ARRAYSIZE(kClientParamsWithEmptyToken), &out_params));
 }
 
 TEST_F(TransportParametersTest, ParseClientParametersRepeated) {
@@ -425,9 +429,9 @@ TEST_F(TransportParametersTest, ParseClientParametersRepeated) {
   };
   // clang-format on
   TransportParameters out_params;
-  EXPECT_FALSE(ParseTransportParameters(kClientParamsRepeated,
-                                        QUIC_ARRAYSIZE(kClientParamsRepeated),
-                                        Perspective::IS_CLIENT, &out_params));
+  EXPECT_FALSE(ParseTransportParameters(
+      kVersion, Perspective::IS_CLIENT, kClientParamsRepeated,
+      QUIC_ARRAYSIZE(kClientParamsRepeated), &out_params));
 }
 
 TEST_F(TransportParametersTest, ParseServerParams) {
@@ -513,9 +517,9 @@ TEST_F(TransportParametersTest, ParseServerParams) {
   // clang-format on
 
   TransportParameters new_params;
-  ASSERT_TRUE(ParseTransportParameters(kServerParams,
-                                       QUIC_ARRAYSIZE(kServerParams),
-                                       Perspective::IS_SERVER, &new_params));
+  ASSERT_TRUE(
+      ParseTransportParameters(kVersion, Perspective::IS_SERVER, kServerParams,
+                               QUIC_ARRAYSIZE(kServerParams), &new_params));
 
   EXPECT_EQ(Perspective::IS_SERVER, new_params.perspective);
   EXPECT_EQ(kFakeVersionLabel, new_params.version);
@@ -579,9 +583,9 @@ TEST_F(TransportParametersTest, ParseServerParametersRepeated) {
   // clang-format on
 
   TransportParameters out_params;
-  EXPECT_FALSE(ParseTransportParameters(kServerParamsRepeated,
-                                        QUIC_ARRAYSIZE(kServerParamsRepeated),
-                                        Perspective::IS_SERVER, &out_params));
+  EXPECT_FALSE(ParseTransportParameters(
+      kVersion, Perspective::IS_SERVER, kServerParamsRepeated,
+      QUIC_ARRAYSIZE(kServerParamsRepeated), &out_params));
 }
 
 TEST_F(TransportParametersTest, CryptoHandshakeMessageRoundtrip) {
@@ -597,11 +601,12 @@ TEST_F(TransportParametersTest, CryptoHandshakeMessageRoundtrip) {
   orig_params.google_quic_params->SetValue(1337, kTestValue);
 
   std::vector<uint8_t> serialized;
-  ASSERT_TRUE(SerializeTransportParameters(orig_params, &serialized));
+  ASSERT_TRUE(SerializeTransportParameters(kVersion, orig_params, &serialized));
 
   TransportParameters new_params;
-  ASSERT_TRUE(ParseTransportParameters(serialized.data(), serialized.size(),
-                                       Perspective::IS_CLIENT, &new_params));
+  ASSERT_TRUE(ParseTransportParameters(kVersion, Perspective::IS_CLIENT,
+                                       serialized.data(), serialized.size(),
+                                       &new_params));
 
   ASSERT_NE(new_params.google_quic_params.get(), nullptr);
   EXPECT_EQ(new_params.google_quic_params->tag(),

@@ -185,6 +185,7 @@ struct QUIC_EXPORT_PRIVATE TransportParameters {
 // TLS extension. The serialized bytes are written to |*out|. Returns if the
 // parameters are valid and serialization succeeded.
 QUIC_EXPORT_PRIVATE bool SerializeTransportParameters(
+    ParsedQuicVersion version,
     const TransportParameters& in,
     std::vector<uint8_t>* out);
 
@@ -193,9 +194,10 @@ QUIC_EXPORT_PRIVATE bool SerializeTransportParameters(
 // |perspective| indicates whether the input came from a client or a server.
 // This method returns true if the input was successfully parsed.
 // TODO(nharper): Write fuzz tests for this method.
-QUIC_EXPORT_PRIVATE bool ParseTransportParameters(const uint8_t* in,
-                                                  size_t in_len,
+QUIC_EXPORT_PRIVATE bool ParseTransportParameters(ParsedQuicVersion version,
                                                   Perspective perspective,
+                                                  const uint8_t* in,
+                                                  size_t in_len,
                                                   TransportParameters* out);
 
 }  // namespace quic

@@ -13,6 +13,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_data_reader.h"
 #include "net/third_party/quiche/src/quic/core/quic_data_writer.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
+#include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
@@ -365,7 +366,8 @@ bool TransportParameters::AreValid() const {
 
 TransportParameters::~TransportParameters() = default;
 
-bool SerializeTransportParameters(const TransportParameters& in,
+bool SerializeTransportParameters(ParsedQuicVersion /*version*/,
+                                  const TransportParameters& in,
                                   std::vector<uint8_t>* out) {
   if (!in.AreValid()) {
     QUIC_DLOG(ERROR) << "Not serializing invalid transport parameters " << in;
@@ -543,9 +545,10 @@ bool SerializeTransportParameters(const TransportParameters& in,
   return true;
 }
 
-bool ParseTransportParameters(const uint8_t* in,
-                              size_t in_len,
+bool ParseTransportParameters(ParsedQuicVersion version,
                               Perspective perspective,
+                              const uint8_t* in,
+                              size_t in_len,
                               TransportParameters* out) {
   out->perspective = perspective;
   CBS cbs;
@@ -572,22 +575,25 @@ bool ParseTransportParameters(const uint8_t* in,
     }
     bool parse_success = true;
     switch (param_id) {
-      case TransportParameters::kOriginalConnectionId:
+      case TransportParameters::kOriginalConnectionId: {
         if (!out->original_connection_id.IsEmpty()) {
           QUIC_DLOG(ERROR) << "Received a second original connection ID";
           return false;
         }
-        if (CBS_len(&value) > static_cast<size_t>(kQuicMaxConnectionIdLength)) {
+        const size_t connection_id_length = CBS_len(&value);
+        if (!QuicUtils::IsConnectionIdLengthValidForVersion(
+                connection_id_length, version.transport_version)) {
           QUIC_DLOG(ERROR) << "Received original connection ID of "
-                           << "invalid length " << CBS_len(&value);
+                           << "invalid length " << connection_id_length;
           return false;
         }
-        if (CBS_len(&value) != 0) {
-          out->original_connection_id.set_length(CBS_len(&value));
+        out->original_connection_id.set_length(
+            static_cast<uint8_t>(connection_id_length));
+        if (out->original_connection_id.length() != 0) {
           memcpy(out->original_connection_id.mutable_data(), CBS_data(&value),
-                 CBS_len(&value));
+                 out->original_connection_id.length());
         }
-        break;
+      } break;
       case TransportParameters::kIdleTimeout:
         parse_success = out->idle_timeout_milliseconds.ReadFromCbs(&value);
         break;
@@ -675,11 +681,15 @@ bool ParseTransportParameters(const uint8_t* in,
               << "Failed to parse length of preferred address connection ID";
           return false;
         }
-        if (CBS_len(&connection_id_cbs) > kQuicMaxConnectionIdLength) {
-          QUIC_DLOG(ERROR) << "Bad preferred address connection ID length";
+        const size_t connection_id_length = CBS_len(&connection_id_cbs);
+        if (!QuicUtils::IsConnectionIdLengthValidForVersion(
+                connection_id_length, version.transport_version)) {
+          QUIC_DLOG(ERROR) << "Received preferred address connection ID of "
+                           << "invalid length " << connection_id_length;
           return false;
         }
-        preferred_address.connection_id.set_length(CBS_len(&connection_id_cbs));
+        preferred_address.connection_id.set_length(
+            static_cast<uint8_t>(connection_id_length));
         if (preferred_address.connection_id.length() > 0 &&
             !CBS_copy_bytes(&connection_id_cbs,
                             reinterpret_cast<uint8_t*>(

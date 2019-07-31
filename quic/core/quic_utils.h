@@ -181,9 +181,15 @@ class QUIC_EXPORT_PRIVATE QuicUtils {
   static bool VariableLengthConnectionIdAllowedForVersion(
       QuicTransportVersion version);
 
+  // Returns true if the connection ID length is valid for this QUIC version.
+  static bool IsConnectionIdLengthValidForVersion(
+      size_t connection_id_length,
+      QuicTransportVersion transport_version);
+
   // Returns true if the connection ID is valid for this QUIC version.
-  static bool IsConnectionIdValidForVersion(QuicConnectionId connection_id,
-                                            QuicTransportVersion version);
+  static bool IsConnectionIdValidForVersion(
+      QuicConnectionId connection_id,
+      QuicTransportVersion transport_version);
 
   // Returns a connection ID suitable for QUIC use-cases that do not need the
   // connection ID for multiplexing. If the version allows variable lengths,

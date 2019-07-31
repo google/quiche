@@ -540,12 +540,30 @@ QuicConnectionId QuicUtils::CreateZeroConnectionId(
 }
 
 // static
-bool QuicUtils::IsConnectionIdValidForVersion(QuicConnectionId connection_id,
-                                              QuicTransportVersion version) {
-  if (VariableLengthConnectionIdAllowedForVersion(version)) {
-    return true;
+bool QuicUtils::IsConnectionIdLengthValidForVersion(
+    size_t connection_id_length,
+    QuicTransportVersion transport_version) {
+  // No version of QUIC can support lengths that do not fit in an uint8_t.
+  if (connection_id_length >
+      static_cast<size_t>(std::numeric_limits<uint8_t>::max())) {
+    return false;
   }
-  return connection_id.length() == kQuicDefaultConnectionIdLength;
+  const uint8_t connection_id_length8 =
+      static_cast<uint8_t>(connection_id_length);
+  // Versions that do not support variable lengths only support length 8.
+  if (!VariableLengthConnectionIdAllowedForVersion(transport_version)) {
+    return connection_id_length8 == kQuicDefaultConnectionIdLength;
+  }
+  // Currently all other versions require the length to be at most 18 bytes.
+  return connection_id_length8 <= kQuicMaxConnectionIdLength;
+}
+
+// static
+bool QuicUtils::IsConnectionIdValidForVersion(
+    QuicConnectionId connection_id,
+    QuicTransportVersion transport_version) {
+  return IsConnectionIdLengthValidForVersion(connection_id.length(),
+                                             transport_version);
 }
 
 QuicUint128 QuicUtils::GenerateStatelessResetToken(

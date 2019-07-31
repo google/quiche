@@ -125,6 +125,10 @@ uint8_t QuicConnectionId::length() const {
 }
 
 void QuicConnectionId::set_length(uint8_t length) {
+  if (length > kQuicMaxConnectionIdLength) {
+    QUIC_BUG << "Attempted to set connection ID length to " << length;
+    length = kQuicMaxConnectionIdLength;
+  }
   if (GetQuicRestartFlag(quic_use_allocated_connection_ids)) {
     QUIC_RESTART_FLAG_COUNT_N(quic_use_allocated_connection_ids, 5, 6);
     char temporary_data[sizeof(data_short_)];
