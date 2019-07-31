@@ -170,8 +170,8 @@ class QuicSpdySession::SpdyFramerVisitor
   void OnHeaders(SpdyStreamId stream_id,
                  bool has_priority,
                  int weight,
-                 SpdyStreamId /*parent_stream_id*/,
-                 bool /*exclusive*/,
+                 SpdyStreamId parent_stream_id,
+                 bool exclusive,
                  bool fin,
                  bool /*end*/) override {
     if (!session_->IsConnected()) {
@@ -181,6 +181,15 @@ class QuicSpdySession::SpdyFramerVisitor
     if (VersionUsesQpack(session_->connection()->transport_version())) {
       CloseConnection("HEADERS frame not allowed on headers stream.",
                       QUIC_INVALID_HEADERS_STREAM_DATA);
+      return;
+    }
+
+    if (session_->use_http2_priority_write_scheduler()) {
+      session_->OnHeaders(
+          stream_id, has_priority,
+          spdy::SpdyStreamPrecedence(parent_stream_id, weight, exclusive), fin);
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_use_http2_priority_write_scheduler, 1,
+                                   3);
       return;
     }
 
@@ -213,9 +222,9 @@ class QuicSpdySession::SpdyFramerVisitor
   void OnContinuation(SpdyStreamId /*stream_id*/, bool /*end*/) override {}
 
   void OnPriority(SpdyStreamId stream_id,
-                  SpdyStreamId /*parent_id*/,
+                  SpdyStreamId parent_id,
                   int weight,
-                  bool /*exclusive*/) override {
+                  bool exclusive) override {
     if (session_->connection()->transport_version() <= QUIC_VERSION_39) {
       CloseConnection("SPDY PRIORITY frame received.",
                       QUIC_INVALID_HEADERS_STREAM_DATA);
@@ -224,8 +233,13 @@ class QuicSpdySession::SpdyFramerVisitor
     if (!session_->IsConnected()) {
       return;
     }
-    // TODO (wangyix): implement real HTTP/2 weights and dependencies instead of
-    // converting to SpdyPriority.
+    if (session_->use_http2_priority_write_scheduler()) {
+      session_->OnPriority(
+          stream_id, spdy::SpdyStreamPrecedence(parent_id, weight, exclusive));
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_use_http2_priority_write_scheduler, 2,
+                                   3);
+      return;
+    }
     SpdyPriority priority = Http2WeightToSpdy3Priority(weight);
     session_->OnPriority(stream_id, spdy::SpdyStreamPrecedence(priority));
   }

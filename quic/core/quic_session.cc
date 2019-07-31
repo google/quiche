@@ -88,7 +88,8 @@ QuicSession::QuicSession(QuicConnection* connection,
       control_frame_manager_(this),
       last_message_id_(0),
       closed_streams_clean_up_alarm_(nullptr),
-      supported_versions_(supported_versions) {
+      supported_versions_(supported_versions),
+      use_http2_priority_write_scheduler_(false) {
   closed_streams_clean_up_alarm_ =
       QuicWrapUnique<QuicAlarm>(connection_->alarm_factory()->CreateAlarm(
           new ClosedStreamsCleanUpDelegate(this)));
@@ -992,6 +993,13 @@ void QuicSession::OnConfigNegotiated() {
       }
       if (ContainsQuicTag(config_.ReceivedConnectionOptions(), kIFWA)) {
         AdjustInitialFlowControlWindows(1024 * 1024);
+      }
+      // Enable HTTP2 (tree-style) priority write scheduler.
+      if (GetQuicReloadableFlag(quic_use_http2_priority_write_scheduler) &&
+          ContainsQuicTag(config_.ReceivedConnectionOptions(), kH2PR) &&
+          !VersionHasIetfQuicFrames(connection_->transport_version())) {
+        use_http2_priority_write_scheduler_ =
+            write_blocked_streams_.UseHttp2PriorityScheduler();
       }
     }
 

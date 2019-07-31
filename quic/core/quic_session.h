@@ -434,6 +434,10 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
     return connection_->transport_version();
   }
 
+  bool use_http2_priority_write_scheduler() const {
+    return use_http2_priority_write_scheduler_;
+  }
+
  protected:
   using StreamMap = QuicSmallMap<QuicStreamId, std::unique_ptr<QuicStream>, 10>;
 
@@ -721,6 +725,10 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
   // Supported version list used by the crypto handshake only. Please note, this
   // list may be a superset of the connection framer's supported versions.
   ParsedQuicVersionVector supported_versions_;
+
+  // If true, write_blocked_streams_ uses HTTP2 (tree-style) priority write
+  // scheduler.
+  bool use_http2_priority_write_scheduler_;
 };
 
 }  // namespace quic

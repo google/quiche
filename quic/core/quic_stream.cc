@@ -236,7 +236,12 @@ QuicStream::QuicStream(QuicStreamId id,
     : sequencer_(std::move(sequencer)),
       id_(id),
       session_(session),
-      precedence_(spdy::SpdyStreamPrecedence(kDefaultPriority)),
+      precedence_(
+          session->use_http2_priority_write_scheduler()
+              ? spdy::SpdyStreamPrecedence(0,
+                                           spdy::kHttp2DefaultStreamWeight,
+                                           false)
+              : spdy::SpdyStreamPrecedence(kDefaultPriority)),
       stream_bytes_read_(stream_bytes_read),
       stream_error_(QUIC_STREAM_NO_ERROR),
       connection_error_(QUIC_NO_ERROR),

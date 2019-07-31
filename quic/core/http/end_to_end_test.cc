@@ -343,6 +343,9 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
         GetQuicReloadableFlag(quic_enable_pcc3)) {
       copt.push_back(kTPCC);
     }
+    // TODO(fayang): Move this to GetTestParams when other priority connection
+    // opts are supported.
+    copt.push_back(kH2PR);
 
     client_config_.SetConnectionOptionsToSend(copt);
 

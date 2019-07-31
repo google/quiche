@@ -917,6 +917,88 @@ TEST_P(QuicSessionTestServer, TestBatchedWrites) {
   session_.OnCanWrite();
 }
 
+TEST_P(QuicSessionTestServer, Http2Priority) {
+  if (VersionHasIetfQuicFrames(GetParam().transport_version)) {
+    return;
+  }
+  SetQuicReloadableFlag(quic_use_http2_priority_write_scheduler, true);
+  QuicTagVector copt;
+  copt.push_back(kH2PR);
+  QuicConfigPeer::SetReceivedConnectionOptions(session_.config(), copt);
+  session_.OnConfigNegotiated();
+  ASSERT_TRUE(session_.use_http2_priority_write_scheduler());
+
+  session_.set_writev_consumes_all_data(true);
+  TestStream* stream2 = session_.CreateOutgoingBidirectionalStream();
+  TestStream* stream4 = session_.CreateOutgoingBidirectionalStream();
+  TestStream* stream6 = session_.CreateOutgoingBidirectionalStream();
+
+  session_.set_writev_consumes_all_data(true);
+  /*
+           0
+          /|\
+         2 4 6
+  */
+  session_.MarkConnectionLevelWriteBlocked(stream2->id());
+  session_.MarkConnectionLevelWriteBlocked(stream4->id());
+  session_.MarkConnectionLevelWriteBlocked(stream6->id());
+
+  // Verify streams are scheduled round robin.
+  InSequence s;
+  EXPECT_CALL(*stream2, OnCanWrite());
+  EXPECT_CALL(*stream4, OnCanWrite());
+  EXPECT_CALL(*stream6, OnCanWrite());
+  session_.OnCanWrite();
+
+  /*
+           0
+           |
+           4
+          / \
+         2   6
+  */
+  // Update stream 4's priority.
+  stream4->SetPriority(
+      spdy::SpdyStreamPrecedence(0, spdy::kHttp2DefaultStreamWeight, true));
+  session_.MarkConnectionLevelWriteBlocked(stream2->id());
+  session_.MarkConnectionLevelWriteBlocked(stream4->id());
+  session_.MarkConnectionLevelWriteBlocked(stream6->id());
+
+  EXPECT_CALL(*stream4, OnCanWrite()).WillOnce(Invoke([this, stream4]() {
+    session_.MarkConnectionLevelWriteBlocked(stream4->id());
+  }));
+  EXPECT_CALL(*stream4, OnCanWrite());
+  EXPECT_CALL(*stream2, OnCanWrite());
+  session_.OnCanWrite();
+  EXPECT_CALL(*stream6, OnCanWrite());
+  session_.OnCanWrite();
+
+  /*
+         0
+         |
+         6
+         |
+         4
+         |
+         2
+  */
+  // Update stream 6's priority.
+  stream6->SetPriority(
+      spdy::SpdyStreamPrecedence(0, spdy::kHttp2DefaultStreamWeight, true));
+  session_.MarkConnectionLevelWriteBlocked(stream2->id());
+  session_.MarkConnectionLevelWriteBlocked(stream4->id());
+  session_.MarkConnectionLevelWriteBlocked(stream6->id());
+
+  EXPECT_CALL(*stream6, OnCanWrite()).WillOnce(Invoke([this, stream6]() {
+    session_.MarkConnectionLevelWriteBlocked(stream6->id());
+  }));
+  EXPECT_CALL(*stream6, OnCanWrite());
+  EXPECT_CALL(*stream4, OnCanWrite());
+  session_.OnCanWrite();
+  EXPECT_CALL(*stream2, OnCanWrite());
+  session_.OnCanWrite();
+}
+
 TEST_P(QuicSessionTestServer, OnCanWriteBundlesStreams) {
   // Encryption needs to be established before data can be sent.
   CryptoHandshakeMessage msg;
