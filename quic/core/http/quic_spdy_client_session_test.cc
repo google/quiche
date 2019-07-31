@@ -515,10 +515,6 @@ TEST_P(QuicSpdyClientSessionTest, InvalidPacketReceived) {
   ParsedQuicVersionVector versions = SupportedVersions(GetParam());
   QuicConnectionId destination_connection_id = EmptyQuicConnectionId();
   QuicConnectionId source_connection_id = connection_id;
-  if (!GetQuicRestartFlag(quic_do_not_override_connection_id)) {
-    destination_connection_id = connection_id;
-    source_connection_id = EmptyQuicConnectionId();
-  }
   std::unique_ptr<QuicEncryptedPacket> packet(ConstructEncryptedPacket(
       destination_connection_id, source_connection_id, false, false, 100,
       "data", CONNECTION_ID_ABSENT, CONNECTION_ID_ABSENT,

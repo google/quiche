@@ -1895,11 +1895,7 @@ TEST_P(EndToEndTest, 0ByteConnectionId) {
       client_->client()->client_session()->connection();
   QuicPacketHeader* header =
       QuicConnectionPeer::GetLastHeader(client_connection);
-  if (!GetQuicRestartFlag(quic_do_not_override_connection_id)) {
-    EXPECT_EQ(CONNECTION_ID_ABSENT, header->destination_connection_id_included);
-  } else {
-    EXPECT_EQ(CONNECTION_ID_ABSENT, header->source_connection_id_included);
-  }
+  EXPECT_EQ(CONNECTION_ID_ABSENT, header->source_connection_id_included);
 }
 
 TEST_P(EndToEndTestWithTls, 8ByteConnectionId) {

@@ -1484,8 +1484,6 @@ QuicFramer::BuildIetfVersionNegotiationPacket(
                 << server_connection_id << " client_connection_id "
                 << client_connection_id << " versions "
                 << ParsedQuicVersionVectorToString(versions);
-  DCHECK(client_connection_id.IsEmpty() ||
-         GetQuicRestartFlag(quic_do_not_override_connection_id));
   DCHECK(!versions.empty());
   size_t len = kPacketHeaderTypeSize + kConnectionIdLengthSize +
                client_connection_id.length() + server_connection_id.length() +
@@ -2347,8 +2345,7 @@ bool QuicFramer::ProcessPublicHeader(QuicDataReader* reader,
   QuicConnectionId* header_connection_id = &header->destination_connection_id;
   QuicConnectionIdIncluded* header_connection_id_included =
       &header->destination_connection_id_included;
-  if (perspective_ == Perspective::IS_CLIENT &&
-      GetQuicRestartFlag(quic_do_not_override_connection_id)) {
+  if (perspective_ == Perspective::IS_CLIENT) {
     header_connection_id = &header->source_connection_id;
     header_connection_id_included = &header->source_connection_id_included;
   }
@@ -2803,34 +2800,16 @@ bool QuicFramer::ProcessIetfPacketHeader(QuicDataReader* reader,
     return false;
   }
 
-  if (!GetQuicRestartFlag(quic_do_not_override_connection_id)) {
-    if (header->source_connection_id_included == CONNECTION_ID_PRESENT) {
-      DCHECK_EQ(Perspective::IS_CLIENT, perspective_);
-      DCHECK_EQ(IETF_QUIC_LONG_HEADER_PACKET, header->form);
-      if (!header->destination_connection_id.IsEmpty()) {
-        set_detailed_error("Client connection ID not supported yet.");
-        return false;
-      }
-      // Set destination connection ID to source connection ID.
-      header->destination_connection_id = header->source_connection_id;
-    } else if (header->destination_connection_id_included ==
-               CONNECTION_ID_ABSENT) {
-      header->destination_connection_id = last_serialized_server_connection_id_;
+  if (header->source_connection_id_included == CONNECTION_ID_ABSENT) {
+    if (!header->source_connection_id.IsEmpty()) {
+      DCHECK(!version_.SupportsClientConnectionIds());
+      set_detailed_error("Client connection ID not supported in this version.");
+      return false;
     }
-  } else {
-    QUIC_RESTART_FLAG_COUNT_N(quic_do_not_override_connection_id, 5, 7);
-    if (header->source_connection_id_included == CONNECTION_ID_ABSENT) {
-      if (!header->source_connection_id.IsEmpty()) {
-        DCHECK(!version_.SupportsClientConnectionIds());
-        set_detailed_error(
-            "Client connection ID not supported in this version.");
-        return false;
-      }
-      if (perspective_ == Perspective::IS_CLIENT) {
-        header->source_connection_id = last_serialized_server_connection_id_;
-      } else {
-        header->source_connection_id = last_serialized_client_connection_id_;
-      }
+    if (perspective_ == Perspective::IS_CLIENT) {
+      header->source_connection_id = last_serialized_server_connection_id_;
+    } else {
+      header->source_connection_id = last_serialized_client_connection_id_;
     }
   }
 
@@ -6324,8 +6303,7 @@ QuicErrorCode QuicFramer::ProcessPacketDispatcher(
     return QUIC_INVALID_PACKET_HEADER;
   }
   // Read source connection ID.
-  if (GetQuicRestartFlag(quic_do_not_override_connection_id) &&
-      !reader.ReadConnectionId(source_connection_id,
+  if (!reader.ReadConnectionId(source_connection_id,
                                source_connection_id_length)) {
     *detailed_error = "Unable to read source connection ID.";
     return QUIC_INVALID_PACKET_HEADER;

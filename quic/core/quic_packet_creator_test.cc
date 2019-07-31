@@ -1926,17 +1926,11 @@ TEST_P(QuicPacketCreatorTest, RetryToken) {
 }
 
 TEST_P(QuicPacketCreatorTest, GetConnectionId) {
-  if (!GetQuicRestartFlag(quic_do_not_override_connection_id)) {
-    EXPECT_EQ(TestConnectionId(2), creator_.GetDestinationConnectionId());
-    EXPECT_EQ(TestConnectionId(2), creator_.GetSourceConnectionId());
-    return;
-  }
   EXPECT_EQ(TestConnectionId(2), creator_.GetDestinationConnectionId());
   EXPECT_EQ(EmptyQuicConnectionId(), creator_.GetSourceConnectionId());
 }
 
 TEST_P(QuicPacketCreatorTest, ClientConnectionId) {
-  SetQuicRestartFlag(quic_do_not_override_connection_id, true);
   if (!client_framer_.version().SupportsClientConnectionIds()) {
     return;
   }

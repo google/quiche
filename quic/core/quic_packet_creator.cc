@@ -762,10 +762,6 @@ SerializedPacket QuicPacketCreator::NoPacket() {
 }
 
 QuicConnectionId QuicPacketCreator::GetDestinationConnectionId() const {
-  if (!GetQuicRestartFlag(quic_do_not_override_connection_id)) {
-    return server_connection_id_;
-  }
-  QUIC_RESTART_FLAG_COUNT_N(quic_do_not_override_connection_id, 1, 7);
   if (framer_->perspective() == Perspective::IS_SERVER) {
     return client_connection_id_;
   }
@@ -773,10 +769,6 @@ QuicConnectionId QuicPacketCreator::GetDestinationConnectionId() const {
 }
 
 QuicConnectionId QuicPacketCreator::GetSourceConnectionId() const {
-  if (!GetQuicRestartFlag(quic_do_not_override_connection_id)) {
-    return server_connection_id_;
-  }
-  QUIC_RESTART_FLAG_COUNT_N(quic_do_not_override_connection_id, 6, 7);
   if (framer_->perspective() == Perspective::IS_CLIENT) {
     return client_connection_id_;
   }
@@ -785,16 +777,12 @@ QuicConnectionId QuicPacketCreator::GetSourceConnectionId() const {
 
 QuicConnectionIdIncluded QuicPacketCreator::GetDestinationConnectionIdIncluded()
     const {
-  if (VersionHasIetfInvariantHeader(framer_->transport_version()) ||
-      GetQuicRestartFlag(quic_do_not_override_connection_id)) {
-    // In versions that do not support client connection IDs, the destination
-    // connection ID is only sent from client to server.
-    return (framer_->perspective() == Perspective::IS_CLIENT ||
-            framer_->version().SupportsClientConnectionIds())
-               ? CONNECTION_ID_PRESENT
-               : CONNECTION_ID_ABSENT;
-  }
-  return server_connection_id_included_;
+  // In versions that do not support client connection IDs, the destination
+  // connection ID is only sent from client to server.
+  return (framer_->perspective() == Perspective::IS_CLIENT ||
+          framer_->version().SupportsClientConnectionIds())
+             ? CONNECTION_ID_PRESENT
+             : CONNECTION_ID_ABSENT;
 }
 
 QuicConnectionIdIncluded QuicPacketCreator::GetSourceConnectionIdIncluded()
@@ -807,9 +795,7 @@ QuicConnectionIdIncluded QuicPacketCreator::GetSourceConnectionIdIncluded()
        framer_->version().SupportsClientConnectionIds())) {
     return CONNECTION_ID_PRESENT;
   }
-  if (GetQuicRestartFlag(quic_do_not_override_connection_id) &&
-      framer_->perspective() == Perspective::IS_SERVER) {
-    QUIC_RESTART_FLAG_COUNT_N(quic_do_not_override_connection_id, 2, 7);
+  if (framer_->perspective() == Perspective::IS_SERVER) {
     return server_connection_id_included_;
   }
   return CONNECTION_ID_ABSENT;
@@ -1069,8 +1055,6 @@ void QuicPacketCreator::SetClientConnectionId(
     QuicConnectionId client_connection_id) {
   DCHECK(client_connection_id.IsEmpty() ||
          framer_->version().SupportsClientConnectionIds());
-  DCHECK(client_connection_id.IsEmpty() ||
-         GetQuicRestartFlag(quic_do_not_override_connection_id));
   client_connection_id_ = client_connection_id;
 }
 

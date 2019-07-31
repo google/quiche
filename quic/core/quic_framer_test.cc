@@ -1040,7 +1040,6 @@ TEST_P(QuicFramerTest, LongPacketHeaderWithBothConnectionIds) {
     return;
   }
   SetQuicReloadableFlag(quic_use_parse_public_header, false);
-  SetQuicRestartFlag(quic_do_not_override_connection_id, true);
   SetDecrypterLevel(ENCRYPTION_ZERO_RTT);
   const unsigned char type_byte =
       framer_.transport_version() == QUIC_VERSION_44 ? 0xFC : 0xD3;
@@ -1098,7 +1097,6 @@ TEST_P(QuicFramerTest, LongPacketHeaderWithBothConnectionIds) {
 }
 
 TEST_P(QuicFramerTest, ClientConnectionIdFromShortHeaderToClient) {
-  SetQuicRestartFlag(quic_do_not_override_connection_id, true);
   if (!framer_.version().SupportsClientConnectionIds()) {
     return;
   }
@@ -1134,7 +1132,6 @@ TEST_P(QuicFramerTest, ClientConnectionIdFromShortHeaderToClient) {
 // last serialized client connection ID. This test ensures that this
 // mechanism behaves as expected.
 TEST_P(QuicFramerTest, ClientConnectionIdFromShortHeaderToServer) {
-  SetQuicRestartFlag(quic_do_not_override_connection_id, true);
   if (!framer_.version().SupportsClientConnectionIds()) {
     return;
   }
@@ -1224,12 +1221,7 @@ TEST_P(QuicFramerTest, PacketHeaderWith0ByteConnectionId) {
   EXPECT_FALSE(framer_.ProcessPacket(*encrypted));
   EXPECT_EQ(QUIC_MISSING_PAYLOAD, framer_.error());
   ASSERT_TRUE(visitor_.header_.get());
-  if (!GetQuicRestartFlag(quic_do_not_override_connection_id)) {
-    EXPECT_EQ(FramerTestConnectionId(),
-              visitor_.header_->destination_connection_id);
-  } else {
-    EXPECT_EQ(FramerTestConnectionId(), visitor_.header_->source_connection_id);
-  }
+  EXPECT_EQ(FramerTestConnectionId(), visitor_.header_->source_connection_id);
   EXPECT_FALSE(visitor_.header_->reset_flag);
   EXPECT_FALSE(visitor_.header_->version_flag);
   EXPECT_EQ(kPacketNumber, visitor_.header_->packet_number);
@@ -6969,8 +6961,6 @@ TEST_P(QuicFramerTest, BuildVersionNegotiationPacketWithClientConnectionId) {
     return;
   }
 
-  // Client connection IDs cannot be used unless this flag is true.
-  SetQuicRestartFlag(quic_do_not_override_connection_id, true);
   SetQuicReloadableFlag(quic_version_negotiation_grease, true);
   SetQuicFlag(FLAGS_quic_disable_version_negotiation_grease_randomness, true);
 
@@ -14269,14 +14259,6 @@ TEST_P(QuicFramerTest, ClientConnectionIdFromLongHeaderToClient) {
     EXPECT_EQ("Invalid ConnectionId length.", framer_.detailed_error());
     return;
   }
-  if (!GetQuicRestartFlag(quic_do_not_override_connection_id)) {
-    // When the flag is disabled we expect processing to fail.
-    EXPECT_FALSE(parse_success);
-    EXPECT_EQ(QUIC_INVALID_PACKET_HEADER, framer_.error());
-    EXPECT_EQ("Client connection ID not supported yet.",
-              framer_.detailed_error());
-    return;
-  }
   EXPECT_TRUE(parse_success);
   EXPECT_EQ(QUIC_NO_ERROR, framer_.error());
   EXPECT_EQ("", framer_.detailed_error());
@@ -14345,8 +14327,7 @@ TEST_P(QuicFramerTest, ClientConnectionIdFromLongHeaderToServer) {
     EXPECT_EQ("Invalid ConnectionId length.", framer_.detailed_error());
     return;
   }
-  if (!framer_.version().SupportsClientConnectionIds() &&
-      GetQuicRestartFlag(quic_do_not_override_connection_id)) {
+  if (!framer_.version().SupportsClientConnectionIds()) {
     EXPECT_FALSE(parse_success);
     EXPECT_EQ(QUIC_INVALID_PACKET_HEADER, framer_.error());
     EXPECT_EQ("Client connection ID not supported in this version.",

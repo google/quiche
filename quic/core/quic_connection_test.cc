@@ -1133,9 +1133,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     header.destination_connection_id = connection_id_;
     header.packet_number_length = packet_number_length_;
     header.destination_connection_id_included = connection_id_included_;
-    if ((VersionHasIetfInvariantHeader(peer_framer_.transport_version()) ||
-         GetQuicRestartFlag(quic_do_not_override_connection_id)) &&
-        peer_framer_.perspective() == Perspective::IS_SERVER) {
+    if (peer_framer_.perspective() == Perspective::IS_SERVER) {
       header.destination_connection_id_included = CONNECTION_ID_ABSENT;
     }
     if (level == ENCRYPTION_INITIAL &&
@@ -1146,10 +1144,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
         header.length_length = VARIABLE_LENGTH_INTEGER_LENGTH_2;
       }
     }
-    if ((GetQuicRestartFlag(quic_do_not_override_connection_id) ||
-         (level == ENCRYPTION_INITIAL &&
-          peer_framer_.version().KnowsWhichDecrypterToUse())) &&
-        header.version_flag &&
+    if (header.version_flag &&
         peer_framer_.perspective() == Perspective::IS_SERVER) {
       header.source_connection_id = connection_id_;
       header.source_connection_id_included = CONNECTION_ID_PRESENT;
@@ -1371,8 +1366,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     }
     // Set connection_id to peer's in memory representation as this data packet
     // is created by peer_framer.
-    if (GetQuicRestartFlag(quic_do_not_override_connection_id) &&
-        peer_framer_.perspective() == Perspective::IS_SERVER) {
+    if (peer_framer_.perspective() == Perspective::IS_SERVER) {
       header.source_connection_id = connection_id_;
       header.source_connection_id_included = connection_id_included_;
       header.destination_connection_id_included = CONNECTION_ID_ABSENT;
@@ -1425,8 +1419,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     QuicPacketHeader header;
     // Set connection_id to peer's in memory representation as this connection
     // close packet is created by peer_framer.
-    if (GetQuicRestartFlag(quic_do_not_override_connection_id) &&
-        peer_framer_.perspective() == Perspective::IS_SERVER) {
+    if (peer_framer_.perspective() == Perspective::IS_SERVER) {
       header.source_connection_id = connection_id_;
       header.destination_connection_id_included = CONNECTION_ID_ABSENT;
       if (!VersionHasIetfInvariantHeader(peer_framer_.transport_version())) {
@@ -6879,8 +6872,7 @@ TEST_P(QuicConnectionTest, CheckSendStats) {
 TEST_P(QuicConnectionTest, ProcessFramesIfPacketClosedConnection) {
   // Construct a packet with stream frame and connection close frame.
   QuicPacketHeader header;
-  if (GetQuicRestartFlag(quic_do_not_override_connection_id) &&
-      peer_framer_.perspective() == Perspective::IS_SERVER) {
+  if (peer_framer_.perspective() == Perspective::IS_SERVER) {
     header.source_connection_id = connection_id_;
     header.destination_connection_id_included = CONNECTION_ID_ABSENT;
     if (!VersionHasIetfInvariantHeader(peer_framer_.transport_version())) {
@@ -8448,7 +8440,6 @@ TEST_P(QuicConnectionTest, CancelAckAlarmOnWriteBlocked) {
 
 // Make sure a packet received with the right client connection ID is processed.
 TEST_P(QuicConnectionTest, ValidClientConnectionId) {
-  SetQuicRestartFlag(quic_do_not_override_connection_id, true);
   if (!framer_.version().SupportsClientConnectionIds()) {
     return;
   }
@@ -8478,7 +8469,6 @@ TEST_P(QuicConnectionTest, ValidClientConnectionId) {
 
 // Make sure a packet received with a different client connection ID is dropped.
 TEST_P(QuicConnectionTest, InvalidClientConnectionId) {
-  SetQuicRestartFlag(quic_do_not_override_connection_id, true);
   if (!framer_.version().SupportsClientConnectionIds()) {
     return;
   }
@@ -8508,7 +8498,6 @@ TEST_P(QuicConnectionTest, InvalidClientConnectionId) {
 // Make sure the first packet received with a different client connection ID on
 // the server is processed and it changes the client connection ID.
 TEST_P(QuicConnectionTest, UpdateClientConnectionIdFromFirstPacket) {
-  SetQuicRestartFlag(quic_do_not_override_connection_id, true);
   if (!framer_.version().SupportsClientConnectionIds()) {
     return;
   }

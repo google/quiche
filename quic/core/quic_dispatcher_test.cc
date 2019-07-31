@@ -543,7 +543,6 @@ TEST_F(QuicDispatcherTest, StatelessVersionNegotiation) {
 }
 
 TEST_F(QuicDispatcherTest, StatelessVersionNegotiationWithClientConnectionId) {
-  SetQuicRestartFlag(quic_do_not_override_connection_id, true);
   SetQuicReloadableFlag(quic_use_parse_public_header, true);
   CreateTimeWaitListManager();
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);

@@ -24,14 +24,6 @@ class QuicPacketsTest : public QuicTest {};
 
 TEST_F(QuicPacketsTest, GetServerConnectionIdAsRecipient) {
   QuicPacketHeader header = CreateFakePacketHeader();
-  if (!GetQuicRestartFlag(quic_do_not_override_connection_id)) {
-    EXPECT_EQ(TestConnectionId(1),
-              GetServerConnectionIdAsRecipient(header, Perspective::IS_SERVER));
-    EXPECT_EQ(TestConnectionId(1),
-              GetServerConnectionIdAsRecipient(header, Perspective::IS_CLIENT));
-    return;
-  }
-
   EXPECT_EQ(TestConnectionId(1),
             GetServerConnectionIdAsRecipient(header, Perspective::IS_SERVER));
   EXPECT_EQ(TestConnectionId(2),
@@ -40,14 +32,6 @@ TEST_F(QuicPacketsTest, GetServerConnectionIdAsRecipient) {
 
 TEST_F(QuicPacketsTest, GetServerConnectionIdAsSender) {
   QuicPacketHeader header = CreateFakePacketHeader();
-  if (!GetQuicRestartFlag(quic_do_not_override_connection_id)) {
-    EXPECT_EQ(TestConnectionId(1),
-              GetServerConnectionIdAsSender(header, Perspective::IS_SERVER));
-    EXPECT_EQ(TestConnectionId(1),
-              GetServerConnectionIdAsSender(header, Perspective::IS_CLIENT));
-    return;
-  }
-
   EXPECT_EQ(TestConnectionId(2),
             GetServerConnectionIdAsSender(header, Perspective::IS_SERVER));
   EXPECT_EQ(TestConnectionId(1),
@@ -56,14 +40,6 @@ TEST_F(QuicPacketsTest, GetServerConnectionIdAsSender) {
 
 TEST_F(QuicPacketsTest, GetServerConnectionIdIncludedAsSender) {
   QuicPacketHeader header = CreateFakePacketHeader();
-  if (!GetQuicRestartFlag(quic_do_not_override_connection_id)) {
-    EXPECT_EQ(CONNECTION_ID_PRESENT, GetServerConnectionIdIncludedAsSender(
-                                         header, Perspective::IS_SERVER));
-    EXPECT_EQ(CONNECTION_ID_PRESENT, GetServerConnectionIdIncludedAsSender(
-                                         header, Perspective::IS_CLIENT));
-    return;
-  }
-
   EXPECT_EQ(CONNECTION_ID_ABSENT, GetServerConnectionIdIncludedAsSender(
                                       header, Perspective::IS_SERVER));
   EXPECT_EQ(CONNECTION_ID_PRESENT, GetServerConnectionIdIncludedAsSender(
@@ -72,14 +48,6 @@ TEST_F(QuicPacketsTest, GetServerConnectionIdIncludedAsSender) {
 
 TEST_F(QuicPacketsTest, GetClientConnectionIdIncludedAsSender) {
   QuicPacketHeader header = CreateFakePacketHeader();
-  if (!GetQuicRestartFlag(quic_do_not_override_connection_id)) {
-    EXPECT_EQ(CONNECTION_ID_ABSENT, GetClientConnectionIdIncludedAsSender(
-                                        header, Perspective::IS_SERVER));
-    EXPECT_EQ(CONNECTION_ID_ABSENT, GetClientConnectionIdIncludedAsSender(
-                                        header, Perspective::IS_CLIENT));
-    return;
-  }
-
   EXPECT_EQ(CONNECTION_ID_PRESENT, GetClientConnectionIdIncludedAsSender(
                                        header, Perspective::IS_SERVER));
   EXPECT_EQ(CONNECTION_ID_ABSENT, GetClientConnectionIdIncludedAsSender(
@@ -87,7 +55,6 @@ TEST_F(QuicPacketsTest, GetClientConnectionIdIncludedAsSender) {
 }
 
 TEST_F(QuicPacketsTest, GetClientConnectionIdAsRecipient) {
-  SetQuicRestartFlag(quic_do_not_override_connection_id, true);
   QuicPacketHeader header = CreateFakePacketHeader();
   EXPECT_EQ(TestConnectionId(2),
             GetClientConnectionIdAsRecipient(header, Perspective::IS_SERVER));
@@ -97,14 +64,6 @@ TEST_F(QuicPacketsTest, GetClientConnectionIdAsRecipient) {
 
 TEST_F(QuicPacketsTest, GetClientConnectionIdAsSender) {
   QuicPacketHeader header = CreateFakePacketHeader();
-  if (!GetQuicRestartFlag(quic_do_not_override_connection_id)) {
-    EXPECT_EQ(TestConnectionId(2),
-              GetClientConnectionIdAsSender(header, Perspective::IS_SERVER));
-    EXPECT_EQ(TestConnectionId(2),
-              GetClientConnectionIdAsSender(header, Perspective::IS_CLIENT));
-    return;
-  }
-
   EXPECT_EQ(TestConnectionId(1),
             GetClientConnectionIdAsSender(header, Perspective::IS_SERVER));
   EXPECT_EQ(TestConnectionId(2),

@@ -1475,7 +1475,6 @@ TEST_F(QuicPacketGeneratorTest, AddMessageFrame) {
 }
 
 TEST_F(QuicPacketGeneratorTest, ConnectionId) {
-  SetQuicRestartFlag(quic_do_not_override_connection_id, true);
   generator_.SetServerConnectionId(TestConnectionId(0x1337));
   EXPECT_EQ(TestConnectionId(0x1337), creator_->GetDestinationConnectionId());
   EXPECT_EQ(EmptyQuicConnectionId(), creator_->GetSourceConnectionId());

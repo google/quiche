@@ -300,9 +300,6 @@ TEST_F(QuicTimeWaitListManagerTest, SendIetfVersionNegotiationPacket) {
 
 TEST_F(QuicTimeWaitListManagerTest,
        SendIetfVersionNegotiationPacketWithClientConnectionId) {
-  // Client connection IDs cannot be used unless this flag is true.
-  SetQuicRestartFlag(quic_do_not_override_connection_id, true);
-
   std::unique_ptr<QuicEncryptedPacket> packet(
       QuicFramer::BuildVersionNegotiationPacket(
           connection_id_, TestConnectionId(0x33), /*ietf_quic=*/true,
