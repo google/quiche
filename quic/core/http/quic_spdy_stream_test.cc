@@ -164,11 +164,26 @@ class QuicSpdyStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
 
   ~QuicSpdyStreamTest() override = default;
 
-  std::string EncodeQpackHeaders(QuicStreamId id, SpdyHeaderBlock* header) {
+  // Return QPACK-encoded header block without using the dynamic table.
+  std::string EncodeQpackHeaders(
+      std::vector<std::pair<QuicStringPiece, QuicStringPiece>> headers) {
+    SpdyHeaderBlock header_block;
+    for (const auto& header_field : headers) {
+      header_block.AppendValueOrAddHeader(header_field.first,
+                                          header_field.second);
+    }
+
+    return EncodeQpackHeaders(header_block);
+  }
+
+  // Return QPACK-encoded header block without using the dynamic table.
+  std::string EncodeQpackHeaders(const SpdyHeaderBlock& header) {
     NoopQpackStreamSenderDelegate encoder_stream_sender_delegate;
     auto qpack_encoder = QuicMakeUnique<QpackEncoder>(
         session_.get(), &encoder_stream_sender_delegate);
-    return qpack_encoder->EncodeHeaderList(id, header);
+    // QpackEncoder does not use the dynamic table by default,
+    // therefore the value of |stream_id| does not matter.
+    return qpack_encoder->EncodeHeaderList(/* stream_id = */ 0, &header);
   }
 
   void Initialize(bool stream_should_process_data) {
@@ -210,6 +225,20 @@ class QuicSpdyStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
     return VersionHasDataFrameHeader(GetParam().transport_version);
   }
 
+  // Construct HEADERS frame with QPACK-encoded |headers| without using the
+  // dynamic table.
+  std::string HeadersFrame(
+      std::vector<std::pair<QuicStringPiece, QuicStringPiece>> headers) {
+    return HeadersFrame(EncodeQpackHeaders(headers));
+  }
+
+  // Construct HEADERS frame with QPACK-encoded |headers| without using the
+  // dynamic table.
+  std::string HeadersFrame(const SpdyHeaderBlock& headers) {
+    return HeadersFrame(EncodeQpackHeaders(headers));
+  }
+
+  // Construct HEADERS frame with given payload.
   std::string HeadersFrame(QuicStringPiece payload) {
     std::unique_ptr<char[]> headers_buffer;
     QuicByteCount headers_frame_header_length =
@@ -1763,14 +1792,9 @@ TEST_P(QuicSpdyStreamTest, HeadersFrameOnRequestStream) {
 
   Initialize(kShouldProcessData);
 
-  // HEADERS frame with QPACK encoded single header field "foo: bar".
-  std::string headers =
-      HeadersFrame(QuicTextUtils::HexDecode("00002a94e703626172"));
+  std::string headers = HeadersFrame({{"foo", "bar"}});
   std::string data = DataFrame(kDataFramePayload);
-  // HEADERS frame with QPACK encoded single header
-  // field "custom-key: custom-value".
-  std::string trailers = HeadersFrame(
-      QuicTextUtils::HexDecode("00002f0125a849e95ba97d7f8925a849e95bb8e8b4bf"));
+  std::string trailers = HeadersFrame({{"custom-key", "custom-value"}});
 
   std::string stream_frame_payload = QuicStrCat(headers, data, trailers);
   QuicStreamFrame frame(stream_->id(), false, 0, stream_frame_payload);
@@ -1795,11 +1819,7 @@ TEST_P(QuicSpdyStreamTest, ProcessBodyAfterTrailers) {
 
   Initialize(!kShouldProcessData);
 
-  // HEADERS frame with QPACK encoded single header field "foo: bar".
-  std::string headers =
-      HeadersFrame(QuicTextUtils::HexDecode("00002a94e703626172"));
-
-  // DATA frame.
+  std::string headers = HeadersFrame({{"foo", "bar"}});
   std::string data = DataFrame(kDataFramePayload);
 
   // A header block that will take more than one block of sequencer buffer.
@@ -1807,9 +1827,7 @@ TEST_P(QuicSpdyStreamTest, ProcessBodyAfterTrailers) {
   // be freed.
   SpdyHeaderBlock trailers_block;
   trailers_block["key1"] = std::string(10000, 'x');
-  std::string trailers_frame_payload =
-      EncodeQpackHeaders(stream_->id(), &trailers_block);
-  std::string trailers = HeadersFrame(trailers_frame_payload);
+  std::string trailers = HeadersFrame(trailers_block);
 
   // Feed all three HTTP/3 frames in a single stream frame.
   std::string stream_frame_payload = QuicStrCat(headers, data, trailers);
@@ -2111,9 +2129,7 @@ TEST_P(QuicSpdyStreamIncrementalConsumptionTest, OnlyKnownFrames) {
 
   Initialize(!kShouldProcessData);
 
-  // HEADERS frame with QPACK encoded single header field "foo: bar".
-  std::string headers =
-      HeadersFrame(QuicTextUtils::HexDecode("00002a94e703626172"));
+  std::string headers = HeadersFrame({{"foo", "bar"}});
 
   // All HEADERS frame bytes are consumed even if the frame is not received
   // completely.
@@ -2144,10 +2160,7 @@ TEST_P(QuicSpdyStreamIncrementalConsumptionTest, OnlyKnownFrames) {
             ReadFromStream(data_payload.size() - 1));
   EXPECT_EQ(data_payload.size() - 1, NewlyConsumedBytes());
 
-  // Trailing HEADERS frame with QPACK encoded
-  // single header field "custom-key: custom-value".
-  std::string trailers = HeadersFrame(
-      QuicTextUtils::HexDecode("00002f0125a849e95ba97d7f8925a849e95bb8e8b4bf"));
+  std::string trailers = HeadersFrame({{"custom-key", "custom-value"}});
 
   // No bytes are consumed, because last byte of DATA payload is still buffered.
   OnStreamFrame(QuicStringPiece(trailers).substr(0, trailers.size() - 1));
@@ -2179,9 +2192,7 @@ TEST_P(QuicSpdyStreamIncrementalConsumptionTest, UnknownFramesInterleaved) {
   OnStreamFrame(unknown_frame1);
   EXPECT_EQ(unknown_frame1.size(), NewlyConsumedBytes());
 
-  // HEADERS frame with QPACK encoded single header field "foo: bar".
-  std::string headers =
-      HeadersFrame(QuicTextUtils::HexDecode("00002a94e703626172"));
+  std::string headers = HeadersFrame({{"foo", "bar"}});
 
   // All HEADERS frame bytes are consumed even if the frame is not received
   // completely.
@@ -2224,10 +2235,7 @@ TEST_P(QuicSpdyStreamIncrementalConsumptionTest, UnknownFramesInterleaved) {
             ReadFromStream(data_payload.size() - 1));
   EXPECT_EQ(data_payload.size() - 1, NewlyConsumedBytes());
 
-  // Trailing HEADERS frame with QPACK encoded
-  // single header field "custom-key: custom-value".
-  std::string trailers = HeadersFrame(
-      QuicTextUtils::HexDecode("00002f0125a849e95ba97d7f8925a849e95bb8e8b4bf"));
+  std::string trailers = HeadersFrame({{"custom-key", "custom-value"}});
 
   // No bytes are consumed, because last byte of DATA payload is still buffered.
   OnStreamFrame(QuicStringPiece(trailers).substr(0, trailers.size() - 1));
@@ -2259,8 +2267,7 @@ TEST_P(QuicSpdyStreamTest, PushPromiseOnDataStream) {
     return;
   }
 
-  // QPACK encoded single header field "foo: bar".
-  std::string headers = QuicTextUtils::HexDecode("00002a94e703626172");
+  std::string headers = EncodeQpackHeaders({{"foo", "bar"}});
 
   PushPromiseFrame push_promise;
   push_promise.push_id = 0x01;
@@ -2308,9 +2315,8 @@ TEST_P(QuicSpdyStreamTest, TrailersAfterTrailers) {
 
   Initialize(kShouldProcessData);
 
-  // Receive and consume headers, with single header field "foo: bar".
-  std::string headers =
-      HeadersFrame(QuicTextUtils::HexDecode("00002a94e703626172"));
+  // Receive and consume headers.
+  std::string headers = HeadersFrame({{"foo", "bar"}});
   QuicStreamOffset offset = 0;
   stream_->OnStreamFrame(
       QuicStreamFrame(stream_->id(), false, offset, headers));
@@ -2326,10 +2332,8 @@ TEST_P(QuicSpdyStreamTest, TrailersAfterTrailers) {
 
   EXPECT_EQ(kDataFramePayload, stream_->data());
 
-  // Receive and consume trailers, with single header field
-  // "custom-key: custom-value".
-  std::string trailers1 = HeadersFrame(
-      QuicTextUtils::HexDecode("00002f0125a849e95ba97d7f8925a849e95bb8e8b4bf"));
+  // Receive and consume trailers.
+  std::string trailers1 = HeadersFrame({{"custom-key", "custom-value"}});
   stream_->OnStreamFrame(
       QuicStreamFrame(stream_->id(), false, offset, trailers1));
   offset += trailers1.size();
@@ -2349,7 +2353,7 @@ TEST_P(QuicSpdyStreamTest, TrailersAfterTrailers) {
       .WillOnce(InvokeWithoutArgs([this]() { stream_->StopReading(); }));
 
   // Receive another HEADERS frame, with no header fields.
-  std::string trailers2 = HeadersFrame(QuicTextUtils::HexDecode("0000"));
+  std::string trailers2 = HeadersFrame(SpdyHeaderBlock());
   stream_->OnStreamFrame(
       QuicStreamFrame(stream_->id(), false, offset, trailers2));
 }
@@ -2363,9 +2367,8 @@ TEST_P(QuicSpdyStreamTest, DataAfterTrailers) {
 
   Initialize(kShouldProcessData);
 
-  // Receive and consume headers, with single header field "foo: bar".
-  std::string headers =
-      HeadersFrame(QuicTextUtils::HexDecode("00002a94e703626172"));
+  // Receive and consume headers.
+  std::string headers = HeadersFrame({{"foo", "bar"}});
   QuicStreamOffset offset = 0;
   stream_->OnStreamFrame(
       QuicStreamFrame(stream_->id(), false, offset, headers));
@@ -2381,8 +2384,7 @@ TEST_P(QuicSpdyStreamTest, DataAfterTrailers) {
   EXPECT_EQ(kDataFramePayload, stream_->data());
 
   // Receive trailers, with single header field "custom-key: custom-value".
-  std::string trailers = HeadersFrame(
-      QuicTextUtils::HexDecode("00002f0125a849e95ba97d7f8925a849e95bb8e8b4bf"));
+  std::string trailers = HeadersFrame({{"custom-key", "custom-value"}});
   stream_->OnStreamFrame(
       QuicStreamFrame(stream_->id(), false, offset, trailers));
   offset += trailers.size();
@@ -2416,10 +2418,10 @@ TEST_P(QuicSpdyStreamTest, StopProcessingIfConnectionClosed) {
 
   // SETTINGS frame with empty payload.
   std::string settings = QuicTextUtils::HexDecode("0400");
-  // HEADERS frame with QPACK encoded single header field "foo: bar".
+
+  // HEADERS frame.
   // Since it arrives after a SETTINGS frame, it should never be read.
-  std::string headers =
-      HeadersFrame(QuicTextUtils::HexDecode("00002a94e703626172"));
+  std::string headers = HeadersFrame({{"foo", "bar"}});
 
   // Combine the two frames to make sure they are processed in a single
   // QuicSpdyStream::OnDataAvailable() call.
