@@ -123,6 +123,7 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
 
   bool encryption_established_ = false;
   bool handshake_confirmed_ = false;
+  bool valid_alpn_received_ = false;
   QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters>
       crypto_negotiated_params_;
   TlsServerConnection tls_connection_;

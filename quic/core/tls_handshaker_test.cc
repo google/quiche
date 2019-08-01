@@ -430,6 +430,42 @@ TEST_F(TlsHandshakerTest, ServerConnectionClosedOnTlsError) {
   EXPECT_FALSE(server_stream_->handshake_confirmed());
 }
 
+TEST_F(TlsHandshakerTest, ClientNotSendingALPN) {
+  static std::string kTestClientNoAlpn = "";
+  quic_alpn_override_on_client_for_tests = &kTestClientNoAlpn;
+  EXPECT_CALL(*client_conn_, CloseConnection(QUIC_HANDSHAKE_FAILED,
+                                             "Server did not select ALPN", _));
+  EXPECT_CALL(*server_conn_,
+              CloseConnection(QUIC_HANDSHAKE_FAILED,
+                              "Server did not receive a known ALPN", _));
+  client_stream_->CryptoConnect();
+  ExchangeHandshakeMessages(client_stream_, server_stream_);
+
+  EXPECT_FALSE(client_stream_->handshake_confirmed());
+  EXPECT_FALSE(client_stream_->encryption_established());
+  EXPECT_FALSE(server_stream_->handshake_confirmed());
+  EXPECT_FALSE(server_stream_->encryption_established());
+  quic_alpn_override_on_client_for_tests = nullptr;
+}
+
+TEST_F(TlsHandshakerTest, ClientSendingBadALPN) {
+  static std::string kTestBadClientAlpn = "bad-client-alpn";
+  quic_alpn_override_on_client_for_tests = &kTestBadClientAlpn;
+  EXPECT_CALL(*client_conn_, CloseConnection(QUIC_HANDSHAKE_FAILED,
+                                             "Server did not select ALPN", _));
+  EXPECT_CALL(*server_conn_,
+              CloseConnection(QUIC_HANDSHAKE_FAILED,
+                              "Server did not receive a known ALPN", _));
+  client_stream_->CryptoConnect();
+  ExchangeHandshakeMessages(client_stream_, server_stream_);
+
+  EXPECT_FALSE(client_stream_->handshake_confirmed());
+  EXPECT_FALSE(client_stream_->encryption_established());
+  EXPECT_FALSE(server_stream_->handshake_confirmed());
+  EXPECT_FALSE(server_stream_->encryption_established());
+  quic_alpn_override_on_client_for_tests = nullptr;
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic
