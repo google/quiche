@@ -123,7 +123,7 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
 
 // Allows tests to override the ALPN used by clients.
 // DO NOT use outside of tests.
-extern std::string* quic_alpn_override_on_client_for_tests;
+QUIC_EXPORT_PRIVATE extern std::string* quic_alpn_override_on_client_for_tests;
 
 }  // namespace quic
 
