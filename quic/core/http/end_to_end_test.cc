@@ -3523,7 +3523,7 @@ TEST_P(EndToEndTest, WindowUpdateInAck) {
   EXPECT_EQ(0u, observer.num_ping_frames());
 }
 
-TEST_P(EndToEndTest, SendStatelessResetTokenInShlo) {
+TEST_P(EndToEndTestWithTls, SendStatelessResetTokenInShlo) {
   ASSERT_TRUE(Initialize());
   EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
   QuicConfig* config = client_->client()->session()->config();
