@@ -113,9 +113,8 @@ class Http2PriorityWriteScheduler : public WriteScheduler<StreamIdType> {
 
     // Returns true if this stream is ancestor of |other|.
     bool IsAncestorOf(const StreamInfo& other) const {
-      for (const StreamInfo* parent = other.parent; parent != nullptr;
-           parent = parent->parent) {
-        if (parent == this) {
+      for (const StreamInfo* p = other.parent; p != nullptr; p = p->parent) {
+        if (p == this) {
           return true;
         }
       }
