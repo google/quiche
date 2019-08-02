@@ -263,6 +263,26 @@ void QuicDispatcher::ProcessPacket(const QuicSocketAddress& self_address,
     QUIC_DLOG(ERROR) << "Invalid Connection Id Length";
     return;
   }
+
+  if (packet_info.version_flag && IsSupportedVersion(packet_info.version)) {
+    if (!QuicUtils::IsConnectionIdValidForVersion(
+            packet_info.destination_connection_id,
+            packet_info.version.transport_version)) {
+      SetLastError(QUIC_INVALID_PACKET_HEADER);
+      QUIC_DLOG(ERROR)
+          << "Invalid destination connection ID length for version";
+      return;
+    }
+    if (packet_info.version.SupportsClientConnectionIds() &&
+        !QuicUtils::IsConnectionIdValidForVersion(
+            packet_info.source_connection_id,
+            packet_info.version.transport_version)) {
+      SetLastError(QUIC_INVALID_PACKET_HEADER);
+      QUIC_DLOG(ERROR) << "Invalid source connection ID length for version";
+      return;
+    }
+  }
+
   if (should_update_expected_server_connection_id_length_) {
     expected_server_connection_id_length_ =
         packet_info.destination_connection_id.length();

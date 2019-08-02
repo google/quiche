@@ -160,7 +160,8 @@ bool QuicDataReader::ReadConnectionId(QuicConnectionId* connection_id,
   }
 
   connection_id->set_length(length);
-  const bool ok = ReadBytes(connection_id->mutable_data(), length);
+  const bool ok =
+      ReadBytes(connection_id->mutable_data(), connection_id->length());
   DCHECK(ok);
   return ok;
 }

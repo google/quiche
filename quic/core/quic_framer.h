@@ -873,6 +873,8 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
       QuicConnectionId* destination_connection_id,
       std::string* detailed_error);
 
+  bool ValidateReceivedConnectionIds(const QuicPacketHeader& header);
+
   // The Append* methods attempt to write the provided header or frame using the
   // |writer|, and return true if successful.
 

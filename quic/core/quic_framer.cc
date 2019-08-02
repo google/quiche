@@ -24,6 +24,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_data_reader.h"
 #include "net/third_party/quiche/src/quic/core/quic_data_writer.h"
 #include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
+#include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_socket_address_coder.h"
 #include "net/third_party/quiche/src/quic/core/quic_stream_frame_data_producer.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
@@ -1667,6 +1668,13 @@ bool QuicFramer::ProcessRetryPacket(QuicDataReader* reader,
     }
   }
 
+  if (!QuicUtils::IsConnectionIdValidForVersion(
+          original_destination_connection_id, transport_version())) {
+    set_detailed_error(
+        "Received Original Destination ConnectionId with invalid length.");
+    return false;
+  }
+
   QuicStringPiece retry_token = reader->ReadRemainingPayload();
   visitor_->OnRetryPacket(original_destination_connection_id,
                           header.source_connection_id, retry_token);
@@ -2683,6 +2691,24 @@ bool QuicFramer::ProcessAndValidateIetfConnectionIdLength(
   return true;
 }
 
+bool QuicFramer::ValidateReceivedConnectionIds(const QuicPacketHeader& header) {
+  if (!QuicUtils::IsConnectionIdValidForVersion(
+          GetServerConnectionIdAsRecipient(header, perspective_),
+          transport_version())) {
+    set_detailed_error("Received server connection ID with invalid length.");
+    return false;
+  }
+
+  if (version_.SupportsClientConnectionIds() &&
+      !QuicUtils::IsConnectionIdValidForVersion(
+          GetClientConnectionIdAsRecipient(header, perspective_),
+          transport_version())) {
+    set_detailed_error("Received client connection ID with invalid length.");
+    return false;
+  }
+  return true;
+}
+
 bool QuicFramer::ProcessIetfPacketHeader(QuicDataReader* reader,
                                          QuicPacketHeader* header) {
   if (version_.HasLengthPrefixedConnectionIds()) {
@@ -2716,6 +2742,11 @@ bool QuicFramer::ProcessIetfPacketHeader(QuicDataReader* reader,
         header->source_connection_id = last_serialized_client_connection_id_;
       }
     }
+
+    if (!ValidateReceivedConnectionIds(*header)) {
+      return false;
+    }
+
     if (header->version_flag &&
         header->version.transport_version > QUIC_VERSION_44 &&
         !(header->type_byte & FLAGS_FIXED_BIT)) {
@@ -2784,9 +2815,6 @@ bool QuicFramer::ProcessIetfPacketHeader(QuicDataReader* reader,
     }
   }
 
-  DCHECK_LE(destination_connection_id_length, kQuicMaxConnectionIdLength);
-  DCHECK_LE(source_connection_id_length, kQuicMaxConnectionIdLength);
-
   // Read connection ID.
   if (!reader->ReadConnectionId(&header->destination_connection_id,
                                 destination_connection_id_length)) {
@@ -2813,7 +2841,7 @@ bool QuicFramer::ProcessIetfPacketHeader(QuicDataReader* reader,
     }
   }
 
-  return true;
+  return ValidateReceivedConnectionIds(*header);
 }
 
 bool QuicFramer::ProcessAndCalculatePacketNumber(
@@ -6119,11 +6147,6 @@ bool QuicFramer::ProcessNewConnectionIdFrame(QuicDataReader* reader,
 
   if (!reader->ReadLengthPrefixedConnectionId(&frame->connection_id)) {
     set_detailed_error("Unable to read new connection ID frame connection id.");
-    return false;
-  }
-
-  if (frame->connection_id.length() > kQuicMaxConnectionIdLength) {
-    set_detailed_error("New connection ID length too high.");
     return false;
   }
 

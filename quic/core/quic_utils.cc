@@ -505,18 +505,12 @@ QuicConnectionId QuicUtils::CreateRandomConnectionId(
 QuicConnectionId QuicUtils::CreateRandomConnectionId(
     uint8_t connection_id_length,
     QuicRandom* random) {
-  if (connection_id_length == 0) {
-    return EmptyQuicConnectionId();
+  QuicConnectionId connection_id;
+  connection_id.set_length(connection_id_length);
+  if (connection_id.length() > 0) {
+    random->RandBytes(connection_id.mutable_data(), connection_id.length());
   }
-  if (connection_id_length > kQuicMaxConnectionIdLength) {
-    QUIC_BUG << "Tried to CreateRandomConnectionId of invalid length "
-             << static_cast<int>(connection_id_length);
-    connection_id_length = kQuicMaxConnectionIdLength;
-  }
-  char connection_id_bytes[kQuicMaxConnectionIdLength];
-  random->RandBytes(connection_id_bytes, connection_id_length);
-  return QuicConnectionId(static_cast<char*>(connection_id_bytes),
-                          connection_id_length);
+  return connection_id;
 }
 
 // static
@@ -554,7 +548,14 @@ bool QuicUtils::IsConnectionIdLengthValidForVersion(
   if (!VariableLengthConnectionIdAllowedForVersion(transport_version)) {
     return connection_id_length8 == kQuicDefaultConnectionIdLength;
   }
-  // Currently all other versions require the length to be at most 18 bytes.
+  // Versions that do support variable length but do not have length-prefixed
+  // connection IDs use the 4-bit connection ID length encoding which can
+  // only encode values 0 and 4-18.
+  if (!VersionHasLengthPrefixedConnectionIds(transport_version)) {
+    return connection_id_length8 == 0 ||
+           (connection_id_length8 >= 4 &&
+            connection_id_length8 <= kQuicMaxConnectionIdLength);
+  }
   return connection_id_length8 <= kQuicMaxConnectionIdLength;
 }
 

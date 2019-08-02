@@ -5641,8 +5641,6 @@ TEST_P(QuicFramerTest, IetfStatelessResetPacket) {
   unsigned char packet[] = {
       // type (short packet, 1 byte packet number)
       0x50,
-      // connection_id
-      0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
       // Random bytes
       0x01, 0x11, 0x02, 0x22, 0x03, 0x33, 0x04, 0x44,
       0x01, 0x11, 0x02, 0x22, 0x03, 0x33, 0x04, 0x44,
@@ -5657,6 +5655,8 @@ TEST_P(QuicFramerTest, IetfStatelessResetPacket) {
     return;
   }
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
+  QuicFramerPeer::SetLastSerializedServerConnectionId(&framer_,
+                                                      TestConnectionId(0x33));
   decrypter_ = new test::TestDecrypter();
   if (framer_.version().KnowsWhichDecrypterToUse()) {
     framer_.InstallDecrypter(ENCRYPTION_INITIAL, QuicMakeUnique<NullDecrypter>(
@@ -5683,8 +5683,11 @@ TEST_P(QuicFramerTest, IetfStatelessResetPacketInvalidStatelessResetToken) {
   unsigned char packet[] = {
       // type (short packet, 1 byte packet number)
       0x50,
-      // connection_id
-      0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+      // Random bytes
+      0x01, 0x11, 0x02, 0x22, 0x03, 0x33, 0x04, 0x44,
+      0x01, 0x11, 0x02, 0x22, 0x03, 0x33, 0x04, 0x44,
+      0x01, 0x11, 0x02, 0x22, 0x03, 0x33, 0x04, 0x44,
+      0x01, 0x11, 0x02, 0x22, 0x03, 0x33, 0x04, 0x44,
       // stateless reset token
       0xB6, 0x69, 0x0F, 0x00, 0x00, 0x00, 0x00, 0x00,
       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -5693,6 +5696,8 @@ TEST_P(QuicFramerTest, IetfStatelessResetPacketInvalidStatelessResetToken) {
   if (framer_.transport_version() <= QUIC_VERSION_43) {
     return;
   }
+  QuicFramerPeer::SetLastSerializedServerConnectionId(&framer_,
+                                                      TestConnectionId(0x33));
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
   decrypter_ = new test::TestDecrypter();
   if (framer_.version().KnowsWhichDecrypterToUse()) {
@@ -11566,11 +11571,16 @@ TEST_P(QuicFramerTest, InvalidLongNewConnectionIdFrame) {
       {"Unable to read new connection ID frame retire_prior_to.",
        {kVarInt62OneByte + 0x0b}},
       {"Unable to read new connection ID frame connection id.",
-       {0x13}},  // connection ID length
+       {0x40}},  // connection ID length
       {"Unable to read new connection ID frame connection id.",
        {0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
         0xF0, 0xD2, 0xB4, 0x96, 0x78, 0x5A, 0x3C, 0x1E,
-        0x42, 0x33, 0x42}},
+        0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+        0xF0, 0xD2, 0xB4, 0x96, 0x78, 0x5A, 0x3C, 0x1E,
+        0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+        0xF0, 0xD2, 0xB4, 0x96, 0x78, 0x5A, 0x3C, 0x1E,
+        0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+        0xF0, 0xD2, 0xB4, 0x96, 0x78, 0x5A, 0x3C, 0x1E}},
       {"Can not read new connection ID frame reset token.",
        {0xb5, 0x69, 0x0f, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}}
@@ -13523,7 +13533,8 @@ TEST_P(QuicFramerTest, ClientReceivesInvalidVersion) {
 }
 
 TEST_P(QuicFramerTest, PacketHeaderWithVariableLengthConnectionId) {
-  if (framer_.transport_version() < QUIC_VERSION_46) {
+  if (!QuicUtils::VariableLengthConnectionIdAllowedForVersion(
+          framer_.transport_version())) {
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);

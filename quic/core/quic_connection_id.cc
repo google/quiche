@@ -57,7 +57,8 @@ QuicConnectionId::QuicConnectionId(const char* data, uint8_t length) {
       kQuicMaxConnectionIdLength <= std::numeric_limits<uint8_t>::max(),
       "kQuicMaxConnectionIdLength too high");
   if (length > kQuicMaxConnectionIdLength) {
-    QUIC_BUG << "Attempted to create connection ID of length " << length;
+    QUIC_BUG << "Attempted to create connection ID of length "
+             << static_cast<int>(length);
     length = kQuicMaxConnectionIdLength;
   }
   length_ = length;
@@ -126,7 +127,8 @@ uint8_t QuicConnectionId::length() const {
 
 void QuicConnectionId::set_length(uint8_t length) {
   if (length > kQuicMaxConnectionIdLength) {
-    QUIC_BUG << "Attempted to set connection ID length to " << length;
+    QUIC_BUG << "Attempted to set connection ID length to "
+             << static_cast<int>(length);
     length = kQuicMaxConnectionIdLength;
   }
   if (GetQuicRestartFlag(quic_use_allocated_connection_ids)) {

@@ -1149,11 +1149,11 @@ TEST_P(QuicDataWriterTest, PeekVarInt62Length) {
 }
 
 TEST_P(QuicDataWriterTest, InvalidConnectionIdLengthRead) {
-  static const uint8_t bad_connection_id_length = 19;
+  static const uint8_t bad_connection_id_length = 200;
   static_assert(bad_connection_id_length > kQuicMaxConnectionIdLength,
                 "bad lengths");
-  char buffer[20] = {};
-  QuicDataReader reader(buffer, 20);
+  char buffer[255] = {};
+  QuicDataReader reader(buffer, sizeof(buffer));
   QuicConnectionId connection_id;
   bool ok;
   EXPECT_QUIC_BUG(

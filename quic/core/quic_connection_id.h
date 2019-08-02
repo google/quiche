@@ -25,7 +25,7 @@ enum QuicConnectionIdIncluded : uint8_t {
   CONNECTION_ID_ABSENT = 2,
 };
 
-// Connection IDs can be 0-18 bytes per IETF specifications.
+// Maximum connection ID length that we support in any packet or version.
 const uint8_t kQuicMaxConnectionIdLength = 18;
 
 // kQuicDefaultConnectionIdLength is the only supported length for QUIC

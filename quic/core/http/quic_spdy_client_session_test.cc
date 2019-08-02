@@ -31,6 +31,7 @@
 using spdy::SpdyHeaderBlock;
 using testing::_;
 using testing::AnyNumber;
+using testing::AtMost;
 using testing::Invoke;
 using testing::Truly;
 
@@ -503,10 +504,7 @@ TEST_P(QuicSpdyClientSessionTest, InvalidPacketReceived) {
   QuicReceivedPacket valid_packet(buf, 2, QuicTime::Zero(), false);
   // Close connection shouldn't be called.
   EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(0);
-  if (connection_->transport_version() > QUIC_VERSION_44) {
-    // Illegal fixed bit value.
-    EXPECT_CALL(*connection_, OnError(_)).Times(1);
-  }
+  EXPECT_CALL(*connection_, OnError(_)).Times(AtMost(1));
   session_->ProcessUdpPacket(client_address, server_address, valid_packet);
 
   // Verify that a non-decryptable packet doesn't close the connection.

@@ -679,9 +679,13 @@ void MovePackets(PacketSavingConnection* source_conn,
                  PacketSavingConnection* dest_conn,
                  Perspective dest_perspective) {
   SimpleQuicFramer framer(source_conn->supported_versions(), dest_perspective);
+  QuicFramerPeer::SetLastSerializedServerConnectionId(framer.framer(),
+                                                      TestConnectionId());
 
   SimpleQuicFramer null_encryption_framer(source_conn->supported_versions(),
                                           dest_perspective);
+  QuicFramerPeer::SetLastSerializedServerConnectionId(
+      null_encryption_framer.framer(), TestConnectionId());
 
   size_t index = *inout_packet_index;
   for (; index < source_conn->encrypted_packets_.size(); index++) {

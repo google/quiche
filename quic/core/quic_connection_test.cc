@@ -341,7 +341,10 @@ class TestPacketWriter : public QuicPacketWriter {
         clock_(clock),
         write_pause_time_delta_(QuicTime::Delta::Zero()),
         max_packet_size_(kMaxOutgoingPacketSize),
-        supports_release_time_(false) {}
+        supports_release_time_(false) {
+    QuicFramerPeer::SetLastSerializedServerConnectionId(framer_.framer(),
+                                                        TestConnectionId());
+  }
   TestPacketWriter(const TestPacketWriter&) = delete;
   TestPacketWriter& operator=(const TestPacketWriter&) = delete;
 
