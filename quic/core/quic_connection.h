@@ -683,6 +683,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Returns the underlying sent packet manager.
   QuicSentPacketManager& sent_packet_manager() { return sent_packet_manager_; }
 
+  UberReceivedPacketManager& received_packet_manager() {
+    return uber_received_packet_manager_;
+  }
+
   bool CanWrite(HasRetransmittableData retransmittable);
 
   // When the flusher is out of scope, only the outermost flusher will cause a

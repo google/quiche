@@ -8,6 +8,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/core/tls_client_handshaker.h"
 #include "net/third_party/quiche/src/quic/core/tls_server_handshaker.h"
+#include "net/third_party/quiche/src/quic/core/uber_received_packet_manager.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
 #include "net/third_party/quiche/src/quic/quartc/quartc_connection_helper.h"
@@ -46,8 +47,8 @@ std::unique_ptr<QuartcSession> CreateQuartcClientSession(
   // Quartc sets its own ack delay; get that ack delay and copy it over
   // to the QuicConfig so that it can be properly advertised to the peer
   // via transport parameter negotiation.
-  quic_config.SetMaxAckDelayToSendMs(quic_connection->sent_packet_manager()
-                                         .local_max_ack_delay()
+  quic_config.SetMaxAckDelayToSendMs(quic_connection->received_packet_manager()
+                                         .max_ack_delay()
                                          .ToMilliseconds());
 
   return QuicMakeUnique<QuartcClientSession>(
@@ -202,6 +203,8 @@ std::unique_ptr<QuicConnection> CreateQuicConnection(
 
   QuicSentPacketManager& sent_packet_manager =
       quic_connection->sent_packet_manager();
+  UberReceivedPacketManager& received_packet_manager =
+      quic_connection->received_packet_manager();
 
   // Default delayed ack time is 25ms.
   // If data packets are sent less often (e.g. because p-time was modified),
@@ -213,7 +216,7 @@ std::unique_ptr<QuicConnection> CreateQuicConnection(
   // The p-time can go up to as high as 120ms, and when it does, it's
   // when the low overhead is the most important thing. Ideally it should be
   // above 120ms, but it cannot be higher than 0.5*RTO, which equals to 100ms.
-  sent_packet_manager.set_local_max_ack_delay(
+  received_packet_manager.set_max_ack_delay(
       QuicTime::Delta::FromMilliseconds(100));
   sent_packet_manager.set_peer_max_ack_delay(
       QuicTime::Delta::FromMilliseconds(100));

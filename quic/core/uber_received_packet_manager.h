@@ -48,8 +48,7 @@ class QUIC_EXPORT_PRIVATE UberReceivedPacketManager {
                              QuicPacketNumber last_received_packet_number,
                              QuicTime time_of_last_received_packet,
                              QuicTime now,
-                             const RttStats* rtt_stats,
-                             QuicTime::Delta local_max_ack_delay);
+                             const RttStats* rtt_stats);
 
   // Resets ACK related states, called after an ACK is successfully sent.
   void ResetAckStates(EncryptionLevel encryption_level);
@@ -88,6 +87,10 @@ class QUIC_EXPORT_PRIVATE UberReceivedPacketManager {
   const QuicAckFrame& GetAckFrame(PacketNumberSpace packet_number_space) const;
 
   void set_max_ack_ranges(size_t max_ack_ranges);
+
+  // Get and set the max ack delay to use for application data.
+  QuicTime::Delta max_ack_delay();
+  void set_max_ack_delay(QuicTime::Delta max_ack_delay);
 
   void set_save_timestamps(bool save_timestamps);
 

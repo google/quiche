@@ -355,17 +355,11 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
     return pending_timer_transmission_count_;
   }
 
-  QuicTime::Delta local_max_ack_delay() const { return local_max_ack_delay_; }
-
-  void set_local_max_ack_delay(QuicTime::Delta local_max_ack_delay) {
-    // The delayed ack time should never be more than one half the min RTO time.
-    DCHECK_LE(local_max_ack_delay, (min_rto_timeout_ * 0.5));
-    local_max_ack_delay_ = local_max_ack_delay;
-  }
-
   QuicTime::Delta peer_max_ack_delay() const { return peer_max_ack_delay_; }
 
   void set_peer_max_ack_delay(QuicTime::Delta peer_max_ack_delay) {
+    // The delayed ack time should never be more than one half the min RTO time.
+    DCHECK_LE(peer_max_ack_delay, (min_rto_timeout_ * 0.5));
     peer_max_ack_delay_ = peer_max_ack_delay;
   }
 
@@ -614,10 +608,6 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // packet number spaces.
   QuicPacketNumber
       largest_packets_peer_knows_is_acked_[NUM_PACKET_NUMBER_SPACES];
-
-  // The local node's maximum ack delay time. This is the maximum amount of
-  // time to wait before sending an acknowledgement.
-  QuicTime::Delta local_max_ack_delay_;
 
   // The maximum ACK delay time that the peer uses. Initialized to be the
   // same as local_max_ack_delay_, may be changed via transport parameter

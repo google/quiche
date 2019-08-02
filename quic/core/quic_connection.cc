@@ -1363,8 +1363,7 @@ void QuicConnection::OnPacketComplete() {
     uber_received_packet_manager_.MaybeUpdateAckTimeout(
         should_last_packet_instigate_acks_, last_decrypted_packet_level_,
         last_header_.packet_number, time_of_last_received_packet_,
-        clock_->ApproximateNow(), sent_packet_manager_.GetRttStats(),
-        sent_packet_manager_.local_max_ack_delay());
+        clock_->ApproximateNow(), sent_packet_manager_.GetRttStats());
   } else {
     QUIC_DLOG(INFO) << ENDPOINT << "Not updating ACK timeout for "
                     << QuicUtils::EncryptionLevelToString(

@@ -4,6 +4,7 @@
 
 #include "net/third_party/quiche/src/quic/core/uber_received_packet_manager.h"
 
+#include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 
@@ -77,19 +78,18 @@ void UberReceivedPacketManager::MaybeUpdateAckTimeout(
     QuicPacketNumber last_received_packet_number,
     QuicTime time_of_last_received_packet,
     QuicTime now,
-    const RttStats* rtt_stats,
-    QuicTime::Delta local_max_ack_delay) {
+    const RttStats* rtt_stats) {
   if (!supports_multiple_packet_number_spaces_) {
     received_packet_managers_[0].MaybeUpdateAckTimeout(
         should_last_packet_instigate_acks, last_received_packet_number,
-        time_of_last_received_packet, now, rtt_stats, local_max_ack_delay);
+        time_of_last_received_packet, now, rtt_stats);
     return;
   }
   received_packet_managers_[QuicUtils::GetPacketNumberSpace(
                                 decrypted_packet_level)]
-      .MaybeUpdateAckTimeout(
-          should_last_packet_instigate_acks, last_received_packet_number,
-          time_of_last_received_packet, now, rtt_stats, local_max_ack_delay);
+      .MaybeUpdateAckTimeout(should_last_packet_instigate_acks,
+                             last_received_packet_number,
+                             time_of_last_received_packet, now, rtt_stats);
 }
 
 void UberReceivedPacketManager::ResetAckStates(
@@ -112,6 +112,12 @@ void UberReceivedPacketManager::EnableMultiplePacketNumberSpacesSupport() {
                 "packet has been received.";
     return;
   }
+  // In IETF QUIC, the peer is expected to acknowledge packets in Initial and
+  // Handshake packets with minimal delay.
+  received_packet_managers_[INITIAL_DATA].set_local_max_ack_delay(
+      QuicTime::Delta::FromMilliseconds(1));
+  received_packet_managers_[HANDSHAKE_DATA].set_local_max_ack_delay(
+      QuicTime::Delta::FromMilliseconds(1));
 
   supports_multiple_packet_number_spaces_ = true;
 }
@@ -205,6 +211,23 @@ void UberReceivedPacketManager::set_max_ack_ranges(size_t max_ack_ranges) {
   for (auto& received_packet_manager : received_packet_managers_) {
     received_packet_manager.set_max_ack_ranges(max_ack_ranges);
   }
+}
+
+QuicTime::Delta UberReceivedPacketManager::max_ack_delay() {
+  if (!supports_multiple_packet_number_spaces_) {
+    return received_packet_managers_[0].local_max_ack_delay();
+  }
+  return received_packet_managers_[APPLICATION_DATA].local_max_ack_delay();
+}
+
+void UberReceivedPacketManager::set_max_ack_delay(
+    QuicTime::Delta max_ack_delay) {
+  if (!supports_multiple_packet_number_spaces_) {
+    received_packet_managers_[0].set_local_max_ack_delay(max_ack_delay);
+    return;
+  }
+  received_packet_managers_[APPLICATION_DATA].set_local_max_ack_delay(
+      max_ack_delay);
 }
 
 void UberReceivedPacketManager::set_save_timestamps(bool save_timestamps) {

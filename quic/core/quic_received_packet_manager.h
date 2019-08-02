@@ -64,8 +64,7 @@ class QUIC_EXPORT_PRIVATE QuicReceivedPacketManager {
                              QuicPacketNumber last_received_packet_number,
                              QuicTime time_of_last_received_packet,
                              QuicTime now,
-                             const RttStats* rtt_stats,
-                             QuicTime::Delta local_max_ack_delay);
+                             const RttStats* rtt_stats);
 
   // Resets ACK related states, called after an ACK is successfully sent.
   void ResetAckStates();
@@ -117,6 +116,11 @@ class QUIC_EXPORT_PRIVATE QuicReceivedPacketManager {
   void set_ack_frequency_before_ack_decimation(size_t new_value) {
     DCHECK_GT(new_value, 0u);
     ack_frequency_before_ack_decimation_ = new_value;
+  }
+
+  QuicTime::Delta local_max_ack_delay() const { return local_max_ack_delay_; }
+  void set_local_max_ack_delay(QuicTime::Delta local_max_ack_delay) {
+    local_max_ack_delay_ = local_max_ack_delay;
   }
 
   QuicTime ack_timeout() const { return ack_timeout_; }
@@ -172,6 +176,9 @@ class QUIC_EXPORT_PRIVATE QuicReceivedPacketManager {
   // was received.
   bool fast_ack_after_quiescence_;
 
+  // The local node's maximum ack delay time. This is the maximum amount of
+  // time to wait before sending an acknowledgement.
+  QuicTime::Delta local_max_ack_delay_;
   // Time that an ACK needs to be sent. 0 means no ACK is pending. Used when
   // decide_when_to_send_acks_ is true.
   QuicTime ack_timeout_;

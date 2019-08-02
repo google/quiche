@@ -111,8 +111,6 @@ QuicSentPacketManager::QuicSentPacketManager(
       ietf_style_2x_tlp_(false),
       largest_mtu_acked_(0),
       handshake_confirmed_(false),
-      local_max_ack_delay_(
-          QuicTime::Delta::FromMilliseconds(kDefaultDelayedAckTimeMs)),
       peer_max_ack_delay_(
           QuicTime::Delta::FromMilliseconds(kDefaultDelayedAckTimeMs)),
       rtt_updated_(false),

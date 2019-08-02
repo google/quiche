@@ -90,7 +90,7 @@ class QuicReceivedPacketManagerTest : public QuicTestWithParam<TestParams> {
     received_manager_.MaybeUpdateAckTimeout(
         should_last_packet_instigate_acks,
         QuicPacketNumber(last_received_packet_number), clock_.ApproximateNow(),
-        clock_.ApproximateNow(), &rtt_stats_, kDelayedAckTime);
+        clock_.ApproximateNow(), &rtt_stats_);
   }
 
   void CheckAckTimeout(QuicTime time) {
