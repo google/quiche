@@ -208,7 +208,7 @@ size_t FifoWriteScheduler<StreamIdType>::NumRegisteredStreams() const {
 }
 
 template <typename StreamIdType>
-string FifoWriteScheduler<StreamIdType>::DebugString() const {
+SpdyString FifoWriteScheduler<StreamIdType>::DebugString() const {
   return SpdyStrCat(
       "FifoWriteScheduler {num_streams=", registered_streams_.size(),
       " num_ready_streams=", NumReadyStreams(), "}");

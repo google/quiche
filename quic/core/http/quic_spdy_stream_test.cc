@@ -1792,9 +1792,10 @@ TEST_P(QuicSpdyStreamTest, HeadersFrameOnRequestStream) {
 
   Initialize(kShouldProcessData);
 
-  std::string headers = HeadersFrame({{"foo", "bar"}});
+  std::string headers = HeadersFrame({std::make_pair("foo", "bar")});
   std::string data = DataFrame(kDataFramePayload);
-  std::string trailers = HeadersFrame({{"custom-key", "custom-value"}});
+  std::string trailers =
+      HeadersFrame({std::make_pair("custom-key", "custom-value")});
 
   std::string stream_frame_payload = QuicStrCat(headers, data, trailers);
   QuicStreamFrame frame(stream_->id(), false, 0, stream_frame_payload);
@@ -1819,7 +1820,7 @@ TEST_P(QuicSpdyStreamTest, ProcessBodyAfterTrailers) {
 
   Initialize(!kShouldProcessData);
 
-  std::string headers = HeadersFrame({{"foo", "bar"}});
+  std::string headers = HeadersFrame({std::make_pair("foo", "bar")});
   std::string data = DataFrame(kDataFramePayload);
 
   // A header block that will take more than one block of sequencer buffer.
@@ -2129,7 +2130,7 @@ TEST_P(QuicSpdyStreamIncrementalConsumptionTest, OnlyKnownFrames) {
 
   Initialize(!kShouldProcessData);
 
-  std::string headers = HeadersFrame({{"foo", "bar"}});
+  std::string headers = HeadersFrame({std::make_pair("foo", "bar")});
 
   // All HEADERS frame bytes are consumed even if the frame is not received
   // completely.
@@ -2160,7 +2161,8 @@ TEST_P(QuicSpdyStreamIncrementalConsumptionTest, OnlyKnownFrames) {
             ReadFromStream(data_payload.size() - 1));
   EXPECT_EQ(data_payload.size() - 1, NewlyConsumedBytes());
 
-  std::string trailers = HeadersFrame({{"custom-key", "custom-value"}});
+  std::string trailers =
+      HeadersFrame({std::make_pair("custom-key", "custom-value")});
 
   // No bytes are consumed, because last byte of DATA payload is still buffered.
   OnStreamFrame(QuicStringPiece(trailers).substr(0, trailers.size() - 1));
@@ -2192,7 +2194,7 @@ TEST_P(QuicSpdyStreamIncrementalConsumptionTest, UnknownFramesInterleaved) {
   OnStreamFrame(unknown_frame1);
   EXPECT_EQ(unknown_frame1.size(), NewlyConsumedBytes());
 
-  std::string headers = HeadersFrame({{"foo", "bar"}});
+  std::string headers = HeadersFrame({std::make_pair("foo", "bar")});
 
   // All HEADERS frame bytes are consumed even if the frame is not received
   // completely.
@@ -2235,7 +2237,8 @@ TEST_P(QuicSpdyStreamIncrementalConsumptionTest, UnknownFramesInterleaved) {
             ReadFromStream(data_payload.size() - 1));
   EXPECT_EQ(data_payload.size() - 1, NewlyConsumedBytes());
 
-  std::string trailers = HeadersFrame({{"custom-key", "custom-value"}});
+  std::string trailers =
+      HeadersFrame({std::make_pair("custom-key", "custom-value")});
 
   // No bytes are consumed, because last byte of DATA payload is still buffered.
   OnStreamFrame(QuicStringPiece(trailers).substr(0, trailers.size() - 1));
@@ -2316,7 +2319,7 @@ TEST_P(QuicSpdyStreamTest, TrailersAfterTrailers) {
   Initialize(kShouldProcessData);
 
   // Receive and consume headers.
-  std::string headers = HeadersFrame({{"foo", "bar"}});
+  std::string headers = HeadersFrame({std::make_pair("foo", "bar")});
   QuicStreamOffset offset = 0;
   stream_->OnStreamFrame(
       QuicStreamFrame(stream_->id(), false, offset, headers));
@@ -2333,7 +2336,8 @@ TEST_P(QuicSpdyStreamTest, TrailersAfterTrailers) {
   EXPECT_EQ(kDataFramePayload, stream_->data());
 
   // Receive and consume trailers.
-  std::string trailers1 = HeadersFrame({{"custom-key", "custom-value"}});
+  std::string trailers1 =
+      HeadersFrame({std::make_pair("custom-key", "custom-value")});
   stream_->OnStreamFrame(
       QuicStreamFrame(stream_->id(), false, offset, trailers1));
   offset += trailers1.size();
@@ -2368,7 +2372,7 @@ TEST_P(QuicSpdyStreamTest, DataAfterTrailers) {
   Initialize(kShouldProcessData);
 
   // Receive and consume headers.
-  std::string headers = HeadersFrame({{"foo", "bar"}});
+  std::string headers = HeadersFrame({std::make_pair("foo", "bar")});
   QuicStreamOffset offset = 0;
   stream_->OnStreamFrame(
       QuicStreamFrame(stream_->id(), false, offset, headers));
@@ -2384,7 +2388,8 @@ TEST_P(QuicSpdyStreamTest, DataAfterTrailers) {
   EXPECT_EQ(kDataFramePayload, stream_->data());
 
   // Receive trailers, with single header field "custom-key: custom-value".
-  std::string trailers = HeadersFrame({{"custom-key", "custom-value"}});
+  std::string trailers =
+      HeadersFrame({std::make_pair("custom-key", "custom-value")});
   stream_->OnStreamFrame(
       QuicStreamFrame(stream_->id(), false, offset, trailers));
   offset += trailers.size();
@@ -2421,7 +2426,7 @@ TEST_P(QuicSpdyStreamTest, StopProcessingIfConnectionClosed) {
 
   // HEADERS frame.
   // Since it arrives after a SETTINGS frame, it should never be read.
-  std::string headers = HeadersFrame({{"foo", "bar"}});
+  std::string headers = HeadersFrame({std::make_pair("foo", "bar")});
 
   // Combine the two frames to make sure they are processed in a single
   // QuicSpdyStream::OnDataAvailable() call.

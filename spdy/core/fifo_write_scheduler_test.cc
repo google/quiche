@@ -15,7 +15,7 @@ TEST(FifoWriteSchedulerTest, BasicTest) {
   FifoWriteScheduler<SpdyStreamId> fifo;
   EXPECT_FALSE(fifo.HasReadyStreams());
   EXPECT_SPDY_BUG(
-      EXPECT_EQ(0, std::get<0>(fifo.PopNextReadyStreamAndPrecedence())),
+      EXPECT_EQ(0u, std::get<0>(fifo.PopNextReadyStreamAndPrecedence())),
       "No ready streams available");
   EXPECT_SPDY_BUG(fifo.MarkStreamReady(9, true), "Stream 9 is not registered");
   EXPECT_SPDY_BUG(fifo.IsStreamReady(9), "Stream 9 is not registered");
@@ -43,8 +43,8 @@ TEST(FifoWriteSchedulerTest, BasicTest) {
   fifo.MarkStreamReady(17, true);
   EXPECT_EQ(7u, fifo.NumReadyStreams());
 
-  EXPECT_EQ(3, fifo.PopNextReadyStream());
-  EXPECT_EQ(7, std::get<0>(fifo.PopNextReadyStreamAndPrecedence()));
+  EXPECT_EQ(3u, fifo.PopNextReadyStream());
+  EXPECT_EQ(7u, std::get<0>(fifo.PopNextReadyStreamAndPrecedence()));
   EXPECT_EQ(5u, fifo.NumReadyStreams());
 
   EXPECT_FALSE(fifo.ShouldYield(3));
