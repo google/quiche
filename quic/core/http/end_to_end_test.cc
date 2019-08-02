@@ -2483,16 +2483,9 @@ TEST_P(EndToEndTestWithTls, ServerSendPublicReset) {
   EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
   QuicConnection* client_connection =
       client_->client()->client_session()->connection();
-  if (SupportsIetfQuicWithTls(client_connection->version())) {
-    // TLS handshake does not support stateless reset token yet.
-    return;
-  }
-  QuicUint128 stateless_reset_token = 0;
-  if (client_connection->version().handshake_protocol == PROTOCOL_QUIC_CRYPTO) {
-    QuicConfig* config = client_->client()->session()->config();
-    EXPECT_TRUE(config->HasReceivedStatelessResetToken());
-    stateless_reset_token = config->ReceivedStatelessResetToken();
-  }
+  QuicConfig* config = client_->client()->session()->config();
+  EXPECT_TRUE(config->HasReceivedStatelessResetToken());
+  QuicUint128 stateless_reset_token = config->ReceivedStatelessResetToken();
 
   // Send the public reset.
   QuicConnectionId connection_id = client_connection->connection_id();
@@ -2529,16 +2522,9 @@ TEST_P(EndToEndTestWithTls, ServerSendPublicResetWithDifferentConnectionId) {
   EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
   QuicConnection* client_connection =
       client_->client()->client_session()->connection();
-  if (SupportsIetfQuicWithTls(client_connection->version())) {
-    // TLS handshake does not support stateless reset token yet.
-    return;
-  }
-  QuicUint128 stateless_reset_token = 0;
-  if (client_connection->version().handshake_protocol == PROTOCOL_QUIC_CRYPTO) {
-    QuicConfig* config = client_->client()->session()->config();
-    EXPECT_TRUE(config->HasReceivedStatelessResetToken());
-    stateless_reset_token = config->ReceivedStatelessResetToken();
-  }
+  QuicConfig* config = client_->client()->session()->config();
+  EXPECT_TRUE(config->HasReceivedStatelessResetToken());
+  QuicUint128 stateless_reset_token = config->ReceivedStatelessResetToken();
   // Send the public reset.
   QuicConnectionId incorrect_connection_id = TestConnectionId(
       TestConnectionIdToUInt64(client_connection->connection_id()) + 1);
