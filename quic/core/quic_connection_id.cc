@@ -53,13 +53,13 @@ class QuicConnectionIdHasher {
 QuicConnectionId::QuicConnectionId() : QuicConnectionId(nullptr, 0) {}
 
 QuicConnectionId::QuicConnectionId(const char* data, uint8_t length) {
-  static_assert(
-      kQuicMaxConnectionIdLength <= std::numeric_limits<uint8_t>::max(),
-      "kQuicMaxConnectionIdLength too high");
-  if (length > kQuicMaxConnectionIdLength) {
+  static_assert(kQuicMaxConnectionIdAllVersionsLength <=
+                    std::numeric_limits<uint8_t>::max(),
+                "kQuicMaxConnectionIdAllVersionsLength too high");
+  if (length > kQuicMaxConnectionIdAllVersionsLength) {
     QUIC_BUG << "Attempted to create connection ID of length "
              << static_cast<int>(length);
-    length = kQuicMaxConnectionIdLength;
+    length = kQuicMaxConnectionIdAllVersionsLength;
   }
   length_ = length;
   if (length_ == 0) {
@@ -126,10 +126,10 @@ uint8_t QuicConnectionId::length() const {
 }
 
 void QuicConnectionId::set_length(uint8_t length) {
-  if (length > kQuicMaxConnectionIdLength) {
+  if (length > kQuicMaxConnectionIdAllVersionsLength) {
     QUIC_BUG << "Attempted to set connection ID length to "
              << static_cast<int>(length);
-    length = kQuicMaxConnectionIdLength;
+    length = kQuicMaxConnectionIdAllVersionsLength;
   }
   if (GetQuicRestartFlag(quic_use_allocated_connection_ids)) {
     QUIC_RESTART_FLAG_COUNT_N(quic_use_allocated_connection_ids, 5, 6);
@@ -166,8 +166,8 @@ bool QuicConnectionId::IsEmpty() const {
 size_t QuicConnectionId::Hash() const {
   if (!GetQuicRestartFlag(quic_connection_id_use_siphash)) {
     uint64_t data_bytes[3] = {0, 0, 0};
-    static_assert(sizeof(data_bytes) >= kQuicMaxConnectionIdLength,
-                  "kQuicMaxConnectionIdLength changed");
+    static_assert(sizeof(data_bytes) >= kQuicMaxConnectionIdAllVersionsLength,
+                  "kQuicMaxConnectionIdAllVersionsLength changed");
     memcpy(data_bytes, data(), length_);
     // This Hash function is designed to return the same value as the host byte
     // order representation when the connection ID length is 64 bits.

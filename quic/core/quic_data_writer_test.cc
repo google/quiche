@@ -262,8 +262,8 @@ TEST_P(QuicDataWriterTest, WriteConnectionId) {
       0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
   };
   EXPECT_EQ(connection_id.length(), QUIC_ARRAYSIZE(big_endian));
-  ASSERT_LE(connection_id.length(), kQuicMaxConnectionIdLength);
-  char buffer[kQuicMaxConnectionIdLength];
+  ASSERT_LE(connection_id.length(), 255);
+  char buffer[255];
   QuicDataWriter writer(connection_id.length(), buffer, GetParam().endianness);
   EXPECT_TRUE(writer.WriteConnectionId(connection_id));
   test::CompareCharArraysWithHexError("connection_id", buffer,
@@ -285,7 +285,7 @@ TEST_P(QuicDataWriterTest, LengthPrefixedConnectionId) {
   };
   EXPECT_EQ(QUIC_ARRAYSIZE(length_prefixed_connection_id),
             kConnectionIdLengthSize + connection_id.length());
-  char buffer[kConnectionIdLengthSize + kQuicMaxConnectionIdLength] = {};
+  char buffer[kConnectionIdLengthSize + 255] = {};
   QuicDataWriter writer(QUIC_ARRAYSIZE(buffer), buffer);
   EXPECT_TRUE(writer.WriteLengthPrefixedConnectionId(connection_id));
   test::CompareCharArraysWithHexError(
@@ -1150,8 +1150,9 @@ TEST_P(QuicDataWriterTest, PeekVarInt62Length) {
 
 TEST_P(QuicDataWriterTest, InvalidConnectionIdLengthRead) {
   static const uint8_t bad_connection_id_length = 200;
-  static_assert(bad_connection_id_length > kQuicMaxConnectionIdLength,
-                "bad lengths");
+  static_assert(
+      bad_connection_id_length > kQuicMaxConnectionIdAllVersionsLength,
+      "bad lengths");
   char buffer[255] = {};
   QuicDataReader reader(buffer, sizeof(buffer));
   QuicConnectionId connection_id;

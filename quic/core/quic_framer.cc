@@ -6611,7 +6611,7 @@ bool QuicFramer::WriteClientVersionNegotiationProbePacket(
     QUIC_BUG << "Invalid packet_length";
     return false;
   }
-  if (destination_connection_id_length > kQuicMaxConnectionIdLength ||
+  if (destination_connection_id_length > kQuicMaxConnectionId4BitLength ||
       destination_connection_id_length <
           kQuicMinimumInitialConnectionIdLength) {
     QUIC_BUG << "Invalid connection_id_length";

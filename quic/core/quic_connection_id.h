@@ -26,7 +26,15 @@ enum QuicConnectionIdIncluded : uint8_t {
 };
 
 // Maximum connection ID length that we support in any packet or version.
-const uint8_t kQuicMaxConnectionIdLength = 18;
+const uint8_t kQuicMaxConnectionIdAllVersionsLength = 20;
+
+// Maximum connection ID length supported by versions that use the encoding from
+// draft-ietf-quic-invariants-06.
+const uint8_t kQuicMaxConnectionIdWithLengthPrefixLength = 20;
+
+// Maximum connection ID length supported by versions that use the encoding from
+// draft-ietf-quic-invariants-05.
+const uint8_t kQuicMaxConnectionId4BitLength = 18;
 
 // kQuicDefaultConnectionIdLength is the only supported length for QUIC
 // versions < v99, and is the default picked for all versions.
@@ -99,7 +107,7 @@ class QUIC_EXPORT_PRIVATE QuicConnectionId {
   union {
     // When quic_use_allocated_connection_ids is false, the connection ID is
     // stored in the first |length_| bytes of |data_|.
-    char data_[kQuicMaxConnectionIdLength];
+    char data_[kQuicMaxConnectionIdAllVersionsLength];
     // When quic_use_allocated_connection_ids is true, if the connection ID
     // fits in |data_short_|, it is stored in the first |length_| bytes of
     // |data_short_|. Otherwise it is stored in |data_long_| which is

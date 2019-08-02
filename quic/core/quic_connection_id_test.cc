@@ -98,10 +98,10 @@ TEST_F(QuicConnectionIdTest, Hash) {
     // 32bit platforms.
     return;
   }
-  const char connection_id_bytes[kQuicMaxConnectionIdLength] = {};
-  for (uint8_t i = 0; i < kQuicMaxConnectionIdLength - 1; ++i) {
+  const char connection_id_bytes[kQuicMaxConnectionIdAllVersionsLength] = {};
+  for (uint8_t i = 0; i < sizeof(connection_id_bytes) - 1; ++i) {
     QuicConnectionId connection_id_i(connection_id_bytes, i);
-    for (uint8_t j = i + 1; j < kQuicMaxConnectionIdLength; ++j) {
+    for (uint8_t j = i + 1; j < sizeof(connection_id_bytes); ++j) {
       QuicConnectionId connection_id_j(connection_id_bytes, j);
       EXPECT_NE(connection_id_i.Hash(), connection_id_j.Hash());
     }

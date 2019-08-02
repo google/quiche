@@ -136,7 +136,7 @@ bool QuicDataReader::ReadStringPiece(QuicStringPiece* result, size_t size) {
 
 bool QuicDataReader::ReadConnectionId(QuicConnectionId* connection_id,
                                       uint8_t length) {
-  if (length > kQuicMaxConnectionIdLength) {
+  if (length > kQuicMaxConnectionIdAllVersionsLength) {
     QUIC_BUG << "Attempted to read connection ID with length too high "
              << static_cast<int>(length);
     return false;
@@ -172,7 +172,7 @@ bool QuicDataReader::ReadLengthPrefixedConnectionId(
   if (!ReadUInt8(&connection_id_length)) {
     return false;
   }
-  if (connection_id_length > kQuicMaxConnectionIdLength) {
+  if (connection_id_length > kQuicMaxConnectionIdAllVersionsLength) {
     return false;
   }
   return ReadConnectionId(connection_id, connection_id_length);

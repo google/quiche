@@ -554,9 +554,9 @@ bool QuicUtils::IsConnectionIdLengthValidForVersion(
   if (!VersionHasLengthPrefixedConnectionIds(transport_version)) {
     return connection_id_length8 == 0 ||
            (connection_id_length8 >= 4 &&
-            connection_id_length8 <= kQuicMaxConnectionIdLength);
+            connection_id_length8 <= kQuicMaxConnectionId4BitLength);
   }
-  return connection_id_length8 <= kQuicMaxConnectionIdLength;
+  return connection_id_length8 <= kQuicMaxConnectionIdWithLengthPrefixLength;
 }
 
 // static
@@ -570,8 +570,8 @@ bool QuicUtils::IsConnectionIdValidForVersion(
 QuicUint128 QuicUtils::GenerateStatelessResetToken(
     QuicConnectionId connection_id) {
   uint64_t data_bytes[3] = {0, 0, 0};
-  static_assert(sizeof(data_bytes) >= kQuicMaxConnectionIdLength,
-                "kQuicMaxConnectionIdLength changed");
+  static_assert(sizeof(data_bytes) >= kQuicMaxConnectionIdAllVersionsLength,
+                "kQuicMaxConnectionIdAllVersionsLength changed");
   memcpy(data_bytes, connection_id.data(), connection_id.length());
   // This is designed so that the common case of 64bit connection IDs
   // produces a stateless reset token that is equal to the connection ID

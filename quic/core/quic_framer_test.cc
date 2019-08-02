@@ -14164,7 +14164,7 @@ TEST_P(QuicFramerTest, ParseServerVersionNegotiationProbeResponseOld) {
   };
   // clang-format on
   char probe_payload_bytes[] = {0x56, 0x4e, 0x20, 0x70, 0x6c, 0x7a, 0x20, 0x21};
-  char parsed_probe_payload_bytes[kQuicMaxConnectionIdLength] = {};
+  char parsed_probe_payload_bytes[255] = {};
   uint8_t parsed_probe_payload_length = 0;
   std::string parse_detailed_error = "";
   EXPECT_TRUE(QuicFramer::ParseServerVersionNegotiationProbeResponse(
@@ -14195,7 +14195,7 @@ TEST_P(QuicFramerTest, ParseServerVersionNegotiationProbeResponse) {
   };
   // clang-format on
   char probe_payload_bytes[] = {0x56, 0x4e, 0x20, 0x70, 0x6c, 0x7a, 0x20, 0x21};
-  char parsed_probe_payload_bytes[kQuicMaxConnectionIdLength] = {};
+  char parsed_probe_payload_bytes[255] = {};
   uint8_t parsed_probe_payload_length = 0;
   std::string parse_detailed_error = "";
   EXPECT_TRUE(QuicFramer::ParseServerVersionNegotiationProbeResponse(
