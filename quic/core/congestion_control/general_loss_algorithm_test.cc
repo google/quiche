@@ -34,8 +34,9 @@ class GeneralLossAlgorithmTest : public QuicTest {
 
   void SendDataPacket(uint64_t packet_number) {
     QuicStreamFrame frame;
-    frame.stream_id = QuicUtils::GetHeadersStreamId(
-        CurrentSupportedVersions()[0].transport_version);
+    frame.stream_id = QuicUtils::GetFirstBidirectionalStreamId(
+        CurrentSupportedVersions()[0].transport_version,
+        Perspective::IS_CLIENT);
     SerializedPacket packet(QuicPacketNumber(packet_number),
                             PACKET_1BYTE_PACKET_NUMBER, nullptr, kDefaultLength,
                             false, false);

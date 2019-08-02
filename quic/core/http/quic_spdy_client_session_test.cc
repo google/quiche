@@ -431,10 +431,24 @@ TEST_P(QuicSpdyClientSessionTest, OnStreamHeaderListWithStaticStream) {
   trailers.OnHeader(kFinalOffsetHeaderKey, "0");
   trailers.OnHeaderBlockEnd(0, 0);
 
-  EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(1);
-  session_->OnStreamHeaderList(
-      QuicUtils::GetHeadersStreamId(connection_->transport_version()),
-      /*fin=*/false, 0, trailers);
+  // Initialize H/3 control stream.
+  QuicStreamId id;
+  if (VersionUsesQpack(connection_->transport_version())) {
+    id = GetNthServerInitiatedUnidirectionalStreamId(
+        connection_->transport_version(), 3);
+    char type[] = {0x00};
+
+    QuicStreamFrame data1(id, false, 0, QuicStringPiece(type, 1));
+    session_->OnStreamFrame(data1);
+  } else {
+    id = QuicUtils::GetHeadersStreamId(connection_->transport_version());
+  }
+
+  EXPECT_CALL(*connection_, CloseConnection(QUIC_INVALID_HEADERS_STREAM_DATA,
+                                            "stream is static", _))
+      .Times(1);
+  session_->OnStreamHeaderList(id,
+                               /*fin=*/false, 0, trailers);
 }
 
 TEST_P(QuicSpdyClientSessionTest, OnPromiseHeaderListWithStaticStream) {
@@ -459,7 +473,9 @@ TEST_P(QuicSpdyClientSessionTest, OnPromiseHeaderListWithStaticStream) {
   } else {
     id = QuicUtils::GetHeadersStreamId(connection_->transport_version());
   }
-  EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(1);
+  EXPECT_CALL(*connection_, CloseConnection(QUIC_INVALID_HEADERS_STREAM_DATA,
+                                            "stream is static", _))
+      .Times(1);
   session_->OnPromiseHeaderList(id, promised_stream_id_, 0, trailers);
 }
 

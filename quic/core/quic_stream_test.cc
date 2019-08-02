@@ -143,9 +143,9 @@ class QuicStreamTestBase : public QuicTestWithParam<ParsedQuicVersion> {
   uint32_t initial_flow_control_window_bytes_;
   QuicTime::Delta zero_;
   ParsedQuicVersionVector supported_versions_;
-  const QuicStreamId kTestStreamId =
-      QuicUtils::GetHeadersStreamId(GetParam().transport_version) +
-      QuicUtils::StreamIdDelta(GetParam().transport_version);
+  QuicStreamId kTestStreamId =
+      GetNthClientInitiatedBidirectionalStreamId(GetParam().transport_version,
+                                                 1);
 };
 
 // Non parameterized QuicStreamTest used for tests that do not

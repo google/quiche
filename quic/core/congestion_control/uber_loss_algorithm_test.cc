@@ -32,7 +32,8 @@ class UberLossAlgorithmTest : public QuicTest {
     QuicStreamFrame frame;
     QuicTransportVersion version =
         CurrentSupportedVersions()[0].transport_version;
-    frame.stream_id = QuicUtils::GetHeadersStreamId(version);
+    frame.stream_id = QuicUtils::GetFirstBidirectionalStreamId(
+        version, Perspective::IS_CLIENT);
     if (encryption_level == ENCRYPTION_INITIAL) {
       if (QuicVersionUsesCryptoFrames(version)) {
         frame.stream_id = QuicUtils::GetFirstBidirectionalStreamId(

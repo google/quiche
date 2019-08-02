@@ -531,8 +531,14 @@ TEST_P(QuicServerSessionBaseTest, BandwidthEstimates) {
       &bandwidth_recorder, max_bandwidth_estimate_kbytes_per_second,
       max_bandwidth_estimate_timestamp);
   // Queue up some pending data.
-  session_->MarkConnectionLevelWriteBlocked(
-      QuicUtils::GetHeadersStreamId(connection_->transport_version()));
+  if (!VersionUsesQpack(transport_version())) {
+    session_->MarkConnectionLevelWriteBlocked(
+        QuicUtils::GetHeadersStreamId(connection_->transport_version()));
+  } else {
+    session_->MarkConnectionLevelWriteBlocked(
+        QuicUtils::GetFirstUnidirectionalStreamId(
+            connection_->transport_version(), Perspective::IS_SERVER));
+  }
   EXPECT_TRUE(session_->HasDataToWrite());
 
   // There will be no update sent yet - not enough time has passed.
