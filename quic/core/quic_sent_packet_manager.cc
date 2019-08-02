@@ -151,11 +151,15 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
     SetInitialRtt(QuicTime::Delta::FromMicroseconds(
         config.GetInitialRoundTripTimeUsToSend()));
   }
+  if (config.HasReceivedMaxAckDelayMs()) {
+    peer_max_ack_delay_ =
+        QuicTime::Delta::FromMilliseconds(config.ReceivedMaxAckDelayMs());
+  }
   if (config.HasClientSentConnectionOption(kMAD0, perspective)) {
     rtt_stats_.set_ignore_max_ack_delay(true);
   }
   if (config.HasClientSentConnectionOption(kMAD1, perspective)) {
-    rtt_stats_.set_initial_max_ack_delay(local_max_ack_delay_);
+    rtt_stats_.set_initial_max_ack_delay(peer_max_ack_delay_);
   }
   if (config.HasClientSentConnectionOption(kMAD2, perspective)) {
     min_tlp_timeout_ = QuicTime::Delta::Zero();
@@ -242,11 +246,6 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
     conservative_handshake_retransmits_ = true;
   }
   send_algorithm_->SetFromConfig(config, perspective);
-
-  if (config.HasReceivedMaxAckDelayMs()) {
-    peer_max_ack_delay_ =
-        QuicTime::Delta::FromMilliseconds(config.ReceivedMaxAckDelayMs());
-  }
 
   if (network_change_visitor_ != nullptr) {
     network_change_visitor_->OnCongestionChange();
