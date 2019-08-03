@@ -8562,6 +8562,53 @@ TEST_P(QuicConnectionTest, CheckConnectedBeforeFlush) {
   EXPECT_FALSE(ack_alarm->IsSet());
 }
 
+// Verify that a packet containing three coalesced packets is parsed correctly.
+TEST_P(QuicConnectionTest, CoalescedPacket) {
+  if (!QuicVersionHasLongHeaderLengths(connection_.transport_version())) {
+    // Coalesced packets can only be encoded using long header lengths.
+    return;
+  }
+  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
+  EXPECT_TRUE(connection_.connected());
+  if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
+    EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(3);
+  } else {
+    EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(3);
+  }
+
+  uint64_t packet_numbers[3] = {1, 2, 3};
+  EncryptionLevel encryption_levels[3] = {
+      ENCRYPTION_INITIAL, ENCRYPTION_INITIAL, ENCRYPTION_FORWARD_SECURE};
+  char buffer[kMaxOutgoingPacketSize] = {};
+  size_t total_encrypted_length = 0;
+  for (int i = 0; i < 3; i++) {
+    QuicPacketHeader header =
+        ConstructPacketHeader(packet_numbers[i], encryption_levels[i]);
+    QuicFrames frames;
+    if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
+      frames.push_back(QuicFrame(&crypto_frame_));
+    } else {
+      frames.push_back(QuicFrame(frame1_));
+    }
+    std::unique_ptr<QuicPacket> packet = ConstructPacket(header, frames);
+    peer_creator_.set_encryption_level(encryption_levels[i]);
+    size_t encrypted_length = peer_framer_.EncryptPayload(
+        encryption_levels[i], QuicPacketNumber(packet_numbers[i]), *packet,
+        buffer + total_encrypted_length,
+        sizeof(buffer) - total_encrypted_length);
+    EXPECT_GT(encrypted_length, 0u);
+    total_encrypted_length += encrypted_length;
+  }
+  connection_.ProcessUdpPacket(
+      kSelfAddress, kPeerAddress,
+      QuicReceivedPacket(buffer, total_encrypted_length, clock_.Now(), false));
+  if (connection_.GetSendAlarm()->IsSet()) {
+    connection_.GetSendAlarm()->Fire();
+  }
+
+  EXPECT_TRUE(connection_.connected());
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

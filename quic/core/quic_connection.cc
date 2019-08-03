@@ -2620,15 +2620,12 @@ void QuicConnection::QueueCoalescedPacket(const QuicEncryptedPacket& packet) {
 
 void QuicConnection::MaybeProcessCoalescedPackets() {
   bool processed = false;
-  for (const auto& packet : coalesced_packets_) {
-    if (!connected_) {
-      return;
-    }
+  while (connected_ && !coalesced_packets_.empty()) {
+    std::unique_ptr<QuicEncryptedPacket> packet =
+        std::move(coalesced_packets_.front());
+    coalesced_packets_.pop_front();
 
-    // }
-    // while (connected_ && !coalesced_packets_.empty()) {
     QUIC_DVLOG(1) << ENDPOINT << "Processing coalesced packet";
-    // QuicEncryptedPacket* packet = coalesced_packets_.front().get();
     if (framer_.ProcessPacket(*packet)) {
       processed = true;
     } else {
@@ -2644,9 +2641,7 @@ void QuicConnection::MaybeProcessCoalescedPackets() {
         }
       }
     }
-    // coalesced_packets_.pop_front();
   }
-  coalesced_packets_.clear();
   if (processed) {
     MaybeProcessUndecryptablePackets();
   }
