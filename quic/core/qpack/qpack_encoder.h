@@ -20,9 +20,15 @@ namespace spdy {
 
 class SpdyHeaderBlock;
 
-}
+}  // namespace spdy
 
 namespace quic {
+
+namespace test {
+
+class QpackEncoderPeer;
+
+}  // namespace test
 
 // QPACK encoder class.  Exactly one instance should exist per QUIC connection.
 class QUIC_EXPORT_PRIVATE QpackEncoder
@@ -49,6 +55,14 @@ class QUIC_EXPORT_PRIVATE QpackEncoder
   // Decode data received on the decoder stream.
   void DecodeDecoderStreamData(QuicStringPiece data);
 
+  // Set maximum capacity of dynamic table, measured in bytes.
+  // Called when SETTINGS_QPACK_MAX_TABLE_CAPACITY is received.
+  void SetMaximumDynamicTableCapacity(uint64_t maximum_dynamic_table_capacity);
+
+  // Set maximum number of blocked streams.
+  // Called when SETTINGS_QPACK_BLOCKED_STREAMS is received.
+  void SetMaximumBlockedStreams(uint64_t maximum_blocked_streams);
+
   // QpackDecoderStreamReceiver::Delegate implementation
   void OnInsertCountIncrement(uint64_t increment) override;
   void OnHeaderAcknowledgement(QuicStreamId stream_id) override;
@@ -56,6 +70,8 @@ class QUIC_EXPORT_PRIVATE QpackEncoder
   void OnErrorDetected(QuicStringPiece error_message) override;
 
  private:
+  friend class test::QpackEncoderPeer;
+
   // TODO(bnc): Consider moving this class to QpackInstructionEncoder or
   // qpack_constants, adding factory methods, one for each instruction, and
   // changing QpackInstructionEncoder::Encoder() to take an
@@ -71,6 +87,7 @@ class QUIC_EXPORT_PRIVATE QpackEncoder
   QpackDecoderStreamReceiver decoder_stream_receiver_;
   QpackEncoderStreamSender encoder_stream_sender_;
   QpackHeaderTable header_table_;
+  uint64_t maximum_blocked_streams_;
 };
 
 }  // namespace quic

@@ -25,6 +25,8 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
+#include "net/third_party/quiche/src/quic/test_tools/qpack_encoder_peer.h"
+#include "net/third_party/quiche/src/quic/test_tools/qpack_header_table_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_config_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_connection_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_flow_controller_peer.h"
@@ -2119,7 +2121,7 @@ TEST_P(QuicSpdySessionTestServer, ReceiveControlStream) {
   if (!VersionHasStreamType(transport_version())) {
     return;
   }
-  // Use a arbitrary stream id.
+  // Use an arbitrary stream id.
   QuicStreamId stream_id =
       GetNthClientInitiatedUnidirectionalStreamId(transport_version(), 3);
   char type[] = {kControlStream};
@@ -2130,14 +2132,27 @@ TEST_P(QuicSpdySessionTestServer, ReceiveControlStream) {
             QuicSpdySessionPeer::GetReceiveControlStream(&session_)->id());
 
   SettingsFrame settings;
-  settings.values[3] = 2;
+  settings.values[SETTINGS_QPACK_MAX_TABLE_CAPACITY] = 512;
   settings.values[SETTINGS_MAX_HEADER_LIST_SIZE] = 5;
+  settings.values[SETTINGS_QPACK_BLOCKED_STREAMS] = 42;
   std::string data = EncodeSettings(settings);
   QuicStreamFrame frame(stream_id, false, 1, QuicStringPiece(data));
 
+  QpackEncoder* qpack_encoder = session_.qpack_encoder();
+  QpackHeaderTable* header_table =
+      QpackEncoderPeer::header_table(qpack_encoder);
+
+  EXPECT_NE(512u,
+            QpackHeaderTablePeer::maximum_dynamic_table_capacity(header_table));
   EXPECT_NE(5u, session_.max_outbound_header_list_size());
+  EXPECT_NE(42u, QpackEncoderPeer::maximum_blocked_streams(qpack_encoder));
+
   session_.OnStreamFrame(frame);
+
+  EXPECT_EQ(512u,
+            QpackHeaderTablePeer::maximum_dynamic_table_capacity(header_table));
   EXPECT_EQ(5u, session_.max_outbound_header_list_size());
+  EXPECT_EQ(42u, QpackEncoderPeer::maximum_blocked_streams(qpack_encoder));
 }
 
 TEST_P(QuicSpdySessionTestServer, ReceiveControlStreamOutOfOrderDelivery) {

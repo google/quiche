@@ -20,7 +20,8 @@ QpackEncoder::QpackEncoder(
     QpackStreamSenderDelegate* encoder_stream_sender_delegate)
     : decoder_stream_error_delegate_(decoder_stream_error_delegate),
       decoder_stream_receiver_(this),
-      encoder_stream_sender_(encoder_stream_sender_delegate) {
+      encoder_stream_sender_(encoder_stream_sender_delegate),
+      maximum_blocked_streams_(0) {
   DCHECK(decoder_stream_error_delegate_);
   DCHECK(encoder_stream_sender_delegate);
 }
@@ -101,6 +102,15 @@ std::string QpackEncoder::EncodeHeaderList(
 
 void QpackEncoder::DecodeDecoderStreamData(QuicStringPiece data) {
   decoder_stream_receiver_.Decode(data);
+}
+
+void QpackEncoder::SetMaximumDynamicTableCapacity(
+    uint64_t maximum_dynamic_table_capacity) {
+  header_table_.SetMaximumDynamicTableCapacity(maximum_dynamic_table_capacity);
+}
+
+void QpackEncoder::SetMaximumBlockedStreams(uint64_t maximum_blocked_streams) {
+  maximum_blocked_streams_ = maximum_blocked_streams;
 }
 
 void QpackEncoder::OnInsertCountIncrement(uint64_t /*increment*/) {

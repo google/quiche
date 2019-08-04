@@ -647,7 +647,7 @@ void QuicSpdySession::OnSetting(uint64_t id, uint64_t value) {
         QUIC_DVLOG(1)
             << "SETTINGS_QPACK_MAX_TABLE_CAPACITY received with value "
             << value;
-        // TODO(b/112770235): implement.
+        qpack_encoder_->SetMaximumDynamicTableCapacity(value);
         break;
       case SETTINGS_MAX_HEADER_LIST_SIZE:
         QUIC_DVLOG(1) << "SETTINGS_MAX_HEADER_LIST_SIZE received with value "
@@ -657,7 +657,7 @@ void QuicSpdySession::OnSetting(uint64_t id, uint64_t value) {
       case SETTINGS_QPACK_BLOCKED_STREAMS:
         QUIC_DVLOG(1) << "SETTINGS_QPACK_BLOCKED_STREAMS received with value "
                       << value;
-        // TODO(b/112770235): implement.
+        qpack_encoder_->SetMaximumBlockedStreams(value);
         break;
       case SETTINGS_NUM_PLACEHOLDERS:
         QUIC_DVLOG(1) << "SETTINGS_NUM_PLACEHOLDERS received with value "

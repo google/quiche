@@ -17,6 +17,12 @@
 
 namespace quic {
 
+namespace test {
+
+class QpackHeaderTablePeer;
+
+}  // namespace test
+
 using QpackEntry = spdy::HpackEntry;
 
 // This class manages the QPACK static and dynamic tables.  For dynamic entries,
@@ -114,6 +120,8 @@ class QUIC_EXPORT_PRIVATE QpackHeaderTable {
   uint64_t draining_index(float draining_fraction) const;
 
  private:
+  friend class test::QpackHeaderTablePeer;
+
   // Evict entries from the dynamic table until table size is less than or equal
   // to current value of |dynamic_table_capacity_|.
   void EvictDownToCurrentCapacity();
