@@ -1097,7 +1097,8 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
 // contains additional error information that narrows down the exact error. If
 // the string is not found, or is not properly formed, it returns
 // ErrorCode::QUIC_IETF_GQUIC_ERROR_MISSING
-QuicErrorCode MaybeExtractQuicErrorCode(QuicStringPiece error_details);
+QUIC_EXPORT_PRIVATE QuicErrorCode
+MaybeExtractQuicErrorCode(QuicStringPiece error_details);
 
 }  // namespace quic
 

@@ -286,7 +286,8 @@ SPDY_EXPORT_PRIVATE SpdyErrorCode ParseErrorCode(uint32_t wire_error_code);
 const char* ErrorCodeToString(SpdyErrorCode error_code);
 
 // Serialize |type| to string for logging/debugging.
-const char* WriteSchedulerTypeToString(WriteSchedulerType type);
+SPDY_EXPORT_PRIVATE const char* WriteSchedulerTypeToString(
+    WriteSchedulerType type);
 
 // Minimum size of a frame, in octets.
 const size_t kFrameMinimumSize = kFrameHeaderSize;
