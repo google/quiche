@@ -34,13 +34,11 @@ class QUIC_EXPORT_PRIVATE QpackDecoder
     virtual void OnEncoderStreamError(QuicStringPiece error_message) = 0;
   };
 
-  QpackDecoder(EncoderStreamErrorDelegate* encoder_stream_error_delegate,
+  QpackDecoder(uint64_t maximum_dynamic_table_capacity,
+               uint64_t maximum_blocked_streams,
+               EncoderStreamErrorDelegate* encoder_stream_error_delegate,
                QpackStreamSenderDelegate* decoder_stream_sender_delegate);
   ~QpackDecoder() override;
-
-  // Set maximum capacity of dynamic table.
-  // This method must only be called at most once.
-  void SetMaximumDynamicTableCapacity(uint64_t maximum_dynamic_table_capacity);
 
   // Signal to the peer's encoder that a stream is reset.  This lets the peer's
   // encoder know that no more header blocks will be processed on this stream,
@@ -94,6 +92,7 @@ class QUIC_EXPORT_PRIVATE QpackDecoder
   QpackEncoderStreamReceiver encoder_stream_receiver_;
   QpackDecoderStreamSender decoder_stream_sender_;
   QpackHeaderTable header_table_;
+  const uint64_t maximum_blocked_streams_;
 };
 
 }  // namespace quic

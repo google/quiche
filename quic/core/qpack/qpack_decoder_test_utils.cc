@@ -64,12 +64,15 @@ const std::string& TestHeadersHandler::error_message() const {
 }
 
 void QpackDecode(
+    uint64_t maximum_dynamic_table_capacity,
+    uint64_t maximum_blocked_streams,
     QpackDecoder::EncoderStreamErrorDelegate* encoder_stream_error_delegate,
     QpackStreamSenderDelegate* decoder_stream_sender_delegate,
     QpackProgressiveDecoder::HeadersHandlerInterface* handler,
     const FragmentSizeGenerator& fragment_size_generator,
     QuicStringPiece data) {
-  QpackDecoder decoder(encoder_stream_error_delegate,
+  QpackDecoder decoder(maximum_dynamic_table_capacity, maximum_blocked_streams,
+                       encoder_stream_error_delegate,
                        decoder_stream_sender_delegate);
   auto progressive_decoder =
       decoder.CreateProgressiveDecoder(/* stream_id = */ 1, handler);

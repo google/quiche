@@ -20,7 +20,6 @@ namespace quic {
 
 QpackOfflineDecoder::QpackOfflineDecoder()
     : encoder_stream_error_detected_(false),
-      qpack_decoder_(this, &decoder_stream_sender_delegate_),
       max_blocked_streams_(0) {}
 
 bool QpackOfflineDecoder::DecodeAndVerifyOfflineData(
@@ -93,8 +92,9 @@ bool QpackOfflineDecoder::ParseInputFilename(QuicStringPiece input_filename) {
                     << "\" as an integer.";
     return false;
   }
-
-  qpack_decoder_.SetMaximumDynamicTableCapacity(maximum_dynamic_table_capacity);
+  qpack_decoder_ = QuicMakeUnique<QpackDecoder>(
+      maximum_dynamic_table_capacity, max_blocked_streams_, this,
+      &decoder_stream_sender_delegate_);
 
   return true;
 }
@@ -133,7 +133,7 @@ bool QpackOfflineDecoder::DecodeHeaderBlocksFromFile(
 
     // Process data.
     if (stream_id == 0) {
-      qpack_decoder_.DecodeEncoderStreamData(data);
+      qpack_decoder_->DecodeEncoderStreamData(data);
 
       if (encoder_stream_error_detected_) {
         QUIC_LOG(ERROR) << "Error detected on encoder stream.";
@@ -141,7 +141,7 @@ bool QpackOfflineDecoder::DecodeHeaderBlocksFromFile(
       }
     } else {
       auto headers_handler = QuicMakeUnique<test::TestHeadersHandler>();
-      auto progressive_decoder = qpack_decoder_.CreateProgressiveDecoder(
+      auto progressive_decoder = qpack_decoder_->CreateProgressiveDecoder(
           stream_id, headers_handler.get());
 
       progressive_decoder->Decode(data);
@@ -183,6 +183,7 @@ bool QpackOfflineDecoder::DecodeHeaderBlocksFromFile(
     }
 
     // Enforce limit on blocked streams.
+    // TODO(b/112770235): Move this logic to QpackDecoder.
     uint64_t blocked_streams_count = 0;
     for (const auto& decoder : decoders_) {
       if (!decoder.headers_handler->decoding_completed()) {

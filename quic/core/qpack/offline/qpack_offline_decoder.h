@@ -72,7 +72,7 @@ class QpackOfflineDecoder : public QpackDecoder::EncoderStreamErrorDelegate {
 
   bool encoder_stream_error_detected_;
   NoopQpackStreamSenderDelegate decoder_stream_sender_delegate_;
-  QpackDecoder qpack_decoder_;
+  std::unique_ptr<QpackDecoder> qpack_decoder_;
   uint64_t max_blocked_streams_;
 
   // Objects necessary for decoding, one list element for each header block.

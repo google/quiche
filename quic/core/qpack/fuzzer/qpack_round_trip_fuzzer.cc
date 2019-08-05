@@ -137,8 +137,12 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   TestHeadersHandler handler;
   NoopEncoderStreamErrorDelegate encoder_stream_error_delegate;
   NoopQpackStreamSenderDelegate decoder_stream_sender_delegate;
-  QpackDecode(&encoder_stream_error_delegate, &decoder_stream_sender_delegate,
-              &handler, fragment_size_generator, encoded_header_block);
+  // TODO(b/112770235): Fuzz dynamic table and blocked streams.
+  QpackDecode(
+      /* maximum_dynamic_table_capacity = */ 0,
+      /* maximum_blocked_streams = */ 0, &encoder_stream_error_delegate,
+      &decoder_stream_sender_delegate, &handler, fragment_size_generator,
+      encoded_header_block);
 
   // Since header block has been produced by encoding a header list, it must be
   // valid.

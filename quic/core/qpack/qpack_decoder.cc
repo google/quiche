@@ -12,21 +12,21 @@
 namespace quic {
 
 QpackDecoder::QpackDecoder(
+    uint64_t maximum_dynamic_table_capacity,
+    uint64_t maximum_blocked_streams,
     EncoderStreamErrorDelegate* encoder_stream_error_delegate,
     QpackStreamSenderDelegate* decoder_stream_sender_delegate)
     : encoder_stream_error_delegate_(encoder_stream_error_delegate),
       encoder_stream_receiver_(this),
-      decoder_stream_sender_(decoder_stream_sender_delegate) {
+      decoder_stream_sender_(decoder_stream_sender_delegate),
+      maximum_blocked_streams_(maximum_blocked_streams) {
   DCHECK(encoder_stream_error_delegate_);
   DCHECK(decoder_stream_sender_delegate);
+
+  header_table_.SetMaximumDynamicTableCapacity(maximum_dynamic_table_capacity);
 }
 
 QpackDecoder::~QpackDecoder() {}
-
-void QpackDecoder::SetMaximumDynamicTableCapacity(
-    uint64_t maximum_dynamic_table_capacity) {
-  header_table_.SetMaximumDynamicTableCapacity(maximum_dynamic_table_capacity);
-}
 
 void QpackDecoder::OnStreamReset(QuicStreamId stream_id) {
   decoder_stream_sender_.SendStreamCancellation(stream_id);

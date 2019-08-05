@@ -26,14 +26,18 @@ namespace {
 // Header Acknowledgement decoder stream instruction with stream_id = 1.
 const char* const kHeaderAcknowledgement = "\x81";
 
+// TODO(b/112770235) Change this constant, enforce the limit and add tests.
+const uint64_t kMaximumBlockedStreams = 0;
+
 class QpackDecoderTest : public QuicTestWithParam<FragmentMode> {
  protected:
   QpackDecoderTest()
-      : qpack_decoder_(&encoder_stream_error_delegate_,
-                       &decoder_stream_sender_delegate_),
-        fragment_mode_(GetParam()) {
-    qpack_decoder_.SetMaximumDynamicTableCapacity(1024);
-  }
+      : qpack_decoder_(
+            /* maximum_dynamic_table_capacity = */ 1024,
+            kMaximumBlockedStreams,
+            &encoder_stream_error_delegate_,
+            &decoder_stream_sender_delegate_),
+        fragment_mode_(GetParam()) {}
 
   ~QpackDecoderTest() override = default;
 
@@ -566,7 +570,7 @@ TEST_P(QpackDecoderTest, TableCapacityMustNotExceedMaximum) {
   DecodeEncoderStreamData(QuicTextUtils::HexDecode("3fe10f"));
 }
 
-TEST_P(QpackDecoderTest, SetMaximumDynamicTableCapacity) {
+TEST_P(QpackDecoderTest, SetDynamicTableCapacity) {
   // Update dynamic table capacity to 128, which does not exceed the maximum.
   DecodeEncoderStreamData(QuicTextUtils::HexDecode("3f61"));
 }

@@ -365,11 +365,14 @@ void QuicSpdySession::Initialize() {
     qpack_encoder_ =
         QuicMakeUnique<QpackEncoder>(this, &encoder_stream_sender_delegate_);
     qpack_decoder_ =
-        QuicMakeUnique<QpackDecoder>(this, &decoder_stream_sender_delegate_);
+        QuicMakeUnique<QpackDecoder>(kDefaultQpackMaxDynamicTableCapacity,
+                                     /* maximum_blocked_streams = */ 0, this,
+                                     &decoder_stream_sender_delegate_);
+    // TODO(b/112770235): Set sensible limit on maximum number of blocked
+    // streams.
     // TODO(b/112770235): Send SETTINGS_QPACK_MAX_TABLE_CAPACITY with value
-    // kDefaultQpackMaxDynamicTableCapacity.
-    qpack_decoder_->SetMaximumDynamicTableCapacity(
-        kDefaultQpackMaxDynamicTableCapacity);
+    // kDefaultQpackMaxDynamicTableCapacity, and SETTINGS_QPACK_BLOCKED_STREAMS
+    // with limit on maximum number of blocked streams.
   }
 
   if (VersionHasStreamType(connection()->transport_version())) {

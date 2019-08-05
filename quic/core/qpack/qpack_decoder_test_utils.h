@@ -89,6 +89,8 @@ class NoOpHeadersHandler
 };
 
 void QpackDecode(
+    uint64_t maximum_dynamic_table_capacity,
+    uint64_t maximum_blocked_streams,
     QpackDecoder::EncoderStreamErrorDelegate* encoder_stream_error_delegate,
     QpackStreamSenderDelegate* decoder_stream_sender_delegate,
     QpackProgressiveDecoder::HeadersHandlerInterface* handler,
