@@ -870,6 +870,7 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
       PacketHeaderFormat* format,
       bool* version_present,
       QuicVersionLabel* version_label,
+      ParsedQuicVersion* parsed_version,
       QuicConnectionId* destination_connection_id,
       std::string* detailed_error);
 

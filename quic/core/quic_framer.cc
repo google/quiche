@@ -6396,6 +6396,7 @@ QuicErrorCode QuicFramer::ParsePublicHeaderGoogleQuic(
     PacketHeaderFormat* format,
     bool* version_present,
     QuicVersionLabel* version_label,
+    ParsedQuicVersion* parsed_version,
     QuicConnectionId* destination_connection_id,
     std::string* detailed_error) {
   *format = GOOGLE_QUIC_PACKET;
@@ -6409,9 +6410,12 @@ QuicErrorCode QuicFramer::ParsePublicHeaderGoogleQuic(
     *detailed_error = "Unable to read ConnectionId.";
     return QUIC_INVALID_PACKET_HEADER;
   }
-  if (*version_present && !ProcessVersionLabel(reader, version_label)) {
-    *detailed_error = "Unable to read protocol version.";
-    return QUIC_INVALID_PACKET_HEADER;
+  if (*version_present) {
+    if (!ProcessVersionLabel(reader, version_label)) {
+      *detailed_error = "Unable to read protocol version.";
+      return QUIC_INVALID_PACKET_HEADER;
+    }
+    *parsed_version = ParseQuicVersionLabel(*version_label);
   }
   return QUIC_NO_ERROR;
 }
@@ -6542,7 +6546,7 @@ QuicErrorCode QuicFramer::ParsePublicHeader(
   if (!ietf_format) {
     return ParsePublicHeaderGoogleQuic(
         reader, first_byte, format, version_present, version_label,
-        destination_connection_id, detailed_error);
+        parsed_version, destination_connection_id, detailed_error);
   }
 
   *format = GetIetfPacketHeaderFormat(*first_byte);

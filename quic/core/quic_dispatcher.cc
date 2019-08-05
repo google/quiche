@@ -253,7 +253,9 @@ void QuicDispatcher::ProcessPacket(const QuicSocketAddress& self_address,
     QUIC_DLOG(ERROR) << detailed_error;
     return;
   }
-  packet_info.version = ParseQuicVersionLabel(packet_info.version_label);
+  if (!GetQuicReloadableFlag(quic_use_parse_public_header)) {
+    packet_info.version = ParseQuicVersionLabel(packet_info.version_label);
+  }
   if (packet_info.destination_connection_id.length() !=
           expected_server_connection_id_length_ &&
       !should_update_expected_server_connection_id_length_ &&
