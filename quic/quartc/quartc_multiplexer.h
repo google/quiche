@@ -176,7 +176,7 @@ class QuartcMultiplexer : public QuartcEndpoint::Delegate,
   QuicBufferAllocator* const allocator_;
   QuartcSessionEventDelegate* const session_delegate_;
 
-  QuartcSession* session_;
+  QuartcSession* session_ = nullptr;
   std::vector<std::unique_ptr<QuartcSendChannel>> send_channels_;
   QuicUnorderedMap<uint64_t, QuartcReceiveChannel*> receive_channels_;
   QuartcReceiveChannel* default_receive_channel_ = nullptr;
