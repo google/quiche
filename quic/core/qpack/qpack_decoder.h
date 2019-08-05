@@ -92,7 +92,6 @@ class QUIC_EXPORT_PRIVATE QpackDecoder
   QpackEncoderStreamReceiver encoder_stream_receiver_;
   QpackDecoderStreamSender decoder_stream_sender_;
   QpackHeaderTable header_table_;
-  const uint64_t maximum_blocked_streams_;
 };
 
 }  // namespace quic
