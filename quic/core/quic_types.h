@@ -523,6 +523,21 @@ QUIC_EXPORT_PRIVATE std::ostream& operator<<(
     std::ostream& os,
     const QuicIetfTransportErrorCodes& c);
 
+// Returns the mapping of the QuicErrorCode to an IETF TransportErrorCode. If
+// first element of the pair is false, it means that an IETF Application Close
+// should be done instead.
+
+struct QuicErrorCodeToIetfMapping {
+  bool is_transport_close_;
+  union {
+    uint64_t application_error_code_;
+    QuicIetfTransportErrorCodes transport_error_code_;
+  };
+};
+
+QUIC_EXPORT_PRIVATE QuicErrorCodeToIetfMapping
+QuicErrorCodeToTransportErrorCode(QuicErrorCode error);
+
 // Please note, this value cannot used directly for packet serialization.
 enum QuicLongHeaderType : uint8_t {
   VERSION_NEGOTIATION,

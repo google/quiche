@@ -2683,12 +2683,23 @@ void QuicConnection::SendConnectionClosePacket(QuicErrorCode error,
       !GetUpdatedAckFrame().ack_frame->packets.Empty()) {
     SendAck();
   }
-  QuicConnectionCloseFrame* frame =
-      new QuicConnectionCloseFrame(error, details);
-  // If version99/IETF QUIC set the close type. Default close type is Google
-  // QUIC.
+  QuicConnectionCloseFrame* frame;
   if (VersionHasIetfQuicFrames(transport_version())) {
-    frame->close_type = IETF_QUIC_TRANSPORT_CONNECTION_CLOSE;
+    QuicErrorCodeToIetfMapping mapping =
+        QuicErrorCodeToTransportErrorCode(error);
+    if (mapping.is_transport_close_) {
+      // Maps to a transport close
+      // TODO(fkastenholz) need to change "0" to get the frame type currently
+      // being processed so that it can be inserted into the frame.
+      frame = new QuicConnectionCloseFrame(error, details,
+                                           mapping.transport_error_code_, 0);
+    } else {
+      // Maps to an application close.
+      frame = new QuicConnectionCloseFrame(error, details,
+                                           mapping.application_error_code_);
+    }
+  } else {
+    frame = new QuicConnectionCloseFrame(error, details);
   }
   packet_generator_.ConsumeRetransmittableControlFrame(QuicFrame(frame));
   packet_generator_.FlushAllQueuedFrames();

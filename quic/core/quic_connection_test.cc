@@ -1437,11 +1437,27 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
 
     header.packet_number = QuicPacketNumber(number);
 
-    QuicConnectionCloseFrame qccf(QUIC_PEER_GOING_AWAY, "");
+    QuicErrorCode kQuicErrorCode = QUIC_PEER_GOING_AWAY;
+    // This QuicConnectionCloseFrame will default to being for a Google QUIC
+    // close. If doing IETF QUIC then set fields appropriately for CC/T or CC/A,
+    // depending on the mapping.
+    QuicConnectionCloseFrame qccf(kQuicErrorCode, "");
     if (VersionHasIetfQuicFrames(peer_framer_.transport_version())) {
-      // Default close-type is Google QUIC. If doing IETF QUIC then
-      // set close type to be IETF CC/T.
-      qccf.close_type = IETF_QUIC_TRANSPORT_CONNECTION_CLOSE;
+      QuicErrorCodeToIetfMapping mapping =
+          QuicErrorCodeToTransportErrorCode(kQuicErrorCode);
+      if (mapping.is_transport_close_) {
+        // Maps to a transport close
+        qccf.close_type = IETF_QUIC_TRANSPORT_CONNECTION_CLOSE;
+        qccf.transport_error_code = mapping.transport_error_code_;
+        // TODO(fkastenholz) need to change "0" to get the frame type currently
+        // being processed so that it can be inserted into the frame.
+        qccf.transport_close_frame_type = 0;
+      } else {
+        // Maps to an application close.
+        qccf.close_type = IETF_QUIC_APPLICATION_CONNECTION_CLOSE;
+        qccf.application_error_code = mapping.application_error_code_;
+      }
+      qccf.extracted_error_code = kQuicErrorCode;
     }
 
     QuicFrames frames;
@@ -1556,7 +1572,32 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     const std::vector<QuicConnectionCloseFrame>& connection_close_frames =
         writer_->connection_close_frames();
     ASSERT_EQ(1u, connection_close_frames.size());
-    EXPECT_EQ(expected_code, connection_close_frames[0].quic_error_code);
+    if (!VersionHasIetfQuicFrames(version().transport_version)) {
+      EXPECT_EQ(expected_code, connection_close_frames[0].quic_error_code);
+      EXPECT_EQ(GOOGLE_QUIC_CONNECTION_CLOSE,
+                connection_close_frames[0].close_type);
+      return;
+    }
+
+    QuicErrorCodeToIetfMapping mapping =
+        QuicErrorCodeToTransportErrorCode(expected_code);
+
+    if (mapping.is_transport_close_) {
+      // This Google QUIC Error Code maps to a transport close,
+      EXPECT_EQ(IETF_QUIC_TRANSPORT_CONNECTION_CLOSE,
+                connection_close_frames[0].close_type);
+      EXPECT_EQ(mapping.transport_error_code_,
+                connection_close_frames[0].transport_error_code);
+      // TODO(fkastenholz): when the extracted error code CL lands,
+      // need to test that extracted==expected.
+    } else {
+      // This maps to an application close.
+      EXPECT_EQ(expected_code, connection_close_frames[0].quic_error_code);
+      EXPECT_EQ(IETF_QUIC_APPLICATION_CONNECTION_CLOSE,
+                connection_close_frames[0].close_type);
+      // TODO(fkastenholz): when the extracted error code CL lands,
+      // need to test that extracted==expected.
+    }
   }
 
   QuicConnectionId connection_id_;
@@ -1596,6 +1637,36 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
 INSTANTIATE_TEST_SUITE_P(SupportedVersion,
                          QuicConnectionTest,
                          ::testing::ValuesIn(GetTestParams()));
+
+// These two tests ensure that the QuicErrorCode mapping works correctly.
+// Both tests expect to see a Google QUIC close if not running IETF QUIC.
+// If running IETF QUIC, the first will generate a transport connection
+// close, the second an application connection close.
+// The connection close codes for the two tests are manually chosen;
+// they are expected to always map to transport- and application-
+// closes, respectively. If that changes, mew codes should be chosen.
+TEST_P(QuicConnectionTest, CloseErrorCodeTestTransport) {
+  EXPECT_TRUE(connection_.connected());
+  EXPECT_CALL(visitor_, OnConnectionClosed(_, _));
+  connection_.CloseConnection(
+      IETF_QUIC_PROTOCOL_VIOLATION, "Should be transport close",
+      ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+  EXPECT_FALSE(connection_.connected());
+  TestConnectionCloseQuicErrorCode(IETF_QUIC_PROTOCOL_VIOLATION);
+}
+
+// Test that the IETF QUIC Error code mapping function works
+// properly for application connection close codes.
+TEST_P(QuicConnectionTest, CloseErrorCodeTestApplication) {
+  EXPECT_TRUE(connection_.connected());
+  EXPECT_CALL(visitor_, OnConnectionClosed(_, _));
+  connection_.CloseConnection(
+      QUIC_HEADERS_STREAM_DATA_DECOMPRESS_FAILURE,
+      "Should be application close",
+      ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+  EXPECT_FALSE(connection_.connected());
+  TestConnectionCloseQuicErrorCode(QUIC_HEADERS_STREAM_DATA_DECOMPRESS_FAILURE);
+}
 
 TEST_P(QuicConnectionTest, SelfAddressChangeAtClient) {
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
@@ -1942,8 +2013,13 @@ TEST_P(QuicConnectionTest, WriteOutOfOrderQueuedPackets) {
   TestConnectionCloseQuicErrorCode(QUIC_INTERNAL_ERROR);
   const std::vector<QuicConnectionCloseFrame>& connection_close_frames =
       writer_->connection_close_frames();
-  EXPECT_EQ("Packet written out of order.",
-            connection_close_frames[0].error_details);
+  if (VersionHasIetfQuicFrames(version().transport_version)) {
+    EXPECT_EQ("1:Packet written out of order.",
+              connection_close_frames[0].error_details);
+  } else {
+    EXPECT_EQ("Packet written out of order.",
+              connection_close_frames[0].error_details);
+  }
 }
 
 TEST_P(QuicConnectionTest, DiscardQueuedPacketsAfterConnectionClose) {
