@@ -109,6 +109,11 @@ class QuicTextUtils {
     return QuicTextUtilsImpl::ContainsUpperCase(data);
   }
 
+  // Returns true if |data| contains only decimal digits.
+  static bool IsAllDigits(QuicStringPiece data) {
+    return QuicTextUtilsImpl::IsAllDigits(data);
+  }
+
   // Splits |data| into a vector of pieces delimited by |delim|.
   static std::vector<QuicStringPiece> Split(QuicStringPiece data, char delim) {
     return QuicTextUtilsImpl::Split(data, delim);

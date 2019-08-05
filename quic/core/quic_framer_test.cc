@@ -4735,7 +4735,7 @@ TEST_P(QuicFramerTest, ConnectionCloseFrame) {
       // packet number
       {"",
        {0x12, 0x34, 0x56, 0x78}},
-      // frame type (IETF_CONNECTION_CLOSE frame)
+      // frame type (IETF Transport CONNECTION_CLOSE frame)
       {"",
        {0x1c}},
       // error code
@@ -4780,6 +4780,171 @@ TEST_P(QuicFramerTest, ConnectionCloseFrame) {
   if (VersionHasIetfQuicFrames(framer_.transport_version())) {
     EXPECT_EQ(0x1234u,
               visitor_.connection_close_frame_.transport_close_frame_type);
+    EXPECT_EQ(QUIC_IETF_GQUIC_ERROR_MISSING,
+              visitor_.connection_close_frame_.extracted_error_code);
+  }
+
+  ASSERT_EQ(0u, visitor_.ack_frames_.size());
+
+  CheckFramingBoundaries(fragments, QUIC_INVALID_CONNECTION_CLOSE_DATA);
+}
+
+// As above, but checks that for Google-QUIC, if there happens
+// to be an ErrorCode string at the start of the details, it is
+// NOT extracted/parsed/folded/spindled/and/mutilated.
+TEST_P(QuicFramerTest, ConnectionCloseFrameWithExtractedInfoIgnoreGCuic) {
+  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
+
+  // clang-format off
+  PacketFragments packet = {
+    // public flags (8 byte connection_id)
+    {"",
+     {0x28}},
+    // connection_id
+    {"",
+     {0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10}},
+    // packet number
+    {"",
+     {0x12, 0x34, 0x56, 0x78}},
+    // frame type (connection close frame)
+    {"",
+     {0x02}},
+    // error code
+    {"Unable to read connection close error code.",
+     {0x00, 0x00, 0x00, 0x11}},
+    {"Unable to read connection close error details.",
+     {
+       // error details length
+       0x0, 0x13,
+       // error details
+      '1',  '7',  '7',  '6',
+      '7',  ':',  'b',  'e',
+      'c',  'a',  'u',  's',
+      'e',  ' ',  'I',  ' ',
+      'c',  'a',  'n'}
+    }
+  };
+
+    PacketFragments packet44 = {
+    // type (short header, 4 byte packet number)
+    {"",
+     {0x32}},
+    // connection_id
+    {"",
+     {0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10}},
+    // packet number
+    {"",
+     {0x12, 0x34, 0x56, 0x78}},
+    // frame type (IETF Transport CONNECTION_CLOSE frame)
+    {"",
+     {0x02}},
+    // error code
+    {"Unable to read connection close error code.",
+     {0x00, 0x00, 0x00, 0x11}},
+    {"Unable to read connection close error details.",
+     {
+       // error details length
+       0x00, 0x13,
+       // error details
+      '1',  '7',  '7',  '6',
+      '7',  ':',  'b',  'e',
+      'c',  'a',  'u',  's',
+      'e',  ' ',  'I',  ' ',
+      'c',  'a',  'n'}
+    }
+  };
+
+  PacketFragments packet46 = {
+    // type (short header, 4 byte packet number)
+    {"",
+     {0x43}},
+    // connection_id
+    {"",
+     {0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10}},
+    // packet number
+    {"",
+     {0x12, 0x34, 0x56, 0x78}},
+    // frame type (connection close frame)
+    {"",
+     {0x02}},
+    // error code
+    {"Unable to read connection close error code.",
+     {0x00, 0x00, 0x00, 0x11}},
+    {"Unable to read connection close error details.",
+     {
+       // error details length
+       0x0, 0x13,
+       // error details
+      '1',  '7',  '7',  '6',
+      '7',  ':',  'b',  'e',
+      'c',  'a',  'u',  's',
+      'e',  ' ',  'I',  ' ',
+      'c',  'a',  'n'}
+    }
+  };
+
+  PacketFragments packet99 = {
+    // type (short header, 4 byte packet number)
+    {"",
+     {0x43}},
+    // connection_id
+    {"",
+     {0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10}},
+    // packet number
+    {"",
+     {0x12, 0x34, 0x56, 0x78}},
+    // frame type (IETF Transport CONNECTION_CLOSE frame)
+    {"",
+     {0x1c}},
+    // error code
+    {"Unable to read connection close error code.",
+     {kVarInt62OneByte + 0x11}},
+    {"Unable to read connection close frame type.",
+     {kVarInt62TwoBytes + 0x12, 0x34 }},
+    {"Unable to read connection close error details.",
+     {
+       // error details length
+       kVarInt62OneByte + 0x13,
+       // error details
+      '1',  '7',  '7',  '6',
+      '7',  ':',  'b',  'e',
+      'c',  'a',  'u',  's',
+      'e',  ' ',  'I',  ' ',
+      'c',  'a',  'n'}
+    }
+  };
+  // clang-format on
+
+  PacketFragments& fragments =
+      VersionHasIetfQuicFrames(framer_.transport_version())
+          ? packet99
+          : (framer_.transport_version() > QUIC_VERSION_44
+                 ? packet46
+                 : (framer_.transport_version() > QUIC_VERSION_43 ? packet44
+                                                                  : packet));
+  std::unique_ptr<QuicEncryptedPacket> encrypted(
+      AssemblePacketFromFragments(fragments));
+  EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
+
+  EXPECT_EQ(QUIC_NO_ERROR, framer_.error());
+  ASSERT_TRUE(visitor_.header_.get());
+  EXPECT_TRUE(CheckDecryption(
+      *encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
+      PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
+
+  EXPECT_EQ(0u, visitor_.stream_frames_.size());
+  EXPECT_EQ(0x11u, static_cast<unsigned>(
+                       visitor_.connection_close_frame_.quic_error_code));
+  // For this test, all versions have the QuicErrorCode tag
+  EXPECT_EQ("17767:because I can",
+            visitor_.connection_close_frame_.error_details);
+  if (VersionHasIetfQuicFrames(framer_.transport_version())) {
+    EXPECT_EQ(0x1234u,
+              visitor_.connection_close_frame_.transport_close_frame_type);
+    EXPECT_EQ(17767u, visitor_.connection_close_frame_.extracted_error_code);
+  } else {
+    // QUIC_IETF_GQUIC_ERROR_MISSING is 122
+    EXPECT_EQ(122u, visitor_.connection_close_frame_.extracted_error_code);
   }
 
   ASSERT_EQ(0u, visitor_.ack_frames_.size());
@@ -4842,6 +5007,69 @@ TEST_P(QuicFramerTest, ApplicationCloseFrame) {
   EXPECT_EQ(122u, visitor_.connection_close_frame_.extracted_error_code);
   EXPECT_EQ(0x11, visitor_.connection_close_frame_.quic_error_code);
   EXPECT_EQ("because I can", visitor_.connection_close_frame_.error_details);
+
+  ASSERT_EQ(0u, visitor_.ack_frames_.size());
+
+  CheckFramingBoundaries(packet99, QUIC_INVALID_CONNECTION_CLOSE_DATA);
+}
+
+// Check that we can extract an error code from an application close.
+TEST_P(QuicFramerTest, ApplicationCloseFrameExtract) {
+  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+    // This frame does not exist in versions other than 99.
+    return;
+  }
+  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
+
+  // clang-format off
+  PacketFragments packet99 = {
+      // type (short header, 4 byte packet number)
+      {"",
+       {0x43}},
+      // connection_id
+      {"",
+       {0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10}},
+      // packet number
+      {"",
+       {0x12, 0x34, 0x56, 0x78}},
+      // frame type (IETF_CONNECTION_CLOSE/Application frame)
+      {"",
+       {0x1d}},
+      // error code
+      {"Unable to read connection close error code.",
+       {kVarInt62OneByte + 0x11}},
+      {"Unable to read connection close error details.",
+       {
+       // error details length
+       kVarInt62OneByte + 0x13,
+       // error details
+       '1',  '7',  '7',  '6',
+       '7',  ':',  'b',  'e',
+       'c',  'a',  'u',  's',
+       'e',  ' ',  'I',  ' ',
+       'c',  'a',  'n'}
+      }
+  };
+  // clang-format on
+
+  std::unique_ptr<QuicEncryptedPacket> encrypted(
+      AssemblePacketFromFragments(packet99));
+  EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
+
+  EXPECT_EQ(QUIC_NO_ERROR, framer_.error());
+  ASSERT_TRUE(visitor_.header_.get());
+  EXPECT_TRUE(CheckDecryption(
+      *encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
+      PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
+
+  EXPECT_EQ(0u, visitor_.stream_frames_.size());
+
+  EXPECT_EQ(IETF_QUIC_APPLICATION_CONNECTION_CLOSE,
+            visitor_.connection_close_frame_.close_type);
+  EXPECT_EQ(17767u, visitor_.connection_close_frame_.extracted_error_code);
+  EXPECT_EQ(0x11u, visitor_.connection_close_frame_.quic_error_code);
+  EXPECT_EQ("17767:because I can",
+            visitor_.connection_close_frame_.error_details);
 
   ASSERT_EQ(0u, visitor_.ack_frames_.size());
 
@@ -8092,6 +8320,142 @@ TEST_P(QuicFramerTest, BuildCloseFramePacket) {
     'u',  's',  'e',  ' ',
     'I',  ' ',  'c',  'a',
     'n',
+  };
+  // clang-format on
+
+  unsigned char* p = packet;
+  size_t p_size = QUIC_ARRAYSIZE(packet);
+  if (VersionHasIetfQuicFrames(framer_.transport_version())) {
+    p = packet99;
+    p_size = QUIC_ARRAYSIZE(packet99);
+  } else if (framer_.transport_version() > QUIC_VERSION_44) {
+    p = packet46;
+    p_size = QUIC_ARRAYSIZE(packet46);
+  } else if (framer_.transport_version() > QUIC_VERSION_43) {
+    p = packet44;
+    p_size = QUIC_ARRAYSIZE(packet44);
+  }
+
+  std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
+  ASSERT_TRUE(data != nullptr);
+
+  test::CompareCharArraysWithHexError("constructed packet", data->data(),
+                                      data->length(), AsChars(p), p_size);
+}
+
+TEST_P(QuicFramerTest, BuildCloseFramePacketExtendedInfo) {
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
+  QuicPacketHeader header;
+  header.destination_connection_id = FramerTestConnectionId();
+  header.reset_flag = false;
+  header.version_flag = false;
+  header.packet_number = kPacketNumber;
+
+  QuicConnectionCloseFrame close_frame;
+  if (VersionHasIetfQuicFrames(framer_.transport_version())) {
+    close_frame.transport_error_code =
+        static_cast<QuicIetfTransportErrorCodes>(0x11);
+    close_frame.transport_close_frame_type = 0x05;
+    close_frame.close_type = IETF_QUIC_TRANSPORT_CONNECTION_CLOSE;
+  } else {
+    close_frame.quic_error_code = static_cast<QuicErrorCode>(0x05060708);
+  }
+  // Set this so that it is "there" for both Google QUIC and IETF QUIC
+  // framing. It better not show up for Google QUIC!
+  close_frame.extracted_error_code = static_cast<QuicErrorCode>(0x4567);
+
+  // For IETF QUIC this will be prefaced with "17767:"
+  // (17767 == 0x4567).
+  close_frame.error_details = "because I can";
+
+  QuicFrames frames = {QuicFrame(&close_frame)};
+
+  // clang-format off
+  unsigned char packet[] = {
+    // public flags (8 byte connection_id)
+    0x2C,
+    // connection_id
+    0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+    // packet number
+    0x12, 0x34, 0x56, 0x78,
+
+    // frame type (connection close frame)
+    0x02,
+    // error code
+    0x05, 0x06, 0x07, 0x08,
+    // error details length
+    0x00, 0x0d,
+    // error details
+    'b',  'e',  'c',  'a',
+    'u',  's',  'e',  ' ',
+    'I',  ' ',  'c',  'a',
+    'n',
+  };
+
+  unsigned char packet44[] = {
+    // type (short header, 4 byte packet number)
+    0x32,
+    // connection_id
+    0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+    // packet number
+    0x12, 0x34, 0x56, 0x78,
+
+    // frame type (connection close frame)
+    0x02,
+    // error code
+    0x05, 0x06, 0x07, 0x08,
+    // error details length
+    0x00, 0x0d,
+    // error details
+    'b',  'e',  'c',  'a',
+    'u',  's',  'e',  ' ',
+    'I',  ' ',  'c',  'a',
+    'n',
+  };
+
+  unsigned char packet46[] = {
+    // type (short header, 4 byte packet number)
+    0x43,
+    // connection_id
+    0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+    // packet number
+    0x12, 0x34, 0x56, 0x78,
+
+    // frame type (connection close frame)
+    0x02,
+    // error code
+    0x05, 0x06, 0x07, 0x08,
+    // error details length
+    0x00, 0x0d,
+    // error details
+    'b',  'e',  'c',  'a',
+    'u',  's',  'e',  ' ',
+    'I',  ' ',  'c',  'a',
+    'n',
+  };
+
+  unsigned char packet99[] = {
+    // type (short header, 4 byte packet number)
+    0x43,
+    // connection_id
+    0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+    // packet number
+    0x12, 0x34, 0x56, 0x78,
+
+    // frame type (IETF_CONNECTION_CLOSE frame)
+    0x1c,
+    // error code
+    kVarInt62OneByte + 0x11,
+    // Frame type within the CONNECTION_CLOSE frame
+    kVarInt62OneByte + 0x05,
+    // error details length
+    kVarInt62OneByte + 0x13,
+    // error details
+    '1',  '7',  '7',  '6',
+    '7',  ':',  'b',  'e',
+    'c',  'a',  'u',  's',
+    'e',  ' ',  'I',  ' ',
+    'c',  'a',  'n'
   };
   // clang-format on
 
@@ -14427,6 +14791,40 @@ TEST_P(QuicFramerTest, ProcessAndValidateIetfConnectionIdLengthServer) {
   EXPECT_EQ(8, destination_connection_id_length);
   EXPECT_EQ(0, source_connection_id_length);
   EXPECT_EQ("", detailed_error);
+}
+
+TEST_P(QuicFramerTest, TestExtendedErrorCodeParser) {
+  if (VersionHasIetfQuicFrames(framer_.transport_version())) {
+    return;
+  }
+  EXPECT_EQ(QUIC_IETF_GQUIC_ERROR_MISSING,
+            MaybeExtractQuicErrorCode("this has no error code info in it"));
+  EXPECT_EQ(
+      QUIC_IETF_GQUIC_ERROR_MISSING,
+      MaybeExtractQuicErrorCode("1234this does not have the colon in it"));
+  EXPECT_EQ(QUIC_IETF_GQUIC_ERROR_MISSING,
+            MaybeExtractQuicErrorCode(
+                "1a234:this has a colon, but a malformed error number"));
+  EXPECT_EQ(1234u, MaybeExtractQuicErrorCode("1234:this is good"));
+  EXPECT_EQ(QUIC_IETF_GQUIC_ERROR_MISSING,
+            MaybeExtractQuicErrorCode(
+                "1234 :this is not good, space between last digit and colon"));
+  EXPECT_EQ(
+      QUIC_IETF_GQUIC_ERROR_MISSING,
+      MaybeExtractQuicErrorCode("123456789"));  // Not good, all numbers, no :
+  EXPECT_EQ(1234u, MaybeExtractQuicErrorCode("1234:"));  // corner case.
+  EXPECT_EQ(1234u,
+            MaybeExtractQuicErrorCode("1234:5678"));  // another corner case.
+  EXPECT_EQ(QUIC_IETF_GQUIC_ERROR_MISSING,
+            MaybeExtractQuicErrorCode("12345 6789:"));  // Not good
+  EXPECT_EQ(QUIC_IETF_GQUIC_ERROR_MISSING,
+            MaybeExtractQuicErrorCode(":no numbers, is not good"));
+  EXPECT_EQ(QUIC_IETF_GQUIC_ERROR_MISSING,
+            MaybeExtractQuicErrorCode("qwer:also no numbers, is not good"));
+  EXPECT_EQ(QUIC_IETF_GQUIC_ERROR_MISSING,
+            MaybeExtractQuicErrorCode(
+                " 1234:this is not good, space before first digit"));
+  EXPECT_EQ(1234u, MaybeExtractQuicErrorCode("1234:"));  // this is good
 }
 
 }  // namespace

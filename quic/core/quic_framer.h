@@ -1091,6 +1091,14 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   uint32_t local_ack_delay_exponent_;
 };
 
+// Look for and parse the error code from the "<quic_error_code>:" text that
+// may be present at the start of the CONNECTION_CLOSE error details string.
+// This text, inserted by the peer if it's using Google's QUIC implementation,
+// contains additional error information that narrows down the exact error. If
+// the string is not found, or is not properly formed, it returns
+// ErrorCode::QUIC_IETF_GQUIC_ERROR_MISSING
+QuicErrorCode MaybeExtractQuicErrorCode(QuicStringPiece error_details);
+
 }  // namespace quic
 
 #endif  // QUICHE_QUIC_CORE_QUIC_FRAMER_H_

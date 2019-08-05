@@ -456,6 +456,17 @@ PacketHeaderFormat GetIetfPacketHeaderFormat(uint8_t type_byte) {
                                        : IETF_QUIC_SHORT_HEADER_PACKET;
 }
 
+std::string GenerateErrorString(std::string initial_error_string,
+                                QuicErrorCode quic_error_code) {
+  if (quic_error_code == QUIC_IETF_GQUIC_ERROR_MISSING) {
+    // QUIC_IETF_GQUIC_ERROR_MISSING is special -- it means not to encode
+    // the error value in the string.
+    return initial_error_string;
+  }
+  return QuicStrCat(std::to_string(static_cast<unsigned>(quic_error_code)), ":",
+                    initial_error_string);
+}
+
 }  // namespace
 
 QuicFramer::QuicFramer(const ParsedQuicVersionVector& supported_versions,
@@ -577,18 +588,19 @@ size_t QuicFramer::GetConnectionCloseFrameSize(
            kQuicErrorDetailsLengthSize +
            TruncatedErrorStringSize(frame.error_details);
   }
-  // TODO(fkastenholz): For complete support of IETF QUIC CONNECTION_CLOSE,
-  // check if the frame is a Transport close and if the frame's
-  // extracted_error_code is not QUIC_IETF_GQUIC_ERROR_MISSING. If so,
-  // extend the error string to include " QuicErrorCode: #"
-  const size_t truncated_error_string_size =
-      TruncatedErrorStringSize(frame.error_details);
+
+  // Prepend the extra error information to the string and get the result's
+  // length.
+  const size_t truncated_error_string_size = TruncatedErrorStringSize(
+      GenerateErrorString(frame.error_details, frame.extracted_error_code));
+
   uint64_t close_code = 0;
   if (frame.close_type == IETF_QUIC_TRANSPORT_CONNECTION_CLOSE) {
     close_code = static_cast<uint64_t>(frame.transport_error_code);
   } else if (frame.close_type == IETF_QUIC_APPLICATION_CONNECTION_CLOSE) {
     close_code = static_cast<uint64_t>(frame.application_error_code);
   }
+
   const size_t frame_size =
       truncated_error_string_size +
       QuicDataWriter::GetVarInt62Len(truncated_error_string_size) +
@@ -596,7 +608,8 @@ size_t QuicFramer::GetConnectionCloseFrameSize(
   if (frame.close_type == IETF_QUIC_APPLICATION_CONNECTION_CLOSE) {
     return frame_size;
   }
-  // frame includes the transport_close_frame_type, so include its length.
+  // The Transport close frame has the transport_close_frame_type, so include
+  // its length.
   return frame_size +
          QuicDataWriter::GetVarInt62Len(frame.transport_close_frame_type);
 }
@@ -5755,12 +5768,13 @@ bool QuicFramer::AppendIetfConnectionCloseFrame(
     }
   }
 
-  // TODO(fkastenholz): For full IETF CONNECTION CLOSE support,
-  // if this is a Transport CONNECTION_CLOSE and the extended
-  // error is not QUIC_IETF_GQUIC_ERROR_MISSING then append the extended
-  // "QuicErrorCode: #" string to the phrase.
+  // There may be additional error information available in the extracted error
+  // code. Encode the error information in the reason phrase and serialize the
+  // result.
+  std::string final_error_string =
+      GenerateErrorString(frame.error_details, frame.extracted_error_code);
   if (!writer->WriteStringPieceVarInt62(
-          TruncateErrorString(frame.error_details))) {
+          TruncateErrorString(final_error_string))) {
     set_detailed_error("Can not write connection close phrase");
     return false;
   }
@@ -5773,11 +5787,14 @@ bool QuicFramer::ProcessIetfConnectionCloseFrame(
     QuicConnectionCloseFrame* frame) {
   frame->close_type = type;
   uint64_t error_code;
+
   if (!reader->ReadVarInt62(&error_code)) {
     set_detailed_error("Unable to read connection close error code.");
     return false;
   }
 
+  // TODO(fkastenholz): When error codes uniformly go to uint64, remove the
+  // range check.
   if (frame->close_type == IETF_QUIC_TRANSPORT_CONNECTION_CLOSE) {
     if (error_code > 0xffff) {
       frame->transport_error_code =
@@ -5796,6 +5813,7 @@ bool QuicFramer::ProcessIetfConnectionCloseFrame(
       frame->application_error_code = static_cast<uint16_t>(error_code);
     }
   }
+
   if (type == IETF_QUIC_TRANSPORT_CONNECTION_CLOSE) {
     // The frame-type of the frame causing the error is present only
     // if it's a CONNECTION_CLOSE/Transport.
@@ -5810,16 +5828,18 @@ bool QuicFramer::ProcessIetfConnectionCloseFrame(
     set_detailed_error("Unable to read connection close error details.");
     return false;
   }
+
   QuicStringPiece phrase;
   if (!reader->ReadStringPiece(&phrase, static_cast<size_t>(phrase_length))) {
     set_detailed_error("Unable to read connection close error details.");
     return false;
   }
-  // TODO(fkastenholz): when full support is done, add code here
-  // to extract the extended error code from the reason phrase
-  // and set it into frame->extracted_error_code.
   frame->error_details = std::string(phrase);
 
+  // The frame may have an extracted error code in it. Look for it and
+  // extract it. If it's not present, MaybeExtract will return
+  // QUIC_IETF_GQUIC_ERROR_MISSING.
+  frame->extracted_error_code = MaybeExtractQuicErrorCode(phrase);
   return true;
 }
 
@@ -6771,6 +6791,22 @@ bool QuicFramer::ParseServerVersionNegotiationProbeResponse(
   *source_connection_id_length_out = source_connection_id.length();
 
   return true;
+}
+
+// Look for and parse the error code from the "<quic_error_code>:" text that
+// may be present at the start of the CONNECTION_CLOSE error details string.
+// This text, inserted by the peer if it's using Google's QUIC implementation,
+// contains additional error information that narrows down the exact error.  If
+// the string is not found, or is not properly formed, it returns
+// ErrorCode::QUIC_IETF_GQUIC_ERROR_MISSING
+QuicErrorCode MaybeExtractQuicErrorCode(QuicStringPiece error_details) {
+  std::vector<QuicStringPiece> ed = QuicTextUtils::Split(error_details, ':');
+  uint64_t extracted_error_code;
+  if (ed.size() < 2 || !QuicTextUtils::IsAllDigits(ed[0]) ||
+      !QuicTextUtils::StringToUint64(ed[0], &extracted_error_code)) {
+    return QUIC_IETF_GQUIC_ERROR_MISSING;
+  }
+  return static_cast<QuicErrorCode>(extracted_error_code);
 }
 
 #undef ENDPOINT  // undef for jumbo builds
