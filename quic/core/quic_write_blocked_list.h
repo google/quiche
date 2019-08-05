@@ -16,6 +16,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
 #include "net/third_party/quiche/src/spdy/core/fifo_write_scheduler.h"
 #include "net/third_party/quiche/src/spdy/core/http2_priority_write_scheduler.h"
+#include "net/third_party/quiche/src/spdy/core/lifo_write_scheduler.h"
 #include "net/third_party/quiche/src/spdy/core/priority_write_scheduler.h"
 
 namespace quic {
@@ -79,6 +80,10 @@ class QUIC_EXPORT_PRIVATE QuicWriteBlockedList {
     QUIC_DVLOG(1) << "Switching to scheduler type: "
                   << spdy::WriteSchedulerTypeToString(type);
     switch (type) {
+      case spdy::WriteSchedulerType::LIFO:
+        priority_write_scheduler_ =
+            QuicMakeUnique<spdy::LifoWriteScheduler<QuicStreamId>>();
+        break;
       case spdy::WriteSchedulerType::SPDY:
         priority_write_scheduler_ =
             QuicMakeUnique<spdy::PriorityWriteScheduler<QuicStreamId>>(
@@ -209,6 +214,8 @@ class QUIC_EXPORT_PRIVATE QuicWriteBlockedList {
   bool PrecedenceMatchesSchedulerType(
       const spdy::SpdyStreamPrecedence& precedence) {
     switch (scheduler_type_) {
+      case spdy::WriteSchedulerType::LIFO:
+        break;
       case spdy::WriteSchedulerType::SPDY:
         return precedence.is_spdy3_priority();
       case spdy::WriteSchedulerType::HTTP2:

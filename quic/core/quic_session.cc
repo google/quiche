@@ -1014,6 +1014,14 @@ void QuicSession::OnConfigNegotiated() {
                 connection_->transport_version())) {
           QUIC_RELOADABLE_FLAG_COUNT(quic_enable_fifo_write_scheduler);
         }
+      } else if (GetQuicReloadableFlag(quic_enable_lifo_write_scheduler) &&
+                 ContainsQuicTag(config_.ReceivedConnectionOptions(), kLIFO)) {
+        // Enable LIFO write scheduler.
+        if (write_blocked_streams_.SwitchWriteScheduler(
+                spdy::WriteSchedulerType::LIFO,
+                connection_->transport_version())) {
+          QUIC_RELOADABLE_FLAG_COUNT(quic_enable_lifo_write_scheduler);
+        }
       }
     }
 

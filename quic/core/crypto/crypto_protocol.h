@@ -201,6 +201,8 @@ const QuicTag kMTUL = TAG('M', 'T', 'U', 'L');  // Low-target MTU discovery.
 const QuicTag kH2PR = TAG('H', '2', 'P', 'R');  // HTTP2 priorities.
 const QuicTag kFIFO = TAG('F', 'I', 'F', 'O');  // Stream with the smallest ID
                                                 // has the highest priority.
+const QuicTag kLIFO = TAG('L', 'I', 'F', 'O');  // Stream with the largest ID
+                                                // has the highest priority.
 
 // Proof types (i.e. certificate types)
 // NOTE: although it would be silly to do so, specifying both kX509 and kX59R

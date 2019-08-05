@@ -158,7 +158,7 @@ std::vector<TestParams> GetTestParams(bool use_tls_handshake) {
         continue;
       }
       for (const QuicTag priority_tag :
-           {/*no tag*/ static_cast<QuicTag>(0), kH2PR, kFIFO}) {
+           {/*no tag*/ static_cast<QuicTag>(0), kH2PR, kFIFO, kLIFO}) {
         // Add an entry for server and client supporting all versions.
         params.push_back(TestParams(client_versions, all_supported_versions,
                                     client_versions.front(),
