@@ -203,6 +203,7 @@ enum class WriteSchedulerType {
          // https://www.chromium.org/spdy/spdy-protocol/spdy-protocol-draft3-1#TOC-2.3.3-Stream-priority.
   HTTP2,  // Uses HTTP2 (tree-style) priority described in
           // https://tools.ietf.org/html/rfc7540#section-5.3.
+  FIFO,   // Stream with the smallest stream ID has the highest priority.
 };
 
 // A SPDY priority is a number between 0 and 7 (inclusive).
@@ -283,6 +284,9 @@ SPDY_EXPORT_PRIVATE SpdyErrorCode ParseErrorCode(uint32_t wire_error_code);
 // Serialize RST_STREAM or GOAWAY frame error code to string
 // for logging/debugging.
 const char* ErrorCodeToString(SpdyErrorCode error_code);
+
+// Serialize |type| to string for logging/debugging.
+const char* WriteSchedulerTypeToString(WriteSchedulerType type);
 
 // Minimum size of a frame, in octets.
 const size_t kFrameMinimumSize = kFrameHeaderSize;

@@ -22,7 +22,9 @@ class QuicWriteBlockedListTest : public QuicTestWithParam<bool> {
   QuicWriteBlockedListTest()
       : write_blocked_list_(AllSupportedVersions()[0].transport_version) {
     if (GetParam()) {
-      write_blocked_list_.UseHttp2PriorityScheduler();
+      write_blocked_list_.SwitchWriteScheduler(
+          spdy::WriteSchedulerType::HTTP2,
+          AllSupportedVersions()[0].transport_version);
     }
   }
 

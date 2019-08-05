@@ -14,7 +14,9 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_map_util.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
+#include "net/third_party/quiche/src/spdy/core/fifo_write_scheduler.h"
 #include "net/third_party/quiche/src/spdy/core/http2_priority_write_scheduler.h"
+#include "net/third_party/quiche/src/spdy/core/priority_write_scheduler.h"
 
 namespace quic {
 
@@ -63,20 +65,41 @@ class QUIC_EXPORT_PRIVATE QuicWriteBlockedList {
     return priority_write_scheduler_->ShouldYield(id);
   }
 
-  // Uses HTTP2 (tree-style) priority scheduler. This can only be called before
-  // any stream is registered.
-  bool UseHttp2PriorityScheduler() {
-    if (scheduler_type_ == spdy::WriteSchedulerType::HTTP2) {
+  // Switches write scheduler. This can only be called before any stream is
+  // registered.
+  bool SwitchWriteScheduler(spdy::WriteSchedulerType type,
+                            QuicTransportVersion version) {
+    if (scheduler_type_ == type) {
       return true;
     }
     if (priority_write_scheduler_->NumRegisteredStreams() != 0) {
       QUIC_BUG << "Cannot switch scheduler with registered streams";
       return false;
     }
-    QUIC_DVLOG(1) << "Using HTTP2 Priority Scheduler";
-    priority_write_scheduler_ =
-        QuicMakeUnique<spdy::Http2PriorityWriteScheduler<QuicStreamId>>();
-    scheduler_type_ = spdy::WriteSchedulerType::HTTP2;
+    QUIC_DVLOG(1) << "Switching to scheduler type: "
+                  << spdy::WriteSchedulerTypeToString(type);
+    switch (type) {
+      case spdy::WriteSchedulerType::SPDY:
+        priority_write_scheduler_ =
+            QuicMakeUnique<spdy::PriorityWriteScheduler<QuicStreamId>>(
+                QuicVersionUsesCryptoFrames(version)
+                    ? std::numeric_limits<QuicStreamId>::max()
+                    : 0);
+        break;
+      case spdy::WriteSchedulerType::HTTP2:
+        priority_write_scheduler_ =
+            QuicMakeUnique<spdy::Http2PriorityWriteScheduler<QuicStreamId>>();
+        break;
+      case spdy::WriteSchedulerType::FIFO:
+        priority_write_scheduler_ =
+            QuicMakeUnique<spdy::FifoWriteScheduler<QuicStreamId>>();
+        break;
+      default:
+        QUIC_BUG << "Scheduler is not supported for type: "
+                 << spdy::WriteSchedulerTypeToString(type);
+        return false;
+    }
+    scheduler_type_ = type;
     return true;
   }
 
@@ -92,8 +115,8 @@ class QUIC_EXPORT_PRIVATE QuicWriteBlockedList {
     const auto id_and_precedence =
         priority_write_scheduler_->PopNextReadyStreamAndPrecedence();
     const QuicStreamId id = std::get<0>(id_and_precedence);
-    if (scheduler_type_ == spdy::WriteSchedulerType::HTTP2) {
-      // No batch writing logic when using HTTP2 priorities.
+    if (scheduler_type_ != spdy::WriteSchedulerType::SPDY) {
+      // No batch writing logic for non-SPDY priority write scheduler.
       return id;
     }
     const spdy::SpdyPriority priority =
@@ -144,7 +167,7 @@ class QUIC_EXPORT_PRIVATE QuicWriteBlockedList {
   }
 
   void UpdateBytesForStream(QuicStreamId stream_id, size_t bytes) {
-    if (scheduler_type_ == spdy::WriteSchedulerType::HTTP2) {
+    if (scheduler_type_ != spdy::WriteSchedulerType::SPDY) {
       return;
     }
     if (batch_write_stream_id_[last_priority_popped_] == stream_id) {
@@ -185,10 +208,18 @@ class QUIC_EXPORT_PRIVATE QuicWriteBlockedList {
  private:
   bool PrecedenceMatchesSchedulerType(
       const spdy::SpdyStreamPrecedence& precedence) {
-    if (precedence.is_spdy3_priority()) {
-      return scheduler_type_ == spdy::WriteSchedulerType::SPDY;
+    switch (scheduler_type_) {
+      case spdy::WriteSchedulerType::SPDY:
+        return precedence.is_spdy3_priority();
+      case spdy::WriteSchedulerType::HTTP2:
+        return !precedence.is_spdy3_priority();
+      case spdy::WriteSchedulerType::FIFO:
+        break;
+      default:
+        DCHECK(false);
+        return false;
     }
-    return scheduler_type_ == spdy::WriteSchedulerType::HTTP2;
+    return true;
   }
 
   std::unique_ptr<QuicPriorityWriteScheduler> priority_write_scheduler_;

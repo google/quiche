@@ -229,6 +229,20 @@ const char* ErrorCodeToString(SpdyErrorCode error_code) {
   return "UNKNOWN_ERROR_CODE";
 }
 
+const char* WriteSchedulerTypeToString(WriteSchedulerType type) {
+  switch (type) {
+    case WriteSchedulerType::LIFO:
+      return "LIFO";
+    case WriteSchedulerType::SPDY:
+      return "SPDY";
+    case WriteSchedulerType::HTTP2:
+      return "HTTP2";
+    case WriteSchedulerType::FIFO:
+      return "FIFO";
+  }
+  return "UNKNOWN";
+}
+
 size_t GetNumberRequiredContinuationFrames(size_t size) {
   DCHECK_GT(size, kHttp2MaxControlFrameSendSize);
   size_t overflow = size - kHttp2MaxControlFrameSendSize;

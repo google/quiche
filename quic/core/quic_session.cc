@@ -998,12 +998,22 @@ void QuicSession::OnConfigNegotiated() {
       if (ContainsQuicTag(config_.ReceivedConnectionOptions(), kIFWA)) {
         AdjustInitialFlowControlWindows(1024 * 1024);
       }
-      // Enable HTTP2 (tree-style) priority write scheduler.
       if (GetQuicReloadableFlag(quic_use_http2_priority_write_scheduler) &&
           ContainsQuicTag(config_.ReceivedConnectionOptions(), kH2PR) &&
           !VersionHasIetfQuicFrames(connection_->transport_version())) {
+        // Enable HTTP2 (tree-style) priority write scheduler.
         use_http2_priority_write_scheduler_ =
-            write_blocked_streams_.UseHttp2PriorityScheduler();
+            write_blocked_streams_.SwitchWriteScheduler(
+                spdy::WriteSchedulerType::HTTP2,
+                connection_->transport_version());
+      } else if (GetQuicReloadableFlag(quic_enable_fifo_write_scheduler) &&
+                 ContainsQuicTag(config_.ReceivedConnectionOptions(), kFIFO)) {
+        // Enable FIFO write scheduler.
+        if (write_blocked_streams_.SwitchWriteScheduler(
+                spdy::WriteSchedulerType::FIFO,
+                connection_->transport_version())) {
+          QUIC_RELOADABLE_FLAG_COUNT(quic_enable_fifo_write_scheduler);
+        }
       }
     }
 

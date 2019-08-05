@@ -85,11 +85,13 @@ struct TestParams {
   TestParams(const ParsedQuicVersionVector& client_supported_versions,
              const ParsedQuicVersionVector& server_supported_versions,
              ParsedQuicVersion negotiated_version,
-             QuicTag congestion_control_tag)
+             QuicTag congestion_control_tag,
+             QuicTag priority_tag)
       : client_supported_versions(client_supported_versions),
         server_supported_versions(server_supported_versions),
         negotiated_version(negotiated_version),
-        congestion_control_tag(congestion_control_tag) {}
+        congestion_control_tag(congestion_control_tag),
+        priority_tag(priority_tag) {}
 
   friend std::ostream& operator<<(std::ostream& os, const TestParams& p) {
     os << "{ server_supported_versions: "
@@ -99,7 +101,8 @@ struct TestParams {
     os << " negotiated_version: "
        << ParsedQuicVersionToString(p.negotiated_version);
     os << " congestion_control_tag: "
-       << QuicTagToString(p.congestion_control_tag) << " }";
+       << QuicTagToString(p.congestion_control_tag);
+    os << " priority_tag: " << QuicTagToString(p.priority_tag) << " }";
     return os;
   }
 
@@ -107,6 +110,7 @@ struct TestParams {
   ParsedQuicVersionVector server_supported_versions;
   ParsedQuicVersion negotiated_version;
   QuicTag congestion_control_tag;
+  QuicTag priority_tag;
 };
 
 // Constructs various test permutations.
@@ -153,28 +157,32 @@ std::vector<TestParams> GetTestParams(bool use_tls_handshake) {
       if (FilterSupportedVersions(client_versions).empty()) {
         continue;
       }
-      // Add an entry for server and client supporting all versions.
-      params.push_back(TestParams(client_versions, all_supported_versions,
-                                  client_versions.front(),
-                                  congestion_control_tag));
+      for (const QuicTag priority_tag :
+           {/*no tag*/ static_cast<QuicTag>(0), kH2PR, kFIFO}) {
+        // Add an entry for server and client supporting all versions.
+        params.push_back(TestParams(client_versions, all_supported_versions,
+                                    client_versions.front(),
+                                    congestion_control_tag, priority_tag));
 
-      // Test client supporting all versions and server supporting
-      // 1 version. Simulate an old server and exercise version
-      // downgrade in the client. Protocol negotiation should
-      // occur.  Skip the i = 0 case because it is essentially the
-      // same as the default case.
-      for (size_t i = 1; i < client_versions.size(); ++i) {
-        ParsedQuicVersionVector server_supported_versions;
-        server_supported_versions.push_back(client_versions[i]);
-        if (FilterSupportedVersions(server_supported_versions).empty()) {
-          continue;
-        }
-        params.push_back(TestParams(client_versions, server_supported_versions,
-                                    server_supported_versions.front(),
-                                    congestion_control_tag));
-      }  // End of inner version loop.
-    }    // End of outer version loop.
-  }      // End of congestion_control_tag loop.
+        // Test client supporting all versions and server supporting
+        // 1 version. Simulate an old server and exercise version
+        // downgrade in the client. Protocol negotiation should
+        // occur.  Skip the i = 0 case because it is essentially the
+        // same as the default case.
+        for (size_t i = 1; i < client_versions.size(); ++i) {
+          ParsedQuicVersionVector server_supported_versions;
+          server_supported_versions.push_back(client_versions[i]);
+          if (FilterSupportedVersions(server_supported_versions).empty()) {
+            continue;
+          }
+          params.push_back(TestParams(client_versions,
+                                      server_supported_versions,
+                                      server_supported_versions.front(),
+                                      congestion_control_tag, priority_tag));
+        }  // End of inner version loop.
+      }    // End of priority_tag loop.
+    }      // End of outer version loop.
+  }        // End of congestion_control_tag loop.
 
   return params;
 }
@@ -343,9 +351,7 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
         GetQuicReloadableFlag(quic_enable_pcc3)) {
       copt.push_back(kTPCC);
     }
-    // TODO(fayang): Move this to GetTestParams when other priority connection
-    // opts are supported.
-    copt.push_back(kH2PR);
+    copt.push_back(GetParam().priority_tag);
 
     client_config_.SetConnectionOptionsToSend(copt);
 
