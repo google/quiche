@@ -1353,7 +1353,8 @@ PendingStream* QuicSession::GetOrCreatePendingStream(QuicStreamId stream_id) {
 
 QuicStream* QuicSession::GetOrCreateDynamicStream(
     const QuicStreamId stream_id) {
-  DCHECK(!GetQuicReloadableFlag(quic_inline_getorcreatedynamicstream));
+  DCHECK(!GetQuicReloadableFlag(quic_inline_getorcreatedynamicstream) ||
+         !GetQuicReloadableFlag(quic_handle_staticness_for_spdy_stream));
   StreamMap::iterator it = stream_map_.find(stream_id);
   if (it != stream_map_.end()) {
     return it->second.get();
