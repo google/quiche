@@ -171,7 +171,7 @@ class QUIC_EXPORT_PRIVATE QuicStreamSequencer {
 
   // If we've received a FIN and have processed all remaining data, then inform
   // the stream of FIN, and clear buffers.
-  bool MaybeCloseStream();
+  void MaybeCloseStream();
 
   // Shared implementation between OnStreamFrame and OnCryptoFrame.
   void OnFrameData(QuicStreamOffset byte_offset,

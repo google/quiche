@@ -124,9 +124,9 @@ void QuicStreamSequencer::CloseStreamAtOffset(QuicStreamOffset offset) {
   MaybeCloseStream();
 }
 
-bool QuicStreamSequencer::MaybeCloseStream() {
+void QuicStreamSequencer::MaybeCloseStream() {
   if (blocked_ || !IsClosed()) {
-    return false;
+    return;
   }
 
   QUIC_DVLOG(1) << "Passing up termination, as we've processed "
@@ -143,7 +143,6 @@ bool QuicStreamSequencer::MaybeCloseStream() {
     stream_->OnDataAvailable();
   }
   buffered_frames_.Clear();
-  return true;
 }
 
 int QuicStreamSequencer::GetReadableRegions(iovec* iov, size_t iov_len) const {
