@@ -10,6 +10,7 @@
 
 #include "net/third_party/quiche/src/spdy/core/write_scheduler.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_containers.h"
+#include "net/third_party/quiche/src/spdy/platform/api/spdy_string.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_utils.h"
 
 namespace spdy {
@@ -79,7 +80,7 @@ class LifoWriteScheduler : public WriteScheduler<StreamIdType> {
   size_t NumReadyStreams() const override { return ready_streams_.size(); }
   bool IsStreamReady(StreamIdType stream_id) const override;
   size_t NumRegisteredStreams() const override;
-  string DebugString() const override;
+  SpdyString DebugString() const override;
 
  private:
   friend class test::LifoWriteSchedulerPeer<StreamIdType>;
