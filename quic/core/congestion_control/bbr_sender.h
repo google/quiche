@@ -25,8 +25,6 @@ namespace quic {
 
 class RttStats;
 
-typedef uint64_t QuicRoundTripCount;
-
 // BbrSender implements BBR congestion control algorithm.  BBR aims to estimate
 // the current available Bottleneck Bandwidth and RTT (hence the name), and
 // regulates the pacing rate and the size of the congestion window based on
@@ -401,6 +399,8 @@ class QUIC_EXPORT_PRIVATE BbrSender : public SendAlgorithmInterface {
   bool probe_rtt_disabled_if_app_limited_;
   bool app_limited_since_last_probe_rtt_;
   QuicTime::Delta min_rtt_since_last_probe_rtt_;
+  // Latched value of --quic_track_ack_height_in_bandwidth_sampler.
+  const bool quic_track_ack_height_in_bandwidth_sampler_;
 };
 
 QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,

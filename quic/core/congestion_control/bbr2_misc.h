@@ -20,8 +20,6 @@
 
 namespace quic {
 
-typedef uint64_t QuicRoundTripCount;
-
 template <typename T>
 class QUIC_EXPORT_PRIVATE Limits {
  public:
@@ -272,32 +270,6 @@ struct QUIC_EXPORT_PRIVATE Bbr2CongestionEvent {
 QUIC_EXPORT_PRIVATE const SendTimeState& SendStateOfLargestPacket(
     const Bbr2CongestionEvent& congestion_event);
 
-class QUIC_EXPORT_PRIVATE Bbr2MaxAckHeightTracker {
- public:
-  explicit Bbr2MaxAckHeightTracker(QuicRoundTripCount initial_filter_window)
-      : max_ack_height_filter_(initial_filter_window, 0, 0) {}
-
-  QuicByteCount Get() const { return max_ack_height_filter_.GetBest(); }
-
-  QuicByteCount Update(const QuicBandwidth& bandwidth_estimate,
-                       QuicRoundTripCount round_trip_count,
-                       QuicTime ack_time,
-                       QuicByteCount bytes_acked);
-
- private:
-  // Tracks the maximum number of bytes acked faster than the sending rate.
-  typedef WindowedFilter<QuicByteCount,
-                         MaxFilter<QuicByteCount>,
-                         QuicRoundTripCount,
-                         QuicRoundTripCount>
-      MaxAckHeightFilter;
-  MaxAckHeightFilter max_ack_height_filter_;
-
-  // The time this aggregation started and the number of bytes acked during it.
-  QuicTime aggregation_epoch_start_time_ = QuicTime::Zero();
-  QuicByteCount aggregation_epoch_bytes_ = 0;
-};
-
 // Bbr2NetworkModel takes low level congestion signals(packets sent/acked/lost)
 // as input and produces BBRv2 model parameters like inflight_(hi|lo),
 // bandwidth_(hi|lo), bandwidth and rtt estimates, etc.
@@ -353,7 +325,9 @@ class QUIC_EXPORT_PRIVATE Bbr2NetworkModel {
 
   QuicBandwidth MaxBandwidth() const { return max_bandwidth_filter_.Get(); }
 
-  QuicByteCount MaxAckHeight() const { return max_ack_height_tracker_.Get(); }
+  QuicByteCount MaxAckHeight() const {
+    return bandwidth_sampler_.max_ack_height();
+  }
 
   bool MaybeExpireMinRtt(const Bbr2CongestionEvent& congestion_event);
 
@@ -432,8 +406,6 @@ class QUIC_EXPORT_PRIVATE Bbr2NetworkModel {
   // trips.
   Bbr2MaxBandwidthFilter max_bandwidth_filter_;
   MinRttFilter min_rtt_filter_;
-
-  Bbr2MaxAckHeightTracker max_ack_height_tracker_;
 
   // Bytes lost in the current round. Updated once per congestion event.
   QuicByteCount bytes_lost_in_round_ = 0;

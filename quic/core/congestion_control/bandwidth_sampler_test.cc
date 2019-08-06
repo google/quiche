@@ -32,7 +32,8 @@ static_assert((kRegularPacketSize & 31) == 0,
 // A test fixture with utility methods for BandwidthSampler tests.
 class BandwidthSamplerTest : public QuicTest {
  protected:
-  BandwidthSamplerTest() : bytes_in_flight_(0) {
+  BandwidthSamplerTest()
+      : sampler_(/*max_height_tracker_window_length=*/0), bytes_in_flight_(0) {
     // Ensure that the clock does not start at zero.
     clock_.AdvanceTime(QuicTime::Delta::FromSeconds(1));
   }
