@@ -15,8 +15,6 @@ namespace {
 // Sensitivity in response to losses. 0 means no loss response.
 // 0.3 is also used by TCP bbr and cubic.
 const float kBeta = 0.3;
-
-const QuicTime::Delta kMinRttExpiry = QuicTime::Delta::FromSeconds(10);
 }  // namespace
 
 RoundTripCounter::RoundTripCounter() : round_trip_count_(0) {}
@@ -264,7 +262,8 @@ void Bbr2NetworkModel::UpdateNetworkParameters(QuicBandwidth bandwidth,
 
 bool Bbr2NetworkModel::MaybeExpireMinRtt(
     const Bbr2CongestionEvent& congestion_event) {
-  if (congestion_event.event_time < (MinRttTimestamp() + kMinRttExpiry)) {
+  if (congestion_event.event_time <
+      (MinRttTimestamp() + Params().probe_rtt_period)) {
     return false;
   }
   if (congestion_event.sample_min_rtt.IsInfinite()) {

@@ -15,6 +15,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_time.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/quic/platform/impl/quic_export_impl.h"
 
 namespace quic {
@@ -111,11 +112,13 @@ struct QUIC_EXPORT_PRIVATE Bbr2Params {
 
   // Minimum duration for BBR-native probes.
   QuicTime::Delta probe_bw_probe_base_duration =
-      QuicTime::Delta::FromSeconds(2);
+      QuicTime::Delta::FromMilliseconds(
+          GetQuicFlag(FLAGS_quic_bbr2_default_probe_bw_base_duration_ms));
 
-  // The upper bound of the random amound of BBR-native probes.
+  // The upper bound of the random amount of BBR-native probes.
   QuicTime::Delta probe_bw_probe_max_rand_duration =
-      QuicTime::Delta::FromSeconds(1);
+      QuicTime::Delta::FromMilliseconds(
+          GetQuicFlag(FLAGS_quic_bbr2_default_probe_bw_max_rand_duration_ms));
 
   // Multiplier to get target inflight (as multiple of BDP) for PROBE_UP phase.
   float probe_bw_probe_inflight_gain = 1.25;
@@ -131,6 +134,8 @@ struct QUIC_EXPORT_PRIVATE Bbr2Params {
    * PROBE_RTT parameters.
    */
   float probe_rtt_inflight_target_bdp_fraction = 0.5;
+  QuicTime::Delta probe_rtt_period = QuicTime::Delta::FromMilliseconds(
+      GetQuicFlag(FLAGS_quic_bbr2_default_probe_rtt_period_ms));
   QuicTime::Delta probe_rtt_duration = QuicTime::Delta::FromMilliseconds(200);
 
   /*
