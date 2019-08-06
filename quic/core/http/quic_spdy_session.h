@@ -50,7 +50,7 @@ class QUIC_EXPORT_PRIVATE QuicHpackDebugVisitor {
   virtual void OnUseEntry(QuicTime::Delta elapsed) = 0;
 };
 
-// A QUIC session with a headers stream.
+// A QUIC session for HTTP.
 class QUIC_EXPORT_PRIVATE QuicSpdySession
     : public QuicSession,
       public QpackEncoder::DecoderStreamErrorDelegate,

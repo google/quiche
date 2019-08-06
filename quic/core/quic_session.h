@@ -290,19 +290,19 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
     return connection_->connection_id();
   }
 
-  // Returns the number of currently open streams, excluding the reserved
-  // headers and crypto streams, and never counting unfinished streams.
+  // Returns the number of currently open streams, excluding static streams, and
+  // never counting unfinished streams.
   size_t GetNumActiveStreams() const;
 
   // Returns the number of currently draining streams.
   size_t GetNumDrainingStreams() const;
 
-  // Returns the number of currently open peer initiated streams, excluding the
-  // reserved headers and crypto streams.
+  // Returns the number of currently open peer initiated streams, excluding
+  // static streams.
   size_t GetNumOpenIncomingStreams() const;
 
-  // Returns the number of currently open self initiated streams, excluding the
-  // reserved headers and crypto streams.
+  // Returns the number of currently open self initiated streams, excluding
+  // static streams.
   size_t GetNumOpenOutgoingStreams() const;
 
   // Returns the number of open peer initiated static streams.
