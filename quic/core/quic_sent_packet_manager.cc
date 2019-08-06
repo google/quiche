@@ -159,17 +159,29 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
   if (config.HasClientSentConnectionOption(kMAD1, perspective)) {
     rtt_stats_.set_initial_max_ack_delay(peer_max_ack_delay_);
   }
-  if (config.HasClientSentConnectionOption(kMAD2, perspective)) {
-    min_tlp_timeout_ = QuicTime::Delta::Zero();
-  }
-  if (config.HasClientSentConnectionOption(kMAD3, perspective)) {
-    min_rto_timeout_ = QuicTime::Delta::Zero();
-  }
-  if (config.HasClientSentConnectionOption(kMAD4, perspective)) {
-    ietf_style_tlp_ = true;
-  }
-  if (config.HasClientSentConnectionOption(kMAD5, perspective)) {
-    ietf_style_2x_tlp_ = true;
+  if (GetQuicReloadableFlag(quic_sent_packet_manager_cleanup)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_sent_packet_manager_cleanup);
+    if (config.HasClientSentConnectionOption(kMAD2, perspective)) {
+      // Set the minimum to the alarm granularity.
+      min_tlp_timeout_ = QuicTime::Delta::FromMilliseconds(1);
+    }
+    if (config.HasClientSentConnectionOption(kMAD3, perspective)) {
+      // Set the minimum to the alarm granularity.
+      min_rto_timeout_ = QuicTime::Delta::FromMilliseconds(1);
+    }
+  } else {
+    if (config.HasClientSentConnectionOption(kMAD2, perspective)) {
+      min_tlp_timeout_ = QuicTime::Delta::Zero();
+    }
+    if (config.HasClientSentConnectionOption(kMAD3, perspective)) {
+      min_rto_timeout_ = QuicTime::Delta::Zero();
+    }
+    if (config.HasClientSentConnectionOption(kMAD4, perspective)) {
+      ietf_style_tlp_ = true;
+    }
+    if (config.HasClientSentConnectionOption(kMAD5, perspective)) {
+      ietf_style_2x_tlp_ = true;
+    }
   }
 
   // Configure congestion control.

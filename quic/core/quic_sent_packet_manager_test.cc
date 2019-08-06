@@ -2259,12 +2259,16 @@ TEST_P(QuicSentPacketManagerTest, NegotiateNoMinTLPFromOptionsAtServer) {
   EXPECT_EQ(QuicTime::Delta::FromMicroseconds(100002),
             QuicSentPacketManagerPeer::GetTailLossProbeDelay(&manager_, 0));
 
-  // Send two packets, and the TLP should be 2 us.
+  // Send two packets, and the TLP should be 2 us or 1ms.
+  QuicTime::Delta expected_tlp_delay =
+      GetQuicReloadableFlag(quic_sent_packet_manager_cleanup)
+          ? QuicTime::Delta::FromMilliseconds(1)
+          : QuicTime::Delta::FromMicroseconds(2);
   SendDataPacket(1);
   SendDataPacket(2);
-  EXPECT_EQ(QuicTime::Delta::FromMicroseconds(2),
+  EXPECT_EQ(expected_tlp_delay,
             QuicSentPacketManagerPeer::GetTailLossProbeDelay(&manager_));
-  EXPECT_EQ(QuicTime::Delta::FromMicroseconds(2),
+  EXPECT_EQ(expected_tlp_delay,
             QuicSentPacketManagerPeer::GetTailLossProbeDelay(&manager_, 0));
 }
 
@@ -2290,16 +2294,23 @@ TEST_P(QuicSentPacketManagerTest, NegotiateNoMinTLPFromOptionsAtClient) {
             QuicSentPacketManagerPeer::GetTailLossProbeDelay(&manager_));
   EXPECT_EQ(QuicTime::Delta::FromMicroseconds(100002),
             QuicSentPacketManagerPeer::GetTailLossProbeDelay(&manager_, 0));
-  // Send two packets, and the TLP should be 2 us.
+  // Send two packets, and the TLP should be 2 us or 1ms.
+  QuicTime::Delta expected_tlp_delay =
+      GetQuicReloadableFlag(quic_sent_packet_manager_cleanup)
+          ? QuicTime::Delta::FromMilliseconds(1)
+          : QuicTime::Delta::FromMicroseconds(2);
   SendDataPacket(1);
   SendDataPacket(2);
-  EXPECT_EQ(QuicTime::Delta::FromMicroseconds(2),
+  EXPECT_EQ(expected_tlp_delay,
             QuicSentPacketManagerPeer::GetTailLossProbeDelay(&manager_));
-  EXPECT_EQ(QuicTime::Delta::FromMicroseconds(2),
+  EXPECT_EQ(expected_tlp_delay,
             QuicSentPacketManagerPeer::GetTailLossProbeDelay(&manager_, 0));
 }
 
 TEST_P(QuicSentPacketManagerTest, NegotiateIETFTLPFromOptionsAtServer) {
+  if (GetQuicReloadableFlag(quic_sent_packet_manager_cleanup)) {
+    return;
+  }
   QuicConfig config;
   QuicTagVector options;
 
@@ -2328,6 +2339,9 @@ TEST_P(QuicSentPacketManagerTest, NegotiateIETFTLPFromOptionsAtServer) {
 }
 
 TEST_P(QuicSentPacketManagerTest, NegotiateIETFTLPFromOptionsAtClient) {
+  if (GetQuicReloadableFlag(quic_sent_packet_manager_cleanup)) {
+    return;
+  }
   QuicConfig client_config;
   QuicTagVector options;
 
@@ -2369,14 +2383,22 @@ TEST_P(QuicSentPacketManagerTest, NegotiateNoMinRTOFromOptionsAtServer) {
   RttStats* rtt_stats = const_cast<RttStats*>(manager_.GetRttStats());
   rtt_stats->UpdateRtt(QuicTime::Delta::FromMicroseconds(1),
                        QuicTime::Delta::Zero(), QuicTime::Zero());
-  EXPECT_EQ(QuicTime::Delta::FromMicroseconds(1),
+  QuicTime::Delta expected_rto_delay =
+      GetQuicReloadableFlag(quic_sent_packet_manager_cleanup)
+          ? QuicTime::Delta::FromMilliseconds(1)
+          : QuicTime::Delta::FromMicroseconds(1);
+  EXPECT_EQ(expected_rto_delay,
             QuicSentPacketManagerPeer::GetRetransmissionDelay(&manager_));
-  EXPECT_EQ(QuicTime::Delta::FromMicroseconds(1),
+  EXPECT_EQ(expected_rto_delay,
             QuicSentPacketManagerPeer::GetRetransmissionDelay(&manager_, 0));
   // The TLP with fewer than 2 packets outstanding includes 1/2 min RTO(0ms).
-  EXPECT_EQ(QuicTime::Delta::FromMicroseconds(2),
+  QuicTime::Delta expected_tlp_delay =
+      GetQuicReloadableFlag(quic_sent_packet_manager_cleanup)
+          ? QuicTime::Delta::FromMicroseconds(502)
+          : QuicTime::Delta::FromMicroseconds(2);
+  EXPECT_EQ(expected_tlp_delay,
             QuicSentPacketManagerPeer::GetTailLossProbeDelay(&manager_));
-  EXPECT_EQ(QuicTime::Delta::FromMicroseconds(2),
+  EXPECT_EQ(expected_tlp_delay,
             QuicSentPacketManagerPeer::GetTailLossProbeDelay(&manager_, 0));
 }
 
@@ -2394,14 +2416,22 @@ TEST_P(QuicSentPacketManagerTest, NegotiateNoMinRTOFromOptionsAtClient) {
   RttStats* rtt_stats = const_cast<RttStats*>(manager_.GetRttStats());
   rtt_stats->UpdateRtt(QuicTime::Delta::FromMicroseconds(1),
                        QuicTime::Delta::Zero(), QuicTime::Zero());
-  EXPECT_EQ(QuicTime::Delta::FromMicroseconds(1),
+  QuicTime::Delta expected_rto_delay =
+      GetQuicReloadableFlag(quic_sent_packet_manager_cleanup)
+          ? QuicTime::Delta::FromMilliseconds(1)
+          : QuicTime::Delta::FromMicroseconds(1);
+  EXPECT_EQ(expected_rto_delay,
             QuicSentPacketManagerPeer::GetRetransmissionDelay(&manager_));
-  EXPECT_EQ(QuicTime::Delta::FromMicroseconds(1),
+  EXPECT_EQ(expected_rto_delay,
             QuicSentPacketManagerPeer::GetRetransmissionDelay(&manager_, 0));
   // The TLP with fewer than 2 packets outstanding includes 1/2 min RTO(0ms).
-  EXPECT_EQ(QuicTime::Delta::FromMicroseconds(2),
+  QuicTime::Delta expected_tlp_delay =
+      GetQuicReloadableFlag(quic_sent_packet_manager_cleanup)
+          ? QuicTime::Delta::FromMicroseconds(502)
+          : QuicTime::Delta::FromMicroseconds(2);
+  EXPECT_EQ(expected_tlp_delay,
             QuicSentPacketManagerPeer::GetTailLossProbeDelay(&manager_));
-  EXPECT_EQ(QuicTime::Delta::FromMicroseconds(2),
+  EXPECT_EQ(expected_tlp_delay,
             QuicSentPacketManagerPeer::GetTailLossProbeDelay(&manager_, 0));
 }
 

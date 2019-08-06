@@ -73,7 +73,10 @@ class QUIC_EXPORT_PRIVATE RttStats {
 
   QuicTime::Delta mean_deviation() const { return mean_deviation_; }
 
-  QuicTime::Delta max_ack_delay() const { return max_ack_delay_; }
+  QuicTime::Delta max_ack_delay() const {
+    DCHECK(!GetQuicReloadableFlag(quic_sent_packet_manager_cleanup));
+    return max_ack_delay_;
+  }
 
   QuicTime last_update_time() const { return last_update_time_; }
 
@@ -101,6 +104,7 @@ class QUIC_EXPORT_PRIVATE RttStats {
   QuicTime::Delta initial_rtt_;
   // The maximum ack delay observed over the connection after excluding ack
   // delays that were too large to be included in an RTT measurement.
+  // TODO(ianswett): Remove when deprecating quic_sent_packet_manager_cleanup.
   QuicTime::Delta max_ack_delay_;
   QuicTime last_update_time_;
   // Whether to ignore the peer's max ack delay.

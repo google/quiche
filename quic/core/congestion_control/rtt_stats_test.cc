@@ -35,20 +35,28 @@ TEST_F(RttStatsTest, SmoothedRtt) {
                        QuicTime::Zero());
   EXPECT_EQ(QuicTime::Delta::FromMilliseconds(300), rtt_stats_.latest_rtt());
   EXPECT_EQ(QuicTime::Delta::FromMilliseconds(300), rtt_stats_.smoothed_rtt());
-  EXPECT_EQ(QuicTime::Delta::Zero(), rtt_stats_.max_ack_delay());
+  if (!GetQuicReloadableFlag(quic_sent_packet_manager_cleanup)) {
+    EXPECT_EQ(QuicTime::Delta::Zero(), rtt_stats_.max_ack_delay());
+  }
   // Verify that a plausible ack delay increases the max ack delay.
   rtt_stats_.UpdateRtt(QuicTime::Delta::FromMilliseconds(400),
                        QuicTime::Delta::FromMilliseconds(100),
                        QuicTime::Zero());
   EXPECT_EQ(QuicTime::Delta::FromMilliseconds(300), rtt_stats_.latest_rtt());
   EXPECT_EQ(QuicTime::Delta::FromMilliseconds(300), rtt_stats_.smoothed_rtt());
-  EXPECT_EQ(QuicTime::Delta::FromMilliseconds(100), rtt_stats_.max_ack_delay());
+  if (!GetQuicReloadableFlag(quic_sent_packet_manager_cleanup)) {
+    EXPECT_EQ(QuicTime::Delta::FromMilliseconds(100),
+              rtt_stats_.max_ack_delay());
+  }
   // Verify that Smoothed RTT includes max ack delay if it's reasonable.
   rtt_stats_.UpdateRtt(QuicTime::Delta::FromMilliseconds(350),
                        QuicTime::Delta::FromMilliseconds(50), QuicTime::Zero());
   EXPECT_EQ(QuicTime::Delta::FromMilliseconds(300), rtt_stats_.latest_rtt());
   EXPECT_EQ(QuicTime::Delta::FromMilliseconds(300), rtt_stats_.smoothed_rtt());
-  EXPECT_EQ(QuicTime::Delta::FromMilliseconds(100), rtt_stats_.max_ack_delay());
+  if (!GetQuicReloadableFlag(quic_sent_packet_manager_cleanup)) {
+    EXPECT_EQ(QuicTime::Delta::FromMilliseconds(100),
+              rtt_stats_.max_ack_delay());
+  }
   // Verify that large erroneous ack_delay does not change Smoothed RTT.
   rtt_stats_.UpdateRtt(QuicTime::Delta::FromMilliseconds(200),
                        QuicTime::Delta::FromMilliseconds(300),
@@ -56,7 +64,10 @@ TEST_F(RttStatsTest, SmoothedRtt) {
   EXPECT_EQ(QuicTime::Delta::FromMilliseconds(200), rtt_stats_.latest_rtt());
   EXPECT_EQ(QuicTime::Delta::FromMicroseconds(287500),
             rtt_stats_.smoothed_rtt());
-  EXPECT_EQ(QuicTime::Delta::FromMilliseconds(100), rtt_stats_.max_ack_delay());
+  if (!GetQuicReloadableFlag(quic_sent_packet_manager_cleanup)) {
+    EXPECT_EQ(QuicTime::Delta::FromMilliseconds(100),
+              rtt_stats_.max_ack_delay());
+  }
 }
 
 TEST_F(RttStatsTest, SmoothedRttIgnoreAckDelay) {
@@ -67,14 +78,18 @@ TEST_F(RttStatsTest, SmoothedRttIgnoreAckDelay) {
                        QuicTime::Zero());
   EXPECT_EQ(QuicTime::Delta::FromMilliseconds(300), rtt_stats_.latest_rtt());
   EXPECT_EQ(QuicTime::Delta::FromMilliseconds(300), rtt_stats_.smoothed_rtt());
-  EXPECT_EQ(QuicTime::Delta::Zero(), rtt_stats_.max_ack_delay());
+  if (!GetQuicReloadableFlag(quic_sent_packet_manager_cleanup)) {
+    EXPECT_EQ(QuicTime::Delta::Zero(), rtt_stats_.max_ack_delay());
+  }
   // Verify that a plausible ack delay increases the max ack delay.
   rtt_stats_.UpdateRtt(QuicTime::Delta::FromMilliseconds(300),
                        QuicTime::Delta::FromMilliseconds(100),
                        QuicTime::Zero());
   EXPECT_EQ(QuicTime::Delta::FromMilliseconds(300), rtt_stats_.latest_rtt());
   EXPECT_EQ(QuicTime::Delta::FromMilliseconds(300), rtt_stats_.smoothed_rtt());
-  EXPECT_EQ(QuicTime::Delta::Zero(), rtt_stats_.max_ack_delay());
+  if (!GetQuicReloadableFlag(quic_sent_packet_manager_cleanup)) {
+    EXPECT_EQ(QuicTime::Delta::Zero(), rtt_stats_.max_ack_delay());
+  }
   // Verify that Smoothed RTT includes max ack delay if it's reasonable.
   rtt_stats_.UpdateRtt(QuicTime::Delta::FromMilliseconds(300),
                        QuicTime::Delta::FromMilliseconds(50), QuicTime::Zero());
@@ -87,7 +102,9 @@ TEST_F(RttStatsTest, SmoothedRttIgnoreAckDelay) {
   EXPECT_EQ(QuicTime::Delta::FromMilliseconds(200), rtt_stats_.latest_rtt());
   EXPECT_EQ(QuicTime::Delta::FromMicroseconds(287500),
             rtt_stats_.smoothed_rtt());
-  EXPECT_EQ(QuicTime::Delta::Zero(), rtt_stats_.max_ack_delay());
+  if (!GetQuicReloadableFlag(quic_sent_packet_manager_cleanup)) {
+    EXPECT_EQ(QuicTime::Delta::Zero(), rtt_stats_.max_ack_delay());
+  }
 }
 
 // Ensure that the potential rounding artifacts in EWMA calculation do not cause
@@ -208,7 +225,9 @@ TEST_F(RttStatsTest, ResetAfterConnectionMigrations) {
   EXPECT_EQ(QuicTime::Delta::FromMilliseconds(200), rtt_stats_.latest_rtt());
   EXPECT_EQ(QuicTime::Delta::FromMilliseconds(200), rtt_stats_.smoothed_rtt());
   EXPECT_EQ(QuicTime::Delta::FromMilliseconds(200), rtt_stats_.min_rtt());
-  EXPECT_EQ(QuicTime::Delta::FromMilliseconds(0), rtt_stats_.max_ack_delay());
+  if (!GetQuicReloadableFlag(quic_sent_packet_manager_cleanup)) {
+    EXPECT_EQ(QuicTime::Delta::FromMilliseconds(0), rtt_stats_.max_ack_delay());
+  }
 
   rtt_stats_.UpdateRtt(QuicTime::Delta::FromMilliseconds(300),
                        QuicTime::Delta::FromMilliseconds(100),
@@ -216,14 +235,19 @@ TEST_F(RttStatsTest, ResetAfterConnectionMigrations) {
   EXPECT_EQ(QuicTime::Delta::FromMilliseconds(200), rtt_stats_.latest_rtt());
   EXPECT_EQ(QuicTime::Delta::FromMilliseconds(200), rtt_stats_.smoothed_rtt());
   EXPECT_EQ(QuicTime::Delta::FromMilliseconds(200), rtt_stats_.min_rtt());
-  EXPECT_EQ(QuicTime::Delta::FromMilliseconds(100), rtt_stats_.max_ack_delay());
+  if (!GetQuicReloadableFlag(quic_sent_packet_manager_cleanup)) {
+    EXPECT_EQ(QuicTime::Delta::FromMilliseconds(100),
+              rtt_stats_.max_ack_delay());
+  }
 
   // Reset rtt stats on connection migrations.
   rtt_stats_.OnConnectionMigration();
   EXPECT_EQ(QuicTime::Delta::Zero(), rtt_stats_.latest_rtt());
   EXPECT_EQ(QuicTime::Delta::Zero(), rtt_stats_.smoothed_rtt());
   EXPECT_EQ(QuicTime::Delta::Zero(), rtt_stats_.min_rtt());
-  EXPECT_EQ(QuicTime::Delta::Zero(), rtt_stats_.max_ack_delay());
+  if (!GetQuicReloadableFlag(quic_sent_packet_manager_cleanup)) {
+    EXPECT_EQ(QuicTime::Delta::Zero(), rtt_stats_.max_ack_delay());
+  }
 }
 
 }  // namespace test
