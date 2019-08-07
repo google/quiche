@@ -13,11 +13,7 @@
 
 namespace quic {
 
-QpackEncoderStreamSender::QpackEncoderStreamSender(
-    QpackStreamSenderDelegate* delegate)
-    : delegate_(delegate) {
-  DCHECK(delegate_);
-}
+QpackEncoderStreamSender::QpackEncoderStreamSender() : delegate_(nullptr) {}
 
 void QpackEncoderStreamSender::SendInsertWithNameReference(
     bool is_static,

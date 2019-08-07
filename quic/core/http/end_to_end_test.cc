@@ -2450,8 +2450,9 @@ TEST_P(EndToEndTest, AckNotifierWithPacketLossAndBlockedSocket) {
     // Determine size of compressed headers.
     NoopDecoderStreamErrorDelegate decoder_stream_error_delegate;
     NoopQpackStreamSenderDelegate encoder_stream_sender_delegate;
-    QpackEncoder qpack_encoder(&decoder_stream_error_delegate,
-                               &encoder_stream_sender_delegate);
+    QpackEncoder qpack_encoder(&decoder_stream_error_delegate);
+    qpack_encoder.set_qpack_stream_sender_delegate(
+        &encoder_stream_sender_delegate);
     std::string encoded_headers =
         qpack_encoder.EncodeHeaderList(/* stream_id = */ 0, &headers);
     header_size = encoded_headers.size();

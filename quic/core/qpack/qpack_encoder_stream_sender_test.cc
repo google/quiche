@@ -17,7 +17,9 @@ namespace {
 
 class QpackEncoderStreamSenderTest : public QuicTest {
  protected:
-  QpackEncoderStreamSenderTest() : stream_(&delegate_) {}
+  QpackEncoderStreamSenderTest() {
+    stream_.set_qpack_stream_sender_delegate(&delegate_);
+  }
   ~QpackEncoderStreamSenderTest() override = default;
 
   StrictMock<MockQpackStreamSenderDelegate> delegate_;

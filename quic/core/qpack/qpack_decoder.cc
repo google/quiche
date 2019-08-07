@@ -14,13 +14,10 @@ namespace quic {
 QpackDecoder::QpackDecoder(
     uint64_t maximum_dynamic_table_capacity,
     uint64_t /* maximum_blocked_streams */,
-    EncoderStreamErrorDelegate* encoder_stream_error_delegate,
-    QpackStreamSenderDelegate* decoder_stream_sender_delegate)
+    EncoderStreamErrorDelegate* encoder_stream_error_delegate)
     : encoder_stream_error_delegate_(encoder_stream_error_delegate),
-      encoder_stream_receiver_(this),
-      decoder_stream_sender_(decoder_stream_sender_delegate) {
+      encoder_stream_receiver_(this) {
   DCHECK(encoder_stream_error_delegate_);
-  DCHECK(decoder_stream_sender_delegate);
 
   header_table_.SetMaximumDynamicTableCapacity(maximum_dynamic_table_capacity);
 }
@@ -28,6 +25,8 @@ QpackDecoder::QpackDecoder(
 QpackDecoder::~QpackDecoder() {}
 
 void QpackDecoder::OnStreamReset(QuicStreamId stream_id) {
+  // TODO(bnc): SendStreamCancellation should not be called if maximum dynamic
+  // table capacity is zero.
   decoder_stream_sender_.SendStreamCancellation(stream_id);
 }
 

@@ -362,12 +362,14 @@ void QuicSpdySession::Initialize() {
     RegisterStaticStream(std::move(headers_stream),
                          /*stream_already_counted = */ false);
   } else {
-    qpack_encoder_ =
-        QuicMakeUnique<QpackEncoder>(this, &encoder_stream_sender_delegate_);
+    qpack_encoder_ = QuicMakeUnique<QpackEncoder>(this);
+    qpack_encoder_->set_qpack_stream_sender_delegate(
+        &encoder_stream_sender_delegate_);
     qpack_decoder_ =
         QuicMakeUnique<QpackDecoder>(kDefaultQpackMaxDynamicTableCapacity,
-                                     /* maximum_blocked_streams = */ 0, this,
-                                     &decoder_stream_sender_delegate_);
+                                     /* maximum_blocked_streams = */ 0, this);
+    qpack_decoder_->set_qpack_stream_sender_delegate(
+        &decoder_stream_sender_delegate_);
     // TODO(b/112770235): Set sensible limit on maximum number of blocked
     // streams.
     // TODO(b/112770235): Send SETTINGS_QPACK_MAX_TABLE_CAPACITY with value

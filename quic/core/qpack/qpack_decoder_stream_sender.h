@@ -19,8 +19,7 @@ namespace quic {
 // stream.
 class QUIC_EXPORT_PRIVATE QpackDecoderStreamSender {
  public:
-  explicit QpackDecoderStreamSender(QpackStreamSenderDelegate* delegate);
-  QpackDecoderStreamSender() = delete;
+  QpackDecoderStreamSender();
   QpackDecoderStreamSender(const QpackDecoderStreamSender&) = delete;
   QpackDecoderStreamSender& operator=(const QpackDecoderStreamSender&) = delete;
 
@@ -34,8 +33,13 @@ class QUIC_EXPORT_PRIVATE QpackDecoderStreamSender {
   // 5.3.3 Stream Cancellation
   void SendStreamCancellation(QuicStreamId stream_id);
 
+  // delegate must be set if dynamic table capacity is not zero.
+  void set_qpack_stream_sender_delegate(QpackStreamSenderDelegate* delegate) {
+    delegate_ = delegate;
+  }
+
  private:
-  QpackStreamSenderDelegate* const delegate_;
+  QpackStreamSenderDelegate* delegate_;
   QpackInstructionEncoder instruction_encoder_;
   QpackInstructionEncoder::Values values_;
 };

@@ -35,9 +35,11 @@ class QpackDecoderTest : public QuicTestWithParam<FragmentMode> {
       : qpack_decoder_(
             /* maximum_dynamic_table_capacity = */ 1024,
             kMaximumBlockedStreams,
-            &encoder_stream_error_delegate_,
-            &decoder_stream_sender_delegate_),
-        fragment_mode_(GetParam()) {}
+            &encoder_stream_error_delegate_),
+        fragment_mode_(GetParam()) {
+    qpack_decoder_.set_qpack_stream_sender_delegate(
+        &decoder_stream_sender_delegate_);
+  }
 
   ~QpackDecoderTest() override = default;
 

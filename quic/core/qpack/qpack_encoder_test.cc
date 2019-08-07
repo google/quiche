@@ -25,8 +25,8 @@ class QpackEncoderTest : public QuicTest {
   ~QpackEncoderTest() override = default;
 
   std::string Encode(const spdy::SpdyHeaderBlock* header_list) {
-    QpackEncoder encoder(&decoder_stream_error_delegate_,
-                         &encoder_stream_sender_delegate_);
+    QpackEncoder encoder(&decoder_stream_error_delegate_);
+    encoder.set_qpack_stream_sender_delegate(&encoder_stream_sender_delegate_);
     return encoder.EncodeHeaderList(/* stream_id = */ 1, header_list);
   }
 
@@ -129,8 +129,8 @@ TEST_F(QpackEncoderTest, DecoderStreamError) {
   EXPECT_CALL(decoder_stream_error_delegate_,
               OnDecoderStreamError(Eq("Encoded integer too large.")));
 
-  QpackEncoder encoder(&decoder_stream_error_delegate_,
-                       &encoder_stream_sender_delegate_);
+  QpackEncoder encoder(&decoder_stream_error_delegate_);
+  encoder.set_qpack_stream_sender_delegate(&encoder_stream_sender_delegate_);
   encoder.DecodeDecoderStreamData(
       QuicTextUtils::HexDecode("ffffffffffffffffffffff"));
 }

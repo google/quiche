@@ -36,8 +36,7 @@ class QUIC_EXPORT_PRIVATE QpackDecoder
 
   QpackDecoder(uint64_t maximum_dynamic_table_capacity,
                uint64_t maximum_blocked_streams,
-               EncoderStreamErrorDelegate* encoder_stream_error_delegate,
-               QpackStreamSenderDelegate* decoder_stream_sender_delegate);
+               EncoderStreamErrorDelegate* encoder_stream_error_delegate);
   ~QpackDecoder() override;
 
   // Signal to the peer's encoder that a stream is reset.  This lets the peer's
@@ -78,6 +77,11 @@ class QUIC_EXPORT_PRIVATE QpackDecoder
   void OnDuplicate(uint64_t index) override;
   void OnSetDynamicTableCapacity(uint64_t capacity) override;
   void OnErrorDetected(QuicStringPiece error_message) override;
+
+  // delegate must be set if dynamic table capacity is not zero.
+  void set_qpack_stream_sender_delegate(QpackStreamSenderDelegate* delegate) {
+    decoder_stream_sender_.set_qpack_stream_sender_delegate(delegate);
+  }
 
  private:
   // The encoder stream uses relative index (but different from the kind of

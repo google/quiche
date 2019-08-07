@@ -44,8 +44,7 @@ class QUIC_EXPORT_PRIVATE QpackEncoder
     virtual void OnDecoderStreamError(QuicStringPiece error_message) = 0;
   };
 
-  QpackEncoder(DecoderStreamErrorDelegate* decoder_stream_error_delegate,
-               QpackStreamSenderDelegate* encoder_stream_sender_delegate);
+  QpackEncoder(DecoderStreamErrorDelegate* decoder_stream_error_delegate);
   ~QpackEncoder() override;
 
   // Encode a header list.
@@ -68,6 +67,11 @@ class QUIC_EXPORT_PRIVATE QpackEncoder
   void OnHeaderAcknowledgement(QuicStreamId stream_id) override;
   void OnStreamCancellation(QuicStreamId stream_id) override;
   void OnErrorDetected(QuicStringPiece error_message) override;
+
+  // delegate must be set if dynamic table capacity is not zero.
+  void set_qpack_stream_sender_delegate(QpackStreamSenderDelegate* delegate) {
+    encoder_stream_sender_.set_qpack_stream_sender_delegate(delegate);
+  }
 
  private:
   friend class test::QpackEncoderPeer;

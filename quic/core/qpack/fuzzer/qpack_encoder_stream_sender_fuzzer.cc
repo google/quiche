@@ -22,7 +22,8 @@ namespace test {
 // enabled for cc_fuzz_target target types.
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   NoopQpackStreamSenderDelegate delegate;
-  QpackEncoderStreamSender sender(&delegate);
+  QpackEncoderStreamSender sender;
+  sender.set_qpack_stream_sender_delegate(&delegate);
 
   QuicFuzzedDataProvider provider(data, size);
   // Limit string literal length to 2 kB for efficiency.

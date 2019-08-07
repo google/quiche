@@ -13,11 +13,7 @@
 
 namespace quic {
 
-QpackDecoderStreamSender::QpackDecoderStreamSender(
-    QpackStreamSenderDelegate* delegate)
-    : delegate_(delegate) {
-  DCHECK(delegate_);
-}
+QpackDecoderStreamSender::QpackDecoderStreamSender() : delegate_(nullptr) {}
 
 void QpackDecoderStreamSender::SendInsertCountIncrement(uint64_t increment) {
   values_.varint = increment;

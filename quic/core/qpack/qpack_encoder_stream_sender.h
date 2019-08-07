@@ -17,8 +17,7 @@ namespace quic {
 // This class serializes instructions for transmission on the encoder stream.
 class QUIC_EXPORT_PRIVATE QpackEncoderStreamSender {
  public:
-  explicit QpackEncoderStreamSender(QpackStreamSenderDelegate* delegate);
-  QpackEncoderStreamSender() = delete;
+  QpackEncoderStreamSender();
   QpackEncoderStreamSender(const QpackEncoderStreamSender&) = delete;
   QpackEncoderStreamSender& operator=(const QpackEncoderStreamSender&) = delete;
 
@@ -37,8 +36,13 @@ class QUIC_EXPORT_PRIVATE QpackEncoderStreamSender {
   // 5.2.4. Set Dynamic Table Capacity
   void SendSetDynamicTableCapacity(uint64_t capacity);
 
+  // delegate must be set if dynamic table capacity is not zero.
+  void set_qpack_stream_sender_delegate(QpackStreamSenderDelegate* delegate) {
+    delegate_ = delegate;
+  }
+
  private:
-  QpackStreamSenderDelegate* const delegate_;
+  QpackStreamSenderDelegate* delegate_;
   QpackInstructionEncoder instruction_encoder_;
   QpackInstructionEncoder::Values values_;
 };

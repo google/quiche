@@ -51,12 +51,14 @@ class QpackDecodedHeadersAccumulatorTest : public QuicTest {
   QpackDecodedHeadersAccumulatorTest()
       : qpack_decoder_(kMaxDynamicTableCapacity,
                        kMaximumBlockedStreams,
-                       &encoder_stream_error_delegate_,
-                       &decoder_stream_sender_delegate_),
+                       &encoder_stream_error_delegate_),
         accumulator_(kTestStreamId,
                      &qpack_decoder_,
                      &visitor_,
-                     kMaxHeaderListSize) {}
+                     kMaxHeaderListSize) {
+    qpack_decoder_.set_qpack_stream_sender_delegate(
+        &decoder_stream_sender_delegate_);
+  }
 
   NoopEncoderStreamErrorDelegate encoder_stream_error_delegate_;
   StrictMock<MockQpackStreamSenderDelegate> decoder_stream_sender_delegate_;

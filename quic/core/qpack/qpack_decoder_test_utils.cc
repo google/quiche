@@ -72,8 +72,8 @@ void QpackDecode(
     const FragmentSizeGenerator& fragment_size_generator,
     QuicStringPiece data) {
   QpackDecoder decoder(maximum_dynamic_table_capacity, maximum_blocked_streams,
-                       encoder_stream_error_delegate,
-                       decoder_stream_sender_delegate);
+                       encoder_stream_error_delegate);
+  decoder.set_qpack_stream_sender_delegate(decoder_stream_sender_delegate);
   auto progressive_decoder =
       decoder.CreateProgressiveDecoder(/* stream_id = */ 1, handler);
   while (!data.empty()) {

@@ -92,8 +92,9 @@ bool QpackOfflineDecoder::ParseInputFilename(QuicStringPiece input_filename) {
                     << "\" as an integer.";
     return false;
   }
-  qpack_decoder_ = QuicMakeUnique<QpackDecoder>(
-      maximum_dynamic_table_capacity, max_blocked_streams_, this,
+  qpack_decoder_ = QuicMakeUnique<QpackDecoder>(maximum_dynamic_table_capacity,
+                                                max_blocked_streams_, this);
+  qpack_decoder_->set_qpack_stream_sender_delegate(
       &decoder_stream_sender_delegate_);
 
   return true;
