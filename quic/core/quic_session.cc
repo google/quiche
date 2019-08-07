@@ -157,6 +157,10 @@ void QuicSession::PendingStreamOnStreamFrame(const QuicStreamFrame& frame) {
   if (!connection()->connected()) {
     return;
   }
+  if (pending->sequencer()->IsClosed()) {
+    ClosePendingStream(stream_id);
+    return;
+  }
   if (ProcessPendingStream(pending)) {
     // The pending stream should now be in the scope of normal streams.
     DCHECK(IsClosedStream(stream_id) || IsOpenStream(stream_id))
@@ -318,6 +322,7 @@ void QuicSession::PendingStreamOnRstStream(const QuicRstStreamFrame& frame) {
   }
 
   pending->OnRstStreamFrame(frame);
+  SendRstStream(stream_id, QUIC_RST_ACKNOWLEDGEMENT, 0);
   ClosePendingStream(stream_id);
 }
 
@@ -884,19 +889,7 @@ void QuicSession::CloseStreamInner(QuicStreamId stream_id, bool locally_reset) {
 void QuicSession::ClosePendingStream(QuicStreamId stream_id) {
   QUIC_DVLOG(1) << ENDPOINT << "Closing stream " << stream_id;
 
-  if (pending_stream_map_.find(stream_id) == pending_stream_map_.end()) {
-    QUIC_BUG << ENDPOINT << "Stream is already closed: " << stream_id;
-    return;
-  }
-
-  SendRstStream(stream_id, QUIC_RST_ACKNOWLEDGEMENT, 0);
-
-  // The pending stream may have been deleted and removed during SendRstStream.
-  // Remove the stream from pending stream map iff it is still in the map.
-  if (pending_stream_map_.find(stream_id) != pending_stream_map_.end()) {
-    pending_stream_map_.erase(stream_id);
-  }
-
+  pending_stream_map_.erase(stream_id);
   if (VersionHasIetfQuicFrames(connection_->transport_version())) {
     v99_streamid_manager_.OnStreamClosed(stream_id);
   }

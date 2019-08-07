@@ -1803,10 +1803,12 @@ TEST_P(QuicSessionTestServer, PendingStreams) {
       transport_version(), Perspective::IS_CLIENT);
   QuicStreamFrame data1(stream_id, true, 10, QuicStringPiece("HT"));
   session_.OnStreamFrame(data1);
+  EXPECT_TRUE(QuicSessionPeer::GetPendingStream(&session_, stream_id));
   EXPECT_EQ(0, session_.num_incoming_streams_created());
 
   QuicStreamFrame data2(stream_id, false, 0, QuicStringPiece("HT"));
   session_.OnStreamFrame(data2);
+  EXPECT_FALSE(QuicSessionPeer::GetPendingStream(&session_, stream_id));
   EXPECT_EQ(1, session_.num_incoming_streams_created());
 }
 
@@ -1820,6 +1822,7 @@ TEST_P(QuicSessionTestServer, RstPendingStreams) {
       transport_version(), Perspective::IS_CLIENT);
   QuicStreamFrame data1(stream_id, true, 10, QuicStringPiece("HT"));
   session_.OnStreamFrame(data1);
+  EXPECT_TRUE(QuicSessionPeer::GetPendingStream(&session_, stream_id));
   EXPECT_EQ(0, session_.num_incoming_streams_created());
   EXPECT_EQ(0u, session_.GetNumOpenIncomingStreams());
 
@@ -1829,11 +1832,29 @@ TEST_P(QuicSessionTestServer, RstPendingStreams) {
   QuicRstStreamFrame rst1(kInvalidControlFrameId, stream_id,
                           QUIC_ERROR_PROCESSING_STREAM, 12);
   session_.OnRstStream(rst1);
+  EXPECT_FALSE(QuicSessionPeer::GetPendingStream(&session_, stream_id));
   EXPECT_EQ(0, session_.num_incoming_streams_created());
   EXPECT_EQ(0u, session_.GetNumOpenIncomingStreams());
 
   QuicStreamFrame data2(stream_id, false, 0, QuicStringPiece("HT"));
   session_.OnStreamFrame(data2);
+  EXPECT_FALSE(QuicSessionPeer::GetPendingStream(&session_, stream_id));
+  EXPECT_EQ(0, session_.num_incoming_streams_created());
+  EXPECT_EQ(0u, session_.GetNumOpenIncomingStreams());
+}
+
+TEST_P(QuicSessionTestServer, OnFinPendingStreams) {
+  if (!VersionHasIetfQuicFrames(transport_version())) {
+    return;
+  }
+  session_.set_uses_pending_streams(true);
+
+  QuicStreamId stream_id = QuicUtils::GetFirstUnidirectionalStreamId(
+      transport_version(), Perspective::IS_CLIENT);
+  QuicStreamFrame data(stream_id, true, 0, "");
+  session_.OnStreamFrame(data);
+
+  EXPECT_FALSE(QuicSessionPeer::GetPendingStream(&session_, stream_id));
   EXPECT_EQ(0, session_.num_incoming_streams_created());
   EXPECT_EQ(0u, session_.GetNumOpenIncomingStreams());
 }
@@ -1848,6 +1869,7 @@ TEST_P(QuicSessionTestServer, PendingStreamOnWindowUpdate) {
       transport_version(), Perspective::IS_CLIENT);
   QuicStreamFrame data1(stream_id, true, 10, QuicStringPiece("HT"));
   session_.OnStreamFrame(data1);
+  EXPECT_TRUE(QuicSessionPeer::GetPendingStream(&session_, stream_id));
   EXPECT_EQ(0, session_.num_incoming_streams_created());
   QuicWindowUpdateFrame window_update_frame(kInvalidControlFrameId, stream_id,
                                             0);

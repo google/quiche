@@ -243,5 +243,12 @@ void QuicSessionPeer::SendRstStreamInner(QuicSession* session,
   session->SendRstStreamInner(id, error, bytes_written, close_write_side_only);
 }
 
+// static
+PendingStream* QuicSessionPeer::GetPendingStream(QuicSession* session,
+                                                 QuicStreamId stream_id) {
+  auto it = session->pending_stream_map_.find(stream_id);
+  return it == session->pending_stream_map_.end() ? nullptr : it->second.get();
+}
+
 }  // namespace test
 }  // namespace quic

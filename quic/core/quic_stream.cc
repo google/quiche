@@ -58,13 +58,12 @@ PendingStream::PendingStream(QuicStreamId id, QuicSession* session)
       sequencer_(this) {}
 
 void PendingStream::OnDataAvailable() {
-  // It will be called when pending stream receives its first byte. But this
-  // call should simply be ignored so that data remains in sequencer.
+  // Data should be kept in the sequencer so that
+  // QuicSession::ProcessPendingStream() can read it.
 }
 
 void PendingStream::OnFinRead() {
-  QUIC_BUG << "OnFinRead should not be called.";
-  CloseConnectionWithDetails(QUIC_INTERNAL_ERROR, "Unexpected fin read");
+  DCHECK(sequencer_.IsClosed());
 }
 
 void PendingStream::AddBytesConsumed(QuicByteCount bytes) {
@@ -74,6 +73,7 @@ void PendingStream::AddBytesConsumed(QuicByteCount bytes) {
 }
 
 void PendingStream::Reset(QuicRstStreamErrorCode error) {
+  // TODO: RESET_STREAM must not be sent for READ_UNIDIRECTIONAL stream.
   session_->SendRstStream(id_, error, 0);
 }
 

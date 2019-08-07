@@ -86,6 +86,8 @@ class QuicSessionPeer {
                                  QuicRstStreamErrorCode error,
                                  QuicStreamOffset bytes_written,
                                  bool close_write_side_only);
+  static PendingStream* GetPendingStream(QuicSession* session,
+                                         QuicStreamId stream_id);
 };
 
 }  // namespace test
