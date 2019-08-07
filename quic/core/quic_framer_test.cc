@@ -4889,6 +4889,12 @@ TEST_P(QuicFramerTest, ConnectionCloseFrame) {
               visitor_.connection_close_frame_.transport_close_frame_type);
     EXPECT_EQ(QUIC_IETF_GQUIC_ERROR_MISSING,
               visitor_.connection_close_frame_.extracted_error_code);
+  } else {
+    // For Google QUIC closes, the error code is copied into
+    // extracted_error_code.
+    EXPECT_EQ(0x11u,
+              static_cast<unsigned>(
+                  visitor_.connection_close_frame_.extracted_error_code));
   }
 
   ASSERT_EQ(0u, visitor_.ack_frames_.size());
@@ -5050,8 +5056,7 @@ TEST_P(QuicFramerTest, ConnectionCloseFrameWithExtractedInfoIgnoreGCuic) {
               visitor_.connection_close_frame_.transport_close_frame_type);
     EXPECT_EQ(17767u, visitor_.connection_close_frame_.extracted_error_code);
   } else {
-    // QUIC_IETF_GQUIC_ERROR_MISSING is 122
-    EXPECT_EQ(122u, visitor_.connection_close_frame_.extracted_error_code);
+    EXPECT_EQ(0x11u, visitor_.connection_close_frame_.extracted_error_code);
   }
 
   ASSERT_EQ(0u, visitor_.ack_frames_.size());

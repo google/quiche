@@ -4032,6 +4032,11 @@ bool QuicFramer::ProcessConnectionCloseFrame(QuicDataReader* reader,
 
   frame->quic_error_code = static_cast<QuicErrorCode>(error_code);
 
+  // For Google QUIC connection closes, copy the Google QUIC error code to
+  // the extracted error code field so that the Google QUIC error code is always
+  // available in extracted_error_code.
+  frame->extracted_error_code = frame->quic_error_code;
+
   QuicStringPiece error_details;
   if (!reader->ReadStringPiece16(&error_details)) {
     set_detailed_error("Unable to read connection close error details.");

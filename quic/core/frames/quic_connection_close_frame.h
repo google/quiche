@@ -64,9 +64,10 @@ struct QUIC_EXPORT_PRIVATE QuicConnectionCloseFrame {
     QuicErrorCode quic_error_code;
   };
 
-  // This error code is extracted from, or added to, the "QuicErrorCode:
-  // QUIC_...(123)" text in the error_details. It provides fine-grained
-  // information as to the source of the error.
+  // For IETF QUIC frames, this is the error code is extracted from, or added
+  // to, the error details text. For received Google QUIC frames, the Google
+  // QUIC error code from the frame's error code field is copied here (as well
+  // as in quic_error_code, above).
   QuicErrorCode extracted_error_code;
 
   // String with additional error details. "QuicErrorCode: 123" will be appended
