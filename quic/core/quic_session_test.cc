@@ -1794,7 +1794,7 @@ TEST_P(QuicSessionTestServer, NoPendingStreams) {
 }
 
 TEST_P(QuicSessionTestServer, PendingStreams) {
-  if (!VersionHasIetfQuicFrames(transport_version())) {
+  if (!VersionHasStreamType(transport_version())) {
     return;
   }
   session_.set_uses_pending_streams(true);
@@ -1813,7 +1813,7 @@ TEST_P(QuicSessionTestServer, PendingStreams) {
 }
 
 TEST_P(QuicSessionTestServer, RstPendingStreams) {
-  if (!VersionHasIetfQuicFrames(transport_version())) {
+  if (!VersionHasStreamType(transport_version())) {
     return;
   }
   session_.set_uses_pending_streams(true);
@@ -1844,7 +1844,7 @@ TEST_P(QuicSessionTestServer, RstPendingStreams) {
 }
 
 TEST_P(QuicSessionTestServer, OnFinPendingStreams) {
-  if (!VersionHasIetfQuicFrames(transport_version())) {
+  if (!VersionHasStreamType(transport_version())) {
     return;
   }
   session_.set_uses_pending_streams(true);
@@ -1860,7 +1860,7 @@ TEST_P(QuicSessionTestServer, OnFinPendingStreams) {
 }
 
 TEST_P(QuicSessionTestServer, PendingStreamOnWindowUpdate) {
-  if (!VersionHasIetfQuicFrames(transport_version())) {
+  if (!VersionHasStreamType(transport_version())) {
     return;
   }
 
