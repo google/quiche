@@ -404,6 +404,7 @@ TEST_F(HttpDecoderTest, CorruptPriorityFrame) {
 
     HttpDecoder decoder(&visitor_);
     EXPECT_CALL(visitor_, OnPriorityFrameStart(header_length));
+    EXPECT_CALL(visitor_, OnError(&decoder));
 
     QuicByteCount processed_bytes =
         decoder.ProcessInput(input.data(), input.size());
@@ -460,6 +461,40 @@ TEST_F(HttpDecoderTest, SettingsFrame) {
   EXPECT_EQ("", decoder_.error_detail());
 }
 
+TEST_F(HttpDecoderTest, CorruptSettingsFrame) {
+  const char* const kPayload =
+      "\x42\x11"                           // two-byte id
+      "\x80\x22\x33\x44"                   // four-byte value
+      "\x58\x39"                           // two-byte id
+      "\xf0\x22\x33\x44\x55\x66\x77\x88";  // eight-byte value
+  struct {
+    size_t payload_length;
+    const char* const error_message;
+  } kTestData[] = {
+      {1, "Unable to read settings frame identifier"},
+      {5, "Unable to read settings frame content"},
+      {7, "Unable to read settings frame identifier"},
+      {12, "Unable to read settings frame content"},
+  };
+
+  for (const auto& test_data : kTestData) {
+    std::string input;
+    input.push_back(4u);  // type SETTINGS
+    input.push_back(test_data.payload_length);
+    const size_t header_length = input.size();
+    input.append(kPayload, test_data.payload_length);
+
+    HttpDecoder decoder(&visitor_);
+    EXPECT_CALL(visitor_, OnSettingsFrameStart(header_length));
+    EXPECT_CALL(visitor_, OnError(&decoder));
+
+    QuicByteCount processed_bytes =
+        decoder.ProcessInput(input.data(), input.size());
+    EXPECT_EQ(input.size(), processed_bytes);
+    EXPECT_EQ(QUIC_INTERNAL_ERROR, decoder.error());
+    EXPECT_EQ(test_data.error_message, decoder.error_detail());
+  }
+}
 TEST_F(HttpDecoderTest, DataFrame) {
   InSequence s;
   std::string input(
@@ -791,6 +826,57 @@ TEST_F(HttpDecoderTest, HeadersPausedThenData) {
   EXPECT_EQ(QUIC_NO_ERROR, decoder_.error());
   EXPECT_EQ("", decoder_.error_detail());
 }
+
+TEST_F(HttpDecoderTest, CorruptFrame) {
+  InSequence s;
+
+  struct {
+    const char* const input;
+    const char* const error_message;
+  } kTestData[] = {{"\x03"   // type (CANCEL_PUSH)
+                    "\x01"   // length
+                    "\x40",  // first byte of two-byte varint push id
+                    "Unable to read push_id"},
+                   {"\x05"   // type (PUSH_PROMISE)
+                    "\x01"   // length
+                    "\x40",  // first byte of two-byte varint push id
+                    "Unable to read push_id"},
+                   {"\x0D"   // type (MAX_PUSH_ID)
+                    "\x01"   // length
+                    "\x40",  // first byte of two-byte varint push id
+                    "Unable to read push_id"},
+                   {"\x0E"   // type (DUPLICATE_PUSH)
+                    "\x01"   // length
+                    "\x40",  // first byte of two-byte varint push id
+                    "Unable to read push_id"},
+                   {"\x07"   // type (GOAWAY)
+                    "\x01"   // length
+                    "\x40",  // first byte of two-byte varint stream id
+                    "Unable to read GOAWAY stream_id"}};
+
+  for (const auto& test_data : kTestData) {
+    {
+      HttpDecoder decoder(&visitor_);
+      EXPECT_CALL(visitor_, OnError(&decoder));
+
+      QuicStringPiece input(test_data.input);
+      decoder.ProcessInput(input.data(), input.size());
+      EXPECT_EQ(QUIC_INTERNAL_ERROR, decoder.error());
+      EXPECT_EQ(test_data.error_message, decoder.error_detail());
+    }
+    {
+      HttpDecoder decoder(&visitor_);
+      EXPECT_CALL(visitor_, OnError(&decoder));
+
+      QuicStringPiece input(test_data.input);
+      for (auto c : input) {
+        decoder.ProcessInput(&c, 1);
+      }
+      EXPECT_EQ(QUIC_INTERNAL_ERROR, decoder.error());
+      EXPECT_EQ(test_data.error_message, decoder.error_detail());
+    }
+  }
+}  // namespace test
 
 }  // namespace test
 

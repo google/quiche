@@ -126,7 +126,6 @@ bool HttpDecoder::ReadFrameLength(QuicDataReader* reader) {
   if (current_frame_length_ > MaxFrameLength(current_frame_type_)) {
     // TODO(bnc): Signal HTTP_EXCESSIVE_LOAD or similar to peer.
     RaiseError(QUIC_INTERNAL_ERROR, "Frame is too large");
-    visitor_->OnError(this);
     return false;
   }
 
@@ -440,6 +439,7 @@ void HttpDecoder::RaiseError(QuicErrorCode error, std::string error_detail) {
   state_ = STATE_ERROR;
   error_ = error;
   error_detail_ = std::move(error_detail);
+  visitor_->OnError(this);
 }
 
 bool HttpDecoder::ParsePriorityFrame(QuicDataReader* reader,
