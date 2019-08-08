@@ -207,7 +207,7 @@ void QuartcSession::OnCongestionWindowChange(QuicTime /*now*/) {
 
 bool QuartcSession::ShouldKeepConnectionAlive() const {
   // TODO(mellem): Quartc may want different keepalive logic than HTTP.
-  return GetNumOpenDynamicStreams() > 0;
+  return GetNumActiveStreams() > 0;
 }
 
 void QuartcSession::OnConnectionClosed(const QuicConnectionCloseFrame& frame,

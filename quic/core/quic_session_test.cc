@@ -237,7 +237,7 @@ class TestSession : public QuicSession {
   }
 
   bool ShouldKeepConnectionAlive() const override {
-    return GetNumOpenDynamicStreams() > 0;
+    return GetNumActiveStreams() > 0;
   }
 
   QuicConsumedData WritevData(QuicStream* stream,

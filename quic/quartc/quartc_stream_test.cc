@@ -93,7 +93,7 @@ class MockQuicSession : public QuicSession {
   const QuicCryptoStream* GetCryptoStream() const override { return nullptr; }
   QuicCryptoStream* GetMutableCryptoStream() override { return nullptr; }
   bool ShouldKeepConnectionAlive() const override {
-    return GetNumOpenDynamicStreams() > 0;
+    return GetNumActiveStreams() > 0;
   }
 
   // Called by QuicStream when they want to close stream.
