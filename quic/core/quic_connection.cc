@@ -2469,12 +2469,12 @@ void QuicConnection::OnRetransmissionTimeout() {
 
   if (sent_packet_manager_.fix_rto_retransmission()) {
     // Making sure at least one packet is created when retransmission timer
-    // fires in TLP, RTO or HANDSHAKE mode. It is possible that loss algorithm
-    // invokes timer based loss but the packet does not need to be
-    // retransmitted.
-    QUIC_BUG_IF(stats_.loss_timeout_count == previous_loss_timeout_count &&
-                packet_generator_.packet_number() ==
-                    previous_created_packet_number)
+    // fires in TLP. It is possible that loss algorithm invokes timer based loss
+    // but the packet does not need to be retransmitted. And no packets will be
+    // sent if timer fires in HANDSHAKE or RTO mode but writer is blocked.
+    QUIC_BUG_IF(packet_generator_.packet_number() ==
+                    previous_created_packet_number &&
+                stats_.tlp_count != previous_tlp_count)
         << "previous_crypto_retransmit_count: "
         << previous_crypto_retransmit_count
         << ", crypto_retransmit_count: " << stats_.crypto_retransmit_count
@@ -2487,7 +2487,8 @@ void QuicConnection::OnRetransmissionTimeout() {
         << ", previous_created_packet_number: "
         << previous_created_packet_number
         << ", packet_number: " << packet_generator_.packet_number()
-        << ", session has data to write: " << visitor_->WillingAndAbleToWrite();
+        << ", session has data to write: " << visitor_->WillingAndAbleToWrite()
+        << ", writer is blocked: " << writer_->IsWriteBlocked();
   }
 
   // Ensure the retransmission alarm is always set if there are unacked packets

@@ -119,13 +119,9 @@ QuicSentPacketManager::QuicSentPacketManager(
           GetQuicReloadableFlag(quic_loss_removes_from_inflight)),
       ignore_tlpr_if_no_pending_stream_data_(
           GetQuicReloadableFlag(quic_ignore_tlpr_if_no_pending_stream_data)),
-      fix_rto_retransmission_(
-          GetQuicReloadableFlag(quic_fix_rto_retransmission)) {
+      fix_rto_retransmission_(false) {
   if (loss_removes_from_inflight_) {
     QUIC_RELOADABLE_FLAG_COUNT(quic_loss_removes_from_inflight);
-  }
-  if (fix_rto_retransmission_) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_fix_rto_retransmission);
   }
   SetSendAlgorithm(congestion_control_type);
 }
@@ -1285,6 +1281,16 @@ void QuicSentPacketManager::SetInitialRtt(QuicTime::Delta rtt) {
   const QuicTime::Delta max_rtt =
       QuicTime::Delta::FromMicroseconds(kMaxInitialRoundTripTimeUs);
   rtt_stats_.set_initial_rtt(std::max(min_rtt, std::min(max_rtt, rtt)));
+}
+
+void QuicSentPacketManager::SetSessionDecideWhatToWrite(
+    bool session_decides_what_to_write) {
+  if (GetQuicReloadableFlag(quic_fix_rto_retransmission2) &&
+      session_decides_what_to_write) {
+    fix_rto_retransmission_ = true;
+    QUIC_RELOADABLE_FLAG_COUNT(quic_fix_rto_retransmission2);
+  }
+  unacked_packets_.SetSessionDecideWhatToWrite(session_decides_what_to_write);
 }
 
 void QuicSentPacketManager::EnableMultiplePacketNumberSpacesSupport() {

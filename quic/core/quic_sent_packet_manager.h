@@ -283,9 +283,7 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
                           EncryptionLevel ack_decrypted_level);
 
   // Called to enable/disable letting session decide what to write.
-  void SetSessionDecideWhatToWrite(bool session_decides_what_to_write) {
-    unacked_packets_.SetSessionDecideWhatToWrite(session_decides_what_to_write);
-  }
+  void SetSessionDecideWhatToWrite(bool session_decides_what_to_write);
 
   void EnableMultiplePacketNumberSpacesSupport();
 
@@ -630,8 +628,9 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // Latched value of quic_ignore_tlpr_if_no_pending_stream_data.
   const bool ignore_tlpr_if_no_pending_stream_data_;
 
-  // Latched value of quic_fix_rto_retransmission.
-  const bool fix_rto_retransmission_;
+  // Latched value of quic_fix_rto_retransmission2 and
+  // session_decides_what_to_write.
+  bool fix_rto_retransmission_;
 };
 
 }  // namespace quic

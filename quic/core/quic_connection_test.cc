@@ -4159,25 +4159,25 @@ TEST_P(QuicConnectionTest, RtoWithNoDataToRetransmit) {
   // Simulate the retransmission alarm firing.
   clock_.AdvanceTime(DefaultRetransmissionTime());
   // RTO fires, but there is no packet to be RTOed.
-  if (GetQuicReloadableFlag(quic_fix_rto_retransmission)) {
+  if (GetQuicReloadableFlag(quic_fix_rto_retransmission2)) {
     EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
   } else {
     EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
   }
   connection_.GetRetransmissionAlarm()->Fire();
-  if (GetQuicReloadableFlag(quic_fix_rto_retransmission)) {
+  if (GetQuicReloadableFlag(quic_fix_rto_retransmission2)) {
     EXPECT_EQ(1u, writer_->rst_stream_frames().size());
   }
 
   EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(40);
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(20);
-  if (GetQuicReloadableFlag(quic_fix_rto_retransmission)) {
+  if (GetQuicReloadableFlag(quic_fix_rto_retransmission2)) {
     EXPECT_CALL(visitor_, WillingAndAbleToWrite())
         .WillRepeatedly(Return(false));
   } else {
     EXPECT_CALL(visitor_, WillingAndAbleToWrite()).WillRepeatedly(Return(true));
   }
-  if (GetQuicReloadableFlag(quic_fix_rto_retransmission)) {
+  if (GetQuicReloadableFlag(quic_fix_rto_retransmission2)) {
     EXPECT_CALL(visitor_, OnAckNeedsRetransmittableFrame()).Times(1);
   } else {
     // Since there is a buffered RST_STREAM, no retransmittable frame is bundled
@@ -8683,6 +8683,62 @@ TEST_P(QuicConnectionTest, CoalescedPacket) {
   }
 
   EXPECT_TRUE(connection_.connected());
+}
+
+// Regresstion test for b/138962304.
+TEST_P(QuicConnectionTest, RtoAndWriteBlocked) {
+  if (!QuicConnectionPeer::GetSentPacketManager(&connection_)
+           ->fix_rto_retransmission()) {
+    return;
+  }
+  EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
+
+  QuicStreamId stream_id = 2;
+  QuicPacketNumber last_data_packet;
+  SendStreamDataToPeer(stream_id, "foo", 0, NO_FIN, &last_data_packet);
+  EXPECT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
+
+  // Writer gets blocked.
+  writer_->SetWriteBlocked();
+
+  // Cancel the stream.
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
+  EXPECT_CALL(visitor_, OnWriteBlocked()).Times(AtLeast(1));
+  SendRstStream(stream_id, QUIC_ERROR_PROCESSING_STREAM, 3);
+
+  // Retransmission timer fires in RTO mode.
+  connection_.GetRetransmissionAlarm()->Fire();
+  // Verify no packets get flushed when writer is blocked.
+  EXPECT_EQ(0u, connection_.NumQueuedPackets());
+}
+
+// Regresstion test for b/138962304.
+TEST_P(QuicConnectionTest, TlpAndWriteBlocked) {
+  if (!QuicConnectionPeer::GetSentPacketManager(&connection_)
+           ->fix_rto_retransmission()) {
+    return;
+  }
+  EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
+  connection_.SetMaxTailLossProbes(1);
+
+  QuicStreamId stream_id = 2;
+  QuicPacketNumber last_data_packet;
+  SendStreamDataToPeer(stream_id, "foo", 0, NO_FIN, &last_data_packet);
+  SendStreamDataToPeer(4, "foo", 0, NO_FIN, &last_data_packet);
+  EXPECT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
+
+  // Writer gets blocked.
+  writer_->SetWriteBlocked();
+
+  // Cancel stream 2.
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
+  EXPECT_CALL(visitor_, OnWriteBlocked()).Times(AtLeast(1));
+  SendRstStream(stream_id, QUIC_ERROR_PROCESSING_STREAM, 3);
+
+  // Retransmission timer fires in TLP mode.
+  connection_.GetRetransmissionAlarm()->Fire();
+  // Verify one packets is forced flushed when writer is blocked.
+  EXPECT_EQ(1u, connection_.NumQueuedPackets());
 }
 
 }  // namespace
