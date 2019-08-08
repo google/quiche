@@ -491,7 +491,7 @@ TEST_F(HttpDecoderTest, CorruptSettingsFrame) {
     QuicByteCount processed_bytes =
         decoder.ProcessInput(input.data(), input.size());
     EXPECT_EQ(input.size(), processed_bytes);
-    EXPECT_EQ(QUIC_INTERNAL_ERROR, decoder.error());
+    EXPECT_EQ(QUIC_INVALID_FRAME_DATA, decoder.error());
     EXPECT_EQ(test_data.error_message, decoder.error_detail());
   }
 }
@@ -775,7 +775,7 @@ TEST_F(HttpDecoderTest, MalformedFrameWithOverlyLargePayload) {
   // Process the full frame.
   EXPECT_CALL(visitor_, OnError(&decoder_));
   EXPECT_EQ(2u, ProcessInput(input));
-  EXPECT_EQ(QUIC_INTERNAL_ERROR, decoder_.error());
+  EXPECT_EQ(QUIC_INVALID_FRAME_DATA, decoder_.error());
   EXPECT_EQ("Frame is too large", decoder_.error_detail());
 }
 
@@ -790,7 +790,7 @@ TEST_F(HttpDecoderTest, MalformedSettingsFrame) {
   writer.WriteStringPiece("Malformed payload");
   EXPECT_CALL(visitor_, OnError(&decoder_));
   EXPECT_EQ(5u, decoder_.ProcessInput(input, QUIC_ARRAYSIZE(input)));
-  EXPECT_EQ(QUIC_INTERNAL_ERROR, decoder_.error());
+  EXPECT_EQ(QUIC_INVALID_FRAME_DATA, decoder_.error());
   EXPECT_EQ("Frame is too large", decoder_.error_detail());
 }
 
@@ -861,7 +861,7 @@ TEST_F(HttpDecoderTest, CorruptFrame) {
 
       QuicStringPiece input(test_data.input);
       decoder.ProcessInput(input.data(), input.size());
-      EXPECT_EQ(QUIC_INTERNAL_ERROR, decoder.error());
+      EXPECT_EQ(QUIC_INVALID_FRAME_DATA, decoder.error());
       EXPECT_EQ(test_data.error_message, decoder.error_detail());
     }
     {
@@ -872,7 +872,7 @@ TEST_F(HttpDecoderTest, CorruptFrame) {
       for (auto c : input) {
         decoder.ProcessInput(&c, 1);
       }
-      EXPECT_EQ(QUIC_INTERNAL_ERROR, decoder.error());
+      EXPECT_EQ(QUIC_INVALID_FRAME_DATA, decoder.error());
       EXPECT_EQ(test_data.error_message, decoder.error_detail());
     }
   }

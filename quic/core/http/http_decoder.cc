@@ -124,8 +124,8 @@ bool HttpDecoder::ReadFrameLength(QuicDataReader* reader) {
   }
 
   if (current_frame_length_ > MaxFrameLength(current_frame_type_)) {
-    // TODO(bnc): Signal HTTP_EXCESSIVE_LOAD or similar to peer.
-    RaiseError(QUIC_INTERNAL_ERROR, "Frame is too large");
+    // TODO(b/124216424): Use HTTP_EXCESSIVE_LOAD.
+    RaiseError(QUIC_INVALID_FRAME_DATA, "Frame is too large");
     return false;
   }
 
@@ -220,7 +220,8 @@ bool HttpDecoder::ReadFramePayload(QuicDataReader* reader) {
         QuicByteCount push_id_length = reader->PeekVarInt62Length();
         // TODO(rch): Handle partial delivery of this field.
         if (!reader->ReadVarInt62(&push_id)) {
-          RaiseError(QUIC_INTERNAL_ERROR, "Unable to read push_id");
+          // TODO(b/124216424): Use HTTP_MALFORMED_FRAME.
+          RaiseError(QUIC_INVALID_FRAME_DATA, "Unable to read push_id");
           return false;
         }
         remaining_frame_length_ -= bytes_remaining - reader->BytesRemaining();
@@ -309,7 +310,8 @@ bool HttpDecoder::FinishParsing() {
       CancelPushFrame frame;
       QuicDataReader reader(buffer_.data(), current_frame_length_);
       if (!reader.ReadVarInt62(&frame.push_id)) {
-        RaiseError(QUIC_INTERNAL_ERROR, "Unable to read push_id");
+        // TODO(b/124216424): Use HTTP_MALFORMED_FRAME.
+        RaiseError(QUIC_INVALID_FRAME_DATA, "Unable to read push_id");
         return false;
       }
       continue_processing = visitor_->OnCancelPushFrame(frame);
@@ -338,7 +340,8 @@ bool HttpDecoder::FinishParsing() {
                     "QuicStreamId from uint32_t to uint64_t.");
       uint64_t stream_id;
       if (!reader.ReadVarInt62(&stream_id)) {
-        RaiseError(QUIC_INTERNAL_ERROR, "Unable to read GOAWAY stream_id");
+        // TODO(b/124216424): Use HTTP_MALFORMED_FRAME.
+        RaiseError(QUIC_INVALID_FRAME_DATA, "Unable to read GOAWAY stream_id");
         return false;
       }
       frame.stream_id = static_cast<QuicStreamId>(stream_id);
@@ -350,7 +353,8 @@ bool HttpDecoder::FinishParsing() {
       QuicDataReader reader(buffer_.data(), current_frame_length_);
       MaxPushIdFrame frame;
       if (!reader.ReadVarInt62(&frame.push_id)) {
-        RaiseError(QUIC_INTERNAL_ERROR, "Unable to read push_id");
+        // TODO(b/124216424): Use HTTP_MALFORMED_FRAME.
+        RaiseError(QUIC_INVALID_FRAME_DATA, "Unable to read push_id");
         return false;
       }
       continue_processing = visitor_->OnMaxPushIdFrame(frame);
@@ -361,7 +365,8 @@ bool HttpDecoder::FinishParsing() {
       QuicDataReader reader(buffer_.data(), current_frame_length_);
       DuplicatePushFrame frame;
       if (!reader.ReadVarInt62(&frame.push_id)) {
-        RaiseError(QUIC_INTERNAL_ERROR, "Unable to read push_id");
+        // TODO(b/124216424): Use HTTP_MALFORMED_FRAME.
+        RaiseError(QUIC_INVALID_FRAME_DATA, "Unable to read push_id");
         return false;
       }
       continue_processing = visitor_->OnDuplicatePushFrame(frame);
@@ -494,13 +499,16 @@ bool HttpDecoder::ParseSettingsFrame(QuicDataReader* reader,
     // TODO(bnc): Handle partial delivery of both fields.
     uint64_t id;
     if (!reader->ReadVarInt62(&id)) {
-      RaiseError(QUIC_INTERNAL_ERROR,
+      // TODO(b/124216424): Use HTTP_MALFORMED_FRAME.
+      RaiseError(QUIC_INVALID_FRAME_DATA,
                  "Unable to read settings frame identifier");
       return false;
     }
     uint64_t content;
     if (!reader->ReadVarInt62(&content)) {
-      RaiseError(QUIC_INTERNAL_ERROR, "Unable to read settings frame content");
+      // TODO(b/124216424): Use HTTP_MALFORMED_FRAME.
+      RaiseError(QUIC_INVALID_FRAME_DATA,
+                 "Unable to read settings frame content");
       return false;
     }
     frame->values[id] = content;
