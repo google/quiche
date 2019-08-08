@@ -388,11 +388,11 @@ TEST_F(HttpDecoderTest, CorruptPriorityFrame) {
       {payload1, 0, "Unable to read PRIORITY frame flags."},
       {payload1, 1, "Unable to read prioritized_element_id."},
       {payload1, 2, "Unable to read element_dependency_id."},
-      {payload1, 3, "Unable to read priority frame weight."},
-      {payload1, 5, "Superfluous data in priority frame."},
+      {payload1, 3, "Unable to read PRIORITY frame weight."},
+      {payload1, 5, "Superfluous data in PRIORITY frame."},
       {payload2, 0, "Unable to read PRIORITY frame flags."},
-      {payload2, 1, "Unable to read priority frame weight."},
-      {payload2, 3, "Superfluous data in priority frame."},
+      {payload2, 1, "Unable to read PRIORITY frame weight."},
+      {payload2, 3, "Superfluous data in PRIORITY frame."},
   };
 
   for (const auto& test_data : kTestData) {
@@ -837,6 +837,11 @@ TEST_F(HttpDecoderTest, CorruptFrame) {
                     "\x01"   // length
                     "\x40",  // first byte of two-byte varint push id
                     "Unable to read push_id"},
+                   {"\x03"  // type (CANCEL_PUSH)
+                    "\x04"  // length
+                    "\x05"  // valid push id
+                    "foo",  // superfluous data
+                    "Superfluous data in CANCEL_PUSH frame."},
                    {"\x05"   // type (PUSH_PROMISE)
                     "\x01"   // length
                     "\x40",  // first byte of two-byte varint push id
@@ -845,14 +850,29 @@ TEST_F(HttpDecoderTest, CorruptFrame) {
                     "\x01"   // length
                     "\x40",  // first byte of two-byte varint push id
                     "Unable to read push_id"},
+                   {"\x0D"  // type (MAX_PUSH_ID)
+                    "\x04"  // length
+                    "\x05"  // valid push id
+                    "foo",  // superfluous data
+                    "Superfluous data in MAX_PUSH_ID frame."},
                    {"\x0E"   // type (DUPLICATE_PUSH)
                     "\x01"   // length
                     "\x40",  // first byte of two-byte varint push id
                     "Unable to read push_id"},
+                   {"\x0E"  // type (DUPLICATE_PUSH)
+                    "\x04"  // length
+                    "\x05"  // valid push id
+                    "foo",  // superfluous data
+                    "Superfluous data in DUPLICATE_PUSH frame."},
                    {"\x07"   // type (GOAWAY)
                     "\x01"   // length
                     "\x40",  // first byte of two-byte varint stream id
-                    "Unable to read GOAWAY stream_id"}};
+                    "Unable to read GOAWAY stream_id"},
+                   {"\x07"  // type (GOAWAY)
+                    "\x04"  // length
+                    "\x05"  // valid stream id
+                    "foo",  // superfluous data
+                    "Superfluous data in GOAWAY frame."}};
 
   for (const auto& test_data : kTestData) {
     {

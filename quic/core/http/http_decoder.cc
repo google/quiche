@@ -314,6 +314,11 @@ bool HttpDecoder::FinishParsing() {
         RaiseError(QUIC_INVALID_FRAME_DATA, "Unable to read push_id");
         return false;
       }
+      if (!reader.IsDoneReading()) {
+        RaiseError(QUIC_INVALID_FRAME_DATA,
+                   "Superfluous data in CANCEL_PUSH frame.");
+        return false;
+      }
       continue_processing = visitor_->OnCancelPushFrame(frame);
       break;
     }
@@ -344,6 +349,11 @@ bool HttpDecoder::FinishParsing() {
         RaiseError(QUIC_INVALID_FRAME_DATA, "Unable to read GOAWAY stream_id");
         return false;
       }
+      if (!reader.IsDoneReading()) {
+        RaiseError(QUIC_INVALID_FRAME_DATA,
+                   "Superfluous data in GOAWAY frame.");
+        return false;
+      }
       frame.stream_id = static_cast<QuicStreamId>(stream_id);
       continue_processing = visitor_->OnGoAwayFrame(frame);
       break;
@@ -357,6 +367,11 @@ bool HttpDecoder::FinishParsing() {
         RaiseError(QUIC_INVALID_FRAME_DATA, "Unable to read push_id");
         return false;
       }
+      if (!reader.IsDoneReading()) {
+        RaiseError(QUIC_INVALID_FRAME_DATA,
+                   "Superfluous data in MAX_PUSH_ID frame.");
+        return false;
+      }
       continue_processing = visitor_->OnMaxPushIdFrame(frame);
       break;
     }
@@ -367,6 +382,11 @@ bool HttpDecoder::FinishParsing() {
       if (!reader.ReadVarInt62(&frame.push_id)) {
         // TODO(b/124216424): Use HTTP_MALFORMED_FRAME.
         RaiseError(QUIC_INVALID_FRAME_DATA, "Unable to read push_id");
+        return false;
+      }
+      if (!reader.IsDoneReading()) {
+        RaiseError(QUIC_INVALID_FRAME_DATA,
+                   "Superfluous data in DUPLICATE_PUSH frame.");
         return false;
       }
       continue_processing = visitor_->OnDuplicatePushFrame(frame);
@@ -482,12 +502,12 @@ bool HttpDecoder::ParsePriorityFrame(QuicDataReader* reader,
   if (!reader->ReadUInt8(&frame->weight)) {
     // TODO(b/124216424): Use HTTP_MALFORMED_FRAME.
     RaiseError(QUIC_INVALID_FRAME_DATA,
-               "Unable to read priority frame weight.");
+               "Unable to read PRIORITY frame weight.");
     return false;
   }
   if (!reader->IsDoneReading()) {
     // TODO(b/124216424): Use HTTP_MALFORMED_FRAME.
-    RaiseError(QUIC_INVALID_FRAME_DATA, "Superfluous data in priority frame.");
+    RaiseError(QUIC_INVALID_FRAME_DATA, "Superfluous data in PRIORITY frame.");
     return false;
   }
   return true;
