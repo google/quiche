@@ -52,6 +52,7 @@ class QUIC_EXPORT_PRIVATE QpackEncoder
                                const spdy::SpdyHeaderBlock* header_list);
 
   // Decode data received on the decoder stream.
+  // TODO(b/112770235): Remove this method.
   void DecodeDecoderStreamData(QuicStringPiece data);
 
   // Set maximum capacity of dynamic table, measured in bytes.
@@ -71,6 +72,14 @@ class QUIC_EXPORT_PRIVATE QpackEncoder
   // delegate must be set if dynamic table capacity is not zero.
   void set_qpack_stream_sender_delegate(QpackStreamSenderDelegate* delegate) {
     encoder_stream_sender_.set_qpack_stream_sender_delegate(delegate);
+  }
+
+  QpackStreamReceiver* decoder_stream_receiver() {
+    return &decoder_stream_receiver_;
+  }
+
+  uint64_t maximum_dynamic_table_capacity() const {
+    return header_table_.maximum_dynamic_table_capacity();
   }
 
  private:

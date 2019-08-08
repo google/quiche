@@ -66,6 +66,7 @@ class QUIC_EXPORT_PRIVATE QpackDecoder
       QpackProgressiveDecoder::HeadersHandlerInterface* handler);
 
   // Decode data received on the encoder stream.
+  // TODO(b/112770235): Remove this method.
   void DecodeEncoderStreamData(QuicStringPiece data);
 
   // QpackEncoderStreamReceiver::Delegate implementation
@@ -81,6 +82,10 @@ class QUIC_EXPORT_PRIVATE QpackDecoder
   // delegate must be set if dynamic table capacity is not zero.
   void set_qpack_stream_sender_delegate(QpackStreamSenderDelegate* delegate) {
     decoder_stream_sender_.set_qpack_stream_sender_delegate(delegate);
+  }
+
+  QpackStreamReceiver* encoder_stream_receiver() {
+    return &encoder_stream_receiver_;
   }
 
  private:
