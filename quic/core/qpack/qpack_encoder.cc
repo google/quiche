@@ -4,7 +4,7 @@
 
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_encoder.h"
 
-#include <list>
+#include <utility>
 
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_constants.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_instruction_encoder.h"
@@ -25,13 +25,10 @@ QpackEncoder::QpackEncoder(
 
 QpackEncoder::~QpackEncoder() {}
 
-std::string QpackEncoder::EncodeHeaderList(
-    QuicStreamId /* stream_id */,
+QpackEncoder::Instructions QpackEncoder::FirstPassEncode(
     const spdy::SpdyHeaderBlock* header_list) {
-  // First pass.
-
-  // Encode into |instructions| which will be serialized during the second pass.
-  std::list<InstructionWithValues> instructions;
+  Instructions instructions;
+  instructions.reserve(header_list->size());
 
   for (const auto& header : ValueSplittingHeaderList(header_list)) {
     QuicStringPiece name = header.first;
@@ -71,11 +68,12 @@ std::string QpackEncoder::EncodeHeaderList(
     }
   }
 
-  // TODO(bnc): Implement dynamic entries and set Required Insert Count
-  // accordingly.
-  const uint64_t required_insert_count = 0;
+  return instructions;
+}
 
-  // Second pass.
+std::string QpackEncoder::SecondPassEncode(
+    QpackEncoder::Instructions instructions,
+    uint64_t required_insert_count) const {
   QpackInstructionEncoder instruction_encoder;
   std::string encoded_headers;
 
@@ -97,8 +95,24 @@ std::string QpackEncoder::EncodeHeaderList(
   return encoded_headers;
 }
 
+std::string QpackEncoder::EncodeHeaderList(
+    QuicStreamId /* stream_id */,
+    const spdy::SpdyHeaderBlock* header_list) {
+  // First pass: encode into |instructions|.
+  Instructions instructions = FirstPassEncode(header_list);
+
+  // TODO(bnc): Implement dynamic entries and set Required Insert Count
+  // accordingly.
+  const uint64_t required_insert_count = 0;
+
+  // Second pass.
+  return SecondPassEncode(std::move(instructions), required_insert_count);
+}
+
 void QpackEncoder::SetMaximumDynamicTableCapacity(
     uint64_t maximum_dynamic_table_capacity) {
+  // TODO(b/112770235): Send set dynamic table capacity instruction on encoder
+  // stream.
   header_table_.SetMaximumDynamicTableCapacity(maximum_dynamic_table_capacity);
 }
 

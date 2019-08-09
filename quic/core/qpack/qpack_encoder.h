@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_decoder_stream_receiver.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_encoder_stream_sender.h"
@@ -53,6 +54,8 @@ class QUIC_EXPORT_PRIVATE QpackEncoder
 
   // Set maximum capacity of dynamic table, measured in bytes.
   // Called when SETTINGS_QPACK_MAX_TABLE_CAPACITY is received.
+  // Sends set dynamic table capacity instruction on encoder stream.
+  // TODO(b/112770235): Actually send set dynamic table capacity instruction.
   void SetMaximumDynamicTableCapacity(uint64_t maximum_dynamic_table_capacity);
 
   // Set maximum number of blocked streams.
@@ -91,6 +94,17 @@ class QUIC_EXPORT_PRIVATE QpackEncoder
     const QpackInstruction* instruction;
     QpackInstructionEncoder::Values values;
   };
+  using Instructions = std::vector<InstructionWithValues>;
+
+  // Perform first pass of two-pass encoding: represent each header field as a
+  // reference to an existing entry, the name of an existing entry with a
+  // literal value, or a literal name and value pair.
+  Instructions FirstPassEncode(const spdy::SpdyHeaderBlock* header_list);
+
+  // Perform second pass of two-pass encoding: serialize representations
+  // generated in first pass.
+  std::string SecondPassEncode(Instructions instructions,
+                               uint64_t required_insert_count) const;
 
   DecoderStreamErrorDelegate* const decoder_stream_error_delegate_;
   QpackDecoderStreamReceiver decoder_stream_receiver_;
