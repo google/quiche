@@ -68,13 +68,19 @@ class QuicReceiveControlStreamTest : public QuicTestWithParam<TestParams> {
             SupportedVersions(GetParam().version))),
         session_(connection_) {
     session_.Initialize();
-    auto pending = QuicMakeUnique<PendingStream>(
-        QuicUtils::GetFirstUnidirectionalStreamId(
-            GetParam().version.transport_version,
-            QuicUtils::InvertPerspective(perspective())),
-        &session_);
+    QuicStreamId id = perspective() == Perspective::IS_SERVER
+                          ? GetNthClientInitiatedUnidirectionalStreamId(
+                                session_.transport_version(), 3)
+                          : GetNthServerInitiatedUnidirectionalStreamId(
+                                session_.transport_version(), 3);
+    char type[] = {kControlStream};
+
+    QuicStreamFrame data1(id, false, 0, QuicStringPiece(type, 1));
+    session_.OnStreamFrame(data1);
+
     receive_control_stream_ =
-        QuicMakeUnique<QuicReceiveControlStream>(pending.get());
+        QuicSpdySessionPeer::GetReceiveControlStream(&session_);
+
     stream_ = new TestStream(GetNthClientInitiatedBidirectionalStreamId(
                                  GetParam().version.transport_version, 0),
                              &session_);
@@ -100,7 +106,7 @@ class QuicReceiveControlStreamTest : public QuicTestWithParam<TestParams> {
   }
 
   QuicStreamOffset NumBytesConsumed() {
-    return QuicStreamPeer::sequencer(receive_control_stream_.get())
+    return QuicStreamPeer::sequencer(receive_control_stream_)
         ->NumBytesConsumed();
   }
 
@@ -108,7 +114,7 @@ class QuicReceiveControlStreamTest : public QuicTestWithParam<TestParams> {
   MockAlarmFactory alarm_factory_;
   StrictMock<MockQuicConnection>* connection_;
   StrictMock<MockQuicSpdySession> session_;
-  std::unique_ptr<QuicReceiveControlStream> receive_control_stream_;
+  QuicReceiveControlStream* receive_control_stream_;
   TestStream* stream_;
 };
 
@@ -130,8 +136,7 @@ TEST_P(QuicReceiveControlStreamTest, ReceiveSettings) {
   settings.values[3] = 2;
   settings.values[SETTINGS_MAX_HEADER_LIST_SIZE] = 5;
   std::string data = EncodeSettings(settings);
-  QuicStreamFrame frame(receive_control_stream_->id(), false, 0,
-                        QuicStringPiece(data));
+  QuicStreamFrame frame(receive_control_stream_->id(), false, 1, data);
   EXPECT_NE(5u, session_.max_outbound_header_list_size());
   receive_control_stream_->OnStreamFrame(frame);
   EXPECT_EQ(5u, session_.max_outbound_header_list_size());
@@ -148,15 +153,15 @@ TEST_P(QuicReceiveControlStreamTest, ReceiveSettingsTwice) {
 
   std::string settings_frame = EncodeSettings(settings);
 
-  EXPECT_EQ(0u, NumBytesConsumed());
+  EXPECT_EQ(1u, NumBytesConsumed());
 
   // Receive first SETTINGS frame.
   receive_control_stream_->OnStreamFrame(
       QuicStreamFrame(receive_control_stream_->id(), /* fin = */ false,
-                      /* offset = */ 0, settings_frame));
+                      /* offset = */ 1, settings_frame));
 
   // First SETTINGS frame is consumed.
-  EXPECT_EQ(settings_frame.size(), NumBytesConsumed());
+  EXPECT_EQ(settings_frame.size() + 1, NumBytesConsumed());
 
   // Second SETTINGS frame causes the connection to be closed.
   EXPECT_CALL(*connection_,
@@ -168,13 +173,13 @@ TEST_P(QuicReceiveControlStreamTest, ReceiveSettingsTwice) {
   EXPECT_CALL(session_, OnConnectionClosed(_, _));
 
   // Receive second SETTINGS frame.
-  receive_control_stream_->OnStreamFrame(
-      QuicStreamFrame(receive_control_stream_->id(), /* fin = */ false,
-                      /* offset = */ settings_frame.size(), settings_frame));
+  receive_control_stream_->OnStreamFrame(QuicStreamFrame(
+      receive_control_stream_->id(), /* fin = */ false,
+      /* offset = */ settings_frame.size() + 1, settings_frame));
 
   // Frame header of second SETTINGS frame is consumed, but not frame payload.
   QuicByteCount settings_frame_header_length = 2;
-  EXPECT_EQ(settings_frame.size() + settings_frame_header_length,
+  EXPECT_EQ(settings_frame.size() + settings_frame_header_length + 1,
             NumBytesConsumed());
 }
 
@@ -186,10 +191,8 @@ TEST_P(QuicReceiveControlStreamTest, ReceiveSettingsFragments) {
   std::string data1 = data.substr(0, 1);
   std::string data2 = data.substr(1, data.length() - 1);
 
-  QuicStreamFrame frame(receive_control_stream_->id(), false, 0,
-                        QuicStringPiece(data.data(), 1));
-  QuicStreamFrame frame2(receive_control_stream_->id(), false, 1,
-                         QuicStringPiece(data.data() + 1, data.length() - 1));
+  QuicStreamFrame frame(receive_control_stream_->id(), false, 1, data1);
+  QuicStreamFrame frame2(receive_control_stream_->id(), false, 2, data2);
   EXPECT_NE(5u, session_.max_outbound_header_list_size());
   receive_control_stream_->OnStreamFrame(frame);
   receive_control_stream_->OnStreamFrame(frame2);
@@ -204,8 +207,7 @@ TEST_P(QuicReceiveControlStreamTest, ReceiveWrongFrame) {
   QuicByteCount header_length = encoder.SerializeGoAwayFrame(goaway, &buffer);
   std::string data = std::string(buffer.get(), header_length);
 
-  QuicStreamFrame frame(receive_control_stream_->id(), false, 0,
-                        QuicStringPiece(data));
+  QuicStreamFrame frame(receive_control_stream_->id(), false, 1, data);
   EXPECT_CALL(*connection_, CloseConnection(QUIC_HTTP_DECODER_ERROR, _, _));
   receive_control_stream_->OnStreamFrame(frame);
 }
@@ -220,8 +222,8 @@ TEST_P(QuicReceiveControlStreamTest, ReceivePriorityFrame) {
   frame.prioritized_element_id = stream_->id();
   frame.weight = 1;
   std::string serialized_frame = PriorityFrame(frame);
-  QuicStreamFrame data(receive_control_stream_->id(), false, 0,
-                       QuicStringPiece(serialized_frame));
+  QuicStreamFrame data(receive_control_stream_->id(), false, 1,
+                       serialized_frame);
 
   EXPECT_EQ(3u, stream_->precedence().spdy3_priority());
   receive_control_stream_->OnStreamFrame(data);
@@ -236,7 +238,7 @@ TEST_P(QuicReceiveControlStreamTest, PushPromiseOnControlStreamShouldClose) {
   HttpEncoder encoder;
   uint64_t length =
       encoder.SerializePushPromiseFrameWithOnlyPushId(push_promise, &buffer);
-  QuicStreamFrame frame(receive_control_stream_->id(), false, 0, buffer.get(),
+  QuicStreamFrame frame(receive_control_stream_->id(), false, 1, buffer.get(),
                         length);
   // TODO(lassey) Check for HTTP_WRONG_STREAM error code.
   EXPECT_CALL(*connection_, CloseConnection(QUIC_HTTP_DECODER_ERROR, _, _))
@@ -251,13 +253,13 @@ TEST_P(QuicReceiveControlStreamTest, ConsumeUnknownFrame) {
       "03"        // payload length
       "666f6f");  // payload "foo"
 
-  EXPECT_EQ(0u, NumBytesConsumed());
+  EXPECT_EQ(1u, NumBytesConsumed());
 
   receive_control_stream_->OnStreamFrame(
       QuicStreamFrame(receive_control_stream_->id(), /* fin = */ false,
-                      /* offset = */ 0, unknown_frame));
+                      /* offset = */ 1, unknown_frame));
 
-  EXPECT_EQ(unknown_frame.size(), NumBytesConsumed());
+  EXPECT_EQ(unknown_frame.size() + 1, NumBytesConsumed());
 }
 
 }  // namespace

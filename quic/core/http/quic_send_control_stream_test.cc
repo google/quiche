@@ -54,9 +54,7 @@ class QuicSendControlStreamTest : public QuicTestWithParam<TestParams> {
             SupportedVersions(GetParam().version))),
         session_(connection_) {
     session_.Initialize();
-    send_control_stream_ = QuicMakeUnique<QuicSendControlStream>(
-        QuicSpdySessionPeer::GetNextOutgoingUnidirectionalStreamId(&session_),
-        &session_, /* max_inbound_header_list_size = */ 100);
+    send_control_stream_ = QuicSpdySessionPeer::GetSendControlStream(&session_);
     ON_CALL(session_, WritevData(_, _, _, _, _))
         .WillByDefault(Invoke(MockQuicSession::ConsumeData));
   }
@@ -68,7 +66,7 @@ class QuicSendControlStreamTest : public QuicTestWithParam<TestParams> {
   StrictMock<MockQuicConnection>* connection_;
   StrictMock<MockQuicSpdySession> session_;
   HttpEncoder encoder_;
-  std::unique_ptr<QuicSendControlStream> send_control_stream_;
+  QuicSendControlStream* send_control_stream_;
 };
 
 INSTANTIATE_TEST_SUITE_P(Tests,

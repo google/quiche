@@ -676,6 +676,8 @@ class MockQuicSpdySession : public QuicSpdySession {
     QuicSession::OnConnectionClosed(frame, source);
   }
 
+  using QuicSession::RegisterStaticStream;
+
   // From QuicSession.
   MOCK_METHOD2(OnConnectionClosed,
                void(const QuicConnectionCloseFrame& frame,
