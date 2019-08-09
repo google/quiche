@@ -7,8 +7,9 @@
 #include <cstdint>
 #include <string>
 
+#include "net/third_party/quiche/src/quic/core/qpack/qpack_decoder.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_decoder_test_utils.h"
-#include "net/third_party/quiche/src/quic/core/qpack/qpack_encoder_test_utils.h"
+#include "net/third_party/quiche/src/quic/core/qpack/qpack_encoder.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_utils.h"
 #include "net/third_party/quiche/src/quic/core/qpack/value_splitting_header_list.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_fuzzed_data_provider.h"
@@ -16,6 +17,28 @@
 
 namespace quic {
 namespace test {
+
+// DecoderStreamErrorDelegate implementation that crashes on error.
+class CrashingDecoderStreamErrorDelegate
+    : public QpackEncoder::DecoderStreamErrorDelegate {
+ public:
+  ~CrashingDecoderStreamErrorDelegate() override = default;
+
+  void OnDecoderStreamError(QuicStringPiece error_message) override {
+    CHECK(false) << error_message;
+  }
+};
+
+// EncoderStreamErrorDelegate implementation that crashes on error.
+class CrashingEncoderStreamErrorDelegate
+    : public QpackDecoder::EncoderStreamErrorDelegate {
+ public:
+  ~CrashingEncoderStreamErrorDelegate() override = default;
+
+  void OnEncoderStreamError(QuicStringPiece error_message) override {
+    CHECK(false) << error_message;
+  }
+};
 
 spdy::SpdyHeaderBlock GenerateHeaderList(QuicFuzzedDataProvider* provider) {
   spdy::SpdyHeaderBlock header_list;
@@ -174,8 +197,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   const uint64_t maximum_blocked_streams = provider.ConsumeIntegral<uint8_t>();
 
   // Set up encoder.
-  // TODO: crash on decoder stream error
-  NoopDecoderStreamErrorDelegate decoder_stream_error_delegate;
+  CrashingDecoderStreamErrorDelegate decoder_stream_error_delegate;
   NoopQpackStreamSenderDelegate encoder_stream_sender_delegate;
   QpackEncoder encoder(&decoder_stream_error_delegate);
   encoder.set_qpack_stream_sender_delegate(&encoder_stream_sender_delegate);
@@ -183,8 +205,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   encoder.SetMaximumBlockedStreams(maximum_blocked_streams);
 
   // Set up decoder.
-  // TODO: crash on encoder stream error
-  NoopEncoderStreamErrorDelegate encoder_stream_error_delegate;
+  CrashingEncoderStreamErrorDelegate encoder_stream_error_delegate;
   NoopQpackStreamSenderDelegate decoder_stream_sender_delegate;
   QpackDecoder decoder(maximum_dynamic_table_capacity, maximum_blocked_streams,
                        &encoder_stream_error_delegate);
