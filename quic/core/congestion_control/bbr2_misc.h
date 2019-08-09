@@ -147,7 +147,7 @@ struct QUIC_EXPORT_PRIVATE Bbr2Params {
   float inflight_hi_headroom = 0.15;
 
   // Estimate startup/bw probing has gone too far if loss rate exceeds this.
-  float loss_threshold = 0.02;
+  float loss_threshold = GetQuicFlag(FLAGS_quic_bbr2_default_loss_threshold);
 
   Limits<QuicByteCount> cwnd_limits;
 };
