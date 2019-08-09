@@ -23,6 +23,8 @@ HttpDecoder::HttpDecoder(Visitor* visitor)
       remaining_frame_length_(0),
       current_type_field_length_(0),
       remaining_type_field_length_(0),
+      current_push_id_length_(0),
+      remaining_push_id_length_(0),
       error_(QUIC_NO_ERROR),
       error_detail_("") {
   DCHECK(visitor_);
@@ -214,25 +216,57 @@ bool HttpDecoder::ReadFramePayload(QuicDataReader* reader) {
       break;
     }
     case static_cast<uint64_t>(HttpFrameType::PUSH_PROMISE): {
+      PushId push_id;
       if (current_frame_length_ == remaining_frame_length_) {
-        QuicByteCount bytes_remaining = reader->BytesRemaining();
-        PushId push_id;
-        QuicByteCount push_id_length = reader->PeekVarInt62Length();
-        // TODO(rch): Handle partial delivery of this field.
-        if (!reader->ReadVarInt62(&push_id)) {
-          // TODO(b/124216424): Use HTTP_MALFORMED_FRAME.
-          RaiseError(QUIC_INVALID_FRAME_DATA, "Unable to read push_id");
+        // A new Push Promise frame just arrived.
+        DCHECK_EQ(0u, current_push_id_length_);
+        current_push_id_length_ = reader->PeekVarInt62Length();
+        if (current_push_id_length_ > remaining_frame_length_) {
+          RaiseError(QUIC_INVALID_FRAME_DATA, "PUSH_PROMISE frame malformed.");
           return false;
         }
-        remaining_frame_length_ -= bytes_remaining - reader->BytesRemaining();
-        if (!visitor_->OnPushPromiseFrameStart(
-                push_id,
-                    current_length_field_length_ + current_type_field_length_,
-                push_id_length)) {
-          continue_processing = false;
+        if (current_push_id_length_ > reader->BytesRemaining()) {
+          // Not all bytes of push id is present yet, buffer push id.
+          DCHECK_EQ(0u, remaining_push_id_length_);
+          remaining_push_id_length_ = current_push_id_length_;
+          BufferPushId(reader);
           break;
         }
+        bool success = reader->ReadVarInt62(&push_id);
+        DCHECK(success);
+        remaining_frame_length_ -= current_push_id_length_;
+        if (!visitor_->OnPushPromiseFrameStart(
+                push_id,
+                current_length_field_length_ + current_type_field_length_,
+                current_push_id_length_)) {
+          continue_processing = false;
+          current_push_id_length_ = 0;
+          break;
+        }
+        current_push_id_length_ = 0;
+      } else if (remaining_push_id_length_ > 0) {
+        // Waiting for more bytes on push id.
+        BufferPushId(reader);
+        if (remaining_push_id_length_ != 0) {
+          break;
+        }
+        QuicDataReader push_id_reader(push_id_buffer_.data(),
+                                      current_push_id_length_);
+
+        bool success = push_id_reader.ReadVarInt62(&push_id);
+        DCHECK(success);
+        if (!visitor_->OnPushPromiseFrameStart(
+                push_id,
+                current_length_field_length_ + current_type_field_length_,
+                current_push_id_length_)) {
+          continue_processing = false;
+          current_push_id_length_ = 0;
+          break;
+        }
+        current_push_id_length_ = 0;
       }
+
+      // Read Push Promise headers.
       DCHECK_LT(remaining_frame_length_, current_frame_length_);
       QuicByteCount bytes_to_read = std::min<QuicByteCount>(
           remaining_frame_length_, reader->BytesRemaining());
@@ -252,7 +286,6 @@ bool HttpDecoder::ReadFramePayload(QuicDataReader* reader) {
       break;
     }
     case static_cast<uint64_t>(HttpFrameType::MAX_PUSH_ID): {
-      // TODO(rch): Handle partial delivery.
       BufferFramePayload(reader);
       break;
     }
@@ -306,7 +339,6 @@ bool HttpDecoder::FinishParsing() {
       break;
     }
     case static_cast<uint64_t>(HttpFrameType::CANCEL_PUSH): {
-      // TODO(rch): Handle partial delivery.
       CancelPushFrame frame;
       QuicDataReader reader(buffer_.data(), current_frame_length_);
       if (!reader.ReadVarInt62(&frame.push_id)) {
@@ -336,7 +368,6 @@ bool HttpDecoder::FinishParsing() {
       break;
     }
     case static_cast<uint64_t>(HttpFrameType::GOAWAY): {
-      // TODO(bnc): Handle partial delivery.
       QuicDataReader reader(buffer_.data(), current_frame_length_);
       GoAwayFrame frame;
       static_assert(!std::is_same<decltype(frame.stream_id), uint64_t>::value,
@@ -359,7 +390,6 @@ bool HttpDecoder::FinishParsing() {
       break;
     }
     case static_cast<uint64_t>(HttpFrameType::MAX_PUSH_ID): {
-      // TODO(bnc): Handle partial delivery.
       QuicDataReader reader(buffer_.data(), current_frame_length_);
       MaxPushIdFrame frame;
       if (!reader.ReadVarInt62(&frame.push_id)) {
@@ -376,7 +406,6 @@ bool HttpDecoder::FinishParsing() {
       break;
     }
     case static_cast<uint64_t>(HttpFrameType::DUPLICATE_PUSH): {
-      // TODO(bnc): Handle partial delivery.
       QuicDataReader reader(buffer_.data(), current_frame_length_);
       DuplicatePushFrame frame;
       if (!reader.ReadVarInt62(&frame.push_id)) {
@@ -433,9 +462,6 @@ void HttpDecoder::BufferFramePayload(QuicDataReader* reader) {
 }
 
 void HttpDecoder::BufferFrameLength(QuicDataReader* reader) {
-  if (current_length_field_length_ == remaining_length_field_length_) {
-    length_buffer_.fill(0);
-  }
   QuicByteCount bytes_to_read = std::min<QuicByteCount>(
       remaining_length_field_length_, reader->BytesRemaining());
   bool success =
@@ -447,9 +473,6 @@ void HttpDecoder::BufferFrameLength(QuicDataReader* reader) {
 }
 
 void HttpDecoder::BufferFrameType(QuicDataReader* reader) {
-  if (current_type_field_length_ == remaining_type_field_length_) {
-    type_buffer_.fill(0);
-  }
   QuicByteCount bytes_to_read = std::min<QuicByteCount>(
       remaining_type_field_length_, reader->BytesRemaining());
   bool success =
@@ -458,6 +481,19 @@ void HttpDecoder::BufferFrameType(QuicDataReader* reader) {
                         bytes_to_read);
   DCHECK(success);
   remaining_type_field_length_ -= bytes_to_read;
+}
+
+void HttpDecoder::BufferPushId(QuicDataReader* reader) {
+  DCHECK_LE(remaining_push_id_length_, current_frame_length_);
+  QuicByteCount bytes_to_read = std::min<QuicByteCount>(
+      reader->BytesRemaining(), remaining_push_id_length_);
+  bool success =
+      reader->ReadBytes(push_id_buffer_.data() + current_push_id_length_ -
+                            remaining_push_id_length_,
+                        bytes_to_read);
+  DCHECK(success);
+  remaining_push_id_length_ -= bytes_to_read;
+  remaining_frame_length_ -= bytes_to_read;
 }
 
 void HttpDecoder::RaiseError(QuicErrorCode error, std::string error_detail) {

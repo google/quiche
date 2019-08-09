@@ -5,8 +5,11 @@
 #ifndef QUICHE_QUIC_CORE_HTTP_HTTP_DECODER_H_
 #define QUICHE_QUIC_CORE_HTTP_HTTP_DECODER_H_
 
+#include <cstdint>
+
 #include "net/third_party/quiche/src/quic/core/http/http_frames.h"
 #include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
+#include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 
@@ -169,6 +172,10 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
   // Buffers any remaining frame type field from |reader| into |type_buffer_|.
   void BufferFrameType(QuicDataReader* reader);
 
+  // Buffers at most |remaining_push_id_length_| from |reader| to
+  // |push_id_buffer_|.
+  void BufferPushId(QuicDataReader* reader);
+
   // Sets |error_| and |error_detail_| accordingly.
   void RaiseError(QuicErrorCode error, std::string error_detail);
 
@@ -199,6 +206,10 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
   QuicByteCount current_type_field_length_;
   // Remaining length that's needed for the frame's type field.
   QuicByteCount remaining_type_field_length_;
+  // Length of PUSH_PROMISE frame's push id.
+  QuicByteCount current_push_id_length_;
+  // Remaining length that's needed for PUSH_PROMISE frame's push id field.
+  QuicByteCount remaining_push_id_length_;
   // Last error.
   QuicErrorCode error_;
   // The issue which caused |error_|
@@ -209,6 +220,8 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
   std::array<char, sizeof(uint64_t)> length_buffer_;
   // Remaining unparsed type field data.
   std::array<char, sizeof(uint64_t)> type_buffer_;
+  // Remaining unparsed push id data.
+  std::array<char, sizeof(uint64_t)> push_id_buffer_;
 };
 
 }  // namespace quic

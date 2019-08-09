@@ -202,19 +202,27 @@ TEST_F(HttpDecoderTest, CancelPush) {
 
 TEST_F(HttpDecoderTest, PushPromiseFrame) {
   InSequence s;
-  std::string input =
-      "\x05"      // type (PUSH_PROMISE)
-      "\x08"      // length
-      "\x01"      // Push Id
-      "Headers";  // Header Block
+  std::string input(
+      "\x05"  // type (PUSH PROMISE)
+      "\x0f"  // length
+      "\xC0"
+      "\x00"
+      "\x00"
+      "\x00"
+      "\x00"
+      "\x00"
+      "\x01"
+      "\x01"  // push id 257.
+      "Headers",
+      17);
 
   // Visitor pauses processing.
-  EXPECT_CALL(visitor_, OnPushPromiseFrameStart(1, 2, 1))
+  EXPECT_CALL(visitor_, OnPushPromiseFrameStart(257, 2, 8))
       .WillOnce(Return(false));
   QuicStringPiece remaining_input(input);
   QuicByteCount processed_bytes =
       ProcessInputWithGarbageAppended(remaining_input);
-  EXPECT_EQ(3u, processed_bytes);
+  EXPECT_EQ(10u, processed_bytes);
   remaining_input = remaining_input.substr(processed_bytes);
 
   EXPECT_CALL(visitor_, OnPushPromiseFramePayload(QuicStringPiece("Headers")))
@@ -228,7 +236,7 @@ TEST_F(HttpDecoderTest, PushPromiseFrame) {
   EXPECT_EQ("", decoder_.error_detail());
 
   // Process the full frame.
-  EXPECT_CALL(visitor_, OnPushPromiseFrameStart(1, 2, 1));
+  EXPECT_CALL(visitor_, OnPushPromiseFrameStart(257, 2, 8));
   EXPECT_CALL(visitor_, OnPushPromiseFramePayload(QuicStringPiece("Headers")));
   EXPECT_CALL(visitor_, OnPushPromiseFrameEnd());
   EXPECT_EQ(input.size(), ProcessInput(input));
@@ -236,7 +244,7 @@ TEST_F(HttpDecoderTest, PushPromiseFrame) {
   EXPECT_EQ("", decoder_.error_detail());
 
   // Process the frame incrementally.
-  EXPECT_CALL(visitor_, OnPushPromiseFrameStart(1, 2, 1));
+  EXPECT_CALL(visitor_, OnPushPromiseFrameStart(257, 2, 8));
   EXPECT_CALL(visitor_, OnPushPromiseFramePayload(QuicStringPiece("H")));
   EXPECT_CALL(visitor_, OnPushPromiseFramePayload(QuicStringPiece("e")));
   EXPECT_CALL(visitor_, OnPushPromiseFramePayload(QuicStringPiece("a")));
@@ -246,6 +254,15 @@ TEST_F(HttpDecoderTest, PushPromiseFrame) {
   EXPECT_CALL(visitor_, OnPushPromiseFramePayload(QuicStringPiece("s")));
   EXPECT_CALL(visitor_, OnPushPromiseFrameEnd());
   ProcessInputCharByChar(input);
+  EXPECT_EQ(QUIC_NO_ERROR, decoder_.error());
+  EXPECT_EQ("", decoder_.error_detail());
+
+  // Process push id incrementally and append headers with last byte of push id.
+  EXPECT_CALL(visitor_, OnPushPromiseFrameStart(257, 2, 8));
+  EXPECT_CALL(visitor_, OnPushPromiseFramePayload(QuicStringPiece("Headers")));
+  EXPECT_CALL(visitor_, OnPushPromiseFrameEnd());
+  ProcessInputCharByChar(input.substr(0, 9));
+  EXPECT_EQ(8u, ProcessInput(input.substr(9)));
   EXPECT_EQ(QUIC_NO_ERROR, decoder_.error());
   EXPECT_EQ("", decoder_.error_detail());
 }
@@ -845,7 +862,7 @@ TEST_F(HttpDecoderTest, CorruptFrame) {
                    {"\x05"   // type (PUSH_PROMISE)
                     "\x01"   // length
                     "\x40",  // first byte of two-byte varint push id
-                    "Unable to read push_id"},
+                    "PUSH_PROMISE frame malformed."},
                    {"\x0D"   // type (MAX_PUSH_ID)
                     "\x01"   // length
                     "\x40",  // first byte of two-byte varint push id
