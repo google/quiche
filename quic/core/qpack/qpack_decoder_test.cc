@@ -44,7 +44,7 @@ class QpackDecoderTest : public QuicTestWithParam<FragmentMode> {
   ~QpackDecoderTest() override = default;
 
   void DecodeEncoderStreamData(QuicStringPiece data) {
-    qpack_decoder_.DecodeEncoderStreamData(data);
+    qpack_decoder_.encoder_stream_receiver()->Decode(data);
   }
 
   // Set up |progressive_decoder_|.

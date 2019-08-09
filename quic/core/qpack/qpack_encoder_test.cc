@@ -131,7 +131,7 @@ TEST_F(QpackEncoderTest, DecoderStreamError) {
 
   QpackEncoder encoder(&decoder_stream_error_delegate_);
   encoder.set_qpack_stream_sender_delegate(&encoder_stream_sender_delegate_);
-  encoder.DecodeDecoderStreamData(
+  encoder.decoder_stream_receiver()->Decode(
       QuicTextUtils::HexDecode("ffffffffffffffffffffff"));
 }
 

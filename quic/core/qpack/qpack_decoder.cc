@@ -30,10 +30,6 @@ void QpackDecoder::OnStreamReset(QuicStreamId stream_id) {
   decoder_stream_sender_.SendStreamCancellation(stream_id);
 }
 
-void QpackDecoder::DecodeEncoderStreamData(QuicStringPiece data) {
-  encoder_stream_receiver_.Decode(data);
-}
-
 void QpackDecoder::OnInsertWithNameReference(bool is_static,
                                              uint64_t name_index,
                                              QuicStringPiece value) {

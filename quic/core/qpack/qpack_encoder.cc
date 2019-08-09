@@ -97,10 +97,6 @@ std::string QpackEncoder::EncodeHeaderList(
   return encoded_headers;
 }
 
-void QpackEncoder::DecodeDecoderStreamData(QuicStringPiece data) {
-  decoder_stream_receiver_.Decode(data);
-}
-
 void QpackEncoder::SetMaximumDynamicTableCapacity(
     uint64_t maximum_dynamic_table_capacity) {
   header_table_.SetMaximumDynamicTableCapacity(maximum_dynamic_table_capacity);

@@ -51,10 +51,6 @@ class QUIC_EXPORT_PRIVATE QpackEncoder
   std::string EncodeHeaderList(QuicStreamId stream_id,
                                const spdy::SpdyHeaderBlock* header_list);
 
-  // Decode data received on the decoder stream.
-  // TODO(b/112770235): Remove this method.
-  void DecodeDecoderStreamData(QuicStringPiece data);
-
   // Set maximum capacity of dynamic table, measured in bytes.
   // Called when SETTINGS_QPACK_MAX_TABLE_CAPACITY is received.
   void SetMaximumDynamicTableCapacity(uint64_t maximum_dynamic_table_capacity);

@@ -134,7 +134,7 @@ bool QpackOfflineDecoder::DecodeHeaderBlocksFromFile(
 
     // Process data.
     if (stream_id == 0) {
-      qpack_decoder_->DecodeEncoderStreamData(data);
+      qpack_decoder_->encoder_stream_receiver()->Decode(data);
 
       if (encoder_stream_error_detected_) {
         QUIC_LOG(ERROR) << "Error detected on encoder stream.";

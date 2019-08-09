@@ -65,10 +65,6 @@ class QUIC_EXPORT_PRIVATE QpackDecoder
       QuicStreamId stream_id,
       QpackProgressiveDecoder::HeadersHandlerInterface* handler);
 
-  // Decode data received on the encoder stream.
-  // TODO(b/112770235): Remove this method.
-  void DecodeEncoderStreamData(QuicStringPiece data);
-
   // QpackEncoderStreamReceiver::Delegate implementation
   void OnInsertWithNameReference(bool is_static,
                                  uint64_t name_index,
