@@ -115,17 +115,18 @@ spdy::SpdyHeaderBlock GenerateHeaderList(QuicFuzzedDataProvider* provider) {
 }
 
 spdy::SpdyHeaderBlock DecodeHeaderBlock(QpackDecoder* decoder,
+                                        QuicStreamId stream_id,
                                         const std::string& encoded_header_block,
                                         QuicFuzzedDataProvider* provider) {
-  // Process up to 64 kB fragments at a time.  Too small upper bound might not
-  // provide enough coverage, too large would make fuzzing less efficient.
+  // Process up to 256 bytes at a time.  Such a small size helps test
+  // fragmented decoding.
   auto fragment_size_generator =
-      std::bind(&QuicFuzzedDataProvider::ConsumeIntegralInRange<uint16_t>,
-                provider, 1, std::numeric_limits<uint16_t>::max());
+      std::bind(&QuicFuzzedDataProvider::ConsumeIntegralInRange<uint8_t>,
+                provider, 1, std::numeric_limits<uint8_t>::max());
 
   TestHeadersHandler handler;
   auto progressive_decoder =
-      decoder->CreateProgressiveDecoder(/* stream_id = */ 1, &handler);
+      decoder->CreateProgressiveDecoder(stream_id, &handler);
   {
     QuicStringPiece remaining_data = encoded_header_block;
     while (!remaining_data.empty()) {
@@ -165,9 +166,12 @@ spdy::SpdyHeaderBlock SplitHeaderList(
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   QuicFuzzedDataProvider provider(data, size);
 
-  // TODO(b/112770235): Fuzz dynamic table and blocked streams.
-  uint64_t maximum_dynamic_table_capacity = 0;
-  uint64_t maximum_blocked_streams = 0;
+  // Maximum 256 byte dynamic table.  Such a small size helps test draining
+  // entries and eviction.
+  const uint64_t maximum_dynamic_table_capacity =
+      provider.ConsumeIntegral<uint8_t>();
+  // Maximum 256 blocked stream.
+  const uint64_t maximum_blocked_streams = provider.ConsumeIntegral<uint8_t>();
 
   // Set up encoder.
   // TODO: crash on decoder stream error
@@ -175,6 +179,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   NoopQpackStreamSenderDelegate encoder_stream_sender_delegate;
   QpackEncoder encoder(&decoder_stream_error_delegate);
   encoder.set_qpack_stream_sender_delegate(&encoder_stream_sender_delegate);
+  encoder.SetMaximumDynamicTableCapacity(maximum_dynamic_table_capacity);
+  encoder.SetMaximumBlockedStreams(maximum_blocked_streams);
 
   // Set up decoder.
   // TODO: crash on encoder stream error
@@ -184,23 +190,27 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
                        &encoder_stream_error_delegate);
   decoder.set_qpack_stream_sender_delegate(&decoder_stream_sender_delegate);
 
-  // Generate header list.
-  spdy::SpdyHeaderBlock header_list = GenerateHeaderList(&provider);
+  while (provider.remaining_bytes() > 0) {
+    const QuicStreamId stream_id = provider.ConsumeIntegral<uint8_t>();
 
-  // Encode header list.
-  std::string encoded_header_block =
-      encoder.EncodeHeaderList(/* stream_id = */ 1, &header_list);
+    // Generate header list.
+    spdy::SpdyHeaderBlock header_list = GenerateHeaderList(&provider);
 
-  // Decode resulting header block.
-  spdy::SpdyHeaderBlock decoded_header_list =
-      DecodeHeaderBlock(&decoder, encoded_header_block, &provider);
+    // Encode header list.
+    std::string encoded_header_block =
+        encoder.EncodeHeaderList(stream_id, &header_list);
 
-  // Encoder splits |header_list| header values along '\0' or ';' separators.
-  // Do the same here so that we get matching results.
-  spdy::SpdyHeaderBlock expected_header_list = SplitHeaderList(header_list);
+    // Decode resulting header block.
+    spdy::SpdyHeaderBlock decoded_header_list =
+        DecodeHeaderBlock(&decoder, stream_id, encoded_header_block, &provider);
 
-  // Compare resulting header list to original.
-  CHECK(expected_header_list == decoded_header_list);
+    // Encoder splits |header_list| header values along '\0' or ';' separators.
+    // Do the same here so that we get matching results.
+    spdy::SpdyHeaderBlock expected_header_list = SplitHeaderList(header_list);
+
+    // Compare resulting header list to original.
+    CHECK(expected_header_list == decoded_header_list);
+  }
 
   return 0;
 }
