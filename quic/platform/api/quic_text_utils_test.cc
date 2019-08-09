@@ -201,6 +201,11 @@ TEST_F(QuicTextUtilsTest, Split) {
             QuicTextUtils::Split("a:b:c", ':'));
   EXPECT_EQ(std::vector<QuicStringPiece>({"a:b:c"}),
             QuicTextUtils::Split("a:b:c", ','));
+  // Leading and trailing whitespace is preserved.
+  EXPECT_EQ(std::vector<QuicStringPiece>({"a", "b", "c"}),
+            QuicTextUtils::Split("a,b,c", ','));
+  EXPECT_EQ(std::vector<QuicStringPiece>({" a", "b ", " c "}),
+            QuicTextUtils::Split(" a:b : c ", ':'));
 }
 
 }  // namespace test
