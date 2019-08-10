@@ -78,6 +78,10 @@ class QUIC_EXPORT_PRIVATE PendingStream
 
   void MarkConsumed(size_t num_bytes);
 
+  // Tells the sequencer to ignore all incoming data itself and not call
+  // OnDataAvailable().
+  void StopReading();
+
  private:
   friend class QuicStream;
 

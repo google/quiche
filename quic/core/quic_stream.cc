@@ -173,6 +173,11 @@ void PendingStream::MarkConsumed(size_t num_bytes) {
   sequencer_.MarkConsumed(num_bytes);
 }
 
+void PendingStream::StopReading() {
+  QUIC_DVLOG(1) << "Stop reading from pending stream " << id();
+  sequencer_.StopReading();
+}
+
 QuicStream::QuicStream(PendingStream* pending, StreamType type, bool is_static)
     : QuicStream(pending->id_,
                  pending->session_,

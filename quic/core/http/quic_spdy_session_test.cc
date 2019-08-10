@@ -17,6 +17,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_stream.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_expect_bug.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_map_util.h"
@@ -54,6 +55,11 @@ using testing::StrictMock;
 namespace quic {
 namespace test {
 namespace {
+
+bool VerifyAndClearStopSendingFrame(const QuicFrame& frame) {
+  EXPECT_EQ(STOP_SENDING_FRAME, frame.type);
+  return ClearControlFrame(frame);
+}
 
 class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
  public:
@@ -2052,41 +2058,76 @@ TEST_P(QuicSpdySessionTestServer, SimplePendingStreamType) {
   if (!VersionHasStreamType(transport_version())) {
     return;
   }
-  PendingStream pending(QuicUtils::GetFirstUnidirectionalStreamId(
-                            transport_version(), Perspective::IS_CLIENT),
-                        &session_);
-  char input[] = {// type
-                  0x04,
-                  // data
-                  'a', 'b', 'c'};
-  QuicStreamFrame data(pending.id(), true, 0, QuicStringPiece(input, 4));
-  pending.OnStreamFrame(data);
 
-  // A stop sending frame will be sent to indicate unknown type.
-  EXPECT_CALL(*connection_, SendControlFrame(_));
-  session_.ProcessPendingStream(&pending);
+  char input[] = {0x04,            // type
+                  'a', 'b', 'c'};  // data
+  QuicStringPiece payload(input, QUIC_ARRAYSIZE(input));
+
+  // This is a server test with a client-initiated unidirectional stream.
+  QuicStreamId stream_id = QuicUtils::GetFirstUnidirectionalStreamId(
+      transport_version(), Perspective::IS_CLIENT);
+
+  for (bool fin : {true, false}) {
+    QuicStreamFrame frame(stream_id, fin, /* offset = */ 0, payload);
+
+    // A STOP_SENDING frame is sent in response to the unknown stream type.
+    EXPECT_CALL(*connection_, SendControlFrame(_))
+        .WillOnce(Invoke(&VerifyAndClearStopSendingFrame));
+    session_.OnStreamFrame(frame);
+
+    PendingStream* pending =
+        QuicSessionPeer::GetPendingStream(&session_, stream_id);
+    if (fin) {
+      // Stream is closed if FIN is received.
+      EXPECT_FALSE(pending);
+    } else {
+      ASSERT_TRUE(pending);
+      // The pending stream must ignore read data.
+      EXPECT_TRUE(pending->sequencer()->ignore_read_data());
+    }
+
+    stream_id += QuicUtils::StreamIdDelta(transport_version());
+  }
 }
 
 TEST_P(QuicSpdySessionTestServer, SimplePendingStreamTypeOutOfOrderDelivery) {
   if (!VersionHasStreamType(transport_version())) {
     return;
   }
-  PendingStream pending(QuicUtils::GetFirstUnidirectionalStreamId(
-                            transport_version(), Perspective::IS_CLIENT),
-                        &session_);
-  char input[] = {// type
-                  0x04,
-                  // data
-                  'a', 'b', 'c'};
-  QuicStreamFrame data1(pending.id(), true, 1, QuicStringPiece(&input[1], 3));
-  pending.OnStreamFrame(data1);
-  session_.ProcessPendingStream(&pending);
 
-  QuicStreamFrame data2(pending.id(), false, 0, QuicStringPiece(input, 1));
-  pending.OnStreamFrame(data2);
+  char input[] = {0x04,            // type
+                  'a', 'b', 'c'};  // data
+  QuicStringPiece payload(input, QUIC_ARRAYSIZE(input));
 
-  EXPECT_CALL(*connection_, SendControlFrame(_));
-  session_.ProcessPendingStream(&pending);
+  // This is a server test with a client-initiated unidirectional stream.
+  QuicStreamId stream_id = QuicUtils::GetFirstUnidirectionalStreamId(
+      transport_version(), Perspective::IS_CLIENT);
+
+  for (bool fin : {true, false}) {
+    QuicStreamFrame frame1(stream_id, /* fin = */ false, /* offset = */ 0,
+                           payload.substr(0, 1));
+    QuicStreamFrame frame2(stream_id, fin, /* offset = */ 1, payload.substr(1));
+
+    // Deliver frames out of order.
+    session_.OnStreamFrame(frame2);
+    // A STOP_SENDING frame is sent in response to the unknown stream type.
+    EXPECT_CALL(*connection_, SendControlFrame(_))
+        .WillOnce(Invoke(&VerifyAndClearStopSendingFrame));
+    session_.OnStreamFrame(frame1);
+
+    PendingStream* pending =
+        QuicSessionPeer::GetPendingStream(&session_, stream_id);
+    if (fin) {
+      // Stream is closed if FIN is received.
+      EXPECT_FALSE(pending);
+    } else {
+      ASSERT_TRUE(pending);
+      // The pending stream must ignore read data.
+      EXPECT_TRUE(pending->sequencer()->ignore_read_data());
+    }
+
+    stream_id += QuicUtils::StreamIdDelta(transport_version());
+  }
 }
 
 TEST_P(QuicSpdySessionTestServer,
@@ -2094,27 +2135,44 @@ TEST_P(QuicSpdySessionTestServer,
   if (!VersionHasStreamType(transport_version())) {
     return;
   }
-  PendingStream pending(QuicUtils::GetFirstUnidirectionalStreamId(
-                            transport_version(), Perspective::IS_CLIENT),
-                        &session_);
-  char input[] = {// type (256)
-                  0x40 + 0x01, 0x00,
-                  // data
-                  'a', 'b', 'c'};
 
-  QuicStreamFrame data1(pending.id(), true, 2, QuicStringPiece(&input[2], 3));
-  pending.OnStreamFrame(data1);
-  session_.ProcessPendingStream(&pending);
+  char input[] = {0x41, 0x00,      // type (256)
+                  'a', 'b', 'c'};  // data
+  QuicStringPiece payload(input, QUIC_ARRAYSIZE(input));
 
-  QuicStreamFrame data2(pending.id(), false, 0, QuicStringPiece(input, 1));
-  pending.OnStreamFrame(data2);
-  session_.ProcessPendingStream(&pending);
+  // This is a server test with a client-initiated unidirectional stream.
+  QuicStreamId stream_id = QuicUtils::GetFirstUnidirectionalStreamId(
+      transport_version(), Perspective::IS_CLIENT);
 
-  QuicStreamFrame data3(pending.id(), false, 1, QuicStringPiece(&input[1], 1));
-  pending.OnStreamFrame(data3);
+  for (bool fin : {true, false}) {
+    QuicStreamFrame frame1(stream_id, /* fin = */ false, /* offset = */ 0,
+                           payload.substr(0, 1));
+    QuicStreamFrame frame2(stream_id, /* fin = */ false, /* offset = */ 1,
+                           payload.substr(1, 1));
+    QuicStreamFrame frame3(stream_id, fin, /* offset = */ 2, payload.substr(2));
 
-  EXPECT_CALL(*connection_, SendControlFrame(_));
-  session_.ProcessPendingStream(&pending);
+    // Deliver frames out of order.
+    session_.OnStreamFrame(frame3);
+    // The first byte does not contain the entire type varint.
+    session_.OnStreamFrame(frame1);
+    // A STOP_SENDING frame is sent in response to the unknown stream type.
+    EXPECT_CALL(*connection_, SendControlFrame(_))
+        .WillOnce(Invoke(&VerifyAndClearStopSendingFrame));
+    session_.OnStreamFrame(frame2);
+
+    PendingStream* pending =
+        QuicSessionPeer::GetPendingStream(&session_, stream_id);
+    if (fin) {
+      // Stream is closed if FIN is received.
+      EXPECT_FALSE(pending);
+    } else {
+      ASSERT_TRUE(pending);
+      // The pending stream must ignore read data.
+      EXPECT_TRUE(pending->sequencer()->ignore_read_data());
+    }
+
+    stream_id += QuicUtils::StreamIdDelta(transport_version());
+  }
 }
 
 TEST_P(QuicSpdySessionTestServer, ReceiveControlStream) {
@@ -2175,6 +2233,148 @@ TEST_P(QuicSpdySessionTestServer, ReceiveControlStreamOutOfOrderDelivery) {
   EXPECT_NE(5u, session_.max_outbound_header_list_size());
   session_.OnStreamFrame(data2);
   EXPECT_EQ(5u, session_.max_outbound_header_list_size());
+}
+
+TEST_P(QuicSpdySessionTestClient, ResetAfterInvalidIncomingStreamType) {
+  if (!VersionHasStreamType(transport_version())) {
+    return;
+  }
+  ASSERT_TRUE(session_.UsesPendingStreams());
+
+  const QuicStreamId stream_id =
+      GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 0);
+
+  // Payload consists of two bytes.  The first byte is an unknown unidirectional
+  // stream type.  The second one would be the type of a push stream, but it
+  // must not be interpreted as stream type.
+  std::string payload = QuicTextUtils::HexDecode("3f01");
+  QuicStreamFrame frame(stream_id, /* fin = */ false, /* offset = */ 0,
+                        payload);
+
+  // A STOP_SENDING frame is sent in response to the unknown stream type.
+  EXPECT_CALL(*connection_, SendControlFrame(_))
+      .WillOnce(Invoke(&VerifyAndClearStopSendingFrame));
+  session_.OnStreamFrame(frame);
+
+  // There are no active streams.
+  EXPECT_EQ(0u, session_.GetNumOpenIncomingStreams());
+
+  // The pending stream is still around, because it did not receive a FIN.
+  PendingStream* pending =
+      QuicSessionPeer::GetPendingStream(&session_, stream_id);
+  ASSERT_TRUE(pending);
+
+  // The pending stream must ignore read data.
+  EXPECT_TRUE(pending->sequencer()->ignore_read_data());
+
+  // If the stream frame is received again, it should be ignored.
+  session_.OnStreamFrame(frame);
+
+  // Receive RESET_STREAM.
+  QuicRstStreamFrame rst_frame(kInvalidControlFrameId, stream_id,
+                               QUIC_STREAM_CANCELLED,
+                               /* bytes_written = */ payload.size());
+
+  // This will trigger the sending of two control frames: one RESET_STREAM with
+  // QUIC_RST_ACKNOWLEDGEMENT, and one STOP_SENDING.
+  EXPECT_CALL(*connection_, SendControlFrame(_))
+      .Times(2)
+      .WillRepeatedly(Invoke(&ClearControlFrame));
+  EXPECT_CALL(*connection_, OnStreamReset(stream_id, QUIC_RST_ACKNOWLEDGEMENT));
+  session_.OnRstStream(rst_frame);
+
+  // The stream is closed.
+  EXPECT_FALSE(QuicSessionPeer::GetPendingStream(&session_, stream_id));
+}
+
+TEST_P(QuicSpdySessionTestClient, FinAfterInvalidIncomingStreamType) {
+  if (!VersionHasStreamType(transport_version())) {
+    return;
+  }
+  ASSERT_TRUE(session_.UsesPendingStreams());
+
+  const QuicStreamId stream_id =
+      GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 0);
+
+  // Payload consists of two bytes.  The first byte is an unknown unidirectional
+  // stream type.  The second one would be the type of a push stream, but it
+  // must not be interpreted as stream type.
+  std::string payload = QuicTextUtils::HexDecode("3f01");
+  QuicStreamFrame frame(stream_id, /* fin = */ false, /* offset = */ 0,
+                        payload);
+
+  // A STOP_SENDING frame is sent in response to the unknown stream type.
+  EXPECT_CALL(*connection_, SendControlFrame(_))
+      .WillOnce(Invoke(&VerifyAndClearStopSendingFrame));
+  session_.OnStreamFrame(frame);
+
+  // The pending stream is still around, because it did not receive a FIN.
+  PendingStream* pending =
+      QuicSessionPeer::GetPendingStream(&session_, stream_id);
+  EXPECT_TRUE(pending);
+
+  // The pending stream must ignore read data.
+  EXPECT_TRUE(pending->sequencer()->ignore_read_data());
+
+  // If the stream frame is received again, it should be ignored.
+  session_.OnStreamFrame(frame);
+
+  // Receive FIN.
+  session_.OnStreamFrame(QuicStreamFrame(stream_id, /* fin = */ true,
+                                         /* offset = */ payload.size(), ""));
+
+  EXPECT_FALSE(QuicSessionPeer::GetPendingStream(&session_, stream_id));
+}
+
+TEST_P(QuicSpdySessionTestClient, ResetInMiddleOfStreamType) {
+  if (!VersionHasStreamType(transport_version())) {
+    return;
+  }
+  ASSERT_TRUE(session_.UsesPendingStreams());
+
+  const QuicStreamId stream_id =
+      GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 0);
+
+  // Payload is the first byte of a two byte varint encoding.
+  std::string payload = QuicTextUtils::HexDecode("40");
+  QuicStreamFrame frame(stream_id, /* fin = */ false, /* offset = */ 0,
+                        payload);
+
+  session_.OnStreamFrame(frame);
+  EXPECT_TRUE(QuicSessionPeer::GetPendingStream(&session_, stream_id));
+
+  // Receive RESET_STREAM.
+  QuicRstStreamFrame rst_frame(kInvalidControlFrameId, stream_id,
+                               QUIC_STREAM_CANCELLED,
+                               /* bytes_written = */ payload.size());
+
+  // This will trigger the sending of two control frames: one RESET_STREAM with
+  // QUIC_RST_ACKNOWLEDGEMENT, and one STOP_SENDING.
+  EXPECT_CALL(*connection_, SendControlFrame(_))
+      .Times(2)
+      .WillRepeatedly(Invoke(&ClearControlFrame));
+  EXPECT_CALL(*connection_, OnStreamReset(stream_id, QUIC_RST_ACKNOWLEDGEMENT));
+  session_.OnRstStream(rst_frame);
+
+  // The stream is closed.
+  EXPECT_FALSE(QuicSessionPeer::GetPendingStream(&session_, stream_id));
+}
+
+TEST_P(QuicSpdySessionTestClient, FinInMiddleOfStreamType) {
+  if (!VersionHasStreamType(transport_version())) {
+    return;
+  }
+  ASSERT_TRUE(session_.UsesPendingStreams());
+
+  const QuicStreamId stream_id =
+      GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 0);
+
+  // Payload is the first byte of a two byte varint encoding with a FIN.
+  std::string payload = QuicTextUtils::HexDecode("40");
+  QuicStreamFrame frame(stream_id, /* fin = */ true, /* offset = */ 0, payload);
+
+  session_.OnStreamFrame(frame);
+  EXPECT_FALSE(QuicSessionPeer::GetPendingStream(&session_, stream_id));
 }
 
 }  // namespace

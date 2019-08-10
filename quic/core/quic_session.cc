@@ -157,15 +157,15 @@ void QuicSession::PendingStreamOnStreamFrame(const QuicStreamFrame& frame) {
   if (!connection()->connected()) {
     return;
   }
-  if (pending->sequencer()->IsClosed()) {
-    ClosePendingStream(stream_id);
-    return;
-  }
   if (ProcessPendingStream(pending)) {
     // The pending stream should now be in the scope of normal streams.
     DCHECK(IsClosedStream(stream_id) || IsOpenStream(stream_id))
         << "Stream " << stream_id << " not created";
     pending_stream_map_.erase(stream_id);
+    return;
+  }
+  if (pending->sequencer()->IsClosed()) {
+    ClosePendingStream(stream_id);
   }
 }
 

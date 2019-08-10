@@ -50,7 +50,7 @@ namespace quic {
 
 namespace {
 
-// TODO(renjietang): remove this once HTTP/3 error codes are adopted.
+// TODO(b/124216424): remove this once HTTP/3 error codes are adopted.
 const uint16_t kHttpUnknownStreamType = 0x0D;
 
 class HeaderTableDebugVisitor : public HpackHeaderTable::DebugVisitorInterface {
@@ -860,6 +860,12 @@ bool QuicSpdySession::ProcessPendingStream(PendingStream* pending) {
   uint8_t stream_type_length = reader.PeekVarInt62Length();
   uint64_t stream_type = 0;
   if (!reader.ReadVarInt62(&stream_type)) {
+    if (pending->sequencer()->NumBytesBuffered() ==
+        pending->sequencer()->close_offset()) {
+      // Stream received FIN but there are not enough bytes for stream type.
+      // Mark all bytes consumed in order to close stream.
+      pending->MarkConsumed(pending->sequencer()->close_offset());
+    }
     return false;
   }
   pending->MarkConsumed(stream_type_length);
@@ -886,6 +892,7 @@ bool QuicSpdySession::ProcessPendingStream(PendingStream* pending) {
       break;
     default:
       SendStopSending(kHttpUnknownStreamType, pending->id());
+      pending->StopReading();
   }
   return false;
 }
