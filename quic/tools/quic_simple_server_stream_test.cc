@@ -204,6 +204,7 @@ class QuicSimpleServerStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
         kInitialStreamFlowControlWindowForTest);
     session_.config()->SetInitialSessionFlowControlWindowToSend(
         kInitialSessionFlowControlWindowForTest);
+    session_.Initialize();
     stream_ = new StrictMock<TestStream>(
         GetNthClientInitiatedBidirectionalStreamId(
             connection_->transport_version(), 0),
@@ -416,7 +417,7 @@ TEST_P(QuicSimpleServerStreamTest, SendPushResponseWith404Response) {
   // Create a new promised stream with even id().
   auto promised_stream = new StrictMock<TestStream>(
       GetNthServerInitiatedUnidirectionalStreamId(
-          connection_->transport_version(), 0),
+          connection_->transport_version(), 1),
       &session_, WRITE_UNIDIRECTIONAL, &memory_cache_backend_);
   session_.ActivateStream(QuicWrapUnique(promised_stream));
 
