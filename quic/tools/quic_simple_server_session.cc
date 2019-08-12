@@ -33,11 +33,7 @@ QuicSimpleServerSession::QuicSimpleServerSession(
                             crypto_config,
                             compressed_certs_cache),
       highest_promised_stream_id_(
-          VersionHasStreamType(connection->transport_version())
-              ? QuicUtils::GetFirstUnidirectionalStreamId(
-                    connection->transport_version(),
-                    Perspective::IS_SERVER)
-              : QuicUtils::GetInvalidStreamId(connection->transport_version())),
+          QuicUtils::GetInvalidStreamId(connection->transport_version())),
       quic_simple_server_backend_(quic_simple_server_backend) {
   DCHECK(quic_simple_server_backend_);
 }
@@ -237,5 +233,15 @@ void QuicSimpleServerSession::OnCanCreateNewOutgoingStream(
   if (unidirectional) {
     HandlePromisedPushRequests();
   }
+}
+
+void QuicSimpleServerSession::MaybeInitializeHttp3UnidirectionalStreams() {
+  size_t previous_static_stream_count = num_outgoing_static_streams();
+  QuicSpdySession::MaybeInitializeHttp3UnidirectionalStreams();
+  size_t current_static_stream_count = num_outgoing_static_streams();
+  DCHECK_GE(current_static_stream_count, previous_static_stream_count);
+  highest_promised_stream_id_ +=
+      QuicUtils::StreamIdDelta(transport_version()) *
+      (current_static_stream_count - previous_static_stream_count);
 }
 }  // namespace quic

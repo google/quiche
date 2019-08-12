@@ -102,6 +102,8 @@ class QuicSimpleServerSession : public QuicServerSessionBase {
     return quic_simple_server_backend_;
   }
 
+  void MaybeInitializeHttp3UnidirectionalStreams() override;
+
  private:
   friend class test::QuicSimpleServerSessionPeer;
 

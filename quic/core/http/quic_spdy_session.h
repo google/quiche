@@ -249,6 +249,9 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
     return receive_control_stream_;
   }
 
+  // Initializes HTTP/3 unidirectional streams if not yet initialzed.
+  virtual void MaybeInitializeHttp3UnidirectionalStreams();
+
  private:
   friend class test::QuicSpdySessionPeer;
 
@@ -265,9 +268,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // Called when a PRIORITY frame has been received.
   void OnPriority(spdy::SpdyStreamId stream_id,
                   const spdy::SpdyStreamPrecedence& precedence);
-
-  // Initializes HTTP/3 unidirectional streams if not yet initialzed.
-  void MaybeInitializeHttp3UnidirectionalStreams();
 
   std::unique_ptr<QpackEncoder> qpack_encoder_;
   std::unique_ptr<QpackDecoder> qpack_decoder_;
