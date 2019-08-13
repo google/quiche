@@ -32,12 +32,6 @@ class QUIC_EXPORT_PRIVATE UberQuicStreamIdManager {
   // as an open stream earlier, so no need to count it again.
   void RegisterStaticStream(QuicStreamId id, bool stream_already_counted);
 
-  // Sets the maximum outgoing stream count as a result of doing the transport
-  // configuration negotiation. Forces the limit to max_streams, regardless of
-  // static streams.
-  void ConfigureMaxOpenOutgoingBidirectionalStreams(size_t max_streams);
-  void ConfigureMaxOpenOutgoingUnidirectionalStreams(size_t max_streams);
-
   // Sets the limits to max_open_streams + number of static streams
   // in existence. SetMaxOpenOutgoingStreams will QUIC_BUG if it is called
   // after getting the first MAX_STREAMS frame or the transport configuration
