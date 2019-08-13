@@ -11,7 +11,7 @@ namespace quic {
 
 class SendAlgorithmInterface;
 // Interface for creating a PCC SendAlgorithmInterface
-SendAlgorithmInterface* CreatePccSender(
+inline SendAlgorithmInterface* CreatePccSender(
     const QuicClock* clock,
     const RttStats* rtt_stats,
     const QuicUnackedPacketMap* unacked_packets,
