@@ -6795,6 +6795,27 @@ bool QuicFramer::ParseServerVersionNegotiationProbeResponse(
     return false;
   }
 
+  if (!use_length_prefix && source_connection_id.length() == 0) {
+    // We received a bad response due to b/139330014.
+    // Reparse the packet assuming length prefixes.
+    // This is a temporary client-side workaround until cl/263172621 is
+    // deployed on production servers.
+    // TODO(dschinazi): remove this client-side workaround once the server-side
+    // fix is deployed.
+    QuicDataReader reader2(packet_bytes, packet_length);
+    uint8_t type_byte2 = 0;
+    uint32_t version2 = 0;
+    QuicConnectionId destination_connection_id2, source_connection_id2;
+    if (reader2.ReadUInt8(&type_byte2) && reader2.ReadUInt32(&version2) &&
+        reader2.ReadLengthPrefixedConnectionId(&destination_connection_id2) &&
+        reader2.ReadLengthPrefixedConnectionId(&source_connection_id2) &&
+        (type_byte2 & 0x80) != 0 && version2 == 0 &&
+        destination_connection_id2.length() == 0 &&
+        source_connection_id2.length() != 0) {
+      source_connection_id = source_connection_id2;
+    }
+  }
+
   memcpy(source_connection_id_bytes, source_connection_id.data(),
          source_connection_id.length());
   *source_connection_id_length_out = source_connection_id.length();

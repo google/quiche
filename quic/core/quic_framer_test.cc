@@ -14684,6 +14684,39 @@ TEST_P(QuicFramerTest, ParseServerVersionNegotiationProbeResponse) {
       probe_payload_bytes, sizeof(probe_payload_bytes));
 }
 
+// Test the client-side workaround for b/139330014 where an old client expects
+// no length prefix but receives a length-prefixed response.
+TEST_P(QuicFramerTest, ParseBadServerVersionNegotiationProbeResponse) {
+  SetQuicFlag(FLAGS_quic_prober_uses_length_prefixed_connection_ids, false);
+  // clang-format off
+  const char packet[] = {
+    // IETF long header with fixed bit set, type initial, all-0 encrypted bits.
+    0xc0,
+    // Version of 0, indicating version negotiation.
+    0x00, 0x00, 0x00, 0x00,
+    // Destination connection ID length 0, source connection ID length 8.
+    0x00, 0x08,
+    // 8-byte source connection ID.
+    0x56, 0x4e, 0x20, 0x70, 0x6c, 0x7a, 0x20, 0x21,
+    // A few supported versions.
+    0xaa, 0xaa, 0xaa, 0xaa,
+    QUIC_VERSION_BYTES,
+  };
+  // clang-format on
+  char probe_payload_bytes[] = {0x56, 0x4e, 0x20, 0x70, 0x6c, 0x7a, 0x20, 0x21};
+  char parsed_probe_payload_bytes[255] = {};
+  uint8_t parsed_probe_payload_length = 0;
+  std::string parse_detailed_error = "";
+  EXPECT_TRUE(QuicFramer::ParseServerVersionNegotiationProbeResponse(
+      reinterpret_cast<const char*>(packet), sizeof(packet),
+      reinterpret_cast<char*>(parsed_probe_payload_bytes),
+      &parsed_probe_payload_length, &parse_detailed_error));
+  EXPECT_EQ("", parse_detailed_error);
+  test::CompareCharArraysWithHexError(
+      "parsed probe", parsed_probe_payload_bytes, parsed_probe_payload_length,
+      probe_payload_bytes, sizeof(probe_payload_bytes));
+}
+
 TEST_P(QuicFramerTest, ClientConnectionIdFromLongHeaderToClient) {
   if (framer_.transport_version() <= QUIC_VERSION_43) {
     // This test requires an IETF long header.
