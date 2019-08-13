@@ -14396,6 +14396,33 @@ TEST_P(QuicFramerTest, WriteClientVersionNegotiationProbePacketOld) {
       sizeof(destination_connection_id_bytes));
   EXPECT_EQ(probe_payload_connection_id,
             visitor_.header_.get()->destination_connection_id);
+
+  PacketHeaderFormat format = GOOGLE_QUIC_PACKET;
+  bool version_present = false, has_length_prefix = false;
+  QuicVersionLabel version_label = 0;
+  ParsedQuicVersion parsed_version = QuicVersionReservedForNegotiation();
+  QuicConnectionId destination_connection_id = TestConnectionId(0x33);
+  QuicConnectionId source_connection_id = TestConnectionId(0x34);
+  bool retry_token_present = true;
+  QuicStringPiece retry_token;
+  std::string detailed_error = "foobar";
+
+  QuicErrorCode parse_result = QuicFramer::ParsePublicHeaderDispatcher(
+      encrypted, kQuicDefaultConnectionIdLength, &format, &version_present,
+      &has_length_prefix, &version_label, &parsed_version,
+      &destination_connection_id, &source_connection_id, &retry_token_present,
+      &retry_token, &detailed_error);
+  EXPECT_EQ(QUIC_NO_ERROR, parse_result);
+  EXPECT_EQ(IETF_QUIC_LONG_HEADER_PACKET, format);
+  EXPECT_TRUE(version_present);
+  EXPECT_FALSE(has_length_prefix);
+  EXPECT_EQ(0xcabadaba, version_label);
+  EXPECT_EQ(QUIC_VERSION_UNSUPPORTED, parsed_version.transport_version);
+  EXPECT_EQ(probe_payload_connection_id, destination_connection_id);
+  EXPECT_EQ(EmptyQuicConnectionId(), source_connection_id);
+  EXPECT_FALSE(retry_token_present);
+  EXPECT_EQ(QuicStringPiece(), retry_token);
+  EXPECT_EQ("", detailed_error);
 }
 
 TEST_P(QuicFramerTest, WriteClientVersionNegotiationProbePacket) {

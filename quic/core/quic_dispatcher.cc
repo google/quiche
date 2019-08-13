@@ -431,12 +431,20 @@ bool QuicDispatcher::MaybeDispatchPacket(
         // packet and stop processing the current packet.
         QuicConnectionId client_connection_id =
             packet_info.source_connection_id;
+        bool use_length_prefix = packet_info.use_length_prefix;
+        if (!GetQuicReloadableFlag(quic_use_length_prefix_from_packet_info)) {
+          use_length_prefix = packet_info.form != GOOGLE_QUIC_PACKET &&
+                              !QuicVersionLabelUses4BitConnectionIdLength(
+                                  packet_info.version_label);
+        } else {
+          QUIC_RELOADABLE_FLAG_COUNT(quic_use_length_prefix_from_packet_info);
+          // TODO(dschinazi) remove the client-side workaround in
+          // QuicFramer::ParseServerVersionNegotiationProbeResponse
+          // when quic_use_length_prefix_from_packet_info is deprecated.
+        }
         time_wait_list_manager()->SendVersionNegotiationPacket(
             server_connection_id, client_connection_id,
-            packet_info.form != GOOGLE_QUIC_PACKET,
-            packet_info.form != GOOGLE_QUIC_PACKET &&
-                !QuicVersionLabelUses4BitConnectionIdLength(
-                    packet_info.version_label),
+            packet_info.form != GOOGLE_QUIC_PACKET, use_length_prefix,
             GetSupportedVersions(), packet_info.self_address,
             packet_info.peer_address, GetPerPacketContext());
       }

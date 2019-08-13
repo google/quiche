@@ -1003,6 +1003,67 @@ TEST_F(QuicDispatcherTest, RejectDeprecatedVersionsWithVersionNegotiation) {
   dispatcher_->ProcessPacket(server_address_, client_address, packet);
 }
 
+TEST_F(QuicDispatcherTest, VersionNegotiationProbeOld) {
+  SetQuicFlag(FLAGS_quic_prober_uses_length_prefixed_connection_ids, false);
+  SetQuicReloadableFlag(quic_use_length_prefix_from_packet_info, true);
+  QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
+  CreateTimeWaitListManager();
+  char packet[1200];
+  char destination_connection_id_bytes[] = {0x56, 0x4e, 0x20, 0x70,
+                                            0x6c, 0x7a, 0x20, 0x21};
+  EXPECT_TRUE(QuicFramer::WriteClientVersionNegotiationProbePacket(
+      packet, sizeof(packet), destination_connection_id_bytes,
+      sizeof(destination_connection_id_bytes)));
+  QuicEncryptedPacket encrypted(packet, sizeof(packet), false);
+  std::unique_ptr<QuicReceivedPacket> received_packet(
+      ConstructReceivedPacket(encrypted, mock_helper_.GetClock()->Now()));
+  QuicConnectionId client_connection_id = EmptyQuicConnectionId();
+  QuicConnectionId server_connection_id(
+      destination_connection_id_bytes, sizeof(destination_connection_id_bytes));
+  bool ietf_quic = true;
+  bool use_length_prefix =
+      GetQuicFlag(FLAGS_quic_prober_uses_length_prefixed_connection_ids);
+  EXPECT_CALL(
+      *time_wait_list_manager_,
+      SendVersionNegotiationPacket(server_connection_id, client_connection_id,
+                                   ietf_quic, use_length_prefix, _, _, _, _))
+      .Times(1);
+  EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _)).Times(0);
+
+  dispatcher_->ProcessPacket(server_address_, client_address, *received_packet);
+}
+
+TEST_F(QuicDispatcherTest, VersionNegotiationProbe) {
+  SetQuicFlag(FLAGS_quic_prober_uses_length_prefixed_connection_ids, true);
+  SetQuicReloadableFlag(quic_use_parse_public_header, true);
+  SetQuicReloadableFlag(quic_use_length_prefix_from_packet_info, true);
+  QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
+  CreateTimeWaitListManager();
+  char packet[1200];
+  char destination_connection_id_bytes[] = {0x56, 0x4e, 0x20, 0x70,
+                                            0x6c, 0x7a, 0x20, 0x21};
+  EXPECT_TRUE(QuicFramer::WriteClientVersionNegotiationProbePacket(
+      packet, sizeof(packet), destination_connection_id_bytes,
+      sizeof(destination_connection_id_bytes)));
+  QuicEncryptedPacket encrypted(packet, sizeof(packet), false);
+  std::unique_ptr<QuicReceivedPacket> received_packet(
+      ConstructReceivedPacket(encrypted, mock_helper_.GetClock()->Now()));
+  QuicConnectionId client_connection_id = EmptyQuicConnectionId();
+  QuicConnectionId server_connection_id(
+      destination_connection_id_bytes, sizeof(destination_connection_id_bytes));
+  bool ietf_quic = true;
+  bool use_length_prefix =
+      GetQuicFlag(FLAGS_quic_prober_uses_length_prefixed_connection_ids);
+  EXPECT_CALL(
+      *time_wait_list_manager_,
+      SendVersionNegotiationPacket(server_connection_id, client_connection_id,
+                                   ietf_quic, use_length_prefix, _, _, _, _))
+      .Times(1);
+  EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _)).Times(0);
+
+  dispatcher_->ProcessPacket(server_address_, client_address, *received_packet);
+}
+
 // Verify the stopgap test: Packets with truncated connection IDs should be
 // dropped.
 class QuicDispatcherTestStrayPacketConnectionId : public QuicDispatcherTest {};
