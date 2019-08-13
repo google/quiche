@@ -758,6 +758,17 @@ TEST_F(QuicStreamSequencerTest, StopReadingWithLevelTriggered) {
   OnFinFrame(6u, "ghi");
 }
 
+// Regression test for https://crbug.com/992486.
+TEST_F(QuicStreamSequencerTest, CorruptFinFrames) {
+  SetQuicReloadableFlag(quic_no_stream_data_after_reset, true);
+  EXPECT_CALL(stream_, OnDataAvailable()).Times(1);
+  EXPECT_CALL(stream_, Reset(QUIC_MULTIPLE_TERMINATION_OFFSETS));
+
+  OnFinFrame(0u, "");
+  OnFinFrame(0u, "a");
+  EXPECT_FALSE(sequencer_->HasBytesToRead());
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

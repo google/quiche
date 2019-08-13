@@ -167,7 +167,9 @@ class QUIC_EXPORT_PRIVATE QuicStreamSequencer {
   void FlushBufferedFrames();
 
   // Wait until we've seen 'offset' bytes, and then terminate the stream.
-  void CloseStreamAtOffset(QuicStreamOffset offset);
+  // Returns true if |stream_| is still available to receive data, and false if
+  // |stream_| is reset.
+  bool CloseStreamAtOffset(QuicStreamOffset offset);
 
   // If we've received a FIN and have processed all remaining data, then inform
   // the stream of FIN, and clear buffers.
