@@ -319,7 +319,7 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
   // connection-level flow control but not by its own stream-level flow control.
   // The stream will be given a chance to write when a connection-level
   // WINDOW_UPDATE arrives.
-  void MarkConnectionLevelWriteBlocked(QuicStreamId id);
+  virtual void MarkConnectionLevelWriteBlocked(QuicStreamId id);
 
   // Called when stream |id| is done waiting for acks either because all data
   // gets acked or is not interested in data being acked (which happens when
@@ -379,7 +379,7 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
   virtual void StreamDraining(QuicStreamId id);
 
   // Returns true if this stream should yield writes to another blocked stream.
-  bool ShouldYield(QuicStreamId stream_id);
+  virtual bool ShouldYield(QuicStreamId stream_id);
 
   // Set transmission type of next sending packets.
   void SetTransmissionType(TransmissionType type);
