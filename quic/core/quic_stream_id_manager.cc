@@ -276,10 +276,6 @@ bool QuicStreamIdManager::RegisterStaticStream(QuicStreamId stream_id,
     return true;
   }
 
-  QUIC_BUG_IF(!using_default_max_streams_)
-      << "Attempted to allocate static stream (id " << stream_id
-      << ") after receiving a MAX_STREAMS frame";
-
   // If we have reached the limit on stream creation, do not create
   // the static stream; return false.
   if (outgoing_max_streams_ >=
@@ -291,7 +287,9 @@ bool QuicStreamIdManager::RegisterStaticStream(QuicStreamId stream_id,
   // outgoing_max_streams_ was inialized to a "maximum request/response" count
   // and only becomes a maximum stream count when we receive the first
   // MAX_STREAMS.
-  outgoing_max_streams_++;
+  if (using_default_max_streams_) {
+    outgoing_max_streams_++;
+  }
   outgoing_static_stream_count_++;
   return true;
 }

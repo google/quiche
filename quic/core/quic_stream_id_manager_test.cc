@@ -867,6 +867,30 @@ TEST_P(QuicStreamIdManagerTestServer, TestMaxStreamsWrapChecks) {
   EXPECT_EQ(max_stream_count, stream_id_manager_->outgoing_max_streams());
 }
 
+// Check that static streams can be created before and after MAX_STREAM frame is
+// received.
+TEST_P(QuicStreamIdManagerTestServer, RegisterStaticStreams) {
+  EXPECT_EQ(0u, stream_id_manager_->outgoing_static_stream_count());
+  QuicStreamCount previous_max = stream_id_manager_->outgoing_max_streams();
+  stream_id_manager_->RegisterStaticStream(
+      stream_id_manager_->GetNextOutgoingStreamId(),
+      /*stream_already_counted = */ false);
+  EXPECT_EQ(1u, stream_id_manager_->outgoing_static_stream_count());
+  EXPECT_EQ(previous_max + 1, stream_id_manager_->outgoing_max_streams());
+
+  QuicMaxStreamsFrame frame;
+  frame.unidirectional = IsUnidi();
+  frame.stream_count = 20;
+  EXPECT_TRUE(stream_id_manager_->OnMaxStreamsFrame(frame));
+  EXPECT_EQ(20u, stream_id_manager_->outgoing_max_streams());
+
+  stream_id_manager_->RegisterStaticStream(
+      stream_id_manager_->GetNextOutgoingStreamId(),
+      /*stream_already_counted = */ false);
+  EXPECT_EQ(2u, stream_id_manager_->outgoing_static_stream_count());
+  EXPECT_EQ(20u, stream_id_manager_->outgoing_max_streams());
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic
