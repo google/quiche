@@ -161,6 +161,8 @@ class QUIC_EXPORT_PRIVATE Bbr2Sender final : public SendAlgorithmInterface {
 
   Bbr2NetworkModel model_;
 
+  const QuicByteCount initial_cwnd_;
+
   // Current cwnd and pacing rate.
   QuicByteCount cwnd_;
   QuicBandwidth pacing_rate_;

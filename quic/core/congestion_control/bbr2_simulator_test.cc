@@ -426,13 +426,13 @@ TEST_F(Bbr2DefaultTopologyTest, BandwidthIncrease) {
 
   sender_endpoint_.AddBytesToTransfer(20 * 1024 * 1024);
 
-  simulator_.RunFor(QuicTime::Delta::FromSeconds(10));
+  simulator_.RunFor(QuicTime::Delta::FromSeconds(15));
   EXPECT_TRUE(Bbr2ModeIsOneOf({Bbr2Mode::PROBE_BW, Bbr2Mode::PROBE_RTT}));
   QUIC_LOG(INFO) << "Bandwidth increasing at time " << SimulatedNow();
 
   EXPECT_APPROX_EQ(params.test_link.bandwidth,
                    sender_->ExportDebugState().bandwidth_est, 0.1f);
-  EXPECT_LE(sender_loss_rate_in_packets(), 0.20);
+  EXPECT_LE(sender_loss_rate_in_packets(), 0.30);
 
   // Now increase the bottleneck bandwidth from 100Kbps to 10Mbps.
   params.test_link.bandwidth = QuicBandwidth::FromKBitsPerSecond(10000);

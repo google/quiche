@@ -69,8 +69,9 @@ Bbr2Sender::Bbr2Sender(QuicTime now,
              rtt_stats->last_update_time(),
              /*cwnd_gain=*/1.0,
              /*pacing_gain=*/kInitialPacingGain),
-      cwnd_(
+      initial_cwnd_(
           cwnd_limits().ApplyLimits(initial_cwnd_in_packets * kDefaultTCPMSS)),
+      cwnd_(initial_cwnd_),
       pacing_rate_(kInitialPacingGain * QuicBandwidth::FromBytesAndTimeDelta(
                                             cwnd_,
                                             rtt_stats->SmoothedOrInitialRtt())),
@@ -240,7 +241,7 @@ void Bbr2Sender::UpdateCongestionWindow(QuicByteCount bytes_acked) {
   if (startup_.FullBandwidthReached()) {
     target_cwnd += model_.MaxAckHeight();
     cwnd_ = std::min(prior_cwnd + bytes_acked, target_cwnd);
-  } else if (prior_cwnd < target_cwnd || prior_cwnd < 2 * cwnd_limits().Min()) {
+  } else if (prior_cwnd < target_cwnd || prior_cwnd < 2 * initial_cwnd_) {
     cwnd_ = prior_cwnd + bytes_acked;
   }
   const QuicByteCount desired_cwnd = cwnd_;
