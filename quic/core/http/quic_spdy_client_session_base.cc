@@ -96,6 +96,7 @@ void QuicSpdyClientSessionBase::OnPromiseHeaderList(
         QUIC_INVALID_STREAM_ID,
         "Received push stream id higher than MAX_PUSH_ID.",
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    return;
   }
   largest_promised_stream_id_ = promised_stream_id;
 
