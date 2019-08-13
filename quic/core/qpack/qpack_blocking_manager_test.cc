@@ -206,6 +206,88 @@ TEST_F(QpackBlockingManagerTest, CancelStream) {
             manager_.smallest_blocking_index());
 }
 
+TEST_F(QpackBlockingManagerTest,
+       ReferenceOnEncoderStreamUnblockedByInsertCountIncrement) {
+  EXPECT_EQ(0u, manager_.known_received_count());
+  EXPECT_EQ(std::numeric_limits<uint64_t>::max(),
+            manager_.smallest_blocking_index());
+
+  // Entry 1 refers to entry 0.
+  manager_.OnReferenceSentOnEncoderStream(1, 0);
+  // Entry 2 also refers to entry 0.
+  manager_.OnReferenceSentOnEncoderStream(2, 0);
+
+  EXPECT_EQ(0u, manager_.known_received_count());
+  EXPECT_EQ(0u, manager_.smallest_blocking_index());
+
+  // Acknowledging entry 1 still leaves one unacknowledged reference to entry 0.
+  manager_.OnInsertCountIncrement(2);
+
+  EXPECT_EQ(2u, manager_.known_received_count());
+  EXPECT_EQ(0u, manager_.smallest_blocking_index());
+
+  // Entry 3 also refers to entry 2.
+  manager_.OnReferenceSentOnEncoderStream(3, 2);
+
+  EXPECT_EQ(2u, manager_.known_received_count());
+  EXPECT_EQ(0u, manager_.smallest_blocking_index());
+
+  // Acknowledging entry 2 removes last reference to entry 0.
+  manager_.OnInsertCountIncrement(1);
+
+  EXPECT_EQ(3u, manager_.known_received_count());
+  EXPECT_EQ(2u, manager_.smallest_blocking_index());
+
+  // Acknowledging entry 4 (and implicitly 3) removes reference to entry 2.
+  manager_.OnInsertCountIncrement(2);
+
+  EXPECT_EQ(5u, manager_.known_received_count());
+  EXPECT_EQ(std::numeric_limits<uint64_t>::max(),
+            manager_.smallest_blocking_index());
+}
+
+TEST_F(QpackBlockingManagerTest,
+       ReferenceOnEncoderStreamUnblockedByHeaderAcknowledgement) {
+  EXPECT_EQ(0u, manager_.known_received_count());
+  EXPECT_EQ(std::numeric_limits<uint64_t>::max(),
+            manager_.smallest_blocking_index());
+
+  // Entry 1 refers to entry 0.
+  manager_.OnReferenceSentOnEncoderStream(1, 0);
+  // Entry 2 also refers to entry 0.
+  manager_.OnReferenceSentOnEncoderStream(2, 0);
+
+  EXPECT_EQ(0u, manager_.known_received_count());
+  EXPECT_EQ(0u, manager_.smallest_blocking_index());
+
+  // Acknowledging a header block with entries up to 1 still leave one
+  // unacknowledged reference to entry 0.
+  manager_.OnHeaderBlockSent(/* stream_id = */ 0, {0, 1});
+  manager_.OnHeaderAcknowledgement(/* stream_id = */ 0);
+
+  EXPECT_EQ(2u, manager_.known_received_count());
+  EXPECT_EQ(0u, manager_.smallest_blocking_index());
+
+  // Entry 3 also refers to entry 2.
+  manager_.OnReferenceSentOnEncoderStream(3, 2);
+
+  // Acknowledging a header block with entries up to 2 removes last reference to
+  // entry 0.
+  manager_.OnHeaderBlockSent(/* stream_id = */ 0, {2, 0, 2});
+  manager_.OnHeaderAcknowledgement(/* stream_id = */ 0);
+
+  EXPECT_EQ(3u, manager_.known_received_count());
+  EXPECT_EQ(2u, manager_.smallest_blocking_index());
+
+  // Acknowledging entry 4 (and implicitly 3) removes reference to entry 2.
+  manager_.OnHeaderBlockSent(/* stream_id = */ 0, {1, 4, 2, 0});
+  manager_.OnHeaderAcknowledgement(/* stream_id = */ 0);
+
+  EXPECT_EQ(5u, manager_.known_received_count());
+  EXPECT_EQ(std::numeric_limits<uint64_t>::max(),
+            manager_.smallest_blocking_index());
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

@@ -23,7 +23,7 @@ bool QpackBlockingManager::OnHeaderAcknowledgement(QuicStreamId stream_id) {
 
   const uint64_t required_index_count = RequiredInsertCount(indices);
   if (known_received_count_ < required_index_count) {
-    known_received_count_ = required_index_count;
+    IncreaseKnownReceivedCountTo(required_index_count);
   }
 
   DecreaseReferenceCounts(indices);
@@ -50,7 +50,7 @@ void QpackBlockingManager::OnStreamCancellation(QuicStreamId stream_id) {
 }
 
 void QpackBlockingManager::OnInsertCountIncrement(uint64_t increment) {
-  known_received_count_ += increment;
+  IncreaseKnownReceivedCountTo(known_received_count_ + increment);
 }
 
 void QpackBlockingManager::OnHeaderBlockSent(QuicStreamId stream_id,
@@ -59,6 +59,16 @@ void QpackBlockingManager::OnHeaderBlockSent(QuicStreamId stream_id,
 
   IncreaseReferenceCounts(indices);
   header_blocks_[stream_id].push_back(std::move(indices));
+}
+
+void QpackBlockingManager::OnReferenceSentOnEncoderStream(
+    uint64_t inserted_index,
+    uint64_t referred_index) {
+  auto result = unacked_encoder_stream_references_.insert(
+      {inserted_index, referred_index});
+  // Each dynamic table entry can refer to at most one |referred_index|.
+  DCHECK(result.second);
+  IncreaseReferenceCounts({referred_index});
 }
 
 uint64_t QpackBlockingManager::blocked_stream_count() const {
@@ -84,6 +94,26 @@ uint64_t QpackBlockingManager::smallest_blocking_index() const {
 // static
 uint64_t QpackBlockingManager::RequiredInsertCount(const IndexSet& indices) {
   return *indices.rbegin() + 1;
+}
+
+void QpackBlockingManager::IncreaseKnownReceivedCountTo(
+    uint64_t new_known_received_count) {
+  DCHECK_GT(new_known_received_count, known_received_count_);
+
+  known_received_count_ = new_known_received_count;
+
+  // Remove referred indices with key less than new Known Received Count from
+  // |unacked_encoder_stream_references_| and |entry_reference_counts_|.
+  IndexSet acknowledged_references;
+  auto it = unacked_encoder_stream_references_.begin();
+  while (it != unacked_encoder_stream_references_.end() &&
+         it->first < known_received_count_) {
+    acknowledged_references.insert(it->second);
+    ++it;
+  }
+  unacked_encoder_stream_references_.erase(
+      unacked_encoder_stream_references_.begin(), it);
+  DecreaseReferenceCounts(acknowledged_references);
 }
 
 void QpackBlockingManager::IncreaseReferenceCounts(const IndexSet& indices) {

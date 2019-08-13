@@ -41,6 +41,12 @@ class QUIC_EXPORT_PRIVATE QpackBlockingManager {
   // entries with |indices|.  |indices| must not be empty.
   void OnHeaderBlockSent(QuicStreamId stream_id, IndexSet indices);
 
+  // Called when sending Insert With Name Reference or Duplicate instruction on
+  // encoder stream, inserting entry |inserted_index| referring to
+  // |referred_index|.
+  void OnReferenceSentOnEncoderStream(uint64_t inserted_index,
+                                      uint64_t referred_index);
+
   // Returns the number of blocked streams.
   uint64_t blocked_stream_count() const;
 
@@ -64,6 +70,11 @@ class QUIC_EXPORT_PRIVATE QpackBlockingManager {
   using HeaderBlocksForStream = std::list<IndexSet>;
   using HeaderBlocks = QuicUnorderedMap<QuicStreamId, HeaderBlocksForStream>;
 
+  // Increases |known_received_count_| to |new_known_received_count|, which must
+  // me larger than |known_received_count_|.  Removes acknowledged references
+  // from |unacked_encoder_stream_references_|.
+  void IncreaseKnownReceivedCountTo(uint64_t new_known_received_count);
+
   // Increase or decrease the reference count for each index in |indices|.
   void IncreaseReferenceCounts(const IndexSet& indices);
   void DecreaseReferenceCounts(const IndexSet& indices);
@@ -72,7 +83,13 @@ class QUIC_EXPORT_PRIVATE QpackBlockingManager {
   // Must not contain a stream id with an empty queue.
   HeaderBlocks header_blocks_;
 
-  // Number of references in |header_blocks_| for each entry index.
+  // Unacknowledged references on the encoder stream.
+  // The key is the absolute index of the inserted entry,
+  // the mapped value is the absolute index of the entry referred.
+  std::map<uint64_t, uint64_t> unacked_encoder_stream_references_;
+
+  // Number of references in |header_blocks_| and
+  // |unacked_encoder_stream_references_| for each entry index.
   std::map<uint64_t, uint64_t> entry_reference_counts_;
 
   uint64_t known_received_count_;
