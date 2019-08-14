@@ -316,7 +316,10 @@ void QpackProgressiveDecoder::FinishDecoding() {
     return;
   }
 
-  decoder_stream_sender_->SendHeaderAcknowledgement(stream_id_);
+  if (required_insert_count_ > 0) {
+    decoder_stream_sender_->SendHeaderAcknowledgement(stream_id_);
+  }
+
   handler_->OnDecodingCompleted();
 }
 
