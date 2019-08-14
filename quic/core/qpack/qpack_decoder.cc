@@ -4,8 +4,6 @@
 
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_decoder.h"
 
-#include <limits>
-
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
 
@@ -115,9 +113,7 @@ void QpackDecoder::OnErrorDetected(QuicStringPiece error_message) {
 bool QpackDecoder::EncoderStreamRelativeIndexToAbsoluteIndex(
     uint64_t relative_index,
     uint64_t* absolute_index) const {
-  if (relative_index == std::numeric_limits<uint64_t>::max() ||
-      relative_index + 1 > std::numeric_limits<uint64_t>::max() -
-                               header_table_.inserted_entry_count()) {
+  if (relative_index >= header_table_.inserted_entry_count()) {
     return false;
   }
 

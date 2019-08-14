@@ -346,8 +346,7 @@ bool QpackProgressiveDecoder::DeltaBaseToBase(bool sign,
 bool QpackProgressiveDecoder::RequestStreamRelativeIndexToAbsoluteIndex(
     uint64_t relative_index,
     uint64_t* absolute_index) const {
-  if (relative_index == std::numeric_limits<uint64_t>::max() ||
-      relative_index + 1 > base_) {
+  if (relative_index >= base_) {
     return false;
   }
 

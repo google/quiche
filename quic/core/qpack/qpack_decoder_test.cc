@@ -425,7 +425,7 @@ TEST_P(QpackDecoderTest, EncoderStreamErrorInvalidStaticTableEntry) {
 
 TEST_P(QpackDecoderTest, EncoderStreamErrorInvalidDynamicTableEntry) {
   EXPECT_CALL(encoder_stream_error_delegate_,
-              OnEncoderStreamError(Eq("Dynamic table entry not found.")));
+              OnEncoderStreamError(Eq("Invalid relative index.")));
 
   DecodeEncoderStreamData(QuicTextUtils::HexDecode(
       "6294e703626172"  // Add literal entry with name "foo" and value "bar".
@@ -436,7 +436,7 @@ TEST_P(QpackDecoderTest, EncoderStreamErrorInvalidDynamicTableEntry) {
 
 TEST_P(QpackDecoderTest, EncoderStreamErrorDuplicateInvalidEntry) {
   EXPECT_CALL(encoder_stream_error_delegate_,
-              OnEncoderStreamError(Eq("Dynamic table entry not found.")));
+              OnEncoderStreamError(Eq("Invalid relative index.")));
 
   DecodeEncoderStreamData(QuicTextUtils::HexDecode(
       "6294e703626172"  // Add literal entry with name "foo" and value "bar".
