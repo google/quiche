@@ -8,6 +8,7 @@
 #include <limits>
 
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_constants.h"
+#include "net/third_party/quiche/src/quic/core/qpack/qpack_index_conversions.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_required_insert_count.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
@@ -125,8 +126,8 @@ void QpackProgressiveDecoder::OnInsertCountReachedThreshold() {
 bool QpackProgressiveDecoder::DoIndexedHeaderFieldInstruction() {
   if (!instruction_decoder_.s_bit()) {
     uint64_t absolute_index;
-    if (!RequestStreamRelativeIndexToAbsoluteIndex(
-            instruction_decoder_.varint(), &absolute_index)) {
+    if (!QpackRequestStreamRelativeIndexToAbsoluteIndex(
+            instruction_decoder_.varint(), base_, &absolute_index)) {
       OnError("Invalid relative index.");
       return false;
     }
@@ -164,8 +165,8 @@ bool QpackProgressiveDecoder::DoIndexedHeaderFieldInstruction() {
 
 bool QpackProgressiveDecoder::DoIndexedHeaderFieldPostBaseInstruction() {
   uint64_t absolute_index;
-  if (!PostBaseIndexToAbsoluteIndex(instruction_decoder_.varint(),
-                                    &absolute_index)) {
+  if (!QpackPostBaseIndexToAbsoluteIndex(instruction_decoder_.varint(), base_,
+                                         &absolute_index)) {
     OnError("Invalid post-base index.");
     return false;
   }
@@ -193,8 +194,8 @@ bool QpackProgressiveDecoder::DoIndexedHeaderFieldPostBaseInstruction() {
 bool QpackProgressiveDecoder::DoLiteralHeaderFieldNameReferenceInstruction() {
   if (!instruction_decoder_.s_bit()) {
     uint64_t absolute_index;
-    if (!RequestStreamRelativeIndexToAbsoluteIndex(
-            instruction_decoder_.varint(), &absolute_index)) {
+    if (!QpackRequestStreamRelativeIndexToAbsoluteIndex(
+            instruction_decoder_.varint(), base_, &absolute_index)) {
       OnError("Invalid relative index.");
       return false;
     }
@@ -232,8 +233,8 @@ bool QpackProgressiveDecoder::DoLiteralHeaderFieldNameReferenceInstruction() {
 
 bool QpackProgressiveDecoder::DoLiteralHeaderFieldPostBaseInstruction() {
   uint64_t absolute_index;
-  if (!PostBaseIndexToAbsoluteIndex(instruction_decoder_.varint(),
-                                    &absolute_index)) {
+  if (!QpackPostBaseIndexToAbsoluteIndex(instruction_decoder_.varint(), base_,
+                                         &absolute_index)) {
     OnError("Invalid post-base index.");
     return false;
   }
@@ -340,28 +341,6 @@ bool QpackProgressiveDecoder::DeltaBaseToBase(bool sign,
     return false;
   }
   *base = required_insert_count_ + delta_base;
-  return true;
-}
-
-bool QpackProgressiveDecoder::RequestStreamRelativeIndexToAbsoluteIndex(
-    uint64_t relative_index,
-    uint64_t* absolute_index) const {
-  if (relative_index >= base_) {
-    return false;
-  }
-
-  *absolute_index = base_ - 1 - relative_index;
-  return true;
-}
-
-bool QpackProgressiveDecoder::PostBaseIndexToAbsoluteIndex(
-    uint64_t post_base_index,
-    uint64_t* absolute_index) const {
-  if (post_base_index >= std::numeric_limits<uint64_t>::max() - base_) {
-    return false;
-  }
-
-  *absolute_index = base_ + post_base_index;
   return true;
 }
 

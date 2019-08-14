@@ -85,14 +85,6 @@ class QUIC_EXPORT_PRIVATE QpackDecoder
   }
 
  private:
-  // The encoder stream uses relative index (but different from the kind of
-  // relative index used on a request stream).  This method converts relative
-  // index to absolute index (zero based).  It returns true on success, or false
-  // if conversion fails due to overflow/underflow.
-  bool EncoderStreamRelativeIndexToAbsoluteIndex(
-      uint64_t relative_index,
-      uint64_t* absolute_index) const;
-
   EncoderStreamErrorDelegate* const encoder_stream_error_delegate_;
   QpackEncoderStreamReceiver encoder_stream_receiver_;
   QpackDecoderStreamSender decoder_stream_sender_;

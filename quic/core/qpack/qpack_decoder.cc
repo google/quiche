@@ -4,6 +4,7 @@
 
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_decoder.h"
 
+#include "net/third_party/quiche/src/quic/core/qpack/qpack_index_conversions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
 
@@ -48,7 +49,8 @@ void QpackDecoder::OnInsertWithNameReference(bool is_static,
   }
 
   uint64_t absolute_index;
-  if (!EncoderStreamRelativeIndexToAbsoluteIndex(name_index, &absolute_index)) {
+  if (!QpackEncoderStreamRelativeIndexToAbsoluteIndex(
+          name_index, header_table_.inserted_entry_count(), &absolute_index)) {
     encoder_stream_error_delegate_->OnEncoderStreamError(
         "Invalid relative index.");
     return;
@@ -79,7 +81,8 @@ void QpackDecoder::OnInsertWithoutNameReference(QuicStringPiece name,
 
 void QpackDecoder::OnDuplicate(uint64_t index) {
   uint64_t absolute_index;
-  if (!EncoderStreamRelativeIndexToAbsoluteIndex(index, &absolute_index)) {
+  if (!QpackEncoderStreamRelativeIndexToAbsoluteIndex(
+          index, header_table_.inserted_entry_count(), &absolute_index)) {
     encoder_stream_error_delegate_->OnEncoderStreamError(
         "Invalid relative index.");
     return;
@@ -108,17 +111,6 @@ void QpackDecoder::OnSetDynamicTableCapacity(uint64_t capacity) {
 
 void QpackDecoder::OnErrorDetected(QuicStringPiece error_message) {
   encoder_stream_error_delegate_->OnEncoderStreamError(error_message);
-}
-
-bool QpackDecoder::EncoderStreamRelativeIndexToAbsoluteIndex(
-    uint64_t relative_index,
-    uint64_t* absolute_index) const {
-  if (relative_index >= header_table_.inserted_entry_count()) {
-    return false;
-  }
-
-  *absolute_index = header_table_.inserted_entry_count() - relative_index - 1;
-  return true;
 }
 
 std::unique_ptr<QpackProgressiveDecoder> QpackDecoder::CreateProgressiveDecoder(

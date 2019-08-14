@@ -89,18 +89,6 @@ class QUIC_EXPORT_PRIVATE QpackProgressiveDecoder
   // failure due to overflow/underflow.
   bool DeltaBaseToBase(bool sign, uint64_t delta_base, uint64_t* base);
 
-  // The request stream can use relative index (but different from the kind of
-  // relative index used on the encoder stream), and post-base index.
-  // These methods convert relative index and post-base index to absolute index
-  // (one based).  They return true on success, or false if conversion fails due
-  // to overflow/underflow.  On success, |*absolute_index| is guaranteed to be
-  // strictly less than std::numeric_limits<uint64_t>::max().
-  bool RequestStreamRelativeIndexToAbsoluteIndex(
-      uint64_t relative_index,
-      uint64_t* absolute_index) const;
-  bool PostBaseIndexToAbsoluteIndex(uint64_t post_base_index,
-                                    uint64_t* absolute_index) const;
-
   const QuicStreamId stream_id_;
 
   // |prefix_decoder_| only decodes a handful of bytes then it can be
