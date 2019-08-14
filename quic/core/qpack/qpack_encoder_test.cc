@@ -7,6 +7,7 @@
 #include <string>
 
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_encoder_test_utils.h"
+#include "net/third_party/quiche/src/quic/core/qpack/qpack_test_utils.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
@@ -21,17 +22,20 @@ namespace {
 
 class QpackEncoderTest : public QuicTest {
  protected:
-  QpackEncoderTest() = default;
+  QpackEncoderTest() : encoder_(&decoder_stream_error_delegate_) {
+    encoder_.set_qpack_stream_sender_delegate(&encoder_stream_sender_delegate_);
+    encoder_.SetMaximumBlockedStreams(1);
+  }
+
   ~QpackEncoderTest() override = default;
 
   std::string Encode(const spdy::SpdyHeaderBlock* header_list) {
-    QpackEncoder encoder(&decoder_stream_error_delegate_);
-    encoder.set_qpack_stream_sender_delegate(&encoder_stream_sender_delegate_);
-    return encoder.EncodeHeaderList(/* stream_id = */ 1, header_list);
+    return encoder_.EncodeHeaderList(/* stream_id = */ 1, header_list);
   }
 
   StrictMock<MockDecoderStreamErrorDelegate> decoder_stream_error_delegate_;
-  NoopQpackStreamSenderDelegate encoder_stream_sender_delegate_;
+  StrictMock<MockQpackStreamSenderDelegate> encoder_stream_sender_delegate_;
+  QpackEncoder encoder_;
 };
 
 TEST_F(QpackEncoderTest, Empty) {
