@@ -6,40 +6,200 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
+#include <utility>
 
+#include "net/third_party/quiche/src/quic/core/http/quic_header_list.h"
+#include "net/third_party/quiche/src/quic/core/qpack/qpack_decoded_headers_accumulator.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_decoder.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_decoder_test_utils.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_encoder.h"
+#include "net/third_party/quiche/src/quic/core/qpack/qpack_stream_sender_delegate.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_utils.h"
 #include "net/third_party/quiche/src/quic/core/qpack/value_splitting_header_list.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_fuzzed_data_provider.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_header_block.h"
 
 namespace quic {
 namespace test {
 
-// DecoderStreamErrorDelegate implementation that crashes on error.
-class CrashingDecoderStreamErrorDelegate
-    : public QpackEncoder::DecoderStreamErrorDelegate {
+// Class to hold QpackEncoder and its DecoderStreamErrorDelegate.
+class EncodingEndpoint {
  public:
-  ~CrashingDecoderStreamErrorDelegate() override = default;
-
-  void OnDecoderStreamError(QuicStringPiece error_message) override {
-    CHECK(false) << error_message;
+  EncodingEndpoint(uint64_t maximum_dynamic_table_capacity,
+                   uint64_t maximum_blocked_streams)
+      : encoder_(&decoder_stream_error_delegate) {
+    encoder_.SetMaximumDynamicTableCapacity(maximum_dynamic_table_capacity);
+    encoder_.SetMaximumBlockedStreams(maximum_blocked_streams);
   }
+
+  void set_qpack_stream_sender_delegate(QpackStreamSenderDelegate* delegate) {
+    encoder_.set_qpack_stream_sender_delegate(delegate);
+  }
+
+  std::string EncodeHeaderList(QuicStreamId stream_id,
+                               const spdy::SpdyHeaderBlock* header_list) {
+    return encoder_.EncodeHeaderList(stream_id, header_list);
+  }
+
+ private:
+  // DecoderStreamErrorDelegate implementation that crashes on error.
+  class CrashingDecoderStreamErrorDelegate
+      : public QpackEncoder::DecoderStreamErrorDelegate {
+   public:
+    ~CrashingDecoderStreamErrorDelegate() override = default;
+
+    void OnDecoderStreamError(QuicStringPiece error_message) override {
+      CHECK(false) << error_message;
+    }
+  };
+
+  CrashingDecoderStreamErrorDelegate decoder_stream_error_delegate;
+  QpackEncoder encoder_;
 };
 
-// EncoderStreamErrorDelegate implementation that crashes on error.
-class CrashingEncoderStreamErrorDelegate
-    : public QpackDecoder::EncoderStreamErrorDelegate {
+// Class to decode and verify a header block.
+class VerifyingDecoder : public QpackDecodedHeadersAccumulator::Visitor {
  public:
-  ~CrashingEncoderStreamErrorDelegate() override = default;
+  VerifyingDecoder(QuicStreamId stream_id,
+                   QpackDecoder* qpack_decoder,
+                   QuicHeaderList expected_header_list)
+      : accumulator_(
+            stream_id,
+            qpack_decoder,
+            this,
+            /* max_header_list_size = */ std::numeric_limits<size_t>::max()),
+        expected_header_list_(std::move(expected_header_list)) {}
 
-  void OnEncoderStreamError(QuicStringPiece error_message) override {
-    CHECK(false) << error_message;
+  VerifyingDecoder(const VerifyingDecoder&) = delete;
+  VerifyingDecoder& operator=(const VerifyingDecoder&) = delete;
+  // VerifyingDecoder must not be moved because it passes |this| to
+  // |accumulator_| upon construction.
+  VerifyingDecoder(VerifyingDecoder&&) = delete;
+  VerifyingDecoder& operator=(VerifyingDecoder&&) = delete;
+
+  virtual ~VerifyingDecoder() = default;
+
+  // QpackDecodedHeadersAccumulator::Visitor implementation.
+  void OnHeadersDecoded(QuicHeaderList /*headers*/) override {}
+
+  void OnHeaderDecodingError() override {
+    CHECK(false) << accumulator_.error_message();
   }
+
+  void Decode(QuicStringPiece data) {
+    const bool success = accumulator_.Decode(data);
+    CHECK(success) << accumulator_.error_message();
+  }
+
+  void EndHeaderBlock() {
+    QpackDecodedHeadersAccumulator::Status status =
+        accumulator_.EndHeaderBlock();
+
+    CHECK(status != QpackDecodedHeadersAccumulator::Status::kError)
+        << accumulator_.error_message();
+
+    CHECK(status == QpackDecodedHeadersAccumulator::Status::kSuccess);
+
+    // Compare resulting header list to original.
+    CHECK(expected_header_list_ == accumulator_.quic_header_list());
+  }
+
+ private:
+  QpackDecodedHeadersAccumulator accumulator_;
+  QuicHeaderList expected_header_list_;
 };
 
+// Class that holds QpackDecoder and its EncoderStreamErrorDelegate, and creates
+// and keeps VerifyingDecoders for each received header block until decoding is
+// complete.
+class DecodingEndpoint {
+ public:
+  DecodingEndpoint(uint64_t maximum_dynamic_table_capacity,
+                   uint64_t maximum_blocked_streams)
+      : decoder_(maximum_dynamic_table_capacity,
+                 maximum_blocked_streams,
+                 &encoder_stream_error_delegate_) {}
+
+  ~DecodingEndpoint() {
+    // All decoding must have been completed.
+    CHECK(expected_header_lists_.empty());
+    CHECK(verifying_decoders_.empty());
+  }
+
+  void set_qpack_stream_sender_delegate(QpackStreamSenderDelegate* delegate) {
+    decoder_.set_qpack_stream_sender_delegate(delegate);
+  }
+
+  void AddExpectedHeaderList(QuicStreamId stream_id,
+                             QuicHeaderList expected_header_list) {
+    auto it = expected_header_lists_.lower_bound(stream_id);
+    if (it == expected_header_lists_.end() || it->first != stream_id) {
+      it = expected_header_lists_.insert(it, {stream_id, {}});
+    }
+    CHECK_EQ(stream_id, it->first);
+    it->second.push(std::move(expected_header_list));
+  }
+
+  void OnHeaderBlockStart(QuicStreamId stream_id) {
+    auto it = expected_header_lists_.find(stream_id);
+    CHECK(it != expected_header_lists_.end());
+
+    auto& header_list_queue = it->second;
+    QuicHeaderList expected_header_list = std::move(header_list_queue.front());
+
+    header_list_queue.pop();
+    if (header_list_queue.empty()) {
+      expected_header_lists_.erase(it);
+    }
+
+    auto verifying_decoder = QuicMakeUnique<VerifyingDecoder>(
+        stream_id, &decoder_, std::move(expected_header_list));
+    auto result =
+        verifying_decoders_.insert({stream_id, std::move(verifying_decoder)});
+    CHECK(result.second);
+  }
+
+  void OnHeaderBlockFragment(QuicStreamId stream_id, QuicStringPiece data) {
+    auto it = verifying_decoders_.find(stream_id);
+    CHECK(it != verifying_decoders_.end());
+    it->second->Decode(data);
+  }
+
+  void OnHeaderBlockEnd(QuicStreamId stream_id) {
+    auto it = verifying_decoders_.find(stream_id);
+    CHECK(it != verifying_decoders_.end());
+    it->second->EndHeaderBlock();
+    auto result = verifying_decoders_.erase(stream_id);
+    CHECK_EQ(1u, result);
+  }
+
+ private:
+  // EncoderStreamErrorDelegate implementation that crashes on error.
+  class CrashingEncoderStreamErrorDelegate
+      : public QpackDecoder::EncoderStreamErrorDelegate {
+   public:
+    ~CrashingEncoderStreamErrorDelegate() override = default;
+
+    void OnEncoderStreamError(QuicStringPiece error_message) override {
+      CHECK(false) << error_message;
+    }
+  };
+
+  CrashingEncoderStreamErrorDelegate encoder_stream_error_delegate_;
+  QpackDecoder decoder_;
+
+  // Expected header lists in order for each stream.
+  std::map<QuicStreamId, std::queue<QuicHeaderList>> expected_header_lists_;
+
+  // A VerifyingDecoder object keeps context necessary for asynchronously
+  // decoding blocked header blocks.  It is destroyed as soon as it signals that
+  // decoding is completed, which might happen synchronously within an
+  // EndHeaderBlock() call.
+  std::map<QuicStreamId, std::unique_ptr<VerifyingDecoder>> verifying_decoders_;
+};
+
+// Generate header list using fuzzer data.
 spdy::SpdyHeaderBlock GenerateHeaderList(QuicFuzzedDataProvider* provider) {
   spdy::SpdyHeaderBlock header_list;
   uint8_t header_count = provider->ConsumeIntegral<uint8_t>();
@@ -137,46 +297,22 @@ spdy::SpdyHeaderBlock GenerateHeaderList(QuicFuzzedDataProvider* provider) {
   return header_list;
 }
 
-spdy::SpdyHeaderBlock DecodeHeaderBlock(QpackDecoder* decoder,
-                                        QuicStreamId stream_id,
-                                        const std::string& encoded_header_block,
-                                        QuicFuzzedDataProvider* provider) {
-  // Process up to 256 bytes at a time.  Such a small size helps test
-  // fragmented decoding.
-  auto fragment_size_generator =
-      std::bind(&QuicFuzzedDataProvider::ConsumeIntegralInRange<uint8_t>,
-                provider, 1, std::numeric_limits<uint8_t>::max());
-
-  TestHeadersHandler handler;
-  auto progressive_decoder =
-      decoder->CreateProgressiveDecoder(stream_id, &handler);
-  {
-    QuicStringPiece remaining_data = encoded_header_block;
-    while (!remaining_data.empty()) {
-      size_t fragment_size =
-          std::min<size_t>(fragment_size_generator(), remaining_data.size());
-      progressive_decoder->Decode(remaining_data.substr(0, fragment_size));
-      remaining_data = remaining_data.substr(fragment_size);
-    }
-  }
-  progressive_decoder->EndHeaderBlock();
-
-  // Since header block has been produced by encoding a header list, it must be
-  // valid.
-  CHECK(handler.decoding_completed());
-  CHECK(!handler.decoding_error_detected());
-
-  return handler.ReleaseHeaderList();
-}
-
 // Splits |*header_list| header values along '\0' or ';' separators.
-spdy::SpdyHeaderBlock SplitHeaderList(
-    const spdy::SpdyHeaderBlock& header_list) {
+QuicHeaderList SplitHeaderList(const spdy::SpdyHeaderBlock& header_list) {
+  QuicHeaderList split_header_list;
+  split_header_list.set_max_header_list_size(
+      std::numeric_limits<size_t>::max());
+  split_header_list.OnHeaderBlockStart();
+
+  size_t total_size = 0;
   ValueSplittingHeaderList splitting_header_list(&header_list);
-  spdy::SpdyHeaderBlock split_header_list;
   for (const auto& header : splitting_header_list) {
-    split_header_list.AppendValueOrAddHeader(header.first, header.second);
+    split_header_list.OnHeader(header.first, header.second);
+    total_size += header.first.size() + header.second.size();
   }
+
+  split_header_list.OnHeaderBlockEnd(total_size, total_size);
+
   return split_header_list;
 }
 
@@ -193,22 +329,19 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   // entries and eviction.
   const uint64_t maximum_dynamic_table_capacity =
       provider.ConsumeIntegral<uint8_t>();
-  // Maximum 256 blocked stream.
+  // Maximum 256 blocked streams.
   const uint64_t maximum_blocked_streams = provider.ConsumeIntegral<uint8_t>();
 
   // Set up encoder.
-  CrashingDecoderStreamErrorDelegate decoder_stream_error_delegate;
   NoopQpackStreamSenderDelegate encoder_stream_sender_delegate;
-  QpackEncoder encoder(&decoder_stream_error_delegate);
+  EncodingEndpoint encoder(maximum_dynamic_table_capacity,
+                           maximum_blocked_streams);
   encoder.set_qpack_stream_sender_delegate(&encoder_stream_sender_delegate);
-  encoder.SetMaximumDynamicTableCapacity(maximum_dynamic_table_capacity);
-  encoder.SetMaximumBlockedStreams(maximum_blocked_streams);
 
   // Set up decoder.
-  CrashingEncoderStreamErrorDelegate encoder_stream_error_delegate;
   NoopQpackStreamSenderDelegate decoder_stream_sender_delegate;
-  QpackDecoder decoder(maximum_dynamic_table_capacity, maximum_blocked_streams,
-                       &encoder_stream_error_delegate);
+  DecodingEndpoint decoder(maximum_dynamic_table_capacity,
+                           maximum_blocked_streams);
   decoder.set_qpack_stream_sender_delegate(&decoder_stream_sender_delegate);
 
   while (provider.remaining_bytes() > 0) {
@@ -221,16 +354,15 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     std::string encoded_header_block =
         encoder.EncodeHeaderList(stream_id, &header_list);
 
-    // Decode resulting header block.
-    spdy::SpdyHeaderBlock decoded_header_list =
-        DecodeHeaderBlock(&decoder, stream_id, encoded_header_block, &provider);
-
     // Encoder splits |header_list| header values along '\0' or ';' separators.
     // Do the same here so that we get matching results.
-    spdy::SpdyHeaderBlock expected_header_list = SplitHeaderList(header_list);
+    QuicHeaderList expected_header_list = SplitHeaderList(header_list);
+    decoder.AddExpectedHeaderList(stream_id, std::move(expected_header_list));
 
-    // Compare resulting header list to original.
-    CHECK(expected_header_list == decoded_header_list);
+    // Decode header block.
+    decoder.OnHeaderBlockStart(stream_id);
+    decoder.OnHeaderBlockFragment(stream_id, encoded_header_block);
+    decoder.OnHeaderBlockEnd(stream_id);
   }
 
   return 0;
