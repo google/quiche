@@ -12,6 +12,7 @@
 #include "net/third_party/quiche/src/quic/core/qpack/value_splitting_header_list.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
 
 namespace quic {
 
@@ -120,16 +121,35 @@ void QpackEncoder::SetMaximumBlockedStreams(uint64_t maximum_blocked_streams) {
   maximum_blocked_streams_ = maximum_blocked_streams;
 }
 
-void QpackEncoder::OnInsertCountIncrement(uint64_t /*increment*/) {
-  // TODO(bnc): Implement dynamic table management for encoding.
+void QpackEncoder::OnInsertCountIncrement(uint64_t increment) {
+  if (increment == 0) {
+    decoder_stream_error_delegate_->OnDecoderStreamError(
+        "Invalid increment value 0.");
+    return;
+  }
+
+  blocking_manager_.OnInsertCountIncrement(increment);
+
+  if (blocking_manager_.known_received_count() >
+      header_table_.inserted_entry_count()) {
+    decoder_stream_error_delegate_->OnDecoderStreamError(QuicStrCat(
+        "Increment value ", increment, " raises known received count to ",
+        blocking_manager_.known_received_count(),
+        " exceeding inserted entry count ",
+        header_table_.inserted_entry_count()));
+  }
 }
 
-void QpackEncoder::OnHeaderAcknowledgement(QuicStreamId /*stream_id*/) {
-  // TODO(bnc): Implement dynamic table management for encoding.
+void QpackEncoder::OnHeaderAcknowledgement(QuicStreamId stream_id) {
+  if (!blocking_manager_.OnHeaderAcknowledgement(stream_id)) {
+    decoder_stream_error_delegate_->OnDecoderStreamError(
+        QuicStrCat("Header Acknowledgement received for stream ", stream_id,
+                   " with no outstanding header blocks."));
+  }
 }
 
-void QpackEncoder::OnStreamCancellation(QuicStreamId /*stream_id*/) {
-  // TODO(bnc): Implement dynamic table management for encoding.
+void QpackEncoder::OnStreamCancellation(QuicStreamId stream_id) {
+  blocking_manager_.OnStreamCancellation(stream_id);
 }
 
 void QpackEncoder::OnErrorDetected(QuicStringPiece error_message) {

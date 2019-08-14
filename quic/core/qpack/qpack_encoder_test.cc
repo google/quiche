@@ -152,6 +152,34 @@ TEST_F(QpackEncoderTest, SplitAlongNullCharacter) {
             output);
 }
 
+TEST_F(QpackEncoderTest, ZeroInsertCountIncrement) {
+  // Encoder receives insert count increment with forbidden value 0.
+  EXPECT_CALL(decoder_stream_error_delegate_,
+              OnDecoderStreamError(Eq("Invalid increment value 0.")));
+  encoder_.OnInsertCountIncrement(0);
+}
+
+TEST_F(QpackEncoderTest, TooLargeInsertCountIncrement) {
+  // Encoder receives insert count increment with value that increases Known
+  // Received Count to a value (one) which is larger than the number of dynamic
+  // table insertions sent (zero).
+  EXPECT_CALL(
+      decoder_stream_error_delegate_,
+      OnDecoderStreamError(Eq("Increment value 1 raises known received count "
+                              "to 1 exceeding inserted entry count 0")));
+  encoder_.OnInsertCountIncrement(1);
+}
+
+TEST_F(QpackEncoderTest, InvalidHeaderAcknowledgement) {
+  // Encoder receives header acknowledgement for a stream on which no header
+  // block with dynamic table entries was ever sent.
+  EXPECT_CALL(
+      decoder_stream_error_delegate_,
+      OnDecoderStreamError(Eq("Header Acknowledgement received for stream 0 "
+                              "with no outstanding header blocks.")));
+  encoder_.OnHeaderAcknowledgement(/* stream_id = */ 0);
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

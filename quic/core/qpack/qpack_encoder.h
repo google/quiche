@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 
+#include "net/third_party/quiche/src/quic/core/qpack/qpack_blocking_manager.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_decoder_stream_receiver.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_encoder_stream_sender.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_header_table.h"
@@ -111,6 +112,7 @@ class QUIC_EXPORT_PRIVATE QpackEncoder
   QpackEncoderStreamSender encoder_stream_sender_;
   QpackHeaderTable header_table_;
   uint64_t maximum_blocked_streams_;
+  QpackBlockingManager blocking_manager_;
 };
 
 }  // namespace quic
