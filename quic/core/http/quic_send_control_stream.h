@@ -34,6 +34,9 @@ class QUIC_EXPORT_PRIVATE QuicSendControlStream : public QuicStream {
   // stream. Settings frame must be the first frame sent on this stream.
   void SendSettingsFrame();
 
+  // Construct a MAX_PUSH_ID frame and send it on this stream.
+  void SendMaxPushIdFrame(PushId max_push_id);
+
   // Send |Priority| on this stream. It must be sent after settings.
   void WritePriority(const PriorityFrame& priority);
 

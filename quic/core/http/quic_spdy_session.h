@@ -186,6 +186,10 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // those streams are not initialized yet.
   void OnCanCreateNewOutgoingStream(bool unidirectional) override;
 
+  void set_max_allowed_push_id(QuicStreamId max_allowed_push_id);
+
+  QuicStreamId max_allowed_push_id() { return max_allowed_push_id_; }
+
  protected:
   // Override CreateIncomingStream(), CreateOutgoingBidirectionalStream() and
   // CreateOutgoingUnidirectionalStream() with QuicSpdyStream return type to
@@ -252,6 +256,11 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // Initializes HTTP/3 unidirectional streams if not yet initialzed.
   virtual void MaybeInitializeHttp3UnidirectionalStreams();
 
+  void set_max_uncompressed_header_bytes(
+      size_t set_max_uncompressed_header_bytes);
+
+  void SendMaxPushId(QuicStreamId max_allowed_push_id);
+
  private:
   friend class test::QuicSpdySessionPeer;
 
@@ -308,6 +317,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // TODO(renjietang): Replace these two members with actual QPACK send streams.
   NoopQpackStreamSenderDelegate encoder_stream_sender_delegate_;
   NoopQpackStreamSenderDelegate decoder_stream_sender_delegate_;
+  QuicStreamId max_allowed_push_id_;
 };
 
 }  // namespace quic

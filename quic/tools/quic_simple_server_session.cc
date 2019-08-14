@@ -76,6 +76,10 @@ void QuicSimpleServerSession::PromisePushResources(
         request_url, resource, original_request_headers);
     highest_promised_stream_id_ +=
         QuicUtils::StreamIdDelta(connection()->transport_version());
+    if (VersionHasIetfQuicFrames(connection()->transport_version()) &&
+        highest_promised_stream_id_ > max_allowed_push_id()) {
+      return;
+    }
     SendPushPromise(original_stream_id, highest_promised_stream_id_,
                     headers.Clone());
     promised_streams_.push_back(PromisedStreamInfo(

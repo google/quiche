@@ -575,6 +575,8 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
     return false;
   }
 
+  bool IsHandshakeConfirmed() { return is_handshake_confirmed_; }
+
  private:
   friend class test::QuicSessionPeer;
 

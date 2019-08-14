@@ -280,7 +280,9 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     }
     client->UseConnectionIdLength(override_server_connection_id_length_);
     client->UseClientConnectionIdLength(override_client_connection_id_length_);
-    client->client()->set_max_allowed_push_id(kMaxQuicStreamId);
+    if (support_server_push_) {
+      client->client()->set_max_allowed_push_id(kMaxQuicStreamId);
+    }
     client->Connect();
     return client;
   }
@@ -4112,6 +4114,29 @@ TEST_P(EndToEndTest, TooBigStreamIdClosesConnection) {
   client_->SendCustomSynchronousRequest(headers, body);
   EXPECT_EQ(QUIC_STREAM_CONNECTION_ERROR, client_->stream_error());
   EXPECT_EQ(QUIC_INVALID_STREAM_ID, client_->connection_error());
+}
+
+TEST_P(EndToEndTest, TestMaxPushId) {
+  // Has to be before version test, see EndToEndTest::TearDown()
+  ASSERT_TRUE(Initialize());
+  if (!VersionHasIetfQuicFrames(negotiated_version_.transport_version)) {
+    // Only runs for IETF QUIC.
+    return;
+  }
+
+  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  static_cast<QuicSpdySession*>(client_->client()->session())
+      ->set_max_allowed_push_id(kMaxQuicStreamId);
+
+  client_->SendSynchronousRequest("/foo");
+
+  EXPECT_EQ(kMaxQuicStreamId,
+            static_cast<QuicSpdySession*>(client_->client()->session())
+                ->max_allowed_push_id());
+
+  EXPECT_EQ(
+      kMaxQuicStreamId,
+      static_cast<QuicSpdySession*>(GetServerSession())->max_allowed_push_id());
 }
 
 }  // namespace

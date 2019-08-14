@@ -320,7 +320,8 @@ QuicSpdySession::QuicSpdySession(
       frame_len_(0),
       supports_push_promise_(perspective() == Perspective::IS_CLIENT),
       spdy_framer_(SpdyFramer::ENABLE_COMPRESSION),
-      spdy_framer_visitor_(new SpdyFramerVisitor(this)) {
+      spdy_framer_visitor_(new SpdyFramerVisitor(this)),
+      max_allowed_push_id_(0) {
   h2_deframer_.set_visitor(spdy_framer_visitor_.get());
   h2_deframer_.set_debug_visitor(spdy_framer_visitor_.get());
   spdy_framer_.set_debug_visitor(spdy_framer_visitor_.get());
@@ -511,6 +512,13 @@ void QuicSpdySession::WritePushPromise(QuicStreamId original_stream_id,
                                        SpdyHeaderBlock headers) {
   if (perspective() == Perspective::IS_CLIENT) {
     QUIC_BUG << "Client shouldn't send PUSH_PROMISE";
+    return;
+  }
+
+  if (VersionHasIetfQuicFrames(connection()->transport_version()) &&
+      promised_stream_id > max_allowed_push_id()) {
+    QUIC_BUG
+        << "Server shouldn't send push id higher than client's MAX_PUSH_ID.";
     return;
   }
 
@@ -914,6 +922,27 @@ void QuicSpdySession::OnCanCreateNewOutgoingStream(bool unidirectional) {
       VersionHasStreamType(connection()->transport_version())) {
     MaybeInitializeHttp3UnidirectionalStreams();
   }
+}
+
+void QuicSpdySession::set_max_allowed_push_id(
+    QuicStreamId max_allowed_push_id) {
+  if (VersionHasIetfQuicFrames(connection()->transport_version()) &&
+      perspective() == Perspective::IS_SERVER &&
+      max_allowed_push_id > max_allowed_push_id_) {
+    OnCanCreateNewOutgoingStream(true);
+  }
+
+  max_allowed_push_id_ = max_allowed_push_id;
+
+  if (VersionHasIetfQuicFrames(connection()->transport_version()) &&
+      perspective() == Perspective::IS_CLIENT && IsHandshakeConfirmed()) {
+    SendMaxPushId(max_allowed_push_id);
+  }
+}
+
+void QuicSpdySession::SendMaxPushId(QuicStreamId max_allowed_push_id) {
+  DCHECK(VersionHasStreamType(connection()->transport_version()));
+  send_control_stream_->SendMaxPushIdFrame(max_allowed_push_id);
 }
 
 }  // namespace quic

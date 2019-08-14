@@ -52,7 +52,13 @@ class QuicReceiveControlStream::HttpDecoderVisitor
     return false;
   }
 
-  bool OnMaxPushIdFrame(const MaxPushIdFrame& /*frame*/) override {
+  bool OnMaxPushIdFrame(const MaxPushIdFrame& frame) override {
+    if (stream_->session()->perspective() == Perspective::IS_SERVER) {
+      QuicSpdySession* spdy_session =
+          static_cast<QuicSpdySession*>(stream_->session());
+      spdy_session->set_max_allowed_push_id(frame.push_id);
+      return true;
+    }
     CloseConnectionOnWrongFrame("Max Push Id");
     return false;
   }

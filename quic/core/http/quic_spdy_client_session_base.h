@@ -111,10 +111,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdyClientSessionBase
   // Returns true if there are no active requests and no promised streams.
   bool ShouldReleaseHeadersStreamSequencerBuffer() override;
 
-  void set_max_allowed_push_id(QuicStreamId max_allowed_push_id);
-
-  QuicStreamId max_allowed_push_id() { return max_allowed_push_id_; }
-
   size_t get_max_promises() const {
     return max_open_incoming_unidirectional_streams() *
            kMaxPromisedStreamsMultiplier;
@@ -138,7 +134,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdyClientSessionBase
   QuicClientPushPromiseIndex* push_promise_index_;
   QuicPromisedByIdMap promised_by_id_;
   QuicStreamId largest_promised_stream_id_;
-  QuicStreamId max_allowed_push_id_;
 };
 
 }  // namespace quic

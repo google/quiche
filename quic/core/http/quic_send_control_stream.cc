@@ -65,4 +65,15 @@ void QuicSendControlStream::WritePriority(const PriorityFrame& priority) {
                     nullptr);
 }
 
+void QuicSendControlStream::SendMaxPushIdFrame(PushId max_push_id) {
+  QuicConnection::ScopedPacketFlusher flusher(session()->connection());
+
+  MaxPushIdFrame frame;
+  frame.push_id = max_push_id;
+  std::unique_ptr<char[]> buffer;
+  QuicByteCount frame_length = encoder_.SerializeMaxPushIdFrame(frame, &buffer);
+  WriteOrBufferData(QuicStringPiece(buffer.get(), frame_length),
+                    /*fin = */ false, nullptr);
+}
+
 }  // namespace quic
