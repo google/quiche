@@ -2972,7 +2972,7 @@ TEST_P(QuicSentPacketManagerTest, RtoFiresNoPacketToRetransmit) {
   EXPECT_CALL(notifier_, RetransmitFrames(_, _)).Times(0);
   manager_.OnRetransmissionTimeout();
   EXPECT_EQ(2u, stats_.rto_count);
-  if (GetQuicReloadableFlag(quic_fix_rto_retransmission2)) {
+  if (GetQuicReloadableFlag(quic_fix_rto_retransmission3)) {
     // Verify a credit is raised up.
     EXPECT_EQ(1u, manager_.pending_timer_transmission_count());
   } else {

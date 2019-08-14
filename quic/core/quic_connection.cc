@@ -2451,7 +2451,8 @@ void QuicConnection::OnRetransmissionTimeout() {
     return;
   }
 
-  sent_packet_manager_.OnRetransmissionTimeout();
+  const auto retransmission_mode =
+      sent_packet_manager_.OnRetransmissionTimeout();
   WriteIfNotBlocked();
 
   // A write failure can result in the connection being closed, don't attempt to
@@ -2468,27 +2469,38 @@ void QuicConnection::OnRetransmissionTimeout() {
   }
 
   if (sent_packet_manager_.fix_rto_retransmission()) {
-    // Making sure at least one packet is created when retransmission timer
-    // fires in TLP. It is possible that loss algorithm invokes timer based loss
-    // but the packet does not need to be retransmitted. And no packets will be
-    // sent if timer fires in HANDSHAKE or RTO mode but writer is blocked.
-    QUIC_BUG_IF(packet_generator_.packet_number() ==
-                    previous_created_packet_number &&
-                stats_.tlp_count != previous_tlp_count)
-        << "previous_crypto_retransmit_count: "
-        << previous_crypto_retransmit_count
-        << ", crypto_retransmit_count: " << stats_.crypto_retransmit_count
-        << ", previous_loss_timeout_count: " << previous_loss_timeout_count
-        << ", loss_timeout_count: " << stats_.loss_timeout_count
-        << ", previous_tlp_count: " << previous_tlp_count
-        << ", tlp_count: " << stats_.tlp_count
-        << ", pervious_rto_count: " << pervious_rto_count
-        << ", rto_count: " << stats_.rto_count
-        << ", previous_created_packet_number: "
-        << previous_created_packet_number
-        << ", packet_number: " << packet_generator_.packet_number()
-        << ", session has data to write: " << visitor_->WillingAndAbleToWrite()
-        << ", writer is blocked: " << writer_->IsWriteBlocked();
+    if (packet_generator_.packet_number() == previous_created_packet_number &&
+        retransmission_mode == QuicSentPacketManager::RTO_MODE &&
+        !visitor_->WillingAndAbleToWrite()) {
+      // Send PING if timer fires in RTO mode but there is no data to send.
+      DCHECK_LT(0u, sent_packet_manager_.pending_timer_transmission_count());
+      visitor_->SendPing();
+    }
+    if (retransmission_mode != QuicSentPacketManager::LOSS_MODE &&
+        retransmission_mode != QuicSentPacketManager::HANDSHAKE_MODE) {
+      // When timer fires in TLP or RTO mode, ensure 1) at least one packet is
+      // created, or there is data to send and available credit (such that
+      // packets will be sent eventually).
+      QUIC_BUG_IF(
+          packet_generator_.packet_number() == previous_created_packet_number &&
+          (!visitor_->WillingAndAbleToWrite() ||
+           sent_packet_manager_.pending_timer_transmission_count() == 0u))
+          << "previous_crypto_retransmit_count: "
+          << previous_crypto_retransmit_count
+          << ", crypto_retransmit_count: " << stats_.crypto_retransmit_count
+          << ", previous_loss_timeout_count: " << previous_loss_timeout_count
+          << ", loss_timeout_count: " << stats_.loss_timeout_count
+          << ", previous_tlp_count: " << previous_tlp_count
+          << ", tlp_count: " << stats_.tlp_count
+          << ", pervious_rto_count: " << pervious_rto_count
+          << ", rto_count: " << stats_.rto_count
+          << ", previous_created_packet_number: "
+          << previous_created_packet_number
+          << ", packet_number: " << packet_generator_.packet_number()
+          << ", session has data to write: "
+          << visitor_->WillingAndAbleToWrite()
+          << ", writer is blocked: " << writer_->IsWriteBlocked();
+    }
   }
 
   // Ensure the retransmission alarm is always set if there are unacked packets

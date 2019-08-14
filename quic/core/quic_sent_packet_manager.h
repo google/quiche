@@ -91,6 +91,20 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
     virtual void OnPathMtuIncreased(QuicPacketLength packet_size) = 0;
   };
 
+  // The retransmission timer is a single timer which switches modes depending
+  // upon connection state.
+  enum RetransmissionTimeoutMode {
+    // A conventional TCP style RTO.
+    RTO_MODE,
+    // A tail loss probe.  By default, QUIC sends up to two before RTOing.
+    TLP_MODE,
+    // Retransmission of handshake packets prior to handshake completion.
+    HANDSHAKE_MODE,
+    // Re-invoke the loss detection when a packet is not acked before the
+    // loss detection algorithm expects.
+    LOSS_MODE,
+  };
+
   QuicSentPacketManager(Perspective perspective,
                         const QuicClock* clock,
                         QuicRandom* random,
@@ -183,8 +197,9 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
                     TransmissionType transmission_type,
                     HasRetransmittableData has_retransmittable_data);
 
-  // Called when the retransmission timer expires.
-  void OnRetransmissionTimeout();
+  // Called when the retransmission timer expires and returns the retransmission
+  // mode.
+  RetransmissionTimeoutMode OnRetransmissionTimeout();
 
   // Calculate the time until we can send the next packet to the wire.
   // Note 1: When kUnknownWaitTime is returned, there is no need to poll
@@ -388,20 +403,6 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
  private:
   friend class test::QuicConnectionPeer;
   friend class test::QuicSentPacketManagerPeer;
-
-  // The retransmission timer is a single timer which switches modes depending
-  // upon connection state.
-  enum RetransmissionTimeoutMode {
-    // A conventional TCP style RTO.
-    RTO_MODE,
-    // A tail loss probe.  By default, QUIC sends up to two before RTOing.
-    TLP_MODE,
-    // Retransmission of handshake packets prior to handshake completion.
-    HANDSHAKE_MODE,
-    // Re-invoke the loss detection when a packet is not acked before the
-    // loss detection algorithm expects.
-    LOSS_MODE,
-  };
 
   typedef QuicLinkedHashMap<QuicPacketNumber,
                             TransmissionType,
@@ -628,7 +629,7 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // Latched value of quic_ignore_tlpr_if_no_pending_stream_data.
   const bool ignore_tlpr_if_no_pending_stream_data_;
 
-  // Latched value of quic_fix_rto_retransmission2 and
+  // Latched value of quic_fix_rto_retransmission3 and
   // session_decides_what_to_write.
   bool fix_rto_retransmission_;
 };

@@ -708,7 +708,8 @@ bool QuicSentPacketManager::OnPacketSent(
   return in_flight;
 }
 
-void QuicSentPacketManager::OnRetransmissionTimeout() {
+QuicSentPacketManager::RetransmissionTimeoutMode
+QuicSentPacketManager::OnRetransmissionTimeout() {
   DCHECK(unacked_packets_.HasInFlightPackets());
   DCHECK_EQ(0u, pending_timer_transmission_count_);
   // Handshake retransmission, timer based loss detection, TLP, and RTO are
@@ -720,14 +721,14 @@ void QuicSentPacketManager::OnRetransmissionTimeout() {
     case HANDSHAKE_MODE:
       ++stats_->crypto_retransmit_count;
       RetransmitCryptoPackets();
-      return;
+      return HANDSHAKE_MODE;
     case LOSS_MODE: {
       ++stats_->loss_timeout_count;
       QuicByteCount prior_in_flight = unacked_packets_.bytes_in_flight();
       const QuicTime now = clock_->Now();
       InvokeLossDetection(now);
       MaybeInvokeCongestionEvent(false, prior_in_flight, now);
-      return;
+      return LOSS_MODE;
     }
     case TLP_MODE:
       ++stats_->tlp_count;
@@ -735,11 +736,11 @@ void QuicSentPacketManager::OnRetransmissionTimeout() {
       pending_timer_transmission_count_ = 1;
       // TLPs prefer sending new data instead of retransmitting data, so
       // give the connection a chance to write before completing the TLP.
-      return;
+      return TLP_MODE;
     case RTO_MODE:
       ++stats_->rto_count;
       RetransmitRtoPackets();
-      return;
+      return RTO_MODE;
   }
 }
 
@@ -950,7 +951,8 @@ const QuicTime QuicSentPacketManager::GetRetransmissionTime() const {
       pending_timer_transmission_count_ > 0) {
     return QuicTime::Zero();
   }
-  if (!unacked_packets_.HasUnackedRetransmittableFrames()) {
+  if (!fix_rto_retransmission_ &&
+      !unacked_packets_.HasUnackedRetransmittableFrames()) {
     return QuicTime::Zero();
   }
   switch (GetRetransmissionMode()) {
@@ -1285,10 +1287,10 @@ void QuicSentPacketManager::SetInitialRtt(QuicTime::Delta rtt) {
 
 void QuicSentPacketManager::SetSessionDecideWhatToWrite(
     bool session_decides_what_to_write) {
-  if (GetQuicReloadableFlag(quic_fix_rto_retransmission2) &&
+  if (GetQuicReloadableFlag(quic_fix_rto_retransmission3) &&
       session_decides_what_to_write) {
     fix_rto_retransmission_ = true;
-    QUIC_RELOADABLE_FLAG_COUNT(quic_fix_rto_retransmission2);
+    QUIC_RELOADABLE_FLAG_COUNT(quic_fix_rto_retransmission3);
   }
   unacked_packets_.SetSessionDecideWhatToWrite(session_decides_what_to_write);
 }

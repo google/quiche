@@ -3452,7 +3452,12 @@ TEST_P(QuicConnectionTest, CancelRetransmissionAlarmAfterResetStream) {
   // Ensure that the data is still in flight, but the retransmission alarm is no
   // longer set.
   EXPECT_GT(manager_->GetBytesInFlight(), 0u);
-  EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
+  if (QuicConnectionPeer::GetSentPacketManager(&connection_)
+          ->fix_rto_retransmission()) {
+    EXPECT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
+  } else {
+    EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
+  }
 }
 
 TEST_P(QuicConnectionTest, RetransmitForQuicRstStreamNoErrorOnRTO) {
@@ -3695,7 +3700,12 @@ TEST_P(QuicConnectionTest, RetransmitWriteBlockedAckedOriginalThenSent) {
 
   writer_->SetWritable();
   connection_.OnCanWrite();
-  EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
+  if (QuicConnectionPeer::GetSentPacketManager(&connection_)
+          ->fix_rto_retransmission()) {
+    EXPECT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
+  } else {
+    EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
+  }
   EXPECT_FALSE(QuicConnectionPeer::HasRetransmittableFrames(&connection_, 2));
 }
 
@@ -4159,25 +4169,25 @@ TEST_P(QuicConnectionTest, RtoWithNoDataToRetransmit) {
   // Simulate the retransmission alarm firing.
   clock_.AdvanceTime(DefaultRetransmissionTime());
   // RTO fires, but there is no packet to be RTOed.
-  if (GetQuicReloadableFlag(quic_fix_rto_retransmission2)) {
+  if (GetQuicReloadableFlag(quic_fix_rto_retransmission3)) {
     EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
   } else {
     EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
   }
   connection_.GetRetransmissionAlarm()->Fire();
-  if (GetQuicReloadableFlag(quic_fix_rto_retransmission2)) {
+  if (GetQuicReloadableFlag(quic_fix_rto_retransmission3)) {
     EXPECT_EQ(1u, writer_->rst_stream_frames().size());
   }
 
   EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(40);
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(20);
-  if (GetQuicReloadableFlag(quic_fix_rto_retransmission2)) {
+  if (GetQuicReloadableFlag(quic_fix_rto_retransmission3)) {
     EXPECT_CALL(visitor_, WillingAndAbleToWrite())
         .WillRepeatedly(Return(false));
   } else {
     EXPECT_CALL(visitor_, WillingAndAbleToWrite()).WillRepeatedly(Return(true));
   }
-  if (GetQuicReloadableFlag(quic_fix_rto_retransmission2)) {
+  if (GetQuicReloadableFlag(quic_fix_rto_retransmission3)) {
     EXPECT_CALL(visitor_, OnAckNeedsRetransmittableFrame()).Times(1);
   } else {
     // Since there is a buffered RST_STREAM, no retransmittable frame is bundled
@@ -8704,6 +8714,9 @@ TEST_P(QuicConnectionTest, RtoAndWriteBlocked) {
   // Cancel the stream.
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
   EXPECT_CALL(visitor_, OnWriteBlocked()).Times(AtLeast(1));
+  EXPECT_CALL(visitor_, WillingAndAbleToWrite())
+      .WillRepeatedly(
+          Invoke(&notifier_, &SimpleSessionNotifier::WillingToWrite));
   SendRstStream(stream_id, QUIC_ERROR_PROCESSING_STREAM, 3);
 
   // Retransmission timer fires in RTO mode.
@@ -8739,6 +8752,46 @@ TEST_P(QuicConnectionTest, TlpAndWriteBlocked) {
   connection_.GetRetransmissionAlarm()->Fire();
   // Verify one packets is forced flushed when writer is blocked.
   EXPECT_EQ(1u, connection_.NumQueuedPackets());
+}
+
+// Regresstion test for b/139375344.
+TEST_P(QuicConnectionTest, RtoForcesSendingPing) {
+  if (!QuicConnectionPeer::GetSentPacketManager(&connection_)
+           ->fix_rto_retransmission()) {
+    return;
+  }
+  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
+  connection_.SetMaxTailLossProbes(2);
+  EXPECT_EQ(0u, connection_.GetStats().tlp_count);
+  EXPECT_EQ(0u, connection_.GetStats().rto_count);
+
+  SendStreamDataToPeer(2, "foo", 0, NO_FIN, nullptr);
+  QuicTime retransmission_time =
+      connection_.GetRetransmissionAlarm()->deadline();
+  EXPECT_NE(QuicTime::Zero(), retransmission_time);
+  // TLP fires.
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, QuicPacketNumber(2), _, _));
+  clock_.AdvanceTime(retransmission_time - clock_.Now());
+  connection_.GetRetransmissionAlarm()->Fire();
+  EXPECT_EQ(1u, connection_.GetStats().tlp_count);
+  EXPECT_EQ(0u, connection_.GetStats().rto_count);
+  EXPECT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
+
+  // Packet 1 gets acked.
+  QuicAckFrame frame = InitAckFrame(1);
+  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(_, _, _, _, _));
+  ProcessAckPacket(1, &frame);
+  EXPECT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
+  retransmission_time = connection_.GetRetransmissionAlarm()->deadline();
+
+  // RTO fires, verify a PING packet gets sent because there is no data to send.
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, QuicPacketNumber(3), _, _));
+  EXPECT_CALL(visitor_, SendPing()).WillOnce(Invoke([this]() { SendPing(); }));
+  clock_.AdvanceTime(retransmission_time - clock_.Now());
+  connection_.GetRetransmissionAlarm()->Fire();
+  EXPECT_EQ(1u, connection_.GetStats().tlp_count);
+  EXPECT_EQ(1u, connection_.GetStats().rto_count);
+  EXPECT_EQ(1u, writer_->ping_frames().size());
 }
 
 }  // namespace
