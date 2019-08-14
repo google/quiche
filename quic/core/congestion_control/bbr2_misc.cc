@@ -83,7 +83,7 @@ Bbr2NetworkModel::Bbr2NetworkModel(const Bbr2Params* params,
                                    float cwnd_gain,
                                    float pacing_gain)
     : params_(params),
-      bandwidth_sampler_(params->initial_max_ack_height_filter_window),
+      bandwidth_sampler_(nullptr, params->initial_max_ack_height_filter_window),
       min_rtt_filter_(initial_rtt, initial_rtt_timestamp),
       cwnd_gain_(cwnd_gain),
       pacing_gain_(pacing_gain) {}

@@ -12,6 +12,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_time.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
+#include "net/third_party/quiche/src/quic/core/quic_unacked_packet_map.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 
 namespace quic {
@@ -241,8 +242,8 @@ class QUIC_EXPORT_PRIVATE BandwidthSamplerInterface {
 // connection is app-limited, the approach works in other cases too.
 class QUIC_EXPORT_PRIVATE BandwidthSampler : public BandwidthSamplerInterface {
  public:
-  explicit BandwidthSampler(
-      QuicRoundTripCount max_height_tracker_window_length);
+  BandwidthSampler(const QuicUnackedPacketMap* unacked_packet_map,
+                   QuicRoundTripCount max_height_tracker_window_length);
   ~BandwidthSampler() override;
 
   void OnPacketSent(QuicTime sent_time,
@@ -377,6 +378,11 @@ class QUIC_EXPORT_PRIVATE BandwidthSampler : public BandwidthSamplerInterface {
 
   // Maximum number of tracked packets.
   const QuicPacketCount max_tracked_packets_;
+
+  // The main unacked packet map.  Used for outputting extra debugging details.
+  // May be null.
+  // TODO(vasilvv): remove this once it's no longer useful for debugging.
+  const QuicUnackedPacketMap* unacked_packet_map_;
 
   // Handles the actual bandwidth calculations, whereas the outer method handles
   // retrieving and removing |sent_packet|.

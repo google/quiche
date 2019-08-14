@@ -41,6 +41,7 @@ QuicByteCount MaxAckHeightTracker::Update(QuicBandwidth bandwidth_estimate,
 }
 
 BandwidthSampler::BandwidthSampler(
+    const QuicUnackedPacketMap* unacked_packet_map,
     QuicRoundTripCount max_height_tracker_window_length)
     : total_bytes_sent_(0),
       total_bytes_acked_(0),
@@ -51,6 +52,7 @@ BandwidthSampler::BandwidthSampler(
       is_app_limited_(false),
       connection_state_map_(),
       max_tracked_packets_(GetQuicFlag(FLAGS_quic_max_tracked_packet_count)),
+      unacked_packet_map_(unacked_packet_map),
       max_ack_height_tracker_(max_height_tracker_window_length),
       total_bytes_acked_after_last_ack_event_(0) {}
 
@@ -88,9 +90,18 @@ void BandwidthSampler::OnPacketSent(
   if (!connection_state_map_.IsEmpty() &&
       packet_number >
           connection_state_map_.last_packet() + max_tracked_packets_) {
-    QUIC_BUG << "BandwidthSampler in-flight packet map has exceeded maximum "
-                "number "
-                "of tracked packets.";
+    if (unacked_packet_map_ != nullptr) {
+      QUIC_BUG << "BandwidthSampler in-flight packet map has exceeded maximum "
+                  "number of tracked packets.  First tracked: "
+               << connection_state_map_.first_packet()
+               << "; last tracked: " << connection_state_map_.last_packet()
+               << "; least unacked: " << unacked_packet_map_->GetLeastUnacked()
+               << "; largest observed: "
+               << unacked_packet_map_->largest_acked();
+    } else {
+      QUIC_BUG << "BandwidthSampler in-flight packet map has exceeded maximum "
+                  "number of tracked packets.";
+    }
   }
 
   bool success =
