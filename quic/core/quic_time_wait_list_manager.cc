@@ -215,10 +215,10 @@ void QuicTimeWaitListManager::SendVersionNegotiationPacket(
       QuicFramer::BuildVersionNegotiationPacket(
           server_connection_id, client_connection_id, ietf_quic,
           use_length_prefix, supported_versions);
-  QUIC_DVLOG(2) << "Dispatcher sending version negotiation packet: {"
+  QUIC_DVLOG(2) << "Dispatcher sending version negotiation packet {"
                 << ParsedQuicVersionVectorToString(supported_versions) << "}, "
-                << (ietf_quic ? "" : "!")
-                << "ietf_quic:" << (use_length_prefix ? "" : "!")
+                << (ietf_quic ? "" : "!") << "ietf_quic, "
+                << (use_length_prefix ? "" : "!")
                 << "use_length_prefix:" << std::endl
                 << QuicTextUtils::HexDump(QuicStringPiece(
                        version_packet->data(), version_packet->length()));

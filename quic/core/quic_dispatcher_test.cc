@@ -1064,6 +1064,121 @@ TEST_F(QuicDispatcherTest, VersionNegotiationProbe) {
   dispatcher_->ProcessPacket(server_address_, client_address, *received_packet);
 }
 
+// Testing packet writer that saves all packets instead of sending them.
+// Useful for tests that need access to sent packets.
+class SavingWriter : public QuicPacketWriterWrapper {
+ public:
+  bool IsWriteBlocked() const override { return false; }
+
+  WriteResult WritePacket(const char* buffer,
+                          size_t buf_len,
+                          const QuicIpAddress& /*self_client_address*/,
+                          const QuicSocketAddress& /*peer_client_address*/,
+                          PerPacketOptions* /*options*/) override {
+    packets_.push_back(
+        QuicEncryptedPacket(buffer, buf_len, /*owns_buffer=*/false).Clone());
+    return WriteResult(WRITE_STATUS_OK, buf_len);
+  }
+
+  std::vector<std::unique_ptr<QuicEncryptedPacket>>* packets() {
+    return &packets_;
+  }
+
+ private:
+  std::vector<std::unique_ptr<QuicEncryptedPacket>> packets_;
+};
+
+TEST_F(QuicDispatcherTest, VersionNegotiationProbeEndToEndOld) {
+  SetQuicFlag(FLAGS_quic_prober_uses_length_prefixed_connection_ids, false);
+  SetQuicReloadableFlag(quic_use_length_prefix_from_packet_info, true);
+
+  SavingWriter* saving_writer = new SavingWriter();
+  // dispatcher_ takes ownership of saving_writer.
+  QuicDispatcherPeer::UseWriter(dispatcher_.get(), saving_writer);
+
+  QuicTimeWaitListManager* time_wait_list_manager = new QuicTimeWaitListManager(
+      saving_writer, dispatcher_.get(), mock_helper_.GetClock(),
+      &mock_alarm_factory_);
+  // dispatcher_ takes ownership of time_wait_list_manager.
+  QuicDispatcherPeer::SetTimeWaitListManager(dispatcher_.get(),
+                                             time_wait_list_manager);
+  char packet[1200] = {};
+  char destination_connection_id_bytes[] = {0x56, 0x4e, 0x20, 0x70,
+                                            0x6c, 0x7a, 0x20, 0x21};
+  EXPECT_TRUE(QuicFramer::WriteClientVersionNegotiationProbePacket(
+      packet, sizeof(packet), destination_connection_id_bytes,
+      sizeof(destination_connection_id_bytes)));
+  QuicEncryptedPacket encrypted(packet, sizeof(packet), false);
+  std::unique_ptr<QuicReceivedPacket> received_packet(
+      ConstructReceivedPacket(encrypted, mock_helper_.GetClock()->Now()));
+  EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _)).Times(0);
+
+  QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
+  dispatcher_->ProcessPacket(server_address_, client_address, *received_packet);
+  ASSERT_EQ(1u, saving_writer->packets()->size());
+
+  char source_connection_id_bytes[255] = {};
+  uint8_t source_connection_id_length = 0;
+  std::string detailed_error = "foobar";
+  EXPECT_TRUE(QuicFramer::ParseServerVersionNegotiationProbeResponse(
+      (*(saving_writer->packets()))[0]->data(),
+      (*(saving_writer->packets()))[0]->length(), source_connection_id_bytes,
+      &source_connection_id_length, &detailed_error));
+  EXPECT_EQ("", detailed_error);
+
+  // The source connection ID of the probe response should match the
+  // destination connection ID of the probe request.
+  test::CompareCharArraysWithHexError(
+      "parsed probe", source_connection_id_bytes, source_connection_id_length,
+      destination_connection_id_bytes, sizeof(destination_connection_id_bytes));
+}
+
+TEST_F(QuicDispatcherTest, VersionNegotiationProbeEndToEnd) {
+  SetQuicFlag(FLAGS_quic_prober_uses_length_prefixed_connection_ids, true);
+  SetQuicReloadableFlag(quic_use_parse_public_header, true);
+  SetQuicReloadableFlag(quic_use_length_prefix_from_packet_info, true);
+
+  SavingWriter* saving_writer = new SavingWriter();
+  // dispatcher_ takes ownership of saving_writer.
+  QuicDispatcherPeer::UseWriter(dispatcher_.get(), saving_writer);
+
+  QuicTimeWaitListManager* time_wait_list_manager = new QuicTimeWaitListManager(
+      saving_writer, dispatcher_.get(), mock_helper_.GetClock(),
+      &mock_alarm_factory_);
+  // dispatcher_ takes ownership of time_wait_list_manager.
+  QuicDispatcherPeer::SetTimeWaitListManager(dispatcher_.get(),
+                                             time_wait_list_manager);
+  char packet[1200] = {};
+  char destination_connection_id_bytes[] = {0x56, 0x4e, 0x20, 0x70,
+                                            0x6c, 0x7a, 0x20, 0x21};
+  EXPECT_TRUE(QuicFramer::WriteClientVersionNegotiationProbePacket(
+      packet, sizeof(packet), destination_connection_id_bytes,
+      sizeof(destination_connection_id_bytes)));
+  QuicEncryptedPacket encrypted(packet, sizeof(packet), false);
+  std::unique_ptr<QuicReceivedPacket> received_packet(
+      ConstructReceivedPacket(encrypted, mock_helper_.GetClock()->Now()));
+  EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _)).Times(0);
+
+  QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
+  dispatcher_->ProcessPacket(server_address_, client_address, *received_packet);
+  ASSERT_EQ(1u, saving_writer->packets()->size());
+
+  char source_connection_id_bytes[255] = {};
+  uint8_t source_connection_id_length = 0;
+  std::string detailed_error = "foobar";
+  EXPECT_TRUE(QuicFramer::ParseServerVersionNegotiationProbeResponse(
+      (*(saving_writer->packets()))[0]->data(),
+      (*(saving_writer->packets()))[0]->length(), source_connection_id_bytes,
+      &source_connection_id_length, &detailed_error));
+  EXPECT_EQ("", detailed_error);
+
+  // The source connection ID of the probe response should match the
+  // destination connection ID of the probe request.
+  test::CompareCharArraysWithHexError(
+      "parsed probe", source_connection_id_bytes, source_connection_id_length,
+      destination_connection_id_bytes, sizeof(destination_connection_id_bytes));
+}
+
 // Verify the stopgap test: Packets with truncated connection IDs should be
 // dropped.
 class QuicDispatcherTestStrayPacketConnectionId : public QuicDispatcherTest {};
