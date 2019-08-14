@@ -624,6 +624,7 @@ class MockQuicSession : public QuicSession {
   MOCK_CONST_METHOD0(IsCryptoHandshakeConfirmed, bool());
   MOCK_CONST_METHOD0(ShouldKeepConnectionAlive, bool());
   MOCK_METHOD2(SendStopSending, void(uint16_t code, QuicStreamId stream_id));
+  MOCK_METHOD1(OnCryptoHandshakeEvent, void(QuicSession::CryptoHandshakeEvent));
 
   using QuicSession::ActivateStream;
 

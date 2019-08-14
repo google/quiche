@@ -257,6 +257,7 @@ void TlsServerHandshaker::FinishHandshake() {
   session()->NeuterUnencryptedData();
   encryption_established_ = true;
   handshake_confirmed_ = true;
+  session()->OnCryptoHandshakeEvent(QuicSession::HANDSHAKE_CONFIRMED);
 }
 
 ssl_private_key_result_t TlsServerHandshaker::PrivateKeySign(

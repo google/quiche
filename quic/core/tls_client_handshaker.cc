@@ -301,6 +301,8 @@ void TlsClientHandshaker::FinishHandshake() {
   session()->NeuterUnencryptedData();
   encryption_established_ = true;
   handshake_confirmed_ = true;
+  session()->OnCryptoHandshakeEvent(QuicSession::ENCRYPTION_REESTABLISHED);
+  session()->OnCryptoHandshakeEvent(QuicSession::HANDSHAKE_CONFIRMED);
 }
 
 enum ssl_verify_result_t TlsClientHandshaker::VerifyCert(uint8_t* out_alert) {
