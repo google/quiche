@@ -20,5 +20,11 @@ uint64_t QpackEncoderPeer::maximum_blocked_streams(
   return encoder->maximum_blocked_streams_;
 }
 
+// static
+uint64_t QpackEncoderPeer::smallest_blocking_index(
+    const QpackEncoder* encoder) {
+  return encoder->blocking_manager_.smallest_blocking_index();
+}
+
 }  // namespace test
 }  // namespace quic

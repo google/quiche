@@ -20,6 +20,7 @@ class QpackEncoderPeer {
 
   static QpackHeaderTable* header_table(QpackEncoder* encoder);
   static uint64_t maximum_blocked_streams(const QpackEncoder* encoder);
+  static uint64_t smallest_blocking_index(const QpackEncoder* encoder);
 };
 
 }  // namespace test

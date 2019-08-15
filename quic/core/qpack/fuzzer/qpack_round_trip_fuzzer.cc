@@ -19,6 +19,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_fuzzed_data_provider.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
+#include "net/third_party/quiche/src/quic/test_tools/qpack_encoder_peer.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_header_block.h"
 
 namespace quic {
@@ -32,6 +33,12 @@ class EncodingEndpoint {
       : encoder_(&decoder_stream_error_delegate) {
     encoder_.SetMaximumDynamicTableCapacity(maximum_dynamic_table_capacity);
     encoder_.SetMaximumBlockedStreams(maximum_blocked_streams);
+  }
+
+  ~EncodingEndpoint() {
+    // Every reference should be acknowledged.
+    CHECK_EQ(std::numeric_limits<uint64_t>::max(),
+             QpackEncoderPeer::smallest_blocking_index(&encoder_));
   }
 
   void set_qpack_stream_sender_delegate(QpackStreamSenderDelegate* delegate) {
