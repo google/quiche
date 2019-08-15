@@ -1307,7 +1307,18 @@ void QuicConnection::OnPacketComplete() {
       << ENDPOINT << "Received a padded PING packet. is_probing: "
       << IsCurrentPacketConnectivityProbing();
 
-  if (perspective_ == Perspective::IS_CLIENT) {
+  if (IsCurrentPacketConnectivityProbing()) {
+    QUIC_DVLOG(1) << ENDPOINT << "Received a connectivity probing packet for "
+                  << GetServerConnectionIdAsRecipient(last_header_,
+                                                      perspective_)
+                  << " from ip:port: " << last_packet_source_address_.ToString()
+                  << " to ip:port: "
+                  << last_packet_destination_address_.ToString();
+    visitor_->OnConnectivityProbeReceived(last_packet_destination_address_,
+                                          last_packet_source_address_);
+  } else if (perspective_ == Perspective::IS_CLIENT) {
+    // This node is a client, notify that a speculative connectivity probing
+    // packet has been received anyway.
     QUIC_DVLOG(1) << ENDPOINT
                   << "Received a speculative connectivity probing packet for "
                   << GetServerConnectionIdAsRecipient(last_header_,
@@ -1316,17 +1327,6 @@ void QuicConnection::OnPacketComplete() {
                   << " to ip:port: "
                   << last_packet_destination_address_.ToString();
     // TODO(zhongyi): change the method name.
-    visitor_->OnConnectivityProbeReceived(last_packet_destination_address_,
-                                          last_packet_source_address_);
-  } else if (IsCurrentPacketConnectivityProbing()) {
-    // This node is not a client (is a server) AND the received packet was
-    // connectivity-probing, send an appropriate response.
-    QUIC_DVLOG(1) << ENDPOINT << "Received a connectivity probing packet for "
-                  << GetServerConnectionIdAsRecipient(last_header_,
-                                                      perspective_)
-                  << " from ip:port: " << last_packet_source_address_.ToString()
-                  << " to ip:port: "
-                  << last_packet_destination_address_.ToString();
     visitor_->OnConnectivityProbeReceived(last_packet_destination_address_,
                                           last_packet_source_address_);
   } else {
