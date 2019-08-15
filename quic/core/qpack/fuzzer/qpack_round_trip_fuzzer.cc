@@ -16,6 +16,7 @@
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_stream_sender_delegate.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_utils.h"
 #include "net/third_party/quiche/src/quic/core/qpack/value_splitting_header_list.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_fuzzed_data_provider.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_header_block.h"
@@ -35,6 +36,10 @@ class EncodingEndpoint {
 
   void set_qpack_stream_sender_delegate(QpackStreamSenderDelegate* delegate) {
     encoder_.set_qpack_stream_sender_delegate(delegate);
+  }
+
+  QpackStreamReceiver* decoder_stream_receiver() {
+    return encoder_.decoder_stream_receiver();
   }
 
   std::string EncodeHeaderList(QuicStreamId stream_id,
@@ -58,7 +63,94 @@ class EncodingEndpoint {
   QpackEncoder encoder_;
 };
 
-// Class to decode and verify a header block.
+// Class that receives all header blocks from the encoding endpoint and passes
+// them to the decoding endpoint, with delay determined by fuzzer data,
+// preserving order within each stream but not among streams.
+class DelayedHeaderBlockTransmitter {
+ public:
+  class Visitor {
+   public:
+    virtual ~Visitor() = default;
+
+    // Called when a header block starts.
+    virtual void OnHeaderBlockStart(QuicStreamId stream_id) = 0;
+    // Called when part or all of a header block is transmitted.
+    virtual void OnHeaderBlockFragment(QuicStreamId stream_id,
+                                       QuicStringPiece data) = 0;
+    // Called when transmission of a header block is complete.
+    virtual void OnHeaderBlockEnd(QuicStreamId stream_id) = 0;
+  };
+
+  DelayedHeaderBlockTransmitter(Visitor* visitor,
+                                QuicFuzzedDataProvider* provider)
+      : visitor_(visitor), provider_(provider) {}
+
+  ~DelayedHeaderBlockTransmitter() { CHECK(header_blocks_.empty()); }
+
+  // Enqueues |encoded_header_block| for delayed transmission.
+  void SendEncodedHeaderBlock(QuicStreamId stream_id,
+                              std::string encoded_header_block) {
+    auto it = header_blocks_.lower_bound(stream_id);
+    if (it == header_blocks_.end() || it->first != stream_id) {
+      it = header_blocks_.insert(it, {stream_id, {}});
+    }
+    CHECK_EQ(stream_id, it->first);
+    it->second.push(std::move(encoded_header_block));
+  }
+
+  // Release some (possibly none) header block data.
+  void MaybeTransmitSomeData() {
+    if (header_blocks_.empty()) {
+      return;
+    }
+
+    auto index =
+        provider_->ConsumeIntegralInRange<size_t>(0, header_blocks_.size() - 1);
+    auto it = header_blocks_.begin();
+    std::advance(it, index);
+    const QuicStreamId stream_id = it->first;
+
+    auto& header_block_queue = it->second;
+    visitor_->OnHeaderBlockStart(stream_id);
+    visitor_->OnHeaderBlockFragment(stream_id, header_block_queue.front());
+    visitor_->OnHeaderBlockEnd(stream_id);
+
+    header_block_queue.pop();
+    if (header_block_queue.empty()) {
+      header_blocks_.erase(it);
+    }
+  }
+
+  // Release all header block data.  Must be called before destruction.  All
+  // encoder stream data must have been released before calling Flush() so that
+  // all remaining header blocks can be decoded synchronously.
+  void Flush() {
+    while (!header_blocks_.empty()) {
+      auto it = header_blocks_.begin();
+      const QuicStreamId stream_id = it->first;
+
+      auto& header_block_queue = it->second;
+      visitor_->OnHeaderBlockStart(stream_id);
+      visitor_->OnHeaderBlockFragment(stream_id, header_block_queue.front());
+      visitor_->OnHeaderBlockEnd(stream_id);
+
+      header_block_queue.pop();
+      if (header_block_queue.empty()) {
+        header_blocks_.erase(it);
+      }
+    }
+  }
+
+ private:
+  Visitor* const visitor_;
+  QuicFuzzedDataProvider* const provider_;
+
+  // TODO(bnc): Break up header blocks into fragments.
+  std::map<QuicStreamId, std::queue<std::string>> header_blocks_;
+};
+
+// Class to decode and verify a header block, and in case of blocked decoding,
+// keep necessary decoding context while waiting for decoding to complete.
 class VerifyingDecoder : public QpackDecodedHeadersAccumulator::Visitor {
  public:
   VerifyingDecoder(QuicStreamId stream_id,
@@ -113,7 +205,7 @@ class VerifyingDecoder : public QpackDecodedHeadersAccumulator::Visitor {
 // Class that holds QpackDecoder and its EncoderStreamErrorDelegate, and creates
 // and keeps VerifyingDecoders for each received header block until decoding is
 // complete.
-class DecodingEndpoint {
+class DecodingEndpoint : public DelayedHeaderBlockTransmitter::Visitor {
  public:
   DecodingEndpoint(uint64_t maximum_dynamic_table_capacity,
                    uint64_t maximum_blocked_streams)
@@ -121,7 +213,7 @@ class DecodingEndpoint {
                  maximum_blocked_streams,
                  &encoder_stream_error_delegate_) {}
 
-  ~DecodingEndpoint() {
+  ~DecodingEndpoint() override {
     // All decoding must have been completed.
     CHECK(expected_header_lists_.empty());
     CHECK(verifying_decoders_.empty());
@@ -129,6 +221,10 @@ class DecodingEndpoint {
 
   void set_qpack_stream_sender_delegate(QpackStreamSenderDelegate* delegate) {
     decoder_.set_qpack_stream_sender_delegate(delegate);
+  }
+
+  QpackStreamReceiver* encoder_stream_receiver() {
+    return decoder_.encoder_stream_receiver();
   }
 
   void AddExpectedHeaderList(QuicStreamId stream_id,
@@ -141,7 +237,8 @@ class DecodingEndpoint {
     it->second.push(std::move(expected_header_list));
   }
 
-  void OnHeaderBlockStart(QuicStreamId stream_id) {
+  // DelayedHeaderBlockTransmitter::Visitor implementation.
+  void OnHeaderBlockStart(QuicStreamId stream_id) override {
     auto it = expected_header_lists_.find(stream_id);
     CHECK(it != expected_header_lists_.end());
 
@@ -160,13 +257,14 @@ class DecodingEndpoint {
     CHECK(result.second);
   }
 
-  void OnHeaderBlockFragment(QuicStreamId stream_id, QuicStringPiece data) {
+  void OnHeaderBlockFragment(QuicStreamId stream_id,
+                             QuicStringPiece data) override {
     auto it = verifying_decoders_.find(stream_id);
     CHECK(it != verifying_decoders_.end());
     it->second->Decode(data);
   }
 
-  void OnHeaderBlockEnd(QuicStreamId stream_id) {
+  void OnHeaderBlockEnd(QuicStreamId stream_id) override {
     auto it = verifying_decoders_.find(stream_id);
     CHECK(it != verifying_decoders_.end());
     it->second->EndHeaderBlock();
@@ -197,6 +295,46 @@ class DecodingEndpoint {
   // decoding is completed, which might happen synchronously within an
   // EndHeaderBlock() call.
   std::map<QuicStreamId, std::unique_ptr<VerifyingDecoder>> verifying_decoders_;
+};
+
+// Class that receives encoder stream data from the encoder and passes it to the
+// decoder, or receives decoder stream data from the decoder and passes it to
+// the encoder, with delay determined by fuzzer data.
+class DelayedStreamDataTransmitter : public QpackStreamSenderDelegate {
+ public:
+  DelayedStreamDataTransmitter(QpackStreamReceiver* receiver,
+                               QuicFuzzedDataProvider* provider)
+      : receiver_(receiver), provider_(provider) {}
+
+  ~DelayedStreamDataTransmitter() { CHECK(stream_data.empty()); }
+
+  // QpackStreamSenderDelegate implementation.
+  void WriteStreamData(QuicStringPiece data) override {
+    stream_data.push(std::string(data.data(), data.size()));
+  }
+
+  // Release some (possibly none) delayed stream data.
+  void MaybeTransmitSomeData() {
+    auto count = provider_->ConsumeIntegral<uint8_t>();
+    while (!stream_data.empty() && count > 0) {
+      receiver_->Decode(stream_data.front());
+      stream_data.pop();
+      --count;
+    }
+  }
+
+  // Release all delayed stream data.  Must be called before destruction.
+  void Flush() {
+    while (!stream_data.empty()) {
+      receiver_->Decode(stream_data.front());
+      stream_data.pop();
+    }
+  }
+
+ private:
+  QpackStreamReceiver* const receiver_;
+  QuicFuzzedDataProvider* const provider_;
+  QuicQueue<std::string> stream_data;
 };
 
 // Generate header list using fuzzer data.
@@ -333,18 +471,29 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   const uint64_t maximum_blocked_streams = provider.ConsumeIntegral<uint8_t>();
 
   // Set up encoder.
-  NoopQpackStreamSenderDelegate encoder_stream_sender_delegate;
   EncodingEndpoint encoder(maximum_dynamic_table_capacity,
                            maximum_blocked_streams);
-  encoder.set_qpack_stream_sender_delegate(&encoder_stream_sender_delegate);
 
   // Set up decoder.
-  NoopQpackStreamSenderDelegate decoder_stream_sender_delegate;
   DecodingEndpoint decoder(maximum_dynamic_table_capacity,
                            maximum_blocked_streams);
-  decoder.set_qpack_stream_sender_delegate(&decoder_stream_sender_delegate);
 
-  while (provider.remaining_bytes() > 0) {
+  // Transmit encoder stream data from encoder to decoder.
+  DelayedStreamDataTransmitter encoder_stream_transmitter(
+      decoder.encoder_stream_receiver(), &provider);
+  encoder.set_qpack_stream_sender_delegate(&encoder_stream_transmitter);
+
+  // Transmit decoder stream data from encoder to decoder.
+  DelayedStreamDataTransmitter decoder_stream_transmitter(
+      encoder.decoder_stream_receiver(), &provider);
+  decoder.set_qpack_stream_sender_delegate(&decoder_stream_transmitter);
+
+  // Transmit header blocks from encoder to decoder.
+  DelayedHeaderBlockTransmitter header_block_transmitter(&decoder, &provider);
+
+  // Maximum 256 header lists to limit runtime and memory usage.
+  auto header_list_count = provider.ConsumeIntegral<uint8_t>();
+  while (header_list_count > 0 && provider.remaining_bytes() > 0) {
     const QuicStreamId stream_id = provider.ConsumeIntegral<uint8_t>();
 
     // Generate header list.
@@ -354,16 +503,35 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     std::string encoded_header_block =
         encoder.EncodeHeaderList(stream_id, &header_list);
 
+    // TODO(bnc): Randomly cancel the stream.
+
     // Encoder splits |header_list| header values along '\0' or ';' separators.
     // Do the same here so that we get matching results.
     QuicHeaderList expected_header_list = SplitHeaderList(header_list);
     decoder.AddExpectedHeaderList(stream_id, std::move(expected_header_list));
 
-    // Decode header block.
-    decoder.OnHeaderBlockStart(stream_id);
-    decoder.OnHeaderBlockFragment(stream_id, encoded_header_block);
-    decoder.OnHeaderBlockEnd(stream_id);
+    header_block_transmitter.SendEncodedHeaderBlock(
+        stream_id, std::move(encoded_header_block));
+
+    // Transmit some encoder stream data, decoder stream data, or header blocks
+    // on the request stream, repeating a few times.
+    for (auto transmit_data_count = provider.ConsumeIntegralInRange(1, 5);
+         transmit_data_count > 0; --transmit_data_count) {
+      encoder_stream_transmitter.MaybeTransmitSomeData();
+      decoder_stream_transmitter.MaybeTransmitSomeData();
+      header_block_transmitter.MaybeTransmitSomeData();
+    }
+
+    --header_list_count;
   }
+
+  // Release all delayed encoder stream data so that remaining header blocks can
+  // be decoded synchronously.
+  encoder_stream_transmitter.Flush();
+  // Release all delayed header blocks.
+  header_block_transmitter.Flush();
+  // Release all delayed decoder stream data.
+  decoder_stream_transmitter.Flush();
 
   return 0;
 }
