@@ -122,6 +122,10 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
 
   void OnCoalescedPacket(const QuicEncryptedPacket& /*packet*/) override {}
 
+  void OnUndecryptablePacket(const QuicEncryptedPacket& /*packet*/,
+                             EncryptionLevel /*decryption_level*/,
+                             bool /*has_decryption_key*/) override {}
+
   bool OnStreamFrame(const QuicStreamFrame& /*frame*/) override { return true; }
 
   bool OnCryptoFrame(const QuicCryptoFrame& /*frame*/) override { return true; }

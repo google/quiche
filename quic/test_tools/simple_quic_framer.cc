@@ -60,6 +60,10 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
 
   void OnCoalescedPacket(const QuicEncryptedPacket& /*packet*/) override {}
 
+  void OnUndecryptablePacket(const QuicEncryptedPacket& /*packet*/,
+                             EncryptionLevel /*decryption_level*/,
+                             bool /*has_decryption_key*/) override {}
+
   bool OnStreamFrame(const QuicStreamFrame& frame) override {
     // Save a copy of the data so it is valid after the packet is processed.
     std::string* string_data =

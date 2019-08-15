@@ -192,6 +192,10 @@ QuicStringPiece QuicDataReader::PeekRemainingPayload() const {
   return QuicStringPiece(data_ + pos_, len_ - pos_);
 }
 
+QuicStringPiece QuicDataReader::FullPayload() const {
+  return QuicStringPiece(data_, len_);
+}
+
 bool QuicDataReader::ReadBytes(void* result, size_t size) {
   // Make sure that we have enough data to read.
   if (!CanRead(size)) {

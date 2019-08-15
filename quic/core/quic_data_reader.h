@@ -110,6 +110,14 @@ class QUIC_EXPORT_PRIVATE QuicDataReader {
   // DOES NOT forward the internal iterator.
   QuicStringPiece PeekRemainingPayload() const;
 
+  // Returns the entire payload as a QuicStringPiece.
+  //
+  // NOTE: Does not copy but rather references strings in the underlying buffer.
+  // This should be kept in mind when handling memory management!
+  //
+  // DOES NOT forward the internal iterator.
+  QuicStringPiece FullPayload() const;
+
   // Reads a given number of bytes into the given buffer. The buffer
   // must be of adequate size.
   // Forwards the internal iterator on success.

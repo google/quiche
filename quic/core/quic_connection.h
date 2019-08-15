@@ -476,6 +476,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   void OnDecryptedPacket(EncryptionLevel level) override;
   bool OnPacketHeader(const QuicPacketHeader& header) override;
   void OnCoalescedPacket(const QuicEncryptedPacket& packet) override;
+  void OnUndecryptablePacket(const QuicEncryptedPacket& packet,
+                             EncryptionLevel decryption_level,
+                             bool has_decryption_key) override;
   bool OnStreamFrame(const QuicStreamFrame& frame) override;
   bool OnCryptoFrame(const QuicCryptoFrame& frame) override;
   bool OnAckFrameStart(QuicPacketNumber largest_acked,

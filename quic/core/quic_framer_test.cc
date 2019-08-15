@@ -240,12 +240,15 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
   }
 
   void OnCoalescedPacket(const QuicEncryptedPacket& packet) override {
-    size_t coalesced_data_length = packet.length();
-    char* coalesced_data = new char[coalesced_data_length];
-    memcpy(coalesced_data, packet.data(), coalesced_data_length);
-    coalesced_packets_.push_back(QuicMakeUnique<QuicEncryptedPacket>(
-        coalesced_data, coalesced_data_length,
-        /*owns_buffer=*/true));
+    coalesced_packets_.push_back(packet.Clone());
+  }
+
+  void OnUndecryptablePacket(const QuicEncryptedPacket& packet,
+                             EncryptionLevel decryption_level,
+                             bool has_decryption_key) override {
+    undecryptable_packets_.push_back(packet.Clone());
+    undecryptable_decryption_levels_.push_back(decryption_level);
+    undecryptable_has_decryption_keys_.push_back(has_decryption_key);
   }
 
   bool OnStreamFrame(const QuicStreamFrame& frame) override {
@@ -421,6 +424,9 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
   std::vector<std::unique_ptr<QuicPingFrame>> ping_frames_;
   std::vector<std::unique_ptr<QuicMessageFrame>> message_frames_;
   std::vector<std::unique_ptr<QuicEncryptedPacket>> coalesced_packets_;
+  std::vector<std::unique_ptr<QuicEncryptedPacket>> undecryptable_packets_;
+  std::vector<EncryptionLevel> undecryptable_decryption_levels_;
+  std::vector<bool> undecryptable_has_decryption_keys_;
   QuicRstStreamFrame rst_stream_frame_;
   QuicConnectionCloseFrame connection_close_frame_;
   QuicStopSendingFrame stop_sending_frame_;
@@ -13771,6 +13777,344 @@ TEST_P(QuicFramerTest, CoalescedPacket) {
   EXPECT_TRUE(visitor_.stream_frames_[1]->fin);
   EXPECT_EQ(kStreamOffset, visitor_.stream_frames_[1]->offset);
   CheckStreamFrameData("HELLO_WORLD?", visitor_.stream_frames_[1].get());
+}
+
+TEST_P(QuicFramerTest, UndecryptablePacketWithoutDecrypter) {
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
+
+  if (!framer_.version().KnowsWhichDecrypterToUse()) {
+    // We create a bad client decrypter by using initial encryption with a
+    // bogus connection ID; it should fail to decrypt everything.
+    QuicConnectionId bogus_connection_id = TestConnectionId(0xbad);
+    CrypterPair bogus_crypters;
+    CryptoUtils::CreateTlsInitialCrypters(Perspective::IS_CLIENT,
+                                          framer_.transport_version(),
+                                          bogus_connection_id, &bogus_crypters);
+    // This removes all other decrypters.
+    framer_.SetDecrypter(ENCRYPTION_FORWARD_SECURE,
+                         std::move(bogus_crypters.decrypter));
+  }
+
+  const unsigned char type_byte =
+      framer_.transport_version() == QUIC_VERSION_44 ? 0xFC : 0xE3;
+  // clang-format off
+  unsigned char packet[] = {
+    // public flags (version included, 8-byte connection ID,
+    // 4-byte packet number)
+    0x28,
+    // connection_id
+    0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+    // packet number
+    0x12, 0x34, 0x56, 0x00,
+    // padding frames
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  };
+  unsigned char packet44[] = {
+    // public flags (long header with packet type HANDSHAKE and
+    // 4-byte packet number)
+    type_byte,
+    // version
+    QUIC_VERSION_BYTES,
+    // connection ID lengths
+    0x05,
+    // source connection ID
+    0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+    // long header packet length
+    0x05,
+    // packet number
+    0x12, 0x34, 0x56, 0x00,
+    // padding frames
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  };
+  unsigned char packet99[] = {
+    // public flags (long header with packet type HANDSHAKE and
+    // 4-byte packet number)
+    0xE3,
+    // version
+    QUIC_VERSION_BYTES,
+    // destination connection ID length
+    0x00,
+    // source connection ID length
+    0x08,
+    // source connection ID
+    0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+    // long header packet length
+    0x24,
+    // packet number
+    0x12, 0x34, 0x56, 0x00,
+    // padding frames
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  };
+  // clang-format on
+  unsigned char* p = packet;
+  size_t p_length = QUIC_ARRAYSIZE(packet);
+  if (framer_.transport_version() == QUIC_VERSION_99) {
+    p = packet99;
+    p_length = QUIC_ARRAYSIZE(packet99);
+  } else if (framer_.transport_version() >= QUIC_VERSION_44) {
+    p = packet44;
+    p_length = QUIC_ARRAYSIZE(packet44);
+  }
+  // First attempt decryption without the handshake crypter.
+  EXPECT_FALSE(
+      framer_.ProcessPacket(QuicEncryptedPacket(AsChars(p), p_length, false)));
+  EXPECT_EQ(QUIC_DECRYPTION_FAILURE, framer_.error());
+  if (GetQuicRestartFlag(quic_framer_uses_undecryptable_upcall)) {
+    ASSERT_EQ(1u, visitor_.undecryptable_packets_.size());
+    ASSERT_EQ(1u, visitor_.undecryptable_decryption_levels_.size());
+    ASSERT_EQ(1u, visitor_.undecryptable_has_decryption_keys_.size());
+    CompareCharArraysWithHexError(
+        "undecryptable packet", visitor_.undecryptable_packets_[0]->data(),
+        visitor_.undecryptable_packets_[0]->length(), AsChars(p), p_length);
+    if (framer_.version().KnowsWhichDecrypterToUse()) {
+      EXPECT_EQ(ENCRYPTION_HANDSHAKE,
+                visitor_.undecryptable_decryption_levels_[0]);
+    }
+    EXPECT_FALSE(visitor_.undecryptable_has_decryption_keys_[0]);
+  } else {
+    EXPECT_EQ(0u, visitor_.undecryptable_packets_.size());
+    EXPECT_EQ(0u, visitor_.undecryptable_decryption_levels_.size());
+    EXPECT_EQ(0u, visitor_.undecryptable_has_decryption_keys_.size());
+  }
+}
+
+TEST_P(QuicFramerTest, UndecryptablePacketWithDecrypter) {
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
+
+  // We create a bad client decrypter by using initial encryption with a
+  // bogus connection ID; it should fail to decrypt everything.
+  QuicConnectionId bogus_connection_id = TestConnectionId(0xbad);
+  CrypterPair bad_handshake_crypters;
+  CryptoUtils::CreateTlsInitialCrypters(
+      Perspective::IS_CLIENT, framer_.transport_version(), bogus_connection_id,
+      &bad_handshake_crypters);
+  if (framer_.version().KnowsWhichDecrypterToUse()) {
+    framer_.InstallDecrypter(ENCRYPTION_HANDSHAKE,
+                             std::move(bad_handshake_crypters.decrypter));
+  } else {
+    framer_.SetDecrypter(ENCRYPTION_HANDSHAKE,
+                         std::move(bad_handshake_crypters.decrypter));
+  }
+
+  const unsigned char type_byte =
+      framer_.transport_version() == QUIC_VERSION_44 ? 0xFC : 0xE3;
+  // clang-format off
+  unsigned char packet[] = {
+    // public flags (version included, 8-byte connection ID,
+    // 4-byte packet number)
+    0x28,
+    // connection_id
+    0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+    // packet number
+    0x12, 0x34, 0x56, 0x00,
+    // padding frames
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  };
+  unsigned char packet44[] = {
+    // public flags (long header with packet type HANDSHAKE and
+    // 4-byte packet number)
+    type_byte,
+    // version
+    QUIC_VERSION_BYTES,
+    // connection ID lengths
+    0x05,
+    // source connection ID
+    0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+    // long header packet length
+    0x05,
+    // packet number
+    0x12, 0x34, 0x56, 0x00,
+    // padding frames
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  };
+  unsigned char packet99[] = {
+    // public flags (long header with packet type HANDSHAKE and
+    // 4-byte packet number)
+    0xE3,
+    // version
+    QUIC_VERSION_BYTES,
+    // destination connection ID length
+    0x00,
+    // source connection ID length
+    0x08,
+    // source connection ID
+    0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+    // long header packet length
+    0x24,
+    // packet number
+    0x12, 0x34, 0x56, 0x00,
+    // padding frames
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  };
+  // clang-format on
+  unsigned char* p = packet;
+  size_t p_length = QUIC_ARRAYSIZE(packet);
+  if (framer_.transport_version() == QUIC_VERSION_99) {
+    p = packet99;
+    p_length = QUIC_ARRAYSIZE(packet99);
+  } else if (framer_.transport_version() >= QUIC_VERSION_44) {
+    p = packet44;
+    p_length = QUIC_ARRAYSIZE(packet44);
+  }
+
+  EXPECT_FALSE(
+      framer_.ProcessPacket(QuicEncryptedPacket(AsChars(p), p_length, false)));
+  EXPECT_EQ(QUIC_DECRYPTION_FAILURE, framer_.error());
+  if (GetQuicRestartFlag(quic_framer_uses_undecryptable_upcall)) {
+    ASSERT_EQ(1u, visitor_.undecryptable_packets_.size());
+    ASSERT_EQ(1u, visitor_.undecryptable_decryption_levels_.size());
+    ASSERT_EQ(1u, visitor_.undecryptable_has_decryption_keys_.size());
+    CompareCharArraysWithHexError(
+        "undecryptable packet", visitor_.undecryptable_packets_[0]->data(),
+        visitor_.undecryptable_packets_[0]->length(), AsChars(p), p_length);
+    if (framer_.version().KnowsWhichDecrypterToUse()) {
+      EXPECT_EQ(ENCRYPTION_HANDSHAKE,
+                visitor_.undecryptable_decryption_levels_[0]);
+    }
+    EXPECT_EQ(framer_.version().KnowsWhichDecrypterToUse(),
+              visitor_.undecryptable_has_decryption_keys_[0]);
+  } else {
+    EXPECT_EQ(0u, visitor_.undecryptable_packets_.size());
+    EXPECT_EQ(0u, visitor_.undecryptable_decryption_levels_.size());
+    EXPECT_EQ(0u, visitor_.undecryptable_has_decryption_keys_.size());
+  }
+}
+
+TEST_P(QuicFramerTest, UndecryptableCoalescedPacket) {
+  if (!QuicVersionHasLongHeaderLengths(framer_.transport_version())) {
+    return;
+  }
+  ASSERT_TRUE(framer_.version().KnowsWhichDecrypterToUse());
+  SetDecrypterLevel(ENCRYPTION_ZERO_RTT);
+  // We create a bad client decrypter by using initial encryption with a
+  // bogus connection ID; it should fail to decrypt everything.
+  QuicConnectionId bogus_connection_id = TestConnectionId(0xbad);
+  CrypterPair bad_handshake_crypters;
+  CryptoUtils::CreateTlsInitialCrypters(
+      Perspective::IS_CLIENT, framer_.transport_version(), bogus_connection_id,
+      &bad_handshake_crypters);
+  framer_.InstallDecrypter(ENCRYPTION_HANDSHAKE,
+                           std::move(bad_handshake_crypters.decrypter));
+  // clang-format off
+  unsigned char packet[] = {
+    // first coalesced packet
+      // public flags (long header with packet type HANDSHAKE and
+      // 4-byte packet number)
+      0xE3,
+      // version
+      QUIC_VERSION_BYTES,
+      // destination connection ID length
+      0x08,
+      // destination connection ID
+      0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+      // source connection ID length
+      0x00,
+      // long header packet length
+      0x1E,
+      // packet number
+      0x12, 0x34, 0x56, 0x78,
+      // frame type (IETF_STREAM frame with FIN, LEN, and OFFSET bits set)
+      0x08 | 0x01 | 0x02 | 0x04,
+      // stream id
+      kVarInt62FourBytes + 0x00, 0x02, 0x03, 0x04,
+      // offset
+      kVarInt62EightBytes + 0x3A, 0x98, 0xFE, 0xDC,
+      0x32, 0x10, 0x76, 0x54,
+      // data length
+      kVarInt62OneByte + 0x0c,
+      // data
+      'h',  'e',  'l',  'l',
+      'o',  ' ',  'w',  'o',
+      'r',  'l',  'd',  '!',
+    // second coalesced packet
+      // public flags (long header with packet type ZERO_RTT_PROTECTED and
+      // 4-byte packet number)
+      0xD3,
+      // version
+      QUIC_VERSION_BYTES,
+      // destination connection ID length
+      0x08,
+      // destination connection ID
+      0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+      // source connection ID length
+      0x00,
+      // long header packet length
+      0x1E,
+      // packet number
+      0x12, 0x34, 0x56, 0x79,
+      // frame type (IETF_STREAM frame with FIN, LEN, and OFFSET bits set)
+      0x08 | 0x01 | 0x02 | 0x04,
+      // stream id
+      kVarInt62FourBytes + 0x00, 0x02, 0x03, 0x04,
+      // offset
+      kVarInt62EightBytes + 0x3A, 0x98, 0xFE, 0xDC,
+      0x32, 0x10, 0x76, 0x54,
+      // data length
+      kVarInt62OneByte + 0x0c,
+      // data
+      'H',  'E',  'L',  'L',
+      'O',  '_',  'W',  'O',
+      'R',  'L',  'D',  '?',
+  };
+  // clang-format on
+  const size_t length_of_first_coalesced_packet = 46;
+
+  QuicEncryptedPacket encrypted(AsChars(packet), QUIC_ARRAYSIZE(packet), false);
+  EXPECT_FALSE(framer_.ProcessPacket(encrypted));
+
+  EXPECT_EQ(QUIC_DECRYPTION_FAILURE, framer_.error());
+
+  if (GetQuicRestartFlag(quic_framer_uses_undecryptable_upcall)) {
+    ASSERT_EQ(1u, visitor_.undecryptable_packets_.size());
+    ASSERT_EQ(1u, visitor_.undecryptable_decryption_levels_.size());
+    ASSERT_EQ(1u, visitor_.undecryptable_has_decryption_keys_.size());
+    // Make sure we only receive the first undecryptable packet and not the
+    // full packet including the second coalesced packet.
+    CompareCharArraysWithHexError(
+        "undecryptable packet", visitor_.undecryptable_packets_[0]->data(),
+        visitor_.undecryptable_packets_[0]->length(), AsChars(packet),
+        length_of_first_coalesced_packet);
+    EXPECT_EQ(ENCRYPTION_HANDSHAKE,
+              visitor_.undecryptable_decryption_levels_[0]);
+    EXPECT_TRUE(visitor_.undecryptable_has_decryption_keys_[0]);
+  } else {
+    EXPECT_EQ(0u, visitor_.undecryptable_packets_.size());
+    EXPECT_EQ(0u, visitor_.undecryptable_decryption_levels_.size());
+    EXPECT_EQ(0u, visitor_.undecryptable_has_decryption_keys_.size());
+  }
+
+  // Make sure the second coalesced packet is parsed correctly.
+  ASSERT_EQ(visitor_.coalesced_packets_.size(), 1u);
+  EXPECT_TRUE(framer_.ProcessPacket(*visitor_.coalesced_packets_[0].get()));
+
+  ASSERT_TRUE(visitor_.header_.get());
+
+  ASSERT_EQ(1u, visitor_.stream_frames_.size());
+  EXPECT_EQ(0u, visitor_.ack_frames_.size());
+
+  // Stream ID should be the last 3 bytes of kStreamId.
+  EXPECT_EQ(0x00FFFFFF & kStreamId, visitor_.stream_frames_[0]->stream_id);
+  EXPECT_TRUE(visitor_.stream_frames_[0]->fin);
+  EXPECT_EQ(kStreamOffset, visitor_.stream_frames_[0]->offset);
+  CheckStreamFrameData("HELLO_WORLD?", visitor_.stream_frames_[0].get());
 }
 
 TEST_P(QuicFramerTest, MismatchedCoalescedPacket) {

@@ -276,6 +276,11 @@ QuicData::QuicData(const char* buffer, size_t length)
 QuicData::QuicData(const char* buffer, size_t length, bool owns_buffer)
     : buffer_(buffer), length_(length), owns_buffer_(owns_buffer) {}
 
+QuicData::QuicData(QuicStringPiece packet_data)
+    : buffer_(packet_data.data()),
+      length_(packet_data.length()),
+      owns_buffer_(false) {}
+
 QuicData::~QuicData() {
   if (owns_buffer_) {
     delete[] const_cast<char*>(buffer_);
@@ -329,6 +334,9 @@ QuicEncryptedPacket::QuicEncryptedPacket(const char* buffer,
                                          size_t length,
                                          bool owns_buffer)
     : QuicData(buffer, length, owns_buffer) {}
+
+QuicEncryptedPacket::QuicEncryptedPacket(QuicStringPiece data)
+    : QuicData(data) {}
 
 std::unique_ptr<QuicEncryptedPacket> QuicEncryptedPacket::Clone() const {
   char* buffer = new char[this->length()];

@@ -44,6 +44,9 @@ class ChloFramerVisitor : public QuicFramerVisitorInterface,
   void OnDecryptedPacket(EncryptionLevel /*level*/) override {}
   bool OnPacketHeader(const QuicPacketHeader& header) override;
   void OnCoalescedPacket(const QuicEncryptedPacket& packet) override;
+  void OnUndecryptablePacket(const QuicEncryptedPacket& packet,
+                             EncryptionLevel decryption_level,
+                             bool has_decryption_key) override;
   bool OnStreamFrame(const QuicStreamFrame& frame) override;
   bool OnCryptoFrame(const QuicCryptoFrame& frame) override;
   bool OnAckFrameStart(QuicPacketNumber largest_acked,
@@ -142,8 +145,15 @@ bool ChloFramerVisitor::OnUnauthenticatedHeader(
 bool ChloFramerVisitor::OnPacketHeader(const QuicPacketHeader& /*header*/) {
   return true;
 }
+
 void ChloFramerVisitor::OnCoalescedPacket(
     const QuicEncryptedPacket& /*packet*/) {}
+
+void ChloFramerVisitor::OnUndecryptablePacket(
+    const QuicEncryptedPacket& /*packet*/,
+    EncryptionLevel /*decryption_level*/,
+    bool /*has_decryption_key*/) {}
+
 bool ChloFramerVisitor::OnStreamFrame(const QuicStreamFrame& frame) {
   if (QuicVersionUsesCryptoFrames(framer_->transport_version())) {
     // CHLO will be sent in CRYPTO frames in v47 and above.

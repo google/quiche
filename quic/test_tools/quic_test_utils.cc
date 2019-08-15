@@ -259,6 +259,11 @@ bool NoOpFramerVisitor::OnPacketHeader(const QuicPacketHeader& /*header*/) {
 void NoOpFramerVisitor::OnCoalescedPacket(
     const QuicEncryptedPacket& /*packet*/) {}
 
+void NoOpFramerVisitor::OnUndecryptablePacket(
+    const QuicEncryptedPacket& /*packet*/,
+    EncryptionLevel /*decryption_level*/,
+    bool /*has_decryption_key*/) {}
+
 bool NoOpFramerVisitor::OnStreamFrame(const QuicStreamFrame& /*frame*/) {
   return true;
 }

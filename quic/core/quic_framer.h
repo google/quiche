@@ -15,6 +15,7 @@
 #include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection_id.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
+#include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 
@@ -126,6 +127,13 @@ class QUIC_EXPORT_PRIVATE QuicFramerVisitorInterface {
   // after the framer is done parsing the current payload. |packet| does not
   // own its internal buffer, the visitor should make a copy of it.
   virtual void OnCoalescedPacket(const QuicEncryptedPacket& packet) = 0;
+
+  // Called when the packet being processed failed to decrypt.
+  // |has_decryption_key| indicates whether the framer knew which decryption
+  // key to use for this packet and already had a suitable key.
+  virtual void OnUndecryptablePacket(const QuicEncryptedPacket& packet,
+                                     EncryptionLevel decryption_level,
+                                     bool has_decryption_key) = 0;
 
   // Called when a StreamFrame has been parsed.
   virtual bool OnStreamFrame(const QuicStreamFrame& frame) = 0;

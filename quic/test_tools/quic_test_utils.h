@@ -261,6 +261,10 @@ class MockFramerVisitor : public QuicFramerVisitorInterface {
   MOCK_METHOD1(OnDecryptedPacket, void(EncryptionLevel level));
   MOCK_METHOD1(OnPacketHeader, bool(const QuicPacketHeader& header));
   MOCK_METHOD1(OnCoalescedPacket, void(const QuicEncryptedPacket& packet));
+  MOCK_METHOD3(OnUndecryptablePacket,
+               void(const QuicEncryptedPacket& packet,
+                    EncryptionLevel decryption_level,
+                    bool has_decryption_key));
   MOCK_METHOD1(OnStreamFrame, bool(const QuicStreamFrame& frame));
   MOCK_METHOD1(OnCryptoFrame, bool(const QuicCryptoFrame& frame));
   MOCK_METHOD2(OnAckFrameStart, bool(QuicPacketNumber, QuicTime::Delta));
@@ -314,6 +318,9 @@ class NoOpFramerVisitor : public QuicFramerVisitorInterface {
   void OnDecryptedPacket(EncryptionLevel /*level*/) override {}
   bool OnPacketHeader(const QuicPacketHeader& header) override;
   void OnCoalescedPacket(const QuicEncryptedPacket& packet) override;
+  void OnUndecryptablePacket(const QuicEncryptedPacket& packet,
+                             EncryptionLevel decryption_level,
+                             bool has_decryption_key) override;
   bool OnStreamFrame(const QuicStreamFrame& frame) override;
   bool OnCryptoFrame(const QuicCryptoFrame& frame) override;
   bool OnAckFrameStart(QuicPacketNumber largest_acked,

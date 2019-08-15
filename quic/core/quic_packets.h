@@ -204,8 +204,13 @@ struct QUIC_EXPORT_PRIVATE QuicIetfStatelessResetPacket {
 
 class QUIC_EXPORT_PRIVATE QuicData {
  public:
+  // Creates a QuicData from a buffer and length. Does not own the buffer.
   QuicData(const char* buffer, size_t length);
+  // Creates a QuicData from a buffer and length,
+  // optionally taking ownership of the buffer.
   QuicData(const char* buffer, size_t length, bool owns_buffer);
+  // Creates a QuicData from a QuicStringPiece. Does not own the buffer.
+  QuicData(QuicStringPiece data);
   QuicData(const QuicData&) = delete;
   QuicData& operator=(const QuicData&) = delete;
   virtual ~QuicData();
@@ -263,8 +268,16 @@ class QUIC_EXPORT_PRIVATE QuicPacket : public QuicData {
 
 class QUIC_EXPORT_PRIVATE QuicEncryptedPacket : public QuicData {
  public:
+  // Creates a QuicEncryptedPacket from a buffer and length.
+  // Does not own the buffer.
   QuicEncryptedPacket(const char* buffer, size_t length);
+  // Creates a QuicEncryptedPacket from a buffer and length,
+  // optionally taking ownership of the buffer.
   QuicEncryptedPacket(const char* buffer, size_t length, bool owns_buffer);
+  // Creates a QuicEncryptedPacket from a QuicStringPiece.
+  // Does not own the buffer.
+  QuicEncryptedPacket(QuicStringPiece data);
+
   QuicEncryptedPacket(const QuicEncryptedPacket&) = delete;
   QuicEncryptedPacket& operator=(const QuicEncryptedPacket&) = delete;
 

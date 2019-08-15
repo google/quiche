@@ -1843,6 +1843,16 @@ bool QuicFramer::ProcessIetfDataPacket(QuicDataReader* encrypted_reader,
         return true;
       }
       if (hp_removal_failed) {
+        if (GetQuicRestartFlag(quic_framer_uses_undecryptable_upcall)) {
+          QUIC_RESTART_FLAG_COUNT_N(quic_framer_uses_undecryptable_upcall, 5,
+                                    7);
+          const EncryptionLevel decryption_level = GetEncryptionLevel(*header);
+          const bool has_decryption_key =
+              decrypter_[decryption_level] != nullptr;
+          visitor_->OnUndecryptablePacket(
+              QuicEncryptedPacket(encrypted_reader->FullPayload()),
+              decryption_level, has_decryption_key);
+        }
         set_detailed_error("Unable to decrypt header protection.");
         return RaiseError(QUIC_DECRYPTION_FAILURE);
       }
@@ -1900,6 +1910,15 @@ bool QuicFramer::ProcessIetfDataPacket(QuicDataReader* encrypted_reader,
           *header, header->possible_stateless_reset_token);
       visitor_->OnAuthenticatedIetfStatelessResetPacket(packet);
       return true;
+    }
+    if (GetQuicRestartFlag(quic_framer_uses_undecryptable_upcall)) {
+      QUIC_RESTART_FLAG_COUNT_N(quic_framer_uses_undecryptable_upcall, 6, 7);
+      const EncryptionLevel decryption_level = GetEncryptionLevel(*header);
+      const bool has_decryption_key = version_.KnowsWhichDecrypterToUse() &&
+                                      decrypter_[decryption_level] != nullptr;
+      visitor_->OnUndecryptablePacket(
+          QuicEncryptedPacket(encrypted_reader->FullPayload()),
+          decryption_level, has_decryption_key);
     }
     set_detailed_error("Unable to decrypt payload.");
     RecordDroppedPacketReason(DroppedPacketReason::DECRYPTION_FAILURE);
@@ -1979,6 +1998,16 @@ bool QuicFramer::ProcessDataPacket(QuicDataReader* encrypted_reader,
   EncryptionLevel decrypted_level;
   if (!DecryptPayload(encrypted, associated_data, *header, decrypted_buffer,
                       buffer_length, &decrypted_length, &decrypted_level)) {
+    if (GetQuicRestartFlag(quic_framer_uses_undecryptable_upcall)) {
+      QUIC_RESTART_FLAG_COUNT_N(quic_framer_uses_undecryptable_upcall, 7, 7);
+      const EncryptionLevel decryption_level = decrypter_level_;
+      // This version uses trial decryption so we always report to our visitor
+      // that we are not certain we have the correct decryption key.
+      const bool has_decryption_key = false;
+      visitor_->OnUndecryptablePacket(
+          QuicEncryptedPacket(encrypted_reader->FullPayload()),
+          decryption_level, has_decryption_key);
+    }
     RecordDroppedPacketReason(DroppedPacketReason::DECRYPTION_FAILURE);
     set_detailed_error("Unable to decrypt payload.");
     return RaiseError(QUIC_DECRYPTION_FAILURE);
@@ -4173,6 +4202,9 @@ void QuicFramer::SetDecrypter(EncryptionLevel level,
   DCHECK_EQ(alternative_decrypter_level_, NUM_ENCRYPTION_LEVELS);
   DCHECK_GE(level, decrypter_level_);
   DCHECK(!version_.KnowsWhichDecrypterToUse());
+  QUIC_DVLOG(1) << ENDPOINT << "Setting decrypter from level "
+                << QuicUtils::EncryptionLevelToString(decrypter_level_)
+                << " to " << QuicUtils::EncryptionLevelToString(level);
   decrypter_[decrypter_level_] = nullptr;
   decrypter_[level] = std::move(decrypter);
   decrypter_level_ = level;
@@ -4184,6 +4216,10 @@ void QuicFramer::SetAlternativeDecrypter(
     bool latch_once_used) {
   DCHECK_NE(level, decrypter_level_);
   DCHECK(!version_.KnowsWhichDecrypterToUse());
+  QUIC_DVLOG(1) << ENDPOINT << "Setting alternative decrypter from level "
+                << QuicUtils::EncryptionLevelToString(
+                       alternative_decrypter_level_)
+                << " to " << QuicUtils::EncryptionLevelToString(level);
   if (alternative_decrypter_level_ != NUM_ENCRYPTION_LEVELS) {
     decrypter_[alternative_decrypter_level_] = nullptr;
   }
@@ -4195,11 +4231,15 @@ void QuicFramer::SetAlternativeDecrypter(
 void QuicFramer::InstallDecrypter(EncryptionLevel level,
                                   std::unique_ptr<QuicDecrypter> decrypter) {
   DCHECK(version_.KnowsWhichDecrypterToUse());
+  QUIC_DVLOG(1) << ENDPOINT << "Installing decrypter at level "
+                << QuicUtils::EncryptionLevelToString(level);
   decrypter_[level] = std::move(decrypter);
 }
 
 void QuicFramer::RemoveDecrypter(EncryptionLevel level) {
   DCHECK(version_.KnowsWhichDecrypterToUse());
+  QUIC_DVLOG(1) << ENDPOINT << "Removing decrypter at level "
+                << QuicUtils::EncryptionLevelToString(level);
   decrypter_[level] = nullptr;
 }
 
@@ -4223,6 +4263,8 @@ void QuicFramer::SetEncrypter(EncryptionLevel level,
                               std::unique_ptr<QuicEncrypter> encrypter) {
   DCHECK_GE(level, 0);
   DCHECK_LT(level, NUM_ENCRYPTION_LEVELS);
+  QUIC_DVLOG(1) << ENDPOINT << "Setting encrypter at level "
+                << QuicUtils::EncryptionLevelToString(level);
   encrypter_[level] = std::move(encrypter);
 }
 
@@ -4359,8 +4401,9 @@ bool QuicFramer::RemoveHeaderProtection(QuicDataReader* reader,
   QuicDecrypter* decrypter = decrypter_[expected_decryption_level].get();
   if (decrypter == nullptr) {
     QUIC_DVLOG(1)
+        << ENDPOINT
         << "No decrypter available for removing header protection at level "
-        << expected_decryption_level;
+        << QuicUtils::EncryptionLevelToString(expected_decryption_level);
     return false;
   }
 

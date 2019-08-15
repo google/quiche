@@ -1232,6 +1232,37 @@ TEST_P(QuicDataWriterTest, SeekTooFarFails) {
   }
 }
 
+TEST_P(QuicDataWriterTest, PayloadReads) {
+  char buffer[16] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+  char expected_first_read[4] = {1, 2, 3, 4};
+  char expected_remaining[12] = {5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+  QuicDataReader reader(buffer, sizeof(buffer));
+  char first_read_buffer[4] = {};
+  EXPECT_TRUE(reader.ReadBytes(first_read_buffer, sizeof(first_read_buffer)));
+  test::CompareCharArraysWithHexError(
+      "first read", first_read_buffer, sizeof(first_read_buffer),
+      expected_first_read, sizeof(expected_first_read));
+  QuicStringPiece peeked_remaining_payload = reader.PeekRemainingPayload();
+  test::CompareCharArraysWithHexError(
+      "peeked_remaining_payload", peeked_remaining_payload.data(),
+      peeked_remaining_payload.length(), expected_remaining,
+      sizeof(expected_remaining));
+  QuicStringPiece full_payload = reader.FullPayload();
+  test::CompareCharArraysWithHexError("full_payload", full_payload.data(),
+                                      full_payload.length(), buffer,
+                                      sizeof(buffer));
+  QuicStringPiece read_remaining_payload = reader.ReadRemainingPayload();
+  test::CompareCharArraysWithHexError(
+      "read_remaining_payload", read_remaining_payload.data(),
+      read_remaining_payload.length(), expected_remaining,
+      sizeof(expected_remaining));
+  EXPECT_TRUE(reader.IsDoneReading());
+  QuicStringPiece full_payload2 = reader.FullPayload();
+  test::CompareCharArraysWithHexError("full_payload2", full_payload2.data(),
+                                      full_payload2.length(), buffer,
+                                      sizeof(buffer));
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic
