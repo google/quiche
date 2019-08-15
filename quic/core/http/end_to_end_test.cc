@@ -362,7 +362,9 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
       copt.push_back(kTPCC);
     }
     copt.push_back(GetParam().priority_tag);
-
+    if (GetQuicReloadableFlag(quic_enable_pto)) {
+      copt.push_back(k2PTO);
+    }
     client_config_.SetConnectionOptionsToSend(copt);
 
     // Start the server first, because CreateQuicClient() attempts

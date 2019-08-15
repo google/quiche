@@ -115,6 +115,9 @@ QuicSentPacketManager::QuicSentPacketManager(
           QuicTime::Delta::FromMilliseconds(kDefaultDelayedAckTimeMs)),
       rtt_updated_(false),
       acked_packets_iter_(last_ack_frame_.packets.rbegin()),
+      enable_pto_(false),
+      max_probe_packets_per_pto_(2),
+      consecutive_pto_count_(0),
       loss_removes_from_inflight_(
           GetQuicReloadableFlag(quic_loss_removes_from_inflight)),
       ignore_tlpr_if_no_pending_stream_data_(
@@ -177,6 +180,18 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
     }
     if (config.HasClientSentConnectionOption(kMAD5, perspective)) {
       ietf_style_2x_tlp_ = true;
+    }
+  }
+
+  if (GetQuicReloadableFlag(quic_enable_pto) && fix_rto_retransmission_) {
+    if (config.HasClientSentConnectionOption(k2PTO, perspective)) {
+      enable_pto_ = true;
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_pto, 2, 4);
+    }
+    if (config.HasClientSentConnectionOption(k1PTO, perspective)) {
+      enable_pto_ = true;
+      max_probe_packets_per_pto_ = 1;
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_pto, 1, 4);
     }
   }
 
@@ -340,6 +355,7 @@ void QuicSentPacketManager::PostProcessNewlyAckedPackets(
     // Reset all retransmit counters any time a new packet is acked.
     consecutive_rto_count_ = 0;
     consecutive_tlp_count_ = 0;
+    consecutive_pto_count_ = 0;
     consecutive_crypto_retransmission_count_ = 0;
   }
 
@@ -470,7 +486,7 @@ void QuicSentPacketManager::MarkForRetransmission(
       << "transmission_type: "
       << QuicUtils::TransmissionTypeToString(transmission_type);
   // Handshake packets should never be sent as probing retransmissions.
-  DCHECK(!transmission_info->has_crypto_handshake ||
+  DCHECK(enable_pto_ || !transmission_info->has_crypto_handshake ||
          transmission_type != PROBING_RETRANSMISSION);
   if (!loss_removes_from_inflight_ &&
       !RetransmissionLeavesBytesInFlight(transmission_type)) {
@@ -741,6 +757,12 @@ QuicSentPacketManager::OnRetransmissionTimeout() {
       ++stats_->rto_count;
       RetransmitRtoPackets();
       return RTO_MODE;
+    case PTO_MODE:
+      QUIC_DVLOG(1) << ENDPOINT << "PTO mode";
+      ++stats_->pto_count;
+      ++consecutive_pto_count_;
+      pending_timer_transmission_count_ = max_probe_packets_per_pto_;
+      return PTO_MODE;
   }
 }
 
@@ -776,6 +798,7 @@ void QuicSentPacketManager::RetransmitCryptoPackets() {
 }
 
 bool QuicSentPacketManager::MaybeRetransmitTailLossProbe() {
+  DCHECK(!enable_pto_);
   if (pending_timer_transmission_count_ == 0) {
     return false;
   }
@@ -804,6 +827,7 @@ bool QuicSentPacketManager::MaybeRetransmitOldestPacket(TransmissionType type) {
 }
 
 void QuicSentPacketManager::RetransmitRtoPackets() {
+  DCHECK(!enable_pto_);
   QUIC_BUG_IF(pending_timer_transmission_count_ > 0)
       << "Retransmissions already queued:" << pending_timer_transmission_count_;
   // Mark two packets for retransmission.
@@ -859,6 +883,41 @@ void QuicSentPacketManager::RetransmitRtoPackets() {
   }
 }
 
+void QuicSentPacketManager::MaybeSendProbePackets() {
+  if (pending_timer_transmission_count_ == 0) {
+    return;
+  }
+  QuicPacketNumber packet_number = unacked_packets_.GetLeastUnacked();
+  std::vector<QuicPacketNumber> probing_packets;
+  for (QuicUnackedPacketMap::const_iterator it = unacked_packets_.begin();
+       it != unacked_packets_.end(); ++it, ++packet_number) {
+    if (it->state == OUTSTANDING &&
+        unacked_packets_.HasRetransmittableFrames(*it)) {
+      probing_packets.push_back(packet_number);
+      if (probing_packets.size() == pending_timer_transmission_count_) {
+        break;
+      }
+    }
+  }
+
+  for (QuicPacketNumber retransmission : probing_packets) {
+    QUIC_DVLOG(1) << ENDPOINT << "Marking " << retransmission
+                  << " for probing retransmission";
+    MarkForRetransmission(retransmission, PROBING_RETRANSMISSION);
+  }
+  // It is possible that there is not enough outstanding data for probing.
+}
+
+void QuicSentPacketManager::AdjustPendingTimerTransmissions() {
+  if (pending_timer_transmission_count_ < max_probe_packets_per_pto_) {
+    // There are packets sent already, clear credit.
+    pending_timer_transmission_count_ = 0;
+    return;
+  }
+  // No packet gets sent, leave 1 credit to allow data to be write eventually.
+  pending_timer_transmission_count_ = 1;
+}
+
 QuicSentPacketManager::RetransmissionTimeoutMode
 QuicSentPacketManager::GetRetransmissionMode() const {
   DCHECK(unacked_packets_.HasInFlightPackets());
@@ -867,6 +926,9 @@ QuicSentPacketManager::GetRetransmissionMode() const {
   }
   if (loss_algorithm_->GetLossTimeout() != QuicTime::Zero()) {
     return LOSS_MODE;
+  }
+  if (enable_pto_) {
+    return PTO_MODE;
   }
   if (consecutive_tlp_count_ < max_tail_loss_probes_) {
     if (unacked_packets_.HasUnackedRetransmittableFrames()) {
@@ -962,6 +1024,7 @@ const QuicTime QuicSentPacketManager::GetRetransmissionTime() const {
     case LOSS_MODE:
       return loss_algorithm_->GetLossTimeout();
     case TLP_MODE: {
+      DCHECK(!enable_pto_);
       // TODO(ianswett): When CWND is available, it would be preferable to
       // set the timer based on the earliest retransmittable packet.
       // Base the updated timer on the send time of the last packet.
@@ -971,6 +1034,7 @@ const QuicTime QuicSentPacketManager::GetRetransmissionTime() const {
       return std::max(clock_->ApproximateNow(), tlp_time);
     }
     case RTO_MODE: {
+      DCHECK(!enable_pto_);
       // The RTO is based on the first outstanding packet.
       const QuicTime sent_time = unacked_packets_.GetLastPacketSentTime();
       QuicTime rto_time = sent_time + GetRetransmissionDelay();
@@ -978,6 +1042,12 @@ const QuicTime QuicSentPacketManager::GetRetransmissionTime() const {
       QuicTime tlp_time =
           unacked_packets_.GetLastPacketSentTime() + GetTailLossProbeDelay();
       return std::max(tlp_time, rto_time);
+    }
+    case PTO_MODE: {
+      // Ensure PTO never gets set to a time in the past.
+      return std::max(
+          clock_->ApproximateNow(),
+          unacked_packets_.GetLastPacketSentTime() + GetProbeTimeoutDelay());
     }
   }
   DCHECK(false);
@@ -1070,6 +1140,22 @@ const QuicTime::Delta QuicSentPacketManager::GetRetransmissionDelay(
   return retransmission_delay;
 }
 
+const QuicTime::Delta QuicSentPacketManager::GetProbeTimeoutDelay() const {
+  DCHECK(enable_pto_);
+  if (rtt_stats_.smoothed_rtt().IsZero()) {
+    if (rtt_stats_.initial_rtt().IsZero()) {
+      return QuicTime::Delta::FromSeconds(1);
+    }
+    return 2 * rtt_stats_.initial_rtt();
+  }
+  const QuicTime::Delta pto_delay =
+      rtt_stats_.smoothed_rtt() +
+      std::max(4 * rtt_stats_.mean_deviation(),
+               QuicTime::Delta::FromMilliseconds(1)) +
+      peer_max_ack_delay_;
+  return pto_delay * (1 << consecutive_pto_count_);
+}
+
 QuicTime::Delta QuicSentPacketManager::GetSlowStartDuration() const {
   if (send_algorithm_->GetCongestionControlType() != kBBR) {
     return QuicTime::Delta::Infinite();
@@ -1124,6 +1210,7 @@ void QuicSentPacketManager::OnConnectionMigration(AddressChangeType type) {
   }
   consecutive_rto_count_ = 0;
   consecutive_tlp_count_ = 0;
+  consecutive_pto_count_ = 0;
   rtt_stats_.OnConnectionMigration();
   send_algorithm_->OnConnectionMigration();
 }

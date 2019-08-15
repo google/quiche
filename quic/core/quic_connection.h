@@ -1429,6 +1429,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // Indicates whether a RETRY packet has been parsed.
   bool retry_has_been_parsed_;
+
+  // If max_consecutive_ptos_ > 0, close connection if consecutive PTOs is
+  // greater than max_consecutive_ptos.
+  size_t max_consecutive_ptos_;
 };
 
 }  // namespace quic

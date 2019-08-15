@@ -170,6 +170,14 @@ const QuicTag kSMHL = TAG('S', 'M', 'H', 'L');   // Support MAX_HEADER_LIST_SIZE
 const QuicTag kNSTP = TAG('N', 'S', 'T', 'P');   // No stop waiting frames.
 const QuicTag kNRTT = TAG('N', 'R', 'T', 'T');   // Ignore initial RTT
 
+const QuicTag k1PTO = TAG('1', 'P', 'T', 'O');   // Send 1 packet upon PTO.
+const QuicTag k2PTO = TAG('2', 'P', 'T', 'O');   // Send 2 packets upon PTO.
+
+const QuicTag k7PTO = TAG('7', 'P', 'T', 'O');   // Closes connection on 7
+                                                 // consecutive PTOs.
+const QuicTag k8PTO = TAG('8', 'P', 'T', 'O');   // Closes connection on 8
+                                                 // consecutive PTOs.
+
 // Optional support of truncated Connection IDs.  If sent by a peer, the value
 // is the minimum number of bytes allowed for the connection ID sent to the
 // peer.

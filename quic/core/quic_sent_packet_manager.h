@@ -103,6 +103,9 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
     // Re-invoke the loss detection when a packet is not acked before the
     // loss detection algorithm expects.
     LOSS_MODE,
+    // A probe timeout. At least one probe packet must be sent when timer
+    // expires.
+    PTO_MODE,
   };
 
   QuicSentPacketManager(Perspective perspective,
@@ -337,6 +340,8 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
 
   size_t GetConsecutiveTlpCount() const { return consecutive_tlp_count_; }
 
+  size_t GetConsecutivePtoCount() const { return consecutive_pto_count_; }
+
   void OnApplicationLimited();
 
   const SendAlgorithmInterface* GetSendAlgorithm() const {
@@ -390,6 +395,12 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // Setting the send algorithm once the connection is underway is dangerous.
   void SetSendAlgorithm(SendAlgorithmInterface* send_algorithm);
 
+  // Sends up to max_probe_packets_per_pto_ probe packets.
+  void MaybeSendProbePackets();
+
+  // Called to adjust pending_timer_transmission_count_ accordingly.
+  void AdjustPendingTimerTransmissions();
+
   bool supports_multiple_packet_number_spaces() const {
     return unacked_packets_.supports_multiple_packet_number_spaces();
   }
@@ -399,6 +410,8 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   }
 
   bool fix_rto_retransmission() const { return fix_rto_retransmission_; }
+
+  bool enable_pto() const { return enable_pto_; }
 
  private:
   friend class test::QuicConnectionPeer;
@@ -444,6 +457,9 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   const QuicTime::Delta GetRetransmissionDelay() const {
     return GetRetransmissionDelay(consecutive_rto_count_);
   }
+
+  // Returns the probe timeout.
+  const QuicTime::Delta GetProbeTimeoutDelay() const;
 
   // Returns the newest transmission associated with a packet.
   QuicPacketNumber GetNewestRetransmission(
@@ -622,6 +638,15 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // A reverse iterator of last_ack_frame_.packets. This is reset in
   // OnAckRangeStart, and gradually moves in OnAckRange..
   PacketNumberQueue::const_reverse_iterator acked_packets_iter_;
+
+  // If true, enable PTO mode which unifies TLP and RTO modes.
+  bool enable_pto_;
+
+  // Maximum number of probes to send when PTO fires.
+  size_t max_probe_packets_per_pto_;
+
+  // Number of times the PTO timer has fired in a row without receiving an ack.
+  size_t consecutive_pto_count_;
 
   // Latched value of quic_loss_removes_from_inflight.
   const bool loss_removes_from_inflight_;

@@ -321,7 +321,8 @@ QuicConnection::QuicConnection(
       processing_ack_frame_(false),
       supports_release_time_(false),
       release_time_into_future_(QuicTime::Delta::Zero()),
-      retry_has_been_parsed_(false) {
+      retry_has_been_parsed_(false),
+      max_consecutive_ptos_(0) {
   QUIC_DLOG(INFO) << ENDPOINT << "Created connection with server connection ID "
                   << server_connection_id
                   << " and version: " << ParsedQuicVersionToString(version());
@@ -418,6 +419,16 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
   uber_received_packet_manager_.SetFromConfig(config, perspective_);
   if (config.HasClientSentConnectionOption(k5RTO, perspective_)) {
     close_connection_after_five_rtos_ = true;
+  }
+  if (sent_packet_manager_.enable_pto()) {
+    if (config.HasClientSentConnectionOption(k7PTO, perspective_)) {
+      max_consecutive_ptos_ = 6;
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_pto, 3, 4);
+    }
+    if (config.HasClientSentConnectionOption(k8PTO, perspective_)) {
+      max_consecutive_ptos_ = 7;
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_pto, 4, 4);
+    }
   }
   if (config.HasClientSentConnectionOption(kNSTP, perspective_)) {
     no_stop_waiting_frames_ = true;
@@ -2438,15 +2449,18 @@ void QuicConnection::OnRetransmissionTimeout() {
   DCHECK(!sent_packet_manager_.unacked_packets().empty());
   const QuicPacketNumber previous_created_packet_number =
       packet_generator_.packet_number();
-  const size_t previous_crypto_retransmit_count =
-      stats_.crypto_retransmit_count;
-  const size_t previous_loss_timeout_count = stats_.loss_timeout_count;
-  const size_t previous_tlp_count = stats_.tlp_count;
-  const size_t pervious_rto_count = stats_.rto_count;
   if (close_connection_after_five_rtos_ &&
       sent_packet_manager_.GetConsecutiveRtoCount() >= 4) {
     // Close on the 5th consecutive RTO, so after 4 previous RTOs have occurred.
     CloseConnection(QUIC_TOO_MANY_RTOS, "5 consecutive retransmission timeouts",
+                    ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    return;
+  }
+  if (sent_packet_manager_.enable_pto() && max_consecutive_ptos_ > 0 &&
+      sent_packet_manager_.GetConsecutivePtoCount() >= max_consecutive_ptos_) {
+    CloseConnection(QUIC_TOO_MANY_RTOS,
+                    QuicStrCat(max_consecutive_ptos_ + 1,
+                               "consecutive retransmission timeouts"),
                     ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return;
   }
@@ -2461,23 +2475,29 @@ void QuicConnection::OnRetransmissionTimeout() {
     return;
   }
 
-  // In the TLP case, the SentPacketManager gives the connection the opportunity
-  // to send new data before retransmitting.
-  if (sent_packet_manager_.MaybeRetransmitTailLossProbe()) {
+  // In the PTO and TLP cases, the SentPacketManager gives the connection the
+  // opportunity to send new data before retransmitting.
+  if (sent_packet_manager_.enable_pto()) {
+    sent_packet_manager_.MaybeSendProbePackets();
+  } else if (sent_packet_manager_.MaybeRetransmitTailLossProbe()) {
     // Send the pending retransmission now that it's been queued.
     WriteIfNotBlocked();
   }
 
   if (sent_packet_manager_.fix_rto_retransmission()) {
     if (packet_generator_.packet_number() == previous_created_packet_number &&
-        retransmission_mode == QuicSentPacketManager::RTO_MODE &&
+        (retransmission_mode == QuicSentPacketManager::RTO_MODE ||
+         retransmission_mode == QuicSentPacketManager::PTO_MODE) &&
         !visitor_->WillingAndAbleToWrite()) {
-      // Send PING if timer fires in RTO mode but there is no data to send.
+      // Send PING if timer fires in RTO or PTO mode but there is no data to
+      // send.
       DCHECK_LT(0u, sent_packet_manager_.pending_timer_transmission_count());
       visitor_->SendPing();
     }
-    if (retransmission_mode != QuicSentPacketManager::LOSS_MODE &&
-        retransmission_mode != QuicSentPacketManager::HANDSHAKE_MODE) {
+    if (retransmission_mode == QuicSentPacketManager::PTO_MODE) {
+      sent_packet_manager_.AdjustPendingTimerTransmissions();
+    }
+    if (retransmission_mode != QuicSentPacketManager::LOSS_MODE) {
       // When timer fires in TLP or RTO mode, ensure 1) at least one packet is
       // created, or there is data to send and available credit (such that
       // packets will be sent eventually).
@@ -2485,21 +2505,13 @@ void QuicConnection::OnRetransmissionTimeout() {
           packet_generator_.packet_number() == previous_created_packet_number &&
           (!visitor_->WillingAndAbleToWrite() ||
            sent_packet_manager_.pending_timer_transmission_count() == 0u))
-          << "previous_crypto_retransmit_count: "
-          << previous_crypto_retransmit_count
-          << ", crypto_retransmit_count: " << stats_.crypto_retransmit_count
-          << ", previous_loss_timeout_count: " << previous_loss_timeout_count
-          << ", loss_timeout_count: " << stats_.loss_timeout_count
-          << ", previous_tlp_count: " << previous_tlp_count
-          << ", tlp_count: " << stats_.tlp_count
-          << ", pervious_rto_count: " << pervious_rto_count
-          << ", rto_count: " << stats_.rto_count
-          << ", previous_created_packet_number: "
-          << previous_created_packet_number
+          << "retransmission_mode: " << retransmission_mode
           << ", packet_number: " << packet_generator_.packet_number()
           << ", session has data to write: "
           << visitor_->WillingAndAbleToWrite()
-          << ", writer is blocked: " << writer_->IsWriteBlocked();
+          << ", writer is blocked: " << writer_->IsWriteBlocked()
+          << ", pending_timer_transmission_count: "
+          << sent_packet_manager_.pending_timer_transmission_count();
     }
   }
 

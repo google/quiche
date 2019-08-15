@@ -76,6 +76,7 @@ struct QUIC_EXPORT_PRIVATE QuicConnectionStats {
   size_t loss_timeout_count;
   size_t tlp_count;
   size_t rto_count;  // Count of times the rto timer fired.
+  size_t pto_count;
 
   int64_t min_rtt_us;  // Minimum RTT in microseconds.
   int64_t srtt_us;     // Smoothed RTT in microseconds.
