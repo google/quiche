@@ -880,6 +880,14 @@ bool QuicSpdySession::ProcessPendingStream(PendingStream* pending) {
 
   switch (stream_type) {
     case kControlStream: {  // HTTP/3 control stream.
+      if (receive_control_stream_) {
+        QUIC_PEER_BUG
+            << "Received a duplicate control stream: Closing connection.";
+        // TODO(renjietang): Change to HTTP_STREAM_CREATION_ERROR.
+        CloseConnectionWithDetails(QUIC_INVALID_STREAM_ID,
+                                   "Control stream is received twice.");
+        return false;
+      }
       auto receive_stream = QuicMakeUnique<QuicReceiveControlStream>(pending);
       receive_control_stream_ = receive_stream.get();
       RegisterStaticStream(std::move(receive_stream),

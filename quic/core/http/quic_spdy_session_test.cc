@@ -2377,6 +2377,27 @@ TEST_P(QuicSpdySessionTestClient, FinInMiddleOfStreamType) {
   EXPECT_FALSE(QuicSessionPeer::GetPendingStream(&session_, stream_id));
 }
 
+TEST_P(QuicSpdySessionTestClient, DuplicateHttp3UnidirectionalStreams) {
+  if (!VersionHasStreamType(transport_version())) {
+    return;
+  }
+  QuicStreamId id1 =
+      GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 0);
+  char type[] = {kControlStream};
+
+  QuicStreamFrame data1(id1, false, 0, QuicStringPiece(type, 1));
+  session_.OnStreamFrame(data1);
+  QuicStreamId id2 =
+      GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 1);
+  QuicStreamFrame data2(id2, false, 0, QuicStringPiece(type, 1));
+  EXPECT_CALL(*connection_,
+              CloseConnection(QUIC_INVALID_STREAM_ID,
+                              "Control stream is received twice.", _));
+  EXPECT_QUIC_PEER_BUG(
+      session_.OnStreamFrame(data2),
+      "Received a duplicate control stream: Closing connection.");
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic
