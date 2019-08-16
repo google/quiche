@@ -4,6 +4,8 @@
 
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 
+#include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
+
 namespace quic {
 
 QuicConsumedData::QuicConsumedData(size_t bytes_consumed, bool fin_consumed)
@@ -75,52 +77,35 @@ std::ostream& operator<<(std::ostream& os, const WriteResult& s) {
 MessageResult::MessageResult(MessageStatus status, QuicMessageId message_id)
     : status(status), message_id(message_id) {}
 
-std::ostream& operator<<(std::ostream& os,
-                         const QuicIetfTransportErrorCodes& c) {
+#define RETURN_STRING_LITERAL(x) \
+  case x:                        \
+    return #x;
+
+std::string QuicIetfTransportErrorCodeString(QuicIetfTransportErrorCodes c) {
   if (static_cast<uint16_t>(c) >= 0xff00u) {
-    os << "Private value: " << c;
-    return os;
+    return QuicStrCat("Private value: ", c);
   }
 
   switch (c) {
-    case NO_IETF_QUIC_ERROR:
-      os << "NO_IETF_QUIC_ERROR";
-      break;
-    case INTERNAL_ERROR:
-      os << "INTERNAL_ERROR";
-      break;
-    case SERVER_BUSY_ERROR:
-      os << "SERVER_BUSY_ERROR";
-      break;
-    case FLOW_CONTROL_ERROR:
-      os << "FLOW_CONTROL_ERROR";
-      break;
-    case STREAM_LIMIT_ERROR:
-      os << "STREAM_LIMIT_ERROR";
-      break;
-    case STREAM_STATE_ERROR:
-      os << "STREAM_STATE_ERROR";
-      break;
-    case FINAL_SIZE_ERROR:
-      os << "FINAL_SIZE_ERROR";
-      break;
-    case FRAME_ENCODING_ERROR:
-      os << "FRAME_ENCODING_ERROR";
-      break;
-    case TRANSPORT_PARAMETER_ERROR:
-      os << "TRANSPORT_PARAMETER_ERROR";
-      break;
-    case VERSION_NEGOTIATION_ERROR:
-      os << "VERSION_NEGOTIATION_ERROR";
-      break;
-    case PROTOCOL_VIOLATION:
-      os << "PROTOCOL_VIOLATION";
-      break;
-    case INVALID_MIGRATION:
-      os << "INVALID_MIGRATION";
-      break;
-      // No default -- compiler will catch any adds/changes then.
+    RETURN_STRING_LITERAL(NO_IETF_QUIC_ERROR);
+    RETURN_STRING_LITERAL(INTERNAL_ERROR);
+    RETURN_STRING_LITERAL(SERVER_BUSY_ERROR);
+    RETURN_STRING_LITERAL(FLOW_CONTROL_ERROR);
+    RETURN_STRING_LITERAL(STREAM_LIMIT_ERROR);
+    RETURN_STRING_LITERAL(STREAM_STATE_ERROR);
+    RETURN_STRING_LITERAL(FINAL_SIZE_ERROR);
+    RETURN_STRING_LITERAL(FRAME_ENCODING_ERROR);
+    RETURN_STRING_LITERAL(TRANSPORT_PARAMETER_ERROR);
+    RETURN_STRING_LITERAL(VERSION_NEGOTIATION_ERROR);
+    RETURN_STRING_LITERAL(PROTOCOL_VIOLATION);
+    RETURN_STRING_LITERAL(INVALID_MIGRATION);
+    // No default -- compiler will catch any adds/changes then.
   }
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         const QuicIetfTransportErrorCodes& c) {
+  os << QuicIetfTransportErrorCodeString(c);
   return os;
 }
 
@@ -427,6 +412,45 @@ QuicErrorCodeToIetfMapping QuicErrorCodeToTransportErrorCode(
   }
   // If it's an unknown code, indicate it's an application error code.
   return {false, {NO_IETF_QUIC_ERROR}};
+}
+
+std::string QuicIetfFrameTypeString(QuicIetfFrameType t) {
+  if (IS_IETF_STREAM_FRAME(t)) {
+    return "IETF_STREAM";
+  }
+
+  switch (t) {
+    RETURN_STRING_LITERAL(IETF_PADDING);
+    RETURN_STRING_LITERAL(IETF_PING);
+    RETURN_STRING_LITERAL(IETF_ACK);
+    RETURN_STRING_LITERAL(IETF_ACK_ECN);
+    RETURN_STRING_LITERAL(IETF_RST_STREAM);
+    RETURN_STRING_LITERAL(IETF_STOP_SENDING);
+    RETURN_STRING_LITERAL(IETF_CRYPTO);
+    RETURN_STRING_LITERAL(IETF_NEW_TOKEN);
+    RETURN_STRING_LITERAL(IETF_MAX_DATA);
+    RETURN_STRING_LITERAL(IETF_MAX_STREAM_DATA);
+    RETURN_STRING_LITERAL(IETF_MAX_STREAMS_BIDIRECTIONAL);
+    RETURN_STRING_LITERAL(IETF_MAX_STREAMS_UNIDIRECTIONAL);
+    RETURN_STRING_LITERAL(IETF_BLOCKED);
+    RETURN_STRING_LITERAL(IETF_STREAM_BLOCKED);
+    RETURN_STRING_LITERAL(IETF_STREAMS_BLOCKED_BIDIRECTIONAL);
+    RETURN_STRING_LITERAL(IETF_STREAMS_BLOCKED_UNIDIRECTIONAL);
+    RETURN_STRING_LITERAL(IETF_NEW_CONNECTION_ID);
+    RETURN_STRING_LITERAL(IETF_RETIRE_CONNECTION_ID);
+    RETURN_STRING_LITERAL(IETF_PATH_CHALLENGE);
+    RETURN_STRING_LITERAL(IETF_PATH_RESPONSE);
+    RETURN_STRING_LITERAL(IETF_CONNECTION_CLOSE);
+    RETURN_STRING_LITERAL(IETF_APPLICATION_CLOSE);
+    RETURN_STRING_LITERAL(IETF_EXTENSION_MESSAGE_NO_LENGTH);
+    RETURN_STRING_LITERAL(IETF_EXTENSION_MESSAGE);
+    default:
+      return QuicStrCat("Private value (", t, ")");
+  }
+}
+std::ostream& operator<<(std::ostream& os, const QuicIetfFrameType& c) {
+  os << QuicIetfFrameTypeString(c);
+  return os;
 }
 
 }  // namespace quic

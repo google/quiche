@@ -148,10 +148,31 @@ TEST_F(QuicFramesTest, ConnectionCloseFrameToString) {
   // underlying frame.
   EXPECT_EQ(
       "{ Close type: GOOGLE_QUIC_CONNECTION_CLOSE, error_code: 25, "
-      "extracted_error_code: 122, "
+      "extracted_error_code: QUIC_IETF_GQUIC_ERROR_MISSING, "
+      "error_details: 'No recent "
+      "network activity.'"
+      "}\n",
+      stream.str());
+  QuicFrame quic_frame(&frame);
+  EXPECT_FALSE(IsControlFrame(quic_frame.type));
+}
+
+TEST_F(QuicFramesTest, TransportConnectionCloseFrameToString) {
+  QuicConnectionCloseFrame frame;
+  frame.close_type = IETF_QUIC_TRANSPORT_CONNECTION_CLOSE;
+  frame.transport_error_code = FINAL_SIZE_ERROR;
+  frame.extracted_error_code = QUIC_NETWORK_IDLE_TIMEOUT;
+  frame.error_details = "No recent network activity.";
+  frame.transport_close_frame_type = IETF_STREAM;
+  std::ostringstream stream;
+  stream << frame;
+  EXPECT_EQ(
+      "{ Close type: IETF_QUIC_TRANSPORT_CONNECTION_CLOSE, error_code: "
+      "FINAL_SIZE_ERROR, "
+      "extracted_error_code: QUIC_NETWORK_IDLE_TIMEOUT, "
       "error_details: 'No recent "
       "network activity.', "
-      "frame_type: 0"
+      "frame_type: IETF_STREAM"
       "}\n",
       stream.str());
   QuicFrame quic_frame(&frame);

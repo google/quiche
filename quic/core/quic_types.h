@@ -267,6 +267,10 @@ enum QuicIetfFrameType : uint8_t {
   IETF_EXTENSION_MESSAGE_NO_LENGTH = 0x20,
   IETF_EXTENSION_MESSAGE = 0x21,
 };
+QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                             const QuicIetfFrameType& c);
+QUIC_EXPORT_PRIVATE std::string QuicIetfFrameTypeString(QuicIetfFrameType t);
+
 // Masks for the bits that indicate the frame is a Stream frame vs the
 // bits used as flags.
 #define IETF_STREAM_FRAME_TYPE_MASK 0xfffffffffffffff8
@@ -519,6 +523,9 @@ enum QuicIetfTransportErrorCodes : uint16_t {
   PROTOCOL_VIOLATION = 0xA,
   INVALID_MIGRATION = 0xC,
 };
+QUIC_EXPORT_PRIVATE std::string QuicIetfTransportErrorCodeString(
+    QuicIetfTransportErrorCodes c);
+
 QUIC_EXPORT_PRIVATE std::ostream& operator<<(
     std::ostream& os,
     const QuicIetfTransportErrorCodes& c);
