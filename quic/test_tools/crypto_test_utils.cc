@@ -232,9 +232,6 @@ int HandshakeWithFakeServer(QuicConfig* server_quic_config,
               CanAcceptClientHello(testing::_, testing::_, testing::_,
                                    testing::_, testing::_))
       .Times(testing::AnyNumber());
-  EXPECT_CALL(*server_session.helper(),
-              GenerateConnectionIdForReject(testing::_, testing::_))
-      .Times(testing::AnyNumber());
   EXPECT_CALL(*server_conn, OnCanWrite()).Times(testing::AnyNumber());
   EXPECT_CALL(*client_conn, OnCanWrite()).Times(testing::AnyNumber());
 

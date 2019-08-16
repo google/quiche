@@ -72,14 +72,6 @@ InsecureProofVerifier::CreateDefaultContext() {
   return nullptr;
 }
 
-QuicConnectionId QuartcCryptoServerStreamHelper::GenerateConnectionIdForReject(
-    QuicTransportVersion /*version*/,
-    QuicConnectionId /*connection_id*/) const {
-  // TODO(b/124399417):  Request a zero-length connection id here when the QUIC
-  // server perspective supports it.
-  return QuicUtils::CreateRandomConnectionId();
-}
-
 bool QuartcCryptoServerStreamHelper::CanAcceptClientHello(
     const CryptoHandshakeMessage& /*message*/,
     const QuicSocketAddress& /*client_address*/,

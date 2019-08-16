@@ -310,8 +310,7 @@ QuicConnectionId QuicDispatcher::MaybeReplaceServerConnectionId(
     return it->second;
   }
   QuicConnectionId new_connection_id =
-      session_helper_->GenerateConnectionIdForReject(version.transport_version,
-                                                     server_connection_id);
+      GenerateNewServerConnectionId(version, server_connection_id);
   DCHECK_EQ(expected_server_connection_id_length_, new_connection_id.length());
   // TODO(dschinazi) Prevent connection_id_map_ from growing indefinitely
   // before we ship a version that supports variable length connection IDs
@@ -321,6 +320,12 @@ QuicConnectionId QuicDispatcher::MaybeReplaceServerConnectionId(
   QUIC_DLOG(INFO) << "Replacing incoming connection ID " << server_connection_id
                   << " with " << new_connection_id;
   return new_connection_id;
+}
+
+QuicConnectionId QuicDispatcher::GenerateNewServerConnectionId(
+    ParsedQuicVersion /*version*/,
+    QuicConnectionId /*connection_id*/) const {
+  return QuicUtils::CreateRandomConnectionId();
 }
 
 bool QuicDispatcher::MaybeDispatchPacket(

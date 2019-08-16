@@ -45,6 +45,9 @@ class QuartcDispatcher : public QuicDispatcher,
                                    QuicStringPiece alpn,
                                    const ParsedQuicVersion& version) override;
 
+  // TODO(b/124399417): Override GenerateNewServerConnectionId and request a
+  // zero-length connection id when the QUIC server perspective supports it.
+
   // QuartcPacketTransport::Delegate overrides.
   void OnTransportCanWrite() override;
   void OnTransportReceived(const char* data, size_t data_len) override;

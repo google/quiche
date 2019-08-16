@@ -152,6 +152,11 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
   // otherwise, returns false and the packet needs further processing.
   virtual bool MaybeDispatchPacket(const ReceivedPacketInfo& packet_info);
 
+  // Generate a connection ID with a length that is expected by the dispatcher.
+  virtual QuicConnectionId GenerateNewServerConnectionId(
+      ParsedQuicVersion version,
+      QuicConnectionId connection_id) const;
+
   // Values to be returned by ValidityChecks() to indicate what should be done
   // with a packet. Fates with greater values are considered to be higher
   // priority. ValidityChecks should return fate based on the priority order

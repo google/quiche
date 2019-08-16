@@ -118,9 +118,10 @@ class TestDispatcher : public QuicDispatcher {
                        version_manager,
                        QuicMakeUnique<MockQuicConnectionHelper>(),
                        std::unique_ptr<QuicCryptoServerStream::Helper>(
-                           new QuicSimpleCryptoServerStreamHelper(random)),
+                           new QuicSimpleCryptoServerStreamHelper()),
                        QuicMakeUnique<MockAlarmFactory>(),
-                       kQuicDefaultConnectionIdLength) {}
+                       kQuicDefaultConnectionIdLength),
+        random_(random) {}
 
   MOCK_METHOD4(CreateQuicSession,
                QuicServerSessionBase*(QuicConnectionId connection_id,
@@ -130,6 +131,12 @@ class TestDispatcher : public QuicDispatcher {
 
   MOCK_METHOD1(ShouldCreateOrBufferPacketForConnection,
                bool(const ReceivedPacketInfo& packet_info));
+
+  QuicConnectionId GenerateNewServerConnectionId(
+      ParsedQuicVersion /*version*/,
+      QuicConnectionId /*connection_id*/) const override {
+    return QuicUtils::CreateRandomConnectionId(random_);
+  }
 
   struct TestQuicPerPacketContext : public QuicPerPacketContext {
     std::string custom_packet_context;
@@ -152,6 +159,8 @@ class TestDispatcher : public QuicDispatcher {
 
   using QuicDispatcher::SetAllowShortInitialServerConnectionIds;
   using QuicDispatcher::writer;
+
+  QuicRandom* random_;
 };
 
 // A Connection class which unregisters the session from the dispatcher when
@@ -187,9 +196,7 @@ class QuicDispatcherTest : public QuicTest {
       : QuicDispatcherTest(crypto_test_utils::ProofSourceForTesting()) {}
 
   explicit QuicDispatcherTest(std::unique_ptr<ProofSource> proof_source)
-      :
-
-        version_manager_(AllSupportedVersions()),
+      : version_manager_(AllSupportedVersions()),
         crypto_config_(QuicCryptoServerConfig::TESTING,
                        QuicRandom::GetInstance(),
                        std::move(proof_source),

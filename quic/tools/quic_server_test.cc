@@ -72,7 +72,7 @@ class TestQuicServer : public QuicServer {
             new QuicEpollConnectionHelper(epoll_server(),
                                           QuicAllocator::BUFFER_POOL)),
         std::unique_ptr<QuicCryptoServerStream::Helper>(
-            new QuicSimpleCryptoServerStreamHelper(QuicRandom::GetInstance())),
+            new QuicSimpleCryptoServerStreamHelper()),
         std::unique_ptr<QuicEpollAlarmFactory>(
             new QuicEpollAlarmFactory(epoll_server())),
         &quic_simple_server_backend_);
@@ -163,8 +163,7 @@ class QuicServerDispatchPacketTest : public QuicTest {
                 new QuicEpollConnectionHelper(&eps_,
                                               QuicAllocator::BUFFER_POOL)),
             std::unique_ptr<QuicCryptoServerStream::Helper>(
-                new QuicSimpleCryptoServerStreamHelper(
-                    QuicRandom::GetInstance())),
+                new QuicSimpleCryptoServerStreamHelper()),
             std::unique_ptr<QuicEpollAlarmFactory>(
                 new QuicEpollAlarmFactory(&eps_)),
             &quic_simple_server_backend_) {

@@ -8,19 +8,11 @@
 
 namespace quic {
 
-QuicSimpleCryptoServerStreamHelper::QuicSimpleCryptoServerStreamHelper(
-    QuicRandom* random)
-    : random_(random) {}
+QuicSimpleCryptoServerStreamHelper::QuicSimpleCryptoServerStreamHelper() =
+    default;
 
 QuicSimpleCryptoServerStreamHelper::~QuicSimpleCryptoServerStreamHelper() =
     default;
-
-QuicConnectionId
-QuicSimpleCryptoServerStreamHelper::GenerateConnectionIdForReject(
-    QuicTransportVersion /*version*/,
-    QuicConnectionId /*connection_id*/) const {
-  return QuicUtils::CreateRandomConnectionId(random_);
-}
 
 bool QuicSimpleCryptoServerStreamHelper::CanAcceptClientHello(
     const CryptoHandshakeMessage& /*message*/,

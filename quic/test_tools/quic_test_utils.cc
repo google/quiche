@@ -638,9 +638,6 @@ TestQuicSpdyServerSession::TestQuicSpdyServerSession(
                             crypto_config,
                             compressed_certs_cache) {
   Initialize();
-  ON_CALL(helper_, GenerateConnectionIdForReject(_, _))
-      .WillByDefault(testing::Return(
-          QuicUtils::CreateRandomConnectionId(connection->random_generator())));
   ON_CALL(helper_, CanAcceptClientHello(_, _, _, _, _))
       .WillByDefault(testing::Return(true));
 }

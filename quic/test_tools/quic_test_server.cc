@@ -184,7 +184,7 @@ QuicDispatcher* QuicTestServer::CreateQuicDispatcher() {
       QuicMakeUnique<QuicEpollConnectionHelper>(epoll_server(),
                                                 QuicAllocator::BUFFER_POOL),
       std::unique_ptr<QuicCryptoServerStream::Helper>(
-          new QuicSimpleCryptoServerStreamHelper(QuicRandom::GetInstance())),
+          new QuicSimpleCryptoServerStreamHelper()),
       QuicMakeUnique<QuicEpollAlarmFactory>(epoll_server()), server_backend(),
       expected_server_connection_id_length());
 }
