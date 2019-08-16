@@ -36,4 +36,13 @@ void QpackSendStream::WriteStreamData(QuicStringPiece data) {
   WriteOrBufferData(data, false, nullptr);
 }
 
+void QpackSendStream::SendStreamType() {
+  char type[sizeof(http3_stream_type_)];
+  QuicDataWriter writer(QUIC_ARRAYSIZE(type), type);
+  writer.WriteVarInt62(http3_stream_type_);
+  WriteOrBufferData(QuicStringPiece(writer.data(), writer.length()), false,
+                    nullptr);
+  stream_type_sent_ = true;
+}
+
 }  // namespace quic

@@ -62,7 +62,7 @@ class QpackReceiveStreamTest : public QuicTestWithParam<TestParams> {
                               GetParam().version.transport_version,
                               QuicUtils::InvertPerspective(perspective())),
                           &session_);
-    auto qpack_receive = QuicMakeUnique<QpackReceiveStream>(pending);
+    auto qpack_receive = QuicMakeUnique<QpackReceiveStream>(pending, nullptr);
     qpack_receive_stream_ = qpack_receive.get();
     session_.RegisterStaticStream(std::move(qpack_receive), false);
     delete pending;

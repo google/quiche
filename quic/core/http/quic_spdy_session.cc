@@ -309,6 +309,10 @@ QuicSpdySession::QuicSpdySession(
     : QuicSession(connection, visitor, config, supported_versions),
       send_control_stream_(nullptr),
       receive_control_stream_(nullptr),
+      qpack_encoder_receive_stream_(nullptr),
+      qpack_decoder_receive_stream_(nullptr),
+      qpack_encoder_send_stream_(nullptr),
+      qpack_decoder_send_stream_(nullptr),
       max_inbound_header_list_size_(kDefaultMaxUncompressedHeaderSize),
       max_outbound_header_list_size_(kDefaultMaxUncompressedHeaderSize),
       server_push_enabled_(true),
@@ -364,22 +368,15 @@ void QuicSpdySession::Initialize() {
                          /*stream_already_counted = */ false);
   } else {
     qpack_encoder_ = QuicMakeUnique<QpackEncoder>(this);
-    qpack_encoder_->set_qpack_stream_sender_delegate(
-        &encoder_stream_sender_delegate_);
     qpack_decoder_ =
         QuicMakeUnique<QpackDecoder>(kDefaultQpackMaxDynamicTableCapacity,
                                      /* maximum_blocked_streams = */ 0, this);
-    qpack_decoder_->set_qpack_stream_sender_delegate(
-        &decoder_stream_sender_delegate_);
+    MaybeInitializeHttp3UnidirectionalStreams();
     // TODO(b/112770235): Set sensible limit on maximum number of blocked
     // streams.
     // TODO(b/112770235): Send SETTINGS_QPACK_MAX_TABLE_CAPACITY with value
     // kDefaultQpackMaxDynamicTableCapacity, and SETTINGS_QPACK_BLOCKED_STREAMS
     // with limit on maximum number of blocked streams.
-  }
-
-  if (VersionHasStreamType(connection()->transport_version())) {
-    MaybeInitializeHttp3UnidirectionalStreams();
   }
 
   spdy_framer_visitor_->set_max_header_list_size(max_inbound_header_list_size_);
@@ -548,6 +545,10 @@ void QuicSpdySession::WritePushPromise(QuicStreamId original_stream_id,
 void QuicSpdySession::SendMaxHeaderListSize(size_t value) {
   if (VersionHasStreamType(connection()->transport_version())) {
     send_control_stream_->SendSettingsFrame();
+    // TODO(renjietang): Remove this once stream id manager can take dynamically
+    // created HTTP/3 unidirectional streams.
+    qpack_encoder_send_stream_->SendStreamType();
+    qpack_decoder_send_stream_->SendStreamType();
     return;
   }
   SpdySettingsIR settings_frame;
@@ -893,6 +894,7 @@ bool QuicSpdySession::ProcessPendingStream(PendingStream* pending) {
       RegisterStaticStream(std::move(receive_stream),
                            /*stream_already_counted = */ true);
       receive_control_stream_->SetUnblocked();
+      QUIC_DVLOG(1) << "Receive Control stream is created";
       return true;
     }
     case kServerPushStream: {  // Push Stream.
@@ -900,12 +902,26 @@ bool QuicSpdySession::ProcessPendingStream(PendingStream* pending) {
       stream->SetUnblocked();
       return true;
     }
-    case kQpackEncoderStream:  // QPACK encoder stream.
-      // TODO(bnc): Create QPACK encoder stream.
-      break;
-    case kQpackDecoderStream:  // QPACK decoder stream.
-      // TODO(bnc): Create QPACK decoder stream.
-      break;
+    case kQpackEncoderStream: {  // QPACK encoder stream.
+      auto encoder_receive = QuicMakeUnique<QpackReceiveStream>(
+          pending, qpack_decoder_->encoder_stream_receiver());
+      qpack_encoder_receive_stream_ = encoder_receive.get();
+      RegisterStaticStream(std::move(encoder_receive),
+                           /*stream_already_counted = */ true);
+      qpack_encoder_receive_stream_->SetUnblocked();
+      QUIC_DVLOG(1) << "Receive QPACK Encoder stream is created";
+      return true;
+    }
+    case kQpackDecoderStream: {  // QPACK decoder stream.
+      auto decoder_receive = QuicMakeUnique<QpackReceiveStream>(
+          pending, qpack_encoder_->decoder_stream_receiver());
+      qpack_decoder_receive_stream_ = decoder_receive.get();
+      RegisterStaticStream(std::move(decoder_receive),
+                           /*stream_already_counted = */ true);
+      qpack_decoder_receive_stream_->SetUnblocked();
+      QUIC_DVLOG(1) << "Receive Qpack Decoder stream is created";
+      return true;
+    }
     default:
       SendStopSending(kHttpUnknownStreamType, pending->id());
       pending->StopReading();
@@ -922,6 +938,28 @@ void QuicSpdySession::MaybeInitializeHttp3UnidirectionalStreams() {
     send_control_stream_ = send_control.get();
     RegisterStaticStream(std::move(send_control),
                          /*stream_already_counted = */ false);
+  }
+
+  if (!qpack_decoder_send_stream_ &&
+      CanOpenNextOutgoingUnidirectionalStream()) {
+    auto decoder_send = QuicMakeUnique<QpackSendStream>(
+        GetNextOutgoingUnidirectionalStreamId(), this, kQpackDecoderStream);
+    qpack_decoder_send_stream_ = decoder_send.get();
+    RegisterStaticStream(std::move(decoder_send),
+                         /*stream_already_counted = */ false);
+    qpack_decoder_->set_qpack_stream_sender_delegate(
+        qpack_decoder_send_stream_);
+  }
+
+  if (!qpack_encoder_send_stream_ &&
+      CanOpenNextOutgoingUnidirectionalStream()) {
+    auto encoder_send = QuicMakeUnique<QpackSendStream>(
+        GetNextOutgoingUnidirectionalStreamId(), this, kQpackEncoderStream);
+    qpack_encoder_send_stream_ = encoder_send.get();
+    RegisterStaticStream(std::move(encoder_send),
+                         /*stream_already_counted = */ false);
+    qpack_encoder_->set_qpack_stream_sender_delegate(
+        qpack_encoder_send_stream_);
   }
 }
 

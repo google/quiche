@@ -15,6 +15,7 @@
 #include "net/third_party/quiche/src/quic/core/http/http_constants.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_spdy_client_stream.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_encoder_test_utils.h"
+#include "net/third_party/quiche/src/quic/core/quic_data_writer.h"
 #include "net/third_party/quiche/src/quic/core/quic_epoll_connection_helper.h"
 #include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
 #include "net/third_party/quiche/src/quic/core/quic_framer.h"
@@ -1670,8 +1671,8 @@ TEST_P(EndToEndTestWithTls, MaxIncomingDynamicStreamsLimitRespected) {
 
 TEST_P(EndToEndTest, SetIndependentMaxIncomingDynamicStreamsLimits) {
   // Each endpoint can set max incoming dynamic streams independently.
-  const uint32_t kClientMaxIncomingDynamicStreams = 2;
-  const uint32_t kServerMaxIncomingDynamicStreams = 1;
+  const uint32_t kClientMaxIncomingDynamicStreams = 4;
+  const uint32_t kServerMaxIncomingDynamicStreams = 3;
   client_config_.SetMaxIncomingBidirectionalStreamsToSend(
       kClientMaxIncomingDynamicStreams);
   server_config_.SetMaxIncomingBidirectionalStreamsToSend(
@@ -1739,6 +1740,7 @@ TEST_P(EndToEndTest, SetIndependentMaxIncomingDynamicStreamsLimits) {
             server_max_open_outgoing_bidirectional_streams);
   EXPECT_EQ(kClientMaxIncomingDynamicStreams,
             server_max_open_outgoing_unidirectional_streams);
+
   server_thread_->Resume();
 }
 
@@ -2280,7 +2282,10 @@ TEST_P(EndToEndTest, FlowControlsSynced) {
     // below, the settings frame might not be received.
     HttpEncoder encoder;
     SettingsFrame settings;
-    settings.values[6] = kDefaultMaxUncompressedHeaderSize;
+    settings.values[SETTINGS_MAX_HEADER_LIST_SIZE] =
+        kDefaultMaxUncompressedHeaderSize;
+    settings.values[SETTINGS_QPACK_MAX_TABLE_CAPACITY] =
+        kDefaultQpackMaxDynamicTableCapacity;
     std::unique_ptr<char[]> buffer;
     auto header_length = encoder.SerializeSettingsFrame(settings, &buffer);
     QuicByteCount win_difference1 = QuicFlowControllerPeer::ReceiveWindowSize(
@@ -2294,11 +2299,15 @@ TEST_P(EndToEndTest, FlowControlsSynced) {
     EXPECT_TRUE(win_difference1 == 0 ||
                 win_difference1 ==
                     header_length +
-                        QuicDataWriter::GetVarInt62Len(kControlStream));
+                        QuicDataWriter::GetVarInt62Len(kControlStream) +
+                        QuicDataWriter::GetVarInt62Len(kQpackEncoderStream) +
+                        QuicDataWriter::GetVarInt62Len(kQpackDecoderStream));
     EXPECT_TRUE(win_difference2 == 0 ||
                 win_difference2 ==
                     header_length +
-                        QuicDataWriter::GetVarInt62Len(kControlStream));
+                        QuicDataWriter::GetVarInt62Len(kControlStream) +
+                        QuicDataWriter::GetVarInt62Len(kQpackEncoderStream) +
+                        QuicDataWriter::GetVarInt62Len(kQpackDecoderStream));
     // The test returns early because in this version, headers stream no longer
     // sends settings.
     return;

@@ -417,7 +417,7 @@ TEST_P(QuicSimpleServerStreamTest, SendPushResponseWith404Response) {
   // Create a new promised stream with even id().
   auto promised_stream = new StrictMock<TestStream>(
       GetNthServerInitiatedUnidirectionalStreamId(
-          connection_->transport_version(), 1),
+          connection_->transport_version(), 3),
       &session_, WRITE_UNIDIRECTIONAL, &memory_cache_backend_);
   session_.ActivateStream(QuicWrapUnique(promised_stream));
 
@@ -553,7 +553,7 @@ TEST_P(QuicSimpleServerStreamTest, PushResponseOnServerInitiatedStream) {
   // Create a stream with even stream id and test against this stream.
   const QuicStreamId kServerInitiatedStreamId =
       GetNthServerInitiatedUnidirectionalStreamId(
-          connection_->transport_version(), 1);
+          connection_->transport_version(), 3);
   // Create a server initiated stream and pass it to session_.
   auto server_initiated_stream =
       new StrictMock<TestStream>(kServerInitiatedStreamId, &session_,

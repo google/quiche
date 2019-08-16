@@ -42,6 +42,10 @@ class QUIC_EXPORT_PRIVATE QpackSendStream : public QuicStream,
   // before the first instruction so that the peer can open an qpack stream.
   void WriteStreamData(QuicStringPiece data) override;
 
+  // TODO(b/112770235): Remove this method once QuicStreamIdManager supports
+  // creating HTTP/3 unidirectional streams dynamically.
+  void SendStreamType();
+
  private:
   const uint64_t http3_stream_type_;
   bool stream_type_sent_;

@@ -42,6 +42,8 @@ void QuicSendControlStream::SendSettingsFrame() {
   SettingsFrame settings;
   settings.values[SETTINGS_MAX_HEADER_LIST_SIZE] =
       max_inbound_header_list_size_;
+  settings.values[SETTINGS_QPACK_MAX_TABLE_CAPACITY] =
+      kDefaultQpackMaxDynamicTableCapacity;
   std::unique_ptr<char[]> buffer;
   QuicByteCount frame_length =
       encoder_.SerializeSettingsFrame(settings, &buffer);

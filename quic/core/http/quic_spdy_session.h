@@ -18,6 +18,8 @@
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_decoder_stream_sender.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_encoder.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_encoder_stream_sender.h"
+#include "net/third_party/quiche/src/quic/core/qpack/qpack_receive_stream.h"
+#include "net/third_party/quiche/src/quic/core/qpack/qpack_send_stream.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_utils.h"
 #include "net/third_party/quiche/src/quic/core/quic_session.h"
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
@@ -284,10 +286,16 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // Pointer to the header stream in stream_map_.
   QuicHeadersStream* headers_stream_;
 
-  // HTTP/3 control streams. They are owned by QuicSession inside dynamic
+  // HTTP/3 control streams. They are owned by QuicSession inside
   // stream map, and can be accessed by those unowned pointers below.
   QuicSendControlStream* send_control_stream_;
   QuicReceiveControlStream* receive_control_stream_;
+
+  // Pointers to HTTP/3 QPACK streams in stream map.
+  QpackReceiveStream* qpack_encoder_receive_stream_;
+  QpackReceiveStream* qpack_decoder_receive_stream_;
+  QpackSendStream* qpack_encoder_send_stream_;
+  QpackSendStream* qpack_decoder_send_stream_;
 
   // The maximum size of a header block that will be accepted from the peer,
   // defined per spec as key + value + overhead per field (uncompressed).
@@ -313,10 +321,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   spdy::SpdyFramer spdy_framer_;
   http2::Http2DecoderAdapter h2_deframer_;
   std::unique_ptr<SpdyFramerVisitor> spdy_framer_visitor_;
-
-  // TODO(renjietang): Replace these two members with actual QPACK send streams.
-  NoopQpackStreamSenderDelegate encoder_stream_sender_delegate_;
-  NoopQpackStreamSenderDelegate decoder_stream_sender_delegate_;
   QuicStreamId max_allowed_push_id_;
 };
 
