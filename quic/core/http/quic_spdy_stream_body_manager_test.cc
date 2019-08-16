@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/core/http/quic_spdy_stream_body_buffer.h"
+#include "net/third_party/quiche/src/quic/core/http/quic_spdy_stream_body_manager.h"
 
 #include <algorithm>
 #include <numeric>
@@ -19,33 +19,33 @@ namespace test {
 
 namespace {
 
-class QuicSpdyStreamBodyBufferTest : public QuicTest {
+class QuicSpdyStreamBodyManagerTest : public QuicTest {
  protected:
-  QuicSpdyStreamBodyBuffer body_buffer_;
+  QuicSpdyStreamBodyManager body_manager_;
 };
 
-TEST_F(QuicSpdyStreamBodyBufferTest, HasBytesToRead) {
-  EXPECT_FALSE(body_buffer_.HasBytesToRead());
-  EXPECT_EQ(0u, body_buffer_.total_body_bytes_received());
+TEST_F(QuicSpdyStreamBodyManagerTest, HasBytesToRead) {
+  EXPECT_FALSE(body_manager_.HasBytesToRead());
+  EXPECT_EQ(0u, body_manager_.total_body_bytes_received());
 
   const QuicByteCount header_length = 3;
-  EXPECT_EQ(header_length, body_buffer_.OnNonBody(header_length));
+  EXPECT_EQ(header_length, body_manager_.OnNonBody(header_length));
 
-  EXPECT_FALSE(body_buffer_.HasBytesToRead());
-  EXPECT_EQ(0u, body_buffer_.total_body_bytes_received());
+  EXPECT_FALSE(body_manager_.HasBytesToRead());
+  EXPECT_EQ(0u, body_manager_.total_body_bytes_received());
 
   std::string body(1024, 'a');
-  body_buffer_.OnBody(body);
+  body_manager_.OnBody(body);
 
-  EXPECT_TRUE(body_buffer_.HasBytesToRead());
-  EXPECT_EQ(1024u, body_buffer_.total_body_bytes_received());
+  EXPECT_TRUE(body_manager_.HasBytesToRead());
+  EXPECT_EQ(1024u, body_manager_.total_body_bytes_received());
 }
 
-TEST_F(QuicSpdyStreamBodyBufferTest, ConsumeMoreThanAvailable) {
+TEST_F(QuicSpdyStreamBodyManagerTest, ConsumeMoreThanAvailable) {
   std::string body(1024, 'a');
-  body_buffer_.OnBody(body);
+  body_manager_.OnBody(body);
   size_t bytes_to_consume = 0;
-  EXPECT_QUIC_BUG(bytes_to_consume = body_buffer_.OnBodyConsumed(2048),
+  EXPECT_QUIC_BUG(bytes_to_consume = body_manager_.OnBodyConsumed(2048),
                   "Not enough available body to consume.");
   EXPECT_EQ(0u, bytes_to_consume);
 }
@@ -72,7 +72,7 @@ struct {
     {{3, 5}, {"foobar", "baz"}, {7, 2}, {12, 2}},
 };
 
-TEST_F(QuicSpdyStreamBodyBufferTest, OnBodyConsumed) {
+TEST_F(QuicSpdyStreamBodyManagerTest, OnBodyConsumed) {
   for (size_t test_case_index = 0;
        test_case_index < QUIC_ARRAYSIZE(kOnBodyConsumedTestData);
        ++test_case_index) {
@@ -89,19 +89,19 @@ TEST_F(QuicSpdyStreamBodyBufferTest, OnBodyConsumed) {
          ++frame_index) {
       // Frame header of first frame can immediately be consumed, but not the
       // other frames.  Each test case start with an empty
-      // QuicSpdyStreamBodyBuffer.
+      // QuicSpdyStreamBodyManager.
       EXPECT_EQ(frame_index == 0 ? frame_header_lengths[frame_index] : 0u,
-                body_buffer_.OnNonBody(frame_header_lengths[frame_index]));
-      body_buffer_.OnBody(frame_payloads[frame_index]);
+                body_manager_.OnNonBody(frame_header_lengths[frame_index]));
+      body_manager_.OnBody(frame_payloads[frame_index]);
     }
 
     for (size_t call_index = 0; call_index < body_bytes_to_read.size();
          ++call_index) {
       EXPECT_EQ(expected_return_values[call_index],
-                body_buffer_.OnBodyConsumed(body_bytes_to_read[call_index]));
+                body_manager_.OnBodyConsumed(body_bytes_to_read[call_index]));
     }
 
-    EXPECT_FALSE(body_buffer_.HasBytesToRead());
+    EXPECT_FALSE(body_manager_.HasBytesToRead());
   }
 }
 
@@ -124,7 +124,7 @@ struct {
     {{3, 5}, {"foobar", "baz"}, 3},
 };
 
-TEST_F(QuicSpdyStreamBodyBufferTest, PeekBody) {
+TEST_F(QuicSpdyStreamBodyManagerTest, PeekBody) {
   for (size_t test_case_index = 0;
        test_case_index < QUIC_ARRAYSIZE(kPeekBodyTestData); ++test_case_index) {
     const std::vector<QuicByteCount>& frame_header_lengths =
@@ -133,23 +133,23 @@ TEST_F(QuicSpdyStreamBodyBufferTest, PeekBody) {
         kPeekBodyTestData[test_case_index].frame_payloads;
     size_t iov_len = kPeekBodyTestData[test_case_index].iov_len;
 
-    QuicSpdyStreamBodyBuffer body_buffer;
+    QuicSpdyStreamBodyManager body_manager;
 
     for (size_t frame_index = 0; frame_index < frame_header_lengths.size();
          ++frame_index) {
       // Frame header of first frame can immediately be consumed, but not the
-      // other frames.  Each test case uses a new QuicSpdyStreamBodyBuffer
+      // other frames.  Each test case uses a new QuicSpdyStreamBodyManager
       // instance.
       EXPECT_EQ(frame_index == 0 ? frame_header_lengths[frame_index] : 0u,
-                body_buffer.OnNonBody(frame_header_lengths[frame_index]));
-      body_buffer.OnBody(frame_payloads[frame_index]);
+                body_manager.OnNonBody(frame_header_lengths[frame_index]));
+      body_manager.OnBody(frame_payloads[frame_index]);
     }
 
     std::vector<iovec> iovecs;
     iovecs.resize(iov_len);
     size_t iovs_filled = std::min(frame_payloads.size(), iov_len);
     ASSERT_EQ(iovs_filled,
-              static_cast<size_t>(body_buffer.PeekBody(&iovecs[0], iov_len)));
+              static_cast<size_t>(body_manager.PeekBody(&iovecs[0], iov_len)));
     for (size_t iovec_index = 0; iovec_index < iovs_filled; ++iovec_index) {
       EXPECT_EQ(frame_payloads[iovec_index],
                 QuicStringPiece(
@@ -214,7 +214,7 @@ struct {
      {10, 5, 10}},
 };
 
-TEST_F(QuicSpdyStreamBodyBufferTest, ReadBody) {
+TEST_F(QuicSpdyStreamBodyManagerTest, ReadBody) {
   for (size_t test_case_index = 0;
        test_case_index < QUIC_ARRAYSIZE(kReadBodyTestData); ++test_case_index) {
     const std::vector<QuicByteCount>& frame_header_lengths =
@@ -228,18 +228,18 @@ TEST_F(QuicSpdyStreamBodyBufferTest, ReadBody) {
     const std::vector<QuicByteCount>& expected_return_values =
         kReadBodyTestData[test_case_index].expected_return_values;
 
-    QuicSpdyStreamBodyBuffer body_buffer;
+    QuicSpdyStreamBodyManager body_manager;
 
     std::string received_body;
 
     for (size_t frame_index = 0; frame_index < frame_header_lengths.size();
          ++frame_index) {
       // Frame header of first frame can immediately be consumed, but not the
-      // other frames.  Each test case uses a new QuicSpdyStreamBodyBuffer
+      // other frames.  Each test case uses a new QuicSpdyStreamBodyManager
       // instance.
       EXPECT_EQ(frame_index == 0 ? frame_header_lengths[frame_index] : 0u,
-                body_buffer.OnNonBody(frame_header_lengths[frame_index]));
-      body_buffer.OnBody(frame_payloads[frame_index]);
+                body_manager.OnNonBody(frame_header_lengths[frame_index]));
+      body_manager.OnBody(frame_payloads[frame_index]);
       received_body.append(frame_payloads[frame_index]);
     }
 
@@ -265,13 +265,13 @@ TEST_F(QuicSpdyStreamBodyBufferTest, ReadBody) {
       size_t total_bytes_read = expected_total_bytes_read[call_index] + 12;
       EXPECT_EQ(
           expected_return_values[call_index],
-          body_buffer.ReadBody(&iovecs[0], iovecs.size(), &total_bytes_read));
+          body_manager.ReadBody(&iovecs[0], iovecs.size(), &total_bytes_read));
       read_body.append(buffer.substr(0, total_bytes_read));
     }
 
     EXPECT_EQ(received_body.substr(0, read_body.size()), read_body);
     EXPECT_EQ(read_body.size() < received_body.size(),
-              body_buffer.HasBytesToRead());
+              body_manager.HasBytesToRead());
   }
 }
 

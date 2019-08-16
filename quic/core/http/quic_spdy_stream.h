@@ -18,7 +18,7 @@
 #include "net/third_party/quiche/src/quic/core/http/http_decoder.h"
 #include "net/third_party/quiche/src/quic/core/http/http_encoder.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_header_list.h"
-#include "net/third_party/quiche/src/quic/core/http/quic_spdy_stream_body_buffer.h"
+#include "net/third_party/quiche/src/quic/core/http/quic_spdy_stream_body_manager.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_decoded_headers_accumulator.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_stream.h"
@@ -312,8 +312,10 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   std::unique_ptr<HttpDecoderVisitor> http_decoder_visitor_;
   // HttpDecoder for processing raw incoming stream frames.
   HttpDecoder decoder_;
-  // Buffer that contains decoded data of the stream.
-  QuicSpdyStreamBodyBuffer body_buffer_;
+  // Object that manages references to DATA frame payload fragments buffered by
+  // the sequencer and calculates how much data should be marked consumed with
+  // the sequencer each time new stream data is processed.
+  QuicSpdyStreamBodyManager body_manager_;
 
   // Sequencer offset keeping track of how much data HttpDecoder has processed.
   // Initial value is zero for fresh streams, or sequencer()->NumBytesConsumed()

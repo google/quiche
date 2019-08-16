@@ -430,7 +430,7 @@ size_t QuicSpdyStream::Readv(const struct iovec* iov, size_t iov_len) {
     return sequencer()->Readv(iov, iov_len);
   }
   size_t bytes_read = 0;
-  sequencer()->MarkConsumed(body_buffer_.ReadBody(iov, iov_len, &bytes_read));
+  sequencer()->MarkConsumed(body_manager_.ReadBody(iov, iov_len, &bytes_read));
 
   return bytes_read;
 }
@@ -440,7 +440,7 @@ int QuicSpdyStream::GetReadableRegions(iovec* iov, size_t iov_len) const {
   if (!VersionHasDataFrameHeader(transport_version())) {
     return sequencer()->GetReadableRegions(iov, iov_len);
   }
-  return body_buffer_.PeekBody(iov, iov_len);
+  return body_manager_.PeekBody(iov, iov_len);
 }
 
 void QuicSpdyStream::MarkConsumed(size_t num_bytes) {
@@ -450,7 +450,7 @@ void QuicSpdyStream::MarkConsumed(size_t num_bytes) {
     return;
   }
 
-  sequencer()->MarkConsumed(body_buffer_.OnBodyConsumed(num_bytes));
+  sequencer()->MarkConsumed(body_manager_.OnBodyConsumed(num_bytes));
 }
 
 bool QuicSpdyStream::IsDoneReading() const {
@@ -464,7 +464,7 @@ bool QuicSpdyStream::HasBytesToRead() const {
   if (!VersionHasDataFrameHeader(transport_version())) {
     return sequencer()->HasBytesToRead();
   }
-  return body_buffer_.HasBytesToRead();
+  return body_manager_.HasBytesToRead();
 }
 
 void QuicSpdyStream::MarkTrailersConsumed() {
@@ -473,7 +473,7 @@ void QuicSpdyStream::MarkTrailersConsumed() {
 
 uint64_t QuicSpdyStream::total_body_bytes_read() const {
   if (VersionHasDataFrameHeader(transport_version())) {
-    return body_buffer_.total_body_bytes_received();
+    return body_manager_.total_body_bytes_received();
   }
   return sequencer()->NumBytesConsumed();
 }
@@ -490,7 +490,7 @@ void QuicSpdyStream::ConsumeHeaderList() {
     return;
   }
 
-  if (body_buffer_.HasBytesToRead()) {
+  if (body_manager_.HasBytesToRead()) {
     OnBodyAvailable();
     return;
   }
@@ -709,7 +709,7 @@ void QuicSpdyStream::OnDataAvailable() {
     return;
   }
 
-  if (body_buffer_.HasBytesToRead()) {
+  if (body_manager_.HasBytesToRead()) {
     OnBodyAvailable();
     return;
   }
@@ -794,7 +794,7 @@ bool QuicSpdyStream::OnDataFrameStart(QuicByteCount header_length) {
     return false;
   }
 
-  sequencer()->MarkConsumed(body_buffer_.OnNonBody(header_length));
+  sequencer()->MarkConsumed(body_manager_.OnNonBody(header_length));
 
   return true;
 }
@@ -802,7 +802,7 @@ bool QuicSpdyStream::OnDataFrameStart(QuicByteCount header_length) {
 bool QuicSpdyStream::OnDataFramePayload(QuicStringPiece payload) {
   DCHECK(VersionHasDataFrameHeader(transport_version()));
 
-  body_buffer_.OnBody(payload);
+  body_manager_.OnBody(payload);
 
   return true;
 }
@@ -810,7 +810,7 @@ bool QuicSpdyStream::OnDataFramePayload(QuicStringPiece payload) {
 bool QuicSpdyStream::OnDataFrameEnd() {
   DCHECK(VersionHasDataFrameHeader(transport_version()));
   QUIC_DVLOG(1) << "Reaches the end of a data frame. Total bytes received are "
-                << body_buffer_.total_body_bytes_received();
+                << body_manager_.total_body_bytes_received();
   return true;
 }
 
@@ -874,7 +874,7 @@ bool QuicSpdyStream::OnHeadersFrameStart(QuicByteCount header_length) {
     return false;
   }
 
-  sequencer()->MarkConsumed(body_buffer_.OnNonBody(header_length));
+  sequencer()->MarkConsumed(body_manager_.OnNonBody(header_length));
 
   qpack_decoded_headers_accumulator_ =
       QuicMakeUnique<QpackDecodedHeadersAccumulator>(
@@ -895,7 +895,7 @@ bool QuicSpdyStream::OnHeadersFramePayload(QuicStringPiece payload) {
 
   const bool success = qpack_decoded_headers_accumulator_->Decode(payload);
 
-  sequencer()->MarkConsumed(body_buffer_.OnNonBody(payload.size()));
+  sequencer()->MarkConsumed(body_manager_.OnNonBody(payload.size()));
 
   if (!success) {
     // TODO(124216424): Use HTTP_QPACK_DECOMPRESSION_FAILED error code.
@@ -942,7 +942,7 @@ bool QuicSpdyStream::OnPushPromiseFrameStart(PushId push_id,
   // TODO(renjietang): Check max push id and handle errors.
   spdy_session_->OnPushPromise(id(), push_id);
   sequencer()->MarkConsumed(
-      body_buffer_.OnNonBody(header_length + push_id_length));
+      body_manager_.OnNonBody(header_length + push_id_length));
 
   qpack_decoded_headers_accumulator_ =
       QuicMakeUnique<QpackDecodedHeadersAccumulator>(
@@ -969,7 +969,7 @@ bool QuicSpdyStream::OnUnknownFrameStart(uint64_t frame_type,
   QUIC_DVLOG(1) << "Discarding " << header_length
                 << " byte long frame header of frame of unknown type "
                 << frame_type << ".";
-  sequencer()->MarkConsumed(body_buffer_.OnNonBody(header_length));
+  sequencer()->MarkConsumed(body_manager_.OnNonBody(header_length));
   return true;
 }
 
@@ -977,7 +977,7 @@ bool QuicSpdyStream::OnUnknownFramePayload(QuicStringPiece payload) {
   // Ignore unknown frames, but consume frame payload.
   QUIC_DVLOG(1) << "Discarding " << payload.size()
                 << " bytes of payload of frame of unknown type.";
-  sequencer()->MarkConsumed(body_buffer_.OnNonBody(payload.size()));
+  sequencer()->MarkConsumed(body_manager_.OnNonBody(payload.size()));
   return true;
 }
 

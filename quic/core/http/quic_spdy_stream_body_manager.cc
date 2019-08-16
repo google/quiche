@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/core/http/quic_spdy_stream_body_buffer.h"
+#include "net/third_party/quiche/src/quic/core/http/quic_spdy_stream_body_manager.h"
 
 #include <algorithm>
 
@@ -10,10 +10,10 @@
 
 namespace quic {
 
-QuicSpdyStreamBodyBuffer::QuicSpdyStreamBodyBuffer()
+QuicSpdyStreamBodyManager::QuicSpdyStreamBodyManager()
     : total_body_bytes_received_(0) {}
 
-size_t QuicSpdyStreamBodyBuffer::OnNonBody(QuicByteCount length) {
+size_t QuicSpdyStreamBodyManager::OnNonBody(QuicByteCount length) {
   DCHECK_NE(0u, length);
 
   if (fragments_.empty()) {
@@ -27,14 +27,14 @@ size_t QuicSpdyStreamBodyBuffer::OnNonBody(QuicByteCount length) {
   return 0;
 }
 
-void QuicSpdyStreamBodyBuffer::OnBody(QuicStringPiece body) {
+void QuicSpdyStreamBodyManager::OnBody(QuicStringPiece body) {
   DCHECK(!body.empty());
 
   fragments_.push_back({body, 0});
   total_body_bytes_received_ += body.length();
 }
 
-size_t QuicSpdyStreamBodyBuffer::OnBodyConsumed(size_t num_bytes) {
+size_t QuicSpdyStreamBodyManager::OnBodyConsumed(size_t num_bytes) {
   QuicByteCount bytes_to_consume = 0;
   size_t remaining_bytes = num_bytes;
 
@@ -64,7 +64,7 @@ size_t QuicSpdyStreamBodyBuffer::OnBodyConsumed(size_t num_bytes) {
   return bytes_to_consume;
 }
 
-int QuicSpdyStreamBodyBuffer::PeekBody(iovec* iov, size_t iov_len) const {
+int QuicSpdyStreamBodyManager::PeekBody(iovec* iov, size_t iov_len) const {
   DCHECK(iov);
   DCHECK_GT(iov_len, 0u);
 
@@ -86,9 +86,9 @@ int QuicSpdyStreamBodyBuffer::PeekBody(iovec* iov, size_t iov_len) const {
   return iov_filled;
 }
 
-size_t QuicSpdyStreamBodyBuffer::ReadBody(const struct iovec* iov,
-                                          size_t iov_len,
-                                          size_t* total_bytes_read) {
+size_t QuicSpdyStreamBodyManager::ReadBody(const struct iovec* iov,
+                                           size_t iov_len,
+                                           size_t* total_bytes_read) {
   *total_bytes_read = 0;
   QuicByteCount bytes_to_consume = 0;
 

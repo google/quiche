@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_QUIC_CORE_HTTP_QUIC_SPDY_STREAM_BODY_BUFFER_H_
-#define QUICHE_QUIC_CORE_HTTP_QUIC_SPDY_STREAM_BODY_BUFFER_H_
+#ifndef QUICHE_QUIC_CORE_HTTP_QUIC_SPDY_STREAM_BODY_MANAGER_H_
+#define QUICHE_QUIC_CORE_HTTP_QUIC_SPDY_STREAM_BODY_MANAGER_H_
 
 #include "net/third_party/quiche/src/quic/core/quic_constants.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
@@ -21,16 +21,15 @@ namespace quic {
 //  * everything else, which QuicSpdyStream immediately processes and thus could
 //    be marked as consumed with QuicStreamSequencer, unless there is some piece
 //    of body received prior that still needs to be buffered.
-// QuicSpdyStreamBodyBuffer does two things: it keeps references to body
+// QuicSpdyStreamBodyManager does two things: it keeps references to body
 // fragments (owned by QuicStreamSequencer) and offers methods to read them; and
 // it calculates the total number of bytes (including non-body bytes) the caller
 // needs to mark consumed (with QuicStreamSequencer) when non-body bytes are
 // received or when body is consumed.
-// TODO(bnc): Rename to QuicSpdyStreamBodyManager or similar.
-class QUIC_EXPORT_PRIVATE QuicSpdyStreamBodyBuffer {
+class QUIC_EXPORT_PRIVATE QuicSpdyStreamBodyManager {
  public:
-  QuicSpdyStreamBodyBuffer();
-  ~QuicSpdyStreamBodyBuffer() = default;
+  QuicSpdyStreamBodyManager();
+  ~QuicSpdyStreamBodyManager() = default;
 
   // One of the following two methods must be called every time data is received
   // on the request stream.
@@ -92,4 +91,4 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStreamBodyBuffer {
 
 }  // namespace quic
 
-#endif  // QUICHE_QUIC_CORE_HTTP_QUIC_SPDY_STREAM_BODY_BUFFER_H_
+#endif  // QUICHE_QUIC_CORE_HTTP_QUIC_SPDY_STREAM_BODY_MANAGER_H_
