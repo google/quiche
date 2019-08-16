@@ -2701,6 +2701,13 @@ void QuicConnection::QueueCoalescedPacket(const QuicEncryptedPacket& packet) {
 void QuicConnection::MaybeProcessCoalescedPackets() {
   bool processed = false;
   while (connected_ && !coalesced_packets_.empty()) {
+    // Making sure there are no pending frames when processing the next
+    // coalesced packet because the queued ack frame may change.
+    packet_generator_.FlushAllQueuedFrames();
+    if (!connected_) {
+      return;
+    }
+
     std::unique_ptr<QuicEncryptedPacket> packet =
         std::move(coalesced_packets_.front());
     coalesced_packets_.pop_front();
