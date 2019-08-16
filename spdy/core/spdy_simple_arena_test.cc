@@ -4,9 +4,9 @@
 
 #include "net/third_party/quiche/src/spdy/core/spdy_simple_arena.h"
 
+#include <string>
 #include <vector>
 
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_string.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_piece.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_test.h"
 
@@ -36,11 +36,11 @@ TEST(SpdySimpleArenaTest, MemdupLargeString) {
 
 TEST(SpdySimpleArenaTest, MultipleBlocks) {
   SpdySimpleArena arena(40 /* block size */);
-  std::vector<SpdyString> strings = {
+  std::vector<std::string> strings = {
       "One decently long string.", "Another string.",
       "A third string that will surely go in a different block."};
   std::vector<SpdyStringPiece> copies;
-  for (const SpdyString& s : strings) {
+  for (const std::string& s : strings) {
     SpdyStringPiece sp(arena.Memdup(s.data(), s.size()), s.size());
     copies.push_back(sp);
   }

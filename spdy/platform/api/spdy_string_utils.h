@@ -5,6 +5,7 @@
 #ifndef QUICHE_SPDY_PLATFORM_API_SPDY_STRING_UTILS_H_
 #define QUICHE_SPDY_PLATFORM_API_SPDY_STRING_UTILS_H_
 
+#include <string>
 #include <utility>
 
 // The following header file has to be included from at least
@@ -13,19 +14,18 @@
 // non-test code.
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_mem_slice.h"
 
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_string.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_piece.h"
 #include "net/spdy/platform/impl/spdy_string_utils_impl.h"
 
 namespace spdy {
 
 template <typename... Args>
-inline SpdyString SpdyStrCat(const Args&... args) {
+inline std::string SpdyStrCat(const Args&... args) {
   return SpdyStrCatImpl(std::forward<const Args&>(args)...);
 }
 
 template <typename... Args>
-inline void SpdyStrAppend(SpdyString* output, const Args&... args) {
+inline void SpdyStrAppend(std::string* output, const Args&... args) {
   SpdyStrAppendImpl(output, std::forward<const Args&>(args)...);
 }
 
@@ -33,7 +33,7 @@ inline char SpdyHexDigitToInt(char c) {
   return SpdyHexDigitToIntImpl(c);
 }
 
-inline SpdyString SpdyHexDecode(SpdyStringPiece data) {
+inline std::string SpdyHexDecode(SpdyStringPiece data) {
   return SpdyHexDecodeImpl(data);
 }
 
@@ -41,15 +41,15 @@ inline bool SpdyHexDecodeToUInt32(SpdyStringPiece data, uint32_t* out) {
   return SpdyHexDecodeToUInt32Impl(data, out);
 }
 
-inline SpdyString SpdyHexEncode(const char* bytes, size_t size) {
+inline std::string SpdyHexEncode(const char* bytes, size_t size) {
   return SpdyHexEncodeImpl(bytes, size);
 }
 
-inline SpdyString SpdyHexEncodeUInt32AndTrim(uint32_t data) {
+inline std::string SpdyHexEncodeUInt32AndTrim(uint32_t data) {
   return SpdyHexEncodeUInt32AndTrimImpl(data);
 }
 
-inline SpdyString SpdyHexDump(SpdyStringPiece data) {
+inline std::string SpdyHexDump(SpdyStringPiece data) {
   return SpdyHexDumpImpl(data);
 }
 

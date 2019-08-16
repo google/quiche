@@ -75,7 +75,7 @@ size_t HpackEntry::Size() const {
   return Size(name(), value());
 }
 
-SpdyString HpackEntry::GetDebugString() const {
+std::string HpackEntry::GetDebugString() const {
   return SpdyStrCat(
       "{ name: \"", name_ref_, "\", value: \"", value_ref_,
       "\", index: ", insertion_index_, " ",

@@ -4,6 +4,7 @@
 
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_huffman_table.h"
 
+#include <string>
 #include <utility>
 
 #include "net/third_party/quiche/src/http2/hpack/huffman/hpack_huffman_decoder.h"
@@ -41,8 +42,8 @@ class GenericHuffmanTableTest : public ::testing::Test {
  protected:
   GenericHuffmanTableTest() : table_(), peer_(table_) {}
 
-  SpdyString EncodeString(SpdyStringPiece input) {
-    SpdyString result;
+  std::string EncodeString(SpdyStringPiece input) {
+    std::string result;
     HpackOutputStream output_stream;
     table_.EncodeString(input, &output_stream);
 
@@ -188,7 +189,7 @@ class HpackHuffmanTableTest : public GenericHuffmanTableTest {
   }
 
   // Use http2::HpackHuffmanDecoder for roundtrip tests.
-  void DecodeString(const SpdyString& encoded, SpdyString* out) {
+  void DecodeString(const std::string& encoded, std::string* out) {
     http2::HpackHuffmanDecoder decoder;
     out->clear();
     EXPECT_TRUE(decoder.Decode(encoded, out));
@@ -200,8 +201,8 @@ TEST_F(HpackHuffmanTableTest, InitializeHpackCode) {
 }
 
 TEST_F(HpackHuffmanTableTest, SpecRequestExamples) {
-  SpdyString buffer;
-  SpdyString test_table[] = {
+  std::string buffer;
+  std::string test_table[] = {
       SpdyHexDecode("f1e3c2e5f23a6ba0ab90f4ff"),
       "www.example.com",
       SpdyHexDecode("a8eb10649cbf"),
@@ -213,8 +214,8 @@ TEST_F(HpackHuffmanTableTest, SpecRequestExamples) {
   };
   // Round-trip each test example.
   for (size_t i = 0; i != SPDY_ARRAYSIZE(test_table); i += 2) {
-    const SpdyString& encodedFixture(test_table[i]);
-    const SpdyString& decodedFixture(test_table[i + 1]);
+    const std::string& encodedFixture(test_table[i]);
+    const std::string& decodedFixture(test_table[i + 1]);
     DecodeString(encodedFixture, &buffer);
     EXPECT_EQ(decodedFixture, buffer);
     buffer = EncodeString(decodedFixture);
@@ -223,8 +224,8 @@ TEST_F(HpackHuffmanTableTest, SpecRequestExamples) {
 }
 
 TEST_F(HpackHuffmanTableTest, SpecResponseExamples) {
-  SpdyString buffer;
-  SpdyString test_table[] = {
+  std::string buffer;
+  std::string test_table[] = {
       SpdyHexDecode("6402"),
       "302",
       SpdyHexDecode("aec3771a4b"),
@@ -242,8 +243,8 @@ TEST_F(HpackHuffmanTableTest, SpecResponseExamples) {
   };
   // Round-trip each test example.
   for (size_t i = 0; i != SPDY_ARRAYSIZE(test_table); i += 2) {
-    const SpdyString& encodedFixture(test_table[i]);
-    const SpdyString& decodedFixture(test_table[i + 1]);
+    const std::string& encodedFixture(test_table[i]);
+    const std::string& decodedFixture(test_table[i + 1]);
     DecodeString(encodedFixture, &buffer);
     EXPECT_EQ(decodedFixture, buffer);
     buffer = EncodeString(decodedFixture);
@@ -256,8 +257,8 @@ TEST_F(HpackHuffmanTableTest, RoundTripIndividualSymbols) {
     char c = static_cast<char>(i);
     char storage[3] = {c, c, c};
     SpdyStringPiece input(storage, SPDY_ARRAYSIZE(storage));
-    SpdyString buffer_in = EncodeString(input);
-    SpdyString buffer_out;
+    std::string buffer_in = EncodeString(input);
+    std::string buffer_out;
     DecodeString(buffer_in, &buffer_out);
     EXPECT_EQ(input, buffer_out);
   }
@@ -270,21 +271,21 @@ TEST_F(HpackHuffmanTableTest, RoundTripSymbolSequence) {
     storage[511 - i] = static_cast<char>(i);
   }
   SpdyStringPiece input(storage, SPDY_ARRAYSIZE(storage));
-  SpdyString buffer_in = EncodeString(input);
-  SpdyString buffer_out;
+  std::string buffer_in = EncodeString(input);
+  std::string buffer_out;
   DecodeString(buffer_in, &buffer_out);
   EXPECT_EQ(input, buffer_out);
 }
 
 TEST_F(HpackHuffmanTableTest, EncodedSizeAgreesWithEncodeString) {
-  SpdyString test_table[] = {
+  std::string test_table[] = {
       "",
       "Mon, 21 Oct 2013 20:13:21 GMT",
       "https://www.example.com",
       "foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; max-age=3600; version=1",
-      SpdyString(1, '\0'),
-      SpdyString("foo\0bar", 7),
-      SpdyString(256, '\0'),
+      std::string(1, '\0'),
+      std::string("foo\0bar", 7),
+      std::string(256, '\0'),
   };
   for (size_t i = 0; i != 256; ++i) {
     // Expand last |test_table| entry to cover all codes.
@@ -292,7 +293,7 @@ TEST_F(HpackHuffmanTableTest, EncodedSizeAgreesWithEncodeString) {
   }
 
   HpackOutputStream output_stream;
-  SpdyString encoding;
+  std::string encoding;
   for (size_t i = 0; i != SPDY_ARRAYSIZE(test_table); ++i) {
     table_.EncodeString(test_table[i], &output_stream);
     output_stream.TakeString(&encoding);

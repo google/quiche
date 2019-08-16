@@ -20,12 +20,12 @@ class SpdyAltSvcWireFormatPeer {
   }
   static bool PercentDecode(SpdyStringPiece::const_iterator c,
                             SpdyStringPiece::const_iterator end,
-                            SpdyString* output) {
+                            std::string* output) {
     return SpdyAltSvcWireFormat::PercentDecode(c, end, output);
   }
   static bool ParseAltAuthority(SpdyStringPiece::const_iterator c,
                                 SpdyStringPiece::const_iterator end,
-                                SpdyString* host,
+                                std::string* host,
                                 uint16_t* port) {
     return SpdyAltSvcWireFormat::ParseAltAuthority(c, end, host, port);
   }
@@ -49,7 +49,7 @@ namespace {
 // random case, and corresponding AlternativeService entries.
 void FuzzHeaderFieldValue(
     int i,
-    SpdyString* header_field_value,
+    std::string* header_field_value,
     SpdyAltSvcWireFormat::AlternativeService* expected_altsvc) {
   if (!header_field_value->empty()) {
     header_field_value->push_back(',');
@@ -132,7 +132,7 @@ void FuzzHeaderFieldValue(
 // canonical form, that is, what SerializeHeaderFieldValue() should output.
 void FuzzAlternativeService(int i,
                             SpdyAltSvcWireFormat::AlternativeService* altsvc,
-                            SpdyString* expected_header_field_value) {
+                            std::string* expected_header_field_value) {
   if (!expected_header_field_value->empty()) {
     expected_header_field_value->push_back(',');
   }
@@ -183,7 +183,7 @@ TEST(SpdyAltSvcWireFormatTest, ParseHeaderFieldValueClear) {
 // separator, etc.  Single alternative service at a time.
 TEST(SpdyAltSvcWireFormatTest, ParseHeaderFieldValue) {
   for (int i = 0; i < 1 << 13; ++i) {
-    SpdyString header_field_value;
+    std::string header_field_value;
     SpdyAltSvcWireFormat::AlternativeService expected_altsvc;
     FuzzHeaderFieldValue(i, &header_field_value, &expected_altsvc);
     SpdyAltSvcWireFormat::AlternativeServiceVector altsvc_vector;
@@ -197,7 +197,7 @@ TEST(SpdyAltSvcWireFormatTest, ParseHeaderFieldValue) {
     EXPECT_EQ(expected_altsvc.version, altsvc_vector[0].version);
 
     // Roundtrip test starting with |altsvc_vector|.
-    SpdyString reserialized_header_field_value =
+    std::string reserialized_header_field_value =
         SpdyAltSvcWireFormat::SerializeHeaderFieldValue(altsvc_vector);
     SpdyAltSvcWireFormat::AlternativeServiceVector roundtrip_altsvc_vector;
     ASSERT_TRUE(SpdyAltSvcWireFormat::ParseHeaderFieldValue(
@@ -217,7 +217,7 @@ TEST(SpdyAltSvcWireFormatTest, ParseHeaderFieldValue) {
 // separator, etc.  Possibly multiple alternative service at a time.
 TEST(SpdyAltSvcWireFormatTest, ParseHeaderFieldValueMultiple) {
   for (int i = 0; i < 1 << 13;) {
-    SpdyString header_field_value;
+    std::string header_field_value;
     SpdyAltSvcWireFormat::AlternativeServiceVector expected_altsvc_vector;
     // This will generate almost two hundred header field values with two,
     // three, four, five, six, and seven alternative services each, and
@@ -242,7 +242,7 @@ TEST(SpdyAltSvcWireFormatTest, ParseHeaderFieldValueMultiple) {
     }
 
     // Roundtrip test starting with |altsvc_vector|.
-    SpdyString reserialized_header_field_value =
+    std::string reserialized_header_field_value =
         SpdyAltSvcWireFormat::SerializeHeaderFieldValue(altsvc_vector);
     SpdyAltSvcWireFormat::AlternativeServiceVector roundtrip_altsvc_vector;
     ASSERT_TRUE(SpdyAltSvcWireFormat::ParseHeaderFieldValue(
@@ -276,7 +276,7 @@ TEST(SpdyAltSvcWireFormatTest, SerializeEmptyHeaderFieldValue) {
 TEST(SpdyAltSvcWireFormatTest, RoundTrip) {
   for (int i = 0; i < 1 << 3; ++i) {
     SpdyAltSvcWireFormat::AlternativeService altsvc;
-    SpdyString expected_header_field_value;
+    std::string expected_header_field_value;
     FuzzAlternativeService(i, &altsvc, &expected_header_field_value);
 
     // Test ParseHeaderFieldValue().
@@ -304,7 +304,7 @@ TEST(SpdyAltSvcWireFormatTest, RoundTrip) {
 // parameter.  Multiple alternative services at a time.
 TEST(SpdyAltSvcWireFormatTest, RoundTripMultiple) {
   SpdyAltSvcWireFormat::AlternativeServiceVector altsvc_vector;
-  SpdyString expected_header_field_value;
+  std::string expected_header_field_value;
   for (int i = 0; i < 1 << 3; ++i) {
     SpdyAltSvcWireFormat::AlternativeService altsvc;
     FuzzAlternativeService(i, &altsvc, &expected_header_field_value);
@@ -374,7 +374,7 @@ TEST(SpdyAltSvcWireFormatTest, ParseTruncatedHeaderFieldValue) {
   SpdyAltSvcWireFormat::AlternativeServiceVector altsvc_vector;
   const char* field_value_array[] = {"a=\":137\"", "a=\"foo:137\"",
                                      "a%25=\"foo\\\"bar\\\\baz:137\""};
-  for (const SpdyString& field_value : field_value_array) {
+  for (const std::string& field_value : field_value_array) {
     for (size_t len = 1; len < field_value.size(); ++len) {
       EXPECT_FALSE(SpdyAltSvcWireFormat::ParseHeaderFieldValue(
           field_value.substr(0, len), &altsvc_vector))
@@ -402,7 +402,7 @@ TEST(SpdyAltSvcWireFormatTest, SkipWhiteSpace) {
 // Test PercentDecode() on valid input.
 TEST(SpdyAltSvcWireFormatTest, PercentDecodeValid) {
   SpdyStringPiece input("");
-  SpdyString output;
+  std::string output;
   ASSERT_TRUE(test::SpdyAltSvcWireFormatPeer::PercentDecode(
       input.begin(), input.end(), &output));
   EXPECT_EQ("", output);
@@ -425,7 +425,7 @@ TEST(SpdyAltSvcWireFormatTest, PercentDecodeInvalid) {
   const char* invalid_input_array[] = {"a%", "a%x", "a%b", "%J22", "%9z"};
   for (const char* invalid_input : invalid_input_array) {
     SpdyStringPiece input(invalid_input);
-    SpdyString output;
+    std::string output;
     EXPECT_FALSE(test::SpdyAltSvcWireFormatPeer::PercentDecode(
         input.begin(), input.end(), &output))
         << input;
@@ -435,7 +435,7 @@ TEST(SpdyAltSvcWireFormatTest, PercentDecodeInvalid) {
 // Test ParseAltAuthority() on valid input.
 TEST(SpdyAltSvcWireFormatTest, ParseAltAuthorityValid) {
   SpdyStringPiece input(":42");
-  SpdyString host;
+  std::string host;
   uint16_t port;
   ASSERT_TRUE(test::SpdyAltSvcWireFormatPeer::ParseAltAuthority(
       input.begin(), input.end(), &host, &port));
@@ -476,7 +476,7 @@ TEST(SpdyAltSvcWireFormatTest, ParseAltAuthorityInvalid) {
                                        "2003:8:0:16::509d:9615]:443"};
   for (const char* invalid_input : invalid_input_array) {
     SpdyStringPiece input(invalid_input);
-    SpdyString host;
+    std::string host;
     uint16_t port;
     EXPECT_FALSE(test::SpdyAltSvcWireFormatPeer::ParseAltAuthority(
         input.begin(), input.end(), &host, &port))

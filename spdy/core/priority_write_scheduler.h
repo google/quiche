@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <string>
 #include <tuple>
 #include <unordered_map>
 #include <utility>
@@ -19,7 +20,6 @@
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_bug_tracker.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_logging.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_macros.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_string.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_utils.h"
 
 namespace spdy {
@@ -260,7 +260,7 @@ class PriorityWriteScheduler : public WriteScheduler<StreamIdType> {
 
   size_t NumRegisteredStreams() const override { return stream_infos_.size(); }
 
-  SpdyString DebugString() const override {
+  std::string DebugString() const override {
     return SpdyStrCat(
         "PriorityWriteScheduler {num_streams=", stream_infos_.size(),
         " num_ready_streams=", NumReadyStreams(), "}");

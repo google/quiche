@@ -214,7 +214,7 @@ class SpdyTestDeframerImpl : public SpdyTestDeframer,
   bool fin_ = false;
   bool got_hpack_end_ = false;
 
-  std::unique_ptr<SpdyString> data_;
+  std::unique_ptr<std::string> data_;
 
   // Total length of the data frame.
   size_t data_len_ = 0;
@@ -223,7 +223,7 @@ class SpdyTestDeframerImpl : public SpdyTestDeframer,
   // Length field).
   size_t padding_len_ = 0;
 
-  std::unique_ptr<SpdyString> goaway_description_;
+  std::unique_ptr<std::string> goaway_description_;
   std::unique_ptr<StringPairVector> headers_;
   std::unique_ptr<SettingVector> settings_;
   std::unique_ptr<TestHeadersHandler> headers_handler_;
@@ -417,7 +417,7 @@ void SpdyTestDeframerImpl::OnAltSvc(
       << "   frame_type_=" << Http2FrameTypeToString(frame_type_);
   CHECK_GT(stream_id, 0u);
   auto ptr = SpdyMakeUnique<SpdyAltSvcIR>(stream_id);
-  ptr->set_origin(SpdyString(origin));
+  ptr->set_origin(std::string(origin));
   for (auto& altsvc : altsvc_vector) {
     ptr->add_altsvc(altsvc);
   }
@@ -456,7 +456,7 @@ void SpdyTestDeframerImpl::OnDataFrameHeader(SpdyStreamId stream_id,
   stream_id_ = stream_id;
   fin_ = fin;
   data_len_ = length;
-  data_ = SpdyMakeUnique<SpdyString>();
+  data_ = SpdyMakeUnique<std::string>();
 }
 
 // The SpdyFramer will not process any more data at this point.
@@ -482,7 +482,7 @@ void SpdyTestDeframerImpl::OnGoAway(SpdyStreamId last_good_stream_id,
   frame_type_ = GOAWAY;
   goaway_ir_ =
       SpdyMakeUnique<SpdyGoAwayIR>(last_good_stream_id, error_code, "");
-  goaway_description_ = SpdyMakeUnique<SpdyString>();
+  goaway_description_ = SpdyMakeUnique<std::string>();
 }
 
 // If len==0 then we've reached the end of the GOAWAY frame.
@@ -761,7 +761,8 @@ void SpdyTestDeframerImpl::OnHeader(SpdyStringPiece key,
         frame_type_ == PUSH_PROMISE)
       << "   frame_type_=" << Http2FrameTypeToString(frame_type_);
   CHECK(!got_hpack_end_);
-  HTTP2_DIE_IF_NULL(headers_)->emplace_back(SpdyString(key), SpdyString(value));
+  HTTP2_DIE_IF_NULL(headers_)->emplace_back(std::string(key),
+                                            std::string(value));
   HTTP2_DIE_IF_NULL(headers_handler_)->OnHeader(key, value);
 }
 

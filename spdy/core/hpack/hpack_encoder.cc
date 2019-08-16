@@ -86,7 +86,7 @@ HpackEncoder::HpackEncoder(const HpackHuffmanTable& table)
 HpackEncoder::~HpackEncoder() = default;
 
 bool HpackEncoder::EncodeHeaderSet(const SpdyHeaderBlock& header_set,
-                                   SpdyString* output) {
+                                   std::string* output) {
   // Separate header set into pseudo-headers and regular headers.
   Representations pseudo_headers;
   Representations regular_headers;
@@ -131,7 +131,7 @@ size_t HpackEncoder::EstimateMemoryUsage() const {
 }
 
 void HpackEncoder::EncodeRepresentations(RepresentationIterator* iter,
-                                         SpdyString* output) {
+                                         std::string* output) {
   MaybeEmitTableSize();
   while (iter->HasNext()) {
     const auto header = iter->Next();
@@ -291,7 +291,7 @@ class HpackEncoder::Encoderator : public ProgressiveEncoder {
 
   // Encodes up to max_encoded_bytes of the current header block into the
   // given output string.
-  void Next(size_t max_encoded_bytes, SpdyString* output) override;
+  void Next(size_t max_encoded_bytes, std::string* output) override;
 
  private:
   HpackEncoder* encoder_;
@@ -329,7 +329,7 @@ HpackEncoder::Encoderator::Encoderator(const SpdyHeaderBlock& header_set,
 }
 
 void HpackEncoder::Encoderator::Next(size_t max_encoded_bytes,
-                                     SpdyString* output) {
+                                     std::string* output) {
   SPDY_BUG_IF(!has_next_)
       << "Encoderator::Next called with nothing left to encode.";
   const bool use_compression = encoder_->enable_compression_;

@@ -7,9 +7,9 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <string>
 
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_export.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_string.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_piece.h"
 
 // All section references below are to
@@ -70,7 +70,7 @@ class SPDY_EXPORT_PRIVATE HpackEntry {
   static size_t Size(SpdyStringPiece name, SpdyStringPiece value);
   size_t Size() const;
 
-  SpdyString GetDebugString() const;
+  std::string GetDebugString() const;
 
   int64_t time_added() const { return time_added_; }
   void set_time_added(int64_t now) { time_added_ = now; }
@@ -86,8 +86,8 @@ class SPDY_EXPORT_PRIVATE HpackEntry {
   };
 
   // These members are not used for LOOKUP entries.
-  SpdyString name_;
-  SpdyString value_;
+  std::string name_;
+  std::string value_;
 
   // These members are always valid. For DYNAMIC and STATIC entries, they
   // always point to |name_| and |value_|.

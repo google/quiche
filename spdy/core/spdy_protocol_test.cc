@@ -131,7 +131,7 @@ TEST(SpdyProtocolTest, ParseSettingsId) {
 TEST(SpdyProtocolTest, SettingsIdToString) {
   struct {
     SpdySettingsId setting_id;
-    const SpdyString expected_string;
+    const std::string expected_string;
   } test_cases[] = {
       {0, "SETTINGS_UNKNOWN_0"},
       {SETTINGS_HEADER_TABLE_SIZE, "SETTINGS_HEADER_TABLE_SIZE"},
@@ -240,20 +240,20 @@ TEST(SpdyDataIRTest, Construct) {
   EXPECT_EQ((int)d1.data_len(), d1.flow_control_window_consumed());
 
   // Confirm copies a const string.
-  const SpdyString foo = "foo";
+  const std::string foo = "foo";
   SpdyDataIR d3(/* stream_id = */ 3, foo);
   EXPECT_EQ(foo, d3.data());
   EXPECT_EQ((int)d3.data_len(), d3.flow_control_window_consumed());
 
   // Confirm copies a non-const string.
-  SpdyString bar = "bar";
+  std::string bar = "bar";
   SpdyDataIR d4(/* stream_id = */ 4, bar);
   EXPECT_EQ("bar", bar);
   EXPECT_EQ("bar", SpdyStringPiece(d4.data(), d4.data_len()));
 
   // Confirm moves an rvalue reference. Note that the test string "baz" is too
   // short to trigger the move optimization, and instead a copy occurs.
-  SpdyString baz = "the quick brown fox";
+  std::string baz = "the quick brown fox";
   SpdyDataIR d5(/* stream_id = */ 5, std::move(baz));
   EXPECT_EQ("", baz);
   EXPECT_EQ(SpdyStringPiece(d5.data(), d5.data_len()), "the quick brown fox");

@@ -7,10 +7,10 @@
 
 #include <map>
 #include <set>
+#include <string>
 
 #include "net/third_party/quiche/src/spdy/core/write_scheduler.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_containers.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_string.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_utils.h"
 
 namespace spdy {
@@ -80,7 +80,7 @@ class LifoWriteScheduler : public WriteScheduler<StreamIdType> {
   size_t NumReadyStreams() const override { return ready_streams_.size(); }
   bool IsStreamReady(StreamIdType stream_id) const override;
   size_t NumRegisteredStreams() const override;
-  SpdyString DebugString() const override;
+  std::string DebugString() const override;
 
  private:
   friend class test::LifoWriteSchedulerPeer<StreamIdType>;
@@ -197,7 +197,7 @@ size_t LifoWriteScheduler<StreamIdType>::NumRegisteredStreams() const {
 }
 
 template <typename StreamIdType>
-SpdyString LifoWriteScheduler<StreamIdType>::DebugString() const {
+std::string LifoWriteScheduler<StreamIdType>::DebugString() const {
   return SpdyStrCat(
       "LifoWriteScheduler {num_streams=", registered_streams_.size(),
       " num_ready_streams=", NumReadyStreams(), "}");

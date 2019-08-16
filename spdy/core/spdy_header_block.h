@@ -9,13 +9,13 @@
 
 #include <list>
 #include <memory>
+#include <string>
 #include <utility>
 #include <vector>
 
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_containers.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_export.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_macros.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_string.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_piece.h"
 
 namespace spdy {
@@ -149,7 +149,7 @@ class SPDY_EXPORT_PRIVATE SpdyHeaderBlock {
 
   // Provides a human readable multi-line representation of the stored header
   // keys and values.
-  SpdyString DebugString() const;
+  std::string DebugString() const;
 
   iterator begin() { return iterator(block_.begin()); }
   iterator end() { return iterator(block_.end()); }
@@ -183,7 +183,8 @@ class SPDY_EXPORT_PRIVATE SpdyHeaderBlock {
   SPDY_MUST_USE_RESULT ValueProxy operator[](const SpdyStringPiece key);
 
   // This object provides automatic conversions that allow SpdyHeaderBlock to be
-  // nearly a drop-in replacement for SpdyLinkedHashMap<SpdyString, SpdyString>.
+  // nearly a drop-in replacement for
+  // SpdyLinkedHashMap<std::string, std::string>.
   // It reads data from or writes data to a SpdyHeaderBlock::Storage.
   class SPDY_EXPORT_PRIVATE ValueProxy {
    public:
@@ -200,7 +201,7 @@ class SPDY_EXPORT_PRIVATE SpdyHeaderBlock {
     // Assignment modifies the underlying SpdyHeaderBlock.
     ValueProxy& operator=(const SpdyStringPiece other);
 
-    SpdyString as_string() const;
+    std::string as_string() const;
 
    private:
     friend class SpdyHeaderBlock;

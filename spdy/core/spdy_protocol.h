@@ -16,6 +16,7 @@
 #include <map>
 #include <memory>
 #include <new>
+#include <string>
 #include <utility>
 
 #include "net/third_party/quiche/src/spdy/core/spdy_alt_svc_wire_format.h"
@@ -25,7 +26,6 @@
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_export.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_logging.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_ptr_util.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_string.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_piece.h"
 
 namespace spdy {
@@ -274,7 +274,7 @@ SPDY_EXPORT_PRIVATE bool ParseSettingsId(SpdySettingsId wire_setting_id,
 // Returns a string representation of the |id| for logging/debugging. Returns
 // the |id| prefixed with "SETTINGS_UNKNOWN_" for unknown SETTINGS IDs. To parse
 // the |id| into a SpdyKnownSettingsId (if applicable), use ParseSettingsId().
-SPDY_EXPORT_PRIVATE SpdyString SettingsIdToString(SpdySettingsId id);
+SPDY_EXPORT_PRIVATE std::string SettingsIdToString(SpdySettingsId id);
 
 // Parse |wire_error_code| to a SpdyErrorCode.
 // Treat unrecognized error codes as INTERNAL_ERROR
@@ -524,7 +524,7 @@ class SPDY_EXPORT_PRIVATE SpdyDataIR : public SpdyFrameWithFinIR {
   SpdyDataIR(SpdyStreamId stream_id, const char* data);
 
   // Moves data into data_store_. Makes a copy if passed a non-movable string.
-  SpdyDataIR(SpdyStreamId stream_id, SpdyString data);
+  SpdyDataIR(SpdyStreamId stream_id, std::string data);
 
   // Use in conjunction with SetDataShallow() for shallow-copy on data.
   explicit SpdyDataIR(SpdyStreamId stream_id);
@@ -550,7 +550,7 @@ class SPDY_EXPORT_PRIVATE SpdyDataIR : public SpdyFrameWithFinIR {
 
   // Deep-copy of data (keep private copy).
   void SetDataDeep(SpdyStringPiece data) {
-    data_store_ = SpdyMakeUnique<SpdyString>(data.data(), data.size());
+    data_store_ = SpdyMakeUnique<std::string>(data.data(), data.size());
     data_ = data_store_->data();
     data_len_ = data.size();
   }
@@ -580,7 +580,7 @@ class SPDY_EXPORT_PRIVATE SpdyDataIR : public SpdyFrameWithFinIR {
 
  private:
   // Used to store data that this SpdyDataIR should own.
-  std::unique_ptr<SpdyString> data_store_;
+  std::unique_ptr<std::string> data_store_;
   const char* data_;
   size_t data_len_;
 
@@ -674,7 +674,7 @@ class SPDY_EXPORT_PRIVATE SpdyGoAwayIR : public SpdyFrameIR {
   // keep description live after constructing this SpdyGoAwayIR.
   SpdyGoAwayIR(SpdyStreamId last_good_stream_id,
                SpdyErrorCode error_code,
-               SpdyString description);
+               std::string description);
   SpdyGoAwayIR(const SpdyGoAwayIR&) = delete;
   SpdyGoAwayIR& operator=(const SpdyGoAwayIR&) = delete;
 
@@ -702,7 +702,7 @@ class SPDY_EXPORT_PRIVATE SpdyGoAwayIR : public SpdyFrameIR {
  private:
   SpdyStreamId last_good_stream_id_;
   SpdyErrorCode error_code_;
-  const SpdyString description_store_;
+  const std::string description_store_;
   const SpdyStringPiece description_;
 };
 
@@ -826,14 +826,14 @@ class SPDY_EXPORT_PRIVATE SpdyContinuationIR : public SpdyFrameIR {
 
   bool end_headers() const { return end_headers_; }
   void set_end_headers(bool end_headers) { end_headers_ = end_headers; }
-  const SpdyString& encoding() const { return *encoding_; }
-  void take_encoding(std::unique_ptr<SpdyString> encoding) {
+  const std::string& encoding() const { return *encoding_; }
+  void take_encoding(std::unique_ptr<std::string> encoding) {
     encoding_ = std::move(encoding);
   }
   size_t size() const override;
 
  private:
-  std::unique_ptr<SpdyString> encoding_;
+  std::unique_ptr<std::string> encoding_;
   bool end_headers_;
 };
 
@@ -844,12 +844,12 @@ class SPDY_EXPORT_PRIVATE SpdyAltSvcIR : public SpdyFrameIR {
   SpdyAltSvcIR& operator=(const SpdyAltSvcIR&) = delete;
   ~SpdyAltSvcIR() override;
 
-  SpdyString origin() const { return origin_; }
+  std::string origin() const { return origin_; }
   const SpdyAltSvcWireFormat::AlternativeServiceVector& altsvc_vector() const {
     return altsvc_vector_;
   }
 
-  void set_origin(SpdyString origin) { origin_ = std::move(origin); }
+  void set_origin(std::string origin) { origin_ = std::move(origin); }
   void add_altsvc(const SpdyAltSvcWireFormat::AlternativeService& altsvc) {
     altsvc_vector_.push_back(altsvc);
   }
@@ -861,7 +861,7 @@ class SPDY_EXPORT_PRIVATE SpdyAltSvcIR : public SpdyFrameIR {
   size_t size() const override;
 
  private:
-  SpdyString origin_;
+  std::string origin_;
   SpdyAltSvcWireFormat::AlternativeServiceVector altsvc_vector_;
 };
 
@@ -899,7 +899,7 @@ class SPDY_EXPORT_PRIVATE SpdyUnknownIR : public SpdyFrameIR {
   SpdyUnknownIR(SpdyStreamId stream_id,
                 uint8_t type,
                 uint8_t flags,
-                SpdyString payload)
+                std::string payload)
       : SpdyFrameIR(stream_id),
         type_(type),
         flags_(flags),
@@ -910,7 +910,7 @@ class SPDY_EXPORT_PRIVATE SpdyUnknownIR : public SpdyFrameIR {
   uint8_t type() const { return type_; }
   uint8_t flags() const { return flags_; }
   size_t length() const { return length_; }
-  const SpdyString& payload() const { return payload_; }
+  const std::string& payload() const { return payload_; }
 
   void Visit(SpdyFrameVisitor* visitor) const override;
 
@@ -928,7 +928,7 @@ class SPDY_EXPORT_PRIVATE SpdyUnknownIR : public SpdyFrameIR {
   uint8_t type_;
   uint8_t flags_;
   size_t length_;
-  const SpdyString payload_;
+  const std::string payload_;
 };
 
 class SPDY_EXPORT_PRIVATE SpdySerializedFrame {

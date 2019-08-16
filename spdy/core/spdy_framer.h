@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <map>
 #include <memory>
+#include <string>
 #include <utility>
 
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_encoder.h"
@@ -19,7 +20,6 @@
 #include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
 #include "net/third_party/quiche/src/spdy/core/zero_copy_output_buffer.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_export.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_string.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_piece.h"
 
 namespace spdy {
@@ -258,7 +258,7 @@ class SPDY_EXPORT_PRIVATE SpdyFramer {
 
    protected:
     virtual size_t GetFrameSizeSansBlock() const = 0;
-    virtual bool SerializeGivenEncoding(const SpdyString& encoding,
+    virtual bool SerializeGivenEncoding(const std::string& encoding,
                                         ZeroCopyOutputBuffer* output) const = 0;
 
     SpdyFramer* GetFramer() const { return framer_; }
@@ -291,7 +291,7 @@ class SPDY_EXPORT_PRIVATE SpdyFramer {
    private:
     const SpdyFrameIR& GetIR() const override;
     size_t GetFrameSizeSansBlock() const override;
-    bool SerializeGivenEncoding(const SpdyString& encoding,
+    bool SerializeGivenEncoding(const std::string& encoding,
                                 ZeroCopyOutputBuffer* output) const override;
 
     const std::unique_ptr<const SpdyHeadersIR> headers_ir_;
@@ -313,7 +313,7 @@ class SPDY_EXPORT_PRIVATE SpdyFramer {
    private:
     const SpdyFrameIR& GetIR() const override;
     size_t GetFrameSizeSansBlock() const override;
-    bool SerializeGivenEncoding(const SpdyString& encoding,
+    bool SerializeGivenEncoding(const std::string& encoding,
                                 ZeroCopyOutputBuffer* output) const override;
 
     const std::unique_ptr<const SpdyPushPromiseIR> push_promise_ir_;
@@ -344,12 +344,12 @@ class SPDY_EXPORT_PRIVATE SpdyFramer {
   void SerializeHeadersBuilderHelper(const SpdyHeadersIR& headers,
                                      uint8_t* flags,
                                      size_t* size,
-                                     SpdyString* hpack_encoding,
+                                     std::string* hpack_encoding,
                                      int* weight,
                                      size_t* length_field);
   void SerializePushPromiseBuilderHelper(const SpdyPushPromiseIR& push_promise,
                                          uint8_t* flags,
-                                         SpdyString* hpack_encoding,
+                                         std::string* hpack_encoding,
                                          size_t* size);
 
   std::unique_ptr<HpackEncoder> hpack_encoder_;

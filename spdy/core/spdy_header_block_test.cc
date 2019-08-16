@@ -69,15 +69,15 @@ TEST(SpdyHeaderBlockTest, KeyMemoryReclaimedOnLookup) {
 // This test verifies that headers can be set in a variety of ways.
 TEST(SpdyHeaderBlockTest, AddHeaders) {
   SpdyHeaderBlock block;
-  block["foo"] = SpdyString(300, 'x');
+  block["foo"] = std::string(300, 'x');
   block["bar"] = "baz";
   block["qux"] = "qux1";
   block["qux"] = "qux2";
   block.insert(std::make_pair("key", "value"));
 
-  EXPECT_EQ(Pair("foo", SpdyString(300, 'x')), *block.find("foo"));
+  EXPECT_EQ(Pair("foo", std::string(300, 'x')), *block.find("foo"));
   EXPECT_EQ("baz", block["bar"]);
-  SpdyString qux("qux");
+  std::string qux("qux");
   EXPECT_EQ("qux2", block[qux]);
   ASSERT_NE(block.end(), block.find("key"));
   EXPECT_EQ(Pair("key", "value"), *block.find("key"));
@@ -89,7 +89,7 @@ TEST(SpdyHeaderBlockTest, AddHeaders) {
 // This test verifies that SpdyHeaderBlock can be copied using Clone().
 TEST(SpdyHeaderBlockTest, CopyBlocks) {
   SpdyHeaderBlock block1;
-  block1["foo"] = SpdyString(300, 'x');
+  block1["foo"] = std::string(300, 'x');
   block1["bar"] = "baz";
   block1.insert(std::make_pair("qux", "qux1"));
 
@@ -147,7 +147,7 @@ TEST(SpdyHeaderBlockTest, AppendHeaders) {
   SpdyHeaderBlock block;
   block["foo"] = "foo";
   block.AppendValueOrAddHeader("foo", "bar");
-  EXPECT_EQ(Pair("foo", SpdyString("foo\0bar", 7)), *block.find("foo"));
+  EXPECT_EQ(Pair("foo", std::string("foo\0bar", 7)), *block.find("foo"));
 
   block.insert(std::make_pair("foo", "baz"));
   EXPECT_EQ("baz", block["foo"]);
@@ -171,9 +171,9 @@ TEST(SpdyHeaderBlockTest, AppendHeaders) {
 
   EXPECT_EQ("key1=value1; key2=value2; key3=value3", block["cookie"]);
   EXPECT_EQ("baz", block["foo"]);
-  EXPECT_EQ(SpdyString("h1v1\0h1v2\0h1v3", 14), block["h1"]);
-  EXPECT_EQ(SpdyString("h2v1\0h2v2\0h2v3", 14), block["h2"]);
-  EXPECT_EQ(SpdyString("h3v2\0h3v3", 9), block["h3"]);
+  EXPECT_EQ(std::string("h1v1\0h1v2\0h1v3", 14), block["h1"]);
+  EXPECT_EQ(std::string("h2v1\0h2v2\0h2v3", 14), block["h2"]);
+  EXPECT_EQ(std::string("h3v2\0h3v3", 9), block["h3"]);
   EXPECT_EQ("singleton", block["h4"]);
 }
 
@@ -217,20 +217,20 @@ size_t SpdyHeaderBlockSize(const SpdyHeaderBlock& block) {
 TEST(SpdyHeaderBlockTest, TotalBytesUsed) {
   SpdyHeaderBlock block;
   const size_t value_size = 300;
-  block["foo"] = SpdyString(value_size, 'x');
+  block["foo"] = std::string(value_size, 'x');
   EXPECT_EQ(block.TotalBytesUsed(), SpdyHeaderBlockSize(block));
-  block.insert(std::make_pair("key", SpdyString(value_size, 'x')));
+  block.insert(std::make_pair("key", std::string(value_size, 'x')));
   EXPECT_EQ(block.TotalBytesUsed(), SpdyHeaderBlockSize(block));
-  block.AppendValueOrAddHeader("abc", SpdyString(value_size, 'x'));
+  block.AppendValueOrAddHeader("abc", std::string(value_size, 'x'));
   EXPECT_EQ(block.TotalBytesUsed(), SpdyHeaderBlockSize(block));
 
   // Replace value for existing key.
-  block["foo"] = SpdyString(value_size, 'x');
+  block["foo"] = std::string(value_size, 'x');
   EXPECT_EQ(block.TotalBytesUsed(), SpdyHeaderBlockSize(block));
-  block.insert(std::make_pair("key", SpdyString(value_size, 'x')));
+  block.insert(std::make_pair("key", std::string(value_size, 'x')));
   EXPECT_EQ(block.TotalBytesUsed(), SpdyHeaderBlockSize(block));
   // Add value for existing key.
-  block.AppendValueOrAddHeader("abc", SpdyString(value_size, 'x'));
+  block.AppendValueOrAddHeader("abc", std::string(value_size, 'x'));
   EXPECT_EQ(block.TotalBytesUsed(), SpdyHeaderBlockSize(block));
 
   // Copies/clones SpdyHeaderBlock.

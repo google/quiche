@@ -7,6 +7,7 @@
 
 #include <map>
 #include <set>
+#include <string>
 
 #include "net/third_party/quiche/src/spdy/core/write_scheduler.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_utils.h"
@@ -46,7 +47,7 @@ class FifoWriteScheduler : public WriteScheduler<StreamIdType> {
   size_t NumReadyStreams() const override;
   bool IsStreamReady(StreamIdType stream_id) const override;
   size_t NumRegisteredStreams() const override;
-  SpdyString DebugString() const override;
+  std::string DebugString() const override;
 
  private:
   std::set<StreamIdType> ready_streams_;
@@ -208,7 +209,7 @@ size_t FifoWriteScheduler<StreamIdType>::NumRegisteredStreams() const {
 }
 
 template <typename StreamIdType>
-SpdyString FifoWriteScheduler<StreamIdType>::DebugString() const {
+std::string FifoWriteScheduler<StreamIdType>::DebugString() const {
   return SpdyStrCat(
       "FifoWriteScheduler {num_streams=", registered_streams_.size(),
       " num_ready_streams=", NumReadyStreams(), "}");

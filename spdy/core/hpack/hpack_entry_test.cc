@@ -42,7 +42,7 @@ class HpackEntryTest : public ::testing::Test {
     return name_.size() + value_.size() + HpackEntry::kSizeOverhead;
   }
 
-  SpdyString name_, value_;
+  std::string name_, value_;
 
  private:
   // Referenced by HpackEntry instances.

@@ -10,6 +10,7 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -17,7 +18,6 @@
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_output_stream.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_export.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_string.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_piece.h"
 
 // An HpackEncoder encodes header sets as outlined in
@@ -53,7 +53,7 @@ class SPDY_EXPORT_PRIVATE HpackEncoder {
 
   // Encodes the given header set into the given string. Returns
   // whether or not the encoding was successful.
-  bool EncodeHeaderSet(const SpdyHeaderBlock& header_set, SpdyString* output);
+  bool EncodeHeaderSet(const SpdyHeaderBlock& header_set, std::string* output);
 
   class SPDY_EXPORT_PRIVATE ProgressiveEncoder {
    public:
@@ -64,7 +64,7 @@ class SPDY_EXPORT_PRIVATE HpackEncoder {
 
     // Encodes up to max_encoded_bytes of the current header block into the
     // given output string.
-    virtual void Next(size_t max_encoded_bytes, SpdyString* output) = 0;
+    virtual void Next(size_t max_encoded_bytes, std::string* output) = 0;
   };
 
   // Returns a ProgressiveEncoder which must be outlived by both the given
@@ -106,7 +106,7 @@ class SPDY_EXPORT_PRIVATE HpackEncoder {
   class Encoderator;
 
   // Encodes a sequence of header name-value pairs as a single header block.
-  void EncodeRepresentations(RepresentationIterator* iter, SpdyString* output);
+  void EncodeRepresentations(RepresentationIterator* iter, std::string* output);
 
   // Emits a static/dynamic indexed representation (Section 7.1).
   void EmitIndex(const HpackEntry* entry);

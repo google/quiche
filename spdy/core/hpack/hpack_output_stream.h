@@ -7,10 +7,10 @@
 
 #include <cstdint>
 #include <map>
+#include <string>
 
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_constants.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_export.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_string.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_piece.h"
 
 // All section references below are to
@@ -49,11 +49,11 @@ class SPDY_EXPORT_PRIVATE HpackOutputStream {
   void AppendUint32(uint32_t I);
 
   // Swaps the internal buffer with |output|, then resets state.
-  void TakeString(SpdyString* output);
+  void TakeString(std::string* output);
 
   // Gives up to |max_size| bytes of the internal buffer to |output|. Resets
   // internal state with the overflow.
-  void BoundedTakeString(size_t max_size, SpdyString* output);
+  void BoundedTakeString(size_t max_size, std::string* output);
 
   // Size in bytes of stream's internal buffer.
   size_t size() const { return buffer_.size(); }
@@ -63,7 +63,7 @@ class SPDY_EXPORT_PRIVATE HpackOutputStream {
 
  private:
   // The internal bit buffer.
-  SpdyString buffer_;
+  std::string buffer_;
 
   // If 0, the buffer ends on a byte boundary. If non-zero, the buffer
   // ends on the nth most significant bit. Guaranteed to be < 8.

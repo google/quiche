@@ -218,11 +218,11 @@ SpdyHeaderBlock::ValueProxy& SpdyHeaderBlock::ValueProxy::operator=(
   return *this;
 }
 
-SpdyString SpdyHeaderBlock::ValueProxy::as_string() const {
+std::string SpdyHeaderBlock::ValueProxy::as_string() const {
   if (lookup_result_ == block_->end()) {
     return "";
   } else {
-    return SpdyString(lookup_result_->second.value());
+    return std::string(lookup_result_->second.value());
   }
 }
 
@@ -262,12 +262,12 @@ bool SpdyHeaderBlock::operator!=(const SpdyHeaderBlock& other) const {
   return !(operator==(other));
 }
 
-SpdyString SpdyHeaderBlock::DebugString() const {
+std::string SpdyHeaderBlock::DebugString() const {
   if (empty()) {
     return "{}";
   }
 
-  SpdyString output = "\n{\n";
+  std::string output = "\n{\n";
   for (auto it = begin(); it != end(); ++it) {
     SpdyStrAppend(&output, "  ", it->first, " ", it->second, "\n");
   }

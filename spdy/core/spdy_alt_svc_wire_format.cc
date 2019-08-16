@@ -38,8 +38,8 @@ bool ParsePositiveIntegerImpl(SpdyStringPiece::const_iterator c,
 SpdyAltSvcWireFormat::AlternativeService::AlternativeService() = default;
 
 SpdyAltSvcWireFormat::AlternativeService::AlternativeService(
-    const SpdyString& protocol_id,
-    const SpdyString& host,
+    const std::string& protocol_id,
+    const std::string& host,
     uint16_t port,
     uint32_t max_age,
     VersionVector version)
@@ -71,7 +71,7 @@ bool SpdyAltSvcWireFormat::ParseHeaderFieldValue(
     // Parse protocol-id.
     SpdyStringPiece::const_iterator percent_encoded_protocol_id_end =
         std::find(c, value.end(), '=');
-    SpdyString protocol_id;
+    std::string protocol_id;
     if (percent_encoded_protocol_id_end == c ||
         !PercentDecode(c, percent_encoded_protocol_id_end, &protocol_id)) {
       return false;
@@ -105,7 +105,7 @@ bool SpdyAltSvcWireFormat::ParseHeaderFieldValue(
       return false;
     }
     DCHECK_EQ('"', *c);
-    SpdyString host;
+    std::string host;
     uint16_t port;
     if (!ParseAltAuthority(alt_authority_begin, c, &host, &port)) {
       return false;
@@ -129,7 +129,7 @@ bool SpdyAltSvcWireFormat::ParseHeaderFieldValue(
       if (c == parameters_end) {
         break;
       }
-      SpdyString parameter_name;
+      std::string parameter_name;
       for (; c != parameters_end && *c != '=' && *c != ' ' && *c != '\t'; ++c) {
         parameter_name.push_back(tolower(*c));
       }
@@ -211,13 +211,13 @@ bool SpdyAltSvcWireFormat::ParseHeaderFieldValue(
 }
 
 // static
-SpdyString SpdyAltSvcWireFormat::SerializeHeaderFieldValue(
+std::string SpdyAltSvcWireFormat::SerializeHeaderFieldValue(
     const AlternativeServiceVector& altsvc_vector) {
   if (altsvc_vector.empty()) {
-    return SpdyString("clear");
+    return std::string("clear");
   }
   const char kNibbleToHex[] = "0123456789ABCDEF";
-  SpdyString value;
+  std::string value;
   for (const AlternativeService& altsvc : altsvc_vector) {
     if (!value.empty()) {
       value.push_back(',');
@@ -300,7 +300,7 @@ void SpdyAltSvcWireFormat::SkipWhiteSpace(SpdyStringPiece::const_iterator* c,
 // static
 bool SpdyAltSvcWireFormat::PercentDecode(SpdyStringPiece::const_iterator c,
                                          SpdyStringPiece::const_iterator end,
-                                         SpdyString* output) {
+                                         std::string* output) {
   output->clear();
   for (; c != end; ++c) {
     if (*c != '%') {
@@ -328,7 +328,7 @@ bool SpdyAltSvcWireFormat::PercentDecode(SpdyStringPiece::const_iterator c,
 bool SpdyAltSvcWireFormat::ParseAltAuthority(
     SpdyStringPiece::const_iterator c,
     SpdyStringPiece::const_iterator end,
-    SpdyString* host,
+    std::string* host,
     uint16_t* port) {
   host->clear();
   if (c == end) {

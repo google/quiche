@@ -11,6 +11,7 @@
 #include <memory>
 #include <queue>
 #include <set>
+#include <string>
 #include <tuple>
 #include <unordered_map>
 #include <utility>
@@ -24,7 +25,6 @@
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_logging.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_map_util.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_ptr_util.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_string.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_utils.h"
 
 namespace spdy {
@@ -77,7 +77,7 @@ class Http2PriorityWriteScheduler : public WriteScheduler<StreamIdType> {
   size_t NumReadyStreams() const override;
   bool IsStreamReady(StreamIdType stream_id) const override;
   size_t NumRegisteredStreams() const override;
-  SpdyString DebugString() const override;
+  std::string DebugString() const override;
 
  private:
   friend class test::Http2PriorityWriteSchedulerPeer<StreamIdType>;
@@ -713,7 +713,7 @@ size_t Http2PriorityWriteScheduler<StreamIdType>::NumRegisteredStreams() const {
 }
 
 template <typename StreamIdType>
-SpdyString Http2PriorityWriteScheduler<StreamIdType>::DebugString() const {
+std::string Http2PriorityWriteScheduler<StreamIdType>::DebugString() const {
   return SpdyStrCat("Http2PriorityWriteScheduler {num_registered_streams=",
                     NumRegisteredStreams(),
                     " num_ready_streams=", NumReadyStreams(), "}");

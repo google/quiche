@@ -8,6 +8,7 @@
 
 #include <stdint.h>
 
+#include <string>
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -22,7 +23,6 @@
 #include "net/third_party/quiche/src/spdy/core/spdy_test_utils.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_arraysize.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_logging.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_string.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_utils.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_test.h"
 
@@ -231,8 +231,8 @@ class HpackDecoderAdapterTest
 
   void expectEntry(size_t index,
                    size_t size,
-                   const SpdyString& name,
-                   const SpdyString& value) {
+                   const std::string& name,
+                   const std::string& value) {
     const HpackStringPair* entry = decoder_peer_.GetTableEntry(index);
     EXPECT_EQ(name, entry->name) << "index " << index;
     EXPECT_EQ(value, entry->value);
@@ -240,7 +240,7 @@ class HpackDecoderAdapterTest
   }
 
   SpdyHeaderBlock MakeHeaderBlock(
-      const std::vector<std::pair<SpdyString, SpdyString>>& headers) {
+      const std::vector<std::pair<std::string, std::string>>& headers) {
     SpdyHeaderBlock result;
     for (const auto& kv : headers) {
       result.AppendValueOrAddHeader(kv.first, kv.second);
@@ -277,12 +277,12 @@ TEST_P(HpackDecoderAdapterTest,
   // limit is rejected.
   HandleControlFrameHeadersStart();
   const size_t kMaxBufferSizeBytes = 50;
-  const SpdyString a_value = SpdyString(49, 'x');
+  const std::string a_value = std::string(49, 'x');
   decoder_.set_max_decode_buffer_size_bytes(kMaxBufferSizeBytes);
   HpackBlockBuilder hbb;
   hbb.AppendLiteralNameAndValue(HpackEntryType::kNeverIndexedLiteralHeader,
                                 false, "a", false, a_value);
-  const SpdyString& s = hbb.buffer();
+  const std::string& s = hbb.buffer();
   EXPECT_GT(s.size(), kMaxBufferSizeBytes);
 
   // Any one in input buffer must not exceed kMaxBufferSizeBytes.
@@ -297,8 +297,8 @@ TEST_P(HpackDecoderAdapterTest,
 TEST_P(HpackDecoderAdapterTest, NameTooLong) {
   // Verify that a name longer than the allowed size generates an error.
   const size_t kMaxBufferSizeBytes = 50;
-  const SpdyString name = SpdyString(2 * kMaxBufferSizeBytes, 'x');
-  const SpdyString value = "abc";
+  const std::string name = std::string(2 * kMaxBufferSizeBytes, 'x');
+  const std::string value = "abc";
 
   decoder_.set_max_decode_buffer_size_bytes(kMaxBufferSizeBytes);
 
@@ -307,7 +307,7 @@ TEST_P(HpackDecoderAdapterTest, NameTooLong) {
                                 false, name, false, value);
 
   const size_t fragment_size = (3 * kMaxBufferSizeBytes) / 2;
-  const SpdyString fragment = hbb.buffer().substr(0, fragment_size);
+  const std::string fragment = hbb.buffer().substr(0, fragment_size);
 
   HandleControlFrameHeadersStart();
   EXPECT_FALSE(HandleControlFrameHeadersData(fragment));
@@ -316,8 +316,8 @@ TEST_P(HpackDecoderAdapterTest, NameTooLong) {
 TEST_P(HpackDecoderAdapterTest, HeaderTooLongToBuffer) {
   // Verify that a header longer than the allowed size generates an error if
   // it isn't all in one input buffer.
-  const SpdyString name = "some-key";
-  const SpdyString value = "some-value";
+  const std::string name = "some-key";
+  const std::string value = "some-value";
   const size_t kMaxBufferSizeBytes = name.size() + value.size() - 2;
   decoder_.set_max_decode_buffer_size_bytes(kMaxBufferSizeBytes);
 
@@ -325,7 +325,7 @@ TEST_P(HpackDecoderAdapterTest, HeaderTooLongToBuffer) {
   hbb.AppendLiteralNameAndValue(HpackEntryType::kNeverIndexedLiteralHeader,
                                 false, name, false, value);
   const size_t fragment_size = hbb.size() - 1;
-  const SpdyString fragment = hbb.buffer().substr(0, fragment_size);
+  const std::string fragment = hbb.buffer().substr(0, fragment_size);
 
   HandleControlFrameHeadersStart();
   EXPECT_FALSE(HandleControlFrameHeadersData(fragment));
@@ -333,8 +333,8 @@ TEST_P(HpackDecoderAdapterTest, HeaderTooLongToBuffer) {
 
 // Verify that a header block that exceeds the maximum length is rejected.
 TEST_P(HpackDecoderAdapterTest, HeaderBlockTooLong) {
-  const SpdyString name = "some-key";
-  const SpdyString value = "some-value";
+  const std::string name = "some-key";
+  const std::string value = "some-value";
   const size_t kMaxBufferSizeBytes = 1024;
 
   HpackBlockBuilder hbb;
@@ -364,7 +364,7 @@ TEST_P(HpackDecoderAdapterTest, DecodeWithIncompleteData) {
 
   // No need to wait for more data.
   EXPECT_TRUE(HandleControlFrameHeadersData("\x82\x85\x82"));
-  std::vector<std::pair<SpdyString, SpdyString>> expected_headers = {
+  std::vector<std::pair<std::string, std::string>> expected_headers = {
       {":method", "GET"}, {":path", "/index.html"}, {":method", "GET"}};
 
   SpdyHeaderBlock expected_block1 = MakeHeaderBlock(expected_headers);
@@ -405,7 +405,7 @@ TEST_P(HpackDecoderAdapterTest, HandleHeaderRepresentation) {
 
   // Already-delimited headers are passed through.
   decoder_peer_.HandleHeaderRepresentation("passed-through",
-                                           SpdyString("foo\0baz", 7));
+                                           std::string("foo\0baz", 7));
 
   // Other headers are joined on \0. Case matters.
   decoder_peer_.HandleHeaderRepresentation("joined", "not joined");
@@ -492,7 +492,7 @@ TEST_P(HpackDecoderAdapterTest, InvalidIndexedHeader) {
 TEST_P(HpackDecoderAdapterTest, ContextUpdateMaximumSize) {
   EXPECT_EQ(kDefaultHeaderTableSizeSetting,
             decoder_peer_.header_table_size_limit());
-  SpdyString input;
+  std::string input;
   {
     // Maximum-size update with size 126. Succeeds.
     HpackOutputStream output_stream;
@@ -529,7 +529,7 @@ TEST_P(HpackDecoderAdapterTest, ContextUpdateMaximumSize) {
 
 // Two HeaderTableSizeUpdates may appear at the beginning of the block
 TEST_P(HpackDecoderAdapterTest, TwoTableSizeUpdates) {
-  SpdyString input;
+  std::string input;
   {
     // Should accept two table size updates, update to second one
     HpackOutputStream output_stream;
@@ -546,7 +546,7 @@ TEST_P(HpackDecoderAdapterTest, TwoTableSizeUpdates) {
 
 // Three HeaderTableSizeUpdates should result in an error
 TEST_P(HpackDecoderAdapterTest, ThreeTableSizeUpdatesError) {
-  SpdyString input;
+  std::string input;
   {
     // Should reject three table size updates, update to second one
     HpackOutputStream output_stream;
@@ -567,7 +567,7 @@ TEST_P(HpackDecoderAdapterTest, ThreeTableSizeUpdatesError) {
 // HeaderTableSizeUpdates may only appear at the beginning of the block
 // Any other updates should result in an error
 TEST_P(HpackDecoderAdapterTest, TableSizeUpdateSecondError) {
-  SpdyString input;
+  std::string input;
   {
     // Should reject a table size update appearing after a different entry
     // The table size should remain as the default
@@ -587,7 +587,7 @@ TEST_P(HpackDecoderAdapterTest, TableSizeUpdateSecondError) {
 // HeaderTableSizeUpdates may only appear at the beginning of the block
 // Any other updates should result in an error
 TEST_P(HpackDecoderAdapterTest, TableSizeUpdateFirstThirdError) {
-  SpdyString input;
+  std::string input;
   {
     // Should reject the second table size update
     // if a different entry appears after the first update
@@ -678,7 +678,7 @@ TEST_P(HpackDecoderAdapterTest, TruncatedHuffmanLiteral) {
   //                                         | www.example.com
   //                                         | -> :authority: www.example.com
 
-  SpdyString first = SpdyHexDecode("418cf1e3c2e5f23a6ba0ab90f4ff");
+  std::string first = SpdyHexDecode("418cf1e3c2e5f23a6ba0ab90f4ff");
   EXPECT_TRUE(DecodeHeaderBlock(first));
   first.pop_back();
   EXPECT_FALSE(DecodeHeaderBlock(first));
@@ -698,7 +698,7 @@ TEST_P(HpackDecoderAdapterTest, HuffmanEOSError) {
   //                                         | www.example.com
   //                                         | -> :authority: www.example.com
 
-  SpdyString first = SpdyHexDecode("418cf1e3c2e5f23a6ba0ab90f4ff");
+  std::string first = SpdyHexDecode("418cf1e3c2e5f23a6ba0ab90f4ff");
   EXPECT_TRUE(DecodeHeaderBlock(first));
   first = SpdyHexDecode("418df1e3c2e5f23a6ba0ab90f4ffff");
   EXPECT_FALSE(DecodeHeaderBlock(first));
@@ -715,7 +715,7 @@ TEST_P(HpackDecoderAdapterTest, BasicC31) {
   expected_header_set[":path"] = "/";
   expected_header_set[":authority"] = "www.example.com";
 
-  SpdyString encoded_header_set;
+  std::string encoded_header_set;
   EXPECT_TRUE(
       encoder.EncodeHeaderSet(expected_header_set, &encoded_header_set));
 
@@ -747,7 +747,7 @@ TEST_P(HpackDecoderAdapterTest, SectionC4RequestHuffmanExamples) {
   //                                         |     Decoded:
   //                                         | www.example.com
   //                                         | -> :authority: www.example.com
-  SpdyString first = SpdyHexDecode("828684418cf1e3c2e5f23a6ba0ab90f4ff");
+  std::string first = SpdyHexDecode("828684418cf1e3c2e5f23a6ba0ab90f4ff");
   const SpdyHeaderBlock& first_header_set = DecodeBlockExpectingSuccess(first);
 
   EXPECT_THAT(first_header_set,
@@ -784,7 +784,7 @@ TEST_P(HpackDecoderAdapterTest, SectionC4RequestHuffmanExamples) {
   //                                         | no-cache
   //                                         | -> cache-control: no-cache
 
-  SpdyString second = SpdyHexDecode("828684be5886a8eb10649cbf");
+  std::string second = SpdyHexDecode("828684be5886a8eb10649cbf");
   const SpdyHeaderBlock& second_header_set =
       DecodeBlockExpectingSuccess(second);
 
@@ -826,7 +826,7 @@ TEST_P(HpackDecoderAdapterTest, SectionC4RequestHuffmanExamples) {
   //                                         |     Decoded:
   //                                         | custom-value
   //                                         | -> custom-key: custom-value
-  SpdyString third =
+  std::string third =
       SpdyHexDecode("828785bf408825a849e95ba97d7f8925a849e95bb8e8b4bf");
   const SpdyHeaderBlock& third_header_set = DecodeBlockExpectingSuccess(third);
 
@@ -896,7 +896,7 @@ TEST_P(HpackDecoderAdapterTest, SectionC6ResponseHuffmanExamples) {
   //                                         | -> location: https://www.e
   //                                         |    xample.com
 
-  SpdyString first = SpdyHexDecode(
+  std::string first = SpdyHexDecode(
       "488264025885aec3771a4b6196d07abe"
       "941054d444a8200595040b8166e082a6"
       "2d1bff6e919d29ad171863c78f0b97c8"
@@ -939,7 +939,7 @@ TEST_P(HpackDecoderAdapterTest, SectionC6ResponseHuffmanExamples) {
   //                                         |   idx = 63
   //                                         | -> location:
   //                                         |   https://www.example.com
-  SpdyString second = SpdyHexDecode("4883640effc1c0bf");
+  std::string second = SpdyHexDecode("4883640effc1c0bf");
   const SpdyHeaderBlock& second_header_set =
       DecodeBlockExpectingSuccess(second);
 
@@ -1011,7 +1011,7 @@ TEST_P(HpackDecoderAdapterTest, SectionC6ResponseHuffmanExamples) {
   //                                         | -> set-cookie: foo=ASDJKHQ
   //                                         |   KBZXOQWEOPIUAXQWEOIU;
   //                                         |   max-age=3600; version=1
-  SpdyString third = SpdyHexDecode(
+  std::string third = SpdyHexDecode(
       "88c16196d07abe941054d444a8200595"
       "040b8166e084a62d1bffc05a839bd9ab"
       "77ad94e7821dd7f2e6c7b335dfdfcd5b"
@@ -1096,7 +1096,7 @@ TEST_P(HpackDecoderAdapterTest, ReuseNameOfEvictedEntry) {
 
   // SpdyHeaderBlock stores these 6 strings as '\0' separated values.
   // Make sure that is what happened.
-  SpdyString joined_values = expected_header_set[name].as_string();
+  std::string joined_values = expected_header_set[name].as_string();
   EXPECT_EQ(joined_values.size(),
             2 * value1.size() + 2 * value2.size() + 2 * value3.size() + 5);
 

@@ -7,12 +7,12 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <string>
 
 #include "net/third_party/quiche/src/spdy/core/spdy_header_block.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_headers_handler_interface.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_bug_tracker.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_string.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_piece.h"
 
 namespace spdy {
@@ -24,12 +24,12 @@ inline bool operator==(SpdyStringPiece x,
 
 namespace test {
 
-SpdyString HexDumpWithMarks(const unsigned char* data,
-                            int length,
-                            const bool* marks,
-                            int mark_length);
+std::string HexDumpWithMarks(const unsigned char* data,
+                             int length,
+                             const bool* marks,
+                             int mark_length);
 
-void CompareCharArraysWithHexError(const SpdyString& description,
+void CompareCharArraysWithHexError(const std::string& description,
                                    const unsigned char* actual,
                                    const int actual_len,
                                    const unsigned char* expected,

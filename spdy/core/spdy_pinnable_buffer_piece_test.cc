@@ -4,8 +4,9 @@
 
 #include "net/third_party/quiche/src/spdy/core/spdy_pinnable_buffer_piece.h"
 
+#include <string>
+
 #include "net/third_party/quiche/src/spdy/core/spdy_prefixed_buffer_reader.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_string.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_test.h"
 
 namespace spdy {
@@ -14,14 +15,14 @@ namespace test {
 
 class SpdyPinnableBufferPieceTest : public ::testing::Test {
  protected:
-  SpdyPrefixedBufferReader Build(const SpdyString& prefix,
-                                 const SpdyString& suffix) {
+  SpdyPrefixedBufferReader Build(const std::string& prefix,
+                                 const std::string& suffix) {
     prefix_ = prefix;
     suffix_ = suffix;
     return SpdyPrefixedBufferReader(prefix_.data(), prefix_.length(),
                                     suffix_.data(), suffix_.length());
   }
-  SpdyString prefix_, suffix_;
+  std::string prefix_, suffix_;
 };
 
 TEST_F(SpdyPinnableBufferPieceTest, Pin) {
