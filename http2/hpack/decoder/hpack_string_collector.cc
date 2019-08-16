@@ -36,7 +36,7 @@ HpackStringCollector::HpackStringCollector() {
   Clear();
 }
 
-HpackStringCollector::HpackStringCollector(const Http2String& str, bool huffman)
+HpackStringCollector::HpackStringCollector(const std::string& str, bool huffman)
     : s(str), len(str.size()), huffman_encoded(huffman), state(kEnded) {}
 
 void HpackStringCollector::Clear() {
@@ -89,7 +89,7 @@ void HpackStringCollector::OnStringEnd() {
   return ::testing::AssertionSuccess();
 }
 
-Http2String HpackStringCollector::ToString() const {
+std::string HpackStringCollector::ToString() const {
   std::stringstream ss;
   ss << *this;
   return ss.str();

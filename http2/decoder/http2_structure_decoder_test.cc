@@ -21,6 +21,7 @@
 #include <stddef.h>
 
 #include <cstdint>
+#include <string>
 
 #include "testing/gtest/include/gtest/gtest.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_buffer.h"
@@ -29,7 +30,6 @@
 #include "net/third_party/quiche/src/http2/http2_structures_test_util.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_reconstruct_object.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_string.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_piece.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_test_helpers.h"
 #include "net/third_party/quiche/src/http2/tools/http2_frame_builder.h"
@@ -159,7 +159,7 @@ class Http2StructureDecoderTest : public RandomDecoderTest {
   // Encode the structure |in_s| into bytes, then decode the bytes
   // and validate that the decoder produced the same field values.
   AssertionResult EncodeThenDecode(const S& in_s) {
-    Http2String bytes = SerializeStructure(in_s);
+    std::string bytes = SerializeStructure(in_s);
     VERIFY_EQ(S::EncodedSize(), bytes.size());
     VERIFY_AND_RETURN_SUCCESS(DecodeLeadingStructure(&in_s, bytes));
   }

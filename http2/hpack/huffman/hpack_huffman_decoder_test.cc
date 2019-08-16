@@ -32,7 +32,7 @@ TEST(HuffmanBitBufferTest, Reset) {
 }
 
 TEST(HuffmanBitBufferTest, AppendBytesAligned) {
-  Http2String s;
+  std::string s;
   s.push_back('\x11');
   s.push_back('\x22');
   s.push_back('\x33');
@@ -81,7 +81,7 @@ TEST(HuffmanBitBufferTest, AppendBytesAligned) {
 }
 
 TEST(HuffmanBitBufferTest, ConsumeBits) {
-  Http2String s;
+  std::string s;
   s.push_back('\x11');
   s.push_back('\x22');
   s.push_back('\x33');
@@ -103,7 +103,7 @@ TEST(HuffmanBitBufferTest, ConsumeBits) {
 }
 
 TEST(HuffmanBitBufferTest, AppendBytesUnaligned) {
-  Http2String s;
+  std::string s;
   s.push_back('\x11');
   s.push_back('\x22');
   s.push_back('\x33');
@@ -180,14 +180,14 @@ class HpackHuffmanDecoderTest : public RandomDecoderTest {
   }
 
   HpackHuffmanDecoder decoder_;
-  Http2String output_buffer_;
+  std::string output_buffer_;
   size_t input_bytes_seen_;
   size_t input_bytes_expected_;
 };
 
 TEST_F(HpackHuffmanDecoderTest, SpecRequestExamples) {
   HpackHuffmanDecoder decoder;
-  Http2String test_table[] = {
+  std::string test_table[] = {
       Http2HexDecode("f1e3c2e5f23a6ba0ab90f4ff"),
       "www.example.com",
       Http2HexDecode("a8eb10649cbf"),
@@ -198,9 +198,9 @@ TEST_F(HpackHuffmanDecoderTest, SpecRequestExamples) {
       "custom-value",
   };
   for (size_t i = 0; i != HTTP2_ARRAYSIZE(test_table); i += 2) {
-    const Http2String& huffman_encoded(test_table[i]);
-    const Http2String& plain_string(test_table[i + 1]);
-    Http2String buffer;
+    const std::string& huffman_encoded(test_table[i]);
+    const std::string& plain_string(test_table[i + 1]);
+    std::string buffer;
     decoder.Reset();
     EXPECT_TRUE(decoder.Decode(huffman_encoded, &buffer)) << decoder;
     EXPECT_TRUE(decoder.InputProperlyTerminated()) << decoder;
@@ -211,7 +211,7 @@ TEST_F(HpackHuffmanDecoderTest, SpecRequestExamples) {
 TEST_F(HpackHuffmanDecoderTest, SpecResponseExamples) {
   HpackHuffmanDecoder decoder;
   // clang-format off
-  Http2String test_table[] = {
+  std::string test_table[] = {
     Http2HexDecode("6402"),
     "302",
     Http2HexDecode("aec3771a4b"),
@@ -229,9 +229,9 @@ TEST_F(HpackHuffmanDecoderTest, SpecResponseExamples) {
   };
   // clang-format on
   for (size_t i = 0; i != HTTP2_ARRAYSIZE(test_table); i += 2) {
-    const Http2String& huffman_encoded(test_table[i]);
-    const Http2String& plain_string(test_table[i + 1]);
-    Http2String buffer;
+    const std::string& huffman_encoded(test_table[i]);
+    const std::string& plain_string(test_table[i + 1]);
+    std::string buffer;
     decoder.Reset();
     EXPECT_TRUE(decoder.Decode(huffman_encoded, &buffer)) << decoder;
     EXPECT_TRUE(decoder.InputProperlyTerminated()) << decoder;

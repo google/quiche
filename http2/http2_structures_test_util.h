@@ -5,9 +5,10 @@
 #ifndef QUICHE_HTTP2_HTTP2_STRUCTURES_TEST_UTIL_H_
 #define QUICHE_HTTP2_HTTP2_STRUCTURES_TEST_UTIL_H_
 
+#include <string>
+
 #include "testing/gtest/include/gtest/gtest.h"
 #include "net/third_party/quiche/src/http2/http2_structures.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_string.h"
 #include "net/third_party/quiche/src/http2/test_tools/http2_random.h"
 #include "net/third_party/quiche/src/http2/tools/http2_frame_builder.h"
 
@@ -15,7 +16,7 @@ namespace http2 {
 namespace test {
 
 template <class S>
-Http2String SerializeStructure(const S& s) {
+std::string SerializeStructure(const S& s) {
   Http2FrameBuilder fb;
   fb.Append(s);
   EXPECT_EQ(S::EncodedSize(), fb.size());

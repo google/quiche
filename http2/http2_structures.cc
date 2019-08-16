@@ -19,13 +19,13 @@ bool Http2FrameHeader::IsProbableHttpResponse() const {
           flags == '/');                     // "/"
 }
 
-Http2String Http2FrameHeader::ToString() const {
+std::string Http2FrameHeader::ToString() const {
   return Http2StrCat("length=", payload_length,
                      ", type=", Http2FrameTypeToString(type),
                      ", flags=", FlagsToString(), ", stream=", stream_id);
 }
 
-Http2String Http2FrameHeader::FlagsToString() const {
+std::string Http2FrameHeader::FlagsToString() const {
   return Http2FrameFlagsToString(type, flags);
 }
 
@@ -44,7 +44,7 @@ bool operator==(const Http2PriorityFields& a, const Http2PriorityFields& b) {
   return a.stream_dependency == b.stream_dependency && a.weight == b.weight;
 }
 
-Http2String Http2PriorityFields::ToString() const {
+std::string Http2PriorityFields::ToString() const {
   std::stringstream ss;
   ss << "E=" << (is_exclusive ? "true" : "false")
      << ", stream=" << stream_dependency

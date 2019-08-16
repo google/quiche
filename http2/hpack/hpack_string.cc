@@ -12,8 +12,8 @@
 namespace http2 {
 
 HpackString::HpackString(const char* data) : str_(data) {}
-HpackString::HpackString(Http2StringPiece str) : str_(Http2String(str)) {}
-HpackString::HpackString(Http2String str) : str_(std::move(str)) {}
+HpackString::HpackString(Http2StringPiece str) : str_(std::string(str)) {}
+HpackString::HpackString(std::string str) : str_(std::move(str)) {}
 HpackString::HpackString(const HpackString& other) = default;
 HpackString::~HpackString() = default;
 
@@ -59,7 +59,7 @@ HpackStringPair::~HpackStringPair() {
   HTTP2_DVLOG(3) << DebugString() << " dtor";
 }
 
-Http2String HpackStringPair::DebugString() const {
+std::string HpackStringPair::DebugString() const {
   return Http2StrCat("HpackStringPair(name=", name.ToString(),
                      ", value=", value.ToString(), ")");
 }

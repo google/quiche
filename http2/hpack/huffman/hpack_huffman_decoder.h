@@ -16,9 +16,9 @@
 
 #include <cstdint>
 #include <iosfwd>
+#include <string>
 
 #include "net/third_party/quiche/src/http2/platform/api/http2_export.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_string.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_piece.h"
 
 namespace http2 {
@@ -74,7 +74,7 @@ class HTTP2_EXPORT_PRIVATE HuffmanBitBuffer {
   // of them 1. Otherwise returns false.
   bool InputProperlyTerminated() const;
 
-  Http2String DebugString() const;
+  std::string DebugString() const;
 
  private:
   HuffmanAccumulator accumulator_;
@@ -109,7 +109,7 @@ class HTTP2_EXPORT_PRIVATE HpackHuffmanDecoder {
   // will contain the leading bits of the code for that symbol, but not the
   // final bits of that code.
   // Note that output should be empty, but that it is not cleared by Decode().
-  bool Decode(Http2StringPiece input, Http2String* output);
+  bool Decode(Http2StringPiece input, std::string* output);
 
   // Is what remains in the bit_buffer_ valid at the end of an encoded string?
   // Call after passing the the final portion of a Huffman string to Decode,
@@ -118,7 +118,7 @@ class HTTP2_EXPORT_PRIVATE HpackHuffmanDecoder {
     return bit_buffer_.InputProperlyTerminated();
   }
 
-  Http2String DebugString() const;
+  std::string DebugString() const;
 
  private:
   HuffmanBitBuffer bit_buffer_;

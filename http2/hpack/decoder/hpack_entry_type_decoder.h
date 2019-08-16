@@ -11,6 +11,7 @@
 // zero, or is the new size limit of the dynamic table.
 
 #include <cstdint>
+#include <string>
 
 #include "net/third_party/quiche/src/http2/decoder/decode_buffer.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_status.h"
@@ -18,7 +19,6 @@
 #include "net/third_party/quiche/src/http2/hpack/varint/hpack_varint_decoder.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_export.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_string.h"
 
 namespace http2 {
 
@@ -40,7 +40,7 @@ class HTTP2_EXPORT_PRIVATE HpackEntryTypeDecoder {
   // preceding call to Start or Resume returned kDecodeDone.
   uint64_t varint() const { return varint_decoder_.value(); }
 
-  Http2String DebugString() const;
+  std::string DebugString() const;
 
  private:
   HpackVarintDecoder varint_decoder_;

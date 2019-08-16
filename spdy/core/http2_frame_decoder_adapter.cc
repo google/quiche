@@ -21,7 +21,6 @@
 #include "net/third_party/quiche/src/http2/decoder/http2_frame_decoder_listener.h"
 #include "net/third_party/quiche/src/http2/http2_constants.h"
 #include "net/third_party/quiche/src/http2/http2_structures.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_string.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_decoder_adapter.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_header_table.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_alt_svc_wire_format.h"

@@ -17,12 +17,12 @@ Http2Random::Http2Random() {
 }
 
 Http2Random::Http2Random(Http2StringPiece key) {
-  Http2String decoded_key = Http2HexDecode(key);
+  std::string decoded_key = Http2HexDecode(key);
   CHECK_EQ(sizeof(key_), decoded_key.size());
   memcpy(key_, decoded_key.data(), sizeof(key_));
 }
 
-Http2String Http2Random::Key() const {
+std::string Http2Random::Key() const {
   return Http2HexEncode(key_, sizeof(key_));
 }
 
@@ -33,8 +33,8 @@ void Http2Random::FillRandom(void* buffer, size_t buffer_size) {
                    counter_++);
 }
 
-Http2String Http2Random::RandString(int length) {
-  Http2String result;
+std::string Http2Random::RandString(int length) {
+  std::string result;
   result.resize(length);
   FillRandom(&result[0], length);
   return result;
@@ -58,9 +58,9 @@ double Http2Random::RandDouble() {
   return value.f - 1.0;
 }
 
-Http2String Http2Random::RandStringWithAlphabet(int length,
+std::string Http2Random::RandStringWithAlphabet(int length,
                                                 Http2StringPiece alphabet) {
-  Http2String result;
+  std::string result;
   result.resize(length);
   for (int i = 0; i < length; i++) {
     result[i] = alphabet[Uniform(alphabet.size())];

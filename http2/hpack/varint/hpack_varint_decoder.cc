@@ -120,7 +120,7 @@ void HpackVarintDecoder::set_value(uint64_t v) {
   value_ = v;
 }
 
-Http2String HpackVarintDecoder::DebugString() const {
+std::string HpackVarintDecoder::DebugString() const {
   return Http2StrCat("HpackVarintDecoder(value=", value_, ", offset=", offset_,
                      ")");
 }

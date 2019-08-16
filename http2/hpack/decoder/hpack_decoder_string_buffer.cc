@@ -9,7 +9,6 @@
 #include "net/third_party/quiche/src/http2/platform/api/http2_bug_tracker.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_estimate_memory_usage.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_string.h"
 
 namespace http2 {
 
@@ -168,7 +167,7 @@ void HpackDecoderStringBuffer::BufferStringIfUnbuffered() {
                  << state_ << ", backing=" << backing_;
   if (state_ != State::RESET && backing_ == Backing::UNBUFFERED) {
     HTTP2_DVLOG(2)
-        << "HpackDecoderStringBuffer buffering Http2String of length "
+        << "HpackDecoderStringBuffer buffering std::string of length "
         << value_.size();
     buffer_.assign(value_.data(), value_.size());
     if (state_ == State::COMPLETE) {
@@ -194,7 +193,7 @@ Http2StringPiece HpackDecoderStringBuffer::str() const {
   return value_;
 }
 
-Http2String HpackDecoderStringBuffer::ReleaseString() {
+std::string HpackDecoderStringBuffer::ReleaseString() {
   HTTP2_DVLOG(3) << "HpackDecoderStringBuffer::ReleaseString";
   DCHECK_EQ(state_, State::COMPLETE);
   DCHECK_EQ(backing_, Backing::BUFFERED);
@@ -203,7 +202,7 @@ Http2String HpackDecoderStringBuffer::ReleaseString() {
     if (backing_ == Backing::BUFFERED) {
       return std::move(buffer_);
     } else {
-      return Http2String(value_);
+      return std::string(value_);
     }
   }
   return "";

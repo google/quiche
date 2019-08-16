@@ -15,6 +15,7 @@
 
 #include <stddef.h>
 
+#include <string>
 #include <vector>
 
 #include "testing/gtest/include/gtest/gtest.h"
@@ -22,7 +23,6 @@
 #include "net/third_party/quiche/src/http2/hpack/decoder/hpack_entry_decoder_listener.h"
 #include "net/third_party/quiche/src/http2/hpack/http2_hpack_constants.h"
 #include "net/third_party/quiche/src/http2/hpack/tools/hpack_block_builder.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_string.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_piece.h"
 #include "net/third_party/quiche/src/http2/test_tools/http2_random.h"
 
@@ -66,14 +66,14 @@ class HpackBlockCollector : public HpackEntryDecoderListener {
   void ExpectNameIndexAndLiteralValue(HpackEntryType type,
                                       size_t index,
                                       bool value_huffman,
-                                      const Http2String& value);
+                                      const std::string& value);
 
   // Add an HPACK entry for a header entry with a literal name and value.
   void ExpectLiteralNameAndValue(HpackEntryType type,
                                  bool name_huffman,
-                                 const Http2String& name,
+                                 const std::string& name,
                                  bool value_huffman,
-                                 const Http2String& value);
+                                 const std::string& value);
 
   // Shuffle the entries, in support of generating an HPACK block of entries
   // in some random order.

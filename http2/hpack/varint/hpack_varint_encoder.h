@@ -7,9 +7,9 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <string>
 
 #include "net/third_party/quiche/src/http2/platform/api/http2_export.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_string.h"
 
 namespace http2 {
 
@@ -23,7 +23,7 @@ class HTTP2_EXPORT_PRIVATE HpackVarintEncoder {
   static void Encode(uint8_t high_bits,
                      uint8_t prefix_length,
                      uint64_t varint,
-                     Http2String* output);
+                     std::string* output);
 };
 
 }  // namespace http2

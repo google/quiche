@@ -43,9 +43,9 @@ TEST(Http2RandomTest, ReproducibleRandom) {
 
 TEST(Http2RandomTest, STLShuffle) {
   Http2Random random;
-  const Http2String original = "abcdefghijklmonpqrsuvwxyz";
+  const std::string original = "abcdefghijklmonpqrsuvwxyz";
 
-  Http2String shuffled = original;
+  std::string shuffled = original;
   std::shuffle(shuffled.begin(), shuffled.end(), random);
   EXPECT_NE(original, shuffled);
 }
@@ -61,7 +61,7 @@ TEST(Http2RandomTest, RandFloat) {
 
 TEST(Http2RandomTest, RandStringWithAlphabet) {
   Http2Random random;
-  Http2String str = random.RandStringWithAlphabet(1000, "xyz");
+  std::string str = random.RandStringWithAlphabet(1000, "xyz");
   EXPECT_EQ(1000u, str.size());
 
   std::set<char> characters(str.begin(), str.end());

@@ -16,10 +16,10 @@
 #include <stddef.h>  // for size_t
 
 #include <cstdint>
+#include <string>
 
 #include "net/third_party/quiche/src/http2/http2_constants.h"
 #include "net/third_party/quiche/src/http2/http2_structures.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_string.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_piece.h"
 
 namespace http2 {
@@ -33,7 +33,7 @@ class Http2FrameBuilder {
   ~Http2FrameBuilder() {}
 
   size_t size() const { return buffer_.size(); }
-  const Http2String& buffer() const { return buffer_; }
+  const std::string& buffer() const { return buffer_; }
 
   //----------------------------------------------------------------------------
   // Methods for appending to the end of the buffer.
@@ -92,7 +92,7 @@ class Http2FrameBuilder {
   size_t SetPayloadLength();
 
  private:
-  Http2String buffer_;
+  std::string buffer_;
 };
 
 }  // namespace test

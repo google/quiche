@@ -14,7 +14,7 @@ namespace http2 {
 namespace test {
 namespace {
 
-void HpackExampleToStringOrDie(Http2StringPiece example, Http2String* output) {
+void HpackExampleToStringOrDie(Http2StringPiece example, std::string* output) {
   while (!example.empty()) {
     const char c0 = example[0];
     if (isxdigit(c0)) {
@@ -48,8 +48,8 @@ void HpackExampleToStringOrDie(Http2StringPiece example, Http2String* output) {
 
 }  // namespace
 
-Http2String HpackExampleToStringOrDie(Http2StringPiece example) {
-  Http2String output;
+std::string HpackExampleToStringOrDie(Http2StringPiece example) {
+  std::string output;
   HpackExampleToStringOrDie(example, &output);
   return output;
 }

@@ -6,6 +6,7 @@
 
 // Tests of HpackDecoder.
 
+#include <string>
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -22,7 +23,6 @@
 #include "net/third_party/quiche/src/http2/hpack/tools/hpack_example.h"
 #include "net/third_party/quiche/src/http2/http2_constants.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_string.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_test_helpers.h"
 #include "net/third_party/quiche/src/http2/test_tools/http2_random.h"
 #include "net/third_party/quiche/src/http2/tools/random_util.h"
@@ -57,7 +57,7 @@ class HpackDecoderPeer {
 
 namespace {
 
-typedef std::tuple<HpackEntryType, Http2String, Http2String> HpackHeaderEntry;
+typedef std::tuple<HpackEntryType, std::string, std::string> HpackHeaderEntry;
 typedef std::vector<HpackHeaderEntry> HpackHeaderEntries;
 
 // TODO(jamessynge): Create a ...test_utils.h file with the mock listener
@@ -121,7 +121,7 @@ class HpackDecoderTest : public ::testing::TestWithParam<bool>,
   // error_message may be used in a GOAWAY frame as the Opaque Data.
   void OnHeaderErrorDetected(Http2StringPiece error_message) override {
     ASSERT_TRUE(saw_start_);
-    error_messages_.push_back(Http2String(error_message));
+    error_messages_.push_back(std::string(error_message));
     // No further callbacks should be made at this point, so replace 'this' as
     // the listener with mock_listener_, which is a strict mock, so will
     // generate an error for any calls.
@@ -219,7 +219,7 @@ class HpackDecoderTest : public ::testing::TestWithParam<bool>,
   HpackDecoder decoder_;
   testing::StrictMock<MockHpackDecoderListener> mock_listener_;
   HpackHeaderEntries header_entries_;
-  std::vector<Http2String> error_messages_;
+  std::vector<std::string> error_messages_;
   bool fragment_the_hpack_block_;
   bool saw_start_ = false;
   bool saw_end_ = false;
@@ -232,7 +232,7 @@ INSTANTIATE_TEST_SUITE_P(AllWays, HpackDecoderTest, ::testing::Bool());
 // http://httpwg.org/specs/rfc7541.html#rfc.section.C.3
 TEST_P(HpackDecoderTest, C3_RequestExamples) {
   // C.3.1 First Request
-  Http2String hpack_block = HpackExampleToStringOrDie(R"(
+  std::string hpack_block = HpackExampleToStringOrDie(R"(
       82                                      | == Indexed - Add ==
                                               |   idx = 2
                                               | -> :method: GET
@@ -367,7 +367,7 @@ TEST_P(HpackDecoderTest, C3_RequestExamples) {
 // http://httpwg.org/specs/rfc7541.html#rfc.section.C.4
 TEST_P(HpackDecoderTest, C4_RequestExamplesWithHuffmanEncoding) {
   // C.4.1 First Request
-  Http2String hpack_block = HpackExampleToStringOrDie(R"(
+  std::string hpack_block = HpackExampleToStringOrDie(R"(
       82                                      | == Indexed - Add ==
                                               |   idx = 2
                                               | -> :method: GET
@@ -526,7 +526,7 @@ TEST_P(HpackDecoderTest, C5_ResponseExamples) {
   //   date: Mon, 21 Oct 2013 20:13:21 GMT
   //   location: https://www.example.com
 
-  Http2String hpack_block = HpackExampleToStringOrDie(R"(
+  std::string hpack_block = HpackExampleToStringOrDie(R"(
       48                                      | == Literal indexed ==
                                               |   Indexed name (idx = 8)
                                               |     :status
@@ -751,7 +751,7 @@ TEST_P(HpackDecoderTest, C6_ResponseExamplesWithHuffmanEncoding) {
   //   cache-control: private
   //   date: Mon, 21 Oct 2013 20:13:21 GMT
   //   location: https://www.example.com
-  Http2String hpack_block = HpackExampleToStringOrDie(R"(
+  std::string hpack_block = HpackExampleToStringOrDie(R"(
       48                                      | == Literal indexed ==
                                               |   Indexed name (idx = 8)
                                               |     :status

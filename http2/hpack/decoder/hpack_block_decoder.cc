@@ -48,7 +48,7 @@ DecodeStatus HpackBlockDecoder::Decode(DecodeBuffer* db) {
   return DecodeStatus::kDecodeDone;
 }
 
-Http2String HpackBlockDecoder::DebugString() const {
+std::string HpackBlockDecoder::DebugString() const {
   return Http2StrCat("HpackBlockDecoder(", entry_decoder_.DebugString(),
                      ", listener@",
                      Http2Hex(reinterpret_cast<intptr_t>(listener_)),

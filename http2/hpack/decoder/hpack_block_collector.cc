@@ -77,14 +77,14 @@ void HpackBlockCollector::ExpectNameIndexAndLiteralValue(
     HpackEntryType type,
     size_t index,
     bool value_huffman,
-    const Http2String& value) {
+    const std::string& value) {
   entries_.push_back(HpackEntryCollector(type, index, value_huffman, value));
 }
 void HpackBlockCollector::ExpectLiteralNameAndValue(HpackEntryType type,
                                                     bool name_huffman,
-                                                    const Http2String& name,
+                                                    const std::string& name,
                                                     bool value_huffman,
-                                                    const Http2String& value) {
+                                                    const std::string& value) {
   entries_.push_back(
       HpackEntryCollector(type, name_huffman, name, value_huffman, value));
 }

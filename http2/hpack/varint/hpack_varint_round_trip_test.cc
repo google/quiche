@@ -161,7 +161,7 @@ class HpackVarintRoundTripTest : public RandomDecoderTest {
     for (const uint64_t value : values) {
       Encode(value, prefix_length);  // Sets buffer_.
 
-      Http2String msg = Http2StrCat("value=", value, " (0x", Http2Hex(value),
+      std::string msg = Http2StrCat("value=", value, " (0x", Http2Hex(value),
                                     "), prefix_length=", prefix_length,
                                     ", expected_bytes=", expected_bytes, "\n",
                                     Http2HexDump(buffer_));
@@ -241,7 +241,7 @@ class HpackVarintRoundTripTest : public RandomDecoderTest {
   }
 
   HpackVarintDecoder decoder_;
-  Http2String buffer_;
+  std::string buffer_;
   uint8_t prefix_length_;
 };
 
@@ -283,7 +283,7 @@ TEST_F(HpackVarintRoundTripTest, Encode) {
 
     for (uint64_t value : values) {
       EncodeNoRandom(value, prefix_length);
-      Http2String dump = Http2HexDump(buffer_);
+      std::string dump = Http2HexDump(buffer_);
       HTTP2_LOG(INFO) << Http2StringPrintf("%10llu %0#18x ", value, value)
                       << Http2HexDump(buffer_).substr(7);
     }

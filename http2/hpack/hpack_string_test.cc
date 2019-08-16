@@ -26,7 +26,7 @@ const char kStr1[] = "S1 - some string to be copied into yet another string.";
 class HpackStringTest : public ::testing::Test {
  protected:
   AssertionResult VerifyNotEqual(HpackString* actual,
-                                 const Http2String& not_expected_str) {
+                                 const std::string& not_expected_str) {
     const char* not_expected_ptr = not_expected_str.c_str();
     Http2StringPiece not_expected_sp(not_expected_str);
 
@@ -52,7 +52,7 @@ class HpackStringTest : public ::testing::Test {
   }
 
   AssertionResult VerifyEqual(HpackString* actual,
-                              const Http2String& expected_str) {
+                              const std::string& expected_str) {
     VERIFY_EQ(actual->size(), expected_str.size());
 
     const char* expected_ptr = expected_str.c_str();
@@ -103,12 +103,12 @@ TEST_F(HpackStringTest, StringPieceConstructor) {
 }
 
 TEST_F(HpackStringTest, MoveStringConstructor) {
-  Http2String str0(kStr0);
+  std::string str0(kStr0);
   HpackString hs0(str0);
   EXPECT_TRUE(VerifyEqual(&hs0, kStr0));
   EXPECT_TRUE(VerifyNotEqual(&hs0, kStr1));
 
-  Http2String str1(kStr1);
+  std::string str1(kStr1);
   HpackString hs1(str1);
   EXPECT_TRUE(VerifyEqual(&hs1, kStr1));
   EXPECT_TRUE(VerifyNotEqual(&hs1, kStr0));

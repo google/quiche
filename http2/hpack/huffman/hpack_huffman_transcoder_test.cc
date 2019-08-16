@@ -11,7 +11,6 @@
 #include "net/third_party/quiche/src/http2/decoder/decode_status.h"
 #include "net/third_party/quiche/src/http2/hpack/huffman/hpack_huffman_decoder.h"
 #include "net/third_party/quiche/src/http2/hpack/huffman/hpack_huffman_encoder.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_string.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_piece.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_utils.h"
 #include "net/third_party/quiche/src/http2/tools/random_decoder_test.h"
@@ -24,8 +23,8 @@ namespace http2 {
 namespace test {
 namespace {
 
-Http2String GenAsciiNonControlSet() {
-  Http2String s;
+std::string GenAsciiNonControlSet() {
+  std::string s;
   const char space = ' ';  // First character after the control characters: 0x20
   const char del = 127;    // First character after the non-control characters.
   for (char c = space; c < del; ++c) {
@@ -74,7 +73,7 @@ class HpackHuffmanTranscoderTest : public RandomDecoderTest {
   AssertionResult TranscodeAndValidateSeveralWays(
       Http2StringPiece plain,
       Http2StringPiece expected_huffman) {
-    Http2String encoded;
+    std::string encoded;
     HuffmanEncode(plain, &encoded);
     if (expected_huffman.size() > 0 || plain.empty()) {
       VERIFY_EQ(encoded, expected_huffman);
@@ -95,22 +94,22 @@ class HpackHuffmanTranscoderTest : public RandomDecoderTest {
     return TranscodeAndValidateSeveralWays(plain, "");
   }
 
-  Http2String RandomAsciiNonControlString(int length) {
+  std::string RandomAsciiNonControlString(int length) {
     return Random().RandStringWithAlphabet(length, ascii_non_control_set_);
   }
 
-  Http2String RandomBytes(int length) { return Random().RandString(length); }
+  std::string RandomBytes(int length) { return Random().RandString(length); }
 
-  const Http2String ascii_non_control_set_;
+  const std::string ascii_non_control_set_;
   HpackHuffmanDecoder decoder_;
-  Http2String output_buffer_;
+  std::string output_buffer_;
   size_t input_bytes_seen_;
   size_t input_bytes_expected_;
 };
 
 TEST_F(HpackHuffmanTranscoderTest, RoundTripRandomAsciiNonControlString) {
   for (size_t length = 0; length != 20; length++) {
-    const Http2String s = RandomAsciiNonControlString(length);
+    const std::string s = RandomAsciiNonControlString(length);
     ASSERT_TRUE(TranscodeAndValidateSeveralWays(s))
         << "Unable to decode:\n\n"
         << Http2HexDump(s) << "\n\noutput_buffer_:\n"
@@ -120,7 +119,7 @@ TEST_F(HpackHuffmanTranscoderTest, RoundTripRandomAsciiNonControlString) {
 
 TEST_F(HpackHuffmanTranscoderTest, RoundTripRandomBytes) {
   for (size_t length = 0; length != 20; length++) {
-    const Http2String s = RandomBytes(length);
+    const std::string s = RandomBytes(length);
     ASSERT_TRUE(TranscodeAndValidateSeveralWays(s))
         << "Unable to decode:\n\n"
         << Http2HexDump(s) << "\n\noutput_buffer_:\n"
@@ -145,7 +144,7 @@ INSTANTIATE_TEST_SUITE_P(HpackHuffmanTranscoderAdjacentCharTest,
 
 // Test c_ adjacent to every other character, both before and after.
 TEST_P(HpackHuffmanTranscoderAdjacentCharTest, RoundTripAdjacentChar) {
-  Http2String s;
+  std::string s;
   for (int a = 0; a < 256; ++a) {
     s.push_back(static_cast<char>(a));
     s.push_back(c_);
@@ -162,7 +161,7 @@ class HpackHuffmanTranscoderRepeatedCharTest
   HpackHuffmanTranscoderRepeatedCharTest()
       : c_(static_cast<char>(::testing::get<0>(GetParam()))),
         length_(::testing::get<1>(GetParam())) {}
-  Http2String MakeString() { return Http2String(length_, c_); }
+  std::string MakeString() { return std::string(length_, c_); }
 
  private:
   const char c_;

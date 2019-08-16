@@ -5,6 +5,7 @@
 #include "net/third_party/quiche/src/http2/hpack/decoder/hpack_decoder_tables.h"
 
 #include <algorithm>
+#include <string>
 #include <tuple>
 #include <vector>
 
@@ -12,7 +13,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "net/third_party/quiche/src/http2/hpack/http2_hpack_constants.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_string.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_test_helpers.h"
 #include "net/third_party/quiche/src/http2/test_tools/http2_random.h"
 #include "net/third_party/quiche/src/http2/tools/random_util.h"
@@ -96,7 +96,7 @@ TEST_F(HpackDecoderStaticTableTest, StaticTableContents) {
   EXPECT_TRUE(VerifyStaticTableContents());
 }
 
-size_t Size(const Http2String& name, const Http2String& value) {
+size_t Size(const std::string& name, const std::string& value) {
   return name.size() + value.size() + 32;
 }
 
@@ -105,11 +105,11 @@ size_t Size(const Http2String& name, const Http2String& value) {
 // dynamic table containing FakeHpackEntry instances. We can thus compare the
 // contents of the actual table with those in fake_dynamic_table_.
 
-typedef std::tuple<Http2String, Http2String, size_t> FakeHpackEntry;
-const Http2String& Name(const FakeHpackEntry& entry) {
+typedef std::tuple<std::string, std::string, size_t> FakeHpackEntry;
+const std::string& Name(const FakeHpackEntry& entry) {
   return std::get<0>(entry);
 }
-const Http2String& Value(const FakeHpackEntry& entry) {
+const std::string& Value(const FakeHpackEntry& entry) {
   return std::get<1>(entry);
 }
 size_t Size(const FakeHpackEntry& entry) {
@@ -133,7 +133,7 @@ class HpackDecoderTablesTest : public HpackDecoderStaticTableTest {
   }
 
   // Insert the name and value into fake_dynamic_table_.
-  void FakeInsert(const Http2String& name, const Http2String& value) {
+  void FakeInsert(const std::string& name, const std::string& value) {
     FakeHpackEntry entry(name, value, Size(name, value));
     fake_dynamic_table_.insert(fake_dynamic_table_.begin(), entry);
   }
@@ -204,7 +204,7 @@ class HpackDecoderTablesTest : public HpackDecoderStaticTableTest {
   // Insert an entry into the dynamic table, confirming that trimming of entries
   // occurs if the total size is greater than the limit, and that older entries
   // move up by 1 index.
-  AssertionResult Insert(const Http2String& name, const Http2String& value) {
+  AssertionResult Insert(const std::string& name, const std::string& value) {
     size_t old_count = num_dynamic_entries();
     if (tables_.Insert(HpackString(name), HpackString(value))) {
       VERIFY_GT(current_dynamic_size(), 0u);
@@ -251,9 +251,9 @@ TEST_F(HpackDecoderTablesTest, RandomDynamicTable) {
   for (size_t limit : table_sizes) {
     ASSERT_TRUE(DynamicTableSizeUpdate(limit));
     for (int insert_count = 0; insert_count < 100; ++insert_count) {
-      Http2String name =
+      std::string name =
           GenerateHttp2HeaderName(random_.UniformInRange(2, 40), RandomPtr());
-      Http2String value =
+      std::string value =
           GenerateWebSafeString(random_.UniformInRange(2, 600), RandomPtr());
       ASSERT_TRUE(Insert(name, value));
     }

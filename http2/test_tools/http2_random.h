@@ -9,8 +9,8 @@
 #include <cstdint>
 #include <limits>
 #include <random>
+#include <string>
 
-#include "net/third_party/quiche/src/http2/platform/api/http2_string.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_piece.h"
 
 namespace http2 {
@@ -29,10 +29,10 @@ class Http2Random {
   // Reproducible random number generation: by using the same key, the same
   // sequence of results is obtained.
   explicit Http2Random(Http2StringPiece key);
-  Http2String Key() const;
+  std::string Key() const;
 
   void FillRandom(void* buffer, size_t buffer_size);
-  Http2String RandString(int length);
+  std::string RandString(int length);
 
   // Returns a random 64-bit value.
   uint64_t Rand64();
@@ -67,7 +67,7 @@ class Http2Random {
 
   // Return a random string consisting of the characters from the specified
   // alphabet.
-  Http2String RandStringWithAlphabet(int length, Http2StringPiece alphabet);
+  std::string RandStringWithAlphabet(int length, Http2StringPiece alphabet);
 
   // STL UniformRandomNumberGenerator implementation.
   using result_type = uint64_t;

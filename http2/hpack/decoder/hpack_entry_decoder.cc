@@ -237,7 +237,7 @@ void HpackEntryDecoder::OutputDebugString(std::ostream& out) const {
       << ", " << string_decoder_ << ")";
 }
 
-Http2String HpackEntryDecoder::DebugString() const {
+std::string HpackEntryDecoder::DebugString() const {
   std::stringstream s;
   s << *this;
   return s.str();

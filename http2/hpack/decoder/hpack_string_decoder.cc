@@ -8,7 +8,7 @@
 
 namespace http2 {
 
-Http2String HpackStringDecoder::DebugString() const {
+std::string HpackStringDecoder::DebugString() const {
   return Http2StrCat("HpackStringDecoder(state=", StateToString(state_),
                      ", length=", length_decoder_.DebugString(),
                      ", remaining=", remaining_,
@@ -16,7 +16,7 @@ Http2String HpackStringDecoder::DebugString() const {
 }
 
 // static
-Http2String HpackStringDecoder::StateToString(StringDecoderState v) {
+std::string HpackStringDecoder::StateToString(StringDecoderState v) {
   switch (v) {
     case kStartDecodingLength:
       return "kStartDecodingLength";

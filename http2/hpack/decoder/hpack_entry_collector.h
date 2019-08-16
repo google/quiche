@@ -13,13 +13,13 @@
 #include <stddef.h>
 
 #include <iosfwd>
+#include <string>
 
 #include "testing/gtest/include/gtest/gtest.h"
 #include "net/third_party/quiche/src/http2/hpack/decoder/hpack_entry_decoder_listener.h"
 #include "net/third_party/quiche/src/http2/hpack/decoder/hpack_string_collector.h"
 #include "net/third_party/quiche/src/http2/hpack/http2_hpack_constants.h"
 #include "net/third_party/quiche/src/http2/hpack/tools/hpack_block_builder.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_string.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_piece.h"
 
 namespace http2 {
@@ -37,12 +37,12 @@ class HpackEntryCollector : public HpackEntryDecoderListener {
   HpackEntryCollector(HpackEntryType type,
                       size_t index,
                       bool value_huffman,
-                      const Http2String& value);
+                      const std::string& value);
   HpackEntryCollector(HpackEntryType type,
                       bool name_huffman,
-                      const Http2String& name,
+                      const std::string& name,
                       bool value_huffman,
-                      const Http2String& value);
+                      const std::string& value);
 
   ~HpackEntryCollector() override;
 
@@ -122,7 +122,7 @@ class HpackEntryCollector : public HpackEntryDecoderListener {
   void AppendToHpackBlockBuilder(HpackBlockBuilder* hbb) const;
 
   // Returns a debug string.
-  Http2String ToString() const;
+  std::string ToString() const;
 
  private:
   void Init(HpackEntryType type, size_t maybe_index);

@@ -13,6 +13,7 @@
 #include <stddef.h>
 
 #include <cstdint>
+#include <string>
 #include <vector>
 
 #include "testing/gtest/include/gtest/gtest.h"
@@ -21,7 +22,6 @@
 #include "net/third_party/quiche/src/http2/http2_structures.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_optional.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_string.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_piece.h"
 
 namespace http2 {
@@ -208,15 +208,15 @@ class FrameParts : public Http2FrameDecoderListener {
   // the optional has a value (i.e. that the necessary On*Start method has been
   // called), and that target is not longer than opt_length->value().
   ::testing::AssertionResult AppendString(Http2StringPiece source,
-                                          Http2String* target,
+                                          std::string* target,
                                           Http2Optional<size_t>* opt_length);
 
   const Http2FrameHeader frame_header_;
 
-  Http2String payload_;
-  Http2String padding_;
-  Http2String altsvc_origin_;
-  Http2String altsvc_value_;
+  std::string payload_;
+  std::string padding_;
+  std::string altsvc_origin_;
+  std::string altsvc_value_;
 
   Http2Optional<Http2PriorityFields> opt_priority_;
   Http2Optional<Http2ErrorCode> opt_rst_stream_error_code_;

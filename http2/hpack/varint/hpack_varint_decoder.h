@@ -29,12 +29,12 @@
 
 #include <cstdint>
 #include <limits>
+#include <string>
 
 #include "net/third_party/quiche/src/http2/decoder/decode_buffer.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_status.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_export.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_string.h"
 
 namespace http2 {
 
@@ -83,7 +83,7 @@ class HTTP2_EXPORT_PRIVATE HpackVarintDecoder {
 
   // All the public methods below are for supporting assertions and tests.
 
-  Http2String DebugString() const;
+  std::string DebugString() const;
 
   // For benchmarking, these methods ensure the decoder
   // is NOT inlined into the caller.

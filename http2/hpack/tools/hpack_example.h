@@ -5,7 +5,8 @@
 #ifndef QUICHE_HTTP2_HPACK_TOOLS_HPACK_EXAMPLE_H_
 #define QUICHE_HTTP2_HPACK_TOOLS_HPACK_EXAMPLE_H_
 
-#include "net/third_party/quiche/src/http2/platform/api/http2_string.h"
+#include <string>
+
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_piece.h"
 
 // Parses HPACK examples in the format seen in the HPACK specification,
@@ -23,7 +24,7 @@
 namespace http2 {
 namespace test {
 
-Http2String HpackExampleToStringOrDie(Http2StringPiece example);
+std::string HpackExampleToStringOrDie(Http2StringPiece example);
 
 }  // namespace test
 }  // namespace http2

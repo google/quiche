@@ -9,13 +9,14 @@
 
 #include <stddef.h>
 
+#include <string>
+
 #include "testing/gtest/include/gtest/gtest.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_buffer.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_status.h"
 #include "net/third_party/quiche/src/http2/http2_constants.h"
 #include "net/third_party/quiche/src/http2/http2_structures_test_util.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_string.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_piece.h"
 #include "net/third_party/quiche/src/http2/test_tools/http2_random.h"
 #include "net/third_party/quiche/src/http2/tools/http2_frame_builder.h"
@@ -32,7 +33,7 @@ Http2StringPiece ToStringPiece(T (&data)[N]) {
 }
 
 template <class S>
-Http2String SerializeStructure(const S& s) {
+std::string SerializeStructure(const S& s) {
   Http2FrameBuilder fb;
   fb.Append(s);
   EXPECT_EQ(S::EncodedSize(), fb.size());
@@ -70,7 +71,7 @@ class StructureDecoderTest : public ::testing::Test {
   // Encode the structure |in_s| into bytes, then decode the bytes
   // and validate that the decoder produced the same field values.
   void EncodeThenDecode(const S& in_s) {
-    Http2String bytes = SerializeStructure(in_s);
+    std::string bytes = SerializeStructure(in_s);
     EXPECT_EQ(S::EncodedSize(), bytes.size());
     DecodeLeadingStructure(&in_s, bytes);
   }

@@ -507,7 +507,7 @@ AssertionResult FrameParts::InPaddedFrame() {
 }
 
 AssertionResult FrameParts::AppendString(Http2StringPiece source,
-                                         Http2String* target,
+                                         std::string* target,
                                          Http2Optional<size_t>* opt_length) {
   target->append(source.data(), source.size());
   if (opt_length != nullptr) {

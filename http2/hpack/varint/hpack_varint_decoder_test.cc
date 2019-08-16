@@ -69,7 +69,7 @@ class HpackVarintDecoderTest : public RandomDecoderTest,
     prefix_length_ = prefix_length;
 
     // Copy |data| so that it can be modified.
-    Http2String data_copy(data);
+    std::string data_copy(data);
 
     // Bits of the first byte not part of the prefix should be ignored.
     uint8_t high_bits_mask = 0b11111111 << prefix_length_;
@@ -101,7 +101,7 @@ class HpackVarintDecoderTest : public RandomDecoderTest,
   // Bits of the first byte not part of the prefix.
   const uint8_t high_bits_;
   // Extra bytes appended to the input.
-  const Http2String suffix_;
+  const std::string suffix_;
 
   HpackVarintDecoder decoder_;
   uint8_t prefix_length_;

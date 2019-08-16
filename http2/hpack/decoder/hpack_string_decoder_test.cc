@@ -48,10 +48,10 @@ class HpackStringDecoderTest : public RandomDecoderTest {
     return collector_.Collected(s, huffman_encoded);
   }
 
-  // expected_str is a Http2String rather than a const Http2String& or
+  // expected_str is a std::string rather than a const std::string& or
   // Http2StringPiece so that the lambda makes a copy of the string, and thus
   // the string to be passed to Collected outlives the call to MakeValidator.
-  Validator MakeValidator(const Http2String& expected_str,
+  Validator MakeValidator(const std::string& expected_str,
                           bool expected_huffman) {
     return
         [expected_str, expected_huffman, this](
@@ -119,8 +119,8 @@ TEST_F(HpackStringDecoderTest, DecodeShortString) {
 }
 
 TEST_F(HpackStringDecoderTest, DecodeLongStrings) {
-  Http2String name = Random().RandString(1024);
-  Http2String value = Random().RandString(65536);
+  std::string name = Random().RandString(1024);
+  std::string value = Random().RandString(65536);
   HpackBlockBuilder hbb;
 
   hbb.AppendString(false, name);

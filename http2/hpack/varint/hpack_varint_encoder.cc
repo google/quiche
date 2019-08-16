@@ -14,7 +14,7 @@ namespace http2 {
 void HpackVarintEncoder::Encode(uint8_t high_bits,
                                 uint8_t prefix_length,
                                 uint64_t varint,
-                                Http2String* output) {
+                                std::string* output) {
   DCHECK_LE(1u, prefix_length);
   DCHECK_LE(prefix_length, 8u);
 

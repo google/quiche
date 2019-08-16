@@ -13,6 +13,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <string>
 
 #include "net/third_party/quiche/src/http2/decoder/decode_buffer.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_status.h"
@@ -20,7 +21,6 @@
 #include "net/third_party/quiche/src/http2/platform/api/http2_export.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_macros.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_string.h"
 
 namespace http2 {
 
@@ -113,10 +113,10 @@ class HTTP2_EXPORT_PRIVATE HpackStringDecoder {
     }
   }
 
-  Http2String DebugString() const;
+  std::string DebugString() const;
 
  private:
-  static Http2String StateToString(StringDecoderState v);
+  static std::string StateToString(StringDecoderState v);
 
   // Returns true if the length is fully decoded and the listener wants the
   // decoding to continue, false otherwise; status is set to the status from

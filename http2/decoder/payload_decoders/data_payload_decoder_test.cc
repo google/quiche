@@ -6,6 +6,8 @@
 
 #include <stddef.h>
 
+#include <string>
+
 #include "testing/gtest/include/gtest/gtest.h"
 #include "net/third_party/quiche/src/http2/decoder/http2_frame_decoder_listener.h"
 #include "net/third_party/quiche/src/http2/decoder/payload_decoders/payload_decoder_base_test_util.h"
@@ -13,7 +15,6 @@
 #include "net/third_party/quiche/src/http2/http2_structures.h"
 #include "net/third_party/quiche/src/http2/http2_structures_test_util.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_string.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_test_helpers.h"
 #include "net/third_party/quiche/src/http2/test_tools/frame_parts.h"
 #include "net/third_party/quiche/src/http2/test_tools/frame_parts_collector.h"
@@ -84,7 +85,7 @@ class DataPayloadDecoderTest
     Reset();
     uint8_t flags = RandFlags();
 
-    Http2String data_payload = Random().RandString(data_size);
+    std::string data_payload = Random().RandString(data_size);
     frame_builder_.Append(data_payload);
     MaybeAppendTrailingPadding();
 

@@ -10,10 +10,10 @@
 #include <stddef.h>
 
 #include <iosfwd>
+#include <string>
 
 #include "testing/gtest/include/gtest/gtest.h"
 #include "net/third_party/quiche/src/http2/hpack/decoder/hpack_string_decoder_listener.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_string.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_piece.h"
 
 namespace http2 {
@@ -29,7 +29,7 @@ struct HpackStringCollector : public HpackStringDecoderListener {
   };
 
   HpackStringCollector();
-  HpackStringCollector(const Http2String& str, bool huffman);
+  HpackStringCollector(const std::string& str, bool huffman);
 
   void Clear();
   bool IsClear() const;
@@ -43,9 +43,9 @@ struct HpackStringCollector : public HpackStringDecoderListener {
   ::testing::AssertionResult Collected(Http2StringPiece str,
                                        bool is_huffman_encoded) const;
 
-  Http2String ToString() const;
+  std::string ToString() const;
 
-  Http2String s;
+  std::string s;
   size_t len;
   bool huffman_encoded;
   CollectorState state;

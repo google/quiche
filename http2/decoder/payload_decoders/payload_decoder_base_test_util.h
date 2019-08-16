@@ -9,6 +9,8 @@
 
 #include <stddef.h>
 
+#include <string>
+
 #include "testing/gtest/include/gtest/gtest.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_buffer.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_status.h"
@@ -19,7 +21,6 @@
 #include "net/third_party/quiche/src/http2/http2_structures.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_reconstruct_object.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_string.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_piece.h"
 #include "net/third_party/quiche/src/http2/test_tools/frame_parts.h"
 #include "net/third_party/quiche/src/http2/tools/http2_frame_builder.h"
@@ -429,7 +430,7 @@ class AbstractPaddablePayloadDecoderTest
     }
 
     HTTP2_VLOG(1) << "payload_length=" << payload_length;
-    Http2String payload = fb.buffer().substr(0, payload_length);
+    std::string payload = fb.buffer().substr(0, payload_length);
 
     // The missing length is the amount we cut off the end, unless
     // payload_length is zero, in which case the decoder knows only that 1

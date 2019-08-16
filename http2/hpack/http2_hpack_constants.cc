@@ -8,7 +8,7 @@
 
 namespace http2 {
 
-Http2String HpackEntryTypeToString(HpackEntryType v) {
+std::string HpackEntryTypeToString(HpackEntryType v) {
   switch (v) {
     case HpackEntryType::kIndexedHeader:
       return "kIndexedHeader";

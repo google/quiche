@@ -6,13 +6,14 @@
 
 #include <stddef.h>
 
+#include <string>
+
 #include "testing/gtest/include/gtest/gtest.h"
 #include "net/third_party/quiche/src/http2/decoder/http2_frame_decoder_listener.h"
 #include "net/third_party/quiche/src/http2/decoder/payload_decoders/payload_decoder_base_test_util.h"
 #include "net/third_party/quiche/src/http2/http2_constants.h"
 #include "net/third_party/quiche/src/http2/http2_structures_test_util.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_string.h"
 #include "net/third_party/quiche/src/http2/test_tools/frame_parts.h"
 #include "net/third_party/quiche/src/http2/test_tools/frame_parts_collector.h"
 #include "net/third_party/quiche/src/http2/test_tools/http2_random.h"
@@ -98,7 +99,7 @@ TEST_P(PushPromisePayloadDecoderTest, VariousHpackPayloadSizes) {
     HTTP2_LOG(INFO) << "###########   hpack_size = " << hpack_size
                     << "  ###########";
     Reset();
-    Http2String hpack_payload = Random().RandString(hpack_size);
+    std::string hpack_payload = Random().RandString(hpack_size);
     Http2PushPromiseFields push_promise{RandStreamId()};
     frame_builder_.Append(push_promise);
     frame_builder_.Append(hpack_payload);

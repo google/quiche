@@ -12,10 +12,10 @@
 #include <stddef.h>
 
 #include <ostream>
+#include <string>
 
 #include "net/third_party/quiche/src/http2/hpack/huffman/hpack_huffman_decoder.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_export.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_string.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_piece.h"
 
 namespace http2 {
@@ -58,7 +58,7 @@ class HTTP2_EXPORT_PRIVATE HpackDecoderStringBuffer {
   // unless the string has been buffered (to avoid forcing a potentially
   // unnecessary copy). ReleaseString() also resets the instance so that it can
   // be used to collect another string.
-  Http2String ReleaseString();
+  std::string ReleaseString();
 
   State state_for_testing() const { return state_; }
   Backing backing_for_testing() const { return backing_; }
@@ -70,7 +70,7 @@ class HTTP2_EXPORT_PRIVATE HpackDecoderStringBuffer {
  private:
   // Storage for the string being buffered, if buffering is necessary
   // (e.g. if Huffman encoded, buffer_ is storage for the decoded string).
-  Http2String buffer_;
+  std::string buffer_;
 
   // The Http2StringPiece to be returned by HpackDecoderStringBuffer::str(). If
   // a string has been collected, but not buffered, value_ points to that

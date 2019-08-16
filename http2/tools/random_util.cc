@@ -11,7 +11,7 @@ namespace test {
 
 // Here "word" means something that starts with a lower-case letter, and has
 // zero or more additional characters that are numbers or lower-case letters.
-Http2String GenerateHttp2HeaderName(size_t len, Http2Random* rng) {
+std::string GenerateHttp2HeaderName(size_t len, Http2Random* rng) {
   Http2StringPiece alpha_lc = "abcdefghijklmnopqrstuvwxyz";
   // If the name is short, just make it one word.
   if (len < 8) {
@@ -25,13 +25,13 @@ Http2String GenerateHttp2HeaderName(size_t len, Http2Random* rng) {
          rng->RandStringWithAlphabet(len - 4, alphanumdash_lc);
 }
 
-Http2String GenerateWebSafeString(size_t len, Http2Random* rng) {
+std::string GenerateWebSafeString(size_t len, Http2Random* rng) {
   static const char* kWebsafe64 =
       "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_";
   return rng->RandStringWithAlphabet(len, kWebsafe64);
 }
 
-Http2String GenerateWebSafeString(size_t lo, size_t hi, Http2Random* rng) {
+std::string GenerateWebSafeString(size_t lo, size_t hi, Http2Random* rng) {
   return GenerateWebSafeString(rng->UniformInRange(lo, hi), rng);
 }
 

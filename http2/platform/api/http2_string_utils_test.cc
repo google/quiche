@@ -19,7 +19,7 @@ TEST(Http2StringUtilsTest, Http2StrCat) {
 
   // Single string-like argument.
   const char kFoo[] = "foo";
-  const Http2String string_foo(kFoo);
+  const std::string string_foo(kFoo);
   const Http2StringPiece stringpiece_foo(string_foo);
   EXPECT_EQ("foo", Http2StrCat(kFoo));
   EXPECT_EQ("foo", Http2StrCat(string_foo));
@@ -28,7 +28,7 @@ TEST(Http2StringUtilsTest, Http2StrCat) {
   // Two string-like arguments.
   const char kBar[] = "bar";
   const Http2StringPiece stringpiece_bar(kBar);
-  const Http2String string_bar(kBar);
+  const std::string string_bar(kBar);
   EXPECT_EQ("foobar", Http2StrCat(kFoo, kBar));
   EXPECT_EQ("foobar", Http2StrCat(kFoo, string_bar));
   EXPECT_EQ("foobar", Http2StrCat(kFoo, stringpiece_bar));
@@ -72,13 +72,13 @@ TEST(Http2StringUtilsTest, Http2StrCat) {
 
 TEST(Http2StringUtilsTest, Http2StrAppend) {
   // No arguments on empty string.
-  Http2String output;
+  std::string output;
   Http2StrAppend(&output);
   EXPECT_TRUE(output.empty());
 
   // Single string-like argument.
   const char kFoo[] = "foo";
-  const Http2String string_foo(kFoo);
+  const std::string string_foo(kFoo);
   const Http2StringPiece stringpiece_foo(string_foo);
   Http2StrAppend(&output, kFoo);
   EXPECT_EQ("foo", output);
@@ -96,7 +96,7 @@ TEST(Http2StringUtilsTest, Http2StrAppend) {
   // Two string-like arguments.
   const char kBar[] = "bar";
   const Http2StringPiece stringpiece_bar(kBar);
-  const Http2String string_bar(kBar);
+  const std::string string_bar(kBar);
   Http2StrAppend(&output, kFoo, kBar);
   EXPECT_EQ("foobar", output);
   Http2StrAppend(&output, kFoo, string_bar);

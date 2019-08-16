@@ -61,7 +61,7 @@ size_t BoundedHuffmanSize(Http2StringPiece plain) {
   return (bits + 7) / 8;
 }
 
-void HuffmanEncode(Http2StringPiece plain, Http2String* huffman) {
+void HuffmanEncode(Http2StringPiece plain, std::string* huffman) {
   DCHECK(huffman != nullptr);
   huffman->clear();         // Note that this doesn't release memory.
   uint64_t bit_buffer = 0;  // High-bit is next bit to output. Not clear if that

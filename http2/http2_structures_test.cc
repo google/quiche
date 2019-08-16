@@ -14,6 +14,7 @@
 #include <memory>
 #include <ostream>
 #include <sstream>
+#include <string>
 #include <tuple>
 #include <type_traits>
 #include <vector>
@@ -171,7 +172,7 @@ INSTANTIATE_TEST_SUITE_P(IsEndStream,
 TEST_P(IsEndStreamTest, IsEndStream) {
   const bool is_set =
       (flags_ & Http2FrameFlag::END_STREAM) == Http2FrameFlag::END_STREAM;
-  Http2String flags_string;
+  std::string flags_string;
   Http2FrameHeader v(0, type_, flags_, 0);
   switch (type_) {
     case Http2FrameType::DATA:
@@ -208,7 +209,7 @@ INSTANTIATE_TEST_SUITE_P(IsAck,
                                  Values(~Http2FrameFlag::ACK, 0xff)));
 TEST_P(IsACKTest, IsAck) {
   const bool is_set = (flags_ & Http2FrameFlag::ACK) == Http2FrameFlag::ACK;
-  Http2String flags_string;
+  std::string flags_string;
   Http2FrameHeader v(0, type_, flags_, 0);
   switch (type_) {
     case Http2FrameType::SETTINGS:
@@ -246,7 +247,7 @@ INSTANTIATE_TEST_SUITE_P(IsEndHeaders,
 TEST_P(IsEndHeadersTest, IsEndHeaders) {
   const bool is_set =
       (flags_ & Http2FrameFlag::END_HEADERS) == Http2FrameFlag::END_HEADERS;
-  Http2String flags_string;
+  std::string flags_string;
   Http2FrameHeader v(0, type_, flags_, 0);
   switch (type_) {
     case Http2FrameType::HEADERS:
@@ -287,7 +288,7 @@ INSTANTIATE_TEST_SUITE_P(IsPadded,
 TEST_P(IsPaddedTest, IsPadded) {
   const bool is_set =
       (flags_ & Http2FrameFlag::PADDED) == Http2FrameFlag::PADDED;
-  Http2String flags_string;
+  std::string flags_string;
   Http2FrameHeader v(0, type_, flags_, 0);
   switch (type_) {
     case Http2FrameType::DATA:
@@ -326,7 +327,7 @@ INSTANTIATE_TEST_SUITE_P(HasPriority,
 TEST_P(HasPriorityTest, HasPriority) {
   const bool is_set =
       (flags_ & Http2FrameFlag::PRIORITY) == Http2FrameFlag::PRIORITY;
-  Http2String flags_string;
+  std::string flags_string;
   Http2FrameHeader v(0, type_, flags_, 0);
   switch (type_) {
     case Http2FrameType::HEADERS:

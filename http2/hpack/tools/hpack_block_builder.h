@@ -18,10 +18,10 @@
 #include <stddef.h>
 
 #include <cstdint>
+#include <string>
 
 #include "testing/gtest/include/gtest/gtest.h"
 #include "net/third_party/quiche/src/http2/hpack/http2_hpack_constants.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_string.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_piece.h"
 
 namespace http2 {
@@ -35,7 +35,7 @@ class HpackBlockBuilder {
   ~HpackBlockBuilder() {}
 
   size_t size() const { return buffer_.size(); }
-  const Http2String& buffer() const { return buffer_; }
+  const std::string& buffer() const { return buffer_; }
 
   //----------------------------------------------------------------------------
   // Methods for appending a valid HPACK entry.
@@ -87,7 +87,7 @@ class HpackBlockBuilder {
   void AppendString(bool is_huffman_encoded, Http2StringPiece str);
 
  private:
-  Http2String buffer_;
+  std::string buffer_;
 };
 
 }  // namespace test

@@ -9,9 +9,9 @@
 // table.
 
 #include <cstddef>  // For size_t
+#include <string>
 
 #include "net/third_party/quiche/src/http2/platform/api/http2_export.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_string.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_piece.h"
 
 namespace http2 {
@@ -33,7 +33,7 @@ HTTP2_EXPORT_PRIVATE size_t BoundedHuffmanSize(Http2StringPiece plain);
 // the beginning of this function.  This allows reusing the same string object
 // across multiple invocations.
 HTTP2_EXPORT_PRIVATE void HuffmanEncode(Http2StringPiece plain,
-                                        Http2String* huffman);
+                                        std::string* huffman);
 
 }  // namespace http2
 

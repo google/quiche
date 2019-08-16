@@ -9,6 +9,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <string>
 
 #include "net/third_party/quiche/src/http2/decoder/http2_frame_decoder.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_optional.h"
@@ -251,8 +252,8 @@ class SPDY_EXPORT_PRIVATE Http2DecoderAdapter
   Http2Optional<size_t> opt_pad_length_;
 
   // Temporary buffers for the AltSvc fields.
-  Http2String alt_svc_origin_;
-  Http2String alt_svc_value_;
+  std::string alt_svc_origin_;
+  std::string alt_svc_value_;
 
   // Listener used if we transition to an error state; the listener ignores all
   // the callbacks.

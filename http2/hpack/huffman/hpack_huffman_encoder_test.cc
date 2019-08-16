@@ -12,7 +12,7 @@ namespace http2 {
 namespace {
 
 TEST(HuffmanEncoderTest, SpecRequestExamples) {
-  Http2String test_table[] = {
+  std::string test_table[] = {
       Http2HexDecode("f1e3c2e5f23a6ba0ab90f4ff"),
       "www.example.com",
       Http2HexDecode("a8eb10649cbf"),
@@ -23,11 +23,11 @@ TEST(HuffmanEncoderTest, SpecRequestExamples) {
       "custom-value",
   };
   for (size_t i = 0; i != HTTP2_ARRAYSIZE(test_table); i += 2) {
-    const Http2String& huffman_encoded(test_table[i]);
-    const Http2String& plain_string(test_table[i + 1]);
+    const std::string& huffman_encoded(test_table[i]);
+    const std::string& plain_string(test_table[i + 1]);
     EXPECT_EQ(ExactHuffmanSize(plain_string), huffman_encoded.size());
     EXPECT_EQ(BoundedHuffmanSize(plain_string), huffman_encoded.size());
-    Http2String buffer;
+    std::string buffer;
     buffer.reserve();
     HuffmanEncode(plain_string, &buffer);
     EXPECT_EQ(buffer, huffman_encoded) << "Error encoding " << plain_string;
@@ -36,7 +36,7 @@ TEST(HuffmanEncoderTest, SpecRequestExamples) {
 
 TEST(HuffmanEncoderTest, SpecResponseExamples) {
   // clang-format off
-  Http2String test_table[] = {
+  std::string test_table[] = {
     Http2HexDecode("6402"),
     "302",
     Http2HexDecode("aec3771a4b"),
@@ -54,11 +54,11 @@ TEST(HuffmanEncoderTest, SpecResponseExamples) {
   };
   // clang-format on
   for (size_t i = 0; i != HTTP2_ARRAYSIZE(test_table); i += 2) {
-    const Http2String& huffman_encoded(test_table[i]);
-    const Http2String& plain_string(test_table[i + 1]);
+    const std::string& huffman_encoded(test_table[i]);
+    const std::string& plain_string(test_table[i + 1]);
     EXPECT_EQ(ExactHuffmanSize(plain_string), huffman_encoded.size());
     EXPECT_EQ(BoundedHuffmanSize(plain_string), huffman_encoded.size());
-    Http2String buffer;
+    std::string buffer;
     buffer.reserve(huffman_encoded.size());
     const size_t capacity = buffer.capacity();
     HuffmanEncode(plain_string, &buffer);
@@ -68,14 +68,14 @@ TEST(HuffmanEncoderTest, SpecResponseExamples) {
 }
 
 TEST(HuffmanEncoderTest, EncodedSizeAgreesWithEncodeString) {
-  Http2String test_table[] = {
+  std::string test_table[] = {
       "",
       "Mon, 21 Oct 2013 20:13:21 GMT",
       "https://www.example.com",
       "foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; max-age=3600; version=1",
-      Http2String(1, '\0'),
-      Http2String("foo\0bar", 7),
-      Http2String(256, '\0'),
+      std::string(1, '\0'),
+      std::string("foo\0bar", 7),
+      std::string(256, '\0'),
   };
   // Modify last |test_table| entry to cover all codes.
   for (size_t i = 0; i != 256; ++i) {
@@ -83,8 +83,8 @@ TEST(HuffmanEncoderTest, EncodedSizeAgreesWithEncodeString) {
   }
 
   for (size_t i = 0; i != HTTP2_ARRAYSIZE(test_table); ++i) {
-    const Http2String& plain_string = test_table[i];
-    Http2String huffman_encoded;
+    const std::string& plain_string = test_table[i];
+    std::string huffman_encoded;
     HuffmanEncode(plain_string, &huffman_encoded);
     EXPECT_EQ(huffman_encoded.size(), ExactHuffmanSize(plain_string));
     EXPECT_LE(BoundedHuffmanSize(plain_string), plain_string.size());

@@ -7,6 +7,7 @@
 // Tests of HpackBlockDecoder.
 
 #include <cstdint>
+#include <string>
 
 #include "testing/gtest/include/gtest/gtest.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_buffer.h"
@@ -67,14 +68,14 @@ class HpackBlockDecoderTest : public RandomDecoderTest {
   AssertionResult DecodeHpackExampleAndValidateSeveralWays(
       Http2StringPiece hpack_example,
       Validator validator) {
-    Http2String input = HpackExampleToStringOrDie(hpack_example);
+    std::string input = HpackExampleToStringOrDie(hpack_example);
     DecodeBuffer db(input);
     return DecodeAndValidateSeveralWays(&db, validator);
   }
 
   uint8_t Rand8() { return Random().Rand8(); }
 
-  Http2String Rand8String() { return Random().RandString(Rand8()); }
+  std::string Rand8String() { return Random().RandString(Rand8()); }
 
   HpackBlockCollector collector_;
   HpackEntryDecoderVLoggingListener listener_;
@@ -157,7 +158,7 @@ TEST_F(HpackBlockDecoderTest, SpecExample_C_2_4) {
 }
 // http://httpwg.org/specs/rfc7541.html#rfc.section.C.3.1
 TEST_F(HpackBlockDecoderTest, SpecExample_C_3_1) {
-  Http2String example = R"(
+  std::string example = R"(
       82                                      | == Indexed - Add ==
                                               |   idx = 2
                                               | -> :method: GET
@@ -191,7 +192,7 @@ TEST_F(HpackBlockDecoderTest, SpecExample_C_3_1) {
 
 // http://httpwg.org/specs/rfc7541.html#rfc.section.C.5.1
 TEST_F(HpackBlockDecoderTest, SpecExample_C_5_1) {
-  Http2String example = R"(
+  std::string example = R"(
       48                                      | == Literal indexed ==
                                               |   Indexed name (idx = 8)
                                               |     :status

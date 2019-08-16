@@ -6,13 +6,13 @@
 
 // Tests of Http2FrameDecoder.
 
+#include <string>
 #include <vector>
 
 #include "testing/gtest/include/gtest/gtest.h"
 #include "net/third_party/quiche/src/http2/http2_constants.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_reconstruct_object.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_string.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_piece.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_test_helpers.h"
 #include "net/third_party/quiche/src/http2/test_tools/frame_parts.h"
@@ -84,7 +84,7 @@ class Http2FrameDecoderTest : public RandomDecoderTest {
     // The decoder will discard the remaining bytes, but not go beyond that,
     // which these conditions verify.
     size_t extra = 10;
-    Http2String junk(remaining + extra, '0');
+    std::string junk(remaining + extra, '0');
     DecodeBuffer tmp(junk);
     EXPECT_EQ(DecodeStatus::kDecodeDone, decoder_.DecodeFrame(&tmp));
     EXPECT_EQ(remaining, tmp.Offset());
@@ -147,8 +147,8 @@ class Http2FrameDecoderTest : public RandomDecoderTest {
     VERIFY_GT(slow_decode_count_, 0u);
 
     // Repeat with more input; it should stop without reading that input.
-    Http2String next_frame = Random().RandString(10);
-    Http2String input(payload.data(), payload.size());
+    std::string next_frame = Random().RandString(10);
+    std::string input(payload.data(), payload.size());
     input += next_frame;
 
     ResetDecodeSpeedCounters();

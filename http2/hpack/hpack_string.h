@@ -13,9 +13,9 @@
 #include <stddef.h>
 
 #include <iosfwd>
+#include <string>
 
 #include "net/third_party/quiche/src/http2/platform/api/http2_export.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_string.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_piece.h"
 
 namespace http2 {
@@ -24,7 +24,7 @@ class HTTP2_EXPORT_PRIVATE HpackString {
  public:
   explicit HpackString(const char* data);
   explicit HpackString(Http2StringPiece str);
-  explicit HpackString(Http2String str);
+  explicit HpackString(std::string str);
   HpackString(const HpackString& other);
 
   // Not sure yet whether this move ctor is required/sensible.
@@ -33,7 +33,7 @@ class HTTP2_EXPORT_PRIVATE HpackString {
   ~HpackString();
 
   size_t size() const { return str_.size(); }
-  const Http2String& ToString() const { return str_; }
+  const std::string& ToString() const { return str_; }
   Http2StringPiece ToStringPiece() const;
 
   bool operator==(const HpackString& other) const;
@@ -41,7 +41,7 @@ class HTTP2_EXPORT_PRIVATE HpackString {
   bool operator==(Http2StringPiece str) const;
 
  private:
-  Http2String str_;
+  std::string str_;
 };
 
 HTTP2_EXPORT_PRIVATE bool operator==(Http2StringPiece a, const HpackString& b);
@@ -61,7 +61,7 @@ struct HTTP2_EXPORT_PRIVATE HpackStringPair {
   // http://httpwg.org/specs/rfc7541.html#calculating.table.size
   size_t size() const { return 32 + name.size() + value.size(); }
 
-  Http2String DebugString() const;
+  std::string DebugString() const;
 
   const HpackString name;
   const HpackString value;

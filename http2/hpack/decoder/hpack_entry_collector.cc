@@ -35,7 +35,7 @@ HpackEntryCollector::HpackEntryCollector(HpackEntryType type,
 HpackEntryCollector::HpackEntryCollector(HpackEntryType type,
                                          size_t index,
                                          bool value_huffman,
-                                         const Http2String& value)
+                                         const std::string& value)
     : header_type_(type),
       index_(index),
       value_(value, value_huffman),
@@ -43,9 +43,9 @@ HpackEntryCollector::HpackEntryCollector(HpackEntryType type,
       ended_(true) {}
 HpackEntryCollector::HpackEntryCollector(HpackEntryType type,
                                          bool name_huffman,
-                                         const Http2String& name,
+                                         const std::string& name,
                                          bool value_huffman,
-                                         const Http2String& value)
+                                         const std::string& value)
     : header_type_(type),
       index_(0),
       name_(name, name_huffman),
@@ -232,8 +232,8 @@ void HpackEntryCollector::AppendToHpackBlockBuilder(
   }
 }
 
-Http2String HpackEntryCollector::ToString() const {
-  Http2String result("Type=");
+std::string HpackEntryCollector::ToString() const {
+  std::string result("Type=");
   switch (header_type_) {
     case HpackEntryType::kIndexedHeader:
       result += "IndexedHeader";

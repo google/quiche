@@ -6,6 +6,7 @@
 
 #include <stddef.h>
 
+#include <string>
 #include <type_traits>
 
 #include "testing/gtest/include/gtest/gtest.h"
@@ -14,7 +15,6 @@
 #include "net/third_party/quiche/src/http2/http2_constants.h"
 #include "net/third_party/quiche/src/http2/http2_structures.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_string.h"
 #include "net/third_party/quiche/src/http2/test_tools/frame_parts.h"
 #include "net/third_party/quiche/src/http2/test_tools/frame_parts_collector.h"
 #include "net/third_party/quiche/src/http2/test_tools/http2_random.h"
@@ -83,7 +83,7 @@ INSTANTIATE_TEST_SUITE_P(VariousLengths,
                          ::testing::Values(0, 1, 2, 3, 255, 256));
 
 TEST_P(UnknownPayloadDecoderTest, ValidLength) {
-  Http2String unknown_payload = Random().RandString(length_);
+  std::string unknown_payload = Random().RandString(length_);
   Http2FrameHeader frame_header(length_, g_unknown_frame_type, Random().Rand8(),
                                 RandStreamId());
   set_frame_header(frame_header);
