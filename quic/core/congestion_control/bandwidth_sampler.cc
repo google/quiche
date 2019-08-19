@@ -18,6 +18,12 @@ QuicByteCount MaxAckHeightTracker::Update(QuicBandwidth bandwidth_estimate,
                                           QuicRoundTripCount round_trip_count,
                                           QuicTime ack_time,
                                           QuicByteCount bytes_acked) {
+  if (aggregation_epoch_start_time_ == QuicTime::Zero()) {
+    aggregation_epoch_bytes_ = bytes_acked;
+    aggregation_epoch_start_time_ = ack_time;
+    return 0;
+  }
+
   // Compute how many bytes are expected to be delivered, assuming max bandwidth
   // is correct.
   QuicByteCount expected_bytes_acked =
@@ -54,7 +60,13 @@ BandwidthSampler::BandwidthSampler(
       max_tracked_packets_(GetQuicFlag(FLAGS_quic_max_tracked_packet_count)),
       unacked_packet_map_(unacked_packet_map),
       max_ack_height_tracker_(max_height_tracker_window_length),
-      total_bytes_acked_after_last_ack_event_(0) {}
+      total_bytes_acked_after_last_ack_event_(0),
+      quic_track_ack_height_in_bandwidth_sampler_(
+          GetQuicReloadableFlag(quic_track_ack_height_in_bandwidth_sampler2)) {
+  if (quic_track_ack_height_in_bandwidth_sampler_) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_track_ack_height_in_bandwidth_sampler2);
+  }
+}
 
 BandwidthSampler::~BandwidthSampler() {}
 

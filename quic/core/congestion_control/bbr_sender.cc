@@ -137,12 +137,7 @@ BbrSender::BbrSender(QuicTime now,
       probe_rtt_skipped_if_similar_rtt_(false),
       probe_rtt_disabled_if_app_limited_(false),
       app_limited_since_last_probe_rtt_(false),
-      min_rtt_since_last_probe_rtt_(QuicTime::Delta::Infinite()),
-      quic_track_ack_height_in_bandwidth_sampler_(
-          GetQuicReloadableFlag(quic_track_ack_height_in_bandwidth_sampler)) {
-  if (quic_track_ack_height_in_bandwidth_sampler_) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_track_ack_height_in_bandwidth_sampler);
-  }
+      min_rtt_since_last_probe_rtt_(QuicTime::Delta::Infinite()) {
   if (stats_) {
     stats_->slowstart_count = 0;
     stats_->slowstart_start_time = QuicTime::Zero();
@@ -180,8 +175,10 @@ void BbrSender::OnPacketSent(QuicTime sent_time,
     exiting_quiescence_ = true;
   }
 
-  if (!aggregation_epoch_start_time_.IsInitialized()) {
-    aggregation_epoch_start_time_ = sent_time;
+  if (!sampler_.quic_track_ack_height_in_bandwidth_sampler()) {
+    if (!aggregation_epoch_start_time_.IsInitialized()) {
+      aggregation_epoch_start_time_ = sent_time;
+    }
   }
 
   sampler_.OnPacketSent(sent_time, packet_number, bytes, bytes_in_flight,
@@ -290,14 +287,14 @@ void BbrSender::SetFromConfig(const QuicConfig& config,
     startup_rate_reduction_multiplier_ = 2;
   }
   if (config.HasClientRequestedIndependentOption(kBBR4, perspective)) {
-    if (quic_track_ack_height_in_bandwidth_sampler_) {
+    if (sampler_.quic_track_ack_height_in_bandwidth_sampler()) {
       sampler_.SetMaxAckHeightTrackerWindowLength(2 * kBandwidthWindowSize);
     } else {
       max_ack_height_.SetWindowLength(2 * kBandwidthWindowSize);
     }
   }
   if (config.HasClientRequestedIndependentOption(kBBR5, perspective)) {
-    if (quic_track_ack_height_in_bandwidth_sampler_) {
+    if (sampler_.quic_track_ack_height_in_bandwidth_sampler()) {
       sampler_.SetMaxAckHeightTrackerWindowLength(4 * kBandwidthWindowSize);
     } else {
       max_ack_height_.SetWindowLength(4 * kBandwidthWindowSize);
@@ -419,7 +416,7 @@ void BbrSender::OnCongestionEvent(bool /*rtt_updated*/,
     const QuicByteCount bytes_acked =
         sampler_.total_bytes_acked() - total_bytes_acked_before;
 
-    excess_acked = quic_track_ack_height_in_bandwidth_sampler_
+    excess_acked = sampler_.quic_track_ack_height_in_bandwidth_sampler()
                        ? sampler_.OnAckEventEnd(max_bandwidth_.GetBest(),
                                                 round_trip_count_)
                        : UpdateAckAggregationBytes(event_time, bytes_acked);
@@ -664,7 +661,7 @@ void BbrSender::CheckIfFullBandwidthReached() {
     rounds_without_bandwidth_gain_ = 0;
     if (expire_ack_aggregation_in_startup_) {
       // Expire old excess delivery measurements now that bandwidth increased.
-      if (quic_track_ack_height_in_bandwidth_sampler_) {
+      if (sampler_.quic_track_ack_height_in_bandwidth_sampler()) {
         sampler_.ResetMaxAckHeightTracker(0, round_trip_count_);
       } else {
         max_ack_height_.Reset(0, round_trip_count_);
@@ -868,7 +865,7 @@ void BbrSender::CalculateCongestionWindow(QuicByteCount bytes_acked,
       GetTargetCongestionWindow(congestion_window_gain_);
   if (is_at_full_bandwidth_) {
     // Add the max recently measured ack aggregation to CWND.
-    target_window += quic_track_ack_height_in_bandwidth_sampler_
+    target_window += sampler_.quic_track_ack_height_in_bandwidth_sampler()
                          ? sampler_.max_ack_height()
                          : max_ack_height_.GetBest();
   } else if (enable_ack_aggregation_during_startup_) {

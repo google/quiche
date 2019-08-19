@@ -78,6 +78,8 @@ struct QUIC_EXPORT_PRIVATE BandwidthSample {
       : bandwidth(QuicBandwidth::Zero()), rtt(QuicTime::Delta::Zero()) {}
 };
 
+// MaxAckHeightTracker is part of the BandwidthSampler. It is called after every
+// ack event to keep track the degree of ack aggregation(a.k.a "ack height").
 class QUIC_EXPORT_PRIVATE MaxAckHeightTracker {
  public:
   explicit MaxAckHeightTracker(QuicRoundTripCount initial_filter_window)
@@ -280,6 +282,10 @@ class QUIC_EXPORT_PRIVATE BandwidthSampler : public BandwidthSamplerInterface {
     max_ack_height_tracker_.Reset(new_height, new_time);
   }
 
+  bool quic_track_ack_height_in_bandwidth_sampler() const {
+    return quic_track_ack_height_in_bandwidth_sampler_;
+  }
+
  private:
   friend class test::BandwidthSamplerPeer;
 
@@ -393,6 +399,9 @@ class QUIC_EXPORT_PRIVATE BandwidthSampler : public BandwidthSamplerInterface {
 
   MaxAckHeightTracker max_ack_height_tracker_;
   QuicByteCount total_bytes_acked_after_last_ack_event_;
+
+  // Latched value of --quic_track_ack_height_in_bandwidth_sampler2.
+  const bool quic_track_ack_height_in_bandwidth_sampler_;
 };
 
 }  // namespace quic
