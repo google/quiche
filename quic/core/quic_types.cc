@@ -99,7 +99,8 @@ std::string QuicIetfTransportErrorCodeString(QuicIetfTransportErrorCodes c) {
     RETURN_STRING_LITERAL(VERSION_NEGOTIATION_ERROR);
     RETURN_STRING_LITERAL(PROTOCOL_VIOLATION);
     RETURN_STRING_LITERAL(INVALID_MIGRATION);
-    // No default -- compiler will catch any adds/changes then.
+    default:
+      return QuicStrCat("Unknown Transport Error Code Value: ", c);
   }
 }
 
