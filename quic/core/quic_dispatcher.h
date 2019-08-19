@@ -113,10 +113,6 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
                                            QuicConnectionId,
                                            QuicConnectionIdHash>;
 
-  const ConnectionIdMap& connection_id_map() const {
-    return connection_id_map_;
-  }
-
   // The largest packet number we expect to receive with a connection
   // ID for a connection that is not established yet.  The current design will
   // send a handshake and then up to 50 or so data packets, and then it may
@@ -333,9 +329,6 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
   WriteBlockedList write_blocked_list_;
 
   SessionMap session_map_;
-
-  // Map of connection IDs with bad lengths to their replacements.
-  ConnectionIdMap connection_id_map_;
 
   // Entity that manages connection_ids in time wait state.
   std::unique_ptr<QuicTimeWaitListManager> time_wait_list_manager_;
