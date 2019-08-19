@@ -95,6 +95,8 @@ TEST_P(QpackSendStreamTest, WriteStreamTypeOnlyFirstTime) {
 
   EXPECT_CALL(session_, WritevData(_, _, data.length(), _, _));
   qpack_send_stream_->WriteStreamData(QuicStringPiece(data));
+  EXPECT_CALL(session_, WritevData(_, _, _, _, _)).Times(0);
+  qpack_send_stream_->SendStreamType();
 }
 
 TEST_P(QpackSendStreamTest, ResetQpackStream) {
