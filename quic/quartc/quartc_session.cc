@@ -152,7 +152,6 @@ bool QuartcSession::SendProbingData() {
 void QuartcSession::OnCryptoHandshakeEvent(CryptoHandshakeEvent event) {
   QuicSession::OnCryptoHandshakeEvent(event);
   switch (event) {
-    case ENCRYPTION_FIRST_ESTABLISHED:
     case ENCRYPTION_REESTABLISHED:
       // 1-rtt setup triggers 'ENCRYPTION_REESTABLISHED' (after REJ, when the
       // CHLO is sent).

@@ -1143,13 +1143,6 @@ void QuicSession::OnNewSessionFlowControlWindow(QuicStreamOffset new_window) {
 
 void QuicSession::OnCryptoHandshakeEvent(CryptoHandshakeEvent event) {
   switch (event) {
-    // TODO(satyamshekhar): Move the logic of setting the encrypter/decrypter
-    // to QuicSession since it is the glue.
-    case ENCRYPTION_FIRST_ESTABLISHED:
-      // Given any streams blocked by encryption a chance to write.
-      OnCanWrite();
-      break;
-
     case ENCRYPTION_REESTABLISHED:
       // Retransmit originally packets that were sent, since they can't be
       // decrypted by the peer.
