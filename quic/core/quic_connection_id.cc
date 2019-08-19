@@ -65,11 +65,6 @@ QuicConnectionId::QuicConnectionId(const char* data, uint8_t length) {
   if (length_ == 0) {
     return;
   }
-  if (!GetQuicRestartFlag(quic_use_allocated_connection_ids)) {
-    memcpy(data_, data, length_);
-    return;
-  }
-  QUIC_RESTART_FLAG_COUNT_N(quic_use_allocated_connection_ids, 1, 6);
   if (length_ <= sizeof(data_short_)) {
     memcpy(data_short_, data, length_);
     return;
@@ -80,10 +75,6 @@ QuicConnectionId::QuicConnectionId(const char* data, uint8_t length) {
 }
 
 QuicConnectionId::~QuicConnectionId() {
-  if (!GetQuicRestartFlag(quic_use_allocated_connection_ids)) {
-    return;
-  }
-  QUIC_RESTART_FLAG_COUNT_N(quic_use_allocated_connection_ids, 2, 6);
   if (length_ > sizeof(data_short_)) {
     free(data_long_);
     data_long_ = nullptr;
@@ -100,10 +91,6 @@ QuicConnectionId& QuicConnectionId::operator=(const QuicConnectionId& other) {
 }
 
 const char* QuicConnectionId::data() const {
-  if (!GetQuicRestartFlag(quic_use_allocated_connection_ids)) {
-    return data_;
-  }
-  QUIC_RESTART_FLAG_COUNT_N(quic_use_allocated_connection_ids, 3, 6);
   if (length_ <= sizeof(data_short_)) {
     return data_short_;
   }
@@ -111,10 +98,6 @@ const char* QuicConnectionId::data() const {
 }
 
 char* QuicConnectionId::mutable_data() {
-  if (!GetQuicRestartFlag(quic_use_allocated_connection_ids)) {
-    return data_;
-  }
-  QUIC_RESTART_FLAG_COUNT_N(quic_use_allocated_connection_ids, 4, 6);
   if (length_ <= sizeof(data_short_)) {
     return data_short_;
   }
@@ -131,30 +114,27 @@ void QuicConnectionId::set_length(uint8_t length) {
              << static_cast<int>(length);
     length = kQuicMaxConnectionIdAllVersionsLength;
   }
-  if (GetQuicRestartFlag(quic_use_allocated_connection_ids)) {
-    QUIC_RESTART_FLAG_COUNT_N(quic_use_allocated_connection_ids, 5, 6);
-    char temporary_data[sizeof(data_short_)];
-    if (length > sizeof(data_short_)) {
-      if (length_ <= sizeof(data_short_)) {
-        // Copy data from data_short_ to data_long_.
-        memcpy(temporary_data, data_short_, length_);
-        data_long_ = reinterpret_cast<char*>(malloc(length));
-        CHECK_NE(nullptr, data_long_);
-        memcpy(data_long_, temporary_data, length_);
-      } else {
-        // Resize data_long_.
-        char* realloc_result =
-            reinterpret_cast<char*>(realloc(data_long_, length));
-        CHECK_NE(nullptr, realloc_result);
-        data_long_ = realloc_result;
-      }
-    } else if (length_ > sizeof(data_short_)) {
-      // Copy data from data_long_ to data_short_.
-      memcpy(temporary_data, data_long_, length);
-      free(data_long_);
-      data_long_ = nullptr;
-      memcpy(data_short_, temporary_data, length);
+  char temporary_data[sizeof(data_short_)];
+  if (length > sizeof(data_short_)) {
+    if (length_ <= sizeof(data_short_)) {
+      // Copy data from data_short_ to data_long_.
+      memcpy(temporary_data, data_short_, length_);
+      data_long_ = reinterpret_cast<char*>(malloc(length));
+      CHECK_NE(nullptr, data_long_);
+      memcpy(data_long_, temporary_data, length_);
+    } else {
+      // Resize data_long_.
+      char* realloc_result =
+          reinterpret_cast<char*>(realloc(data_long_, length));
+      CHECK_NE(nullptr, realloc_result);
+      data_long_ = realloc_result;
     }
+  } else if (length_ > sizeof(data_short_)) {
+    // Copy data from data_long_ to data_short_.
+    memcpy(temporary_data, data_long_, length);
+    free(data_long_);
+    data_long_ = nullptr;
+    memcpy(data_short_, temporary_data, length);
   }
   length_ = length;
 }

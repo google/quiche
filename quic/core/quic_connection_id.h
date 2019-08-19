@@ -105,15 +105,12 @@ class QUIC_EXPORT_PRIVATE QuicConnectionId {
   uint8_t length_;  // length of the connection ID, in bytes.
   // The connection ID is represented in network byte order.
   union {
-    // When quic_use_allocated_connection_ids is false, the connection ID is
-    // stored in the first |length_| bytes of |data_|.
-    char data_[kQuicMaxConnectionIdAllVersionsLength];
-    // When quic_use_allocated_connection_ids is true, if the connection ID
-    // fits in |data_short_|, it is stored in the first |length_| bytes of
-    // |data_short_|. Otherwise it is stored in |data_long_| which is
-    // guaranteed to have a size equal to |length_|. A value of 11 was chosen
-    // because our commonly used connection ID length is 8 and with the length,
-    // the class is padded to 12 bytes anyway.
+    // If the connection ID fits in |data_short_|, it is stored in the
+    // first |length_| bytes of |data_short_|.
+    // Otherwise it is stored in |data_long_| which is guaranteed to have a size
+    // equal to |length_|.
+    // A value of 11 was chosen because our commonly used connection ID length
+    // is 8 and with the length, the class is padded to 12 bytes anyway.
     char data_short_[11];
     char* data_long_;
   };

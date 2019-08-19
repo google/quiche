@@ -146,15 +146,6 @@ bool QuicDataReader::ReadConnectionId(QuicConnectionId* connection_id,
     return true;
   }
 
-  if (!GetQuicRestartFlag(quic_use_allocated_connection_ids)) {
-    const bool ok = ReadBytes(connection_id->mutable_data(), length);
-    if (ok) {
-      connection_id->set_length(length);
-    }
-    return ok;
-  }
-  QUIC_RESTART_FLAG_COUNT_N(quic_use_allocated_connection_ids, 6, 6);
-
   if (BytesRemaining() < length) {
     return false;
   }

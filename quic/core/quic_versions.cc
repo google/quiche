@@ -474,7 +474,6 @@ void QuicVersionInitializeSupportForIetfDraft(int32_t draft_version) {
   SetQuicFlag(FLAGS_quic_supports_tls_handshake, true);
   SetQuicReloadableFlag(quic_simplify_stop_waiting, true);
   SetQuicReloadableFlag(quic_use_parse_public_header, true);
-  SetQuicRestartFlag(quic_use_allocated_connection_ids, true);
   SetQuicRestartFlag(quic_dispatcher_hands_chlo_extractor_one_version, true);
 }
 
