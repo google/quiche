@@ -320,7 +320,7 @@ TEST_F(TlsHandshakerTest, CryptoHandshake) {
   EXPECT_CALL(*client_conn_, CloseConnection(_, _, _)).Times(0);
   EXPECT_CALL(*server_conn_, CloseConnection(_, _, _)).Times(0);
   EXPECT_CALL(client_session_,
-              OnCryptoHandshakeEvent(QuicSession::ENCRYPTION_REESTABLISHED));
+              OnCryptoHandshakeEvent(QuicSession::ENCRYPTION_ESTABLISHED));
   EXPECT_CALL(client_session_,
               OnCryptoHandshakeEvent(QuicSession::HANDSHAKE_CONFIRMED));
   EXPECT_CALL(server_session_,

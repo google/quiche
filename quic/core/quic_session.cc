@@ -1143,7 +1143,7 @@ void QuicSession::OnNewSessionFlowControlWindow(QuicStreamOffset new_window) {
 
 void QuicSession::OnCryptoHandshakeEvent(CryptoHandshakeEvent event) {
   switch (event) {
-    case ENCRYPTION_REESTABLISHED:
+    case ENCRYPTION_ESTABLISHED:
       // Retransmit originally packets that were sent, since they can't be
       // decrypted by the peer.
       connection_->RetransmitUnackedPackets(ALL_INITIAL_RETRANSMISSION);

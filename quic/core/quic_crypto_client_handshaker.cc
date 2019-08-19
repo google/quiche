@@ -321,10 +321,8 @@ void QuicCryptoClientHandshaker::DoSendCHLO(
       std::move(crypto_negotiated_params_->initial_crypters.encrypter));
   session()->connection()->SetDefaultEncryptionLevel(ENCRYPTION_ZERO_RTT);
 
-  // TODO(ianswett): Merge ENCRYPTION_REESTABLISHED and
-  // ENCRYPTION_FIRST_ESTABLSIHED
   encryption_established_ = true;
-  session()->OnCryptoHandshakeEvent(QuicSession::ENCRYPTION_REESTABLISHED);
+  session()->OnCryptoHandshakeEvent(QuicSession::ENCRYPTION_ESTABLISHED);
 }
 
 void QuicCryptoClientHandshaker::DoReceiveREJ(
