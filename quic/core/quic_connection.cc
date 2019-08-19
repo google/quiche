@@ -1314,8 +1314,9 @@ void QuicConnection::OnPacketComplete() {
                   << " from ip:port: " << last_packet_source_address_.ToString()
                   << " to ip:port: "
                   << last_packet_destination_address_.ToString();
-    visitor_->OnConnectivityProbeReceived(last_packet_destination_address_,
-                                          last_packet_source_address_);
+    visitor_->OnPacketReceived(last_packet_destination_address_,
+                               last_packet_source_address_,
+                               /*is_connectivity_probe=*/true);
   } else if (perspective_ == Perspective::IS_CLIENT) {
     // This node is a client, notify that a speculative connectivity probing
     // packet has been received anyway.
@@ -1326,9 +1327,9 @@ void QuicConnection::OnPacketComplete() {
                   << " from ip:port: " << last_packet_source_address_.ToString()
                   << " to ip:port: "
                   << last_packet_destination_address_.ToString();
-    // TODO(zhongyi): change the method name.
-    visitor_->OnConnectivityProbeReceived(last_packet_destination_address_,
-                                          last_packet_source_address_);
+    visitor_->OnPacketReceived(last_packet_destination_address_,
+                               last_packet_source_address_,
+                               /*is_connectivity_probe=*/false);
   } else {
     // This node is not a client (is a server) AND the received packet was
     // NOT connectivity-probing. If the packet had PATH CHALLENGES, send

@@ -1013,7 +1013,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     EXPECT_CALL(visitor_, ShouldKeepConnectionAlive())
         .WillRepeatedly(Return(false));
     EXPECT_CALL(visitor_, OnCongestionWindowChange(_)).Times(AnyNumber());
-    EXPECT_CALL(visitor_, OnConnectivityProbeReceived(_, _)).Times(AnyNumber());
+    EXPECT_CALL(visitor_, OnPacketReceived(_, _, _)).Times(AnyNumber());
     EXPECT_CALL(visitor_, OnForwardProgressConfirmed()).Times(AnyNumber());
 
     EXPECT_CALL(*loss_algorithm_, GetLossTimeout())
@@ -1956,7 +1956,7 @@ TEST_P(QuicConnectionTest, ReceivePaddedPingAtServer) {
   EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
 
   EXPECT_CALL(visitor_, OnConnectionMigration(PORT_CHANGE)).Times(0);
-  EXPECT_CALL(visitor_, OnConnectivityProbeReceived(_, _)).Times(0);
+  EXPECT_CALL(visitor_, OnPacketReceived(_, _, false)).Times(0);
 
   // Process a padded PING or PATH CHALLENGE packet with no peer address change
   // on server side will be ignored.
@@ -2076,7 +2076,7 @@ TEST_P(QuicConnectionTest, ReceiveConnectivityProbingAtServer) {
   EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
 
   EXPECT_CALL(visitor_, OnConnectionMigration(PORT_CHANGE)).Times(0);
-  EXPECT_CALL(visitor_, OnConnectivityProbeReceived(_, _)).Times(1);
+  EXPECT_CALL(visitor_, OnPacketReceived(_, _, true)).Times(1);
 
   // Process a padded PING packet from a new peer address on server side
   // is effectively receiving a connectivity probing.
@@ -2139,7 +2139,7 @@ TEST_P(QuicConnectionTest, ReceiveReorderedConnectivityProbingAtServer) {
   QuicPacketCreatorPeer::SetPacketNumber(&peer_creator_, 4);
 
   EXPECT_CALL(visitor_, OnConnectionMigration(PORT_CHANGE)).Times(0);
-  EXPECT_CALL(visitor_, OnConnectivityProbeReceived(_, _)).Times(1);
+  EXPECT_CALL(visitor_, OnPacketReceived(_, _, true)).Times(1);
 
   // Process a padded PING packet from a new peer address on server side
   // is effectively receiving a connectivity probing, even if a newer packet has
@@ -2192,7 +2192,7 @@ TEST_P(QuicConnectionTest, MigrateAfterProbingAtServer) {
   EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
 
   EXPECT_CALL(visitor_, OnConnectionMigration(PORT_CHANGE)).Times(0);
-  EXPECT_CALL(visitor_, OnConnectivityProbeReceived(_, _)).Times(1);
+  EXPECT_CALL(visitor_, OnPacketReceived(_, _, true)).Times(1);
 
   // Process a padded PING packet from a new peer address on server side
   // is effectively receiving a connectivity probing.
@@ -2247,7 +2247,7 @@ TEST_P(QuicConnectionTest, ReceivePaddedPingAtClient) {
   // Client takes all padded PING packet as speculative connectivity
   // probing packet, and reports to visitor.
   EXPECT_CALL(visitor_, OnConnectionMigration(PORT_CHANGE)).Times(0);
-  EXPECT_CALL(visitor_, OnConnectivityProbeReceived(_, _)).Times(1);
+  EXPECT_CALL(visitor_, OnPacketReceived(_, _, false)).Times(1);
 
   OwningSerializedPacketPointer probing_packet = ConstructProbingPacket();
   std::unique_ptr<QuicReceivedPacket> received(ConstructReceivedPacket(
@@ -2294,7 +2294,7 @@ TEST_P(QuicConnectionTest, ReceiveConnectivityProbingAtClient) {
   // Process a padded PING packet with a different self address on client side
   // is effectively receiving a connectivity probing.
   EXPECT_CALL(visitor_, OnConnectionMigration(PORT_CHANGE)).Times(0);
-  EXPECT_CALL(visitor_, OnConnectivityProbeReceived(_, _)).Times(1);
+  EXPECT_CALL(visitor_, OnPacketReceived(_, _, true)).Times(1);
 
   const QuicSocketAddress kNewSelfAddress =
       QuicSocketAddress(QuicIpAddress::Loopback6(), /*port=*/23456);

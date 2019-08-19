@@ -1022,8 +1022,8 @@ TEST_P(QuicSpdySessionTestServer, ServerReplyToConnecitivityProbe) {
     connection_->OnPathChallengeFrame(
         QuicPathChallengeFrame(0, {{0, 1, 2, 3, 4, 5, 6, 7}}));
   }
-  session_.OnConnectivityProbeReceived(session_.self_address(),
-                                       new_peer_address);
+  session_.OnPacketReceived(session_.self_address(), new_peer_address,
+                            /*is_connectivity_probe=*/true);
   EXPECT_EQ(old_peer_address, session_.peer_address());
 }
 

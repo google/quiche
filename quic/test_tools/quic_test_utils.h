@@ -382,9 +382,10 @@ class MockQuicConnectionVisitor : public QuicConnectionVisitorInterface {
   MOCK_CONST_METHOD0(ShouldKeepConnectionAlive, bool());
   MOCK_METHOD1(OnSuccessfulVersionNegotiation,
                void(const ParsedQuicVersion& version));
-  MOCK_METHOD2(OnConnectivityProbeReceived,
+  MOCK_METHOD3(OnPacketReceived,
                void(const QuicSocketAddress& self_address,
-                    const QuicSocketAddress& peer_address));
+                    const QuicSocketAddress& peer_address,
+                    bool is_connectivity_probe));
   MOCK_METHOD0(OnConfigNegotiated, void());
   MOCK_METHOD0(OnAckNeedsRetransmittableFrame, void());
   MOCK_METHOD0(SendPing, void());

@@ -134,10 +134,14 @@ class QUIC_EXPORT_PRIVATE QuicConnectionVisitorInterface {
   virtual void OnSuccessfulVersionNegotiation(
       const ParsedQuicVersion& version) = 0;
 
-  // Called when a connectivity probe has been received by the connection.
-  virtual void OnConnectivityProbeReceived(
-      const QuicSocketAddress& self_address,
-      const QuicSocketAddress& peer_address) = 0;
+  // Called when a packet has been received by the connection, after being
+  // validated and parsed. Only called when the client receives a valid packet
+  // or the server receives a connectivity probing packet.
+  // |is_connectivity_probe| is true if the received packet is a connectivity
+  // probe.
+  virtual void OnPacketReceived(const QuicSocketAddress& self_address,
+                                const QuicSocketAddress& peer_address,
+                                bool is_connectivity_probe) = 0;
 
   // Called when a blocked socket becomes writable.
   virtual void OnCanWrite() = 0;

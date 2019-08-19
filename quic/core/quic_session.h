@@ -110,9 +110,9 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
   void OnWriteBlocked() override;
   void OnSuccessfulVersionNegotiation(
       const ParsedQuicVersion& version) override;
-  void OnConnectivityProbeReceived(
-      const QuicSocketAddress& self_address,
-      const QuicSocketAddress& peer_address) override;
+  void OnPacketReceived(const QuicSocketAddress& self_address,
+                        const QuicSocketAddress& peer_address,
+                        bool is_connectivity_probe) override;
   void OnCanWrite() override;
   bool SendProbingData() override;
   void OnCongestionWindowChange(QuicTime /*now*/) override {}

@@ -1317,8 +1317,8 @@ TEST_P(QuicSessionTestServer, ServerReplyToConnectivityProbe) {
     connection_->OnPathChallengeFrame(
         QuicPathChallengeFrame(0, path_frame_buffer1_));
   }
-  session_.OnConnectivityProbeReceived(session_.self_address(),
-                                       new_peer_address);
+  session_.OnPacketReceived(session_.self_address(), new_peer_address,
+                            /*is_connectivity_probe=*/true);
   EXPECT_EQ(old_peer_address, session_.peer_address());
 }
 
@@ -1357,8 +1357,8 @@ TEST_P(QuicSessionTestServer, ServerReplyToConnectivityProbes) {
       QuicPathChallengeFrame(0, path_frame_buffer1_));
   connection_->OnPathChallengeFrame(
       QuicPathChallengeFrame(0, path_frame_buffer2_));
-  session_.OnConnectivityProbeReceived(session_.self_address(),
-                                       old_peer_address);
+  session_.OnPacketReceived(session_.self_address(), old_peer_address,
+                            /*is_connectivity_probe=*/true);
 }
 
 TEST_P(QuicSessionTestServer, IncreasedTimeoutAfterCryptoHandshake) {

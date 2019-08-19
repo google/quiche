@@ -447,10 +447,10 @@ void QuicSession::OnSuccessfulVersionNegotiation(
   GetMutableCryptoStream()->OnSuccessfulVersionNegotiation(version);
 }
 
-void QuicSession::OnConnectivityProbeReceived(
-    const QuicSocketAddress& /*self_address*/,
-    const QuicSocketAddress& peer_address) {
-  if (perspective() == Perspective::IS_SERVER) {
+void QuicSession::OnPacketReceived(const QuicSocketAddress& /*self_address*/,
+                                   const QuicSocketAddress& peer_address,
+                                   bool is_connectivity_probe) {
+  if (is_connectivity_probe && perspective() == Perspective::IS_SERVER) {
     // Server only sends back a connectivity probe after received a
     // connectivity probe from a new peer address.
     connection_->SendConnectivityProbingResponsePacket(peer_address);
