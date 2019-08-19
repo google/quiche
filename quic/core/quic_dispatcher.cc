@@ -533,6 +533,37 @@ QuicDispatcher::QuicPacketFate QuicDispatcher::ValidityChecks(
   // set.  Since this may be a client continuing a connection we lost track of
   // via server restart, send a rejection to fast-fail the connection.
   if (!packet_info.version_flag) {
+    if (GetQuicReloadableFlag(quic_reply_to_old_android_conformance_test)) {
+      QUIC_RELOADABLE_FLAG_COUNT(quic_reply_to_old_android_conformance_test);
+      // The Android network conformance test contains a UDP test that sends a
+      // 12-byte packet with the following format:
+      //  - 0x0c (public flags: 8-byte connection ID, 1-byte packet number)
+      //  - randomized 8-byte connection ID
+      //  - 0x01 (1-byte packet number)
+      //  - 0x00 (private flags)
+      //  - 0x07 (PING frame).
+      // That packet is invalid and we would normally drop it but in order to
+      // unblock this conformance testing we have the following workaround that
+      // will be removed once the fixed test is deployed.
+      // TODO(b/139691956) Remove this workaround once fixed test is deployed.
+      if (packet_info.packet.length() == 12 &&
+          packet_info.packet.data()[0] == 0x0c &&
+          packet_info.packet.data()[9] == 0x01 &&
+          packet_info.packet.data()[10] == 0x00 &&
+          packet_info.packet.data()[11] == 0x07) {
+        QUIC_DLOG(INFO) << "Received Android UDP network conformance test "
+                           "packet with connection ID "
+                        << packet_info.destination_connection_id;
+        // Respond with a public reset that the test will know how to parse
+        // then return kFateDrop to stop processing of this packet.
+        time_wait_list_manager()->SendPublicReset(
+            packet_info.self_address, packet_info.peer_address,
+            packet_info.destination_connection_id,
+            /*ietf_quic=*/false, GetPerPacketContext());
+        return kFateDrop;
+      }
+    }
+
     QUIC_DLOG(INFO)
         << "Packet without version arrived for unknown connection ID "
         << packet_info.destination_connection_id;
