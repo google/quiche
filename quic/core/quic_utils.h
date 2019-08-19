@@ -11,6 +11,7 @@
 
 #include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"
 #include "net/third_party/quiche/src/quic/core/frames/quic_frame.h"
+#include "net/third_party/quiche/src/quic/core/quic_connection_id.h"
 #include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
@@ -161,6 +162,12 @@ class QUIC_EXPORT_PRIVATE QuicUtils {
   static QuicStreamId GetFirstUnidirectionalStreamId(
       QuicTransportVersion version,
       Perspective perspective);
+
+  // Generates a 64bit connection ID derived from the input connection ID.
+  // This is guaranteed to be deterministic (calling this method with two
+  // connection IDs that are equal is guaranteed to produce the same result).
+  static QuicConnectionId CreateReplacementConnectionId(
+      QuicConnectionId connection_id);
 
   // Generates a random 64bit connection ID.
   static QuicConnectionId CreateRandomConnectionId();

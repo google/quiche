@@ -153,6 +153,8 @@ class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
   virtual bool MaybeDispatchPacket(const ReceivedPacketInfo& packet_info);
 
   // Generate a connection ID with a length that is expected by the dispatcher.
+  // Note that this MUST produce a deterministic result (calling this method
+  // with two connection IDs that are equal must produce the same result).
   virtual QuicConnectionId GenerateNewServerConnectionId(
       ParsedQuicVersion version,
       QuicConnectionId connection_id) const;

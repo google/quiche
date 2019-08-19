@@ -485,6 +485,15 @@ QuicStreamId QuicUtils::GetFirstUnidirectionalStreamId(
 }
 
 // static
+QuicConnectionId QuicUtils::CreateReplacementConnectionId(
+    QuicConnectionId connection_id) {
+  const uint64_t connection_id_hash = FNV1a_64_Hash(
+      QuicStringPiece(connection_id.data(), connection_id.length()));
+  return QuicConnectionId(reinterpret_cast<const char*>(&connection_id_hash),
+                          sizeof(connection_id_hash));
+}
+
+// static
 QuicConnectionId QuicUtils::CreateRandomConnectionId() {
   return CreateRandomConnectionId(kQuicDefaultConnectionIdLength,
                                   QuicRandom::GetInstance());

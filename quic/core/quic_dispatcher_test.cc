@@ -134,8 +134,13 @@ class TestDispatcher : public QuicDispatcher {
 
   QuicConnectionId GenerateNewServerConnectionId(
       ParsedQuicVersion /*version*/,
-      QuicConnectionId /*connection_id*/) const override {
-    return QuicUtils::CreateRandomConnectionId(random_);
+      QuicConnectionId connection_id) const override {
+    if (!GetQuicRestartFlag(quic_deterministic_replacement_connection_ids)) {
+      return QuicUtils::CreateRandomConnectionId(random_);
+    }
+    // TODO(dschinazi) Remove this override entirely when
+    // quic_deterministic_replacement_connection_ids is deprecated.
+    return QuicUtils::CreateReplacementConnectionId(connection_id);
   }
 
   struct TestQuicPerPacketContext : public QuicPerPacketContext {
@@ -755,8 +760,14 @@ TEST_F(QuicDispatcherTest, LongConnectionIdLengthReplaced) {
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
 
   QuicConnectionId bad_connection_id = TestConnectionIdNineBytesLong(2);
-  QuicConnectionId fixed_connection_id =
-      QuicUtils::CreateRandomConnectionId(mock_helper_.GetRandomGenerator());
+  QuicConnectionId fixed_connection_id;
+  if (!GetQuicRestartFlag(quic_deterministic_replacement_connection_ids)) {
+    fixed_connection_id =
+        QuicUtils::CreateRandomConnectionId(mock_helper_.GetRandomGenerator());
+  } else {
+    fixed_connection_id =
+        QuicUtils::CreateReplacementConnectionId(bad_connection_id);
+  }
 
   EXPECT_CALL(*dispatcher_,
               CreateQuicSession(fixed_connection_id, client_address,
@@ -788,8 +799,14 @@ TEST_F(QuicDispatcherTest, InvalidShortConnectionIdLengthReplaced) {
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
 
   QuicConnectionId bad_connection_id = EmptyQuicConnectionId();
-  QuicConnectionId fixed_connection_id =
-      QuicUtils::CreateRandomConnectionId(mock_helper_.GetRandomGenerator());
+  QuicConnectionId fixed_connection_id;
+  if (!GetQuicRestartFlag(quic_deterministic_replacement_connection_ids)) {
+    fixed_connection_id =
+        QuicUtils::CreateRandomConnectionId(mock_helper_.GetRandomGenerator());
+  } else {
+    fixed_connection_id =
+        QuicUtils::CreateReplacementConnectionId(bad_connection_id);
+  }
 
   // Disable validation of invalid short connection IDs.
   dispatcher_->SetAllowShortInitialServerConnectionIds(true);
@@ -825,8 +842,14 @@ TEST_F(QuicDispatcherTest, MixGoodAndBadConnectionIdLengthPackets) {
 
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
   QuicConnectionId bad_connection_id = TestConnectionIdNineBytesLong(2);
-  QuicConnectionId fixed_connection_id =
-      QuicUtils::CreateRandomConnectionId(mock_helper_.GetRandomGenerator());
+  QuicConnectionId fixed_connection_id;
+  if (!GetQuicRestartFlag(quic_deterministic_replacement_connection_ids)) {
+    fixed_connection_id =
+        QuicUtils::CreateRandomConnectionId(mock_helper_.GetRandomGenerator());
+  } else {
+    fixed_connection_id =
+        QuicUtils::CreateReplacementConnectionId(bad_connection_id);
+  }
 
   EXPECT_CALL(*dispatcher_,
               CreateQuicSession(TestConnectionId(1), client_address,

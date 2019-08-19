@@ -165,6 +165,47 @@ TEST_F(QuicUtilsTest, IsIetfPacketHeader) {
   EXPECT_FALSE(QuicUtils::IsIetfPacketShortHeader(first_byte));
 }
 
+TEST_F(QuicUtilsTest, ReplacementConnectionIdIsDeterministic) {
+  // Verify that two equal connection IDs get the same replacement.
+  QuicConnectionId connection_id64a = TestConnectionId(33);
+  QuicConnectionId connection_id64b = TestConnectionId(33);
+  EXPECT_EQ(connection_id64a, connection_id64b);
+  EXPECT_EQ(QuicUtils::CreateReplacementConnectionId(connection_id64a),
+            QuicUtils::CreateReplacementConnectionId(connection_id64b));
+  QuicConnectionId connection_id72a = TestConnectionIdNineBytesLong(42);
+  QuicConnectionId connection_id72b = TestConnectionIdNineBytesLong(42);
+  EXPECT_EQ(connection_id72a, connection_id72b);
+  EXPECT_EQ(QuicUtils::CreateReplacementConnectionId(connection_id72a),
+            QuicUtils::CreateReplacementConnectionId(connection_id72b));
+}
+
+TEST_F(QuicUtilsTest, ReplacementConnectionIdLengthIsCorrect) {
+  // Verify that all lengths get replaced by kQuicDefaultConnectionIdLength.
+  const char connection_id_bytes[kQuicMaxConnectionIdAllVersionsLength] = {};
+  for (uint8_t i = 0; i < sizeof(connection_id_bytes) - 1; ++i) {
+    QuicConnectionId connection_id(connection_id_bytes, i);
+    QuicConnectionId replacement_connection_id =
+        QuicUtils::CreateReplacementConnectionId(connection_id);
+    EXPECT_EQ(kQuicDefaultConnectionIdLength,
+              replacement_connection_id.length());
+  }
+}
+
+TEST_F(QuicUtilsTest, ReplacementConnectionIdHasEntropy) {
+  // Make sure all these test connection IDs have different replacements.
+  for (uint64_t i = 0; i < 256; ++i) {
+    QuicConnectionId connection_id_i = TestConnectionId(i);
+    EXPECT_NE(connection_id_i,
+              QuicUtils::CreateReplacementConnectionId(connection_id_i));
+    for (uint64_t j = i + 1; j <= 256; ++j) {
+      QuicConnectionId connection_id_j = TestConnectionId(j);
+      EXPECT_NE(connection_id_i, connection_id_j);
+      EXPECT_NE(QuicUtils::CreateReplacementConnectionId(connection_id_i),
+                QuicUtils::CreateReplacementConnectionId(connection_id_j));
+    }
+  }
+}
+
 TEST_F(QuicUtilsTest, RandomConnectionId) {
   MockRandom random(33);
   QuicConnectionId connection_id = QuicUtils::CreateRandomConnectionId(&random);

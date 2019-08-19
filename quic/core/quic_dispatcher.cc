@@ -305,18 +305,29 @@ QuicConnectionId QuicDispatcher::MaybeReplaceServerConnectionId(
   }
   DCHECK(QuicUtils::VariableLengthConnectionIdAllowedForVersion(
       version.transport_version));
-  auto it = connection_id_map_.find(server_connection_id);
-  if (it != connection_id_map_.end()) {
-    return it->second;
+
+  if (!GetQuicRestartFlag(quic_deterministic_replacement_connection_ids)) {
+    auto it = connection_id_map_.find(server_connection_id);
+    if (it != connection_id_map_.end()) {
+      return it->second;
+    }
+  } else {
+    // TODO(dschinazi) Remove QuicDispatcher::connection_id_map_ entirely
+    // when quic_deterministic_replacement_connection_ids is deprecated.
+    QUIC_RESTART_FLAG_COUNT_N(quic_deterministic_replacement_connection_ids, 1,
+                              2);
   }
   QuicConnectionId new_connection_id =
       GenerateNewServerConnectionId(version, server_connection_id);
   DCHECK_EQ(expected_server_connection_id_length_, new_connection_id.length());
-  // TODO(dschinazi) Prevent connection_id_map_ from growing indefinitely
-  // before we ship a version that supports variable length connection IDs
-  // to production.
-  connection_id_map_.insert(
-      std::make_pair(server_connection_id, new_connection_id));
+  if (!GetQuicRestartFlag(quic_deterministic_replacement_connection_ids)) {
+    connection_id_map_.insert(
+        std::make_pair(server_connection_id, new_connection_id));
+  } else {
+    // Verify that GenerateNewServerConnectionId is deterministic.
+    DCHECK_EQ(new_connection_id,
+              GenerateNewServerConnectionId(version, server_connection_id));
+  }
   QUIC_DLOG(INFO) << "Replacing incoming connection ID " << server_connection_id
                   << " with " << new_connection_id;
   return new_connection_id;
@@ -324,8 +335,15 @@ QuicConnectionId QuicDispatcher::MaybeReplaceServerConnectionId(
 
 QuicConnectionId QuicDispatcher::GenerateNewServerConnectionId(
     ParsedQuicVersion /*version*/,
-    QuicConnectionId /*connection_id*/) const {
-  return QuicUtils::CreateRandomConnectionId();
+    QuicConnectionId connection_id) const {
+  if (!GetQuicRestartFlag(quic_deterministic_replacement_connection_ids)) {
+    return QuicUtils::CreateRandomConnectionId();
+  }
+
+  QUIC_RESTART_FLAG_COUNT_N(quic_deterministic_replacement_connection_ids, 2,
+                            2);
+
+  return QuicUtils::CreateReplacementConnectionId(connection_id);
 }
 
 bool QuicDispatcher::MaybeDispatchPacket(
