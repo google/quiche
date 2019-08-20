@@ -12,6 +12,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
 
+using ::testing::_;
 using ::testing::Eq;
 using ::testing::StrictMock;
 using ::testing::Values;
@@ -178,6 +179,224 @@ TEST_F(QpackEncoderTest, InvalidHeaderAcknowledgement) {
       OnDecoderStreamError(Eq("Header Acknowledgement received for stream 0 "
                               "with no outstanding header blocks.")));
   encoder_.OnHeaderAcknowledgement(/* stream_id = */ 0);
+}
+
+TEST_F(QpackEncoderTest, DynamicTable) {
+  encoder_.SetMaximumDynamicTableCapacity(4096);
+  encoder_.SetMaximumBlockedStreams(1);
+
+  spdy::SpdyHeaderBlock header_list;
+  header_list["foo"] = "bar";
+  header_list.AppendValueOrAddHeader("foo",
+                                     "baz");  // name matches dynamic entry
+  header_list["cookie"] = "baz";              // name matches static entry
+
+  // Insert three entries into the dynamic table.
+  EXPECT_CALL(encoder_stream_sender_delegate_,
+              WriteStreamData(Eq(QuicTextUtils::HexDecode(
+                  "62"             // insert without name reference
+                  "94e7"           // Huffman-encoded name "foo"
+                  "03626172"))));  // value "bar"
+  EXPECT_CALL(encoder_stream_sender_delegate_,
+              WriteStreamData(Eq(QuicTextUtils::HexDecode(
+                  "80"  // insert with name reference, dynamic index 0
+                  "0362617a"))));  // value "baz"
+  EXPECT_CALL(encoder_stream_sender_delegate_,
+              WriteStreamData(Eq(QuicTextUtils::HexDecode(
+                  "c5"             // insert with name reference, static index 5
+                  "0362617a"))));  // value "baz"
+
+  EXPECT_EQ(QuicTextUtils::HexDecode(
+                "0400"      // prefix
+                "828180"),  // dynamic entries with relative index 0, 1, and 2
+            Encode(&header_list));
+}
+
+// There is no room in the dynamic table after inserting the first entry.
+TEST_F(QpackEncoderTest, SmallDynamicTable) {
+  encoder_.SetMaximumDynamicTableCapacity(QpackEntry::Size("foo", "bar"));
+  encoder_.SetMaximumBlockedStreams(1);
+
+  spdy::SpdyHeaderBlock header_list;
+  header_list["foo"] = "bar";
+  header_list.AppendValueOrAddHeader("foo",
+                                     "baz");  // name matches dynamic entry
+  header_list["cookie"] = "baz";              // name matches static entry
+  header_list["bar"] = "baz";                 // no match
+
+  // Insert one entry into the dynamic table.
+  EXPECT_CALL(encoder_stream_sender_delegate_,
+              WriteStreamData(Eq(QuicTextUtils::HexDecode(
+                  "62"             // insert without name reference
+                  "94e7"           // Huffman-encoded name "foo"
+                  "03626172"))));  // value "bar"
+
+  EXPECT_EQ(QuicTextUtils::HexDecode("0200"  // prefix
+                                     "80"    // dynamic entry 0
+                                     "40"  // reference to dynamic entry 0 name
+                                     "0362617a"  // with literal value "baz"
+                                     "55"  // reference to static entry 5 name
+                                     "0362617a"    // with literal value "baz"
+                                     "23626172"    // literal name "bar"
+                                     "0362617a"),  // with literal value "baz"
+            Encode(&header_list));
+}
+
+TEST_F(QpackEncoderTest, BlockedStream) {
+  encoder_.SetMaximumDynamicTableCapacity(4096);
+  encoder_.SetMaximumBlockedStreams(1);
+
+  spdy::SpdyHeaderBlock header_list1;
+  header_list1["foo"] = "bar";
+
+  // Insert one entry into the dynamic table.
+  EXPECT_CALL(encoder_stream_sender_delegate_,
+              WriteStreamData(Eq(QuicTextUtils::HexDecode(
+                  "62"             // insert without name reference
+                  "94e7"           // Huffman-encoded name "foo"
+                  "03626172"))));  // value "bar"
+
+  EXPECT_EQ(QuicTextUtils::HexDecode("0200"  // prefix
+                                     "80"),  // dynamic entry 0
+            encoder_.EncodeHeaderList(/* stream_id = */ 1, &header_list1));
+
+  // Stream 1 is blocked.  Stream 2 is not allowed to block.
+  spdy::SpdyHeaderBlock header_list2;
+  header_list2["foo"] = "bar";  // name and value match dynamic entry
+  header_list2.AppendValueOrAddHeader("foo",
+                                      "baz");  // name matches dynamic entry
+  header_list2["cookie"] = "baz";              // name matches static entry
+  header_list2["bar"] = "baz";                 // no match
+
+  EXPECT_EQ(QuicTextUtils::HexDecode("0000"        // prefix
+                                     "2a94e7"      // literal name "foo"
+                                     "03626172"    // with literal value "bar"
+                                     "2a94e7"      // literal name "foo"
+                                     "0362617a"    // with literal value "baz"
+                                     "55"          // name of static entry 5
+                                     "0362617a"    // with literal value "baz"
+                                     "23626172"    // literal name "bar"
+                                     "0362617a"),  // with literal value "baz"
+            encoder_.EncodeHeaderList(/* stream_id = */ 2, &header_list2));
+
+  // Peer acknowledges receipt of one dynamic table entry.
+  // Stream 1 is no longer blocked.
+  encoder_.OnInsertCountIncrement(1);
+
+  // Insert three entries into the dynamic table.
+  EXPECT_CALL(encoder_stream_sender_delegate_,
+              WriteStreamData(Eq(QuicTextUtils::HexDecode(
+                  "80"  // insert with name reference, dynamic index 0
+                  "0362617a"))));  // value "baz"
+  EXPECT_CALL(encoder_stream_sender_delegate_,
+              WriteStreamData(Eq(QuicTextUtils::HexDecode(
+                  "c5"             // insert with name reference, static index 5
+                  "0362617a"))));  // value "baz"
+  EXPECT_CALL(encoder_stream_sender_delegate_,
+              WriteStreamData(Eq(QuicTextUtils::HexDecode(
+                  "43"                       // insert without name reference
+                  "626172"                   // name "bar"
+                  "0362617a"))));            // value "baz"
+  EXPECT_EQ(QuicTextUtils::HexDecode("0500"  // prefix
+                                     "83828180"),  // dynamic entries
+            encoder_.EncodeHeaderList(/* stream_id = */ 3, &header_list2));
+
+  // Stream 3 is blocked.  Stream 4 is not allowed to block, but it can
+  // reference already acknowledged dynamic entry 0.
+  EXPECT_EQ(QuicTextUtils::HexDecode("0200"        // prefix
+                                     "80"          // dynamic entry 0
+                                     "2a94e7"      // literal name "foo"
+                                     "0362617a"    // with literal value "baz"
+                                     "2c21cfd4c5"  // literal name "cookie"
+                                     "0362617a"    // with literal value "baz"
+                                     "23626172"    // literal name "bar"
+                                     "0362617a"),  // with literal value "baz"
+            encoder_.EncodeHeaderList(/* stream_id = */ 4, &header_list2));
+
+  // Peer acknowledges receipt of two more dynamic table entries.
+  // Stream 3 is still blocked.
+  encoder_.OnInsertCountIncrement(2);
+
+  // Stream 5 is not allowed to block, but it can reference already acknowledged
+  // dynamic entries 0, 1, and 2.
+  EXPECT_EQ(QuicTextUtils::HexDecode("0400"        // prefix
+                                     "828180"      // dynamic entries
+                                     "23626172"    // literal name "bar"
+                                     "0362617a"),  // with literal value "baz"
+            encoder_.EncodeHeaderList(/* stream_id = */ 5, &header_list2));
+
+  // Peer acknowledges decoding header block on stream 3.
+  // Stream 3 is not blocked any longer.
+  encoder_.OnHeaderAcknowledgement(3);
+
+  EXPECT_EQ(QuicTextUtils::HexDecode("0500"        // prefix
+                                     "83828180"),  // dynamic entries
+            encoder_.EncodeHeaderList(/* stream_id = */ 6, &header_list2));
+}
+
+TEST_F(QpackEncoderTest, Draining) {
+  // TODO(b/112770235): Remove when already blocking stream can emit blocking
+  // references.
+  encoder_.SetMaximumBlockedStreams(2);
+
+  spdy::SpdyHeaderBlock header_list1;
+  header_list1["one"] = "foo";
+  header_list1["two"] = "foo";
+  header_list1["three"] = "foo";
+  header_list1["four"] = "foo";
+  header_list1["five"] = "foo";
+  header_list1["six"] = "foo";
+  header_list1["seven"] = "foo";
+  header_list1["eight"] = "foo";
+  header_list1["nine"] = "foo";
+  header_list1["ten"] = "foo";
+
+  // Make just enough room in the dynamic table for the header list plus the
+  // first entry duplicated.  This will ensure that the oldest entries are
+  // draining.
+  uint64_t maximum_dynamic_table_capacity = 0;
+  for (const auto& header_field : header_list1) {
+    maximum_dynamic_table_capacity +=
+        QpackEntry::Size(header_field.first, header_field.second);
+  }
+  maximum_dynamic_table_capacity += QpackEntry::Size("one", "foo");
+  encoder_.SetMaximumDynamicTableCapacity(maximum_dynamic_table_capacity);
+
+  // Insert ten entries into the dynamic table.
+  EXPECT_CALL(encoder_stream_sender_delegate_, WriteStreamData(_)).Times(10);
+
+  EXPECT_EQ(
+      QuicTextUtils::HexDecode("0b00"                    // prefix
+                               "89888786858483828180"),  // dynamic entries
+      Encode(&header_list1));
+
+  // Entry is identical to oldest one, which is draining.  It will be
+  // duplicated and referenced.
+  spdy::SpdyHeaderBlock header_list2;
+  header_list2["one"] = "foo";
+
+  // Duplicate oldest entry.
+  EXPECT_CALL(encoder_stream_sender_delegate_,
+              WriteStreamData(Eq(QuicTextUtils::HexDecode("09"))));
+
+  EXPECT_EQ(QuicTextUtils::HexDecode("0c00"  // prefix
+                                     "80"),  // most recent dynamic table entry
+            Encode(&header_list2));
+
+  spdy::SpdyHeaderBlock header_list3;
+  // Entry is identical to second oldest one, which is draining.  There is no
+  // room to duplicate, it will be encoded with string literals.
+  header_list3.AppendValueOrAddHeader("two", "foo");
+  // Entry has name identical to second oldest one, which is draining.  There is
+  // no room to insert new entry, it will be encoded with string literals.
+  header_list3.AppendValueOrAddHeader("two", "bar");
+
+  EXPECT_EQ(QuicTextUtils::HexDecode("0000"        // prefix
+                                     "2374776f"    // literal name "two"
+                                     "8294e7"      // literal value "foo"
+                                     "2374776f"    // literal name "two"
+                                     "03626172"),  // literal value "bar"
+            Encode(&header_list3));
 }
 
 }  // namespace

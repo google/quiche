@@ -50,6 +50,7 @@ class QUIC_EXPORT_PRIVATE QpackEncoder
   ~QpackEncoder() override;
 
   // Encode a header list.
+  // TODO(bnc): Take |header_list| by const reference instead of pointer.
   std::string EncodeHeaderList(QuicStreamId stream_id,
                                const spdy::SpdyHeaderBlock* header_list);
 
@@ -97,13 +98,41 @@ class QUIC_EXPORT_PRIVATE QpackEncoder
   };
   using Instructions = std::vector<InstructionWithValues>;
 
-  // Perform first pass of two-pass encoding: represent each header field as a
-  // reference to an existing entry, the name of an existing entry with a
-  // literal value, or a literal name and value pair.
-  Instructions FirstPassEncode(const spdy::SpdyHeaderBlock* header_list);
+  // Generate indexed header field instruction
+  // and optionally update |*referred_indices|.
+  static InstructionWithValues EncodeIndexedHeaderField(
+      bool is_static,
+      uint64_t index,
+      QpackBlockingManager::IndexSet* referred_indices);
 
-  // Perform second pass of two-pass encoding: serialize representations
-  // generated in first pass.
+  // Generate literal header field with name reference instruction
+  // and optionally update |*referred_indices|.
+  static InstructionWithValues EncodeLiteralHeaderFieldWithNameReference(
+      bool is_static,
+      uint64_t index,
+      QuicStringPiece value,
+      QpackBlockingManager::IndexSet* referred_indices);
+
+  // Generate literal header field instruction.
+  static InstructionWithValues EncodeLiteralHeaderField(QuicStringPiece name,
+                                                        QuicStringPiece value);
+
+  // Performs first pass of two-pass encoding: represent each header field in
+  // |*header_list| as a reference to an existing entry, the name of an existing
+  // entry with a literal value, or a literal name and value pair.  Sends
+  // necessary instructions on the encoder stream.  Records absolute indices of
+  // referred dynamic table entries in |*referred_indices|.  Returns list of
+  // header field representations, with all dynamic table entries referred to
+  // with absolute indices.  Returned Instructions object may have
+  // QuicStringPieces pointing to strings owned by |*header_list|.
+  // TODO(bnc): Take |header_list| by const reference instead of pointer.
+  Instructions FirstPassEncode(
+      const spdy::SpdyHeaderBlock* header_list,
+      QpackBlockingManager::IndexSet* referred_indices);
+
+  // Performs second pass of two-pass encoding: serializes representations
+  // generated in first pass, transforming absolute indices of dynamic table
+  // entries to relative indices.
   std::string SecondPassEncode(Instructions instructions,
                                uint64_t required_insert_count) const;
 
