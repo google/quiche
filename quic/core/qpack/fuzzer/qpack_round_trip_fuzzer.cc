@@ -107,7 +107,7 @@ class DelayedHeaderBlockTransmitter {
       it = header_blocks_.insert(it, {stream_id, {}});
     }
     CHECK_EQ(stream_id, it->first);
-    it->second.push(std::move(encoded_header_block));
+    it->second.push(HeaderBlock(std::move(encoded_header_block)));
   }
 
   // Release some (possibly none) header block data.
@@ -129,13 +129,27 @@ class DelayedHeaderBlockTransmitter {
     }
 
     auto& header_block_queue = it->second;
-    visitor_->OnHeaderBlockStart(stream_id);
-    visitor_->OnHeaderBlockFragment(stream_id, header_block_queue.front());
-    visitor_->OnHeaderBlockEnd(stream_id);
+    HeaderBlock& header_block = header_block_queue.front();
 
-    header_block_queue.pop();
-    if (header_block_queue.empty()) {
-      header_blocks_.erase(it);
+    if (header_block.ConsumedLength() == 0) {
+      visitor_->OnHeaderBlockStart(stream_id);
+    }
+
+    DCHECK_NE(0u, header_block.RemainingLength());
+
+    size_t length = provider_->ConsumeIntegralInRange<size_t>(
+        1, header_block.RemainingLength());
+    visitor_->OnHeaderBlockFragment(stream_id, header_block.Consume(length));
+
+    DCHECK_NE(0u, header_block.ConsumedLength());
+
+    if (header_block.RemainingLength() == 0) {
+      visitor_->OnHeaderBlockEnd(stream_id);
+
+      header_block_queue.pop();
+      if (header_block_queue.empty()) {
+        header_blocks_.erase(it);
+      }
     }
   }
 
@@ -146,12 +160,25 @@ class DelayedHeaderBlockTransmitter {
     while (!header_blocks_.empty()) {
       auto it = header_blocks_.begin();
       const QuicStreamId stream_id = it->first;
-      CHECK(!visitor_->IsDecodingInProgressOnStream(stream_id));
 
       auto& header_block_queue = it->second;
-      visitor_->OnHeaderBlockStart(stream_id);
-      visitor_->OnHeaderBlockFragment(stream_id, header_block_queue.front());
+      HeaderBlock& header_block = header_block_queue.front();
+
+      if (header_block.ConsumedLength() == 0) {
+        CHECK(!visitor_->IsDecodingInProgressOnStream(stream_id));
+        visitor_->OnHeaderBlockStart(stream_id);
+      }
+
+      DCHECK_NE(0u, header_block.RemainingLength());
+
+      visitor_->OnHeaderBlockFragment(stream_id,
+                                      header_block.ConsumeRemaining());
+
+      DCHECK_NE(0u, header_block.ConsumedLength());
+      DCHECK_EQ(0u, header_block.RemainingLength());
+
       visitor_->OnHeaderBlockEnd(stream_id);
+      CHECK(!visitor_->IsDecodingInProgressOnStream(stream_id));
 
       header_block_queue.pop();
       if (header_block_queue.empty()) {
@@ -161,11 +188,42 @@ class DelayedHeaderBlockTransmitter {
   }
 
  private:
+  // Helper class that allows the header block to be consumed in parts.
+  class HeaderBlock {
+   public:
+    explicit HeaderBlock(std::string data)
+        : data_(std::move(data)), offset_(0) {
+      // Valid QPACK header block cannot be empty.
+      DCHECK(!data_.empty());
+    }
+
+    size_t ConsumedLength() const { return offset_; }
+
+    size_t RemainingLength() const { return data_.length() - offset_; }
+
+    QuicStringPiece Consume(size_t length) {
+      DCHECK_NE(0u, length);
+      DCHECK_LE(length, RemainingLength());
+
+      QuicStringPiece consumed = QuicStringPiece(&data_[offset_], length);
+      offset_ += length;
+      return consumed;
+    }
+
+    QuicStringPiece ConsumeRemaining() { return Consume(RemainingLength()); }
+
+   private:
+    // Complete header block.
+    const std::string data_;
+
+    // Offset of the part not consumed yet.  Same as number of consumed bytes.
+    size_t offset_;
+  };
+
   Visitor* const visitor_;
   QuicFuzzedDataProvider* const provider_;
 
-  // TODO(bnc): Break up header blocks into fragments.
-  std::map<QuicStreamId, std::queue<std::string>> header_blocks_;
+  std::map<QuicStreamId, std::queue<HeaderBlock>> header_blocks_;
 };
 
 // Class to decode and verify a header block, and in case of blocked decoding,
