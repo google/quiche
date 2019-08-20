@@ -19,6 +19,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_stack_trace.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
 #include "net/third_party/quiche/src/spdy/core/http2_frame_decoder_adapter.h"
@@ -191,6 +192,10 @@ class QuicSpdySession::SpdyFramerVisitor
       return;
     }
 
+    QUIC_BUG_IF(session_->destruction_indicator() != 123456789)
+        << "QuicSpdyStream use after free. "
+        << session_->destruction_indicator() << QuicStackTrace();
+
     if (session_->use_http2_priority_write_scheduler()) {
       session_->OnHeaders(
           stream_id, has_priority,
@@ -325,13 +330,17 @@ QuicSpdySession::QuicSpdySession(
       supports_push_promise_(perspective() == Perspective::IS_CLIENT),
       spdy_framer_(SpdyFramer::ENABLE_COMPRESSION),
       spdy_framer_visitor_(new SpdyFramerVisitor(this)),
-      max_allowed_push_id_(0) {
+      max_allowed_push_id_(0),
+      destruction_indicator_(123456789) {
   h2_deframer_.set_visitor(spdy_framer_visitor_.get());
   h2_deframer_.set_debug_visitor(spdy_framer_visitor_.get());
   spdy_framer_.set_debug_visitor(spdy_framer_visitor_.get());
 }
 
 QuicSpdySession::~QuicSpdySession() {
+  QUIC_BUG_IF(destruction_indicator_ != 123456789)
+      << "QuicSpdyStream use after free. " << destruction_indicator_
+      << QuicStackTrace();
   // Set the streams' session pointers in closed and dynamic stream lists
   // to null to avoid subsequent use of this session.
   for (auto& stream : *closed_streams()) {
@@ -345,6 +354,7 @@ QuicSpdySession::~QuicSpdySession() {
       static_cast<QuicSpdyStream*>(kv.second.get())->ClearSession();
     }
   }
+  destruction_indicator_ = 987654321;
 }
 
 void QuicSpdySession::Initialize() {
@@ -462,6 +472,9 @@ void QuicSpdySession::OnPriorityFrame(
 }
 
 size_t QuicSpdySession::ProcessHeaderData(const struct iovec& iov) {
+  QUIC_BUG_IF(destruction_indicator_ != 123456789)
+      << "QuicSpdyStream use after free. " << destruction_indicator_
+      << QuicStackTrace();
   return h2_deframer_.ProcessInput(static_cast<char*>(iov.iov_base),
                                    iov.iov_len);
 }

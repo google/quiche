@@ -192,6 +192,8 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
 
   QuicStreamId max_allowed_push_id() { return max_allowed_push_id_; }
 
+  int32_t destruction_indicator() const { return destruction_indicator_; }
+
  protected:
   // Override CreateIncomingStream(), CreateOutgoingBidirectionalStream() and
   // CreateOutgoingUnidirectionalStream() with QuicSpdyStream return type to
@@ -322,6 +324,11 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   http2::Http2DecoderAdapter h2_deframer_;
   std::unique_ptr<SpdyFramerVisitor> spdy_framer_visitor_;
   QuicStreamId max_allowed_push_id_;
+
+  // An integer used for live check. The indicator is assigned a value in
+  // constructor. As long as it is not the assigned value, that would indicate
+  // an use-after-free.
+  int32_t destruction_indicator_;
 };
 
 }  // namespace quic
