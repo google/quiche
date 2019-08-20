@@ -87,7 +87,8 @@ struct QUIC_EXPORT_PRIVATE Bbr2Params {
   QuicRoundTripCount startup_full_bw_rounds = 3;
 
   // The minimum number of loss marking events to exit STARTUP.
-  int64_t startup_full_loss_count = 8;
+  int64_t startup_full_loss_count =
+      GetQuicFlag(FLAGS_quic_bbr2_default_startup_full_loss_count);
 
   /*
    * DRAIN parameters.
