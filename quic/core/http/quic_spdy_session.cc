@@ -596,6 +596,10 @@ QuicSpdyStream* QuicSpdySession::GetSpdyDataStream(
 
 void QuicSpdySession::OnCryptoHandshakeEvent(CryptoHandshakeEvent event) {
   QuicSession::OnCryptoHandshakeEvent(event);
+  if (VersionUsesQpack(transport_version()) && event == HANDSHAKE_CONFIRMED) {
+    SendMaxHeaderListSize(max_inbound_header_list_size_);
+    return;
+  }
   if (event == HANDSHAKE_CONFIRMED && config()->SupportMaxHeaderListSize()) {
     SendMaxHeaderListSize(max_inbound_header_list_size_);
   }

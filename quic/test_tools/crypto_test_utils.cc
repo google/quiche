@@ -722,7 +722,11 @@ void MovePackets(PacketSavingConnection* source_conn,
     QuicConnectionPeer::SetCurrentPacket(
         dest_conn, source_conn->encrypted_packets_[index]->AsStringPiece());
     for (const auto& stream_frame : framer.stream_frames()) {
-      dest_stream->OnStreamFrame(*stream_frame);
+      // Ignore stream frames that are sent on other streams in the crypto
+      // event.
+      if (stream_frame->stream_id == dest_stream->id()) {
+        dest_stream->OnStreamFrame(*stream_frame);
+      }
     }
     for (const auto& crypto_frame : framer.crypto_frames()) {
       dest_stream->OnCryptoFrame(*crypto_frame);

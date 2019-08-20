@@ -343,11 +343,12 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     return GetServerSession()->connection();
   }
 
-  QuicSession* GetServerSession() {
+  QuicSpdySession* GetServerSession() {
     QuicDispatcher* dispatcher =
         QuicServerPeer::GetDispatcher(server_thread_->server());
     EXPECT_EQ(1u, dispatcher->session_map().size());
-    return dispatcher->session_map().begin()->second.get();
+    return static_cast<QuicSpdySession*>(
+        dispatcher->session_map().begin()->second.get());
   }
 
   bool Initialize() {
@@ -613,6 +614,14 @@ TEST_P(EndToEndTest, SimpleRequestResponse) {
   }
   EXPECT_EQ(expected_num_client_hellos,
             client_->client()->GetNumSentClientHellos());
+  if (VersionUsesQpack(GetClientConnection()->transport_version())) {
+    EXPECT_TRUE(QuicSpdySessionPeer::GetSendControlStream(GetClientSession()));
+    EXPECT_TRUE(
+        QuicSpdySessionPeer::GetReceiveControlStream(GetClientSession()));
+    EXPECT_TRUE(QuicSpdySessionPeer::GetSendControlStream(GetServerSession()));
+    EXPECT_TRUE(
+        QuicSpdySessionPeer::GetReceiveControlStream(GetServerSession()));
+  }
 }
 
 TEST_P(EndToEndTestWithTls, SimpleRequestResponse) {
