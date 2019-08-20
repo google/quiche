@@ -89,7 +89,8 @@ QuicSession::QuicSession(QuicConnection* connection,
       last_message_id_(0),
       closed_streams_clean_up_alarm_(nullptr),
       supported_versions_(supported_versions),
-      use_http2_priority_write_scheduler_(false) {
+      use_http2_priority_write_scheduler_(false),
+      is_configured_(false) {
   closed_streams_clean_up_alarm_ =
       QuicWrapUnique<QuicAlarm>(connection_->alarm_factory()->CreateAlarm(
           new ClosedStreamsCleanUpDelegate(this)));
@@ -1051,6 +1052,7 @@ void QuicSession::OnConfigNegotiated() {
     OnNewSessionFlowControlWindow(
         config_.ReceivedInitialSessionFlowControlWindowBytes());
   }
+  is_configured_ = true;
 }
 
 void QuicSession::AdjustInitialFlowControlWindows(size_t stream_window) {

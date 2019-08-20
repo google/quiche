@@ -431,6 +431,8 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
     return use_http2_priority_write_scheduler_;
   }
 
+  bool is_configured() const { return is_configured_; }
+
  protected:
   using StreamMap = QuicSmallMap<QuicStreamId, std::unique_ptr<QuicStream>, 10>;
 
@@ -724,6 +726,10 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
   // If true, write_blocked_streams_ uses HTTP2 (tree-style) priority write
   // scheduler.
   bool use_http2_priority_write_scheduler_;
+
+  // Initialized to false. Set to true when the session has been properly
+  // configured and is ready for general operation.
+  bool is_configured_;
 };
 
 }  // namespace quic

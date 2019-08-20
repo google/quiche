@@ -153,7 +153,10 @@ class TestSession : public QuicSession {
         QuicMakeUnique<NullEncrypter>(connection->perspective()));
   }
 
-  ~TestSession() override { delete connection(); }
+  ~TestSession() override {
+    EXPECT_TRUE(is_configured());
+    delete connection();
+  }
 
   TestCryptoStream* GetMutableCryptoStream() override {
     return &crypto_stream_;
@@ -329,7 +332,13 @@ class QuicSessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
         kInitialStreamFlowControlWindowForTest);
     session_.config()->SetInitialSessionFlowControlWindowToSend(
         kInitialSessionFlowControlWindowForTest);
+
+    QuicConfigPeer::SetReceivedMaxIncomingBidirectionalStreams(
+        session_.config(), kDefaultMaxStreamsPerConnection);
+    QuicConfigPeer::SetReceivedMaxIncomingUnidirectionalStreams(
+        session_.config(), kDefaultMaxStreamsPerConnection);
     connection_->AdvanceTime(QuicTime::Delta::FromSeconds(1));
+    session_.OnConfigNegotiated();
     TestCryptoStream* crypto_stream = session_.GetMutableCryptoStream();
     EXPECT_CALL(*crypto_stream, HasPendingRetransmission())
         .Times(testing::AnyNumber());

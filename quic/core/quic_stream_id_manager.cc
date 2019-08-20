@@ -221,7 +221,8 @@ QuicStreamId QuicStreamIdManager::GetNextOutgoingStreamId() {
   // TODO(fkastenholz): Should we close the connection?
   QUIC_BUG_IF(outgoing_stream_count_ >= outgoing_max_streams_)
       << "Attempt to allocate a new outgoing stream that would exceed the "
-         "limit";
+         "limit ("
+      << outgoing_max_streams_ << ")";
   QuicStreamId id = next_outgoing_stream_id_;
   next_outgoing_stream_id_ += QuicUtils::StreamIdDelta(transport_version());
   outgoing_stream_count_++;
