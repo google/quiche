@@ -154,6 +154,7 @@ void QuicCryptoStream::WriteCryptoData(EncryptionLevel level,
     QUIC_BUG << "Empty crypto data being written";
     return;
   }
+  const bool had_buffered_data = HasBufferedCryptoFrames();
   // Append |data| to the send buffer for this encryption level.
   struct iovec iov(QuicUtils::MakeIovec(data));
   QuicStreamSendBuffer* send_buffer = &substreams_[level].send_buffer;
@@ -167,16 +168,16 @@ void QuicCryptoStream::WriteCryptoData(EncryptionLevel level,
     CloseConnectionWithDetails(QUIC_STREAM_LENGTH_OVERFLOW,
                                "Writing too much crypto handshake data");
   }
+  if (had_buffered_data) {
+    // Do not try to write if there is buffered data.
+    return;
+  }
 
   EncryptionLevel current_level = session()->connection()->encryption_level();
   session()->connection()->SetDefaultEncryptionLevel(level);
   size_t bytes_consumed =
       session()->connection()->SendCryptoData(level, data.length(), offset);
   session()->connection()->SetDefaultEncryptionLevel(current_level);
-  // Since CRYPTO frames aren't flow controlled, SendCryptoData should have sent
-  // all data we asked it to send.
-  DCHECK_EQ(bytes_consumed, data.length());
-
   send_buffer->OnStreamDataConsumed(bytes_consumed);
 }
 
@@ -410,6 +411,48 @@ void QuicCryptoStream::RetransmitData(QuicCryptoFrame* crypto_frame) {
                                            bytes_consumed);
   }
   session()->connection()->SetDefaultEncryptionLevel(current_encryption_level);
+}
+
+void QuicCryptoStream::WriteBufferedCryptoFrames() {
+  QUIC_BUG_IF(!QuicVersionUsesCryptoFrames(
+      session()->connection()->transport_version()))
+      << "Versions less than 47 don't use CRYPTO frames";
+  EncryptionLevel current_encryption_level =
+      session()->connection()->encryption_level();
+  for (EncryptionLevel level :
+       {ENCRYPTION_INITIAL, ENCRYPTION_ZERO_RTT, ENCRYPTION_FORWARD_SECURE}) {
+    QuicStreamSendBuffer* send_buffer = &substreams_[level].send_buffer;
+    const size_t data_length =
+        send_buffer->stream_offset() - send_buffer->stream_bytes_written();
+    if (data_length == 0) {
+      // No buffered data for this encryption level.
+      continue;
+    }
+    session()->connection()->SetDefaultEncryptionLevel(level);
+    size_t bytes_consumed = session()->connection()->SendCryptoData(
+        level, data_length, send_buffer->stream_bytes_written());
+    send_buffer->OnStreamDataConsumed(bytes_consumed);
+    if (bytes_consumed < data_length) {
+      // Connection is write blocked.
+      break;
+    }
+  }
+  session()->connection()->SetDefaultEncryptionLevel(current_encryption_level);
+}
+
+bool QuicCryptoStream::HasBufferedCryptoFrames() const {
+  QUIC_BUG_IF(!QuicVersionUsesCryptoFrames(
+      session()->connection()->transport_version()))
+      << "Versions less than 47 don't use CRYPTO frames";
+  for (EncryptionLevel level :
+       {ENCRYPTION_INITIAL, ENCRYPTION_ZERO_RTT, ENCRYPTION_FORWARD_SECURE}) {
+    const QuicStreamSendBuffer& send_buffer = substreams_[level].send_buffer;
+    DCHECK_GE(send_buffer.stream_offset(), send_buffer.stream_bytes_written());
+    if (send_buffer.stream_offset() > send_buffer.stream_bytes_written()) {
+      return true;
+    }
+  }
+  return false;
 }
 
 bool QuicCryptoStream::IsFrameOutstanding(EncryptionLevel level,

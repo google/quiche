@@ -23,6 +23,7 @@ using testing::_;
 using testing::InSequence;
 using testing::Invoke;
 using testing::InvokeWithoutArgs;
+using testing::Return;
 
 namespace quic {
 namespace test {
@@ -530,6 +531,43 @@ TEST_F(QuicCryptoStreamTest, CryptoMessageFramingOverhead) {
     EXPECT_EQ(expected_overhead, QuicCryptoStream::CryptoMessageFramingOverhead(
                                      version, TestConnectionId()));
   }
+}
+
+TEST_F(QuicCryptoStreamTest, WriteBufferedCryptoFrames) {
+  if (!QuicVersionUsesCryptoFrames(connection_->transport_version())) {
+    return;
+  }
+  EXPECT_FALSE(stream_->HasBufferedCryptoFrames());
+  InSequence s;
+  // Send [0, 1350) in ENCRYPTION_INITIAL.
+  EXPECT_EQ(ENCRYPTION_INITIAL, connection_->encryption_level());
+  std::string data(1350, 'a');
+  // Only consumed 1000 bytes.
+  EXPECT_CALL(*connection_, SendCryptoData(ENCRYPTION_INITIAL, 1350, 0))
+      .WillOnce(Return(1000));
+  stream_->WriteCryptoData(ENCRYPTION_INITIAL, data);
+  EXPECT_TRUE(stream_->HasBufferedCryptoFrames());
+
+  // Send [1350, 2700) in ENCRYPTION_ZERO_RTT and verify no write is attempted
+  // because there is buffered data.
+  EXPECT_CALL(*connection_, SendCryptoData(_, _, _)).Times(0);
+  connection_->SetDefaultEncryptionLevel(ENCRYPTION_ZERO_RTT);
+  stream_->WriteCryptoData(ENCRYPTION_ZERO_RTT, data);
+  EXPECT_EQ(ENCRYPTION_ZERO_RTT, connection_->encryption_level());
+
+  EXPECT_CALL(*connection_, SendCryptoData(ENCRYPTION_INITIAL, 350, 1000))
+      .WillOnce(Return(350));
+  // Partial write of ENCRYPTION_ZERO_RTT data.
+  EXPECT_CALL(*connection_, SendCryptoData(ENCRYPTION_ZERO_RTT, 1350, 0))
+      .WillOnce(Return(1000));
+  stream_->WriteBufferedCryptoFrames();
+  EXPECT_TRUE(stream_->HasBufferedCryptoFrames());
+  EXPECT_EQ(ENCRYPTION_ZERO_RTT, connection_->encryption_level());
+
+  EXPECT_CALL(*connection_, SendCryptoData(ENCRYPTION_ZERO_RTT, 350, 1000))
+      .WillOnce(Return(350));
+  stream_->WriteBufferedCryptoFrames();
+  EXPECT_FALSE(stream_->HasBufferedCryptoFrames());
 }
 
 }  // namespace

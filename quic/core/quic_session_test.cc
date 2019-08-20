@@ -2692,6 +2692,31 @@ TEST_P(QuicSessionTestServer, OnStopSendingInputValidStream) {
   EXPECT_TRUE(stream->write_side_closed());
 }
 
+TEST_P(QuicSessionTestServer, WriteBufferedCryptoFrames) {
+  if (!QuicVersionUsesCryptoFrames(connection_->transport_version())) {
+    return;
+  }
+  std::string data(1350, 'a');
+  TestCryptoStream* crypto_stream = session_.GetMutableCryptoStream();
+  // Only consumed 1000 bytes.
+  EXPECT_CALL(*connection_, SendCryptoData(ENCRYPTION_INITIAL, 1350, 0))
+      .WillOnce(Return(1000));
+  crypto_stream->WriteCryptoData(ENCRYPTION_INITIAL, data);
+  EXPECT_TRUE(session_.HasPendingHandshake());
+  EXPECT_TRUE(session_.WillingAndAbleToWrite());
+
+  EXPECT_CALL(*connection_, SendCryptoData(_, _, _)).Times(0);
+  crypto_stream->WriteCryptoData(ENCRYPTION_ZERO_RTT, data);
+
+  EXPECT_CALL(*connection_, SendCryptoData(ENCRYPTION_INITIAL, 350, 1000))
+      .WillOnce(Return(350));
+  EXPECT_CALL(*connection_, SendCryptoData(ENCRYPTION_ZERO_RTT, 1350, 0))
+      .WillOnce(Return(1350));
+  session_.OnCanWrite();
+  EXPECT_FALSE(session_.HasPendingHandshake());
+  EXPECT_FALSE(session_.WillingAndAbleToWrite());
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

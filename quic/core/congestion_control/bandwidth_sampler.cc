@@ -166,7 +166,8 @@ BandwidthSample BandwidthSampler::OnPacketAcknowledgedInner(
 
   // Exit app-limited phase once a packet that was sent while the connection is
   // not app-limited is acknowledged.
-  if (is_app_limited_ && packet_number > end_of_app_limited_phase_) {
+  if (is_app_limited_ && end_of_app_limited_phase_.IsInitialized() &&
+      packet_number > end_of_app_limited_phase_) {
     is_app_limited_ = false;
   }
 

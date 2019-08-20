@@ -572,11 +572,24 @@ void QuicSession::OnCanWrite() {
   size_t num_writes = flow_controller_.IsBlocked()
                           ? write_blocked_streams_.NumBlockedSpecialStreams()
                           : write_blocked_streams_.NumBlockedStreams();
-  if (num_writes == 0 && !control_frame_manager_.WillingToWrite()) {
+  if (num_writes == 0 && !control_frame_manager_.WillingToWrite() &&
+      (!QuicVersionUsesCryptoFrames(connection_->transport_version()) ||
+       !GetCryptoStream()->HasBufferedCryptoFrames())) {
     return;
   }
 
   QuicConnection::ScopedPacketFlusher flusher(connection_);
+  if (QuicVersionUsesCryptoFrames(connection_->transport_version())) {
+    QuicCryptoStream* crypto_stream = GetMutableCryptoStream();
+    if (crypto_stream->HasBufferedCryptoFrames()) {
+      crypto_stream->WriteBufferedCryptoFrames();
+    }
+    if (crypto_stream->HasBufferedCryptoFrames()) {
+      // Cannot finish writing buffered crypto frames, connection is write
+      // blocked.
+      return;
+    }
+  }
   if (control_frame_manager_.WillingToWrite()) {
     control_frame_manager_.OnCanWrite();
   }
@@ -626,6 +639,10 @@ bool QuicSession::WillingAndAbleToWrite() const {
   // 3) If the crypto or headers streams are blocked, or
   // 4) connection is not flow control blocked and there are write blocked
   // streams.
+  if (QuicVersionUsesCryptoFrames(connection_->transport_version()) &&
+      HasPendingHandshake()) {
+    return true;
+  }
   return control_frame_manager_.WillingToWrite() ||
          !streams_with_pending_retransmission_.empty() ||
          write_blocked_streams_.HasWriteBlockedSpecialStream() ||
@@ -635,9 +652,8 @@ bool QuicSession::WillingAndAbleToWrite() const {
 
 bool QuicSession::HasPendingHandshake() const {
   if (QuicVersionUsesCryptoFrames(connection_->transport_version())) {
-    // Writing CRYPTO frames is not subject to flow control, so there can't be
-    // pending data to write, only pending retransmissions.
-    return GetCryptoStream()->HasPendingCryptoRetransmission();
+    return GetCryptoStream()->HasPendingCryptoRetransmission() ||
+           GetCryptoStream()->HasBufferedCryptoFrames();
   }
   return QuicContainsKey(
              streams_with_pending_retransmission_,

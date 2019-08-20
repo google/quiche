@@ -130,6 +130,12 @@ class QUIC_EXPORT_PRIVATE QuicCryptoStream : public QuicStream {
   // encryption level, offset, and length in |crypto_frame|.
   void RetransmitData(QuicCryptoFrame* crypto_frame);
 
+  // Called to write buffered crypto frames.
+  void WriteBufferedCryptoFrames();
+
+  // Returns true if there is buffered crypto frames.
+  bool HasBufferedCryptoFrames() const;
+
   // Returns true if any portion of the data at encryption level |level|
   // starting at |offset| for |length| bytes is outstanding.
   bool IsFrameOutstanding(EncryptionLevel level,
