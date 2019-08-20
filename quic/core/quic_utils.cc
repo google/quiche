@@ -578,17 +578,22 @@ bool QuicUtils::IsConnectionIdValidForVersion(
 
 QuicUint128 QuicUtils::GenerateStatelessResetToken(
     QuicConnectionId connection_id) {
-  uint64_t data_bytes[3] = {0, 0, 0};
-  static_assert(sizeof(data_bytes) >= kQuicMaxConnectionIdAllVersionsLength,
-                "kQuicMaxConnectionIdAllVersionsLength changed");
-  memcpy(data_bytes, connection_id.data(), connection_id.length());
-  // This is designed so that the common case of 64bit connection IDs
-  // produces a stateless reset token that is equal to the connection ID
-  // interpreted as a 64bit unsigned integer, to facilitate debugging.
-  return MakeQuicUint128(
-      QuicEndian::NetToHost64(sizeof(uint64_t) ^ connection_id.length() ^
-                              data_bytes[1] ^ data_bytes[2]),
-      QuicEndian::NetToHost64(data_bytes[0]));
+  if (!GetQuicRestartFlag(quic_use_hashed_stateless_reset_tokens)) {
+    uint64_t data_bytes[3] = {0, 0, 0};
+    static_assert(sizeof(data_bytes) >= kQuicMaxConnectionIdAllVersionsLength,
+                  "kQuicMaxConnectionIdAllVersionsLength changed");
+    memcpy(data_bytes, connection_id.data(), connection_id.length());
+    // This is designed so that the common case of 64bit connection IDs
+    // produces a stateless reset token that is equal to the connection ID
+    // interpreted as a 64bit unsigned integer, to facilitate debugging.
+    return MakeQuicUint128(
+        QuicEndian::NetToHost64(sizeof(uint64_t) ^ connection_id.length() ^
+                                data_bytes[1] ^ data_bytes[2]),
+        QuicEndian::NetToHost64(data_bytes[0]));
+  }
+  QUIC_RESTART_FLAG_COUNT(quic_use_hashed_stateless_reset_tokens);
+  return FNV1a_128_Hash(
+      QuicStringPiece(connection_id.data(), connection_id.length()));
 }
 
 // Returns the maximum value that a stream count may have, taking into account
