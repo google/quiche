@@ -282,6 +282,9 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   void OnPriority(spdy::SpdyStreamId stream_id,
                   const spdy::SpdyStreamPrecedence& precedence);
 
+  void CloseConnectionOnDuplicateHttp3UnidirectionalStreams(
+      QuicStringPiece type);
+
   std::unique_ptr<QpackEncoder> qpack_encoder_;
   std::unique_ptr<QpackDecoder> qpack_decoder_;
 

@@ -899,11 +899,7 @@ bool QuicSpdySession::ProcessPendingStream(PendingStream* pending) {
   switch (stream_type) {
     case kControlStream: {  // HTTP/3 control stream.
       if (receive_control_stream_) {
-        QUIC_PEER_BUG
-            << "Received a duplicate control stream: Closing connection.";
-        // TODO(renjietang): Change to HTTP_STREAM_CREATION_ERROR.
-        CloseConnectionWithDetails(QUIC_INVALID_STREAM_ID,
-                                   "Control stream is received twice.");
+        CloseConnectionOnDuplicateHttp3UnidirectionalStreams("Control");
         return false;
       }
       auto receive_stream = QuicMakeUnique<QuicReceiveControlStream>(pending);
@@ -920,6 +916,10 @@ bool QuicSpdySession::ProcessPendingStream(PendingStream* pending) {
       return true;
     }
     case kQpackEncoderStream: {  // QPACK encoder stream.
+      if (qpack_encoder_receive_stream_) {
+        CloseConnectionOnDuplicateHttp3UnidirectionalStreams("QPACK encoder");
+        return false;
+      }
       auto encoder_receive = QuicMakeUnique<QpackReceiveStream>(
           pending, qpack_decoder_->encoder_stream_receiver());
       qpack_encoder_receive_stream_ = encoder_receive.get();
@@ -930,6 +930,10 @@ bool QuicSpdySession::ProcessPendingStream(PendingStream* pending) {
       return true;
     }
     case kQpackDecoderStream: {  // QPACK decoder stream.
+      if (qpack_decoder_receive_stream_) {
+        CloseConnectionOnDuplicateHttp3UnidirectionalStreams("QPACK decoder");
+        return false;
+      }
       auto decoder_receive = QuicMakeUnique<QpackReceiveStream>(
           pending, qpack_encoder_->decoder_stream_receiver());
       qpack_decoder_receive_stream_ = decoder_receive.get();
@@ -1006,6 +1010,15 @@ void QuicSpdySession::set_max_allowed_push_id(
 void QuicSpdySession::SendMaxPushId(QuicStreamId max_allowed_push_id) {
   DCHECK(VersionHasStreamType(connection()->transport_version()));
   send_control_stream_->SendMaxPushIdFrame(max_allowed_push_id);
+}
+
+void QuicSpdySession::CloseConnectionOnDuplicateHttp3UnidirectionalStreams(
+    QuicStringPiece type) {
+  QUIC_PEER_BUG << QuicStrCat("Received a duplicate ", type,
+                              " stream: Closing connection.");
+  // TODO(b/124216424): Change to HTTP_STREAM_CREATION_ERROR.
+  CloseConnectionWithDetails(QUIC_INVALID_STREAM_ID,
+                             QuicStrCat(type, " stream is received twice."));
 }
 
 }  // namespace quic

@@ -11,6 +11,7 @@
 
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
 #include "net/third_party/quiche/src/quic/core/crypto/null_encrypter.h"
+#include "net/third_party/quiche/src/quic/core/frames/quic_stream_frame.h"
 #include "net/third_party/quiche/src/quic/core/http/http_constants.h"
 #include "net/third_party/quiche/src/quic/core/quic_crypto_stream.h"
 #include "net/third_party/quiche/src/quic/core/quic_data_writer.h"
@@ -2387,19 +2388,53 @@ TEST_P(QuicSpdySessionTestClient, DuplicateHttp3UnidirectionalStreams) {
   }
   QuicStreamId id1 =
       GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 0);
-  char type[] = {kControlStream};
+  char type1[] = {kControlStream};
 
-  QuicStreamFrame data1(id1, false, 0, QuicStringPiece(type, 1));
+  QuicStreamFrame data1(id1, false, 0, QuicStringPiece(type1, 1));
   session_.OnStreamFrame(data1);
   QuicStreamId id2 =
       GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 1);
-  QuicStreamFrame data2(id2, false, 0, QuicStringPiece(type, 1));
+  QuicStreamFrame data2(id2, false, 0, QuicStringPiece(type1, 1));
   EXPECT_CALL(*connection_,
               CloseConnection(QUIC_INVALID_STREAM_ID,
                               "Control stream is received twice.", _));
   EXPECT_QUIC_PEER_BUG(
       session_.OnStreamFrame(data2),
-      "Received a duplicate control stream: Closing connection.");
+      "Received a duplicate Control stream: Closing connection.");
+
+  QuicStreamId id3 =
+      GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 2);
+  char type2[]{kQpackEncoderStream};
+
+  QuicStreamFrame data3(id3, false, 0, QuicStringPiece(type2, 1));
+  session_.OnStreamFrame(data3);
+
+  QuicStreamId id4 =
+      GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 3);
+  QuicStreamFrame data4(id4, false, 0, QuicStringPiece(type2, 1));
+  EXPECT_CALL(*connection_,
+              CloseConnection(QUIC_INVALID_STREAM_ID,
+                              "QPACK encoder stream is received twice.", _));
+  EXPECT_QUIC_PEER_BUG(
+      session_.OnStreamFrame(data4),
+      "Received a duplicate QPACK encoder stream: Closing connection.");
+
+  QuicStreamId id5 =
+      GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 4);
+  char type3[]{kQpackDecoderStream};
+
+  QuicStreamFrame data5(id5, false, 0, QuicStringPiece(type3, 1));
+  session_.OnStreamFrame(data5);
+
+  QuicStreamId id6 =
+      GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 5);
+  QuicStreamFrame data6(id6, false, 0, QuicStringPiece(type3, 1));
+  EXPECT_CALL(*connection_,
+              CloseConnection(QUIC_INVALID_STREAM_ID,
+                              "QPACK decoder stream is received twice.", _));
+  EXPECT_QUIC_PEER_BUG(
+      session_.OnStreamFrame(data6),
+      "Received a duplicate QPACK decoder stream: Closing connection.");
 }
 
 }  // namespace
