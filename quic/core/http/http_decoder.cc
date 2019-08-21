@@ -520,7 +520,6 @@ bool HttpDecoder::ParsePriorityFrame(QuicDataReader* reader,
   // TODO(bnc): Close connection with HTTP_MALFORMED_FRAME
   // if lowest three bits are not all zero.
 
-  // TODO(b/137359636): Handle partial delivery.
   if (frame->prioritized_type != ROOT_OF_TREE &&
       !reader->ReadVarInt62(&frame->prioritized_element_id)) {
     // TODO(b/124216424): Use HTTP_MALFORMED_FRAME.
@@ -552,7 +551,6 @@ bool HttpDecoder::ParsePriorityFrame(QuicDataReader* reader,
 bool HttpDecoder::ParseSettingsFrame(QuicDataReader* reader,
                                      SettingsFrame* frame) {
   while (!reader->IsDoneReading()) {
-    // TODO(bnc): Handle partial delivery of both fields.
     uint64_t id;
     if (!reader->ReadVarInt62(&id)) {
       // TODO(b/124216424): Use HTTP_MALFORMED_FRAME.
