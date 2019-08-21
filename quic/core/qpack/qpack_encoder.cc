@@ -180,8 +180,8 @@ QpackEncoder::Instructions QpackEncoder::FirstPassEncode(
             instructions.push_back(EncodeIndexedHeaderField(
                 /* is_static = */ false, entry->InsertionIndex(),
                 referred_indices));
-            smallest_blocking_index =
-                std::min(smallest_blocking_index, entry->InsertionIndex());
+            smallest_blocking_index = std::min<uint64_t>(
+                smallest_blocking_index, entry->InsertionIndex());
 
             break;
           }
@@ -243,8 +243,8 @@ QpackEncoder::Instructions QpackEncoder::FirstPassEncode(
           instructions.push_back(EncodeIndexedHeaderField(
               /* is_static = */ false, entry->InsertionIndex(),
               referred_indices));
-          smallest_blocking_index =
-              std::min(smallest_blocking_index, entry->InsertionIndex());
+          smallest_blocking_index = std::min<uint64_t>(smallest_blocking_index,
+                                                       entry->InsertionIndex());
 
           break;
         }
