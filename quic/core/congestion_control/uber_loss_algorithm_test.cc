@@ -184,13 +184,8 @@ TEST_F(UberLossAlgorithmTest, PacketInLimbo) {
   AckPackets({5, 6});
   unacked_packets_->MaybeUpdateLargestAckedOfPacketNumberSpace(
       APPLICATION_DATA, QuicPacketNumber(6));
-  if (GetQuicReloadableFlag(quic_fix_packets_acked)) {
-    // Verify packet 2 is detected lost.
-    VerifyLosses(6, packets_acked_, std::vector<uint64_t>{2});
-  } else {
-    // No losses, packet 2 is in limbo.
-    VerifyLosses(6, packets_acked_, std::vector<uint64_t>{});
-  }
+  // Verify packet 2 is detected lost.
+  VerifyLosses(6, packets_acked_, std::vector<uint64_t>{2});
 }
 
 }  // namespace

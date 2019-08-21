@@ -2946,15 +2946,10 @@ TEST_P(QuicSentPacketManagerTest, PacketInLimbo) {
 
   uint64_t acked2[] = {5, 6};
   uint64_t loss[] = {2};
-  if (GetQuicReloadableFlag(quic_fix_packets_acked)) {
-    // Verify packet 2 is detected lost.
-    EXPECT_CALL(notifier_, OnFrameLost(_)).Times(1);
-    ExpectAcksAndLosses(true, acked2, QUIC_ARRAYSIZE(acked2), loss,
-                        QUIC_ARRAYSIZE(loss));
-  } else {
-    // Packet 2 in limbo, bummer.
-    ExpectAcksAndLosses(true, acked2, QUIC_ARRAYSIZE(acked2), nullptr, 0);
-  }
+  // Verify packet 2 is detected lost.
+  EXPECT_CALL(notifier_, OnFrameLost(_)).Times(1);
+  ExpectAcksAndLosses(true, acked2, QUIC_ARRAYSIZE(acked2), loss,
+                      QUIC_ARRAYSIZE(loss));
   manager_.OnAckFrameStart(QuicPacketNumber(6), QuicTime::Delta::Infinite(),
                            clock_.Now());
   manager_.OnAckRange(QuicPacketNumber(3), QuicPacketNumber(7));
