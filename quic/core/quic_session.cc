@@ -474,10 +474,10 @@ void QuicSession::OnWindowUpdateFrame(const QuicWindowUpdateFrame& frame) {
       QuicUtils::GetInvalidStreamId(connection_->transport_version())) {
     // This is a window update that applies to the connection, rather than an
     // individual stream.
-    QUIC_DLOG(INFO) << ENDPOINT
-                    << "Received connection level flow control window "
-                       "update with byte offset: "
-                    << frame.byte_offset;
+    QUIC_DVLOG(1) << ENDPOINT
+                  << "Received connection level flow control window "
+                     "update with byte offset: "
+                  << frame.byte_offset;
     flow_controller_.UpdateSendWindowOffset(frame.byte_offset);
     return;
   }

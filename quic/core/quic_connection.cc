@@ -1232,9 +1232,9 @@ bool QuicConnection::OnWindowUpdateFrame(const QuicWindowUpdateFrame& frame) {
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnWindowUpdateFrame(frame, time_of_last_received_packet_);
   }
-  QUIC_DLOG(INFO) << ENDPOINT << "WINDOW_UPDATE_FRAME received for stream: "
-                  << frame.stream_id
-                  << " with byte offset: " << frame.byte_offset;
+  QUIC_DVLOG(1) << ENDPOINT << "WINDOW_UPDATE_FRAME received for stream: "
+                << frame.stream_id
+                << " with byte offset: " << frame.byte_offset;
   visitor_->OnWindowUpdateFrame(frame);
   should_last_packet_instigate_acks_ = true;
   return connected_;
