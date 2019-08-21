@@ -191,66 +191,25 @@ QuicPacketNumberLength ReadAckPacketNumberLength(
 }
 
 uint8_t PacketNumberLengthToOnWireValue(
-    QuicTransportVersion version,
     QuicPacketNumberLength packet_number_length) {
-  if (version > QUIC_VERSION_44) {
-    return packet_number_length - 1;
-  }
-  switch (packet_number_length) {
-    case PACKET_1BYTE_PACKET_NUMBER:
-      return 0;
-    case PACKET_2BYTE_PACKET_NUMBER:
-      return 1;
-    case PACKET_4BYTE_PACKET_NUMBER:
-      return 2;
-    default:
-      QUIC_BUG << "Invalid packet number length.";
-      return 0;
-  }
+  return packet_number_length - 1;
 }
 
-bool GetShortHeaderPacketNumberLength(
-    QuicTransportVersion version,
-    uint8_t type,
-    bool infer_packet_header_type_from_version,
-    QuicPacketNumberLength* packet_number_length) {
+QuicPacketNumberLength GetShortHeaderPacketNumberLength(uint8_t type) {
   DCHECK(!(type & FLAGS_LONG_HEADER));
-  const bool two_bits_packet_number_length =
-      infer_packet_header_type_from_version ? version > QUIC_VERSION_44
-                                            : (type & FLAGS_FIXED_BIT);
-  if (two_bits_packet_number_length) {
-    *packet_number_length =
-        static_cast<QuicPacketNumberLength>((type & 0x03) + 1);
-    return true;
-  }
-  switch (type & 0x07) {
-    case 0:
-      *packet_number_length = PACKET_1BYTE_PACKET_NUMBER;
-      break;
-    case 1:
-      *packet_number_length = PACKET_2BYTE_PACKET_NUMBER;
-      break;
-    case 2:
-      *packet_number_length = PACKET_4BYTE_PACKET_NUMBER;
-      break;
-    default:
-      *packet_number_length = PACKET_6BYTE_PACKET_NUMBER;
-      return false;
-  }
-  return true;
+  return static_cast<QuicPacketNumberLength>((type & 0x03) + 1);
 }
 
-uint8_t LongHeaderTypeToOnWireValue(QuicTransportVersion version,
-                                    QuicLongHeaderType type) {
+uint8_t LongHeaderTypeToOnWireValue(QuicLongHeaderType type) {
   switch (type) {
     case INITIAL:
-      return version > QUIC_VERSION_44 ? 0 : 0x7F;
+      return 0;
     case ZERO_RTT_PROTECTED:
-      return version > QUIC_VERSION_44 ? 1 << 4 : 0x7C;
+      return 1 << 4;
     case HANDSHAKE:
-      return version > QUIC_VERSION_44 ? 2 << 4 : 0x7D;
+      return 2 << 4;
     case RETRY:
-      return version > QUIC_VERSION_44 ? 3 << 4 : 0x7E;
+      return 3 << 4;
     case VERSION_NEGOTIATION:
       return 0xF0;  // Value does not matter
     default:
@@ -259,61 +218,31 @@ uint8_t LongHeaderTypeToOnWireValue(QuicTransportVersion version,
   }
 }
 
-bool GetLongHeaderType(QuicTransportVersion version,
-                       uint8_t type,
-                       QuicLongHeaderType* long_header_type) {
-  DCHECK((type & FLAGS_LONG_HEADER) && version != QUIC_VERSION_UNSUPPORTED);
-  if (version > QUIC_VERSION_44) {
-    switch ((type & 0x30) >> 4) {
-      case 0:
-        *long_header_type = INITIAL;
-        break;
-      case 1:
-        *long_header_type = ZERO_RTT_PROTECTED;
-        break;
-      case 2:
-        *long_header_type = HANDSHAKE;
-        break;
-      case 3:
-        *long_header_type = RETRY;
-        break;
-      default:
-        QUIC_BUG << "Unreachable statement";
-        *long_header_type = INVALID_PACKET_TYPE;
-        return false;
-    }
-    return true;
-  }
-
-  switch (type & 0x7F) {
-    case 0x7F:
+bool GetLongHeaderType(uint8_t type, QuicLongHeaderType* long_header_type) {
+  DCHECK((type & FLAGS_LONG_HEADER));
+  switch ((type & 0x30) >> 4) {
+    case 0:
       *long_header_type = INITIAL;
       break;
-    case 0x7C:
+    case 1:
       *long_header_type = ZERO_RTT_PROTECTED;
       break;
-    case 0x7D:
+    case 2:
       *long_header_type = HANDSHAKE;
       break;
-    case 0x7E:
+    case 3:
       *long_header_type = RETRY;
       break;
     default:
-      // Invalid packet header type. Whether a packet is version negotiation is
-      // determined by the version field.
+      QUIC_BUG << "Unreachable statement";
       *long_header_type = INVALID_PACKET_TYPE;
       return false;
   }
   return true;
 }
 
-QuicPacketNumberLength GetLongHeaderPacketNumberLength(
-    QuicTransportVersion version,
-    uint8_t type) {
-  if (version > QUIC_VERSION_44) {
-    return static_cast<QuicPacketNumberLength>((type & 0x03) + 1);
-  }
-  return PACKET_4BYTE_PACKET_NUMBER;
+QuicPacketNumberLength GetLongHeaderPacketNumberLength(uint8_t type) {
+  return static_cast<QuicPacketNumberLength>((type & 0x03) + 1);
 }
 
 // Used to get packet number space before packet gets decrypted.
@@ -1390,8 +1319,7 @@ std::unique_ptr<QuicEncryptedPacket> QuicFramer::BuildIetfStatelessResetPacket(
   type |= FLAGS_FIXED_BIT;
   type |= FLAGS_SHORT_HEADER_RESERVED_1;
   type |= FLAGS_SHORT_HEADER_RESERVED_2;
-  type |= PacketNumberLengthToOnWireValue(QUIC_VERSION_UNSUPPORTED,
-                                          PACKET_1BYTE_PACKET_NUMBER);
+  type |= PacketNumberLengthToOnWireValue(PACKET_1BYTE_PACKET_NUMBER);
 
   // Append type byte.
   if (!writer.WriteUInt8(type)) {
@@ -2193,34 +2121,15 @@ bool QuicFramer::AppendPacketHeader(const QuicPacketHeader& header,
 bool QuicFramer::AppendIetfHeaderTypeByte(const QuicPacketHeader& header,
                                           QuicDataWriter* writer) {
   uint8_t type = 0;
-  if (transport_version() > QUIC_VERSION_44) {
-    if (header.version_flag) {
-      type = static_cast<uint8_t>(
-          FLAGS_LONG_HEADER | FLAGS_FIXED_BIT |
-          LongHeaderTypeToOnWireValue(transport_version(),
-                                      header.long_packet_type) |
-          PacketNumberLengthToOnWireValue(transport_version(),
-                                          header.packet_number_length));
-    } else {
-      type = static_cast<uint8_t>(
-          FLAGS_FIXED_BIT |
-          PacketNumberLengthToOnWireValue(transport_version(),
-                                          header.packet_number_length));
-    }
-    return writer->WriteUInt8(type);
-  }
-
   if (header.version_flag) {
     type = static_cast<uint8_t>(
-        FLAGS_LONG_HEADER | LongHeaderTypeToOnWireValue(
-                                transport_version(), header.long_packet_type));
-    DCHECK_EQ(PACKET_4BYTE_PACKET_NUMBER, header.packet_number_length);
+        FLAGS_LONG_HEADER | FLAGS_FIXED_BIT |
+        LongHeaderTypeToOnWireValue(header.long_packet_type) |
+        PacketNumberLengthToOnWireValue(header.packet_number_length));
   } else {
-    type |= FLAGS_SHORT_HEADER_RESERVED_1;
-    type |= FLAGS_SHORT_HEADER_RESERVED_2;
-    DCHECK_GE(PACKET_4BYTE_PACKET_NUMBER, header.packet_number_length);
-    type |= PacketNumberLengthToOnWireValue(transport_version(),
-                                            header.packet_number_length);
+    type = static_cast<uint8_t>(
+        FLAGS_FIXED_BIT |
+        PacketNumberLengthToOnWireValue(header.packet_number_length));
   }
   return writer->WriteUInt8(type);
 }
@@ -2614,13 +2523,11 @@ bool QuicFramer::ProcessIetfHeaderTypeByte(QuicDataReader* reader,
     } else {
       header->version = ParseQuicVersionLabel(version_label);
       if (header->version.transport_version != QUIC_VERSION_UNSUPPORTED) {
-        if (header->version.transport_version > QUIC_VERSION_44 &&
-            !(type & FLAGS_FIXED_BIT)) {
+        if (!(type & FLAGS_FIXED_BIT)) {
           set_detailed_error("Fixed bit is 0 in long header.");
           return false;
         }
-        if (!GetLongHeaderType(header->version.transport_version, type,
-                               &header->long_packet_type)) {
+        if (!GetLongHeaderType(type, &header->long_packet_type)) {
           set_detailed_error("Illegal long header type value.");
           return false;
         }
@@ -2634,8 +2541,7 @@ bool QuicFramer::ProcessIetfHeaderTypeByte(QuicDataReader* reader,
             return false;
           }
         } else if (!header->version.HasHeaderProtection()) {
-          header->packet_number_length = GetLongHeaderPacketNumberLength(
-              header->version.transport_version, type);
+          header->packet_number_length = GetLongHeaderPacketNumberLength(type);
         }
       }
     }
@@ -2657,17 +2563,12 @@ bool QuicFramer::ProcessIetfHeaderTypeByte(QuicDataReader* reader,
           ? CONNECTION_ID_PRESENT
           : CONNECTION_ID_ABSENT;
   header->source_connection_id_included = CONNECTION_ID_ABSENT;
-  if (infer_packet_header_type_from_version_ &&
-      transport_version() > QUIC_VERSION_44 && !(type & FLAGS_FIXED_BIT)) {
+  if (!(type & FLAGS_FIXED_BIT)) {
     set_detailed_error("Fixed bit is 0 in short header.");
     return false;
   }
-  if (!header->version.HasHeaderProtection() &&
-      !GetShortHeaderPacketNumberLength(transport_version(), type,
-                                        infer_packet_header_type_from_version_,
-                                        &header->packet_number_length)) {
-    set_detailed_error("Illegal short header type value.");
-    return false;
+  if (!header->version.HasHeaderProtection()) {
+    header->packet_number_length = GetShortHeaderPacketNumberLength(type);
   }
   QUIC_DVLOG(1) << "packet_number_length = " << header->packet_number_length;
   return true;
@@ -2790,24 +2691,19 @@ bool QuicFramer::ProcessIetfPacketHeader(QuicDataReader* reader,
     }
 
     if (header->version_flag &&
-        header->version.transport_version > QUIC_VERSION_44 &&
+        header->long_packet_type != VERSION_NEGOTIATION &&
         !(header->type_byte & FLAGS_FIXED_BIT)) {
       set_detailed_error("Fixed bit is 0 in long header.");
       return false;
     }
-    if (!header->version_flag && version_.transport_version > QUIC_VERSION_44 &&
-        !(header->type_byte & FLAGS_FIXED_BIT)) {
+    if (!header->version_flag && !(header->type_byte & FLAGS_FIXED_BIT)) {
       set_detailed_error("Fixed bit is 0 in short header.");
       return false;
     }
     if (!header->version_flag) {
-      if (!version_.HasHeaderProtection() &&
-          !GetShortHeaderPacketNumberLength(
-              transport_version(), header->type_byte,
-              infer_packet_header_type_from_version_,
-              &header->packet_number_length)) {
-        set_detailed_error("Failed to get short header packet number length.");
-        return false;
+      if (!version_.HasHeaderProtection()) {
+        header->packet_number_length =
+            GetShortHeaderPacketNumberLength(header->type_byte);
       }
       return true;
     }
@@ -2823,8 +2719,8 @@ bool QuicFramer::ProcessIetfPacketHeader(QuicDataReader* reader,
       return true;
     }
     if (!header->version.HasHeaderProtection()) {
-      header->packet_number_length = GetLongHeaderPacketNumberLength(
-          header->version.transport_version, header->type_byte);
+      header->packet_number_length =
+          GetLongHeaderPacketNumberLength(header->type_byte);
     }
 
     return true;
@@ -2919,7 +2815,7 @@ bool QuicFramer::ProcessFrameData(QuicDataReader* reader,
       set_detailed_error("Unable to read frame type.");
       return RaiseError(QUIC_INVALID_FRAME_DATA);
     }
-    const uint8_t special_mask = transport_version() <= QUIC_VERSION_44
+    const uint8_t special_mask = transport_version() <= QUIC_VERSION_43
                                      ? kQuicFrameTypeBrokenMask
                                      : kQuicFrameTypeSpecialMask;
     if (frame_type & special_mask) {
@@ -3050,7 +2946,7 @@ bool QuicFramer::ProcessFrameData(QuicDataReader* reader,
 
       case STOP_WAITING_FRAME: {
         if (GetQuicReloadableFlag(quic_do_not_accept_stop_waiting) &&
-            version_.transport_version >= QUIC_VERSION_44) {
+            version_.transport_version > QUIC_VERSION_43) {
           QUIC_RELOADABLE_FLAG_COUNT(quic_do_not_accept_stop_waiting);
           set_detailed_error("STOP WAITING not supported in version 44+.");
           return RaiseError(QUIC_INVALID_STOP_WAITING_DATA);
@@ -4352,8 +4248,7 @@ bool QuicFramer::ApplyHeaderProtection(EncryptionLevel level,
   QuicLongHeaderType header_type;
   if (IsLongHeader(type_byte)) {
     bitmask = 0x0f;
-    if (!GetLongHeaderType(version_.transport_version, type_byte,
-                           &header_type)) {
+    if (!GetLongHeaderType(type_byte, &header_type)) {
       return false;
     }
   }
@@ -6641,8 +6536,7 @@ QuicErrorCode QuicFramer::ParsePublicHeader(
   }
 
   // Parse long packet type.
-  if (!GetLongHeaderType(parsed_version->transport_version, *first_byte,
-                         long_packet_type)) {
+  if (!GetLongHeaderType(*first_byte, long_packet_type)) {
     *detailed_error = "Unable to parse long packet type.";
     return QUIC_INVALID_PACKET_HEADER;
   }

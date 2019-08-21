@@ -118,9 +118,7 @@ size_t GetPacketHeaderSize(
       // Long header.
       size_t size = kPacketHeaderTypeSize + kConnectionIdLengthSize +
                     destination_connection_id_length +
-                    source_connection_id_length +
-                    (version > QUIC_VERSION_44 ? packet_number_length
-                                               : PACKET_4BYTE_PACKET_NUMBER) +
+                    source_connection_id_length + packet_number_length +
                     kQuicVersionSize;
       if (include_diversification_nonce) {
         size += kDiversificationNonceSize;

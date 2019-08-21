@@ -55,7 +55,7 @@ class QuicBufferedPacketStoreTest : public QuicTest {
         packet_time_(QuicTime::Zero() + QuicTime::Delta::FromMicroseconds(42)),
         packet_(packet_content_.data(), packet_content_.size(), packet_time_),
         invalid_version_(UnsupportedQuicVersion()),
-        valid_version_(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_44) {}
+        valid_version_(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_46) {}
 
  protected:
   QuicBufferedPacketStoreVisitor visitor_;

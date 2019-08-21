@@ -302,7 +302,7 @@ const QuicVariableLengthIntegerLength kQuicDefaultLongHeaderLengthLength =
 enum QuicPacketNumberLength : uint8_t {
   PACKET_1BYTE_PACKET_NUMBER = 1,
   PACKET_2BYTE_PACKET_NUMBER = 2,
-  PACKET_3BYTE_PACKET_NUMBER = 3,  // Used in version > QUIC_VERSION_44.
+  PACKET_3BYTE_PACKET_NUMBER = 3,  // Used in versions 45+.
   PACKET_4BYTE_PACKET_NUMBER = 4,
   IETF_MAX_PACKET_NUMBER_LENGTH = 4,
   // TODO(rch): Remove this when we remove QUIC_VERSION_39.
