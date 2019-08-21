@@ -49,8 +49,26 @@ class QUIC_EXPORT_PRIVATE QpackProgressiveDecoder
     virtual void OnDecodingErrorDetected(QuicStringPiece error_message) = 0;
   };
 
+  // Interface for keeping track of blocked streams for the purpose of enforcing
+  // the limit communicated to peer via QPACK_BLOCKED_STREAMS settings.
+  class QUIC_EXPORT_PRIVATE BlockedStreamLimitEnforcer {
+   public:
+    virtual ~BlockedStreamLimitEnforcer() {}
+
+    // Called when the stream becomes blocked.  Returns true if allowed. Returns
+    // false if limit is violated, in which case QpackProgressiveDecoder signals
+    // an error.
+    // Stream must not be already blocked.
+    virtual bool OnStreamBlocked(QuicStreamId stream_id) = 0;
+
+    // Called when the stream becomes unblocked.
+    // Stream must be blocked.
+    virtual void OnStreamUnblocked(QuicStreamId stream_id) = 0;
+  };
+
   QpackProgressiveDecoder() = delete;
   QpackProgressiveDecoder(QuicStreamId stream_id,
+                          BlockedStreamLimitEnforcer* enforcer,
                           QpackHeaderTable* header_table,
                           QpackDecoderStreamSender* decoder_stream_sender,
                           HeadersHandlerInterface* handler);
@@ -97,6 +115,7 @@ class QUIC_EXPORT_PRIVATE QpackProgressiveDecoder
   std::unique_ptr<QpackInstructionDecoder> prefix_decoder_;
   QpackInstructionDecoder instruction_decoder_;
 
+  BlockedStreamLimitEnforcer* const enforcer_;
   QpackHeaderTable* const header_table_;
   QpackDecoderStreamSender* const decoder_stream_sender_;
   HeadersHandlerInterface* const handler_;

@@ -12,10 +12,11 @@ namespace quic {
 
 QpackDecoder::QpackDecoder(
     uint64_t maximum_dynamic_table_capacity,
-    uint64_t /* maximum_blocked_streams */,
+    uint64_t maximum_blocked_streams,
     EncoderStreamErrorDelegate* encoder_stream_error_delegate)
     : encoder_stream_error_delegate_(encoder_stream_error_delegate),
-      encoder_stream_receiver_(this) {
+      encoder_stream_receiver_(this),
+      maximum_blocked_streams_(maximum_blocked_streams) {
   DCHECK(encoder_stream_error_delegate_);
 
   header_table_.SetMaximumDynamicTableCapacity(maximum_dynamic_table_capacity);
@@ -27,6 +28,17 @@ void QpackDecoder::OnStreamReset(QuicStreamId stream_id) {
   // TODO(bnc): SendStreamCancellation should not be called if maximum dynamic
   // table capacity is zero.
   decoder_stream_sender_.SendStreamCancellation(stream_id);
+}
+
+bool QpackDecoder::OnStreamBlocked(QuicStreamId stream_id) {
+  auto result = blocked_streams_.insert(stream_id);
+  DCHECK(result.second);
+  return blocked_streams_.size() <= maximum_blocked_streams_;
+}
+
+void QpackDecoder::OnStreamUnblocked(QuicStreamId stream_id) {
+  size_t result = blocked_streams_.erase(stream_id);
+  DCHECK_EQ(1u, result);
 }
 
 void QpackDecoder::OnInsertWithNameReference(bool is_static,
@@ -117,7 +129,7 @@ std::unique_ptr<QpackProgressiveDecoder> QpackDecoder::CreateProgressiveDecoder(
     QuicStreamId stream_id,
     QpackProgressiveDecoder::HeadersHandlerInterface* handler) {
   return QuicMakeUnique<QpackProgressiveDecoder>(
-      stream_id, &header_table_, &decoder_stream_sender_, handler);
+      stream_id, this, &header_table_, &decoder_stream_sender_, handler);
 }
 
 }  // namespace quic

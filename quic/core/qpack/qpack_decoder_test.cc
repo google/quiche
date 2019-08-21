@@ -26,16 +26,15 @@ namespace {
 // Header Acknowledgement decoder stream instruction with stream_id = 1.
 const char* const kHeaderAcknowledgement = "\x81";
 
-// TODO(b/112770235) Change this constant, enforce the limit and add tests.
-const uint64_t kMaximumBlockedStreams = 0;
+const uint64_t kMaximumDynamicTableCapacity = 1024;
+const uint64_t kMaximumBlockedStreams = 1;
 
 class QpackDecoderTest : public QuicTestWithParam<FragmentMode> {
  protected:
   QpackDecoderTest()
-      : qpack_decoder_(
-            /* maximum_dynamic_table_capacity = */ 1024,
-            kMaximumBlockedStreams,
-            &encoder_stream_error_delegate_),
+      : qpack_decoder_(kMaximumDynamicTableCapacity,
+                       kMaximumBlockedStreams,
+                       &encoder_stream_error_delegate_),
         fragment_mode_(GetParam()) {
     qpack_decoder_.set_qpack_stream_sender_delegate(
         &decoder_stream_sender_delegate_);
@@ -47,10 +46,14 @@ class QpackDecoderTest : public QuicTestWithParam<FragmentMode> {
     qpack_decoder_.encoder_stream_receiver()->Decode(data);
   }
 
+  std::unique_ptr<QpackProgressiveDecoder> CreateProgressiveDecoder(
+      QuicStreamId stream_id) {
+    return qpack_decoder_.CreateProgressiveDecoder(stream_id, &handler_);
+  }
+
   // Set up |progressive_decoder_|.
   void StartDecoding() {
-    progressive_decoder_ =
-        qpack_decoder_.CreateProgressiveDecoder(/* stream_id = */ 1, &handler_);
+    progressive_decoder_ = CreateProgressiveDecoder(/* stream_id = */ 1);
   }
 
   // Pass header block data to QpackProgressiveDecoder::Decode()
@@ -811,6 +814,21 @@ TEST_P(QpackDecoderTest, BlockedDecodingAndEvictedEntries) {
   // Add literal entry with name "foo" and value "bar".
   // Insert Count is now 6, reaching Required Insert Count of the header block.
   DecodeEncoderStreamData(QuicTextUtils::HexDecode("6294e70362617a"));
+}
+
+TEST_P(QpackDecoderTest, TooManyBlockedStreams) {
+  // Required Insert Count 1 and Delta Base 0.
+  // Without any dynamic table entries received, decoding is blocked.
+  std::string data = QuicTextUtils::HexDecode("0200");
+
+  auto progressive_decoder1 = CreateProgressiveDecoder(/* stream_id = */ 1);
+  progressive_decoder1->Decode(data);
+
+  EXPECT_CALL(handler_, OnDecodingErrorDetected(Eq(
+                            "Limit on number of blocked streams exceeded.")));
+
+  auto progressive_decoder2 = CreateProgressiveDecoder(/* stream_id = */ 2);
+  progressive_decoder2->Decode(data);
 }
 
 }  // namespace

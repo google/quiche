@@ -17,6 +17,7 @@ namespace quic {
 
 QpackProgressiveDecoder::QpackProgressiveDecoder(
     QuicStreamId stream_id,
+    BlockedStreamLimitEnforcer* enforcer,
     QpackHeaderTable* header_table,
     QpackDecoderStreamSender* decoder_stream_sender,
     HeadersHandlerInterface* handler)
@@ -24,6 +25,7 @@ QpackProgressiveDecoder::QpackProgressiveDecoder(
       prefix_decoder_(
           QuicMakeUnique<QpackInstructionDecoder>(QpackPrefixLanguage(), this)),
       instruction_decoder_(QpackRequestStreamLanguage(), this),
+      enforcer_(enforcer),
       header_table_(header_table),
       decoder_stream_sender_(decoder_stream_sender),
       handler_(handler),
@@ -117,6 +119,7 @@ void QpackProgressiveDecoder::OnInsertCountReachedThreshold() {
   }
 
   blocked_ = false;
+  enforcer_->OnStreamUnblocked(stream_id_);
 
   if (!decoding_) {
     FinishDecoding();
@@ -287,6 +290,10 @@ bool QpackProgressiveDecoder::DoPrefixInstruction() {
 
   if (required_insert_count_ > header_table_->inserted_entry_count()) {
     blocked_ = true;
+    if (!enforcer_->OnStreamBlocked(stream_id_)) {
+      OnError("Limit on number of blocked streams exceeded.");
+      return false;
+    }
     header_table_->RegisterObserver(this, required_insert_count_);
   }
 

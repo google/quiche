@@ -22,7 +22,8 @@ namespace quic {
 // This class vends a new QpackProgressiveDecoder instance for each new header
 // list to be encoded.
 class QUIC_EXPORT_PRIVATE QpackDecoder
-    : public QpackEncoderStreamReceiver::Delegate {
+    : public QpackEncoderStreamReceiver::Delegate,
+      public QpackProgressiveDecoder::BlockedStreamLimitEnforcer {
  public:
   // Interface for receiving notification that an error has occurred on the
   // encoder stream.  This MUST be treated as a connection error of type
@@ -57,6 +58,10 @@ class QUIC_EXPORT_PRIVATE QpackDecoder
   // using the FIN bit.
   void OnStreamReset(QuicStreamId stream_id);
 
+  // QpackProgressiveDecoder::BlockedStreamLimitEnforcer implementation.
+  bool OnStreamBlocked(QuicStreamId stream_id) override;
+  void OnStreamUnblocked(QuicStreamId stream_id) override;
+
   // Factory method to create a QpackProgressiveDecoder for decoding a header
   // block.  |handler| must remain valid until the returned
   // QpackProgressiveDecoder instance is destroyed or the decoder calls
@@ -89,6 +94,8 @@ class QUIC_EXPORT_PRIVATE QpackDecoder
   QpackEncoderStreamReceiver encoder_stream_receiver_;
   QpackDecoderStreamSender decoder_stream_sender_;
   QpackHeaderTable header_table_;
+  std::set<QuicStreamId> blocked_streams_;
+  const uint64_t maximum_blocked_streams_;
 };
 
 }  // namespace quic

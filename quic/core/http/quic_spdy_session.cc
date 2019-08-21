@@ -380,13 +380,11 @@ void QuicSpdySession::Initialize() {
     qpack_encoder_ = QuicMakeUnique<QpackEncoder>(this);
     qpack_decoder_ =
         QuicMakeUnique<QpackDecoder>(kDefaultQpackMaxDynamicTableCapacity,
-                                     /* maximum_blocked_streams = */ 0, this);
+                                     kDefaultMaximumBlockedStreams, this);
     MaybeInitializeHttp3UnidirectionalStreams();
-    // TODO(b/112770235): Set sensible limit on maximum number of blocked
-    // streams.
     // TODO(b/112770235): Send SETTINGS_QPACK_MAX_TABLE_CAPACITY with value
     // kDefaultQpackMaxDynamicTableCapacity, and SETTINGS_QPACK_BLOCKED_STREAMS
-    // with limit on maximum number of blocked streams.
+    // with value kDefaultMaximumBlockedStreams.
   }
 
   spdy_framer_visitor_->set_max_header_list_size(max_inbound_header_list_size_);
