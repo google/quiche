@@ -7,6 +7,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <set>
 
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_decoder_stream_sender.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_encoder_stream_receiver.h"
