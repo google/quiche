@@ -259,7 +259,7 @@ ParsedQuicVersionVector FilterSupportedVersions(
         filtered_versions.push_back(version);
       }
     } else if (version.transport_version == QUIC_VERSION_48) {
-      if (GetQuicReloadableFlag(quic_enable_version_48)) {
+      if (GetQuicReloadableFlag(quic_enable_version_48_2)) {
         filtered_versions.push_back(version);
       }
     } else if (version.transport_version == QUIC_VERSION_47) {
@@ -488,7 +488,7 @@ void QuicEnableVersion(ParsedQuicVersion parsed_version) {
     SetQuicReloadableFlag(quic_enable_version_99, true);
   }
   if (parsed_version.transport_version == QUIC_VERSION_48) {
-    SetQuicReloadableFlag(quic_enable_version_48, true);
+    SetQuicReloadableFlag(quic_enable_version_48_2, true);
   }
   if (parsed_version.transport_version == QUIC_VERSION_47) {
     SetQuicReloadableFlag(quic_enable_version_47, true);

@@ -310,7 +310,7 @@ TEST_F(QuicVersionsTest, FilterSupportedTransportVersionsAllVersions) {
   SetQuicReloadableFlag(quic_disable_version_39, false);
   SetQuicReloadableFlag(quic_disable_version_44, false);
   SetQuicReloadableFlag(quic_enable_version_47, true);
-  SetQuicReloadableFlag(quic_enable_version_48, true);
+  SetQuicReloadableFlag(quic_enable_version_48_2, true);
   SetQuicReloadableFlag(quic_enable_version_99, true);
   ParsedQuicVersionVector parsed_versions;
   for (QuicTransportVersion version : all_versions) {
@@ -334,7 +334,7 @@ TEST_F(QuicVersionsTest, FilterSupportedTransportVersionsNo99) {
   SetQuicReloadableFlag(quic_disable_version_39, false);
   SetQuicReloadableFlag(quic_disable_version_44, false);
   SetQuicReloadableFlag(quic_enable_version_47, true);
-  SetQuicReloadableFlag(quic_enable_version_48, true);
+  SetQuicReloadableFlag(quic_enable_version_48_2, true);
   SetQuicReloadableFlag(quic_enable_version_99, false);
   ParsedQuicVersionVector parsed_versions;
   for (QuicTransportVersion version : all_versions) {
@@ -358,7 +358,7 @@ TEST_F(QuicVersionsTest, FilterSupportedTransportVersionsNo48) {
   SetQuicReloadableFlag(quic_disable_version_39, false);
   SetQuicReloadableFlag(quic_disable_version_44, false);
   SetQuicReloadableFlag(quic_enable_version_47, true);
-  SetQuicReloadableFlag(quic_enable_version_48, false);
+  SetQuicReloadableFlag(quic_enable_version_48_2, false);
   SetQuicReloadableFlag(quic_enable_version_99, false);
   ParsedQuicVersionVector parsed_versions;
   for (QuicTransportVersion version : all_versions) {
@@ -382,7 +382,7 @@ TEST_F(QuicVersionsTest, FilterSupportedTransportVersionsNo47) {
   SetQuicReloadableFlag(quic_disable_version_39, false);
   SetQuicReloadableFlag(quic_disable_version_44, false);
   SetQuicReloadableFlag(quic_enable_version_47, false);
-  SetQuicReloadableFlag(quic_enable_version_48, false);
+  SetQuicReloadableFlag(quic_enable_version_48_2, false);
   SetQuicReloadableFlag(quic_enable_version_99, false);
   ParsedQuicVersionVector parsed_versions;
   for (QuicTransportVersion version : all_versions) {
@@ -405,7 +405,7 @@ TEST_F(QuicVersionsTest, FilterSupportedTransportVersionsNo44) {
   SetQuicReloadableFlag(quic_disable_version_39, false);
   SetQuicReloadableFlag(quic_disable_version_44, true);
   SetQuicReloadableFlag(quic_enable_version_47, false);
-  SetQuicReloadableFlag(quic_enable_version_48, false);
+  SetQuicReloadableFlag(quic_enable_version_48_2, false);
   SetQuicReloadableFlag(quic_enable_version_99, false);
   ParsedQuicVersionVector parsed_versions;
   for (QuicTransportVersion version : all_versions) {
@@ -428,7 +428,7 @@ TEST_F(QuicVersionsTest, FilterSupportedTransportVersionsNo39) {
   SetQuicReloadableFlag(quic_disable_version_39, true);
   SetQuicReloadableFlag(quic_disable_version_44, false);
   SetQuicReloadableFlag(quic_enable_version_47, false);
-  SetQuicReloadableFlag(quic_enable_version_48, false);
+  SetQuicReloadableFlag(quic_enable_version_48_2, false);
   SetQuicReloadableFlag(quic_enable_version_99, false);
   ParsedQuicVersionVector parsed_versions;
   for (QuicTransportVersion version : all_versions) {
@@ -556,7 +556,7 @@ TEST_F(QuicVersionsTest, QuicEnableVersion) {
   SetQuicReloadableFlag(quic_disable_version_39, false);
   SetQuicReloadableFlag(quic_disable_version_44, false);
   SetQuicReloadableFlag(quic_enable_version_47, false);
-  SetQuicReloadableFlag(quic_enable_version_48, false);
+  SetQuicReloadableFlag(quic_enable_version_48_2, false);
   SetQuicReloadableFlag(quic_enable_version_99, false);
 
   {
@@ -564,7 +564,7 @@ TEST_F(QuicVersionsTest, QuicEnableVersion) {
     QuicEnableVersion(parsed_version_q047);
     EXPECT_FALSE(GetQuicFlag(FLAGS_quic_supports_tls_handshake));
     EXPECT_TRUE(GetQuicReloadableFlag(quic_enable_version_47));
-    EXPECT_FALSE(GetQuicReloadableFlag(quic_enable_version_48));
+    EXPECT_FALSE(GetQuicReloadableFlag(quic_enable_version_48_2));
     EXPECT_FALSE(GetQuicReloadableFlag(quic_enable_version_99));
   }
 
@@ -573,7 +573,7 @@ TEST_F(QuicVersionsTest, QuicEnableVersion) {
     QuicEnableVersion(parsed_version_t047);
     EXPECT_TRUE(GetQuicFlag(FLAGS_quic_supports_tls_handshake));
     EXPECT_TRUE(GetQuicReloadableFlag(quic_enable_version_47));
-    EXPECT_FALSE(GetQuicReloadableFlag(quic_enable_version_48));
+    EXPECT_FALSE(GetQuicReloadableFlag(quic_enable_version_48_2));
     EXPECT_FALSE(GetQuicReloadableFlag(quic_enable_version_99));
   }
 
@@ -582,7 +582,7 @@ TEST_F(QuicVersionsTest, QuicEnableVersion) {
     QuicEnableVersion(parsed_version_q048);
     EXPECT_FALSE(GetQuicFlag(FLAGS_quic_supports_tls_handshake));
     EXPECT_FALSE(GetQuicReloadableFlag(quic_enable_version_47));
-    EXPECT_TRUE(GetQuicReloadableFlag(quic_enable_version_48));
+    EXPECT_TRUE(GetQuicReloadableFlag(quic_enable_version_48_2));
     EXPECT_FALSE(GetQuicReloadableFlag(quic_enable_version_99));
   }
 
@@ -591,7 +591,7 @@ TEST_F(QuicVersionsTest, QuicEnableVersion) {
     QuicEnableVersion(parsed_version_t048);
     EXPECT_TRUE(GetQuicFlag(FLAGS_quic_supports_tls_handshake));
     EXPECT_FALSE(GetQuicReloadableFlag(quic_enable_version_47));
-    EXPECT_TRUE(GetQuicReloadableFlag(quic_enable_version_48));
+    EXPECT_TRUE(GetQuicReloadableFlag(quic_enable_version_48_2));
     EXPECT_FALSE(GetQuicReloadableFlag(quic_enable_version_99));
   }
 
@@ -600,7 +600,7 @@ TEST_F(QuicVersionsTest, QuicEnableVersion) {
     QuicEnableVersion(parsed_version_t099);
     EXPECT_TRUE(GetQuicFlag(FLAGS_quic_supports_tls_handshake));
     EXPECT_FALSE(GetQuicReloadableFlag(quic_enable_version_47));
-    EXPECT_FALSE(GetQuicReloadableFlag(quic_enable_version_48));
+    EXPECT_FALSE(GetQuicReloadableFlag(quic_enable_version_48_2));
     EXPECT_TRUE(GetQuicReloadableFlag(quic_enable_version_99));
   }
 }

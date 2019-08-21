@@ -19,7 +19,7 @@ TEST_F(QuicVersionManagerTest, QuicVersionManager) {
   static_assert(QUIC_ARRAYSIZE(kSupportedTransportVersions) == 7u,
                 "Supported versions out of sync");
   SetQuicReloadableFlag(quic_enable_version_99, false);
-  SetQuicReloadableFlag(quic_enable_version_48, false);
+  SetQuicReloadableFlag(quic_enable_version_48_2, false);
   SetQuicReloadableFlag(quic_enable_version_47, false);
   SetQuicReloadableFlag(quic_disable_version_44, true);
   SetQuicReloadableFlag(quic_disable_version_39, true);
@@ -47,7 +47,7 @@ TEST_F(QuicVersionManagerTest, QuicVersionManager) {
                                         QUIC_VERSION_39}),
             manager.GetSupportedTransportVersions());
 
-  SetQuicReloadableFlag(quic_enable_version_48, true);
+  SetQuicReloadableFlag(quic_enable_version_48_2, true);
   EXPECT_EQ(QuicTransportVersionVector({QUIC_VERSION_48, QUIC_VERSION_47,
                                         QUIC_VERSION_46, QUIC_VERSION_44,
                                         QUIC_VERSION_43, QUIC_VERSION_39}),

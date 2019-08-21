@@ -937,7 +937,7 @@ TEST_F(QuicDispatcherTest, SupportedTransportVersionsChangeInFlight) {
   SetQuicReloadableFlag(quic_disable_version_39, false);
   SetQuicReloadableFlag(quic_disable_version_44, false);
   SetQuicReloadableFlag(quic_enable_version_47, true);
-  SetQuicReloadableFlag(quic_enable_version_48, true);
+  SetQuicReloadableFlag(quic_enable_version_48_2, true);
   SetQuicReloadableFlag(quic_enable_version_99, true);
 
   VerifyVersionNotSupported(QuicVersionReservedForNegotiation());
@@ -947,12 +947,12 @@ TEST_F(QuicDispatcherTest, SupportedTransportVersionsChangeInFlight) {
   VerifyVersionSupported(QuicVersionMax());
 
   // Turn off version 48.
-  SetQuicReloadableFlag(quic_enable_version_48, false);
+  SetQuicReloadableFlag(quic_enable_version_48_2, false);
   VerifyVersionNotSupported(
       ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_48));
 
   // Turn on version 48.
-  SetQuicReloadableFlag(quic_enable_version_48, true);
+  SetQuicReloadableFlag(quic_enable_version_48_2, true);
   VerifyVersionSupported(
       ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_48));
 
