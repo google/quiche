@@ -1490,24 +1490,18 @@ void QuicCryptoServerConfig::BuildRejection(
     out->SetStringPiece(kPROF, context.signed_config()->proof.signature);
     if (should_return_sct) {
       if (cert_sct.empty()) {
-        if (!GetQuicReloadableFlag(quic_log_cert_name_for_empty_sct)) {
-          QUIC_LOG_EVERY_N_SEC(WARNING, 60)
-              << "SCT is expected but it is empty. sni :"
-              << context.params()->sni;
-        } else {
-          // Log SNI and subject name for the leaf cert if its SCT is empty.
-          // This is for debugging b/28342827.
-          const std::vector<std::string>& certs =
-              context.signed_config()->chain->certs;
-          QuicStringPiece ca_subject;
-          if (!certs.empty()) {
-            QuicCertUtils::ExtractSubjectNameFromDERCert(certs[0], &ca_subject);
-          }
-          QUIC_LOG_EVERY_N_SEC(WARNING, 60)
-              << "SCT is expected but it is empty. sni: '"
-              << context.params()->sni << "' cert subject: '" << ca_subject
-              << "'";
+        // Log SNI and subject name for the leaf cert if its SCT is empty.
+        // This is for debugging b/28342827.
+        const std::vector<std::string>& certs =
+            context.signed_config()->chain->certs;
+        QuicStringPiece ca_subject;
+        if (!certs.empty()) {
+          QuicCertUtils::ExtractSubjectNameFromDERCert(certs[0], &ca_subject);
         }
+        QUIC_LOG_EVERY_N_SEC(WARNING, 60)
+            << "SCT is expected but it is empty. sni: '"
+            << context.params()->sni << "' cert subject: '" << ca_subject
+            << "'";
       } else {
         out->SetStringPiece(kCertificateSCTTag, cert_sct);
       }
