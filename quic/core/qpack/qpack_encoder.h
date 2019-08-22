@@ -50,9 +50,8 @@ class QUIC_EXPORT_PRIVATE QpackEncoder
   ~QpackEncoder() override;
 
   // Encode a header list.
-  // TODO(bnc): Take |header_list| by const reference instead of pointer.
   std::string EncodeHeaderList(QuicStreamId stream_id,
-                               const spdy::SpdyHeaderBlock* header_list);
+                               const spdy::SpdyHeaderBlock& header_list);
 
   // Set maximum capacity of dynamic table, measured in bytes.
   // Called when SETTINGS_QPACK_MAX_TABLE_CAPACITY is received.
@@ -125,9 +124,8 @@ class QUIC_EXPORT_PRIVATE QpackEncoder
   // header field representations, with all dynamic table entries referred to
   // with absolute indices.  Returned Instructions object may have
   // QuicStringPieces pointing to strings owned by |*header_list|.
-  // TODO(bnc): Take |header_list| by const reference instead of pointer.
   Instructions FirstPassEncode(
-      const spdy::SpdyHeaderBlock* header_list,
+      const spdy::SpdyHeaderBlock& header_list,
       QpackBlockingManager::IndexSet* referred_indices);
 
   // Performs second pass of two-pass encoding: serializes representations

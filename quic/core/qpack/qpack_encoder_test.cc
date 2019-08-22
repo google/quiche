@@ -30,7 +30,7 @@ class QpackEncoderTest : public QuicTest {
 
   ~QpackEncoderTest() override = default;
 
-  std::string Encode(const spdy::SpdyHeaderBlock* header_list) {
+  std::string Encode(const spdy::SpdyHeaderBlock& header_list) {
     return encoder_.EncodeHeaderList(/* stream_id = */ 1, header_list);
   }
 
@@ -41,7 +41,7 @@ class QpackEncoderTest : public QuicTest {
 
 TEST_F(QpackEncoderTest, Empty) {
   spdy::SpdyHeaderBlock header_list;
-  std::string output = Encode(&header_list);
+  std::string output = Encode(header_list);
 
   EXPECT_EQ(QuicTextUtils::HexDecode("0000"), output);
 }
@@ -49,7 +49,7 @@ TEST_F(QpackEncoderTest, Empty) {
 TEST_F(QpackEncoderTest, EmptyName) {
   spdy::SpdyHeaderBlock header_list;
   header_list[""] = "foo";
-  std::string output = Encode(&header_list);
+  std::string output = Encode(header_list);
 
   EXPECT_EQ(QuicTextUtils::HexDecode("0000208294e7"), output);
 }
@@ -57,7 +57,7 @@ TEST_F(QpackEncoderTest, EmptyName) {
 TEST_F(QpackEncoderTest, EmptyValue) {
   spdy::SpdyHeaderBlock header_list;
   header_list["foo"] = "";
-  std::string output = Encode(&header_list);
+  std::string output = Encode(header_list);
 
   EXPECT_EQ(QuicTextUtils::HexDecode("00002a94e700"), output);
 }
@@ -65,7 +65,7 @@ TEST_F(QpackEncoderTest, EmptyValue) {
 TEST_F(QpackEncoderTest, EmptyNameAndValue) {
   spdy::SpdyHeaderBlock header_list;
   header_list[""] = "";
-  std::string output = Encode(&header_list);
+  std::string output = Encode(header_list);
 
   EXPECT_EQ(QuicTextUtils::HexDecode("00002000"), output);
 }
@@ -73,7 +73,7 @@ TEST_F(QpackEncoderTest, EmptyNameAndValue) {
 TEST_F(QpackEncoderTest, Simple) {
   spdy::SpdyHeaderBlock header_list;
   header_list["foo"] = "bar";
-  std::string output = Encode(&header_list);
+  std::string output = Encode(header_list);
 
   EXPECT_EQ(QuicTextUtils::HexDecode("00002a94e703626172"), output);
 }
@@ -83,7 +83,7 @@ TEST_F(QpackEncoderTest, Multiple) {
   header_list["foo"] = "bar";
   // 'Z' would be Huffman encoded to 8 bits, so no Huffman encoding is used.
   header_list["ZZZZZZZ"] = std::string(127, 'Z');
-  std::string output = Encode(&header_list);
+  std::string output = Encode(header_list);
 
   EXPECT_EQ(
       QuicTextUtils::HexDecode(
@@ -107,7 +107,7 @@ TEST_F(QpackEncoderTest, StaticTable) {
     header_list["accept-encoding"] = "gzip, deflate, br";
     header_list["location"] = "";
 
-    std::string output = Encode(&header_list);
+    std::string output = Encode(header_list);
     EXPECT_EQ(QuicTextUtils::HexDecode("0000d1dfcc"), output);
   }
   {
@@ -116,7 +116,7 @@ TEST_F(QpackEncoderTest, StaticTable) {
     header_list["accept-encoding"] = "compress";
     header_list["location"] = "foo";
 
-    std::string output = Encode(&header_list);
+    std::string output = Encode(header_list);
     EXPECT_EQ(QuicTextUtils::HexDecode("0000d45f108621e9aec2a11f5c8294e7"),
               output);
   }
@@ -125,7 +125,7 @@ TEST_F(QpackEncoderTest, StaticTable) {
     header_list[":method"] = "TRACE";
     header_list["accept-encoding"] = "";
 
-    std::string output = Encode(&header_list);
+    std::string output = Encode(header_list);
     EXPECT_EQ(QuicTextUtils::HexDecode("00005f000554524143455f1000"), output);
   }
 }
@@ -143,7 +143,7 @@ TEST_F(QpackEncoderTest, DecoderStreamError) {
 TEST_F(QpackEncoderTest, SplitAlongNullCharacter) {
   spdy::SpdyHeaderBlock header_list;
   header_list["foo"] = QuicStringPiece("bar\0bar\0baz", 11);
-  std::string output = Encode(&header_list);
+  std::string output = Encode(header_list);
 
   EXPECT_EQ(QuicTextUtils::HexDecode("0000"            // prefix
                                      "2a94e703626172"  // foo: bar
@@ -209,7 +209,7 @@ TEST_F(QpackEncoderTest, DynamicTable) {
   EXPECT_EQ(QuicTextUtils::HexDecode(
                 "0400"      // prefix
                 "828180"),  // dynamic entries with relative index 0, 1, and 2
-            Encode(&header_list));
+            Encode(header_list));
 }
 
 // There is no room in the dynamic table after inserting the first entry.
@@ -239,7 +239,7 @@ TEST_F(QpackEncoderTest, SmallDynamicTable) {
                                      "0362617a"    // with literal value "baz"
                                      "23626172"    // literal name "bar"
                                      "0362617a"),  // with literal value "baz"
-            Encode(&header_list));
+            Encode(header_list));
 }
 
 TEST_F(QpackEncoderTest, BlockedStream) {
@@ -258,7 +258,7 @@ TEST_F(QpackEncoderTest, BlockedStream) {
 
   EXPECT_EQ(QuicTextUtils::HexDecode("0200"  // prefix
                                      "80"),  // dynamic entry 0
-            encoder_.EncodeHeaderList(/* stream_id = */ 1, &header_list1));
+            encoder_.EncodeHeaderList(/* stream_id = */ 1, header_list1));
 
   // Stream 1 is blocked.  Stream 2 is not allowed to block.
   spdy::SpdyHeaderBlock header_list2;
@@ -277,7 +277,7 @@ TEST_F(QpackEncoderTest, BlockedStream) {
                                      "0362617a"    // with literal value "baz"
                                      "23626172"    // literal name "bar"
                                      "0362617a"),  // with literal value "baz"
-            encoder_.EncodeHeaderList(/* stream_id = */ 2, &header_list2));
+            encoder_.EncodeHeaderList(/* stream_id = */ 2, header_list2));
 
   // Peer acknowledges receipt of one dynamic table entry.
   // Stream 1 is no longer blocked.
@@ -299,7 +299,7 @@ TEST_F(QpackEncoderTest, BlockedStream) {
                   "0362617a"))));            // value "baz"
   EXPECT_EQ(QuicTextUtils::HexDecode("0500"  // prefix
                                      "83828180"),  // dynamic entries
-            encoder_.EncodeHeaderList(/* stream_id = */ 3, &header_list2));
+            encoder_.EncodeHeaderList(/* stream_id = */ 3, header_list2));
 
   // Stream 3 is blocked.  Stream 4 is not allowed to block, but it can
   // reference already acknowledged dynamic entry 0.
@@ -311,7 +311,7 @@ TEST_F(QpackEncoderTest, BlockedStream) {
                                      "0362617a"    // with literal value "baz"
                                      "23626172"    // literal name "bar"
                                      "0362617a"),  // with literal value "baz"
-            encoder_.EncodeHeaderList(/* stream_id = */ 4, &header_list2));
+            encoder_.EncodeHeaderList(/* stream_id = */ 4, header_list2));
 
   // Peer acknowledges receipt of two more dynamic table entries.
   // Stream 3 is still blocked.
@@ -323,7 +323,7 @@ TEST_F(QpackEncoderTest, BlockedStream) {
                                      "828180"      // dynamic entries
                                      "23626172"    // literal name "bar"
                                      "0362617a"),  // with literal value "baz"
-            encoder_.EncodeHeaderList(/* stream_id = */ 5, &header_list2));
+            encoder_.EncodeHeaderList(/* stream_id = */ 5, header_list2));
 
   // Peer acknowledges decoding header block on stream 3.
   // Stream 3 is not blocked any longer.
@@ -331,7 +331,7 @@ TEST_F(QpackEncoderTest, BlockedStream) {
 
   EXPECT_EQ(QuicTextUtils::HexDecode("0500"        // prefix
                                      "83828180"),  // dynamic entries
-            encoder_.EncodeHeaderList(/* stream_id = */ 6, &header_list2));
+            encoder_.EncodeHeaderList(/* stream_id = */ 6, header_list2));
 }
 
 TEST_F(QpackEncoderTest, Draining) {
@@ -368,7 +368,7 @@ TEST_F(QpackEncoderTest, Draining) {
   EXPECT_EQ(
       QuicTextUtils::HexDecode("0b00"                    // prefix
                                "89888786858483828180"),  // dynamic entries
-      Encode(&header_list1));
+      Encode(header_list1));
 
   // Entry is identical to oldest one, which is draining.  It will be
   // duplicated and referenced.
@@ -381,7 +381,7 @@ TEST_F(QpackEncoderTest, Draining) {
 
   EXPECT_EQ(QuicTextUtils::HexDecode("0c00"  // prefix
                                      "80"),  // most recent dynamic table entry
-            Encode(&header_list2));
+            Encode(header_list2));
 
   spdy::SpdyHeaderBlock header_list3;
   // Entry is identical to second oldest one, which is draining.  There is no
@@ -396,7 +396,7 @@ TEST_F(QpackEncoderTest, Draining) {
                                      "8294e7"      // literal value "foo"
                                      "2374776f"    // literal name "two"
                                      "03626172"),  // literal value "bar"
-            Encode(&header_list3));
+            Encode(header_list3));
 }
 
 }  // namespace

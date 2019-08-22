@@ -184,7 +184,7 @@ class QuicSpdyStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
         &encoder_stream_sender_delegate);
     // QpackEncoder does not use the dynamic table by default,
     // therefore the value of |stream_id| does not matter.
-    return qpack_encoder->EncodeHeaderList(/* stream_id = */ 0, &header);
+    return qpack_encoder->EncodeHeaderList(/* stream_id = */ 0, header);
   }
 
   void Initialize(bool stream_should_process_data) {

@@ -86,10 +86,10 @@ QpackEncoder::InstructionWithValues QpackEncoder::EncodeLiteralHeaderField(
 }
 
 QpackEncoder::Instructions QpackEncoder::FirstPassEncode(
-    const spdy::SpdyHeaderBlock* header_list,
+    const spdy::SpdyHeaderBlock& header_list,
     QpackBlockingManager::IndexSet* referred_indices) {
   Instructions instructions;
-  instructions.reserve(header_list->size());
+  instructions.reserve(header_list.size());
 
   // The index of the oldest entry that must not be evicted.
   uint64_t smallest_blocking_index =
@@ -108,8 +108,8 @@ QpackEncoder::Instructions QpackEncoder::FirstPassEncode(
   const bool blocking_allowed =
       maximum_blocked_streams_ > blocking_manager_.blocked_stream_count();
 
-  for (const auto& header : ValueSplittingHeaderList(header_list)) {
-    // These strings are owned by |*header_list|.
+  for (const auto& header : ValueSplittingHeaderList(&header_list)) {
+    // These strings are owned by |header_list|.
     QuicStringPiece name = header.first;
     QuicStringPiece value = header.second;
 
@@ -296,7 +296,7 @@ std::string QpackEncoder::SecondPassEncode(
 
 std::string QpackEncoder::EncodeHeaderList(
     QuicStreamId stream_id,
-    const spdy::SpdyHeaderBlock* header_list) {
+    const spdy::SpdyHeaderBlock& header_list) {
   // Keep track of all dynamic table indices that this header block refers to so
   // that it can be passed to QpackBlockingManager.
   QpackBlockingManager::IndexSet referred_indices;

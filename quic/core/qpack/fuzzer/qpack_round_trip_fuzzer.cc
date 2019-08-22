@@ -50,7 +50,7 @@ class EncodingEndpoint {
   }
 
   std::string EncodeHeaderList(QuicStreamId stream_id,
-                               const spdy::SpdyHeaderBlock* header_list) {
+                               const spdy::SpdyHeaderBlock& header_list) {
     return encoder_.EncodeHeaderList(stream_id, header_list);
   }
 
@@ -614,7 +614,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 
     // Encode header list.
     std::string encoded_header_block =
-        encoder.EncodeHeaderList(stream_id, &header_list);
+        encoder.EncodeHeaderList(stream_id, header_list);
 
     // TODO(bnc): Randomly cancel the stream.
 

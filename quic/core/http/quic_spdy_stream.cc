@@ -1018,7 +1018,7 @@ size_t QuicSpdyStream::WriteHeadersImpl(
 
   // Encode header list.
   std::string encoded_headers =
-      spdy_session_->qpack_encoder()->EncodeHeaderList(id(), &header_block);
+      spdy_session_->qpack_encoder()->EncodeHeaderList(id(), header_block);
 
   // Write HEADERS frame.
   std::unique_ptr<char[]> headers_frame_header;
