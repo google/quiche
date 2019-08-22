@@ -512,6 +512,25 @@ TEST_F(HttpDecoderTest, CorruptSettingsFrame) {
     EXPECT_EQ(test_data.error_message, decoder.error_detail());
   }
 }
+
+TEST_F(HttpDecoderTest, DuplicateSettingsIdentifier) {
+  std::string input =
+      "\x04"   // type (SETTINGS)
+      "\x04"   // length
+      "\x01"   // identifier
+      "\x01"   // content
+      "\x01"   // identifier
+      "\x02";  // content
+
+  EXPECT_CALL(visitor_, OnSettingsFrameStart(2));
+  EXPECT_CALL(visitor_, OnError(&decoder_));
+
+  EXPECT_EQ(input.size(), ProcessInput(input));
+
+  EXPECT_EQ(QUIC_INVALID_FRAME_DATA, decoder_.error());
+  EXPECT_EQ("Duplicate SETTINGS identifier.", decoder_.error_detail());
+}
+
 TEST_F(HttpDecoderTest, DataFrame) {
   InSequence s;
   std::string input(

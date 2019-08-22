@@ -565,7 +565,12 @@ bool HttpDecoder::ParseSettingsFrame(QuicDataReader* reader,
                  "Unable to read settings frame content");
       return false;
     }
-    frame->values[id] = content;
+    auto result = frame->values.insert({id, content});
+    if (!result.second) {
+      // TODO(b/124216424): Use HTTP_SETTINGS_ERROR.
+      RaiseError(QUIC_INVALID_FRAME_DATA, "Duplicate SETTINGS identifier.");
+      return false;
+    }
   }
   return true;
 }
