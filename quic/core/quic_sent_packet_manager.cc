@@ -115,7 +115,7 @@ QuicSentPacketManager::QuicSentPacketManager(
           QuicTime::Delta::FromMilliseconds(kDefaultDelayedAckTimeMs)),
       rtt_updated_(false),
       acked_packets_iter_(last_ack_frame_.packets.rbegin()),
-      enable_pto_(false),
+      pto_enabled_(false),
       max_probe_packets_per_pto_(2),
       consecutive_pto_count_(0),
       loss_removes_from_inflight_(
@@ -185,11 +185,11 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
 
   if (GetQuicReloadableFlag(quic_enable_pto) && fix_rto_retransmission_) {
     if (config.HasClientSentConnectionOption(k2PTO, perspective)) {
-      enable_pto_ = true;
+      pto_enabled_ = true;
       QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_pto, 2, 4);
     }
     if (config.HasClientSentConnectionOption(k1PTO, perspective)) {
-      enable_pto_ = true;
+      pto_enabled_ = true;
       max_probe_packets_per_pto_ = 1;
       QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_pto, 1, 4);
     }
@@ -486,7 +486,7 @@ void QuicSentPacketManager::MarkForRetransmission(
       << "transmission_type: "
       << QuicUtils::TransmissionTypeToString(transmission_type);
   // Handshake packets should never be sent as probing retransmissions.
-  DCHECK(enable_pto_ || !transmission_info->has_crypto_handshake ||
+  DCHECK(pto_enabled_ || !transmission_info->has_crypto_handshake ||
          transmission_type != PROBING_RETRANSMISSION);
   if (!loss_removes_from_inflight_ &&
       !RetransmissionLeavesBytesInFlight(transmission_type)) {
@@ -798,7 +798,7 @@ void QuicSentPacketManager::RetransmitCryptoPackets() {
 }
 
 bool QuicSentPacketManager::MaybeRetransmitTailLossProbe() {
-  DCHECK(!enable_pto_);
+  DCHECK(!pto_enabled_);
   if (pending_timer_transmission_count_ == 0) {
     return false;
   }
@@ -827,7 +827,7 @@ bool QuicSentPacketManager::MaybeRetransmitOldestPacket(TransmissionType type) {
 }
 
 void QuicSentPacketManager::RetransmitRtoPackets() {
-  DCHECK(!enable_pto_);
+  DCHECK(!pto_enabled_);
   QUIC_BUG_IF(pending_timer_transmission_count_ > 0)
       << "Retransmissions already queued:" << pending_timer_transmission_count_;
   // Mark two packets for retransmission.
@@ -927,7 +927,7 @@ QuicSentPacketManager::GetRetransmissionMode() const {
   if (loss_algorithm_->GetLossTimeout() != QuicTime::Zero()) {
     return LOSS_MODE;
   }
-  if (enable_pto_) {
+  if (pto_enabled_) {
     return PTO_MODE;
   }
   if (consecutive_tlp_count_ < max_tail_loss_probes_) {
@@ -1024,7 +1024,7 @@ const QuicTime QuicSentPacketManager::GetRetransmissionTime() const {
     case LOSS_MODE:
       return loss_algorithm_->GetLossTimeout();
     case TLP_MODE: {
-      DCHECK(!enable_pto_);
+      DCHECK(!pto_enabled_);
       // TODO(ianswett): When CWND is available, it would be preferable to
       // set the timer based on the earliest retransmittable packet.
       // Base the updated timer on the send time of the last packet.
@@ -1034,7 +1034,7 @@ const QuicTime QuicSentPacketManager::GetRetransmissionTime() const {
       return std::max(clock_->ApproximateNow(), tlp_time);
     }
     case RTO_MODE: {
-      DCHECK(!enable_pto_);
+      DCHECK(!pto_enabled_);
       // The RTO is based on the first outstanding packet.
       const QuicTime sent_time = unacked_packets_.GetLastPacketSentTime();
       QuicTime rto_time = sent_time + GetRetransmissionDelay();
@@ -1141,7 +1141,7 @@ const QuicTime::Delta QuicSentPacketManager::GetRetransmissionDelay(
 }
 
 const QuicTime::Delta QuicSentPacketManager::GetProbeTimeoutDelay() const {
-  DCHECK(enable_pto_);
+  DCHECK(pto_enabled_);
   if (rtt_stats_.smoothed_rtt().IsZero()) {
     if (rtt_stats_.initial_rtt().IsZero()) {
       return QuicTime::Delta::FromSeconds(1);

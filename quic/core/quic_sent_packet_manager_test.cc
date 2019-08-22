@@ -368,7 +368,7 @@ class QuicSentPacketManagerTest : public QuicTestWithParam<bool> {
     EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
     EXPECT_CALL(*network_change_visitor_, OnCongestionChange());
     manager_.SetFromConfig(config);
-    EXPECT_TRUE(manager_.enable_pto());
+    EXPECT_TRUE(manager_.pto_enabled());
   }
 
   QuicSentPacketManager manager_;

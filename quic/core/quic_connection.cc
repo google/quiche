@@ -420,7 +420,7 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
   if (config.HasClientSentConnectionOption(k5RTO, perspective_)) {
     close_connection_after_five_rtos_ = true;
   }
-  if (sent_packet_manager_.enable_pto()) {
+  if (sent_packet_manager_.pto_enabled()) {
     if (config.HasClientSentConnectionOption(k7PTO, perspective_)) {
       max_consecutive_ptos_ = 6;
       QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_pto, 3, 4);
@@ -2499,7 +2499,7 @@ void QuicConnection::OnRetransmissionTimeout() {
                     ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return;
   }
-  if (sent_packet_manager_.enable_pto() && max_consecutive_ptos_ > 0 &&
+  if (sent_packet_manager_.pto_enabled() && max_consecutive_ptos_ > 0 &&
       sent_packet_manager_.GetConsecutivePtoCount() >= max_consecutive_ptos_) {
     CloseConnection(QUIC_TOO_MANY_RTOS,
                     QuicStrCat(max_consecutive_ptos_ + 1,
@@ -2520,7 +2520,7 @@ void QuicConnection::OnRetransmissionTimeout() {
 
   // In the PTO and TLP cases, the SentPacketManager gives the connection the
   // opportunity to send new data before retransmitting.
-  if (sent_packet_manager_.enable_pto()) {
+  if (sent_packet_manager_.pto_enabled()) {
     sent_packet_manager_.MaybeSendProbePackets();
   } else if (sent_packet_manager_.MaybeRetransmitTailLossProbe()) {
     // Send the pending retransmission now that it's been queued.

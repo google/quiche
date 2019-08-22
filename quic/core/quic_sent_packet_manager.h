@@ -411,7 +411,7 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
 
   bool fix_rto_retransmission() const { return fix_rto_retransmission_; }
 
-  bool enable_pto() const { return enable_pto_; }
+  bool pto_enabled() const { return pto_enabled_; }
 
  private:
   friend class test::QuicConnectionPeer;
@@ -639,8 +639,9 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // OnAckRangeStart, and gradually moves in OnAckRange..
   PacketNumberQueue::const_reverse_iterator acked_packets_iter_;
 
-  // If true, enable PTO mode which unifies TLP and RTO modes.
-  bool enable_pto_;
+  // Indicates whether PTO mode has been enabled. PTO mode unifies TLP and RTO
+  // modes.
+  bool pto_enabled_;
 
   // Maximum number of probes to send when PTO fires.
   size_t max_probe_packets_per_pto_;
