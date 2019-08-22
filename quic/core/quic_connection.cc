@@ -1541,6 +1541,14 @@ QuicConsumedData QuicConnection::SendStreamData(QuicStreamId id,
 }
 
 bool QuicConnection::SendControlFrame(const QuicFrame& frame) {
+  if (SupportsMultiplePacketNumberSpaces() &&
+      (encryption_level_ == ENCRYPTION_INITIAL ||
+       encryption_level_ == ENCRYPTION_HANDSHAKE)) {
+    QUIC_DVLOG(1) << ENDPOINT << "Failed to send control frame: " << frame
+                  << " at encryption level: "
+                  << QuicUtils::EncryptionLevelToString(encryption_level_);
+    return false;
+  }
   ScopedPacketFlusher flusher(this);
   const bool consumed =
       packet_generator_.ConsumeRetransmittableControlFrame(frame);

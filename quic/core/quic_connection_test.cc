@@ -7195,6 +7195,7 @@ TEST_P(QuicConnectionTest, SendPingImmediately) {
   connection_.set_debug_visitor(&debug_visitor);
 
   CongestionBlockWrites();
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
   EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _, _)).Times(1);
   EXPECT_CALL(debug_visitor, OnPingSent()).Times(1);
@@ -7206,11 +7207,28 @@ TEST_P(QuicConnectionTest, SendBlockedImmediately) {
   MockQuicConnectionDebugVisitor debug_visitor;
   connection_.set_debug_visitor(&debug_visitor);
 
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
   EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _, _)).Times(1);
   EXPECT_EQ(0u, connection_.GetStats().blocked_frames_sent);
   connection_.SendControlFrame(QuicFrame(new QuicBlockedFrame(1, 3)));
   EXPECT_EQ(1u, connection_.GetStats().blocked_frames_sent);
+  EXPECT_FALSE(connection_.HasQueuedData());
+}
+
+TEST_P(QuicConnectionTest, FailedToSendBlockedFrames) {
+  if (!connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
+  MockQuicConnectionDebugVisitor debug_visitor;
+  connection_.set_debug_visitor(&debug_visitor);
+  QuicBlockedFrame blocked(1, 3);
+
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
+  EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _, _)).Times(0);
+  EXPECT_EQ(0u, connection_.GetStats().blocked_frames_sent);
+  connection_.SendControlFrame(QuicFrame(&blocked));
+  EXPECT_EQ(0u, connection_.GetStats().blocked_frames_sent);
   EXPECT_FALSE(connection_.HasQueuedData());
 }
 

@@ -1259,6 +1259,7 @@ TEST_P(QuicSessionTestServer, SendGoAway) {
     // GoAway frames are not in version 99
     return;
   }
+  connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   MockPacketWriter* writer = static_cast<MockPacketWriter*>(
       QuicConnectionPeer::GetWriter(session_.connection()));
   EXPECT_CALL(*writer, WritePacket(_, _, _, _, _))
