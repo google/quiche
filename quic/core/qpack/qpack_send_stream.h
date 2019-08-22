@@ -44,7 +44,7 @@ class QUIC_EXPORT_PRIVATE QpackSendStream : public QuicStream,
 
   // TODO(b/112770235): Remove this method once QuicStreamIdManager supports
   // creating HTTP/3 unidirectional streams dynamically.
-  void SendStreamType();
+  void MaybeSendStreamType();
 
  private:
   const uint64_t http3_stream_type_;

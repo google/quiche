@@ -30,9 +30,9 @@ class QUIC_EXPORT_PRIVATE QuicSendControlStream : public QuicStream {
   // closed before connection.
   void OnStreamReset(const QuicRstStreamFrame& frame) override;
 
-  // Consult the Spdy session to construct Settings frame and sends it on this
-  // stream. Settings frame must be the first frame sent on this stream.
-  void SendSettingsFrame();
+  // Send SETTINGS frame if it hasn't been sent yet. Settings frame must be the
+  // first frame sent on this stream.
+  void MaybeSendSettingsFrame();
 
   // Construct a MAX_PUSH_ID frame and send it on this stream.
   void SendMaxPushIdFrame(PushId max_push_id);

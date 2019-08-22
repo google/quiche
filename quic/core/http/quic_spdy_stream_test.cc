@@ -1247,6 +1247,14 @@ TEST_P(QuicSpdyStreamTest, ClientWritesPriority) {
     EXPECT_CALL(*session_, WritevData(send_control_stream,
                                       send_control_stream->id(), _, _, _))
         .Times(3);
+    auto qpack_encoder_stream =
+        QuicSpdySessionPeer::GetQpackEncoderSendStream(session_.get());
+    EXPECT_CALL(*session_, WritevData(qpack_encoder_stream,
+                                      qpack_encoder_stream->id(), 1, 0, _));
+    auto qpack_decoder_stream =
+        QuicSpdySessionPeer::GetQpackDecoderSendStream(session_.get());
+    EXPECT_CALL(*session_, WritevData(qpack_decoder_stream,
+                                      qpack_decoder_stream->id(), 1, 0, _));
   }
 
   // Write the initial headers, without a FIN.

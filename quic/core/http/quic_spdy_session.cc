@@ -512,6 +512,8 @@ void QuicSpdySession::WriteH3Priority(const PriorityFrame& priority) {
   DCHECK(perspective() == Perspective::IS_CLIENT)
       << "Server must not send priority";
 
+  QuicConnection::ScopedPacketFlusher flusher(connection());
+  SendMaxHeaderListSize(max_inbound_header_list_size_);
   send_control_stream_->WritePriority(priority);
 }
 
@@ -555,11 +557,12 @@ void QuicSpdySession::WritePushPromise(QuicStreamId original_stream_id,
 
 void QuicSpdySession::SendMaxHeaderListSize(size_t value) {
   if (VersionHasStreamType(connection()->transport_version())) {
-    send_control_stream_->SendSettingsFrame();
+    QuicConnection::ScopedPacketFlusher flusher(connection());
+    send_control_stream_->MaybeSendSettingsFrame();
     // TODO(renjietang): Remove this once stream id manager can take dynamically
     // created HTTP/3 unidirectional streams.
-    qpack_encoder_send_stream_->SendStreamType();
-    qpack_decoder_send_stream_->SendStreamType();
+    qpack_encoder_send_stream_->MaybeSendStreamType();
+    qpack_decoder_send_stream_->MaybeSendStreamType();
     return;
   }
   SpdySettingsIR settings_frame;

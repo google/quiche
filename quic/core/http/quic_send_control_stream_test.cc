@@ -83,10 +83,10 @@ TEST_P(QuicSendControlStreamTest, WriteSettingsOnlyForOnce) {
 
   EXPECT_CALL(session_, WritevData(_, _, 1, _, _));
   EXPECT_CALL(session_, WritevData(_, _, _, _, _));
-  send_control_stream_->SendSettingsFrame();
+  send_control_stream_->MaybeSendSettingsFrame();
 
   // No data should be written the sencond time SendSettingsFrame() is called.
-  send_control_stream_->SendSettingsFrame();
+  send_control_stream_->MaybeSendSettingsFrame();
 }
 
 TEST_P(QuicSendControlStreamTest, WritePriorityBeforeSettings) {

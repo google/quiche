@@ -26,7 +26,7 @@ void QuicSendControlStream::OnStreamReset(const QuicRstStreamFrame& /*frame*/) {
       ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
 }
 
-void QuicSendControlStream::SendSettingsFrame() {
+void QuicSendControlStream::MaybeSendSettingsFrame() {
   if (settings_sent_) {
     return;
   }
@@ -56,9 +56,7 @@ void QuicSendControlStream::SendSettingsFrame() {
 
 void QuicSendControlStream::WritePriority(const PriorityFrame& priority) {
   QuicConnection::ScopedPacketFlusher flusher(session()->connection());
-  if (!settings_sent_) {
-    SendSettingsFrame();
-  }
+  MaybeSendSettingsFrame();
   std::unique_ptr<char[]> buffer;
   QuicByteCount frame_length =
       encoder_.SerializePriorityFrame(priority, &buffer);
