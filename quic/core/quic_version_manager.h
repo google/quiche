@@ -33,7 +33,7 @@ class QUIC_EXPORT_PRIVATE QuicVersionManager {
   // Refilters filtered_supported_versions_.
   virtual void RefilterSupportedVersions();
 
-  const QuicTransportVersionVector& filtered_supported_versions() const {
+  const QuicTransportVersionVector& filtered_transport_versions() const {
     return filtered_transport_versions_;
   }
 
