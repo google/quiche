@@ -145,11 +145,11 @@ class QuicReceiveControlStream::HttpDecoderVisitor
   }
 
  private:
-  void CloseConnectionOnWrongFrame(std::string frame_type) {
+  void CloseConnectionOnWrongFrame(QuicStringPiece frame_type) {
     // TODO(renjietang): Change to HTTP/3 error type.
     stream_->session()->connection()->CloseConnection(
         QUIC_HTTP_DECODER_ERROR,
-        frame_type + " frame received on control stream",
+        QuicStrCat(frame_type, " frame received on control stream"),
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
   }
 
