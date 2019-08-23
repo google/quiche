@@ -68,6 +68,7 @@ void QuicSendControlStream::WritePriority(const PriorityFrame& priority) {
 void QuicSendControlStream::SendMaxPushIdFrame(PushId max_push_id) {
   QuicConnection::ScopedPacketFlusher flusher(session()->connection());
 
+  MaybeSendSettingsFrame();
   MaxPushIdFrame frame;
   frame.push_id = max_push_id;
   std::unique_ptr<char[]> buffer;
