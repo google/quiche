@@ -464,11 +464,11 @@ TEST_F(QuicVersionsTest, AlpnForVersion) {
   ParsedQuicVersion parsed_version_t099 =
       ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_99);
 
-  EXPECT_EQ("h3-google-Q047", AlpnForVersion(parsed_version_q047));
-  EXPECT_EQ("h3-google-T047", AlpnForVersion(parsed_version_t047));
-  EXPECT_EQ("h3-google-Q048", AlpnForVersion(parsed_version_q048));
-  EXPECT_EQ("h3-google-T048", AlpnForVersion(parsed_version_t048));
-  EXPECT_EQ("h3-google-T099", AlpnForVersion(parsed_version_t099));
+  EXPECT_EQ("h3-Q047", AlpnForVersion(parsed_version_q047));
+  EXPECT_EQ("h3-T047", AlpnForVersion(parsed_version_t047));
+  EXPECT_EQ("h3-Q048", AlpnForVersion(parsed_version_q048));
+  EXPECT_EQ("h3-T048", AlpnForVersion(parsed_version_t048));
+  EXPECT_EQ("h3-T099", AlpnForVersion(parsed_version_t099));
 }
 
 TEST_F(QuicVersionsTest, InitializeSupportForIetfDraft) {
@@ -476,12 +476,12 @@ TEST_F(QuicVersionsTest, InitializeSupportForIetfDraft) {
       ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_99);
   EXPECT_EQ(MakeVersionLabel('T', '0', '9', '9'),
             CreateQuicVersionLabel(parsed_version_t099));
-  EXPECT_EQ("h3-google-T099", AlpnForVersion(parsed_version_t099));
+  EXPECT_EQ("h3-T099", AlpnForVersion(parsed_version_t099));
 
   QuicVersionInitializeSupportForIetfDraft(0);
   EXPECT_EQ(MakeVersionLabel('T', '0', '9', '9'),
             CreateQuicVersionLabel(parsed_version_t099));
-  EXPECT_EQ("h3-google-T099", AlpnForVersion(parsed_version_t099));
+  EXPECT_EQ("h3-T099", AlpnForVersion(parsed_version_t099));
   EXPECT_FALSE(GetQuicFlag(FLAGS_quic_supports_tls_handshake));
 
   QuicVersionInitializeSupportForIetfDraft(18);
@@ -493,7 +493,7 @@ TEST_F(QuicVersionsTest, InitializeSupportForIetfDraft) {
   QuicVersionInitializeSupportForIetfDraft(0);
   EXPECT_EQ(MakeVersionLabel('T', '0', '9', '9'),
             CreateQuicVersionLabel(parsed_version_t099));
-  EXPECT_EQ("h3-google-T099", AlpnForVersion(parsed_version_t099));
+  EXPECT_EQ("h3-T099", AlpnForVersion(parsed_version_t099));
 }
 
 TEST_F(QuicVersionsTest, QuicEnableVersion) {

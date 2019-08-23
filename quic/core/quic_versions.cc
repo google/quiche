@@ -453,7 +453,7 @@ std::string AlpnForVersion(ParsedQuicVersion parsed_version) {
     return "h3-" + QuicTextUtils::Uint64ToString(
                        GetQuicFlag(FLAGS_quic_ietf_draft_version));
   }
-  return "h3-google-" + ParsedQuicVersionToString(parsed_version);
+  return "h3-" + ParsedQuicVersionToString(parsed_version);
 }
 
 void QuicVersionInitializeSupportForIetfDraft(int32_t draft_version) {
