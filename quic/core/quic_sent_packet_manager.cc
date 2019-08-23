@@ -122,7 +122,8 @@ QuicSentPacketManager::QuicSentPacketManager(
           GetQuicReloadableFlag(quic_loss_removes_from_inflight)),
       ignore_tlpr_if_no_pending_stream_data_(
           GetQuicReloadableFlag(quic_ignore_tlpr_if_no_pending_stream_data)),
-      fix_rto_retransmission_(false) {
+      fix_rto_retransmission_(false),
+      handshake_mode_disabled_(false) {
   if (loss_removes_from_inflight_) {
     QUIC_RELOADABLE_FLAG_COUNT(quic_loss_removes_from_inflight);
   }
@@ -726,7 +727,8 @@ bool QuicSentPacketManager::OnPacketSent(
 
 QuicSentPacketManager::RetransmissionTimeoutMode
 QuicSentPacketManager::OnRetransmissionTimeout() {
-  DCHECK(unacked_packets_.HasInFlightPackets());
+  DCHECK(unacked_packets_.HasInFlightPackets() ||
+         (handshake_mode_disabled_ && !handshake_confirmed_));
   DCHECK_EQ(0u, pending_timer_transmission_count_);
   // Handshake retransmission, timer based loss detection, TLP, and RTO are
   // implemented with a single alarm. The handshake alarm is set when the
@@ -735,6 +737,7 @@ QuicSentPacketManager::OnRetransmissionTimeout() {
   // The TLP alarm is always set to run for under an RTO.
   switch (GetRetransmissionMode()) {
     case HANDSHAKE_MODE:
+      DCHECK(!handshake_mode_disabled_);
       ++stats_->crypto_retransmit_count;
       RetransmitCryptoPackets();
       return HANDSHAKE_MODE;
@@ -918,10 +921,19 @@ void QuicSentPacketManager::AdjustPendingTimerTransmissions() {
   pending_timer_transmission_count_ = 1;
 }
 
+void QuicSentPacketManager::DisableHandshakeMode() {
+  DCHECK(session_decides_what_to_write());
+  fix_rto_retransmission_ = true;
+  pto_enabled_ = true;
+  handshake_mode_disabled_ = true;
+}
+
 QuicSentPacketManager::RetransmissionTimeoutMode
 QuicSentPacketManager::GetRetransmissionMode() const {
-  DCHECK(unacked_packets_.HasInFlightPackets());
-  if (!handshake_confirmed_ && unacked_packets_.HasPendingCryptoPackets()) {
+  DCHECK(unacked_packets_.HasInFlightPackets() ||
+         (handshake_mode_disabled_ && !handshake_confirmed_));
+  if (!handshake_mode_disabled_ && !handshake_confirmed_ &&
+      unacked_packets_.HasPendingCryptoPackets()) {
     return HANDSHAKE_MODE;
   }
   if (loss_algorithm_->GetLossTimeout() != QuicTime::Zero()) {
@@ -1007,10 +1019,17 @@ QuicTime::Delta QuicSentPacketManager::TimeUntilSend(QuicTime now) const {
 }
 
 const QuicTime QuicSentPacketManager::GetRetransmissionTime() const {
-  // Don't set the timer if there is nothing to retransmit or we've already
-  // queued a tlp transmission and it hasn't been sent yet.
-  if (!unacked_packets_.HasInFlightPackets() ||
-      pending_timer_transmission_count_ > 0) {
+  if (!unacked_packets_.HasInFlightPackets() &&
+      (!handshake_mode_disabled_ || handshake_confirmed_ ||
+       unacked_packets_.perspective() == Perspective::IS_SERVER)) {
+    // Do not set the timer if there is nothing in flight. However, to avoid
+    // handshake deadlock due to anti-amplification limit, client needs to set
+    // PTO timer when the handshake is not confirmed even there is nothing in
+    // flight.
+    return QuicTime::Zero();
+  }
+  if (pending_timer_transmission_count_ > 0) {
+    // Do not set the timer if there is any credit left.
     return QuicTime::Zero();
   }
   if (!fix_rto_retransmission_ &&
@@ -1044,6 +1063,13 @@ const QuicTime QuicSentPacketManager::GetRetransmissionTime() const {
       return std::max(tlp_time, rto_time);
     }
     case PTO_MODE: {
+      if (handshake_mode_disabled_ && !handshake_confirmed_ &&
+          !unacked_packets_.HasInFlightPackets()) {
+        DCHECK_EQ(Perspective::IS_CLIENT, unacked_packets_.perspective());
+        return std::max(clock_->ApproximateNow(),
+                        unacked_packets_.GetLastCryptoPacketSentTime() +
+                            GetProbeTimeoutDelay());
+      }
       // Ensure PTO never gets set to a time in the past.
       return std::max(
           clock_->ApproximateNow(),

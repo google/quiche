@@ -177,6 +177,11 @@ struct QUIC_EXPORT_PRIVATE ParsedQuicVersion {
   // connection ID lengths as described in draft-ietf-quic-invariants-06 and
   // draft-ietf-quic-transport-22.
   bool HasLengthPrefixedConnectionIds() const;
+
+  // Returns whether this version supports IETF style anti-amplification limit,
+  // i.e., server will send no more than FLAGS_quic_anti_amplification_factor
+  // times received bytes until address can be validated.
+  bool SupportsAntiAmplificationLimit() const;
 };
 
 QUIC_EXPORT_PRIVATE ParsedQuicVersion UnsupportedQuicVersion();

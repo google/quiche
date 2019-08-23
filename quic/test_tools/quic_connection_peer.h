@@ -133,6 +133,8 @@ class QuicConnectionPeer {
       QuicConnection* connection);
   static void SetLastHeaderFormat(QuicConnection* connection,
                                   PacketHeaderFormat format);
+  static void AddBytesReceived(QuicConnection* connection, size_t length);
+  static void SetAddressValidated(QuicConnection* connection);
 };
 
 }  // namespace test

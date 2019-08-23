@@ -79,6 +79,11 @@ bool ParsedQuicVersion::HasLengthPrefixedConnectionIds() const {
   return VersionHasLengthPrefixedConnectionIds(transport_version);
 }
 
+bool ParsedQuicVersion::SupportsAntiAmplificationLimit() const {
+  return transport_version == QUIC_VERSION_99 &&
+         handshake_protocol == PROTOCOL_TLS1_3;
+}
+
 bool VersionHasLengthPrefixedConnectionIds(
     QuicTransportVersion transport_version) {
   return transport_version >= QUIC_VERSION_99;

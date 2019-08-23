@@ -1131,6 +1131,12 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Whether incoming_connection_ids_ contains connection_id.
   bool HasIncomingConnectionId(QuicConnectionId connection_id);
 
+  // Whether connection enforces anti-amplification limit.
+  bool EnforceAntiAmplificationLimit() const;
+
+  // Whether connection is limited by amplification factor.
+  bool LimitedByAmplificationFactor() const;
+
   QuicFramer framer_;
 
   // Contents received in the current packet, especially used to identify
@@ -1440,6 +1446,20 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // If max_consecutive_ptos_ > 0, close connection if consecutive PTOs is
   // greater than max_consecutive_ptos.
   size_t max_consecutive_ptos_;
+
+  // Bytes received before address validation. Only used when
+  // EnforceAntiAmplificationLimit returns true.
+  size_t bytes_received_before_address_validation_;
+
+  // Bytes sent before address validation. Only used when
+  // EnforceAntiAmplificationLimit returns true.
+  size_t bytes_sent_before_address_validation_;
+
+  // True if peer address has been validated. Address is considered validated
+  // when 1) an address token is received and validated, or 2) a HANDSHAKE
+  // packet has been successfully processed. Only used when
+  // EnforceAntiAmplificationLimit returns true.
+  bool address_validated_;
 };
 
 }  // namespace quic

@@ -322,7 +322,10 @@ QuicConnection::QuicConnection(
       supports_release_time_(false),
       release_time_into_future_(QuicTime::Delta::Zero()),
       retry_has_been_parsed_(false),
-      max_consecutive_ptos_(0) {
+      max_consecutive_ptos_(0),
+      bytes_received_before_address_validation_(0),
+      bytes_sent_before_address_validation_(0),
+      address_validated_(false) {
   QUIC_DLOG(INFO) << ENDPOINT << "Created connection with server connection ID "
                   << server_connection_id
                   << " and version: " << ParsedQuicVersionToString(version());
@@ -765,6 +768,11 @@ bool QuicConnection::OnUnauthenticatedHeader(const QuicPacketHeader& header) {
 void QuicConnection::OnDecryptedPacket(EncryptionLevel level) {
   last_decrypted_packet_level_ = level;
   last_packet_decrypted_ = true;
+  if (EnforceAntiAmplificationLimit() &&
+      last_decrypted_packet_level_ >= ENCRYPTION_HANDSHAKE) {
+    // Address is validated by successfully processing a HANDSHAKE packet.
+    address_validated_ = true;
+  }
 
   // Once the server receives a forward secure packet, the handshake is
   // confirmed.
@@ -1517,7 +1525,9 @@ size_t QuicConnection::SendCryptoData(EncryptionLevel level,
     QUIC_BUG << "Attempt to send empty crypto frame";
     return 0;
   }
-
+  if (!ShouldGeneratePacket(HAS_RETRANSMITTABLE_DATA, IS_HANDSHAKE)) {
+    return 0;
+  }
   ScopedPacketFlusher flusher(this);
   return packet_generator_.ConsumeCryptoData(level, write_length, offset);
 }
@@ -1543,7 +1553,11 @@ QuicConsumedData QuicConnection::SendStreamData(QuicStreamId id,
 bool QuicConnection::SendControlFrame(const QuicFrame& frame) {
   if (SupportsMultiplePacketNumberSpaces() &&
       (encryption_level_ == ENCRYPTION_INITIAL ||
-       encryption_level_ == ENCRYPTION_HANDSHAKE)) {
+       encryption_level_ == ENCRYPTION_HANDSHAKE) &&
+      frame.type != PING_FRAME) {
+    // Allow PING frame to be sent without APPLICATION key. For example, when
+    // anti-amplification limit is used, client needs to send something to avoid
+    // handshake deadlock.
     QUIC_DVLOG(1) << ENDPOINT << "Failed to send control frame: " << frame
                   << " at encryption level: "
                   << QuicUtils::EncryptionLevelToString(encryption_level_);
@@ -1713,6 +1727,9 @@ void QuicConnection::ProcessUdpPacket(const QuicSocketAddress& self_address,
 
   stats_.bytes_received += packet.length();
   ++stats_.packets_received;
+  if (EnforceAntiAmplificationLimit()) {
+    bytes_received_before_address_validation_ += last_size_;
+  }
 
   // Ensure the time coming from the packet reader is within 2 minutes of now.
   if (std::abs((packet.receipt_time() - clock_->ApproximateNow()).ToSeconds()) >
@@ -2032,6 +2049,11 @@ bool QuicConnection::ShouldGeneratePacket(
   // We should serialize handshake packets immediately to ensure that they
   // end up sent at the right encryption level.
   if (handshake == IS_HANDSHAKE) {
+    if (LimitedByAmplificationFactor()) {
+      // Server is constrained by the amplification restriction.
+      QUIC_DVLOG(1) << ENDPOINT << "Constrained by amplification restriction";
+      return false;
+    }
     return true;
   }
 
@@ -2252,11 +2274,16 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
   QUIC_DVLOG(1) << ENDPOINT << "time we began writing last sent packet: "
                 << packet_send_time.ToDebuggingValue();
 
-  bool reset_retransmission_alarm = sent_packet_manager_.OnPacketSent(
+  if (EnforceAntiAmplificationLimit()) {
+    // Include bytes sent even if they are not in flight.
+    bytes_sent_before_address_validation_ += packet->encrypted_length;
+  }
+
+  const bool in_flight = sent_packet_manager_.OnPacketSent(
       packet, packet->original_packet_number, packet_send_time,
       packet->transmission_type, IsRetransmittable(*packet));
 
-  if (reset_retransmission_alarm || !retransmission_alarm_->IsSet()) {
+  if (in_flight || !retransmission_alarm_->IsSet()) {
     SetRetransmissionAlarm();
   }
   SetPingAlarm();
@@ -2497,7 +2524,9 @@ void QuicConnection::OnPathDegradingTimeout() {
 }
 
 void QuicConnection::OnRetransmissionTimeout() {
-  DCHECK(!sent_packet_manager_.unacked_packets().empty());
+  DCHECK(!sent_packet_manager_.unacked_packets().empty() ||
+         (sent_packet_manager_.handshake_mode_disabled() &&
+          !sent_packet_manager_.handshake_confirmed()));
   const QuicPacketNumber previous_created_packet_number =
       packet_generator_.packet_number();
   if (close_connection_after_five_rtos_ &&
@@ -2993,8 +3022,14 @@ void QuicConnection::SetRetransmissionAlarm() {
     pending_retransmission_alarm_ = true;
     return;
   }
-  QuicTime retransmission_time = sent_packet_manager_.GetRetransmissionTime();
-  retransmission_alarm_->Update(retransmission_time,
+  if (LimitedByAmplificationFactor()) {
+    // Do not set retransmission timer if connection is anti-amplification limit
+    // throttled. Otherwise, nothing can be sent when timer fires.
+    retransmission_alarm_->Cancel();
+    return;
+  }
+
+  retransmission_alarm_->Update(sent_packet_manager_.GetRetransmissionTime(),
                                 QuicTime::Delta::FromMilliseconds(1));
 }
 
@@ -3517,6 +3552,9 @@ void QuicConnection::MaybeEnableSessionDecidesWhatToWrite() {
       transport_version() > QUIC_VERSION_39;
   sent_packet_manager_.SetSessionDecideWhatToWrite(
       enable_session_decides_what_to_write);
+  if (version().SupportsAntiAmplificationLimit()) {
+    sent_packet_manager_.DisableHandshakeMode();
+  }
   packet_generator_.SetCanSetTransmissionType(
       enable_session_decides_what_to_write);
 }
@@ -3763,6 +3801,18 @@ QuicPacketNumber QuicConnection::GetLargestAckedPacket() const {
 QuicPacketNumber QuicConnection::GetLargestReceivedPacket() const {
   return uber_received_packet_manager_.GetLargestObserved(
       last_decrypted_packet_level_);
+}
+
+bool QuicConnection::EnforceAntiAmplificationLimit() const {
+  return version().SupportsAntiAmplificationLimit() &&
+         perspective_ == Perspective::IS_SERVER && !address_validated_;
+}
+
+bool QuicConnection::LimitedByAmplificationFactor() const {
+  return EnforceAntiAmplificationLimit() &&
+         bytes_sent_before_address_validation_ >=
+             GetQuicFlag(FLAGS_quic_anti_amplification_factor) *
+                 bytes_received_before_address_validation_;
 }
 
 size_t QuicConnection::min_received_before_ack_decimation() const {

@@ -332,5 +332,18 @@ void QuicConnectionPeer::SetLastHeaderFormat(QuicConnection* connection,
   connection->last_header_.form = format;
 }
 
+// static
+void QuicConnectionPeer::AddBytesReceived(QuicConnection* connection,
+                                          size_t length) {
+  if (connection->EnforceAntiAmplificationLimit()) {
+    connection->bytes_received_before_address_validation_ += length;
+  }
+}
+
+// static
+void QuicConnectionPeer::SetAddressValidated(QuicConnection* connection) {
+  connection->address_validated_ = true;
+}
+
 }  // namespace test
 }  // namespace quic

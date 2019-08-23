@@ -3090,6 +3090,50 @@ TEST_P(QuicSentPacketManagerTest, SendOneProbePacket) {
   manager_.MaybeSendProbePackets();
 }
 
+TEST_P(QuicSentPacketManagerTest, DisableHandshakeModeClient) {
+  QuicSentPacketManagerPeer::SetPerspective(&manager_, Perspective::IS_CLIENT);
+  manager_.SetSessionDecideWhatToWrite(true);
+  manager_.DisableHandshakeMode();
+  // Send CHLO.
+  SendCryptoPacket(1);
+  EXPECT_NE(QuicTime::Zero(), manager_.GetRetransmissionTime());
+  // Ack packet 1.
+  ExpectAck(1);
+  manager_.OnAckFrameStart(QuicPacketNumber(1), QuicTime::Delta::Infinite(),
+                           clock_.Now());
+  manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(2));
+  EXPECT_EQ(PACKETS_NEWLY_ACKED,
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
+                                   ENCRYPTION_INITIAL));
+  EXPECT_EQ(0u, manager_.GetBytesInFlight());
+  // Verify retransmission timeout is not zero because handshake is not
+  // confirmed although there is no in flight packet.
+  EXPECT_NE(QuicTime::Zero(), manager_.GetRetransmissionTime());
+  // Fire PTO.
+  EXPECT_EQ(QuicSentPacketManager::PTO_MODE,
+            manager_.OnRetransmissionTimeout());
+}
+
+TEST_P(QuicSentPacketManagerTest, DisableHandshakeModeServer) {
+  manager_.SetSessionDecideWhatToWrite(true);
+  manager_.DisableHandshakeMode();
+  // Send SHLO.
+  SendCryptoPacket(1);
+  EXPECT_NE(QuicTime::Zero(), manager_.GetRetransmissionTime());
+  // Ack packet 1.
+  ExpectAck(1);
+  manager_.OnAckFrameStart(QuicPacketNumber(1), QuicTime::Delta::Infinite(),
+                           clock_.Now());
+  manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(2));
+  EXPECT_EQ(PACKETS_NEWLY_ACKED,
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
+                                   ENCRYPTION_INITIAL));
+  EXPECT_EQ(0u, manager_.GetBytesInFlight());
+  // Verify retransmission timeout is not set on server side because there is
+  // nothing in flight.
+  EXPECT_EQ(QuicTime::Zero(), manager_.GetRetransmissionTime());
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

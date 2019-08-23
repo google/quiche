@@ -667,6 +667,12 @@ class TestConnection : public QuicConnection {
     if (!QuicUtils::IsCryptoStreamId(transport_version(), id) &&
         this->encryption_level() == ENCRYPTION_INITIAL) {
       this->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+      if (perspective() == Perspective::IS_CLIENT && !IsHandshakeConfirmed()) {
+        OnHandshakeComplete();
+      }
+      if (version().SupportsAntiAmplificationLimit()) {
+        QuicConnectionPeer::SetAddressValidated(this);
+      }
     }
     struct iovec iov;
     MakeIOVector(data, &iov);
@@ -821,6 +827,16 @@ class TestConnection : public QuicConnection {
 
   void ReturnEffectivePeerAddressForNextPacket(const QuicSocketAddress& addr) {
     next_effective_peer_addr_ = QuicMakeUnique<QuicSocketAddress>(addr);
+  }
+
+  bool PtoEnabled() {
+    if (QuicConnectionPeer::GetSentPacketManager(this)->pto_enabled()) {
+      // PTO mode is default enabled for T099. And TLP/RTO related tests are
+      // stale.
+      DCHECK_EQ(ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_99), version());
+      return true;
+    }
+    return false;
   }
 
   SimpleDataProducer* producer() { return &producer_; }
@@ -1215,6 +1231,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     } else {
       frames.push_back(QuicFrame(frame1_));
     }
+    frames.push_back(QuicFrame(QuicPaddingFrame(-1)));
     std::unique_ptr<QuicPacket> packet = ConstructPacket(header, frames);
     char buffer[kMaxOutgoingPacketSize];
     peer_creator_.set_encryption_level(ENCRYPTION_INITIAL);
@@ -3620,6 +3637,9 @@ TEST_P(QuicConnectionTest, RetransmitNackedLargestObserved) {
 }
 
 TEST_P(QuicConnectionTest, QueueAfterTwoRTOs) {
+  if (connection_.PtoEnabled()) {
+    return;
+  }
   connection_.SetMaxTailLossProbes(0);
 
   for (int i = 0; i < 10; ++i) {
@@ -3957,7 +3977,8 @@ TEST_P(QuicConnectionTest, TLP) {
 }
 
 TEST_P(QuicConnectionTest, TailLossProbeDelayForStreamDataInTLPR) {
-  if (!connection_.session_decides_what_to_write()) {
+  if (!connection_.session_decides_what_to_write() ||
+      connection_.PtoEnabled()) {
     return;
   }
 
@@ -3992,7 +4013,8 @@ TEST_P(QuicConnectionTest, TailLossProbeDelayForStreamDataInTLPR) {
 }
 
 TEST_P(QuicConnectionTest, TailLossProbeDelayForNonStreamDataInTLPR) {
-  if (!connection_.session_decides_what_to_write()) {
+  if (!connection_.session_decides_what_to_write() ||
+      connection_.PtoEnabled()) {
     return;
   }
 
@@ -4133,6 +4155,9 @@ TEST_P(QuicConnectionTest, TailLossProbeDelayForNonStreamDataInTLPR) {
 }
 
 TEST_P(QuicConnectionTest, RTO) {
+  if (connection_.PtoEnabled()) {
+    return;
+  }
   connection_.SetMaxTailLossProbes(0);
 
   QuicTime default_retransmission_time =
@@ -4154,7 +4179,8 @@ TEST_P(QuicConnectionTest, RTO) {
 
 // Regression test of b/133771183.
 TEST_P(QuicConnectionTest, RtoWithNoDataToRetransmit) {
-  if (!connection_.session_decides_what_to_write()) {
+  if (!connection_.session_decides_what_to_write() ||
+      connection_.PtoEnabled()) {
     return;
   }
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
@@ -4348,6 +4374,9 @@ TEST_P(QuicConnectionTest, BufferNonDecryptablePackets) {
 }
 
 TEST_P(QuicConnectionTest, TestRetransmitOrder) {
+  if (connection_.PtoEnabled()) {
+    return;
+  }
   connection_.SetMaxTailLossProbes(0);
 
   QuicByteCount first_packet_size;
@@ -4433,6 +4462,9 @@ TEST_P(QuicConnectionTest, SetRTOAfterWritingToSocket) {
 }
 
 TEST_P(QuicConnectionTest, DelayRTOWithAckReceipt) {
+  if (connection_.PtoEnabled()) {
+    return;
+  }
   connection_.SetMaxTailLossProbes(0);
 
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
@@ -5136,6 +5168,9 @@ TEST_P(QuicConnectionTest, TimeoutAfterSend) {
 }
 
 TEST_P(QuicConnectionTest, TimeoutAfterRetransmission) {
+  if (connection_.PtoEnabled()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   EXPECT_TRUE(connection_.connected());
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
@@ -5286,6 +5321,9 @@ TEST_P(QuicConnectionTest, NewTimeoutAfterSendSilentClose) {
 }
 
 TEST_P(QuicConnectionTest, TimeoutAfterSendSilentCloseAndTLP) {
+  if (connection_.PtoEnabled()) {
+    return;
+  }
   // Same test as above, but complete a handshake which enables silent close,
   // but sending TLPs causes the connection close to be sent.
   EXPECT_TRUE(connection_.connected());
@@ -5512,6 +5550,9 @@ TEST_P(QuicConnectionTest, TimeoutAfterReceiveNotSendWhenUnacked) {
 }
 
 TEST_P(QuicConnectionTest, TimeoutAfter5ClientRTOs) {
+  if (connection_.PtoEnabled()) {
+    return;
+  }
   connection_.SetMaxTailLossProbes(2);
   EXPECT_TRUE(connection_.connected());
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
@@ -6901,6 +6942,9 @@ TEST_P(QuicConnectionTest, BadVersionNegotiation) {
 }
 
 TEST_P(QuicConnectionTest, CheckSendStats) {
+  if (connection_.PtoEnabled()) {
+    return;
+  }
   connection_.SetMaxTailLossProbes(0);
 
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _));
@@ -8838,7 +8882,8 @@ TEST_P(QuicConnectionTest, TlpAndWriteBlocked) {
 // Regresstion test for b/139375344.
 TEST_P(QuicConnectionTest, RtoForcesSendingPing) {
   if (!QuicConnectionPeer::GetSentPacketManager(&connection_)
-           ->fix_rto_retransmission()) {
+           ->fix_rto_retransmission() ||
+      connection_.PtoEnabled()) {
     return;
   }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
@@ -8988,6 +9033,91 @@ TEST_P(QuicConnectionTest, CloseConnectionAfter8ClientPTOs) {
   EXPECT_FALSE(connection_.GetTimeoutAlarm()->IsSet());
   EXPECT_FALSE(connection_.connected());
   TestConnectionCloseQuicErrorCode(QUIC_TOO_MANY_RTOS);
+}
+
+TEST_P(QuicConnectionTest, DeprecateHandshakeMode) {
+  if (!connection_.version().SupportsAntiAmplificationLimit()) {
+    return;
+  }
+  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
+  EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
+
+  // Send CHLO.
+  connection_.SendCryptoStreamData();
+  EXPECT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
+
+  EXPECT_CALL(*loss_algorithm_, DetectLosses(_, _, _, _, _, _));
+  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
+  QuicAckFrame frame1 = InitAckFrame(1);
+  // Received ACK for packet 1.
+  ProcessFramePacketAtLevel(1, QuicFrame(&frame1), ENCRYPTION_INITIAL);
+
+  // Verify retransmission alarm is still set because handshake is not
+  // confirmed although there is nothing in flight.
+  EXPECT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
+  EXPECT_EQ(0u, connection_.GetStats().pto_count);
+  EXPECT_EQ(0u, connection_.GetStats().crypto_retransmit_count);
+
+  // PTO fires, verify a PING packet gets sent because there is no data to send.
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, QuicPacketNumber(2), _, _));
+  EXPECT_CALL(visitor_, SendPing()).WillOnce(Invoke([this]() { SendPing(); }));
+  connection_.GetRetransmissionAlarm()->Fire();
+  EXPECT_EQ(1u, connection_.GetStats().pto_count);
+  EXPECT_EQ(0u, connection_.GetStats().crypto_retransmit_count);
+  EXPECT_EQ(1u, writer_->ping_frames().size());
+}
+
+TEST_P(QuicConnectionTest, AntiAmplificationLimit) {
+  if (!connection_.version().SupportsAntiAmplificationLimit()) {
+    return;
+  }
+  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
+  EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(AnyNumber());
+
+  set_perspective(Perspective::IS_SERVER);
+  // Verify no data can be sent at the beginning because bytes received is 0.
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
+  connection_.SendCryptoDataWithString("foo", 0);
+  EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
+
+  // Receives packet 1.
+  ProcessCryptoPacketAtLevel(1, ENCRYPTION_INITIAL);
+
+  const size_t anti_amplification_factor =
+      GetQuicFlag(FLAGS_quic_anti_amplification_factor);
+  // Verify now packets can be sent.
+  for (size_t i = 0; i < anti_amplification_factor; ++i) {
+    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
+    connection_.SendCryptoDataWithString("foo", i * 3);
+    // Verify retransmission alarm is not set if throttled by anti-amplification
+    // limit.
+    EXPECT_EQ(i != anti_amplification_factor - 1,
+              connection_.GetRetransmissionAlarm()->IsSet());
+  }
+  // Verify server is throttled by anti-amplification limit.
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
+  connection_.SendCryptoDataWithString("foo", anti_amplification_factor * 3);
+
+  // Receives packet 2.
+  ProcessCryptoPacketAtLevel(2, ENCRYPTION_INITIAL);
+  // Verify more packets can be sent.
+  for (size_t i = anti_amplification_factor; i < anti_amplification_factor * 2;
+       ++i) {
+    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
+    connection_.SendCryptoDataWithString("foo", i * 3);
+  }
+  // Verify server is throttled by anti-amplification limit.
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
+  connection_.SendCryptoDataWithString("foo",
+                                       2 * anti_amplification_factor * 3);
+
+  ProcessPacket(3);
+  // Verify anti-amplification limit is gone after address validation.
+  for (size_t i = 0; i < 100; ++i) {
+    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
+    connection_.SendStreamDataWithString(3, "first", i * 0, NO_FIN);
+  }
 }
 
 }  // namespace
