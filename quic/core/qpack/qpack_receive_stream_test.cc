@@ -55,17 +55,16 @@ class QpackReceiveStreamTest : public QuicTestWithParam<TestParams> {
             SupportedVersions(GetParam().version))),
         session_(connection_) {
     session_.Initialize();
-    // TODO(b/112770235): Remove explicit QPACK stream construction in test once
-    // QPACK streams are created in QuicSpdySession initialization.
-    PendingStream* pending =
-        new PendingStream(QuicUtils::GetFirstUnidirectionalStreamId(
-                              GetParam().version.transport_version,
-                              QuicUtils::InvertPerspective(perspective())),
-                          &session_);
-    auto qpack_receive = QuicMakeUnique<QpackReceiveStream>(pending, nullptr);
-    qpack_receive_stream_ = qpack_receive.get();
-    session_.RegisterStaticStream(std::move(qpack_receive), false);
-    delete pending;
+    QuicStreamId id = perspective() == Perspective::IS_SERVER
+                          ? GetNthClientInitiatedUnidirectionalStreamId(
+                                session_.transport_version(), 3)
+                          : GetNthServerInitiatedUnidirectionalStreamId(
+                                session_.transport_version(), 3);
+    char type[] = {0x03};
+    QuicStreamFrame data1(id, false, 0, QuicStringPiece(type, 1));
+    session_.OnStreamFrame(data1);
+    qpack_receive_stream_ =
+        QuicSpdySessionPeer::GetQpackDecoderReceiveStream(&session_);
   }
 
   Perspective perspective() const { return GetParam().perspective; }

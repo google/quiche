@@ -57,13 +57,8 @@ class QpackSendStreamTest : public QuicTestWithParam<TestParams> {
         session_(connection_) {
     session_.Initialize();
 
-    // TODO(b/112770235): Remove explicit QPACK stream construction in test once
-    // QPACK streams are created in QuicSpdySession initialization.
-    auto qpack_send = QuicMakeUnique<QpackSendStream>(
-        QuicSpdySessionPeer::GetNextOutgoingUnidirectionalStreamId(&session_),
-        &session_, kQpackEncoderStream);
-    qpack_send_stream_ = qpack_send.get();
-    session_.RegisterStaticStream(std::move(qpack_send), false);
+    qpack_send_stream_ =
+        QuicSpdySessionPeer::GetQpackDecoderSendStream(&session_);
 
     ON_CALL(session_, WritevData(_, _, _, _, _))
         .WillByDefault(Invoke(MockQuicSession::ConsumeData));
