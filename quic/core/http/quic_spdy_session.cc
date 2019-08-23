@@ -318,6 +318,9 @@ QuicSpdySession::QuicSpdySession(
       qpack_decoder_receive_stream_(nullptr),
       qpack_encoder_send_stream_(nullptr),
       qpack_decoder_send_stream_(nullptr),
+      qpack_maximum_dynamic_table_capacity_(
+          kDefaultQpackMaxDynamicTableCapacity),
+      qpack_maximum_blocked_streams_(kDefaultMaximumBlockedStreams),
       max_inbound_header_list_size_(kDefaultMaxUncompressedHeaderSize),
       max_outbound_header_list_size_(kDefaultMaxUncompressedHeaderSize),
       server_push_enabled_(true),
@@ -379,12 +382,12 @@ void QuicSpdySession::Initialize() {
   } else {
     qpack_encoder_ = QuicMakeUnique<QpackEncoder>(this);
     qpack_decoder_ =
-        QuicMakeUnique<QpackDecoder>(kDefaultQpackMaxDynamicTableCapacity,
-                                     kDefaultMaximumBlockedStreams, this);
+        QuicMakeUnique<QpackDecoder>(qpack_maximum_dynamic_table_capacity_,
+                                     qpack_maximum_blocked_streams_, this);
     MaybeInitializeHttp3UnidirectionalStreams();
     // TODO(b/112770235): Send SETTINGS_QPACK_MAX_TABLE_CAPACITY with value
-    // kDefaultQpackMaxDynamicTableCapacity, and SETTINGS_QPACK_BLOCKED_STREAMS
-    // with value kDefaultMaximumBlockedStreams.
+    // qpack_maximum_dynamic_table_capacity_, and SETTINGS_QPACK_BLOCKED_STREAMS
+    // with value qpack_maximum_blocked_streams_.
   }
 
   spdy_framer_visitor_->set_max_header_list_size(max_inbound_header_list_size_);
@@ -680,6 +683,8 @@ void QuicSpdySession::OnSetting(uint64_t id, uint64_t value) {
         QUIC_DVLOG(1)
             << "SETTINGS_QPACK_MAX_TABLE_CAPACITY received with value "
             << value;
+        // TODO(b/112770235): Limit value to
+        // qpack_maximum_dynamic_table_capacity_.
         qpack_encoder_->SetMaximumDynamicTableCapacity(value);
         break;
       case SETTINGS_MAX_HEADER_LIST_SIZE:

@@ -155,7 +155,22 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   void CloseConnectionWithDetails(QuicErrorCode error,
                                   const std::string& details);
 
-  // Must be called before Initialize().
+  // Must not be called after Initialize().
+  // TODO(bnc): Move to constructor argument.
+  void set_qpack_maximum_dynamic_table_capacity(
+      uint64_t qpack_maximum_dynamic_table_capacity) {
+    qpack_maximum_dynamic_table_capacity_ =
+        qpack_maximum_dynamic_table_capacity;
+  }
+
+  // Must not be called after Initialize().
+  // TODO(bnc): Move to constructor argument.
+  void set_qpack_maximum_blocked_streams(
+      uint64_t qpack_maximum_blocked_streams) {
+    qpack_maximum_blocked_streams_ = qpack_maximum_blocked_streams;
+  }
+
+  // Must not be called after Initialize().
   // TODO(bnc): Move to constructor argument.
   void set_max_inbound_header_list_size(size_t max_inbound_header_list_size) {
     max_inbound_header_list_size_ = max_inbound_header_list_size;
@@ -302,8 +317,21 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   QpackSendStream* qpack_encoder_send_stream_;
   QpackSendStream* qpack_decoder_send_stream_;
 
+  // Maximum dynamic table capacity as defined at
+  // https://quicwg.org/base-drafts/draft-ietf-quic-qpack.html#maximum-dynamic-table-capacity
+  // for the decoding context.  Value will be sent via
+  // SETTINGS_QPACK_MAX_TABLE_CAPACITY.
+  uint64_t qpack_maximum_dynamic_table_capacity_;
+
+  // Maximum number of blocked streams as defined at
+  // https://quicwg.org/base-drafts/draft-ietf-quic-qpack.html#blocked-streams
+  // for the decoding context.  Value will be sent via
+  // SETTINGS_QPACK_BLOCKED_STREAMS.
+  uint64_t qpack_maximum_blocked_streams_;
+
   // The maximum size of a header block that will be accepted from the peer,
   // defined per spec as key + value + overhead per field (uncompressed).
+  // Value will be sent via SETTINGS_MAX_HEADER_LIST_SIZE.
   size_t max_inbound_header_list_size_;
 
   // The maximum size of a header block that can be sent to the peer. This field
