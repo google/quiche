@@ -78,10 +78,6 @@ class QUIC_EXPORT_PRIVATE QpackEncoder
     return &decoder_stream_receiver_;
   }
 
-  uint64_t maximum_dynamic_table_capacity() const {
-    return header_table_.maximum_dynamic_table_capacity();
-  }
-
  private:
   friend class test::QpackEncoderPeer;
 

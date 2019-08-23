@@ -119,10 +119,6 @@ class QUIC_EXPORT_PRIVATE QpackHeaderTable {
   // The returned index might not be the index of a valid entry.
   uint64_t draining_index(float draining_fraction) const;
 
-  uint64_t maximum_dynamic_table_capacity() const {
-    return maximum_dynamic_table_capacity_;
-  }
-
  private:
   friend class test::QpackHeaderTablePeer;
 
