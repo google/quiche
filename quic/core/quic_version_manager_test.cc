@@ -47,6 +47,7 @@ TEST_F(QuicVersionManagerTest, QuicVersionManager) {
             manager.GetSupportedTransportVersions());
 
   SetQuicReloadableFlag(quic_enable_version_99, true);
+  SetQuicReloadableFlag(quic_use_parse_public_header, true);
   EXPECT_EQ(QuicTransportVersionVector({QUIC_VERSION_99, QUIC_VERSION_48,
                                         QUIC_VERSION_47, QUIC_VERSION_46,
                                         QUIC_VERSION_43, QUIC_VERSION_39}),
