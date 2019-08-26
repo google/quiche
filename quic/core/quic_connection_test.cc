@@ -2030,13 +2030,8 @@ TEST_P(QuicConnectionTest, WriteOutOfOrderQueuedPackets) {
   TestConnectionCloseQuicErrorCode(QUIC_INTERNAL_ERROR);
   const std::vector<QuicConnectionCloseFrame>& connection_close_frames =
       writer_->connection_close_frames();
-  if (VersionHasIetfQuicFrames(version().transport_version)) {
-    EXPECT_EQ("1:Packet written out of order.",
-              connection_close_frames[0].error_details);
-  } else {
-    EXPECT_EQ("Packet written out of order.",
-              connection_close_frames[0].error_details);
-  }
+  EXPECT_EQ("Packet written out of order.",
+            connection_close_frames[0].error_details);
 }
 
 TEST_P(QuicConnectionTest, DiscardQueuedPacketsAfterConnectionClose) {
@@ -7020,11 +7015,27 @@ TEST_P(QuicConnectionTest, ProcessFramesIfPacketClosedConnection) {
   header.packet_number = QuicPacketNumber(1);
   header.version_flag = false;
 
-  QuicConnectionCloseFrame qccf(QUIC_PEER_GOING_AWAY, "");
+  QuicErrorCode kQuicErrorCode = QUIC_PEER_GOING_AWAY;
+  // This QuicConnectionCloseFrame will default to being for a Google QUIC
+  // close. If doing IETF QUIC then set fields appropriately for CC/T or CC/A,
+  // depending on the mapping.
+  QuicConnectionCloseFrame qccf(kQuicErrorCode, "");
   if (VersionHasIetfQuicFrames(peer_framer_.transport_version())) {
-    // Default close-type is Google QUIC. If doing IETF QUIC then
-    // set close type to be IETF CC/T.
-    qccf.close_type = IETF_QUIC_TRANSPORT_CONNECTION_CLOSE;
+    QuicErrorCodeToIetfMapping mapping =
+        QuicErrorCodeToTransportErrorCode(kQuicErrorCode);
+    if (mapping.is_transport_close_) {
+      // Maps to a transport close
+      qccf.close_type = IETF_QUIC_TRANSPORT_CONNECTION_CLOSE;
+      qccf.transport_error_code = mapping.transport_error_code_;
+      // TODO(fkastenholz) need to change "0" to get the frame type currently
+      // being processed so that it can be inserted into the frame.
+      qccf.transport_close_frame_type = 0;
+    } else {
+      // Maps to an application close.
+      qccf.close_type = IETF_QUIC_APPLICATION_CONNECTION_CLOSE;
+      qccf.application_error_code = mapping.application_error_code_;
+    }
+    //    qccf.extracted_error_code = kQuicErrorCode;
   }
 
   QuicFrames frames;
@@ -7047,7 +7058,7 @@ TEST_P(QuicConnectionTest, ProcessFramesIfPacketClosedConnection) {
       QuicReceivedPacket(buffer, encrypted_length, QuicTime::Zero(), false));
   EXPECT_EQ(1, connection_close_frame_count_);
   EXPECT_EQ(QUIC_PEER_GOING_AWAY,
-            saved_connection_close_frame_.quic_error_code);
+            saved_connection_close_frame_.extracted_error_code);
 }
 
 TEST_P(QuicConnectionTest, SelectMutualVersion) {

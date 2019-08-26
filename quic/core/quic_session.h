@@ -343,7 +343,20 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
 
   bool goaway_received() const { return goaway_received_; }
 
-  QuicErrorCode error() const { return error_; }
+  // Returns the Google QUIC error code
+  QuicErrorCode error() const { return on_closed_frame_.extracted_error_code; }
+  uint64_t transport_close_frame_type() const {
+    return on_closed_frame_.transport_close_frame_type;
+  }
+  QuicConnectionCloseType close_type() const {
+    return on_closed_frame_.close_type;
+  }
+  QuicIetfTransportErrorCodes transport_error_code() const {
+    return on_closed_frame_.transport_error_code;
+  }
+  uint16_t application_error_code() const {
+    return on_closed_frame_.application_error_code;
+  }
 
   Perspective perspective() const { return connection_->perspective(); }
 
@@ -519,7 +532,10 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
   void set_largest_peer_created_stream_id(
       QuicStreamId largest_peer_created_stream_id);
 
-  void set_error(QuicErrorCode error) { error_ = error; }
+  void set_error(QuicErrorCode error) {
+    on_closed_frame_.extracted_error_code = error;
+  }
+
   QuicWriteBlockedList* write_blocked_streams() {
     return &write_blocked_streams_;
   }
@@ -687,8 +703,8 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
   // locally_closed_streams_highest_offset_.
   size_t num_locally_closed_incoming_streams_highest_offset_;
 
-  // The latched error with which the connection was closed.
-  QuicErrorCode error_;
+  // Received information for a connection close.
+  QuicConnectionCloseFrame on_closed_frame_;
 
   // Used for connection-level flow control.
   QuicFlowController flow_controller_;

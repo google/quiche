@@ -69,7 +69,7 @@ QuicSession::QuicSession(QuicConnection* connection,
       num_outgoing_static_streams_(0),
       num_incoming_static_streams_(0),
       num_locally_closed_incoming_streams_highest_offset_(0),
-      error_(QUIC_NO_ERROR),
+      on_closed_frame_(QUIC_NO_ERROR, ""),
       flow_controller_(
           this,
           QuicUtils::GetInvalidStreamId(connection->transport_version()),
@@ -397,8 +397,9 @@ void QuicSession::OnConnectionClosed(const QuicConnectionCloseFrame& frame,
     RecordConnectionCloseAtServer(frame.quic_error_code, source);
   }
 
-  if (error_ == QUIC_NO_ERROR) {
-    error_ = frame.quic_error_code;
+  if (on_closed_frame_.extracted_error_code == QUIC_NO_ERROR) {
+    // Save all of the connection close information
+    on_closed_frame_ = frame;
   }
 
   // Copy all non static streams in a new map for the ease of deleting.
@@ -429,8 +430,8 @@ void QuicSession::OnConnectionClosed(const QuicConnectionCloseFrame& frame,
 
   if (visitor_) {
     visitor_->OnConnectionClosed(connection_->connection_id(),
-                                 frame.quic_error_code, frame.error_details,
-                                 source);
+                                 frame.extracted_error_code,
+                                 frame.error_details, source);
   }
 }
 

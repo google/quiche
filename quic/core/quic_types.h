@@ -646,6 +646,20 @@ enum AckResult {
   PACKETS_ACKED_IN_WRONG_PACKET_NUMBER_SPACE,
 };
 
+// There are three different forms of CONNECTION_CLOSE.
+typedef enum QuicConnectionCloseType {
+  GOOGLE_QUIC_CONNECTION_CLOSE = 0,
+  IETF_QUIC_TRANSPORT_CONNECTION_CLOSE = 1,
+  IETF_QUIC_APPLICATION_CONNECTION_CLOSE = 2
+} QuicConnectionCloseType;
+
+QUIC_EXPORT_PRIVATE std::ostream& operator<<(
+    std::ostream& os,
+    const QuicConnectionCloseType type);
+
+QUIC_EXPORT_PRIVATE std::string QuicConnectionCloseTypeString(
+    QuicConnectionCloseType type);
+
 }  // namespace quic
 
 #endif  // QUICHE_QUIC_CORE_QUIC_TYPES_H_

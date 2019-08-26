@@ -454,4 +454,19 @@ std::ostream& operator<<(std::ostream& os, const QuicIetfFrameType& c) {
   return os;
 }
 
+std::string QuicConnectionCloseTypeString(QuicConnectionCloseType type) {
+  switch (type) {
+    RETURN_STRING_LITERAL(GOOGLE_QUIC_CONNECTION_CLOSE);
+    RETURN_STRING_LITERAL(IETF_QUIC_TRANSPORT_CONNECTION_CLOSE);
+    RETURN_STRING_LITERAL(IETF_QUIC_APPLICATION_CONNECTION_CLOSE);
+    default:
+      return QuicStrCat("Unknown: ", static_cast<int>(type));
+      break;
+  }
+}
+std::ostream& operator<<(std::ostream& os, const QuicConnectionCloseType type) {
+  os << QuicConnectionCloseTypeString(type);
+  return os;
+}
+
 }  // namespace quic

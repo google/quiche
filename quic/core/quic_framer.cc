@@ -5782,7 +5782,7 @@ bool QuicFramer::ProcessIetfConnectionCloseFrame(
   // The frame may have an extracted error code in it. Look for it and
   // extract it. If it's not present, MaybeExtract will return
   // QUIC_IETF_GQUIC_ERROR_MISSING.
-  frame->extracted_error_code = MaybeExtractQuicErrorCode(phrase);
+  MaybeExtractQuicErrorCode(frame);
   return true;
 }
 
@@ -6766,14 +6766,25 @@ bool QuicFramer::ParseServerVersionNegotiationProbeResponse(
 // contains additional error information that narrows down the exact error.  If
 // the string is not found, or is not properly formed, it returns
 // ErrorCode::QUIC_IETF_GQUIC_ERROR_MISSING
-QuicErrorCode MaybeExtractQuicErrorCode(QuicStringPiece error_details) {
-  std::vector<QuicStringPiece> ed = QuicTextUtils::Split(error_details, ':');
+void MaybeExtractQuicErrorCode(QuicConnectionCloseFrame* frame) {
+  std::vector<QuicStringPiece> ed =
+      QuicTextUtils::Split(frame->error_details, ':');
   uint64_t extracted_error_code;
   if (ed.size() < 2 || !QuicTextUtils::IsAllDigits(ed[0]) ||
       !QuicTextUtils::StringToUint64(ed[0], &extracted_error_code)) {
-    return QUIC_IETF_GQUIC_ERROR_MISSING;
+    frame->extracted_error_code = QUIC_IETF_GQUIC_ERROR_MISSING;
+    return;
   }
-  return static_cast<QuicErrorCode>(extracted_error_code);
+  // Return the error code (numeric) and the error details string without the
+  // error code prefix. Note that Split returns everything up to, but not
+  // including, the split character, so the length of ed[0] is just the number
+  // of digits in the error number. In removing the prefix, 1 is added to the
+  // length to account for the :
+  QuicStringPiece x = QuicStringPiece(frame->error_details);
+  x.remove_prefix(ed[0].length() + 1);
+  frame->error_details = std::string(x);
+  frame->extracted_error_code =
+      static_cast<QuicErrorCode>(extracted_error_code);
 }
 
 #undef ENDPOINT  // undef for jumbo builds

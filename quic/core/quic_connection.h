@@ -972,6 +972,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   void TearDownLocalConnectionState(QuicErrorCode error,
                                     const std::string& details,
                                     ConnectionCloseSource source);
+  void TearDownLocalConnectionState(const QuicConnectionCloseFrame& frame,
+                                    ConnectionCloseSource source);
 
   // Writes the given packet to socket, encrypted with packet's
   // encryption_level. Returns true on successful write, and false if the writer

@@ -4297,15 +4297,18 @@ TEST_P(QuicFramerTest, ConnectionCloseFrameWithExtractedInfoIgnoreGCuic) {
   EXPECT_EQ(0u, visitor_.stream_frames_.size());
   EXPECT_EQ(0x11u, static_cast<unsigned>(
                        visitor_.connection_close_frame_.quic_error_code));
-  // For this test, all versions have the QuicErrorCode tag
-  EXPECT_EQ("17767:because I can",
-            visitor_.connection_close_frame_.error_details);
+
   if (VersionHasIetfQuicFrames(framer_.transport_version())) {
     EXPECT_EQ(0x1234u,
               visitor_.connection_close_frame_.transport_close_frame_type);
     EXPECT_EQ(17767u, visitor_.connection_close_frame_.extracted_error_code);
+    EXPECT_EQ("because I can", visitor_.connection_close_frame_.error_details);
   } else {
     EXPECT_EQ(0x11u, visitor_.connection_close_frame_.extracted_error_code);
+    // Error code is not prepended in GQUIC, so it is not removed and should
+    // remain in the reason phrase.
+    EXPECT_EQ("17767:because I can",
+              visitor_.connection_close_frame_.error_details);
   }
 
   ASSERT_EQ(0u, visitor_.ack_frames_.size());
@@ -4429,8 +4432,7 @@ TEST_P(QuicFramerTest, ApplicationCloseFrameExtract) {
             visitor_.connection_close_frame_.close_type);
   EXPECT_EQ(17767u, visitor_.connection_close_frame_.extracted_error_code);
   EXPECT_EQ(0x11u, visitor_.connection_close_frame_.quic_error_code);
-  EXPECT_EQ("17767:because I can",
-            visitor_.connection_close_frame_.error_details);
+  EXPECT_EQ("because I can", visitor_.connection_close_frame_.error_details);
 
   ASSERT_EQ(0u, visitor_.ack_frames_.size());
 
@@ -13618,34 +13620,81 @@ TEST_P(QuicFramerTest, TestExtendedErrorCodeParser) {
   if (VersionHasIetfQuicFrames(framer_.transport_version())) {
     return;
   }
+  QuicConnectionCloseFrame frame;
+
+  frame.error_details = "this has no error code info in it";
+  MaybeExtractQuicErrorCode(&frame);
+  EXPECT_EQ(QUIC_IETF_GQUIC_ERROR_MISSING, frame.extracted_error_code);
+  EXPECT_EQ("this has no error code info in it", frame.error_details);
+
+  frame.error_details = "1234this does not have the colon in it";
+  MaybeExtractQuicErrorCode(&frame);
+  EXPECT_EQ(QUIC_IETF_GQUIC_ERROR_MISSING, frame.extracted_error_code);
+  EXPECT_EQ("1234this does not have the colon in it", frame.error_details);
+
+  frame.error_details = "1a234:this has a colon, but a malformed error number";
+  MaybeExtractQuicErrorCode(&frame);
+  EXPECT_EQ(QUIC_IETF_GQUIC_ERROR_MISSING, frame.extracted_error_code);
+  EXPECT_EQ("1a234:this has a colon, but a malformed error number",
+            frame.error_details);
+
+  frame.error_details = "1234:this is good";
+  MaybeExtractQuicErrorCode(&frame);
+  EXPECT_EQ(1234u, frame.extracted_error_code);
+  EXPECT_EQ("this is good", frame.error_details);
+
+  frame.error_details =
+      "1234 :this is not good, space between last digit and colon";
+  MaybeExtractQuicErrorCode(&frame);
+  EXPECT_EQ(QUIC_IETF_GQUIC_ERROR_MISSING, frame.extracted_error_code);
+  EXPECT_EQ("1234 :this is not good, space between last digit and colon",
+            frame.error_details);
+
+  frame.error_details = "123456789";
+  MaybeExtractQuicErrorCode(&frame);
   EXPECT_EQ(QUIC_IETF_GQUIC_ERROR_MISSING,
-            MaybeExtractQuicErrorCode("this has no error code info in it"));
-  EXPECT_EQ(
-      QUIC_IETF_GQUIC_ERROR_MISSING,
-      MaybeExtractQuicErrorCode("1234this does not have the colon in it"));
-  EXPECT_EQ(QUIC_IETF_GQUIC_ERROR_MISSING,
-            MaybeExtractQuicErrorCode(
-                "1a234:this has a colon, but a malformed error number"));
-  EXPECT_EQ(1234u, MaybeExtractQuicErrorCode("1234:this is good"));
-  EXPECT_EQ(QUIC_IETF_GQUIC_ERROR_MISSING,
-            MaybeExtractQuicErrorCode(
-                "1234 :this is not good, space between last digit and colon"));
-  EXPECT_EQ(
-      QUIC_IETF_GQUIC_ERROR_MISSING,
-      MaybeExtractQuicErrorCode("123456789"));  // Not good, all numbers, no :
-  EXPECT_EQ(1234u, MaybeExtractQuicErrorCode("1234:"));  // corner case.
+            frame.extracted_error_code);  // Not good, all numbers, no :
+  EXPECT_EQ("123456789", frame.error_details);
+
+  frame.error_details = "1234:";
+  MaybeExtractQuicErrorCode(&frame);
   EXPECT_EQ(1234u,
-            MaybeExtractQuicErrorCode("1234:5678"));  // another corner case.
+            frame.extracted_error_code);  // corner case.
+  EXPECT_EQ("", frame.error_details);
+
+  frame.error_details = "1234:5678";
+  MaybeExtractQuicErrorCode(&frame);
+  EXPECT_EQ(1234u,
+            frame.extracted_error_code);  // another corner case.
+  EXPECT_EQ("5678", frame.error_details);
+
+  frame.error_details = "12345 6789:";
+  MaybeExtractQuicErrorCode(&frame);
   EXPECT_EQ(QUIC_IETF_GQUIC_ERROR_MISSING,
-            MaybeExtractQuicErrorCode("12345 6789:"));  // Not good
-  EXPECT_EQ(QUIC_IETF_GQUIC_ERROR_MISSING,
-            MaybeExtractQuicErrorCode(":no numbers, is not good"));
-  EXPECT_EQ(QUIC_IETF_GQUIC_ERROR_MISSING,
-            MaybeExtractQuicErrorCode("qwer:also no numbers, is not good"));
-  EXPECT_EQ(QUIC_IETF_GQUIC_ERROR_MISSING,
-            MaybeExtractQuicErrorCode(
-                " 1234:this is not good, space before first digit"));
-  EXPECT_EQ(1234u, MaybeExtractQuicErrorCode("1234:"));  // this is good
+            frame.extracted_error_code);  // Not good
+  EXPECT_EQ("12345 6789:", frame.error_details);
+
+  frame.error_details = ":no numbers, is not good";
+  MaybeExtractQuicErrorCode(&frame);
+  EXPECT_EQ(QUIC_IETF_GQUIC_ERROR_MISSING, frame.extracted_error_code);
+  EXPECT_EQ(":no numbers, is not good", frame.error_details);
+
+  frame.error_details = "qwer:also no numbers, is not good";
+  MaybeExtractQuicErrorCode(&frame);
+  EXPECT_EQ(QUIC_IETF_GQUIC_ERROR_MISSING, frame.extracted_error_code);
+  EXPECT_EQ("qwer:also no numbers, is not good", frame.error_details);
+
+  frame.error_details = " 1234:this is not good, space before first digit";
+  MaybeExtractQuicErrorCode(&frame);
+  EXPECT_EQ(QUIC_IETF_GQUIC_ERROR_MISSING, frame.extracted_error_code);
+  EXPECT_EQ(" 1234:this is not good, space before first digit",
+            frame.error_details);
+
+  frame.error_details = "1234:";
+  MaybeExtractQuicErrorCode(&frame);
+  EXPECT_EQ(1234u,
+            frame.extracted_error_code);  // this is good
+  EXPECT_EQ("", frame.error_details);
 }
 
 }  // namespace

@@ -22,7 +22,7 @@ QuicConnectionCloseFrame::QuicConnectionCloseFrame(QuicErrorCode error_code,
     // Default close type ensures that existing, pre-V99 code works as expected.
     : close_type(GOOGLE_QUIC_CONNECTION_CLOSE),
       quic_error_code(error_code),
-      extracted_error_code(QUIC_IETF_GQUIC_ERROR_MISSING),
+      extracted_error_code(error_code),
       error_details(std::move(error_details)),
       transport_close_frame_type(0) {}
 
@@ -73,24 +73,6 @@ std::ostream& operator<<(
               connection_close_frame.transport_close_frame_type);
   }
   os << "}\n";
-  return os;
-}
-
-std::ostream& operator<<(std::ostream& os, const QuicConnectionCloseType type) {
-  switch (type) {
-    case GOOGLE_QUIC_CONNECTION_CLOSE:
-      os << "GOOGLE_QUIC_CONNECTION_CLOSE";
-      break;
-    case IETF_QUIC_TRANSPORT_CONNECTION_CLOSE:
-      os << "IETF_QUIC_TRANSPORT_CONNECTION_CLOSE";
-      break;
-    case IETF_QUIC_APPLICATION_CONNECTION_CLOSE:
-      os << "IETF_QUIC_APPLICATION_CONNECTION_CLOSE";
-      break;
-    default:
-      os << "Unknown: " << static_cast<int>(type);
-      break;
-  }
   return os;
 }
 
