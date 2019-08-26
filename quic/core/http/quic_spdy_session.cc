@@ -568,6 +568,11 @@ void QuicSpdySession::SendMaxHeaderListSize(size_t value) {
     qpack_decoder_send_stream_->MaybeSendStreamType();
     return;
   }
+  if (GetQuicReloadableFlag(quic_do_not_send_settings)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_do_not_send_settings);
+    return;
+  }
+
   SpdySettingsIR settings_frame;
   settings_frame.AddSetting(SETTINGS_MAX_HEADER_LIST_SIZE, value);
 

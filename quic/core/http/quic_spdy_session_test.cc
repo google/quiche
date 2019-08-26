@@ -417,7 +417,14 @@ TEST_P(QuicSpdySessionTestServer, SelfAddress) {
 }
 
 TEST_P(QuicSpdySessionTestServer, IsCryptoHandshakeConfirmed) {
-  EXPECT_CALL(*connection_, CloseConnection(_, _, _));
+  if (!GetQuicReloadableFlag(quic_do_not_send_settings) ||
+      VersionUsesQpack(transport_version())) {
+    MockPacketWriter* writer = static_cast<MockPacketWriter*>(
+        QuicConnectionPeer::GetWriter(session_.connection()));
+    EXPECT_CALL(*writer, WritePacket(_, _, _, _, _))
+        .Times(1)
+        .WillRepeatedly(Return(WriteResult(WRITE_STATUS_OK, 0)));
+  }
   EXPECT_FALSE(session_.IsCryptoHandshakeConfirmed());
   CryptoHandshakeMessage message;
   session_.GetMutableCryptoStream()->OnHandshakeMessage(message);
@@ -1030,7 +1037,14 @@ TEST_P(QuicSpdySessionTestServer, ServerReplyToConnecitivityProbe) {
 }
 
 TEST_P(QuicSpdySessionTestServer, IncreasedTimeoutAfterCryptoHandshake) {
-  EXPECT_CALL(*connection_, CloseConnection(_, _, _));
+  if (!GetQuicReloadableFlag(quic_do_not_send_settings) ||
+      VersionUsesQpack(transport_version())) {
+    MockPacketWriter* writer = static_cast<MockPacketWriter*>(
+        QuicConnectionPeer::GetWriter(session_.connection()));
+    EXPECT_CALL(*writer, WritePacket(_, _, _, _, _))
+        .Times(1)
+        .WillRepeatedly(Return(WriteResult(WRITE_STATUS_OK, 0)));
+  }
   EXPECT_EQ(kInitialIdleTimeoutSecs + 3,
             QuicConnectionPeer::GetNetworkTimeout(connection_).ToSeconds());
   CryptoHandshakeMessage msg;
