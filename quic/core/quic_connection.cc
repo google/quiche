@@ -778,9 +778,7 @@ void QuicConnection::OnDecryptedPacket(EncryptionLevel level) {
   // confirmed.
   if (level == ENCRYPTION_FORWARD_SECURE &&
       perspective_ == Perspective::IS_SERVER) {
-    sent_packet_manager_.SetHandshakeConfirmed();
-    // This may have changed the retransmission timer, so re-arm it.
-    SetRetransmissionAlarm();
+    OnHandshakeComplete();
   }
 }
 
@@ -3716,6 +3714,7 @@ EncryptionLevel QuicConnection::GetConnectionCloseEncryptionLevel() const {
 void QuicConnection::SendAllPendingAcks() {
   DCHECK(SupportsMultiplePacketNumberSpaces());
   QUIC_DVLOG(1) << ENDPOINT << "Trying to send all pending ACKs";
+  ack_alarm_->Cancel();
   // Latches current encryption level.
   const EncryptionLevel current_encryption_level = encryption_level_;
   for (int8_t i = INITIAL_DATA; i <= APPLICATION_DATA; ++i) {

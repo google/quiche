@@ -317,6 +317,9 @@ class TlsHandshakerTest : public QuicTest {
 };
 
 TEST_F(TlsHandshakerTest, CryptoHandshake) {
+  EXPECT_FALSE(client_conn_->IsHandshakeConfirmed());
+  EXPECT_FALSE(server_conn_->IsHandshakeConfirmed());
+
   EXPECT_CALL(*client_conn_, CloseConnection(_, _, _)).Times(0);
   EXPECT_CALL(*server_conn_, CloseConnection(_, _, _)).Times(0);
   EXPECT_CALL(client_session_,
@@ -332,6 +335,8 @@ TEST_F(TlsHandshakerTest, CryptoHandshake) {
   EXPECT_TRUE(client_stream_->encryption_established());
   EXPECT_TRUE(server_stream_->handshake_confirmed());
   EXPECT_TRUE(server_stream_->encryption_established());
+  EXPECT_TRUE(client_conn_->IsHandshakeConfirmed());
+  EXPECT_FALSE(server_conn_->IsHandshakeConfirmed());
 }
 
 TEST_F(TlsHandshakerTest, HandshakeWithAsyncProofSource) {

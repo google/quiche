@@ -533,9 +533,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // ack_frame().
   const QuicFrame GetUpdatedAckFrame();
 
-  // Called by the crypto stream when the handshake completes. In the server's
-  // case this is when the SHLO has been ACKed. Clients call this on receipt of
-  // the SHLO.
+  // Called when the handshake completes. On the client side, handshake
+  // completes on receipt of SHLO. On the server side, handshake completes when
+  // SHLO gets ACKed (or a forward secure packet gets decrypted successfully).
+  // TODO(fayang): Add a guard that this only gets called once.
   void OnHandshakeComplete();
 
   // Accessors

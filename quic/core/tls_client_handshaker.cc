@@ -303,6 +303,7 @@ void TlsClientHandshaker::FinishHandshake() {
   handshake_confirmed_ = true;
   session()->OnCryptoHandshakeEvent(QuicSession::ENCRYPTION_ESTABLISHED);
   session()->OnCryptoHandshakeEvent(QuicSession::HANDSHAKE_CONFIRMED);
+  session()->connection()->OnHandshakeComplete();
 }
 
 enum ssl_verify_result_t TlsClientHandshaker::VerifyCert(uint8_t* out_alert) {
