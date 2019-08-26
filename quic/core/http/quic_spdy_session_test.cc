@@ -1724,8 +1724,6 @@ TEST_P(QuicSpdySessionTestClient, TooLargeHeadersMustNotCauseWriteAfterReset) {
     return;
   }
 
-  SetQuicReloadableFlag(quic_avoid_empty_frame_after_empty_headers, true);
-
   TestStream* stream = session_.CreateOutgoingBidirectionalStream();
 
   // Write headers with FIN set to close write side of stream.
