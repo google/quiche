@@ -10,13 +10,14 @@
 namespace quic {
 
 // Returns a UDP port that is currently unused.  Check-fails if none are
-// available.
-inline int QuicPickUnusedPortOrDie() {
-  return QuicPickUnusedPortOrDieImpl();
+// available. May return 0 in which case the bind() call will cause the OS
+// to use an unused port.
+inline int QuicPickServerPortForTestsOrDie() {
+  return QuicPickServerPortForTestsOrDieImpl();
 }
 
 // Indicates that a specified port previously returned by
-// QuicPickUnusedPortOrDie is no longer used.
+// QuicPickServerPortForTestsOrDie is no longer used.
 inline void QuicRecyclePort(int port) {
   return QuicRecyclePortImpl(port);
 }

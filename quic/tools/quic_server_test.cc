@@ -86,11 +86,13 @@ class TestQuicServer : public QuicServer {
 class QuicServerEpollInTest : public QuicTest {
  public:
   QuicServerEpollInTest()
-      : port_(QuicPickUnusedPortOrDie()),
+      : port_(QuicPickServerPortForTestsOrDie()),
         server_address_(TestLoopback(), port_) {}
 
   void StartListening() {
     server_.CreateUDPSocketAndListen(server_address_);
+    server_address_ = QuicSocketAddress(server_address_.host(), server_.port());
+
     ASSERT_TRUE(QuicServerPeer::SetSmallSocket(&server_));
 
     if (!server_.overflow_supported()) {

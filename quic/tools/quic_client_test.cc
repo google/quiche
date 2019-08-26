@@ -65,7 +65,7 @@ class QuicClientTest : public QuicTest {
   // Creates a new QuicClient and Initializes it on an unused port.
   // Caller is responsible for deletion.
   std::unique_ptr<QuicClient> CreateAndInitializeQuicClient() {
-    uint16_t port = QuicPickUnusedPortOrDie();
+    uint16_t port = QuicPickServerPortForTestsOrDie();
     QuicSocketAddress server_address(QuicSocketAddress(TestLoopback(), port));
     QuicServerId server_id("hostname", server_address.port(), false);
     ParsedQuicVersionVector versions = AllSupportedVersions();
@@ -85,7 +85,6 @@ TEST_F(QuicClientTest, DoNotLeakSocketFDs) {
   // port exhaustion in long running processes which repeatedly create clients.
 
   // Record the initial number of FDs.
-
   size_t number_of_open_fds = NumOpenSocketFDs();
 
   // Create a number of clients, initialize them, and verify this has resulted

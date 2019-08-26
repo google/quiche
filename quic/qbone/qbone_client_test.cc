@@ -208,7 +208,8 @@ class QboneTestClient : public QboneClient {
 TEST(QboneClientTest, SendDataFromClient) {
   SetQuicReloadableFlag(quic_use_parse_public_header, true);
   auto server = new QboneTestServer(crypto_test_utils::ProofSourceForTesting());
-  QuicSocketAddress server_address(TestLoopback(), QuicPickUnusedPortOrDie());
+  QuicSocketAddress server_address(TestLoopback(),
+                                   QuicPickServerPortForTestsOrDie());
   ServerThread server_thread(server, server_address);
   server_thread.Initialize();
   server_thread.Start();

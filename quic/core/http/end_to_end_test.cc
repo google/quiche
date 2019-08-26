@@ -225,8 +225,8 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
   EndToEndTest()
       : initialized_(false),
         connect_to_server_on_initialize_(true),
-        server_address_(
-            QuicSocketAddress(TestLoopback(), QuicPickUnusedPortOrDie())),
+        server_address_(QuicSocketAddress(TestLoopback(),
+                                          QuicPickServerPortForTestsOrDie())),
         server_hostname_("test.example.com"),
         client_writer_(nullptr),
         server_writer_(nullptr),
@@ -416,6 +416,8 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
       server_thread_->server()->SetPreSharedKey(pre_shared_key_server_);
     }
     server_thread_->Initialize();
+    server_address_ =
+        QuicSocketAddress(server_address_.host(), server_thread_->GetPort());
     QuicDispatcher* dispatcher =
         QuicServerPeer::GetDispatcher(server_thread_->server());
     QuicDispatcherPeer::UseWriter(dispatcher, server_writer_);

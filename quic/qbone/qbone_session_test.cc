@@ -251,7 +251,8 @@ class QboneSessionTest : public QuicTest {
         QuicMakeUnique<DataSavingQboneControlHandler<QboneClientRequest>>();
     server_handler_ =
         QuicMakeUnique<DataSavingQboneControlHandler<QboneServerRequest>>();
-    QuicSocketAddress server_address(TestLoopback(), QuicPickUnusedPortOrDie());
+    QuicSocketAddress server_address(TestLoopback(),
+                                     QuicPickServerPortForTestsOrDie());
     QuicSocketAddress client_address;
     if (server_address.host().address_family() == IpAddressFamily::IP_V4) {
       client_address = QuicSocketAddress(QuicIpAddress::Any4(), 0);
