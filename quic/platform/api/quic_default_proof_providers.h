@@ -13,11 +13,12 @@
 
 namespace quic {
 
-// Provides a default proof verifier.  The verifier has to do a good faith
-// attempt at verifying the certificate against a reasonable root store, and not
-// just always return success.
-inline std::unique_ptr<ProofVerifier> CreateDefaultProofVerifier() {
-  return CreateDefaultProofVerifierImpl();
+// Provides a default proof verifier that can verify a cert chain for |host|.
+// The verifier has to do a good faith attempt at verifying the certificate
+// against a reasonable root store, and not just always return success.
+inline std::unique_ptr<ProofVerifier> CreateDefaultProofVerifier(
+    const std::string& host) {
+  return CreateDefaultProofVerifierImpl(host);
 }
 
 // Provides a default proof source for CLI-based tools.  The actual certificates

@@ -216,7 +216,7 @@ int QuicToyClient::SendRequestsAndPrintResponses(
   if (GetQuicFlag(FLAGS_disable_certificate_verification)) {
     proof_verifier = quic::QuicMakeUnique<FakeProofVerifier>();
   } else {
-    proof_verifier = quic::CreateDefaultProofVerifier();
+    proof_verifier = quic::CreateDefaultProofVerifier(url.host());
   }
 
   // Build the client, and try to connect.
