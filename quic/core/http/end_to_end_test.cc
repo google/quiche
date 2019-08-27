@@ -1709,10 +1709,7 @@ TEST_P(EndToEndTest, SetIndependentMaxIncomingDynamicStreamsLimits) {
       VersionHasIetfQuicFrames(
           client_session->connection()->transport_version())
           ? QuicSessionPeer::v99_streamid_manager(client_session)
-                    ->max_allowed_outgoing_bidirectional_streams() -
-                QuicSessionPeer::v99_bidirectional_stream_id_manager(
-                    client_session)
-                    ->outgoing_static_stream_count()
+                ->max_allowed_outgoing_bidirectional_streams()
           : QuicSessionPeer::GetStreamIdManager(client_session)
                 ->max_open_outgoing_streams();
   size_t client_max_open_outgoing_unidirectional_streams =
@@ -1720,9 +1717,7 @@ TEST_P(EndToEndTest, SetIndependentMaxIncomingDynamicStreamsLimits) {
           client_session->connection()->transport_version())
           ? QuicSessionPeer::v99_streamid_manager(client_session)
                     ->max_allowed_outgoing_unidirectional_streams() -
-                QuicSessionPeer::v99_unidirectional_stream_id_manager(
-                    client_session)
-                    ->outgoing_static_stream_count()
+                client_session->num_expected_unidirectional_static_streams()
           : QuicSessionPeer::GetStreamIdManager(client_session)
                 ->max_open_outgoing_streams();
   EXPECT_EQ(kServerMaxIncomingDynamicStreams,
@@ -1743,9 +1738,7 @@ TEST_P(EndToEndTest, SetIndependentMaxIncomingDynamicStreamsLimits) {
           server_session->connection()->transport_version())
           ? QuicSessionPeer::v99_streamid_manager(server_session)
                     ->max_allowed_outgoing_unidirectional_streams() -
-                QuicSessionPeer::v99_unidirectional_stream_id_manager(
-                    server_session)
-                    ->outgoing_static_stream_count()
+                server_session->num_expected_unidirectional_static_streams()
           : QuicSessionPeer::GetStreamIdManager(server_session)
                 ->max_open_outgoing_streams();
   EXPECT_EQ(kClientMaxIncomingDynamicStreams,

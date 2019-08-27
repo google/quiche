@@ -198,13 +198,18 @@ class QuicSimpleServerSessionTest
     QuicConfigPeer::SetReceivedMaxIncomingBidirectionalStreams(
         &config_, kMaxStreamsForTest);
     config_.SetMaxIncomingUnidirectionalStreamsToSend(kMaxStreamsForTest);
-    QuicConfigPeer::SetReceivedMaxIncomingUnidirectionalStreams(
-        &config_, kMaxStreamsForTest);
 
     config_.SetInitialStreamFlowControlWindowToSend(
         kInitialStreamFlowControlWindowForTest);
     config_.SetInitialSessionFlowControlWindowToSend(
         kInitialSessionFlowControlWindowForTest);
+    if (VersionUsesQpack(GetParam().transport_version)) {
+      QuicConfigPeer::SetReceivedMaxIncomingUnidirectionalStreams(
+          &config_, kMaxStreamsForTest + 3);
+    } else {
+      QuicConfigPeer::SetReceivedMaxIncomingUnidirectionalStreams(
+          &config_, kMaxStreamsForTest);
+    }
 
     ParsedQuicVersionVector supported_versions = SupportedVersions(GetParam());
     connection_ = new StrictMock<MockQuicConnectionWithSendStreamData>(

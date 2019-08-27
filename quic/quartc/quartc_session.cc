@@ -24,7 +24,11 @@ QuartcSession::QuartcSession(std::unique_ptr<QuicConnection> connection,
                              const QuicConfig& config,
                              const ParsedQuicVersionVector& supported_versions,
                              const QuicClock* clock)
-    : QuicSession(connection.get(), visitor, config, supported_versions),
+    : QuicSession(connection.get(),
+                  visitor,
+                  config,
+                  supported_versions,
+                  /*num_expected_unidirectional_static_streams = */ 0),
       connection_(std::move(connection)),
       clock_(clock),
       per_packet_options_(QuicMakeUnique<QuartcPerPacketOptions>()) {

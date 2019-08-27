@@ -24,30 +24,7 @@ UberQuicStreamIdManager::UberQuicStreamIdManager(
           /*unidirectional=*/true,
           max_open_outgoing_unidirectional_streams,
           max_open_incoming_unidirectional_streams) {}
-void UberQuicStreamIdManager::RegisterStaticStream(
-    QuicStreamId id,
-    bool stream_already_counted) {
-  if (QuicUtils::IsBidirectionalStreamId(id)) {
-    bidirectional_stream_id_manager_.RegisterStaticStream(
-        id, stream_already_counted);
-    return;
-  }
-  unidirectional_stream_id_manager_.RegisterStaticStream(
-      id, stream_already_counted);
-}
 
-void UberQuicStreamIdManager::AdjustMaxOpenOutgoingUnidirectionalStreams(
-    size_t max_streams) {
-  unidirectional_stream_id_manager_.AdjustMaxOpenOutgoingStreams(max_streams);
-}
-void UberQuicStreamIdManager::AdjustMaxOpenOutgoingBidirectionalStreams(
-    size_t max_streams) {
-  bidirectional_stream_id_manager_.AdjustMaxOpenOutgoingStreams(max_streams);
-}
-
-// TODO(fkastenholz): SetMax is cognizant of the number of static streams and
-// sets the maximum to be max_streams + number_of_statics. This should
-// eventually be removed from IETF QUIC.
 void UberQuicStreamIdManager::SetMaxOpenOutgoingBidirectionalStreams(
     size_t max_open_streams) {
   bidirectional_stream_id_manager_.SetMaxOpenOutgoingStreams(max_open_streams);

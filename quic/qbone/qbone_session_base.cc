@@ -21,14 +21,18 @@ QboneSessionBase::QboneSessionBase(
     const QuicConfig& config,
     const ParsedQuicVersionVector& supported_versions,
     QbonePacketWriter* writer)
-    : QuicSession(connection, owner, config, supported_versions) {
+    : QuicSession(connection,
+                  owner,
+                  config,
+                  supported_versions,
+                  /*num_expected_unidirectional_static_streams = */ 0) {
   set_writer(writer);
   const uint32_t max_streams =
       (std::numeric_limits<uint32_t>::max() / kMaxAvailableStreamsMultiplier) -
       1;
   this->config()->SetMaxIncomingBidirectionalStreamsToSend(max_streams);
   if (VersionHasIetfQuicFrames(transport_version())) {
-    this->config()->SetMaxIncomingUnidirectionalStreamsToSend(max_streams);
+    ConfigureMaxIncomingDynamicStreamsToSend(max_streams);
   }
   write_blocked_streams()->SwitchWriteScheduler(
       spdy::WriteSchedulerType::LIFO, connection->transport_version());

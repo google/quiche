@@ -47,10 +47,12 @@ class ClosedStreamsCleanUpDelegate : public QuicAlarm::Delegate {
 #define ENDPOINT \
   (perspective() == Perspective::IS_SERVER ? "Server: " : "Client: ")
 
-QuicSession::QuicSession(QuicConnection* connection,
-                         Visitor* owner,
-                         const QuicConfig& config,
-                         const ParsedQuicVersionVector& supported_versions)
+QuicSession::QuicSession(
+    QuicConnection* connection,
+    Visitor* owner,
+    const QuicConfig& config,
+    const ParsedQuicVersionVector& supported_versions,
+    QuicStreamCount num_expected_unidirectional_static_streams)
     : connection_(connection),
       visitor_(owner),
       write_blocked_streams_(connection->transport_version()),
@@ -90,7 +92,9 @@ QuicSession::QuicSession(QuicConnection* connection,
       closed_streams_clean_up_alarm_(nullptr),
       supported_versions_(supported_versions),
       use_http2_priority_write_scheduler_(false),
-      is_configured_(false) {
+      is_configured_(false),
+      num_expected_unidirectional_static_streams_(
+          num_expected_unidirectional_static_streams) {
   closed_streams_clean_up_alarm_ =
       QuicWrapUnique<QuicAlarm>(connection_->alarm_factory()->CreateAlarm(
           new ClosedStreamsCleanUpDelegate(this)));
@@ -112,31 +116,27 @@ void QuicSession::Initialize() {
 
   DCHECK_EQ(QuicUtils::GetCryptoStreamId(connection_->transport_version()),
             GetMutableCryptoStream()->id());
-
-  QuicStreamId id =
-      QuicUtils::GetCryptoStreamId(connection_->transport_version());
-  if (VersionHasIetfQuicFrames(connection_->transport_version())) {
-    v99_streamid_manager_.RegisterStaticStream(id, false);
-  }
 }
 
 QuicSession::~QuicSession() {
   QUIC_LOG_IF(WARNING, !zombie_streams_.empty()) << "Still have zombie streams";
 }
 
-void QuicSession::RegisterStaticStream(std::unique_ptr<QuicStream> stream,
-                                       bool stream_already_counted) {
+void QuicSession::RegisterStaticStream(std::unique_ptr<QuicStream> stream) {
   DCHECK(stream->is_static());
   QuicStreamId stream_id = stream->id();
   stream_map_[stream_id] = std::move(stream);
-  if (VersionHasIetfQuicFrames(connection_->transport_version())) {
-    v99_streamid_manager_.RegisterStaticStream(stream_id,
-                                               stream_already_counted);
-  }
   if (IsIncomingStream(stream_id)) {
     ++num_incoming_static_streams_;
   } else {
     ++num_outgoing_static_streams_;
+  }
+  if (VersionHasIetfQuicFrames(transport_version()) &&
+      !QuicUtils::IsBidirectionalStreamId(stream_id)) {
+    DCHECK_LE(num_incoming_static_streams_,
+              num_expected_unidirectional_static_streams_);
+    DCHECK_LE(num_outgoing_static_streams_,
+              num_expected_unidirectional_static_streams_);
   }
 }
 
@@ -970,8 +970,7 @@ void QuicSession::OnConfigNegotiated() {
     }
     QUIC_DVLOG(1) << "Setting Bidirectional outgoing_max_streams_ to "
                   << max_streams;
-    v99_streamid_manager_.AdjustMaxOpenOutgoingBidirectionalStreams(
-        max_streams);
+    v99_streamid_manager_.SetMaxOpenOutgoingBidirectionalStreams(max_streams);
 
     max_streams = 0;
     if (config_.HasReceivedMaxIncomingUnidirectionalStreams()) {
@@ -979,8 +978,7 @@ void QuicSession::OnConfigNegotiated() {
     }
     QUIC_DVLOG(1) << "Setting Unidirectional outgoing_max_streams_ to "
                   << max_streams;
-    v99_streamid_manager_.AdjustMaxOpenOutgoingUnidirectionalStreams(
-        max_streams);
+    v99_streamid_manager_.SetMaxOpenOutgoingUnidirectionalStreams(max_streams);
   } else {
     uint32_t max_streams = 0;
     if (config_.HasReceivedMaxIncomingBidirectionalStreams()) {

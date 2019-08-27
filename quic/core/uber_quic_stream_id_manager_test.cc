@@ -123,38 +123,6 @@ TEST_P(UberQuicStreamIdManagerTest, Initialization) {
   }
 }
 
-TEST_P(UberQuicStreamIdManagerTest, RegisterStaticStream) {
-  QuicStreamId first_incoming_bidirectional_stream_id =
-      GetParam() == Perspective::IS_SERVER
-          ? GetNthClientInitiatedBidirectionalId(0)
-          : GetNthServerInitiatedBidirectionalId(0);
-  QuicStreamId first_incoming_unidirectional_stream_id =
-      GetParam() == Perspective::IS_SERVER
-          ? GetNthClientInitiatedUnidirectionalId(0)
-          : GetNthServerInitiatedUnidirectionalId(0);
-
-  QuicStreamCount actual_max_allowed_incoming_bidirectional_streams =
-      manager_->actual_max_allowed_incoming_bidirectional_streams();
-  QuicStreamCount actual_max_allowed_incoming_unidirectional_streams =
-      manager_->actual_max_allowed_incoming_unidirectional_streams();
-  manager_->RegisterStaticStream(first_incoming_bidirectional_stream_id,
-                                 /*stream_already_counted = */ false);
-  // Verify actual_max_allowed_incoming_bidirectional_streams increases.
-  EXPECT_EQ(actual_max_allowed_incoming_bidirectional_streams + 1u,
-            manager_->actual_max_allowed_incoming_bidirectional_streams());
-  // Verify actual_max_allowed_incoming_unidirectional_streams does not
-  // change.
-  EXPECT_EQ(actual_max_allowed_incoming_unidirectional_streams,
-            manager_->actual_max_allowed_incoming_unidirectional_streams());
-
-  manager_->RegisterStaticStream(first_incoming_unidirectional_stream_id,
-                                 /*stream_already_counted = */ false);
-  EXPECT_EQ(actual_max_allowed_incoming_bidirectional_streams + 1u,
-            manager_->actual_max_allowed_incoming_bidirectional_streams());
-  EXPECT_EQ(actual_max_allowed_incoming_unidirectional_streams + 1u,
-            manager_->actual_max_allowed_incoming_unidirectional_streams());
-}
-
 TEST_P(UberQuicStreamIdManagerTest, SetMaxOpenOutgoingStreams) {
   const size_t kNumMaxOutgoingStream = 123;
   // Set the uni- and bi- directional limits to different values to ensure

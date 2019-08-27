@@ -161,8 +161,7 @@ void QuicSessionPeer::ActivateStream(QuicSession* session,
 // static
 void QuicSessionPeer::RegisterStaticStream(QuicSession* session,
                                            std::unique_ptr<QuicStream> stream) {
-  return session->RegisterStaticStream(std::move(stream),
-                                       /*stream_already_counted = */ false);
+  return session->RegisterStaticStream(std::move(stream));
 }
 
 // static

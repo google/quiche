@@ -8,6 +8,7 @@
 #define QUICHE_QUIC_CORE_QUIC_SESSION_H_
 
 #include <cstddef>
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <string>
@@ -83,7 +84,8 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
   QuicSession(QuicConnection* connection,
               Visitor* owner,
               const QuicConfig& config,
-              const ParsedQuicVersionVector& supported_versions);
+              const ParsedQuicVersionVector& supported_versions,
+              QuicStreamCount num_expected_unidirectional_static_streams);
   QuicSession(const QuicSession&) = delete;
   QuicSession& operator=(const QuicSession&) = delete;
 
@@ -446,6 +448,17 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
 
   bool is_configured() const { return is_configured_; }
 
+  QuicStreamCount num_expected_unidirectional_static_streams() const {
+    return num_expected_unidirectional_static_streams_;
+  }
+
+  // Set the number of unidirectional stream that the peer is allowed to open to
+  // be |max_stream| + |num_expected_static_streams_|.
+  void ConfigureMaxIncomingDynamicStreamsToSend(QuicStreamCount max_stream) {
+    config_.SetMaxIncomingUnidirectionalStreamsToSend(
+        max_stream + num_expected_unidirectional_static_streams_);
+  }
+
  protected:
   using StreamMap = QuicSmallMap<QuicStreamId, std::unique_ptr<QuicStream>, 10>;
 
@@ -519,8 +532,7 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
   // |stream| as static in stream id manager. |stream_already_counted| is true
   // if |stream| is created from pending stream and is already known as an open
   // stream.
-  void RegisterStaticStream(std::unique_ptr<QuicStream> stream,
-                            bool stream_already_counted);
+  void RegisterStaticStream(std::unique_ptr<QuicStream> stream);
 
   StreamMap& stream_map() { return stream_map_; }
   const StreamMap& stream_map() const { return stream_map_; }
@@ -746,6 +758,9 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
   // Initialized to false. Set to true when the session has been properly
   // configured and is ready for general operation.
   bool is_configured_;
+
+  // The number of expected static streams.
+  QuicStreamCount num_expected_unidirectional_static_streams_;
 };
 
 }  // namespace quic

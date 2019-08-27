@@ -59,8 +59,7 @@ void QboneServerSession::Initialize() {
   auto control_stream =
       QuicMakeUnique<QboneServerControlStream>(this, handler_);
   control_stream_ = control_stream.get();
-  RegisterStaticStream(std::move(control_stream),
-                       /*stream_already_counted = */ false);
+  RegisterStaticStream(std::move(control_stream));
 }
 
 bool QboneServerSession::SendClientRequest(const QboneClientRequest& request) {

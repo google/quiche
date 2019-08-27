@@ -156,7 +156,8 @@ class QuicSpdyClientSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
     QuicConfig config = DefaultQuicConfig();
     if (VersionHasIetfQuicFrames(connection_->transport_version())) {
       config.SetMaxIncomingUnidirectionalStreamsToSend(
-          server_max_incoming_streams);
+          server_max_incoming_streams +
+          session_->num_expected_unidirectional_static_streams());
       config.SetMaxIncomingBidirectionalStreamsToSend(
           server_max_incoming_streams);
     } else {
@@ -292,22 +293,14 @@ TEST_P(QuicSpdyClientSessionTest, MaxNumStreamsWithRst) {
     // In V99 the stream limit increases only if we get a MAX_STREAMS
     // frame; pretend we got one.
 
-    // Note that this is to be the second stream created, hence
-    // the stream count is 3 (the two streams created as a part of
-    // the test plus the header stream, internally created).
-    QuicMaxStreamsFrame frame(
-        0,
-        QuicSessionPeer::v99_bidirectional_stream_id_manager(&*session_)
-                ->outgoing_static_stream_count() +
-            2,
-        /*unidirectional=*/false);
+    QuicMaxStreamsFrame frame(0, 2,
+                              /*unidirectional=*/false);
     session_->OnMaxStreamsFrame(frame);
   }
   stream = session_->CreateOutgoingBidirectionalStream();
   EXPECT_NE(nullptr, stream);
   if (VersionHasIetfQuicFrames(GetParam().transport_version)) {
-    // Ensure that we have/have had three open streams: two test streams and the
-    // header stream.
+    // Ensure that we have 2 total streams, 1 open and 1 closed.
     QuicStreamCount expected_stream_count = 2;
     EXPECT_EQ(expected_stream_count,
               QuicSessionPeer::v99_bidirectional_stream_id_manager(&*session_)
@@ -372,23 +365,15 @@ TEST_P(QuicSpdyClientSessionTest, ResetAndTrailers) {
   // be able to create a new outgoing stream.
   EXPECT_EQ(0u, session_->GetNumOpenOutgoingStreams());
   if (VersionHasIetfQuicFrames(GetParam().transport_version)) {
-    // Note that this is to be the second stream created, hence
-    // the stream count is 3 (the two streams created as a part of
-    // the test plus the header stream, internally created).
-    QuicMaxStreamsFrame frame(
-        0,
-        QuicSessionPeer::v99_bidirectional_stream_id_manager(&*session_)
-                ->outgoing_static_stream_count() +
-            2,
-        /*unidirectional=*/false);
+    QuicMaxStreamsFrame frame(0, 2,
+                              /*unidirectional=*/false);
 
     session_->OnMaxStreamsFrame(frame);
   }
   stream = session_->CreateOutgoingBidirectionalStream();
   EXPECT_NE(nullptr, stream);
   if (VersionHasIetfQuicFrames(GetParam().transport_version)) {
-    // Ensure that we have/have had three open streams: two test streams and the
-    // header stream.
+    // Ensure that we have 2 open streams.
     QuicStreamCount expected_stream_count = 2;
     EXPECT_EQ(expected_stream_count,
               QuicSessionPeer::v99_bidirectional_stream_id_manager(&*session_)

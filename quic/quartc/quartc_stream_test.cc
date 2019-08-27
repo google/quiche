@@ -55,7 +55,8 @@ class MockQuicSession : public QuicSession {
       : QuicSession(connection,
                     nullptr /*visitor*/,
                     config,
-                    CurrentSupportedVersions()),
+                    CurrentSupportedVersions(),
+                    /*num_expected_unidirectional_static_streams = */ 0),
         write_buffer_(write_buffer) {}
 
   ~MockQuicSession() override {}

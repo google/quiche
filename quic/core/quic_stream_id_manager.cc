@@ -30,14 +30,12 @@ QuicStreamIdManager::QuicStreamIdManager(
       outgoing_max_streams_(max_allowed_outgoing_streams),
       next_outgoing_stream_id_(GetFirstOutgoingStreamId()),
       outgoing_stream_count_(0),
-      outgoing_static_stream_count_(0),
       using_default_max_streams_(true),
       incoming_actual_max_streams_(max_allowed_incoming_streams),
       // Advertised max starts at actual because it's communicated in the
       // handshake.
       incoming_advertised_max_streams_(max_allowed_incoming_streams),
       incoming_initial_max_open_streams_(max_allowed_incoming_streams),
-      incoming_static_stream_count_(0),
       incoming_stream_count_(0),
       largest_peer_created_stream_id_(
           QuicUtils::GetInvalidStreamId(transport_version())),
@@ -55,7 +53,7 @@ bool QuicStreamIdManager::OnMaxStreamsFrame(const QuicMaxStreamsFrame& frame) {
   const QuicStreamCount current_outgoing_max_streams = outgoing_max_streams_;
 
   // Set the limit to be exactly the stream count in the frame.
-  if (!ConfigureMaxOpenOutgoingStreams(frame.stream_count)) {
+  if (!SetMaxOpenOutgoingStreams(frame.stream_count)) {
     return false;
   }
   // If we were at the previous limit and this MAX_STREAMS frame
@@ -99,8 +97,7 @@ bool QuicStreamIdManager::OnStreamsBlockedFrame(
 
 // Used when configuration has been done and we have an initial
 // maximum stream count from the peer.
-bool QuicStreamIdManager::ConfigureMaxOpenOutgoingStreams(
-    size_t max_open_streams) {
+bool QuicStreamIdManager::SetMaxOpenOutgoingStreams(size_t max_open_streams) {
   if (using_default_max_streams_) {
     // This is the first MAX_STREAMS/transport negotiation we've received. Treat
     // this a bit differently than later ones. The difference is that
@@ -133,43 +130,11 @@ bool QuicStreamIdManager::ConfigureMaxOpenOutgoingStreams(
   return true;
 }
 
-void QuicStreamIdManager::SetMaxOpenOutgoingStreams(size_t max_open_streams) {
-  QUIC_BUG_IF(!using_default_max_streams_);
-  // TODO(fkastenholz): when static streams are removed from I-Quic, this
-  // should be revised to invoke ConfigureMaxOpen...
-  AdjustMaxOpenOutgoingStreams(max_open_streams);
-}
-
-// Adjust the outgoing stream limit - max_open_streams is the limit, not
-// including static streams. If the new stream limit wraps, will peg
-// the limit at the implementation max.
-// TODO(fkastenholz): AdjustMax is cognizant of the number of static streams and
-// sets the maximum to be max_streams + number_of_statics. This should be
-// removed from IETF QUIC when static streams are gone.
-void QuicStreamIdManager::AdjustMaxOpenOutgoingStreams(
-    size_t max_open_streams) {
-  if ((outgoing_static_stream_count_ + max_open_streams) < max_open_streams) {
-    // New limit causes us to wrap, set limit to be the implementation maximum.
-    ConfigureMaxOpenOutgoingStreams(
-        QuicUtils::GetMaxStreamCount(unidirectional_, perspective()));
-    return;
-  }
-  // Does not wrap, set limit to what is requested.
-  ConfigureMaxOpenOutgoingStreams(outgoing_static_stream_count_ +
-                                  max_open_streams);
-}
-
 void QuicStreamIdManager::SetMaxOpenIncomingStreams(size_t max_open_streams) {
   QuicStreamCount implementation_max =
       QuicUtils::GetMaxStreamCount(unidirectional_, perspective());
-  QuicStreamCount new_max =
-      std::min(implementation_max,
-               static_cast<QuicStreamCount>(max_open_streams +
-                                            incoming_static_stream_count_));
-  if (new_max < max_open_streams) {
-    // wrapped around ...
-    new_max = implementation_max;
-  }
+  QuicStreamCount new_max = std::min(
+      implementation_max, static_cast<QuicStreamCount>(max_open_streams));
   if (new_max < incoming_stream_count_) {
     session_->connection()->CloseConnection(
         QUIC_MAX_STREAMS_ERROR, "Stream limit less than existing stream count",
@@ -238,61 +203,6 @@ bool QuicStreamIdManager::CanOpenNextOutgoingStream() {
   session_->SendStreamsBlocked(outgoing_max_streams_, unidirectional_);
   QUIC_CODE_COUNT(quic_reached_outgoing_stream_id_limit);
   return false;
-}
-
-bool QuicStreamIdManager::RegisterStaticStream(QuicStreamId stream_id,
-                                               bool stream_already_counted) {
-  DCHECK_NE(QuicUtils::IsBidirectionalStreamId(stream_id), unidirectional_);
-  if (IsIncomingStream(stream_id)) {
-    // This code is predicated on static stream ids being allocated densely, in
-    // order, and starting with the first stream allowed. QUIC_BUG if this is
-    // not so.
-    // This is a stream id for a stream that is started by the peer, deal with
-    // the incoming stream ids. Increase the floor and adjust everything
-    // accordingly.
-
-    QUIC_BUG_IF(incoming_actual_max_streams_ >
-                QuicUtils::GetMaxStreamCount(unidirectional_, perspective()));
-
-    // If we have reached the limit on stream creation, do not create
-    // the static stream; return false.
-    if (incoming_stream_count_ >=
-        QuicUtils::GetMaxStreamCount(unidirectional_, perspective())) {
-      return false;
-    }
-
-    if (incoming_actual_max_streams_ <
-        QuicUtils::GetMaxStreamCount(unidirectional_, perspective())) {
-      incoming_actual_max_streams_++;
-    }
-    if (incoming_advertised_max_streams_ <
-        QuicUtils::GetMaxStreamCount(unidirectional_, perspective())) {
-      incoming_advertised_max_streams_++;
-    }
-
-    if (!stream_already_counted) {
-      incoming_stream_count_++;
-    }
-    incoming_static_stream_count_++;
-    return true;
-  }
-
-  // If we have reached the limit on stream creation, do not create
-  // the static stream; return false.
-  if (outgoing_max_streams_ >=
-      QuicUtils::GetMaxStreamCount(unidirectional_, perspective())) {
-    return false;
-  }
-
-  // Increase the outgoing_max_streams_ limit to reflect the semantic that
-  // outgoing_max_streams_ was inialized to a "maximum request/response" count
-  // and only becomes a maximum stream count when we receive the first
-  // MAX_STREAMS.
-  if (using_default_max_streams_) {
-    outgoing_max_streams_++;
-  }
-  outgoing_static_stream_count_++;
-  return true;
 }
 
 // Stream_id is the id of a new incoming stream. Check if it can be

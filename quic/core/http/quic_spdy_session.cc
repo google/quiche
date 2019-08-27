@@ -311,7 +311,12 @@ QuicSpdySession::QuicSpdySession(
     QuicSession::Visitor* visitor,
     const QuicConfig& config,
     const ParsedQuicVersionVector& supported_versions)
-    : QuicSession(connection, visitor, config, supported_versions),
+    : QuicSession(connection,
+                  visitor,
+                  config,
+                  supported_versions,
+                  /*num_expected_unidirectional_static_streams = */
+                  VersionUsesQpack(connection->transport_version()) ? 3 : 0),
       send_control_stream_(nullptr),
       receive_control_stream_(nullptr),
       qpack_encoder_receive_stream_(nullptr),
@@ -377,9 +382,10 @@ void QuicSpdySession::Initialize() {
               headers_stream->id());
 
     headers_stream_ = headers_stream.get();
-    RegisterStaticStream(std::move(headers_stream),
-                         /*stream_already_counted = */ false);
+    RegisterStaticStream(std::move(headers_stream));
   } else {
+    ConfigureMaxIncomingDynamicStreamsToSend(
+        config()->GetMaxIncomingUnidirectionalStreamsToSend());
     qpack_encoder_ = QuicMakeUnique<QpackEncoder>(this);
     qpack_decoder_ =
         QuicMakeUnique<QpackDecoder>(qpack_maximum_dynamic_table_capacity_,
@@ -915,8 +921,7 @@ bool QuicSpdySession::ProcessPendingStream(PendingStream* pending) {
       }
       auto receive_stream = QuicMakeUnique<QuicReceiveControlStream>(pending);
       receive_control_stream_ = receive_stream.get();
-      RegisterStaticStream(std::move(receive_stream),
-                           /*stream_already_counted = */ true);
+      RegisterStaticStream(std::move(receive_stream));
       receive_control_stream_->SetUnblocked();
       QUIC_DVLOG(1) << "Receive Control stream is created";
       return true;
@@ -934,8 +939,7 @@ bool QuicSpdySession::ProcessPendingStream(PendingStream* pending) {
       auto encoder_receive = QuicMakeUnique<QpackReceiveStream>(
           pending, qpack_decoder_->encoder_stream_receiver());
       qpack_encoder_receive_stream_ = encoder_receive.get();
-      RegisterStaticStream(std::move(encoder_receive),
-                           /*stream_already_counted = */ true);
+      RegisterStaticStream(std::move(encoder_receive));
       qpack_encoder_receive_stream_->SetUnblocked();
       QUIC_DVLOG(1) << "Receive QPACK Encoder stream is created";
       return true;
@@ -948,8 +952,7 @@ bool QuicSpdySession::ProcessPendingStream(PendingStream* pending) {
       auto decoder_receive = QuicMakeUnique<QpackReceiveStream>(
           pending, qpack_encoder_->decoder_stream_receiver());
       qpack_decoder_receive_stream_ = decoder_receive.get();
-      RegisterStaticStream(std::move(decoder_receive),
-                           /*stream_already_counted = */ true);
+      RegisterStaticStream(std::move(decoder_receive));
       qpack_decoder_receive_stream_->SetUnblocked();
       QUIC_DVLOG(1) << "Receive Qpack Decoder stream is created";
       return true;
@@ -968,8 +971,7 @@ void QuicSpdySession::MaybeInitializeHttp3UnidirectionalStreams() {
         GetNextOutgoingUnidirectionalStreamId(), this,
         max_inbound_header_list_size_);
     send_control_stream_ = send_control.get();
-    RegisterStaticStream(std::move(send_control),
-                         /*stream_already_counted = */ false);
+    RegisterStaticStream(std::move(send_control));
   }
 
   if (!qpack_decoder_send_stream_ &&
@@ -977,8 +979,7 @@ void QuicSpdySession::MaybeInitializeHttp3UnidirectionalStreams() {
     auto decoder_send = QuicMakeUnique<QpackSendStream>(
         GetNextOutgoingUnidirectionalStreamId(), this, kQpackDecoderStream);
     qpack_decoder_send_stream_ = decoder_send.get();
-    RegisterStaticStream(std::move(decoder_send),
-                         /*stream_already_counted = */ false);
+    RegisterStaticStream(std::move(decoder_send));
     qpack_decoder_->set_qpack_stream_sender_delegate(
         qpack_decoder_send_stream_);
   }
@@ -988,8 +989,7 @@ void QuicSpdySession::MaybeInitializeHttp3UnidirectionalStreams() {
     auto encoder_send = QuicMakeUnique<QpackSendStream>(
         GetNextOutgoingUnidirectionalStreamId(), this, kQpackEncoderStream);
     qpack_encoder_send_stream_ = encoder_send.get();
-    RegisterStaticStream(std::move(encoder_send),
-                         /*stream_already_counted = */ false);
+    RegisterStaticStream(std::move(encoder_send));
     qpack_encoder_->set_qpack_stream_sender_delegate(
         qpack_encoder_send_stream_);
   }

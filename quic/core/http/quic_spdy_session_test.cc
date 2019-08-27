@@ -304,6 +304,11 @@ class QuicSpdySessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
         kInitialStreamFlowControlWindowForTest);
     session_.config()->SetInitialSessionFlowControlWindowToSend(
         kInitialSessionFlowControlWindowForTest);
+    if (VersionUsesQpack(transport_version())) {
+      QuicConfigPeer::SetReceivedMaxIncomingUnidirectionalStreams(
+          session_.config(),
+          session_.num_expected_unidirectional_static_streams());
+    }
     connection_->AdvanceTime(QuicTime::Delta::FromSeconds(1));
     TestCryptoStream* crypto_stream = session_.GetMutableCryptoStream();
     EXPECT_CALL(*crypto_stream, HasPendingRetransmission())

@@ -529,7 +529,8 @@ MockQuicSession::MockQuicSession(QuicConnection* connection,
     : QuicSession(connection,
                   nullptr,
                   DefaultQuicConfig(),
-                  connection->supported_versions()) {
+                  connection->supported_versions(),
+                  /*num_expected_unidirectional_static_streams = */ 0) {
   if (create_mock_crypto_stream) {
     crypto_stream_ = QuicMakeUnique<MockQuicCryptoStream>(this);
   }
