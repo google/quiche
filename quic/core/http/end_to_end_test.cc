@@ -522,12 +522,23 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
            version.handshake_protocol == PROTOCOL_TLS1_3;
   }
 
-  void ExpectFlowControlsSynced(QuicFlowController* client,
-                                QuicFlowController* server) {
-    EXPECT_EQ(QuicFlowControllerPeer::SendWindowSize(client),
-              QuicFlowControllerPeer::ReceiveWindowSize(server));
-    EXPECT_EQ(QuicFlowControllerPeer::ReceiveWindowSize(client),
-              QuicFlowControllerPeer::SendWindowSize(server));
+  static void ExpectFlowControlsSynced(QuicSession* client,
+                                       QuicSession* server) {
+    EXPECT_EQ(
+        QuicFlowControllerPeer::SendWindowSize(client->flow_controller()),
+        QuicFlowControllerPeer::ReceiveWindowSize(server->flow_controller()));
+    EXPECT_EQ(
+        QuicFlowControllerPeer::ReceiveWindowSize(client->flow_controller()),
+        QuicFlowControllerPeer::SendWindowSize(server->flow_controller()));
+  }
+
+  static void ExpectFlowControlsSynced(QuicStream* client, QuicStream* server) {
+    EXPECT_EQ(
+        QuicFlowControllerPeer::SendWindowSize(client->flow_controller()),
+        QuicFlowControllerPeer::ReceiveWindowSize(server->flow_controller()));
+    EXPECT_EQ(
+        QuicFlowControllerPeer::ReceiveWindowSize(client->flow_controller()),
+        QuicFlowControllerPeer::SendWindowSize(server->flow_controller()));
   }
 
   // Must be called before Initialize to have effect.
@@ -2277,99 +2288,97 @@ TEST_P(EndToEndTest, FlowControlsSynced) {
   EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
   server_thread_->WaitForCryptoHandshakeConfirmed();
 
-  server_thread_->Pause();
   QuicSpdySession* const client_session = GetClientSession();
-  auto* server_session = static_cast<QuicSpdySession*>(GetServerSession());
+  const QuicTransportVersion version =
+      client_session->connection()->transport_version();
 
-  if (VersionHasStreamType(server_session->connection()->transport_version())) {
-    // Settings frame will be sent through control streams, which contribute
-    // to the session's flow controller. And due to the timing issue described
-    // below, the settings frame might not be received.
-    HttpEncoder encoder;
-    SettingsFrame settings;
-    settings.values[SETTINGS_MAX_HEADER_LIST_SIZE] =
-        kDefaultMaxUncompressedHeaderSize;
-    settings.values[SETTINGS_QPACK_MAX_TABLE_CAPACITY] =
-        kDefaultQpackMaxDynamicTableCapacity;
-    std::unique_ptr<char[]> buffer;
-    auto header_length = encoder.SerializeSettingsFrame(settings, &buffer);
-    QuicByteCount win_difference1 = QuicFlowControllerPeer::ReceiveWindowSize(
-                                        server_session->flow_controller()) -
-                                    QuicFlowControllerPeer::SendWindowSize(
-                                        client_session->flow_controller());
-    QuicByteCount win_difference2 = QuicFlowControllerPeer::ReceiveWindowSize(
-                                        client_session->flow_controller()) -
-                                    QuicFlowControllerPeer::SendWindowSize(
-                                        server_session->flow_controller());
-    EXPECT_TRUE(win_difference1 == 0 ||
-                win_difference1 ==
-                    header_length +
-                        QuicDataWriter::GetVarInt62Len(kControlStream) +
-                        QuicDataWriter::GetVarInt62Len(kQpackEncoderStream) +
-                        QuicDataWriter::GetVarInt62Len(kQpackDecoderStream));
-    EXPECT_TRUE(win_difference2 == 0 ||
-                win_difference2 ==
-                    header_length +
-                        QuicDataWriter::GetVarInt62Len(kControlStream) +
-                        QuicDataWriter::GetVarInt62Len(kQpackEncoderStream) +
-                        QuicDataWriter::GetVarInt62Len(kQpackDecoderStream));
-    // The test returns early because in this version, headers stream no longer
-    // sends settings.
-    return;
+  if (VersionUsesQpack(version)) {
+    // Make sure that the client has received the initial SETTINGS frame, which
+    // is sent in the first packet on the control stream.
+    while (!QuicSpdySessionPeer::GetReceiveControlStream(client_session)) {
+      client_->client()->WaitForEvents();
+    }
   }
 
-  ExpectFlowControlsSynced(client_session->flow_controller(),
-                           server_session->flow_controller());
-  if (!QuicVersionUsesCryptoFrames(client_->client()
-                                       ->client_session()
-                                       ->connection()
-                                       ->transport_version())) {
+  // Make sure that all data sent by the client has been received by the server
+  // (and the ack received by the client).
+  while (client_session->HasUnackedStreamData()) {
+    client_->client()->WaitForEvents();
+  }
+
+  server_thread_->Pause();
+
+  QuicSpdySession* const server_session = GetServerSession();
+  ExpectFlowControlsSynced(client_session, server_session);
+
+  // Check control streams.
+  if (VersionUsesQpack(version)) {
     ExpectFlowControlsSynced(
-        QuicSessionPeer::GetMutableCryptoStream(client_session)
-            ->flow_controller(),
-        QuicSessionPeer::GetMutableCryptoStream(server_session)
-            ->flow_controller());
+        QuicSpdySessionPeer::GetReceiveControlStream(client_session),
+        QuicSpdySessionPeer::GetSendControlStream(server_session));
+    ExpectFlowControlsSynced(
+        QuicSpdySessionPeer::GetSendControlStream(client_session),
+        QuicSpdySessionPeer::GetReceiveControlStream(server_session));
   }
-  SpdyFramer spdy_framer(SpdyFramer::ENABLE_COMPRESSION);
-  SpdySettingsIR settings_frame;
-  settings_frame.AddSetting(SETTINGS_MAX_HEADER_LIST_SIZE,
-                            kDefaultMaxUncompressedHeaderSize);
-  SpdySerializedFrame frame(spdy_framer.SerializeFrame(settings_frame));
-  QuicFlowController* client_header_stream_flow_controller =
-      QuicSpdySessionPeer::GetHeadersStream(client_session)->flow_controller();
-  QuicFlowController* server_header_stream_flow_controller =
-      QuicSpdySessionPeer::GetHeadersStream(server_session)->flow_controller();
-  // Both client and server are sending this SETTINGS frame, and the send
-  // window is consumed. But because of timing issue, the server may send or
-  // not send the frame, and the client may send/ not send / receive / not
-  // receive the frame.
-  // TODO(fayang): Rewrite this part because it is hacky.
-  QuicByteCount win_difference1 = QuicFlowControllerPeer::ReceiveWindowSize(
-                                      server_header_stream_flow_controller) -
-                                  QuicFlowControllerPeer::SendWindowSize(
-                                      client_header_stream_flow_controller);
-  QuicByteCount win_difference2 = QuicFlowControllerPeer::ReceiveWindowSize(
-                                      client_header_stream_flow_controller) -
-                                  QuicFlowControllerPeer::SendWindowSize(
-                                      server_header_stream_flow_controller);
-  EXPECT_TRUE(win_difference1 == 0 || win_difference1 == frame.size());
-  EXPECT_TRUE(win_difference2 == 0 || win_difference2 == frame.size());
 
-  // Client *may* have received the SETTINGs frame.
-  // TODO(fayang): Rewrite this part because it is hacky.
-  float ratio1 = static_cast<float>(QuicFlowControllerPeer::ReceiveWindowSize(
-                     client_session->flow_controller())) /
-                 QuicFlowControllerPeer::ReceiveWindowSize(
-                     QuicSpdySessionPeer::GetHeadersStream(client_session)
-                         ->flow_controller());
-  float ratio2 = static_cast<float>(QuicFlowControllerPeer::ReceiveWindowSize(
-                     client_session->flow_controller())) /
-                 (QuicFlowControllerPeer::ReceiveWindowSize(
-                      QuicSpdySessionPeer::GetHeadersStream(client_session)
-                          ->flow_controller()) +
-                  frame.size());
-  EXPECT_TRUE(ratio1 == kSessionToStreamRatio ||
-              ratio2 == kSessionToStreamRatio);
+  // Check crypto stream.
+  if (!QuicVersionUsesCryptoFrames(version)) {
+    ExpectFlowControlsSynced(
+        QuicSessionPeer::GetMutableCryptoStream(client_session),
+        QuicSessionPeer::GetMutableCryptoStream(server_session));
+  }
+
+  // Check headers stream.
+  if (!VersionHasStreamType(version)) {
+    SpdyFramer spdy_framer(SpdyFramer::ENABLE_COMPRESSION);
+    SpdySettingsIR settings_frame;
+    settings_frame.AddSetting(SETTINGS_MAX_HEADER_LIST_SIZE,
+                              kDefaultMaxUncompressedHeaderSize);
+    SpdySerializedFrame frame(spdy_framer.SerializeFrame(settings_frame));
+
+    QuicFlowController* client_header_stream_flow_controller =
+        QuicSpdySessionPeer::GetHeadersStream(client_session)
+            ->flow_controller();
+    QuicFlowController* server_header_stream_flow_controller =
+        QuicSpdySessionPeer::GetHeadersStream(server_session)
+            ->flow_controller();
+    // Both client and server are sending this SETTINGS frame, and the send
+    // window is consumed. But because of timing issue, the server may send or
+    // not send the frame, and the client may send/ not send / receive / not
+    // receive the frame.
+    // TODO(fayang): Rewrite this part because it is hacky.
+    QuicByteCount win_difference1 = QuicFlowControllerPeer::ReceiveWindowSize(
+                                        server_header_stream_flow_controller) -
+                                    QuicFlowControllerPeer::SendWindowSize(
+                                        client_header_stream_flow_controller);
+    if (win_difference1 != 0) {
+      EXPECT_EQ(frame.size(), win_difference1);
+    }
+
+    QuicByteCount win_difference2 = QuicFlowControllerPeer::ReceiveWindowSize(
+                                        client_header_stream_flow_controller) -
+                                    QuicFlowControllerPeer::SendWindowSize(
+                                        server_header_stream_flow_controller);
+    if (win_difference2 != 0) {
+      EXPECT_EQ(frame.size(), win_difference2);
+    }
+
+    // Client *may* have received the SETTINGs frame.
+    // TODO(fayang): Rewrite this part because it is hacky.
+    float ratio1 = static_cast<float>(QuicFlowControllerPeer::ReceiveWindowSize(
+                       client_session->flow_controller())) /
+                   QuicFlowControllerPeer::ReceiveWindowSize(
+                       QuicSpdySessionPeer::GetHeadersStream(client_session)
+                           ->flow_controller());
+    float ratio2 = static_cast<float>(QuicFlowControllerPeer::ReceiveWindowSize(
+                       client_session->flow_controller())) /
+                   (QuicFlowControllerPeer::ReceiveWindowSize(
+                        QuicSpdySessionPeer::GetHeadersStream(client_session)
+                            ->flow_controller()) +
+                    frame.size());
+    EXPECT_TRUE(ratio1 == kSessionToStreamRatio ||
+                ratio2 == kSessionToStreamRatio);
+  }
 
   server_thread_->Resume();
 }
