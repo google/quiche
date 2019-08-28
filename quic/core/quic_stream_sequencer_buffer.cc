@@ -33,8 +33,7 @@ QuicStreamSequencerBuffer::QuicStreamSequencerBuffer(size_t max_capacity_bytes)
     : max_buffer_capacity_bytes_(max_capacity_bytes),
       blocks_count_(CalculateBlockCount(max_capacity_bytes)),
       total_bytes_read_(0),
-      blocks_(nullptr),
-      total_bytes_prefetched_(0) {
+      blocks_(nullptr) {
   Clear();
 }
 
@@ -53,7 +52,6 @@ void QuicStreamSequencerBuffer::Clear() {
   num_bytes_buffered_ = 0;
   bytes_received_.Clear();
   bytes_received_.Add(0, total_bytes_read_);
-  total_bytes_prefetched_ = total_bytes_read_;
 }
 
 bool QuicStreamSequencerBuffer::RetireBlock(size_t idx) {
@@ -267,8 +265,6 @@ QuicErrorCode QuicStreamSequencerBuffer::Readv(const iovec* dest_iov,
       }
     }
   }
-  total_bytes_prefetched_ =
-      std::max(total_bytes_prefetched_, total_bytes_read_);
 
   return QUIC_NO_ERROR;
 }
@@ -367,19 +363,6 @@ bool QuicStreamSequencerBuffer::PeekRegion(QuicStreamOffset offset,
   return true;
 }
 
-bool QuicStreamSequencerBuffer::PrefetchNextRegion(iovec* iov) {
-  DCHECK(iov);
-  DCHECK_LE(total_bytes_read_, total_bytes_prefetched_);
-  DCHECK_LE(total_bytes_prefetched_, FirstMissingByte());
-
-  if (!PeekRegion(total_bytes_prefetched_, iov)) {
-    return false;
-  }
-
-  total_bytes_prefetched_ += iov->iov_len;
-  return true;
-}
-
 bool QuicStreamSequencerBuffer::MarkConsumed(size_t bytes_used) {
   if (bytes_used > ReadableBytes()) {
     return false;
@@ -400,8 +383,7 @@ bool QuicStreamSequencerBuffer::MarkConsumed(size_t bytes_used) {
       RetireBlockIfEmpty(block_idx);
     }
   }
-  total_bytes_prefetched_ =
-      std::max(total_bytes_read_, total_bytes_prefetched_);
+
   return true;
 }
 

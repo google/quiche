@@ -169,11 +169,6 @@ bool QuicStreamSequencer::PeekRegion(QuicStreamOffset offset,
   return buffered_frames_.PeekRegion(offset, iov);
 }
 
-bool QuicStreamSequencer::PrefetchNextRegion(iovec* iov) {
-  DCHECK(!blocked_);
-  return buffered_frames_.PrefetchNextRegion(iov);
-}
-
 void QuicStreamSequencer::Read(std::string* buffer) {
   DCHECK(!blocked_);
   buffer->resize(buffer->size() + ReadableBytes());

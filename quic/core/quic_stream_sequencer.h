@@ -86,10 +86,6 @@ class QUIC_EXPORT_PRIVATE QuicStreamSequencer {
   // not been received yet or has already been consumed.
   bool PeekRegion(QuicStreamOffset offset, iovec* iov) const;
 
-  // Fills in one iovec with the next unread region.
-  // Returns false if no readable region is available.
-  bool PrefetchNextRegion(iovec* iov);
-
   // Copies the data into the iov_len buffers provided.  Returns the number of
   // bytes read.  Any buffered data no longer in use will be released.
   // TODO(rch): remove this method and instead implement it as a helper method

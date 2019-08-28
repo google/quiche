@@ -137,16 +137,6 @@ class QUIC_EXPORT_PRIVATE QuicStreamSequencerBuffer {
   // Does not consume data.
   bool PeekRegion(QuicStreamOffset offset, iovec* iov) const;
 
-  // DEPRECATED, use PeekRegion() instead.
-  // Called to return the next region that has not been returned by this method
-  // previously, except if Clear() has been called then prefetch offset is set
-  // to BytesConsumed(), and if Readv() or MarkConsumed() reads further than
-  // prefetch offset, then offset is set to beginning of not yet consumed area.
-  // This method only returns reference of underlying data. The caller is
-  // responsible for copying and consuming the data.
-  // Returns true if the data is read, false otherwise.
-  bool PrefetchNextRegion(iovec* iov);
-
   // Called after GetReadableRegions() to free up |bytes_used| space if these
   // bytes are processed.
   // Pre-requisite: bytes_used <= available bytes to read.
@@ -243,10 +233,8 @@ class QUIC_EXPORT_PRIVATE QuicStreamSequencerBuffer {
 
   // Currently received data.
   QuicIntervalSet<QuicStreamOffset> bytes_received_;
-
-  // Total number of bytes that have been prefetched.
-  QuicStreamOffset total_bytes_prefetched_;
 };
+
 }  // namespace quic
 
 #endif  // QUICHE_QUIC_CORE_QUIC_STREAM_SEQUENCER_BUFFER_H_
