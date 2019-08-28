@@ -426,7 +426,8 @@ QuicFramer::QuicFramer(const ParsedQuicVersionVector& supported_versions,
       supports_multiple_packet_number_spaces_(false),
       last_written_packet_number_length_(0),
       peer_ack_delay_exponent_(kDefaultAckDelayExponent),
-      local_ack_delay_exponent_(kDefaultAckDelayExponent) {
+      local_ack_delay_exponent_(kDefaultAckDelayExponent),
+      current_received_frame_type_(0) {
   DCHECK(!supported_versions.empty());
   version_ = supported_versions_[0];
   decrypter_[ENCRYPTION_INITIAL] = QuicMakeUnique<NullDecrypter>(perspective);
@@ -1877,13 +1878,16 @@ bool QuicFramer::ProcessIetfDataPacket(QuicDataReader* encrypted_reader,
 
   // Handle the payload.
   if (VersionHasIetfQuicFrames(version_.transport_version)) {
+    current_received_frame_type_ = 0;
     if (!ProcessIetfFrameData(&reader, *header)) {
+      current_received_frame_type_ = 0;
       DCHECK_NE(QUIC_NO_ERROR, error_);  // ProcessIetfFrameData sets the error.
       DCHECK_NE("", detailed_error_);
       QUIC_DLOG(WARNING) << ENDPOINT << "Unable to process frame data. Error: "
                          << detailed_error_;
       return false;
     }
+    current_received_frame_type_ = 0;
   } else {
     if (!ProcessFrameData(&reader, *header)) {
       DCHECK_NE(QUIC_NO_ERROR, error_);  // ProcessFrameData sets the error.
@@ -3045,6 +3049,7 @@ bool QuicFramer::ProcessIetfFrameData(QuicDataReader* reader,
       set_detailed_error("Unable to read frame type.");
       return RaiseError(QUIC_INVALID_FRAME_DATA);
     }
+    current_received_frame_type_ = frame_type;
 
     // Is now the number of bytes into which the frame type was encoded.
     encoded_bytes -= reader->BytesRemaining();

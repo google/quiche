@@ -2836,11 +2836,9 @@ void QuicConnection::SendConnectionClosePacket(QuicErrorCode error,
     QuicErrorCodeToIetfMapping mapping =
         QuicErrorCodeToTransportErrorCode(error);
     if (mapping.is_transport_close_) {
-      // Maps to a transport close
-      // TODO(fkastenholz) need to change "0" to get the frame type currently
-      // being processed so that it can be inserted into the frame.
-      frame = new QuicConnectionCloseFrame(error, details,
-                                           mapping.transport_error_code_, 0);
+      frame = new QuicConnectionCloseFrame(
+          error, details, mapping.transport_error_code_,
+          framer_.current_received_frame_type());
     } else {
       // Maps to an application close.
       frame = new QuicConnectionCloseFrame(error, details,

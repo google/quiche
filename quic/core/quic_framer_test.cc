@@ -197,12 +197,14 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
 
   void OnPublicResetPacket(const QuicPublicResetPacket& packet) override {
     public_reset_packet_ = QuicMakeUnique<QuicPublicResetPacket>((packet));
+    EXPECT_EQ(0u, framer_->current_received_frame_type());
   }
 
   void OnVersionNegotiationPacket(
       const QuicVersionNegotiationPacket& packet) override {
     version_negotiation_packet_ =
         QuicMakeUnique<QuicVersionNegotiationPacket>((packet));
+    EXPECT_EQ(0u, framer_->current_received_frame_type());
   }
 
   void OnRetryPacket(QuicConnectionId original_connection_id,
@@ -213,29 +215,36 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
     retry_new_connection_id_ =
         QuicMakeUnique<QuicConnectionId>(new_connection_id);
     retry_token_ = QuicMakeUnique<std::string>(std::string(retry_token));
+    EXPECT_EQ(0u, framer_->current_received_frame_type());
   }
 
   bool OnProtocolVersionMismatch(ParsedQuicVersion received_version) override {
     QUIC_DLOG(INFO) << "QuicFramer Version Mismatch, version: "
                     << received_version;
     ++version_mismatch_;
+    EXPECT_EQ(0u, framer_->current_received_frame_type());
     return false;
   }
 
   bool OnUnauthenticatedPublicHeader(const QuicPacketHeader& header) override {
     header_ = QuicMakeUnique<QuicPacketHeader>((header));
+    EXPECT_EQ(0u, framer_->current_received_frame_type());
     return accept_public_header_;
   }
 
   bool OnUnauthenticatedHeader(const QuicPacketHeader& /*header*/) override {
+    EXPECT_EQ(0u, framer_->current_received_frame_type());
     return true;
   }
 
-  void OnDecryptedPacket(EncryptionLevel /*level*/) override {}
+  void OnDecryptedPacket(EncryptionLevel /*level*/) override {
+    EXPECT_EQ(0u, framer_->current_received_frame_type());
+  }
 
   bool OnPacketHeader(const QuicPacketHeader& header) override {
     ++packet_count_;
     header_ = QuicMakeUnique<QuicPacketHeader>((header));
+    EXPECT_EQ(0u, framer_->current_received_frame_type());
     return accept_packet_;
   }
 
@@ -259,6 +268,12 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
     stream_data_.push_back(QuicWrapUnique(string_data));
     stream_frames_.push_back(QuicMakeUnique<QuicStreamFrame>(
         frame.stream_id, frame.fin, frame.offset, *string_data));
+    if (VersionHasIetfQuicFrames(transport_version_)) {
+      // Low order bits of type encode flags, ignore them for this test.
+      EXPECT_TRUE(IS_IETF_STREAM_FRAME(framer_->current_received_frame_type()));
+    } else {
+      EXPECT_EQ(0u, framer_->current_received_frame_type());
+    }
     return true;
   }
 
@@ -270,6 +285,11 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
     crypto_data_.push_back(QuicWrapUnique(string_data));
     crypto_frames_.push_back(QuicMakeUnique<QuicCryptoFrame>(
         ENCRYPTION_INITIAL, frame.offset, *string_data));
+    if (VersionHasIetfQuicFrames(transport_version_)) {
+      EXPECT_EQ(IETF_CRYPTO, framer_->current_received_frame_type());
+    } else {
+      EXPECT_EQ(0u, framer_->current_received_frame_type());
+    }
     return true;
   }
 
@@ -280,12 +300,22 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
     ack_frame.largest_acked = largest_acked;
     ack_frame.ack_delay_time = ack_delay_time;
     ack_frames_.push_back(QuicMakeUnique<QuicAckFrame>(ack_frame));
+    if (VersionHasIetfQuicFrames(transport_version_)) {
+      EXPECT_EQ(IETF_ACK, framer_->current_received_frame_type());
+    } else {
+      EXPECT_EQ(0u, framer_->current_received_frame_type());
+    }
     return true;
   }
 
   bool OnAckRange(QuicPacketNumber start, QuicPacketNumber end) override {
     DCHECK(!ack_frames_.empty());
     ack_frames_[ack_frames_.size() - 1]->packets.AddRange(start, end);
+    if (VersionHasIetfQuicFrames(transport_version_)) {
+      EXPECT_EQ(IETF_ACK, framer_->current_received_frame_type());
+    } else {
+      EXPECT_EQ(0u, framer_->current_received_frame_type());
+    }
     return true;
   }
 
@@ -293,6 +323,7 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
                       QuicTime timestamp) override {
     ack_frames_[ack_frames_.size() - 1]->received_packet_times.push_back(
         std::make_pair(packet_number, timestamp));
+    EXPECT_EQ(0u, framer_->current_received_frame_type());
     return true;
   }
 
@@ -301,17 +332,28 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
   bool OnStopWaitingFrame(const QuicStopWaitingFrame& frame) override {
     ++frame_count_;
     stop_waiting_frames_.push_back(QuicMakeUnique<QuicStopWaitingFrame>(frame));
+    EXPECT_EQ(0u, framer_->current_received_frame_type());
     return true;
   }
 
   bool OnPaddingFrame(const QuicPaddingFrame& frame) override {
     padding_frames_.push_back(QuicMakeUnique<QuicPaddingFrame>(frame));
+    if (VersionHasIetfQuicFrames(transport_version_)) {
+      EXPECT_EQ(IETF_PADDING, framer_->current_received_frame_type());
+    } else {
+      EXPECT_EQ(0u, framer_->current_received_frame_type());
+    }
     return true;
   }
 
   bool OnPingFrame(const QuicPingFrame& frame) override {
     ++frame_count_;
     ping_frames_.push_back(QuicMakeUnique<QuicPingFrame>(frame));
+    if (VersionHasIetfQuicFrames(transport_version_)) {
+      EXPECT_EQ(IETF_PING, framer_->current_received_frame_type());
+    } else {
+      EXPECT_EQ(0u, framer_->current_received_frame_type());
+    }
     return true;
   }
 
@@ -319,6 +361,14 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
     ++frame_count_;
     message_frames_.push_back(
         QuicMakeUnique<QuicMessageFrame>(frame.data, frame.message_length));
+    if (VersionHasIetfQuicFrames(transport_version_)) {
+      EXPECT_TRUE(IETF_EXTENSION_MESSAGE_NO_LENGTH ==
+                      framer_->current_received_frame_type() ||
+                  IETF_EXTENSION_MESSAGE ==
+                      framer_->current_received_frame_type());
+    } else {
+      EXPECT_EQ(0u, framer_->current_received_frame_type());
+    }
     return true;
   }
 
@@ -326,71 +376,128 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
 
   bool OnRstStreamFrame(const QuicRstStreamFrame& frame) override {
     rst_stream_frame_ = frame;
+    if (VersionHasIetfQuicFrames(transport_version_)) {
+      EXPECT_EQ(IETF_RST_STREAM, framer_->current_received_frame_type());
+    } else {
+      EXPECT_EQ(0u, framer_->current_received_frame_type());
+    }
     return true;
   }
 
   bool OnConnectionCloseFrame(const QuicConnectionCloseFrame& frame) override {
     connection_close_frame_ = frame;
+    if (VersionHasIetfQuicFrames(transport_version_)) {
+      EXPECT_NE(GOOGLE_QUIC_CONNECTION_CLOSE, frame.close_type);
+      if (frame.close_type == IETF_QUIC_TRANSPORT_CONNECTION_CLOSE) {
+        EXPECT_EQ(IETF_CONNECTION_CLOSE,
+                  framer_->current_received_frame_type());
+      } else {
+        EXPECT_EQ(IETF_APPLICATION_CLOSE,
+                  framer_->current_received_frame_type());
+      }
+    } else {
+      EXPECT_EQ(0u, framer_->current_received_frame_type());
+    }
     return true;
   }
 
   bool OnStopSendingFrame(const QuicStopSendingFrame& frame) override {
     stop_sending_frame_ = frame;
+    EXPECT_EQ(IETF_STOP_SENDING, framer_->current_received_frame_type());
+    EXPECT_TRUE(VersionHasIetfQuicFrames(transport_version_));
     return true;
   }
 
   bool OnPathChallengeFrame(const QuicPathChallengeFrame& frame) override {
     path_challenge_frame_ = frame;
+    EXPECT_EQ(IETF_PATH_CHALLENGE, framer_->current_received_frame_type());
+    EXPECT_TRUE(VersionHasIetfQuicFrames(transport_version_));
     return true;
   }
 
   bool OnPathResponseFrame(const QuicPathResponseFrame& frame) override {
     path_response_frame_ = frame;
+    EXPECT_EQ(IETF_PATH_RESPONSE, framer_->current_received_frame_type());
+    EXPECT_TRUE(VersionHasIetfQuicFrames(transport_version_));
     return true;
   }
 
   bool OnGoAwayFrame(const QuicGoAwayFrame& frame) override {
     goaway_frame_ = frame;
+    EXPECT_FALSE(VersionHasIetfQuicFrames(transport_version_));
+    EXPECT_EQ(0u, framer_->current_received_frame_type());
     return true;
   }
 
   bool OnMaxStreamsFrame(const QuicMaxStreamsFrame& frame) override {
     max_streams_frame_ = frame;
+    EXPECT_TRUE(VersionHasIetfQuicFrames(transport_version_));
+    EXPECT_TRUE(IETF_MAX_STREAMS_UNIDIRECTIONAL ==
+                    framer_->current_received_frame_type() ||
+                IETF_MAX_STREAMS_BIDIRECTIONAL ==
+                    framer_->current_received_frame_type());
     return true;
   }
 
   bool OnStreamsBlockedFrame(const QuicStreamsBlockedFrame& frame) override {
     streams_blocked_frame_ = frame;
+    EXPECT_TRUE(VersionHasIetfQuicFrames(transport_version_));
+    EXPECT_TRUE(IETF_STREAMS_BLOCKED_UNIDIRECTIONAL ==
+                    framer_->current_received_frame_type() ||
+                IETF_STREAMS_BLOCKED_BIDIRECTIONAL ==
+                    framer_->current_received_frame_type());
     return true;
   }
 
   bool OnWindowUpdateFrame(const QuicWindowUpdateFrame& frame) override {
     window_update_frame_ = frame;
+    if (VersionHasIetfQuicFrames(transport_version_)) {
+      EXPECT_TRUE(IETF_MAX_DATA == framer_->current_received_frame_type() ||
+                  IETF_MAX_STREAM_DATA ==
+                      framer_->current_received_frame_type());
+    } else {
+      EXPECT_EQ(0u, framer_->current_received_frame_type());
+    }
     return true;
   }
 
   bool OnBlockedFrame(const QuicBlockedFrame& frame) override {
     blocked_frame_ = frame;
+    if (VersionHasIetfQuicFrames(transport_version_)) {
+      EXPECT_TRUE(IETF_BLOCKED == framer_->current_received_frame_type() ||
+                  IETF_STREAM_BLOCKED ==
+                      framer_->current_received_frame_type());
+    } else {
+      EXPECT_EQ(0u, framer_->current_received_frame_type());
+    }
     return true;
   }
 
   bool OnNewConnectionIdFrame(const QuicNewConnectionIdFrame& frame) override {
     new_connection_id_ = frame;
+    EXPECT_EQ(IETF_NEW_CONNECTION_ID, framer_->current_received_frame_type());
+    EXPECT_TRUE(VersionHasIetfQuicFrames(transport_version_));
     return true;
   }
 
   bool OnRetireConnectionIdFrame(
       const QuicRetireConnectionIdFrame& frame) override {
+    EXPECT_EQ(IETF_RETIRE_CONNECTION_ID,
+              framer_->current_received_frame_type());
+    EXPECT_TRUE(VersionHasIetfQuicFrames(transport_version_));
     retire_connection_id_ = frame;
     return true;
   }
 
   bool OnNewTokenFrame(const QuicNewTokenFrame& frame) override {
     new_token_ = frame;
+    EXPECT_EQ(IETF_NEW_TOKEN, framer_->current_received_frame_type());
+    EXPECT_TRUE(VersionHasIetfQuicFrames(transport_version_));
     return true;
   }
 
   bool IsValidStatelessResetToken(QuicUint128 token) const override {
+    EXPECT_EQ(0u, framer_->current_received_frame_type());
     return token == kTestStatelessResetToken;
   }
 
@@ -398,6 +505,12 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
       const QuicIetfStatelessResetPacket& packet) override {
     stateless_reset_packet_ =
         QuicMakeUnique<QuicIetfStatelessResetPacket>(packet);
+    EXPECT_EQ(0u, framer_->current_received_frame_type());
+  }
+
+  void set_framer(QuicFramer* framer) {
+    framer_ = framer;
+    transport_version_ = framer->transport_version();
   }
 
   // Counters from the visitor_ callbacks.
@@ -442,6 +555,8 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
   QuicNewTokenFrame new_token_;
   std::vector<std::unique_ptr<std::string>> stream_data_;
   std::vector<std::unique_ptr<std::string>> crypto_data_;
+  QuicTransportVersion transport_version_;
+  QuicFramer* framer_;
 };
 
 // Simple struct for defining a packet's content, and associated
@@ -478,6 +593,7 @@ class QuicFramerTest : public QuicTestWithParam<ParsedQuicVersion> {
 
     framer_.set_visitor(&visitor_);
     framer_.InferPacketHeaderTypeFromVersion();
+    visitor_.set_framer(&framer_);
   }
 
   void SetDecrypterLevel(EncryptionLevel level) {

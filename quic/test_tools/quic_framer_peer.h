@@ -179,6 +179,12 @@ class QuicFramerPeer {
       uint8_t* destination_connection_id_length,
       uint8_t* source_connection_id_length,
       std::string* detailed_error);
+
+  static void set_current_received_frame_type(
+      QuicFramer* framer,
+      uint64_t current_received_frame_type) {
+    framer->current_received_frame_type_ = current_received_frame_type;
+  }
 };
 
 }  // namespace test

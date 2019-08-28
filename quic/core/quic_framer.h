@@ -610,6 +610,10 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
     return first_sending_packet_number_;
   }
 
+  uint64_t current_received_frame_type() const {
+    return current_received_frame_type_;
+  }
+
   // The connection ID length the framer expects on incoming IETF short headers
   // on the server.
   uint8_t GetExpectedServerConnectionIdLength() {
@@ -1098,6 +1102,12 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   // the peer in the transport parameter negotiation. IETF QUIC only.
   uint32_t peer_ack_delay_exponent_;
   uint32_t local_ack_delay_exponent_;
+
+  // The type of received IETF frame currently being processed.  0 when not
+  // processing a frame or when processing Google QUIC frames.  Used to populate
+  // the Transport Connection Close when there is an error during frame
+  // processing.
+  uint64_t current_received_frame_type_;
 };
 
 // Look for and parse the error code from the "<quic_error_code>:" text that

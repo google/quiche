@@ -1466,8 +1466,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
         // Maps to a transport close
         qccf.close_type = IETF_QUIC_TRANSPORT_CONNECTION_CLOSE;
         qccf.transport_error_code = mapping.transport_error_code_;
-        // TODO(fkastenholz) need to change "0" to get the frame type currently
-        // being processed so that it can be inserted into the frame.
+        // Frame type is not important for the tests that invoke this method.
         qccf.transport_close_frame_type = 0;
       } else {
         // Maps to an application close.
@@ -9129,6 +9128,32 @@ TEST_P(QuicConnectionTest, AntiAmplificationLimit) {
     EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
     connection_.SendStreamDataWithString(3, "first", i * 0, NO_FIN);
   }
+}
+
+TEST_P(QuicConnectionTest, ConnectionCloseFrameType) {
+  if (!VersionHasIetfQuicFrames(version().transport_version)) {
+    // Test relevent only for IETF QUIC.
+    return;
+  }
+  const QuicErrorCode kQuicErrorCode = IETF_QUIC_PROTOCOL_VIOLATION;
+  // Use the (unknown) frame type of 9999 to avoid triggering any logic
+  // which might be associated with the processing of a known frame type.
+  const uint64_t kTransportCloseFrameType = 9999u;
+  QuicFramerPeer::set_current_received_frame_type(
+      QuicConnectionPeer::GetFramer(&connection_), kTransportCloseFrameType);
+  // Do a transport connection close
+  EXPECT_CALL(visitor_, OnConnectionClosed(_, _));
+  connection_.CloseConnection(
+      kQuicErrorCode, "Some random error message",
+      ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+  const std::vector<QuicConnectionCloseFrame>& connection_close_frames =
+      writer_->connection_close_frames();
+  ASSERT_EQ(1u, connection_close_frames.size());
+  EXPECT_EQ(IETF_QUIC_TRANSPORT_CONNECTION_CLOSE,
+            connection_close_frames[0].close_type);
+  EXPECT_EQ(kQuicErrorCode, connection_close_frames[0].extracted_error_code);
+  EXPECT_EQ(kTransportCloseFrameType,
+            connection_close_frames[0].transport_close_frame_type);
 }
 
 }  // namespace

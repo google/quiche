@@ -4138,7 +4138,11 @@ TEST_P(EndToEndTest, TooBigStreamIdClosesConnection) {
       session, GetNthClientInitiatedBidirectionalId(max_number_of_streams + 1));
   client_->SendCustomSynchronousRequest(headers, body);
   EXPECT_EQ(QUIC_STREAM_CONNECTION_ERROR, client_->stream_error());
-  EXPECT_EQ(QUIC_INVALID_STREAM_ID, client_->connection_error());
+  EXPECT_EQ(QUIC_INVALID_STREAM_ID, GetClientSession()->error());
+  EXPECT_EQ(IETF_QUIC_TRANSPORT_CONNECTION_CLOSE,
+            GetClientSession()->close_type());
+  EXPECT_TRUE(
+      IS_IETF_STREAM_FRAME(GetClientSession()->transport_close_frame_type()));
 }
 
 TEST_P(EndToEndTest, TestMaxPushId) {
