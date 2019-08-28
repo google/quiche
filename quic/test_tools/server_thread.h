@@ -73,13 +73,13 @@ class ServerThread : public QuicThread {
   std::unique_ptr<QuicServer> server_;
   QuicSocketAddress address_;
   mutable QuicMutex port_lock_;
-  int port_ GUARDED_BY(port_lock_);
+  int port_ ABSL_GUARDED_BY(port_lock_);
 
   bool initialized_;
 
   QuicMutex scheduled_actions_lock_;
   QuicDeque<std::function<void()>> scheduled_actions_
-      GUARDED_BY(scheduled_actions_lock_);
+      ABSL_GUARDED_BY(scheduled_actions_lock_);
 };
 
 }  // namespace test

@@ -10,28 +10,28 @@
 namespace quic {
 
 // A class representing a non-reentrant mutex in QUIC.
-class LOCKABLE QUIC_EXPORT_PRIVATE QuicMutex {
+class ABSL_LOCKABLE QUIC_EXPORT_PRIVATE QuicMutex {
  public:
   QuicMutex() = default;
   QuicMutex(const QuicMutex&) = delete;
   QuicMutex& operator=(const QuicMutex&) = delete;
 
   // Block until this Mutex is free, then acquire it exclusively.
-  void WriterLock() EXCLUSIVE_LOCK_FUNCTION();
+  void WriterLock() ABSL_EXCLUSIVE_LOCK_FUNCTION();
 
   // Release this Mutex. Caller must hold it exclusively.
-  void WriterUnlock() UNLOCK_FUNCTION();
+  void WriterUnlock() ABSL_UNLOCK_FUNCTION();
 
   // Block until this Mutex is free or shared, then acquire a share of it.
-  void ReaderLock() SHARED_LOCK_FUNCTION();
+  void ReaderLock() ABSL_SHARED_LOCK_FUNCTION();
 
   // Release this Mutex. Caller could hold it in shared mode.
-  void ReaderUnlock() UNLOCK_FUNCTION();
+  void ReaderUnlock() ABSL_UNLOCK_FUNCTION();
 
   // Returns immediately if current thread holds the Mutex in at least shared
   // mode.  Otherwise, may report an error (typically by crashing with a
   // diagnostic), or may return immediately.
-  void AssertReaderHeld() const ASSERT_SHARED_LOCK();
+  void AssertReaderHeld() const ABSL_ASSERT_SHARED_LOCK();
 
  private:
   QuicLockImpl impl_;
@@ -39,13 +39,13 @@ class LOCKABLE QUIC_EXPORT_PRIVATE QuicMutex {
 
 // A helper class that acquires the given QuicMutex shared lock while the
 // QuicReaderMutexLock is in scope.
-class SCOPED_LOCKABLE QUIC_EXPORT_PRIVATE QuicReaderMutexLock {
+class ABSL_SCOPED_LOCKABLE QUIC_EXPORT_PRIVATE QuicReaderMutexLock {
  public:
-  explicit QuicReaderMutexLock(QuicMutex* lock) SHARED_LOCK_FUNCTION(lock);
+  explicit QuicReaderMutexLock(QuicMutex* lock) ABSL_SHARED_LOCK_FUNCTION(lock);
   QuicReaderMutexLock(const QuicReaderMutexLock&) = delete;
   QuicReaderMutexLock& operator=(const QuicReaderMutexLock&) = delete;
 
-  ~QuicReaderMutexLock() UNLOCK_FUNCTION();
+  ~QuicReaderMutexLock() ABSL_UNLOCK_FUNCTION();
 
  private:
   QuicMutex* const lock_;
@@ -53,13 +53,14 @@ class SCOPED_LOCKABLE QUIC_EXPORT_PRIVATE QuicReaderMutexLock {
 
 // A helper class that acquires the given QuicMutex exclusive lock while the
 // QuicWriterMutexLock is in scope.
-class SCOPED_LOCKABLE QUIC_EXPORT_PRIVATE QuicWriterMutexLock {
+class ABSL_SCOPED_LOCKABLE QUIC_EXPORT_PRIVATE QuicWriterMutexLock {
  public:
-  explicit QuicWriterMutexLock(QuicMutex* lock) EXCLUSIVE_LOCK_FUNCTION(lock);
+  explicit QuicWriterMutexLock(QuicMutex* lock)
+      ABSL_EXCLUSIVE_LOCK_FUNCTION(lock);
   QuicWriterMutexLock(const QuicWriterMutexLock&) = delete;
   QuicWriterMutexLock& operator=(const QuicWriterMutexLock&) = delete;
 
-  ~QuicWriterMutexLock() UNLOCK_FUNCTION();
+  ~QuicWriterMutexLock() ABSL_UNLOCK_FUNCTION();
 
  private:
   QuicMutex* const lock_;

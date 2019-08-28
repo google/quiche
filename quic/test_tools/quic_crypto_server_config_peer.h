@@ -73,7 +73,7 @@ class QuicCryptoServerConfigPeer {
   // ConfigsDebug returns a std::string that contains debugging information
   // about the set of Configs loaded in |server_config_| and their status.
   std::string ConfigsDebug()
-      SHARED_LOCKS_REQUIRED(server_config_->configs_lock_);
+      ABSL_SHARED_LOCKS_REQUIRED(server_config_->configs_lock_);
 
   void SelectNewPrimaryConfig(int seconds);
 
