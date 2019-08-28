@@ -136,6 +136,11 @@ CryptoMessageParser* TlsServerHandshaker::crypto_message_parser() {
   return TlsHandshaker::crypto_message_parser();
 }
 
+size_t TlsServerHandshaker::BufferSizeLimitForLevel(
+    EncryptionLevel level) const {
+  return TlsHandshaker::BufferSizeLimitForLevel(level);
+}
+
 void TlsServerHandshaker::AdvanceHandshake() {
   if (state_ == STATE_CONNECTION_CLOSED) {
     QUIC_LOG(INFO) << "TlsServerHandshaker received handshake message after "

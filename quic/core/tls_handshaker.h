@@ -50,6 +50,7 @@ class QUIC_EXPORT_PRIVATE TlsHandshaker : public TlsConnection::Delegate,
   virtual const QuicCryptoNegotiatedParameters& crypto_negotiated_params()
       const = 0;
   virtual CryptoMessageParser* crypto_message_parser() { return this; }
+  size_t BufferSizeLimitForLevel(EncryptionLevel level) const;
 
  protected:
   virtual void AdvanceHandshake() = 0;
@@ -65,9 +66,9 @@ class QUIC_EXPORT_PRIVATE TlsHandshaker : public TlsConnection::Delegate,
   std::unique_ptr<QuicDecrypter> CreateDecrypter(
       const std::vector<uint8_t>& pp_secret);
 
-  virtual TlsConnection* tls_connection() = 0;
+  virtual const TlsConnection* tls_connection() const = 0;
 
-  SSL* ssl() { return tls_connection()->ssl(); }
+  SSL* ssl() const { return tls_connection()->ssl(); }
 
   QuicCryptoStream* stream() { return stream_; }
   QuicSession* session() { return session_; }

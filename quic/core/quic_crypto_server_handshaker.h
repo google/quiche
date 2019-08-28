@@ -58,6 +58,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerHandshaker
   const QuicCryptoNegotiatedParameters& crypto_negotiated_params()
       const override;
   CryptoMessageParser* crypto_message_parser() override;
+  size_t BufferSizeLimitForLevel(EncryptionLevel level) const override;
 
   // From QuicCryptoHandshaker
   void OnHandshakeMessage(const CryptoHandshakeMessage& message) override;

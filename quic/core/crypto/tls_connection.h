@@ -69,7 +69,7 @@ class QUIC_EXPORT_PRIVATE TlsConnection {
   static enum ssl_encryption_level_t BoringEncryptionLevel(
       EncryptionLevel level);
 
-  SSL* ssl() { return ssl_.get(); }
+  SSL* ssl() const { return ssl_.get(); }
 
  protected:
   // TlsConnection does not take ownership of any of its arguments; they must

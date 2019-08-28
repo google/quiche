@@ -99,6 +99,10 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientStream
 
     // Used by QuicCryptoStream to parse data received on this stream.
     virtual CryptoMessageParser* crypto_message_parser() = 0;
+
+    // Used by QuicCryptoStream to know how much unprocessed data can be
+    // buffered at each encryption level.
+    virtual size_t BufferSizeLimitForLevel(EncryptionLevel level) const = 0;
   };
 
   // ProofHandler is an interface that handles callbacks from the crypto
@@ -142,6 +146,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientStream
   const QuicCryptoNegotiatedParameters& crypto_negotiated_params()
       const override;
   CryptoMessageParser* crypto_message_parser() override;
+  size_t BufferSizeLimitForLevel(EncryptionLevel level) const override;
 
   std::string chlo_hash() const;
 

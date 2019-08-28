@@ -54,6 +54,11 @@ bool TlsHandshaker::ProcessInput(QuicStringPiece input, EncryptionLevel level) {
   return true;
 }
 
+size_t TlsHandshaker::BufferSizeLimitForLevel(EncryptionLevel level) const {
+  return SSL_quic_max_handshake_flight_len(
+      ssl(), TlsConnection::BoringEncryptionLevel(level));
+}
+
 const EVP_MD* TlsHandshaker::Prf() {
   return EVP_get_digestbynid(
       SSL_CIPHER_get_prf_nid(SSL_get_pending_cipher(ssl())));

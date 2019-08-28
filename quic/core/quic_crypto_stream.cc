@@ -78,6 +78,11 @@ void QuicCryptoStream::OnCryptoFrame(const QuicCryptoFrame& frame) {
       << "Versions less than 47 shouldn't receive CRYPTO frames";
   EncryptionLevel level = session()->connection()->last_decrypted_level();
   substreams_[level].sequencer.OnCryptoFrame(frame);
+  if (substreams_[level].sequencer.NumBytesBuffered() >
+      BufferSizeLimitForLevel(frame.level)) {
+    CloseConnectionWithDetails(QUIC_FLOW_CONTROL_RECEIVED_TOO_MUCH_DATA,
+                               "Too much crypto data received");
+  }
 }
 
 void QuicCryptoStream::OnStreamFrame(const QuicStreamFrame& frame) {
@@ -179,6 +184,10 @@ void QuicCryptoStream::WriteCryptoData(EncryptionLevel level,
       session()->connection()->SendCryptoData(level, data.length(), offset);
   session()->connection()->SetDefaultEncryptionLevel(current_level);
   send_buffer->OnStreamDataConsumed(bytes_consumed);
+}
+
+size_t QuicCryptoStream::BufferSizeLimitForLevel(EncryptionLevel) const {
+  return GetQuicFlag(FLAGS_quic_max_buffered_crypto_bytes);
 }
 
 void QuicCryptoStream::OnSuccessfulVersionNegotiation(

@@ -111,6 +111,11 @@ CryptoMessageParser* QuicCryptoServerStream::crypto_message_parser() {
   return handshaker()->crypto_message_parser();
 }
 
+size_t QuicCryptoServerStream::BufferSizeLimitForLevel(
+    EncryptionLevel level) const {
+  return handshaker()->BufferSizeLimitForLevel(level);
+}
+
 void QuicCryptoServerStream::OnSuccessfulVersionNegotiation(
     const ParsedQuicVersion& version) {
   DCHECK_EQ(version, session()->connection()->version());

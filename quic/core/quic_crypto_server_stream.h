@@ -119,6 +119,10 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerStream
 
     // Used by QuicCryptoStream to parse data received on this stream.
     virtual CryptoMessageParser* crypto_message_parser() = 0;
+
+    // Used by QuicCryptoStream to know how much unprocessed data can be
+    // buffered at each encryption level.
+    virtual size_t BufferSizeLimitForLevel(EncryptionLevel level) const = 0;
   };
 
   class Helper {
@@ -172,6 +176,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerStream
   const QuicCryptoNegotiatedParameters& crypto_negotiated_params()
       const override;
   CryptoMessageParser* crypto_message_parser() override;
+  size_t BufferSizeLimitForLevel(EncryptionLevel level) const override;
   void OnSuccessfulVersionNegotiation(
       const ParsedQuicVersion& version) override;
 

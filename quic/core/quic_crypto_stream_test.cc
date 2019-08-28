@@ -570,6 +570,23 @@ TEST_F(QuicCryptoStreamTest, WriteBufferedCryptoFrames) {
   EXPECT_FALSE(stream_->HasBufferedCryptoFrames());
 }
 
+TEST_F(QuicCryptoStreamTest, LimitBufferedCryptoData) {
+  if (!QuicVersionUsesCryptoFrames(connection_->transport_version())) {
+    return;
+  }
+
+  EXPECT_CALL(*connection_,
+              CloseConnection(QUIC_FLOW_CONTROL_RECEIVED_TOO_MUCH_DATA, _, _));
+  std::string large_frame(2 * GetQuicFlag(FLAGS_quic_max_buffered_crypto_bytes),
+                          'a');
+
+  // Set offset to 1 so that we guarantee the data gets buffered instead of
+  // immediately processed.
+  QuicStreamOffset offset = 1;
+  stream_->OnCryptoFrame(
+      QuicCryptoFrame(ENCRYPTION_INITIAL, offset, large_frame));
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

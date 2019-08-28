@@ -84,6 +84,11 @@ CryptoMessageParser* QuicCryptoClientStream::crypto_message_parser() {
   return handshaker_->crypto_message_parser();
 }
 
+size_t QuicCryptoClientStream::BufferSizeLimitForLevel(
+    EncryptionLevel level) const {
+  return handshaker_->BufferSizeLimitForLevel(level);
+}
+
 std::string QuicCryptoClientStream::chlo_hash() const {
   return handshaker_->chlo_hash();
 }

@@ -27,6 +27,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoHandshaker
   void OnHandshakeMessage(const CryptoHandshakeMessage& message) override;
 
   CryptoMessageParser* crypto_message_parser();
+  size_t BufferSizeLimitForLevel(EncryptionLevel level) const;
 
  protected:
   QuicTag last_sent_handshake_message_tag() const {

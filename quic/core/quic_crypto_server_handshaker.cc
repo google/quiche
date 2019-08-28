@@ -373,6 +373,11 @@ CryptoMessageParser* QuicCryptoServerHandshaker::crypto_message_parser() {
   return QuicCryptoHandshaker::crypto_message_parser();
 }
 
+size_t QuicCryptoServerHandshaker::BufferSizeLimitForLevel(
+    EncryptionLevel level) const {
+  return QuicCryptoHandshaker::BufferSizeLimitForLevel(level);
+}
+
 void QuicCryptoServerHandshaker::ProcessClientHello(
     QuicReferenceCountedPointer<ValidateClientHelloResultCallback::Result>
         result,

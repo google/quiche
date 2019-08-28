@@ -141,6 +141,11 @@ CryptoMessageParser* QuicCryptoClientHandshaker::crypto_message_parser() {
   return QuicCryptoHandshaker::crypto_message_parser();
 }
 
+size_t QuicCryptoClientHandshaker::BufferSizeLimitForLevel(
+    EncryptionLevel level) const {
+  return QuicCryptoHandshaker::BufferSizeLimitForLevel(level);
+}
+
 void QuicCryptoClientHandshaker::HandleServerConfigUpdateMessage(
     const CryptoHandshakeMessage& server_config_update) {
   DCHECK(server_config_update.tag() == kSCUP);
