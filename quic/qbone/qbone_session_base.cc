@@ -34,8 +34,6 @@ QboneSessionBase::QboneSessionBase(
   if (VersionHasIetfQuicFrames(transport_version())) {
     ConfigureMaxIncomingDynamicStreamsToSend(max_streams);
   }
-  write_blocked_streams()->SwitchWriteScheduler(
-      spdy::WriteSchedulerType::LIFO, connection->transport_version());
 }
 
 QboneSessionBase::~QboneSessionBase() {
