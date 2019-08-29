@@ -459,6 +459,13 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
         max_stream + num_expected_unidirectional_static_streams_);
   }
 
+  // Returns the ALPN values to negotiate on this session.
+  virtual std::vector<std::string> GetAlpnsToOffer() {
+    // TODO(vasilvv): this currently sets HTTP/3 by default.  Switch all
+    // non-HTTP applications to appropriate ALPNs.
+    return std::vector<std::string>({AlpnForVersion(connection()->version())});
+  }
+
  protected:
   using StreamMap = QuicSmallMap<QuicStreamId, std::unique_ptr<QuicStream>, 10>;
 

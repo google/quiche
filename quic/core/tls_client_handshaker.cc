@@ -15,8 +15,6 @@
 
 namespace quic {
 
-std::string* quic_alpn_override_on_client_for_tests = nullptr;
-
 TlsClientHandshaker::ProofVerifierCallbackImpl::ProofVerifierCallbackImpl(
     TlsClientHandshaker* parent)
     : parent_(parent) {}
@@ -78,32 +76,10 @@ bool TlsClientHandshaker::CryptoConnect() {
     return false;
   }
 
-  std::string alpn_string = AlpnForVersion(session()->connection()->version());
-  if (quic_alpn_override_on_client_for_tests != nullptr) {
-    alpn_string = *quic_alpn_override_on_client_for_tests;
-  }
-  if (alpn_string.length() > std::numeric_limits<uint8_t>::max()) {
-    QUIC_BUG << "ALPN too long: '" << alpn_string << "'";
-    CloseConnection(QUIC_HANDSHAKE_FAILED,
-                    "Client configured ALPN is too long");
+  if (!SetAlpn()) {
+    CloseConnection(QUIC_HANDSHAKE_FAILED, "Client failed to set ALPN");
     return false;
   }
-  const uint8_t alpn_length = alpn_string.length();
-  if (alpn_length > 0) {
-    // SSL_set_alpn_protos expects a sequence of one-byte-length-prefixed
-    // strings so we copy alpn_string to a new buffer that has the length
-    // in alpn[0].
-    uint8_t alpn[std::numeric_limits<uint8_t>::max() + 1];
-    alpn[0] = alpn_length;
-    memcpy(reinterpret_cast<char*>(alpn + 1), alpn_string.data(), alpn_length);
-    if (SSL_set_alpn_protos(ssl(), alpn,
-                            static_cast<unsigned>(alpn_length) + 1) != 0) {
-      QUIC_BUG << "Failed to set ALPN: '" << alpn_string << "'";
-      CloseConnection(QUIC_HANDSHAKE_FAILED, "Client failed to set ALPN");
-      return false;
-    }
-  }
-  QUIC_DLOG(INFO) << "Client using ALPN: '" << alpn_string << "'";
 
   // Set the Transport Parameters to send in the ClientHello
   if (!SetTransportParameters()) {
@@ -115,6 +91,46 @@ bool TlsClientHandshaker::CryptoConnect() {
   // Start the handshake.
   AdvanceHandshake();
   return session()->connection()->connected();
+}
+
+static bool IsValidAlpn(const std::string& alpn_string) {
+  return alpn_string.length() <= std::numeric_limits<uint8_t>::max();
+}
+
+bool TlsClientHandshaker::SetAlpn() {
+  std::vector<std::string> alpns = session()->GetAlpnsToOffer();
+  if (alpns.empty()) {
+    if (allow_empty_alpn_for_tests_) {
+      return true;
+    }
+
+    QUIC_BUG << "ALPN missing";
+    return false;
+  }
+  if (!std::all_of(alpns.begin(), alpns.end(), IsValidAlpn)) {
+    QUIC_BUG << "ALPN too long";
+    return false;
+  }
+
+  // SSL_set_alpn_protos expects a sequence of one-byte-length-prefixed
+  // strings.
+  uint8_t alpn[1024];
+  QuicDataWriter alpn_writer(sizeof(alpn), reinterpret_cast<char*>(alpn));
+  bool success = true;
+  for (const std::string& alpn_string : alpns) {
+    success = success && alpn_writer.WriteUInt8(alpn_string.size()) &&
+              alpn_writer.WriteStringPiece(alpn_string);
+  }
+  success =
+      success && (SSL_set_alpn_protos(ssl(), alpn, alpn_writer.length()) == 0);
+  if (!success) {
+    QUIC_BUG << "Failed to set ALPN: "
+             << QuicTextUtils::HexDump(
+                    QuicStringPiece(alpn_writer.data(), alpn_writer.length()));
+    return false;
+  }
+  QUIC_DLOG(INFO) << "Client using ALPN: '" << alpns[0] << "'";
+  return true;
 }
 
 bool TlsClientHandshaker::SetTransportParameters() {

@@ -54,6 +54,8 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
   CryptoMessageParser* crypto_message_parser() override;
   size_t BufferSizeLimitForLevel(EncryptionLevel level) const override;
 
+  void AllowEmptyAlpnForTests() { allow_empty_alpn_for_tests_ = true; }
+
  protected:
   const TlsConnection* tls_connection() const override {
     return &tls_connection_;
@@ -95,6 +97,7 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
     STATE_CONNECTION_CLOSED,
   } state_ = STATE_IDLE;
 
+  bool SetAlpn();
   bool SetTransportParameters();
   bool ProcessTransportParameters(std::string* error_details);
   void FinishHandshake();
@@ -121,12 +124,10 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
   QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters>
       crypto_negotiated_params_;
 
+  bool allow_empty_alpn_for_tests_ = false;
+
   TlsClientConnection tls_connection_;
 };
-
-// Allows tests to override the ALPN used by clients.
-// DO NOT use outside of tests.
-QUIC_EXPORT_PRIVATE extern std::string* quic_alpn_override_on_client_for_tests;
 
 }  // namespace quic
 

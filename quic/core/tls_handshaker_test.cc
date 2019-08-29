@@ -10,6 +10,7 @@
 #include "net/third_party/quiche/src/quic/core/tls_client_handshaker.h"
 #include "net/third_party/quiche/src/quic/core/tls_server_handshaker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_expect_bug.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/crypto_test_utils.h"
@@ -22,6 +23,7 @@ namespace test {
 namespace {
 
 using ::testing::_;
+using ::testing::Return;
 
 class FakeProofVerifier : public ProofVerifier {
  public:
@@ -225,6 +227,7 @@ class TestQuicCryptoClientStream : public TestQuicCryptoStream {
   ~TestQuicCryptoClientStream() override = default;
 
   TlsHandshaker* handshaker() const override { return handshaker_.get(); }
+  TlsClientHandshaker* client_handshaker() const { return handshaker_.get(); }
 
   bool CryptoConnect() { return handshaker_->CryptoConnect(); }
 
@@ -302,6 +305,9 @@ class TlsHandshakerTest : public QuicTest {
     EXPECT_FALSE(client_stream_->handshake_confirmed());
     EXPECT_FALSE(server_stream_->encryption_established());
     EXPECT_FALSE(server_stream_->handshake_confirmed());
+    ON_CALL(client_session_, GetAlpnsToOffer())
+        .WillByDefault(Return(std::vector<std::string>(
+            {AlpnForVersion(client_session_.connection()->version())})));
   }
 
   MockQuicConnectionHelper conn_helper_;
@@ -442,8 +448,9 @@ TEST_F(TlsHandshakerTest, ServerConnectionClosedOnTlsError) {
 }
 
 TEST_F(TlsHandshakerTest, ClientNotSendingALPN) {
-  static std::string kTestClientNoAlpn = "";
-  quic_alpn_override_on_client_for_tests = &kTestClientNoAlpn;
+  client_stream_->client_handshaker()->AllowEmptyAlpnForTests();
+  EXPECT_CALL(client_session_, GetAlpnsToOffer())
+      .WillOnce(Return(std::vector<std::string>()));
   EXPECT_CALL(*client_conn_, CloseConnection(QUIC_HANDSHAKE_FAILED,
                                              "Server did not select ALPN", _));
   EXPECT_CALL(*server_conn_,
@@ -456,12 +463,12 @@ TEST_F(TlsHandshakerTest, ClientNotSendingALPN) {
   EXPECT_FALSE(client_stream_->encryption_established());
   EXPECT_FALSE(server_stream_->handshake_confirmed());
   EXPECT_FALSE(server_stream_->encryption_established());
-  quic_alpn_override_on_client_for_tests = nullptr;
 }
 
 TEST_F(TlsHandshakerTest, ClientSendingBadALPN) {
   static std::string kTestBadClientAlpn = "bad-client-alpn";
-  quic_alpn_override_on_client_for_tests = &kTestBadClientAlpn;
+  EXPECT_CALL(client_session_, GetAlpnsToOffer())
+      .WillOnce(Return(std::vector<std::string>({kTestBadClientAlpn})));
   EXPECT_CALL(*client_conn_, CloseConnection(QUIC_HANDSHAKE_FAILED,
                                              "Server did not select ALPN", _));
   EXPECT_CALL(*server_conn_,
@@ -474,7 +481,22 @@ TEST_F(TlsHandshakerTest, ClientSendingBadALPN) {
   EXPECT_FALSE(client_stream_->encryption_established());
   EXPECT_FALSE(server_stream_->handshake_confirmed());
   EXPECT_FALSE(server_stream_->encryption_established());
-  quic_alpn_override_on_client_for_tests = nullptr;
+}
+
+TEST_F(TlsHandshakerTest, ClientSendingTooManyALPNs) {
+  std::string long_alpn(250, 'A');
+  EXPECT_CALL(client_session_, GetAlpnsToOffer())
+      .WillOnce(Return(std::vector<std::string>({
+          long_alpn + "1",
+          long_alpn + "2",
+          long_alpn + "3",
+          long_alpn + "4",
+          long_alpn + "5",
+          long_alpn + "6",
+          long_alpn + "7",
+          long_alpn + "8",
+      })));
+  EXPECT_QUIC_BUG(client_stream_->CryptoConnect(), "Failed to set ALPN");
 }
 
 }  // namespace
