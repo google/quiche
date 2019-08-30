@@ -177,15 +177,15 @@ class QuicMemoryCacheBackend : public QuicSimpleServerBackend {
 
   // Cached responses.
   QuicUnorderedMap<std::string, std::unique_ptr<QuicBackendResponse>> responses_
-      GUARDED_BY(response_mutex_);
+      QUIC_GUARDED_BY(response_mutex_);
 
   // The default response for cache misses, if set.
   std::unique_ptr<QuicBackendResponse> default_response_
-      GUARDED_BY(response_mutex_);
+      QUIC_GUARDED_BY(response_mutex_);
 
   // A map from request URL to associated server push responses (if any).
   std::multimap<std::string, QuicBackendResponse::ServerPushInfo>
-      server_push_resources_ GUARDED_BY(response_mutex_);
+      server_push_resources_ QUIC_GUARDED_BY(response_mutex_);
 
   // Protects against concurrent access from test threads setting responses, and
   // server threads accessing those responses.

@@ -161,14 +161,14 @@ class PacketDroppingTestWriter : public QuicPacketWriterWrapper {
   uint64_t num_calls_to_write_;
 
   QuicMutex config_mutex_;
-  int32_t fake_packet_loss_percentage_ GUARDED_BY(config_mutex_);
-  int32_t fake_drop_first_n_packets_ GUARDED_BY(config_mutex_);
-  int32_t fake_blocked_socket_percentage_ GUARDED_BY(config_mutex_);
-  int32_t fake_packet_reorder_percentage_ GUARDED_BY(config_mutex_);
-  QuicTime::Delta fake_packet_delay_ GUARDED_BY(config_mutex_);
-  QuicBandwidth fake_bandwidth_ GUARDED_BY(config_mutex_);
-  QuicByteCount buffer_size_ GUARDED_BY(config_mutex_);
-  int32_t num_consecutive_packet_lost_ GUARDED_BY(config_mutex_);
+  int32_t fake_packet_loss_percentage_ QUIC_GUARDED_BY(config_mutex_);
+  int32_t fake_drop_first_n_packets_ QUIC_GUARDED_BY(config_mutex_);
+  int32_t fake_blocked_socket_percentage_ QUIC_GUARDED_BY(config_mutex_);
+  int32_t fake_packet_reorder_percentage_ QUIC_GUARDED_BY(config_mutex_);
+  QuicTime::Delta fake_packet_delay_ QUIC_GUARDED_BY(config_mutex_);
+  QuicBandwidth fake_bandwidth_ QUIC_GUARDED_BY(config_mutex_);
+  QuicByteCount buffer_size_ QUIC_GUARDED_BY(config_mutex_);
+  int32_t num_consecutive_packet_lost_ QUIC_GUARDED_BY(config_mutex_);
 };
 
 }  // namespace test

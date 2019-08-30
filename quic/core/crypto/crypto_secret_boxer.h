@@ -59,7 +59,7 @@ class QUIC_EXPORT_PRIVATE CryptoSecretBoxer {
 
   // state_ is an opaque pointer to whatever additional state the concrete
   // implementation of CryptoSecretBoxer requires.
-  std::unique_ptr<State> state_ GUARDED_BY(lock_);
+  std::unique_ptr<State> state_ QUIC_GUARDED_BY(lock_);
 };
 
 }  // namespace quic

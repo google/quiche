@@ -25,6 +25,7 @@
 #define QUIC_LOG_IF(severity, condition) QUIC_LOG_IF_IMPL(severity, condition)
 
 #define QUIC_PREDICT_FALSE(x) QUIC_PREDICT_FALSE_IMPL(x)
+#define QUIC_PREDICT_TRUE(x) QUIC_PREDICT_TRUE_IMPL(x)
 
 // This is a noop in release build.
 #define QUIC_NOTREACHED() QUIC_NOTREACHED_IMPL()
