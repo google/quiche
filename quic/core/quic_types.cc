@@ -4,6 +4,8 @@
 
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 
+#include <cstdint>
+
 #include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
 
 namespace quic {
@@ -83,7 +85,7 @@ MessageResult::MessageResult(MessageStatus status, QuicMessageId message_id)
 
 std::string QuicIetfTransportErrorCodeString(QuicIetfTransportErrorCodes c) {
   if (static_cast<uint16_t>(c) >= 0xff00u) {
-    return QuicStrCat("Private value: ", c);
+    return QuicStrCat("Private value: ", static_cast<uint16_t>(c));
   }
 
   switch (c) {
@@ -100,7 +102,8 @@ std::string QuicIetfTransportErrorCodeString(QuicIetfTransportErrorCodes c) {
     RETURN_STRING_LITERAL(PROTOCOL_VIOLATION);
     RETURN_STRING_LITERAL(INVALID_MIGRATION);
     default:
-      return QuicStrCat("Unknown Transport Error Code Value: ", c);
+      return QuicStrCat("Unknown Transport Error Code Value: ",
+                        static_cast<uint16_t>(c));
   }
 }
 
