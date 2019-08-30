@@ -1942,5 +1942,17 @@ size_t QuicSession::max_open_incoming_unidirectional_streams() const {
   return stream_id_manager_.max_open_incoming_streams();
 }
 
+std::vector<QuicStringPiece>::const_iterator QuicSession::SelectAlpn(
+    const std::vector<QuicStringPiece>& alpns) const {
+  const std::string alpn = AlpnForVersion(connection()->version());
+  return std::find(alpns.cbegin(), alpns.cend(), alpn);
+}
+
+void QuicSession::OnAlpnSelected(QuicStringPiece alpn) {
+  QUIC_DLOG(INFO) << (perspective() == Perspective::IS_SERVER ? "Server: "
+                                                              : "Client: ")
+                  << "ALPN selected: " << alpn;
+}
+
 #undef ENDPOINT  // undef for jumbo builds
 }  // namespace quic

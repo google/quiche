@@ -633,7 +633,11 @@ class MockQuicSession : public QuicSession {
   MOCK_CONST_METHOD0(ShouldKeepConnectionAlive, bool());
   MOCK_METHOD2(SendStopSending, void(uint16_t code, QuicStreamId stream_id));
   MOCK_METHOD1(OnCryptoHandshakeEvent, void(QuicSession::CryptoHandshakeEvent));
-  MOCK_METHOD0(GetAlpnsToOffer, std::vector<std::string>());
+  MOCK_CONST_METHOD0(GetAlpnsToOffer, std::vector<std::string>());
+  MOCK_CONST_METHOD1(SelectAlpn,
+                     std::vector<QuicStringPiece>::const_iterator(
+                         const std::vector<QuicStringPiece>&));
+  MOCK_METHOD1(OnAlpnSelected, void(QuicStringPiece));
 
   using QuicSession::ActivateStream;
 

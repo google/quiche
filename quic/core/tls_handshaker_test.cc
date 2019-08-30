@@ -23,6 +23,7 @@ namespace test {
 namespace {
 
 using ::testing::_;
+using ::testing::ElementsAreArray;
 using ::testing::Return;
 
 class FakeProofVerifier : public ProofVerifier {
@@ -305,9 +306,15 @@ class TlsHandshakerTest : public QuicTest {
     EXPECT_FALSE(client_stream_->handshake_confirmed());
     EXPECT_FALSE(server_stream_->encryption_established());
     EXPECT_FALSE(server_stream_->handshake_confirmed());
+    const std::string default_alpn =
+        AlpnForVersion(client_session_.connection()->version());
     ON_CALL(client_session_, GetAlpnsToOffer())
-        .WillByDefault(Return(std::vector<std::string>(
-            {AlpnForVersion(client_session_.connection()->version())})));
+        .WillByDefault(Return(std::vector<std::string>({default_alpn})));
+    ON_CALL(server_session_, SelectAlpn(_))
+        .WillByDefault(
+            [default_alpn](const std::vector<QuicStringPiece>& alpns) {
+              return std::find(alpns.begin(), alpns.end(), default_alpn);
+            });
   }
 
   MockQuicConnectionHelper conn_helper_;
@@ -497,6 +504,59 @@ TEST_F(TlsHandshakerTest, ClientSendingTooManyALPNs) {
           long_alpn + "8",
       })));
   EXPECT_QUIC_BUG(client_stream_->CryptoConnect(), "Failed to set ALPN");
+}
+
+TEST_F(TlsHandshakerTest, ServerRequiresCustomALPN) {
+  static const std::string kTestAlpn = "An ALPN That Client Did Not Offer";
+  EXPECT_CALL(server_session_, SelectAlpn(_))
+      .WillOnce([](const std::vector<QuicStringPiece>& alpns) {
+        return std::find(alpns.cbegin(), alpns.cend(), kTestAlpn);
+      });
+  EXPECT_CALL(*client_conn_, CloseConnection(QUIC_HANDSHAKE_FAILED,
+                                             "Server did not select ALPN", _));
+  EXPECT_CALL(*server_conn_,
+              CloseConnection(QUIC_HANDSHAKE_FAILED,
+                              "Server did not receive a known ALPN", _));
+  client_stream_->CryptoConnect();
+  ExchangeHandshakeMessages(client_stream_, server_stream_);
+
+  EXPECT_FALSE(client_stream_->handshake_confirmed());
+  EXPECT_FALSE(client_stream_->encryption_established());
+  EXPECT_FALSE(server_stream_->handshake_confirmed());
+  EXPECT_FALSE(server_stream_->encryption_established());
+}
+
+TEST_F(TlsHandshakerTest, CustomALPNNegotiation) {
+  EXPECT_CALL(*client_conn_, CloseConnection(_, _, _)).Times(0);
+  EXPECT_CALL(*server_conn_, CloseConnection(_, _, _)).Times(0);
+  EXPECT_CALL(client_session_,
+              OnCryptoHandshakeEvent(QuicSession::ENCRYPTION_ESTABLISHED));
+  EXPECT_CALL(client_session_,
+              OnCryptoHandshakeEvent(QuicSession::HANDSHAKE_CONFIRMED));
+  EXPECT_CALL(server_session_,
+              OnCryptoHandshakeEvent(QuicSession::HANDSHAKE_CONFIRMED));
+
+  static const std::string kTestAlpn = "A Custom ALPN Value";
+  static const std::vector<std::string> kTestAlpns(
+      {"foo", "bar", kTestAlpn, "something else"});
+  EXPECT_CALL(client_session_, GetAlpnsToOffer())
+      .WillRepeatedly(Return(kTestAlpns));
+  EXPECT_CALL(server_session_, SelectAlpn(_))
+      .WillOnce([](const std::vector<QuicStringPiece>& alpns) {
+        EXPECT_THAT(alpns, ElementsAreArray(kTestAlpns));
+        return std::find(alpns.cbegin(), alpns.cend(), kTestAlpn);
+      });
+  EXPECT_CALL(client_session_, OnAlpnSelected(QuicStringPiece(kTestAlpn)));
+  EXPECT_CALL(server_session_, OnAlpnSelected(QuicStringPiece(kTestAlpn)));
+  client_stream_->CryptoConnect();
+  ExchangeHandshakeMessages(client_stream_, server_stream_);
+
+  EXPECT_TRUE(client_stream_->handshake_confirmed());
+  EXPECT_TRUE(client_stream_->encryption_established());
+  EXPECT_TRUE(server_stream_->handshake_confirmed());
+  EXPECT_TRUE(server_stream_->encryption_established());
+  EXPECT_TRUE(client_conn_->IsHandshakeConfirmed());
+  EXPECT_FALSE(server_conn_->IsHandshakeConfirmed());
 }
 
 }  // namespace

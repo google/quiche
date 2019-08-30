@@ -352,41 +352,38 @@ int TlsServerHandshaker::SelectAlpn(const uint8_t** out,
     return SSL_TLSEXT_ERR_NOACK;
   }
 
-  std::string expected_alpn_string =
-      AlpnForVersion(session()->connection()->version());
-
   CBS all_alpns;
   CBS_init(&all_alpns, in, in_len);
 
+  std::vector<QuicStringPiece> alpns;
   while (CBS_len(&all_alpns) > 0) {
     CBS alpn;
     if (!CBS_get_u8_length_prefixed(&all_alpns, &alpn)) {
       QUIC_DLOG(ERROR) << "Failed to parse ALPN length";
       return SSL_TLSEXT_ERR_NOACK;
     }
+
     const size_t alpn_length = CBS_len(&alpn);
-    if (alpn_length >
-        static_cast<size_t>(std::numeric_limits<uint8_t>::max())) {
-      QUIC_BUG << "Parsed impossible ALPN length " << alpn_length;
-      return SSL_TLSEXT_ERR_NOACK;
-    }
     if (alpn_length == 0) {
       QUIC_DLOG(ERROR) << "Received invalid zero-length ALPN";
       return SSL_TLSEXT_ERR_NOACK;
     }
-    std::string alpn_string(reinterpret_cast<const char*>(CBS_data(&alpn)),
-                            alpn_length);
-    if (alpn_string == expected_alpn_string) {
-      QUIC_DLOG(INFO) << "Server selecting ALPN '" << alpn_string << "'";
-      *out_len = static_cast<uint8_t>(alpn_length);
-      *out = CBS_data(&alpn);
-      valid_alpn_received_ = true;
-      return SSL_TLSEXT_ERR_OK;
-    }
+
+    alpns.emplace_back(reinterpret_cast<const char*>(CBS_data(&alpn)),
+                       alpn_length);
   }
 
-  QUIC_DLOG(ERROR) << "No known ALPN provided by client";
-  return SSL_TLSEXT_ERR_NOACK;
+  auto selected_alpn = session()->SelectAlpn(alpns);
+  if (selected_alpn == alpns.end()) {
+    QUIC_DLOG(ERROR) << "No known ALPN provided by client";
+    return SSL_TLSEXT_ERR_NOACK;
+  }
+
+  session()->OnAlpnSelected(*selected_alpn);
+  valid_alpn_received_ = true;
+  *out_len = selected_alpn->size();
+  *out = reinterpret_cast<const uint8_t*>(selected_alpn->data());
+  return SSL_TLSEXT_ERR_OK;
 }
 
 }  // namespace quic

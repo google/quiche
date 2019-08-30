@@ -460,11 +460,20 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
   }
 
   // Returns the ALPN values to negotiate on this session.
-  virtual std::vector<std::string> GetAlpnsToOffer() {
+  virtual std::vector<std::string> GetAlpnsToOffer() const {
     // TODO(vasilvv): this currently sets HTTP/3 by default.  Switch all
     // non-HTTP applications to appropriate ALPNs.
     return std::vector<std::string>({AlpnForVersion(connection()->version())});
   }
+
+  // Provided a list of ALPNs offered by the client, selects an ALPN from the
+  // list, or alpns.end() if none of the ALPNs are acceptable.
+  virtual std::vector<QuicStringPiece>::const_iterator SelectAlpn(
+      const std::vector<QuicStringPiece>& alpns) const;
+
+  // Called when the ALPN of the connection is established for a connection that
+  // uses TLS handshake.
+  virtual void OnAlpnSelected(QuicStringPiece alpn);
 
  protected:
   using StreamMap = QuicSmallMap<QuicStreamId, std::unique_ptr<QuicStream>, 10>;

@@ -304,17 +304,17 @@ void TlsClientHandshaker::FinishHandshake() {
 
   std::string received_alpn_string(reinterpret_cast<const char*>(alpn_data),
                                    alpn_length);
-  std::string sent_alpn_string =
-      AlpnForVersion(session()->connection()->version());
-  if (received_alpn_string != sent_alpn_string) {
+  std::vector<std::string> offered_alpns = session()->GetAlpnsToOffer();
+  if (std::find(offered_alpns.begin(), offered_alpns.end(),
+                received_alpn_string) == offered_alpns.end()) {
     QUIC_LOG(ERROR) << "Client: received mismatched ALPN '"
-                    << received_alpn_string << "', expected '"
-                    << sent_alpn_string << "'";
+                    << received_alpn_string;
     // TODO(b/130164908) this should send no_application_protocol
     // instead of QUIC_HANDSHAKE_FAILED.
     CloseConnection(QUIC_HANDSHAKE_FAILED, "Client received mismatched ALPN");
     return;
   }
+  session()->OnAlpnSelected(received_alpn_string);
   QUIC_DLOG(INFO) << "Client: server selected ALPN: '" << received_alpn_string
                   << "'";
 
