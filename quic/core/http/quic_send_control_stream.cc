@@ -13,9 +13,12 @@ namespace quic {
 QuicSendControlStream::QuicSendControlStream(
     QuicStreamId id,
     QuicSession* session,
+    uint64_t qpack_maximum_dynamic_table_capacity,
     uint64_t max_inbound_header_list_size)
     : QuicStream(id, session, /*is_static = */ true, WRITE_UNIDIRECTIONAL),
       settings_sent_(false),
+      qpack_maximum_dynamic_table_capacity_(
+          qpack_maximum_dynamic_table_capacity),
       max_inbound_header_list_size_(max_inbound_header_list_size) {}
 
 void QuicSendControlStream::OnStreamReset(const QuicRstStreamFrame& /*frame*/) {
@@ -43,7 +46,8 @@ void QuicSendControlStream::MaybeSendSettingsFrame() {
   settings.values[SETTINGS_MAX_HEADER_LIST_SIZE] =
       max_inbound_header_list_size_;
   settings.values[SETTINGS_QPACK_MAX_TABLE_CAPACITY] =
-      kDefaultQpackMaxDynamicTableCapacity;
+      qpack_maximum_dynamic_table_capacity_;
+
   std::unique_ptr<char[]> buffer;
   QuicByteCount frame_length =
       encoder_.SerializeSettingsFrame(settings, &buffer);

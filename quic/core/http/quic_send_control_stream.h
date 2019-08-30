@@ -19,9 +19,10 @@ class QUIC_EXPORT_PRIVATE QuicSendControlStream : public QuicStream {
  public:
   // |session| can't be nullptr, and the ownership is not passed. The stream can
   // only be accessed through the session.
-  explicit QuicSendControlStream(QuicStreamId id,
-                                 QuicSession* session,
-                                 uint64_t max_inbound_header_list_size);
+  QuicSendControlStream(QuicStreamId id,
+                        QuicSession* session,
+                        uint64_t qpack_maximum_dynamic_table_capacity,
+                        uint64_t max_inbound_header_list_size);
   QuicSendControlStream(const QuicSendControlStream&) = delete;
   QuicSendControlStream& operator=(const QuicSendControlStream&) = delete;
   ~QuicSendControlStream() override = default;
@@ -49,7 +50,9 @@ class QUIC_EXPORT_PRIVATE QuicSendControlStream : public QuicStream {
   // Track if a settings frame is already sent.
   bool settings_sent_;
 
-  // Max inbound header list size that will send as setting.
+  // SETTINGS_QPACK_MAX_TABLE_CAPACITY value to send.
+  const uint64_t qpack_maximum_dynamic_table_capacity_;
+  // SETTINGS_MAX_HEADER_LIST_SIZE value to send.
   const uint64_t max_inbound_header_list_size_;
 };
 
