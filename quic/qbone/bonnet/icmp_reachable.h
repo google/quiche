@@ -75,10 +75,9 @@ class IcmpReachable : public IcmpReachableInterface {
 
   // Initializes this reachability probe. Must be called from within the
   // |epoll_server|'s thread.
-  bool Init() ABSL_LOCKS_EXCLUDED(header_lock_) override;
+  bool Init() LOCKS_EXCLUDED(header_lock_) override;
 
-  int64 /* allow-non-std-int */ OnAlarm()
-      ABSL_LOCKS_EXCLUDED(header_lock_) override;
+  int64 /* allow-non-std-int */ OnAlarm() LOCKS_EXCLUDED(header_lock_) override;
 
   static QuicStringPiece StatusName(Status status);
 
@@ -111,7 +110,7 @@ class IcmpReachable : public IcmpReachableInterface {
     IcmpReachable* reachable_;
   };
 
-  bool OnEvent(int fd) ABSL_LOCKS_EXCLUDED(header_lock_);
+  bool OnEvent(int fd) LOCKS_EXCLUDED(header_lock_);
 
   const absl::Duration timeout_;
 
@@ -129,7 +128,7 @@ class IcmpReachable : public IcmpReachableInterface {
   int recv_fd_;
 
   QuicMutex header_lock_;
-  icmp6_hdr icmp_header_ ABSL_GUARDED_BY(header_lock_){};
+  icmp6_hdr icmp_header_ GUARDED_BY(header_lock_){};
 
   absl::Time start_ = absl::InfinitePast();
   absl::Time end_ = absl::InfinitePast();
