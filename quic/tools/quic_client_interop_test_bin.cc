@@ -19,14 +19,6 @@ DEFINE_QUIC_COMMAND_LINE_FLAG(std::string,
 
 DEFINE_QUIC_COMMAND_LINE_FLAG(int32_t, port, 0, "The port to connect to.");
 
-DEFINE_QUIC_COMMAND_LINE_FLAG(
-    int32_t,
-    quic_ietf_draft,
-    0,
-    "QUIC IETF draft number to use over the wire, e.g. 18. "
-    "By default this sets quic_version to T099. "
-    "This also enables required internal QUIC flags.");
-
 namespace quic {
 
 enum class Feature {
@@ -118,11 +110,9 @@ std::set<Feature> AttemptRequest(QuicSocketAddress addr,
   return features;
 }
 
-std::set<Feature> ServerSupport(std::string host,
-                                int port,
-                                int32_t ietf_draft) {
+std::set<Feature> ServerSupport(std::string host, int port) {
   // Configure version list.
-  QuicVersionInitializeSupportForIetfDraft(ietf_draft);
+  QuicVersionInitializeSupportForIetfDraft();
   ParsedQuicVersion version =
       ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_99);
   ParsedQuicVersionVector versions = {version};
@@ -160,13 +150,12 @@ int main(int argc, char* argv[]) {
   }
   std::string host = GetQuicFlag(FLAGS_host);
   int port = GetQuicFlag(FLAGS_port);
-  const int32_t quic_ietf_draft = GetQuicFlag(FLAGS_quic_ietf_draft);
-  if (host.empty() || port == 0 || quic_ietf_draft == 0) {
+  if (host.empty() || port == 0) {
     quic::QuicPrintCommandLineFlagHelp(usage);
     exit(1);
   }
 
-  auto supported_features = quic::ServerSupport(host, port, quic_ietf_draft);
+  auto supported_features = quic::ServerSupport(host, port);
   std::cout << "Supported features: ";
   for (auto feature : supported_features) {
     std::cout << MatrixLetter(feature);

@@ -116,6 +116,9 @@ enum QuicTransportVersion {
   QUIC_VERSION_RESERVED_FOR_NEGOTIATION = 999,
 };
 
+// IETF draft version most closely approximated by TLS + v99.
+static const int kQuicIetfDraftVersion = 22;
+
 // The crypto handshake protocols that can be used with QUIC.
 enum HandshakeProtocol {
   PROTOCOL_UNSUPPORTED,
@@ -439,10 +442,9 @@ QUIC_EXPORT_PRIVATE bool QuicVersionLabelUses4BitConnectionIdLength(
 QUIC_EXPORT_PRIVATE std::string AlpnForVersion(
     ParsedQuicVersion parsed_version);
 
-// Initializes support for the provided IETF draft version by setting flags
-// and the version label.
-QUIC_EXPORT_PRIVATE void QuicVersionInitializeSupportForIetfDraft(
-    int32_t draft_version);
+// Initializes support for the provided IETF draft version by setting the
+// correct flags.
+QUIC_EXPORT_PRIVATE void QuicVersionInitializeSupportForIetfDraft();
 
 // Enables the flags required to support this version of QUIC.
 QUIC_EXPORT_PRIVATE void QuicEnableVersion(ParsedQuicVersion parsed_version);

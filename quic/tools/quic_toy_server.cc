@@ -26,12 +26,11 @@ DEFINE_QUIC_COMMAND_LINE_FLAG(
     "construction to seed the cache. Cache directory can be "
     "generated using `wget -p --save-headers <url>`");
 
-DEFINE_QUIC_COMMAND_LINE_FLAG(
-    int32_t,
-    quic_ietf_draft,
-    0,
-    "QUIC IETF draft number to use over the wire, e.g. 18. "
-    "This also enables required internal QUIC flags.");
+DEFINE_QUIC_COMMAND_LINE_FLAG(bool,
+                              quic_ietf_draft,
+                              false,
+                              "Use the IETF draft version. This also enables "
+                              "required internal QUIC flags.");
 
 namespace quic {
 
@@ -50,9 +49,8 @@ QuicToyServer::QuicToyServer(BackendFactory* backend_factory,
     : backend_factory_(backend_factory), server_factory_(server_factory) {}
 
 int QuicToyServer::Start() {
-  const int32_t quic_ietf_draft = GetQuicFlag(FLAGS_quic_ietf_draft);
-  if (quic_ietf_draft > 0) {
-    quic::QuicVersionInitializeSupportForIetfDraft(quic_ietf_draft);
+  if (GetQuicFlag(FLAGS_quic_ietf_draft)) {
+    QuicVersionInitializeSupportForIetfDraft();
     quic::QuicEnableVersion(
         quic::ParsedQuicVersion(quic::PROTOCOL_TLS1_3, quic::QUIC_VERSION_99));
   }

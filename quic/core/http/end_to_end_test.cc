@@ -939,7 +939,7 @@ TEST_P(EndToEndTestWithTls, SimpleRequestResponseWithIetfDraftSupport) {
     ASSERT_TRUE(Initialize());
     return;
   }
-  QuicVersionInitializeSupportForIetfDraft(1);
+  QuicVersionInitializeSupportForIetfDraft();
   ASSERT_TRUE(Initialize());
 
   EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));

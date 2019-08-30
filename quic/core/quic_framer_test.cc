@@ -605,21 +605,9 @@ class QuicFramerTest : public QuicTestWithParam<ParsedQuicVersion> {
   }
 
   // Helper function to get unsigned char representation of the handshake
-  // protocol byte of the current QUIC version number.
-  unsigned char GetQuicVersionProtocolByte() {
-    return (CreateQuicVersionLabel(version_) >> 24) & 0xff;
-  }
-
-  // Helper function to get unsigned char representation of digit in the
-  // units place of the current QUIC version number.
-  unsigned char GetQuicVersionDigitOnes() {
-    return CreateQuicVersionLabel(version_) & 0xff;
-  }
-
-  // Helper function to get unsigned char representation of digit in the
-  // tens place of the current QUIC version number.
-  unsigned char GetQuicVersionDigitTens() {
-    return (CreateQuicVersionLabel(version_) >> 8) & 0xff;
+  // protocol byte at position |pos| of the current QUIC version number.
+  unsigned char GetQuicVersionByte(int pos) {
+    return (CreateQuicVersionLabel(version_) >> 8 * (3 - pos)) & 0xff;
   }
 
   bool CheckEncryption(QuicPacketNumber packet_number, QuicPacket* packet) {
@@ -818,9 +806,9 @@ class QuicFramerTest : public QuicTestWithParam<ParsedQuicVersion> {
 // testing, and these byte arrays contain the QUIC version. This macro explodes
 // the 32-bit version into four bytes in network order. Since it uses methods of
 // QuicFramerTest, it is only valid to use this in a QuicFramerTest.
-#define QUIC_VERSION_BYTES                                      \
-  GetQuicVersionProtocolByte(), '0', GetQuicVersionDigitTens(), \
-      GetQuicVersionDigitOnes()
+#define QUIC_VERSION_BYTES                                             \
+  GetQuicVersionByte(0), GetQuicVersionByte(1), GetQuicVersionByte(2), \
+      GetQuicVersionByte(3)
 
 // Run all framer tests with all supported versions of QUIC.
 INSTANTIATE_TEST_SUITE_P(QuicFramerTests,

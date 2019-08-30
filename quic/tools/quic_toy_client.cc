@@ -111,13 +111,11 @@ DEFINE_QUIC_COMMAND_LINE_FLAG(
     "versions are offered in the handshake. Also supports wire versions "
     "such as Q043 or T099.");
 
-DEFINE_QUIC_COMMAND_LINE_FLAG(
-    int32_t,
-    quic_ietf_draft,
-    0,
-    "QUIC IETF draft number to use over the wire, e.g. 18. "
-    "By default this sets quic_version to T099. "
-    "This also enables required internal QUIC flags.");
+DEFINE_QUIC_COMMAND_LINE_FLAG(bool,
+                              quic_ietf_draft,
+                              false,
+                              "Use the IETF draft version. This also enables "
+                              "required internal QUIC flags.");
 
 DEFINE_QUIC_COMMAND_LINE_FLAG(
     bool,
@@ -183,14 +181,12 @@ int QuicToyClient::SendRequestsAndPrintResponses(
   quic::ParsedQuicVersionVector versions = quic::CurrentSupportedVersions();
 
   std::string quic_version_string = GetQuicFlag(FLAGS_quic_version);
-  const int32_t quic_ietf_draft = GetQuicFlag(FLAGS_quic_ietf_draft);
-  if (quic_ietf_draft > 0) {
-    quic::QuicVersionInitializeSupportForIetfDraft(quic_ietf_draft);
-    if (quic_version_string.length() == 0) {
-      quic_version_string = "T099";
-    }
-  }
-  if (quic_version_string.length() > 0) {
+  if (GetQuicFlag(FLAGS_quic_ietf_draft)) {
+    quic::QuicVersionInitializeSupportForIetfDraft();
+    versions = {{quic::PROTOCOL_TLS1_3, quic::QUIC_VERSION_99}};
+    quic::QuicEnableVersion(versions[0]);
+
+  } else if (!quic_version_string.empty()) {
     if (quic_version_string[0] == 'T') {
       // ParseQuicVersionString checks quic_supports_tls_handshake.
       SetQuicFlag(FLAGS_quic_supports_tls_handshake, true);
@@ -201,8 +197,7 @@ int QuicToyClient::SendRequestsAndPrintResponses(
         quic::QUIC_VERSION_UNSUPPORTED) {
       return 1;
     }
-    versions.clear();
-    versions.push_back(parsed_quic_version);
+    versions = {parsed_quic_version};
     quic::QuicEnableVersion(parsed_quic_version);
   }
 

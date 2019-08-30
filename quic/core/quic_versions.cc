@@ -120,10 +120,8 @@ QuicVersionLabel CreateQuicVersionLabel(ParsedQuicVersion parsed_version) {
     case QUIC_VERSION_48:
       return MakeVersionLabel(proto, '0', '4', '8');
     case QUIC_VERSION_99:
-      if (parsed_version.handshake_protocol == PROTOCOL_TLS1_3 &&
-          GetQuicFlag(FLAGS_quic_ietf_draft_version) != 0) {
-        return MakeVersionLabel(0xff, 0x00, 0x00,
-                                GetQuicFlag(FLAGS_quic_ietf_draft_version));
+      if (parsed_version.handshake_protocol == PROTOCOL_TLS1_3) {
+        return MakeVersionLabel(0xff, 0x00, 0x00, kQuicIetfDraftVersion);
       }
       return MakeVersionLabel(proto, '0', '9', '9');
     case QUIC_VERSION_RESERVED_FOR_NEGOTIATION:
@@ -449,26 +447,13 @@ ParsedQuicVersion QuicVersionReservedForNegotiation() {
 
 std::string AlpnForVersion(ParsedQuicVersion parsed_version) {
   if (parsed_version.handshake_protocol == PROTOCOL_TLS1_3 &&
-      parsed_version.transport_version == QUIC_VERSION_99 &&
-      GetQuicFlag(FLAGS_quic_ietf_draft_version) != 0) {
-    return "h3-" + QuicTextUtils::Uint64ToString(
-                       GetQuicFlag(FLAGS_quic_ietf_draft_version));
+      parsed_version.transport_version == QUIC_VERSION_99) {
+    return "h3-" + QuicTextUtils::Uint64ToString(kQuicIetfDraftVersion);
   }
   return "h3-" + ParsedQuicVersionToString(parsed_version);
 }
 
-void QuicVersionInitializeSupportForIetfDraft(int32_t draft_version) {
-  if (draft_version < 0 || draft_version >= 256) {
-    QUIC_LOG(FATAL) << "Invalid IETF draft version " << draft_version;
-    return;
-  }
-
-  SetQuicFlag(FLAGS_quic_ietf_draft_version, draft_version);
-
-  if (draft_version == 0) {
-    return;
-  }
-
+void QuicVersionInitializeSupportForIetfDraft() {
   // Enable necessary flags.
   SetQuicFlag(FLAGS_quic_supports_tls_handshake, true);
   SetQuicReloadableFlag(quic_simplify_stop_waiting, true);

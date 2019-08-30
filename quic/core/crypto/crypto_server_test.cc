@@ -103,7 +103,10 @@ class CryptoServerTest : public QuicTestWithParam<TestParams> {
     config_.set_enable_serving_sct(true);
 
     client_version_ = supported_versions_.front();
-    client_version_string_ = ParsedQuicVersionToString(client_version_);
+    client_version_label_ = CreateQuicVersionLabel(client_version_);
+    client_version_string_ =
+        std::string(reinterpret_cast<const char*>(&client_version_label_),
+                    sizeof(client_version_label_));
   }
 
   void SetUp() override {
@@ -265,7 +268,6 @@ class CryptoServerTest : public QuicTestWithParam<TestParams> {
       } else {
         ASSERT_NE(error, QUIC_NO_ERROR)
             << "Message didn't fail: " << result_->client_hello.DebugString();
-
         EXPECT_TRUE(error_details.find(error_substr_) != std::string::npos)
             << error_substr_ << " not in " << error_details;
       }
@@ -341,6 +343,7 @@ class CryptoServerTest : public QuicTestWithParam<TestParams> {
   QuicSocketAddress client_address_;
   ParsedQuicVersionVector supported_versions_;
   ParsedQuicVersion client_version_;
+  QuicVersionLabel client_version_label_;
   std::string client_version_string_;
   QuicCryptoServerConfig config_;
   QuicCryptoServerConfigPeer peer_;
@@ -497,9 +500,8 @@ TEST_P(CryptoServerTest, RejectTooLargeButValidSTK) {
 
 TEST_P(CryptoServerTest, TooSmall) {
   ShouldFailMentioning(
-      "too small",
-      crypto_test_utils::CreateCHLO(
-          {{"PDMD", "X509"}, {"VER\0", client_version_string_.c_str()}}));
+      "too small", crypto_test_utils::CreateCHLO(
+                       {{"PDMD", "X509"}, {"VER\0", client_version_string_}}));
 
   const HandshakeFailureReason kRejectReasons[] = {
       SERVER_CONFIG_INCHOATE_HELLO_FAILURE};
