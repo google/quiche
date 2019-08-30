@@ -17,6 +17,7 @@ class QpackHeaderTablePeer {
  public:
   QpackHeaderTablePeer() = delete;
 
+  static uint64_t dynamic_table_capacity(const QpackHeaderTable* header_table);
   static uint64_t maximum_dynamic_table_capacity(
       const QpackHeaderTable* header_table);
 };

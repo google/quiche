@@ -694,9 +694,13 @@ void QuicSpdySession::OnSetting(uint64_t id, uint64_t value) {
         QUIC_DVLOG(1)
             << "SETTINGS_QPACK_MAX_TABLE_CAPACITY received with value "
             << value;
-        // TODO(b/112770235): Limit value to
-        // qpack_maximum_dynamic_table_capacity_.
+        // Communicate |value| to encoder, because it is used for encoding
+        // Required Insert Count.
         qpack_encoder_->SetMaximumDynamicTableCapacity(value);
+        // However, limit the dynamic table capacity to
+        // |qpack_maximum_dynamic_table_capacity_|.
+        qpack_encoder_->SetDynamicTableCapacity(
+            std::min(value, qpack_maximum_dynamic_table_capacity_));
         break;
       case SETTINGS_MAX_HEADER_LIST_SIZE:
         QUIC_DVLOG(1) << "SETTINGS_MAX_HEADER_LIST_SIZE received with value "

@@ -11,6 +11,8 @@
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
+#include "net/third_party/quiche/src/quic/test_tools/qpack_encoder_peer.h"
+#include "net/third_party/quiche/src/quic/test_tools/qpack_header_table_peer.h"
 
 using ::testing::_;
 using ::testing::Eq;
@@ -182,8 +184,13 @@ TEST_F(QpackEncoderTest, InvalidHeaderAcknowledgement) {
 }
 
 TEST_F(QpackEncoderTest, DynamicTable) {
-  encoder_.SetMaximumDynamicTableCapacity(4096);
   encoder_.SetMaximumBlockedStreams(1);
+  encoder_.SetMaximumDynamicTableCapacity(4096);
+
+  // Set Dynamic Table Capacity instruction.
+  EXPECT_CALL(encoder_stream_sender_delegate_,
+              WriteStreamData(Eq(QuicTextUtils::HexDecode("3fe11f"))));
+  encoder_.SetDynamicTableCapacity(4096);
 
   spdy::SpdyHeaderBlock header_list;
   header_list["foo"] = "bar";
@@ -214,8 +221,13 @@ TEST_F(QpackEncoderTest, DynamicTable) {
 
 // There is no room in the dynamic table after inserting the first entry.
 TEST_F(QpackEncoderTest, SmallDynamicTable) {
-  encoder_.SetMaximumDynamicTableCapacity(QpackEntry::Size("foo", "bar"));
   encoder_.SetMaximumBlockedStreams(1);
+  encoder_.SetMaximumDynamicTableCapacity(QpackEntry::Size("foo", "bar"));
+
+  // Set Dynamic Table Capacity instruction.
+  EXPECT_CALL(encoder_stream_sender_delegate_,
+              WriteStreamData(Eq(QuicTextUtils::HexDecode("3f07"))));
+  encoder_.SetDynamicTableCapacity(QpackEntry::Size("foo", "bar"));
 
   spdy::SpdyHeaderBlock header_list;
   header_list["foo"] = "bar";
@@ -243,8 +255,13 @@ TEST_F(QpackEncoderTest, SmallDynamicTable) {
 }
 
 TEST_F(QpackEncoderTest, BlockedStream) {
-  encoder_.SetMaximumDynamicTableCapacity(4096);
   encoder_.SetMaximumBlockedStreams(1);
+  encoder_.SetMaximumDynamicTableCapacity(4096);
+
+  // Set Dynamic Table Capacity instruction.
+  EXPECT_CALL(encoder_stream_sender_delegate_,
+              WriteStreamData(Eq(QuicTextUtils::HexDecode("3fe11f"))));
+  encoder_.SetDynamicTableCapacity(4096);
 
   spdy::SpdyHeaderBlock header_list1;
   header_list1["foo"] = "bar";
@@ -362,6 +379,10 @@ TEST_F(QpackEncoderTest, Draining) {
   maximum_dynamic_table_capacity += QpackEntry::Size("one", "foo");
   encoder_.SetMaximumDynamicTableCapacity(maximum_dynamic_table_capacity);
 
+  // Set Dynamic Table Capacity instruction.
+  EXPECT_CALL(encoder_stream_sender_delegate_, WriteStreamData(_));
+  encoder_.SetDynamicTableCapacity(maximum_dynamic_table_capacity);
+
   // Insert ten entries into the dynamic table.
   EXPECT_CALL(encoder_stream_sender_delegate_, WriteStreamData(_)).Times(10);
 
@@ -397,6 +418,21 @@ TEST_F(QpackEncoderTest, Draining) {
                                      "2374776f"    // literal name "two"
                                      "03626172"),  // literal value "bar"
             Encode(header_list3));
+}
+
+TEST_F(QpackEncoderTest, DynamicTableCapacityLessThanMaximum) {
+  encoder_.SetMaximumDynamicTableCapacity(1024);
+
+  // Set Dynamic Table Capacity instruction.
+  EXPECT_CALL(encoder_stream_sender_delegate_,
+              WriteStreamData(Eq(QuicTextUtils::HexDecode("3e"))));
+  encoder_.SetDynamicTableCapacity(30);
+
+  QpackHeaderTable* header_table = QpackEncoderPeer::header_table(&encoder_);
+
+  EXPECT_EQ(1024u,
+            QpackHeaderTablePeer::maximum_dynamic_table_capacity(header_table));
+  EXPECT_EQ(30u, QpackHeaderTablePeer::dynamic_table_capacity(header_table));
 }
 
 }  // namespace

@@ -318,9 +318,13 @@ std::string QpackEncoder::EncodeHeaderList(
 
 void QpackEncoder::SetMaximumDynamicTableCapacity(
     uint64_t maximum_dynamic_table_capacity) {
-  // TODO(b/112770235): Send set dynamic table capacity instruction on encoder
-  // stream.
   header_table_.SetMaximumDynamicTableCapacity(maximum_dynamic_table_capacity);
+}
+
+void QpackEncoder::SetDynamicTableCapacity(uint64_t dynamic_table_capacity) {
+  encoder_stream_sender_.SendSetDynamicTableCapacity(dynamic_table_capacity);
+  bool success = header_table_.SetDynamicTableCapacity(dynamic_table_capacity);
+  DCHECK(success);
 }
 
 void QpackEncoder::SetMaximumBlockedStreams(uint64_t maximum_blocked_streams) {

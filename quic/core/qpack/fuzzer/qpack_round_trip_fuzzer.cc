@@ -45,6 +45,10 @@ class EncodingEndpoint {
     encoder_.set_qpack_stream_sender_delegate(delegate);
   }
 
+  void SetDynamicTableCapacity(uint64_t maximum_dynamic_table_capacity) {
+    encoder_.SetDynamicTableCapacity(maximum_dynamic_table_capacity);
+  }
+
   QpackStreamReceiver* decoder_stream_receiver() {
     return encoder_.decoder_stream_receiver();
   }
@@ -595,6 +599,10 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   DelayedStreamDataTransmitter encoder_stream_transmitter(
       decoder.encoder_stream_receiver(), &provider);
   encoder.set_qpack_stream_sender_delegate(&encoder_stream_transmitter);
+
+  // Use a dynamic table as large as the peer allows.  This sends data on the
+  // encoder stream, so it can only be done after delegate is set.
+  encoder.SetDynamicTableCapacity(maximum_dynamic_table_capacity);
 
   // Transmit decoder stream data from encoder to decoder.
   DelayedStreamDataTransmitter decoder_stream_transmitter(

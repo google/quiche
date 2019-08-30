@@ -30,6 +30,7 @@ class QpackHeaderTableTest : public QuicTest {
   QpackHeaderTableTest() {
     table_.SetMaximumDynamicTableCapacity(
         kMaximumDynamicTableCapacityForTesting);
+    table_.SetDynamicTableCapacity(kMaximumDynamicTableCapacityForTesting);
   }
   ~QpackHeaderTableTest() override = default;
 
@@ -371,6 +372,7 @@ TEST_F(QpackHeaderTableTest, MaxInsertSizeWithoutEvictingGivenEntry) {
   const uint64_t dynamic_table_capacity = 100;
   QpackHeaderTable table;
   table.SetMaximumDynamicTableCapacity(dynamic_table_capacity);
+  EXPECT_TRUE(table.SetDynamicTableCapacity(dynamic_table_capacity));
 
   // Empty table can take an entry up to its capacity.
   EXPECT_EQ(dynamic_table_capacity,
@@ -455,7 +457,9 @@ TEST_F(QpackHeaderTableTest, Observer) {
 
 TEST_F(QpackHeaderTableTest, DrainingIndex) {
   QpackHeaderTable table;
-  table.SetMaximumDynamicTableCapacity(4 * QpackEntry::Size("foo", "bar"));
+  table.SetMaximumDynamicTableCapacity(kMaximumDynamicTableCapacityForTesting);
+  EXPECT_TRUE(
+      table.SetDynamicTableCapacity(4 * QpackEntry::Size("foo", "bar")));
 
   // Empty table: no draining entry.
   EXPECT_EQ(0u, table.draining_index(0.0));

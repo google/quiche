@@ -184,7 +184,6 @@ void QpackHeaderTable::SetMaximumDynamicTableCapacity(
   DCHECK_EQ(0u, maximum_dynamic_table_capacity_);
   DCHECK_EQ(0u, max_entries_);
 
-  dynamic_table_capacity_ = maximum_dynamic_table_capacity;
   maximum_dynamic_table_capacity_ = maximum_dynamic_table_capacity;
   max_entries_ = maximum_dynamic_table_capacity / 32;
 }

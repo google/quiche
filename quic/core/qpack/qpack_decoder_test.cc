@@ -301,6 +301,7 @@ TEST_P(QpackDecoderTest, TooHighStaticTableIndex) {
 
 TEST_P(QpackDecoderTest, DynamicTable) {
   DecodeEncoderStreamData(QuicTextUtils::HexDecode(
+      "3fe107"          // Set dynamic table capacity to 1024.
       "6294e703626172"  // Add literal entry with name "foo" and value "bar".
       "80035a5a5a"      // Add entry with name of dynamic table entry index 0
                         // (relative index) and value "ZZZ".
@@ -382,6 +383,8 @@ TEST_P(QpackDecoderTest, DynamicTable) {
 }
 
 TEST_P(QpackDecoderTest, DecreasingDynamicTableCapacityEvictsEntries) {
+  // Set dynamic table capacity to 1024.
+  DecodeEncoderStreamData(QuicTextUtils::HexDecode("3fe107"));
   // Add literal entry with name "foo" and value "bar".
   DecodeEncoderStreamData(QuicTextUtils::HexDecode("6294e703626172"));
 
@@ -431,6 +434,7 @@ TEST_P(QpackDecoderTest, EncoderStreamErrorInvalidDynamicTableEntry) {
               OnEncoderStreamError(Eq("Invalid relative index.")));
 
   DecodeEncoderStreamData(QuicTextUtils::HexDecode(
+      "3fe107"          // Set dynamic table capacity to 1024.
       "6294e703626172"  // Add literal entry with name "foo" and value "bar".
       "8100"));  // Address dynamic table entry with relative index 1.  Such
                  // entry does not exist.  The most recently added and only
@@ -442,6 +446,7 @@ TEST_P(QpackDecoderTest, EncoderStreamErrorDuplicateInvalidEntry) {
               OnEncoderStreamError(Eq("Invalid relative index.")));
 
   DecodeEncoderStreamData(QuicTextUtils::HexDecode(
+      "3fe107"          // Set dynamic table capacity to 1024.
       "6294e703626172"  // Add literal entry with name "foo" and value "bar".
       "01"));  // Duplicate dynamic table entry with relative index 1.  Such
                // entry does not exist.  The most recently added and only
@@ -458,6 +463,8 @@ TEST_P(QpackDecoderTest, EncoderStreamErrorTooLargeInteger) {
 TEST_P(QpackDecoderTest, InvalidDynamicEntryWhenBaseIsZero) {
   EXPECT_CALL(handler_, OnDecodingErrorDetected(Eq("Invalid relative index.")));
 
+  // Set dynamic table capacity to 1024.
+  DecodeEncoderStreamData(QuicTextUtils::HexDecode("3fe107"));
   // Add literal entry with name "foo" and value "bar".
   DecodeEncoderStreamData(QuicTextUtils::HexDecode("6294e703626172"));
 
@@ -477,6 +484,8 @@ TEST_P(QpackDecoderTest, InvalidNegativeBase) {
 }
 
 TEST_P(QpackDecoderTest, InvalidDynamicEntryByRelativeIndex) {
+  // Set dynamic table capacity to 1024.
+  DecodeEncoderStreamData(QuicTextUtils::HexDecode("3fe107"));
   // Add literal entry with name "foo" and value "bar".
   DecodeEncoderStreamData(QuicTextUtils::HexDecode("6294e703626172"));
 
@@ -585,6 +594,8 @@ TEST_P(QpackDecoderTest, WrappedRequiredInsertCount) {
   // Maximum dynamic table capacity is 1024.
   // MaxEntries is 1024 / 32 = 32.
 
+  // Set dynamic table capacity to 1024.
+  DecodeEncoderStreamData(QuicTextUtils::HexDecode("3fe107"));
   // Add literal entry with name "foo" and a 600 byte long value.  This will fit
   // in the dynamic table once but not twice.
   DecodeEncoderStreamData(
@@ -611,6 +622,8 @@ TEST_P(QpackDecoderTest, WrappedRequiredInsertCount) {
 }
 
 TEST_P(QpackDecoderTest, NonZeroRequiredInsertCountButNoDynamicEntries) {
+  // Set dynamic table capacity to 1024.
+  DecodeEncoderStreamData(QuicTextUtils::HexDecode("3fe107"));
   // Add literal entry with name "foo" and value "bar".
   DecodeEncoderStreamData(QuicTextUtils::HexDecode("6294e703626172"));
 
@@ -624,6 +637,8 @@ TEST_P(QpackDecoderTest, NonZeroRequiredInsertCountButNoDynamicEntries) {
 }
 
 TEST_P(QpackDecoderTest, AddressEntryNotAllowedByRequiredInsertCount) {
+  // Set dynamic table capacity to 1024.
+  DecodeEncoderStreamData(QuicTextUtils::HexDecode("3fe107"));
   // Add literal entry with name "foo" and value "bar".
   DecodeEncoderStreamData(QuicTextUtils::HexDecode("6294e703626172"));
 
@@ -680,6 +695,8 @@ TEST_P(QpackDecoderTest, AddressEntryNotAllowedByRequiredInsertCount) {
 }
 
 TEST_P(QpackDecoderTest, PromisedRequiredInsertCountLargerThanActual) {
+  // Set dynamic table capacity to 1024.
+  DecodeEncoderStreamData(QuicTextUtils::HexDecode("3fe107"));
   // Add literal entry with name "foo" and value "bar".
   DecodeEncoderStreamData(QuicTextUtils::HexDecode("6294e703626172"));
   // Duplicate entry twice so that decoding of header blocks with Required
@@ -748,6 +765,8 @@ TEST_P(QpackDecoderTest, BlockedDecoding) {
   EXPECT_CALL(decoder_stream_sender_delegate_,
               WriteStreamData(Eq(kHeaderAcknowledgement)));
 
+  // Set dynamic table capacity to 1024.
+  DecodeEncoderStreamData(QuicTextUtils::HexDecode("3fe107"));
   // Add literal entry with name "foo" and value "bar".
   DecodeEncoderStreamData(QuicTextUtils::HexDecode("6294e703626172"));
 }
@@ -767,6 +786,10 @@ TEST_P(QpackDecoderTest, BlockedDecodingUnblockedBeforeEndOfHeaderBlock) {
   // the already consumed part of the header block.
   EXPECT_CALL(handler_, OnHeaderDecoded(Eq("foo"), Eq("bar")));
   EXPECT_CALL(handler_, OnHeaderDecoded(Eq(":method"), Eq("GET")));
+
+  // Set dynamic table capacity to 1024.
+  DecodeEncoderStreamData(QuicTextUtils::HexDecode("3fe107"));
+  // Add literal entry with name "foo" and value "bar".
   DecodeEncoderStreamData(QuicTextUtils::HexDecode("6294e703626172"));
   Mock::VerifyAndClearExpectations(&handler_);
 

@@ -53,11 +53,16 @@ class QUIC_EXPORT_PRIVATE QpackEncoder
   std::string EncodeHeaderList(QuicStreamId stream_id,
                                const spdy::SpdyHeaderBlock& header_list);
 
-  // Set maximum capacity of dynamic table, measured in bytes.
-  // Called when SETTINGS_QPACK_MAX_TABLE_CAPACITY is received.
-  // Sends set dynamic table capacity instruction on encoder stream.
-  // TODO(b/112770235): Actually send set dynamic table capacity instruction.
+  // Set maximum dynamic table capacity to |maximum_dynamic_table_capacity|,
+  // measured in bytes.  Called when SETTINGS_QPACK_MAX_TABLE_CAPACITY is
+  // received.  Encoder needs to know this value so that it can calculate
+  // MaxEntries, used as a modulus to encode Required Insert Count.
   void SetMaximumDynamicTableCapacity(uint64_t maximum_dynamic_table_capacity);
+
+  // Set dynamic table capacity to |dynamic_table_capacity|.
+  // |dynamic_table_capacity| must not exceed maximum dynamic table capacity.
+  // Also sends Set Dynamic Table Capacity instruction on encoder stream.
+  void SetDynamicTableCapacity(uint64_t dynamic_table_capacity);
 
   // Set maximum number of blocked streams.
   // Called when SETTINGS_QPACK_BLOCKED_STREAMS is received.

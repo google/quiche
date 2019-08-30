@@ -1921,6 +1921,7 @@ TEST_P(QuicSpdyStreamTest, ImmediateHeaderDecodingWithDynamicTableEntries) {
 
   testing::InSequence s;
   Initialize(kShouldProcessData);
+  session_->qpack_decoder()->OnSetDynamicTableCapacity(1024);
 
   auto decoder_send_stream =
       QuicSpdySessionPeer::GetQpackDecoderSendStream(session_.get());
@@ -1983,6 +1984,7 @@ TEST_P(QuicSpdyStreamTest, BlockedHeaderDecoding) {
 
   testing::InSequence s;
   Initialize(kShouldProcessData);
+  session_->qpack_decoder()->OnSetDynamicTableCapacity(1024);
 
   // HEADERS frame referencing first dynamic table entry.
   std::string headers = HeadersFrame(QuicTextUtils::HexDecode("020080"));
@@ -2040,6 +2042,7 @@ TEST_P(QuicSpdyStreamTest, AsyncErrorDecodingHeaders) {
   }
 
   Initialize(kShouldProcessData);
+  session_->qpack_decoder()->OnSetDynamicTableCapacity(1024);
 
   // HEADERS frame only referencing entry with absolute index 0 but with
   // Required Insert Count = 2, which is incorrect.
@@ -2078,6 +2081,7 @@ TEST_P(QuicSpdyStreamTest, AsyncErrorDecodingTrailers) {
 
   testing::InSequence s;
   Initialize(kShouldProcessData);
+  session_->qpack_decoder()->OnSetDynamicTableCapacity(1024);
 
   // HEADERS frame referencing first dynamic table entry.
   std::string headers = HeadersFrame(QuicTextUtils::HexDecode("020080"));

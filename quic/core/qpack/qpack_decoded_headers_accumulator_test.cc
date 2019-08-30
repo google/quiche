@@ -134,6 +134,8 @@ TEST_F(QpackDecodedHeadersAccumulatorTest, BlockedDecoding) {
   EXPECT_TRUE(accumulator_.Decode(QuicTextUtils::HexDecode("020080")));
   EXPECT_EQ(Status::kBlocked, accumulator_.EndHeaderBlock());
 
+  // Set dynamic table capacity.
+  qpack_decoder_.OnSetDynamicTableCapacity(kMaxDynamicTableCapacity);
   // Adding dynamic table entry unblocks decoding.
   EXPECT_CALL(decoder_stream_sender_delegate_,
               WriteStreamData(Eq(kHeaderAcknowledgement)));
@@ -147,6 +149,8 @@ TEST_F(QpackDecodedHeadersAccumulatorTest,
   // Reference to dynamic table entry not yet received.
   EXPECT_TRUE(accumulator_.Decode(QuicTextUtils::HexDecode("020080")));
 
+  // Set dynamic table capacity.
+  qpack_decoder_.OnSetDynamicTableCapacity(kMaxDynamicTableCapacity);
   // Adding dynamic table entry unblocks decoding.
   qpack_decoder_.OnInsertWithoutNameReference("foo", "bar");
 
