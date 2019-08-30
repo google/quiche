@@ -175,6 +175,14 @@ void SimpleSessionNotifier::OnCanWrite() {
   }
 }
 
+void SimpleSessionNotifier::OnStreamReset(QuicStreamId id,
+                                          QuicRstStreamErrorCode error) {
+  if (error != QUIC_STREAM_NO_ERROR) {
+    // Delete stream to avoid retransmissions.
+    stream_map_.erase(id);
+  }
+}
+
 bool SimpleSessionNotifier::WillingToWrite() const {
   QUIC_DVLOG(1) << "has_buffered_control_frames: " << HasBufferedControlFrames()
                 << " as_lost_control_frames: " << !lost_control_frames_.empty()

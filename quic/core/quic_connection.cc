@@ -2586,11 +2586,19 @@ void QuicConnection::OnRetransmissionTimeout() {
 
   if (sent_packet_manager_.fix_rto_retransmission()) {
     if (packet_generator_.packet_number() == previous_created_packet_number &&
-        (retransmission_mode == QuicSentPacketManager::RTO_MODE ||
+        (retransmission_mode == QuicSentPacketManager::TLP_MODE ||
+         retransmission_mode == QuicSentPacketManager::RTO_MODE ||
          retransmission_mode == QuicSentPacketManager::PTO_MODE) &&
         !visitor_->WillingAndAbleToWrite()) {
       // Send PING if timer fires in RTO or PTO mode but there is no data to
       // send.
+      // When TLP fires, either new data or tail loss probe should be sent.
+      // There is corner case where TLP fires after RTO because packets get
+      // acked. Two packets are marked RTO_RETRANSMITTED, but the first packet
+      // is retransmitted as two packets because of packet number length
+      // increases (please see QuicConnectionTest.RtoPacketAsTwo).
+      QUIC_BUG_IF(retransmission_mode == QuicSentPacketManager::TLP_MODE &&
+                  stats_.rto_count == 0);
       DCHECK_LT(0u, sent_packet_manager_.pending_timer_transmission_count());
       visitor_->SendPing();
     }

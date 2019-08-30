@@ -1283,8 +1283,10 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
                                      StreamSendingState state,
                                      QuicPacketNumber* last_packet) {
     QuicByteCount packet_size;
+    // Save the last packet's size.
     EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
-        .WillOnce(SaveArg<3>(&packet_size));
+        .Times(AnyNumber())
+        .WillRepeatedly(SaveArg<3>(&packet_size));
     connection_.SendStreamDataWithString(id, data, offset, state);
     if (last_packet != nullptr) {
       *last_packet = creator_->packet_number();
@@ -9154,6 +9156,52 @@ TEST_P(QuicConnectionTest, ConnectionCloseFrameType) {
   EXPECT_EQ(kQuicErrorCode, connection_close_frames[0].extracted_error_code);
   EXPECT_EQ(kTransportCloseFrameType,
             connection_close_frames[0].transport_close_frame_type);
+}
+
+// Regression test for b/137401387 and b/138962304.
+TEST_P(QuicConnectionTest, RtoPacketAsTwo) {
+  if (!QuicConnectionPeer::GetSentPacketManager(&connection_)
+           ->fix_rto_retransmission() ||
+      connection_.PtoEnabled()) {
+    return;
+  }
+  connection_.SetMaxTailLossProbes(1);
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  std::string stream_data(3000, 's');
+  // Send packets 1 - 66 and exhaust cwnd.
+  for (size_t i = 0; i < 22; ++i) {
+    // 3 packets for each stream, the first 2 are guaranteed to be full packets.
+    SendStreamDataToPeer(i + 2, stream_data, 0, FIN, nullptr);
+  }
+  CongestionBlockWrites();
+
+  // Fires TLP. Please note, this tail loss probe has 1 byte less stream data
+  // compared to packet 1 because packet number length increases.
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, QuicPacketNumber(67), _, _));
+  connection_.GetRetransmissionAlarm()->Fire();
+  // Fires RTO. Please note, although packets 2 and 3 *should* be RTOed, but
+  // packet 2 gets RTOed to two packets because packet number length increases.
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, QuicPacketNumber(68), _, _));
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, QuicPacketNumber(69), _, _));
+  connection_.GetRetransmissionAlarm()->Fire();
+
+  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
+  // Resets all streams except 2 and ack packets 1 and 2. Now, packet 3 is the
+  // only one containing retransmittable frames.
+  for (size_t i = 1; i < 22; ++i) {
+    notifier_.OnStreamReset(i + 2, QUIC_STREAM_CANCELLED);
+  }
+  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(_, _, _, _, _));
+  QuicAckFrame frame =
+      InitAckFrame({{QuicPacketNumber(1), QuicPacketNumber(3)}});
+  ProcessAckPacket(1, &frame);
+  CongestionUnblockWrites();
+
+  // Fires TLP, verify a PING gets sent because packet 3 is marked
+  // RTO_RETRANSMITTED.
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, QuicPacketNumber(70), _, _));
+  EXPECT_CALL(visitor_, SendPing()).WillOnce(Invoke([this]() { SendPing(); }));
+  connection_.GetRetransmissionAlarm()->Fire();
 }
 
 }  // namespace

@@ -45,6 +45,9 @@ class SimpleSessionNotifier : public SessionNotifierInterface {
   // Called when connection_ becomes writable.
   void OnCanWrite();
 
+  // Called to reset stream.
+  void OnStreamReset(QuicStreamId id, QuicRstStreamErrorCode error);
+
   // Returns true if there are 1) unsent control frames and stream data, or 2)
   // lost control frames and stream data.
   bool WillingToWrite() const;
