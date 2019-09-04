@@ -13,6 +13,7 @@
 #include "net/third_party/quiche/src/quic/core/crypto/null_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/frames/quic_stream_frame.h"
 #include "net/third_party/quiche/src/quic/core/http/http_constants.h"
+#include "net/third_party/quiche/src/quic/core/quic_config.h"
 #include "net/third_party/quiche/src/quic/core/quic_crypto_stream.h"
 #include "net/third_party/quiche/src/quic/core/quic_data_writer.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
@@ -1511,6 +1512,23 @@ TEST_P(QuicSpdySessionTestServer, InvalidSessionFlowControlWindowInHandshake) {
 
   EXPECT_CALL(*connection_,
               CloseConnection(QUIC_FLOW_CONTROL_INVALID_WINDOW, _, _));
+  session_.OnConfigNegotiated();
+}
+
+TEST_P(QuicSpdySessionTestServer, TooLowUnidirectionalStreamLimitHttp3) {
+  if (!VersionUsesQpack(transport_version()) ||
+      GetParam().handshake_protocol == PROTOCOL_TLS1_3) {
+    // TODO(nharper, b/112643533): Figure out why this test fails when TLS is
+    // enabled and fix it.
+    return;
+  }
+
+  QuicConfigPeer::SetReceivedMaxIncomingUnidirectionalStreams(session_.config(),
+                                                              2u);
+
+  EXPECT_CALL(
+      *connection_,
+      CloseConnection(_, "New unidirectional stream limit is too low.", _));
   session_.OnConfigNegotiated();
 }
 

@@ -963,7 +963,7 @@ bool QuicSession::IsCryptoHandshakeConfirmed() const {
 void QuicSession::OnConfigNegotiated() {
   connection_->SetFromConfig(config_);
 
-  if (VersionHasIetfQuicFrames(connection_->transport_version())) {
+  if (VersionHasIetfQuicFrames(transport_version())) {
     uint32_t max_streams = 0;
     if (config_.HasReceivedMaxIncomingBidirectionalStreams()) {
       max_streams = config_.ReceivedMaxIncomingBidirectionalStreams();

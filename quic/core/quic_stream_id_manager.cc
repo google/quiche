@@ -98,6 +98,19 @@ bool QuicStreamIdManager::OnStreamsBlockedFrame(
 // Used when configuration has been done and we have an initial
 // maximum stream count from the peer.
 bool QuicStreamIdManager::SetMaxOpenOutgoingStreams(size_t max_open_streams) {
+  if (unidirectional_ &&
+      max_open_streams <
+          session_->num_expected_unidirectional_static_streams()) {
+    // Requirement can be found at
+    // https://tools.ietf.org/html/draft-ietf-quic-http-22#section-6.2.
+    QUIC_DLOG(ERROR) << "Received max unidirectional stream "
+                     << max_open_streams << " < "
+                     << session_->num_expected_unidirectional_static_streams();
+    session_->connection()->CloseConnection(
+        QUIC_MAX_STREAMS_ERROR, "New unidirectional stream limit is too low.",
+        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    return false;
+  }
   if (using_default_max_streams_) {
     // This is the first MAX_STREAMS/transport negotiation we've received. Treat
     // this a bit differently than later ones. The difference is that
