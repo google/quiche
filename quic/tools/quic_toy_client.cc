@@ -218,6 +218,11 @@ int QuicToyClient::SendRequestsAndPrintResponses(
   std::unique_ptr<QuicSpdyClientBase> client = client_factory_->CreateClient(
       url.host(), host, port, versions, std::move(proof_verifier));
 
+  if (client == nullptr) {
+    std::cerr << "Failed to create client." << std::endl;
+    return 1;
+  }
+
   int32_t initial_mtu = GetQuicFlag(FLAGS_initial_mtu);
   client->set_initial_max_packet_length(
       initial_mtu != 0 ? initial_mtu : quic::kDefaultMaxPacketSize);
