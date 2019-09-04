@@ -1124,11 +1124,9 @@ void QuicSession::OnNewStreamFlowControlWindow(QuicStreamOffset new_window) {
     QUIC_LOG_FIRST_N(ERROR, 1)
         << "Peer sent us an invalid stream flow control send window: "
         << new_window << ", below minimum: " << kMinimumFlowControlSendWindow;
-    if (connection_->connected()) {
-      connection_->CloseConnection(
-          QUIC_FLOW_CONTROL_INVALID_WINDOW, "New stream window too low",
-          ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
-    }
+    connection_->CloseConnection(
+        QUIC_FLOW_CONTROL_INVALID_WINDOW, "New stream window too low",
+        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return;
   }
 
@@ -1147,11 +1145,9 @@ void QuicSession::OnNewSessionFlowControlWindow(QuicStreamOffset new_window) {
     QUIC_LOG_FIRST_N(ERROR, 1)
         << "Peer sent us an invalid session flow control send window: "
         << new_window << ", below default: " << kMinimumFlowControlSendWindow;
-    if (connection_->connected()) {
-      connection_->CloseConnection(
-          QUIC_FLOW_CONTROL_INVALID_WINDOW, "New connection window too low",
-          ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
-    }
+    connection_->CloseConnection(
+        QUIC_FLOW_CONTROL_INVALID_WINDOW, "New connection window too low",
+        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return;
   }
 
