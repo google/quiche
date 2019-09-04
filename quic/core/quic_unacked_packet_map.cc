@@ -29,10 +29,14 @@ QuicUnackedPacketMap::QuicUnackedPacketMap(Perspective perspective)
       least_unacked_(FirstSendingPacketNumber()),
       bytes_in_flight_(0),
       pending_crypto_packet_count_(0),
+      last_inflight_packet_sent_time_(QuicTime::Zero()),
       last_crypto_packet_sent_time_(QuicTime::Zero()),
       session_notifier_(nullptr),
       session_decides_what_to_write_(false),
-      supports_multiple_packet_number_spaces_(false) {}
+      supports_multiple_packet_number_spaces_(false),
+      simple_inflight_time_(GetQuicReloadableFlag(quic_simple_inflight_time)) {
+  QUIC_RELOADABLE_FLAG_COUNT(quic_simple_inflight_time);
+}
 
 QuicUnackedPacketMap::~QuicUnackedPacketMap() {
   for (QuicTransmissionInfo& transmission_info : unacked_packets_) {
@@ -79,6 +83,9 @@ void QuicUnackedPacketMap::AddSentPacket(SerializedPacket* packet,
     info.in_flight = true;
     largest_sent_retransmittable_packets_[GetPacketNumberSpace(
         info.encryption_level)] = packet_number;
+    // TODO(ianswett): Should this field be per packet number space or should
+    // GetInFlightPacketSentTime() use largest_sent_retransmittable_packets_?
+    last_inflight_packet_sent_time_ = sent_time;
   }
   unacked_packets_.push_back(info);
   // Swap the retransmittable frames to avoid allocations.
@@ -321,7 +328,10 @@ QuicTransmissionInfo* QuicUnackedPacketMap::GetMutableTransmissionInfo(
   return &unacked_packets_[packet_number - least_unacked_];
 }
 
-QuicTime QuicUnackedPacketMap::GetLastPacketSentTime() const {
+QuicTime QuicUnackedPacketMap::GetLastInFlightPacketSentTime() const {
+  if (simple_inflight_time_) {
+    return last_inflight_packet_sent_time_;
+  }
   auto it = unacked_packets_.rbegin();
   while (it != unacked_packets_.rend()) {
     if (it->in_flight) {

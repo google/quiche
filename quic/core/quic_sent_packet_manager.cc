@@ -645,7 +645,7 @@ void QuicSentPacketManager::MarkPacketHandled(QuicPacketNumber packet_number,
     // Other crypto handshake packets won't be in flight, only the newest
     // transmission of a crypto packet is in flight at once.
     // TODO(ianswett): Instead of handling all crypto packets special,
-    // only handle nullptr encrypted packets in a special way.
+    // only handle null encrypted packets in a special way.
     const QuicTransmissionInfo& newest_transmission_info =
         unacked_packets_.GetTransmissionInfo(newest_transmission);
     unacked_packets_.NotifyFramesAcked(newest_transmission_info, ack_delay_time,
@@ -1021,7 +1021,8 @@ const QuicTime QuicSentPacketManager::GetRetransmissionTime() const {
       // TODO(ianswett): When CWND is available, it would be preferable to
       // set the timer based on the earliest retransmittable packet.
       // Base the updated timer on the send time of the last packet.
-      const QuicTime sent_time = unacked_packets_.GetLastPacketSentTime();
+      const QuicTime sent_time =
+          unacked_packets_.GetLastInFlightPacketSentTime();
       const QuicTime tlp_time = sent_time + GetTailLossProbeDelay();
       // Ensure the TLP timer never gets set to a time in the past.
       return std::max(clock_->ApproximateNow(), tlp_time);
@@ -1029,15 +1030,16 @@ const QuicTime QuicSentPacketManager::GetRetransmissionTime() const {
     case RTO_MODE: {
       DCHECK(!pto_enabled_);
       // The RTO is based on the first outstanding packet.
-      const QuicTime sent_time = unacked_packets_.GetLastPacketSentTime();
+      const QuicTime sent_time =
+          unacked_packets_.GetLastInFlightPacketSentTime();
       QuicTime rto_time = sent_time + GetRetransmissionDelay();
       // Wait for TLP packets to be acked before an RTO fires.
-      QuicTime tlp_time =
-          unacked_packets_.GetLastPacketSentTime() + GetTailLossProbeDelay();
+      QuicTime tlp_time = sent_time + GetTailLossProbeDelay();
       return std::max(tlp_time, rto_time);
     }
     case PTO_MODE: {
-      if (handshake_mode_disabled_ && !handshake_confirmed_ &&
+      if (!unacked_packets().simple_inflight_time() &&
+          handshake_mode_disabled_ && !handshake_confirmed_ &&
           !unacked_packets_.HasInFlightPackets()) {
         DCHECK_EQ(Perspective::IS_CLIENT, unacked_packets_.perspective());
         return std::max(clock_->ApproximateNow(),
@@ -1045,9 +1047,9 @@ const QuicTime QuicSentPacketManager::GetRetransmissionTime() const {
                             GetProbeTimeoutDelay());
       }
       // Ensure PTO never gets set to a time in the past.
-      return std::max(
-          clock_->ApproximateNow(),
-          unacked_packets_.GetLastPacketSentTime() + GetProbeTimeoutDelay());
+      return std::max(clock_->ApproximateNow(),
+                      unacked_packets_.GetLastInFlightPacketSentTime() +
+                          GetProbeTimeoutDelay());
     }
   }
   DCHECK(false);

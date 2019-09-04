@@ -131,7 +131,7 @@ class QUIC_EXPORT_PRIVATE QuicUnackedPacketMap {
       QuicPacketNumber packet_number);
 
   // Returns the time that the last unacked packet was sent.
-  QuicTime GetLastPacketSentTime() const;
+  QuicTime GetLastInFlightPacketSentTime() const;
 
   // Returns the time that the last unacked crypto packet was sent.
   QuicTime GetLastCryptoPacketSentTime() const;
@@ -227,6 +227,8 @@ class QUIC_EXPORT_PRIVATE QuicUnackedPacketMap {
     return supports_multiple_packet_number_spaces_;
   }
 
+  bool simple_inflight_time() const { return simple_inflight_time_; }
+
  private:
   friend class test::QuicUnackedPacketMapPeer;
 
@@ -288,6 +290,9 @@ class QUIC_EXPORT_PRIVATE QuicUnackedPacketMap {
   // Number of retransmittable crypto handshake packets.
   size_t pending_crypto_packet_count_;
 
+  // Time that the last inflight packet was sent.
+  QuicTime last_inflight_packet_sent_time_;
+
   // Time that the last unacked crypto packet was sent.
   QuicTime last_crypto_packet_sent_time_;
 
@@ -303,6 +308,9 @@ class QUIC_EXPORT_PRIVATE QuicUnackedPacketMap {
 
   // If true, supports multiple packet number spaces.
   bool supports_multiple_packet_number_spaces_;
+
+  // Latched value of the quic_simple_inflight_time flag.
+  bool simple_inflight_time_;
 };
 
 }  // namespace quic
