@@ -241,6 +241,9 @@ class QUIC_EXPORT_PRIVATE QuicConnectionDebugVisitor
   // Called when a StreamFrame has been parsed.
   virtual void OnStreamFrame(const QuicStreamFrame& /*frame*/) {}
 
+  // Called when a CRYPTO frame containing handshake data is received.
+  virtual void OnCryptoFrame(const QuicCryptoFrame& /*frame*/) {}
+
   // Called when a StopWaitingFrame has been parsed.
   virtual void OnStopWaitingFrame(const QuicStopWaitingFrame& /*frame*/) {}
 
@@ -268,6 +271,17 @@ class QUIC_EXPORT_PRIVATE QuicConnectionDebugVisitor
 
   // Called when a BlockedFrame has been parsed.
   virtual void OnBlockedFrame(const QuicBlockedFrame& /*frame*/) {}
+
+  // Called when a NewConnectionIdFrame has been parsed.
+  virtual void OnNewConnectionIdFrame(
+      const QuicNewConnectionIdFrame& /*frame*/) {}
+
+  // Called when a RetireConnectionIdFrame has been parsed.
+  virtual void OnRetireConnectionIdFrame(
+      const QuicRetireConnectionIdFrame& /*frame*/) {}
+
+  // Called when a NewTokenFrame has been parsed.
+  virtual void OnNewTokenFrame(const QuicNewTokenFrame& /*frame*/) {}
 
   // Called when a MessageFrame has been parsed.
   virtual void OnMessageFrame(const QuicMessageFrame& /*frame*/) {}
@@ -305,6 +319,12 @@ class QUIC_EXPORT_PRIVATE QuicConnectionDebugVisitor
 
   // Called when a StopSendingFrame has been parsed.
   virtual void OnStopSendingFrame(const QuicStopSendingFrame& /*frame*/) {}
+
+  // Called when a PathChallengeFrame has been parsed.
+  virtual void OnPathChallengeFrame(const QuicPathChallengeFrame& /*frame*/) {}
+
+  // Called when a PathResponseFrame has been parsed.
+  virtual void OnPathResponseFrame(const QuicPathResponseFrame& /*frame*/) {}
 };
 
 class QUIC_EXPORT_PRIVATE QuicConnectionHelperInterface {

@@ -896,6 +896,9 @@ bool QuicConnection::OnCryptoFrame(const QuicCryptoFrame& frame) {
   // A probe only contains a PING and full padding.
   UpdatePacketContent(NOT_PADDED_PING);
 
+  if (debug_visitor_ != nullptr) {
+    debug_visitor_->OnCryptoFrame(frame);
+  }
   visitor_->OnCryptoFrame(frame);
   should_last_packet_instigate_acks_ = true;
   return connected_;
@@ -1145,6 +1148,9 @@ bool QuicConnection::OnStopSendingFrame(const QuicStopSendingFrame& frame) {
 }
 
 bool QuicConnection::OnPathChallengeFrame(const QuicPathChallengeFrame& frame) {
+  if (debug_visitor_ != nullptr) {
+    debug_visitor_->OnPathChallengeFrame(frame);
+  }
   // Save the path challenge's payload, for later use in generating the
   // response.
   received_path_challenge_payloads_.push_back(frame.data_buffer);
@@ -1161,6 +1167,9 @@ bool QuicConnection::OnPathChallengeFrame(const QuicPathChallengeFrame& frame) {
 }
 
 bool QuicConnection::OnPathResponseFrame(const QuicPathResponseFrame& frame) {
+  if (debug_visitor_ != nullptr) {
+    debug_visitor_->OnPathResponseFrame(frame);
+  }
   should_last_packet_instigate_acks_ = true;
   if (!transmitted_connectivity_probe_payload_ ||
       *transmitted_connectivity_probe_payload_ != frame.data_buffer) {
@@ -1269,16 +1278,25 @@ bool QuicConnection::OnWindowUpdateFrame(const QuicWindowUpdateFrame& frame) {
 }
 
 bool QuicConnection::OnNewConnectionIdFrame(
-    const QuicNewConnectionIdFrame& /*frame*/) {
+    const QuicNewConnectionIdFrame& frame) {
+  if (debug_visitor_ != nullptr) {
+    debug_visitor_->OnNewConnectionIdFrame(frame);
+  }
   return true;
 }
 
 bool QuicConnection::OnRetireConnectionIdFrame(
-    const QuicRetireConnectionIdFrame& /*frame*/) {
+    const QuicRetireConnectionIdFrame& frame) {
+  if (debug_visitor_ != nullptr) {
+    debug_visitor_->OnRetireConnectionIdFrame(frame);
+  }
   return true;
 }
 
-bool QuicConnection::OnNewTokenFrame(const QuicNewTokenFrame& /*frame*/) {
+bool QuicConnection::OnNewTokenFrame(const QuicNewTokenFrame& frame) {
+  if (debug_visitor_ != nullptr) {
+    debug_visitor_->OnNewTokenFrame(frame);
+  }
   return true;
 }
 

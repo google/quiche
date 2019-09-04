@@ -1013,11 +1013,24 @@ class MockQuicConnectionDebugVisitor : public QuicConnectionDebugVisitor {
 
   MOCK_METHOD1(OnStreamFrame, void(const QuicStreamFrame&));
 
+  MOCK_METHOD1(OnCryptoFrame, void(const QuicCryptoFrame&));
+
   MOCK_METHOD1(OnStopWaitingFrame, void(const QuicStopWaitingFrame&));
 
   MOCK_METHOD1(OnRstStreamFrame, void(const QuicRstStreamFrame&));
 
   MOCK_METHOD1(OnConnectionCloseFrame, void(const QuicConnectionCloseFrame&));
+
+  MOCK_METHOD1(OnBlockedFrame, void(const QuicBlockedFrame&));
+
+  MOCK_METHOD1(OnNewConnectionIdFrame, void(const QuicNewConnectionIdFrame&));
+
+  MOCK_METHOD1(OnRetireConnectionIdFrame,
+               void(const QuicRetireConnectionIdFrame&));
+
+  MOCK_METHOD1(OnNewTokenFrame, void(const QuicNewTokenFrame&));
+
+  MOCK_METHOD1(OnMessageFrame, void(const QuicMessageFrame&));
 
   MOCK_METHOD1(OnStopSendingFrame, void(const QuicStopSendingFrame&));
 
