@@ -47,16 +47,6 @@ inline bool HasCryptoHandshake(const QuicTransmissionInfo& transmission_info) {
   return transmission_info.has_crypto_handshake;
 }
 
-// Returns true if retransmissions the specified type leave the data in flight.
-inline bool RetransmissionLeavesBytesInFlight(
-    TransmissionType transmission_type) {
-  // Both TLP and the new RTO leave the packets in flight and let the loss
-  // detection decide if packets are lost.
-  return transmission_type == TLP_RETRANSMISSION ||
-         transmission_type == PROBING_RETRANSMISSION ||
-         transmission_type == RTO_RETRANSMISSION;
-}
-
 // Returns true of retransmissions of the specified type should retransmit
 // the frames directly (as opposed to resulting in a loss notification).
 inline bool ShouldForceRetransmission(TransmissionType transmission_type) {
@@ -118,15 +108,10 @@ QuicSentPacketManager::QuicSentPacketManager(
       pto_enabled_(false),
       max_probe_packets_per_pto_(2),
       consecutive_pto_count_(0),
-      loss_removes_from_inflight_(
-          GetQuicReloadableFlag(quic_loss_removes_from_inflight)),
       ignore_tlpr_if_no_pending_stream_data_(
           GetQuicReloadableFlag(quic_ignore_tlpr_if_no_pending_stream_data)),
       fix_rto_retransmission_(false),
       handshake_mode_disabled_(false) {
-  if (loss_removes_from_inflight_) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_loss_removes_from_inflight);
-  }
   SetSendAlgorithm(congestion_control_type);
 }
 
@@ -401,7 +386,7 @@ void QuicSentPacketManager::RetransmitUnackedPackets(
        it != unacked_packets_.end(); ++it, ++packet_number) {
     if ((retransmission_type == ALL_UNACKED_RETRANSMISSION ||
          it->encryption_level == ENCRYPTION_ZERO_RTT)) {
-      if (loss_removes_from_inflight_ && it->in_flight) {
+      if (it->in_flight) {
         // Remove 0-RTT packets and packets of the wrong version from flight,
         // because neither can be processed by the peer.
         unacked_packets_.RemoveFromInFlight(&*it);
@@ -436,16 +421,13 @@ void QuicSentPacketManager::NeuterUnencryptedPackets() {
   for (QuicUnackedPacketMap::const_iterator it = unacked_packets_.begin();
        it != unacked_packets_.end(); ++it, ++packet_number) {
     if (it->encryption_level == ENCRYPTION_INITIAL) {
-      if (loss_removes_from_inflight_ ||
-          unacked_packets_.HasRetransmittableFrames(*it)) {
-        // Once you're forward secure, no unencrypted packets will be sent,
-        // crypto or otherwise. Unencrypted packets are neutered and abandoned,
-        // to ensure they are not retransmitted or considered lost from a
-        // congestion control perspective.
-        pending_retransmissions_.erase(packet_number);
-        unacked_packets_.RemoveFromInFlight(packet_number);
-        unacked_packets_.RemoveRetransmittability(packet_number);
-      }
+      // Once you're forward secure, no unencrypted packets will be sent,
+      // crypto or otherwise. Unencrypted packets are neutered and abandoned,
+      // to ensure they are not retransmitted or considered lost from a
+      // congestion control perspective.
+      pending_retransmissions_.erase(packet_number);
+      unacked_packets_.RemoveFromInFlight(packet_number);
+      unacked_packets_.RemoveRetransmittability(packet_number);
     }
   }
 }
@@ -489,11 +471,6 @@ void QuicSentPacketManager::MarkForRetransmission(
   // Handshake packets should never be sent as probing retransmissions.
   DCHECK(pto_enabled_ || !transmission_info->has_crypto_handshake ||
          transmission_type != PROBING_RETRANSMISSION);
-  if (!loss_removes_from_inflight_ &&
-      !RetransmissionLeavesBytesInFlight(transmission_type)) {
-    unacked_packets_.RemoveFromInFlight(transmission_info);
-  }
-
   if (!session_decides_what_to_write()) {
     if (!unacked_packets_.HasRetransmittableFrames(*transmission_info)) {
       return;
@@ -965,10 +942,7 @@ void QuicSentPacketManager::InvokeLossDetection(QuicTime time) {
       debug_delegate_->OnPacketLoss(packet.packet_number, LOSS_RETRANSMISSION,
                                     time);
     }
-
-    if (loss_removes_from_inflight_) {
-      unacked_packets_.RemoveFromInFlight(packet.packet_number);
-    }
+    unacked_packets_.RemoveFromInFlight(packet.packet_number);
     MarkForRetransmission(packet.packet_number, LOSS_RETRANSMISSION);
   }
 }

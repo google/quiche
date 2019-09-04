@@ -654,9 +654,6 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // Number of times the PTO timer has fired in a row without receiving an ack.
   size_t consecutive_pto_count_;
 
-  // Latched value of quic_loss_removes_from_inflight.
-  const bool loss_removes_from_inflight_;
-
   // Latched value of quic_ignore_tlpr_if_no_pending_stream_data.
   const bool ignore_tlpr_if_no_pending_stream_data_;
 

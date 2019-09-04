@@ -1125,9 +1125,7 @@ TEST_P(QuicSentPacketManagerTest, CryptoHandshakeTimeout) {
     EXPECT_FALSE(manager_.HasPendingRetransmissions());
   }
   // Expect all 4 handshake packets to be in flight and 3 data packets.
-  if (GetQuicReloadableFlag(quic_loss_removes_from_inflight)) {
-    EXPECT_EQ(7 * kDefaultLength, manager_.GetBytesInFlight());
-  }
+  EXPECT_EQ(7 * kDefaultLength, manager_.GetBytesInFlight());
   EXPECT_TRUE(manager_.HasUnackedCryptoPackets());
 
   // The second retransmits 2 packets.
@@ -1144,25 +1142,18 @@ TEST_P(QuicSentPacketManagerTest, CryptoHandshakeTimeout) {
     RetransmitNextPacket(9);
     EXPECT_FALSE(manager_.HasPendingRetransmissions());
   }
-  if (GetQuicReloadableFlag(quic_loss_removes_from_inflight)) {
-    EXPECT_EQ(9 * kDefaultLength, manager_.GetBytesInFlight());
-  }
+  EXPECT_EQ(9 * kDefaultLength, manager_.GetBytesInFlight());
   EXPECT_TRUE(manager_.HasUnackedCryptoPackets());
 
   // Now ack the two crypto packets and the speculatively encrypted request,
   // and ensure the first four crypto packets get abandoned, but not lost.
-  if (GetQuicReloadableFlag(quic_loss_removes_from_inflight)) {
-    // Crypto packets remain in flight, so any that aren't acked will be lost.
-    uint64_t acked[] = {3, 4, 5, 8, 9};
-    uint64_t lost[] = {1, 2, 6};
-    ExpectAcksAndLosses(true, acked, QUIC_ARRAYSIZE(acked), lost,
-                        QUIC_ARRAYSIZE(lost));
-    if (manager_.session_decides_what_to_write()) {
-      EXPECT_CALL(notifier_, OnFrameLost(_)).Times(3);
-    }
-  } else {
-    uint64_t acked[] = {3, 4, 5, 8, 9};
-    ExpectAcksAndLosses(true, acked, QUIC_ARRAYSIZE(acked), nullptr, 0);
+  // Crypto packets remain in flight, so any that aren't acked will be lost.
+  uint64_t acked[] = {3, 4, 5, 8, 9};
+  uint64_t lost[] = {1, 2, 6};
+  ExpectAcksAndLosses(true, acked, QUIC_ARRAYSIZE(acked), lost,
+                      QUIC_ARRAYSIZE(lost));
+  if (manager_.session_decides_what_to_write()) {
+    EXPECT_CALL(notifier_, OnFrameLost(_)).Times(3);
   }
   if (manager_.session_decides_what_to_write()) {
     EXPECT_CALL(notifier_, HasUnackedCryptoData())
@@ -1297,13 +1288,8 @@ TEST_P(QuicSentPacketManagerTest, CryptoHandshakeSpuriousRetransmission) {
                                    ENCRYPTION_INITIAL));
 
   EXPECT_FALSE(manager_.HasUnackedCryptoPackets());
-  if (GetQuicReloadableFlag(quic_loss_removes_from_inflight)) {
-    uint64_t unacked[] = {1, 3};
-    VerifyUnackedPackets(unacked, QUIC_ARRAYSIZE(unacked));
-  } else {
-    uint64_t unacked[] = {3};
-    VerifyUnackedPackets(unacked, QUIC_ARRAYSIZE(unacked));
-  }
+  uint64_t unacked[] = {1, 3};
+  VerifyUnackedPackets(unacked, QUIC_ARRAYSIZE(unacked));
 }
 
 TEST_P(QuicSentPacketManagerTest, CryptoHandshakeTimeoutUnsentDataPacket) {
