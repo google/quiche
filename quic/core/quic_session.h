@@ -347,6 +347,9 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
 
   // Returns the Google QUIC error code
   QuicErrorCode error() const { return on_closed_frame_.extracted_error_code; }
+  const std::string& error_details() const {
+    return on_closed_frame_.error_details;
+  }
   uint64_t transport_close_frame_type() const {
     return on_closed_frame_.transport_close_frame_type;
   }
