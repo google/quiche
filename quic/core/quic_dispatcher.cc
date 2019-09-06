@@ -348,28 +348,8 @@ bool QuicDispatcher::MaybeDispatchPacket(
     QUIC_DLOG(INFO) << "Packet with short destination connection ID "
                     << server_connection_id << " expected "
                     << static_cast<int>(expected_server_connection_id_length_);
-    if (!GetQuicReloadableFlag(quic_drop_invalid_small_initial_connection_id)) {
-      // Add this connection_id to the time-wait state, to safely reject
-      // future packets.
-      QUIC_DLOG(INFO) << "Adding connection ID " << server_connection_id
-                      << " to time-wait list.";
-      StatelesslyTerminateConnection(
-          server_connection_id, packet_info.form, packet_info.version_flag,
-          packet_info.use_length_prefix, packet_info.version,
-          QUIC_HANDSHAKE_FAILED, "Reject connection",
-          quic::QuicTimeWaitListManager::SEND_STATELESS_RESET);
-
-      DCHECK(time_wait_list_manager_->IsConnectionIdInTimeWait(
-          server_connection_id));
-      time_wait_list_manager_->ProcessPacket(
-          packet_info.self_address, packet_info.peer_address,
-          server_connection_id, packet_info.form, GetPerPacketContext());
-
-      buffered_packets_.DiscardPackets(server_connection_id);
-    } else {
-      QUIC_RELOADABLE_FLAG_COUNT(quic_drop_invalid_small_initial_connection_id);
-      // Drop the packet silently.
-    }
+    // Drop the packet silently.
+    QUIC_CODE_COUNT(quic_dropped_invalid_small_initial_connection_id);
     return true;
   }
 

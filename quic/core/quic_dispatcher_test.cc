@@ -884,7 +884,6 @@ TEST_F(QuicDispatcherTest, ProcessPacketWithZeroPort) {
 }
 
 TEST_F(QuicDispatcherTest, ProcessPacketWithInvalidShortInitialConnectionId) {
-  SetQuicReloadableFlag(quic_drop_invalid_small_initial_connection_id, true);
   // Enable v47 otherwise we cannot create a packet with a short connection ID.
   SetQuicReloadableFlag(quic_enable_version_47, true);
   CreateTimeWaitListManager();
@@ -1336,7 +1335,6 @@ class QuicDispatcherTestStrayPacketConnectionId : public QuicDispatcherTest {};
 // Packets with truncated connection IDs should be dropped.
 TEST_F(QuicDispatcherTestStrayPacketConnectionId,
        StrayPacketTruncatedConnectionId) {
-  SetQuicReloadableFlag(quic_drop_invalid_small_initial_connection_id, true);
   CreateTimeWaitListManager();
 
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
