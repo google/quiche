@@ -35,6 +35,7 @@ struct QUIC_EXPORT_PRIVATE QuicTransmissionInfo {
 
   QuicFrames retransmittable_frames;
   EncryptionLevel encryption_level;
+  // TODO(fayang): remove this when deprecating QUIC_VERSION_39.
   QuicPacketNumberLength packet_number_length;
   QuicPacketLength bytes_sent;
   QuicTime sent_time;
