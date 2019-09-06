@@ -82,11 +82,10 @@ class MockQuicCryptoServerStream : public QuicCryptoServerStream {
       QuicCompressedCertsCache* compressed_certs_cache,
       QuicServerSessionBase* session,
       QuicCryptoServerStream::Helper* helper)
-      : QuicCryptoServerStream(
-            crypto_config,
-            compressed_certs_cache,
-            session,
-            helper) {}
+      : QuicCryptoServerStream(crypto_config,
+                               compressed_certs_cache,
+                               session,
+                               helper) {}
   MockQuicCryptoServerStream(const MockQuicCryptoServerStream&) = delete;
   MockQuicCryptoServerStream& operator=(const MockQuicCryptoServerStream&) =
       delete;
@@ -215,7 +214,7 @@ class QuicSimpleServerSessionTest
     connection_ = new StrictMock<MockQuicConnectionWithSendStreamData>(
         &helper_, &alarm_factory_, Perspective::IS_SERVER, supported_versions);
     connection_->AdvanceTime(QuicTime::Delta::FromSeconds(1));
-    session_ = QuicMakeUnique<MockQuicSimpleServerSession>(
+    session_ = std::make_unique<MockQuicSimpleServerSession>(
         config_, connection_, &owner_, &stream_helper_, &crypto_config_,
         &compressed_certs_cache_, &memory_cache_backend_);
     MockClock clock;
@@ -567,7 +566,7 @@ class QuicSimpleServerSessionServerPushTest
     ParsedQuicVersionVector supported_versions = SupportedVersions(GetParam());
     connection_ = new StrictMock<MockQuicConnectionWithSendStreamData>(
         &helper_, &alarm_factory_, Perspective::IS_SERVER, supported_versions);
-    session_ = QuicMakeUnique<MockQuicSimpleServerSession>(
+    session_ = std::make_unique<MockQuicSimpleServerSession>(
         config_, connection_, &owner_, &stream_helper_, &crypto_config_,
         &compressed_certs_cache_, &memory_cache_backend_);
     session_->Initialize();

@@ -184,7 +184,7 @@ void QuicTimeWaitListManager::ProcessPacket(
       }
 
       for (const auto& packet : connection_data->termination_packets) {
-        SendOrQueuePacket(QuicMakeUnique<QueuedPacket>(
+        SendOrQueuePacket(std::make_unique<QueuedPacket>(
                               self_address, peer_address, packet->Clone()),
                           packet_context.get());
       }
@@ -222,8 +222,8 @@ void QuicTimeWaitListManager::SendVersionNegotiationPacket(
                 << "use_length_prefix:" << std::endl
                 << QuicTextUtils::HexDump(QuicStringPiece(
                        version_packet->data(), version_packet->length()));
-  SendOrQueuePacket(QuicMakeUnique<QueuedPacket>(self_address, peer_address,
-                                                 std::move(version_packet)),
+  SendOrQueuePacket(std::make_unique<QueuedPacket>(self_address, peer_address,
+                                                   std::move(version_packet)),
                     packet_context.get());
 }
 
@@ -248,8 +248,8 @@ void QuicTimeWaitListManager::SendPublicReset(
                          QuicStringPiece(ietf_reset_packet->data(),
                                          ietf_reset_packet->length()));
     SendOrQueuePacket(
-        QuicMakeUnique<QueuedPacket>(self_address, peer_address,
-                                     std::move(ietf_reset_packet)),
+        std::make_unique<QueuedPacket>(self_address, peer_address,
+                                       std::move(ietf_reset_packet)),
         packet_context.get());
     return;
   }
@@ -266,8 +266,8 @@ void QuicTimeWaitListManager::SendPublicReset(
                 << std::endl
                 << QuicTextUtils::HexDump(QuicStringPiece(
                        reset_packet->data(), reset_packet->length()));
-  SendOrQueuePacket(QuicMakeUnique<QueuedPacket>(self_address, peer_address,
-                                                 std::move(reset_packet)),
+  SendOrQueuePacket(std::make_unique<QueuedPacket>(self_address, peer_address,
+                                                   std::move(reset_packet)),
                     packet_context.get());
 }
 

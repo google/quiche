@@ -79,8 +79,8 @@ class QuicCryptoServerStreamTest : public QuicTestWithParam<bool> {
   // called multiple times.
   void InitializeServer() {
     TestQuicSpdyServerSession* server_session = nullptr;
-    helpers_.push_back(QuicMakeUnique<NiceMock<MockQuicConnectionHelper>>());
-    alarm_factories_.push_back(QuicMakeUnique<MockAlarmFactory>());
+    helpers_.push_back(std::make_unique<NiceMock<MockQuicConnectionHelper>>());
+    alarm_factories_.push_back(std::make_unique<MockAlarmFactory>());
     CreateServerSessionForTest(
         server_id_, QuicTime::Delta::FromSeconds(100000), supported_versions_,
         helpers_.back().get(), alarm_factories_.back().get(),
@@ -109,8 +109,8 @@ class QuicCryptoServerStreamTest : public QuicTestWithParam<bool> {
   // testing.  May be called multiple times.
   void InitializeFakeClient() {
     TestQuicSpdyClientSession* client_session = nullptr;
-    helpers_.push_back(QuicMakeUnique<NiceMock<MockQuicConnectionHelper>>());
-    alarm_factories_.push_back(QuicMakeUnique<MockAlarmFactory>());
+    helpers_.push_back(std::make_unique<NiceMock<MockQuicConnectionHelper>>());
+    alarm_factories_.push_back(std::make_unique<MockAlarmFactory>());
     CreateClientSessionForTest(
         server_id_, QuicTime::Delta::FromSeconds(100000), supported_versions_,
         helpers_.back().get(), alarm_factories_.back().get(),

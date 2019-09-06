@@ -32,7 +32,7 @@ class OneShotVisitor : public CryptoFramerVisitorInterface {
   void OnError(CryptoFramer* /*framer*/) override { error_ = true; }
 
   void OnHandshakeMessage(const CryptoHandshakeMessage& message) override {
-    out_ = QuicMakeUnique<CryptoHandshakeMessage>(message);
+    out_ = std::make_unique<CryptoHandshakeMessage>(message);
   }
 
   bool error() const { return error_; }
@@ -230,7 +230,7 @@ std::unique_ptr<QuicData> CryptoFramer::ConstructHandshakeMessage(
     }
   }
 
-  return QuicMakeUnique<QuicData>(buffer.release(), len, true);
+  return std::make_unique<QuicData>(buffer.release(), len, true);
 }
 
 void CryptoFramer::Clear() {

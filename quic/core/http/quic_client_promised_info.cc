@@ -72,7 +72,7 @@ bool QuicClientPromisedInfo::OnPromiseHeaders(const SpdyHeaderBlock& headers) {
 }
 
 void QuicClientPromisedInfo::OnResponseHeaders(const SpdyHeaderBlock& headers) {
-  response_headers_ = QuicMakeUnique<SpdyHeaderBlock>(headers.Clone());
+  response_headers_ = std::make_unique<SpdyHeaderBlock>(headers.Clone());
   if (client_request_delegate_) {
     // We already have a client request waiting.
     FinalValidation();

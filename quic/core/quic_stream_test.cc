@@ -82,7 +82,7 @@ class QuicStreamTestBase : public QuicTestWithParam<ParsedQuicVersion> {
     connection_ = new StrictMock<MockQuicConnection>(
         &helper_, &alarm_factory_, Perspective::IS_SERVER, version_vector);
     connection_->AdvanceTime(QuicTime::Delta::FromSeconds(1));
-    session_ = QuicMakeUnique<StrictMock<MockQuicSession>>(connection_);
+    session_ = std::make_unique<StrictMock<MockQuicSession>>(connection_);
 
     // New streams rely on having the peer's flow control receive window
     // negotiated in the config.

@@ -27,7 +27,7 @@ QuicTraceInterceptor::~QuicTraceInterceptor() {
 }
 
 void QuicTraceInterceptor::OnSessionCreated(QuartcSession* session) {
-  trace_visitor_ = QuicMakeUnique<QuicTraceVisitor>(session->connection());
+  trace_visitor_ = std::make_unique<QuicTraceVisitor>(session->connection());
   session->connection()->set_debug_visitor(trace_visitor_.get());
 
   delegate_->OnSessionCreated(session);

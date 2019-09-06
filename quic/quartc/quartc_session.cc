@@ -31,7 +31,7 @@ QuartcSession::QuartcSession(std::unique_ptr<QuicConnection> connection,
                   /*num_expected_unidirectional_static_streams = */ 0),
       connection_(std::move(connection)),
       clock_(clock),
-      per_packet_options_(QuicMakeUnique<QuartcPerPacketOptions>()) {
+      per_packet_options_(std::make_unique<QuartcPerPacketOptions>()) {
   per_packet_options_->connection = connection_.get();
   connection_->set_per_packet_options(per_packet_options_.get());
 }
@@ -293,7 +293,8 @@ std::unique_ptr<QuartcStream> QuartcSession::CreateDataStream(
     // Encryption not active so no stream created
     return nullptr;
   }
-  return InitializeDataStream(QuicMakeUnique<QuartcStream>(id, this), priority);
+  return InitializeDataStream(std::make_unique<QuartcStream>(id, this),
+                              priority);
 }
 
 std::unique_ptr<QuartcStream> QuartcSession::InitializeDataStream(
@@ -391,7 +392,7 @@ void QuartcClientSession::StartCryptoHandshake() {
     }
   }
 
-  crypto_stream_ = QuicMakeUnique<QuicCryptoClientStream>(
+  crypto_stream_ = std::make_unique<QuicCryptoClientStream>(
       server_id, this,
       client_crypto_config_->proof_verifier()->CreateDefaultContext(),
       client_crypto_config_.get(), this);
@@ -438,7 +439,7 @@ QuicCryptoStream* QuartcServerSession::GetMutableCryptoStream() {
 }
 
 void QuartcServerSession::StartCryptoHandshake() {
-  crypto_stream_ = QuicMakeUnique<QuicCryptoServerStream>(
+  crypto_stream_ = std::make_unique<QuicCryptoServerStream>(
       server_crypto_config_, compressed_certs_cache_, this, stream_helper_);
   Initialize();
 }

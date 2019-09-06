@@ -99,7 +99,7 @@ TEST(QbonePacketExchangerTest,
 
   string packet = "data";
   exchanger.AddPacketToBeRead(
-      QuicMakeUnique<QuicData>(packet.data(), packet.length()));
+      std::make_unique<QuicData>(packet.data(), packet.length()));
   EXPECT_CALL(client, ProcessPacketFromNetwork(StrEq("data")));
 
   EXPECT_TRUE(exchanger.ReadAndDeliverPacket(&client));

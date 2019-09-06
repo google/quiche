@@ -179,7 +179,7 @@ class QuicSpdyStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
   // Return QPACK-encoded header block without using the dynamic table.
   std::string EncodeQpackHeaders(const SpdyHeaderBlock& header) {
     NoopQpackStreamSenderDelegate encoder_stream_sender_delegate;
-    auto qpack_encoder = QuicMakeUnique<QpackEncoder>(session_.get());
+    auto qpack_encoder = std::make_unique<QpackEncoder>(session_.get());
     qpack_encoder->set_qpack_stream_sender_delegate(
         &encoder_stream_sender_delegate);
     // QpackEncoder does not use the dynamic table by default,
@@ -196,7 +196,7 @@ class QuicSpdyStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
                                  Perspective perspective) {
     connection_ = new StrictMock<MockQuicConnection>(
         &helper_, &alarm_factory_, perspective, SupportedVersions(GetParam()));
-    session_ = QuicMakeUnique<StrictMock<MockQuicSpdySession>>(connection_);
+    session_ = std::make_unique<StrictMock<MockQuicSpdySession>>(connection_);
     session_->Initialize();
     ON_CALL(*session_, WritevData(_, _, _, _, _))
         .WillByDefault(Invoke(MockQuicSession::ConsumeData));

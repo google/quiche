@@ -244,13 +244,13 @@ class QboneSessionTest : public QuicTest {
                                      bool send_qbone_alpn = true) {
     // Quic crashes if packets are sent at time 0, and the clock defaults to 0.
     helper_.AdvanceTime(QuicTime::Delta::FromMilliseconds(1000));
-    alarm_factory_ = QuicMakeUnique<QuicEpollAlarmFactory>(&epoll_server_);
-    client_writer_ = QuicMakeUnique<DataSavingQbonePacketWriter>();
-    server_writer_ = QuicMakeUnique<DataSavingQbonePacketWriter>();
+    alarm_factory_ = std::make_unique<QuicEpollAlarmFactory>(&epoll_server_);
+    client_writer_ = std::make_unique<DataSavingQbonePacketWriter>();
+    server_writer_ = std::make_unique<DataSavingQbonePacketWriter>();
     client_handler_ =
-        QuicMakeUnique<DataSavingQboneControlHandler<QboneClientRequest>>();
+        std::make_unique<DataSavingQboneControlHandler<QboneClientRequest>>();
     server_handler_ =
-        QuicMakeUnique<DataSavingQboneControlHandler<QboneServerRequest>>();
+        std::make_unique<DataSavingQboneControlHandler<QboneServerRequest>>();
     QuicSocketAddress server_address(TestLoopback(),
                                      QuicPickServerPortForTestsOrDie());
     QuicSocketAddress client_address;
@@ -267,12 +267,12 @@ class QboneSessionTest : public QuicTest {
           ParsedVersionOfIndex(AllSupportedVersions(), 0));
       client_connection_->SetSelfAddress(client_address);
       QuicConfig config;
-      client_crypto_config_ = QuicMakeUnique<QuicCryptoClientConfig>(
-          QuicMakeUnique<FakeProofVerifier>(client_handshake_success));
+      client_crypto_config_ = std::make_unique<QuicCryptoClientConfig>(
+          std::make_unique<FakeProofVerifier>(client_handshake_success));
       if (send_qbone_alpn) {
         client_crypto_config_->set_alpn("qbone");
       }
-      client_peer_ = QuicMakeUnique<QboneClientSession>(
+      client_peer_ = std::make_unique<QboneClientSession>(
           client_connection_, client_crypto_config_.get(),
           /*owner=*/nullptr, config,
           ParsedVersionOfIndex(AllSupportedVersions(), 0),
@@ -287,7 +287,7 @@ class QboneSessionTest : public QuicTest {
           ParsedVersionOfIndex(AllSupportedVersions(), 0));
       server_connection_->SetSelfAddress(server_address);
       QuicConfig config;
-      server_crypto_config_ = QuicMakeUnique<QuicCryptoServerConfig>(
+      server_crypto_config_ = std::make_unique<QuicCryptoServerConfig>(
           "TESTING", QuicRandom::GetInstance(),
           std::unique_ptr<FakeProofSource>(
               new FakeProofSource(server_handshake_success)),
@@ -300,7 +300,7 @@ class QboneSessionTest : public QuicTest {
           server_crypto_config_->AddConfig(std::move(primary_config),
                                            GetClock()->WallNow()));
 
-      server_peer_ = QuicMakeUnique<QboneServerSession>(
+      server_peer_ = std::make_unique<QboneServerSession>(
           AllSupportedVersions(), server_connection_, nullptr, config,
           server_crypto_config_.get(), &compressed_certs_cache_,
           server_writer_.get(), TestLoopback6(), TestLoopback6(), 64,

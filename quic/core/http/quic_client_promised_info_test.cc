@@ -80,11 +80,11 @@ class QuicClientPromisedInfoTest : public QuicTest {
     headers_[":status"] = "200";
     headers_["content-length"] = "11";
 
-    stream_ = QuicMakeUnique<QuicSpdyClientStream>(
+    stream_ = std::make_unique<QuicSpdyClientStream>(
         GetNthClientInitiatedBidirectionalStreamId(
             connection_->transport_version(), 0),
         &session_, BIDIRECTIONAL);
-    stream_visitor_ = QuicMakeUnique<StreamVisitor>();
+    stream_visitor_ = std::make_unique<StreamVisitor>();
     stream_->set_visitor(stream_visitor_.get());
 
     push_promise_[":path"] = "/bar";

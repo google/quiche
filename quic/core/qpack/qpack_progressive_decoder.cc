@@ -23,7 +23,8 @@ QpackProgressiveDecoder::QpackProgressiveDecoder(
     HeadersHandlerInterface* handler)
     : stream_id_(stream_id),
       prefix_decoder_(
-          QuicMakeUnique<QpackInstructionDecoder>(QpackPrefixLanguage(), this)),
+          std::make_unique<QpackInstructionDecoder>(QpackPrefixLanguage(),
+                                                    this)),
       instruction_decoder_(QpackRequestStreamLanguage(), this),
       enforcer_(enforcer),
       header_table_(header_table),

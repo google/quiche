@@ -31,8 +31,10 @@ class QuartcBidiTest : public QuicTest {
     random_.set_seed(seed);
     simulator_.set_random_generator(&random_);
 
-    client_trace_interceptor_ = QuicMakeUnique<QuicTraceInterceptor>("client");
-    server_trace_interceptor_ = QuicMakeUnique<QuicTraceInterceptor>("server");
+    client_trace_interceptor_ =
+        std::make_unique<QuicTraceInterceptor>("client");
+    server_trace_interceptor_ =
+        std::make_unique<QuicTraceInterceptor>("server");
   }
 
   void CreateTransports(QuicBandwidth bandwidth,
@@ -41,38 +43,38 @@ class QuartcBidiTest : public QuicTest {
                         int loss_percent) {
     // Endpoints which serve as the transports for client and server.
     client_transport_ =
-        QuicMakeUnique<simulator::SimulatedQuartcPacketTransport>(
+        std::make_unique<simulator::SimulatedQuartcPacketTransport>(
             &simulator_, "client_transport", "server_transport", queue_length);
     server_transport_ =
-        QuicMakeUnique<simulator::SimulatedQuartcPacketTransport>(
+        std::make_unique<simulator::SimulatedQuartcPacketTransport>(
             &simulator_, "server_transport", "client_transport", queue_length);
 
     // Filters on each of the endpoints facilitate random packet loss.
-    client_filter_ = QuicMakeUnique<simulator::RandomPacketFilter>(
+    client_filter_ = std::make_unique<simulator::RandomPacketFilter>(
         &simulator_, "client_filter", client_transport_.get());
-    server_filter_ = QuicMakeUnique<simulator::RandomPacketFilter>(
+    server_filter_ = std::make_unique<simulator::RandomPacketFilter>(
         &simulator_, "server_filter", server_transport_.get());
     client_filter_->set_loss_percent(loss_percent);
     server_filter_->set_loss_percent(loss_percent);
 
     // Each endpoint connects directly to a switch.
-    client_switch_ = QuicMakeUnique<simulator::Switch>(
+    client_switch_ = std::make_unique<simulator::Switch>(
         &simulator_, "client_switch", /*port_count=*/8, 2 * queue_length);
-    server_switch_ = QuicMakeUnique<simulator::Switch>(
+    server_switch_ = std::make_unique<simulator::Switch>(
         &simulator_, "server_switch", /*port_count=*/8, 2 * queue_length);
 
     // Links to the switch have significantly higher bandwidth than the
     // bottleneck and insignificant propagation delay.
-    client_link_ = QuicMakeUnique<simulator::SymmetricLink>(
+    client_link_ = std::make_unique<simulator::SymmetricLink>(
         client_filter_.get(), client_switch_->port(1), 10 * bandwidth,
         QuicTime::Delta::FromMicroseconds(1));
-    server_link_ = QuicMakeUnique<simulator::SymmetricLink>(
+    server_link_ = std::make_unique<simulator::SymmetricLink>(
         server_filter_.get(), server_switch_->port(1), 10 * bandwidth,
         QuicTime::Delta::FromMicroseconds(1));
 
     // The bottleneck link connects the two switches with the bandwidth and
     // propagation delay specified by the test case.
-    bottleneck_link_ = QuicMakeUnique<simulator::SymmetricLink>(
+    bottleneck_link_ = std::make_unique<simulator::SymmetricLink>(
         client_switch_->port(2), server_switch_->port(2), bandwidth,
         propagation_delay);
   }
@@ -80,19 +82,19 @@ class QuartcBidiTest : public QuicTest {
   void SetupCompetingEndpoints(QuicBandwidth bandwidth,
                                QuicTime::Delta send_interval,
                                QuicByteCount bytes_per_interval) {
-    competing_client_ = QuicMakeUnique<QuartcCompetingEndpoint>(
+    competing_client_ = std::make_unique<QuartcCompetingEndpoint>(
         &simulator_, send_interval, bytes_per_interval, "competing_client",
         "competing_server", quic::Perspective::IS_CLIENT,
         quic::test::TestConnectionId(3));
-    competing_server_ = QuicMakeUnique<QuartcCompetingEndpoint>(
+    competing_server_ = std::make_unique<QuartcCompetingEndpoint>(
         &simulator_, send_interval, bytes_per_interval, "competing_server",
         "competing_client", quic::Perspective::IS_SERVER,
         quic::test::TestConnectionId(3));
 
-    competing_client_link_ = QuicMakeUnique<quic::simulator::SymmetricLink>(
+    competing_client_link_ = std::make_unique<quic::simulator::SymmetricLink>(
         competing_client_->endpoint(), client_switch_->port(3), 10 * bandwidth,
         QuicTime::Delta::FromMicroseconds(1));
-    competing_server_link_ = QuicMakeUnique<quic::simulator::SymmetricLink>(
+    competing_server_link_ = std::make_unique<quic::simulator::SymmetricLink>(
         competing_server_->endpoint(), server_switch_->port(3), 10 * bandwidth,
         QuicTime::Delta::FromMicroseconds(1));
   }

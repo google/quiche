@@ -47,7 +47,7 @@ class QuartcDataSourceTest : public QuicTest {
 TEST_F(QuartcDataSourceTest, ProducesFrameEveryInterval) {
   QuartcDataSource::Config config;
   config.frame_interval = QuicTime::Delta::FromMilliseconds(20);
-  source_ = QuicMakeUnique<QuartcDataSource>(
+  source_ = std::make_unique<QuartcDataSource>(
       simulator_.GetClock(), simulator_.GetAlarmFactory(),
       simulator_.GetRandomGenerator(), config, &delegate_);
   source_->AllocateBandwidth(
@@ -66,7 +66,7 @@ TEST_F(QuartcDataSourceTest, ProducesFrameEveryInterval) {
 
 TEST_F(QuartcDataSourceTest, DoesNotProduceFramesUntilEnabled) {
   QuartcDataSource::Config config;
-  source_ = QuicMakeUnique<QuartcDataSource>(
+  source_ = std::make_unique<QuartcDataSource>(
       simulator_.GetClock(), simulator_.GetAlarmFactory(),
       simulator_.GetRandomGenerator(), config, &delegate_);
   source_->AllocateBandwidth(
@@ -84,7 +84,7 @@ TEST_F(QuartcDataSourceTest, DoesNotProduceFramesUntilEnabled) {
 
 TEST_F(QuartcDataSourceTest, DisableAndEnable) {
   QuartcDataSource::Config config;
-  source_ = QuicMakeUnique<QuartcDataSource>(
+  source_ = std::make_unique<QuartcDataSource>(
       simulator_.GetClock(), simulator_.GetAlarmFactory(),
       simulator_.GetRandomGenerator(), config, &delegate_);
   source_->AllocateBandwidth(
@@ -121,7 +121,7 @@ TEST_F(QuartcDataSourceTest, EnablingTwiceDoesNotChangeSchedule) {
   QuartcDataSource::Config config;
   config.frame_interval = QuicTime::Delta::FromMilliseconds(20);
 
-  source_ = QuicMakeUnique<QuartcDataSource>(
+  source_ = std::make_unique<QuartcDataSource>(
       simulator_.GetClock(), simulator_.GetAlarmFactory(),
       simulator_.GetRandomGenerator(), config, &delegate_);
   source_->AllocateBandwidth(
@@ -149,7 +149,7 @@ TEST_F(QuartcDataSourceTest, EnablingTwiceDoesNotChangeSchedule) {
 TEST_F(QuartcDataSourceTest, ProducesFramesWithConfiguredSourceId) {
   QuartcDataSource::Config config;
   config.id = 7;
-  source_ = QuicMakeUnique<QuartcDataSource>(
+  source_ = std::make_unique<QuartcDataSource>(
       simulator_.GetClock(), simulator_.GetAlarmFactory(),
       simulator_.GetRandomGenerator(), config, &delegate_);
   source_->AllocateBandwidth(
@@ -163,7 +163,7 @@ TEST_F(QuartcDataSourceTest, ProducesFramesWithConfiguredSourceId) {
 
 TEST_F(QuartcDataSourceTest, ProducesFramesAtAllocatedBandwidth) {
   QuartcDataSource::Config config;
-  source_ = QuicMakeUnique<QuartcDataSource>(
+  source_ = std::make_unique<QuartcDataSource>(
       simulator_.GetClock(), simulator_.GetAlarmFactory(),
       simulator_.GetRandomGenerator(), config, &delegate_);
 
@@ -181,7 +181,7 @@ TEST_F(QuartcDataSourceTest, ProducesFramesAtAllocatedBandwidth) {
 
 TEST_F(QuartcDataSourceTest, ProducesParseableHeaderWhenNotEnoughBandwidth) {
   QuartcDataSource::Config config;
-  source_ = QuicMakeUnique<QuartcDataSource>(
+  source_ = std::make_unique<QuartcDataSource>(
       simulator_.GetClock(), simulator_.GetAlarmFactory(),
       simulator_.GetRandomGenerator(), config, &delegate_);
 
@@ -205,7 +205,7 @@ TEST_F(QuartcDataSourceTest, ProducesParseableHeaderWhenNotEnoughBandwidth) {
 
 TEST_F(QuartcDataSourceTest, ProducesSequenceNumbers) {
   QuartcDataSource::Config config;
-  source_ = QuicMakeUnique<QuartcDataSource>(
+  source_ = std::make_unique<QuartcDataSource>(
       simulator_.GetClock(), simulator_.GetAlarmFactory(),
       simulator_.GetRandomGenerator(), config, &delegate_);
   source_->AllocateBandwidth(
@@ -222,7 +222,7 @@ TEST_F(QuartcDataSourceTest, ProducesSequenceNumbers) {
 
 TEST_F(QuartcDataSourceTest, ProducesSendTimes) {
   QuartcDataSource::Config config;
-  source_ = QuicMakeUnique<QuartcDataSource>(
+  source_ = std::make_unique<QuartcDataSource>(
       simulator_.GetClock(), simulator_.GetAlarmFactory(),
       simulator_.GetRandomGenerator(), config, &delegate_);
   source_->AllocateBandwidth(
@@ -243,7 +243,7 @@ TEST_F(QuartcDataSourceTest, AllocateClampsToMin) {
   QuartcDataSource::Config config;
   config.min_bandwidth = QuicBandwidth::FromBitsPerSecond(8000);
   config.frame_interval = QuicTime::Delta::FromMilliseconds(100);
-  source_ = QuicMakeUnique<QuartcDataSource>(
+  source_ = std::make_unique<QuartcDataSource>(
       simulator_.GetClock(), simulator_.GetAlarmFactory(),
       simulator_.GetRandomGenerator(), config, &delegate_);
 
@@ -267,7 +267,7 @@ TEST_F(QuartcDataSourceTest, AllocateClampsToMax) {
   QuartcDataSource::Config config;
   config.max_bandwidth = QuicBandwidth::FromBitsPerSecond(8000);
   config.frame_interval = QuicTime::Delta::FromMilliseconds(100);
-  source_ = QuicMakeUnique<QuartcDataSource>(
+  source_ = std::make_unique<QuartcDataSource>(
       simulator_.GetClock(), simulator_.GetAlarmFactory(),
       simulator_.GetRandomGenerator(), config, &delegate_);
 
@@ -291,7 +291,7 @@ TEST_F(QuartcDataSourceTest, MaxFrameSize) {
   constexpr QuicByteCount bytes_per_frame = 1000;
   QuartcDataSource::Config config;
   config.max_frame_size = bytes_per_frame;
-  source_ = QuicMakeUnique<QuartcDataSource>(
+  source_ = std::make_unique<QuartcDataSource>(
       simulator_.GetClock(), simulator_.GetAlarmFactory(),
       simulator_.GetRandomGenerator(), config, &delegate_);
 
@@ -323,7 +323,7 @@ TEST_F(QuartcDataSourceTest, MaxFrameSize) {
 TEST_F(QuartcDataSourceTest, ProducesParseableHeaderWhenMaxFrameSizeTooSmall) {
   QuartcDataSource::Config config;
   config.max_frame_size = kDataFrameHeaderSize - 1;
-  source_ = QuicMakeUnique<QuartcDataSource>(
+  source_ = std::make_unique<QuartcDataSource>(
       simulator_.GetClock(), simulator_.GetAlarmFactory(),
       simulator_.GetRandomGenerator(), config, &delegate_);
 
@@ -347,7 +347,7 @@ TEST_F(QuartcDataSourceTest, ProducesParseableHeaderWhenMaxFrameSizeTooSmall) {
 TEST_F(QuartcDataSourceTest, ProducesParseableHeaderWhenLeftoverSizeTooSmall) {
   QuartcDataSource::Config config;
   config.max_frame_size = 200;
-  source_ = QuicMakeUnique<QuartcDataSource>(
+  source_ = std::make_unique<QuartcDataSource>(
       simulator_.GetClock(), simulator_.GetAlarmFactory(),
       simulator_.GetRandomGenerator(), config, &delegate_);
 

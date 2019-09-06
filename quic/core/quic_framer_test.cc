@@ -196,14 +196,14 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
   void OnPacket() override {}
 
   void OnPublicResetPacket(const QuicPublicResetPacket& packet) override {
-    public_reset_packet_ = QuicMakeUnique<QuicPublicResetPacket>((packet));
+    public_reset_packet_ = std::make_unique<QuicPublicResetPacket>((packet));
     EXPECT_EQ(0u, framer_->current_received_frame_type());
   }
 
   void OnVersionNegotiationPacket(
       const QuicVersionNegotiationPacket& packet) override {
     version_negotiation_packet_ =
-        QuicMakeUnique<QuicVersionNegotiationPacket>((packet));
+        std::make_unique<QuicVersionNegotiationPacket>((packet));
     EXPECT_EQ(0u, framer_->current_received_frame_type());
   }
 
@@ -211,10 +211,10 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
                      QuicConnectionId new_connection_id,
                      QuicStringPiece retry_token) override {
     retry_original_connection_id_ =
-        QuicMakeUnique<QuicConnectionId>(original_connection_id);
+        std::make_unique<QuicConnectionId>(original_connection_id);
     retry_new_connection_id_ =
-        QuicMakeUnique<QuicConnectionId>(new_connection_id);
-    retry_token_ = QuicMakeUnique<std::string>(std::string(retry_token));
+        std::make_unique<QuicConnectionId>(new_connection_id);
+    retry_token_ = std::make_unique<std::string>(std::string(retry_token));
     EXPECT_EQ(0u, framer_->current_received_frame_type());
   }
 
@@ -227,7 +227,7 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
   }
 
   bool OnUnauthenticatedPublicHeader(const QuicPacketHeader& header) override {
-    header_ = QuicMakeUnique<QuicPacketHeader>((header));
+    header_ = std::make_unique<QuicPacketHeader>((header));
     EXPECT_EQ(0u, framer_->current_received_frame_type());
     return accept_public_header_;
   }
@@ -243,7 +243,7 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
 
   bool OnPacketHeader(const QuicPacketHeader& header) override {
     ++packet_count_;
-    header_ = QuicMakeUnique<QuicPacketHeader>((header));
+    header_ = std::make_unique<QuicPacketHeader>((header));
     EXPECT_EQ(0u, framer_->current_received_frame_type());
     return accept_packet_;
   }
@@ -266,7 +266,7 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
     std::string* string_data =
         new std::string(frame.data_buffer, frame.data_length);
     stream_data_.push_back(QuicWrapUnique(string_data));
-    stream_frames_.push_back(QuicMakeUnique<QuicStreamFrame>(
+    stream_frames_.push_back(std::make_unique<QuicStreamFrame>(
         frame.stream_id, frame.fin, frame.offset, *string_data));
     if (VersionHasIetfQuicFrames(transport_version_)) {
       // Low order bits of type encode flags, ignore them for this test.
@@ -283,7 +283,7 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
     std::string* string_data =
         new std::string(frame.data_buffer, frame.data_length);
     crypto_data_.push_back(QuicWrapUnique(string_data));
-    crypto_frames_.push_back(QuicMakeUnique<QuicCryptoFrame>(
+    crypto_frames_.push_back(std::make_unique<QuicCryptoFrame>(
         ENCRYPTION_INITIAL, frame.offset, *string_data));
     if (VersionHasIetfQuicFrames(transport_version_)) {
       EXPECT_EQ(IETF_CRYPTO, framer_->current_received_frame_type());
@@ -299,7 +299,7 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
     QuicAckFrame ack_frame;
     ack_frame.largest_acked = largest_acked;
     ack_frame.ack_delay_time = ack_delay_time;
-    ack_frames_.push_back(QuicMakeUnique<QuicAckFrame>(ack_frame));
+    ack_frames_.push_back(std::make_unique<QuicAckFrame>(ack_frame));
     if (VersionHasIetfQuicFrames(transport_version_)) {
       EXPECT_EQ(IETF_ACK, framer_->current_received_frame_type());
     } else {
@@ -331,13 +331,14 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
 
   bool OnStopWaitingFrame(const QuicStopWaitingFrame& frame) override {
     ++frame_count_;
-    stop_waiting_frames_.push_back(QuicMakeUnique<QuicStopWaitingFrame>(frame));
+    stop_waiting_frames_.push_back(
+        std::make_unique<QuicStopWaitingFrame>(frame));
     EXPECT_EQ(0u, framer_->current_received_frame_type());
     return true;
   }
 
   bool OnPaddingFrame(const QuicPaddingFrame& frame) override {
-    padding_frames_.push_back(QuicMakeUnique<QuicPaddingFrame>(frame));
+    padding_frames_.push_back(std::make_unique<QuicPaddingFrame>(frame));
     if (VersionHasIetfQuicFrames(transport_version_)) {
       EXPECT_EQ(IETF_PADDING, framer_->current_received_frame_type());
     } else {
@@ -348,7 +349,7 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
 
   bool OnPingFrame(const QuicPingFrame& frame) override {
     ++frame_count_;
-    ping_frames_.push_back(QuicMakeUnique<QuicPingFrame>(frame));
+    ping_frames_.push_back(std::make_unique<QuicPingFrame>(frame));
     if (VersionHasIetfQuicFrames(transport_version_)) {
       EXPECT_EQ(IETF_PING, framer_->current_received_frame_type());
     } else {
@@ -360,7 +361,7 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
   bool OnMessageFrame(const QuicMessageFrame& frame) override {
     ++frame_count_;
     message_frames_.push_back(
-        QuicMakeUnique<QuicMessageFrame>(frame.data, frame.message_length));
+        std::make_unique<QuicMessageFrame>(frame.data, frame.message_length));
     if (VersionHasIetfQuicFrames(transport_version_)) {
       EXPECT_TRUE(IETF_EXTENSION_MESSAGE_NO_LENGTH ==
                       framer_->current_received_frame_type() ||
@@ -504,7 +505,7 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
   void OnAuthenticatedIetfStatelessResetPacket(
       const QuicIetfStatelessResetPacket& packet) override {
     stateless_reset_packet_ =
-        QuicMakeUnique<QuicIetfStatelessResetPacket>(packet);
+        std::make_unique<QuicIetfStatelessResetPacket>(packet);
     EXPECT_EQ(0u, framer_->current_received_frame_type());
   }
 
@@ -703,7 +704,7 @@ class QuicFramerTest : public QuicTestWithParam<ParsedQuicVersion> {
       memcpy(buffer + len, fragment.fragment.data(), fragment.fragment.size());
       len += fragment.fragment.size();
     }
-    return QuicMakeUnique<QuicEncryptedPacket>(buffer, len, true);
+    return std::make_unique<QuicEncryptedPacket>(buffer, len, true);
   }
 
   void CheckFramingBoundaries(const PacketFragments& fragments,
@@ -2213,13 +2214,14 @@ TEST_P(QuicFramerTest, MissingDiversificationNonce) {
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
   decrypter_ = new test::TestDecrypter();
   if (framer_.version().KnowsWhichDecrypterToUse()) {
-    framer_.InstallDecrypter(ENCRYPTION_INITIAL, QuicMakeUnique<NullDecrypter>(
-                                                     Perspective::IS_CLIENT));
+    framer_.InstallDecrypter(
+        ENCRYPTION_INITIAL,
+        std::make_unique<NullDecrypter>(Perspective::IS_CLIENT));
     framer_.InstallDecrypter(ENCRYPTION_ZERO_RTT,
                              std::unique_ptr<QuicDecrypter>(decrypter_));
   } else {
-    framer_.SetDecrypter(ENCRYPTION_INITIAL,
-                         QuicMakeUnique<NullDecrypter>(Perspective::IS_CLIENT));
+    framer_.SetDecrypter(ENCRYPTION_INITIAL, std::make_unique<NullDecrypter>(
+                                                 Perspective::IS_CLIENT));
     framer_.SetAlternativeDecrypter(
         ENCRYPTION_ZERO_RTT, std::unique_ptr<QuicDecrypter>(decrypter_), false);
   }
@@ -5230,13 +5232,14 @@ TEST_P(QuicFramerTest, IetfStatelessResetPacket) {
                                                       TestConnectionId(0x33));
   decrypter_ = new test::TestDecrypter();
   if (framer_.version().KnowsWhichDecrypterToUse()) {
-    framer_.InstallDecrypter(ENCRYPTION_INITIAL, QuicMakeUnique<NullDecrypter>(
-                                                     Perspective::IS_CLIENT));
+    framer_.InstallDecrypter(
+        ENCRYPTION_INITIAL,
+        std::make_unique<NullDecrypter>(Perspective::IS_CLIENT));
     framer_.InstallDecrypter(ENCRYPTION_ZERO_RTT,
                              std::unique_ptr<QuicDecrypter>(decrypter_));
   } else {
-    framer_.SetDecrypter(ENCRYPTION_INITIAL,
-                         QuicMakeUnique<NullDecrypter>(Perspective::IS_CLIENT));
+    framer_.SetDecrypter(ENCRYPTION_INITIAL, std::make_unique<NullDecrypter>(
+                                                 Perspective::IS_CLIENT));
     framer_.SetAlternativeDecrypter(
         ENCRYPTION_ZERO_RTT, std::unique_ptr<QuicDecrypter>(decrypter_), false);
   }
@@ -5272,13 +5275,14 @@ TEST_P(QuicFramerTest, IetfStatelessResetPacketInvalidStatelessResetToken) {
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
   decrypter_ = new test::TestDecrypter();
   if (framer_.version().KnowsWhichDecrypterToUse()) {
-    framer_.InstallDecrypter(ENCRYPTION_INITIAL, QuicMakeUnique<NullDecrypter>(
-                                                     Perspective::IS_CLIENT));
+    framer_.InstallDecrypter(
+        ENCRYPTION_INITIAL,
+        std::make_unique<NullDecrypter>(Perspective::IS_CLIENT));
     framer_.InstallDecrypter(ENCRYPTION_ZERO_RTT,
                              std::unique_ptr<QuicDecrypter>(decrypter_));
   } else {
-    framer_.SetDecrypter(ENCRYPTION_INITIAL,
-                         QuicMakeUnique<NullDecrypter>(Perspective::IS_CLIENT));
+    framer_.SetDecrypter(ENCRYPTION_INITIAL, std::make_unique<NullDecrypter>(
+                                                 Perspective::IS_CLIENT));
     framer_.SetAlternativeDecrypter(
         ENCRYPTION_ZERO_RTT, std::unique_ptr<QuicDecrypter>(decrypter_), false);
   }
@@ -9394,10 +9398,10 @@ TEST_P(QuicFramerTest, ConstructEncryptedPacket) {
   if (framer_.version().KnowsWhichDecrypterToUse()) {
     framer_.InstallDecrypter(
         ENCRYPTION_FORWARD_SECURE,
-        QuicMakeUnique<NullDecrypter>(framer_.perspective()));
+        std::make_unique<NullDecrypter>(framer_.perspective()));
   } else {
-    framer_.SetDecrypter(ENCRYPTION_INITIAL,
-                         QuicMakeUnique<NullDecrypter>(framer_.perspective()));
+    framer_.SetDecrypter(ENCRYPTION_INITIAL, std::make_unique<NullDecrypter>(
+                                                 framer_.perspective()));
   }
   ParsedQuicVersionVector versions;
   versions.push_back(framer_.version());
@@ -9438,13 +9442,13 @@ TEST_P(QuicFramerTest, ConstructMisFramedEncryptedPacket) {
   if (framer_.version().KnowsWhichDecrypterToUse()) {
     framer_.InstallDecrypter(
         ENCRYPTION_FORWARD_SECURE,
-        QuicMakeUnique<NullDecrypter>(framer_.perspective()));
+        std::make_unique<NullDecrypter>(framer_.perspective()));
   } else {
-    framer_.SetDecrypter(ENCRYPTION_INITIAL,
-                         QuicMakeUnique<NullDecrypter>(framer_.perspective()));
+    framer_.SetDecrypter(ENCRYPTION_INITIAL, std::make_unique<NullDecrypter>(
+                                                 framer_.perspective()));
   }
   framer_.SetEncrypter(ENCRYPTION_INITIAL,
-                       QuicMakeUnique<NullEncrypter>(framer_.perspective()));
+                       std::make_unique<NullEncrypter>(framer_.perspective()));
   ParsedQuicVersionVector versions;
   versions.push_back(framer_.version());
   std::unique_ptr<QuicEncryptedPacket> packet(ConstructMisFramedEncryptedPacket(
@@ -12891,10 +12895,11 @@ TEST_P(QuicFramerTest, MultiplePacketNumberSpaces) {
 
   if (framer_.version().KnowsWhichDecrypterToUse()) {
     framer_.InstallDecrypter(ENCRYPTION_ZERO_RTT,
-                             QuicMakeUnique<TestDecrypter>());
+                             std::make_unique<TestDecrypter>());
     framer_.RemoveDecrypter(ENCRYPTION_INITIAL);
   } else {
-    framer_.SetDecrypter(ENCRYPTION_ZERO_RTT, QuicMakeUnique<TestDecrypter>());
+    framer_.SetDecrypter(ENCRYPTION_ZERO_RTT,
+                         std::make_unique<TestDecrypter>());
   }
   if (!QuicVersionHasLongHeaderLengths(framer_.transport_version())) {
     EXPECT_TRUE(framer_.ProcessPacket(
@@ -12933,11 +12938,11 @@ TEST_P(QuicFramerTest, MultiplePacketNumberSpaces) {
       AsChars(short_header_packet), QUIC_ARRAYSIZE(short_header_packet), false);
   if (framer_.version().KnowsWhichDecrypterToUse()) {
     framer_.InstallDecrypter(ENCRYPTION_FORWARD_SECURE,
-                             QuicMakeUnique<TestDecrypter>());
+                             std::make_unique<TestDecrypter>());
     framer_.RemoveDecrypter(ENCRYPTION_ZERO_RTT);
   } else {
     framer_.SetDecrypter(ENCRYPTION_FORWARD_SECURE,
-                         QuicMakeUnique<TestDecrypter>());
+                         std::make_unique<TestDecrypter>());
   }
   EXPECT_TRUE(framer_.ProcessPacket(short_header_encrypted));
 

@@ -48,16 +48,16 @@ QboneServerSession::QboneServerSession(
 QboneServerSession::~QboneServerSession() {}
 
 std::unique_ptr<QuicCryptoStream> QboneServerSession::CreateCryptoStream() {
-  return QuicMakeUnique<QuicCryptoServerStream>(quic_crypto_server_config_,
-                                                compressed_certs_cache_, this,
-                                                &stream_helper_);
+  return std::make_unique<QuicCryptoServerStream>(quic_crypto_server_config_,
+                                                  compressed_certs_cache_, this,
+                                                  &stream_helper_);
 }
 
 void QboneServerSession::Initialize() {
   QboneSessionBase::Initialize();
   // Register the reserved control stream.
   auto control_stream =
-      QuicMakeUnique<QboneServerControlStream>(this, handler_);
+      std::make_unique<QboneServerControlStream>(this, handler_);
   control_stream_ = control_stream.get();
   ActivateStream(std::move(control_stream));
 }

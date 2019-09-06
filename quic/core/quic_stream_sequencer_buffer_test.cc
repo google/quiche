@@ -67,8 +67,9 @@ class QuicStreamSequencerBufferTest : public QuicTest {
 
  protected:
   void Initialize() {
-    buffer_ = QuicMakeUnique<QuicStreamSequencerBuffer>((max_capacity_bytes_));
-    helper_ = QuicMakeUnique<QuicStreamSequencerBufferPeer>((buffer_.get()));
+    buffer_ =
+        std::make_unique<QuicStreamSequencerBuffer>((max_capacity_bytes_));
+    helper_ = std::make_unique<QuicStreamSequencerBufferPeer>((buffer_.get()));
   }
 
   // Use 2.5 here to make sure the buffer has more than one block and its end

@@ -138,7 +138,7 @@ class QbonePacketProcessorTest : public QuicTest {
     CHECK(self_ip_.FromString("fd00:0:0:4::1"));
     CHECK(network_ip_.FromString("fd00:0:0:5::1"));
 
-    processor_ = QuicMakeUnique<QbonePacketProcessor>(
+    processor_ = std::make_unique<QbonePacketProcessor>(
         self_ip_, client_ip_, /*client_ip_subnet_length=*/62, &output_,
         &stats_);
   }
@@ -231,7 +231,7 @@ TEST_F(QbonePacketProcessorTest, UnknownProtocol) {
 }
 
 TEST_F(QbonePacketProcessorTest, FilterFromClient) {
-  auto filter = QuicMakeUnique<MockPacketFilter>();
+  auto filter = std::make_unique<MockPacketFilter>();
   EXPECT_CALL(*filter, FilterPacket(_, _, _, _, _))
       .WillRepeatedly(Return(ProcessingResult::SILENT_DROP));
   processor_->set_filter(std::move(filter));
@@ -270,7 +270,7 @@ class TestFilter : public QbonePacketProcessor::Filter {
 // Verify that the parameters are passed correctly into the filter, and that the
 // helper functions of the filter class work.
 TEST_F(QbonePacketProcessorTest, FilterHelperFunctions) {
-  auto filter_owned = QuicMakeUnique<TestFilter>(client_ip_, network_ip_);
+  auto filter_owned = std::make_unique<TestFilter>(client_ip_, network_ip_);
   TestFilter* filter = filter_owned.get();
   processor_->set_filter(std::move(filter_owned));
 

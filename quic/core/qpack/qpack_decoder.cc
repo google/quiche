@@ -128,7 +128,7 @@ void QpackDecoder::OnErrorDetected(QuicStringPiece error_message) {
 std::unique_ptr<QpackProgressiveDecoder> QpackDecoder::CreateProgressiveDecoder(
     QuicStreamId stream_id,
     QpackProgressiveDecoder::HeadersHandlerInterface* handler) {
-  return QuicMakeUnique<QpackProgressiveDecoder>(
+  return std::make_unique<QpackProgressiveDecoder>(
       stream_id, this, &header_table_, &decoder_stream_sender_, handler);
 }
 

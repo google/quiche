@@ -43,8 +43,8 @@ class PacingSenderTest : public QuicTest {
   ~PacingSenderTest() override {}
 
   void InitPacingRate(QuicPacketCount burst_size, QuicBandwidth bandwidth) {
-    mock_sender_ = QuicMakeUnique<StrictMock<MockSendAlgorithm>>();
-    pacing_sender_ = QuicMakeUnique<PacingSender>();
+    mock_sender_ = std::make_unique<StrictMock<MockSendAlgorithm>>();
+    pacing_sender_ = std::make_unique<PacingSender>();
     pacing_sender_->set_sender(mock_sender_.get());
     EXPECT_CALL(*mock_sender_, PacingRate(_)).WillRepeatedly(Return(bandwidth));
     EXPECT_CALL(*mock_sender_, BandwidthEstimate())

@@ -25,9 +25,9 @@ namespace quic {
 std::unique_ptr<QuicDecrypter> QuicDecrypter::Create(QuicTag algorithm) {
   switch (algorithm) {
     case kAESG:
-      return QuicMakeUnique<Aes128Gcm12Decrypter>();
+      return std::make_unique<Aes128Gcm12Decrypter>();
     case kCC20:
-      return QuicMakeUnique<ChaCha20Poly1305Decrypter>();
+      return std::make_unique<ChaCha20Poly1305Decrypter>();
     default:
       QUIC_LOG(FATAL) << "Unsupported algorithm: " << algorithm;
       return nullptr;
@@ -39,11 +39,11 @@ std::unique_ptr<QuicDecrypter> QuicDecrypter::CreateFromCipherSuite(
     uint32_t cipher_suite) {
   switch (cipher_suite) {
     case TLS1_CK_AES_128_GCM_SHA256:
-      return QuicMakeUnique<Aes128GcmDecrypter>();
+      return std::make_unique<Aes128GcmDecrypter>();
     case TLS1_CK_AES_256_GCM_SHA384:
-      return QuicMakeUnique<Aes256GcmDecrypter>();
+      return std::make_unique<Aes256GcmDecrypter>();
     case TLS1_CK_CHACHA20_POLY1305_SHA256:
-      return QuicMakeUnique<ChaCha20Poly1305TlsDecrypter>();
+      return std::make_unique<ChaCha20Poly1305TlsDecrypter>();
     default:
       QUIC_BUG << "TLS cipher suite is unknown to QUIC";
       return nullptr;

@@ -33,7 +33,7 @@ int SimulatedQuartcPacketTransport::Write(const char* buffer,
 
   last_packet_number_ = info.packet_number;
 
-  auto packet = QuicMakeUnique<Packet>();
+  auto packet = std::make_unique<Packet>();
   packet->contents = std::string(buffer, buf_len);
   packet->size = buf_len;
   packet->tx_timestamp = clock_->Now();

@@ -151,7 +151,7 @@ class TestSession : public QuicSession {
     Initialize();
     this->connection()->SetEncrypter(
         ENCRYPTION_FORWARD_SECURE,
-        QuicMakeUnique<NullEncrypter>(connection->perspective()));
+        std::make_unique<NullEncrypter>(connection->perspective()));
   }
 
   ~TestSession() override {
@@ -1386,8 +1386,9 @@ TEST_P(QuicSessionTestServer, OnStreamFrameFinStaticStreamId) {
   }
   QuicStreamId headers_stream_id =
       QuicUtils::GetHeadersStreamId(connection_->transport_version());
-  std::unique_ptr<TestStream> fake_headers_stream = QuicMakeUnique<TestStream>(
-      headers_stream_id, &session_, /*is_static*/ true, BIDIRECTIONAL);
+  std::unique_ptr<TestStream> fake_headers_stream =
+      std::make_unique<TestStream>(headers_stream_id, &session_,
+                                   /*is_static*/ true, BIDIRECTIONAL);
   QuicSessionPeer::ActivateStream(&session_, std::move(fake_headers_stream));
   // Send two bytes of payload.
   QuicStreamFrame data1(headers_stream_id, true, 0, QuicStringPiece("HT"));
@@ -1404,8 +1405,9 @@ TEST_P(QuicSessionTestServer, OnRstStreamStaticStreamId) {
   }
   QuicStreamId headers_stream_id =
       QuicUtils::GetHeadersStreamId(connection_->transport_version());
-  std::unique_ptr<TestStream> fake_headers_stream = QuicMakeUnique<TestStream>(
-      headers_stream_id, &session_, /*is_static*/ true, BIDIRECTIONAL);
+  std::unique_ptr<TestStream> fake_headers_stream =
+      std::make_unique<TestStream>(headers_stream_id, &session_,
+                                   /*is_static*/ true, BIDIRECTIONAL);
   QuicSessionPeer::ActivateStream(&session_, std::move(fake_headers_stream));
   // Send two bytes of payload.
   QuicRstStreamFrame rst1(kInvalidControlFrameId, headers_stream_id,
@@ -2612,7 +2614,7 @@ TEST_P(QuicSessionTestServer, OnStopSendingInputStaticStreams) {
     return;
   }
   QuicStreamId stream_id = 0;
-  std::unique_ptr<TestStream> fake_static_stream = QuicMakeUnique<TestStream>(
+  std::unique_ptr<TestStream> fake_static_stream = std::make_unique<TestStream>(
       stream_id, &session_, /*is_static*/ true, BIDIRECTIONAL);
   QuicSessionPeer::ActivateStream(&session_, std::move(fake_static_stream));
   // Check that a stream id in the static stream map is ignored.

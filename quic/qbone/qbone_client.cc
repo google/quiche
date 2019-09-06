@@ -17,7 +17,7 @@ std::unique_ptr<QuicClientBase::NetworkHelper> CreateNetworkHelper(
     QuicEpollServer* epoll_server,
     QboneClient* client) {
   std::unique_ptr<QuicClientBase::NetworkHelper> helper =
-      QuicMakeUnique<QuicClientEpollNetworkHelper>(epoll_server, client);
+      std::make_unique<QuicClientEpollNetworkHelper>(epoll_server, client);
   testing::testvalue::Adjust("QboneClient/network_helper", &helper);
   return helper;
 }
@@ -90,7 +90,7 @@ class QboneClientSessionWithConnection : public QboneClientSession {
 std::unique_ptr<QuicSession> QboneClient::CreateQuicClientSession(
     const ParsedQuicVersionVector& supported_versions,
     QuicConnection* connection) {
-  return QuicMakeUnique<QboneClientSessionWithConnection>(
+  return std::make_unique<QboneClientSessionWithConnection>(
       connection, crypto_config(), session_owner(), *config(),
       supported_versions, server_id(), qbone_writer_, qbone_handler_);
 }

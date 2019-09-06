@@ -49,7 +49,7 @@ const QuicTime::Delta kDelayedAckTime =
 class UberReceivedPacketManagerTest : public QuicTest {
  protected:
   UberReceivedPacketManagerTest() {
-    manager_ = QuicMakeUnique<UberReceivedPacketManager>(&stats_);
+    manager_ = std::make_unique<UberReceivedPacketManager>(&stats_);
     clock_.AdvanceTime(QuicTime::Delta::FromSeconds(1));
     rtt_stats_.UpdateRtt(kMinRttMs, QuicTime::Delta::Zero(), QuicTime::Zero());
     manager_->set_save_timestamps(true);

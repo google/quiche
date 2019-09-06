@@ -32,7 +32,7 @@ class UberQuicStreamIdManagerTest : public QuicTestWithParam<Perspective> {
             GetParam(),
             ParsedQuicVersionVector(
                 {{PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_99}}))) {
-    session_ = QuicMakeUnique<StrictMock<MockQuicSession>>(connection_);
+    session_ = std::make_unique<StrictMock<MockQuicSession>>(connection_);
     manager_ = QuicSessionPeer::v99_streamid_manager(session_.get());
   }
 

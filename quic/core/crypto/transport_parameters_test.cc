@@ -73,7 +73,7 @@ CreateFakePreferredAddress() {
   preferred_address.ipv6_socket_address = CreateFakeV6SocketAddress();
   preferred_address.connection_id = kFakePreferredConnectionId;
   preferred_address.stateless_reset_token = kFakePreferredStatelessResetToken;
-  return QuicMakeUnique<TransportParameters::PreferredAddress>(
+  return std::make_unique<TransportParameters::PreferredAddress>(
       preferred_address);
 }
 
@@ -594,7 +594,7 @@ TEST_F(TransportParametersTest, CryptoHandshakeMessageRoundtrip) {
   orig_params.version = kFakeVersionLabel;
   orig_params.max_packet_size.set_value(kFakeMaxPacketSize);
 
-  orig_params.google_quic_params = QuicMakeUnique<CryptoHandshakeMessage>();
+  orig_params.google_quic_params = std::make_unique<CryptoHandshakeMessage>();
   const std::string kTestString = "test string";
   orig_params.google_quic_params->SetStringPiece(42, kTestString);
   const uint32_t kTestValue = 12;

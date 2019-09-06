@@ -57,12 +57,12 @@ QuartcClientEndpoint::QuartcClientEndpoint(
       delegate_(delegate),
       serialized_server_config_(serialized_server_config),
       version_manager_(version_manager ? std::move(version_manager)
-                                       : QuicMakeUnique<QuicVersionManager>(
+                                       : std::make_unique<QuicVersionManager>(
                                              AllSupportedVersions())),
       create_session_alarm_(QuicWrapUnique(
           alarm_factory_->CreateAlarm(new CreateSessionDelegate(this)))),
       connection_helper_(
-          QuicMakeUnique<QuartcConnectionHelper>(clock_, random)),
+          std::make_unique<QuartcConnectionHelper>(clock_, random)),
       config_(config) {}
 
 void QuartcClientEndpoint::Connect(QuartcPacketTransport* packet_transport) {
@@ -153,10 +153,10 @@ QuartcServerEndpoint::QuartcServerEndpoint(
       delegate_(delegate),
       config_(config),
       version_manager_(version_manager ? std::move(version_manager)
-                                       : QuicMakeUnique<QuicVersionManager>(
+                                       : std::make_unique<QuicVersionManager>(
                                              AllSupportedVersions())),
       pre_connection_helper_(
-          QuicMakeUnique<QuartcConnectionHelper>(clock, random)),
+          std::make_unique<QuartcConnectionHelper>(clock, random)),
       crypto_config_(
           CreateCryptoServerConfig(pre_connection_helper_->GetRandomGenerator(),
                                    clock,
@@ -164,14 +164,14 @@ QuartcServerEndpoint::QuartcServerEndpoint(
 
 void QuartcServerEndpoint::Connect(QuartcPacketTransport* packet_transport) {
   DCHECK(pre_connection_helper_ != nullptr);
-  dispatcher_ = QuicMakeUnique<QuartcDispatcher>(
-      QuicMakeUnique<QuicConfig>(CreateQuicConfig(config_)),
+  dispatcher_ = std::make_unique<QuartcDispatcher>(
+      std::make_unique<QuicConfig>(CreateQuicConfig(config_)),
       std::move(crypto_config_.config), version_manager_.get(),
       std::move(pre_connection_helper_),
-      QuicMakeUnique<QuartcCryptoServerStreamHelper>(),
-      QuicMakeUnique<QuartcAlarmFactoryWrapper>(alarm_factory_),
-      QuicMakeUnique<QuartcPacketWriter>(packet_transport,
-                                         config_.max_packet_size),
+      std::make_unique<QuartcCryptoServerStreamHelper>(),
+      std::make_unique<QuartcAlarmFactoryWrapper>(alarm_factory_),
+      std::make_unique<QuartcPacketWriter>(packet_transport,
+                                           config_.max_packet_size),
       this);
   // The dispatcher requires at least one call to |ProcessBufferedChlos| to
   // set the number of connections it is allowed to create.

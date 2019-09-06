@@ -185,14 +185,14 @@ class QuartcMultiplexerTest : public QuicTest {
         server_multiplexer_(simulator_.GetStreamSendBufferAllocator(),
                             &server_session_delegate_,
                             &server_default_receiver_),
-        client_endpoint_(QuicMakeUnique<QuartcClientEndpoint>(
+        client_endpoint_(std::make_unique<QuartcClientEndpoint>(
             simulator_.GetAlarmFactory(),
             simulator_.GetClock(),
             simulator_.GetRandomGenerator(),
             &client_multiplexer_,
             quic::QuartcSessionConfig(),
             /*serialized_server_config=*/"")),
-        server_endpoint_(QuicMakeUnique<QuartcServerEndpoint>(
+        server_endpoint_(std::make_unique<QuartcServerEndpoint>(
             simulator_.GetAlarmFactory(),
             simulator_.GetClock(),
             simulator_.GetRandomGenerator(),

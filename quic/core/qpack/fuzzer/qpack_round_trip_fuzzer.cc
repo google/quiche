@@ -369,7 +369,7 @@ class DecodingEndpoint : public DelayedHeaderBlockTransmitter::Visitor,
       expected_header_lists_.erase(it);
     }
 
-    auto verifying_decoder = QuicMakeUnique<VerifyingDecoder>(
+    auto verifying_decoder = std::make_unique<VerifyingDecoder>(
         stream_id, this, &decoder_, std::move(expected_header_list));
     auto result =
         verifying_decoders_.insert({stream_id, std::move(verifying_decoder)});

@@ -341,7 +341,7 @@ void QuicMemoryCacheBackend::AddResponseImpl(QuicStringPiece host,
     QUIC_BUG << "Response for '" << key << "' already exists!";
     return;
   }
-  auto new_response = QuicMakeUnique<QuicBackendResponse>();
+  auto new_response = std::make_unique<QuicBackendResponse>();
   new_response->set_response_type(response_type);
   new_response->set_headers(std::move(response_headers));
   new_response->set_body(response_body);

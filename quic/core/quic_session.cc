@@ -1327,7 +1327,7 @@ PendingStream* QuicSession::GetOrCreatePendingStream(QuicStreamId stream_id) {
     return nullptr;
   }
 
-  auto pending = QuicMakeUnique<PendingStream>(stream_id, this);
+  auto pending = std::make_unique<PendingStream>(stream_id, this);
   PendingStream* unowned_pending = pending.get();
   pending_stream_map_[stream_id] = std::move(pending);
   return unowned_pending;

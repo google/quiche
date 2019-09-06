@@ -377,7 +377,7 @@ void QuicSpdySession::Initialize() {
       DCHECK_EQ(headers_stream_id,
                 QuicUtils::GetHeadersStreamId(transport_version()));
     }
-    auto headers_stream = QuicMakeUnique<QuicHeadersStream>((this));
+    auto headers_stream = std::make_unique<QuicHeadersStream>((this));
     DCHECK_EQ(QuicUtils::GetHeadersStreamId(transport_version()),
               headers_stream->id());
 
@@ -386,10 +386,10 @@ void QuicSpdySession::Initialize() {
   } else {
     ConfigureMaxIncomingDynamicStreamsToSend(
         config()->GetMaxIncomingUnidirectionalStreamsToSend());
-    qpack_encoder_ = QuicMakeUnique<QpackEncoder>(this);
+    qpack_encoder_ = std::make_unique<QpackEncoder>(this);
     qpack_decoder_ =
-        QuicMakeUnique<QpackDecoder>(qpack_maximum_dynamic_table_capacity_,
-                                     qpack_maximum_blocked_streams_, this);
+        std::make_unique<QpackDecoder>(qpack_maximum_dynamic_table_capacity_,
+                                       qpack_maximum_blocked_streams_, this);
     MaybeInitializeHttp3UnidirectionalStreams();
     // TODO(b/112770235): Send SETTINGS_QPACK_BLOCKED_STREAMS with value
     // qpack_maximum_blocked_streams_.
@@ -862,7 +862,7 @@ void QuicSpdySession::SetHpackEncoderDebugVisitor(
 void QuicSpdySession::SetHpackDecoderDebugVisitor(
     std::unique_ptr<QuicHpackDebugVisitor> visitor) {
   h2_deframer_.SetDecoderHeaderTableDebugVisitor(
-      QuicMakeUnique<HeaderTableDebugVisitor>(
+      std::make_unique<HeaderTableDebugVisitor>(
           connection()->helper()->GetClock(), std::move(visitor)));
 }
 
@@ -919,7 +919,7 @@ bool QuicSpdySession::ProcessPendingStream(PendingStream* pending) {
         CloseConnectionOnDuplicateHttp3UnidirectionalStreams("Control");
         return false;
       }
-      auto receive_stream = QuicMakeUnique<QuicReceiveControlStream>(pending);
+      auto receive_stream = std::make_unique<QuicReceiveControlStream>(pending);
       receive_control_stream_ = receive_stream.get();
       ActivateStream(std::move(receive_stream));
       receive_control_stream_->SetUnblocked();
@@ -936,7 +936,7 @@ bool QuicSpdySession::ProcessPendingStream(PendingStream* pending) {
         CloseConnectionOnDuplicateHttp3UnidirectionalStreams("QPACK encoder");
         return false;
       }
-      auto encoder_receive = QuicMakeUnique<QpackReceiveStream>(
+      auto encoder_receive = std::make_unique<QpackReceiveStream>(
           pending, qpack_decoder_->encoder_stream_receiver());
       qpack_encoder_receive_stream_ = encoder_receive.get();
       ActivateStream(std::move(encoder_receive));
@@ -949,7 +949,7 @@ bool QuicSpdySession::ProcessPendingStream(PendingStream* pending) {
         CloseConnectionOnDuplicateHttp3UnidirectionalStreams("QPACK decoder");
         return false;
       }
-      auto decoder_receive = QuicMakeUnique<QpackReceiveStream>(
+      auto decoder_receive = std::make_unique<QpackReceiveStream>(
           pending, qpack_encoder_->decoder_stream_receiver());
       qpack_decoder_receive_stream_ = decoder_receive.get();
       ActivateStream(std::move(decoder_receive));
@@ -967,7 +967,7 @@ bool QuicSpdySession::ProcessPendingStream(PendingStream* pending) {
 void QuicSpdySession::MaybeInitializeHttp3UnidirectionalStreams() {
   DCHECK(VersionHasStreamType(transport_version()));
   if (!send_control_stream_ && CanOpenNextOutgoingUnidirectionalStream()) {
-    auto send_control = QuicMakeUnique<QuicSendControlStream>(
+    auto send_control = std::make_unique<QuicSendControlStream>(
         GetNextOutgoingUnidirectionalStreamId(), this,
         qpack_maximum_dynamic_table_capacity_, max_inbound_header_list_size_);
     send_control_stream_ = send_control.get();
@@ -976,7 +976,7 @@ void QuicSpdySession::MaybeInitializeHttp3UnidirectionalStreams() {
 
   if (!qpack_decoder_send_stream_ &&
       CanOpenNextOutgoingUnidirectionalStream()) {
-    auto decoder_send = QuicMakeUnique<QpackSendStream>(
+    auto decoder_send = std::make_unique<QpackSendStream>(
         GetNextOutgoingUnidirectionalStreamId(), this, kQpackDecoderStream);
     qpack_decoder_send_stream_ = decoder_send.get();
     ActivateStream(std::move(decoder_send));
@@ -986,7 +986,7 @@ void QuicSpdySession::MaybeInitializeHttp3UnidirectionalStreams() {
 
   if (!qpack_encoder_send_stream_ &&
       CanOpenNextOutgoingUnidirectionalStream()) {
-    auto encoder_send = QuicMakeUnique<QpackSendStream>(
+    auto encoder_send = std::make_unique<QpackSendStream>(
         GetNextOutgoingUnidirectionalStreamId(), this, kQpackEncoderStream);
     qpack_encoder_send_stream_ = encoder_send.get();
     ActivateStream(std::move(encoder_send));

@@ -217,7 +217,7 @@ TEST_F(QuicCryptoStreamTest, RetransmitCryptoDataInCryptoFrames) {
   // Send [1350, 2700) in ENCRYPTION_ZERO_RTT.
   connection_->SetDefaultEncryptionLevel(ENCRYPTION_ZERO_RTT);
   std::unique_ptr<NullEncrypter> encrypter =
-      QuicMakeUnique<NullEncrypter>(Perspective::IS_CLIENT);
+      std::make_unique<NullEncrypter>(Perspective::IS_CLIENT);
   connection_->SetEncrypter(ENCRYPTION_ZERO_RTT, std::move(encrypter));
   EXPECT_EQ(ENCRYPTION_ZERO_RTT, connection_->encryption_level());
   EXPECT_CALL(*connection_, SendCryptoData(ENCRYPTION_ZERO_RTT, 1350, 0))
@@ -309,7 +309,7 @@ TEST_F(QuicCryptoStreamTest, NeuterUnencryptedCryptoData) {
   // Send [1350, 2700) in ENCRYPTION_ZERO_RTT.
   connection_->SetDefaultEncryptionLevel(ENCRYPTION_ZERO_RTT);
   std::unique_ptr<NullEncrypter> encrypter =
-      QuicMakeUnique<NullEncrypter>(Perspective::IS_CLIENT);
+      std::make_unique<NullEncrypter>(Perspective::IS_CLIENT);
   connection_->SetEncrypter(ENCRYPTION_ZERO_RTT, std::move(encrypter));
   EXPECT_EQ(ENCRYPTION_ZERO_RTT, connection_->encryption_level());
   EXPECT_CALL(*connection_, SendCryptoData(_, _, _)).Times(0);
@@ -426,7 +426,7 @@ TEST_F(QuicCryptoStreamTest, RetransmitStreamDataWithCryptoFrames) {
   // Send [1350, 2700) in ENCRYPTION_ZERO_RTT.
   connection_->SetDefaultEncryptionLevel(ENCRYPTION_ZERO_RTT);
   std::unique_ptr<NullEncrypter> encrypter =
-      QuicMakeUnique<NullEncrypter>(Perspective::IS_CLIENT);
+      std::make_unique<NullEncrypter>(Perspective::IS_CLIENT);
   connection_->SetEncrypter(ENCRYPTION_ZERO_RTT, std::move(encrypter));
   EXPECT_EQ(ENCRYPTION_ZERO_RTT, connection_->encryption_level());
   EXPECT_CALL(*connection_, SendCryptoData(ENCRYPTION_ZERO_RTT, 1350, 0))

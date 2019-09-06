@@ -47,7 +47,7 @@ class ShloVerifier {
 
   std::unique_ptr<ValidateClientHelloCallback>
   GetValidateClientHelloCallback() {
-    return QuicMakeUnique<ValidateClientHelloCallback>(this);
+    return std::make_unique<ValidateClientHelloCallback>(this);
   }
 
  private:
@@ -82,7 +82,7 @@ class ShloVerifier {
   };
 
   std::unique_ptr<ProcessClientHelloCallback> GetProcessClientHelloCallback() {
-    return QuicMakeUnique<ProcessClientHelloCallback>(this);
+    return std::make_unique<ProcessClientHelloCallback>(this);
   }
 
   void ProcessClientHelloDone(std::unique_ptr<CryptoHandshakeMessage> message) {

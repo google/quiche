@@ -339,7 +339,7 @@ QuicEncryptedPacket::QuicEncryptedPacket(QuicStringPiece data)
 std::unique_ptr<QuicEncryptedPacket> QuicEncryptedPacket::Clone() const {
   char* buffer = new char[this->length()];
   memcpy(buffer, this->data(), this->length());
-  return QuicMakeUnique<QuicEncryptedPacket>(buffer, this->length(), true);
+  return std::make_unique<QuicEncryptedPacket>(buffer, this->length(), true);
 }
 
 std::ostream& operator<<(std::ostream& os, const QuicEncryptedPacket& s) {
@@ -410,12 +410,12 @@ std::unique_ptr<QuicReceivedPacket> QuicReceivedPacket::Clone() const {
   if (this->packet_headers()) {
     char* headers_buffer = new char[this->headers_length()];
     memcpy(headers_buffer, this->packet_headers(), this->headers_length());
-    return QuicMakeUnique<QuicReceivedPacket>(
+    return std::make_unique<QuicReceivedPacket>(
         buffer, this->length(), receipt_time(), true, ttl(), ttl() >= 0,
         headers_buffer, this->headers_length(), true);
   }
 
-  return QuicMakeUnique<QuicReceivedPacket>(
+  return std::make_unique<QuicReceivedPacket>(
       buffer, this->length(), receipt_time(), true, ttl(), ttl() >= 0);
 }
 

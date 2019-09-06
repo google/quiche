@@ -22,7 +22,7 @@ class UberLossAlgorithmTest : public QuicTest {
  protected:
   UberLossAlgorithmTest() {
     unacked_packets_ =
-        QuicMakeUnique<QuicUnackedPacketMap>(Perspective::IS_CLIENT);
+        std::make_unique<QuicUnackedPacketMap>(Perspective::IS_CLIENT);
     rtt_stats_.UpdateRtt(QuicTime::Delta::FromMilliseconds(100),
                          QuicTime::Delta::Zero(), clock_.Now());
     EXPECT_LT(0, rtt_stats_.smoothed_rtt().ToMicroseconds());

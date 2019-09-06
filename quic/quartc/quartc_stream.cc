@@ -39,7 +39,7 @@ void QuartcStream::OnDataAvailable() {
     size_t iov_length = sequencer()->ReadableBytes() /
                             QuicStreamSequencerBuffer::kBlockSizeBytes +
                         2;
-    std::unique_ptr<iovec[]> iovecs = QuicMakeUnique<iovec[]>(iov_length);
+    std::unique_ptr<iovec[]> iovecs = std::make_unique<iovec[]>(iov_length);
     iov_length = sequencer()->GetReadableRegions(iovecs.get(), iov_length);
 
     bytes_consumed = delegate_->OnReceived(this, iovecs.get(), iov_length, fin);

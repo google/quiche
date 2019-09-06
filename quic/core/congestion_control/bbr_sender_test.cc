@@ -146,24 +146,24 @@ class BbrSenderTest : public QuicTest {
   // receiver and the switch.  The switch has the buffers four times larger than
   // the bottleneck BDP, which should guarantee a lack of losses.
   void CreateDefaultSetup() {
-    switch_ = QuicMakeUnique<simulator::Switch>(&simulator_, "Switch", 8,
-                                                2 * kTestBdp);
-    bbr_sender_link_ = QuicMakeUnique<simulator::SymmetricLink>(
+    switch_ = std::make_unique<simulator::Switch>(&simulator_, "Switch", 8,
+                                                  2 * kTestBdp);
+    bbr_sender_link_ = std::make_unique<simulator::SymmetricLink>(
         &bbr_sender_, switch_->port(1), kLocalLinkBandwidth,
         kLocalPropagationDelay);
-    receiver_link_ = QuicMakeUnique<simulator::SymmetricLink>(
+    receiver_link_ = std::make_unique<simulator::SymmetricLink>(
         &receiver_, switch_->port(2), kTestLinkBandwidth,
         kTestPropagationDelay);
   }
 
   // Same as the default setup, except the buffer now is half of the BDP.
   void CreateSmallBufferSetup() {
-    switch_ = QuicMakeUnique<simulator::Switch>(&simulator_, "Switch", 8,
-                                                0.5 * kTestBdp);
-    bbr_sender_link_ = QuicMakeUnique<simulator::SymmetricLink>(
+    switch_ = std::make_unique<simulator::Switch>(&simulator_, "Switch", 8,
+                                                  0.5 * kTestBdp);
+    bbr_sender_link_ = std::make_unique<simulator::SymmetricLink>(
         &bbr_sender_, switch_->port(1), kLocalLinkBandwidth,
         kLocalPropagationDelay);
-    receiver_link_ = QuicMakeUnique<simulator::SymmetricLink>(
+    receiver_link_ = std::make_unique<simulator::SymmetricLink>(
         &receiver_, switch_->port(2), kTestLinkBandwidth,
         kTestPropagationDelay);
   }
@@ -171,19 +171,19 @@ class BbrSenderTest : public QuicTest {
   // Creates the variation of the default setup in which there is another sender
   // that competes for the same bottleneck link.
   void CreateCompetitionSetup() {
-    switch_ = QuicMakeUnique<simulator::Switch>(&simulator_, "Switch", 8,
-                                                2 * kTestBdp);
+    switch_ = std::make_unique<simulator::Switch>(&simulator_, "Switch", 8,
+                                                  2 * kTestBdp);
 
     // Add a small offset to the competing link in order to avoid
     // synchronization effects.
     const QuicTime::Delta small_offset = QuicTime::Delta::FromMicroseconds(3);
-    bbr_sender_link_ = QuicMakeUnique<simulator::SymmetricLink>(
+    bbr_sender_link_ = std::make_unique<simulator::SymmetricLink>(
         &bbr_sender_, switch_->port(1), kLocalLinkBandwidth,
         kLocalPropagationDelay);
-    competing_sender_link_ = QuicMakeUnique<simulator::SymmetricLink>(
+    competing_sender_link_ = std::make_unique<simulator::SymmetricLink>(
         &competing_sender_, switch_->port(3), kLocalLinkBandwidth,
         kLocalPropagationDelay + small_offset);
-    receiver_link_ = QuicMakeUnique<simulator::SymmetricLink>(
+    receiver_link_ = std::make_unique<simulator::SymmetricLink>(
         &receiver_multiplexer_, switch_->port(2), kTestLinkBandwidth,
         kTestPropagationDelay);
   }

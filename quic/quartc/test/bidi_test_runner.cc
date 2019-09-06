@@ -88,11 +88,11 @@ BidiTestRunner::~BidiTestRunner() {
 }
 
 bool BidiTestRunner::RunTest(QuicTime::Delta test_duration) {
-  client_peer_ = QuicMakeUnique<QuartcPeer>(
+  client_peer_ = std::make_unique<QuartcPeer>(
       simulator_->GetClock(), simulator_->GetAlarmFactory(),
       simulator_->GetRandomGenerator(),
       simulator_->GetStreamSendBufferAllocator(), client_configs_);
-  server_peer_ = QuicMakeUnique<QuartcPeer>(
+  server_peer_ = std::make_unique<QuartcPeer>(
       simulator_->GetClock(), simulator_->GetAlarmFactory(),
       simulator_->GetRandomGenerator(),
       simulator_->GetStreamSendBufferAllocator(), server_configs_);
@@ -102,7 +102,7 @@ bool BidiTestRunner::RunTest(QuicTime::Delta test_duration) {
     server_interceptor_->SetDelegate(server_delegate);
     server_delegate = server_interceptor_;
   }
-  server_endpoint_ = QuicMakeUnique<QuartcServerEndpoint>(
+  server_endpoint_ = std::make_unique<QuartcServerEndpoint>(
       simulator_->GetAlarmFactory(), simulator_->GetClock(),
       simulator_->GetRandomGenerator(), server_delegate, QuartcSessionConfig());
 
@@ -111,7 +111,7 @@ bool BidiTestRunner::RunTest(QuicTime::Delta test_duration) {
     client_interceptor_->SetDelegate(client_delegate);
     client_delegate = client_interceptor_;
   }
-  client_endpoint_ = QuicMakeUnique<QuartcClientEndpoint>(
+  client_endpoint_ = std::make_unique<QuartcClientEndpoint>(
       simulator_->GetAlarmFactory(), simulator_->GetClock(),
       simulator_->GetRandomGenerator(), client_delegate, QuartcSessionConfig(),
       server_endpoint_->server_crypto_config());

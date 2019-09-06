@@ -258,7 +258,7 @@ TEST_F(SimpleSessionNotifierTest, OnCanWriteCryptoFrames) {
   notifier_.WriteCryptoData(ENCRYPTION_INITIAL, 1024, 0);
   // Send crypto data [1024, 2048) in ENCRYPTION_ZERO_RTT.
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_ZERO_RTT);
-  connection_.SetEncrypter(ENCRYPTION_ZERO_RTT, QuicMakeUnique<NullEncrypter>(
+  connection_.SetEncrypter(ENCRYPTION_ZERO_RTT, std::make_unique<NullEncrypter>(
                                                     Perspective::IS_CLIENT));
   EXPECT_CALL(connection_, SendCryptoData(ENCRYPTION_ZERO_RTT, 1024, 0))
       .WillOnce(Invoke(&connection_,

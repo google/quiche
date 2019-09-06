@@ -734,7 +734,7 @@ TEST_P(QuicSentPacketManagerTest, RetransmitTwiceThenAckFirst) {
 }
 
 TEST_P(QuicSentPacketManagerTest, AckOriginalTransmission) {
-  auto loss_algorithm = QuicMakeUnique<MockLossAlgorithm>();
+  auto loss_algorithm = std::make_unique<MockLossAlgorithm>();
   QuicSentPacketManagerPeer::SetLossAlgorithm(&manager_, loss_algorithm.get());
 
   SendDataPacket(1);
@@ -2108,7 +2108,7 @@ TEST_P(QuicSentPacketManagerTest, RetransmissionDelay) {
 }
 
 TEST_P(QuicSentPacketManagerTest, GetLossDelay) {
-  auto loss_algorithm = QuicMakeUnique<MockLossAlgorithm>();
+  auto loss_algorithm = std::make_unique<MockLossAlgorithm>();
   QuicSentPacketManagerPeer::SetLossAlgorithm(&manager_, loss_algorithm.get());
 
   EXPECT_CALL(*loss_algorithm, GetLossTimeout())

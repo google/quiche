@@ -27,8 +27,8 @@ std::unique_ptr<QuicSpdyClientBase> QuicEpollClientFactory::CreateClient(
     return nullptr;
   }
   QuicServerId server_id(host_for_handshake, port, false);
-  return QuicMakeUnique<QuicClient>(addr, server_id, versions, &epoll_server_,
-                                    std::move(verifier));
+  return std::make_unique<QuicClient>(addr, server_id, versions, &epoll_server_,
+                                      std::move(verifier));
 }
 
 }  // namespace quic

@@ -134,12 +134,12 @@ void CryptoUtils::CreateTlsInitialCrypters(Perspective perspective,
     encryption_label = server_label;
     decryption_label = client_label;
   }
-  crypters->encrypter = QuicMakeUnique<Aes128GcmEncrypter>();
+  crypters->encrypter = std::make_unique<Aes128GcmEncrypter>();
   std::vector<uint8_t> encryption_secret = HkdfExpandLabel(
       hash, handshake_secret, encryption_label, EVP_MD_size(hash));
   SetKeyAndIV(hash, encryption_secret, crypters->encrypter.get());
 
-  crypters->decrypter = QuicMakeUnique<Aes128GcmDecrypter>();
+  crypters->decrypter = std::make_unique<Aes128GcmDecrypter>();
   std::vector<uint8_t> decryption_secret = HkdfExpandLabel(
       hash, handshake_secret, decryption_label, EVP_MD_size(hash));
   SetKeyAndIV(hash, decryption_secret, crypters->decrypter.get());
@@ -191,7 +191,7 @@ bool CryptoUtils::DeriveKeys(QuicStringPiece premaster_secret,
                                              pre_shared_key.size() + 8 +
                                              premaster_secret.size() + 8;
 
-    psk_premaster_secret = QuicMakeUnique<char[]>(psk_premaster_secret_size);
+    psk_premaster_secret = std::make_unique<char[]>(psk_premaster_secret_size);
     QuicDataWriter writer(psk_premaster_secret_size, psk_premaster_secret.get(),
                           HOST_BYTE_ORDER);
 

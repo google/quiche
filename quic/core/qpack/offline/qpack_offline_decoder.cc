@@ -19,8 +19,7 @@
 namespace quic {
 
 QpackOfflineDecoder::QpackOfflineDecoder()
-    : encoder_stream_error_detected_(false),
-      max_blocked_streams_(0) {}
+    : encoder_stream_error_detected_(false), max_blocked_streams_(0) {}
 
 bool QpackOfflineDecoder::DecodeAndVerifyOfflineData(
     QuicStringPiece input_filename,
@@ -92,8 +91,8 @@ bool QpackOfflineDecoder::ParseInputFilename(QuicStringPiece input_filename) {
                     << "\" as an integer.";
     return false;
   }
-  qpack_decoder_ = QuicMakeUnique<QpackDecoder>(maximum_dynamic_table_capacity,
-                                                max_blocked_streams_, this);
+  qpack_decoder_ = std::make_unique<QpackDecoder>(
+      maximum_dynamic_table_capacity, max_blocked_streams_, this);
   qpack_decoder_->set_qpack_stream_sender_delegate(
       &decoder_stream_sender_delegate_);
 
@@ -141,7 +140,7 @@ bool QpackOfflineDecoder::DecodeHeaderBlocksFromFile(
         return false;
       }
     } else {
-      auto headers_handler = QuicMakeUnique<test::TestHeadersHandler>();
+      auto headers_handler = std::make_unique<test::TestHeadersHandler>();
       auto progressive_decoder = qpack_decoder_->CreateProgressiveDecoder(
           stream_id, headers_handler.get());
 

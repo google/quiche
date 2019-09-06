@@ -83,8 +83,8 @@ bool QuartcCryptoServerStreamHelper::CanAcceptClientHello(
 
 std::unique_ptr<QuicCryptoClientConfig> CreateCryptoClientConfig(
     QuicStringPiece pre_shared_key) {
-  auto config = QuicMakeUnique<QuicCryptoClientConfig>(
-      QuicMakeUnique<InsecureProofVerifier>());
+  auto config = std::make_unique<QuicCryptoClientConfig>(
+      std::make_unique<InsecureProofVerifier>());
   config->set_pad_inchoate_hello(false);
   config->set_pad_full_hello(false);
   if (!pre_shared_key.empty()) {
@@ -103,9 +103,10 @@ CryptoServerConfig CreateCryptoServerConfig(QuicRandom* random,
   // handshakes, but for transient clients it does not matter.
   char source_address_token_secret[kInputKeyingMaterialLength];
   random->RandBytes(source_address_token_secret, kInputKeyingMaterialLength);
-  auto config = QuicMakeUnique<QuicCryptoServerConfig>(
+  auto config = std::make_unique<QuicCryptoServerConfig>(
       std::string(source_address_token_secret, kInputKeyingMaterialLength),
-      random, QuicMakeUnique<DummyProofSource>(), KeyExchangeSource::Default());
+      random, std::make_unique<DummyProofSource>(),
+      KeyExchangeSource::Default());
 
   // We run QUIC over ICE, and ICE is verifying remote side with STUN pings.
   // We disable source address token validation in order to allow for 0-rtt

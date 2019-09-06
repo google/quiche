@@ -17,7 +17,7 @@ class HybridSlowStartTest : public QuicTest {
   HybridSlowStartTest()
       : one_ms_(QuicTime::Delta::FromMilliseconds(1)),
         rtt_(QuicTime::Delta::FromMilliseconds(60)) {}
-  void SetUp() override { slow_start_ = QuicMakeUnique<HybridSlowStart>(); }
+  void SetUp() override { slow_start_ = std::make_unique<HybridSlowStart>(); }
   const QuicTime::Delta one_ms_;
   const QuicTime::Delta rtt_;
   std::unique_ptr<HybridSlowStart> slow_start_;

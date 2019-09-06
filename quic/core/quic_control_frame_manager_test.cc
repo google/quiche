@@ -50,8 +50,8 @@ class QuicControlFrameManagerTest : public QuicTest {
   void Initialize() {
     connection_ = new MockQuicConnection(&helper_, &alarm_factory_,
                                          Perspective::IS_SERVER);
-    session_ = QuicMakeUnique<StrictMock<MockQuicSession>>(connection_);
-    manager_ = QuicMakeUnique<QuicControlFrameManager>(session_.get());
+    session_ = std::make_unique<StrictMock<MockQuicSession>>(connection_);
+    manager_ = std::make_unique<QuicControlFrameManager>(session_.get());
     EXPECT_EQ(0u, QuicControlFrameManagerPeer::QueueSize(manager_.get()));
     EXPECT_FALSE(manager_->HasPendingRetransmission());
     EXPECT_FALSE(manager_->WillingToWrite());

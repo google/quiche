@@ -27,7 +27,7 @@ Netlink::~Netlink() {
 
 void Netlink::ResetRecvBuf(size_t size) {
   if (size != 0) {
-    recvbuf_ = QuicMakeUnique<char[]>(size);
+    recvbuf_ = std::make_unique<char[]>(size);
   } else {
     recvbuf_ = nullptr;
   }

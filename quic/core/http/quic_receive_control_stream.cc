@@ -159,7 +159,7 @@ class QuicReceiveControlStream::HttpDecoderVisitor
 QuicReceiveControlStream::QuicReceiveControlStream(PendingStream* pending)
     : QuicStream(pending, READ_UNIDIRECTIONAL, /*is_static=*/true),
       settings_frame_received_(false),
-      http_decoder_visitor_(QuicMakeUnique<HttpDecoderVisitor>(this)),
+      http_decoder_visitor_(std::make_unique<HttpDecoderVisitor>(this)),
       decoder_(http_decoder_visitor_.get()) {
   sequencer()->set_level_triggered(true);
 }

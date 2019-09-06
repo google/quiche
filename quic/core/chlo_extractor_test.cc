@@ -99,7 +99,7 @@ class ChloExtractorTest : public QuicTest {
         framer.EncryptPayload(ENCRYPTION_INITIAL, header_.packet_number,
                               *packet, buffer_, QUIC_ARRAYSIZE(buffer_));
     ASSERT_NE(0u, encrypted_length);
-    packet_ = QuicMakeUnique<QuicEncryptedPacket>(buffer_, encrypted_length);
+    packet_ = std::make_unique<QuicEncryptedPacket>(buffer_, encrypted_length);
     EXPECT_TRUE(packet_ != nullptr);
     DeleteFrames(&frames);
   }

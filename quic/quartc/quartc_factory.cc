@@ -28,7 +28,7 @@ std::unique_ptr<QuartcSession> CreateQuartcClientSession(
   DCHECK(packet_transport);
 
   // QuartcSession will eventually own both |writer| and |quic_connection|.
-  auto writer = QuicMakeUnique<QuartcPacketWriter>(
+  auto writer = std::make_unique<QuartcPacketWriter>(
       packet_transport, quartc_session_config.max_packet_size);
 
   // While the QuicConfig is not directly used by the connection, creating it
@@ -51,7 +51,7 @@ std::unique_ptr<QuartcSession> CreateQuartcClientSession(
                                          .max_ack_delay()
                                          .ToMilliseconds());
 
-  return QuicMakeUnique<QuartcClientSession>(
+  return std::make_unique<QuartcClientSession>(
       std::move(quic_connection), quic_config, supported_versions, clock,
       std::move(writer),
       CreateCryptoClientConfig(quartc_session_config.pre_shared_key),
@@ -79,8 +79,8 @@ void ConfigureGlobalQuicSettings() {
 
   // Note: flag settings have no effect for Exoblaze builds since
   // SetQuicReloadableFlag() gets stubbed out.
-  SetQuicReloadableFlag(quic_bbr_less_probe_rtt, true);   // Enable BBR6,7,8.
-  SetQuicReloadableFlag(quic_unified_iw_options, true);   // Enable IWXX opts.
+  SetQuicReloadableFlag(quic_bbr_less_probe_rtt, true);  // Enable BBR6,7,8.
+  SetQuicReloadableFlag(quic_unified_iw_options, true);  // Enable IWXX opts.
   SetQuicReloadableFlag(quic_bbr_flexible_app_limited, true);  // Enable BBR9.
 
   // Fix GetPacketHeaderSize
@@ -194,7 +194,7 @@ std::unique_ptr<QuicConnection> CreateQuicConnection(
     QuicPacketWriter* packet_writer,
     Perspective perspective,
     ParsedQuicVersionVector supported_versions) {
-  auto quic_connection = QuicMakeUnique<QuicConnection>(
+  auto quic_connection = std::make_unique<QuicConnection>(
       connection_id, peer_address, connection_helper, alarm_factory,
       packet_writer,
       /*owns_writer=*/false, perspective, supported_versions);

@@ -80,7 +80,7 @@ void FakeProofSource::GetProof(
     return;
   }
 
-  pending_ops_.push_back(QuicMakeUnique<GetProofOp>(
+  pending_ops_.push_back(std::make_unique<GetProofOp>(
       server_address, hostname, server_config, transport_version,
       std::string(chlo_hash), std::move(callback), delegate_.get()));
 }
@@ -106,7 +106,7 @@ void FakeProofSource::ComputeTlsSignature(
   }
 
   QUIC_LOG(INFO) << "Adding pending op";
-  pending_ops_.push_back(QuicMakeUnique<ComputeSignatureOp>(
+  pending_ops_.push_back(std::make_unique<ComputeSignatureOp>(
       server_address, hostname, signature_algorithm, in, std::move(callback),
       delegate_.get()));
 }

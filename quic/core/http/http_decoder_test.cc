@@ -148,7 +148,7 @@ TEST_F(HttpDecoderTest, UnknownFrame) {
       const QuicByteCount total_length =
           QuicDataWriter::GetVarInt62Len(frame_type) +
           QuicDataWriter::GetVarInt62Len(payload_length) + payload_length;
-      input = QuicMakeUnique<char[]>(total_length);
+      input = std::make_unique<char[]>(total_length);
 
       QuicDataWriter writer(total_length, input.get());
       writer.WriteVarInt62(frame_type);
@@ -615,7 +615,7 @@ TEST_F(HttpDecoderTest, PartialDeliveryOfLargeFrameType) {
       QuicDataWriter::GetVarInt62Len(frame_type) +
       QuicDataWriter::GetVarInt62Len(payload_length);
 
-  auto input = QuicMakeUnique<char[]>(header_length);
+  auto input = std::make_unique<char[]>(header_length);
   QuicDataWriter writer(header_length, input.get());
   writer.WriteVarInt62(frame_type);
   writer.WriteVarInt62(payload_length);

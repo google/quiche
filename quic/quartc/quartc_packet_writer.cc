@@ -7,7 +7,7 @@
 namespace quic {
 
 std::unique_ptr<PerPacketOptions> QuartcPerPacketOptions::Clone() const {
-  return QuicMakeUnique<QuartcPerPacketOptions>(*this);
+  return std::make_unique<QuartcPerPacketOptions>(*this);
 }
 
 QuartcPacketWriter::QuartcPacketWriter(QuartcPacketTransport* packet_transport,

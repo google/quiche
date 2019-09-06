@@ -145,20 +145,20 @@ class Bbr2DefaultTopologyTest : public Bbr2SimulatorTest {
 
   void CreateNetwork(const DefaultTopologyParams& params) {
     QUIC_LOG(INFO) << "CreateNetwork with parameters: " << params.ToString();
-    switch_ = QuicMakeUnique<simulator::Switch>(&simulator_, "Switch",
-                                                params.switch_port_count,
-                                                params.SwitchQueueCapacity());
+    switch_ = std::make_unique<simulator::Switch>(&simulator_, "Switch",
+                                                  params.switch_port_count,
+                                                  params.SwitchQueueCapacity());
 
     // WARNING: The order to add links to network_links_ matters, because some
     // tests adjusts the link bandwidth on the fly.
 
     // Local link connects sender and port 1.
-    network_links_.push_back(QuicMakeUnique<simulator::SymmetricLink>(
+    network_links_.push_back(std::make_unique<simulator::SymmetricLink>(
         &sender_endpoint_, switch_->port(1), params.local_link.bandwidth,
         params.local_link.delay));
 
     // Test link connects receiver and port 2.
-    network_links_.push_back(QuicMakeUnique<simulator::SymmetricLink>(
+    network_links_.push_back(std::make_unique<simulator::SymmetricLink>(
         &receiver_endpoint_, switch_->port(2), params.test_link.bandwidth,
         params.test_link.delay));
   }
@@ -702,16 +702,17 @@ class Bbr2MultiSenderTest : public Bbr2SimulatorTest {
     for (size_t i = 0; i < MultiSenderTopologyParams::kNumLocalLinks; ++i) {
       std::string sender_name = QuicStrCat("Sender", i + 1);
       std::string receiver_name = QuicStrCat("Receiver", i + 1);
-      sender_endpoints_.push_back(QuicMakeUnique<simulator::QuicEndpoint>(
+      sender_endpoints_.push_back(std::make_unique<simulator::QuicEndpoint>(
           &simulator_, sender_name, receiver_name, Perspective::IS_CLIENT,
           TestConnectionId(first_connection_id + i)));
-      receiver_endpoints_.push_back(QuicMakeUnique<simulator::QuicEndpoint>(
+      receiver_endpoints_.push_back(std::make_unique<simulator::QuicEndpoint>(
           &simulator_, receiver_name, sender_name, Perspective::IS_SERVER,
           TestConnectionId(first_connection_id + i)));
       receiver_endpoint_pointers.push_back(receiver_endpoints_.back().get());
     }
-    receiver_multiplexer_ = QuicMakeUnique<simulator::QuicEndpointMultiplexer>(
-        "Receiver multiplexer", receiver_endpoint_pointers);
+    receiver_multiplexer_ =
+        std::make_unique<simulator::QuicEndpointMultiplexer>(
+            "Receiver multiplexer", receiver_endpoint_pointers);
     sender_1_ = SetupBbr2Sender(sender_endpoints_[0].get());
 
     uint64_t seed = QuicRandom::GetInstance()->RandUint64();
@@ -773,16 +774,16 @@ class Bbr2MultiSenderTest : public Bbr2SimulatorTest {
 
   void CreateNetwork(const MultiSenderTopologyParams& params) {
     QUIC_LOG(INFO) << "CreateNetwork with parameters: " << params.ToString();
-    switch_ = QuicMakeUnique<simulator::Switch>(&simulator_, "Switch",
-                                                params.switch_port_count,
-                                                params.SwitchQueueCapacity());
+    switch_ = std::make_unique<simulator::Switch>(&simulator_, "Switch",
+                                                  params.switch_port_count,
+                                                  params.SwitchQueueCapacity());
 
-    network_links_.push_back(QuicMakeUnique<simulator::SymmetricLink>(
+    network_links_.push_back(std::make_unique<simulator::SymmetricLink>(
         receiver_multiplexer_.get(), switch_->port(1),
         params.test_link.bandwidth, params.test_link.delay));
     for (size_t i = 0; i < MultiSenderTopologyParams::kNumLocalLinks; ++i) {
       simulator::SwitchPortNumber port_number = i + 2;
-      network_links_.push_back(QuicMakeUnique<simulator::SymmetricLink>(
+      network_links_.push_back(std::make_unique<simulator::SymmetricLink>(
           sender_endpoints_[i].get(), switch_->port(port_number),
           params.local_links[i].bandwidth, params.local_links[i].delay));
     }

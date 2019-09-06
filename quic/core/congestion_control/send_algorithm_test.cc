@@ -189,12 +189,12 @@ class SendAlgorithmTest : public QuicTestWithParam<TestParams> {
   void CreateSetup(const QuicBandwidth& test_bandwidth,
                    const QuicTime::Delta& test_link_delay,
                    QuicByteCount bottleneck_queue_length) {
-    switch_ = QuicMakeUnique<simulator::Switch>(&simulator_, "Switch", 8,
-                                                bottleneck_queue_length);
-    quic_sender_link_ = QuicMakeUnique<simulator::SymmetricLink>(
+    switch_ = std::make_unique<simulator::Switch>(&simulator_, "Switch", 8,
+                                                  bottleneck_queue_length);
+    quic_sender_link_ = std::make_unique<simulator::SymmetricLink>(
         &quic_sender_, switch_->port(1), kLocalLinkBandwidth,
         kLocalPropagationDelay);
-    receiver_link_ = QuicMakeUnique<simulator::SymmetricLink>(
+    receiver_link_ = std::make_unique<simulator::SymmetricLink>(
         &receiver_, switch_->port(2), test_bandwidth, test_link_delay);
   }
 

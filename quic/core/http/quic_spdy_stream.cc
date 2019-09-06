@@ -193,7 +193,7 @@ QuicSpdyStream::QuicSpdyStream(QuicStreamId id,
       trailers_decompressed_(false),
       trailers_consumed_(false),
       priority_sent_(false),
-      http_decoder_visitor_(QuicMakeUnique<HttpDecoderVisitor>(this)),
+      http_decoder_visitor_(std::make_unique<HttpDecoderVisitor>(this)),
       decoder_(http_decoder_visitor_.get()),
       sequencer_offset_(0),
       is_decoder_processing_input_(false),
@@ -227,7 +227,7 @@ QuicSpdyStream::QuicSpdyStream(PendingStream* pending,
       trailers_decompressed_(false),
       trailers_consumed_(false),
       priority_sent_(false),
-      http_decoder_visitor_(QuicMakeUnique<HttpDecoderVisitor>(this)),
+      http_decoder_visitor_(std::make_unique<HttpDecoderVisitor>(this)),
       decoder_(http_decoder_visitor_.get()),
       sequencer_offset_(sequencer()->NumBytesConsumed()),
       is_decoder_processing_input_(false),
@@ -871,7 +871,7 @@ bool QuicSpdyStream::OnHeadersFrameStart(QuicByteCount header_length) {
   sequencer()->MarkConsumed(body_manager_.OnNonBody(header_length));
 
   qpack_decoded_headers_accumulator_ =
-      QuicMakeUnique<QpackDecodedHeadersAccumulator>(
+      std::make_unique<QpackDecodedHeadersAccumulator>(
           id(), spdy_session_->qpack_decoder(), this,
           spdy_session_->max_inbound_header_list_size());
 
@@ -939,7 +939,7 @@ bool QuicSpdyStream::OnPushPromiseFrameStart(PushId push_id,
       body_manager_.OnNonBody(header_length + push_id_length));
 
   qpack_decoded_headers_accumulator_ =
-      QuicMakeUnique<QpackDecodedHeadersAccumulator>(
+      std::make_unique<QpackDecodedHeadersAccumulator>(
           id(), spdy_session_->qpack_decoder(), this,
           spdy_session_->max_inbound_header_list_size());
 

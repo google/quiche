@@ -100,7 +100,7 @@ TEST_P(QuicSendControlStreamTest, WriteSettings) {
       "06"      // SETTINGS_MAX_HEADER_LIST_SIZE
       "4400");  // 1024
 
-  auto buffer = QuicMakeUnique<char[]>(expected_write_data.size());
+  auto buffer = std::make_unique<char[]>(expected_write_data.size());
   QuicDataWriter writer(expected_write_data.size(), buffer.get());
 
   // A lambda to save and consume stream data when QuicSession::WritevData() is

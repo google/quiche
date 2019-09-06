@@ -110,7 +110,7 @@ class QuicStreamIdManagerTestBase : public QuicTestWithParam<bool> {
             ParsedQuicVersionVector(
                 {{PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_99}}))) {
     connection_->AdvanceTime(QuicTime::Delta::FromSeconds(1));
-    session_ = QuicMakeUnique<TestQuicSession>(connection_);
+    session_ = std::make_unique<TestQuicSession>(connection_);
     stream_id_manager_ =
         IsBidi() ? QuicSessionPeer::v99_bidirectional_stream_id_manager(
                        session_.get())

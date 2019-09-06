@@ -114,7 +114,7 @@ QuartcMultiplexer::QuartcMultiplexer(
 QuartcSendChannel* QuartcMultiplexer::CreateSendChannel(
     uint64_t channel_id,
     QuartcSendChannel::Delegate* delegate) {
-  send_channels_.push_back(QuicMakeUnique<QuartcSendChannel>(
+  send_channels_.push_back(std::make_unique<QuartcSendChannel>(
       this, channel_id, allocator_, delegate));
   if (session_) {
     send_channels_.back()->OnSessionCreated(session_);

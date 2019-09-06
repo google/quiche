@@ -109,7 +109,7 @@ QuicClient::~QuicClient() = default;
 std::unique_ptr<QuicSession> QuicClient::CreateQuicClientSession(
     const ParsedQuicVersionVector& supported_versions,
     QuicConnection* connection) {
-  return QuicMakeUnique<QuicSimpleClientSession>(
+  return std::make_unique<QuicSimpleClientSession>(
       *config(), supported_versions, connection, server_id(), crypto_config(),
       push_promise_index(), drop_response_body());
 }

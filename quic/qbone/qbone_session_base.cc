@@ -104,10 +104,10 @@ std::unique_ptr<QuicStream> QboneSessionBase::CreateDataStream(
 
   if (IsIncomingStream(id)) {
     ++num_streamed_packets_;
-    return QuicMakeUnique<QboneReadOnlyStream>(id, this);
+    return std::make_unique<QboneReadOnlyStream>(id, this);
   }
 
-  return QuicMakeUnique<QboneWriteOnlyStream>(id, this);
+  return std::make_unique<QboneWriteOnlyStream>(id, this);
 }
 
 QuicStream* QboneSessionBase::ActivateDataStream(

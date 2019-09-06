@@ -385,7 +385,7 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
       client_writer_->Initialize(
           QuicConnectionPeer::GetHelper(GetClientConnection()),
           QuicConnectionPeer::GetAlarmFactory(GetClientConnection()),
-          QuicMakeUnique<ClientDelegate>(client_->client()));
+          std::make_unique<ClientDelegate>(client_->client()));
     }
     initialized_ = true;
     return client_->client()->connected();
@@ -409,7 +409,8 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
         crypto_test_utils::ProofSourceForTesting(), server_config_,
         server_supported_versions_, &memory_cache_backend_,
         expected_server_connection_id_length_);
-    server_thread_ = QuicMakeUnique<ServerThread>(test_server, server_address_);
+    server_thread_ =
+        std::make_unique<ServerThread>(test_server, server_address_);
     if (chlo_multiplier_ != 0) {
       server_thread_->server()->SetChloMultiplier(chlo_multiplier_);
     }
@@ -425,7 +426,7 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
 
     server_writer_->Initialize(QuicDispatcherPeer::GetHelper(dispatcher),
                                QuicDispatcherPeer::GetAlarmFactory(dispatcher),
-                               QuicMakeUnique<ServerDelegate>(dispatcher));
+                               std::make_unique<ServerDelegate>(dispatcher));
     if (stream_factory_ != nullptr) {
       static_cast<QuicTestServer*>(server_thread_->server())
           ->SetSpdyStreamFactory(stream_factory_);
@@ -3406,7 +3407,7 @@ TEST_P(EndToEndTest, DISABLED_TestHugeResponseWithPacketLoss) {
   client_writer_->Initialize(
       QuicConnectionPeer::GetHelper(GetClientConnection()),
       QuicConnectionPeer::GetAlarmFactory(GetClientConnection()),
-      QuicMakeUnique<ClientDelegate>(client_->client()));
+      std::make_unique<ClientDelegate>(client_->client()));
   initialized_ = true;
   ASSERT_TRUE(client_->client()->connected());
 

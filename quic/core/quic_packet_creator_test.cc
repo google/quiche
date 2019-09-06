@@ -156,26 +156,26 @@ class QuicPacketCreatorTest : public QuicTestWithParam<TestParams> {
         serialized_packet_(creator_.NoPacket()) {
     QuicPacketCreatorPeer::EnableGetPacketHeaderSizeBugFix(&creator_);
     EXPECT_CALL(delegate_, GetPacketBuffer()).WillRepeatedly(Return(nullptr));
-    creator_.SetEncrypter(ENCRYPTION_HANDSHAKE, QuicMakeUnique<NullEncrypter>(
+    creator_.SetEncrypter(ENCRYPTION_HANDSHAKE, std::make_unique<NullEncrypter>(
                                                     Perspective::IS_CLIENT));
-    creator_.SetEncrypter(ENCRYPTION_ZERO_RTT, QuicMakeUnique<NullEncrypter>(
+    creator_.SetEncrypter(ENCRYPTION_ZERO_RTT, std::make_unique<NullEncrypter>(
                                                    Perspective::IS_CLIENT));
     creator_.SetEncrypter(
         ENCRYPTION_FORWARD_SECURE,
-        QuicMakeUnique<NullEncrypter>(Perspective::IS_CLIENT));
+        std::make_unique<NullEncrypter>(Perspective::IS_CLIENT));
     client_framer_.set_visitor(&framer_visitor_);
     server_framer_.set_visitor(&framer_visitor_);
     client_framer_.set_data_producer(&producer_);
     if (server_framer_.version().KnowsWhichDecrypterToUse()) {
       server_framer_.InstallDecrypter(
           ENCRYPTION_ZERO_RTT,
-          QuicMakeUnique<NullDecrypter>(Perspective::IS_SERVER));
+          std::make_unique<NullDecrypter>(Perspective::IS_SERVER));
       server_framer_.InstallDecrypter(
           ENCRYPTION_HANDSHAKE,
-          QuicMakeUnique<NullDecrypter>(Perspective::IS_SERVER));
+          std::make_unique<NullDecrypter>(Perspective::IS_SERVER));
       server_framer_.InstallDecrypter(
           ENCRYPTION_FORWARD_SECURE,
-          QuicMakeUnique<NullDecrypter>(Perspective::IS_SERVER));
+          std::make_unique<NullDecrypter>(Perspective::IS_SERVER));
     }
   }
 

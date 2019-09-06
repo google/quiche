@@ -116,10 +116,10 @@ class TestDispatcher : public QuicDispatcher {
       : QuicDispatcher(config,
                        crypto_config,
                        version_manager,
-                       QuicMakeUnique<MockQuicConnectionHelper>(),
+                       std::make_unique<MockQuicConnectionHelper>(),
                        std::unique_ptr<QuicCryptoServerStream::Helper>(
                            new QuicSimpleCryptoServerStreamHelper()),
-                       QuicMakeUnique<MockAlarmFactory>(),
+                       std::make_unique<MockAlarmFactory>(),
                        kQuicDefaultConnectionIdLength),
         random_(random) {}
 
@@ -137,7 +137,7 @@ class TestDispatcher : public QuicDispatcher {
   };
 
   std::unique_ptr<QuicPerPacketContext> GetPerPacketContext() const override {
-    auto test_context = QuicMakeUnique<TestQuicPerPacketContext>();
+    auto test_context = std::make_unique<TestQuicPerPacketContext>();
     test_context->custom_packet_context = custom_packet_context_;
     return std::move(test_context);
   }

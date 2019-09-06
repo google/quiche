@@ -794,7 +794,7 @@ TEST_F(TcpCubicSenderBytesTest, DefaultMaxCwnd) {
 
 TEST_F(TcpCubicSenderBytesTest, LimitCwndIncreaseInCongestionAvoidance) {
   // Enable Cubic.
-  sender_ = QuicMakeUnique<TcpCubicSenderBytesPeer>(&clock_, false);
+  sender_ = std::make_unique<TcpCubicSenderBytesPeer>(&clock_, false);
 
   int num_sent = SendAvailableSendWindow();
 

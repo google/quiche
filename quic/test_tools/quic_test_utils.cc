@@ -137,7 +137,7 @@ std::unique_ptr<QuicPacket> BuildUnsizedDataPacket(
                                           ENCRYPTION_INITIAL);
   DCHECK_NE(0u, length);
   // Re-construct the data packet with data ownership.
-  return QuicMakeUnique<QuicPacket>(
+  return std::make_unique<QuicPacket>(
       buffer, length, /* owns_buffer */ true,
       GetIncludedDestinationConnectionIdLength(header),
       GetIncludedSourceConnectionIdLength(header), header.version_flag,
@@ -511,7 +511,7 @@ PacketSavingConnection::PacketSavingConnection(
 PacketSavingConnection::~PacketSavingConnection() {}
 
 void PacketSavingConnection::SendOrQueuePacket(SerializedPacket* packet) {
-  encrypted_packets_.push_back(QuicMakeUnique<QuicEncryptedPacket>(
+  encrypted_packets_.push_back(std::make_unique<QuicEncryptedPacket>(
       CopyBuffer(*packet), packet->encrypted_length, true));
   clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(10));
   // Transfer ownership of the packet to the SentPacketManager and the
@@ -532,7 +532,7 @@ MockQuicSession::MockQuicSession(QuicConnection* connection,
                   connection->supported_versions(),
                   /*num_expected_unidirectional_static_streams = */ 0) {
   if (create_mock_crypto_stream) {
-    crypto_stream_ = QuicMakeUnique<MockQuicCryptoStream>(this);
+    crypto_stream_ = std::make_unique<MockQuicCryptoStream>(this);
   }
   ON_CALL(*this, WritevData(_, _, _, _, _))
       .WillByDefault(testing::Return(QuicConsumedData(0, false)));
@@ -561,7 +561,7 @@ QuicConsumedData MockQuicSession::ConsumeData(QuicStream* stream,
                                               QuicStreamOffset offset,
                                               StreamSendingState state) {
   if (write_length > 0) {
-    auto buf = QuicMakeUnique<char[]>(write_length);
+    auto buf = std::make_unique<char[]>(write_length);
     QuicDataWriter writer(write_length, buf.get(), HOST_BYTE_ORDER);
     stream->WriteStreamData(offset, write_length, &writer);
   } else {
@@ -602,7 +602,7 @@ MockQuicSpdySession::MockQuicSpdySession(QuicConnection* connection,
                       DefaultQuicConfig(),
                       connection->supported_versions()) {
   if (create_mock_crypto_stream) {
-    crypto_stream_ = QuicMakeUnique<MockQuicCryptoStream>(this);
+    crypto_stream_ = std::make_unique<MockQuicCryptoStream>(this);
   }
 
   ON_CALL(*this, WritevData(_, _, _, _, _))
@@ -681,7 +681,7 @@ TestQuicSpdyClientSession::TestQuicSpdyClientSession(
                                 &push_promise_index_,
                                 config,
                                 supported_versions) {
-  crypto_stream_ = QuicMakeUnique<QuicCryptoClientStream>(
+  crypto_stream_ = std::make_unique<QuicCryptoClientStream>(
       server_id, this, crypto_test_utils::ProofVerifyContextForTesting(),
       crypto_config, this);
   Initialize();

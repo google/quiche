@@ -77,7 +77,7 @@ void Switch::DispatchPacket(SwitchPortNumber port_number,
     if (!egress_port.connected()) {
       continue;
     }
-    egress_port.EnqueuePacket(QuicMakeUnique<Packet>(*packet));
+    egress_port.EnqueuePacket(std::make_unique<Packet>(*packet));
   }
 }
 

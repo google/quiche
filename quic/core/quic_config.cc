@@ -875,12 +875,12 @@ bool QuicConfig::FillTransportParameters(TransportParameters* params) const {
       preferred_address.ipv4_socket_address = socket_address;
     }
     params->preferred_address =
-        QuicMakeUnique<TransportParameters::PreferredAddress>(
+        std::make_unique<TransportParameters::PreferredAddress>(
             preferred_address);
   }
 
   if (!params->google_quic_params) {
-    params->google_quic_params = QuicMakeUnique<CryptoHandshakeMessage>();
+    params->google_quic_params = std::make_unique<CryptoHandshakeMessage>();
   }
   silent_close_.ToHandshakeMessage(params->google_quic_params.get());
   initial_round_trip_time_us_.ToHandshakeMessage(

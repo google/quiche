@@ -11,8 +11,7 @@ namespace quic {
 std::unique_ptr<quic::QuicSpdyServerBase> QuicEpollServerFactory::CreateServer(
     quic::QuicSimpleServerBackend* backend,
     std::unique_ptr<quic::ProofSource> proof_source) {
-  return quic::QuicMakeUnique<quic::QuicServer>(std::move(proof_source),
-                                                backend);
+  return std::make_unique<quic::QuicServer>(std::move(proof_source), backend);
 }
 
 }  // namespace quic

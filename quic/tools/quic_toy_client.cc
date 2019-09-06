@@ -209,7 +209,7 @@ int QuicToyClient::SendRequestsAndPrintResponses(
   const int32_t num_requests(GetQuicFlag(FLAGS_num_requests));
   std::unique_ptr<quic::ProofVerifier> proof_verifier;
   if (GetQuicFlag(FLAGS_disable_certificate_verification)) {
-    proof_verifier = quic::QuicMakeUnique<FakeProofVerifier>();
+    proof_verifier = std::make_unique<FakeProofVerifier>();
   } else {
     proof_verifier = quic::CreateDefaultProofVerifier(url.host());
   }

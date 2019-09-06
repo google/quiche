@@ -39,8 +39,8 @@ class QuicFlowControllerTest : public QuicTest {
   void Initialize() {
     connection_ = new MockQuicConnection(&helper_, &alarm_factory_,
                                          Perspective::IS_CLIENT);
-    session_ = QuicMakeUnique<MockQuicSession>(connection_);
-    flow_controller_ = QuicMakeUnique<QuicFlowController>(
+    session_ = std::make_unique<MockQuicSession>(connection_);
+    flow_controller_ = std::make_unique<QuicFlowController>(
         session_.get(), stream_id_, /*is_connection_flow_controller*/ false,
         send_window_, receive_window_, kStreamReceiveWindowLimit,
         should_auto_tune_receive_window_, &session_flow_controller_);

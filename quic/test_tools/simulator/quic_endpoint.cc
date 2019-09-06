@@ -85,14 +85,14 @@ QuicEndpoint::QuicEndpoint(Simulator* simulator,
   connection_.SetSelfAddress(GetAddressFromName(name));
   connection_.set_visitor(this);
   connection_.SetEncrypter(ENCRYPTION_FORWARD_SECURE,
-                           QuicMakeUnique<NullEncrypter>(perspective));
+                           std::make_unique<NullEncrypter>(perspective));
   if (connection_.version().KnowsWhichDecrypterToUse()) {
     connection_.InstallDecrypter(ENCRYPTION_FORWARD_SECURE,
-                                 QuicMakeUnique<NullDecrypter>(perspective));
+                                 std::make_unique<NullDecrypter>(perspective));
     connection_.RemoveDecrypter(ENCRYPTION_INITIAL);
   } else {
     connection_.SetDecrypter(ENCRYPTION_FORWARD_SECURE,
-                             QuicMakeUnique<NullDecrypter>(perspective));
+                             std::make_unique<NullDecrypter>(perspective));
   }
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   if (perspective == Perspective::IS_SERVER) {
@@ -102,7 +102,7 @@ QuicEndpoint::QuicEndpoint(Simulator* simulator,
   connection_.SetDataProducer(&producer_);
   connection_.SetSessionNotifier(this);
   if (connection_.session_decides_what_to_write()) {
-    notifier_ = QuicMakeUnique<test::SimpleSessionNotifier>(&connection_);
+    notifier_ = std::make_unique<test::SimpleSessionNotifier>(&connection_);
   }
 
   // Configure the connection as if it received a handshake.  This is important
@@ -179,7 +179,7 @@ void QuicEndpoint::DropNextIncomingPacket() {
 }
 
 void QuicEndpoint::RecordTrace() {
-  trace_visitor_ = QuicMakeUnique<QuicTraceVisitor>(&connection_);
+  trace_visitor_ = std::make_unique<QuicTraceVisitor>(&connection_);
   connection_.set_debug_visitor(trace_visitor_.get());
 }
 
@@ -323,7 +323,7 @@ WriteResult QuicEndpoint::Writer::WritePacket(
     return WriteResult(WRITE_STATUS_BLOCKED, 0);
   }
 
-  auto packet = QuicMakeUnique<Packet>();
+  auto packet = std::make_unique<Packet>();
   packet->source = endpoint_->name();
   packet->destination = endpoint_->peer_name_;
   packet->tx_timestamp = endpoint_->clock_->Now();

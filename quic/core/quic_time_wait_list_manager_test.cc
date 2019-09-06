@@ -174,7 +174,7 @@ class QuicTimeWaitListManagerTest : public QuicTest {
   void ProcessPacket(QuicConnectionId connection_id) {
     time_wait_list_manager_.ProcessPacket(
         self_address_, peer_address_, connection_id, GOOGLE_QUIC_PACKET,
-        QuicMakeUnique<QuicPerPacketContext>());
+        std::make_unique<QuicPerPacketContext>());
   }
 
   QuicEncryptedPacket* ConstructEncryptedPacket(
@@ -261,7 +261,7 @@ TEST_F(QuicTimeWaitListManagerTest, SendVersionNegotiationPacket) {
   time_wait_list_manager_.SendVersionNegotiationPacket(
       connection_id_, EmptyQuicConnectionId(), /*ietf_quic=*/false,
       /*use_length_prefix=*/false, AllSupportedVersions(), self_address_,
-      peer_address_, QuicMakeUnique<QuicPerPacketContext>());
+      peer_address_, std::make_unique<QuicPerPacketContext>());
   EXPECT_EQ(0u, time_wait_list_manager_.num_connections());
 }
 
@@ -278,7 +278,7 @@ TEST_F(QuicTimeWaitListManagerTest,
   time_wait_list_manager_.SendVersionNegotiationPacket(
       connection_id_, EmptyQuicConnectionId(), /*ietf_quic=*/true,
       /*use_length_prefix=*/false, AllSupportedVersions(), self_address_,
-      peer_address_, QuicMakeUnique<QuicPerPacketContext>());
+      peer_address_, std::make_unique<QuicPerPacketContext>());
   EXPECT_EQ(0u, time_wait_list_manager_.num_connections());
 }
 
@@ -294,7 +294,7 @@ TEST_F(QuicTimeWaitListManagerTest, SendIetfVersionNegotiationPacket) {
   time_wait_list_manager_.SendVersionNegotiationPacket(
       connection_id_, EmptyQuicConnectionId(), /*ietf_quic=*/true,
       /*use_length_prefix=*/true, AllSupportedVersions(), self_address_,
-      peer_address_, QuicMakeUnique<QuicPerPacketContext>());
+      peer_address_, std::make_unique<QuicPerPacketContext>());
   EXPECT_EQ(0u, time_wait_list_manager_.num_connections());
 }
 
@@ -311,7 +311,7 @@ TEST_F(QuicTimeWaitListManagerTest,
   time_wait_list_manager_.SendVersionNegotiationPacket(
       connection_id_, TestConnectionId(0x33), /*ietf_quic=*/true,
       /*use_length_prefix=*/true, AllSupportedVersions(), self_address_,
-      peer_address_, QuicMakeUnique<QuicPerPacketContext>());
+      peer_address_, std::make_unique<QuicPerPacketContext>());
   EXPECT_EQ(0u, time_wait_list_manager_.num_connections());
 }
 
@@ -643,7 +643,7 @@ TEST_F(QuicTimeWaitListManagerTest,
   // Processes IETF short header packet.
   time_wait_list_manager_.ProcessPacket(
       self_address_, peer_address_, connection_id_,
-      IETF_QUIC_SHORT_HEADER_PACKET, QuicMakeUnique<QuicPerPacketContext>());
+      IETF_QUIC_SHORT_HEADER_PACKET, std::make_unique<QuicPerPacketContext>());
 }
 
 }  // namespace

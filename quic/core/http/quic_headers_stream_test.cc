@@ -258,7 +258,7 @@ class QuicHeadersStreamTest : public QuicTestWithParam<TestParams> {
   }
 
   void SaveToHandler(size_t size, const QuicHeaderList& header_list) {
-    headers_handler_ = QuicMakeUnique<TestHeadersHandler>();
+    headers_handler_ = std::make_unique<TestHeadersHandler>();
     headers_handler_->OnHeaderBlockStart();
     for (const auto& p : header_list) {
       headers_handler_->OnHeader(p.first, p.second);
@@ -304,7 +304,7 @@ class QuicHeadersStreamTest : public QuicTestWithParam<TestParams> {
                             /*parent_stream_id=*/0,
                             /*exclusive=*/false, fin, kFrameComplete));
     }
-    headers_handler_ = QuicMakeUnique<TestHeadersHandler>();
+    headers_handler_ = std::make_unique<TestHeadersHandler>();
     EXPECT_CALL(visitor_, OnHeaderFrameStart(stream_id))
         .WillOnce(Return(headers_handler_.get()));
     EXPECT_CALL(visitor_, OnHeaderFrameEnd(stream_id)).Times(1);
@@ -415,7 +415,7 @@ TEST_P(QuicHeadersStreamTest, WritePushPromises) {
       // Parse the outgoing data and check that it matches was was written.
       EXPECT_CALL(visitor_,
                   OnPushPromise(stream_id, promised_stream_id, kFrameComplete));
-      headers_handler_ = QuicMakeUnique<TestHeadersHandler>();
+      headers_handler_ = std::make_unique<TestHeadersHandler>();
       EXPECT_CALL(visitor_, OnHeaderFrameStart(stream_id))
           .WillOnce(Return(headers_handler_.get()));
       EXPECT_CALL(visitor_, OnHeaderFrameEnd(stream_id)).Times(1);
@@ -734,7 +734,7 @@ TEST_P(QuicHeadersStreamTest, NoConnectionLevelFlowControl) {
 
 TEST_P(QuicHeadersStreamTest, HpackDecoderDebugVisitor) {
   auto hpack_decoder_visitor =
-      QuicMakeUnique<StrictMock<MockQuicHpackDebugVisitor>>();
+      std::make_unique<StrictMock<MockQuicHpackDebugVisitor>>();
   {
     InSequence seq;
     // Number of indexed representations generated in headers below.
@@ -787,7 +787,7 @@ TEST_P(QuicHeadersStreamTest, HpackDecoderDebugVisitor) {
 
 TEST_P(QuicHeadersStreamTest, HpackEncoderDebugVisitor) {
   auto hpack_encoder_visitor =
-      QuicMakeUnique<StrictMock<MockQuicHpackDebugVisitor>>();
+      std::make_unique<StrictMock<MockQuicHpackDebugVisitor>>();
   if (perspective() == Perspective::IS_SERVER) {
     InSequence seq;
     for (int i = 1; i < 4; i++) {

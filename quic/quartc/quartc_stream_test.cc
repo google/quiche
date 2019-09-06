@@ -224,19 +224,19 @@ class QuartcStreamTest : public QuicTest, public QuicConnectionHelperInterface {
     ip.FromString("0.0.0.0");
     bool owns_writer = true;
 
-    alarm_factory_ = QuicMakeUnique<test::MockAlarmFactory>();
+    alarm_factory_ = std::make_unique<test::MockAlarmFactory>();
 
-    connection_ = QuicMakeUnique<QuicConnection>(
+    connection_ = std::make_unique<QuicConnection>(
         QuicUtils::CreateZeroConnectionId(
             CurrentSupportedVersions()[0].transport_version),
         QuicSocketAddress(ip, 0), this /*QuicConnectionHelperInterface*/,
         alarm_factory_.get(), new DummyPacketWriter(), owns_writer, perspective,
         ParsedVersionOfIndex(CurrentSupportedVersions(), 0));
     clock_.AdvanceTime(QuicTime::Delta::FromSeconds(1));
-    session_ = QuicMakeUnique<MockQuicSession>(connection_.get(), QuicConfig(),
-                                               &write_buffer_);
+    session_ = std::make_unique<MockQuicSession>(connection_.get(),
+                                                 QuicConfig(), &write_buffer_);
     mock_stream_delegate_ =
-        QuicMakeUnique<MockQuartcStreamDelegate>(kStreamId, &read_buffer_);
+        std::make_unique<MockQuartcStreamDelegate>(kStreamId, &read_buffer_);
     stream_ = new QuartcStream(kStreamId, session_.get());
     stream_->SetDelegate(mock_stream_delegate_.get());
     session_->ActivateReliableStream(std::unique_ptr<QuartcStream>(stream_));

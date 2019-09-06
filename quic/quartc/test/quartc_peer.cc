@@ -59,7 +59,7 @@ void QuartcPeer::OnSessionCreated(QuartcSession* session) {
             : largest_message_payload;
     QUIC_LOG(INFO) << "Set max frame size for source " << config.id << " to "
                    << config.max_frame_size;
-    data_sources_.push_back(QuicMakeUnique<QuartcDataSource>(
+    data_sources_.push_back(std::make_unique<QuartcDataSource>(
         clock_, alarm_factory_, random_, config, this));
   }
 }

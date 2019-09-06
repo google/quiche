@@ -36,7 +36,7 @@ namespace quic {
 
 std::unique_ptr<quic::QuicSimpleServerBackend>
 QuicToyServer::MemoryCacheBackendFactory::CreateBackend() {
-  auto memory_cache_backend = QuicMakeUnique<QuicMemoryCacheBackend>();
+  auto memory_cache_backend = std::make_unique<QuicMemoryCacheBackend>();
   if (!GetQuicFlag(FLAGS_quic_response_cache_dir).empty()) {
     memory_cache_backend->InitializeBackend(
         GetQuicFlag(FLAGS_quic_response_cache_dir));

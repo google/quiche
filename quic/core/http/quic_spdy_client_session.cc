@@ -100,7 +100,7 @@ QuicSpdyClientSession::CreateOutgoingUnidirectionalStream() {
 
 std::unique_ptr<QuicSpdyClientStream>
 QuicSpdyClientSession::CreateClientStream() {
-  return QuicMakeUnique<QuicSpdyClientStream>(
+  return std::make_unique<QuicSpdyClientStream>(
       GetNextOutgoingBidirectionalStreamId(), this, BIDIRECTIONAL);
 }
 
@@ -169,7 +169,7 @@ QuicSpdyStream* QuicSpdyClientSession::CreateIncomingStream(QuicStreamId id) {
 
 std::unique_ptr<QuicCryptoClientStreamBase>
 QuicSpdyClientSession::CreateQuicCryptoStream() {
-  return QuicMakeUnique<QuicCryptoClientStream>(
+  return std::make_unique<QuicCryptoClientStream>(
       server_id_, this,
       crypto_config_->proof_verifier()->CreateDefaultContext(), crypto_config_,
       this);

@@ -46,7 +46,7 @@ void QbonePacketExchanger::WritePacketToNetwork(const char* packet,
   auto data_copy = new char[size];
   memcpy(data_copy, packet, size);
   packet_queue_.push_back(
-      QuicMakeUnique<QuicData>(data_copy, size, /* owns_buffer = */ true));
+      std::make_unique<QuicData>(data_copy, size, /* owns_buffer = */ true));
 }
 
 void QbonePacketExchanger::SetWritable() {

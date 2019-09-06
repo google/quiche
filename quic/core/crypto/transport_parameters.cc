@@ -706,7 +706,7 @@ bool ParseTransportParameters(ParsedQuicVersion version,
         preferred_address.stateless_reset_token.assign(
             CBS_data(&value), CBS_data(&value) + CBS_len(&value));
         out->preferred_address =
-            QuicMakeUnique<TransportParameters::PreferredAddress>(
+            std::make_unique<TransportParameters::PreferredAddress>(
                 preferred_address);
       } break;
       case TransportParameters::kActiveConnectionIdLimit:

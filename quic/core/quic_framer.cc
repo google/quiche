@@ -430,8 +430,8 @@ QuicFramer::QuicFramer(const ParsedQuicVersionVector& supported_versions,
       current_received_frame_type_(0) {
   DCHECK(!supported_versions.empty());
   version_ = supported_versions_[0];
-  decrypter_[ENCRYPTION_INITIAL] = QuicMakeUnique<NullDecrypter>(perspective);
-  encrypter_[ENCRYPTION_INITIAL] = QuicMakeUnique<NullEncrypter>(perspective);
+  decrypter_[ENCRYPTION_INITIAL] = std::make_unique<NullDecrypter>(perspective);
+  encrypter_[ENCRYPTION_INITIAL] = std::make_unique<NullEncrypter>(perspective);
 }
 
 QuicFramer::~QuicFramer() {}
@@ -1239,7 +1239,7 @@ size_t QuicFramer::BuildPathResponsePacket(
   for (const QuicPathFrameBuffer& payload : payloads) {
     // Note that the control frame ID can be 0 since this is not retransmitted.
     path_response_frames.push_back(
-        QuicMakeUnique<QuicPathResponseFrame>(0, payload));
+        std::make_unique<QuicPathResponseFrame>(0, payload));
   }
 
   QuicFrames frames;
@@ -1300,7 +1300,7 @@ std::unique_ptr<QuicEncryptedPacket> QuicFramer::BuildPublicResetPacket(
     return nullptr;
   }
 
-  return QuicMakeUnique<QuicEncryptedPacket>(buffer.release(), len, true);
+  return std::make_unique<QuicEncryptedPacket>(buffer.release(), len, true);
 }
 
 // static
@@ -1334,7 +1334,7 @@ std::unique_ptr<QuicEncryptedPacket> QuicFramer::BuildIetfStatelessResetPacket(
                          sizeof(stateless_reset_token))) {
     return nullptr;
   }
-  return QuicMakeUnique<QuicEncryptedPacket>(buffer.release(), len, true);
+  return std::make_unique<QuicEncryptedPacket>(buffer.release(), len, true);
 }
 
 // static
@@ -1408,7 +1408,7 @@ std::unique_ptr<QuicEncryptedPacket> QuicFramer::BuildVersionNegotiationPacket(
     }
   }
 
-  return QuicMakeUnique<QuicEncryptedPacket>(buffer.release(), len, true);
+  return std::make_unique<QuicEncryptedPacket>(buffer.release(), len, true);
 }
 
 // static
@@ -1457,7 +1457,7 @@ QuicFramer::BuildIetfVersionNegotiationPacket(
     }
   }
 
-  return QuicMakeUnique<QuicEncryptedPacket>(buffer.release(), len, true);
+  return std::make_unique<QuicEncryptedPacket>(buffer.release(), len, true);
 }
 
 bool QuicFramer::ProcessPacket(const QuicEncryptedPacket& packet) {

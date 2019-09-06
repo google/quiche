@@ -57,7 +57,7 @@ void RtnetlinkMessage::AppendAttribute(uint16_t type,
 }
 
 std::unique_ptr<struct iovec[]> RtnetlinkMessage::BuildIoVec() const {
-  auto message = QuicMakeUnique<struct iovec[]>(message_.size());
+  auto message = std::make_unique<struct iovec[]>(message_.size());
   int idx = 0;
   for (const auto& vec : message_) {
     message[idx++] = vec;

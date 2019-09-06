@@ -63,7 +63,7 @@ class FakeProofVerifier : public ProofVerifier {
                                         cert_sct, context, error_details,
                                         details, std::move(callback));
     }
-    pending_ops_.push_back(QuicMakeUnique<VerifyChainPendingOp>(
+    pending_ops_.push_back(std::make_unique<VerifyChainPendingOp>(
         hostname, certs, ocsp_response, cert_sct, context, error_details,
         details, std::move(callback), verifier_.get()));
     return QUIC_PENDING;
@@ -125,7 +125,7 @@ class FakeProofVerifier : public ProofVerifier {
       QuicAsyncStatus status = delegate_->VerifyCertChain(
           hostname_, certs_, ocsp_response_, cert_sct_, context_,
           error_details_, details_,
-          QuicMakeUnique<FailingProofVerifierCallback>());
+          std::make_unique<FailingProofVerifierCallback>());
       ASSERT_NE(status, QUIC_PENDING);
       callback_->Run(status == QUIC_SUCCESS, *error_details_, details_);
     }

@@ -365,20 +365,20 @@ class TestPacketWriter : public QuicPacketWriter {
 
     if (use_tagging_decrypter_) {
       if (framer_.framer()->version().KnowsWhichDecrypterToUse()) {
-        framer_.framer()->InstallDecrypter(ENCRYPTION_INITIAL,
-                                           QuicMakeUnique<TaggingDecrypter>());
-        framer_.framer()->InstallDecrypter(ENCRYPTION_ZERO_RTT,
-                                           QuicMakeUnique<TaggingDecrypter>());
-        framer_.framer()->InstallDecrypter(ENCRYPTION_FORWARD_SECURE,
-                                           QuicMakeUnique<TaggingDecrypter>());
+        framer_.framer()->InstallDecrypter(
+            ENCRYPTION_INITIAL, std::make_unique<TaggingDecrypter>());
+        framer_.framer()->InstallDecrypter(
+            ENCRYPTION_ZERO_RTT, std::make_unique<TaggingDecrypter>());
+        framer_.framer()->InstallDecrypter(
+            ENCRYPTION_FORWARD_SECURE, std::make_unique<TaggingDecrypter>());
       } else {
         framer_.framer()->SetDecrypter(ENCRYPTION_INITIAL,
-                                       QuicMakeUnique<TaggingDecrypter>());
+                                       std::make_unique<TaggingDecrypter>());
       }
     } else if (framer_.framer()->version().KnowsWhichDecrypterToUse()) {
       framer_.framer()->InstallDecrypter(
           ENCRYPTION_FORWARD_SECURE,
-          QuicMakeUnique<NullDecrypter>(Perspective::IS_SERVER));
+          std::make_unique<NullDecrypter>(Perspective::IS_SERVER));
     }
     EXPECT_TRUE(framer_.ProcessPacket(packet));
     if (block_on_next_write_) {
@@ -610,7 +610,7 @@ class TestConnection : public QuicConnection {
         notifier_(nullptr) {
     writer->set_perspective(perspective);
     SetEncrypter(ENCRYPTION_FORWARD_SECURE,
-                 QuicMakeUnique<NullEncrypter>(perspective));
+                 std::make_unique<NullEncrypter>(perspective));
     SetDataProducer(&producer_);
   }
   TestConnection(const TestConnection&) = delete;
@@ -686,7 +686,7 @@ class TestConnection : public QuicConnection {
                                               StreamSendingState state) {
     ScopedPacketFlusher flusher(this);
     DCHECK(encryption_level >= ENCRYPTION_ZERO_RTT);
-    SetEncrypter(encryption_level, QuicMakeUnique<TaggingEncrypter>(0x01));
+    SetEncrypter(encryption_level, std::make_unique<TaggingEncrypter>(0x01));
     SetDefaultEncryptionLevel(encryption_level);
     struct iovec iov;
     MakeIOVector(data, &iov);
@@ -826,7 +826,7 @@ class TestConnection : public QuicConnection {
   void set_notifier(SimpleSessionNotifier* notifier) { notifier_ = notifier; }
 
   void ReturnEffectivePeerAddressForNextPacket(const QuicSocketAddress& addr) {
-    next_effective_peer_addr_ = QuicMakeUnique<QuicSocketAddress>(addr);
+    next_effective_peer_addr_ = std::make_unique<QuicSocketAddress>(addr);
   }
 
   bool PtoEnabled() {
@@ -968,15 +968,15 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     for (EncryptionLevel level :
          {ENCRYPTION_ZERO_RTT, ENCRYPTION_FORWARD_SECURE}) {
       peer_creator_.SetEncrypter(
-          level, QuicMakeUnique<NullEncrypter>(peer_framer_.perspective()));
+          level, std::make_unique<NullEncrypter>(peer_framer_.perspective()));
     }
     if (version().handshake_protocol == PROTOCOL_TLS1_3) {
       connection_.SetEncrypter(
           ENCRYPTION_INITIAL,
-          QuicMakeUnique<NullEncrypter>(Perspective::IS_CLIENT));
+          std::make_unique<NullEncrypter>(Perspective::IS_CLIENT));
       connection_.InstallDecrypter(
           ENCRYPTION_INITIAL,
-          QuicMakeUnique<NullDecrypter>(Perspective::IS_CLIENT));
+          std::make_unique<NullDecrypter>(Perspective::IS_CLIENT));
     }
     QuicFramerPeer::SetLastSerializedServerConnectionId(
         QuicConnectionPeer::GetFramer(&connection_), connection_id_);
@@ -1040,7 +1040,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     if (connection_.version().KnowsWhichDecrypterToUse()) {
       connection_.InstallDecrypter(
           ENCRYPTION_FORWARD_SECURE,
-          QuicMakeUnique<NullDecrypter>(Perspective::IS_CLIENT));
+          std::make_unique<NullDecrypter>(Perspective::IS_CLIENT));
     }
   }
 
@@ -1179,17 +1179,17 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
         ENCRYPTION_INITIAL) {
       peer_framer_.SetEncrypter(
           QuicPacketCreatorPeer::GetEncryptionLevel(&peer_creator_),
-          QuicMakeUnique<TaggingEncrypter>(0x01));
+          std::make_unique<TaggingEncrypter>(0x01));
       // Set the corresponding decrypter.
       if (connection_.version().KnowsWhichDecrypterToUse()) {
         connection_.InstallDecrypter(
             QuicPacketCreatorPeer::GetEncryptionLevel(&peer_creator_),
-            QuicMakeUnique<StrictTaggingDecrypter>(0x01));
+            std::make_unique<StrictTaggingDecrypter>(0x01));
         connection_.RemoveDecrypter(ENCRYPTION_INITIAL);
       } else {
         connection_.SetDecrypter(
             QuicPacketCreatorPeer::GetEncryptionLevel(&peer_creator_),
-            QuicMakeUnique<StrictTaggingDecrypter>(0x01));
+            std::make_unique<StrictTaggingDecrypter>(0x01));
       }
     }
 
@@ -1315,7 +1315,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
       return;
     }
     std::unique_ptr<QuicRstStreamFrame> rst_stream =
-        QuicMakeUnique<QuicRstStreamFrame>(1, id, error, bytes_written);
+        std::make_unique<QuicRstStreamFrame>(1, id, error, bytes_written);
     if (connection_.SendControlFrame(QuicFrame(rst_stream.get()))) {
       rst_stream.release();
     }
@@ -3111,9 +3111,9 @@ TEST_P(QuicConnectionTest, FramePackingAckResponse) {
   // Process a data packet to cause the visitor's OnCanWrite to be invoked.
   EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
   peer_framer_.SetEncrypter(ENCRYPTION_FORWARD_SECURE,
-                            QuicMakeUnique<TaggingEncrypter>(0x01));
+                            std::make_unique<TaggingEncrypter>(0x01));
   SetDecrypter(ENCRYPTION_FORWARD_SECURE,
-               QuicMakeUnique<StrictTaggingDecrypter>(0x01));
+               std::make_unique<StrictTaggingDecrypter>(0x01));
   ProcessDataPacket(2);
 
   EXPECT_EQ(0u, connection_.NumQueuedPackets());
@@ -4210,7 +4210,7 @@ TEST_P(QuicConnectionTest, RetransmitWithSameEncryptionLevel) {
   // A TaggingEncrypter puts kTagSize copies of the given byte (0x01 here) at
   // the end of the packet. We can test this to check which encrypter was used.
   connection_.SetEncrypter(ENCRYPTION_INITIAL,
-                           QuicMakeUnique<TaggingEncrypter>(0x01));
+                           std::make_unique<TaggingEncrypter>(0x01));
   QuicByteCount packet_size;
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
       .WillOnce(SaveArg<3>(&packet_size));
@@ -4219,7 +4219,7 @@ TEST_P(QuicConnectionTest, RetransmitWithSameEncryptionLevel) {
   EXPECT_EQ(0x01010101u, writer_->final_bytes_of_last_packet());
 
   connection_.SetEncrypter(ENCRYPTION_ZERO_RTT,
-                           QuicMakeUnique<TaggingEncrypter>(0x02));
+                           std::make_unique<TaggingEncrypter>(0x02));
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_ZERO_RTT);
   SendStreamDataToPeer(3, "foo", 0, NO_FIN, nullptr);
   EXPECT_EQ(0x02020202u, writer_->final_bytes_of_last_packet());
@@ -4247,7 +4247,7 @@ TEST_P(QuicConnectionTest, SendHandshakeMessages) {
   // A TaggingEncrypter puts kTagSize copies of the given byte (0x01 here) at
   // the end of the packet. We can test this to check which encrypter was used.
   connection_.SetEncrypter(ENCRYPTION_INITIAL,
-                           QuicMakeUnique<TaggingEncrypter>(0x01));
+                           std::make_unique<TaggingEncrypter>(0x01));
 
   // Attempt to send a handshake message and have the socket block.
   EXPECT_CALL(*send_algorithm_, CanSend(_)).WillRepeatedly(Return(true));
@@ -4258,7 +4258,7 @@ TEST_P(QuicConnectionTest, SendHandshakeMessages) {
 
   // Switch to the new encrypter.
   connection_.SetEncrypter(ENCRYPTION_ZERO_RTT,
-                           QuicMakeUnique<TaggingEncrypter>(0x02));
+                           std::make_unique<TaggingEncrypter>(0x02));
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_ZERO_RTT);
 
   // Now become writeable and flush the packets.
@@ -4275,7 +4275,7 @@ TEST_P(QuicConnectionTest,
        DropRetransmitsForNullEncryptedPacketAfterForwardSecure) {
   use_tagging_decrypter();
   connection_.SetEncrypter(ENCRYPTION_INITIAL,
-                           QuicMakeUnique<TaggingEncrypter>(0x01));
+                           std::make_unique<TaggingEncrypter>(0x01));
   QuicPacketNumber packet_number;
   connection_.SendCryptoStreamData();
 
@@ -4286,7 +4286,7 @@ TEST_P(QuicConnectionTest,
 
   // Go forward secure.
   connection_.SetEncrypter(ENCRYPTION_FORWARD_SECURE,
-                           QuicMakeUnique<TaggingEncrypter>(0x02));
+                           std::make_unique<TaggingEncrypter>(0x02));
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   notifier_.NeuterUnencryptedData();
   connection_.NeuterUnencryptedPackets();
@@ -4301,13 +4301,13 @@ TEST_P(QuicConnectionTest,
 TEST_P(QuicConnectionTest, RetransmitPacketsWithInitialEncryption) {
   use_tagging_decrypter();
   connection_.SetEncrypter(ENCRYPTION_INITIAL,
-                           QuicMakeUnique<TaggingEncrypter>(0x01));
+                           std::make_unique<TaggingEncrypter>(0x01));
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_INITIAL);
 
   connection_.SendCryptoDataWithString("foo", 0);
 
   connection_.SetEncrypter(ENCRYPTION_ZERO_RTT,
-                           QuicMakeUnique<TaggingEncrypter>(0x02));
+                           std::make_unique<TaggingEncrypter>(0x02));
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_ZERO_RTT);
 
   SendStreamDataToPeer(2, "bar", 0, NO_FIN, nullptr);
@@ -4329,7 +4329,7 @@ TEST_P(QuicConnectionTest, BufferNonDecryptablePackets) {
 
   const uint8_t tag = 0x07;
   peer_framer_.SetEncrypter(ENCRYPTION_ZERO_RTT,
-                            QuicMakeUnique<TaggingEncrypter>(tag));
+                            std::make_unique<TaggingEncrypter>(tag));
 
   // Process an encrypted packet which can not yet be decrypted which should
   // result in the packet being buffered.
@@ -4338,10 +4338,10 @@ TEST_P(QuicConnectionTest, BufferNonDecryptablePackets) {
   // Transition to the new encryption state and process another encrypted packet
   // which should result in the original packet being processed.
   SetDecrypter(ENCRYPTION_ZERO_RTT,
-               QuicMakeUnique<StrictTaggingDecrypter>(tag));
+               std::make_unique<StrictTaggingDecrypter>(tag));
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_ZERO_RTT);
   connection_.SetEncrypter(ENCRYPTION_ZERO_RTT,
-                           QuicMakeUnique<TaggingEncrypter>(tag));
+                           std::make_unique<TaggingEncrypter>(tag));
   EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(2);
   ProcessDataPacketAtLevel(2, !kHasStopWaiting, ENCRYPTION_ZERO_RTT);
 
@@ -4400,7 +4400,7 @@ TEST_P(QuicConnectionTest, Buffer100NonDecryptablePacketsThenKeyChange) {
 
   const uint8_t tag = 0x07;
   peer_framer_.SetEncrypter(ENCRYPTION_ZERO_RTT,
-                            QuicMakeUnique<TaggingEncrypter>(tag));
+                            std::make_unique<TaggingEncrypter>(tag));
 
   // Process an encrypted packet which can not yet be decrypted which should
   // result in the packet being buffered.
@@ -4412,11 +4412,11 @@ TEST_P(QuicConnectionTest, Buffer100NonDecryptablePacketsThenKeyChange) {
   // which should result in the original packets being processed.
   EXPECT_FALSE(connection_.GetProcessUndecryptablePacketsAlarm()->IsSet());
   SetDecrypter(ENCRYPTION_ZERO_RTT,
-               QuicMakeUnique<StrictTaggingDecrypter>(tag));
+               std::make_unique<StrictTaggingDecrypter>(tag));
   EXPECT_TRUE(connection_.GetProcessUndecryptablePacketsAlarm()->IsSet());
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_ZERO_RTT);
   connection_.SetEncrypter(ENCRYPTION_ZERO_RTT,
-                           QuicMakeUnique<TaggingEncrypter>(tag));
+                           std::make_unique<TaggingEncrypter>(tag));
 
   EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(100);
   connection_.GetProcessUndecryptablePacketsAlarm()->Fire();
@@ -5676,9 +5676,9 @@ TEST_P(QuicConnectionTest, SendDelayedAck) {
   EXPECT_FALSE(connection_.GetAckAlarm()->IsSet());
   const uint8_t tag = 0x07;
   SetDecrypter(ENCRYPTION_ZERO_RTT,
-               QuicMakeUnique<StrictTaggingDecrypter>(tag));
+               std::make_unique<StrictTaggingDecrypter>(tag));
   peer_framer_.SetEncrypter(ENCRYPTION_ZERO_RTT,
-                            QuicMakeUnique<TaggingEncrypter>(tag));
+                            std::make_unique<TaggingEncrypter>(tag));
   // Process a packet from the non-crypto stream.
   frame1_.stream_id = 3;
 
@@ -5716,9 +5716,9 @@ TEST_P(QuicConnectionTest, SendDelayedAfterQuiescence) {
   EXPECT_FALSE(connection_.GetAckAlarm()->IsSet());
   const uint8_t tag = 0x07;
   SetDecrypter(ENCRYPTION_ZERO_RTT,
-               QuicMakeUnique<StrictTaggingDecrypter>(tag));
+               std::make_unique<StrictTaggingDecrypter>(tag));
   peer_framer_.SetEncrypter(ENCRYPTION_ZERO_RTT,
-                            QuicMakeUnique<TaggingEncrypter>(tag));
+                            std::make_unique<TaggingEncrypter>(tag));
   // Process a packet from the non-crypto stream.
   frame1_.stream_id = 3;
 
@@ -5796,9 +5796,9 @@ TEST_P(QuicConnectionTest, SendDelayedAckDecimation) {
   EXPECT_FALSE(connection_.GetAckAlarm()->IsSet());
   const uint8_t tag = 0x07;
   SetDecrypter(ENCRYPTION_ZERO_RTT,
-               QuicMakeUnique<StrictTaggingDecrypter>(tag));
+               std::make_unique<StrictTaggingDecrypter>(tag));
   peer_framer_.SetEncrypter(ENCRYPTION_ZERO_RTT,
-                            QuicMakeUnique<TaggingEncrypter>(tag));
+                            std::make_unique<TaggingEncrypter>(tag));
   // Process a packet from the non-crypto stream.
   frame1_.stream_id = 3;
 
@@ -5855,9 +5855,9 @@ TEST_P(QuicConnectionTest, SendDelayedAckAckDecimationAfterQuiescence) {
   EXPECT_FALSE(connection_.GetAckAlarm()->IsSet());
   const uint8_t tag = 0x07;
   SetDecrypter(ENCRYPTION_ZERO_RTT,
-               QuicMakeUnique<StrictTaggingDecrypter>(tag));
+               std::make_unique<StrictTaggingDecrypter>(tag));
   peer_framer_.SetEncrypter(ENCRYPTION_ZERO_RTT,
-                            QuicMakeUnique<TaggingEncrypter>(tag));
+                            std::make_unique<TaggingEncrypter>(tag));
   // Process a packet from the non-crypto stream.
   frame1_.stream_id = 3;
 
@@ -5992,9 +5992,9 @@ TEST_P(QuicConnectionTest, SendDelayedAckDecimationUnlimitedAggregation) {
   EXPECT_FALSE(connection_.GetAckAlarm()->IsSet());
   const uint8_t tag = 0x07;
   SetDecrypter(ENCRYPTION_ZERO_RTT,
-               QuicMakeUnique<StrictTaggingDecrypter>(tag));
+               std::make_unique<StrictTaggingDecrypter>(tag));
   peer_framer_.SetEncrypter(ENCRYPTION_ZERO_RTT,
-                            QuicMakeUnique<TaggingEncrypter>(tag));
+                            std::make_unique<TaggingEncrypter>(tag));
   // Process a packet from the non-crypto stream.
   frame1_.stream_id = 3;
 
@@ -6045,9 +6045,9 @@ TEST_P(QuicConnectionTest, SendDelayedAckDecimationEighthRtt) {
   EXPECT_FALSE(connection_.GetAckAlarm()->IsSet());
   const uint8_t tag = 0x07;
   SetDecrypter(ENCRYPTION_ZERO_RTT,
-               QuicMakeUnique<StrictTaggingDecrypter>(tag));
+               std::make_unique<StrictTaggingDecrypter>(tag));
   peer_framer_.SetEncrypter(ENCRYPTION_ZERO_RTT,
-                            QuicMakeUnique<TaggingEncrypter>(tag));
+                            std::make_unique<TaggingEncrypter>(tag));
   // Process a packet from the non-crypto stream.
   frame1_.stream_id = 3;
 
@@ -6103,9 +6103,9 @@ TEST_P(QuicConnectionTest, SendDelayedAckDecimationWithReordering) {
   EXPECT_FALSE(connection_.GetAckAlarm()->IsSet());
   const uint8_t tag = 0x07;
   SetDecrypter(ENCRYPTION_ZERO_RTT,
-               QuicMakeUnique<StrictTaggingDecrypter>(tag));
+               std::make_unique<StrictTaggingDecrypter>(tag));
   peer_framer_.SetEncrypter(ENCRYPTION_ZERO_RTT,
-                            QuicMakeUnique<TaggingEncrypter>(tag));
+                            std::make_unique<TaggingEncrypter>(tag));
   // Process a packet from the non-crypto stream.
   frame1_.stream_id = 3;
 
@@ -6167,9 +6167,9 @@ TEST_P(QuicConnectionTest, SendDelayedAckDecimationWithLargeReordering) {
   EXPECT_FALSE(connection_.GetAckAlarm()->IsSet());
   const uint8_t tag = 0x07;
   SetDecrypter(ENCRYPTION_ZERO_RTT,
-               QuicMakeUnique<StrictTaggingDecrypter>(tag));
+               std::make_unique<StrictTaggingDecrypter>(tag));
   peer_framer_.SetEncrypter(ENCRYPTION_ZERO_RTT,
-                            QuicMakeUnique<TaggingEncrypter>(tag));
+                            std::make_unique<TaggingEncrypter>(tag));
   // Process a packet from the non-crypto stream.
   frame1_.stream_id = 3;
 
@@ -6251,9 +6251,9 @@ TEST_P(QuicConnectionTest, SendDelayedAckDecimationWithReorderingEighthRtt) {
   EXPECT_FALSE(connection_.GetAckAlarm()->IsSet());
   const uint8_t tag = 0x07;
   SetDecrypter(ENCRYPTION_ZERO_RTT,
-               QuicMakeUnique<StrictTaggingDecrypter>(tag));
+               std::make_unique<StrictTaggingDecrypter>(tag));
   peer_framer_.SetEncrypter(ENCRYPTION_ZERO_RTT,
-                            QuicMakeUnique<TaggingEncrypter>(tag));
+                            std::make_unique<TaggingEncrypter>(tag));
   // Process a packet from the non-crypto stream.
   frame1_.stream_id = 3;
 
@@ -6319,9 +6319,9 @@ TEST_P(QuicConnectionTest,
   EXPECT_FALSE(connection_.GetAckAlarm()->IsSet());
   const uint8_t tag = 0x07;
   SetDecrypter(ENCRYPTION_ZERO_RTT,
-               QuicMakeUnique<StrictTaggingDecrypter>(tag));
+               std::make_unique<StrictTaggingDecrypter>(tag));
   peer_framer_.SetEncrypter(ENCRYPTION_ZERO_RTT,
-                            QuicMakeUnique<TaggingEncrypter>(tag));
+                            std::make_unique<TaggingEncrypter>(tag));
   // Process a packet from the non-crypto stream.
   frame1_.stream_id = 3;
 
@@ -6460,9 +6460,9 @@ TEST_P(QuicConnectionTest, SendDelayedAckOnOutgoingPacket) {
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   EXPECT_CALL(visitor_, OnStreamFrame(_));
   peer_framer_.SetEncrypter(ENCRYPTION_FORWARD_SECURE,
-                            QuicMakeUnique<TaggingEncrypter>(0x01));
+                            std::make_unique<TaggingEncrypter>(0x01));
   SetDecrypter(ENCRYPTION_FORWARD_SECURE,
-               QuicMakeUnique<StrictTaggingDecrypter>(0x01));
+               std::make_unique<StrictTaggingDecrypter>(0x01));
   ProcessDataPacket(1);
   connection_.SendStreamDataWithString(
       GetNthClientInitiatedStreamId(1, connection_.transport_version()), "foo",
@@ -8409,7 +8409,7 @@ TEST_P(QuicConnectionTest, MultiplePacketNumberSpacesBasicSending) {
   }
   use_tagging_decrypter();
   connection_.SetEncrypter(ENCRYPTION_INITIAL,
-                           QuicMakeUnique<TaggingEncrypter>(0x01));
+                           std::make_unique<TaggingEncrypter>(0x01));
 
   connection_.SendCryptoStreamData();
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
@@ -8447,7 +8447,7 @@ TEST_P(QuicConnectionTest, PeerAcksPacketsInWrongPacketNumberSpace) {
   }
   use_tagging_decrypter();
   connection_.SetEncrypter(ENCRYPTION_INITIAL,
-                           QuicMakeUnique<TaggingEncrypter>(0x01));
+                           std::make_unique<TaggingEncrypter>(0x01));
 
   connection_.SendCryptoStreamData();
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
@@ -8488,11 +8488,11 @@ TEST_P(QuicConnectionTest, MultiplePacketNumberSpacesBasicReceiving) {
   ProcessCryptoPacketAtLevel(1000, ENCRYPTION_INITIAL);
   EXPECT_TRUE(connection_.GetAckAlarm()->IsSet());
   peer_framer_.SetEncrypter(ENCRYPTION_ZERO_RTT,
-                            QuicMakeUnique<TaggingEncrypter>(0x02));
+                            std::make_unique<TaggingEncrypter>(0x02));
   SetDecrypter(ENCRYPTION_ZERO_RTT,
-               QuicMakeUnique<StrictTaggingDecrypter>(0x02));
+               std::make_unique<StrictTaggingDecrypter>(0x02));
   connection_.SetEncrypter(ENCRYPTION_INITIAL,
-                           QuicMakeUnique<TaggingEncrypter>(0x02));
+                           std::make_unique<TaggingEncrypter>(0x02));
   // Receives packet 1000 in application data.
   ProcessDataPacketAtLevel(1000, false, ENCRYPTION_ZERO_RTT);
   EXPECT_TRUE(connection_.GetAckAlarm()->IsSet());
@@ -8508,7 +8508,7 @@ TEST_P(QuicConnectionTest, MultiplePacketNumberSpacesBasicReceiving) {
   // Simulates ACK alarm fires and verify two ACKs are flushed.
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(2);
   connection_.SetEncrypter(ENCRYPTION_FORWARD_SECURE,
-                           QuicMakeUnique<TaggingEncrypter>(0x02));
+                           std::make_unique<TaggingEncrypter>(0x02));
   connection_.GetAckAlarm()->Fire();
   EXPECT_FALSE(connection_.GetAckAlarm()->IsSet());
   // Receives more packets in application data.
@@ -8516,9 +8516,9 @@ TEST_P(QuicConnectionTest, MultiplePacketNumberSpacesBasicReceiving) {
   EXPECT_TRUE(connection_.GetAckAlarm()->IsSet());
 
   peer_framer_.SetEncrypter(ENCRYPTION_FORWARD_SECURE,
-                            QuicMakeUnique<TaggingEncrypter>(0x02));
+                            std::make_unique<TaggingEncrypter>(0x02));
   SetDecrypter(ENCRYPTION_FORWARD_SECURE,
-               QuicMakeUnique<StrictTaggingDecrypter>(0x02));
+               std::make_unique<StrictTaggingDecrypter>(0x02));
   // Verify zero rtt and forward secure packets get acked in the same packet.
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
   ProcessDataPacket(1003);
@@ -8539,11 +8539,11 @@ TEST_P(QuicConnectionTest, CancelAckAlarmOnWriteBlocked) {
   ProcessCryptoPacketAtLevel(1000, ENCRYPTION_INITIAL);
   EXPECT_TRUE(connection_.GetAckAlarm()->IsSet());
   peer_framer_.SetEncrypter(ENCRYPTION_ZERO_RTT,
-                            QuicMakeUnique<TaggingEncrypter>(0x02));
+                            std::make_unique<TaggingEncrypter>(0x02));
   SetDecrypter(ENCRYPTION_ZERO_RTT,
-               QuicMakeUnique<StrictTaggingDecrypter>(0x02));
+               std::make_unique<StrictTaggingDecrypter>(0x02));
   connection_.SetEncrypter(ENCRYPTION_INITIAL,
-                           QuicMakeUnique<TaggingEncrypter>(0x02));
+                           std::make_unique<TaggingEncrypter>(0x02));
   // Receives packet 1000 in application data.
   ProcessDataPacketAtLevel(1000, false, ENCRYPTION_ZERO_RTT);
   EXPECT_TRUE(connection_.GetAckAlarm()->IsSet());
@@ -8555,7 +8555,7 @@ TEST_P(QuicConnectionTest, CancelAckAlarmOnWriteBlocked) {
   clock_.AdvanceTime(DefaultDelayedAckTime());
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
   connection_.SetEncrypter(ENCRYPTION_FORWARD_SECURE,
-                           QuicMakeUnique<TaggingEncrypter>(0x02));
+                           std::make_unique<TaggingEncrypter>(0x02));
   connection_.GetAckAlarm()->Fire();
   // Verify ACK alarm is not set.
   EXPECT_FALSE(connection_.GetAckAlarm()->IsSet());

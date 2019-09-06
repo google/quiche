@@ -122,11 +122,11 @@ void QuicCryptoServerStream::OnSuccessfulVersionNegotiation(
   CHECK(!handshaker_);
   switch (session()->connection()->version().handshake_protocol) {
     case PROTOCOL_QUIC_CRYPTO:
-      handshaker_ = QuicMakeUnique<QuicCryptoServerHandshaker>(
+      handshaker_ = std::make_unique<QuicCryptoServerHandshaker>(
           crypto_config_, this, compressed_certs_cache_, session(), helper_);
       break;
     case PROTOCOL_TLS1_3:
-      handshaker_ = QuicMakeUnique<TlsServerHandshaker>(
+      handshaker_ = std::make_unique<TlsServerHandshaker>(
           this, session(), crypto_config_->ssl_ctx(),
           crypto_config_->proof_source());
       break;

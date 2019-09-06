@@ -3322,7 +3322,7 @@ bool QuicConnection::SendGenericPathProbePacket(
     } else {
       // Request using IETF QUIC PATH_CHALLENGE frame
       transmitted_connectivity_probe_payload_ =
-          QuicMakeUnique<QuicPathFrameBuffer>();
+          std::make_unique<QuicPathFrameBuffer>();
       probing_packet =
           packet_generator_.SerializePathChallengeConnectivityProbingPacket(
               transmitted_connectivity_probe_payload_.get());

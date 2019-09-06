@@ -38,11 +38,11 @@ class QuartcPeerTest : public QuicTest {
   }
 
   void CreatePeers(const std::vector<QuartcDataSource::Config>& configs) {
-    client_peer_ = QuicMakeUnique<QuartcPeer>(
+    client_peer_ = std::make_unique<QuartcPeer>(
         simulator_.GetClock(), simulator_.GetAlarmFactory(),
         simulator_.GetRandomGenerator(),
         simulator_.GetStreamSendBufferAllocator(), configs);
-    server_peer_ = QuicMakeUnique<QuartcPeer>(
+    server_peer_ = std::make_unique<QuartcPeer>(
         simulator_.GetClock(), simulator_.GetAlarmFactory(),
         simulator_.GetRandomGenerator(),
         simulator_.GetStreamSendBufferAllocator(), configs);
@@ -52,11 +52,11 @@ class QuartcPeerTest : public QuicTest {
     DCHECK(client_peer_);
     DCHECK(server_peer_);
 
-    server_endpoint_ = QuicMakeUnique<QuartcServerEndpoint>(
+    server_endpoint_ = std::make_unique<QuartcServerEndpoint>(
         simulator_.GetAlarmFactory(), simulator_.GetClock(),
         simulator_.GetRandomGenerator(), server_peer_.get(),
         QuartcSessionConfig());
-    client_endpoint_ = QuicMakeUnique<QuartcClientEndpoint>(
+    client_endpoint_ = std::make_unique<QuartcClientEndpoint>(
         simulator_.GetAlarmFactory(), simulator_.GetClock(),
         simulator_.GetRandomGenerator(), client_peer_.get(),
         QuartcSessionConfig(), server_endpoint_->server_crypto_config());

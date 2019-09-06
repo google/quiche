@@ -55,9 +55,9 @@ std::set<Feature> AttemptRequest(QuicSocketAddress addr,
                                  QuicServerId server_id,
                                  ParsedQuicVersionVector versions) {
   std::set<Feature> features;
-  auto proof_verifier = QuicMakeUnique<FakeProofVerifier>();
+  auto proof_verifier = std::make_unique<FakeProofVerifier>();
   QuicEpollServer epoll_server;
-  auto client = QuicMakeUnique<QuicClient>(
+  auto client = std::make_unique<QuicClient>(
       addr, server_id, versions, &epoll_server, std::move(proof_verifier));
   if (!client->Initialize()) {
     return features;

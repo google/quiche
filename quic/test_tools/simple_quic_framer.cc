@@ -30,12 +30,12 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
 
   void OnPacket() override {}
   void OnPublicResetPacket(const QuicPublicResetPacket& packet) override {
-    public_reset_packet_ = QuicMakeUnique<QuicPublicResetPacket>((packet));
+    public_reset_packet_ = std::make_unique<QuicPublicResetPacket>((packet));
   }
   void OnVersionNegotiationPacket(
       const QuicVersionNegotiationPacket& packet) override {
     version_negotiation_packet_ =
-        QuicMakeUnique<QuicVersionNegotiationPacket>((packet));
+        std::make_unique<QuicVersionNegotiationPacket>((packet));
   }
 
   void OnRetryPacket(QuicConnectionId /*original_connection_id*/,
@@ -70,7 +70,7 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
         new std::string(frame.data_buffer, frame.data_length);
     stream_data_.push_back(QuicWrapUnique(string_data));
     // TODO(ianswett): A pointer isn't necessary with emplace_back.
-    stream_frames_.push_back(QuicMakeUnique<QuicStreamFrame>(
+    stream_frames_.push_back(std::make_unique<QuicStreamFrame>(
         frame.stream_id, frame.fin, frame.offset,
         QuicStringPiece(*string_data)));
     return true;
@@ -81,7 +81,7 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
     std::string* string_data =
         new std::string(frame.data_buffer, frame.data_length);
     crypto_data_.push_back(QuicWrapUnique(string_data));
-    crypto_frames_.push_back(QuicMakeUnique<QuicCryptoFrame>(
+    crypto_frames_.push_back(std::make_unique<QuicCryptoFrame>(
         frame.level, frame.offset, QuicStringPiece(*string_data)));
     return true;
   }
@@ -202,7 +202,7 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
   void OnAuthenticatedIetfStatelessResetPacket(
       const QuicIetfStatelessResetPacket& packet) override {
     stateless_reset_packet_ =
-        QuicMakeUnique<QuicIetfStatelessResetPacket>(packet);
+        std::make_unique<QuicIetfStatelessResetPacket>(packet);
   }
 
   const QuicPacketHeader& header() const { return header_; }
@@ -309,13 +309,13 @@ SimpleQuicFramer::SimpleQuicFramer(
 SimpleQuicFramer::~SimpleQuicFramer() {}
 
 bool SimpleQuicFramer::ProcessPacket(const QuicEncryptedPacket& packet) {
-  visitor_ = QuicMakeUnique<SimpleFramerVisitor>();
+  visitor_ = std::make_unique<SimpleFramerVisitor>();
   framer_.set_visitor(visitor_.get());
   return framer_.ProcessPacket(packet);
 }
 
 void SimpleQuicFramer::Reset() {
-  visitor_ = QuicMakeUnique<SimpleFramerVisitor>();
+  visitor_ = std::make_unique<SimpleFramerVisitor>();
 }
 
 const QuicPacketHeader& SimpleQuicFramer::header() const {

@@ -158,7 +158,7 @@ class TestSession : public QuicSpdySession {
     Initialize();
     this->connection()->SetEncrypter(
         ENCRYPTION_FORWARD_SECURE,
-        QuicMakeUnique<NullEncrypter>(connection->perspective()));
+        std::make_unique<NullEncrypter>(connection->perspective()));
   }
 
   ~TestSession() override { delete connection(); }

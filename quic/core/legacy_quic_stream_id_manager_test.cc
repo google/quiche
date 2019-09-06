@@ -22,7 +22,7 @@ class LegacyQuicStreamIdManagerTest : public QuicTest {
     connection_ = new MockQuicConnection(
         &helper_, &alarm_factory_, perspective,
         ParsedVersionOfIndex(CurrentSupportedVersions(), 0));
-    session_ = QuicMakeUnique<StrictMock<MockQuicSession>>(connection_);
+    session_ = std::make_unique<StrictMock<MockQuicSession>>(connection_);
     manager_ = QuicSessionPeer::GetStreamIdManager(session_.get());
     session_->Initialize();
   }

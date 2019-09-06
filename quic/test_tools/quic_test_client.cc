@@ -205,8 +205,8 @@ MockableQuicClient::MockableQuicClient(
           supported_versions,
           config,
           epoll_server,
-          QuicMakeUnique<MockableQuicClientEpollNetworkHelper>(epoll_server,
-                                                               this),
+          std::make_unique<MockableQuicClientEpollNetworkHelper>(epoll_server,
+                                                                 this),
           QuicWrapUnique(
               new RecordingProofVerifier(std::move(proof_verifier)))),
       override_server_connection_id_(EmptyQuicConnectionId()),
@@ -406,7 +406,7 @@ ssize_t QuicTestClient::GetOrCreateStreamAndSendRequest(
       // May need to retry request if asynchronous rendezvous fails.
       std::unique_ptr<spdy::SpdyHeaderBlock> new_headers(
           new spdy::SpdyHeaderBlock(headers->Clone()));
-      push_promise_data_to_resend_ = QuicMakeUnique<TestClientDataToResend>(
+      push_promise_data_to_resend_ = std::make_unique<TestClientDataToResend>(
           std::move(new_headers), body, fin, this, std::move(ack_listener));
       return 1;
     }

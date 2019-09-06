@@ -59,7 +59,7 @@ class TestQuicSpdyClientSession : public QuicSpdyClientSession {
                               push_promise_index) {}
 
   std::unique_ptr<QuicSpdyClientStream> CreateClientStream() override {
-    return QuicMakeUnique<MockQuicSpdyClientStream>(
+    return std::make_unique<MockQuicSpdyClientStream>(
         GetNextOutgoingBidirectionalStreamId(), this, BIDIRECTIONAL);
   }
 
@@ -98,7 +98,7 @@ class QuicSpdyClientSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
     connection_ = new PacketSavingConnection(&helper_, &alarm_factory_,
                                              Perspective::IS_CLIENT,
                                              SupportedVersions(GetParam()));
-    session_ = QuicMakeUnique<TestQuicSpdyClientSession>(
+    session_ = std::make_unique<TestQuicSpdyClientSession>(
         DefaultQuicConfig(), SupportedVersions(GetParam()), connection_,
         QuicServerId(kServerHostname, kPort, false), &crypto_config_,
         &push_promise_index_);
@@ -539,11 +539,11 @@ TEST_P(QuicSpdyClientSessionTest, InvalidFramedPacketReceived) {
   if (GetParam().KnowsWhichDecrypterToUse()) {
     connection_->InstallDecrypter(
         ENCRYPTION_FORWARD_SECURE,
-        QuicMakeUnique<NullDecrypter>(Perspective::IS_CLIENT));
+        std::make_unique<NullDecrypter>(Perspective::IS_CLIENT));
   } else {
     connection_->SetDecrypter(
         ENCRYPTION_FORWARD_SECURE,
-        QuicMakeUnique<NullDecrypter>(Perspective::IS_CLIENT));
+        std::make_unique<NullDecrypter>(Perspective::IS_CLIENT));
   }
 
   EXPECT_CALL(*connection_, ProcessUdpPacket(server_address, client_address, _))
@@ -596,7 +596,7 @@ TEST_P(QuicSpdyClientSessionTest, PushPromiseStreamIdTooHigh) {
   QuicStreamId stream_id =
       QuicSessionPeer::GetNextOutgoingBidirectionalStreamId(session_.get());
   QuicSessionPeer::ActivateStream(
-      session_.get(), QuicMakeUnique<QuicSpdyClientStream>(
+      session_.get(), std::make_unique<QuicSpdyClientStream>(
                           stream_id, session_.get(), BIDIRECTIONAL));
 
   session_->set_max_allowed_push_id(GetNthServerInitiatedUnidirectionalStreamId(
@@ -906,7 +906,7 @@ TEST_P(QuicSpdyClientSessionTest, TooManyPushPromises) {
   QuicStreamId stream_id =
       QuicSessionPeer::GetNextOutgoingBidirectionalStreamId(session_.get());
   QuicSessionPeer::ActivateStream(
-      session_.get(), QuicMakeUnique<QuicSpdyClientStream>(
+      session_.get(), std::make_unique<QuicSpdyClientStream>(
                           stream_id, session_.get(), BIDIRECTIONAL));
 
   session_->set_max_allowed_push_id(kMaxQuicStreamId);

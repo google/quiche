@@ -207,13 +207,13 @@ class QuicPacketGeneratorTest : public QuicTest {
     EXPECT_CALL(delegate_, GetPacketBuffer()).WillRepeatedly(Return(nullptr));
     creator_->SetEncrypter(
         ENCRYPTION_FORWARD_SECURE,
-        QuicMakeUnique<NullEncrypter>(Perspective::IS_CLIENT));
+        std::make_unique<NullEncrypter>(Perspective::IS_CLIENT));
     creator_->set_encryption_level(ENCRYPTION_FORWARD_SECURE);
     framer_.set_data_producer(&producer_);
     if (simple_framer_.framer()->version().KnowsWhichDecrypterToUse()) {
       simple_framer_.framer()->InstallDecrypter(
           ENCRYPTION_FORWARD_SECURE,
-          QuicMakeUnique<NullDecrypter>(Perspective::IS_SERVER));
+          std::make_unique<NullDecrypter>(Perspective::IS_SERVER));
     }
     generator_.AttachPacketFlusher();
   }

@@ -27,7 +27,7 @@ QboneClientSession::QboneClientSession(
 QboneClientSession::~QboneClientSession() {}
 
 std::unique_ptr<QuicCryptoStream> QboneClientSession::CreateCryptoStream() {
-  return QuicMakeUnique<QuicCryptoClientStream>(
+  return std::make_unique<QuicCryptoClientStream>(
       server_id_, this, nullptr, quic_crypto_client_config_, this);
 }
 
@@ -41,7 +41,7 @@ void QboneClientSession::Initialize() {
   QuicStreamId next_id = GetNextOutgoingBidirectionalStreamId();
   DCHECK_EQ(next_id, QboneConstants::GetControlStreamId(transport_version()));
   auto control_stream =
-      QuicMakeUnique<QboneClientControlStream>(this, handler_);
+      std::make_unique<QboneClientControlStream>(this, handler_);
   control_stream_ = control_stream.get();
   ActivateStream(std::move(control_stream));
 }

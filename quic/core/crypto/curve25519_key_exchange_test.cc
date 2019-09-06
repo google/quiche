@@ -84,13 +84,14 @@ TEST_F(Curve25519KeyExchangeTest, SharedKeyAsync) {
     std::string alice_shared, bob_shared;
     TestCallbackResult alice_result;
     ASSERT_FALSE(alice_result.ok());
-    alice->CalculateSharedKeyAsync(bob_public, &alice_shared,
-                                   QuicMakeUnique<TestCallback>(&alice_result));
+    alice->CalculateSharedKeyAsync(
+        bob_public, &alice_shared,
+        std::make_unique<TestCallback>(&alice_result));
     ASSERT_TRUE(alice_result.ok());
     TestCallbackResult bob_result;
     ASSERT_FALSE(bob_result.ok());
     bob->CalculateSharedKeyAsync(alice_public, &bob_shared,
-                                 QuicMakeUnique<TestCallback>(&bob_result));
+                                 std::make_unique<TestCallback>(&bob_result));
     ASSERT_TRUE(bob_result.ok());
     ASSERT_EQ(alice_shared, bob_shared);
     ASSERT_NE(0u, alice_shared.length());

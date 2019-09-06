@@ -48,7 +48,7 @@ class QuicCryptoClientStreamTest : public QuicTest {
     // Advance the time, because timers do not like uninitialized times.
     connection_->AdvanceTime(QuicTime::Delta::FromSeconds(1));
 
-    session_ = QuicMakeUnique<TestQuicSpdyClientSession>(
+    session_ = std::make_unique<TestQuicSpdyClientSession>(
         connection_, DefaultQuicConfig(), supported_versions_, server_id_,
         &crypto_config_);
   }
@@ -323,7 +323,7 @@ TEST_F(QuicCryptoClientStreamTest, PreferredVersion) {
       ParsedVersionOfIndex(supported_versions_, 1));
   connection_->AdvanceTime(QuicTime::Delta::FromSeconds(1));
 
-  session_ = QuicMakeUnique<TestQuicSpdyClientSession>(
+  session_ = std::make_unique<TestQuicSpdyClientSession>(
       connection_, DefaultQuicConfig(), supported_versions_, server_id_,
       &crypto_config_);
   CompleteCryptoHandshake();

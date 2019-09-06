@@ -181,11 +181,11 @@ QuicTestServer::QuicTestServer(
 QuicDispatcher* QuicTestServer::CreateQuicDispatcher() {
   return new QuicTestDispatcher(
       &config(), &crypto_config(), version_manager(),
-      QuicMakeUnique<QuicEpollConnectionHelper>(epoll_server(),
-                                                QuicAllocator::BUFFER_POOL),
+      std::make_unique<QuicEpollConnectionHelper>(epoll_server(),
+                                                  QuicAllocator::BUFFER_POOL),
       std::unique_ptr<QuicCryptoServerStream::Helper>(
           new QuicSimpleCryptoServerStreamHelper()),
-      QuicMakeUnique<QuicEpollAlarmFactory>(epoll_server()), server_backend(),
+      std::make_unique<QuicEpollAlarmFactory>(epoll_server()), server_backend(),
       expected_server_connection_id_length());
 }
 

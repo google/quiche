@@ -37,14 +37,14 @@ class QuicEndpointTest : public QuicTest {
   Switch switch_;
 
   std::unique_ptr<SymmetricLink> Link(Endpoint* a, Endpoint* b) {
-    return QuicMakeUnique<SymmetricLink>(a, b, kDefaultBandwidth,
-                                         kDefaultPropagationDelay);
+    return std::make_unique<SymmetricLink>(a, b, kDefaultBandwidth,
+                                           kDefaultPropagationDelay);
   }
 
   std::unique_ptr<SymmetricLink> CustomLink(Endpoint* a,
                                             Endpoint* b,
                                             uint64_t extra_rtt_ms) {
-    return QuicMakeUnique<SymmetricLink>(
+    return std::make_unique<SymmetricLink>(
         a, b, kDefaultBandwidth,
         kDefaultPropagationDelay +
             QuicTime::Delta::FromMilliseconds(extra_rtt_ms));
@@ -156,22 +156,22 @@ TEST_F(QuicEndpointTest, TwoWayTransmission) {
 TEST_F(QuicEndpointTest, Competition) {
   // TODO(63765788): Turn back on this flag when the issue if fixed.
   SetQuicReloadableFlag(quic_bbr_one_mss_conservation, false);
-  auto endpoint_a = QuicMakeUnique<QuicEndpoint>(
+  auto endpoint_a = std::make_unique<QuicEndpoint>(
       &simulator_, "Endpoint A", "Endpoint D (A)", Perspective::IS_CLIENT,
       test::TestConnectionId(42));
-  auto endpoint_b = QuicMakeUnique<QuicEndpoint>(
+  auto endpoint_b = std::make_unique<QuicEndpoint>(
       &simulator_, "Endpoint B", "Endpoint D (B)", Perspective::IS_CLIENT,
       test::TestConnectionId(43));
-  auto endpoint_c = QuicMakeUnique<QuicEndpoint>(
+  auto endpoint_c = std::make_unique<QuicEndpoint>(
       &simulator_, "Endpoint C", "Endpoint D (C)", Perspective::IS_CLIENT,
       test::TestConnectionId(44));
-  auto endpoint_d_a = QuicMakeUnique<QuicEndpoint>(
+  auto endpoint_d_a = std::make_unique<QuicEndpoint>(
       &simulator_, "Endpoint D (A)", "Endpoint A", Perspective::IS_SERVER,
       test::TestConnectionId(42));
-  auto endpoint_d_b = QuicMakeUnique<QuicEndpoint>(
+  auto endpoint_d_b = std::make_unique<QuicEndpoint>(
       &simulator_, "Endpoint D (B)", "Endpoint B", Perspective::IS_SERVER,
       test::TestConnectionId(43));
-  auto endpoint_d_c = QuicMakeUnique<QuicEndpoint>(
+  auto endpoint_d_c = std::make_unique<QuicEndpoint>(
       &simulator_, "Endpoint D (C)", "Endpoint C", Perspective::IS_SERVER,
       test::TestConnectionId(44));
   QuicEndpointMultiplexer endpoint_d(

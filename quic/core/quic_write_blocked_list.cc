@@ -11,7 +11,7 @@ namespace quic {
 
 QuicWriteBlockedList::QuicWriteBlockedList(QuicTransportVersion version)
     : priority_write_scheduler_(
-          QuicMakeUnique<spdy::PriorityWriteScheduler<QuicStreamId>>(
+          std::make_unique<spdy::PriorityWriteScheduler<QuicStreamId>>(
               QuicVersionUsesCryptoFrames(version)
                   ? std::numeric_limits<QuicStreamId>::max()
                   : 0)),
