@@ -199,8 +199,7 @@ QuicSpdyStream::QuicSpdyStream(QuicStreamId id,
       is_decoder_processing_input_(false),
       ack_listener_(nullptr) {
   DCHECK_EQ(session()->connection(), spdy_session->connection());
-  DCHECK_EQ(transport_version(),
-            spdy_session->connection()->transport_version());
+  DCHECK_EQ(transport_version(), spdy_session->transport_version());
   DCHECK(!QuicUtils::IsCryptoStreamId(transport_version(), id));
   DCHECK_EQ(0u, sequencer()->NumBytesConsumed());
   // If headers are sent on the headers stream, then do not receive any
@@ -234,8 +233,7 @@ QuicSpdyStream::QuicSpdyStream(PendingStream* pending,
       is_decoder_processing_input_(false),
       ack_listener_(nullptr) {
   DCHECK_EQ(session()->connection(), spdy_session->connection());
-  DCHECK_EQ(transport_version(),
-            spdy_session->connection()->transport_version());
+  DCHECK_EQ(transport_version(), spdy_session->transport_version());
   DCHECK(!QuicUtils::IsCryptoStreamId(transport_version(), id()));
   // If headers are sent on the headers stream, then do not receive any
   // callbacks from the sequencer until headers are complete.
@@ -983,8 +981,7 @@ bool QuicSpdyStream::OnUnknownFrameEnd() {
 
 void QuicSpdyStream::ProcessDecodedHeaders(const QuicHeaderList& headers) {
   if (spdy_session_->promised_stream_id() ==
-      QuicUtils::GetInvalidStreamId(
-          session()->connection()->transport_version())) {
+      QuicUtils::GetInvalidStreamId(session()->transport_version())) {
     const QuicByteCount frame_length = headers_decompressed_
                                            ? trailers_payload_length_
                                            : headers_payload_length_;

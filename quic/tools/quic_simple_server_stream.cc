@@ -107,8 +107,8 @@ void QuicSimpleServerStream::OnBodyAvailable() {
 
 void QuicSimpleServerStream::PushResponse(
     SpdyHeaderBlock push_request_headers) {
-  if (QuicUtils::IsClientInitiatedStreamId(
-          session()->connection()->transport_version(), id())) {
+  if (QuicUtils::IsClientInitiatedStreamId(session()->transport_version(),
+                                           id())) {
     QUIC_BUG << "Client initiated stream shouldn't be used as promised stream.";
     return;
   }
@@ -220,8 +220,8 @@ void QuicSimpleServerStream::OnResponseBackendComplete(
     return;
   }
 
-  if (QuicUtils::IsServerInitiatedStreamId(
-          session()->connection()->transport_version(), id())) {
+  if (QuicUtils::IsServerInitiatedStreamId(session()->transport_version(),
+                                           id())) {
     // A server initiated stream is only used for a server push response,
     // and only 200 and 30X response codes are supported for server push.
     // This behavior mirrors the HTTP/2 implementation.

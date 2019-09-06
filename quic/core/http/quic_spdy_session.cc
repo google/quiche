@@ -186,7 +186,7 @@ class QuicSpdySession::SpdyFramerVisitor
       return;
     }
 
-    if (VersionUsesQpack(session_->connection()->transport_version())) {
+    if (VersionUsesQpack(session_->transport_version())) {
       CloseConnection("HEADERS frame not allowed on headers stream.",
                       QUIC_INVALID_HEADERS_STREAM_DATA);
       return;
@@ -239,7 +239,7 @@ class QuicSpdySession::SpdyFramerVisitor
                   int weight,
                   bool exclusive) override {
     DCHECK(!VersionUsesQpack(session_->transport_version()));
-    if (session_->connection()->transport_version() <= QUIC_VERSION_39) {
+    if (session_->transport_version() <= QUIC_VERSION_39) {
       CloseConnection("SPDY PRIORITY frame received.",
                       QUIC_INVALID_HEADERS_STREAM_DATA);
       return;
@@ -368,17 +368,17 @@ QuicSpdySession::~QuicSpdySession() {
 void QuicSpdySession::Initialize() {
   QuicSession::Initialize();
 
-  if (!VersionUsesQpack(connection()->transport_version())) {
+  if (!VersionUsesQpack(transport_version())) {
     if (perspective() == Perspective::IS_SERVER) {
       set_largest_peer_created_stream_id(
-          QuicUtils::GetHeadersStreamId(connection()->transport_version()));
+          QuicUtils::GetHeadersStreamId(transport_version()));
     } else {
       QuicStreamId headers_stream_id = GetNextOutgoingBidirectionalStreamId();
-      DCHECK_EQ(headers_stream_id, QuicUtils::GetHeadersStreamId(
-                                       connection()->transport_version()));
+      DCHECK_EQ(headers_stream_id,
+                QuicUtils::GetHeadersStreamId(transport_version()));
     }
     auto headers_stream = QuicMakeUnique<QuicHeadersStream>((this));
-    DCHECK_EQ(QuicUtils::GetHeadersStreamId(connection()->transport_version()),
+    DCHECK_EQ(QuicUtils::GetHeadersStreamId(transport_version()),
               headers_stream->id());
 
     headers_stream_ = headers_stream.get();
@@ -403,14 +403,14 @@ void QuicSpdySession::Initialize() {
 }
 
 void QuicSpdySession::OnDecoderStreamError(QuicStringPiece /*error_message*/) {
-  DCHECK(VersionUsesQpack(connection()->transport_version()));
+  DCHECK(VersionUsesQpack(transport_version()));
 
   // TODO(112770235): Signal connection error on decoder stream errors.
   QUIC_NOTREACHED();
 }
 
 void QuicSpdySession::OnEncoderStreamError(QuicStringPiece /*error_message*/) {
-  DCHECK(VersionUsesQpack(connection()->transport_version()));
+  DCHECK(VersionUsesQpack(transport_version()));
 
   // TODO(112770235): Signal connection error on encoder stream errors.
   QUIC_NOTREACHED();
@@ -491,7 +491,7 @@ size_t QuicSpdySession::WriteHeadersOnHeadersStream(
     bool fin,
     const spdy::SpdyStreamPrecedence& precedence,
     QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener) {
-  DCHECK(!VersionUsesQpack(connection()->transport_version()));
+  DCHECK(!VersionUsesQpack(transport_version()));
 
   return WriteHeadersOnHeadersStreamImpl(
       id, std::move(headers), fin,
@@ -504,8 +504,8 @@ size_t QuicSpdySession::WritePriority(QuicStreamId id,
                                       QuicStreamId parent_stream_id,
                                       int weight,
                                       bool exclusive) {
-  DCHECK(!VersionUsesQpack(connection()->transport_version()));
-  if (connection()->transport_version() <= QUIC_VERSION_39) {
+  DCHECK(!VersionUsesQpack(transport_version()));
+  if (transport_version() <= QUIC_VERSION_39) {
     return 0;
   }
   SpdyPriorityIR priority_frame(id, parent_stream_id, weight, exclusive);
@@ -516,7 +516,7 @@ size_t QuicSpdySession::WritePriority(QuicStreamId id,
 }
 
 void QuicSpdySession::WriteH3Priority(const PriorityFrame& priority) {
-  DCHECK(VersionHasStreamType(connection()->transport_version()));
+  DCHECK(VersionHasStreamType(transport_version()));
   DCHECK(perspective() == Perspective::IS_CLIENT)
       << "Server must not send priority";
 
@@ -533,14 +533,14 @@ void QuicSpdySession::WritePushPromise(QuicStreamId original_stream_id,
     return;
   }
 
-  if (VersionHasIetfQuicFrames(connection()->transport_version()) &&
+  if (VersionHasIetfQuicFrames(transport_version()) &&
       promised_stream_id > max_allowed_push_id()) {
     QUIC_BUG
         << "Server shouldn't send push id higher than client's MAX_PUSH_ID.";
     return;
   }
 
-  if (!VersionHasStreamType(connection()->transport_version())) {
+  if (!VersionHasStreamType(transport_version())) {
     SpdyPushPromiseIR push_promise(original_stream_id, promised_stream_id,
                                    std::move(headers));
     // PUSH_PROMISE must not be the last frame sent out, at least followed by
@@ -564,7 +564,7 @@ void QuicSpdySession::WritePushPromise(QuicStreamId original_stream_id,
 }
 
 void QuicSpdySession::SendMaxHeaderListSize(size_t value) {
-  if (VersionHasStreamType(connection()->transport_version())) {
+  if (VersionHasStreamType(transport_version())) {
     QuicConnection::ScopedPacketFlusher flusher(connection());
     send_control_stream_->MaybeSendSettingsFrame();
     // TODO(renjietang): Remove this once stream id manager can take dynamically
@@ -587,13 +587,13 @@ void QuicSpdySession::SendMaxHeaderListSize(size_t value) {
 }
 
 QpackEncoder* QuicSpdySession::qpack_encoder() {
-  DCHECK(VersionUsesQpack(connection()->transport_version()));
+  DCHECK(VersionUsesQpack(transport_version()));
 
   return qpack_encoder_.get();
 }
 
 QpackDecoder* QuicSpdySession::qpack_decoder() {
-  DCHECK(VersionUsesQpack(connection()->transport_version()));
+  DCHECK(VersionUsesQpack(transport_version()));
 
   return qpack_decoder_.get();
 }
@@ -645,7 +645,7 @@ bool QuicSpdySession::UsesPendingStreams() const {
   // QuicSpdySession supports PendingStreams, therefore this method should
   // eventually just return true.  However, pending streams can only be used if
   // unidirectional stream type is supported.
-  return VersionHasStreamType(connection()->transport_version());
+  return VersionHasStreamType(transport_version());
 }
 
 size_t QuicSpdySession::WriteHeadersOnHeadersStreamImpl(
@@ -656,7 +656,7 @@ size_t QuicSpdySession::WriteHeadersOnHeadersStreamImpl(
     int weight,
     bool exclusive,
     QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener) {
-  DCHECK(!VersionUsesQpack(connection()->transport_version()));
+  DCHECK(!VersionUsesQpack(transport_version()));
 
   SpdyHeadersIR headers_frame(id, std::move(headers));
   headers_frame.set_fin(fin);
@@ -686,7 +686,7 @@ void QuicSpdySession::OnPromiseHeaderList(
 }
 
 void QuicSpdySession::OnSetting(uint64_t id, uint64_t value) {
-  if (VersionHasStreamType(connection()->transport_version())) {
+  if (VersionHasStreamType(transport_version())) {
     // SETTINGS frame received on the control stream.
     switch (id) {
       case SETTINGS_QPACK_MAX_TABLE_CAPACITY:
@@ -798,9 +798,8 @@ void QuicSpdySession::OnHeaders(SpdyStreamId stream_id,
       return;
     }
   }
-  DCHECK_EQ(QuicUtils::GetInvalidStreamId(connection()->transport_version()),
-            stream_id_);
-  DCHECK_EQ(QuicUtils::GetInvalidStreamId(connection()->transport_version()),
+  DCHECK_EQ(QuicUtils::GetInvalidStreamId(transport_version()), stream_id_);
+  DCHECK_EQ(QuicUtils::GetInvalidStreamId(transport_version()),
             promised_stream_id_);
   stream_id_ = stream_id;
   fin_ = fin;
@@ -808,9 +807,8 @@ void QuicSpdySession::OnHeaders(SpdyStreamId stream_id,
 
 void QuicSpdySession::OnPushPromise(SpdyStreamId stream_id,
                                     SpdyStreamId promised_stream_id) {
-  DCHECK_EQ(QuicUtils::GetInvalidStreamId(connection()->transport_version()),
-            stream_id_);
-  DCHECK_EQ(QuicUtils::GetInvalidStreamId(connection()->transport_version()),
+  DCHECK_EQ(QuicUtils::GetInvalidStreamId(transport_version()), stream_id_);
+  DCHECK_EQ(QuicUtils::GetInvalidStreamId(transport_version()),
             promised_stream_id_);
   stream_id_ = stream_id;
   promised_stream_id_ = promised_stream_id;
@@ -832,21 +830,20 @@ void QuicSpdySession::OnHeaderList(const QuicHeaderList& header_list) {
   QUIC_DVLOG(1) << "Received header list for stream " << stream_id_ << ": "
                 << header_list.DebugString();
   // This code path is only executed for push promise in IETF QUIC.
-  if (VersionUsesQpack(connection()->transport_version())) {
+  if (VersionUsesQpack(transport_version())) {
     DCHECK(promised_stream_id_ !=
-           QuicUtils::GetInvalidStreamId(connection()->transport_version()));
+           QuicUtils::GetInvalidStreamId(transport_version()));
   }
   if (promised_stream_id_ ==
-      QuicUtils::GetInvalidStreamId(connection()->transport_version())) {
+      QuicUtils::GetInvalidStreamId(transport_version())) {
     OnStreamHeaderList(stream_id_, fin_, frame_len_, header_list);
   } else {
     OnPromiseHeaderList(stream_id_, promised_stream_id_, frame_len_,
                         header_list);
   }
   // Reset state for the next frame.
-  promised_stream_id_ =
-      QuicUtils::GetInvalidStreamId(connection()->transport_version());
-  stream_id_ = QuicUtils::GetInvalidStreamId(connection()->transport_version());
+  promised_stream_id_ = QuicUtils::GetInvalidStreamId(transport_version());
+  stream_id_ = QuicUtils::GetInvalidStreamId(transport_version());
   fin_ = false;
   frame_len_ = 0;
 }
@@ -894,7 +891,7 @@ bool QuicSpdySession::HasActiveRequestStreams() const {
 }
 
 bool QuicSpdySession::ProcessPendingStream(PendingStream* pending) {
-  DCHECK(VersionHasStreamType(connection()->transport_version()));
+  DCHECK(VersionHasStreamType(transport_version()));
   DCHECK(connection()->connected());
   struct iovec iov;
   if (!pending->sequencer()->GetReadableRegion(&iov)) {
@@ -968,7 +965,7 @@ bool QuicSpdySession::ProcessPendingStream(PendingStream* pending) {
 }
 
 void QuicSpdySession::MaybeInitializeHttp3UnidirectionalStreams() {
-  DCHECK(VersionHasStreamType(connection()->transport_version()));
+  DCHECK(VersionHasStreamType(transport_version()));
   if (!send_control_stream_ && CanOpenNextOutgoingUnidirectionalStream()) {
     auto send_control = QuicMakeUnique<QuicSendControlStream>(
         GetNextOutgoingUnidirectionalStreamId(), this,
@@ -999,15 +996,14 @@ void QuicSpdySession::MaybeInitializeHttp3UnidirectionalStreams() {
 }
 
 void QuicSpdySession::OnCanCreateNewOutgoingStream(bool unidirectional) {
-  if (unidirectional &&
-      VersionHasStreamType(connection()->transport_version())) {
+  if (unidirectional && VersionHasStreamType(transport_version())) {
     MaybeInitializeHttp3UnidirectionalStreams();
   }
 }
 
 void QuicSpdySession::set_max_allowed_push_id(
     QuicStreamId max_allowed_push_id) {
-  if (VersionHasIetfQuicFrames(connection()->transport_version()) &&
+  if (VersionHasIetfQuicFrames(transport_version()) &&
       perspective() == Perspective::IS_SERVER &&
       max_allowed_push_id > max_allowed_push_id_) {
     OnCanCreateNewOutgoingStream(true);
@@ -1015,14 +1011,14 @@ void QuicSpdySession::set_max_allowed_push_id(
 
   max_allowed_push_id_ = max_allowed_push_id;
 
-  if (VersionHasIetfQuicFrames(connection()->transport_version()) &&
+  if (VersionHasIetfQuicFrames(transport_version()) &&
       perspective() == Perspective::IS_CLIENT && IsHandshakeConfirmed()) {
     SendMaxPushId(max_allowed_push_id);
   }
 }
 
 void QuicSpdySession::SendMaxPushId(QuicStreamId max_allowed_push_id) {
-  DCHECK(VersionHasStreamType(connection()->transport_version()));
+  DCHECK(VersionHasStreamType(transport_version()));
   send_control_stream_->SendMaxPushIdFrame(max_allowed_push_id);
 }
 

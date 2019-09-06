@@ -54,9 +54,9 @@ QuicFlowController::QuicFlowController(
       last_blocked_send_window_offset_(0),
       prev_window_update_time_(QuicTime::Zero()) {
   DCHECK_LE(receive_window_size_, receive_window_size_limit_);
-  DCHECK_EQ(is_connection_flow_controller_,
-            QuicUtils::GetInvalidStreamId(
-                session_->connection()->transport_version()) == id_);
+  DCHECK_EQ(
+      is_connection_flow_controller_,
+      QuicUtils::GetInvalidStreamId(session_->transport_version()) == id_);
 
   QUIC_DVLOG(1) << ENDPOINT << "Created flow controller for " << LogLabel()
                 << ", setting initial receive window offset to: "

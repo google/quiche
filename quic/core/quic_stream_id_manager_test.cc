@@ -62,8 +62,7 @@ class TestQuicSession : public MockQuicSession {
   TestQuicStream* CreateIncomingStream(QuicStreamId id) override {
     TestQuicStream* stream = new TestQuicStream(
         id, this,
-        DetermineStreamType(id, connection()->transport_version(),
-                            perspective(),
+        DetermineStreamType(id, transport_version(), perspective(),
                             /*is_incoming=*/true, BIDIRECTIONAL));
     ActivateStream(QuicWrapUnique(stream));
     return stream;

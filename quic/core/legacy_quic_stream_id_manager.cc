@@ -19,19 +19,17 @@ LegacyQuicStreamIdManager::LegacyQuicStreamIdManager(
     : session_(session),
       max_open_outgoing_streams_(max_open_outgoing_streams),
       max_open_incoming_streams_(max_open_incoming_streams),
-      next_outgoing_stream_id_(QuicUtils::GetFirstBidirectionalStreamId(
-          session->connection()->transport_version(),
-          session->perspective())),
+      next_outgoing_stream_id_(
+          QuicUtils::GetFirstBidirectionalStreamId(session->transport_version(),
+                                                   session->perspective())),
       largest_peer_created_stream_id_(
           session->perspective() == Perspective::IS_SERVER
-              ? (QuicVersionUsesCryptoFrames(
-                     session->connection()->transport_version())
+              ? (QuicVersionUsesCryptoFrames(session->transport_version())
                      ? QuicUtils::GetInvalidStreamId(
-                           session->connection()->transport_version())
+                           session->transport_version())
                      : QuicUtils::GetCryptoStreamId(
-                           session->connection()->transport_version()))
-              : QuicUtils::GetInvalidStreamId(
-                    session->connection()->transport_version())) {}
+                           session->transport_version()))
+              : QuicUtils::GetInvalidStreamId(session->transport_version())) {}
 
 LegacyQuicStreamIdManager::~LegacyQuicStreamIdManager() {
   QUIC_LOG_IF(WARNING,
@@ -71,8 +69,7 @@ bool LegacyQuicStreamIdManager::MaybeIncreaseLargestPeerStreamId(
   available_streams_.erase(stream_id);
 
   if (largest_peer_created_stream_id_ !=
-          QuicUtils::GetInvalidStreamId(
-              session_->connection()->transport_version()) &&
+          QuicUtils::GetInvalidStreamId(session_->transport_version()) &&
       stream_id <= largest_peer_created_stream_id_) {
     return true;
   }
@@ -83,8 +80,7 @@ bool LegacyQuicStreamIdManager::MaybeIncreaseLargestPeerStreamId(
   size_t additional_available_streams =
       (stream_id - largest_peer_created_stream_id_) / 2 - 1;
   if (largest_peer_created_stream_id_ ==
-      QuicUtils::GetInvalidStreamId(
-          session_->connection()->transport_version())) {
+      QuicUtils::GetInvalidStreamId(session_->transport_version())) {
     additional_available_streams = (stream_id + 1) / 2 - 1;
   }
   size_t new_num_available_streams =
@@ -105,10 +101,9 @@ bool LegacyQuicStreamIdManager::MaybeIncreaseLargestPeerStreamId(
   }
   QuicStreamId first_available_stream = largest_peer_created_stream_id_ + 2;
   if (largest_peer_created_stream_id_ ==
-      QuicUtils::GetInvalidStreamId(
-          session_->connection()->transport_version())) {
+      QuicUtils::GetInvalidStreamId(session_->transport_version())) {
     first_available_stream = QuicUtils::GetFirstBidirectionalStreamId(
-        session_->connection()->transport_version(),
+        session_->transport_version(),
         QuicUtils::InvertPerspective(session_->perspective()));
   }
   for (QuicStreamId id = first_available_stream; id < stream_id; id += 2) {
@@ -133,8 +128,7 @@ bool LegacyQuicStreamIdManager::IsAvailableStream(QuicStreamId id) const {
   }
   // For peer created streams, we also need to consider available streams.
   return largest_peer_created_stream_id_ ==
-             QuicUtils::GetInvalidStreamId(
-                 session_->connection()->transport_version()) ||
+             QuicUtils::GetInvalidStreamId(session_->transport_version()) ||
          id > largest_peer_created_stream_id_ ||
          QuicContainsKey(available_streams_, id);
 }

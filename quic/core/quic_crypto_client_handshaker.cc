@@ -154,7 +154,7 @@ void QuicCryptoClientHandshaker::HandleServerConfigUpdateMessage(
       crypto_config_->LookupOrCreate(server_id_);
   QuicErrorCode error = crypto_config_->ProcessServerConfigUpdate(
       server_config_update, session()->connection()->clock()->WallNow(),
-      session()->connection()->transport_version(), chlo_hash_, cached,
+      session()->transport_version(), chlo_hash_, cached,
       crypto_negotiated_params_, &error_details);
 
   if (error != QUIC_NO_ERROR) {
@@ -373,7 +373,7 @@ void QuicCryptoClientHandshaker::DoReceiveREJ(
   std::string error_details;
   QuicErrorCode error = crypto_config_->ProcessRejection(
       *in, session()->connection()->clock()->WallNow(),
-      session()->connection()->transport_version(), chlo_hash_, cached,
+      session()->transport_version(), chlo_hash_, cached,
       crypto_negotiated_params_, &error_details);
 
   if (error != QUIC_NO_ERROR) {
@@ -409,7 +409,7 @@ QuicAsyncStatus QuicCryptoClientHandshaker::DoVerifyProof(
 
   QuicAsyncStatus status = verifier->VerifyProof(
       server_id_.host(), server_id_.port(), cached->server_config(),
-      session()->connection()->transport_version(), chlo_hash_, cached->certs(),
+      session()->transport_version(), chlo_hash_, cached->certs(),
       cached->cert_sct(), cached->signature(), verify_context_.get(),
       &verify_error_details_, &verify_details_,
       std::unique_ptr<ProofVerifierCallback>(proof_verify_callback));

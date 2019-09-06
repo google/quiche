@@ -270,8 +270,7 @@ QuicStream::QuicStream(QuicStreamId id,
       buffered_data_threshold_(GetQuicFlag(FLAGS_quic_buffered_data_threshold)),
       is_static_(is_static),
       deadline_(QuicTime::Zero()),
-      type_(VersionHasIetfQuicFrames(
-                session->connection()->transport_version()) &&
+      type_(VersionHasIetfQuicFrames(session->transport_version()) &&
                     type != CRYPTO
                 ? QuicUtils::GetStreamType(id_,
                                            perspective_,
@@ -701,7 +700,7 @@ bool QuicStream::HasBufferedData() const {
 }
 
 QuicTransportVersion QuicStream::transport_version() const {
-  return session_->connection()->transport_version();
+  return session_->transport_version();
 }
 
 HandshakeProtocol QuicStream::handshake_protocol() const {

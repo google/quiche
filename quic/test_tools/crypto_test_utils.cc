@@ -303,12 +303,10 @@ void SendHandshakeMessageToStream(QuicCryptoStream* stream,
                                   Perspective /*perspective*/) {
   const QuicData& data = message.GetSerialized();
   QuicSession* session = QuicStreamPeer::session(stream);
-  if (!QuicVersionUsesCryptoFrames(
-          session->connection()->transport_version())) {
-    QuicStreamFrame frame(QuicUtils::GetCryptoStreamId(
-                              session->connection()->transport_version()),
-                          false, stream->crypto_bytes_read(),
-                          data.AsStringPiece());
+  if (!QuicVersionUsesCryptoFrames(session->transport_version())) {
+    QuicStreamFrame frame(
+        QuicUtils::GetCryptoStreamId(session->transport_version()), false,
+        stream->crypto_bytes_read(), data.AsStringPiece());
     stream->OnStreamFrame(frame);
   } else {
     EncryptionLevel level = session->connection()->last_decrypted_level();

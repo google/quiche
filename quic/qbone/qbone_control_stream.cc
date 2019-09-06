@@ -15,11 +15,11 @@ static constexpr size_t kRequestSizeBytes = sizeof(uint16_t);
 }  // namespace
 
 QboneControlStreamBase::QboneControlStreamBase(QuicSession* session)
-    : QuicStream(QboneConstants::GetControlStreamId(
-                     session->connection()->transport_version()),
-                 session,
-                 /*is_static=*/true,
-                 BIDIRECTIONAL),
+    : QuicStream(
+          QboneConstants::GetControlStreamId(session->transport_version()),
+          session,
+          /*is_static=*/true,
+          BIDIRECTIONAL),
       pending_message_size_(0) {}
 
 void QboneControlStreamBase::OnDataAvailable() {

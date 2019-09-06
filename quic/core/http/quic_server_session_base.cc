@@ -201,8 +201,7 @@ bool QuicServerSessionBase::ShouldCreateIncomingStream(QuicStreamId id) {
     return false;
   }
 
-  if (QuicUtils::IsServerInitiatedStreamId(connection()->transport_version(),
-                                           id)) {
+  if (QuicUtils::IsServerInitiatedStreamId(transport_version(), id)) {
     QUIC_DLOG(INFO) << "Invalid incoming even stream_id:" << id;
     connection()->CloseConnection(
         QUIC_INVALID_STREAM_ID, "Client created even numbered stream",
@@ -224,7 +223,7 @@ bool QuicServerSessionBase::ShouldCreateOutgoingBidirectionalStream() {
   }
 
   if (!GetQuicReloadableFlag(quic_use_common_stream_check) &&
-      !VersionHasIetfQuicFrames(connection()->transport_version())) {
+      !VersionHasIetfQuicFrames(transport_version())) {
     if (GetNumOpenOutgoingStreams() >=
         stream_id_manager().max_open_outgoing_streams()) {
       QUIC_VLOG(1) << "No more streams should be created. "
@@ -248,7 +247,7 @@ bool QuicServerSessionBase::ShouldCreateOutgoingUnidirectionalStream() {
   }
 
   if (!GetQuicReloadableFlag(quic_use_common_stream_check) &&
-      !VersionHasIetfQuicFrames(connection()->transport_version())) {
+      !VersionHasIetfQuicFrames(transport_version())) {
     if (GetNumOpenOutgoingStreams() >=
         stream_id_manager().max_open_outgoing_streams()) {
       QUIC_VLOG(1) << "No more streams should be created. "

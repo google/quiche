@@ -31,10 +31,10 @@ class QuicSpdyServerStreamBaseTest : public QuicTest {
       : session_(new MockQuicConnection(&helper_,
                                         &alarm_factory_,
                                         Perspective::IS_SERVER)) {
-    stream_ = new TestQuicSpdyServerStream(
-        GetNthClientInitiatedBidirectionalStreamId(
-            session_.connection()->transport_version(), 0),
-        &session_, BIDIRECTIONAL);
+    stream_ =
+        new TestQuicSpdyServerStream(GetNthClientInitiatedBidirectionalStreamId(
+                                         session_.transport_version(), 0),
+                                     &session_, BIDIRECTIONAL);
     session_.ActivateStream(QuicWrapUnique(stream_));
     helper_.AdvanceTime(QuicTime::Delta::FromSeconds(1));
   }
@@ -59,7 +59,7 @@ TEST_F(QuicSpdyServerStreamBaseTest,
 
   EXPECT_CALL(session_, SendRstStream(_, QUIC_STREAM_NO_ERROR, _)).Times(0);
 
-  if (!VersionHasIetfQuicFrames(session_.connection()->transport_version())) {
+  if (!VersionHasIetfQuicFrames(session_.transport_version())) {
     EXPECT_CALL(session_, SendRstStream(_, QUIC_RST_ACKNOWLEDGEMENT, _))
         .Times(1);
   } else {
@@ -76,7 +76,7 @@ TEST_F(QuicSpdyServerStreamBaseTest,
   QuicRstStreamFrame rst_frame(kInvalidControlFrameId, stream_->id(),
                                QUIC_STREAM_CANCELLED, 1234);
   stream_->OnStreamReset(rst_frame);
-  if (VersionHasIetfQuicFrames(session_.connection()->transport_version())) {
+  if (VersionHasIetfQuicFrames(session_.transport_version())) {
     // Create and inject a STOP SENDING frame to complete the close
     // of the stream. This is only needed for version 99/IETF QUIC.
     QuicStopSendingFrame stop_sending(

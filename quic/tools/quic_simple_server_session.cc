@@ -75,8 +75,8 @@ void QuicSimpleServerSession::PromisePushResources(
     spdy::SpdyHeaderBlock headers = SynthesizePushRequestHeaders(
         request_url, resource, original_request_headers);
     highest_promised_stream_id_ +=
-        QuicUtils::StreamIdDelta(connection()->transport_version());
-    if (VersionHasIetfQuicFrames(connection()->transport_version()) &&
+        QuicUtils::StreamIdDelta(transport_version());
+    if (VersionHasIetfQuicFrames(transport_version()) &&
         highest_promised_stream_id_ > max_allowed_push_id()) {
       return;
     }
@@ -138,7 +138,7 @@ void QuicSimpleServerSession::HandleFrameOnNonexistentOutgoingStream(
   // connection shouldn't be closed.
   // Otherwise behave in the same way as base class.
   if (highest_promised_stream_id_ ==
-          QuicUtils::GetInvalidStreamId(connection()->transport_version()) ||
+          QuicUtils::GetInvalidStreamId(transport_version()) ||
       stream_id > highest_promised_stream_id_) {
     QuicSession::HandleFrameOnNonexistentOutgoingStream(stream_id);
   }
@@ -154,12 +154,12 @@ void QuicSimpleServerSession::HandleRstOnValidNonexistentStream(
     // Since PromisedStreamInfo are queued in sequence, the corresponding
     // index for it in promised_streams_ can be calculated.
     QuicStreamId next_stream_id = next_outgoing_unidirectional_stream_id();
-    if (VersionHasIetfQuicFrames(connection()->transport_version())) {
+    if (VersionHasIetfQuicFrames(transport_version())) {
       DCHECK(!QuicUtils::IsBidirectionalStreamId(frame.stream_id));
     }
     DCHECK_GE(frame.stream_id, next_stream_id);
     size_t index = (frame.stream_id - next_stream_id) /
-                   QuicUtils::StreamIdDelta(connection()->transport_version());
+                   QuicUtils::StreamIdDelta(transport_version());
     DCHECK_LE(index, promised_streams_.size());
     promised_streams_[index].is_cancelled = true;
     control_frame_manager().WriteOrBufferRstStream(frame.stream_id,

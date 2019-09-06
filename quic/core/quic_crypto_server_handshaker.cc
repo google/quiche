@@ -258,7 +258,7 @@ void QuicCryptoServerHandshaker::SendServerConfigUpdate(
   send_server_config_update_cb_ = cb.get();
 
   crypto_config_->BuildServerConfigUpdateMessage(
-      session()->connection()->transport_version(), chlo_hash_,
+      session()->transport_version(), chlo_hash_,
       previous_source_address_tokens_, session()->connection()->self_address(),
       GetClientAddress().host(), session()->connection()->clock(),
       session()->connection()->random_generator(), compressed_certs_cache_,

@@ -1527,11 +1527,11 @@ TEST_P(QuicSpdyStreamTest, SetPriorityBeforeUpdateStreamPriority) {
       SupportedVersions(GetParam()));
   std::unique_ptr<TestMockUpdateStreamSession> session(
       new StrictMock<TestMockUpdateStreamSession>(connection));
-  auto stream = new StrictMock<TestStream>(
-      GetNthClientInitiatedBidirectionalStreamId(
-          session->connection()->transport_version(), 0),
-      session.get(),
-      /*should_process_data=*/true);
+  auto stream =
+      new StrictMock<TestStream>(GetNthClientInitiatedBidirectionalStreamId(
+                                     session->transport_version(), 0),
+                                 session.get(),
+                                 /*should_process_data=*/true);
   session->ActivateStream(QuicWrapUnique(stream));
 
   // QuicSpdyStream::SetPriority() should eventually call UpdateStreamPriority()

@@ -280,8 +280,8 @@ TEST_F(QuicCryptoClientStreamTest, ServerConfigUpdateWithCert) {
   // Note: relies on the callback being invoked synchronously
   bool ok = false;
   crypto_config.BuildServerConfigUpdateMessage(
-      session_->connection()->transport_version(), stream()->chlo_hash(),
-      tokens, QuicSocketAddress(QuicIpAddress::Loopback6(), 1234),
+      session_->transport_version(), stream()->chlo_hash(), tokens,
+      QuicSocketAddress(QuicIpAddress::Loopback6(), 1234),
       QuicIpAddress::Loopback6(), connection_->clock(),
       QuicRandom::GetInstance(), &cache, stream()->crypto_negotiated_params(),
       &network_params,

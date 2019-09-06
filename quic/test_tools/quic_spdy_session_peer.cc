@@ -14,16 +14,16 @@ namespace test {
 // static
 QuicHeadersStream* QuicSpdySessionPeer::GetHeadersStream(
     QuicSpdySession* session) {
-  DCHECK(!VersionUsesQpack(session->connection()->transport_version()));
+  DCHECK(!VersionUsesQpack(session->transport_version()));
   return session->headers_stream();
 }
 
 void QuicSpdySessionPeer::SetHeadersStream(QuicSpdySession* session,
                                            QuicHeadersStream* headers_stream) {
-  DCHECK(!VersionUsesQpack(session->connection()->transport_version()));
+  DCHECK(!VersionUsesQpack(session->transport_version()));
   for (auto& it : session->stream_map()) {
-    if (it.first == QuicUtils::GetHeadersStreamId(
-                        session->connection()->transport_version())) {
+    if (it.first ==
+        QuicUtils::GetHeadersStreamId(session->transport_version())) {
       it.second.reset(headers_stream);
       session->headers_stream_ = static_cast<QuicHeadersStream*>(it.second.get());
       break;

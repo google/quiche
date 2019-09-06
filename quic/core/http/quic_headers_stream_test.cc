@@ -202,7 +202,7 @@ class QuicHeadersStreamTest : public QuicTestWithParam<TestParams> {
     deframer_ = std::unique_ptr<http2::Http2DecoderAdapter>(
         new http2::Http2DecoderAdapter());
     deframer_->set_visitor(&visitor_);
-    EXPECT_EQ(transport_version(), session_.connection()->transport_version());
+    EXPECT_EQ(transport_version(), session_.transport_version());
     EXPECT_TRUE(headers_stream_ != nullptr);
     connection_->AdvanceTime(QuicTime::Delta::FromMilliseconds(1));
     client_id_1_ = GetNthClientInitiatedBidirectionalStreamId(

@@ -27,7 +27,7 @@ QuicStreamId QuicSessionPeer::GetNextOutgoingUnidirectionalStreamId(
 // static
 void QuicSessionPeer::SetNextOutgoingBidirectionalStreamId(QuicSession* session,
                                                            QuicStreamId id) {
-  if (VersionHasIetfQuicFrames(session->connection()->transport_version())) {
+  if (VersionHasIetfQuicFrames(session->transport_version())) {
     session->v99_streamid_manager_.bidirectional_stream_id_manager_
         .next_outgoing_stream_id_ = id;
     return;
@@ -38,7 +38,7 @@ void QuicSessionPeer::SetNextOutgoingBidirectionalStreamId(QuicSession* session,
 // static
 void QuicSessionPeer::SetMaxOpenIncomingStreams(QuicSession* session,
                                                 uint32_t max_streams) {
-  if (VersionHasIetfQuicFrames(session->connection()->transport_version())) {
+  if (VersionHasIetfQuicFrames(session->transport_version())) {
     QUIC_BUG << "SetmaxOpenIncomingStreams deprecated for IETF QUIC";
     session->v99_streamid_manager_.SetMaxOpenIncomingUnidirectionalStreams(
         max_streams);
@@ -53,7 +53,7 @@ void QuicSessionPeer::SetMaxOpenIncomingStreams(QuicSession* session,
 void QuicSessionPeer::SetMaxOpenIncomingBidirectionalStreams(
     QuicSession* session,
     uint32_t max_streams) {
-  DCHECK(VersionHasIetfQuicFrames(session->connection()->transport_version()))
+  DCHECK(VersionHasIetfQuicFrames(session->transport_version()))
       << "SetmaxOpenIncomingBidirectionalStreams not supported for Google "
          "QUIC";
   session->v99_streamid_manager_.SetMaxOpenIncomingBidirectionalStreams(
@@ -63,7 +63,7 @@ void QuicSessionPeer::SetMaxOpenIncomingBidirectionalStreams(
 void QuicSessionPeer::SetMaxOpenIncomingUnidirectionalStreams(
     QuicSession* session,
     uint32_t max_streams) {
-  DCHECK(VersionHasIetfQuicFrames(session->connection()->transport_version()))
+  DCHECK(VersionHasIetfQuicFrames(session->transport_version()))
       << "SetmaxOpenIncomingUnidirectionalStreams not supported for Google "
          "QUIC";
   session->v99_streamid_manager_.SetMaxOpenIncomingUnidirectionalStreams(
@@ -73,7 +73,7 @@ void QuicSessionPeer::SetMaxOpenIncomingUnidirectionalStreams(
 // static
 void QuicSessionPeer::SetMaxOpenOutgoingStreams(QuicSession* session,
                                                 uint32_t max_streams) {
-  if (VersionHasIetfQuicFrames(session->connection()->transport_version())) {
+  if (VersionHasIetfQuicFrames(session->transport_version())) {
     QUIC_BUG << "SetmaxOpenOutgoingStreams deprecated for IETF QUIC";
     session->v99_streamid_manager_.SetMaxOpenOutgoingUnidirectionalStreams(
         max_streams);
@@ -88,7 +88,7 @@ void QuicSessionPeer::SetMaxOpenOutgoingStreams(QuicSession* session,
 void QuicSessionPeer::SetMaxOpenOutgoingBidirectionalStreams(
     QuicSession* session,
     uint32_t max_streams) {
-  DCHECK(VersionHasIetfQuicFrames(session->connection()->transport_version()))
+  DCHECK(VersionHasIetfQuicFrames(session->transport_version()))
       << "SetmaxOpenOutgoingBidirectionalStreams not supported for Google "
          "QUIC";
   session->v99_streamid_manager_.SetMaxOpenOutgoingBidirectionalStreams(
@@ -98,7 +98,7 @@ void QuicSessionPeer::SetMaxOpenOutgoingBidirectionalStreams(
 void QuicSessionPeer::SetMaxOpenOutgoingUnidirectionalStreams(
     QuicSession* session,
     uint32_t max_streams) {
-  DCHECK(VersionHasIetfQuicFrames(session->connection()->transport_version()))
+  DCHECK(VersionHasIetfQuicFrames(session->transport_version()))
       << "SetmaxOpenOutgoingUnidirectionalStreams not supported for Google "
          "QUIC";
   session->v99_streamid_manager_.SetMaxOpenOutgoingUnidirectionalStreams(
@@ -176,10 +176,8 @@ bool QuicSessionPeer::IsStreamCreated(QuicSession* session, QuicStreamId id) {
 
 // static
 bool QuicSessionPeer::IsStreamAvailable(QuicSession* session, QuicStreamId id) {
-  if (VersionHasIetfQuicFrames(session->connection()->transport_version())) {
-    if (id % QuicUtils::StreamIdDelta(
-                 session->connection()->transport_version()) <
-        2) {
+  if (VersionHasIetfQuicFrames(session->transport_version())) {
+    if (id % QuicUtils::StreamIdDelta(session->transport_version()) < 2) {
       return QuicContainsKey(
           session->v99_streamid_manager_.bidirectional_stream_id_manager_
               .available_streams_,

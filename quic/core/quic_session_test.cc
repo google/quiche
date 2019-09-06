@@ -69,8 +69,8 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
         kInitialStreamFlowControlWindowForTest);
     session()->config()->SetInitialSessionFlowControlWindowToSend(
         kInitialSessionFlowControlWindowForTest);
-    session()->config()->ToHandshakeMessage(
-        &msg, session()->connection()->transport_version());
+    session()->config()->ToHandshakeMessage(&msg,
+                                            session()->transport_version());
     const QuicErrorCode error =
         session()->config()->ProcessPeerHello(msg, CLIENT, &error_details);
     EXPECT_EQ(QUIC_NO_ERROR, error);
@@ -362,7 +362,7 @@ class QuicSessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
   }
 
   void CloseStream(QuicStreamId id) {
-    if (VersionHasIetfQuicFrames(session_.connection()->transport_version()) &&
+    if (VersionHasIetfQuicFrames(session_.transport_version()) &&
         QuicUtils::GetStreamType(id, session_.perspective(),
                                  session_.IsIncomingStream(id)) ==
             READ_UNIDIRECTIONAL) {
@@ -371,8 +371,7 @@ class QuicSessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
       EXPECT_CALL(*connection_, OnStreamReset(_, _)).Times(0);
     } else {
       // Verify reset IS sent for BIDIRECTIONAL streams.
-      if (VersionHasIetfQuicFrames(
-              session_.connection()->transport_version())) {
+      if (VersionHasIetfQuicFrames(session_.transport_version())) {
         // Once for the RST_STREAM, Once for the STOP_SENDING
         EXPECT_CALL(*connection_, SendControlFrame(_))
             .Times(2)

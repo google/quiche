@@ -328,7 +328,7 @@ Perspective QuicStreamIdManager::peer_perspective() const {
 }
 
 QuicTransportVersion QuicStreamIdManager::transport_version() const {
-  return session_->connection()->transport_version();
+  return session_->transport_version();
 }
 
 size_t QuicStreamIdManager::available_incoming_streams() {

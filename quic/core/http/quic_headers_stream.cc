@@ -27,8 +27,7 @@ QuicHeadersStream::CompressedHeaderInfo::CompressedHeaderInfo(
 QuicHeadersStream::CompressedHeaderInfo::~CompressedHeaderInfo() {}
 
 QuicHeadersStream::QuicHeadersStream(QuicSpdySession* session)
-    : QuicStream(QuicUtils::GetHeadersStreamId(
-                     session->connection()->transport_version()),
+    : QuicStream(QuicUtils::GetHeadersStreamId(session->transport_version()),
                  session,
                  /*is_static=*/true,
                  BIDIRECTIONAL),
