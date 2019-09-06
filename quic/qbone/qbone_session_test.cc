@@ -354,7 +354,7 @@ class QboneSessionTest : public QuicTest {
 
   // Test handshake establishment and sending/receiving of data for two
   // directions.
-  void TestStreamConnection() {
+  void TestStreamConnection(bool use_messages) {
     ASSERT_TRUE(server_peer_->IsCryptoHandshakeConfirmed());
     ASSERT_TRUE(client_peer_->IsCryptoHandshakeConfirmed());
     ASSERT_TRUE(server_peer_->IsEncryptionEstablished());
@@ -406,10 +406,19 @@ class QboneSessionTest : public QuicTest {
     EXPECT_THAT(server_writer_->data(), Contains(TestPacketOut(long_data)));
     EXPECT_THAT(client_peer_->GetNumSentClientHellos(), Eq(2));
     EXPECT_THAT(client_peer_->GetNumReceivedServerConfigUpdates(), Eq(0));
-    EXPECT_THAT(client_peer_->GetNumEphemeralPackets(), Eq(2));
     EXPECT_THAT(client_peer_->GetNumStreamedPackets(), Eq(1));
-    EXPECT_THAT(server_peer_->GetNumEphemeralPackets(), Eq(2));
     EXPECT_THAT(server_peer_->GetNumStreamedPackets(), Eq(1));
+    if (use_messages) {
+      EXPECT_THAT(client_peer_->GetNumEphemeralPackets(), Eq(0));
+      EXPECT_THAT(server_peer_->GetNumEphemeralPackets(), Eq(0));
+      EXPECT_THAT(client_peer_->GetNumMessagePackets(), Eq(2));
+      EXPECT_THAT(server_peer_->GetNumMessagePackets(), Eq(2));
+    } else {
+      EXPECT_THAT(client_peer_->GetNumEphemeralPackets(), Eq(2));
+      EXPECT_THAT(server_peer_->GetNumEphemeralPackets(), Eq(2));
+      EXPECT_THAT(client_peer_->GetNumMessagePackets(), Eq(0));
+      EXPECT_THAT(server_peer_->GetNumMessagePackets(), Eq(0));
+    }
 
     // All streams are ephemeral and should be gone.
     EXPECT_EQ(0u, server_peer_->GetNumActiveStreams());
@@ -449,8 +458,18 @@ class QboneSessionTest : public QuicTest {
 
 TEST_F(QboneSessionTest, StreamConnection) {
   CreateClientAndServerSessions();
+  client_peer_->set_send_packets_as_messages(false);
+  server_peer_->set_send_packets_as_messages(false);
   StartHandshake();
-  TestStreamConnection();
+  TestStreamConnection(false);
+}
+
+TEST_F(QboneSessionTest, Messages) {
+  CreateClientAndServerSessions();
+  client_peer_->set_send_packets_as_messages(true);
+  server_peer_->set_send_packets_as_messages(true);
+  StartHandshake();
+  TestStreamConnection(true);
 }
 
 TEST_F(QboneSessionTest, ClientRejection) {
@@ -481,9 +500,9 @@ TEST_F(QboneSessionTest, ServerRejection) {
 TEST_F(QboneSessionTest, CannotCreateDataStreamBeforeHandshake) {
   CreateClientAndServerSessions();
   EXPECT_QUIC_BUG(client_peer_->ProcessPacketFromNetwork(TestPacketIn("hello")),
-                  "Failed to create an outgoing QBONE stream");
+                  "Attempting to send packet before encryption established");
   EXPECT_QUIC_BUG(server_peer_->ProcessPacketFromNetwork(TestPacketIn("hello")),
-                  "Failed to create an outgoing QBONE stream");
+                  "Attempting to send packet before encryption established");
   EXPECT_EQ(0u, server_peer_->GetNumActiveStreams());
   EXPECT_EQ(0u, client_peer_->GetNumActiveStreams());
 }
