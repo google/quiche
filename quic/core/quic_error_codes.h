@@ -340,10 +340,12 @@ enum QuicErrorCode {
   // No error. Used as bound while iterating.
   QUIC_LAST_ERROR = 125,
 };
-// QuicErrorCodes is encoded as a single octet on-the-wire.
-static_assert(static_cast<int>(QUIC_LAST_ERROR) <=
-                  std::numeric_limits<uint8_t>::max(),
-              "QuicErrorCode exceeds single octet");
+// QuicErrorCodes is encoded as four octets on-the-wire when doing Google QUIC,
+// or a varint62 when doing IETF QUIC. Ensure that its value does not exceed
+// the smaller of the two limits.
+static_assert(static_cast<uint64_t>(QUIC_LAST_ERROR) <=
+                  static_cast<uint64_t>(std::numeric_limits<uint32_t>::max()),
+              "QuicErrorCode exceeds four octets");
 
 // Returns the name of the QuicRstStreamErrorCode as a char*
 QUIC_EXPORT_PRIVATE const char* QuicRstStreamErrorCodeToString(

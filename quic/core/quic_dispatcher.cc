@@ -136,7 +136,21 @@ class StatelessConnectionTerminator {
     QuicConnectionCloseFrame* frame =
         new QuicConnectionCloseFrame(error_code, error_details);
     if (VersionHasIetfQuicFrames(framer_.transport_version())) {
-      frame->close_type = IETF_QUIC_TRANSPORT_CONNECTION_CLOSE;
+      QuicErrorCodeToIetfMapping mapping =
+          QuicErrorCodeToTransportErrorCode(error_code);
+      if (mapping.is_transport_close_) {
+        // Maps to a transport close
+        frame->close_type = IETF_QUIC_TRANSPORT_CONNECTION_CLOSE;
+        frame->transport_error_code = mapping.transport_error_code_;
+        // If closing the connection in the stateless terminator then there is
+        // no frame that is being processed.
+        frame->transport_close_frame_type = 0;
+      } else {
+        // Maps to an application close.
+        frame->close_type = IETF_QUIC_APPLICATION_CONNECTION_CLOSE;
+        frame->application_error_code = mapping.application_error_code_;
+      }
+      frame->extracted_error_code = error_code;
     }
 
     if (!creator_.AddSavedFrame(QuicFrame(frame), NOT_RETRANSMISSION)) {

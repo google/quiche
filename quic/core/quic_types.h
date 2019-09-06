@@ -508,8 +508,7 @@ struct LostPacket {
 // A vector of lost packets.
 typedef std::vector<LostPacket> LostPacketVector;
 
-// TODO(fkastenholz): Change this to uint64_t to reflect -22 of the ID.
-enum QuicIetfTransportErrorCodes : uint16_t {
+enum QuicIetfTransportErrorCodes : uint64_t {
   NO_IETF_QUIC_ERROR = 0x0,
   INTERNAL_ERROR = 0x1,
   SERVER_BUSY_ERROR = 0x2,

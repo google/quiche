@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "net/third_party/quiche/src/quic/core/quic_constants.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
 
 namespace quic {
@@ -34,7 +35,9 @@ QuicConnectionCloseFrame::QuicConnectionCloseFrame(
       application_error_code(ietf_application_error_code),
       extracted_error_code(quic_error_code),
       error_details(std::move(error_details)),
-      transport_close_frame_type(0) {}
+      transport_close_frame_type(0) {
+  DCHECK_LE(ietf_application_error_code, kMaxIetfVarInt);
+}
 
 QuicConnectionCloseFrame::QuicConnectionCloseFrame(
     QuicErrorCode quic_error_code,
@@ -45,7 +48,9 @@ QuicConnectionCloseFrame::QuicConnectionCloseFrame(
       transport_error_code(transport_error_code),
       extracted_error_code(quic_error_code),
       error_details(std::move(error_details)),
-      transport_close_frame_type(transport_frame_type) {}
+      transport_close_frame_type(transport_frame_type) {
+  DCHECK_LE(transport_error_code, kMaxIetfVarInt);
+}
 
 std::ostream& operator<<(
     std::ostream& os,

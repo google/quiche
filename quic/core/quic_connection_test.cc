@@ -8697,10 +8697,26 @@ TEST_P(QuicConnectionTest, CheckConnectedBeforeFlush) {
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   EXPECT_CALL(visitor_, OnConnectionClosed(_, _));
   EXPECT_EQ(Perspective::IS_CLIENT, connection_.perspective());
+  const QuicErrorCode kErrorCode = QUIC_INTERNAL_ERROR;
   std::unique_ptr<QuicConnectionCloseFrame> connection_close_frame(
-      new QuicConnectionCloseFrame(QUIC_INTERNAL_ERROR, ""));
+      new QuicConnectionCloseFrame(kErrorCode, ""));
   if (VersionHasIetfQuicFrames(connection_.transport_version())) {
-    connection_close_frame->close_type = IETF_QUIC_TRANSPORT_CONNECTION_CLOSE;
+    QuicErrorCodeToIetfMapping mapping =
+        QuicErrorCodeToTransportErrorCode(kErrorCode);
+    if (mapping.is_transport_close_) {
+      // Maps to a transport close
+      connection_close_frame->close_type = IETF_QUIC_TRANSPORT_CONNECTION_CLOSE;
+      connection_close_frame->transport_error_code =
+          mapping.transport_error_code_;
+      connection_close_frame->transport_close_frame_type = 0;
+    } else {
+      // Maps to an application close.
+      connection_close_frame->close_type =
+          IETF_QUIC_APPLICATION_CONNECTION_CLOSE;
+      connection_close_frame->application_error_code =
+          mapping.application_error_code_;
+    }
+    connection_close_frame->extracted_error_code = kErrorCode;
   }
   // Received 2 packets.
   QuicFrame frame;

@@ -49,8 +49,7 @@ struct QUIC_EXPORT_PRIVATE QuicConnectionCloseFrame {
   // - A 16 bit QuicErrorCode, which is used in Google QUIC.
   union {
     QuicIetfTransportErrorCodes transport_error_code;
-    // TODO(fkastenholz): Change this to uint64_t to reflect -22 of the ID.
-    uint16_t application_error_code;
+    uint64_t application_error_code;
     QuicErrorCode quic_error_code;
   };
 

@@ -4473,7 +4473,7 @@ TEST_P(QuicFramerTest, ApplicationCloseFrame) {
   EXPECT_EQ(IETF_QUIC_APPLICATION_CONNECTION_CLOSE,
             visitor_.connection_close_frame_.close_type);
   EXPECT_EQ(122u, visitor_.connection_close_frame_.extracted_error_code);
-  EXPECT_EQ(0x11, visitor_.connection_close_frame_.quic_error_code);
+  EXPECT_EQ(0x11u, visitor_.connection_close_frame_.quic_error_code);
   EXPECT_EQ("because I can", visitor_.connection_close_frame_.error_details);
 
   ASSERT_EQ(0u, visitor_.ack_frames_.size());
@@ -4628,7 +4628,7 @@ TEST_P(QuicFramerTest, GoAwayFrame) {
       PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
 
   EXPECT_EQ(kStreamId, visitor_.goaway_frame_.last_good_stream_id);
-  EXPECT_EQ(0x9, visitor_.goaway_frame_.error_code);
+  EXPECT_EQ(0x9u, visitor_.goaway_frame_.error_code);
   EXPECT_EQ("because I can", visitor_.goaway_frame_.reason_phrase);
 
   CheckFramingBoundaries(fragments, QUIC_INVALID_GOAWAY_DATA);
