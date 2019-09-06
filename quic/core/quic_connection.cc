@@ -2858,21 +2858,9 @@ void QuicConnection::SendConnectionClosePacket(QuicErrorCode error,
     SendAck();
   }
   QuicConnectionCloseFrame* frame;
-  if (VersionHasIetfQuicFrames(transport_version())) {
-    QuicErrorCodeToIetfMapping mapping =
-        QuicErrorCodeToTransportErrorCode(error);
-    if (mapping.is_transport_close_) {
-      frame = new QuicConnectionCloseFrame(
-          error, details, mapping.transport_error_code_,
-          framer_.current_received_frame_type());
-    } else {
-      // Maps to an application close.
-      frame = new QuicConnectionCloseFrame(error, details,
-                                           mapping.application_error_code_);
-    }
-  } else {
-    frame = new QuicConnectionCloseFrame(error, details);
-  }
+
+  frame = new QuicConnectionCloseFrame(transport_version(), error, details,
+                                       framer_.current_received_frame_type());
   packet_generator_.ConsumeRetransmittableControlFrame(QuicFrame(frame));
   packet_generator_.FlushAllQueuedFrames();
   if (GetQuicReloadableFlag(quic_clear_queued_packets_on_connection_close)) {

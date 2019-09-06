@@ -1291,24 +1291,10 @@ TEST_F(QuicPacketGeneratorTest, ConnectionCloseFrameLargerThanPacketSize) {
   char buf[2000] = {};
   QuicStringPiece error_details(buf, 2000);
   const QuicErrorCode kQuicErrorCode = QUIC_PACKET_WRITE_ERROR;
-  QuicConnectionCloseFrame* frame =
-      new QuicConnectionCloseFrame(kQuicErrorCode, std::string(error_details));
-  if (VersionHasIetfQuicFrames(framer_.transport_version())) {
-    QuicErrorCodeToIetfMapping mapping =
-        QuicErrorCodeToTransportErrorCode(kQuicErrorCode);
-    if (mapping.is_transport_close_) {
-      // Maps to a transport close
-      frame->close_type = IETF_QUIC_TRANSPORT_CONNECTION_CLOSE;
-      frame->transport_error_code = mapping.transport_error_code_;
-      // Frame type is not important for the tests that invoke this method.
-      frame->transport_close_frame_type = 0;
-    } else {
-      // Maps to an application close.
-      frame->close_type = IETF_QUIC_APPLICATION_CONNECTION_CLOSE;
-      frame->application_error_code = mapping.application_error_code_;
-    }
-    frame->extracted_error_code = kQuicErrorCode;
-  }
+
+  QuicConnectionCloseFrame* frame = new QuicConnectionCloseFrame(
+      framer_.transport_version(), kQuicErrorCode, std::string(error_details),
+      /*transport_close_frame_type=*/0);
   generator_.ConsumeRetransmittableControlFrame(QuicFrame(frame),
                                                 /*bundle_ack=*/false);
   EXPECT_TRUE(generator_.HasPendingFrames());

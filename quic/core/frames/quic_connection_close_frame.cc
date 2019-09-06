@@ -52,6 +52,33 @@ QuicConnectionCloseFrame::QuicConnectionCloseFrame(
   DCHECK_LE(transport_error_code, kMaxIetfVarInt);
 }
 
+QuicConnectionCloseFrame::QuicConnectionCloseFrame(
+    QuicTransportVersion transport_version,
+    QuicErrorCode error_code,
+    std::string error_phrase,
+    uint64_t frame_type)
+    : extracted_error_code(error_code), error_details(error_phrase) {
+  if (!VersionHasIetfQuicFrames(transport_version)) {
+    close_type = GOOGLE_QUIC_CONNECTION_CLOSE;
+    quic_error_code = error_code;
+    transport_close_frame_type = 0;
+    return;
+  }
+  QuicErrorCodeToIetfMapping mapping =
+      QuicErrorCodeToTransportErrorCode(error_code);
+  if (mapping.is_transport_close_) {
+    // Maps to a transport close
+    close_type = IETF_QUIC_TRANSPORT_CONNECTION_CLOSE;
+    transport_error_code = mapping.transport_error_code_;
+    transport_close_frame_type = frame_type;
+    return;
+  }
+  // Maps to an application close.
+  close_type = IETF_QUIC_APPLICATION_CONNECTION_CLOSE;
+  application_error_code = mapping.application_error_code_;
+  transport_close_frame_type = 0;
+}
+
 std::ostream& operator<<(
     std::ostream& os,
     const QuicConnectionCloseFrame& connection_close_frame) {

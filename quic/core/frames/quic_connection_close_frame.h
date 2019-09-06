@@ -10,12 +10,22 @@
 
 #include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
+#include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 
 namespace quic {
 
 struct QUIC_EXPORT_PRIVATE QuicConnectionCloseFrame {
   QuicConnectionCloseFrame();
+
+  // Builds a connection close frame based on the transport version
+  // and the mapping of error_code. THIS IS THE PREFERRED C'TOR
+  // TO USE IF YOU NEED TO CREATE A CONNECTION-CLOSE-FRAME AND
+  // HAVE IT BE CORRECT FOR THE VERSION AND CODE MAPPINGS.
+  QuicConnectionCloseFrame(QuicTransportVersion transport_version,
+                           QuicErrorCode error_code,
+                           std::string error_phrase,
+                           uint64_t transport_close_frame_type);
 
   // TODO(fkastenholz): After migration to supporting IETF QUIC, this probably
   // should be deprecated.

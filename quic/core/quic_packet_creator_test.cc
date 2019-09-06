@@ -576,10 +576,9 @@ TEST_P(QuicPacketCreatorTest, ReserializeFramesWithFullPacketAndPadding) {
 }
 
 TEST_P(QuicPacketCreatorTest, SerializeConnectionClose) {
-  QuicConnectionCloseFrame frame(QUIC_NO_ERROR, "error");
-  if (VersionHasIetfQuicFrames(GetParam().version.transport_version)) {
-    frame.close_type = IETF_QUIC_TRANSPORT_CONNECTION_CLOSE;
-  }
+  QuicConnectionCloseFrame frame(GetParam().version.transport_version,
+                                 QUIC_NO_ERROR, "error",
+                                 /*transport_close_frame_type=*/0);
 
   QuicFrames frames;
   frames.push_back(QuicFrame(&frame));

@@ -1457,27 +1457,9 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     header.packet_number = QuicPacketNumber(number);
 
     QuicErrorCode kQuicErrorCode = QUIC_PEER_GOING_AWAY;
-    // This QuicConnectionCloseFrame will default to being for a Google QUIC
-    // close. If doing IETF QUIC then set fields appropriately for CC/T or CC/A,
-    // depending on the mapping.
-    QuicConnectionCloseFrame qccf(kQuicErrorCode, "");
-    if (VersionHasIetfQuicFrames(peer_framer_.transport_version())) {
-      QuicErrorCodeToIetfMapping mapping =
-          QuicErrorCodeToTransportErrorCode(kQuicErrorCode);
-      if (mapping.is_transport_close_) {
-        // Maps to a transport close
-        qccf.close_type = IETF_QUIC_TRANSPORT_CONNECTION_CLOSE;
-        qccf.transport_error_code = mapping.transport_error_code_;
-        // Frame type is not important for the tests that invoke this method.
-        qccf.transport_close_frame_type = 0;
-      } else {
-        // Maps to an application close.
-        qccf.close_type = IETF_QUIC_APPLICATION_CONNECTION_CLOSE;
-        qccf.application_error_code = mapping.application_error_code_;
-      }
-      qccf.extracted_error_code = kQuicErrorCode;
-    }
-
+    QuicConnectionCloseFrame qccf(peer_framer_.transport_version(),
+                                  kQuicErrorCode, "",
+                                  /*transport_close_frame_type=*/0);
     QuicFrames frames;
     frames.push_back(QuicFrame(&qccf));
     return ConstructPacket(header, frames);
@@ -7020,25 +7002,9 @@ TEST_P(QuicConnectionTest, ProcessFramesIfPacketClosedConnection) {
   // This QuicConnectionCloseFrame will default to being for a Google QUIC
   // close. If doing IETF QUIC then set fields appropriately for CC/T or CC/A,
   // depending on the mapping.
-  QuicConnectionCloseFrame qccf(kQuicErrorCode, "");
-  if (VersionHasIetfQuicFrames(peer_framer_.transport_version())) {
-    QuicErrorCodeToIetfMapping mapping =
-        QuicErrorCodeToTransportErrorCode(kQuicErrorCode);
-    if (mapping.is_transport_close_) {
-      // Maps to a transport close
-      qccf.close_type = IETF_QUIC_TRANSPORT_CONNECTION_CLOSE;
-      qccf.transport_error_code = mapping.transport_error_code_;
-      // TODO(fkastenholz) need to change "0" to get the frame type currently
-      // being processed so that it can be inserted into the frame.
-      qccf.transport_close_frame_type = 0;
-    } else {
-      // Maps to an application close.
-      qccf.close_type = IETF_QUIC_APPLICATION_CONNECTION_CLOSE;
-      qccf.application_error_code = mapping.application_error_code_;
-    }
-    //    qccf.extracted_error_code = kQuicErrorCode;
-  }
-
+  QuicConnectionCloseFrame qccf(peer_framer_.transport_version(),
+                                kQuicErrorCode, "",
+                                /*transport_close_frame_type=*/0);
   QuicFrames frames;
   frames.push_back(QuicFrame(frame1_));
   frames.push_back(QuicFrame(&qccf));
@@ -8699,25 +8665,10 @@ TEST_P(QuicConnectionTest, CheckConnectedBeforeFlush) {
   EXPECT_EQ(Perspective::IS_CLIENT, connection_.perspective());
   const QuicErrorCode kErrorCode = QUIC_INTERNAL_ERROR;
   std::unique_ptr<QuicConnectionCloseFrame> connection_close_frame(
-      new QuicConnectionCloseFrame(kErrorCode, ""));
-  if (VersionHasIetfQuicFrames(connection_.transport_version())) {
-    QuicErrorCodeToIetfMapping mapping =
-        QuicErrorCodeToTransportErrorCode(kErrorCode);
-    if (mapping.is_transport_close_) {
-      // Maps to a transport close
-      connection_close_frame->close_type = IETF_QUIC_TRANSPORT_CONNECTION_CLOSE;
-      connection_close_frame->transport_error_code =
-          mapping.transport_error_code_;
-      connection_close_frame->transport_close_frame_type = 0;
-    } else {
-      // Maps to an application close.
-      connection_close_frame->close_type =
-          IETF_QUIC_APPLICATION_CONNECTION_CLOSE;
-      connection_close_frame->application_error_code =
-          mapping.application_error_code_;
-    }
-    connection_close_frame->extracted_error_code = kErrorCode;
-  }
+      new QuicConnectionCloseFrame(connection_.transport_version(), kErrorCode,
+                                   "",
+                                   /*transport_close_frame_type=*/0));
+
   // Received 2 packets.
   QuicFrame frame;
   if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
