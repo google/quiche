@@ -547,12 +547,6 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
   // ProcessPendingStream().
   virtual bool UsesPendingStreams() const { return false; }
 
-  // Transfer ownership of |stream| to stream_map_, and register
-  // |stream| as static in stream id manager. |stream_already_counted| is true
-  // if |stream| is created from pending stream and is already known as an open
-  // stream.
-  void RegisterStaticStream(std::unique_ptr<QuicStream> stream);
-
   StreamMap& stream_map() { return stream_map_; }
   const StreamMap& stream_map() const { return stream_map_; }
 
@@ -581,7 +575,7 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
   // Returns true if the stream is a static stream.
   bool IsStaticStream(QuicStreamId id) const;
 
-  // Close connection when receive a frame for a locally-created nonexistant
+  // Close connection when receive a frame for a locally-created nonexistent
   // stream.
   // Prerequisite: IsClosedStream(stream_id) == false
   // Server session might need to override this method to allow server push

@@ -122,24 +122,6 @@ QuicSession::~QuicSession() {
   QUIC_LOG_IF(WARNING, !zombie_streams_.empty()) << "Still have zombie streams";
 }
 
-void QuicSession::RegisterStaticStream(std::unique_ptr<QuicStream> stream) {
-  DCHECK(stream->is_static());
-  QuicStreamId stream_id = stream->id();
-  stream_map_[stream_id] = std::move(stream);
-  if (IsIncomingStream(stream_id)) {
-    ++num_incoming_static_streams_;
-  } else {
-    ++num_outgoing_static_streams_;
-  }
-  if (VersionHasIetfQuicFrames(transport_version()) &&
-      !QuicUtils::IsBidirectionalStreamId(stream_id)) {
-    DCHECK_LE(num_incoming_static_streams_,
-              num_expected_unidirectional_static_streams_);
-    DCHECK_LE(num_outgoing_static_streams_,
-              num_expected_unidirectional_static_streams_);
-  }
-}
-
 void QuicSession::PendingStreamOnStreamFrame(const QuicStreamFrame& frame) {
   DCHECK(VersionHasStreamType(transport_version()));
   QuicStreamId stream_id = frame.stream_id;
@@ -1197,14 +1179,25 @@ QuicConfig* QuicSession::config() {
 }
 
 void QuicSession::ActivateStream(std::unique_ptr<QuicStream> stream) {
-  DCHECK(!stream->is_static());
   QuicStreamId stream_id = stream->id();
+  bool is_static = stream->is_static();
   QUIC_DVLOG(1) << ENDPOINT << "num_streams: " << stream_map_.size()
                 << ". activating " << stream_id;
   DCHECK(!QuicContainsKey(stream_map_, stream_id));
   stream_map_[stream_id] = std::move(stream);
   if (IsIncomingStream(stream_id)) {
-    ++num_dynamic_incoming_streams_;
+    is_static ? ++num_incoming_static_streams_
+              : ++num_dynamic_incoming_streams_;
+  } else if (is_static) {
+    ++num_outgoing_static_streams_;
+  }
+
+  if (VersionHasIetfQuicFrames(transport_version()) &&
+      !QuicUtils::IsBidirectionalStreamId(stream_id) && is_static) {
+    DCHECK_LE(num_incoming_static_streams_,
+              num_expected_unidirectional_static_streams_);
+    DCHECK_LE(num_outgoing_static_streams_,
+              num_expected_unidirectional_static_streams_);
   }
 }
 

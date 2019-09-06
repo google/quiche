@@ -63,8 +63,6 @@ class QuicSessionPeer {
       QuicSession* session);
   static void ActivateStream(QuicSession* session,
                              std::unique_ptr<QuicStream> stream);
-  static void RegisterStaticStream(QuicSession* session,
-                                      std::unique_ptr<QuicStream> stream);
 
   // Discern the state of a stream.  Exactly one of these should be true at a
   // time for any stream id > 0 (other than the special streams 1 and 3).

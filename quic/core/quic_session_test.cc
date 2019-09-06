@@ -1388,8 +1388,7 @@ TEST_P(QuicSessionTestServer, OnStreamFrameFinStaticStreamId) {
       QuicUtils::GetHeadersStreamId(connection_->transport_version());
   std::unique_ptr<TestStream> fake_headers_stream = QuicMakeUnique<TestStream>(
       headers_stream_id, &session_, /*is_static*/ true, BIDIRECTIONAL);
-  QuicSessionPeer::RegisterStaticStream(&session_,
-                                        std::move(fake_headers_stream));
+  QuicSessionPeer::ActivateStream(&session_, std::move(fake_headers_stream));
   // Send two bytes of payload.
   QuicStreamFrame data1(headers_stream_id, true, 0, QuicStringPiece("HT"));
   EXPECT_CALL(*connection_,
@@ -1407,8 +1406,7 @@ TEST_P(QuicSessionTestServer, OnRstStreamStaticStreamId) {
       QuicUtils::GetHeadersStreamId(connection_->transport_version());
   std::unique_ptr<TestStream> fake_headers_stream = QuicMakeUnique<TestStream>(
       headers_stream_id, &session_, /*is_static*/ true, BIDIRECTIONAL);
-  QuicSessionPeer::RegisterStaticStream(&session_,
-                                        std::move(fake_headers_stream));
+  QuicSessionPeer::ActivateStream(&session_, std::move(fake_headers_stream));
   // Send two bytes of payload.
   QuicRstStreamFrame rst1(kInvalidControlFrameId, headers_stream_id,
                           QUIC_ERROR_PROCESSING_STREAM, 0);
@@ -2616,8 +2614,7 @@ TEST_P(QuicSessionTestServer, OnStopSendingInputStaticStreams) {
   QuicStreamId stream_id = 0;
   std::unique_ptr<TestStream> fake_static_stream = QuicMakeUnique<TestStream>(
       stream_id, &session_, /*is_static*/ true, BIDIRECTIONAL);
-  QuicSessionPeer::RegisterStaticStream(&session_,
-                                        std::move(fake_static_stream));
+  QuicSessionPeer::ActivateStream(&session_, std::move(fake_static_stream));
   // Check that a stream id in the static stream map is ignored.
   // Note that the notion of a static stream is Google-specific.
   QuicStopSendingFrame frame(1, stream_id, 123);
