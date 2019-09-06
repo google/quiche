@@ -35,7 +35,9 @@ QuicUnackedPacketMap::QuicUnackedPacketMap(Perspective perspective)
       session_decides_what_to_write_(false),
       supports_multiple_packet_number_spaces_(false),
       simple_inflight_time_(GetQuicReloadableFlag(quic_simple_inflight_time)) {
-  QUIC_RELOADABLE_FLAG_COUNT(quic_simple_inflight_time);
+  if (simple_inflight_time_) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_simple_inflight_time);
+  }
 }
 
 QuicUnackedPacketMap::~QuicUnackedPacketMap() {
