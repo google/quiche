@@ -782,7 +782,7 @@ TEST_F(QuicIetfFramerTest, CryptoFrame) {
   }
 }
 
-TEST_F(QuicIetfFramerTest, ConnectionCloseEmptyString) {
+TEST_F(QuicIetfFramerTest, ConnectionClose) {
   char packet_buffer[kNormalPacketBufferSize];
 
   // initialize a writer so that the serialized packet is placed in
@@ -790,13 +790,11 @@ TEST_F(QuicIetfFramerTest, ConnectionCloseEmptyString) {
   QuicDataWriter writer(sizeof(packet_buffer), packet_buffer,
                         NETWORK_BYTE_ORDER);
 
-  // empty string,
   std::string test_string = "Ich Bin Ein Jelly Donut?";
-  QuicConnectionCloseFrame sent_frame;
-  sent_frame.quic_error_code = static_cast<QuicErrorCode>(0);
-  sent_frame.error_details = test_string;
-  sent_frame.transport_close_frame_type = 123;
-  sent_frame.close_type = IETF_QUIC_TRANSPORT_CONNECTION_CLOSE;
+  QuicConnectionCloseFrame sent_frame(QUIC_VERSION_99, QUIC_NO_ERROR,
+                                      test_string,
+                                      /*transport_close_frame_type=*/123);
+
   // write the frame to the packet buffer.
   EXPECT_TRUE(QuicFramerPeer::AppendIetfConnectionCloseFrame(
       &framer_, sent_frame, &writer));
@@ -815,13 +813,13 @@ TEST_F(QuicIetfFramerTest, ConnectionCloseEmptyString) {
 
   // Now check that received == sent
   EXPECT_EQ(sent_frame.quic_error_code, sink_frame.quic_error_code);
-  EXPECT_EQ(sink_frame.quic_error_code, static_cast<QuicErrorCode>(0));
+  EXPECT_EQ(sink_frame.quic_error_code, QUIC_NO_ERROR);
   EXPECT_EQ(sink_frame.error_details, test_string);
   EXPECT_EQ(sink_frame.close_type, sent_frame.close_type);
   EXPECT_EQ(sent_frame.close_type, IETF_QUIC_TRANSPORT_CONNECTION_CLOSE);
 }
 
-TEST_F(QuicIetfFramerTest, ApplicationCloseEmptyString) {
+TEST_F(QuicIetfFramerTest, ApplicationClose) {
   char packet_buffer[kNormalPacketBufferSize];
 
   // initialize a writer so that the serialized packet is placed in
@@ -829,12 +827,11 @@ TEST_F(QuicIetfFramerTest, ApplicationCloseEmptyString) {
   QuicDataWriter writer(sizeof(packet_buffer), packet_buffer,
                         NETWORK_BYTE_ORDER);
 
-  // empty string,
   std::string test_string = "Ich Bin Ein Jelly Donut?";
-  QuicConnectionCloseFrame sent_frame;
-  sent_frame.quic_error_code = static_cast<QuicErrorCode>(0);
-  sent_frame.error_details = test_string;
-  sent_frame.close_type = IETF_QUIC_APPLICATION_CONNECTION_CLOSE;
+  QuicConnectionCloseFrame sent_frame(QUIC_VERSION_99, QUIC_LAST_ERROR,
+                                      test_string,
+                                      /*transport_close_frame_type=*/0);
+
   // write the frame to the packet buffer.
   EXPECT_TRUE(QuicFramerPeer::AppendIetfConnectionCloseFrame(
       &framer_, sent_frame, &writer));
@@ -852,7 +849,7 @@ TEST_F(QuicIetfFramerTest, ApplicationCloseEmptyString) {
       &framer_, &reader, IETF_QUIC_APPLICATION_CONNECTION_CLOSE, &sink_frame));
 
   // Now check that received == sent
-  EXPECT_EQ(sink_frame.quic_error_code, static_cast<QuicErrorCode>(0));
+  EXPECT_EQ(sink_frame.quic_error_code, QUIC_LAST_ERROR);
   EXPECT_EQ(sent_frame.quic_error_code, sink_frame.quic_error_code);
   EXPECT_EQ(sink_frame.error_details, test_string);
   EXPECT_EQ(sent_frame.close_type, IETF_QUIC_APPLICATION_CONNECTION_CLOSE);
