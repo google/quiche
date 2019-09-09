@@ -31,7 +31,7 @@ class ChloExtractor {
   // if found will result in the session being created early, to
   // enable support for multi-packet CHLOs.
   static bool Extract(const QuicEncryptedPacket& packet,
-                      const ParsedQuicVersionVector& versions,
+                      ParsedQuicVersion version,
                       const QuicTagVector& create_session_tag_indicators,
                       Delegate* delegate,
                       uint8_t connection_id_length);

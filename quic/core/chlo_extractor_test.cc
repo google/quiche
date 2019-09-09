@@ -119,7 +119,6 @@ TEST_F(ChloExtractorTest, FindsValidChlo) {
   // Construct a CHLO with each supported version
   for (ParsedQuicVersion version : AllSupportedVersions()) {
     SCOPED_TRACE(version);
-    ParsedQuicVersionVector versions(SupportedVersions(version));
     header_.version = version;
     if (QuicVersionHasLongHeaderLengths(version.transport_version) &&
         header_.version_flag) {
@@ -131,7 +130,7 @@ TEST_F(ChloExtractorTest, FindsValidChlo) {
     }
     MakePacket(version, client_hello_str, /*munge_offset*/ false,
                /*munge_stream_id*/ false);
-    EXPECT_TRUE(ChloExtractor::Extract(*packet_, versions, {}, &delegate_,
+    EXPECT_TRUE(ChloExtractor::Extract(*packet_, version, {}, &delegate_,
                                        kQuicDefaultConnectionIdLength))
         << ParsedQuicVersionToString(version);
     EXPECT_EQ(version.transport_version, delegate_.transport_version());
@@ -152,20 +151,19 @@ TEST_F(ChloExtractorTest, DoesNotFindValidChloOnWrongStream) {
   std::string client_hello_str(client_hello.GetSerialized().AsStringPiece());
   MakePacket(version, client_hello_str,
              /*munge_offset*/ false, /*munge_stream_id*/ true);
-  EXPECT_FALSE(ChloExtractor::Extract(*packet_, AllSupportedVersions(), {},
-                                      &delegate_,
+  EXPECT_FALSE(ChloExtractor::Extract(*packet_, version, {}, &delegate_,
                                       kQuicDefaultConnectionIdLength));
 }
 
 TEST_F(ChloExtractorTest, DoesNotFindValidChloOnWrongOffset) {
+  ParsedQuicVersion version = AllSupportedVersions()[0];
   CryptoHandshakeMessage client_hello;
   client_hello.set_tag(kCHLO);
 
   std::string client_hello_str(client_hello.GetSerialized().AsStringPiece());
-  MakePacket(AllSupportedVersions()[0], client_hello_str, /*munge_offset*/ true,
+  MakePacket(version, client_hello_str, /*munge_offset*/ true,
              /*munge_stream_id*/ false);
-  EXPECT_FALSE(ChloExtractor::Extract(*packet_, AllSupportedVersions(), {},
-                                      &delegate_,
+  EXPECT_FALSE(ChloExtractor::Extract(*packet_, version, {}, &delegate_,
                                       kQuicDefaultConnectionIdLength));
 }
 
@@ -176,8 +174,7 @@ TEST_F(ChloExtractorTest, DoesNotFindInvalidChlo) {
   }
   MakePacket(version, "foo", /*munge_offset*/ false,
              /*munge_stream_id*/ true);
-  EXPECT_FALSE(ChloExtractor::Extract(*packet_, AllSupportedVersions(), {},
-                                      &delegate_,
+  EXPECT_FALSE(ChloExtractor::Extract(*packet_, version, {}, &delegate_,
                                       kQuicDefaultConnectionIdLength));
 }
 

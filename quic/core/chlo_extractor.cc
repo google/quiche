@@ -321,13 +321,12 @@ void ChloFramerVisitor::OnHandshakeMessage(
 
 // static
 bool ChloExtractor::Extract(const QuicEncryptedPacket& packet,
-                            const ParsedQuicVersionVector& versions,
+                            ParsedQuicVersion version,
                             const QuicTagVector& create_session_tag_indicators,
                             Delegate* delegate,
                             uint8_t connection_id_length) {
-  QUIC_DVLOG(1) << "Extracting CHLO using versions "
-                << ParsedQuicVersionVectorToString(versions);
-  QuicFramer framer(versions, QuicTime::Zero(), Perspective::IS_SERVER,
+  QUIC_DVLOG(1) << "Extracting CHLO using version " << version;
+  QuicFramer framer({version}, QuicTime::Zero(), Perspective::IS_SERVER,
                     connection_id_length);
   ChloFramerVisitor visitor(&framer, create_session_tag_indicators, delegate);
   framer.set_visitor(&visitor);

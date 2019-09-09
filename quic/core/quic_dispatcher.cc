@@ -451,20 +451,8 @@ void QuicDispatcher::ProcessHeader(ReceivedPacketInfo* packet_info) {
         ProcessChlo(/*alpn=*/"", packet_info);
         break;
       }
-      ParsedQuicVersionVector chlo_extractor_versions;
-      if (!GetQuicRestartFlag(
-              quic_dispatcher_hands_chlo_extractor_one_version)) {
-        chlo_extractor_versions = GetSupportedVersions();
-      } else {
-        QUIC_RESTART_FLAG_COUNT(
-            quic_dispatcher_hands_chlo_extractor_one_version);
-        chlo_extractor_versions = {packet_info->version};
-        // TODO(dschinazi) once we deprecate
-        // quic_dispatcher_hands_chlo_extractor_one_version, we should change
-        // ChloExtractor::Extract to only take one version.
-      }
       if (GetQuicFlag(FLAGS_quic_allow_chlo_buffering) &&
-          !ChloExtractor::Extract(packet_info->packet, chlo_extractor_versions,
+          !ChloExtractor::Extract(packet_info->packet, packet_info->version,
                                   config_->create_session_tag_indicators(),
                                   &alpn_extractor,
                                   server_connection_id.length())) {

@@ -301,7 +301,7 @@ class QuicDispatcherTest : public QuicTest {
     std::unique_ptr<QuicReceivedPacket> received_packet(
         ConstructReceivedPacket(*packet, mock_helper_.GetClock()->Now()));
 
-    if (ChloExtractor::Extract(*packet, versions, {}, nullptr,
+    if (ChloExtractor::Extract(*packet, version, {}, nullptr,
                                server_connection_id.length())) {
       // Add CHLO packet to the beginning to be verified first, because it is
       // also processed first by new session.
@@ -929,7 +929,6 @@ TEST_F(QuicDispatcherTest, OKSeqNoPacketProcessed) {
 }
 
 TEST_F(QuicDispatcherTest, SupportedTransportVersionsChangeInFlight) {
-  SetQuicRestartFlag(quic_dispatcher_hands_chlo_extractor_one_version, true);
   SetQuicReloadableFlag(quic_use_parse_public_header, true);
   static_assert(QUIC_ARRAYSIZE(kSupportedTransportVersions) == 6u,
                 "Supported versions out of sync");
