@@ -1694,7 +1694,6 @@ TEST_P(QuicStreamTest, SendOnlyRstStream) {
 }
 
 TEST_P(QuicStreamTest, WindowUpdateForReadOnlyStream) {
-  SetQuicReloadableFlag(quic_no_window_update_on_read_only_stream, true);
   Initialize();
 
   QuicStreamId stream_id = QuicUtils::GetFirstUnidirectionalStreamId(
