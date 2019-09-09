@@ -104,11 +104,12 @@ void BandwidthSampler::OnPacketSent(
           connection_state_map_.last_packet() + max_tracked_packets_) {
     if (unacked_packet_map_ != nullptr) {
       QUIC_BUG << "BandwidthSampler in-flight packet map has exceeded maximum "
-                  "number of tracked packets.  First tracked: "
-               << connection_state_map_.first_packet()
+                  "number of tracked packets("
+               << max_tracked_packets_
+               << ").  First tracked: " << connection_state_map_.first_packet()
                << "; last tracked: " << connection_state_map_.last_packet()
                << "; least unacked: " << unacked_packet_map_->GetLeastUnacked()
-               << "; largest observed: "
+               << "; packet number: " << packet_number << "; largest observed: "
                << unacked_packet_map_->largest_acked();
     } else {
       QUIC_BUG << "BandwidthSampler in-flight packet map has exceeded maximum "
