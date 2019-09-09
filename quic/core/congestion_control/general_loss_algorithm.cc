@@ -43,11 +43,6 @@ void GeneralLossAlgorithm::SetLossDetectionType(LossDetectionType loss_type) {
   reordering_shift_ = loss_type == kAdaptiveTime
                           ? kDefaultAdaptiveLossDelayShift
                           : kDefaultLossDelayShift;
-  if (GetQuicReloadableFlag(quic_eighth_rtt_loss_detection) &&
-      loss_type == kTime) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_eighth_rtt_loss_detection);
-    reordering_shift_ = 3;
-  }
   largest_previously_acked_.Clear();
 }
 

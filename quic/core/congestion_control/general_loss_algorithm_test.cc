@@ -365,13 +365,8 @@ TEST_F(GeneralLossAlgorithmTest, NoLossFor500Nacks) {
     VerifyLosses(2, packets_acked, std::vector<uint64_t>{});
     packets_acked.clear();
   }
-  if (GetQuicReloadableFlag(quic_eighth_rtt_loss_detection)) {
-    EXPECT_EQ(1.125 * rtt_stats_.smoothed_rtt(),
-              loss_algorithm_.GetLossTimeout() - clock_.Now());
-  } else {
-    EXPECT_EQ(1.25 * rtt_stats_.smoothed_rtt(),
-              loss_algorithm_.GetLossTimeout() - clock_.Now());
-  }
+  EXPECT_EQ(1.25 * rtt_stats_.smoothed_rtt(),
+            loss_algorithm_.GetLossTimeout() - clock_.Now());
 }
 
 TEST_F(GeneralLossAlgorithmTest, NoLossUntilTimeout) {
@@ -391,15 +386,9 @@ TEST_F(GeneralLossAlgorithmTest, NoLossUntilTimeout) {
       QuicPacketNumber(2), kMaxOutgoingPacketSize, QuicTime::Zero()));
   VerifyLosses(2, packets_acked, std::vector<uint64_t>{});
   packets_acked.clear();
-  if (GetQuicReloadableFlag(quic_eighth_rtt_loss_detection)) {
-    // Expect the timer to be set to 0.25 RTT's in the future.
-    EXPECT_EQ(0.125 * rtt_stats_.smoothed_rtt(),
-              loss_algorithm_.GetLossTimeout() - clock_.Now());
-  } else {
-    // Expect the timer to be set to 0.25 RTT's in the future.
-    EXPECT_EQ(0.25 * rtt_stats_.smoothed_rtt(),
-              loss_algorithm_.GetLossTimeout() - clock_.Now());
-  }
+  // Expect the timer to be set to 0.25 RTT's in the future.
+  EXPECT_EQ(0.25 * rtt_stats_.smoothed_rtt(),
+            loss_algorithm_.GetLossTimeout() - clock_.Now());
   VerifyLosses(2, packets_acked, std::vector<uint64_t>{});
   clock_.AdvanceTime(0.25 * rtt_stats_.smoothed_rtt());
   VerifyLosses(2, packets_acked, {1});
@@ -450,15 +439,9 @@ TEST_F(GeneralLossAlgorithmTest, MultipleLossesAtOnce) {
       QuicPacketNumber(10), kMaxOutgoingPacketSize, QuicTime::Zero()));
   VerifyLosses(10, packets_acked, std::vector<uint64_t>{});
   packets_acked.clear();
-  if (GetQuicReloadableFlag(quic_eighth_rtt_loss_detection)) {
-    // Expect the timer to be set to 0.25 RTT's in the future.
-    EXPECT_EQ(0.125 * rtt_stats_.smoothed_rtt(),
-              loss_algorithm_.GetLossTimeout() - clock_.Now());
-  } else {
-    // Expect the timer to be set to 0.25 RTT's in the future.
-    EXPECT_EQ(0.25 * rtt_stats_.smoothed_rtt(),
-              loss_algorithm_.GetLossTimeout() - clock_.Now());
-  }
+  // Expect the timer to be set to 0.25 RTT's in the future.
+  EXPECT_EQ(0.25 * rtt_stats_.smoothed_rtt(),
+            loss_algorithm_.GetLossTimeout() - clock_.Now());
   clock_.AdvanceTime(0.25 * rtt_stats_.smoothed_rtt());
   VerifyLosses(10, packets_acked, {1, 2, 3, 4, 5, 6, 7, 8, 9});
   EXPECT_EQ(QuicTime::Zero(), loss_algorithm_.GetLossTimeout());
@@ -482,15 +465,9 @@ TEST_F(GeneralLossAlgorithmTest, NoSpuriousLossesFromLargeReordering) {
       QuicPacketNumber(10), kMaxOutgoingPacketSize, QuicTime::Zero()));
   VerifyLosses(10, packets_acked, std::vector<uint64_t>{});
   packets_acked.clear();
-  if (GetQuicReloadableFlag(quic_eighth_rtt_loss_detection)) {
-    // Expect the timer to be set to 0.25 RTT's in the future.
-    EXPECT_EQ(0.125 * rtt_stats_.smoothed_rtt(),
-              loss_algorithm_.GetLossTimeout() - clock_.Now());
-  } else {
-    // Expect the timer to be set to 0.25 RTT's in the future.
-    EXPECT_EQ(0.25 * rtt_stats_.smoothed_rtt(),
-              loss_algorithm_.GetLossTimeout() - clock_.Now());
-  }
+  // Expect the timer to be set to 0.25 RTT's in the future.
+  EXPECT_EQ(0.25 * rtt_stats_.smoothed_rtt(),
+            loss_algorithm_.GetLossTimeout() - clock_.Now());
   clock_.AdvanceTime(0.25 * rtt_stats_.smoothed_rtt());
   // Now ack packets 1 to 9 and ensure the timer is no longer set and no packets
   // are lost.
