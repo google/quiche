@@ -11050,11 +11050,9 @@ TEST_P(QuicFramerTest, GetRetransmittableControlFrameSize) {
                 framer_.transport_version(), QuicFrame(&rst_stream)));
 
   std::string error_detail(2048, 'e');
-  QuicConnectionCloseFrame connection_close(QUIC_NETWORK_IDLE_TIMEOUT,
-                                            error_detail);
-  if (VersionHasIetfQuicFrames(framer_.transport_version())) {
-    connection_close.close_type = IETF_QUIC_TRANSPORT_CONNECTION_CLOSE;
-  }
+  QuicConnectionCloseFrame connection_close(
+      framer_.transport_version(), QUIC_NETWORK_IDLE_TIMEOUT, error_detail,
+      /*transport_close_frame_type=*/0);
 
   EXPECT_EQ(QuicFramer::GetConnectionCloseFrameSize(framer_.transport_version(),
                                                     connection_close),
