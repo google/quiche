@@ -62,8 +62,6 @@ class QUIC_EXPORT_PRIVATE GeneralLossAlgorithm : public LossDetectionInterface {
   QuicTime loss_detection_timeout_;
   // Largest sent packet when a spurious retransmit is detected.
   // Prevents increasing the reordering threshold multiple times per epoch.
-  // TODO(ianswett): Deprecate when quic_fix_adaptive_time_loss flag is
-  // deprecated.
   QuicPacketNumber largest_sent_on_spurious_retransmit_;
   LossDetectionType loss_type_;
   // Fraction of a max(SRTT, latest_rtt) to permit reordering before declaring
