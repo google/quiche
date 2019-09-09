@@ -1333,46 +1333,6 @@ PendingStream* QuicSession::GetOrCreatePendingStream(QuicStreamId stream_id) {
   return unowned_pending;
 }
 
-QuicStream* QuicSession::GetOrCreateDynamicStream(
-    const QuicStreamId stream_id) {
-  DCHECK(!GetQuicReloadableFlag(quic_inline_getorcreatedynamicstream));
-  StreamMap::iterator it = stream_map_.find(stream_id);
-  if (it != stream_map_.end()) {
-    return it->second.get();
-  }
-
-  if (IsClosedStream(stream_id)) {
-    return nullptr;
-  }
-
-  if (!IsIncomingStream(stream_id)) {
-    HandleFrameOnNonexistentOutgoingStream(stream_id);
-    return nullptr;
-  }
-
-  // TODO(fkastenholz): If we are creating a new stream and we have
-  // sent a goaway, we should ignore the stream creation. Need to
-  // add code to A) test if goaway was sent ("if (goaway_sent_)") and
-  // B) reject stream creation ("return nullptr")
-
-  if (!MaybeIncreaseLargestPeerStreamId(stream_id)) {
-    return nullptr;
-  }
-
-  if (!VersionHasIetfQuicFrames(transport_version())) {
-    // TODO(fayang): Let LegacyQuicStreamIdManager count open streams and make
-    // CanOpenIncomingStream interface cosistent with that of v99.
-    if (!stream_id_manager_.CanOpenIncomingStream(
-            GetNumOpenIncomingStreams())) {
-      // Refuse to open the stream.
-      SendRstStream(stream_id, QUIC_REFUSED_STREAM, 0);
-      return nullptr;
-    }
-  }
-
-  return CreateIncomingStream(stream_id);
-}
-
 void QuicSession::set_largest_peer_created_stream_id(
     QuicStreamId largest_peer_created_stream_id) {
   if (VersionHasIetfQuicFrames(transport_version())) {

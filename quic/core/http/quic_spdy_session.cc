@@ -600,13 +600,7 @@ QpackDecoder* QuicSpdySession::qpack_decoder() {
 
 QuicSpdyStream* QuicSpdySession::GetSpdyDataStream(
     const QuicStreamId stream_id) {
-  QuicStream* stream = nullptr;
-  if (GetQuicReloadableFlag(quic_inline_getorcreatedynamicstream)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_inline_getorcreatedynamicstream);
-    stream = GetOrCreateStream(stream_id);
-  } else {
-    stream = GetOrCreateDynamicStream(stream_id);
-  }
+  QuicStream* stream = GetOrCreateStream(stream_id);
   if (stream && stream->is_static()) {
     QUIC_BUG << "GetSpdyDataStream returns static stream";
     connection()->CloseConnection(

@@ -520,15 +520,6 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
   // Returns the number of open dynamic streams.
   uint64_t GetNumOpenDynamicStreams() const;
 
-  // Returns existing stream with id = |stream_id|. If no such stream exists,
-  // and |stream_id| is a peer-created id, then a new stream is created and
-  // returned. However if |stream_id| is a locally-created id and no such stream
-  // exists, the connection is closed.
-  // Caller does not own the returned stream.
-  // TODO(renjietang): Remove this method after
-  // quic_inline_getorcreatedynamicstream is deprecated.
-  QuicStream* GetOrCreateDynamicStream(QuicStreamId stream_id);
-
   // Performs the work required to close |stream_id|.  If |locally_reset|
   // then the stream has been reset by this endpoint, not by the peer.
   virtual void CloseStreamInner(QuicStreamId stream_id, bool locally_reset);
