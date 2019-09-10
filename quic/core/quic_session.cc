@@ -71,7 +71,6 @@ QuicSession::QuicSession(
       num_outgoing_static_streams_(0),
       num_incoming_static_streams_(0),
       num_locally_closed_incoming_streams_highest_offset_(0),
-      on_closed_frame_(QUIC_NO_ERROR, ""),
       flow_controller_(
           this,
           QuicUtils::GetInvalidStreamId(connection->transport_version()),

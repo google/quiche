@@ -148,7 +148,7 @@ TEST_F(QuicFramesTest, ConnectionCloseFrameToString) {
   // underlying frame.
   EXPECT_EQ(
       "{ Close type: GOOGLE_QUIC_CONNECTION_CLOSE, error_code: 25, "
-      "extracted_error_code: QUIC_IETF_GQUIC_ERROR_MISSING, "
+      "extracted_error_code: QUIC_NO_ERROR, "
       "error_details: 'No recent "
       "network activity.'"
       "}\n",

@@ -27,21 +27,6 @@ struct QUIC_EXPORT_PRIVATE QuicConnectionCloseFrame {
                            std::string error_phrase,
                            uint64_t transport_close_frame_type);
 
-  // TODO(fkastenholz): After migration to supporting IETF QUIC, this probably
-  // should be deprecated.
-  QuicConnectionCloseFrame(QuicErrorCode error_code, std::string error_details);
-
-  // Sets close_type to IETF_QUIC_APPLICATION_CONNECTION_CLOSE.
-  QuicConnectionCloseFrame(QuicErrorCode quic_error_code,
-                           std::string error_details,
-                           uint64_t ietf_application_error_code);
-
-  // Sets close_type to IETF_QUIC_TRANSPORT_CONNECTION_CLOSE.
-  QuicConnectionCloseFrame(QuicErrorCode quic_error_code,
-                           std::string error_details,
-                           QuicIetfTransportErrorCodes transport_error_code,
-                           uint64_t transport_frame_type);
-
   friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
       std::ostream& os,
       const QuicConnectionCloseFrame& c);

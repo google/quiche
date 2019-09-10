@@ -7222,17 +7222,13 @@ TEST_P(QuicFramerTest, BuildCloseFramePacket) {
   header.version_flag = false;
   header.packet_number = kPacketNumber;
 
-  QuicConnectionCloseFrame close_frame;
-  if (VersionHasIetfQuicFrames(framer_.transport_version())) {
-    close_frame.transport_error_code =
-        static_cast<QuicIetfTransportErrorCodes>(0x11);
-    close_frame.transport_close_frame_type = 0x05;
-    close_frame.close_type = IETF_QUIC_TRANSPORT_CONNECTION_CLOSE;
-  } else {
-    close_frame.quic_error_code = static_cast<QuicErrorCode>(0x05060708);
-  }
-  close_frame.error_details = "because I can";
-
+  QuicConnectionCloseFrame close_frame(
+      framer_.transport_version(),
+      static_cast<QuicErrorCode>(
+          VersionHasIetfQuicFrames(framer_.transport_version()) ? 0x11
+                                                                : 0x05060708),
+      "because I can", 0x05);
+  close_frame.extracted_error_code = QUIC_IETF_GQUIC_ERROR_MISSING;
   QuicFrames frames = {QuicFrame(&close_frame)};
 
   // clang-format off
@@ -7327,22 +7323,15 @@ TEST_P(QuicFramerTest, BuildCloseFramePacketExtendedInfo) {
   header.version_flag = false;
   header.packet_number = kPacketNumber;
 
-  QuicConnectionCloseFrame close_frame;
-  if (VersionHasIetfQuicFrames(framer_.transport_version())) {
-    close_frame.transport_error_code =
-        static_cast<QuicIetfTransportErrorCodes>(0x11);
-    close_frame.transport_close_frame_type = 0x05;
-    close_frame.close_type = IETF_QUIC_TRANSPORT_CONNECTION_CLOSE;
-  } else {
-    close_frame.quic_error_code = static_cast<QuicErrorCode>(0x05060708);
-  }
+  QuicConnectionCloseFrame close_frame(
+      framer_.transport_version(),
+      static_cast<QuicErrorCode>(
+          VersionHasIetfQuicFrames(framer_.transport_version()) ? 0x11
+                                                                : 0x05060708),
+      "because I can", 0x05);
   // Set this so that it is "there" for both Google QUIC and IETF QUIC
   // framing. It better not show up for Google QUIC!
   close_frame.extracted_error_code = static_cast<QuicErrorCode>(0x4567);
-
-  // For IETF QUIC this will be prefaced with "17767:"
-  // (17767 == 0x4567).
-  close_frame.error_details = "because I can";
 
   QuicFrames frames = {QuicFrame(&close_frame)};
 
@@ -7439,15 +7428,13 @@ TEST_P(QuicFramerTest, BuildTruncatedCloseFramePacket) {
   header.version_flag = false;
   header.packet_number = kPacketNumber;
 
-  QuicConnectionCloseFrame close_frame;
-  if (VersionHasIetfQuicFrames(framer_.transport_version())) {
-    close_frame.transport_error_code = PROTOCOL_VIOLATION;  // value is 0x0a
-    EXPECT_EQ(0u, close_frame.transport_close_frame_type);
-    close_frame.close_type = IETF_QUIC_TRANSPORT_CONNECTION_CLOSE;
-  } else {
-    close_frame.quic_error_code = static_cast<QuicErrorCode>(0x05060708);
-  }
-  close_frame.error_details = std::string(2048, 'A');
+  QuicConnectionCloseFrame close_frame(
+      framer_.transport_version(),
+      static_cast<QuicErrorCode>(
+          VersionHasIetfQuicFrames(framer_.transport_version()) ? 0xa
+                                                                : 0x05060708),
+      std::string(2048, 'A'), 0x05);
+  close_frame.extracted_error_code = QUIC_IETF_GQUIC_ERROR_MISSING;
   QuicFrames frames = {QuicFrame(&close_frame)};
 
   // clang-format off
@@ -7562,7 +7549,7 @@ TEST_P(QuicFramerTest, BuildTruncatedCloseFramePacket) {
     // error code
     kVarInt62OneByte + 0x0a,
     // Frame type within the CONNECTION_CLOSE frame
-    kVarInt62OneByte + 0x00,
+    kVarInt62OneByte + 0x05,
     // error details length
     kVarInt62TwoBytes + 0x01, 0x00,
     // error details (truncated to 256 bytes)
@@ -7653,12 +7640,12 @@ TEST_P(QuicFramerTest, BuildApplicationCloseFramePacket) {
     // error code
     kVarInt62OneByte + 0x11,
     // error details length
-    kVarInt62OneByte + 0x0d,
-    // error details
-    'b',  'e',  'c',  'a',
-    'u',  's',  'e',  ' ',
-    'I',  ' ',  'c',  'a',
-    'n',
+    kVarInt62OneByte + 0x0f,
+    // error details, note that it includes an extended error code.
+    '0',  ':',  'b',  'e',
+    'c',  'a',  'u',  's',
+    'e',  ' ',  'I',  ' ',
+    'c',  'a',  'n',
   };
   // clang-format on
 
@@ -7687,6 +7674,9 @@ TEST_P(QuicFramerTest, BuildTruncatedApplicationCloseFramePacket) {
       static_cast<uint64_t>(QUIC_INVALID_STREAM_ID);
   app_close_frame.error_details = std::string(2048, 'A');
   app_close_frame.close_type = IETF_QUIC_APPLICATION_CONNECTION_CLOSE;
+  // Setting to missing ensures that if it is missing, the extended
+  // code is not added to the text message.
+  app_close_frame.extracted_error_code = QUIC_IETF_GQUIC_ERROR_MISSING;
 
   QuicFrames frames = {QuicFrame(&app_close_frame)};
 

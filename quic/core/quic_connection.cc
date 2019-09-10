@@ -2875,7 +2875,8 @@ void QuicConnection::TearDownLocalConnectionState(
     QuicErrorCode error,
     const std::string& error_details,
     ConnectionCloseSource source) {
-  QuicConnectionCloseFrame frame(error, error_details);
+  QuicConnectionCloseFrame frame(transport_version(), error, error_details,
+                                 framer_.current_received_frame_type());
   return TearDownLocalConnectionState(frame, source);
 }
 
