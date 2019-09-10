@@ -175,7 +175,7 @@ ParsedQuicVersion ParseQuicVersionString(std::string version_string) {
   }
 
   std::vector<HandshakeProtocol> protocols = {PROTOCOL_QUIC_CRYPTO};
-  if (GetQuicFlag(FLAGS_quic_supports_tls_handshake)) {
+  if (GetQuicReloadableFlag(quic_supports_tls_handshake)) {
     protocols.push_back(PROTOCOL_TLS1_3);
   }
   for (QuicTransportVersion version : kSupportedTransportVersions) {
@@ -188,7 +188,7 @@ ParsedQuicVersion ParseQuicVersionString(std::string version_string) {
     }
   }
   // Still recognize T099 even if flag quic_ietf_draft_version has been changed.
-  if (GetQuicFlag(FLAGS_quic_supports_tls_handshake) &&
+  if (GetQuicReloadableFlag(quic_supports_tls_handshake) &&
       version_string == "T099") {
     return ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_99);
   }
@@ -252,7 +252,7 @@ ParsedQuicVersionVector FilterSupportedVersions(
   filtered_versions.reserve(versions.size());
   for (ParsedQuicVersion version : versions) {
     if (version.handshake_protocol == PROTOCOL_TLS1_3 &&
-        !GetQuicFlag(FLAGS_quic_supports_tls_handshake)) {
+        !GetQuicReloadableFlag(quic_supports_tls_handshake)) {
       continue;
     }
     if (version.transport_version == QUIC_VERSION_99) {
@@ -455,7 +455,7 @@ std::string AlpnForVersion(ParsedQuicVersion parsed_version) {
 
 void QuicVersionInitializeSupportForIetfDraft() {
   // Enable necessary flags.
-  SetQuicFlag(FLAGS_quic_supports_tls_handshake, true);
+  SetQuicReloadableFlag(quic_supports_tls_handshake, true);
   SetQuicReloadableFlag(quic_simplify_stop_waiting, true);
   SetQuicReloadableFlag(quic_use_parse_public_header, true);
   SetQuicRestartFlag(quic_use_hashed_stateless_reset_tokens, true);
@@ -463,7 +463,7 @@ void QuicVersionInitializeSupportForIetfDraft() {
 
 void QuicEnableVersion(ParsedQuicVersion parsed_version) {
   if (parsed_version.handshake_protocol == PROTOCOL_TLS1_3) {
-    SetQuicFlag(FLAGS_quic_supports_tls_handshake, true);
+    SetQuicReloadableFlag(quic_supports_tls_handshake, true);
   }
   static_assert(QUIC_ARRAYSIZE(kSupportedTransportVersions) == 6u,
                 "Supported versions out of sync");

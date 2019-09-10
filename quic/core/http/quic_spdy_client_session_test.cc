@@ -82,7 +82,7 @@ class QuicSpdyClientSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
             QuicUtils::GetInvalidStreamId(GetParam().transport_version)),
         associated_stream_id_(
             QuicUtils::GetInvalidStreamId(GetParam().transport_version)) {
-    SetQuicFlag(FLAGS_quic_supports_tls_handshake, true);
+    SetQuicReloadableFlag(quic_supports_tls_handshake, true);
     Initialize();
     // Advance the time, because timers do not like uninitialized times.
     connection_->AdvanceTime(QuicTime::Delta::FromSeconds(1));

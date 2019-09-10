@@ -192,7 +192,7 @@ class QuicSimpleServerSessionTest
                        KeyExchangeSource::Default()),
         compressed_certs_cache_(
             QuicCompressedCertsCache::kQuicCompressedCertsCacheSize) {
-    SetQuicFlag(FLAGS_quic_supports_tls_handshake, true);
+    SetQuicReloadableFlag(quic_supports_tls_handshake, true);
     config_.SetMaxIncomingBidirectionalStreamsToSend(kMaxStreamsForTest);
     QuicConfigPeer::SetReceivedMaxIncomingBidirectionalStreams(
         &config_, kMaxStreamsForTest);

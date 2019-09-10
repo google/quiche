@@ -417,7 +417,7 @@ TEST_F(QuicDispatcherTest, TlsClientHelloCreatesSession) {
     // TLS is only supported in versions 47 and greater.
     return;
   }
-  SetQuicFlag(FLAGS_quic_supports_tls_handshake, true);
+  SetQuicReloadableFlag(quic_supports_tls_handshake, true);
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
 
   EXPECT_CALL(*dispatcher_,

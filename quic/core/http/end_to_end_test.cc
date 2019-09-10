@@ -125,7 +125,7 @@ std::vector<TestParams> GetTestParams(bool use_tls_handshake) {
   // handshake protocol). So these tests need to ensure that clients are never
   // attempting to do 0-RTT across incompatible versions. Chromium only
   // supports a single version at a time anyway. :)
-  SetQuicFlag(FLAGS_quic_supports_tls_handshake, use_tls_handshake);
+  SetQuicReloadableFlag(quic_supports_tls_handshake, use_tls_handshake);
   ParsedQuicVersionVector all_supported_versions =
       FilterSupportedVersions(AllSupportedVersions());
 
@@ -235,7 +235,7 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
         stream_factory_(nullptr),
         support_server_push_(false),
         expected_server_connection_id_length_(kQuicDefaultConnectionIdLength) {
-    SetQuicFlag(FLAGS_quic_supports_tls_handshake, true);
+    SetQuicReloadableFlag(quic_supports_tls_handshake, true);
     SetQuicReloadableFlag(quic_simplify_stop_waiting, true);
     client_supported_versions_ = GetParam().client_supported_versions;
     server_supported_versions_ = GetParam().server_supported_versions;

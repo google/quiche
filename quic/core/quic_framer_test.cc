@@ -580,7 +580,7 @@ class QuicFramerTest : public QuicTestWithParam<ParsedQuicVersion> {
                 start_,
                 Perspective::IS_SERVER,
                 kQuicDefaultConnectionIdLength) {
-    SetQuicFlag(FLAGS_quic_supports_tls_handshake, true);
+    SetQuicReloadableFlag(quic_supports_tls_handshake, true);
     framer_.set_version(version_);
     if (framer_.version().KnowsWhichDecrypterToUse()) {
       framer_.InstallDecrypter(ENCRYPTION_INITIAL,
