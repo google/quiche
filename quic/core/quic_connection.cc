@@ -2615,8 +2615,10 @@ void QuicConnection::OnRetransmissionTimeout() {
       // acked. Two packets are marked RTO_RETRANSMITTED, but the first packet
       // is retransmitted as two packets because of packet number length
       // increases (please see QuicConnectionTest.RtoPacketAsTwo).
-      QUIC_BUG_IF(retransmission_mode == QuicSentPacketManager::TLP_MODE &&
-                  stats_.rto_count == 0);
+      QUIC_LOG_IF(WARNING,
+                  retransmission_mode == QuicSentPacketManager::TLP_MODE &&
+                      stats_.rto_count == 0)
+          << "No packet gets sent when timer fires in TLP mode, sending PING";
       DCHECK_LT(0u, sent_packet_manager_.pending_timer_transmission_count());
       visitor_->SendPing();
     }
