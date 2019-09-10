@@ -651,11 +651,6 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
   // stream.
   void PendingStreamOnRstStream(const QuicRstStreamFrame& frame);
 
-  bool ignore_tlpr_if_no_pending_stream_data() const {
-    return connection_->sent_packet_manager()
-        .ignore_tlpr_if_no_pending_stream_data();
-  }
-
   // Keep track of highest received byte offset of locally closed streams, while
   // waiting for a definitive final highest offset from the peer.
   std::map<QuicStreamId, QuicStreamOffset>

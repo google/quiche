@@ -108,8 +108,6 @@ QuicSentPacketManager::QuicSentPacketManager(
       pto_enabled_(false),
       max_probe_packets_per_pto_(2),
       consecutive_pto_count_(0),
-      ignore_tlpr_if_no_pending_stream_data_(
-          GetQuicReloadableFlag(quic_ignore_tlpr_if_no_pending_stream_data)),
       fix_rto_retransmission_(false),
       handshake_mode_disabled_(false) {
   SetSendAlgorithm(congestion_control_type);
@@ -1090,12 +1088,9 @@ const QuicTime::Delta QuicSentPacketManager::GetTailLossProbeDelay(
     size_t consecutive_tlp_count) const {
   QuicTime::Delta srtt = rtt_stats_.SmoothedOrInitialRtt();
   if (enable_half_rtt_tail_loss_probe_ && consecutive_tlp_count == 0u) {
-    if (!ignore_tlpr_if_no_pending_stream_data_ ||
-        !session_decides_what_to_write()) {
+    if (!session_decides_what_to_write()) {
       return std::max(min_tlp_timeout_, srtt * 0.5);
     }
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_ignore_tlpr_if_no_pending_stream_data, 1,
-                                 5);
     if (unacked_packets().HasUnackedStreamData()) {
       // Enable TLPR if there are pending data packets.
       return std::max(min_tlp_timeout_, srtt * 0.5);

@@ -1912,10 +1912,8 @@ TEST_P(QuicSentPacketManagerTest, TLPRWithoutPendingStreamData) {
   rtt_stats->set_initial_rtt(QuicTime::Delta::FromMilliseconds(100));
   QuicTime::Delta srtt = rtt_stats->initial_rtt();
   QuicTime::Delta expected_tlp_delay = 0.5 * srtt;
-  if (GetQuicReloadableFlag(quic_ignore_tlpr_if_no_pending_stream_data)) {
-    // With no pending stream data, TLPR is ignored.
-    expected_tlp_delay = 2 * srtt;
-  }
+  // With no pending stream data, TLPR is ignored.
+  expected_tlp_delay = 2 * srtt;
   EXPECT_CALL(notifier_, HasUnackedStreamData()).WillRepeatedly(Return(false));
   EXPECT_EQ(expected_tlp_delay,
             manager_.GetRetransmissionTime() - clock_.Now());

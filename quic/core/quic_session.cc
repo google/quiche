@@ -827,10 +827,7 @@ void QuicSession::CloseStreamInner(QuicStreamId stream_id, bool locally_reset) {
     zombie_streams_[stream->id()] = std::move(it->second);
   } else {
     // Clean up the stream since it is no longer waiting for acks.
-    if (ignore_tlpr_if_no_pending_stream_data() &&
-        session_decides_what_to_write()) {
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_ignore_tlpr_if_no_pending_stream_data,
-                                   2, 5);
+    if (session_decides_what_to_write()) {
       streams_waiting_for_acks_.erase(stream->id());
     }
     closed_streams_.push_back(std::move(it->second));
@@ -1486,10 +1483,7 @@ bool QuicSession::IsIncomingStream(QuicStreamId id) const {
 }
 
 void QuicSession::OnStreamDoneWaitingForAcks(QuicStreamId id) {
-  if (ignore_tlpr_if_no_pending_stream_data() &&
-      session_decides_what_to_write()) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_ignore_tlpr_if_no_pending_stream_data, 3,
-                                 5);
+  if (session_decides_what_to_write()) {
     streams_waiting_for_acks_.erase(id);
   }
 
@@ -1508,8 +1502,7 @@ void QuicSession::OnStreamDoneWaitingForAcks(QuicStreamId id) {
 }
 
 void QuicSession::OnStreamWaitingForAcks(QuicStreamId id) {
-  if (!ignore_tlpr_if_no_pending_stream_data() ||
-      !session_decides_what_to_write())
+  if (!session_decides_what_to_write())
     return;
 
   // Exclude crypto stream's status since it is counted in HasUnackedCryptoData.
@@ -1517,8 +1510,6 @@ void QuicSession::OnStreamWaitingForAcks(QuicStreamId id) {
     return;
   }
 
-  QUIC_RELOADABLE_FLAG_COUNT_N(quic_ignore_tlpr_if_no_pending_stream_data, 4,
-                               5);
   streams_waiting_for_acks_.insert(id);
 
   // The number of the streams waiting for acks should not be larger than the
@@ -1675,14 +1666,7 @@ bool QuicSession::HasUnackedCryptoData() const {
 }
 
 bool QuicSession::HasUnackedStreamData() const {
-  DCHECK(ignore_tlpr_if_no_pending_stream_data());
-  if (ignore_tlpr_if_no_pending_stream_data()) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_ignore_tlpr_if_no_pending_stream_data, 5,
-                                 5);
-    return !streams_waiting_for_acks_.empty();
-  }
-
-  return true;
+  return !streams_waiting_for_acks_.empty();
 }
 
 WriteStreamDataResult QuicSession::WriteStreamData(QuicStreamId id,

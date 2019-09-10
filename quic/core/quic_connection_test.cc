@@ -4081,14 +4081,9 @@ TEST_P(QuicConnectionTest, TailLossProbeDelayForNonStreamDataInTLPR) {
   QuicTime::Delta min_rto_timeout =
       QuicTime::Delta::FromMilliseconds(kMinRetransmissionTimeMs);
   srtt = manager_->GetRttStats()->SmoothedOrInitialRtt();
-  if (GetQuicReloadableFlag(quic_ignore_tlpr_if_no_pending_stream_data)) {
-    // First TLP without unacked stream data will no longer use TLPR.
-    expected_delay = std::max(2 * srtt, 1.5 * srtt + 0.5 * min_rto_timeout);
-  } else {
-    expected_delay =
-        std::max(QuicTime::Delta::FromMilliseconds(kMinTailLossProbeTimeoutMs),
-                 srtt * 0.5);
-  }
+
+  // First TLP without unacked stream data will no longer use TLPR.
+  expected_delay = std::max(2 * srtt, 1.5 * srtt + 0.5 * min_rto_timeout);
   EXPECT_EQ(expected_delay,
             connection_.GetRetransmissionAlarm()->deadline() - clock_.Now());
 
@@ -4119,14 +4114,8 @@ TEST_P(QuicConnectionTest, TailLossProbeDelayForNonStreamDataInTLPR) {
   ProcessAckPacket(&ack);
 
   // Verify the retransmission delay.
-  if (GetQuicReloadableFlag(quic_ignore_tlpr_if_no_pending_stream_data)) {
-    // First TLP without unacked stream data will no longer use TLPR.
-    expected_delay = std::max(2 * srtt, 1.5 * srtt + 0.5 * min_rto_timeout);
-  } else {
-    expected_delay =
-        std::max(QuicTime::Delta::FromMilliseconds(kMinTailLossProbeTimeoutMs),
-                 srtt * 0.5);
-  }
+  // First TLP without unacked stream data will no longer use TLPR.
+  expected_delay = std::max(2 * srtt, 1.5 * srtt + 0.5 * min_rto_timeout);
   expected_delay = expected_delay - QuicTime::Delta::FromMilliseconds(5);
   EXPECT_EQ(expected_delay,
             connection_.GetRetransmissionAlarm()->deadline() - clock_.Now());
