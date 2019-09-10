@@ -555,7 +555,7 @@ void QuicSpdySession::WritePushPromise(QuicStreamId original_stream_id,
 
   // Encode header list.
   std::string encoded_headers =
-      qpack_encoder_->EncodeHeaderList(original_stream_id, headers);
+      qpack_encoder_->EncodeHeaderList(original_stream_id, headers, nullptr);
   PushPromiseFrame frame;
   frame.push_id = promised_stream_id;
   frame.headers = encoded_headers;

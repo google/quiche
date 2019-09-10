@@ -87,9 +87,11 @@ QpackEncoder::InstructionWithValues QpackEncoder::EncodeLiteralHeaderField(
 
 QpackEncoder::Instructions QpackEncoder::FirstPassEncode(
     const spdy::SpdyHeaderBlock& header_list,
-    QpackBlockingManager::IndexSet* referred_indices) {
+    QpackBlockingManager::IndexSet* referred_indices,
+    QuicByteCount* encoder_stream_sent_byte_count) {
   Instructions instructions;
   instructions.reserve(header_list.size());
+  QuicByteCount sent_byte_count = 0;
 
   // The index of the oldest entry that must not be evicted.
   uint64_t smallest_blocking_index =
@@ -144,7 +146,7 @@ QpackEncoder::Instructions QpackEncoder::FirstPassEncode(
                   header_table_.MaxInsertSizeWithoutEvictingGivenEntry(
                       std::min(smallest_blocking_index, index))) {
             // If allowed, duplicate entry and refer to it.
-            encoder_stream_sender_.SendDuplicate(
+            sent_byte_count += encoder_stream_sender_.SendDuplicate(
                 QpackAbsoluteIndexToEncoderStreamRelativeIndex(
                     index, header_table_.inserted_entry_count()));
             auto entry = header_table_.InsertEntry(name, value);
@@ -174,8 +176,9 @@ QpackEncoder::Instructions QpackEncoder::FirstPassEncode(
                   header_table_.MaxInsertSizeWithoutEvictingGivenEntry(
                       smallest_blocking_index)) {
             // If allowed, insert entry into dynamic table and refer to it.
-            encoder_stream_sender_.SendInsertWithNameReference(is_static, index,
-                                                               value);
+            sent_byte_count +=
+                encoder_stream_sender_.SendInsertWithNameReference(
+                    is_static, index, value);
             auto entry = header_table_.InsertEntry(name, value);
             instructions.push_back(EncodeIndexedHeaderField(
                 /* is_static = */ false, entry->InsertionIndex(),
@@ -198,7 +201,7 @@ QpackEncoder::Instructions QpackEncoder::FirstPassEncode(
                 header_table_.MaxInsertSizeWithoutEvictingGivenEntry(
                     std::min(smallest_blocking_index, index))) {
           // If allowed, insert entry with name reference and refer to it.
-          encoder_stream_sender_.SendInsertWithNameReference(
+          sent_byte_count += encoder_stream_sender_.SendInsertWithNameReference(
               is_static,
               QpackAbsoluteIndexToEncoderStreamRelativeIndex(
                   index, header_table_.inserted_entry_count()),
@@ -238,7 +241,9 @@ QpackEncoder::Instructions QpackEncoder::FirstPassEncode(
                 header_table_.MaxInsertSizeWithoutEvictingGivenEntry(
                     smallest_blocking_index)) {
           // If allowed, insert entry and refer to it.
-          encoder_stream_sender_.SendInsertWithoutNameReference(name, value);
+          sent_byte_count +=
+              encoder_stream_sender_.SendInsertWithoutNameReference(name,
+                                                                    value);
           auto entry = header_table_.InsertEntry(name, value);
           instructions.push_back(EncodeIndexedHeaderField(
               /* is_static = */ false, entry->InsertionIndex(),
@@ -254,6 +259,12 @@ QpackEncoder::Instructions QpackEncoder::FirstPassEncode(
 
         break;
     }
+  }
+
+  // Use local |sent_byte_count| variable to avoid branching and dereferencing
+  // each time encoder stream data is sent.
+  if (encoder_stream_sent_byte_count) {
+    *encoder_stream_sent_byte_count = sent_byte_count;
   }
 
   return instructions;
@@ -296,13 +307,15 @@ std::string QpackEncoder::SecondPassEncode(
 
 std::string QpackEncoder::EncodeHeaderList(
     QuicStreamId stream_id,
-    const spdy::SpdyHeaderBlock& header_list) {
+    const spdy::SpdyHeaderBlock& header_list,
+    QuicByteCount* encoder_stream_sent_byte_count) {
   // Keep track of all dynamic table indices that this header block refers to so
   // that it can be passed to QpackBlockingManager.
   QpackBlockingManager::IndexSet referred_indices;
 
   // First pass: encode into |instructions|.
-  Instructions instructions = FirstPassEncode(header_list, &referred_indices);
+  Instructions instructions = FirstPassEncode(header_list, &referred_indices,
+                                              encoder_stream_sent_byte_count);
 
   const uint64_t required_insert_count =
       referred_indices.empty()

@@ -1010,8 +1010,10 @@ size_t QuicSpdyStream::WriteHeadersImpl(
   }
 
   // Encode header list.
+  QuicByteCount encoder_stream_sent_byte_count;
   std::string encoded_headers =
-      spdy_session_->qpack_encoder()->EncodeHeaderList(id(), header_block);
+      spdy_session_->qpack_encoder()->EncodeHeaderList(
+          id(), header_block, &encoder_stream_sent_byte_count);
 
   // Write HEADERS frame.
   std::unique_ptr<char[]> headers_frame_header;
@@ -1034,7 +1036,7 @@ size_t QuicSpdyStream::WriteHeadersImpl(
                   << encoded_headers.length();
   WriteOrBufferData(encoded_headers, fin, nullptr);
 
-  return encoded_headers.size();
+  return encoded_headers.size() + encoder_stream_sent_byte_count;
 }
 
 void QuicSpdyStream::PopulatePriorityFrame(PriorityFrame* frame) {

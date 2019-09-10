@@ -55,7 +55,7 @@ class EncodingEndpoint {
 
   std::string EncodeHeaderList(QuicStreamId stream_id,
                                const spdy::SpdyHeaderBlock& header_list) {
-    return encoder_.EncodeHeaderList(stream_id, header_list);
+    return encoder_.EncodeHeaderList(stream_id, header_list, nullptr);
   }
 
  private:

@@ -2475,7 +2475,7 @@ TEST_P(EndToEndTest, AckNotifierWithPacketLossAndBlockedSocket) {
     qpack_encoder.set_qpack_stream_sender_delegate(
         &encoder_stream_sender_delegate);
     std::string encoded_headers =
-        qpack_encoder.EncodeHeaderList(/* stream_id = */ 0, headers);
+        qpack_encoder.EncodeHeaderList(/* stream_id = */ 0, headers, nullptr);
     header_size = encoded_headers.size();
   }
 

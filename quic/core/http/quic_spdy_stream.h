@@ -110,7 +110,9 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   virtual void OnBodyAvailable() = 0;
 
   // Writes the headers contained in |header_block| on the dedicated headers
-  // stream or on this stream, depending on VersionUsesQpack().
+  // stream or on this stream, depending on VersionUsesQpack().  Returns the
+  // number of bytes sent, including data sent on the encoder stream when using
+  // QPACK.
   virtual size_t WriteHeaders(
       spdy::SpdyHeaderBlock header_block,
       bool fin,
@@ -121,7 +123,8 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
 
   // Writes the trailers contained in |trailer_block| on the dedicated headers
   // stream or on this stream, depending on VersionUsesQpack().  Trailers will
-  // always have the FIN flag set.
+  // always have the FIN flag set.  Returns the number of bytes sent, including
+  // data sent on the encoder stream when using QPACK.
   virtual size_t WriteTrailers(
       spdy::SpdyHeaderBlock trailer_block,
       QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener);

@@ -9,6 +9,7 @@
 
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_instruction_encoder.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_stream_sender_delegate.h"
+#include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 
@@ -25,16 +26,16 @@ class QUIC_EXPORT_PRIVATE QpackEncoderStreamSender {
   // https://quicwg.org/base-drafts/draft-ietf-quic-qpack.html#rfc.section.5.2
 
   // 5.2.1. Insert With Name Reference
-  void SendInsertWithNameReference(bool is_static,
-                                   uint64_t name_index,
-                                   QuicStringPiece value);
+  QuicByteCount SendInsertWithNameReference(bool is_static,
+                                            uint64_t name_index,
+                                            QuicStringPiece value);
   // 5.2.2. Insert Without Name Reference
-  void SendInsertWithoutNameReference(QuicStringPiece name,
-                                      QuicStringPiece value);
+  QuicByteCount SendInsertWithoutNameReference(QuicStringPiece name,
+                                               QuicStringPiece value);
   // 5.2.3. Duplicate
-  void SendDuplicate(uint64_t index);
+  QuicByteCount SendDuplicate(uint64_t index);
   // 5.2.4. Set Dynamic Table Capacity
-  void SendSetDynamicTableCapacity(uint64_t capacity);
+  QuicByteCount SendSetDynamicTableCapacity(uint64_t capacity);
 
   // delegate must be set if dynamic table capacity is not zero.
   void set_qpack_stream_sender_delegate(QpackStreamSenderDelegate* delegate) {
