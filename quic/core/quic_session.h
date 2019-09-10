@@ -548,10 +548,6 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
   void set_largest_peer_created_stream_id(
       QuicStreamId largest_peer_created_stream_id);
 
-  void set_error(QuicErrorCode error) {
-    on_closed_frame_.extracted_error_code = error;
-  }
-
   QuicWriteBlockedList* write_blocked_streams() {
     return &write_blocked_streams_;
   }
