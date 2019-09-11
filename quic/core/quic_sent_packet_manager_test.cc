@@ -774,8 +774,15 @@ TEST_P(QuicSentPacketManagerTest, AckOriginalTransmission) {
     uint64_t acked[] = {3};
     ExpectAcksAndLosses(false, acked, QUIC_ARRAYSIZE(acked), nullptr, 0);
     EXPECT_CALL(*loss_algorithm, DetectLosses(_, _, _, _, _, _));
-    EXPECT_CALL(*loss_algorithm,
-                SpuriousRetransmitDetected(_, _, _, QuicPacketNumber(5)));
+    if (GetQuicReloadableFlag(quic_detect_spurious_loss) &&
+        manager_.session_decides_what_to_write()) {
+      EXPECT_CALL(*loss_algorithm,
+                  SpuriousLossDetected(_, _, _, QuicPacketNumber(3),
+                                       QuicPacketNumber(4)));
+    } else {
+      EXPECT_CALL(*loss_algorithm,
+                  SpuriousRetransmitDetected(_, _, _, QuicPacketNumber(5)));
+    }
     manager_.OnAckFrameStart(QuicPacketNumber(4), QuicTime::Delta::Infinite(),
                              clock_.Now());
     manager_.OnAckRange(QuicPacketNumber(3), QuicPacketNumber(5));

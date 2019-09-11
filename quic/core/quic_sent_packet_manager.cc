@@ -109,7 +109,9 @@ QuicSentPacketManager::QuicSentPacketManager(
       max_probe_packets_per_pto_(2),
       consecutive_pto_count_(0),
       fix_rto_retransmission_(false),
-      handshake_mode_disabled_(false) {
+      handshake_mode_disabled_(false),
+      detect_spurious_losses_(
+          GetQuicReloadableFlag(quic_detect_spurious_loss)) {
   SetSendAlgorithm(congestion_control_type);
 }
 
@@ -535,7 +537,8 @@ void QuicSentPacketManager::RecordSpuriousRetransmissions(
     QuicPacketNumber acked_packet_number) {
   if (session_decides_what_to_write()) {
     RecordOneSpuriousRetransmission(info);
-    if (info.transmission_type == LOSS_RETRANSMISSION) {
+    if (!detect_spurious_losses_ &&
+        info.transmission_type == LOSS_RETRANSMISSION) {
       // Only inform the loss detection of spurious retransmits it caused.
       loss_algorithm_->SpuriousRetransmitDetected(
           unacked_packets_, clock_->Now(), rtt_stats_, acked_packet_number);
@@ -603,6 +606,7 @@ QuicPacketNumber QuicSentPacketManager::GetNewestRetransmission(
 
 void QuicSentPacketManager::MarkPacketHandled(QuicPacketNumber packet_number,
                                               QuicTransmissionInfo* info,
+                                              QuicTime ack_receive_time,
                                               QuicTime::Delta ack_delay_time,
                                               QuicTime receive_timestamp) {
   QuicPacketNumber newest_transmission =
@@ -634,6 +638,26 @@ void QuicSentPacketManager::MarkPacketHandled(QuicPacketNumber packet_number,
                              info->transmission_type);
         RecordSpuriousRetransmissions(*info, packet_number);
       }
+    }
+    if (detect_spurious_losses_ && session_decides_what_to_write() &&
+        info->state == LOST) {
+      // Record as a spurious loss as a packet previously declared lost gets
+      // acked.
+      QUIC_RELOADABLE_FLAG_COUNT(quic_detect_spurious_loss);
+      const PacketNumberSpace packet_number_space =
+          unacked_packets_.GetPacketNumberSpace(info->encryption_level);
+      const QuicPacketNumber previous_largest_acked =
+          supports_multiple_packet_number_spaces()
+              ? unacked_packets_.GetLargestAckedOfPacketNumberSpace(
+                    packet_number_space)
+              : unacked_packets_.largest_acked();
+      QUIC_DVLOG(1) << "Packet " << packet_number
+                    << " was detected lost spuriously, "
+                       "previous_largest_acked: "
+                    << previous_largest_acked;
+      loss_algorithm_->SpuriousLossDetected(unacked_packets_, rtt_stats_,
+                                            ack_receive_time, packet_number,
+                                            previous_largest_acked);
     }
   } else {
     DCHECK(!session_decides_what_to_write());
@@ -1306,7 +1330,9 @@ AckResult QuicSentPacketManager::OnAckFrameEnd(
     }
     QUIC_DVLOG(1) << ENDPOINT << "Got an "
                   << QuicUtils::EncryptionLevelToString(ack_decrypted_level)
-                  << " ack for packet " << acked_packet.packet_number;
+                  << " ack for packet " << acked_packet.packet_number
+                  << " , state: "
+                  << QuicUtils::SentPacketStateToString(info->state);
     const PacketNumberSpace packet_number_space =
         unacked_packets_.GetPacketNumberSpace(info->encryption_level);
     if (supports_multiple_packet_number_spaces() &&
@@ -1330,7 +1356,7 @@ AckResult QuicSentPacketManager::OnAckFrameEnd(
     }
     unacked_packets_.MaybeUpdateLargestAckedOfPacketNumberSpace(
         packet_number_space, acked_packet.packet_number);
-    MarkPacketHandled(acked_packet.packet_number, info,
+    MarkPacketHandled(acked_packet.packet_number, info, ack_receive_time,
                       last_ack_frame_.ack_delay_time,
                       acked_packet.receive_timestamp);
   }

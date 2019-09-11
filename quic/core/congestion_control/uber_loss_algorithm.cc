@@ -81,4 +81,15 @@ void UberLossAlgorithm::SpuriousRetransmitDetected(
                                   spurious_retransmission);
 }
 
+void UberLossAlgorithm::SpuriousLossDetected(
+    const QuicUnackedPacketMap& unacked_packets,
+    const RttStats& rtt_stats,
+    QuicTime ack_receive_time,
+    QuicPacketNumber packet_number,
+    QuicPacketNumber previous_largest_acked) {
+  general_loss_algorithms_[unacked_packets.GetPacketNumberSpace(packet_number)]
+      .SpuriousLossDetected(unacked_packets, rtt_stats, ack_receive_time,
+                            packet_number, previous_largest_acked);
+}
+
 }  // namespace quic

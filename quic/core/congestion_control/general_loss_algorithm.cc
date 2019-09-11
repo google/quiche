@@ -31,6 +31,8 @@ GeneralLossAlgorithm::GeneralLossAlgorithm() : GeneralLossAlgorithm(kNack) {}
 
 GeneralLossAlgorithm::GeneralLossAlgorithm(LossDetectionType loss_type)
     : loss_detection_timeout_(QuicTime::Zero()),
+      reordering_threshold_(kNumberOfNacksBeforeRetransmission),
+      use_adaptive_reordering_threshold_(false),
       least_in_flight_(1),
       packet_number_space_(NUM_PACKET_NUMBER_SPACES) {
   SetLossDetectionType(loss_type);
@@ -113,8 +115,7 @@ void GeneralLossAlgorithm::DetectLosses(
 
     if (loss_type_ == kNack) {
       // FACK based loss detection.
-      if (largest_newly_acked - packet_number >=
-          kNumberOfNacksBeforeRetransmission) {
+      if (largest_newly_acked - packet_number >= reordering_threshold_) {
         packets_lost->push_back(LostPacket(packet_number, it->bytes_sent));
         continue;
       }
@@ -205,6 +206,35 @@ void GeneralLossAlgorithm::SpuriousRetransmitDetected(
     proposed_extra_time = max_rtt >> reordering_shift_;
     --reordering_shift_;
   } while (proposed_extra_time < extra_time_needed && reordering_shift_ > 0);
+}
+
+void GeneralLossAlgorithm::SpuriousLossDetected(
+    const QuicUnackedPacketMap& unacked_packets,
+    const RttStats& rtt_stats,
+    QuicTime ack_receive_time,
+    QuicPacketNumber packet_number,
+    QuicPacketNumber previous_largest_acked) {
+  if (loss_type_ == kAdaptiveTime && reordering_shift_ > 0) {
+    // Increase reordering fraction such that the packet would not have been
+    // declared lost.
+    QuicTime::Delta time_needed =
+        ack_receive_time -
+        unacked_packets.GetTransmissionInfo(packet_number).sent_time;
+    QuicTime::Delta max_rtt =
+        std::max(rtt_stats.previous_srtt(), rtt_stats.latest_rtt());
+    while (max_rtt + (max_rtt >> reordering_shift_) < time_needed &&
+           reordering_shift_ > 0) {
+      --reordering_shift_;
+    }
+  }
+
+  if (use_adaptive_reordering_threshold_) {
+    DCHECK_LT(packet_number, previous_largest_acked);
+    // Increase reordering_threshold_ such that packet_number would not have
+    // been declared lost.
+    reordering_threshold_ = std::max(
+        reordering_threshold_, previous_largest_acked - packet_number + 1);
+  }
 }
 
 void GeneralLossAlgorithm::SetPacketNumberSpace(

@@ -54,9 +54,20 @@ class QUIC_EXPORT_PRIVATE GeneralLossAlgorithm : public LossDetectionInterface {
       const RttStats& rtt_stats,
       QuicPacketNumber spurious_retransmission) override;
 
+  // Called to increases time and/or packet threshold.
+  void SpuriousLossDetected(const QuicUnackedPacketMap& unacked_packets,
+                            const RttStats& rtt_stats,
+                            QuicTime ack_receive_time,
+                            QuicPacketNumber packet_number,
+                            QuicPacketNumber previous_largest_acked) override;
+
   void SetPacketNumberSpace(PacketNumberSpace packet_number_space);
 
   int reordering_shift() const { return reordering_shift_; }
+
+  void enable_adaptive_reordering_threshold() {
+    use_adaptive_reordering_threshold_ = true;
+  }
 
  private:
   QuicTime loss_detection_timeout_;
@@ -68,6 +79,10 @@ class QUIC_EXPORT_PRIVATE GeneralLossAlgorithm : public LossDetectionInterface {
   // loss.  Fraction calculated by shifting max(SRTT, latest_rtt) to the right
   // by reordering_shift.
   int reordering_shift_;
+  // Reordering threshold for loss detection.
+  QuicPacketCount reordering_threshold_;
+  // If true, uses adaptive reordering threshold for loss detection.
+  bool use_adaptive_reordering_threshold_;
   // The largest newly acked from the previous call to DetectLosses.
   QuicPacketNumber largest_previously_acked_;
   // The least in flight packet. Loss detection should start from this. Please

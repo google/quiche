@@ -42,6 +42,13 @@ class QUIC_EXPORT_PRIVATE UberLossAlgorithm : public LossDetectionInterface {
       const RttStats& rtt_stats,
       QuicPacketNumber spurious_retransmission) override;
 
+  // Called to increases time or packet threshold.
+  void SpuriousLossDetected(const QuicUnackedPacketMap& unacked_packets,
+                            const RttStats& rtt_stats,
+                            QuicTime ack_receive_time,
+                            QuicPacketNumber packet_number,
+                            QuicPacketNumber previous_largest_acked) override;
+
  private:
   LossDetectionType loss_type_;
   // One loss algorithm per packet number space.

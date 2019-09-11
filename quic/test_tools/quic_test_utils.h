@@ -951,6 +951,12 @@ class MockLossAlgorithm : public LossDetectionInterface {
                     QuicTime,
                     const RttStats&,
                     QuicPacketNumber));
+  MOCK_METHOD5(SpuriousLossDetected,
+               void(const QuicUnackedPacketMap&,
+                    const RttStats&,
+                    QuicTime,
+                    QuicPacketNumber,
+                    QuicPacketNumber));
 };
 
 class MockAckListener : public QuicAckListenerInterface {

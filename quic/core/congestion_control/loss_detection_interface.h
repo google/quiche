@@ -37,11 +37,21 @@ class QUIC_EXPORT_PRIVATE LossDetectionInterface {
 
   // Called when a |spurious_retransmission| is detected.  The original
   // transmission must have been caused by DetectLosses.
+  // TODO(fayang): Remove this method when deprecating
+  // quic_detect_spurious_loss.
   virtual void SpuriousRetransmitDetected(
       const QuicUnackedPacketMap& unacked_packets,
       QuicTime time,
       const RttStats& rtt_stats,
       QuicPacketNumber spurious_retransmission) = 0;
+
+  // Called when |packet_number| was detected lost but gets acked later.
+  virtual void SpuriousLossDetected(
+      const QuicUnackedPacketMap& unacked_packets,
+      const RttStats& rtt_stats,
+      QuicTime ack_receive_time,
+      QuicPacketNumber packet_number,
+      QuicPacketNumber previous_largest_acked) = 0;
 };
 
 }  // namespace quic

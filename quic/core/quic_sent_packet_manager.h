@@ -491,6 +491,7 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // |info| due to receipt by the peer.
   void MarkPacketHandled(QuicPacketNumber packet_number,
                          QuicTransmissionInfo* info,
+                         QuicTime ack_receive_time,
                          QuicTime::Delta ack_delay_time,
                          QuicTime receive_timestamp);
 
@@ -656,6 +657,9 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
 
   // True if HANDSHAKE mode has been disabled.
   bool handshake_mode_disabled_;
+
+  // Latched value of quic_detect_spurious_loss.
+  const bool detect_spurious_losses_;
 };
 
 }  // namespace quic

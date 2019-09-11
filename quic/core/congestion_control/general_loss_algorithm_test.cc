@@ -514,6 +514,13 @@ TEST_F(GeneralLossAlgorithmTest, IncreaseThresholdUponSpuriousLoss) {
   // Advance the time 1/4 RTT and indicate the loss was spurious.
   // The new threshold should be 1/2 RTT.
   clock_.AdvanceTime(rtt_stats_.smoothed_rtt() * (1.0f / 4));
+  if (GetQuicReloadableFlag(quic_detect_spurious_loss)) {
+    loss_algorithm_.SpuriousLossDetected(unacked_packets_, rtt_stats_,
+                                         clock_.Now(), QuicPacketNumber(1),
+                                         QuicPacketNumber(2));
+    EXPECT_EQ(1, loss_algorithm_.reordering_shift());
+    return;
+  }
   loss_algorithm_.SpuriousRetransmitDetected(unacked_packets_, clock_.Now(),
                                              rtt_stats_, QuicPacketNumber(11));
   EXPECT_EQ(1, loss_algorithm_.reordering_shift());
@@ -523,6 +530,69 @@ TEST_F(GeneralLossAlgorithmTest, IncreaseThresholdUponSpuriousLoss) {
   loss_algorithm_.SpuriousRetransmitDetected(unacked_packets_, clock_.Now(),
                                              rtt_stats_, QuicPacketNumber(12));
   EXPECT_EQ(1, loss_algorithm_.reordering_shift());
+}
+
+TEST_F(GeneralLossAlgorithmTest, IncreaseReorderingThresholdUponSpuriousLoss) {
+  loss_algorithm_.enable_adaptive_reordering_threshold();
+  for (size_t i = 1; i <= 4; ++i) {
+    SendDataPacket(i);
+  }
+  // Acking 4 causes 1 detected lost.
+  AckedPacketVector packets_acked;
+  unacked_packets_.RemoveFromInFlight(QuicPacketNumber(4));
+  packets_acked.push_back(AckedPacket(
+      QuicPacketNumber(4), kMaxOutgoingPacketSize, QuicTime::Zero()));
+  VerifyLosses(4, packets_acked, std::vector<uint64_t>{1});
+  packets_acked.clear();
+
+  // Retransmit 1 as 5.
+  SendDataPacket(5);
+
+  // Acking 1 such that it was detected lost spuriously.
+  unacked_packets_.RemoveFromInFlight(QuicPacketNumber(1));
+  packets_acked.push_back(AckedPacket(
+      QuicPacketNumber(1), kMaxOutgoingPacketSize, QuicTime::Zero()));
+  loss_algorithm_.SpuriousLossDetected(unacked_packets_, rtt_stats_,
+                                       clock_.Now(), QuicPacketNumber(1),
+                                       QuicPacketNumber(4));
+  VerifyLosses(4, packets_acked, std::vector<uint64_t>{});
+  packets_acked.clear();
+
+  // Verify acking 5 does not cause 2 detected lost.
+  unacked_packets_.RemoveFromInFlight(QuicPacketNumber(5));
+  packets_acked.push_back(AckedPacket(
+      QuicPacketNumber(5), kMaxOutgoingPacketSize, QuicTime::Zero()));
+  VerifyLosses(5, packets_acked, std::vector<uint64_t>{});
+  packets_acked.clear();
+
+  SendDataPacket(6);
+
+  // Acking 6 will causes 2 detected lost.
+  unacked_packets_.RemoveFromInFlight(QuicPacketNumber(6));
+  packets_acked.push_back(AckedPacket(
+      QuicPacketNumber(6), kMaxOutgoingPacketSize, QuicTime::Zero()));
+  VerifyLosses(6, packets_acked, std::vector<uint64_t>{2});
+  packets_acked.clear();
+
+  // Retransmit 2 as 7.
+  SendDataPacket(7);
+
+  // Acking 2 such that it was detected lost spuriously.
+  unacked_packets_.RemoveFromInFlight(QuicPacketNumber(2));
+  packets_acked.push_back(AckedPacket(
+      QuicPacketNumber(2), kMaxOutgoingPacketSize, QuicTime::Zero()));
+  loss_algorithm_.SpuriousLossDetected(unacked_packets_, rtt_stats_,
+                                       clock_.Now(), QuicPacketNumber(2),
+                                       QuicPacketNumber(6));
+  VerifyLosses(6, packets_acked, std::vector<uint64_t>{});
+  packets_acked.clear();
+
+  // Acking 7 will not cause 3 as detected lost.
+  unacked_packets_.RemoveFromInFlight(QuicPacketNumber(7));
+  packets_acked.push_back(AckedPacket(
+      QuicPacketNumber(7), kMaxOutgoingPacketSize, QuicTime::Zero()));
+  VerifyLosses(7, packets_acked, std::vector<uint64_t>{});
+  packets_acked.clear();
 }
 
 }  // namespace
