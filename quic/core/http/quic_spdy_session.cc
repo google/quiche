@@ -402,18 +402,22 @@ void QuicSpdySession::Initialize() {
       2 * max_inbound_header_list_size_);
 }
 
-void QuicSpdySession::OnDecoderStreamError(QuicStringPiece /*error_message*/) {
+void QuicSpdySession::OnDecoderStreamError(QuicStringPiece error_message) {
   DCHECK(VersionUsesQpack(transport_version()));
 
-  // TODO(112770235): Signal connection error on decoder stream errors.
-  QUIC_NOTREACHED();
+  // TODO(b/124216424): Use HTTP_QPACK_DECODER_STREAM_ERROR.
+  CloseConnectionWithDetails(
+      QUIC_DECOMPRESSION_FAILURE,
+      QuicStrCat("Decoder stream error: ", error_message));
 }
 
-void QuicSpdySession::OnEncoderStreamError(QuicStringPiece /*error_message*/) {
+void QuicSpdySession::OnEncoderStreamError(QuicStringPiece error_message) {
   DCHECK(VersionUsesQpack(transport_version()));
 
-  // TODO(112770235): Signal connection error on encoder stream errors.
-  QUIC_NOTREACHED();
+  // TODO(b/124216424): Use HTTP_QPACK_ENCODER_STREAM_ERROR.
+  CloseConnectionWithDetails(
+      QUIC_DECOMPRESSION_FAILURE,
+      QuicStrCat("Encoder stream error: ", error_message));
 }
 
 void QuicSpdySession::OnStreamHeadersPriority(

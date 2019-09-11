@@ -2473,6 +2473,48 @@ TEST_P(QuicSpdySessionTestClient, DuplicateHttp3UnidirectionalStreams) {
       "Received a duplicate QPACK decoder stream: Closing connection.");
 }
 
+TEST_P(QuicSpdySessionTestClient, EncoderStreamError) {
+  if (!VersionUsesQpack(transport_version())) {
+    return;
+  }
+
+  std::string data = QuicTextUtils::HexDecode(
+      "02"    // Encoder stream.
+      "00");  // Duplicate entry 0, but no entries exist.
+
+  QuicStreamId stream_id =
+      GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 0);
+
+  QuicStreamFrame frame(stream_id, /* fin = */ false, /* offset = */ 0, data);
+
+  EXPECT_CALL(
+      *connection_,
+      CloseConnection(QUIC_DECOMPRESSION_FAILURE,
+                      "Encoder stream error: Invalid relative index.", _));
+  session_.OnStreamFrame(frame);
+}
+
+TEST_P(QuicSpdySessionTestClient, DecoderStreamError) {
+  if (!VersionUsesQpack(transport_version())) {
+    return;
+  }
+
+  std::string data = QuicTextUtils::HexDecode(
+      "03"    // Decoder stream.
+      "00");  // Insert Count Increment with forbidden increment value of zero.
+
+  QuicStreamId stream_id =
+      GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 0);
+
+  QuicStreamFrame frame(stream_id, /* fin = */ false, /* offset = */ 0, data);
+
+  EXPECT_CALL(
+      *connection_,
+      CloseConnection(QUIC_DECOMPRESSION_FAILURE,
+                      "Decoder stream error: Invalid increment value 0.", _));
+  session_.OnStreamFrame(frame);
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

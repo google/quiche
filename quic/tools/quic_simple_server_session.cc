@@ -36,6 +36,11 @@ QuicSimpleServerSession::QuicSimpleServerSession(
           QuicUtils::GetInvalidStreamId(connection->transport_version())),
       quic_simple_server_backend_(quic_simple_server_backend) {
   DCHECK(quic_simple_server_backend_);
+
+  // Do not use the QPACK dynamic table in tests to avoid flakiness due to the
+  // uncertain order of receiving the SETTINGS frame and sending headers.
+  set_qpack_maximum_dynamic_table_capacity(0);
+  set_qpack_maximum_blocked_streams(0);
 }
 
 QuicSimpleServerSession::~QuicSimpleServerSession() {

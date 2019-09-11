@@ -18,14 +18,7 @@ class QuicSimpleClientSession : public QuicSpdyClientSession {
                           const QuicServerId& server_id,
                           QuicCryptoClientConfig* crypto_config,
                           QuicClientPushPromiseIndex* push_promise_index,
-                          bool drop_response_body)
-      : QuicSpdyClientSession(config,
-                              supported_versions,
-                              connection,
-                              server_id,
-                              crypto_config,
-                              push_promise_index),
-        drop_response_body_(drop_response_body) {}
+                          bool drop_response_body);
 
   std::unique_ptr<QuicSpdyClientStream> CreateClientStream() override;
 
