@@ -515,7 +515,6 @@ TEST_F(QuicCryptoStreamTest, HasUnackedCryptoDataWithCryptoFrames) {
 
 // Regression test for bugfix of GetPacketHeaderSize.
 TEST_F(QuicCryptoStreamTest, CryptoMessageFramingOverhead) {
-  SetQuicReloadableFlag(quic_fix_get_packet_header_size, true);
   for (auto version : AllSupportedTransportVersions()) {
     SCOPED_TRACE(version);
     QuicByteCount expected_overhead = 48;

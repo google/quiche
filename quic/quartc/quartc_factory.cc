@@ -82,9 +82,6 @@ void ConfigureGlobalQuicSettings() {
   SetQuicReloadableFlag(quic_bbr_less_probe_rtt, true);  // Enable BBR6,7,8.
   SetQuicReloadableFlag(quic_unified_iw_options, true);  // Enable IWXX opts.
   SetQuicReloadableFlag(quic_bbr_flexible_app_limited, true);  // Enable BBR9.
-
-  // Fix GetPacketHeaderSize
-  SetQuicReloadableFlag(quic_fix_get_packet_header_size, true);
 }
 
 QuicConfig CreateQuicConfig(const QuartcSessionConfig& quartc_session_config) {

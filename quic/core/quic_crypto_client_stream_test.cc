@@ -315,7 +315,6 @@ TEST_F(QuicCryptoClientStreamTest, ServerConfigUpdateBeforeHandshake) {
 }
 
 TEST_F(QuicCryptoClientStreamTest, PreferredVersion) {
-  SetQuicReloadableFlag(quic_fix_get_packet_header_size, true);
   // This mimics the case where client receives version negotiation packet, such
   // that, the preferred version is different from the packets' version.
   connection_ = new PacketSavingConnection(

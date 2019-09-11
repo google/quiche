@@ -154,7 +154,6 @@ class QuicPacketCreatorTest : public QuicTestWithParam<TestParams> {
         data_("foo"),
         creator_(connection_id_, &client_framer_, &delegate_, &producer_),
         serialized_packet_(creator_.NoPacket()) {
-    QuicPacketCreatorPeer::EnableGetPacketHeaderSizeBugFix(&creator_);
     EXPECT_CALL(delegate_, GetPacketBuffer()).WillRepeatedly(Return(nullptr));
     creator_.SetEncrypter(ENCRYPTION_HANDSHAKE, std::make_unique<NullEncrypter>(
                                                     Perspective::IS_CLIENT));

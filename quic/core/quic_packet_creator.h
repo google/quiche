@@ -432,9 +432,6 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // If true, packet_'s transmission type is only set by
   // SetPacketTransmissionType and does not get cleared in ClearPacket.
   bool can_set_transmission_type_;
-
-  // Latched value of quic_fix_get_packet_header_size flag.
-  bool fix_get_packet_header_size_;
 };
 
 }  // namespace quic

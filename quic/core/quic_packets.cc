@@ -127,12 +127,9 @@ size_t GetPacketHeaderSize(
         size += kConnectionIdLengthSize;
       }
       DCHECK(QuicVersionHasLongHeaderLengths(version) ||
-             !GetQuicReloadableFlag(quic_fix_get_packet_header_size) ||
              retry_token_length_length + retry_token_length + length_length ==
                  0);
-      if (QuicVersionHasLongHeaderLengths(version) ||
-          !GetQuicReloadableFlag(quic_fix_get_packet_header_size)) {
-        QUIC_RELOADABLE_FLAG_COUNT_N(quic_fix_get_packet_header_size, 1, 3);
+      if (QuicVersionHasLongHeaderLengths(version)) {
         size += retry_token_length_length + retry_token_length + length_length;
       }
       return size;

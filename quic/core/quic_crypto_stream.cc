@@ -52,11 +52,9 @@ QuicByteCount QuicCryptoStream::CryptoMessageFramingOverhead(
       VARIABLE_LENGTH_INTEGER_LENGTH_1;
   QuicVariableLengthIntegerLength length_length =
       VARIABLE_LENGTH_INTEGER_LENGTH_2;
-  if (!QuicVersionHasLongHeaderLengths(version) &&
-      GetQuicReloadableFlag(quic_fix_get_packet_header_size)) {
+  if (!QuicVersionHasLongHeaderLengths(version)) {
     retry_token_length_length = VARIABLE_LENGTH_INTEGER_LENGTH_0;
     length_length = VARIABLE_LENGTH_INTEGER_LENGTH_0;
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_fix_get_packet_header_size, 2, 3);
   }
   return QuicPacketCreator::StreamFramePacketOverhead(
       version, static_cast<QuicConnectionIdLength>(connection_id.length()),
