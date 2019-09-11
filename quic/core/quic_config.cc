@@ -900,9 +900,9 @@ QuicErrorCode QuicConfig::ProcessTransportParameters(
   // An idle timeout of zero indicates it is disabled (in other words, it is
   // set to infinity). When the idle timeout is very high, we set it to our
   // preferred maximum and still probe that often.
-  if (idle_timeout_seconds > kMaximumIdleTimeoutSecs ||
+  if (idle_timeout_seconds > idle_network_timeout_seconds_.GetMax() ||
       idle_timeout_seconds == 0) {
-    idle_timeout_seconds = kMaximumIdleTimeoutSecs;
+    idle_timeout_seconds = idle_network_timeout_seconds_.GetMax();
   }
   QuicErrorCode error = idle_network_timeout_seconds_.ReceiveValue(
       idle_timeout_seconds, hello_type, error_details);
@@ -986,6 +986,7 @@ QuicErrorCode QuicConfig::ProcessTransportParameters(
     }
   }
 
+  *error_details = "";
   return QUIC_NO_ERROR;
 }
 

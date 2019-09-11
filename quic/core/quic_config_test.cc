@@ -306,6 +306,22 @@ TEST_P(QuicConfigTest, HasClientRequestedIndependentOption) {
       kTBBR, Perspective::IS_SERVER));
 }
 
+TEST_P(QuicConfigTest, IncomingLargeIdleTimeoutTransportParameter) {
+  // Configure our default to 30s and max to 60s, then receive 120s from peer.
+  // Since the received value is above the max, we should then use the max.
+  config_.SetIdleNetworkTimeout(quic::QuicTime::Delta::FromSeconds(60),
+                                quic::QuicTime::Delta::FromSeconds(30));
+  TransportParameters params;
+  params.idle_timeout_milliseconds.set_value(120000);
+
+  std::string error_details = "foobar";
+  EXPECT_EQ(QUIC_NO_ERROR,
+            config_.ProcessTransportParameters(params, SERVER, &error_details));
+  EXPECT_EQ("", error_details);
+  EXPECT_EQ(quic::QuicTime::Delta::FromSeconds(60),
+            config_.IdleNetworkTimeout());
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic
