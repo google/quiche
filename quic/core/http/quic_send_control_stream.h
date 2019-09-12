@@ -22,6 +22,7 @@ class QUIC_EXPORT_PRIVATE QuicSendControlStream : public QuicStream {
   QuicSendControlStream(QuicStreamId id,
                         QuicSession* session,
                         uint64_t qpack_maximum_dynamic_table_capacity,
+                        uint64_t qpack_maximum_blocked_streams,
                         uint64_t max_inbound_header_list_size);
   QuicSendControlStream(const QuicSendControlStream&) = delete;
   QuicSendControlStream& operator=(const QuicSendControlStream&) = delete;
@@ -52,6 +53,8 @@ class QUIC_EXPORT_PRIVATE QuicSendControlStream : public QuicStream {
 
   // SETTINGS_QPACK_MAX_TABLE_CAPACITY value to send.
   const uint64_t qpack_maximum_dynamic_table_capacity_;
+  // SETTINGS_QPACK_BLOCKED_STREAMS value to send.
+  const uint64_t qpack_maximum_blocked_streams_;
   // SETTINGS_MAX_HEADER_LIST_SIZE value to send.
   const uint64_t max_inbound_header_list_size_;
 };

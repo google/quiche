@@ -86,19 +86,22 @@ TEST_P(QuicSendControlStreamTest, WriteSettings) {
   }
 
   session_.set_qpack_maximum_dynamic_table_capacity(255);
+  session_.set_qpack_maximum_blocked_streams(16);
   session_.set_max_inbound_header_list_size(1024);
 
   Initialize();
   testing::InSequence s;
 
   std::string expected_write_data = QuicTextUtils::HexDecode(
-      "00"      // stream type: control stream
-      "04"      // frame type: SETTINGS frame
-      "06"      // frame length
-      "01"      // SETTINGS_QPACK_MAX_TABLE_CAPACITY
-      "40ff"    // 255
-      "06"      // SETTINGS_MAX_HEADER_LIST_SIZE
-      "4400");  // 1024
+      "00"    // stream type: control stream
+      "04"    // frame type: SETTINGS frame
+      "08"    // frame length
+      "01"    // SETTINGS_QPACK_MAX_TABLE_CAPACITY
+      "40ff"  // 255
+      "06"    // SETTINGS_MAX_HEADER_LIST_SIZE
+      "4400"  // 1024
+      "07"    // SETTINGS_QPACK_BLOCKED_STREAMS
+      "10");  // 16
 
   auto buffer = std::make_unique<char[]>(expected_write_data.size());
   QuicDataWriter writer(expected_write_data.size(), buffer.get());

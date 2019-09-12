@@ -391,8 +391,6 @@ void QuicSpdySession::Initialize() {
         std::make_unique<QpackDecoder>(qpack_maximum_dynamic_table_capacity_,
                                        qpack_maximum_blocked_streams_, this);
     MaybeInitializeHttp3UnidirectionalStreams();
-    // TODO(b/112770235): Send SETTINGS_QPACK_BLOCKED_STREAMS with value
-    // qpack_maximum_blocked_streams_.
   }
 
   spdy_framer_visitor_->set_max_header_list_size(max_inbound_header_list_size_);
@@ -960,7 +958,8 @@ void QuicSpdySession::MaybeInitializeHttp3UnidirectionalStreams() {
   if (!send_control_stream_ && CanOpenNextOutgoingUnidirectionalStream()) {
     auto send_control = std::make_unique<QuicSendControlStream>(
         GetNextOutgoingUnidirectionalStreamId(), this,
-        qpack_maximum_dynamic_table_capacity_, max_inbound_header_list_size_);
+        qpack_maximum_dynamic_table_capacity_, qpack_maximum_blocked_streams_,
+        max_inbound_header_list_size_);
     send_control_stream_ = send_control.get();
     ActivateStream(std::move(send_control));
   }
