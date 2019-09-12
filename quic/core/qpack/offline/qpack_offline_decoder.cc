@@ -97,6 +97,12 @@ bool QpackOfflineDecoder::ParseInputFilename(QuicStringPiece input_filename) {
   qpack_decoder_->set_qpack_stream_sender_delegate(
       &decoder_stream_sender_delegate_);
 
+  // The initial dynamic table capacity is zero according to
+  // https://quicwg.org/base-drafts/draft-ietf-quic-qpack.html#eviction.
+  // However, for historical reasons, offline interop encoders use
+  // |maximum_dynamic_table_capacity| as initial capacity.
+  qpack_decoder_->OnSetDynamicTableCapacity(maximum_dynamic_table_capacity);
+
   return true;
 }
 
