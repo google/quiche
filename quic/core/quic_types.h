@@ -383,10 +383,11 @@ enum CongestionControlType {
 };
 
 enum LossDetectionType : uint8_t {
-  kNack,          // Used to mimic TCP's loss detection.
-  kTime,          // Time based loss detection.
-  kAdaptiveTime,  // Adaptive time based loss detection.
-  kLazyFack,      // Nack based but with FACK disabled for the first ack.
+  kNack,               // Used to mimic TCP's loss detection.
+  kTime,               // Time based loss detection.
+  kAdaptiveTime,       // Adaptive time based loss detection.
+  kLazyFack,           // Nack based but with FACK disabled for the first ack.
+  kIetfLossDetection,  // IETF style loss detection.
 };
 
 // EncryptionLevel enumerates the stages of encryption that a QUIC connection

@@ -65,6 +65,14 @@ class QUIC_EXPORT_PRIVATE GeneralLossAlgorithm : public LossDetectionInterface {
 
   int reordering_shift() const { return reordering_shift_; }
 
+  void set_reordering_shift(int reordering_shift) {
+    reordering_shift_ = reordering_shift;
+  }
+
+  bool use_adaptive_reordering_threshold() const {
+    return use_adaptive_reordering_threshold_;
+  }
+
   void enable_adaptive_reordering_threshold() {
     use_adaptive_reordering_threshold_ = true;
   }

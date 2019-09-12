@@ -209,5 +209,19 @@ void QuicSentPacketManagerPeer::SetNextPacedPacketTime(
   sent_packet_manager->pacing_sender_.ideal_next_packet_send_time_ = time;
 }
 
+// static
+int QuicSentPacketManagerPeer::GetReorderingShift(
+    QuicSentPacketManager* sent_packet_manager) {
+  return sent_packet_manager->uber_loss_algorithm_.general_loss_algorithms_[0]
+      .reordering_shift();
+}
+
+// static
+bool QuicSentPacketManagerPeer::AdaptiveReorderingThresholdEnabled(
+    QuicSentPacketManager* sent_packet_manager) {
+  return sent_packet_manager->uber_loss_algorithm_.general_loss_algorithms_[0]
+      .use_adaptive_reordering_threshold();
+}
+
 }  // namespace test
 }  // namespace quic

@@ -595,6 +595,71 @@ TEST_F(GeneralLossAlgorithmTest, IncreaseReorderingThresholdUponSpuriousLoss) {
   packets_acked.clear();
 }
 
+TEST_F(GeneralLossAlgorithmTest, DefaultIetfLossDetection) {
+  loss_algorithm_.SetLossDetectionType(kIetfLossDetection);
+  for (size_t i = 1; i <= 6; ++i) {
+    SendDataPacket(i);
+  }
+  // Packet threshold loss detection.
+  AckedPacketVector packets_acked;
+  // No loss on one ack.
+  unacked_packets_.RemoveFromInFlight(QuicPacketNumber(2));
+  packets_acked.push_back(AckedPacket(
+      QuicPacketNumber(2), kMaxOutgoingPacketSize, QuicTime::Zero()));
+  VerifyLosses(2, packets_acked, std::vector<uint64_t>{});
+  packets_acked.clear();
+  // No loss on two acks.
+  unacked_packets_.RemoveFromInFlight(QuicPacketNumber(3));
+  packets_acked.push_back(AckedPacket(
+      QuicPacketNumber(3), kMaxOutgoingPacketSize, QuicTime::Zero()));
+  VerifyLosses(3, packets_acked, std::vector<uint64_t>{});
+  packets_acked.clear();
+  // Loss on three acks.
+  unacked_packets_.RemoveFromInFlight(QuicPacketNumber(4));
+  packets_acked.push_back(AckedPacket(
+      QuicPacketNumber(4), kMaxOutgoingPacketSize, QuicTime::Zero()));
+  VerifyLosses(4, packets_acked, {1});
+  EXPECT_EQ(QuicTime::Zero(), loss_algorithm_.GetLossTimeout());
+  packets_acked.clear();
+
+  SendDataPacket(7);
+
+  // Time threshold loss detection.
+  unacked_packets_.RemoveFromInFlight(QuicPacketNumber(6));
+  packets_acked.push_back(AckedPacket(
+      QuicPacketNumber(6), kMaxOutgoingPacketSize, QuicTime::Zero()));
+  VerifyLosses(6, packets_acked, std::vector<uint64_t>{});
+  packets_acked.clear();
+  EXPECT_EQ(clock_.Now() + rtt_stats_.smoothed_rtt() +
+                (rtt_stats_.smoothed_rtt() >> 3),
+            loss_algorithm_.GetLossTimeout());
+  clock_.AdvanceTime(rtt_stats_.smoothed_rtt() +
+                     (rtt_stats_.smoothed_rtt() >> 3));
+  VerifyLosses(6, packets_acked, {5});
+  EXPECT_EQ(QuicTime::Zero(), loss_algorithm_.GetLossTimeout());
+}
+
+TEST_F(GeneralLossAlgorithmTest, IetfLossDetectionWithOneFourthRttDelay) {
+  loss_algorithm_.SetLossDetectionType(kIetfLossDetection);
+  loss_algorithm_.set_reordering_shift(2);
+  SendDataPacket(1);
+  SendDataPacket(2);
+
+  AckedPacketVector packets_acked;
+  unacked_packets_.RemoveFromInFlight(QuicPacketNumber(2));
+  packets_acked.push_back(AckedPacket(
+      QuicPacketNumber(2), kMaxOutgoingPacketSize, QuicTime::Zero()));
+  VerifyLosses(2, packets_acked, std::vector<uint64_t>{});
+  packets_acked.clear();
+  EXPECT_EQ(clock_.Now() + rtt_stats_.smoothed_rtt() +
+                (rtt_stats_.smoothed_rtt() >> 2),
+            loss_algorithm_.GetLossTimeout());
+  clock_.AdvanceTime(rtt_stats_.smoothed_rtt() +
+                     (rtt_stats_.smoothed_rtt() >> 2));
+  VerifyLosses(2, packets_acked, {1});
+  EXPECT_EQ(QuicTime::Zero(), loss_algorithm_.GetLossTimeout());
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

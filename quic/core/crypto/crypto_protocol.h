@@ -163,6 +163,19 @@ const QuicTag kCONH = TAG('C', 'O', 'N', 'H');   // Conservative Handshake
 const QuicTag kLFAK = TAG('L', 'F', 'A', 'K');   // Don't invoke FACK on the
                                                  // first ack.
 const QuicTag kSTMP = TAG('S', 'T', 'M', 'P');   // Send and process timestamps
+
+const QuicTag kILD0 = TAG('I', 'L', 'D', '0');   // IETF style loss detection
+                                                 // (default with 1/8 RTT time
+                                                 // threshold)
+const QuicTag kILD1 = TAG('I', 'L', 'D', '1');   // IETF style loss detection
+                                                 // with 1/4 RTT time threshold
+const QuicTag kILD2 = TAG('I', 'L', 'D', '2');   // IETF style loss detection
+                                                 // with adaptive packet
+                                                 // threshold
+const QuicTag kILD3 = TAG('I', 'L', 'D', '3');   // IETF style loss detection
+                                                 // with 1/4 RTT time threshold
+                                                 // and adaptive packet
+                                                 // threshold
 // TODO(fayang): Remove this connection option when QUIC_VERSION_35, is removed
 // Since MAX_HEADER_LIST_SIZE settings frame is supported instead.
 const QuicTag kSMHL = TAG('S', 'M', 'H', 'L');   // Support MAX_HEADER_LIST_SIZE

@@ -368,6 +368,9 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     if (GetQuicReloadableFlag(quic_enable_pto)) {
       copt.push_back(k2PTO);
     }
+    if (VersionHasIetfQuicFrames(negotiated_version_.transport_version)) {
+      copt.push_back(kILD0);
+    }
     client_config_.SetConnectionOptionsToSend(copt);
 
     // Start the server first, because CreateQuicClient() attempts

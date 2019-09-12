@@ -249,6 +249,30 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
   if (config.HasClientRequestedIndependentOption(kLFAK, perspective)) {
     uber_loss_algorithm_.SetLossDetectionType(kLazyFack);
   }
+  if (GetQuicReloadableFlag(quic_enable_ietf_loss_detection)) {
+    if (config.HasClientRequestedIndependentOption(kILD0, perspective)) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_ietf_loss_detection, 1, 4);
+      uber_loss_algorithm_.SetLossDetectionType(kIetfLossDetection);
+    }
+    if (config.HasClientRequestedIndependentOption(kILD1, perspective)) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_ietf_loss_detection, 2, 4);
+      uber_loss_algorithm_.SetLossDetectionType(kIetfLossDetection);
+      uber_loss_algorithm_.SetReorderingShift(kDefaultLossDelayShift);
+    }
+    if (GetQuicReloadableFlag(quic_detect_spurious_loss)) {
+      if (config.HasClientRequestedIndependentOption(kILD2, perspective)) {
+        QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_ietf_loss_detection, 3, 4);
+        uber_loss_algorithm_.SetLossDetectionType(kIetfLossDetection);
+        uber_loss_algorithm_.EnableAdaptiveReorderingThreshold();
+      }
+      if (config.HasClientRequestedIndependentOption(kILD3, perspective)) {
+        QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_ietf_loss_detection, 4, 4);
+        uber_loss_algorithm_.SetLossDetectionType(kIetfLossDetection);
+        uber_loss_algorithm_.SetReorderingShift(kDefaultLossDelayShift);
+        uber_loss_algorithm_.EnableAdaptiveReorderingThreshold();
+      }
+    }
+  }
   if (config.HasClientSentConnectionOption(kCONH, perspective)) {
     conservative_handshake_retransmits_ = true;
   }
