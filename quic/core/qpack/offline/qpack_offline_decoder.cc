@@ -19,7 +19,7 @@
 namespace quic {
 
 QpackOfflineDecoder::QpackOfflineDecoder()
-    : encoder_stream_error_detected_(false), max_blocked_streams_(0) {}
+    : encoder_stream_error_detected_(false) {}
 
 bool QpackOfflineDecoder::DecodeAndVerifyOfflineData(
     QuicStringPiece input_filename,
@@ -75,7 +75,8 @@ bool QpackOfflineDecoder::ParseInputFilename(QuicStringPiece input_filename) {
   ++piece_it;
 
   // Maximum allowed number of blocked streams.
-  if (!QuicTextUtils::StringToUint64(*piece_it, &max_blocked_streams_)) {
+  uint64_t max_blocked_streams = 0;
+  if (!QuicTextUtils::StringToUint64(*piece_it, &max_blocked_streams)) {
     QUIC_LOG(ERROR) << "Error parsing part of input filename \"" << *piece_it
                     << "\" as an integer.";
     return false;
@@ -92,7 +93,7 @@ bool QpackOfflineDecoder::ParseInputFilename(QuicStringPiece input_filename) {
     return false;
   }
   qpack_decoder_ = std::make_unique<QpackDecoder>(
-      maximum_dynamic_table_capacity, max_blocked_streams_, this);
+      maximum_dynamic_table_capacity, max_blocked_streams, this);
   qpack_decoder_->set_qpack_stream_sender_delegate(
       &decoder_stream_sender_delegate_);
 
@@ -180,22 +181,6 @@ bool QpackOfflineDecoder::DecodeHeaderBlocksFromFile(
       decoded_header_lists_.push_back(
           decoder->headers_handler->ReleaseHeaderList());
       decoders_.pop_front();
-    }
-
-    // Enforce limit on blocked streams.
-    // TODO(b/112770235): Move this logic to QpackDecoder.
-    uint64_t blocked_streams_count = 0;
-    for (const auto& decoder : decoders_) {
-      if (!decoder.headers_handler->decoding_completed()) {
-        ++blocked_streams_count;
-      }
-    }
-
-    if (blocked_streams_count > max_blocked_streams_) {
-      QUIC_LOG(ERROR) << "Too many blocked streams: limit is "
-                      << max_blocked_streams_ << ", actual count is "
-                      << blocked_streams_count;
-      return false;
     }
   }
 
