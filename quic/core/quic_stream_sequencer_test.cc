@@ -370,12 +370,8 @@ TEST_F(QuicStreamSequencerTest, TerminateWithReadv) {
   EXPECT_TRUE(sequencer_->IsClosed());
 }
 
-TEST_F(QuicStreamSequencerTest, MutipleOffsets) {
+TEST_F(QuicStreamSequencerTest, MultipleOffsets) {
   OnFinFrame(3, "");
-  EXPECT_EQ(3u, QuicStreamSequencerPeer::GetCloseOffset(sequencer_.get()));
-
-  EXPECT_CALL(stream_, Reset(QUIC_MULTIPLE_TERMINATION_OFFSETS));
-  OnFinFrame(5, "");
   EXPECT_EQ(3u, QuicStreamSequencerPeer::GetCloseOffset(sequencer_.get()));
 
   EXPECT_CALL(stream_, Reset(QUIC_MULTIPLE_TERMINATION_OFFSETS));
@@ -761,10 +757,9 @@ TEST_F(QuicStreamSequencerTest, StopReadingWithLevelTriggered) {
 // Regression test for https://crbug.com/992486.
 TEST_F(QuicStreamSequencerTest, CorruptFinFrames) {
   SetQuicReloadableFlag(quic_no_stream_data_after_reset, true);
-  EXPECT_CALL(stream_, OnDataAvailable()).Times(1);
   EXPECT_CALL(stream_, Reset(QUIC_MULTIPLE_TERMINATION_OFFSETS));
 
-  OnFinFrame(0u, "");
+  OnFinFrame(2u, "");
   OnFinFrame(0u, "a");
   EXPECT_FALSE(sequencer_->HasBytesToRead());
 }

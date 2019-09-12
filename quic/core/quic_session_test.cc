@@ -2717,6 +2717,25 @@ TEST_P(QuicSessionTestServer, WriteBufferedCryptoFrames) {
   EXPECT_FALSE(session_.WillingAndAbleToWrite());
 }
 
+// Regression test for
+// https://bugs.chromium.org/p/chromium/issues/detail?id=1002119
+TEST_P(QuicSessionTestServer, StreamFrameReceivedAfterFin) {
+  TestStream* stream = session_.CreateOutgoingBidirectionalStream();
+  QuicStreamFrame frame(stream->id(), true, 0, ",");
+  session_.OnStreamFrame(frame);
+
+  QuicStreamFrame frame1(stream->id(), false, 1, ",");
+  if (GetQuicReloadableFlag(quic_rst_if_stream_frame_beyond_close_offset)) {
+    EXPECT_CALL(*connection_, SendControlFrame(_));
+    EXPECT_CALL(*connection_,
+                OnStreamReset(stream->id(), QUIC_DATA_AFTER_CLOSE_OFFSET));
+    session_.OnStreamFrame(frame1);
+    EXPECT_TRUE(connection_->connected());
+  } else {
+    EXPECT_DEBUG_DEATH(session_.OnStreamFrame(frame1), "Check failed");
+  }
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

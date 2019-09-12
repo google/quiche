@@ -6,6 +6,7 @@
 
 #include <string>
 
+#include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
 #include "net/third_party/quiche/src/quic/core/quic_flow_controller.h"
 #include "net/third_party/quiche/src/quic/core/quic_session.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
@@ -160,6 +161,12 @@ void PendingStream::OnStreamFrame(const QuicStreamFrame& frame) {
     CloseConnectionWithDetails(
         QUIC_STREAM_LENGTH_OVERFLOW,
         "Peer sends more data than allowed on this stream.");
+    return;
+  }
+
+  if (GetQuicReloadableFlag(quic_rst_if_stream_frame_beyond_close_offset) &&
+      frame.offset + frame.data_length > sequencer_.close_offset()) {
+    Reset(QUIC_DATA_AFTER_CLOSE_OFFSET);
     return;
   }
 
@@ -387,6 +394,15 @@ void QuicStream::OnStreamFrame(const QuicStreamFrame& frame) {
                    frame.data_length, ". ", sequencer_.DebugString()));
     return;
   }
+
+  if (GetQuicReloadableFlag(quic_rst_if_stream_frame_beyond_close_offset)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_rst_if_stream_frame_beyond_close_offset);
+    if (frame.offset + frame.data_length > sequencer_.close_offset()) {
+      Reset(QUIC_DATA_AFTER_CLOSE_OFFSET);
+      return;
+    }
+  }
+
   if (frame.fin) {
     fin_received_ = true;
     if (fin_sent_) {

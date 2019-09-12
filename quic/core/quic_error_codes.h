@@ -54,6 +54,8 @@ enum QuicRstStreamErrorCode {
   QUIC_HEADERS_TOO_LARGE,
   // The data is not likely arrive in time.
   QUIC_STREAM_TTL_EXPIRED,
+  // The stream received data that goes beyond its close offset.
+  QUIC_DATA_AFTER_CLOSE_OFFSET,
   // No error. Used as bound while iterating.
   QUIC_STREAM_LAST_ERROR,
 };

@@ -29,6 +29,7 @@ const char* QuicRstStreamErrorCodeToString(QuicRstStreamErrorCode error) {
     RETURN_STRING_LITERAL(QUIC_INVALID_PROMISE_METHOD);
     RETURN_STRING_LITERAL(QUIC_PUSH_STREAM_TIMED_OUT);
     RETURN_STRING_LITERAL(QUIC_HEADERS_TOO_LARGE);
+    RETURN_STRING_LITERAL(QUIC_DATA_AFTER_CLOSE_OFFSET);
     RETURN_STRING_LITERAL(QUIC_STREAM_TTL_EXPIRED);
   }
   // Return a default value so that we return this when |error| doesn't match
