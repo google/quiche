@@ -24,6 +24,7 @@ int main(int argc, char* argv[]) {
   }
 
   size_t i;
+  size_t success_count = 0;
   for (i = 0; 2 * i < args.size(); ++i) {
     const quic::QuicStringPiece input_filename(args[2 * i]);
     const quic::QuicStringPiece expected_headers_filename(args[2 * i + 1]);
@@ -31,14 +32,15 @@ int main(int argc, char* argv[]) {
     // Every file represents a different connection,
     // therefore every file needs a fresh decoding context.
     quic::QpackOfflineDecoder decoder;
-    if (!decoder.DecodeAndVerifyOfflineData(input_filename,
-                                            expected_headers_filename)) {
-      return 1;
+    if (decoder.DecodeAndVerifyOfflineData(input_filename,
+                                           expected_headers_filename)) {
+      ++success_count;
     }
   }
 
-  std::cout << "Successfully verified " << i << " pairs of input files."
-            << std::endl;
+  std::cout << "Processed " << i << " pairs of input files, " << success_count
+            << " passed, " << (i - success_count) << " failed." << std::endl;
 
-  return 0;
+  // Return success if all input files pass.
+  return (success_count == i) ? 0 : 1;
 }
