@@ -51,9 +51,16 @@ const size_t kNumSessionsToCreatePerSocketEvent = 16;
 QuicServer::QuicServer(std::unique_ptr<ProofSource> proof_source,
                        QuicSimpleServerBackend* quic_simple_server_backend)
     : QuicServer(std::move(proof_source),
+                 quic_simple_server_backend,
+                 AllSupportedVersions()) {}
+
+QuicServer::QuicServer(std::unique_ptr<ProofSource> proof_source,
+                       QuicSimpleServerBackend* quic_simple_server_backend,
+                       const ParsedQuicVersionVector& supported_versions)
+    : QuicServer(std::move(proof_source),
                  QuicConfig(),
                  QuicCryptoServerConfig::ConfigOptions(),
-                 AllSupportedVersions(),
+                 supported_versions,
                  quic_simple_server_backend,
                  kQuicDefaultConnectionIdLength) {}
 

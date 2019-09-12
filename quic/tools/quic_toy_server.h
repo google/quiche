@@ -24,7 +24,8 @@ class QuicToyServer {
     // responses, and |proof_source| for certificates.
     virtual std::unique_ptr<QuicSpdyServerBase> CreateServer(
         QuicSimpleServerBackend* backend,
-        std::unique_ptr<ProofSource> proof_source) = 0;
+        std::unique_ptr<ProofSource> proof_source,
+        const ParsedQuicVersionVector& supported_versions) = 0;
   };
 
   // A facotry for creating QuicSimpleServerBackend instances.

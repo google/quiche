@@ -204,7 +204,10 @@ QuicDispatcher::QuicDispatcher(
       allow_short_initial_server_connection_ids_(false),
       expected_server_connection_id_length_(
           expected_server_connection_id_length),
-      should_update_expected_server_connection_id_length_(false) {}
+      should_update_expected_server_connection_id_length_(false) {
+  QUIC_DLOG(INFO) << "Created QuicDispatcher with versions: "
+                  << ParsedQuicVersionVectorToString(GetSupportedVersions());
+}
 
 QuicDispatcher::~QuicDispatcher() {
   session_map_.clear();

@@ -39,8 +39,11 @@ class QuicServer : public QuicSpdyServerBase,
   QuicServer(std::unique_ptr<ProofSource> proof_source,
              QuicSimpleServerBackend* quic_simple_server_backend);
   QuicServer(std::unique_ptr<ProofSource> proof_source,
+             QuicSimpleServerBackend* quic_simple_server_backend,
+             const ParsedQuicVersionVector& supported_versions);
+  QuicServer(std::unique_ptr<ProofSource> proof_source,
              const QuicConfig& config,
-             const QuicCryptoServerConfig::ConfigOptions& server_config_options,
+             const QuicCryptoServerConfig::ConfigOptions& crypto_config_options,
              const ParsedQuicVersionVector& supported_versions,
              QuicSimpleServerBackend* quic_simple_server_backend,
              uint8_t expected_server_connection_id_length);

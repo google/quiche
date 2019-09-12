@@ -49,15 +49,19 @@ QuicToyServer::QuicToyServer(BackendFactory* backend_factory,
     : backend_factory_(backend_factory), server_factory_(server_factory) {}
 
 int QuicToyServer::Start() {
+  ParsedQuicVersionVector supported_versions;
   if (GetQuicFlag(FLAGS_quic_ietf_draft)) {
     QuicVersionInitializeSupportForIetfDraft();
-    quic::QuicEnableVersion(
-        quic::ParsedQuicVersion(quic::PROTOCOL_TLS1_3, quic::QUIC_VERSION_99));
+    ParsedQuicVersion version(PROTOCOL_TLS1_3, QUIC_VERSION_99);
+    QuicEnableVersion(version);
+    supported_versions = {version};
+  } else {
+    supported_versions = AllSupportedVersions();
   }
   auto proof_source = quic::CreateDefaultProofSource();
   auto backend = backend_factory_->CreateBackend();
-  auto server =
-      server_factory_->CreateServer(backend.get(), std::move(proof_source));
+  auto server = server_factory_->CreateServer(
+      backend.get(), std::move(proof_source), supported_versions);
 
   if (!server->CreateUDPSocketAndListen(quic::QuicSocketAddress(
           quic::QuicIpAddress::Any6(), GetQuicFlag(FLAGS_port)))) {
