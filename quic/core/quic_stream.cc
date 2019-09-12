@@ -24,13 +24,68 @@ namespace quic {
 
 namespace {
 
-size_t GetInitialStreamFlowControlWindowToSend(QuicSession* session) {
-  return session->config()->GetInitialStreamFlowControlWindowToSend();
+size_t GetInitialStreamFlowControlWindowToSend(QuicSession* session,
+                                               QuicStreamId stream_id) {
+  ParsedQuicVersion version = session->connection()->version();
+  if (version.handshake_protocol != PROTOCOL_TLS1_3) {
+    return session->config()->GetInitialStreamFlowControlWindowToSend();
+  }
+
+  // Unidirectional streams (v99 only).
+  if (VersionHasIetfQuicFrames(version.transport_version) &&
+      !QuicUtils::IsBidirectionalStreamId(stream_id)) {
+    return session->config()
+        ->GetInitialMaxStreamDataBytesUnidirectionalToSend();
+  }
+
+  if (session->perspective() == Perspective::IS_SERVER &&
+      QuicUtils::IsServerInitiatedStreamId(version.transport_version,
+                                           stream_id)) {
+    return session->config()
+        ->GetInitialMaxStreamDataBytesOutgoingBidirectionalToSend();
+  }
+
+  return session->config()
+      ->GetInitialMaxStreamDataBytesIncomingBidirectionalToSend();
 }
 
-size_t GetReceivedFlowControlWindow(QuicSession* session) {
-  if (session->config()->HasReceivedInitialStreamFlowControlWindowBytes()) {
-    return session->config()->ReceivedInitialStreamFlowControlWindowBytes();
+size_t GetReceivedFlowControlWindow(QuicSession* session,
+                                    QuicStreamId stream_id) {
+  ParsedQuicVersion version = session->connection()->version();
+  if (version.handshake_protocol != PROTOCOL_TLS1_3) {
+    if (session->config()->HasReceivedInitialStreamFlowControlWindowBytes()) {
+      return session->config()->ReceivedInitialStreamFlowControlWindowBytes();
+    }
+
+    return kDefaultFlowControlSendWindow;
+  }
+
+  // Unidirectional streams (v99 only).
+  if (VersionHasIetfQuicFrames(version.transport_version) &&
+      !QuicUtils::IsBidirectionalStreamId(stream_id)) {
+    if (session->config()
+            ->HasReceivedInitialMaxStreamDataBytesUnidirectional()) {
+      return session->config()
+          ->ReceivedInitialMaxStreamDataBytesUnidirectional();
+    }
+    return kDefaultFlowControlSendWindow;
+  }
+
+  if (session->perspective() == Perspective::IS_SERVER &&
+      QuicUtils::IsServerInitiatedStreamId(version.transport_version,
+                                           stream_id)) {
+    if (session->config()
+            ->HasReceivedInitialMaxStreamDataBytesIncomingBidirectional()) {
+      return session->config()
+          ->ReceivedInitialMaxStreamDataBytesIncomingBidirectional();
+    }
+    return kDefaultFlowControlSendWindow;
+  }
+
+  if (session->config()
+          ->HasReceivedInitialMaxStreamDataBytesOutgoingBidirectional()) {
+    return session->config()
+        ->ReceivedInitialMaxStreamDataBytesOutgoingBidirectional();
   }
 
   return kDefaultFlowControlSendWindow;
@@ -50,8 +105,8 @@ PendingStream::PendingStream(QuicStreamId id, QuicSession* session)
       flow_controller_(session,
                        id,
                        /*is_connection_flow_controller*/ false,
-                       GetReceivedFlowControlWindow(session),
-                       GetInitialStreamFlowControlWindowToSend(session),
+                       GetReceivedFlowControlWindow(session, id),
+                       GetInitialStreamFlowControlWindowToSend(session, id),
                        kStreamReceiveWindowLimit,
                        session_->flow_controller()->auto_tune_receive_window(),
                        session_->flow_controller()),
@@ -206,8 +261,8 @@ QuicOptional<QuicFlowController> FlowController(QuicStreamId id,
   return QuicFlowController(
       session, id,
       /*is_connection_flow_controller*/ false,
-      GetReceivedFlowControlWindow(session),
-      GetInitialStreamFlowControlWindowToSend(session),
+      GetReceivedFlowControlWindow(session, id),
+      GetInitialStreamFlowControlWindowToSend(session, id),
       kStreamReceiveWindowLimit,
       session->flow_controller()->auto_tune_receive_window(),
       session->flow_controller());

@@ -22,6 +22,18 @@ class QuicConfigPeer {
   static void SetReceivedInitialStreamFlowControlWindow(QuicConfig* config,
                                                         uint32_t window_bytes);
 
+  static void SetReceivedInitialMaxStreamDataBytesIncomingBidirectional(
+      QuicConfig* config,
+      uint32_t window_bytes);
+
+  static void SetReceivedInitialMaxStreamDataBytesOutgoingBidirectional(
+      QuicConfig* config,
+      uint32_t window_bytes);
+
+  static void SetReceivedInitialMaxStreamDataBytesUnidirectional(
+      QuicConfig* config,
+      uint32_t window_bytes);
+
   static void SetReceivedInitialSessionFlowControlWindow(QuicConfig* config,
                                                          uint32_t window_bytes);
 

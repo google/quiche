@@ -18,6 +18,30 @@ void QuicConfigPeer::SetReceivedInitialStreamFlowControlWindow(
 }
 
 // static
+void QuicConfigPeer::SetReceivedInitialMaxStreamDataBytesIncomingBidirectional(
+    QuicConfig* config,
+    uint32_t window_bytes) {
+  config->initial_max_stream_data_bytes_incoming_bidirectional_
+      .SetReceivedValue(window_bytes);
+}
+
+// static
+void QuicConfigPeer::SetReceivedInitialMaxStreamDataBytesOutgoingBidirectional(
+    QuicConfig* config,
+    uint32_t window_bytes) {
+  config->initial_max_stream_data_bytes_outgoing_bidirectional_
+      .SetReceivedValue(window_bytes);
+}
+
+// static
+void QuicConfigPeer::SetReceivedInitialMaxStreamDataBytesUnidirectional(
+    QuicConfig* config,
+    uint32_t window_bytes) {
+  config->initial_max_stream_data_bytes_unidirectional_.SetReceivedValue(
+      window_bytes);
+}
+
+// static
 void QuicConfigPeer::SetReceivedInitialSessionFlowControlWindow(
     QuicConfig* config,
     uint32_t window_bytes) {

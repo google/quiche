@@ -377,12 +377,32 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
 
   // Sets an initial stream flow control window size to transmit to the peer.
   void SetInitialStreamFlowControlWindowToSend(uint32_t window_bytes);
-
   uint32_t GetInitialStreamFlowControlWindowToSend() const;
-
   bool HasReceivedInitialStreamFlowControlWindowBytes() const;
-
   uint32_t ReceivedInitialStreamFlowControlWindowBytes() const;
+
+  // Specifies the initial flow control window (max stream data) for
+  // incoming bidirectional streams.
+  void SetInitialMaxStreamDataBytesIncomingBidirectionalToSend(
+      uint32_t window_bytes);
+  uint32_t GetInitialMaxStreamDataBytesIncomingBidirectionalToSend() const;
+  bool HasReceivedInitialMaxStreamDataBytesIncomingBidirectional() const;
+  uint32_t ReceivedInitialMaxStreamDataBytesIncomingBidirectional() const;
+
+  // Specifies the initial flow control window (max stream data) for
+  // outgoing bidirectional streams.
+  void SetInitialMaxStreamDataBytesOutgoingBidirectionalToSend(
+      uint32_t window_bytes);
+  uint32_t GetInitialMaxStreamDataBytesOutgoingBidirectionalToSend() const;
+  bool HasReceivedInitialMaxStreamDataBytesOutgoingBidirectional() const;
+  uint32_t ReceivedInitialMaxStreamDataBytesOutgoingBidirectional() const;
+
+  // Specifies the initial flow control window (max stream data) for
+  // uidirectional streams.
+  void SetInitialMaxStreamDataBytesUnidirectionalToSend(uint32_t window_bytes);
+  uint32_t GetInitialMaxStreamDataBytesUnidirectionalToSend() const;
+  bool HasReceivedInitialMaxStreamDataBytesUnidirectional() const;
+  uint32_t ReceivedInitialMaxStreamDataBytesUnidirectional() const;
 
   // Sets an initial session flow control window size to transmit to the peer.
   void SetInitialSessionFlowControlWindowToSend(uint32_t window_bytes);
@@ -491,8 +511,17 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   // Initial round trip time estimate in microseconds.
   QuicFixedUint32 initial_round_trip_time_us_;
 
-  // Initial stream flow control receive window in bytes.
+  // Initial IETF QUIC stream flow control receive windows in bytes.
+  // Incoming bidirectional streams.
+  QuicFixedUint32 initial_max_stream_data_bytes_incoming_bidirectional_;
+  // Outgoing bidirectional streams.
+  QuicFixedUint32 initial_max_stream_data_bytes_outgoing_bidirectional_;
+  // Unidirectional streams.
+  QuicFixedUint32 initial_max_stream_data_bytes_unidirectional_;
+
+  // Initial Google QUIC stream flow control receive window in bytes.
   QuicFixedUint32 initial_stream_flow_control_window_bytes_;
+
   // Initial session flow control receive window in bytes.
   QuicFixedUint32 initial_session_flow_control_window_bytes_;
 

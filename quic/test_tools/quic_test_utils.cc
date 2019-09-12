@@ -1058,6 +1058,12 @@ void CompareCharArraysWithHexError(const std::string& description,
 
 QuicConfig DefaultQuicConfig() {
   QuicConfig config;
+  config.SetInitialMaxStreamDataBytesIncomingBidirectionalToSend(
+      kInitialStreamFlowControlWindowForTest);
+  config.SetInitialMaxStreamDataBytesOutgoingBidirectionalToSend(
+      kInitialStreamFlowControlWindowForTest);
+  config.SetInitialMaxStreamDataBytesUnidirectionalToSend(
+      kInitialStreamFlowControlWindowForTest);
   config.SetInitialStreamFlowControlWindowToSend(
       kInitialStreamFlowControlWindowForTest);
   config.SetInitialSessionFlowControlWindowToSend(

@@ -31,6 +31,23 @@ INSTANTIATE_TEST_SUITE_P(QuicConfigTests,
                          QuicConfigTest,
                          ::testing::ValuesIn(AllSupportedTransportVersions()));
 
+TEST_P(QuicConfigTest, SetDefaults) {
+  EXPECT_EQ(kMinimumFlowControlSendWindow,
+            config_.GetInitialStreamFlowControlWindowToSend());
+  EXPECT_EQ(kMinimumFlowControlSendWindow,
+            config_.GetInitialMaxStreamDataBytesIncomingBidirectionalToSend());
+  EXPECT_EQ(kMinimumFlowControlSendWindow,
+            config_.GetInitialMaxStreamDataBytesOutgoingBidirectionalToSend());
+  EXPECT_EQ(kMinimumFlowControlSendWindow,
+            config_.GetInitialMaxStreamDataBytesUnidirectionalToSend());
+  EXPECT_FALSE(config_.HasReceivedInitialStreamFlowControlWindowBytes());
+  EXPECT_FALSE(
+      config_.HasReceivedInitialMaxStreamDataBytesIncomingBidirectional());
+  EXPECT_FALSE(
+      config_.HasReceivedInitialMaxStreamDataBytesOutgoingBidirectional());
+  EXPECT_FALSE(config_.HasReceivedInitialMaxStreamDataBytesUnidirectional());
+}
+
 TEST_P(QuicConfigTest, ToHandshakeMessage) {
   config_.SetInitialStreamFlowControlWindowToSend(
       kInitialStreamFlowControlWindowForTest);
@@ -108,6 +125,13 @@ TEST_P(QuicConfigTest, ProcessClientHello) {
   } else {
     EXPECT_FALSE(config_.HasReceivedMaxAckDelayMs());
   }
+
+  // IETF QUIC stream limits should not be received in QUIC crypto messages.
+  EXPECT_FALSE(
+      config_.HasReceivedInitialMaxStreamDataBytesIncomingBidirectional());
+  EXPECT_FALSE(
+      config_.HasReceivedInitialMaxStreamDataBytesOutgoingBidirectional());
+  EXPECT_FALSE(config_.HasReceivedInitialMaxStreamDataBytesUnidirectional());
 }
 
 TEST_P(QuicConfigTest, ProcessServerHello) {
@@ -155,6 +179,13 @@ TEST_P(QuicConfigTest, ProcessServerHello) {
   } else {
     EXPECT_FALSE(config_.HasReceivedMaxAckDelayMs());
   }
+
+  // IETF QUIC stream limits should not be received in QUIC crypto messages.
+  EXPECT_FALSE(
+      config_.HasReceivedInitialMaxStreamDataBytesIncomingBidirectional());
+  EXPECT_FALSE(
+      config_.HasReceivedInitialMaxStreamDataBytesOutgoingBidirectional());
+  EXPECT_FALSE(config_.HasReceivedInitialMaxStreamDataBytesUnidirectional());
 }
 
 TEST_P(QuicConfigTest, MissingOptionalValuesInCHLO) {
@@ -320,6 +351,54 @@ TEST_P(QuicConfigTest, IncomingLargeIdleTimeoutTransportParameter) {
   EXPECT_EQ("", error_details);
   EXPECT_EQ(quic::QuicTime::Delta::FromSeconds(60),
             config_.IdleNetworkTimeout());
+}
+
+TEST_P(QuicConfigTest, FillTransportParams) {
+  config_.SetInitialMaxStreamDataBytesIncomingBidirectionalToSend(
+      2 * kMinimumFlowControlSendWindow);
+  config_.SetInitialMaxStreamDataBytesOutgoingBidirectionalToSend(
+      3 * kMinimumFlowControlSendWindow);
+  config_.SetInitialMaxStreamDataBytesUnidirectionalToSend(
+      4 * kMinimumFlowControlSendWindow);
+
+  TransportParameters params;
+  config_.FillTransportParameters(&params);
+
+  EXPECT_EQ(2 * kMinimumFlowControlSendWindow,
+            params.initial_max_stream_data_bidi_local.value());
+  EXPECT_EQ(3 * kMinimumFlowControlSendWindow,
+            params.initial_max_stream_data_bidi_remote.value());
+  EXPECT_EQ(4 * kMinimumFlowControlSendWindow,
+            params.initial_max_stream_data_uni.value());
+}
+
+TEST_P(QuicConfigTest, ProcessTransportParametersServer) {
+  TransportParameters params;
+
+  params.initial_max_stream_data_bidi_local.set_value(
+      2 * kMinimumFlowControlSendWindow);
+  params.initial_max_stream_data_bidi_remote.set_value(
+      3 * kMinimumFlowControlSendWindow);
+  params.initial_max_stream_data_uni.set_value(4 *
+                                               kMinimumFlowControlSendWindow);
+
+  std::string error_details;
+  EXPECT_EQ(QUIC_NO_ERROR,
+            config_.ProcessTransportParameters(params, SERVER, &error_details));
+
+  ASSERT_TRUE(
+      config_.HasReceivedInitialMaxStreamDataBytesIncomingBidirectional());
+  EXPECT_EQ(2 * kMinimumFlowControlSendWindow,
+            config_.ReceivedInitialMaxStreamDataBytesIncomingBidirectional());
+
+  ASSERT_TRUE(
+      config_.HasReceivedInitialMaxStreamDataBytesOutgoingBidirectional());
+  EXPECT_EQ(3 * kMinimumFlowControlSendWindow,
+            config_.ReceivedInitialMaxStreamDataBytesOutgoingBidirectional());
+
+  ASSERT_TRUE(config_.HasReceivedInitialMaxStreamDataBytesUnidirectional());
+  EXPECT_EQ(4 * kMinimumFlowControlSendWindow,
+            config_.ReceivedInitialMaxStreamDataBytesUnidirectional());
 }
 
 }  // namespace

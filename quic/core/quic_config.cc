@@ -407,6 +407,11 @@ QuicConfig::QuicConfig()
       max_incoming_bidirectional_streams_(kMIBS, PRESENCE_REQUIRED),
       bytes_for_connection_id_(kTCID, PRESENCE_OPTIONAL),
       initial_round_trip_time_us_(kIRTT, PRESENCE_OPTIONAL),
+      initial_max_stream_data_bytes_incoming_bidirectional_(0,
+                                                            PRESENCE_OPTIONAL),
+      initial_max_stream_data_bytes_outgoing_bidirectional_(0,
+                                                            PRESENCE_OPTIONAL),
+      initial_max_stream_data_bytes_unidirectional_(0, PRESENCE_OPTIONAL),
       initial_stream_flow_control_window_bytes_(kSFCW, PRESENCE_OPTIONAL),
       initial_session_flow_control_window_bytes_(kCFCW, PRESENCE_OPTIONAL),
       connection_migration_disabled_(kNCMR, PRESENCE_OPTIONAL),
@@ -633,6 +638,87 @@ uint32_t QuicConfig::ReceivedInitialStreamFlowControlWindowBytes() const {
   return initial_stream_flow_control_window_bytes_.GetReceivedValue();
 }
 
+void QuicConfig::SetInitialMaxStreamDataBytesIncomingBidirectionalToSend(
+    uint32_t window_bytes) {
+  if (window_bytes < kMinimumFlowControlSendWindow) {
+    QUIC_BUG << "Initial stream flow control receive window (" << window_bytes
+             << ") cannot be set lower than minimum ("
+             << kMinimumFlowControlSendWindow << ").";
+    window_bytes = kMinimumFlowControlSendWindow;
+  }
+  initial_max_stream_data_bytes_incoming_bidirectional_.SetSendValue(
+      window_bytes);
+}
+
+uint32_t QuicConfig::GetInitialMaxStreamDataBytesIncomingBidirectionalToSend()
+    const {
+  return initial_max_stream_data_bytes_incoming_bidirectional_.GetSendValue();
+}
+
+bool QuicConfig::HasReceivedInitialMaxStreamDataBytesIncomingBidirectional()
+    const {
+  return initial_max_stream_data_bytes_incoming_bidirectional_
+      .HasReceivedValue();
+}
+
+uint32_t QuicConfig::ReceivedInitialMaxStreamDataBytesIncomingBidirectional()
+    const {
+  return initial_max_stream_data_bytes_incoming_bidirectional_
+      .GetReceivedValue();
+}
+
+void QuicConfig::SetInitialMaxStreamDataBytesOutgoingBidirectionalToSend(
+    uint32_t window_bytes) {
+  if (window_bytes < kMinimumFlowControlSendWindow) {
+    QUIC_BUG << "Initial stream flow control receive window (" << window_bytes
+             << ") cannot be set lower than minimum ("
+             << kMinimumFlowControlSendWindow << ").";
+    window_bytes = kMinimumFlowControlSendWindow;
+  }
+  initial_max_stream_data_bytes_outgoing_bidirectional_.SetSendValue(
+      window_bytes);
+}
+
+uint32_t QuicConfig::GetInitialMaxStreamDataBytesOutgoingBidirectionalToSend()
+    const {
+  return initial_max_stream_data_bytes_outgoing_bidirectional_.GetSendValue();
+}
+
+bool QuicConfig::HasReceivedInitialMaxStreamDataBytesOutgoingBidirectional()
+    const {
+  return initial_max_stream_data_bytes_outgoing_bidirectional_
+      .HasReceivedValue();
+}
+
+uint32_t QuicConfig::ReceivedInitialMaxStreamDataBytesOutgoingBidirectional()
+    const {
+  return initial_max_stream_data_bytes_outgoing_bidirectional_
+      .GetReceivedValue();
+}
+
+void QuicConfig::SetInitialMaxStreamDataBytesUnidirectionalToSend(
+    uint32_t window_bytes) {
+  if (window_bytes < kMinimumFlowControlSendWindow) {
+    QUIC_BUG << "Initial stream flow control receive window (" << window_bytes
+             << ") cannot be set lower than minimum ("
+             << kMinimumFlowControlSendWindow << ").";
+    window_bytes = kMinimumFlowControlSendWindow;
+  }
+  initial_max_stream_data_bytes_unidirectional_.SetSendValue(window_bytes);
+}
+
+uint32_t QuicConfig::GetInitialMaxStreamDataBytesUnidirectionalToSend() const {
+  return initial_max_stream_data_bytes_unidirectional_.GetSendValue();
+}
+
+bool QuicConfig::HasReceivedInitialMaxStreamDataBytesUnidirectional() const {
+  return initial_max_stream_data_bytes_unidirectional_.HasReceivedValue();
+}
+
+uint32_t QuicConfig::ReceivedInitialMaxStreamDataBytesUnidirectional() const {
+  return initial_max_stream_data_bytes_unidirectional_.GetReceivedValue();
+}
+
 void QuicConfig::SetInitialSessionFlowControlWindowToSend(
     uint32_t window_bytes) {
   if (window_bytes < kMinimumFlowControlSendWindow) {
@@ -725,6 +811,12 @@ void QuicConfig::SetDefaults() {
   max_undecryptable_packets_ = kDefaultMaxUndecryptablePackets;
 
   SetInitialStreamFlowControlWindowToSend(kMinimumFlowControlSendWindow);
+  SetInitialMaxStreamDataBytesIncomingBidirectionalToSend(
+      kMinimumFlowControlSendWindow);
+  SetInitialMaxStreamDataBytesOutgoingBidirectionalToSend(
+      kMinimumFlowControlSendWindow);
+  SetInitialMaxStreamDataBytesUnidirectionalToSend(
+      kMinimumFlowControlSendWindow);
   SetInitialSessionFlowControlWindowToSend(kMinimumFlowControlSendWindow);
   SetMaxAckDelayToSendMs(kDefaultDelayedAckTimeMs);
   SetSupportMaxHeaderListSize();
@@ -848,11 +940,11 @@ bool QuicConfig::FillTransportParameters(TransportParameters* params) const {
   params->initial_max_data.set_value(
       initial_session_flow_control_window_bytes_.GetSendValue());
   params->initial_max_stream_data_bidi_local.set_value(
-      initial_stream_flow_control_window_bytes_.GetSendValue());
+      initial_max_stream_data_bytes_incoming_bidirectional_.GetSendValue());
   params->initial_max_stream_data_bidi_remote.set_value(
-      initial_stream_flow_control_window_bytes_.GetSendValue());
+      initial_max_stream_data_bytes_outgoing_bidirectional_.GetSendValue());
   params->initial_max_stream_data_uni.set_value(
-      initial_stream_flow_control_window_bytes_.GetSendValue());
+      initial_max_stream_data_bytes_unidirectional_.GetSendValue());
   params->initial_max_streams_bidi.set_value(
       max_incoming_bidirectional_streams_.GetSendValue());
   params->initial_max_streams_uni.set_value(
@@ -940,9 +1032,16 @@ QuicErrorCode QuicConfig::ProcessTransportParameters(
       std::min<uint64_t>(params.initial_max_streams_uni.value(),
                          std::numeric_limits<uint32_t>::max()));
 
-  initial_stream_flow_control_window_bytes_.SetReceivedValue(
+  initial_max_stream_data_bytes_incoming_bidirectional_.SetReceivedValue(
       std::min<uint64_t>(params.initial_max_stream_data_bidi_local.value(),
                          std::numeric_limits<uint32_t>::max()));
+  initial_max_stream_data_bytes_outgoing_bidirectional_.SetReceivedValue(
+      std::min<uint64_t>(params.initial_max_stream_data_bidi_remote.value(),
+                         std::numeric_limits<uint32_t>::max()));
+  initial_max_stream_data_bytes_unidirectional_.SetReceivedValue(
+      std::min<uint64_t>(params.initial_max_stream_data_uni.value(),
+                         std::numeric_limits<uint32_t>::max()));
+
   if (GetQuicReloadableFlag(quic_negotiate_ack_delay_time)) {
     QUIC_RELOADABLE_FLAG_COUNT_N(quic_negotiate_ack_delay_time, 4, 4);
     max_ack_delay_ms_.SetReceivedValue(std::min<uint32_t>(

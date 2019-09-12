@@ -200,6 +200,12 @@ class QuicSimpleServerSessionTest
 
     config_.SetInitialStreamFlowControlWindowToSend(
         kInitialStreamFlowControlWindowForTest);
+    config_.SetInitialMaxStreamDataBytesIncomingBidirectionalToSend(
+        kInitialStreamFlowControlWindowForTest);
+    config_.SetInitialMaxStreamDataBytesOutgoingBidirectionalToSend(
+        kInitialStreamFlowControlWindowForTest);
+    config_.SetInitialMaxStreamDataBytesUnidirectionalToSend(
+        kInitialStreamFlowControlWindowForTest);
     config_.SetInitialSessionFlowControlWindowToSend(
         kInitialSessionFlowControlWindowForTest);
     if (VersionUsesQpack(GetParam().transport_version)) {
@@ -555,8 +561,19 @@ class QuicSimpleServerSessionServerPushTest
 
   QuicSimpleServerSessionServerPushTest() {
     // Reset stream level flow control window to be 32KB.
-    QuicConfigPeer::SetReceivedInitialStreamFlowControlWindow(
-        &config_, kStreamFlowControlWindowSize);
+    if (GetParam().handshake_protocol == PROTOCOL_TLS1_3) {
+      if (VersionHasIetfQuicFrames(GetParam().transport_version)) {
+        QuicConfigPeer::SetReceivedInitialMaxStreamDataBytesUnidirectional(
+            &config_, kStreamFlowControlWindowSize);
+      } else {
+        QuicConfigPeer::
+            SetReceivedInitialMaxStreamDataBytesIncomingBidirectional(
+                &config_, kStreamFlowControlWindowSize);
+      }
+    } else {
+      QuicConfigPeer::SetReceivedInitialStreamFlowControlWindow(
+          &config_, kStreamFlowControlWindowSize);
+    }
     // Reset connection level flow control window to be 1.5 MB which is large
     // enough that it won't block any stream to write before stream level flow
     // control blocks it.

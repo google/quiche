@@ -321,6 +321,7 @@ class QuicHeadersStreamTest : public QuicTestWithParam<TestParams> {
   }
 
   void CheckHeaders() {
+    ASSERT_TRUE(headers_handler_);
     EXPECT_EQ(headers_, headers_handler_->decoded_block());
     headers_handler_.reset();
   }
