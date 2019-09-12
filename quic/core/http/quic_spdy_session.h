@@ -321,6 +321,9 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // https://quicwg.org/base-drafts/draft-ietf-quic-qpack.html#maximum-dynamic-table-capacity
   // for the decoding context.  Value will be sent via
   // SETTINGS_QPACK_MAX_TABLE_CAPACITY.
+  // |qpack_maximum_dynamic_table_capacity_| also serves as an upper bound for
+  // the dynamic table capacity of the encoding context, to limit memory usage
+  // if a larger SETTINGS_QPACK_MAX_TABLE_CAPACITY value is received.
   uint64_t qpack_maximum_dynamic_table_capacity_;
 
   // Maximum number of blocked streams as defined at
