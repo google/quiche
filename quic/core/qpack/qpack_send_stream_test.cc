@@ -6,6 +6,7 @@
 
 #include "net/third_party/quiche/src/quic/core/http/http_constants.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
+#include "net/third_party/quiche/src/quic/test_tools/quic_config_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_spdy_session_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 
@@ -56,6 +57,11 @@ class QpackSendStreamTest : public QuicTestWithParam<TestParams> {
             SupportedVersions(GetParam().version))),
         session_(connection_) {
     session_.Initialize();
+    QuicConfigPeer::SetReceivedInitialSessionFlowControlWindow(
+        session_.config(), kMinimumFlowControlSendWindow);
+    QuicConfigPeer::SetReceivedMaxIncomingUnidirectionalStreams(
+        session_.config(), 3);
+    session_.OnConfigNegotiated();
 
     qpack_send_stream_ =
         QuicSpdySessionPeer::GetQpackDecoderSendStream(&session_);
@@ -78,11 +84,6 @@ INSTANTIATE_TEST_SUITE_P(Tests,
                          ::testing::ValuesIn(GetTestParams()));
 
 TEST_P(QpackSendStreamTest, WriteStreamTypeOnlyFirstTime) {
-  if (GetParam().version.handshake_protocol == PROTOCOL_TLS1_3) {
-    // TODO(nharper, b/112643533): Figure out why this test fails when TLS is
-    // enabled and fix it.
-    return;
-  }
   std::string data = "data";
   EXPECT_CALL(session_, WritevData(_, _, 1, _, _));
   EXPECT_CALL(session_, WritevData(_, _, data.length(), _, _));

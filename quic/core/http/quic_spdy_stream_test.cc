@@ -22,6 +22,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
+#include "net/third_party/quiche/src/quic/test_tools/quic_config_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_flow_controller_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_session_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_spdy_session_peer.h"
@@ -210,6 +211,11 @@ class QuicSpdyStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
         new StrictMock<TestStream>(GetNthClientInitiatedBidirectionalId(1),
                                    session_.get(), stream_should_process_data);
     session_->ActivateStream(QuicWrapUnique(stream2_));
+    QuicConfigPeer::SetReceivedInitialSessionFlowControlWindow(
+        session_->config(), kMinimumFlowControlSendWindow);
+    QuicConfigPeer::SetReceivedMaxIncomingUnidirectionalStreams(
+        session_->config(), 10);
+    session_->OnConfigNegotiated();
   }
 
   QuicHeaderList ProcessHeaders(bool fin, const SpdyHeaderBlock& headers) {
@@ -669,12 +675,6 @@ TEST_P(QuicSpdyStreamTest, ProcessHeadersUsingReadvWithMultipleIovecs) {
 // Tests that we send a BLOCKED frame to the peer when we attempt to write, but
 // are flow control blocked.
 TEST_P(QuicSpdyStreamTest, StreamFlowControlBlocked) {
-  if (GetParam().handshake_protocol == PROTOCOL_TLS1_3) {
-    // TODO(nharper, b/112643533): Figure out why this test fails when TLS is
-    // enabled and fix it.
-    return;
-  }
-
   testing::InSequence seq;
   Initialize(kShouldProcessData);
 
@@ -1200,12 +1200,6 @@ TEST_P(QuicSpdyStreamTest, ClosingStreamWithNoTrailers) {
 // Test that writing trailers will send a FIN, as Trailers are the last thing to
 // be sent on a stream.
 TEST_P(QuicSpdyStreamTest, WritingTrailersSendsAFin) {
-  if (GetParam().handshake_protocol == PROTOCOL_TLS1_3) {
-    // TODO(nharper, b/112643533): Figure out why this test fails when TLS is
-    // enabled and fix it.
-    return;
-  }
-
   Initialize(kShouldProcessData);
 
   if (VersionUsesQpack(GetParam().transport_version)) {
@@ -1227,12 +1221,6 @@ TEST_P(QuicSpdyStreamTest, WritingTrailersSendsAFin) {
 }
 
 TEST_P(QuicSpdyStreamTest, ClientWritesPriority) {
-  if (GetParam().handshake_protocol == PROTOCOL_TLS1_3) {
-    // TODO(nharper, b/112643533): Figure out why this test fails when TLS is
-    // enabled and fix it.
-    return;
-  }
-
   InitializeWithPerspective(kShouldProcessData, Perspective::IS_CLIENT);
 
   if (VersionUsesQpack(GetParam().transport_version)) {
@@ -1273,12 +1261,6 @@ TEST_P(QuicSpdyStreamTest, ClientWritesPriority) {
 // Test that when writing trailers, the trailers that are actually sent to the
 // peer contain the final offset field indicating last byte of data.
 TEST_P(QuicSpdyStreamTest, WritingTrailersFinalOffset) {
-  if (GetParam().handshake_protocol == PROTOCOL_TLS1_3) {
-    // TODO(nharper, b/112643533): Figure out why this test fails when TLS is
-    // enabled and fix it.
-    return;
-  }
-
   Initialize(kShouldProcessData);
 
   if (VersionUsesQpack(GetParam().transport_version)) {
@@ -1323,12 +1305,6 @@ TEST_P(QuicSpdyStreamTest, WritingTrailersFinalOffset) {
 // Test that if trailers are written after all other data has been written
 // (headers and body), that this closes the stream for writing.
 TEST_P(QuicSpdyStreamTest, WritingTrailersClosesWriteSide) {
-  if (GetParam().handshake_protocol == PROTOCOL_TLS1_3) {
-    // TODO(nharper, b/112643533): Figure out why this test fails when TLS is
-    // enabled and fix it.
-    return;
-  }
-
   Initialize(kShouldProcessData);
 
   // Expect data being written on the stream.  In addition to that, headers are
@@ -1421,12 +1397,6 @@ TEST_P(QuicSpdyStreamTest, HeaderStreamNotiferCorrespondingSpdyStream) {
     return;
   }
 
-  if (GetParam().handshake_protocol == PROTOCOL_TLS1_3) {
-    // TODO(nharper, b/112643533): Figure out why this test fails when TLS is
-    // enabled and fix it.
-    return;
-  }
-
   const char kHeader1[] = "Header1";
   const char kHeader2[] = "Header2";
   const char kBody1[] = "Test1";
@@ -1478,12 +1448,6 @@ TEST_P(QuicSpdyStreamTest, HeaderStreamNotiferCorrespondingSpdyStream) {
 }
 
 TEST_P(QuicSpdyStreamTest, StreamBecomesZombieWithWriteThatCloses) {
-  if (GetParam().handshake_protocol == PROTOCOL_TLS1_3) {
-    // TODO(nharper, b/112643533): Figure out why this test fails when TLS is
-    // enabled and fix it.
-    return;
-  }
-
   Initialize(kShouldProcessData);
   EXPECT_CALL(*session_, WritevData(_, _, _, _, _)).Times(AtLeast(1));
   QuicStreamPeer::CloseReadSide(stream_);
@@ -1503,12 +1467,6 @@ TEST_P(QuicSpdyStreamTest, OnPriorityFrame) {
 }
 
 TEST_P(QuicSpdyStreamTest, OnPriorityFrameAfterSendingData) {
-  if (GetParam().handshake_protocol == PROTOCOL_TLS1_3) {
-    // TODO(nharper, b/112643533): Figure out why this test fails when TLS is
-    // enabled and fix it.
-    return;
-  }
-
   testing::InSequence seq;
   Initialize(kShouldProcessData);
 
@@ -1548,12 +1506,6 @@ TEST_P(QuicSpdyStreamTest, SetPriorityBeforeUpdateStreamPriority) {
 }
 
 TEST_P(QuicSpdyStreamTest, StreamWaitsForAcks) {
-  if (GetParam().handshake_protocol == PROTOCOL_TLS1_3) {
-    // TODO(nharper, b/112643533): Figure out why this test fails when TLS is
-    // enabled and fix it.
-    return;
-  }
-
   Initialize(kShouldProcessData);
   QuicReferenceCountedPointer<MockAckListener> mock_ack_listener(
       new StrictMock<MockAckListener>);
@@ -1605,12 +1557,6 @@ TEST_P(QuicSpdyStreamTest, StreamWaitsForAcks) {
 }
 
 TEST_P(QuicSpdyStreamTest, StreamDataGetAckedMultipleTimes) {
-  if (GetParam().handshake_protocol == PROTOCOL_TLS1_3) {
-    // TODO(nharper, b/112643533): Figure out why this test fails when TLS is
-    // enabled and fix it.
-    return;
-  }
-
   Initialize(kShouldProcessData);
   QuicReferenceCountedPointer<MockAckListener> mock_ack_listener(
       new StrictMock<MockAckListener>);
@@ -1666,12 +1612,6 @@ TEST_P(QuicSpdyStreamTest, StreamDataGetAckedMultipleTimes) {
 
 // HTTP/3 only.
 TEST_P(QuicSpdyStreamTest, HeadersAckNotReportedWriteOrBufferBody) {
-  if (GetParam().handshake_protocol == PROTOCOL_TLS1_3) {
-    // TODO(nharper, b/112643533): Figure out why this test fails when TLS is
-    // enabled and fix it.
-    return;
-  }
-
   if (!HasFrameHeader()) {
     return;
   }
@@ -1719,12 +1659,6 @@ TEST_P(QuicSpdyStreamTest, HeadersAckNotReportedWriteOrBufferBody) {
 
 // HTTP/3 only.
 TEST_P(QuicSpdyStreamTest, HeadersAckNotReportedWriteBodySlices) {
-  if (GetParam().handshake_protocol == PROTOCOL_TLS1_3) {
-    // TODO(nharper, b/112643533): Figure out why this test fails when TLS is
-    // enabled and fix it.
-    return;
-  }
-
   if (!HasFrameHeader()) {
     return;
   }
@@ -1760,11 +1694,6 @@ TEST_P(QuicSpdyStreamTest, HeadersAckNotReportedWriteBodySlices) {
 
 // HTTP/3 only.
 TEST_P(QuicSpdyStreamTest, HeaderBytesNotReportedOnRetransmission) {
-  if (GetParam().handshake_protocol == PROTOCOL_TLS1_3) {
-    // TODO(nharper, b/112643533): Figure out why this test fails when TLS is
-    // enabled and fix it.
-    return;
-  }
   if (!HasFrameHeader()) {
     return;
   }
@@ -1914,12 +1843,6 @@ TEST_P(QuicSpdyStreamTest, ImmediateHeaderDecodingWithDynamicTableEntries) {
     return;
   }
 
-  if (GetParam().handshake_protocol == PROTOCOL_TLS1_3) {
-    // TODO(nharper, b/112643533): Figure out why this test fails when TLS is
-    // enabled and fix it.
-    return;
-  }
-
   testing::InSequence s;
   Initialize(kShouldProcessData);
   session_->qpack_decoder()->OnSetDynamicTableCapacity(1024);
@@ -1974,12 +1897,6 @@ TEST_P(QuicSpdyStreamTest, ImmediateHeaderDecodingWithDynamicTableEntries) {
 
 TEST_P(QuicSpdyStreamTest, BlockedHeaderDecoding) {
   if (!VersionUsesQpack(GetParam().transport_version)) {
-    return;
-  }
-
-  if (GetParam().handshake_protocol == PROTOCOL_TLS1_3) {
-    // TODO(nharper, b/112643533): Figure out why this test fails when TLS is
-    // enabled and fix it.
     return;
   }
 
@@ -2071,12 +1988,6 @@ TEST_P(QuicSpdyStreamTest, AsyncErrorDecodingHeaders) {
 
 TEST_P(QuicSpdyStreamTest, AsyncErrorDecodingTrailers) {
   if (!VersionUsesQpack(GetParam().transport_version)) {
-    return;
-  }
-
-  if (GetParam().handshake_protocol == PROTOCOL_TLS1_3) {
-    // TODO(nharper, b/112643533): Figure out why this test fails when TLS is
-    // enabled and fix it.
     return;
   }
 

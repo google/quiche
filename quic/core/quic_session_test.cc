@@ -338,6 +338,8 @@ class QuicSessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
         session_.config(), kDefaultMaxStreamsPerConnection);
     QuicConfigPeer::SetReceivedMaxIncomingUnidirectionalStreams(
         session_.config(), kDefaultMaxStreamsPerConnection);
+    QuicConfigPeer::SetReceivedInitialSessionFlowControlWindow(
+        session_.config(), kMinimumFlowControlSendWindow);
     connection_->AdvanceTime(QuicTime::Delta::FromSeconds(1));
     session_.OnConfigNegotiated();
     TestCryptoStream* crypto_stream = session_.GetMutableCryptoStream();
@@ -822,11 +824,6 @@ TEST_P(QuicSessionTestServer, DebugDFatalIfMarkingClosedStreamWriteBlocked) {
 }
 
 TEST_P(QuicSessionTestServer, OnCanWrite) {
-  if (GetParam().handshake_protocol == PROTOCOL_TLS1_3) {
-    // TODO(nharper, b/112643533): Figure out why this test fails when TLS is
-    // enabled and fix it.
-    return;
-  }
   session_.set_writev_consumes_all_data(true);
   TestStream* stream2 = session_.CreateOutgoingBidirectionalStream();
   TestStream* stream4 = session_.CreateOutgoingBidirectionalStream();
@@ -856,11 +853,6 @@ TEST_P(QuicSessionTestServer, OnCanWrite) {
 }
 
 TEST_P(QuicSessionTestServer, TestBatchedWrites) {
-  if (GetParam().handshake_protocol == PROTOCOL_TLS1_3) {
-    // TODO(nharper, b/112643533): Figure out why this test fails when TLS is
-    // enabled and fix it.
-    return;
-  }
   session_.set_writev_consumes_all_data(true);
   TestStream* stream2 = session_.CreateOutgoingBidirectionalStream();
   TestStream* stream4 = session_.CreateOutgoingBidirectionalStream();
@@ -1052,11 +1044,6 @@ TEST_P(QuicSessionTestServer, OnCanWriteBundlesStreams) {
 }
 
 TEST_P(QuicSessionTestServer, OnCanWriteCongestionControlBlocks) {
-  if (GetParam().handshake_protocol == PROTOCOL_TLS1_3) {
-    // TODO(nharper, b/112643533): Figure out why this test fails when TLS is
-    // enabled and fix it.
-    return;
-  }
   session_.set_writev_consumes_all_data(true);
   InSequence s;
 
@@ -1103,11 +1090,6 @@ TEST_P(QuicSessionTestServer, OnCanWriteCongestionControlBlocks) {
 }
 
 TEST_P(QuicSessionTestServer, OnCanWriteWriterBlocks) {
-  if (GetParam().handshake_protocol == PROTOCOL_TLS1_3) {
-    // TODO(nharper, b/112643533): Figure out why this test fails when TLS is
-    // enabled and fix it.
-    return;
-  }
   // Drive congestion control manually in order to ensure that
   // application-limited signaling is handled correctly.
   MockSendAlgorithm* send_algorithm = new StrictMock<MockSendAlgorithm>;
@@ -1185,11 +1167,6 @@ TEST_P(QuicSessionTestServer, BufferedHandshake) {
 }
 
 TEST_P(QuicSessionTestServer, OnCanWriteWithClosedStream) {
-  if (GetParam().handshake_protocol == PROTOCOL_TLS1_3) {
-    // TODO(nharper, b/112643533): Figure out why this test fails when TLS is
-    // enabled and fix it.
-    return;
-  }
   session_.set_writev_consumes_all_data(true);
   TestStream* stream2 = session_.CreateOutgoingBidirectionalStream();
   TestStream* stream4 = session_.CreateOutgoingBidirectionalStream();
@@ -1445,11 +1422,6 @@ TEST_P(QuicSessionTestServer, OnRstStreamInvalidStreamId) {
 }
 
 TEST_P(QuicSessionTestServer, HandshakeUnblocksFlowControlBlockedStream) {
-  if (GetParam().handshake_protocol == PROTOCOL_TLS1_3) {
-    // TODO(nharper, b/112643533): Figure out why this test fails when TLS is
-    // enabled and fix it.
-    return;
-  }
   // Test that if a stream is flow control blocked, then on receipt of the SHLO
   // containing a suitable send window offset, the stream becomes unblocked.
 
@@ -2037,11 +2009,6 @@ TEST_P(QuicSessionTestServer, RstStreamReceivedAfterRstStreamSent) {
 
 // Regression test of b/71548958.
 TEST_P(QuicSessionTestServer, TestZombieStreams) {
-  if (GetParam().handshake_protocol == PROTOCOL_TLS1_3) {
-    // TODO(nharper, b/112643533): Figure out why this test fails when TLS is
-    // enabled and fix it.
-    return;
-  }
   session_.set_writev_consumes_all_data(true);
 
   TestStream* stream2 = session_.CreateOutgoingBidirectionalStream();
@@ -2100,11 +2067,6 @@ TEST_P(QuicSessionTestServer, TestZombieStreams) {
 }
 
 TEST_P(QuicSessionTestServer, OnStreamFrameLost) {
-  if (GetParam().handshake_protocol == PROTOCOL_TLS1_3) {
-    // TODO(nharper, b/112643533): Figure out why this test fails when TLS is
-    // enabled and fix it.
-    return;
-  }
   QuicConnectionPeer::SetSessionDecidesWhatToWrite(connection_);
   InSequence s;
 
@@ -2182,11 +2144,6 @@ TEST_P(QuicSessionTestServer, OnStreamFrameLost) {
 }
 
 TEST_P(QuicSessionTestServer, DonotRetransmitDataOfClosedStreams) {
-  if (GetParam().handshake_protocol == PROTOCOL_TLS1_3) {
-    // TODO(nharper, b/112643533): Figure out why this test fails when TLS is
-    // enabled and fix it.
-    return;
-  }
   QuicConnectionPeer::SetSessionDecidesWhatToWrite(connection_);
   InSequence s;
 
@@ -2342,11 +2299,6 @@ TEST_P(QuicSessionTestServer, SendMessage) {
 
 // Regression test of b/115323618.
 TEST_P(QuicSessionTestServer, LocallyResetZombieStreams) {
-  if (GetParam().handshake_protocol == PROTOCOL_TLS1_3) {
-    // TODO(nharper, b/112643533): Figure out why this test fails when TLS is
-    // enabled and fix it.
-    return;
-  }
   QuicConnectionPeer::SetSessionDecidesWhatToWrite(connection_);
 
   session_.set_writev_consumes_all_data(true);
@@ -2398,11 +2350,6 @@ TEST_P(QuicSessionTestServer, CleanUpClosedStreamsAlarm) {
 }
 
 TEST_P(QuicSessionTestServer, WriteUnidirectionalStream) {
-  if (GetParam().handshake_protocol == PROTOCOL_TLS1_3) {
-    // TODO(nharper, b/112643533): Figure out why this test fails when TLS is
-    // enabled and fix it.
-    return;
-  }
   session_.set_writev_consumes_all_data(true);
   TestStream* stream4 = new TestStream(GetNthServerInitiatedUnidirectionalId(1),
                                        &session_, WRITE_UNIDIRECTIONAL);

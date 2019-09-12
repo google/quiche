@@ -5,6 +5,7 @@
 #include "net/third_party/quiche/src/quic/core/http/quic_send_control_stream.h"
 
 #include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
+#include "net/third_party/quiche/src/quic/test_tools/quic_config_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_spdy_session_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 
@@ -62,6 +63,11 @@ class QuicSendControlStreamTest : public QuicTestWithParam<TestParams> {
   void Initialize() {
     session_.Initialize();
     send_control_stream_ = QuicSpdySessionPeer::GetSendControlStream(&session_);
+    QuicConfigPeer::SetReceivedInitialSessionFlowControlWindow(
+        session_.config(), kMinimumFlowControlSendWindow);
+    QuicConfigPeer::SetReceivedMaxIncomingUnidirectionalStreams(
+        session_.config(), 3);
+    session_.OnConfigNegotiated();
   }
 
   Perspective perspective() const { return GetParam().perspective; }
@@ -79,12 +85,6 @@ INSTANTIATE_TEST_SUITE_P(Tests,
                          ::testing::ValuesIn(GetTestParams()));
 
 TEST_P(QuicSendControlStreamTest, WriteSettings) {
-  if (GetParam().version.handshake_protocol == PROTOCOL_TLS1_3) {
-    // TODO(nharper, b/112643533): Figure out why this test fails when TLS is
-    // enabled and fix it.
-    return;
-  }
-
   session_.set_qpack_maximum_dynamic_table_capacity(255);
   session_.set_qpack_maximum_blocked_streams(16);
   session_.set_max_inbound_header_list_size(1024);
@@ -128,12 +128,6 @@ TEST_P(QuicSendControlStreamTest, WriteSettings) {
 }
 
 TEST_P(QuicSendControlStreamTest, WriteSettingsOnlyOnce) {
-  if (GetParam().version.handshake_protocol == PROTOCOL_TLS1_3) {
-    // TODO(nharper, b/112643533): Figure out why this test fails when TLS is
-    // enabled and fix it.
-    return;
-  }
-
   Initialize();
   testing::InSequence s;
 
@@ -147,12 +141,6 @@ TEST_P(QuicSendControlStreamTest, WriteSettingsOnlyOnce) {
 }
 
 TEST_P(QuicSendControlStreamTest, WritePriorityBeforeSettings) {
-  if (GetParam().version.handshake_protocol == PROTOCOL_TLS1_3) {
-    // TODO(nharper, b/112643533): Figure out why this test fails when TLS is
-    // enabled and fix it.
-    return;
-  }
-
   Initialize();
   testing::InSequence s;
 

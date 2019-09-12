@@ -154,6 +154,9 @@ class QuicServerSessionBaseTest : public QuicTestWithParam<ParsedQuicVersion> {
     QuicSessionPeer::GetMutableCryptoStream(session_.get())
         ->OnSuccessfulVersionNegotiation(supported_versions.front());
     visitor_ = QuicConnectionPeer::GetVisitor(connection_);
+    QuicConfigPeer::SetReceivedInitialSessionFlowControlWindow(
+        session_->config(), kMinimumFlowControlSendWindow);
+    session_->OnConfigNegotiated();
   }
 
   QuicStreamId GetNthClientInitiatedBidirectionalId(int n) {
@@ -474,11 +477,6 @@ class MockQuicCryptoServerStream : public QuicCryptoServerStream {
 };
 
 TEST_P(QuicServerSessionBaseTest, BandwidthEstimates) {
-  if (GetParam().handshake_protocol == PROTOCOL_TLS1_3) {
-    // TODO(nharper, b/112643533): Figure out why this test fails when TLS is
-    // enabled and fix it.
-    return;
-  }
   // Test that bandwidth estimate updates are sent to the client, only when
   // bandwidth resumption is enabled, the bandwidth estimate has changed
   // sufficiently, enough time has passed,
