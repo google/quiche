@@ -2679,7 +2679,9 @@ TEST_P(QuicSessionTestServer, StreamFrameReceivedAfterFin) {
     session_.OnStreamFrame(frame1);
     EXPECT_TRUE(connection_->connected());
   } else {
+#if GTEST_HAS_DEATH_TEST && !defined(NDEBUG)
     EXPECT_DEBUG_DEATH(session_.OnStreamFrame(frame1), "Check failed");
+#endif  // GTEST_HAS_DEATH_TEST && !defined(NDEBUG)
   }
 }
 
