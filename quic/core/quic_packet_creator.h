@@ -82,6 +82,11 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   void UpdatePacketNumberLength(QuicPacketNumber least_packet_awaited_by_peer,
                                 QuicPacketCount max_packets_in_flight);
 
+  // Skip |count| packet numbers.
+  void SkipNPacketNumbers(QuicPacketCount count,
+                          QuicPacketNumber least_packet_awaited_by_peer,
+                          QuicPacketCount max_packets_in_flight);
+
   // The overhead the framing will add for a packet with one frame.
   static size_t StreamFramePacketOverhead(
       QuicTransportVersion version,

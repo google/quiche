@@ -1181,6 +1181,36 @@ TEST_P(QuicPacketCreatorTest, UpdatePacketSequenceNumberLengthCwnd) {
             QuicPacketCreatorPeer::GetPacketNumberLength(&creator_));
 }
 
+TEST_P(QuicPacketCreatorTest, SkipNPacketNumbers) {
+  QuicPacketCreatorPeer::SetPacketNumber(&creator_, 1);
+  if (VersionHasIetfInvariantHeader(GetParam().version.transport_version) &&
+      !GetParam().version.SendsVariableLengthPacketNumberInLongHeader()) {
+    EXPECT_EQ(PACKET_4BYTE_PACKET_NUMBER,
+              QuicPacketCreatorPeer::GetPacketNumberLength(&creator_));
+    creator_.set_encryption_level(ENCRYPTION_FORWARD_SECURE);
+  } else {
+    EXPECT_EQ(PACKET_1BYTE_PACKET_NUMBER,
+              QuicPacketCreatorPeer::GetPacketNumberLength(&creator_));
+  }
+  creator_.SkipNPacketNumbers(63, QuicPacketNumber(2),
+                              10000 / kDefaultMaxPacketSize);
+  EXPECT_EQ(QuicPacketNumber(64), creator_.packet_number());
+  EXPECT_EQ(PACKET_1BYTE_PACKET_NUMBER,
+            QuicPacketCreatorPeer::GetPacketNumberLength(&creator_));
+
+  creator_.SkipNPacketNumbers(64 * 255, QuicPacketNumber(2),
+                              10000 / kDefaultMaxPacketSize);
+  EXPECT_EQ(QuicPacketNumber(64 * 256), creator_.packet_number());
+  EXPECT_EQ(PACKET_2BYTE_PACKET_NUMBER,
+            QuicPacketCreatorPeer::GetPacketNumberLength(&creator_));
+
+  creator_.SkipNPacketNumbers(64 * 256 * 255, QuicPacketNumber(2),
+                              10000 / kDefaultMaxPacketSize);
+  EXPECT_EQ(QuicPacketNumber(64 * 256 * 256), creator_.packet_number());
+  EXPECT_EQ(PACKET_4BYTE_PACKET_NUMBER,
+            QuicPacketCreatorPeer::GetPacketNumberLength(&creator_));
+}
+
 TEST_P(QuicPacketCreatorTest, SerializeFrame) {
   if (!GetParam().version_serialization) {
     creator_.StopSendingVersion();

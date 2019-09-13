@@ -9160,6 +9160,37 @@ TEST_P(QuicConnectionTest, RtoPacketAsTwo) {
   connection_.GetRetransmissionAlarm()->Fire();
 }
 
+TEST_P(QuicConnectionTest, PtoSkipsPacketNumber) {
+  if (!connection_.session_decides_what_to_write() ||
+      !GetQuicReloadableFlag(quic_fix_rto_retransmission3)) {
+    return;
+  }
+  SetQuicReloadableFlag(quic_enable_pto, true);
+  SetQuicReloadableFlag(quic_skip_packet_number_for_pto, true);
+  QuicConfig config;
+  QuicTagVector connection_options;
+  connection_options.push_back(k1PTO);
+  connection_options.push_back(kPTOS);
+  config.SetConnectionOptionsToSend(connection_options);
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  connection_.SetFromConfig(config);
+  EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
+
+  QuicStreamId stream_id = 2;
+  QuicPacketNumber last_packet;
+  SendStreamDataToPeer(stream_id, "foooooo", 0, NO_FIN, &last_packet);
+  SendStreamDataToPeer(stream_id, "foooooo", 7, NO_FIN, &last_packet);
+  EXPECT_EQ(QuicPacketNumber(2), last_packet);
+  EXPECT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
+
+  // Fire PTO and verify the PTO retransmission skips one packet number.
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
+  connection_.GetRetransmissionAlarm()->Fire();
+  EXPECT_EQ(1u, writer_->stream_frames().size());
+  EXPECT_EQ(QuicPacketNumber(4), writer_->last_packet_header().packet_number);
+  EXPECT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

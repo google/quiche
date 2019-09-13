@@ -1483,6 +1483,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // packet has been successfully processed. Only used when
   // EnforceAntiAmplificationLimit returns true.
   bool address_validated_;
+
+  // If true, skip packet number before sending the last PTO retransmission.
+  bool skip_packet_number_for_pto_;
 };
 
 }  // namespace quic

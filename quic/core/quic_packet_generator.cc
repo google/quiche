@@ -337,6 +337,14 @@ void QuicPacketGenerator::UpdatePacketNumberLength(
                                                   max_packets_in_flight);
 }
 
+void QuicPacketGenerator::SkipNPacketNumbers(
+    QuicPacketCount count,
+    QuicPacketNumber least_packet_awaited_by_peer,
+    QuicPacketCount max_packets_in_flight) {
+  packet_creator_.SkipNPacketNumbers(count, least_packet_awaited_by_peer,
+                                     max_packets_in_flight);
+}
+
 void QuicPacketGenerator::SetServerConnectionIdLength(uint32_t length) {
   if (length == 0) {
     packet_creator_.SetServerConnectionIdIncluded(CONNECTION_ID_ABSENT);

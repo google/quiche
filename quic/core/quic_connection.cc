@@ -325,7 +325,8 @@ QuicConnection::QuicConnection(
       max_consecutive_ptos_(0),
       bytes_received_before_address_validation_(0),
       bytes_sent_before_address_validation_(0),
-      address_validated_(false) {
+      address_validated_(false),
+      skip_packet_number_for_pto_(false) {
   QUIC_DLOG(INFO) << ENDPOINT << "Created connection with server connection ID "
                   << server_connection_id
                   << " and version: " << ParsedQuicVersionToString(version());
@@ -431,6 +432,11 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
     if (config.HasClientSentConnectionOption(k8PTO, perspective_)) {
       max_consecutive_ptos_ = 7;
       QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_pto, 4, 4);
+    }
+    if (GetQuicReloadableFlag(quic_skip_packet_number_for_pto) &&
+        config.HasClientSentConnectionOption(kPTOS, perspective_)) {
+      QUIC_RELOADABLE_FLAG_COUNT(quic_skip_packet_number_for_pto);
+      skip_packet_number_for_pto_ = true;
     }
   }
   if (config.HasClientSentConnectionOption(kNSTP, perspective_)) {
@@ -2585,6 +2591,15 @@ void QuicConnection::OnRetransmissionTimeout() {
 
   const auto retransmission_mode =
       sent_packet_manager_.OnRetransmissionTimeout();
+  if (skip_packet_number_for_pto_ &&
+      retransmission_mode == QuicSentPacketManager::PTO_MODE &&
+      sent_packet_manager_.pending_timer_transmission_count() == 1) {
+    // Skip a packet number when a single PTO packet is sent to elicit an
+    // immediate ACK.
+    packet_generator_.SkipNPacketNumbers(
+        1, sent_packet_manager_.GetLeastUnacked(),
+        sent_packet_manager_.EstimateMaxPacketsInFlight(max_packet_length()));
+  }
   WriteIfNotBlocked();
 
   // A write failure can result in the connection being closed, don't attempt to

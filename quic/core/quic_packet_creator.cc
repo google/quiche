@@ -159,6 +159,33 @@ void QuicPacketCreator::UpdatePacketNumberLength(
       framer_->transport_version(), QuicPacketNumber(delta * 4));
 }
 
+void QuicPacketCreator::SkipNPacketNumbers(
+    QuicPacketCount count,
+    QuicPacketNumber least_packet_awaited_by_peer,
+    QuicPacketCount max_packets_in_flight) {
+  if (!queued_frames_.empty()) {
+    // Don't change creator state if there are frames queued.
+    QUIC_BUG << "Called SkipNPacketNumbers with " << queued_frames_.size()
+             << " queued_frames.  First frame type:"
+             << queued_frames_.front().type
+             << " last frame type:" << queued_frames_.back().type;
+    return;
+  }
+  if (packet_.packet_number > packet_.packet_number + count) {
+    // Skipping count packet numbers causes packet number wrapping around,
+    // reject it.
+    QUIC_LOG(WARNING) << "Skipping " << count
+                      << " packet numbers causes packet number wrapping "
+                         "around, least_packet_awaited_by_peer: "
+                      << least_packet_awaited_by_peer
+                      << " packet_number:" << packet_.packet_number;
+    return;
+  }
+  packet_.packet_number += count;
+  // Packet number changes, update packet number length if necessary.
+  UpdatePacketNumberLength(least_packet_awaited_by_peer, max_packets_in_flight);
+}
+
 bool QuicPacketCreator::ConsumeCryptoData(EncryptionLevel level,
                                           size_t write_length,
                                           QuicStreamOffset offset,

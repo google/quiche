@@ -190,6 +190,8 @@ const QuicTag k7PTO = TAG('7', 'P', 'T', 'O');   // Closes connection on 7
                                                  // consecutive PTOs.
 const QuicTag k8PTO = TAG('8', 'P', 'T', 'O');   // Closes connection on 8
                                                  // consecutive PTOs.
+const QuicTag kPTOS = TAG('P', 'T', 'O', 'S');   // Skip packet number before
+                                                 // sending the last PTO.
 
 // Optional support of truncated Connection IDs.  If sent by a peer, the value
 // is the minimum number of bytes allowed for the connection ID sent to the

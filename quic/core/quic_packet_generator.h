@@ -172,6 +172,11 @@ class QUIC_EXPORT_PRIVATE QuicPacketGenerator {
   void UpdatePacketNumberLength(QuicPacketNumber least_packet_awaited_by_peer,
                                 QuicPacketCount max_packets_in_flight);
 
+  // Skip |count| packet numbers.
+  void SkipNPacketNumbers(QuicPacketCount count,
+                          QuicPacketNumber least_packet_awaited_by_peer,
+                          QuicPacketCount max_packets_in_flight);
+
   // Set the minimum number of bytes for the server connection id length;
   void SetServerConnectionIdLength(uint32_t length);
 
