@@ -978,6 +978,7 @@ bool QuicConfig::FillTransportParameters(TransportParameters* params) const {
   initial_round_trip_time_us_.ToHandshakeMessage(
       params->google_quic_params.get());
   connection_options_.ToHandshakeMessage(params->google_quic_params.get());
+  params->custom_parameters = custom_transport_parameters_to_send_;
 
   return true;
 }
@@ -1084,6 +1085,8 @@ QuicErrorCode QuicConfig::ProcessTransportParameters(
       return error;
     }
   }
+
+  received_custom_transport_parameters_ = params.custom_parameters;
 
   *error_details = "";
   return QUIC_NO_ERROR;

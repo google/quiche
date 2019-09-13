@@ -4172,6 +4172,24 @@ TEST_P(EndToEndTest, TestMaxPushId) {
       static_cast<QuicSpdySession*>(GetServerSession())->max_allowed_push_id());
 }
 
+TEST_P(EndToEndTest, CustomTransportParameters) {
+  if (GetParam().negotiated_version.handshake_protocol != PROTOCOL_TLS1_3) {
+    Initialize();
+    return;
+  }
+
+  constexpr auto kCustomParameter =
+      static_cast<TransportParameters::TransportParameterId>(0xff34);
+  client_config_.custom_transport_parameters_to_send()[kCustomParameter] =
+      "test";
+  ASSERT_TRUE(Initialize());
+
+  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  EXPECT_EQ(server_config_.received_custom_transport_parameters().at(
+                kCustomParameter),
+            "test");
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

@@ -6,6 +6,7 @@
 
 #include <cstdint>
 #include <cstring>
+#include <forward_list>
 
 #include "third_party/boringssl/src/include/openssl/bytestring.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_framer.h"
@@ -282,6 +283,10 @@ std::string TransportParameters::ToString() const {
     rv += " " + TransportParameterIdToString(kGoogleQuicParam);
   }
   rv += "]";
+  for (const auto& kv : custom_parameters) {
+    rv += " 0x" + QuicTextUtils::Hex(static_cast<uint32_t>(kv.first));
+    rv += "=" + QuicTextUtils::HexEncode(kv.second);
+  }
   return rv;
 }
 
@@ -534,6 +539,23 @@ bool SerializeTransportParameters(ParsedQuicVersion /*version*/,
     }
   }
 
+  auto custom_parameters = std::make_unique<CBB[]>(in.custom_parameters.size());
+  int i = 0;
+  for (const auto& kv : in.custom_parameters) {
+    CBB* custom_parameter = &custom_parameters[i++];
+    QUIC_BUG_IF(kv.first < 0xff00) << "custom_parameters should not be used "
+                                      "for non-private use parameters";
+    if (!CBB_add_u16(&params, kv.first) ||
+        !CBB_add_u16_length_prefixed(&params, custom_parameter) ||
+        !CBB_add_bytes(custom_parameter,
+                       reinterpret_cast<const uint8_t*>(kv.second.data()),
+                       kv.second.size())) {
+      QUIC_BUG << "Failed to write custom parameter "
+               << static_cast<int>(kv.first);
+      return false;
+    }
+  }
+
   if (!CBB_flush(cbb.get())) {
     QUIC_BUG << "Failed to flush CBB for " << in;
     return false;
@@ -744,6 +766,10 @@ bool ParseTransportParameters(ParsedQuicVersion version,
           }
         }
       } break;
+      default:
+        out->custom_parameters[param_id] = std::string(
+            reinterpret_cast<const char*>(CBS_data(&value)), CBS_len(&value));
+        break;
     }
     if (!parse_success) {
       return false;

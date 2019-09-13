@@ -479,6 +479,14 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
                                            HelloType hello_type,
                                            std::string* error_details);
 
+  TransportParameters::ParameterMap& custom_transport_parameters_to_send() {
+    return custom_transport_parameters_to_send_;
+  }
+  const TransportParameters::ParameterMap&
+  received_custom_transport_parameters() const {
+    return received_custom_transport_parameters_;
+  }
+
  private:
   friend class test::QuicConfigPeer;
 
@@ -557,6 +565,11 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   // deserializing the frame); the received exponent is the value the peer uses
   // to serialize frames and this node uses to deserialize them.
   QuicFixedUint32 ack_delay_exponent_;
+
+  // Custom transport parameters that can be sent and received in the TLS
+  // handshake.
+  TransportParameters::ParameterMap custom_transport_parameters_to_send_;
+  TransportParameters::ParameterMap received_custom_transport_parameters_;
 };
 
 }  // namespace quic
