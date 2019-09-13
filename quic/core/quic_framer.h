@@ -549,6 +549,9 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   void SetEncrypter(EncryptionLevel level,
                     std::unique_ptr<QuicEncrypter> encrypter);
 
+  // Sets the encrypter and decrypter for the ENCRYPTION_INITIAL level.
+  void SetInitialObfuscators(QuicConnectionId connection_id);
+
   // Encrypts a payload in |buffer|.  |ad_len| is the length of the associated
   // data. |total_len| is the length of the associated data plus plaintext.
   // |buffer_len| is the full length of the allocated buffer.

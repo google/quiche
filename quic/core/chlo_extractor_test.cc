@@ -70,14 +70,7 @@ class ChloExtractorTest : public QuicTest {
     }
     QuicFramer framer(SupportedVersions(header_.version), QuicTime::Zero(),
                       Perspective::IS_CLIENT, kQuicDefaultConnectionIdLength);
-    if (version.handshake_protocol == PROTOCOL_TLS1_3) {
-      CrypterPair crypters;
-      CryptoUtils::CreateInitialObfuscators(Perspective::IS_CLIENT, version,
-                                            TestConnectionId(), &crypters);
-      framer.SetEncrypter(ENCRYPTION_INITIAL, std::move(crypters.encrypter));
-      framer.InstallDecrypter(ENCRYPTION_INITIAL,
-                              std::move(crypters.decrypter));
-    }
+    framer.SetInitialObfuscators(TestConnectionId());
     if (!QuicVersionUsesCryptoFrames(version.transport_version) ||
         munge_stream_id) {
       QuicStreamId stream_id =

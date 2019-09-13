@@ -90,7 +90,9 @@ static_assert(MAX_FAILURE_REASON <= 32, "failure reason out of sync");
 // A CrypterPair contains the encrypter and decrypter for an encryption level.
 struct QUIC_EXPORT_PRIVATE CrypterPair {
   CrypterPair();
+  CrypterPair(CrypterPair&&) = default;
   ~CrypterPair();
+
   std::unique_ptr<QuicEncrypter> encrypter;
   std::unique_ptr<QuicDecrypter> decrypter;
 };

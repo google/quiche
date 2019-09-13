@@ -4166,6 +4166,14 @@ void QuicFramer::SetEncrypter(EncryptionLevel level,
   encrypter_[level] = std::move(encrypter);
 }
 
+void QuicFramer::SetInitialObfuscators(QuicConnectionId connection_id) {
+  CrypterPair crypters;
+  CryptoUtils::CreateInitialObfuscators(perspective_, version_, connection_id,
+                                        &crypters);
+  encrypter_[ENCRYPTION_INITIAL] = std::move(crypters.encrypter);
+  decrypter_[ENCRYPTION_INITIAL] = std::move(crypters.decrypter);
+}
+
 size_t QuicFramer::EncryptInPlace(EncryptionLevel level,
                                   QuicPacketNumber packet_number,
                                   size_t ad_len,

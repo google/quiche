@@ -899,18 +899,8 @@ QuicEncryptedPacket* ConstructEncryptedPacket(
   ParsedQuicVersion version = (*versions)[0];
   EncryptionLevel level =
       header.version_flag ? ENCRYPTION_INITIAL : ENCRYPTION_FORWARD_SECURE;
-  if (version.handshake_protocol == PROTOCOL_TLS1_3 &&
-      level == ENCRYPTION_INITIAL) {
-    CrypterPair crypters;
-    CryptoUtils::CreateInitialObfuscators(Perspective::IS_CLIENT, version,
-                                          destination_connection_id, &crypters);
-    framer.SetEncrypter(ENCRYPTION_INITIAL, std::move(crypters.encrypter));
-    if (version.KnowsWhichDecrypterToUse()) {
-      framer.InstallDecrypter(ENCRYPTION_INITIAL,
-                              std::move(crypters.decrypter));
-    } else {
-      framer.SetDecrypter(ENCRYPTION_INITIAL, std::move(crypters.decrypter));
-    }
+  if (level == ENCRYPTION_INITIAL) {
+    framer.SetInitialObfuscators(destination_connection_id);
   }
   if (!QuicVersionUsesCryptoFrames(version.transport_version)) {
     QuicFrame frame(
@@ -987,12 +977,8 @@ QuicEncryptedPacket* ConstructMisFramedEncryptedPacket(
   QuicFramer framer(versions != nullptr ? *versions : AllSupportedVersions(),
                     QuicTime::Zero(), perspective,
                     kQuicDefaultConnectionIdLength);
-  if (version.handshake_protocol == PROTOCOL_TLS1_3 && version_flag) {
-    CrypterPair crypters;
-    CryptoUtils::CreateInitialObfuscators(Perspective::IS_CLIENT, version,
-                                          destination_connection_id, &crypters);
-    framer.SetEncrypter(ENCRYPTION_INITIAL, std::move(crypters.encrypter));
-    framer.InstallDecrypter(ENCRYPTION_INITIAL, std::move(crypters.decrypter));
+  if (version_flag) {
+    framer.SetInitialObfuscators(destination_connection_id);
   }
   // We need a minimum of 7 bytes of encrypted payload. This will guarantee that
   // we have at least that much. (It ignores the overhead of the stream/crypto
