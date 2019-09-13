@@ -290,7 +290,7 @@ TEST_F(QuicControlFrameManagerTest, RetransmitWindowUpdateOfDifferentStreams) {
 }
 
 TEST_F(QuicControlFrameManagerTest, TooManyBufferedControlFrames) {
-  SetQuicReloadableFlag(quic_add_upper_limit_of_buffered_control_frames, true);
+  SetQuicReloadableFlag(quic_add_upper_limit_of_buffered_control_frames2, true);
   Initialize();
   EXPECT_CALL(*connection_, SendControlFrame(_))
       .Times(5)
