@@ -8,6 +8,8 @@
 #include <string>
 
 #include "net/third_party/quiche/src/quic/core/quic_connection.h"
+#include "net/third_party/quiche/src/quic/core/quic_constants.h"
+#include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/core/quic_write_blocked_list.h"
@@ -72,8 +74,7 @@ class TestStream : public QuicStream {
 class QuicStreamTestBase : public QuicTestWithParam<ParsedQuicVersion> {
  public:
   QuicStreamTestBase()
-      : initial_flow_control_window_bytes_(kMaxOutgoingPacketSize),
-        zero_(QuicTime::Delta::Zero()),
+      : zero_(QuicTime::Delta::Zero()),
         supported_versions_(AllSupportedVersions()) {}
 
   void Initialize() {
@@ -83,11 +84,13 @@ class QuicStreamTestBase : public QuicTestWithParam<ParsedQuicVersion> {
         &helper_, &alarm_factory_, Perspective::IS_SERVER, version_vector);
     connection_->AdvanceTime(QuicTime::Delta::FromSeconds(1));
     session_ = std::make_unique<StrictMock<MockQuicSession>>(connection_);
+    session_->Initialize();
 
-    // New streams rely on having the peer's flow control receive window
-    // negotiated in the config.
-    QuicConfigPeer::SetReceivedInitialStreamFlowControlWindow(
-        session_->config(), initial_flow_control_window_bytes_);
+    QuicConfigPeer::SetReceivedInitialSessionFlowControlWindow(
+        session_->config(), kMinimumFlowControlSendWindow);
+    QuicConfigPeer::SetReceivedMaxIncomingUnidirectionalStreams(
+        session_->config(), 10);
+    session_->OnConfigNegotiated();
 
     stream_ = new TestStream(kTestStreamId, session_.get(), BIDIRECTIONAL);
     EXPECT_NE(nullptr, stream_);
@@ -102,10 +105,6 @@ class QuicStreamTestBase : public QuicTestWithParam<ParsedQuicVersion> {
 
   bool fin_sent() { return stream_->fin_sent(); }
   bool rst_sent() { return stream_->rst_sent(); }
-
-  void set_initial_flow_control_window_bytes(uint32_t val) {
-    initial_flow_control_window_bytes_ = val;
-  }
 
   bool HasWriteBlockedStreams() {
     return write_blocked_list_->HasWriteBlockedSpecialStream() ||
@@ -140,7 +139,6 @@ class QuicStreamTestBase : public QuicTestWithParam<ParsedQuicVersion> {
   std::unique_ptr<MockQuicSession> session_;
   TestStream* stream_;
   QuicWriteBlockedList* write_blocked_list_;
-  uint32_t initial_flow_control_window_bytes_;
   QuicTime::Delta zero_;
   ParsedQuicVersionVector supported_versions_;
   QuicStreamId kTestStreamId =
@@ -506,8 +504,6 @@ TEST_P(QuicStreamTest, OnlySendOneRst) {
 }
 
 TEST_P(QuicStreamTest, StreamFlowControlMultipleWindowUpdates) {
-  set_initial_flow_control_window_bytes(1000);
-
   Initialize();
 
   // If we receive multiple WINDOW_UPDATES (potentially out of order), then we
@@ -515,12 +511,12 @@ TEST_P(QuicStreamTest, StreamFlowControlMultipleWindowUpdates) {
 
   // Initially should be default.
   EXPECT_EQ(
-      initial_flow_control_window_bytes_,
+      kMinimumFlowControlSendWindow,
       QuicFlowControllerPeer::SendWindowOffset(stream_->flow_controller()));
 
   // Check a single WINDOW_UPDATE results in correct offset.
   QuicWindowUpdateFrame window_update_1(kInvalidControlFrameId, stream_->id(),
-                                        1234);
+                                        kMinimumFlowControlSendWindow + 5);
   stream_->OnWindowUpdateFrame(window_update_1);
   EXPECT_EQ(
       window_update_1.byte_offset,
@@ -531,7 +527,7 @@ TEST_P(QuicStreamTest, StreamFlowControlMultipleWindowUpdates) {
   QuicWindowUpdateFrame window_update_2(kInvalidControlFrameId, stream_->id(),
                                         1);
   QuicWindowUpdateFrame window_update_3(kInvalidControlFrameId, stream_->id(),
-                                        9999);
+                                        kMinimumFlowControlSendWindow + 10);
   QuicWindowUpdateFrame window_update_4(kInvalidControlFrameId, stream_->id(),
                                         5678);
   stream_->OnWindowUpdateFrame(window_update_2);
@@ -723,11 +719,6 @@ TEST_P(QuicStreamTest, StreamTooLong) {
 }
 
 TEST_P(QuicParameterizedStreamTest, SetDrainingIncomingOutgoing) {
-  if (GetParam().handshake_protocol == PROTOCOL_TLS1_3) {
-    // TODO(nharper, b/112643533): Figure out why this test fails when TLS is
-    // enabled and fix it.
-    return;
-  }
   // Don't have incoming data consumed.
   Initialize();
 
@@ -757,11 +748,6 @@ TEST_P(QuicParameterizedStreamTest, SetDrainingIncomingOutgoing) {
 }
 
 TEST_P(QuicParameterizedStreamTest, SetDrainingOutgoingIncoming) {
-  if (GetParam().handshake_protocol == PROTOCOL_TLS1_3) {
-    // TODO(nharper, b/112643533): Figure out why this test fails when TLS is
-    // enabled and fix it.
-    return;
-  }
   // Don't have incoming data consumed.
   Initialize();
 
@@ -1023,8 +1009,6 @@ TEST_P(QuicStreamTest, CanWriteNewDataAfterData) {
 TEST_P(QuicStreamTest, WriteBufferedData) {
   // Set buffered data low water mark to be 100.
   SetQuicFlag(FLAGS_quic_buffered_data_threshold, 100);
-  // Do not stream level flow control block this stream.
-  set_initial_flow_control_window_bytes(500000);
 
   Initialize();
   std::string data(1024, 'a');
@@ -1159,8 +1143,6 @@ TEST_P(QuicStreamTest, WritevDataReachStreamLimit) {
 TEST_P(QuicStreamTest, WriteMemSlices) {
   // Set buffered data low water mark to be 100.
   SetQuicFlag(FLAGS_quic_buffered_data_threshold, 100);
-  // Do not flow control block this stream.
-  set_initial_flow_control_window_bytes(500000);
 
   Initialize();
   char data[1024];
@@ -1403,47 +1385,60 @@ TEST_P(QuicStreamTest, CannotBundleLostFin) {
 }
 
 TEST_P(QuicStreamTest, MarkConnectionLevelWriteBlockedOnWindowUpdateFrame) {
-  // Set a small initial control window size.
-  set_initial_flow_control_window_bytes(100);
   Initialize();
+
+  // Set the config to a small value so that a newly created stream has small
+  // send flow control window.
+  QuicConfigPeer::SetReceivedInitialStreamFlowControlWindow(session_->config(),
+                                                            100);
+  auto stream = new TestStream(GetNthClientInitiatedBidirectionalStreamId(
+                                   GetParam().transport_version, 2),
+                               session_.get(), BIDIRECTIONAL);
+  session_->ActivateStream(QuicWrapUnique(stream));
 
   EXPECT_CALL(*session_, WritevData(_, _, _, _, _))
       .WillRepeatedly(Invoke(MockQuicSession::ConsumeData));
   EXPECT_CALL(*connection_, SendControlFrame(_))
       .WillOnce(Invoke(&ClearControlFrame));
   std::string data(1024, '.');
-  stream_->WriteOrBufferData(data, false, nullptr);
+  stream->WriteOrBufferData(data, false, nullptr);
   EXPECT_FALSE(HasWriteBlockedStreams());
 
   QuicWindowUpdateFrame window_update(kInvalidControlFrameId, stream_->id(),
                                       1234);
 
-  stream_->OnWindowUpdateFrame(window_update);
+  stream->OnWindowUpdateFrame(window_update);
   // Verify stream is marked connection level write blocked.
   EXPECT_TRUE(HasWriteBlockedStreams());
-  EXPECT_TRUE(stream_->HasBufferedData());
+  EXPECT_TRUE(stream->HasBufferedData());
 }
 
 // Regression test for b/73282665.
 TEST_P(QuicStreamTest,
        MarkConnectionLevelWriteBlockedOnWindowUpdateFrameWithNoBufferedData) {
-  // Set a small initial flow control window size.
-  const uint32_t kSmallWindow = 100;
-  set_initial_flow_control_window_bytes(kSmallWindow);
   Initialize();
 
-  std::string data(kSmallWindow, '.');
+  // Set the config to a small value so that a newly created stream has small
+  // send flow control window.
+  QuicConfigPeer::SetReceivedInitialStreamFlowControlWindow(session_->config(),
+                                                            100);
+  auto stream = new TestStream(GetNthClientInitiatedBidirectionalStreamId(
+                                   GetParam().transport_version, 2),
+                               session_.get(), BIDIRECTIONAL);
+  session_->ActivateStream(QuicWrapUnique(stream));
+
+  std::string data(100, '.');
   EXPECT_CALL(*session_, WritevData(_, _, _, _, _))
       .WillRepeatedly(Invoke(MockQuicSession::ConsumeData));
   EXPECT_CALL(*connection_, SendControlFrame(_))
       .WillOnce(Invoke(&ClearControlFrame));
-  stream_->WriteOrBufferData(data, false, nullptr);
+  stream->WriteOrBufferData(data, false, nullptr);
   EXPECT_FALSE(HasWriteBlockedStreams());
 
   QuicWindowUpdateFrame window_update(kInvalidControlFrameId, stream_->id(),
                                       120);
-  stream_->OnWindowUpdateFrame(window_update);
-  EXPECT_FALSE(stream_->HasBufferedData());
+  stream->OnWindowUpdateFrame(window_update);
+  EXPECT_FALSE(stream->HasBufferedData());
   // Verify stream is marked as blocked although there is no buffered data.
   EXPECT_TRUE(HasWriteBlockedStreams());
 }
