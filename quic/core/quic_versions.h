@@ -159,6 +159,10 @@ struct QUIC_EXPORT_PRIVATE ParsedQuicVersion {
 
   bool KnowsWhichDecrypterToUse() const;
 
+  // Returns whether this version uses keys derived from the Connection ID for
+  // ENCRYPTION_INITIAL keys (instead of NullEncrypter/NullDecrypter).
+  bool UsesInitialObfuscators() const;
+
   // Indicates that this QUIC version does not have an enforced minimum value
   // for flow control values negotiated during the handshake.
   bool AllowsLowFlowControlLimits() const;

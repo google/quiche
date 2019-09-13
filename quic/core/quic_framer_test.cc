@@ -12214,8 +12214,8 @@ TEST_P(QuicFramerTest, UndecryptablePacketWithoutDecrypter) {
     // bogus connection ID; it should fail to decrypt everything.
     QuicConnectionId bogus_connection_id = TestConnectionId(0xbad);
     CrypterPair bogus_crypters;
-    CryptoUtils::CreateTlsInitialCrypters(Perspective::IS_CLIENT,
-                                          framer_.transport_version(),
+    CryptoUtils::CreateInitialObfuscators(Perspective::IS_CLIENT,
+                                          framer_.version(),
                                           bogus_connection_id, &bogus_crypters);
     // This removes all other decrypters.
     framer_.SetDecrypter(ENCRYPTION_FORWARD_SECURE,
@@ -12319,9 +12319,9 @@ TEST_P(QuicFramerTest, UndecryptablePacketWithDecrypter) {
   // bogus connection ID; it should fail to decrypt everything.
   QuicConnectionId bogus_connection_id = TestConnectionId(0xbad);
   CrypterPair bad_handshake_crypters;
-  CryptoUtils::CreateTlsInitialCrypters(
-      Perspective::IS_CLIENT, framer_.transport_version(), bogus_connection_id,
-      &bad_handshake_crypters);
+  CryptoUtils::CreateInitialObfuscators(Perspective::IS_CLIENT,
+                                        framer_.version(), bogus_connection_id,
+                                        &bad_handshake_crypters);
   if (framer_.version().KnowsWhichDecrypterToUse()) {
     framer_.InstallDecrypter(ENCRYPTION_HANDSHAKE,
                              std::move(bad_handshake_crypters.decrypter));
@@ -12431,9 +12431,9 @@ TEST_P(QuicFramerTest, UndecryptableCoalescedPacket) {
   // bogus connection ID; it should fail to decrypt everything.
   QuicConnectionId bogus_connection_id = TestConnectionId(0xbad);
   CrypterPair bad_handshake_crypters;
-  CryptoUtils::CreateTlsInitialCrypters(
-      Perspective::IS_CLIENT, framer_.transport_version(), bogus_connection_id,
-      &bad_handshake_crypters);
+  CryptoUtils::CreateInitialObfuscators(Perspective::IS_CLIENT,
+                                        framer_.version(), bogus_connection_id,
+                                        &bad_handshake_crypters);
   framer_.InstallDecrypter(ENCRYPTION_HANDSHAKE,
                            std::move(bad_handshake_crypters.decrypter));
   // clang-format off
@@ -12694,7 +12694,8 @@ TEST_P(QuicFramerTest, InvalidCoalescedPacket) {
 // padding inside the initial. We need to make sure that we still process
 // the initial correctly and ignore the zeroes.
 TEST_P(QuicFramerTest, CoalescedPacketWithZeroesRoundTrip) {
-  if (!QuicVersionHasLongHeaderLengths(framer_.transport_version())) {
+  if (!QuicVersionHasLongHeaderLengths(framer_.transport_version()) ||
+      !framer_.version().UsesInitialObfuscators()) {
     return;
   }
   ASSERT_TRUE(framer_.version().KnowsWhichDecrypterToUse());
@@ -12702,9 +12703,9 @@ TEST_P(QuicFramerTest, CoalescedPacketWithZeroesRoundTrip) {
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
 
   CrypterPair client_crypters;
-  CryptoUtils::CreateTlsInitialCrypters(Perspective::IS_CLIENT,
-                                        framer_.transport_version(),
-                                        connection_id, &client_crypters);
+  CryptoUtils::CreateInitialObfuscators(Perspective::IS_CLIENT,
+                                        framer_.version(), connection_id,
+                                        &client_crypters);
   framer_.SetEncrypter(ENCRYPTION_INITIAL,
                        std::move(client_crypters.encrypter));
 
@@ -12730,9 +12731,9 @@ TEST_P(QuicFramerTest, CoalescedPacketWithZeroesRoundTrip) {
 
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_SERVER);
   CrypterPair server_crypters;
-  CryptoUtils::CreateTlsInitialCrypters(Perspective::IS_SERVER,
-                                        framer_.transport_version(),
-                                        connection_id, &server_crypters);
+  CryptoUtils::CreateInitialObfuscators(Perspective::IS_SERVER,
+                                        framer_.version(), connection_id,
+                                        &server_crypters);
   framer_.InstallDecrypter(ENCRYPTION_INITIAL,
                            std::move(server_crypters.decrypter));
 

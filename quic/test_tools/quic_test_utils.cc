@@ -902,8 +902,7 @@ QuicEncryptedPacket* ConstructEncryptedPacket(
   if (version.handshake_protocol == PROTOCOL_TLS1_3 &&
       level == ENCRYPTION_INITIAL) {
     CrypterPair crypters;
-    CryptoUtils::CreateTlsInitialCrypters(Perspective::IS_CLIENT,
-                                          version.transport_version,
+    CryptoUtils::CreateInitialObfuscators(Perspective::IS_CLIENT, version,
                                           destination_connection_id, &crypters);
     framer.SetEncrypter(ENCRYPTION_INITIAL, std::move(crypters.encrypter));
     if (version.KnowsWhichDecrypterToUse()) {
@@ -990,8 +989,7 @@ QuicEncryptedPacket* ConstructMisFramedEncryptedPacket(
                     kQuicDefaultConnectionIdLength);
   if (version.handshake_protocol == PROTOCOL_TLS1_3 && version_flag) {
     CrypterPair crypters;
-    CryptoUtils::CreateTlsInitialCrypters(Perspective::IS_CLIENT,
-                                          version.transport_version,
+    CryptoUtils::CreateInitialObfuscators(Perspective::IS_CLIENT, version,
                                           destination_connection_id, &crypters);
     framer.SetEncrypter(ENCRYPTION_INITIAL, std::move(crypters.encrypter));
     framer.InstallDecrypter(ENCRYPTION_INITIAL, std::move(crypters.decrypter));

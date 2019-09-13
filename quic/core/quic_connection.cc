@@ -365,8 +365,8 @@ void QuicConnection::InstallInitialCrypters(QuicConnectionId connection_id) {
     return;
   }
   CrypterPair crypters;
-  CryptoUtils::CreateTlsInitialCrypters(perspective_, transport_version(),
-                                        connection_id, &crypters);
+  CryptoUtils::CreateInitialObfuscators(perspective_, version(), connection_id,
+                                        &crypters);
   SetEncrypter(ENCRYPTION_INITIAL, std::move(crypters.encrypter));
   InstallDecrypter(ENCRYPTION_INITIAL, std::move(crypters.decrypter));
 }

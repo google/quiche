@@ -14,6 +14,8 @@
 #include "net/third_party/quiche/src/quic/core/crypto/aes_128_gcm_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_handshake.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
+#include "net/third_party/quiche/src/quic/core/crypto/null_decrypter.h"
+#include "net/third_party/quiche/src/quic/core/crypto/null_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_decrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_hkdf.h"
@@ -99,18 +101,24 @@ const char kPreSharedKeyLabel[] = "QUIC PSK";
 }  // namespace
 
 // static
-void CryptoUtils::CreateTlsInitialCrypters(Perspective perspective,
-                                           QuicTransportVersion version,
+void CryptoUtils::CreateInitialObfuscators(Perspective perspective,
+                                           ParsedQuicVersion version,
                                            QuicConnectionId connection_id,
                                            CrypterPair* crypters) {
   QUIC_DLOG(INFO) << "Creating "
                   << (perspective == Perspective::IS_CLIENT ? "client"
                                                             : "server")
-                  << " TLS crypters for " << connection_id;
-  QUIC_BUG_IF(!QuicUtils::IsConnectionIdValidForVersion(connection_id, version))
+                  << " crypters for version " << version << " with CID "
+                  << connection_id;
+  if (!version.UsesInitialObfuscators()) {
+    crypters->encrypter = std::make_unique<NullEncrypter>(perspective);
+    crypters->decrypter = std::make_unique<NullDecrypter>(perspective);
+    return;
+  }
+  QUIC_BUG_IF(!QuicUtils::IsConnectionIdValidForVersion(
+      connection_id, version.transport_version))
       << "CreateTlsInitialCrypters: attempted to use connection ID "
-      << connection_id << " which is invalid with version "
-      << QuicVersionToString(version);
+      << connection_id << " which is invalid with version " << version;
   const EVP_MD* hash = EVP_sha256();
 
   std::vector<uint8_t> handshake_secret;

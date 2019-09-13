@@ -80,16 +80,18 @@ class QUIC_EXPORT_PRIVATE CryptoUtils {
                           const std::vector<uint8_t>& pp_secret,
                           QuicCrypter* crypter);
 
-  // QUIC encrypts TLS handshake messages with a version-specific key (to
-  // prevent network observers that are not aware of that QUIC version from
+  // IETF QUIC encrypts ENCRYPTION_INITIAL messages with a version-specific key
+  // (to prevent network observers that are not aware of that QUIC version from
   // making decisions based on the TLS handshake). This packet protection secret
   // is derived from the connection ID in the client's Initial packet.
   //
   // This function takes that |connection_id| and creates the encrypter and
   // decrypter (put in |*crypters|) to use for this packet protection, as well
-  // as setting the key and IV on those crypters.
-  static void CreateTlsInitialCrypters(Perspective perspective,
-                                       QuicTransportVersion version,
+  // as setting the key and IV on those crypters. For older versions of QUIC
+  // that do not use the new IETF style ENCRYPTION_INITIAL obfuscators, this
+  // function puts a NullEncrypter and NullDecrypter in |*crypters|.
+  static void CreateInitialObfuscators(Perspective perspective,
+                                       ParsedQuicVersion version,
                                        QuicConnectionId connection_id,
                                        CrypterPair* crypters);
 

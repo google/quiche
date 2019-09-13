@@ -72,8 +72,7 @@ class ChloExtractorTest : public QuicTest {
                       Perspective::IS_CLIENT, kQuicDefaultConnectionIdLength);
     if (version.handshake_protocol == PROTOCOL_TLS1_3) {
       CrypterPair crypters;
-      CryptoUtils::CreateTlsInitialCrypters(Perspective::IS_CLIENT,
-                                            version.transport_version,
+      CryptoUtils::CreateInitialObfuscators(Perspective::IS_CLIENT, version,
                                             TestConnectionId(), &crypters);
       framer.SetEncrypter(ENCRYPTION_INITIAL, std::move(crypters.encrypter));
       framer.InstallDecrypter(ENCRYPTION_INITIAL,
