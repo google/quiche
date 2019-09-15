@@ -469,7 +469,7 @@ TEST_F(QuicVersionsTest, AlpnForVersion) {
   EXPECT_EQ("h3-T047", AlpnForVersion(parsed_version_t047));
   EXPECT_EQ("h3-Q048", AlpnForVersion(parsed_version_q048));
   EXPECT_EQ("h3-T048", AlpnForVersion(parsed_version_t048));
-  EXPECT_EQ("h3-22", AlpnForVersion(parsed_version_t099));
+  EXPECT_EQ("h3-23", AlpnForVersion(parsed_version_t099));
 }
 
 TEST_F(QuicVersionsTest, QuicEnableVersion) {
