@@ -142,7 +142,7 @@ class StatelessConnectionTerminator {
       delete frame;
       return;
     }
-    creator_.Flush();
+    creator_.FlushCurrentPacket();
     DCHECK_EQ(1u, collector_.packets()->size());
     time_wait_list_manager_->AddConnectionIdToTimeWait(
         server_connection_id_, ietf_quic,

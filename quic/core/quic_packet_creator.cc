@@ -186,12 +186,13 @@ void QuicPacketCreator::SkipNPacketNumbers(
   UpdatePacketNumberLength(least_packet_awaited_by_peer, max_packets_in_flight);
 }
 
-bool QuicPacketCreator::ConsumeCryptoData(EncryptionLevel level,
-                                          size_t write_length,
-                                          QuicStreamOffset offset,
-                                          bool needs_full_padding,
-                                          TransmissionType transmission_type,
-                                          QuicFrame* frame) {
+bool QuicPacketCreator::ConsumeCryptoDataToFillCurrentPacket(
+    EncryptionLevel level,
+    size_t write_length,
+    QuicStreamOffset offset,
+    bool needs_full_padding,
+    TransmissionType transmission_type,
+    QuicFrame* frame) {
   if (!CreateCryptoFrame(level, write_length, offset, frame)) {
     return false;
   }
@@ -208,13 +209,14 @@ bool QuicPacketCreator::ConsumeCryptoData(EncryptionLevel level,
                   transmission_type);
 }
 
-bool QuicPacketCreator::ConsumeData(QuicStreamId id,
-                                    size_t data_size,
-                                    QuicStreamOffset offset,
-                                    bool fin,
-                                    bool needs_full_padding,
-                                    TransmissionType transmission_type,
-                                    QuicFrame* frame) {
+bool QuicPacketCreator::ConsumeDataToFillCurrentPacket(
+    QuicStreamId id,
+    size_t data_size,
+    QuicStreamOffset offset,
+    bool fin,
+    bool needs_full_padding,
+    TransmissionType transmission_type,
+    QuicFrame* frame) {
   if (!HasRoomForStreamFrame(id, offset, data_size)) {
     return false;
   }
@@ -391,7 +393,7 @@ void QuicPacketCreator::ReserializeAllFrames(
   packet_.encryption_level = default_encryption_level;
 }
 
-void QuicPacketCreator::Flush() {
+void QuicPacketCreator::FlushCurrentPacket() {
   if (!HasPendingFrames() && pending_padding_bytes_ == 0) {
     return;
   }
@@ -948,7 +950,7 @@ bool QuicPacketCreator::AddFrame(const QuicFrame& frame,
       /* last_frame_in_packet= */ true, GetPacketNumberLength());
   if (frame_len == 0) {
     // Current open packet is full.
-    Flush();
+    FlushCurrentPacket();
     return false;
   }
   DCHECK_LT(0u, packet_size_);
@@ -1083,7 +1085,8 @@ void QuicPacketCreator::SetClientConnectionId(
   client_connection_id_ = client_connection_id;
 }
 
-void QuicPacketCreator::SetTransmissionType(TransmissionType type) {
+void QuicPacketCreator::SetTransmissionTypeOfNextPackets(
+    TransmissionType type) {
   DCHECK(can_set_transmission_type_);
 
   if (!can_set_transmission_type()) {

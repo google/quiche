@@ -103,22 +103,22 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // full.
   // If current packet is not full, creates a stream frame that fits into the
   // open packet and adds it to the packet.
-  bool ConsumeData(QuicStreamId id,
-                   size_t data_length,
-                   QuicStreamOffset offset,
-                   bool fin,
-                   bool needs_full_padding,
-                   TransmissionType transmission_type,
-                   QuicFrame* frame);
+  bool ConsumeDataToFillCurrentPacket(QuicStreamId id,
+                                      size_t data_size,
+                                      QuicStreamOffset offset,
+                                      bool fin,
+                                      bool needs_full_padding,
+                                      TransmissionType transmission_type,
+                                      QuicFrame* frame);
 
   // Creates a CRYPTO frame that fits into the current packet (which must be
   // empty) and adds it to the packet.
-  bool ConsumeCryptoData(EncryptionLevel level,
-                         size_t write_length,
-                         QuicStreamOffset offset,
-                         bool needs_full_padding,
-                         TransmissionType transmission_type,
-                         QuicFrame* frame);
+  bool ConsumeCryptoDataToFillCurrentPacket(EncryptionLevel level,
+                                            size_t write_length,
+                                            QuicStreamOffset offset,
+                                            bool needs_full_padding,
+                                            TransmissionType transmission_type,
+                                            QuicFrame* frame);
 
   // Returns true if current open packet can accommodate more stream frames of
   // stream |id| at |offset| and data length |data_size|, false otherwise.
@@ -138,7 +138,7 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
 
   // Serializes all added frames into a single packet and invokes the delegate_
   // to further process the SerializedPacket.
-  void Flush();
+  void FlushCurrentPacket();
 
   // Optimized method to create a QuicStreamFrame and serialize it. Adds the
   // QuicStreamFrame to the returned SerializedPacket.  Sets
@@ -269,7 +269,7 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   void AddPendingPadding(QuicByteCount size);
 
   // Sets transmission type of next constructed packets.
-  void SetTransmissionType(TransmissionType type);
+  void SetTransmissionTypeOfNextPackets(TransmissionType type);
 
   // Sets the retry token to be sent over the wire in IETF Initial packets.
   void SetRetryToken(QuicStringPiece retry_token);

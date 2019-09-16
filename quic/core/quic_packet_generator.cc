@@ -68,14 +68,14 @@ size_t QuicPacketGenerator::ConsumeCryptoData(EncryptionLevel level,
   // should be driven by encryption level, and we should stop flushing in this
   // spot.
   if (packet_creator_.HasPendingRetransmittableFrames()) {
-    packet_creator_.Flush();
+    packet_creator_.FlushCurrentPacket();
   }
 
   size_t total_bytes_consumed = 0;
 
   while (total_bytes_consumed < write_length) {
     QuicFrame frame;
-    if (!packet_creator_.ConsumeCryptoData(
+    if (!packet_creator_.ConsumeCryptoDataToFillCurrentPacket(
             level, write_length - total_bytes_consumed,
             offset + total_bytes_consumed, fully_pad_crypto_handshake_packets_,
             next_transmission_type_, &frame)) {
@@ -88,11 +88,11 @@ size_t QuicPacketGenerator::ConsumeCryptoData(EncryptionLevel level,
     total_bytes_consumed += frame.crypto_frame->data_length;
 
     // TODO(ianswett): Move to having the creator flush itself when it's full.
-    packet_creator_.Flush();
+    packet_creator_.FlushCurrentPacket();
   }
 
   // Don't allow the handshake to be bundled with other retransmittable frames.
-  packet_creator_.Flush();
+  packet_creator_.FlushCurrentPacket();
 
   return total_bytes_consumed;
 }
@@ -112,14 +112,14 @@ QuicConsumedData QuicPacketGenerator::ConsumeData(QuicStreamId id,
   // To make reasoning about crypto frames easier, we don't combine them with
   // other retransmittable frames in a single packet.
   if (has_handshake && packet_creator_.HasPendingRetransmittableFrames()) {
-    packet_creator_.Flush();
+    packet_creator_.FlushCurrentPacket();
   }
 
   size_t total_bytes_consumed = 0;
   bool fin_consumed = false;
 
   if (!packet_creator_.HasRoomForStreamFrame(id, offset, write_length)) {
-    packet_creator_.Flush();
+    packet_creator_.FlushCurrentPacket();
   }
 
   if (!fin && (write_length == 0)) {
@@ -139,10 +139,10 @@ QuicConsumedData QuicPacketGenerator::ConsumeData(QuicStreamId id,
     bool needs_full_padding =
         has_handshake && fully_pad_crypto_handshake_packets_;
 
-    if (!packet_creator_.ConsumeData(id, write_length - total_bytes_consumed,
-                                     offset + total_bytes_consumed, fin,
-                                     needs_full_padding,
-                                     next_transmission_type_, &frame)) {
+    if (!packet_creator_.ConsumeDataToFillCurrentPacket(
+            id, write_length - total_bytes_consumed,
+            offset + total_bytes_consumed, fin, needs_full_padding,
+            next_transmission_type_, &frame)) {
       // The creator is always flushed if there's not enough room for a new
       // stream frame before ConsumeData, so ConsumeData should always succeed.
       QUIC_BUG << "Failed to ConsumeData, stream:" << id;
@@ -166,7 +166,7 @@ QuicConsumedData QuicPacketGenerator::ConsumeData(QuicStreamId id,
       break;
     }
     // TODO(ianswett): Move to having the creator flush itself when it's full.
-    packet_creator_.Flush();
+    packet_creator_.FlushCurrentPacket();
 
     run_fast_path =
         !has_handshake && state != FIN_AND_PADDING && !HasPendingFrames() &&
@@ -180,7 +180,7 @@ QuicConsumedData QuicPacketGenerator::ConsumeData(QuicStreamId id,
 
   // Don't allow the handshake to be bundled with other retransmittable frames.
   if (has_handshake) {
-    packet_creator_.Flush();
+    packet_creator_.FlushCurrentPacket();
   }
 
   return QuicConsumedData(total_bytes_consumed, fin_consumed);
@@ -227,7 +227,7 @@ void QuicPacketGenerator::GenerateMtuDiscoveryPacket(QuicByteCount target_mtu) {
   SetMaxPacketLength(target_mtu);
   const bool success =
       packet_creator_.AddPaddedSavedFrame(frame, next_transmission_type_);
-  packet_creator_.Flush();
+  packet_creator_.FlushCurrentPacket();
   // The only reason AddFrame can fail is that the packet is too full to fit in
   // a ping.  This is not possible for any sane MTU.
   DCHECK(success);
@@ -248,7 +248,7 @@ void QuicPacketGenerator::AttachPacketFlusher() {
 }
 
 void QuicPacketGenerator::Flush() {
-  packet_creator_.Flush();
+  packet_creator_.FlushCurrentPacket();
   SendRemainingPendingPadding();
   flusher_attached_ = false;
   if (GetQuicFlag(FLAGS_quic_export_server_num_packets_per_write_histogram)) {
@@ -265,7 +265,7 @@ void QuicPacketGenerator::Flush() {
 }
 
 void QuicPacketGenerator::FlushAllQueuedFrames() {
-  packet_creator_.Flush();
+  packet_creator_.FlushCurrentPacket();
 }
 
 bool QuicPacketGenerator::HasPendingFrames() const {
@@ -372,7 +372,7 @@ void QuicPacketGenerator::SendRemainingPendingPadding() {
   while (
       packet_creator_.pending_padding_bytes() > 0 && !HasPendingFrames() &&
       delegate_->ShouldGeneratePacket(NO_RETRANSMITTABLE_DATA, NOT_HANDSHAKE)) {
-    packet_creator_.Flush();
+    packet_creator_.FlushCurrentPacket();
   }
 }
 
@@ -386,7 +386,7 @@ bool QuicPacketGenerator::HasPendingStreamFramesOfStream(
 }
 
 void QuicPacketGenerator::SetTransmissionType(TransmissionType type) {
-  packet_creator_.SetTransmissionType(type);
+  packet_creator_.SetTransmissionTypeOfNextPackets(type);
   if (packet_creator_.can_set_transmission_type()) {
     next_transmission_type_ = type;
   }
@@ -411,7 +411,7 @@ MessageStatus QuicPacketGenerator::AddMessageFrame(QuicMessageId message_id,
     return MESSAGE_STATUS_TOO_LARGE;
   }
   if (!packet_creator_.HasRoomForMessageFrame(message_length)) {
-    packet_creator_.Flush();
+    packet_creator_.FlushCurrentPacket();
   }
   QuicMessageFrame* frame = new QuicMessageFrame(message_id, message);
   const bool success =

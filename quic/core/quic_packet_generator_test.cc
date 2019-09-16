@@ -677,7 +677,7 @@ TEST_F(QuicPacketGeneratorTest, ConsumeData_FramesPreviouslyQueued) {
   EXPECT_TRUE(generator_.HasPendingFrames());
   EXPECT_TRUE(generator_.HasRetransmittableFrames());
 
-  creator_->Flush();
+  creator_->FlushCurrentPacket();
   EXPECT_FALSE(generator_.HasPendingFrames());
   EXPECT_FALSE(generator_.HasRetransmittableFrames());
 
