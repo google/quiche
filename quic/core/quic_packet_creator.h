@@ -281,6 +281,74 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // Sets the retry token to be sent over the wire in IETF Initial packets.
   void SetRetryToken(QuicStringPiece retry_token);
 
+  // Consumes retransmittable control |frame|. Returns true if the frame is
+  // successfully consumed. Returns false otherwise.
+  bool ConsumeRetransmittableControlFrame(const QuicFrame& frame);
+
+  // Given some data, may consume part or all of it and pass it to the
+  // packet creator to be serialized into packets. If not in batch
+  // mode, these packets will also be sent during this call.
+  // When |state| is FIN_AND_PADDING, random padding of size [1, 256] will be
+  // added after stream frames. If current constructed packet cannot
+  // accommodate, the padding will overflow to the next packet(s).
+  QuicConsumedData ConsumeData(QuicStreamId id,
+                               size_t write_length,
+                               QuicStreamOffset offset,
+                               StreamSendingState state);
+
+  // Sends as many data only packets as allowed by the send algorithm and the
+  // available iov.
+  // This path does not support padding, or bundling pending frames.
+  // In case we access this method from ConsumeData, total_bytes_consumed
+  // keeps track of how many bytes have already been consumed.
+  QuicConsumedData ConsumeDataFastPath(QuicStreamId id,
+                                       size_t write_length,
+                                       QuicStreamOffset offset,
+                                       bool fin,
+                                       size_t total_bytes_consumed);
+
+  // Consumes data for CRYPTO frames sent at |level| starting at |offset| for a
+  // total of |write_length| bytes, and returns the number of bytes consumed.
+  // The data is passed into the packet creator and serialized into one or more
+  // packets.
+  size_t ConsumeCryptoData(EncryptionLevel level,
+                           size_t write_length,
+                           QuicStreamOffset offset);
+
+  // Generates an MTU discovery packet of specified size.
+  void GenerateMtuDiscoveryPacket(QuicByteCount target_mtu);
+
+  // Called when there is data to be sent, Retrieves updated ACK frame from
+  // delegate_ and flushes it.
+  void MaybeBundleAckOpportunistically();
+
+  // Called to flush ACK and STOP_WAITING frames, returns false if the flush
+  // fails.
+  bool FlushAckFrame(const QuicFrames& frames);
+
+  // Adds a random amount of padding (between 1 to 256 bytes).
+  void AddRandomPadding();
+
+  // Attaches packet flusher.
+  void AttachPacketFlusher();
+
+  // Flushes everything, including current open packet and pending padding.
+  void Flush();
+
+  // Sends remaining pending padding.
+  // Pending paddings should only be sent when there is nothing else to send.
+  void SendRemainingPendingPadding();
+
+  // Set the minimum number of bytes for the server connection id length;
+  void SetServerConnectionIdLength(uint32_t length);
+
+  // Set transmission type of next constructed packets.
+  void SetTransmissionType(TransmissionType type);
+
+  // Tries to add a message frame containing |message| and returns the status.
+  MessageStatus AddMessageFrame(QuicMessageId message_id,
+                                QuicMemSliceSpan message);
+
   // Returns the largest payload that will fit into a single MESSAGE frame.
   QuicPacketLength GetCurrentLargestMessagePayload() const;
   // Returns the largest payload that will fit into a single MESSAGE frame at
@@ -309,6 +377,23 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
 
   // Returns the minimum size that the plaintext of a packet must be.
   static size_t MinPlaintextPacketSize(const ParsedQuicVersion& version);
+
+  // Indicates whether packet flusher is currently attached.
+  bool PacketFlusherAttached() const;
+
+  void set_fully_pad_crypto_hadshake_packets(bool new_value) {
+    DCHECK(combine_generator_and_creator_);
+    fully_pad_crypto_handshake_packets_ = new_value;
+  }
+
+  bool fully_pad_crypto_handshake_packets() const {
+    DCHECK(combine_generator_and_creator_);
+    return fully_pad_crypto_handshake_packets_;
+  }
+
+  bool combine_generator_and_creator() const {
+    return combine_generator_and_creator_;
+  }
 
  private:
   friend class test::QuicPacketCreatorPeer;
@@ -444,6 +529,23 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // If true, packet_'s transmission type is only set by
   // SetPacketTransmissionType and does not get cleared in ClearPacket.
   bool can_set_transmission_type_;
+
+  // Transmission type of the next serialized packet.
+  TransmissionType next_transmission_type_;
+
+  // True if packet flusher is currently attached.
+  bool flusher_attached_;
+
+  // Whether crypto handshake packets should be fully padded.
+  bool fully_pad_crypto_handshake_packets_;
+
+  // Packet number of the first packet of a write operation. This gets set
+  // when the out-most flusher attaches and gets cleared when the out-most
+  // flusher detaches.
+  QuicPacketNumber write_start_packet_number_;
+
+  // Latched value of quic_combine_generator_and_creator.
+  const bool combine_generator_and_creator_;
 };
 
 }  // namespace quic

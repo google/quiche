@@ -225,13 +225,9 @@ class QUIC_EXPORT_PRIVATE QuicPacketGenerator {
     packet_creator_.set_debug_delegate(debug_delegate);
   }
 
-  void set_fully_pad_crypto_hadshake_packets(bool new_value) {
-    fully_pad_crypto_handshake_packets_ = new_value;
-  }
+  void set_fully_pad_crypto_hadshake_packets(bool new_value);
 
-  bool fully_pad_crypto_handshake_packets() const {
-    return fully_pad_crypto_handshake_packets_;
-  }
+  bool fully_pad_crypto_handshake_packets() const;
 
  private:
   friend class test::QuicPacketGeneratorPeer;
