@@ -7698,7 +7698,6 @@ TEST_P(QuicConnectionTest, AlwaysGetPacketTooLarge) {
 }
 
 TEST_P(QuicConnectionTest, CloseConnectionOnQueuedWriteError) {
-  SetQuicReloadableFlag(quic_clear_queued_packets_on_connection_close, true);
   // Regression test for crbug.com/979507.
   //
   // If we get a write error when writing queued packets, we should attempt to
