@@ -1702,7 +1702,9 @@ void QuicConnection::OnUndecryptablePacket(const QuicEncryptedPacket& packet,
   DCHECK(GetQuicRestartFlag(quic_framer_uses_undecryptable_upcall));
   QUIC_RESTART_FLAG_COUNT_N(quic_framer_uses_undecryptable_upcall, 1, 7);
   DCHECK(EncryptionLevelIsValid(decryption_level));
-  ++stats_.undecryptable_packets_received;
+  if (encryption_level_ != ENCRYPTION_FORWARD_SECURE) {
+    ++stats_.undecryptable_packets_received_before_handshake_complete;
+  }
 
   bool should_enqueue = true;
   if (encryption_level_ == ENCRYPTION_FORWARD_SECURE) {
@@ -1793,7 +1795,9 @@ void QuicConnection::ProcessUdpPacket(const QuicSocketAddress& self_address,
     // because the CHLO or SHLO packet was lost.
     if (framer_.error() == QUIC_DECRYPTION_FAILURE &&
         !GetQuicRestartFlag(quic_framer_uses_undecryptable_upcall)) {
-      ++stats_.undecryptable_packets_received;
+      if (encryption_level_ != ENCRYPTION_FORWARD_SECURE) {
+        ++stats_.undecryptable_packets_received_before_handshake_complete;
+      }
       if (encryption_level_ != ENCRYPTION_FORWARD_SECURE &&
           undecryptable_packets_.size() < max_undecryptable_packets_) {
         QueueUndecryptablePacket(packet);
@@ -2821,7 +2825,9 @@ void QuicConnection::MaybeProcessCoalescedPackets() {
       // because the CHLO or SHLO packet was lost.
       if (framer_.error() == QUIC_DECRYPTION_FAILURE &&
           !GetQuicRestartFlag(quic_framer_uses_undecryptable_upcall)) {
-        ++stats_.undecryptable_packets_received;
+        if (encryption_level_ != ENCRYPTION_FORWARD_SECURE) {
+          ++stats_.undecryptable_packets_received_before_handshake_complete;
+        }
         if (encryption_level_ != ENCRYPTION_FORWARD_SECURE &&
             undecryptable_packets_.size() < max_undecryptable_packets_) {
           QueueUndecryptablePacket(*packet);

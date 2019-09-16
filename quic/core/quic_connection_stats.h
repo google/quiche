@@ -67,8 +67,9 @@ struct QUIC_EXPORT_PRIVATE QuicConnectionStats {
 
   QuicPacketCount packets_dropped;  // Duplicate or less than least unacked.
 
-  // Packets that failed to decrypt when they were first received.
-  QuicPacketCount undecryptable_packets_received;
+  // Packets that failed to decrypt when they were first received,
+  // before the handshake was complete.
+  QuicPacketCount undecryptable_packets_received_before_handshake_complete;
 
   size_t crypto_retransmit_count;
   // Count of times the loss detection alarm fired.  At least one packet should

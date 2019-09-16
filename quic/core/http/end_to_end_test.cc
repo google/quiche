@@ -972,18 +972,26 @@ TEST_P(EndToEndTestWithTls, SimpleRequestResponsev6) {
   EXPECT_EQ("200", client_->response_headers()->find(":status")->second);
 }
 
-TEST_P(EndToEndTestWithTls, NoUndecryptablePackets) {
+// Regression test for a bug where we would always fail to decrypt the first
+// initial packet. Undecryptable packets can be seen after the handshake
+// is complete due to dropping the initial keys at that point, so we only test
+// for undecryptable packets before then.
+TEST_P(EndToEndTestWithTls, NoUndecryptablePacketsBeforeHandshakeComplete) {
   ASSERT_TRUE(Initialize());
 
   EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
   EXPECT_EQ("200", client_->response_headers()->find(":status")->second);
 
   QuicConnectionStats client_stats = GetClientConnection()->GetStats();
-  EXPECT_EQ(0u, client_stats.undecryptable_packets_received);
+  EXPECT_EQ(
+      0u,
+      client_stats.undecryptable_packets_received_before_handshake_complete);
 
   server_thread_->Pause();
   QuicConnectionStats server_stats = GetServerConnection()->GetStats();
-  EXPECT_EQ(0u, server_stats.undecryptable_packets_received);
+  EXPECT_EQ(
+      0u,
+      server_stats.undecryptable_packets_received_before_handshake_complete);
   server_thread_->Resume();
 }
 
