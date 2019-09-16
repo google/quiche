@@ -18,10 +18,11 @@
 
 namespace quic {
 
-QuicPacketGenerator::QuicPacketGenerator(QuicConnectionId server_connection_id,
-                                         QuicFramer* framer,
-                                         QuicRandom* random_generator,
-                                         DelegateInterface* delegate)
+QuicPacketGenerator::QuicPacketGenerator(
+    QuicConnectionId server_connection_id,
+    QuicFramer* framer,
+    QuicRandom* random_generator,
+    QuicPacketCreator::DelegateInterface* delegate)
     : delegate_(delegate),
       packet_creator_(server_connection_id, framer, random_generator, delegate),
       next_transmission_type_(NOT_RETRANSMISSION),

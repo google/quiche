@@ -59,22 +59,10 @@ class QuicPacketGeneratorPeer;
 
 class QUIC_EXPORT_PRIVATE QuicPacketGenerator {
  public:
-  class QUIC_EXPORT_PRIVATE DelegateInterface
-      : public QuicPacketCreator::DelegateInterface {
-   public:
-    ~DelegateInterface() override {}
-    // Consults delegate whether a packet should be generated.
-    virtual bool ShouldGeneratePacket(HasRetransmittableData retransmittable,
-                                      IsHandshake handshake) = 0;
-    // Called when there is data to be sent. Retrieves updated ACK frame from
-    // the delegate.
-    virtual const QuicFrames MaybeBundleAckOpportunistically() = 0;
-  };
-
   QuicPacketGenerator(QuicConnectionId server_connection_id,
                       QuicFramer* framer,
                       QuicRandom* random_generator,
-                      DelegateInterface* delegate);
+                      QuicPacketCreator::DelegateInterface* delegate);
   QuicPacketGenerator(const QuicPacketGenerator&) = delete;
   QuicPacketGenerator& operator=(const QuicPacketGenerator&) = delete;
 
@@ -259,7 +247,7 @@ class QUIC_EXPORT_PRIVATE QuicPacketGenerator {
   // delegate_ and flushes it.
   void MaybeBundleAckOpportunistically();
 
-  DelegateInterface* delegate_;
+  QuicPacketCreator::DelegateInterface* delegate_;
 
   QuicPacketCreator packet_creator_;
 

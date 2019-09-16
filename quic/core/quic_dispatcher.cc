@@ -75,6 +75,17 @@ class PacketCollector : public QuicPacketCreator::DelegateInterface,
   void OnUnrecoverableError(QuicErrorCode /*error*/,
                             const std::string& /*error_details*/) override {}
 
+  bool ShouldGeneratePacket(HasRetransmittableData /*retransmittable*/,
+                            IsHandshake /*handshake*/) override {
+    DCHECK(false);
+    return true;
+  }
+
+  const QuicFrames MaybeBundleAckOpportunistically() override {
+    DCHECK(false);
+    return {};
+  }
+
   // QuicStreamFrameDataProducer
   WriteStreamDataResult WriteStreamData(QuicStreamId /*id*/,
                                         QuicStreamOffset offset,

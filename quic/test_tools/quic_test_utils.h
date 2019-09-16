@@ -1077,6 +1077,10 @@ class MockPacketCreatorDelegate : public QuicPacketCreator::DelegateInterface {
   MOCK_METHOD0(GetPacketBuffer, char*());
   MOCK_METHOD1(OnSerializedPacket, void(SerializedPacket* packet));
   MOCK_METHOD2(OnUnrecoverableError, void(QuicErrorCode, const std::string&));
+  MOCK_METHOD2(ShouldGeneratePacket,
+               bool(HasRetransmittableData retransmittable,
+                    IsHandshake handshake));
+  MOCK_METHOD0(MaybeBundleAckOpportunistically, const QuicFrames());
 };
 
 class MockSessionNotifier : public SessionNotifierInterface {

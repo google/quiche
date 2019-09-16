@@ -344,7 +344,7 @@ class QUIC_EXPORT_PRIVATE QuicConnectionHelperInterface {
 class QUIC_EXPORT_PRIVATE QuicConnection
     : public QuicFramerVisitorInterface,
       public QuicBlockedWriterInterface,
-      public QuicPacketGenerator::DelegateInterface,
+      public QuicPacketCreator::DelegateInterface,
       public QuicSentPacketManager::NetworkChangeVisitor {
  public:
   // Constructs a new QuicConnection for |connection_id| and

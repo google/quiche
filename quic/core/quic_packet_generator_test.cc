@@ -36,7 +36,7 @@ namespace quic {
 namespace test {
 namespace {
 
-class MockDelegate : public QuicPacketGenerator::DelegateInterface {
+class MockDelegate : public QuicPacketCreator::DelegateInterface {
  public:
   MockDelegate() {}
   MockDelegate(const MockDelegate&) = delete;
@@ -108,7 +108,7 @@ class TestPacketGenerator : public QuicPacketGenerator {
   TestPacketGenerator(QuicConnectionId connection_id,
                       QuicFramer* framer,
                       QuicRandom* random_generator,
-                      DelegateInterface* delegate,
+                      QuicPacketCreator::DelegateInterface* delegate,
                       SimpleDataProducer* producer)
       : QuicPacketGenerator(connection_id, framer, random_generator, delegate),
         ack_frame_(InitAckFrame(1)),

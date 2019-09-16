@@ -42,6 +42,13 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
     // Called when an unrecoverable error is encountered.
     virtual void OnUnrecoverableError(QuicErrorCode error,
                                       const std::string& error_details) = 0;
+
+    // Consults delegate whether a packet should be generated.
+    virtual bool ShouldGeneratePacket(HasRetransmittableData retransmittable,
+                                      IsHandshake handshake) = 0;
+    // Called when there is data to be sent. Retrieves updated ACK frame from
+    // the delegate.
+    virtual const QuicFrames MaybeBundleAckOpportunistically() = 0;
   };
 
   // Interface which gets callbacks from the QuicPacketCreator at interesting
