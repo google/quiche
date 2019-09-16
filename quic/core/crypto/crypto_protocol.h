@@ -226,6 +226,7 @@ const QuicTag kFIFO = TAG('F', 'I', 'F', 'O');  // Stream with the smallest ID
                                                 // has the highest priority.
 const QuicTag kLIFO = TAG('L', 'I', 'F', 'O');  // Stream with the largest ID
                                                 // has the highest priority.
+const QuicTag kRRWS = TAG('R', 'R', 'W', 'S');  // Round robin write scheduling.
 
 // Proof types (i.e. certificate types)
 // NOTE: although it would be silly to do so, specifying both kX509 and kX59R

@@ -1000,6 +1000,50 @@ TEST_P(QuicSessionTestServer, Http2Priority) {
   session_.OnCanWrite();
 }
 
+TEST_P(QuicSessionTestServer, RoundRobinScheduling) {
+  if (VersionHasIetfQuicFrames(GetParam().transport_version)) {
+    return;
+  }
+  SetQuicReloadableFlag(quic_enable_rr_write_scheduler, true);
+  QuicTagVector copt;
+  copt.push_back(kRRWS);
+  QuicConfigPeer::SetReceivedConnectionOptions(session_.config(), copt);
+  session_.OnConfigNegotiated();
+
+  session_.set_writev_consumes_all_data(true);
+  TestStream* stream2 = session_.CreateOutgoingBidirectionalStream();
+  TestStream* stream4 = session_.CreateOutgoingBidirectionalStream();
+  TestStream* stream6 = session_.CreateOutgoingBidirectionalStream();
+
+  session_.set_writev_consumes_all_data(true);
+  session_.MarkConnectionLevelWriteBlocked(stream2->id());
+  session_.MarkConnectionLevelWriteBlocked(stream4->id());
+  session_.MarkConnectionLevelWriteBlocked(stream6->id());
+
+  // Verify streams are scheduled round robin.
+  InSequence s;
+  EXPECT_CALL(*stream2, OnCanWrite());
+  EXPECT_CALL(*stream4, OnCanWrite());
+  EXPECT_CALL(*stream6, OnCanWrite());
+  session_.OnCanWrite();
+
+  /* 2, 4, 6, 8 */
+  TestStream* stream8 = session_.CreateOutgoingBidirectionalStream();
+
+  // Verify updated priority is ignored.
+  stream4->SetPriority(spdy::SpdyStreamPrecedence(spdy::kV3HighestPriority));
+  session_.MarkConnectionLevelWriteBlocked(stream8->id());
+  session_.MarkConnectionLevelWriteBlocked(stream4->id());
+  session_.MarkConnectionLevelWriteBlocked(stream2->id());
+  session_.MarkConnectionLevelWriteBlocked(stream6->id());
+
+  EXPECT_CALL(*stream8, OnCanWrite());
+  EXPECT_CALL(*stream4, OnCanWrite());
+  EXPECT_CALL(*stream2, OnCanWrite());
+  EXPECT_CALL(*stream6, OnCanWrite());
+  session_.OnCanWrite();
+}
+
 TEST_P(QuicSessionTestServer, OnCanWriteBundlesStreams) {
   // Encryption needs to be established before data can be sent.
   CryptoHandshakeMessage msg;

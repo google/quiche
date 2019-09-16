@@ -210,6 +210,8 @@ class QUIC_EXPORT_PRIVATE QuicWriteBlockedList {
     return priority_write_scheduler_->IsStreamReady(stream_id);
   }
 
+  spdy::WriteSchedulerType scheduler_type() const { return scheduler_type_; }
+
  private:
   bool PrecedenceMatchesSchedulerType(
       const spdy::SpdyStreamPrecedence& precedence) {

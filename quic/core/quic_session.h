@@ -756,6 +756,9 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
 
   // The number of expected static streams.
   QuicStreamCount num_expected_unidirectional_static_streams_;
+
+  // If true, enables round robin scheduling.
+  bool enable_round_robin_scheduling_;
 };
 
 }  // namespace quic

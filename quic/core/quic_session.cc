@@ -93,7 +93,8 @@ QuicSession::QuicSession(
       use_http2_priority_write_scheduler_(false),
       is_configured_(false),
       num_expected_unidirectional_static_streams_(
-          num_expected_unidirectional_static_streams) {
+          num_expected_unidirectional_static_streams),
+      enable_round_robin_scheduling_(false) {
   closed_streams_clean_up_alarm_ =
       QuicWrapUnique<QuicAlarm>(connection_->alarm_factory()->CreateAlarm(
           new ClosedStreamsCleanUpDelegate(this)));
@@ -1000,6 +1001,12 @@ void QuicSession::OnConfigNegotiated() {
                 spdy::WriteSchedulerType::LIFO, transport_version())) {
           QUIC_RELOADABLE_FLAG_COUNT(quic_enable_lifo_write_scheduler);
         }
+      } else if (GetQuicReloadableFlag(quic_enable_rr_write_scheduler) &&
+                 ContainsQuicTag(config_.ReceivedConnectionOptions(), kRRWS) &&
+                 write_blocked_streams_.scheduler_type() ==
+                     spdy::WriteSchedulerType::SPDY) {
+        QUIC_RELOADABLE_FLAG_COUNT(quic_enable_rr_write_scheduler);
+        enable_round_robin_scheduling_ = true;
       }
     }
 
@@ -1157,6 +1164,13 @@ void QuicSession::RegisterStreamPriority(
     QuicStreamId id,
     bool is_static,
     const spdy::SpdyStreamPrecedence& precedence) {
+  if (enable_round_robin_scheduling_) {
+    // Ignore provided precedence, instead, put all streams at the same priority
+    // bucket.
+    write_blocked_streams()->RegisterStream(
+        id, is_static, spdy::SpdyStreamPrecedence(spdy::kV3LowestPriority));
+    return;
+  }
   write_blocked_streams()->RegisterStream(id, is_static, precedence);
 }
 
@@ -1167,6 +1181,10 @@ void QuicSession::UnregisterStreamPriority(QuicStreamId id, bool is_static) {
 void QuicSession::UpdateStreamPriority(
     QuicStreamId id,
     const spdy::SpdyStreamPrecedence& new_precedence) {
+  if (enable_round_robin_scheduling_) {
+    // Ignore updated precedence.
+    return;
+  }
   write_blocked_streams()->UpdateStreamPriority(id, new_precedence);
 }
 
