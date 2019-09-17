@@ -92,12 +92,6 @@ TEST_F(QuicConnectionIdTest, Hash) {
 
   // Verify that any two all-zero connection IDs of different lengths never
   // have the same hash.
-  if (sizeof(connection_id64_1.Hash()) < sizeof(uint64_t) &&
-      !GetQuicRestartFlag(quic_connection_id_use_siphash)) {
-    // The old hashing algorithm returns 0 for all-zero connection IDs on
-    // 32bit platforms.
-    return;
-  }
   const char connection_id_bytes[kQuicMaxConnectionIdAllVersionsLength] = {};
   for (uint8_t i = 0; i < sizeof(connection_id_bytes) - 1; ++i) {
     QuicConnectionId connection_id_i(connection_id_bytes, i);
