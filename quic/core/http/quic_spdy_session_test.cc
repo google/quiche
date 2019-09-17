@@ -127,6 +127,17 @@ class TestHeadersStream : public QuicHeadersStream {
   MOCK_METHOD0(OnCanWrite, void());
 };
 
+class MockHttp3DebugVisitor : public Http3DebugVisitor {
+ public:
+  MOCK_METHOD1(OnPeerControlStreamCreated, void(QuicStreamId));
+
+  MOCK_METHOD1(OnPeerQpackEncoderStreamCreated, void(QuicStreamId));
+
+  MOCK_METHOD1(OnPeerQpackDecoderStreamCreated, void(QuicStreamId));
+
+  MOCK_METHOD1(OnSettingsFrame, void(const SettingsFrame&));
+};
+
 class TestStream : public QuicSpdyStream {
  public:
   TestStream(QuicStreamId id, QuicSpdySession* session, StreamType type)
@@ -2177,16 +2188,19 @@ TEST_P(QuicSpdySessionTestServer, ReceiveControlStream) {
   if (!VersionHasStreamType(transport_version())) {
     return;
   }
+  MockHttp3DebugVisitor debug_visitor;
   // Use an arbitrary stream id.
   QuicStreamId stream_id =
       GetNthClientInitiatedUnidirectionalStreamId(transport_version(), 3);
   char type[] = {kControlStream};
 
   QuicStreamFrame data1(stream_id, false, 0, QuicStringPiece(type, 1));
+  EXPECT_CALL(debug_visitor, OnPeerControlStreamCreated(stream_id)).Times(0);
   session_.OnStreamFrame(data1);
   EXPECT_EQ(stream_id,
             QuicSpdySessionPeer::GetReceiveControlStream(&session_)->id());
 
+  session_.set_debug_visitor(&debug_visitor);
   SettingsFrame settings;
   settings.values[SETTINGS_QPACK_MAX_TABLE_CAPACITY] = 512;
   settings.values[SETTINGS_MAX_HEADER_LIST_SIZE] = 5;
@@ -2203,6 +2217,7 @@ TEST_P(QuicSpdySessionTestServer, ReceiveControlStream) {
   EXPECT_NE(5u, session_.max_outbound_header_list_size());
   EXPECT_NE(42u, QpackEncoderPeer::maximum_blocked_streams(qpack_encoder));
 
+  EXPECT_CALL(debug_visitor, OnSettingsFrame(settings));
   session_.OnStreamFrame(frame);
 
   EXPECT_EQ(512u,
@@ -2379,15 +2394,21 @@ TEST_P(QuicSpdySessionTestClient, DuplicateHttp3UnidirectionalStreams) {
   if (!VersionHasStreamType(transport_version())) {
     return;
   }
+
+  MockHttp3DebugVisitor debug_visitor;
+  session_.set_debug_visitor(&debug_visitor);
+
   QuicStreamId id1 =
       GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 0);
   char type1[] = {kControlStream};
 
   QuicStreamFrame data1(id1, false, 0, QuicStringPiece(type1, 1));
+  EXPECT_CALL(debug_visitor, OnPeerControlStreamCreated(id1));
   session_.OnStreamFrame(data1);
   QuicStreamId id2 =
       GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 1);
   QuicStreamFrame data2(id2, false, 0, QuicStringPiece(type1, 1));
+  EXPECT_CALL(debug_visitor, OnPeerControlStreamCreated(id2)).Times(0);
   EXPECT_CALL(*connection_,
               CloseConnection(QUIC_INVALID_STREAM_ID,
                               "Control stream is received twice.", _));
@@ -2400,11 +2421,13 @@ TEST_P(QuicSpdySessionTestClient, DuplicateHttp3UnidirectionalStreams) {
   char type2[]{kQpackEncoderStream};
 
   QuicStreamFrame data3(id3, false, 0, QuicStringPiece(type2, 1));
+  EXPECT_CALL(debug_visitor, OnPeerQpackEncoderStreamCreated(id3));
   session_.OnStreamFrame(data3);
 
   QuicStreamId id4 =
       GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 3);
   QuicStreamFrame data4(id4, false, 0, QuicStringPiece(type2, 1));
+  EXPECT_CALL(debug_visitor, OnPeerQpackEncoderStreamCreated(id4)).Times(0);
   EXPECT_CALL(*connection_,
               CloseConnection(QUIC_INVALID_STREAM_ID,
                               "QPACK encoder stream is received twice.", _));
@@ -2417,11 +2440,13 @@ TEST_P(QuicSpdySessionTestClient, DuplicateHttp3UnidirectionalStreams) {
   char type3[]{kQpackDecoderStream};
 
   QuicStreamFrame data5(id5, false, 0, QuicStringPiece(type3, 1));
+  EXPECT_CALL(debug_visitor, OnPeerQpackDecoderStreamCreated(id5));
   session_.OnStreamFrame(data5);
 
   QuicStreamId id6 =
       GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 5);
   QuicStreamFrame data6(id6, false, 0, QuicStringPiece(type3, 1));
+  EXPECT_CALL(debug_visitor, OnPeerQpackDecoderStreamCreated(id6)).Times(0);
   EXPECT_CALL(*connection_,
               CloseConnection(QUIC_INVALID_STREAM_ID,
                               "QPACK decoder stream is received twice.", _));

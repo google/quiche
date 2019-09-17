@@ -306,6 +306,10 @@ QuicHpackDebugVisitor::QuicHpackDebugVisitor() {}
 
 QuicHpackDebugVisitor::~QuicHpackDebugVisitor() {}
 
+Http3DebugVisitor::Http3DebugVisitor() {}
+
+Http3DebugVisitor::~Http3DebugVisitor() {}
+
 QuicSpdySession::QuicSpdySession(
     QuicConnection* connection,
     QuicSession::Visitor* visitor,
@@ -339,7 +343,8 @@ QuicSpdySession::QuicSpdySession(
       spdy_framer_(SpdyFramer::ENABLE_COMPRESSION),
       spdy_framer_visitor_(new SpdyFramerVisitor(this)),
       max_allowed_push_id_(0),
-      destruction_indicator_(123456789) {
+      destruction_indicator_(123456789),
+      debug_visitor_(nullptr) {
   h2_deframer_.set_visitor(spdy_framer_visitor_.get());
   h2_deframer_.set_debug_visitor(spdy_framer_visitor_.get());
   spdy_framer_.set_debug_visitor(spdy_framer_visitor_.get());
@@ -913,6 +918,10 @@ bool QuicSpdySession::ProcessPendingStream(PendingStream* pending) {
       ActivateStream(std::move(receive_stream));
       receive_control_stream_->SetUnblocked();
       QUIC_DVLOG(1) << "Receive Control stream is created";
+      if (debug_visitor_ != nullptr) {
+        debug_visitor_->OnPeerControlStreamCreated(
+            receive_control_stream_->id());
+      }
       return true;
     }
     case kServerPushStream: {  // Push Stream.
@@ -931,6 +940,10 @@ bool QuicSpdySession::ProcessPendingStream(PendingStream* pending) {
       ActivateStream(std::move(encoder_receive));
       qpack_encoder_receive_stream_->SetUnblocked();
       QUIC_DVLOG(1) << "Receive QPACK Encoder stream is created";
+      if (debug_visitor_ != nullptr) {
+        debug_visitor_->OnPeerQpackEncoderStreamCreated(
+            qpack_encoder_receive_stream_->id());
+      }
       return true;
     }
     case kQpackDecoderStream: {  // QPACK decoder stream.
@@ -943,7 +956,11 @@ bool QuicSpdySession::ProcessPendingStream(PendingStream* pending) {
       qpack_decoder_receive_stream_ = decoder_receive.get();
       ActivateStream(std::move(decoder_receive));
       qpack_decoder_receive_stream_->SetUnblocked();
-      QUIC_DVLOG(1) << "Receive Qpack Decoder stream is created";
+      QUIC_DVLOG(1) << "Receive QPACK Decoder stream is created";
+      if (debug_visitor_ != nullptr) {
+        debug_visitor_->OnPeerQpackDecoderStreamCreated(
+            qpack_decoder_receive_stream_->id());
+      }
       return true;
     }
     default:

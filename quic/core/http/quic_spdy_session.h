@@ -52,6 +52,27 @@ class QUIC_EXPORT_PRIVATE QuicHpackDebugVisitor {
   virtual void OnUseEntry(QuicTime::Delta elapsed) = 0;
 };
 
+class QUIC_EXPORT_PRIVATE Http3DebugVisitor {
+ public:
+  Http3DebugVisitor();
+  Http3DebugVisitor(const Http3DebugVisitor&) = delete;
+  Http3DebugVisitor& operator=(const Http3DebugVisitor&) = delete;
+
+  virtual ~Http3DebugVisitor();
+
+  // Called when peer's control stream type is received.
+  virtual void OnPeerControlStreamCreated(QuicStreamId /*stream_id*/) = 0;
+
+  // Called when peer's QPACK encoder stream type is received.
+  virtual void OnPeerQpackEncoderStreamCreated(QuicStreamId /*stream_id*/) = 0;
+
+  // Called when peer's QPACK decoder stream type is received.
+  virtual void OnPeerQpackDecoderStreamCreated(QuicStreamId /*stream_id*/) = 0;
+
+  // Called when SETTINGS frame is received.
+  virtual void OnSettingsFrame(const SettingsFrame& /*frame*/) = 0;
+};
+
 // A QUIC session for HTTP.
 class QUIC_EXPORT_PRIVATE QuicSpdySession
     : public QuicSession,
@@ -209,6 +230,12 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
 
   int32_t destruction_indicator() const { return destruction_indicator_; }
 
+  void set_debug_visitor(Http3DebugVisitor* debug_visitor) {
+    debug_visitor_ = debug_visitor;
+  }
+
+  Http3DebugVisitor* debug_visitor() { return debug_visitor_; }
+
  protected:
   // Override CreateIncomingStream(), CreateOutgoingBidirectionalStream() and
   // CreateOutgoingUnidirectionalStream() with QuicSpdyStream return type to
@@ -363,6 +390,9 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // constructor. As long as it is not the assigned value, that would indicate
   // an use-after-free.
   int32_t destruction_indicator_;
+
+  // Not owned by the session.
+  Http3DebugVisitor* debug_visitor_;
 };
 
 }  // namespace quic
