@@ -1645,6 +1645,9 @@ TEST_P(QuicSpdySessionTestServer, DrainingStreamsDoNotCountAsOpened) {
   // it) does not count against the open quota (because it is closed from the
   // protocol point of view).
   if (VersionHasIetfQuicFrames(transport_version())) {
+    // Simulate receiving a config. so that MAX_STREAMS/etc frames may
+    // be transmitted
+    QuicSessionPeer::set_is_configured(&session_, true);
     // Version 99 will result in a MAX_STREAMS frame as streams are consumed
     // (via the OnStreamFrame call) and then released (via
     // StreamDraining). Eventually this node will believe that the peer is

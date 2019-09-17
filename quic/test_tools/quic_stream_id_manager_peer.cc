@@ -20,9 +20,22 @@ void QuicStreamIdManagerPeer::set_incoming_actual_max_streams(
 }
 
 // static
+void QuicStreamIdManagerPeer::set_outgoing_max_streams(
+    QuicStreamIdManager* stream_id_manager,
+    QuicStreamCount count) {
+  stream_id_manager->outgoing_max_streams_ = count;
+}
+
+// static
 QuicStreamId QuicStreamIdManagerPeer::GetFirstIncomingStreamId(
     QuicStreamIdManager* stream_id_manager) {
   return stream_id_manager->GetFirstIncomingStreamId();
+}
+
+// static
+bool QuicStreamIdManagerPeer::get_unidirectional(
+    QuicStreamIdManager* stream_id_manager) {
+  return stream_id_manager->unidirectional_;
 }
 
 }  // namespace test

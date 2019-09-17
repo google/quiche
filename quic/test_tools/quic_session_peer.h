@@ -86,6 +86,7 @@ class QuicSessionPeer {
                                  bool close_write_side_only);
   static PendingStream* GetPendingStream(QuicSession* session,
                                          QuicStreamId stream_id);
+  static void set_is_configured(QuicSession* session, bool value);
 };
 
 }  // namespace test

@@ -1044,6 +1044,13 @@ void QuicSession::OnConfigNegotiated() {
         config_.ReceivedInitialSessionFlowControlWindowBytes());
   }
   is_configured_ = true;
+
+  // Inform stream ID manager so that it can reevaluate any deferred
+  // STREAMS_BLOCKED or MAX_STREAMS frames against the config and either send
+  // the frames or discard them.
+  if (VersionHasIetfQuicFrames(connection_->transport_version())) {
+    v99_streamid_manager_.OnConfigNegotiated();
+  }
 }
 
 void QuicSession::AdjustInitialFlowControlWindows(size_t stream_window) {

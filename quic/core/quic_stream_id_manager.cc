@@ -39,7 +39,10 @@ QuicStreamIdManager::QuicStreamIdManager(
       incoming_stream_count_(0),
       largest_peer_created_stream_id_(
           QuicUtils::GetInvalidStreamId(transport_version())),
-      max_streams_window_(0) {
+      max_streams_window_(0),
+      pending_max_streams_(false),
+      pending_streams_blocked_(
+          QuicUtils::GetInvalidStreamId(transport_version())) {
   CalculateIncomingMaxStreamsWindow();
 }
 
@@ -50,20 +53,11 @@ bool QuicStreamIdManager::OnMaxStreamsFrame(const QuicMaxStreamsFrame& frame) {
   // Ensure that the frame has the correct directionality.
   DCHECK_EQ(frame.unidirectional, unidirectional_);
   QUIC_CODE_COUNT_N(quic_max_streams_received, 2, 2);
-  const QuicStreamCount current_outgoing_max_streams = outgoing_max_streams_;
 
   // Set the limit to be exactly the stream count in the frame.
-  if (!SetMaxOpenOutgoingStreams(frame.stream_count)) {
-    return false;
-  }
-  // If we were at the previous limit and this MAX_STREAMS frame
-  // increased the limit, inform the application that new streams are
-  // available.
-  if (outgoing_stream_count_ == current_outgoing_max_streams &&
-      current_outgoing_max_streams < outgoing_max_streams_) {
-    session_->OnCanCreateNewOutgoingStream(unidirectional_);
-  }
-  return true;
+  // Also informs the higher layers that they can create more
+  // streams if the limit is increased.
+  return SetMaxOpenOutgoingStreams(frame.stream_count);
 }
 
 // The peer sends a streams blocked frame when it can not open any more
@@ -140,6 +134,11 @@ bool QuicStreamIdManager::SetMaxOpenOutgoingStreams(size_t max_open_streams) {
   outgoing_max_streams_ = std::min<size_t>(
       max_open_streams,
       QuicUtils::GetMaxStreamCount(unidirectional_, session_->perspective()));
+
+  // Inform the higher layers that the stream limit has increased and that
+  // new streams may be created.
+  session_->OnCanCreateNewOutgoingStream(unidirectional_);
+
   return true;
 }
 
@@ -171,6 +170,13 @@ void QuicStreamIdManager::MaybeSendMaxStreamsFrame() {
 }
 
 void QuicStreamIdManager::SendMaxStreamsFrame() {
+  if (!session_->is_configured()) {
+    // Session not configured, so we can not send the MAX STREAMS frame yet.
+    // Remember that we would have sent one and then return. A new frame will
+    // be generated once the configuration is received.
+    pending_max_streams_ = true;
+    return;
+  }
   incoming_advertised_max_streams_ = incoming_actual_max_streams_;
   session_->SendMaxStreams(incoming_advertised_max_streams_, unidirectional_);
 }
@@ -213,6 +219,15 @@ bool QuicStreamIdManager::CanOpenNextOutgoingStream() {
     return true;
   }
   // Next stream ID would exceed the limit, need to inform the peer.
+
+  if (!session_->is_configured()) {
+    // Session not configured, so we can not send the STREAMS_BLOCKED frame yet.
+    // Remember that we would have sent one, and what the limit was when we were
+    // blocked, and return.
+    pending_streams_blocked_ = outgoing_max_streams_;
+    return false;
+  }
+
   session_->SendStreamsBlocked(outgoing_max_streams_, unidirectional_);
   QUIC_CODE_COUNT(quic_reached_outgoing_stream_id_limit);
   return false;
@@ -339,6 +354,27 @@ void QuicStreamIdManager::CalculateIncomingMaxStreamsWindow() {
   max_streams_window_ = incoming_actual_max_streams_ / kMaxStreamsWindowDivisor;
   if (max_streams_window_ == 0) {
     max_streams_window_ = 1;
+  }
+}
+
+void QuicStreamIdManager::OnConfigNegotiated() {
+  QuicConnection::ScopedPacketFlusher flusher(session_->connection());
+  // If a STREAMS_BLOCKED or MAX_STREAMS is pending, send it and clear
+  // the pending state.
+  if (pending_streams_blocked_ !=
+      QuicUtils::GetInvalidStreamId(transport_version())) {
+    if (pending_streams_blocked_ >= outgoing_max_streams_) {
+      // There is a pending STREAMS_BLOCKED frame and the current limit does not
+      // let new streams be formed. Regenerate and send the frame.
+      session_->SendStreamsBlocked(outgoing_max_streams_, unidirectional_);
+    }
+    pending_streams_blocked_ =
+        QuicUtils::GetInvalidStreamId(transport_version());
+  }
+  if (pending_max_streams_) {
+    // Generate a MAX_STREAMS using the current stream limits.
+    SendMaxStreamsFrame();
+    pending_max_streams_ = false;
   }
 }
 

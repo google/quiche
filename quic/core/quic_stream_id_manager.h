@@ -149,6 +149,10 @@ class QUIC_EXPORT_PRIVATE QuicStreamIdManager {
 
   QuicTransportVersion transport_version() const;
 
+  // Called when session has been configured. Causes the Stream ID manager to
+  // send out any pending MAX_STREAMS and STREAMS_BLOCKED frames.
+  void OnConfigNegotiated();
+
  private:
   friend class test::QuicSessionPeer;
   friend class test::QuicStreamIdManagerPeer;
@@ -226,6 +230,13 @@ class QUIC_EXPORT_PRIVATE QuicStreamIdManager {
   // max_streams_window_ is set to 1/2 of the initial number of incoming streams
   // that are allowed (as set in the constructor).
   QuicStreamId max_streams_window_;
+
+  // MAX_STREAMS and STREAMS_BLOCKED frames are not sent before the session has
+  // been configured. Instead, the relevant information is stored in
+  // |pending_max_streams_| and |pending_streams_blocked_| and sent when
+  // OnConfigNegotiated() is invoked.
+  bool pending_max_streams_;
+  QuicStreamId pending_streams_blocked_;
 };
 }  // namespace quic
 

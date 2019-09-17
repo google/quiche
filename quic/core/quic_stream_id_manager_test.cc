@@ -56,6 +56,9 @@ class TestQuicSession : public MockQuicSession {
  public:
   TestQuicSession(QuicConnection* connection)
       : MockQuicSession(connection, /*create_mock_crypto_stream=*/true) {
+    // Initialize to an invalid frame type to detect cases where the frame type
+    // is not set subsequently.
+    save_frame_.type = static_cast<QuicFrameType>(-1);
     Initialize();
   }
 
@@ -277,6 +280,10 @@ TEST_P(QuicStreamIdManagerTestClient, ProcessStreamsBlockedOk) {
   QuicStreamCount stream_count =
       stream_id_manager_->incoming_initial_max_open_streams() - 1;
   QuicStreamsBlockedFrame frame(0, stream_count, /*unidirectional=*/false);
+
+  // Simulate being configured so that the MAX_STREAMS is transmitted.
+  session_->OnConfigNegotiated();
+
   session_->OnStreamsBlockedFrame(frame);
 
   // We should see a MAX_STREAMS frame.
@@ -395,6 +402,9 @@ TEST_P(QuicStreamIdManagerTestClient, StreamIdManagerOnStreamsBlockedFrame) {
   // Get the current maximum allowed incoming stream count.
   QuicStreamCount advertised_stream_count =
       stream_id_manager_->incoming_advertised_max_streams();
+  // Simulate receiving a config to allow frame transmission
+  session_->OnConfigNegotiated();
+
   QuicStreamsBlockedFrame frame;
 
   frame.unidirectional = IsUnidi();
@@ -457,6 +467,15 @@ TEST_P(QuicStreamIdManagerTestClient, StreamIdManagerGetNextOutgoingStream) {
   // Number of streams we can open and the first one we should get when
   // opening...
   size_t number_of_streams = kDefaultMaxStreamsPerConnection;
+
+  // Set up config to allow the default stream limit and then
+  // simulate receiving a config to allow frame transmission
+  QuicConfigPeer::SetReceivedMaxIncomingUnidirectionalStreams(
+      session_->config(), kDefaultMaxStreamsPerConnection);
+  QuicConfigPeer::SetReceivedMaxIncomingBidirectionalStreams(
+      session_->config(), kDefaultMaxStreamsPerConnection);
+  session_->OnConfigNegotiated();
+
   QuicStreamId stream_id =
       IsUnidi() ? session_->next_outgoing_unidirectional_stream_id()
                 : session_->next_outgoing_bidirectional_stream_id();
@@ -510,6 +529,9 @@ TEST_P(QuicStreamIdManagerTestClient,
 
 // Test the MAX STREAMS Window functionality.
 TEST_P(QuicStreamIdManagerTestClient, StreamIdManagerServerMaxStreams) {
+  // Simulate completed config to allow frame transmission
+  session_->OnConfigNegotiated();
+
   // Test that a MAX_STREAMS frame is generated when the peer has less than
   // |max_streams_window_| streams left that it can initiate.
 
@@ -585,6 +607,9 @@ TEST_P(QuicStreamIdManagerTestClient, StreamIdManagerServerMaxStreams) {
 // Check that edge conditions of the stream count in a STREAMS_BLOCKED frame
 // are. properly handled.
 TEST_P(QuicStreamIdManagerTestClient, StreamsBlockedEdgeConditions) {
+  // Simulate completed config to allow frame transmission
+  session_->OnConfigNegotiated();
+
   QuicStreamsBlockedFrame frame;
   frame.unidirectional = IsUnidi();
 
@@ -607,6 +632,28 @@ TEST_P(QuicStreamIdManagerTestClient, StreamsBlockedEdgeConditions) {
   EXPECT_EQ(123u, session_->save_frame().max_streams_frame.stream_count);
 }
 
+TEST_P(QuicStreamIdManagerTestClient, HoldMaxStreamsFrame) {
+  if (!VersionHasIetfQuicFrames(transport_version())) {
+    return;
+  }
+
+  // The session has not been configured so frame transmission will not be
+  // allowed.
+  EXPECT_CALL(*connection_, SendControlFrame(_)).Times(0);
+
+  QuicStreamsBlockedFrame frame(
+      1u, 0u, QuicStreamIdManagerPeer::get_unidirectional(stream_id_manager_));
+  // Should cause change in pending_max_streams.
+  stream_id_manager_->OnStreamsBlockedFrame(frame);
+  // Will do OnConfig. We should see a control frame pop out now.
+  EXPECT_CALL(*connection_, SendControlFrame(_)).Times(1);
+
+  // Now allow frame transmission -- which happens when the QuicSession
+  // receives the configuration and calls
+  // QuicStreamIdManager::OnConfigNegotiated()
+  session_->OnConfigNegotiated();
+}
+
 // Following tests all are server-specific. They depend, in some way, on
 // server-specific attributes, such as the initial stream ID.
 
@@ -615,6 +662,64 @@ class QuicStreamIdManagerTestServer : public QuicStreamIdManagerTestBase {
   QuicStreamIdManagerTestServer()
       : QuicStreamIdManagerTestBase(Perspective::IS_SERVER) {}
 };
+
+TEST_P(QuicStreamIdManagerTestClient, HoldStreamsBlockedFrameXmit) {
+  if (!VersionHasIetfQuicFrames(transport_version())) {
+    return;
+  }
+
+  // set outgoing limit to 0, will cause the CanOpenNext... to fail
+  // leading to a STREAMS_BLOCKED.
+  QuicStreamIdManagerPeer::set_outgoing_max_streams(stream_id_manager_, 0);
+
+  // We should not see a STREAMS-BLOCKED frame because we're not configured..
+  EXPECT_CALL(*connection_, SendControlFrame(_)).Times(0);
+
+  // Since the stream limit is 0 and no sreams can be created this should return
+  // false and have forced a streams-blocked to be queued up, with the
+  // blocked stream id == 0.
+  EXPECT_FALSE(stream_id_manager_->CanOpenNextOutgoingStream());
+
+  // Simulate receipt of the configuration; This case does not update the
+  // outgoing stream limit, so the on-config should result in a streams-blocked
+  // being sent.
+  EXPECT_CALL(*connection_, SendControlFrame(_)).Times(1);
+  QuicConfigPeer::SetReceivedMaxIncomingUnidirectionalStreams(
+      session_->config(), 0);
+  QuicConfigPeer::SetReceivedMaxIncomingBidirectionalStreams(session_->config(),
+                                                             0);
+  session_->OnConfigNegotiated();
+}
+
+TEST_P(QuicStreamIdManagerTestClient, HoldStreamsBlockedFrameNoXmit) {
+  if (!VersionHasIetfQuicFrames(transport_version())) {
+    return;
+  }
+  // Set outgoing limit to 0, will cause the CanOpenNext... to fail
+  // leading to a STREAMS_BLOCKED.
+  QuicStreamIdManagerPeer::set_outgoing_max_streams(stream_id_manager_, 0);
+
+  // We should not see a STREAMS-BLOCKED frame because we're not configured..
+  EXPECT_CALL(*connection_, SendControlFrame(_)).Times(0);
+
+  // Since the stream limit is 0 and no sreams can be created this should return
+  // false and have forced a streams-blocked to be queued up, with the
+  // blocked stream id == 0.
+  EXPECT_FALSE(stream_id_manager_->CanOpenNextOutgoingStream());
+
+  // Since the config gives some streams to create, we should not see
+  // a STREAMS-BLOCKED frame.
+  EXPECT_CALL(*connection_, SendControlFrame(_)).Times(0);
+
+  // Do the configuration.  The stream limits are increased, allowing this
+  // node to create more streams, so we should not see the pending
+  // STREAMS-BLOCKED frame get transmitted.
+  QuicConfigPeer::SetReceivedMaxIncomingUnidirectionalStreams(
+      session_->config(), 10);
+  QuicConfigPeer::SetReceivedMaxIncomingBidirectionalStreams(session_->config(),
+                                                             10);
+  session_->OnConfigNegotiated();
+}
 
 INSTANTIATE_TEST_SUITE_P(Tests, QuicStreamIdManagerTestServer, testing::Bool());
 
@@ -677,6 +782,13 @@ TEST_P(QuicStreamIdManagerTestServer, MaxStreamsSlidingWindow) {
 // Tast that an attempt to create an outgoing stream does not exceed the limit
 // and that it generates an appropriate STREAMS_BLOCKED frame.
 TEST_P(QuicStreamIdManagerTestServer, NewStreamDoesNotExceedLimit) {
+  // Configure with some number of streams, and allow frame transmission
+  QuicConfigPeer::SetReceivedMaxIncomingUnidirectionalStreams(
+      session_->config(), 100);
+  QuicConfigPeer::SetReceivedMaxIncomingBidirectionalStreams(session_->config(),
+                                                             100);
+  session_->OnConfigNegotiated();
+
   size_t stream_count = stream_id_manager_->outgoing_max_streams();
   EXPECT_NE(0u, stream_count);
   TestQuicStream* stream;

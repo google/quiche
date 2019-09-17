@@ -241,5 +241,10 @@ PendingStream* QuicSessionPeer::GetPendingStream(QuicSession* session,
   return it == session->pending_stream_map_.end() ? nullptr : it->second.get();
 }
 
+// static
+void QuicSessionPeer::set_is_configured(QuicSession* session, bool value) {
+  session->is_configured_ = value;
+}
+
 }  // namespace test
 }  // namespace quic

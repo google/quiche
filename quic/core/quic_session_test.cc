@@ -32,6 +32,7 @@
 #include "net/third_party/quiche/src/quic/test_tools/quic_connection_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_flow_controller_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_session_peer.h"
+#include "net/third_party/quiche/src/quic/test_tools/quic_stream_id_manager_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_stream_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_stream_send_buffer_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
@@ -155,7 +156,6 @@ class TestSession : public QuicSession {
   }
 
   ~TestSession() override {
-    EXPECT_TRUE(is_configured());
     delete connection();
   }
 
@@ -284,13 +284,13 @@ class TestSession : public QuicSession {
     return consumed;
   }
 
+  const QuicFrame& save_frame() { return save_frame_; }
+
   bool SaveFrame(const QuicFrame& frame) {
     save_frame_ = frame;
     DeleteFrame(&const_cast<QuicFrame&>(frame));
     return true;
   }
-
-  const QuicFrame& save_frame() { return save_frame_; }
 
   QuicConsumedData SendLargeFakeData(QuicStream* stream, int bytes) {
     DCHECK(writev_consumes_all_data_);
@@ -308,6 +308,7 @@ class TestSession : public QuicSession {
   }
 
   using QuicSession::ActivateStream;
+  using QuicSession::CanOpenNextOutgoingUnidirectionalStream;
   using QuicSession::closed_streams;
   using QuicSession::zombie_streams;
 
@@ -322,13 +323,14 @@ class TestSession : public QuicSession {
 
 class QuicSessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
  protected:
-  explicit QuicSessionTestBase(Perspective perspective)
+  QuicSessionTestBase(Perspective perspective, bool configure_session)
       : connection_(
             new StrictMock<MockQuicConnection>(&helper_,
                                                &alarm_factory_,
                                                perspective,
                                                SupportedVersions(GetParam()))),
-        session_(connection_, &session_visitor_) {
+        session_(connection_, &session_visitor_),
+        configure_session_(configure_session) {
     session_.config()->SetInitialStreamFlowControlWindowToSend(
         kInitialStreamFlowControlWindowForTest);
     session_.config()->SetInitialSessionFlowControlWindowToSend(
@@ -341,10 +343,18 @@ class QuicSessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
     QuicConfigPeer::SetReceivedInitialSessionFlowControlWindow(
         session_.config(), kMinimumFlowControlSendWindow);
     connection_->AdvanceTime(QuicTime::Delta::FromSeconds(1));
-    session_.OnConfigNegotiated();
+    if (configure_session) {
+      session_.OnConfigNegotiated();
+    }
     TestCryptoStream* crypto_stream = session_.GetMutableCryptoStream();
     EXPECT_CALL(*crypto_stream, HasPendingRetransmission())
         .Times(testing::AnyNumber());
+  }
+
+  ~QuicSessionTestBase() {
+    if (configure_session_) {
+      EXPECT_TRUE(session_.is_configured());
+    }
   }
 
   void CheckClosedStreams() {
@@ -440,6 +450,7 @@ class QuicSessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
   StrictMock<MockQuicConnection>* connection_;
   TestSession session_;
   std::set<QuicStreamId> closed_streams_;
+  bool configure_session_;
 };
 
 class QuicSessionTestServer : public QuicSessionTestBase {
@@ -479,7 +490,7 @@ class QuicSessionTestServer : public QuicSessionTestBase {
 
  protected:
   QuicSessionTestServer()
-      : QuicSessionTestBase(Perspective::IS_SERVER),
+      : QuicSessionTestBase(Perspective::IS_SERVER, /*configure_session=*/true),
         path_frame_buffer1_({0, 1, 2, 3, 4, 5, 6, 7}),
         path_frame_buffer2_({8, 9, 10, 11, 12, 13, 14, 15}),
         client_framer_(SupportedVersions(GetParam()),
@@ -1943,7 +1954,9 @@ TEST_P(QuicSessionTestServer, DrainingStreamsDoNotCountAsOpened) {
 
 class QuicSessionTestClient : public QuicSessionTestBase {
  protected:
-  QuicSessionTestClient() : QuicSessionTestBase(Perspective::IS_CLIENT) {}
+  QuicSessionTestClient()
+      : QuicSessionTestBase(Perspective::IS_CLIENT,
+                            /*configure_session=*/true) {}
 };
 
 INSTANTIATE_TEST_SUITE_P(Tests,
@@ -2553,6 +2566,7 @@ TEST_P(QuicSessionTestServer, NewStreamIdAboveLimit) {
     // Applicable only to IETF QUIC
     return;
   }
+
   QuicStreamId bidirectional_stream_id = StreamCountToId(
       QuicSessionPeer::v99_streamid_manager(&session_)
               ->advertised_max_allowed_incoming_bidirectional_streams() +
@@ -2727,6 +2741,113 @@ TEST_P(QuicSessionTestServer, StreamFrameReceivedAfterFin) {
     EXPECT_DEBUG_DEATH(session_.OnStreamFrame(frame1), "Check failed");
 #endif  // GTEST_HAS_DEATH_TEST && !defined(NDEBUG)
   }
+}
+
+// A client test class that can be used when the automatic configuration is not
+// desired.
+class QuicSessionTestClientUnconfigured : public QuicSessionTestBase {
+ protected:
+  QuicSessionTestClientUnconfigured()
+      : QuicSessionTestBase(Perspective::IS_CLIENT,
+                            /*configure_session=*/false) {}
+};
+
+INSTANTIATE_TEST_SUITE_P(Tests,
+                         QuicSessionTestClientUnconfigured,
+                         ::testing::ValuesIn(AllSupportedVersions()));
+
+TEST_P(QuicSessionTestClientUnconfigured, HoldMaxStreamsFrame) {
+  if (!VersionHasIetfQuicFrames(transport_version())) {
+    return;
+  }
+  QuicStreamIdManager* stream_id_manager =
+      QuicSessionPeer::v99_unidirectional_stream_id_manager(&session_);
+
+  EXPECT_CALL(*connection_, SendControlFrame(_)).Times(0);
+  QuicStreamsBlockedFrame frame(1u, 0u, /*unidirectional=*/true);
+  session_.OnStreamsBlockedFrame(frame);
+  EXPECT_CALL(*connection_, SendControlFrame(_))
+      .Times(1)
+      .WillRepeatedly(Invoke(&session_, &TestSession::SaveFrame));
+  session_.OnConfigNegotiated();
+  EXPECT_EQ(MAX_STREAMS_FRAME, session_.save_frame().type);
+  EXPECT_EQ(stream_id_manager->incoming_actual_max_streams(),
+            session_.save_frame().max_streams_frame.stream_count);
+  EXPECT_EQ(1u, session_.save_frame().max_streams_frame.control_frame_id);
+}
+
+TEST_P(QuicSessionTestClientUnconfigured, HoldStreamsBlockedFrameXmit) {
+  if (!VersionHasIetfQuicFrames(transport_version())) {
+    // Applicable only to IETF QUIC
+    return;
+  }
+  QuicStreamIdManager* stream_id_manager =
+      QuicSessionPeer::v99_unidirectional_stream_id_manager(&session_);
+
+  // Set the stream limit to 0 which will cause
+  // CanOpenNextOutgoingUnidirectionalStream()
+  // to generated a STREAMS_BLOCKED frame.
+  QuicStreamIdManagerPeer::set_outgoing_max_streams(stream_id_manager, 0);
+
+  // Since the stream limit is 0 and no sreams can be created this should return
+  // false and have forced a streams-blocked to be queued up, with the
+  // blocked stream id == 0.
+  EXPECT_CALL(*connection_, SendControlFrame(_)).Times(0);
+  EXPECT_FALSE(session_.CanOpenNextOutgoingUnidirectionalStream());
+
+  // We will expect two calls to SendControlFrame: The first is because
+  // OnConfigNegotiated does not increase the limit, so the app still can not
+  // create new streams (and therefore needs the STREAMS-BLOCKED to go out). The
+  // second is because the ensuing CanOpenNext.. call will fail (this test not
+  // actually increasing the limit) and that will send another STREAMS-BLOCKED.
+  EXPECT_CALL(*connection_, SendControlFrame(_))
+      .Times(2)
+      .WillRepeatedly(Invoke(&session_, &TestSession::SaveFrame));
+  // Set configuration data so that when the config happens, the stream limit is
+  // not increased and another STREAMS-BLOCKED will be needed..
+  QuicConfigPeer::SetReceivedMaxIncomingUnidirectionalStreams(session_.config(),
+                                                              0);
+
+  session_.OnConfigNegotiated();
+
+  EXPECT_EQ(STREAMS_BLOCKED_FRAME, session_.save_frame().type);
+  EXPECT_EQ(0u, session_.save_frame().streams_blocked_frame.stream_count);
+  EXPECT_EQ(1u, session_.save_frame().streams_blocked_frame.control_frame_id);
+
+  EXPECT_FALSE(session_.CanOpenNextOutgoingUnidirectionalStream());
+  EXPECT_EQ(STREAMS_BLOCKED_FRAME, session_.save_frame().type);
+  EXPECT_EQ(0u, session_.save_frame().streams_blocked_frame.stream_count);
+  EXPECT_EQ(2u, session_.save_frame().streams_blocked_frame.control_frame_id);
+}
+
+TEST_P(QuicSessionTestClientUnconfigured, HoldStreamsBlockedFrameNoXmit) {
+  if (!VersionHasIetfQuicFrames(transport_version())) {
+    return;
+  }
+  QuicStreamIdManager* stream_id_manager =
+      QuicSessionPeer::v99_unidirectional_stream_id_manager(&session_);
+
+  // Set the stream limit to 0 which will cause
+  // CanOpenNextOutgoingUnidirectionalStream()
+  // to generated a STREAMS_BLOCKED frame.
+  QuicStreamIdManagerPeer::set_outgoing_max_streams(stream_id_manager, 0);
+
+  // Since the stream limit is 0 and no streams can be created this should
+  // return false and have forced a streams-blocked to be queued up, with the
+  // blocked stream id == 0.
+  EXPECT_CALL(*connection_, SendControlFrame(_)).Times(0);
+  EXPECT_FALSE(session_.CanOpenNextOutgoingUnidirectionalStream());
+
+  // Set configuration data so that when the config happens, the stream limit is
+  // increased.
+  QuicConfigPeer::SetReceivedMaxIncomingUnidirectionalStreams(session_.config(),
+                                                              10);
+
+  // STREAMS_BLOCKED frame should not be sent because streams can now be
+  // created.
+  EXPECT_CALL(*connection_, SendControlFrame(_)).Times(0);
+  session_.OnConfigNegotiated();
+  EXPECT_TRUE(session_.CanOpenNextOutgoingUnidirectionalStream());
 }
 
 }  // namespace
