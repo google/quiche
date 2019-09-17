@@ -1002,7 +1002,8 @@ size_t QuicSpdyStream::WriteHeadersImpl(
         std::move(ack_listener));
   }
 
-  if (session()->perspective() == Perspective::IS_CLIENT && !priority_sent_) {
+  if (GetQuicFlag(FLAGS_quic_allow_http3_priority) &&
+      session()->perspective() == Perspective::IS_CLIENT && !priority_sent_) {
     PriorityFrame frame;
     PopulatePriorityFrame(&frame);
     spdy_session_->WriteH3Priority(frame);

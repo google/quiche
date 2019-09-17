@@ -1221,6 +1221,7 @@ TEST_P(QuicSpdyStreamTest, WritingTrailersSendsAFin) {
 }
 
 TEST_P(QuicSpdyStreamTest, ClientWritesPriority) {
+  SetQuicFlag(FLAGS_quic_allow_http3_priority, true);
   InitializeWithPerspective(kShouldProcessData, Perspective::IS_CLIENT);
 
   if (VersionUsesQpack(GetParam().transport_version)) {

@@ -524,6 +524,7 @@ size_t QuicSpdySession::WritePriority(QuicStreamId id,
 
 void QuicSpdySession::WriteH3Priority(const PriorityFrame& priority) {
   DCHECK(VersionHasStreamType(transport_version()));
+  DCHECK(GetQuicFlag(FLAGS_quic_allow_http3_priority));
   DCHECK(perspective() == Perspective::IS_CLIENT)
       << "Server must not send priority";
 

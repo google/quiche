@@ -216,6 +216,7 @@ TEST_P(QuicReceiveControlStreamTest, ReceivePriorityFrame) {
   if (perspective() == Perspective::IS_CLIENT) {
     return;
   }
+  SetQuicFlag(FLAGS_quic_allow_http3_priority, true);
   struct PriorityFrame frame;
   frame.prioritized_type = REQUEST_STREAM;
   frame.dependency_type = ROOT_OF_TREE;
