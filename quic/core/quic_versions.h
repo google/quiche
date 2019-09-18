@@ -411,8 +411,6 @@ QUIC_EXPORT_PRIVATE inline bool VersionUsesQpack(
 // length field as defined by IETF QUIC draft-13 and later.
 QUIC_EXPORT_PRIVATE inline bool QuicVersionHasLongHeaderLengths(
     QuicTransportVersion transport_version) {
-  // TODO(dschinazi) if we enable long header lengths before v99, we need to
-  // add support for fixing up lengths in QuicFramer::BuildDataPacket.
   return transport_version == QUIC_VERSION_99;
 }
 

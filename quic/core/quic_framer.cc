@@ -872,9 +872,6 @@ size_t QuicFramer::BuildDataPacket(const QuicPacketHeader& header,
     }
     return writer.length();
   }
-  // TODO(dschinazi) if we enable long header lengths before v99, we need to
-  // add support for fixing up lengths in QuicFramer::BuildDataPacket.
-  DCHECK(!QuicVersionHasLongHeaderLengths(transport_version()));
 
   size_t i = 0;
   for (const QuicFrame& frame : frames) {
@@ -1007,6 +1004,10 @@ size_t QuicFramer::BuildDataPacket(const QuicPacketHeader& header,
         return 0;
     }
     ++i;
+  }
+
+  if (!WriteIetfLongHeaderLength(header, &writer, length_field_offset, level)) {
+    return 0;
   }
 
   return writer.length();
