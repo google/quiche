@@ -896,11 +896,12 @@ QuicEncryptedPacket* ConstructEncryptedPacket(
   QuicFrames frames;
   QuicFramer framer(*versions, QuicTime::Zero(), perspective,
                     kQuicDefaultConnectionIdLength);
+  framer.SetInitialObfuscators(destination_connection_id);
   ParsedQuicVersion version = (*versions)[0];
   EncryptionLevel level =
       header.version_flag ? ENCRYPTION_INITIAL : ENCRYPTION_FORWARD_SECURE;
-  if (level == ENCRYPTION_INITIAL) {
-    framer.SetInitialObfuscators(destination_connection_id);
+  if (level != ENCRYPTION_INITIAL) {
+    framer.SetEncrypter(level, std::make_unique<NullEncrypter>(perspective));
   }
   if (!QuicVersionUsesCryptoFrames(version.transport_version)) {
     QuicFrame frame(
@@ -926,8 +927,8 @@ QuicEncryptedPacket* ConstructEncryptedPacket(
   EXPECT_TRUE(packet != nullptr);
   char* buffer = new char[kMaxOutgoingPacketSize];
   size_t encrypted_length =
-      framer.EncryptPayload(ENCRYPTION_INITIAL, QuicPacketNumber(packet_number),
-                            *packet, buffer, kMaxOutgoingPacketSize);
+      framer.EncryptPayload(level, QuicPacketNumber(packet_number), *packet,
+                            buffer, kMaxOutgoingPacketSize);
   EXPECT_NE(0u, encrypted_length);
   DeleteFrames(&frames);
   return new QuicEncryptedPacket(buffer, encrypted_length, true);
@@ -977,8 +978,11 @@ QuicEncryptedPacket* ConstructMisFramedEncryptedPacket(
   QuicFramer framer(versions != nullptr ? *versions : AllSupportedVersions(),
                     QuicTime::Zero(), perspective,
                     kQuicDefaultConnectionIdLength);
-  if (version_flag) {
-    framer.SetInitialObfuscators(destination_connection_id);
+  framer.SetInitialObfuscators(destination_connection_id);
+  EncryptionLevel level =
+      version_flag ? ENCRYPTION_INITIAL : ENCRYPTION_FORWARD_SECURE;
+  if (level != ENCRYPTION_INITIAL) {
+    framer.SetEncrypter(level, std::make_unique<NullEncrypter>(perspective));
   }
   // We need a minimum of 7 bytes of encrypted payload. This will guarantee that
   // we have at least that much. (It ignores the overhead of the stream/crypto
@@ -1003,8 +1007,8 @@ QuicEncryptedPacket* ConstructMisFramedEncryptedPacket(
 
   char* buffer = new char[kMaxOutgoingPacketSize];
   size_t encrypted_length =
-      framer.EncryptPayload(ENCRYPTION_INITIAL, QuicPacketNumber(packet_number),
-                            *packet, buffer, kMaxOutgoingPacketSize);
+      framer.EncryptPayload(level, QuicPacketNumber(packet_number), *packet,
+                            buffer, kMaxOutgoingPacketSize);
   EXPECT_NE(0u, encrypted_length);
   return new QuicEncryptedPacket(buffer, encrypted_length, true);
 }
