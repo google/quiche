@@ -3179,7 +3179,7 @@ TEST_P(QuicSentPacketManagerTest, SendOneProbePacket) {
 TEST_P(QuicSentPacketManagerTest, DisableHandshakeModeClient) {
   QuicSentPacketManagerPeer::SetPerspective(&manager_, Perspective::IS_CLIENT);
   manager_.SetSessionDecideWhatToWrite(true);
-  manager_.DisableHandshakeMode();
+  manager_.EnableIetfPtoAndLossDetection();
   // Send CHLO.
   SendCryptoPacket(1);
   EXPECT_NE(QuicTime::Zero(), manager_.GetRetransmissionTime());
@@ -3202,7 +3202,7 @@ TEST_P(QuicSentPacketManagerTest, DisableHandshakeModeClient) {
 
 TEST_P(QuicSentPacketManagerTest, DisableHandshakeModeServer) {
   manager_.SetSessionDecideWhatToWrite(true);
-  manager_.DisableHandshakeMode();
+  manager_.EnableIetfPtoAndLossDetection();
   // Send SHLO.
   SendCryptoPacket(1);
   EXPECT_NE(QuicTime::Zero(), manager_.GetRetransmissionTime());

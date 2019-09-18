@@ -3610,7 +3610,7 @@ void QuicConnection::MaybeEnableSessionDecidesWhatToWrite() {
   sent_packet_manager_.SetSessionDecideWhatToWrite(
       enable_session_decides_what_to_write);
   if (version().SupportsAntiAmplificationLimit()) {
-    sent_packet_manager_.DisableHandshakeMode();
+    sent_packet_manager_.EnableIetfPtoAndLossDetection();
   }
   packet_generator_.SetCanSetTransmissionType(
       enable_session_decides_what_to_write);

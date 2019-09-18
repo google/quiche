@@ -419,7 +419,8 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   void AdjustPendingTimerTransmissions();
 
   // Called to disable HANDSHAKE_MODE, and only PTO and LOSS modes are used.
-  void DisableHandshakeMode();
+  // Also enable IETF loss detection.
+  void EnableIetfPtoAndLossDetection();
 
   bool supports_multiple_packet_number_spaces() const {
     return unacked_packets_.supports_multiple_packet_number_spaces();

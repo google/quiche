@@ -970,11 +970,12 @@ void QuicSentPacketManager::AdjustPendingTimerTransmissions() {
   pending_timer_transmission_count_ = 1;
 }
 
-void QuicSentPacketManager::DisableHandshakeMode() {
+void QuicSentPacketManager::EnableIetfPtoAndLossDetection() {
   DCHECK(session_decides_what_to_write());
   fix_rto_retransmission_ = true;
   pto_enabled_ = true;
   handshake_mode_disabled_ = true;
+  uber_loss_algorithm_.SetLossDetectionType(kIetfLossDetection);
 }
 
 QuicSentPacketManager::RetransmissionTimeoutMode
