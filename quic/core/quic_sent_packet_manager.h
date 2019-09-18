@@ -108,6 +108,19 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
     PTO_MODE,
   };
 
+  // Grantor makes sure there are enough credits to retransmit a packet. When
+  // grantor is out of scope, remaining credits will be cleared.
+  class QUIC_EXPORT_PRIVATE ScopedCreditGrantor {
+   public:
+    explicit ScopedCreditGrantor(QuicSentPacketManager* manager);
+    ~ScopedCreditGrantor();
+
+   private:
+    QuicSentPacketManager* manager_;
+    // Indicates whether any credit has been granted.
+    bool credits_granted_;
+  };
+
   QuicSentPacketManager(Perspective perspective,
                         const QuicClock* clock,
                         QuicRandom* random,
@@ -371,6 +384,10 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
 
   size_t pending_timer_transmission_count() const {
     return pending_timer_transmission_count_;
+  }
+
+  void set_pending_timer_transmission_count(size_t count) {
+    pending_timer_transmission_count_ = count;
   }
 
   QuicTime::Delta peer_max_ack_delay() const { return peer_max_ack_delay_; }

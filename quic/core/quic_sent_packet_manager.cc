@@ -67,6 +67,31 @@ static const uint32_t kConservativeUnpacedBurst = 2;
   (unacked_packets_.perspective() == Perspective::IS_SERVER ? "Server: " \
                                                             : "Client: ")
 
+QuicSentPacketManager::ScopedCreditGrantor::ScopedCreditGrantor(
+    QuicSentPacketManager* manager)
+    : manager_(manager), credits_granted_(false) {
+  if (!GetQuicReloadableFlag(quic_grant_enough_credits)) {
+    return;
+  }
+  QUIC_RELOADABLE_FLAG_COUNT(quic_grant_enough_credits);
+  if (manager_->pending_timer_transmission_count() > 1) {
+    // There are enough credits to retransmit one packet.
+    return;
+  }
+  // Grant 2 credits because a single packet can be transmitted as 2 (if packet
+  // number length changes).
+  manager_->set_pending_timer_transmission_count(2);
+  credits_granted_ = true;
+}
+
+QuicSentPacketManager::ScopedCreditGrantor::~ScopedCreditGrantor() {
+  if (!credits_granted_) {
+    // Do not clear credits if there is no credit granted.
+    return;
+  }
+  manager_->set_pending_timer_transmission_count(0);
+}
+
 QuicSentPacketManager::QuicSentPacketManager(
     Perspective perspective,
     const QuicClock* clock,
@@ -525,6 +550,7 @@ void QuicSentPacketManager::HandleRetransmission(
     // applications may want to use higher priority stream data for bandwidth
     // probing, and some applications want to consider RTO is an indication of
     // loss, etc.
+    ScopedCreditGrantor grantor(this);
     unacked_packets_.RetransmitFrames(*transmission_info, transmission_type);
     return;
   }

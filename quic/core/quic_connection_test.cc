@@ -9117,7 +9117,8 @@ TEST_P(QuicConnectionTest, ConnectionCloseFrameType) {
 TEST_P(QuicConnectionTest, RtoPacketAsTwo) {
   if (!QuicConnectionPeer::GetSentPacketManager(&connection_)
            ->fix_rto_retransmission() ||
-      connection_.PtoEnabled()) {
+      connection_.PtoEnabled() ||
+      GetQuicReloadableFlag(quic_grant_enough_credits)) {
     return;
   }
   connection_.SetMaxTailLossProbes(1);
@@ -9188,6 +9189,62 @@ TEST_P(QuicConnectionTest, PtoSkipsPacketNumber) {
   EXPECT_EQ(1u, writer_->stream_frames().size());
   EXPECT_EQ(QuicPacketNumber(4), writer_->last_packet_header().packet_number);
   EXPECT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
+}
+
+TEST_P(QuicConnectionTest, RetransmitPacketAsTwo) {
+  if (!connection_.session_decides_what_to_write() ||
+      !GetQuicReloadableFlag(quic_grant_enough_credits)) {
+    return;
+  }
+  connection_.SetMaxTailLossProbes(1);
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  std::string stream_data(3000, 's');
+  // Send packets 1 - 66 and exhaust cwnd.
+  for (size_t i = 0; i < 22; ++i) {
+    // 3 packets for each stream, the first 2 are guaranteed to be full packets.
+    SendStreamDataToPeer(i + 2, stream_data, 0, FIN, nullptr);
+  }
+  CongestionBlockWrites();
+
+  if (connection_.PtoEnabled()) {
+    // Fires PTO, packets 1 and 2 are retransmitted as 4 packets.
+    EXPECT_CALL(*send_algorithm_,
+                OnPacketSent(_, _, QuicPacketNumber(67), _, _));
+    EXPECT_CALL(*send_algorithm_,
+                OnPacketSent(_, _, QuicPacketNumber(68), _, _));
+    EXPECT_CALL(*send_algorithm_,
+                OnPacketSent(_, _, QuicPacketNumber(69), _, _));
+    EXPECT_CALL(*send_algorithm_,
+                OnPacketSent(_, _, QuicPacketNumber(70), _, _));
+  } else {
+    // Fires TLP. Verify 2 packets gets sent.
+    EXPECT_CALL(*send_algorithm_,
+                OnPacketSent(_, _, QuicPacketNumber(67), _, _));
+    EXPECT_CALL(*send_algorithm_,
+                OnPacketSent(_, _, QuicPacketNumber(68), _, _));
+  }
+  connection_.GetRetransmissionAlarm()->Fire();
+
+  if (connection_.PtoEnabled()) {
+    // Fires PTO, packets 3 and 4 are retransmitted as 3 packets.
+    EXPECT_CALL(*send_algorithm_,
+                OnPacketSent(_, _, QuicPacketNumber(71), _, _));
+    EXPECT_CALL(*send_algorithm_,
+                OnPacketSent(_, _, QuicPacketNumber(72), _, _));
+    EXPECT_CALL(*send_algorithm_,
+                OnPacketSent(_, _, QuicPacketNumber(73), _, _));
+  } else {
+    // Fires RTO. Verify packets 2 and 3 are retransmitted as 3 packets.
+    EXPECT_CALL(*send_algorithm_,
+                OnPacketSent(_, _, QuicPacketNumber(69), _, _));
+    EXPECT_CALL(*send_algorithm_,
+                OnPacketSent(_, _, QuicPacketNumber(70), _, _));
+    EXPECT_CALL(*send_algorithm_,
+                OnPacketSent(_, _, QuicPacketNumber(71), _, _));
+  }
+  connection_.GetRetransmissionAlarm()->Fire();
+  EXPECT_EQ(
+      0u, connection_.sent_packet_manager().pending_timer_transmission_count());
 }
 
 }  // namespace
