@@ -569,6 +569,11 @@ struct PacketFragment {
 
 using PacketFragments = std::vector<struct PacketFragment>;
 
+// Used by ::testing::PrintToStringParamName().
+std::string PrintToString(const ParsedQuicVersion& version) {
+  return ParsedQuicVersionToString(version);
+}
+
 class QuicFramerTest : public QuicTestWithParam<ParsedQuicVersion> {
  public:
   QuicFramerTest()
@@ -595,6 +600,7 @@ class QuicFramerTest : public QuicTestWithParam<ParsedQuicVersion> {
     framer_.set_visitor(&visitor_);
     framer_.InferPacketHeaderTypeFromVersion();
     visitor_.set_framer(&framer_);
+    QUIC_DVLOG(2) << "QuicFramerTest(" << PrintToString(version_) << ")";
   }
 
   void SetDecrypterLevel(EncryptionLevel level) {
@@ -814,7 +820,8 @@ class QuicFramerTest : public QuicTestWithParam<ParsedQuicVersion> {
 // Run all framer tests with all supported versions of QUIC.
 INSTANTIATE_TEST_SUITE_P(QuicFramerTests,
                          QuicFramerTest,
-                         ::testing::ValuesIn(AllSupportedVersions()));
+                         ::testing::ValuesIn(AllSupportedVersions()),
+                         ::testing::PrintToStringParamName());
 
 TEST_P(QuicFramerTest, CalculatePacketNumberFromWireNearEpochStart) {
   // A few quick manual sanity checks.
