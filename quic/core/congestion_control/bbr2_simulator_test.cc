@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <memory>
 #include <sstream>
 
 #include "net/third_party/quiche/src/quic/core/congestion_control/bbr2_misc.h"
@@ -11,6 +12,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_bandwidth.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_optional.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_connection_peer.h"
@@ -20,6 +22,7 @@
 #include "net/third_party/quiche/src/quic/test_tools/simulator/quic_endpoint.h"
 #include "net/third_party/quiche/src/quic/test_tools/simulator/simulator.h"
 #include "net/third_party/quiche/src/quic/test_tools/simulator/switch.h"
+#include "net/third_party/quiche/src/quic/test_tools/simulator/traffic_policer.h"
 
 namespace quic {
 
@@ -33,12 +36,18 @@ const uint32_t kDefaultInitialCwndBytes =
     kDefaultInitialCwndPackets * kDefaultTCPMSS;
 
 struct LinkParams {
- public:
   LinkParams(int64_t kilo_bits_per_sec, int64_t delay_us)
       : bandwidth(QuicBandwidth::FromKBitsPerSecond(kilo_bits_per_sec)),
         delay(QuicTime::Delta::FromMicroseconds(delay_us)) {}
   QuicBandwidth bandwidth;
   QuicTime::Delta delay;
+};
+
+struct TrafficPolicerParams {
+  std::string name = "policer";
+  QuicByteCount initial_burst_size;
+  QuicByteCount max_bucket_size;
+  QuicBandwidth target_bandwidth = QuicBandwidth::Zero();
 };
 
 // All Bbr2DefaultTopologyTests uses the default network topology:
@@ -63,6 +72,8 @@ class DefaultTopologyParams {
   const simulator::SwitchPortNumber switch_port_count = 2;
   // Network switch queue capacity, in number of BDPs.
   float switch_queue_capacity_in_bdp = 2;
+
+  QuicOptional<TrafficPolicerParams> sender_policer_params;
 
   QuicBandwidth BottleneckBandwidth() const {
     return std::min(local_link.bandwidth, test_link.bandwidth);
@@ -158,9 +169,21 @@ class Bbr2DefaultTopologyTest : public Bbr2SimulatorTest {
         params.local_link.delay));
 
     // Test link connects receiver and port 2.
-    network_links_.push_back(std::make_unique<simulator::SymmetricLink>(
-        &receiver_endpoint_, switch_->port(2), params.test_link.bandwidth,
-        params.test_link.delay));
+    if (params.sender_policer_params.has_value()) {
+      const TrafficPolicerParams& policer_params =
+          params.sender_policer_params.value();
+      sender_policer_ = std::make_unique<simulator::TrafficPolicer>(
+          &simulator_, policer_params.name, policer_params.initial_burst_size,
+          policer_params.max_bucket_size, policer_params.target_bandwidth,
+          switch_->port(2));
+      network_links_.push_back(std::make_unique<simulator::SymmetricLink>(
+          &receiver_endpoint_, sender_policer_.get(),
+          params.test_link.bandwidth, params.test_link.delay));
+    } else {
+      network_links_.push_back(std::make_unique<simulator::SymmetricLink>(
+          &receiver_endpoint_, switch_->port(2), params.test_link.bandwidth,
+          params.test_link.delay));
+    }
   }
 
   simulator::SymmetricLink* TestLink() { return network_links_[1].get(); }
@@ -266,6 +289,7 @@ class Bbr2DefaultTopologyTest : public Bbr2SimulatorTest {
   SimpleRandom random_;
 
   std::unique_ptr<simulator::Switch> switch_;
+  std::unique_ptr<simulator::TrafficPolicer> sender_policer_;
   std::vector<std::unique_ptr<simulator::SymmetricLink>> network_links_;
 };
 
@@ -626,6 +650,25 @@ TEST_F(Bbr2DefaultTopologyTest, ExitStartupDueToLoss) {
       sender_->ExportDebugState().startup.round_trips_without_bandwidth_growth);
   EXPECT_NE(0u, sender_connection_stats().packets_lost);
   EXPECT_FALSE(sender_->ExportDebugState().last_sample_is_app_limited);
+}
+
+TEST_F(Bbr2DefaultTopologyTest, SenderPoliced) {
+  DefaultTopologyParams params;
+  params.sender_policer_params = TrafficPolicerParams();
+  params.sender_policer_params->initial_burst_size = 1000 * 10;
+  params.sender_policer_params->max_bucket_size = 1000 * 100;
+  params.sender_policer_params->target_bandwidth =
+      params.BottleneckBandwidth() * 0.25;
+
+  CreateNetwork(params);
+
+  ASSERT_GE(params.BDP(), kDefaultInitialCwndBytes + kDefaultTCPMSS);
+
+  DoSimpleTransfer(3 * 1024 * 1024, QuicTime::Delta::FromSeconds(30));
+  EXPECT_TRUE(Bbr2ModeIsOneOf({Bbr2Mode::PROBE_BW, Bbr2Mode::PROBE_RTT}));
+  // TODO(wub): Fix (long-term) bandwidth overestimation in policer mode, then
+  // reduce the loss rate upper bound.
+  EXPECT_LE(sender_loss_rate_in_packets(), 0.15);
 }
 
 // All Bbr2MultiSenderTests uses the following network topology:
