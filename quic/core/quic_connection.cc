@@ -361,7 +361,8 @@ QuicConnection::QuicConnection(
 }
 
 void QuicConnection::InstallInitialCrypters(QuicConnectionId connection_id) {
-  if (version().handshake_protocol != PROTOCOL_TLS1_3) {
+  if (!framer_.framer_doesnt_create_initial_encrypter() &&
+      version().handshake_protocol != PROTOCOL_TLS1_3) {
     // Initial crypters are currently only supported with TLS.
     return;
   }
@@ -369,7 +370,11 @@ void QuicConnection::InstallInitialCrypters(QuicConnectionId connection_id) {
   CryptoUtils::CreateInitialObfuscators(perspective_, version(), connection_id,
                                         &crypters);
   SetEncrypter(ENCRYPTION_INITIAL, std::move(crypters.encrypter));
-  InstallDecrypter(ENCRYPTION_INITIAL, std::move(crypters.decrypter));
+  if (version().KnowsWhichDecrypterToUse()) {
+    InstallDecrypter(ENCRYPTION_INITIAL, std::move(crypters.decrypter));
+  } else {
+    SetDecrypter(ENCRYPTION_INITIAL, std::move(crypters.decrypter));
+  }
 }
 
 QuicConnection::~QuicConnection() {

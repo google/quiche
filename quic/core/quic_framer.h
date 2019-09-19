@@ -677,6 +677,10 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   }
   uint32_t peer_ack_delay_exponent() const { return peer_ack_delay_exponent_; }
 
+  bool framer_doesnt_create_initial_encrypter() const {
+    return framer_doesnt_create_initial_encrypter_;
+  }
+
  private:
   friend class test::QuicFramerPeer;
 
@@ -1092,6 +1096,10 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
 
   // Indicates whether this framer supports multiple packet number spaces.
   bool supports_multiple_packet_number_spaces_;
+
+  // Latched value of reloadable flag
+  // quic_framer_doesnt_create_initial_encrypter.
+  const bool framer_doesnt_create_initial_encrypter_;
 
   // The length in bytes of the last packet number written to an IETF-framed
   // packet.

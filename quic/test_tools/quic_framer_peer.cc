@@ -36,6 +36,13 @@ void QuicFramerPeer::SetLastSerializedClientConnectionId(
 }
 
 // static
+void QuicFramerPeer::SetLastWrittenPacketNumberLength(
+    QuicFramer* framer,
+    size_t packet_number_length) {
+  framer->last_written_packet_number_length_ = packet_number_length;
+}
+
+// static
 void QuicFramerPeer::SetLargestPacketNumber(QuicFramer* framer,
                                             QuicPacketNumber packet_number) {
   framer->largest_packet_number_ = packet_number;

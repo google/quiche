@@ -28,6 +28,8 @@ class QuicFramerPeer {
   static void SetLastSerializedClientConnectionId(
       QuicFramer* framer,
       QuicConnectionId client_connection_id);
+  static void SetLastWrittenPacketNumberLength(QuicFramer* framer,
+                                               size_t packet_number_length);
   static void SetLargestPacketNumber(QuicFramer* framer,
                                      QuicPacketNumber packet_number);
   static void SetPerspective(QuicFramer* framer, Perspective perspective);

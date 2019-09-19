@@ -344,6 +344,7 @@ class TestPacketWriter : public QuicPacketWriter {
         supports_release_time_(false) {
     QuicFramerPeer::SetLastSerializedServerConnectionId(framer_.framer(),
                                                         TestConnectionId());
+    framer_.framer()->SetInitialObfuscators(TestConnectionId());
   }
   TestPacketWriter(const TestPacketWriter&) = delete;
   TestPacketWriter& operator=(const TestPacketWriter&) = delete;
@@ -964,21 +965,29 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     SetQuicReloadableFlag(quic_supports_tls_handshake, true);
     connection_.set_defer_send_in_response_to_packets(GetParam().ack_response ==
                                                       AckResponse::kDefer);
+    framer_.SetInitialObfuscators(TestConnectionId());
+    connection_.InstallInitialCrypters(TestConnectionId());
+    CrypterPair crypters;
+    CryptoUtils::CreateInitialObfuscators(Perspective::IS_SERVER, version(),
+                                          TestConnectionId(), &crypters);
+    peer_creator_.SetEncrypter(ENCRYPTION_INITIAL,
+                               std::move(crypters.encrypter));
+    if (version().KnowsWhichDecrypterToUse()) {
+      peer_framer_.InstallDecrypter(ENCRYPTION_INITIAL,
+                                    std::move(crypters.decrypter));
+    } else {
+      peer_framer_.SetDecrypter(ENCRYPTION_INITIAL,
+                                std::move(crypters.decrypter));
+    }
     for (EncryptionLevel level :
          {ENCRYPTION_ZERO_RTT, ENCRYPTION_FORWARD_SECURE}) {
       peer_creator_.SetEncrypter(
           level, std::make_unique<NullEncrypter>(peer_framer_.perspective()));
     }
-    if (version().handshake_protocol == PROTOCOL_TLS1_3) {
-      connection_.SetEncrypter(
-          ENCRYPTION_INITIAL,
-          std::make_unique<NullEncrypter>(Perspective::IS_CLIENT));
-      connection_.InstallDecrypter(
-          ENCRYPTION_INITIAL,
-          std::make_unique<NullDecrypter>(Perspective::IS_CLIENT));
-    }
     QuicFramerPeer::SetLastSerializedServerConnectionId(
         QuicConnectionPeer::GetFramer(&connection_), connection_id_);
+    QuicFramerPeer::SetLastWrittenPacketNumberLength(
+        QuicConnectionPeer::GetFramer(&connection_), packet_number_length_);
     if (VersionHasIetfInvariantHeader(version().transport_version)) {
       EXPECT_TRUE(QuicConnectionPeer::GetNoStopWaitingFrames(&connection_));
     } else {
@@ -1269,7 +1278,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     std::unique_ptr<QuicPacket> packet(ConstructClosePacket(number));
     char buffer[kMaxOutgoingPacketSize];
     size_t encrypted_length = peer_framer_.EncryptPayload(
-        ENCRYPTION_INITIAL, QuicPacketNumber(number), *packet, buffer,
+        ENCRYPTION_FORWARD_SECURE, QuicPacketNumber(number), *packet, buffer,
         kMaxOutgoingPacketSize);
     connection_.ProcessUdpPacket(
         kSelfAddress, kPeerAddress,
@@ -1376,6 +1385,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
         level < ENCRYPTION_FORWARD_SECURE) {
       // Set long header type accordingly.
       header.version_flag = true;
+      header.form = IETF_QUIC_LONG_HEADER_PACKET;
       header.long_packet_type = EncryptionlevelToLongHeaderType(level);
       if (QuicVersionHasLongHeaderLengths(
               peer_framer_.version().transport_version)) {
@@ -3737,9 +3747,9 @@ TEST_P(QuicConnectionTest, NoSendAlarmAfterProcessPacketWhenWriteBlocked) {
   // is returned.
   const uint64_t received_packet_num = 1;
   const bool has_stop_waiting = false;
-  const EncryptionLevel level = ENCRYPTION_INITIAL;
-  std::unique_ptr<QuicPacket> packet(ConstructDataPacket(
-      received_packet_num, has_stop_waiting, ENCRYPTION_FORWARD_SECURE));
+  const EncryptionLevel level = ENCRYPTION_FORWARD_SECURE;
+  std::unique_ptr<QuicPacket> packet(
+      ConstructDataPacket(received_packet_num, has_stop_waiting, level));
   char buffer[kMaxOutgoingPacketSize];
   size_t encrypted_length =
       peer_framer_.EncryptPayload(level, QuicPacketNumber(received_packet_num),
@@ -4831,6 +4841,18 @@ TEST_P(QuicConnectionTest, MtuDiscoveryDisabled) {
 TEST_P(QuicConnectionTest, MtuDiscoveryEnabled) {
   EXPECT_TRUE(connection_.connected());
 
+  // QuicFramer::GetMaxPlaintextSize uses the smallest max plaintext size across
+  // all encrypters. The initial encrypter used with IETF QUIC has a 16-byte
+  // overhead, while the NullEncrypter used throughout this test has a 12-byte
+  // overhead. This test tests behavior that relies on computing the packet size
+  // correctly, so by unsetting the initial encrypter, we avoid having a
+  // mismatch between the overheads for the encrypters used. In non-test
+  // scenarios all encrypters used for a given connection have the same
+  // overhead, either 12 bytes for ones using Google QUIC crypto, or 16 bytes
+  // for ones using TLS.
+  QuicConnectionPeer::GetFramer(&connection_)
+      ->SetEncrypter(ENCRYPTION_INITIAL, nullptr);
+
   connection_.EnablePathMtuDiscovery(send_algorithm_);
 
   const QuicPacketCount packets_between_probes_base = 5;
@@ -4960,6 +4982,18 @@ TEST_P(QuicConnectionTest, MtuDiscoveryFailed) {
 // packet can be.
 TEST_P(QuicConnectionTest, MtuDiscoveryWriterLimited) {
   EXPECT_TRUE(connection_.connected());
+
+  // QuicFramer::GetMaxPlaintextSize uses the smallest max plaintext size across
+  // all encrypters. The initial encrypter used with IETF QUIC has a 16-byte
+  // overhead, while the NullEncrypter used throughout this test has a 12-byte
+  // overhead. This test tests behavior that relies on computing the packet size
+  // correctly, so by unsetting the initial encrypter, we avoid having a
+  // mismatch between the overheads for the encrypters used. In non-test
+  // scenarios all encrypters used for a given connection have the same
+  // overhead, either 12 bytes for ones using Google QUIC crypto, or 16 bytes
+  // for ones using TLS.
+  QuicConnectionPeer::GetFramer(&connection_)
+      ->SetEncrypter(ENCRYPTION_INITIAL, nullptr);
 
   const QuicByteCount mtu_limit = kMtuDiscoveryTargetPacketSizeHigh - 1;
   writer_->set_max_packet_size(mtu_limit);
@@ -7000,9 +7034,9 @@ TEST_P(QuicConnectionTest, ProcessFramesIfPacketClosedConnection) {
   std::unique_ptr<QuicPacket> packet(ConstructPacket(header, frames));
   EXPECT_TRUE(nullptr != packet);
   char buffer[kMaxOutgoingPacketSize];
-  size_t encrypted_length =
-      peer_framer_.EncryptPayload(ENCRYPTION_INITIAL, QuicPacketNumber(1),
-                                  *packet, buffer, kMaxOutgoingPacketSize);
+  size_t encrypted_length = peer_framer_.EncryptPayload(
+      ENCRYPTION_FORWARD_SECURE, QuicPacketNumber(1), *packet, buffer,
+      kMaxOutgoingPacketSize);
 
   EXPECT_CALL(visitor_, OnConnectionClosed(_, ConnectionCloseSource::FROM_PEER))
       .WillOnce(Invoke(this, &QuicConnectionTest::SaveConnectionCloseFrame));
@@ -8631,9 +8665,9 @@ TEST_P(QuicConnectionTest, UpdateClientConnectionIdFromFirstPacket) {
   std::unique_ptr<QuicPacket> packet =
       BuildUnsizedDataPacket(&framer_, header, frames);
   char buffer[kMaxOutgoingPacketSize];
-  size_t encrypted_length = peer_framer_.EncryptPayload(
-      ENCRYPTION_FORWARD_SECURE, QuicPacketNumber(1), *packet, buffer,
-      kMaxOutgoingPacketSize);
+  size_t encrypted_length =
+      peer_framer_.EncryptPayload(ENCRYPTION_INITIAL, QuicPacketNumber(1),
+                                  *packet, buffer, kMaxOutgoingPacketSize);
   QuicReceivedPacket received_packet(buffer, encrypted_length, clock_.Now(),
                                      false);
   EXPECT_EQ(0u, connection_.GetStats().packets_dropped);

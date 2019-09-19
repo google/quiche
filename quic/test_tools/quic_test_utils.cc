@@ -133,8 +133,18 @@ std::unique_ptr<QuicPacket> BuildUnsizedDataPacket(
     const QuicFrames& frames,
     size_t packet_size) {
   char* buffer = new char[packet_size];
-  size_t length = framer->BuildDataPacket(header, frames, buffer, packet_size,
-                                          ENCRYPTION_INITIAL);
+  EncryptionLevel level = ENCRYPTION_INITIAL;
+  if (header.form == IETF_QUIC_SHORT_HEADER_PACKET) {
+    level = ENCRYPTION_FORWARD_SECURE;
+  } else if (header.form == IETF_QUIC_LONG_HEADER_PACKET) {
+    if (header.long_packet_type == HANDSHAKE) {
+      level = ENCRYPTION_HANDSHAKE;
+    } else if (header.long_packet_type == ZERO_RTT_PROTECTED) {
+      level = ENCRYPTION_ZERO_RTT;
+    }
+  }
+  size_t length =
+      framer->BuildDataPacket(header, frames, buffer, packet_size, level);
   DCHECK_NE(0u, length);
   // Re-construct the data packet with data ownership.
   return std::make_unique<QuicPacket>(

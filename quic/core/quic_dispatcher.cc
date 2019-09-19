@@ -132,6 +132,9 @@ class StatelessConnectionTerminator {
         creator_(server_connection_id, &framer_, &collector_),
         time_wait_list_manager_(time_wait_list_manager) {
     framer_.set_data_producer(&collector_);
+    if (framer_.framer_doesnt_create_initial_encrypter()) {
+      framer_.SetInitialObfuscators(server_connection_id);
+    }
   }
 
   ~StatelessConnectionTerminator() {

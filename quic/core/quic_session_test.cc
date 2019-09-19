@@ -498,6 +498,7 @@ class QuicSessionTestServer : public QuicSessionTestBase {
                        Perspective::IS_CLIENT,
                        kQuicDefaultConnectionIdLength) {
     client_framer_.set_visitor(&framer_visitor_);
+    client_framer_.SetInitialObfuscators(TestConnectionId());
   }
 
   QuicPathFrameBuffer path_frame_buffer1_;

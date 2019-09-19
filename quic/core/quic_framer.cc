@@ -424,14 +424,22 @@ QuicFramer::QuicFramer(const ParsedQuicVersionVector& supported_versions,
           expected_server_connection_id_length),
       expected_client_connection_id_length_(0),
       supports_multiple_packet_number_spaces_(false),
+      framer_doesnt_create_initial_encrypter_(
+          GetQuicReloadableFlag(quic_framer_doesnt_create_initial_encrypter)),
       last_written_packet_number_length_(0),
       peer_ack_delay_exponent_(kDefaultAckDelayExponent),
       local_ack_delay_exponent_(kDefaultAckDelayExponent),
       current_received_frame_type_(0) {
   DCHECK(!supported_versions.empty());
   version_ = supported_versions_[0];
-  decrypter_[ENCRYPTION_INITIAL] = std::make_unique<NullDecrypter>(perspective);
-  encrypter_[ENCRYPTION_INITIAL] = std::make_unique<NullEncrypter>(perspective);
+  if (!framer_doesnt_create_initial_encrypter_) {
+    decrypter_[ENCRYPTION_INITIAL] =
+        std::make_unique<NullDecrypter>(perspective);
+    encrypter_[ENCRYPTION_INITIAL] =
+        std::make_unique<NullEncrypter>(perspective);
+  } else {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_framer_doesnt_create_initial_encrypter);
+  }
 }
 
 QuicFramer::~QuicFramer() {}
