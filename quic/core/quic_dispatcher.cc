@@ -503,15 +503,6 @@ void QuicDispatcher::ProcessHeader(ReceivedPacketInfo* packet_info) {
 
 QuicDispatcher::QuicPacketFate QuicDispatcher::ValidityChecks(
     const ReceivedPacketInfo& packet_info) {
-  // To have all the checks work properly without tears, insert any new check
-  // into the framework of this method in the section for checks that return the
-  // check's fate value.  The sections for checks must be ordered with the
-  // highest priority fate first.
-
-  // All packets within a connection sent by a client before receiving a
-  // response from the server are required to have the version negotiation flag
-  // set.  Since this may be a client continuing a connection we lost track of
-  // via server restart, send a rejection to fast-fail the connection.
   if (!packet_info.version_flag) {
     if (GetQuicReloadableFlag(quic_reply_to_old_android_conformance_test)) {
       QUIC_RELOADABLE_FLAG_COUNT(quic_reply_to_old_android_conformance_test);
