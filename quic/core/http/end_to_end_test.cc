@@ -1747,14 +1747,14 @@ TEST_P(EndToEndTest, SetIndependentMaxIncomingDynamicStreamsLimits) {
       VersionHasIetfQuicFrames(
           client_session->connection()->transport_version())
           ? QuicSessionPeer::v99_streamid_manager(client_session)
-                ->max_allowed_outgoing_bidirectional_streams()
+                ->max_outgoing_bidirectional_streams()
           : QuicSessionPeer::GetStreamIdManager(client_session)
                 ->max_open_outgoing_streams();
   size_t client_max_open_outgoing_unidirectional_streams =
       VersionHasIetfQuicFrames(
           client_session->connection()->transport_version())
           ? QuicSessionPeer::v99_streamid_manager(client_session)
-                    ->max_allowed_outgoing_unidirectional_streams() -
+                    ->max_outgoing_unidirectional_streams() -
                 client_session->num_expected_unidirectional_static_streams()
           : QuicSessionPeer::GetStreamIdManager(client_session)
                 ->max_open_outgoing_streams();
@@ -1768,14 +1768,14 @@ TEST_P(EndToEndTest, SetIndependentMaxIncomingDynamicStreamsLimits) {
       VersionHasIetfQuicFrames(
           server_session->connection()->transport_version())
           ? QuicSessionPeer::v99_streamid_manager(server_session)
-                ->max_allowed_outgoing_bidirectional_streams()
+                ->max_outgoing_bidirectional_streams()
           : QuicSessionPeer::GetStreamIdManager(server_session)
                 ->max_open_outgoing_streams();
   size_t server_max_open_outgoing_unidirectional_streams =
       VersionHasIetfQuicFrames(
           server_session->connection()->transport_version())
           ? QuicSessionPeer::v99_streamid_manager(server_session)
-                    ->max_allowed_outgoing_unidirectional_streams() -
+                    ->max_outgoing_unidirectional_streams() -
                 server_session->num_expected_unidirectional_static_streams()
           : QuicSessionPeer::GetStreamIdManager(server_session)
                 ->max_open_outgoing_streams();

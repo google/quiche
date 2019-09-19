@@ -73,15 +73,14 @@ class QUIC_EXPORT_PRIVATE UberQuicStreamIdManager {
   QuicStreamId next_outgoing_bidirectional_stream_id() const;
   QuicStreamId next_outgoing_unidirectional_stream_id() const;
 
-  size_t max_allowed_outgoing_bidirectional_streams() const;
-  size_t max_allowed_outgoing_unidirectional_streams() const;
+  size_t max_outgoing_bidirectional_streams() const;
+  size_t max_outgoing_unidirectional_streams() const;
 
-  QuicStreamCount actual_max_allowed_incoming_bidirectional_streams() const;
-  QuicStreamCount actual_max_allowed_incoming_unidirectional_streams() const;
+  QuicStreamCount max_incoming_bidirectional_streams() const;
+  QuicStreamCount max_incoming_unidirectional_streams() const;
 
-  QuicStreamCount advertised_max_allowed_incoming_bidirectional_streams() const;
-  QuicStreamCount advertised_max_allowed_incoming_unidirectional_streams()
-      const;
+  QuicStreamCount advertised_max_incoming_bidirectional_streams() const;
+  QuicStreamCount advertised_max_incoming_unidirectional_streams() const;
 
   void OnConfigNegotiated() {
     bidirectional_stream_id_manager_.OnConfigNegotiated();

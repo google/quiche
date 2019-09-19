@@ -2515,7 +2515,7 @@ TEST_P(QuicSessionTestServer, NewStreamIdBelowLimit) {
   }
   QuicStreamId bidirectional_stream_id = StreamCountToId(
       QuicSessionPeer::v99_streamid_manager(&session_)
-              ->advertised_max_allowed_incoming_bidirectional_streams() -
+              ->advertised_max_incoming_bidirectional_streams() -
           1,
       Perspective::IS_CLIENT,
       /*bidirectional=*/true);
@@ -2527,7 +2527,7 @@ TEST_P(QuicSessionTestServer, NewStreamIdBelowLimit) {
 
   QuicStreamId unidirectional_stream_id = StreamCountToId(
       QuicSessionPeer::v99_streamid_manager(&session_)
-              ->advertised_max_allowed_incoming_unidirectional_streams() -
+              ->advertised_max_incoming_unidirectional_streams() -
           1,
       Perspective::IS_CLIENT,
       /*bidirectional=*/false);
@@ -2543,19 +2543,19 @@ TEST_P(QuicSessionTestServer, NewStreamIdAtLimit) {
     // Applicable only to IETF QUIC
     return;
   }
-  QuicStreamId bidirectional_stream_id = StreamCountToId(
-      QuicSessionPeer::v99_streamid_manager(&session_)
-          ->advertised_max_allowed_incoming_bidirectional_streams(),
-      Perspective::IS_CLIENT, /*bidirectional=*/true);
+  QuicStreamId bidirectional_stream_id =
+      StreamCountToId(QuicSessionPeer::v99_streamid_manager(&session_)
+                          ->advertised_max_incoming_bidirectional_streams(),
+                      Perspective::IS_CLIENT, /*bidirectional=*/true);
   QuicStreamFrame bidirectional_stream_frame(bidirectional_stream_id, false, 0,
                                              "Random String");
   EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(0);
   session_.OnStreamFrame(bidirectional_stream_frame);
 
-  QuicStreamId unidirectional_stream_id = StreamCountToId(
-      QuicSessionPeer::v99_streamid_manager(&session_)
-          ->advertised_max_allowed_incoming_unidirectional_streams(),
-      Perspective::IS_CLIENT, /*bidirectional=*/false);
+  QuicStreamId unidirectional_stream_id =
+      StreamCountToId(QuicSessionPeer::v99_streamid_manager(&session_)
+                          ->advertised_max_incoming_unidirectional_streams(),
+                      Perspective::IS_CLIENT, /*bidirectional=*/false);
   QuicStreamFrame unidirectional_stream_frame(unidirectional_stream_id, false,
                                               0, "Random String");
   EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(0);
@@ -2571,7 +2571,7 @@ TEST_P(QuicSessionTestServer, NewStreamIdAboveLimit) {
 
   QuicStreamId bidirectional_stream_id = StreamCountToId(
       QuicSessionPeer::v99_streamid_manager(&session_)
-              ->advertised_max_allowed_incoming_bidirectional_streams() +
+              ->advertised_max_incoming_bidirectional_streams() +
           1,
       Perspective::IS_CLIENT, /*bidirectional=*/true);
   QuicStreamFrame bidirectional_stream_frame(bidirectional_stream_id, false, 0,
@@ -2584,7 +2584,7 @@ TEST_P(QuicSessionTestServer, NewStreamIdAboveLimit) {
 
   QuicStreamId unidirectional_stream_id = StreamCountToId(
       QuicSessionPeer::v99_streamid_manager(&session_)
-              ->advertised_max_allowed_incoming_unidirectional_streams() +
+              ->advertised_max_incoming_unidirectional_streams() +
           1,
       Perspective::IS_CLIENT, /*bidirectional=*/false);
   QuicStreamFrame unidirectional_stream_frame(unidirectional_stream_id, false,
