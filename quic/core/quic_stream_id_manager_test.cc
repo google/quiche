@@ -189,7 +189,10 @@ class QuicStreamIdManagerTestClient : public QuicStreamIdManagerTestBase {
       : QuicStreamIdManagerTestBase(Perspective::IS_CLIENT) {}
 };
 
-INSTANTIATE_TEST_SUITE_P(Tests, QuicStreamIdManagerTestClient, testing::Bool());
+INSTANTIATE_TEST_SUITE_P(Tests,
+                         QuicStreamIdManagerTestClient,
+                         ::testing::Bool(),
+                         ::testing::PrintToStringParamName());
 
 // Check that the parameters used by the stream ID manager are properly
 // initialized.
@@ -721,7 +724,10 @@ TEST_P(QuicStreamIdManagerTestClient, HoldStreamsBlockedFrameNoXmit) {
   session_->OnConfigNegotiated();
 }
 
-INSTANTIATE_TEST_SUITE_P(Tests, QuicStreamIdManagerTestServer, testing::Bool());
+INSTANTIATE_TEST_SUITE_P(Tests,
+                         QuicStreamIdManagerTestServer,
+                         ::testing::Bool(),
+                         ::testing::PrintToStringParamName());
 
 // This test checks that the initialization for the maximum allowed outgoing
 // stream id is correct.

@@ -182,7 +182,8 @@ class QuicSpdyClientSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
 
 INSTANTIATE_TEST_SUITE_P(Tests,
                          QuicSpdyClientSessionTest,
-                         ::testing::ValuesIn(AllSupportedVersions()));
+                         ::testing::ValuesIn(AllSupportedVersions()),
+                         ::testing::PrintToStringParamName());
 
 TEST_P(QuicSpdyClientSessionTest, CryptoConnect) {
   CompleteCryptoHandshake();

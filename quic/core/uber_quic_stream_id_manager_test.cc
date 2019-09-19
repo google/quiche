@@ -107,7 +107,8 @@ class UberQuicStreamIdManagerTest : public QuicTestWithParam<Perspective> {
 INSTANTIATE_TEST_SUITE_P(Tests,
                          UberQuicStreamIdManagerTest,
                          ::testing::ValuesIn({Perspective::IS_CLIENT,
-                                              Perspective::IS_SERVER}));
+                                              Perspective::IS_SERVER}),
+                         ::testing::PrintToStringParamName());
 
 TEST_P(UberQuicStreamIdManagerTest, Initialization) {
   if (GetParam() == Perspective::IS_SERVER) {

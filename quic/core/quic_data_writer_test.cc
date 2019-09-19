@@ -27,14 +27,14 @@ char* AsChars(unsigned char* data) {
 struct TestParams {
   explicit TestParams(Endianness endianness) : endianness(endianness) {}
 
-  friend std::ostream& operator<<(std::ostream& os, const TestParams& p) {
-    os << "{ " << (p.endianness == NETWORK_BYTE_ORDER ? "network" : "host")
-       << " byte order }";
-    return os;
-  }
-
   Endianness endianness;
 };
+
+// Used by ::testing::PrintToStringParamName().
+std::string PrintToString(const TestParams& p) {
+  return QuicStrCat((p.endianness == NETWORK_BYTE_ORDER ? "Network" : "Host"),
+                    "ByteOrder");
+}
 
 std::vector<TestParams> GetTestParams() {
   std::vector<TestParams> params;
@@ -48,7 +48,8 @@ class QuicDataWriterTest : public QuicTestWithParam<TestParams> {};
 
 INSTANTIATE_TEST_SUITE_P(QuicDataWriterTests,
                          QuicDataWriterTest,
-                         ::testing::ValuesIn(GetTestParams()));
+                         ::testing::ValuesIn(GetTestParams()),
+                         ::testing::PrintToStringParamName());
 
 TEST_P(QuicDataWriterTest, SanityCheckUFloat16Consts) {
   // Check the arithmetic on the constants - otherwise the values below make

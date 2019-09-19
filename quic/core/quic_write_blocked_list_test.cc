@@ -32,7 +32,10 @@ class QuicWriteBlockedListTest : public QuicTestWithParam<bool> {
   QuicWriteBlockedList write_blocked_list_;
 };
 
-INSTANTIATE_TEST_SUITE_P(Tests, QuicWriteBlockedListTest, testing::Bool());
+INSTANTIATE_TEST_SUITE_P(Tests,
+                         QuicWriteBlockedListTest,
+                         ::testing::Bool(),
+                         ::testing::PrintToStringParamName());
 
 TEST_P(QuicWriteBlockedListTest, PriorityOrder) {
   if (GetParam()) {

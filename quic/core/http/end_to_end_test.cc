@@ -114,6 +114,19 @@ struct TestParams {
   QuicTag priority_tag;
 };
 
+// Used by ::testing::PrintToStringParamName().
+std::string PrintToString(const TestParams& p) {
+  std::string rv = QuicStrCat(
+      ParsedQuicVersionToString(p.negotiated_version), "_Server_",
+      ParsedQuicVersionVectorToString(p.server_supported_versions), "_Client_",
+      ParsedQuicVersionVectorToString(p.client_supported_versions), "_",
+      QuicTagToString(p.congestion_control_tag), "_",
+      QuicTagToString(p.priority_tag));
+  std::replace(rv.begin(), rv.end(), ',', '_');
+  std::replace(rv.begin(), rv.end(), ' ', '_');
+  return rv;
+}
+
 // Constructs various test permutations.
 std::vector<TestParams> GetTestParams(bool use_tls_handshake) {
   QuicFlagSaver flags;
@@ -592,13 +605,15 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
 // Run all end to end tests with all supported versions.
 INSTANTIATE_TEST_SUITE_P(EndToEndTests,
                          EndToEndTest,
-                         ::testing::ValuesIn(GetTestParams(false)));
+                         ::testing::ValuesIn(GetTestParams(false)),
+                         ::testing::PrintToStringParamName());
 
 class EndToEndTestWithTls : public EndToEndTest {};
 
 INSTANTIATE_TEST_SUITE_P(EndToEndTestsWithTls,
                          EndToEndTestWithTls,
-                         ::testing::ValuesIn(GetTestParams(true)));
+                         ::testing::ValuesIn(GetTestParams(true)),
+                         ::testing::PrintToStringParamName());
 
 TEST_P(EndToEndTestWithTls, HandshakeSuccessful) {
   ASSERT_TRUE(Initialize());
@@ -3120,7 +3135,8 @@ class EndToEndTestServerPush : public EndToEndTest {
 // Run all server push end to end tests with all supported versions.
 INSTANTIATE_TEST_SUITE_P(EndToEndTestsServerPush,
                          EndToEndTestServerPush,
-                         ::testing::ValuesIn(GetTestParams(false)));
+                         ::testing::ValuesIn(GetTestParams(false)),
+                         ::testing::PrintToStringParamName());
 
 TEST_P(EndToEndTestServerPush, ServerPush) {
   ASSERT_TRUE(Initialize());
@@ -3845,7 +3861,8 @@ class EndToEndPacketReorderingTest : public EndToEndTest {
 
 INSTANTIATE_TEST_SUITE_P(EndToEndPacketReorderingTests,
                          EndToEndPacketReorderingTest,
-                         testing::ValuesIn(GetTestParams(false)));
+                         ::testing::ValuesIn(GetTestParams(false)),
+                         ::testing::PrintToStringParamName());
 
 TEST_P(EndToEndPacketReorderingTest, ReorderedConnectivityProbing) {
   ASSERT_TRUE(Initialize());

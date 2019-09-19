@@ -29,16 +29,18 @@ struct TestParams {
       : perspective(perspective),
         session_decides_what_to_write(session_decides_what_to_write) {}
 
-  friend std::ostream& operator<<(std::ostream& os, const TestParams& p) {
-    os << "{ Perspective: " << p.perspective
-       << " session_decides_what_to_write: " << p.session_decides_what_to_write
-       << " }";
-    return os;
-  }
-
   Perspective perspective;
   bool session_decides_what_to_write;
 };
+
+// Used by ::testing::PrintToStringParamName().
+std::string PrintToString(const TestParams& p) {
+  return QuicStrCat(
+      (p.perspective == Perspective::IS_CLIENT ? "Client" : "Server"),
+      "_Session",
+      (p.session_decides_what_to_write ? "Decides" : "DoesNotDecide"),
+      "WhatToWrite");
+}
 
 std::vector<TestParams> GetTestParams() {
   std::vector<TestParams> params;
@@ -200,7 +202,8 @@ class QuicUnackedPacketMapTest : public QuicTestWithParam<TestParams> {
 
 INSTANTIATE_TEST_SUITE_P(Tests,
                          QuicUnackedPacketMapTest,
-                         ::testing::ValuesIn(GetTestParams()));
+                         ::testing::ValuesIn(GetTestParams()),
+                         ::testing::PrintToStringParamName());
 
 TEST_P(QuicUnackedPacketMapTest, RttOnly) {
   // Acks are only tracked for RTT measurement purposes.

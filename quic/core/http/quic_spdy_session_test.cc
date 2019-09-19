@@ -418,7 +418,8 @@ class QuicSpdySessionTestServer : public QuicSpdySessionTestBase {
 
 INSTANTIATE_TEST_SUITE_P(Tests,
                          QuicSpdySessionTestServer,
-                         ::testing::ValuesIn(AllSupportedVersions()));
+                         ::testing::ValuesIn(AllSupportedVersions()),
+                         ::testing::PrintToStringParamName());
 
 TEST_P(QuicSpdySessionTestServer, UsesPendingStreams) {
   if (!VersionHasStreamType(transport_version())) {
@@ -1687,7 +1688,8 @@ class QuicSpdySessionTestClient : public QuicSpdySessionTestBase {
 
 INSTANTIATE_TEST_SUITE_P(Tests,
                          QuicSpdySessionTestClient,
-                         ::testing::ValuesIn(AllSupportedVersions()));
+                         ::testing::ValuesIn(AllSupportedVersions()),
+                         ::testing::PrintToStringParamName());
 
 TEST_P(QuicSpdySessionTestClient, UsesPendingStreams) {
   if (!VersionHasStreamType(transport_version())) {

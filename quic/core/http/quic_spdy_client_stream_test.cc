@@ -101,7 +101,8 @@ class QuicSpdyClientStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
 
 INSTANTIATE_TEST_SUITE_P(Tests,
                          QuicSpdyClientStreamTest,
-                         ::testing::ValuesIn(AllSupportedVersions()));
+                         ::testing::ValuesIn(AllSupportedVersions()),
+                         ::testing::PrintToStringParamName());
 
 TEST_P(QuicSpdyClientStreamTest, TestReceivingIllegalResponseStatusCode) {
   headers_[":status"] = "200 ok";

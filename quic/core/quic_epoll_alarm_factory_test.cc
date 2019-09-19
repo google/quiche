@@ -42,7 +42,8 @@ class QuicEpollAlarmFactoryTest : public QuicTestWithParam<bool> {
 
 INSTANTIATE_TEST_SUITE_P(UseArena,
                          QuicEpollAlarmFactoryTest,
-                         ::testing::ValuesIn({true, false}));
+                         ::testing::ValuesIn({true, false}),
+                         ::testing::PrintToStringParamName());
 
 TEST_P(QuicEpollAlarmFactoryTest, CreateAlarm) {
   QuicArenaScopedPtr<TestDelegate> delegate =

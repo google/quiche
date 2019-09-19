@@ -509,7 +509,8 @@ class QuicSessionTestServer : public QuicSessionTestBase {
 
 INSTANTIATE_TEST_SUITE_P(Tests,
                          QuicSessionTestServer,
-                         ::testing::ValuesIn(AllSupportedVersions()));
+                         ::testing::ValuesIn(AllSupportedVersions()),
+                         ::testing::PrintToStringParamName());
 
 TEST_P(QuicSessionTestServer, PeerAddress) {
   EXPECT_EQ(QuicSocketAddress(QuicIpAddress::Loopback4(), kTestPort),
@@ -1961,7 +1962,8 @@ class QuicSessionTestClient : public QuicSessionTestBase {
 
 INSTANTIATE_TEST_SUITE_P(Tests,
                          QuicSessionTestClient,
-                         ::testing::ValuesIn(AllSupportedVersions()));
+                         ::testing::ValuesIn(AllSupportedVersions()),
+                         ::testing::PrintToStringParamName());
 
 TEST_P(QuicSessionTestClient, AvailableBidirectionalStreamsClient) {
   ASSERT_TRUE(session_.GetOrCreateStream(
@@ -2754,7 +2756,8 @@ class QuicSessionTestClientUnconfigured : public QuicSessionTestBase {
 
 INSTANTIATE_TEST_SUITE_P(Tests,
                          QuicSessionTestClientUnconfigured,
-                         ::testing::ValuesIn(AllSupportedVersions()));
+                         ::testing::ValuesIn(AllSupportedVersions()),
+                         ::testing::PrintToStringParamName());
 
 TEST_P(QuicSessionTestClientUnconfigured, HoldMaxStreamsFrame) {
   if (!VersionHasIetfQuicFrames(transport_version())) {

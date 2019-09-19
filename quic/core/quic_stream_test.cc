@@ -155,14 +155,16 @@ class QuicStreamTest : public QuicStreamTestBase {};
 INSTANTIATE_TEST_SUITE_P(
     QuicStreamTests,
     QuicStreamTest,
-    ::testing::ValuesIn(ParsedVersionOfIndex(AllSupportedVersions(), 1)));
+    ::testing::ValuesIn(ParsedVersionOfIndex(AllSupportedVersions(), 1)),
+    ::testing::PrintToStringParamName());
 
 // Make a parameterized version of the QuicStreamTest for those tests
 // that need to differentiate based on version number.
 class QuicParameterizedStreamTest : public QuicStreamTestBase {};
 INSTANTIATE_TEST_SUITE_P(QuicParameterizedStreamTests,
                          QuicParameterizedStreamTest,
-                         ::testing::ValuesIn(AllSupportedVersions()));
+                         ::testing::ValuesIn(AllSupportedVersions()),
+                         ::testing::PrintToStringParamName());
 
 TEST_P(QuicStreamTest, PendingStreamStaticness) {
   Initialize();

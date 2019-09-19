@@ -29,7 +29,8 @@ class QuicConfigTest : public QuicTestWithParam<QuicTransportVersion> {
 // Run all tests with all versions of QUIC.
 INSTANTIATE_TEST_SUITE_P(QuicConfigTests,
                          QuicConfigTest,
-                         ::testing::ValuesIn(AllSupportedTransportVersions()));
+                         ::testing::ValuesIn(AllSupportedTransportVersions()),
+                         ::testing::PrintToStringParamName());
 
 TEST_P(QuicConfigTest, SetDefaults) {
   EXPECT_EQ(kMinimumFlowControlSendWindow,

@@ -170,7 +170,10 @@ class QuicCryptoServerStreamTest : public QuicTestWithParam<bool> {
   ParsedQuicVersionVector supported_versions_ = AllSupportedVersions();
 };
 
-INSTANTIATE_TEST_SUITE_P(Tests, QuicCryptoServerStreamTest, testing::Bool());
+INSTANTIATE_TEST_SUITE_P(Tests,
+                         QuicCryptoServerStreamTest,
+                         ::testing::Bool(),
+                         ::testing::PrintToStringParamName());
 
 TEST_P(QuicCryptoServerStreamTest, NotInitiallyConected) {
   Initialize();
@@ -332,7 +335,8 @@ class QuicCryptoServerStreamTestWithFailingProofSource
 
 INSTANTIATE_TEST_SUITE_P(MoreTests,
                          QuicCryptoServerStreamTestWithFailingProofSource,
-                         testing::Bool());
+                         ::testing::Bool(),
+                         ::testing::PrintToStringParamName());
 
 TEST_P(QuicCryptoServerStreamTestWithFailingProofSource, Test) {
   Initialize();
@@ -366,7 +370,8 @@ class QuicCryptoServerStreamTestWithFakeProofSource
 
 INSTANTIATE_TEST_SUITE_P(YetMoreTests,
                          QuicCryptoServerStreamTestWithFakeProofSource,
-                         testing::Bool());
+                         ::testing::Bool(),
+                         ::testing::PrintToStringParamName());
 
 // Regression test for b/35422225, in which multiple CHLOs arriving on the same
 // connection in close succession could cause a crash, especially when the use

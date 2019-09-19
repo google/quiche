@@ -21,6 +21,18 @@ struct TestObject {
   std::vector<char> buffer;
 };
 
+// Used by ::testing::PrintToStringParamName().
+std::string PrintToString(const TestParam& p) {
+  switch (p) {
+    case TestParam::kFromHeap:
+      return "heap";
+    case TestParam::kFromArena:
+      return "arena";
+  }
+  DCHECK(false);
+  return "?";
+}
+
 class QuicArenaScopedPtrParamTest : public QuicTestWithParam<TestParam> {
  protected:
   QuicArenaScopedPtr<TestObject> CreateObject(uintptr_t value) {
@@ -45,7 +57,8 @@ class QuicArenaScopedPtrParamTest : public QuicTestWithParam<TestParam> {
 INSTANTIATE_TEST_SUITE_P(QuicArenaScopedPtrParamTest,
                          QuicArenaScopedPtrParamTest,
                          testing::Values(TestParam::kFromHeap,
-                                         TestParam::kFromArena));
+                                         TestParam::kFromArena),
+                         ::testing::PrintToStringParamName());
 
 TEST_P(QuicArenaScopedPtrParamTest, NullObjects) {
   QuicArenaScopedPtr<TestObject> def;

@@ -23,17 +23,30 @@ using ::testing::StrictMock;
 struct TestParams {
   TestParams(const ParsedQuicVersion& version, Perspective perspective)
       : version(version), perspective(perspective) {
-    QUIC_LOG(INFO) << "TestParams: version: "
-                   << ParsedQuicVersionToString(version)
-                   << ", perspective: " << perspective;
+    QUIC_LOG(INFO) << "TestParams: " << *this;
   }
 
   TestParams(const TestParams& other)
       : version(other.version), perspective(other.perspective) {}
 
+  friend std::ostream& operator<<(std::ostream& os, const TestParams& tp) {
+    os << "{ version: " << ParsedQuicVersionToString(tp.version)
+       << ", perspective: "
+       << (tp.perspective == Perspective::IS_CLIENT ? "client" : "server")
+       << "}";
+    return os;
+  }
+
   ParsedQuicVersion version;
   Perspective perspective;
 };
+
+// Used by ::testing::PrintToStringParamName().
+std::string PrintToString(const TestParams& tp) {
+  return QuicStrCat(
+      ParsedQuicVersionToString(tp.version), "_",
+      (tp.perspective == Perspective::IS_CLIENT ? "client" : "server"));
+}
 
 std::vector<TestParams> GetTestParams() {
   std::vector<TestParams> params;
@@ -120,7 +133,8 @@ class QuicReceiveControlStreamTest : public QuicTestWithParam<TestParams> {
 
 INSTANTIATE_TEST_SUITE_P(Tests,
                          QuicReceiveControlStreamTest,
-                         ::testing::ValuesIn(GetTestParams()));
+                         ::testing::ValuesIn(GetTestParams()),
+                         ::testing::PrintToStringParamName());
 
 TEST_P(QuicReceiveControlStreamTest, ResetControlStream) {
   EXPECT_TRUE(receive_control_stream_->is_static());

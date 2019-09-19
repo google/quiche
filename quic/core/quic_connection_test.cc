@@ -878,18 +878,18 @@ struct TestParams {
         ack_response(ack_response),
         no_stop_waiting(no_stop_waiting) {}
 
-  friend std::ostream& operator<<(std::ostream& os, const TestParams& p) {
-    os << "{ client_version: " << ParsedQuicVersionToString(p.version)
-       << " ack_response: "
-       << (p.ack_response == AckResponse::kDefer ? "defer" : "immediate")
-       << " no_stop_waiting: " << p.no_stop_waiting << " }";
-    return os;
-  }
-
   ParsedQuicVersion version;
   AckResponse ack_response;
   bool no_stop_waiting;
 };
+
+// Used by ::testing::PrintToStringParamName().
+std::string PrintToString(const TestParams& p) {
+  return QuicStrCat(
+      ParsedQuicVersionToString(p.version), "_",
+      (p.ack_response == AckResponse::kDefer ? "defer" : "immediate"), "_",
+      (p.no_stop_waiting ? "No" : ""), "StopWaiting");
+}
 
 // Constructs various test permutations.
 std::vector<TestParams> GetTestParams() {
@@ -900,14 +900,12 @@ std::vector<TestParams> GetTestParams() {
   for (size_t i = 0; i < all_supported_versions.size(); ++i) {
     for (AckResponse ack_response :
          {AckResponse::kDefer, AckResponse::kImmediate}) {
-      for (bool no_stop_waiting : {true, false}) {
-        // After version 43, never use STOP_WAITING.
+      params.push_back(
+          TestParams(all_supported_versions[i], ack_response, true));
+      if (!VersionHasIetfInvariantHeader(
+              all_supported_versions[i].transport_version)) {
         params.push_back(
-            TestParams(all_supported_versions[i], ack_response,
-                       !VersionHasIetfInvariantHeader(
-                           all_supported_versions[i].transport_version)
-                           ? no_stop_waiting
-                           : true));
+            TestParams(all_supported_versions[i], ack_response, false));
       }
     }
   }
@@ -962,6 +960,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
         connection_id_included_(CONNECTION_ID_PRESENT),
         notifier_(&connection_),
         connection_close_frame_count_(0) {
+    QUIC_DVLOG(2) << "QuicConnectionTest(" << PrintToString(GetParam()) << ")";
     SetQuicReloadableFlag(quic_supports_tls_handshake, true);
     connection_.set_defer_send_in_response_to_packets(GetParam().ack_response ==
                                                       AckResponse::kDefer);
@@ -1636,7 +1635,8 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
 // Run all end to end tests with all supported versions.
 INSTANTIATE_TEST_SUITE_P(SupportedVersion,
                          QuicConnectionTest,
-                         ::testing::ValuesIn(GetTestParams()));
+                         ::testing::ValuesIn(GetTestParams()),
+                         ::testing::PrintToStringParamName());
 
 // These two tests ensure that the QuicErrorCode mapping works correctly.
 // Both tests expect to see a Google QUIC close if not running IETF QUIC.

@@ -45,15 +45,15 @@ struct TestParams {
   TestParams(ParsedQuicVersion version, bool version_serialization)
       : version(version), version_serialization(version_serialization) {}
 
-  friend std::ostream& operator<<(std::ostream& os, const TestParams& p) {
-    os << "{ version: " << ParsedQuicVersionToString(p.version)
-       << " include version: " << p.version_serialization << " }";
-    return os;
-  }
-
   ParsedQuicVersion version;
   bool version_serialization;
 };
+
+// Used by ::testing::PrintToStringParamName().
+std::string PrintToString(const TestParams& p) {
+  return QuicStrCat(ParsedQuicVersionToString(p.version), "_",
+                    (p.version_serialization ? "Include" : "No"), "Version");
+}
 
 // Constructs various test permutations.
 std::vector<TestParams> GetTestParams() {
@@ -288,7 +288,8 @@ class QuicPacketCreatorTest : public QuicTestWithParam<TestParams> {
 // length of truncated connection id.
 INSTANTIATE_TEST_SUITE_P(QuicPacketCreatorTests,
                          QuicPacketCreatorTest,
-                         ::testing::ValuesIn(GetTestParams()));
+                         ::testing::ValuesIn(GetTestParams()),
+                         ::testing::PrintToStringParamName());
 
 TEST_P(QuicPacketCreatorTest, SerializeFrames) {
   for (int i = ENCRYPTION_INITIAL; i < NUM_ENCRYPTION_LEVELS; ++i) {

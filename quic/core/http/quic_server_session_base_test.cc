@@ -228,7 +228,9 @@ MATCHER_P(EqualsProto, network_params, "") {
 
 INSTANTIATE_TEST_SUITE_P(Tests,
                          QuicServerSessionBaseTest,
-                         ::testing::ValuesIn(AllSupportedVersions()));
+                         ::testing::ValuesIn(AllSupportedVersions()),
+                         ::testing::PrintToStringParamName());
+
 TEST_P(QuicServerSessionBaseTest, CloseStreamDueToReset) {
   // Open a stream, then reset it.
   // Send two bytes of payload to open it.
@@ -693,7 +695,8 @@ class StreamMemberLifetimeTest : public QuicServerSessionBaseTest {
 
 INSTANTIATE_TEST_SUITE_P(StreamMemberLifetimeTests,
                          StreamMemberLifetimeTest,
-                         ::testing::ValuesIn(AllSupportedVersions()));
+                         ::testing::ValuesIn(AllSupportedVersions()),
+                         ::testing::PrintToStringParamName());
 
 // Trigger an operation which causes an async invocation of
 // ProofSource::GetProof.  Delay the completion of the operation until after the

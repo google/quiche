@@ -162,6 +162,13 @@ struct TestParams {
   Perspective perspective;
 };
 
+// Used by ::testing::PrintToStringParamName().
+std::string PrintToString(const TestParams& tp) {
+  return QuicStrCat(
+      ParsedQuicVersionToString(tp.version), "_",
+      (tp.perspective == Perspective::IS_CLIENT ? "client" : "server"));
+}
+
 std::vector<TestParams> GetTestParams() {
   std::vector<TestParams> params;
   ParsedQuicVersionVector all_supported_versions = AllSupportedVersions();
@@ -374,7 +381,8 @@ class QuicHeadersStreamTest : public QuicTestWithParam<TestParams> {
 // Run all tests with each version and perspective (client or server).
 INSTANTIATE_TEST_SUITE_P(Tests,
                          QuicHeadersStreamTest,
-                         ::testing::ValuesIn(GetTestParams()));
+                         ::testing::ValuesIn(GetTestParams()),
+                         ::testing::PrintToStringParamName());
 
 TEST_P(QuicHeadersStreamTest, StreamId) {
   EXPECT_EQ(QuicUtils::GetHeadersStreamId(connection_->transport_version()),

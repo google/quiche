@@ -69,6 +69,13 @@ struct TestParams {
   ParsedQuicVersionVector supported_versions;
 };
 
+// Used by ::testing::PrintToStringParamName().
+std::string PrintToString(const TestParams& p) {
+  std::string rv = ParsedQuicVersionVectorToString(p.supported_versions);
+  std::replace(rv.begin(), rv.end(), ',', '_');
+  return rv;
+}
+
 // Constructs various test permutations.
 std::vector<TestParams> GetTestParams() {
   std::vector<TestParams> params;
@@ -363,7 +370,8 @@ class CryptoServerTest : public QuicTestWithParam<TestParams> {
 
 INSTANTIATE_TEST_SUITE_P(CryptoServerTests,
                          CryptoServerTest,
-                         ::testing::ValuesIn(GetTestParams()));
+                         ::testing::ValuesIn(GetTestParams()),
+                         ::testing::PrintToStringParamName());
 
 TEST_P(CryptoServerTest, BadSNI) {
   // clang-format off
