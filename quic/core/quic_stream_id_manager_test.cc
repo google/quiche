@@ -32,88 +32,73 @@ class MockDelegate : public QuicStreamIdManager::DelegateInterface {
                void(QuicStreamCount stream_count, bool unidirectional));
 };
 
-class QuicStreamIdManagerTestBase : public QuicTestWithParam<bool> {
+struct TestParams {
+  TestParams(Perspective perspective, bool is_unidirectional)
+      : perspective(perspective), is_unidirectional(is_unidirectional) {}
+
+  Perspective perspective;
+  bool is_unidirectional;
+};
+
+// Used by ::testing::PrintToStringParamName().
+std::string PrintToString(const TestParams& p) {
+  return QuicStrCat(
+      (p.perspective == Perspective::IS_CLIENT ? "Client" : "Server"),
+      (p.is_unidirectional ? "Unidirectional" : "Bidirectional"));
+}
+
+std::vector<TestParams> GetTestParams() {
+  std::vector<TestParams> params;
+  for (Perspective perspective :
+       {Perspective::IS_CLIENT, Perspective::IS_SERVER}) {
+    for (bool is_unidirectional : {true, false}) {
+      params.push_back(TestParams(perspective, is_unidirectional));
+    }
+  }
+  return params;
+}
+
+class QuicStreamIdManagerTest : public QuicTestWithParam<TestParams> {
  protected:
-  explicit QuicStreamIdManagerTestBase(Perspective perspective)
+  QuicStreamIdManagerTest()
       : stream_id_manager_(&delegate_,
-                           IsUnidi(),
-                           perspective,
-                           QUIC_VERSION_99,
+                           IsUnidirectional(),
+                           perspective(),
+                           transport_version(),
                            0,
                            kDefaultMaxStreamsPerConnection,
-                           kDefaultMaxStreamsPerConnection) {}
+                           kDefaultMaxStreamsPerConnection) {
+    DCHECK(VersionHasIetfQuicFrames(transport_version()));
+  }
 
   QuicTransportVersion transport_version() const { return QUIC_VERSION_99; }
 
-  QuicStreamId GetNthClientInitiatedBidirectionalId(int n) {
-    return QuicUtils::GetFirstBidirectionalStreamId(transport_version(),
-                                                    Perspective::IS_CLIENT) +
-           kV99StreamIdIncrement * n;
+  // Returns the stream ID for the Nth incoming stream (created by the peer)
+  // of the corresponding directionality of this manager.
+  QuicStreamId GetNthIncomingStreamId(int n) {
+    return kV99StreamIdIncrement * n +
+           (IsUnidirectional()
+                ? QuicUtils::GetFirstUnidirectionalStreamId(
+                      transport_version(),
+                      QuicUtils::InvertPerspective(perspective()))
+                : QuicUtils::GetFirstBidirectionalStreamId(
+                      transport_version(),
+                      QuicUtils::InvertPerspective(perspective())));
   }
 
-  QuicStreamId GetNthClientInitiatedUnidirectionalId(int n) {
-    return QuicUtils::GetFirstUnidirectionalStreamId(transport_version(),
-                                                     Perspective::IS_CLIENT) +
-           kV99StreamIdIncrement * n;
-  }
-
-  QuicStreamId GetNthServerInitiatedBidirectionalId(int n) {
-    return QuicUtils::GetFirstBidirectionalStreamId(transport_version(),
-                                                    Perspective::IS_SERVER) +
-           kV99StreamIdIncrement * n;
-  }
-
-  QuicStreamId GetNthServerInitiatedUnidirectionalId(int n) {
-    return QuicUtils::GetFirstUnidirectionalStreamId(transport_version(),
-                                                     Perspective::IS_SERVER) +
-           kV99StreamIdIncrement * n;
-  }
-
-  QuicStreamId StreamCountToId(QuicStreamCount stream_count,
-                               Perspective perspective) {
-    // Calculate and build up stream ID rather than use
-    // GetFirst... because the tests that rely on this method
-    // needs to do the stream count where #1 is 0/1/2/3, and not
-    // take into account that stream 0 is special.
-    QuicStreamId id =
-        ((stream_count - 1) * QuicUtils::StreamIdDelta(transport_version()));
-    if (IsUnidi()) {
-      id |= 0x2;
-    }
-    if (perspective == Perspective::IS_SERVER) {
-      id |= 0x1;
-    }
-    return id;
-  }
-
-  // GetParam returns true if the test is for bidirectional streams
-  bool IsUnidi() { return GetParam() ? false : true; }
-  bool IsBidi() { return GetParam(); }
+  bool IsUnidirectional() { return GetParam().is_unidirectional; }
+  Perspective perspective() { return GetParam().perspective; }
 
   StrictMock<MockDelegate> delegate_;
   QuicStreamIdManager stream_id_manager_;
 };
 
-// Following tests are either client-specific (they depend, in some way, on
-// client-specific attributes, such as the initial stream ID) or are
-// server/client independent (arbitrarily all such tests have been placed here).
-
-class QuicStreamIdManagerTestClient : public QuicStreamIdManagerTestBase {
- protected:
-  QuicStreamIdManagerTestClient()
-      : QuicStreamIdManagerTestBase(Perspective::IS_CLIENT) {}
-};
-
 INSTANTIATE_TEST_SUITE_P(Tests,
-                         QuicStreamIdManagerTestClient,
-                         ::testing::Bool(),
+                         QuicStreamIdManagerTest,
+                         ::testing::ValuesIn(GetTestParams()),
                          ::testing::PrintToStringParamName());
 
-// Check that the parameters used by the stream ID manager are properly
-// initialized.
-TEST_P(QuicStreamIdManagerTestClient, StreamIdManagerClientInitialization) {
-  // These fields are inited via the QuicSession constructor to default
-  // values defined as a constant.
+TEST_P(QuicStreamIdManagerTest, Initialization) {
   EXPECT_EQ(kDefaultMaxStreamsPerConnection,
             stream_id_manager_.outgoing_max_streams());
 
@@ -126,41 +111,35 @@ TEST_P(QuicStreamIdManagerTestClient, StreamIdManagerClientInitialization) {
 
   // The window for advertising updates to the MAX STREAM ID is half the number
   // of streams allowed.
-  EXPECT_EQ(kDefaultMaxStreamsPerConnection / kMaxStreamsWindowDivisor,
+  EXPECT_EQ(kDefaultMaxStreamsPerConnection / 2,
             stream_id_manager_.max_streams_window());
 }
 
 // This test checks that the stream advertisement window is set to 1
 // if the number of stream ids is 1. This is a special case in the code.
-TEST_P(QuicStreamIdManagerTestClient, CheckMaxStreamsWindow1) {
+TEST_P(QuicStreamIdManagerTest, CheckMaxStreamsWindowForSingleStream) {
   stream_id_manager_.SetMaxOpenIncomingStreams(1);
   EXPECT_EQ(1u, stream_id_manager_.incoming_initial_max_open_streams());
   EXPECT_EQ(1u, stream_id_manager_.incoming_actual_max_streams());
-  // If streamid_count/2==0 (integer math) force it to 1.
   EXPECT_EQ(1u, stream_id_manager_.max_streams_window());
 }
 
-// Now check that setting to a value larger than the maximum fails.
-TEST_P(QuicStreamIdManagerTestClient,
-       CheckMaxStreamsBadValuesOverMaxFailsOutgoing) {
+TEST_P(QuicStreamIdManagerTest, CheckMaxStreamsBadValuesOverMaxFailsOutgoing) {
   QuicStreamCount implementation_max =
-      QuicUtils::GetMaxStreamCount(!GetParam(), /* GetParam==true for bidi */
-                                   Perspective::IS_CLIENT);
+      QuicUtils::GetMaxStreamCount(IsUnidirectional(), perspective());
   // Ensure that the limit is less than the implementation maximum.
   EXPECT_LT(stream_id_manager_.outgoing_max_streams(), implementation_max);
 
-  // Try to go over.
-  EXPECT_CALL(delegate_, OnCanCreateNewOutgoingStream(IsUnidi()));
+  EXPECT_CALL(delegate_, OnCanCreateNewOutgoingStream(IsUnidirectional()));
   stream_id_manager_.SetMaxOpenOutgoingStreams(implementation_max + 1);
   // Should be pegged at the max.
   EXPECT_EQ(implementation_max, stream_id_manager_.outgoing_max_streams());
 }
 
 // Now do the same for the incoming streams
-TEST_P(QuicStreamIdManagerTestClient, CheckMaxStreamsBadValuesIncoming) {
+TEST_P(QuicStreamIdManagerTest, CheckMaxStreamsBadValuesIncoming) {
   QuicStreamCount implementation_max =
-      QuicUtils::GetMaxStreamCount(!GetParam(), /* GetParam==true for bidi */
-                                   Perspective::IS_CLIENT);
+      QuicUtils::GetMaxStreamCount(IsUnidirectional(), perspective());
   stream_id_manager_.SetMaxOpenIncomingStreams(implementation_max - 1u);
   EXPECT_EQ(implementation_max - 1u,
             stream_id_manager_.incoming_initial_max_open_streams());
@@ -193,37 +172,37 @@ TEST_P(QuicStreamIdManagerTestClient, CheckMaxStreamsBadValuesIncoming) {
 // Check the case of the stream count in a STREAMS_BLOCKED frame is less than
 // the count most recently advertised in a MAX_STREAMS frame. This should cause
 // a MAX_STREAMS frame with the most recently advertised count to be sent.
-TEST_P(QuicStreamIdManagerTestClient, ProcessStreamsBlockedOk) {
+TEST_P(QuicStreamIdManagerTest, ProcessStreamsBlockedOk) {
   // Set the config negotiated so that the MAX_STREAMS is transmitted.
   stream_id_manager_.OnConfigNegotiated();
 
   QuicStreamCount stream_count =
       stream_id_manager_.incoming_initial_max_open_streams();
-  QuicStreamsBlockedFrame frame(0, stream_count - 1, IsUnidi());
-  EXPECT_CALL(delegate_, SendMaxStreams(stream_count, IsUnidi()));
+  QuicStreamsBlockedFrame frame(0, stream_count - 1, IsUnidirectional());
+  EXPECT_CALL(delegate_, SendMaxStreams(stream_count, IsUnidirectional()));
   stream_id_manager_.OnStreamsBlockedFrame(frame);
 }
 
 // Check the case of the stream count in a STREAMS_BLOCKED frame is equal to the
 // count most recently advertised in a MAX_STREAMS frame. No MAX_STREAMS
 // should be generated.
-TEST_P(QuicStreamIdManagerTestClient, ProcessStreamsBlockedNoOp) {
+TEST_P(QuicStreamIdManagerTest, ProcessStreamsBlockedNoOp) {
   QuicStreamCount stream_count =
       stream_id_manager_.incoming_initial_max_open_streams();
-  QuicStreamsBlockedFrame frame(0, stream_count, IsUnidi());
+  QuicStreamsBlockedFrame frame(0, stream_count, IsUnidirectional());
   EXPECT_CALL(delegate_, SendMaxStreams(_, _)).Times(0);
 }
 
 // Check the case of the stream count in a STREAMS_BLOCKED frame is greater than
 // the count most recently advertised in a MAX_STREAMS frame. Expect a
 // connection close with an error.
-TEST_P(QuicStreamIdManagerTestClient, ProcessStreamsBlockedTooBig) {
+TEST_P(QuicStreamIdManagerTest, ProcessStreamsBlockedTooBig) {
   EXPECT_CALL(delegate_, OnError(QUIC_STREAMS_BLOCKED_ERROR, _));
   EXPECT_CALL(delegate_, SendMaxStreams(_, _)).Times(0);
   EXPECT_CALL(delegate_, SendStreamsBlocked(_, _)).Times(0);
   QuicStreamCount stream_count =
       stream_id_manager_.incoming_initial_max_open_streams() + 1;
-  QuicStreamsBlockedFrame frame(0, stream_count, IsUnidi());
+  QuicStreamsBlockedFrame frame(0, stream_count, IsUnidirectional());
   stream_id_manager_.OnStreamsBlockedFrame(frame);
 }
 
@@ -233,38 +212,32 @@ TEST_P(QuicStreamIdManagerTestClient, ProcessStreamsBlockedTooBig) {
 // will point to either the stream ID manager or the call chain. They also
 // provide specific, small scale, tests of a public QuicStreamIdManager method.
 // First test make sure that streams with ids below the limit are accepted.
-TEST_P(QuicStreamIdManagerTestClient, IsIncomingStreamIdValidBelowLimit) {
-  QuicStreamId stream_id =
-      StreamCountToId(stream_id_manager_.incoming_actual_max_streams() - 1,
-                      Perspective::IS_CLIENT);
+TEST_P(QuicStreamIdManagerTest, IsIncomingStreamIdValidBelowLimit) {
+  QuicStreamId stream_id = GetNthIncomingStreamId(
+      stream_id_manager_.incoming_actual_max_streams() - 2);
   EXPECT_CALL(delegate_, OnError(_, _)).Times(0);
   EXPECT_TRUE(stream_id_manager_.MaybeIncreaseLargestPeerStreamId(stream_id));
 }
 
 // Accept a stream with an ID that equals the limit.
-TEST_P(QuicStreamIdManagerTestClient, IsIncomingStreamIdValidAtLimit) {
-  QuicStreamId stream_id = StreamCountToId(
-      stream_id_manager_.incoming_actual_max_streams(), Perspective::IS_CLIENT);
+TEST_P(QuicStreamIdManagerTest, IsIncomingStreamIdValidAtLimit) {
+  QuicStreamId stream_id = GetNthIncomingStreamId(
+      stream_id_manager_.incoming_actual_max_streams() - 1);
   EXPECT_CALL(delegate_, OnError(_, _)).Times(0);
   EXPECT_TRUE(stream_id_manager_.MaybeIncreaseLargestPeerStreamId(stream_id));
 }
 
 // Close the connection if the id exceeds the limit.
-TEST_P(QuicStreamIdManagerTestClient, IsIncomingStreamIdInValidAboveLimit) {
-  QuicStreamId stream_id = StreamCountToId(
-      stream_id_manager_.incoming_actual_max_streams() + 1,
-      Perspective::IS_SERVER);  // This node is a client, incoming
-                                // stream ids must be server-originated.
-  std::string error_details =
-      GetParam() ? "Stream id 401 would exceed stream count limit 100"
-                 : "Stream id 403 would exceed stream count limit 100";
+TEST_P(QuicStreamIdManagerTest, IsIncomingStreamIdInValidAboveLimit) {
+  QuicStreamId stream_id =
+      GetNthIncomingStreamId(stream_id_manager_.incoming_actual_max_streams());
+  std::string error_details = QuicStrCat(
+      "Stream id ", stream_id, " would exceed stream count limit 100");
   EXPECT_CALL(delegate_, OnError(QUIC_INVALID_STREAM_ID, error_details));
   EXPECT_FALSE(stream_id_manager_.MaybeIncreaseLargestPeerStreamId(stream_id));
 }
 
-// Test functionality for reception of a MAX_STREAMS frame. This code is
-// client/server-agnostic.
-TEST_P(QuicStreamIdManagerTestClient, StreamIdManagerClientOnMaxStreamsFrame) {
+TEST_P(QuicStreamIdManagerTest, OnMaxStreamsFrame) {
   // Get the current maximum allowed outgoing stream count.
   QuicStreamCount initial_stream_count =
       // need to know the number of request/response streams.
@@ -280,8 +253,8 @@ TEST_P(QuicStreamIdManagerTestClient, StreamIdManagerClientOnMaxStreamsFrame) {
   // is authoritative.
   frame.stream_count = initial_stream_count - 1;
 
-  frame.unidirectional = IsUnidi();
-  EXPECT_CALL(delegate_, OnCanCreateNewOutgoingStream(IsUnidi()));
+  frame.unidirectional = IsUnidirectional();
+  EXPECT_CALL(delegate_, OnCanCreateNewOutgoingStream(IsUnidirectional()));
   EXPECT_TRUE(stream_id_manager_.OnMaxStreamsFrame(frame));
   EXPECT_EQ(initial_stream_count - 1u,
             stream_id_manager_.outgoing_max_streams());
@@ -291,7 +264,7 @@ TEST_P(QuicStreamIdManagerTestClient, StreamIdManagerClientOnMaxStreamsFrame) {
   // Now that there has been one MAX STREAMS frame, we should not
   // accept a MAX_STREAMS that reduces the limit...
   frame.stream_count = initial_stream_count - 2;
-  frame.unidirectional = IsUnidi();
+  frame.unidirectional = IsUnidirectional();
   EXPECT_TRUE(stream_id_manager_.OnMaxStreamsFrame(frame));
   // should not change from previous setting.
   EXPECT_EQ(save_outgoing_max_streams,
@@ -299,16 +272,14 @@ TEST_P(QuicStreamIdManagerTestClient, StreamIdManagerClientOnMaxStreamsFrame) {
 
   // A stream count greater than the current limit should increase the limit.
   frame.stream_count = initial_stream_count + 1;
-  EXPECT_CALL(delegate_, OnCanCreateNewOutgoingStream(IsUnidi()));
+  EXPECT_CALL(delegate_, OnCanCreateNewOutgoingStream(IsUnidirectional()));
   EXPECT_TRUE(stream_id_manager_.OnMaxStreamsFrame(frame));
 
   EXPECT_EQ(initial_stream_count + 1u,
             stream_id_manager_.outgoing_max_streams());
 }
 
-// Test functionality for reception of a STREAMS_BLOCKED frame.
-// This code is client/server-agnostic.
-TEST_P(QuicStreamIdManagerTestClient, StreamIdManagerOnStreamsBlockedFrame) {
+TEST_P(QuicStreamIdManagerTest, OnStreamsBlockedFrame) {
   // Get the current maximum allowed incoming stream count.
   QuicStreamCount advertised_stream_count =
       stream_id_manager_.incoming_advertised_max_streams();
@@ -318,7 +289,7 @@ TEST_P(QuicStreamIdManagerTestClient, StreamIdManagerOnStreamsBlockedFrame) {
 
   QuicStreamsBlockedFrame frame;
 
-  frame.unidirectional = IsUnidi();
+  frame.unidirectional = IsUnidirectional();
 
   // If the peer is saying it's blocked on the stream count that
   // we've advertised, it's a noop since the peer has the correct information.
@@ -360,7 +331,7 @@ TEST_P(QuicStreamIdManagerTestClient, StreamIdManagerOnStreamsBlockedFrame) {
 
   EXPECT_CALL(delegate_,
               SendMaxStreams(stream_id_manager_.incoming_actual_max_streams(),
-                             IsUnidi()));
+                             IsUnidirectional()));
 
   EXPECT_TRUE(stream_id_manager_.OnStreamsBlockedFrame(frame));
   // Check that the saved frame is correct.
@@ -368,22 +339,22 @@ TEST_P(QuicStreamIdManagerTestClient, StreamIdManagerOnStreamsBlockedFrame) {
             stream_id_manager_.incoming_advertised_max_streams());
 }
 
-// Test GetNextOutgoingStream. This is client/server agnostic.
-TEST_P(QuicStreamIdManagerTestClient, StreamIdManagerGetNextOutgoingStream) {
+TEST_P(QuicStreamIdManagerTest, GetNextOutgoingStream) {
   // Number of streams we can open and the first one we should get when
   // opening...
   size_t number_of_streams = kDefaultMaxStreamsPerConnection;
 
-  EXPECT_CALL(delegate_, OnCanCreateNewOutgoingStream(IsUnidi()));
+  EXPECT_CALL(delegate_, OnCanCreateNewOutgoingStream(IsUnidirectional()));
   stream_id_manager_.SetMaxOpenOutgoingStreams(100);
 
   stream_id_manager_.OnConfigNegotiated();
 
   QuicStreamId stream_id =
-      IsUnidi() ? QuicUtils::GetFirstUnidirectionalStreamId(
-                      QUIC_VERSION_99, stream_id_manager_.perspective())
-                : QuicUtils::GetFirstBidirectionalStreamId(
-                      QUIC_VERSION_99, stream_id_manager_.perspective());
+      IsUnidirectional()
+          ? QuicUtils::GetFirstUnidirectionalStreamId(
+                transport_version(), stream_id_manager_.perspective())
+          : QuicUtils::GetFirstBidirectionalStreamId(
+                transport_version(), stream_id_manager_.perspective());
 
   EXPECT_EQ(number_of_streams, stream_id_manager_.outgoing_max_streams());
   while (number_of_streams) {
@@ -395,8 +366,8 @@ TEST_P(QuicStreamIdManagerTestClient, StreamIdManagerGetNextOutgoingStream) {
 
   // If we try to check that the next outgoing stream id is available it should
   // A) fail and B) generate a STREAMS_BLOCKED frame.
-  EXPECT_CALL(delegate_,
-              SendStreamsBlocked(kDefaultMaxStreamsPerConnection, IsUnidi()));
+  EXPECT_CALL(delegate_, SendStreamsBlocked(kDefaultMaxStreamsPerConnection,
+                                            IsUnidirectional()));
   EXPECT_FALSE(stream_id_manager_.CanOpenNextOutgoingStream());
 
   // If we try to get the next id (above the limit), it should cause a quic-bug.
@@ -405,28 +376,22 @@ TEST_P(QuicStreamIdManagerTestClient, StreamIdManagerGetNextOutgoingStream) {
       "Attempt to allocate a new outgoing stream that would exceed the limit");
 }
 
-// Ensure that MaybeIncreaseLargestPeerStreamId works properly. This is
-// server/client agnostic.
-TEST_P(QuicStreamIdManagerTestClient,
-       StreamIdManagerServerMaybeIncreaseLargestPeerStreamId) {
-  QuicStreamId max_stream_id = StreamCountToId(
-      stream_id_manager_.incoming_actual_max_streams(), Perspective::IS_SERVER);
+TEST_P(QuicStreamIdManagerTest, MaybeIncreaseLargestPeerStreamId) {
+  QuicStreamId max_stream_id = GetNthIncomingStreamId(
+      stream_id_manager_.incoming_actual_max_streams() - 1);
   EXPECT_TRUE(
       stream_id_manager_.MaybeIncreaseLargestPeerStreamId(max_stream_id));
 
-  QuicStreamId server_initiated_stream_id =
-      StreamCountToId(1u,  // get 1st id
-                      Perspective::IS_SERVER);
-  EXPECT_TRUE(stream_id_manager_.MaybeIncreaseLargestPeerStreamId(
-      server_initiated_stream_id));
+  QuicStreamId first_stream_id = GetNthIncomingStreamId(0);
+  EXPECT_TRUE(
+      stream_id_manager_.MaybeIncreaseLargestPeerStreamId(first_stream_id));
   // A bad stream ID results in a closed connection.
   EXPECT_CALL(delegate_, OnError(QUIC_INVALID_STREAM_ID, _));
   EXPECT_FALSE(stream_id_manager_.MaybeIncreaseLargestPeerStreamId(
       max_stream_id + kV99StreamIdIncrement));
 }
 
-// Test the MAX STREAMS Window functionality.
-TEST_P(QuicStreamIdManagerTestClient, StreamIdManagerServerMaxStreams) {
+TEST_P(QuicStreamIdManagerTest, MaxStreamsWindow) {
   // Set the config negotiated to allow frame transmission.
   stream_id_manager_.OnConfigNegotiated();
 
@@ -446,8 +411,7 @@ TEST_P(QuicStreamIdManagerTestClient, StreamIdManagerServerMaxStreams) {
   EXPECT_CALL(delegate_, SendMaxStreams(_, _)).Times(0);
 
   // Get the first incoming stream ID to try and allocate.
-  QuicStreamId stream_id = IsBidi() ? GetNthServerInitiatedBidirectionalId(0)
-                                    : GetNthServerInitiatedUnidirectionalId(0);
+  QuicStreamId stream_id = GetNthIncomingStreamId(0);
   size_t old_available_incoming_streams =
       stream_id_manager_.available_incoming_streams();
   while (stream_count) {
@@ -465,8 +429,7 @@ TEST_P(QuicStreamIdManagerTestClient, StreamIdManagerServerMaxStreams) {
 
   // Now close them, still should get no MAX_STREAMS
   stream_count = stream_id_manager_.max_streams_window();
-  stream_id = IsBidi() ? GetNthServerInitiatedBidirectionalId(0)
-                       : GetNthServerInitiatedUnidirectionalId(0);
+  stream_id = GetNthIncomingStreamId(0);
   QuicStreamCount expected_actual_max =
       stream_id_manager_.incoming_actual_max_streams();
   QuicStreamCount expected_advertised_max_streams =
@@ -491,20 +454,18 @@ TEST_P(QuicStreamIdManagerTestClient, StreamIdManagerServerMaxStreams) {
   // Above code closed all the open streams, so we have to open/close
   //  EXPECT_CALL(delegate_,
   //  SendMaxStreams(stream_id_manager_.incoming_actual_max_streams(),
-  //  IsUnidi()));
-  EXPECT_CALL(delegate_, SendMaxStreams(_, IsUnidi()));
+  //  IsUnidirectional()));
+  EXPECT_CALL(delegate_, SendMaxStreams(_, IsUnidirectional()));
   EXPECT_TRUE(stream_id_manager_.MaybeIncreaseLargestPeerStreamId(stream_id));
   stream_id_manager_.OnStreamClosed(stream_id);
 }
 
-// Check that edge conditions of the stream count in a STREAMS_BLOCKED frame
-// are. properly handled.
-TEST_P(QuicStreamIdManagerTestClient, StreamsBlockedEdgeConditions) {
+TEST_P(QuicStreamIdManagerTest, StreamsBlockedEdgeConditions) {
   // Set the config negotiated to allow frame transmission.
   stream_id_manager_.OnConfigNegotiated();
 
   QuicStreamsBlockedFrame frame;
-  frame.unidirectional = IsUnidi();
+  frame.unidirectional = IsUnidirectional();
 
   // Check that receipt of a STREAMS BLOCKED with stream-count = 0 does nothing
   // when max_allowed_incoming_streams is 0.
@@ -516,49 +477,32 @@ TEST_P(QuicStreamIdManagerTestClient, StreamsBlockedEdgeConditions) {
 
   // Check that receipt of a STREAMS BLOCKED with stream-count = 0 invokes a
   // MAX STREAMS, count = 123, when the MaxOpen... is set to 123.
-  EXPECT_CALL(delegate_, SendMaxStreams(123u, IsUnidi()));
+  EXPECT_CALL(delegate_, SendMaxStreams(123u, IsUnidirectional()));
   EXPECT_CALL(delegate_, SendStreamsBlocked(_, _)).Times(0);
   stream_id_manager_.SetMaxOpenIncomingStreams(123);
   frame.stream_count = 0;
   stream_id_manager_.OnStreamsBlockedFrame(frame);
 }
 
-TEST_P(QuicStreamIdManagerTestClient, HoldMaxStreamsFrame) {
-  if (!VersionHasIetfQuicFrames(transport_version())) {
-    return;
-  }
-
+TEST_P(QuicStreamIdManagerTest, HoldMaxStreamsFrame) {
   // The config has not been negotiated so the MAX_STREAMS frame will not be
   // sent.
   EXPECT_CALL(delegate_, SendMaxStreams(_, _)).Times(0);
 
-  QuicStreamsBlockedFrame frame(1u, 0u, IsUnidi());
+  QuicStreamsBlockedFrame frame(1u, 0u, IsUnidirectional());
   // Should cause change in pending_max_streams.
   stream_id_manager_.OnStreamsBlockedFrame(frame);
 
-  EXPECT_CALL(delegate_, SendMaxStreams(_, IsUnidi()));
+  EXPECT_CALL(delegate_, SendMaxStreams(_, IsUnidirectional()));
 
   // MAX_STREAMS will be sent now that the config has been negotiated.
   stream_id_manager_.OnConfigNegotiated();
 }
 
-// Following tests all are server-specific. They depend, in some way, on
-// server-specific attributes, such as the initial stream ID.
-
-class QuicStreamIdManagerTestServer : public QuicStreamIdManagerTestBase {
- protected:
-  QuicStreamIdManagerTestServer()
-      : QuicStreamIdManagerTestBase(Perspective::IS_SERVER) {}
-};
-
-TEST_P(QuicStreamIdManagerTestClient, HoldStreamsBlockedFrameXmit) {
-  if (!VersionHasIetfQuicFrames(transport_version())) {
-    return;
-  }
-
+TEST_P(QuicStreamIdManagerTest, HoldStreamsBlockedFrameXmit) {
   // set outgoing limit to 0, will cause the CanOpenNext... to fail
   // leading to a STREAMS_BLOCKED.
-  EXPECT_CALL(delegate_, OnCanCreateNewOutgoingStream(IsUnidi()));
+  EXPECT_CALL(delegate_, OnCanCreateNewOutgoingStream(IsUnidirectional()));
   stream_id_manager_.SetMaxOpenOutgoingStreams(0);
 
   // We should not see a STREAMS_BLOCKED frame because we're not configured..
@@ -571,44 +515,34 @@ TEST_P(QuicStreamIdManagerTestClient, HoldStreamsBlockedFrameXmit) {
 
   // Since the steam limit has not been increased when the config was negotiated
   // a STREAMS_BLOCKED frame should be sent.
-  EXPECT_CALL(delegate_, SendStreamsBlocked(_, IsUnidi()));
+  EXPECT_CALL(delegate_, SendStreamsBlocked(_, IsUnidirectional()));
   stream_id_manager_.OnConfigNegotiated();
 }
 
-TEST_P(QuicStreamIdManagerTestClient, HoldStreamsBlockedFrameNoXmit) {
-  if (!VersionHasIetfQuicFrames(transport_version())) {
-    return;
-  }
+TEST_P(QuicStreamIdManagerTest, HoldStreamsBlockedFrameNoXmit) {
   // Set outgoing limit to 0, will cause the CanOpenNext... to fail
   // leading to a STREAMS_BLOCKED.
-  EXPECT_CALL(delegate_, OnCanCreateNewOutgoingStream(IsUnidi()));
+  EXPECT_CALL(delegate_, OnCanCreateNewOutgoingStream(IsUnidirectional()));
   stream_id_manager_.SetMaxOpenOutgoingStreams(0);
 
   // We should not see a STREAMS_BLOCKED frame because we're not configured..
-  EXPECT_CALL(delegate_, SendStreamsBlocked(_, IsUnidi())).Times(0);
+  EXPECT_CALL(delegate_, SendStreamsBlocked(_, IsUnidirectional())).Times(0);
 
   // Since the stream limit is 0 and no sreams can be created this should return
   // false and have forced a STREAMS_BLOCKED to be queued up, with the
   // blocked stream id == 0.
   EXPECT_FALSE(stream_id_manager_.CanOpenNextOutgoingStream());
 
-  EXPECT_CALL(delegate_, OnCanCreateNewOutgoingStream(IsUnidi()));
+  EXPECT_CALL(delegate_, OnCanCreateNewOutgoingStream(IsUnidirectional()));
   stream_id_manager_.SetMaxOpenOutgoingStreams(10);
   // Since the stream limit has been increase which allows streams to be created
   // no STREAMS_BLOCKED should be send.
   stream_id_manager_.OnConfigNegotiated();
 }
 
-INSTANTIATE_TEST_SUITE_P(Tests,
-                         QuicStreamIdManagerTestServer,
-                         ::testing::Bool(),
-                         ::testing::PrintToStringParamName());
-
-// This test checks that the initialization for the maximum allowed outgoing
-// stream id is correct.
-TEST_P(QuicStreamIdManagerTestServer, CheckMaxAllowedOutgoing) {
+TEST_P(QuicStreamIdManagerTest, CheckMaxAllowedOutgoingInitialization) {
   const size_t kIncomingStreamCount = 123;
-  EXPECT_CALL(delegate_, OnCanCreateNewOutgoingStream(IsUnidi()));
+  EXPECT_CALL(delegate_, OnCanCreateNewOutgoingStream(IsUnidirectional()));
   stream_id_manager_.SetMaxOpenOutgoingStreams(kIncomingStreamCount);
   EXPECT_EQ(kIncomingStreamCount, stream_id_manager_.outgoing_max_streams());
 }
@@ -616,7 +550,7 @@ TEST_P(QuicStreamIdManagerTestServer, CheckMaxAllowedOutgoing) {
 // Test that a MAX_STREAMS frame is generated when half the stream ids become
 // available. This has a useful side effect of testing that when streams are
 // closed, the number of available stream ids increases.
-TEST_P(QuicStreamIdManagerTestServer, MaxStreamsSlidingWindow) {
+TEST_P(QuicStreamIdManagerTest, MaxStreamsSlidingWindow) {
   // Simulate config being negotiated, causing the limits all to be initialized.
   stream_id_manager_.OnConfigNegotiated();
 
@@ -635,7 +569,7 @@ TEST_P(QuicStreamIdManagerTestServer, MaxStreamsSlidingWindow) {
   EXPECT_CALL(
       delegate_,
       SendMaxStreams(first_advert + stream_id_manager_.max_streams_window(),
-                     IsUnidi()));
+                     IsUnidirectional()));
   while (i) {
     EXPECT_TRUE(stream_id_manager_.MaybeIncreaseLargestPeerStreamId(id));
     stream_id_manager_.OnStreamClosed(id);
@@ -644,10 +578,8 @@ TEST_P(QuicStreamIdManagerTestServer, MaxStreamsSlidingWindow) {
   }
 }
 
-// Tast that an attempt to create an outgoing stream does not exceed the limit
-// and that it generates an appropriate STREAMS_BLOCKED frame.
-TEST_P(QuicStreamIdManagerTestServer, NewStreamDoesNotExceedLimit) {
-  EXPECT_CALL(delegate_, OnCanCreateNewOutgoingStream(IsUnidi()));
+TEST_P(QuicStreamIdManagerTest, NewStreamDoesNotExceedLimit) {
+  EXPECT_CALL(delegate_, OnCanCreateNewOutgoingStream(IsUnidirectional()));
   stream_id_manager_.SetMaxOpenOutgoingStreams(100);
   stream_id_manager_.OnConfigNegotiated();
 
@@ -664,59 +596,28 @@ TEST_P(QuicStreamIdManagerTestServer, NewStreamDoesNotExceedLimit) {
             stream_id_manager_.outgoing_max_streams());
   // Create another, it should fail. Should also send a STREAMS_BLOCKED
   // control frame.
-  EXPECT_CALL(delegate_, SendStreamsBlocked(_, IsUnidi()));
+  EXPECT_CALL(delegate_, SendStreamsBlocked(_, IsUnidirectional()));
   EXPECT_FALSE(stream_id_manager_.CanOpenNextOutgoingStream());
 }
 
-// Check that the parameters used by the stream ID manager are properly
-// initialized
-TEST_P(QuicStreamIdManagerTestServer, StreamIdManagerServerInitialization) {
-  // These fields are inited via the QuicSession constructor to default
-  // values defined as a constant.
-  EXPECT_EQ(kDefaultMaxStreamsPerConnection,
-            stream_id_manager_.incoming_initial_max_open_streams());
-
-  EXPECT_EQ(kDefaultMaxStreamsPerConnection,
-            stream_id_manager_.incoming_actual_max_streams());
-  EXPECT_EQ(kDefaultMaxStreamsPerConnection,
-            stream_id_manager_.outgoing_max_streams());
-
-  // The window for advertising updates to the MAX STREAM ID is half the number
-  // of stream allowed.
-  EXPECT_EQ(kDefaultMaxStreamsPerConnection / kMaxStreamsWindowDivisor,
-            stream_id_manager_.max_streams_window());
-}
-
-TEST_P(QuicStreamIdManagerTestServer, AvailableStreams) {
+TEST_P(QuicStreamIdManagerTest, AvailableStreams) {
   stream_id_manager_.MaybeIncreaseLargestPeerStreamId(
-      IsBidi() ? GetNthClientInitiatedBidirectionalId(3)
-               : GetNthClientInitiatedUnidirectionalId(3));
-  EXPECT_TRUE(stream_id_manager_.IsAvailableStream(
-      IsBidi() ? GetNthClientInitiatedBidirectionalId(1)
-               : GetNthClientInitiatedUnidirectionalId(1)));
-  EXPECT_TRUE(stream_id_manager_.IsAvailableStream(
-      IsBidi() ? GetNthClientInitiatedBidirectionalId(2)
-               : GetNthClientInitiatedUnidirectionalId(2)));
+      GetNthIncomingStreamId(3));
+
+  EXPECT_TRUE(stream_id_manager_.IsAvailableStream(GetNthIncomingStreamId(1)));
+  EXPECT_TRUE(stream_id_manager_.IsAvailableStream(GetNthIncomingStreamId(2)));
+  EXPECT_FALSE(stream_id_manager_.IsAvailableStream(GetNthIncomingStreamId(3)));
+  EXPECT_TRUE(stream_id_manager_.IsAvailableStream(GetNthIncomingStreamId(4)));
 }
 
 // Tests that if MaybeIncreaseLargestPeerStreamId is given an extremely
 // large stream ID (larger than the limit) it is rejected.
 // This is a regression for Chromium bugs 909987 and 910040
-TEST_P(QuicStreamIdManagerTestServer, ExtremeMaybeIncreaseLargestPeerStreamId) {
-  QuicStreamId too_big_stream_id = StreamCountToId(
-      stream_id_manager_.incoming_actual_max_streams() + 20,
-      Perspective::IS_CLIENT);  // This node is a server, incoming stream
-                                // ids must be client-originated.
-  std::string error_details;
-  if (IsBidi()) {
-    if (QuicVersionUsesCryptoFrames(transport_version())) {
-      error_details = "Stream id 476 would exceed stream count limit 100";
-    } else {
-      error_details = "Stream id 480 would exceed stream count limit 101";
-    }
-  } else {
-    error_details = "Stream id 478 would exceed stream count limit 100";
-  }
+TEST_P(QuicStreamIdManagerTest, ExtremeMaybeIncreaseLargestPeerStreamId) {
+  QuicStreamId too_big_stream_id = GetNthIncomingStreamId(
+      stream_id_manager_.incoming_actual_max_streams() + 20);
+  std::string error_details = QuicStrCat(
+      "Stream id ", too_big_stream_id, " would exceed stream count limit 100");
 
   EXPECT_CALL(delegate_, OnError(QUIC_INVALID_STREAM_ID, error_details));
   EXPECT_FALSE(

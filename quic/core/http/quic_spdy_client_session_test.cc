@@ -631,8 +631,8 @@ TEST_P(QuicSpdyClientSessionTest, PushPromiseOnPromiseHeadersAlreadyClosed) {
 
   EXPECT_CALL(*connection_, SendControlFrame(_));
   EXPECT_CALL(*connection_,
-              OnStreamReset(associated_stream_id_, QUIC_REFUSED_STREAM));
-  session_->ResetPromised(associated_stream_id_, QUIC_REFUSED_STREAM);
+              OnStreamReset(promised_stream_id_, QUIC_REFUSED_STREAM));
+  session_->ResetPromised(promised_stream_id_, QUIC_REFUSED_STREAM);
 
   session_->OnPromiseHeaderList(associated_stream_id_, promised_stream_id_, 0,
                                 QuicHeaderList());

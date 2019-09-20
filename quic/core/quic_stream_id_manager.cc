@@ -235,8 +235,11 @@ bool QuicStreamIdManager::CanOpenNextOutgoingStream() {
 // created (doesn't violate limits, etc).
 bool QuicStreamIdManager::MaybeIncreaseLargestPeerStreamId(
     const QuicStreamId stream_id) {
+  // |stream_id| must be an incoming stream of the right directionality.
   DCHECK_NE(QuicUtils::IsBidirectionalStreamId(stream_id), unidirectional_);
-
+  DCHECK_NE(
+      QuicUtils::IsServerInitiatedStreamId(transport_version(), stream_id),
+      perspective() == Perspective::IS_SERVER);
   available_streams_.erase(stream_id);
 
   if (largest_peer_created_stream_id_ !=

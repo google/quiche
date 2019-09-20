@@ -210,6 +210,7 @@ void QuicSpdyClientSessionBase::OnPushStreamTimedOut(
 void QuicSpdyClientSessionBase::ResetPromised(
     QuicStreamId id,
     QuicRstStreamErrorCode error_code) {
+  DCHECK(QuicUtils::IsServerInitiatedStreamId(transport_version(), id));
   SendRstStream(id, error_code, 0);
   if (!IsOpenStream(id)) {
     MaybeIncreaseLargestPeerStreamId(id);
