@@ -517,7 +517,7 @@ TEST_P(QuicSpdyClientSessionTest, InvalidPacketReceived) {
   QuicConnectionId source_connection_id = connection_id;
   std::unique_ptr<QuicEncryptedPacket> packet(ConstructEncryptedPacket(
       destination_connection_id, source_connection_id, false, false, 100,
-      "data", CONNECTION_ID_ABSENT, CONNECTION_ID_ABSENT,
+      "data", true, CONNECTION_ID_ABSENT, CONNECTION_ID_ABSENT,
       PACKET_4BYTE_PACKET_NUMBER, &versions, Perspective::IS_SERVER));
   std::unique_ptr<QuicReceivedPacket> received(
       ConstructReceivedPacket(*packet, QuicTime::Zero()));

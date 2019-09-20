@@ -82,11 +82,25 @@ QuicEncryptedPacket* ConstructEncryptedPacket(
     bool reset_flag,
     uint64_t packet_number,
     const std::string& data,
+    bool full_padding,
     QuicConnectionIdIncluded destination_connection_id_included,
     QuicConnectionIdIncluded source_connection_id_included,
     QuicPacketNumberLength packet_number_length,
     ParsedQuicVersionVector* versions,
     Perspective perspective);
+
+QuicEncryptedPacket* ConstructEncryptedPacket(
+    QuicConnectionId destination_connection_id,
+    QuicConnectionId source_connection_id,
+    bool version_flag,
+    bool reset_flag,
+    uint64_t packet_number,
+    const std::string& data,
+    bool full_padding,
+    QuicConnectionIdIncluded destination_connection_id_included,
+    QuicConnectionIdIncluded source_connection_id_included,
+    QuicPacketNumberLength packet_number_length,
+    ParsedQuicVersionVector* versions);
 
 // Create an encrypted packet for testing.
 // If versions == nullptr, uses &AllSupportedVersions().

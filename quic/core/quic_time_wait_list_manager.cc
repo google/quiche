@@ -271,6 +271,14 @@ void QuicTimeWaitListManager::SendPublicReset(
                     packet_context.get());
 }
 
+void QuicTimeWaitListManager::SendPacket(const QuicSocketAddress& self_address,
+                                         const QuicSocketAddress& peer_address,
+                                         const QuicEncryptedPacket& packet) {
+  SendOrQueuePacket(std::make_unique<QueuedPacket>(self_address, peer_address,
+                                                   packet.Clone()),
+                    nullptr);
+}
+
 std::unique_ptr<QuicEncryptedPacket> QuicTimeWaitListManager::BuildPublicReset(
     const QuicPublicResetPacket& packet) {
   return QuicFramer::BuildPublicResetPacket(packet);

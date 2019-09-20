@@ -139,6 +139,11 @@ class QuicTimeWaitListManager : public QuicBlockedWriterInterface {
       bool ietf_quic,
       std::unique_ptr<QuicPerPacketContext> packet_context);
 
+  // Called to send |packet|.
+  virtual void SendPacket(const QuicSocketAddress& self_address,
+                          const QuicSocketAddress& peer_address,
+                          const QuicEncryptedPacket& packet);
+
   // Return a non-owning pointer to the packet writer.
   QuicPacketWriter* writer() { return writer_; }
 

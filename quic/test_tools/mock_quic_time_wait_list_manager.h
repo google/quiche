@@ -61,6 +61,11 @@ class MockTimeWaitListManager : public QuicTimeWaitListManager {
                     QuicConnectionId,
                     bool,
                     std::unique_ptr<QuicPerPacketContext>));
+
+  MOCK_METHOD3(SendPacket,
+               void(const QuicSocketAddress&,
+                    const QuicSocketAddress&,
+                    const QuicEncryptedPacket&));
 };
 
 }  // namespace test

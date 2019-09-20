@@ -6303,6 +6303,7 @@ QuicErrorCode QuicFramer::ParsePublicHeaderDispatcher(
     const QuicEncryptedPacket& packet,
     uint8_t expected_destination_connection_id_length,
     PacketHeaderFormat* format,
+    QuicLongHeaderType* long_packet_type,
     bool* version_present,
     bool* has_length_prefix,
     QuicVersionLabel* version_label,
@@ -6321,12 +6322,11 @@ QuicErrorCode QuicFramer::ParsePublicHeaderDispatcher(
   const bool ietf_format = QuicUtils::IsIetfPacketHeader(first_byte);
   uint8_t unused_first_byte;
   QuicVariableLengthIntegerLength retry_token_length_length;
-  QuicLongHeaderType unused_log_packet_type;
-  const QuicErrorCode error_code = ParsePublicHeader(
+  QuicErrorCode error_code = ParsePublicHeader(
       &reader, expected_destination_connection_id_length, ietf_format,
       &unused_first_byte, format, version_present, has_length_prefix,
       version_label, parsed_version, destination_connection_id,
-      source_connection_id, &unused_log_packet_type, &retry_token_length_length,
+      source_connection_id, long_packet_type, &retry_token_length_length,
       retry_token, detailed_error);
   *retry_token_present =
       retry_token_length_length != VARIABLE_LENGTH_INTEGER_LENGTH_0;

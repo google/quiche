@@ -867,10 +867,11 @@ QuicEncryptedPacket* ConstructEncryptedPacket(
     ParsedQuicVersionVector* versions) {
   return ConstructEncryptedPacket(
       destination_connection_id, source_connection_id, version_flag, reset_flag,
-      packet_number, data, destination_connection_id_included,
+      packet_number, data, false, destination_connection_id_included,
       source_connection_id_included, packet_number_length, versions,
       Perspective::IS_CLIENT);
 }
+
 QuicEncryptedPacket* ConstructEncryptedPacket(
     QuicConnectionId destination_connection_id,
     QuicConnectionId source_connection_id,
@@ -878,6 +879,26 @@ QuicEncryptedPacket* ConstructEncryptedPacket(
     bool reset_flag,
     uint64_t packet_number,
     const std::string& data,
+    bool full_padding,
+    QuicConnectionIdIncluded destination_connection_id_included,
+    QuicConnectionIdIncluded source_connection_id_included,
+    QuicPacketNumberLength packet_number_length,
+    ParsedQuicVersionVector* versions) {
+  return ConstructEncryptedPacket(
+      destination_connection_id, source_connection_id, version_flag, reset_flag,
+      packet_number, data, full_padding, destination_connection_id_included,
+      source_connection_id_included, packet_number_length, versions,
+      Perspective::IS_CLIENT);
+}
+
+QuicEncryptedPacket* ConstructEncryptedPacket(
+    QuicConnectionId destination_connection_id,
+    QuicConnectionId source_connection_id,
+    bool version_flag,
+    bool reset_flag,
+    uint64_t packet_number,
+    const std::string& data,
+    bool full_padding,
     QuicConnectionIdIncluded destination_connection_id_included,
     QuicConnectionIdIncluded source_connection_id_included,
     QuicPacketNumberLength packet_number_length,
@@ -922,14 +943,18 @@ QuicEncryptedPacket* ConstructEncryptedPacket(
     QuicFrame frame(new QuicCryptoFrame(level, 0, data));
     frames.push_back(frame);
   }
-  // We need a minimum number of bytes of encrypted payload. This will
-  // guarantee that we have at least that much. (It ignores the overhead of the
-  // stream/crypto framing, so it overpads slightly.)
-  size_t min_plaintext_size =
-      QuicPacketCreator::MinPlaintextPacketSize(version);
-  if (data.length() < min_plaintext_size) {
-    size_t padding_length = min_plaintext_size - data.length();
-    frames.push_back(QuicFrame(QuicPaddingFrame(padding_length)));
+  if (full_padding) {
+    frames.push_back(QuicFrame(QuicPaddingFrame(-1)));
+  } else {
+    // We need a minimum number of bytes of encrypted payload. This will
+    // guarantee that we have at least that much. (It ignores the overhead of
+    // the stream/crypto framing, so it overpads slightly.)
+    size_t min_plaintext_size =
+        QuicPacketCreator::MinPlaintextPacketSize(version);
+    if (data.length() < min_plaintext_size) {
+      size_t padding_length = min_plaintext_size - data.length();
+      frames.push_back(QuicFrame(QuicPaddingFrame(padding_length)));
+    }
   }
 
   std::unique_ptr<QuicPacket> packet(

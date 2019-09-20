@@ -262,7 +262,7 @@ class QuicDispatcherTest : public QuicTest {
                      QuicPacketNumberLength packet_number_length,
                      uint64_t packet_number) {
     ProcessPacket(peer_address, server_connection_id, has_version_flag,
-                  CurrentSupportedVersions().front(), data,
+                  CurrentSupportedVersions().front(), data, true,
                   server_connection_id_included, packet_number_length,
                   packet_number);
   }
@@ -273,11 +273,12 @@ class QuicDispatcherTest : public QuicTest {
                      bool has_version_flag,
                      ParsedQuicVersion version,
                      const std::string& data,
+                     bool full_padding,
                      QuicConnectionIdIncluded server_connection_id_included,
                      QuicPacketNumberLength packet_number_length,
                      uint64_t packet_number) {
     ProcessPacket(peer_address, server_connection_id, EmptyQuicConnectionId(),
-                  has_version_flag, version, data,
+                  has_version_flag, version, data, full_padding,
                   server_connection_id_included, CONNECTION_ID_ABSENT,
                   packet_number_length, packet_number);
   }
@@ -289,6 +290,7 @@ class QuicDispatcherTest : public QuicTest {
                      bool has_version_flag,
                      ParsedQuicVersion version,
                      const std::string& data,
+                     bool full_padding,
                      QuicConnectionIdIncluded server_connection_id_included,
                      QuicConnectionIdIncluded client_connection_id_included,
                      QuicPacketNumberLength packet_number_length,
@@ -296,7 +298,7 @@ class QuicDispatcherTest : public QuicTest {
     ParsedQuicVersionVector versions(SupportedVersions(version));
     std::unique_ptr<QuicEncryptedPacket> packet(ConstructEncryptedPacket(
         server_connection_id, client_connection_id, has_version_flag, false,
-        packet_number, data, server_connection_id_included,
+        packet_number, data, full_padding, server_connection_id_included,
         client_connection_id_included, packet_number_length, &versions));
     std::unique_ptr<QuicReceivedPacket> received_packet(
         ConstructReceivedPacket(*packet, mock_helper_.GetClock()->Now()));
@@ -383,7 +385,7 @@ class QuicDispatcherTest : public QuicTest {
                 ShouldCreateOrBufferPacketForConnection(
                     ReceivedPacketInfoConnectionIdEquals(connection_id)));
     ProcessPacket(client_address, connection_id, true, version, SerializeCHLO(),
-                  CONNECTION_ID_PRESENT, PACKET_4BYTE_PACKET_NUMBER, 1);
+                  true, CONNECTION_ID_PRESENT, PACKET_4BYTE_PACKET_NUMBER, 1);
   }
 
   void VerifyVersionNotSupported(ParsedQuicVersion version) {
@@ -393,7 +395,7 @@ class QuicDispatcherTest : public QuicTest {
                                                 QuicStringPiece("hq"), _))
         .Times(0);
     ProcessPacket(client_address, connection_id, true, version, SerializeCHLO(),
-                  CONNECTION_ID_PRESENT, PACKET_4BYTE_PACKET_NUMBER, 1);
+                  true, CONNECTION_ID_PRESENT, PACKET_4BYTE_PACKET_NUMBER, 1);
   }
 
   MockQuicConnectionHelper mock_helper_;
@@ -439,7 +441,8 @@ TEST_F(QuicDispatcherTest, TlsClientHelloCreatesSession) {
       client_address, TestConnectionId(1), true,
       ParsedQuicVersion(PROTOCOL_TLS1_3,
                         CurrentSupportedVersions().front().transport_version),
-      SerializeCHLO(), CONNECTION_ID_PRESENT, PACKET_4BYTE_PACKET_NUMBER, 1);
+      SerializeCHLO(), true, CONNECTION_ID_PRESENT, PACKET_4BYTE_PACKET_NUMBER,
+      1);
 }
 
 TEST_F(QuicDispatcherTest, ProcessPackets) {
@@ -514,14 +517,15 @@ TEST_F(QuicDispatcherTest, DispatcherDoesNotRejectPacketNumberZero) {
       client_address, TestConnectionId(1), true,
       ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO,
                         CurrentSupportedVersions().front().transport_version),
-      SerializeCHLO(), CONNECTION_ID_PRESENT, PACKET_4BYTE_PACKET_NUMBER, 1);
+      SerializeCHLO(), true, CONNECTION_ID_PRESENT, PACKET_4BYTE_PACKET_NUMBER,
+      1);
   // Packet number 256 with packet number length 1 would be considered as 0 in
   // dispatcher.
   ProcessPacket(
       client_address, TestConnectionId(1), false,
       ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO,
                         CurrentSupportedVersions().front().transport_version),
-      "", CONNECTION_ID_PRESENT, PACKET_1BYTE_PACKET_NUMBER, 256);
+      "", true, CONNECTION_ID_PRESENT, PACKET_1BYTE_PACKET_NUMBER, 256);
 }
 
 TEST_F(QuicDispatcherTest, StatelessVersionNegotiation) {
@@ -539,7 +543,7 @@ TEST_F(QuicDispatcherTest, StatelessVersionNegotiation) {
   std::string chlo = SerializeCHLO() + std::string(1200, 'a');
   DCHECK_LE(1200u, chlo.length());
   ProcessPacket(client_address, TestConnectionId(1), true,
-                QuicVersionReservedForNegotiation(), chlo,
+                QuicVersionReservedForNegotiation(), chlo, true,
                 CONNECTION_ID_PRESENT, PACKET_4BYTE_PACKET_NUMBER, 1);
 }
 
@@ -558,7 +562,7 @@ TEST_F(QuicDispatcherTest, StatelessVersionNegotiationWithClientConnectionId) {
   std::string chlo = SerializeCHLO() + std::string(1200, 'a');
   DCHECK_LE(1200u, chlo.length());
   ProcessPacket(client_address, TestConnectionId(1), TestConnectionId(2), true,
-                QuicVersionReservedForNegotiation(), chlo,
+                QuicVersionReservedForNegotiation(), chlo, true,
                 CONNECTION_ID_PRESENT, CONNECTION_ID_PRESENT,
                 PACKET_4BYTE_PACKET_NUMBER, 1);
 }
@@ -578,7 +582,7 @@ TEST_F(QuicDispatcherTest, NoVersionNegotiationWithSmallPacket) {
   std::string truncated_chlo = chlo.substr(0, 1100);
   DCHECK_EQ(1100u, truncated_chlo.length());
   ProcessPacket(client_address, TestConnectionId(1), true,
-                QuicVersionReservedForNegotiation(), truncated_chlo,
+                QuicVersionReservedForNegotiation(), truncated_chlo, false,
                 CONNECTION_ID_PRESENT, PACKET_4BYTE_PACKET_NUMBER, 1);
 }
 
@@ -602,7 +606,7 @@ TEST_F(QuicDispatcherTest, VersionNegotiationWithoutChloSizeValidation) {
   std::string truncated_chlo = chlo.substr(0, 1100);
   DCHECK_EQ(1100u, truncated_chlo.length());
   ProcessPacket(client_address, TestConnectionId(1), true,
-                QuicVersionReservedForNegotiation(), truncated_chlo,
+                QuicVersionReservedForNegotiation(), truncated_chlo, true,
                 CONNECTION_ID_PRESENT, PACKET_4BYTE_PACKET_NUMBER, 1);
 }
 
@@ -1325,6 +1329,68 @@ TEST_F(QuicDispatcherTest, AndroidConformanceTest) {
       "response connection ID", &(*(saving_writer->packets()))[0]->data()[1],
       sizeof(connection_id_bytes), connection_id_bytes,
       sizeof(connection_id_bytes));
+}
+
+TEST_F(QuicDispatcherTest, DoNotProcessSmallPacket) {
+  SetQuicReloadableFlag(quic_donot_process_small_initial_packets, true);
+  SetQuicReloadableFlag(quic_use_parse_public_header, true);
+  CreateTimeWaitListManager();
+  QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
+
+  EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _)).Times(0);
+  EXPECT_CALL(*time_wait_list_manager_, SendPacket(_, _, _)).Times(1);
+  ProcessPacket(client_address, TestConnectionId(1), true,
+                CurrentSupportedVersions()[0], SerializeCHLO(), false,
+                CONNECTION_ID_PRESENT, PACKET_4BYTE_PACKET_NUMBER, 1);
+}
+
+TEST_F(QuicDispatcherTest, ProcessSmallCoalescedPacket) {
+  SetQuicReloadableFlag(quic_enable_version_99, true);
+  CreateTimeWaitListManager();
+  QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
+
+  EXPECT_CALL(*time_wait_list_manager_, SendPacket(_, _, _)).Times(0);
+
+  // clang-format off
+  char coalesced_packet[1200] = {
+    // first coalesced packet
+      // public flags (long header with packet type INITIAL and
+      // 4-byte packet number)
+      0xC3,
+      // version
+      'Q', '0', '9', '9',
+      // destination connection ID length
+      0x08,
+      // destination connection ID
+      0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+      // source connection ID length
+      0x00,
+      // long header packet length
+      0x05,
+      // packet number
+      0x12, 0x34, 0x56, 0x78,
+      // Padding
+      0x00,
+    // second coalesced packet
+      // public flags (long header with packet type ZERO_RTT_PROTECTED and
+      // 4-byte packet number)
+      0xC3,
+      // version
+      'Q', '0', '9', '9',
+      // destination connection ID length
+      0x08,
+      // destination connection ID
+      0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+      // source connection ID length
+      0x00,
+      // long header packet length
+      0x1E,
+      // packet number
+      0x12, 0x34, 0x56, 0x79,
+  };
+  // clang-format on
+  QuicReceivedPacket packet(coalesced_packet, 1200, QuicTime::Zero());
+  dispatcher_->ProcessPacket(server_address_, client_address, packet);
 }
 
 // Verify the stopgap test: Packets with truncated connection IDs should be
@@ -2118,7 +2184,7 @@ TEST_F(BufferedPacketStoreTest, ProcessBufferedChloWithDifferentVersion) {
               })));
     }
     ProcessPacket(client_addr_, TestConnectionId(conn_id), true, version,
-                  SerializeFullCHLO(), CONNECTION_ID_PRESENT,
+                  SerializeFullCHLO(), true, CONNECTION_ID_PRESENT,
                   PACKET_4BYTE_PACKET_NUMBER, 1);
   }
 

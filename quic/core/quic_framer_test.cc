@@ -1015,6 +1015,7 @@ TEST_P(QuicFramerTest, PacketHeader) {
   CheckFramingBoundaries(fragments, QUIC_INVALID_PACKET_HEADER);
 
   PacketHeaderFormat format;
+  QuicLongHeaderType long_packet_type = INVALID_PACKET_TYPE;
   bool version_flag;
   QuicConnectionId destination_connection_id, source_connection_id;
   QuicVersionLabel version_label;
@@ -1030,8 +1031,8 @@ TEST_P(QuicFramerTest, PacketHeader) {
     QuicStringPiece retry_token;
     ParsedQuicVersion parsed_version = UnsupportedQuicVersion();
     error_code = QuicFramer::ParsePublicHeaderDispatcher(
-        *encrypted, kQuicDefaultConnectionIdLength, &format, &version_flag,
-        &use_length_prefix, &version_label, &parsed_version,
+        *encrypted, kQuicDefaultConnectionIdLength, &format, &long_packet_type,
+        &version_flag, &use_length_prefix, &version_label, &parsed_version,
         &destination_connection_id, &source_connection_id, &retry_token_present,
         &retry_token, &detailed_error);
     EXPECT_FALSE(retry_token_present);
@@ -1086,6 +1087,7 @@ TEST_P(QuicFramerTest, LongPacketHeader) {
   CheckFramingBoundaries(packet46, QUIC_INVALID_PACKET_HEADER);
 
   PacketHeaderFormat format;
+  QuicLongHeaderType long_packet_type = INVALID_PACKET_TYPE;
   bool version_flag;
   QuicConnectionId destination_connection_id, source_connection_id;
   QuicVersionLabel version_label;
@@ -1101,8 +1103,8 @@ TEST_P(QuicFramerTest, LongPacketHeader) {
     QuicStringPiece retry_token;
     ParsedQuicVersion parsed_version = UnsupportedQuicVersion();
     error_code = QuicFramer::ParsePublicHeaderDispatcher(
-        *encrypted, kQuicDefaultConnectionIdLength, &format, &version_flag,
-        &use_length_prefix, &version_label, &parsed_version,
+        *encrypted, kQuicDefaultConnectionIdLength, &format, &long_packet_type,
+        &version_flag, &use_length_prefix, &version_label, &parsed_version,
         &destination_connection_id, &source_connection_id, &retry_token_present,
         &retry_token, &detailed_error);
     EXPECT_EQ(retry_token_present, framer_.version().SupportsRetry());
@@ -1146,6 +1148,7 @@ TEST_P(QuicFramerTest, LongPacketHeaderWithBothConnectionIds) {
 
   QuicEncryptedPacket encrypted(AsChars(packet), QUIC_ARRAYSIZE(packet), false);
   PacketHeaderFormat format = GOOGLE_QUIC_PACKET;
+  QuicLongHeaderType long_packet_type = INVALID_PACKET_TYPE;
   bool version_flag = false;
   QuicConnectionId destination_connection_id, source_connection_id;
   QuicVersionLabel version_label = 0;
@@ -1161,8 +1164,8 @@ TEST_P(QuicFramerTest, LongPacketHeaderWithBothConnectionIds) {
     QuicStringPiece retry_token;
     ParsedQuicVersion parsed_version = UnsupportedQuicVersion();
     error_code = QuicFramer::ParsePublicHeaderDispatcher(
-        encrypted, kQuicDefaultConnectionIdLength, &format, &version_flag,
-        &use_length_prefix, &version_label, &parsed_version,
+        encrypted, kQuicDefaultConnectionIdLength, &format, &long_packet_type,
+        &version_flag, &use_length_prefix, &version_label, &parsed_version,
         &destination_connection_id, &source_connection_id, &retry_token_present,
         &retry_token, &detailed_error);
     EXPECT_FALSE(retry_token_present);
@@ -13152,6 +13155,7 @@ TEST_P(QuicFramerTest, WriteClientVersionNegotiationProbePacketOld) {
             visitor_.header_.get()->destination_connection_id);
 
   PacketHeaderFormat format = GOOGLE_QUIC_PACKET;
+  QuicLongHeaderType long_packet_type = INVALID_PACKET_TYPE;
   bool version_present = false, has_length_prefix = false;
   QuicVersionLabel version_label = 0;
   ParsedQuicVersion parsed_version = QuicVersionReservedForNegotiation();
@@ -13162,8 +13166,8 @@ TEST_P(QuicFramerTest, WriteClientVersionNegotiationProbePacketOld) {
   std::string detailed_error = "foobar";
 
   QuicErrorCode parse_result = QuicFramer::ParsePublicHeaderDispatcher(
-      encrypted, kQuicDefaultConnectionIdLength, &format, &version_present,
-      &has_length_prefix, &version_label, &parsed_version,
+      encrypted, kQuicDefaultConnectionIdLength, &format, &long_packet_type,
+      &version_present, &has_length_prefix, &version_label, &parsed_version,
       &destination_connection_id, &source_connection_id, &retry_token_present,
       &retry_token, &detailed_error);
   EXPECT_EQ(QUIC_NO_ERROR, parse_result);
@@ -13302,6 +13306,7 @@ TEST_P(QuicFramerTest, DispatcherParseOldClientVersionNegotiationProbePacket) {
   QuicEncryptedPacket encrypted(reinterpret_cast<const char*>(packet),
                                 sizeof(packet));
   PacketHeaderFormat format = GOOGLE_QUIC_PACKET;
+  QuicLongHeaderType long_packet_type = INVALID_PACKET_TYPE;
   bool version_present = false, has_length_prefix = true;
   QuicVersionLabel version_label = 33;
   ParsedQuicVersion parsed_version = UnsupportedQuicVersion();
@@ -13311,8 +13316,8 @@ TEST_P(QuicFramerTest, DispatcherParseOldClientVersionNegotiationProbePacket) {
   QuicStringPiece retry_token;
   std::string detailed_error = "foobar";
   QuicErrorCode header_parse_result = QuicFramer::ParsePublicHeaderDispatcher(
-      encrypted, kQuicDefaultConnectionIdLength, &format, &version_present,
-      &has_length_prefix, &version_label, &parsed_version,
+      encrypted, kQuicDefaultConnectionIdLength, &format, &long_packet_type,
+      &version_present, &has_length_prefix, &version_label, &parsed_version,
       &destination_connection_id, &source_connection_id, &retry_token_present,
       &retry_token, &detailed_error);
   EXPECT_EQ(QUIC_NO_ERROR, header_parse_result);
@@ -13380,6 +13385,7 @@ TEST_P(QuicFramerTest, DispatcherParseClientVersionNegotiationProbePacket) {
   QuicEncryptedPacket encrypted(reinterpret_cast<const char*>(packet),
                                 sizeof(packet));
   PacketHeaderFormat format = GOOGLE_QUIC_PACKET;
+  QuicLongHeaderType long_packet_type = INVALID_PACKET_TYPE;
   bool version_present = false, has_length_prefix = false;
   QuicVersionLabel version_label = 33;
   ParsedQuicVersion parsed_version = UnsupportedQuicVersion();
@@ -13389,8 +13395,8 @@ TEST_P(QuicFramerTest, DispatcherParseClientVersionNegotiationProbePacket) {
   QuicStringPiece retry_token;
   std::string detailed_error = "foobar";
   QuicErrorCode header_parse_result = QuicFramer::ParsePublicHeaderDispatcher(
-      encrypted, kQuicDefaultConnectionIdLength, &format, &version_present,
-      &has_length_prefix, &version_label, &parsed_version,
+      encrypted, kQuicDefaultConnectionIdLength, &format, &long_packet_type,
+      &version_present, &has_length_prefix, &version_label, &parsed_version,
       &destination_connection_id, &source_connection_id, &retry_token_present,
       &retry_token, &detailed_error);
   EXPECT_EQ(QUIC_NO_ERROR, header_parse_result);
