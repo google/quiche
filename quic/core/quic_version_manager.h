@@ -40,6 +40,8 @@ class QUIC_EXPORT_PRIVATE QuicVersionManager {
  private:
   // quic_enable_version_99 flag
   bool enable_version_99_;
+  // quic_enable_version_49 flag
+  bool enable_version_49_;
   // quic_enable_version_48_2 flag
   bool enable_version_48_;
   // quic_enable_version_47 flag

@@ -934,11 +934,12 @@ TEST_F(QuicDispatcherTest, OKSeqNoPacketProcessed) {
 
 TEST_F(QuicDispatcherTest, SupportedTransportVersionsChangeInFlight) {
   SetQuicReloadableFlag(quic_use_parse_public_header, true);
-  static_assert(QUIC_ARRAYSIZE(kSupportedTransportVersions) == 6u,
+  static_assert(QUIC_ARRAYSIZE(kSupportedTransportVersions) == 7u,
                 "Supported versions out of sync");
   SetQuicReloadableFlag(quic_disable_version_39, false);
   SetQuicReloadableFlag(quic_enable_version_47, true);
   SetQuicReloadableFlag(quic_enable_version_48_2, true);
+  SetQuicReloadableFlag(quic_enable_version_49, true);
   SetQuicReloadableFlag(quic_enable_version_99, true);
 
   VerifyVersionNotSupported(QuicVersionReservedForNegotiation());
@@ -946,6 +947,16 @@ TEST_F(QuicDispatcherTest, SupportedTransportVersionsChangeInFlight) {
   VerifyVersionSupported(ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO,
                                            QuicVersionMin().transport_version));
   VerifyVersionSupported(QuicVersionMax());
+
+  // Turn off version 49.
+  SetQuicReloadableFlag(quic_enable_version_49, false);
+  VerifyVersionNotSupported(
+      ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_49));
+
+  // Turn on version 49.
+  SetQuicReloadableFlag(quic_enable_version_49, true);
+  VerifyVersionSupported(
+      ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_49));
 
   // Turn off version 48.
   SetQuicReloadableFlag(quic_enable_version_48_2, false);
@@ -979,7 +990,7 @@ TEST_F(QuicDispatcherTest, SupportedTransportVersionsChangeInFlight) {
 }
 
 TEST_F(QuicDispatcherTest, RejectDeprecatedVersionsWithVersionNegotiation) {
-  static_assert(QUIC_ARRAYSIZE(kSupportedTransportVersions) == 6u,
+  static_assert(QUIC_ARRAYSIZE(kSupportedTransportVersions) == 7u,
                 "Please add deprecated versions to this test");
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
   CreateTimeWaitListManager();

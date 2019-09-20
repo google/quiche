@@ -5,6 +5,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_version_manager.h"
 
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 
@@ -15,11 +16,14 @@ namespace quic {
 QuicVersionManager::QuicVersionManager(
     ParsedQuicVersionVector supported_versions)
     : enable_version_99_(GetQuicReloadableFlag(quic_enable_version_99)),
+      enable_version_49_(GetQuicReloadableFlag(quic_enable_version_49)),
       enable_version_48_(GetQuicReloadableFlag(quic_enable_version_48_2)),
       enable_version_47_(GetQuicReloadableFlag(quic_enable_version_47)),
       disable_version_39_(GetQuicReloadableFlag(quic_disable_version_39)),
       enable_tls_(GetQuicReloadableFlag(quic_supports_tls_handshake)),
       allowed_supported_versions_(std::move(supported_versions)) {
+  static_assert(QUIC_ARRAYSIZE(kSupportedTransportVersions) == 7u,
+                "Supported versions out of sync");
   RefilterSupportedVersions();
 }
 
@@ -37,12 +41,16 @@ const ParsedQuicVersionVector& QuicVersionManager::GetSupportedVersions() {
 }
 
 void QuicVersionManager::MaybeRefilterSupportedVersions() {
+  static_assert(QUIC_ARRAYSIZE(kSupportedTransportVersions) == 7u,
+                "Supported versions out of sync");
   if (enable_version_99_ != GetQuicReloadableFlag(quic_enable_version_99) ||
+      enable_version_49_ != GetQuicReloadableFlag(quic_enable_version_49) ||
       enable_version_48_ != GetQuicReloadableFlag(quic_enable_version_48_2) ||
       enable_version_47_ != GetQuicReloadableFlag(quic_enable_version_47) ||
       disable_version_39_ != GetQuicReloadableFlag(quic_disable_version_39) ||
       enable_tls_ != GetQuicReloadableFlag(quic_supports_tls_handshake)) {
     enable_version_99_ = GetQuicReloadableFlag(quic_enable_version_99);
+    enable_version_49_ = GetQuicReloadableFlag(quic_enable_version_49);
     enable_version_48_ = GetQuicReloadableFlag(quic_enable_version_48_2);
     enable_version_47_ = GetQuicReloadableFlag(quic_enable_version_47);
     disable_version_39_ = GetQuicReloadableFlag(quic_disable_version_39);
