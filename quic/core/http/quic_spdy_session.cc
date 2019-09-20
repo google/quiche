@@ -310,6 +310,8 @@ Http3DebugVisitor::Http3DebugVisitor() {}
 
 Http3DebugVisitor::~Http3DebugVisitor() {}
 
+// Expected unidirectional static streams Requirement can be found at
+// https://tools.ietf.org/html/draft-ietf-quic-http-22#section-6.2.
 QuicSpdySession::QuicSpdySession(
     QuicConnection* connection,
     QuicSession::Visitor* visitor,

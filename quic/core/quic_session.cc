@@ -62,6 +62,7 @@ QuicSession::QuicSession(
                          config_.GetMaxIncomingBidirectionalStreamsToSend()),
       v99_streamid_manager_(
           this,
+          num_expected_unidirectional_static_streams,
           kDefaultMaxStreamsPerConnection,
           kDefaultMaxStreamsPerConnection,
           config_.GetMaxIncomingBidirectionalStreamsToSend(),
@@ -771,6 +772,12 @@ void QuicSession::SendWindowUpdate(QuicStreamId id,
   control_frame_manager_.WriteOrBufferWindowUpdate(id, byte_offset);
 }
 
+void QuicSession::OnError(QuicErrorCode error_code, std::string error_details) {
+  connection_->CloseConnection(
+      error_code, error_details,
+      ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+}
+
 void QuicSession::SendMaxStreams(QuicStreamCount stream_count,
                                  bool unidirectional) {
   control_frame_manager_.WriteOrBufferMaxStreams(stream_count, unidirectional);
@@ -1049,6 +1056,7 @@ void QuicSession::OnConfigNegotiated() {
   // STREAMS_BLOCKED or MAX_STREAMS frames against the config and either send
   // the frames or discard them.
   if (VersionHasIetfQuicFrames(connection_->transport_version())) {
+    QuicConnection::ScopedPacketFlusher flusher(connection());
     v99_streamid_manager_.OnConfigNegotiated();
   }
 }

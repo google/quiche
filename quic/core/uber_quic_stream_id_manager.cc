@@ -11,17 +11,24 @@ namespace quic {
 
 UberQuicStreamIdManager::UberQuicStreamIdManager(
     QuicSession* session,
+    QuicStreamCount num_expected_unidirectiona_static_streams,
     QuicStreamCount max_open_outgoing_bidirectional_streams,
     QuicStreamCount max_open_outgoing_unidirectional_streams,
     QuicStreamCount max_open_incoming_bidirectional_streams,
     QuicStreamCount max_open_incoming_unidirectional_streams)
     : bidirectional_stream_id_manager_(session,
                                        /*unidirectional=*/false,
+                                       session->perspective(),
+                                       session->transport_version(),
+                                       0,
                                        max_open_outgoing_bidirectional_streams,
                                        max_open_incoming_bidirectional_streams),
       unidirectional_stream_id_manager_(
           session,
           /*unidirectional=*/true,
+          session->perspective(),
+          session->transport_version(),
+          num_expected_unidirectiona_static_streams,
           max_open_outgoing_unidirectional_streams,
           max_open_incoming_unidirectional_streams) {}
 

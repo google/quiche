@@ -315,7 +315,7 @@ TEST_P(UberQuicStreamIdManagerTest, OnMaxStreamsFrame) {
 
 TEST_P(UberQuicStreamIdManagerTest, OnStreamsBlockedFrame) {
   // Allow MAX_STREAMS frame transmission
-  QuicSessionPeer::set_is_configured(session_.get(), true);
+  manager_->OnConfigNegotiated();
   // Set up to capture calls to SendControlFrame - when a STREAMS_BLOCKED
   // frame is received, it will result in a a new MAX_STREAMS frame being
   // sent (if new streams can be made available).

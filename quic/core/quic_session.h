@@ -41,9 +41,11 @@ namespace test {
 class QuicSessionPeer;
 }  // namespace test
 
-class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
-                                        public SessionNotifierInterface,
-                                        public QuicStreamFrameDataProducer {
+class QUIC_EXPORT_PRIVATE QuicSession
+    : public QuicConnectionVisitorInterface,
+      public SessionNotifierInterface,
+      public QuicStreamFrameDataProducer,
+      public QuicStreamIdManager::DelegateInterface {
  public:
   // An interface from the session to the entity owning the session.
   // This lets the session notify its owner (the Dispatcher) when the connection
@@ -147,6 +149,16 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
   bool HasUnackedCryptoData() const override;
   bool HasUnackedStreamData() const override;
 
+  // QuicStreamIdManager::DelegateInterface methods:
+  void OnError(QuicErrorCode error_code, std::string error_details) override;
+  void SendMaxStreams(QuicStreamCount stream_count,
+                      bool unidirectional) override;
+  void SendStreamsBlocked(QuicStreamCount stream_count,
+                          bool unidirectional) override;
+  // The default implementation does nothing. Subclasses should override if
+  // for example they queue up stream requests.
+  void OnCanCreateNewOutgoingStream(bool unidirectional) override;
+
   // Called on every incoming packet. Passes |packet| through to |connection_|.
   virtual void ProcessUdpPacket(const QuicSocketAddress& self_address,
                                 const QuicSocketAddress& peer_address,
@@ -209,12 +221,6 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
 
   // Sends a WINDOW_UPDATE frame.
   virtual void SendWindowUpdate(QuicStreamId id, QuicStreamOffset byte_offset);
-
-  // Send a MAX_STREAMS frame.
-  void SendMaxStreams(QuicStreamCount stream_count, bool unidirectional);
-
-  // Send a STREAMS_BLOCKED frame.
-  void SendStreamsBlocked(QuicStreamCount stream_count, bool unidirectional);
 
   // Create and transmit a STOP_SENDING frame
   virtual void SendStopSending(uint16_t code, QuicStreamId stream_id);
@@ -403,14 +409,6 @@ class QUIC_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface,
   const ParsedQuicVersionVector& supported_versions() const {
     return supported_versions_;
   }
-
-  // Called when new outgoing streams are available to be opened. This occurs
-  // when an extant, open, stream is moved to draining or closed. The default
-  // implementation does nothing. |unidirectional| indicates whether
-  // unidirectional or bidirectional streams are now available. If both become
-  // available at the same time then there will be two calls to this method, one
-  // with unidirectional==true, the other with it ==false.
-  virtual void OnCanCreateNewOutgoingStream(bool unidirectional);
 
   QuicStreamId next_outgoing_bidirectional_stream_id() const;
   QuicStreamId next_outgoing_unidirectional_stream_id() const;
