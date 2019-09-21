@@ -919,7 +919,78 @@ TEST_F(HttpDecoderTest, CorruptFrame) {
       EXPECT_EQ(test_data.error_message, decoder.error_detail());
     }
   }
-}  // namespace test
+}
+
+TEST_F(HttpDecoderTest, EmptyCancelPushFrame) {
+  std::string input = QuicTextUtils::HexDecode(
+      "03"    // type (CANCEL_PUSH)
+      "00");  // frame length
+
+  EXPECT_CALL(visitor_, OnError(&decoder_));
+  EXPECT_EQ(input.size(), ProcessInput(input));
+  EXPECT_EQ(QUIC_INVALID_FRAME_DATA, decoder_.error());
+  EXPECT_EQ("Unable to read push_id", decoder_.error_detail());
+}
+
+TEST_F(HttpDecoderTest, EmptySettingsFrame) {
+  std::string input = QuicTextUtils::HexDecode(
+      "04"    // type (SETTINGS)
+      "00");  // frame length
+
+  EXPECT_CALL(visitor_, OnSettingsFrameStart(2));
+
+  SettingsFrame empty_frame;
+  EXPECT_CALL(visitor_, OnSettingsFrame(empty_frame));
+
+  EXPECT_EQ(input.size(), ProcessInput(input));
+  EXPECT_EQ(QUIC_NO_ERROR, decoder_.error());
+  EXPECT_EQ("", decoder_.error_detail());
+}
+
+// Regression test for https://crbug.com/1001823.
+TEST_F(HttpDecoderTest, EmptyPushPromiseFrame) {
+  std::string input = QuicTextUtils::HexDecode(
+      "05"    // type (PUSH_PROMISE)
+      "00");  // frame length
+
+  EXPECT_CALL(visitor_, OnError(&decoder_));
+  EXPECT_EQ(input.size(), ProcessInput(input));
+  EXPECT_EQ(QUIC_INVALID_FRAME_DATA, decoder_.error());
+  EXPECT_EQ("Corrupt PUSH_PROMISE frame.", decoder_.error_detail());
+}
+
+TEST_F(HttpDecoderTest, EmptyGoAwayFrame) {
+  std::string input = QuicTextUtils::HexDecode(
+      "07"    // type (GOAWAY)
+      "00");  // frame length
+
+  EXPECT_CALL(visitor_, OnError(&decoder_));
+  EXPECT_EQ(input.size(), ProcessInput(input));
+  EXPECT_EQ(QUIC_INVALID_FRAME_DATA, decoder_.error());
+  EXPECT_EQ("Unable to read GOAWAY stream_id", decoder_.error_detail());
+}
+
+TEST_F(HttpDecoderTest, EmptyMaxPushIdFrame) {
+  std::string input = QuicTextUtils::HexDecode(
+      "0d"    // type (MAX_PUSH_ID)
+      "00");  // frame length
+
+  EXPECT_CALL(visitor_, OnError(&decoder_));
+  EXPECT_EQ(input.size(), ProcessInput(input));
+  EXPECT_EQ(QUIC_INVALID_FRAME_DATA, decoder_.error());
+  EXPECT_EQ("Unable to read push_id", decoder_.error_detail());
+}
+
+TEST_F(HttpDecoderTest, EmptyDuplicatePushFrame) {
+  std::string input = QuicTextUtils::HexDecode(
+      "0e"    // type (DUPLICATE_PUSH)
+      "00");  // frame length
+
+  EXPECT_CALL(visitor_, OnError(&decoder_));
+  EXPECT_EQ(input.size(), ProcessInput(input));
+  EXPECT_EQ(QUIC_INVALID_FRAME_DATA, decoder_.error());
+  EXPECT_EQ("Unable to read push_id", decoder_.error_detail());
+}
 
 }  // namespace test
 

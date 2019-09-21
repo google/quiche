@@ -153,6 +153,10 @@ bool HttpDecoder::ReadFrameLength(QuicDataReader* reader) {
       continue_processing = visitor_->OnSettingsFrameStart(header_length);
       break;
     case static_cast<uint64_t>(HttpFrameType::PUSH_PROMISE):
+      if (current_frame_length_ == 0) {
+        RaiseError(QUIC_INVALID_FRAME_DATA, "Corrupt PUSH_PROMISE frame.");
+        return false;
+      }
       break;
     case static_cast<uint64_t>(HttpFrameType::GOAWAY):
       break;

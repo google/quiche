@@ -127,7 +127,7 @@ class QuicSpdyStream::HttpDecoderVisitor : public HttpDecoder::Visitor {
   bool OnPushPromiseFrameStart(PushId push_id,
                                QuicByteCount header_length,
                                QuicByteCount push_id_length) override {
-    if (!VersionHasStreamType(stream_->transport_version())) {
+    if (!VersionUsesQpack(stream_->transport_version())) {
       CloseConnectionOnWrongFrame("Push Promise");
       return false;
     }
@@ -880,6 +880,7 @@ bool QuicSpdyStream::OnHeadersFrameStart(QuicByteCount header_length) {
 
 bool QuicSpdyStream::OnHeadersFramePayload(QuicStringPiece payload) {
   DCHECK(VersionUsesQpack(transport_version()));
+  DCHECK(qpack_decoded_headers_accumulator_);
 
   if (headers_decompressed_) {
     trailers_payload_length_ += payload.length();
@@ -904,6 +905,7 @@ bool QuicSpdyStream::OnHeadersFramePayload(QuicStringPiece payload) {
 
 bool QuicSpdyStream::OnHeadersFrameEnd() {
   DCHECK(VersionUsesQpack(transport_version()));
+  DCHECK(qpack_decoded_headers_accumulator_);
 
   auto result = qpack_decoded_headers_accumulator_->EndHeaderBlock();
 
