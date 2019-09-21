@@ -71,18 +71,27 @@ void QpackBlockingManager::OnReferenceSentOnEncoderStream(
   IncreaseReferenceCounts({referred_index});
 }
 
-uint64_t QpackBlockingManager::blocked_stream_count() const {
+bool QpackBlockingManager::blocking_allowed_on_stream(
+    QuicStreamId stream_id,
+    uint64_t maximum_blocked_streams) const {
   uint64_t blocked_stream_count = 0;
   for (const auto& header_blocks_for_stream : header_blocks_) {
     for (const IndexSet& indices : header_blocks_for_stream.second) {
       if (RequiredInsertCount(indices) > known_received_count_) {
+        if (header_blocks_for_stream.first == stream_id) {
+          // Sending blocking references is allowed if stream |stream_id| is
+          // already blocked.
+          return true;
+        }
         ++blocked_stream_count;
         break;
       }
     }
   }
 
-  return blocked_stream_count;
+  // Stream |stream_id| is not blocked, therefore sending blocking references on
+  // it would increase the blocked stream count by one.
+  return blocked_stream_count + 1 <= maximum_blocked_streams;
 }
 
 uint64_t QpackBlockingManager::smallest_blocking_index() const {

@@ -15,6 +15,12 @@
 
 namespace quic {
 
+namespace test {
+
+class QpackBlockingManagerPeer;
+
+}  // namespace test
+
 // Class to keep track of blocked streams and blocking dynamic table entries:
 // https://quicwg.org/base-drafts/draft-ietf-quic-qpack.html#blocked-decoding
 // https://quicwg.org/base-drafts/draft-ietf-quic-qpack.html#blocked-insertion
@@ -47,8 +53,14 @@ class QUIC_EXPORT_PRIVATE QpackBlockingManager {
   void OnReferenceSentOnEncoderStream(uint64_t inserted_index,
                                       uint64_t referred_index);
 
-  // Returns the number of blocked streams.
-  uint64_t blocked_stream_count() const;
+  // Returns true if sending blocking references on stream |stream_id| would not
+  // increase the total number of blocked streams above
+  // |maximum_blocked_streams|.  Note that if |stream_id| is already blocked
+  // then it is always allowed to send more blocking references on it.
+  // Behavior is undefined if |maximum_blocked_streams| is smaller than number
+  // of currently blocked streams.
+  bool blocking_allowed_on_stream(QuicStreamId stream_id,
+                                  uint64_t maximum_blocked_streams) const;
 
   // Returns the index of the blocking entry with the smallest index,
   // or std::numeric_limits<uint64_t>::max() if there are no blocking entries.
@@ -62,6 +74,8 @@ class QUIC_EXPORT_PRIVATE QpackBlockingManager {
   static uint64_t RequiredInsertCount(const IndexSet& indices);
 
  private:
+  friend test::QpackBlockingManagerPeer;
+
   // A stream typically has only one header block, except for the rare cases of
   // 1xx responses, trailers, or push promises.  Even if there are multiple
   // header blocks sent on a single stream, they might not be blocked at the

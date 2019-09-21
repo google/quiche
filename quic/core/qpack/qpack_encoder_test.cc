@@ -387,10 +387,6 @@ TEST_F(QpackEncoderTest, BlockedStream) {
 }
 
 TEST_F(QpackEncoderTest, Draining) {
-  // TODO(b/112770235): Remove when already blocking stream can emit blocking
-  // references.
-  encoder_.SetMaximumBlockedStreams(2);
-
   spdy::SpdyHeaderBlock header_list1;
   header_list1["one"] = "foo";
   header_list1["two"] = "foo";

@@ -131,7 +131,8 @@ class QUIC_EXPORT_PRIVATE QpackEncoder
   // field representations, with all dynamic table entries referred to with
   // absolute indices.  Returned Instructions object may have QuicStringPieces
   // pointing to strings owned by |*header_list|.
-  Instructions FirstPassEncode(const spdy::SpdyHeaderBlock& header_list,
+  Instructions FirstPassEncode(QuicStreamId stream_id,
+                               const spdy::SpdyHeaderBlock& header_list,
                                QpackBlockingManager::IndexSet* referred_indices,
                                QuicByteCount* encoder_stream_sent_byte_count);
 

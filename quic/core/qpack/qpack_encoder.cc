@@ -86,6 +86,7 @@ QpackEncoder::InstructionWithValues QpackEncoder::EncodeLiteralHeaderField(
 }
 
 QpackEncoder::Instructions QpackEncoder::FirstPassEncode(
+    QuicStreamId stream_id,
     const spdy::SpdyHeaderBlock& header_list,
     QpackBlockingManager::IndexSet* referred_indices,
     QuicByteCount* encoder_stream_sent_byte_count) {
@@ -106,9 +107,8 @@ QpackEncoder::Instructions QpackEncoder::FirstPassEncode(
       header_table_.draining_index(kDrainingFraction);
   // Blocking references are allowed if the number of blocked streams is less
   // than the limit.
-  // TODO(b/112770235): Also allow blocking if given stream is already blocked.
-  const bool blocking_allowed =
-      maximum_blocked_streams_ > blocking_manager_.blocked_stream_count();
+  const bool blocking_allowed = blocking_manager_.blocking_allowed_on_stream(
+      stream_id, maximum_blocked_streams_);
 
   for (const auto& header : ValueSplittingHeaderList(&header_list)) {
     // These strings are owned by |header_list|.
@@ -314,8 +314,9 @@ std::string QpackEncoder::EncodeHeaderList(
   QpackBlockingManager::IndexSet referred_indices;
 
   // First pass: encode into |instructions|.
-  Instructions instructions = FirstPassEncode(header_list, &referred_indices,
-                                              encoder_stream_sent_byte_count);
+  Instructions instructions =
+      FirstPassEncode(stream_id, header_list, &referred_indices,
+                      encoder_stream_sent_byte_count);
 
   const uint64_t required_insert_count =
       referred_indices.empty()
