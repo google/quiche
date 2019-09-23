@@ -26,17 +26,9 @@ PacingSender::PacingSender()
       initial_burst_size_(kInitialUnpacedBurst),
       lumpy_tokens_(0),
       alarm_granularity_(QuicTime::Delta::FromMilliseconds(1)),
-      pacing_limited_(false),
-      lumpy_pacing_size_((GetQuicReloadableFlag(
-                              quic_change_default_lumpy_pacing_size_to_two) &&
-                          GetQuicFlag(FLAGS_quic_lumpy_pacing_size) == 1)
-                             ? 2
-                             : GetQuicFlag(FLAGS_quic_lumpy_pacing_size)) {
+      pacing_limited_(false) {
   if (GetQuicReloadableFlag(quic_donot_reset_ideal_next_packet_send_time)) {
     QUIC_RELOADABLE_FLAG_COUNT(quic_donot_reset_ideal_next_packet_send_time);
-  }
-  if (GetQuicReloadableFlag(quic_change_default_lumpy_pacing_size_to_two)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_change_default_lumpy_pacing_size_to_two);
   }
 }
 
@@ -98,7 +90,8 @@ void PacingSender::OnPacketSent(
     // Reset lumpy_tokens_ if either application or cwnd throttles sending or
     // token runs out.
     lumpy_tokens_ = std::max(
-        1u, std::min(static_cast<uint32_t>(lumpy_pacing_size_),
+        1u, std::min(static_cast<uint32_t>(
+                         GetQuicFlag(FLAGS_quic_lumpy_pacing_size)),
                      static_cast<uint32_t>(
                          (sender_->GetCongestionWindow() *
                           GetQuicFlag(FLAGS_quic_lumpy_pacing_cwnd_fraction)) /

@@ -103,9 +103,6 @@ class QUIC_EXPORT_PRIVATE PacingSender {
   // Indicates whether pacing throttles the sending. If true, make up for lost
   // time.
   bool pacing_limited_;
-
-  // Latched value of --quic_lumpy_pacing_size.
-  const int32_t lumpy_pacing_size_;
 };
 
 }  // namespace quic

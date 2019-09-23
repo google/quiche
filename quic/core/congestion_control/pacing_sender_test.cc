@@ -280,7 +280,6 @@ TEST_F(PacingSenderTest, InitialBurstNoRttMeasurement) {
 }
 
 TEST_F(PacingSenderTest, FastSending) {
-  SetQuicReloadableFlag(quic_change_default_lumpy_pacing_size_to_two, true);
   // Ensure the pacing sender paces, even when the inter-packet spacing(0.5ms)
   // is less than the pacing granularity(1ms).
   InitPacingRate(10, QuicBandwidth::FromBytesAndTimeDelta(
