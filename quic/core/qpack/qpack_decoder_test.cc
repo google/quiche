@@ -92,7 +92,7 @@ class QpackDecoderTest : public QuicTestWithParam<FragmentMode> {
   std::unique_ptr<QpackProgressiveDecoder> progressive_decoder_;
 };
 
-INSTANTIATE_TEST_SUITE_P(,
+INSTANTIATE_TEST_SUITE_P(All,
                          QpackDecoderTest,
                          Values(FragmentMode::kSingleChunk,
                                 FragmentMode::kOctetByOctet));

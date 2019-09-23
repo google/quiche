@@ -99,7 +99,7 @@ class QpackInstructionDecoderTest : public QuicTestWithParam<FragmentMode> {
   const FragmentMode fragment_mode_;
 };
 
-INSTANTIATE_TEST_SUITE_P(,
+INSTANTIATE_TEST_SUITE_P(All,
                          QpackInstructionDecoderTest,
                          Values(FragmentMode::kSingleChunk,
                                 FragmentMode::kOctetByOctet));
