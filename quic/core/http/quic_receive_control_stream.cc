@@ -97,7 +97,7 @@ class QuicReceiveControlStream::HttpDecoderVisitor
     return false;
   }
 
-  bool OnHeadersFrameStart(QuicByteCount /*frame_length*/) override {
+  bool OnHeadersFrameStart(QuicByteCount /*header_length*/) override {
     CloseConnectionOnWrongFrame("Headers");
     return false;
   }
@@ -112,9 +112,13 @@ class QuicReceiveControlStream::HttpDecoderVisitor
     return false;
   }
 
-  bool OnPushPromiseFrameStart(PushId /*push_id*/,
-                               QuicByteCount /*frame_length*/,
-                               QuicByteCount /*push_id_length*/) override {
+  bool OnPushPromiseFrameStart(QuicByteCount /*header_length*/) override {
+    CloseConnectionOnWrongFrame("Push Promise");
+    return false;
+  }
+
+  bool OnPushPromiseFramePushId(PushId /*push_id*/,
+                                QuicByteCount /*push_id_length*/) override {
     CloseConnectionOnWrongFrame("Push Promise");
     return false;
   }
@@ -130,7 +134,7 @@ class QuicReceiveControlStream::HttpDecoderVisitor
   }
 
   bool OnUnknownFrameStart(uint64_t /* frame_type */,
-                           QuicByteCount /* frame_length */) override {
+                           QuicByteCount /* header_length */) override {
     // Ignore unknown frame types.
     return true;
   }

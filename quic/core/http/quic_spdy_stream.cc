@@ -124,15 +124,21 @@ class QuicSpdyStream::HttpDecoderVisitor : public HttpDecoder::Visitor {
     return stream_->OnHeadersFrameEnd();
   }
 
-  bool OnPushPromiseFrameStart(PushId push_id,
-                               QuicByteCount header_length,
-                               QuicByteCount push_id_length) override {
+  bool OnPushPromiseFrameStart(QuicByteCount header_length) override {
     if (!VersionUsesQpack(stream_->transport_version())) {
       CloseConnectionOnWrongFrame("Push Promise");
       return false;
     }
-    return stream_->OnPushPromiseFrameStart(push_id, header_length,
-                                            push_id_length);
+    return stream_->OnPushPromiseFrameStart(header_length);
+  }
+
+  bool OnPushPromiseFramePushId(PushId push_id,
+                                QuicByteCount push_id_length) override {
+    if (!VersionUsesQpack(stream_->transport_version())) {
+      CloseConnectionOnWrongFrame("Push Promise");
+      return false;
+    }
+    return stream_->OnPushPromiseFramePushId(push_id, push_id_length);
   }
 
   bool OnPushPromiseFramePayload(QuicStringPiece payload) override {
@@ -929,16 +935,23 @@ bool QuicSpdyStream::OnHeadersFrameEnd() {
   return !sequencer()->IsClosed() && !reading_stopped();
 }
 
-bool QuicSpdyStream::OnPushPromiseFrameStart(PushId push_id,
-                                             QuicByteCount header_length,
-                                             QuicByteCount push_id_length) {
+bool QuicSpdyStream::OnPushPromiseFrameStart(QuicByteCount header_length) {
+  DCHECK(VersionHasStreamType(transport_version()));
+  DCHECK(!qpack_decoded_headers_accumulator_);
+
+  sequencer()->MarkConsumed(body_manager_.OnNonBody(header_length));
+
+  return true;
+}
+
+bool QuicSpdyStream::OnPushPromiseFramePushId(PushId push_id,
+                                              QuicByteCount push_id_length) {
   DCHECK(VersionHasStreamType(transport_version()));
   DCHECK(!qpack_decoded_headers_accumulator_);
 
   // TODO(renjietang): Check max push id and handle errors.
   spdy_session_->OnPushPromise(id(), push_id);
-  sequencer()->MarkConsumed(
-      body_manager_.OnNonBody(header_length + push_id_length));
+  sequencer()->MarkConsumed(body_manager_.OnNonBody(push_id_length));
 
   qpack_decoded_headers_accumulator_ =
       std::make_unique<QpackDecodedHeadersAccumulator>(

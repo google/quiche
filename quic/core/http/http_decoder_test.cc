@@ -52,10 +52,9 @@ class MockVisitor : public HttpDecoder::Visitor {
   MOCK_METHOD1(OnHeadersFramePayload, bool(QuicStringPiece payload));
   MOCK_METHOD0(OnHeadersFrameEnd, bool());
 
-  MOCK_METHOD3(OnPushPromiseFrameStart,
-               bool(PushId push_id,
-                    QuicByteCount header_length,
-                    QuicByteCount push_id_length));
+  MOCK_METHOD1(OnPushPromiseFrameStart, bool(QuicByteCount header_length));
+  MOCK_METHOD2(OnPushPromiseFramePushId,
+               bool(PushId push_id, QuicByteCount push_id_length));
   MOCK_METHOD1(OnPushPromiseFramePayload, bool(QuicStringPiece payload));
   MOCK_METHOD0(OnPushPromiseFrameEnd, bool());
 
@@ -81,7 +80,8 @@ class HttpDecoderTest : public QuicTest {
     ON_CALL(visitor_, OnHeadersFrameStart(_)).WillByDefault(Return(true));
     ON_CALL(visitor_, OnHeadersFramePayload(_)).WillByDefault(Return(true));
     ON_CALL(visitor_, OnHeadersFrameEnd()).WillByDefault(Return(true));
-    ON_CALL(visitor_, OnPushPromiseFrameStart(_, _, _))
+    ON_CALL(visitor_, OnPushPromiseFrameStart(_)).WillByDefault(Return(true));
+    ON_CALL(visitor_, OnPushPromiseFramePushId(_, _))
         .WillByDefault(Return(true));
     ON_CALL(visitor_, OnPushPromiseFramePayload(_)).WillByDefault(Return(true));
     ON_CALL(visitor_, OnPushPromiseFrameEnd()).WillByDefault(Return(true));
@@ -210,12 +210,16 @@ TEST_F(HttpDecoderTest, PushPromiseFrame) {
                  "Headers");                                    // headers
 
   // Visitor pauses processing.
-  EXPECT_CALL(visitor_, OnPushPromiseFrameStart(257, 2, 8))
+  EXPECT_CALL(visitor_, OnPushPromiseFrameStart(2)).WillOnce(Return(false));
+  EXPECT_CALL(visitor_, OnPushPromiseFramePushId(257, 8))
       .WillOnce(Return(false));
   QuicStringPiece remaining_input(input);
   QuicByteCount processed_bytes =
       ProcessInputWithGarbageAppended(remaining_input);
-  EXPECT_EQ(10u, processed_bytes);
+  EXPECT_EQ(2u, processed_bytes);
+  remaining_input = remaining_input.substr(processed_bytes);
+  processed_bytes = ProcessInputWithGarbageAppended(remaining_input);
+  EXPECT_EQ(8u, processed_bytes);
   remaining_input = remaining_input.substr(processed_bytes);
 
   EXPECT_CALL(visitor_, OnPushPromiseFramePayload(QuicStringPiece("Headers")))
@@ -229,7 +233,8 @@ TEST_F(HttpDecoderTest, PushPromiseFrame) {
   EXPECT_EQ("", decoder_.error_detail());
 
   // Process the full frame.
-  EXPECT_CALL(visitor_, OnPushPromiseFrameStart(257, 2, 8));
+  EXPECT_CALL(visitor_, OnPushPromiseFrameStart(2));
+  EXPECT_CALL(visitor_, OnPushPromiseFramePushId(257, 8));
   EXPECT_CALL(visitor_, OnPushPromiseFramePayload(QuicStringPiece("Headers")));
   EXPECT_CALL(visitor_, OnPushPromiseFrameEnd());
   EXPECT_EQ(input.size(), ProcessInput(input));
@@ -237,7 +242,8 @@ TEST_F(HttpDecoderTest, PushPromiseFrame) {
   EXPECT_EQ("", decoder_.error_detail());
 
   // Process the frame incrementally.
-  EXPECT_CALL(visitor_, OnPushPromiseFrameStart(257, 2, 8));
+  EXPECT_CALL(visitor_, OnPushPromiseFrameStart(2));
+  EXPECT_CALL(visitor_, OnPushPromiseFramePushId(257, 8));
   EXPECT_CALL(visitor_, OnPushPromiseFramePayload(QuicStringPiece("H")));
   EXPECT_CALL(visitor_, OnPushPromiseFramePayload(QuicStringPiece("e")));
   EXPECT_CALL(visitor_, OnPushPromiseFramePayload(QuicStringPiece("a")));
@@ -251,13 +257,46 @@ TEST_F(HttpDecoderTest, PushPromiseFrame) {
   EXPECT_EQ("", decoder_.error_detail());
 
   // Process push id incrementally and append headers with last byte of push id.
-  EXPECT_CALL(visitor_, OnPushPromiseFrameStart(257, 2, 8));
+  EXPECT_CALL(visitor_, OnPushPromiseFrameStart(2));
+  EXPECT_CALL(visitor_, OnPushPromiseFramePushId(257, 8));
   EXPECT_CALL(visitor_, OnPushPromiseFramePayload(QuicStringPiece("Headers")));
   EXPECT_CALL(visitor_, OnPushPromiseFrameEnd());
   ProcessInputCharByChar(input.substr(0, 9));
   EXPECT_EQ(8u, ProcessInput(input.substr(9)));
   EXPECT_EQ(QUIC_NO_ERROR, decoder_.error());
   EXPECT_EQ("", decoder_.error_detail());
+}
+
+TEST_F(HttpDecoderTest, CorruptPushPromiseFrame) {
+  InSequence s;
+
+  std::string input = QuicTextUtils::HexDecode(
+      "05"    // type (PUSH_PROMISE)
+      "01"    // length
+      "40");  // first byte of two-byte varint push id
+
+  {
+    HttpDecoder decoder(&visitor_);
+    EXPECT_CALL(visitor_, OnPushPromiseFrameStart(2));
+    EXPECT_CALL(visitor_, OnError(&decoder));
+
+    decoder.ProcessInput(input.data(), input.size());
+
+    EXPECT_EQ(QUIC_INVALID_FRAME_DATA, decoder.error());
+    EXPECT_EQ("PUSH_PROMISE frame malformed.", decoder.error_detail());
+  }
+  {
+    HttpDecoder decoder(&visitor_);
+    EXPECT_CALL(visitor_, OnPushPromiseFrameStart(2));
+    EXPECT_CALL(visitor_, OnError(&decoder));
+
+    for (auto c : input) {
+      decoder.ProcessInput(&c, 1);
+    }
+
+    EXPECT_EQ(QUIC_INVALID_FRAME_DATA, decoder.error());
+    EXPECT_EQ("PUSH_PROMISE frame malformed.", decoder.error_detail());
+  }
 }
 
 TEST_F(HttpDecoderTest, MaxPushId) {
@@ -767,8 +806,8 @@ TEST_F(HttpDecoderTest, PushPromiseFrameNoHeaders) {
       "01");  // Push Id
 
   // Visitor pauses processing.
-  EXPECT_CALL(visitor_, OnPushPromiseFrameStart(1, 2, 1))
-      .WillOnce(Return(false));
+  EXPECT_CALL(visitor_, OnPushPromiseFrameStart(2));
+  EXPECT_CALL(visitor_, OnPushPromiseFramePushId(1, 1)).WillOnce(Return(false));
   EXPECT_EQ(input.size(), ProcessInputWithGarbageAppended(input));
 
   EXPECT_CALL(visitor_, OnPushPromiseFrameEnd()).WillOnce(Return(false));
@@ -777,14 +816,16 @@ TEST_F(HttpDecoderTest, PushPromiseFrameNoHeaders) {
   EXPECT_EQ("", decoder_.error_detail());
 
   // Process the full frame.
-  EXPECT_CALL(visitor_, OnPushPromiseFrameStart(1, 2, 1));
+  EXPECT_CALL(visitor_, OnPushPromiseFrameStart(2));
+  EXPECT_CALL(visitor_, OnPushPromiseFramePushId(1, 1));
   EXPECT_CALL(visitor_, OnPushPromiseFrameEnd());
   EXPECT_EQ(input.size(), ProcessInput(input));
   EXPECT_EQ(QUIC_NO_ERROR, decoder_.error());
   EXPECT_EQ("", decoder_.error_detail());
 
   // Process the frame incrementally.
-  EXPECT_CALL(visitor_, OnPushPromiseFrameStart(1, 2, 1));
+  EXPECT_CALL(visitor_, OnPushPromiseFrameStart(2));
+  EXPECT_CALL(visitor_, OnPushPromiseFramePushId(1, 1));
   EXPECT_CALL(visitor_, OnPushPromiseFrameEnd());
   ProcessInputCharByChar(input);
   EXPECT_EQ(QUIC_NO_ERROR, decoder_.error());
@@ -865,10 +906,6 @@ TEST_F(HttpDecoderTest, CorruptFrame) {
                     "\x05"  // valid push id
                     "foo",  // superfluous data
                     "Superfluous data in CANCEL_PUSH frame."},
-                   {"\x05"   // type (PUSH_PROMISE)
-                    "\x01"   // length
-                    "\x40",  // first byte of two-byte varint push id
-                    "PUSH_PROMISE frame malformed."},
                    {"\x0D"   // type (MAX_PUSH_ID)
                     "\x01"   // length
                     "\x40",  // first byte of two-byte varint push id

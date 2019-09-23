@@ -37,11 +37,10 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
     // All the following methods return true to continue decoding,
     // and false to pause it.
     // On*FrameStart() methods are called after the frame header is completely
-    // processed.  At that point it is safe to consume
-    // |frame_length.header_length| bytes.
+    // processed.  At that point it is safe to consume |header_length| bytes.
 
     // Called when a PRIORITY frame has been received.
-    // |frame_length| contains PRIORITY frame length and payload length.
+    // |header_length| contains PRIORITY frame length and payload length.
     virtual bool OnPriorityFrameStart(QuicByteCount header_length) = 0;
 
     // Called when a PRIORITY frame has been successfully parsed.
@@ -66,7 +65,7 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
     virtual bool OnDuplicatePushFrame(const DuplicatePushFrame& frame) = 0;
 
     // Called when a DATA frame has been received.
-    // |frame_length| contains DATA frame length and payload length.
+    // |header_length| contains DATA frame length and payload length.
     virtual bool OnDataFrameStart(QuicByteCount header_length) = 0;
     // Called when part of the payload of a DATA frame has been read.  May be
     // called multiple times for a single frame.  |payload| is guaranteed to be
@@ -76,7 +75,7 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
     virtual bool OnDataFrameEnd() = 0;
 
     // Called when a HEADERS frame has been received.
-    // |frame_length| contains HEADERS frame length and payload length.
+    // |header_length| contains HEADERS frame length and payload length.
     virtual bool OnHeadersFrameStart(QuicByteCount header_length) = 0;
     // Called when part of the payload of a HEADERS frame has been read.  May be
     // called multiple times for a single frame.  |payload| is guaranteed to be
@@ -86,20 +85,22 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
     // |frame_len| is the length of the HEADERS frame payload.
     virtual bool OnHeadersFrameEnd() = 0;
 
-    // Called when a PUSH_PROMISE frame has been received for |push_id|.
-    virtual bool OnPushPromiseFrameStart(PushId push_id,
-                                         QuicByteCount header_length,
-                                         QuicByteCount push_id_length) = 0;
-    // Called when part of the payload of a PUSH_PROMISE frame has been read.
-    // May be called multiple times for a single frame.  |payload| is guaranteed
-    // to be non-empty.
+    // Called when a PUSH_PROMISE frame has been received.
+    virtual bool OnPushPromiseFrameStart(QuicByteCount header_length) = 0;
+    // Called when the Push ID field of a PUSH_PROMISE frame has been parsed.
+    // Called exactly once for a valid PUSH_PROMISE frame.
+    virtual bool OnPushPromiseFramePushId(PushId push_id,
+                                          QuicByteCount push_id_length) = 0;
+    // Called when part of the header block of a PUSH_PROMISE frame has been
+    // read. May be called multiple times for a single frame.  |payload| is
+    // guaranteed to be non-empty.
     virtual bool OnPushPromiseFramePayload(QuicStringPiece payload) = 0;
     // Called when a PUSH_PROMISE frame has been completely processed.
     virtual bool OnPushPromiseFrameEnd() = 0;
 
     // Called when a frame of unknown type |frame_type| has been received.
     // Frame type might be reserved, Visitor must make sure to ignore.
-    // |frame_length| contains frame length and payload length.
+    // |header_length| contains frame length and payload length.
     virtual bool OnUnknownFrameStart(uint64_t frame_type,
                                      QuicByteCount header_length) = 0;
     // Called when part of the payload of the unknown frame has been read.  May

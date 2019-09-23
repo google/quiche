@@ -153,10 +153,13 @@ bool HttpDecoder::ReadFrameLength(QuicDataReader* reader) {
       continue_processing = visitor_->OnSettingsFrameStart(header_length);
       break;
     case static_cast<uint64_t>(HttpFrameType::PUSH_PROMISE):
+      // This edge case needs to be handled here, because ReadFramePayload()
+      // does not get called if |current_frame_length_| is zero.
       if (current_frame_length_ == 0) {
         RaiseError(QUIC_INVALID_FRAME_DATA, "Corrupt PUSH_PROMISE frame.");
         return false;
       }
+      continue_processing = visitor_->OnPushPromiseFrameStart(header_length);
       break;
     case static_cast<uint64_t>(HttpFrameType::GOAWAY):
       break;
@@ -239,10 +242,8 @@ bool HttpDecoder::ReadFramePayload(QuicDataReader* reader) {
         bool success = reader->ReadVarInt62(&push_id);
         DCHECK(success);
         remaining_frame_length_ -= current_push_id_length_;
-        if (!visitor_->OnPushPromiseFrameStart(
-                push_id,
-                current_length_field_length_ + current_type_field_length_,
-                current_push_id_length_)) {
+        if (!visitor_->OnPushPromiseFramePushId(push_id,
+                                                current_push_id_length_)) {
           continue_processing = false;
           current_push_id_length_ = 0;
           break;
@@ -259,10 +260,8 @@ bool HttpDecoder::ReadFramePayload(QuicDataReader* reader) {
 
         bool success = push_id_reader.ReadVarInt62(&push_id);
         DCHECK(success);
-        if (!visitor_->OnPushPromiseFrameStart(
-                push_id,
-                current_length_field_length_ + current_type_field_length_,
-                current_push_id_length_)) {
+        if (!visitor_->OnPushPromiseFramePushId(push_id,
+                                                current_push_id_length_)) {
           continue_processing = false;
           current_push_id_length_ = 0;
           break;

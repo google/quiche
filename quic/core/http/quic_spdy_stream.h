@@ -259,9 +259,8 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   bool OnHeadersFrameStart(QuicByteCount header_length);
   bool OnHeadersFramePayload(QuicStringPiece payload);
   bool OnHeadersFrameEnd();
-  bool OnPushPromiseFrameStart(PushId push_id,
-                               QuicByteCount header_length,
-                               QuicByteCount push_id_length);
+  bool OnPushPromiseFrameStart(QuicByteCount header_length);
+  bool OnPushPromiseFramePushId(PushId push_id, QuicByteCount push_id_length);
   bool OnPushPromiseFramePayload(QuicStringPiece payload);
   bool OnPushPromiseFrameEnd();
   bool OnUnknownFrameStart(uint64_t frame_type, QuicByteCount header_length);
