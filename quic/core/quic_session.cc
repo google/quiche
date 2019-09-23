@@ -61,6 +61,8 @@ QuicSession::QuicSession(
                          kDefaultMaxStreamsPerConnection,
                          config_.GetMaxIncomingBidirectionalStreamsToSend()),
       v99_streamid_manager_(
+          perspective(),
+          connection->version(),
           this,
           num_expected_unidirectional_static_streams,
           kDefaultMaxStreamsPerConnection,
