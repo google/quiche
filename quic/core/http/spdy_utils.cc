@@ -12,6 +12,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_map_util.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
@@ -149,4 +150,21 @@ bool SpdyUtils::PopulateHeaderBlockFromUrl(const std::string url,
   return true;
 }
 
+#define RETURN_STRING_LITERAL(x) \
+  case x:                        \
+    return #x;
+
+// static
+std::string SpdyUtils::H3SettingsToString(
+    Http3AndQpackSettingsIdentifiers identifier) {
+  switch (identifier) {
+    RETURN_STRING_LITERAL(SETTINGS_QPACK_MAX_TABLE_CAPACITY);
+    RETURN_STRING_LITERAL(SETTINGS_MAX_HEADER_LIST_SIZE);
+    RETURN_STRING_LITERAL(SETTINGS_QPACK_BLOCKED_STREAMS);
+    RETURN_STRING_LITERAL(SETTINGS_NUM_PLACEHOLDERS);
+  }
+  return QuicStrCat("UNSUPPORTED_SETTINGS_TYPE(", identifier, ")");
+}
+
+#undef RETURN_STRING_LITERAL  // undef for jumbo builds
 }  // namespace quic

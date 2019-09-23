@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <string>
 
+#include "net/third_party/quiche/src/quic/core/http/http_constants.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_header_list.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
@@ -50,6 +51,10 @@ class QUIC_EXPORT_PRIVATE SpdyUtils {
   // which must be fully-qualified.
   static bool PopulateHeaderBlockFromUrl(const std::string url,
                                          spdy::SpdyHeaderBlock* headers);
+
+  // Returns HTTP/3 SETTINGS identifier as a string.
+  static std::string H3SettingsToString(
+      Http3AndQpackSettingsIdentifiers identifier);
 };
 
 }  // namespace quic
