@@ -46,6 +46,25 @@ class QUIC_EXPORT_PRIVATE QpackEncoder
     virtual void OnDecoderStreamError(QuicStringPiece error_message) = 0;
   };
 
+  // Interface for logging whenever dynamic table insertion is blocked and
+  // whenever using unacknowledged entries is not allowed because of the blocked
+  // stream limit.
+  class QUIC_EXPORT_PRIVATE DebugVisitor {
+   public:
+    virtual ~DebugVisitor() = default;
+
+    // Called once for each header list encoded.
+    // |dynamic_table_insertion_blocked| it true if for any header field in this
+    // header list the encoder would have inserted an entry into the dynamic
+    // table, but could not because that insertion would have evicted a blocking
+    // entry. |blocked_stream_limit_exhausted| is true if for any header field
+    // in this header list the encoder would have referred to an unacknowledged
+    // entry in the dynamic table, but could not because that would have
+    // violated the limit on the number of blocked streams.
+    virtual void OnHeaderListEncoded(bool dynamic_table_insertion_blocked,
+                                     bool blocked_stream_limit_exhausted) = 0;
+  };
+
   QpackEncoder(DecoderStreamErrorDelegate* decoder_stream_error_delegate);
   ~QpackEncoder() override;
 
@@ -84,6 +103,10 @@ class QUIC_EXPORT_PRIVATE QpackEncoder
 
   QpackStreamReceiver* decoder_stream_receiver() {
     return &decoder_stream_receiver_;
+  }
+
+  void set_debug_visitor(DebugVisitor* debug_visitor) {
+    debug_visitor_ = debug_visitor;
   }
 
  private:
@@ -148,6 +171,7 @@ class QUIC_EXPORT_PRIVATE QpackEncoder
   QpackHeaderTable header_table_;
   uint64_t maximum_blocked_streams_;
   QpackBlockingManager blocking_manager_;
+  DebugVisitor* debug_visitor_;
 };
 
 }  // namespace quic
