@@ -161,6 +161,12 @@ DEFINE_QUIC_COMMAND_LINE_FLAG(
     false,
     "If true, drop response body immediately after it is received.");
 
+DEFINE_QUIC_COMMAND_LINE_FLAG(
+    bool,
+    disable_port_changes,
+    false,
+    "If true, do not change local port after each request.");
+
 namespace quic {
 
 QuicToyClient::QuicToyClient(ClientFactory* client_factory)
@@ -343,7 +349,7 @@ int QuicToyClient::SendRequestsAndPrintResponses(
     }
 
     // Change the ephemeral port if there are more requests to do.
-    if (i + 1 < num_requests) {
+    if (!GetQuicFlag(FLAGS_disable_port_changes) && i + 1 < num_requests) {
       if (!client->ChangeEphemeralPort()) {
         std::cerr << "Failed to change ephemeral port." << std::endl;
         return 1;
