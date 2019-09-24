@@ -55,7 +55,8 @@ bool ParsedQuicVersion::KnowsWhichDecrypterToUse() const {
 }
 
 bool ParsedQuicVersion::UsesInitialObfuscators() const {
-  return handshake_protocol == PROTOCOL_TLS1_3;
+  return transport_version == QUIC_VERSION_99 ||
+         handshake_protocol == PROTOCOL_TLS1_3;
 }
 
 bool ParsedQuicVersion::AllowsLowFlowControlLimits() const {

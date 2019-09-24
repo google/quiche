@@ -164,6 +164,7 @@ class TestDecrypter : public QuicDecrypter {
     return std::string(5, 0);
   }
   size_t GetKeySize() const override { return 0; }
+  size_t GetNoncePrefixSize() const override { return 0; }
   size_t GetIVSize() const override { return 0; }
   QuicStringPiece GetKey() const override { return QuicStringPiece(); }
   QuicStringPiece GetNoncePrefix() const override { return QuicStringPiece(); }
@@ -13035,7 +13036,8 @@ TEST_P(QuicFramerTest, CoalescedPacketWithZeroesRoundTrip) {
   header.long_packet_type = INITIAL;
   header.length_length = VARIABLE_LENGTH_INTEGER_LENGTH_2;
   header.retry_token_length_length = VARIABLE_LENGTH_INTEGER_LENGTH_1;
-  QuicFrames frames = {QuicFrame(QuicPingFrame())};
+  QuicFrames frames = {QuicFrame(QuicPingFrame()),
+                       QuicFrame(QuicPaddingFrame(3))};
 
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_NE(nullptr, data);

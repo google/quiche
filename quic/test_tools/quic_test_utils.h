@@ -205,6 +205,11 @@ QuicAckFrame InitAckFrame(QuicPacketNumber largest_acked);
 QuicAckFrame MakeAckFrameWithAckBlocks(size_t num_ack_blocks,
                                        uint64_t least_unacked);
 
+// Returns the encryption level that corresponds to the header type in
+// |header|. If the header is for GOOGLE_QUIC_PACKET instead of an
+// IETF-invariants packet, this function returns ENCRYPTION_INITIAL.
+EncryptionLevel HeaderToEncryptionLevel(const QuicPacketHeader& header);
+
 // Returns a QuicPacket that is owned by the caller, and
 // is populated with the fields in |header| and |frames|, or is nullptr if the
 // packet could not be created.

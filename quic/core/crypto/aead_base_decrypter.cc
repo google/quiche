@@ -186,6 +186,10 @@ size_t AeadBaseDecrypter::GetKeySize() const {
   return key_size_;
 }
 
+size_t AeadBaseDecrypter::GetNoncePrefixSize() const {
+  return nonce_size_ - sizeof(QuicPacketNumber);
+}
+
 size_t AeadBaseDecrypter::GetIVSize() const {
   return nonce_size_;
 }

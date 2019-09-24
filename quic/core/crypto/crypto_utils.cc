@@ -10,6 +10,8 @@
 #include "third_party/boringssl/src/include/openssl/bytestring.h"
 #include "third_party/boringssl/src/include/openssl/hkdf.h"
 #include "third_party/boringssl/src/include/openssl/sha.h"
+#include "net/third_party/quiche/src/quic/core/crypto/aes_128_gcm_12_decrypter.h"
+#include "net/third_party/quiche/src/quic/core/crypto/aes_128_gcm_12_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/aes_128_gcm_decrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/aes_128_gcm_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_handshake.h"
@@ -31,16 +33,31 @@
 
 namespace quic {
 
+namespace {
+
+// Implements the HKDF-Expand-Label function as defined in section 7.1 of RFC
+// 8446, except that it uses "quic " as the prefix instead of "tls13 ", as
+// specified by draft-ietf-quic-tls-14. The HKDF-Expand-Label function takes 4
+// explicit arguments (Secret, Label, Context, and Length), as well as
+// implicit PRF which is the hash function negotiated by TLS. Its use in QUIC
+// (as needed by the QUIC stack, instead of as used internally by the TLS
+// stack) is only for deriving initial secrets for obfuscation and for
+// calculating packet protection keys and IVs from the corresponding packet
+// protection secret. Neither of these uses need a Context (a zero-length
+// context is provided), so this argument is omitted here.
+//
+// The implicit PRF is explicitly passed into HkdfExpandLabel as |prf|; the
+// Secret, Label, and Length are passed in as |secret|, |label|, and
+// |out_len|, respectively. The resulting expanded secret is returned.
+//
 // TODO(nharper): HkdfExpandLabel and SetKeyAndIV (below) implement what is
 // specified in draft-ietf-quic-tls-16. The latest editors' draft has changed
 // derivation again, and this will need to be updated to reflect those (and any
 // other future) changes.
-// static
-std::vector<uint8_t> CryptoUtils::HkdfExpandLabel(
-    const EVP_MD* prf,
-    const std::vector<uint8_t>& secret,
-    const std::string& label,
-    size_t out_len) {
+std::vector<uint8_t> HkdfExpandLabel(const EVP_MD* prf,
+                                     const std::vector<uint8_t>& secret,
+                                     const std::string& label,
+                                     size_t out_len) {
   bssl::ScopedCBB quic_hkdf_label;
   CBB inner_label;
   const char label_prefix[] = "tls13 ";
@@ -71,15 +88,17 @@ std::vector<uint8_t> CryptoUtils::HkdfExpandLabel(
   return out;
 }
 
+}  // namespace
+
 void CryptoUtils::SetKeyAndIV(const EVP_MD* prf,
                               const std::vector<uint8_t>& pp_secret,
                               QuicCrypter* crypter) {
-  std::vector<uint8_t> key = CryptoUtils::HkdfExpandLabel(
-      prf, pp_secret, "quic key", crypter->GetKeySize());
-  std::vector<uint8_t> iv = CryptoUtils::HkdfExpandLabel(
-      prf, pp_secret, "quic iv", crypter->GetIVSize());
-  std::vector<uint8_t> pn = CryptoUtils::HkdfExpandLabel(
-      prf, pp_secret, "quic hp", crypter->GetKeySize());
+  std::vector<uint8_t> key =
+      HkdfExpandLabel(prf, pp_secret, "quic key", crypter->GetKeySize());
+  std::vector<uint8_t> iv =
+      HkdfExpandLabel(prf, pp_secret, "quic iv", crypter->GetIVSize());
+  std::vector<uint8_t> pn =
+      HkdfExpandLabel(prf, pp_secret, "quic hp", crypter->GetKeySize());
   crypter->SetKey(
       QuicStringPiece(reinterpret_cast<char*>(key.data()), key.size()));
   crypter->SetIV(
@@ -91,12 +110,34 @@ void CryptoUtils::SetKeyAndIV(const EVP_MD* prf,
 namespace {
 
 static_assert(kQuicIetfDraftVersion == 23, "Salts do not match draft version");
-// Salt from https://tools.ietf.org/html/draft-ietf-quic-tls-24#section-5.2
+// Salt from https://tools.ietf.org/html/draft-ietf-quic-tls-23#section-5.2
 const uint8_t kInitialSalt[] = {0xc3, 0xee, 0xf7, 0x12, 0xc7, 0x2e, 0xbb,
                                 0x5a, 0x11, 0xa7, 0xd2, 0x43, 0x2b, 0xb4,
                                 0x63, 0x65, 0xbe, 0xf9, 0xf5, 0x02};
 
 const char kPreSharedKeyLabel[] = "QUIC PSK";
+
+// This is the same as SetKeyAndIV, except it is for use with Google QUIC crypto
+// style crypters (which have a different nonce construction and auth tag
+// length). The labels for HkdfExpandLabel have also been changed to be prefixed
+// with "gquic" instead of "quic".
+void SetKeyAndNonceForGoogleQuicInitialCrypter(
+    const EVP_MD* prf,
+    const std::vector<uint8_t>& pp_secret,
+    QuicCrypter* crypter) {
+  std::vector<uint8_t> key =
+      HkdfExpandLabel(prf, pp_secret, "gquic key", crypter->GetKeySize());
+  std::vector<uint8_t> iv = HkdfExpandLabel(prf, pp_secret, "gquic iv",
+                                            crypter->GetNoncePrefixSize());
+  std::vector<uint8_t> pn =
+      HkdfExpandLabel(prf, pp_secret, "gquic hp", crypter->GetKeySize());
+  crypter->SetKey(
+      QuicStringPiece(reinterpret_cast<char*>(key.data()), key.size()));
+  crypter->SetNoncePrefix(
+      QuicStringPiece(reinterpret_cast<char*>(iv.data()), iv.size()));
+  crypter->SetHeaderProtectionKey(
+      QuicStringPiece(reinterpret_cast<char*>(pn.data()), pn.size()));
+}
 
 }  // namespace
 
@@ -142,15 +183,27 @@ void CryptoUtils::CreateInitialObfuscators(Perspective perspective,
     encryption_label = server_label;
     decryption_label = client_label;
   }
-  crypters->encrypter = std::make_unique<Aes128GcmEncrypter>();
   std::vector<uint8_t> encryption_secret = HkdfExpandLabel(
       hash, handshake_secret, encryption_label, EVP_MD_size(hash));
-  SetKeyAndIV(hash, encryption_secret, crypters->encrypter.get());
-
-  crypters->decrypter = std::make_unique<Aes128GcmDecrypter>();
   std::vector<uint8_t> decryption_secret = HkdfExpandLabel(
       hash, handshake_secret, decryption_label, EVP_MD_size(hash));
-  SetKeyAndIV(hash, decryption_secret, crypters->decrypter.get());
+
+  // Create an encrypter and decrypter that have an auth tag of the same length
+  // as the encrypters/decrypters used with the handshake protocol for this
+  // version.
+  if (version.handshake_protocol == PROTOCOL_TLS1_3) {
+    crypters->encrypter = std::make_unique<Aes128GcmEncrypter>();
+    SetKeyAndIV(hash, encryption_secret, crypters->encrypter.get());
+    crypters->decrypter = std::make_unique<Aes128GcmDecrypter>();
+    SetKeyAndIV(hash, decryption_secret, crypters->decrypter.get());
+  } else {
+    crypters->encrypter = std::make_unique<Aes128Gcm12Encrypter>();
+    SetKeyAndNonceForGoogleQuicInitialCrypter(hash, encryption_secret,
+                                              crypters->encrypter.get());
+    crypters->decrypter = std::make_unique<Aes128Gcm12Decrypter>();
+    SetKeyAndNonceForGoogleQuicInitialCrypter(hash, decryption_secret,
+                                              crypters->decrypter.get());
+  }
 }
 
 // static

@@ -202,27 +202,6 @@ class QUIC_EXPORT_PRIVATE CryptoUtils {
   // Returns a hash of the serialized |message|.
   static std::string HashHandshakeMessage(const CryptoHandshakeMessage& message,
                                           Perspective perspective);
-
- private:
-  // Implements the HKDF-Expand-Label function as defined in section 7.1 of RFC
-  // 8446, except that it uses "quic " as the prefix instead of "tls13 ", as
-  // specified by draft-ietf-quic-tls-14. The HKDF-Expand-Label function takes 4
-  // explicit arguments (Secret, Label, Context, and Length), as well as
-  // implicit PRF which is the hash function negotiated by TLS. Its use in QUIC
-  // (as needed by the QUIC stack, instead of as used internally by the TLS
-  // stack) is only for deriving initial secrets for obfuscation and for
-  // calculating packet protection keys and IVs from the corresponding packet
-  // protection secret. Neither of these uses need a Context (a zero-length
-  // context is provided), so this argument is omitted here.
-  //
-  // The implicit PRF is explicitly passed into HkdfExpandLabel as |prf|; the
-  // Secret, Label, and Length are passed in as |secret|, |label|, and
-  // |out_len|, respectively. The resulting expanded secret is returned.
-  static std::vector<uint8_t> HkdfExpandLabel(
-      const EVP_MD* prf,
-      const std::vector<uint8_t>& secret,
-      const std::string& label,
-      size_t out_len);
 };
 
 }  // namespace quic

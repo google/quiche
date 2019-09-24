@@ -72,10 +72,15 @@ class QUIC_EXPORT_PRIVATE QuicCrypter {
   // Sets the key to use for header protection.
   virtual bool SetHeaderProtectionKey(QuicStringPiece key) = 0;
 
+  // GetKeySize, GetIVSize, and GetNoncePrefixSize are used to know how many
+  // bytes of key material needs to be derived from the master secret.
+
   // Returns the size in bytes of a key for the algorithm.
   virtual size_t GetKeySize() const = 0;
   // Returns the size in bytes of an IV to use with the algorithm.
   virtual size_t GetIVSize() const = 0;
+  // Returns the size in bytes of the fixed initial part of the nonce.
+  virtual size_t GetNoncePrefixSize() const = 0;
 };
 
 }  // namespace quic

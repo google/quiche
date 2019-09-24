@@ -47,14 +47,6 @@ class QUIC_EXPORT_PRIVATE QuicEncrypter : public QuicCrypter {
   // be empty.
   virtual std::string GenerateHeaderProtectionMask(QuicStringPiece sample) = 0;
 
-  // GetKeySize() and GetNoncePrefixSize() tell the HKDF class how many bytes
-  // of key material needs to be derived from the master secret.
-  // NOTE: the sizes returned by GetKeySize() and GetNoncePrefixSize() are
-  // also correct for the QuicDecrypter of the same algorithm.
-
-  // Returns the size in bytes of the fixed initial part of the nonce.
-  virtual size_t GetNoncePrefixSize() const = 0;
-
   // Returns the maximum length of plaintext that can be encrypted
   // to ciphertext no larger than |ciphertext_size|.
   virtual size_t GetMaxPlaintextSize(size_t ciphertext_size) const = 0;

@@ -362,6 +362,7 @@ QuicConnection::QuicConnection(
 
 void QuicConnection::InstallInitialCrypters(QuicConnectionId connection_id) {
   if (!framer_.framer_doesnt_create_initial_encrypter() &&
+      !version().UsesInitialObfuscators() &&
       version().handshake_protocol != PROTOCOL_TLS1_3) {
     // Initial crypters are currently only supported with TLS.
     return;

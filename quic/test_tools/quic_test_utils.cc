@@ -107,6 +107,19 @@ QuicAckFrame MakeAckFrameWithAckBlocks(size_t num_ack_blocks,
   return ack;
 }
 
+EncryptionLevel HeaderToEncryptionLevel(const QuicPacketHeader& header) {
+  if (header.form == IETF_QUIC_SHORT_HEADER_PACKET) {
+    return ENCRYPTION_FORWARD_SECURE;
+  } else if (header.form == IETF_QUIC_LONG_HEADER_PACKET) {
+    if (header.long_packet_type == HANDSHAKE) {
+      return ENCRYPTION_HANDSHAKE;
+    } else if (header.long_packet_type == ZERO_RTT_PROTECTED) {
+      return ENCRYPTION_ZERO_RTT;
+    }
+  }
+  return ENCRYPTION_INITIAL;
+}
+
 std::unique_ptr<QuicPacket> BuildUnsizedDataPacket(
     QuicFramer* framer,
     const QuicPacketHeader& header,
@@ -133,16 +146,7 @@ std::unique_ptr<QuicPacket> BuildUnsizedDataPacket(
     const QuicFrames& frames,
     size_t packet_size) {
   char* buffer = new char[packet_size];
-  EncryptionLevel level = ENCRYPTION_INITIAL;
-  if (header.form == IETF_QUIC_SHORT_HEADER_PACKET) {
-    level = ENCRYPTION_FORWARD_SECURE;
-  } else if (header.form == IETF_QUIC_LONG_HEADER_PACKET) {
-    if (header.long_packet_type == HANDSHAKE) {
-      level = ENCRYPTION_HANDSHAKE;
-    } else if (header.long_packet_type == ZERO_RTT_PROTECTED) {
-      level = ENCRYPTION_ZERO_RTT;
-    }
-  }
+  EncryptionLevel level = HeaderToEncryptionLevel(header);
   size_t length =
       framer->BuildDataPacket(header, frames, buffer, packet_size, level);
   DCHECK_NE(0u, length);

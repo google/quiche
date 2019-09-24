@@ -44,6 +44,7 @@ class QUIC_EXPORT_PRIVATE NullDecrypter : public QuicDecrypter {
   std::string GenerateHeaderProtectionMask(
       QuicDataReader* sample_reader) override;
   size_t GetKeySize() const override;
+  size_t GetNoncePrefixSize() const override;
   size_t GetIVSize() const override;
   QuicStringPiece GetKey() const override;
   QuicStringPiece GetNoncePrefix() const override;
