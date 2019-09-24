@@ -401,8 +401,14 @@ bool QuicDispatcher::MaybeDispatchPacket(
     it->second->ProcessUdpPacket(packet_info.self_address,
                                  packet_info.peer_address, packet_info.packet);
     return true;
-  } else {
+  } else if (packet_info.version.transport_version !=
+             QUIC_VERSION_UNSUPPORTED) {
     // We did not find the connection ID, check if we've replaced it.
+    // This is only performed for supported versions because packets with
+    // unsupported versions can flow through this function in order to send
+    // a version negotiation packet, but we know that their connection ID
+    // did not get replaced since that is performed on connection creation,
+    // and that only happens for known verions.
     QuicConnectionId replaced_connection_id = MaybeReplaceServerConnectionId(
         server_connection_id, packet_info.version);
     if (replaced_connection_id != server_connection_id) {
