@@ -169,7 +169,7 @@ void QuicCryptoServerHandshaker::
   }
 
   if (reply->tag() != kSHLO) {
-    session()->connection()->set_fully_pad_crypto_hadshake_packets(
+    session()->connection()->set_fully_pad_crypto_handshake_packets(
         crypto_config_->pad_rej());
     SendHandshakeMessage(*reply);
     return;
@@ -215,7 +215,7 @@ void QuicCryptoServerHandshaker::
   }
   session()->connection()->SetDiversificationNonce(*diversification_nonce);
 
-  session()->connection()->set_fully_pad_crypto_hadshake_packets(
+  session()->connection()->set_fully_pad_crypto_handshake_packets(
       crypto_config_->pad_shlo());
   SendHandshakeMessage(*reply);
 

@@ -381,7 +381,7 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // Indicates whether packet flusher is currently attached.
   bool PacketFlusherAttached() const;
 
-  void set_fully_pad_crypto_hadshake_packets(bool new_value) {
+  void set_fully_pad_crypto_handshake_packets(bool new_value) {
     DCHECK(combine_generator_and_creator_);
     fully_pad_crypto_handshake_packets_ = new_value;
   }

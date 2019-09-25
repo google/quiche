@@ -537,10 +537,10 @@ void QuicPacketGenerator::SetClientConnectionId(
   packet_creator_.SetClientConnectionId(client_connection_id);
 }
 
-void QuicPacketGenerator::set_fully_pad_crypto_hadshake_packets(
+void QuicPacketGenerator::set_fully_pad_crypto_handshake_packets(
     bool new_value) {
   if (packet_creator_.combine_generator_and_creator()) {
-    packet_creator_.set_fully_pad_crypto_hadshake_packets(new_value);
+    packet_creator_.set_fully_pad_crypto_handshake_packets(new_value);
     return;
   }
   fully_pad_crypto_handshake_packets_ = new_value;

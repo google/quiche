@@ -516,7 +516,7 @@ TEST_F(QuicPacketGeneratorTest, ConsumeData_Handshake) {
 // Test the behavior of ConsumeData when the data is for the crypto handshake
 // stream, but padding is disabled.
 TEST_F(QuicPacketGeneratorTest, ConsumeData_Handshake_PaddingDisabled) {
-  generator_.set_fully_pad_crypto_hadshake_packets(false);
+  generator_.set_fully_pad_crypto_handshake_packets(false);
 
   delegate_.SetCanWriteAnything();
 

@@ -279,7 +279,7 @@ void QuicCryptoClientHandshaker::DoSendCHLO(
     }
     next_state_ = STATE_RECV_REJ;
     chlo_hash_ = CryptoUtils::HashHandshakeMessage(out, Perspective::IS_CLIENT);
-    session()->connection()->set_fully_pad_crypto_hadshake_packets(
+    session()->connection()->set_fully_pad_crypto_handshake_packets(
         crypto_config_->pad_inchoate_hello());
     SendHandshakeMessage(out);
     return;
@@ -305,7 +305,7 @@ void QuicCryptoClientHandshaker::DoSendCHLO(
         *cached->proof_verify_details());
   }
   next_state_ = STATE_RECV_SHLO;
-  session()->connection()->set_fully_pad_crypto_hadshake_packets(
+  session()->connection()->set_fully_pad_crypto_handshake_packets(
       crypto_config_->pad_full_hello());
   SendHandshakeMessage(out);
   // Be prepared to decrypt with the new server write key.

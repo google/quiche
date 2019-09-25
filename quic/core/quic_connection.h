@@ -834,8 +834,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // This setting should never be set to false in public facing endpoints. It
   // can only be set to false if there is some other mechanism of preventing
   // amplification attacks, such as ICE (plus its a non-standard quic).
-  void set_fully_pad_crypto_hadshake_packets(bool new_value) {
-    packet_generator_.set_fully_pad_crypto_hadshake_packets(new_value);
+  void set_fully_pad_crypto_handshake_packets(bool new_value) {
+    packet_generator_.set_fully_pad_crypto_handshake_packets(new_value);
   }
 
   bool fully_pad_during_crypto_handshake() const {
