@@ -1243,11 +1243,17 @@ bool QuicConnection::OnConnectionCloseFrame(
 }
 
 bool QuicConnection::OnMaxStreamsFrame(const QuicMaxStreamsFrame& frame) {
+  if (debug_visitor_ != nullptr) {
+    debug_visitor_->OnMaxStreamsFrame(frame);
+  }
   return visitor_->OnMaxStreamsFrame(frame);
 }
 
 bool QuicConnection::OnStreamsBlockedFrame(
     const QuicStreamsBlockedFrame& frame) {
+  if (debug_visitor_ != nullptr) {
+    debug_visitor_->OnStreamsBlockedFrame(frame);
+  }
   return visitor_->OnStreamsBlockedFrame(frame);
 }
 

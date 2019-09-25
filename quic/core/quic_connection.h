@@ -26,6 +26,7 @@
 
 #include "net/third_party/quiche/src/quic/core/crypto/quic_decrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_encrypter.h"
+#include "net/third_party/quiche/src/quic/core/frames/quic_max_streams_frame.h"
 #include "net/third_party/quiche/src/quic/core/proto/cached_network_parameters_proto.h"
 #include "net/third_party/quiche/src/quic/core/quic_alarm.h"
 #include "net/third_party/quiche/src/quic/core/quic_alarm_factory.h"
@@ -325,6 +326,13 @@ class QUIC_EXPORT_PRIVATE QuicConnectionDebugVisitor
 
   // Called when a PathResponseFrame has been parsed.
   virtual void OnPathResponseFrame(const QuicPathResponseFrame& /*frame*/) {}
+
+  // Called when a StreamsBlockedFrame has been parsed.
+  virtual void OnStreamsBlockedFrame(const QuicStreamsBlockedFrame& /*frame*/) {
+  }
+
+  // Called when a MaxStreamsFrame has been parsed.
+  virtual void OnMaxStreamsFrame(const QuicMaxStreamsFrame& /*frame*/) {}
 };
 
 class QUIC_EXPORT_PRIVATE QuicConnectionHelperInterface {
