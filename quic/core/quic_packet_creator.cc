@@ -916,7 +916,8 @@ bool QuicPacketCreator::ConsumeRetransmittableControlFrame(
     return false;
   }
   const bool success = AddSavedFrame(frame, next_transmission_type_);
-  DCHECK(success);
+  QUIC_BUG_IF(!success) << "Failed to add frame:" << frame
+                        << " transmission_type:" << next_transmission_type_;
   return success;
 }
 
@@ -1093,7 +1094,8 @@ void QuicPacketCreator::GenerateMtuDiscoveryPacket(QuicByteCount target_mtu) {
   FlushCurrentPacket();
   // The only reason AddFrame can fail is that the packet is too full to fit in
   // a ping.  This is not possible for any sane MTU.
-  DCHECK(success);
+  QUIC_BUG_IF(!success) << "Failed to send path MTU target_mtu:" << target_mtu
+                        << " transmission_type:" << next_transmission_type_;
 
   // Reset the packet length back.
   SetMaxPacketLength(current_mtu);
@@ -1111,7 +1113,8 @@ void QuicPacketCreator::MaybeBundleAckOpportunistically() {
   }
   const bool flushed =
       FlushAckFrame(delegate_->MaybeBundleAckOpportunistically());
-  DCHECK(flushed);
+  QUIC_BUG_IF(!flushed) << "Failed to flush ACK frame. encryption_level:"
+                        << packet_.encryption_level;
 }
 
 bool QuicPacketCreator::FlushAckFrame(const QuicFrames& frames) {
@@ -1367,7 +1370,8 @@ void QuicPacketCreator::MaybeAddPadding() {
 
   bool success = AddFrame(QuicFrame(QuicPaddingFrame(padding_bytes)), false,
                           packet_.transmission_type);
-  DCHECK(success);
+  QUIC_BUG_IF(!success) << "Failed to add padding_bytes:" << padding_bytes
+                        << " transmission_type:" << packet_.transmission_type;
 }
 
 bool QuicPacketCreator::IncludeNonceInPublicHeader() const {
