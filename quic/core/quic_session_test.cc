@@ -933,6 +933,7 @@ TEST_P(QuicSessionTestServer, TestBatchedWrites) {
 
 TEST_P(QuicSessionTestServer, Http2Priority) {
   if (VersionHasIetfQuicFrames(GetParam().transport_version)) {
+    // The test is using HTTP/2 priority which is not supported in IETF QUIC.
     return;
   }
   SetQuicReloadableFlag(quic_use_http2_priority_write_scheduler, true);
@@ -1015,6 +1016,7 @@ TEST_P(QuicSessionTestServer, Http2Priority) {
 
 TEST_P(QuicSessionTestServer, RoundRobinScheduling) {
   if (VersionHasIetfQuicFrames(GetParam().transport_version)) {
+    // IETF QUIC currently doesn't support PRIORITY.
     return;
   }
   SetQuicReloadableFlag(quic_enable_rr_write_scheduler, true);
@@ -1373,11 +1375,6 @@ TEST_P(QuicSessionTestServer, ServerReplyToConnectivityProbes) {
   if (!VersionHasIetfQuicFrames(transport_version())) {
     return;
   }
-  if (GetParam().handshake_protocol == PROTOCOL_TLS1_3) {
-    // TODO(nharper, b/112643533): Figure out why this test fails when TLS is
-    // enabled and fix it.
-    return;
-  }
   QuicSocketAddress old_peer_address =
       QuicSocketAddress(QuicIpAddress::Loopback4(), kTestPort);
   EXPECT_EQ(old_peer_address, session_.peer_address());
@@ -1416,6 +1413,7 @@ TEST_P(QuicSessionTestServer, IncreasedTimeoutAfterCryptoHandshake) {
 
 TEST_P(QuicSessionTestServer, OnStreamFrameFinStaticStreamId) {
   if (VersionUsesQpack(connection_->transport_version())) {
+    // The test relies on headers stream, which no longer exists in IETF QUIC.
     return;
   }
   QuicStreamId headers_stream_id =
@@ -1435,6 +1433,7 @@ TEST_P(QuicSessionTestServer, OnStreamFrameFinStaticStreamId) {
 
 TEST_P(QuicSessionTestServer, OnRstStreamStaticStreamId) {
   if (VersionUsesQpack(connection_->transport_version())) {
+    // The test relies on headers stream, which no longer exists in IETF QUIC.
     return;
   }
   QuicStreamId headers_stream_id =

@@ -1544,6 +1544,7 @@ TEST_P(QuicSpdySessionTestServer, FlowControlWithInvalidFinalOffset) {
 
 TEST_P(QuicSpdySessionTestServer, WindowUpdateUnblocksHeadersStream) {
   if (VersionUsesQpack(GetParam().transport_version)) {
+    // The test relies on headers stream, which no longer exists in IETF QUIC.
     return;
   }
 
@@ -1792,6 +1793,7 @@ TEST_P(QuicSpdySessionTestClient, RecordFinAfterReadSideClosed) {
 
 TEST_P(QuicSpdySessionTestClient, WritePriority) {
   if (VersionHasStreamType(transport_version())) {
+    // IETF QUIC currently doesn't support PRIORITY.
     return;
   }
   TestHeadersStream* headers_stream;
