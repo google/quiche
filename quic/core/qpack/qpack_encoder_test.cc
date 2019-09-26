@@ -17,7 +17,6 @@
 using ::testing::_;
 using ::testing::Eq;
 using ::testing::StrictMock;
-using ::testing::Values;
 
 namespace quic {
 namespace test {
@@ -27,7 +26,9 @@ class MockDebugVisitor : public QpackEncoder::DebugVisitor {
  public:
   virtual ~MockDebugVisitor() = default;
 
-  MOCK_METHOD(void, OnHeaderListEncoded, (bool, bool), (override));
+  MOCK_METHOD2(OnHeaderListEncoded,
+               void(bool dynamic_table_insertion_blocked,
+                    bool blocked_stream_limit_exhausted));
 };
 
 class QpackEncoderTest : public QuicTest {
