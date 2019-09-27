@@ -220,7 +220,7 @@ bool QuicReceiveControlStream::OnSettingsFrame(const SettingsFrame& settings) {
                 << " received settings frame: " << settings;
   QuicSpdySession* spdy_session = static_cast<QuicSpdySession*>(session());
   if (spdy_session->debug_visitor() != nullptr) {
-    spdy_session->debug_visitor()->OnSettingsFrame(settings);
+    spdy_session->debug_visitor()->OnSettingsFrameReceived(settings);
   }
   for (const auto& setting : settings.values) {
     spdy_session->OnSetting(setting.first, setting.second);

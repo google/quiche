@@ -5,6 +5,7 @@
 #include "net/third_party/quiche/src/quic/core/http/quic_send_control_stream.h"
 
 #include "net/third_party/quiche/src/quic/core/http/http_constants.h"
+#include "net/third_party/quiche/src/quic/core/http/quic_spdy_session.h"
 #include "net/third_party/quiche/src/quic/core/quic_session.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 
@@ -57,6 +58,10 @@ void QuicSendControlStream::MaybeSendSettingsFrame() {
       encoder_.SerializeSettingsFrame(settings, &buffer);
   QUIC_DVLOG(1) << "Control stream " << id() << " is writing settings frame "
                 << settings;
+  QuicSpdySession* spdy_session = static_cast<QuicSpdySession*>(session());
+  if (spdy_session->debug_visitor() != nullptr) {
+    spdy_session->debug_visitor()->OnSettingsFrameSent(settings);
+  }
   WriteOrBufferData(QuicStringPiece(buffer.get(), frame_length),
                     /*fin = */ false, nullptr);
   settings_sent_ = true;

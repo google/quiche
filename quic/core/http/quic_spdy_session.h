@@ -9,6 +9,7 @@
 #include <memory>
 #include <string>
 
+#include "net/third_party/quiche/src/quic/core/http/http_frames.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_header_list.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_headers_stream.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_receive_control_stream.h"
@@ -70,7 +71,10 @@ class QUIC_EXPORT_PRIVATE Http3DebugVisitor {
   virtual void OnPeerQpackDecoderStreamCreated(QuicStreamId /*stream_id*/) = 0;
 
   // Called when SETTINGS frame is received.
-  virtual void OnSettingsFrame(const SettingsFrame& /*frame*/) = 0;
+  virtual void OnSettingsFrameReceived(const SettingsFrame& /*frame*/) = 0;
+
+  // Called when SETTINGS frame is sent.
+  virtual void OnSettingsFrameSent(const SettingsFrame& /*frame*/) = 0;
 };
 
 // A QUIC session for HTTP.

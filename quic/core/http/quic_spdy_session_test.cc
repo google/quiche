@@ -135,7 +135,9 @@ class MockHttp3DebugVisitor : public Http3DebugVisitor {
 
   MOCK_METHOD1(OnPeerQpackDecoderStreamCreated, void(QuicStreamId));
 
-  MOCK_METHOD1(OnSettingsFrame, void(const SettingsFrame&));
+  MOCK_METHOD1(OnSettingsFrameReceived, void(const SettingsFrame&));
+
+  MOCK_METHOD1(OnSettingsFrameSent, void(const SettingsFrame&));
 };
 
 class TestStream : public QuicSpdyStream {
@@ -2222,7 +2224,7 @@ TEST_P(QuicSpdySessionTestServer, ReceiveControlStream) {
   EXPECT_NE(5u, session_.max_outbound_header_list_size());
   EXPECT_NE(42u, QpackEncoderPeer::maximum_blocked_streams(qpack_encoder));
 
-  EXPECT_CALL(debug_visitor, OnSettingsFrame(settings));
+  EXPECT_CALL(debug_visitor, OnSettingsFrameReceived(settings));
   session_.OnStreamFrame(frame);
 
   EXPECT_EQ(512u,
