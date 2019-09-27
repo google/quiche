@@ -74,6 +74,18 @@ void QpackBlockingManager::OnReferenceSentOnEncoderStream(
 bool QpackBlockingManager::blocking_allowed_on_stream(
     QuicStreamId stream_id,
     uint64_t maximum_blocked_streams) const {
+  // This should be the most common case: the limit is larger than the number of
+  // streams that have unacknowledged header blocks (regardless of whether they
+  // are blocked or not) plus one for stream |stream_id|.
+  if (header_blocks_.size() + 1 <= maximum_blocked_streams) {
+    return true;
+  }
+
+  // This should be another common case: no blocked stream allowed.
+  if (maximum_blocked_streams == 0) {
+    return false;
+  }
+
   uint64_t blocked_stream_count = 0;
   for (const auto& header_blocks_for_stream : header_blocks_) {
     for (const IndexSet& indices : header_blocks_for_stream.second) {
@@ -84,14 +96,31 @@ bool QpackBlockingManager::blocking_allowed_on_stream(
           return true;
         }
         ++blocked_stream_count;
+        // If stream |stream_id| is already blocked, then it is not counted yet,
+        // therefore the number of blocked streams is at least
+        // |blocked_stream_count + 1|, which cannot be more than
+        // |maximum_blocked_streams| by API contract.
+        // If stream |stream_id| is not blocked, then blocking will increase the
+        // blocked stream count to at least |blocked_stream_count + 1|.  If that
+        // is larger than |maximum_blocked_streams|, then blocking is not
+        // allowed on stream |stream_id|.
+        if (blocked_stream_count + 1 > maximum_blocked_streams) {
+          return false;
+        }
         break;
       }
     }
   }
 
-  // Stream |stream_id| is not blocked, therefore sending blocking references on
-  // it would increase the blocked stream count by one.
-  return blocked_stream_count + 1 <= maximum_blocked_streams;
+  // Stream |stream_id| is not blocked.
+  // If there are no blocked streams, then
+  // |blocked_stream_count + 1 <= maximum_blocked_streams| because
+  // |maximum_blocked_streams| is larger than zero.
+  // If there are are blocked streams, then
+  // |blocked_stream_count + 1 <= maximum_blocked_streams| otherwise the method
+  // would have returned false when |blocked_stream_count| was incremented.
+  // Therefore blocking on |stream_id| is allowed.
+  return true;
 }
 
 uint64_t QpackBlockingManager::smallest_blocking_index() const {
