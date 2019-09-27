@@ -126,13 +126,18 @@ bool AeadBaseDecrypter::SetDiversificationNonce(
   }
 
   std::string key, nonce_prefix;
-  size_t prefix_size = nonce_size_ - sizeof(QuicPacketNumber);
+  size_t prefix_size = nonce_size_;
+  if (!use_ietf_nonce_construction_) {
+    prefix_size -= sizeof(QuicPacketNumber);
+  }
   DiversifyPreliminaryKey(
       QuicStringPiece(reinterpret_cast<const char*>(key_), key_size_),
       QuicStringPiece(reinterpret_cast<const char*>(iv_), prefix_size), nonce,
       key_size_, prefix_size, &key, &nonce_prefix);
 
-  if (!SetKey(key) || !SetNoncePrefix(nonce_prefix)) {
+  if (!SetKey(key) ||
+      (!use_ietf_nonce_construction_ && !SetNoncePrefix(nonce_prefix)) ||
+      (use_ietf_nonce_construction_ && !SetIV(nonce_prefix))) {
     DCHECK(false);
     return false;
   }

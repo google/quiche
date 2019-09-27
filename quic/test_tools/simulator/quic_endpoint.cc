@@ -86,6 +86,7 @@ QuicEndpoint::QuicEndpoint(Simulator* simulator,
   connection_.set_visitor(this);
   connection_.SetEncrypter(ENCRYPTION_FORWARD_SECURE,
                            std::make_unique<NullEncrypter>(perspective));
+  connection_.SetEncrypter(ENCRYPTION_INITIAL, nullptr);
   if (connection_.version().KnowsWhichDecrypterToUse()) {
     connection_.InstallDecrypter(ENCRYPTION_FORWARD_SECURE,
                                  std::make_unique<NullDecrypter>(perspective));

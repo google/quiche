@@ -117,28 +117,6 @@ const uint8_t kInitialSalt[] = {0xc3, 0xee, 0xf7, 0x12, 0xc7, 0x2e, 0xbb,
 
 const char kPreSharedKeyLabel[] = "QUIC PSK";
 
-// This is the same as SetKeyAndIV, except it is for use with Google QUIC crypto
-// style crypters (which have a different nonce construction and auth tag
-// length). The labels for HkdfExpandLabel have also been changed to be prefixed
-// with "gquic" instead of "quic".
-void SetKeyAndNonceForGoogleQuicInitialCrypter(
-    const EVP_MD* prf,
-    const std::vector<uint8_t>& pp_secret,
-    QuicCrypter* crypter) {
-  std::vector<uint8_t> key =
-      HkdfExpandLabel(prf, pp_secret, "gquic key", crypter->GetKeySize());
-  std::vector<uint8_t> iv = HkdfExpandLabel(prf, pp_secret, "gquic iv",
-                                            crypter->GetNoncePrefixSize());
-  std::vector<uint8_t> pn =
-      HkdfExpandLabel(prf, pp_secret, "gquic hp", crypter->GetKeySize());
-  crypter->SetKey(
-      QuicStringPiece(reinterpret_cast<char*>(key.data()), key.size()));
-  crypter->SetNoncePrefix(
-      QuicStringPiece(reinterpret_cast<char*>(iv.data()), iv.size()));
-  crypter->SetHeaderProtectionKey(
-      QuicStringPiece(reinterpret_cast<char*>(pn.data()), pn.size()));
-}
-
 }  // namespace
 
 // static
@@ -185,25 +163,13 @@ void CryptoUtils::CreateInitialObfuscators(Perspective perspective,
   }
   std::vector<uint8_t> encryption_secret = HkdfExpandLabel(
       hash, handshake_secret, encryption_label, EVP_MD_size(hash));
+  crypters->encrypter = std::make_unique<Aes128GcmEncrypter>();
+  SetKeyAndIV(hash, encryption_secret, crypters->encrypter.get());
+
   std::vector<uint8_t> decryption_secret = HkdfExpandLabel(
       hash, handshake_secret, decryption_label, EVP_MD_size(hash));
-
-  // Create an encrypter and decrypter that have an auth tag of the same length
-  // as the encrypters/decrypters used with the handshake protocol for this
-  // version.
-  if (version.handshake_protocol == PROTOCOL_TLS1_3) {
-    crypters->encrypter = std::make_unique<Aes128GcmEncrypter>();
-    SetKeyAndIV(hash, encryption_secret, crypters->encrypter.get());
-    crypters->decrypter = std::make_unique<Aes128GcmDecrypter>();
-    SetKeyAndIV(hash, decryption_secret, crypters->decrypter.get());
-  } else {
-    crypters->encrypter = std::make_unique<Aes128Gcm12Encrypter>();
-    SetKeyAndNonceForGoogleQuicInitialCrypter(hash, encryption_secret,
-                                              crypters->encrypter.get());
-    crypters->decrypter = std::make_unique<Aes128Gcm12Decrypter>();
-    SetKeyAndNonceForGoogleQuicInitialCrypter(hash, decryption_secret,
-                                              crypters->decrypter.get());
-  }
+  crypters->decrypter = std::make_unique<Aes128GcmDecrypter>();
+  SetKeyAndIV(hash, decryption_secret, crypters->decrypter.get());
 }
 
 // static
@@ -234,7 +200,8 @@ void CryptoUtils::GenerateNonce(QuicWallTime now,
 }
 
 // static
-bool CryptoUtils::DeriveKeys(QuicStringPiece premaster_secret,
+bool CryptoUtils::DeriveKeys(const ParsedQuicVersion& version,
+                             QuicStringPiece premaster_secret,
                              QuicTag aead,
                              QuicStringPiece client_nonce,
                              QuicStringPiece server_nonce,
@@ -269,10 +236,14 @@ bool CryptoUtils::DeriveKeys(QuicStringPiece premaster_secret,
         QuicStringPiece(psk_premaster_secret.get(), psk_premaster_secret_size);
   }
 
-  crypters->encrypter = QuicEncrypter::Create(aead);
-  crypters->decrypter = QuicDecrypter::Create(aead);
+  crypters->encrypter = QuicEncrypter::Create(version, aead);
+  crypters->decrypter = QuicDecrypter::Create(version, aead);
+
   size_t key_bytes = crypters->encrypter->GetKeySize();
   size_t nonce_prefix_bytes = crypters->encrypter->GetNoncePrefixSize();
+  if (version.UsesInitialObfuscators()) {
+    nonce_prefix_bytes = crypters->encrypter->GetIVSize();
+  }
   size_t subkey_secret_bytes =
       subkey_secret == nullptr ? 0 : premaster_secret.length();
 
@@ -294,22 +265,26 @@ bool CryptoUtils::DeriveKeys(QuicStringPiece premaster_secret,
     case Diversification::NEVER: {
       if (perspective == Perspective::IS_SERVER) {
         if (!crypters->encrypter->SetKey(hkdf.server_write_key()) ||
-            !crypters->encrypter->SetNoncePrefix(hkdf.server_write_iv()) ||
+            !crypters->encrypter->SetNoncePrefixOrIV(version,
+                                                     hkdf.server_write_iv()) ||
             !crypters->encrypter->SetHeaderProtectionKey(
                 hkdf.server_hp_key()) ||
             !crypters->decrypter->SetKey(hkdf.client_write_key()) ||
-            !crypters->decrypter->SetNoncePrefix(hkdf.client_write_iv()) ||
+            !crypters->decrypter->SetNoncePrefixOrIV(version,
+                                                     hkdf.client_write_iv()) ||
             !crypters->decrypter->SetHeaderProtectionKey(
                 hkdf.client_hp_key())) {
           return false;
         }
       } else {
         if (!crypters->encrypter->SetKey(hkdf.client_write_key()) ||
-            !crypters->encrypter->SetNoncePrefix(hkdf.client_write_iv()) ||
+            !crypters->encrypter->SetNoncePrefixOrIV(version,
+                                                     hkdf.client_write_iv()) ||
             !crypters->encrypter->SetHeaderProtectionKey(
                 hkdf.client_hp_key()) ||
             !crypters->decrypter->SetKey(hkdf.server_write_key()) ||
-            !crypters->decrypter->SetNoncePrefix(hkdf.server_write_iv()) ||
+            !crypters->decrypter->SetNoncePrefixOrIV(version,
+                                                     hkdf.server_write_iv()) ||
             !crypters->decrypter->SetHeaderProtectionKey(
                 hkdf.server_hp_key())) {
           return false;
@@ -324,10 +299,12 @@ bool CryptoUtils::DeriveKeys(QuicStringPiece premaster_secret,
       }
 
       if (!crypters->encrypter->SetKey(hkdf.client_write_key()) ||
-          !crypters->encrypter->SetNoncePrefix(hkdf.client_write_iv()) ||
+          !crypters->encrypter->SetNoncePrefixOrIV(version,
+                                                   hkdf.client_write_iv()) ||
           !crypters->encrypter->SetHeaderProtectionKey(hkdf.client_hp_key()) ||
           !crypters->decrypter->SetPreliminaryKey(hkdf.server_write_key()) ||
-          !crypters->decrypter->SetNoncePrefix(hkdf.server_write_iv()) ||
+          !crypters->decrypter->SetNoncePrefixOrIV(version,
+                                                   hkdf.server_write_iv()) ||
           !crypters->decrypter->SetHeaderProtectionKey(hkdf.server_hp_key())) {
         return false;
       }
@@ -345,10 +322,11 @@ bool CryptoUtils::DeriveKeys(QuicStringPiece premaster_secret,
           *diversification.nonce(), key_bytes, nonce_prefix_bytes, &key,
           &nonce_prefix);
       if (!crypters->decrypter->SetKey(hkdf.client_write_key()) ||
-          !crypters->decrypter->SetNoncePrefix(hkdf.client_write_iv()) ||
+          !crypters->decrypter->SetNoncePrefixOrIV(version,
+                                                   hkdf.client_write_iv()) ||
           !crypters->decrypter->SetHeaderProtectionKey(hkdf.client_hp_key()) ||
           !crypters->encrypter->SetKey(key) ||
-          !crypters->encrypter->SetNoncePrefix(nonce_prefix) ||
+          !crypters->encrypter->SetNoncePrefixOrIV(version, nonce_prefix) ||
           !crypters->encrypter->SetHeaderProtectionKey(hkdf.server_hp_key())) {
         return false;
       }

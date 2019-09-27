@@ -123,7 +123,8 @@ class QUIC_EXPORT_PRIVATE CryptoUtils {
   // decrypter will only be keyed to a preliminary state: a call to
   // |SetDiversificationNonce| with a diversification nonce will be needed to
   // complete keying.
-  static bool DeriveKeys(QuicStringPiece premaster_secret,
+  static bool DeriveKeys(const ParsedQuicVersion& version,
+                         QuicStringPiece premaster_secret,
                          QuicTag aead,
                          QuicStringPiece client_nonce,
                          QuicStringPiece server_nonce,

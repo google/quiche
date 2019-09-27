@@ -19,7 +19,8 @@ class QUIC_EXPORT_PRIVATE QuicEncrypter : public QuicCrypter {
  public:
   virtual ~QuicEncrypter() {}
 
-  static std::unique_ptr<QuicEncrypter> Create(QuicTag algorithm);
+  static std::unique_ptr<QuicEncrypter> Create(const ParsedQuicVersion& version,
+                                               QuicTag algorithm);
 
   // Creates an IETF QuicEncrypter based on |cipher_suite| which must be an id
   // returned by SSL_CIPHER_get_id. The caller is responsible for taking

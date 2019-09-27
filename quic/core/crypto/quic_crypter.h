@@ -5,6 +5,7 @@
 #ifndef QUICHE_QUIC_CORE_CRYPTO_QUIC_CRYPTER_H_
 #define QUICHE_QUIC_CORE_CRYPTO_QUIC_CRYPTER_H_
 
+#include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 
@@ -68,6 +69,11 @@ class QUIC_EXPORT_PRIVATE QuicCrypter {
   // The security of the nonce format requires that QUIC never reuse a
   // packet number, even when retransmitting a lost packet.
   virtual bool SetIV(QuicStringPiece iv) = 0;
+
+  // Calls SetNoncePrefix or SetIV depending on whether |version| uses the
+  // Google QUIC crypto or IETF QUIC nonce construction.
+  virtual bool SetNoncePrefixOrIV(const ParsedQuicVersion& version,
+                                  QuicStringPiece nonce_prefix_or_iv);
 
   // Sets the key to use for header protection.
   virtual bool SetHeaderProtectionKey(QuicStringPiece key) = 0;

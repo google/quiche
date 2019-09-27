@@ -288,7 +288,8 @@ void QuicCryptoClientHandshaker::DoSendCHLO(
   std::string error_details;
   QuicErrorCode error = crypto_config_->FillClientHello(
       server_id_, session()->connection()->connection_id(),
-      session()->supported_versions().front(), cached,
+      session()->supported_versions().front(),
+      session()->connection()->version(), cached,
       session()->connection()->clock()->WallNow(),
       session()->connection()->random_generator(), crypto_negotiated_params_,
       &out, &error_details);

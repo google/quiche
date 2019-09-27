@@ -514,6 +514,7 @@ QuicErrorCode QuicCryptoClientConfig::FillClientHello(
     const QuicServerId& server_id,
     QuicConnectionId connection_id,
     const ParsedQuicVersion preferred_version,
+    const ParsedQuicVersion actual_version,
     const CachedState* cached,
     QuicWallTime now,
     QuicRandom* rand,
@@ -649,12 +650,12 @@ QuicErrorCode QuicCryptoClientConfig::FillClientHello(
 
   std::string* subkey_secret = &out_params->initial_subkey_secret;
 
-  if (!CryptoUtils::DeriveKeys(out_params->initial_premaster_secret,
-                               out_params->aead, out_params->client_nonce,
-                               out_params->server_nonce, pre_shared_key_,
-                               hkdf_input, Perspective::IS_CLIENT,
-                               CryptoUtils::Diversification::Pending(),
-                               &out_params->initial_crypters, subkey_secret)) {
+  if (!CryptoUtils::DeriveKeys(
+          actual_version, out_params->initial_premaster_secret,
+          out_params->aead, out_params->client_nonce, out_params->server_nonce,
+          pre_shared_key_, hkdf_input, Perspective::IS_CLIENT,
+          CryptoUtils::Diversification::Pending(),
+          &out_params->initial_crypters, subkey_secret)) {
     *error_details = "Symmetric key setup failed";
     return QUIC_CRYPTO_SYMMETRIC_KEY_SETUP_FAILED;
   }
@@ -767,7 +768,7 @@ QuicErrorCode QuicCryptoClientConfig::ProcessRejection(
 QuicErrorCode QuicCryptoClientConfig::ProcessServerHello(
     const CryptoHandshakeMessage& server_hello,
     QuicConnectionId /*connection_id*/,
-    ParsedQuicVersion /*version*/,
+    ParsedQuicVersion version,
     const ParsedQuicVersionVector& negotiated_versions,
     CachedState* cached,
     QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> out_params,
@@ -814,8 +815,8 @@ QuicErrorCode QuicCryptoClientConfig::ProcessServerHello(
   hkdf_input.append(out_params->hkdf_input_suffix);
 
   if (!CryptoUtils::DeriveKeys(
-          out_params->forward_secure_premaster_secret, out_params->aead,
-          out_params->client_nonce,
+          version, out_params->forward_secure_premaster_secret,
+          out_params->aead, out_params->client_nonce,
           shlo_nonce.empty() ? out_params->server_nonce : shlo_nonce,
           pre_shared_key_, hkdf_input, Perspective::IS_CLIENT,
           CryptoUtils::Diversification::Never(),

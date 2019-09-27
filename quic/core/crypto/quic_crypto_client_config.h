@@ -253,6 +253,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
       const QuicServerId& server_id,
       QuicConnectionId connection_id,
       const ParsedQuicVersion preferred_version,
+      const ParsedQuicVersion actual_version,
       const CachedState* cached,
       QuicWallTime now,
       QuicRandom* rand,

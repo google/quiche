@@ -4796,6 +4796,17 @@ TEST_P(QuicConnectionTest, SendMtuDiscoveryPacket) {
   EXPECT_EQ(new_mtu, mtu_probe_size);
   EXPECT_EQ(QuicPacketNumber(1u), creator_->packet_number());
 
+  // QuicFramer::GetMaxPlaintextSize uses the smallest max plaintext size across
+  // all encrypters. The initial encrypter used with IETF QUIC has a 16-byte
+  // overhead, while the NullEncrypter used throughout this test has a 12-byte
+  // overhead. This test tests behavior that relies on computing the packet size
+  // correctly, so by unsetting the initial encrypter, we avoid having a
+  // mismatch between the overheads for the encrypters used. In non-test
+  // scenarios all encrypters used for a given connection have the same
+  // overhead, either 12 bytes for ones using Google QUIC crypto, or 16 bytes
+  // for ones using TLS.
+  connection_.SetEncrypter(ENCRYPTION_INITIAL, nullptr);
+
   // Send more than MTU worth of data.  No acknowledgement was received so far,
   // so the MTU should be at its old value.
   const std::string data(kDefaultMaxPacketSize + 1, '.');
@@ -4851,8 +4862,7 @@ TEST_P(QuicConnectionTest, MtuDiscoveryEnabled) {
   // scenarios all encrypters used for a given connection have the same
   // overhead, either 12 bytes for ones using Google QUIC crypto, or 16 bytes
   // for ones using TLS.
-  QuicConnectionPeer::GetFramer(&connection_)
-      ->SetEncrypter(ENCRYPTION_INITIAL, nullptr);
+  connection_.SetEncrypter(ENCRYPTION_INITIAL, nullptr);
 
   connection_.EnablePathMtuDiscovery(send_algorithm_);
 
@@ -4993,8 +5003,7 @@ TEST_P(QuicConnectionTest, MtuDiscoveryWriterLimited) {
   // scenarios all encrypters used for a given connection have the same
   // overhead, either 12 bytes for ones using Google QUIC crypto, or 16 bytes
   // for ones using TLS.
-  QuicConnectionPeer::GetFramer(&connection_)
-      ->SetEncrypter(ENCRYPTION_INITIAL, nullptr);
+  connection_.SetEncrypter(ENCRYPTION_INITIAL, nullptr);
 
   const QuicByteCount mtu_limit = kMtuDiscoveryTargetPacketSizeHigh - 1;
   writer_->set_max_packet_size(mtu_limit);

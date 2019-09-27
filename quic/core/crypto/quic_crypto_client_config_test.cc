@@ -315,8 +315,8 @@ TEST_F(QuicCryptoClientConfigTest, FillClientHello) {
   MockRandom rand;
   CryptoHandshakeMessage chlo;
   QuicServerId server_id("www.google.com", 443, false);
-  config.FillClientHello(server_id, kConnectionId, QuicVersionMax(), &state,
-                         QuicWallTime::Zero(), &rand,
+  config.FillClientHello(server_id, kConnectionId, QuicVersionMax(),
+                         QuicVersionMax(), &state, QuicWallTime::Zero(), &rand,
                          params, &chlo, &error_details);
 
   // Verify that the version label has been set correctly in the CHLO.
@@ -336,8 +336,8 @@ TEST_F(QuicCryptoClientConfigTest, FillClientHelloNoPadding) {
   MockRandom rand;
   CryptoHandshakeMessage chlo;
   QuicServerId server_id("www.google.com", 443, false);
-  config.FillClientHello(server_id, kConnectionId, QuicVersionMax(), &state,
-                         QuicWallTime::Zero(), &rand,
+  config.FillClientHello(server_id, kConnectionId, QuicVersionMax(),
+                         QuicVersionMax(), &state, QuicWallTime::Zero(), &rand,
                          params, &chlo, &error_details);
 
   // Verify that the version label has been set correctly in the CHLO.

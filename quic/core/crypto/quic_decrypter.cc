@@ -22,12 +22,22 @@
 namespace quic {
 
 // static
-std::unique_ptr<QuicDecrypter> QuicDecrypter::Create(QuicTag algorithm) {
+std::unique_ptr<QuicDecrypter> QuicDecrypter::Create(
+    const ParsedQuicVersion& version,
+    QuicTag algorithm) {
   switch (algorithm) {
     case kAESG:
-      return std::make_unique<Aes128Gcm12Decrypter>();
+      if (version.UsesInitialObfuscators()) {
+        return std::make_unique<Aes128GcmDecrypter>();
+      } else {
+        return std::make_unique<Aes128Gcm12Decrypter>();
+      }
     case kCC20:
-      return std::make_unique<ChaCha20Poly1305Decrypter>();
+      if (version.UsesInitialObfuscators()) {
+        return std::make_unique<ChaCha20Poly1305TlsDecrypter>();
+      } else {
+        return std::make_unique<ChaCha20Poly1305Decrypter>();
+      }
     default:
       QUIC_LOG(FATAL) << "Unsupported algorithm: " << algorithm;
       return nullptr;

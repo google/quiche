@@ -874,7 +874,7 @@ void QuicCryptoServerConfig::ProcessClientHelloAfterCalculateSharedKeys(
 
     CrypterPair crypters;
     if (!CryptoUtils::DeriveKeys(
-            context->params()->initial_premaster_secret,
+            context->version(), context->params()->initial_premaster_secret,
             context->params()->aead, context->info().client_nonce,
             context->info().server_nonce, pre_shared_key_, hkdf_input,
             Perspective::IS_SERVER, CryptoUtils::Diversification::Never(),
@@ -926,9 +926,10 @@ void QuicCryptoServerConfig::ProcessClientHelloAfterCalculateSharedKeys(
   CryptoUtils::Diversification diversification =
       CryptoUtils::Diversification::Now(out_diversification_nonce.get());
   if (!CryptoUtils::DeriveKeys(
-          context->params()->initial_premaster_secret, context->params()->aead,
-          context->info().client_nonce, context->info().server_nonce,
-          pre_shared_key_, hkdf_input, Perspective::IS_SERVER, diversification,
+          context->version(), context->params()->initial_premaster_secret,
+          context->params()->aead, context->info().client_nonce,
+          context->info().server_nonce, pre_shared_key_, hkdf_input,
+          Perspective::IS_SERVER, diversification,
           &context->params()->initial_crypters,
           &context->params()->initial_subkey_secret)) {
     context->Fail(QUIC_CRYPTO_SYMMETRIC_KEY_SETUP_FAILED,
@@ -967,6 +968,7 @@ void QuicCryptoServerConfig::ProcessClientHelloAfterCalculateSharedKeys(
   out->SetStringPiece(kServerNonceTag, shlo_nonce);
 
   if (!CryptoUtils::DeriveKeys(
+          context->version(),
           context->params()->forward_secure_premaster_secret,
           context->params()->aead, context->info().client_nonce,
           shlo_nonce.empty() ? context->info().server_nonce : shlo_nonce,

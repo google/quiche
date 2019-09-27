@@ -149,6 +149,21 @@ TEST_F(CryptoUtilsTest, HandshakeFailureReasonToString) {
           static_cast<HandshakeFailureReason>(MAX_FAILURE_REASON + 1)));
 }
 
+TEST_F(CryptoUtilsTest, AuthTagLengths) {
+  for (const auto& version : AllSupportedVersions()) {
+    for (QuicTag algo : {kAESG, kCC20}) {
+      SCOPED_TRACE(version);
+      std::unique_ptr<QuicEncrypter> encrypter(
+          QuicEncrypter::Create(version, algo));
+      size_t auth_tag_size = 12;
+      if (version.UsesInitialObfuscators()) {
+        auth_tag_size = 16;
+      }
+      EXPECT_EQ(encrypter->GetCiphertextSize(0), auth_tag_size);
+    }
+  }
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic
