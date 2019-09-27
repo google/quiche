@@ -27,7 +27,9 @@ class QUIC_EXPORT_PRIVATE QuicVersionManager {
   const ParsedQuicVersionVector& GetSupportedVersions();
 
  protected:
-  // Maybe refilter filtered_supported_versions_ based on flags.
+  // If the value of any reloadable flag is different from the cached value,
+  // re-filter |filtered_supported_versions_| and update the cached flag values.
+  // Otherwise, does nothing.
   void MaybeRefilterSupportedVersions();
 
   // Refilters filtered_supported_versions_.
@@ -38,6 +40,7 @@ class QUIC_EXPORT_PRIVATE QuicVersionManager {
   }
 
  private:
+  // Cached value of reloadable flags.
   // quic_enable_version_99 flag
   bool enable_version_99_;
   // quic_enable_version_49 flag
@@ -50,6 +53,7 @@ class QUIC_EXPORT_PRIVATE QuicVersionManager {
   bool disable_version_39_;
   // quic_supports_tls_handshake flag
   bool enable_tls_;
+
   // The list of versions that may be supported.
   ParsedQuicVersionVector allowed_supported_versions_;
   // This vector contains QUIC versions which are currently supported based on
