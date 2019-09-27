@@ -358,8 +358,8 @@ TEST_F(QpackBlockingManagerTest, BlockingAllowedOnStream) {
   // Stream is still blocked on its second header block.
   manager_.OnHeaderAcknowledgement(kStreamId1);
 
-  EXPECT_TRUE(manager_.blocking_allowed_on_stream(kStreamId1, 1));
-  EXPECT_TRUE(manager_.blocking_allowed_on_stream(kStreamId2, 1));
+  EXPECT_TRUE(manager_.blocking_allowed_on_stream(kStreamId1, 2));
+  EXPECT_TRUE(manager_.blocking_allowed_on_stream(kStreamId2, 2));
 
   // Acknowledge decoding of second header block on first stream.
   // This unblocks the stream.
