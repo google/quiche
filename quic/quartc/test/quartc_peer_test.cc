@@ -327,7 +327,7 @@ TEST_F(QuartcPeerTest, BandwidthAllocationWithoutEnoughAvailable) {
   Connect();
 
   // Run for long enough that bandwidth ramps up to link capacity.
-  simulator_.RunFor(QuicTime::Delta::FromSeconds(10));
+  simulator_.RunFor(QuicTime::Delta::FromSeconds(12));
 
   const std::vector<ReceivedMessage>& client_messages =
       client_peer_->received_messages();
