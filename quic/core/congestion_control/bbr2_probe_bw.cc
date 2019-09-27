@@ -266,8 +266,18 @@ void Bbr2ProbeBwMode::ProbeInflightHighUpward(
   DCHECK_EQ(cycle_.phase, CyclePhase::PROBE_UP);
   if (!model_->IsCongestionWindowLimited(congestion_event)) {
     QUIC_DVLOG(3) << sender_
-                  << " Rasing inflight_hi early return: Not cwnd limited.";
+                  << " Raising inflight_hi early return: Not cwnd limited.";
     // Not fully utilizing cwnd, so can't safely grow.
+    return;
+  }
+
+  if (GetQuicReloadableFlag(quic_bbr2_fix_inflight_bounds) &&
+      congestion_event.prior_cwnd < model_->inflight_hi()) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr2_fix_inflight_bounds, 1, 2);
+    QUIC_DVLOG(3)
+        << sender_
+        << " Raising inflight_hi early return: inflight_hi not fully used.";
+    // Not fully using inflight_hi, so don't grow it.
     return;
   }
 
@@ -276,13 +286,20 @@ void Bbr2ProbeBwMode::ProbeInflightHighUpward(
   if (cycle_.probe_up_acked >= cycle_.probe_up_bytes) {
     uint64_t delta = cycle_.probe_up_acked / cycle_.probe_up_bytes;
     cycle_.probe_up_acked -= delta * cycle_.probe_up_bytes;
-    QUIC_DVLOG(3) << sender_ << " Rasing inflight_hi from "
-                  << model_->inflight_hi() << " to "
-                  << model_->inflight_hi() + delta * kDefaultTCPMSS
-                  << ". probe_up_bytes:" << cycle_.probe_up_bytes
-                  << ", delta:" << delta
-                  << ", (new)probe_up_acked:" << cycle_.probe_up_acked;
-    model_->set_inflight_hi(model_->inflight_hi() + delta * kDefaultTCPMSS);
+    QuicByteCount new_inflight_hi =
+        model_->inflight_hi() + delta * kDefaultTCPMSS;
+    if (new_inflight_hi > model_->inflight_hi()) {
+      QUIC_DVLOG(3) << sender_ << " Raising inflight_hi from "
+                    << model_->inflight_hi() << " to " << new_inflight_hi
+                    << ". probe_up_bytes:" << cycle_.probe_up_bytes
+                    << ", delta:" << delta
+                    << ", (new)probe_up_acked:" << cycle_.probe_up_acked;
+
+      model_->set_inflight_hi(new_inflight_hi);
+    } else {
+      QUIC_BUG << "Not growing inflight_hi due to wrap around. Old value:"
+               << model_->inflight_hi() << ", new value:" << new_inflight_hi;
+    }
   }
 
   if (congestion_event.end_of_round_trip) {
@@ -400,6 +417,10 @@ void Bbr2ProbeBwMode::EnterProbeCruise(
                 << congestion_event.event_time - cycle_.phase_start_time
                 << ", or " << cycle_.rounds_in_phase << " rounds.  @ "
                 << congestion_event.event_time;
+  if (GetQuicReloadableFlag(quic_bbr2_fix_inflight_bounds)) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr2_fix_inflight_bounds, 2, 2);
+    model_->cap_inflight_lo(model_->inflight_hi());
+  }
   cycle_.phase = CyclePhase::PROBE_CRUISE;
   cycle_.rounds_in_phase = 0;
   cycle_.phase_start_time = congestion_event.event_time;

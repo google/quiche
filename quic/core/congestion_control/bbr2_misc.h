@@ -379,6 +379,11 @@ class QUIC_EXPORT_PRIVATE Bbr2NetworkModel {
     return std::numeric_limits<QuicByteCount>::max();
   }
   void clear_inflight_lo() { inflight_lo_ = inflight_lo_default(); }
+  void cap_inflight_lo(QuicByteCount cap) {
+    if (inflight_lo_ != inflight_lo_default() && inflight_lo_ > cap) {
+      inflight_lo_ = cap;
+    }
+  }
 
   QuicByteCount inflight_hi_with_headroom() const;
   QuicByteCount inflight_hi() const { return inflight_hi_; }
