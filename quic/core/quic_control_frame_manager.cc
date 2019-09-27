@@ -28,10 +28,10 @@ QuicControlFrameManager::QuicControlFrameManager(QuicSession* session)
       least_unsent_(1),
       session_(session),
       add_upper_limit_(GetQuicReloadableFlag(
-          quic_add_upper_limit_of_buffered_control_frames2)) {
+          quic_add_upper_limit_of_buffered_control_frames3)) {
   if (add_upper_limit_) {
     QUIC_RELOADABLE_FLAG_COUNT(
-        quic_add_upper_limit_of_buffered_control_frames2);
+        quic_add_upper_limit_of_buffered_control_frames3);
   }
 }
 
