@@ -6366,6 +6366,8 @@ QuicErrorCode QuicFramer::ParsePublicHeaderGoogleQuic(
 
 namespace {
 
+const QuicVersionLabel kProxVersionLabel = 0x50524F58;  // "PROX"
+
 inline bool PacketHasLengthPrefixedConnectionIds(
     const QuicDataReader& reader,
     ParsedQuicVersion parsed_version,
@@ -6396,7 +6398,7 @@ inline bool PacketHasLengthPrefixedConnectionIds(
 
   // Check for munged packets with version tag PROX.
   if ((connection_id_length_byte & 0x0f) == 0 &&
-      connection_id_length_byte >= 0x20 && version_label == 0x50524F58) {
+      connection_id_length_byte >= 0x20 && version_label == kProxVersionLabel) {
     return false;
   }
 
@@ -6406,6 +6408,7 @@ inline bool PacketHasLengthPrefixedConnectionIds(
 inline bool ParseLongHeaderConnectionIds(
     QuicDataReader* reader,
     bool has_length_prefix,
+    QuicVersionLabel version_label,
     QuicConnectionId* destination_connection_id,
     QuicConnectionId* source_connection_id,
     std::string* detailed_error) {
@@ -6415,6 +6418,16 @@ inline bool ParseLongHeaderConnectionIds(
       return false;
     }
     if (!reader->ReadLengthPrefixedConnectionId(source_connection_id)) {
+      if (GetQuicReloadableFlag(quic_parse_prox_source_connection_id) &&
+          version_label == kProxVersionLabel) {
+        QUIC_RELOADABLE_FLAG_COUNT(quic_parse_prox_source_connection_id);
+        // The "PROX" version does not follow the length-prefixed invariants,
+        // and can therefore attempt to read a payload byte and interpret it
+        // as the source connection ID length, which could fail to parse.
+        // In that scenario we keep the source connection ID empty but mark
+        // parsing as successful.
+        return true;
+      }
       *detailed_error = "Unable to read source connection ID.";
       return false;
     }
@@ -6525,7 +6538,7 @@ QuicErrorCode QuicFramer::ParsePublicHeader(
       *reader, *parsed_version, *version_label, *first_byte);
 
   // Parse connection IDs.
-  if (!ParseLongHeaderConnectionIds(reader, *has_length_prefix,
+  if (!ParseLongHeaderConnectionIds(reader, *has_length_prefix, *version_label,
                                     destination_connection_id,
                                     source_connection_id, detailed_error)) {
     return QUIC_INVALID_PACKET_HEADER;

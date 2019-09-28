@@ -1283,6 +1283,69 @@ TEST_P(QuicFramerTest, ParsePublicHeader) {
   }
 }
 
+TEST_P(QuicFramerTest, ParsePublicHeaderProxBadSourceConnectionIdLength) {
+  if (!framer_.version().HasLengthPrefixedConnectionIds()) {
+    return;
+  }
+  SetQuicReloadableFlag(quic_parse_prox_source_connection_id, true);
+  // clang-format off
+  unsigned char packet[] = {
+    // public flags (long header with packet type HANDSHAKE and
+    // 4-byte packet number)
+    0xE3,
+    // version
+    'P', 'R', 'O', 'X',
+    // destination connection ID length
+    0x08,
+    // destination connection ID
+    0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+    // source connection ID length (bogus)
+    0xEE,
+    // long header packet length
+    0x05,
+    // packet number
+    0x12, 0x34, 0x56, 0x78,
+    // padding frame
+    0x00,
+  };
+  // clang-format on
+  unsigned char* p = packet;
+  size_t p_length = QUIC_ARRAYSIZE(packet);
+
+  uint8_t first_byte = 0x33;
+  PacketHeaderFormat format = GOOGLE_QUIC_PACKET;
+  bool version_present = false, has_length_prefix = false;
+  QuicVersionLabel version_label = 0;
+  ParsedQuicVersion parsed_version = UnsupportedQuicVersion();
+  QuicConnectionId destination_connection_id = EmptyQuicConnectionId(),
+                   source_connection_id = EmptyQuicConnectionId();
+  QuicLongHeaderType long_packet_type = INVALID_PACKET_TYPE;
+  QuicVariableLengthIntegerLength retry_token_length_length =
+      VARIABLE_LENGTH_INTEGER_LENGTH_4;
+  QuicStringPiece retry_token;
+  std::string detailed_error = "foobar";
+
+  QuicDataReader reader(AsChars(p), p_length);
+  const QuicErrorCode parse_error = QuicFramer::ParsePublicHeader(
+      &reader, kQuicDefaultConnectionIdLength,
+      /*ietf_format=*/true, &first_byte, &format, &version_present,
+      &has_length_prefix, &version_label, &parsed_version,
+      &destination_connection_id, &source_connection_id, &long_packet_type,
+      &retry_token_length_length, &retry_token, &detailed_error);
+  EXPECT_EQ(QUIC_NO_ERROR, parse_error);
+  EXPECT_EQ("", detailed_error);
+  EXPECT_EQ(p[0], first_byte);
+  EXPECT_TRUE(version_present);
+  EXPECT_TRUE(has_length_prefix);
+  EXPECT_EQ(0x50524F58u, version_label);  // "PROX"
+  EXPECT_EQ(UnsupportedQuicVersion(), parsed_version);
+  EXPECT_EQ(FramerTestConnectionId(), destination_connection_id);
+  EXPECT_EQ(EmptyQuicConnectionId(), source_connection_id);
+  EXPECT_EQ(VARIABLE_LENGTH_INTEGER_LENGTH_0, retry_token_length_length);
+  EXPECT_EQ(QuicStringPiece(), retry_token);
+  EXPECT_EQ(IETF_QUIC_LONG_HEADER_PACKET, format);
+}
+
 TEST_P(QuicFramerTest, ClientConnectionIdFromShortHeaderToClient) {
   if (!framer_.version().SupportsClientConnectionIds()) {
     return;
