@@ -3201,7 +3201,9 @@ TEST_P(QuicFramerTest, FirstAckFrameUnderflow) {
 // available space in the ack range.
 TEST_P(QuicFramerTest, ThirdAckBlockUnderflowGap) {
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
-    // for now, only v99
+    // Test originally written for development of IETF QUIC. The test may
+    // also apply to Google QUIC. If so, the test should be extended to
+    // include Google QUIC (frame formats, etc). See b/141858819.
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
@@ -3259,7 +3261,9 @@ TEST_P(QuicFramerTest, ThirdAckBlockUnderflowGap) {
 // available space in the ack range.
 TEST_P(QuicFramerTest, ThirdAckBlockUnderflowAck) {
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
-    // for now, only v99
+    // Test originally written for development of IETF QUIC. The test may
+    // also apply to Google QUIC. If so, the test should be extended to
+    // include Google QUIC (frame formats, etc). See b/141858819.
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
@@ -3315,7 +3319,9 @@ TEST_P(QuicFramerTest, ThirdAckBlockUnderflowAck) {
 // condition.
 TEST_P(QuicFramerTest, AckBlockUnderflowGapWrap) {
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
-    // for now, only v99
+    // Test originally written for development of IETF QUIC. The test may
+    // also apply to Google QUIC. If so, the test should be extended to
+    // include Google QUIC (frame formats, etc). See b/141858819.
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
@@ -3365,7 +3371,9 @@ TEST_P(QuicFramerTest, AckBlockUnderflowGapWrap) {
 // component of the ack-block that causes the wrap, not the gap.
 TEST_P(QuicFramerTest, AckBlockUnderflowAckWrap) {
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
-    // for now, only v99
+    // Test originally written for development of IETF QUIC. The test may
+    // also apply to Google QUIC. If so, the test should be extended to
+    // include Google QUIC (frame formats, etc). See b/141858819.
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
@@ -3414,7 +3422,9 @@ TEST_P(QuicFramerTest, AckBlockUnderflowAckWrap) {
 // An ack block that acks the entire range, 1...0x3fffffffffffffff
 TEST_P(QuicFramerTest, AckBlockAcksEverything) {
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
-    // for now, only v99
+    // Test originally written for development of IETF QUIC. The test may
+    // also apply to Google QUIC. If so, the test should be extended to
+    // include Google QUIC (frame formats, etc). See b/141858819.
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
@@ -3971,6 +3981,7 @@ TEST_P(QuicFramerTest, AckFrameTimeStampDeltaTooHigh) {
   };
   // clang-format on
   if (VersionHasIetfQuicFrames(framer_.transport_version())) {
+    // ACK Timestamp is not a feature of IETF QUIC.
     return;
   }
   QuicEncryptedPacket encrypted(
@@ -4044,6 +4055,7 @@ TEST_P(QuicFramerTest, AckFrameTimeStampSecondDeltaTooHigh) {
   };
   // clang-format on
   if (VersionHasIetfQuicFrames(framer_.transport_version())) {
+    // ACK Timestamp is not a feature of IETF QUIC.
     return;
   }
   QuicEncryptedPacket encrypted(
@@ -4057,6 +4069,7 @@ TEST_P(QuicFramerTest, AckFrameTimeStampSecondDeltaTooHigh) {
 
 TEST_P(QuicFramerTest, NewStopWaitingFrame) {
   if (VersionHasIetfQuicFrames(version_.transport_version)) {
+    // The Stop Waiting frame is not in IETF QUIC
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
@@ -4129,6 +4142,7 @@ TEST_P(QuicFramerTest, NewStopWaitingFrame) {
 }
 
 TEST_P(QuicFramerTest, InvalidNewStopWaitingFrame) {
+  // The Stop Waiting frame is not in IETF QUIC
   if (VersionHasIetfQuicFrames(version_.transport_version) ||
       (GetQuicReloadableFlag(quic_do_not_accept_stop_waiting) &&
        version_.transport_version >= QUIC_VERSION_46)) {
@@ -4538,7 +4552,7 @@ TEST_P(QuicFramerTest, ConnectionCloseFrameWithExtractedInfoIgnoreGCuic) {
 // Test the CONNECTION_CLOSE/Application variant.
 TEST_P(QuicFramerTest, ApplicationCloseFrame) {
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
-    // This frame does not exist in versions other than 99.
+    // This frame is only in IETF QUIC.
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
@@ -4599,7 +4613,7 @@ TEST_P(QuicFramerTest, ApplicationCloseFrame) {
 // Check that we can extract an error code from an application close.
 TEST_P(QuicFramerTest, ApplicationCloseFrameExtract) {
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
-    // This frame does not exist in versions other than 99.
+    // This frame is only in IETF QUIC.
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
@@ -4660,7 +4674,7 @@ TEST_P(QuicFramerTest, ApplicationCloseFrameExtract) {
 
 TEST_P(QuicFramerTest, GoAwayFrame) {
   if (VersionHasIetfQuicFrames(framer_.transport_version())) {
-    // This frame is not supported in version 99.
+    // This frame is not in IETF QUIC.
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
@@ -4751,8 +4765,8 @@ TEST_P(QuicFramerTest, GoAwayFrame) {
 
 TEST_P(QuicFramerTest, WindowUpdateFrame) {
   if (VersionHasIetfQuicFrames(framer_.transport_version())) {
-    // This frame is not in version 99, see MaxDataFrame and MaxStreamDataFrame
-    // for Version 99 equivalents.
+    // This frame is not in IETF QUIC, see MaxDataFrame and MaxStreamDataFrame
+    // for IETF QUIC equivalents.
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
@@ -4823,7 +4837,7 @@ TEST_P(QuicFramerTest, WindowUpdateFrame) {
 
 TEST_P(QuicFramerTest, MaxDataFrame) {
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
-    // This frame is available only in version 99.
+    // This frame is available only in IETF QUIC.
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
@@ -4867,7 +4881,7 @@ TEST_P(QuicFramerTest, MaxDataFrame) {
 
 TEST_P(QuicFramerTest, MaxStreamDataFrame) {
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
-    // This frame available only in version 99.
+    // This frame available only in IETF QUIC.
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
@@ -7749,7 +7763,7 @@ TEST_P(QuicFramerTest, BuildTruncatedCloseFramePacket) {
 
 TEST_P(QuicFramerTest, BuildApplicationCloseFramePacket) {
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
-    // Versions other than 99 do not have ApplicationClose
+    // This frame is only for IETF QUIC.
     return;
   }
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
@@ -7801,7 +7815,7 @@ TEST_P(QuicFramerTest, BuildApplicationCloseFramePacket) {
 
 TEST_P(QuicFramerTest, BuildTruncatedApplicationCloseFramePacket) {
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
-    // Versions other than 99 do not have this frame.
+    // This frame is only for IETF QUIC.
     return;
   }
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
@@ -7883,7 +7897,7 @@ TEST_P(QuicFramerTest, BuildTruncatedApplicationCloseFramePacket) {
 
 TEST_P(QuicFramerTest, BuildGoAwayPacket) {
   if (VersionHasIetfQuicFrames(framer_.transport_version())) {
-    // This frame type is not supported in version 99.
+    // This frame is only for Google QUIC.
     return;
   }
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
@@ -7965,7 +7979,7 @@ TEST_P(QuicFramerTest, BuildGoAwayPacket) {
 
 TEST_P(QuicFramerTest, BuildTruncatedGoAwayPacket) {
   if (VersionHasIetfQuicFrames(framer_.transport_version())) {
-    // This frame type is not supported in version 99.
+    // This frame is only for Google QUIC.
     return;
   }
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
@@ -8186,7 +8200,7 @@ TEST_P(QuicFramerTest, BuildWindowUpdatePacket) {
 
 TEST_P(QuicFramerTest, BuildMaxStreamDataPacket) {
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
-    // This frame is available only in this version.
+    // This frame is only for IETF QUIC.
     return;
   }
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
@@ -8231,7 +8245,7 @@ TEST_P(QuicFramerTest, BuildMaxStreamDataPacket) {
 
 TEST_P(QuicFramerTest, BuildMaxDataPacket) {
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
-    // This frame is available only in this version.
+    // This frame is only for IETF QUIC.
     return;
   }
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
@@ -8575,6 +8589,7 @@ TEST_P(QuicFramerTest, BuildConnectivityProbingPacket) {
 // correctly as a padded PATH CHALLENGE packet.
 TEST_P(QuicFramerTest, BuildPaddedPathChallengePacket) {
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+    // This frame is only for IETF QUIC.
     return;
   }
 
@@ -8630,6 +8645,7 @@ TEST_P(QuicFramerTest, BuildPaddedPathChallengePacket) {
 // exercised the single- and multiple- payload cases.
 TEST_P(QuicFramerTest, BuildPathResponsePacket1ResponseUnpadded) {
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+    // This frame is only for IETF QUIC.
     return;
   }
 
@@ -8674,6 +8690,7 @@ TEST_P(QuicFramerTest, BuildPathResponsePacket1ResponseUnpadded) {
 
 TEST_P(QuicFramerTest, BuildPathResponsePacket1ResponsePadded) {
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+    // This frame is only for IETF QUIC.
     return;
   }
 
@@ -8720,6 +8737,7 @@ TEST_P(QuicFramerTest, BuildPathResponsePacket1ResponsePadded) {
 
 TEST_P(QuicFramerTest, BuildPathResponsePacket3ResponsesUnpadded) {
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+    // This frame is only for IETF QUIC.
     return;
   }
 
@@ -8771,6 +8789,7 @@ TEST_P(QuicFramerTest, BuildPathResponsePacket3ResponsesUnpadded) {
 
 TEST_P(QuicFramerTest, BuildPathResponsePacket3ResponsesPadded) {
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+    // This frame is only for IETF QUIC.
     return;
   }
 
@@ -9609,7 +9628,7 @@ TEST_P(QuicFramerTest, ConstructMisFramedEncryptedPacket) {
 }
 
 TEST_P(QuicFramerTest, IetfBlockedFrame) {
-  // This test only for version 99.
+  // This frame is only for IETF QUIC.
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
     return;
   }
@@ -9651,7 +9670,7 @@ TEST_P(QuicFramerTest, IetfBlockedFrame) {
 }
 
 TEST_P(QuicFramerTest, BuildIetfBlockedPacket) {
-  // This test only for version 99.
+  // This frame is only for IETF QUIC.
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
     return;
   }
@@ -9692,7 +9711,7 @@ TEST_P(QuicFramerTest, BuildIetfBlockedPacket) {
 }
 
 TEST_P(QuicFramerTest, IetfStreamBlockedFrame) {
-  // This test only for version 99.
+  // This frame is only for IETF QUIC.
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
     return;
   }
@@ -9737,7 +9756,7 @@ TEST_P(QuicFramerTest, IetfStreamBlockedFrame) {
 }
 
 TEST_P(QuicFramerTest, BuildIetfStreamBlockedPacket) {
-  // This test only for version 99.
+  // This frame is only for IETF QUIC.
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
     return;
   }
@@ -9780,7 +9799,7 @@ TEST_P(QuicFramerTest, BuildIetfStreamBlockedPacket) {
 }
 
 TEST_P(QuicFramerTest, BiDiMaxStreamsFrame) {
-  // This test only for version 99.
+  // This frame is only for IETF QUIC.
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
     return;
   }
@@ -9822,7 +9841,7 @@ TEST_P(QuicFramerTest, BiDiMaxStreamsFrame) {
 }
 
 TEST_P(QuicFramerTest, UniDiMaxStreamsFrame) {
-  // This test only for version 99.
+  // This frame is only for IETF QUIC.
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
     return;
   }
@@ -9863,7 +9882,7 @@ TEST_P(QuicFramerTest, UniDiMaxStreamsFrame) {
 }
 
 TEST_P(QuicFramerTest, ServerUniDiMaxStreamsFrame) {
-  // This test only for version 99.
+  // This frame is only for IETF QUIC.
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
     return;
   }
@@ -9905,7 +9924,7 @@ TEST_P(QuicFramerTest, ServerUniDiMaxStreamsFrame) {
 }
 
 TEST_P(QuicFramerTest, ClientUniDiMaxStreamsFrame) {
-  // This test only for version 99.
+  // This frame is only for IETF QUIC.
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
     return;
   }
@@ -9952,7 +9971,7 @@ TEST_P(QuicFramerTest, ClientUniDiMaxStreamsFrame) {
 // tests, for the four combinations of uni- and bi-directional, server- and
 // client- initiated.
 TEST_P(QuicFramerTest, BiDiMaxStreamsFrameTooBig) {
-  // This test only for version 99.
+  // This frame is only for IETF QUIC.
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
     return;
   }
@@ -9990,7 +10009,7 @@ TEST_P(QuicFramerTest, BiDiMaxStreamsFrameTooBig) {
 }
 
 TEST_P(QuicFramerTest, ClientBiDiMaxStreamsFrameTooBig) {
-  // This test only for version 99.
+  // This frame is only for IETF QUIC.
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
     return;
   }
@@ -10029,7 +10048,7 @@ TEST_P(QuicFramerTest, ClientBiDiMaxStreamsFrameTooBig) {
 }
 
 TEST_P(QuicFramerTest, ServerUniDiMaxStreamsFrameTooBig) {
-  // This test only for version 99.
+  // This frame is only for IETF QUIC.
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
     return;
   }
@@ -10068,7 +10087,7 @@ TEST_P(QuicFramerTest, ServerUniDiMaxStreamsFrameTooBig) {
 }
 
 TEST_P(QuicFramerTest, ClientUniDiMaxStreamsFrameTooBig) {
-  // This test only for version 99.
+  // This frame is only for IETF QUIC.
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
     return;
   }
@@ -10108,7 +10127,7 @@ TEST_P(QuicFramerTest, ClientUniDiMaxStreamsFrameTooBig) {
 
 // Specifically test that count==0 is accepted.
 TEST_P(QuicFramerTest, MaxStreamsFrameZeroCount) {
-  // This test only for version 99.
+  // This frame is only for IETF QUIC.
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
     return;
   }
@@ -10135,7 +10154,7 @@ TEST_P(QuicFramerTest, MaxStreamsFrameZeroCount) {
 }
 
 TEST_P(QuicFramerTest, ServerBiDiStreamsBlockedFrame) {
-  // This test only for version 99.
+  // This frame is only for IETF QUIC.
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
     return;
   }
@@ -10178,7 +10197,7 @@ TEST_P(QuicFramerTest, ServerBiDiStreamsBlockedFrame) {
 }
 
 TEST_P(QuicFramerTest, BiDiStreamsBlockedFrame) {
-  // This test only for version 99.
+  // This frame is only for IETF QUIC.
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
     return;
   }
@@ -10221,7 +10240,7 @@ TEST_P(QuicFramerTest, BiDiStreamsBlockedFrame) {
 }
 
 TEST_P(QuicFramerTest, UniDiStreamsBlockedFrame) {
-  // This test only for version 99.
+  // This frame is only for IETF QUIC.
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
     return;
   }
@@ -10263,7 +10282,7 @@ TEST_P(QuicFramerTest, UniDiStreamsBlockedFrame) {
 }
 
 TEST_P(QuicFramerTest, ClientUniDiStreamsBlockedFrame) {
-  // This test only for version 99.
+  // This frame is only for IETF QUIC.
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
     return;
   }
@@ -10308,7 +10327,7 @@ TEST_P(QuicFramerTest, ClientUniDiStreamsBlockedFrame) {
 // check for different combinations of Uni/Bi directional and client/server
 // initiated; the logic does not take these into account.
 TEST_P(QuicFramerTest, StreamsBlockedFrameTooBig) {
-  // This test only for version 99.
+  // This frame is only for IETF QUIC.
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
     return;
   }
@@ -10343,7 +10362,7 @@ TEST_P(QuicFramerTest, StreamsBlockedFrameTooBig) {
 
 // Specifically test that count==0 is accepted.
 TEST_P(QuicFramerTest, StreamsBlockedFrameZeroCount) {
-  // This test only for version 99.
+  // This frame is only for IETF QUIC.
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
     return;
   }
@@ -10387,7 +10406,7 @@ TEST_P(QuicFramerTest, StreamsBlockedFrameZeroCount) {
 }
 
 TEST_P(QuicFramerTest, BuildBiDiStreamsBlockedPacket) {
-  // This test only for version 99.
+  // This frame is only for IETF QUIC.
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
     return;
   }
@@ -10429,7 +10448,7 @@ TEST_P(QuicFramerTest, BuildBiDiStreamsBlockedPacket) {
 }
 
 TEST_P(QuicFramerTest, BuildUniStreamsBlockedPacket) {
-  // This test only for version 99.
+  // This frame is only for IETF QUIC.
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
     return;
   }
@@ -10471,7 +10490,7 @@ TEST_P(QuicFramerTest, BuildUniStreamsBlockedPacket) {
 }
 
 TEST_P(QuicFramerTest, BuildBiDiMaxStreamsPacket) {
-  // This test only for version 99.
+  // This frame is only for IETF QUIC.
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
     return;
   }
@@ -10513,7 +10532,7 @@ TEST_P(QuicFramerTest, BuildBiDiMaxStreamsPacket) {
 }
 
 TEST_P(QuicFramerTest, BuildUniDiMaxStreamsPacket) {
-  // This test only for version 99.
+  // This frame is only for IETF QUIC.
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
     return;
   }
@@ -10559,7 +10578,7 @@ TEST_P(QuicFramerTest, BuildUniDiMaxStreamsPacket) {
 
 TEST_P(QuicFramerTest, NewConnectionIdFrame) {
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
-    // This frame is only for version 99.
+    // This frame is only for IETF QUIC.
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
@@ -10618,7 +10637,7 @@ TEST_P(QuicFramerTest, NewConnectionIdFrame) {
 
 TEST_P(QuicFramerTest, NewConnectionIdFrameVariableLength) {
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
-    // This frame is only for version 99.
+    // This frame is only for IETF QUIC.
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
@@ -10679,7 +10698,7 @@ TEST_P(QuicFramerTest, NewConnectionIdFrameVariableLength) {
 // specified maximum fails.
 TEST_P(QuicFramerTest, InvalidLongNewConnectionIdFrame) {
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
-    // The NEW_CONNECTION_ID frame is only for version 99.
+    // The NEW_CONNECTION_ID frame is only for IETF QUIC.
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
@@ -10731,7 +10750,7 @@ TEST_P(QuicFramerTest, InvalidLongNewConnectionIdFrame) {
 // retire-prior-to fails.
 TEST_P(QuicFramerTest, InvalidRetirePriorToNewConnectionIdFrame) {
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
-    // The NEW_CONNECTION_ID frame is only for version 99.
+    // This frame is only for IETF QUIC only.
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
@@ -10773,7 +10792,7 @@ TEST_P(QuicFramerTest, InvalidRetirePriorToNewConnectionIdFrame) {
 
 TEST_P(QuicFramerTest, BuildNewConnectionIdFramePacket) {
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
-    // This frame is only for version 99.
+    // This frame is only for IETF QUIC only.
     return;
   }
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
@@ -10828,7 +10847,7 @@ TEST_P(QuicFramerTest, BuildNewConnectionIdFramePacket) {
 
 TEST_P(QuicFramerTest, NewTokenFrame) {
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
-    // This frame is only for version 99.
+    // This frame is only for IETF QUIC only.
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
@@ -10877,7 +10896,7 @@ TEST_P(QuicFramerTest, NewTokenFrame) {
 
 TEST_P(QuicFramerTest, BuildNewTokenFramePacket) {
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
-    // This frame is only for version 99.
+    // This frame is only for IETF QUIC only.
     return;
   }
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
@@ -10921,8 +10940,8 @@ TEST_P(QuicFramerTest, BuildNewTokenFramePacket) {
 }
 
 TEST_P(QuicFramerTest, IetfStopSendingFrame) {
-  // This test is only for version 99.
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+    // Stop sending frame is IETF QUIC only.
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
@@ -10966,8 +10985,8 @@ TEST_P(QuicFramerTest, IetfStopSendingFrame) {
 }
 
 TEST_P(QuicFramerTest, BuildIetfStopSendingPacket) {
-  // This test is only for version 99.
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+    // Stop sending frame is IETF QUIC only.
     return;
   }
 
@@ -11009,8 +11028,8 @@ TEST_P(QuicFramerTest, BuildIetfStopSendingPacket) {
 }
 
 TEST_P(QuicFramerTest, IetfPathChallengeFrame) {
-  // This test only for version 99.
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+    // Path Challenge frame is IETF QUIC only.
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
@@ -11052,8 +11071,8 @@ TEST_P(QuicFramerTest, IetfPathChallengeFrame) {
 }
 
 TEST_P(QuicFramerTest, BuildIetfPathChallengePacket) {
-  // This test only for version 99.
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+    // Path Challenge frame is IETF QUIC only.
     return;
   }
 
@@ -11092,8 +11111,8 @@ TEST_P(QuicFramerTest, BuildIetfPathChallengePacket) {
 }
 
 TEST_P(QuicFramerTest, IetfPathResponseFrame) {
-  // This test only for version 99.
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+    // Path response frame is IETF QUIC only.
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
@@ -11135,8 +11154,8 @@ TEST_P(QuicFramerTest, IetfPathResponseFrame) {
 }
 
 TEST_P(QuicFramerTest, BuildIetfPathResponsePacket) {
-  // This test only for version 99.
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+    // Path response frame is IETF QUIC only
     return;
   }
 
@@ -11208,6 +11227,7 @@ TEST_P(QuicFramerTest, GetRetransmittableControlFrameSize) {
       QuicFramer::GetRetransmittableControlFrameSize(
           framer_.transport_version(), QuicFrame(&blocked)));
 
+  // Following frames are IETF QUIC frames only.
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
     return;
   }
@@ -11256,8 +11276,8 @@ TEST_P(QuicFramerTest, GetRetransmittableControlFrameSize) {
 // (1/2/4/8 bytes).
 // This only for version 99.
 TEST_P(QuicFramerTest, IetfFrameTypeEncodingErrorUnknown1Byte) {
-  // This test only for version 99.
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+    // Only IETF QUIC encodes frame types such that this test is relevant.
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
@@ -11288,8 +11308,8 @@ TEST_P(QuicFramerTest, IetfFrameTypeEncodingErrorUnknown1Byte) {
 }
 
 TEST_P(QuicFramerTest, IetfFrameTypeEncodingErrorUnknown2Bytes) {
-  // This test only for version 99.
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+    // Only IETF QUIC encodes frame types such that this test is relevant.
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
@@ -11321,8 +11341,8 @@ TEST_P(QuicFramerTest, IetfFrameTypeEncodingErrorUnknown2Bytes) {
 }
 
 TEST_P(QuicFramerTest, IetfFrameTypeEncodingErrorUnknown4Bytes) {
-  // This test only for version 99.
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+    // Only IETF QUIC encodes frame types such that this test is relevant.
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
@@ -11354,8 +11374,8 @@ TEST_P(QuicFramerTest, IetfFrameTypeEncodingErrorUnknown4Bytes) {
 }
 
 TEST_P(QuicFramerTest, IetfFrameTypeEncodingErrorUnknown8Bytes) {
-  // This test only for version 99.
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+    // Only IETF QUIC encodes frame types such that this test is relevant.
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
@@ -11390,8 +11410,8 @@ TEST_P(QuicFramerTest, IetfFrameTypeEncodingErrorUnknown8Bytes) {
 // information "Frame type not minimally encoded."
 // Look at the frame-type encoded in 2, 4, and 8 bytes.
 TEST_P(QuicFramerTest, IetfFrameTypeEncodingErrorKnown2Bytes) {
-  // This test only for version 99.
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+    // Only IETF QUIC encodes frame types such that this test is relevant.
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
@@ -11423,8 +11443,8 @@ TEST_P(QuicFramerTest, IetfFrameTypeEncodingErrorKnown2Bytes) {
 }
 
 TEST_P(QuicFramerTest, IetfFrameTypeEncodingErrorKnown4Bytes) {
-  // This test only for version 99.
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+    // Only IETF QUIC encodes frame types such that this test is relevant.
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
@@ -11456,8 +11476,8 @@ TEST_P(QuicFramerTest, IetfFrameTypeEncodingErrorKnown4Bytes) {
 }
 
 TEST_P(QuicFramerTest, IetfFrameTypeEncodingErrorKnown8Bytes) {
-  // This test only for version 99.
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+    // Only IETF QUIC encodes frame types such that this test is relevant.
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
@@ -11487,13 +11507,13 @@ TEST_P(QuicFramerTest, IetfFrameTypeEncodingErrorKnown8Bytes) {
   EXPECT_EQ("Frame type not minimally encoded.", framer_.detailed_error());
 }
 
-// Tests to check that all known OETF frame types that are not minimally
+// Tests to check that all known IETF frame types that are not minimally
 // encoded generate IETF_QUIC_PROTOCOL_VIOLATION errors with detailed
 // information "Frame type not minimally encoded."
 // Just look at 2-byte encoding.
 TEST_P(QuicFramerTest, IetfFrameTypeEncodingErrorKnown2BytesAllTypes) {
-  // This test only for version 99.
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+    // Only IETF QUIC encodes frame types such that this test is relevant.
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
@@ -14103,6 +14123,7 @@ TEST_P(QuicFramerTest, ProcessAndValidateIetfConnectionIdLengthServer) {
 
 TEST_P(QuicFramerTest, TestExtendedErrorCodeParser) {
   if (VersionHasIetfQuicFrames(framer_.transport_version())) {
+    // Extended error codes only in IETF QUIC
     return;
   }
   QuicConnectionCloseFrame frame;
