@@ -145,7 +145,8 @@ struct QUIC_EXPORT_PRIVATE Bbr2Params {
   QuicRoundTripCount initial_max_ack_height_filter_window = 10;
 
   // Fraction of unutilized headroom to try to leave in path upon high loss.
-  float inflight_hi_headroom = 0.15;
+  float inflight_hi_headroom =
+      GetQuicFlag(FLAGS_quic_bbr2_default_inflight_hi_headroom);
 
   // Estimate startup/bw probing has gone too far if loss rate exceeds this.
   float loss_threshold = GetQuicFlag(FLAGS_quic_bbr2_default_loss_threshold);
