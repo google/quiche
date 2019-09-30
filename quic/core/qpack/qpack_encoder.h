@@ -16,6 +16,7 @@
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_header_table.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_exported_stats.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 
 namespace spdy {
@@ -171,7 +172,9 @@ class QUIC_EXPORT_PRIVATE QpackEncoder
   QpackHeaderTable header_table_;
   uint64_t maximum_blocked_streams_;
   QpackBlockingManager blocking_manager_;
+  // TODO(bnc): Remove |debug_visitor_|.
   DebugVisitor* debug_visitor_;
+  int header_list_count_;
 };
 
 }  // namespace quic
