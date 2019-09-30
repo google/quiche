@@ -296,7 +296,7 @@ void Bbr2ProbeBwMode::ProbeInflightHighUpward(
                     << ", (new)probe_up_acked:" << cycle_.probe_up_acked;
 
       model_->set_inflight_hi(new_inflight_hi);
-    } else {
+    } else if (GetQuicReloadableFlag(quic_bbr2_fix_inflight_bounds)) {
       QUIC_BUG << "Not growing inflight_hi due to wrap around. Old value:"
                << model_->inflight_hi() << ", new value:" << new_inflight_hi;
     }
