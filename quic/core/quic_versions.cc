@@ -85,8 +85,8 @@ bool ParsedQuicVersion::HasLengthPrefixedConnectionIds() const {
 }
 
 bool ParsedQuicVersion::SupportsAntiAmplificationLimit() const {
-  return transport_version == QUIC_VERSION_99 &&
-         handshake_protocol == PROTOCOL_TLS1_3;
+  // TODO(b/141944763) Enable this for version T099 once issue is resolved.
+  return false;
 }
 
 bool VersionHasLengthPrefixedConnectionIds(
