@@ -14,6 +14,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_exported_stats.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_fallthrough.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
@@ -102,6 +103,12 @@ class QuicSpdySession::SpdyFramerVisitor
 
   void OnHeaderFrameEnd(SpdyStreamId /* stream_id */) override {
     DCHECK(!VersionUsesQpack(session_->transport_version()));
+
+    LogHeaderCompressionRatioHistogram(
+        /* using_qpack = */ false,
+        /* is_sent = */ false, header_list_.compressed_header_bytes(),
+        header_list_.uncompressed_header_bytes());
+
     if (session_->IsConnected()) {
       session_->OnHeaderList(header_list_);
     }
@@ -655,6 +662,7 @@ size_t QuicSpdySession::WriteHeadersOnHeadersStreamImpl(
     QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener) {
   DCHECK(!VersionUsesQpack(transport_version()));
 
+  const QuicByteCount uncompressed_size = headers.TotalBytesUsed();
   SpdyHeadersIR headers_frame(id, std::move(headers));
   headers_frame.set_fin(fin);
   if (perspective() == Perspective::IS_CLIENT) {
@@ -667,6 +675,19 @@ size_t QuicSpdySession::WriteHeadersOnHeadersStreamImpl(
   headers_stream()->WriteOrBufferData(
       QuicStringPiece(frame.data(), frame.size()), false,
       std::move(ack_listener));
+
+  // Calculate compressed header block size without framing overhead.
+  QuicByteCount compressed_size = frame.size();
+  compressed_size -= spdy::kFrameHeaderSize;
+  if (perspective() == Perspective::IS_CLIENT) {
+    // Exclusive bit and Stream Dependency are four bytes, weight is one more.
+    compressed_size -= 5;
+  }
+
+  LogHeaderCompressionRatioHistogram(
+      /* using_qpack = */ false,
+      /* is_sent = */ true, compressed_size, uncompressed_size);
+
   return frame.size();
 }
 
@@ -1039,6 +1060,52 @@ void QuicSpdySession::CloseConnectionOnDuplicateHttp3UnidirectionalStreams(
   // TODO(b/124216424): Change to HTTP_STREAM_CREATION_ERROR.
   CloseConnectionWithDetails(QUIC_INVALID_STREAM_ID,
                              QuicStrCat(type, " stream is received twice."));
+}
+
+// static
+void QuicSpdySession::LogHeaderCompressionRatioHistogram(
+    bool using_qpack,
+    bool is_sent,
+    QuicByteCount compressed,
+    QuicByteCount uncompressed) {
+  if (compressed <= 0 || uncompressed <= 0) {
+    return;
+  }
+
+  int ratio = 100 * (compressed) / (uncompressed);
+  if (ratio < 1) {
+    ratio = 1;
+  } else if (ratio > 200) {
+    ratio = 200;
+  }
+
+  // Note that when using histogram macros in Chromium, the histogram name must
+  // be the same across calls for any given call site.
+  if (using_qpack) {
+    if (is_sent) {
+      QUIC_HISTOGRAM_COUNTS("QuicSession.HeaderCompressionRatioQpackSent",
+                            ratio, 1, 200, 200,
+                            "Header compression ratio as percentage for sent "
+                            "headers using QPACK.");
+    } else {
+      QUIC_HISTOGRAM_COUNTS("QuicSession.HeaderCompressionRatioQpackReceived",
+                            ratio, 1, 200, 200,
+                            "Header compression ratio as percentage for "
+                            "received headers using QPACK.");
+    }
+  } else {
+    if (is_sent) {
+      QUIC_HISTOGRAM_COUNTS("QuicSession.HeaderCompressionRatioHpackSent",
+                            ratio, 1, 200, 200,
+                            "Header compression ratio as percentage for sent "
+                            "headers using HPACK.");
+    } else {
+      QUIC_HISTOGRAM_COUNTS("QuicSession.HeaderCompressionRatioHpackReceived",
+                            ratio, 1, 200, 200,
+                            "Header compression ratio as percentage for "
+                            "received headers using HPACK.");
+    }
+  }
 }
 
 }  // namespace quic

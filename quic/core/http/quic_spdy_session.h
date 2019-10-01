@@ -240,6 +240,24 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
 
   Http3DebugVisitor* debug_visitor() { return debug_visitor_; }
 
+  // Log header compression ratio histogram.
+  // |using_qpack| is true for QPACK, false for HPACK.
+  // |is_sent| is true for sent headers, false for received ones.
+  // Ratio is recorded as percentage.  Smaller value means more efficient
+  // compression.  Compressed size might be larger than uncompressed size, but
+  // recorded ratio is trunckated at 200%.
+  // Uncompressed size can be zero for an empty header list, and compressed size
+  // can be zero for an empty header list when using HPACK.  (QPACK always emits
+  // a header block prefix of at least two bytes.)  This method records nothing
+  // if either |compressed| or |uncompressed| is not positive.
+  // In order for measurements for different protocol to be comparable, the
+  // caller must ensure that uncompressed size is the total length of header
+  // names and values without any overhead.
+  static void LogHeaderCompressionRatioHistogram(bool using_qpack,
+                                                 bool is_sent,
+                                                 QuicByteCount compressed,
+                                                 QuicByteCount uncompressed);
+
  protected:
   // Override CreateIncomingStream(), CreateOutgoingBidirectionalStream() and
   // CreateOutgoingUnidirectionalStream() with QuicSpdyStream return type to

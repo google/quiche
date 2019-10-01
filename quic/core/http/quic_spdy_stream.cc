@@ -995,6 +995,11 @@ bool QuicSpdyStream::OnUnknownFrameEnd() {
 }
 
 void QuicSpdyStream::ProcessDecodedHeaders(const QuicHeaderList& headers) {
+  QuicSpdySession::LogHeaderCompressionRatioHistogram(
+      /* using_qpack = */ true,
+      /* is_sent = */ false, headers.compressed_header_bytes(),
+      headers.uncompressed_header_bytes());
+
   if (spdy_session_->promised_stream_id() ==
       QuicUtils::GetInvalidStreamId(session()->transport_version())) {
     const QuicByteCount frame_length = headers_decompressed_
@@ -1051,6 +1056,12 @@ size_t QuicSpdyStream::WriteHeadersImpl(
                   << " is writing HEADERS frame payload of length "
                   << encoded_headers.length();
   WriteOrBufferData(encoded_headers, fin, nullptr);
+
+  QuicSpdySession::LogHeaderCompressionRatioHistogram(
+      /* using_qpack = */ true,
+      /* is_sent = */ true,
+      encoded_headers.size() + encoder_stream_sent_byte_count,
+      header_block.TotalBytesUsed());
 
   return encoded_headers.size() + encoder_stream_sent_byte_count;
 }
