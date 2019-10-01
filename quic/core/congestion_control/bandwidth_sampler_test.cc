@@ -4,6 +4,8 @@
 
 #include "net/third_party/quiche/src/quic/core/congestion_control/bandwidth_sampler.h"
 
+#include "net/third_party/quiche/src/quic/core/quic_bandwidth.h"
+#include "net/third_party/quiche/src/quic/core/quic_time.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
@@ -460,6 +462,133 @@ TEST_F(BandwidthSamplerTest, RemoveObsoletePackets) {
   EXPECT_EQ(1u, BandwidthSamplerPeer::GetNumberOfTrackedPackets(sampler_));
   AckPacket(5);
   EXPECT_EQ(0u, BandwidthSamplerPeer::GetNumberOfTrackedPackets(sampler_));
+}
+
+class MaxAckHeightTrackerTest : public QuicTest {
+ protected:
+  MaxAckHeightTrackerTest() : tracker_(/*initial_filter_window=*/10) {}
+
+  // Run a full aggregation episode, which is one or more aggregated acks,
+  // followed by a quiet period in which no ack happens.
+  // After this function returns, the time is set to the earliest point at which
+  // any ack event will cause tracker_.Update() to start a new aggregation.
+  void AggregationEpisode(QuicBandwidth aggregation_bandwidth,
+                          QuicTime::Delta aggregation_duration,
+                          QuicByteCount bytes_per_ack,
+                          bool expect_new_aggregation_epoch) {
+    ASSERT_GE(aggregation_bandwidth, bandwidth_);
+    const QuicTime start_time = now_;
+
+    const QuicByteCount aggregation_bytes =
+        aggregation_bandwidth * aggregation_duration;
+
+    const int num_acks = aggregation_bytes / bytes_per_ack;
+    ASSERT_EQ(aggregation_bytes, num_acks * bytes_per_ack)
+        << "aggregation_bytes: " << aggregation_bytes << " ["
+        << aggregation_bandwidth << " in " << aggregation_duration
+        << "], bytes_per_ack: " << bytes_per_ack;
+
+    const QuicTime::Delta time_between_acks = QuicTime::Delta::FromMicroseconds(
+        aggregation_duration.ToMicroseconds() / num_acks);
+    ASSERT_EQ(aggregation_duration, num_acks * time_between_acks)
+        << "aggregation_bytes: " << aggregation_bytes
+        << ", num_acks: " << num_acks
+        << ", time_between_acks: " << time_between_acks;
+
+    // The total duration of aggregation time and quiet period.
+    const QuicTime::Delta total_duration = QuicTime::Delta::FromMicroseconds(
+        aggregation_bytes * 8 * 1000000 / bandwidth_.ToBitsPerSecond());
+    ASSERT_EQ(aggregation_bytes, total_duration * bandwidth_)
+        << "total_duration: " << total_duration
+        << ", bandwidth_: " << bandwidth_;
+
+    QuicByteCount last_extra_acked = 0;
+    for (QuicByteCount bytes = 0; bytes < aggregation_bytes;
+         bytes += bytes_per_ack) {
+      QuicByteCount extra_acked =
+          tracker_.Update(bandwidth_, RoundTripCount(), now_, bytes_per_ack);
+      QUIC_VLOG(1) << "T" << now_ << ": Update after " << bytes_per_ack
+                   << " bytes acked, " << extra_acked << " extra bytes acked";
+      // |extra_acked| should be 0 if either
+      // [1] We are at the beginning of a aggregation epoch(bytes==0) and the
+      //     the current tracker implementation can identify it, or
+      // [2] We are not really aggregating acks.
+      if ((bytes == 0 && expect_new_aggregation_epoch) ||  // [1]
+          (aggregation_bandwidth == bandwidth_)) {         // [2]
+        EXPECT_EQ(0u, extra_acked);
+      } else {
+        EXPECT_LT(last_extra_acked, extra_acked);
+      }
+      now_ = now_ + time_between_acks;
+      last_extra_acked = extra_acked;
+    }
+
+    // Advance past the quiet period.
+    const QuicTime time_after_aggregation = now_;
+    now_ = start_time + total_duration;
+    QUIC_VLOG(1) << "Advanced time from " << time_after_aggregation << " to "
+                 << now_ << ". Aggregation time["
+                 << (time_after_aggregation - start_time) << "], Quiet time["
+                 << (now_ - time_after_aggregation) << "].";
+  }
+
+  QuicRoundTripCount RoundTripCount() const {
+    return (now_ - QuicTime::Zero()).ToMicroseconds() / rtt_.ToMicroseconds();
+  }
+
+  MaxAckHeightTracker tracker_;
+  QuicBandwidth bandwidth_ = QuicBandwidth::FromBytesPerSecond(10 * 1000);
+  QuicTime now_ = QuicTime::Zero() + QuicTime::Delta::FromMilliseconds(1);
+  QuicTime::Delta rtt_ = QuicTime::Delta::FromMilliseconds(60);
+};
+
+TEST_F(MaxAckHeightTrackerTest, VeryAggregatedLargeAck) {
+  AggregationEpisode(bandwidth_ * 20, QuicTime::Delta::FromMilliseconds(6),
+                     1200, true);
+  AggregationEpisode(bandwidth_ * 20, QuicTime::Delta::FromMilliseconds(6),
+                     1200, true);
+  now_ = now_ - QuicTime::Delta::FromMilliseconds(1);
+
+  AggregationEpisode(bandwidth_ * 20, QuicTime::Delta::FromMilliseconds(6),
+                     1200, false);
+}
+
+TEST_F(MaxAckHeightTrackerTest, VeryAggregatedSmallAcks) {
+  AggregationEpisode(bandwidth_ * 20, QuicTime::Delta::FromMilliseconds(6), 300,
+                     true);
+  AggregationEpisode(bandwidth_ * 20, QuicTime::Delta::FromMilliseconds(6), 300,
+                     true);
+  now_ = now_ - QuicTime::Delta::FromMilliseconds(1);
+
+  AggregationEpisode(bandwidth_ * 20, QuicTime::Delta::FromMilliseconds(6), 300,
+                     false);
+}
+
+TEST_F(MaxAckHeightTrackerTest, SomewhatAggregatedLargeAck) {
+  AggregationEpisode(bandwidth_ * 2, QuicTime::Delta::FromMilliseconds(50),
+                     1000, true);
+  AggregationEpisode(bandwidth_ * 2, QuicTime::Delta::FromMilliseconds(50),
+                     1000, true);
+  now_ = now_ - QuicTime::Delta::FromMilliseconds(1);
+
+  AggregationEpisode(bandwidth_ * 2, QuicTime::Delta::FromMilliseconds(50),
+                     1000, false);
+}
+
+TEST_F(MaxAckHeightTrackerTest, SomewhatAggregatedSmallAcks) {
+  AggregationEpisode(bandwidth_ * 2, QuicTime::Delta::FromMilliseconds(50), 100,
+                     true);
+  AggregationEpisode(bandwidth_ * 2, QuicTime::Delta::FromMilliseconds(50), 100,
+                     true);
+  now_ = now_ - QuicTime::Delta::FromMilliseconds(1);
+
+  AggregationEpisode(bandwidth_ * 2, QuicTime::Delta::FromMilliseconds(50), 100,
+                     false);
+}
+
+TEST_F(MaxAckHeightTrackerTest, NotAggregated) {
+  AggregationEpisode(bandwidth_, QuicTime::Delta::FromMilliseconds(100), 100,
+                     true);
 }
 
 }  // namespace test
