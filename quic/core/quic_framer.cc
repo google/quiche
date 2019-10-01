@@ -1062,7 +1062,9 @@ size_t QuicFramer::AppendIetfFrames(const QuicFrames& frames,
       case STOP_WAITING_FRAME:
         set_detailed_error(
             "Attempt to append STOP WAITING frame in IETF QUIC.");
-        return RaiseError(QUIC_INTERNAL_ERROR);
+        RaiseError(QUIC_INTERNAL_ERROR);
+        QUIC_BUG << detailed_error();
+        return 0;
       case MTU_DISCOVERY_FRAME:
         // MTU discovery frames are serialized as ping frames.
         QUIC_FALLTHROUGH_INTENDED;
@@ -1085,7 +1087,9 @@ size_t QuicFramer::AppendIetfFrames(const QuicFrames& frames,
         break;
       case GOAWAY_FRAME:
         set_detailed_error("Attempt to append GOAWAY frame in IETF QUIC.");
-        return RaiseError(QUIC_INTERNAL_ERROR);
+        RaiseError(QUIC_INTERNAL_ERROR);
+        QUIC_BUG << detailed_error();
+        return 0;
       case WINDOW_UPDATE_FRAME:
         // Depending on whether there is a stream ID or not, will be either a
         // MAX STREAM DATA frame or a MAX DATA frame.
@@ -1110,13 +1114,13 @@ size_t QuicFramer::AppendIetfFrames(const QuicFrames& frames,
         break;
       case MAX_STREAMS_FRAME:
         if (!AppendMaxStreamsFrame(frame.max_streams_frame, writer)) {
-          QUIC_BUG << "AppendMaxStreamsFrame failed" << detailed_error();
+          QUIC_BUG << "AppendMaxStreamsFrame failed: " << detailed_error();
           return 0;
         }
         break;
       case STREAMS_BLOCKED_FRAME:
         if (!AppendStreamsBlockedFrame(frame.streams_blocked_frame, writer)) {
-          QUIC_BUG << "AppendStreamsBlockedFrame failed" << detailed_error();
+          QUIC_BUG << "AppendStreamsBlockedFrame failed: " << detailed_error();
           return 0;
         }
         break;
@@ -1173,9 +1177,9 @@ size_t QuicFramer::AppendIetfFrames(const QuicFrames& frames,
         }
         break;
       default:
-        RaiseError(QUIC_INVALID_FRAME_DATA);
         set_detailed_error("Tried to append unknown frame type.");
-        QUIC_BUG << "QUIC_INVALID_FRAME_DATA";
+        RaiseError(QUIC_INVALID_FRAME_DATA);
+        QUIC_BUG << "QUIC_INVALID_FRAME_DATA: " << frame.type;
         return 0;
     }
     ++i;
