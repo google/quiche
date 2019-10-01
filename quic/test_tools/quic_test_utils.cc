@@ -922,7 +922,8 @@ QuicEncryptedPacket* ConstructEncryptedPacket(
   if (!versions) {
     versions = &supported_versions;
   }
-  if (QuicVersionHasLongHeaderLengths((*versions)[0].transport_version) &&
+  ParsedQuicVersion version = (*versions)[0];
+  if (QuicVersionHasLongHeaderLengths(version.transport_version) &&
       version_flag) {
     header.retry_token_length_length = VARIABLE_LENGTH_INTEGER_LENGTH_1;
     header.length_length = VARIABLE_LENGTH_INTEGER_LENGTH_2;
@@ -932,7 +933,6 @@ QuicEncryptedPacket* ConstructEncryptedPacket(
   QuicFramer framer(*versions, QuicTime::Zero(), perspective,
                     kQuicDefaultConnectionIdLength);
   framer.SetInitialObfuscators(destination_connection_id);
-  ParsedQuicVersion version = (*versions)[0];
   EncryptionLevel level =
       header.version_flag ? ENCRYPTION_INITIAL : ENCRYPTION_FORWARD_SECURE;
   if (level != ENCRYPTION_INITIAL) {

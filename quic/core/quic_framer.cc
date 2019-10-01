@@ -863,6 +863,10 @@ size_t QuicFramer::BuildDataPacket(const QuicPacketHeader& header,
                                    char* buffer,
                                    size_t packet_length,
                                    EncryptionLevel level) {
+  QUIC_BUG_IF(header.version_flag &&
+              VersionHasIetfInvariantHeader(transport_version()) &&
+              header.long_packet_type == RETRY && !frames.empty())
+      << "IETF RETRY packets cannot contain frames " << header;
   QuicDataWriter writer(packet_length, buffer);
   size_t length_field_offset = 0;
   if (!AppendPacketHeader(header, &writer, &length_field_offset)) {
@@ -2160,6 +2164,11 @@ bool QuicFramer::AppendIetfPacketHeader(const QuicPacketHeader& header,
   }
 
   if (header.version_flag) {
+    DCHECK_NE(VERSION_NEGOTIATION, header.long_packet_type)
+        << "QuicFramer::AppendIetfPacketHeader does not support sending "
+           "version negotiation packets, use "
+           "QuicFramer::BuildVersionNegotiationPacket instead "
+        << header;
     // Append version for long header.
     QuicVersionLabel version_label = CreateQuicVersionLabel(version_);
     if (!writer->WriteUInt32(version_label)) {
@@ -2185,6 +2194,10 @@ bool QuicFramer::AppendIetfPacketHeader(const QuicPacketHeader& header,
     last_serialized_client_connection_id_ =
         GetClientConnectionIdAsSender(header, perspective_);
   }
+
+  // TODO(b/141924462) Remove this QUIC_BUG once we do support sending RETRY.
+  QUIC_BUG_IF(header.version_flag && header.long_packet_type == RETRY)
+      << "Sending IETF RETRY packets is not currently supported " << header;
 
   if (QuicVersionHasLongHeaderLengths(transport_version()) &&
       header.version_flag) {
