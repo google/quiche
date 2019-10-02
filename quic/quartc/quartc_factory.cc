@@ -65,6 +65,9 @@ void ConfigureGlobalQuicSettings() {
   // Enable version 47 to enable variable-length connection ids.
   SetQuicReloadableFlag(quic_enable_version_47, true);
 
+  // Enable version 48 to be compatible with the latest version of Chrome.
+  SetQuicReloadableFlag(quic_enable_version_48_2, true);
+
   // Ensure that we don't drop data because QUIC streams refuse to buffer it.
   // TODO(b/120099046):  Replace this with correct handling of WriteMemSlices().
   SetQuicFlag(FLAGS_quic_buffered_data_threshold,
