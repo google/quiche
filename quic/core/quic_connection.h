@@ -623,7 +623,12 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   }
 
   // Testing only.
-  size_t NumQueuedPackets() const { return queued_packets_.size(); }
+  size_t NumQueuedPackets() const {
+    if (treat_queued_packets_as_sent_) {
+      return buffered_packets_.size();
+    }
+    return queued_packets_.size();
+  }
 
   // Returns true if the underlying UDP socket is writable, there is
   // no queued data and the connection is not congestion-control
@@ -994,6 +999,33 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   typedef std::list<SerializedPacket> QueuedPacketList;
 
+  // Indicates the fate of a serialized packet in WritePacket().
+  enum SerializedPacketFate : uint8_t {
+    COALESCE,        // Try to coalesce packet.
+    BUFFER,          // Buffer packet in buffered_packets_.
+    SEND_TO_WRITER,  // Send packet to writer.
+  };
+
+  // BufferedPacket stores necessary information (encrypted buffer and self/peer
+  // addresses) of those packets which are serialized but failed to send because
+  // socket is blocked. From unacked packet map and send algorithm's
+  // perspective, buffered packets are treated as sent.
+  struct BufferedPacket {
+    BufferedPacket(const SerializedPacket& packet,
+                   const QuicSocketAddress& self_address,
+                   const QuicSocketAddress& peer_address);
+    BufferedPacket(const BufferedPacket& other) = delete;
+    BufferedPacket(const BufferedPacket&& other) = delete;
+
+    ~BufferedPacket();
+
+    // encrypted_buffer is owned by buffered packet.
+    QuicStringPiece encrypted_buffer;
+    // Self and peer addresses when the packet is serialized.
+    const QuicSocketAddress self_address;
+    const QuicSocketAddress peer_address;
+  };
+
   // Notifies the visitor of the close and marks the connection as disconnected.
   // Does not send a connection close frame to the peer. It should only be
   // called by CloseConnection or OnConnectionCloseFrame, OnPublicResetPacket,
@@ -1142,6 +1174,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // and flags.
   void MaybeEnableMultiplePacketNumberSpacesSupport();
 
+  // Returns packet fate when trying to write a packet.
+  SerializedPacketFate DeterminePacketFate();
+
   // Returns the encryption level the connection close packet should be sent at,
   // which is the highest encryption level that peer can guarantee to process.
   EncryptionLevel GetConnectionCloseEncryptionLevel() const;
@@ -1272,6 +1307,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // unacked_packets_ if they are to be retransmitted.  Packets encrypted_buffer
   // fields are owned by the QueuedPacketList, in order to ensure they outlast
   // the original scope of the SerializedPacket.
+  // TODO(fayang): Remove this when deprecating
+  // quic_treat_queued_packets_as_sent.
   QueuedPacketList queued_packets_;
 
   // Contains the connection close packets if the connection has been closed.
@@ -1494,6 +1531,16 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // If true, skip packet number before sending the last PTO retransmission.
   bool skip_packet_number_for_pto_;
+
+  // Used to store content of packets which cannot be sent because of write
+  // blocked. Packets' encrypted buffers are copied and owned by
+  // buffered_packets_. From unacked_packet_map (and congestion control)'s
+  // perspective, those packets are considered sent. This is only used when
+  // treat_queued_packets_as_sent_ is true.
+  std::list<BufferedPacket> buffered_packets_;
+
+  // Latched value of quic_treat_queued_packets_as_sent.
+  const bool treat_queued_packets_as_sent_;
 };
 
 }  // namespace quic

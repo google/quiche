@@ -326,7 +326,9 @@ QuicConnection::QuicConnection(
       bytes_received_before_address_validation_(0),
       bytes_sent_before_address_validation_(0),
       address_validated_(false),
-      skip_packet_number_for_pto_(false) {
+      skip_packet_number_for_pto_(false),
+      treat_queued_packets_as_sent_(
+          GetQuicReloadableFlag(quic_treat_queued_packets_as_sent)) {
   QUIC_DLOG(INFO) << ENDPOINT << "Created connection with server connection ID "
                   << server_connection_id
                   << " and version: " << ParsedQuicVersionToString(version());
@@ -389,10 +391,13 @@ void QuicConnection::ClearQueuedPackets() {
   for (auto it = queued_packets_.begin(); it != queued_packets_.end(); ++it) {
     // Delete the buffer before calling ClearSerializedPacket, which sets
     // encrypted_buffer to nullptr.
+    DCHECK(!treat_queued_packets_as_sent_);
     delete[] it->encrypted_buffer;
     ClearSerializedPacket(&(*it));
   }
   queued_packets_.clear();
+
+  buffered_packets_.clear();
 }
 
 void QuicConnection::SetFromConfig(const QuicConfig& config) {
@@ -2019,6 +2024,7 @@ void QuicConnection::WriteQueuedPackets() {
   QUIC_CLIENT_HISTOGRAM_COUNTS("QuicSession.NumQueuedPacketsBeforeWrite",
                                queued_packets_.size(), 1, 1000, 50, "");
   while (!queued_packets_.empty()) {
+    DCHECK(!treat_queued_packets_as_sent_);
     // WritePacket() can potentially clear all queued packets, so we need to
     // save the first queued packet to a local variable before calling it.
     SerializedPacket packet(std::move(queued_packets_.front()));
@@ -2042,6 +2048,30 @@ void QuicConnection::WriteQueuedPackets() {
     }
 
     // Continue to send the next packet in queue.
+  }
+
+  while (!buffered_packets_.empty()) {
+    DCHECK(treat_queued_packets_as_sent_);
+    if (HandleWriteBlocked()) {
+      break;
+    }
+    const BufferedPacket& packet = buffered_packets_.front();
+    WriteResult result = writer_->WritePacket(
+        packet.encrypted_buffer.data(), packet.encrypted_buffer.length(),
+        packet.self_address.host(), packet.peer_address, per_packet_options_);
+    QUIC_DVLOG(1) << ENDPOINT << "Sending buffered packet, result: " << result;
+    if (IsWriteError(result.status)) {
+      OnWriteError(result.error_code);
+      break;
+    }
+    if (result.status == WRITE_STATUS_OK ||
+        result.status == WRITE_STATUS_BLOCKED_DATA_BUFFERED) {
+      buffered_packets_.pop_front();
+    }
+    if (IsWriteBlockedStatus(result.status)) {
+      visitor_->OnWriteBlocked();
+      break;
+    }
   }
 }
 
@@ -2210,9 +2240,11 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
                     ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return true;
   }
+  SerializedPacketFate fate = DeterminePacketFate();
   // Termination packets are encrypted and saved, so don't exit early.
   const bool is_termination_packet = IsTerminationPacket(*packet);
-  if (HandleWriteBlocked() && !is_termination_packet) {
+  if (!treat_queued_packets_as_sent_ && HandleWriteBlocked() &&
+      !is_termination_packet) {
     return false;
   }
 
@@ -2232,7 +2264,7 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
         new QuicEncryptedPacket(buffer_copy, encrypted_length, true));
     // This assures we won't try to write *forced* packets when blocked.
     // Return true to stop processing.
-    if (HandleWriteBlocked()) {
+    if (!treat_queued_packets_as_sent_ && HandleWriteBlocked()) {
       return true;
     }
   }
@@ -2265,9 +2297,26 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
     }
     per_packet_options_->release_time_delay = release_time_delay;
   }
-  WriteResult result = writer_->WritePacket(
-      packet->encrypted_buffer, encrypted_length, self_address().host(),
-      peer_address(), per_packet_options_);
+  WriteResult result(WRITE_STATUS_OK, encrypted_length);
+  switch (fate) {
+    case COALESCE:
+      DCHECK(false);
+      break;
+    case BUFFER:
+      DCHECK(treat_queued_packets_as_sent_);
+      QUIC_DVLOG(1) << ENDPOINT << "Adding packet: " << packet->packet_number
+                    << " to buffered packets";
+      buffered_packets_.emplace_back(*packet, self_address(), peer_address());
+      break;
+    case SEND_TO_WRITER:
+      result = writer_->WritePacket(packet->encrypted_buffer, encrypted_length,
+                                    self_address().host(), peer_address(),
+                                    per_packet_options_);
+      break;
+    default:
+      DCHECK(false);
+      break;
+  }
 
   QUIC_HISTOGRAM_ENUM(
       "QuicConnection.WritePacketStatus", result.status,
@@ -2284,7 +2333,13 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
     // duplicate packet being sent.  The helper must call OnCanWrite
     // when the write completes, and OnWriteError if an error occurs.
     if (result.status != WRITE_STATUS_BLOCKED_DATA_BUFFERED) {
-      return false;
+      if (treat_queued_packets_as_sent_) {
+        QUIC_DVLOG(1) << ENDPOINT << "Adding packet: " << packet->packet_number
+                      << " to buffered packets";
+        buffered_packets_.emplace_back(*packet, self_address(), peer_address());
+      } else {
+        return false;
+      }
     }
   }
 
@@ -2535,10 +2590,12 @@ void QuicConnection::SendOrQueuePacket(SerializedPacket* packet) {
   // If there are already queued packets, queue this one immediately to ensure
   // it's written in sequence number order.
   if (!queued_packets_.empty() || !WritePacket(packet)) {
-    // Take ownership of the underlying encrypted packet.
-    packet->encrypted_buffer = CopyBuffer(*packet);
-    queued_packets_.push_back(*packet);
-    packet->retransmittable_frames.clear();
+    if (!treat_queued_packets_as_sent_) {
+      // Take ownership of the underlying encrypted packet.
+      packet->encrypted_buffer = CopyBuffer(*packet);
+      queued_packets_.push_back(*packet);
+      packet->retransmittable_frames.clear();
+    }
   }
 
   ClearSerializedPacket(packet);
@@ -2955,13 +3012,14 @@ void QuicConnection::SetMaxPacketLength(QuicByteCount length) {
 
 bool QuicConnection::HasQueuedData() const {
   return pending_version_negotiation_packet_ || !queued_packets_.empty() ||
-         packet_generator_.HasPendingFrames();
+         packet_generator_.HasPendingFrames() || !buffered_packets_.empty();
 }
 
 bool QuicConnection::CanWriteStreamData() {
   // Don't write stream data if there are negotiation or queued data packets
   // to send. Otherwise, continue and bundle as many frames as possible.
-  if (pending_version_negotiation_packet_ || !queued_packets_.empty()) {
+  if (pending_version_negotiation_packet_ || !queued_packets_.empty() ||
+      !buffered_packets_.empty()) {
     return false;
   }
 
@@ -3223,6 +3281,18 @@ QuicConnection::ScopedPacketFlusher::~ScopedPacketFlusher() {
   }
   DCHECK_EQ(flush_and_set_pending_retransmission_alarm_on_delete_,
             !connection_->packet_generator_.PacketFlusherAttached());
+}
+
+QuicConnection::BufferedPacket::BufferedPacket(
+    const SerializedPacket& packet,
+    const QuicSocketAddress& self_address,
+    const QuicSocketAddress& peer_address)
+    : encrypted_buffer(CopyBuffer(packet), packet.encrypted_length),
+      self_address(self_address),
+      peer_address(peer_address) {}
+
+QuicConnection::BufferedPacket::~BufferedPacket() {
+  delete[] encrypted_buffer.data();
 }
 
 HasRetransmittableData QuicConnection::IsRetransmittable(
@@ -3543,7 +3613,7 @@ void QuicConnection::CheckIfApplicationLimited() {
   }
 
   bool application_limited =
-      queued_packets_.empty() &&
+      queued_packets_.empty() && buffered_packets_.empty() &&
       !sent_packet_manager_.HasPendingRetransmissions() &&
       !visitor_->WillingAndAbleToWrite();
 
@@ -3883,6 +3953,14 @@ bool QuicConnection::LimitedByAmplificationFactor() const {
          bytes_sent_before_address_validation_ >=
              GetQuicFlag(FLAGS_quic_anti_amplification_factor) *
                  bytes_received_before_address_validation_;
+}
+
+QuicConnection::SerializedPacketFate QuicConnection::DeterminePacketFate() {
+  if (treat_queued_packets_as_sent_ &&
+      (!buffered_packets_.empty() || HandleWriteBlocked())) {
+    return BUFFER;
+  }
+  return SEND_TO_WRITER;
 }
 
 size_t QuicConnection::min_received_before_ack_decimation() const {
