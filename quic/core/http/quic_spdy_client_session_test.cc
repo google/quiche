@@ -165,7 +165,8 @@ class QuicSpdyClientSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
           server_max_incoming_streams);
     }
     crypto_test_utils::HandshakeWithFakeServer(
-        &config, &helper_, &alarm_factory_, connection_, stream);
+        &config, &helper_, &alarm_factory_, connection_, stream,
+        AlpnForVersion(connection_->version()));
   }
 
   QuicCryptoClientConfig crypto_config_;

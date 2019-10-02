@@ -45,6 +45,8 @@ namespace crypto_test_utils {
 
 namespace {
 
+using testing::_;
+
 // CryptoFramerVisitor is a framer visitor that records handshake messages.
 class CryptoFramerVisitor : public CryptoFramerVisitorInterface {
  public:
@@ -210,7 +212,8 @@ int HandshakeWithFakeServer(QuicConfig* server_quic_config,
                             MockQuicConnectionHelper* helper,
                             MockAlarmFactory* alarm_factory,
                             PacketSavingConnection* client_conn,
-                            QuicCryptoClientStream* client) {
+                            QuicCryptoClientStream* client,
+                            std::string alpn) {
   PacketSavingConnection* server_conn = new PacketSavingConnection(
       helper, alarm_factory, Perspective::IS_SERVER,
       ParsedVersionOfIndex(client_conn->supported_versions(), 0));
@@ -234,6 +237,10 @@ int HandshakeWithFakeServer(QuicConfig* server_quic_config,
       .Times(testing::AnyNumber());
   EXPECT_CALL(*server_conn, OnCanWrite()).Times(testing::AnyNumber());
   EXPECT_CALL(*client_conn, OnCanWrite()).Times(testing::AnyNumber());
+  EXPECT_CALL(server_session, SelectAlpn(_))
+      .WillRepeatedly([alpn](const std::vector<QuicStringPiece>& alpns) {
+        return std::find(alpns.cbegin(), alpns.cend(), alpn);
+      });
 
   // The client's handshake must have been started already.
   CHECK_NE(0u, client_conn->encrypted_packets_.size());

@@ -62,7 +62,8 @@ class QuicCryptoClientStreamTest : public QuicTest {
     stream()->CryptoConnect();
     QuicConfig config;
     crypto_test_utils::HandshakeWithFakeServer(
-        &config, &server_helper_, &alarm_factory_, connection_, stream());
+        &config, &server_helper_, &alarm_factory_, connection_, stream(),
+        AlpnForVersion(connection_->version()));
   }
 
   QuicCryptoClientStream* stream() {

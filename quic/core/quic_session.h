@@ -596,7 +596,7 @@ class QUIC_EXPORT_PRIVATE QuicSession
     return false;
   }
 
-  bool IsHandshakeConfirmed() { return is_handshake_confirmed_; }
+  bool IsHandshakeConfirmed() const { return is_handshake_confirmed_; }
 
  private:
   friend class test::QuicSessionPeer;

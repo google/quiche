@@ -69,7 +69,8 @@ int HandshakeWithFakeServer(QuicConfig* server_quic_config,
                             MockQuicConnectionHelper* helper,
                             MockAlarmFactory* alarm_factory,
                             PacketSavingConnection* client_conn,
-                            QuicCryptoClientStream* client);
+                            QuicCryptoClientStream* client,
+                            std::string alpn);
 
 // returns: the number of client hellos that the client sent.
 int HandshakeWithFakeClient(MockQuicConnectionHelper* helper,
