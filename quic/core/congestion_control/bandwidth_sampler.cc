@@ -201,10 +201,11 @@ BandwidthSample BandwidthSampler::OnPacketAcknowledgedInner(
     } else {
       QUIC_CODE_COUNT_N(quic_prev_ack_time_larger_than_current_ack_time, 2, 2);
     }
-    QUIC_LOG(ERROR) << "Time of the previously acked packet:"
-                    << sent_packet.last_acked_packet_ack_time.ToDebuggingValue()
-                    << " is larger than the ack time of the current packet:"
-                    << ack_time.ToDebuggingValue();
+    QUIC_LOG_EVERY_N_SEC(ERROR, 5)
+        << "Time of the previously acked packet:"
+        << sent_packet.last_acked_packet_ack_time.ToDebuggingValue()
+        << " is larger than the ack time of the current packet:"
+        << ack_time.ToDebuggingValue();
     return BandwidthSample();
   }
   QuicBandwidth ack_rate = QuicBandwidth::FromBytesAndTimeDelta(
