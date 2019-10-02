@@ -586,6 +586,38 @@ TEST_F(QuicCryptoStreamTest, LimitBufferedCryptoData) {
       QuicCryptoFrame(ENCRYPTION_INITIAL, offset, large_frame));
 }
 
+TEST_F(QuicCryptoStreamTest, RetransmitCryptoFramesAndPartialWrite) {
+  if (!QuicVersionUsesCryptoFrames(connection_->transport_version())) {
+    return;
+  }
+
+  EXPECT_CALL(*connection_, SendCryptoData(_, _, _)).Times(0);
+  InSequence s;
+  // Send [0, 1350) in ENCRYPTION_INITIAL.
+  EXPECT_EQ(ENCRYPTION_INITIAL, connection_->encryption_level());
+  std::string data(1350, 'a');
+  EXPECT_CALL(*connection_, SendCryptoData(ENCRYPTION_INITIAL, 1350, 0))
+      .WillOnce(Invoke(connection_,
+                       &MockQuicConnection::QuicConnection_SendCryptoData));
+  stream_->WriteCryptoData(ENCRYPTION_INITIAL, data);
+
+  // Lost [0, 1000).
+  QuicCryptoFrame lost_frame(ENCRYPTION_INITIAL, 0, 1000);
+  stream_->OnCryptoFrameLost(&lost_frame);
+  EXPECT_TRUE(stream_->HasPendingCryptoRetransmission());
+  // Simulate connection is constrained by amplification restriction.
+  EXPECT_CALL(*connection_, SendCryptoData(ENCRYPTION_INITIAL, 1000, 0))
+      .WillOnce(Return(0));
+  stream_->WritePendingCryptoRetransmission();
+  EXPECT_TRUE(stream_->HasPendingCryptoRetransmission());
+  // Connection gets unblocked.
+  EXPECT_CALL(*connection_, SendCryptoData(ENCRYPTION_INITIAL, 1000, 0))
+      .WillOnce(Invoke(connection_,
+                       &MockQuicConnection::QuicConnection_SendCryptoData));
+  stream_->WritePendingCryptoRetransmission();
+  EXPECT_FALSE(stream_->HasPendingCryptoRetransmission());
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

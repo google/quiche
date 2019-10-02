@@ -256,6 +256,9 @@ void QuicCryptoStream::WritePendingCryptoRetransmission() {
       size_t bytes_consumed = session()->connection()->SendCryptoData(
           level, pending.length, pending.offset);
       send_buffer->OnStreamDataRetransmitted(pending.offset, bytes_consumed);
+      if (bytes_consumed < pending.length) {
+        break;
+      }
     }
   }
   session()->connection()->SetDefaultEncryptionLevel(current_encryption_level);
@@ -401,6 +404,9 @@ void QuicCryptoStream::RetransmitData(QuicCryptoFrame* crypto_frame) {
         crypto_frame->level, retransmission_length, retransmission_offset);
     send_buffer->OnStreamDataRetransmitted(retransmission_offset,
                                            bytes_consumed);
+    if (bytes_consumed < retransmission_length) {
+      break;
+    }
   }
   session()->connection()->SetDefaultEncryptionLevel(current_encryption_level);
 }
