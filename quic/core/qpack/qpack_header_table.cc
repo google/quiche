@@ -197,6 +197,21 @@ void QpackHeaderTable::RegisterObserver(uint64_t required_insert_count,
   observers_.insert({required_insert_count, observer});
 }
 
+void QpackHeaderTable::UnregisterObserver(uint64_t required_insert_count,
+                                          Observer* observer) {
+  auto it = observers_.lower_bound(required_insert_count);
+  while (it != observers_.end() && it->first == required_insert_count) {
+    if (it->second == observer) {
+      observers_.erase(it);
+      return;
+    }
+    ++it;
+  }
+
+  // |observer| must have been registered.
+  QUIC_NOTREACHED();
+}
+
 uint64_t QpackHeaderTable::draining_index(float draining_fraction) const {
   DCHECK_LE(0.0, draining_fraction);
   DCHECK_LE(draining_fraction, 1.0);

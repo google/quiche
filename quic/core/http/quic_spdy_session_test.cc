@@ -2255,6 +2255,41 @@ TEST_P(QuicSpdySessionTestServer, ReceiveControlStreamOutOfOrderDelivery) {
   EXPECT_EQ(5u, session_.max_outbound_header_list_size());
 }
 
+// Regression test for https://crbug.com/1009551.
+TEST_P(QuicSpdySessionTestServer, StreamClosedWhileHeaderDecodingBlocked) {
+  if (!VersionUsesQpack(transport_version())) {
+    return;
+  }
+
+  session_.qpack_decoder()->OnSetDynamicTableCapacity(1024);
+
+  QuicStreamId stream_id = GetNthClientInitiatedBidirectionalId(0);
+  TestStream* stream = session_.CreateIncomingStream(stream_id);
+
+  // HEADERS frame referencing first dynamic table entry.
+  std::string headers_payload = QuicTextUtils::HexDecode("020080");
+  std::unique_ptr<char[]> headers_buffer;
+  HttpEncoder encoder;
+  QuicByteCount headers_frame_header_length =
+      encoder.SerializeHeadersFrameHeader(headers_payload.length(),
+                                          &headers_buffer);
+  QuicStringPiece headers_frame_header(headers_buffer.get(),
+                                       headers_frame_header_length);
+  std::string headers = QuicStrCat(headers_frame_header, headers_payload);
+  stream->OnStreamFrame(QuicStreamFrame(stream_id, false, 0, headers));
+
+  // Decoding is blocked because dynamic table entry has not been received yet.
+  EXPECT_FALSE(stream->headers_decompressed());
+
+  // Stream is closed and destroyed.
+  CloseStream(stream_id);
+  session_.CleanUpClosedStreams();
+
+  // Dynamic table entry arrived on the decoder stream.
+  // The destroyed stream object must not be referenced.
+  session_.qpack_decoder()->OnInsertWithoutNameReference("foo", "bar");
+}
+
 TEST_P(QuicSpdySessionTestClient, ResetAfterInvalidIncomingStreamType) {
   if (!VersionHasStreamType(transport_version())) {
     return;

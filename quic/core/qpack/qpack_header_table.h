@@ -99,6 +99,11 @@ class QUIC_EXPORT_PRIVATE QpackHeaderTable {
   // gets unregistered.  Each observer must only be registered at most once.
   void RegisterObserver(uint64_t required_insert_count, Observer* observer);
 
+  // Unregister previously registered observer.  Must be called before an
+  // observer still waiting for notification is destroyed.  Must be called with
+  // the same |required_insert_count| value that |observer| was registered with.
+  void UnregisterObserver(uint64_t required_insert_count, Observer* observer);
+
   // Used on request streams to encode and decode Required Insert Count.
   uint64_t max_entries() const { return max_entries_; }
 

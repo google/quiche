@@ -38,6 +38,12 @@ QpackProgressiveDecoder::QpackProgressiveDecoder(
       decoding_(true),
       error_detected_(false) {}
 
+QpackProgressiveDecoder::~QpackProgressiveDecoder() {
+  if (blocked_) {
+    header_table_->UnregisterObserver(required_insert_count_, this);
+  }
+}
+
 void QpackProgressiveDecoder::Decode(QuicStringPiece data) {
   DCHECK(decoding_);
 
@@ -290,11 +296,11 @@ bool QpackProgressiveDecoder::DoPrefixInstruction() {
   prefix_decoded_ = true;
 
   if (required_insert_count_ > header_table_->inserted_entry_count()) {
-    blocked_ = true;
     if (!enforcer_->OnStreamBlocked(stream_id_)) {
       OnError("Limit on number of blocked streams exceeded.");
       return false;
     }
+    blocked_ = true;
     header_table_->RegisterObserver(required_insert_count_, this);
   }
 

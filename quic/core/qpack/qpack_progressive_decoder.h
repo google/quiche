@@ -74,7 +74,7 @@ class QUIC_EXPORT_PRIVATE QpackProgressiveDecoder
                           HeadersHandlerInterface* handler);
   QpackProgressiveDecoder(const QpackProgressiveDecoder&) = delete;
   QpackProgressiveDecoder& operator=(const QpackProgressiveDecoder&) = delete;
-  ~QpackProgressiveDecoder() override = default;
+  ~QpackProgressiveDecoder() override;
 
   // Provide a data fragment to decode.
   void Decode(QuicStringPiece data);

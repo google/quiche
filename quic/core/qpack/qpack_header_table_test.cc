@@ -94,6 +94,11 @@ class QpackHeaderTableTest : public QuicTest {
     table_.RegisterObserver(required_insert_count, observer);
   }
 
+  void UnregisterObserver(uint64_t required_insert_count,
+                          QpackHeaderTable::Observer* observer) {
+    table_.UnregisterObserver(required_insert_count, observer);
+  }
+
   uint64_t max_entries() const { return table_.max_entries(); }
   uint64_t inserted_entry_count() const {
     return table_.inserted_entry_count();
@@ -416,7 +421,7 @@ TEST_F(QpackHeaderTableTest, MaxInsertSizeWithoutEvictingGivenEntry) {
             table.MaxInsertSizeWithoutEvictingGivenEntry(1));
 }
 
-TEST_F(QpackHeaderTableTest, Observer) {
+TEST_F(QpackHeaderTableTest, RegisterObserver) {
   StrictMock<MockObserver> observer1;
   RegisterObserver(1, &observer1);
   EXPECT_CALL(observer1, OnInsertCountReachedThreshold);
@@ -453,6 +458,27 @@ TEST_F(QpackHeaderTableTest, Observer) {
   EXPECT_EQ(4u, inserted_entry_count());
   Mock::VerifyAndClearExpectations(&observer4);
   Mock::VerifyAndClearExpectations(&observer5);
+}
+
+TEST_F(QpackHeaderTableTest, UnregisterObserver) {
+  StrictMock<MockObserver> observer1;
+  StrictMock<MockObserver> observer2;
+  StrictMock<MockObserver> observer3;
+  StrictMock<MockObserver> observer4;
+  RegisterObserver(1, &observer1);
+  RegisterObserver(2, &observer2);
+  RegisterObserver(2, &observer3);
+  RegisterObserver(3, &observer4);
+
+  UnregisterObserver(2, &observer3);
+
+  EXPECT_CALL(observer1, OnInsertCountReachedThreshold);
+  EXPECT_CALL(observer2, OnInsertCountReachedThreshold);
+  EXPECT_CALL(observer4, OnInsertCountReachedThreshold);
+  InsertEntry("foo", "bar");
+  InsertEntry("foo", "bar");
+  InsertEntry("foo", "bar");
+  EXPECT_EQ(3u, inserted_entry_count());
 }
 
 TEST_F(QpackHeaderTableTest, DrainingIndex) {
