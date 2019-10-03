@@ -288,45 +288,45 @@ QpackEncoder::Instructions QpackEncoder::FirstPassEncode(
     *encoder_stream_sent_byte_count = sent_byte_count;
   }
 
+  ++header_list_count_;
+
+  if (dynamic_table_insertion_blocked) {
+    QUIC_HISTOGRAM_COUNTS(
+        "QuicSession.Qpack.HeaderListCountWhenInsertionBlocked",
+        header_list_count_, /* min = */ 1, /* max = */ 1000,
+        /* bucket_count = */ 50,
+        "The ordinality of a header list within a connection during the "
+        "encoding of which at least one dynamic table insertion was "
+        "blocked.");
+  } else {
+    QUIC_HISTOGRAM_COUNTS(
+        "QuicSession.Qpack.HeaderListCountWhenInsertionNotBlocked",
+        header_list_count_, /* min = */ 1, /* max = */ 1000,
+        /* bucket_count = */ 50,
+        "The ordinality of a header list within a connection during the "
+        "encoding of which no dynamic table insertion was blocked.");
+  }
+
+  if (blocked_stream_limit_exhausted) {
+    QUIC_HISTOGRAM_COUNTS(
+        "QuicSession.Qpack.HeaderListCountWhenBlockedStreamLimited",
+        header_list_count_, /* min = */ 1, /* max = */ 1000,
+        /* bucket_count = */ 50,
+        "The ordinality of a header list within a connection during the "
+        "encoding of which unacknowledged dynamic table entries could not be "
+        "referenced due to the limit on the number of blocked streams.");
+  } else {
+    QUIC_HISTOGRAM_COUNTS(
+        "QuicSession.Qpack.HeaderListCountWhenNotBlockedStreamLimited",
+        header_list_count_, /* min = */ 1, /* max = */ 1000,
+        /* bucket_count = */ 50,
+        "The ordinality of a header list within a connection during the "
+        "encoding of which the limit on the number of blocked streams did "
+        "not "
+        "prevent referencing unacknowledged dynamic table entries.");
+  }
+
   if (debug_visitor_) {
-    ++header_list_count_;
-
-    if (dynamic_table_insertion_blocked) {
-      QUIC_HISTOGRAM_COUNTS(
-          "QuicSession.Qpack.HeaderListCountWhenInsertionBlocked",
-          header_list_count_, /* min = */ 1, /* max = */ 1000,
-          /* bucket_count = */ 50,
-          "The ordinality of a header list within a connection during the "
-          "encoding of which at least one dynamic table insertion was "
-          "blocked.");
-    } else {
-      QUIC_HISTOGRAM_COUNTS(
-          "QuicSession.Qpack.HeaderListCountWhenInsertionNotBlocked",
-          header_list_count_, /* min = */ 1, /* max = */ 1000,
-          /* bucket_count = */ 50,
-          "The ordinality of a header list within a connection during the "
-          "encoding of which no dynamic table insertion was blocked.");
-    }
-
-    if (blocked_stream_limit_exhausted) {
-      QUIC_HISTOGRAM_COUNTS(
-          "QuicSession.Qpack.HeaderListCountWhenBlockedStreamLimited",
-          header_list_count_, /* min = */ 1, /* max = */ 1000,
-          /* bucket_count = */ 50,
-          "The ordinality of a header list within a connection during the "
-          "encoding of which unacknowledged dynamic table entries could not be "
-          "referenced due to the limit on the number of blocked streams.");
-    } else {
-      QUIC_HISTOGRAM_COUNTS(
-          "QuicSession.Qpack.HeaderListCountWhenNotBlockedStreamLimited",
-          header_list_count_, /* min = */ 1, /* max = */ 1000,
-          /* bucket_count = */ 50,
-          "The ordinality of a header list within a connection during the "
-          "encoding of which the limit on the number of blocked streams did "
-          "not "
-          "prevent referencing unacknowledged dynamic table entries.");
-    }
-
     debug_visitor_->OnHeaderListEncoded(dynamic_table_insertion_blocked,
                                         blocked_stream_limit_exhausted);
   }
