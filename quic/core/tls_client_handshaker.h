@@ -30,6 +30,7 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
                       ProofVerifier* proof_verifier,
                       SSL_CTX* ssl_ctx,
                       std::unique_ptr<ProofVerifyContext> verify_context,
+                      QuicCryptoClientStream::ProofHandler* proof_handler,
                       const std::string& user_agent_id);
   TlsClientHandshaker(const TlsClientHandshaker&) = delete;
   TlsClientHandshaker& operator=(const TlsClientHandshaker&) = delete;
@@ -109,6 +110,10 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
   // constructor.
   ProofVerifier* proof_verifier_;
   std::unique_ptr<ProofVerifyContext> verify_context_;
+  // Unowned pointer to the proof handler which has the
+  // OnProofVerifyDetailsAvailable callback to use for notifying the result of
+  // certificate verification.
+  QuicCryptoClientStream::ProofHandler* proof_handler_;
 
   std::string user_agent_id_;
 

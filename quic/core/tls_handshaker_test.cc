@@ -210,6 +210,15 @@ class TestQuicCryptoStream : public QuicCryptoStream {
   std::vector<std::pair<std::string, EncryptionLevel>> pending_writes_;
 };
 
+class MockProofHandler : public QuicCryptoClientStream::ProofHandler {
+ public:
+  MockProofHandler() = default;
+  ~MockProofHandler() override {}
+
+  MOCK_METHOD1(OnProofValid, void(const QuicCryptoClientConfig::CachedState&));
+  MOCK_METHOD1(OnProofVerifyDetailsAvailable, void(const ProofVerifyDetails&));
+};
+
 class TestQuicCryptoClientStream : public TestQuicCryptoStream {
  public:
   explicit TestQuicCryptoClientStream(QuicSession* session)
@@ -223,12 +232,14 @@ class TestQuicCryptoClientStream : public TestQuicCryptoStream {
             proof_verifier_.get(),
             ssl_ctx_.get(),
             crypto_test_utils::ProofVerifyContextForTesting(),
+            &proof_handler_,
             "quic-tester")) {}
 
   ~TestQuicCryptoClientStream() override = default;
 
   TlsHandshaker* handshaker() const override { return handshaker_.get(); }
   TlsClientHandshaker* client_handshaker() const { return handshaker_.get(); }
+  const MockProofHandler& proof_handler() { return proof_handler_; }
 
   bool CryptoConnect() { return handshaker_->CryptoConnect(); }
 
@@ -238,6 +249,7 @@ class TestQuicCryptoClientStream : public TestQuicCryptoStream {
 
  private:
   std::unique_ptr<FakeProofVerifier> proof_verifier_;
+  MockProofHandler proof_handler_;
   bssl::UniquePtr<SSL_CTX> ssl_ctx_;
   std::unique_ptr<TlsClientHandshaker> handshaker_;
 };
@@ -341,6 +353,7 @@ TEST_F(TlsHandshakerTest, CryptoHandshake) {
               OnCryptoHandshakeEvent(QuicSession::HANDSHAKE_CONFIRMED));
   EXPECT_CALL(server_session_,
               OnCryptoHandshakeEvent(QuicSession::HANDSHAKE_CONFIRMED));
+  EXPECT_CALL(client_stream_->proof_handler(), OnProofVerifyDetailsAvailable);
   client_stream_->CryptoConnect();
   ExchangeHandshakeMessages(client_stream_, server_stream_);
 
@@ -400,6 +413,8 @@ TEST_F(TlsHandshakerTest, HandshakeWithAsyncProofVerifier) {
   // asynchronously.
   FakeProofVerifier* proof_verifier = client_stream_->GetFakeProofVerifier();
   proof_verifier->Activate();
+
+  EXPECT_CALL(client_stream_->proof_handler(), OnProofVerifyDetailsAvailable);
 
   // Start handshake.
   client_stream_->CryptoConnect();

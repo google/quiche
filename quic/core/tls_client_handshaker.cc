@@ -33,6 +33,8 @@ void TlsClientHandshaker::ProofVerifierCallbackImpl::Run(
   parent_->verify_result_ = ok ? ssl_verify_ok : ssl_verify_invalid;
   parent_->state_ = STATE_HANDSHAKE_RUNNING;
   parent_->proof_verify_callback_ = nullptr;
+  parent_->proof_handler_->OnProofVerifyDetailsAvailable(
+      *parent_->verify_details_);
   parent_->AdvanceHandshake();
 }
 
@@ -47,11 +49,13 @@ TlsClientHandshaker::TlsClientHandshaker(
     ProofVerifier* proof_verifier,
     SSL_CTX* ssl_ctx,
     std::unique_ptr<ProofVerifyContext> verify_context,
+    QuicCryptoClientStream::ProofHandler* proof_handler,
     const std::string& user_agent_id)
     : TlsHandshaker(stream, session, ssl_ctx),
       server_id_(server_id),
       proof_verifier_(proof_verifier),
       verify_context_(std::move(verify_context)),
+      proof_handler_(proof_handler),
       user_agent_id_(user_agent_id),
       crypto_negotiated_params_(new QuicCryptoNegotiatedParameters),
       tls_connection_(ssl_ctx, this) {}
@@ -366,6 +370,7 @@ enum ssl_verify_result_t TlsClientHandshaker::VerifyCert(uint8_t* out_alert) {
       std::unique_ptr<ProofVerifierCallback>(proof_verify_callback));
   switch (verify_result) {
     case QUIC_SUCCESS:
+      proof_handler_->OnProofVerifyDetailsAvailable(*verify_details_);
       return ssl_verify_ok;
     case QUIC_PENDING:
       proof_verify_callback_ = proof_verify_callback;

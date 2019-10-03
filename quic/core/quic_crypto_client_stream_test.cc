@@ -95,13 +95,37 @@ TEST_F(QuicCryptoClientStreamTest, ConnectedAfterSHLO) {
 TEST_F(QuicCryptoClientStreamTest, ConnectedAfterTlsHandshake) {
   SetQuicReloadableFlag(quic_supports_tls_handshake, true);
   supported_versions_.clear();
-  for (QuicTransportVersion transport_version :
-       AllSupportedTransportVersions()) {
-    supported_versions_.push_back(
-        ParsedQuicVersion(PROTOCOL_TLS1_3, transport_version));
+  for (ParsedQuicVersion version : AllSupportedVersions()) {
+    if (version.handshake_protocol != PROTOCOL_TLS1_3) {
+      continue;
+    }
+    supported_versions_.push_back(version);
   }
   CreateConnection();
   CompleteCryptoHandshake();
+  EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
+  EXPECT_TRUE(stream()->encryption_established());
+  EXPECT_TRUE(stream()->handshake_confirmed());
+}
+
+TEST_F(QuicCryptoClientStreamTest,
+       ProofVerifyDetailsAvailableAfterTlsHandshake) {
+  SetQuicReloadableFlag(quic_supports_tls_handshake, true);
+  supported_versions_.clear();
+  for (ParsedQuicVersion version : AllSupportedVersions()) {
+    if (version.handshake_protocol != PROTOCOL_TLS1_3) {
+      continue;
+    }
+    supported_versions_.push_back(version);
+  }
+  CreateConnection();
+
+  EXPECT_CALL(*session_, OnProofVerifyDetailsAvailable(testing::_));
+  stream()->CryptoConnect();
+  QuicConfig config;
+  crypto_test_utils::HandshakeWithFakeServer(
+      &config, &server_helper_, &alarm_factory_, connection_, stream(),
+      AlpnForVersion(connection_->version()));
   EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
   EXPECT_TRUE(stream()->encryption_established());
   EXPECT_TRUE(stream()->handshake_confirmed());
