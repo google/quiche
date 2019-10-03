@@ -135,8 +135,9 @@ QuicSentPacketManager::QuicSentPacketManager(
       consecutive_pto_count_(0),
       fix_rto_retransmission_(false),
       handshake_mode_disabled_(false),
-      detect_spurious_losses_(
-          GetQuicReloadableFlag(quic_detect_spurious_loss)) {
+      detect_spurious_losses_(GetQuicReloadableFlag(quic_detect_spurious_loss)),
+      neuter_handshake_packets_once_(
+          GetQuicReloadableFlag(quic_neuter_handshake_packets_once)) {
   SetSendAlgorithm(congestion_control_type);
 }
 
@@ -343,8 +344,13 @@ void QuicSentPacketManager::AdjustNetworkParameters(
 }
 
 void QuicSentPacketManager::SetHandshakeConfirmed() {
-  handshake_confirmed_ = true;
-  NeuterHandshakePackets();
+  if (!neuter_handshake_packets_once_ || !handshake_confirmed_) {
+    if (neuter_handshake_packets_once_) {
+      QUIC_RELOADABLE_FLAG_COUNT(quic_neuter_handshake_packets_once);
+    }
+    handshake_confirmed_ = true;
+    NeuterHandshakePackets();
+  }
 }
 
 void QuicSentPacketManager::PostProcessNewlyAckedPackets(

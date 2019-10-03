@@ -678,6 +678,9 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
 
   // Latched value of quic_detect_spurious_loss.
   const bool detect_spurious_losses_;
+
+  // Latched value of quic_neuter_handshake_packets_once.
+  const bool neuter_handshake_packets_once_;
 };
 
 }  // namespace quic
