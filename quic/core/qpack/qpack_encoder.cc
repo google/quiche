@@ -36,7 +36,6 @@ QpackEncoder::QpackEncoder(
     : decoder_stream_error_delegate_(decoder_stream_error_delegate),
       decoder_stream_receiver_(this),
       maximum_blocked_streams_(0),
-      debug_visitor_(nullptr),
       header_list_count_(0) {
   DCHECK(decoder_stream_error_delegate_);
 }
@@ -112,7 +111,7 @@ QpackEncoder::Instructions QpackEncoder::FirstPassEncode(
   const bool blocking_allowed = blocking_manager_.blocking_allowed_on_stream(
       stream_id, maximum_blocked_streams_);
 
-  // Track events for debug visitor.
+  // Track events for histograms.
   bool dynamic_table_insertion_blocked = false;
   bool blocked_stream_limit_exhausted = false;
 
@@ -324,11 +323,6 @@ QpackEncoder::Instructions QpackEncoder::FirstPassEncode(
         "encoding of which the limit on the number of blocked streams did "
         "not "
         "prevent referencing unacknowledged dynamic table entries.");
-  }
-
-  if (debug_visitor_) {
-    debug_visitor_->OnHeaderListEncoded(dynamic_table_insertion_blocked,
-                                        blocked_stream_limit_exhausted);
   }
 
   return instructions;

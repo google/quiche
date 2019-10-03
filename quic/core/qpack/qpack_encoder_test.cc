@@ -22,15 +22,6 @@ namespace quic {
 namespace test {
 namespace {
 
-class MockDebugVisitor : public QpackEncoder::DebugVisitor {
- public:
-  virtual ~MockDebugVisitor() = default;
-
-  MOCK_METHOD2(OnHeaderListEncoded,
-               void(bool dynamic_table_insertion_blocked,
-                    bool blocked_stream_limit_exhausted));
-};
-
 class QpackEncoderTest : public QuicTest {
  protected:
   QpackEncoderTest()
@@ -472,70 +463,6 @@ TEST_F(QpackEncoderTest, DynamicTableCapacityLessThanMaximum) {
   EXPECT_EQ(1024u,
             QpackHeaderTablePeer::maximum_dynamic_table_capacity(header_table));
   EXPECT_EQ(30u, QpackHeaderTablePeer::dynamic_table_capacity(header_table));
-}
-
-TEST_F(QpackEncoderTest, DebugVisitor) {
-  StrictMock<MockDebugVisitor> debug_visitor;
-  encoder_.set_debug_visitor(&debug_visitor);
-  encoder_.SetMaximumDynamicTableCapacity(QpackEntry::Size("foo", "bar"));
-
-  // Set Dynamic Table Capacity instruction.
-  EXPECT_CALL(encoder_stream_sender_delegate_, WriteStreamData(_));
-  encoder_.SetDynamicTableCapacity(QpackEntry::Size("foo", "bar"));
-
-  // Static table entry only, no blocking.
-  spdy::SpdyHeaderBlock header_list1;
-  header_list1[":method"] = "GET";
-  EXPECT_CALL(debug_visitor, OnHeaderListEncoded(
-                                 /* dynamic_table_insertion_blocked = */ false,
-                                 /* blocked_stream_limit_exhausted = */ false));
-  encoder_.EncodeHeaderList(/* stream_id = */ 1, header_list1, nullptr);
-
-  // Insert single dynamic table entry.  First stream is allowed to be blocked.
-  spdy::SpdyHeaderBlock header_list2;
-  header_list2["foo"] = "bar";
-  EXPECT_CALL(debug_visitor, OnHeaderListEncoded(
-                                 /* dynamic_table_insertion_blocked = */ false,
-                                 /* blocked_stream_limit_exhausted = */ false));
-  // Add entry to dynamic table.
-  EXPECT_CALL(encoder_stream_sender_delegate_, WriteStreamData(_));
-  encoder_.EncodeHeaderList(/* stream_id = */ 1, header_list2, nullptr);
-
-  // First stream is blocked.  Second stream is not allowed to be blocked.
-  // This would have been an insertion with name reference.
-  spdy::SpdyHeaderBlock header_list3;
-  header_list3["foo"] = "baz";
-  EXPECT_CALL(debug_visitor, OnHeaderListEncoded(
-                                 /* dynamic_table_insertion_blocked = */ false,
-                                 /* blocked_stream_limit_exhausted = */ true));
-  encoder_.EncodeHeaderList(/* stream_id = */ 2, header_list3, nullptr);
-
-  // First stream is blocked.  Second stream is not allowed to be blocked.
-  // This would have been an insertion without name reference.
-  spdy::SpdyHeaderBlock header_list4;
-  header_list4["bar"] = "baz";
-  EXPECT_CALL(debug_visitor, OnHeaderListEncoded(
-                                 /* dynamic_table_insertion_blocked = */ false,
-                                 /* blocked_stream_limit_exhausted = */ true));
-  encoder_.EncodeHeaderList(/* stream_id = */ 2, header_list4, nullptr);
-
-  // Cannot insert into dynamic table because first entry takes up all space and
-  // it is blocking.  This would have been an insertion with name reference.
-  spdy::SpdyHeaderBlock header_list5;
-  header_list5["foo"] = "baz";
-  EXPECT_CALL(debug_visitor, OnHeaderListEncoded(
-                                 /* dynamic_table_insertion_blocked = */ true,
-                                 /* blocked_stream_limit_exhausted = */ false));
-  encoder_.EncodeHeaderList(/* stream_id = */ 1, header_list5, nullptr);
-
-  // Cannot insert into dynamic table because first entry takes up all space and
-  // it is blocking.  This would have been an insertion without name reference.
-  spdy::SpdyHeaderBlock header_list6;
-  header_list6["bar"] = "baz";
-  EXPECT_CALL(debug_visitor, OnHeaderListEncoded(
-                                 /* dynamic_table_insertion_blocked = */ true,
-                                 /* blocked_stream_limit_exhausted = */ false));
-  encoder_.EncodeHeaderList(/* stream_id = */ 1, header_list6, nullptr);
 }
 
 }  // namespace
