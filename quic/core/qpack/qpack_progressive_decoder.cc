@@ -295,7 +295,7 @@ bool QpackProgressiveDecoder::DoPrefixInstruction() {
       OnError("Limit on number of blocked streams exceeded.");
       return false;
     }
-    header_table_->RegisterObserver(this, required_insert_count_);
+    header_table_->RegisterObserver(required_insert_count_, this);
   }
 
   return true;

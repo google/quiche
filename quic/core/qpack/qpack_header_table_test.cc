@@ -89,9 +89,9 @@ class QpackHeaderTableTest : public QuicTest {
     return table_.SetDynamicTableCapacity(capacity);
   }
 
-  void RegisterObserver(QpackHeaderTable::Observer* observer,
-                        uint64_t required_insert_count) {
-    table_.RegisterObserver(observer, required_insert_count);
+  void RegisterObserver(uint64_t required_insert_count,
+                        QpackHeaderTable::Observer* observer) {
+    table_.RegisterObserver(required_insert_count, observer);
   }
 
   uint64_t max_entries() const { return table_.max_entries(); }
@@ -418,7 +418,7 @@ TEST_F(QpackHeaderTableTest, MaxInsertSizeWithoutEvictingGivenEntry) {
 
 TEST_F(QpackHeaderTableTest, Observer) {
   StrictMock<MockObserver> observer1;
-  RegisterObserver(&observer1, 1);
+  RegisterObserver(1, &observer1);
   EXPECT_CALL(observer1, OnInsertCountReachedThreshold);
   InsertEntry("foo", "bar");
   EXPECT_EQ(1u, inserted_entry_count());
@@ -427,8 +427,8 @@ TEST_F(QpackHeaderTableTest, Observer) {
   // Registration order does not matter.
   StrictMock<MockObserver> observer2;
   StrictMock<MockObserver> observer3;
-  RegisterObserver(&observer3, 3);
-  RegisterObserver(&observer2, 2);
+  RegisterObserver(3, &observer3);
+  RegisterObserver(2, &observer2);
 
   EXPECT_CALL(observer2, OnInsertCountReachedThreshold);
   InsertEntry("foo", "bar");
@@ -444,8 +444,8 @@ TEST_F(QpackHeaderTableTest, Observer) {
   // notified.
   StrictMock<MockObserver> observer4;
   StrictMock<MockObserver> observer5;
-  RegisterObserver(&observer4, 4);
-  RegisterObserver(&observer5, 4);
+  RegisterObserver(4, &observer4);
+  RegisterObserver(4, &observer5);
 
   EXPECT_CALL(observer4, OnInsertCountReachedThreshold);
   EXPECT_CALL(observer5, OnInsertCountReachedThreshold);
