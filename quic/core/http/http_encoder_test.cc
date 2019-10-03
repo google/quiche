@@ -128,15 +128,15 @@ TEST_F(HttpEncoderTest, SerializeCancelPushFrame) {
 
 TEST_F(HttpEncoderTest, SerializeSettingsFrame) {
   SettingsFrame settings;
-  settings.values[3] = 2;
+  settings.values[1] = 2;
   settings.values[6] = 5;
   settings.values[256] = 4;
   char output[] = {// type (SETTINGS)
                    0x04,
                    // length
                    0x07,
-                   // identifier (SETTINGS_NUM_PLACEHOLDERS)
-                   0x03,
+                   // identifier (SETTINGS_QPACK_MAX_TABLE_CAPACITY)
+                   0x01,
                    // content
                    0x02,
                    // identifier (SETTINGS_MAX_HEADER_LIST_SIZE)

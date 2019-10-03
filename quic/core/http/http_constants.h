@@ -29,7 +29,6 @@ enum Http3AndQpackSettingsIdentifiers : uint64_t {
   // Same value as spdy::SETTINGS_MAX_HEADER_LIST_SIZE.
   SETTINGS_MAX_HEADER_LIST_SIZE = 0x06,
   SETTINGS_QPACK_BLOCKED_STREAMS = 0x07,
-  SETTINGS_NUM_PLACEHOLDERS = 0x09,
 };
 
 // Default maximum dynamic table capacity, communicated via

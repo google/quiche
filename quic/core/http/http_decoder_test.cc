@@ -468,7 +468,7 @@ TEST_F(HttpDecoderTest, SettingsFrame) {
   std::string input = QuicTextUtils::HexDecode(
       "04"    // type (SETTINGS)
       "07"    // length
-      "03"    // identifier (SETTINGS_NUM_PLACEHOLDERS)
+      "01"    // identifier (SETTINGS_QPACK_MAX_TABLE_CAPACITY)
       "02"    // content
       "06"    // identifier (SETTINGS_MAX_HEADER_LIST_SIZE)
       "05"    // content
@@ -476,7 +476,7 @@ TEST_F(HttpDecoderTest, SettingsFrame) {
       "04");  // content
 
   SettingsFrame frame;
-  frame.values[3] = 2;
+  frame.values[1] = 2;
   frame.values[6] = 5;
   frame.values[256] = 4;
 

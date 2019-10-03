@@ -729,11 +729,6 @@ void QuicSpdySession::OnSetting(uint64_t id, uint64_t value) {
                       << value;
         qpack_encoder_->SetMaximumBlockedStreams(value);
         break;
-      case SETTINGS_NUM_PLACEHOLDERS:
-        QUIC_DVLOG(1) << "SETTINGS_NUM_PLACEHOLDERS received with value "
-                      << value;
-        // TODO: Support placeholder setting.
-        break;
       default:
         QUIC_DVLOG(1) << "Unknown setting identifier " << id
                       << " received with value " << value;
