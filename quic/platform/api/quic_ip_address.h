@@ -15,6 +15,7 @@
 #include <sys/types.h>
 #endif
 
+#include <ostream>
 #include <string>
 
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
