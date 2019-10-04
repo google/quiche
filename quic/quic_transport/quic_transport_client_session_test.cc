@@ -7,11 +7,17 @@
 #include <memory>
 
 #include "url/gurl.h"
+#include "net/third_party/quiche/src/quic/core/quic_data_writer.h"
 #include "net/third_party/quiche/src/quic/core/quic_server_id.h"
+#include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_expect_bug.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/crypto_test_utils.h"
+#include "net/third_party/quiche/src/quic/test_tools/quic_session_peer.h"
+#include "net/third_party/quiche/src/quic/test_tools/quic_stream_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 
 namespace quic {
@@ -22,7 +28,8 @@ using testing::_;
 using testing::ElementsAre;
 
 const char* kTestOrigin = "https://test-origin.test";
-const char* kTestOriginInsecure = "http://test-origin.test";
+constexpr char kTestOriginClientIndication[] =
+    "\0\0\0\x18https://test-origin.test";
 url::Origin GetTestOrigin() {
   GURL origin_url(kTestOrigin);
   return url::Origin::Create(origin_url);
@@ -30,6 +37,16 @@ url::Origin GetTestOrigin() {
 
 ParsedQuicVersionVector GetVersions() {
   return {ParsedQuicVersion{PROTOCOL_TLS1_3, QUIC_VERSION_99}};
+}
+
+std::string DataInStream(QuicStream* stream) {
+  QuicStreamSendBuffer& send_buffer = QuicStreamPeer::SendBuffer(stream);
+  std::string result;
+  result.resize(send_buffer.stream_offset());
+  QuicDataWriter writer(result.size(), &result[0]);
+  EXPECT_TRUE(
+      send_buffer.WriteStreamData(0, send_buffer.stream_offset(), &writer));
+  return result;
 }
 
 class TestClientSession : public QuicTransportClientSession {
@@ -68,20 +85,21 @@ class QuicTransportClientSessionTest : public QuicTest {
         server_id_("test.example.com", 443),
         crypto_config_(crypto_test_utils::ProofVerifierForTesting()) {
     SetQuicReloadableFlag(quic_supports_tls_handshake, true);
+    CreateSession(GetTestOrigin());
+  }
+
+  void CreateSession(url::Origin origin) {
     session_ = std::make_unique<TestClientSession>(
         &connection_, nullptr, DefaultQuicConfig(), GetVersions(), server_id_,
-        &crypto_config_, GetTestOrigin());
+        &crypto_config_, origin);
     session_->Initialize();
     crypto_stream_ = static_cast<QuicCryptoClientStream*>(
         session_->GetMutableCryptoStream());
   }
 
-  void ConnectWithOriginList(std::string accepted_origins) {
+  void Connect() {
     session_->CryptoConnect();
     QuicConfig server_config = DefaultQuicConfig();
-    server_config
-        .custom_transport_parameters_to_send()[WebAcceptedOriginsParameter()] =
-        accepted_origins;
     crypto_test_utils::HandshakeWithFakeServer(
         &server_config, &helper_, &alarm_factory_, &connection_, crypto_stream_,
         kQuicTransportAlpn);
@@ -102,54 +120,27 @@ TEST_F(QuicTransportClientSessionTest, HasValidAlpn) {
 }
 
 TEST_F(QuicTransportClientSessionTest, SuccessfulConnection) {
-  ConnectWithOriginList(GetTestOrigin().Serialize());
+  Connect();
   EXPECT_TRUE(session_->IsSessionReady());
+
+  QuicStream* client_indication_stream =
+      QuicSessionPeer::zombie_streams(session_.get())[kClientIndicationStream]
+          .get();
+  ASSERT_TRUE(client_indication_stream != nullptr);
+  const std::string client_indication = DataInStream(client_indication_stream);
+  const std::string expected_client_indication{
+      kTestOriginClientIndication,
+      QUIC_ARRAYSIZE(kTestOriginClientIndication) - 1};
+  EXPECT_EQ(client_indication, expected_client_indication);
 }
 
-TEST_F(QuicTransportClientSessionTest, SuccessfulConnectionManyOrigins) {
-  ConnectWithOriginList(
-      QuicStrCat("http://example.org,", kTestOrigin, ",https://example.com"));
-  EXPECT_TRUE(session_->IsSessionReady());
-}
+TEST_F(QuicTransportClientSessionTest, OriginTooLong) {
+  std::string long_string(68000, 'a');
+  GURL bad_origin_url{"https://" + long_string + ".example/"};
+  EXPECT_TRUE(bad_origin_url.is_valid());
+  CreateSession(url::Origin::Create(bad_origin_url));
 
-TEST_F(QuicTransportClientSessionTest, SuccessfulConnectionWildcardOrigin) {
-  ConnectWithOriginList("*");
-  EXPECT_TRUE(session_->IsSessionReady());
-}
-
-TEST_F(QuicTransportClientSessionTest, OriginMismatch) {
-  EXPECT_CALL(connection_,
-              CloseConnection(_, "QuicTransport origin check failed", _));
-  ConnectWithOriginList("https://obviously-wrong-website.test");
-  EXPECT_FALSE(session_->IsSessionReady());
-}
-
-TEST_F(QuicTransportClientSessionTest, OriginSchemaMismatch) {
-  EXPECT_CALL(connection_,
-              CloseConnection(_, "QuicTransport origin check failed", _));
-  ConnectWithOriginList(kTestOriginInsecure);
-  EXPECT_FALSE(session_->IsSessionReady());
-}
-
-TEST_F(QuicTransportClientSessionTest, OriginListMissing) {
-  EXPECT_CALL(
-      connection_,
-      CloseConnection(
-          _, "QuicTransport requires web_accepted_origins transport parameter",
-          _));
-  session_->CryptoConnect();
-  QuicConfig server_config = DefaultQuicConfig();
-  crypto_test_utils::HandshakeWithFakeServer(
-      &server_config, &helper_, &alarm_factory_, &connection_, crypto_stream_,
-      kQuicTransportAlpn);
-  EXPECT_FALSE(session_->IsSessionReady());
-}
-
-TEST_F(QuicTransportClientSessionTest, OriginListEmpty) {
-  EXPECT_CALL(connection_,
-              CloseConnection(_, "QuicTransport origin check failed", _));
-  ConnectWithOriginList("");
-  EXPECT_FALSE(session_->IsSessionReady());
+  EXPECT_QUIC_BUG(Connect(), "Client origin too long");
 }
 
 }  // namespace

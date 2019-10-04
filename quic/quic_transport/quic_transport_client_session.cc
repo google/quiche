@@ -4,10 +4,14 @@
 
 #include "net/third_party/quiche/src/quic/quic_transport/quic_transport_client_session.h"
 
+#include <cstdint>
+#include <limits>
 #include <memory>
 
 #include "url/gurl.h"
 #include "net/third_party/quiche/src/quic/core/quic_crypto_client_stream.h"
+#include "net/third_party/quiche/src/quic/core/quic_data_writer.h"
+#include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
 #include "net/third_party/quiche/src/quic/core/quic_session.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
@@ -17,7 +21,8 @@
 
 namespace quic {
 
-const char* kQuicTransportAlpn = "wq-draft01";
+const char* kQuicTransportAlpn = "wq-vvv-01";
+const QuicStreamId kClientIndicationStream = 2;
 
 namespace {
 // ProofHandler is primarily used by QUIC crypto to persist QUIC server configs
@@ -64,48 +69,60 @@ void QuicTransportClientSession::OnCryptoHandshakeEvent(
     return;
   }
 
-  auto it = config()->received_custom_transport_parameters().find(
-      WebAcceptedOriginsParameter());
-  if (it == config()->received_custom_transport_parameters().end()) {
+  SendClientIndication();
+}
+
+std::string QuicTransportClientSession::SerializeClientIndication() {
+  std::string serialized_origin = origin_.Serialize();
+  if (serialized_origin.size() > std::numeric_limits<uint16_t>::max()) {
+    QUIC_BUG << "Client origin too long";
     connection()->CloseConnection(
-        QUIC_HANDSHAKE_FAILED,
-        "QuicTransport requires web_accepted_origins transport parameter",
+        QUIC_INTERNAL_ERROR, "Client origin too long",
+        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    return "";
+  }
+  QUIC_DLOG(INFO) << "Sending client indication with origin "
+                  << serialized_origin;
+
+  std::string buffer;
+  buffer.resize(/* key */ sizeof(QuicTransportClientIndicationKeys) +
+                /* length */ sizeof(uint16_t) + serialized_origin.size());
+  QuicDataWriter writer(buffer.size(), &buffer[0]);
+  writer.WriteUInt16(
+      static_cast<uint16_t>(QuicTransportClientIndicationKeys::kOrigin));
+  writer.WriteUInt16(serialized_origin.size());
+  writer.WriteStringPiece(serialized_origin);
+
+  buffer.resize(writer.length());
+  return buffer;
+}
+
+void QuicTransportClientSession::SendClientIndication() {
+  if (!crypto_stream_->encryption_established()) {
+    QUIC_BUG << "Client indication may only be sent once the encryption is "
+                "established.";
+    connection()->CloseConnection(
+        QUIC_INTERNAL_ERROR, "Attempted to send client indication unencrypted",
+        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    return;
+  }
+  if (client_indication_sent_) {
+    QUIC_BUG << "Client indication may only be sent once.";
+    connection()->CloseConnection(
+        QUIC_INTERNAL_ERROR, "Attempted to send client indication twice",
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return;
   }
 
-  QUIC_DLOG(INFO) << "QuicTransport using origin: " << origin_.Serialize();
-  QUIC_DLOG(INFO) << "QuicTransport origins offered: " << it->second;
+  auto client_indication_owned = std::make_unique<ClientIndication>(
+      /*stream_id=*/kClientIndicationStream, this, /*is_static=*/false,
+      WRITE_UNIDIRECTIONAL);
+  ClientIndication* client_indication = client_indication_owned.get();
+  ActivateStream(std::move(client_indication_owned));
 
-  if (CheckOrigin(it->second)) {
-    is_origin_valid_ = true;
-  } else {
-    QUIC_DLOG(ERROR) << "Origin check failed for " << origin_
-                     << ", allowed origin list: " << it->second;
-    connection()->CloseConnection(
-        QUIC_HANDSHAKE_FAILED, "QuicTransport origin check failed",
-        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
-  }
-}
-
-bool QuicTransportClientSession::CheckOrigin(
-    QuicStringPiece raw_accepted_origins) {
-  if (raw_accepted_origins == "*") {
-    return true;
-  }
-
-  std::vector<QuicStringPiece> accepted_origins =
-      QuicTextUtils::Split(raw_accepted_origins, ',');
-  for (QuicStringPiece raw_origin : accepted_origins) {
-    url::Origin accepted_origin =
-        url::Origin::Create(GURL(std::string(raw_origin)));
-    QUIC_DVLOG(1) << "QuicTransport offered origin normalized: "
-                  << accepted_origin.Serialize();
-    if (accepted_origin.IsSameOriginWith(origin_)) {
-      return true;
-    }
-  }
-  return false;
+  client_indication->WriteOrBufferData(SerializeClientIndication(),
+                                       /*fin=*/true, nullptr);
+  client_indication_sent_ = true;
 }
 
 }  // namespace quic

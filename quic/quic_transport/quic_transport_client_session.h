@@ -16,19 +16,21 @@
 #include "net/third_party/quiche/src/quic/core/quic_crypto_stream.h"
 #include "net/third_party/quiche/src/quic/core/quic_server_id.h"
 #include "net/third_party/quiche/src/quic/core/quic_session.h"
+#include "net/third_party/quiche/src/quic/core/quic_stream.h"
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 
 namespace quic {
 
-// The web_accepted_origins transport parameter ID.
-constexpr TransportParameters::TransportParameterId
-WebAcceptedOriginsParameter() {
-  return static_cast<TransportParameters::TransportParameterId>(0xffc8);
-}
-
 // The ALPN used by QuicTransport.
 QUIC_EXPORT extern const char* kQuicTransportAlpn;
+
+QUIC_EXPORT extern const QuicStreamId kClientIndicationStream;
+
+enum class QuicTransportClientIndicationKeys : uint16_t {
+  kOrigin = 0x0000,
+};
 
 // A client session for the QuicTransport protocol.
 class QUIC_EXPORT QuicTransportClientSession : public QuicSession {
@@ -57,20 +59,33 @@ class QUIC_EXPORT QuicTransportClientSession : public QuicSession {
   }
 
   bool IsSessionReady() const {
-    return IsCryptoHandshakeConfirmed() && is_origin_valid_;
+    return IsCryptoHandshakeConfirmed() && client_indication_sent_ &&
+           connection()->connected();
   }
 
   void OnCryptoHandshakeEvent(CryptoHandshakeEvent event) override;
 
  protected:
-  // Accepts the list of accepted origins in a format specified in
-  // <https://tools.ietf.org/html/draft-vvv-webtransport-quic-00#section-3.2>,
-  // and verifies that at least one of them matches |origin_|.
-  bool CheckOrigin(QuicStringPiece raw_accepted_origins);
+  class ClientIndication : public QuicStream {
+   public:
+    using QuicStream::QuicStream;
+
+    // This method should never be called, since the stream is client-initiated
+    // unidirectional.
+    void OnDataAvailable() override {
+      QUIC_BUG << "Received data on a write-only stream";
+    }
+  };
+
+  // Serializes the client indication as described in
+  // https://vasilvv.github.io/webtransport/draft-vvv-webtransport-quic.html#rfc.section.3.2
+  std::string SerializeClientIndication();
+  // Creates the client indication stream and sends the client indication on it.
+  void SendClientIndication();
 
   std::unique_ptr<QuicCryptoClientStream> crypto_stream_;
   url::Origin origin_;
-  bool is_origin_valid_ = false;
+  bool client_indication_sent_ = false;
 };
 
 }  // namespace quic
