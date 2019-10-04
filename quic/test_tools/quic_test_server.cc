@@ -227,6 +227,11 @@ void ImmediateGoAwaySession::OnStreamFrame(const QuicStreamFrame& frame) {
   QuicSimpleServerSession::OnStreamFrame(frame);
 }
 
+void ImmediateGoAwaySession::OnCryptoFrame(const QuicCryptoFrame& frame) {
+  SendGoAway(QUIC_PEER_GOING_AWAY, "");
+  QuicSimpleServerSession::OnCryptoFrame(frame);
+}
+
 }  // namespace test
 
 }  // namespace quic

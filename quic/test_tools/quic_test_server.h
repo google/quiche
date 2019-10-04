@@ -104,6 +104,7 @@ class ImmediateGoAwaySession : public QuicSimpleServerSession {
 
   // Override to send GoAway.
   void OnStreamFrame(const QuicStreamFrame& frame) override;
+  void OnCryptoFrame(const QuicCryptoFrame& frame) override;
 };
 
 }  // namespace test
