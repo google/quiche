@@ -89,6 +89,7 @@ class QUIC_EXPORT_PRIVATE QpackProgressiveDecoder
 
   // QpackHeaderTable::Observer implementation.
   void OnInsertCountReachedThreshold() override;
+  void Cancel() override;
 
  private:
   bool DoIndexedHeaderFieldInstruction();
@@ -145,6 +146,10 @@ class QUIC_EXPORT_PRIVATE QpackProgressiveDecoder
 
   // True if a decoding error has been detected.
   bool error_detected_;
+
+  // True if QpackHeaderTable has been destroyed
+  // while decoding is still blocked.
+  bool cancelled_;
 };
 
 }  // namespace quic

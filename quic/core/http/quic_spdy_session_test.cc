@@ -2290,6 +2290,39 @@ TEST_P(QuicSpdySessionTestServer, StreamClosedWhileHeaderDecodingBlocked) {
   session_.qpack_decoder()->OnInsertWithoutNameReference("foo", "bar");
 }
 
+// Regression test for https://crbug.com/1011294.
+TEST_P(QuicSpdySessionTestServer, SessionDestroyedWhileHeaderDecodingBlocked) {
+  if (!VersionUsesQpack(transport_version())) {
+    return;
+  }
+
+  session_.qpack_decoder()->OnSetDynamicTableCapacity(1024);
+
+  QuicStreamId stream_id = GetNthClientInitiatedBidirectionalId(0);
+  TestStream* stream = session_.CreateIncomingStream(stream_id);
+
+  // HEADERS frame referencing first dynamic table entry.
+  std::string headers_payload = QuicTextUtils::HexDecode("020080");
+  std::unique_ptr<char[]> headers_buffer;
+  HttpEncoder encoder;
+  QuicByteCount headers_frame_header_length =
+      encoder.SerializeHeadersFrameHeader(headers_payload.length(),
+                                          &headers_buffer);
+  QuicStringPiece headers_frame_header(headers_buffer.get(),
+                                       headers_frame_header_length);
+  std::string headers = QuicStrCat(headers_frame_header, headers_payload);
+  stream->OnStreamFrame(QuicStreamFrame(stream_id, false, 0, headers));
+
+  // Decoding is blocked because dynamic table entry has not been received yet.
+  EXPECT_FALSE(stream->headers_decompressed());
+
+  // |session_| gets destoyed.  That destroys QpackDecoder, a member of
+  // QuicSpdySession (derived class), which destroys QpackHeaderTable.
+  // Then |*stream|, owned by QuicSession (base class) get destroyed, which
+  // destroys QpackProgessiveDecoder, a registered Observer of QpackHeaderTable.
+  // This must not cause a crash.
+}
+
 TEST_P(QuicSpdySessionTestClient, ResetAfterInvalidIncomingStreamType) {
   if (!VersionHasStreamType(transport_version())) {
     return;

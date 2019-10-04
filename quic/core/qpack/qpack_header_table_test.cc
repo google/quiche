@@ -23,6 +23,7 @@ class MockObserver : public QpackHeaderTable::Observer {
   ~MockObserver() override = default;
 
   MOCK_METHOD0(OnInsertCountReachedThreshold, void());
+  MOCK_METHOD0(Cancel, void());
 };
 
 class QpackHeaderTableTest : public QuicTest {
@@ -517,6 +518,15 @@ TEST_F(QpackHeaderTableTest, DrainingIndex) {
   EXPECT_EQ(2u, table.draining_index(0.5));
   // No entry can be referenced if all of the table is draining.
   EXPECT_EQ(4u, table.draining_index(1.0));
+}
+
+TEST_F(QpackHeaderTableTest, Cancel) {
+  StrictMock<MockObserver> observer;
+  auto table = std::make_unique<QpackHeaderTable>();
+  table->RegisterObserver(1, &observer);
+
+  EXPECT_CALL(observer, Cancel);
+  table.reset();
 }
 
 }  // namespace

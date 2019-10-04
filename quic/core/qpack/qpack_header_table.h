@@ -48,6 +48,10 @@ class QUIC_EXPORT_PRIVATE QpackHeaderTable {
     // registered with.  After this call the Observer automatically gets
     // deregistered.
     virtual void OnInsertCountReachedThreshold() = 0;
+
+    // Called when QpackHeaderTable is destroyed to let the Observer know that
+    // it must not call UnregisterObserver().
+    virtual void Cancel() = 0;
   };
 
   QpackHeaderTable();
@@ -99,9 +103,11 @@ class QUIC_EXPORT_PRIVATE QpackHeaderTable {
   // gets unregistered.  Each observer must only be registered at most once.
   void RegisterObserver(uint64_t required_insert_count, Observer* observer);
 
-  // Unregister previously registered observer.  Must be called before an
-  // observer still waiting for notification is destroyed.  Must be called with
-  // the same |required_insert_count| value that |observer| was registered with.
+  // Unregister previously registered observer.  Must be called with the same
+  // |required_insert_count| value that |observer| was registered with.  Must be
+  // called before an observer still waiting for notification is destroyed,
+  // unless QpackHeaderTable already called Observer::Cancel(), in which case
+  // this method must not be called.
   void UnregisterObserver(uint64_t required_insert_count, Observer* observer);
 
   // Used on request streams to encode and decode Required Insert Count.

@@ -36,10 +36,11 @@ QpackProgressiveDecoder::QpackProgressiveDecoder(
       prefix_decoded_(false),
       blocked_(false),
       decoding_(true),
-      error_detected_(false) {}
+      error_detected_(false),
+      cancelled_(false) {}
 
 QpackProgressiveDecoder::~QpackProgressiveDecoder() {
-  if (blocked_) {
+  if (blocked_ && !cancelled_) {
     header_table_->UnregisterObserver(required_insert_count_, this);
   }
 }
@@ -131,6 +132,10 @@ void QpackProgressiveDecoder::OnInsertCountReachedThreshold() {
   if (!decoding_) {
     FinishDecoding();
   }
+}
+
+void QpackProgressiveDecoder::Cancel() {
+  cancelled_ = true;
 }
 
 bool QpackProgressiveDecoder::DoIndexedHeaderFieldInstruction() {

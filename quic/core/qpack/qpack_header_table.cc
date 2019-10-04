@@ -19,7 +19,11 @@ QpackHeaderTable::QpackHeaderTable()
       max_entries_(0),
       dropped_entry_count_(0) {}
 
-QpackHeaderTable::~QpackHeaderTable() = default;
+QpackHeaderTable::~QpackHeaderTable() {
+  for (auto& entry : observers_) {
+    entry.second->Cancel();
+  }
+}
 
 const QpackEntry* QpackHeaderTable::LookupEntry(bool is_static,
                                                 uint64_t index) const {
