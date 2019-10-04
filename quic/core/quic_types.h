@@ -157,6 +157,9 @@ enum TransmissionType : int8_t {
   LAST_TRANSMISSION_TYPE = PROBING_RETRANSMISSION,
 };
 
+QUIC_EXPORT_PRIVATE std::string TransmissionTypeToString(
+    TransmissionType transmission_type);
+
 enum HasRetransmittableData : uint8_t {
   NO_RETRANSMITTABLE_DATA,
   HAS_RETRANSMITTABLE_DATA,
@@ -407,6 +410,8 @@ inline bool EncryptionLevelIsValid(EncryptionLevel level) {
   return ENCRYPTION_INITIAL <= level && level < NUM_ENCRYPTION_LEVELS;
 }
 
+QUIC_EXPORT_PRIVATE std::string EncryptionLevelToString(EncryptionLevel level);
+
 enum AddressChangeType : uint8_t {
   // IP address and port remain unchanged.
   NO_CHANGE,
@@ -629,6 +634,9 @@ enum PacketNumberSpace : uint8_t {
 
   NUM_PACKET_NUMBER_SPACES,
 };
+
+QUIC_EXPORT_PRIVATE std::string PacketNumberSpaceToString(
+    PacketNumberSpace packet_number_space);
 
 enum AckMode { TCP_ACKING, ACK_DECIMATION, ACK_DECIMATION_WITH_REORDERING };
 

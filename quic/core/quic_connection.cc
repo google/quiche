@@ -1368,8 +1368,12 @@ void QuicConnection::OnPacketComplete() {
     ++stats_.num_connectivity_probing_received;
   }
 
-  QUIC_DVLOG(1) << ENDPOINT << "Got packet " << last_header_.packet_number
-                << " for "
+  QUIC_DVLOG(1) << ENDPOINT << "Got"
+                << (SupportsMultiplePacketNumberSpaces()
+                        ? (" " + EncryptionLevelToString(
+                                     last_decrypted_packet_level_))
+                        : "")
+                << " packet " << last_header_.packet_number << " for "
                 << GetServerConnectionIdAsRecipient(last_header_, perspective_);
 
   QUIC_DLOG_IF(INFO, current_packet_content_ == SECOND_FRAME_IS_PADDING)
@@ -1447,8 +1451,7 @@ void QuicConnection::OnPacketComplete() {
         clock_->ApproximateNow(), sent_packet_manager_.GetRttStats());
   } else {
     QUIC_DLOG(INFO) << ENDPOINT << "Not updating ACK timeout for "
-                    << QuicUtils::EncryptionLevelToString(
-                           last_decrypted_packet_level_)
+                    << EncryptionLevelToString(last_decrypted_packet_level_)
                     << " as we do not have the corresponding encrypter";
   }
 
@@ -1483,12 +1486,12 @@ void QuicConnection::CloseIfTooManyOutstandingSentPackets() {
           sent_packet_manager_.GetLeastUnacked() + max_tracked_packets_) {
     CloseConnection(
         QUIC_TOO_MANY_OUTSTANDING_SENT_PACKETS,
-        QuicStrCat(
-            "More than ", max_tracked_packets_, " outstanding, least_unacked: ",
-            sent_packet_manager_.GetLeastUnacked().ToUint64(),
-            ", packets_processed: ", stats_.packets_processed,
-            ", last_decrypted_packet_level: ",
-            QuicUtils::EncryptionLevelToString(last_decrypted_packet_level_)),
+        QuicStrCat("More than ", max_tracked_packets_,
+                   " outstanding, least_unacked: ",
+                   sent_packet_manager_.GetLeastUnacked().ToUint64(),
+                   ", packets_processed: ", stats_.packets_processed,
+                   ", last_decrypted_packet_level: ",
+                   EncryptionLevelToString(last_decrypted_packet_level_)),
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
   }
 }
@@ -1621,7 +1624,7 @@ bool QuicConnection::SendControlFrame(const QuicFrame& frame) {
     // handshake deadlock.
     QUIC_DVLOG(1) << ENDPOINT << "Failed to send control frame: " << frame
                   << " at encryption level: "
-                  << QuicUtils::EncryptionLevelToString(encryption_level_);
+                  << EncryptionLevelToString(encryption_level_);
     return false;
   }
   ScopedPacketFlusher flusher(this);
@@ -1713,9 +1716,9 @@ void QuicConnection::OnUndecryptablePacket(const QuicEncryptedPacket& packet,
   QUIC_DVLOG(1) << ENDPOINT << "Received undecryptable packet of length "
                 << packet.length() << " with"
                 << (has_decryption_key ? "" : "out") << " key at level "
-                << QuicUtils::EncryptionLevelToString(decryption_level)
+                << EncryptionLevelToString(decryption_level)
                 << " while connection is at encryption level "
-                << QuicUtils::EncryptionLevelToString(encryption_level_);
+                << EncryptionLevelToString(encryption_level_);
   DCHECK(GetQuicRestartFlag(quic_framer_uses_undecryptable_upcall));
   QUIC_RESTART_FLAG_COUNT_N(quic_framer_uses_undecryptable_upcall, 1, 7);
   DCHECK(EncryptionLevelIsValid(decryption_level));
@@ -2166,7 +2169,7 @@ const QuicFrames QuicConnection::MaybeBundleAckOpportunistically() {
   QuicFrame updated_ack_frame = GetUpdatedAckFrame();
   QUIC_BUG_IF(updated_ack_frame.ack_frame->packets.Empty())
       << ENDPOINT << "Attempted to opportunistically bundle an empty "
-      << QuicUtils::EncryptionLevelToString(encryption_level_) << " ACK, "
+      << EncryptionLevelToString(encryption_level_) << " ACK, "
       << (has_pending_ack ? "" : "!") << "has_pending_ack, stop_waiting_count_ "
       << stop_waiting_count_;
   frames.push_back(updated_ack_frame);
@@ -2276,7 +2279,7 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
                         ? "data bearing "
                         : " ack only ")
                 << ", encryption level: "
-                << QuicUtils::EncryptionLevelToString(packet->encryption_level)
+                << EncryptionLevelToString(packet->encryption_level)
                 << ", encrypted length:" << encrypted_length;
   QUIC_DVLOG(2) << ENDPOINT << "packet(" << packet_number << "): " << std::endl
                 << QuicTextUtils::HexDump(QuicStringPiece(
@@ -2753,8 +2756,8 @@ void QuicConnection::SetDiversificationNonce(
 
 void QuicConnection::SetDefaultEncryptionLevel(EncryptionLevel level) {
   QUIC_DVLOG(1) << ENDPOINT << "Setting default encryption level from "
-                << QuicUtils::EncryptionLevelToString(encryption_level_)
-                << " to " << QuicUtils::EncryptionLevelToString(level);
+                << EncryptionLevelToString(encryption_level_) << " to "
+                << EncryptionLevelToString(level);
   if (level != encryption_level_ && packet_generator_.HasPendingFrames()) {
     // Flush all queued frames when encryption level changes.
     ScopedPacketFlusher flusher(this);
@@ -3810,7 +3813,7 @@ EncryptionLevel QuicConnection::GetConnectionCloseEncryptionLevel() const {
     // A forward secure packet has been received.
     QUIC_BUG_IF(encryption_level_ != ENCRYPTION_FORWARD_SECURE)
         << ENDPOINT << "Unexpected connection close encryption level "
-        << QuicUtils::EncryptionLevelToString(encryption_level_);
+        << EncryptionLevelToString(encryption_level_);
     return ENCRYPTION_FORWARD_SECURE;
   }
   if (framer_.HasEncrypterOfEncryptionLevel(ENCRYPTION_ZERO_RTT)) {
@@ -3842,12 +3845,13 @@ void QuicConnection::SendAllPendingAcks() {
     if (!framer_.HasEncrypterOfEncryptionLevel(
             QuicUtils::GetEncryptionLevel(static_cast<PacketNumberSpace>(i)))) {
       QUIC_BUG << ENDPOINT << "Cannot send ACKs for packet number space "
-               << static_cast<uint32_t>(i)
+               << PacketNumberSpaceToString(static_cast<PacketNumberSpace>(i))
                << " without corresponding encrypter";
       continue;
     }
-    QUIC_DVLOG(1) << ENDPOINT << "Sending ACK of packet number space: "
-                  << static_cast<uint32_t>(i);
+    QUIC_DVLOG(1) << ENDPOINT << "Sending ACK of packet number space "
+                  << PacketNumberSpaceToString(
+                         static_cast<PacketNumberSpace>(i));
     // Switch to the appropriate encryption level.
     SetDefaultEncryptionLevel(
         QuicUtils::GetEncryptionLevel(static_cast<PacketNumberSpace>(i)));

@@ -457,13 +457,56 @@ std::ostream& operator<<(std::ostream& os, const QuicIetfFrameType& c) {
   return os;
 }
 
+std::string TransmissionTypeToString(TransmissionType transmission_type) {
+  switch (transmission_type) {
+    RETURN_STRING_LITERAL(NOT_RETRANSMISSION);
+    RETURN_STRING_LITERAL(HANDSHAKE_RETRANSMISSION);
+    RETURN_STRING_LITERAL(ALL_UNACKED_RETRANSMISSION);
+    RETURN_STRING_LITERAL(ALL_INITIAL_RETRANSMISSION);
+    RETURN_STRING_LITERAL(LOSS_RETRANSMISSION);
+    RETURN_STRING_LITERAL(RTO_RETRANSMISSION);
+    RETURN_STRING_LITERAL(TLP_RETRANSMISSION);
+    RETURN_STRING_LITERAL(PROBING_RETRANSMISSION);
+    default:
+      // Some varz rely on this behavior for statistic collection.
+      if (transmission_type == LAST_TRANSMISSION_TYPE + 1) {
+        return "INVALID_TRANSMISSION_TYPE";
+      }
+      return QuicStrCat("Unknown(", static_cast<int>(transmission_type), ")");
+      break;
+  }
+}
+
+std::string PacketNumberSpaceToString(PacketNumberSpace packet_number_space) {
+  switch (packet_number_space) {
+    RETURN_STRING_LITERAL(INITIAL_DATA);
+    RETURN_STRING_LITERAL(HANDSHAKE_DATA);
+    RETURN_STRING_LITERAL(APPLICATION_DATA);
+    default:
+      return QuicStrCat("Unknown(", static_cast<int>(packet_number_space), ")");
+      break;
+  }
+}
+
+std::string EncryptionLevelToString(EncryptionLevel level) {
+  switch (level) {
+    RETURN_STRING_LITERAL(ENCRYPTION_INITIAL);
+    RETURN_STRING_LITERAL(ENCRYPTION_HANDSHAKE);
+    RETURN_STRING_LITERAL(ENCRYPTION_ZERO_RTT);
+    RETURN_STRING_LITERAL(ENCRYPTION_FORWARD_SECURE);
+    default:
+      return QuicStrCat("Unknown(", static_cast<int>(level), ")");
+      break;
+  }
+}
+
 std::string QuicConnectionCloseTypeString(QuicConnectionCloseType type) {
   switch (type) {
     RETURN_STRING_LITERAL(GOOGLE_QUIC_CONNECTION_CLOSE);
     RETURN_STRING_LITERAL(IETF_QUIC_TRANSPORT_CONNECTION_CLOSE);
     RETURN_STRING_LITERAL(IETF_QUIC_APPLICATION_CONNECTION_CLOSE);
     default:
-      return QuicStrCat("Unknown: ", static_cast<int>(type));
+      return QuicStrCat("Unknown(", static_cast<int>(type), ")");
       break;
   }
 }

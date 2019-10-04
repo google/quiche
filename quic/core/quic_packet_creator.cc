@@ -41,10 +41,10 @@ QuicLongHeaderType EncryptionlevelToLongHeaderType(EncryptionLevel level) {
     case ENCRYPTION_FORWARD_SECURE:
       QUIC_BUG
           << "Try to derive long header type for packet with encryption level: "
-          << QuicUtils::EncryptionLevelToString(level);
+          << EncryptionLevelToString(level);
       return INVALID_PACKET_TYPE;
     default:
-      QUIC_BUG << QuicUtils::EncryptionLevelToString(level);
+      QUIC_BUG << EncryptionLevelToString(level);
       return INVALID_PACKET_TYPE;
   }
 }
@@ -1267,15 +1267,15 @@ bool QuicPacketCreator::AddFrame(const QuicFrame& frame,
                                  bool save_retransmittable_frames,
                                  TransmissionType transmission_type) {
   QUIC_DVLOG(1) << ENDPOINT << "Adding frame with transmission type "
-                << transmission_type << ": " << frame;
+                << TransmissionTypeToString(transmission_type) << ": " << frame;
   if (frame.type == STREAM_FRAME &&
       !QuicUtils::IsCryptoStreamId(framer_->transport_version(),
                                    frame.stream_frame.stream_id) &&
       (packet_.encryption_level == ENCRYPTION_INITIAL ||
        packet_.encryption_level == ENCRYPTION_HANDSHAKE)) {
-    const std::string error_details = QuicStrCat(
-        "Cannot send stream data with level: ",
-        QuicUtils::EncryptionLevelToString(packet_.encryption_level));
+    const std::string error_details =
+        QuicStrCat("Cannot send stream data with level: ",
+                   EncryptionLevelToString(packet_.encryption_level));
     QUIC_BUG << error_details;
     delegate_->OnUnrecoverableError(
         QUIC_ATTEMPT_TO_SEND_UNENCRYPTED_STREAM_DATA, error_details);
@@ -1370,8 +1370,9 @@ void QuicPacketCreator::MaybeAddPadding() {
 
   bool success = AddFrame(QuicFrame(QuicPaddingFrame(padding_bytes)), false,
                           packet_.transmission_type);
-  QUIC_BUG_IF(!success) << "Failed to add padding_bytes:" << padding_bytes
-                        << " transmission_type:" << packet_.transmission_type;
+  QUIC_BUG_IF(!success) << "Failed to add padding_bytes: " << padding_bytes
+                        << " transmission_type: "
+                        << TransmissionTypeToString(packet_.transmission_type);
 }
 
 bool QuicPacketCreator::IncludeNonceInPublicHeader() const {
@@ -1429,7 +1430,7 @@ void QuicPacketCreator::SetTransmissionTypeOfNextPackets(
   if (!can_set_transmission_type()) {
     QUIC_DVLOG_IF(1, type != packet_.transmission_type)
         << ENDPOINT << "Setting Transmission type to "
-        << QuicUtils::TransmissionTypeToString(type);
+        << TransmissionTypeToString(type);
 
     packet_.transmission_type = type;
   }

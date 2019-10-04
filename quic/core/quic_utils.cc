@@ -142,33 +142,6 @@ void QuicUtils::SerializeUint128Short(QuicUint128 v, uint8_t* out) {
   case x:                        \
     return #x;
 
-// static
-const char* QuicUtils::EncryptionLevelToString(EncryptionLevel level) {
-  switch (level) {
-    RETURN_STRING_LITERAL(ENCRYPTION_INITIAL);
-    RETURN_STRING_LITERAL(ENCRYPTION_HANDSHAKE);
-    RETURN_STRING_LITERAL(ENCRYPTION_ZERO_RTT);
-    RETURN_STRING_LITERAL(ENCRYPTION_FORWARD_SECURE);
-    RETURN_STRING_LITERAL(NUM_ENCRYPTION_LEVELS);
-  }
-  return "INVALID_ENCRYPTION_LEVEL";
-}
-
-// static
-const char* QuicUtils::TransmissionTypeToString(TransmissionType type) {
-  switch (type) {
-    RETURN_STRING_LITERAL(NOT_RETRANSMISSION);
-    RETURN_STRING_LITERAL(HANDSHAKE_RETRANSMISSION);
-    RETURN_STRING_LITERAL(LOSS_RETRANSMISSION);
-    RETURN_STRING_LITERAL(ALL_UNACKED_RETRANSMISSION);
-    RETURN_STRING_LITERAL(ALL_INITIAL_RETRANSMISSION);
-    RETURN_STRING_LITERAL(RTO_RETRANSMISSION);
-    RETURN_STRING_LITERAL(TLP_RETRANSMISSION);
-    RETURN_STRING_LITERAL(PROBING_RETRANSMISSION);
-  }
-  return "INVALID_TRANSMISSION_TYPE";
-}
-
 std::string QuicUtils::AddressChangeTypeToString(AddressChangeType type) {
   switch (type) {
     RETURN_STRING_LITERAL(NO_CHANGE);
@@ -359,7 +332,7 @@ SentPacketState QuicUtils::RetransmissionTypeToPacketState(
     case PROBING_RETRANSMISSION:
       return PROBE_RETRANSMITTED;
     default:
-      QUIC_BUG << QuicUtils::TransmissionTypeToString(retransmission_type)
+      QUIC_BUG << TransmissionTypeToString(retransmission_type)
                << " is not a retransmission_type";
       return UNACKABLE;
   }

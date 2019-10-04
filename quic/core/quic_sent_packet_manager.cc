@@ -521,8 +521,7 @@ void QuicSentPacketManager::MarkForRetransmission(
                (!session_decides_what_to_write() ||
                 transmission_type != RTO_RETRANSMISSION)) &&
               !unacked_packets_.HasRetransmittableFrames(*transmission_info))
-      << "transmission_type: "
-      << QuicUtils::TransmissionTypeToString(transmission_type);
+      << "transmission_type: " << TransmissionTypeToString(transmission_type);
   // Handshake packets should never be sent as probing retransmissions.
   DCHECK(pto_enabled_ || !transmission_info->has_crypto_handshake ||
          transmission_type != PROBING_RETRANSMISSION);
@@ -690,8 +689,7 @@ void QuicSentPacketManager::MarkPacketHandled(QuicPacketNumber packet_number,
         // retransmission and no new data gets acked.
         QUIC_DVLOG(1) << "Detect spurious retransmitted packet "
                       << packet_number << " transmission type: "
-                      << QuicUtils::TransmissionTypeToString(
-                             info->transmission_type);
+                      << TransmissionTypeToString(info->transmission_type);
         RecordSpuriousRetransmissions(*info, packet_number);
       }
     }
@@ -1372,7 +1370,7 @@ AckResult QuicSentPacketManager::OnAckFrameEnd(
                  << ", packets_acked_: " << packets_acked_;
       } else {
         QUIC_PEER_BUG << "Received "
-                      << QuicUtils::EncryptionLevelToString(ack_decrypted_level)
+                      << EncryptionLevelToString(ack_decrypted_level)
                       << " ack for unackable packet: "
                       << acked_packet.packet_number << " with state: "
                       << QuicUtils::SentPacketStateToString(info->state);
@@ -1386,7 +1384,7 @@ AckResult QuicSentPacketManager::OnAckFrameEnd(
       continue;
     }
     QUIC_DVLOG(1) << ENDPOINT << "Got an "
-                  << QuicUtils::EncryptionLevelToString(ack_decrypted_level)
+                  << EncryptionLevelToString(ack_decrypted_level)
                   << " ack for packet " << acked_packet.packet_number
                   << " , state: "
                   << QuicUtils::SentPacketStateToString(info->state);

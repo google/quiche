@@ -298,7 +298,7 @@ std::ostream& operator<<(std::ostream& os, const QuicFrame& frame) {
       break;
     }
     case CRYPTO_FRAME: {
-      os << "type { CRYPTO_FRAME } " << frame.crypto_frame;
+      os << "type { CRYPTO_FRAME } " << *(frame.crypto_frame);
       break;
     }
     case MTU_DISCOVERY_FRAME: {

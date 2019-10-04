@@ -50,12 +50,6 @@ class QUIC_EXPORT_PRIVATE QuicUtils {
   // to |out|.
   static void SerializeUint128Short(QuicUint128 v, uint8_t* out);
 
-  // Returns the level of encryption as a char*
-  static const char* EncryptionLevelToString(EncryptionLevel level);
-
-  // Returns TransmissionType as a char*
-  static const char* TransmissionTypeToString(TransmissionType type);
-
   // Returns AddressChangeType as a string.
   static std::string AddressChangeTypeToString(AddressChangeType type);
 
