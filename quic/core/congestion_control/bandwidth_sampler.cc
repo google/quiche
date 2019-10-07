@@ -60,13 +60,7 @@ BandwidthSampler::BandwidthSampler(
       max_tracked_packets_(GetQuicFlag(FLAGS_quic_max_tracked_packet_count)),
       unacked_packet_map_(unacked_packet_map),
       max_ack_height_tracker_(max_height_tracker_window_length),
-      total_bytes_acked_after_last_ack_event_(0),
-      quic_track_ack_height_in_bandwidth_sampler_(
-          GetQuicReloadableFlag(quic_track_ack_height_in_bandwidth_sampler2)) {
-  if (quic_track_ack_height_in_bandwidth_sampler_) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_track_ack_height_in_bandwidth_sampler2);
-  }
-}
+      total_bytes_acked_after_last_ack_event_(0) {}
 
 BandwidthSampler::~BandwidthSampler() {}
 

@@ -273,13 +273,6 @@ class QUIC_EXPORT_PRIVATE BbrSender : public SendAlgorithmInterface {
   // round-trips.
   MaxBandwidthFilter max_bandwidth_;
 
-  // Tracks the maximum number of bytes acked faster than the sending rate.
-  MaxAckHeightFilter max_ack_height_;
-
-  // The time this aggregation started and the number of bytes acked during it.
-  QuicTime aggregation_epoch_start_time_;
-  QuicByteCount aggregation_epoch_bytes_;
-
   // Minimum RTT estimate.  Automatically expires within 10 seconds (and
   // triggers PROBE_RTT mode) if no new value is sampled during that period.
   QuicTime::Delta min_rtt_;

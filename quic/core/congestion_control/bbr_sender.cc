@@ -93,9 +93,6 @@ BbrSender::BbrSender(QuicTime now,
       sampler_(unacked_packets, kBandwidthWindowSize),
       round_trip_count_(0),
       max_bandwidth_(kBandwidthWindowSize, QuicBandwidth::Zero(), 0),
-      max_ack_height_(kBandwidthWindowSize, 0, 0),
-      aggregation_epoch_start_time_(QuicTime::Zero()),
-      aggregation_epoch_bytes_(0),
       min_rtt_(QuicTime::Delta::Zero()),
       min_rtt_timestamp_(QuicTime::Zero()),
       congestion_window_(initial_tcp_congestion_window * kDefaultTCPMSS),
@@ -173,12 +170,6 @@ void BbrSender::OnPacketSent(QuicTime sent_time,
 
   if (bytes_in_flight == 0 && sampler_.is_app_limited()) {
     exiting_quiescence_ = true;
-  }
-
-  if (!sampler_.quic_track_ack_height_in_bandwidth_sampler()) {
-    if (!aggregation_epoch_start_time_.IsInitialized()) {
-      aggregation_epoch_start_time_ = sent_time;
-    }
   }
 
   sampler_.OnPacketSent(sent_time, packet_number, bytes, bytes_in_flight,
@@ -287,18 +278,10 @@ void BbrSender::SetFromConfig(const QuicConfig& config,
     startup_rate_reduction_multiplier_ = 2;
   }
   if (config.HasClientRequestedIndependentOption(kBBR4, perspective)) {
-    if (sampler_.quic_track_ack_height_in_bandwidth_sampler()) {
-      sampler_.SetMaxAckHeightTrackerWindowLength(2 * kBandwidthWindowSize);
-    } else {
-      max_ack_height_.SetWindowLength(2 * kBandwidthWindowSize);
-    }
+    sampler_.SetMaxAckHeightTrackerWindowLength(2 * kBandwidthWindowSize);
   }
   if (config.HasClientRequestedIndependentOption(kBBR5, perspective)) {
-    if (sampler_.quic_track_ack_height_in_bandwidth_sampler()) {
-      sampler_.SetMaxAckHeightTrackerWindowLength(4 * kBandwidthWindowSize);
-    } else {
-      max_ack_height_.SetWindowLength(4 * kBandwidthWindowSize);
-    }
+    sampler_.SetMaxAckHeightTrackerWindowLength(4 * kBandwidthWindowSize);
   }
   if (GetQuicReloadableFlag(quic_bbr_less_probe_rtt) &&
       config.HasClientRequestedIndependentOption(kBBR6, perspective)) {
@@ -413,13 +396,8 @@ void BbrSender::OnCongestionEvent(bool /*rtt_updated*/,
     UpdateRecoveryState(last_acked_packet, !lost_packets.empty(),
                         is_round_start);
 
-    const QuicByteCount bytes_acked =
-        sampler_.total_bytes_acked() - total_bytes_acked_before;
-
-    excess_acked = sampler_.quic_track_ack_height_in_bandwidth_sampler()
-                       ? sampler_.OnAckEventEnd(max_bandwidth_.GetBest(),
-                                                round_trip_count_)
-                       : UpdateAckAggregationBytes(event_time, bytes_acked);
+    excess_acked =
+        sampler_.OnAckEventEnd(max_bandwidth_.GetBest(), round_trip_count_);
   }
 
   // Handle logic specific to PROBE_BW mode.
@@ -661,11 +639,7 @@ void BbrSender::CheckIfFullBandwidthReached() {
     rounds_without_bandwidth_gain_ = 0;
     if (expire_ack_aggregation_in_startup_) {
       // Expire old excess delivery measurements now that bandwidth increased.
-      if (sampler_.quic_track_ack_height_in_bandwidth_sampler()) {
-        sampler_.ResetMaxAckHeightTracker(0, round_trip_count_);
-      } else {
-        max_ack_height_.Reset(0, round_trip_count_);
-      }
+      sampler_.ResetMaxAckHeightTracker(0, round_trip_count_);
     }
     return;
   }
@@ -786,31 +760,6 @@ void BbrSender::UpdateRecoveryState(QuicPacketNumber last_acked_packet,
   }
 }
 
-// TODO(ianswett): Move this logic into BandwidthSampler.
-QuicByteCount BbrSender::UpdateAckAggregationBytes(
-    QuicTime ack_time,
-    QuicByteCount newly_acked_bytes) {
-  // Compute how many bytes are expected to be delivered, assuming max bandwidth
-  // is correct.
-  QuicByteCount expected_bytes_acked =
-      max_bandwidth_.GetBest() * (ack_time - aggregation_epoch_start_time_);
-  // Reset the current aggregation epoch as soon as the ack arrival rate is less
-  // than or equal to the max bandwidth.
-  if (aggregation_epoch_bytes_ <= expected_bytes_acked) {
-    // Reset to start measuring a new aggregation epoch.
-    aggregation_epoch_bytes_ = newly_acked_bytes;
-    aggregation_epoch_start_time_ = ack_time;
-    return 0;
-  }
-
-  // Compute how many extra bytes were delivered vs max bandwidth.
-  // Include the bytes most recently acknowledged to account for stretch acks.
-  aggregation_epoch_bytes_ += newly_acked_bytes;
-  max_ack_height_.Update(aggregation_epoch_bytes_ - expected_bytes_acked,
-                         round_trip_count_);
-  return aggregation_epoch_bytes_ - expected_bytes_acked;
-}
-
 void BbrSender::CalculatePacingRate() {
   if (BandwidthEstimate().IsZero()) {
     return;
@@ -865,9 +814,7 @@ void BbrSender::CalculateCongestionWindow(QuicByteCount bytes_acked,
       GetTargetCongestionWindow(congestion_window_gain_);
   if (is_at_full_bandwidth_) {
     // Add the max recently measured ack aggregation to CWND.
-    target_window += sampler_.quic_track_ack_height_in_bandwidth_sampler()
-                         ? sampler_.max_ack_height()
-                         : max_ack_height_.GetBest();
+    target_window += sampler_.max_ack_height();
   } else if (enable_ack_aggregation_during_startup_) {
     // Add the most recent excess acked.  Because CWND never decreases in
     // STARTUP, this will automatically create a very localized max filter.
