@@ -395,6 +395,33 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
     return combine_generator_and_creator_;
   }
 
+  // Serialize a probing packet that uses IETF QUIC's PATH CHALLENGE frame. Also
+  // fills the packet with padding.
+  size_t BuildPaddedPathChallengePacket(const QuicPacketHeader& header,
+                                        char* buffer,
+                                        size_t packet_length,
+                                        QuicPathFrameBuffer* payload,
+                                        QuicRandom* randomizer,
+                                        EncryptionLevel level);
+
+  // Serialize a probing response packet that uses IETF QUIC's PATH RESPONSE
+  // frame. Also fills the packet with padding if |is_padded| is
+  // true. |payloads| is always emptied, even if the packet can not be
+  // successfully built.
+  size_t BuildPathResponsePacket(const QuicPacketHeader& header,
+                                 char* buffer,
+                                 size_t packet_length,
+                                 const QuicDeque<QuicPathFrameBuffer>& payloads,
+                                 const bool is_padded,
+                                 EncryptionLevel level);
+
+  // Serializes a probing packet, which is a padded PING packet. Returns the
+  // length of the packet. Returns 0 if it fails to serialize.
+  size_t BuildConnectivityProbingPacket(const QuicPacketHeader& header,
+                                        char* buffer,
+                                        size_t packet_length,
+                                        EncryptionLevel level);
+
  private:
   friend class test::QuicPacketCreatorPeer;
 

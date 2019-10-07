@@ -5,10 +5,12 @@
 #include "net/third_party/quiche/src/quic/core/quic_packet_creator.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <string>
 
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
+#include "net/third_party/quiche/src/quic/core/frames/quic_path_challenge_frame.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection_id.h"
 #include "net/third_party/quiche/src/quic/core/quic_constants.h"
 #include "net/third_party/quiche/src/quic/core/quic_data_writer.h"
@@ -700,7 +702,7 @@ QuicPacketCreator::SerializeConnectivityProbingPacket() {
                 << header;
 
   std::unique_ptr<char[]> buffer(new char[kMaxOutgoingPacketSize]);
-  size_t length = framer_->BuildConnectivityProbingPacket(
+  size_t length = BuildConnectivityProbingPacket(
       header, buffer.get(), max_plaintext_size_, packet_.encryption_level);
   DCHECK(length);
 
@@ -734,7 +736,7 @@ QuicPacketCreator::SerializePathChallengeConnectivityProbingPacket(
   QUIC_DVLOG(2) << ENDPOINT << "Serializing path challenge packet " << header;
 
   std::unique_ptr<char[]> buffer(new char[kMaxOutgoingPacketSize]);
-  size_t length = framer_->BuildPaddedPathChallengePacket(
+  size_t length = BuildPaddedPathChallengePacket(
       header, buffer.get(), max_plaintext_size_, payload, random_,
       packet_.encryption_level);
   DCHECK(length);
@@ -770,9 +772,9 @@ QuicPacketCreator::SerializePathResponseConnectivityProbingPacket(
   QUIC_DVLOG(2) << ENDPOINT << "Serializing path response packet " << header;
 
   std::unique_ptr<char[]> buffer(new char[kMaxOutgoingPacketSize]);
-  size_t length = framer_->BuildPathResponsePacket(
-      header, buffer.get(), max_plaintext_size_, payloads, is_padded,
-      packet_.encryption_level);
+  size_t length =
+      BuildPathResponsePacket(header, buffer.get(), max_plaintext_size_,
+                              payloads, is_padded, packet_.encryption_level);
   DCHECK(length);
 
   const size_t encrypted_length = framer_->EncryptInPlace(
@@ -789,6 +791,92 @@ QuicPacketCreator::SerializePathResponseConnectivityProbingPacket(
   serialize_packet->transmission_type = NOT_RETRANSMISSION;
 
   return serialize_packet;
+}
+
+size_t QuicPacketCreator::BuildPaddedPathChallengePacket(
+    const QuicPacketHeader& header,
+    char* buffer,
+    size_t packet_length,
+    QuicPathFrameBuffer* payload,
+    QuicRandom* randomizer,
+    EncryptionLevel level) {
+  DCHECK(VersionHasIetfQuicFrames(framer_->transport_version()));
+  QuicFrames frames;
+
+  // Write a PATH_CHALLENGE frame, which has a random 8-byte payload
+  randomizer->RandBytes(payload->data(), payload->size());
+  QuicPathChallengeFrame path_challenge_frame(0, *payload);
+  frames.push_back(QuicFrame(&path_challenge_frame));
+
+  if (debug_delegate_ != nullptr) {
+    debug_delegate_->OnFrameAddedToPacket(QuicFrame(&path_challenge_frame));
+  }
+
+  // Add padding to the rest of the packet in order to assess Path MTU
+  // characteristics.
+  QuicPaddingFrame padding_frame;
+  frames.push_back(QuicFrame(padding_frame));
+
+  return framer_->BuildDataPacket(header, frames, buffer, packet_length, level);
+}
+
+size_t QuicPacketCreator::BuildPathResponsePacket(
+    const QuicPacketHeader& header,
+    char* buffer,
+    size_t packet_length,
+    const QuicDeque<QuicPathFrameBuffer>& payloads,
+    const bool is_padded,
+    EncryptionLevel level) {
+  if (payloads.empty()) {
+    QUIC_BUG
+        << "Attempt to generate connectivity response with no request payloads";
+    return 0;
+  }
+  DCHECK(VersionHasIetfQuicFrames(framer_->transport_version()));
+
+  std::vector<std::unique_ptr<QuicPathResponseFrame>> path_response_frames;
+  for (const QuicPathFrameBuffer& payload : payloads) {
+    // Note that the control frame ID can be 0 since this is not retransmitted.
+    path_response_frames.push_back(
+        std::make_unique<QuicPathResponseFrame>(0, payload));
+  }
+
+  QuicFrames frames;
+  for (const std::unique_ptr<QuicPathResponseFrame>& path_response_frame :
+       path_response_frames) {
+    frames.push_back(QuicFrame(path_response_frame.get()));
+    if (debug_delegate_ != nullptr) {
+      debug_delegate_->OnFrameAddedToPacket(
+          QuicFrame(path_response_frame.get()));
+    }
+  }
+
+  if (is_padded) {
+    // Add padding to the rest of the packet in order to assess Path MTU
+    // characteristics.
+    QuicPaddingFrame padding_frame;
+    frames.push_back(QuicFrame(padding_frame));
+  }
+
+  return framer_->BuildDataPacket(header, frames, buffer, packet_length, level);
+}
+
+size_t QuicPacketCreator::BuildConnectivityProbingPacket(
+    const QuicPacketHeader& header,
+    char* buffer,
+    size_t packet_length,
+    EncryptionLevel level) {
+  QuicFrames frames;
+
+  // Write a PING frame, which has no data payload.
+  QuicPingFrame ping_frame;
+  frames.push_back(QuicFrame(ping_frame));
+
+  // Add padding to the rest of the packet.
+  QuicPaddingFrame padding_frame;
+  frames.push_back(QuicFrame(padding_frame));
+
+  return framer_->BuildDataPacket(header, frames, buffer, packet_length, level);
 }
 
 // TODO(b/74062209): Make this a public method of framer?

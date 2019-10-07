@@ -18,6 +18,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_simple_buffer_allocator.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_expect_bug.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
@@ -38,6 +39,12 @@ using testing::StrictMock;
 namespace quic {
 namespace test {
 namespace {
+
+const QuicPacketNumber kPacketNumber = QuicPacketNumber(UINT64_C(0x12345678));
+// Use fields in which each byte is distinct to ensure that every byte is
+// framed correctly. The values are otherwise arbitrary.
+const QuicConnectionId kTestConnectionId =
+    TestConnectionId(UINT64_C(0xFEDCBA9876543210));
 
 // Run tests with combinations of {ParsedQuicVersion,
 // ToggleVersionSerialization}.
@@ -585,8 +592,8 @@ TEST_P(QuicPacketCreatorTest, ReserializeFramesWithFullPacketAndPadding) {
 }
 
 TEST_P(QuicPacketCreatorTest, SerializeConnectionClose) {
-  QuicConnectionCloseFrame frame(GetParam().version.transport_version,
-                                 QUIC_NO_ERROR, "error",
+  QuicConnectionCloseFrame frame(creator_.transport_version(), QUIC_NO_ERROR,
+                                 "error",
                                  /*transport_close_frame_type=*/0);
 
   QuicFrames frames;
@@ -823,7 +830,7 @@ TEST_P(QuicPacketCreatorTest, SerializeVersionNegotiationPacket) {
   ParsedQuicVersionVector versions;
   versions.push_back(test::QuicVersionMax());
   const bool ietf_quic =
-      VersionHasIetfInvariantHeader(GetParam().version.transport_version);
+      VersionHasIetfInvariantHeader(creator_.transport_version());
   const bool has_length_prefix =
       GetParam().version.HasLengthPrefixedConnectionIds();
   std::unique_ptr<QuicEncryptedPacket> encrypted(
@@ -840,6 +847,340 @@ TEST_P(QuicPacketCreatorTest, SerializeVersionNegotiationPacket) {
   client_framer_.ProcessPacket(*encrypted);
 }
 
+// Test that the path challenge connectivity probing packet is serialized
+// correctly as a padded PATH CHALLENGE packet.
+TEST_P(QuicPacketCreatorTest, BuildPathChallengePacket) {
+  if (!VersionHasIetfQuicFrames(creator_.transport_version())) {
+    // This frame is only for IETF QUIC.
+    return;
+  }
+
+  QuicPacketHeader header;
+  header.destination_connection_id = kTestConnectionId;
+  header.reset_flag = false;
+  header.version_flag = false;
+  header.packet_number = kPacketNumber;
+  QuicPathFrameBuffer payload;
+
+  // clang-format off
+  unsigned char packet[] = {
+    // type (short header, 4 byte packet number)
+    0x43,
+    // connection_id
+    0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+    // packet number
+    0x12, 0x34, 0x56, 0x78,
+
+    // Path Challenge Frame type (IETF_PATH_CHALLENGE)
+    0x1a,
+    // 8 "random" bytes, MockRandom makes lots of r's
+    'r', 'r', 'r', 'r', 'r', 'r', 'r', 'r',
+    // frame type (padding frame)
+    0x00,
+    0x00, 0x00, 0x00, 0x00
+  };
+  // clang-format on
+
+  std::unique_ptr<char[]> buffer(new char[kMaxOutgoingPacketSize]);
+  MockRandom randomizer;
+
+  size_t length = creator_.BuildPaddedPathChallengePacket(
+      header, buffer.get(), QUIC_ARRAYSIZE(packet), &payload, &randomizer,
+      ENCRYPTION_INITIAL);
+  EXPECT_EQ(length, QUIC_ARRAYSIZE(packet));
+
+  // Payload has the random bytes that were generated. Copy them into packet,
+  // above, before checking that the generated packet is correct.
+  EXPECT_EQ(kQuicPathFrameBufferSize, payload.size());
+
+  QuicPacket data(creator_.transport_version(), buffer.release(), length, true,
+                  header);
+
+  test::CompareCharArraysWithHexError(
+      "constructed packet", data.data(), data.length(),
+      reinterpret_cast<char*>(packet), QUIC_ARRAYSIZE(packet));
+}
+
+TEST_P(QuicPacketCreatorTest, BuildConnectivityProbingPacket) {
+  QuicPacketHeader header;
+  header.destination_connection_id = kTestConnectionId;
+  header.reset_flag = false;
+  header.version_flag = false;
+  header.packet_number = kPacketNumber;
+
+  // clang-format off
+  unsigned char packet[] = {
+    // public flags (8 byte connection_id)
+    0x2C,
+    // connection_id
+    0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+    // packet number
+    0x12, 0x34, 0x56, 0x78,
+
+    // frame type (ping frame)
+    0x07,
+    // frame type (padding frame)
+    0x00,
+    0x00, 0x00, 0x00, 0x00
+  };
+
+  unsigned char packet46[] = {
+    // type (short header, 4 byte packet number)
+    0x43,
+    // connection_id
+    0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+    // packet number
+    0x12, 0x34, 0x56, 0x78,
+
+    // frame type
+    0x07,
+    // frame type (padding frame)
+    0x00,
+    0x00, 0x00, 0x00, 0x00
+  };
+
+  unsigned char packet99[] = {
+    // type (short header, 4 byte packet number)
+    0x43,
+    // connection_id
+    0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+    // packet number
+    0x12, 0x34, 0x56, 0x78,
+
+    // frame type (IETF_PING frame)
+    0x01,
+    // frame type (padding frame)
+    0x00,
+    0x00, 0x00, 0x00, 0x00
+  };
+  // clang-format on
+
+  unsigned char* p = packet;
+  size_t packet_size = QUIC_ARRAYSIZE(packet);
+  if (VersionHasIetfQuicFrames(creator_.transport_version())) {
+    p = packet99;
+    packet_size = QUIC_ARRAYSIZE(packet99);
+  } else if (creator_.transport_version() >= QUIC_VERSION_46) {
+    p = packet46;
+    packet_size = QUIC_ARRAYSIZE(packet46);
+  }
+
+  std::unique_ptr<char[]> buffer(new char[kMaxOutgoingPacketSize]);
+
+  size_t length = creator_.BuildConnectivityProbingPacket(
+      header, buffer.get(), packet_size, ENCRYPTION_INITIAL);
+
+  EXPECT_NE(0u, length);
+  QuicPacket data(creator_.transport_version(), buffer.release(), length, true,
+                  header);
+
+  test::CompareCharArraysWithHexError("constructed packet", data.data(),
+                                      data.length(), reinterpret_cast<char*>(p),
+                                      packet_size);
+}
+
+// Several tests that the path response connectivity probing packet is
+// serialized correctly as either a padded and unpadded PATH RESPONSE
+// packet. Also generates packets with 1 and 3 PATH_RESPONSES in them to
+// exercised the single- and multiple- payload cases.
+TEST_P(QuicPacketCreatorTest, BuildPathResponsePacket1ResponseUnpadded) {
+  if (!VersionHasIetfQuicFrames(creator_.transport_version())) {
+    // This frame is only for IETF QUIC.
+    return;
+  }
+
+  QuicPacketHeader header;
+  header.destination_connection_id = kTestConnectionId;
+  header.reset_flag = false;
+  header.version_flag = false;
+  header.packet_number = kPacketNumber;
+  QuicPathFrameBuffer payload0 = {
+      {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}};
+
+  // Build 1 PATH RESPONSE, not padded
+  // clang-format off
+  unsigned char packet[] = {
+    // type (short header, 4 byte packet number)
+    0x43,
+    // connection_id
+    0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+    // packet number
+    0x12, 0x34, 0x56, 0x78,
+
+    // Path Response Frame type (IETF_PATH_RESPONSE)
+    0x1b,
+    // 8 "random" bytes
+    0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+  };
+  // clang-format on
+  std::unique_ptr<char[]> buffer(new char[kMaxOutgoingPacketSize]);
+  QuicDeque<QuicPathFrameBuffer> payloads;
+  payloads.push_back(payload0);
+  size_t length = creator_.BuildPathResponsePacket(
+      header, buffer.get(), QUIC_ARRAYSIZE(packet), payloads,
+      /*is_padded=*/false, ENCRYPTION_INITIAL);
+  EXPECT_EQ(length, QUIC_ARRAYSIZE(packet));
+  QuicPacket data(creator_.transport_version(), buffer.release(), length, true,
+                  header);
+
+  test::CompareCharArraysWithHexError(
+      "constructed packet", data.data(), data.length(),
+      reinterpret_cast<char*>(packet), QUIC_ARRAYSIZE(packet));
+}
+
+TEST_P(QuicPacketCreatorTest, BuildPathResponsePacket1ResponsePadded) {
+  if (!VersionHasIetfQuicFrames(creator_.transport_version())) {
+    // This frame is only for IETF QUIC.
+    return;
+  }
+
+  QuicPacketHeader header;
+  header.destination_connection_id = kTestConnectionId;
+  header.reset_flag = false;
+  header.version_flag = false;
+  header.packet_number = kPacketNumber;
+  QuicPathFrameBuffer payload0 = {
+      {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}};
+
+  // Build 1 PATH RESPONSE, padded
+  // clang-format off
+  unsigned char packet[] = {
+    // type (short header, 4 byte packet number)
+    0x43,
+    // connection_id
+    0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+    // packet number
+    0x12, 0x34, 0x56, 0x78,
+
+    // Path Response Frame type (IETF_PATH_RESPONSE)
+    0x1b,
+    // 8 "random" bytes
+    0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+    // Padding type and pad
+    0x00, 0x00, 0x00, 0x00, 0x00
+  };
+  // clang-format on
+  std::unique_ptr<char[]> buffer(new char[kMaxOutgoingPacketSize]);
+  QuicDeque<QuicPathFrameBuffer> payloads;
+  payloads.push_back(payload0);
+  size_t length = creator_.BuildPathResponsePacket(
+      header, buffer.get(), QUIC_ARRAYSIZE(packet), payloads,
+      /*is_padded=*/true, ENCRYPTION_INITIAL);
+  EXPECT_EQ(length, QUIC_ARRAYSIZE(packet));
+  QuicPacket data(creator_.transport_version(), buffer.release(), length, true,
+                  header);
+
+  test::CompareCharArraysWithHexError(
+      "constructed packet", data.data(), data.length(),
+      reinterpret_cast<char*>(packet), QUIC_ARRAYSIZE(packet));
+}
+
+TEST_P(QuicPacketCreatorTest, BuildPathResponsePacket3ResponsesUnpadded) {
+  if (!VersionHasIetfQuicFrames(creator_.transport_version())) {
+    // This frame is only for IETF QUIC.
+    return;
+  }
+
+  QuicPacketHeader header;
+  header.destination_connection_id = kTestConnectionId;
+  header.reset_flag = false;
+  header.version_flag = false;
+  header.packet_number = kPacketNumber;
+  QuicPathFrameBuffer payload0 = {
+      {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}};
+  QuicPathFrameBuffer payload1 = {
+      {0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18}};
+  QuicPathFrameBuffer payload2 = {
+      {0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28}};
+
+  // Build one packet with 3 PATH RESPONSES, no padding
+  // clang-format off
+  unsigned char packet[] = {
+    // type (short header, 4 byte packet number)
+    0x43,
+    // connection_id
+    0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+    // packet number
+    0x12, 0x34, 0x56, 0x78,
+
+    // 3 path response frames (IETF_PATH_RESPONSE type byte and payload)
+    0x1b, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+    0x1b, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18,
+    0x1b, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28,
+  };
+  // clang-format on
+
+  std::unique_ptr<char[]> buffer(new char[kMaxOutgoingPacketSize]);
+  QuicDeque<QuicPathFrameBuffer> payloads;
+  payloads.push_back(payload0);
+  payloads.push_back(payload1);
+  payloads.push_back(payload2);
+  size_t length = creator_.BuildPathResponsePacket(
+      header, buffer.get(), QUIC_ARRAYSIZE(packet), payloads,
+      /*is_padded=*/false, ENCRYPTION_INITIAL);
+  EXPECT_EQ(length, QUIC_ARRAYSIZE(packet));
+  QuicPacket data(creator_.transport_version(), buffer.release(), length, true,
+                  header);
+
+  test::CompareCharArraysWithHexError(
+      "constructed packet", data.data(), data.length(),
+      reinterpret_cast<char*>(packet), QUIC_ARRAYSIZE(packet));
+}
+
+TEST_P(QuicPacketCreatorTest, BuildPathResponsePacket3ResponsesPadded) {
+  if (!VersionHasIetfQuicFrames(creator_.transport_version())) {
+    // This frame is only for IETF QUIC.
+    return;
+  }
+
+  QuicPacketHeader header;
+  header.destination_connection_id = kTestConnectionId;
+  header.reset_flag = false;
+  header.version_flag = false;
+  header.packet_number = kPacketNumber;
+  QuicPathFrameBuffer payload0 = {
+      {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}};
+  QuicPathFrameBuffer payload1 = {
+      {0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18}};
+  QuicPathFrameBuffer payload2 = {
+      {0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28}};
+
+  // Build one packet with 3 PATH RESPONSES, with padding
+  // clang-format off
+  unsigned char packet[] = {
+    // type (short header, 4 byte packet number)
+    0x43,
+    // connection_id
+    0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+    // packet number
+    0x12, 0x34, 0x56, 0x78,
+
+    // 3 path response frames (IETF_PATH_RESPONSE byte and payload)
+    0x1b, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+    0x1b, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18,
+    0x1b, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28,
+    // Padding
+    0x00, 0x00, 0x00, 0x00, 0x00
+  };
+  // clang-format on
+
+  std::unique_ptr<char[]> buffer(new char[kMaxOutgoingPacketSize]);
+  QuicDeque<QuicPathFrameBuffer> payloads;
+  payloads.push_back(payload0);
+  payloads.push_back(payload1);
+  payloads.push_back(payload2);
+  size_t length = creator_.BuildPathResponsePacket(
+      header, buffer.get(), QUIC_ARRAYSIZE(packet), payloads,
+      /*is_padded=*/true, ENCRYPTION_INITIAL);
+  EXPECT_EQ(length, QUIC_ARRAYSIZE(packet));
+  QuicPacket data(creator_.transport_version(), buffer.release(), length, true,
+                  header);
+
+  test::CompareCharArraysWithHexError(
+      "constructed packet", data.data(), data.length(),
+      reinterpret_cast<char*>(packet), QUIC_ARRAYSIZE(packet));
+}
+
 TEST_P(QuicPacketCreatorTest, SerializeConnectivityProbingPacket) {
   for (int i = ENCRYPTION_INITIAL; i < NUM_ENCRYPTION_LEVELS; ++i) {
     EncryptionLevel level = static_cast<EncryptionLevel>(i);
@@ -847,7 +1188,7 @@ TEST_P(QuicPacketCreatorTest, SerializeConnectivityProbingPacket) {
     creator_.set_encryption_level(level);
 
     OwningSerializedPacketPointer encrypted;
-    if (VersionHasIetfQuicFrames(GetParam().version.transport_version)) {
+    if (VersionHasIetfQuicFrames(creator_.transport_version())) {
       QuicPathFrameBuffer payload = {
           {0xde, 0xad, 0xbe, 0xef, 0xba, 0xdc, 0x0f, 0xfe}};
       encrypted =
@@ -862,7 +1203,7 @@ TEST_P(QuicPacketCreatorTest, SerializeConnectivityProbingPacket) {
       EXPECT_CALL(framer_visitor_, OnUnauthenticatedHeader(_));
       EXPECT_CALL(framer_visitor_, OnDecryptedPacket(_));
       EXPECT_CALL(framer_visitor_, OnPacketHeader(_));
-      if (VersionHasIetfQuicFrames(GetParam().version.transport_version)) {
+      if (VersionHasIetfQuicFrames(creator_.transport_version())) {
         EXPECT_CALL(framer_visitor_, OnPathChallengeFrame(_));
         EXPECT_CALL(framer_visitor_, OnPaddingFrame(_));
       } else {
@@ -878,7 +1219,7 @@ TEST_P(QuicPacketCreatorTest, SerializeConnectivityProbingPacket) {
 }
 
 TEST_P(QuicPacketCreatorTest, SerializePathChallengeProbePacket) {
-  if (!VersionHasIetfQuicFrames(GetParam().version.transport_version)) {
+  if (!VersionHasIetfQuicFrames(creator_.transport_version())) {
     return;
   }
   QuicPathFrameBuffer payload = {
@@ -909,7 +1250,7 @@ TEST_P(QuicPacketCreatorTest, SerializePathChallengeProbePacket) {
 }
 
 TEST_P(QuicPacketCreatorTest, SerializePathResponseProbePacket1PayloadPadded) {
-  if (!VersionHasIetfQuicFrames(GetParam().version.transport_version)) {
+  if (!VersionHasIetfQuicFrames(creator_.transport_version())) {
     return;
   }
   QuicPathFrameBuffer payload0 = {
@@ -943,7 +1284,7 @@ TEST_P(QuicPacketCreatorTest, SerializePathResponseProbePacket1PayloadPadded) {
 
 TEST_P(QuicPacketCreatorTest,
        SerializePathResponseProbePacket1PayloadUnPadded) {
-  if (!VersionHasIetfQuicFrames(GetParam().version.transport_version)) {
+  if (!VersionHasIetfQuicFrames(creator_.transport_version())) {
     return;
   }
   QuicPathFrameBuffer payload0 = {
@@ -975,7 +1316,7 @@ TEST_P(QuicPacketCreatorTest,
 }
 
 TEST_P(QuicPacketCreatorTest, SerializePathResponseProbePacket2PayloadsPadded) {
-  if (!VersionHasIetfQuicFrames(GetParam().version.transport_version)) {
+  if (!VersionHasIetfQuicFrames(creator_.transport_version())) {
     return;
   }
   QuicPathFrameBuffer payload0 = {
@@ -1012,7 +1353,7 @@ TEST_P(QuicPacketCreatorTest, SerializePathResponseProbePacket2PayloadsPadded) {
 
 TEST_P(QuicPacketCreatorTest,
        SerializePathResponseProbePacket2PayloadsUnPadded) {
-  if (!VersionHasIetfQuicFrames(GetParam().version.transport_version)) {
+  if (!VersionHasIetfQuicFrames(creator_.transport_version())) {
     return;
   }
   QuicPathFrameBuffer payload0 = {
@@ -1047,7 +1388,7 @@ TEST_P(QuicPacketCreatorTest,
 }
 
 TEST_P(QuicPacketCreatorTest, SerializePathResponseProbePacket3PayloadsPadded) {
-  if (!VersionHasIetfQuicFrames(GetParam().version.transport_version)) {
+  if (!VersionHasIetfQuicFrames(creator_.transport_version())) {
     return;
   }
   QuicPathFrameBuffer payload0 = {
@@ -1087,7 +1428,7 @@ TEST_P(QuicPacketCreatorTest, SerializePathResponseProbePacket3PayloadsPadded) {
 
 TEST_P(QuicPacketCreatorTest,
        SerializePathResponseProbePacket3PayloadsUnpadded) {
-  if (!VersionHasIetfQuicFrames(GetParam().version.transport_version)) {
+  if (!VersionHasIetfQuicFrames(creator_.transport_version())) {
     return;
   }
   QuicPathFrameBuffer payload0 = {
@@ -1124,7 +1465,7 @@ TEST_P(QuicPacketCreatorTest,
 }
 
 TEST_P(QuicPacketCreatorTest, UpdatePacketSequenceNumberLengthLeastAwaiting) {
-  if (VersionHasIetfInvariantHeader(GetParam().version.transport_version) &&
+  if (VersionHasIetfInvariantHeader(creator_.transport_version()) &&
       !GetParam().version.SendsVariableLengthPacketNumberInLongHeader()) {
     EXPECT_EQ(PACKET_4BYTE_PACKET_NUMBER,
               QuicPacketCreatorPeer::GetPacketNumberLength(&creator_));
@@ -1162,7 +1503,7 @@ TEST_P(QuicPacketCreatorTest, UpdatePacketSequenceNumberLengthLeastAwaiting) {
 
 TEST_P(QuicPacketCreatorTest, UpdatePacketSequenceNumberLengthCwnd) {
   QuicPacketCreatorPeer::SetPacketNumber(&creator_, 1);
-  if (VersionHasIetfInvariantHeader(GetParam().version.transport_version) &&
+  if (VersionHasIetfInvariantHeader(creator_.transport_version()) &&
       !GetParam().version.SendsVariableLengthPacketNumberInLongHeader()) {
     EXPECT_EQ(PACKET_4BYTE_PACKET_NUMBER,
               QuicPacketCreatorPeer::GetPacketNumberLength(&creator_));
@@ -1196,7 +1537,7 @@ TEST_P(QuicPacketCreatorTest, UpdatePacketSequenceNumberLengthCwnd) {
 
 TEST_P(QuicPacketCreatorTest, SkipNPacketNumbers) {
   QuicPacketCreatorPeer::SetPacketNumber(&creator_, 1);
-  if (VersionHasIetfInvariantHeader(GetParam().version.transport_version) &&
+  if (VersionHasIetfInvariantHeader(creator_.transport_version()) &&
       !GetParam().version.SendsVariableLengthPacketNumberInLongHeader()) {
     EXPECT_EQ(PACKET_4BYTE_PACKET_NUMBER,
               QuicPacketCreatorPeer::GetPacketNumberLength(&creator_));
@@ -1862,7 +2203,7 @@ TEST_P(QuicPacketCreatorTest, MessageFrameConsumption) {
 
 // Regression test for bugfix of GetPacketHeaderSize.
 TEST_P(QuicPacketCreatorTest, GetGuaranteedLargestMessagePayload) {
-  QuicTransportVersion version = GetParam().version.transport_version;
+  QuicTransportVersion version = creator_.transport_version();
   if (!VersionSupportsMessageFrames(version)) {
     return;
   }
