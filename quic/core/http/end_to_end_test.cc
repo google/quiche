@@ -726,7 +726,6 @@ TEST_P(EndToEndTest, SimpleRequestResponseWithAckExponentChange) {
 }
 
 TEST_P(EndToEndTest, SimpleRequestResponseForcedVersionNegotiation) {
-  SetQuicReloadableFlag(quic_use_parse_public_header, true);
   client_supported_versions_.insert(client_supported_versions_.begin(),
                                     QuicVersionReservedForNegotiation());
   ASSERT_TRUE(Initialize());
@@ -739,7 +738,6 @@ TEST_P(EndToEndTest, SimpleRequestResponseForcedVersionNegotiation) {
 }
 
 TEST_P(EndToEndTestWithTls, ForcedVersionNegotiation) {
-  SetQuicReloadableFlag(quic_use_parse_public_header, true);
   client_supported_versions_.insert(client_supported_versions_.begin(),
                                     QuicVersionReservedForNegotiation());
   ASSERT_TRUE(Initialize());
@@ -846,7 +844,6 @@ TEST_P(EndToEndTestWithTls, ForcedVersionNegotiationAndClientConnectionId) {
     ASSERT_TRUE(Initialize());
     return;
   }
-  SetQuicReloadableFlag(quic_use_parse_public_header, true);
   client_supported_versions_.insert(client_supported_versions_.begin(),
                                     QuicVersionReservedForNegotiation());
   override_client_connection_id_length_ = kQuicDefaultConnectionIdLength;
@@ -867,7 +864,6 @@ TEST_P(EndToEndTestWithTls, ForcedVersionNegotiationAndBadConnectionIdLength) {
     ASSERT_TRUE(Initialize());
     return;
   }
-  SetQuicReloadableFlag(quic_use_parse_public_header, true);
   client_supported_versions_.insert(client_supported_versions_.begin(),
                                     QuicVersionReservedForNegotiation());
   override_server_connection_id_length_ = 9;

@@ -529,7 +529,6 @@ TEST_F(QuicDispatcherTest, DispatcherDoesNotRejectPacketNumberZero) {
 }
 
 TEST_F(QuicDispatcherTest, StatelessVersionNegotiation) {
-  SetQuicReloadableFlag(quic_use_parse_public_header, true);
   CreateTimeWaitListManager();
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
 
@@ -548,7 +547,6 @@ TEST_F(QuicDispatcherTest, StatelessVersionNegotiation) {
 }
 
 TEST_F(QuicDispatcherTest, StatelessVersionNegotiationWithClientConnectionId) {
-  SetQuicReloadableFlag(quic_use_parse_public_header, true);
   CreateTimeWaitListManager();
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
 
@@ -589,7 +587,6 @@ TEST_F(QuicDispatcherTest, NoVersionNegotiationWithSmallPacket) {
 // Disabling CHLO size validation allows the dispatcher to send version
 // negotiation packets in response to a CHLO that is otherwise too small.
 TEST_F(QuicDispatcherTest, VersionNegotiationWithoutChloSizeValidation) {
-  SetQuicReloadableFlag(quic_use_parse_public_header, true);
   crypto_config_.set_validate_chlo_size(false);
 
   CreateTimeWaitListManager();
@@ -933,7 +930,6 @@ TEST_F(QuicDispatcherTest, OKSeqNoPacketProcessed) {
 }
 
 TEST_F(QuicDispatcherTest, SupportedTransportVersionsChangeInFlight) {
-  SetQuicReloadableFlag(quic_use_parse_public_header, true);
   static_assert(QUIC_ARRAYSIZE(kSupportedTransportVersions) == 7u,
                 "Supported versions out of sync");
   SetQuicReloadableFlag(quic_disable_version_39, false);
@@ -1048,7 +1044,6 @@ TEST_F(QuicDispatcherTest, VersionNegotiationProbeOld) {
 
 TEST_F(QuicDispatcherTest, VersionNegotiationProbe) {
   SetQuicFlag(FLAGS_quic_prober_uses_length_prefixed_connection_ids, true);
-  SetQuicReloadableFlag(quic_use_parse_public_header, true);
   SetQuicReloadableFlag(quic_use_length_prefix_from_packet_info, true);
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
   CreateTimeWaitListManager();
@@ -1148,7 +1143,6 @@ TEST_F(QuicDispatcherTest, VersionNegotiationProbeEndToEndOld) {
 
 TEST_F(QuicDispatcherTest, VersionNegotiationProbeEndToEnd) {
   SetQuicFlag(FLAGS_quic_prober_uses_length_prefixed_connection_ids, true);
-  SetQuicReloadableFlag(quic_use_parse_public_header, true);
   SetQuicReloadableFlag(quic_use_length_prefix_from_packet_info, true);
 
   SavingWriter* saving_writer = new SavingWriter();
@@ -1344,7 +1338,6 @@ TEST_F(QuicDispatcherTest, AndroidConformanceTest) {
 
 TEST_F(QuicDispatcherTest, DoNotProcessSmallPacket) {
   SetQuicReloadableFlag(quic_donot_process_small_initial_packets, true);
-  SetQuicReloadableFlag(quic_use_parse_public_header, true);
   CreateTimeWaitListManager();
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
 

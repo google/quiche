@@ -380,21 +380,6 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
       uint64_t retry_token_length,
       QuicVariableLengthIntegerLength length_length);
 
-  // Lightweight parsing of |packet| and populates |format|, |version_flag|,
-  // |version_label|, |destination_connection_id|, |source_connection_id| and
-  // |detailed_error|. Please note, |expected_destination_connection_id_length|
-  // is only used to determine IETF short header packet's destination
-  // connection ID length.
-  static QuicErrorCode ProcessPacketDispatcher(
-      const QuicEncryptedPacket& packet,
-      uint8_t expected_destination_connection_id_length,
-      PacketHeaderFormat* format,
-      bool* version_flag,
-      QuicVersionLabel* version_label,
-      QuicConnectionId* destination_connection_id,
-      QuicConnectionId* source_connection_id,
-      std::string* detailed_error);
-
   // Parses the unencryoted fields in a QUIC header using |reader| as input,
   // stores the result in the other parameters.
   // |expected_destination_connection_id_length| is only used for short headers.

@@ -265,13 +265,11 @@ ParsedQuicVersionVector FilterSupportedVersions(
       continue;
     }
     if (version.transport_version == QUIC_VERSION_99) {
-      if (GetQuicReloadableFlag(quic_enable_version_99) &&
-          GetQuicReloadableFlag(quic_use_parse_public_header)) {
+      if (GetQuicReloadableFlag(quic_enable_version_99)) {
         filtered_versions.push_back(version);
       }
     } else if (version.transport_version == QUIC_VERSION_49) {
-      if (GetQuicReloadableFlag(quic_enable_version_49) &&
-          GetQuicReloadableFlag(quic_use_parse_public_header)) {
+      if (GetQuicReloadableFlag(quic_enable_version_49)) {
         filtered_versions.push_back(version);
       }
     } else if (version.transport_version == QUIC_VERSION_48) {
@@ -474,7 +472,6 @@ void QuicVersionInitializeSupportForIetfDraft() {
   // Enable necessary flags.
   SetQuicReloadableFlag(quic_supports_tls_handshake, true);
   SetQuicReloadableFlag(quic_simplify_stop_waiting, true);
-  SetQuicReloadableFlag(quic_use_parse_public_header, true);
   SetQuicRestartFlag(quic_use_hashed_stateless_reset_tokens, true);
 }
 

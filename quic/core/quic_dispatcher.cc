@@ -266,33 +266,20 @@ void QuicDispatcher::ProcessPacket(const QuicSocketAddress& self_address,
                        QuicStringPiece(packet.data(), packet.length()));
   ReceivedPacketInfo packet_info(self_address, peer_address, packet);
   std::string detailed_error;
-  QuicErrorCode error;
-  if (!GetQuicReloadableFlag(quic_use_parse_public_header)) {
-    error = QuicFramer::ProcessPacketDispatcher(
-        packet, expected_server_connection_id_length_, &packet_info.form,
-        &packet_info.version_flag, &packet_info.version_label,
-        &packet_info.destination_connection_id,
-        &packet_info.source_connection_id, &detailed_error);
-  } else {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_use_parse_public_header);
-    bool retry_token_present;
-    QuicStringPiece retry_token;
-    error = QuicFramer::ParsePublicHeaderDispatcher(
-        packet, expected_server_connection_id_length_, &packet_info.form,
-        &packet_info.long_packet_type, &packet_info.version_flag,
-        &packet_info.use_length_prefix, &packet_info.version_label,
-        &packet_info.version, &packet_info.destination_connection_id,
-        &packet_info.source_connection_id, &retry_token_present, &retry_token,
-        &detailed_error);
-  }
+  bool retry_token_present;
+  QuicStringPiece retry_token;
+  const QuicErrorCode error = QuicFramer::ParsePublicHeaderDispatcher(
+      packet, expected_server_connection_id_length_, &packet_info.form,
+      &packet_info.long_packet_type, &packet_info.version_flag,
+      &packet_info.use_length_prefix, &packet_info.version_label,
+      &packet_info.version, &packet_info.destination_connection_id,
+      &packet_info.source_connection_id, &retry_token_present, &retry_token,
+      &detailed_error);
   if (error != QUIC_NO_ERROR) {
     // Packet has framing error.
     SetLastError(error);
     QUIC_DLOG(ERROR) << detailed_error;
     return;
-  }
-  if (!GetQuicReloadableFlag(quic_use_parse_public_header)) {
-    packet_info.version = ParseQuicVersionLabel(packet_info.version_label);
   }
   if (packet_info.destination_connection_id.length() !=
           expected_server_connection_id_length_ &&
@@ -477,8 +464,7 @@ bool QuicDispatcher::MaybeDispatchPacket(
       return true;
     }
 
-    if (GetQuicReloadableFlag(quic_use_parse_public_header) &&
-        GetQuicReloadableFlag(quic_donot_process_small_initial_packets) &&
+    if (GetQuicReloadableFlag(quic_donot_process_small_initial_packets) &&
         crypto_config()->validate_chlo_size() &&
         packet_info.form == IETF_QUIC_LONG_HEADER_PACKET &&
         packet_info.long_packet_type == INITIAL &&

@@ -435,7 +435,6 @@ struct QUIC_EXPORT_PRIVATE ReceivedPacketInfo {
   const QuicSocketAddress& peer_address;
   const QuicReceivedPacket& packet;
 
-  // Fields below are populated by QuicFramer::ProcessPacketDispatcher.
   PacketHeaderFormat form;
   // This is only used if the form is IETF_QUIC_LONG_HEADER_PACKET.
   QuicLongHeaderType long_packet_type;
