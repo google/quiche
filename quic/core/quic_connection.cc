@@ -436,6 +436,10 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
     close_connection_after_five_rtos_ = true;
   }
   if (sent_packet_manager_.pto_enabled()) {
+    if (config.HasClientSentConnectionOption(k6PTO, perspective_)) {
+      max_consecutive_ptos_ = 5;
+      QUIC_CODE_COUNT(quic_close_connection_6pto);
+    }
     if (config.HasClientSentConnectionOption(k7PTO, perspective_)) {
       max_consecutive_ptos_ = 6;
       QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_pto, 3, 4);

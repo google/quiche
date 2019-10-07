@@ -186,6 +186,8 @@ const QuicTag kNRTT = TAG('N', 'R', 'T', 'T');   // Ignore initial RTT
 const QuicTag k1PTO = TAG('1', 'P', 'T', 'O');   // Send 1 packet upon PTO.
 const QuicTag k2PTO = TAG('2', 'P', 'T', 'O');   // Send 2 packets upon PTO.
 
+const QuicTag k6PTO = TAG('6', 'P', 'T', 'O');   // Closes connection on 6
+                                                 // consecutive PTOs.
 const QuicTag k7PTO = TAG('7', 'P', 'T', 'O');   // Closes connection on 7
                                                  // consecutive PTOs.
 const QuicTag k8PTO = TAG('8', 'P', 'T', 'O');   // Closes connection on 8

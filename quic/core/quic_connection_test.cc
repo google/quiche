@@ -9095,6 +9095,48 @@ TEST_P(QuicConnectionTest, ProbeTimeout) {
   EXPECT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
 }
 
+TEST_P(QuicConnectionTest, CloseConnectionAfter6ClientPTOs) {
+  if (!connection_.session_decides_what_to_write() ||
+      !GetQuicReloadableFlag(quic_fix_rto_retransmission3)) {
+    return;
+  }
+  SetQuicReloadableFlag(quic_enable_pto, true);
+  QuicConfig config;
+  QuicTagVector connection_options;
+  connection_options.push_back(k1PTO);
+  connection_options.push_back(k6PTO);
+  config.SetConnectionOptionsToSend(connection_options);
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  connection_.SetFromConfig(config);
+  EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
+
+  // Send stream data.
+  SendStreamDataToPeer(
+      GetNthClientInitiatedStreamId(1, connection_.transport_version()), "foo",
+      0, FIN, nullptr);
+
+  // 5PTO + 1 connection close.
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(6);
+
+  // Fire the retransmission alarm 5 times.
+  for (int i = 0; i < 5; ++i) {
+    connection_.GetRetransmissionAlarm()->Fire();
+    EXPECT_TRUE(connection_.GetTimeoutAlarm()->IsSet());
+    EXPECT_TRUE(connection_.connected());
+  }
+
+  EXPECT_EQ(0u, connection_.sent_packet_manager().GetConsecutiveTlpCount());
+  EXPECT_EQ(0u, connection_.sent_packet_manager().GetConsecutiveRtoCount());
+  EXPECT_EQ(5u, connection_.sent_packet_manager().GetConsecutivePtoCount());
+  // Closes connection on 6th PTO.
+  EXPECT_CALL(visitor_,
+              OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF));
+  connection_.GetRetransmissionAlarm()->Fire();
+  EXPECT_FALSE(connection_.GetTimeoutAlarm()->IsSet());
+  EXPECT_FALSE(connection_.connected());
+  TestConnectionCloseQuicErrorCode(QUIC_TOO_MANY_RTOS);
+}
+
 TEST_P(QuicConnectionTest, CloseConnectionAfter7ClientPTOs) {
   if (!connection_.session_decides_what_to_write() ||
       !GetQuicReloadableFlag(quic_fix_rto_retransmission3)) {
