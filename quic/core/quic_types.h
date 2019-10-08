@@ -472,6 +472,9 @@ enum PacketHeaderFormat : uint8_t {
   GOOGLE_QUIC_PACKET,
 };
 
+QUIC_EXPORT_PRIVATE std::string PacketHeaderFormatToString(
+    PacketHeaderFormat format);
+
 // Information about a newly acknowledged packet.
 struct AckedPacket {
   AckedPacket(QuicPacketNumber packet_number,
@@ -560,6 +563,9 @@ enum QuicLongHeaderType : uint8_t {
 
   INVALID_PACKET_TYPE,
 };
+
+QUIC_EXPORT_PRIVATE std::string QuicLongHeaderTypeToString(
+    QuicLongHeaderType type);
 
 enum QuicPacketHeaderTypeFlags : uint8_t {
   // Bit 2: Reserved for experimentation for short header.

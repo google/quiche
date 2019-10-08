@@ -477,6 +477,29 @@ std::string TransmissionTypeToString(TransmissionType transmission_type) {
   }
 }
 
+std::string PacketHeaderFormatToString(PacketHeaderFormat format) {
+  switch (format) {
+    RETURN_STRING_LITERAL(IETF_QUIC_LONG_HEADER_PACKET);
+    RETURN_STRING_LITERAL(IETF_QUIC_SHORT_HEADER_PACKET);
+    RETURN_STRING_LITERAL(GOOGLE_QUIC_PACKET);
+    default:
+      return QuicStrCat("Unknown (", static_cast<int>(format), ")");
+  }
+}
+
+std::string QuicLongHeaderTypeToString(QuicLongHeaderType type) {
+  switch (type) {
+    RETURN_STRING_LITERAL(VERSION_NEGOTIATION);
+    RETURN_STRING_LITERAL(INITIAL);
+    RETURN_STRING_LITERAL(ZERO_RTT_PROTECTED);
+    RETURN_STRING_LITERAL(HANDSHAKE);
+    RETURN_STRING_LITERAL(RETRY);
+    RETURN_STRING_LITERAL(INVALID_PACKET_TYPE);
+    default:
+      return QuicStrCat("Unknown (", static_cast<int>(type), ")");
+  }
+}
+
 std::string PacketNumberSpaceToString(PacketNumberSpace packet_number_space) {
   switch (packet_number_space) {
     RETURN_STRING_LITERAL(INITIAL_DATA);
