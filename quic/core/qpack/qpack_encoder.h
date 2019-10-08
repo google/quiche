@@ -124,10 +124,10 @@ class QUIC_EXPORT_PRIVATE QpackEncoder
   // Performs first pass of two-pass encoding: represent each header field in
   // |*header_list| as a reference to an existing entry, the name of an existing
   // entry with a literal value, or a literal name and value pair.  Sends
-  // necessary instructions on the encoder stream.  Records absolute indices of
-  // referred dynamic table entries in |*referred_indices|.  If
-  // |encoder_stream_sent_byte_count| is not null, then sets
-  // |*encoder_stream_sent_byte_count| to the number of bytes sent on the
+  // necessary instructions on the encoder stream coalesced in a single write.
+  // Records absolute indices of referred dynamic table entries in
+  // |*referred_indices|.  If |encoder_stream_sent_byte_count| is not null, then
+  // sets |*encoder_stream_sent_byte_count| to the number of bytes sent on the
   // encoder stream to insert dynamic table entries.  Returns list of header
   // field representations, with all dynamic table entries referred to with
   // absolute indices.  Returned Instructions object may have QuicStringPieces

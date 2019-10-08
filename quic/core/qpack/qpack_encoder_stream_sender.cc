@@ -23,11 +23,7 @@ QuicByteCount QpackEncoderStreamSender::SendInsertWithNameReference(
   values_.varint = name_index;
   values_.value = value;
 
-  std::string output;
-  instruction_encoder_.Encode(InsertWithNameReferenceInstruction(), values_,
-                              &output);
-  delegate_->WriteStreamData(output);
-  return output.size();
+  return Encode(InsertWithNameReferenceInstruction());
 }
 
 QuicByteCount QpackEncoderStreamSender::SendInsertWithoutNameReference(
@@ -36,31 +32,36 @@ QuicByteCount QpackEncoderStreamSender::SendInsertWithoutNameReference(
   values_.name = name;
   values_.value = value;
 
-  std::string output;
-  instruction_encoder_.Encode(InsertWithoutNameReferenceInstruction(), values_,
-                              &output);
-  delegate_->WriteStreamData(output);
-  return output.size();
+  return Encode(InsertWithoutNameReferenceInstruction());
 }
 
 QuicByteCount QpackEncoderStreamSender::SendDuplicate(uint64_t index) {
   values_.varint = index;
 
-  std::string output;
-  instruction_encoder_.Encode(DuplicateInstruction(), values_, &output);
-  delegate_->WriteStreamData(output);
-  return output.size();
+  return Encode(DuplicateInstruction());
 }
 
 QuicByteCount QpackEncoderStreamSender::SendSetDynamicTableCapacity(
     uint64_t capacity) {
   values_.varint = capacity;
 
-  std::string output;
-  instruction_encoder_.Encode(SetDynamicTableCapacityInstruction(), values_,
-                              &output);
-  delegate_->WriteStreamData(output);
-  return output.size();
+  return Encode(SetDynamicTableCapacityInstruction());
+}
+
+void QpackEncoderStreamSender::Flush() {
+  if (buffer_.empty()) {
+    return;
+  }
+
+  delegate_->WriteStreamData(buffer_);
+  buffer_.clear();
+}
+
+QuicByteCount QpackEncoderStreamSender::Encode(
+    const QpackInstruction* instruction) {
+  const size_t old_buffer_size = buffer_.size();
+  instruction_encoder_.Encode(instruction, values_, &buffer_);
+  return buffer_.size() - old_buffer_size;
 }
 
 }  // namespace quic

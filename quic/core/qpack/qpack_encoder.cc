@@ -281,6 +281,8 @@ QpackEncoder::Instructions QpackEncoder::FirstPassEncode(
     }
   }
 
+  encoder_stream_sender_.Flush();
+
   // Use local |sent_byte_count| variable to avoid branching and dereferencing
   // each time encoder stream data is sent.
   if (encoder_stream_sent_byte_count) {
@@ -395,6 +397,8 @@ void QpackEncoder::SetMaximumDynamicTableCapacity(
 
 void QpackEncoder::SetDynamicTableCapacity(uint64_t dynamic_table_capacity) {
   encoder_stream_sender_.SendSetDynamicTableCapacity(dynamic_table_capacity);
+  encoder_stream_sender_.Flush();
+
   bool success = header_table_.SetDynamicTableCapacity(dynamic_table_capacity);
   DCHECK(success);
 }
