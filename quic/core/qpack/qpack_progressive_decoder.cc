@@ -18,8 +18,8 @@ namespace quic {
 QpackProgressiveDecoder::QpackProgressiveDecoder(
     QuicStreamId stream_id,
     BlockedStreamLimitEnforcer* enforcer,
+    DecodingCompletedVisitor* visitor,
     QpackHeaderTable* header_table,
-    QpackDecoderStreamSender* decoder_stream_sender,
     HeadersHandlerInterface* handler)
     : stream_id_(stream_id),
       prefix_decoder_(
@@ -27,8 +27,8 @@ QpackProgressiveDecoder::QpackProgressiveDecoder(
                                                     this)),
       instruction_decoder_(QpackRequestStreamLanguage(), this),
       enforcer_(enforcer),
+      visitor_(visitor),
       header_table_(header_table),
-      decoder_stream_sender_(decoder_stream_sender),
       handler_(handler),
       required_insert_count_(0),
       base_(0),
@@ -336,10 +336,7 @@ void QpackProgressiveDecoder::FinishDecoding() {
     return;
   }
 
-  if (required_insert_count_ > 0) {
-    decoder_stream_sender_->SendHeaderAcknowledgement(stream_id_);
-  }
-
+  visitor_->OnDecodingCompleted(stream_id_, required_insert_count_);
   handler_->OnDecodingCompleted();
 }
 

@@ -24,7 +24,8 @@ namespace quic {
 // list to be encoded.
 class QUIC_EXPORT_PRIVATE QpackDecoder
     : public QpackEncoderStreamReceiver::Delegate,
-      public QpackProgressiveDecoder::BlockedStreamLimitEnforcer {
+      public QpackProgressiveDecoder::BlockedStreamLimitEnforcer,
+      public QpackProgressiveDecoder::DecodingCompletedVisitor {
  public:
   // Interface for receiving notification that an error has occurred on the
   // encoder stream.  This MUST be treated as a connection error of type
@@ -63,6 +64,10 @@ class QUIC_EXPORT_PRIVATE QpackDecoder
   bool OnStreamBlocked(QuicStreamId stream_id) override;
   void OnStreamUnblocked(QuicStreamId stream_id) override;
 
+  // QpackProgressiveDecoder::DecodingCompletedVisitor implementation.
+  void OnDecodingCompleted(QuicStreamId stream_id,
+                           uint64_t required_insert_count) override;
+
   // Factory method to create a QpackProgressiveDecoder for decoding a header
   // block.  |handler| must remain valid until the returned
   // QpackProgressiveDecoder instance is destroyed or the decoder calls
@@ -97,6 +102,13 @@ class QUIC_EXPORT_PRIVATE QpackDecoder
   QpackHeaderTable header_table_;
   std::set<QuicStreamId> blocked_streams_;
   const uint64_t maximum_blocked_streams_;
+
+  // Known Received Count is the number of insertions the encoder has received
+  // acknowledgement for (through Header Acknowledgement and Insert Count
+  // Increment instructions).  The encoder must keep track of it in order to be
+  // able to send Insert Count Increment instructions.  See
+  // https://quicwg.org/base-drafts/draft-ietf-quic-qpack.html#known-received-count.
+  uint64_t known_received_count_;
 };
 
 }  // namespace quic
