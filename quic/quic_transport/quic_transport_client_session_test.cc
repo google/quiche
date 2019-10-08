@@ -102,7 +102,7 @@ class QuicTransportClientSessionTest : public QuicTest {
     QuicConfig server_config = DefaultQuicConfig();
     crypto_test_utils::HandshakeWithFakeServer(
         &server_config, &helper_, &alarm_factory_, &connection_, crypto_stream_,
-        kQuicTransportAlpn);
+        QuicTransportAlpn());
   }
 
   MockAlarmFactory alarm_factory_;
@@ -116,7 +116,7 @@ class QuicTransportClientSessionTest : public QuicTest {
 };
 
 TEST_F(QuicTransportClientSessionTest, HasValidAlpn) {
-  EXPECT_THAT(session_->GetAlpnsToOffer(), ElementsAre(kQuicTransportAlpn));
+  EXPECT_THAT(session_->GetAlpnsToOffer(), ElementsAre(QuicTransportAlpn()));
 }
 
 TEST_F(QuicTransportClientSessionTest, SuccessfulConnection) {
@@ -124,7 +124,7 @@ TEST_F(QuicTransportClientSessionTest, SuccessfulConnection) {
   EXPECT_TRUE(session_->IsSessionReady());
 
   QuicStream* client_indication_stream =
-      QuicSessionPeer::zombie_streams(session_.get())[kClientIndicationStream]
+      QuicSessionPeer::zombie_streams(session_.get())[ClientIndicationStream()]
           .get();
   ASSERT_TRUE(client_indication_stream != nullptr);
   const std::string client_indication = DataInStream(client_indication_stream);

@@ -21,9 +21,6 @@
 
 namespace quic {
 
-const char* kQuicTransportAlpn = "wq-vvv-01";
-const QuicStreamId kClientIndicationStream = 2;
-
 namespace {
 // ProofHandler is primarily used by QUIC crypto to persist QUIC server configs
 // and perform some of related debug logging.  QuicTransport does not support
@@ -115,7 +112,7 @@ void QuicTransportClientSession::SendClientIndication() {
   }
 
   auto client_indication_owned = std::make_unique<ClientIndication>(
-      /*stream_id=*/kClientIndicationStream, this, /*is_static=*/false,
+      /*stream_id=*/ClientIndicationStream(), this, /*is_static=*/false,
       WRITE_UNIDIRECTIONAL);
   ClientIndication* client_indication = client_indication_owned.get();
   ActivateStream(std::move(client_indication_owned));

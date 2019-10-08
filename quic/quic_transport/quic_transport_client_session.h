@@ -20,17 +20,9 @@
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
+#include "net/third_party/quiche/src/quic/quic_transport/quic_transport_protocol.h"
 
 namespace quic {
-
-// The ALPN used by QuicTransport.
-QUIC_EXPORT extern const char* kQuicTransportAlpn;
-
-QUIC_EXPORT extern const QuicStreamId kClientIndicationStream;
-
-enum class QuicTransportClientIndicationKeys : uint16_t {
-  kOrigin = 0x0000,
-};
 
 // A client session for the QuicTransport protocol.
 class QUIC_EXPORT QuicTransportClientSession : public QuicSession {
@@ -44,7 +36,7 @@ class QUIC_EXPORT QuicTransportClientSession : public QuicSession {
                              url::Origin origin);
 
   std::vector<std::string> GetAlpnsToOffer() const override {
-    return std::vector<std::string>({kQuicTransportAlpn});
+    return std::vector<std::string>({QuicTransportAlpn()});
   }
 
   void CryptoConnect() { crypto_stream_->CryptoConnect(); }
