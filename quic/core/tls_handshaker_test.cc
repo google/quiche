@@ -329,6 +329,34 @@ class TlsHandshakerTest : public QuicTest {
             });
   }
 
+  void ExpectHandshakeSuccessful() {
+    EXPECT_TRUE(client_stream_->handshake_confirmed());
+    EXPECT_TRUE(client_stream_->encryption_established());
+    EXPECT_TRUE(server_stream_->handshake_confirmed());
+    EXPECT_TRUE(server_stream_->encryption_established());
+    EXPECT_TRUE(client_conn_->IsHandshakeConfirmed());
+    EXPECT_TRUE(server_conn_->IsHandshakeConfirmed());
+
+    const auto& client_crypto_params =
+        client_stream_->crypto_negotiated_params();
+    const auto& server_crypto_params =
+        server_stream_->crypto_negotiated_params();
+    // The TLS params should be filled in on the client.
+    EXPECT_NE(0, client_crypto_params.cipher_suite);
+    EXPECT_NE(0, client_crypto_params.key_exchange_group);
+    EXPECT_NE(0, client_crypto_params.peer_signature_algorithm);
+
+    // The cipher suite and key exchange group should match on the client and
+    // server.
+    EXPECT_EQ(client_crypto_params.cipher_suite,
+              server_crypto_params.cipher_suite);
+    EXPECT_EQ(client_crypto_params.key_exchange_group,
+              server_crypto_params.key_exchange_group);
+    // We don't support client certs on the server (yet), so the server
+    // shouldn't have a peer signature algorithm to report.
+    EXPECT_EQ(0, server_crypto_params.peer_signature_algorithm);
+  }
+
   MockQuicConnectionHelper conn_helper_;
   MockAlarmFactory alarm_factory_;
   MockQuicConnection* client_conn_;
@@ -357,12 +385,7 @@ TEST_F(TlsHandshakerTest, CryptoHandshake) {
   client_stream_->CryptoConnect();
   ExchangeHandshakeMessages(client_stream_, server_stream_);
 
-  EXPECT_TRUE(client_stream_->handshake_confirmed());
-  EXPECT_TRUE(client_stream_->encryption_established());
-  EXPECT_TRUE(server_stream_->handshake_confirmed());
-  EXPECT_TRUE(server_stream_->encryption_established());
-  EXPECT_TRUE(client_conn_->IsHandshakeConfirmed());
-  EXPECT_FALSE(server_conn_->IsHandshakeConfirmed());
+  ExpectHandshakeSuccessful();
 }
 
 TEST_F(TlsHandshakerTest, HandshakeWithAsyncProofSource) {
@@ -382,10 +405,7 @@ TEST_F(TlsHandshakerTest, HandshakeWithAsyncProofSource) {
 
   ExchangeHandshakeMessages(client_stream_, server_stream_);
 
-  EXPECT_TRUE(client_stream_->handshake_confirmed());
-  EXPECT_TRUE(client_stream_->encryption_established());
-  EXPECT_TRUE(server_stream_->handshake_confirmed());
-  EXPECT_TRUE(server_stream_->encryption_established());
+  ExpectHandshakeSuccessful();
 }
 
 TEST_F(TlsHandshakerTest, CancelPendingProofSource) {
@@ -425,10 +445,7 @@ TEST_F(TlsHandshakerTest, HandshakeWithAsyncProofVerifier) {
 
   ExchangeHandshakeMessages(client_stream_, server_stream_);
 
-  EXPECT_TRUE(client_stream_->handshake_confirmed());
-  EXPECT_TRUE(client_stream_->encryption_established());
-  EXPECT_TRUE(server_stream_->handshake_confirmed());
-  EXPECT_TRUE(server_stream_->encryption_established());
+  ExpectHandshakeSuccessful();
 }
 
 TEST_F(TlsHandshakerTest, ClientConnectionClosedOnTlsError) {
@@ -566,12 +583,7 @@ TEST_F(TlsHandshakerTest, CustomALPNNegotiation) {
   client_stream_->CryptoConnect();
   ExchangeHandshakeMessages(client_stream_, server_stream_);
 
-  EXPECT_TRUE(client_stream_->handshake_confirmed());
-  EXPECT_TRUE(client_stream_->encryption_established());
-  EXPECT_TRUE(server_stream_->handshake_confirmed());
-  EXPECT_TRUE(server_stream_->encryption_established());
-  EXPECT_TRUE(client_conn_->IsHandshakeConfirmed());
-  EXPECT_FALSE(server_conn_->IsHandshakeConfirmed());
+  ExpectHandshakeSuccessful();
 }
 
 }  // namespace

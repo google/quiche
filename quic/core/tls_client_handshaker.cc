@@ -328,6 +328,16 @@ void TlsClientHandshaker::FinishHandshake() {
   handshake_confirmed_ = true;
   session()->OnCryptoHandshakeEvent(QuicSession::ENCRYPTION_ESTABLISHED);
   session()->OnCryptoHandshakeEvent(QuicSession::HANDSHAKE_CONFIRMED);
+
+  // Fill crypto_negotiated_params_:
+  const SSL_CIPHER* cipher = SSL_get_current_cipher(ssl());
+  if (cipher) {
+    crypto_negotiated_params_->cipher_suite = SSL_CIPHER_get_value(cipher);
+  }
+  crypto_negotiated_params_->key_exchange_group = SSL_get_curve_id(ssl());
+  crypto_negotiated_params_->peer_signature_algorithm =
+      SSL_get_peer_signature_algorithm(ssl());
+
   session()->connection()->OnHandshakeComplete();
 }
 
