@@ -93,7 +93,6 @@ QpackEncoder::Instructions QpackEncoder::FirstPassEncode(
     QuicByteCount* encoder_stream_sent_byte_count) {
   Instructions instructions;
   instructions.reserve(header_list.size());
-  QuicByteCount sent_byte_count = 0;
 
   // The index of the oldest entry that must not be evicted.
   uint64_t smallest_blocking_index =
@@ -157,7 +156,7 @@ QpackEncoder::Instructions QpackEncoder::FirstPassEncode(
             dynamic_table_insertion_blocked = true;
           } else {
             // If allowed, duplicate entry and refer to it.
-            sent_byte_count += encoder_stream_sender_.SendDuplicate(
+            encoder_stream_sender_.SendDuplicate(
                 QpackAbsoluteIndexToEncoderStreamRelativeIndex(
                     index, header_table_.inserted_entry_count()));
             auto entry = header_table_.InsertEntry(name, value);
@@ -187,9 +186,8 @@ QpackEncoder::Instructions QpackEncoder::FirstPassEncode(
                   header_table_.MaxInsertSizeWithoutEvictingGivenEntry(
                       smallest_blocking_index)) {
             // If allowed, insert entry into dynamic table and refer to it.
-            sent_byte_count +=
-                encoder_stream_sender_.SendInsertWithNameReference(
-                    is_static, index, value);
+            encoder_stream_sender_.SendInsertWithNameReference(is_static, index,
+                                                               value);
             auto entry = header_table_.InsertEntry(name, value);
             instructions.push_back(EncodeIndexedHeaderField(
                 /* is_static = */ false, entry->InsertionIndex(),
@@ -215,7 +213,7 @@ QpackEncoder::Instructions QpackEncoder::FirstPassEncode(
           dynamic_table_insertion_blocked = true;
         } else {
           // If allowed, insert entry with name reference and refer to it.
-          sent_byte_count += encoder_stream_sender_.SendInsertWithNameReference(
+          encoder_stream_sender_.SendInsertWithNameReference(
               is_static,
               QpackAbsoluteIndexToEncoderStreamRelativeIndex(
                   index, header_table_.inserted_entry_count()),
@@ -258,9 +256,7 @@ QpackEncoder::Instructions QpackEncoder::FirstPassEncode(
                        smallest_blocking_index)) {
           dynamic_table_insertion_blocked = true;
         } else {
-          sent_byte_count +=
-              encoder_stream_sender_.SendInsertWithoutNameReference(name,
-                                                                    value);
+          encoder_stream_sender_.SendInsertWithoutNameReference(name, value);
           auto entry = header_table_.InsertEntry(name, value);
           instructions.push_back(EncodeIndexedHeaderField(
               /* is_static = */ false, entry->InsertionIndex(),
@@ -281,10 +277,7 @@ QpackEncoder::Instructions QpackEncoder::FirstPassEncode(
     }
   }
 
-  encoder_stream_sender_.Flush();
-
-  // Use local |sent_byte_count| variable to avoid branching and dereferencing
-  // each time encoder stream data is sent.
+  const QuicByteCount sent_byte_count = encoder_stream_sender_.Flush();
   if (encoder_stream_sent_byte_count) {
     *encoder_stream_sent_byte_count = sent_byte_count;
   }

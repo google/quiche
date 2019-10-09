@@ -30,23 +30,20 @@ TEST_F(QpackEncoderStreamSenderTest, InsertWithNameReference) {
   // Static, index fits in prefix, empty value.
   std::string expected_encoded_data = QuicTextUtils::HexDecode("c500");
   EXPECT_CALL(delegate_, WriteStreamData(Eq(expected_encoded_data)));
-  EXPECT_EQ(expected_encoded_data.size(),
-            stream_.SendInsertWithNameReference(true, 5, ""));
-  stream_.Flush();
+  stream_.SendInsertWithNameReference(true, 5, "");
+  EXPECT_EQ(expected_encoded_data.size(), stream_.Flush());
 
   // Static, index fits in prefix, Huffman encoded value.
   expected_encoded_data = QuicTextUtils::HexDecode("c28294e7");
   EXPECT_CALL(delegate_, WriteStreamData(Eq(expected_encoded_data)));
-  EXPECT_EQ(expected_encoded_data.size(),
-            stream_.SendInsertWithNameReference(true, 2, "foo"));
-  stream_.Flush();
+  stream_.SendInsertWithNameReference(true, 2, "foo");
+  EXPECT_EQ(expected_encoded_data.size(), stream_.Flush());
 
   // Not static, index does not fit in prefix, not Huffman encoded value.
   expected_encoded_data = QuicTextUtils::HexDecode("bf4a03626172");
   EXPECT_CALL(delegate_, WriteStreamData(Eq(expected_encoded_data)));
-  EXPECT_EQ(expected_encoded_data.size(),
-            stream_.SendInsertWithNameReference(false, 137, "bar"));
-  stream_.Flush();
+  stream_.SendInsertWithNameReference(false, 137, "bar");
+  EXPECT_EQ(expected_encoded_data.size(), stream_.Flush());
 
   // Value length does not fit in prefix.
   // 'Z' would be Huffman encoded to 8 bits, so no Huffman encoding is used.
@@ -56,33 +53,28 @@ TEST_F(QpackEncoderStreamSenderTest, InsertWithNameReference) {
       "5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a"
       "5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a");
   EXPECT_CALL(delegate_, WriteStreamData(Eq(expected_encoded_data)));
-  EXPECT_EQ(
-      expected_encoded_data.size(),
-      stream_.SendInsertWithNameReference(false, 42, std::string(127, 'Z')));
-  stream_.Flush();
+  stream_.SendInsertWithNameReference(false, 42, std::string(127, 'Z'));
+  EXPECT_EQ(expected_encoded_data.size(), stream_.Flush());
 }
 
 TEST_F(QpackEncoderStreamSenderTest, InsertWithoutNameReference) {
   // Empty name and value.
   std::string expected_encoded_data = QuicTextUtils::HexDecode("4000");
   EXPECT_CALL(delegate_, WriteStreamData(Eq(expected_encoded_data)));
-  EXPECT_EQ(expected_encoded_data.size(),
-            stream_.SendInsertWithoutNameReference("", ""));
-  stream_.Flush();
+  stream_.SendInsertWithoutNameReference("", "");
+  EXPECT_EQ(expected_encoded_data.size(), stream_.Flush());
 
   // Huffman encoded short strings.
   expected_encoded_data = QuicTextUtils::HexDecode("6294e78294e7");
   EXPECT_CALL(delegate_, WriteStreamData(Eq(expected_encoded_data)));
-  EXPECT_EQ(expected_encoded_data.size(),
-            stream_.SendInsertWithoutNameReference("foo", "foo"));
-  stream_.Flush();
+  stream_.SendInsertWithoutNameReference("foo", "foo");
+  EXPECT_EQ(expected_encoded_data.size(), stream_.Flush());
 
   // Not Huffman encoded short strings.
   expected_encoded_data = QuicTextUtils::HexDecode("4362617203626172");
   EXPECT_CALL(delegate_, WriteStreamData(Eq(expected_encoded_data)));
-  EXPECT_EQ(expected_encoded_data.size(),
-            stream_.SendInsertWithoutNameReference("bar", "bar"));
-  stream_.Flush();
+  stream_.SendInsertWithoutNameReference("bar", "bar");
+  EXPECT_EQ(expected_encoded_data.size(), stream_.Flush());
 
   // Not Huffman encoded long strings; length does not fit on prefix.
   // 'Z' would be Huffman encoded to 8 bits, so no Huffman encoding is used.
@@ -93,74 +85,67 @@ TEST_F(QpackEncoderStreamSenderTest, InsertWithoutNameReference) {
       "5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a"
       "5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a");
   EXPECT_CALL(delegate_, WriteStreamData(Eq(expected_encoded_data)));
-  EXPECT_EQ(expected_encoded_data.size(),
-            stream_.SendInsertWithoutNameReference(std::string(31, 'Z'),
-                                                   std::string(127, 'Z')));
-  stream_.Flush();
+  stream_.SendInsertWithoutNameReference(std::string(31, 'Z'),
+                                         std::string(127, 'Z'));
+  EXPECT_EQ(expected_encoded_data.size(), stream_.Flush());
 }
 
 TEST_F(QpackEncoderStreamSenderTest, Duplicate) {
   // Small index fits in prefix.
   std::string expected_encoded_data = QuicTextUtils::HexDecode("11");
   EXPECT_CALL(delegate_, WriteStreamData(Eq(expected_encoded_data)));
-  EXPECT_EQ(expected_encoded_data.size(), stream_.SendDuplicate(17));
-  stream_.Flush();
+  stream_.SendDuplicate(17);
+  EXPECT_EQ(expected_encoded_data.size(), stream_.Flush());
 
   // Large index requires two extension bytes.
   expected_encoded_data = QuicTextUtils::HexDecode("1fd503");
   EXPECT_CALL(delegate_, WriteStreamData(Eq(expected_encoded_data)));
-  EXPECT_EQ(expected_encoded_data.size(), stream_.SendDuplicate(500));
-  stream_.Flush();
+  stream_.SendDuplicate(500);
+  EXPECT_EQ(expected_encoded_data.size(), stream_.Flush());
 }
 
 TEST_F(QpackEncoderStreamSenderTest, SetDynamicTableCapacity) {
   // Small capacity fits in prefix.
   std::string expected_encoded_data = QuicTextUtils::HexDecode("31");
   EXPECT_CALL(delegate_, WriteStreamData(Eq(expected_encoded_data)));
-  EXPECT_EQ(expected_encoded_data.size(),
-            stream_.SendSetDynamicTableCapacity(17));
-  stream_.Flush();
+  stream_.SendSetDynamicTableCapacity(17);
+  EXPECT_EQ(expected_encoded_data.size(), stream_.Flush());
 
   // Large capacity requires two extension bytes.
   expected_encoded_data = QuicTextUtils::HexDecode("3fd503");
   EXPECT_CALL(delegate_, WriteStreamData(Eq(expected_encoded_data)));
-  EXPECT_EQ(expected_encoded_data.size(),
-            stream_.SendSetDynamicTableCapacity(500));
-  stream_.Flush();
+  stream_.SendSetDynamicTableCapacity(500);
+  EXPECT_EQ(expected_encoded_data.size(), stream_.Flush());
 }
 
 // No writes should happen until Flush is called.
 TEST_F(QpackEncoderStreamSenderTest, Coalesce) {
   // Insert entry with static name reference, empty value.
-  std::string expected_encoded_data1 = QuicTextUtils::HexDecode("c500");
-  EXPECT_EQ(expected_encoded_data1.size(),
-            stream_.SendInsertWithNameReference(true, 5, ""));
+  stream_.SendInsertWithNameReference(true, 5, "");
 
   // Insert entry with static name reference, Huffman encoded value.
-  std::string expected_encoded_data2 = QuicTextUtils::HexDecode("c28294e7");
-  EXPECT_EQ(expected_encoded_data2.size(),
-            stream_.SendInsertWithNameReference(true, 2, "foo"));
+  stream_.SendInsertWithNameReference(true, 2, "foo");
 
   // Insert literal entry, Huffman encoded short strings.
-  std::string expected_encoded_data3 = QuicTextUtils::HexDecode("6294e78294e7");
-  EXPECT_EQ(expected_encoded_data3.size(),
-            stream_.SendInsertWithoutNameReference("foo", "foo"));
+  stream_.SendInsertWithoutNameReference("foo", "foo");
 
   // Duplicate entry.
-  std::string expected_encoded_data4 = QuicTextUtils::HexDecode("11");
-  EXPECT_EQ(expected_encoded_data4.size(), stream_.SendDuplicate(17));
+  stream_.SendDuplicate(17);
 
-  EXPECT_CALL(delegate_,
-              WriteStreamData(Eq(QuicStrCat(
-                  expected_encoded_data1 + expected_encoded_data2 +
-                  expected_encoded_data3 + expected_encoded_data4))));
-  stream_.Flush();
+  std::string expected_encoded_data = QuicTextUtils::HexDecode(
+      "c500"          // Insert entry with static name reference.
+      "c28294e7"      // Insert entry with static name reference.
+      "6294e78294e7"  // Insert literal entry.
+      "11");          // Duplicate entry.
+
+  EXPECT_CALL(delegate_, WriteStreamData(Eq(expected_encoded_data)));
+  EXPECT_EQ(expected_encoded_data.size(), stream_.Flush());
 }
 
 // No writes should happen if QpackEncoderStreamSender::Flush() is called
 // when the buffer is empty.
 TEST_F(QpackEncoderStreamSenderTest, FlushEmpty) {
-  stream_.Flush();
+  EXPECT_EQ(0u, stream_.Flush());
 }
 
 }  // namespace

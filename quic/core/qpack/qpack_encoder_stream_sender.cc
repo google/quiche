@@ -15,7 +15,7 @@ namespace quic {
 
 QpackEncoderStreamSender::QpackEncoderStreamSender() : delegate_(nullptr) {}
 
-QuicByteCount QpackEncoderStreamSender::SendInsertWithNameReference(
+void QpackEncoderStreamSender::SendInsertWithNameReference(
     bool is_static,
     uint64_t name_index,
     QuicStringPiece value) {
@@ -23,45 +23,42 @@ QuicByteCount QpackEncoderStreamSender::SendInsertWithNameReference(
   values_.varint = name_index;
   values_.value = value;
 
-  return Encode(InsertWithNameReferenceInstruction());
+  instruction_encoder_.Encode(InsertWithNameReferenceInstruction(), values_,
+                              &buffer_);
 }
 
-QuicByteCount QpackEncoderStreamSender::SendInsertWithoutNameReference(
+void QpackEncoderStreamSender::SendInsertWithoutNameReference(
     QuicStringPiece name,
     QuicStringPiece value) {
   values_.name = name;
   values_.value = value;
 
-  return Encode(InsertWithoutNameReferenceInstruction());
+  instruction_encoder_.Encode(InsertWithoutNameReferenceInstruction(), values_,
+                              &buffer_);
 }
 
-QuicByteCount QpackEncoderStreamSender::SendDuplicate(uint64_t index) {
+void QpackEncoderStreamSender::SendDuplicate(uint64_t index) {
   values_.varint = index;
 
-  return Encode(DuplicateInstruction());
+  instruction_encoder_.Encode(DuplicateInstruction(), values_, &buffer_);
 }
 
-QuicByteCount QpackEncoderStreamSender::SendSetDynamicTableCapacity(
-    uint64_t capacity) {
+void QpackEncoderStreamSender::SendSetDynamicTableCapacity(uint64_t capacity) {
   values_.varint = capacity;
 
-  return Encode(SetDynamicTableCapacityInstruction());
+  instruction_encoder_.Encode(SetDynamicTableCapacityInstruction(), values_,
+                              &buffer_);
 }
 
-void QpackEncoderStreamSender::Flush() {
+QuicByteCount QpackEncoderStreamSender::Flush() {
   if (buffer_.empty()) {
-    return;
+    return 0;
   }
 
   delegate_->WriteStreamData(buffer_);
+  const QuicByteCount bytes_written = buffer_.size();
   buffer_.clear();
-}
-
-QuicByteCount QpackEncoderStreamSender::Encode(
-    const QpackInstruction* instruction) {
-  const size_t old_buffer_size = buffer_.size();
-  instruction_encoder_.Encode(instruction, values_, &buffer_);
-  return buffer_.size() - old_buffer_size;
+  return bytes_written;
 }
 
 }  // namespace quic

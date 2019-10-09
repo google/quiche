@@ -27,19 +27,20 @@ class QUIC_EXPORT_PRIVATE QpackEncoderStreamSender {
   // https://quicwg.org/base-drafts/draft-ietf-quic-qpack.html#rfc.section.5.2
 
   // 5.2.1. Insert With Name Reference
-  QuicByteCount SendInsertWithNameReference(bool is_static,
-                                            uint64_t name_index,
-                                            QuicStringPiece value);
+  void SendInsertWithNameReference(bool is_static,
+                                   uint64_t name_index,
+                                   QuicStringPiece value);
   // 5.2.2. Insert Without Name Reference
-  QuicByteCount SendInsertWithoutNameReference(QuicStringPiece name,
-                                               QuicStringPiece value);
+  void SendInsertWithoutNameReference(QuicStringPiece name,
+                                      QuicStringPiece value);
   // 5.2.3. Duplicate
-  QuicByteCount SendDuplicate(uint64_t index);
+  void SendDuplicate(uint64_t index);
   // 5.2.4. Set Dynamic Table Capacity
-  QuicByteCount SendSetDynamicTableCapacity(uint64_t capacity);
+  void SendSetDynamicTableCapacity(uint64_t capacity);
 
   // Writes all buffered instructions on the encoder stream.
-  void Flush();
+  // Returns the number of bytes written.
+  QuicByteCount Flush();
 
   // delegate must be set if dynamic table capacity is not zero.
   void set_qpack_stream_sender_delegate(QpackStreamSenderDelegate* delegate) {
@@ -47,10 +48,6 @@ class QUIC_EXPORT_PRIVATE QpackEncoderStreamSender {
   }
 
  private:
-  // Encodes |instruction| with |values_| using |instruction_encoder_| into
-  // |buffer_|.  Returns number of bytes encoded.
-  QuicByteCount Encode(const QpackInstruction* instruction);
-
   QpackStreamSenderDelegate* delegate_;
   QpackInstructionEncoder instruction_encoder_;
   QpackInstructionEncoder::Values values_;
