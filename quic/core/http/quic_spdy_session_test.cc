@@ -76,15 +76,25 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
   void OnHandshakeMessage(const CryptoHandshakeMessage& /*message*/) override {
     encryption_established_ = true;
     handshake_confirmed_ = true;
-    CryptoHandshakeMessage msg;
+    QuicErrorCode error;
     std::string error_details;
     session()->config()->SetInitialStreamFlowControlWindowToSend(
         kInitialStreamFlowControlWindowForTest);
     session()->config()->SetInitialSessionFlowControlWindowToSend(
         kInitialSessionFlowControlWindowForTest);
-    session()->config()->ToHandshakeMessage(&msg, transport_version());
-    const QuicErrorCode error =
-        session()->config()->ProcessPeerHello(msg, CLIENT, &error_details);
+    if (session()->connection()->version().handshake_protocol ==
+        PROTOCOL_TLS1_3) {
+      TransportParameters transport_parameters;
+      EXPECT_TRUE(
+          session()->config()->FillTransportParameters(&transport_parameters));
+      error = session()->config()->ProcessTransportParameters(
+          transport_parameters, CLIENT, &error_details);
+    } else {
+      CryptoHandshakeMessage msg;
+      session()->config()->ToHandshakeMessage(&msg, transport_version());
+      error =
+          session()->config()->ProcessPeerHello(msg, CLIENT, &error_details);
+    }
     EXPECT_EQ(QUIC_NO_ERROR, error);
     session()->OnConfigNegotiated();
     session()->connection()->SetDefaultEncryptionLevel(
@@ -1160,6 +1170,11 @@ TEST_P(QuicSpdySessionTestServer, OnRstStreamInvalidStreamId) {
 }
 
 TEST_P(QuicSpdySessionTestServer, HandshakeUnblocksFlowControlBlockedStream) {
+  if (connection_->version().handshake_protocol == PROTOCOL_TLS1_3) {
+    // This test requires Google QUIC crypto because it assumes streams start
+    // off unblocked.
+    return;
+  }
   // Test that if a stream is flow control blocked, then on receipt of the SHLO
   // containing a suitable send window offset, the stream becomes unblocked.
 

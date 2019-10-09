@@ -926,7 +926,7 @@ QuicErrorCode QuicConfig::ProcessPeerHello(
 
 bool QuicConfig::FillTransportParameters(TransportParameters* params) const {
   params->idle_timeout_milliseconds.set_value(
-      idle_network_timeout_seconds_.GetUint32() * kNumMillisPerSecond);
+      idle_network_timeout_seconds_.GetMax() * kNumMillisPerSecond);
 
   if (stateless_reset_token_.HasSendValue()) {
     QuicUint128 stateless_reset_token = stateless_reset_token_.GetSendValue();

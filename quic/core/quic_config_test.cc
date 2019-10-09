@@ -371,6 +371,9 @@ TEST_P(QuicConfigTest, FillTransportParams) {
             params.initial_max_stream_data_bidi_remote.value());
   EXPECT_EQ(4 * kMinimumFlowControlSendWindow,
             params.initial_max_stream_data_uni.value());
+
+  EXPECT_EQ(static_cast<uint64_t>(kMaximumIdleTimeoutSecs * 1000),
+            params.idle_timeout_milliseconds.value());
 }
 
 TEST_P(QuicConfigTest, ProcessTransportParametersServer) {
