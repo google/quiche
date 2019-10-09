@@ -1699,16 +1699,12 @@ bool QuicFramer::ProcessIetfDataPacket(QuicDataReader* encrypted_reader,
         return true;
       }
       if (hp_removal_failed) {
-        if (GetQuicRestartFlag(quic_framer_uses_undecryptable_upcall)) {
-          QUIC_RESTART_FLAG_COUNT_N(quic_framer_uses_undecryptable_upcall, 5,
-                                    7);
           const EncryptionLevel decryption_level = GetEncryptionLevel(*header);
           const bool has_decryption_key =
               decrypter_[decryption_level] != nullptr;
           visitor_->OnUndecryptablePacket(
               QuicEncryptedPacket(encrypted_reader->FullPayload()),
               decryption_level, has_decryption_key);
-        }
         set_detailed_error("Unable to decrypt header protection.");
         return RaiseError(QUIC_DECRYPTION_FAILURE);
       }
@@ -1767,15 +1763,12 @@ bool QuicFramer::ProcessIetfDataPacket(QuicDataReader* encrypted_reader,
       visitor_->OnAuthenticatedIetfStatelessResetPacket(packet);
       return true;
     }
-    if (GetQuicRestartFlag(quic_framer_uses_undecryptable_upcall)) {
-      QUIC_RESTART_FLAG_COUNT_N(quic_framer_uses_undecryptable_upcall, 6, 7);
       const EncryptionLevel decryption_level = GetEncryptionLevel(*header);
       const bool has_decryption_key = version_.KnowsWhichDecrypterToUse() &&
                                       decrypter_[decryption_level] != nullptr;
       visitor_->OnUndecryptablePacket(
           QuicEncryptedPacket(encrypted_reader->FullPayload()),
           decryption_level, has_decryption_key);
-    }
     set_detailed_error("Unable to decrypt payload.");
     RecordDroppedPacketReason(DroppedPacketReason::DECRYPTION_FAILURE);
     return RaiseError(QUIC_DECRYPTION_FAILURE);
@@ -1857,8 +1850,6 @@ bool QuicFramer::ProcessDataPacket(QuicDataReader* encrypted_reader,
   EncryptionLevel decrypted_level;
   if (!DecryptPayload(encrypted, associated_data, *header, decrypted_buffer,
                       buffer_length, &decrypted_length, &decrypted_level)) {
-    if (GetQuicRestartFlag(quic_framer_uses_undecryptable_upcall)) {
-      QUIC_RESTART_FLAG_COUNT_N(quic_framer_uses_undecryptable_upcall, 7, 7);
       const EncryptionLevel decryption_level = decrypter_level_;
       // This version uses trial decryption so we always report to our visitor
       // that we are not certain we have the correct decryption key.
@@ -1866,7 +1857,6 @@ bool QuicFramer::ProcessDataPacket(QuicDataReader* encrypted_reader,
       visitor_->OnUndecryptablePacket(
           QuicEncryptedPacket(encrypted_reader->FullPayload()),
           decryption_level, has_decryption_key);
-    }
     RecordDroppedPacketReason(DroppedPacketReason::DECRYPTION_FAILURE);
     set_detailed_error("Unable to decrypt payload.");
     return RaiseError(QUIC_DECRYPTION_FAILURE);

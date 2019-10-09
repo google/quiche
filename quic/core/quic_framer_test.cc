@@ -12191,7 +12191,6 @@ TEST_P(QuicFramerTest, UndecryptablePacketWithoutDecrypter) {
   EXPECT_FALSE(
       framer_.ProcessPacket(QuicEncryptedPacket(AsChars(p), p_length, false)));
   EXPECT_EQ(QUIC_DECRYPTION_FAILURE, framer_.error());
-  if (GetQuicRestartFlag(quic_framer_uses_undecryptable_upcall)) {
     ASSERT_EQ(1u, visitor_.undecryptable_packets_.size());
     ASSERT_EQ(1u, visitor_.undecryptable_decryption_levels_.size());
     ASSERT_EQ(1u, visitor_.undecryptable_has_decryption_keys_.size());
@@ -12203,11 +12202,6 @@ TEST_P(QuicFramerTest, UndecryptablePacketWithoutDecrypter) {
                 visitor_.undecryptable_decryption_levels_[0]);
     }
     EXPECT_FALSE(visitor_.undecryptable_has_decryption_keys_[0]);
-  } else {
-    EXPECT_EQ(0u, visitor_.undecryptable_packets_.size());
-    EXPECT_EQ(0u, visitor_.undecryptable_decryption_levels_.size());
-    EXPECT_EQ(0u, visitor_.undecryptable_has_decryption_keys_.size());
-  }
 }
 
 TEST_P(QuicFramerTest, UndecryptablePacketWithDecrypter) {
@@ -12299,7 +12293,6 @@ TEST_P(QuicFramerTest, UndecryptablePacketWithDecrypter) {
   EXPECT_FALSE(
       framer_.ProcessPacket(QuicEncryptedPacket(AsChars(p), p_length, false)));
   EXPECT_EQ(QUIC_DECRYPTION_FAILURE, framer_.error());
-  if (GetQuicRestartFlag(quic_framer_uses_undecryptable_upcall)) {
     ASSERT_EQ(1u, visitor_.undecryptable_packets_.size());
     ASSERT_EQ(1u, visitor_.undecryptable_decryption_levels_.size());
     ASSERT_EQ(1u, visitor_.undecryptable_has_decryption_keys_.size());
@@ -12312,11 +12305,6 @@ TEST_P(QuicFramerTest, UndecryptablePacketWithDecrypter) {
     }
     EXPECT_EQ(framer_.version().KnowsWhichDecrypterToUse(),
               visitor_.undecryptable_has_decryption_keys_[0]);
-  } else {
-    EXPECT_EQ(0u, visitor_.undecryptable_packets_.size());
-    EXPECT_EQ(0u, visitor_.undecryptable_decryption_levels_.size());
-    EXPECT_EQ(0u, visitor_.undecryptable_has_decryption_keys_.size());
-  }
 }
 
 TEST_P(QuicFramerTest, UndecryptableCoalescedPacket) {
@@ -12469,7 +12457,6 @@ TEST_P(QuicFramerTest, UndecryptableCoalescedPacket) {
 
   EXPECT_EQ(QUIC_DECRYPTION_FAILURE, framer_.error());
 
-  if (GetQuicRestartFlag(quic_framer_uses_undecryptable_upcall)) {
     ASSERT_EQ(1u, visitor_.undecryptable_packets_.size());
     ASSERT_EQ(1u, visitor_.undecryptable_decryption_levels_.size());
     ASSERT_EQ(1u, visitor_.undecryptable_has_decryption_keys_.size());
@@ -12482,11 +12469,6 @@ TEST_P(QuicFramerTest, UndecryptableCoalescedPacket) {
     EXPECT_EQ(ENCRYPTION_HANDSHAKE,
               visitor_.undecryptable_decryption_levels_[0]);
     EXPECT_TRUE(visitor_.undecryptable_has_decryption_keys_[0]);
-  } else {
-    EXPECT_EQ(0u, visitor_.undecryptable_packets_.size());
-    EXPECT_EQ(0u, visitor_.undecryptable_decryption_levels_.size());
-    EXPECT_EQ(0u, visitor_.undecryptable_has_decryption_keys_.size());
-  }
 
   // Make sure the second coalesced packet is parsed correctly.
   ASSERT_EQ(visitor_.coalesced_packets_.size(), 1u);

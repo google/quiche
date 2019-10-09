@@ -1723,8 +1723,6 @@ void QuicConnection::OnUndecryptablePacket(const QuicEncryptedPacket& packet,
                 << EncryptionLevelToString(decryption_level)
                 << " while connection is at encryption level "
                 << EncryptionLevelToString(encryption_level_);
-  DCHECK(GetQuicRestartFlag(quic_framer_uses_undecryptable_upcall));
-  QUIC_RESTART_FLAG_COUNT_N(quic_framer_uses_undecryptable_upcall, 1, 7);
   DCHECK(EncryptionLevelIsValid(decryption_level));
   if (encryption_level_ != ENCRYPTION_FORWARD_SECURE) {
     ++stats_.undecryptable_packets_received_before_handshake_complete;
@@ -1817,20 +1815,6 @@ void QuicConnection::ProcessUdpPacket(const QuicSocketAddress& self_address,
   if (!framer_.ProcessPacket(packet)) {
     // If we are unable to decrypt this packet, it might be
     // because the CHLO or SHLO packet was lost.
-    if (framer_.error() == QUIC_DECRYPTION_FAILURE &&
-        !GetQuicRestartFlag(quic_framer_uses_undecryptable_upcall)) {
-      if (encryption_level_ != ENCRYPTION_FORWARD_SECURE) {
-        ++stats_.undecryptable_packets_received_before_handshake_complete;
-      }
-      if (encryption_level_ != ENCRYPTION_FORWARD_SECURE &&
-          undecryptable_packets_.size() < max_undecryptable_packets_) {
-        QueueUndecryptablePacket(packet);
-      } else if (debug_visitor_ != nullptr) {
-        debug_visitor_->OnUndecryptablePacket();
-      }
-    } else if (GetQuicRestartFlag(quic_framer_uses_undecryptable_upcall)) {
-      QUIC_RESTART_FLAG_COUNT_N(quic_framer_uses_undecryptable_upcall, 2, 7);
-    }
     QUIC_DVLOG(1) << ENDPOINT
                   << "Unable to process packet.  Last packet processed: "
                   << last_header_.packet_number;
@@ -2817,8 +2801,6 @@ const QuicDecrypter* QuicConnection::alternative_decrypter() const {
 
 void QuicConnection::QueueUndecryptablePacket(
     const QuicEncryptedPacket& packet) {
-  if (GetQuicRestartFlag(quic_framer_uses_undecryptable_upcall)) {
-    QUIC_RESTART_FLAG_COUNT_N(quic_framer_uses_undecryptable_upcall, 3, 7);
     for (const auto& saved_packet : undecryptable_packets_) {
       if (packet.data() == saved_packet->data() &&
           packet.length() == saved_packet->length()) {
@@ -2826,7 +2808,6 @@ void QuicConnection::QueueUndecryptablePacket(
         return;
       }
     }
-  }
   QUIC_DVLOG(1) << ENDPOINT << "Queueing undecryptable packet.";
   undecryptable_packets_.push_back(packet.Clone());
 }
@@ -2899,20 +2880,6 @@ void QuicConnection::MaybeProcessCoalescedPackets() {
     } else {
       // If we are unable to decrypt this packet, it might be
       // because the CHLO or SHLO packet was lost.
-      if (framer_.error() == QUIC_DECRYPTION_FAILURE &&
-          !GetQuicRestartFlag(quic_framer_uses_undecryptable_upcall)) {
-        if (encryption_level_ != ENCRYPTION_FORWARD_SECURE) {
-          ++stats_.undecryptable_packets_received_before_handshake_complete;
-        }
-        if (encryption_level_ != ENCRYPTION_FORWARD_SECURE &&
-            undecryptable_packets_.size() < max_undecryptable_packets_) {
-          QueueUndecryptablePacket(*packet);
-        } else if (debug_visitor_ != nullptr) {
-          debug_visitor_->OnUndecryptablePacket();
-        }
-      } else if (GetQuicRestartFlag(quic_framer_uses_undecryptable_upcall)) {
-        QUIC_RESTART_FLAG_COUNT_N(quic_framer_uses_undecryptable_upcall, 4, 7);
-      }
     }
   }
   if (processed) {
