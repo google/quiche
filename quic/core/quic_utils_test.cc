@@ -266,9 +266,6 @@ TEST_F(QuicUtilsTest, StatelessResetToken) {
   QuicUint128 token2 = QuicUtils::GenerateStatelessResetToken(connection_id2);
   EXPECT_EQ(token1a, token1b);
   EXPECT_NE(token1a, token2);
-  if (!GetQuicRestartFlag(quic_use_hashed_stateless_reset_tokens)) {
-    EXPECT_EQ(token1a, MakeQuicUint128(0, 1));
-  }
 }
 
 }  // namespace

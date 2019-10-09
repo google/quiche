@@ -472,7 +472,6 @@ void QuicVersionInitializeSupportForIetfDraft() {
   // Enable necessary flags.
   SetQuicReloadableFlag(quic_supports_tls_handshake, true);
   SetQuicReloadableFlag(quic_simplify_stop_waiting, true);
-  SetQuicRestartFlag(quic_use_hashed_stateless_reset_tokens, true);
 }
 
 void QuicEnableVersion(ParsedQuicVersion parsed_version) {
