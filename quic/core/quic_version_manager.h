@@ -43,6 +43,8 @@ class QUIC_EXPORT_PRIVATE QuicVersionManager {
   // Cached value of reloadable flags.
   // quic_enable_version_99 flag
   bool enable_version_99_;
+  // quic_enable_version_50 flag
+  bool enable_version_50_;
   // quic_enable_version_49 flag
   bool enable_version_49_;
   // quic_enable_version_48_2 flag

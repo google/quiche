@@ -55,7 +55,7 @@ bool ParsedQuicVersion::KnowsWhichDecrypterToUse() const {
 }
 
 bool ParsedQuicVersion::UsesInitialObfuscators() const {
-  return transport_version == QUIC_VERSION_99 ||
+  return transport_version > QUIC_VERSION_49 ||
          handshake_protocol == PROTOCOL_TLS1_3;
 }
 
@@ -65,7 +65,7 @@ bool ParsedQuicVersion::AllowsLowFlowControlLimits() const {
 }
 
 bool ParsedQuicVersion::HasHeaderProtection() const {
-  return transport_version == QUIC_VERSION_99;
+  return transport_version > QUIC_VERSION_49;
 }
 
 bool ParsedQuicVersion::SupportsRetry() const {
@@ -113,7 +113,7 @@ QuicVersionLabel CreateQuicVersionLabel(ParsedQuicVersion parsed_version) {
                << parsed_version.handshake_protocol;
       return 0;
   }
-  static_assert(QUIC_ARRAYSIZE(kSupportedTransportVersions) == 7u,
+  static_assert(QUIC_ARRAYSIZE(kSupportedTransportVersions) == 8u,
                 "Supported versions out of sync");
   switch (parsed_version.transport_version) {
     case QUIC_VERSION_39:
@@ -128,6 +128,8 @@ QuicVersionLabel CreateQuicVersionLabel(ParsedQuicVersion parsed_version) {
       return MakeVersionLabel(proto, '0', '4', '8');
     case QUIC_VERSION_49:
       return MakeVersionLabel(proto, '0', '4', '9');
+    case QUIC_VERSION_50:
+      return MakeVersionLabel(proto, '0', '5', '0');
     case QUIC_VERSION_99:
       if (parsed_version.handshake_protocol == PROTOCOL_TLS1_3) {
         return MakeVersionLabel(0xff, 0x00, 0x00, kQuicIetfDraftVersion);
@@ -268,6 +270,10 @@ ParsedQuicVersionVector FilterSupportedVersions(
       if (GetQuicReloadableFlag(quic_enable_version_99)) {
         filtered_versions.push_back(version);
       }
+    } else if (version.transport_version == QUIC_VERSION_50) {
+      if (GetQuicReloadableFlag(quic_enable_version_50)) {
+        filtered_versions.push_back(version);
+      }
     } else if (version.transport_version == QUIC_VERSION_49) {
       if (GetQuicReloadableFlag(quic_enable_version_49)) {
         filtered_versions.push_back(version);
@@ -371,7 +377,7 @@ HandshakeProtocol QuicVersionLabelToHandshakeProtocol(
     return #x
 
 std::string QuicVersionToString(QuicTransportVersion transport_version) {
-  static_assert(QUIC_ARRAYSIZE(kSupportedTransportVersions) == 7u,
+  static_assert(QUIC_ARRAYSIZE(kSupportedTransportVersions) == 8u,
                 "Supported versions out of sync");
   switch (transport_version) {
     RETURN_STRING_LITERAL(QUIC_VERSION_39);
@@ -380,6 +386,7 @@ std::string QuicVersionToString(QuicTransportVersion transport_version) {
     RETURN_STRING_LITERAL(QUIC_VERSION_47);
     RETURN_STRING_LITERAL(QUIC_VERSION_48);
     RETURN_STRING_LITERAL(QUIC_VERSION_49);
+    RETURN_STRING_LITERAL(QUIC_VERSION_50);
     RETURN_STRING_LITERAL(QUIC_VERSION_99);
     default:
       return "QUIC_VERSION_UNSUPPORTED";
@@ -478,10 +485,13 @@ void QuicEnableVersion(ParsedQuicVersion parsed_version) {
   if (parsed_version.handshake_protocol == PROTOCOL_TLS1_3) {
     SetQuicReloadableFlag(quic_supports_tls_handshake, true);
   }
-  static_assert(QUIC_ARRAYSIZE(kSupportedTransportVersions) == 7u,
+  static_assert(QUIC_ARRAYSIZE(kSupportedTransportVersions) == 8u,
                 "Supported versions out of sync");
   if (parsed_version.transport_version == QUIC_VERSION_99) {
     SetQuicReloadableFlag(quic_enable_version_99, true);
+  }
+  if (parsed_version.transport_version == QUIC_VERSION_50) {
+    SetQuicReloadableFlag(quic_enable_version_50, true);
   }
   if (parsed_version.transport_version == QUIC_VERSION_49) {
     SetQuicReloadableFlag(quic_enable_version_49, true);

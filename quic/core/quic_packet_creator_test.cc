@@ -343,6 +343,10 @@ TEST_P(QuicPacketCreatorTest, SerializeFrames) {
         EXPECT_CALL(framer_visitor_, OnStreamFrame(_));
         EXPECT_CALL(framer_visitor_, OnStreamFrame(_));
       }
+      if (client_framer_.version().HasHeaderProtection()) {
+        EXPECT_CALL(framer_visitor_, OnPaddingFrame(_))
+            .Times(testing::AnyNumber());
+      }
       EXPECT_CALL(framer_visitor_, OnPacketComplete());
     }
     ProcessPacket(serialized);

@@ -5964,11 +5964,12 @@ TEST_P(QuicConnectionTest, SendDelayedAckDecimation) {
                              ENCRYPTION_ZERO_RTT);
   }
   // Check that ack is sent and that delayed ack alarm is reset.
+  size_t padding_frame_count = writer_->padding_frames().size();
   if (GetParam().no_stop_waiting) {
-    EXPECT_EQ(1u, writer_->frame_count());
+    EXPECT_EQ(padding_frame_count + 1u, writer_->frame_count());
     EXPECT_TRUE(writer_->stop_waiting_frames().empty());
   } else {
-    EXPECT_EQ(2u, writer_->frame_count());
+    EXPECT_EQ(padding_frame_count + 2u, writer_->frame_count());
     EXPECT_FALSE(writer_->stop_waiting_frames().empty());
   }
   EXPECT_FALSE(writer_->ack_frames().empty());
@@ -6084,11 +6085,12 @@ TEST_P(QuicConnectionTest, SendDelayedAckAckDecimationAfterQuiescence) {
                              ENCRYPTION_ZERO_RTT);
   }
   // Check that ack is sent and that delayed ack alarm is reset.
+  padding_frame_count = writer_->padding_frames().size();
   if (GetParam().no_stop_waiting) {
-    EXPECT_EQ(1u, writer_->frame_count());
+    EXPECT_EQ(padding_frame_count + 1u, writer_->frame_count());
     EXPECT_TRUE(writer_->stop_waiting_frames().empty());
   } else {
-    EXPECT_EQ(2u, writer_->frame_count());
+    EXPECT_EQ(padding_frame_count + 2u, writer_->frame_count());
     EXPECT_FALSE(writer_->stop_waiting_frames().empty());
   }
   EXPECT_FALSE(writer_->ack_frames().empty());
@@ -6213,11 +6215,12 @@ TEST_P(QuicConnectionTest, SendDelayedAckDecimationEighthRtt) {
                              ENCRYPTION_ZERO_RTT);
   }
   // Check that ack is sent and that delayed ack alarm is reset.
+  size_t padding_frame_count = writer_->padding_frames().size();
   if (GetParam().no_stop_waiting) {
-    EXPECT_EQ(1u, writer_->frame_count());
+    EXPECT_EQ(padding_frame_count + 1u, writer_->frame_count());
     EXPECT_TRUE(writer_->stop_waiting_frames().empty());
   } else {
-    EXPECT_EQ(2u, writer_->frame_count());
+    EXPECT_EQ(padding_frame_count + 2u, writer_->frame_count());
     EXPECT_FALSE(writer_->stop_waiting_frames().empty());
   }
   EXPECT_FALSE(writer_->ack_frames().empty());
@@ -6276,11 +6279,12 @@ TEST_P(QuicConnectionTest, SendDelayedAckDecimationWithReordering) {
                                !kHasStopWaiting, ENCRYPTION_ZERO_RTT);
     }
     // Check that ack is sent and that delayed ack alarm is reset.
+    size_t padding_frame_count = writer_->padding_frames().size();
     if (GetParam().no_stop_waiting) {
-      EXPECT_EQ(1u, writer_->frame_count());
+      EXPECT_EQ(padding_frame_count + 1u, writer_->frame_count());
       EXPECT_TRUE(writer_->stop_waiting_frames().empty());
     } else {
-      EXPECT_EQ(2u, writer_->frame_count());
+      EXPECT_EQ(padding_frame_count + 2u, writer_->frame_count());
       EXPECT_FALSE(writer_->stop_waiting_frames().empty());
     }
     EXPECT_FALSE(writer_->ack_frames().empty());
@@ -6427,11 +6431,12 @@ TEST_P(QuicConnectionTest, SendDelayedAckDecimationWithReorderingEighthRtt) {
                              ENCRYPTION_ZERO_RTT);
   }
   // Check that ack is sent and that delayed ack alarm is reset.
+  size_t padding_frame_count = writer_->padding_frames().size();
   if (GetParam().no_stop_waiting) {
-    EXPECT_EQ(1u, writer_->frame_count());
+    EXPECT_EQ(padding_frame_count + 1u, writer_->frame_count());
     EXPECT_TRUE(writer_->stop_waiting_frames().empty());
   } else {
-    EXPECT_EQ(2u, writer_->frame_count());
+    EXPECT_EQ(padding_frame_count + 2u, writer_->frame_count());
     EXPECT_FALSE(writer_->stop_waiting_frames().empty());
   }
   EXPECT_FALSE(writer_->ack_frames().empty());

@@ -8808,7 +8808,7 @@ TEST_P(QuicFramerTest, EncryptPacket) {
     'm',  'n',  'o',  'p',
   };
 
-  unsigned char packet99[] = {
+  unsigned char packet50[] = {
     // type (short header, 4 byte packet number)
     0x43,
     // connection_id
@@ -8827,9 +8827,9 @@ TEST_P(QuicFramerTest, EncryptPacket) {
 
   unsigned char* p = packet;
   size_t p_size = QUIC_ARRAYSIZE(packet);
-  if (framer_.transport_version() == QUIC_VERSION_99) {
-    p = packet99;
-    p_size = QUIC_ARRAYSIZE(packet99);
+  if (framer_.transport_version() >= QUIC_VERSION_50) {
+    p = packet50;
+    p_size = QUIC_ARRAYSIZE(packet50);
   } else if (framer_.transport_version() >= QUIC_VERSION_46) {
     p = packet46;
   }
@@ -8887,7 +8887,7 @@ TEST_P(QuicFramerTest, EncryptPacketWithVersionFlag) {
     'm',  'n',  'o',  'p',
   };
 
-  unsigned char packet99[] = {
+  unsigned char packet50[] = {
     // type (long header with packet type ZERO_RTT_PROTECTED)
     0xD3,
     // version tag
@@ -8913,9 +8913,9 @@ TEST_P(QuicFramerTest, EncryptPacketWithVersionFlag) {
   unsigned char* p = packet;
   size_t p_size = QUIC_ARRAYSIZE(packet);
   // TODO(ianswett): see todo in previous test.
-  if (framer_.transport_version() == QUIC_VERSION_99) {
-    p = packet99;
-    p_size = QUIC_ARRAYSIZE(packet99);
+  if (framer_.transport_version() >= QUIC_VERSION_50) {
+    p = packet50;
+    p_size = QUIC_ARRAYSIZE(packet50);
   } else if (framer_.transport_version() >= QUIC_VERSION_46) {
     p = packet46;
     p_size = QUIC_ARRAYSIZE(packet46);
@@ -9033,6 +9033,9 @@ TEST_P(QuicFramerTest, CleanTruncation) {
 
   // Create a packet with just the ack.
   QuicFrames frames = {QuicFrame(&ack_frame)};
+  if (framer_.version().HasHeaderProtection()) {
+    frames.push_back(QuicFrame(QuicPaddingFrame(12)));
+  }
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
   std::unique_ptr<QuicPacket> raw_ack_packet(BuildDataPacket(header, frames));
   ASSERT_TRUE(raw_ack_packet != nullptr);
@@ -9052,6 +9055,9 @@ TEST_P(QuicFramerTest, CleanTruncation) {
   // original packets to the re-serialized packets.
   frames.clear();
   frames.push_back(QuicFrame(visitor_.ack_frames_[0].get()));
+  if (framer_.version().HasHeaderProtection()) {
+    frames.push_back(QuicFrame(*visitor_.padding_frames_[0].get()));
+  }
 
   size_t original_raw_length = raw_ack_packet->length();
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
