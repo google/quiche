@@ -1014,7 +1014,6 @@ TEST_F(QuicDispatcherTest, RejectDeprecatedVersionsWithVersionNegotiation) {
 
 TEST_F(QuicDispatcherTest, VersionNegotiationProbeOld) {
   SetQuicFlag(FLAGS_quic_prober_uses_length_prefixed_connection_ids, false);
-  SetQuicReloadableFlag(quic_use_length_prefix_from_packet_info, true);
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
   CreateTimeWaitListManager();
   char packet[1200];
@@ -1044,7 +1043,6 @@ TEST_F(QuicDispatcherTest, VersionNegotiationProbeOld) {
 
 TEST_F(QuicDispatcherTest, VersionNegotiationProbe) {
   SetQuicFlag(FLAGS_quic_prober_uses_length_prefixed_connection_ids, true);
-  SetQuicReloadableFlag(quic_use_length_prefix_from_packet_info, true);
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
   CreateTimeWaitListManager();
   char packet[1200];
@@ -1098,7 +1096,6 @@ class SavingWriter : public QuicPacketWriterWrapper {
 
 TEST_F(QuicDispatcherTest, VersionNegotiationProbeEndToEndOld) {
   SetQuicFlag(FLAGS_quic_prober_uses_length_prefixed_connection_ids, false);
-  SetQuicReloadableFlag(quic_use_length_prefix_from_packet_info, true);
 
   SavingWriter* saving_writer = new SavingWriter();
   // dispatcher_ takes ownership of saving_writer.
@@ -1143,7 +1140,6 @@ TEST_F(QuicDispatcherTest, VersionNegotiationProbeEndToEndOld) {
 
 TEST_F(QuicDispatcherTest, VersionNegotiationProbeEndToEnd) {
   SetQuicFlag(FLAGS_quic_prober_uses_length_prefixed_connection_ids, true);
-  SetQuicReloadableFlag(quic_use_length_prefix_from_packet_info, true);
 
   SavingWriter* saving_writer = new SavingWriter();
   // dispatcher_ takes ownership of saving_writer.
