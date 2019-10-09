@@ -347,14 +347,20 @@ class QuicSessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
     session_.config()->SetInitialSessionFlowControlWindowToSend(
         kInitialSessionFlowControlWindowForTest);
 
-    QuicConfigPeer::SetReceivedMaxIncomingBidirectionalStreams(
-        session_.config(), kDefaultMaxStreamsPerConnection);
-    QuicConfigPeer::SetReceivedMaxIncomingUnidirectionalStreams(
-        session_.config(), kDefaultMaxStreamsPerConnection);
-    QuicConfigPeer::SetReceivedInitialSessionFlowControlWindow(
-        session_.config(), kMinimumFlowControlSendWindow);
-    connection_->AdvanceTime(QuicTime::Delta::FromSeconds(1));
     if (configure_session) {
+      QuicConfigPeer::SetReceivedMaxIncomingBidirectionalStreams(
+          session_.config(), kDefaultMaxStreamsPerConnection);
+      QuicConfigPeer::SetReceivedMaxIncomingUnidirectionalStreams(
+          session_.config(), kDefaultMaxStreamsPerConnection);
+      QuicConfigPeer::SetReceivedInitialMaxStreamDataBytesUnidirectional(
+          session_.config(), kMinimumFlowControlSendWindow);
+      QuicConfigPeer::SetReceivedInitialMaxStreamDataBytesIncomingBidirectional(
+          session_.config(), kMinimumFlowControlSendWindow);
+      QuicConfigPeer::SetReceivedInitialMaxStreamDataBytesOutgoingBidirectional(
+          session_.config(), kMinimumFlowControlSendWindow);
+      QuicConfigPeer::SetReceivedInitialSessionFlowControlWindow(
+          session_.config(), kMinimumFlowControlSendWindow);
+      connection_->AdvanceTime(QuicTime::Delta::FromSeconds(1));
       session_.OnConfigNegotiated();
     }
     TestCryptoStream* crypto_stream = session_.GetMutableCryptoStream();
@@ -1711,7 +1717,7 @@ TEST_P(QuicSessionTestServer, InvalidStreamFlowControlWindowInHandshake) {
   QuicConfigPeer::SetReceivedInitialStreamFlowControlWindow(session_.config(),
                                                             kInvalidWindow);
 
-  if (!connection_->version().AllowsLowFlowControlLimits()) {
+  if (connection_->version().handshake_protocol != PROTOCOL_TLS1_3) {
     EXPECT_CALL(*connection_,
                 CloseConnection(QUIC_FLOW_CONTROL_INVALID_WINDOW, _, _));
   } else {
@@ -2867,6 +2873,30 @@ TEST_P(QuicSessionTestClientUnconfigured, HoldStreamsBlockedFrameNoXmit) {
   EXPECT_CALL(*connection_, SendControlFrame(_)).Times(0);
   session_.OnConfigNegotiated();
   EXPECT_TRUE(session_.CanOpenNextOutgoingUnidirectionalStream());
+}
+
+TEST_P(QuicSessionTestClientUnconfigured, StreamInitiallyBlockedThenUnblocked) {
+  if (!connection_->version().AllowsLowFlowControlLimits()) {
+    return;
+  }
+  // Create a stream before negotiating the config and verify it starts off
+  // blocked.
+  TestStream* stream2 = session_.CreateOutgoingBidirectionalStream();
+  EXPECT_TRUE(stream2->flow_controller()->IsBlocked());
+  EXPECT_TRUE(session_.IsConnectionFlowControlBlocked());
+  EXPECT_TRUE(session_.IsStreamFlowControlBlocked());
+
+  // Negotiate the config with higher received limits.
+  QuicConfigPeer::SetReceivedInitialMaxStreamDataBytesOutgoingBidirectional(
+      session_.config(), kMinimumFlowControlSendWindow);
+  QuicConfigPeer::SetReceivedInitialSessionFlowControlWindow(
+      session_.config(), kMinimumFlowControlSendWindow);
+  session_.OnConfigNegotiated();
+
+  // Stream is now unblocked.
+  EXPECT_FALSE(stream2->flow_controller()->IsBlocked());
+  EXPECT_FALSE(session_.IsConnectionFlowControlBlocked());
+  EXPECT_FALSE(session_.IsStreamFlowControlBlocked());
 }
 
 }  // namespace

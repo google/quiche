@@ -605,6 +605,20 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // control window in a negotiated config. Closes the connection if invalid.
   void OnNewStreamFlowControlWindow(QuicStreamOffset new_window);
 
+  // Called in OnConfigNegotiated when we receive a new unidirectional stream
+  // flow control window in a negotiated config.
+  void OnNewStreamUnidirectionalFlowControlWindow(QuicStreamOffset new_window);
+
+  // Called in OnConfigNegotiated when we receive a new outgoing bidirectional
+  // stream flow control window in a negotiated config.
+  void OnNewStreamOutgoingBidirectionalFlowControlWindow(
+      QuicStreamOffset new_window);
+
+  // Called in OnConfigNegotiated when we receive a new incoming bidirectional
+  // stream flow control window in a negotiated config.
+  void OnNewStreamIncomingBidirectionalFlowControlWindow(
+      QuicStreamOffset new_window);
+
   // Called in OnConfigNegotiated when we receive a new connection level flow
   // control window in a negotiated config. Closes the connection if invalid.
   void OnNewSessionFlowControlWindow(QuicStreamOffset new_window);

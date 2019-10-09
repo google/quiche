@@ -1042,12 +1042,30 @@ void QuicSession::OnConfigNegotiated() {
     stream_id_manager_.set_max_open_incoming_streams(max_incoming_streams);
   }
 
-  if (config_.HasReceivedInitialStreamFlowControlWindowBytes()) {
-    // Streams which were created before the SHLO was received (0-RTT
-    // requests) are now informed of the peer's initial flow control window.
-    OnNewStreamFlowControlWindow(
-        config_.ReceivedInitialStreamFlowControlWindowBytes());
+  if (connection_->version().handshake_protocol == PROTOCOL_TLS1_3) {
+    // When using IETF-style TLS transport parameters, inform existing streams
+    // of new flow-control limits.
+    if (config_.HasReceivedInitialMaxStreamDataBytesOutgoingBidirectional()) {
+      OnNewStreamOutgoingBidirectionalFlowControlWindow(
+          config_.ReceivedInitialMaxStreamDataBytesOutgoingBidirectional());
+    }
+    if (config_.HasReceivedInitialMaxStreamDataBytesIncomingBidirectional()) {
+      OnNewStreamIncomingBidirectionalFlowControlWindow(
+          config_.ReceivedInitialMaxStreamDataBytesIncomingBidirectional());
+    }
+    if (config_.HasReceivedInitialMaxStreamDataBytesUnidirectional()) {
+      OnNewStreamUnidirectionalFlowControlWindow(
+          config_.ReceivedInitialMaxStreamDataBytesUnidirectional());
+    }
+  } else {  // The version uses Google QUIC Crypto.
+    if (config_.HasReceivedInitialStreamFlowControlWindowBytes()) {
+      // Streams which were created before the SHLO was received (0-RTT
+      // requests) are now informed of the peer's initial flow control window.
+      OnNewStreamFlowControlWindow(
+          config_.ReceivedInitialStreamFlowControlWindowBytes());
+    }
   }
+
   if (config_.HasReceivedInitialSessionFlowControlWindowBytes()) {
     OnNewSessionFlowControlWindow(
         config_.ReceivedInitialSessionFlowControlWindowBytes());
@@ -1060,6 +1078,11 @@ void QuicSession::OnConfigNegotiated() {
   if (VersionHasIetfQuicFrames(connection_->transport_version())) {
     QuicConnection::ScopedPacketFlusher flusher(connection());
     v99_streamid_manager_.OnConfigNegotiated();
+  }
+
+  // Ask flow controllers to try again since the config could have unblocked us.
+  if (connection_->version().AllowsLowFlowControlLimits()) {
+    OnCanWrite();
   }
 }
 
@@ -1129,6 +1152,68 @@ void QuicSession::OnNewStreamFlowControlWindow(QuicStreamOffset new_window) {
   }
   if (!QuicVersionUsesCryptoFrames(transport_version())) {
     GetMutableCryptoStream()->UpdateSendWindowOffset(new_window);
+  }
+}
+
+void QuicSession::OnNewStreamUnidirectionalFlowControlWindow(
+    QuicStreamOffset new_window) {
+  QUIC_DVLOG(1) << ENDPOINT << "OnNewStreamUnidirectionalFlowControlWindow "
+                << new_window;
+  // Inform all existing outgoing unidirectional streams about the new window.
+  for (auto const& kv : stream_map_) {
+    const QuicStreamId id = kv.first;
+    if (QuicUtils::IsBidirectionalStreamId(id)) {
+      continue;
+    }
+    if (!QuicUtils::IsOutgoingStreamId(connection_->version(), id,
+                                       perspective())) {
+      continue;
+    }
+    QUIC_DVLOG(1) << ENDPOINT << "Informing unidirectional stream " << id
+                  << " of new stream flow control window " << new_window;
+    kv.second->UpdateSendWindowOffset(new_window);
+  }
+}
+
+void QuicSession::OnNewStreamOutgoingBidirectionalFlowControlWindow(
+    QuicStreamOffset new_window) {
+  QUIC_DVLOG(1) << ENDPOINT
+                << "OnNewStreamOutgoingBidirectionalFlowControlWindow "
+                << new_window;
+  // Inform all existing outgoing bidirectional streams about the new window.
+  for (auto const& kv : stream_map_) {
+    const QuicStreamId id = kv.first;
+    if (!QuicUtils::IsBidirectionalStreamId(id)) {
+      continue;
+    }
+    if (!QuicUtils::IsOutgoingStreamId(connection_->version(), id,
+                                       perspective())) {
+      continue;
+    }
+    QUIC_DVLOG(1) << ENDPOINT << "Informing outgoing bidirectional stream "
+                  << id << " of new stream flow control window " << new_window;
+    kv.second->UpdateSendWindowOffset(new_window);
+  }
+}
+
+void QuicSession::OnNewStreamIncomingBidirectionalFlowControlWindow(
+    QuicStreamOffset new_window) {
+  QUIC_DVLOG(1) << ENDPOINT
+                << "OnNewStreamIncomingBidirectionalFlowControlWindow "
+                << new_window;
+  // Inform all existing incoming bidirectional streams about the new window.
+  for (auto const& kv : stream_map_) {
+    const QuicStreamId id = kv.first;
+    if (!QuicUtils::IsBidirectionalStreamId(id)) {
+      continue;
+    }
+    if (QuicUtils::IsOutgoingStreamId(connection_->version(), id,
+                                      perspective())) {
+      continue;
+    }
+    QUIC_DVLOG(1) << ENDPOINT << "Informing incoming bidirectional stream "
+                  << id << " of new stream flow control window " << new_window;
+    kv.second->UpdateSendWindowOffset(new_window);
   }
 }
 

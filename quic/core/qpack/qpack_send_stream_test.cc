@@ -59,6 +59,8 @@ class QpackSendStreamTest : public QuicTestWithParam<TestParams> {
     session_.Initialize();
     QuicConfigPeer::SetReceivedInitialSessionFlowControlWindow(
         session_.config(), kMinimumFlowControlSendWindow);
+    QuicConfigPeer::SetReceivedInitialMaxStreamDataBytesUnidirectional(
+        session_.config(), kMinimumFlowControlSendWindow);
     QuicConfigPeer::SetReceivedMaxIncomingUnidirectionalStreams(
         session_.config(), 3);
     session_.OnConfigNegotiated();

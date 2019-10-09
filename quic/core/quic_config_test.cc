@@ -366,9 +366,9 @@ TEST_P(QuicConfigTest, FillTransportParams) {
   config_.FillTransportParameters(&params);
 
   EXPECT_EQ(2 * kMinimumFlowControlSendWindow,
-            params.initial_max_stream_data_bidi_local.value());
-  EXPECT_EQ(3 * kMinimumFlowControlSendWindow,
             params.initial_max_stream_data_bidi_remote.value());
+  EXPECT_EQ(3 * kMinimumFlowControlSendWindow,
+            params.initial_max_stream_data_bidi_local.value());
   EXPECT_EQ(4 * kMinimumFlowControlSendWindow,
             params.initial_max_stream_data_uni.value());
 

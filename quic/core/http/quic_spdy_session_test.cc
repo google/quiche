@@ -335,6 +335,12 @@ class QuicSpdySessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
     }
     QuicConfigPeer::SetReceivedInitialSessionFlowControlWindow(
         session_.config(), kMinimumFlowControlSendWindow);
+    QuicConfigPeer::SetReceivedInitialMaxStreamDataBytesUnidirectional(
+        session_.config(), kMinimumFlowControlSendWindow);
+    QuicConfigPeer::SetReceivedInitialMaxStreamDataBytesIncomingBidirectional(
+        session_.config(), kMinimumFlowControlSendWindow);
+    QuicConfigPeer::SetReceivedInitialMaxStreamDataBytesOutgoingBidirectional(
+        session_.config(), kMinimumFlowControlSendWindow);
     session_.OnConfigNegotiated();
     connection_->AdvanceTime(QuicTime::Delta::FromSeconds(1));
     TestCryptoStream* crypto_stream = session_.GetMutableCryptoStream();

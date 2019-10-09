@@ -133,6 +133,12 @@ class QUIC_EXPORT_PRIVATE QuicUtils {
   static bool IsServerInitiatedStreamId(QuicTransportVersion version,
                                         QuicStreamId id);
 
+  // Returns true if the stream ID represents a stream initiated by the
+  // provided perspective.
+  static bool IsOutgoingStreamId(ParsedQuicVersion version,
+                                 QuicStreamId id,
+                                 Perspective perspective);
+
   // Returns true if |id| is considered as bidirectional stream ID. Only used in
   // v99.
   static bool IsBidirectionalStreamId(QuicStreamId id);

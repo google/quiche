@@ -25,6 +25,13 @@ namespace quic {
 
 namespace {
 
+size_t DefaultFlowControlWindow(ParsedQuicVersion version) {
+  if (!version.AllowsLowFlowControlLimits()) {
+    return kDefaultFlowControlSendWindow;
+  }
+  return 0;
+}
+
 size_t GetInitialStreamFlowControlWindowToSend(QuicSession* session,
                                                QuicStreamId stream_id) {
   ParsedQuicVersion version = session->connection()->version();
@@ -39,9 +46,8 @@ size_t GetInitialStreamFlowControlWindowToSend(QuicSession* session,
         ->GetInitialMaxStreamDataBytesUnidirectionalToSend();
   }
 
-  if (session->perspective() == Perspective::IS_SERVER &&
-      QuicUtils::IsServerInitiatedStreamId(version.transport_version,
-                                           stream_id)) {
+  if (QuicUtils::IsOutgoingStreamId(version, stream_id,
+                                    session->perspective())) {
     return session->config()
         ->GetInitialMaxStreamDataBytesOutgoingBidirectionalToSend();
   }
@@ -58,7 +64,7 @@ size_t GetReceivedFlowControlWindow(QuicSession* session,
       return session->config()->ReceivedInitialStreamFlowControlWindowBytes();
     }
 
-    return kDefaultFlowControlSendWindow;
+    return DefaultFlowControlWindow(version);
   }
 
   // Unidirectional streams (v99 only).
@@ -69,27 +75,28 @@ size_t GetReceivedFlowControlWindow(QuicSession* session,
       return session->config()
           ->ReceivedInitialMaxStreamDataBytesUnidirectional();
     }
-    return kDefaultFlowControlSendWindow;
+
+    return DefaultFlowControlWindow(version);
   }
 
-  if (session->perspective() == Perspective::IS_SERVER &&
-      QuicUtils::IsServerInitiatedStreamId(version.transport_version,
-                                           stream_id)) {
+  if (QuicUtils::IsOutgoingStreamId(version, stream_id,
+                                    session->perspective())) {
     if (session->config()
-            ->HasReceivedInitialMaxStreamDataBytesIncomingBidirectional()) {
+            ->HasReceivedInitialMaxStreamDataBytesOutgoingBidirectional()) {
       return session->config()
-          ->ReceivedInitialMaxStreamDataBytesIncomingBidirectional();
+          ->ReceivedInitialMaxStreamDataBytesOutgoingBidirectional();
     }
-    return kDefaultFlowControlSendWindow;
+
+    return DefaultFlowControlWindow(version);
   }
 
   if (session->config()
-          ->HasReceivedInitialMaxStreamDataBytesOutgoingBidirectional()) {
+          ->HasReceivedInitialMaxStreamDataBytesIncomingBidirectional()) {
     return session->config()
-        ->ReceivedInitialMaxStreamDataBytesOutgoingBidirectional();
+        ->ReceivedInitialMaxStreamDataBytesIncomingBidirectional();
   }
 
-  return kDefaultFlowControlSendWindow;
+  return DefaultFlowControlWindow(version);
 }
 
 }  // namespace

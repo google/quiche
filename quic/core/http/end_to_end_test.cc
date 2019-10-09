@@ -314,28 +314,48 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
   }
 
   void set_client_initial_stream_flow_control_receive_window(uint32_t window) {
-    CHECK(client_ == nullptr);
+    ASSERT_TRUE(client_ == nullptr);
     QUIC_DLOG(INFO) << "Setting client initial stream flow control window: "
                     << window;
     client_config_.SetInitialStreamFlowControlWindowToSend(window);
   }
 
   void set_client_initial_session_flow_control_receive_window(uint32_t window) {
-    CHECK(client_ == nullptr);
+    ASSERT_TRUE(client_ == nullptr);
     QUIC_DLOG(INFO) << "Setting client initial session flow control window: "
                     << window;
     client_config_.SetInitialSessionFlowControlWindowToSend(window);
   }
 
+  void set_client_initial_max_stream_data_incoming_bidirectional(
+      uint32_t window) {
+    ASSERT_TRUE(client_ == nullptr);
+    QUIC_DLOG(INFO)
+        << "Setting client initial max stream data incoming bidirectional: "
+        << window;
+    client_config_.SetInitialMaxStreamDataBytesIncomingBidirectionalToSend(
+        window);
+  }
+
+  void set_server_initial_max_stream_data_outgoing_bidirectional(
+      uint32_t window) {
+    ASSERT_TRUE(client_ == nullptr);
+    QUIC_DLOG(INFO)
+        << "Setting server initial max stream data outgoing bidirectional: "
+        << window;
+    server_config_.SetInitialMaxStreamDataBytesOutgoingBidirectionalToSend(
+        window);
+  }
+
   void set_server_initial_stream_flow_control_receive_window(uint32_t window) {
-    CHECK(server_thread_ == nullptr);
+    ASSERT_TRUE(server_thread_ == nullptr);
     QUIC_DLOG(INFO) << "Setting server initial stream flow control window: "
                     << window;
     server_config_.SetInitialStreamFlowControlWindowToSend(window);
   }
 
   void set_server_initial_session_flow_control_receive_window(uint32_t window) {
-    CHECK(server_thread_ == nullptr);
+    ASSERT_TRUE(server_thread_ == nullptr);
     QUIC_DLOG(INFO) << "Setting server initial session flow control window: "
                     << window;
     server_config_.SetInitialSessionFlowControlWindowToSend(window);
@@ -979,6 +999,31 @@ TEST_P(EndToEndTestWithTls, SimpleRequestResponsev6) {
       QuicSocketAddress(QuicIpAddress::Loopback6(), server_address_.port());
   ASSERT_TRUE(Initialize());
 
+  EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
+  EXPECT_EQ("200", client_->response_headers()->find(":status")->second);
+}
+
+TEST_P(EndToEndTestWithTls,
+       ClientDoesNotAllowServerDataOnServerInitiatedBidirectionalStreams) {
+  set_client_initial_max_stream_data_incoming_bidirectional(0);
+  ASSERT_TRUE(Initialize());
+  EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
+  EXPECT_EQ("200", client_->response_headers()->find(":status")->second);
+}
+
+TEST_P(EndToEndTestWithTls,
+       ServerDoesNotAllowClientDataOnServerInitiatedBidirectionalStreams) {
+  set_server_initial_max_stream_data_outgoing_bidirectional(0);
+  ASSERT_TRUE(Initialize());
+  EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
+  EXPECT_EQ("200", client_->response_headers()->find(":status")->second);
+}
+
+TEST_P(EndToEndTestWithTls,
+       BothEndpointsDisallowDataOnServerInitiatedBidirectionalStreams) {
+  set_client_initial_max_stream_data_incoming_bidirectional(0);
+  set_server_initial_max_stream_data_outgoing_bidirectional(0);
+  ASSERT_TRUE(Initialize());
   EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
   EXPECT_EQ("200", client_->response_headers()->find(":status")->second);
 }

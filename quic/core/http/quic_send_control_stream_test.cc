@@ -78,6 +78,8 @@ class QuicSendControlStreamTest : public QuicTestWithParam<TestParams> {
     send_control_stream_ = QuicSpdySessionPeer::GetSendControlStream(&session_);
     QuicConfigPeer::SetReceivedInitialSessionFlowControlWindow(
         session_.config(), kMinimumFlowControlSendWindow);
+    QuicConfigPeer::SetReceivedInitialMaxStreamDataBytesUnidirectional(
+        session_.config(), kMinimumFlowControlSendWindow);
     QuicConfigPeer::SetReceivedMaxIncomingUnidirectionalStreams(
         session_.config(), 3);
     session_.OnConfigNegotiated();

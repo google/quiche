@@ -566,8 +566,10 @@ class QuicSimpleServerSessionServerPushTest
         QuicConfigPeer::SetReceivedInitialMaxStreamDataBytesUnidirectional(
             &config_, kStreamFlowControlWindowSize);
       } else {
+        // In this version, push streams are server-initiated bidirectional
+        // streams, which are outgoing since we are the server here.
         QuicConfigPeer::
-            SetReceivedInitialMaxStreamDataBytesIncomingBidirectional(
+            SetReceivedInitialMaxStreamDataBytesOutgoingBidirectional(
                 &config_, kStreamFlowControlWindowSize);
       }
     } else {

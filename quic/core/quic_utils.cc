@@ -397,6 +397,19 @@ bool QuicUtils::IsServerInitiatedStreamId(QuicTransportVersion version,
 }
 
 // static
+bool QuicUtils::IsOutgoingStreamId(ParsedQuicVersion version,
+                                   QuicStreamId id,
+                                   Perspective perspective) {
+  // Streams are outgoing streams, iff:
+  // - we are the server and the stream is server-initiated
+  // - we are the client and the stream is client-initiated.
+  const bool perspective_is_server = perspective == Perspective::IS_SERVER;
+  const bool stream_is_server =
+      QuicUtils::IsServerInitiatedStreamId(version.transport_version, id);
+  return perspective_is_server == stream_is_server;
+}
+
+// static
 bool QuicUtils::IsBidirectionalStreamId(QuicStreamId id) {
   return id % 4 < 2;
 }

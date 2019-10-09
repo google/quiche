@@ -88,6 +88,12 @@ class QuicStreamTestBase : public QuicTestWithParam<ParsedQuicVersion> {
 
     QuicConfigPeer::SetReceivedInitialSessionFlowControlWindow(
         session_->config(), kMinimumFlowControlSendWindow);
+    QuicConfigPeer::SetReceivedInitialMaxStreamDataBytesUnidirectional(
+        session_->config(), kMinimumFlowControlSendWindow);
+    QuicConfigPeer::SetReceivedInitialMaxStreamDataBytesIncomingBidirectional(
+        session_->config(), kMinimumFlowControlSendWindow);
+    QuicConfigPeer::SetReceivedInitialMaxStreamDataBytesOutgoingBidirectional(
+        session_->config(), kMinimumFlowControlSendWindow);
     QuicConfigPeer::SetReceivedMaxIncomingUnidirectionalStreams(
         session_->config(), 10);
     session_->OnConfigNegotiated();

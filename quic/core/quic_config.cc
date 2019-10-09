@@ -624,6 +624,19 @@ void QuicConfig::SetInitialStreamFlowControlWindowToSend(
     window_bytes = kMinimumFlowControlSendWindow;
   }
   initial_stream_flow_control_window_bytes_.SetSendValue(window_bytes);
+
+  // If the IETF flow control configs have not been set yet, set them.
+  if (!initial_max_stream_data_bytes_incoming_bidirectional_.HasSendValue()) {
+    initial_max_stream_data_bytes_incoming_bidirectional_.SetSendValue(
+        window_bytes);
+  }
+  if (!initial_max_stream_data_bytes_outgoing_bidirectional_.HasSendValue()) {
+    initial_max_stream_data_bytes_outgoing_bidirectional_.SetSendValue(
+        window_bytes);
+  }
+  if (!initial_max_stream_data_bytes_unidirectional_.HasSendValue()) {
+    initial_max_stream_data_bytes_unidirectional_.SetSendValue(window_bytes);
+  }
 }
 
 uint32_t QuicConfig::GetInitialStreamFlowControlWindowToSend() const {
@@ -640,12 +653,6 @@ uint32_t QuicConfig::ReceivedInitialStreamFlowControlWindowBytes() const {
 
 void QuicConfig::SetInitialMaxStreamDataBytesIncomingBidirectionalToSend(
     uint32_t window_bytes) {
-  if (window_bytes < kMinimumFlowControlSendWindow) {
-    QUIC_BUG << "Initial stream flow control receive window (" << window_bytes
-             << ") cannot be set lower than minimum ("
-             << kMinimumFlowControlSendWindow << ").";
-    window_bytes = kMinimumFlowControlSendWindow;
-  }
   initial_max_stream_data_bytes_incoming_bidirectional_.SetSendValue(
       window_bytes);
 }
@@ -669,12 +676,6 @@ uint32_t QuicConfig::ReceivedInitialMaxStreamDataBytesIncomingBidirectional()
 
 void QuicConfig::SetInitialMaxStreamDataBytesOutgoingBidirectionalToSend(
     uint32_t window_bytes) {
-  if (window_bytes < kMinimumFlowControlSendWindow) {
-    QUIC_BUG << "Initial stream flow control receive window (" << window_bytes
-             << ") cannot be set lower than minimum ("
-             << kMinimumFlowControlSendWindow << ").";
-    window_bytes = kMinimumFlowControlSendWindow;
-  }
   initial_max_stream_data_bytes_outgoing_bidirectional_.SetSendValue(
       window_bytes);
 }
@@ -698,12 +699,6 @@ uint32_t QuicConfig::ReceivedInitialMaxStreamDataBytesOutgoingBidirectional()
 
 void QuicConfig::SetInitialMaxStreamDataBytesUnidirectionalToSend(
     uint32_t window_bytes) {
-  if (window_bytes < kMinimumFlowControlSendWindow) {
-    QUIC_BUG << "Initial stream flow control receive window (" << window_bytes
-             << ") cannot be set lower than minimum ("
-             << kMinimumFlowControlSendWindow << ").";
-    window_bytes = kMinimumFlowControlSendWindow;
-  }
   initial_max_stream_data_bytes_unidirectional_.SetSendValue(window_bytes);
 }
 
@@ -939,10 +934,16 @@ bool QuicConfig::FillTransportParameters(TransportParameters* params) const {
   params->max_packet_size.set_value(kMaxIncomingPacketSize);
   params->initial_max_data.set_value(
       initial_session_flow_control_window_bytes_.GetSendValue());
+  // The max stream data bidirectional transport parameters can be either local
+  // or remote. A stream is local iff it is initiated by the endpoint that sent
+  // the transport parameter (see the Transport Parameter Definitions section of
+  // draft-ietf-quic-transport). In this function we are sending transport
+  // parameters, so a local stream is one we initiated, which means an outgoing
+  // stream.
   params->initial_max_stream_data_bidi_local.set_value(
-      initial_max_stream_data_bytes_incoming_bidirectional_.GetSendValue());
-  params->initial_max_stream_data_bidi_remote.set_value(
       initial_max_stream_data_bytes_outgoing_bidirectional_.GetSendValue());
+  params->initial_max_stream_data_bidi_remote.set_value(
+      initial_max_stream_data_bytes_incoming_bidirectional_.GetSendValue());
   params->initial_max_stream_data_uni.set_value(
       initial_max_stream_data_bytes_unidirectional_.GetSendValue());
   params->initial_max_streams_bidi.set_value(
@@ -1033,6 +1034,12 @@ QuicErrorCode QuicConfig::ProcessTransportParameters(
       std::min<uint64_t>(params.initial_max_streams_uni.value(),
                          std::numeric_limits<uint32_t>::max()));
 
+  // The max stream data bidirectional transport parameters can be either local
+  // or remote. A stream is local iff it is initiated by the endpoint that sent
+  // the transport parameter (see the Transport Parameter Definitions section of
+  // draft-ietf-quic-transport). However in this function we are processing
+  // received transport parameters, so a local stream is one initiated by our
+  // peer, which means an incoming stream.
   initial_max_stream_data_bytes_incoming_bidirectional_.SetReceivedValue(
       std::min<uint64_t>(params.initial_max_stream_data_bidi_local.value(),
                          std::numeric_limits<uint32_t>::max()));
