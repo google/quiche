@@ -111,50 +111,53 @@ namespace {
 
 static_assert(kQuicIetfDraftVersion == 23, "Salts do not match draft version");
 // Salt from https://tools.ietf.org/html/draft-ietf-quic-tls-23#section-5.2
-const std::vector<const uint8_t> kDraft23InitialSalt = {
-    0xc3, 0xee, 0xf7, 0x12, 0xc7, 0x2e, 0xbb, 0x5a, 0x11, 0xa7,
-    0xd2, 0x43, 0x2b, 0xb4, 0x63, 0x65, 0xbe, 0xf9, 0xf5, 0x02};
+const uint8_t kDraft23InitialSalt[] = {0xc3, 0xee, 0xf7, 0x12, 0xc7, 0x2e, 0xbb,
+                                       0x5a, 0x11, 0xa7, 0xd2, 0x43, 0x2b, 0xb4,
+                                       0x63, 0x65, 0xbe, 0xf9, 0xf5, 0x02};
 
 // Salts used by deployed versions of QUIC. When introducing a new version,
 // generate a new salt by running `openssl rand -hex 20`.
 
 // Salt to use for initial obfuscators in version T048.
-const std::vector<const uint8_t> kT048Salt = {
-    0x1f, 0x89, 0xf6, 0xe7, 0xc2, 0x18, 0xf4, 0x2e, 0x6c, 0xe1,
-    0x9e, 0x91, 0xb2, 0x23, 0xbb, 0x4c, 0x47, 0xc9, 0x12, 0xff};
+const uint8_t kT048Salt[] = {0x1f, 0x89, 0xf6, 0xe7, 0xc2, 0x18, 0xf4,
+                             0x2e, 0x6c, 0xe1, 0x9e, 0x91, 0xb2, 0x23,
+                             0xbb, 0x4c, 0x47, 0xc9, 0x12, 0xff};
 // Salt to use for initial obfuscators in version T049.
-const std::vector<const uint8_t> kT049Salt = {
-    0x69, 0xe5, 0x79, 0x2a, 0x41, 0xd0, 0xa2, 0x9c, 0xf9, 0xbc,
-    0x5c, 0x04, 0x5a, 0xeb, 0xcf, 0xeb, 0x51, 0xf6, 0x9f, 0x22};
+const uint8_t kT049Salt[] = {0x69, 0xe5, 0x79, 0x2a, 0x41, 0xd0, 0xa2,
+                             0x9c, 0xf9, 0xbc, 0x5c, 0x04, 0x5a, 0xeb,
+                             0xcf, 0xeb, 0x51, 0xf6, 0x9f, 0x22};
 // Salt to use for initial obfuscators in version Q050.
-const std::vector<const uint8_t> kQ050Salt = {
-    0x50, 0x45, 0x74, 0xef, 0xd0, 0x66, 0xfe, 0x2f, 0x9d, 0x94,
-    0x5c, 0xfc, 0xdb, 0xd3, 0xa7, 0xf0, 0xd3, 0xb5, 0x6b, 0x45};
+const uint8_t kQ050Salt[] = {0x50, 0x45, 0x74, 0xef, 0xd0, 0x66, 0xfe,
+                             0x2f, 0x9d, 0x94, 0x5c, 0xfc, 0xdb, 0xd3,
+                             0xa7, 0xf0, 0xd3, 0xb5, 0x6b, 0x45};
 // Salt to use for initial obfuscators in version T050.
-const std::vector<const uint8_t> kT050Salt = {
-    0x7f, 0xf5, 0x79, 0xe5, 0xac, 0xd0, 0x72, 0x91, 0x55, 0x80,
-    0x30, 0x4c, 0x43, 0xa2, 0x36, 0x7c, 0x60, 0x48, 0x83, 0x10};
+const uint8_t kT050Salt[] = {0x7f, 0xf5, 0x79, 0xe5, 0xac, 0xd0, 0x72,
+                             0x91, 0x55, 0x80, 0x30, 0x4c, 0x43, 0xa2,
+                             0x36, 0x7c, 0x60, 0x48, 0x83, 0x10};
 // Salt to use for initial obfuscators in version Q099.
-const std::vector<const uint8_t> kQ099Salt = {
-    0xc0, 0xa2, 0xee, 0x20, 0xc7, 0xe1, 0x83, 0x74, 0xc8, 0xa1,
-    0xa0, 0xc8, 0xa5, 0x21, 0xb5, 0x31, 0xee, 0x04, 0x7e, 0xc8};
+const uint8_t kQ099Salt[] = {0xc0, 0xa2, 0xee, 0x20, 0xc7, 0xe1, 0x83,
+                             0x74, 0xc8, 0xa1, 0xa0, 0xc8, 0xa5, 0x21,
+                             0xb5, 0x31, 0xee, 0x04, 0x7e, 0xc8};
 
-const std::vector<const uint8_t> InitialSaltForVersion(
-    const ParsedQuicVersion& version) {
+const uint8_t* InitialSaltForVersion(const ParsedQuicVersion& version,
+                                     size_t* out_len) {
   static_assert(QUIC_ARRAYSIZE(kSupportedTransportVersions) == 8u,
                 "Supported versions out of sync with initial encryption salts");
   switch (version.handshake_protocol) {
     case PROTOCOL_QUIC_CRYPTO:
       switch (version.transport_version) {
         case QUIC_VERSION_50:
+          *out_len = QUIC_ARRAYSIZE(kQ050Salt);
           return kQ050Salt;
         case QUIC_VERSION_99:
+          *out_len = QUIC_ARRAYSIZE(kQ099Salt);
           return kQ099Salt;
         case QUIC_VERSION_RESERVED_FOR_NEGOTIATION:
           // It doesn't matter what salt we use for
           // QUIC_VERSION_RESERVED_FOR_NEGOTIATION, but some tests try to use a
           // QuicFramer with QUIC_VERSION_RESERVED_FOR_NEGOTIATION and will hit
           // the following QUIC_BUG if there isn't a case for it. ):
+          *out_len = QUIC_ARRAYSIZE(kDraft23InitialSalt);
           return kDraft23InitialSalt;
         default:
           QUIC_BUG << "No initial obfuscation salt for version " << version;
@@ -163,14 +166,18 @@ const std::vector<const uint8_t> InitialSaltForVersion(
     case PROTOCOL_TLS1_3:
       switch (version.transport_version) {
         case QUIC_VERSION_48:
+          *out_len = QUIC_ARRAYSIZE(kT048Salt);
           return kT048Salt;
         case QUIC_VERSION_49:
+          *out_len = QUIC_ARRAYSIZE(kT049Salt);
           return kT049Salt;
         case QUIC_VERSION_50:
+          *out_len = QUIC_ARRAYSIZE(kT050Salt);
           return kT050Salt;
         case QUIC_VERSION_99:
           // ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_99) uses the IETF
           // salt.
+          *out_len = QUIC_ARRAYSIZE(kDraft23InitialSalt);
           return kDraft23InitialSalt;
         default:
           QUIC_BUG << "No initial obfuscation salt for version " << version;
@@ -180,6 +187,7 @@ const std::vector<const uint8_t> InitialSaltForVersion(
     default:
       QUIC_BUG << "No initial obfuscation salt for version " << version;
   }
+  *out_len = QUIC_ARRAYSIZE(kDraft23InitialSalt);
   return kDraft23InitialSalt;
 }
 
@@ -208,14 +216,15 @@ void CryptoUtils::CreateInitialObfuscators(Perspective perspective,
       << connection_id << " which is invalid with version " << version;
   const EVP_MD* hash = EVP_sha256();
 
-  const std::vector<const uint8_t> salt = InitialSaltForVersion(version);
+  size_t salt_len;
+  const uint8_t* salt = InitialSaltForVersion(version, &salt_len);
   std::vector<uint8_t> handshake_secret;
   handshake_secret.resize(EVP_MAX_MD_SIZE);
   size_t handshake_secret_len;
   const bool hkdf_extract_success =
       HKDF_extract(handshake_secret.data(), &handshake_secret_len, hash,
                    reinterpret_cast<const uint8_t*>(connection_id.data()),
-                   connection_id.length(), salt.data(), salt.size());
+                   connection_id.length(), salt, salt_len);
   QUIC_BUG_IF(!hkdf_extract_success)
       << "HKDF_extract failed when creating initial crypters";
   handshake_secret.resize(handshake_secret_len);
