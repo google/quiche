@@ -4,10 +4,13 @@
 
 #include "net/third_party/quiche/src/quic/core/http/http_decoder.h"
 
+#include <memory>
 #include <utility>
 
 #include "net/third_party/quiche/src/quic/core/http/http_encoder.h"
+#include "net/third_party/quiche/src/quic/core/http/http_frames.h"
 #include "net/third_party/quiche/src/quic/core/quic_data_writer.h"
+#include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
@@ -1028,6 +1031,19 @@ TEST_F(HttpDecoderTest, EmptyDuplicatePushFrame) {
   EXPECT_EQ(input.size(), ProcessInput(input));
   EXPECT_EQ(QUIC_INVALID_FRAME_DATA, decoder_.error());
   EXPECT_EQ("Unable to read push_id", decoder_.error_detail());
+}
+
+TEST_F(HttpDecoderTest, LargeStreamIdInGoAway) {
+  HttpEncoder encoder;
+  GoAwayFrame frame;
+  frame.stream_id = 1 << 30;
+  std::unique_ptr<char[]> buffer;
+  uint64_t length = encoder.SerializeGoAwayFrame(frame, &buffer);
+  EXPECT_CALL(visitor_, OnGoAwayFrame(frame));
+  EXPECT_GT(length, 0u);
+  EXPECT_EQ(length, decoder_.ProcessInput(buffer.get(), length));
+  EXPECT_EQ(QUIC_NO_ERROR, decoder_.error());
+  EXPECT_EQ("", decoder_.error_detail());
 }
 
 }  // namespace test

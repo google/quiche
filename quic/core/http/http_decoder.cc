@@ -8,6 +8,7 @@
 
 #include "net/third_party/quiche/src/quic/core/http/http_frames.h"
 #include "net/third_party/quiche/src/quic/core/quic_data_reader.h"
+#include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_fallthrough.h"
 
@@ -589,7 +590,7 @@ QuicByteCount HttpDecoder::MaxFrameLength(uint64_t frame_type) {
       // This limit is arbitrary.
       return 1024 * 1024;
     case static_cast<uint64_t>(HttpFrameType::GOAWAY):
-      return sizeof(QuicStreamId);
+      return VARIABLE_LENGTH_INTEGER_LENGTH_8;
     case static_cast<uint64_t>(HttpFrameType::MAX_PUSH_ID):
       return sizeof(PushId);
     case static_cast<uint64_t>(HttpFrameType::DUPLICATE_PUSH):
