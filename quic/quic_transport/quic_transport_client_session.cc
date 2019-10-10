@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <limits>
 #include <memory>
+#include <utility>
 
 #include "url/gurl.h"
 #include "net/third_party/quiche/src/quic/core/quic_crypto_client_stream.h"

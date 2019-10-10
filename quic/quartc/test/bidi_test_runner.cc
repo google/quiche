@@ -4,6 +4,8 @@
 
 #include "net/third_party/quiche/src/quic/quartc/test/bidi_test_runner.h"
 
+#include <utility>
+
 #include "net/third_party/quiche/src/quic/quartc/test/quartc_peer.h"
 
 namespace quic {

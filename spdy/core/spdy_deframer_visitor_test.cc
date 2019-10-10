@@ -19,7 +19,6 @@
 #include "net/third_party/quiche/src/spdy/core/spdy_protocol_test_utils.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_test_utils.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_logging.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_ptr_util.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_test.h"
 
 namespace spdy {
@@ -31,7 +30,7 @@ class SpdyDeframerVisitorTest : public ::testing::Test {
   SpdyDeframerVisitorTest() : encoder_(SpdyFramer::ENABLE_COMPRESSION) {
     decoder_.set_process_single_input_frame(true);
     auto collector =
-        SpdyMakeUnique<DeframerCallbackCollector>(&collected_frames_);
+        std::make_unique<DeframerCallbackCollector>(&collected_frames_);
     auto log_and_collect =
         SpdyDeframerVisitorInterface::LogBeforeVisiting(std::move(collector));
     deframer_ = SpdyTestDeframer::CreateConverter(std::move(log_and_collect));

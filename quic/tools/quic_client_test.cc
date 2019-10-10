@@ -8,6 +8,7 @@
 #include <sys/types.h>
 
 #include <memory>
+#include <utility>
 
 #include "net/third_party/quiche/src/quic/platform/api/quic_epoll.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_port_utils.h"

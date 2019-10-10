@@ -7,10 +7,10 @@
 
 #include <cstdint>
 #include <memory>
+#include <utility>
 
 #include "net/third_party/quiche/src/spdy/core/http2_frame_decoder_adapter.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_test_utils.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_ptr_util.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_piece.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_test.h"
 
@@ -84,7 +84,7 @@ class MockSpdyFramerVisitor : public SpdyFramerVisitorInterface {
   SpdyHeadersHandlerInterface* ReturnTestHeadersHandler(
       SpdyStreamId /* stream_id */) {
     if (headers_handler_ == nullptr) {
-      headers_handler_ = SpdyMakeUnique<TestHeadersHandler>();
+      headers_handler_ = std::make_unique<TestHeadersHandler>();
     }
     return headers_handler_.get();
   }

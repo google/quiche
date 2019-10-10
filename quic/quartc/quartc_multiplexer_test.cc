@@ -5,6 +5,7 @@
 #include "net/third_party/quiche/src/quic/quartc/quartc_multiplexer.h"
 
 #include <memory>
+#include <utility>
 
 #include "net/third_party/quiche/src/quic/core/frames/quic_connection_close_frame.h"
 #include "net/third_party/quiche/src/quic/core/quic_bandwidth.h"
@@ -13,7 +14,6 @@
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test_mem_slice_vector.h"

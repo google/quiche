@@ -4,6 +4,8 @@
 
 #include "net/third_party/quiche/src/quic/quartc/test/quartc_peer.h"
 
+#include <utility>
+
 #include "net/third_party/quiche/src/quic/platform/api/quic_mem_slice_storage.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 

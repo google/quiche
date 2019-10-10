@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <limits>
+#include <utility>
 
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_constants.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_header_table.h"
@@ -13,7 +14,6 @@
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_output_stream.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_estimate_memory_usage.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_logging.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_ptr_util.h"
 
 namespace spdy {
 
@@ -322,8 +322,8 @@ HpackEncoder::Encoderator::Encoderator(const SpdyHeaderBlock& header_set,
                       : GatherRepresentation(header, &regular_headers_);
     }
   }
-  header_it_ =
-      SpdyMakeUnique<RepresentationIterator>(pseudo_headers_, regular_headers_);
+  header_it_ = std::make_unique<RepresentationIterator>(pseudo_headers_,
+                                                        regular_headers_);
 
   encoder_->MaybeEmitTableSize();
 }
@@ -360,7 +360,7 @@ void HpackEncoder::Encoderator::Next(size_t max_encoded_bytes,
 
 std::unique_ptr<HpackEncoder::ProgressiveEncoder> HpackEncoder::EncodeHeaderSet(
     const SpdyHeaderBlock& header_set) {
-  return SpdyMakeUnique<Encoderator>(header_set, this);
+  return std::make_unique<Encoderator>(header_set, this);
 }
 
 }  // namespace spdy

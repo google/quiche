@@ -4,11 +4,12 @@
 
 #include "net/third_party/quiche/src/quic/quartc/quartc_session.h"
 
+#include <utility>
+
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/core/tls_client_handshaker.h"
 #include "net/third_party/quiche/src/quic/core/tls_server_handshaker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_mem_slice_storage.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
 #include "net/third_party/quiche/src/quic/quartc/quartc_crypto_helpers.h"
 
 namespace quic {

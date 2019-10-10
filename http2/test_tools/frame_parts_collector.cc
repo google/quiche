@@ -9,7 +9,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "net/third_party/quiche/src/http2/http2_structures_test_util.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_ptr_util.h"
 
 namespace http2 {
 namespace test {
@@ -54,7 +53,7 @@ Http2FrameDecoderListener* FramePartsCollector::StartFrame(
   TestExpectedHeader(header);
   EXPECT_FALSE(IsInProgress());
   if (current_frame_ == nullptr) {
-    current_frame_ = Http2MakeUnique<FrameParts>(header);
+    current_frame_ = std::make_unique<FrameParts>(header);
   }
   return current_frame();
 }
@@ -64,7 +63,7 @@ Http2FrameDecoderListener* FramePartsCollector::StartAndEndFrame(
   TestExpectedHeader(header);
   EXPECT_FALSE(IsInProgress());
   if (current_frame_ == nullptr) {
-    current_frame_ = Http2MakeUnique<FrameParts>(header);
+    current_frame_ = std::make_unique<FrameParts>(header);
   }
   Http2FrameDecoderListener* result = current_frame();
   collected_frames_.push_back(std::move(current_frame_));
@@ -96,7 +95,7 @@ Http2FrameDecoderListener* FramePartsCollector::FrameError(
     // The decoder may detect an error before making any calls to the listener
     // regarding the frame, in which case current_frame_==nullptr and we need
     // to create a FrameParts instance.
-    current_frame_ = Http2MakeUnique<FrameParts>(header);
+    current_frame_ = std::make_unique<FrameParts>(header);
   } else {
     // Similarly, the decoder may have made calls to the listener regarding the
     // frame before detecting the error; for example, the DATA payload decoder

@@ -24,7 +24,6 @@
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_containers.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_logging.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_map_util.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_ptr_util.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_utils.h"
 
 namespace spdy {
@@ -198,7 +197,7 @@ class Http2PriorityWriteScheduler : public WriteScheduler<StreamIdType> {
 
 template <typename StreamIdType>
 Http2PriorityWriteScheduler<StreamIdType>::Http2PriorityWriteScheduler() {
-  auto root_stream_info = SpdyMakeUnique<StreamInfo>();
+  auto root_stream_info = std::make_unique<StreamInfo>();
   root_stream_info_ = root_stream_info.get();
   root_stream_info->id = kHttp2RootStreamId;
   root_stream_info->weight = kHttp2DefaultStreamWeight;
@@ -238,7 +237,7 @@ void Http2PriorityWriteScheduler<StreamIdType>::RegisterStream(
     parent = root_stream_info_;
   }
 
-  auto new_stream_info = SpdyMakeUnique<StreamInfo>();
+  auto new_stream_info = std::make_unique<StreamInfo>();
   StreamInfo* new_stream_info_ptr = new_stream_info.get();
   new_stream_info_ptr->id = stream_id;
   new_stream_info_ptr->weight = precedence.weight();

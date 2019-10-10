@@ -9,6 +9,7 @@
 #include <iterator>
 #include <list>
 #include <new>
+#include <utility>
 
 #include "net/third_party/quiche/src/http2/platform/api/http2_macros.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_constants.h"
@@ -301,7 +302,7 @@ size_t SpdyFramer::SpdyFrameIterator::NextFrame(ZeroCopyOutputBuffer* output) {
 
   const size_t size_without_block =
       is_first_frame_ ? GetFrameSizeSansBlock() : kContinuationFrameMinimumSize;
-  auto encoding = SpdyMakeUnique<std::string>();
+  auto encoding = std::make_unique<std::string>();
   encoder_->Next(kHttp2MaxControlFrameSendSize - size_without_block,
                  encoding.get());
   has_next_frame_ = encoder_->HasNext();
@@ -412,12 +413,12 @@ std::unique_ptr<SpdyFrameSequence> SpdyFramer::CreateIterator(
     std::unique_ptr<const SpdyFrameIR> frame_ir) {
   switch (frame_ir->frame_type()) {
     case SpdyFrameType::HEADERS: {
-      return SpdyMakeUnique<SpdyHeaderFrameIterator>(
+      return std::make_unique<SpdyHeaderFrameIterator>(
           framer,
           SpdyWrapUnique(static_cast<const SpdyHeadersIR*>(frame_ir.release())));
     }
     case SpdyFrameType::PUSH_PROMISE: {
-      return SpdyMakeUnique<SpdyPushPromiseFrameIterator>(
+      return std::make_unique<SpdyPushPromiseFrameIterator>(
           framer, SpdyWrapUnique(
                       static_cast<const SpdyPushPromiseIR*>(frame_ir.release())));
     }
@@ -426,8 +427,8 @@ std::unique_ptr<SpdyFrameSequence> SpdyFramer::CreateIterator(
       HTTP2_FALLTHROUGH;
     }
     default: {
-      return SpdyMakeUnique<SpdyControlFrameIterator>(framer,
-                                                      std::move(frame_ir));
+      return std::make_unique<SpdyControlFrameIterator>(framer,
+                                                        std::move(frame_ir));
     }
   }
 }
@@ -1268,7 +1269,7 @@ size_t SpdyFramer::SerializeFrame(const SpdyFrameIR& frame,
 
 HpackEncoder* SpdyFramer::GetHpackEncoder() {
   if (hpack_encoder_ == nullptr) {
-    hpack_encoder_ = SpdyMakeUnique<HpackEncoder>(ObtainHpackHuffmanTable());
+    hpack_encoder_ = std::make_unique<HpackEncoder>(ObtainHpackHuffmanTable());
     if (!compression_enabled()) {
       hpack_encoder_->DisableCompression();
     }

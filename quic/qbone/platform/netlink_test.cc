@@ -4,9 +4,10 @@
 
 #include "net/third_party/quiche/src/quic/qbone/platform/netlink.h"
 
+#include <utility>
+
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/qbone/platform/mock_kernel.h"
 #include "net/third_party/quiche/src/quic/qbone/qbone_constants.h"

@@ -4,6 +4,8 @@
 
 #include "net/third_party/quiche/src/quic/quartc/quartc_packet_writer.h"
 
+#include <utility>
+
 namespace quic {
 
 std::unique_ptr<PerPacketOptions> QuartcPerPacketOptions::Clone() const {

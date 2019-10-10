@@ -4,6 +4,8 @@
 
 #include "net/third_party/quiche/src/quic/quartc/test/quartc_peer.h"
 
+#include <utility>
+
 #include "net/third_party/quiche/src/quic/core/quic_bandwidth.h"
 #include "net/third_party/quiche/src/quic/core/quic_constants.h"
 #include "net/third_party/quiche/src/quic/core/quic_time.h"

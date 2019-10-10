@@ -8,7 +8,6 @@
 #include <ostream>
 
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_bug_tracker.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_ptr_util.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_utils.h"
 
 namespace spdy {
@@ -295,7 +294,7 @@ SpdyDataIR::SpdyDataIR(SpdyStreamId stream_id, const char* data)
 
 SpdyDataIR::SpdyDataIR(SpdyStreamId stream_id, std::string data)
     : SpdyFrameWithFinIR(stream_id),
-      data_store_(SpdyMakeUnique<std::string>(std::move(data))),
+      data_store_(std::make_unique<std::string>(std::move(data))),
       data_(data_store_->data()),
       data_len_(data_store_->size()),
       padded_(false),
@@ -415,7 +414,7 @@ size_t SpdyGoAwayIR::size() const {
 
 SpdyContinuationIR::SpdyContinuationIR(SpdyStreamId stream_id)
     : SpdyFrameIR(stream_id), end_headers_(false) {
-  encoding_ = SpdyMakeUnique<std::string>();
+  encoding_ = std::make_unique<std::string>();
 }
 
 SpdyContinuationIR::~SpdyContinuationIR() = default;

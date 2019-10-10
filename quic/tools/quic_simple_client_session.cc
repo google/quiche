@@ -4,7 +4,7 @@
 
 #include "net/third_party/quiche/src/quic/tools/quic_simple_client_session.h"
 
-#include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
+#include <utility>
 
 namespace quic {
 

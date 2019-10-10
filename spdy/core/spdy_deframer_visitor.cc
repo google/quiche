@@ -19,7 +19,6 @@
 #include "net/third_party/quiche/src/spdy/core/spdy_test_utils.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_flags.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_logging.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_ptr_util.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_piece.h"
 
 using ::testing::AssertionFailure;
@@ -240,13 +239,13 @@ class SpdyTestDeframerImpl : public SpdyTestDeframer,
 // static
 std::unique_ptr<SpdyTestDeframer> SpdyTestDeframer::CreateConverter(
     std::unique_ptr<SpdyDeframerVisitorInterface> listener) {
-  return SpdyMakeUnique<SpdyTestDeframerImpl>(std::move(listener));
+  return std::make_unique<SpdyTestDeframerImpl>(std::move(listener));
 }
 
 void SpdyTestDeframerImpl::AtDataEnd() {
   SPDY_DVLOG(1) << "AtDataEnd";
   CHECK_EQ(data_len_, padding_len_ + data_->size());
-  auto ptr = SpdyMakeUnique<SpdyDataIR>(stream_id_, std::move(*data_));
+  auto ptr = std::make_unique<SpdyDataIR>(stream_id_, std::move(*data_));
   CHECK_EQ(0u, data_->size());
   data_.reset();
 
@@ -270,7 +269,7 @@ void SpdyTestDeframerImpl::AtGoAwayEnd() {
   if (HTTP2_DIE_IF_NULL(goaway_description_)->empty()) {
     listener_->OnGoAway(std::move(goaway_ir_));
   } else {
-    listener_->OnGoAway(SpdyMakeUnique<SpdyGoAwayIR>(
+    listener_->OnGoAway(std::make_unique<SpdyGoAwayIR>(
         goaway_ir_->last_good_stream_id(), goaway_ir_->error_code(),
         std::move(*goaway_description_)));
     CHECK_EQ(0u, goaway_description_->size());
@@ -416,7 +415,7 @@ void SpdyTestDeframerImpl::OnAltSvc(
   CHECK_EQ(frame_type_, UNSET)
       << "   frame_type_=" << Http2FrameTypeToString(frame_type_);
   CHECK_GT(stream_id, 0u);
-  auto ptr = SpdyMakeUnique<SpdyAltSvcIR>(stream_id);
+  auto ptr = std::make_unique<SpdyAltSvcIR>(stream_id);
   ptr->set_origin(std::string(origin));
   for (auto& altsvc : altsvc_vector) {
     ptr->add_altsvc(altsvc);
@@ -456,7 +455,7 @@ void SpdyTestDeframerImpl::OnDataFrameHeader(SpdyStreamId stream_id,
   stream_id_ = stream_id;
   fin_ = fin;
   data_len_ = length;
-  data_ = SpdyMakeUnique<std::string>();
+  data_ = std::make_unique<std::string>();
 }
 
 // The SpdyFramer will not process any more data at this point.
@@ -481,8 +480,8 @@ void SpdyTestDeframerImpl::OnGoAway(SpdyStreamId last_good_stream_id,
       << "   frame_type_=" << Http2FrameTypeToString(frame_type_);
   frame_type_ = GOAWAY;
   goaway_ir_ =
-      SpdyMakeUnique<SpdyGoAwayIR>(last_good_stream_id, error_code, "");
-  goaway_description_ = SpdyMakeUnique<std::string>();
+      std::make_unique<SpdyGoAwayIR>(last_good_stream_id, error_code, "");
+  goaway_description_ = std::make_unique<std::string>();
 }
 
 // If len==0 then we've reached the end of the GOAWAY frame.
@@ -529,9 +528,9 @@ void SpdyTestDeframerImpl::OnHeaders(SpdyStreamId stream_id,
   fin_ = fin;
   end_ = end;
 
-  headers_ = SpdyMakeUnique<StringPairVector>();
-  headers_handler_ = SpdyMakeUnique<TestHeadersHandler>();
-  headers_ir_ = SpdyMakeUnique<SpdyHeadersIR>(stream_id);
+  headers_ = std::make_unique<StringPairVector>();
+  headers_handler_ = std::make_unique<TestHeadersHandler>();
+  headers_ir_ = std::make_unique<SpdyHeadersIR>(stream_id);
   headers_ir_->set_fin(fin);
   if (has_priority) {
     headers_ir_->set_has_priority(true);
@@ -551,7 +550,7 @@ void SpdyTestDeframerImpl::OnPing(uint64_t unique_id, bool is_ack) {
                 << "      is_ack: " << (is_ack ? "true" : "false");
   CHECK_EQ(frame_type_, UNSET)
       << "   frame_type_=" << Http2FrameTypeToString(frame_type_);
-  auto ptr = SpdyMakeUnique<SpdyPingIR>(unique_id);
+  auto ptr = std::make_unique<SpdyPingIR>(unique_id);
   if (is_ack) {
     ptr->set_is_ack(is_ack);
     listener_->OnPingAck(std::move(ptr));
@@ -569,7 +568,7 @@ void SpdyTestDeframerImpl::OnPriority(SpdyStreamId stream_id,
       << "   frame_type_=" << Http2FrameTypeToString(frame_type_);
   CHECK_GT(stream_id, 0u);
 
-  listener_->OnPriority(SpdyMakeUnique<SpdyPriorityIR>(
+  listener_->OnPriority(std::make_unique<SpdyPriorityIR>(
       stream_id, parent_stream_id, weight, exclusive));
 }
 
@@ -585,10 +584,10 @@ void SpdyTestDeframerImpl::OnPushPromise(SpdyStreamId stream_id,
   stream_id_ = stream_id;
   end_ = end;
 
-  headers_ = SpdyMakeUnique<StringPairVector>();
-  headers_handler_ = SpdyMakeUnique<TestHeadersHandler>();
+  headers_ = std::make_unique<StringPairVector>();
+  headers_handler_ = std::make_unique<TestHeadersHandler>();
   push_promise_ir_ =
-      SpdyMakeUnique<SpdyPushPromiseIR>(stream_id, promised_stream_id);
+      std::make_unique<SpdyPushPromiseIR>(stream_id, promised_stream_id);
 }
 
 // Closes the specified stream. After this the sender may still send PRIORITY
@@ -602,7 +601,7 @@ void SpdyTestDeframerImpl::OnRstStream(SpdyStreamId stream_id,
   CHECK_GT(stream_id, 0u);
 
   listener_->OnRstStream(
-      SpdyMakeUnique<SpdyRstStreamIR>(stream_id, error_code));
+      std::make_unique<SpdyRstStreamIR>(stream_id, error_code));
 }
 
 // Called for an individual setting. There is no negotiation; the sender is
@@ -631,15 +630,15 @@ void SpdyTestDeframerImpl::OnSettings() {
   frame_type_ = SETTINGS;
   ack_ = false;
 
-  settings_ = SpdyMakeUnique<SettingVector>();
-  settings_ir_ = SpdyMakeUnique<SpdySettingsIR>();
+  settings_ = std::make_unique<SettingVector>();
+  settings_ir_ = std::make_unique<SpdySettingsIR>();
 }
 
 void SpdyTestDeframerImpl::OnSettingsAck() {
   SPDY_DVLOG(1) << "OnSettingsAck";
   CHECK_EQ(frame_type_, UNSET)
       << "   frame_type_=" << Http2FrameTypeToString(frame_type_);
-  auto ptr = SpdyMakeUnique<SpdySettingsIR>();
+  auto ptr = std::make_unique<SpdySettingsIR>();
   ptr->set_is_ack(true);
   listener_->OnSettingsAck(std::move(ptr));
 }
@@ -727,7 +726,7 @@ void SpdyTestDeframerImpl::OnWindowUpdate(SpdyStreamId stream_id,
   CHECK_NE(0, delta_window_size);
 
   listener_->OnWindowUpdate(
-      SpdyMakeUnique<SpdyWindowUpdateIR>(stream_id, delta_window_size));
+      std::make_unique<SpdyWindowUpdateIR>(stream_id, delta_window_size));
 }
 
 // Return true to indicate that the stream_id is valid; if not valid then
@@ -784,7 +783,7 @@ class LoggingSpdyDeframerDelegate : public SpdyDeframerVisitorInterface {
       std::unique_ptr<SpdyDeframerVisitorInterface> wrapped)
       : wrapped_(std::move(wrapped)) {
     if (!wrapped_) {
-      wrapped_ = SpdyMakeUnique<SpdyDeframerVisitorInterface>();
+      wrapped_ = std::make_unique<SpdyDeframerVisitorInterface>();
     }
   }
   ~LoggingSpdyDeframerDelegate() override = default;
@@ -875,7 +874,7 @@ class LoggingSpdyDeframerDelegate : public SpdyDeframerVisitorInterface {
 std::unique_ptr<SpdyDeframerVisitorInterface>
 SpdyDeframerVisitorInterface::LogBeforeVisiting(
     std::unique_ptr<SpdyDeframerVisitorInterface> wrapped_listener) {
-  return SpdyMakeUnique<LoggingSpdyDeframerDelegate>(
+  return std::make_unique<LoggingSpdyDeframerDelegate>(
       std::move(wrapped_listener));
 }
 

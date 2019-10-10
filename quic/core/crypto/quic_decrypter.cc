@@ -5,6 +5,7 @@
 #include "net/third_party/quiche/src/quic/core/crypto/quic_decrypter.h"
 
 #include <string>
+#include <utility>
 
 #include "third_party/boringssl/src/include/openssl/tls1.h"
 #include "net/third_party/quiche/src/quic/core/crypto/aes_128_gcm_12_decrypter.h"
@@ -17,7 +18,6 @@
 #include "net/third_party/quiche/src/quic/core/crypto/quic_hkdf.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
 
 namespace quic {
 

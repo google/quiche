@@ -4,6 +4,7 @@
 
 #include "net/third_party/quiche/src/quic/quartc/test/quartc_data_source.h"
 
+#include <utility>
 #include <vector>
 
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"

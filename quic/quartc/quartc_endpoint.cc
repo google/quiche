@@ -4,6 +4,8 @@
 
 #include "net/third_party/quiche/src/quic/quartc/quartc_endpoint.h"
 
+#include <utility>
+
 #include "net/third_party/quiche/src/quic/core/quic_version_manager.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
 #include "net/third_party/quiche/src/quic/quartc/quartc_connection_helper.h"

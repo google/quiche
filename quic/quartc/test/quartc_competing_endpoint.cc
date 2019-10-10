@@ -4,6 +4,8 @@
 
 #include "net/third_party/quiche/src/quic/quartc/test/quartc_competing_endpoint.h"
 
+#include <utility>
+
 #include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
 
 namespace quic {

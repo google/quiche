@@ -5,9 +5,9 @@
 #include "net/third_party/quiche/src/quic/quartc/test/quic_trace_interceptor.h"
 
 #include <string>
+#include <utility>
 
 #include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test_output.h"
 #include "net/third_party/quiche/src/quic/quartc/quartc_endpoint.h"

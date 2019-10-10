@@ -11,7 +11,6 @@
 
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_estimate_memory_usage.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_logging.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_ptr_util.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_utils.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_unsafe_arena.h"
 
@@ -362,7 +361,7 @@ void SpdyHeaderBlock::AppendHeader(const SpdyStringPiece key,
 
 SpdyHeaderBlock::Storage* SpdyHeaderBlock::GetStorage() {
   if (storage_ == nullptr) {
-    storage_ = SpdyMakeUnique<Storage>();
+    storage_ = std::make_unique<Storage>();
   }
   return storage_.get();
 }

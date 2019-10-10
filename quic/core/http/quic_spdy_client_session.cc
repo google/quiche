@@ -5,6 +5,7 @@
 #include "net/third_party/quiche/src/quic/core/http/quic_spdy_client_session.h"
 
 #include <string>
+#include <utility>
 
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_spdy_client_stream.h"

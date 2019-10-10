@@ -4,10 +4,11 @@
 
 #include "net/third_party/quiche/src/quic/qbone/qbone_session_base.h"
 
+#include <utility>
+
 #include "net/third_party/quiche/src/quic/core/quic_data_reader.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_exported_stats.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
 #include "net/third_party/quiche/src/quic/qbone/qbone_constants.h"
 
 namespace quic {

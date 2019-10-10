@@ -4,12 +4,13 @@
 
 #include "net/third_party/quiche/src/quic/quartc/quartc_factory.h"
 
+#include <utility>
+
 #include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/core/tls_client_handshaker.h"
 #include "net/third_party/quiche/src/quic/core/tls_server_handshaker.h"
 #include "net/third_party/quiche/src/quic/core/uber_received_packet_manager.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
 #include "net/third_party/quiche/src/quic/quartc/quartc_connection_helper.h"
 #include "net/third_party/quiche/src/quic/quartc/quartc_crypto_helpers.h"

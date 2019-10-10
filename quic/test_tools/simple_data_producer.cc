@@ -4,11 +4,12 @@
 
 #include "net/third_party/quiche/src/quic/test_tools/simple_data_producer.h"
 
+#include <utility>
+
 #include "net/third_party/quiche/src/quic/core/quic_data_writer.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_map_util.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
 
 namespace quic {
 

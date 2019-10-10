@@ -6,10 +6,10 @@
 #define QUICHE_QUIC_CORE_QUIC_PACKET_WRITER_H_
 
 #include <cstddef>
+#include <utility>
 
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
 
 namespace quic {
@@ -22,7 +22,7 @@ struct QUIC_EXPORT_PRIVATE PerPacketOptions {
   // Returns a heap-allocated copy of |this|.
   //
   // The subclass implementation of this method should look like this:
-  //   return QuicMakeUnique<MyAwesomePerPacketOptions>(*this);
+  //   return std::make_unique<MyAwesomePerPacketOptions>(*this);
   //
   // This method is declared pure virtual in order to ensure the subclasses
   // would not forget to override it.

@@ -5,12 +5,12 @@
 #include "net/third_party/quiche/src/quic/qbone/platform/netlink.h"
 
 #include <linux/fib_rules.h>
+#include <utility>
 
 #include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_fallthrough.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ip_address.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
 #include "net/quic/platform/impl/quic_ip_address_impl.h"
 #include "net/third_party/quiche/src/quic/qbone/platform/rtnetlink_message.h"

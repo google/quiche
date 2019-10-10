@@ -5,6 +5,7 @@
 #include "net/third_party/quiche/src/quic/test_tools/simple_quic_framer.h"
 
 #include <memory>
+#include <utility>
 
 #include "net/third_party/quiche/src/quic/core/crypto/quic_decrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_encrypter.h"

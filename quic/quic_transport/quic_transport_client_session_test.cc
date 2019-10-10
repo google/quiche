@@ -5,6 +5,7 @@
 #include "net/third_party/quiche/src/quic/quic_transport/quic_transport_client_session.h"
 
 #include <memory>
+#include <utility>
 
 #include "url/gurl.h"
 #include "net/third_party/quiche/src/quic/core/quic_data_writer.h"

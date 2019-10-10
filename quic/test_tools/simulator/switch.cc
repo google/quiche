@@ -3,8 +3,8 @@
 // found in the LICENSE file.
 
 #include <cinttypes>
+#include <utility>
 
-#include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
 #include "net/third_party/quiche/src/quic/test_tools/simulator/switch.h"
 

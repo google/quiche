@@ -4,7 +4,8 @@
 
 #include "net/third_party/quiche/src/quic/qbone/bonnet/tun_device_packet_exchanger.h"
 
-#include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
+#include <utility>
+
 #include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
 
 namespace quic {

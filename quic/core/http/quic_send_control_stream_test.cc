@@ -4,6 +4,8 @@
 
 #include "net/third_party/quiche/src/quic/core/http/quic_send_control_stream.h"
 
+#include <utility>
+
 #include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_config_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_spdy_session_peer.h"

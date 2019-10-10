@@ -5,12 +5,12 @@
 #include "net/third_party/quiche/src/quic/core/crypto/transport_parameters.h"
 
 #include <cstring>
+#include <utility>
 
 #include "third_party/boringssl/src/include/openssl/mem.h"
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ip_address.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 

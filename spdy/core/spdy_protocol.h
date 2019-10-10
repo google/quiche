@@ -25,7 +25,6 @@
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_bug_tracker.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_export.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_logging.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_ptr_util.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_piece.h"
 
 namespace spdy {
@@ -550,7 +549,7 @@ class SPDY_EXPORT_PRIVATE SpdyDataIR : public SpdyFrameWithFinIR {
 
   // Deep-copy of data (keep private copy).
   void SetDataDeep(SpdyStringPiece data) {
-    data_store_ = SpdyMakeUnique<std::string>(data.data(), data.size());
+    data_store_ = std::make_unique<std::string>(data.data(), data.size());
     data_ = data_store_->data();
     data_len_ = data.size();
   }
