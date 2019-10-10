@@ -124,7 +124,7 @@ TEST_P(QuicSpdyClientStreamTest, TestFraming) {
   QuicByteCount header_length =
       encoder_.SerializeDataFrameHeader(body_.length(), &buffer);
   std::string header = std::string(buffer.get(), header_length);
-  std::string data = VersionHasDataFrameHeader(connection_->transport_version())
+  std::string data = VersionUsesHttp3(connection_->transport_version())
                          ? header + body_
                          : body_;
   stream_->OnStreamFrame(
@@ -155,7 +155,7 @@ TEST_P(QuicSpdyClientStreamTest, TestFramingOnePacket) {
   QuicByteCount header_length =
       encoder_.SerializeDataFrameHeader(body_.length(), &buffer);
   std::string header = std::string(buffer.get(), header_length);
-  std::string data = VersionHasDataFrameHeader(connection_->transport_version())
+  std::string data = VersionUsesHttp3(connection_->transport_version())
                          ? header + body_
                          : body_;
   stream_->OnStreamFrame(
@@ -180,7 +180,7 @@ TEST_P(QuicSpdyClientStreamTest,
   QuicByteCount header_length =
       encoder_.SerializeDataFrameHeader(large_body.length(), &buffer);
   std::string header = std::string(buffer.get(), header_length);
-  std::string data = VersionHasDataFrameHeader(connection_->transport_version())
+  std::string data = VersionUsesHttp3(connection_->transport_version())
                          ? header + large_body
                          : large_body;
   EXPECT_CALL(*connection_, SendControlFrame(_));
@@ -198,7 +198,7 @@ TEST_P(QuicSpdyClientStreamTest,
 TEST_P(QuicSpdyClientStreamTest, ReceivingTrailers) {
   // There is no kFinalOffsetHeaderKey if trailers are sent on the
   // request/response stream.
-  if (VersionUsesQpack(connection_->transport_version())) {
+  if (VersionUsesHttp3(connection_->transport_version())) {
     return;
   }
 
@@ -224,7 +224,7 @@ TEST_P(QuicSpdyClientStreamTest, ReceivingTrailers) {
   QuicByteCount header_length =
       encoder_.SerializeDataFrameHeader(body_.length(), &buffer);
   std::string header = std::string(buffer.get(), header_length);
-  std::string data = VersionHasDataFrameHeader(connection_->transport_version())
+  std::string data = VersionUsesHttp3(connection_->transport_version())
                          ? header + body_
                          : body_;
   stream_->OnStreamFrame(

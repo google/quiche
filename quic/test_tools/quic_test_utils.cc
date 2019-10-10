@@ -1194,7 +1194,7 @@ QuicStreamId GetNthClientInitiatedBidirectionalStreamId(
     QuicTransportVersion version,
     int n) {
   int num = n;
-  if (!VersionUsesQpack(version)) {
+  if (!VersionUsesHttp3(version)) {
     num++;
   }
   return QuicUtils::GetFirstBidirectionalStreamId(version,

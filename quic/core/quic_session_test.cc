@@ -1429,7 +1429,7 @@ TEST_P(QuicSessionTestServer, IncreasedTimeoutAfterCryptoHandshake) {
 }
 
 TEST_P(QuicSessionTestServer, OnStreamFrameFinStaticStreamId) {
-  if (VersionUsesQpack(connection_->transport_version())) {
+  if (VersionUsesHttp3(connection_->transport_version())) {
     // The test relies on headers stream, which no longer exists in IETF QUIC.
     return;
   }
@@ -1449,7 +1449,7 @@ TEST_P(QuicSessionTestServer, OnStreamFrameFinStaticStreamId) {
 }
 
 TEST_P(QuicSessionTestServer, OnRstStreamStaticStreamId) {
-  if (VersionUsesQpack(connection_->transport_version())) {
+  if (VersionUsesHttp3(connection_->transport_version())) {
     // The test relies on headers stream, which no longer exists in IETF QUIC.
     return;
   }
@@ -1854,7 +1854,7 @@ TEST_P(QuicSessionTestServer, NoPendingStreams) {
 }
 
 TEST_P(QuicSessionTestServer, PendingStreams) {
-  if (!VersionHasStreamType(transport_version())) {
+  if (!VersionUsesHttp3(transport_version())) {
     return;
   }
   session_.set_uses_pending_streams(true);
@@ -1873,7 +1873,7 @@ TEST_P(QuicSessionTestServer, PendingStreams) {
 }
 
 TEST_P(QuicSessionTestServer, RstPendingStreams) {
-  if (!VersionHasStreamType(transport_version())) {
+  if (!VersionUsesHttp3(transport_version())) {
     return;
   }
   session_.set_uses_pending_streams(true);
@@ -1904,7 +1904,7 @@ TEST_P(QuicSessionTestServer, RstPendingStreams) {
 }
 
 TEST_P(QuicSessionTestServer, OnFinPendingStreams) {
-  if (!VersionHasStreamType(transport_version())) {
+  if (!VersionUsesHttp3(transport_version())) {
     return;
   }
   session_.set_uses_pending_streams(true);
@@ -1920,7 +1920,7 @@ TEST_P(QuicSessionTestServer, OnFinPendingStreams) {
 }
 
 TEST_P(QuicSessionTestServer, PendingStreamOnWindowUpdate) {
-  if (!VersionHasStreamType(transport_version())) {
+  if (!VersionUsesHttp3(transport_version())) {
     return;
   }
 

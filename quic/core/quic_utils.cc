@@ -374,7 +374,7 @@ bool QuicUtils::IsCryptoStreamId(QuicTransportVersion version,
 
 // static
 QuicStreamId QuicUtils::GetHeadersStreamId(QuicTransportVersion version) {
-  DCHECK(!VersionUsesQpack(version));
+  DCHECK(!VersionUsesHttp3(version));
   return GetFirstBidirectionalStreamId(version, Perspective::IS_CLIENT);
 }
 

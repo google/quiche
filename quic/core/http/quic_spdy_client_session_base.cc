@@ -199,7 +199,7 @@ void QuicSpdyClientSessionBase::DeletePromised(
   // ToDo: Consider implementing logic to send a new MAX_PUSH_ID frame to allow
   // another stream to be promised.
   promised_by_id_.erase(promised->id());
-  if (!VersionUsesQpack(transport_version())) {
+  if (!VersionUsesHttp3(transport_version())) {
     headers_stream()->MaybeReleaseSequencerBuffer();
   }
 }
@@ -220,7 +220,7 @@ void QuicSpdyClientSessionBase::ResetPromised(
 void QuicSpdyClientSessionBase::CloseStreamInner(QuicStreamId stream_id,
                                                  bool locally_reset) {
   QuicSpdySession::CloseStreamInner(stream_id, locally_reset);
-  if (!VersionUsesQpack(transport_version())) {
+  if (!VersionUsesHttp3(transport_version())) {
     headers_stream()->MaybeReleaseSequencerBuffer();
   }
 }

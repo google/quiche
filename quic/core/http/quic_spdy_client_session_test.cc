@@ -421,7 +421,7 @@ TEST_P(QuicSpdyClientSessionTest, OnStreamHeaderListWithStaticStream) {
 
   // Initialize H/3 control stream.
   QuicStreamId id;
-  if (VersionUsesQpack(connection_->transport_version())) {
+  if (VersionUsesHttp3(connection_->transport_version())) {
     id = GetNthServerInitiatedUnidirectionalStreamId(
         connection_->transport_version(), 3);
     char type[] = {0x00};
@@ -451,7 +451,7 @@ TEST_P(QuicSpdyClientSessionTest, OnPromiseHeaderListWithStaticStream) {
 
   // Initialize H/3 control stream.
   QuicStreamId id;
-  if (VersionUsesQpack(connection_->transport_version())) {
+  if (VersionUsesHttp3(connection_->transport_version())) {
     id = GetNthServerInitiatedUnidirectionalStreamId(
         connection_->transport_version(), 3);
     char type[] = {0x00};

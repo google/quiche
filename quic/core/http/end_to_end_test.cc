@@ -666,7 +666,7 @@ TEST_P(EndToEndTest, SimpleRequestResponse) {
   }
   EXPECT_EQ(expected_num_client_hellos,
             client_->client()->GetNumSentClientHellos());
-  if (VersionUsesQpack(GetClientConnection()->transport_version())) {
+  if (VersionUsesHttp3(GetClientConnection()->transport_version())) {
     EXPECT_TRUE(QuicSpdySessionPeer::GetSendControlStream(GetClientSession()));
     EXPECT_TRUE(
         QuicSpdySessionPeer::GetReceiveControlStream(GetClientSession()));
@@ -1650,7 +1650,7 @@ TEST_P(EndToEndTest, LargeHeaders) {
 
   client_->SendCustomSynchronousRequest(headers, body);
 
-  if (VersionUsesQpack(client_->client()
+  if (VersionUsesHttp3(client_->client()
                            ->client_session()
                            ->connection()
                            ->transport_version())) {
@@ -2314,7 +2314,7 @@ TEST_P(EndToEndTest, HeadersAndCryptoStreamsNoConnectionFlowControl) {
   }
   // When stream type is enabled, control streams will send settings and
   // contribute to flow control windows, so this expectation is no longer valid.
-  if (!VersionHasStreamType(transport_version)) {
+  if (!VersionUsesHttp3(transport_version)) {
     EXPECT_EQ(kSessionIFCW, QuicFlowControllerPeer::SendWindowSize(
                                 GetClientSession()->flow_controller()));
   }
@@ -2324,7 +2324,7 @@ TEST_P(EndToEndTest, HeadersAndCryptoStreamsNoConnectionFlowControl) {
   EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
 
   // No headers stream in IETF QUIC.
-  if (VersionUsesQpack(transport_version)) {
+  if (VersionUsesHttp3(transport_version)) {
     return;
   }
 
@@ -2359,7 +2359,7 @@ TEST_P(EndToEndTest, FlowControlsSynced) {
   const QuicTransportVersion version =
       client_session->connection()->transport_version();
 
-  if (VersionUsesQpack(version)) {
+  if (VersionUsesHttp3(version)) {
     // Make sure that the client has received the initial SETTINGS frame, which
     // is sent in the first packet on the control stream.
     while (!QuicSpdySessionPeer::GetReceiveControlStream(client_session)) {
@@ -2379,7 +2379,7 @@ TEST_P(EndToEndTest, FlowControlsSynced) {
   ExpectFlowControlsSynced(client_session, server_session);
 
   // Check control streams.
-  if (VersionUsesQpack(version)) {
+  if (VersionUsesHttp3(version)) {
     ExpectFlowControlsSynced(
         QuicSpdySessionPeer::GetReceiveControlStream(client_session),
         QuicSpdySessionPeer::GetSendControlStream(server_session));
@@ -2396,7 +2396,7 @@ TEST_P(EndToEndTest, FlowControlsSynced) {
   }
 
   // Check headers stream.
-  if (!VersionHasStreamType(version)) {
+  if (!VersionUsesHttp3(version)) {
     SpdyFramer spdy_framer(SpdyFramer::ENABLE_COMPRESSION);
     SpdySettingsIR settings_frame;
     settings_frame.AddSetting(SETTINGS_MAX_HEADER_LIST_SIZE,
@@ -2530,7 +2530,7 @@ TEST_P(EndToEndTest, AckNotifierWithPacketLossAndBlockedSocket) {
   // Size of headers on the request stream.  Zero if headers are sent on the
   // header stream.
   size_t header_size = 0;
-  if (VersionUsesQpack(client_->client()
+  if (VersionUsesHttp3(client_->client()
                            ->client_session()
                            ->connection()
                            ->transport_version())) {
@@ -3204,7 +3204,7 @@ TEST_P(EndToEndTestServerPush, ServerPush) {
   EXPECT_EQ(kBody, client_->SendSynchronousRequest(
                        "https://example.com/push_example"));
   QuicStreamSequencer* sequencer;
-  if (!VersionUsesQpack(client_->client()
+  if (!VersionUsesHttp3(client_->client()
                             ->client_session()
                             ->connection()
                             ->transport_version())) {
@@ -3225,7 +3225,7 @@ TEST_P(EndToEndTestServerPush, ServerPush) {
     QUIC_DVLOG(1) << "response body " << response_body;
     EXPECT_EQ(expected_body, response_body);
   }
-  if (!VersionUsesQpack(client_->client()
+  if (!VersionUsesHttp3(client_->client()
                             ->client_session()
                             ->connection()
                             ->transport_version())) {
@@ -3523,7 +3523,7 @@ TEST_P(EndToEndTest, ReleaseHeadersStreamBufferWhenIdle) {
   // PUSH_PROMISE, its headers stream's sequencer buffer should be released.
   ASSERT_TRUE(Initialize());
   client_->SendSynchronousRequest("/foo");
-  if (VersionUsesQpack(client_->client()
+  if (VersionUsesHttp3(client_->client()
                            ->client_session()
                            ->connection()
                            ->transport_version())) {

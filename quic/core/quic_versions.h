@@ -375,39 +375,18 @@ QUIC_EXPORT_PRIVATE inline bool VersionSupportsMessageFrames(
   return transport_version >= QUIC_VERSION_46;
 }
 
-// Returns true if QuicSpdyStream encodes body using HTTP/3 specification and
-// sends data frame header along with body.
-QUIC_EXPORT_PRIVATE inline bool VersionHasDataFrameHeader(
+// If true, HTTP/3 instead of gQUIC will be used at the HTTP layer.
+// Notable changes are:
+// * Headers stream no longer exists.
+// * PRIORITY, HEADERS are moved from headers stream to HTTP/3 control stream.
+// * PUSH_PROMISE is moved to request stream.
+// * Unidirectional streams will have their first byte as a stream type.
+// * HEADERS frames are compressed using QPACK.
+// * DATA frame has frame headers.
+// * GOAWAY is moved to HTTP layer.
+QUIC_EXPORT_PRIVATE inline bool VersionUsesHttp3(
     QuicTransportVersion transport_version) {
   return transport_version == QUIC_VERSION_99;
-}
-
-// Returns whether |transport_version| has HTTP/3 unidirectional stream type.
-QUIC_EXPORT_PRIVATE inline bool VersionHasStreamType(
-    QuicTransportVersion transport_version) {
-  return transport_version == QUIC_VERSION_99;
-}
-
-// If true:
-// * QuicSpdySession instantiates a QPACK encoder and decoder;
-// * HEADERS frames (containing headers or trailers) are sent on
-//   request/response streams, compressed with QPACK;
-// * trailers must not contain :final-offset key,
-// * PUSH_PROMISE and PRIORITY frames are sent on the request stream,
-// * there is no headers stream.
-// If false:
-// * HEADERS frames (containing headers or trailers) are sent on the headers
-//   stream, compressed with HPACK;
-// * trailers must contain :final-offset key,
-// * PUSH_PROMISE and PRIORITY frames are sent on the headers stream.
-QUIC_EXPORT_PRIVATE inline bool VersionUsesQpack(
-    QuicTransportVersion transport_version) {
-  const bool uses_qpack = (transport_version == QUIC_VERSION_99);
-  if (uses_qpack) {
-    DCHECK(VersionHasDataFrameHeader(transport_version));
-    DCHECK(VersionHasStreamType(transport_version));
-  }
-  return uses_qpack;
 }
 
 // Returns whether the transport_version supports the variable length integer

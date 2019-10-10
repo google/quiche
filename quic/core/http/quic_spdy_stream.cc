@@ -99,7 +99,7 @@ class QuicSpdyStream::HttpDecoderVisitor : public HttpDecoder::Visitor {
   bool OnDataFrameEnd() override { return stream_->OnDataFrameEnd(); }
 
   bool OnHeadersFrameStart(QuicByteCount header_length) override {
-    if (!VersionUsesQpack(stream_->transport_version())) {
+    if (!VersionUsesHttp3(stream_->transport_version())) {
       CloseConnectionOnWrongFrame("Headers");
       return false;
     }
@@ -108,7 +108,7 @@ class QuicSpdyStream::HttpDecoderVisitor : public HttpDecoder::Visitor {
 
   bool OnHeadersFramePayload(QuicStringPiece payload) override {
     DCHECK(!payload.empty());
-    if (!VersionUsesQpack(stream_->transport_version())) {
+    if (!VersionUsesHttp3(stream_->transport_version())) {
       CloseConnectionOnWrongFrame("Headers");
       return false;
     }
@@ -116,7 +116,7 @@ class QuicSpdyStream::HttpDecoderVisitor : public HttpDecoder::Visitor {
   }
 
   bool OnHeadersFrameEnd() override {
-    if (!VersionUsesQpack(stream_->transport_version())) {
+    if (!VersionUsesHttp3(stream_->transport_version())) {
       CloseConnectionOnWrongFrame("Headers");
       return false;
     }
@@ -124,7 +124,7 @@ class QuicSpdyStream::HttpDecoderVisitor : public HttpDecoder::Visitor {
   }
 
   bool OnPushPromiseFrameStart(QuicByteCount header_length) override {
-    if (!VersionUsesQpack(stream_->transport_version())) {
+    if (!VersionUsesHttp3(stream_->transport_version())) {
       CloseConnectionOnWrongFrame("Push Promise");
       return false;
     }
@@ -133,7 +133,7 @@ class QuicSpdyStream::HttpDecoderVisitor : public HttpDecoder::Visitor {
 
   bool OnPushPromiseFramePushId(PushId push_id,
                                 QuicByteCount push_id_length) override {
-    if (!VersionUsesQpack(stream_->transport_version())) {
+    if (!VersionUsesHttp3(stream_->transport_version())) {
       CloseConnectionOnWrongFrame("Push Promise");
       return false;
     }
@@ -142,7 +142,7 @@ class QuicSpdyStream::HttpDecoderVisitor : public HttpDecoder::Visitor {
 
   bool OnPushPromiseFramePayload(QuicStringPiece payload) override {
     DCHECK(!payload.empty());
-    if (!VersionUsesQpack(stream_->transport_version())) {
+    if (!VersionUsesHttp3(stream_->transport_version())) {
       CloseConnectionOnWrongFrame("Push Promise");
       return false;
     }
@@ -150,7 +150,7 @@ class QuicSpdyStream::HttpDecoderVisitor : public HttpDecoder::Visitor {
   }
 
   bool OnPushPromiseFrameEnd() override {
-    if (!VersionUsesQpack(stream_->transport_version())) {
+    if (!VersionUsesHttp3(stream_->transport_version())) {
       CloseConnectionOnWrongFrame("Push Promise");
       return false;
     }
@@ -209,11 +209,11 @@ QuicSpdyStream::QuicSpdyStream(QuicStreamId id,
   DCHECK_EQ(0u, sequencer()->NumBytesConsumed());
   // If headers are sent on the headers stream, then do not receive any
   // callbacks from the sequencer until headers are complete.
-  if (!VersionUsesQpack(transport_version())) {
+  if (!VersionUsesHttp3(transport_version())) {
     sequencer()->SetBlockedUntilFlush();
   }
 
-  if (VersionHasDataFrameHeader(transport_version())) {
+  if (VersionUsesHttp3(transport_version())) {
     sequencer()->set_level_triggered(true);
   }
 }
@@ -242,11 +242,11 @@ QuicSpdyStream::QuicSpdyStream(PendingStream* pending,
   DCHECK(!QuicUtils::IsCryptoStreamId(transport_version(), id()));
   // If headers are sent on the headers stream, then do not receive any
   // callbacks from the sequencer until headers are complete.
-  if (!VersionUsesQpack(transport_version())) {
+  if (!VersionUsesHttp3(transport_version())) {
     sequencer()->SetBlockedUntilFlush();
   }
 
-  if (VersionHasDataFrameHeader(transport_version())) {
+  if (VersionUsesHttp3(transport_version())) {
     sequencer()->set_level_triggered(true);
   }
 }
@@ -259,8 +259,8 @@ size_t QuicSpdyStream::WriteHeaders(
     QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener) {
   QuicConnection::ScopedPacketFlusher flusher(spdy_session_->connection());
   // Send stream type for server push stream
-  if (VersionHasStreamType(transport_version()) &&
-      type() == WRITE_UNIDIRECTIONAL && send_buffer().stream_offset() == 0) {
+  if (VersionUsesHttp3(transport_version()) && type() == WRITE_UNIDIRECTIONAL &&
+      send_buffer().stream_offset() == 0) {
     char data[sizeof(kServerPushStream)];
     QuicDataWriter writer(QUIC_ARRAYSIZE(data), data);
     writer.WriteVarInt62(kServerPushStream);
@@ -276,7 +276,7 @@ size_t QuicSpdyStream::WriteHeaders(
   }
   size_t bytes_written =
       WriteHeadersImpl(std::move(header_block), fin, std::move(ack_listener));
-  if (!VersionUsesQpack(transport_version()) && fin) {
+  if (!VersionUsesHttp3(transport_version()) && fin) {
     // If HEADERS are sent on the headers stream, then |fin_sent_| needs to be
     // set and write side needs to be closed without actually sending a FIN on
     // this stream.
@@ -288,7 +288,7 @@ size_t QuicSpdyStream::WriteHeaders(
 }
 
 void QuicSpdyStream::WriteOrBufferBody(QuicStringPiece data, bool fin) {
-  if (!VersionHasDataFrameHeader(transport_version()) || data.length() == 0) {
+  if (!VersionUsesHttp3(transport_version()) || data.length() == 0) {
     WriteOrBufferData(data, fin, nullptr);
     return;
   }
@@ -322,7 +322,7 @@ size_t QuicSpdyStream::WriteTrailers(
     return 0;
   }
 
-  if (!VersionUsesQpack(transport_version())) {
+  if (!VersionUsesHttp3(transport_version())) {
     // The header block must contain the final offset for this stream, as the
     // trailers may be processed out of order at the peer.
     const QuicStreamOffset final_offset =
@@ -341,7 +341,7 @@ size_t QuicSpdyStream::WriteTrailers(
 
   // If trailers are sent on the headers stream, then |fin_sent_| needs to be
   // set without actually sending a FIN on this stream.
-  if (!VersionUsesQpack(transport_version())) {
+  if (!VersionUsesHttp3(transport_version())) {
     set_fin_sent(kFin);
 
     // Also, write side of this stream needs to be closed.  However, only do
@@ -355,7 +355,7 @@ size_t QuicSpdyStream::WriteTrailers(
 }
 
 void QuicSpdyStream::WritePushPromise(const PushPromiseFrame& frame) {
-  DCHECK(VersionUsesQpack(transport_version()));
+  DCHECK(VersionUsesHttp3(transport_version()));
   std::unique_ptr<char[]> push_promise_frame_with_id;
   const size_t push_promise_frame_length =
       encoder_.SerializePushPromiseFrameWithOnlyPushId(
@@ -395,7 +395,7 @@ QuicConsumedData QuicSpdyStream::WritevBody(const struct iovec* iov,
 
 QuicConsumedData QuicSpdyStream::WriteBodySlices(QuicMemSliceSpan slices,
                                                  bool fin) {
-  if (!VersionHasDataFrameHeader(transport_version()) || slices.empty()) {
+  if (!VersionUsesHttp3(transport_version()) || slices.empty()) {
     return WriteMemSlices(slices, fin);
   }
 
@@ -431,7 +431,7 @@ QuicConsumedData QuicSpdyStream::WriteBodySlices(QuicMemSliceSpan slices,
 
 size_t QuicSpdyStream::Readv(const struct iovec* iov, size_t iov_len) {
   DCHECK(FinishedReadingHeaders());
-  if (!VersionHasDataFrameHeader(transport_version())) {
+  if (!VersionUsesHttp3(transport_version())) {
     return sequencer()->Readv(iov, iov_len);
   }
   size_t bytes_read = 0;
@@ -442,7 +442,7 @@ size_t QuicSpdyStream::Readv(const struct iovec* iov, size_t iov_len) {
 
 int QuicSpdyStream::GetReadableRegions(iovec* iov, size_t iov_len) const {
   DCHECK(FinishedReadingHeaders());
-  if (!VersionHasDataFrameHeader(transport_version())) {
+  if (!VersionUsesHttp3(transport_version())) {
     return sequencer()->GetReadableRegions(iov, iov_len);
   }
   return body_manager_.PeekBody(iov, iov_len);
@@ -450,7 +450,7 @@ int QuicSpdyStream::GetReadableRegions(iovec* iov, size_t iov_len) const {
 
 void QuicSpdyStream::MarkConsumed(size_t num_bytes) {
   DCHECK(FinishedReadingHeaders());
-  if (!VersionHasDataFrameHeader(transport_version())) {
+  if (!VersionUsesHttp3(transport_version())) {
     sequencer()->MarkConsumed(num_bytes);
     return;
   }
@@ -466,7 +466,7 @@ bool QuicSpdyStream::IsDoneReading() const {
 }
 
 bool QuicSpdyStream::HasBytesToRead() const {
-  if (!VersionHasDataFrameHeader(transport_version())) {
+  if (!VersionUsesHttp3(transport_version())) {
     return sequencer()->HasBytesToRead();
   }
   return body_manager_.HasBytesToRead();
@@ -477,7 +477,7 @@ void QuicSpdyStream::MarkTrailersConsumed() {
 }
 
 uint64_t QuicSpdyStream::total_body_bytes_read() const {
-  if (VersionHasDataFrameHeader(transport_version())) {
+  if (VersionUsesHttp3(transport_version())) {
     return body_manager_.total_body_bytes_received();
   }
   return sequencer()->NumBytesConsumed();
@@ -490,7 +490,7 @@ void QuicSpdyStream::ConsumeHeaderList() {
     return;
   }
 
-  if (!VersionUsesQpack(transport_version())) {
+  if (!VersionUsesHttp3(transport_version())) {
     sequencer()->SetUnblocked();
     return;
   }
@@ -555,7 +555,7 @@ void QuicSpdyStream::OnHeaderDecodingError() {
 }
 
 void QuicSpdyStream::OnHeadersTooLarge() {
-  if (VersionUsesQpack(transport_version())) {
+  if (VersionUsesHttp3(transport_version())) {
     // TODO(124216424): Use HTTP_EXCESSIVE_LOAD error code.
     std::string error_message =
         QuicStrCat("Too large headers received on stream ", id());
@@ -574,7 +574,7 @@ void QuicSpdyStream::OnInitialHeadersComplete(
   headers_decompressed_ = true;
   header_list_ = header_list;
 
-  if (VersionUsesQpack(transport_version())) {
+  if (VersionUsesHttp3(transport_version())) {
     if (fin) {
       OnStreamFrame(
           QuicStreamFrame(id(), /* fin = */ true,
@@ -610,7 +610,7 @@ void QuicSpdyStream::OnTrailingHeadersComplete(
     const QuicHeaderList& header_list) {
   // TODO(b/134706391): remove |fin| argument.
   DCHECK(!trailers_decompressed_);
-  if (!VersionUsesQpack(transport_version()) && fin_received()) {
+  if (!VersionUsesHttp3(transport_version()) && fin_received()) {
     QUIC_DLOG(INFO) << ENDPOINT
                     << "Received Trailers after FIN, on stream: " << id();
     session()->connection()->CloseConnection(
@@ -619,7 +619,7 @@ void QuicSpdyStream::OnTrailingHeadersComplete(
     return;
   }
 
-  if (!VersionUsesQpack(transport_version()) && !fin) {
+  if (!VersionUsesHttp3(transport_version()) && !fin) {
     QUIC_DLOG(INFO) << ENDPOINT
                     << "Trailers must have FIN set, on stream: " << id();
     session()->connection()->CloseConnection(
@@ -629,7 +629,7 @@ void QuicSpdyStream::OnTrailingHeadersComplete(
   }
 
   size_t final_byte_offset = 0;
-  const bool expect_final_byte_offset = !VersionUsesQpack(transport_version());
+  const bool expect_final_byte_offset = !VersionUsesHttp3(transport_version());
   if (!SpdyUtils::CopyAndValidateTrailers(header_list, expect_final_byte_offset,
                                           &final_byte_offset,
                                           &received_trailers_)) {
@@ -643,7 +643,7 @@ void QuicSpdyStream::OnTrailingHeadersComplete(
   trailers_decompressed_ = true;
   if (fin) {
     const QuicStreamOffset offset =
-        VersionUsesQpack(transport_version())
+        VersionUsesHttp3(transport_version())
             ? flow_controller()->highest_received_byte_offset()
             : final_byte_offset;
     OnStreamFrame(QuicStreamFrame(id(), fin, offset, QuicStringPiece()));
@@ -670,12 +670,12 @@ void QuicSpdyStream::OnStreamReset(const QuicRstStreamFrame& frame) {
 }
 
 void QuicSpdyStream::OnDataAvailable() {
-  if (!VersionUsesQpack(transport_version())) {
+  if (!VersionUsesHttp3(transport_version())) {
     // Sequencer must be blocked until headers are consumed.
     DCHECK(FinishedReadingHeaders());
   }
 
-  if (!VersionHasDataFrameHeader(transport_version())) {
+  if (!VersionUsesHttp3(transport_version())) {
     OnBodyAvailable();
     return;
   }
@@ -789,7 +789,7 @@ void QuicSpdyStream::ClearSession() {
 }
 
 bool QuicSpdyStream::OnDataFrameStart(QuicByteCount header_length) {
-  DCHECK(VersionHasDataFrameHeader(transport_version()));
+  DCHECK(VersionUsesHttp3(transport_version()));
   if (!headers_decompressed_ || trailers_decompressed_) {
     // TODO(b/124216424): Change error code to HTTP_UNEXPECTED_FRAME.
     session()->connection()->CloseConnection(
@@ -804,7 +804,7 @@ bool QuicSpdyStream::OnDataFrameStart(QuicByteCount header_length) {
 }
 
 bool QuicSpdyStream::OnDataFramePayload(QuicStringPiece payload) {
-  DCHECK(VersionHasDataFrameHeader(transport_version()));
+  DCHECK(VersionUsesHttp3(transport_version()));
 
   body_manager_.OnBody(payload);
 
@@ -812,7 +812,7 @@ bool QuicSpdyStream::OnDataFramePayload(QuicStringPiece payload) {
 }
 
 bool QuicSpdyStream::OnDataFrameEnd() {
-  DCHECK(VersionHasDataFrameHeader(transport_version()));
+  DCHECK(VersionUsesHttp3(transport_version()));
   QUIC_DVLOG(1) << ENDPOINT
                 << "Reaches the end of a data frame. Total bytes received are "
                 << body_manager_.total_body_bytes_received();
@@ -867,7 +867,7 @@ QuicByteCount QuicSpdyStream::GetNumFrameHeadersInInterval(
 }
 
 bool QuicSpdyStream::OnHeadersFrameStart(QuicByteCount header_length) {
-  DCHECK(VersionUsesQpack(transport_version()));
+  DCHECK(VersionUsesHttp3(transport_version()));
   DCHECK(!qpack_decoded_headers_accumulator_);
 
   if (trailers_decompressed_) {
@@ -890,7 +890,7 @@ bool QuicSpdyStream::OnHeadersFrameStart(QuicByteCount header_length) {
 }
 
 bool QuicSpdyStream::OnHeadersFramePayload(QuicStringPiece payload) {
-  DCHECK(VersionUsesQpack(transport_version()));
+  DCHECK(VersionUsesHttp3(transport_version()));
   DCHECK(qpack_decoded_headers_accumulator_);
 
   if (headers_decompressed_) {
@@ -915,7 +915,7 @@ bool QuicSpdyStream::OnHeadersFramePayload(QuicStringPiece payload) {
 }
 
 bool QuicSpdyStream::OnHeadersFrameEnd() {
-  DCHECK(VersionUsesQpack(transport_version()));
+  DCHECK(VersionUsesHttp3(transport_version()));
   DCHECK(qpack_decoded_headers_accumulator_);
 
   auto result = qpack_decoded_headers_accumulator_->EndHeaderBlock();
@@ -941,7 +941,7 @@ bool QuicSpdyStream::OnHeadersFrameEnd() {
 }
 
 bool QuicSpdyStream::OnPushPromiseFrameStart(QuicByteCount header_length) {
-  DCHECK(VersionHasStreamType(transport_version()));
+  DCHECK(VersionUsesHttp3(transport_version()));
   DCHECK(!qpack_decoded_headers_accumulator_);
 
   sequencer()->MarkConsumed(body_manager_.OnNonBody(header_length));
@@ -951,7 +951,7 @@ bool QuicSpdyStream::OnPushPromiseFrameStart(QuicByteCount header_length) {
 
 bool QuicSpdyStream::OnPushPromiseFramePushId(PushId push_id,
                                               QuicByteCount push_id_length) {
-  DCHECK(VersionHasStreamType(transport_version()));
+  DCHECK(VersionUsesHttp3(transport_version()));
   DCHECK(!qpack_decoded_headers_accumulator_);
 
   // TODO(renjietang): Check max push id and handle errors.
@@ -972,7 +972,7 @@ bool QuicSpdyStream::OnPushPromiseFramePayload(QuicStringPiece payload) {
 }
 
 bool QuicSpdyStream::OnPushPromiseFrameEnd() {
-  DCHECK(VersionUsesQpack(transport_version()));
+  DCHECK(VersionUsesHttp3(transport_version()));
 
   return OnHeadersFrameEnd();
 }
@@ -1021,7 +1021,7 @@ size_t QuicSpdyStream::WriteHeadersImpl(
     spdy::SpdyHeaderBlock header_block,
     bool fin,
     QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener) {
-  if (!VersionUsesQpack(transport_version())) {
+  if (!VersionUsesHttp3(transport_version())) {
     return spdy_session_->WriteHeadersOnHeadersStream(
         id(), std::move(header_block), fin, precedence(),
         std::move(ack_listener));

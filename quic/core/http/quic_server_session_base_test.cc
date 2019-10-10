@@ -499,7 +499,7 @@ TEST_P(QuicServerSessionBaseTest, BandwidthEstimates) {
   const std::string serving_region = "not a real region";
   session_->set_serving_region(serving_region);
 
-  if (!VersionUsesQpack(transport_version())) {
+  if (!VersionUsesHttp3(transport_version())) {
     session_->UnregisterStreamPriority(
         QuicUtils::GetHeadersStreamId(connection_->transport_version()),
         /*is_static=*/true);
@@ -509,7 +509,7 @@ TEST_P(QuicServerSessionBaseTest, BandwidthEstimates) {
       new MockQuicCryptoServerStream(&crypto_config_, &compressed_certs_cache_,
                                      session_.get(), &stream_helper_);
   QuicServerSessionBasePeer::SetCryptoStream(session_.get(), crypto_stream);
-  if (!VersionUsesQpack(transport_version())) {
+  if (!VersionUsesHttp3(transport_version())) {
     session_->RegisterStreamPriority(
         QuicUtils::GetHeadersStreamId(connection_->transport_version()),
         /*is_static=*/true,
@@ -532,7 +532,7 @@ TEST_P(QuicServerSessionBaseTest, BandwidthEstimates) {
       &bandwidth_recorder, max_bandwidth_estimate_kbytes_per_second,
       max_bandwidth_estimate_timestamp);
   // Queue up some pending data.
-  if (!VersionUsesQpack(transport_version())) {
+  if (!VersionUsesHttp3(transport_version())) {
     session_->MarkConnectionLevelWriteBlocked(
         QuicUtils::GetHeadersStreamId(connection_->transport_version()));
   } else {
