@@ -7016,6 +7016,8 @@ TEST_P(QuicConnectionTest, ClientHandlesVersionNegotiation) {
       ConstructReceivedPacket(*encrypted, QuicTime::Zero()));
   EXPECT_CALL(visitor_, OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF))
       .WillOnce(Invoke(this, &QuicConnectionTest::SaveConnectionCloseFrame));
+  // Verify no connection close packet gets sent.
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
   connection_.ProcessUdpPacket(kSelfAddress, kPeerAddress, *received);
   EXPECT_FALSE(connection_.connected());
   EXPECT_EQ(1, connection_close_frame_count_);

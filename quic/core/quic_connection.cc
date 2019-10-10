@@ -629,7 +629,7 @@ void QuicConnection::OnVersionNegotiationPacket(
           ParsedQuicVersionVectorToString(framer_.supported_versions()),
           "}, peer supported versions: {",
           ParsedQuicVersionVectorToString(packet.versions), "}"),
-      ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+      ConnectionCloseBehavior::SILENT_CLOSE);
 }
 
 // Handles retry for client connection.
