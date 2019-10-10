@@ -499,16 +499,16 @@ bool QuicSession::CheckStreamNotBusyLooping(QuicStream* stream,
       previous_bytes_written == stream->stream_bytes_written() &&
       previous_fin_sent == stream->fin_sent()) {
     stream->set_busy_counter(stream->busy_counter() + 1);
-    QUIC_DVLOG(1) << "Suspected busy loop on stream id " << stream->id()
-                  << " stream_bytes_written " << stream->stream_bytes_written()
-                  << " fin " << stream->fin_sent() << " count "
-                  << stream->busy_counter();
+    QUIC_DVLOG(1) << ENDPOINT << "Suspected busy loop on stream id "
+                  << stream->id() << " stream_bytes_written "
+                  << stream->stream_bytes_written() << " fin "
+                  << stream->fin_sent() << " count " << stream->busy_counter();
     // Wait a few iterations before firing, the exact count is
     // arbitrary, more than a few to cover a few test-only false
     // positives.
     if (stream->busy_counter() > 20) {
-      QUIC_LOG(ERROR) << "Detected busy loop on stream id " << stream->id()
-                      << " stream_bytes_written "
+      QUIC_LOG(ERROR) << ENDPOINT << "Detected busy loop on stream id "
+                      << stream->id() << " stream_bytes_written "
                       << stream->stream_bytes_written() << " fin "
                       << stream->fin_sent();
       return false;
@@ -523,8 +523,8 @@ bool QuicSession::CheckStreamWriteBlocked(QuicStream* stream) const {
   if (!stream->write_side_closed() && stream->HasBufferedData() &&
       !stream->flow_controller()->IsBlocked() &&
       !write_blocked_streams_.IsStreamBlocked(stream->id())) {
-    QUIC_DLOG(ERROR) << "stream " << stream->id() << " has buffered "
-                     << stream->BufferedDataBytes()
+    QUIC_DLOG(ERROR) << ENDPOINT << "stream " << stream->id()
+                     << " has buffered " << stream->BufferedDataBytes()
                      << " bytes, and is not flow control blocked, "
                         "but it is not in the write block list.";
     return false;
@@ -588,14 +588,17 @@ void QuicSession::OnCanWrite() {
       return;
     }
     currently_writing_stream_id_ = write_blocked_streams_.PopFront();
+    QUIC_DVLOG(1) << ENDPOINT << "Removing stream "
+                  << currently_writing_stream_id_ << " from write-blocked list";
     QuicStream* stream = GetOrCreateStream(currently_writing_stream_id_);
     if (stream != nullptr && !stream->flow_controller()->IsBlocked()) {
       // If the stream can't write all bytes it'll re-add itself to the blocked
       // list.
       uint64_t previous_bytes_written = stream->stream_bytes_written();
       bool previous_fin_sent = stream->fin_sent();
-      QUIC_DVLOG(1) << "stream " << stream->id() << " bytes_written "
-                    << previous_bytes_written << " fin " << previous_fin_sent;
+      QUIC_DVLOG(1) << ENDPOINT << "stream " << stream->id()
+                    << " bytes_written " << previous_bytes_written << " fin "
+                    << previous_fin_sent;
       stream->OnCanWrite();
       DCHECK(CheckStreamWriteBlocked(stream));
       DCHECK(CheckStreamNotBusyLooping(stream, previous_bytes_written,
@@ -943,6 +946,7 @@ bool QuicSession::IsCryptoHandshakeConfirmed() const {
 }
 
 void QuicSession::OnConfigNegotiated() {
+  QUIC_DVLOG(1) << ENDPOINT << "OnConfigNegotiated";
   connection_->SetFromConfig(config_);
 
   if (VersionHasIetfQuicFrames(transport_version())) {
@@ -950,7 +954,8 @@ void QuicSession::OnConfigNegotiated() {
     if (config_.HasReceivedMaxIncomingBidirectionalStreams()) {
       max_streams = config_.ReceivedMaxIncomingBidirectionalStreams();
     }
-    QUIC_DVLOG(1) << "Setting Bidirectional outgoing_max_streams_ to "
+    QUIC_DVLOG(1) << ENDPOINT
+                  << "Setting Bidirectional outgoing_max_streams_ to "
                   << max_streams;
     v99_streamid_manager_.SetMaxOpenOutgoingBidirectionalStreams(max_streams);
 
@@ -958,7 +963,8 @@ void QuicSession::OnConfigNegotiated() {
     if (config_.HasReceivedMaxIncomingUnidirectionalStreams()) {
       max_streams = config_.ReceivedMaxIncomingUnidirectionalStreams();
     }
-    QUIC_DVLOG(1) << "Setting Unidirectional outgoing_max_streams_ to "
+    QUIC_DVLOG(1) << ENDPOINT
+                  << "Setting Unidirectional outgoing_max_streams_ to "
                   << max_streams;
     v99_streamid_manager_.SetMaxOpenOutgoingUnidirectionalStreams(max_streams);
   } else {
@@ -966,7 +972,8 @@ void QuicSession::OnConfigNegotiated() {
     if (config_.HasReceivedMaxIncomingBidirectionalStreams()) {
       max_streams = config_.ReceivedMaxIncomingBidirectionalStreams();
     }
-    QUIC_DVLOG(1) << "Setting max_open_outgoing_streams_ to " << max_streams;
+    QUIC_DVLOG(1) << ENDPOINT << "Setting max_open_outgoing_streams_ to "
+                  << max_streams;
     stream_id_manager_.set_max_open_outgoing_streams(max_streams);
   }
 
@@ -1135,6 +1142,7 @@ void QuicSession::HandleRstOnValidNonexistentStream(
 }
 
 void QuicSession::OnNewStreamFlowControlWindow(QuicStreamOffset new_window) {
+  QUIC_DVLOG(1) << ENDPOINT << "OnNewStreamFlowControlWindow " << new_window;
   if (new_window < kMinimumFlowControlSendWindow &&
       !connection_->version().AllowsLowFlowControlLimits()) {
     QUIC_LOG_FIRST_N(ERROR, 1)
@@ -1148,9 +1156,15 @@ void QuicSession::OnNewStreamFlowControlWindow(QuicStreamOffset new_window) {
 
   // Inform all existing streams about the new window.
   for (auto const& kv : stream_map_) {
+    QUIC_DVLOG(1) << ENDPOINT << "Informing stream " << kv.first
+                  << " of new stream flow control window " << new_window;
     kv.second->UpdateSendWindowOffset(new_window);
   }
   if (!QuicVersionUsesCryptoFrames(transport_version())) {
+    QUIC_DVLOG(1)
+        << ENDPOINT
+        << "Informing crypto stream of new stream flow control window "
+        << new_window;
     GetMutableCryptoStream()->UpdateSendWindowOffset(new_window);
   }
 }
@@ -1218,6 +1232,7 @@ void QuicSession::OnNewStreamIncomingBidirectionalFlowControlWindow(
 }
 
 void QuicSession::OnNewSessionFlowControlWindow(QuicStreamOffset new_window) {
+  QUIC_DVLOG(1) << ENDPOINT << "OnNewSessionFlowControlWindow " << new_window;
   if (new_window < kMinimumFlowControlSendWindow &&
       !connection_->version().AllowsLowFlowControlLimits()) {
     QUIC_LOG_FIRST_N(ERROR, 1)
@@ -1521,6 +1536,9 @@ void QuicSession::MarkConnectionLevelWriteBlocked(QuicStreamId id) {
     QUIC_BUG << "Marking unknown stream " << id << " blocked.";
     QUIC_LOG_FIRST_N(ERROR, 2) << QuicStackTrace();
   }
+
+  QUIC_DVLOG(1) << ENDPOINT << "Adding stream " << id
+                << " to write-blocked list";
 
   write_blocked_streams_.AddStream(id);
 }

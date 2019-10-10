@@ -33,6 +33,13 @@ struct TestParams {
   Perspective perspective;
 };
 
+// Used by ::testing::PrintToStringParamName().
+std::string PrintToString(const TestParams& tp) {
+  return QuicStrCat(
+      ParsedQuicVersionToString(tp.version), "_",
+      (tp.perspective == Perspective::IS_CLIENT ? "client" : "server"));
+}
+
 std::vector<TestParams> GetTestParams() {
   std::vector<TestParams> params;
   ParsedQuicVersionVector all_supported_versions = AllSupportedVersions();
@@ -83,7 +90,8 @@ class QpackSendStreamTest : public QuicTestWithParam<TestParams> {
 
 INSTANTIATE_TEST_SUITE_P(Tests,
                          QpackSendStreamTest,
-                         ::testing::ValuesIn(GetTestParams()));
+                         ::testing::ValuesIn(GetTestParams()),
+                         ::testing::PrintToStringParamName());
 
 TEST_P(QpackSendStreamTest, WriteStreamTypeOnlyFirstTime) {
   std::string data = "data";

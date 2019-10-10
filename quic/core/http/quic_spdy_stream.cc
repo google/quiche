@@ -270,7 +270,8 @@ size_t QuicSpdyStream::WriteHeaders(
     // layer applications.
     unacked_frame_headers_offsets_.Add(0, writer.length());
 
-    QUIC_LOG(INFO) << "Stream " << id() << " is writing type as server push";
+    QUIC_LOG(INFO) << ENDPOINT << "Stream " << id()
+                   << " is writing type as server push";
     WriteOrBufferData(QuicStringPiece(writer.data(), writer.length()), false,
                       nullptr);
   }
@@ -301,14 +302,14 @@ void QuicSpdyStream::WriteOrBufferBody(QuicStringPiece data, bool fin) {
   unacked_frame_headers_offsets_.Add(
       send_buffer().stream_offset(),
       send_buffer().stream_offset() + header_length);
-  QUIC_DLOG(INFO) << "Stream " << id()
+  QUIC_DLOG(INFO) << ENDPOINT << "Stream " << id()
                   << " is writing DATA frame header of length "
                   << header_length;
   WriteOrBufferData(QuicStringPiece(buffer.get(), header_length), false,
                     nullptr);
 
   // Write body.
-  QUIC_DLOG(INFO) << "Stream " << id()
+  QUIC_DLOG(INFO) << ENDPOINT << "Stream " << id()
                   << " is writing DATA frame payload of length "
                   << data.length();
   WriteOrBufferData(data, fin, nullptr);
@@ -327,8 +328,8 @@ size_t QuicSpdyStream::WriteTrailers(
     // trailers may be processed out of order at the peer.
     const QuicStreamOffset final_offset =
         stream_bytes_written() + BufferedDataBytes();
-    QUIC_DLOG(INFO) << "Inserting trailer: (" << kFinalOffsetHeaderKey << ", "
-                    << final_offset << ")";
+    QUIC_DLOG(INFO) << ENDPOINT << "Inserting trailer: ("
+                    << kFinalOffsetHeaderKey << ", " << final_offset << ")";
     trailer_block.insert(std::make_pair(
         kFinalOffsetHeaderKey, QuicTextUtils::Uint64ToString(final_offset)));
   }
@@ -367,7 +368,7 @@ void QuicSpdyStream::WritePushPromise(const PushPromiseFrame& frame) {
                                          frame.headers.length());
 
   // Write Push Promise frame header and push id.
-  QUIC_DLOG(INFO) << "Stream " << id()
+  QUIC_DLOG(INFO) << ENDPOINT << "Stream " << id()
                   << " is writing Push Promise frame header of length "
                   << push_promise_frame_length << " , with promised id "
                   << frame.push_id;
@@ -376,7 +377,7 @@ void QuicSpdyStream::WritePushPromise(const PushPromiseFrame& frame) {
                     /* fin = */ false, /* ack_listener = */ nullptr);
 
   // Write response headers.
-  QUIC_DLOG(INFO) << "Stream " << id()
+  QUIC_DLOG(INFO) << ENDPOINT << "Stream " << id()
                   << " is writing Push Promise request header of length "
                   << frame.headers.length();
   WriteOrBufferData(frame.headers, /* fin = */ false,
@@ -417,13 +418,13 @@ QuicConsumedData QuicSpdyStream::WriteBodySlices(QuicMemSliceSpan slices,
   unacked_frame_headers_offsets_.Add(
       send_buffer().stream_offset(),
       send_buffer().stream_offset() + header_length);
-  QUIC_DLOG(INFO) << "Stream " << id()
+  QUIC_DLOG(INFO) << ENDPOINT << "Stream " << id()
                   << " is writing DATA frame header of length "
                   << header_length;
   WriteMemSlices(storage.ToSpan(), false);
 
   // Write body.
-  QUIC_DLOG(INFO) << "Stream " << id()
+  QUIC_DLOG(INFO) << ENDPOINT << "Stream " << id()
                   << " is writing DATA frame payload of length "
                   << slices.total_length();
   return WriteMemSlices(slices, fin);
@@ -611,7 +612,8 @@ void QuicSpdyStream::OnTrailingHeadersComplete(
   // TODO(b/134706391): remove |fin| argument.
   DCHECK(!trailers_decompressed_);
   if (!VersionUsesQpack(transport_version()) && fin_received()) {
-    QUIC_DLOG(INFO) << "Received Trailers after FIN, on stream: " << id();
+    QUIC_DLOG(INFO) << ENDPOINT
+                    << "Received Trailers after FIN, on stream: " << id();
     session()->connection()->CloseConnection(
         QUIC_INVALID_HEADERS_STREAM_DATA, "Trailers after fin",
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
@@ -619,7 +621,8 @@ void QuicSpdyStream::OnTrailingHeadersComplete(
   }
 
   if (!VersionUsesQpack(transport_version()) && !fin) {
-    QUIC_DLOG(INFO) << "Trailers must have FIN set, on stream: " << id();
+    QUIC_DLOG(INFO) << ENDPOINT
+                    << "Trailers must have FIN set, on stream: " << id();
     session()->connection()->CloseConnection(
         QUIC_INVALID_HEADERS_STREAM_DATA, "Fin missing from trailers",
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
@@ -631,7 +634,8 @@ void QuicSpdyStream::OnTrailingHeadersComplete(
   if (!SpdyUtils::CopyAndValidateTrailers(header_list, expect_final_byte_offset,
                                           &final_byte_offset,
                                           &received_trailers_)) {
-    QUIC_DLOG(ERROR) << "Trailers for stream " << id() << " are malformed.";
+    QUIC_DLOG(ERROR) << ENDPOINT << "Trailers for stream " << id()
+                     << " are malformed.";
     session()->connection()->CloseConnection(
         QUIC_INVALID_HEADERS_STREAM_DATA, "Trailers are malformed",
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
@@ -658,7 +662,8 @@ void QuicSpdyStream::OnStreamReset(const QuicRstStreamFrame& frame) {
     QuicStream::OnStreamReset(frame);
     return;
   }
-  QUIC_DVLOG(1) << "Received QUIC_STREAM_NO_ERROR, not discarding response";
+  QUIC_DVLOG(1) << ENDPOINT
+                << "Received QUIC_STREAM_NO_ERROR, not discarding response";
   set_rst_received(true);
   MaybeIncreaseHighestReceivedOffset(frame.byte_offset);
   set_stream_error(frame.error_code);
@@ -809,7 +814,8 @@ bool QuicSpdyStream::OnDataFramePayload(QuicStringPiece payload) {
 
 bool QuicSpdyStream::OnDataFrameEnd() {
   DCHECK(VersionHasDataFrameHeader(transport_version()));
-  QUIC_DVLOG(1) << "Reaches the end of a data frame. Total bytes received are "
+  QUIC_DVLOG(1) << ENDPOINT
+                << "Reaches the end of a data frame. Total bytes received are "
                 << body_manager_.total_body_bytes_received();
   return true;
 }
@@ -975,7 +981,7 @@ bool QuicSpdyStream::OnPushPromiseFrameEnd() {
 bool QuicSpdyStream::OnUnknownFrameStart(uint64_t frame_type,
                                          QuicByteCount header_length) {
   // Ignore unknown frames, but consume frame header.
-  QUIC_DVLOG(1) << "Discarding " << header_length
+  QUIC_DVLOG(1) << ENDPOINT << "Discarding " << header_length
                 << " byte long frame header of frame of unknown type "
                 << frame_type << ".";
   sequencer()->MarkConsumed(body_manager_.OnNonBody(header_length));
@@ -984,7 +990,7 @@ bool QuicSpdyStream::OnUnknownFrameStart(uint64_t frame_type,
 
 bool QuicSpdyStream::OnUnknownFramePayload(QuicStringPiece payload) {
   // Ignore unknown frames, but consume frame payload.
-  QUIC_DVLOG(1) << "Discarding " << payload.size()
+  QUIC_DVLOG(1) << ENDPOINT << "Discarding " << payload.size()
                 << " bytes of payload of frame of unknown type.";
   sequencer()->MarkConsumed(body_manager_.OnNonBody(payload.size()));
   return true;
@@ -1045,14 +1051,14 @@ size_t QuicSpdyStream::WriteHeadersImpl(
       send_buffer().stream_offset(),
       send_buffer().stream_offset() + headers_frame_header_length);
 
-  QUIC_DLOG(INFO) << "Stream " << id()
+  QUIC_DLOG(INFO) << ENDPOINT << "Stream " << id()
                   << " is writing HEADERS frame header of length "
                   << headers_frame_header_length;
   WriteOrBufferData(
       QuicStringPiece(headers_frame_header.get(), headers_frame_header_length),
       /* fin = */ false, /* ack_listener = */ nullptr);
 
-  QUIC_DLOG(INFO) << "Stream " << id()
+  QUIC_DLOG(INFO) << ENDPOINT << "Stream " << id()
                   << " is writing HEADERS frame payload of length "
                   << encoded_headers.length();
   WriteOrBufferData(encoded_headers, fin, nullptr);

@@ -29,9 +29,7 @@ using testing::_;
 using testing::AnyNumber;
 using testing::InSequence;
 using testing::Invoke;
-using testing::Return;
 using testing::StrictMock;
-using testing::ValuesIn;
 
 namespace quic {
 namespace test {
@@ -255,7 +253,8 @@ class QuicSimpleServerStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
 
 INSTANTIATE_TEST_SUITE_P(Tests,
                          QuicSimpleServerStreamTest,
-                         ValuesIn(AllSupportedVersions()));
+                         ::testing::ValuesIn(AllSupportedVersions()),
+                         ::testing::PrintToStringParamName());
 
 TEST_P(QuicSimpleServerStreamTest, TestFraming) {
   EXPECT_CALL(session_, WritevData(_, _, _, _, _))
