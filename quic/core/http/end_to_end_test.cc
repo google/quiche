@@ -3291,6 +3291,15 @@ TEST_P(EndToEndTestServerPush, ServerPushOverLimitNonBlocking) {
   ASSERT_TRUE(Initialize());
   EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
 
+  if (VersionUsesHttp3(client_->client()
+                           ->client_session()
+                           ->connection()
+                           ->transport_version())) {
+    // TODO(b/142504641): Re-enable this test when we support push streams
+    // arriving before the corresponding promises.
+    return;
+  }
+
   // Set reordering to ensure that body arriving before PUSH_PROMISE is ok.
   SetPacketSendDelay(QuicTime::Delta::FromMilliseconds(2));
   SetReorderPercentage(30);
