@@ -159,9 +159,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
                                 QuicStreamId promised_stream_id,
                                 spdy::SpdyHeaderBlock headers);
 
-  // Sends SETTINGS_MAX_HEADER_LIST_SIZE SETTINGS frame.
-  void SendMaxHeaderListSize(size_t value);
-
   QpackEncoder* qpack_encoder();
   QpackDecoder* qpack_decoder();
   QuicHeadersStream* headers_stream() { return headers_stream_; }
@@ -348,6 +345,10 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
 
   void CloseConnectionOnDuplicateHttp3UnidirectionalStreams(
       QuicStringPiece type);
+
+  // Sends any data which should be sent at the start of a connection,
+  // including the initial SETTINGS frame, etc.
+  void SendInitialData();
 
   std::unique_ptr<QpackEncoder> qpack_encoder_;
   std::unique_ptr<QpackDecoder> qpack_decoder_;

@@ -537,7 +537,7 @@ void QuicSpdySession::WriteH3Priority(const PriorityFrame& priority) {
       << "Server must not send priority";
 
   QuicConnection::ScopedPacketFlusher flusher(connection());
-  SendMaxHeaderListSize(max_inbound_header_list_size_);
+  SendInitialData();
   send_control_stream_->WritePriority(priority);
 }
 
@@ -579,7 +579,7 @@ void QuicSpdySession::WritePushPromise(QuicStreamId original_stream_id,
   stream->WritePushPromise(frame);
 }
 
-void QuicSpdySession::SendMaxHeaderListSize(size_t value) {
+void QuicSpdySession::SendInitialData() {
   if (VersionUsesHttp3(transport_version())) {
     QuicConnection::ScopedPacketFlusher flusher(connection());
     send_control_stream_->MaybeSendSettingsFrame();
@@ -595,7 +595,8 @@ void QuicSpdySession::SendMaxHeaderListSize(size_t value) {
   }
 
   SpdySettingsIR settings_frame;
-  settings_frame.AddSetting(SETTINGS_MAX_HEADER_LIST_SIZE, value);
+  settings_frame.AddSetting(SETTINGS_MAX_HEADER_LIST_SIZE,
+                            max_inbound_header_list_size_);
 
   SpdySerializedFrame frame(spdy_framer_.SerializeFrame(settings_frame));
   headers_stream()->WriteOrBufferData(
@@ -631,7 +632,7 @@ void QuicSpdySession::OnCryptoHandshakeEvent(CryptoHandshakeEvent event) {
   QuicSession::OnCryptoHandshakeEvent(event);
   if (VersionUsesHttp3(transport_version()) ||
       (event == HANDSHAKE_CONFIRMED && config()->SupportMaxHeaderListSize())) {
-    SendMaxHeaderListSize(max_inbound_header_list_size_);
+    SendInitialData();
   }
 }
 
