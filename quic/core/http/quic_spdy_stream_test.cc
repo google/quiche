@@ -222,6 +222,30 @@ class QuicSpdyStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
     QuicConfigPeer::SetReceivedMaxIncomingUnidirectionalStreams(
         session_->config(), 10);
     session_->OnConfigNegotiated();
+    EXPECT_CALL(*connection_, OnCanWrite());
+    if (UsesHttp3()) {
+      // In this case, TestStream::WriteHeadersImpl() does not prevent writes.
+      // Six writes include priority for headers, headers frame header, headers
+      // frame, priority of trailers, trailing headers frame header, and
+      // trailers.
+      auto send_control_stream =
+          QuicSpdySessionPeer::GetSendControlStream(session_.get());
+      // The control stream will write 3 times, including stream type, settings
+      // frame, priority for headers.
+      EXPECT_CALL(*session_, WritevData(send_control_stream,
+                                        send_control_stream->id(), _, _, _))
+          .Times(2);
+      auto qpack_encoder_stream =
+          QuicSpdySessionPeer::GetQpackEncoderSendStream(session_.get());
+      EXPECT_CALL(*session_, WritevData(qpack_encoder_stream,
+                                        qpack_encoder_stream->id(), 1, 0, _));
+      auto qpack_decoder_stream =
+          QuicSpdySessionPeer::GetQpackDecoderSendStream(session_.get());
+      EXPECT_CALL(*session_, WritevData(qpack_decoder_stream,
+                                        qpack_decoder_stream->id(), 1, 0, _));
+    }
+    static_cast<QuicSession*>(session_.get())
+        ->OnCryptoHandshakeEvent(QuicSession::ENCRYPTION_ESTABLISHED);
   }
 
   QuicHeaderList ProcessHeaders(bool fin, const SpdyHeaderBlock& headers) {
@@ -1239,19 +1263,10 @@ TEST_P(QuicSpdyStreamTest, ClientWritesPriority) {
         .Times(4);
     auto send_control_stream =
         QuicSpdySessionPeer::GetSendControlStream(session_.get());
-    // The control stream will write 3 times, including stream type, settings
-    // frame, priority for headers.
+    // The control stream will write priority for headers.
     EXPECT_CALL(*session_, WritevData(send_control_stream,
                                       send_control_stream->id(), _, _, _))
-        .Times(3);
-    auto qpack_encoder_stream =
-        QuicSpdySessionPeer::GetQpackEncoderSendStream(session_.get());
-    EXPECT_CALL(*session_, WritevData(qpack_encoder_stream,
-                                      qpack_encoder_stream->id(), 1, 0, _));
-    auto qpack_decoder_stream =
-        QuicSpdySessionPeer::GetQpackDecoderSendStream(session_.get());
-    EXPECT_CALL(*session_, WritevData(qpack_decoder_stream,
-                                      qpack_decoder_stream->id(), 1, 0, _));
+        .Times(1);
   }
 
   // Write the initial headers, without a FIN.
@@ -1860,8 +1875,6 @@ TEST_P(QuicSpdyStreamTest, ImmediateHeaderDecodingWithDynamicTableEntries) {
 
   // The stream byte will be written in the first byte.
   EXPECT_CALL(*session_, WritevData(decoder_send_stream,
-                                    decoder_send_stream->id(), 1, 0, _));
-  EXPECT_CALL(*session_, WritevData(decoder_send_stream,
                                     decoder_send_stream->id(), _, _, _));
   // Deliver dynamic table entry to decoder.
   session_->qpack_decoder()->OnInsertWithoutNameReference("foo", "bar");
@@ -1923,8 +1936,6 @@ TEST_P(QuicSpdyStreamTest, BlockedHeaderDecoding) {
       QuicSpdySessionPeer::GetQpackDecoderSendStream(session_.get());
 
   // The stream byte will be written in the first byte.
-  EXPECT_CALL(*session_, WritevData(decoder_send_stream,
-                                    decoder_send_stream->id(), 1, 0, _));
   EXPECT_CALL(*session_, WritevData(decoder_send_stream,
                                     decoder_send_stream->id(), _, _, _));
   // Deliver dynamic table entry to decoder.
@@ -2014,8 +2025,6 @@ TEST_P(QuicSpdyStreamTest, AsyncErrorDecodingTrailers) {
       QuicSpdySessionPeer::GetQpackDecoderSendStream(session_.get());
 
   // The stream byte will be written in the first byte.
-  EXPECT_CALL(*session_, WritevData(decoder_send_stream,
-                                    decoder_send_stream->id(), 1, 0, _));
   EXPECT_CALL(*session_, WritevData(decoder_send_stream,
                                     decoder_send_stream->id(), _, _, _));
   // Deliver dynamic table entry to decoder.
