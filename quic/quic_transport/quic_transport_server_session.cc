@@ -158,7 +158,12 @@ void QuicTransportServerSession::ProcessClientIndication(
   if (!parser.Parse()) {
     return;
   }
-  client_indication_processed_ = true;
+  // Don't set the ready bit if we closed the connection due to any error
+  // beforehand.
+  if (!connection()->connected()) {
+    return;
+  }
+  ready_ = true;
 }
 
 }  // namespace quic

@@ -21,11 +21,14 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 #include "net/third_party/quiche/src/quic/quic_transport/quic_transport_protocol.h"
+#include "net/third_party/quiche/src/quic/quic_transport/quic_transport_session_interface.h"
 
 namespace quic {
 
 // A client session for the QuicTransport protocol.
-class QUIC_EXPORT QuicTransportClientSession : public QuicSession {
+class QUIC_EXPORT QuicTransportClientSession
+    : public QuicSession,
+      public QuicTransportSessionInterface {
  public:
   QuicTransportClientSession(QuicConnection* connection,
                              Visitor* owner,
@@ -50,10 +53,7 @@ class QUIC_EXPORT QuicTransportClientSession : public QuicSession {
     return crypto_stream_.get();
   }
 
-  bool IsSessionReady() const {
-    return IsCryptoHandshakeConfirmed() && client_indication_sent_ &&
-           connection()->connected();
-  }
+  bool IsSessionReady() const override { return ready_; }
 
   void OnCryptoHandshakeEvent(CryptoHandshakeEvent event) override;
 
@@ -78,6 +78,7 @@ class QUIC_EXPORT QuicTransportClientSession : public QuicSession {
   std::unique_ptr<QuicCryptoClientStream> crypto_stream_;
   url::Origin origin_;
   bool client_indication_sent_ = false;
+  bool ready_ = false;
 };
 
 }  // namespace quic

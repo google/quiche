@@ -104,7 +104,7 @@ void QuicTransportClientSession::SendClientIndication() {
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return;
   }
-  if (client_indication_sent_) {
+  if (ready_) {
     QUIC_BUG << "Client indication may only be sent once.";
     connection()->CloseConnection(
         QUIC_INTERNAL_ERROR, "Attempted to send client indication twice",
@@ -121,6 +121,13 @@ void QuicTransportClientSession::SendClientIndication() {
   client_indication->WriteOrBufferData(SerializeClientIndication(),
                                        /*fin=*/true, nullptr);
   client_indication_sent_ = true;
+
+  // Don't set the ready bit if we closed the connection due to any error
+  // beforehand.
+  if (!connection()->connected()) {
+    return;
+  }
+  ready_ = true;
 }
 
 }  // namespace quic

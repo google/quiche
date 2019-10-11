@@ -11,11 +11,14 @@
 #include "net/third_party/quiche/src/quic/core/quic_session.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 #include "net/third_party/quiche/src/quic/quic_transport/quic_transport_protocol.h"
+#include "net/third_party/quiche/src/quic/quic_transport/quic_transport_session_interface.h"
 
 namespace quic {
 
 // A server session for the QuicTransport protocol.
-class QUIC_EXPORT QuicTransportServerSession : public QuicSession {
+class QUIC_EXPORT QuicTransportServerSession
+    : public QuicSession,
+      public QuicTransportSessionInterface {
  public:
   class ServerVisitor {
    public:
@@ -46,10 +49,7 @@ class QUIC_EXPORT QuicTransportServerSession : public QuicSession {
     return crypto_stream_.get();
   }
 
-  bool IsSessionReady() const {
-    return IsCryptoHandshakeConfirmed() && client_indication_processed_ &&
-           connection()->connected();
-  }
+  bool IsSessionReady() const override { return ready_; }
 
   QuicStream* CreateIncomingStream(QuicStreamId id) override;
   QuicStream* CreateIncomingStream(PendingStream* /*pending*/) override {
@@ -94,7 +94,7 @@ class QUIC_EXPORT QuicTransportServerSession : public QuicSession {
   void ProcessClientIndication(QuicStringPiece indication);
 
   std::unique_ptr<QuicCryptoServerStream> crypto_stream_;
-  bool client_indication_processed_ = false;
+  bool ready_ = false;
   ServerVisitor* visitor_;
 };
 
