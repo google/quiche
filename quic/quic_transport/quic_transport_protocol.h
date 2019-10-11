@@ -21,6 +21,11 @@ QUIC_EXPORT constexpr QuicStreamId ClientIndicationStream() {
   return 2;
 }
 
+// The maximum allowed size of the client indication.
+QUIC_EXPORT constexpr QuicByteCount ClientIndicationMaxSize() {
+  return 65536;
+}
+
 // The keys of the fields in the client indication.
 enum class QuicTransportClientIndicationKeys : uint16_t {
   kOrigin = 0x0000,

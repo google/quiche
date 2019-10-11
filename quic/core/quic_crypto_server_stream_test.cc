@@ -132,7 +132,8 @@ class QuicCryptoServerStreamTest : public QuicTestWithParam<bool> {
 
     return crypto_test_utils::HandshakeWithFakeClient(
         helpers_.back().get(), alarm_factories_.back().get(),
-        server_connection_, server_stream(), server_id_, client_options_);
+        server_connection_, server_stream(), server_id_, client_options_,
+        /*alpn=*/"");
   }
 
   // Performs a single round of handshake message-exchange between the

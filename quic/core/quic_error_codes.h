@@ -339,8 +339,11 @@ enum QuicErrorCode {
   // There are too many buffered control frames in control frame manager.
   QUIC_TOO_MANY_BUFFERED_CONTROL_FRAMES = 124,
 
+  // QuicTransport received invalid client indication.
+  QUIC_TRANSPORT_INVALID_CLIENT_INDICATION = 125,
+
   // No error. Used as bound while iterating.
-  QUIC_LAST_ERROR = 125,
+  QUIC_LAST_ERROR = 126,
 };
 // QuicErrorCodes is encoded as four octets on-the-wire when doing Google QUIC,
 // or a varint62 when doing IETF QUIC. Ensure that its value does not exceed

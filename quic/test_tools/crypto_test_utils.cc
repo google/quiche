@@ -26,6 +26,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_crypto_stream.h"
 #include "net/third_party/quiche/src/quic/core/quic_server_id.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
+#include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_clock.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
@@ -257,7 +258,8 @@ int HandshakeWithFakeClient(MockQuicConnectionHelper* helper,
                             PacketSavingConnection* server_conn,
                             QuicCryptoServerStream* server,
                             const QuicServerId& server_id,
-                            const FakeClientOptions& options) {
+                            const FakeClientOptions& options,
+                            std::string alpn) {
   ParsedQuicVersionVector supported_versions = AllSupportedVersions();
   if (options.only_tls_versions) {
     supported_versions.clear();
@@ -282,6 +284,14 @@ int HandshakeWithFakeClient(MockQuicConnectionHelper* helper,
   EXPECT_CALL(client_session, OnProofVerifyDetailsAvailable(testing::_))
       .Times(testing::AnyNumber());
   EXPECT_CALL(*client_conn, OnCanWrite()).Times(testing::AnyNumber());
+  if (!alpn.empty()) {
+    EXPECT_CALL(client_session, GetAlpnsToOffer())
+        .WillRepeatedly(testing::Return(std::vector<std::string>({alpn})));
+  } else {
+    EXPECT_CALL(client_session, GetAlpnsToOffer())
+        .WillRepeatedly(testing::Return(std::vector<std::string>(
+            {AlpnForVersion(client_conn->version())})));
+  }
   client_session.GetMutableCryptoStream()->CryptoConnect();
   CHECK_EQ(1u, client_conn->encrypted_packets_.size());
 

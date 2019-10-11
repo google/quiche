@@ -51,6 +51,9 @@ class QuicCryptoClientStreamTest : public QuicTest {
     session_ = std::make_unique<TestQuicSpdyClientSession>(
         connection_, DefaultQuicConfig(), supported_versions_, server_id_,
         &crypto_config_);
+    EXPECT_CALL(*session_, GetAlpnsToOffer())
+        .WillRepeatedly(testing::Return(std::vector<std::string>(
+            {AlpnForVersion(connection_->version())})));
   }
 
   void CompleteCryptoHandshake() {

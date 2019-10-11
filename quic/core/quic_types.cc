@@ -411,6 +411,8 @@ QuicErrorCodeToIetfMapping QuicErrorCodeToTransportErrorCode(
     case QUIC_TOO_MANY_BUFFERED_CONTROL_FRAMES:
       return {true,
               {static_cast<uint64_t>(QUIC_TOO_MANY_BUFFERED_CONTROL_FRAMES)}};
+    case QUIC_TRANSPORT_INVALID_CLIENT_INDICATION:
+      return {false, {0u}};
     case QUIC_LAST_ERROR:
       return {false, {static_cast<uint64_t>(QUIC_LAST_ERROR)}};
   }

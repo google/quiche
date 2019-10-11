@@ -864,6 +864,7 @@ class TestQuicSpdyClientSession : public QuicSpdyClientSessionBase {
   MOCK_METHOD1(ShouldCreateIncomingStream, bool(QuicStreamId id));
   MOCK_METHOD0(ShouldCreateOutgoingBidirectionalStream, bool());
   MOCK_METHOD0(ShouldCreateOutgoingUnidirectionalStream, bool());
+  MOCK_CONST_METHOD0(GetAlpnsToOffer, std::vector<std::string>());
 
   // Override to not send max header list size.
   void OnCryptoHandshakeEvent(CryptoHandshakeEvent event) override;

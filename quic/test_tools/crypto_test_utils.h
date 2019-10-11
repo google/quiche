@@ -78,7 +78,8 @@ int HandshakeWithFakeClient(MockQuicConnectionHelper* helper,
                             PacketSavingConnection* server_conn,
                             QuicCryptoServerStream* server,
                             const QuicServerId& server_id,
-                            const FakeClientOptions& options);
+                            const FakeClientOptions& options,
+                            std::string alpn);
 
 // SetupCryptoServerConfigForTest configures |crypto_config|
 // with sensible defaults for testing.
