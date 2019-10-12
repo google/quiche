@@ -30,6 +30,7 @@ void QpackDecoder::OnStreamReset(QuicStreamId stream_id) {
   // TODO(bnc): SendStreamCancellation should not be called if maximum dynamic
   // table capacity is zero.
   decoder_stream_sender_.SendStreamCancellation(stream_id);
+  decoder_stream_sender_.Flush();
 }
 
 bool QpackDecoder::OnStreamBlocked(QuicStreamId stream_id) {
@@ -62,6 +63,8 @@ void QpackDecoder::OnDecodingCompleted(QuicStreamId stream_id,
         header_table_.inserted_entry_count() - known_received_count_);
     known_received_count_ = header_table_.inserted_entry_count();
   }
+
+  decoder_stream_sender_.Flush();
 }
 
 void QpackDecoder::OnInsertWithNameReference(bool is_static,

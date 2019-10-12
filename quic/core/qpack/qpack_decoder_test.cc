@@ -861,14 +861,14 @@ TEST_P(QpackDecoderTest, InsertCountIncrement) {
 
   EXPECT_CALL(handler_, OnHeaderDecoded(Eq("foo"), Eq("bar")));
   EXPECT_CALL(handler_, OnDecodingCompleted());
-  EXPECT_CALL(decoder_stream_sender_delegate_,
-              WriteStreamData(Eq(kHeaderAcknowledgement)));
 
   // Decoder received two insertions, but Header Acknowledgement only increases
   // Known Insert Count to one.  Decoder should send an Insert Count Increment
   // instruction with increment of one to update Known Insert Count to two.
   EXPECT_CALL(decoder_stream_sender_delegate_,
-              WriteStreamData(Eq(QuicTextUtils::HexDecode("01"))));
+              WriteStreamData(Eq(QuicTextUtils::HexDecode(
+                  "81"       // Header Acknowledgement on stream 1
+                  "01"))));  // Insert Count Increment with increment of one
 
   DecodeHeaderBlock(QuicTextUtils::HexDecode(
       "0200"   // Required Insert Count 1 and Delta Base 0.

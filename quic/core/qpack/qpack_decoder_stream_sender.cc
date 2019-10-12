@@ -18,29 +18,32 @@ QpackDecoderStreamSender::QpackDecoderStreamSender() : delegate_(nullptr) {}
 void QpackDecoderStreamSender::SendInsertCountIncrement(uint64_t increment) {
   values_.varint = increment;
 
-  std::string output;
   instruction_encoder_.Encode(InsertCountIncrementInstruction(), values_,
-                              &output);
-  delegate_->WriteStreamData(output);
+                              &buffer_);
 }
 
 void QpackDecoderStreamSender::SendHeaderAcknowledgement(
     QuicStreamId stream_id) {
   values_.varint = stream_id;
 
-  std::string output;
   instruction_encoder_.Encode(HeaderAcknowledgementInstruction(), values_,
-                              &output);
-  delegate_->WriteStreamData(output);
+                              &buffer_);
 }
 
 void QpackDecoderStreamSender::SendStreamCancellation(QuicStreamId stream_id) {
   values_.varint = stream_id;
 
-  std::string output;
   instruction_encoder_.Encode(StreamCancellationInstruction(), values_,
-                              &output);
-  delegate_->WriteStreamData(output);
+                              &buffer_);
+}
+
+void QpackDecoderStreamSender::Flush() {
+  if (buffer_.empty()) {
+    return;
+  }
+
+  delegate_->WriteStreamData(buffer_);
+  buffer_.clear();
 }
 
 }  // namespace quic
