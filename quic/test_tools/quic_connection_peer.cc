@@ -226,6 +226,9 @@ QuicConnectionStats* QuicConnectionPeer::GetStats(QuicConnection* connection) {
 // static
 QuicPacketCount QuicConnectionPeer::GetPacketsBetweenMtuProbes(
     QuicConnection* connection) {
+  if (connection->mtu_discovery_v2_) {
+    return connection->mtu_discoverer_.packets_between_probes();
+  }
   return connection->packets_between_mtu_probes_;
 }
 
@@ -239,6 +242,15 @@ void QuicConnectionPeer::SetPacketsBetweenMtuProbes(QuicConnection* connection,
 void QuicConnectionPeer::SetNextMtuProbeAt(QuicConnection* connection,
                                            QuicPacketNumber number) {
   connection->next_mtu_probe_at_ = number;
+}
+
+// static
+void QuicConnectionPeer::ReInitializeMtuDiscoverer(
+    QuicConnection* connection,
+    QuicPacketCount packets_between_probes_base,
+    QuicPacketNumber next_probe_at) {
+  connection->mtu_discoverer_ =
+      QuicConnectionMtuDiscoverer(packets_between_probes_base, next_probe_at);
 }
 
 // static

@@ -328,7 +328,8 @@ QuicConnection::QuicConnection(
       address_validated_(false),
       skip_packet_number_for_pto_(false),
       treat_queued_packets_as_sent_(
-          GetQuicReloadableFlag(quic_treat_queued_packets_as_sent)) {
+          GetQuicReloadableFlag(quic_treat_queued_packets_as_sent)),
+      mtu_discovery_v2_(GetQuicReloadableFlag(quic_mtu_discovery_v2)) {
   QUIC_DLOG(INFO) << ENDPOINT << "Created connection with server connection ID "
                   << server_connection_id
                   << " and version: " << ParsedQuicVersionToString(version());
@@ -2051,6 +2052,15 @@ void QuicConnection::WriteQueuedPackets() {
         packet.encrypted_buffer.data(), packet.encrypted_buffer.length(),
         packet.self_address.host(), packet.peer_address, per_packet_options_);
     QUIC_DVLOG(1) << ENDPOINT << "Sending buffered packet, result: " << result;
+    if (mtu_discovery_v2_ && IsMsgTooBig(result) &&
+        packet.encrypted_buffer.length() > long_term_mtu_) {
+      // When MSG_TOO_BIG is returned, the system typically knows what the
+      // actual MTU is, so there is no need to probe further.
+      // TODO(wub): Reduce max packet size to a safe default, or the actual MTU.
+      mtu_discoverer_.Disable();
+      mtu_discovery_alarm_->Cancel();
+      continue;
+    }
     if (IsWriteError(result.status)) {
       OnWriteError(result.error_code);
       break;
@@ -2260,8 +2270,12 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
     }
   }
 
+  const bool looks_like_mtu_probe = packet->retransmittable_frames.empty() &&
+                                    packet->encrypted_length > long_term_mtu_;
   DCHECK_LE(encrypted_length, kMaxOutgoingPacketSize);
-  DCHECK_LE(encrypted_length, packet_generator_.GetCurrentMaxPacketLength());
+  if (!looks_like_mtu_probe) {
+    DCHECK_LE(encrypted_length, packet_generator_.GetCurrentMaxPacketLength());
+  }
   QUIC_DVLOG(1) << ENDPOINT << "Sending packet " << packet_number << " : "
                 << (IsRetransmittable(*packet) == HAS_RETRANSMITTABLE_DATA
                         ? "data bearing "
@@ -2336,9 +2350,18 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
 
   // In some cases, an MTU probe can cause EMSGSIZE. This indicates that the
   // MTU discovery is permanently unsuccessful.
-  if (IsMsgTooBig(result) && packet->retransmittable_frames.empty() &&
-      packet->encrypted_length > long_term_mtu_) {
-    mtu_discovery_target_ = 0;
+  if (IsMsgTooBig(result) && looks_like_mtu_probe) {
+    if (mtu_discovery_v2_) {
+      // When MSG_TOO_BIG is returned, the system typically knows what the
+      // actual MTU is, so there is no need to probe further.
+      // TODO(wub): Reduce max packet size to a safe default, or the actual MTU.
+      QUIC_DVLOG(1) << ENDPOINT << " MTU probe packet too big, size:"
+                    << packet->encrypted_length
+                    << ", long_term_mtu_:" << long_term_mtu_;
+      mtu_discoverer_.Disable();
+    } else {
+      mtu_discovery_target_ = 0;
+    }
     mtu_discovery_alarm_->Cancel();
     // The write failed, but the writer is not blocked, so return true.
     return true;
@@ -2347,10 +2370,9 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
   if (IsWriteError(result.status)) {
     OnWriteError(result.error_code);
     QUIC_LOG_FIRST_N(ERROR, 10)
-        << ENDPOINT << "failed writing " << encrypted_length
-        << " bytes from host " << self_address().host().ToString()
-        << " to address " << peer_address().ToString() << " with error code "
-        << result.error_code;
+        << ENDPOINT << "failed writing packet " << packet_number << " of "
+        << encrypted_length << " bytes from " << self_address().host() << " to "
+        << peer_address() << ", with error code " << result.error_code;
     return false;
   }
 
@@ -2557,7 +2579,12 @@ void QuicConnection::OnCongestionChange() {
 
 void QuicConnection::OnPathMtuIncreased(QuicPacketLength packet_size) {
   if (packet_size > max_packet_length()) {
+    const QuicByteCount old_max_packet_length = max_packet_length();
     SetMaxPacketLength(packet_size);
+    if (mtu_discovery_v2_) {
+      mtu_discoverer_.OnMaxPacketLengthUpdated(old_max_packet_length,
+                                               max_packet_length());
+    }
   }
 }
 
@@ -3144,6 +3171,15 @@ void QuicConnection::SetPathDegradingAlarm() {
 }
 
 void QuicConnection::MaybeSetMtuAlarm(QuicPacketNumber sent_packet_number) {
+  if (mtu_discovery_v2_) {
+    if (mtu_discovery_alarm_->IsSet() ||
+        !mtu_discoverer_.ShouldProbeMtu(sent_packet_number)) {
+      return;
+    }
+    mtu_discovery_alarm_->Set(clock_->ApproximateNow());
+    return;
+  }
+
   // Do not set the alarm if the target size is less than the current size.
   // This covers the case when |mtu_discovery_target_| is at its default value,
   // zero.
@@ -3294,7 +3330,13 @@ bool QuicConnection::IsTerminationPacket(const SerializedPacket& packet) {
 }
 
 void QuicConnection::SetMtuDiscoveryTarget(QuicByteCount target) {
-  mtu_discovery_target_ = GetLimitedMaxPacketSize(target);
+  if (mtu_discovery_v2_) {
+    mtu_discoverer_.Disable();
+    mtu_discoverer_.Enable(max_packet_length(),
+                           GetLimitedMaxPacketSize(target));
+  } else {
+    mtu_discovery_target_ = GetLimitedMaxPacketSize(target);
+  }
 }
 
 QuicByteCount QuicConnection::GetLimitedMaxPacketSize(
@@ -3464,6 +3506,18 @@ bool QuicConnection::SendGenericPathProbePacket(
 
 void QuicConnection::DiscoverMtu() {
   DCHECK(!mtu_discovery_alarm_->IsSet());
+
+  if (mtu_discovery_v2_) {
+    const QuicPacketNumber largest_sent_packet =
+        sent_packet_manager_.GetLargestSentPacket();
+    if (mtu_discoverer_.ShouldProbeMtu(largest_sent_packet)) {
+      ++mtu_probe_count_;
+      SendMtuDiscoveryPacket(
+          mtu_discoverer_.GetUpdatedMtuProbeSize(largest_sent_packet));
+    }
+    DCHECK(!mtu_discovery_alarm_->IsSet());
+    return;
+  }
 
   // Check if the MTU has been already increased.
   if (mtu_discovery_target_ <= max_packet_length()) {

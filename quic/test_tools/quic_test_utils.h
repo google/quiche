@@ -1258,6 +1258,10 @@ MATCHER_P(ReceivedPacketInfoConnectionIdEquals, destination_connection_id, "") {
   return arg.destination_connection_id == destination_connection_id;
 }
 
+MATCHER_P2(InRange, min, max, "") {
+  return arg >= min && arg <= max;
+}
+
 }  // namespace test
 }  // namespace quic
 

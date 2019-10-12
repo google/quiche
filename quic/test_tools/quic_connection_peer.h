@@ -111,6 +111,10 @@ class QuicConnectionPeer {
                                          QuicPacketCount packets);
   static void SetNextMtuProbeAt(QuicConnection* connection,
                                 QuicPacketNumber number);
+  static void ReInitializeMtuDiscoverer(
+      QuicConnection* connection,
+      QuicPacketCount packets_between_probes_base,
+      QuicPacketNumber next_probe_at);
   static void SetAckMode(QuicConnection* connection, AckMode ack_mode);
   static void SetFastAckAfterQuiescence(QuicConnection* connection,
                                         bool fast_ack_after_quiescence);

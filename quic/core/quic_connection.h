@@ -34,6 +34,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_connection_id.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection_stats.h"
 #include "net/third_party/quiche/src/quic/core/quic_framer.h"
+#include "net/third_party/quiche/src/quic/core/quic_mtu_discovery.h"
 #include "net/third_party/quiche/src/quic/core/quic_one_block_arena.h"
 #include "net/third_party/quiche/src/quic/core/quic_packet_creator.h"
 #include "net/third_party/quiche/src/quic/core/quic_packet_generator.h"
@@ -58,35 +59,6 @@ class QuicRandom;
 namespace test {
 class QuicConnectionPeer;
 }  // namespace test
-
-// The initial number of packets between MTU probes.  After each attempt the
-// number is doubled.
-const QuicPacketCount kPacketsBetweenMtuProbesBase = 100;
-
-// The number of MTU probes that get sent before giving up.
-const size_t kMtuDiscoveryAttempts = 3;
-
-// Ensure that exponential back-off does not result in an integer overflow.
-// The number of packets can be potentially capped, but that is not useful at
-// current kMtuDiscoveryAttempts value, and hence is not implemented at present.
-static_assert(kMtuDiscoveryAttempts + 8 < 8 * sizeof(QuicPacketNumber),
-              "The number of MTU discovery attempts is too high");
-static_assert(kPacketsBetweenMtuProbesBase < (1 << 8),
-              "The initial number of packets between MTU probes is too high");
-
-// The incresed packet size targeted when doing path MTU discovery.
-const QuicByteCount kMtuDiscoveryTargetPacketSizeHigh = 1450;
-const QuicByteCount kMtuDiscoveryTargetPacketSizeLow = 1430;
-
-static_assert(kMtuDiscoveryTargetPacketSizeLow <= kMaxOutgoingPacketSize,
-              "MTU discovery target is too large");
-static_assert(kMtuDiscoveryTargetPacketSizeHigh <= kMaxOutgoingPacketSize,
-              "MTU discovery target is too large");
-
-static_assert(kMtuDiscoveryTargetPacketSizeLow > kDefaultMaxPacketSize,
-              "MTU discovery target does not exceed the default packet size");
-static_assert(kMtuDiscoveryTargetPacketSizeHigh > kDefaultMaxPacketSize,
-              "MTU discovery target does not exceed the default packet size");
 
 // Class that receives callbacks from the connection when frames are received
 // and when other interesting events happen.
@@ -1541,6 +1513,11 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // Latched value of quic_treat_queued_packets_as_sent.
   const bool treat_queued_packets_as_sent_;
+
+  // Latched value of quic_mtu_discovery_v2.
+  const bool mtu_discovery_v2_;
+  // Only used if quic_mtu_discovery_v2 is true.
+  QuicConnectionMtuDiscoverer mtu_discoverer_;
 };
 
 }  // namespace quic
