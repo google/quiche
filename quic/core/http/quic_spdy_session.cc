@@ -886,21 +886,11 @@ void QuicSpdySession::CloseConnectionWithDetails(QuicErrorCode error,
 }
 
 bool QuicSpdySession::HasActiveRequestStreams() const {
-  if (GetQuicReloadableFlag(quic_active_streams_never_negative)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_active_streams_never_negative);
-    DCHECK(static_cast<size_t>(stream_map().size()) >=
-           num_incoming_static_streams() + num_outgoing_static_streams());
-    return stream_map().size() - num_incoming_static_streams() -
-               num_outgoing_static_streams() >
-           0;
-  }
-  if (static_cast<size_t>(stream_map().size()) >
-      num_incoming_static_streams() + num_outgoing_static_streams()) {
-    return stream_map().size() - num_incoming_static_streams() -
-               num_outgoing_static_streams() >
-           0;
-  }
-  return false;
+  DCHECK_GE(static_cast<size_t>(stream_map().size()),
+            num_incoming_static_streams() + num_outgoing_static_streams());
+  return stream_map().size() - num_incoming_static_streams() -
+             num_outgoing_static_streams() >
+         0;
 }
 
 bool QuicSpdySession::ProcessPendingStream(PendingStream* pending) {
