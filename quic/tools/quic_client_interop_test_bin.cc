@@ -12,6 +12,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_system_event_loop.h"
 #include "net/third_party/quiche/src/quic/tools/fake_proof_verifier.h"
 #include "net/third_party/quiche/src/quic/tools/quic_client.h"
+#include "net/third_party/quiche/src/quic/tools/quic_url.h"
 
 DEFINE_QUIC_COMMAND_LINE_FLAG(std::string,
                               host,
@@ -141,17 +142,30 @@ std::set<Feature> ServerSupport(std::string host, int port) {
 
 int main(int argc, char* argv[]) {
   QuicSystemEventLoop event_loop("quic_client");
-  const char* usage = "Usage: quic_client_interop_test [options]";
+  const char* usage = "Usage: quic_client_interop_test [options] [url]";
 
   std::vector<std::string> args =
       quic::QuicParseCommandLineFlags(usage, argc, argv);
-  if (!args.empty()) {
+  if (args.size() > 1) {
     quic::QuicPrintCommandLineFlagHelp(usage);
     exit(1);
   }
   std::string host = GetQuicFlag(FLAGS_host);
   int port = GetQuicFlag(FLAGS_port);
-  if (host.empty() || port == 0) {
+
+  if (!args.empty()) {
+    quic::QuicUrl url(args[0], "https");
+    if (host.empty()) {
+      host = url.host();
+    }
+    if (port == 0) {
+      port = url.port();
+    }
+  }
+  if (port == 0) {
+    port = 443;
+  }
+  if (host.empty()) {
     quic::QuicPrintCommandLineFlagHelp(usage);
     exit(1);
   }
