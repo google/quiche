@@ -7,9 +7,11 @@
 #include <string>
 #include <utility>
 
+#include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_epoll.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_system_event_loop.h"
+#include "net/third_party/quiche/src/quic/test_tools/quic_connection_peer.h"
 #include "net/third_party/quiche/src/quic/tools/fake_proof_verifier.h"
 #include "net/third_party/quiche/src/quic/tools/quic_client.h"
 #include "net/third_party/quiche/src/quic/tools/quic_url.h"
@@ -98,10 +100,21 @@ std::set<Feature> AttemptRequest(QuicSocketAddress addr,
   while (client->WaitForEvents()) {
   }
 
-  QuicConnectionStats client_stats =
-      client->session()->connection()->GetStats();
-  if (client_stats.retry_packet_processed) {
-    features.insert(Feature::kRetry);
+  QuicConnection* connection = client->session()->connection();
+  if (connection != nullptr) {
+    QuicConnectionStats client_stats = connection->GetStats();
+    if (client_stats.retry_packet_processed) {
+      features.insert(Feature::kRetry);
+    }
+    QuicSentPacketManager* sent_packet_manager =
+        test::QuicConnectionPeer::GetSentPacketManager(connection);
+    const bool received_forward_secure_ack =
+        sent_packet_manager != nullptr &&
+        sent_packet_manager->GetLargestAckedPacket(ENCRYPTION_FORWARD_SECURE)
+            .IsInitialized();
+    if (client_stats.stream_bytes_received > 0 && received_forward_secure_ack) {
+      features.insert(Feature::kStreamData);
+    }
   }
 
   if (!client->connected()) {
@@ -112,9 +125,6 @@ std::set<Feature> AttemptRequest(QuicSocketAddress addr,
     features.insert(Feature::kHttp3);
   }
 
-  // TODO(nharper): Properly check that we actually sent stream data and
-  // received ACKs for it.
-  features.insert(Feature::kStreamData);
   // TODO(nharper): Check that we sent/received (which one?) a CONNECTION_CLOSE
   // with error code 0.
   features.insert(Feature::kConnectionClose);
@@ -180,7 +190,7 @@ int main(int argc, char* argv[]) {
   }
 
   auto supported_features = quic::ServerSupport(host, port);
-  std::cout << "Supported features: ";
+  std::cout << host << ":" << port << " = ";
   for (auto feature : supported_features) {
     std::cout << MatrixLetter(feature);
   }
