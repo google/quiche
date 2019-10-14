@@ -34,7 +34,8 @@ enum class Feature {
   kConnectionClose,
   // An H3 transaction succeeded.
   kHttp3,
-  // TODO(nharper): Add Retry to list of tested features.
+  // A RETRY packet was successfully processed.
+  kRetry,
 };
 
 char MatrixLetter(Feature f) {
@@ -49,6 +50,8 @@ char MatrixLetter(Feature f) {
       return 'C';
     case Feature::kHttp3:
       return '3';
+    case Feature::kRetry:
+      return 'S';
   }
 }
 
@@ -93,6 +96,12 @@ std::set<Feature> AttemptRequest(QuicSocketAddress addr,
   // TODO(nharper): After some period of time, time out and don't report
   // success.
   while (client->WaitForEvents()) {
+  }
+
+  QuicConnectionStats client_stats =
+      client->session()->connection()->GetStats();
+  if (client_stats.retry_packet_processed) {
+    features.insert(Feature::kRetry);
   }
 
   if (!client->connected()) {

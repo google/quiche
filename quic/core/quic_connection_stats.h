@@ -106,6 +106,9 @@ struct QUIC_EXPORT_PRIVATE QuicConnectionStats {
 
   // Number of connectivity probing packets received by this connection.
   uint64_t num_connectivity_probing_received;
+
+  // Whether a RETRY packet was successfully processed.
+  bool retry_packet_processed;
 };
 
 }  // namespace quic

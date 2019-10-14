@@ -47,7 +47,8 @@ QuicConnectionStats::QuicConnectionStats()
       connection_creation_time(QuicTime::Zero()),
       blocked_frames_received(0),
       blocked_frames_sent(0),
-      num_connectivity_probing_received(0) {}
+      num_connectivity_probing_received(0),
+      retry_packet_processed(false) {}
 
 QuicConnectionStats::QuicConnectionStats(const QuicConnectionStats& other) =
     default;
@@ -94,7 +95,10 @@ std::ostream& operator<<(std::ostream& os, const QuicConnectionStats& s) {
   os << " blocked_frames_received: " << s.blocked_frames_received;
   os << " blocked_frames_sent: " << s.blocked_frames_sent;
   os << " num_connectivity_probing_received: "
-     << s.num_connectivity_probing_received << " }";
+     << s.num_connectivity_probing_received;
+  os << " retry_packet_processed: "
+     << (s.retry_packet_processed ? "yes" : "no");
+  os << " }";
 
   return os;
 }

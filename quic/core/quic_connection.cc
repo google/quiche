@@ -651,6 +651,7 @@ void QuicConnection::OnRetryPacket(QuicConnectionId original_connection_id,
     return;
   }
   retry_has_been_parsed_ = true;
+  stats_.retry_packet_processed = true;
   QUIC_DLOG(INFO) << "Received RETRY, replacing connection ID "
                   << server_connection_id_ << " with " << new_connection_id
                   << ", received token "
