@@ -234,7 +234,7 @@ class QUIC_EXPORT_PRIVATE QuicSession
 
   // For a client, returns true if the server has confirmed our handshake. For
   // a server, returns true if a full, valid client hello has been received.
-  virtual bool IsCryptoHandshakeConfirmed() const;
+  bool IsCryptoHandshakeConfirmed() const;
 
   // Called by the QuicCryptoStream when a new QuicConfig has been negotiated.
   virtual void OnConfigNegotiated();

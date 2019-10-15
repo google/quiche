@@ -647,7 +647,6 @@ class MockQuicSession : public QuicSession {
                void(QuicStreamId stream_id, spdy::SpdyPriority priority));
   MOCK_METHOD3(OnStreamHeadersComplete,
                void(QuicStreamId stream_id, bool fin, size_t frame_len));
-  MOCK_CONST_METHOD0(IsCryptoHandshakeConfirmed, bool());
   MOCK_CONST_METHOD0(ShouldKeepConnectionAlive, bool());
   MOCK_METHOD2(SendStopSending, void(uint16_t code, QuicStreamId stream_id));
 #ifdef undefined
@@ -749,7 +748,6 @@ class MockQuicSpdySession : public QuicSpdySession {
                     bool fin,
                     size_t frame_len,
                     const QuicHeaderList& header_list));
-  MOCK_CONST_METHOD0(IsCryptoHandshakeConfirmed, bool());
   MOCK_METHOD2(OnPromiseHeaders,
                void(QuicStreamId stream_id, QuicStringPiece headers_data));
   MOCK_METHOD3(OnPromiseHeadersComplete,
