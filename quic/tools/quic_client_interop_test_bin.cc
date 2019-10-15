@@ -11,6 +11,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_epoll.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_system_event_loop.h"
+#include "net/quic/platform/impl/quic_epoll_clock.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_connection_peer.h"
 #include "net/third_party/quiche/src/quic/tools/fake_proof_verifier.h"
 #include "net/third_party/quiche/src/quic/tools/quic_client.h"
@@ -34,10 +35,10 @@ enum class Feature {
   kStreamData,
   // The connection close procedcure completes with a zero error code.
   kConnectionClose,
-  // An H3 transaction succeeded.
-  kHttp3,
   // A RETRY packet was successfully processed.
   kRetry,
+  // An H3 transaction succeeded.
+  kHttp3,
 };
 
 char MatrixLetter(Feature f) {
@@ -64,6 +65,7 @@ std::set<Feature> AttemptRequest(QuicSocketAddress addr,
   std::set<Feature> features;
   auto proof_verifier = std::make_unique<FakeProofVerifier>();
   QuicEpollServer epoll_server;
+  QuicEpollClock epoll_clock(&epoll_server);
   auto client = std::make_unique<QuicClient>(
       addr, server_id, versions, &epoll_server, std::move(proof_verifier));
   if (!client->Initialize()) {
@@ -95,9 +97,13 @@ std::set<Feature> AttemptRequest(QuicSocketAddress addr,
   client->set_store_response(true);
   client->SendRequest(header_block, "", /*fin=*/true);
 
-  // TODO(nharper): After some period of time, time out and don't report
-  // success.
+  const QuicTime request_start_time = epoll_clock.Now();
+  static const auto request_timeout = QuicTime::Delta::FromSeconds(20);
   while (client->WaitForEvents()) {
+    if (epoll_clock.Now() - request_start_time >= request_timeout) {
+      QUIC_LOG(ERROR) << "Timed out waiting for HTTP response";
+      return features;
+    }
   }
 
   QuicConnection* connection = client->session()->connection();
@@ -125,9 +131,28 @@ std::set<Feature> AttemptRequest(QuicSocketAddress addr,
     features.insert(Feature::kHttp3);
   }
 
-  // TODO(nharper): Check that we sent/received (which one?) a CONNECTION_CLOSE
-  // with error code 0.
-  features.insert(Feature::kConnectionClose);
+  if (connection != nullptr && connection->connected()) {
+    test::QuicConnectionPeer::SendConnectionClosePacket(
+        connection, QUIC_NO_ERROR, "Graceful close");
+    const QuicTime close_start_time = epoll_clock.Now();
+    static const auto close_timeout = QuicTime::Delta::FromSeconds(10);
+    while (client->connected()) {
+      client->epoll_network_helper()->RunEventLoop();
+      if (epoll_clock.Now() - close_start_time >= close_timeout) {
+        QUIC_LOG(ERROR) << "Timed out waiting for connection close";
+        return features;
+      }
+    }
+    const QuicErrorCode received_error = client->session()->error();
+    if (received_error == QUIC_NO_ERROR ||
+        received_error == QUIC_PUBLIC_RESET) {
+      features.insert(Feature::kConnectionClose);
+    } else {
+      QUIC_LOG(ERROR) << "Received error " << client->session()->error() << " "
+                      << client->session()->error_details();
+    }
+  }
+
   return features;
 }
 

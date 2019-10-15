@@ -6603,7 +6603,12 @@ void MaybeExtractQuicErrorCode(QuicConnectionCloseFrame* frame) {
   uint64_t extracted_error_code;
   if (ed.size() < 2 || !QuicTextUtils::IsAllDigits(ed[0]) ||
       !QuicTextUtils::StringToUint64(ed[0], &extracted_error_code)) {
-    frame->extracted_error_code = QUIC_IETF_GQUIC_ERROR_MISSING;
+    if (frame->close_type == IETF_QUIC_TRANSPORT_CONNECTION_CLOSE &&
+        frame->transport_error_code == NO_IETF_QUIC_ERROR) {
+      frame->extracted_error_code = QUIC_NO_ERROR;
+    } else {
+      frame->extracted_error_code = QUIC_IETF_GQUIC_ERROR_MISSING;
+    }
     return;
   }
   // Return the error code (numeric) and the error details string without the

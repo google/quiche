@@ -357,5 +357,12 @@ void QuicConnectionPeer::SetAddressValidated(QuicConnection* connection) {
   connection->address_validated_ = true;
 }
 
+// static
+void QuicConnectionPeer::SendConnectionClosePacket(QuicConnection* connection,
+                                                   QuicErrorCode error,
+                                                   const std::string& details) {
+  connection->SendConnectionClosePacket(error, details);
+}
+
 }  // namespace test
 }  // namespace quic

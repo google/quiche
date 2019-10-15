@@ -139,6 +139,10 @@ class QuicConnectionPeer {
                                   PacketHeaderFormat format);
   static void AddBytesReceived(QuicConnection* connection, size_t length);
   static void SetAddressValidated(QuicConnection* connection);
+
+  static void SendConnectionClosePacket(QuicConnection* connection,
+                                        QuicErrorCode error,
+                                        const std::string& details);
 };
 
 }  // namespace test
