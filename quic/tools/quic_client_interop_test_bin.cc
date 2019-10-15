@@ -39,6 +39,8 @@ enum class Feature {
   kRetry,
   // An H3 transaction succeeded.
   kHttp3,
+  // We switched to a different port and the server migrated to it.
+  kRebinding,
 };
 
 char MatrixLetter(Feature f) {
@@ -55,13 +57,16 @@ char MatrixLetter(Feature f) {
       return '3';
     case Feature::kRetry:
       return 'S';
+    case Feature::kRebinding:
+      return 'B';
   }
 }
 
 std::set<Feature> AttemptRequest(QuicSocketAddress addr,
                                  std::string authority,
                                  QuicServerId server_id,
-                                 ParsedQuicVersionVector versions) {
+                                 ParsedQuicVersionVector versions,
+                                 bool attempt_rebind) {
   std::set<Feature> features;
   auto proof_verifier = std::make_unique<FakeProofVerifier>();
   QuicEpollServer epoll_server;
@@ -129,6 +134,26 @@ std::set<Feature> AttemptRequest(QuicSocketAddress addr,
 
   if (client->latest_response_code() != -1) {
     features.insert(Feature::kHttp3);
+
+    if (attempt_rebind) {
+      // Now make a second request after switching to a different client port.
+      if (client->ChangeEphemeralPort()) {
+        client->SendRequest(header_block, "", /*fin=*/true);
+
+        const QuicTime second_request_start_time = epoll_clock.Now();
+        while (client->WaitForEvents()) {
+          if (epoll_clock.Now() - second_request_start_time >=
+              request_timeout) {
+            // Rebinding does not work, retry without attempting it.
+            return AttemptRequest(addr, authority, server_id, versions,
+                                  /*attempt_rebind=*/false);
+          }
+        }
+        features.insert(Feature::kRebinding);
+      } else {
+        QUIC_LOG(ERROR) << "Failed to change ephemeral port";
+      }
+    }
   }
 
   if (connection != nullptr && connection->connected()) {
@@ -173,11 +198,13 @@ std::set<Feature> ServerSupport(std::string host, int port) {
   versions_with_negotiation.insert(versions_with_negotiation.begin(),
                                    QuicVersionReservedForNegotiation());
   auto supported_features =
-      AttemptRequest(addr, authority, server_id, versions_with_negotiation);
+      AttemptRequest(addr, authority, server_id, versions_with_negotiation,
+                     /*attempt_rebind=*/true);
   if (!supported_features.empty()) {
     supported_features.insert(Feature::kVersionNegotiation);
   } else {
-    supported_features = AttemptRequest(addr, authority, server_id, versions);
+    supported_features = AttemptRequest(addr, authority, server_id, versions,
+                                        /*attempt_rebind=*/true);
   }
   return supported_features;
 }
