@@ -137,6 +137,10 @@ class QuicMemoryCacheBackend : public QuicSimpleServerBackend {
   // |cache_cirectory| can be generated using `wget -p --save-headers <url>`.
   void InitializeFromDirectory(const std::string& cache_directory);
 
+  // Once called, URLs which have a numeric path will send a dynamically
+  // generated response of that many bytes.
+  void GenerateDynamicResponses();
+
   // Find all the server push resources associated with |request_url|.
   std::list<QuicBackendResponse::ServerPushInfo> GetServerPushResources(
       std::string request_url);
@@ -181,6 +185,10 @@ class QuicMemoryCacheBackend : public QuicSimpleServerBackend {
 
   // The default response for cache misses, if set.
   std::unique_ptr<QuicBackendResponse> default_response_
+      QUIC_GUARDED_BY(response_mutex_);
+
+  // The generate bytes response, if set.
+  std::unique_ptr<QuicBackendResponse> generate_bytes_response_
       QUIC_GUARDED_BY(response_mutex_);
 
   // A map from request URL to associated server push responses (if any).

@@ -136,6 +136,15 @@ const QuicBackendResponse* QuicMemoryCacheBackend::GetResponse(
 
   auto it = responses_.find(GetKey(host, path));
   if (it == responses_.end()) {
+    uint64_t ignored = 0;
+    if (generate_bytes_response_) {
+      if (QuicTextUtils::StringToUint64(
+              QuicStringPiece(&path[1], path.size() - 1), &ignored)) {
+        // The actual parsed length is ignored here and will be recomputed
+        // by the caller.
+        return generate_bytes_response_.get();
+      }
+    }
     QUIC_DVLOG(1) << "Get response for resource failed: host " << host
                   << " path " << path;
     if (default_response_) {
@@ -271,8 +280,21 @@ bool QuicMemoryCacheBackend::InitializeBackend(
     MaybeAddServerPushResources(resource_file->host(), resource_file->path(),
                                 push_resources);
   }
+
   cache_initialized_ = true;
   return true;
+}
+
+void QuicMemoryCacheBackend::GenerateDynamicResponses() {
+  QuicWriterMutexLock lock(&response_mutex_);
+  // Add a generate bytes response.
+  spdy::SpdyHeaderBlock response_headers;
+  response_headers[":version"] = "HTTP/1.1";
+  response_headers[":status"] = "200";
+  generate_bytes_response_ = std::make_unique<QuicBackendResponse>();
+  generate_bytes_response_->set_headers(std::move(response_headers));
+  generate_bytes_response_->set_response_type(
+      QuicBackendResponse::GENERATE_BYTES);
 }
 
 bool QuicMemoryCacheBackend::IsBackendInitialized() const {

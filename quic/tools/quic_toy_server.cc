@@ -26,6 +26,13 @@ DEFINE_QUIC_COMMAND_LINE_FLAG(
     "construction to seed the cache. Cache directory can be "
     "generated using `wget -p --save-headers <url>`");
 
+DEFINE_QUIC_COMMAND_LINE_FLAG(
+    bool,
+    generate_dynamic_responses,
+    false,
+    "If true, then URLs which have a numeric path will send a dynamically "
+    "generated response of that many bytes.");
+
 DEFINE_QUIC_COMMAND_LINE_FLAG(bool,
                               quic_ietf_draft,
                               false,
@@ -37,6 +44,9 @@ namespace quic {
 std::unique_ptr<quic::QuicSimpleServerBackend>
 QuicToyServer::MemoryCacheBackendFactory::CreateBackend() {
   auto memory_cache_backend = std::make_unique<QuicMemoryCacheBackend>();
+  if (GetQuicFlag(FLAGS_generate_dynamic_responses)) {
+    memory_cache_backend->GenerateDynamicResponses();
+  }
   if (!GetQuicFlag(FLAGS_quic_response_cache_dir).empty()) {
     memory_cache_backend->InitializeBackend(
         GetQuicFlag(FLAGS_quic_response_cache_dir));

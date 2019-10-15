@@ -29,6 +29,7 @@ QuicSimpleServerStream::QuicSimpleServerStream(
     QuicSimpleServerBackend* quic_simple_server_backend)
     : QuicSpdyServerStreamBase(id, session, type),
       content_length_(-1),
+      generate_bytes_length_(0),
       quic_simple_server_backend_(quic_simple_server_backend) {
   DCHECK(quic_simple_server_backend_);
 }
@@ -40,6 +41,7 @@ QuicSimpleServerStream::QuicSimpleServerStream(
     QuicSimpleServerBackend* quic_simple_server_backend)
     : QuicSpdyServerStreamBase(pending, session, type),
       content_length_(-1),
+      generate_bytes_length_(0),
       quic_simple_server_backend_(quic_simple_server_backend) {
   DCHECK(quic_simple_server_backend_);
 }
@@ -260,9 +262,44 @@ void QuicSimpleServerStream::OnResponseBackendComplete(
     return;
   }
 
+  if (response->response_type() == QuicBackendResponse::GENERATE_BYTES) {
+    QUIC_DVLOG(1) << "Stream " << id() << " sending a generate bytes response.";
+    std::string path = request_headers_[":path"].as_string().substr(1);
+    if (!QuicTextUtils::StringToUint64(path, &generate_bytes_length_)) {
+      QUIC_LOG(ERROR) << "Path is not a number.";
+      SendNotFoundResponse();
+      return;
+    }
+    SpdyHeaderBlock headers = response->headers().Clone();
+    headers["content-length"] =
+        QuicTextUtils::Uint64ToString(generate_bytes_length_);
+
+    WriteHeaders(std::move(headers), false, nullptr);
+
+    WriteGeneratedBytes();
+
+    return;
+  }
+
   QUIC_DVLOG(1) << "Stream " << id() << " sending response.";
   SendHeadersAndBodyAndTrailers(response->headers().Clone(), response->body(),
                                 response->trailers().Clone());
+}
+
+void QuicSimpleServerStream::OnCanWrite() {
+  QuicSpdyStream::OnCanWrite();
+  WriteGeneratedBytes();
+}
+
+void QuicSimpleServerStream::WriteGeneratedBytes() {
+  static size_t kChunkSize = 1024;
+  while (!HasBufferedData() && generate_bytes_length_ > 0) {
+    size_t len = std::min<size_t>(kChunkSize, generate_bytes_length_);
+    std::string data(len, 'a');
+    generate_bytes_length_ -= len;
+    bool fin = generate_bytes_length_ == 0;
+    WriteOrBufferBody(data, fin);
+  }
 }
 
 void QuicSimpleServerStream::SendNotFoundResponse() {

@@ -38,6 +38,7 @@ class QuicSimpleServerStream : public QuicSpdyServerStreamBase,
   void OnTrailingHeadersComplete(bool fin,
                                  size_t frame_len,
                                  const QuicHeaderList& header_list) override;
+  void OnCanWrite() override;
 
   // QuicStream implementation called by the sequencer when there is
   // data (or a FIN) to be read.
@@ -88,12 +89,17 @@ class QuicSimpleServerStream : public QuicSpdyServerStreamBase,
 
   const std::string& body() { return body_; }
 
+  // Writes the body bytes for the GENERATE_BYTES response type.
+  void WriteGeneratedBytes();
+
   // The parsed headers received from the client.
   spdy::SpdyHeaderBlock request_headers_;
   int64_t content_length_;
   std::string body_;
 
  private:
+  uint64_t generate_bytes_length_;
+
   QuicSimpleServerBackend* quic_simple_server_backend_;  // Not owned.
 };
 

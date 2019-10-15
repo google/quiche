@@ -42,6 +42,8 @@ class QuicBackendResponse {
     STOP_SENDING,          // Acts like INCOMPLETE_RESPONSE in that the entire
                            // response is not sent. After sending what is sent,
                            // the server will send a STOP_SENDING.
+    GENERATE_BYTES         // Sends a response with a length equal to the number
+                           // of bytes in the URL path.
   };
   QuicBackendResponse();
 
