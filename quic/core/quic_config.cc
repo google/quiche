@@ -518,15 +518,15 @@ void QuicConfig::SetMaxIncomingBidirectionalStreamsToSend(
   max_incoming_bidirectional_streams_.SetSendValue(max_streams);
 }
 
-uint32_t QuicConfig::GetMaxIncomingBidirectionalStreamsToSend() {
+uint32_t QuicConfig::GetMaxIncomingBidirectionalStreamsToSend() const {
   return max_incoming_bidirectional_streams_.GetSendValue();
 }
 
-bool QuicConfig::HasReceivedMaxIncomingBidirectionalStreams() {
+bool QuicConfig::HasReceivedMaxIncomingBidirectionalStreams() const {
   return max_incoming_bidirectional_streams_.HasReceivedValue();
 }
 
-uint32_t QuicConfig::ReceivedMaxIncomingBidirectionalStreams() {
+uint32_t QuicConfig::ReceivedMaxIncomingBidirectionalStreams() const {
   return max_incoming_bidirectional_streams_.GetReceivedValue();
 }
 
@@ -535,15 +535,15 @@ void QuicConfig::SetMaxIncomingUnidirectionalStreamsToSend(
   max_incoming_unidirectional_streams_.SetSendValue(max_streams);
 }
 
-uint32_t QuicConfig::GetMaxIncomingUnidirectionalStreamsToSend() {
+uint32_t QuicConfig::GetMaxIncomingUnidirectionalStreamsToSend() const {
   return max_incoming_unidirectional_streams_.GetSendValue();
 }
 
-bool QuicConfig::HasReceivedMaxIncomingUnidirectionalStreams() {
+bool QuicConfig::HasReceivedMaxIncomingUnidirectionalStreams() const {
   return max_incoming_unidirectional_streams_.HasReceivedValue();
 }
 
-uint32_t QuicConfig::ReceivedMaxIncomingUnidirectionalStreams() {
+uint32_t QuicConfig::ReceivedMaxIncomingUnidirectionalStreams() const {
   return max_incoming_unidirectional_streams_.GetReceivedValue();
 }
 
@@ -567,7 +567,7 @@ void QuicConfig::SetAckDelayExponentToSend(uint32_t exponent) {
   ack_delay_exponent_.SetSendValue(exponent);
 }
 
-uint32_t QuicConfig::GetAckDelayExponentToSend() {
+uint32_t QuicConfig::GetAckDelayExponentToSend() const {
   return ack_delay_exponent_.GetSendValue();
 }
 
@@ -624,19 +624,6 @@ void QuicConfig::SetInitialStreamFlowControlWindowToSend(
     window_bytes = kMinimumFlowControlSendWindow;
   }
   initial_stream_flow_control_window_bytes_.SetSendValue(window_bytes);
-
-  // If the IETF flow control configs have not been set yet, set them.
-  if (!initial_max_stream_data_bytes_incoming_bidirectional_.HasSendValue()) {
-    initial_max_stream_data_bytes_incoming_bidirectional_.SetSendValue(
-        window_bytes);
-  }
-  if (!initial_max_stream_data_bytes_outgoing_bidirectional_.HasSendValue()) {
-    initial_max_stream_data_bytes_outgoing_bidirectional_.SetSendValue(
-        window_bytes);
-  }
-  if (!initial_max_stream_data_bytes_unidirectional_.HasSendValue()) {
-    initial_max_stream_data_bytes_unidirectional_.SetSendValue(window_bytes);
-  }
 }
 
 uint32_t QuicConfig::GetInitialStreamFlowControlWindowToSend() const {
@@ -659,7 +646,10 @@ void QuicConfig::SetInitialMaxStreamDataBytesIncomingBidirectionalToSend(
 
 uint32_t QuicConfig::GetInitialMaxStreamDataBytesIncomingBidirectionalToSend()
     const {
-  return initial_max_stream_data_bytes_incoming_bidirectional_.GetSendValue();
+  if (initial_max_stream_data_bytes_incoming_bidirectional_.HasSendValue()) {
+    return initial_max_stream_data_bytes_incoming_bidirectional_.GetSendValue();
+  }
+  return initial_stream_flow_control_window_bytes_.GetSendValue();
 }
 
 bool QuicConfig::HasReceivedInitialMaxStreamDataBytesIncomingBidirectional()
@@ -682,7 +672,10 @@ void QuicConfig::SetInitialMaxStreamDataBytesOutgoingBidirectionalToSend(
 
 uint32_t QuicConfig::GetInitialMaxStreamDataBytesOutgoingBidirectionalToSend()
     const {
-  return initial_max_stream_data_bytes_outgoing_bidirectional_.GetSendValue();
+  if (initial_max_stream_data_bytes_outgoing_bidirectional_.HasSendValue()) {
+    return initial_max_stream_data_bytes_outgoing_bidirectional_.GetSendValue();
+  }
+  return initial_stream_flow_control_window_bytes_.GetSendValue();
 }
 
 bool QuicConfig::HasReceivedInitialMaxStreamDataBytesOutgoingBidirectional()
@@ -703,7 +696,10 @@ void QuicConfig::SetInitialMaxStreamDataBytesUnidirectionalToSend(
 }
 
 uint32_t QuicConfig::GetInitialMaxStreamDataBytesUnidirectionalToSend() const {
-  return initial_max_stream_data_bytes_unidirectional_.GetSendValue();
+  if (initial_max_stream_data_bytes_unidirectional_.HasSendValue()) {
+    return initial_max_stream_data_bytes_unidirectional_.GetSendValue();
+  }
+  return initial_stream_flow_control_window_bytes_.GetSendValue();
 }
 
 bool QuicConfig::HasReceivedInitialMaxStreamDataBytesUnidirectional() const {
@@ -806,12 +802,6 @@ void QuicConfig::SetDefaults() {
   max_undecryptable_packets_ = kDefaultMaxUndecryptablePackets;
 
   SetInitialStreamFlowControlWindowToSend(kMinimumFlowControlSendWindow);
-  SetInitialMaxStreamDataBytesIncomingBidirectionalToSend(
-      kMinimumFlowControlSendWindow);
-  SetInitialMaxStreamDataBytesOutgoingBidirectionalToSend(
-      kMinimumFlowControlSendWindow);
-  SetInitialMaxStreamDataBytesUnidirectionalToSend(
-      kMinimumFlowControlSendWindow);
   SetInitialSessionFlowControlWindowToSend(kMinimumFlowControlSendWindow);
   SetMaxAckDelayToSendMs(kDefaultDelayedAckTimeMs);
   SetSupportMaxHeaderListSize();
@@ -933,7 +923,7 @@ bool QuicConfig::FillTransportParameters(TransportParameters* params) const {
 
   params->max_packet_size.set_value(kMaxIncomingPacketSize);
   params->initial_max_data.set_value(
-      initial_session_flow_control_window_bytes_.GetSendValue());
+      GetInitialSessionFlowControlWindowToSend());
   // The max stream data bidirectional transport parameters can be either local
   // or remote. A stream is local iff it is initiated by the endpoint that sent
   // the transport parameter (see the Transport Parameter Definitions section of
@@ -941,20 +931,20 @@ bool QuicConfig::FillTransportParameters(TransportParameters* params) const {
   // parameters, so a local stream is one we initiated, which means an outgoing
   // stream.
   params->initial_max_stream_data_bidi_local.set_value(
-      initial_max_stream_data_bytes_outgoing_bidirectional_.GetSendValue());
+      GetInitialMaxStreamDataBytesOutgoingBidirectionalToSend());
   params->initial_max_stream_data_bidi_remote.set_value(
-      initial_max_stream_data_bytes_incoming_bidirectional_.GetSendValue());
+      GetInitialMaxStreamDataBytesIncomingBidirectionalToSend());
   params->initial_max_stream_data_uni.set_value(
-      initial_max_stream_data_bytes_unidirectional_.GetSendValue());
+      GetInitialMaxStreamDataBytesUnidirectionalToSend());
   params->initial_max_streams_bidi.set_value(
-      max_incoming_bidirectional_streams_.GetSendValue());
+      GetMaxIncomingBidirectionalStreamsToSend());
   params->initial_max_streams_uni.set_value(
-      max_incoming_unidirectional_streams_.GetSendValue());
+      GetMaxIncomingUnidirectionalStreamsToSend());
   if (GetQuicReloadableFlag(quic_negotiate_ack_delay_time)) {
     QUIC_RELOADABLE_FLAG_COUNT_N(quic_negotiate_ack_delay_time, 3, 4);
     params->max_ack_delay.set_value(kDefaultDelayedAckTimeMs);
   }
-  params->ack_delay_exponent.set_value(ack_delay_exponent_.GetSendValue());
+  params->ack_delay_exponent.set_value(GetAckDelayExponentToSend());
   params->disable_migration =
       connection_migration_disabled_.HasSendValue() &&
       connection_migration_disabled_.GetSendValue() != 0;

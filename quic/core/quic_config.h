@@ -316,14 +316,14 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   // dynamic stream count (which are bidirectional streams).
   // TODO(b/142351095) rename these to improve clarity.
   void SetMaxIncomingBidirectionalStreamsToSend(uint32_t max_streams);
-  uint32_t GetMaxIncomingBidirectionalStreamsToSend();
-  bool HasReceivedMaxIncomingBidirectionalStreams();
-  uint32_t ReceivedMaxIncomingBidirectionalStreams();
+  uint32_t GetMaxIncomingBidirectionalStreamsToSend() const;
+  bool HasReceivedMaxIncomingBidirectionalStreams() const;
+  uint32_t ReceivedMaxIncomingBidirectionalStreams() const;
 
   void SetMaxIncomingUnidirectionalStreamsToSend(uint32_t max_streams);
-  uint32_t GetMaxIncomingUnidirectionalStreamsToSend();
-  bool HasReceivedMaxIncomingUnidirectionalStreams();
-  uint32_t ReceivedMaxIncomingUnidirectionalStreams();
+  uint32_t GetMaxIncomingUnidirectionalStreamsToSend() const;
+  bool HasReceivedMaxIncomingUnidirectionalStreams() const;
+  uint32_t ReceivedMaxIncomingUnidirectionalStreams() const;
 
   void set_max_time_before_crypto_handshake(
       QuicTime::Delta max_time_before_crypto_handshake) {
@@ -377,8 +377,6 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   uint32_t GetInitialRoundTripTimeUsToSend() const;
 
   // Sets an initial stream flow control window size to transmit to the peer.
-  // This sets the Google QUIC flow control window size, and additionally,
-  // if they are not yet set, sets the three IETF stream max data limits.
   void SetInitialStreamFlowControlWindowToSend(uint32_t window_bytes);
   uint32_t GetInitialStreamFlowControlWindowToSend() const;
   bool HasReceivedInitialStreamFlowControlWindowBytes() const;
@@ -386,7 +384,8 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
 
   // Specifies the initial flow control window (max stream data) for
   // incoming bidirectional streams. Incoming means streams initiated by our
-  // peer.
+  // peer. If not set, GetInitialMaxStreamDataBytesIncomingBidirectionalToSend
+  // returns the value passed to SetInitialStreamFlowControlWindowToSend.
   void SetInitialMaxStreamDataBytesIncomingBidirectionalToSend(
       uint32_t window_bytes);
   uint32_t GetInitialMaxStreamDataBytesIncomingBidirectionalToSend() const;
@@ -395,6 +394,8 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
 
   // Specifies the initial flow control window (max stream data) for
   // outgoing bidirectional streams. Outgoing means streams initiated by us.
+  // If not set, GetInitialMaxStreamDataBytesOutgoingBidirectionalToSend
+  // returns the value passed to SetInitialStreamFlowControlWindowToSend.
   void SetInitialMaxStreamDataBytesOutgoingBidirectionalToSend(
       uint32_t window_bytes);
   uint32_t GetInitialMaxStreamDataBytesOutgoingBidirectionalToSend() const;
@@ -402,7 +403,9 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   uint32_t ReceivedInitialMaxStreamDataBytesOutgoingBidirectional() const;
 
   // Specifies the initial flow control window (max stream data) for
-  // uidirectional streams.
+  // unidirectional streams. If not set,
+  // GetInitialMaxStreamDataBytesUnidirectionalToSend returns the value passed
+  // to SetInitialStreamFlowControlWindowToSend.
   void SetInitialMaxStreamDataBytesUnidirectionalToSend(uint32_t window_bytes);
   uint32_t GetInitialMaxStreamDataBytesUnidirectionalToSend() const;
   bool HasReceivedInitialMaxStreamDataBytesUnidirectional() const;
@@ -449,7 +452,7 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   uint32_t ReceivedMaxAckDelayMs() const;
 
   void SetAckDelayExponentToSend(uint32_t exponent);
-  uint32_t GetAckDelayExponentToSend();
+  uint32_t GetAckDelayExponentToSend() const;
   bool HasReceivedAckDelayExponent() const;
   uint32_t ReceivedAckDelayExponent() const;
 

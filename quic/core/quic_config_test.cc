@@ -49,6 +49,36 @@ TEST_P(QuicConfigTest, SetDefaults) {
   EXPECT_FALSE(config_.HasReceivedInitialMaxStreamDataBytesUnidirectional());
 }
 
+TEST_P(QuicConfigTest, AutoSetIetfFlowControl) {
+  EXPECT_EQ(kMinimumFlowControlSendWindow,
+            config_.GetInitialStreamFlowControlWindowToSend());
+  EXPECT_EQ(kMinimumFlowControlSendWindow,
+            config_.GetInitialMaxStreamDataBytesIncomingBidirectionalToSend());
+  EXPECT_EQ(kMinimumFlowControlSendWindow,
+            config_.GetInitialMaxStreamDataBytesOutgoingBidirectionalToSend());
+  EXPECT_EQ(kMinimumFlowControlSendWindow,
+            config_.GetInitialMaxStreamDataBytesUnidirectionalToSend());
+  static const uint32_t kTestWindowSize = 1234567;
+  config_.SetInitialStreamFlowControlWindowToSend(kTestWindowSize);
+  EXPECT_EQ(kTestWindowSize, config_.GetInitialStreamFlowControlWindowToSend());
+  EXPECT_EQ(kTestWindowSize,
+            config_.GetInitialMaxStreamDataBytesIncomingBidirectionalToSend());
+  EXPECT_EQ(kTestWindowSize,
+            config_.GetInitialMaxStreamDataBytesOutgoingBidirectionalToSend());
+  EXPECT_EQ(kTestWindowSize,
+            config_.GetInitialMaxStreamDataBytesUnidirectionalToSend());
+  static const uint32_t kTestWindowSizeTwo = 2345678;
+  config_.SetInitialMaxStreamDataBytesIncomingBidirectionalToSend(
+      kTestWindowSizeTwo);
+  EXPECT_EQ(kTestWindowSize, config_.GetInitialStreamFlowControlWindowToSend());
+  EXPECT_EQ(kTestWindowSizeTwo,
+            config_.GetInitialMaxStreamDataBytesIncomingBidirectionalToSend());
+  EXPECT_EQ(kTestWindowSize,
+            config_.GetInitialMaxStreamDataBytesOutgoingBidirectionalToSend());
+  EXPECT_EQ(kTestWindowSize,
+            config_.GetInitialMaxStreamDataBytesUnidirectionalToSend());
+}
+
 TEST_P(QuicConfigTest, ToHandshakeMessage) {
   config_.SetInitialStreamFlowControlWindowToSend(
       kInitialStreamFlowControlWindowForTest);
