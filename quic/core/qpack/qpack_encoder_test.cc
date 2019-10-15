@@ -4,6 +4,7 @@
 
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_encoder.h"
 
+#include <limits>
 #include <string>
 
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_encoder_test_utils.h"
@@ -174,6 +175,27 @@ TEST_F(QpackEncoderTest, TooLargeInsertCountIncrement) {
       OnDecoderStreamError(Eq("Increment value 1 raises known received count "
                               "to 1 exceeding inserted entry count 0")));
   encoder_.OnInsertCountIncrement(1);
+}
+
+// Regression test for https://crbug.com/1014372.
+TEST_F(QpackEncoderTest, InsertCountIncrementOverflow) {
+  QpackHeaderTable* header_table = QpackEncoderPeer::header_table(&encoder_);
+
+  // Set dynamic table capacity large enough to hold one entry.
+  header_table->SetMaximumDynamicTableCapacity(4096);
+  header_table->SetDynamicTableCapacity(4096);
+  // Insert one entry into the header table.
+  header_table->InsertEntry("foo", "bar");
+
+  // Receive Insert Count Increment instruction with increment value 1.
+  encoder_.OnInsertCountIncrement(1);
+
+  // Receive Insert Count Increment instruction that overflows the known
+  // received count.  This must result in an error instead of a crash.
+  EXPECT_CALL(decoder_stream_error_delegate_,
+              OnDecoderStreamError(
+                  Eq("Insert Count Increment instruction causes overflow.")));
+  encoder_.OnInsertCountIncrement(std::numeric_limits<uint64_t>::max());
 }
 
 TEST_F(QpackEncoderTest, InvalidHeaderAcknowledgement) {

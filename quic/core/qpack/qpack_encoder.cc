@@ -406,7 +406,10 @@ void QpackEncoder::OnInsertCountIncrement(uint64_t increment) {
     return;
   }
 
-  blocking_manager_.OnInsertCountIncrement(increment);
+  if (!blocking_manager_.OnInsertCountIncrement(increment)) {
+    decoder_stream_error_delegate_->OnDecoderStreamError(
+        "Insert Count Increment instruction causes overflow.");
+  }
 
   if (blocking_manager_.known_received_count() >
       header_table_.inserted_entry_count()) {

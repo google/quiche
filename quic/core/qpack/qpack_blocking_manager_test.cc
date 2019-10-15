@@ -4,6 +4,8 @@
 
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_blocking_manager.h"
 
+#include <limits>
+
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 
 namespace quic {
@@ -53,7 +55,7 @@ TEST_F(QpackBlockingManagerTest, Empty) {
 }
 
 TEST_F(QpackBlockingManagerTest, NotBlockedByInsertCountIncrement) {
-  manager_.OnInsertCountIncrement(2);
+  EXPECT_TRUE(manager_.OnInsertCountIncrement(2));
 
   // Stream 0 is not blocked, because it only references entries that are
   // already acknowledged by an Insert Count Increment instruction.
@@ -65,7 +67,7 @@ TEST_F(QpackBlockingManagerTest, UnblockedByInsertCountIncrement) {
   manager_.OnHeaderBlockSent(0, {1, 0});
   EXPECT_TRUE(stream_is_blocked(0));
 
-  manager_.OnInsertCountIncrement(2);
+  EXPECT_TRUE(manager_.OnInsertCountIncrement(2));
   EXPECT_FALSE(stream_is_blocked(0));
 }
 
@@ -114,7 +116,7 @@ TEST_F(QpackBlockingManagerTest, KnownReceivedCount) {
   EXPECT_EQ(2u, manager_.known_received_count());
 
   // Insert Count Increment increases Known Received Count.
-  manager_.OnInsertCountIncrement(2);
+  EXPECT_TRUE(manager_.OnInsertCountIncrement(2));
   EXPECT_EQ(4u, manager_.known_received_count());
 
   EXPECT_TRUE(manager_.OnHeaderAcknowledgement(2));
@@ -161,7 +163,7 @@ TEST_F(QpackBlockingManagerTest, SmallestBlockingIndex) {
   EXPECT_EQ(1u, manager_.smallest_blocking_index());
 
   // Insert Count Increment does not change smallest blocking index.
-  manager_.OnInsertCountIncrement(2);
+  EXPECT_TRUE(manager_.OnInsertCountIncrement(2));
   EXPECT_EQ(1u, manager_.smallest_blocking_index());
 
   manager_.OnStreamCancellation(1);
@@ -249,7 +251,7 @@ TEST_F(QpackBlockingManagerTest,
   EXPECT_EQ(0u, manager_.smallest_blocking_index());
 
   // Acknowledging entry 1 still leaves one unacknowledged reference to entry 0.
-  manager_.OnInsertCountIncrement(2);
+  EXPECT_TRUE(manager_.OnInsertCountIncrement(2));
 
   EXPECT_EQ(2u, manager_.known_received_count());
   EXPECT_EQ(0u, manager_.smallest_blocking_index());
@@ -261,13 +263,13 @@ TEST_F(QpackBlockingManagerTest,
   EXPECT_EQ(0u, manager_.smallest_blocking_index());
 
   // Acknowledging entry 2 removes last reference to entry 0.
-  manager_.OnInsertCountIncrement(1);
+  EXPECT_TRUE(manager_.OnInsertCountIncrement(1));
 
   EXPECT_EQ(3u, manager_.known_received_count());
   EXPECT_EQ(2u, manager_.smallest_blocking_index());
 
   // Acknowledging entry 4 (and implicitly 3) removes reference to entry 2.
-  manager_.OnInsertCountIncrement(2);
+  EXPECT_TRUE(manager_.OnInsertCountIncrement(2));
 
   EXPECT_EQ(5u, manager_.known_received_count());
   EXPECT_EQ(std::numeric_limits<uint64_t>::max(),
@@ -384,6 +386,14 @@ TEST_F(QpackBlockingManagerTest, BlockingAllowedOnStream) {
   // Either stream can block if limit is larger.
   EXPECT_TRUE(manager_.blocking_allowed_on_stream(kStreamId1, 1));
   EXPECT_TRUE(manager_.blocking_allowed_on_stream(kStreamId2, 1));
+}
+
+TEST_F(QpackBlockingManagerTest, InsertCountIncrementOverflow) {
+  EXPECT_TRUE(manager_.OnInsertCountIncrement(10));
+  EXPECT_EQ(10u, manager_.known_received_count());
+
+  EXPECT_FALSE(manager_.OnInsertCountIncrement(
+      std::numeric_limits<uint64_t>::max() - 5));
 }
 
 }  // namespace

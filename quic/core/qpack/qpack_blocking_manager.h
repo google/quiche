@@ -40,8 +40,9 @@ class QUIC_EXPORT_PRIVATE QpackBlockingManager {
   void OnStreamCancellation(QuicStreamId stream_id);
 
   // Called when an Insert Count Increment instruction is received on the
-  // decoder stream.
-  void OnInsertCountIncrement(uint64_t increment);
+  // decoder stream.  Returns true if Known Received Count is successfully
+  // updated.  Returns false on overflow.
+  bool OnInsertCountIncrement(uint64_t increment);
 
   // Called when sending a header block containing references to dynamic table
   // entries with |indices|.  |indices| must not be empty.

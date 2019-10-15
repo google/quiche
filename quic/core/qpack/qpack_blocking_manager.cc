@@ -4,6 +4,7 @@
 
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_blocking_manager.h"
 
+#include <limits>
 #include <utility>
 
 namespace quic {
@@ -49,8 +50,14 @@ void QpackBlockingManager::OnStreamCancellation(QuicStreamId stream_id) {
   header_blocks_.erase(it);
 }
 
-void QpackBlockingManager::OnInsertCountIncrement(uint64_t increment) {
+bool QpackBlockingManager::OnInsertCountIncrement(uint64_t increment) {
+  if (increment >
+      std::numeric_limits<uint64_t>::max() - known_received_count_) {
+    return false;
+  }
+
   IncreaseKnownReceivedCountTo(known_received_count_ + increment);
+  return true;
 }
 
 void QpackBlockingManager::OnHeaderBlockSent(QuicStreamId stream_id,
