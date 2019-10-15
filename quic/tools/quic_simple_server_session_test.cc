@@ -734,7 +734,7 @@ INSTANTIATE_TEST_SUITE_P(Tests,
 // opened and send push response.
 TEST_P(QuicSimpleServerSessionServerPushTest, TestPromisePushResources) {
   MaybeConsumeHeadersStreamData();
-  session_->set_max_allowed_push_id(kMaxQuicStreamId);
+  session_->SetMaxAllowedPushId(kMaxQuicStreamId);
   size_t num_resources = kMaxStreamsForTest + 5;
   PromisePushResources(num_resources);
   EXPECT_EQ(kMaxStreamsForTest, session_->GetNumOpenOutgoingStreams());
@@ -745,7 +745,7 @@ TEST_P(QuicSimpleServerSessionServerPushTest, TestPromisePushResources) {
 TEST_P(QuicSimpleServerSessionServerPushTest,
        HandlePromisedPushRequestsAfterStreamDraining) {
   MaybeConsumeHeadersStreamData();
-  session_->set_max_allowed_push_id(kMaxQuicStreamId);
+  session_->SetMaxAllowedPushId(kMaxQuicStreamId);
   size_t num_resources = kMaxStreamsForTest + 1;
   QuicByteCount data_frame_header_length = PromisePushResources(num_resources);
   QuicStreamId next_out_going_stream_id;
@@ -814,7 +814,7 @@ TEST_P(QuicSimpleServerSessionServerPushTest,
 TEST_P(QuicSimpleServerSessionServerPushTest,
        ResetPromisedStreamToCancelServerPush) {
   MaybeConsumeHeadersStreamData();
-  session_->set_max_allowed_push_id(kMaxQuicStreamId);
+  session_->SetMaxAllowedPushId(kMaxQuicStreamId);
 
   // Having two extra resources to be send later. One of them will be reset, so
   // when opened stream become close, only one will become open.
@@ -903,7 +903,7 @@ TEST_P(QuicSimpleServerSessionServerPushTest,
 TEST_P(QuicSimpleServerSessionServerPushTest,
        CloseStreamToHandleMorePromisedStream) {
   MaybeConsumeHeadersStreamData();
-  session_->set_max_allowed_push_id(kMaxQuicStreamId);
+  session_->SetMaxAllowedPushId(kMaxQuicStreamId);
   size_t num_resources = kMaxStreamsForTest + 1;
   if (VersionHasIetfQuicFrames(transport_version())) {
     // V99 will send out a stream-id-blocked frame when the we desired to exceed

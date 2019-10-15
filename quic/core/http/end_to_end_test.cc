@@ -295,7 +295,7 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     client->UseConnectionIdLength(override_server_connection_id_length_);
     client->UseClientConnectionIdLength(override_client_connection_id_length_);
     if (support_server_push_) {
-      client->client()->set_max_allowed_push_id(kMaxQuicStreamId);
+      client->client()->SetMaxAllowedPushId(kMaxQuicStreamId);
     }
     client->Connect();
     return client;
@@ -4233,7 +4233,7 @@ TEST_P(EndToEndTest, TestMaxPushId) {
 
   EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
   static_cast<QuicSpdySession*>(client_->client()->session())
-      ->set_max_allowed_push_id(kMaxQuicStreamId);
+      ->SetMaxAllowedPushId(kMaxQuicStreamId);
 
   client_->SendSynchronousRequest("/foo");
 

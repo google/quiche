@@ -137,7 +137,7 @@ class QuicSpdyClientBase : public QuicClientBase,
   bool drop_response_body() const { return drop_response_body_; }
 
   // Set the max promise id for the client session.
-  void set_max_allowed_push_id(QuicStreamId max) { max_allowed_push_id_ = max; }
+  void SetMaxAllowedPushId(QuicStreamId max) { max_allowed_push_id_ = max; }
 
  protected:
   int GetNumSentClientHellosFromSession() override;

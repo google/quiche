@@ -1017,25 +1017,33 @@ void QuicSpdySession::OnCanCreateNewOutgoingStream(bool unidirectional) {
   }
 }
 
-void QuicSpdySession::set_max_allowed_push_id(
-    QuicStreamId max_allowed_push_id) {
-  if (VersionHasIetfQuicFrames(transport_version()) &&
-      perspective() == Perspective::IS_SERVER &&
-      max_allowed_push_id > max_allowed_push_id_) {
-    OnCanCreateNewOutgoingStream(true);
+void QuicSpdySession::SetMaxAllowedPushId(QuicStreamId max_allowed_push_id) {
+  if (!VersionUsesHttp3(transport_version())) {
+    return;
   }
 
+  QuicStreamId old_max_allowed_push_id = max_allowed_push_id_;
   max_allowed_push_id_ = max_allowed_push_id;
+  QUIC_DVLOG(1) << "Setting max_allowed_push_id to:  " << max_allowed_push_id_
+                << " from: " << old_max_allowed_push_id;
 
-  if (VersionHasIetfQuicFrames(transport_version()) &&
-      perspective() == Perspective::IS_CLIENT && IsHandshakeConfirmed()) {
-    SendMaxPushId(max_allowed_push_id);
+  if (perspective() == Perspective::IS_SERVER) {
+    if (max_allowed_push_id_ > old_max_allowed_push_id) {
+      OnCanCreateNewOutgoingStream(true);
+    }
+    return;
+  }
+
+  DCHECK(perspective() == Perspective::IS_CLIENT);
+  if (IsHandshakeConfirmed()) {
+    SendMaxPushId();
+    send_control_stream_->SendMaxPushIdFrame(max_allowed_push_id_);
   }
 }
 
-void QuicSpdySession::SendMaxPushId(QuicStreamId max_allowed_push_id) {
+void QuicSpdySession::SendMaxPushId() {
   DCHECK(VersionUsesHttp3(transport_version()));
-  send_control_stream_->SendMaxPushIdFrame(max_allowed_push_id);
+  send_control_stream_->SendMaxPushIdFrame(max_allowed_push_id_);
 }
 
 void QuicSpdySession::CloseConnectionOnDuplicateHttp3UnidirectionalStreams(

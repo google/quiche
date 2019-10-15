@@ -63,7 +63,7 @@ void QuicSpdyClientBase::InitializeSession() {
   client_session()->Initialize();
   client_session()->CryptoConnect();
   if (max_allowed_push_id_ > 0) {
-    client_session()->set_max_allowed_push_id(max_allowed_push_id_);
+    client_session()->SetMaxAllowedPushId(max_allowed_push_id_);
   }
 }
 

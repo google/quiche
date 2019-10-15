@@ -43,8 +43,8 @@ void QuicSpdyClientSessionBase::OnCryptoHandshakeEvent(
     CryptoHandshakeEvent event) {
   QuicSpdySession::OnCryptoHandshakeEvent(event);
   if (event == HANDSHAKE_CONFIRMED && max_allowed_push_id() > 0 &&
-      VersionHasIetfQuicFrames(transport_version())) {
-    SendMaxPushId(max_allowed_push_id());
+      VersionUsesHttp3(transport_version())) {
+    SendMaxPushId();
   }
 }
 

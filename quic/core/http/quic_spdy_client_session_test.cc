@@ -582,7 +582,7 @@ TEST_P(QuicSpdyClientSessionTest, PushPromiseOnPromiseHeaders) {
   // Initialize crypto before the client session will create a stream.
   CompleteCryptoHandshake();
 
-  session_->set_max_allowed_push_id(GetNthServerInitiatedUnidirectionalStreamId(
+  session_->SetMaxAllowedPushId(GetNthServerInitiatedUnidirectionalStreamId(
       connection_->transport_version(), 10));
 
   MockQuicSpdyClientStream* stream = static_cast<MockQuicSpdyClientStream*>(
@@ -602,7 +602,7 @@ TEST_P(QuicSpdyClientSessionTest, PushPromiseStreamIdTooHigh) {
       session_.get(), std::make_unique<QuicSpdyClientStream>(
                           stream_id, session_.get(), BIDIRECTIONAL));
 
-  session_->set_max_allowed_push_id(GetNthServerInitiatedUnidirectionalStreamId(
+  session_->SetMaxAllowedPushId(GetNthServerInitiatedUnidirectionalStreamId(
       connection_->transport_version(), 10));
   if (VersionHasIetfQuicFrames(connection_->transport_version())) {
     // TODO(b/136295430) Use PushId to represent Push IDs instead of
@@ -644,7 +644,7 @@ TEST_P(QuicSpdyClientSessionTest, PushPromiseOutOfOrder) {
   // Initialize crypto before the client session will create a stream.
   CompleteCryptoHandshake();
 
-  session_->set_max_allowed_push_id(GetNthServerInitiatedUnidirectionalStreamId(
+  session_->SetMaxAllowedPushId(GetNthServerInitiatedUnidirectionalStreamId(
       connection_->transport_version(), 10));
 
   MockQuicSpdyClientStream* stream = static_cast<MockQuicSpdyClientStream*>(
@@ -912,7 +912,7 @@ TEST_P(QuicSpdyClientSessionTest, TooManyPushPromises) {
       session_.get(), std::make_unique<QuicSpdyClientStream>(
                           stream_id, session_.get(), BIDIRECTIONAL));
 
-  session_->set_max_allowed_push_id(kMaxQuicStreamId);
+  session_->SetMaxAllowedPushId(kMaxQuicStreamId);
 
   EXPECT_CALL(*connection_, OnStreamReset(_, QUIC_REFUSED_STREAM));
 

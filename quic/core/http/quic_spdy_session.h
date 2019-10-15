@@ -225,7 +225,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // those streams are not initialized yet.
   void OnCanCreateNewOutgoingStream(bool unidirectional) override;
 
-  void set_max_allowed_push_id(QuicStreamId max_allowed_push_id);
+  void SetMaxAllowedPushId(QuicStreamId max_allowed_push_id);
 
   QuicStreamId max_allowed_push_id() { return max_allowed_push_id_; }
 
@@ -324,7 +324,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   void set_max_uncompressed_header_bytes(
       size_t set_max_uncompressed_header_bytes);
 
-  void SendMaxPushId(QuicStreamId max_allowed_push_id);
+  void SendMaxPushId();
 
  private:
   friend class test::QuicSpdySessionPeer;
