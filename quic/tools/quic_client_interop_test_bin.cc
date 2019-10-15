@@ -27,6 +27,7 @@ DEFINE_QUIC_COMMAND_LINE_FLAG(int32_t, port, 0, "The port to connect to.");
 namespace quic {
 
 enum class Feature {
+  // First row of features ("table stakes")
   // A version negotiation response is elicited and acted on.
   kVersionNegotiation,
   // The handshake completes successfully.
@@ -37,10 +38,14 @@ enum class Feature {
   kConnectionClose,
   // A RETRY packet was successfully processed.
   kRetry,
-  // An H3 transaction succeeded.
-  kHttp3,
+
+  // Second row of features (anything else protocol-related)
   // We switched to a different port and the server migrated to it.
   kRebinding,
+
+  // Third row of features (H3 tests)
+  // An H3 transaction succeeded.
+  kHttp3,
 };
 
 char MatrixLetter(Feature f) {
@@ -242,8 +247,17 @@ int main(int argc, char* argv[]) {
   }
 
   auto supported_features = quic::ServerSupport(host, port);
-  std::cout << host << ":" << port << " = ";
+  std::cout << "Results for " << host << ":" << port << std::endl;
+  int current_row = 1;
   for (auto feature : supported_features) {
+    if (current_row < 2 && feature >= quic::Feature::kRebinding) {
+      std::cout << std::endl;
+      current_row = 2;
+    }
+    if (current_row < 3 && feature >= quic::Feature::kHttp3) {
+      std::cout << std::endl;
+      current_row = 3;
+    }
     std::cout << MatrixLetter(feature);
   }
   std::cout << std::endl;
