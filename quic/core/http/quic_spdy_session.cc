@@ -549,7 +549,7 @@ void QuicSpdySession::WritePushPromise(QuicStreamId original_stream_id,
     return;
   }
 
-  if (VersionHasIetfQuicFrames(transport_version()) &&
+  if (VersionUsesHttp3(transport_version()) &&
       promised_stream_id > max_allowed_push_id()) {
     QUIC_BUG
         << "Server shouldn't send push id higher than client's MAX_PUSH_ID.";

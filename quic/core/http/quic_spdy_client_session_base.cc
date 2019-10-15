@@ -93,7 +93,7 @@ void QuicSpdyClientSessionBase::OnPromiseHeaderList(
     return;
   }
 
-  if (VersionHasIetfQuicFrames(transport_version()) &&
+  if (VersionUsesHttp3(transport_version()) &&
       promised_stream_id > max_allowed_push_id()) {
     connection()->CloseConnection(
         QUIC_INVALID_STREAM_ID,
