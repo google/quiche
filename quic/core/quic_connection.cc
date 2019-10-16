@@ -2045,6 +2045,7 @@ void QuicConnection::WriteQueuedPackets() {
 
   while (!buffered_packets_.empty()) {
     DCHECK(treat_queued_packets_as_sent_);
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_treat_queued_packets_as_sent, 1, 3);
     if (HandleWriteBlocked()) {
       break;
     }
@@ -2310,6 +2311,7 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
       break;
     case BUFFER:
       DCHECK(treat_queued_packets_as_sent_);
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_treat_queued_packets_as_sent, 2, 3);
       QUIC_DVLOG(1) << ENDPOINT << "Adding packet: " << packet->packet_number
                     << " to buffered packets";
       buffered_packets_.emplace_back(*packet, self_address(), peer_address());
@@ -2340,6 +2342,7 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
     // when the write completes, and OnWriteError if an error occurs.
     if (result.status != WRITE_STATUS_BLOCKED_DATA_BUFFERED) {
       if (treat_queued_packets_as_sent_) {
+        QUIC_RELOADABLE_FLAG_COUNT_N(quic_treat_queued_packets_as_sent, 3, 3);
         QUIC_DVLOG(1) << ENDPOINT << "Adding packet: " << packet->packet_number
                       << " to buffered packets";
         buffered_packets_.emplace_back(*packet, self_address(), peer_address());
