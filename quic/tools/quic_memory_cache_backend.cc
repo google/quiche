@@ -139,7 +139,7 @@ const QuicBackendResponse* QuicMemoryCacheBackend::GetResponse(
     uint64_t ignored = 0;
     if (generate_bytes_response_) {
       if (QuicTextUtils::StringToUint64(
-              QuicStringPiece(&path[1], path.size() - 1), &ignored)) {
+              QuicStringPiece(path.data() + 1, path.size() - 1), &ignored)) {
         // The actual parsed length is ignored here and will be recomputed
         // by the caller.
         return generate_bytes_response_.get();
