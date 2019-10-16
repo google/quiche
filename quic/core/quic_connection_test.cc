@@ -3495,8 +3495,7 @@ TEST_P(QuicConnectionTest, CancelRetransmissionAlarmAfterResetStream) {
   // Ensure that the data is still in flight, but the retransmission alarm is no
   // longer set.
   EXPECT_GT(manager_->GetBytesInFlight(), 0u);
-  if (QuicConnectionPeer::GetSentPacketManager(&connection_)
-          ->fix_rto_retransmission()) {
+  if (connection_.session_decides_what_to_write()) {
     EXPECT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
   } else {
     EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
@@ -3779,8 +3778,7 @@ TEST_P(QuicConnectionTest, RetransmitWriteBlockedAckedOriginalThenSent) {
 
   writer_->SetWritable();
   connection_.OnCanWrite();
-  if (QuicConnectionPeer::GetSentPacketManager(&connection_)
-          ->fix_rto_retransmission()) {
+  if (connection_.session_decides_what_to_write()) {
     EXPECT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
   } else {
     EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
@@ -4243,31 +4241,14 @@ TEST_P(QuicConnectionTest, RtoWithNoDataToRetransmit) {
   // Simulate the retransmission alarm firing.
   clock_.AdvanceTime(DefaultRetransmissionTime());
   // RTO fires, but there is no packet to be RTOed.
-  if (GetQuicReloadableFlag(quic_fix_rto_retransmission3)) {
-    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
-  } else {
-    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
-  }
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
   connection_.GetRetransmissionAlarm()->Fire();
-  if (GetQuicReloadableFlag(quic_fix_rto_retransmission3)) {
-    EXPECT_EQ(1u, writer_->rst_stream_frames().size());
-  }
+  EXPECT_EQ(1u, writer_->rst_stream_frames().size());
 
   EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(40);
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(20);
-  if (GetQuicReloadableFlag(quic_fix_rto_retransmission3)) {
-    EXPECT_CALL(visitor_, WillingAndAbleToWrite())
-        .WillRepeatedly(Return(false));
-  } else {
-    EXPECT_CALL(visitor_, WillingAndAbleToWrite()).WillRepeatedly(Return(true));
-  }
-  if (GetQuicReloadableFlag(quic_fix_rto_retransmission3)) {
-    EXPECT_CALL(visitor_, OnAckNeedsRetransmittableFrame()).Times(1);
-  } else {
-    // Since there is a buffered RST_STREAM, no retransmittable frame is bundled
-    // with ACKs.
-    EXPECT_CALL(visitor_, OnAckNeedsRetransmittableFrame()).Times(0);
-  }
+  EXPECT_CALL(visitor_, WillingAndAbleToWrite()).WillRepeatedly(Return(false));
+  EXPECT_CALL(visitor_, OnAckNeedsRetransmittableFrame()).Times(1);
   // Receives packets 1 - 40.
   for (size_t i = 1; i <= 40; ++i) {
     ProcessDataPacket(i);
@@ -9185,8 +9166,7 @@ TEST_P(QuicConnectionTest, CoalescedPacketThatSavesFrames) {
 
 // Regresstion test for b/138962304.
 TEST_P(QuicConnectionTest, RtoAndWriteBlocked) {
-  if (!QuicConnectionPeer::GetSentPacketManager(&connection_)
-           ->fix_rto_retransmission()) {
+  if (!connection_.session_decides_what_to_write()) {
     return;
   }
   EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
@@ -9215,8 +9195,7 @@ TEST_P(QuicConnectionTest, RtoAndWriteBlocked) {
 
 // Regresstion test for b/138962304.
 TEST_P(QuicConnectionTest, TlpAndWriteBlocked) {
-  if (!QuicConnectionPeer::GetSentPacketManager(&connection_)
-           ->fix_rto_retransmission()) {
+  if (!connection_.session_decides_what_to_write()) {
     return;
   }
   EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
@@ -9249,8 +9228,7 @@ TEST_P(QuicConnectionTest, TlpAndWriteBlocked) {
 
 // Regresstion test for b/139375344.
 TEST_P(QuicConnectionTest, RtoForcesSendingPing) {
-  if (!QuicConnectionPeer::GetSentPacketManager(&connection_)
-           ->fix_rto_retransmission() ||
+  if (!connection_.session_decides_what_to_write() ||
       connection_.PtoEnabled()) {
     return;
   }
@@ -9289,12 +9267,10 @@ TEST_P(QuicConnectionTest, RtoForcesSendingPing) {
 }
 
 TEST_P(QuicConnectionTest, ProbeTimeout) {
-  if (!connection_.session_decides_what_to_write() ||
-      !GetQuicReloadableFlag(quic_fix_rto_retransmission3)) {
+  if (!connection_.session_decides_what_to_write()) {
     return;
   }
   SetQuicReloadableFlag(quic_enable_pto, true);
-  SetQuicReloadableFlag(quic_fix_rto_retransmission3, true);
   QuicConfig config;
   QuicTagVector connection_options;
   connection_options.push_back(k2PTO);
@@ -9322,8 +9298,7 @@ TEST_P(QuicConnectionTest, ProbeTimeout) {
 }
 
 TEST_P(QuicConnectionTest, CloseConnectionAfter6ClientPTOs) {
-  if (!connection_.session_decides_what_to_write() ||
-      !GetQuicReloadableFlag(quic_fix_rto_retransmission3)) {
+  if (!connection_.session_decides_what_to_write()) {
     return;
   }
   SetQuicReloadableFlag(quic_enable_pto, true);
@@ -9364,8 +9339,7 @@ TEST_P(QuicConnectionTest, CloseConnectionAfter6ClientPTOs) {
 }
 
 TEST_P(QuicConnectionTest, CloseConnectionAfter7ClientPTOs) {
-  if (!connection_.session_decides_what_to_write() ||
-      !GetQuicReloadableFlag(quic_fix_rto_retransmission3)) {
+  if (!connection_.session_decides_what_to_write()) {
     return;
   }
   SetQuicReloadableFlag(quic_enable_pto, true);
@@ -9405,8 +9379,7 @@ TEST_P(QuicConnectionTest, CloseConnectionAfter7ClientPTOs) {
 }
 
 TEST_P(QuicConnectionTest, CloseConnectionAfter8ClientPTOs) {
-  if (!connection_.session_decides_what_to_write() ||
-      !GetQuicReloadableFlag(quic_fix_rto_retransmission3)) {
+  if (!connection_.session_decides_what_to_write()) {
     return;
   }
   SetQuicReloadableFlag(quic_enable_pto, true);
@@ -9558,8 +9531,7 @@ TEST_P(QuicConnectionTest, ConnectionCloseFrameType) {
 
 // Regression test for b/137401387 and b/138962304.
 TEST_P(QuicConnectionTest, RtoPacketAsTwo) {
-  if (!QuicConnectionPeer::GetSentPacketManager(&connection_)
-           ->fix_rto_retransmission() ||
+  if (!connection_.session_decides_what_to_write() ||
       connection_.PtoEnabled()) {
     return;
   }
@@ -9603,8 +9575,7 @@ TEST_P(QuicConnectionTest, RtoPacketAsTwo) {
 }
 
 TEST_P(QuicConnectionTest, PtoSkipsPacketNumber) {
-  if (!connection_.session_decides_what_to_write() ||
-      !GetQuicReloadableFlag(quic_fix_rto_retransmission3)) {
+  if (!connection_.session_decides_what_to_write()) {
     return;
   }
   SetQuicReloadableFlag(quic_enable_pto, true);

@@ -358,7 +358,6 @@ class QuicSentPacketManagerTest : public QuicTestWithParam<bool> {
   }
 
   void EnablePto(QuicTag tag) {
-    SetQuicReloadableFlag(quic_fix_rto_retransmission3, true);
     manager_.SetSessionDecideWhatToWrite(true);
     SetQuicReloadableFlag(quic_enable_pto, true);
     QuicConfig config;
@@ -3070,12 +3069,8 @@ TEST_P(QuicSentPacketManagerTest, RtoFiresNoPacketToRetransmit) {
   EXPECT_CALL(notifier_, RetransmitFrames(_, _)).Times(0);
   manager_.OnRetransmissionTimeout();
   EXPECT_EQ(2u, stats_.rto_count);
-  if (GetQuicReloadableFlag(quic_fix_rto_retransmission3)) {
-    // Verify a credit is raised up.
-    EXPECT_EQ(1u, manager_.pending_timer_transmission_count());
-  } else {
-    EXPECT_EQ(0u, manager_.pending_timer_transmission_count());
-  }
+  // Verify a credit is raised up.
+  EXPECT_EQ(1u, manager_.pending_timer_transmission_count());
 }
 
 TEST_P(QuicSentPacketManagerTest, ComputingProbeTimeout) {

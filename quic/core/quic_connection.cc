@@ -2712,7 +2712,7 @@ void QuicConnection::OnRetransmissionTimeout() {
     WriteIfNotBlocked();
   }
 
-  if (sent_packet_manager_.fix_rto_retransmission()) {
+  if (session_decides_what_to_write()) {
     if (packet_generator_.packet_number() == previous_created_packet_number &&
         (retransmission_mode == QuicSentPacketManager::TLP_MODE ||
          retransmission_mode == QuicSentPacketManager::RTO_MODE ||

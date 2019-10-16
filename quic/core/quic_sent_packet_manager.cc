@@ -108,7 +108,6 @@ QuicSentPacketManager::QuicSentPacketManager(
       pto_enabled_(false),
       max_probe_packets_per_pto_(2),
       consecutive_pto_count_(0),
-      fix_rto_retransmission_(false),
       handshake_mode_disabled_(false),
       detect_spurious_losses_(GetQuicReloadableFlag(quic_detect_spurious_loss)),
       neuter_handshake_packets_once_(
@@ -170,7 +169,8 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
     }
   }
 
-  if (GetQuicReloadableFlag(quic_enable_pto) && fix_rto_retransmission_) {
+  if (GetQuicReloadableFlag(quic_enable_pto) &&
+      session_decides_what_to_write()) {
     if (config.HasClientSentConnectionOption(k2PTO, perspective)) {
       pto_enabled_ = true;
       QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_pto, 2, 4);
@@ -881,7 +881,8 @@ void QuicSentPacketManager::RetransmitRtoPackets() {
     if (session_decides_what_to_write()) {
       has_retransmissions = it->state != OUTSTANDING;
     }
-    if (!fix_rto_retransmission_ && it->in_flight && !has_retransmissions &&
+    if (!session_decides_what_to_write() && it->in_flight &&
+        !has_retransmissions &&
         !unacked_packets_.HasRetransmittableFrames(*it)) {
       // Log only for non-retransmittable data.
       // Retransmittable data is marked as lost during loss detection, and will
@@ -903,7 +904,7 @@ void QuicSentPacketManager::RetransmitRtoPackets() {
     for (QuicPacketNumber retransmission : retransmissions) {
       MarkForRetransmission(retransmission, RTO_RETRANSMISSION);
     }
-    if (fix_rto_retransmission_ && retransmissions.empty()) {
+    if (retransmissions.empty()) {
       QUIC_BUG_IF(pending_timer_transmission_count_ != 0);
       // No packets to be RTO retransmitted, raise up a credit to allow
       // connection to send.
@@ -950,7 +951,6 @@ void QuicSentPacketManager::AdjustPendingTimerTransmissions() {
 
 void QuicSentPacketManager::EnableIetfPtoAndLossDetection() {
   DCHECK(session_decides_what_to_write());
-  fix_rto_retransmission_ = true;
   pto_enabled_ = true;
   handshake_mode_disabled_ = true;
   uber_loss_algorithm_.SetLossDetectionType(kIetfLossDetection);
@@ -1057,7 +1057,7 @@ const QuicTime QuicSentPacketManager::GetRetransmissionTime() const {
     // Do not set the timer if there is any credit left.
     return QuicTime::Zero();
   }
-  if (!fix_rto_retransmission_ &&
+  if (!session_decides_what_to_write() &&
       !unacked_packets_.HasUnackedRetransmittableFrames()) {
     return QuicTime::Zero();
   }
@@ -1426,11 +1426,6 @@ void QuicSentPacketManager::SetInitialRtt(QuicTime::Delta rtt) {
 
 void QuicSentPacketManager::SetSessionDecideWhatToWrite(
     bool session_decides_what_to_write) {
-  if (GetQuicReloadableFlag(quic_fix_rto_retransmission3) &&
-      session_decides_what_to_write) {
-    fix_rto_retransmission_ = true;
-    QUIC_RELOADABLE_FLAG_COUNT(quic_fix_rto_retransmission3);
-  }
   unacked_packets_.SetSessionDecideWhatToWrite(session_decides_what_to_write);
 }
 

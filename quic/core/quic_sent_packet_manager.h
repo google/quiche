@@ -409,8 +409,6 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
     return unacked_packets_.supports_multiple_packet_number_spaces();
   }
 
-  bool fix_rto_retransmission() const { return fix_rto_retransmission_; }
-
   bool pto_enabled() const { return pto_enabled_; }
 
   bool handshake_mode_disabled() const { return handshake_mode_disabled_; }
@@ -651,10 +649,6 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
 
   // Number of times the PTO timer has fired in a row without receiving an ack.
   size_t consecutive_pto_count_;
-
-  // Latched value of quic_fix_rto_retransmission3 and
-  // session_decides_what_to_write.
-  bool fix_rto_retransmission_;
 
   // True if HANDSHAKE mode has been disabled.
   bool handshake_mode_disabled_;
