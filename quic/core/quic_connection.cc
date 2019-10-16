@@ -3717,17 +3717,11 @@ void QuicConnection::UpdatePacketContent(PacketContent type) {
 }
 
 void QuicConnection::MaybeEnableSessionDecidesWhatToWrite() {
-  // Only enable session decides what to write code path for version 42+,
-  // because it needs the receiver to allow receiving overlapping stream data.
-  const bool enable_session_decides_what_to_write =
-      transport_version() > QUIC_VERSION_39;
-  sent_packet_manager_.SetSessionDecideWhatToWrite(
-      enable_session_decides_what_to_write);
+  sent_packet_manager_.SetSessionDecideWhatToWrite(true);
   if (version().SupportsAntiAmplificationLimit()) {
     sent_packet_manager_.EnableIetfPtoAndLossDetection();
   }
-  packet_generator_.SetCanSetTransmissionType(
-      enable_session_decides_what_to_write);
+  packet_generator_.SetCanSetTransmissionType(true);
 }
 
 void QuicConnection::PostProcessAfterAckFrame(bool send_stop_waiting,

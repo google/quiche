@@ -56,9 +56,9 @@ PacketHeaderFormat ConsumePacketHeaderFormat(FuzzedDataProvider* provider,
 
 ParsedQuicVersion ConsumeParsedQuicVersion(FuzzedDataProvider* provider) {
   // TODO(wub): Add support for v49+.
-  const std::array<QuicTransportVersion, 5> transport_versions = {
-      {quic::QUIC_VERSION_39, quic::QUIC_VERSION_43, quic::QUIC_VERSION_46,
-       quic::QUIC_VERSION_47, quic::QUIC_VERSION_48},
+  const std::array<QuicTransportVersion, 4> transport_versions = {
+      {quic::QUIC_VERSION_43, quic::QUIC_VERSION_46, quic::QUIC_VERSION_47,
+       quic::QUIC_VERSION_48},
   };
 
   return ParsedQuicVersion(

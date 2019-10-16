@@ -1838,21 +1838,17 @@ TEST_P(QuicSpdySessionTestClient, WritePriority) {
 
   QuicStreamSendBuffer& send_buffer =
       QuicStreamPeer::SendBuffer(headers_stream);
-  if (transport_version() > QUIC_VERSION_39) {
-    ASSERT_EQ(1u, send_buffer.size());
+  ASSERT_EQ(1u, send_buffer.size());
 
-    SpdyPriorityIR priority_frame(
-        id, parent_stream_id, Spdy3PriorityToHttp2Weight(priority), exclusive);
-    SpdyFramer spdy_framer(SpdyFramer::ENABLE_COMPRESSION);
-    SpdySerializedFrame frame = spdy_framer.SerializeFrame(priority_frame);
+  SpdyPriorityIR priority_frame(
+      id, parent_stream_id, Spdy3PriorityToHttp2Weight(priority), exclusive);
+  SpdyFramer spdy_framer(SpdyFramer::ENABLE_COMPRESSION);
+  SpdySerializedFrame frame = spdy_framer.SerializeFrame(priority_frame);
 
-    const QuicMemSlice& slice =
-        QuicStreamSendBufferPeer::CurrentWriteSlice(&send_buffer)->slice;
-    EXPECT_EQ(QuicStringPiece(frame.data(), frame.size()),
-              QuicStringPiece(slice.data(), slice.length()));
-  } else {
-    EXPECT_EQ(0u, send_buffer.size());
-  }
+  const QuicMemSlice& slice =
+      QuicStreamSendBufferPeer::CurrentWriteSlice(&send_buffer)->slice;
+  EXPECT_EQ(QuicStringPiece(frame.data(), frame.size()),
+            QuicStringPiece(slice.data(), slice.length()));
 }
 
 TEST_P(QuicSpdySessionTestClient, Http3ServerPush) {

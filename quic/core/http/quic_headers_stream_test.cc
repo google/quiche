@@ -521,13 +521,7 @@ TEST_P(QuicHeadersStreamTest, ProcessPriorityFrame) {
       SpdyPriorityIR priority_frame(stream_id, parent_stream_id, weight, true);
       SpdySerializedFrame frame(framer_->SerializeFrame(priority_frame));
       parent_stream_id = stream_id;
-      if (transport_version() <= QUIC_VERSION_39) {
-        EXPECT_CALL(*connection_,
-                    CloseConnection(QUIC_INVALID_HEADERS_STREAM_DATA,
-                                    "SPDY PRIORITY frame received.", _))
-            .WillRepeatedly(InvokeWithoutArgs(
-                this, &QuicHeadersStreamTest::TearDownLocalConnectionState));
-      } else if (perspective() == Perspective::IS_CLIENT) {
+      if (perspective() == Perspective::IS_CLIENT) {
         EXPECT_CALL(*connection_,
                     CloseConnection(QUIC_INVALID_HEADERS_STREAM_DATA,
                                     "Server must not send PRIORITY frames.", _))

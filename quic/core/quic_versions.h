@@ -82,10 +82,9 @@ enum QuicTransportVersion {
   // Version 38 switched to IETF padding frame format and support for NSTP (no
   //            stop waiting frame) connection option.
 
-  QUIC_VERSION_39 = 39,  // Integers and floating numbers are written in big
-                         // endian. Dot not ack acks. Send a connection level
-                         // WINDOW_UPDATE every 20 sent packets which do not
-                         // contain retransmittable frames.
+  // Version 39 writes integers and floating numbers in big endian, stops acking
+  // acks, sends a connection level WINDOW_UPDATE every 20 sent packets which do
+  // not contain retransmittable frames.
 
   // Version 40 was an attempt to convert QUIC to IETF frame format; it was
   //            never shipped due to a bug.
@@ -216,7 +215,7 @@ using QuicVersionLabelVector = std::vector<QuicVersionLabel>;
 // See go/new-quic-version for more details on how to roll out new versions.
 static const QuicTransportVersion kSupportedTransportVersions[] = {
     QUIC_VERSION_99, QUIC_VERSION_50, QUIC_VERSION_49, QUIC_VERSION_48,
-    QUIC_VERSION_47, QUIC_VERSION_46, QUIC_VERSION_43, QUIC_VERSION_39,
+    QUIC_VERSION_47, QUIC_VERSION_46, QUIC_VERSION_43,
 };
 
 // This vector contains all crypto handshake protocols that are supported.

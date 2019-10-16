@@ -20,10 +20,9 @@ QuicVersionManager::QuicVersionManager(
       enable_version_49_(GetQuicReloadableFlag(quic_enable_version_49)),
       enable_version_48_(GetQuicReloadableFlag(quic_enable_version_48_2)),
       enable_version_47_(GetQuicReloadableFlag(quic_enable_version_47)),
-      disable_version_39_(GetQuicReloadableFlag(quic_disable_version_39)),
       enable_tls_(GetQuicReloadableFlag(quic_supports_tls_handshake)),
       allowed_supported_versions_(std::move(supported_versions)) {
-  static_assert(QUIC_ARRAYSIZE(kSupportedTransportVersions) == 8u,
+  static_assert(QUIC_ARRAYSIZE(kSupportedTransportVersions) == 7u,
                 "Supported versions out of sync");
   RefilterSupportedVersions();
 }
@@ -42,21 +41,19 @@ const ParsedQuicVersionVector& QuicVersionManager::GetSupportedVersions() {
 }
 
 void QuicVersionManager::MaybeRefilterSupportedVersions() {
-  static_assert(QUIC_ARRAYSIZE(kSupportedTransportVersions) == 8u,
+  static_assert(QUIC_ARRAYSIZE(kSupportedTransportVersions) == 7u,
                 "Supported versions out of sync");
   if (enable_version_99_ != GetQuicReloadableFlag(quic_enable_version_99) ||
       enable_version_50_ != GetQuicReloadableFlag(quic_enable_version_50) ||
       enable_version_49_ != GetQuicReloadableFlag(quic_enable_version_49) ||
       enable_version_48_ != GetQuicReloadableFlag(quic_enable_version_48_2) ||
       enable_version_47_ != GetQuicReloadableFlag(quic_enable_version_47) ||
-      disable_version_39_ != GetQuicReloadableFlag(quic_disable_version_39) ||
       enable_tls_ != GetQuicReloadableFlag(quic_supports_tls_handshake)) {
     enable_version_99_ = GetQuicReloadableFlag(quic_enable_version_99);
     enable_version_50_ = GetQuicReloadableFlag(quic_enable_version_50);
     enable_version_49_ = GetQuicReloadableFlag(quic_enable_version_49);
     enable_version_48_ = GetQuicReloadableFlag(quic_enable_version_48_2);
     enable_version_47_ = GetQuicReloadableFlag(quic_enable_version_47);
-    disable_version_39_ = GetQuicReloadableFlag(quic_disable_version_39);
     enable_tls_ = GetQuicReloadableFlag(quic_supports_tls_handshake);
     RefilterSupportedVersions();
   }
