@@ -2054,7 +2054,7 @@ void QuicConnection::WriteQueuedPackets() {
         packet.encrypted_buffer.data(), packet.encrypted_buffer.length(),
         packet.self_address.host(), packet.peer_address, per_packet_options_);
     QUIC_DVLOG(1) << ENDPOINT << "Sending buffered packet, result: " << result;
-    if (mtu_discovery_v2_ && IsMsgTooBig(result) &&
+    if (IsMsgTooBig(result) &&
         packet.encrypted_buffer.length() > long_term_mtu_) {
       // When MSG_TOO_BIG is returned, the system typically knows what the
       // actual MTU is, so there is no need to probe further.
