@@ -22,12 +22,7 @@ QuicSimpleClientSession::QuicSimpleClientSession(
                             server_id,
                             crypto_config,
                             push_promise_index),
-      drop_response_body_(drop_response_body) {
-  // Do not use the QPACK dynamic table in tests to avoid flakiness due to the
-  // uncertain order of receiving the SETTINGS frame and sending headers.
-  set_qpack_maximum_dynamic_table_capacity(0);
-  set_qpack_maximum_blocked_streams(0);
-}
+      drop_response_body_(drop_response_body) {}
 
 std::unique_ptr<QuicSpdyClientStream>
 QuicSimpleClientSession::CreateClientStream() {

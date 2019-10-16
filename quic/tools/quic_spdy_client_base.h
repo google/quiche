@@ -139,6 +139,10 @@ class QuicSpdyClientBase : public QuicClientBase,
   // Set the max promise id for the client session.
   void SetMaxAllowedPushId(QuicStreamId max) { max_allowed_push_id_ = max; }
 
+  // Disables the use of the QPACK dynamic table and of blocked streams.
+  // Must be called before InitializeSession().
+  void disable_qpack_dynamic_table() { disable_qpack_dynamic_table_ = true; }
+
  protected:
   int GetNumSentClientHellosFromSession() override;
   int GetNumReceivedServerConfigUpdatesFromSession() override;
@@ -215,6 +219,8 @@ class QuicSpdyClientBase : public QuicClientBase,
 
   // The max promise id to set on the client session when created.
   QuicStreamId max_allowed_push_id_;
+
+  bool disable_qpack_dynamic_table_;
 };
 
 }  // namespace quic
