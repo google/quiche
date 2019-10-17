@@ -30,7 +30,9 @@ QuicByteCount MaxAckHeightTracker::Update(QuicBandwidth bandwidth_estimate,
       bandwidth_estimate * (ack_time - aggregation_epoch_start_time_);
   // Reset the current aggregation epoch as soon as the ack arrival rate is less
   // than or equal to the max bandwidth.
-  if (aggregation_epoch_bytes_ <= expected_bytes_acked) {
+  if (aggregation_epoch_bytes_ <=
+      GetQuicFlag(FLAGS_quic_ack_aggregation_bandwidth_threshold) *
+          expected_bytes_acked) {
     // Reset to start measuring a new aggregation epoch.
     aggregation_epoch_bytes_ = bytes_acked;
     aggregation_epoch_start_time_ = ack_time;
