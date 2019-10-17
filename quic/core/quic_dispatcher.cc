@@ -530,8 +530,6 @@ void QuicDispatcher::ProcessHeader(ReceivedPacketInfo* packet_info) {
 QuicDispatcher::QuicPacketFate QuicDispatcher::ValidityChecks(
     const ReceivedPacketInfo& packet_info) {
   if (!packet_info.version_flag) {
-    if (GetQuicReloadableFlag(quic_reply_to_old_android_conformance_test)) {
-      QUIC_RELOADABLE_FLAG_COUNT(quic_reply_to_old_android_conformance_test);
       // The Android network conformance test contains a UDP test that sends a
       // 12-byte packet with the following format:
       //  - 0x0c (public flags: 8-byte connection ID, 1-byte packet number)
@@ -559,7 +557,6 @@ QuicDispatcher::QuicPacketFate QuicDispatcher::ValidityChecks(
             /*ietf_quic=*/false, GetPerPacketContext());
         return kFateDrop;
       }
-    }
 
     QUIC_DLOG(INFO)
         << "Packet without version arrived for unknown connection ID "
