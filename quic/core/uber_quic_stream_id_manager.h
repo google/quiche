@@ -73,6 +73,8 @@ class QUIC_EXPORT_PRIVATE UberQuicStreamIdManager {
   void SetLargestPeerCreatedStreamId(
       QuicStreamId largest_peer_created_stream_id);
 
+  QuicStreamId GetLargestPeerCreatedStreamId(bool unidirectional) const;
+
   QuicStreamId next_outgoing_bidirectional_stream_id() const;
   QuicStreamId next_outgoing_unidirectional_stream_id() const;
 

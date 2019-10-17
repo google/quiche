@@ -23,6 +23,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_stream.h"
 #include "net/third_party/quiche/src/quic/core/quic_stream_frame_data_producer.h"
+#include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_write_blocked_list.h"
 #include "net/third_party/quiche/src/quic/core/session_notifier_interface.h"
 #include "net/third_party/quiche/src/quic/core/uber_quic_stream_id_manager.h"
@@ -597,6 +598,10 @@ class QUIC_EXPORT_PRIVATE QuicSession
   }
 
   bool IsHandshakeConfirmed() const { return is_handshake_confirmed_; }
+
+  // Return the largest peer created stream id depending on directionality
+  // indicated by |unidirectional|.
+  QuicStreamId GetLargestPeerCreatedStreamId(bool unidirectional) const;
 
  private:
   friend class test::QuicSessionPeer;

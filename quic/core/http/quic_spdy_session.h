@@ -153,6 +153,13 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // Writes a HTTP/3 PRIORITY frame to the peer.
   void WriteH3Priority(const PriorityFrame& priority);
 
+  // Process received HTTP/3 GOAWAY frame. This method should only be called on
+  // the client side.
+  virtual void OnHttp3GoAway(QuicStreamId stream_id);
+
+  // Write the GOAWAY |frame| on control stream.
+  void SendHttp3GoAway();
+
   // Write |headers| for |promised_stream_id| on |original_stream_id| in a
   // PUSH_PROMISE frame to peer.
   virtual void WritePushPromise(QuicStreamId original_stream_id,
@@ -236,6 +243,10 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   }
 
   Http3DebugVisitor* debug_visitor() { return debug_visitor_; }
+
+  bool http3_goaway_received() const { return http3_goaway_received_; }
+
+  bool http3_goaway_sent() const { return http3_goaway_sent_; }
 
   // Log header compression ratio histogram.
   // |using_qpack| is true for QPACK, false for HPACK.
@@ -416,6 +427,11 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
 
   // Not owned by the session.
   Http3DebugVisitor* debug_visitor_;
+
+  // If the endpoint has received HTTP/3 GOAWAY frame.
+  bool http3_goaway_received_;
+  // If the endpoint has sent HTTP/3 GOAWAY frame.
+  bool http3_goaway_sent_;
 };
 
 }  // namespace quic

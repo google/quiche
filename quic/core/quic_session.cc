@@ -1476,6 +1476,13 @@ void QuicSession::set_largest_peer_created_stream_id(
       largest_peer_created_stream_id);
 }
 
+QuicStreamId QuicSession::GetLargestPeerCreatedStreamId(
+    bool unidirectional) const {
+  // This method is only used in IETF QUIC.
+  DCHECK(VersionHasIetfQuicFrames(transport_version()));
+  return v99_streamid_manager_.GetLargestPeerCreatedStreamId(unidirectional);
+}
+
 bool QuicSession::IsClosedStream(QuicStreamId id) {
   DCHECK_NE(QuicUtils::GetInvalidStreamId(transport_version()), id);
   if (IsOpenStream(id)) {

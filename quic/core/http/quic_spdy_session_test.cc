@@ -978,7 +978,7 @@ TEST_P(QuicSpdySessionTestServer,
 
 TEST_P(QuicSpdySessionTestServer, SendGoAway) {
   if (VersionHasIetfQuicFrames(transport_version())) {
-    // GoAway frames are not in version 99
+    // HTTP/3 GOAWAY has different semantic and thus has its own test.
     return;
   }
   connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
@@ -1001,10 +1001,24 @@ TEST_P(QuicSpdySessionTestServer, SendGoAway) {
   EXPECT_TRUE(session_.GetOrCreateStream(kTestStreamId));
 }
 
+TEST_P(QuicSpdySessionTestServer, SendHttp3GoAway) {
+  if (!VersionUsesHttp3(transport_version())) {
+    return;
+  }
+  connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+
+  session_.SendHttp3GoAway();
+  EXPECT_TRUE(session_.http3_goaway_sent());
+
+  const QuicStreamId kTestStreamId =
+      GetNthClientInitiatedBidirectionalStreamId(transport_version(), 0);
+  EXPECT_CALL(*connection_, OnStreamReset(kTestStreamId, _)).Times(0);
+  EXPECT_TRUE(session_.GetOrCreateStream(kTestStreamId));
+}
+
 TEST_P(QuicSpdySessionTestServer, DoNotSendGoAwayTwice) {
   if (VersionHasIetfQuicFrames(transport_version())) {
-    // TODO(b/118808809): Enable this test for version 99 when GOAWAY is
-    // supported.
+    // HTTP/3 GOAWAY doesn't have such restriction.
     return;
   }
   EXPECT_CALL(*connection_, SendControlFrame(_))
@@ -1016,8 +1030,7 @@ TEST_P(QuicSpdySessionTestServer, DoNotSendGoAwayTwice) {
 
 TEST_P(QuicSpdySessionTestServer, InvalidGoAway) {
   if (VersionHasIetfQuicFrames(transport_version())) {
-    // TODO(b/118808809): Enable this test for version 99 when GOAWAY is
-    // supported.
+    // HTTP/3 GOAWAY has different semantics and thus has its own test.
     return;
   }
   QuicGoAwayFrame go_away(kInvalidControlFrameId, QUIC_PEER_GOING_AWAY,
@@ -2587,6 +2600,20 @@ TEST_P(QuicSpdySessionTestClient, DecoderStreamError) {
       CloseConnection(QUIC_QPACK_DECODER_STREAM_ERROR,
                       "Decoder stream error: Invalid increment value 0.", _));
   session_.OnStreamFrame(frame);
+}
+
+TEST_P(QuicSpdySessionTestClient, InvalidHttp3GoAway) {
+  if (!VersionUsesHttp3(transport_version())) {
+    return;
+  }
+  EXPECT_CALL(
+      *connection_,
+      CloseConnection(
+          QUIC_INVALID_STREAM_ID,
+          "GOAWAY's last stream id has to point to a request stream", _));
+  QuicStreamId stream_id =
+      GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 0);
+  session_.OnHttp3GoAway(stream_id);
 }
 
 }  // namespace

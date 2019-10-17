@@ -135,6 +135,14 @@ void UberQuicStreamIdManager::SetLargestPeerCreatedStreamId(
       largest_peer_created_stream_id);
 }
 
+QuicStreamId UberQuicStreamIdManager::GetLargestPeerCreatedStreamId(
+    bool unidirectional) const {
+  if (unidirectional) {
+    return unidirectional_stream_id_manager_.largest_peer_created_stream_id();
+  }
+  return bidirectional_stream_id_manager_.largest_peer_created_stream_id();
+}
+
 QuicStreamId UberQuicStreamIdManager::next_outgoing_bidirectional_stream_id()
     const {
   return bidirectional_stream_id_manager_.next_outgoing_stream_id();

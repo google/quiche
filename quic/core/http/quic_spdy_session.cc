@@ -11,6 +11,8 @@
 
 #include "net/third_party/quiche/src/quic/core/http/http_constants.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_headers_stream.h"
+#include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
+#include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
@@ -347,7 +349,9 @@ QuicSpdySession::QuicSpdySession(
       spdy_framer_visitor_(new SpdyFramerVisitor(this)),
       max_allowed_push_id_(0),
       destruction_indicator_(123456789),
-      debug_visitor_(nullptr) {
+      debug_visitor_(nullptr),
+      http3_goaway_received_(false),
+      http3_goaway_sent_(false) {
   h2_deframer_.set_visitor(spdy_framer_visitor_.get());
   h2_deframer_.set_debug_visitor(spdy_framer_visitor_.get());
   spdy_framer_.set_debug_visitor(spdy_framer_visitor_.get());
@@ -529,6 +533,26 @@ void QuicSpdySession::WriteH3Priority(const PriorityFrame& priority) {
   QuicConnection::ScopedPacketFlusher flusher(connection());
   SendInitialData();
   send_control_stream_->WritePriority(priority);
+}
+
+void QuicSpdySession::OnHttp3GoAway(QuicStreamId stream_id) {
+  DCHECK_EQ(perspective(), Perspective::IS_CLIENT);
+  if (!QuicUtils::IsBidirectionalStreamId(stream_id) ||
+      IsIncomingStream(stream_id)) {
+    CloseConnectionWithDetails(
+        QUIC_INVALID_STREAM_ID,
+        "GOAWAY's last stream id has to point to a request stream");
+    return;
+  }
+  http3_goaway_received_ = true;
+}
+
+void QuicSpdySession::SendHttp3GoAway() {
+  DCHECK_EQ(perspective(), Perspective::IS_SERVER);
+  DCHECK(VersionUsesHttp3(transport_version()));
+  http3_goaway_sent_ = true;
+  send_control_stream_->SendGoAway(
+      GetLargestPeerCreatedStreamId(/*unidirectional = */ false));
 }
 
 void QuicSpdySession::WritePushPromise(QuicStreamId original_stream_id,

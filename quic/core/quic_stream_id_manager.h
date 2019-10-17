@@ -153,6 +153,10 @@ class QUIC_EXPORT_PRIVATE QuicStreamIdManager {
     largest_peer_created_stream_id_ = largest_peer_created_stream_id;
   }
 
+  QuicStreamId largest_peer_created_stream_id() const {
+    return largest_peer_created_stream_id_;
+  }
+
   // These are the limits for outgoing and incoming streams,
   // respectively. For incoming there are two limits, what has
   // been advertised to the peer and what is actually available.

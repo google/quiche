@@ -3,11 +3,15 @@
 // found in the LICENSE file.
 
 #include "net/third_party/quiche/src/quic/core/http/quic_send_control_stream.h"
+#include <memory>
 
 #include "net/third_party/quiche/src/quic/core/http/http_constants.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_spdy_session.h"
 #include "net/third_party/quiche/src/quic/core/quic_session.h"
+#include "net/third_party/quiche/src/quic/core/quic_types.h"
+#include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 
 namespace quic {
 
@@ -88,6 +92,24 @@ void QuicSendControlStream::SendMaxPushIdFrame(PushId max_push_id) {
   QuicByteCount frame_length = encoder_.SerializeMaxPushIdFrame(frame, &buffer);
   WriteOrBufferData(QuicStringPiece(buffer.get(), frame_length),
                     /*fin = */ false, nullptr);
+}
+
+void QuicSendControlStream::SendGoAway(QuicStreamId stream_id) {
+  QuicConnection::ScopedPacketFlusher flusher(session()->connection());
+
+  MaybeSendSettingsFrame();
+  GoAwayFrame frame;
+  // If the peer hasn't created any stream yet. Use stream id 0 to indicate no
+  // request is accepted.
+  if (stream_id ==
+      QuicUtils::GetInvalidStreamId(session()->transport_version())) {
+    stream_id = 0;
+  }
+  frame.stream_id = stream_id;
+  std::unique_ptr<char[]> buffer;
+  QuicByteCount frame_length = encoder_.SerializeGoAwayFrame(frame, &buffer);
+  WriteOrBufferData(QuicStringPiece(buffer.get(), frame_length), false,
+                    nullptr);
 }
 
 }  // namespace quic

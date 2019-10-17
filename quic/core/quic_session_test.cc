@@ -1309,7 +1309,7 @@ TEST_P(QuicSessionTestServer, OnCanWriteLimitsNumWritesIfFlowControlBlocked) {
 
 TEST_P(QuicSessionTestServer, SendGoAway) {
   if (VersionHasIetfQuicFrames(transport_version())) {
-    // GoAway frames are not in version 99
+    // In IETF QUIC, GOAWAY lives up in the HTTP layer.
     return;
   }
   connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
@@ -1334,8 +1334,7 @@ TEST_P(QuicSessionTestServer, SendGoAway) {
 
 TEST_P(QuicSessionTestServer, DoNotSendGoAwayTwice) {
   if (VersionHasIetfQuicFrames(transport_version())) {
-    // TODO(b/118808809): Enable this test for version 99 when GOAWAY is
-    // supported.
+    // In IETF QUIC, GOAWAY lives up in the HTTP layer.
     return;
   }
   EXPECT_CALL(*connection_, SendControlFrame(_))
@@ -1347,8 +1346,7 @@ TEST_P(QuicSessionTestServer, DoNotSendGoAwayTwice) {
 
 TEST_P(QuicSessionTestServer, InvalidGoAway) {
   if (VersionHasIetfQuicFrames(transport_version())) {
-    // TODO(b/118808809): Enable this test for version 99 when GOAWAY is
-    // supported.
+    // In IETF QUIC, GOAWAY lives up in the HTTP layer.
     return;
   }
   QuicGoAwayFrame go_away(kInvalidControlFrameId, QUIC_PEER_GOING_AWAY,

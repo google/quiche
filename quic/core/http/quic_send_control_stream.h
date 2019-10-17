@@ -7,6 +7,7 @@
 
 #include "net/third_party/quiche/src/quic/core/http/http_encoder.h"
 #include "net/third_party/quiche/src/quic/core/quic_stream.h"
+#include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 
 namespace quic {
@@ -41,6 +42,9 @@ class QUIC_EXPORT_PRIVATE QuicSendControlStream : public QuicStream {
 
   // Send |Priority| on this stream. It must be sent after settings.
   void WritePriority(const PriorityFrame& priority);
+
+  // Serialize a GOAWAY frame from |stream_id| and send it on this stream.
+  void SendGoAway(QuicStreamId stream_id);
 
   // The send control stream is write unidirectional, so this method should
   // never be called.

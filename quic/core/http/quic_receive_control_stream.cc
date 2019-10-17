@@ -9,6 +9,7 @@
 #include "net/third_party/quiche/src/quic/core/http/http_constants.h"
 #include "net/third_party/quiche/src/quic/core/http/http_decoder.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_spdy_session.h"
+#include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 
 namespace quic {
@@ -65,9 +66,15 @@ class QuicReceiveControlStream::HttpDecoderVisitor
     return false;
   }
 
-  bool OnGoAwayFrame(const GoAwayFrame& /*frame*/) override {
-    CloseConnectionOnWrongFrame("Goaway");
-    return false;
+  bool OnGoAwayFrame(const GoAwayFrame& frame) override {
+    QuicSpdySession* spdy_session =
+        static_cast<QuicSpdySession*>(stream_->session());
+    if (spdy_session->perspective() == Perspective::IS_SERVER) {
+      CloseConnectionOnWrongFrame("Go Away");
+      return false;
+    }
+    spdy_session->OnHttp3GoAway(frame.stream_id);
+    return true;
   }
 
   bool OnSettingsFrameStart(QuicByteCount header_length) override {

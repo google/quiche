@@ -5,6 +5,7 @@
 #include "net/third_party/quiche/src/quic/core/http/quic_receive_control_stream.h"
 
 #include "net/third_party/quiche/src/quic/core/http/http_constants.h"
+#include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
@@ -214,11 +215,12 @@ TEST_P(QuicReceiveControlStreamTest, ReceiveSettingsFragments) {
 }
 
 TEST_P(QuicReceiveControlStreamTest, ReceiveWrongFrame) {
-  GoAwayFrame goaway;
-  goaway.stream_id = 0x1;
+  DuplicatePushFrame dup;
+  dup.push_id = 0x1;
   HttpEncoder encoder;
   std::unique_ptr<char[]> buffer;
-  QuicByteCount header_length = encoder.SerializeGoAwayFrame(goaway, &buffer);
+  QuicByteCount header_length =
+      encoder.SerializeDuplicatePushFrame(dup, &buffer);
   std::string data = std::string(buffer.get(), header_length);
 
   QuicStreamFrame frame(receive_control_stream_->id(), false, 1, data);
@@ -243,6 +245,28 @@ TEST_P(QuicReceiveControlStreamTest, ReceivePriorityFrame) {
   EXPECT_EQ(3u, stream_->precedence().spdy3_priority());
   receive_control_stream_->OnStreamFrame(data);
   EXPECT_EQ(1u, stream_->precedence().spdy3_priority());
+}
+
+TEST_P(QuicReceiveControlStreamTest, ReceiveGoAwayFrame) {
+  GoAwayFrame goaway;
+  goaway.stream_id = 0x00;
+  HttpEncoder encoder;
+
+  std::unique_ptr<char[]> buffer;
+  QuicByteCount header_length = encoder.SerializeGoAwayFrame(goaway, &buffer);
+  std::string data = std::string(buffer.get(), header_length);
+
+  QuicStreamFrame frame(receive_control_stream_->id(), false, 1, data);
+  EXPECT_FALSE(session_.http3_goaway_received());
+
+  if (perspective() == Perspective::IS_SERVER) {
+    EXPECT_CALL(*connection_, CloseConnection(QUIC_HTTP_DECODER_ERROR, _, _));
+  }
+
+  receive_control_stream_->OnStreamFrame(frame);
+  if (perspective() == Perspective::IS_CLIENT) {
+    EXPECT_TRUE(session_.http3_goaway_received());
+  }
 }
 
 TEST_P(QuicReceiveControlStreamTest, PushPromiseOnControlStreamShouldClose) {

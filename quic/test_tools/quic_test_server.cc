@@ -230,12 +230,20 @@ ImmediateGoAwaySession::ImmediateGoAwaySession(
                               quic_simple_server_backend) {}
 
 void ImmediateGoAwaySession::OnStreamFrame(const QuicStreamFrame& frame) {
-  SendGoAway(QUIC_PEER_GOING_AWAY, "");
+  if (VersionUsesHttp3(transport_version())) {
+    SendHttp3GoAway();
+  } else {
+    SendGoAway(QUIC_PEER_GOING_AWAY, "");
+  }
   QuicSimpleServerSession::OnStreamFrame(frame);
 }
 
 void ImmediateGoAwaySession::OnCryptoFrame(const QuicCryptoFrame& frame) {
-  SendGoAway(QUIC_PEER_GOING_AWAY, "");
+  // In IETF QUIC, GOAWAY lives up in HTTP/3 layer. Even if it's a immediate
+  // goaway session, goaway shouldn't be sent when crypto frame is received.
+  if (!VersionUsesHttp3(transport_version())) {
+    SendGoAway(QUIC_PEER_GOING_AWAY, "");
+  }
   QuicSimpleServerSession::OnCryptoFrame(frame);
 }
 
