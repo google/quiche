@@ -2832,13 +2832,13 @@ const QuicDecrypter* QuicConnection::alternative_decrypter() const {
 
 void QuicConnection::QueueUndecryptablePacket(
     const QuicEncryptedPacket& packet) {
-    for (const auto& saved_packet : undecryptable_packets_) {
-      if (packet.data() == saved_packet->data() &&
-          packet.length() == saved_packet->length()) {
-        QUIC_DVLOG(1) << ENDPOINT << "Not queueing known undecryptable packet";
-        return;
-      }
+  for (const auto& saved_packet : undecryptable_packets_) {
+    if (packet.data() == saved_packet->data() &&
+        packet.length() == saved_packet->length()) {
+      QUIC_DVLOG(1) << ENDPOINT << "Not queueing known undecryptable packet";
+      return;
     }
+  }
   QUIC_DVLOG(1) << ENDPOINT << "Queueing undecryptable packet.";
   undecryptable_packets_.push_back(packet.Clone());
 }
@@ -2942,25 +2942,58 @@ void QuicConnection::CloseConnection(
 
 void QuicConnection::SendConnectionClosePacket(QuicErrorCode error,
                                                const std::string& details) {
-  QUIC_DLOG(INFO) << ENDPOINT << "Sending connection close packet.";
-  SetDefaultEncryptionLevel(GetConnectionCloseEncryptionLevel());
-  ClearQueuedPackets();
-  // If there was a packet write error, write the smallest close possible.
-  ScopedPacketFlusher flusher(this);
-  // When multiple packet number spaces is supported, an ACK frame will be
-  // bundled when connection is not write blocked.
-  if (!SupportsMultiplePacketNumberSpaces() &&
-      error != QUIC_PACKET_WRITE_ERROR &&
-      !GetUpdatedAckFrame().ack_frame->packets.Empty()) {
-    SendAck();
-  }
-  QuicConnectionCloseFrame* frame;
+  if (!GetQuicReloadableFlag(quic_close_all_encryptions_levels)) {
+    QUIC_DLOG(INFO) << ENDPOINT << "Sending connection close packet.";
+    SetDefaultEncryptionLevel(GetConnectionCloseEncryptionLevel());
+    ClearQueuedPackets();
+    // If there was a packet write error, write the smallest close possible.
+    ScopedPacketFlusher flusher(this);
+    // When multiple packet number spaces is supported, an ACK frame will be
+    // bundled when connection is not write blocked.
+    if (!SupportsMultiplePacketNumberSpaces() &&
+        error != QUIC_PACKET_WRITE_ERROR &&
+        !GetUpdatedAckFrame().ack_frame->packets.Empty()) {
+      SendAck();
+    }
+    QuicConnectionCloseFrame* frame;
 
-  frame = new QuicConnectionCloseFrame(transport_version(), error, details,
-                                       framer_.current_received_frame_type());
-  packet_generator_.ConsumeRetransmittableControlFrame(QuicFrame(frame));
-  packet_generator_.FlushAllQueuedFrames();
-  ClearQueuedPackets();
+    frame = new QuicConnectionCloseFrame(transport_version(), error, details,
+                                         framer_.current_received_frame_type());
+    packet_generator_.ConsumeRetransmittableControlFrame(QuicFrame(frame));
+    packet_generator_.FlushAllQueuedFrames();
+    ClearQueuedPackets();
+    return;
+  }
+  const EncryptionLevel current_encryption_level = encryption_level_;
+  ScopedPacketFlusher flusher(this);
+  QUIC_RELOADABLE_FLAG_COUNT(quic_close_all_encryptions_levels);
+  for (EncryptionLevel level :
+       {ENCRYPTION_INITIAL, ENCRYPTION_HANDSHAKE, ENCRYPTION_ZERO_RTT,
+        ENCRYPTION_FORWARD_SECURE}) {
+    if (!framer_.HasEncrypterOfEncryptionLevel(level)) {
+      continue;
+    }
+    QUIC_DLOG(INFO) << ENDPOINT << "Sending connection close packet at level: "
+                    << EncryptionLevelToString(level);
+    SetDefaultEncryptionLevel(level);
+    ClearQueuedPackets();
+    // If there was a packet write error, write the smallest close possible.
+    // When multiple packet number spaces are supported, an ACK frame will
+    // be bundled by the ScopedPacketFlusher. Otherwise, an ACK must be sent
+    // explicitly.
+    if (!SupportsMultiplePacketNumberSpaces() &&
+        error != QUIC_PACKET_WRITE_ERROR &&
+        !GetUpdatedAckFrame().ack_frame->packets.Empty()) {
+      SendAck();
+    }
+    auto* frame =
+        new QuicConnectionCloseFrame(transport_version(), error, details,
+                                     framer_.current_received_frame_type());
+    packet_generator_.ConsumeRetransmittableControlFrame(QuicFrame(frame));
+    packet_generator_.FlushAllQueuedFrames();
+    ClearQueuedPackets();
+  }
+  SetDefaultEncryptionLevel(current_encryption_level);
 }
 
 void QuicConnection::TearDownLocalConnectionState(
