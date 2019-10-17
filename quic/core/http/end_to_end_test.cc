@@ -141,12 +141,12 @@ std::vector<TestParams> GetTestParams(bool use_tls_handshake) {
   ParsedQuicVersionVector all_supported_versions =
       FilterSupportedVersions(AllSupportedVersions());
 
-  // Buckets are separated by versions: versions prior to QUIC_VERSION_47 use
+  // Buckets are separated by versions: versions without crypto frames use
   // STREAM frames for the handshake, and only have QUIC crypto as the handshake
-  // protocol. Version 47 and greater use CRYPTO frames for the handshake, and
-  // must also be split based on the handshake protocol. If the handshake
-  // protocol (QUIC crypto or TLS) changes, the ClientHello/CHLO must be
-  // reconstructed for the correct protocol.
+  // protocol. Versions that use CRYPTO frames for the handshake must also be
+  // split based on the handshake protocol. If the handshake protocol (QUIC
+  // crypto or TLS) changes, the ClientHello/CHLO must be reconstructed for the
+  // correct protocol.
   ParsedQuicVersionVector version_buckets[3];
 
   for (const ParsedQuicVersion& version : all_supported_versions) {

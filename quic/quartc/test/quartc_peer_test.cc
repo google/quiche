@@ -173,7 +173,7 @@ TEST_F(QuartcPeerTest, MaxFrameSizeSmallerThanPacketSize) {
   Connect();
 
   // Run long enough for the bandwidth estimate to ramp up.
-  simulator_.RunFor(QuicTime::Delta::FromSeconds(10));
+  simulator_.RunFor(QuicTime::Delta::FromSeconds(12));
 
   EXPECT_EQ(client_peer_->received_messages().back().frame.size, 100u);
   EXPECT_EQ(server_peer_->received_messages().back().frame.size, 100u);

@@ -514,7 +514,7 @@ bool QuicUtils::VariableLengthConnectionIdAllowedForVersion(
   // We allow variable length connection IDs for unsupported versions to
   // ensure that IETF version negotiation works when other implementations
   // trigger version negotiation with custom connection ID lengths.
-  return version >= QUIC_VERSION_47 || version == QUIC_VERSION_UNSUPPORTED;
+  return version > QUIC_VERSION_46 || version == QUIC_VERSION_UNSUPPORTED;
 }
 
 // static

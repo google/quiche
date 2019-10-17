@@ -417,7 +417,7 @@ class QuicDispatcherTest : public QuicTest {
 TEST_F(QuicDispatcherTest, TlsClientHelloCreatesSession) {
   if (!QuicVersionUsesCryptoFrames(
           CurrentSupportedVersions().front().transport_version)) {
-    // TLS is only supported in versions 47 and greater.
+    // TLS is only supported in versions with crypto frames.
     return;
   }
   SetQuicReloadableFlag(quic_supports_tls_handshake, true);
@@ -886,8 +886,8 @@ TEST_F(QuicDispatcherTest, ProcessPacketWithZeroPort) {
 }
 
 TEST_F(QuicDispatcherTest, ProcessPacketWithInvalidShortInitialConnectionId) {
-  // Enable v47 otherwise we cannot create a packet with a short connection ID.
-  SetQuicReloadableFlag(quic_enable_version_47, true);
+  // Enable a version that supports connection IDs of length different than 8.
+  SetQuicReloadableFlag(quic_enable_version_50, true);
   CreateTimeWaitListManager();
 
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
@@ -931,9 +931,8 @@ TEST_F(QuicDispatcherTest, OKSeqNoPacketProcessed) {
 }
 
 TEST_F(QuicDispatcherTest, SupportedTransportVersionsChangeInFlight) {
-  static_assert(QUIC_ARRAYSIZE(kSupportedTransportVersions) == 7u,
+  static_assert(QUIC_ARRAYSIZE(kSupportedTransportVersions) == 6u,
                 "Supported versions out of sync");
-  SetQuicReloadableFlag(quic_enable_version_47, true);
   SetQuicReloadableFlag(quic_enable_version_48_2, true);
   SetQuicReloadableFlag(quic_enable_version_49, true);
   SetQuicReloadableFlag(quic_enable_version_50, true);
@@ -974,43 +973,52 @@ TEST_F(QuicDispatcherTest, SupportedTransportVersionsChangeInFlight) {
   SetQuicReloadableFlag(quic_enable_version_48_2, true);
   VerifyVersionSupported(
       ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_48));
-
-  // Turn off version 47.
-  SetQuicReloadableFlag(quic_enable_version_47, false);
-  VerifyVersionNotSupported(
-      ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_47));
-
-  // Turn on version 47.
-  SetQuicReloadableFlag(quic_enable_version_47, true);
-  VerifyVersionSupported(
-      ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_47));
 }
 
 TEST_F(QuicDispatcherTest, RejectDeprecatedVersionsWithVersionNegotiation) {
-  static_assert(QUIC_ARRAYSIZE(kSupportedTransportVersions) == 7u,
+  static_assert(QUIC_ARRAYSIZE(kSupportedTransportVersions) == 6u,
                 "Please add deprecated versions to this test");
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
   CreateTimeWaitListManager();
 
-  char packet45[kMinPacketSizeForVersionNegotiation] = {
-      0xC0, 'Q', '0', '4', '5', /*connection ID length byte*/ 0x50};
-  QuicReceivedPacket packet(packet45, kMinPacketSizeForVersionNegotiation,
-                            QuicTime::Zero());
-  EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _)).Times(0);
-  EXPECT_CALL(*time_wait_list_manager_,
-              SendVersionNegotiationPacket(_, _, _, _, _, _, _, _))
-      .Times(1);
-  dispatcher_->ProcessPacket(server_address_, client_address, packet);
+  {
+    char packet47[kMinPacketSizeForVersionNegotiation] = {
+        0xC0, 'Q', '0', '4', '7', /*connection ID length byte*/ 0x50};
+    QuicReceivedPacket received_packet47(
+        packet47, kMinPacketSizeForVersionNegotiation, QuicTime::Zero());
+    EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _)).Times(0);
+    EXPECT_CALL(*time_wait_list_manager_,
+                SendVersionNegotiationPacket(_, _, _, _, _, _, _, _))
+        .Times(1);
+    dispatcher_->ProcessPacket(server_address_, client_address,
+                               received_packet47);
+  }
 
-  char packet44[kMinPacketSizeForVersionNegotiation] = {
-      0xFF, 'Q', '0', '4', '4', /*connection ID length byte*/ 0x50};
-  QuicReceivedPacket packet2(packet44, kMinPacketSizeForVersionNegotiation,
-                             QuicTime::Zero());
-  EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _)).Times(0);
-  EXPECT_CALL(*time_wait_list_manager_,
-              SendVersionNegotiationPacket(_, _, _, _, _, _, _, _))
-      .Times(1);
-  dispatcher_->ProcessPacket(server_address_, client_address, packet2);
+  {
+    char packet45[kMinPacketSizeForVersionNegotiation] = {
+        0xC0, 'Q', '0', '4', '5', /*connection ID length byte*/ 0x50};
+    QuicReceivedPacket received_packet45(
+        packet45, kMinPacketSizeForVersionNegotiation, QuicTime::Zero());
+    EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _)).Times(0);
+    EXPECT_CALL(*time_wait_list_manager_,
+                SendVersionNegotiationPacket(_, _, _, _, _, _, _, _))
+        .Times(1);
+    dispatcher_->ProcessPacket(server_address_, client_address,
+                               received_packet45);
+  }
+
+  {
+    char packet44[kMinPacketSizeForVersionNegotiation] = {
+        0xFF, 'Q', '0', '4', '4', /*connection ID length byte*/ 0x50};
+    QuicReceivedPacket received_packet44(
+        packet44, kMinPacketSizeForVersionNegotiation, QuicTime::Zero());
+    EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _)).Times(0);
+    EXPECT_CALL(*time_wait_list_manager_,
+                SendVersionNegotiationPacket(_, _, _, _, _, _, _, _))
+        .Times(1);
+    dispatcher_->ProcessPacket(server_address_, client_address,
+                               received_packet44);
+  }
 }
 
 TEST_F(QuicDispatcherTest, VersionNegotiationProbeOld) {
