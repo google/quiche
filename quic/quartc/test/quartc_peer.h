@@ -70,6 +70,8 @@ class QuartcPeer : public QuartcEndpoint::Delegate,
   // produced by that source.
   IdToSequenceNumberMap GetLastSequenceNumbers() const;
 
+  QuicBandwidth last_available_bandwidth() { return last_available_; }
+
   // QuartcEndpoint::Delegate overrides.
   void OnSessionCreated(QuartcSession* session) override;
 
@@ -116,6 +118,9 @@ class QuartcPeer : public QuartcEndpoint::Delegate,
   // Messages received by this peer from the remote peer.  Stored in the order
   // they are received.
   std::vector<ReceivedMessage> received_messages_;
+
+  // Last available bandwidth.
+  QuicBandwidth last_available_;
 };
 
 }  // namespace test
