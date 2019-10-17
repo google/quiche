@@ -27,10 +27,6 @@ TEST_F(QuicUtilsTest, QuicIetfTransportErrorCodeString) {
           QuicIetfTransportErrorCodeString(mapping.transport_error_code_),
           QuicStrCat("Unknown Transport Error Code Value: ",
                      static_cast<uint16_t>(mapping.transport_error_code_)));
-    } else {
-      // Some QuicErrorCodes are no longer valid.
-      EXPECT_EQ(QuicIetfTransportErrorCodeString(mapping.transport_error_code_),
-                "NO_IETF_QUIC_ERROR");
     }
   }
 }

@@ -411,18 +411,16 @@ void QuicSpdySession::Initialize() {
 void QuicSpdySession::OnDecoderStreamError(QuicStringPiece error_message) {
   DCHECK(VersionUsesHttp3(transport_version()));
 
-  // TODO(b/124216424): Use HTTP_QPACK_DECODER_STREAM_ERROR.
   CloseConnectionWithDetails(
-      QUIC_DECOMPRESSION_FAILURE,
+      QUIC_QPACK_DECODER_STREAM_ERROR,
       QuicStrCat("Decoder stream error: ", error_message));
 }
 
 void QuicSpdySession::OnEncoderStreamError(QuicStringPiece error_message) {
   DCHECK(VersionUsesHttp3(transport_version()));
 
-  // TODO(b/124216424): Use HTTP_QPACK_ENCODER_STREAM_ERROR.
   CloseConnectionWithDetails(
-      QUIC_DECOMPRESSION_FAILURE,
+      QUIC_QPACK_ENCODER_STREAM_ERROR,
       QuicStrCat("Encoder stream error: ", error_message));
 }
 

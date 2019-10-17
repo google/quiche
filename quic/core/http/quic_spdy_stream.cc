@@ -544,14 +544,13 @@ void QuicSpdyStream::OnHeadersDecoded(QuicHeaderList headers) {
 }
 
 void QuicSpdyStream::OnHeaderDecodingError() {
-  // TODO(b/124216424): Use HTTP_EXCESSIVE_LOAD or
-  // HTTP_QPACK_DECOMPRESSION_FAILED error code as indicated by
+  // TODO(b/124216424): Use HTTP_EXCESSIVE_LOAD instead if indicated by
   // |qpack_decoded_headers_accumulator_|.
   std::string error_message = QuicStrCat(
       "Error during async decoding of ",
       headers_decompressed_ ? "trailers" : "headers", " on stream ", id(), ": ",
       qpack_decoded_headers_accumulator_->error_message());
-  CloseConnectionWithDetails(QUIC_DECOMPRESSION_FAILURE, error_message);
+  CloseConnectionWithDetails(QUIC_QPACK_DECOMPRESSION_FAILED, error_message);
 }
 
 void QuicSpdyStream::OnHeadersTooLarge() {
@@ -904,11 +903,10 @@ bool QuicSpdyStream::OnHeadersFramePayload(QuicStringPiece payload) {
   sequencer()->MarkConsumed(body_manager_.OnNonBody(payload.size()));
 
   if (!success) {
-    // TODO(124216424): Use HTTP_QPACK_DECOMPRESSION_FAILED error code.
     std::string error_message =
         QuicStrCat("Error decompressing header block on stream ", id(), ": ",
                    qpack_decoded_headers_accumulator_->error_message());
-    CloseConnectionWithDetails(QUIC_DECOMPRESSION_FAILURE, error_message);
+    CloseConnectionWithDetails(QUIC_QPACK_DECOMPRESSION_FAILED, error_message);
     return false;
   }
   return true;
@@ -921,11 +919,10 @@ bool QuicSpdyStream::OnHeadersFrameEnd() {
   auto result = qpack_decoded_headers_accumulator_->EndHeaderBlock();
 
   if (result == QpackDecodedHeadersAccumulator::Status::kError) {
-    // TODO(124216424): Use HTTP_QPACK_DECOMPRESSION_FAILED error code.
     std::string error_message =
         QuicStrCat("Error decompressing header block on stream ", id(), ": ",
                    qpack_decoded_headers_accumulator_->error_message());
-    CloseConnectionWithDetails(QUIC_DECOMPRESSION_FAILURE, error_message);
+    CloseConnectionWithDetails(QUIC_QPACK_DECOMPRESSION_FAILED, error_message);
     return false;
   }
 

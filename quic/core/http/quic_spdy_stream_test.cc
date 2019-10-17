@@ -1840,7 +1840,7 @@ TEST_P(QuicSpdyStreamTest, MalformedHeadersStopHttpDecoder) {
   EXPECT_CALL(
       *connection_,
       CloseConnection(
-          QUIC_DECOMPRESSION_FAILURE,
+          QUIC_QPACK_DECOMPRESSION_FAILED,
           MatchesRegex("Error decompressing header block on stream \\d+: "
                        "Incomplete header block."),
           _))
@@ -1994,7 +1994,7 @@ TEST_P(QuicSpdyStreamTest, AsyncErrorDecodingHeaders) {
   EXPECT_CALL(
       *connection_,
       CloseConnection(
-          QUIC_DECOMPRESSION_FAILURE,
+          QUIC_QPACK_DECOMPRESSION_FAILED,
           MatchesRegex("Error during async decoding of headers on stream \\d+: "
                        "Required Insert Count too large."),
           ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET));
@@ -2055,7 +2055,7 @@ TEST_P(QuicSpdyStreamTest, AsyncErrorDecodingTrailers) {
 
   EXPECT_CALL(*connection_,
               CloseConnection(
-                  QUIC_DECOMPRESSION_FAILURE,
+                  QUIC_QPACK_DECOMPRESSION_FAILED,
                   MatchesRegex(
                       "Error during async decoding of trailers on stream \\d+: "
                       "Required Insert Count too large."),

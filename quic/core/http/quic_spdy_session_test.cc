@@ -2563,7 +2563,7 @@ TEST_P(QuicSpdySessionTestClient, EncoderStreamError) {
 
   EXPECT_CALL(
       *connection_,
-      CloseConnection(QUIC_DECOMPRESSION_FAILURE,
+      CloseConnection(QUIC_QPACK_ENCODER_STREAM_ERROR,
                       "Encoder stream error: Invalid relative index.", _));
   session_.OnStreamFrame(frame);
 }
@@ -2584,7 +2584,7 @@ TEST_P(QuicSpdySessionTestClient, DecoderStreamError) {
 
   EXPECT_CALL(
       *connection_,
-      CloseConnection(QUIC_DECOMPRESSION_FAILURE,
+      CloseConnection(QUIC_QPACK_DECODER_STREAM_ERROR,
                       "Decoder stream error: Invalid increment value 0.", _));
   session_.OnStreamFrame(frame);
 }

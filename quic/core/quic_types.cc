@@ -413,6 +413,18 @@ QuicErrorCodeToIetfMapping QuicErrorCodeToTransportErrorCode(
               {static_cast<uint64_t>(QUIC_TOO_MANY_BUFFERED_CONTROL_FRAMES)}};
     case QUIC_TRANSPORT_INVALID_CLIENT_INDICATION:
       return {false, {0u}};
+    case QUIC_QPACK_DECOMPRESSION_FAILED:
+      return {
+          false,
+          {static_cast<uint64_t>(IETF_QUIC_HTTP_QPACK_DECOMPRESSION_FAILED)}};
+    case QUIC_QPACK_ENCODER_STREAM_ERROR:
+      return {
+          false,
+          {static_cast<uint64_t>(IETF_QUIC_HTTP_QPACK_ENCODER_STREAM_ERROR)}};
+    case QUIC_QPACK_DECODER_STREAM_ERROR:
+      return {
+          false,
+          {static_cast<uint64_t>(IETF_QUIC_HTTP_QPACK_DECODER_STREAM_ERROR)}};
     case QUIC_LAST_ERROR:
       return {false, {static_cast<uint64_t>(QUIC_LAST_ERROR)}};
   }
