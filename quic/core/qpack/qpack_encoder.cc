@@ -159,8 +159,6 @@ QpackEncoder::Instructions QpackEncoder::FirstPassEncode(
                 QpackAbsoluteIndexToEncoderStreamRelativeIndex(
                     index, header_table_.inserted_entry_count()));
             auto entry = header_table_.InsertEntry(name, value);
-            blocking_manager_.OnReferenceSentOnEncoderStream(
-                entry->InsertionIndex(), index);
             instructions.push_back(EncodeIndexedHeaderField(
                 is_static, entry->InsertionIndex(), referred_indices));
             smallest_blocking_index = std::min(smallest_blocking_index, index);
@@ -218,8 +216,6 @@ QpackEncoder::Instructions QpackEncoder::FirstPassEncode(
                   index, header_table_.inserted_entry_count()),
               value);
           auto entry = header_table_.InsertEntry(name, value);
-          blocking_manager_.OnReferenceSentOnEncoderStream(
-              entry->InsertionIndex(), index);
           instructions.push_back(EncodeIndexedHeaderField(
               is_static, entry->InsertionIndex(), referred_indices));
           smallest_blocking_index = std::min(smallest_blocking_index, index);
