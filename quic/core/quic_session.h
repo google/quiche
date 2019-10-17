@@ -597,8 +597,6 @@ class QUIC_EXPORT_PRIVATE QuicSession
     return false;
   }
 
-  bool IsHandshakeConfirmed() const { return is_handshake_confirmed_; }
-
   // Return the largest peer created stream id depending on directionality
   // indicated by |unidirectional|.
   QuicStreamId GetLargestPeerCreatedStreamId(bool unidirectional) const;
@@ -736,9 +734,6 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // The stream id which was last popped in OnCanWrite, or 0, if not under the
   // call stack of OnCanWrite.
   QuicStreamId currently_writing_stream_id_;
-
-  // Cached value of whether the crypto handshake has been confirmed.
-  bool is_handshake_confirmed_;
 
   // Whether a GoAway has been sent.
   bool goaway_sent_;

@@ -87,7 +87,6 @@ QuicSession::QuicSession(
           perspective() == Perspective::IS_SERVER,
           nullptr),
       currently_writing_stream_id_(0),
-      is_handshake_confirmed_(false),
       goaway_sent_(false),
       goaway_received_(false),
       control_frame_manager_(this),
@@ -935,10 +934,6 @@ void QuicSession::OnFinalByteOffsetReceived(
 }
 
 bool QuicSession::IsEncryptionEstablished() const {
-  // Once the handshake is confirmed, it never becomes un-confirmed.
-  if (is_handshake_confirmed_) {
-    return true;
-  }
   return GetCryptoStream()->encryption_established();
 }
 
@@ -1264,7 +1259,6 @@ void QuicSession::OnCryptoHandshakeEvent(CryptoHandshakeEvent event) {
       // Discard originally encrypted packets, since they can't be decrypted by
       // the peer.
       NeuterUnencryptedData();
-      is_handshake_confirmed_ = true;
       break;
 
     default:
