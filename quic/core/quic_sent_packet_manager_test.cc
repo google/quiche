@@ -3218,6 +3218,42 @@ TEST_P(QuicSentPacketManagerTest, DisableHandshakeModeServer) {
   EXPECT_EQ(QuicTime::Zero(), manager_.GetRetransmissionTime());
 }
 
+TEST_P(QuicSentPacketManagerTest, ForwardSecurePacketAcked) {
+  EXPECT_FALSE(manager_.forward_secure_packet_acked());
+  SendDataPacket(1, ENCRYPTION_INITIAL);
+  // Ack packet 1.
+  ExpectAck(1);
+  manager_.OnAckFrameStart(QuicPacketNumber(1), QuicTime::Delta::Infinite(),
+                           clock_.Now());
+  manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(2));
+  EXPECT_EQ(PACKETS_NEWLY_ACKED,
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
+                                   ENCRYPTION_INITIAL));
+  EXPECT_FALSE(manager_.forward_secure_packet_acked());
+
+  SendDataPacket(2, ENCRYPTION_ZERO_RTT);
+  // Ack packet 2.
+  ExpectAck(2);
+  manager_.OnAckFrameStart(QuicPacketNumber(2), QuicTime::Delta::Infinite(),
+                           clock_.Now());
+  manager_.OnAckRange(QuicPacketNumber(2), QuicPacketNumber(3));
+  EXPECT_EQ(PACKETS_NEWLY_ACKED,
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(2),
+                                   ENCRYPTION_FORWARD_SECURE));
+  EXPECT_FALSE(manager_.forward_secure_packet_acked());
+
+  SendDataPacket(3, ENCRYPTION_FORWARD_SECURE);
+  // Ack packet 3.
+  ExpectAck(3);
+  manager_.OnAckFrameStart(QuicPacketNumber(3), QuicTime::Delta::Infinite(),
+                           clock_.Now());
+  manager_.OnAckRange(QuicPacketNumber(3), QuicPacketNumber(4));
+  EXPECT_EQ(PACKETS_NEWLY_ACKED,
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(3),
+                                   ENCRYPTION_FORWARD_SECURE));
+  EXPECT_TRUE(manager_.forward_secure_packet_acked());
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

@@ -413,6 +413,10 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
 
   bool handshake_mode_disabled() const { return handshake_mode_disabled_; }
 
+  bool forward_secure_packet_acked() const {
+    return forward_secure_packet_acked_;
+  }
+
  private:
   friend class test::QuicConnectionPeer;
   friend class test::QuicSentPacketManagerPeer;
@@ -652,6 +656,10 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
 
   // True if HANDSHAKE mode has been disabled.
   bool handshake_mode_disabled_;
+
+  // True if an acknowledgment has been received for a sent
+  // ENCRYPTION_FORWARD_SECURE packet.
+  bool forward_secure_packet_acked_;
 
   // Latched value of quic_detect_spurious_loss.
   const bool detect_spurious_losses_;

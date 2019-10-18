@@ -109,6 +109,7 @@ QuicSentPacketManager::QuicSentPacketManager(
       max_probe_packets_per_pto_(2),
       consecutive_pto_count_(0),
       handshake_mode_disabled_(false),
+      forward_secure_packet_acked_(false),
       detect_spurious_losses_(GetQuicReloadableFlag(quic_detect_spurious_loss)),
       neuter_handshake_packets_once_(
           GetQuicReloadableFlag(quic_neuter_handshake_packets_once)) {
@@ -1370,6 +1371,9 @@ AckResult QuicSentPacketManager::OnAckFrameEnd(
       return PACKETS_ACKED_IN_WRONG_PACKET_NUMBER_SPACE;
     }
     last_ack_frame_.packets.Add(acked_packet.packet_number);
+    if (info->encryption_level == ENCRYPTION_FORWARD_SECURE) {
+      forward_secure_packet_acked_ = true;
+    }
     largest_packet_peer_knows_is_acked_.UpdateMax(info->largest_acked);
     if (supports_multiple_packet_number_spaces()) {
       largest_packets_peer_knows_is_acked_[packet_number_space].UpdateMax(
