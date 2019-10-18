@@ -30,6 +30,9 @@ class TunDevicePacketExchanger : public QbonePacketExchanger {
     virtual void OnPacketWritten() = 0;
     virtual void OnReadError(string* error) = 0;
     virtual void OnWriteError(string* error) = 0;
+
+    ABSL_MUST_USE_RESULT virtual int64_t PacketsRead() const = 0;
+    ABSL_MUST_USE_RESULT virtual int64_t PacketsWritten() const = 0;
   };
 
   // |fd| is a open file descriptor on a TUN device that's opened for both read
@@ -48,7 +51,9 @@ class TunDevicePacketExchanger : public QbonePacketExchanger {
                            size_t max_pending_packets,
                            StatsInterface* stats);
 
-  int file_descriptor() const;
+  ABSL_MUST_USE_RESULT int file_descriptor() const;
+
+  ABSL_MUST_USE_RESULT const StatsInterface* stats_interface() const;
 
  private:
   // From QbonePacketExchanger.

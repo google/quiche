@@ -81,4 +81,9 @@ int TunDevicePacketExchanger::file_descriptor() const {
   return fd_;
 }
 
+const TunDevicePacketExchanger::StatsInterface*
+TunDevicePacketExchanger::stats_interface() const {
+  return stats_;
+}
+
 }  // namespace quic

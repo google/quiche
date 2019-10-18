@@ -5,6 +5,7 @@
 #include "net/third_party/quiche/src/quic/qbone/bonnet/tun_device_packet_exchanger.h"
 
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
+#include "net/third_party/quiche/src/quic/qbone/bonnet/mock_packet_exchanger_stats_interface.h"
 #include "net/third_party/quiche/src/quic/qbone/mock_qbone_client.h"
 #include "net/third_party/quiche/src/quic/qbone/platform/mock_kernel.h"
 
@@ -26,15 +27,6 @@ class MockVisitor : public QbonePacketExchanger::Visitor {
   MOCK_METHOD1(OnWriteError, void(const string&));
 };
 
-class MockStatsInterface : public TunDevicePacketExchanger::StatsInterface {
- public:
-  MOCK_METHOD0(OnPacketRead, void());
-  MOCK_METHOD0(OnPacketWritten, void());
-
-  MOCK_METHOD1(OnReadError, void(string*));
-  MOCK_METHOD1(OnWriteError, void(string*));
-};
-
 class TunDevicePacketExchangerTest : public QuicTest {
  protected:
   TunDevicePacketExchangerTest()
@@ -50,7 +42,7 @@ class TunDevicePacketExchangerTest : public QuicTest {
   MockKernel mock_kernel_;
   StrictMock<MockVisitor> mock_visitor_;
   StrictMock<MockQboneClient> mock_client_;
-  StrictMock<MockStatsInterface> mock_stats_;
+  StrictMock<MockPacketExchangerStatsInterface> mock_stats_;
   TunDevicePacketExchanger exchanger_;
 };
 
