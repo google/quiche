@@ -140,6 +140,14 @@ QUIC_EXPORT_PRIVATE void SetControlFrameId(QuicControlFrameId control_frame_id,
 QUIC_EXPORT_PRIVATE QuicFrame
 CopyRetransmittableControlFrame(const QuicFrame& frame);
 
+// Returns a copy of |frame|.
+QUIC_EXPORT_PRIVATE QuicFrame CopyQuicFrame(QuicBufferAllocator* allocator,
+                                            const QuicFrame& frame);
+
+// Returns a copy of |frames|.
+QUIC_EXPORT_PRIVATE QuicFrames CopyQuicFrames(QuicBufferAllocator* allocator,
+                                              const QuicFrames& frames);
+
 // Human-readable description suitable for logging.
 QUIC_EXPORT_PRIVATE std::string QuicFramesToString(const QuicFrames& frames);
 

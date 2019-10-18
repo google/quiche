@@ -254,6 +254,101 @@ QuicFrame CopyRetransmittableControlFrame(const QuicFrame& frame) {
   return copy;
 }
 
+QuicFrame CopyQuicFrame(QuicBufferAllocator* allocator,
+                        const QuicFrame& frame) {
+  QuicFrame copy;
+  switch (frame.type) {
+    case PADDING_FRAME:
+      copy = QuicFrame(QuicPaddingFrame(frame.padding_frame));
+      break;
+    case RST_STREAM_FRAME:
+      copy = QuicFrame(new QuicRstStreamFrame(*frame.rst_stream_frame));
+      break;
+    case CONNECTION_CLOSE_FRAME:
+      copy = QuicFrame(
+          new QuicConnectionCloseFrame(*frame.connection_close_frame));
+      break;
+    case GOAWAY_FRAME:
+      copy = QuicFrame(new QuicGoAwayFrame(*frame.goaway_frame));
+      break;
+    case WINDOW_UPDATE_FRAME:
+      copy = QuicFrame(new QuicWindowUpdateFrame(*frame.window_update_frame));
+      break;
+    case BLOCKED_FRAME:
+      copy = QuicFrame(new QuicBlockedFrame(*frame.blocked_frame));
+      break;
+    case STOP_WAITING_FRAME:
+      copy = QuicFrame(QuicStopWaitingFrame(frame.stop_waiting_frame));
+      break;
+    case PING_FRAME:
+      copy = QuicFrame(QuicPingFrame(frame.ping_frame.control_frame_id));
+      break;
+    case CRYPTO_FRAME:
+      copy = QuicFrame(new QuicCryptoFrame(*frame.crypto_frame));
+      break;
+    case STREAM_FRAME:
+      copy = QuicFrame(QuicStreamFrame(frame.stream_frame));
+      break;
+    case ACK_FRAME:
+      copy = QuicFrame(new QuicAckFrame(*frame.ack_frame));
+      break;
+    case MTU_DISCOVERY_FRAME:
+      copy = QuicFrame(QuicMtuDiscoveryFrame(frame.mtu_discovery_frame));
+      break;
+    case NEW_CONNECTION_ID_FRAME:
+      copy = QuicFrame(
+          new QuicNewConnectionIdFrame(*frame.new_connection_id_frame));
+      break;
+    case MAX_STREAMS_FRAME:
+      copy = QuicFrame(QuicMaxStreamsFrame(frame.max_streams_frame));
+      break;
+    case STREAMS_BLOCKED_FRAME:
+      copy = QuicFrame(QuicStreamsBlockedFrame(frame.streams_blocked_frame));
+      break;
+    case PATH_RESPONSE_FRAME:
+      copy = QuicFrame(new QuicPathResponseFrame(*frame.path_response_frame));
+      break;
+    case PATH_CHALLENGE_FRAME:
+      copy = QuicFrame(new QuicPathChallengeFrame(*frame.path_challenge_frame));
+      break;
+    case STOP_SENDING_FRAME:
+      copy = QuicFrame(new QuicStopSendingFrame(*frame.stop_sending_frame));
+      break;
+    case MESSAGE_FRAME:
+      copy = QuicFrame(new QuicMessageFrame(frame.message_frame->message_id));
+      copy.message_frame->data = frame.message_frame->data;
+      copy.message_frame->message_length = frame.message_frame->message_length;
+      for (const auto& slice : frame.message_frame->message_data) {
+        QuicMemSlice copy_slice(allocator, slice.length());
+        memcpy(const_cast<char*>(copy_slice.data()), slice.data(),
+               slice.length());
+        copy.message_frame->message_data.push_back(std::move(copy_slice));
+      }
+      break;
+    case NEW_TOKEN_FRAME:
+      copy = QuicFrame(new QuicNewTokenFrame(*frame.new_token_frame));
+      break;
+    case RETIRE_CONNECTION_ID_FRAME:
+      copy = QuicFrame(
+          new QuicRetireConnectionIdFrame(*frame.retire_connection_id_frame));
+      break;
+    default:
+      QUIC_BUG << "Cannot copy frame: " << frame;
+      copy = QuicFrame(QuicPingFrame(kInvalidControlFrameId));
+      break;
+  }
+  return copy;
+}
+
+QuicFrames CopyQuicFrames(QuicBufferAllocator* allocator,
+                          const QuicFrames& frames) {
+  QuicFrames copy;
+  for (const auto& frame : frames) {
+    copy.push_back(CopyQuicFrame(allocator, frame));
+  }
+  return copy;
+}
+
 std::ostream& operator<<(std::ostream& os, const QuicFrame& frame) {
   switch (frame.type) {
     case PADDING_FRAME: {

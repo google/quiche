@@ -481,6 +481,104 @@ TEST_F(QuicFramesTest, RemoveSmallestInterval) {
   EXPECT_EQ(QuicPacketNumber(99u), ack_frame1.packets.Max());
 }
 
+TEST_F(QuicFramesTest, CopyQuicFrames) {
+  QuicFrames frames;
+  SimpleBufferAllocator allocator;
+  QuicMemSliceStorage storage(nullptr, 0, nullptr, 0);
+  QuicMessageFrame* message_frame =
+      new QuicMessageFrame(1, MakeSpan(&allocator, "message", &storage));
+  // Construct a frame list.
+  for (uint8_t i = 0; i < NUM_FRAME_TYPES; ++i) {
+    switch (i) {
+      case PADDING_FRAME:
+        frames.push_back(QuicFrame(QuicPaddingFrame(-1)));
+        break;
+      case RST_STREAM_FRAME:
+        frames.push_back(QuicFrame(new QuicRstStreamFrame()));
+        break;
+      case CONNECTION_CLOSE_FRAME:
+        frames.push_back(QuicFrame(new QuicConnectionCloseFrame()));
+        break;
+      case GOAWAY_FRAME:
+        frames.push_back(QuicFrame(new QuicGoAwayFrame()));
+        break;
+      case WINDOW_UPDATE_FRAME:
+        frames.push_back(QuicFrame(new QuicWindowUpdateFrame()));
+        break;
+      case BLOCKED_FRAME:
+        frames.push_back(QuicFrame(new QuicBlockedFrame()));
+        break;
+      case STOP_WAITING_FRAME:
+        frames.push_back(QuicFrame(QuicStopWaitingFrame()));
+        break;
+      case PING_FRAME:
+        frames.push_back(QuicFrame(QuicPingFrame()));
+        break;
+      case CRYPTO_FRAME:
+        frames.push_back(QuicFrame(new QuicCryptoFrame()));
+        break;
+      case STREAM_FRAME:
+        frames.push_back(QuicFrame(QuicStreamFrame()));
+        break;
+      case ACK_FRAME:
+        frames.push_back(QuicFrame(new QuicAckFrame()));
+        break;
+      case MTU_DISCOVERY_FRAME:
+        frames.push_back(QuicFrame(QuicMtuDiscoveryFrame()));
+        break;
+      case NEW_CONNECTION_ID_FRAME:
+        frames.push_back(QuicFrame(new QuicNewConnectionIdFrame()));
+        break;
+      case MAX_STREAMS_FRAME:
+        frames.push_back(QuicFrame(QuicMaxStreamsFrame()));
+        break;
+      case STREAMS_BLOCKED_FRAME:
+        frames.push_back(QuicFrame(QuicStreamsBlockedFrame()));
+        break;
+      case PATH_RESPONSE_FRAME:
+        frames.push_back(QuicFrame(new QuicPathResponseFrame()));
+        break;
+      case PATH_CHALLENGE_FRAME:
+        frames.push_back(QuicFrame(new QuicPathChallengeFrame()));
+        break;
+      case STOP_SENDING_FRAME:
+        frames.push_back(QuicFrame(new QuicStopSendingFrame()));
+        break;
+      case MESSAGE_FRAME:
+        frames.push_back(QuicFrame(message_frame));
+        break;
+      case NEW_TOKEN_FRAME:
+        frames.push_back(QuicFrame(new QuicNewTokenFrame()));
+        break;
+      case RETIRE_CONNECTION_ID_FRAME:
+        frames.push_back(QuicFrame(new QuicRetireConnectionIdFrame()));
+        break;
+      default:
+        ASSERT_TRUE(false)
+            << "Please fix CopyQuicFrames if a new frame type is added.";
+        break;
+    }
+  }
+
+  QuicFrames copy = CopyQuicFrames(&allocator, frames);
+  ASSERT_EQ(NUM_FRAME_TYPES, copy.size());
+  for (uint8_t i = 0; i < NUM_FRAME_TYPES; ++i) {
+    EXPECT_EQ(i, copy[i].type);
+    if (i != MESSAGE_FRAME) {
+      continue;
+    }
+    // Verify message frame is correctly copied.
+    EXPECT_EQ(1u, copy[i].message_frame->message_id);
+    EXPECT_EQ(nullptr, copy[i].message_frame->data);
+    EXPECT_EQ(7u, copy[i].message_frame->message_length);
+    ASSERT_EQ(1u, copy[i].message_frame->message_data.size());
+    EXPECT_EQ(0, memcmp(copy[i].message_frame->message_data[0].data(),
+                        frames[i].message_frame->message_data[0].data(), 7));
+  }
+  DeleteFrames(&frames);
+  DeleteFrames(&copy);
+}
+
 class PacketNumberQueueTest : public QuicTest {};
 
 // Tests that a queue contains the expected data after calls to Add().
