@@ -14,6 +14,7 @@
 #include "net/third_party/quiche/src/quic/core/crypto/null_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_decrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_encrypter.h"
+#include "net/third_party/quiche/src/quic/core/frames/quic_stream_frame.h"
 #include "net/third_party/quiche/src/quic/core/quic_data_writer.h"
 #include "net/third_party/quiche/src/quic/core/quic_pending_retransmission.h"
 #include "net/third_party/quiche/src/quic/core/quic_simple_buffer_allocator.h"
@@ -21,6 +22,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_expect_bug.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
@@ -79,6 +81,8 @@ class MockDebugDelegate : public QuicPacketCreator::DebugDelegate {
   ~MockDebugDelegate() override = default;
 
   MOCK_METHOD1(OnFrameAddedToPacket, void(const QuicFrame& frame));
+
+  MOCK_METHOD1(OnStreamFrameCoalesced, void(const QuicStreamFrame& frame));
 };
 
 class TestPacketCreator : public QuicPacketCreator {
@@ -318,8 +322,10 @@ TEST_P(QuicPacketCreatorTest, SerializeFrames) {
     if (level != ENCRYPTION_INITIAL && level != ENCRYPTION_HANDSHAKE) {
       frames_.push_back(
           QuicFrame(QuicStreamFrame(stream_id, false, 0u, QuicStringPiece())));
-      frames_.push_back(
-          QuicFrame(QuicStreamFrame(stream_id, true, 0u, QuicStringPiece())));
+      if (!GetQuicReloadableFlag(quic_coalesce_stream_frames)) {
+        frames_.push_back(
+            QuicFrame(QuicStreamFrame(stream_id, true, 0u, QuicStringPiece())));
+      }
     }
     SerializedPacket serialized = SerializeAllFrames(frames_);
     EXPECT_EQ(level, serialized.encryption_level);
@@ -342,7 +348,9 @@ TEST_P(QuicPacketCreatorTest, SerializeFrames) {
           .WillOnce(Return(true));
       if (level != ENCRYPTION_INITIAL && level != ENCRYPTION_HANDSHAKE) {
         EXPECT_CALL(framer_visitor_, OnStreamFrame(_));
-        EXPECT_CALL(framer_visitor_, OnStreamFrame(_));
+        if (!GetQuicReloadableFlag(quic_coalesce_stream_frames)) {
+          EXPECT_CALL(framer_visitor_, OnStreamFrame(_));
+        }
       }
       if (client_framer_.version().HasHeaderProtection()) {
         EXPECT_CALL(framer_visitor_, OnPaddingFrame(_))
@@ -2332,6 +2340,90 @@ TEST_P(QuicPacketCreatorTest, ClientConnectionId) {
   creator_.SetClientConnectionId(TestConnectionId(0x33));
   EXPECT_EQ(TestConnectionId(2), creator_.GetDestinationConnectionId());
   EXPECT_EQ(TestConnectionId(0x33), creator_.GetSourceConnectionId());
+}
+
+TEST_P(QuicPacketCreatorTest, CoalesceStreamFrames) {
+  InSequence s;
+  if (!GetParam().version_serialization) {
+    creator_.StopSendingVersion();
+  }
+  SetQuicReloadableFlag(quic_coalesce_stream_frames, true);
+  const size_t max_plaintext_size =
+      client_framer_.GetMaxPlaintextSize(creator_.max_packet_length());
+  EXPECT_FALSE(creator_.HasPendingFrames());
+  creator_.set_encryption_level(ENCRYPTION_FORWARD_SECURE);
+  QuicStreamId stream_id1 = QuicUtils::GetFirstBidirectionalStreamId(
+      client_framer_.transport_version(), Perspective::IS_CLIENT);
+  QuicStreamId stream_id2 = GetNthClientInitiatedStreamId(1);
+  EXPECT_FALSE(creator_.HasPendingStreamFramesOfStream(stream_id1));
+  EXPECT_EQ(max_plaintext_size -
+                GetPacketHeaderSize(
+                    client_framer_.transport_version(),
+                    creator_.GetDestinationConnectionIdLength(),
+                    creator_.GetSourceConnectionIdLength(),
+                    QuicPacketCreatorPeer::SendVersionInPacket(&creator_),
+                    !kIncludeDiversificationNonce,
+                    QuicPacketCreatorPeer::GetPacketNumberLength(&creator_),
+                    QuicPacketCreatorPeer::GetRetryTokenLengthLength(&creator_),
+                    0, QuicPacketCreatorPeer::GetLengthLength(&creator_)),
+            creator_.BytesFree());
+  StrictMock<MockDebugDelegate> debug;
+  creator_.set_debug_delegate(&debug);
+
+  MakeIOVector("test", &iov_);
+  QuicFrame frame;
+  EXPECT_CALL(debug, OnFrameAddedToPacket(_));
+  ASSERT_TRUE(creator_.ConsumeDataToFillCurrentPacket(
+      stream_id1, &iov_, 1u, iov_.iov_len, 0u, 0u, false, false,
+      NOT_RETRANSMISSION, &frame));
+  EXPECT_TRUE(creator_.HasPendingFrames());
+  EXPECT_TRUE(creator_.HasPendingStreamFramesOfStream(stream_id1));
+
+  MakeIOVector("coalesce", &iov_);
+  // frame will be coalesced with the first frame.
+  const auto previous_size = creator_.PacketSize();
+  EXPECT_CALL(debug, OnStreamFrameCoalesced(_));
+  ASSERT_TRUE(creator_.ConsumeDataToFillCurrentPacket(
+      stream_id1, &iov_, 1u, iov_.iov_len, 0u, 4u, true, false,
+      NOT_RETRANSMISSION, &frame));
+  EXPECT_EQ(frame.stream_frame.data_length,
+            creator_.PacketSize() - previous_size);
+  auto queued_frames = QuicPacketCreatorPeer::GetQueuedFrames(&creator_);
+  EXPECT_EQ(1u, queued_frames.size());
+  EXPECT_EQ(12u, queued_frames.front().stream_frame.data_length);
+  EXPECT_TRUE(queued_frames.front().stream_frame.fin);
+
+  // frame is for another stream, so it won't be coalesced.
+  const auto length = creator_.BytesFree() - 10u;
+  std::string large_data("x", length);
+  MakeIOVector(large_data, &iov_);
+  EXPECT_CALL(debug, OnFrameAddedToPacket(_));
+  ASSERT_TRUE(creator_.ConsumeDataToFillCurrentPacket(
+      stream_id2, &iov_, 1u, iov_.iov_len, 0u, 0u, false, false,
+      NOT_RETRANSMISSION, &frame));
+  EXPECT_TRUE(creator_.HasPendingStreamFramesOfStream(stream_id2));
+
+  // The packet doesn't have enough free bytes for all data, but will still be
+  // able to consume and coalesce part of them.
+  EXPECT_CALL(debug, OnStreamFrameCoalesced(_));
+  MakeIOVector("somerandomdata", &iov_);
+  ASSERT_TRUE(creator_.ConsumeDataToFillCurrentPacket(
+      stream_id2, &iov_, 1u, iov_.iov_len, 0u, length, false, false,
+      NOT_RETRANSMISSION, &frame));
+
+  EXPECT_CALL(delegate_, OnSerializedPacket(_))
+      .WillOnce(Invoke(this, &QuicPacketCreatorTest::SaveSerializedPacket));
+  creator_.FlushCurrentPacket();
+  EXPECT_CALL(framer_visitor_, OnPacket());
+  EXPECT_CALL(framer_visitor_, OnUnauthenticatedPublicHeader(_));
+  EXPECT_CALL(framer_visitor_, OnUnauthenticatedHeader(_));
+  EXPECT_CALL(framer_visitor_, OnDecryptedPacket(_));
+  EXPECT_CALL(framer_visitor_, OnPacketHeader(_));
+  // The packet should only have 2 stream frames.
+  EXPECT_CALL(framer_visitor_, OnStreamFrame(_));
+  EXPECT_CALL(framer_visitor_, OnStreamFrame(_));
+  EXPECT_CALL(framer_visitor_, OnPacketComplete());
+  ProcessPacket(serialized_packet_);
 }
 
 }  // namespace

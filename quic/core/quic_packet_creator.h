@@ -13,6 +13,7 @@
 #include <utility>
 #include <vector>
 
+#include "net/third_party/quiche/src/quic/core/frames/quic_stream_frame.h"
 #include "net/third_party/quiche/src/quic/core/quic_framer.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_pending_retransmission.h"
@@ -60,6 +61,10 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
 
     // Called when a frame has been added to the current packet.
     virtual void OnFrameAddedToPacket(const QuicFrame& /*frame*/) {}
+
+    // Called when a stream frame is coalesced with an existing stream frame.
+    // |frame| is the new stream frame.
+    virtual void OnStreamFrameCoalesced(const QuicStreamFrame& /*frame*/) {}
   };
 
   QuicPacketCreator(QuicConnectionId server_connection_id,
@@ -467,6 +472,10 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
 
   // Clears all fields of packet_ that should be cleared between serializations.
   void ClearPacket();
+
+  // Tries to coalesce |frame| with the back of |queued_frames_|.
+  // Returns true on success.
+  bool MaybeCoalesceStreamFrame(const QuicStreamFrame& frame);
 
   // Returns true if a diversification nonce should be included in the current
   // packet's header.

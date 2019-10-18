@@ -600,14 +600,14 @@ TEST_F(QuicPacketGeneratorTest, ConsumeData_BatchOperations) {
   generator_.ConsumeData(
       QuicUtils::GetFirstBidirectionalStreamId(framer_.transport_version(),
                                                Perspective::IS_CLIENT),
-      &iov_, 1u, iov_.iov_len, 0, FIN);
+      &iov_, 1u, iov_.iov_len, 0, NO_FIN);
   MakeIOVector("quux", &iov_);
   QuicConsumedData consumed = generator_.ConsumeData(
       QuicUtils::GetFirstBidirectionalStreamId(framer_.transport_version(),
                                                Perspective::IS_CLIENT),
-      &iov_, 1u, iov_.iov_len, 3, NO_FIN);
+      &iov_, 1u, iov_.iov_len, 3, FIN);
   EXPECT_EQ(4u, consumed.bytes_consumed);
-  EXPECT_FALSE(consumed.fin_consumed);
+  EXPECT_TRUE(consumed.fin_consumed);
   EXPECT_TRUE(generator_.HasPendingFrames());
   EXPECT_TRUE(generator_.HasRetransmittableFrames());
 
@@ -619,7 +619,8 @@ TEST_F(QuicPacketGeneratorTest, ConsumeData_BatchOperations) {
   EXPECT_FALSE(generator_.HasRetransmittableFrames());
 
   PacketContents contents;
-  contents.num_stream_frames = 2;
+  contents.num_stream_frames =
+      GetQuicReloadableFlag(quic_coalesce_stream_frames) ? 1 : 2;
   CheckPacketContains(contents, 0);
 }
 

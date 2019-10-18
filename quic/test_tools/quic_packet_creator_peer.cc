@@ -4,6 +4,7 @@
 
 #include "net/third_party/quiche/src/quic/test_tools/quic_packet_creator_peer.h"
 
+#include "net/third_party/quiche/src/quic/core/frames/quic_frame.h"
 #include "net/third_party/quiche/src/quic/core/quic_packet_creator.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 
@@ -55,6 +56,12 @@ QuicPacketCreatorPeer::GetRetryTokenLengthLength(QuicPacketCreator* creator) {
 QuicVariableLengthIntegerLength QuicPacketCreatorPeer::GetLengthLength(
     QuicPacketCreator* creator) {
   return creator->GetLengthLength();
+}
+
+// static
+const QuicFrames& QuicPacketCreatorPeer::GetQueuedFrames(
+    QuicPacketCreator* creator) {
+  return creator->queued_frames_;
 }
 
 void QuicPacketCreatorPeer::SetPacketNumber(QuicPacketCreator* creator,

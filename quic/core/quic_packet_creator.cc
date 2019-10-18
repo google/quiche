@@ -11,7 +11,9 @@
 #include <utility>
 
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
+#include "net/third_party/quiche/src/quic/core/frames/quic_frame.h"
 #include "net/third_party/quiche/src/quic/core/frames/quic_path_challenge_frame.h"
+#include "net/third_party/quiche/src/quic/core/frames/quic_stream_frame.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection_id.h"
 #include "net/third_party/quiche/src/quic/core/quic_constants.h"
 #include "net/third_party/quiche/src/quic/core/quic_data_writer.h"
@@ -1369,6 +1371,14 @@ bool QuicPacketCreator::AddFrame(const QuicFrame& frame,
         QUIC_ATTEMPT_TO_SEND_UNENCRYPTED_STREAM_DATA, error_details);
     return false;
   }
+
+  if (GetQuicReloadableFlag(quic_coalesce_stream_frames) &&
+      frame.type == STREAM_FRAME &&
+      MaybeCoalesceStreamFrame(frame.stream_frame)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_coalesce_stream_frames);
+    return true;
+  }
+
   size_t frame_len = framer_->GetSerializedFrameLength(
       frame, BytesFree(), queued_frames_.empty(),
       /* last_frame_in_packet= */ true, GetPacketNumberLength());
@@ -1408,6 +1418,36 @@ bool QuicPacketCreator::AddFrame(const QuicFrame& frame,
   if (can_set_transmission_type() &&
       QuicUtils::IsRetransmittableFrame(frame.type)) {
     packet_.transmission_type = transmission_type;
+  }
+  return true;
+}
+
+bool QuicPacketCreator::MaybeCoalesceStreamFrame(const QuicStreamFrame& frame) {
+  if (queued_frames_.empty() || queued_frames_.back().type != STREAM_FRAME) {
+    return false;
+  }
+  QuicStreamFrame* candidate = &queued_frames_.back().stream_frame;
+  if (candidate->stream_id != frame.stream_id ||
+      candidate->offset + candidate->data_length != frame.offset ||
+      frame.data_length > BytesFree()) {
+    return false;
+  }
+  candidate->data_length += frame.data_length;
+  candidate->fin = frame.fin;
+
+  // The back of retransmittable frames must be the same as the original
+  // queued frames' back.
+  DCHECK_EQ(packet_.retransmittable_frames.back().type, STREAM_FRAME);
+  QuicStreamFrame* retransmittable =
+      &packet_.retransmittable_frames.back().stream_frame;
+  DCHECK_EQ(retransmittable->stream_id, frame.stream_id);
+  DCHECK_EQ(retransmittable->offset + retransmittable->data_length,
+            frame.offset);
+  retransmittable->data_length = candidate->data_length;
+  retransmittable->fin = candidate->fin;
+  packet_size_ += frame.data_length;
+  if (debug_delegate_ != nullptr) {
+    debug_delegate_->OnStreamFrameCoalesced(*candidate);
   }
   return true;
 }

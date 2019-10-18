@@ -26,6 +26,7 @@ class QuicPacketCreatorPeer {
       QuicPacketNumberLength packet_number_length);
   static QuicPacketNumberLength GetPacketNumberLength(
       QuicPacketCreator* creator);
+  static const QuicFrames& GetQueuedFrames(QuicPacketCreator* creator);
   static QuicVariableLengthIntegerLength GetRetryTokenLengthLength(
       QuicPacketCreator* creator);
   static QuicVariableLengthIntegerLength GetLengthLength(

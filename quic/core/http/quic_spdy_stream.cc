@@ -310,7 +310,7 @@ void QuicSpdyStream::WriteOrBufferBody(QuicStringPiece data, bool fin) {
   // Write body.
   QUIC_DLOG(INFO) << ENDPOINT << "Stream " << id()
                   << " is writing DATA frame payload of length "
-                  << data.length();
+                  << data.length() << " with fin " << fin;
   WriteOrBufferData(data, fin, nullptr);
 }
 
@@ -1056,7 +1056,7 @@ size_t QuicSpdyStream::WriteHeadersImpl(
 
   QUIC_DLOG(INFO) << ENDPOINT << "Stream " << id()
                   << " is writing HEADERS frame payload of length "
-                  << encoded_headers.length();
+                  << encoded_headers.length() << " with fin " << fin;
   WriteOrBufferData(encoded_headers, fin, nullptr);
 
   QuicSpdySession::LogHeaderCompressionRatioHistogram(
