@@ -4130,7 +4130,7 @@ TEST_P(QuicConnectionTest, TailLossProbeDelayForNonStreamDataInTLPR) {
   // The ping alarm is set for the ping timeout, not the shorter
   // retransmittable_on_wire_timeout.
   EXPECT_TRUE(connection_.GetPingAlarm()->IsSet());
-  EXPECT_EQ(QuicTime::Delta::FromSeconds(kPingTimeoutSecs),
+  EXPECT_EQ(connection_.ping_timeout(),
             connection_.GetPingAlarm()->deadline() - clock_.ApproximateNow());
 
   // Receive an ACK for the data packet.
@@ -4185,7 +4185,7 @@ TEST_P(QuicConnectionTest, TailLossProbeDelayForNonStreamDataInTLPR) {
   // The ping alarm is set for the ping timeout, not the shorter
   // retransmittable_on_wire_timeout.
   EXPECT_TRUE(connection_.GetPingAlarm()->IsSet());
-  EXPECT_EQ(QuicTime::Delta::FromSeconds(kPingTimeoutSecs),
+  EXPECT_EQ(connection_.ping_timeout(),
             connection_.GetPingAlarm()->deadline() - clock_.ApproximateNow());
 
   // Advance a small period of time: 5ms. And receive a retransmitted ACK.
@@ -4526,8 +4526,8 @@ TEST_P(QuicConnectionTest, DelayRTOWithAckReceipt) {
   connection_.SendStreamDataWithString(3, "bar", 0, NO_FIN);
   QuicAlarm* retransmission_alarm = connection_.GetRetransmissionAlarm();
   EXPECT_TRUE(retransmission_alarm->IsSet());
-  EXPECT_EQ(clock_.Now() + DefaultRetransmissionTime(),
-            retransmission_alarm->deadline());
+  EXPECT_EQ(DefaultRetransmissionTime(),
+            retransmission_alarm->deadline() - clock_.Now());
 
   // Advance the time right before the RTO, then receive an ack for the first
   // packet to delay the RTO.
@@ -4538,8 +4538,8 @@ TEST_P(QuicConnectionTest, DelayRTOWithAckReceipt) {
   // Now we have an RTT sample of DefaultRetransmissionTime(500ms),
   // so the RTO has increased to 2 * SRTT.
   EXPECT_TRUE(retransmission_alarm->IsSet());
-  EXPECT_EQ(retransmission_alarm->deadline(),
-            clock_.Now() + 2 * DefaultRetransmissionTime());
+  EXPECT_EQ(retransmission_alarm->deadline() - clock_.Now(),
+            2 * DefaultRetransmissionTime());
 
   // Move forward past the original RTO and ensure the RTO is still pending.
   clock_.AdvanceTime(2 * DefaultRetransmissionTime());
@@ -4764,8 +4764,8 @@ TEST_P(QuicConnectionTest, PingAfterSend) {
       GetNthClientInitiatedStreamId(0, connection_.transport_version()),
       "GET /", 0, FIN, nullptr);
   EXPECT_TRUE(connection_.GetPingAlarm()->IsSet());
-  EXPECT_EQ(clock_.ApproximateNow() + QuicTime::Delta::FromSeconds(15),
-            connection_.GetPingAlarm()->deadline());
+  EXPECT_EQ(QuicTime::Delta::FromSeconds(15),
+            connection_.GetPingAlarm()->deadline() - clock_.ApproximateNow());
 
   // Now recevie an ACK of the previous packet, which will move the
   // ping alarm forward.
@@ -4777,9 +4777,9 @@ TEST_P(QuicConnectionTest, PingAfterSend) {
   EXPECT_TRUE(connection_.GetPingAlarm()->IsSet());
   // The ping timer is set slightly less than 15 seconds in the future, because
   // of the 1s ping timer alarm granularity.
-  EXPECT_EQ(clock_.ApproximateNow() + QuicTime::Delta::FromSeconds(15) -
-                QuicTime::Delta::FromMilliseconds(5),
-            connection_.GetPingAlarm()->deadline());
+  EXPECT_EQ(
+      QuicTime::Delta::FromSeconds(15) - QuicTime::Delta::FromMilliseconds(5),
+      connection_.GetPingAlarm()->deadline() - clock_.ApproximateNow());
 
   writer_->Reset();
   clock_.AdvanceTime(QuicTime::Delta::FromSeconds(15));
@@ -4818,8 +4818,8 @@ TEST_P(QuicConnectionTest, ReducedPingTimeout) {
       GetNthClientInitiatedStreamId(0, connection_.transport_version()),
       "GET /", 0, FIN, nullptr);
   EXPECT_TRUE(connection_.GetPingAlarm()->IsSet());
-  EXPECT_EQ(clock_.ApproximateNow() + QuicTime::Delta::FromSeconds(10),
-            connection_.GetPingAlarm()->deadline());
+  EXPECT_EQ(QuicTime::Delta::FromSeconds(10),
+            connection_.GetPingAlarm()->deadline() - clock_.ApproximateNow());
 
   // Now recevie an ACK of the previous packet, which will move the
   // ping alarm forward.
@@ -4831,9 +4831,9 @@ TEST_P(QuicConnectionTest, ReducedPingTimeout) {
   EXPECT_TRUE(connection_.GetPingAlarm()->IsSet());
   // The ping timer is set slightly less than 10 seconds in the future, because
   // of the 1s ping timer alarm granularity.
-  EXPECT_EQ(clock_.ApproximateNow() + QuicTime::Delta::FromSeconds(10) -
-                QuicTime::Delta::FromMilliseconds(5),
-            connection_.GetPingAlarm()->deadline());
+  EXPECT_EQ(
+      QuicTime::Delta::FromSeconds(10) - QuicTime::Delta::FromMilliseconds(5),
+      connection_.GetPingAlarm()->deadline() - clock_.ApproximateNow());
 
   writer_->Reset();
   clock_.AdvanceTime(QuicTime::Delta::FromSeconds(10));
@@ -7652,8 +7652,8 @@ TEST_P(QuicConnectionTest, PathDegradingAlarmForCryptoPacket) {
   EXPECT_FALSE(connection_.IsPathDegrading());
   QuicTime::Delta delay = QuicConnectionPeer::GetSentPacketManager(&connection_)
                               ->GetPathDegradingDelay();
-  EXPECT_EQ(clock_.ApproximateNow() + delay,
-            connection_.GetPathDegradingAlarm()->deadline());
+  EXPECT_EQ(delay, connection_.GetPathDegradingAlarm()->deadline() -
+                       clock_.ApproximateNow());
 
   // Fire the path degrading alarm, path degrading signal should be sent to
   // the visitor.
@@ -7686,8 +7686,8 @@ TEST_P(QuicConnectionTest, PathDegradingAlarmForNonCryptoPackets) {
     QuicTime::Delta delay =
         QuicConnectionPeer::GetSentPacketManager(&connection_)
             ->GetPathDegradingDelay();
-    EXPECT_EQ(clock_.ApproximateNow() + delay,
-              connection_.GetPathDegradingAlarm()->deadline());
+    EXPECT_EQ(delay, connection_.GetPathDegradingAlarm()->deadline() -
+                         clock_.ApproximateNow());
 
     // Send a second packet. The path degrading alarm's deadline should remain
     // the same.
@@ -7715,8 +7715,8 @@ TEST_P(QuicConnectionTest, PathDegradingAlarmForNonCryptoPackets) {
     // Check the deadline of the path degrading alarm.
     delay = QuicConnectionPeer::GetSentPacketManager(&connection_)
                 ->GetPathDegradingDelay();
-    EXPECT_EQ(clock_.ApproximateNow() + delay,
-              connection_.GetPathDegradingAlarm()->deadline());
+    EXPECT_EQ(delay, connection_.GetPathDegradingAlarm()->deadline() -
+                         clock_.ApproximateNow());
 
     if (i == 0) {
       // Now receive an ACK of the second packet. Since there are no more
@@ -7766,15 +7766,15 @@ TEST_P(QuicConnectionTest, RetransmittableOnWireSetsPingAlarm) {
   EXPECT_TRUE(connection_.GetPathDegradingAlarm()->IsSet());
   QuicTime::Delta delay = QuicConnectionPeer::GetSentPacketManager(&connection_)
                               ->GetPathDegradingDelay();
-  EXPECT_EQ(clock_.ApproximateNow() + delay,
-            connection_.GetPathDegradingAlarm()->deadline());
+  EXPECT_EQ(delay, connection_.GetPathDegradingAlarm()->deadline() -
+                       clock_.ApproximateNow());
   ASSERT_TRUE(connection_.sent_packet_manager().HasInFlightPackets());
   // The ping alarm is set for the ping timeout, not the shorter
   // retransmittable_on_wire_timeout.
   EXPECT_TRUE(connection_.GetPingAlarm()->IsSet());
   QuicTime::Delta ping_delay = QuicTime::Delta::FromSeconds(kPingTimeoutSecs);
-  EXPECT_EQ((clock_.ApproximateNow() + ping_delay),
-            connection_.GetPingAlarm()->deadline());
+  EXPECT_EQ(ping_delay,
+            connection_.GetPingAlarm()->deadline() - clock_.ApproximateNow());
 
   // Now receive an ACK of the packet.
   clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(5));
@@ -7788,8 +7788,8 @@ TEST_P(QuicConnectionTest, RetransmittableOnWireSetsPingAlarm) {
   // retransmittable_on_wire_timeout.
   EXPECT_FALSE(connection_.GetPathDegradingAlarm()->IsSet());
   EXPECT_TRUE(connection_.GetPingAlarm()->IsSet());
-  EXPECT_EQ(clock_.ApproximateNow() + retransmittable_on_wire_timeout,
-            connection_.GetPingAlarm()->deadline());
+  EXPECT_EQ(retransmittable_on_wire_timeout,
+            connection_.GetPingAlarm()->deadline() - clock_.ApproximateNow());
 
   // Simulate firing the ping alarm and sending a PING.
   clock_.AdvanceTime(retransmittable_on_wire_timeout);
@@ -7803,8 +7803,8 @@ TEST_P(QuicConnectionTest, RetransmittableOnWireSetsPingAlarm) {
   EXPECT_TRUE(connection_.GetPathDegradingAlarm()->IsSet());
   delay = QuicConnectionPeer::GetSentPacketManager(&connection_)
               ->GetPathDegradingDelay();
-  EXPECT_EQ(clock_.ApproximateNow() + delay,
-            connection_.GetPathDegradingAlarm()->deadline());
+  EXPECT_EQ(delay, connection_.GetPathDegradingAlarm()->deadline() -
+                       clock_.ApproximateNow());
 }
 
 // This test verifies that the connection marks path as degrading and does not
@@ -7827,8 +7827,8 @@ TEST_P(QuicConnectionTest, NoPathDegradingAlarmIfPathIsDegrading) {
   // Check the deadline of the path degrading alarm.
   QuicTime::Delta delay = QuicConnectionPeer::GetSentPacketManager(&connection_)
                               ->GetPathDegradingDelay();
-  EXPECT_EQ(clock_.ApproximateNow() + delay,
-            connection_.GetPathDegradingAlarm()->deadline());
+  EXPECT_EQ(delay, connection_.GetPathDegradingAlarm()->deadline() -
+                       clock_.ApproximateNow());
 
   // Send a second packet. The path degrading alarm's deadline should remain
   // the same.
@@ -7851,8 +7851,8 @@ TEST_P(QuicConnectionTest, NoPathDegradingAlarmIfPathIsDegrading) {
   // Check the deadline of the path degrading alarm.
   delay = QuicConnectionPeer::GetSentPacketManager(&connection_)
               ->GetPathDegradingDelay();
-  EXPECT_EQ(clock_.ApproximateNow() + delay,
-            connection_.GetPathDegradingAlarm()->deadline());
+  EXPECT_EQ(delay, connection_.GetPathDegradingAlarm()->deadline() -
+                       clock_.ApproximateNow());
 
   // Advance time to the path degrading alarm's deadline and simulate
   // firing the path degrading alarm. This path will be considered as
@@ -7893,8 +7893,8 @@ TEST_P(QuicConnectionTest, UnmarkPathDegradingOnForwardProgress) {
   // Check the deadline of the path degrading alarm.
   QuicTime::Delta delay = QuicConnectionPeer::GetSentPacketManager(&connection_)
                               ->GetPathDegradingDelay();
-  EXPECT_EQ(clock_.ApproximateNow() + delay,
-            connection_.GetPathDegradingAlarm()->deadline());
+  EXPECT_EQ(delay, connection_.GetPathDegradingAlarm()->deadline() -
+                       clock_.ApproximateNow());
 
   // Send a second packet. The path degrading alarm's deadline should remain
   // the same.
@@ -7917,8 +7917,8 @@ TEST_P(QuicConnectionTest, UnmarkPathDegradingOnForwardProgress) {
   // Check the deadline of the path degrading alarm.
   delay = QuicConnectionPeer::GetSentPacketManager(&connection_)
               ->GetPathDegradingDelay();
-  EXPECT_EQ(clock_.ApproximateNow() + delay,
-            connection_.GetPathDegradingAlarm()->deadline());
+  EXPECT_EQ(delay, connection_.GetPathDegradingAlarm()->deadline() -
+                       clock_.ApproximateNow());
 
   // Advance time to the path degrading alarm's deadline and simulate
   // firing the alarm.
@@ -8330,8 +8330,8 @@ TEST_P(QuicConnectionTest, PingAfterLastRetransmittablePacketAcked) {
   // retransmittable_on_wire_timeout.
   EXPECT_TRUE(connection_.GetPingAlarm()->IsSet());
   QuicTime::Delta ping_delay = QuicTime::Delta::FromSeconds(kPingTimeoutSecs);
-  EXPECT_EQ((clock_.ApproximateNow() + ping_delay),
-            connection_.GetPingAlarm()->deadline());
+  EXPECT_EQ(ping_delay,
+            connection_.GetPingAlarm()->deadline() - clock_.ApproximateNow());
 
   // Advance 5ms, send a second retransmittable packet to the peer.
   clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(5));
@@ -8354,9 +8354,8 @@ TEST_P(QuicConnectionTest, PingAfterLastRetransmittablePacketAcked) {
   EXPECT_TRUE(connection_.GetPingAlarm()->IsSet());
   // The ping alarm has a 1 second granularity, and the clock has been advanced
   // 10ms since it was originally set.
-  EXPECT_EQ((clock_.ApproximateNow() + ping_delay -
-             QuicTime::Delta::FromMilliseconds(10)),
-            connection_.GetPingAlarm()->deadline());
+  EXPECT_EQ(ping_delay - QuicTime::Delta::FromMilliseconds(10),
+            connection_.GetPingAlarm()->deadline() - clock_.ApproximateNow());
 
   // Now receive an ACK of the second packet. This should set the
   // retransmittable-on-wire alarm now that no retransmittable packets are on
@@ -8366,8 +8365,8 @@ TEST_P(QuicConnectionTest, PingAfterLastRetransmittablePacketAcked) {
   frame = InitAckFrame({{QuicPacketNumber(2), QuicPacketNumber(3)}});
   ProcessAckPacket(&frame);
   EXPECT_TRUE(connection_.GetPingAlarm()->IsSet());
-  EXPECT_EQ(clock_.ApproximateNow() + retransmittable_on_wire_timeout,
-            connection_.GetPingAlarm()->deadline());
+  EXPECT_EQ(retransmittable_on_wire_timeout,
+            connection_.GetPingAlarm()->deadline() - clock_.ApproximateNow());
 
   // Now receive a duplicate ACK of the second packet. This should not update
   // the ping alarm.
@@ -8423,8 +8422,8 @@ TEST_P(QuicConnectionTest, NoPingIfRetransmittablePacketSent) {
   // retransmittable_on_wire_timeout.
   EXPECT_TRUE(connection_.GetPingAlarm()->IsSet());
   QuicTime::Delta ping_delay = QuicTime::Delta::FromSeconds(kPingTimeoutSecs);
-  EXPECT_EQ((clock_.ApproximateNow() + ping_delay),
-            connection_.GetPingAlarm()->deadline());
+  EXPECT_EQ(ping_delay,
+            connection_.GetPingAlarm()->deadline() - clock_.ApproximateNow());
 
   // Now receive an ACK of the first packet. This should set the
   // retransmittable-on-wire alarm now that no retransmittable packets are on
@@ -8436,8 +8435,8 @@ TEST_P(QuicConnectionTest, NoPingIfRetransmittablePacketSent) {
       InitAckFrame({{QuicPacketNumber(1), QuicPacketNumber(2)}});
   ProcessAckPacket(&frame);
   EXPECT_TRUE(connection_.GetPingAlarm()->IsSet());
-  EXPECT_EQ(clock_.ApproximateNow() + retransmittable_on_wire_timeout,
-            connection_.GetPingAlarm()->deadline());
+  EXPECT_EQ(retransmittable_on_wire_timeout,
+            connection_.GetPingAlarm()->deadline() - clock_.ApproximateNow());
 
   // Before the alarm fires, send another retransmittable packet. This should
   // cancel the retransmittable-on-wire alarm since now there's a
@@ -8454,8 +8453,8 @@ TEST_P(QuicConnectionTest, NoPingIfRetransmittablePacketSent) {
   frame = InitAckFrame({{QuicPacketNumber(2), QuicPacketNumber(3)}});
   ProcessAckPacket(&frame);
   EXPECT_TRUE(connection_.GetPingAlarm()->IsSet());
-  EXPECT_EQ(clock_.ApproximateNow() + retransmittable_on_wire_timeout,
-            connection_.GetPingAlarm()->deadline());
+  EXPECT_EQ(retransmittable_on_wire_timeout,
+            connection_.GetPingAlarm()->deadline() - clock_.ApproximateNow());
 
   // Simulate the alarm firing and check that a PING is sent.
   writer_->Reset();
