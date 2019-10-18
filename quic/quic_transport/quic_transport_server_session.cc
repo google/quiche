@@ -12,8 +12,8 @@
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
-#include "net/third_party/quiche/src/quic/quic_transport/quic_transport_client_session.h"
 #include "net/third_party/quiche/src/quic/quic_transport/quic_transport_protocol.h"
+#include "net/third_party/quiche/src/quic/quic_transport/quic_transport_stream.h"
 
 namespace quic {
 
@@ -63,9 +63,10 @@ QuicStream* QuicTransportServerSession::CreateIncomingStream(QuicStreamId id) {
     return indication_ptr;
   }
 
-  // TODO(vasilvv): implement incoming data streams.
-  QUIC_BUG << "Not implemented";
-  return nullptr;
+  auto stream = std::make_unique<QuicTransportStream>(id, this, this);
+  QuicTransportStream* stream_ptr = stream.get();
+  ActivateStream(std::move(stream));
+  return stream_ptr;
 }
 
 QuicTransportServerSession::ClientIndication::ClientIndication(

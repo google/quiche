@@ -19,6 +19,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
+#include "net/third_party/quiche/src/quic/quic_transport/quic_transport_stream.h"
 
 namespace quic {
 
@@ -58,6 +59,13 @@ QuicTransportClientSession::QuicTransportClientSession(
   crypto_stream_ = std::make_unique<QuicCryptoClientStream>(
       server_id, this, crypto_config->proof_verifier()->CreateDefaultContext(),
       crypto_config, proof_handler);
+}
+
+QuicStream* QuicTransportClientSession::CreateIncomingStream(QuicStreamId id) {
+  auto stream = std::make_unique<QuicTransportStream>(id, this, this);
+  QuicTransportStream* stream_ptr = stream.get();
+  ActivateStream(std::move(stream));
+  return stream_ptr;
 }
 
 void QuicTransportClientSession::OnCryptoHandshakeEvent(

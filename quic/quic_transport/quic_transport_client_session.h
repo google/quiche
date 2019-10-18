@@ -55,6 +55,13 @@ class QUIC_EXPORT QuicTransportClientSession
 
   bool IsSessionReady() const override { return ready_; }
 
+  QuicStream* CreateIncomingStream(QuicStreamId id) override;
+  QuicStream* CreateIncomingStream(PendingStream* /*pending*/) override {
+    QUIC_BUG << "QuicTransportClientSession::CreateIncomingStream("
+                "PendingStream) not implemented";
+    return nullptr;
+  }
+
   void OnCryptoHandshakeEvent(CryptoHandshakeEvent event) override;
 
  protected:
