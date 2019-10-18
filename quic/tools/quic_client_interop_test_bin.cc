@@ -70,8 +70,14 @@ char MatrixLetter(Feature f) {
 std::set<Feature> AttemptRequest(QuicSocketAddress addr,
                                  std::string authority,
                                  QuicServerId server_id,
-                                 ParsedQuicVersionVector versions,
+                                 bool test_version_negotiation,
                                  bool attempt_rebind) {
+  ParsedQuicVersion version(PROTOCOL_TLS1_3, QUIC_VERSION_99);
+  ParsedQuicVersionVector versions = {version};
+  if (test_version_negotiation) {
+    versions.insert(versions.begin(), QuicVersionReservedForNegotiation());
+  }
+
   std::set<Feature> features;
   auto proof_verifier = std::make_unique<FakeProofVerifier>();
   QuicEpollServer epoll_server;
@@ -79,18 +85,28 @@ std::set<Feature> AttemptRequest(QuicSocketAddress addr,
   auto client = std::make_unique<QuicClient>(
       addr, server_id, versions, &epoll_server, std::move(proof_verifier));
   if (!client->Initialize()) {
+    QUIC_LOG(ERROR) << "Failed to initialize client";
     return features;
   }
-  if (!client->Connect()) {
-    QuicErrorCode error = client->session()->error();
-    if (error == QUIC_INVALID_VERSION) {
-      // QuicFramer::ProcessPacket returns RaiseError(QUIC_INVALID_VERSION) if
-      // it receives a packet containing a version in the header that is not our
-      // version. It might be possible that we didn't actually process a VN
-      // packet here.
-      features.insert(Feature::kVersionNegotiation);
-      return features;
+  const bool connect_result = client->Connect();
+  QuicConnection* connection = client->session()->connection();
+  if (connection != nullptr) {
+    QuicConnectionStats client_stats = connection->GetStats();
+    if (client_stats.retry_packet_processed) {
+      features.insert(Feature::kRetry);
     }
+    if (test_version_negotiation && connection->version() == version) {
+      features.insert(Feature::kVersionNegotiation);
+    }
+  }
+  if (test_version_negotiation && !connect_result) {
+    // Failed to negotiate version, retry without version negotiation.
+    std::set<Feature> features_without_version_negotiation =
+        AttemptRequest(addr, authority, server_id,
+                       /*test_version_negotiation=*/false, attempt_rebind);
+
+    features.insert(features_without_version_negotiation.begin(),
+                    features_without_version_negotiation.end());
     return features;
   }
   if (!client->session()->IsCryptoHandshakeConfirmed()) {
@@ -109,19 +125,17 @@ std::set<Feature> AttemptRequest(QuicSocketAddress addr,
 
   const QuicTime request_start_time = epoll_clock.Now();
   static const auto request_timeout = QuicTime::Delta::FromSeconds(20);
+  bool request_timed_out = false;
   while (client->WaitForEvents()) {
     if (epoll_clock.Now() - request_start_time >= request_timeout) {
       QUIC_LOG(ERROR) << "Timed out waiting for HTTP response";
-      return features;
+      request_timed_out = true;
+      break;
     }
   }
 
-  QuicConnection* connection = client->session()->connection();
   if (connection != nullptr) {
     QuicConnectionStats client_stats = connection->GetStats();
-    if (client_stats.retry_packet_processed) {
-      features.insert(Feature::kRetry);
-    }
     QuicSentPacketManager* sent_packet_manager =
         test::QuicConnectionPeer::GetSentPacketManager(connection);
     const bool received_forward_secure_ack =
@@ -133,7 +147,7 @@ std::set<Feature> AttemptRequest(QuicSocketAddress addr,
     }
   }
 
-  if (!client->connected()) {
+  if (request_timed_out || !client->connected()) {
     return features;
   }
 
@@ -150,8 +164,12 @@ std::set<Feature> AttemptRequest(QuicSocketAddress addr,
           if (epoll_clock.Now() - second_request_start_time >=
               request_timeout) {
             // Rebinding does not work, retry without attempting it.
-            return AttemptRequest(addr, authority, server_id, versions,
-                                  /*attempt_rebind=*/false);
+            std::set<Feature> features_without_rebind = AttemptRequest(
+                addr, authority, server_id, test_version_negotiation,
+                /*attempt_rebind=*/false);
+            features.insert(features_without_rebind.begin(),
+                            features_without_rebind.end());
+            return features;
           }
         }
         features.insert(Feature::kRebinding);
@@ -187,31 +205,22 @@ std::set<Feature> AttemptRequest(QuicSocketAddress addr,
 }
 
 std::set<Feature> ServerSupport(std::string host, int port) {
-  // Configure version list.
+  // Enable IETF version support.
   QuicVersionInitializeSupportForIetfDraft();
-  ParsedQuicVersion version =
-      ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_99);
-  ParsedQuicVersionVector versions = {version};
-  QuicEnableVersion(version);
+  QuicEnableVersion(ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_99));
 
   // Build the client, and try to connect.
   QuicSocketAddress addr = tools::LookupAddress(host, QuicStrCat(port));
+  if (!addr.IsInitialized()) {
+    QUIC_LOG(ERROR) << "Failed to resolve " << host;
+    return std::set<Feature>();
+  }
   QuicServerId server_id(host, port, false);
   std::string authority = QuicStrCat(host, ":", port);
 
-  ParsedQuicVersionVector versions_with_negotiation = versions;
-  versions_with_negotiation.insert(versions_with_negotiation.begin(),
-                                   QuicVersionReservedForNegotiation());
-  auto supported_features =
-      AttemptRequest(addr, authority, server_id, versions_with_negotiation,
-                     /*attempt_rebind=*/true);
-  if (!supported_features.empty()) {
-    supported_features.insert(Feature::kVersionNegotiation);
-  } else {
-    supported_features = AttemptRequest(addr, authority, server_id, versions,
-                                        /*attempt_rebind=*/true);
-  }
-  return supported_features;
+  return AttemptRequest(addr, authority, server_id,
+                        /*test_version_negotiation=*/true,
+                        /*attempt_rebind=*/true);
 }
 
 }  // namespace quic
