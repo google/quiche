@@ -323,7 +323,6 @@ void TlsClientHandshaker::FinishHandshake() {
                   << "'";
 
   session()->connection()->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
-  session()->NeuterUnencryptedData();
   encryption_established_ = true;
   handshake_confirmed_ = true;
   session()->OnCryptoHandshakeEvent(QuicSession::ENCRYPTION_ESTABLISHED);
