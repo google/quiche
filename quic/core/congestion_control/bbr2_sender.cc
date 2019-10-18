@@ -363,6 +363,9 @@ Bbr2Sender::DebugState Bbr2Sender::ExportDebugState() const {
   s.bandwidth_hi = model_.MaxBandwidth();
   s.bandwidth_lo = model_.bandwidth_lo();
   s.bandwidth_est = BandwidthEstimate();
+  s.inflight_hi = model_.inflight_hi();
+  s.inflight_lo = model_.inflight_lo();
+  s.max_ack_height = model_.MaxAckHeight();
   s.min_rtt = model_.MinRtt();
   s.min_rtt_timestamp = model_.MinRttTimestamp();
   s.congestion_window = cwnd_;

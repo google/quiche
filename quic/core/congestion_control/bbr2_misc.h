@@ -372,7 +372,10 @@ class QUIC_EXPORT_PRIVATE Bbr2NetworkModel {
 
   QuicBandwidth bandwidth_latest() const { return bandwidth_latest_; }
   QuicBandwidth bandwidth_lo() const { return bandwidth_lo_; }
-  void clear_bandwidth_lo() { bandwidth_lo_ = QuicBandwidth::Infinite(); }
+  static QuicBandwidth bandwidth_lo_default() {
+    return QuicBandwidth::Infinite();
+  }
+  void clear_bandwidth_lo() { bandwidth_lo_ = bandwidth_lo_default(); }
 
   QuicByteCount inflight_latest() const { return inflight_latest_; }
   QuicByteCount inflight_lo() const { return inflight_lo_; }
@@ -420,7 +423,7 @@ class QUIC_EXPORT_PRIVATE Bbr2NetworkModel {
   // Max bandwidth in the current round. Updated once per congestion event.
   QuicBandwidth bandwidth_latest_ = QuicBandwidth::Zero();
   // Max bandwidth of recent rounds. Updated once per round.
-  QuicBandwidth bandwidth_lo_ = QuicBandwidth::Infinite();
+  QuicBandwidth bandwidth_lo_ = bandwidth_lo_default();
 
   // Max inflight in the current round. Updated once per congestion event.
   QuicByteCount inflight_latest_ = 0;
