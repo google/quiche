@@ -150,6 +150,12 @@ void SetupFramer(QuicFramer* framer, QuicFramerVisitorInterface* visitor) {
           level, std::make_unique<NullDecrypter>(framer->perspective()));
     }
   }
+
+  if (!framer->version().KnowsWhichDecrypterToUse()) {
+    framer->SetDecrypter(
+        quic::ENCRYPTION_INITIAL,
+        std::make_unique<NullDecrypter>(framer->perspective()));
+  }
 }
 
 class FuzzingFramerVisitor : public NoOpFramerVisitor {
