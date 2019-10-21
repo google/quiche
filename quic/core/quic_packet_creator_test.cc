@@ -2437,6 +2437,11 @@ TEST_P(QuicPacketCreatorTest, SaveNonRetransmittableFrames) {
   ASSERT_EQ(2u, serialized.nonretransmittable_frames.size());
   EXPECT_EQ(ACK_FRAME, serialized.nonretransmittable_frames[0].type);
   EXPECT_EQ(PADDING_FRAME, serialized.nonretransmittable_frames[1].type);
+  // Verify full padding frame is translated to a padding frame with actual
+  // bytes of padding.
+  EXPECT_LT(
+      0,
+      serialized.nonretransmittable_frames[1].padding_frame.num_padding_bytes);
   frames_.clear();
 
   // Serialize another packet with the same frames.

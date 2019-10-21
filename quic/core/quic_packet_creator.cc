@@ -1407,7 +1407,15 @@ bool QuicPacketCreator::AddFrame(const QuicFrame& frame,
   } else {
     if (populate_nonretransmittable_frames_ &&
         !QuicUtils::IsRetransmittableFrame(frame.type)) {
-      packet_.nonretransmittable_frames.push_back(frame);
+      if (frame.type == PADDING_FRAME &&
+          frame.padding_frame.num_padding_bytes == -1) {
+        // Populate the actual length of full padding frame, such that one can
+        // know how much padding is actually added.
+        packet_.nonretransmittable_frames.push_back(
+            QuicFrame(QuicPaddingFrame(frame_len)));
+      } else {
+        packet_.nonretransmittable_frames.push_back(frame);
+      }
     }
     queued_frames_.push_back(frame);
   }
