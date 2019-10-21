@@ -639,11 +639,7 @@ void QuicSpdySession::OnCryptoHandshakeEvent(CryptoHandshakeEvent event) {
 
 // True if there are open HTTP requests.
 bool QuicSpdySession::ShouldKeepConnectionAlive() const {
-  if (GetQuicReloadableFlag(quic_aggressive_connection_aliveness)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_aggressive_connection_aliveness);
-    return GetNumActiveStreams() > 0;
-  }
-  return GetNumOpenDynamicStreams() > 0;
+  return GetNumActiveStreams() > 0;
 }
 
 bool QuicSpdySession::UsesPendingStreams() const {
