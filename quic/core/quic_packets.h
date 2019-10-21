@@ -379,6 +379,8 @@ struct QUIC_EXPORT_PRIVATE SerializedPacket {
   QuicPacketNumber packet_number;
   QuicPacketNumberLength packet_number_length;
   EncryptionLevel encryption_level;
+  // TODO(fayang): Remove has_ack and has_stop_waiting when deprecating
+  // quic_populate_nonretransmittable_frames.
   bool has_ack;
   bool has_stop_waiting;
   TransmissionType transmission_type;
@@ -386,7 +388,17 @@ struct QUIC_EXPORT_PRIVATE SerializedPacket {
   // The largest acked of the AckFrame in this packet if has_ack is true,
   // 0 otherwise.
   QuicPacketNumber largest_acked;
+  // Indicates whether this packet has a copy of ack frame in
+  // nonretransmittable_frames.
+  bool has_ack_frame_copy;
 };
+
+// Make a copy of |serialized| (including the underlying frames). |copy_buffer|
+// indicates whether the encrypted buffer should be copied.
+QUIC_EXPORT_PRIVATE SerializedPacket* CopySerializedPacket(
+    const SerializedPacket& serialized,
+    QuicBufferAllocator* allocator,
+    bool copy_buffer);
 
 // Deletes and clears all the frames and the packet from serialized packet.
 QUIC_EXPORT_PRIVATE void ClearSerializedPacket(
