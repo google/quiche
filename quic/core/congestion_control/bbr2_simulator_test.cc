@@ -668,7 +668,7 @@ TEST_F(Bbr2DefaultTopologyTest, SenderPoliced) {
   EXPECT_TRUE(Bbr2ModeIsOneOf({Bbr2Mode::PROBE_BW, Bbr2Mode::PROBE_RTT}));
   // TODO(wub): Fix (long-term) bandwidth overestimation in policer mode, then
   // reduce the loss rate upper bound.
-  EXPECT_LE(sender_loss_rate_in_packets(), 0.15);
+  EXPECT_LE(sender_loss_rate_in_packets(), 0.20);
 }
 
 // All Bbr2MultiSenderTests uses the following network topology:
