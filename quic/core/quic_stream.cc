@@ -171,8 +171,7 @@ void PendingStream::OnStreamFrame(const QuicStreamFrame& frame) {
     return;
   }
 
-  if (GetQuicReloadableFlag(quic_rst_if_stream_frame_beyond_close_offset) &&
-      frame.offset + frame.data_length > sequencer_.close_offset()) {
+  if (frame.offset + frame.data_length > sequencer_.close_offset()) {
     Reset(QUIC_DATA_AFTER_CLOSE_OFFSET);
     return;
   }
@@ -402,12 +401,9 @@ void QuicStream::OnStreamFrame(const QuicStreamFrame& frame) {
     return;
   }
 
-  if (GetQuicReloadableFlag(quic_rst_if_stream_frame_beyond_close_offset)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_rst_if_stream_frame_beyond_close_offset);
-    if (frame.offset + frame.data_length > sequencer_.close_offset()) {
-      Reset(QUIC_DATA_AFTER_CLOSE_OFFSET);
-      return;
-    }
+  if (frame.offset + frame.data_length > sequencer_.close_offset()) {
+    Reset(QUIC_DATA_AFTER_CLOSE_OFFSET);
+    return;
   }
 
   if (frame.fin) {

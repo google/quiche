@@ -2752,17 +2752,11 @@ TEST_P(QuicSessionTestServer, StreamFrameReceivedAfterFin) {
   session_.OnStreamFrame(frame);
 
   QuicStreamFrame frame1(stream->id(), false, 1, ",");
-  if (GetQuicReloadableFlag(quic_rst_if_stream_frame_beyond_close_offset)) {
-    EXPECT_CALL(*connection_, SendControlFrame(_));
-    EXPECT_CALL(*connection_,
-                OnStreamReset(stream->id(), QUIC_DATA_AFTER_CLOSE_OFFSET));
-    session_.OnStreamFrame(frame1);
-    EXPECT_TRUE(connection_->connected());
-  } else {
-#if GTEST_HAS_DEATH_TEST && !defined(NDEBUG)
-    EXPECT_DEBUG_DEATH(session_.OnStreamFrame(frame1), "Check failed");
-#endif  // GTEST_HAS_DEATH_TEST && !defined(NDEBUG)
-  }
+  EXPECT_CALL(*connection_, SendControlFrame(_));
+  EXPECT_CALL(*connection_,
+              OnStreamReset(stream->id(), QUIC_DATA_AFTER_CLOSE_OFFSET));
+  session_.OnStreamFrame(frame1);
+  EXPECT_TRUE(connection_->connected());
 }
 
 // A client test class that can be used when the automatic configuration is not
