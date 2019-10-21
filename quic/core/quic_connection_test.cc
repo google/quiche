@@ -4090,7 +4090,7 @@ TEST_P(QuicConnectionTest, TailLossProbeDelayForNonStreamDataInTLPR) {
   // Sets retransmittable on wire.
   const QuicTime::Delta retransmittable_on_wire_timeout =
       QuicTime::Delta::FromMilliseconds(50);
-  connection_.set_retransmittable_on_wire_timeout(
+  connection_.set_initial_retransmittable_on_wire_timeout(
       retransmittable_on_wire_timeout);
 
   EXPECT_TRUE(connection_.connected());
@@ -7742,7 +7742,7 @@ TEST_P(QuicConnectionTest, PathDegradingAlarmForNonCryptoPackets) {
 TEST_P(QuicConnectionTest, RetransmittableOnWireSetsPingAlarm) {
   const QuicTime::Delta retransmittable_on_wire_timeout =
       QuicTime::Delta::FromMilliseconds(50);
-  connection_.set_retransmittable_on_wire_timeout(
+  connection_.set_initial_retransmittable_on_wire_timeout(
       retransmittable_on_wire_timeout);
 
   EXPECT_TRUE(connection_.connected());
@@ -8309,7 +8309,7 @@ TEST_P(QuicConnectionTest,
 TEST_P(QuicConnectionTest, PingAfterLastRetransmittablePacketAcked) {
   const QuicTime::Delta retransmittable_on_wire_timeout =
       QuicTime::Delta::FromMilliseconds(50);
-  connection_.set_retransmittable_on_wire_timeout(
+  connection_.set_initial_retransmittable_on_wire_timeout(
       retransmittable_on_wire_timeout);
 
   EXPECT_TRUE(connection_.connected());
@@ -8401,7 +8401,7 @@ TEST_P(QuicConnectionTest, PingAfterLastRetransmittablePacketAcked) {
 TEST_P(QuicConnectionTest, NoPingIfRetransmittablePacketSent) {
   const QuicTime::Delta retransmittable_on_wire_timeout =
       QuicTime::Delta::FromMilliseconds(50);
-  connection_.set_retransmittable_on_wire_timeout(
+  connection_.set_initial_retransmittable_on_wire_timeout(
       retransmittable_on_wire_timeout);
 
   EXPECT_TRUE(connection_.connected());
@@ -8474,6 +8474,225 @@ TEST_P(QuicConnectionTest, NoPingIfRetransmittablePacketSent) {
     EXPECT_EQ(padding_frame_count + 3u, writer_->frame_count());
   }
   ASSERT_EQ(1u, writer_->ping_frames().size());
+}
+
+// When there is no stream data received but are open streams, send the
+// first few consecutive pings with aggressive retransmittable-on-wire
+// timeout. Exponentially back off the retransmittable-on-wire ping timeout
+// afterwards until it exceeds the default ping timeout.
+TEST_P(QuicConnectionTest, BackOffRetransmittableOnWireTimeout) {
+  int max_aggressive_retransmittable_on_wire_ping_count = 5;
+  SetQuicFlag(FLAGS_quic_max_aggressive_retransmittable_on_wire_ping_count,
+              max_aggressive_retransmittable_on_wire_ping_count);
+  const QuicTime::Delta initial_retransmittable_on_wire_timeout =
+      QuicTime::Delta::FromMilliseconds(200);
+  connection_.set_initial_retransmittable_on_wire_timeout(
+      initial_retransmittable_on_wire_timeout);
+
+  EXPECT_TRUE(connection_.connected());
+  EXPECT_CALL(visitor_, ShouldKeepConnectionAlive())
+      .WillRepeatedly(Return(true));
+
+  const char data[] = "data";
+  // Advance 5ms, send a retransmittable data packet to the peer.
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(5));
+  EXPECT_FALSE(connection_.GetPingAlarm()->IsSet());
+  connection_.SendStreamDataWithString(1, data, 0, NO_FIN);
+  EXPECT_TRUE(connection_.sent_packet_manager().HasInFlightPackets());
+  // The ping alarm is set for the ping timeout, not the shorter
+  // retransmittable_on_wire_timeout.
+  EXPECT_TRUE(connection_.GetPingAlarm()->IsSet());
+  EXPECT_EQ(connection_.ping_timeout(),
+            connection_.GetPingAlarm()->deadline() - clock_.ApproximateNow());
+
+  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_)).Times(AnyNumber());
+  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _))
+      .Times(AnyNumber());
+
+  // Verify that the first few consecutive retransmittable on wire pings are
+  // sent with aggressive timeout.
+  for (int i = 0; i <= max_aggressive_retransmittable_on_wire_ping_count; i++) {
+    // Receive an ACK of the previous packet. This should set the ping alarm
+    // with the initial retransmittable-on-wire timeout.
+    clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(5));
+    QuicPacketNumber ack_num = creator_->packet_number();
+    QuicAckFrame frame = InitAckFrame(
+        {{QuicPacketNumber(ack_num), QuicPacketNumber(ack_num + 1)}});
+    ProcessAckPacket(&frame);
+    EXPECT_TRUE(connection_.GetPingAlarm()->IsSet());
+    EXPECT_EQ(initial_retransmittable_on_wire_timeout,
+              connection_.GetPingAlarm()->deadline() - clock_.ApproximateNow());
+    // Simulate the alarm firing and check that a PING is sent.
+    writer_->Reset();
+    EXPECT_CALL(visitor_, SendPing()).WillOnce(Invoke([this]() {
+      SendPing();
+    }));
+    clock_.AdvanceTime(initial_retransmittable_on_wire_timeout);
+    connection_.GetPingAlarm()->Fire();
+  }
+
+  QuicTime::Delta retransmittable_on_wire_timeout =
+      initial_retransmittable_on_wire_timeout;
+
+  // Verify subsequent pings are sent with timeout that is exponentially backed
+  // off.
+  while (retransmittable_on_wire_timeout * 2 < connection_.ping_timeout()) {
+    // Receive an ACK for the previous PING. This should set the
+    // ping alarm with backed off retransmittable-on-wire timeout.
+    retransmittable_on_wire_timeout = retransmittable_on_wire_timeout * 2;
+    clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(5));
+    QuicPacketNumber ack_num = creator_->packet_number();
+    QuicAckFrame frame = InitAckFrame(
+        {{QuicPacketNumber(ack_num), QuicPacketNumber(ack_num + 1)}});
+    ProcessAckPacket(&frame);
+    EXPECT_TRUE(connection_.GetPingAlarm()->IsSet());
+    EXPECT_EQ(retransmittable_on_wire_timeout,
+              connection_.GetPingAlarm()->deadline() - clock_.ApproximateNow());
+
+    // Simulate the alarm firing and check that a PING is sent.
+    writer_->Reset();
+    EXPECT_CALL(visitor_, SendPing()).WillOnce(Invoke([this]() {
+      SendPing();
+    }));
+    clock_.AdvanceTime(retransmittable_on_wire_timeout);
+    connection_.GetPingAlarm()->Fire();
+  }
+
+  // The ping alarm is set with default ping timeout.
+  EXPECT_TRUE(connection_.GetPingAlarm()->IsSet());
+  EXPECT_EQ(connection_.ping_timeout(),
+            connection_.GetPingAlarm()->deadline() - clock_.ApproximateNow());
+
+  // Receive an ACK for the previous PING. The ping alarm is set with an
+  // earlier deadline.
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(5));
+  QuicPacketNumber ack_num = creator_->packet_number();
+  QuicAckFrame frame = InitAckFrame(
+      {{QuicPacketNumber(ack_num), QuicPacketNumber(ack_num + 1)}});
+  ProcessAckPacket(&frame);
+  EXPECT_TRUE(connection_.GetPingAlarm()->IsSet());
+  EXPECT_EQ(connection_.ping_timeout() - QuicTime::Delta::FromMilliseconds(5),
+            connection_.GetPingAlarm()->deadline() - clock_.ApproximateNow());
+}
+
+// This test verify that the count of consecutive aggressive pings is reset
+// when new data is received. And it also verifies the connection resets
+// the exponential back-off of the retransmittable-on-wire ping timeout
+// after receiving new stream data.
+TEST_P(QuicConnectionTest, ResetBackOffRetransmitableOnWireTimeout) {
+  int max_aggressive_retransmittable_on_wire_ping_count = 3;
+  SetQuicFlag(FLAGS_quic_max_aggressive_retransmittable_on_wire_ping_count, 3);
+  const QuicTime::Delta initial_retransmittable_on_wire_timeout =
+      QuicTime::Delta::FromMilliseconds(200);
+  connection_.set_initial_retransmittable_on_wire_timeout(
+      initial_retransmittable_on_wire_timeout);
+
+  EXPECT_TRUE(connection_.connected());
+  EXPECT_CALL(visitor_, ShouldKeepConnectionAlive())
+      .WillRepeatedly(Return(true));
+  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_)).Times(AnyNumber());
+  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _))
+      .Times(AnyNumber());
+
+  const char data[] = "data";
+  // Advance 5ms, send a retransmittable data packet to the peer.
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(5));
+  EXPECT_FALSE(connection_.GetPingAlarm()->IsSet());
+  connection_.SendStreamDataWithString(1, data, 0, NO_FIN);
+  EXPECT_TRUE(connection_.sent_packet_manager().HasInFlightPackets());
+  // The ping alarm is set for the ping timeout, not the shorter
+  // retransmittable_on_wire_timeout.
+  EXPECT_TRUE(connection_.GetPingAlarm()->IsSet());
+  EXPECT_EQ(connection_.ping_timeout(),
+            connection_.GetPingAlarm()->deadline() - clock_.ApproximateNow());
+
+  // Receive an ACK of the first packet. This should set the ping alarm with
+  // initial retransmittable-on-wire timeout since there is no retransmittable
+  // packet on the wire.
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(5));
+  QuicAckFrame frame =
+      InitAckFrame({{QuicPacketNumber(1), QuicPacketNumber(2)}});
+  ProcessAckPacket(&frame);
+  EXPECT_TRUE(connection_.GetPingAlarm()->IsSet());
+  EXPECT_EQ(initial_retransmittable_on_wire_timeout,
+            connection_.GetPingAlarm()->deadline() - clock_.ApproximateNow());
+
+  // Simulate the alarm firing and check that a PING is sent.
+  writer_->Reset();
+  EXPECT_CALL(visitor_, SendPing()).WillOnce(Invoke([this]() { SendPing(); }));
+  clock_.AdvanceTime(initial_retransmittable_on_wire_timeout);
+  connection_.GetPingAlarm()->Fire();
+
+  // Receive an ACK for the previous PING. Ping alarm will be set with
+  // aggressive timeout.
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(5));
+  QuicPacketNumber ack_num = creator_->packet_number();
+  frame = InitAckFrame(
+      {{QuicPacketNumber(ack_num), QuicPacketNumber(ack_num + 1)}});
+  ProcessAckPacket(&frame);
+  EXPECT_TRUE(connection_.GetPingAlarm()->IsSet());
+  EXPECT_EQ(initial_retransmittable_on_wire_timeout,
+            connection_.GetPingAlarm()->deadline() - clock_.ApproximateNow());
+
+  // Process a data packet.
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
+  ProcessDataPacket(peer_creator_.packet_number() + 1);
+  QuicPacketCreatorPeer::SetPacketNumber(&peer_creator_,
+                                         peer_creator_.packet_number() + 1);
+  EXPECT_EQ(initial_retransmittable_on_wire_timeout,
+            connection_.GetPingAlarm()->deadline() - clock_.ApproximateNow());
+
+  // Verify the count of consecutive aggressive pings is reset.
+  for (int i = 0; i < max_aggressive_retransmittable_on_wire_ping_count; i++) {
+    // Receive an ACK of the previous packet. This should set the ping alarm
+    // with the initial retransmittable-on-wire timeout.
+    QuicPacketNumber ack_num = creator_->packet_number();
+    QuicAckFrame frame = InitAckFrame(
+        {{QuicPacketNumber(ack_num), QuicPacketNumber(ack_num + 1)}});
+    ProcessAckPacket(&frame);
+    EXPECT_TRUE(connection_.GetPingAlarm()->IsSet());
+    EXPECT_EQ(initial_retransmittable_on_wire_timeout,
+              connection_.GetPingAlarm()->deadline() - clock_.ApproximateNow());
+    // Simulate the alarm firing and check that a PING is sent.
+    writer_->Reset();
+    EXPECT_CALL(visitor_, SendPing()).WillOnce(Invoke([this]() {
+      SendPing();
+    }));
+    clock_.AdvanceTime(initial_retransmittable_on_wire_timeout);
+    connection_.GetPingAlarm()->Fire();
+    // Advance 5ms to receive next packet.
+    clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(5));
+  }
+
+  // Receive another ACK for the previous PING. This should set the
+  // ping alarm with backed off retransmittable-on-wire timeout.
+  ack_num = creator_->packet_number();
+  frame = InitAckFrame(
+      {{QuicPacketNumber(ack_num), QuicPacketNumber(ack_num + 1)}});
+  ProcessAckPacket(&frame);
+  EXPECT_TRUE(connection_.GetPingAlarm()->IsSet());
+  EXPECT_EQ(initial_retransmittable_on_wire_timeout * 2,
+            connection_.GetPingAlarm()->deadline() - clock_.ApproximateNow());
+
+  writer_->Reset();
+  EXPECT_CALL(visitor_, SendPing()).WillOnce(Invoke([this]() { SendPing(); }));
+  clock_.AdvanceTime(2 * initial_retransmittable_on_wire_timeout);
+  connection_.GetPingAlarm()->Fire();
+
+  // Process another data packet and a new ACK packet. The ping alarm is set
+  // with aggressive ping timeout again.
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(5));
+  ProcessDataPacket(peer_creator_.packet_number() + 1);
+  QuicPacketCreatorPeer::SetPacketNumber(&peer_creator_,
+                                         peer_creator_.packet_number() + 1);
+  ack_num = creator_->packet_number();
+  frame = InitAckFrame(
+      {{QuicPacketNumber(ack_num), QuicPacketNumber(ack_num + 1)}});
+  ProcessAckPacket(&frame);
+  EXPECT_TRUE(connection_.GetPingAlarm()->IsSet());
+  EXPECT_EQ(initial_retransmittable_on_wire_timeout,
+            connection_.GetPingAlarm()->deadline() - clock_.ApproximateNow());
 }
 
 TEST_P(QuicConnectionTest, OnForwardProgressConfirmed) {

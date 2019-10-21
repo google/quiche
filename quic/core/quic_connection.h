@@ -555,15 +555,12 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   }
   const QuicTime::Delta ping_timeout() { return ping_timeout_; }
   // Used in Chromium, but not internally.
-  // Sets a timeout for the ping alarm when there is no retransmittable data
-  // in flight, allowing for a more aggressive ping alarm in that case.
-  void set_retransmittable_on_wire_timeout(
+  // Sets an initial timeout for the ping alarm when there is no retransmittable
+  // data in flight, allowing for a more aggressive ping alarm in that case.
+  void set_initial_retransmittable_on_wire_timeout(
       QuicTime::Delta retransmittable_on_wire_timeout) {
     DCHECK(!ping_alarm_->IsSet());
-    retransmittable_on_wire_timeout_ = retransmittable_on_wire_timeout;
-  }
-  const QuicTime::Delta retransmittable_on_wire_timeout() {
-    return retransmittable_on_wire_timeout_;
+    initial_retransmittable_on_wire_timeout_ = retransmittable_on_wire_timeout;
   }
   // Used in Chromium, but not internally.
   void set_creator_debug_delegate(QuicPacketCreator::DebugDelegate* visitor) {
@@ -1314,8 +1311,12 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // The timeout for PING.
   QuicTime::Delta ping_timeout_;
 
-  // Timeout for how long the wire can have no retransmittable packets.
-  QuicTime::Delta retransmittable_on_wire_timeout_;
+  // Initial timeout for how long the wire can have no retransmittable packets.
+  QuicTime::Delta initial_retransmittable_on_wire_timeout_;
+
+  // Indicates how many retransmittable-on-wire pings have been emitted without
+  // receiving any new data in between.
+  int consecutive_retransmittable_on_wire_ping_count_;
 
   // Arena to store class implementations within the QuicConnection.
   QuicConnectionArena arena_;

@@ -70,6 +70,11 @@ void QuicPacketCreatorPeer::SetPacketNumber(QuicPacketCreator* creator,
   creator->packet_.packet_number = QuicPacketNumber(s);
 }
 
+void QuicPacketCreatorPeer::SetPacketNumber(QuicPacketCreator* creator,
+                                            QuicPacketNumber num) {
+  creator->packet_.packet_number = num;
+}
+
 // static
 void QuicPacketCreatorPeer::ClearPacketNumber(QuicPacketCreator* creator) {
   creator->packet_.packet_number.Clear();

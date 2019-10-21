@@ -256,7 +256,8 @@ QuicConnection::QuicConnection(
       pending_retransmission_alarm_(false),
       defer_send_in_response_to_packets_(false),
       ping_timeout_(QuicTime::Delta::FromSeconds(kPingTimeoutSecs)),
-      retransmittable_on_wire_timeout_(QuicTime::Delta::Infinite()),
+      initial_retransmittable_on_wire_timeout_(QuicTime::Delta::Infinite()),
+      consecutive_retransmittable_on_wire_ping_count_(0),
       arena_(),
       ack_alarm_(alarm_factory_->CreateAlarm(arena_.New<AckAlarmDelegate>(this),
                                              &arena_)),
@@ -909,6 +910,7 @@ bool QuicConnection::OnStreamFrame(const QuicStreamFrame& frame) {
   visitor_->OnStreamFrame(frame);
   stats_.stream_bytes_received += frame.data_length;
   should_last_packet_instigate_acks_ = true;
+  consecutive_retransmittable_on_wire_ping_count_ = 0;
   return connected_;
 }
 
@@ -3162,24 +3164,48 @@ void QuicConnection::SetPingAlarm() {
     // because it is expecting a response from the server.
     return;
   }
-  if (retransmittable_on_wire_timeout_.IsInfinite() ||
+  if (initial_retransmittable_on_wire_timeout_.IsInfinite() ||
       sent_packet_manager_.HasInFlightPackets()) {
     // Extend the ping alarm.
     ping_alarm_->Update(clock_->ApproximateNow() + ping_timeout_,
                         QuicTime::Delta::FromSeconds(1));
     return;
   }
-  DCHECK_LT(retransmittable_on_wire_timeout_, ping_timeout_);
+  DCHECK_LT(initial_retransmittable_on_wire_timeout_, ping_timeout_);
+  QuicTime::Delta retransmittable_on_wire_timeout =
+      initial_retransmittable_on_wire_timeout_;
+  int max_aggressive_retransmittable_on_wire_ping_count =
+      GetQuicFlag(FLAGS_quic_max_aggressive_retransmittable_on_wire_ping_count);
+  DCHECK_LE(0, max_aggressive_retransmittable_on_wire_ping_count);
+  if (consecutive_retransmittable_on_wire_ping_count_ >
+      max_aggressive_retransmittable_on_wire_ping_count) {
+    // Exponentially back off the timeout if the number of consecutive
+    // retransmittable on wire pings has exceeds the allowance.
+    int shift = consecutive_retransmittable_on_wire_ping_count_ -
+                max_aggressive_retransmittable_on_wire_ping_count;
+    retransmittable_on_wire_timeout =
+        initial_retransmittable_on_wire_timeout_ * (1 << shift);
+  }
   // If it's already set to an earlier time, then don't update it.
   if (ping_alarm_->IsSet() &&
       ping_alarm_->deadline() <
-          clock_->ApproximateNow() + retransmittable_on_wire_timeout_) {
+          clock_->ApproximateNow() + retransmittable_on_wire_timeout) {
     return;
   }
-  // Use a shorter timeout if there are open streams, but nothing on the wire.
-  ping_alarm_->Update(
-      clock_->ApproximateNow() + retransmittable_on_wire_timeout_,
-      QuicTime::Delta::FromMilliseconds(1));
+
+  if (retransmittable_on_wire_timeout < ping_timeout_) {
+    // Use a shorter timeout if there are open streams, but nothing on the wire.
+    ping_alarm_->Update(
+        clock_->ApproximateNow() + retransmittable_on_wire_timeout,
+        QuicTime::Delta::FromMilliseconds(1));
+    if (max_aggressive_retransmittable_on_wire_ping_count != 0) {
+      consecutive_retransmittable_on_wire_ping_count_++;
+    }
+    return;
+  }
+
+  ping_alarm_->Update(clock_->ApproximateNow() + ping_timeout_,
+                      QuicTime::Delta::FromMilliseconds(1));
 }
 
 void QuicConnection::SetRetransmissionAlarm() {
