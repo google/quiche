@@ -477,6 +477,7 @@ SerializedPacket::SerializedPacket(SerializedPacket&& other)
       original_packet_number(other.original_packet_number),
       largest_acked(other.largest_acked) {
   retransmittable_frames.swap(other.retransmittable_frames);
+  nonretransmittable_frames.swap(other.nonretransmittable_frames);
 }
 
 SerializedPacket::~SerializedPacket() {}
@@ -485,6 +486,14 @@ void ClearSerializedPacket(SerializedPacket* serialized_packet) {
   if (!serialized_packet->retransmittable_frames.empty()) {
     DeleteFrames(&serialized_packet->retransmittable_frames);
   }
+  for (auto& frame : serialized_packet->nonretransmittable_frames) {
+    if (frame.type == ACK_FRAME) {
+      // Ack frame is owned by received_packet_manager.
+      continue;
+    }
+    DeleteFrame(&frame);
+  }
+  serialized_packet->nonretransmittable_frames.clear();
   serialized_packet->encrypted_buffer = nullptr;
   serialized_packet->encrypted_length = 0;
   serialized_packet->largest_acked.Clear();

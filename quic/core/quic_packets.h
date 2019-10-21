@@ -370,6 +370,7 @@ struct QUIC_EXPORT_PRIVATE SerializedPacket {
   const char* encrypted_buffer;
   QuicPacketLength encrypted_length;
   QuicFrames retransmittable_frames;
+  QuicFrames nonretransmittable_frames;
   IsHandshake has_crypto_handshake;
   // -1: full padding to the end of a max-sized packet
   //  0: no padding

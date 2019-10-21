@@ -2426,6 +2426,27 @@ TEST_P(QuicPacketCreatorTest, CoalesceStreamFrames) {
   ProcessPacket(serialized_packet_);
 }
 
+TEST_P(QuicPacketCreatorTest, SaveNonRetransmittableFrames) {
+  if (!GetQuicReloadableFlag(quic_populate_nonretransmittable_frames)) {
+    return;
+  }
+  QuicAckFrame ack_frame(InitAckFrame(1));
+  frames_.push_back(QuicFrame(&ack_frame));
+  frames_.push_back(QuicFrame(QuicPaddingFrame(-1)));
+  SerializedPacket serialized = SerializeAllFrames(frames_);
+  ASSERT_EQ(2u, serialized.nonretransmittable_frames.size());
+  EXPECT_EQ(ACK_FRAME, serialized.nonretransmittable_frames[0].type);
+  EXPECT_EQ(PADDING_FRAME, serialized.nonretransmittable_frames[1].type);
+  frames_.clear();
+
+  // Serialize another packet with the same frames.
+  SerializedPacket packet = QuicPacketCreatorPeer::SerializeAllFrames(
+      &creator_, serialized.nonretransmittable_frames, buffer_,
+      kMaxOutgoingPacketSize);
+  // Verify the packet length of both packets are equal.
+  EXPECT_EQ(serialized.encrypted_length, packet.encrypted_length);
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

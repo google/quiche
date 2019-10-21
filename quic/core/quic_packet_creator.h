@@ -582,6 +582,9 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
 
   // Latched value of quic_combine_generator_and_creator.
   const bool combine_generator_and_creator_;
+
+  // Latched value of quic_populate_nonretransmittable_frames.
+  const bool populate_nonretransmittable_frames_;
 };
 
 }  // namespace quic

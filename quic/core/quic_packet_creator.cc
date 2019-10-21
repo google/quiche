@@ -94,10 +94,15 @@ QuicPacketCreator::QuicPacketCreator(QuicConnectionId server_connection_id,
       flusher_attached_(false),
       fully_pad_crypto_handshake_packets_(true),
       combine_generator_and_creator_(
-          GetQuicReloadableFlag(quic_combine_generator_and_creator)) {
+          GetQuicReloadableFlag(quic_combine_generator_and_creator)),
+      populate_nonretransmittable_frames_(
+          GetQuicReloadableFlag(quic_populate_nonretransmittable_frames)) {
   SetMaxPacketLength(kDefaultMaxPacketSize);
   if (combine_generator_and_creator_) {
     QUIC_RELOADABLE_FLAG_COUNT(quic_combine_generator_and_creator);
+  }
+  if (populate_nonretransmittable_frames_) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_populate_nonretransmittable_frames);
   }
 }
 
@@ -445,6 +450,7 @@ void QuicPacketCreator::ClearPacket() {
   packet_.encrypted_buffer = nullptr;
   packet_.encrypted_length = 0;
   DCHECK(packet_.retransmittable_frames.empty());
+  DCHECK(packet_.nonretransmittable_frames.empty());
   packet_.largest_acked.Clear();
   needs_full_padding_ = false;
 }
@@ -1399,6 +1405,10 @@ bool QuicPacketCreator::AddFrame(const QuicFrame& frame,
       packet_.has_crypto_handshake = IS_HANDSHAKE;
     }
   } else {
+    if (populate_nonretransmittable_frames_ &&
+        !QuicUtils::IsRetransmittableFrame(frame.type)) {
+      packet_.nonretransmittable_frames.push_back(frame);
+    }
     queued_frames_.push_back(frame);
   }
 
