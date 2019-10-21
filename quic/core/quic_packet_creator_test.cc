@@ -2395,7 +2395,7 @@ TEST_P(QuicPacketCreatorTest, CoalesceStreamFrames) {
 
   // frame is for another stream, so it won't be coalesced.
   const auto length = creator_.BytesFree() - 10u;
-  std::string large_data("x", length);
+  std::string large_data(length, 'x');
   MakeIOVector(large_data, &iov_);
   EXPECT_CALL(debug, OnFrameAddedToPacket(_));
   ASSERT_TRUE(creator_.ConsumeDataToFillCurrentPacket(
