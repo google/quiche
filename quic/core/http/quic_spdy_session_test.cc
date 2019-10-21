@@ -456,8 +456,7 @@ TEST_P(QuicSpdySessionTestServer, SelfAddress) {
 }
 
 TEST_P(QuicSpdySessionTestServer, IsCryptoHandshakeConfirmed) {
-  if (!GetQuicReloadableFlag(quic_do_not_send_settings) ||
-      VersionUsesHttp3(transport_version())) {
+  if (VersionUsesHttp3(transport_version())) {
     MockPacketWriter* writer = static_cast<MockPacketWriter*>(
         QuicConnectionPeer::GetWriter(session_.connection()));
     EXPECT_CALL(*writer, WritePacket(_, _, _, _, _))
@@ -1062,8 +1061,7 @@ TEST_P(QuicSpdySessionTestServer, ServerReplyToConnecitivityProbe) {
 }
 
 TEST_P(QuicSpdySessionTestServer, IncreasedTimeoutAfterCryptoHandshake) {
-  if (!GetQuicReloadableFlag(quic_do_not_send_settings) ||
-      VersionUsesHttp3(transport_version())) {
+  if (VersionUsesHttp3(transport_version())) {
     MockPacketWriter* writer = static_cast<MockPacketWriter*>(
         QuicConnectionPeer::GetWriter(session_.connection()));
     EXPECT_CALL(*writer, WritePacket(_, _, _, _, _))

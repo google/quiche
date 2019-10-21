@@ -601,20 +601,7 @@ void QuicSpdySession::SendInitialData() {
     // created HTTP/3 unidirectional streams.
     qpack_encoder_send_stream_->MaybeSendStreamType();
     qpack_decoder_send_stream_->MaybeSendStreamType();
-    return;
   }
-  if (GetQuicReloadableFlag(quic_do_not_send_settings)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_do_not_send_settings);
-    return;
-  }
-
-  SpdySettingsIR settings_frame;
-  settings_frame.AddSetting(SETTINGS_MAX_HEADER_LIST_SIZE,
-                            max_inbound_header_list_size_);
-
-  SpdySerializedFrame frame(spdy_framer_.SerializeFrame(settings_frame));
-  headers_stream()->WriteOrBufferData(
-      QuicStringPiece(frame.data(), frame.size()), false, nullptr);
 }
 
 QpackEncoder* QuicSpdySession::qpack_encoder() {
