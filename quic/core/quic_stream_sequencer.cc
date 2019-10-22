@@ -9,6 +9,7 @@
 #include <string>
 #include <utility>
 
+#include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_stream.h"
 #include "net/third_party/quiche/src/quic/core/quic_stream_sequencer_buffer.h"
@@ -26,6 +27,7 @@ namespace quic {
 QuicStreamSequencer::QuicStreamSequencer(StreamInterface* quic_stream)
     : stream_(quic_stream),
       buffered_frames_(kStreamReceiveWindowLimit),
+      highest_offset_(0),
       close_offset_(std::numeric_limits<QuicStreamOffset>::max()),
       blocked_(false),
       num_frames_received_(0),
@@ -66,6 +68,7 @@ void QuicStreamSequencer::OnCryptoFrame(const QuicCryptoFrame& frame) {
 void QuicStreamSequencer::OnFrameData(QuicStreamOffset byte_offset,
                                       size_t data_len,
                                       const char* data_buffer) {
+  highest_offset_ = std::max(highest_offset_, byte_offset + data_len);
   const size_t previous_readable_bytes = buffered_frames_.ReadableBytes();
   size_t bytes_written;
   std::string error_details;
@@ -123,8 +126,31 @@ bool QuicStreamSequencer::CloseStreamAtOffset(QuicStreamOffset offset) {
 
   // If there is a scheduled close, the new offset should match it.
   if (close_offset_ != kMaxOffset && offset != close_offset_) {
-    stream_->Reset(QUIC_MULTIPLE_TERMINATION_OFFSETS);
+    if (!GetQuicReloadableFlag(quic_no_decrease_in_final_offset)) {
+      stream_->Reset(QUIC_MULTIPLE_TERMINATION_OFFSETS);
+      return false;
+    }
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_no_decrease_in_final_offset, 1, 2);
+    stream_->CloseConnectionWithDetails(
+        QUIC_STREAM_SEQUENCER_INVALID_STATE,
+        QuicStrCat("Stream ", stream_->id(),
+                   " received new final offset: ", offset,
+                   ", which is different from close offset: ", close_offset_));
     return false;
+  }
+
+  // The final offset should be no less than the highest offset that is
+  // received.
+  if (GetQuicReloadableFlag(quic_no_decrease_in_final_offset)) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_no_decrease_in_final_offset, 2, 2);
+    if (offset < highest_offset_) {
+      stream_->CloseConnectionWithDetails(
+          QUIC_STREAM_SEQUENCER_INVALID_STATE,
+          QuicStrCat(
+              "Stream ", stream_->id(), " received fin with offset: ", offset,
+              ", which reduces current highest offset: ", highest_offset_));
+      return false;
+    }
   }
 
   close_offset_ = offset;

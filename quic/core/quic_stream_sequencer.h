@@ -11,6 +11,7 @@
 
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_stream_sequencer_buffer.h"
+#include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 
 namespace quic {
@@ -181,6 +182,9 @@ class QUIC_EXPORT_PRIVATE QuicStreamSequencer {
 
   // Stores received data in offset order.
   QuicStreamSequencerBuffer buffered_frames_;
+
+  // The highest offset that is received so far.
+  QuicStreamOffset highest_offset_;
 
   // The offset, if any, we got a stream termination for.  When this many bytes
   // have been processed, the sequencer will be closed.
