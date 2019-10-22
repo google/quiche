@@ -296,6 +296,7 @@ class TestSession : public QuicSpdySession {
   }
 
   using QuicSession::closed_streams;
+  using QuicSession::ShouldKeepConnectionAlive;
   using QuicSession::zombie_streams;
   using QuicSpdySession::ProcessPendingStream;
   using QuicSpdySession::UsesPendingStreams;
@@ -1747,6 +1748,21 @@ TEST_P(QuicSpdySessionTestClient, BadStreamFramePendingStream) {
           Invoke(connection_, &MockQuicConnection::ReallyCloseConnection));
   EXPECT_CALL(*connection_, SendConnectionClosePacket(_, _));
   session_.OnStreamFrame(data1);
+}
+
+TEST_P(QuicSpdySessionTestClient, PendingStreamKeepsConnectionAlive) {
+  if (!VersionUsesHttp3(transport_version())) {
+    return;
+  }
+
+  QuicStreamId stream_id = QuicUtils::GetFirstUnidirectionalStreamId(
+      transport_version(), Perspective::IS_SERVER);
+
+  QuicStreamFrame frame(stream_id, false, 1, "test");
+  EXPECT_FALSE(session_.ShouldKeepConnectionAlive());
+  session_.OnStreamFrame(frame);
+  EXPECT_TRUE(QuicSessionPeer::GetPendingStream(&session_, stream_id));
+  EXPECT_TRUE(session_.ShouldKeepConnectionAlive());
 }
 
 TEST_P(QuicSpdySessionTestClient, AvailableStreamsClient) {

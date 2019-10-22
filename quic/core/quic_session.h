@@ -538,6 +538,10 @@ class QUIC_EXPORT_PRIVATE QuicSession
   StreamMap& stream_map() { return stream_map_; }
   const StreamMap& stream_map() const { return stream_map_; }
 
+  const PendingStreamMap& pending_streams() const {
+    return pending_stream_map_;
+  }
+
   ClosedStreams* closed_streams() { return &closed_streams_; }
 
   const ZombieStreamMap& zombie_streams() const { return zombie_streams_; }
