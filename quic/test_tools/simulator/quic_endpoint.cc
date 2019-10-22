@@ -4,6 +4,7 @@
 
 #include "net/third_party/quiche/src/quic/test_tools/simulator/quic_endpoint.h"
 
+#include <memory>
 #include <utility>
 
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_handshake_message.h"
@@ -23,87 +24,41 @@ const QuicStreamId kDataStream = 3;
 const QuicByteCount kWriteChunkSize = 128 * 1024;
 const char kStreamDataContents = 'Q';
 
-// Takes a SHA-1 hash of the name and converts it into five 32-bit integers.
-static std::vector<uint32_t> HashNameIntoFive32BitIntegers(std::string name) {
-  const std::string hash = test::Sha1Hash(name);
-
-  std::vector<uint32_t> output;
-  uint32_t current_number = 0;
-  for (size_t i = 0; i < hash.size(); i++) {
-    current_number = (current_number << 8) + hash[i];
-    if (i % 4 == 3) {
-      output.push_back(i);
-      current_number = 0;
-    }
-  }
-
-  return output;
-}
-
-QuicSocketAddress GetAddressFromName(std::string name) {
-  const std::vector<uint32_t> hash = HashNameIntoFive32BitIntegers(name);
-
-  // Generate a random port between 1025 and 65535.
-  const uint16_t port = 1025 + hash[0] % (65535 - 1025 + 1);
-
-  // Generate a random 10.x.x.x address, where x is between 1 and 254.
-  std::string ip_address{"\xa\0\0\0", 4};
-  for (size_t i = 1; i < 4; i++) {
-    ip_address[i] = 1 + hash[i] % 254;
-  }
-  QuicIpAddress host;
-  host.FromPackedString(ip_address.c_str(), ip_address.length());
-  return QuicSocketAddress(host, port);
-}
-
 QuicEndpoint::QuicEndpoint(Simulator* simulator,
                            std::string name,
                            std::string peer_name,
                            Perspective perspective,
                            QuicConnectionId connection_id)
-    : Endpoint(simulator, name),
-      peer_name_(peer_name),
-      writer_(this),
-      nic_tx_queue_(simulator,
-                    QuicStringPrintf("%s (TX Queue)", name.c_str()),
-                    kMaxOutgoingPacketSize * kTxQueueSize),
-      connection_(connection_id,
-                  GetAddressFromName(peer_name),
-                  simulator,
-                  simulator->GetAlarmFactory(),
-                  &writer_,
-                  false,
-                  perspective,
-                  ParsedVersionOfIndex(CurrentSupportedVersions(), 0)),
+    : QuicEndpointBase(simulator, name, peer_name),
       bytes_to_transfer_(0),
       bytes_transferred_(0),
-      write_blocked_count_(0),
       wrong_data_received_(false),
-      drop_next_packet_(false),
       notifier_(nullptr) {
-  nic_tx_queue_.set_listener_interface(this);
-
-  connection_.SetSelfAddress(GetAddressFromName(name));
-  connection_.set_visitor(this);
-  connection_.SetEncrypter(ENCRYPTION_FORWARD_SECURE,
-                           std::make_unique<NullEncrypter>(perspective));
-  connection_.SetEncrypter(ENCRYPTION_INITIAL, nullptr);
-  if (connection_.version().KnowsWhichDecrypterToUse()) {
-    connection_.InstallDecrypter(ENCRYPTION_FORWARD_SECURE,
-                                 std::make_unique<NullDecrypter>(perspective));
-    connection_.RemoveDecrypter(ENCRYPTION_INITIAL);
+  connection_ = std::make_unique<QuicConnection>(
+      connection_id, GetAddressFromName(peer_name), simulator,
+      simulator->GetAlarmFactory(), &writer_, false, perspective,
+      ParsedVersionOfIndex(CurrentSupportedVersions(), 0));
+  connection_->SetSelfAddress(GetAddressFromName(name));
+  connection_->set_visitor(this);
+  connection_->SetEncrypter(ENCRYPTION_FORWARD_SECURE,
+                            std::make_unique<NullEncrypter>(perspective));
+  connection_->SetEncrypter(ENCRYPTION_INITIAL, nullptr);
+  if (connection_->version().KnowsWhichDecrypterToUse()) {
+    connection_->InstallDecrypter(ENCRYPTION_FORWARD_SECURE,
+                                  std::make_unique<NullDecrypter>(perspective));
+    connection_->RemoveDecrypter(ENCRYPTION_INITIAL);
   } else {
-    connection_.SetDecrypter(ENCRYPTION_FORWARD_SECURE,
-                             std::make_unique<NullDecrypter>(perspective));
+    connection_->SetDecrypter(ENCRYPTION_FORWARD_SECURE,
+                              std::make_unique<NullDecrypter>(perspective));
   }
-  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   if (perspective == Perspective::IS_SERVER) {
     // Skip version negotiation.
-    test::QuicConnectionPeer::SetNegotiatedVersion(&connection_);
+    test::QuicConnectionPeer::SetNegotiatedVersion(connection_.get());
   }
-  connection_.SetDataProducer(&producer_);
-  connection_.SetSessionNotifier(this);
-  notifier_ = std::make_unique<test::SimpleSessionNotifier>(&connection_);
+  connection_->SetDataProducer(&producer_);
+  connection_->SetSessionNotifier(this);
+  notifier_ = std::make_unique<test::SimpleSessionNotifier>(connection_.get());
 
   // Configure the connection as if it received a handshake.  This is important
   // primarily because
@@ -120,19 +75,7 @@ QuicEndpoint::QuicEndpoint(Simulator* simulator,
       peer_hello, perspective == Perspective::IS_CLIENT ? SERVER : CLIENT,
       &error);
   DCHECK_EQ(error_code, QUIC_NO_ERROR) << "Configuration failed: " << error;
-  connection_.SetFromConfig(config);
-}
-
-QuicEndpoint::~QuicEndpoint() {
-  if (trace_visitor_ != nullptr) {
-    const char* perspective_prefix =
-        connection_.perspective() == Perspective::IS_CLIENT ? "C" : "S";
-
-    std::string identifier =
-        QuicStrCat(perspective_prefix, connection_.connection_id().ToString());
-    QuicRecordTestOutput(identifier,
-                         trace_visitor_->trace()->SerializeAsString());
-  }
+  connection_->SetFromConfig(config);
 }
 
 QuicByteCount QuicEndpoint::bytes_received() const {
@@ -172,48 +115,6 @@ void QuicEndpoint::AddBytesToTransfer(QuicByteCount bytes) {
 
   bytes_to_transfer_ += bytes;
   WriteStreamData();
-}
-
-void QuicEndpoint::DropNextIncomingPacket() {
-  drop_next_packet_ = true;
-}
-
-void QuicEndpoint::RecordTrace() {
-  trace_visitor_ = std::make_unique<QuicTraceVisitor>(&connection_);
-  connection_.set_debug_visitor(trace_visitor_.get());
-}
-
-void QuicEndpoint::AcceptPacket(std::unique_ptr<Packet> packet) {
-  if (packet->destination != name_) {
-    return;
-  }
-  if (drop_next_packet_) {
-    drop_next_packet_ = false;
-    return;
-  }
-
-  QuicReceivedPacket received_packet(packet->contents.data(),
-                                     packet->contents.size(), clock_->Now());
-  connection_.ProcessUdpPacket(connection_.self_address(),
-                               connection_.peer_address(), received_packet);
-}
-
-UnconstrainedPortInterface* QuicEndpoint::GetRxPort() {
-  return this;
-}
-
-void QuicEndpoint::SetTxPort(ConstrainedPortInterface* port) {
-  // Any egress done by the endpoint is actually handled by a queue on an NIC.
-  nic_tx_queue_.set_tx_port(port);
-}
-
-void QuicEndpoint::OnPacketDequeued() {
-  if (writer_.IsWriteBlocked() &&
-      (nic_tx_queue_.capacity() - nic_tx_queue_.bytes_queued()) >=
-          kMaxOutgoingPacketSize) {
-    writer_.SetWritable();
-    connection_.OnCanWrite();
-  }
 }
 
 void QuicEndpoint::OnStreamFrame(const QuicStreamFrame& frame) {
@@ -300,73 +201,6 @@ bool QuicEndpoint::HasUnackedStreamData() const {
   return false;
 }
 
-QuicEndpoint::Writer::Writer(QuicEndpoint* endpoint)
-    : endpoint_(endpoint), is_blocked_(false) {}
-
-QuicEndpoint::Writer::~Writer() {}
-
-WriteResult QuicEndpoint::Writer::WritePacket(
-    const char* buffer,
-    size_t buf_len,
-    const QuicIpAddress& /*self_address*/,
-    const QuicSocketAddress& /*peer_address*/,
-    PerPacketOptions* options) {
-  DCHECK(!IsWriteBlocked());
-  DCHECK(options == nullptr);
-  DCHECK(buf_len <= kMaxOutgoingPacketSize);
-
-  // Instead of losing a packet, become write-blocked when the egress queue is
-  // full.
-  if (endpoint_->nic_tx_queue_.packets_queued() > kTxQueueSize) {
-    is_blocked_ = true;
-    endpoint_->write_blocked_count_++;
-    return WriteResult(WRITE_STATUS_BLOCKED, 0);
-  }
-
-  auto packet = std::make_unique<Packet>();
-  packet->source = endpoint_->name();
-  packet->destination = endpoint_->peer_name_;
-  packet->tx_timestamp = endpoint_->clock_->Now();
-
-  packet->contents = std::string(buffer, buf_len);
-  packet->size = buf_len;
-
-  endpoint_->nic_tx_queue_.AcceptPacket(std::move(packet));
-
-  return WriteResult(WRITE_STATUS_OK, buf_len);
-}
-
-bool QuicEndpoint::Writer::IsWriteBlocked() const {
-  return is_blocked_;
-}
-
-void QuicEndpoint::Writer::SetWritable() {
-  is_blocked_ = false;
-}
-
-QuicByteCount QuicEndpoint::Writer::GetMaxPacketSize(
-    const QuicSocketAddress& /*peer_address*/) const {
-  return kMaxOutgoingPacketSize;
-}
-
-bool QuicEndpoint::Writer::SupportsReleaseTime() const {
-  return false;
-}
-
-bool QuicEndpoint::Writer::IsBatchMode() const {
-  return false;
-}
-
-char* QuicEndpoint::Writer::GetNextWriteLocation(
-    const QuicIpAddress& /*self_address*/,
-    const QuicSocketAddress& /*peer_address*/) {
-  return nullptr;
-}
-
-WriteResult QuicEndpoint::Writer::Flush() {
-  return WriteResult(WRITE_STATUS_OK, 0);
-}
-
 WriteStreamDataResult QuicEndpoint::DataProducer::WriteStreamData(
     QuicStreamId /*id*/,
     QuicStreamOffset /*offset*/,
@@ -386,14 +220,14 @@ bool QuicEndpoint::DataProducer::WriteCryptoData(EncryptionLevel /*level*/,
 
 void QuicEndpoint::WriteStreamData() {
   // Instantiate a flusher which would normally be here due to QuicSession.
-  QuicConnection::ScopedPacketFlusher flusher(&connection_);
+  QuicConnection::ScopedPacketFlusher flusher(connection_.get());
 
   while (bytes_to_transfer_ > 0) {
     // Transfer data in chunks of size at most |kWriteChunkSize|.
     const size_t transmission_size =
         std::min(kWriteChunkSize, bytes_to_transfer_);
 
-    QuicConsumedData consumed_data = connection_.SendStreamData(
+    QuicConsumedData consumed_data = connection_->SendStreamData(
         kDataStream, transmission_size, bytes_transferred_, NO_FIN);
 
     DCHECK(consumed_data.bytes_consumed <= transmission_size);
@@ -402,34 +236,6 @@ void QuicEndpoint::WriteStreamData() {
     if (consumed_data.bytes_consumed != transmission_size) {
       return;
     }
-  }
-}
-
-QuicEndpointMultiplexer::QuicEndpointMultiplexer(
-    std::string name,
-    const std::vector<QuicEndpoint*>& endpoints)
-    : Endpoint((*endpoints.begin())->simulator(), name) {
-  for (QuicEndpoint* endpoint : endpoints) {
-    mapping_.insert(std::make_pair(endpoint->name(), endpoint));
-  }
-}
-
-QuicEndpointMultiplexer::~QuicEndpointMultiplexer() {}
-
-void QuicEndpointMultiplexer::AcceptPacket(std::unique_ptr<Packet> packet) {
-  auto key_value_pair_it = mapping_.find(packet->destination);
-  if (key_value_pair_it == mapping_.end()) {
-    return;
-  }
-
-  key_value_pair_it->second->GetRxPort()->AcceptPacket(std::move(packet));
-}
-UnconstrainedPortInterface* QuicEndpointMultiplexer::GetRxPort() {
-  return this;
-}
-void QuicEndpointMultiplexer::SetTxPort(ConstrainedPortInterface* port) {
-  for (auto& key_value_pair : mapping_) {
-    key_value_pair.second->SetTxPort(port);
   }
 }
 

@@ -741,7 +741,7 @@ class Bbr2MultiSenderTest : public Bbr2SimulatorTest {
  protected:
   Bbr2MultiSenderTest() {
     uint64_t first_connection_id = 42;
-    std::vector<simulator::QuicEndpoint*> receiver_endpoint_pointers;
+    std::vector<simulator::QuicEndpointBase*> receiver_endpoint_pointers;
     for (size_t i = 0; i < MultiSenderTopologyParams::kNumLocalLinks; ++i) {
       std::string sender_name = QuicStrCat("Sender", i + 1);
       std::string receiver_name = QuicStrCat("Receiver", i + 1);
