@@ -552,7 +552,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
     DCHECK(!ping_alarm_->IsSet());
     ping_timeout_ = ping_timeout;
   }
-  const QuicTime::Delta ping_timeout() { return ping_timeout_; }
+  const QuicTime::Delta ping_timeout() const { return ping_timeout_; }
   // Used in Chromium, but not internally.
   // Sets an initial timeout for the ping alarm when there is no retransmittable
   // data in flight, allowing for a more aggressive ping alarm in that case.
@@ -560,6 +560,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
       QuicTime::Delta retransmittable_on_wire_timeout) {
     DCHECK(!ping_alarm_->IsSet());
     initial_retransmittable_on_wire_timeout_ = retransmittable_on_wire_timeout;
+  }
+  const QuicTime::Delta initial_retransmittable_on_wire_timeout() const {
+    return initial_retransmittable_on_wire_timeout_;
   }
   // Used in Chromium, but not internally.
   void set_creator_debug_delegate(QuicPacketCreator::DebugDelegate* visitor) {
