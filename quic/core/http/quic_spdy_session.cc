@@ -531,7 +531,6 @@ void QuicSpdySession::WriteH3Priority(const PriorityFrame& priority) {
       << "Server must not send priority";
 
   QuicConnection::ScopedPacketFlusher flusher(connection());
-  SendInitialData();
   send_control_stream_->WritePriority(priority);
 }
 
@@ -594,14 +593,15 @@ void QuicSpdySession::WritePushPromise(QuicStreamId original_stream_id,
 }
 
 void QuicSpdySession::SendInitialData() {
-  if (VersionUsesHttp3(transport_version())) {
-    QuicConnection::ScopedPacketFlusher flusher(connection());
-    send_control_stream_->MaybeSendSettingsFrame();
-    // TODO(renjietang): Remove this once stream id manager can take dynamically
-    // created HTTP/3 unidirectional streams.
-    qpack_encoder_send_stream_->MaybeSendStreamType();
-    qpack_decoder_send_stream_->MaybeSendStreamType();
+  if (!VersionUsesHttp3(transport_version())) {
+    return;
   }
+  QuicConnection::ScopedPacketFlusher flusher(connection());
+  send_control_stream_->MaybeSendSettingsFrame();
+  // TODO(renjietang): Remove this once stream id manager can take dynamically
+  // created HTTP/3 unidirectional streams.
+  qpack_encoder_send_stream_->MaybeSendStreamType();
+  qpack_decoder_send_stream_->MaybeSendStreamType();
 }
 
 QpackEncoder* QuicSpdySession::qpack_encoder() {
@@ -631,10 +631,7 @@ QuicSpdyStream* QuicSpdySession::GetSpdyDataStream(
 
 void QuicSpdySession::OnCryptoHandshakeEvent(CryptoHandshakeEvent event) {
   QuicSession::OnCryptoHandshakeEvent(event);
-  if (VersionUsesHttp3(transport_version()) ||
-      (event == HANDSHAKE_CONFIRMED && config()->SupportMaxHeaderListSize())) {
-    SendInitialData();
-  }
+  SendInitialData();
 }
 
 // True if there are open HTTP requests.
