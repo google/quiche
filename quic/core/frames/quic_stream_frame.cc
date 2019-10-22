@@ -43,4 +43,10 @@ std::ostream& operator<<(std::ostream& os,
   return os;
 }
 
+bool QuicStreamFrame::operator==(const QuicStreamFrame& rhs) const {
+  return fin == rhs.fin && data_length == rhs.data_length &&
+         stream_id == rhs.stream_id && data_buffer == rhs.data_buffer &&
+         offset == rhs.offset;
+}
+
 }  // namespace quic

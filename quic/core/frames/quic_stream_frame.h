@@ -31,6 +31,8 @@ struct QUIC_EXPORT_PRIVATE QuicStreamFrame
   friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                                       const QuicStreamFrame& s);
 
+  bool operator==(const QuicStreamFrame& rhs) const;
+
   bool fin;
   QuicPacketLength data_length;
   QuicStreamId stream_id;

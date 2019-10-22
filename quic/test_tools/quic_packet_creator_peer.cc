@@ -58,12 +58,6 @@ QuicVariableLengthIntegerLength QuicPacketCreatorPeer::GetLengthLength(
   return creator->GetLengthLength();
 }
 
-// static
-const QuicFrames& QuicPacketCreatorPeer::GetQueuedFrames(
-    QuicPacketCreator* creator) {
-  return creator->queued_frames_;
-}
-
 void QuicPacketCreatorPeer::SetPacketNumber(QuicPacketCreator* creator,
                                             uint64_t s) {
   DCHECK_NE(0u, s);

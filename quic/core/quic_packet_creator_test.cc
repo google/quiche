@@ -2028,16 +2028,13 @@ TEST_P(QuicPacketCreatorTest, CoalesceStreamFrames) {
   MakeIOVector("coalesce", &iov_);
   // frame will be coalesced with the first frame.
   const auto previous_size = creator_.PacketSize();
-  EXPECT_CALL(debug, OnStreamFrameCoalesced(_));
+  QuicStreamFrame target(stream_id1, true, 0, 12);
+  EXPECT_CALL(debug, OnStreamFrameCoalesced(target));
   ASSERT_TRUE(creator_.ConsumeDataToFillCurrentPacket(
       stream_id1, &iov_, 1u, iov_.iov_len, 0u, 4u, true, false,
       NOT_RETRANSMISSION, &frame));
   EXPECT_EQ(frame.stream_frame.data_length,
             creator_.PacketSize() - previous_size);
-  auto queued_frames = QuicPacketCreatorPeer::GetQueuedFrames(&creator_);
-  EXPECT_EQ(1u, queued_frames.size());
-  EXPECT_EQ(12u, queued_frames.front().stream_frame.data_length);
-  EXPECT_TRUE(queued_frames.front().stream_frame.fin);
 
   // frame is for another stream, so it won't be coalesced.
   const auto length = creator_.BytesFree() - 10u;
