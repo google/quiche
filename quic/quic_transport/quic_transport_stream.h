@@ -19,7 +19,7 @@ namespace quic {
 // QuicTransportStream is an extension of QuicStream that provides I/O interface
 // that is safe to use in the QuicTransport context.  The interface ensures no
 // application data is processed before the client indication is processed.
-class QuicTransportStream : public QuicStream {
+class QUIC_EXPORT QuicTransportStream : public QuicStream {
  public:
   class Visitor {
    public:
