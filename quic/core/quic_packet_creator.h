@@ -434,10 +434,8 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   void FillPacketHeader(QuicPacketHeader* header);
 
   // Adds a |frame| if there is space and returns false and flushes all pending
-  // frames if there isn't room. If |save_retransmittable_frames| is true,
-  // saves the |frame| in the next SerializedPacket.
+  // frames if there isn't room.
   bool AddFrame(const QuicFrame& frame,
-                bool save_retransmittable_frames,
                 TransmissionType transmission_type);
 
   // Adds a padding frame to the current packet (if there is space) when (1)

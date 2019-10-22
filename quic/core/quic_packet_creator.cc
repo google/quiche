@@ -222,8 +222,7 @@ bool QuicPacketCreator::ConsumeCryptoDataToFillCurrentPacket(
   if (needs_full_padding) {
     needs_full_padding_ = true;
   }
-  return AddFrame(*frame, /*save_retransmittable_frames*/ true,
-                  transmission_type);
+  return AddFrame(*frame, transmission_type);
 }
 
 bool QuicPacketCreator::ConsumeDataToFillCurrentPacket(
@@ -250,8 +249,7 @@ bool QuicPacketCreator::ConsumeDataToFillCurrentPacket(
     delegate_->OnUnrecoverableError(QUIC_CRYPTO_CHLO_TOO_LARGE, error_details);
     return false;
   }
-  if (!AddFrame(*frame, /*save_retransmittable_frames=*/true,
-                transmission_type)) {
+  if (!AddFrame(*frame, transmission_type)) {
     // Fails if we try to write unencrypted stream data.
     return false;
   }
@@ -569,15 +567,13 @@ size_t QuicPacketCreator::PacketSize() {
 
 bool QuicPacketCreator::AddSavedFrame(const QuicFrame& frame,
                                       TransmissionType transmission_type) {
-  return AddFrame(frame, /*save_retransmittable_frames=*/true,
-                  transmission_type);
+  return AddFrame(frame, transmission_type);
 }
 
 bool QuicPacketCreator::AddPaddedSavedFrame(
     const QuicFrame& frame,
     TransmissionType transmission_type) {
-  if (AddFrame(frame, /*save_retransmittable_frames=*/true,
-               transmission_type)) {
+  if (AddFrame(frame, transmission_type)) {
     needs_full_padding_ = true;
     return true;
   }
@@ -1310,7 +1306,6 @@ void QuicPacketCreator::FillPacketHeader(QuicPacketHeader* header) {
 }
 
 bool QuicPacketCreator::AddFrame(const QuicFrame& frame,
-                                 bool save_retransmittable_frames,
                                  TransmissionType transmission_type) {
   QUIC_DVLOG(1) << ENDPOINT << "Adding frame with transmission type "
                 << TransmissionTypeToString(transmission_type) << ": " << frame;
@@ -1347,16 +1342,14 @@ bool QuicPacketCreator::AddFrame(const QuicFrame& frame,
 
   packet_size_ += ExpansionOnNewFrame() + frame_len;
 
-  if (save_retransmittable_frames &&
-      QuicUtils::IsRetransmittableFrame(frame.type)) {
+  if (QuicUtils::IsRetransmittableFrame(frame.type)) {
     packet_.retransmittable_frames.push_back(frame);
     queued_frames_.push_back(frame);
     if (QuicUtils::IsHandshakeFrame(frame, framer_->transport_version())) {
       packet_.has_crypto_handshake = IS_HANDSHAKE;
     }
   } else {
-    if (populate_nonretransmittable_frames_ &&
-        !QuicUtils::IsRetransmittableFrame(frame.type)) {
+    if (populate_nonretransmittable_frames_) {
       if (frame.type == PADDING_FRAME &&
           frame.padding_frame.num_padding_bytes == -1) {
         // Populate the actual length of full padding frame, such that one can
@@ -1463,7 +1456,7 @@ void QuicPacketCreator::MaybeAddPadding() {
         std::max<int16_t>(packet_.num_padding_bytes, extra_padding_bytes);
   }
 
-  bool success = AddFrame(QuicFrame(QuicPaddingFrame(padding_bytes)), false,
+  bool success = AddFrame(QuicFrame(QuicPaddingFrame(padding_bytes)),
                           packet_.transmission_type);
   QUIC_BUG_IF(!success) << "Failed to add padding_bytes: " << padding_bytes
                         << " transmission_type: "

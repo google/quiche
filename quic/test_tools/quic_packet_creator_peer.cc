@@ -108,14 +108,13 @@ SerializedPacket QuicPacketCreatorPeer::SerializeAllFrames(
   DCHECK(creator->queued_frames_.empty());
   DCHECK(!frames.empty());
   for (const QuicFrame& frame : frames) {
-    bool success = creator->AddFrame(frame, false, NOT_RETRANSMISSION);
+    bool success = creator->AddFrame(frame, NOT_RETRANSMISSION);
     DCHECK(success);
   }
   creator->SerializePacket(buffer, buffer_len);
-  SerializedPacket packet = creator->packet_;
+  SerializedPacket packet = std::move(creator->packet_);
   // The caller takes ownership of the QuicEncryptedPacket.
   creator->packet_.encrypted_buffer = nullptr;
-  DCHECK(packet.retransmittable_frames.empty());
   return packet;
 }
 
