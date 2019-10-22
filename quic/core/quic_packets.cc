@@ -475,7 +475,6 @@ SerializedPacket::SerializedPacket(SerializedPacket&& other)
       has_ack(other.has_ack),
       has_stop_waiting(other.has_stop_waiting),
       transmission_type(other.transmission_type),
-      original_packet_number(other.original_packet_number),
       largest_acked(other.largest_acked),
       has_ack_frame_copy(other.has_ack_frame_copy) {
   retransmittable_frames.swap(other.retransmittable_frames);

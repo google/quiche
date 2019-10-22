@@ -3807,9 +3807,6 @@ TEST_P(EndToEndTest, RequestAndStreamRstInOnePacket) {
 TEST_P(EndToEndTest, ResetStreamOnTtlExpires) {
   ASSERT_TRUE(Initialize());
   EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
-  if (!GetClientSession()->session_decides_what_to_write()) {
-    return;
-  }
   SetPacketLossPercentage(30);
 
   QuicSpdyClientStream* stream = client_->GetOrCreateStream();

@@ -352,13 +352,6 @@ QuicPacketGenerator::SerializePathResponseConnectivityProbingPacket(
       payloads, is_padded);
 }
 
-void QuicPacketGenerator::ReserializeAllFrames(
-    const QuicPendingRetransmission& retransmission,
-    char* buffer,
-    size_t buffer_len) {
-  packet_creator_.ReserializeAllFrames(retransmission, buffer, buffer_len);
-}
-
 void QuicPacketGenerator::UpdatePacketNumberLength(
     QuicPacketNumber least_packet_awaited_by_peer,
     QuicPacketCount max_packets_in_flight) {
@@ -431,19 +424,11 @@ void QuicPacketGenerator::SetTransmissionType(TransmissionType type) {
     packet_creator_.SetTransmissionType(type);
     return;
   }
-  packet_creator_.SetTransmissionTypeOfNextPackets(type);
-  if (packet_creator_.can_set_transmission_type()) {
-    next_transmission_type_ = type;
-  }
+  next_transmission_type_ = type;
 }
 
 void QuicPacketGenerator::SetRetryToken(QuicStringPiece retry_token) {
   packet_creator_.SetRetryToken(retry_token);
-}
-
-void QuicPacketGenerator::SetCanSetTransmissionType(
-    bool can_set_transmission_type) {
-  packet_creator_.set_can_set_transmission_type(can_set_transmission_type);
 }
 
 MessageStatus QuicPacketGenerator::AddMessageFrame(QuicMessageId message_id,

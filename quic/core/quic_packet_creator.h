@@ -16,7 +16,6 @@
 #include "net/third_party/quiche/src/quic/core/frames/quic_stream_frame.h"
 #include "net/third_party/quiche/src/quic/core/quic_framer.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
-#include "net/third_party/quiche/src/quic/core/quic_pending_retransmission.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 
@@ -141,12 +140,6 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // Returns true if current open packet can accommodate a message frame of
   // |length|.
   bool HasRoomForMessageFrame(QuicByteCount length);
-
-  // Re-serializes frames with the original packet's packet number length.
-  // Used for retransmitting packets to ensure they aren't too long.
-  void ReserializeAllFrames(const QuicPendingRetransmission& retransmission,
-                            char* buffer,
-                            size_t buffer_len);
 
   // Serializes all added frames into a single packet and invokes the delegate_
   // to further process the SerializedPacket.
@@ -280,9 +273,6 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // MaybeAddPadding().
   void AddPendingPadding(QuicByteCount size);
 
-  // Sets transmission type of next constructed packets.
-  void SetTransmissionTypeOfNextPackets(TransmissionType type);
-
   // Sets the retry token to be sent over the wire in IETF Initial packets.
   void SetRetryToken(QuicStringPiece retry_token);
 
@@ -367,12 +357,6 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   void set_debug_delegate(DebugDelegate* debug_delegate) {
     debug_delegate_ = debug_delegate;
   }
-
-  void set_can_set_transmission_type(bool can_set_transmission_type) {
-    can_set_transmission_type_ = can_set_transmission_type;
-  }
-
-  bool can_set_transmission_type() const { return can_set_transmission_type_; }
 
   QuicByteCount pending_padding_bytes() const { return pending_padding_bytes_; }
 
@@ -561,10 +545,6 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // packet size. Please note, full padding does not consume pending padding
   // bytes.
   bool needs_full_padding_;
-
-  // If true, packet_'s transmission type is only set by
-  // SetPacketTransmissionType and does not get cleared in ClearPacket.
-  bool can_set_transmission_type_;
 
   // Transmission type of the next serialized packet.
   TransmissionType next_transmission_type_;

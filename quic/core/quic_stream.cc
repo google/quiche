@@ -1051,9 +1051,7 @@ void QuicStream::WriteBufferedData() {
     QUIC_DVLOG(1) << "stream " << id() << " shortens write length to "
                   << write_length << " due to flow control";
   }
-  if (session_->session_decides_what_to_write()) {
-    session_->SetTransmissionType(NOT_RETRANSMISSION);
-  }
+  session_->SetTransmissionType(NOT_RETRANSMISSION);
 
   StreamSendingState state = fin ? FIN : NO_FIN;
   if (fin && add_random_padding_after_fin_) {
@@ -1176,10 +1174,6 @@ bool QuicStream::MaybeSetTtl(QuicTime::Delta ttl) {
     QUIC_DLOG(WARNING) << "Deadline has already been set.";
     return false;
   }
-  if (!session()->session_decides_what_to_write()) {
-    QUIC_DLOG(WARNING) << "This session does not support stream TTL yet.";
-    return false;
-  }
   QuicTime now = session()->connection()->clock()->ApproximateNow();
   deadline_ = now + ttl;
   return true;
@@ -1190,7 +1184,6 @@ bool QuicStream::HasDeadlinePassed() const {
     // No deadline has been set.
     return false;
   }
-  DCHECK(session()->session_decides_what_to_write());
   QuicTime now = session()->connection()->clock()->ApproximateNow();
   if (now < deadline_) {
     return false;

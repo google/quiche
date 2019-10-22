@@ -45,7 +45,6 @@
 #include <list>
 
 #include "net/third_party/quiche/src/quic/core/quic_packet_creator.h"
-#include "net/third_party/quiche/src/quic/core/quic_pending_retransmission.h"
 #include "net/third_party/quiche/src/quic/core/quic_sent_packet_manager.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
@@ -149,12 +148,6 @@ class QUIC_EXPORT_PRIVATE QuicPacketGenerator {
       const QuicDeque<QuicPathFrameBuffer>& payloads,
       const bool is_padded);
 
-  // Re-serializes frames with the original packet's packet number length.
-  // Used for retransmitting packets to ensure they aren't too long.
-  void ReserializeAllFrames(const QuicPendingRetransmission& retransmission,
-                            char* buffer,
-                            size_t buffer_len);
-
   // Update the packet number length to use in future packets as soon as it
   // can be safely changed.
   void UpdatePacketNumberLength(QuicPacketNumber least_packet_awaited_by_peer,
@@ -199,9 +192,6 @@ class QUIC_EXPORT_PRIVATE QuicPacketGenerator {
 
   // Sets the retry token to be sent over the wire in IETF Initial packets.
   void SetRetryToken(QuicStringPiece retry_token);
-
-  // Allow/Disallow setting transmission type of next constructed packets.
-  void SetCanSetTransmissionType(bool can_set_transmission_type);
 
   // Tries to add a message frame containing |message| and returns the status.
   MessageStatus AddMessageFrame(QuicMessageId message_id,

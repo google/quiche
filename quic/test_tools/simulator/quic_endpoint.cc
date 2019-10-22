@@ -103,9 +103,7 @@ QuicEndpoint::QuicEndpoint(Simulator* simulator,
   }
   connection_.SetDataProducer(&producer_);
   connection_.SetSessionNotifier(this);
-  if (connection_.session_decides_what_to_write()) {
-    notifier_ = std::make_unique<test::SimpleSessionNotifier>(&connection_);
-  }
+  notifier_ = std::make_unique<test::SimpleSessionNotifier>(&connection_);
 
   // Configure the connection as if it received a handshake.  This is important
   // primarily because

@@ -8,7 +8,6 @@ namespace quic {
 
 QuicTransmissionInfo::QuicTransmissionInfo()
     : encryption_level(ENCRYPTION_INITIAL),
-      packet_number_length(PACKET_1BYTE_PACKET_NUMBER),
       bytes_sent(0),
       sent_time(QuicTime::Zero()),
       transmission_type(NOT_RETRANSMISSION),
@@ -19,14 +18,12 @@ QuicTransmissionInfo::QuicTransmissionInfo()
 
 QuicTransmissionInfo::QuicTransmissionInfo(
     EncryptionLevel level,
-    QuicPacketNumberLength packet_number_length,
     TransmissionType transmission_type,
     QuicTime sent_time,
     QuicPacketLength bytes_sent,
     bool has_crypto_handshake,
     int num_padding_bytes)
     : encryption_level(level),
-      packet_number_length(packet_number_length),
       bytes_sent(bytes_sent),
       sent_time(sent_time),
       transmission_type(transmission_type),

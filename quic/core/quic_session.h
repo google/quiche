@@ -405,8 +405,6 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // Clean up closed_streams_.
   void CleanUpClosedStreams();
 
-  bool session_decides_what_to_write() const;
-
   const ParsedQuicVersionVector& supported_versions() const {
     return supported_versions_;
   }

@@ -22,7 +22,6 @@ struct QUIC_EXPORT_PRIVATE QuicTransmissionInfo {
   // Constructs a Transmission with a new all_transmissions set
   // containing |packet_number|.
   QuicTransmissionInfo(EncryptionLevel level,
-                       QuicPacketNumberLength packet_number_length,
                        TransmissionType transmission_type,
                        QuicTime sent_time,
                        QuicPacketLength bytes_sent,
@@ -35,9 +34,6 @@ struct QUIC_EXPORT_PRIVATE QuicTransmissionInfo {
 
   QuicFrames retransmittable_frames;
   EncryptionLevel encryption_level;
-  // TODO(fayang): remove this when clean up !session_decides_what_to_write code
-  // path.
-  QuicPacketNumberLength packet_number_length;
   QuicPacketLength bytes_sent;
   QuicTime sent_time;
   // Reason why this packet was transmitted.

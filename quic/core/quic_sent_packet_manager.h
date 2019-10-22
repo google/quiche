@@ -19,7 +19,6 @@
 #include "net/third_party/quiche/src/quic/core/congestion_control/uber_loss_algorithm.h"
 #include "net/third_party/quiche/src/quic/core/proto/cached_network_parameters_proto.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
-#include "net/third_party/quiche/src/quic/core/quic_pending_retransmission.h"
 #include "net/third_party/quiche/src/quic/core/quic_sustained_bandwidth_recorder.h"
 #include "net/third_party/quiche/src/quic/core/quic_transmission_info.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
@@ -165,16 +164,6 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // TODO(fayang): Consider replace this function with NeuterHandshakePackets.
   void NeuterUnencryptedPackets();
 
-  // Returns true if there are pending retransmissions.
-  // Not const because retransmissions may be cancelled before returning.
-  bool HasPendingRetransmissions() const {
-    return !pending_retransmissions_.empty();
-  }
-
-  // Retrieves the next pending retransmission.  You must ensure that
-  // there are pending retransmissions prior to calling this function.
-  QuicPendingRetransmission NextPendingRetransmission();
-
   // Returns true if there's outstanding crypto data.
   bool HasUnackedCryptoPackets() const {
     return unacked_packets_.HasPendingCryptoPackets();
@@ -195,7 +184,6 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // the number of bytes sent and if they were retransmitted.  Returns true if
   // the sender should reset the retransmission timer.
   bool OnPacketSent(SerializedPacket* serialized_packet,
-                    QuicPacketNumber original_packet_number,
                     QuicTime sent_time,
                     TransmissionType transmission_type,
                     HasRetransmittableData has_retransmittable_data);
@@ -276,9 +264,6 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
     return unacked_packets_.bytes_in_flight();
   }
 
-  // No longer retransmit data for |stream_id|.
-  void CancelRetransmissionsForStream(QuicStreamId stream_id);
-
   // Called when peer address changes and the connection migrates.
   void OnConnectionMigration(AddressChangeType type);
 
@@ -299,9 +284,6 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   AckResult OnAckFrameEnd(QuicTime ack_receive_time,
                           QuicPacketNumber ack_packet_number,
                           EncryptionLevel ack_decrypted_level);
-
-  // Called to enable/disable letting session decide what to write.
-  void SetSessionDecideWhatToWrite(bool session_decides_what_to_write);
 
   void EnableMultiplePacketNumberSpacesSupport();
 
@@ -365,10 +347,6 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
 
   bool handshake_confirmed() const { return handshake_confirmed_; }
 
-  bool session_decides_what_to_write() const {
-    return unacked_packets_.session_decides_what_to_write();
-  }
-
   size_t pending_timer_transmission_count() const {
     return pending_timer_transmission_count_;
   }
@@ -421,11 +399,6 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   friend class test::QuicConnectionPeer;
   friend class test::QuicSentPacketManagerPeer;
 
-  typedef QuicLinkedHashMap<QuicPacketNumber,
-                            TransmissionType,
-                            QuicPacketNumberHash>
-      PendingRetransmissionMap;
-
   // Returns the current retransmission mode.
   RetransmissionTimeoutMode GetRetransmissionMode() const;
 
@@ -464,11 +437,6 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
 
   // Returns the probe timeout.
   const QuicTime::Delta GetProbeTimeoutDelay() const;
-
-  // Returns the newest transmission associated with a packet.
-  QuicPacketNumber GetNewestRetransmission(
-      QuicPacketNumber packet_number,
-      const QuicTransmissionInfo& transmission_info) const;
 
   // Update the RTT if the ack is for the largest acked packet number.
   // Returns true if the rtt was updated.
@@ -550,9 +518,6 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // be removed from the map and the new entry's retransmittable frames will be
   // set to nullptr.
   QuicUnackedPacketMap unacked_packets_;
-
-  // Pending retransmissions which have not been packetized and sent yet.
-  PendingRetransmissionMap pending_retransmissions_;
 
   const QuicClock* clock_;
   QuicRandom* random_;

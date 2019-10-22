@@ -1943,7 +1943,6 @@ TEST_P(QuicSpdySessionTestServer, ZombieStreams) {
 }
 
 TEST_P(QuicSpdySessionTestServer, OnStreamFrameLost) {
-  QuicConnectionPeer::SetSessionDecidesWhatToWrite(connection_);
   InSequence s;
 
   // Drive congestion control manually.
@@ -2017,7 +2016,6 @@ TEST_P(QuicSpdySessionTestServer, OnStreamFrameLost) {
 }
 
 TEST_P(QuicSpdySessionTestServer, DonotRetransmitDataOfClosedStreams) {
-  QuicConnectionPeer::SetSessionDecidesWhatToWrite(connection_);
   InSequence s;
 
   TestStream* stream2 = session_.CreateOutgoingBidirectionalStream();
@@ -2057,7 +2055,6 @@ TEST_P(QuicSpdySessionTestServer, DonotRetransmitDataOfClosedStreams) {
 }
 
 TEST_P(QuicSpdySessionTestServer, RetransmitFrames) {
-  QuicConnectionPeer::SetSessionDecidesWhatToWrite(connection_);
   MockSendAlgorithm* send_algorithm = new StrictMock<MockSendAlgorithm>;
   QuicConnectionPeer::SetSendAlgorithm(session_.connection(), send_algorithm);
   InSequence s;

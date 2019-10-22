@@ -2146,7 +2146,6 @@ TEST_P(QuicSessionTestServer, TestZombieStreams) {
 }
 
 TEST_P(QuicSessionTestServer, OnStreamFrameLost) {
-  QuicConnectionPeer::SetSessionDecidesWhatToWrite(connection_);
   InSequence s;
 
   // Drive congestion control manually.
@@ -2223,7 +2222,6 @@ TEST_P(QuicSessionTestServer, OnStreamFrameLost) {
 }
 
 TEST_P(QuicSessionTestServer, DonotRetransmitDataOfClosedStreams) {
-  QuicConnectionPeer::SetSessionDecidesWhatToWrite(connection_);
   InSequence s;
 
   TestStream* stream2 = session_.CreateOutgoingBidirectionalStream();
@@ -2263,7 +2261,6 @@ TEST_P(QuicSessionTestServer, DonotRetransmitDataOfClosedStreams) {
 }
 
 TEST_P(QuicSessionTestServer, RetransmitFrames) {
-  QuicConnectionPeer::SetSessionDecidesWhatToWrite(connection_);
   MockSendAlgorithm* send_algorithm = new StrictMock<MockSendAlgorithm>;
   QuicConnectionPeer::SetSendAlgorithm(session_.connection(), send_algorithm);
   InSequence s;
@@ -2299,7 +2296,6 @@ TEST_P(QuicSessionTestServer, RetransmitFrames) {
 TEST_P(QuicSessionTestServer, RetransmitLostDataCausesConnectionClose) {
   // This test mimics the scenario when a dynamic stream retransmits lost data
   // and causes connection close.
-  QuicConnectionPeer::SetSessionDecidesWhatToWrite(connection_);
   TestStream* stream = session_.CreateOutgoingBidirectionalStream();
   QuicStreamFrame frame(stream->id(), false, 0, 9);
 
@@ -2378,8 +2374,6 @@ TEST_P(QuicSessionTestServer, SendMessage) {
 
 // Regression test of b/115323618.
 TEST_P(QuicSessionTestServer, LocallyResetZombieStreams) {
-  QuicConnectionPeer::SetSessionDecidesWhatToWrite(connection_);
-
   session_.set_writev_consumes_all_data(true);
   TestStream* stream2 = session_.CreateOutgoingBidirectionalStream();
   std::string body(100, '.');

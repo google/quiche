@@ -16,7 +16,6 @@
 #include "net/third_party/quiche/src/quic/core/crypto/quic_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/frames/quic_stream_frame.h"
 #include "net/third_party/quiche/src/quic/core/quic_data_writer.h"
-#include "net/third_party/quiche/src/quic/core/quic_pending_retransmission.h"
 #include "net/third_party/quiche/src/quic/core/quic_simple_buffer_allocator.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
@@ -264,18 +263,6 @@ class QuicPacketCreatorTest : public QuicTestWithParam<TestParams> {
         /* data_length= */ 0);
   }
 
-  QuicPendingRetransmission CreateRetransmission(
-      const QuicFrames& retransmittable_frames,
-      bool has_crypto_handshake,
-      int num_padding_bytes,
-      EncryptionLevel encryption_level,
-      QuicPacketNumberLength packet_number_length) {
-    return QuicPendingRetransmission(QuicPacketNumber(1u), NOT_RETRANSMISSION,
-                                     retransmittable_frames,
-                                     has_crypto_handshake, num_padding_bytes,
-                                     encryption_level, packet_number_length);
-  }
-
   bool IsDefaultTestConfiguration() {
     TestParams p = GetParam();
     return p.version == AllSupportedVersions()[0] && p.version_serialization;
@@ -359,248 +346,6 @@ TEST_P(QuicPacketCreatorTest, SerializeFrames) {
       EXPECT_CALL(framer_visitor_, OnPacketComplete());
     }
     ProcessPacket(serialized);
-  }
-}
-
-TEST_P(QuicPacketCreatorTest, ReserializeFramesWithSequenceNumberLength) {
-  if (VersionHasIetfInvariantHeader(client_framer_.transport_version())) {
-    creator_.set_encryption_level(ENCRYPTION_FORWARD_SECURE);
-  }
-  // If the original packet number length, the current packet number
-  // length, and the configured send packet number length are different, the
-  // retransmit must sent with the original length and the others do not change.
-  QuicPacketCreatorPeer::SetPacketNumberLength(&creator_,
-                                               PACKET_2BYTE_PACKET_NUMBER);
-  QuicFrames frames;
-  std::string data("a");
-  if (!QuicVersionUsesCryptoFrames(client_framer_.transport_version())) {
-    QuicStreamFrame stream_frame(
-        QuicUtils::GetCryptoStreamId(client_framer_.transport_version()),
-        /*fin=*/false, 0u, QuicStringPiece());
-    frames.push_back(QuicFrame(stream_frame));
-  } else {
-    producer_.SaveCryptoData(ENCRYPTION_INITIAL, 0, data);
-    frames.push_back(
-        QuicFrame(new QuicCryptoFrame(ENCRYPTION_INITIAL, 0, data.length())));
-  }
-  char buffer[kMaxOutgoingPacketSize];
-  QuicPendingRetransmission retransmission(CreateRetransmission(
-      frames, true /* has_crypto_handshake */, -1 /* needs full padding */,
-      ENCRYPTION_INITIAL, PACKET_4BYTE_PACKET_NUMBER));
-  EXPECT_CALL(delegate_, OnSerializedPacket(_))
-      .WillOnce(Invoke(this, &QuicPacketCreatorTest::SaveSerializedPacket));
-  creator_.ReserializeAllFrames(retransmission, buffer, kMaxOutgoingPacketSize);
-  // The packet number length is updated after every packet is sent,
-  // so there is no need to restore the old length after sending.
-  EXPECT_EQ(PACKET_4BYTE_PACKET_NUMBER,
-            QuicPacketCreatorPeer::GetPacketNumberLength(&creator_));
-  EXPECT_EQ(PACKET_4BYTE_PACKET_NUMBER,
-            serialized_packet_.packet_number_length);
-
-  {
-    InSequence s;
-    EXPECT_CALL(framer_visitor_, OnPacket());
-    EXPECT_CALL(framer_visitor_, OnUnauthenticatedPublicHeader(_));
-    EXPECT_CALL(framer_visitor_, OnUnauthenticatedHeader(_));
-    EXPECT_CALL(framer_visitor_, OnDecryptedPacket(_));
-    EXPECT_CALL(framer_visitor_, OnPacketHeader(_));
-    if (!QuicVersionUsesCryptoFrames(client_framer_.transport_version())) {
-      EXPECT_CALL(framer_visitor_, OnStreamFrame(_));
-    } else {
-      EXPECT_CALL(framer_visitor_, OnCryptoFrame(_));
-    }
-    EXPECT_CALL(framer_visitor_, OnPaddingFrame(_));
-    EXPECT_CALL(framer_visitor_, OnPacketComplete());
-  }
-  ProcessPacket(serialized_packet_);
-  DeleteFrames(&frames);
-}
-
-TEST_P(QuicPacketCreatorTest, ReserializeCryptoFrameWithForwardSecurity) {
-  QuicFrames frames;
-  std::string data("a");
-  if (!QuicVersionUsesCryptoFrames(client_framer_.transport_version())) {
-    QuicStreamFrame stream_frame(
-        QuicUtils::GetCryptoStreamId(client_framer_.transport_version()),
-        /*fin=*/false, 0u, QuicStringPiece());
-    frames.push_back(QuicFrame(stream_frame));
-  } else {
-    producer_.SaveCryptoData(ENCRYPTION_INITIAL, 0, data);
-    frames.push_back(
-        QuicFrame(new QuicCryptoFrame(ENCRYPTION_INITIAL, 0, data.length())));
-  }
-  creator_.set_encryption_level(ENCRYPTION_FORWARD_SECURE);
-  char buffer[kMaxOutgoingPacketSize];
-  QuicPendingRetransmission retransmission(CreateRetransmission(
-      frames, true /* has_crypto_handshake */, -1 /* needs full padding */,
-      ENCRYPTION_INITIAL,
-      QuicPacketCreatorPeer::GetPacketNumberLength(&creator_)));
-  EXPECT_CALL(delegate_, OnSerializedPacket(_))
-      .WillOnce(Invoke(this, &QuicPacketCreatorTest::SaveSerializedPacket));
-  creator_.ReserializeAllFrames(retransmission, buffer, kMaxOutgoingPacketSize);
-  EXPECT_EQ(ENCRYPTION_INITIAL, serialized_packet_.encryption_level);
-  DeleteFrames(&frames);
-}
-
-TEST_P(QuicPacketCreatorTest, ReserializeFrameWithForwardSecurity) {
-  QuicStreamFrame stream_frame(0u, /*fin=*/false, 0u, QuicStringPiece());
-  QuicFrames frames;
-  frames.push_back(QuicFrame(stream_frame));
-  creator_.set_encryption_level(ENCRYPTION_FORWARD_SECURE);
-  char buffer[kMaxOutgoingPacketSize];
-  QuicPendingRetransmission retransmission(CreateRetransmission(
-      frames, false /* has_crypto_handshake */, 0 /* no padding */,
-      ENCRYPTION_INITIAL,
-      QuicPacketCreatorPeer::GetPacketNumberLength(&creator_)));
-  EXPECT_CALL(delegate_, OnSerializedPacket(_))
-      .WillOnce(Invoke(this, &QuicPacketCreatorTest::SaveSerializedPacket));
-  creator_.ReserializeAllFrames(retransmission, buffer, kMaxOutgoingPacketSize);
-  EXPECT_EQ(ENCRYPTION_FORWARD_SECURE, serialized_packet_.encryption_level);
-}
-
-TEST_P(QuicPacketCreatorTest, ReserializeFramesWithFullPadding) {
-  QuicFrame frame;
-  std::string data = "fake handshake message data";
-  if (!QuicVersionUsesCryptoFrames(client_framer_.transport_version())) {
-    MakeIOVector(data, &iov_);
-    producer_.SaveStreamData(
-        QuicUtils::GetCryptoStreamId(client_framer_.transport_version()), &iov_,
-        1u, 0u, iov_.iov_len);
-    QuicPacketCreatorPeer::CreateStreamFrame(
-        &creator_,
-        QuicUtils::GetCryptoStreamId(client_framer_.transport_version()),
-        iov_.iov_len, 0u, false, &frame);
-  } else {
-    producer_.SaveCryptoData(ENCRYPTION_INITIAL, 0, data);
-    EXPECT_TRUE(QuicPacketCreatorPeer::CreateCryptoFrame(
-        &creator_, ENCRYPTION_INITIAL, data.length(), 0, &frame));
-  }
-  QuicFrames frames;
-  frames.push_back(frame);
-  char buffer[kMaxOutgoingPacketSize];
-  QuicPendingRetransmission retransmission(CreateRetransmission(
-      frames, true /* has_crypto_handshake */, -1 /* needs full padding */,
-      ENCRYPTION_INITIAL,
-      QuicPacketCreatorPeer::GetPacketNumberLength(&creator_)));
-  EXPECT_CALL(delegate_, OnSerializedPacket(_))
-      .WillOnce(Invoke(this, &QuicPacketCreatorTest::SaveSerializedPacket));
-  creator_.ReserializeAllFrames(retransmission, buffer, kMaxOutgoingPacketSize);
-  EXPECT_EQ(kDefaultMaxPacketSize, serialized_packet_.encrypted_length);
-  DeleteFrames(&frames);
-}
-
-TEST_P(QuicPacketCreatorTest, DoNotRetransmitPendingPadding) {
-  QuicFrame frame;
-  std::string data = "fake message data";
-  if (!QuicVersionUsesCryptoFrames(client_framer_.transport_version())) {
-    MakeIOVector(data, &iov_);
-    producer_.SaveStreamData(
-        QuicUtils::GetCryptoStreamId(client_framer_.transport_version()), &iov_,
-        1u, 0u, iov_.iov_len);
-    QuicPacketCreatorPeer::CreateStreamFrame(
-        &creator_,
-        QuicUtils::GetCryptoStreamId(client_framer_.transport_version()),
-        iov_.iov_len, 0u, false, &frame);
-  } else {
-    producer_.SaveCryptoData(ENCRYPTION_INITIAL, 0, data);
-    EXPECT_TRUE(QuicPacketCreatorPeer::CreateCryptoFrame(
-        &creator_, ENCRYPTION_INITIAL, data.length(), 0, &frame));
-  }
-
-  const int kNumPaddingBytes1 = 4;
-  int packet_size = 0;
-  {
-    QuicFrames frames;
-    frames.push_back(frame);
-    char buffer[kMaxOutgoingPacketSize];
-    QuicPendingRetransmission retransmission(CreateRetransmission(
-        frames, false /* has_crypto_handshake */,
-        kNumPaddingBytes1 /* padding bytes */, ENCRYPTION_INITIAL,
-        QuicPacketCreatorPeer::GetPacketNumberLength(&creator_)));
-    EXPECT_CALL(delegate_, OnSerializedPacket(_))
-        .WillOnce(Invoke(this, &QuicPacketCreatorTest::SaveSerializedPacket));
-    creator_.ReserializeAllFrames(retransmission, buffer,
-                                  kMaxOutgoingPacketSize);
-    packet_size = serialized_packet_.encrypted_length;
-  }
-
-  {
-    InSequence s;
-    EXPECT_CALL(framer_visitor_, OnPacket());
-    EXPECT_CALL(framer_visitor_, OnUnauthenticatedPublicHeader(_));
-    EXPECT_CALL(framer_visitor_, OnUnauthenticatedHeader(_));
-    EXPECT_CALL(framer_visitor_, OnDecryptedPacket(_));
-    EXPECT_CALL(framer_visitor_, OnPacketHeader(_));
-    if (QuicVersionUsesCryptoFrames(client_framer_.transport_version())) {
-      EXPECT_CALL(framer_visitor_, OnCryptoFrame(_));
-    } else {
-      EXPECT_CALL(framer_visitor_, OnStreamFrame(_));
-    }
-    // Pending paddings are not retransmitted.
-    EXPECT_CALL(framer_visitor_, OnPaddingFrame(_)).Times(0);
-    EXPECT_CALL(framer_visitor_, OnPacketComplete());
-  }
-  ProcessPacket(serialized_packet_);
-
-  const int kNumPaddingBytes2 = 44;
-  QuicFrames frames;
-  frames.push_back(frame);
-  char buffer[kMaxOutgoingPacketSize];
-  QuicPendingRetransmission retransmission(CreateRetransmission(
-      frames, false /* has_crypto_handshake */,
-      kNumPaddingBytes2 /* padding bytes */, ENCRYPTION_INITIAL,
-      QuicPacketCreatorPeer::GetPacketNumberLength(&creator_)));
-  EXPECT_CALL(delegate_, OnSerializedPacket(_))
-      .WillOnce(Invoke(this, &QuicPacketCreatorTest::SaveSerializedPacket));
-  creator_.ReserializeAllFrames(retransmission, buffer, kMaxOutgoingPacketSize);
-
-  EXPECT_EQ(packet_size, serialized_packet_.encrypted_length);
-  DeleteFrames(&frames);
-}
-
-TEST_P(QuicPacketCreatorTest, ReserializeFramesWithFullPacketAndPadding) {
-  creator_.set_encryption_level(ENCRYPTION_FORWARD_SECURE);
-  const size_t overhead =
-      GetPacketHeaderOverhead(client_framer_.transport_version()) +
-      GetEncryptionOverhead() +
-      GetStreamFrameOverhead(client_framer_.transport_version());
-  size_t capacity = kDefaultMaxPacketSize - overhead;
-  for (int delta = -5; delta <= 0; ++delta) {
-    std::string data(capacity + delta, 'A');
-    size_t bytes_free = 0 - delta;
-
-    QuicFrame frame;
-    SimpleDataProducer producer;
-    QuicPacketCreatorPeer::framer(&creator_)->set_data_producer(&producer);
-    MakeIOVector(data, &iov_);
-    QuicStreamId stream_id = QuicUtils::GetFirstBidirectionalStreamId(
-        client_framer_.transport_version(), Perspective::IS_CLIENT);
-    producer.SaveStreamData(stream_id, &iov_, 1u, 0u, iov_.iov_len);
-    QuicPacketCreatorPeer::CreateStreamFrame(&creator_, stream_id, iov_.iov_len,
-                                             kOffset, false, &frame);
-    QuicFrames frames;
-    frames.push_back(frame);
-    char buffer[kMaxOutgoingPacketSize];
-    QuicPendingRetransmission retransmission(CreateRetransmission(
-        frames, false /* has_crypto_handshake */, -1 /* needs full padding */,
-        ENCRYPTION_FORWARD_SECURE,
-        QuicPacketCreatorPeer::GetPacketNumberLength(&creator_)));
-    EXPECT_CALL(delegate_, OnSerializedPacket(_))
-        .WillOnce(Invoke(this, &QuicPacketCreatorTest::SaveSerializedPacket));
-    creator_.ReserializeAllFrames(retransmission, buffer,
-                                  kMaxOutgoingPacketSize);
-
-    // If there is not enough space in the packet to fit a padding frame
-    // (1 byte) and to expand the stream frame (another 2 bytes) the packet
-    // will not be padded.
-    if (bytes_free < 3) {
-      EXPECT_EQ(kDefaultMaxPacketSize - bytes_free,
-                serialized_packet_.encrypted_length);
-    } else {
-      EXPECT_EQ(kDefaultMaxPacketSize, serialized_packet_.encrypted_length);
-    }
-
-    frames_.clear();
   }
 }
 
@@ -1944,99 +1689,6 @@ TEST_P(QuicPacketCreatorTest, FullPaddingDoesNotConsumePendingPadding) {
   EXPECT_EQ(kMaxNumRandomPaddingBytes, creator_.pending_padding_bytes());
 }
 
-TEST_P(QuicPacketCreatorTest, SendPendingPaddingInRetransmission) {
-  creator_.set_encryption_level(ENCRYPTION_FORWARD_SECURE);
-  QuicStreamId stream_id = QuicUtils::GetFirstBidirectionalStreamId(
-      client_framer_.transport_version(), Perspective::IS_CLIENT);
-  QuicStreamFrame stream_frame(stream_id,
-                               /*fin=*/false, 0u, QuicStringPiece());
-  QuicFrames frames;
-  frames.push_back(QuicFrame(stream_frame));
-  char buffer[kMaxOutgoingPacketSize];
-  QuicPendingRetransmission retransmission(CreateRetransmission(
-      frames, true, /*num_padding_bytes=*/0, ENCRYPTION_FORWARD_SECURE,
-      QuicPacketCreatorPeer::GetPacketNumberLength(&creator_)));
-  EXPECT_CALL(delegate_, OnSerializedPacket(_))
-      .WillOnce(Invoke(this, &QuicPacketCreatorTest::SaveSerializedPacket));
-  creator_.AddPendingPadding(kMaxNumRandomPaddingBytes);
-  creator_.ReserializeAllFrames(retransmission, buffer, kMaxOutgoingPacketSize);
-  EXPECT_EQ(0u, creator_.pending_padding_bytes());
-  {
-    InSequence s;
-    EXPECT_CALL(framer_visitor_, OnPacket());
-    EXPECT_CALL(framer_visitor_, OnUnauthenticatedPublicHeader(_));
-    EXPECT_CALL(framer_visitor_, OnUnauthenticatedHeader(_));
-    EXPECT_CALL(framer_visitor_, OnDecryptedPacket(_));
-    EXPECT_CALL(framer_visitor_, OnPacketHeader(_));
-    EXPECT_CALL(framer_visitor_, OnStreamFrame(_));
-    EXPECT_CALL(framer_visitor_, OnPaddingFrame(_));
-    EXPECT_CALL(framer_visitor_, OnPacketComplete());
-  }
-  ProcessPacket(serialized_packet_);
-}
-
-TEST_P(QuicPacketCreatorTest, SendPacketAfterFullPaddingRetransmission) {
-  // Making sure needs_full_padding gets reset after a full padding
-  // retransmission.
-  EXPECT_EQ(0u, creator_.pending_padding_bytes());
-  creator_.set_encryption_level(ENCRYPTION_FORWARD_SECURE);
-  QuicFrame frame;
-  std::string data = "fake handshake message data";
-  MakeIOVector(data, &iov_);
-  QuicStreamId stream_id = QuicUtils::GetFirstBidirectionalStreamId(
-      client_framer_.transport_version(), Perspective::IS_CLIENT);
-  if (!QuicVersionUsesCryptoFrames(client_framer_.transport_version())) {
-    stream_id =
-        QuicUtils::GetCryptoStreamId(client_framer_.transport_version());
-  }
-  producer_.SaveStreamData(stream_id, &iov_, 1u, 0u, iov_.iov_len);
-  QuicPacketCreatorPeer::CreateStreamFrame(&creator_, stream_id, iov_.iov_len,
-                                           0u, false, &frame);
-  QuicFrames frames;
-  frames.push_back(frame);
-  char buffer[kMaxOutgoingPacketSize];
-  QuicPendingRetransmission retransmission(CreateRetransmission(
-      frames, true, /*num_padding_bytes=*/-1, ENCRYPTION_FORWARD_SECURE,
-      QuicPacketCreatorPeer::GetPacketNumberLength(&creator_)));
-  EXPECT_CALL(delegate_, OnSerializedPacket(_))
-      .WillRepeatedly(
-          Invoke(this, &QuicPacketCreatorTest::SaveSerializedPacket));
-  creator_.ReserializeAllFrames(retransmission, buffer, kMaxOutgoingPacketSize);
-  EXPECT_EQ(kDefaultMaxPacketSize, serialized_packet_.encrypted_length);
-  {
-    InSequence s;
-    EXPECT_CALL(framer_visitor_, OnPacket());
-    EXPECT_CALL(framer_visitor_, OnUnauthenticatedPublicHeader(_));
-    EXPECT_CALL(framer_visitor_, OnUnauthenticatedHeader(_));
-    EXPECT_CALL(framer_visitor_, OnDecryptedPacket(_));
-    EXPECT_CALL(framer_visitor_, OnPacketHeader(_));
-    EXPECT_CALL(framer_visitor_, OnStreamFrame(_));
-    // Full padding.
-    EXPECT_CALL(framer_visitor_, OnPaddingFrame(_));
-    EXPECT_CALL(framer_visitor_, OnPacketComplete());
-  }
-  ProcessPacket(serialized_packet_);
-
-  creator_.ConsumeDataToFillCurrentPacket(stream_id, &iov_, 1u, iov_.iov_len,
-                                          0u, 0u, false, false,
-                                          NOT_RETRANSMISSION, &frame);
-  creator_.FlushCurrentPacket();
-  {
-    InSequence s;
-    EXPECT_CALL(framer_visitor_, OnPacket());
-    EXPECT_CALL(framer_visitor_, OnUnauthenticatedPublicHeader(_));
-    EXPECT_CALL(framer_visitor_, OnUnauthenticatedHeader(_));
-    EXPECT_CALL(framer_visitor_, OnDecryptedPacket(_));
-    EXPECT_CALL(framer_visitor_, OnPacketHeader(_));
-    EXPECT_CALL(framer_visitor_, OnStreamFrame(_));
-    // needs_full_padding gets reset.
-    EXPECT_CALL(framer_visitor_, OnPaddingFrame(_)).Times(0);
-    EXPECT_CALL(framer_visitor_, OnPacketComplete());
-  }
-  ProcessPacket(serialized_packet_);
-  DeleteFrames(&frames);
-}
-
 TEST_P(QuicPacketCreatorTest, ConsumeDataAndRandomPadding) {
   creator_.set_encryption_level(ENCRYPTION_FORWARD_SECURE);
   const QuicByteCount kStreamFramePayloadSize = 100u;
@@ -2233,8 +1885,6 @@ TEST_P(QuicPacketCreatorTest, GetGuaranteedLargestMessagePayload) {
 
 TEST_P(QuicPacketCreatorTest, PacketTransmissionType) {
   creator_.set_encryption_level(ENCRYPTION_FORWARD_SECURE);
-  creator_.set_can_set_transmission_type(true);
-  creator_.SetTransmissionTypeOfNextPackets(NOT_RETRANSMISSION);
 
   QuicAckFrame temp_ack_frame = InitAckFrame(1);
   QuicFrame ack_frame(&temp_ack_frame);
@@ -2262,13 +1912,9 @@ TEST_P(QuicPacketCreatorTest, PacketTransmissionType) {
   creator_.FlushCurrentPacket();
   ASSERT_TRUE(serialized_packet_.encrypted_buffer);
 
-  if (creator_.can_set_transmission_type()) {
-    // The last retransmittable frame on packet is a stream frame, the packet's
-    // transmission type should be the same as the stream frame's.
-    EXPECT_EQ(serialized_packet_.transmission_type, RTO_RETRANSMISSION);
-  } else {
-    EXPECT_EQ(serialized_packet_.transmission_type, NOT_RETRANSMISSION);
-  }
+  // The last retransmittable frame on packet is a stream frame, the packet's
+  // transmission type should be the same as the stream frame's.
+  EXPECT_EQ(serialized_packet_.transmission_type, RTO_RETRANSMISSION);
   DeleteSerializedPacket();
 }
 

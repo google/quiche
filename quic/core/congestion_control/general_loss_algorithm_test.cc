@@ -41,16 +41,16 @@ class GeneralLossAlgorithmTest : public QuicTest {
                             PACKET_1BYTE_PACKET_NUMBER, nullptr, kDefaultLength,
                             false, false);
     packet.retransmittable_frames.push_back(QuicFrame(frame));
-    unacked_packets_.AddSentPacket(&packet, QuicPacketNumber(),
-                                   NOT_RETRANSMISSION, clock_.Now(), true);
+    unacked_packets_.AddSentPacket(&packet, NOT_RETRANSMISSION, clock_.Now(),
+                                   true);
   }
 
   void SendAckPacket(uint64_t packet_number) {
     SerializedPacket packet(QuicPacketNumber(packet_number),
                             PACKET_1BYTE_PACKET_NUMBER, nullptr, kDefaultLength,
                             true, false);
-    unacked_packets_.AddSentPacket(&packet, QuicPacketNumber(),
-                                   NOT_RETRANSMISSION, clock_.Now(), false);
+    unacked_packets_.AddSentPacket(&packet, NOT_RETRANSMISSION, clock_.Now(),
+                                   false);
   }
 
   void VerifyLosses(uint64_t largest_newly_acked,

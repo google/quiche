@@ -89,7 +89,6 @@ QuicPacketCreator::QuicPacketCreator(QuicConnectionId server_connection_id,
               false),
       pending_padding_bytes_(0),
       needs_full_padding_(false),
-      can_set_transmission_type_(false),
       next_transmission_type_(NOT_RETRANSMISSION),
       flusher_attached_(false),
       fully_pad_crypto_handshake_packets_(true),
@@ -368,49 +367,6 @@ bool QuicPacketCreator::CreateCryptoFrame(EncryptionLevel level,
   return true;
 }
 
-void QuicPacketCreator::ReserializeAllFrames(
-    const QuicPendingRetransmission& retransmission,
-    char* buffer,
-    size_t buffer_len) {
-  DCHECK(queued_frames_.empty());
-  DCHECK_EQ(0, packet_.num_padding_bytes);
-  QUIC_BUG_IF(retransmission.retransmittable_frames.empty())
-      << "Attempt to serialize empty packet";
-  const EncryptionLevel default_encryption_level = packet_.encryption_level;
-
-  // Temporarily set the packet number length and change the encryption level.
-  packet_.packet_number_length = retransmission.packet_number_length;
-  if (retransmission.num_padding_bytes == -1) {
-    // Only retransmit padding when original packet needs full padding. Padding
-    // from pending_padding_bytes_ are not retransmitted.
-    needs_full_padding_ = true;
-  }
-  // Only preserve the original encryption level if it's a handshake packet or
-  // if we haven't gone forward secure.
-  if (retransmission.has_crypto_handshake ||
-      packet_.encryption_level != ENCRYPTION_FORWARD_SECURE) {
-    packet_.encryption_level = retransmission.encryption_level;
-  }
-
-  // Serialize the packet and restore packet number length state.
-  for (const QuicFrame& frame : retransmission.retransmittable_frames) {
-    bool success = AddFrame(frame, false, retransmission.transmission_type);
-    QUIC_BUG_IF(!success) << " Failed to add frame of type:" << frame.type
-                          << " num_frames:"
-                          << retransmission.retransmittable_frames.size()
-                          << " retransmission.packet_number_length:"
-                          << retransmission.packet_number_length
-                          << " packet_.packet_number_length:"
-                          << packet_.packet_number_length;
-  }
-  packet_.transmission_type = retransmission.transmission_type;
-  SerializePacket(buffer, buffer_len);
-  packet_.original_packet_number = retransmission.packet_number;
-  OnSerializedPacket();
-  // Restore old values.
-  packet_.encryption_level = default_encryption_level;
-}
-
 void QuicPacketCreator::FlushCurrentPacket() {
   if (!HasPendingFrames() && pending_padding_bytes_ == 0) {
     return;
@@ -445,7 +401,6 @@ void QuicPacketCreator::ClearPacket() {
   packet_.has_stop_waiting = false;
   packet_.has_crypto_handshake = NOT_HANDSHAKE;
   packet_.num_padding_bytes = 0;
-  packet_.original_packet_number.Clear();
   packet_.transmission_type = NOT_RETRANSMISSION;
   packet_.encrypted_buffer = nullptr;
   packet_.encrypted_length = 0;
@@ -538,9 +493,7 @@ void QuicPacketCreator::CreateAndSerializeStreamFrame(
     return;
   }
 
-  if (can_set_transmission_type()) {
-    packet_.transmission_type = transmission_type;
-  }
+  packet_.transmission_type = transmission_type;
 
   size_t encrypted_length = framer_->EncryptInPlace(
       packet_.encryption_level, packet_.packet_number,
@@ -1289,10 +1242,7 @@ void QuicPacketCreator::SetServerConnectionIdLength(uint32_t length) {
 
 void QuicPacketCreator::SetTransmissionType(TransmissionType type) {
   DCHECK(combine_generator_and_creator_);
-  SetTransmissionTypeOfNextPackets(type);
-  if (can_set_transmission_type()) {
-    next_transmission_type_ = type;
-  }
+  next_transmission_type_ = type;
 }
 
 MessageStatus QuicPacketCreator::AddMessageFrame(QuicMessageId message_id,
@@ -1433,8 +1383,7 @@ bool QuicPacketCreator::AddFrame(const QuicFrame& frame,
 
   // Packet transmission type is determined by the last added retransmittable
   // frame.
-  if (can_set_transmission_type() &&
-      QuicUtils::IsRetransmittableFrame(frame.type)) {
+  if (QuicUtils::IsRetransmittableFrame(frame.type)) {
     packet_.transmission_type = transmission_type;
   }
   return true;
@@ -1567,19 +1516,6 @@ void QuicPacketCreator::SetClientConnectionId(
   DCHECK(client_connection_id.IsEmpty() ||
          framer_->version().SupportsClientConnectionIds());
   client_connection_id_ = client_connection_id;
-}
-
-void QuicPacketCreator::SetTransmissionTypeOfNextPackets(
-    TransmissionType type) {
-  DCHECK(can_set_transmission_type_);
-
-  if (!can_set_transmission_type()) {
-    QUIC_DVLOG_IF(1, type != packet_.transmission_type)
-        << ENDPOINT << "Setting Transmission type to "
-        << TransmissionTypeToString(type);
-
-    packet_.transmission_type = type;
-  }
 }
 
 QuicPacketLength QuicPacketCreator::GetCurrentLargestMessagePayload() const {

@@ -25,7 +25,6 @@
 #include "net/third_party/quiche/src/quic/core/quic_connection_id.h"
 #include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
 #include "net/third_party/quiche/src/quic/core/quic_packet_generator.h"
-#include "net/third_party/quiche/src/quic/core/quic_pending_retransmission.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
@@ -357,7 +356,9 @@ QuicConnection::QuicConnection(
                          ? kDefaultServerMaxPacketSize
                          : kDefaultMaxPacketSize);
   uber_received_packet_manager_.set_max_ack_ranges(255);
-  MaybeEnableSessionDecidesWhatToWrite();
+  if (version().SupportsAntiAmplificationLimit()) {
+    sent_packet_manager_.EnableIetfPtoAndLossDetection();
+  }
   MaybeEnableMultiplePacketNumberSpacesSupport();
   DCHECK(perspective_ == Perspective::IS_CLIENT ||
          supported_versions.size() == 1);
@@ -1668,7 +1669,6 @@ void QuicConnection::OnStreamReset(QuicStreamId id,
     packet_generator_.FlushAllQueuedFrames();
   }
 
-  sent_packet_manager_.CancelRetransmissionsForStream(id);
   // Remove all queued packets which only contain data for the reset stream.
   // TODO(fayang): consider removing this because it should be rarely executed.
   auto packet_iterator = queued_packets_.begin();
@@ -1881,9 +1881,6 @@ void QuicConnection::OnCanWrite() {
       SendAck();
     }
   }
-  if (!session_decides_what_to_write()) {
-    WritePendingRetransmissions();
-  }
 
   WriteNewData();
 }
@@ -2080,35 +2077,6 @@ void QuicConnection::WriteQueuedPackets() {
   }
 }
 
-void QuicConnection::WritePendingRetransmissions() {
-  DCHECK(!session_decides_what_to_write());
-  // Keep writing as long as there's a pending retransmission which can be
-  // written.
-  while (sent_packet_manager_.HasPendingRetransmissions() &&
-         CanWrite(HAS_RETRANSMITTABLE_DATA)) {
-    const QuicPendingRetransmission pending =
-        sent_packet_manager_.NextPendingRetransmission();
-
-    // Re-packetize the frames with a new packet number for retransmission.
-    // Retransmitted packets use the same packet number length as the
-    // original.
-    // Flush the packet generator before making a new packet.
-    // TODO(ianswett): Implement ReserializeAllFrames as a separate path that
-    // does not require the creator to be flushed.
-    // TODO(fayang): FlushAllQueuedFrames should only be called once, and should
-    // be moved outside of the loop. Also, CanWrite is not checked after the
-    // generator is flushed.
-    {
-      ScopedPacketFlusher flusher(this);
-      packet_generator_.FlushAllQueuedFrames();
-    }
-    DCHECK(!packet_generator_.HasPendingFrames());
-    char buffer[kMaxOutgoingPacketSize];
-    packet_generator_.ReserializeAllFrames(pending, buffer,
-                                           kMaxOutgoingPacketSize);
-  }
-}
-
 void QuicConnection::SendProbingRetransmissions() {
   while (sent_packet_manager_.GetSendAlgorithm()->ShouldSendProbingPacket() &&
          CanWrite(HAS_RETRANSMITTABLE_DATA)) {
@@ -2116,11 +2084,6 @@ void QuicConnection::SendProbingRetransmissions() {
       QUIC_DVLOG(1)
           << "Cannot send probing retransmissions: nothing to retransmit.";
       break;
-    }
-
-    if (!session_decides_what_to_write()) {
-      DCHECK(sent_packet_manager_.HasPendingRetransmissions());
-      WritePendingRetransmissions();
     }
   }
 }
@@ -2189,8 +2152,7 @@ bool QuicConnection::CanWrite(HasRetransmittableData retransmittable) {
     return false;
   }
 
-  if (session_decides_what_to_write() &&
-      sent_packet_manager_.pending_timer_transmission_count() > 0) {
+  if (sent_packet_manager_.pending_timer_transmission_count() > 0) {
     // Force sending the retransmissions for HANDSHAKE, TLP, RTO, PROBING cases.
     return true;
   }
@@ -2384,8 +2346,8 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
 
   if (debug_visitor_ != nullptr) {
     // Pass the write result to the visitor.
-    debug_visitor_->OnPacketSent(*packet, packet->original_packet_number,
-                                 packet->transmission_type, packet_send_time);
+    debug_visitor_->OnPacketSent(*packet, packet->transmission_type,
+                                 packet_send_time);
   }
   if (IsRetransmittable(*packet) == HAS_RETRANSMITTABLE_DATA) {
     if (!is_path_degrading_ && !path_degrading_alarm_->IsSet()) {
@@ -2414,8 +2376,8 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
   }
 
   const bool in_flight = sent_packet_manager_.OnPacketSent(
-      packet, packet->original_packet_number, packet_send_time,
-      packet->transmission_type, IsRetransmittable(*packet));
+      packet, packet_send_time, packet->transmission_type,
+      IsRetransmittable(*packet));
 
   if (in_flight || !retransmission_alarm_->IsSet()) {
     SetRetransmissionAlarm();
@@ -2544,8 +2506,7 @@ void QuicConnection::OnSerializedPacket(SerializedPacket* serialized_packet) {
     return;
   }
 
-  if (serialized_packet->retransmittable_frames.empty() &&
-      !serialized_packet->original_packet_number.IsInitialized()) {
+  if (serialized_packet->retransmittable_frames.empty()) {
     // Increment consecutive_num_packets_with_no_retransmittable_frames_ if
     // this packet is a new transmission with no retransmittable frames.
     ++consecutive_num_packets_with_no_retransmittable_frames_;
@@ -2714,45 +2675,42 @@ void QuicConnection::OnRetransmissionTimeout() {
     WriteIfNotBlocked();
   }
 
-  if (session_decides_what_to_write()) {
-    if (packet_generator_.packet_number() == previous_created_packet_number &&
-        (retransmission_mode == QuicSentPacketManager::TLP_MODE ||
-         retransmission_mode == QuicSentPacketManager::RTO_MODE ||
-         retransmission_mode == QuicSentPacketManager::PTO_MODE) &&
-        !visitor_->WillingAndAbleToWrite()) {
-      // Send PING if timer fires in RTO or PTO mode but there is no data to
-      // send.
-      // When TLP fires, either new data or tail loss probe should be sent.
-      // There is corner case where TLP fires after RTO because packets get
-      // acked. Two packets are marked RTO_RETRANSMITTED, but the first packet
-      // is retransmitted as two packets because of packet number length
-      // increases (please see QuicConnectionTest.RtoPacketAsTwo).
-      QUIC_DLOG_IF(WARNING,
-                   retransmission_mode == QuicSentPacketManager::TLP_MODE &&
-                       stats_.rto_count == 0)
-          << "No packet gets sent when timer fires in TLP mode, sending PING";
-      DCHECK_LT(0u, sent_packet_manager_.pending_timer_transmission_count());
-      visitor_->SendPing();
-    }
-    if (retransmission_mode == QuicSentPacketManager::PTO_MODE) {
-      sent_packet_manager_.AdjustPendingTimerTransmissions();
-    }
-    if (retransmission_mode != QuicSentPacketManager::LOSS_MODE) {
-      // When timer fires in TLP or RTO mode, ensure 1) at least one packet is
-      // created, or there is data to send and available credit (such that
-      // packets will be sent eventually).
-      QUIC_BUG_IF(
-          packet_generator_.packet_number() == previous_created_packet_number &&
-          (!visitor_->WillingAndAbleToWrite() ||
-           sent_packet_manager_.pending_timer_transmission_count() == 0u))
-          << "retransmission_mode: " << retransmission_mode
-          << ", packet_number: " << packet_generator_.packet_number()
-          << ", session has data to write: "
-          << visitor_->WillingAndAbleToWrite()
-          << ", writer is blocked: " << writer_->IsWriteBlocked()
-          << ", pending_timer_transmission_count: "
-          << sent_packet_manager_.pending_timer_transmission_count();
-    }
+  if (packet_generator_.packet_number() == previous_created_packet_number &&
+      (retransmission_mode == QuicSentPacketManager::TLP_MODE ||
+       retransmission_mode == QuicSentPacketManager::RTO_MODE ||
+       retransmission_mode == QuicSentPacketManager::PTO_MODE) &&
+      !visitor_->WillingAndAbleToWrite()) {
+    // Send PING if timer fires in RTO or PTO mode but there is no data to
+    // send.
+    // When TLP fires, either new data or tail loss probe should be sent.
+    // There is corner case where TLP fires after RTO because packets get
+    // acked. Two packets are marked RTO_RETRANSMITTED, but the first packet
+    // is retransmitted as two packets because of packet number length
+    // increases (please see QuicConnectionTest.RtoPacketAsTwo).
+    QUIC_DLOG_IF(WARNING,
+                 retransmission_mode == QuicSentPacketManager::TLP_MODE &&
+                     stats_.rto_count == 0)
+        << "No packet gets sent when timer fires in TLP mode, sending PING";
+    DCHECK_LT(0u, sent_packet_manager_.pending_timer_transmission_count());
+    visitor_->SendPing();
+  }
+  if (retransmission_mode == QuicSentPacketManager::PTO_MODE) {
+    sent_packet_manager_.AdjustPendingTimerTransmissions();
+  }
+  if (retransmission_mode != QuicSentPacketManager::LOSS_MODE) {
+    // When timer fires in TLP or RTO mode, ensure 1) at least one packet is
+    // created, or there is data to send and available credit (such that
+    // packets will be sent eventually).
+    QUIC_BUG_IF(packet_generator_.packet_number() ==
+                    previous_created_packet_number &&
+                (!visitor_->WillingAndAbleToWrite() ||
+                 sent_packet_manager_.pending_timer_transmission_count() == 0u))
+        << "retransmission_mode: " << retransmission_mode
+        << ", packet_number: " << packet_generator_.packet_number()
+        << ", session has data to write: " << visitor_->WillingAndAbleToWrite()
+        << ", writer is blocked: " << writer_->IsWriteBlocked()
+        << ", pending_timer_transmission_count: "
+        << sent_packet_manager_.pending_timer_transmission_count();
   }
 
   // Ensure the retransmission alarm is always set if there are unacked packets
@@ -3322,10 +3280,8 @@ QuicConnection::ScopedPacketFlusher::~ScopedPacketFlusher() {
     }
     connection_->packet_generator_.Flush();
     connection_->FlushPackets();
-    if (connection_->session_decides_what_to_write()) {
-      // Reset transmission type.
-      connection_->SetTransmissionType(NOT_RETRANSMISSION);
-    }
+    // Reset transmission type.
+    connection_->SetTransmissionType(NOT_RETRANSMISSION);
 
     // Once all transmissions are done, check if there is any outstanding data
     // to send and notify the congestion controller if not.
@@ -3543,15 +3499,13 @@ bool QuicConnection::SendGenericPathProbePacket(
 
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnPacketSent(
-        *probing_packet, probing_packet->original_packet_number,
-        probing_packet->transmission_type, packet_send_time);
+        *probing_packet, probing_packet->transmission_type, packet_send_time);
   }
 
   // Call OnPacketSent regardless of the write result.
-  sent_packet_manager_.OnPacketSent(
-      probing_packet.get(), probing_packet->original_packet_number,
-      packet_send_time, probing_packet->transmission_type,
-      NO_RETRANSMITTABLE_DATA);
+  sent_packet_manager_.OnPacketSent(probing_packet.get(), packet_send_time,
+                                    probing_packet->transmission_type,
+                                    NO_RETRANSMITTABLE_DATA);
 
   if (IsWriteBlockedStatus(result.status)) {
     if (probing_writer == writer_) {
@@ -3699,14 +3653,13 @@ void QuicConnection::MaybeSendProbingRetransmissions() {
 }
 
 void QuicConnection::CheckIfApplicationLimited() {
-  if (session_decides_what_to_write() && probing_retransmission_pending_) {
+  if (probing_retransmission_pending_) {
     return;
   }
 
-  bool application_limited =
-      queued_packets_.empty() && buffered_packets_.empty() &&
-      !sent_packet_manager_.HasPendingRetransmissions() &&
-      !visitor_->WillingAndAbleToWrite();
+  bool application_limited = queued_packets_.empty() &&
+                             buffered_packets_.empty() &&
+                             !visitor_->WillingAndAbleToWrite();
 
   if (!application_limited) {
     return;
@@ -3775,14 +3728,6 @@ void QuicConnection::UpdatePacketContent(PacketContent type) {
   current_effective_peer_migration_type_ = NO_CHANGE;
 }
 
-void QuicConnection::MaybeEnableSessionDecidesWhatToWrite() {
-  sent_packet_manager_.SetSessionDecideWhatToWrite(true);
-  if (version().SupportsAntiAmplificationLimit()) {
-    sent_packet_manager_.EnableIetfPtoAndLossDetection();
-  }
-  packet_generator_.SetCanSetTransmissionType(true);
-}
-
 void QuicConnection::PostProcessAfterAckFrame(bool send_stop_waiting,
                                               bool acked_new_packet) {
   if (no_stop_waiting_frames_) {
@@ -3831,10 +3776,6 @@ void QuicConnection::SetDataProducer(
 
 void QuicConnection::SetTransmissionType(TransmissionType type) {
   packet_generator_.SetTransmissionType(type);
-}
-
-bool QuicConnection::session_decides_what_to_write() const {
-  return sent_packet_manager_.session_decides_what_to_write();
 }
 
 void QuicConnection::UpdateReleaseTimeIntoFuture() {

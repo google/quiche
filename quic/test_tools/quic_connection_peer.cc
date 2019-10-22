@@ -308,13 +308,6 @@ void QuicConnectionPeer::SetMaxTrackedPackets(
 }
 
 // static
-void QuicConnectionPeer::SetSessionDecidesWhatToWrite(
-    QuicConnection* connection) {
-  connection->sent_packet_manager_.SetSessionDecideWhatToWrite(true);
-  connection->packet_generator_.SetCanSetTransmissionType(true);
-}
-
-// static
 void QuicConnectionPeer::SetNegotiatedVersion(QuicConnection* connection) {
   connection->version_negotiated_ = true;
 }

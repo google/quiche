@@ -178,7 +178,6 @@ class QUIC_EXPORT_PRIVATE QuicConnectionDebugVisitor
 
   // Called when a packet has been sent.
   virtual void OnPacketSent(const SerializedPacket& /*serialized_packet*/,
-                            QuicPacketNumber /*original_packet_number*/,
                             TransmissionType /*transmission_type*/,
                             QuicTime /*sent_time*/) {}
 
@@ -829,8 +828,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
     defer_send_in_response_to_packets_ = defer;
   }
 
-  bool session_decides_what_to_write() const;
-
   // Sets the current per-packet options for the connection. The QuicConnection
   // does not take ownership of |options|; |options| must live for as long as
   // the QuicConnection is in use.
@@ -1039,9 +1036,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // blocked when this is called.
   void WriteQueuedPackets();
 
-  // Writes as many pending retransmissions as possible.
-  void WritePendingRetransmissions();
-
   // Writes new data if congestion control allows.
   void WriteNewData();
 
@@ -1108,9 +1102,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // connectivity probe and |current_effective_peer_migration_type_| indicates
   // effective peer address change.
   void UpdatePacketContent(PacketContent type);
-
-  // Enables session decide what to write based on version and flags.
-  void MaybeEnableSessionDecidesWhatToWrite();
 
   // Called when last received ack frame has been processed.
   // |send_stop_waiting| indicates whether a stop waiting needs to be sent.

@@ -1014,11 +1014,8 @@ class MockQuicConnectionDebugVisitor : public QuicConnectionDebugVisitor {
 
   MOCK_METHOD1(OnFrameAddedToPacket, void(const QuicFrame&));
 
-  MOCK_METHOD4(OnPacketSent,
-               void(const SerializedPacket&,
-                    QuicPacketNumber,
-                    TransmissionType,
-                    QuicTime));
+  MOCK_METHOD3(OnPacketSent,
+               void(const SerializedPacket&, TransmissionType, QuicTime));
 
   MOCK_METHOD0(OnPingSent, void());
 

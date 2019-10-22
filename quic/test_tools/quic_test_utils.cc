@@ -531,7 +531,7 @@ void PacketSavingConnection::SendOrQueuePacket(SerializedPacket* packet) {
   // Transfer ownership of the packet to the SentPacketManager and the
   // ack notifier to the AckNotifierManager.
   QuicConnectionPeer::GetSentPacketManager(this)->OnPacketSent(
-      packet, QuicPacketNumber(), clock_.ApproximateNow(), NOT_RETRANSMISSION,
+      packet, clock_.ApproximateNow(), NOT_RETRANSMISSION,
       HAS_RETRANSMITTABLE_DATA);
 }
 

@@ -540,9 +540,7 @@ void QuicSession::OnCanWrite() {
                      "write blocked.";
     return;
   }
-  if (session_decides_what_to_write()) {
-    SetTransmissionType(NOT_RETRANSMISSION);
-  }
+  SetTransmissionType(NOT_RETRANSMISSION);
   // We limit the number of writes to the number of pending streams. If more
   // streams become pending, WillingAndAbleToWrite will be true, which will
   // cause the connection to request resumption before yielding to other
@@ -839,9 +837,7 @@ void QuicSession::CloseStreamInner(QuicStreamId stream_id, bool locally_reset) {
     zombie_streams_[stream->id()] = std::move(it->second);
   } else {
     // Clean up the stream since it is no longer waiting for acks.
-    if (session_decides_what_to_write()) {
-      streams_waiting_for_acks_.erase(stream->id());
-    }
+    streams_waiting_for_acks_.erase(stream->id());
     closed_streams_.push_back(std::move(it->second));
     // Do not retransmit data of a closed stream.
     streams_with_pending_retransmission_.erase(stream_id);
@@ -1622,9 +1618,7 @@ bool QuicSession::IsIncomingStream(QuicStreamId id) const {
 }
 
 void QuicSession::OnStreamDoneWaitingForAcks(QuicStreamId id) {
-  if (session_decides_what_to_write()) {
-    streams_waiting_for_acks_.erase(id);
-  }
+  streams_waiting_for_acks_.erase(id);
 
   auto it = zombie_streams_.find(id);
   if (it == zombie_streams_.end()) {
@@ -1641,10 +1635,6 @@ void QuicSession::OnStreamDoneWaitingForAcks(QuicStreamId id) {
 }
 
 void QuicSession::OnStreamWaitingForAcks(QuicStreamId id) {
-  if (!session_decides_what_to_write()) {
-    return;
-  }
-
   // Exclude crypto stream's status since it is counted in HasUnackedCryptoData.
   if (GetCryptoStream() != nullptr && id == GetCryptoStream()->id()) {
     return;
@@ -1904,14 +1894,12 @@ bool QuicSession::RetransmitLostData() {
 }
 
 void QuicSession::NeuterUnencryptedData() {
-  if (connection_->session_decides_what_to_write()) {
-    QuicCryptoStream* crypto_stream = GetMutableCryptoStream();
-    crypto_stream->NeuterUnencryptedStreamData();
-    if (!crypto_stream->HasPendingRetransmission() &&
-        !QuicVersionUsesCryptoFrames(transport_version())) {
-      streams_with_pending_retransmission_.erase(
-          QuicUtils::GetCryptoStreamId(transport_version()));
-    }
+  QuicCryptoStream* crypto_stream = GetMutableCryptoStream();
+  crypto_stream->NeuterUnencryptedStreamData();
+  if (!crypto_stream->HasPendingRetransmission() &&
+      !QuicVersionUsesCryptoFrames(transport_version())) {
+    streams_with_pending_retransmission_.erase(
+        QuicUtils::GetCryptoStreamId(transport_version()));
   }
   connection_->NeuterUnencryptedPackets();
 }
@@ -1944,10 +1932,6 @@ void QuicSession::OnMessageLost(QuicMessageId message_id) {
 
 void QuicSession::CleanUpClosedStreams() {
   closed_streams_.clear();
-}
-
-bool QuicSession::session_decides_what_to_write() const {
-  return connection_->session_decides_what_to_write();
 }
 
 QuicPacketLength QuicSession::GetCurrentLargestMessagePayload() const {

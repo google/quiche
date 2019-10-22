@@ -19,7 +19,6 @@ class QuicTraceVisitor : public QuicConnectionDebugVisitor {
   explicit QuicTraceVisitor(const QuicConnection* connection);
 
   void OnPacketSent(const SerializedPacket& serialized_packet,
-                    QuicPacketNumber original_packet_number,
                     TransmissionType transmission_type,
                     QuicTime sent_time) override;
 

@@ -44,7 +44,6 @@ QuicTraceVisitor::QuicTraceVisitor(const QuicConnection* connection)
 }
 
 void QuicTraceVisitor::OnPacketSent(const SerializedPacket& serialized_packet,
-                                    QuicPacketNumber /*original_packet_number*/,
                                     TransmissionType /*transmission_type*/,
                                     QuicTime sent_time) {
   quic_trace::Event* event = trace_.add_events();

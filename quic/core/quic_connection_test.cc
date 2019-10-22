@@ -1016,10 +1016,8 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     frame1_.stream_id = stream_id;
     frame2_.stream_id = stream_id;
     connection_.set_visitor(&visitor_);
-    if (connection_.session_decides_what_to_write()) {
-      connection_.SetSessionNotifier(&notifier_);
-      connection_.set_notifier(&notifier_);
-    }
+    connection_.SetSessionNotifier(&notifier_);
+    connection_.set_notifier(&notifier_);
     connection_.SetSendAlgorithm(send_algorithm_);
     connection_.SetLossAlgorithm(loss_algorithm_.get());
     EXPECT_CALL(*send_algorithm_, CanSend(_)).WillRepeatedly(Return(true));
@@ -1039,13 +1037,8 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     EXPECT_CALL(*send_algorithm_, OnApplicationLimited(_)).Times(AnyNumber());
     EXPECT_CALL(visitor_, WillingAndAbleToWrite()).Times(AnyNumber());
     EXPECT_CALL(visitor_, HasPendingHandshake()).Times(AnyNumber());
-    if (connection_.session_decides_what_to_write()) {
-      EXPECT_CALL(visitor_, OnCanWrite())
-          .WillRepeatedly(
-              Invoke(&notifier_, &SimpleSessionNotifier::OnCanWrite));
-    } else {
-      EXPECT_CALL(visitor_, OnCanWrite()).Times(AnyNumber());
-    }
+    EXPECT_CALL(visitor_, OnCanWrite())
+        .WillRepeatedly(Invoke(&notifier_, &SimpleSessionNotifier::OnCanWrite));
     EXPECT_CALL(visitor_, ShouldKeepConnectionAlive())
         .WillRepeatedly(Return(false));
     EXPECT_CALL(visitor_, OnCongestionWindowChange(_)).Times(AnyNumber());
@@ -1329,26 +1322,11 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
   void SendRstStream(QuicStreamId id,
                      QuicRstStreamErrorCode error,
                      QuicStreamOffset bytes_written) {
-    if (connection_.session_decides_what_to_write()) {
-      notifier_.WriteOrBufferRstStream(id, error, bytes_written);
-      connection_.OnStreamReset(id, error);
-      return;
-    }
-    std::unique_ptr<QuicRstStreamFrame> rst_stream =
-        std::make_unique<QuicRstStreamFrame>(1, id, error, bytes_written);
-    if (connection_.SendControlFrame(QuicFrame(rst_stream.get()))) {
-      rst_stream.release();
-    }
+    notifier_.WriteOrBufferRstStream(id, error, bytes_written);
     connection_.OnStreamReset(id, error);
   }
 
-  void SendPing() {
-    if (connection_.session_decides_what_to_write()) {
-      notifier_.WriteOrBufferPing();
-    } else {
-      connection_.SendControlFrame(QuicFrame(QuicPingFrame(1)));
-    }
-  }
+  void SendPing() { notifier_.WriteOrBufferPing(); }
 
   void ProcessAckPacket(uint64_t packet_number, QuicAckFrame* frame) {
     if (packet_number > 1) {
@@ -3369,11 +3347,6 @@ TEST_P(QuicConnectionTest, DoNotSendQueuedPacketForResetStream) {
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
   writer_->SetWritable();
   connection_.OnCanWrite();
-  if (!connection_.session_decides_what_to_write()) {
-    // OnCanWrite will cause RST_STREAM be sent again.
-    connection_.SendControlFrame(QuicFrame(new QuicRstStreamFrame(
-        1, stream_id, QUIC_ERROR_PROCESSING_STREAM, 14)));
-  }
   size_t padding_frame_count = writer_->padding_frames().size();
   EXPECT_EQ(padding_frame_count + 1u, writer_->frame_count());
   EXPECT_EQ(1u, writer_->rst_stream_frames().size());
@@ -3405,11 +3378,6 @@ TEST_P(QuicConnectionTest, SendQueuedPacketForQuicRstStreamNoError) {
   }
   writer_->SetWritable();
   connection_.OnCanWrite();
-  if (!connection_.session_decides_what_to_write()) {
-    // OnCanWrite will cause RST_STREAM be sent again.
-    connection_.SendControlFrame(QuicFrame(
-        new QuicRstStreamFrame(1, stream_id, QUIC_STREAM_NO_ERROR, 14)));
-  }
   size_t padding_frame_count = writer_->padding_frames().size();
   EXPECT_EQ(padding_frame_count + 1u, writer_->frame_count());
   EXPECT_EQ(1u, writer_->rst_stream_frames().size());
@@ -3498,11 +3466,7 @@ TEST_P(QuicConnectionTest, CancelRetransmissionAlarmAfterResetStream) {
   // Ensure that the data is still in flight, but the retransmission alarm is no
   // longer set.
   EXPECT_GT(manager_->GetBytesInFlight(), 0u);
-  if (connection_.session_decides_what_to_write()) {
-    EXPECT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
-  } else {
-    EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
-  }
+  EXPECT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
 }
 
 TEST_P(QuicConnectionTest, RetransmitForQuicRstStreamNoErrorOnRTO) {
@@ -3549,11 +3513,6 @@ TEST_P(QuicConnectionTest, DoNotSendPendingRetransmissionForResetStream) {
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
   writer_->SetWritable();
   connection_.OnCanWrite();
-  if (!connection_.session_decides_what_to_write()) {
-    // OnCanWrite will cause this RST_STREAM_FRAME be sent again.
-    connection_.SendControlFrame(QuicFrame(new QuicRstStreamFrame(
-        1, stream_id, QUIC_ERROR_PROCESSING_STREAM, 14)));
-  }
   size_t padding_frame_count = writer_->padding_frames().size();
   EXPECT_EQ(padding_frame_count + 1u, writer_->frame_count());
   ASSERT_EQ(1u, writer_->rst_stream_frames().size());
@@ -3676,8 +3635,7 @@ TEST_P(QuicConnectionTest, RetransmitNackedLargestObserved) {
 }
 
 TEST_P(QuicConnectionTest, QueueAfterTwoRTOs) {
-  if (connection_.PtoEnabled() ||
-      !connection_.session_decides_what_to_write()) {
+  if (connection_.PtoEnabled()) {
     return;
   }
   connection_.SetMaxTailLossProbes(0);
@@ -3781,11 +3739,7 @@ TEST_P(QuicConnectionTest, RetransmitWriteBlockedAckedOriginalThenSent) {
 
   writer_->SetWritable();
   connection_.OnCanWrite();
-  if (connection_.session_decides_what_to_write()) {
-    EXPECT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
-  } else {
-    EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
-  }
+  EXPECT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
   EXPECT_FALSE(QuicConnectionPeer::HasRetransmittableFrames(&connection_, 2));
 }
 
@@ -3907,11 +3861,7 @@ TEST_P(QuicConnectionTest, NoLimitPacketsPerNack) {
   EXPECT_CALL(*loss_algorithm_, DetectLosses(_, _, _, _, _, _))
       .WillOnce(SetArgPointee<5>(lost_packets));
   EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
-  if (connection_.session_decides_what_to_write()) {
-    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
-  } else {
-    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(14);
-  }
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
   ProcessAckPacket(&nack);
 }
 
@@ -4037,8 +3987,7 @@ TEST_P(QuicConnectionTest, TLP) {
 }
 
 TEST_P(QuicConnectionTest, TailLossProbeDelayForStreamDataInTLPR) {
-  if (!connection_.session_decides_what_to_write() ||
-      connection_.PtoEnabled()) {
+  if (connection_.PtoEnabled()) {
     return;
   }
 
@@ -4073,8 +4022,7 @@ TEST_P(QuicConnectionTest, TailLossProbeDelayForStreamDataInTLPR) {
 }
 
 TEST_P(QuicConnectionTest, TailLossProbeDelayForNonStreamDataInTLPR) {
-  if (!connection_.session_decides_what_to_write() ||
-      connection_.PtoEnabled()) {
+  if (connection_.PtoEnabled()) {
     return;
   }
 
@@ -4228,8 +4176,7 @@ TEST_P(QuicConnectionTest, RTO) {
 
 // Regression test of b/133771183.
 TEST_P(QuicConnectionTest, RtoWithNoDataToRetransmit) {
-  if (!connection_.session_decides_what_to_write() ||
-      connection_.PtoEnabled()) {
+  if (connection_.PtoEnabled()) {
     return;
   }
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
@@ -7301,9 +7248,6 @@ TEST_P(QuicConnectionTest, CheckSendStats) {
   EXPECT_CALL(*loss_algorithm_, DetectLosses(_, _, _, _, _, _))
       .WillOnce(SetArgPointee<5>(lost_packets));
   EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
-  if (!connection_.session_decides_what_to_write()) {
-    EXPECT_CALL(visitor_, OnCanWrite());
-  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   ProcessAckPacket(&nack_three);
 
@@ -7434,10 +7378,10 @@ TEST_P(QuicConnectionTest, OnPacketSentDebugVisitor) {
   MockQuicConnectionDebugVisitor debug_visitor;
   connection_.set_debug_visitor(&debug_visitor);
 
-  EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _, _)).Times(1);
+  EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _)).Times(1);
   connection_.SendStreamDataWithString(1, "foo", 0, NO_FIN);
 
-  EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _, _)).Times(1);
+  EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _)).Times(1);
   connection_.SendConnectivityProbingPacket(writer_.get(),
                                             connection_.peer_address());
 }
@@ -7566,7 +7510,7 @@ TEST_P(QuicConnectionTest, SendPingImmediately) {
   CongestionBlockWrites();
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
-  EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _, _)).Times(1);
+  EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _)).Times(1);
   EXPECT_CALL(debug_visitor, OnPingSent()).Times(1);
   connection_.SendControlFrame(QuicFrame(QuicPingFrame(1)));
   EXPECT_FALSE(connection_.HasQueuedData());
@@ -7578,7 +7522,7 @@ TEST_P(QuicConnectionTest, SendBlockedImmediately) {
 
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
-  EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _, _)).Times(1);
+  EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _)).Times(1);
   EXPECT_EQ(0u, connection_.GetStats().blocked_frames_sent);
   connection_.SendControlFrame(QuicFrame(new QuicBlockedFrame(1, 3)));
   EXPECT_EQ(1u, connection_.GetStats().blocked_frames_sent);
@@ -7594,7 +7538,7 @@ TEST_P(QuicConnectionTest, FailedToSendBlockedFrames) {
   QuicBlockedFrame blocked(1, 3);
 
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
-  EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _, _)).Times(0);
+  EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _)).Times(0);
   EXPECT_EQ(0u, connection_.GetStats().blocked_frames_sent);
   connection_.SendControlFrame(QuicFrame(&blocked));
   EXPECT_EQ(0u, connection_.GetStats().blocked_frames_sent);
@@ -8263,9 +8207,8 @@ TEST_P(QuicConnectionTest, SendProbingRetransmissions) {
   }
   // Expect them retransmitted in cyclic order (foo, bar, test, foo, bar...).
   QuicPacketCount sent_count = 0;
-  EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _, _))
+  EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _))
       .WillRepeatedly(Invoke([this, &sent_count](const SerializedPacket&,
-                                                 QuicPacketNumber,
                                                  TransmissionType, QuicTime) {
         ASSERT_EQ(1u, writer_->stream_frames().size());
         // Identify the frames by stream offset (0, 3, 6, 0, 3...).
@@ -8295,7 +8238,7 @@ TEST_P(QuicConnectionTest,
 
   MockQuicConnectionDebugVisitor debug_visitor;
   connection_.set_debug_visitor(&debug_visitor);
-  EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _, _)).Times(0);
+  EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _)).Times(0);
   EXPECT_CALL(*send_algorithm_, ShouldSendProbingPacket())
       .WillRepeatedly(Return(true));
   EXPECT_CALL(visitor_, SendProbingData()).WillRepeatedly([this] {
@@ -9389,9 +9332,6 @@ TEST_P(QuicConnectionTest, CoalescedPacketThatSavesFrames) {
 
 // Regresstion test for b/138962304.
 TEST_P(QuicConnectionTest, RtoAndWriteBlocked) {
-  if (!connection_.session_decides_what_to_write()) {
-    return;
-  }
   EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
 
   QuicStreamId stream_id = 2;
@@ -9418,9 +9358,6 @@ TEST_P(QuicConnectionTest, RtoAndWriteBlocked) {
 
 // Regresstion test for b/138962304.
 TEST_P(QuicConnectionTest, TlpAndWriteBlocked) {
-  if (!connection_.session_decides_what_to_write()) {
-    return;
-  }
   EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
   connection_.SetMaxTailLossProbes(1);
 
@@ -9451,8 +9388,7 @@ TEST_P(QuicConnectionTest, TlpAndWriteBlocked) {
 
 // Regresstion test for b/139375344.
 TEST_P(QuicConnectionTest, RtoForcesSendingPing) {
-  if (!connection_.session_decides_what_to_write() ||
-      connection_.PtoEnabled()) {
+  if (connection_.PtoEnabled()) {
     return;
   }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
@@ -9490,9 +9426,6 @@ TEST_P(QuicConnectionTest, RtoForcesSendingPing) {
 }
 
 TEST_P(QuicConnectionTest, ProbeTimeout) {
-  if (!connection_.session_decides_what_to_write()) {
-    return;
-  }
   SetQuicReloadableFlag(quic_enable_pto, true);
   QuicConfig config;
   QuicTagVector connection_options;
@@ -9521,9 +9454,6 @@ TEST_P(QuicConnectionTest, ProbeTimeout) {
 }
 
 TEST_P(QuicConnectionTest, CloseConnectionAfter6ClientPTOs) {
-  if (!connection_.session_decides_what_to_write()) {
-    return;
-  }
   SetQuicReloadableFlag(quic_enable_pto, true);
   QuicConfig config;
   QuicTagVector connection_options;
@@ -9562,9 +9492,6 @@ TEST_P(QuicConnectionTest, CloseConnectionAfter6ClientPTOs) {
 }
 
 TEST_P(QuicConnectionTest, CloseConnectionAfter7ClientPTOs) {
-  if (!connection_.session_decides_what_to_write()) {
-    return;
-  }
   SetQuicReloadableFlag(quic_enable_pto, true);
   QuicConfig config;
   QuicTagVector connection_options;
@@ -9602,9 +9529,6 @@ TEST_P(QuicConnectionTest, CloseConnectionAfter7ClientPTOs) {
 }
 
 TEST_P(QuicConnectionTest, CloseConnectionAfter8ClientPTOs) {
-  if (!connection_.session_decides_what_to_write()) {
-    return;
-  }
   SetQuicReloadableFlag(quic_enable_pto, true);
   QuicConfig config;
   QuicTagVector connection_options;
@@ -9754,8 +9678,7 @@ TEST_P(QuicConnectionTest, ConnectionCloseFrameType) {
 
 // Regression test for b/137401387 and b/138962304.
 TEST_P(QuicConnectionTest, RtoPacketAsTwo) {
-  if (!connection_.session_decides_what_to_write() ||
-      connection_.PtoEnabled()) {
+  if (connection_.PtoEnabled()) {
     return;
   }
   connection_.SetMaxTailLossProbes(1);
@@ -9798,9 +9721,6 @@ TEST_P(QuicConnectionTest, RtoPacketAsTwo) {
 }
 
 TEST_P(QuicConnectionTest, PtoSkipsPacketNumber) {
-  if (!connection_.session_decides_what_to_write()) {
-    return;
-  }
   SetQuicReloadableFlag(quic_enable_pto, true);
   SetQuicReloadableFlag(quic_skip_packet_number_for_pto, true);
   QuicConfig config;

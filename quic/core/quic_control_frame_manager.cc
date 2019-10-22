@@ -281,9 +281,7 @@ bool QuicControlFrameManager::RetransmitControlFrame(const QuicFrame& frame) {
 
 void QuicControlFrameManager::WriteBufferedFrames() {
   while (HasBufferedFrames()) {
-    if (session_->session_decides_what_to_write()) {
-      session_->SetTransmissionType(NOT_RETRANSMISSION);
-    }
+    session_->SetTransmissionType(NOT_RETRANSMISSION);
     QuicFrame frame_to_send =
         control_frames_.at(least_unsent_ - least_unacked_);
     QuicFrame copy = CopyRetransmittableControlFrame(frame_to_send);

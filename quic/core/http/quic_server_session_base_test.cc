@@ -570,8 +570,7 @@ TEST_P(QuicServerSessionBaseTest, BandwidthEstimates) {
   SerializedPacket packet(
       QuicPacketNumber(1) + kMinPacketsBetweenServerConfigUpdates,
       PACKET_4BYTE_PACKET_NUMBER, nullptr, 1000, false, false);
-  sent_packet_manager->OnPacketSent(&packet, QuicPacketNumber(), now,
-                                    NOT_RETRANSMISSION,
+  sent_packet_manager->OnPacketSent(&packet, now, NOT_RETRANSMISSION,
                                     HAS_RETRANSMITTABLE_DATA);
 
   // Verify that the proto has exactly the values we expect.

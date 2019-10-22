@@ -42,7 +42,6 @@ class SimpleSessionNotifierTest : public QuicTest {
       : connection_(&helper_, &alarm_factory_, Perspective::IS_CLIENT),
         notifier_(&connection_) {
     connection_.set_visitor(&visitor_);
-    QuicConnectionPeer::SetSessionDecidesWhatToWrite(&connection_);
     EXPECT_FALSE(notifier_.WillingToWrite());
     EXPECT_EQ(0u, notifier_.StreamBytesSent());
     EXPECT_FALSE(notifier_.HasBufferedStreamData());

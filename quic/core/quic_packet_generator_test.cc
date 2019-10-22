@@ -691,7 +691,6 @@ TEST_F(QuicPacketGeneratorTest, ConsumeData_FramesPreviouslyQueued) {
 
 TEST_F(QuicPacketGeneratorTest, ConsumeDataFastPath) {
   delegate_.SetCanWriteAnything();
-  generator_.SetCanSetTransmissionType(true);
   generator_.SetTransmissionType(LOSS_RETRANSMISSION);
 
   // Create a 10000 byte IOVector.
@@ -933,7 +932,6 @@ TEST_F(QuicPacketGeneratorTest, NotWritableThenBatchOperations2) {
 // Regression test of b/120493795.
 TEST_F(QuicPacketGeneratorTest, PacketTransmissionType) {
   delegate_.SetCanWriteAnything();
-  generator_.SetCanSetTransmissionType(true);
 
   // The first ConsumeData will fill the packet without flush.
   generator_.SetTransmissionType(LOSS_RETRANSMISSION);

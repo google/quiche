@@ -384,7 +384,6 @@ struct QUIC_EXPORT_PRIVATE SerializedPacket {
   bool has_ack;
   bool has_stop_waiting;
   TransmissionType transmission_type;
-  QuicPacketNumber original_packet_number;
   // The largest acked of the AckFrame in this packet if has_ack is true,
   // 0 otherwise.
   QuicPacketNumber largest_acked;
