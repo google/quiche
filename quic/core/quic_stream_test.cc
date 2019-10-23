@@ -8,8 +8,10 @@
 #include <string>
 #include <utility>
 
+#include "net/third_party/quiche/src/quic/core/frames/quic_rst_stream_frame.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection.h"
 #include "net/third_party/quiche/src/quic/core/quic_constants.h"
+#include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
@@ -1629,6 +1631,19 @@ TEST_P(QuicStreamTest, WindowUpdateForReadOnlyStream) {
           QUIC_WINDOW_UPDATE_RECEIVED_ON_READ_UNIDIRECTIONAL_STREAM,
           "WindowUpdateFrame received on READ_UNIDIRECTIONAL stream.", _));
   stream.OnWindowUpdateFrame(window_update_frame);
+}
+
+TEST_P(QuicStreamTest, RstStreamFrameChangesCloseOffset) {
+  SetQuicReloadableFlag(quic_close_connection_on_wrong_offset, true);
+  Initialize();
+
+  QuicStreamFrame stream_frame(stream_->id(), true, 0, "abc");
+  stream_->OnStreamFrame(stream_frame);
+  QuicRstStreamFrame rst(kInvalidControlFrameId, stream_->id(),
+                         QUIC_STREAM_CANCELLED, 0u);
+
+  EXPECT_CALL(*connection_, CloseConnection(QUIC_STREAM_MULTIPLE_OFFSET, _, _));
+  stream_->OnStreamReset(rst);
 }
 
 }  // namespace

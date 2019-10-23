@@ -6,6 +6,7 @@
 
 #include <cstdint>
 
+#include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
 
 namespace quic {
@@ -425,6 +426,11 @@ QuicErrorCodeToIetfMapping QuicErrorCodeToTransportErrorCode(
       return {
           false,
           {static_cast<uint64_t>(IETF_QUIC_HTTP_QPACK_DECODER_STREAM_ERROR)}};
+    case QUIC_STREAM_DATA_BEYOND_CLOSE_OFFSET:
+      return {true,
+              {static_cast<uint64_t>(QUIC_STREAM_DATA_BEYOND_CLOSE_OFFSET)}};
+    case QUIC_STREAM_MULTIPLE_OFFSET:
+      return {true, {static_cast<uint64_t>(QUIC_STREAM_MULTIPLE_OFFSET)}};
     case QUIC_LAST_ERROR:
       return {false, {static_cast<uint64_t>(QUIC_LAST_ERROR)}};
   }

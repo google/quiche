@@ -347,8 +347,14 @@ enum QuicErrorCode {
   QUIC_QPACK_ENCODER_STREAM_ERROR = 127,
   QUIC_QPACK_DECODER_STREAM_ERROR = 128,
 
+  // Received stream data beyond close offset.
+  QUIC_STREAM_DATA_BEYOND_CLOSE_OFFSET = 129,
+
+  // Received multiple close offset.
+  QUIC_STREAM_MULTIPLE_OFFSET = 130,
+
   // No error. Used as bound while iterating.
-  QUIC_LAST_ERROR = 129,
+  QUIC_LAST_ERROR = 131,
 };
 // QuicErrorCodes is encoded as four octets on-the-wire when doing Google QUIC,
 // or a varint62 when doing IETF QUIC. Ensure that its value does not exceed

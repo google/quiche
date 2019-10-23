@@ -9,6 +9,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
 #include "net/third_party/quiche/src/quic/core/quic_flow_controller.h"
 #include "net/third_party/quiche/src/quic/core/quic_session.h"
+#include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
@@ -172,7 +173,12 @@ void PendingStream::OnStreamFrame(const QuicStreamFrame& frame) {
   }
 
   if (frame.offset + frame.data_length > sequencer_.close_offset()) {
-    Reset(QUIC_DATA_AFTER_CLOSE_OFFSET);
+    CloseConnectionWithDetails(
+        QUIC_STREAM_DATA_BEYOND_CLOSE_OFFSET,
+        QuicStrCat(
+            "Stream ", id_,
+            " received data with offset: ", frame.offset + frame.data_length,
+            ", which is beyond close offset: ", sequencer()->close_offset()));
     return;
   }
 
@@ -211,6 +217,20 @@ void PendingStream::OnRstStreamFrame(const QuicRstStreamFrame& frame) {
                                "Reset frame stream offset overflow.");
     return;
   }
+
+  const QuicStreamOffset kMaxOffset =
+      std::numeric_limits<QuicStreamOffset>::max();
+  if (sequencer()->close_offset() != kMaxOffset &&
+      frame.byte_offset != sequencer()->close_offset()) {
+    CloseConnectionWithDetails(
+        QUIC_STREAM_MULTIPLE_OFFSET,
+        QuicStrCat("Stream ", id_,
+                   " received new final offset: ", frame.byte_offset,
+                   ", which is different from close offset: ",
+                   sequencer()->close_offset()));
+    return;
+  }
+
   MaybeIncreaseHighestReceivedOffset(frame.byte_offset);
   if (flow_controller_.FlowControlViolation() ||
       connection_flow_controller_->FlowControlViolation()) {
@@ -402,7 +422,17 @@ void QuicStream::OnStreamFrame(const QuicStreamFrame& frame) {
   }
 
   if (frame.offset + frame.data_length > sequencer_.close_offset()) {
-    Reset(QUIC_DATA_AFTER_CLOSE_OFFSET);
+    if (!GetQuicReloadableFlag(quic_close_connection_on_wrong_offset)) {
+      Reset(QUIC_DATA_AFTER_CLOSE_OFFSET);
+      return;
+    }
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_close_connection_on_wrong_offset, 1, 2);
+    CloseConnectionWithDetails(
+        QUIC_STREAM_DATA_BEYOND_CLOSE_OFFSET,
+        QuicStrCat(
+            "Stream ", id_,
+            " received data with offset: ", frame.offset + frame.data_length,
+            ", which is beyond close offset: ", sequencer_.close_offset()));
     return;
   }
 
@@ -459,6 +489,23 @@ void QuicStream::OnStreamReset(const QuicRstStreamFrame& frame) {
                                "Reset frame stream offset overflow.");
     return;
   }
+
+  if (GetQuicReloadableFlag(quic_close_connection_on_wrong_offset)) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_close_connection_on_wrong_offset, 2, 2);
+    const QuicStreamOffset kMaxOffset =
+        std::numeric_limits<QuicStreamOffset>::max();
+    if (sequencer()->close_offset() != kMaxOffset &&
+        frame.byte_offset != sequencer()->close_offset()) {
+      CloseConnectionWithDetails(
+          QUIC_STREAM_MULTIPLE_OFFSET,
+          QuicStrCat("Stream ", id_,
+                     " received new final offset: ", frame.byte_offset,
+                     ", which is different from close offset: ",
+                     sequencer_.close_offset()));
+      return;
+    }
+  }
+
   MaybeIncreaseHighestReceivedOffset(frame.byte_offset);
   if (flow_controller_->FlowControlViolation() ||
       connection_flow_controller_->FlowControlViolation()) {
