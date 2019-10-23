@@ -47,8 +47,6 @@ class QUIC_EXPORT_PRIVATE QuicVersionManager {
   bool enable_version_50_;
   // quic_enable_version_49 flag
   bool enable_version_49_;
-  // quic_enable_version_48_2 flag
-  bool enable_version_48_;
   // quic_supports_tls_handshake flag
   bool enable_tls_;
 
