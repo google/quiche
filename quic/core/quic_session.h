@@ -51,7 +51,7 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // An interface from the session to the entity owning the session.
   // This lets the session notify its owner (the Dispatcher) when the connection
   // is closed, blocked, or added/removed from the time-wait list.
-  class Visitor {
+  class QUIC_EXPORT_PRIVATE Visitor {
    public:
     virtual ~Visitor() {}
 

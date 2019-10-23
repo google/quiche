@@ -25,7 +25,7 @@ class QuicStreamSequencerPeer;
 class QUIC_EXPORT_PRIVATE QuicStreamSequencer {
  public:
   // Interface that thie Sequencer uses to communicate with the Stream.
-  class StreamInterface {
+  class QUIC_EXPORT_PRIVATE StreamInterface {
    public:
     virtual ~StreamInterface() = default;
 

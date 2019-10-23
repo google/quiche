@@ -63,17 +63,19 @@
 #include <utility>
 #include <vector>
 
+#include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
+
 namespace quic {
 
 template <typename T>
-class QuicInterval {
+class QUIC_EXPORT_PRIVATE QuicInterval {
  private:
   // Type trait for deriving the return type for QuicInterval::Length.  If
   // operator-() is not defined for T, then the return type is void.  This makes
   // the signature for Length compile so that the class can be used for such T,
   // but code that calls Length would still generate a compilation error.
   template <typename U>
-  class DiffTypeOrVoid {
+  class QUIC_EXPORT_PRIVATE DiffTypeOrVoid {
    private:
     template <typename V>
     static auto f(const V* v) -> decltype(*v - *v);

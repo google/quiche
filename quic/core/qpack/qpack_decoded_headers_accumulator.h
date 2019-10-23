@@ -37,7 +37,7 @@ class QUIC_EXPORT_PRIVATE QpackDecodedHeadersAccumulator
   // Visitor interface used for blocked decoding.  Exactly one visitor method
   // will be called if EndHeaderBlock() returned kBlocked.  No visitor method
   // will be called if EndHeaderBlock() returned any other value.
-  class Visitor {
+  class QUIC_EXPORT_PRIVATE Visitor {
    public:
     virtual ~Visitor() = default;
 

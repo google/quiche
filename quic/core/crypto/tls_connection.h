@@ -26,7 +26,7 @@ class QUIC_EXPORT_PRIVATE TlsConnection {
  public:
   // A TlsConnection::Delegate implements the methods that are set as callbacks
   // of TlsConnection.
-  class Delegate {
+  class QUIC_EXPORT_PRIVATE Delegate {
    public:
     virtual ~Delegate() {}
 

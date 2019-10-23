@@ -97,7 +97,7 @@ class QUIC_EXPORT_PRIVATE Bbr2Sender final : public SendAlgorithmInterface {
     return cwnd_limits().Min();
   }
 
-  struct DebugState {
+  struct QUIC_EXPORT_PRIVATE DebugState {
     Bbr2Mode mode;
 
     // Shared states.

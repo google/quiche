@@ -32,7 +32,7 @@ class QUIC_EXPORT_PRIVATE CryptoUtils {
   // Diversification is a utility class that's used to act like a union type.
   // Values can be created by calling the functions like |NoDiversification|,
   // below.
-  class Diversification {
+  class QUIC_EXPORT_PRIVATE Diversification {
    public:
     enum Mode {
       NEVER,  // Key diversification will never be used. Forward secure

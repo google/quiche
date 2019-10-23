@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 
@@ -18,7 +19,7 @@ namespace quic {
 // Value* returned by Lookup() can be invalid if the entry is evicted by other
 // threads.
 template <class K, class V>
-class QuicLRUCache {
+class QUIC_EXPORT_PRIVATE QuicLRUCache {
  public:
   explicit QuicLRUCache(size_t capacity) : capacity_(capacity) {}
   QuicLRUCache(const QuicLRUCache&) = delete;

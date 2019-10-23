@@ -15,7 +15,7 @@ class QUIC_EXPORT_PRIVATE TlsClientConnection : public TlsConnection {
  public:
   // A TlsClientConnection::Delegate implements the client-specific methods that
   // are set as callbacks for an SSL object.
-  class Delegate {
+  class QUIC_EXPORT_PRIVATE Delegate {
    public:
     virtual ~Delegate() {}
 

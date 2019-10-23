@@ -27,7 +27,8 @@ class QuicRandom;
 
 enum class QuicAllocator { SIMPLE, BUFFER_POOL };
 
-class QuicEpollConnectionHelper : public QuicConnectionHelperInterface {
+class QUIC_EXPORT_PRIVATE QuicEpollConnectionHelper
+    : public QuicConnectionHelperInterface {
  public:
   QuicEpollConnectionHelper(QuicEpollServer* eps, QuicAllocator allocator);
   QuicEpollConnectionHelper(const QuicEpollConnectionHelper&) = delete;

@@ -84,7 +84,7 @@ class QUIC_EXPORT_PRIVATE QuicClientPromisedInfo
  private:
   friend class test::QuicClientPromisedInfoPeer;
 
-  class CleanupAlarm : public QuicAlarm::Delegate {
+  class QUIC_EXPORT_PRIVATE CleanupAlarm : public QuicAlarm::Delegate {
    public:
     explicit CleanupAlarm(QuicClientPromisedInfo* promised)
         : promised_(promised) {}

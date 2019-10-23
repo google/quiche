@@ -35,7 +35,7 @@ namespace quic {
 // Because of that, it is not a general-purpose container and should not be used
 // as one.
 template <typename T>
-class PacketNumberIndexedQueue {
+class QUIC_EXPORT_PRIVATE PacketNumberIndexedQueue {
  public:
   PacketNumberIndexedQueue() : number_of_present_entries_(0) {}
 
@@ -86,7 +86,7 @@ class PacketNumberIndexedQueue {
 
  private:
   // Wrapper around T used to mark whether the entry is actually in the map.
-  struct EntryWrapper : T {
+  struct QUIC_EXPORT_PRIVATE EntryWrapper : T {
     bool present;
 
     EntryWrapper() : present(false) {}

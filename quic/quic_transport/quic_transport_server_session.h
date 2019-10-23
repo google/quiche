@@ -16,11 +16,11 @@
 namespace quic {
 
 // A server session for the QuicTransport protocol.
-class QUIC_EXPORT QuicTransportServerSession
+class QUIC_EXPORT_PRIVATE QuicTransportServerSession
     : public QuicSession,
       public QuicTransportSessionInterface {
  public:
-  class ServerVisitor {
+  class QUIC_EXPORT_PRIVATE ServerVisitor {
    public:
     virtual ~ServerVisitor() {}
 
@@ -59,7 +59,7 @@ class QUIC_EXPORT QuicTransportServerSession
   }
 
  protected:
-  class ClientIndication : public QuicStream {
+  class QUIC_EXPORT_PRIVATE ClientIndication : public QuicStream {
    public:
     explicit ClientIndication(QuicTransportServerSession* session);
     void OnDataAvailable() override;
@@ -70,7 +70,7 @@ class QUIC_EXPORT QuicTransportServerSession
   };
 
   // Utility class for parsing the client indication.
-  class ClientIndicationParser {
+  class QUIC_EXPORT_PRIVATE ClientIndicationParser {
    public:
     ClientIndicationParser(QuicTransportServerSession* session,
                            QuicStringPiece indication)

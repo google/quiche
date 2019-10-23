@@ -60,7 +60,8 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientHandshaker
   // ProofVerifierCallbackImpl is passed as the callback method to VerifyProof.
   // The ProofVerifier calls this class with the result of proof verification
   // when verification is performed asynchronously.
-  class ProofVerifierCallbackImpl : public ProofVerifierCallback {
+  class QUIC_EXPORT_PRIVATE ProofVerifierCallbackImpl
+      : public ProofVerifierCallback {
    public:
     explicit ProofVerifierCallbackImpl(QuicCryptoClientHandshaker* parent);
     ~ProofVerifierCallbackImpl() override;

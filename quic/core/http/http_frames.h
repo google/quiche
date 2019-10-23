@@ -34,7 +34,7 @@ enum class HttpFrameType : uint8_t {
 //
 //   DATA frames (type=0x0) convey arbitrary, variable-length sequences of
 //   octets associated with an HTTP request or response payload.
-struct DataFrame {
+struct QUIC_EXPORT_PRIVATE DataFrame {
   QuicStringPiece data;
 };
 
@@ -42,7 +42,7 @@ struct DataFrame {
 //
 //   The HEADERS frame (type=0x1) is used to carry a header block,
 //   compressed using QPACK.
-struct HeadersFrame {
+struct QUIC_EXPORT_PRIVATE HeadersFrame {
   QuicStringPiece headers;
 };
 
@@ -65,7 +65,7 @@ enum PriorityElementType : uint8_t {
   ROOT_OF_TREE = 3
 };
 
-struct PriorityFrame {
+struct QUIC_EXPORT_PRIVATE PriorityFrame {
   PriorityElementType prioritized_type = REQUEST_STREAM;
   PriorityElementType dependency_type = REQUEST_STREAM;
   bool exclusive = false;
@@ -103,7 +103,7 @@ struct PriorityFrame {
 //   server push prior to the push stream being created.
 using PushId = uint64_t;
 
-struct CancelPushFrame {
+struct QUIC_EXPORT_PRIVATE CancelPushFrame {
   PushId push_id;
 
   bool operator==(const CancelPushFrame& rhs) const {
@@ -119,7 +119,7 @@ struct CancelPushFrame {
 
 using SettingsMap = std::map<uint64_t, uint64_t>;
 
-struct SettingsFrame {
+struct QUIC_EXPORT_PRIVATE SettingsFrame {
   SettingsMap values;
 
   bool operator==(const SettingsFrame& rhs) const {
@@ -148,7 +148,7 @@ struct SettingsFrame {
 //
 //   The PUSH_PROMISE frame (type=0x05) is used to carry a request header
 //   set from server to client, as in HTTP/2.
-struct PushPromiseFrame {
+struct QUIC_EXPORT_PRIVATE PushPromiseFrame {
   PushId push_id;
   QuicStringPiece headers;
 
@@ -161,7 +161,7 @@ struct PushPromiseFrame {
 //
 //   The GOAWAY frame (type=0x7) is used to initiate graceful shutdown of
 //   a connection by a server.
-struct GoAwayFrame {
+struct QUIC_EXPORT_PRIVATE GoAwayFrame {
   QuicStreamId stream_id;
 
   bool operator==(const GoAwayFrame& rhs) const {
@@ -173,7 +173,7 @@ struct GoAwayFrame {
 //
 //   The MAX_PUSH_ID frame (type=0xD) is used by clients to control the
 //   number of server pushes that the server can initiate.
-struct MaxPushIdFrame {
+struct QUIC_EXPORT_PRIVATE MaxPushIdFrame {
   PushId push_id;
 
   bool operator==(const MaxPushIdFrame& rhs) const {
@@ -186,7 +186,7 @@ struct MaxPushIdFrame {
 //  The DUPLICATE_PUSH frame (type=0xE) is used by servers to indicate
 //  that an existing pushed resource is related to multiple client
 //  requests.
-struct DuplicatePushFrame {
+struct QUIC_EXPORT_PRIVATE DuplicatePushFrame {
   PushId push_id;
 
   bool operator==(const DuplicatePushFrame& rhs) const {

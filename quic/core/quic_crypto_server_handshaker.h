@@ -91,7 +91,8 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerHandshaker
  private:
   friend class test::QuicCryptoServerStreamPeer;
 
-  class ValidateCallback : public ValidateClientHelloResultCallback {
+  class QUIC_EXPORT_PRIVATE ValidateCallback
+      : public ValidateClientHelloResultCallback {
    public:
     explicit ValidateCallback(QuicCryptoServerHandshaker* parent);
     ValidateCallback(const ValidateCallback&) = delete;

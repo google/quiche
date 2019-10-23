@@ -29,7 +29,7 @@ const int kMaxStreamsWindowDivisor = 2;
 // This class manages the stream ids for Version 99/IETF QUIC.
 class QUIC_EXPORT_PRIVATE QuicStreamIdManager {
  public:
-  class DelegateInterface {
+  class QUIC_EXPORT_PRIVATE DelegateInterface {
    public:
     virtual ~DelegateInterface() = default;
 

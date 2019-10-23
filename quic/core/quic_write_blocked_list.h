@@ -247,9 +247,9 @@ class QUIC_EXPORT_PRIVATE QuicWriteBlockedList {
 
   // A StaticStreamCollection is a vector of <QuicStreamId, bool> pairs plus a
   // eagerly-computed number of blocked static streams.
-  class StaticStreamCollection {
+  class QUIC_EXPORT_PRIVATE StaticStreamCollection {
    public:
-    struct StreamIdBlockedPair {
+    struct QUIC_EXPORT_PRIVATE StreamIdBlockedPair {
       QuicStreamId id;
       bool is_blocked;
     };

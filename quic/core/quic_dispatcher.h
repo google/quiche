@@ -34,9 +34,10 @@ class QuicDispatcherPeer;
 class QuicConfig;
 class QuicCryptoServerConfig;
 
-class QuicDispatcher : public QuicTimeWaitListManager::Visitor,
-                       public ProcessPacketInterface,
-                       public QuicBufferedPacketStore::VisitorInterface {
+class QUIC_EXPORT_PRIVATE QuicDispatcher
+    : public QuicTimeWaitListManager::Visitor,
+      public ProcessPacketInterface,
+      public QuicBufferedPacketStore::VisitorInterface {
  public:
   // Ideally we'd have a linked_hash_set: the  boolean is unused.
   typedef QuicLinkedHashMap<QuicBlockedWriterInterface*, bool> WriteBlockedList;

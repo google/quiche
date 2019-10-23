@@ -88,7 +88,8 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
   TlsConnection::Delegate* ConnectionDelegate() override { return this; }
 
  private:
-  class SignatureCallback : public ProofSource::SignatureCallback {
+  class QUIC_EXPORT_PRIVATE SignatureCallback
+      : public ProofSource::SignatureCallback {
    public:
     explicit SignatureCallback(TlsServerHandshaker* handshaker);
     void Run(bool ok, std::string signature) override;

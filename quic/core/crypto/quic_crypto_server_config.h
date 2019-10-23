@@ -41,7 +41,7 @@ struct QuicSignedServerConfig;
 
 // ClientHelloInfo contains information about a client hello message that is
 // only kept for as long as it's being processed.
-struct ClientHelloInfo {
+struct QUIC_EXPORT_PRIVATE ClientHelloInfo {
   ClientHelloInfo(const QuicIpAddress& in_client_ip, QuicWallTime in_now);
   ClientHelloInfo(const ClientHelloInfo& other);
   ~ClientHelloInfo();
@@ -68,7 +68,7 @@ class QuicCryptoServerConfigPeer;
 }  // namespace test
 
 // Hook that allows application code to subscribe to primary config changes.
-class PrimaryConfigChangedCallback {
+class QUIC_EXPORT_PRIVATE PrimaryConfigChangedCallback {
  public:
   PrimaryConfigChangedCallback();
   PrimaryConfigChangedCallback(const PrimaryConfigChangedCallback&) = delete;
@@ -128,7 +128,7 @@ class QUIC_EXPORT_PRIVATE ProcessClientHelloResultCallback {
 
 // Callback used to receive the results of a call to
 // BuildServerConfigUpdateMessage.
-class BuildServerConfigUpdateMessageResultCallback {
+class QUIC_EXPORT_PRIVATE BuildServerConfigUpdateMessageResultCallback {
  public:
   BuildServerConfigUpdateMessageResultCallback() = default;
   virtual ~BuildServerConfigUpdateMessageResultCallback() {}
@@ -141,7 +141,7 @@ class BuildServerConfigUpdateMessageResultCallback {
 
 // Object that is interested in built rejections (which include REJ, SREJ and
 // cheap SREJ).
-class RejectionObserver {
+class QUIC_EXPORT_PRIVATE RejectionObserver {
  public:
   RejectionObserver() = default;
   virtual ~RejectionObserver() {}
@@ -511,7 +511,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
       QUIC_SHARED_LOCKS_REQUIRED(configs_lock_);
 
   // A snapshot of the configs associated with an in-progress handshake.
-  struct Configs {
+  struct QUIC_EXPORT_PRIVATE Configs {
     QuicReferenceCountedPointer<Config> requested;
     QuicReferenceCountedPointer<Config> primary;
     QuicReferenceCountedPointer<Config> fallback;
@@ -552,7 +552,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
 
   // Convenience class which carries the arguments passed to
   // |ProcessClientHellp| along.
-  class ProcessClientHelloContext {
+  class QUIC_EXPORT_PRIVATE ProcessClientHelloContext {
    public:
     ProcessClientHelloContext(
         QuicReferenceCountedPointer<ValidateClientHelloResultCallback::Result>

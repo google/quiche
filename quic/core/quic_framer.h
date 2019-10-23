@@ -645,7 +645,7 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
 
   typedef std::map<QuicPacketNumber, uint8_t> NackRangeMap;
 
-  struct AckFrameInfo {
+  struct QUIC_EXPORT_PRIVATE AckFrameInfo {
     AckFrameInfo();
     AckFrameInfo(const AckFrameInfo& other);
     ~AckFrameInfo();

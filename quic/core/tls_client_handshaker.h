@@ -73,7 +73,8 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
  private:
   // ProofVerifierCallbackImpl handles the result of an asynchronous certificate
   // verification operation.
-  class ProofVerifierCallbackImpl : public ProofVerifierCallback {
+  class QUIC_EXPORT_PRIVATE ProofVerifierCallbackImpl
+      : public ProofVerifierCallback {
    public:
     explicit ProofVerifierCallbackImpl(TlsClientHandshaker* parent);
     ~ProofVerifierCallbackImpl() override;

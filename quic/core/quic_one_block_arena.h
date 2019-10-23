@@ -20,7 +20,7 @@
 namespace quic {
 
 template <uint32_t ArenaSize>
-class QuicOneBlockArena {
+class QUIC_EXPORT_PRIVATE QuicOneBlockArena {
   static const uint32_t kMaxAlign = 8;
 
  public:

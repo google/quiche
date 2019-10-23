@@ -127,7 +127,7 @@ QUIC_EXPORT_PRIVATE QuicConnectionId EmptyQuicConnectionId();
 // Note however that this property is not guaranteed across process lifetimes.
 // This makes QuicConnectionIdHash suitable for data structures such as hash
 // tables but not for sending a hash over the network.
-class QuicConnectionIdHash {
+class QUIC_EXPORT_PRIVATE QuicConnectionIdHash {
  public:
   size_t operator()(QuicConnectionId const& connection_id) const noexcept {
     return connection_id.Hash();

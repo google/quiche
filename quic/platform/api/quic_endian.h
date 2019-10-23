@@ -5,6 +5,7 @@
 #ifndef QUICHE_QUIC_PLATFORM_API_QUIC_ENDIAN_H_
 #define QUICHE_QUIC_PLATFORM_API_QUIC_ENDIAN_H_
 
+#include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/quic/platform/impl/quic_endian_impl.h"
 
 namespace quic {
@@ -17,7 +18,7 @@ enum Endianness {
 // Provide utility functions that convert from/to network order (big endian)
 // to/from host order (can be either little or big endian depending on the
 // platform).
-class QuicEndian {
+class QUIC_EXPORT_PRIVATE QuicEndian {
  public:
   // Convert |x| from host order (can be either little or big endian depending
   // on the platform) to network order (big endian).

@@ -21,7 +21,7 @@ class QUIC_EXPORT_PRIVATE QpackInstructionEncoder {
  public:
   // Storage for field values to be encoded.
   // The encoded instruction determines which values are actually used.
-  struct Values {
+  struct QUIC_EXPORT_PRIVATE Values {
     bool s_bit;
     uint64_t varint;
     uint64_t varint2;

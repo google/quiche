@@ -23,7 +23,7 @@ class QUIC_EXPORT_PRIVATE QpackDecoderStreamReceiver
  public:
   // An interface for handling instructions decoded from the decoder stream, see
   // https://quicwg.org/base-drafts/draft-ietf-quic-qpack.html#rfc.section.5.3
-  class Delegate {
+  class QUIC_EXPORT_PRIVATE Delegate {
    public:
     virtual ~Delegate() = default;
 

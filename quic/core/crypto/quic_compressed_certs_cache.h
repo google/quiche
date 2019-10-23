@@ -52,7 +52,7 @@ class QUIC_EXPORT_PRIVATE QuicCompressedCertsCache {
   // A wrapper of the tuple:
   //   |chain, client_common_set_hashes, client_cached_cert_hashes|
   // to identify uncompressed representation of certs.
-  struct UncompressedCerts {
+  struct QUIC_EXPORT_PRIVATE UncompressedCerts {
     UncompressedCerts();
     UncompressedCerts(
         const QuicReferenceCountedPointer<ProofSource::Chain>& chain,
@@ -68,7 +68,7 @@ class QUIC_EXPORT_PRIVATE QuicCompressedCertsCache {
   // Certs stored by QuicCompressedCertsCache where uncompressed certs data is
   // used to identify the uncompressed representation of certs and
   // |compressed_cert| is the cached compressed representation.
-  class CachedCerts {
+  class QUIC_EXPORT_PRIVATE CachedCerts {
    public:
     CachedCerts();
     CachedCerts(const UncompressedCerts& uncompressed_certs,

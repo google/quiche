@@ -95,7 +95,7 @@ class QUIC_EXPORT_PRIVATE QpackEncoder
   // changing QpackInstructionEncoder::Encoder() to take an
   // InstructionWithValues struct instead of separate |instruction| and |values|
   // arguments.
-  struct InstructionWithValues {
+  struct QUIC_EXPORT_PRIVATE InstructionWithValues {
     // |instruction| is not owned.
     const QpackInstruction* instruction;
     QpackInstructionEncoder::Values values;

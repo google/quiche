@@ -40,7 +40,7 @@ class QUIC_EXPORT_PRIVATE QpackHeaderTable {
   enum class MatchType { kNameAndValue, kName, kNoMatch };
 
   // Observer interface for dynamic table insertion.
-  class Observer {
+  class QUIC_EXPORT_PRIVATE Observer {
    public:
     virtual ~Observer() = default;
 

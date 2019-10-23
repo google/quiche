@@ -195,7 +195,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
   };
 
   // Used to filter server ids for partial config deletion.
-  class ServerIdFilter {
+  class QUIC_EXPORT_PRIVATE ServerIdFilter {
    public:
     virtual ~ServerIdFilter() {}
 

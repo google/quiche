@@ -35,7 +35,7 @@ class QUIC_EXPORT_PRIVATE Bbr2StartupMode final : public Bbr2ModeBase {
 
   bool FullBandwidthReached() const { return full_bandwidth_reached_; }
 
-  struct DebugState {
+  struct QUIC_EXPORT_PRIVATE DebugState {
     bool full_bandwidth_reached;
     QuicBandwidth full_bandwidth_baseline = QuicBandwidth::Zero();
     QuicRoundTripCount round_trips_without_bandwidth_growth;

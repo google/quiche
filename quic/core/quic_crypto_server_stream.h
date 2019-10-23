@@ -125,7 +125,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerStream
     virtual size_t BufferSizeLimitForLevel(EncryptionLevel level) const = 0;
   };
 
-  class Helper {
+  class QUIC_EXPORT_PRIVATE Helper {
    public:
     virtual ~Helper() {}
 

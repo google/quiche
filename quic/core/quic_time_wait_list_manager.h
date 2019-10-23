@@ -35,7 +35,8 @@ class QuicTimeWaitListManagerPeer;
 // wait state.  After the connection_id expires its time wait period, a new
 // connection/session will be created if a packet is received for this
 // connection_id.
-class QuicTimeWaitListManager : public QuicBlockedWriterInterface {
+class QUIC_EXPORT_PRIVATE QuicTimeWaitListManager
+    : public QuicBlockedWriterInterface {
  public:
   // Specifies what the time wait list manager should do when processing packets
   // of a time wait connection.
@@ -49,7 +50,7 @@ class QuicTimeWaitListManager : public QuicBlockedWriterInterface {
     DO_NOTHING,
   };
 
-  class Visitor : public QuicSession::Visitor {
+  class QUIC_EXPORT_PRIVATE Visitor : public QuicSession::Visitor {
    public:
     // Called after the given connection is added to the time-wait list.
     virtual void OnConnectionAddedToTimeWaitList(
@@ -159,7 +160,7 @@ class QuicTimeWaitListManager : public QuicBlockedWriterInterface {
       QuicConnectionId connection_id) const;
 
   // Internal structure to store pending termination packets.
-  class QueuedPacket {
+  class QUIC_EXPORT_PRIVATE QueuedPacket {
    public:
     QueuedPacket(const QuicSocketAddress& self_address,
                  const QuicSocketAddress& peer_address,
@@ -229,7 +230,7 @@ class QuicTimeWaitListManager : public QuicBlockedWriterInterface {
   // A map from a recently closed connection_id to the number of packets
   // received after the termination of the connection bound to the
   // connection_id.
-  struct ConnectionIdData {
+  struct QUIC_EXPORT_PRIVATE ConnectionIdData {
     ConnectionIdData(int num_packets,
                      bool ietf_quic,
                      QuicTime time_added,

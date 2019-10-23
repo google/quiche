@@ -362,7 +362,7 @@ QUIC_EXPORT_PRIVATE const char* QuicRstStreamErrorCodeToString(
     QuicRstStreamErrorCode error);
 
 // Returns the name of the QuicErrorCode as a char*
-QUIC_EXPORT const char* QuicErrorCodeToString(QuicErrorCode error);
+QUIC_EXPORT_PRIVATE const char* QuicErrorCodeToString(QuicErrorCode error);
 
 // Wire values for QPACK errors.
 // https://quicwg.org/base-drafts/draft-ietf-quic-qpack.html#error-code-registration

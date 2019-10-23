@@ -62,7 +62,7 @@ class QUIC_EXPORT_PRIVATE BbrSender : public SendAlgorithmInterface {
 
   // Debug state can be exported in order to troubleshoot potential congestion
   // control issues.
-  struct DebugState {
+  struct QUIC_EXPORT_PRIVATE DebugState {
     explicit DebugState(const BbrSender& sender);
     DebugState(const DebugState& state);
 

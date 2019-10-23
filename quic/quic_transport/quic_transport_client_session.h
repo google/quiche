@@ -26,7 +26,7 @@
 namespace quic {
 
 // A client session for the QuicTransport protocol.
-class QUIC_EXPORT QuicTransportClientSession
+class QUIC_EXPORT_PRIVATE QuicTransportClientSession
     : public QuicSession,
       public QuicTransportSessionInterface {
  public:
@@ -65,7 +65,7 @@ class QUIC_EXPORT QuicTransportClientSession
   void OnCryptoHandshakeEvent(CryptoHandshakeEvent event) override;
 
  protected:
-  class ClientIndication : public QuicStream {
+  class QUIC_EXPORT_PRIVATE ClientIndication : public QuicStream {
    public:
     using QuicStream::QuicStream;
 

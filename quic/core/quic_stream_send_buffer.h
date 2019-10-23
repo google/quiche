@@ -26,7 +26,7 @@ class QuicDataWriter;
 // contiguous memory space. Please note, BufferedSlice is constructed when
 // stream data is saved in send buffer and is removed when stream data is fully
 // acked. It is move-only.
-struct BufferedSlice {
+struct QUIC_EXPORT_PRIVATE BufferedSlice {
   BufferedSlice(QuicMemSlice mem_slice, QuicStreamOffset offset);
   BufferedSlice(BufferedSlice&& other);
   BufferedSlice& operator=(BufferedSlice&& other);
@@ -41,7 +41,7 @@ struct BufferedSlice {
   QuicStreamOffset offset;
 };
 
-struct StreamPendingRetransmission {
+struct QUIC_EXPORT_PRIVATE StreamPendingRetransmission {
   StreamPendingRetransmission(QuicStreamOffset offset, QuicByteCount length)
       : offset(offset), length(length) {}
 

@@ -51,7 +51,7 @@ class QUIC_EXPORT_PRIVATE QuicReferenceCounted
 // QuicReferenceCountedPointer<T> r_ptr_b = std::move(r_ptr_a);
 
 template <class T>
-class QuicReferenceCountedPointer {
+class QUIC_EXPORT_PRIVATE QuicReferenceCountedPointer {
  public:
   QuicReferenceCountedPointer() = default;
 

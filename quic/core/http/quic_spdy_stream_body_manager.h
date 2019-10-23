@@ -77,7 +77,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStreamBodyManager {
   // A Fragment instance represents a body fragment with a count of bytes
   // received afterwards but before the next body fragment that can be marked
   // consumed as soon as all of the body fragment is read.
-  struct Fragment {
+  struct QUIC_EXPORT_PRIVATE Fragment {
     // |body| must not be empty.
     QuicStringPiece body;
     // Might be zero.

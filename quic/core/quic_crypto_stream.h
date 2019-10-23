@@ -155,7 +155,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoStream : public QuicStream {
   // levels. Some of the state for the single logical crypto stream is split
   // across encryption levels, and a CryptoSubstream is used to manage that
   // state for a particular encryption level.
-  struct CryptoSubstream {
+  struct QUIC_EXPORT_PRIVATE CryptoSubstream {
     CryptoSubstream(QuicCryptoStream* crypto_stream, EncryptionLevel);
 
     QuicStreamSequencer sequencer;

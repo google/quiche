@@ -979,7 +979,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // addresses) of those packets which are serialized but failed to send because
   // socket is blocked. From unacked packet map and send algorithm's
   // perspective, buffered packets are treated as sent.
-  struct BufferedPacket {
+  struct QUIC_EXPORT_PRIVATE BufferedPacket {
     BufferedPacket(const SerializedPacket& packet,
                    const QuicSocketAddress& self_address,
                    const QuicSocketAddress& peer_address);

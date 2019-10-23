@@ -85,7 +85,7 @@ class QUIC_EXPORT_PRIVATE QuicPacketNumber {
   uint64_t packet_number_;
 };
 
-class QuicPacketNumberHash {
+class QUIC_EXPORT_PRIVATE QuicPacketNumberHash {
  public:
   uint64_t operator()(QuicPacketNumber packet_number) const noexcept {
     return packet_number.Hash();

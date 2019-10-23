@@ -37,13 +37,13 @@ class QUIC_EXPORT_PRIVATE ProofSource {
 
   // Details is an abstract class which acts as a container for any
   // implementation-specific details that a ProofSource wants to return.
-  class Details {
+  class QUIC_EXPORT_PRIVATE Details {
    public:
     virtual ~Details() {}
   };
 
   // Callback base class for receiving the results of an async call to GetProof.
-  class Callback {
+  class QUIC_EXPORT_PRIVATE Callback {
    public:
     Callback() {}
     virtual ~Callback() {}
@@ -74,7 +74,7 @@ class QUIC_EXPORT_PRIVATE ProofSource {
   };
 
   // Base class for signalling the completion of a call to ComputeTlsSignature.
-  class SignatureCallback {
+  class QUIC_EXPORT_PRIVATE SignatureCallback {
    public:
     SignatureCallback() {}
     virtual ~SignatureCallback() = default;

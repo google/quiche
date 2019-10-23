@@ -14,12 +14,13 @@
 #include <cstdint>  // for uintptr_t
 
 #include "net/third_party/quiche/src/quic/platform/api/quic_aligned.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 
 namespace quic {
 
 template <typename T>
-class QuicArenaScopedPtr {
+class QUIC_EXPORT_PRIVATE QuicArenaScopedPtr {
   static_assert(QUIC_ALIGN_OF(T*) > 1,
                 "QuicArenaScopedPtr can only store objects that are aligned to "
                 "greater than 1 byte.");

@@ -20,7 +20,8 @@ namespace quic {
 class QuicConnection;
 class QuicServerId;
 
-class QuicSpdyClientSession : public QuicSpdyClientSessionBase {
+class QUIC_EXPORT_PRIVATE QuicSpdyClientSession
+    : public QuicSpdyClientSessionBase {
  public:
   // Takes ownership of |connection|. Caller retains ownership of
   // |promised_by_url|.

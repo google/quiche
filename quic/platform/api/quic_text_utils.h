@@ -7,13 +7,14 @@
 
 #include <string>
 
+#include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 #include "net/quic/platform/impl/quic_text_utils_impl.h"
 
 namespace quic {
 
 // Various utilities for manipulating text.
-class QuicTextUtils {
+class QUIC_EXPORT_PRIVATE QuicTextUtils {
  public:
   // Returns true if |data| starts with |prefix|, case sensitively.
   static bool StartsWith(QuicStringPiece data, QuicStringPiece prefix) {

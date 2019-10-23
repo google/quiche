@@ -25,7 +25,7 @@ class QUIC_EXPORT_PRIVATE AsynchronousKeyExchange {
 
   // Callback base class for receiving the results of an async call to
   // CalculateSharedKeys.
-  class Callback {
+  class QUIC_EXPORT_PRIVATE Callback {
    public:
     Callback() = default;
     virtual ~Callback() = default;

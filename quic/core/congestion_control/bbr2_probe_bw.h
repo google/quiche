@@ -42,7 +42,7 @@ class QUIC_EXPORT_PRIVATE Bbr2ProbeBwMode final : public Bbr2ModeBase {
 
   static const char* CyclePhaseToString(CyclePhase phase);
 
-  struct DebugState {
+  struct QUIC_EXPORT_PRIVATE DebugState {
     CyclePhase phase;
     QuicTime cycle_start_time = QuicTime::Zero();
     QuicTime phase_start_time = QuicTime::Zero();
@@ -102,7 +102,7 @@ class QUIC_EXPORT_PRIVATE Bbr2ProbeBwMode final : public Bbr2ModeBase {
   void RaiseInflightHighSlope();
   void ProbeInflightHighUpward(const Bbr2CongestionEvent& congestion_event);
 
-  struct Cycle {
+  struct QUIC_EXPORT_PRIVATE Cycle {
     QuicTime cycle_start_time = QuicTime::Zero();
     CyclePhase phase = CyclePhase::PROBE_NOT_STARTED;
     uint64_t rounds_in_phase = 0;

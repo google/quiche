@@ -19,9 +19,9 @@ namespace quic {
 // QuicTransportStream is an extension of QuicStream that provides I/O interface
 // that is safe to use in the QuicTransport context.  The interface ensures no
 // application data is processed before the client indication is processed.
-class QUIC_EXPORT QuicTransportStream : public QuicStream {
+class QUIC_EXPORT_PRIVATE QuicTransportStream : public QuicStream {
  public:
-  class Visitor {
+  class QUIC_EXPORT_PRIVATE Visitor {
    public:
     virtual ~Visitor() {}
     virtual void OnCanRead() = 0;

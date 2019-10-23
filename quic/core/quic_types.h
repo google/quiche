@@ -476,7 +476,7 @@ QUIC_EXPORT_PRIVATE std::string PacketHeaderFormatToString(
     PacketHeaderFormat format);
 
 // Information about a newly acknowledged packet.
-struct AckedPacket {
+struct QUIC_EXPORT_PRIVATE AckedPacket {
   AckedPacket(QuicPacketNumber packet_number,
               QuicPacketLength bytes_acked,
               QuicTime receive_timestamp)
@@ -501,7 +501,7 @@ struct AckedPacket {
 typedef std::vector<AckedPacket> AckedPacketVector;
 
 // Information about a newly lost packet.
-struct LostPacket {
+struct QUIC_EXPORT_PRIVATE LostPacket {
   LostPacket(QuicPacketNumber packet_number, QuicPacketLength bytes_lost)
       : packet_number(packet_number), bytes_lost(bytes_lost) {}
 
@@ -542,7 +542,7 @@ QUIC_EXPORT_PRIVATE std::ostream& operator<<(
 // first element of the pair is false, it means that an IETF Application Close
 // should be done instead.
 
-struct QuicErrorCodeToIetfMapping {
+struct QUIC_EXPORT_PRIVATE QuicErrorCodeToIetfMapping {
   bool is_transport_close_;
   union {
     uint64_t application_error_code_;

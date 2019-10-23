@@ -85,7 +85,7 @@ class QUIC_EXPORT_PRIVATE QuicStreamSequencerBuffer {
   static const size_t kBlockSizeBytes = 8 * 1024;  // 8KB
 
   // The basic storage block used by this buffer.
-  struct BufferBlock {
+  struct QUIC_EXPORT_PRIVATE BufferBlock {
     char buffer[kBlockSizeBytes];
   };
 

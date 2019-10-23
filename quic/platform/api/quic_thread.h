@@ -7,12 +7,13 @@
 
 #include <string>
 
+#include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/quic/platform/impl/quic_thread_impl.h"
 
 namespace quic {
 
 // A class representing a thread of execution in QUIC.
-class QuicThread : public QuicThreadImpl {
+class QUIC_EXPORT_PRIVATE QuicThread : public QuicThreadImpl {
  public:
   QuicThread(const std::string& string) : QuicThreadImpl(string) {}
   QuicThread(const QuicThread&) = delete;

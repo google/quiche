@@ -30,7 +30,7 @@ class QUIC_EXPORT_PRIVATE Bbr2ProbeRttMode final : public Bbr2ModeBase {
 
   bool IsProbingForBandwidth() const override { return false; }
 
-  struct DebugState {
+  struct QUIC_EXPORT_PRIVATE DebugState {
     QuicByteCount inflight_target;
     QuicTime exit_time = QuicTime::Zero();
   };
