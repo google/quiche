@@ -49,6 +49,10 @@ class QUIC_EXPORT_PRIVATE QuicTransportServerSession
     return crypto_stream_.get();
   }
 
+  // Returns true once the encryption has been established, the client
+  // indication has been received and the origin has been verified.  No
+  // application data will be read or written before the connection is ready.
+  // Once the connection becomes ready, this method will never return false.
   bool IsSessionReady() const override { return ready_; }
 
   QuicStream* CreateIncomingStream(QuicStreamId id) override;
