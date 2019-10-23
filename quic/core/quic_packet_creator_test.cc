@@ -45,8 +45,9 @@ namespace {
 const QuicPacketNumber kPacketNumber = QuicPacketNumber(UINT64_C(0x12345678));
 // Use fields in which each byte is distinct to ensure that every byte is
 // framed correctly. The values are otherwise arbitrary.
-const QuicConnectionId kTestConnectionId =
-    TestConnectionId(UINT64_C(0xFEDCBA9876543210));
+QuicConnectionId CreateTestConnectionId() {
+  return TestConnectionId(UINT64_C(0xFEDCBA9876543210));
+}
 
 // Run tests with combinations of {ParsedQuicVersion,
 // ToggleVersionSerialization}.
@@ -614,7 +615,7 @@ TEST_P(QuicPacketCreatorTest, BuildPathChallengePacket) {
   }
 
   QuicPacketHeader header;
-  header.destination_connection_id = kTestConnectionId;
+  header.destination_connection_id = CreateTestConnectionId();
   header.reset_flag = false;
   header.version_flag = false;
   header.packet_number = kPacketNumber;
@@ -661,7 +662,7 @@ TEST_P(QuicPacketCreatorTest, BuildPathChallengePacket) {
 
 TEST_P(QuicPacketCreatorTest, BuildConnectivityProbingPacket) {
   QuicPacketHeader header;
-  header.destination_connection_id = kTestConnectionId;
+  header.destination_connection_id = CreateTestConnectionId();
   header.reset_flag = false;
   header.version_flag = false;
   header.packet_number = kPacketNumber;
@@ -748,7 +749,7 @@ TEST_P(QuicPacketCreatorTest, BuildPathResponsePacket1ResponseUnpadded) {
   }
 
   QuicPacketHeader header;
-  header.destination_connection_id = kTestConnectionId;
+  header.destination_connection_id = CreateTestConnectionId();
   header.reset_flag = false;
   header.version_flag = false;
   header.packet_number = kPacketNumber;
@@ -793,7 +794,7 @@ TEST_P(QuicPacketCreatorTest, BuildPathResponsePacket1ResponsePadded) {
   }
 
   QuicPacketHeader header;
-  header.destination_connection_id = kTestConnectionId;
+  header.destination_connection_id = CreateTestConnectionId();
   header.reset_flag = false;
   header.version_flag = false;
   header.packet_number = kPacketNumber;
@@ -840,7 +841,7 @@ TEST_P(QuicPacketCreatorTest, BuildPathResponsePacket3ResponsesUnpadded) {
   }
 
   QuicPacketHeader header;
-  header.destination_connection_id = kTestConnectionId;
+  header.destination_connection_id = CreateTestConnectionId();
   header.reset_flag = false;
   header.version_flag = false;
   header.packet_number = kPacketNumber;
@@ -892,7 +893,7 @@ TEST_P(QuicPacketCreatorTest, BuildPathResponsePacket3ResponsesPadded) {
   }
 
   QuicPacketHeader header;
-  header.destination_connection_id = kTestConnectionId;
+  header.destination_connection_id = CreateTestConnectionId();
   header.reset_flag = false;
   header.version_flag = false;
   header.packet_number = kPacketNumber;

@@ -505,7 +505,7 @@ TEST_F(TlsHandshakerTest, ClientNotSendingALPN) {
 }
 
 TEST_F(TlsHandshakerTest, ClientSendingBadALPN) {
-  static std::string kTestBadClientAlpn = "bad-client-alpn";
+  const std::string kTestBadClientAlpn = "bad-client-alpn";
   EXPECT_CALL(client_session_, GetAlpnsToOffer())
       .WillOnce(Return(std::vector<std::string>({kTestBadClientAlpn})));
   EXPECT_CALL(*client_conn_, CloseConnection(QUIC_HANDSHAKE_FAILED,
@@ -539,9 +539,9 @@ TEST_F(TlsHandshakerTest, ClientSendingTooManyALPNs) {
 }
 
 TEST_F(TlsHandshakerTest, ServerRequiresCustomALPN) {
-  static const std::string kTestAlpn = "An ALPN That Client Did Not Offer";
+  const std::string kTestAlpn = "An ALPN That Client Did Not Offer";
   EXPECT_CALL(server_session_, SelectAlpn(_))
-      .WillOnce([](const std::vector<QuicStringPiece>& alpns) {
+      .WillOnce([kTestAlpn](const std::vector<QuicStringPiece>& alpns) {
         return std::find(alpns.cbegin(), alpns.cend(), kTestAlpn);
       });
   EXPECT_CALL(*client_conn_, CloseConnection(QUIC_HANDSHAKE_FAILED,
@@ -568,16 +568,17 @@ TEST_F(TlsHandshakerTest, CustomALPNNegotiation) {
   EXPECT_CALL(server_session_,
               OnCryptoHandshakeEvent(QuicSession::HANDSHAKE_CONFIRMED));
 
-  static const std::string kTestAlpn = "A Custom ALPN Value";
-  static const std::vector<std::string> kTestAlpns(
+  const std::string kTestAlpn = "A Custom ALPN Value";
+  const std::vector<std::string> kTestAlpns(
       {"foo", "bar", kTestAlpn, "something else"});
   EXPECT_CALL(client_session_, GetAlpnsToOffer())
       .WillRepeatedly(Return(kTestAlpns));
   EXPECT_CALL(server_session_, SelectAlpn(_))
-      .WillOnce([](const std::vector<QuicStringPiece>& alpns) {
-        EXPECT_THAT(alpns, ElementsAreArray(kTestAlpns));
-        return std::find(alpns.cbegin(), alpns.cend(), kTestAlpn);
-      });
+      .WillOnce(
+          [kTestAlpn, kTestAlpns](const std::vector<QuicStringPiece>& alpns) {
+            EXPECT_THAT(alpns, ElementsAreArray(kTestAlpns));
+            return std::find(alpns.cbegin(), alpns.cend(), kTestAlpn);
+          });
   EXPECT_CALL(client_session_, OnAlpnSelected(QuicStringPiece(kTestAlpn)));
   EXPECT_CALL(server_session_, OnAlpnSelected(QuicStringPiece(kTestAlpn)));
   client_stream_->CryptoConnect();

@@ -50,29 +50,29 @@ TEST_F(QuicSpdyStreamBodyManagerTest, ConsumeMoreThanAvailable) {
   EXPECT_EQ(0u, bytes_to_consume);
 }
 
-struct {
-  std::vector<QuicByteCount> frame_header_lengths;
-  std::vector<const char*> frame_payloads;
-  std::vector<QuicByteCount> body_bytes_to_read;
-  std::vector<QuicByteCount> expected_return_values;
-} const kOnBodyConsumedTestData[] = {
-    // One frame consumed in one call.
-    {{2}, {"foobar"}, {6}, {6}},
-    // Two frames consumed in one call.
-    {{3, 5}, {"foobar", "baz"}, {9}, {14}},
-    // One frame consumed in two calls.
-    {{2}, {"foobar"}, {4, 2}, {4, 2}},
-    // Two frames consumed in two calls matching frame boundaries.
-    {{3, 5}, {"foobar", "baz"}, {6, 3}, {11, 3}},
-    // Two frames consumed in two calls,
-    // the first call only consuming part of the first frame.
-    {{3, 5}, {"foobar", "baz"}, {5, 4}, {5, 9}},
-    // Two frames consumed in two calls,
-    // the first call consuming the entire first frame and part of the second.
-    {{3, 5}, {"foobar", "baz"}, {7, 2}, {12, 2}},
-};
-
 TEST_F(QuicSpdyStreamBodyManagerTest, OnBodyConsumed) {
+  struct {
+    std::vector<QuicByteCount> frame_header_lengths;
+    std::vector<const char*> frame_payloads;
+    std::vector<QuicByteCount> body_bytes_to_read;
+    std::vector<QuicByteCount> expected_return_values;
+  } const kOnBodyConsumedTestData[] = {
+      // One frame consumed in one call.
+      {{2}, {"foobar"}, {6}, {6}},
+      // Two frames consumed in one call.
+      {{3, 5}, {"foobar", "baz"}, {9}, {14}},
+      // One frame consumed in two calls.
+      {{2}, {"foobar"}, {4, 2}, {4, 2}},
+      // Two frames consumed in two calls matching frame boundaries.
+      {{3, 5}, {"foobar", "baz"}, {6, 3}, {11, 3}},
+      // Two frames consumed in two calls,
+      // the first call only consuming part of the first frame.
+      {{3, 5}, {"foobar", "baz"}, {5, 4}, {5, 9}},
+      // Two frames consumed in two calls,
+      // the first call consuming the entire first frame and part of the second.
+      {{3, 5}, {"foobar", "baz"}, {7, 2}, {12, 2}},
+  };
+
   for (size_t test_case_index = 0;
        test_case_index < QUIC_ARRAYSIZE(kOnBodyConsumedTestData);
        ++test_case_index) {
@@ -105,26 +105,26 @@ TEST_F(QuicSpdyStreamBodyManagerTest, OnBodyConsumed) {
   }
 }
 
-struct {
-  std::vector<QuicByteCount> frame_header_lengths;
-  std::vector<const char*> frame_payloads;
-  size_t iov_len;
-} const kPeekBodyTestData[] = {
-    // No frames, more iovecs than frames.
-    {{}, {}, 1},
-    // One frame, same number of iovecs.
-    {{3}, {"foobar"}, 1},
-    // One frame, more iovecs than frames.
-    {{3}, {"foobar"}, 2},
-    // Two frames, fewer iovecs than frames.
-    {{3, 5}, {"foobar", "baz"}, 1},
-    // Two frames, same number of iovecs.
-    {{3, 5}, {"foobar", "baz"}, 2},
-    // Two frames, more iovecs than frames.
-    {{3, 5}, {"foobar", "baz"}, 3},
-};
-
 TEST_F(QuicSpdyStreamBodyManagerTest, PeekBody) {
+  struct {
+    std::vector<QuicByteCount> frame_header_lengths;
+    std::vector<const char*> frame_payloads;
+    size_t iov_len;
+  } const kPeekBodyTestData[] = {
+      // No frames, more iovecs than frames.
+      {{}, {}, 1},
+      // One frame, same number of iovecs.
+      {{3}, {"foobar"}, 1},
+      // One frame, more iovecs than frames.
+      {{3}, {"foobar"}, 2},
+      // Two frames, fewer iovecs than frames.
+      {{3, 5}, {"foobar", "baz"}, 1},
+      // Two frames, same number of iovecs.
+      {{3, 5}, {"foobar", "baz"}, 2},
+      // Two frames, more iovecs than frames.
+      {{3, 5}, {"foobar", "baz"}, 3},
+  };
+
   for (size_t test_case_index = 0;
        test_case_index < QUIC_ARRAYSIZE(kPeekBodyTestData); ++test_case_index) {
     const std::vector<QuicByteCount>& frame_header_lengths =
@@ -159,62 +159,65 @@ TEST_F(QuicSpdyStreamBodyManagerTest, PeekBody) {
   }
 }
 
-struct {
-  std::vector<QuicByteCount> frame_header_lengths;
-  std::vector<const char*> frame_payloads;
-  std::vector<std::vector<QuicByteCount>> iov_lengths;
-  std::vector<QuicByteCount> expected_total_bytes_read;
-  std::vector<QuicByteCount> expected_return_values;
-} const kReadBodyTestData[] = {
-    // One frame, one read with smaller iovec.
-    {{4}, {"foo"}, {{2}}, {2}, {2}},
-    // One frame, one read with same size iovec.
-    {{4}, {"foo"}, {{3}}, {3}, {3}},
-    // One frame, one read with larger iovec.
-    {{4}, {"foo"}, {{5}}, {3}, {3}},
-    // One frame, one read with two iovecs, smaller total size.
-    {{4}, {"foobar"}, {{2, 3}}, {5}, {5}},
-    // One frame, one read with two iovecs, same total size.
-    {{4}, {"foobar"}, {{2, 4}}, {6}, {6}},
-    // One frame, one read with two iovecs, larger total size in last iovec.
-    {{4}, {"foobar"}, {{2, 6}}, {6}, {6}},
-    // One frame, one read with extra iovecs, body ends at iovec boundary.
-    {{4}, {"foobar"}, {{2, 4, 4, 3}}, {6}, {6}},
-    // One frame, one read with extra iovecs, body ends not at iovec boundary.
-    {{4}, {"foobar"}, {{2, 7, 4, 3}}, {6}, {6}},
-    // One frame, two reads with two iovecs each, smaller total size.
-    {{4}, {"foobarbaz"}, {{2, 1}, {3, 2}}, {3, 5}, {3, 5}},
-    // One frame, two reads with two iovecs each, same total size.
-    {{4}, {"foobarbaz"}, {{2, 1}, {4, 2}}, {3, 6}, {3, 6}},
-    // One frame, two reads with two iovecs each, larger total size.
-    {{4}, {"foobarbaz"}, {{2, 1}, {4, 10}}, {3, 6}, {3, 6}},
-    // Two frames, one read with smaller iovec.
-    {{4, 3}, {"foobar", "baz"}, {{8}}, {8}, {11}},
-    // Two frames, one read with same size iovec.
-    {{4, 3}, {"foobar", "baz"}, {{9}}, {9}, {12}},
-    // Two frames, one read with larger iovec.
-    {{4, 3}, {"foobar", "baz"}, {{10}}, {9}, {12}},
-    // Two frames, one read with two iovecs, smaller total size.
-    {{4, 3}, {"foobar", "baz"}, {{4, 3}}, {7}, {10}},
-    // Two frames, one read with two iovecs, same total size.
-    {{4, 3}, {"foobar", "baz"}, {{4, 5}}, {9}, {12}},
-    // Two frames, one read with two iovecs, larger total size in last iovec.
-    {{4, 3}, {"foobar", "baz"}, {{4, 6}}, {9}, {12}},
-    // Two frames, one read with extra iovecs, body ends at iovec boundary.
-    {{4, 3}, {"foobar", "baz"}, {{4, 6, 4, 3}}, {9}, {12}},
-    // Two frames, one read with extra iovecs, body ends not at iovec boundary.
-    {{4, 3}, {"foobar", "baz"}, {{4, 7, 4, 3}}, {9}, {12}},
-    // Two frames, two reads with two iovecs each, reads end on frame boundary.
-    {{4, 3}, {"foobar", "baz"}, {{2, 4}, {2, 1}}, {6, 3}, {9, 3}},
-    // Three frames, three reads, extra iovecs, no iovec ends on frame boundary.
-    {{4, 3, 6},
-     {"foobar", "bazquux", "qux"},
-     {{4, 3}, {2, 3}, {5, 3}},
-     {7, 5, 4},
-     {10, 5, 10}},
-};
-
 TEST_F(QuicSpdyStreamBodyManagerTest, ReadBody) {
+  struct {
+    std::vector<QuicByteCount> frame_header_lengths;
+    std::vector<const char*> frame_payloads;
+    std::vector<std::vector<QuicByteCount>> iov_lengths;
+    std::vector<QuicByteCount> expected_total_bytes_read;
+    std::vector<QuicByteCount> expected_return_values;
+  } const kReadBodyTestData[] = {
+      // One frame, one read with smaller iovec.
+      {{4}, {"foo"}, {{2}}, {2}, {2}},
+      // One frame, one read with same size iovec.
+      {{4}, {"foo"}, {{3}}, {3}, {3}},
+      // One frame, one read with larger iovec.
+      {{4}, {"foo"}, {{5}}, {3}, {3}},
+      // One frame, one read with two iovecs, smaller total size.
+      {{4}, {"foobar"}, {{2, 3}}, {5}, {5}},
+      // One frame, one read with two iovecs, same total size.
+      {{4}, {"foobar"}, {{2, 4}}, {6}, {6}},
+      // One frame, one read with two iovecs, larger total size in last iovec.
+      {{4}, {"foobar"}, {{2, 6}}, {6}, {6}},
+      // One frame, one read with extra iovecs, body ends at iovec boundary.
+      {{4}, {"foobar"}, {{2, 4, 4, 3}}, {6}, {6}},
+      // One frame, one read with extra iovecs, body ends not at iovec boundary.
+      {{4}, {"foobar"}, {{2, 7, 4, 3}}, {6}, {6}},
+      // One frame, two reads with two iovecs each, smaller total size.
+      {{4}, {"foobarbaz"}, {{2, 1}, {3, 2}}, {3, 5}, {3, 5}},
+      // One frame, two reads with two iovecs each, same total size.
+      {{4}, {"foobarbaz"}, {{2, 1}, {4, 2}}, {3, 6}, {3, 6}},
+      // One frame, two reads with two iovecs each, larger total size.
+      {{4}, {"foobarbaz"}, {{2, 1}, {4, 10}}, {3, 6}, {3, 6}},
+      // Two frames, one read with smaller iovec.
+      {{4, 3}, {"foobar", "baz"}, {{8}}, {8}, {11}},
+      // Two frames, one read with same size iovec.
+      {{4, 3}, {"foobar", "baz"}, {{9}}, {9}, {12}},
+      // Two frames, one read with larger iovec.
+      {{4, 3}, {"foobar", "baz"}, {{10}}, {9}, {12}},
+      // Two frames, one read with two iovecs, smaller total size.
+      {{4, 3}, {"foobar", "baz"}, {{4, 3}}, {7}, {10}},
+      // Two frames, one read with two iovecs, same total size.
+      {{4, 3}, {"foobar", "baz"}, {{4, 5}}, {9}, {12}},
+      // Two frames, one read with two iovecs, larger total size in last iovec.
+      {{4, 3}, {"foobar", "baz"}, {{4, 6}}, {9}, {12}},
+      // Two frames, one read with extra iovecs, body ends at iovec boundary.
+      {{4, 3}, {"foobar", "baz"}, {{4, 6, 4, 3}}, {9}, {12}},
+      // Two frames, one read with extra iovecs, body ends not at iovec
+      // boundary.
+      {{4, 3}, {"foobar", "baz"}, {{4, 7, 4, 3}}, {9}, {12}},
+      // Two frames, two reads with two iovecs each, reads end on frame
+      // boundary.
+      {{4, 3}, {"foobar", "baz"}, {{2, 4}, {2, 1}}, {6, 3}, {9, 3}},
+      // Three frames, three reads, extra iovecs, no iovec ends on frame
+      // boundary.
+      {{4, 3, 6},
+       {"foobar", "bazquux", "qux"},
+       {{4, 3}, {2, 3}, {5, 3}},
+       {7, 5, 4},
+       {10, 5, 10}},
+  };
+
   for (size_t test_case_index = 0;
        test_case_index < QUIC_ARRAYSIZE(kReadBodyTestData); ++test_case_index) {
     const std::vector<QuicByteCount>& frame_header_lengths =
