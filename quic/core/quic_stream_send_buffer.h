@@ -41,7 +41,7 @@ struct QUIC_EXPORT_PRIVATE BufferedSlice {
   QuicStreamOffset offset;
 };
 
-struct QUIC_EXPORT_PRIVATE StreamPendingRetransmission {
+struct /*QUIC_EXPORT_PRIVATE*/ StreamPendingRetransmission {
   StreamPendingRetransmission(QuicStreamOffset offset, QuicByteCount length)
       : offset(offset), length(length) {}
 
