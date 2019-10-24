@@ -308,7 +308,8 @@ enum QuicPacketNumberLength : uint8_t {
   PACKET_3BYTE_PACKET_NUMBER = 3,  // Used in versions 45+.
   PACKET_4BYTE_PACKET_NUMBER = 4,
   IETF_MAX_PACKET_NUMBER_LENGTH = 4,
-  // TODO(rch): Remove this when we remove QUIC_VERSION_39.
+  // TODO(rch): Remove these when we remove QUIC_VERSION_43 since these values
+  // are not representable with v46 and above.
   PACKET_6BYTE_PACKET_NUMBER = 6,
   PACKET_8BYTE_PACKET_NUMBER = 8
 };
