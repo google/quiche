@@ -289,7 +289,7 @@ class QUIC_EXPORT_PRIVATE BandwidthSampler : public BandwidthSamplerInterface {
   // and the state of the connection at the moment the packet was sent,
   // specifically the information about the most recently acknowledged packet at
   // that moment.
-  struct /*QUIC_EXPORT_PRIVATE*/ ConnectionStateOnSentPacket {
+  struct QUIC_EXPORT_PRIVATE ConnectionStateOnSentPacket {
     // Time at which the packet is sent.
     QuicTime sent_time;
 
