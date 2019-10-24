@@ -136,9 +136,13 @@ void PendingStream::AddBytesConsumed(QuicByteCount bytes) {
   connection_flow_controller_->AddBytesConsumed(bytes);
 }
 
-void PendingStream::Reset(QuicRstStreamErrorCode error) {
-  // TODO: RESET_STREAM must not be sent for READ_UNIDIRECTIONAL stream.
-  session_->SendRstStream(id_, error, 0);
+void PendingStream::Reset(QuicRstStreamErrorCode /*error*/) {
+  // Currently PendingStream is only read-unidirectional. It shouldn't send
+  // Reset.
+  DCHECK_EQ(READ_UNIDIRECTIONAL,
+            QuicUtils::GetStreamType(id_, session_->perspective(),
+                                     /*peer_initiated = */ true));
+  QUIC_NOTREACHED();
 }
 
 void PendingStream::CloseConnectionWithDetails(QuicErrorCode error,

@@ -2404,12 +2404,6 @@ TEST_P(QuicSpdySessionTestClient, ResetAfterInvalidIncomingStreamType) {
                                QUIC_STREAM_CANCELLED,
                                /* bytes_written = */ payload.size());
 
-  // This will trigger the sending of two control frames: one RESET_STREAM with
-  // QUIC_RST_ACKNOWLEDGEMENT, and one STOP_SENDING.
-  EXPECT_CALL(*connection_, SendControlFrame(_))
-      .Times(2)
-      .WillRepeatedly(Invoke(&ClearControlFrame));
-  EXPECT_CALL(*connection_, OnStreamReset(stream_id, QUIC_RST_ACKNOWLEDGEMENT));
   session_.OnRstStream(rst_frame);
 
   // The stream is closed.
@@ -2477,12 +2471,6 @@ TEST_P(QuicSpdySessionTestClient, ResetInMiddleOfStreamType) {
                                QUIC_STREAM_CANCELLED,
                                /* bytes_written = */ payload.size());
 
-  // This will trigger the sending of two control frames: one RESET_STREAM with
-  // QUIC_RST_ACKNOWLEDGEMENT, and one STOP_SENDING.
-  EXPECT_CALL(*connection_, SendControlFrame(_))
-      .Times(2)
-      .WillRepeatedly(Invoke(&ClearControlFrame));
-  EXPECT_CALL(*connection_, OnStreamReset(stream_id, QUIC_RST_ACKNOWLEDGEMENT));
   session_.OnRstStream(rst_frame);
 
   // The stream is closed.

@@ -1884,9 +1884,6 @@ TEST_P(QuicSessionTestServer, RstPendingStreams) {
   EXPECT_EQ(0, session_.num_incoming_streams_created());
   EXPECT_EQ(0u, session_.GetNumOpenIncomingStreams());
 
-  EXPECT_CALL(*connection_, SendControlFrame(_)).Times(1);
-  EXPECT_CALL(*connection_, OnStreamReset(stream_id, QUIC_RST_ACKNOWLEDGEMENT))
-      .Times(1);
   QuicRstStreamFrame rst1(kInvalidControlFrameId, stream_id,
                           QUIC_ERROR_PROCESSING_STREAM, 12);
   session_.OnRstStream(rst1);

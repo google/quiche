@@ -305,7 +305,10 @@ void QuicSession::PendingStreamOnRstStream(const QuicRstStreamFrame& frame) {
   }
 
   pending->OnRstStreamFrame(frame);
-  SendRstStream(stream_id, QUIC_RST_ACKNOWLEDGEMENT, 0);
+  // Pending stream is currently read only. We can safely close the stream.
+  DCHECK_EQ(READ_UNIDIRECTIONAL,
+            QuicUtils::GetStreamType(pending->id(), perspective(),
+                                     /*peer_initiated = */ true));
   ClosePendingStream(stream_id);
 }
 
