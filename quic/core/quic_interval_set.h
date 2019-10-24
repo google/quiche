@@ -71,7 +71,9 @@ class QUIC_EXPORT_PRIVATE QuicIntervalSet {
 
  private:
   struct QUIC_EXPORT_PRIVATE IntervalLess {
-    bool operator()(const value_type& a, const value_type& b) const;
+    bool operator()(const value_type& a, const value_type& b) const {
+      return a.min() < b.min() || (a.min() == b.min() && a.max() > b.max());
+    }
   };
   typedef std::set<value_type, IntervalLess> Set;
 
@@ -903,11 +905,11 @@ void swap(QuicIntervalSet<T>& x, QuicIntervalSet<T>& y) {
 // first by ascending min() and then by descending max(). The best way to
 // understand why this is so is to check out the comments associated with the
 // Find() and Compact() methods.
-template <typename T>
-bool QuicIntervalSet<T>::IntervalLess::operator()(const value_type& a,
-                                                  const value_type& b) const {
-  return a.min() < b.min() || (a.min() == b.min() && a.max() > b.max());
-}
+//template <typename T>
+//bool QuicIntervalSet<T>::IntervalLess::operator()(const value_type& a,
+//                                                  const value_type& b) const {
+//  return a.min() < b.min() || (a.min() == b.min() && a.max() > b.max());
+//}
 
 }  // namespace quic
 
