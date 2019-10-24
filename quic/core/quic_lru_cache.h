@@ -19,7 +19,7 @@ namespace quic {
 // Value* returned by Lookup() can be invalid if the entry is evicted by other
 // threads.
 template <class K, class V>
-class QUIC_EXPORT_PRIVATE QuicLRUCache {
+class /*QUIC_EXPORT_PRIVATE*/ QuicLRUCache {
  public:
   explicit QuicLRUCache(size_t capacity) : capacity_(capacity) {}
   QuicLRUCache(const QuicLRUCache&) = delete;
