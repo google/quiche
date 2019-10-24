@@ -128,7 +128,7 @@ TEST_F(CryptoTestUtilsTest, TestGenerateFullCHLO) {
       QuicRandom::GetInstance(), &clock, new_config_options);
   primary_config.set_primary_time(clock.WallNow().ToUNIXSeconds());
   std::unique_ptr<CryptoHandshakeMessage> msg =
-      crypto_config.AddConfig(std::move(primary_config), clock.WallNow());
+      crypto_config.AddConfig(primary_config, clock.WallNow());
   QuicStringPiece orbit;
   ASSERT_TRUE(msg->GetStringPiece(kORBT, &orbit));
   std::string nonce;

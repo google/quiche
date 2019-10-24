@@ -18,6 +18,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_time.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/crypto_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/mock_clock.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_crypto_server_config_peer.h"
@@ -351,7 +352,7 @@ class CryptoServerConfigsTest : public QuicTest {
           QuicCryptoServerConfig::GenerateConfig(rand_, &clock_, options);
       protobuf.set_primary_time(primary_time);
       protobuf.set_priority(priority);
-      if (std::string(server_config_id).find("INVALID") == 0) {
+      if (QuicTextUtils::StartsWith(std::string(server_config_id), "INVALID")) {
         protobuf.clear_key();
         has_invalid = true;
       }

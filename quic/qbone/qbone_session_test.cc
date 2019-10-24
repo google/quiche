@@ -298,7 +298,7 @@ class QboneSessionTest : public QuicTest {
           server_crypto_config_->GenerateConfig(QuicRandom::GetInstance(),
                                                 GetClock(), options);
       std::unique_ptr<CryptoHandshakeMessage> message(
-          server_crypto_config_->AddConfig(std::move(primary_config),
+          server_crypto_config_->AddConfig(primary_config,
                                            GetClock()->WallNow()));
 
       server_peer_ = std::make_unique<QboneServerSession>(

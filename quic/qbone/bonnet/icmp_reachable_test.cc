@@ -118,7 +118,7 @@ class IcmpReachableTest : public QuicTest {
 };
 
 TEST_F(IcmpReachableTest, SendsPings) {
-  IcmpReachable reachable(source_, destination_, absl::Seconds(0), &kernel_,
+  IcmpReachable reachable(source_, destination_, absl::ZeroDuration(), &kernel_,
                           &epoll_server_, &stats_);
 
   SetFdExpectations();
@@ -140,7 +140,7 @@ TEST_F(IcmpReachableTest, SendsPings) {
 }
 
 TEST_F(IcmpReachableTest, HandlesUnreachableEvents) {
-  IcmpReachable reachable(source_, destination_, absl::Seconds(0), &kernel_,
+  IcmpReachable reachable(source_, destination_, absl::ZeroDuration(), &kernel_,
                           &epoll_server_, &stats_);
 
   SetFdExpectations();
@@ -164,7 +164,7 @@ TEST_F(IcmpReachableTest, HandlesUnreachableEvents) {
 }
 
 TEST_F(IcmpReachableTest, HandlesReachableEvents) {
-  IcmpReachable reachable(source_, destination_, absl::Seconds(0), &kernel_,
+  IcmpReachable reachable(source_, destination_, absl::ZeroDuration(), &kernel_,
                           &epoll_server_, &stats_);
 
   SetFdExpectations();
@@ -212,7 +212,7 @@ TEST_F(IcmpReachableTest, HandlesReachableEvents) {
 }
 
 TEST_F(IcmpReachableTest, HandlesWriteErrors) {
-  IcmpReachable reachable(source_, destination_, absl::Seconds(0), &kernel_,
+  IcmpReachable reachable(source_, destination_, absl::ZeroDuration(), &kernel_,
                           &epoll_server_, &stats_);
 
   SetFdExpectations();
@@ -232,7 +232,7 @@ TEST_F(IcmpReachableTest, HandlesWriteErrors) {
 }
 
 TEST_F(IcmpReachableTest, HandlesReadErrors) {
-  IcmpReachable reachable(source_, destination_, absl::Seconds(0), &kernel_,
+  IcmpReachable reachable(source_, destination_, absl::ZeroDuration(), &kernel_,
                           &epoll_server_, &stats_);
 
   SetFdExpectations();
