@@ -35,7 +35,11 @@ QuicStreamSequencer::QuicStreamSequencer(StreamInterface* quic_stream)
       ignore_read_data_(false),
       level_triggered_(false),
       stop_reading_when_level_triggered_(
-          GetQuicReloadableFlag(quic_stop_reading_when_level_triggered)) {}
+          GetQuicReloadableFlag(quic_stop_reading_when_level_triggered)) {
+  if (stop_reading_when_level_triggered_) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_stop_reading_when_level_triggered);
+  }
+}
 
 QuicStreamSequencer::~QuicStreamSequencer() {}
 
