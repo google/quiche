@@ -52,12 +52,14 @@ const size_t kDataLen = 9;
 class TestStream : public QuicStream {
  public:
   TestStream(QuicStreamId id, QuicSession* session, StreamType type)
-      : QuicStream(id, session, /*is_static=*/false, type) {}
+      : QuicStream(id, session, /*is_static=*/false, type) {
+    sequencer()->set_level_triggered(true);
+  }
 
   TestStream(PendingStream* pending, StreamType type, bool is_static)
       : QuicStream(pending, type, is_static) {}
 
-  void OnDataAvailable() override {}
+  MOCK_METHOD0(OnDataAvailable, void());
 
   MOCK_METHOD0(OnCanWriteNewData, void());
 
@@ -101,7 +103,8 @@ class QuicStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
         session_->config(), 10);
     session_->OnConfigNegotiated();
 
-    stream_ = new TestStream(kTestStreamId, session_.get(), BIDIRECTIONAL);
+    stream_ = new StrictMock<TestStream>(kTestStreamId, session_.get(),
+                                         BIDIRECTIONAL);
     EXPECT_NE(nullptr, stream_);
     // session_ now owns stream_.
     session_->ActivateStream(QuicWrapUnique(stream_));
@@ -146,7 +149,7 @@ class QuicStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
   MockAlarmFactory alarm_factory_;
   MockQuicConnection* connection_;
   std::unique_ptr<MockQuicSession> session_;
-  TestStream* stream_;
+  StrictMock<TestStream>* stream_;
   QuicWriteBlockedList* write_blocked_list_;
   QuicTime::Delta zero_;
   ParsedQuicVersionVector supported_versions_;
@@ -179,8 +182,7 @@ TEST_P(QuicStreamTest, PendingStreamTooMuchData) {
   // Receive a stream frame that violates flow control: the byte offset is
   // higher than the receive window offset.
   QuicStreamFrame frame(kTestStreamId + 2, false,
-                        kInitialSessionFlowControlWindowForTest + 1,
-                        QuicStringPiece("."));
+                        kInitialSessionFlowControlWindowForTest + 1, ".");
 
   // Stream should not accept the frame, and the connection should be closed.
   EXPECT_CALL(*connection_,
@@ -223,10 +225,10 @@ TEST_P(QuicStreamTest, FromPendingStream) {
 
   PendingStream pending(kTestStreamId + 2, session_.get());
 
-  QuicStreamFrame frame(kTestStreamId + 2, false, 2, QuicStringPiece("."));
+  QuicStreamFrame frame(kTestStreamId + 2, false, 2, ".");
   pending.OnStreamFrame(frame);
   pending.OnStreamFrame(frame);
-  QuicStreamFrame frame2(kTestStreamId + 2, true, 3, QuicStringPiece("."));
+  QuicStreamFrame frame2(kTestStreamId + 2, true, 3, ".");
   pending.OnStreamFrame(frame2);
 
   TestStream stream(&pending, StreamType::READ_UNIDIRECTIONAL, false);
@@ -245,14 +247,14 @@ TEST_P(QuicStreamTest, FromPendingStreamThenData) {
 
   PendingStream pending(kTestStreamId + 2, session_.get());
 
-  QuicStreamFrame frame(kTestStreamId + 2, false, 2, QuicStringPiece("."));
+  QuicStreamFrame frame(kTestStreamId + 2, false, 2, ".");
   pending.OnStreamFrame(frame);
 
   auto stream =
       new TestStream(&pending, StreamType::READ_UNIDIRECTIONAL, false);
   session_->ActivateStream(QuicWrapUnique(stream));
 
-  QuicStreamFrame frame2(kTestStreamId + 2, true, 3, QuicStringPiece("."));
+  QuicStreamFrame frame2(kTestStreamId + 2, true, 3, ".");
   stream->OnStreamFrame(frame2);
 
   EXPECT_EQ(2, stream->num_frames_received());
@@ -382,6 +384,7 @@ TEST_P(QuicStreamTest, WriteOrBufferData) {
         return MockQuicSession::ConsumeData(stream_, stream_->id(),
                                             kDataLen - 1, kDataLen - 1, NO_FIN);
       }));
+  EXPECT_CALL(*stream_, OnCanWriteNewData());
   stream_->OnCanWrite();
   EXPECT_TRUE(session_->HasUnackedStreamData());
 
@@ -391,6 +394,7 @@ TEST_P(QuicStreamTest, WriteOrBufferData) {
         return MockQuicSession::ConsumeData(stream_, stream_->id(), 2u,
                                             2 * kDataLen - 2, NO_FIN);
       }));
+  EXPECT_CALL(*stream_, OnCanWriteNewData());
   stream_->OnCanWrite();
   EXPECT_TRUE(session_->HasUnackedStreamData());
 }
@@ -539,13 +543,16 @@ TEST_P(QuicStreamTest, FrameStats) {
 
   EXPECT_EQ(0, stream_->num_frames_received());
   EXPECT_EQ(0, stream_->num_duplicate_frames_received());
-  QuicStreamFrame frame(stream_->id(), false, 0, QuicStringPiece("."));
+  QuicStreamFrame frame(stream_->id(), false, 0, ".");
+  EXPECT_CALL(*stream_, OnDataAvailable()).Times(2);
   stream_->OnStreamFrame(frame);
   EXPECT_EQ(1, stream_->num_frames_received());
   EXPECT_EQ(0, stream_->num_duplicate_frames_received());
   stream_->OnStreamFrame(frame);
   EXPECT_EQ(2, stream_->num_frames_received());
   EXPECT_EQ(1, stream_->num_duplicate_frames_received());
+  QuicStreamFrame frame2(stream_->id(), false, 1, "abc");
+  stream_->OnStreamFrame(frame2);
 }
 
 // Verify that when we receive a packet which violates flow control (i.e. sends
@@ -557,8 +564,7 @@ TEST_P(QuicStreamTest, StreamSequencerNeverSeesPacketsViolatingFlowControl) {
   // Receive a stream frame that violates flow control: the byte offset is
   // higher than the receive window offset.
   QuicStreamFrame frame(stream_->id(), false,
-                        kInitialSessionFlowControlWindowForTest + 1,
-                        QuicStringPiece("."));
+                        kInitialSessionFlowControlWindowForTest + 1, ".");
   EXPECT_GT(frame.offset, QuicFlowControllerPeer::ReceiveWindowOffset(
                               stream_->flow_controller()));
 
@@ -571,6 +577,7 @@ TEST_P(QuicStreamTest, StreamSequencerNeverSeesPacketsViolatingFlowControl) {
 // Verify that after the consumer calls StopReading(), the stream still sends
 // flow control updates.
 TEST_P(QuicStreamTest, StopReadingSendsFlowControl) {
+  SetQuicReloadableFlag(quic_stop_reading_when_level_triggered, true);
   Initialize();
 
   stream_->StopReading();
@@ -600,13 +607,11 @@ TEST_P(QuicStreamTest, FinalByteOffsetFromFin) {
 
   EXPECT_FALSE(stream_->HasFinalReceivedByteOffset());
 
-  QuicStreamFrame stream_frame_no_fin(stream_->id(), false, 1234,
-                                      QuicStringPiece("."));
+  QuicStreamFrame stream_frame_no_fin(stream_->id(), false, 1234, ".");
   stream_->OnStreamFrame(stream_frame_no_fin);
   EXPECT_FALSE(stream_->HasFinalReceivedByteOffset());
 
-  QuicStreamFrame stream_frame_with_fin(stream_->id(), true, 1234,
-                                        QuicStringPiece("."));
+  QuicStreamFrame stream_frame_with_fin(stream_->id(), true, 1234, ".");
   stream_->OnStreamFrame(stream_frame_with_fin);
   EXPECT_TRUE(stream_->HasFinalReceivedByteOffset());
 }
@@ -695,11 +700,9 @@ TEST_P(QuicStreamTest, OnStreamFrameUpperLimit) {
 
   EXPECT_CALL(*connection_, CloseConnection(QUIC_STREAM_LENGTH_OVERFLOW, _, _))
       .Times(0);
-  QuicStreamFrame stream_frame(stream_->id(), false, kMaxStreamLength - 1,
-                               QuicStringPiece("."));
+  QuicStreamFrame stream_frame(stream_->id(), false, kMaxStreamLength - 1, ".");
   stream_->OnStreamFrame(stream_frame);
-  QuicStreamFrame stream_frame2(stream_->id(), true, kMaxStreamLength,
-                                QuicStringPiece(""));
+  QuicStreamFrame stream_frame2(stream_->id(), true, kMaxStreamLength, "");
   stream_->OnStreamFrame(stream_frame2);
 }
 
@@ -707,8 +710,7 @@ TEST_P(QuicStreamTest, StreamTooLong) {
   Initialize();
   EXPECT_CALL(*connection_, CloseConnection(QUIC_STREAM_LENGTH_OVERFLOW, _, _))
       .Times(1);
-  QuicStreamFrame stream_frame(stream_->id(), false, kMaxStreamLength,
-                               QuicStringPiece("."));
+  QuicStreamFrame stream_frame(stream_->id(), false, kMaxStreamLength, ".");
   EXPECT_QUIC_PEER_BUG(stream_->OnStreamFrame(stream_frame),
                        QuicStrCat("Receive stream frame on stream ",
                                   stream_->id(), " reaches max stream length"));
@@ -719,8 +721,7 @@ TEST_P(QuicStreamTest, SetDrainingIncomingOutgoing) {
   Initialize();
 
   // Incoming data with FIN.
-  QuicStreamFrame stream_frame_with_fin(stream_->id(), true, 1234,
-                                        QuicStringPiece("."));
+  QuicStreamFrame stream_frame_with_fin(stream_->id(), true, 1234, ".");
   stream_->OnStreamFrame(stream_frame_with_fin);
   // The FIN has been received but not consumed.
   EXPECT_TRUE(stream_->HasFinalReceivedByteOffset());
@@ -759,8 +760,7 @@ TEST_P(QuicStreamTest, SetDrainingOutgoingIncoming) {
   EXPECT_EQ(1u, session_->GetNumOpenIncomingStreams());
 
   // Incoming data with FIN.
-  QuicStreamFrame stream_frame_with_fin(stream_->id(), true, 1234,
-                                        QuicStringPiece("."));
+  QuicStreamFrame stream_frame_with_fin(stream_->id(), true, 1234, ".");
   stream_->OnStreamFrame(stream_frame_with_fin);
   // The FIN has been received but not consumed.
   EXPECT_TRUE(stream_->HasFinalReceivedByteOffset());
@@ -782,7 +782,8 @@ TEST_P(QuicStreamTest, EarlyResponseFinHandling) {
       .WillRepeatedly(Invoke(MockQuicSession::ConsumeData));
 
   // Receive data for the request.
-  QuicStreamFrame frame1(stream_->id(), false, 0, QuicStringPiece("Start"));
+  EXPECT_CALL(*stream_, OnDataAvailable()).Times(1);
+  QuicStreamFrame frame1(stream_->id(), false, 0, "Start");
   stream_->OnStreamFrame(frame1);
   // When QuicSimpleServerStream sends the response, it calls
   // QuicStream::CloseReadSide() first.
@@ -791,7 +792,7 @@ TEST_P(QuicStreamTest, EarlyResponseFinHandling) {
   stream_->WriteOrBufferData(kData1, false, nullptr);
   EXPECT_TRUE(QuicStreamPeer::read_side_closed(stream_));
   // Receive remaining data and FIN for the request.
-  QuicStreamFrame frame2(stream_->id(), true, 0, QuicStringPiece("End"));
+  QuicStreamFrame frame2(stream_->id(), true, 0, "End");
   stream_->OnStreamFrame(frame2);
   EXPECT_TRUE(stream_->fin_received());
   EXPECT_TRUE(stream_->HasFinalReceivedByteOffset());
@@ -1316,6 +1317,7 @@ TEST_P(QuicStreamTest, OnStreamFrameLost) {
   EXPECT_TRUE(stream_->HasPendingRetransmission());
   EXPECT_CALL(*session_, WritevData(_, _, _, _, _))
       .WillOnce(Invoke(MockQuicSession::ConsumeData));
+  EXPECT_CALL(*stream_, OnCanWriteNewData()).Times(1);
   stream_->OnCanWrite();
   EXPECT_FALSE(stream_->HasPendingRetransmission());
   EXPECT_TRUE(stream_->HasBufferedData());
@@ -1638,6 +1640,7 @@ TEST_P(QuicStreamTest, RstStreamFrameChangesCloseOffset) {
   Initialize();
 
   QuicStreamFrame stream_frame(stream_->id(), true, 0, "abc");
+  EXPECT_CALL(*stream_, OnDataAvailable());
   stream_->OnStreamFrame(stream_frame);
   QuicRstStreamFrame rst(kInvalidControlFrameId, stream_->id(),
                          QUIC_STREAM_CANCELLED, 0u);
