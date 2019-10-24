@@ -46,7 +46,6 @@ using spdy::SpdyPriorityIR;
 using spdy::SpdyPushPromiseIR;
 using spdy::SpdySerializedFrame;
 using spdy::SpdySettingsId;
-using spdy::SpdySettingsIR;
 using spdy::SpdyStreamId;
 
 namespace quic {

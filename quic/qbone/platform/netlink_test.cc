@@ -45,7 +45,7 @@ class NetlinkTest : public QuicTest {
     InSequence s;
 
     EXPECT_CALL(mock_kernel_, sendmsg(kSocketFd, _, _))
-        .WillOnce(Invoke([this, type, flags, send_callback](
+        .WillOnce(Invoke([type, flags, send_callback](
                              Unused, const struct msghdr* msg, int) {
           EXPECT_EQ(sizeof(struct sockaddr_nl), msg->msg_namelen);
           auto* nl_addr =
@@ -251,7 +251,7 @@ TEST_F(NetlinkTest, GetLinkInfoWorks) {
 
   ExpectNetlinkPacket(
       RTM_GETLINK, NLM_F_ROOT | NLM_F_MATCH | NLM_F_REQUEST,
-      [this, &hwaddr, &bcaddr](void* buf, size_t len, int seq) {
+      [&hwaddr, &bcaddr](void* buf, size_t len, int seq) {
         int ret = 0;
 
         struct nlmsghdr* netlink_message =
@@ -291,7 +291,7 @@ TEST_F(NetlinkTest, GetAddressesWorks) {
 
   ExpectNetlinkPacket(
       RTM_GETADDR, NLM_F_ROOT | NLM_F_MATCH | NLM_F_REQUEST,
-      [this, &addresses](void* buf, size_t len, int seq) {
+      [&addresses](void* buf, size_t len, int seq) {
         int ret = 0;
 
         struct nlmsghdr* nlm = nullptr;

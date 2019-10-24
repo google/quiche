@@ -154,7 +154,7 @@ TEST_F(ChaCha20Poly1305TlsDecrypterTest, Decrypt) {
         // is set to nullptr, as opposed to a zero-length, non-nullptr pointer.
         QuicStringPiece(aad.length() ? aad.data() : nullptr, aad.length()),
         ct));
-    if (!decrypted.get()) {
+    if (!decrypted) {
       EXPECT_FALSE(has_pt);
       continue;
     }

@@ -8,8 +8,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
 
-using ::testing::Values;
-
 namespace quic {
 namespace test {
 namespace {

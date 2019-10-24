@@ -36,7 +36,6 @@ using spdy::SETTINGS_HEADER_TABLE_SIZE;
 using spdy::SETTINGS_INITIAL_WINDOW_SIZE;
 using spdy::SETTINGS_MAX_CONCURRENT_STREAMS;
 using spdy::SETTINGS_MAX_FRAME_SIZE;
-using spdy::SETTINGS_MAX_HEADER_LIST_SIZE;
 using spdy::Spdy3PriorityToHttp2Weight;
 using spdy::SpdyAltSvcWireFormat;
 using spdy::SpdyDataIR;

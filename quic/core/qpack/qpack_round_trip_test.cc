@@ -13,7 +13,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_header_block.h"
 
-using ::testing::Combine;
 using ::testing::Values;
 
 namespace quic {

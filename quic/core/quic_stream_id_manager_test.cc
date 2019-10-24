@@ -13,7 +13,6 @@
 #include "net/third_party/quiche/src/quic/test_tools/quic_stream_id_manager_peer.h"
 
 using testing::_;
-using testing::Invoke;
 using testing::StrictMock;
 
 namespace quic {

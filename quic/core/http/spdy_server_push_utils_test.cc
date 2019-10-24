@@ -13,8 +13,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
 
 using spdy::SpdyHeaderBlock;
-using testing::Pair;
-using testing::UnorderedElementsAre;
 
 namespace quic {
 namespace test {

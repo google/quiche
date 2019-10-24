@@ -63,7 +63,6 @@
 
 namespace {
 
-using quic::QuicSocketAddress;
 using quic::QuicStringPiece;
 using quic::QuicTextUtils;
 using quic::QuicUrl;

@@ -18,7 +18,6 @@ namespace test {
 
 namespace {
 using ::testing::_;
-using ::testing::AtLeast;
 using ::testing::StrictMock;
 
 struct TestParams {

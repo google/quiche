@@ -385,14 +385,14 @@ std::unique_ptr<CryptoHandshakeMessage> QuicCryptoServerConfig::AddConfig(
   std::unique_ptr<CryptoHandshakeMessage> msg =
       CryptoFramer::ParseMessage(protobuf.config());
 
-  if (!msg.get()) {
+  if (!msg) {
     QUIC_LOG(WARNING) << "Failed to parse server config message";
     return nullptr;
   }
 
   QuicReferenceCountedPointer<Config> config =
       ParseConfigProtobuf(protobuf, /* is_fallback = */ false);
-  if (!config.get()) {
+  if (!config) {
     QUIC_LOG(WARNING) << "Failed to parse server config message";
     return nullptr;
   }
@@ -896,7 +896,7 @@ void QuicCryptoServerConfig::ProcessClientHelloAfterCalculateSharedKeys(
     }
     std::unique_ptr<CryptoHandshakeMessage> cetv(CryptoFramer::ParseMessage(
         QuicStringPiece(plaintext, plaintext_length)));
-    if (!cetv.get()) {
+    if (!cetv) {
       context->Fail(QUIC_INVALID_CRYPTO_MESSAGE_PARAMETER, "CETV parse error");
       return;
     }

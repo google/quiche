@@ -66,7 +66,6 @@
 #include "net/third_party/quiche/src/quic/tools/quic_simple_server_stream.h"
 
 using spdy::kV3LowestPriority;
-using spdy::SETTINGS_MAX_HEADER_LIST_SIZE;
 using spdy::SpdyFramer;
 using spdy::SpdyHeaderBlock;
 using spdy::SpdySerializedFrame;

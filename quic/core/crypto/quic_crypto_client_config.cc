@@ -120,7 +120,7 @@ QuicCryptoClientConfig::CachedState::GetServerConfig() const {
     return nullptr;
   }
 
-  if (!scfg_.get()) {
+  if (!scfg_) {
     scfg_ = CryptoFramer::ParseMessage(server_config_);
     DCHECK(scfg_.get());
   }

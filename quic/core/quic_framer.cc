@@ -1904,7 +1904,7 @@ bool QuicFramer::ProcessPublicResetPacket(QuicDataReader* reader,
 
   std::unique_ptr<CryptoHandshakeMessage> reset(
       CryptoFramer::ParseMessage(reader->ReadRemainingPayload()));
-  if (!reset.get()) {
+  if (!reset) {
     set_detailed_error("Unable to read reset message.");
     RecordDroppedPacketReason(DroppedPacketReason::INVALID_PUBLIC_RESET_PACKET);
     return RaiseError(QUIC_INVALID_PUBLIC_RST_PACKET);

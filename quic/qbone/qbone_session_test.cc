@@ -170,7 +170,7 @@ class DataSavingQboneControlHandler : public QboneControlHandler<T> {
 class FakeTaskRunner {
  public:
   explicit FakeTaskRunner(MockQuicConnectionHelper* helper)
-      : tasks_([this](const TaskType& l, const TaskType& r) {
+      : tasks_([](const TaskType& l, const TaskType& r) {
           // Items at a later time should run after items at an earlier time.
           // Priority queue comparisons should return true if l appears after r.
           return l->time() > r->time();

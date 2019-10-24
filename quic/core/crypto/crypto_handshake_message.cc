@@ -57,7 +57,7 @@ void CryptoHandshakeMessage::Clear() {
 }
 
 const QuicData& CryptoHandshakeMessage::GetSerialized() const {
-  if (!serialized_.get()) {
+  if (!serialized_) {
     serialized_ = CryptoFramer::ConstructHandshakeMessage(*this);
   }
   return *serialized_;

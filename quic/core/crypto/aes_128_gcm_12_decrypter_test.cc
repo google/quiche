@@ -269,7 +269,7 @@ TEST_F(Aes128Gcm12DecrypterTest, Decrypt) {
                            // handle an AAD that is set to nullptr, as opposed
                            // to a zero-length, non-nullptr pointer.
                            aad.length() ? aad : QuicStringPiece(), ciphertext));
-      if (!decrypted.get()) {
+      if (!decrypted) {
         EXPECT_FALSE(has_pt);
         continue;
       }
