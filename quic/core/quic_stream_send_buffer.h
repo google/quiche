@@ -50,8 +50,7 @@ struct QUIC_EXPORT_PRIVATE StreamPendingRetransmission {
   // Length of this pending retransmission.
   QuicByteCount length;
 
-  QUIC_EXPORT_PRIVATE bool operator==(
-      const StreamPendingRetransmission& other) const;
+  bool operator==(const StreamPendingRetransmission& other) const;
 };
 
 // QuicStreamSendBuffer contains a list of QuicStreamDataSlices. New data slices

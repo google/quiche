@@ -18,7 +18,7 @@ namespace test {
 // Tests using QuicTestMemSliceVector need to make sure the actual data buffers
 // outlive QuicTestMemSliceVector, and QuicTestMemSliceVector outlive the
 // returned QuicMemSliceSpan.
-class QUIC_EXPORT_PRIVATE QuicTestMemSliceVector {
+class /*QUIC_EXPORT_PRIVATE*/ QuicTestMemSliceVector {
  public:
   explicit QuicTestMemSliceVector(std::vector<std::pair<char*, size_t>> buffers)
       : impl_(std::move(buffers)) {}

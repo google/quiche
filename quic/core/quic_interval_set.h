@@ -65,12 +65,12 @@
 namespace quic {
 
 template <typename T>
-class QUIC_EXPORT_PRIVATE QuicIntervalSet {
+class /*QUIC_EXPORT_PRIVATE*/ QuicIntervalSet {
  public:
   typedef QuicInterval<T> value_type;
 
  private:
-  struct QUIC_EXPORT_PRIVATE IntervalLess {
+  struct /*QUIC_EXPORT_PRIVATE*/ IntervalLess {
     bool operator()(const value_type& a, const value_type& b) const;
   };
   typedef std::set<value_type, IntervalLess> Set;
@@ -320,7 +320,7 @@ class QUIC_EXPORT_PRIVATE QuicIntervalSet {
 
  private:
   // Simple member-wise equality, since all intervals are non-empty.
-  struct QUIC_EXPORT_PRIVATE NonemptyIntervalEq {
+  struct /*QUIC_EXPORT_PRIVATE*/ NonemptyIntervalEq {
     bool operator()(const value_type& a, const value_type& b) const {
       return a.min() == b.min() && a.max() == b.max();
     }
