@@ -19,7 +19,7 @@ namespace quic {
 // a list of expected header lists read from another file.  File format is
 // described at
 // https://github.com/quicwg/base-drafts/wiki/QPACK-Offline-Interop.
-class QUIC_EXPORT_PRIVATE QpackOfflineDecoder
+class /*QUIC_EXPORT_PRIVATE*/ QpackOfflineDecoder
     : public QpackDecoder::EncoderStreamErrorDelegate {
  public:
   QpackOfflineDecoder();
@@ -40,7 +40,7 @@ class QUIC_EXPORT_PRIVATE QpackOfflineDecoder
   // Data structure to hold TestHeadersHandler and QpackProgressiveDecoder until
   // decoding of a header header block (and all preceding header blocks) is
   // complete.
-  struct QUIC_EXPORT_PRIVATE Decoder {
+  struct /*QUIC_EXPORT_PRIVATE*/ Decoder {
     std::unique_ptr<test::TestHeadersHandler> headers_handler;
     std::unique_ptr<QpackProgressiveDecoder> progressive_decoder;
     uint64_t stream_id;

@@ -27,7 +27,7 @@ FragmentSizeGenerator FragmentModeToFragmentSizeGenerator(
     FragmentMode fragment_mode);
 
 // Mock QpackUnidirectionalStreamSenderDelegate implementation.
-class QUIC_EXPORT_PRIVATE MockQpackStreamSenderDelegate
+class /*QUIC_EXPORT_PRIVATE*/ MockQpackStreamSenderDelegate
     : public QpackStreamSenderDelegate {
  public:
   ~MockQpackStreamSenderDelegate() override = default;
