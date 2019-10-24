@@ -306,7 +306,7 @@ class QuicHeadersStreamTest : public QuicTestWithParam<TestParams> {
     } else {
       EXPECT_CALL(visitor_,
                   OnHeaders(stream_id, !kHasPriority,
-                            /*priority=*/0,
+                            /*weight=*/0,
                             /*parent_stream_id=*/0,
                             /*exclusive=*/false, fin, kFrameComplete));
     }

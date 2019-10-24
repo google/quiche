@@ -2091,8 +2091,8 @@ TEST_F(BufferedPacketStoreTest, ReceiveCHLOForBufferedConnection) {
       /*connection_id=*/TestConnectionId(1)));
 
   // CHLO on connection 1 should still be buffered.
-  ProcessPacket(client_addr_, /*connection_id=*/TestConnectionId(1), true,
-                SerializeFullCHLO());
+  ProcessPacket(client_addr_, /*server_connection_id=*/TestConnectionId(1),
+                true, SerializeFullCHLO());
   EXPECT_TRUE(store->HasChloForConnection(
       /*connection_id=*/TestConnectionId(1)));
 }
