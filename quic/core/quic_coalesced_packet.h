@@ -27,6 +27,17 @@ class QUIC_EXPORT_PRIVATE QuicCoalescedPacket {
   // Clears this coalesced packet.
   void Clear();
 
+  // Copies encrypted_buffers_ to |buffer| and sets |length_copied| to the
+  // copied amount. Returns false if copy fails (i.e., |buffer_len| is not
+  // enough).
+  bool CopyEncryptedBuffers(char* buffer,
+                            size_t buffer_len,
+                            size_t* length_copied) const;
+
+  const SerializedPacket* initial_packet() const {
+    return initial_packet_.get();
+  }
+
   QuicPacketLength length() const { return length_; }
 
   QuicPacketLength max_packet_length() const { return max_packet_length_; }
@@ -43,8 +54,6 @@ class QUIC_EXPORT_PRIVATE QuicCoalescedPacket {
   QuicPacketLength max_packet_length_;
   // Copies of packets' encrypted buffers according to different encryption
   // levels.
-  // TODO(fayang): Test serialization when implementing
-  // QuicPacketCreator::SerializeCoalescedPacket.
   std::string encrypted_buffers_[NUM_ENCRYPTION_LEVELS];
 
   // A copy of ENCRYPTION_INITIAL packet if this coalesced packet contains one.

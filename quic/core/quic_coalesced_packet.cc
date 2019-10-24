@@ -58,20 +58,15 @@ bool QuicCoalescedPacket::MaybeCoalescePacket(
     }
   }
 
-  if (packet.encryption_level == ENCRYPTION_INITIAL) {
-    for (const auto& frame : packet.nonretransmittable_frames) {
-      if (frame.type == PADDING_FRAME) {
-        QUIC_BUG << "ENCRYPTION_INITIAL packet should not contain padding "
-                    "frame if trying to send coalesced packet";
-        return false;
-      }
-    }
-  }
   if (length_ + packet.encrypted_length > max_packet_length_) {
     // Packet does not fit.
     return false;
   }
-
+  QUIC_DVLOG(1) << "Successfully coalesced packet: encryption_level: "
+                << EncryptionLevelToString(packet.encryption_level)
+                << ", encrypted_length: " << packet.encrypted_length
+                << ", current length: " << length_
+                << ", max_packet_length: " << max_packet_length_;
   length_ += packet.encrypted_length;
   if (packet.encryption_level == ENCRYPTION_INITIAL) {
     // Save a copy of ENCRYPTION_INITIAL packet (excluding encrypted buffer, as
@@ -98,6 +93,25 @@ void QuicCoalescedPacket::Clear() {
     ClearSerializedPacket(initial_packet_.get());
   }
   initial_packet_ = nullptr;
+}
+
+bool QuicCoalescedPacket::CopyEncryptedBuffers(char* buffer,
+                                               size_t buffer_len,
+                                               size_t* length_copied) const {
+  *length_copied = 0;
+  for (const auto& packet : encrypted_buffers_) {
+    if (packet.empty()) {
+      continue;
+    }
+    if (packet.length() > buffer_len) {
+      return false;
+    }
+    memcpy(buffer, packet.data(), packet.length());
+    buffer += packet.length();
+    buffer_len -= packet.length();
+    *length_copied += packet.length();
+  }
+  return true;
 }
 
 }  // namespace quic

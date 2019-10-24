@@ -71,6 +71,42 @@ TEST(QuicCoalescedPacketTest, MaybeCoalescePacket) {
   EXPECT_EQ(1000u, coalesced.length());
 }
 
+TEST(QuicCoalescedPacketTest, CopyEncryptedBuffers) {
+  QuicCoalescedPacket coalesced;
+  SimpleBufferAllocator allocator;
+  QuicSocketAddress self_address(QuicIpAddress::Loopback4(), 1);
+  QuicSocketAddress peer_address(QuicIpAddress::Loopback4(), 2);
+  std::string buffer(500, 'a');
+  std::string buffer2(500, 'b');
+  SerializedPacket packet1(QuicPacketNumber(1), PACKET_4BYTE_PACKET_NUMBER,
+                           buffer.data(), 500,
+                           /*has_ack=*/false, /*has_stop_waiting=*/false);
+  packet1.encryption_level = ENCRYPTION_ZERO_RTT;
+  SerializedPacket packet2(QuicPacketNumber(2), PACKET_4BYTE_PACKET_NUMBER,
+                           buffer2.data(), 500,
+                           /*has_ack=*/false, /*has_stop_waiting=*/false);
+  packet2.encryption_level = ENCRYPTION_FORWARD_SECURE;
+
+  ASSERT_TRUE(coalesced.MaybeCoalescePacket(packet1, self_address, peer_address,
+                                            &allocator, 1500));
+  ASSERT_TRUE(coalesced.MaybeCoalescePacket(packet2, self_address, peer_address,
+                                            &allocator, 1500));
+  EXPECT_EQ(1000u, coalesced.length());
+
+  char copy_buffer[1000];
+  size_t length_copied = 0;
+  EXPECT_FALSE(
+      coalesced.CopyEncryptedBuffers(copy_buffer, 900, &length_copied));
+  ASSERT_TRUE(
+      coalesced.CopyEncryptedBuffers(copy_buffer, 1000, &length_copied));
+  EXPECT_EQ(1000u, length_copied);
+  char expected[1000];
+  memset(expected, 'a', 500);
+  memset(expected + 500, 'b', 500);
+  test::CompareCharArraysWithHexError("copied buffers", copy_buffer,
+                                      length_copied, expected, 1000);
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

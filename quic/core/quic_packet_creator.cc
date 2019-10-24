@@ -53,6 +53,38 @@ QuicLongHeaderType EncryptionlevelToLongHeaderType(EncryptionLevel level) {
   }
 }
 
+// ScopedPacketContextSwitcher saves |packet|'s states and change states
+// during its construction. When the switcher goes out of scope, it restores
+// saved states.
+class ScopedPacketContextSwitcher {
+ public:
+  ScopedPacketContextSwitcher(QuicPacketNumber packet_number,
+                              QuicPacketNumberLength packet_number_length,
+                              EncryptionLevel encryption_level,
+                              SerializedPacket* packet)
+
+      : saved_packet_number_(packet->packet_number),
+        saved_packet_number_length_(packet->packet_number_length),
+        saved_encryption_level_(packet->encryption_level),
+        packet_(packet) {
+    packet_->packet_number = packet_number,
+    packet_->packet_number_length = packet_number_length;
+    packet_->encryption_level = encryption_level;
+  }
+
+  ~ScopedPacketContextSwitcher() {
+    packet_->packet_number = saved_packet_number_;
+    packet_->packet_number_length = saved_packet_number_length_;
+    packet_->encryption_level = saved_encryption_level_;
+  }
+
+ private:
+  const QuicPacketNumber saved_packet_number_;
+  const QuicPacketNumberLength saved_packet_number_length_;
+  const EncryptionLevel saved_encryption_level_;
+  SerializedPacket* packet_;
+};
+
 }  // namespace
 
 #define ENDPOINT \
@@ -406,6 +438,53 @@ void QuicPacketCreator::ClearPacket() {
   DCHECK(packet_.nonretransmittable_frames.empty());
   packet_.largest_acked.Clear();
   needs_full_padding_ = false;
+}
+
+size_t QuicPacketCreator::ReserializeInitialPacketInCoalescedPacket(
+    const SerializedPacket& packet,
+    size_t padding_size,
+    char* buffer,
+    size_t buffer_len) {
+  QUIC_BUG_IF(packet.encryption_level != ENCRYPTION_INITIAL);
+  QUIC_BUG_IF(packet.nonretransmittable_frames.empty() &&
+              packet.retransmittable_frames.empty())
+      << "Attempt to serialize empty ENCRYPTION_INITIAL packet in coalesced "
+         "packet";
+  ScopedPacketContextSwitcher switcher(
+      packet.packet_number -
+          1,  // -1 because serialize packet increase packet number.
+      packet.packet_number_length, packet.encryption_level, &packet_);
+  for (const QuicFrame& frame : packet.nonretransmittable_frames) {
+    if (!AddFrame(frame, packet.transmission_type)) {
+      QUIC_BUG << "Failed to serialize frame: " << frame;
+      return 0;
+    }
+  }
+  for (const QuicFrame& frame : packet.retransmittable_frames) {
+    if (!AddFrame(frame, packet.transmission_type)) {
+      QUIC_BUG << "Failed to serialize frame: " << frame;
+      return 0;
+    }
+  }
+  // Add necessary padding.
+  if (padding_size > 0) {
+    QUIC_DVLOG(2) << ENDPOINT << "Add padding of size: " << padding_size;
+    if (!AddFrame(QuicFrame(QuicPaddingFrame(padding_size)),
+                  packet.transmission_type)) {
+      QUIC_BUG << "Failed to add padding of size " << padding_size
+               << " when serializing ENCRYPTION_INITIAL "
+                  "packet in coalesced packet";
+      return 0;
+    }
+  }
+  SerializePacket(buffer, buffer_len);
+  const size_t encrypted_length = packet_.encrypted_length;
+  // Clear frames in packet_. No need to DeleteFrames since frames are owned by
+  // initial_packet.
+  packet_.retransmittable_frames.clear();
+  packet_.nonretransmittable_frames.clear();
+  ClearPacket();
+  return encrypted_length;
 }
 
 void QuicPacketCreator::CreateAndSerializeStreamFrame(
@@ -834,6 +913,43 @@ size_t QuicPacketCreator::BuildConnectivityProbingPacket(
   frames.push_back(QuicFrame(padding_frame));
 
   return framer_->BuildDataPacket(header, frames, buffer, packet_length, level);
+}
+
+size_t QuicPacketCreator::SerializeCoalescedPacket(
+    const QuicCoalescedPacket& coalesced,
+    char* buffer,
+    size_t buffer_len) {
+  QUIC_BUG_IF(packet_.num_padding_bytes != 0);
+  if (HasPendingFrames()) {
+    QUIC_BUG << "Try to serialize coalesced packet with pending frames";
+    return 0;
+  }
+  QUIC_BUG_IF(coalesced.length() == 0)
+      << "Attempt to serialize empty coalesced packet";
+  size_t packet_length = 0;
+  if (coalesced.initial_packet() != nullptr) {
+    size_t initial_length = ReserializeInitialPacketInCoalescedPacket(
+        *coalesced.initial_packet(),
+        /*padding_size=*/coalesced.max_packet_length() - coalesced.length(),
+        buffer, buffer_len);
+    if (initial_length == 0) {
+      QUIC_BUG << "Failed to reserialize ENCRYPTION_INITIAL packet in "
+                  "coalesced packet";
+      return 0;
+    }
+    buffer += initial_length;
+    buffer_len -= initial_length;
+    packet_length += initial_length;
+  }
+  size_t length_copied = 0;
+  if (!coalesced.CopyEncryptedBuffers(buffer, buffer_len, &length_copied)) {
+    return 0;
+  }
+  packet_length += length_copied;
+  QUIC_DVLOG(1) << ENDPOINT
+                << "Successfully serialized coalesced packet of length: "
+                << packet_length;
+  return packet_length;
 }
 
 // TODO(b/74062209): Make this a public method of framer?

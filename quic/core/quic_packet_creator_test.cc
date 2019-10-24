@@ -22,6 +22,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_expect_bug.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
@@ -2094,6 +2095,76 @@ TEST_P(QuicPacketCreatorTest, SaveNonRetransmittableFrames) {
       kMaxOutgoingPacketSize);
   // Verify the packet length of both packets are equal.
   EXPECT_EQ(serialized.encrypted_length, packet.encrypted_length);
+}
+
+TEST_P(QuicPacketCreatorTest, SerializeCoalescedPacket) {
+  if (!GetQuicReloadableFlag(quic_populate_nonretransmittable_frames)) {
+    return;
+  }
+  QuicCoalescedPacket coalesced;
+  SimpleBufferAllocator allocator;
+  QuicSocketAddress self_address(QuicIpAddress::Loopback4(), 1);
+  QuicSocketAddress peer_address(QuicIpAddress::Loopback4(), 2);
+  for (size_t i = ENCRYPTION_INITIAL; i < NUM_ENCRYPTION_LEVELS; ++i) {
+    EncryptionLevel level = static_cast<EncryptionLevel>(i);
+    creator_.set_encryption_level(level);
+    QuicAckFrame ack_frame(InitAckFrame(1));
+    frames_.push_back(QuicFrame(&ack_frame));
+    if (level != ENCRYPTION_INITIAL && level != ENCRYPTION_HANDSHAKE) {
+      frames_.push_back(
+          QuicFrame(QuicStreamFrame(1, false, 0u, QuicStringPiece())));
+    }
+    SerializedPacket serialized = SerializeAllFrames(frames_);
+    EXPECT_EQ(level, serialized.encryption_level);
+    frames_.clear();
+    ASSERT_TRUE(coalesced.MaybeCoalescePacket(serialized, self_address,
+                                              peer_address, &allocator,
+                                              creator_.max_packet_length()));
+  }
+  char buffer[kMaxOutgoingPacketSize];
+  size_t coalesced_length = creator_.SerializeCoalescedPacket(
+      coalesced, buffer, kMaxOutgoingPacketSize);
+  // Verify packet is padded to full.
+  ASSERT_EQ(coalesced.max_packet_length(), coalesced_length);
+  if (!QuicVersionHasLongHeaderLengths(server_framer_.transport_version())) {
+    return;
+  }
+  // Verify packet process.
+  std::unique_ptr<QuicEncryptedPacket> packets[NUM_ENCRYPTION_LEVELS];
+  packets[ENCRYPTION_INITIAL] =
+      QuicMakeUnique<QuicEncryptedPacket>(buffer, coalesced_length);
+  for (size_t i = ENCRYPTION_INITIAL; i < NUM_ENCRYPTION_LEVELS; ++i) {
+    InSequence s;
+    EXPECT_CALL(framer_visitor_, OnPacket());
+    EXPECT_CALL(framer_visitor_, OnUnauthenticatedPublicHeader(_));
+    if (i < ENCRYPTION_FORWARD_SECURE) {
+      // Save coalesced packet.
+      EXPECT_CALL(framer_visitor_, OnCoalescedPacket(_))
+          .WillOnce(Invoke([i, &packets](const QuicEncryptedPacket& packet) {
+            packets[i + 1] = packet.Clone();
+          }));
+    }
+    EXPECT_CALL(framer_visitor_, OnUnauthenticatedHeader(_));
+    EXPECT_CALL(framer_visitor_, OnDecryptedPacket(_));
+    EXPECT_CALL(framer_visitor_, OnPacketHeader(_));
+    EXPECT_CALL(framer_visitor_, OnAckFrameStart(_, _)).WillOnce(Return(true));
+    EXPECT_CALL(framer_visitor_,
+                OnAckRange(QuicPacketNumber(1), QuicPacketNumber(2)))
+        .WillOnce(Return(true));
+    EXPECT_CALL(framer_visitor_, OnAckFrameEnd(_)).WillOnce(Return(true));
+    if (i == ENCRYPTION_INITIAL) {
+      // Verify padding is added.
+      EXPECT_CALL(framer_visitor_, OnPaddingFrame(_));
+    } else {
+      EXPECT_CALL(framer_visitor_, OnPaddingFrame(_)).Times(testing::AtMost(1));
+    }
+    if (i != ENCRYPTION_INITIAL && i != ENCRYPTION_HANDSHAKE) {
+      EXPECT_CALL(framer_visitor_, OnStreamFrame(_));
+    }
+    EXPECT_CALL(framer_visitor_, OnPacketComplete());
+
+    server_framer_.ProcessPacket(*packets[i]);
+  }
 }
 
 }  // namespace

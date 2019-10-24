@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "net/third_party/quiche/src/quic/core/frames/quic_stream_frame.h"
+#include "net/third_party/quiche/src/quic/core/quic_coalesced_packet.h"
 #include "net/third_party/quiche/src/quic/core/quic_framer.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
@@ -411,6 +412,12 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
                                         size_t packet_length,
                                         EncryptionLevel level);
 
+  // Serializes |coalesced| to provided |buffer|, returns coalesced packet
+  // length if serialization succeeds. Otherwise, returns 0.
+  size_t SerializeCoalescedPacket(const QuicCoalescedPacket& coalesced,
+                                  char* buffer,
+                                  size_t buffer_len);
+
  private:
   friend class test::QuicPacketCreatorPeer;
 
@@ -454,6 +461,16 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
 
   // Clears all fields of packet_ that should be cleared between serializations.
   void ClearPacket();
+
+  // Re-serialzes frames of ENCRYPTION_INITIAL packet in coalesced packet with
+  // the original packet's packet number and packet number length.
+  // |padding_size| indicates the size of necessary padding. Returns 0 if
+  // serialization fails.
+  size_t ReserializeInitialPacketInCoalescedPacket(
+      const SerializedPacket& packet,
+      size_t padding_size,
+      char* buffer,
+      size_t buffer_len);
 
   // Tries to coalesce |frame| with the back of |queued_frames_|.
   // Returns true on success.
