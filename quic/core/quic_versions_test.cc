@@ -471,10 +471,6 @@ TEST_F(QuicVersionsTest, QuicEnableVersion) {
   static_assert(QUIC_ARRAYSIZE(kSupportedTransportVersions) == 6u,
                 "Supported versions out of sync");
   SetQuicReloadableFlag(quic_supports_tls_handshake, true);
-  ParsedQuicVersion parsed_version_q048 =
-      ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_48);
-  ParsedQuicVersion parsed_version_t048 =
-      ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_48);
   ParsedQuicVersion parsed_version_q049 =
       ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_49);
   ParsedQuicVersion parsed_version_t049 =
