@@ -47,13 +47,6 @@ class QUIC_EXPORT_PRIVATE GeneralLossAlgorithm : public LossDetectionInterface {
   // Returns a non-zero value when the early retransmit timer is active.
   QuicTime GetLossTimeout() const override;
 
-  // Increases the loss detection threshold for time loss detection.
-  void SpuriousRetransmitDetected(
-      const QuicUnackedPacketMap& unacked_packets,
-      QuicTime time,
-      const RttStats& rtt_stats,
-      QuicPacketNumber spurious_retransmission) override;
-
   // Called to increases time and/or packet threshold.
   void SpuriousLossDetected(const QuicUnackedPacketMap& unacked_packets,
                             const RttStats& rtt_stats,
@@ -79,9 +72,6 @@ class QUIC_EXPORT_PRIVATE GeneralLossAlgorithm : public LossDetectionInterface {
 
  private:
   QuicTime loss_detection_timeout_;
-  // Largest sent packet when a spurious retransmit is detected.
-  // Prevents increasing the reordering threshold multiple times per epoch.
-  QuicPacketNumber largest_sent_on_spurious_retransmit_;
   LossDetectionType loss_type_;
   // Fraction of a max(SRTT, latest_rtt) to permit reordering before declaring
   // loss.  Fraction calculated by shifting max(SRTT, latest_rtt) to the right

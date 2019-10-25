@@ -70,17 +70,6 @@ QuicTime UberLossAlgorithm::GetLossTimeout() const {
   return loss_timeout;
 }
 
-void UberLossAlgorithm::SpuriousRetransmitDetected(
-    const QuicUnackedPacketMap& unacked_packets,
-    QuicTime time,
-    const RttStats& rtt_stats,
-    QuicPacketNumber spurious_retransmission) {
-  general_loss_algorithms_[unacked_packets.GetPacketNumberSpace(
-                               spurious_retransmission)]
-      .SpuriousRetransmitDetected(unacked_packets, time, rtt_stats,
-                                  spurious_retransmission);
-}
-
 void UberLossAlgorithm::SpuriousLossDetected(
     const QuicUnackedPacketMap& unacked_packets,
     const RttStats& rtt_stats,

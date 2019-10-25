@@ -514,21 +514,9 @@ TEST_F(GeneralLossAlgorithmTest, IncreaseThresholdUponSpuriousLoss) {
   // Advance the time 1/4 RTT and indicate the loss was spurious.
   // The new threshold should be 1/2 RTT.
   clock_.AdvanceTime(rtt_stats_.smoothed_rtt() * (1.0f / 4));
-  if (GetQuicReloadableFlag(quic_detect_spurious_loss)) {
-    loss_algorithm_.SpuriousLossDetected(unacked_packets_, rtt_stats_,
-                                         clock_.Now(), QuicPacketNumber(1),
-                                         QuicPacketNumber(2));
-    EXPECT_EQ(1, loss_algorithm_.reordering_shift());
-    return;
-  }
-  loss_algorithm_.SpuriousRetransmitDetected(unacked_packets_, clock_.Now(),
-                                             rtt_stats_, QuicPacketNumber(11));
-  EXPECT_EQ(1, loss_algorithm_.reordering_shift());
-
-  // Detect another spurious retransmit and ensure the threshold doesn't
-  // increase again.
-  loss_algorithm_.SpuriousRetransmitDetected(unacked_packets_, clock_.Now(),
-                                             rtt_stats_, QuicPacketNumber(12));
+  loss_algorithm_.SpuriousLossDetected(unacked_packets_, rtt_stats_,
+                                       clock_.Now(), QuicPacketNumber(1),
+                                       QuicPacketNumber(2));
   EXPECT_EQ(1, loss_algorithm_.reordering_shift());
 }
 

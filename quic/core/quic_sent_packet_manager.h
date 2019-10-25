@@ -491,11 +491,6 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // this function.
   void RecordOneSpuriousRetransmission(const QuicTransmissionInfo& info);
 
-  // Notify observers about spurious retransmits of packet with
-  // QuicTransmissionInfo |info|.
-  void RecordSpuriousRetransmissions(const QuicTransmissionInfo& info,
-                                     QuicPacketNumber acked_packet_number);
-
   // Sets the initial RTT of the connection.
   void SetInitialRtt(QuicTime::Delta rtt);
 
@@ -625,9 +620,6 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // True if an acknowledgment has been received for a sent
   // ENCRYPTION_FORWARD_SECURE packet.
   bool forward_secure_packet_acked_;
-
-  // Latched value of quic_detect_spurious_loss.
-  const bool detect_spurious_losses_;
 
   // Latched value of quic_neuter_handshake_packets_once.
   const bool neuter_handshake_packets_once_;

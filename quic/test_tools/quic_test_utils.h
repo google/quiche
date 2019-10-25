@@ -966,11 +966,6 @@ class MockLossAlgorithm : public LossDetectionInterface {
                     const AckedPacketVector& packets_acked,
                     LostPacketVector* packets_lost));
   MOCK_CONST_METHOD0(GetLossTimeout, QuicTime());
-  MOCK_METHOD4(SpuriousRetransmitDetected,
-               void(const QuicUnackedPacketMap&,
-                    QuicTime,
-                    const RttStats&,
-                    QuicPacketNumber));
   MOCK_METHOD5(SpuriousLossDetected,
                void(const QuicUnackedPacketMap&,
                     const RttStats&,

@@ -663,14 +663,9 @@ TEST_F(QuicSentPacketManagerTest, AckOriginalTransmission) {
     uint64_t acked[] = {3};
     ExpectAcksAndLosses(false, acked, QUIC_ARRAYSIZE(acked), nullptr, 0);
     EXPECT_CALL(*loss_algorithm, DetectLosses(_, _, _, _, _, _));
-    if (GetQuicReloadableFlag(quic_detect_spurious_loss)) {
-      EXPECT_CALL(*loss_algorithm,
-                  SpuriousLossDetected(_, _, _, QuicPacketNumber(3),
-                                       QuicPacketNumber(4)));
-    } else {
-      EXPECT_CALL(*loss_algorithm,
-                  SpuriousRetransmitDetected(_, _, _, QuicPacketNumber(5)));
-    }
+    EXPECT_CALL(*loss_algorithm,
+                SpuriousLossDetected(_, _, _, QuicPacketNumber(3),
+                                     QuicPacketNumber(4)));
     manager_.OnAckFrameStart(QuicPacketNumber(4), QuicTime::Delta::Infinite(),
                              clock_.Now());
     manager_.OnAckRange(QuicPacketNumber(3), QuicPacketNumber(5));
@@ -1810,7 +1805,6 @@ TEST_F(QuicSentPacketManagerTest,
 TEST_F(QuicSentPacketManagerTest,
        NegotiateIetfLossDetectionAdaptiveReorderingThreshold) {
   SetQuicReloadableFlag(quic_enable_ietf_loss_detection, true);
-  SetQuicReloadableFlag(quic_detect_spurious_loss, true);
   EXPECT_EQ(kNack, QuicSentPacketManagerPeer::GetLossAlgorithm(&manager_)
                        ->GetLossDetectionType());
   EXPECT_FALSE(
@@ -1835,7 +1829,6 @@ TEST_F(QuicSentPacketManagerTest,
 TEST_F(QuicSentPacketManagerTest,
        NegotiateIetfLossDetectionAdaptiveReorderingThreshold2) {
   SetQuicReloadableFlag(quic_enable_ietf_loss_detection, true);
-  SetQuicReloadableFlag(quic_detect_spurious_loss, true);
   EXPECT_EQ(kNack, QuicSentPacketManagerPeer::GetLossAlgorithm(&manager_)
                        ->GetLossDetectionType());
   EXPECT_FALSE(

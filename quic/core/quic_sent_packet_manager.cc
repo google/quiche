@@ -103,7 +103,6 @@ QuicSentPacketManager::QuicSentPacketManager(
       consecutive_pto_count_(0),
       handshake_mode_disabled_(false),
       forward_secure_packet_acked_(false),
-      detect_spurious_losses_(GetQuicReloadableFlag(quic_detect_spurious_loss)),
       neuter_handshake_packets_once_(
           GetQuicReloadableFlag(quic_neuter_handshake_packets_once)) {
   SetSendAlgorithm(congestion_control_type);
@@ -253,18 +252,16 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
       uber_loss_algorithm_.SetLossDetectionType(kIetfLossDetection);
       uber_loss_algorithm_.SetReorderingShift(kDefaultLossDelayShift);
     }
-    if (GetQuicReloadableFlag(quic_detect_spurious_loss)) {
-      if (config.HasClientRequestedIndependentOption(kILD2, perspective)) {
-        QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_ietf_loss_detection, 3, 4);
-        uber_loss_algorithm_.SetLossDetectionType(kIetfLossDetection);
-        uber_loss_algorithm_.EnableAdaptiveReorderingThreshold();
-      }
-      if (config.HasClientRequestedIndependentOption(kILD3, perspective)) {
-        QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_ietf_loss_detection, 4, 4);
-        uber_loss_algorithm_.SetLossDetectionType(kIetfLossDetection);
-        uber_loss_algorithm_.SetReorderingShift(kDefaultLossDelayShift);
-        uber_loss_algorithm_.EnableAdaptiveReorderingThreshold();
-      }
+    if (config.HasClientRequestedIndependentOption(kILD2, perspective)) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_ietf_loss_detection, 3, 4);
+      uber_loss_algorithm_.SetLossDetectionType(kIetfLossDetection);
+      uber_loss_algorithm_.EnableAdaptiveReorderingThreshold();
+    }
+    if (config.HasClientRequestedIndependentOption(kILD3, perspective)) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_ietf_loss_detection, 4, 4);
+      uber_loss_algorithm_.SetLossDetectionType(kIetfLossDetection);
+      uber_loss_algorithm_.SetReorderingShift(kDefaultLossDelayShift);
+      uber_loss_algorithm_.EnableAdaptiveReorderingThreshold();
     }
   }
   if (config.HasClientSentConnectionOption(kCONH, perspective)) {
@@ -515,18 +512,6 @@ void QuicSentPacketManager::RecordOneSpuriousRetransmission(
   }
 }
 
-void QuicSentPacketManager::RecordSpuriousRetransmissions(
-    const QuicTransmissionInfo& info,
-    QuicPacketNumber acked_packet_number) {
-  RecordOneSpuriousRetransmission(info);
-  if (!detect_spurious_losses_ &&
-      info.transmission_type == LOSS_RETRANSMISSION) {
-    // Only inform the loss detection of spurious retransmits it caused.
-    loss_algorithm_->SpuriousRetransmitDetected(
-        unacked_packets_, clock_->Now(), rtt_stats_, acked_packet_number);
-  }
-}
-
 void QuicSentPacketManager::MarkPacketHandled(QuicPacketNumber packet_number,
                                               QuicTransmissionInfo* info,
                                               QuicTime ack_receive_time,
@@ -547,13 +532,12 @@ void QuicSentPacketManager::MarkPacketHandled(QuicPacketNumber packet_number,
       QUIC_DVLOG(1) << "Detect spurious retransmitted packet " << packet_number
                     << " transmission type: "
                     << TransmissionTypeToString(info->transmission_type);
-      RecordSpuriousRetransmissions(*info, packet_number);
+      RecordOneSpuriousRetransmission(*info);
     }
   }
-  if (detect_spurious_losses_ && info->state == LOST) {
+  if (info->state == LOST) {
     // Record as a spurious loss as a packet previously declared lost gets
     // acked.
-    QUIC_RELOADABLE_FLAG_COUNT(quic_detect_spurious_loss);
     const PacketNumberSpace packet_number_space =
         unacked_packets_.GetPacketNumberSpace(info->encryption_level);
     const QuicPacketNumber previous_largest_acked =
