@@ -4277,7 +4277,6 @@ TEST_P(QuicConnectionTest,
   use_tagging_decrypter();
   connection_.SetEncrypter(ENCRYPTION_INITIAL,
                            std::make_unique<TaggingEncrypter>(0x01));
-  QuicPacketNumber packet_number;
   connection_.SendCryptoStreamData();
 
   // Simulate the retransmission alarm firing and the socket blocking.

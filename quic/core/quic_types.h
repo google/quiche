@@ -55,7 +55,8 @@ typedef uint64_t QuicConnectionIdSequenceNumber;
 
 // A struct for functions which consume data payloads and fins.
 struct QUIC_EXPORT_PRIVATE QuicConsumedData {
-  QuicConsumedData(size_t bytes_consumed, bool fin_consumed);
+  constexpr QuicConsumedData(size_t bytes_consumed, bool fin_consumed)
+      : bytes_consumed(bytes_consumed), fin_consumed(fin_consumed) {}
 
   // By default, gtest prints the raw bytes of an object. The bool data
   // member causes this object to have padding bytes, which causes the
@@ -115,8 +116,10 @@ inline bool IsWriteError(WriteStatus status) {
 // A struct used to return the result of write calls including either the number
 // of bytes written or the error code, depending upon the status.
 struct QUIC_EXPORT_PRIVATE WriteResult {
-  WriteResult(WriteStatus status, int bytes_written_or_error_code);
-  WriteResult();
+  constexpr WriteResult(WriteStatus status, int bytes_written_or_error_code)
+      : status(status), bytes_written(bytes_written_or_error_code) {}
+
+  constexpr WriteResult() : WriteResult(WRITE_STATUS_ERROR, 0) {}
 
   bool operator==(const WriteResult& other) const {
     if (status != other.status) {
@@ -478,9 +481,9 @@ QUIC_EXPORT_PRIVATE std::string PacketHeaderFormatToString(
 
 // Information about a newly acknowledged packet.
 struct QUIC_EXPORT_PRIVATE AckedPacket {
-  AckedPacket(QuicPacketNumber packet_number,
-              QuicPacketLength bytes_acked,
-              QuicTime receive_timestamp)
+  constexpr AckedPacket(QuicPacketNumber packet_number,
+                        QuicPacketLength bytes_acked,
+                        QuicTime receive_timestamp)
       : packet_number(packet_number),
         bytes_acked(bytes_acked),
         receive_timestamp(receive_timestamp) {}

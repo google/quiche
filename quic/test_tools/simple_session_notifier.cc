@@ -46,7 +46,6 @@ QuicConsumedData SimpleSessionNotifier::WriteOrBufferData(
   StreamState& stream_state = stream_map_.find(id)->second;
   const bool had_buffered_data =
       HasBufferedStreamData() || HasBufferedControlFrames();
-  QuicConsumedData total_consumed(0, false);
   QuicStreamOffset offset = stream_state.bytes_sent;
   QUIC_DVLOG(1) << "WriteOrBuffer stream_id: " << id << " [" << offset << ", "
                 << offset + data_length << "), fin: " << (state != NO_FIN);

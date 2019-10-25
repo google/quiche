@@ -44,11 +44,6 @@ QuicVersionLabel CreateRandomVersionLabelForNegotiation() {
 
 }  // namespace
 
-ParsedQuicVersion::ParsedQuicVersion(HandshakeProtocol handshake_protocol,
-                                     QuicTransportVersion transport_version)
-    : handshake_protocol(handshake_protocol),
-      transport_version(transport_version) {}
-
 bool ParsedQuicVersion::KnowsWhichDecrypterToUse() const {
   return transport_version > QUIC_VERSION_46 ||
          handshake_protocol == PROTOCOL_TLS1_3;

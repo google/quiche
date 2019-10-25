@@ -11,9 +11,6 @@
 
 namespace quic {
 
-QuicConsumedData::QuicConsumedData(size_t bytes_consumed, bool fin_consumed)
-    : bytes_consumed(bytes_consumed), fin_consumed(fin_consumed) {}
-
 std::ostream& operator<<(std::ostream& os, const QuicConsumedData& s) {
   os << "bytes_consumed: " << s.bytes_consumed
      << " fin_consumed: " << s.fin_consumed;
@@ -60,11 +57,6 @@ std::string HistogramEnumString(WriteStatus enum_value) {
   QUIC_DLOG(ERROR) << "Invalid WriteStatus value: " << enum_value;
   return "<invalid>";
 }
-
-WriteResult::WriteResult() : status(WRITE_STATUS_ERROR), bytes_written(0) {}
-
-WriteResult::WriteResult(WriteStatus status, int bytes_written_or_error_code)
-    : status(status), bytes_written(bytes_written_or_error_code) {}
 
 std::ostream& operator<<(std::ostream& os, const WriteResult& s) {
   os << "{ status: " << s.status;

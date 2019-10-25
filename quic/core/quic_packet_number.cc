@@ -8,15 +8,6 @@
 
 namespace quic {
 
-QuicPacketNumber::QuicPacketNumber()
-    : packet_number_(UninitializedPacketNumber()) {}
-
-QuicPacketNumber::QuicPacketNumber(uint64_t packet_number)
-    : packet_number_(packet_number) {
-  DCHECK_NE(UninitializedPacketNumber(), packet_number)
-      << "Use default constructor for uninitialized packet number";
-}
-
 void QuicPacketNumber::Clear() {
   packet_number_ = UninitializedPacketNumber();
 }
@@ -109,11 +100,6 @@ std::ostream& operator<<(std::ostream& os, const QuicPacketNumber& p) {
     os << "uninitialized";
   }
   return os;
-}
-
-// static
-uint64_t QuicPacketNumber::UninitializedPacketNumber() {
-  return std::numeric_limits<uint64_t>::max();
 }
 
 }  // namespace quic

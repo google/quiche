@@ -134,10 +134,12 @@ struct QUIC_EXPORT_PRIVATE ParsedQuicVersion {
   HandshakeProtocol handshake_protocol;
   QuicTransportVersion transport_version;
 
-  ParsedQuicVersion(HandshakeProtocol handshake_protocol,
-                    QuicTransportVersion transport_version);
+  constexpr ParsedQuicVersion(HandshakeProtocol handshake_protocol,
+                              QuicTransportVersion transport_version)
+      : handshake_protocol(handshake_protocol),
+        transport_version(transport_version) {}
 
-  ParsedQuicVersion(const ParsedQuicVersion& other)
+  constexpr ParsedQuicVersion(const ParsedQuicVersion& other)
       : handshake_protocol(other.handshake_protocol),
         transport_version(other.transport_version) {}
 
