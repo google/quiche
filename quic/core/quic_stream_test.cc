@@ -910,7 +910,9 @@ TEST_P(QuicStreamTest, CancelStream) {
   EXPECT_TRUE(session_->HasUnackedStreamData());
   EXPECT_CALL(*connection_,
               OnStreamReset(stream_->id(), QUIC_STREAM_CANCELLED));
-  EXPECT_CALL(*connection_, SendControlFrame(_)).Times(1);
+  EXPECT_CALL(*connection_, SendControlFrame(_))
+      .Times(AtLeast(1))
+      .WillRepeatedly(Invoke(&ClearControlFrame));
   EXPECT_CALL(*session_, SendRstStream(stream_->id(), QUIC_STREAM_CANCELLED, 9))
       .WillOnce(InvokeWithoutArgs([this]() {
         return QuicSessionPeer::SendRstStreamInner(

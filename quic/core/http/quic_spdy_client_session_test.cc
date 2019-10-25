@@ -32,6 +32,7 @@
 using spdy::SpdyHeaderBlock;
 using testing::_;
 using testing::AnyNumber;
+using testing::AtLeast;
 using testing::AtMost;
 using testing::Invoke;
 using testing::Truly;
@@ -244,8 +245,6 @@ TEST_P(QuicSpdyClientSessionTest, MaxNumStreamsWithNoFinOrRst) {
     // TODO(nharper): Add support for Transport Parameters in the TLS handshake.
     return;
   }
-  EXPECT_CALL(*connection_, SendControlFrame(_)).Times(AnyNumber());
-  EXPECT_CALL(*connection_, OnStreamReset(_, _)).Times(AnyNumber());
 
   uint32_t kServerMaxIncomingStreams = 1;
   CompleteCryptoHandshake(kServerMaxIncomingStreams);
@@ -276,8 +275,6 @@ TEST_P(QuicSpdyClientSessionTest, MaxNumStreamsWithRst) {
     // TODO(nharper): Add support for Transport Parameters in the TLS handshake.
     return;
   }
-  EXPECT_CALL(*connection_, SendControlFrame(_)).Times(AnyNumber());
-  EXPECT_CALL(*connection_, OnStreamReset(_, _)).Times(AnyNumber());
 
   uint32_t kServerMaxIncomingStreams = 1;
   CompleteCryptoHandshake(kServerMaxIncomingStreams);
@@ -345,7 +342,9 @@ TEST_P(QuicSpdyClientSessionTest, ResetAndTrailers) {
 
   QuicStreamId stream_id = stream->id();
 
-  EXPECT_CALL(*connection_, SendControlFrame(_)).Times(1);
+  EXPECT_CALL(*connection_, SendControlFrame(_))
+      .Times(AtLeast(1))
+      .WillRepeatedly(Invoke(&ClearControlFrame));
   EXPECT_CALL(*connection_, OnStreamReset(_, _)).Times(1);
   session_->SendRstStream(stream_id, QUIC_STREAM_PEER_GOING_AWAY, 0);
 
@@ -395,7 +394,9 @@ TEST_P(QuicSpdyClientSessionTest, ReceivedMalformedTrailersAfterSendingRst) {
   // Send the RST, which results in the stream being closed locally (but some
   // state remains while the client waits for a response from the server).
   QuicStreamId stream_id = stream->id();
-  EXPECT_CALL(*connection_, SendControlFrame(_)).Times(1);
+  EXPECT_CALL(*connection_, SendControlFrame(_))
+      .Times(AtLeast(1))
+      .WillRepeatedly(Invoke(&ClearControlFrame));
   EXPECT_CALL(*connection_, OnStreamReset(_, _)).Times(1);
   session_->SendRstStream(stream_id, QUIC_STREAM_PEER_GOING_AWAY, 0);
 
