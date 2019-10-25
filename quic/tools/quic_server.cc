@@ -218,8 +218,6 @@ void QuicServer::OnEvent(int fd, QuicEpollEvent* event) {
       event->out_ready_mask |= EPOLLOUT;
     }
   }
-  if (event->in_events & EPOLLERR) {
-  }
 }
 
 }  // namespace quic
