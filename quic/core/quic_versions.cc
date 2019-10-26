@@ -407,6 +407,10 @@ std::string ParsedQuicVersionVectorToString(
   return result;
 }
 
+bool VersionSupportsGoogleAltSvcFormat(QuicTransportVersion transport_version) {
+  return transport_version <= QUIC_VERSION_46;
+}
+
 bool QuicVersionLabelUses4BitConnectionIdLength(
     QuicVersionLabel version_label) {
   // As we deprecate old versions, we still need the ability to send valid

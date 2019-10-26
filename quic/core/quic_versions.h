@@ -417,6 +417,11 @@ QUIC_EXPORT_PRIVATE inline bool VersionHasIetfQuicFrames(
 QUIC_EXPORT_PRIVATE bool VersionHasLengthPrefixedConnectionIds(
     QuicTransportVersion transport_version);
 
+// Returns true if this version supports the old Google-style Alt-Svc
+// advertisement format.
+QUIC_EXPORT_PRIVATE bool VersionSupportsGoogleAltSvcFormat(
+    QuicTransportVersion transport_version);
+
 // Returns whether this version label supports long header 4-bit encoded
 // connection ID lengths as described in draft-ietf-quic-invariants-05 and
 // draft-ietf-quic-transport-21.
