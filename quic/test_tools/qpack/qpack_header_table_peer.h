@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_QUIC_TEST_TOOLS_QPACK_HEADER_TABLE_PEER_H_
-#define QUICHE_QUIC_TEST_TOOLS_QPACK_HEADER_TABLE_PEER_H_
+#ifndef QUICHE_QUIC_TEST_TOOLS_QPACK_QPACK_HEADER_TABLE_PEER_H_
+#define QUICHE_QUIC_TEST_TOOLS_QPACK_QPACK_HEADER_TABLE_PEER_H_
 
 #include <cstdint>
 
@@ -26,4 +26,4 @@ class QpackHeaderTablePeer {
 
 }  // namespace quic
 
-#endif  // QUICHE_QUIC_TEST_TOOLS_QPACK_HEADER_TABLE_PEER_H_
+#endif  // QUICHE_QUIC_TEST_TOOLS_QPACK_QPACK_HEADER_TABLE_PEER_H_

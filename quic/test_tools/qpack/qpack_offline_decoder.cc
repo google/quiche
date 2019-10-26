@@ -2,18 +2,40 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/core/qpack/offline/qpack_offline_decoder.h"
+// Decoder to test QPACK Offline Interop corpus
+//
+// See https://github.com/quicwg/base-drafts/wiki/QPACK-Offline-Interop for
+// description of test data format.
+//
+// Example usage
+//
+//  cd $TEST_DATA
+//  git clone https://github.com/qpackers/qifs.git
+//  TEST_ENCODED_DATA=$TEST_DATA/qifs/encoded/qpack-06
+//  TEST_QIF_DATA=$TEST_DATA/qifs/qifs
+//  $BIN/qpack_offline_decoder \
+//      $TEST_ENCODED_DATA/f5/fb-req.qifencoded.4096.100.0 \
+//      $TEST_QIF_DATA/fb-req.qif
+//      $TEST_ENCODED_DATA/h2o/fb-req-hq.out.512.0.1 \
+//      $TEST_QIF_DATA/fb-req-hq.qif
+//      $TEST_ENCODED_DATA/ls-qpack/fb-resp-hq.out.0.0.0 \
+//      $TEST_QIF_DATA/fb-resp-hq.qif
+//      $TEST_ENCODED_DATA/proxygen/netbsd.qif.proxygen.out.4096.0.0 \
+//      $TEST_QIF_DATA/netbsd.qif
+//
+
+#include "net/third_party/quiche/src/quic/test_tools/qpack/qpack_offline_decoder.h"
 
 #include <cstdint>
 #include <string>
 #include <utility>
 
-#include "net/third_party/quiche/src/quic/core/qpack/qpack_test_utils.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_endian.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_file_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
+#include "net/third_party/quiche/src/quic/test_tools/qpack/qpack_test_utils.h"
 
 namespace quic {
 

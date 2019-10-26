@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_QUIC_CORE_QPACK_QPACK_TEST_UTILS_H_
-#define QUICHE_QUIC_CORE_QPACK_QPACK_TEST_UTILS_H_
+#ifndef QUICHE_QUIC_TEST_TOOLS_QPACK_QPACK_TEST_UTILS_H_
+#define QUICHE_QUIC_TEST_TOOLS_QPACK_QPACK_TEST_UTILS_H_
 
 #include <cstddef>
 #include <functional>
@@ -38,4 +38,4 @@ class /*QUIC_EXPORT_PRIVATE*/ MockQpackStreamSenderDelegate
 }  // namespace test
 }  // namespace quic
 
-#endif  // QUICHE_QUIC_CORE_QPACK_QPACK_TEST_UTILS_H_
+#endif  // QUICHE_QUIC_TEST_TOOLS_QPACK_QPACK_TEST_UTILS_H_

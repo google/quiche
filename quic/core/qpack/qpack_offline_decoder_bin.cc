@@ -2,14 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/core/qpack/offline/qpack_offline_decoder.h"
-
 #include <cstddef>
 #include <iostream>
 
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
+#include "net/third_party/quiche/src/quic/test_tools/qpack/qpack_offline_decoder.h"
 
 int main(int argc, char* argv[]) {
   const char* usage =

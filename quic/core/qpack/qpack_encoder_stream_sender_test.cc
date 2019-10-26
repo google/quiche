@@ -4,9 +4,9 @@
 
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_encoder_stream_sender.h"
 
-#include "net/third_party/quiche/src/quic/core/qpack/qpack_test_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
+#include "net/third_party/quiche/src/quic/test_tools/qpack/qpack_test_utils.h"
 
 using ::testing::Eq;
 using ::testing::StrictMock;
