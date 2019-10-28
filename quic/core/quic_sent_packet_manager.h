@@ -554,10 +554,6 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   QuicTime::Delta min_tlp_timeout_;
   // The minimum RTO.
   QuicTime::Delta min_rto_timeout_;
-  // Whether to use IETF style TLP that includes the max ack delay.
-  bool ietf_style_tlp_;
-  // IETF style TLP, but with a 2x multiplier instead of 1.5x.
-  bool ietf_style_2x_tlp_;
 
   // Vectors packets acked and lost as a result of the last congestion event.
   AckedPacketVector packets_acked_;

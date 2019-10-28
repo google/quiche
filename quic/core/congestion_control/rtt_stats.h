@@ -73,11 +73,6 @@ class QUIC_EXPORT_PRIVATE RttStats {
 
   QuicTime::Delta mean_deviation() const { return mean_deviation_; }
 
-  QuicTime::Delta max_ack_delay() const {
-    DCHECK(!GetQuicReloadableFlag(quic_sent_packet_manager_cleanup));
-    return max_ack_delay_;
-  }
-
   QuicTime last_update_time() const { return last_update_time_; }
 
   bool ignore_max_ack_delay() const { return ignore_max_ack_delay_; }
