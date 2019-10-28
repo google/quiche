@@ -199,11 +199,8 @@ void QuicSession::OnCryptoFrame(const QuicCryptoFrame& frame) {
   GetMutableCryptoStream()->OnCryptoFrame(frame);
 }
 
-bool QuicSession::OnStopSendingFrame(const QuicStopSendingFrame& frame) {
-  // We are not version 99. In theory, if not in version 99 then the framer
-  // could not call OnStopSending... This is just a check that is good when
-  // both a new protocol and a new implementation of that protocol are both
-  // being developed.
+void QuicSession::OnStopSendingFrame(const QuicStopSendingFrame& frame) {
+  // STOP_SENDING is in IETF QUIC only.
   DCHECK(VersionHasIetfQuicFrames(transport_version()));
 
   QuicStreamId stream_id = frame.stream_id;
@@ -215,21 +212,7 @@ bool QuicSession::OnStopSendingFrame(const QuicStopSendingFrame& frame) {
     connection()->CloseConnection(
         QUIC_INVALID_STREAM_ID, "Received STOP_SENDING for an invalid stream",
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
-    return false;
-  }
-
-  // Ignore STOP_SENDING for static streams.
-  // TODO(fkastenholz): IETF Quic does not have static streams and does not
-  // make exceptions for them with respect to processing things like
-  // STOP_SENDING.
-  if (QuicUtils::IsCryptoStreamId(transport_version(), stream_id)) {
-    QUIC_DVLOG(1) << ENDPOINT
-                  << "Received STOP_SENDING for a static stream, id: "
-                  << stream_id << " Closing connection";
-    connection()->CloseConnection(
-        QUIC_INVALID_STREAM_ID, "Received STOP_SENDING for a static stream",
-        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
-    return false;
+    return;
   }
 
   if (visitor_) {
@@ -242,7 +225,7 @@ bool QuicSession::OnStopSendingFrame(const QuicStopSendingFrame& frame) {
         << ENDPOINT
         << "Received STOP_SENDING for closed or non-existent stream, id: "
         << stream_id << " Ignoring.";
-    return true;  // Continue processing the packet.
+    return;
   }
   // If stream is non-existent, close the connection
   StreamMap::iterator it = stream_map_.find(stream_id);
@@ -254,7 +237,7 @@ bool QuicSession::OnStopSendingFrame(const QuicStopSendingFrame& frame) {
         IETF_QUIC_PROTOCOL_VIOLATION,
         "Received STOP_SENDING for a non-existent stream",
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
-    return false;
+    return;
   }
 
   // Get the QuicStream for this stream. Ignore the STOP_SENDING
@@ -267,7 +250,7 @@ bool QuicSession::OnStopSendingFrame(const QuicStopSendingFrame& frame) {
     QUIC_BUG << ENDPOINT
              << "Received STOP_SENDING for NULL QuicStream, stream_id: "
              << stream_id << ". Ignoring.";
-    return true;
+    return;
   }
 
   if (stream->is_static()) {
@@ -277,7 +260,7 @@ bool QuicSession::OnStopSendingFrame(const QuicStopSendingFrame& frame) {
     connection()->CloseConnection(
         QUIC_INVALID_STREAM_ID, "Received STOP_SENDING for a static stream",
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
-    return false;
+    return;
   }
 
   stream->OnStopSending(frame.application_error_code);
@@ -289,8 +272,6 @@ bool QuicSession::OnStopSendingFrame(const QuicStopSendingFrame& frame) {
       static_cast<quic::QuicRstStreamErrorCode>(frame.application_error_code),
       stream->stream_bytes_written(),
       /*close_write_side_only=*/true);
-
-  return true;
 }
 
 void QuicSession::PendingStreamOnRstStream(const QuicRstStreamFrame& frame) {

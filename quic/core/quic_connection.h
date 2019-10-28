@@ -165,7 +165,7 @@ class QUIC_EXPORT_PRIVATE QuicConnectionVisitorInterface {
   virtual void OnForwardProgressConfirmed() = 0;
 
   // Called when a STOP_SENDING frame has been received.
-  virtual bool OnStopSendingFrame(const QuicStopSendingFrame& frame) = 0;
+  virtual void OnStopSendingFrame(const QuicStopSendingFrame& frame) = 0;
 };
 
 // Interface which gets callbacks from the QuicConnection at interesting

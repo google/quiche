@@ -126,7 +126,7 @@ class QUIC_EXPORT_PRIVATE QuicSession
   void OnForwardProgressConfirmed() override;
   bool OnMaxStreamsFrame(const QuicMaxStreamsFrame& frame) override;
   bool OnStreamsBlockedFrame(const QuicStreamsBlockedFrame& frame) override;
-  bool OnStopSendingFrame(const QuicStopSendingFrame& frame) override;
+  void OnStopSendingFrame(const QuicStopSendingFrame& frame) override;
 
   // QuicStreamFrameDataProducer
   WriteStreamDataResult WriteStreamData(QuicStreamId id,

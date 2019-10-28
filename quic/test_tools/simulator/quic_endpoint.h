@@ -81,9 +81,7 @@ class QuicEndpoint : public QuicEndpointBase,
       const QuicStreamsBlockedFrame& /*frame*/) override {
     return true;
   }
-  bool OnStopSendingFrame(const QuicStopSendingFrame& /*frame*/) override {
-    return true;
-  }
+  void OnStopSendingFrame(const QuicStopSendingFrame& /*frame*/) override {}
 
   // End QuicConnectionVisitorInterface implementation.
 

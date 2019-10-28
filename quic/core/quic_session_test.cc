@@ -1603,7 +1603,8 @@ TEST_P(QuicSessionTestServer, ConnectionFlowControlAccountingRstOutOfOrder) {
     // stream and therefore fulfill all of the expects.
     QuicStopSendingFrame frame(kInvalidControlFrameId, stream->id(),
                                QUIC_STREAM_CANCELLED);
-    EXPECT_TRUE(session_.OnStopSendingFrame(frame));
+    EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(0);
+    session_.OnStopSendingFrame(frame);
   }
   EXPECT_EQ(kByteOffset, session_.flow_controller()->bytes_consumed());
 }
@@ -2114,7 +2115,8 @@ TEST_P(QuicSessionTestServer, TestZombieStreams) {
     // stream and therefore fulfill all of the expects.
     QuicStopSendingFrame frame(kInvalidControlFrameId, stream2->id(),
                                QUIC_STREAM_CANCELLED);
-    EXPECT_TRUE(session_.OnStopSendingFrame(frame));
+    EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(0);
+    session_.OnStopSendingFrame(frame);
   }
   EXPECT_FALSE(QuicContainsKey(session_.zombie_streams(), stream2->id()));
   ASSERT_EQ(1u, session_.closed_streams()->size());
@@ -2621,7 +2623,7 @@ TEST_P(QuicSessionTestServer, OnStopSendingInputInvalidStreamId) {
       *connection_,
       CloseConnection(QUIC_INVALID_STREAM_ID,
                       "Received STOP_SENDING for an invalid stream", _));
-  EXPECT_FALSE(session_.OnStopSendingFrame(frame));
+  session_.OnStopSendingFrame(frame);
 }
 
 // Second test, streams in the static stream map are not subject to
@@ -2641,7 +2643,7 @@ TEST_P(QuicSessionTestServer, OnStopSendingInputStaticStreams) {
   EXPECT_CALL(*connection_,
               CloseConnection(QUIC_INVALID_STREAM_ID,
                               "Received STOP_SENDING for a static stream", _));
-  EXPECT_FALSE(session_.OnStopSendingFrame(frame));
+  session_.OnStopSendingFrame(frame);
 }
 
 // Third test, if stream id specifies a closed stream:
@@ -2661,7 +2663,7 @@ TEST_P(QuicSessionTestServer, OnStopSendingInputClosedStream) {
   stream->CloseReadSide();
   QuicStopSendingFrame frame(1, stream_id, 123);
   EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(0);
-  EXPECT_TRUE(session_.OnStopSendingFrame(frame));
+  session_.OnStopSendingFrame(frame);
 }
 
 // Fourth test, if stream id specifies a nonexistent stream, return false and
@@ -2679,7 +2681,7 @@ TEST_P(QuicSessionTestServer, OnStopSendingInputNonExistentStream) {
       CloseConnection(IETF_QUIC_PROTOCOL_VIOLATION,
                       "Received STOP_SENDING for a non-existent stream", _))
       .Times(1);
-  EXPECT_FALSE(session_.OnStopSendingFrame(frame));
+  session_.OnStopSendingFrame(frame);
 }
 
 // For a valid stream, ensure that all works
@@ -2703,7 +2705,8 @@ TEST_P(QuicSessionTestServer, OnStopSendingInputValidStream) {
   EXPECT_CALL(
       *connection_,
       OnStreamReset(stream_id, static_cast<QuicRstStreamErrorCode>(123)));
-  EXPECT_TRUE(session_.OnStopSendingFrame(frame));
+  EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(0);
+  session_.OnStopSendingFrame(frame);
   // When the STOP_SENDING is received, the node generates a RST_STREAM,
   // which closes the stream in the write direction. Ensure this.
   EXPECT_FALSE(QuicStreamPeer::read_side_closed(stream));
