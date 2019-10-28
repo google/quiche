@@ -211,8 +211,6 @@ class QUIC_EXPORT_PRIVATE QuicUnackedPacketMap {
     return supports_multiple_packet_number_spaces_;
   }
 
-  bool simple_inflight_time() const { return simple_inflight_time_; }
-
  private:
   friend class test::QuicUnackedPacketMapPeer;
 

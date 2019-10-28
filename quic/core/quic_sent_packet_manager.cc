@@ -877,14 +877,6 @@ const QuicTime QuicSentPacketManager::GetRetransmissionTime() const {
       return std::max(tlp_time, rto_time);
     }
     case PTO_MODE: {
-      if (!unacked_packets().simple_inflight_time() &&
-          handshake_mode_disabled_ && !handshake_confirmed_ &&
-          !unacked_packets_.HasInFlightPackets()) {
-        DCHECK_EQ(Perspective::IS_CLIENT, unacked_packets_.perspective());
-        return std::max(clock_->ApproximateNow(),
-                        unacked_packets_.GetLastCryptoPacketSentTime() +
-                            GetProbeTimeoutDelay());
-      }
       // Ensure PTO never gets set to a time in the past.
       return std::max(clock_->ApproximateNow(),
                       unacked_packets_.GetLastInFlightPacketSentTime() +

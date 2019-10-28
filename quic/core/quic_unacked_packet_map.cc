@@ -31,12 +31,7 @@ QuicUnackedPacketMap::QuicUnackedPacketMap(Perspective perspective)
       last_inflight_packet_sent_time_(QuicTime::Zero()),
       last_crypto_packet_sent_time_(QuicTime::Zero()),
       session_notifier_(nullptr),
-      supports_multiple_packet_number_spaces_(false),
-      simple_inflight_time_(GetQuicReloadableFlag(quic_simple_inflight_time)) {
-  if (simple_inflight_time_) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_simple_inflight_time);
-  }
-}
+      supports_multiple_packet_number_spaces_(false) {}
 
 QuicUnackedPacketMap::~QuicUnackedPacketMap() {
   for (QuicTransmissionInfo& transmission_info : unacked_packets_) {
@@ -224,20 +219,7 @@ QuicTransmissionInfo* QuicUnackedPacketMap::GetMutableTransmissionInfo(
 }
 
 QuicTime QuicUnackedPacketMap::GetLastInFlightPacketSentTime() const {
-  if (simple_inflight_time_) {
-    return last_inflight_packet_sent_time_;
-  }
-  auto it = unacked_packets_.rbegin();
-  while (it != unacked_packets_.rend()) {
-    if (it->in_flight) {
-      QUIC_BUG_IF(it->sent_time == QuicTime::Zero())
-          << "Sent time can never be zero for a packet in flight.";
-      return it->sent_time;
-    }
-    ++it;
-  }
-  QUIC_BUG << "GetLastPacketSentTime requires in flight packets.";
-  return QuicTime::Zero();
+  return last_inflight_packet_sent_time_;
 }
 
 QuicTime QuicUnackedPacketMap::GetLastCryptoPacketSentTime() const {
