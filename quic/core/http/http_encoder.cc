@@ -40,12 +40,45 @@ uint8_t SetPriorityFields(uint8_t num,
   }
 }
 
+bool WriteFrameHeader(QuicByteCount length,
+                      HttpFrameType type,
+                      QuicDataWriter* writer) {
+  return writer->WriteVarInt62(static_cast<uint64_t>(type)) &&
+         writer->WriteVarInt62(length);
+}
+
+QuicByteCount GetTotalLength(QuicByteCount payload_length, HttpFrameType type) {
+  return QuicDataWriter::GetVarInt62Len(payload_length) +
+         QuicDataWriter::GetVarInt62Len(static_cast<uint64_t>(type)) +
+         payload_length;
+}
+
+// Write prioritized element id and element dependency id if needed.
+bool MaybeWriteIds(const PriorityFrame& priority, QuicDataWriter* writer) {
+  if (priority.prioritized_type != ROOT_OF_TREE) {
+    if (!writer->WriteVarInt62(priority.prioritized_element_id)) {
+      return false;
+    }
+  } else {
+    DCHECK_EQ(0u, priority.prioritized_element_id)
+        << "Prioritized element id should be 0 when prioritized type is "
+           "ROOT_OF_TREE";
+  }
+  if (priority.dependency_type != ROOT_OF_TREE) {
+    if (!writer->WriteVarInt62(priority.element_dependency_id)) {
+      return false;
+    }
+  } else {
+    DCHECK_EQ(0u, priority.element_dependency_id)
+        << "Element dependency id should be 0 when dependency type is "
+           "ROOT_OF_TREE";
+  }
+  return true;
+}
+
 }  // namespace
 
-HttpEncoder::HttpEncoder() {}
-
-HttpEncoder::~HttpEncoder() {}
-
+// static
 QuicByteCount HttpEncoder::SerializeDataFrameHeader(
     QuicByteCount payload_length,
     std::unique_ptr<char[]>* output) {
@@ -65,6 +98,7 @@ QuicByteCount HttpEncoder::SerializeDataFrameHeader(
   return 0;
 }
 
+// static
 QuicByteCount HttpEncoder::SerializeHeadersFrameHeader(
     QuicByteCount payload_length,
     std::unique_ptr<char[]>* output) {
@@ -86,6 +120,7 @@ QuicByteCount HttpEncoder::SerializeHeadersFrameHeader(
   return 0;
 }
 
+// static
 QuicByteCount HttpEncoder::SerializePriorityFrame(
     const PriorityFrame& priority,
     std::unique_ptr<char[]>* output) {
@@ -127,6 +162,7 @@ QuicByteCount HttpEncoder::SerializePriorityFrame(
   return 0;
 }
 
+// static
 QuicByteCount HttpEncoder::SerializeCancelPushFrame(
     const CancelPushFrame& cancel_push,
     std::unique_ptr<char[]>* output) {
@@ -147,6 +183,7 @@ QuicByteCount HttpEncoder::SerializeCancelPushFrame(
   return 0;
 }
 
+// static
 QuicByteCount HttpEncoder::SerializeSettingsFrame(
     const SettingsFrame& settings,
     std::unique_ptr<char[]>* output) {
@@ -180,6 +217,7 @@ QuicByteCount HttpEncoder::SerializeSettingsFrame(
   return total_length;
 }
 
+// static
 QuicByteCount HttpEncoder::SerializePushPromiseFrameWithOnlyPushId(
     const PushPromiseFrame& push_promise,
     std::unique_ptr<char[]>* output) {
@@ -205,6 +243,7 @@ QuicByteCount HttpEncoder::SerializePushPromiseFrameWithOnlyPushId(
   return 0;
 }
 
+// static
 QuicByteCount HttpEncoder::SerializeGoAwayFrame(
     const GoAwayFrame& goaway,
     std::unique_ptr<char[]>* output) {
@@ -225,6 +264,7 @@ QuicByteCount HttpEncoder::SerializeGoAwayFrame(
   return 0;
 }
 
+// static
 QuicByteCount HttpEncoder::SerializeMaxPushIdFrame(
     const MaxPushIdFrame& max_push_id,
     std::unique_ptr<char[]>* output) {
@@ -245,6 +285,7 @@ QuicByteCount HttpEncoder::SerializeMaxPushIdFrame(
   return 0;
 }
 
+// static
 QuicByteCount HttpEncoder::SerializeDuplicatePushFrame(
     const DuplicatePushFrame& duplicate_push,
     std::unique_ptr<char[]>* output) {
@@ -264,43 +305,6 @@ QuicByteCount HttpEncoder::SerializeDuplicatePushFrame(
   QUIC_DLOG(ERROR) << "Http encoder failed when attempting to serialize "
                       "duplicate push frame.";
   return 0;
-}
-
-bool HttpEncoder::WriteFrameHeader(QuicByteCount length,
-                                   HttpFrameType type,
-                                   QuicDataWriter* writer) {
-  return writer->WriteVarInt62(static_cast<uint64_t>(type)) &&
-         writer->WriteVarInt62(length);
-}
-
-QuicByteCount HttpEncoder::GetTotalLength(QuicByteCount payload_length,
-                                          HttpFrameType type) {
-  return QuicDataWriter::GetVarInt62Len(payload_length) +
-         QuicDataWriter::GetVarInt62Len(static_cast<uint64_t>(type)) +
-         payload_length;
-}
-
-bool HttpEncoder::MaybeWriteIds(const PriorityFrame& priority,
-                                QuicDataWriter* writer) {
-  if (priority.prioritized_type != ROOT_OF_TREE) {
-    if (!writer->WriteVarInt62(priority.prioritized_element_id)) {
-      return false;
-    }
-  } else {
-    DCHECK_EQ(0u, priority.prioritized_element_id)
-        << "Prioritized element id should be 0 when prioritized type is "
-           "ROOT_OF_TREE";
-  }
-  if (priority.dependency_type != ROOT_OF_TREE) {
-    if (!writer->WriteVarInt62(priority.element_dependency_id)) {
-      return false;
-    }
-  } else {
-    DCHECK_EQ(0u, priority.element_dependency_id)
-        << "Element dependency id should be 0 when dependency type is "
-           "ROOT_OF_TREE";
-  }
-  return true;
 }
 
 }  // namespace quic

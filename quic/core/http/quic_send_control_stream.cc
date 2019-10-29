@@ -59,7 +59,7 @@ void QuicSendControlStream::MaybeSendSettingsFrame() {
 
   std::unique_ptr<char[]> buffer;
   QuicByteCount frame_length =
-      encoder_.SerializeSettingsFrame(settings, &buffer);
+      HttpEncoder::SerializeSettingsFrame(settings, &buffer);
   QUIC_DVLOG(1) << "Control stream " << id() << " is writing settings frame "
                 << settings;
   QuicSpdySession* spdy_session = static_cast<QuicSpdySession*>(session());
@@ -76,7 +76,7 @@ void QuicSendControlStream::WritePriority(const PriorityFrame& priority) {
   MaybeSendSettingsFrame();
   std::unique_ptr<char[]> buffer;
   QuicByteCount frame_length =
-      encoder_.SerializePriorityFrame(priority, &buffer);
+      HttpEncoder::SerializePriorityFrame(priority, &buffer);
   QUIC_DVLOG(1) << "Control Stream " << id() << " is writing " << priority;
   WriteOrBufferData(QuicStringPiece(buffer.get(), frame_length), false,
                     nullptr);
@@ -89,7 +89,8 @@ void QuicSendControlStream::SendMaxPushIdFrame(PushId max_push_id) {
   MaxPushIdFrame frame;
   frame.push_id = max_push_id;
   std::unique_ptr<char[]> buffer;
-  QuicByteCount frame_length = encoder_.SerializeMaxPushIdFrame(frame, &buffer);
+  QuicByteCount frame_length =
+      HttpEncoder::SerializeMaxPushIdFrame(frame, &buffer);
   WriteOrBufferData(QuicStringPiece(buffer.get(), frame_length),
                     /*fin = */ false, nullptr);
 }
@@ -107,7 +108,8 @@ void QuicSendControlStream::SendGoAway(QuicStreamId stream_id) {
   }
   frame.stream_id = stream_id;
   std::unique_ptr<char[]> buffer;
-  QuicByteCount frame_length = encoder_.SerializeGoAwayFrame(frame, &buffer);
+  QuicByteCount frame_length =
+      HttpEncoder::SerializeGoAwayFrame(frame, &buffer);
   WriteOrBufferData(QuicStringPiece(buffer.get(), frame_length), false,
                     nullptr);
 }

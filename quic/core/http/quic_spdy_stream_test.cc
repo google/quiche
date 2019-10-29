@@ -280,7 +280,8 @@ class QuicSpdyStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
   std::string HeadersFrame(QuicStringPiece payload) {
     std::unique_ptr<char[]> headers_buffer;
     QuicByteCount headers_frame_header_length =
-        encoder_.SerializeHeadersFrameHeader(payload.length(), &headers_buffer);
+        HttpEncoder::SerializeHeadersFrameHeader(payload.length(),
+                                                 &headers_buffer);
     QuicStringPiece headers_frame_header(headers_buffer.get(),
                                          headers_frame_header_length);
     return QuicStrCat(headers_frame_header, payload);
@@ -289,7 +290,7 @@ class QuicSpdyStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
   std::string DataFrame(QuicStringPiece payload) {
     std::unique_ptr<char[]> data_buffer;
     QuicByteCount data_frame_header_length =
-        encoder_.SerializeDataFrameHeader(payload.length(), &data_buffer);
+        HttpEncoder::SerializeDataFrameHeader(payload.length(), &data_buffer);
     QuicStringPiece data_frame_header(data_buffer.get(),
                                       data_frame_header_length);
     return QuicStrCat(data_frame_header, payload);
@@ -323,8 +324,6 @@ class QuicSpdyStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
   TestStream* stream2_;
 
   SpdyHeaderBlock headers_;
-
-  HttpEncoder encoder_;
 };
 
 INSTANTIATE_TEST_SUITE_P(Tests,
@@ -469,7 +468,8 @@ TEST_P(QuicSpdyStreamTest, ProcessWrongFramesOnSpdyStream) {
   GoAwayFrame goaway;
   goaway.stream_id = 0x1;
   std::unique_ptr<char[]> buffer;
-  QuicByteCount header_length = encoder_.SerializeGoAwayFrame(goaway, &buffer);
+  QuicByteCount header_length =
+      HttpEncoder::SerializeGoAwayFrame(goaway, &buffer);
   std::string data = std::string(buffer.get(), header_length);
 
   EXPECT_EQ("", stream_->data());
@@ -763,7 +763,8 @@ TEST_P(QuicSpdyStreamTest, StreamFlowControlNoWindowUpdateIfNotConsumed) {
 
   if (UsesHttp3()) {
     std::unique_ptr<char[]> buffer;
-    header_length = encoder_.SerializeDataFrameHeader(body.length(), &buffer);
+    header_length =
+        HttpEncoder::SerializeDataFrameHeader(body.length(), &buffer);
     std::string header = std::string(buffer.get(), header_length);
     data = header + body;
   } else {
@@ -812,7 +813,8 @@ TEST_P(QuicSpdyStreamTest, StreamFlowControlWindowUpdate) {
 
   if (UsesHttp3()) {
     std::unique_ptr<char[]> buffer;
-    header_length = encoder_.SerializeDataFrameHeader(body.length(), &buffer);
+    header_length =
+        HttpEncoder::SerializeDataFrameHeader(body.length(), &buffer);
     std::string header = std::string(buffer.get(), header_length);
     data = header + body;
   } else {
@@ -882,12 +884,13 @@ TEST_P(QuicSpdyStreamTest, ConnectionFlowControlWindowUpdate) {
   if (UsesHttp3()) {
     body = std::string(kWindow / 4 - 2, 'a');
     std::unique_ptr<char[]> buffer;
-    header_length = encoder_.SerializeDataFrameHeader(body.length(), &buffer);
+    header_length =
+        HttpEncoder::SerializeDataFrameHeader(body.length(), &buffer);
     std::string header = std::string(buffer.get(), header_length);
     data = header + body;
     std::unique_ptr<char[]> buffer2;
     QuicByteCount header_length2 =
-        encoder_.SerializeDataFrameHeader(body2.length(), &buffer2);
+        HttpEncoder::SerializeDataFrameHeader(body2.length(), &buffer2);
     std::string header2 = std::string(buffer2.get(), header_length2);
     data2 = header2 + body2;
   } else {
@@ -1302,7 +1305,7 @@ TEST_P(QuicSpdyStreamTest, WritingTrailersFinalOffset) {
   QuicByteCount header_length = 0;
   if (UsesHttp3()) {
     std::unique_ptr<char[]> buf;
-    header_length = encoder_.SerializeDataFrameHeader(body.length(), &buf);
+    header_length = HttpEncoder::SerializeDataFrameHeader(body.length(), &buf);
   }
 
   stream_->WriteOrBufferBody(body, false);
@@ -1652,10 +1655,11 @@ TEST_P(QuicSpdyStreamTest, HeadersAckNotReportedWriteOrBufferBody) {
 
   std::unique_ptr<char[]> buffer;
   QuicByteCount header_length =
-      encoder_.SerializeDataFrameHeader(body.length(), &buffer);
+      HttpEncoder::SerializeDataFrameHeader(body.length(), &buffer);
   std::string header = std::string(buffer.get(), header_length);
 
-  header_length = encoder_.SerializeDataFrameHeader(body2.length(), &buffer);
+  header_length =
+      HttpEncoder::SerializeDataFrameHeader(body2.length(), &buffer);
   std::string header2 = std::string(buffer.get(), header_length);
 
   EXPECT_CALL(*mock_ack_listener, OnPacketAcked(body.length(), _));
@@ -2268,9 +2272,8 @@ TEST_P(QuicSpdyStreamTest, PushPromiseOnDataStream) {
   push_promise.push_id = 0x01;
   push_promise.headers = headers;
   std::unique_ptr<char[]> buffer;
-  HttpEncoder encoder;
-  uint64_t length =
-      encoder.SerializePushPromiseFrameWithOnlyPushId(push_promise, &buffer);
+  uint64_t length = HttpEncoder::SerializePushPromiseFrameWithOnlyPushId(
+      push_promise, &buffer);
   std::string data = std::string(buffer.get(), length) + headers;
   QuicStreamFrame frame(stream_->id(), false, 0, data);
 

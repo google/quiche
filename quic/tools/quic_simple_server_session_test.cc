@@ -10,6 +10,7 @@
 
 #include "net/third_party/quiche/src/quic/core/crypto/quic_crypto_server_config.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"
+#include "net/third_party/quiche/src/quic/core/http/http_encoder.h"
 #include "net/third_party/quiche/src/quic/core/proto/cached_network_parameters_proto.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection.h"
 #include "net/third_party/quiche/src/quic/core/quic_crypto_server_stream.h"
@@ -653,10 +654,9 @@ class QuicSimpleServerSessionServerPushTest
       std::string data;
       data_frame_header_length = 0;
       if (VersionUsesHttp3(connection_->transport_version())) {
-        HttpEncoder encoder;
         std::unique_ptr<char[]> buffer;
         data_frame_header_length =
-            encoder.SerializeDataFrameHeader(body.length(), &buffer);
+            HttpEncoder::SerializeDataFrameHeader(body.length(), &buffer);
         std::string header(buffer.get(), data_frame_header_length);
         data = header + body;
       } else {

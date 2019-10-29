@@ -96,7 +96,6 @@ class QuicSpdyClientStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
   std::unique_ptr<StreamVisitor> stream_visitor_;
   SpdyHeaderBlock headers_;
   std::string body_;
-  HttpEncoder encoder_;
 };
 
 INSTANTIATE_TEST_SUITE_P(Tests,
@@ -122,7 +121,7 @@ TEST_P(QuicSpdyClientStreamTest, TestFraming) {
                               headers);
   std::unique_ptr<char[]> buffer;
   QuicByteCount header_length =
-      encoder_.SerializeDataFrameHeader(body_.length(), &buffer);
+      HttpEncoder::SerializeDataFrameHeader(body_.length(), &buffer);
   std::string header = std::string(buffer.get(), header_length);
   std::string data = VersionUsesHttp3(connection_->transport_version())
                          ? header + body_
@@ -153,7 +152,7 @@ TEST_P(QuicSpdyClientStreamTest, TestFramingOnePacket) {
                               headers);
   std::unique_ptr<char[]> buffer;
   QuicByteCount header_length =
-      encoder_.SerializeDataFrameHeader(body_.length(), &buffer);
+      HttpEncoder::SerializeDataFrameHeader(body_.length(), &buffer);
   std::string header = std::string(buffer.get(), header_length);
   std::string data = VersionUsesHttp3(connection_->transport_version())
                          ? header + body_
@@ -178,7 +177,7 @@ TEST_P(QuicSpdyClientStreamTest,
   EXPECT_EQ(200, stream_->response_code());
   std::unique_ptr<char[]> buffer;
   QuicByteCount header_length =
-      encoder_.SerializeDataFrameHeader(large_body.length(), &buffer);
+      HttpEncoder::SerializeDataFrameHeader(large_body.length(), &buffer);
   std::string header = std::string(buffer.get(), header_length);
   std::string data = VersionUsesHttp3(connection_->transport_version())
                          ? header + large_body
@@ -222,7 +221,7 @@ TEST_P(QuicSpdyClientStreamTest, ReceivingTrailers) {
   // received, as well as all data.
   std::unique_ptr<char[]> buffer;
   QuicByteCount header_length =
-      encoder_.SerializeDataFrameHeader(body_.length(), &buffer);
+      HttpEncoder::SerializeDataFrameHeader(body_.length(), &buffer);
   std::string header = std::string(buffer.get(), header_length);
   std::string data = VersionUsesHttp3(connection_->transport_version())
                          ? header + body_

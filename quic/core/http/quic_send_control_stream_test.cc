@@ -93,7 +93,6 @@ class QuicSendControlStreamTest : public QuicTestWithParam<TestParams> {
   MockAlarmFactory alarm_factory_;
   StrictMock<MockQuicConnection>* connection_;
   StrictMock<MockQuicSpdySession> session_;
-  HttpEncoder encoder_;
   QuicSendControlStream* send_control_stream_;
 };
 

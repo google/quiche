@@ -305,8 +305,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   // The parsed trailers received from the peer.
   spdy::SpdyHeaderBlock received_trailers_;
 
-  // Http encoder for writing streams.
-  HttpEncoder encoder_;
   // Headers accumulator for decoding HEADERS frame payload.
   std::unique_ptr<QpackDecodedHeadersAccumulator>
       qpack_decoded_headers_accumulator_;

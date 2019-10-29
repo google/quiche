@@ -297,7 +297,7 @@ void QuicSpdyStream::WriteOrBufferBody(QuicStringPiece data, bool fin) {
   // Write frame header.
   std::unique_ptr<char[]> buffer;
   QuicByteCount header_length =
-      encoder_.SerializeDataFrameHeader(data.length(), &buffer);
+      HttpEncoder::SerializeDataFrameHeader(data.length(), &buffer);
   unacked_frame_headers_offsets_.Add(
       send_buffer().stream_offset(),
       send_buffer().stream_offset() + header_length);
@@ -358,7 +358,7 @@ void QuicSpdyStream::WritePushPromise(const PushPromiseFrame& frame) {
   DCHECK(VersionUsesHttp3(transport_version()));
   std::unique_ptr<char[]> push_promise_frame_with_id;
   const size_t push_promise_frame_length =
-      encoder_.SerializePushPromiseFrameWithOnlyPushId(
+      HttpEncoder::SerializePushPromiseFrameWithOnlyPushId(
           frame, &push_promise_frame_with_id);
 
   unacked_frame_headers_offsets_.Add(send_buffer().stream_offset(),
@@ -401,7 +401,7 @@ QuicConsumedData QuicSpdyStream::WriteBodySlices(QuicMemSliceSpan slices,
 
   std::unique_ptr<char[]> buffer;
   QuicByteCount header_length =
-      encoder_.SerializeDataFrameHeader(slices.total_length(), &buffer);
+      HttpEncoder::SerializeDataFrameHeader(slices.total_length(), &buffer);
   if (!CanWriteNewDataAfterData(header_length)) {
     return {0, false};
   }
@@ -1041,8 +1041,8 @@ size_t QuicSpdyStream::WriteHeadersImpl(
   // Write HEADERS frame.
   std::unique_ptr<char[]> headers_frame_header;
   const size_t headers_frame_header_length =
-      encoder_.SerializeHeadersFrameHeader(encoded_headers.size(),
-                                           &headers_frame_header);
+      HttpEncoder::SerializeHeadersFrameHeader(encoded_headers.size(),
+                                               &headers_frame_header);
   unacked_frame_headers_offsets_.Add(
       send_buffer().stream_offset(),
       send_buffer().stream_offset() + headers_frame_header_length);

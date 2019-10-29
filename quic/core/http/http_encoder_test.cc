@@ -11,16 +11,10 @@
 namespace quic {
 namespace test {
 
-class HttpEncoderTest : public QuicTest {
- public:
-  HttpEncoderTest() {}
-  HttpEncoder encoder_;
-};
-
-TEST_F(HttpEncoderTest, SerializeDataFrameHeader) {
+TEST(HttpEncoderTest, SerializeDataFrameHeader) {
   std::unique_ptr<char[]> buffer;
   uint64_t length =
-      encoder_.SerializeDataFrameHeader(/* payload_length = */ 5, &buffer);
+      HttpEncoder::SerializeDataFrameHeader(/* payload_length = */ 5, &buffer);
   char output[] = {// type (DATA)
                    0x00,
                    // length
@@ -30,10 +24,10 @@ TEST_F(HttpEncoderTest, SerializeDataFrameHeader) {
                                 QUIC_ARRAYSIZE(output));
 }
 
-TEST_F(HttpEncoderTest, SerializeHeadersFrameHeader) {
+TEST(HttpEncoderTest, SerializeHeadersFrameHeader) {
   std::unique_ptr<char[]> buffer;
-  uint64_t length =
-      encoder_.SerializeHeadersFrameHeader(/* payload_length = */ 7, &buffer);
+  uint64_t length = HttpEncoder::SerializeHeadersFrameHeader(
+      /* payload_length = */ 7, &buffer);
   char output[] = {// type (HEADERS)
                    0x01,
                    // length
@@ -43,7 +37,7 @@ TEST_F(HttpEncoderTest, SerializeHeadersFrameHeader) {
                                 QUIC_ARRAYSIZE(output));
 }
 
-TEST_F(HttpEncoderTest, SerializePriorityFrame) {
+TEST(HttpEncoderTest, SerializePriorityFrame) {
   PriorityFrame priority;
   priority.prioritized_type = REQUEST_STREAM;
   priority.dependency_type = REQUEST_STREAM;
@@ -65,7 +59,7 @@ TEST_F(HttpEncoderTest, SerializePriorityFrame) {
                    0xFF};
 
   std::unique_ptr<char[]> buffer;
-  uint64_t length = encoder_.SerializePriorityFrame(priority, &buffer);
+  uint64_t length = HttpEncoder::SerializePriorityFrame(priority, &buffer);
   EXPECT_EQ(QUIC_ARRAYSIZE(output), length);
   CompareCharArraysWithHexError("PRIORITY", buffer.get(), length, output,
                                 QUIC_ARRAYSIZE(output));
@@ -86,7 +80,7 @@ TEST_F(HttpEncoderTest, SerializePriorityFrame) {
                     0x04,
                     // weight
                     0xff};
-  length = encoder_.SerializePriorityFrame(priority2, &buffer);
+  length = HttpEncoder::SerializePriorityFrame(priority2, &buffer);
   EXPECT_EQ(QUIC_ARRAYSIZE(output2), length);
   CompareCharArraysWithHexError("PRIORITY", buffer.get(), length, output2,
                                 QUIC_ARRAYSIZE(output2));
@@ -104,13 +98,13 @@ TEST_F(HttpEncoderTest, SerializePriorityFrame) {
                     0xf8,
                     // weight
                     0xff};
-  length = encoder_.SerializePriorityFrame(priority3, &buffer);
+  length = HttpEncoder::SerializePriorityFrame(priority3, &buffer);
   EXPECT_EQ(QUIC_ARRAYSIZE(output3), length);
   CompareCharArraysWithHexError("PRIORITY", buffer.get(), length, output3,
                                 QUIC_ARRAYSIZE(output3));
 }
 
-TEST_F(HttpEncoderTest, SerializeCancelPushFrame) {
+TEST(HttpEncoderTest, SerializeCancelPushFrame) {
   CancelPushFrame cancel_push;
   cancel_push.push_id = 0x01;
   char output[] = {// type (CANCEL_PUSH)
@@ -120,13 +114,13 @@ TEST_F(HttpEncoderTest, SerializeCancelPushFrame) {
                    // Push Id
                    0x01};
   std::unique_ptr<char[]> buffer;
-  uint64_t length = encoder_.SerializeCancelPushFrame(cancel_push, &buffer);
+  uint64_t length = HttpEncoder::SerializeCancelPushFrame(cancel_push, &buffer);
   EXPECT_EQ(QUIC_ARRAYSIZE(output), length);
   CompareCharArraysWithHexError("CANCEL_PUSH", buffer.get(), length, output,
                                 QUIC_ARRAYSIZE(output));
 }
 
-TEST_F(HttpEncoderTest, SerializeSettingsFrame) {
+TEST(HttpEncoderTest, SerializeSettingsFrame) {
   SettingsFrame settings;
   settings.values[1] = 2;
   settings.values[6] = 5;
@@ -148,13 +142,13 @@ TEST_F(HttpEncoderTest, SerializeSettingsFrame) {
                    // content
                    0x04};
   std::unique_ptr<char[]> buffer;
-  uint64_t length = encoder_.SerializeSettingsFrame(settings, &buffer);
+  uint64_t length = HttpEncoder::SerializeSettingsFrame(settings, &buffer);
   EXPECT_EQ(QUIC_ARRAYSIZE(output), length);
   CompareCharArraysWithHexError("SETTINGS", buffer.get(), length, output,
                                 QUIC_ARRAYSIZE(output));
 }
 
-TEST_F(HttpEncoderTest, SerializePushPromiseFrameWithOnlyPushId) {
+TEST(HttpEncoderTest, SerializePushPromiseFrameWithOnlyPushId) {
   PushPromiseFrame push_promise;
   push_promise.push_id = 0x01;
   push_promise.headers = "Headers";
@@ -165,14 +159,14 @@ TEST_F(HttpEncoderTest, SerializePushPromiseFrameWithOnlyPushId) {
                    // Push Id
                    0x01};
   std::unique_ptr<char[]> buffer;
-  uint64_t length =
-      encoder_.SerializePushPromiseFrameWithOnlyPushId(push_promise, &buffer);
+  uint64_t length = HttpEncoder::SerializePushPromiseFrameWithOnlyPushId(
+      push_promise, &buffer);
   EXPECT_EQ(QUIC_ARRAYSIZE(output), length);
   CompareCharArraysWithHexError("PUSH_PROMISE", buffer.get(), length, output,
                                 QUIC_ARRAYSIZE(output));
 }
 
-TEST_F(HttpEncoderTest, SerializeGoAwayFrame) {
+TEST(HttpEncoderTest, SerializeGoAwayFrame) {
   GoAwayFrame goaway;
   goaway.stream_id = 0x1;
   char output[] = {// type (GOAWAY)
@@ -182,13 +176,13 @@ TEST_F(HttpEncoderTest, SerializeGoAwayFrame) {
                    // StreamId
                    0x01};
   std::unique_ptr<char[]> buffer;
-  uint64_t length = encoder_.SerializeGoAwayFrame(goaway, &buffer);
+  uint64_t length = HttpEncoder::SerializeGoAwayFrame(goaway, &buffer);
   EXPECT_EQ(QUIC_ARRAYSIZE(output), length);
   CompareCharArraysWithHexError("GOAWAY", buffer.get(), length, output,
                                 QUIC_ARRAYSIZE(output));
 }
 
-TEST_F(HttpEncoderTest, SerializeMaxPushIdFrame) {
+TEST(HttpEncoderTest, SerializeMaxPushIdFrame) {
   MaxPushIdFrame max_push_id;
   max_push_id.push_id = 0x1;
   char output[] = {// type (MAX_PUSH_ID)
@@ -198,13 +192,13 @@ TEST_F(HttpEncoderTest, SerializeMaxPushIdFrame) {
                    // Push Id
                    0x01};
   std::unique_ptr<char[]> buffer;
-  uint64_t length = encoder_.SerializeMaxPushIdFrame(max_push_id, &buffer);
+  uint64_t length = HttpEncoder::SerializeMaxPushIdFrame(max_push_id, &buffer);
   EXPECT_EQ(QUIC_ARRAYSIZE(output), length);
   CompareCharArraysWithHexError("MAX_PUSH_ID", buffer.get(), length, output,
                                 QUIC_ARRAYSIZE(output));
 }
 
-TEST_F(HttpEncoderTest, SerializeDuplicatePushFrame) {
+TEST(HttpEncoderTest, SerializeDuplicatePushFrame) {
   DuplicatePushFrame duplicate_push;
   duplicate_push.push_id = 0x1;
   char output[] = {// type (DUPLICATE_PUSH)
@@ -215,7 +209,7 @@ TEST_F(HttpEncoderTest, SerializeDuplicatePushFrame) {
                    0x01};
   std::unique_ptr<char[]> buffer;
   uint64_t length =
-      encoder_.SerializeDuplicatePushFrame(duplicate_push, &buffer);
+      HttpEncoder::SerializeDuplicatePushFrame(duplicate_push, &buffer);
   EXPECT_EQ(QUIC_ARRAYSIZE(output), length);
   CompareCharArraysWithHexError("DUPLICATE_PUSH", buffer.get(), length, output,
                                 QUIC_ARRAYSIZE(output));

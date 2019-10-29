@@ -51,7 +51,6 @@ class QUIC_EXPORT_PRIVATE QuicSendControlStream : public QuicStream {
   void OnDataAvailable() override { QUIC_NOTREACHED(); }
 
  private:
-  HttpEncoder encoder_;
   // Track if a settings frame is already sent.
   bool settings_sent_;
 

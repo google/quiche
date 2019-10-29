@@ -615,10 +615,9 @@ TEST_F(HttpDecoderTest, FrameHeaderPartialDelivery) {
   InSequence s;
   // A large input that will occupy more than 1 byte in the length field.
   std::string input(2048, 'x');
-  HttpEncoder encoder;
   std::unique_ptr<char[]> buffer;
   QuicByteCount header_length =
-      encoder.SerializeDataFrameHeader(input.length(), &buffer);
+      HttpEncoder::SerializeDataFrameHeader(input.length(), &buffer);
   std::string header = std::string(buffer.get(), header_length);
   // Partially send only 1 byte of the header to process.
   EXPECT_EQ(1u, decoder_.ProcessInput(header.data(), 1));
@@ -1034,11 +1033,10 @@ TEST_F(HttpDecoderTest, EmptyDuplicatePushFrame) {
 }
 
 TEST_F(HttpDecoderTest, LargeStreamIdInGoAway) {
-  HttpEncoder encoder;
   GoAwayFrame frame;
   frame.stream_id = 1 << 30;
   std::unique_ptr<char[]> buffer;
-  uint64_t length = encoder.SerializeGoAwayFrame(frame, &buffer);
+  uint64_t length = HttpEncoder::SerializeGoAwayFrame(frame, &buffer);
   EXPECT_CALL(visitor_, OnGoAwayFrame(frame));
   EXPECT_GT(length, 0u);
   EXPECT_EQ(length, decoder_.ProcessInput(buffer.get(), length));

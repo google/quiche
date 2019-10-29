@@ -13,6 +13,7 @@
 #include "net/third_party/quiche/src/quic/core/crypto/null_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/frames/quic_stream_frame.h"
 #include "net/third_party/quiche/src/quic/core/http/http_constants.h"
+#include "net/third_party/quiche/src/quic/core/http/http_encoder.h"
 #include "net/third_party/quiche/src/quic/core/quic_config.h"
 #include "net/third_party/quiche/src/quic/core/quic_crypto_stream.h"
 #include "net/third_party/quiche/src/quic/core/quic_data_writer.h"
@@ -398,9 +399,8 @@ class QuicSpdySessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
   }
 
   std::string EncodeSettings(const SettingsFrame& settings) {
-    HttpEncoder encoder;
     std::unique_ptr<char[]> buffer;
-    auto header_length = encoder.SerializeSettingsFrame(settings, &buffer);
+    auto header_length = HttpEncoder::SerializeSettingsFrame(settings, &buffer);
     return std::string(buffer.get(), header_length);
   }
 
@@ -2305,10 +2305,9 @@ TEST_P(QuicSpdySessionTestServer, StreamClosedWhileHeaderDecodingBlocked) {
   // HEADERS frame referencing first dynamic table entry.
   std::string headers_payload = QuicTextUtils::HexDecode("020080");
   std::unique_ptr<char[]> headers_buffer;
-  HttpEncoder encoder;
   QuicByteCount headers_frame_header_length =
-      encoder.SerializeHeadersFrameHeader(headers_payload.length(),
-                                          &headers_buffer);
+      HttpEncoder::SerializeHeadersFrameHeader(headers_payload.length(),
+                                               &headers_buffer);
   QuicStringPiece headers_frame_header(headers_buffer.get(),
                                        headers_frame_header_length);
   std::string headers = QuicStrCat(headers_frame_header, headers_payload);
@@ -2340,10 +2339,9 @@ TEST_P(QuicSpdySessionTestServer, SessionDestroyedWhileHeaderDecodingBlocked) {
   // HEADERS frame referencing first dynamic table entry.
   std::string headers_payload = QuicTextUtils::HexDecode("020080");
   std::unique_ptr<char[]> headers_buffer;
-  HttpEncoder encoder;
   QuicByteCount headers_frame_header_length =
-      encoder.SerializeHeadersFrameHeader(headers_payload.length(),
-                                          &headers_buffer);
+      HttpEncoder::SerializeHeadersFrameHeader(headers_payload.length(),
+                                               &headers_buffer);
   QuicStringPiece headers_frame_header(headers_buffer.get(),
                                        headers_frame_header_length);
   std::string headers = QuicStrCat(headers_frame_header, headers_payload);

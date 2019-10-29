@@ -8,6 +8,7 @@
 #include <memory>
 #include <utility>
 
+#include "net/third_party/quiche/src/quic/core/http/http_encoder.h"
 #include "net/third_party/quiche/src/quic/core/http/spdy_utils.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
@@ -248,7 +249,6 @@ class QuicSimpleServerStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
   std::unique_ptr<QuicBackendResponse> quic_response_;
   std::string body_;
   QuicHeaderList header_list_;
-  HttpEncoder encoder_;
 };
 
 INSTANTIATE_TEST_SUITE_P(Tests,
@@ -262,7 +262,7 @@ TEST_P(QuicSimpleServerStreamTest, TestFraming) {
   stream_->OnStreamHeaderList(false, kFakeFrameLen, header_list_);
   std::unique_ptr<char[]> buffer;
   QuicByteCount header_length =
-      encoder_.SerializeDataFrameHeader(body_.length(), &buffer);
+      HttpEncoder::SerializeDataFrameHeader(body_.length(), &buffer);
   std::string header = std::string(buffer.get(), header_length);
   std::string data = UsesHttp3() ? header + body_ : body_;
   stream_->OnStreamFrame(
@@ -280,7 +280,7 @@ TEST_P(QuicSimpleServerStreamTest, TestFramingOnePacket) {
   stream_->OnStreamHeaderList(false, kFakeFrameLen, header_list_);
   std::unique_ptr<char[]> buffer;
   QuicByteCount header_length =
-      encoder_.SerializeDataFrameHeader(body_.length(), &buffer);
+      HttpEncoder::SerializeDataFrameHeader(body_.length(), &buffer);
   std::string header = std::string(buffer.get(), header_length);
   std::string data = UsesHttp3() ? header + body_ : body_;
   stream_->OnStreamFrame(
@@ -321,7 +321,7 @@ TEST_P(QuicSimpleServerStreamTest, TestFramingExtraData) {
   stream_->OnStreamHeaderList(false, kFakeFrameLen, header_list_);
   std::unique_ptr<char[]> buffer;
   QuicByteCount header_length =
-      encoder_.SerializeDataFrameHeader(body_.length(), &buffer);
+      HttpEncoder::SerializeDataFrameHeader(body_.length(), &buffer);
   std::string header = std::string(buffer.get(), header_length);
   std::string data = UsesHttp3() ? header + body_ : body_;
 
@@ -330,7 +330,7 @@ TEST_P(QuicSimpleServerStreamTest, TestFramingExtraData) {
   // Content length is still 11.  This will register as an error and we won't
   // accept the bytes.
   header_length =
-      encoder_.SerializeDataFrameHeader(large_body.length(), &buffer);
+      HttpEncoder::SerializeDataFrameHeader(large_body.length(), &buffer);
   header = std::string(buffer.get(), header_length);
   std::string data2 = UsesHttp3() ? header + large_body : large_body;
   stream_->OnStreamFrame(
@@ -355,7 +355,7 @@ TEST_P(QuicSimpleServerStreamTest, SendResponseWithIllegalResponseStatus) {
   std::string body = "Yummm";
   std::unique_ptr<char[]> buffer;
   QuicByteCount header_length =
-      encoder_.SerializeDataFrameHeader(body.length(), &buffer);
+      HttpEncoder::SerializeDataFrameHeader(body.length(), &buffer);
 
   memory_cache_backend_.AddResponse("www.google.com", "/bar",
                                     std::move(response_headers_), body);
@@ -390,7 +390,7 @@ TEST_P(QuicSimpleServerStreamTest, SendResponseWithIllegalResponseStatus2) {
 
   std::unique_ptr<char[]> buffer;
   QuicByteCount header_length =
-      encoder_.SerializeDataFrameHeader(body.length(), &buffer);
+      HttpEncoder::SerializeDataFrameHeader(body.length(), &buffer);
 
   memory_cache_backend_.AddResponse("www.google.com", "/bar",
                                     std::move(response_headers_), body);
@@ -455,7 +455,7 @@ TEST_P(QuicSimpleServerStreamTest, SendResponseWithValidHeaders) {
 
   std::unique_ptr<char[]> buffer;
   QuicByteCount header_length =
-      encoder_.SerializeDataFrameHeader(body.length(), &buffer);
+      HttpEncoder::SerializeDataFrameHeader(body.length(), &buffer);
 
   memory_cache_backend_.AddResponse("www.google.com", "/bar",
                                     std::move(response_headers_), body);
@@ -483,7 +483,7 @@ TEST_P(QuicSimpleServerStreamTest, SendResponseWithPushResources) {
   std::string body = "Yummm";
   std::unique_ptr<char[]> buffer;
   QuicByteCount header_length =
-      encoder_.SerializeDataFrameHeader(body.length(), &buffer);
+      HttpEncoder::SerializeDataFrameHeader(body.length(), &buffer);
   QuicBackendResponse::ServerPushInfo push_info(
       QuicUrl(host, "/bar"), spdy::SpdyHeaderBlock(),
       QuicStream::kDefaultPriority, "Push body");
@@ -555,7 +555,7 @@ TEST_P(QuicSimpleServerStreamTest, PushResponseOnServerInitiatedStream) {
   const std::string kBody = "Hello";
   std::unique_ptr<char[]> buffer;
   QuicByteCount header_length =
-      encoder_.SerializeDataFrameHeader(kBody.length(), &buffer);
+      HttpEncoder::SerializeDataFrameHeader(kBody.length(), &buffer);
   memory_cache_backend_.AddResponse(kHost, kPath, std::move(response_headers_),
                                     kBody);
 
