@@ -41,8 +41,6 @@ class QuicConnectionPeer {
   static void PopulateStopWaitingFrame(QuicConnection* connection,
                                        QuicStopWaitingFrame* stop_waiting);
 
-  static QuicConnectionVisitorInterface* GetVisitor(QuicConnection* connection);
-
   static QuicPacketCreator* GetPacketCreator(QuicConnection* connection);
 
   static QuicPacketGenerator* GetPacketGenerator(QuicConnection* connection);

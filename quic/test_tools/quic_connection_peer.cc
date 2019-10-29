@@ -37,12 +37,6 @@ void QuicConnectionPeer::PopulateStopWaitingFrame(
 }
 
 // static
-QuicConnectionVisitorInterface* QuicConnectionPeer::GetVisitor(
-    QuicConnection* connection) {
-  return connection->visitor_;
-}
-
-// static
 QuicPacketCreator* QuicConnectionPeer::GetPacketCreator(
     QuicConnection* connection) {
   return QuicPacketGeneratorPeer::GetPacketCreator(

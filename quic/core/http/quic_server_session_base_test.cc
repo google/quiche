@@ -154,7 +154,6 @@ class QuicServerSessionBaseTest : public QuicTestWithParam<ParsedQuicVersion> {
     session_->Initialize();
     QuicSessionPeer::GetMutableCryptoStream(session_.get())
         ->OnSuccessfulVersionNegotiation(supported_versions.front());
-    visitor_ = QuicConnectionPeer::GetVisitor(connection_);
     QuicConfigPeer::SetReceivedInitialSessionFlowControlWindow(
         session_->config(), kMinimumFlowControlSendWindow);
     session_->OnConfigNegotiated();
@@ -208,7 +207,6 @@ class QuicServerSessionBaseTest : public QuicTestWithParam<ParsedQuicVersion> {
   QuicMemoryCacheBackend memory_cache_backend_;
   std::unique_ptr<TestServerSession> session_;
   std::unique_ptr<CryptoHandshakeMessage> handshake_message_;
-  QuicConnectionVisitorInterface* visitor_;
 };
 
 // Compares CachedNetworkParameters.
@@ -253,7 +251,7 @@ TEST_P(QuicServerSessionBaseTest, CloseStreamDueToReset) {
                 OnStreamReset(GetNthClientInitiatedBidirectionalId(0),
                               QUIC_RST_ACKNOWLEDGEMENT));
   }
-  visitor_->OnRstStream(rst1);
+  session_->OnRstStream(rst1);
 
   // For version-99 will create and receive a stop-sending, completing
   // the full-close expected by this test.
@@ -263,7 +261,7 @@ TEST_P(QuicServerSessionBaseTest, CloseStreamDueToReset) {
   EXPECT_EQ(0u, session_->GetNumOpenIncomingStreams());
 
   // Send the same two bytes of payload in a new packet.
-  visitor_->OnStreamFrame(data1);
+  session_->OnStreamFrame(data1);
 
   // The stream should not be re-opened.
   EXPECT_EQ(0u, session_->GetNumOpenIncomingStreams());
@@ -284,7 +282,7 @@ TEST_P(QuicServerSessionBaseTest, NeverOpenStreamDueToReset) {
                 OnStreamReset(GetNthClientInitiatedBidirectionalId(0),
                               QUIC_RST_ACKNOWLEDGEMENT));
   }
-  visitor_->OnRstStream(rst1);
+  session_->OnRstStream(rst1);
 
   // For version-99 will create and receive a stop-sending, completing
   // the full-close expected by this test.
@@ -296,7 +294,7 @@ TEST_P(QuicServerSessionBaseTest, NeverOpenStreamDueToReset) {
   // Send two bytes of payload.
   QuicStreamFrame data1(GetNthClientInitiatedBidirectionalId(0), false, 0,
                         QuicStringPiece("HT"));
-  visitor_->OnStreamFrame(data1);
+  session_->OnStreamFrame(data1);
 
   // The stream should never be opened, now that the reset is received.
   EXPECT_EQ(0u, session_->GetNumOpenIncomingStreams());
@@ -309,8 +307,8 @@ TEST_P(QuicServerSessionBaseTest, AcceptClosedStream) {
                          QuicStringPiece("\1\0\0\0\0\0\0\0HT"));
   QuicStreamFrame frame2(GetNthClientInitiatedBidirectionalId(1), false, 0,
                          QuicStringPiece("\2\0\0\0\0\0\0\0HT"));
-  visitor_->OnStreamFrame(frame1);
-  visitor_->OnStreamFrame(frame2);
+  session_->OnStreamFrame(frame1);
+  session_->OnStreamFrame(frame2);
   EXPECT_EQ(2u, session_->GetNumOpenIncomingStreams());
 
   // Send a reset (and expect the peer to send a RST in response).
@@ -326,7 +324,7 @@ TEST_P(QuicServerSessionBaseTest, AcceptClosedStream) {
                 OnStreamReset(GetNthClientInitiatedBidirectionalId(0),
                               QUIC_RST_ACKNOWLEDGEMENT));
   }
-  visitor_->OnRstStream(rst);
+  session_->OnRstStream(rst);
 
   // For version-99 will create and receive a stop-sending, completing
   // the full-close expected by this test.
@@ -340,8 +338,8 @@ TEST_P(QuicServerSessionBaseTest, AcceptClosedStream) {
                          QuicStringPiece("TP"));
   QuicStreamFrame frame4(GetNthClientInitiatedBidirectionalId(1), false, 2,
                          QuicStringPiece("TP"));
-  visitor_->OnStreamFrame(frame3);
-  visitor_->OnStreamFrame(frame4);
+  session_->OnStreamFrame(frame3);
+  session_->OnStreamFrame(frame4);
   // The stream should never be opened, now that the reset is received.
   EXPECT_EQ(1u, session_->GetNumOpenIncomingStreams());
   EXPECT_TRUE(connection_->connected());
