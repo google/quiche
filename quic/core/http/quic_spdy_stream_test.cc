@@ -349,10 +349,7 @@ TEST_P(QuicSpdyStreamTest, ProcessTooLargeHeaderList) {
   stream_->OnStreamHeadersPriority(
       spdy::SpdyStreamPrecedence(kV3HighestPriority));
 
-  const bool version_uses_qpack =
-      VersionUsesHttp3(GetParam().transport_version);
-
-  if (version_uses_qpack) {
+  if (UsesHttp3()) {
     EXPECT_CALL(
         *connection_,
         CloseConnection(
@@ -365,7 +362,7 @@ TEST_P(QuicSpdyStreamTest, ProcessTooLargeHeaderList) {
 
   stream_->OnStreamHeaderList(false, 1 << 20, headers);
 
-  if (!version_uses_qpack) {
+  if (!UsesHttp3()) {
     EXPECT_EQ(QUIC_HEADERS_TOO_LARGE, stream_->stream_error());
   }
 }
@@ -1026,7 +1023,7 @@ TEST_P(QuicSpdyStreamTest, ReceivingTrailersViaHeaderList) {
   trailers_block["key2"] = "value2";
   trailers_block["key3"] = "value3";
   SpdyHeaderBlock trailers_block_with_final_offset = trailers_block.Clone();
-  if (!VersionUsesHttp3(GetParam().transport_version)) {
+  if (!UsesHttp3()) {
     // :final-offset pseudo-header is only added if trailers are sent
     // on the headers stream.
     trailers_block_with_final_offset[kFinalOffsetHeaderKey] = "0";
@@ -1054,7 +1051,7 @@ TEST_P(QuicSpdyStreamTest, ReceivingTrailersViaHeaderList) {
 TEST_P(QuicSpdyStreamTest, ReceivingTrailersWithOffset) {
   // kFinalOffsetHeaderKey is not used when HEADERS are sent on the
   // request/response stream.
-  if (VersionUsesHttp3(GetParam().transport_version)) {
+  if (UsesHttp3()) {
     return;
   }
 
@@ -1101,7 +1098,7 @@ TEST_P(QuicSpdyStreamTest, ReceivingTrailersWithOffset) {
 TEST_P(QuicSpdyStreamTest, ReceivingTrailersWithoutOffset) {
   // kFinalOffsetHeaderKey is not used when HEADERS are sent on the
   // request/response stream.
-  if (VersionUsesHttp3(GetParam().transport_version)) {
+  if (UsesHttp3()) {
     return;
   }
 
@@ -1133,7 +1130,7 @@ TEST_P(QuicSpdyStreamTest, ReceivingTrailersWithoutOffset) {
 TEST_P(QuicSpdyStreamTest, ReceivingTrailersWithoutFin) {
   // In IETF QUIC, there is no such thing as FIN flag on HTTP/3 frames like the
   // HEADERS frame.
-  if (VersionUsesHttp3(GetParam().transport_version)) {
+  if (UsesHttp3()) {
     return;
   }
 
@@ -1164,7 +1161,7 @@ TEST_P(QuicSpdyStreamTest, ReceivingTrailersAfterHeadersWithFin) {
   // If HEADERS frames are sent on the request/response stream, then the
   // sequencer will signal an error if any stream data arrives after a FIN,
   // so QuicSpdyStream does not need to.
-  if (VersionUsesHttp3(GetParam().transport_version)) {
+  if (UsesHttp3()) {
     return;
   }
 
@@ -1186,7 +1183,7 @@ TEST_P(QuicSpdyStreamTest, ReceivingTrailersAfterBodyWithFin) {
   // If HEADERS frames are sent on the request/response stream,
   // then the sequencer will block them from reaching QuicSpdyStream
   // after the stream is closed.
-  if (VersionUsesHttp3(GetParam().transport_version)) {
+  if (UsesHttp3()) {
     return;
   }
 
@@ -1236,7 +1233,7 @@ TEST_P(QuicSpdyStreamTest, ClosingStreamWithNoTrailers) {
 TEST_P(QuicSpdyStreamTest, WritingTrailersSendsAFin) {
   Initialize(kShouldProcessData);
 
-  if (VersionUsesHttp3(GetParam().transport_version)) {
+  if (UsesHttp3()) {
     // In this case, TestStream::WriteHeadersImpl() does not prevent writes.
     EXPECT_CALL(*session_, WritevData(stream_, stream_->id(), _, _, _))
         .Times(AtLeast(1));
@@ -1258,7 +1255,7 @@ TEST_P(QuicSpdyStreamTest, ClientWritesPriority) {
   SetQuicFlag(FLAGS_quic_allow_http3_priority, true);
   InitializeWithPerspective(kShouldProcessData, Perspective::IS_CLIENT);
 
-  if (VersionUsesHttp3(GetParam().transport_version)) {
+  if (UsesHttp3()) {
     // In this case, TestStream::WriteHeadersImpl() does not prevent writes.
     // Six writes include priority for headers, headers frame header, headers
     // frame, priority of trailers, trailing headers frame header, and trailers.
@@ -1289,7 +1286,7 @@ TEST_P(QuicSpdyStreamTest, ClientWritesPriority) {
 TEST_P(QuicSpdyStreamTest, WritingTrailersFinalOffset) {
   Initialize(kShouldProcessData);
 
-  if (VersionUsesHttp3(GetParam().transport_version)) {
+  if (UsesHttp3()) {
     // In this case, TestStream::WriteHeadersImpl() does not prevent writes.
     EXPECT_CALL(*session_, WritevData(stream_, stream_->id(), _, _, _))
         .Times(AtLeast(1));
@@ -1318,7 +1315,7 @@ TEST_P(QuicSpdyStreamTest, WritingTrailersFinalOffset) {
   SpdyHeaderBlock expected_trailers(trailers.Clone());
   // :final-offset pseudo-header is only added if trailers are sent
   // on the headers stream.
-  if (!VersionUsesHttp3(GetParam().transport_version)) {
+  if (!UsesHttp3()) {
     expected_trailers[kFinalOffsetHeaderKey] =
         QuicTextUtils::Uint64ToString(body.length() + header_length);
   }
@@ -1360,7 +1357,7 @@ TEST_P(QuicSpdyStreamTest, WritingTrailersWithQueuedBytes) {
   // This test exercises sending trailers on the headers stream while data is
   // still queued on the response/request stream.  In IETF QUIC, data and
   // trailers are sent on the same stream, so this test does not apply.
-  if (VersionUsesHttp3(GetParam().transport_version)) {
+  if (UsesHttp3()) {
     return;
   }
 
@@ -1419,7 +1416,7 @@ TEST_P(QuicSpdyStreamTest, WritingTrailersAfterFIN) {
 
 TEST_P(QuicSpdyStreamTest, HeaderStreamNotiferCorrespondingSpdyStream) {
   // There is no headers stream if QPACK is used.
-  if (VersionUsesHttp3(GetParam().transport_version)) {
+  if (UsesHttp3()) {
     return;
   }
 
@@ -1752,7 +1749,7 @@ TEST_P(QuicSpdyStreamTest, HeaderBytesNotReportedOnRetransmission) {
 }
 
 TEST_P(QuicSpdyStreamTest, HeadersFrameOnRequestStream) {
-  if (!VersionUsesHttp3(GetParam().transport_version)) {
+  if (!UsesHttp3()) {
     return;
   }
 
@@ -1780,7 +1777,7 @@ TEST_P(QuicSpdyStreamTest, HeadersFrameOnRequestStream) {
 }
 
 TEST_P(QuicSpdyStreamTest, ProcessBodyAfterTrailers) {
-  if (!VersionUsesHttp3(GetParam().transport_version)) {
+  if (!UsesHttp3()) {
     return;
   }
 
@@ -1824,7 +1821,7 @@ TEST_P(QuicSpdyStreamTest, ProcessBodyAfterTrailers) {
 // normal body. Make sure the http decoder stops processing body after the
 // connection shuts down.
 TEST_P(QuicSpdyStreamTest, MalformedHeadersStopHttpDecoder) {
-  if (!VersionUsesHttp3(GetParam().transport_version)) {
+  if (!UsesHttp3()) {
     return;
   }
 
@@ -1866,7 +1863,7 @@ TEST_P(QuicSpdyStreamTest, MalformedHeadersStopHttpDecoder) {
 }
 
 TEST_P(QuicSpdyStreamTest, ImmediateHeaderDecodingWithDynamicTableEntries) {
-  if (!VersionUsesHttp3(GetParam().transport_version)) {
+  if (!UsesHttp3()) {
     return;
   }
 
@@ -1921,7 +1918,7 @@ TEST_P(QuicSpdyStreamTest, ImmediateHeaderDecodingWithDynamicTableEntries) {
 }
 
 TEST_P(QuicSpdyStreamTest, BlockedHeaderDecoding) {
-  if (!VersionUsesHttp3(GetParam().transport_version)) {
+  if (!UsesHttp3()) {
     return;
   }
 
@@ -1978,7 +1975,7 @@ TEST_P(QuicSpdyStreamTest, BlockedHeaderDecoding) {
 }
 
 TEST_P(QuicSpdyStreamTest, AsyncErrorDecodingHeaders) {
-  if (!VersionUsesHttp3(GetParam().transport_version)) {
+  if (!UsesHttp3()) {
     return;
   }
 
@@ -2010,7 +2007,7 @@ TEST_P(QuicSpdyStreamTest, AsyncErrorDecodingHeaders) {
 }
 
 TEST_P(QuicSpdyStreamTest, AsyncErrorDecodingTrailers) {
-  if (!VersionUsesHttp3(GetParam().transport_version)) {
+  if (!UsesHttp3()) {
     return;
   }
 
@@ -2120,7 +2117,7 @@ INSTANTIATE_TEST_SUITE_P(Tests,
 // Test that stream bytes are consumed (by calling
 // sequencer()->MarkConsumed()) incrementally, as soon as possible.
 TEST_P(QuicSpdyStreamIncrementalConsumptionTest, OnlyKnownFrames) {
-  if (!VersionUsesHttp3(GetParam().transport_version)) {
+  if (!UsesHttp3()) {
     return;
   }
 
@@ -2179,7 +2176,7 @@ TEST_P(QuicSpdyStreamIncrementalConsumptionTest, OnlyKnownFrames) {
 }
 
 TEST_P(QuicSpdyStreamIncrementalConsumptionTest, UnknownFramesInterleaved) {
-  if (!VersionUsesHttp3(GetParam().transport_version)) {
+  if (!UsesHttp3()) {
     return;
   }
 
@@ -2285,7 +2282,7 @@ TEST_P(QuicSpdyStreamTest, PushPromiseOnDataStream) {
 
 // Close connection if a DATA frame is received before a HEADERS frame.
 TEST_P(QuicSpdyStreamTest, DataBeforeHeaders) {
-  if (!VersionUsesHttp3(GetParam().transport_version)) {
+  if (!UsesHttp3()) {
     return;
   }
 
@@ -2307,7 +2304,7 @@ TEST_P(QuicSpdyStreamTest, DataBeforeHeaders) {
 
 // Close connection if a HEADERS frame is received after the trailing HEADERS.
 TEST_P(QuicSpdyStreamTest, TrailersAfterTrailers) {
-  if (!VersionUsesHttp3(GetParam().transport_version)) {
+  if (!UsesHttp3()) {
     return;
   }
 
@@ -2360,7 +2357,7 @@ TEST_P(QuicSpdyStreamTest, TrailersAfterTrailers) {
 // Regression test for https://crbug.com/978733.
 // Close connection if a DATA frame is received after the trailing HEADERS.
 TEST_P(QuicSpdyStreamTest, DataAfterTrailers) {
-  if (!VersionUsesHttp3(GetParam().transport_version)) {
+  if (!UsesHttp3()) {
     return;
   }
 
@@ -2410,7 +2407,7 @@ TEST_P(QuicSpdyStreamTest, DataAfterTrailers) {
 // SETTINGS frames are invalid on bidirectional streams.  If one is received,
 // the connection is closed.  No more data should be processed.
 TEST_P(QuicSpdyStreamTest, StopProcessingIfConnectionClosed) {
-  if (!VersionUsesHttp3(GetParam().transport_version)) {
+  if (!UsesHttp3()) {
     return;
   }
 

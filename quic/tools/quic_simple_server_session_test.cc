@@ -288,7 +288,8 @@ class QuicSimpleServerSessionTest
 
 INSTANTIATE_TEST_SUITE_P(Tests,
                          QuicSimpleServerSessionTest,
-                         ::testing::ValuesIn(AllSupportedVersions()));
+                         ::testing::ValuesIn(AllSupportedVersions()),
+                         ::testing::PrintToStringParamName());
 
 TEST_P(QuicSimpleServerSessionTest, CloseStreamDueToReset) {
   // Open a stream, then reset it.
