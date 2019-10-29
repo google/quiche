@@ -12,11 +12,6 @@
 
 namespace spdy {
 
-template <typename T, typename... Args>
-std::unique_ptr<T> SpdyMakeUnique(Args&&... args) {
-  return SpdyMakeUniqueImpl<T>(std::forward<Args>(args)...);
-}
-
 template <typename T>
 std::unique_ptr<T> SpdyWrapUnique(T* ptr) {
   return SpdyWrapUniqueImpl<T>(ptr);

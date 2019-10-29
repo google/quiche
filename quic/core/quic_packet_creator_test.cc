@@ -2132,7 +2132,7 @@ TEST_P(QuicPacketCreatorTest, SerializeCoalescedPacket) {
   // Verify packet process.
   std::unique_ptr<QuicEncryptedPacket> packets[NUM_ENCRYPTION_LEVELS];
   packets[ENCRYPTION_INITIAL] =
-      QuicMakeUnique<QuicEncryptedPacket>(buffer, coalesced_length);
+      std::make_unique<QuicEncryptedPacket>(buffer, coalesced_length);
   for (size_t i = ENCRYPTION_INITIAL; i < NUM_ENCRYPTION_LEVELS; ++i) {
     InSequence s;
     EXPECT_CALL(framer_visitor_, OnPacket());
