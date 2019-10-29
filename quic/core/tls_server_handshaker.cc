@@ -39,11 +39,6 @@ void TlsServerHandshaker::SignatureCallback::Cancel() {
   handshaker_ = nullptr;
 }
 
-// static
-bssl::UniquePtr<SSL_CTX> TlsServerHandshaker::CreateSslCtx() {
-  return TlsServerConnection::CreateSslCtx();
-}
-
 TlsServerHandshaker::TlsServerHandshaker(QuicCryptoStream* stream,
                                          QuicSession* session,
                                          SSL_CTX* ssl_ctx,

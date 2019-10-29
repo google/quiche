@@ -66,11 +66,6 @@ TlsClientHandshaker::~TlsClientHandshaker() {
   }
 }
 
-// static
-bssl::UniquePtr<SSL_CTX> TlsClientHandshaker::CreateSslCtx() {
-  return TlsClientConnection::CreateSslCtx();
-}
-
 bool TlsClientHandshaker::CryptoConnect() {
   state_ = STATE_HANDSHAKE_RUNNING;
 

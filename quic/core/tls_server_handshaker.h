@@ -34,10 +34,6 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
 
   ~TlsServerHandshaker() override;
 
-  // Creates and configures an SSL_CTX to be used with a TlsServerHandshaker.
-  // The caller is responsible for ownership of the newly created struct.
-  static bssl::UniquePtr<SSL_CTX> CreateSslCtx();
-
   // From QuicCryptoServerStream::HandshakerDelegate
   void CancelOutstandingCallbacks() override;
   bool GetBase64SHA256ClientChannelID(std::string* output) const override;
