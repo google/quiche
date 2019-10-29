@@ -9,7 +9,7 @@
 
 namespace quic {
 
-class /*QUIC_EXPORT_PRIVATE*/ QuicSpdyServerStreamBase : public QuicSpdyStream {
+class QUIC_NO_EXPORT QuicSpdyServerStreamBase : public QuicSpdyStream {
  public:
   QuicSpdyServerStreamBase(QuicStreamId id,
                            QuicSpdySession* session,

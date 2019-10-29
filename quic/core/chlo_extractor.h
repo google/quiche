@@ -12,9 +12,9 @@ namespace quic {
 
 // A utility for extracting QUIC Client Hello messages from packets,
 // without needs to spin up a full QuicSession.
-class /*QUIC_EXPORT_PRIVATE*/ ChloExtractor {
+class QUIC_NO_EXPORT ChloExtractor {
  public:
-  class /*QUIC_EXPORT_PRIVATE*/ Delegate {
+  class QUIC_NO_EXPORT Delegate {
    public:
     virtual ~Delegate() {}
 
