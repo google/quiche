@@ -372,6 +372,13 @@ void BbrSender::AdjustNetworkParameters(QuicBandwidth bandwidth,
       set_high_cwnd_gain(kDerivedHighCWNDGain);
     }
     congestion_window_ = new_cwnd;
+    if (GetQuicReloadableFlag(quic_bbr_fix_pacing_rate)) {
+      QUIC_RELOADABLE_FLAG_COUNT(quic_bbr_fix_pacing_rate);
+      // Pace at the rate of new_cwnd / RTT.
+      QuicBandwidth new_pacing_rate =
+          QuicBandwidth::FromBytesAndTimeDelta(congestion_window_, GetMinRtt());
+      pacing_rate_ = std::max(pacing_rate_, new_pacing_rate);
+    }
   }
 }
 
