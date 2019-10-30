@@ -23,6 +23,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_sent_packet_manager.h"
 #include "net/third_party/quiche/src/quic/core/quic_simple_buffer_allocator.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_mem_slice_storage.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/mock_clock.h"
@@ -1244,6 +1245,46 @@ MATCHER_P(ReceivedPacketInfoConnectionIdEquals, destination_connection_id, "") {
 
 MATCHER_P2(InRange, min, max, "") {
   return arg >= min && arg <= max;
+}
+
+// A GMock matcher that prints expected and actual QuicErrorCode strings
+// upon failure.  Example usage:
+// EXPECT_THAT(stream_->connection_error()), IsError(QUIC_INTERNAL_ERROR));
+MATCHER_P(IsError,
+          expected,
+          QuicStrCat(negation ? "isn't equal to " : "is equal to ",
+                     QuicErrorCodeToString(expected))) {
+  *result_listener << QuicErrorCodeToString(arg);
+  return arg == expected;
+}
+
+// Shorthand for IsError(QUIC_NO_ERROR).
+// Example usage: EXPECT_THAT(stream_->connection_error(), IsQuicNoError());
+MATCHER(IsQuicNoError,
+        QuicStrCat(negation ? "isn't equal to " : "is equal to ",
+                   QuicErrorCodeToString(QUIC_NO_ERROR))) {
+  *result_listener << QuicErrorCodeToString(arg);
+  return arg == QUIC_NO_ERROR;
+}
+
+// A GMock matcher that prints expected and actual QuicRstStreamErrorCode
+// strings upon failure.  Example usage:
+// EXPECT_THAT(stream_->stream_error(), IsStreamError(QUIC_INTERNAL_ERROR));
+MATCHER_P(IsStreamError,
+          expected,
+          QuicStrCat(negation ? "isn't equal to " : "is equal to ",
+                     QuicRstStreamErrorCodeToString(expected))) {
+  *result_listener << QuicRstStreamErrorCodeToString(arg);
+  return arg == expected;
+}
+
+// Shorthand for IsStreamError(QUIC_STREAM_NO_ERROR).  Example usage:
+// EXPECT_THAT(stream_->stream_error(), IsQuicStreamNoError());
+MATCHER(IsQuicStreamNoError,
+        QuicStrCat(negation ? "isn't equal to " : "is equal to ",
+                   QuicRstStreamErrorCodeToString(QUIC_STREAM_NO_ERROR))) {
+  *result_listener << QuicRstStreamErrorCodeToString(arg);
+  return arg == QUIC_STREAM_NO_ERROR;
 }
 
 }  // namespace test

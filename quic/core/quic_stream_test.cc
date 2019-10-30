@@ -418,12 +418,12 @@ TEST_P(QuicStreamTest, ConnectionCloseAfterStreamClose) {
 
   QuicStreamPeer::CloseReadSide(stream_);
   stream_->CloseWriteSide();
-  EXPECT_EQ(QUIC_STREAM_NO_ERROR, stream_->stream_error());
-  EXPECT_EQ(QUIC_NO_ERROR, stream_->connection_error());
+  EXPECT_THAT(stream_->stream_error(), IsQuicStreamNoError());
+  EXPECT_THAT(stream_->connection_error(), IsQuicNoError());
   stream_->OnConnectionClosed(QUIC_INTERNAL_ERROR,
                               ConnectionCloseSource::FROM_SELF);
-  EXPECT_EQ(QUIC_STREAM_NO_ERROR, stream_->stream_error());
-  EXPECT_EQ(QUIC_NO_ERROR, stream_->connection_error());
+  EXPECT_THAT(stream_->stream_error(), IsQuicStreamNoError());
+  EXPECT_THAT(stream_->connection_error(), IsQuicNoError());
 }
 
 TEST_P(QuicStreamTest, RstAlwaysSentIfNoFinSent) {
