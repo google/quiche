@@ -46,7 +46,8 @@ inline bool ShouldForceRetransmission(TransmissionType transmission_type) {
   return transmission_type == HANDSHAKE_RETRANSMISSION ||
          transmission_type == TLP_RETRANSMISSION ||
          transmission_type == PROBING_RETRANSMISSION ||
-         transmission_type == RTO_RETRANSMISSION;
+         transmission_type == RTO_RETRANSMISSION ||
+         transmission_type == PTO_RETRANSMISSION;
 }
 
 // If pacing rate is accurate, > 2 burst token is not likely to help first ACK
@@ -441,7 +442,7 @@ void QuicSentPacketManager::MarkForRetransmission(
               !unacked_packets_.HasRetransmittableFrames(*transmission_info))
       << "transmission_type: " << TransmissionTypeToString(transmission_type);
   // Handshake packets should never be sent as probing retransmissions.
-  DCHECK(pto_enabled_ || !transmission_info->has_crypto_handshake ||
+  DCHECK(!transmission_info->has_crypto_handshake ||
          transmission_type != PROBING_RETRANSMISSION);
 
   HandleRetransmission(transmission_type, transmission_info);
@@ -727,7 +728,7 @@ void QuicSentPacketManager::MaybeSendProbePackets() {
   for (QuicPacketNumber retransmission : probing_packets) {
     QUIC_DVLOG(1) << ENDPOINT << "Marking " << retransmission
                   << " for probing retransmission";
-    MarkForRetransmission(retransmission, PROBING_RETRANSMISSION);
+    MarkForRetransmission(retransmission, PTO_RETRANSMISSION);
   }
   // It is possible that there is not enough outstanding data for probing.
 }

@@ -478,6 +478,7 @@ std::string TransmissionTypeToString(TransmissionType transmission_type) {
     RETURN_STRING_LITERAL(LOSS_RETRANSMISSION);
     RETURN_STRING_LITERAL(RTO_RETRANSMISSION);
     RETURN_STRING_LITERAL(TLP_RETRANSMISSION);
+    RETURN_STRING_LITERAL(PTO_RETRANSMISSION);
     RETURN_STRING_LITERAL(PROBING_RETRANSMISSION);
     default:
       // Some varz rely on this behavior for statistic collection.

@@ -131,6 +131,8 @@ TEST_F(QuicUtilsTest, RetransmissionTypeToPacketState) {
       EXPECT_EQ(TLP_RETRANSMITTED, state);
     } else if (i == RTO_RETRANSMISSION) {
       EXPECT_EQ(RTO_RETRANSMITTED, state);
+    } else if (i == PTO_RETRANSMISSION) {
+      EXPECT_EQ(PTO_RETRANSMITTED, state);
     } else if (i == PROBING_RETRANSMISSION) {
       EXPECT_EQ(PROBE_RETRANSMITTED, state);
     } else {

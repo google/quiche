@@ -156,6 +156,7 @@ enum TransmissionType : int8_t {
   LOSS_RETRANSMISSION,         // Retransmits due to loss detection.
   RTO_RETRANSMISSION,          // Retransmits due to retransmit time out.
   TLP_RETRANSMISSION,          // Tail loss probes.
+  PTO_RETRANSMISSION,          // Retransmission due to probe timeout.
   PROBING_RETRANSMISSION,      // Retransmission in order to probe bandwidth.
   LAST_TRANSMISSION_TYPE = PROBING_RETRANSMISSION,
 };
@@ -465,6 +466,8 @@ enum SentPacketState : uint8_t {
   TLP_RETRANSMITTED,
   // This packet has been retransmitted when RTO fires.
   RTO_RETRANSMITTED,
+  // This packet has been retransmitted when PTO fires.
+  PTO_RETRANSMITTED,
   // This packet has been retransmitted for probing purpose.
   PROBE_RETRANSMITTED,
   LAST_PACKET_STATE = PROBE_RETRANSMITTED,
