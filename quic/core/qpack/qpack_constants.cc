@@ -199,4 +199,133 @@ const QpackLanguage* QpackRequestStreamLanguage() {
   return language;
 }
 
+// static
+QpackInstructionWithValues QpackInstructionWithValues::InsertWithNameReference(
+    bool is_static,
+    uint64_t name_index,
+    QuicStringPiece value) {
+  QpackInstructionWithValues instruction_with_values;
+  instruction_with_values.instruction_ = InsertWithNameReferenceInstruction();
+  instruction_with_values.s_bit_ = is_static;
+  instruction_with_values.varint_ = name_index;
+  instruction_with_values.value_ = value;
+
+  return instruction_with_values;
+}
+
+// static
+QpackInstructionWithValues
+QpackInstructionWithValues::InsertWithoutNameReference(QuicStringPiece name,
+                                                       QuicStringPiece value) {
+  QpackInstructionWithValues instruction_with_values;
+  instruction_with_values.instruction_ =
+      InsertWithoutNameReferenceInstruction();
+  instruction_with_values.name_ = name;
+  instruction_with_values.value_ = value;
+
+  return instruction_with_values;
+}
+
+// static
+QpackInstructionWithValues QpackInstructionWithValues::Duplicate(
+    uint64_t index) {
+  QpackInstructionWithValues instruction_with_values;
+  instruction_with_values.instruction_ = DuplicateInstruction();
+  instruction_with_values.varint_ = index;
+
+  return instruction_with_values;
+}
+
+// static
+QpackInstructionWithValues QpackInstructionWithValues::SetDynamicTableCapacity(
+    uint64_t capacity) {
+  QpackInstructionWithValues instruction_with_values;
+  instruction_with_values.instruction_ = SetDynamicTableCapacityInstruction();
+  instruction_with_values.varint_ = capacity;
+
+  return instruction_with_values;
+}
+
+// static
+QpackInstructionWithValues QpackInstructionWithValues::InsertCountIncrement(
+    uint64_t increment) {
+  QpackInstructionWithValues instruction_with_values;
+  instruction_with_values.instruction_ = InsertCountIncrementInstruction();
+  instruction_with_values.varint_ = increment;
+
+  return instruction_with_values;
+}
+
+// static
+QpackInstructionWithValues QpackInstructionWithValues::HeaderAcknowledgement(
+    uint64_t stream_id) {
+  QpackInstructionWithValues instruction_with_values;
+  instruction_with_values.instruction_ = HeaderAcknowledgementInstruction();
+  instruction_with_values.varint_ = stream_id;
+
+  return instruction_with_values;
+}
+
+// static
+QpackInstructionWithValues QpackInstructionWithValues::StreamCancellation(
+    uint64_t stream_id) {
+  QpackInstructionWithValues instruction_with_values;
+  instruction_with_values.instruction_ = StreamCancellationInstruction();
+  instruction_with_values.varint_ = stream_id;
+
+  return instruction_with_values;
+}
+
+// static
+QpackInstructionWithValues QpackInstructionWithValues::Prefix(
+    uint64_t required_insert_count) {
+  QpackInstructionWithValues instruction_with_values;
+  instruction_with_values.instruction_ = QpackPrefixInstruction();
+  instruction_with_values.varint_ = required_insert_count;
+  instruction_with_values.varint2_ = 0;    // Delta Base.
+  instruction_with_values.s_bit_ = false;  // Delta Base sign.
+
+  return instruction_with_values;
+}
+
+// static
+QpackInstructionWithValues QpackInstructionWithValues::IndexedHeaderField(
+    bool is_static,
+    uint64_t index) {
+  QpackInstructionWithValues instruction_with_values;
+  instruction_with_values.instruction_ = QpackIndexedHeaderFieldInstruction();
+  instruction_with_values.s_bit_ = is_static;
+  instruction_with_values.varint_ = index;
+
+  return instruction_with_values;
+}
+
+// static
+QpackInstructionWithValues
+QpackInstructionWithValues::LiteralHeaderFieldNameReference(
+    bool is_static,
+    uint64_t index,
+    QuicStringPiece value) {
+  QpackInstructionWithValues instruction_with_values;
+  instruction_with_values.instruction_ =
+      QpackLiteralHeaderFieldNameReferenceInstruction();
+  instruction_with_values.s_bit_ = is_static;
+  instruction_with_values.varint_ = index;
+  instruction_with_values.value_ = value;
+
+  return instruction_with_values;
+}
+
+// static
+QpackInstructionWithValues QpackInstructionWithValues::LiteralHeaderField(
+    QuicStringPiece name,
+    QuicStringPiece value) {
+  QpackInstructionWithValues instruction_with_values;
+  instruction_with_values.instruction_ = QpackLiteralHeaderFieldInstruction();
+  instruction_with_values.name_ = name;
+  instruction_with_values.value_ = value;
+
+  return instruction_with_values;
+}
+
 }  // namespace quic

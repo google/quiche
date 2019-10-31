@@ -10,6 +10,42 @@
 
 namespace quic {
 namespace test {
+
+class QpackInstructionWithValuesPeer {
+ public:
+  static QpackInstructionWithValues CreateQpackInstructionWithValues(
+      const QpackInstruction* instruction) {
+    QpackInstructionWithValues instruction_with_values;
+    instruction_with_values.instruction_ = instruction;
+    return instruction_with_values;
+  }
+
+  static void set_s_bit(QpackInstructionWithValues* instruction_with_values,
+                        bool s_bit) {
+    instruction_with_values->s_bit_ = s_bit;
+  }
+
+  static void set_varint(QpackInstructionWithValues* instruction_with_values,
+                         uint64_t varint) {
+    instruction_with_values->varint_ = varint;
+  }
+
+  static void set_varint2(QpackInstructionWithValues* instruction_with_values,
+                          uint64_t varint2) {
+    instruction_with_values->varint2_ = varint2;
+  }
+
+  static void set_name(QpackInstructionWithValues* instruction_with_values,
+                       QuicStringPiece name) {
+    instruction_with_values->name_ = name;
+  }
+
+  static void set_value(QpackInstructionWithValues* instruction_with_values,
+                        QuicStringPiece value) {
+    instruction_with_values->value_ = value;
+  }
+};
+
 namespace {
 
 class QpackInstructionEncoderTest : public QuicTest {
@@ -18,9 +54,9 @@ class QpackInstructionEncoderTest : public QuicTest {
   ~QpackInstructionEncoderTest() override = default;
 
   // Append encoded |instruction| to |output_|.
-  void EncodeInstruction(const QpackInstruction* instruction,
-                         const QpackInstructionEncoder::Values& values) {
-    encoder_.Encode(instruction, values, &output_);
+  void EncodeInstruction(
+      const QpackInstructionWithValues& instruction_with_values) {
+    encoder_.Encode(instruction_with_values, &output_);
   }
 
   // Compare substring appended to |output_| since last EncodedSegmentMatches()
@@ -42,13 +78,15 @@ TEST_F(QpackInstructionEncoderTest, Varint) {
   const QpackInstruction instruction{QpackInstructionOpcode{0x00, 0x80},
                                      {{QpackInstructionFieldType::kVarint, 7}}};
 
-  QpackInstructionEncoder::Values values;
-  values.varint = 5;
-  EncodeInstruction(&instruction, values);
+  auto instruction_with_values =
+      QpackInstructionWithValuesPeer::CreateQpackInstructionWithValues(
+          &instruction);
+  QpackInstructionWithValuesPeer::set_varint(&instruction_with_values, 5);
+  EncodeInstruction(instruction_with_values);
   EXPECT_TRUE(EncodedSegmentMatches("05"));
 
-  values.varint = 127;
-  EncodeInstruction(&instruction, values);
+  QpackInstructionWithValuesPeer::set_varint(&instruction_with_values, 127);
+  EncodeInstruction(instruction_with_values);
   EXPECT_TRUE(EncodedSegmentMatches("7f00"));
 }
 
@@ -59,17 +97,19 @@ TEST_F(QpackInstructionEncoderTest, SBitAndTwoVarint2) {
        {QpackInstructionFieldType::kVarint, 5},
        {QpackInstructionFieldType::kVarint2, 8}}};
 
-  QpackInstructionEncoder::Values values;
-  values.s_bit = true;
-  values.varint = 5;
-  values.varint2 = 200;
-  EncodeInstruction(&instruction, values);
+  auto instruction_with_values =
+      QpackInstructionWithValuesPeer::CreateQpackInstructionWithValues(
+          &instruction);
+  QpackInstructionWithValuesPeer::set_s_bit(&instruction_with_values, true);
+  QpackInstructionWithValuesPeer::set_varint(&instruction_with_values, 5);
+  QpackInstructionWithValuesPeer::set_varint2(&instruction_with_values, 200);
+  EncodeInstruction(instruction_with_values);
   EXPECT_TRUE(EncodedSegmentMatches("a5c8"));
 
-  values.s_bit = false;
-  values.varint = 31;
-  values.varint2 = 356;
-  EncodeInstruction(&instruction, values);
+  QpackInstructionWithValuesPeer::set_s_bit(&instruction_with_values, false);
+  QpackInstructionWithValuesPeer::set_varint(&instruction_with_values, 31);
+  QpackInstructionWithValuesPeer::set_varint2(&instruction_with_values, 356);
+  EncodeInstruction(instruction_with_values);
   EXPECT_TRUE(EncodedSegmentMatches("9f00ff65"));
 }
 
@@ -79,17 +119,19 @@ TEST_F(QpackInstructionEncoderTest, SBitAndVarintAndValue) {
                                       {QpackInstructionFieldType::kVarint, 5},
                                       {QpackInstructionFieldType::kValue, 7}}};
 
-  QpackInstructionEncoder::Values values;
-  values.s_bit = true;
-  values.varint = 100;
-  values.value = "foo";
-  EncodeInstruction(&instruction, values);
+  auto instruction_with_values =
+      QpackInstructionWithValuesPeer::CreateQpackInstructionWithValues(
+          &instruction);
+  QpackInstructionWithValuesPeer::set_s_bit(&instruction_with_values, true);
+  QpackInstructionWithValuesPeer::set_varint(&instruction_with_values, 100);
+  QpackInstructionWithValuesPeer::set_value(&instruction_with_values, "foo");
+  EncodeInstruction(instruction_with_values);
   EXPECT_TRUE(EncodedSegmentMatches("ff458294e7"));
 
-  values.s_bit = false;
-  values.varint = 3;
-  values.value = "bar";
-  EncodeInstruction(&instruction, values);
+  QpackInstructionWithValuesPeer::set_s_bit(&instruction_with_values, false);
+  QpackInstructionWithValuesPeer::set_varint(&instruction_with_values, 3);
+  QpackInstructionWithValuesPeer::set_value(&instruction_with_values, "bar");
+  EncodeInstruction(instruction_with_values);
   EXPECT_TRUE(EncodedSegmentMatches("c303626172"));
 }
 
@@ -97,17 +139,19 @@ TEST_F(QpackInstructionEncoderTest, Name) {
   const QpackInstruction instruction{QpackInstructionOpcode{0xe0, 0xe0},
                                      {{QpackInstructionFieldType::kName, 4}}};
 
-  QpackInstructionEncoder::Values values;
-  values.name = "";
-  EncodeInstruction(&instruction, values);
+  auto instruction_with_values =
+      QpackInstructionWithValuesPeer::CreateQpackInstructionWithValues(
+          &instruction);
+  QpackInstructionWithValuesPeer::set_name(&instruction_with_values, "");
+  EncodeInstruction(instruction_with_values);
   EXPECT_TRUE(EncodedSegmentMatches("e0"));
 
-  values.name = "foo";
-  EncodeInstruction(&instruction, values);
+  QpackInstructionWithValuesPeer::set_name(&instruction_with_values, "foo");
+  EncodeInstruction(instruction_with_values);
   EXPECT_TRUE(EncodedSegmentMatches("f294e7"));
 
-  values.name = "bar";
-  EncodeInstruction(&instruction, values);
+  QpackInstructionWithValuesPeer::set_name(&instruction_with_values, "bar");
+  EncodeInstruction(instruction_with_values);
   EXPECT_TRUE(EncodedSegmentMatches("e3626172"));
 }
 
@@ -115,17 +159,19 @@ TEST_F(QpackInstructionEncoderTest, Value) {
   const QpackInstruction instruction{QpackInstructionOpcode{0xf0, 0xf0},
                                      {{QpackInstructionFieldType::kValue, 3}}};
 
-  QpackInstructionEncoder::Values values;
-  values.value = "";
-  EncodeInstruction(&instruction, values);
+  auto instruction_with_values =
+      QpackInstructionWithValuesPeer::CreateQpackInstructionWithValues(
+          &instruction);
+  QpackInstructionWithValuesPeer::set_value(&instruction_with_values, "");
+  EncodeInstruction(instruction_with_values);
   EXPECT_TRUE(EncodedSegmentMatches("f0"));
 
-  values.value = "foo";
-  EncodeInstruction(&instruction, values);
+  QpackInstructionWithValuesPeer::set_value(&instruction_with_values, "foo");
+  EncodeInstruction(instruction_with_values);
   EXPECT_TRUE(EncodedSegmentMatches("fa94e7"));
 
-  values.value = "bar";
-  EncodeInstruction(&instruction, values);
+  QpackInstructionWithValuesPeer::set_value(&instruction_with_values, "bar");
+  EncodeInstruction(instruction_with_values);
   EXPECT_TRUE(EncodedSegmentMatches("f3626172"));
 }
 
@@ -135,17 +181,19 @@ TEST_F(QpackInstructionEncoderTest, SBitAndNameAndValue) {
                                       {QpackInstructionFieldType::kName, 2},
                                       {QpackInstructionFieldType::kValue, 7}}};
 
-  QpackInstructionEncoder::Values values;
-  values.s_bit = false;
-  values.name = "";
-  values.value = "";
-  EncodeInstruction(&instruction, values);
+  auto instruction_with_values =
+      QpackInstructionWithValuesPeer::CreateQpackInstructionWithValues(
+          &instruction);
+  QpackInstructionWithValuesPeer::set_s_bit(&instruction_with_values, false);
+  QpackInstructionWithValuesPeer::set_name(&instruction_with_values, "");
+  QpackInstructionWithValuesPeer::set_value(&instruction_with_values, "");
+  EncodeInstruction(instruction_with_values);
   EXPECT_TRUE(EncodedSegmentMatches("f000"));
 
-  values.s_bit = true;
-  values.name = "foo";
-  values.value = "bar";
-  EncodeInstruction(&instruction, values);
+  QpackInstructionWithValuesPeer::set_s_bit(&instruction_with_values, true);
+  QpackInstructionWithValuesPeer::set_name(&instruction_with_values, "foo");
+  QpackInstructionWithValuesPeer::set_value(&instruction_with_values, "bar");
+  EncodeInstruction(instruction_with_values);
   EXPECT_TRUE(EncodedSegmentMatches("fe94e703626172"));
 }
 

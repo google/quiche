@@ -50,7 +50,6 @@ class QUIC_EXPORT_PRIVATE QpackEncoderStreamSender {
  private:
   QpackStreamSenderDelegate* delegate_;
   QpackInstructionEncoder instruction_encoder_;
-  QpackInstructionEncoder::Values values_;
   std::string buffer_;
 };
 

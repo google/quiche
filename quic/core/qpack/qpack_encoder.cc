@@ -7,7 +7,6 @@
 #include <algorithm>
 #include <utility>
 
-#include "net/third_party/quiche/src/quic/core/qpack/qpack_constants.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_index_conversions.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_instruction_encoder.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_required_insert_count.h"
@@ -42,47 +41,37 @@ QpackEncoder::QpackEncoder(
 QpackEncoder::~QpackEncoder() {}
 
 // static
-QpackEncoder::InstructionWithValues QpackEncoder::EncodeIndexedHeaderField(
+QpackInstructionWithValues QpackEncoder::EncodeIndexedHeaderField(
     bool is_static,
     uint64_t index,
     QpackBlockingManager::IndexSet* referred_indices) {
-  InstructionWithValues instruction{QpackIndexedHeaderFieldInstruction(), {}};
-  instruction.values.s_bit = is_static;
-  instruction.values.varint = index;
   // Add |index| to |*referred_indices| only if entry is in the dynamic table.
   if (!is_static) {
     referred_indices->insert(index);
   }
-  return instruction;
+  return QpackInstructionWithValues::IndexedHeaderField(is_static, index);
 }
 
 // static
-QpackEncoder::InstructionWithValues
+QpackInstructionWithValues
 QpackEncoder::EncodeLiteralHeaderFieldWithNameReference(
     bool is_static,
     uint64_t index,
     QuicStringPiece value,
     QpackBlockingManager::IndexSet* referred_indices) {
-  InstructionWithValues instruction{
-      QpackLiteralHeaderFieldNameReferenceInstruction(), {}};
-  instruction.values.s_bit = is_static;
-  instruction.values.varint = index;
-  instruction.values.value = value;
   // Add |index| to |*referred_indices| only if entry is in the dynamic table.
   if (!is_static) {
     referred_indices->insert(index);
   }
-  return instruction;
+  return QpackInstructionWithValues::LiteralHeaderFieldNameReference(
+      is_static, index, value);
 }
 
 // static
-QpackEncoder::InstructionWithValues QpackEncoder::EncodeLiteralHeaderField(
+QpackInstructionWithValues QpackEncoder::EncodeLiteralHeaderField(
     QuicStringPiece name,
     QuicStringPiece value) {
-  InstructionWithValues instruction{QpackLiteralHeaderFieldInstruction(), {}};
-  instruction.values.name = name;
-  instruction.values.value = value;
-  return instruction;
+  return QpackInstructionWithValues::LiteralHeaderField(name, value);
 }
 
 QpackEncoder::Instructions QpackEncoder::FirstPassEncode(
@@ -325,29 +314,24 @@ std::string QpackEncoder::SecondPassEncode(
   std::string encoded_headers;
 
   // Header block prefix.
-  QpackInstructionEncoder::Values values;
-  values.varint = QpackEncodeRequiredInsertCount(required_insert_count,
-                                                 header_table_.max_entries());
-  values.varint2 = 0;    // Delta Base.
-  values.s_bit = false;  // Delta Base sign.
-  const uint64_t base = required_insert_count;
+  instruction_encoder.Encode(
+      QpackInstructionWithValues::Prefix(QpackEncodeRequiredInsertCount(
+          required_insert_count, header_table_.max_entries())),
+      &encoded_headers);
 
-  instruction_encoder.Encode(QpackPrefixInstruction(), values,
-                             &encoded_headers);
+  const uint64_t base = required_insert_count;
 
   for (auto& instruction : instructions) {
     // Dynamic table references must be transformed from absolute to relative
     // indices.
-    if ((instruction.instruction == QpackIndexedHeaderFieldInstruction() ||
-         instruction.instruction ==
+    if ((instruction.instruction() == QpackIndexedHeaderFieldInstruction() ||
+         instruction.instruction() ==
              QpackLiteralHeaderFieldNameReferenceInstruction()) &&
-        !instruction.values.s_bit) {
-      instruction.values.varint =
-          QpackAbsoluteIndexToRequestStreamRelativeIndex(
-              instruction.values.varint, base);
+        !instruction.s_bit()) {
+      instruction.set_varint(QpackAbsoluteIndexToRequestStreamRelativeIndex(
+          instruction.varint(), base));
     }
-    instruction_encoder.Encode(instruction.instruction, instruction.values,
-                               &encoded_headers);
+    instruction_encoder.Encode(instruction, &encoded_headers);
   }
 
   return encoded_headers;

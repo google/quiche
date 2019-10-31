@@ -16,25 +16,19 @@ namespace quic {
 QpackDecoderStreamSender::QpackDecoderStreamSender() : delegate_(nullptr) {}
 
 void QpackDecoderStreamSender::SendInsertCountIncrement(uint64_t increment) {
-  values_.varint = increment;
-
-  instruction_encoder_.Encode(InsertCountIncrementInstruction(), values_,
-                              &buffer_);
+  instruction_encoder_.Encode(
+      QpackInstructionWithValues::InsertCountIncrement(increment), &buffer_);
 }
 
 void QpackDecoderStreamSender::SendHeaderAcknowledgement(
     QuicStreamId stream_id) {
-  values_.varint = stream_id;
-
-  instruction_encoder_.Encode(HeaderAcknowledgementInstruction(), values_,
-                              &buffer_);
+  instruction_encoder_.Encode(
+      QpackInstructionWithValues::HeaderAcknowledgement(stream_id), &buffer_);
 }
 
 void QpackDecoderStreamSender::SendStreamCancellation(QuicStreamId stream_id) {
-  values_.varint = stream_id;
-
-  instruction_encoder_.Encode(StreamCancellationInstruction(), values_,
-                              &buffer_);
+  instruction_encoder_.Encode(
+      QpackInstructionWithValues::StreamCancellation(stream_id), &buffer_);
 }
 
 void QpackDecoderStreamSender::Flush() {

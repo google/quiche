@@ -19,35 +19,28 @@ void QpackEncoderStreamSender::SendInsertWithNameReference(
     bool is_static,
     uint64_t name_index,
     QuicStringPiece value) {
-  values_.s_bit = is_static;
-  values_.varint = name_index;
-  values_.value = value;
-
-  instruction_encoder_.Encode(InsertWithNameReferenceInstruction(), values_,
-                              &buffer_);
+  instruction_encoder_.Encode(
+      QpackInstructionWithValues::InsertWithNameReference(is_static, name_index,
+                                                          value),
+      &buffer_);
 }
 
 void QpackEncoderStreamSender::SendInsertWithoutNameReference(
     QuicStringPiece name,
     QuicStringPiece value) {
-  values_.name = name;
-  values_.value = value;
-
-  instruction_encoder_.Encode(InsertWithoutNameReferenceInstruction(), values_,
-                              &buffer_);
+  instruction_encoder_.Encode(
+      QpackInstructionWithValues::InsertWithoutNameReference(name, value),
+      &buffer_);
 }
 
 void QpackEncoderStreamSender::SendDuplicate(uint64_t index) {
-  values_.varint = index;
-
-  instruction_encoder_.Encode(DuplicateInstruction(), values_, &buffer_);
+  instruction_encoder_.Encode(QpackInstructionWithValues::Duplicate(index),
+                              &buffer_);
 }
 
 void QpackEncoderStreamSender::SendSetDynamicTableCapacity(uint64_t capacity) {
-  values_.varint = capacity;
-
-  instruction_encoder_.Encode(SetDynamicTableCapacityInstruction(), values_,
-                              &buffer_);
+  instruction_encoder_.Encode(
+      QpackInstructionWithValues::SetDynamicTableCapacity(capacity), &buffer_);
 }
 
 QuicByteCount QpackEncoderStreamSender::Flush() {

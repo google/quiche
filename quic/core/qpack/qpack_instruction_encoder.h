@@ -19,23 +19,12 @@ namespace quic {
 // fields that follow each instruction.
 class QUIC_EXPORT_PRIVATE QpackInstructionEncoder {
  public:
-  // Storage for field values to be encoded.
-  // The encoded instruction determines which values are actually used.
-  struct QUIC_EXPORT_PRIVATE Values {
-    bool s_bit;
-    uint64_t varint;
-    uint64_t varint2;
-    QuicStringPiece name;
-    QuicStringPiece value;
-  };
-
   QpackInstructionEncoder();
   QpackInstructionEncoder(const QpackInstructionEncoder&) = delete;
   QpackInstructionEncoder& operator=(const QpackInstructionEncoder&) = delete;
 
   // Append encoded instruction to |output|.
-  void Encode(const QpackInstruction* instruction,
-              const Values& values,
+  void Encode(const QpackInstructionWithValues& instruction_with_values,
               std::string* output);
 
  private:

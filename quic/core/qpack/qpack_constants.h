@@ -11,8 +11,13 @@
 #include <vector>
 
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 
 namespace quic {
+
+namespace test {
+class QpackInstructionWithValuesPeer;
+}  // namespace test
 
 // Each instruction is identified with an opcode in the first byte.
 // |mask| determines which bits are part of the opcode.
@@ -136,6 +141,66 @@ const QpackInstruction* QpackLiteralHeaderFieldInstruction();
 
 // Request and push stream language.
 const QpackLanguage* QpackRequestStreamLanguage();
+
+// Storage for instruction and field values to be encoded.
+// This class can only be instantiated using factory methods that take exactly
+// the arguments that the corresponding instruction needs.
+class QUIC_EXPORT_PRIVATE QpackInstructionWithValues {
+ public:
+  // 5.2 Encoder stream instructions
+  static QpackInstructionWithValues InsertWithNameReference(
+      bool is_static,
+      uint64_t name_index,
+      QuicStringPiece value);
+  static QpackInstructionWithValues InsertWithoutNameReference(
+      QuicStringPiece name,
+      QuicStringPiece value);
+  static QpackInstructionWithValues Duplicate(uint64_t index);
+  static QpackInstructionWithValues SetDynamicTableCapacity(uint64_t capacity);
+
+  // 5.3 Decoder stream instructions
+  static QpackInstructionWithValues InsertCountIncrement(uint64_t increment);
+  static QpackInstructionWithValues HeaderAcknowledgement(uint64_t stream_id);
+  static QpackInstructionWithValues StreamCancellation(uint64_t stream_id);
+
+  // 5.4.1. Header data prefix.  Delta Base is hardcoded to be zero.
+  static QpackInstructionWithValues Prefix(uint64_t required_insert_count);
+
+  // 5.4.2. Request and push stream instructions
+  static QpackInstructionWithValues IndexedHeaderField(bool is_static,
+                                                       uint64_t index);
+  static QpackInstructionWithValues LiteralHeaderFieldNameReference(
+      bool is_static,
+      uint64_t index,
+      QuicStringPiece value);
+  static QpackInstructionWithValues LiteralHeaderField(QuicStringPiece name,
+                                                       QuicStringPiece value);
+
+  const QpackInstruction* instruction() const { return instruction_; }
+  bool s_bit() const { return s_bit_; }
+  uint64_t varint() const { return varint_; }
+  uint64_t varint2() const { return varint2_; }
+  QuicStringPiece name() const { return name_; }
+  QuicStringPiece value() const { return value_; }
+
+  // Used by QpackEncoder, because in the first pass it stores absolute indices,
+  // which are converted into relative indices in the second pass after base is
+  // determined.
+  void set_varint(uint64_t varint) { varint_ = varint; }
+
+ private:
+  friend test::QpackInstructionWithValuesPeer;
+
+  QpackInstructionWithValues() = default;
+
+  // |*instruction| is not owned.
+  const QpackInstruction* instruction_;
+  bool s_bit_;
+  uint64_t varint_;
+  uint64_t varint2_;
+  QuicStringPiece name_;
+  QuicStringPiece value_;
+};
 
 }  // namespace quic
 
