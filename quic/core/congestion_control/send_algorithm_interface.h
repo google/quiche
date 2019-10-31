@@ -29,8 +29,6 @@ typedef uint64_t QuicRoundTripCount;
 class CachedNetworkParameters;
 class RttStats;
 
-const QuicPacketCount kDefaultMaxCongestionWindowPackets = 2000;
-
 class QUIC_EXPORT_PRIVATE SendAlgorithmInterface {
  public:
   static SendAlgorithmInterface* Create(

@@ -147,8 +147,9 @@ class Bbr2DefaultTopologyTest : public Bbr2SimulatorTest {
         endpoint->connection()->sent_packet_manager().GetRttStats(),
         QuicSentPacketManagerPeer::GetUnackedPacketMap(
             QuicConnectionPeer::GetSentPacketManager(endpoint->connection())),
-        kDefaultInitialCwndPackets, kDefaultMaxCongestionWindowPackets,
-        &random_, QuicConnectionPeer::GetStats(endpoint->connection()));
+        kDefaultInitialCwndPackets,
+        GetQuicFlag(FLAGS_quic_max_congestion_window), &random_,
+        QuicConnectionPeer::GetStats(endpoint->connection()));
     QuicConnectionPeer::SetSendAlgorithm(endpoint->connection(), sender);
     endpoint->RecordTrace();
     return sender;
@@ -780,8 +781,9 @@ class Bbr2MultiSenderTest : public Bbr2SimulatorTest {
         endpoint->connection()->sent_packet_manager().GetRttStats(),
         QuicSentPacketManagerPeer::GetUnackedPacketMap(
             QuicConnectionPeer::GetSentPacketManager(endpoint->connection())),
-        kDefaultInitialCwndPackets, kDefaultMaxCongestionWindowPackets,
-        &random_, QuicConnectionPeer::GetStats(endpoint->connection()));
+        kDefaultInitialCwndPackets,
+        GetQuicFlag(FLAGS_quic_max_congestion_window), &random_,
+        QuicConnectionPeer::GetStats(endpoint->connection()));
     QuicConnectionPeer::SetSendAlgorithm(endpoint->connection(), sender);
     endpoint->RecordTrace();
     return sender;
@@ -794,8 +796,9 @@ class Bbr2MultiSenderTest : public Bbr2SimulatorTest {
         endpoint->connection()->sent_packet_manager().GetRttStats(),
         QuicSentPacketManagerPeer::GetUnackedPacketMap(
             QuicConnectionPeer::GetSentPacketManager(endpoint->connection())),
-        kDefaultInitialCwndPackets, kDefaultMaxCongestionWindowPackets,
-        &random_, QuicConnectionPeer::GetStats(endpoint->connection()));
+        kDefaultInitialCwndPackets,
+        GetQuicFlag(FLAGS_quic_max_congestion_window), &random_,
+        QuicConnectionPeer::GetStats(endpoint->connection()));
     QuicConnectionPeer::SetSendAlgorithm(endpoint->connection(), sender);
     endpoint->RecordTrace();
     return sender;
@@ -808,7 +811,8 @@ class Bbr2MultiSenderTest : public Bbr2SimulatorTest {
     TcpCubicSenderBytes* sender = new TcpCubicSenderBytes(
         endpoint->connection()->clock(),
         endpoint->connection()->sent_packet_manager().GetRttStats(), reno,
-        kDefaultInitialCwndPackets, kDefaultMaxCongestionWindowPackets,
+        kDefaultInitialCwndPackets,
+        GetQuicFlag(FLAGS_quic_max_congestion_window),
         QuicConnectionPeer::GetStats(endpoint->connection()));
     QuicConnectionPeer::SetSendAlgorithm(endpoint->connection(), sender);
     endpoint->RecordTrace();

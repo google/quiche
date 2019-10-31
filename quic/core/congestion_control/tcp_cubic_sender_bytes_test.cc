@@ -686,11 +686,11 @@ TEST_F(TcpCubicSenderBytesTest, BandwidthResumption) {
 
   // Resumed CWND is limited to be in a sensible range.
   const QuicBandwidth kUnreasonableBandwidth =
-      QuicBandwidth::FromBytesPerSecond((kMaxCongestionWindowPackets + 1) *
+      QuicBandwidth::FromBytesPerSecond((kMaxResumptionCongestionWindow + 1) *
                                         kDefaultTCPMSS);
   sender_->AdjustNetworkParameters(kUnreasonableBandwidth,
                                    QuicTime::Delta::FromSeconds(1), false);
-  EXPECT_EQ(kMaxCongestionWindowPackets * kDefaultTCPMSS,
+  EXPECT_EQ(kMaxResumptionCongestionWindow * kDefaultTCPMSS,
             sender_->GetCongestionWindow());
 }
 
@@ -781,14 +781,16 @@ TEST_F(TcpCubicSenderBytesTest, DefaultMaxCwnd) {
 
   AckedPacketVector acked_packets;
   LostPacketVector missing_packets;
-  for (uint64_t i = 1; i < kDefaultMaxCongestionWindowPackets; ++i) {
+  QuicPacketCount max_congestion_window =
+      GetQuicFlag(FLAGS_quic_max_congestion_window);
+  for (uint64_t i = 1; i < max_congestion_window; ++i) {
     acked_packets.clear();
     acked_packets.push_back(
         AckedPacket(QuicPacketNumber(i), 1350, QuicTime::Zero()));
     sender->OnCongestionEvent(true, sender->GetCongestionWindow(), clock_.Now(),
                               acked_packets, missing_packets);
   }
-  EXPECT_EQ(kDefaultMaxCongestionWindowPackets,
+  EXPECT_EQ(max_congestion_window,
             sender->GetCongestionWindow() / kDefaultTCPMSS);
 }
 

@@ -135,8 +135,9 @@ class BbrSenderTest : public QuicTest {
         endpoint->connection()->clock()->Now(), rtt_stats,
         QuicSentPacketManagerPeer::GetUnackedPacketMap(
             QuicConnectionPeer::GetSentPacketManager(endpoint->connection())),
-        kInitialCongestionWindowPackets, kDefaultMaxCongestionWindowPackets,
-        &random_, QuicConnectionPeer::GetStats(endpoint->connection()));
+        kInitialCongestionWindowPackets,
+        GetQuicFlag(FLAGS_quic_max_congestion_window), &random_,
+        QuicConnectionPeer::GetStats(endpoint->connection()));
     QuicConnectionPeer::SetSendAlgorithm(endpoint->connection(), sender);
     endpoint->RecordTrace();
     return sender;
@@ -379,8 +380,9 @@ TEST_F(BbrSenderTest, SimpleTransferAckDecimation) {
       bbr_sender_.connection()->clock()->Now(), rtt_stats_,
       QuicSentPacketManagerPeer::GetUnackedPacketMap(
           QuicConnectionPeer::GetSentPacketManager(bbr_sender_.connection())),
-      kInitialCongestionWindowPackets, kDefaultMaxCongestionWindowPackets,
-      &random_, QuicConnectionPeer::GetStats(bbr_sender_.connection()));
+      kInitialCongestionWindowPackets,
+      GetQuicFlag(FLAGS_quic_max_congestion_window), &random_,
+      QuicConnectionPeer::GetStats(bbr_sender_.connection()));
   QuicConnectionPeer::SetSendAlgorithm(bbr_sender_.connection(), sender_);
   // Enable Ack Decimation on the receiver.
   QuicConnectionPeer::SetAckMode(receiver_.connection(),
