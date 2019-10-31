@@ -449,7 +449,7 @@ size_t QuicFramer::GetMinStreamFrameSize(QuicTransportVersion version,
                                          QuicStreamId stream_id,
                                          QuicStreamOffset offset,
                                          bool last_frame_in_packet,
-                                         QuicPacketLength data_length) {
+                                         size_t data_length) {
   if (VersionHasIetfQuicFrames(version)) {
     return kQuicFrameTypeSize + QuicDataWriter::GetVarInt62Len(stream_id) +
            (last_frame_in_packet
