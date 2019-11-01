@@ -94,6 +94,7 @@ class QUIC_EXPORT_PRIVATE QuicUnackedPacketMap {
 
   // Returns the sum of bytes from all packets in flight.
   QuicByteCount bytes_in_flight() const { return bytes_in_flight_; }
+  QuicPacketCount packets_in_flight() const { return packets_in_flight_; }
 
   // Returns the smallest packet number of a serialized packet which has not
   // been acked by the peer.  If there are no unacked packets, returns 0.
@@ -134,6 +135,7 @@ class QUIC_EXPORT_PRIVATE QuicUnackedPacketMap {
   size_t GetNumUnackedPacketsDebugOnly() const;
 
   // Returns true if there are multiple packets in flight.
+  // TODO(fayang): Remove this method and use packets_in_flight_ instead.
   bool HasMultipleInFlightPackets() const;
 
   // Returns true if there are any pending crypto packets.
@@ -260,6 +262,7 @@ class QUIC_EXPORT_PRIVATE QuicUnackedPacketMap {
   QuicPacketNumber least_unacked_;
 
   QuicByteCount bytes_in_flight_;
+  QuicPacketCount packets_in_flight_;
 
   // Time that the last inflight packet was sent.
   QuicTime last_inflight_packet_sent_time_;

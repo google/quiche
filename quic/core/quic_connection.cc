@@ -326,7 +326,6 @@ QuicConnection::QuicConnection(
       bytes_received_before_address_validation_(0),
       bytes_sent_before_address_validation_(0),
       address_validated_(false),
-      skip_packet_number_for_pto_(false),
       treat_queued_packets_as_sent_(
           GetQuicReloadableFlag(quic_treat_queued_packets_as_sent)),
       mtu_discovery_v2_(GetQuicReloadableFlag(quic_mtu_discovery_v2)) {
@@ -445,16 +444,11 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
     }
     if (config.HasClientSentConnectionOption(k7PTO, perspective_)) {
       max_consecutive_ptos_ = 6;
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_pto, 3, 4);
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_pto, 3, 5);
     }
     if (config.HasClientSentConnectionOption(k8PTO, perspective_)) {
       max_consecutive_ptos_ = 7;
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_pto, 4, 4);
-    }
-    if (GetQuicReloadableFlag(quic_skip_packet_number_for_pto) &&
-        config.HasClientSentConnectionOption(kPTOS, perspective_)) {
-      QUIC_RELOADABLE_FLAG_COUNT(quic_skip_packet_number_for_pto);
-      skip_packet_number_for_pto_ = true;
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_pto, 4, 5);
     }
   }
   if (config.HasClientSentConnectionOption(kNSTP, perspective_)) {
@@ -2649,7 +2643,7 @@ void QuicConnection::OnRetransmissionTimeout() {
 
   const auto retransmission_mode =
       sent_packet_manager_.OnRetransmissionTimeout();
-  if (skip_packet_number_for_pto_ &&
+  if (sent_packet_manager_.skip_packet_number_for_pto() &&
       retransmission_mode == QuicSentPacketManager::PTO_MODE &&
       sent_packet_manager_.pending_timer_transmission_count() == 1) {
     // Skip a packet number when a single PTO packet is sent to elicit an

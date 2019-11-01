@@ -2760,6 +2760,128 @@ TEST_F(QuicSentPacketManagerTest, ForwardSecurePacketAcked) {
   EXPECT_TRUE(manager_.forward_secure_packet_acked());
 }
 
+TEST_F(QuicSentPacketManagerTest, PtoTimeoutIncludesMaxAckDelay) {
+  EnablePto(k1PTO);
+  // Use PTOS and PTOA.
+  QuicConfig config;
+  QuicTagVector options;
+  options.push_back(kPTOS);
+  options.push_back(kPTOA);
+  QuicConfigPeer::SetReceivedConnectionOptions(&config, options);
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  EXPECT_CALL(*network_change_visitor_, OnCongestionChange());
+  manager_.SetFromConfig(config);
+  EXPECT_TRUE(manager_.skip_packet_number_for_pto());
+  EXPECT_CALL(*send_algorithm_, CanSend(_)).WillRepeatedly(Return(true));
+
+  EXPECT_CALL(*send_algorithm_, PacingRate(_))
+      .WillRepeatedly(Return(QuicBandwidth::Zero()));
+  EXPECT_CALL(*send_algorithm_, GetCongestionWindow())
+      .WillRepeatedly(Return(10 * kDefaultTCPMSS));
+  RttStats* rtt_stats = const_cast<RttStats*>(manager_.GetRttStats());
+  rtt_stats->UpdateRtt(QuicTime::Delta::FromMilliseconds(100),
+                       QuicTime::Delta::Zero(), QuicTime::Zero());
+  QuicTime::Delta srtt = rtt_stats->smoothed_rtt();
+
+  SendDataPacket(1, ENCRYPTION_FORWARD_SECURE);
+  // Verify PTO is correctly set and ack delay is included.
+  QuicTime::Delta expected_pto_delay =
+      srtt + 4 * rtt_stats->mean_deviation() +
+      QuicTime::Delta::FromMilliseconds(kDefaultDelayedAckTimeMs);
+  EXPECT_EQ(clock_.Now() + expected_pto_delay,
+            manager_.GetRetransmissionTime());
+
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(10));
+  SendDataPacket(2, ENCRYPTION_FORWARD_SECURE);
+  // Verify PTO is correctly set based on sent time of packet 2 but ack delay is
+  // not included as an immediate ACK is expected.
+  expected_pto_delay = expected_pto_delay - QuicTime::Delta::FromMilliseconds(
+                                                kDefaultDelayedAckTimeMs);
+  EXPECT_EQ(clock_.Now() + expected_pto_delay,
+            manager_.GetRetransmissionTime());
+  EXPECT_EQ(0u, stats_.pto_count);
+
+  // Invoke PTO.
+  clock_.AdvanceTime(expected_pto_delay);
+  manager_.OnRetransmissionTimeout();
+  EXPECT_EQ(QuicTime::Delta::Zero(), manager_.TimeUntilSend(clock_.Now()));
+  EXPECT_EQ(1u, stats_.pto_count);
+
+  // Verify 1 probe packets get sent and packet number gets skipped.
+  EXPECT_CALL(notifier_, RetransmitFrames(_, _))
+      .WillOnce(WithArgs<1>(Invoke([this](TransmissionType type) {
+        RetransmitDataPacket(4, type, ENCRYPTION_FORWARD_SECURE);
+      })));
+  manager_.MaybeSendProbePackets();
+  // Verify PTO period gets set to twice the current value. Also, ack delay is
+  // not included.
+  QuicTime sent_time = clock_.Now();
+  EXPECT_EQ(sent_time + expected_pto_delay * 2,
+            manager_.GetRetransmissionTime());
+
+  // Received ACK for packets 1 and 2.
+  uint64_t acked[] = {1, 2};
+  ExpectAcksAndLosses(true, acked, QUIC_ARRAYSIZE(acked), nullptr, 0);
+  manager_.OnAckFrameStart(QuicPacketNumber(2), QuicTime::Delta::Infinite(),
+                           clock_.Now());
+  manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(3));
+  EXPECT_EQ(PACKETS_NEWLY_ACKED,
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
+                                   ENCRYPTION_FORWARD_SECURE));
+  expected_pto_delay =
+      rtt_stats->SmoothedOrInitialRtt() +
+      std::max(4 * rtt_stats->mean_deviation(),
+               QuicTime::Delta::FromMilliseconds(1)) +
+      QuicTime::Delta::FromMilliseconds(kDefaultDelayedAckTimeMs);
+
+  // Verify PTO is correctly re-armed based on sent time of packet 4. Because of
+  // PTOS turns out to be spurious, ACK delay is included.
+  EXPECT_EQ(sent_time + expected_pto_delay, manager_.GetRetransmissionTime());
+
+  // Received ACK for packets 4.
+  ExpectAck(4);
+  manager_.OnAckFrameStart(QuicPacketNumber(4), QuicTime::Delta::Infinite(),
+                           clock_.Now());
+  manager_.OnAckRange(QuicPacketNumber(4), QuicPacketNumber(5));
+  EXPECT_EQ(PACKETS_NEWLY_ACKED,
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(4),
+                                   ENCRYPTION_FORWARD_SECURE));
+  EXPECT_EQ(QuicTime::Zero(), manager_.GetRetransmissionTime());
+  // Send more packets, such that peer will do ack decimation.
+  std::vector<uint64_t> acked2;
+  for (size_t i = 5; i <= 100; ++i) {
+    SendDataPacket(i, ENCRYPTION_FORWARD_SECURE);
+    acked2.push_back(i);
+  }
+  // Received ACK for all sent packets.
+  ExpectAcksAndLosses(true, &acked2[0], acked2.size(), nullptr, 0);
+  manager_.OnAckFrameStart(QuicPacketNumber(100), QuicTime::Delta::Infinite(),
+                           clock_.Now());
+  manager_.OnAckRange(QuicPacketNumber(5), QuicPacketNumber(101));
+  EXPECT_EQ(PACKETS_NEWLY_ACKED,
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(100),
+                                   ENCRYPTION_FORWARD_SECURE));
+
+  expected_pto_delay =
+      rtt_stats->SmoothedOrInitialRtt() +
+      std::max(4 * rtt_stats->mean_deviation(),
+               QuicTime::Delta::FromMilliseconds(1)) +
+      QuicTime::Delta::FromMilliseconds(kDefaultDelayedAckTimeMs);
+  for (size_t i = 101; i < 110; i++) {
+    SendDataPacket(i, ENCRYPTION_FORWARD_SECURE);
+    // Verify PTO timeout includes ACK delay as there are less than 10 packets
+    // outstanding.
+    EXPECT_EQ(clock_.Now() + expected_pto_delay,
+              manager_.GetRetransmissionTime());
+  }
+  expected_pto_delay = expected_pto_delay - QuicTime::Delta::FromMilliseconds(
+                                                kDefaultDelayedAckTimeMs);
+  SendDataPacket(110, ENCRYPTION_FORWARD_SECURE);
+  // Verify ACK delay is excluded.
+  EXPECT_EQ(clock_.Now() + expected_pto_delay,
+            manager_.GetRetransmissionTime());
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

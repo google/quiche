@@ -102,6 +102,8 @@ QuicSentPacketManager::QuicSentPacketManager(
       consecutive_pto_count_(0),
       handshake_mode_disabled_(false),
       forward_secure_packet_acked_(false),
+      skip_packet_number_for_pto_(false),
+      always_include_max_ack_delay_for_pto_timeout_(true),
       neuter_handshake_packets_once_(
           GetQuicReloadableFlag(quic_neuter_handshake_packets_once)) {
   SetSendAlgorithm(congestion_control_type);
@@ -148,13 +150,31 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
   if (GetQuicReloadableFlag(quic_enable_pto)) {
     if (config.HasClientSentConnectionOption(k2PTO, perspective)) {
       pto_enabled_ = true;
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_pto, 2, 4);
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_pto, 2, 5);
     }
     if (config.HasClientSentConnectionOption(k1PTO, perspective)) {
       pto_enabled_ = true;
       max_probe_packets_per_pto_ = 1;
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_pto, 1, 4);
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_pto, 1, 5);
     }
+  }
+
+  if (GetQuicReloadableFlag(quic_skip_packet_number_for_pto) &&
+      config.HasClientSentConnectionOption(kPTOS, perspective)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_skip_packet_number_for_pto);
+    if (!pto_enabled_) {
+      QUIC_PEER_BUG
+          << "PTO is not enabled when receiving PTOS connection option.";
+      pto_enabled_ = true;
+      max_probe_packets_per_pto_ = 1;
+    }
+    skip_packet_number_for_pto_ = true;
+  }
+
+  if (pto_enabled_ &&
+      config.HasClientSentConnectionOption(kPTOA, perspective)) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_pto, 5, 5);
+    always_include_max_ack_delay_for_pto_timeout_ = false;
   }
 
   // Configure congestion control.
@@ -428,6 +448,37 @@ void QuicSentPacketManager::NeuterHandshakePackets() {
       unacked_packets_.RemoveFromInFlight(packet_number);
     }
   }
+}
+
+bool QuicSentPacketManager::ShouldAddMaxAckDelay() const {
+  DCHECK(pto_enabled_);
+  if (always_include_max_ack_delay_for_pto_timeout_) {
+    return true;
+  }
+  if (!unacked_packets_
+           .GetLargestSentRetransmittableOfPacketNumberSpace(APPLICATION_DATA)
+           .IsInitialized() ||
+      unacked_packets_.GetLargestSentRetransmittableOfPacketNumberSpace(
+          APPLICATION_DATA) <
+          FirstSendingPacketNumber() + kMinReceivedBeforeAckDecimation - 1) {
+    // Peer is doing TCP style acking. Expect an immediate ACK if more than 1
+    // packet are outstanding.
+    if (unacked_packets_.packets_in_flight() >=
+        kDefaultRetransmittablePacketsBeforeAck) {
+      return false;
+    }
+  } else if (unacked_packets_.packets_in_flight() >=
+             kMaxRetransmittablePacketsBeforeAck) {
+    // Peer is doing ack decimation. Expect an immediate ACK if >= 10
+    // packets are outstanding.
+    return false;
+  }
+  if (skip_packet_number_for_pto_ && consecutive_pto_count_ > 0) {
+    // An immediate ACK is expected when doing PTOS. Please note, this will miss
+    // cases when PTO fires and turns out to be spurious.
+    return false;
+  }
+  return true;
 }
 
 void QuicSentPacketManager::MarkForRetransmission(
@@ -974,7 +1025,7 @@ const QuicTime::Delta QuicSentPacketManager::GetProbeTimeoutDelay() const {
       rtt_stats_.smoothed_rtt() +
       std::max(4 * rtt_stats_.mean_deviation(),
                QuicTime::Delta::FromMilliseconds(1)) +
-      peer_max_ack_delay_;
+      (ShouldAddMaxAckDelay() ? peer_max_ack_delay_ : QuicTime::Delta::Zero());
   return pto_delay * (1 << consecutive_pto_count_);
 }
 

@@ -28,6 +28,7 @@ QuicUnackedPacketMap::QuicUnackedPacketMap(Perspective perspective)
     : perspective_(perspective),
       least_unacked_(FirstSendingPacketNumber()),
       bytes_in_flight_(0),
+      packets_in_flight_(0),
       last_inflight_packet_sent_time_(QuicTime::Zero()),
       last_crypto_packet_sent_time_(QuicTime::Zero()),
       session_notifier_(nullptr),
@@ -70,6 +71,7 @@ void QuicUnackedPacketMap::AddSentPacket(SerializedPacket* packet,
   }
   if (set_in_flight) {
     bytes_in_flight_ += bytes_sent;
+    ++packets_in_flight_;
     info.in_flight = true;
     largest_sent_retransmittable_packets_[GetPacketNumberSpace(
         info.encryption_level)] = packet_number;
@@ -191,7 +193,9 @@ bool QuicUnackedPacketMap::IsUnacked(QuicPacketNumber packet_number) const {
 void QuicUnackedPacketMap::RemoveFromInFlight(QuicTransmissionInfo* info) {
   if (info->in_flight) {
     QUIC_BUG_IF(bytes_in_flight_ < info->bytes_sent);
+    QUIC_BUG_IF(packets_in_flight_ == 0);
     bytes_in_flight_ -= info->bytes_sent;
+    --packets_in_flight_;
     info->in_flight = false;
   }
 }

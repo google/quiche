@@ -1496,9 +1496,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // EnforceAntiAmplificationLimit returns true.
   bool address_validated_;
 
-  // If true, skip packet number before sending the last PTO retransmission.
-  bool skip_packet_number_for_pto_;
-
   // Used to store content of packets which cannot be sent because of write
   // blocked. Packets' encrypted buffers are copied and owned by
   // buffered_packets_. From unacked_packet_map (and congestion control)'s

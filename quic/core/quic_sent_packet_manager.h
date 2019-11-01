@@ -395,6 +395,10 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
     return forward_secure_packet_acked_;
   }
 
+  bool skip_packet_number_for_pto() const {
+    return skip_packet_number_for_pto_;
+  }
+
  private:
   friend class test::QuicConnectionPeer;
   friend class test::QuicSentPacketManagerPeer;
@@ -503,6 +507,10 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // Please note, this only applies to QUIC Crypto and needs to be changed when
   // switches to IETF QUIC with QUIC TLS.
   void NeuterHandshakePackets();
+
+  // Indicates whether including peer_max_ack_delay_ when calculating PTO
+  // timeout.
+  bool ShouldAddMaxAckDelay() const;
 
   // Newly serialized retransmittable packets are added to this map, which
   // contains owning pointers to any contained frames.  If a packet is
@@ -616,6 +624,12 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // True if an acknowledgment has been received for a sent
   // ENCRYPTION_FORWARD_SECURE packet.
   bool forward_secure_packet_acked_;
+
+  // If true, skip packet number before sending the last PTO retransmission.
+  bool skip_packet_number_for_pto_;
+
+  // If true, always include peer_max_ack_delay_ when calculating PTO timeout.
+  bool always_include_max_ack_delay_for_pto_timeout_;
 
   // Latched value of quic_neuter_handshake_packets_once.
   const bool neuter_handshake_packets_once_;

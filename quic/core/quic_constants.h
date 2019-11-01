@@ -245,6 +245,15 @@ const int kInitialRttMs = 100;
 // packet is lost due to early retransmission by time based loss detection.
 static const int kDefaultLossDelayShift = 2;
 
+// Maximum number of retransmittable packets received before sending an ack.
+const QuicPacketCount kDefaultRetransmittablePacketsBeforeAck = 2;
+// Wait for up to 10 retransmittable packets before sending an ack.
+const QuicPacketCount kMaxRetransmittablePacketsBeforeAck = 10;
+// Minimum number of packets received before ack decimation is enabled.
+// This intends to avoid the beginning of slow start, when CWNDs may be
+// rapidly increasing.
+const QuicPacketCount kMinReceivedBeforeAckDecimation = 100;
+
 // Packet number of first sending packet of a connection. Please note, this
 // cannot be used as first received packet because peer can choose its starting
 // packet number.
