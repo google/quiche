@@ -43,13 +43,15 @@ QuicTransportClientSession::QuicTransportClientSession(
     const ParsedQuicVersionVector& supported_versions,
     const QuicServerId& server_id,
     QuicCryptoClientConfig* crypto_config,
-    url::Origin origin)
+    url::Origin origin,
+    ClientVisitor* visitor)
     : QuicSession(connection,
                   owner,
                   config,
                   supported_versions,
                   /*num_expected_unidirectional_static_streams*/ 0),
-      origin_(origin) {
+      origin_(origin),
+      visitor_(visitor) {
   for (const ParsedQuicVersion& version : supported_versions) {
     QUIC_BUG_IF(version.handshake_protocol != PROTOCOL_TLS1_3)
         << "QuicTransport requires TLS 1.3 handshake";
@@ -62,9 +64,17 @@ QuicTransportClientSession::QuicTransportClientSession(
 }
 
 QuicStream* QuicTransportClientSession::CreateIncomingStream(QuicStreamId id) {
+  QUIC_DVLOG(1) << "Creating incoming QuicTransport stream " << id;
   auto stream = std::make_unique<QuicTransportStream>(id, this, this);
   QuicTransportStream* stream_ptr = stream.get();
   ActivateStream(std::move(stream));
+  if (stream_ptr->type() == BIDIRECTIONAL) {
+    incoming_bidirectional_streams_.push_back(stream_ptr);
+    visitor_->OnIncomingBidirectionalStreamAvailable();
+  } else {
+    incoming_unidirectional_streams_.push_back(stream_ptr);
+    visitor_->OnIncomingUnidirectionalStreamAvailable();
+  }
   return stream_ptr;
 }
 
@@ -76,6 +86,26 @@ void QuicTransportClientSession::OnCryptoHandshakeEvent(
   }
 
   SendClientIndication();
+}
+
+QuicTransportStream*
+QuicTransportClientSession::AcceptIncomingBidirectionalStream() {
+  if (incoming_bidirectional_streams_.empty()) {
+    return nullptr;
+  }
+  QuicTransportStream* stream = incoming_bidirectional_streams_.front();
+  incoming_bidirectional_streams_.pop_front();
+  return stream;
+}
+
+QuicTransportStream*
+QuicTransportClientSession::AcceptIncomingUnidirectionalStream() {
+  if (incoming_unidirectional_streams_.empty()) {
+    return nullptr;
+  }
+  QuicTransportStream* stream = incoming_unidirectional_streams_.front();
+  incoming_unidirectional_streams_.pop_front();
+  return stream;
 }
 
 std::string QuicTransportClientSession::SerializeClientIndication() {

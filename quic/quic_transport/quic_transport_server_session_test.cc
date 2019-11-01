@@ -21,6 +21,7 @@
 #include "net/third_party/quiche/src/quic/quic_transport/quic_transport_protocol.h"
 #include "net/third_party/quiche/src/quic/test_tools/crypto_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
+#include "net/third_party/quiche/src/quic/test_tools/quic_transport_test_tools.h"
 
 namespace quic {
 namespace test {
@@ -47,11 +48,6 @@ const std::string GetTestOriginClientIndication() {
 ParsedQuicVersionVector GetVersions() {
   return {ParsedQuicVersion{PROTOCOL_TLS1_3, QUIC_VERSION_99}};
 }
-
-class MockVisitor : public QuicTransportServerSession::ServerVisitor {
- public:
-  MOCK_METHOD1(CheckOrigin, bool(url::Origin));
-};
 
 class QuicTransportServerSessionTest : public QuicTest {
  public:
@@ -111,7 +107,7 @@ class QuicTransportServerSessionTest : public QuicTest {
   QuicCryptoServerConfig crypto_config_;
   std::unique_ptr<QuicTransportServerSession> session_;
   QuicCompressedCertsCache compressed_certs_cache_;
-  testing::StrictMock<MockVisitor> visitor_;
+  testing::StrictMock<MockServerVisitor> visitor_;
   QuicCryptoServerStream* crypto_stream_;
 };
 

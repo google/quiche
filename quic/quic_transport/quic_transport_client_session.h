@@ -19,9 +19,11 @@
 #include "net/third_party/quiche/src/quic/core/quic_stream.h"
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 #include "net/third_party/quiche/src/quic/quic_transport/quic_transport_protocol.h"
 #include "net/third_party/quiche/src/quic/quic_transport/quic_transport_session_interface.h"
+#include "net/third_party/quiche/src/quic/quic_transport/quic_transport_stream.h"
 
 namespace quic {
 
@@ -30,13 +32,25 @@ class QUIC_EXPORT_PRIVATE QuicTransportClientSession
     : public QuicSession,
       public QuicTransportSessionInterface {
  public:
+  class QUIC_EXPORT_PRIVATE ClientVisitor {
+   public:
+    virtual ~ClientVisitor() {}
+
+    // Notifies the visitor when a new stream has been received.  The stream in
+    // question can be retrieved using AcceptIncomingBidirectionalStream() or
+    // AcceptIncomingUnidirectionalStream().
+    virtual void OnIncomingBidirectionalStreamAvailable() = 0;
+    virtual void OnIncomingUnidirectionalStreamAvailable() = 0;
+  };
+
   QuicTransportClientSession(QuicConnection* connection,
                              Visitor* owner,
                              const QuicConfig& config,
                              const ParsedQuicVersionVector& supported_versions,
                              const QuicServerId& server_id,
                              QuicCryptoClientConfig* crypto_config,
-                             url::Origin origin);
+                             url::Origin origin,
+                             ClientVisitor* visitor);
 
   std::vector<std::string> GetAlpnsToOffer() const override {
     return std::vector<std::string>({QuicTransportAlpn()});
@@ -68,6 +82,12 @@ class QUIC_EXPORT_PRIVATE QuicTransportClientSession
 
   void OnCryptoHandshakeEvent(CryptoHandshakeEvent event) override;
 
+  // Return the earliest incoming stream that has been received by the session
+  // but has not been accepted.  Returns nullptr if there are no incoming
+  // streams.
+  QuicTransportStream* AcceptIncomingBidirectionalStream();
+  QuicTransportStream* AcceptIncomingUnidirectionalStream();
+
  protected:
   class QUIC_EXPORT_PRIVATE ClientIndication : public QuicStream {
    public:
@@ -88,8 +108,20 @@ class QUIC_EXPORT_PRIVATE QuicTransportClientSession
 
   std::unique_ptr<QuicCryptoClientStream> crypto_stream_;
   url::Origin origin_;
+  ClientVisitor* visitor_;  // not owned
   bool client_indication_sent_ = false;
   bool ready_ = false;
+
+  // Contains all of the streams that has been received by the session but have
+  // not been processed by the application.
+  // TODO(vasilvv): currently, we always send MAX_STREAMS as long as the overall
+  // maximum number of streams for the connection has not been exceeded. We
+  // should also limit the maximum number of streams that the consuming code
+  // has not accepted to a smaller number, by checking the size of
+  // |incoming_bidirectional_streams_| and |incoming_unidirectional_streams_|
+  // before sending MAX_STREAMS.
+  QuicDeque<QuicTransportStream*> incoming_bidirectional_streams_;
+  QuicDeque<QuicTransportStream*> incoming_unidirectional_streams_;
 };
 
 }  // namespace quic

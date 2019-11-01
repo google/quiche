@@ -20,6 +20,7 @@
 #include "net/third_party/quiche/src/quic/test_tools/quic_session_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_stream_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
+#include "net/third_party/quiche/src/quic/test_tools/quic_transport_test_tools.h"
 
 namespace quic {
 namespace test {
@@ -50,32 +51,6 @@ std::string DataInStream(QuicStream* stream) {
   return result;
 }
 
-class TestClientSession : public QuicTransportClientSession {
- public:
-  using QuicTransportClientSession::QuicTransportClientSession;
-
-  class Stream : public QuicStream {
-   public:
-    using QuicStream::QuicStream;
-    void OnDataAvailable() override {}
-  };
-
-  QuicStream* CreateIncomingStream(QuicStreamId id) override {
-    auto stream = std::make_unique<Stream>(
-        id, this, /*is_static=*/false,
-        QuicUtils::GetStreamType(id, connection()->perspective(),
-                                 /*peer_initiated=*/true));
-    QuicStream* result = stream.get();
-    ActivateStream(std::move(stream));
-    return result;
-  }
-
-  QuicStream* CreateIncomingStream(PendingStream* /*pending*/) override {
-    QUIC_NOTREACHED();
-    return nullptr;
-  }
-};
-
 class QuicTransportClientSessionTest : public QuicTest {
  protected:
   QuicTransportClientSessionTest()
@@ -90,9 +65,9 @@ class QuicTransportClientSessionTest : public QuicTest {
   }
 
   void CreateSession(url::Origin origin) {
-    session_ = std::make_unique<TestClientSession>(
+    session_ = std::make_unique<QuicTransportClientSession>(
         &connection_, nullptr, DefaultQuicConfig(), GetVersions(), server_id_,
-        &crypto_config_, origin);
+        &crypto_config_, origin, &visitor_);
     session_->Initialize();
     crypto_stream_ = static_cast<QuicCryptoClientStream*>(
         session_->GetMutableCryptoStream());
@@ -112,7 +87,8 @@ class QuicTransportClientSessionTest : public QuicTest {
   PacketSavingConnection connection_;
   QuicServerId server_id_;
   QuicCryptoClientConfig crypto_config_;
-  std::unique_ptr<TestClientSession> session_;
+  MockClientVisitor visitor_;
+  std::unique_ptr<QuicTransportClientSession> session_;
   QuicCryptoClientStream* crypto_stream_;
 };
 
@@ -142,6 +118,23 @@ TEST_F(QuicTransportClientSessionTest, OriginTooLong) {
   CreateSession(url::Origin::Create(bad_origin_url));
 
   EXPECT_QUIC_BUG(Connect(), "Client origin too long");
+}
+
+TEST_F(QuicTransportClientSessionTest, ReceiveNewStreams) {
+  Connect();
+  ASSERT_TRUE(session_->IsSessionReady());
+  ASSERT_TRUE(session_->AcceptIncomingUnidirectionalStream() == nullptr);
+
+  const QuicStreamId id = GetNthServerInitiatedUnidirectionalStreamId(
+      session_->transport_version(), 0);
+  QuicStreamFrame frame(id, /*fin=*/false, /*offset=*/0, "test");
+  EXPECT_CALL(visitor_, OnIncomingUnidirectionalStreamAvailable()).Times(1);
+  session_->OnStreamFrame(frame);
+
+  QuicTransportStream* stream = session_->AcceptIncomingUnidirectionalStream();
+  ASSERT_TRUE(stream != nullptr);
+  EXPECT_EQ(stream->ReadableBytes(), 4u);
+  EXPECT_EQ(stream->id(), id);
 }
 
 }  // namespace

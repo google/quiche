@@ -20,6 +20,7 @@
 #include "net/third_party/quiche/src/quic/quic_transport/quic_transport_server_session.h"
 #include "net/third_party/quiche/src/quic/test_tools/crypto_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
+#include "net/third_party/quiche/src/quic/test_tools/quic_transport_test_tools.h"
 #include "net/third_party/quiche/src/quic/test_tools/simulator/link.h"
 #include "net/third_party/quiche/src/quic/test_tools/simulator/quic_endpoint_base.h"
 #include "net/third_party/quiche/src/quic/test_tools/simulator/simulator.h"
@@ -78,7 +79,8 @@ class QuicTransportClientEndpoint : public QuicTransportEndpointBase {
                  GetVersions(),
                  QuicServerId("test.example.com", 443),
                  &crypto_config_,
-                 origin) {
+                 origin,
+                 &visitor_) {
     session_.Initialize();
   }
 
@@ -86,12 +88,8 @@ class QuicTransportClientEndpoint : public QuicTransportEndpointBase {
 
  private:
   QuicCryptoClientConfig crypto_config_;
+  MockClientVisitor visitor_;
   QuicTransportClientSession session_;
-};
-
-class MockServerVisitor : public QuicTransportServerSession::ServerVisitor {
- public:
-  MOCK_METHOD1(CheckOrigin, bool(url::Origin));
 };
 
 class QuicTransportServerEndpoint : public QuicTransportEndpointBase {
