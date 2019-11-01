@@ -162,7 +162,7 @@ QuicEncryptedPacket* ConstructMisFramedEncryptedPacket(
     QuicConnectionIdIncluded destination_connection_id_included,
     QuicConnectionIdIncluded source_connection_id_included,
     QuicPacketNumberLength packet_number_length,
-    ParsedQuicVersionVector* versions,
+    ParsedQuicVersion version,
     Perspective perspective);
 
 void CompareCharArraysWithHexError(const std::string& description,

@@ -992,7 +992,7 @@ QuicEncryptedPacket* ConstructMisFramedEncryptedPacket(
     QuicConnectionIdIncluded destination_connection_id_included,
     QuicConnectionIdIncluded source_connection_id_included,
     QuicPacketNumberLength packet_number_length,
-    ParsedQuicVersionVector* versions,
+    ParsedQuicVersion version,
     Perspective perspective) {
   QuicPacketHeader header;
   header.destination_connection_id = destination_connection_id;
@@ -1004,7 +1004,7 @@ QuicEncryptedPacket* ConstructMisFramedEncryptedPacket(
   header.reset_flag = reset_flag;
   header.packet_number_length = packet_number_length;
   header.packet_number = QuicPacketNumber(packet_number);
-  if (QuicVersionHasLongHeaderLengths((*versions)[0].transport_version) &&
+  if (QuicVersionHasLongHeaderLengths(version.transport_version) &&
       version_flag) {
     header.retry_token_length_length = VARIABLE_LENGTH_INTEGER_LENGTH_1;
     header.length_length = VARIABLE_LENGTH_INTEGER_LENGTH_2;
@@ -1012,10 +1012,7 @@ QuicEncryptedPacket* ConstructMisFramedEncryptedPacket(
   QuicFrame frame(QuicStreamFrame(1, false, 0, QuicStringPiece(data)));
   QuicFrames frames;
   frames.push_back(frame);
-  ParsedQuicVersion version =
-      (versions != nullptr ? *versions : AllSupportedVersions())[0];
-  QuicFramer framer(versions != nullptr ? *versions : AllSupportedVersions(),
-                    QuicTime::Zero(), perspective,
+  QuicFramer framer({version}, QuicTime::Zero(), perspective,
                     kQuicDefaultConnectionIdLength);
   framer.SetInitialObfuscators(destination_connection_id);
   EncryptionLevel level =

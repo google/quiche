@@ -533,14 +533,15 @@ TEST_P(QuicSpdyClientSessionTest, InvalidPacketReceived) {
 
 // A packet with invalid framing should cause a connection to be closed.
 TEST_P(QuicSpdyClientSessionTest, InvalidFramedPacketReceived) {
-  if (GetParam().handshake_protocol == PROTOCOL_TLS1_3) {
+  const ParsedQuicVersion version = GetParam();
+  if (version.handshake_protocol == PROTOCOL_TLS1_3) {
     // TODO(nharper, b/112643533): Figure out why this test fails when TLS is
     // enabled and fix it.
     return;
   }
   QuicSocketAddress server_address(TestPeerIPAddress(), kTestPort);
   QuicSocketAddress client_address(TestPeerIPAddress(), kTestPort);
-  if (GetParam().KnowsWhichDecrypterToUse()) {
+  if (version.KnowsWhichDecrypterToUse()) {
     connection_->InstallDecrypter(
         ENCRYPTION_FORWARD_SECURE,
         std::make_unique<NullDecrypter>(Perspective::IS_CLIENT));
@@ -561,10 +562,9 @@ TEST_P(QuicSpdyClientSessionTest, InvalidFramedPacketReceived) {
   QuicConnectionId source_connection_id = EmptyQuicConnectionId();
   QuicFramerPeer::SetLastSerializedServerConnectionId(
       QuicConnectionPeer::GetFramer(connection_), destination_connection_id);
-  ParsedQuicVersionVector versions = {GetParam()};
   bool version_flag = false;
   QuicConnectionIdIncluded scid_included = CONNECTION_ID_ABSENT;
-  if (VersionHasIetfInvariantHeader(GetParam().transport_version)) {
+  if (VersionHasIetfInvariantHeader(version.transport_version)) {
     version_flag = true;
     source_connection_id = destination_connection_id;
     scid_included = CONNECTION_ID_PRESENT;
@@ -572,7 +572,7 @@ TEST_P(QuicSpdyClientSessionTest, InvalidFramedPacketReceived) {
   std::unique_ptr<QuicEncryptedPacket> packet(ConstructMisFramedEncryptedPacket(
       destination_connection_id, source_connection_id, version_flag, false, 100,
       "data", CONNECTION_ID_ABSENT, scid_included, PACKET_4BYTE_PACKET_NUMBER,
-      &versions, Perspective::IS_SERVER));
+      version, Perspective::IS_SERVER));
   std::unique_ptr<QuicReceivedPacket> received(
       ConstructReceivedPacket(*packet, QuicTime::Zero()));
   EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(1);

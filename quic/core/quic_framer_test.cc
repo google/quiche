@@ -9279,12 +9279,10 @@ TEST_P(QuicFramerTest, ConstructMisFramedEncryptedPacket) {
   }
   framer_.SetEncrypter(ENCRYPTION_INITIAL,
                        std::make_unique<NullEncrypter>(framer_.perspective()));
-  ParsedQuicVersionVector versions;
-  versions.push_back(framer_.version());
   std::unique_ptr<QuicEncryptedPacket> packet(ConstructMisFramedEncryptedPacket(
       TestConnectionId(), EmptyQuicConnectionId(), false, false,
       kTestQuicStreamId, kTestString, CONNECTION_ID_PRESENT,
-      CONNECTION_ID_ABSENT, PACKET_4BYTE_PACKET_NUMBER, &versions,
+      CONNECTION_ID_ABSENT, PACKET_4BYTE_PACKET_NUMBER, framer_.version(),
       Perspective::IS_CLIENT));
 
   MockFramerVisitor visitor;
