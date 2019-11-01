@@ -320,8 +320,6 @@ void TlsClientHandshaker::FinishHandshake() {
   session()->connection()->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   encryption_established_ = true;
   handshake_confirmed_ = true;
-  session()->OnCryptoHandshakeEvent(QuicSession::ENCRYPTION_ESTABLISHED);
-  session()->OnCryptoHandshakeEvent(QuicSession::HANDSHAKE_CONFIRMED);
 
   // Fill crypto_negotiated_params_:
   const SSL_CIPHER* cipher = SSL_get_current_cipher(ssl());
@@ -332,6 +330,8 @@ void TlsClientHandshaker::FinishHandshake() {
   crypto_negotiated_params_->peer_signature_algorithm =
       SSL_get_peer_signature_algorithm(ssl());
 
+  session()->OnCryptoHandshakeEvent(QuicSession::ENCRYPTION_ESTABLISHED);
+  session()->OnCryptoHandshakeEvent(QuicSession::HANDSHAKE_CONFIRMED);
   session()->connection()->OnHandshakeComplete();
 }
 
