@@ -6255,9 +6255,7 @@ inline bool ParseLongHeaderConnectionIds(
       return false;
     }
     if (!reader->ReadLengthPrefixedConnectionId(source_connection_id)) {
-      if (GetQuicReloadableFlag(quic_parse_prox_source_connection_id) &&
-          version_label == kProxVersionLabel) {
-        QUIC_RELOADABLE_FLAG_COUNT(quic_parse_prox_source_connection_id);
+      if (version_label == kProxVersionLabel) {
         // The "PROX" version does not follow the length-prefixed invariants,
         // and can therefore attempt to read a payload byte and interpret it
         // as the source connection ID length, which could fail to parse.

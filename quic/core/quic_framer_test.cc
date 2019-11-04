@@ -1294,7 +1294,6 @@ TEST_P(QuicFramerTest, ParsePublicHeaderProxBadSourceConnectionIdLength) {
   if (!framer_.version().HasLengthPrefixedConnectionIds()) {
     return;
   }
-  SetQuicReloadableFlag(quic_parse_prox_source_connection_id, true);
   // clang-format off
   unsigned char packet[] = {
     // public flags (long header with packet type HANDSHAKE and
