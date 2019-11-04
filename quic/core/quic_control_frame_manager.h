@@ -146,9 +146,6 @@ class QUIC_EXPORT_PRIVATE QuicControlFrameManager {
 
   // Last sent window update frame for each stream.
   QuicSmallMap<QuicStreamId, QuicControlFrameId, 10> window_update_frames_;
-
-  // Latched value of quic_add_upper_limit_of_buffered_control_frames3.
-  const bool add_upper_limit_;
 };
 
 }  // namespace quic

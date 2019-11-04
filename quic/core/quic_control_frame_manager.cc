@@ -26,14 +26,7 @@ QuicControlFrameManager::QuicControlFrameManager(QuicSession* session)
     : last_control_frame_id_(kInvalidControlFrameId),
       least_unacked_(1),
       least_unsent_(1),
-      session_(session),
-      add_upper_limit_(GetQuicReloadableFlag(
-          quic_add_upper_limit_of_buffered_control_frames3)) {
-  if (add_upper_limit_) {
-    QUIC_RELOADABLE_FLAG_COUNT(
-        quic_add_upper_limit_of_buffered_control_frames3);
-  }
-}
+      session_(session) {}
 
 QuicControlFrameManager::~QuicControlFrameManager() {
   while (!control_frames_.empty()) {
@@ -45,7 +38,7 @@ QuicControlFrameManager::~QuicControlFrameManager() {
 void QuicControlFrameManager::WriteOrBufferQuicFrame(QuicFrame frame) {
   const bool had_buffered_frames = HasBufferedFrames();
   control_frames_.emplace_back(frame);
-  if (add_upper_limit_ && control_frames_.size() > kMaxNumControlFrames) {
+  if (control_frames_.size() > kMaxNumControlFrames) {
     session_->connection()->CloseConnection(
         QUIC_TOO_MANY_BUFFERED_CONTROL_FRAMES,
         QuicStrCat("More than ", kMaxNumControlFrames,
@@ -125,7 +118,7 @@ void QuicControlFrameManager::WritePing() {
   }
   control_frames_.emplace_back(
       QuicFrame(QuicPingFrame(++last_control_frame_id_)));
-  if (add_upper_limit_ && control_frames_.size() > kMaxNumControlFrames) {
+  if (control_frames_.size() > kMaxNumControlFrames) {
     session_->connection()->CloseConnection(
         QUIC_TOO_MANY_BUFFERED_CONTROL_FRAMES,
         QuicStrCat("More than ", kMaxNumControlFrames,
