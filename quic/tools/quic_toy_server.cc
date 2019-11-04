@@ -62,11 +62,12 @@ int QuicToyServer::Start() {
   ParsedQuicVersionVector supported_versions;
   if (GetQuicFlag(FLAGS_quic_ietf_draft)) {
     QuicVersionInitializeSupportForIetfDraft();
-    ParsedQuicVersion version(PROTOCOL_TLS1_3, QUIC_VERSION_99);
-    QuicEnableVersion(version);
-    supported_versions = {version};
+    supported_versions = {ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_99)};
   } else {
     supported_versions = AllSupportedVersions();
+  }
+  for (const auto& version : supported_versions) {
+    QuicEnableVersion(version);
   }
   auto proof_source = quic::CreateDefaultProofSource();
   auto backend = backend_factory_->CreateBackend();
