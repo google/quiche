@@ -17,6 +17,9 @@ class QuicDispatcherPeer {
  public:
   QuicDispatcherPeer() = delete;
 
+  static QuicTimeWaitListManager* GetTimeWaitListManager(
+      QuicDispatcher* dispatcher);
+
   static void SetTimeWaitListManager(
       QuicDispatcher* dispatcher,
       QuicTimeWaitListManager* time_wait_list_manager);

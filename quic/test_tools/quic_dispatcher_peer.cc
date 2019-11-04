@@ -11,6 +11,12 @@ namespace quic {
 namespace test {
 
 // static
+QuicTimeWaitListManager* QuicDispatcherPeer::GetTimeWaitListManager(
+    QuicDispatcher* dispatcher) {
+  return dispatcher->time_wait_list_manager_.get();
+}
+
+// static
 void QuicDispatcherPeer::SetTimeWaitListManager(
     QuicDispatcher* dispatcher,
     QuicTimeWaitListManager* time_wait_list_manager) {
