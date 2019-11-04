@@ -454,12 +454,10 @@ bool QuicDispatcher::MaybeDispatchPacket(
       return true;
     }
 
-    if (GetQuicReloadableFlag(quic_donot_process_small_initial_packets) &&
-        crypto_config()->validate_chlo_size() &&
+    if (crypto_config()->validate_chlo_size() &&
         packet_info.form == IETF_QUIC_LONG_HEADER_PACKET &&
         packet_info.long_packet_type == INITIAL &&
         packet_info.packet.length() < kMinClientInitialPacketLength) {
-      QUIC_RELOADABLE_FLAG_COUNT(quic_donot_process_small_initial_packets);
       StatelessConnectionTerminator terminator(
           packet_info.destination_connection_id, packet_info.version,
           helper_.get(), time_wait_list_manager_.get());

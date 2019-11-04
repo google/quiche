@@ -1275,7 +1275,6 @@ TEST_F(QuicDispatcherTest, AndroidConformanceTest) {
 }
 
 TEST_F(QuicDispatcherTest, DoNotProcessSmallPacket) {
-  SetQuicReloadableFlag(quic_donot_process_small_initial_packets, true);
   CreateTimeWaitListManager();
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
 
