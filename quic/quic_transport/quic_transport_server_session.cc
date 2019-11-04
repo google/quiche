@@ -66,6 +66,7 @@ QuicStream* QuicTransportServerSession::CreateIncomingStream(QuicStreamId id) {
   auto stream = std::make_unique<QuicTransportStream>(id, this, this);
   QuicTransportStream* stream_ptr = stream.get();
   ActivateStream(std::move(stream));
+  OnIncomingDataStream(stream_ptr);
   return stream_ptr;
 }
 

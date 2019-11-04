@@ -23,6 +23,13 @@ class MockServerVisitor : public QuicTransportServerSession::ServerVisitor {
   MOCK_METHOD1(CheckOrigin, bool(url::Origin));
 };
 
+class MockStreamVisitor : public QuicTransportStream::Visitor {
+ public:
+  MOCK_METHOD0(OnCanRead, void());
+  MOCK_METHOD0(OnFinRead, void());
+  MOCK_METHOD0(OnCanWrite, void());
+};
+
 }  // namespace test
 }  // namespace quic
 

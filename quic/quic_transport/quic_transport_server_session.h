@@ -12,6 +12,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 #include "net/third_party/quiche/src/quic/quic_transport/quic_transport_protocol.h"
 #include "net/third_party/quiche/src/quic/quic_transport/quic_transport_session_interface.h"
+#include "net/third_party/quiche/src/quic/quic_transport/quic_transport_stream.h"
 
 namespace quic {
 
@@ -96,6 +97,8 @@ class QUIC_EXPORT_PRIVATE QuicTransportServerSession
   // Parses and processes the client indication as described in
   // https://vasilvv.github.io/webtransport/draft-vvv-webtransport-quic.html#rfc.section.3.2
   void ProcessClientIndication(QuicStringPiece indication);
+
+  virtual void OnIncomingDataStream(QuicTransportStream* /*stream*/) {}
 
   std::unique_ptr<QuicCryptoServerStream> crypto_stream_;
   bool ready_ = false;

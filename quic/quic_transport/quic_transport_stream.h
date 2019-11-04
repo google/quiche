@@ -6,6 +6,7 @@
 #define QUICHE_QUIC_QUIC_TRANSPORT_QUIC_TRANSPORT_STREAM_H_
 
 #include <cstddef>
+#include <memory>
 
 #include "net/third_party/quiche/src/quic/core/quic_session.h"
 #include "net/third_party/quiche/src/quic/core/quic_stream.h"
@@ -25,6 +26,7 @@ class QUIC_EXPORT_PRIVATE QuicTransportStream : public QuicStream {
    public:
     virtual ~Visitor() {}
     virtual void OnCanRead() = 0;
+    virtual void OnFinRead() = 0;
     virtual void OnCanWrite() = 0;
   };
 
@@ -35,6 +37,8 @@ class QUIC_EXPORT_PRIVATE QuicTransportStream : public QuicStream {
   // Reads at most |buffer_size| bytes into |buffer| and returns the number of
   // bytes actually read.
   size_t Read(char* buffer, size_t buffer_size);
+  // Reads all available data and appends it to the end of |output|.
+  size_t Read(std::string* output);
   // Writes |data| into the stream.  Returns true on success.
   QUIC_MUST_USE_RESULT bool Write(QuicStringPiece data);
   // Sends the FIN on the stream.  Returns true on success.
@@ -49,11 +53,18 @@ class QUIC_EXPORT_PRIVATE QuicTransportStream : public QuicStream {
   void OnDataAvailable() override;
   void OnCanWriteNewData() override;
 
-  void set_visitor(Visitor* visitor) { visitor_ = visitor; }
+  Visitor* visitor() { return visitor_.get(); }
+  void set_visitor(std::unique_ptr<Visitor> visitor) {
+    visitor_ = std::move(visitor);
+  }
 
  protected:
+  // Hide the methods that allow writing data without checking IsSessionReady().
+  using QuicStream::WriteMemSlices;
+  using QuicStream::WriteOrBufferData;
+
   QuicTransportSessionInterface* session_interface_;
-  Visitor* visitor_ = nullptr;
+  std::unique_ptr<Visitor> visitor_ = nullptr;
 };
 
 }  // namespace quic

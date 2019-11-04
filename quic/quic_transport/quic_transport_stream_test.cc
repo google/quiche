@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "net/third_party/quiche/src/quic/quic_transport/quic_transport_stream.h"
+
 #include <memory>
 
 #include "net/third_party/quiche/src/quic/core/frames/quic_window_update_frame.h"
@@ -12,6 +13,7 @@
 #include "net/third_party/quiche/src/quic/quic_transport/quic_transport_session_interface.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_config_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
+#include "net/third_party/quiche/src/quic/test_tools/quic_transport_test_tools.h"
 
 namespace quic {
 namespace test {
@@ -28,12 +30,6 @@ class MockQuicTransportSessionInterface : public QuicTransportSessionInterface {
   MOCK_CONST_METHOD0(IsSessionReady, bool());
 };
 
-class MockVisitor : public QuicTransportStream::Visitor {
- public:
-  MOCK_METHOD0(OnCanRead, void());
-  MOCK_METHOD0(OnCanWrite, void());
-};
-
 class QuicTransportStreamTest : public QuicTest {
  public:
   QuicTransportStreamTest()
@@ -46,7 +42,10 @@ class QuicTransportStreamTest : public QuicTest {
 
     stream_ = new QuicTransportStream(0, &session_, &interface_);
     session_.ActivateStream(QuicWrapUnique(stream_));
-    stream_->set_visitor(&visitor_);
+
+    auto visitor = std::make_unique<MockStreamVisitor>();
+    visitor_ = visitor.get();
+    stream_->set_visitor(std::move(visitor));
   }
 
   void ReceiveStreamData(QuicStringPiece data, QuicStreamOffset offset) {
@@ -61,8 +60,8 @@ class QuicTransportStreamTest : public QuicTest {
   MockQuicConnection* connection_;  // Owned by |session_|.
   MockQuicSession session_;
   MockQuicTransportSessionInterface interface_;
-  MockVisitor visitor_;
   QuicTransportStream* stream_;  // Owned by |session_|.
+  MockStreamVisitor* visitor_;   // Owned by |stream_|.
 };
 
 TEST_F(QuicTransportStreamTest, NotReady) {
@@ -95,8 +94,28 @@ TEST_F(QuicTransportStreamTest, Ready) {
 
 TEST_F(QuicTransportStreamTest, ReceiveData) {
   EXPECT_CALL(interface_, IsSessionReady()).WillRepeatedly(Return(true));
-  EXPECT_CALL(visitor_, OnCanRead());
+  EXPECT_CALL(*visitor_, OnCanRead());
   ReceiveStreamData("test", 0);
+}
+
+TEST_F(QuicTransportStreamTest, FinReadWithNoDataPending) {
+  EXPECT_CALL(interface_, IsSessionReady()).WillRepeatedly(Return(true));
+  EXPECT_CALL(*visitor_, OnFinRead());
+  QuicStreamFrame frame(0, true, 0, "");
+  stream_->OnStreamFrame(frame);
+}
+
+TEST_F(QuicTransportStreamTest, FinReadWithDataPending) {
+  EXPECT_CALL(interface_, IsSessionReady()).WillRepeatedly(Return(true));
+
+  EXPECT_CALL(*visitor_, OnCanRead());
+  EXPECT_CALL(*visitor_, OnFinRead()).Times(0);
+  QuicStreamFrame frame(0, true, 0, "test");
+  stream_->OnStreamFrame(frame);
+
+  EXPECT_CALL(*visitor_, OnFinRead()).Times(1);
+  std::string buffer;
+  ASSERT_EQ(stream_->Read(&buffer), 4u);
 }
 
 }  // namespace

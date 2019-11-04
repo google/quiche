@@ -88,6 +88,11 @@ class QUIC_EXPORT_PRIVATE QuicTransportClientSession
   QuicTransportStream* AcceptIncomingBidirectionalStream();
   QuicTransportStream* AcceptIncomingUnidirectionalStream();
 
+  using QuicSession::CanOpenNextOutgoingBidirectionalStream;
+  using QuicSession::CanOpenNextOutgoingUnidirectionalStream;
+  QuicTransportStream* OpenOutgoingBidirectionalStream();
+  QuicTransportStream* OpenOutgoingUnidirectionalStream();
+
  protected:
   class QUIC_EXPORT_PRIVATE ClientIndication : public QuicStream {
    public:
@@ -99,6 +104,9 @@ class QUIC_EXPORT_PRIVATE QuicTransportClientSession
       QUIC_BUG << "Received data on a write-only stream";
     }
   };
+
+  // Creates and activates a QuicTransportStream for the given ID.
+  QuicTransportStream* CreateStream(QuicStreamId id);
 
   // Serializes the client indication as described in
   // https://vasilvv.github.io/webtransport/draft-vvv-webtransport-quic.html#rfc.section.3.2

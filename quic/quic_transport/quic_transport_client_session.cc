@@ -16,9 +16,11 @@
 #include "net/third_party/quiche/src/quic/core/quic_session.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
+#include "net/third_party/quiche/src/quic/quic_transport/quic_transport_protocol.h"
 #include "net/third_party/quiche/src/quic/quic_transport/quic_transport_stream.h"
 
 namespace quic {
@@ -65,17 +67,15 @@ QuicTransportClientSession::QuicTransportClientSession(
 
 QuicStream* QuicTransportClientSession::CreateIncomingStream(QuicStreamId id) {
   QUIC_DVLOG(1) << "Creating incoming QuicTransport stream " << id;
-  auto stream = std::make_unique<QuicTransportStream>(id, this, this);
-  QuicTransportStream* stream_ptr = stream.get();
-  ActivateStream(std::move(stream));
-  if (stream_ptr->type() == BIDIRECTIONAL) {
-    incoming_bidirectional_streams_.push_back(stream_ptr);
+  QuicTransportStream* stream = CreateStream(id);
+  if (stream->type() == BIDIRECTIONAL) {
+    incoming_bidirectional_streams_.push_back(stream);
     visitor_->OnIncomingBidirectionalStreamAvailable();
   } else {
-    incoming_unidirectional_streams_.push_back(stream_ptr);
+    incoming_unidirectional_streams_.push_back(stream);
     visitor_->OnIncomingUnidirectionalStreamAvailable();
   }
-  return stream_ptr;
+  return stream;
 }
 
 void QuicTransportClientSession::OnCryptoHandshakeEvent(
@@ -106,6 +106,31 @@ QuicTransportClientSession::AcceptIncomingUnidirectionalStream() {
   QuicTransportStream* stream = incoming_unidirectional_streams_.front();
   incoming_unidirectional_streams_.pop_front();
   return stream;
+}
+
+QuicTransportStream*
+QuicTransportClientSession::OpenOutgoingBidirectionalStream() {
+  if (!CanOpenNextOutgoingBidirectionalStream()) {
+    QUIC_BUG << "Attempted to open a stream in violation of flow control";
+    return nullptr;
+  }
+  return CreateStream(GetNextOutgoingBidirectionalStreamId());
+}
+
+QuicTransportStream*
+QuicTransportClientSession::OpenOutgoingUnidirectionalStream() {
+  if (!CanOpenNextOutgoingUnidirectionalStream()) {
+    QUIC_BUG << "Attempted to open a stream in violation of flow control";
+    return nullptr;
+  }
+  return CreateStream(GetNextOutgoingUnidirectionalStreamId());
+}
+
+QuicTransportStream* QuicTransportClientSession::CreateStream(QuicStreamId id) {
+  auto stream = std::make_unique<QuicTransportStream>(id, this, this);
+  QuicTransportStream* stream_ptr = stream.get();
+  ActivateStream(std::move(stream));
+  return stream_ptr;
 }
 
 std::string QuicTransportClientSession::SerializeClientIndication() {
@@ -151,8 +176,11 @@ void QuicTransportClientSession::SendClientIndication() {
   }
 
   auto client_indication_owned = std::make_unique<ClientIndication>(
-      /*stream_id=*/ClientIndicationStream(), this, /*is_static=*/false,
-      WRITE_UNIDIRECTIONAL);
+      /*stream_id=*/GetNextOutgoingUnidirectionalStreamId(), this,
+      /*is_static=*/false, WRITE_UNIDIRECTIONAL);
+  QUIC_BUG_IF(client_indication_owned->id() != ClientIndicationStream())
+      << "Client indication stream is " << client_indication_owned->id()
+      << " instead of expected " << ClientIndicationStream();
   ClientIndication* client_indication = client_indication_owned.get();
   ActivateStream(std::move(client_indication_owned));
 

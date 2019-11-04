@@ -32,7 +32,21 @@ size_t QuicTransportStream::Read(char* buffer, size_t buffer_size) {
   iovec iov;
   iov.iov_base = buffer;
   iov.iov_len = buffer_size;
-  return sequencer()->Readv(&iov, 1);
+  const size_t result = sequencer()->Readv(&iov, 1);
+  if (sequencer()->IsClosed() && visitor_ != nullptr) {
+    visitor_->OnFinRead();
+  }
+  return result;
+}
+
+size_t QuicTransportStream::Read(std::string* output) {
+  const size_t old_size = output->size();
+  const size_t bytes_to_read = ReadableBytes();
+  output->resize(old_size + bytes_to_read);
+  size_t bytes_read = Read(&(*output)[old_size], bytes_to_read);
+  DCHECK_EQ(bytes_to_read, bytes_read);
+  output->resize(old_size + bytes_read);
+  return bytes_read;
 }
 
 bool QuicTransportStream::Write(QuicStringPiece data) {
@@ -40,6 +54,7 @@ bool QuicTransportStream::Write(QuicStringPiece data) {
     return false;
   }
 
+  // TODO(vasilvv): use WriteMemSlices()
   WriteOrBufferData(data, /*fin=*/false, nullptr);
   return true;
 }
@@ -66,12 +81,21 @@ size_t QuicTransportStream::ReadableBytes() const {
 }
 
 void QuicTransportStream::OnDataAvailable() {
+  if (sequencer()->IsClosed()) {
+    if (visitor_ != nullptr) {
+      visitor_->OnFinRead();
+    }
+    OnFinRead();
+    return;
+  }
+
+  if (visitor_ == nullptr) {
+    return;
+  }
   if (ReadableBytes() == 0) {
     return;
   }
-  if (visitor_ != nullptr) {
-    visitor_->OnCanRead();
-  }
+  visitor_->OnCanRead();
 }
 
 void QuicTransportStream::OnCanWriteNewData() {
