@@ -1851,6 +1851,35 @@ TEST_F(QuicSentPacketManagerTest,
       QuicSentPacketManagerPeer::AdaptiveReorderingThresholdEnabled(&manager_));
 }
 
+TEST_F(QuicSentPacketManagerTest,
+       NegotiateIetfLossDetectionAdaptiveReorderingAndTimeThreshold) {
+  SetQuicReloadableFlag(quic_enable_ietf_loss_detection, true);
+  EXPECT_EQ(kNack, QuicSentPacketManagerPeer::GetLossAlgorithm(&manager_)
+                       ->GetLossDetectionType());
+  EXPECT_FALSE(
+      QuicSentPacketManagerPeer::AdaptiveReorderingThresholdEnabled(&manager_));
+  EXPECT_FALSE(
+      QuicSentPacketManagerPeer::AdaptiveTimeThresholdEnabled(&manager_));
+
+  QuicConfig config;
+  QuicTagVector options;
+  options.push_back(kILD4);
+  QuicConfigPeer::SetReceivedConnectionOptions(&config, options);
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  EXPECT_CALL(*network_change_visitor_, OnCongestionChange());
+  manager_.SetFromConfig(config);
+
+  EXPECT_EQ(kIetfLossDetection,
+            QuicSentPacketManagerPeer::GetLossAlgorithm(&manager_)
+                ->GetLossDetectionType());
+  EXPECT_EQ(kDefaultLossDelayShift,
+            QuicSentPacketManagerPeer::GetReorderingShift(&manager_));
+  EXPECT_TRUE(
+      QuicSentPacketManagerPeer::AdaptiveReorderingThresholdEnabled(&manager_));
+  EXPECT_TRUE(
+      QuicSentPacketManagerPeer::AdaptiveTimeThresholdEnabled(&manager_));
+}
+
 TEST_F(QuicSentPacketManagerTest, NegotiateCongestionControlFromOptions) {
   QuicConfig config;
   QuicTagVector options;

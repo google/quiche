@@ -54,6 +54,9 @@ class QUIC_EXPORT_PRIVATE UberLossAlgorithm : public LossDetectionInterface {
   // Enable adaptive reordering threshold of all packet number spaces.
   void EnableAdaptiveReorderingThreshold();
 
+  // Enable adaptive time threshold of all packet number spaces.
+  void EnableAdaptiveTimeThreshold();
+
  private:
   friend class test::QuicSentPacketManagerPeer;
 

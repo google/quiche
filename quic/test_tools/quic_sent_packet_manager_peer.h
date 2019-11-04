@@ -98,6 +98,9 @@ class QuicSentPacketManagerPeer {
 
   static bool AdaptiveReorderingThresholdEnabled(
       QuicSentPacketManager* sent_packet_manager);
+
+  static bool AdaptiveTimeThresholdEnabled(
+      QuicSentPacketManager* sent_packet_manager);
 };
 
 }  // namespace test

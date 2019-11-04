@@ -176,6 +176,11 @@ const QuicTag kILD3 = TAG('I', 'L', 'D', '3');   // IETF style loss detection
                                                  // with 1/4 RTT time threshold
                                                  // and adaptive packet
                                                  // threshold
+const QuicTag kILD4 = TAG('I', 'L', 'D', '4');   // IETF style loss detection
+                                                 // with both adaptive time
+                                                 // threshold (default 1/4 RTT)
+                                                 // and adaptive packet
+                                                 // threshold
 // TODO(fayang): Remove this connection option when QUIC_VERSION_35, is removed
 // Since MAX_HEADER_LIST_SIZE settings frame is supported instead.
 const QuicTag kSMHL = TAG('S', 'M', 'H', 'L');   // Support MAX_HEADER_LIST_SIZE

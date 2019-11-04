@@ -214,5 +214,12 @@ bool QuicSentPacketManagerPeer::AdaptiveReorderingThresholdEnabled(
       .use_adaptive_reordering_threshold();
 }
 
+// static
+bool QuicSentPacketManagerPeer::AdaptiveTimeThresholdEnabled(
+    QuicSentPacketManager* sent_packet_manager) {
+  return sent_packet_manager->uber_loss_algorithm_.general_loss_algorithms_[0]
+      .use_adaptive_time_threshold();
+}
+
 }  // namespace test
 }  // namespace quic

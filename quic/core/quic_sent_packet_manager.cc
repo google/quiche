@@ -257,24 +257,31 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
   }
   if (GetQuicReloadableFlag(quic_enable_ietf_loss_detection)) {
     if (config.HasClientRequestedIndependentOption(kILD0, perspective)) {
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_ietf_loss_detection, 1, 4);
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_ietf_loss_detection, 1, 5);
       uber_loss_algorithm_.SetLossDetectionType(kIetfLossDetection);
     }
     if (config.HasClientRequestedIndependentOption(kILD1, perspective)) {
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_ietf_loss_detection, 2, 4);
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_ietf_loss_detection, 2, 5);
       uber_loss_algorithm_.SetLossDetectionType(kIetfLossDetection);
       uber_loss_algorithm_.SetReorderingShift(kDefaultLossDelayShift);
     }
     if (config.HasClientRequestedIndependentOption(kILD2, perspective)) {
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_ietf_loss_detection, 3, 4);
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_ietf_loss_detection, 3, 5);
       uber_loss_algorithm_.SetLossDetectionType(kIetfLossDetection);
       uber_loss_algorithm_.EnableAdaptiveReorderingThreshold();
     }
     if (config.HasClientRequestedIndependentOption(kILD3, perspective)) {
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_ietf_loss_detection, 4, 4);
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_ietf_loss_detection, 4, 5);
       uber_loss_algorithm_.SetLossDetectionType(kIetfLossDetection);
       uber_loss_algorithm_.SetReorderingShift(kDefaultLossDelayShift);
       uber_loss_algorithm_.EnableAdaptiveReorderingThreshold();
+    }
+    if (config.HasClientRequestedIndependentOption(kILD4, perspective)) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_ietf_loss_detection, 5, 5);
+      uber_loss_algorithm_.SetLossDetectionType(kIetfLossDetection);
+      uber_loss_algorithm_.SetReorderingShift(kDefaultLossDelayShift);
+      uber_loss_algorithm_.EnableAdaptiveReorderingThreshold();
+      uber_loss_algorithm_.EnableAdaptiveTimeThreshold();
     }
   }
   if (config.HasClientSentConnectionOption(kCONH, perspective)) {

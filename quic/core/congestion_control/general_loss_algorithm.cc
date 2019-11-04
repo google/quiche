@@ -32,6 +32,7 @@ GeneralLossAlgorithm::GeneralLossAlgorithm(LossDetectionType loss_type)
     : loss_detection_timeout_(QuicTime::Zero()),
       reordering_threshold_(kNumberOfNacksBeforeRetransmission),
       use_adaptive_reordering_threshold_(false),
+      use_adaptive_time_threshold_(false),
       least_in_flight_(1),
       packet_number_space_(NUM_PACKET_NUMBER_SPACES) {
   SetLossDetectionType(loss_type);
@@ -190,7 +191,8 @@ void GeneralLossAlgorithm::SpuriousLossDetected(
     QuicTime ack_receive_time,
     QuicPacketNumber packet_number,
     QuicPacketNumber previous_largest_acked) {
-  if (loss_type_ == kAdaptiveTime && reordering_shift_ > 0) {
+  if ((loss_type_ == kAdaptiveTime || use_adaptive_time_threshold_) &&
+      reordering_shift_ > 0) {
     // Increase reordering fraction such that the packet would not have been
     // declared lost.
     QuicTime::Delta time_needed =

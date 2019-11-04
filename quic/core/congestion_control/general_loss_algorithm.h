@@ -70,6 +70,12 @@ class QUIC_EXPORT_PRIVATE GeneralLossAlgorithm : public LossDetectionInterface {
     use_adaptive_reordering_threshold_ = true;
   }
 
+  bool use_adaptive_time_threshold() const {
+    return use_adaptive_time_threshold_;
+  }
+
+  void enable_adaptive_time_threshold() { use_adaptive_time_threshold_ = true; }
+
  private:
   QuicTime loss_detection_timeout_;
   LossDetectionType loss_type_;
@@ -81,6 +87,8 @@ class QUIC_EXPORT_PRIVATE GeneralLossAlgorithm : public LossDetectionInterface {
   QuicPacketCount reordering_threshold_;
   // If true, uses adaptive reordering threshold for loss detection.
   bool use_adaptive_reordering_threshold_;
+  // If true, uses adaptive time threshold for time based loss detection.
+  bool use_adaptive_time_threshold_;
   // The largest newly acked from the previous call to DetectLosses.
   QuicPacketNumber largest_previously_acked_;
   // The least in flight packet. Loss detection should start from this. Please
