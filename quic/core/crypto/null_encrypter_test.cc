@@ -87,6 +87,7 @@ TEST_F(NullEncrypterTest, GetMaxPlaintextSize) {
   EXPECT_EQ(1000u, encrypter.GetMaxPlaintextSize(1012));
   EXPECT_EQ(100u, encrypter.GetMaxPlaintextSize(112));
   EXPECT_EQ(10u, encrypter.GetMaxPlaintextSize(22));
+  EXPECT_EQ(0u, encrypter.GetMaxPlaintextSize(11));
 }
 
 TEST_F(NullEncrypterTest, GetCiphertextSize) {

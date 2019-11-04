@@ -75,7 +75,7 @@ size_t NullEncrypter::GetIVSize() const {
 }
 
 size_t NullEncrypter::GetMaxPlaintextSize(size_t ciphertext_size) const {
-  return ciphertext_size - GetHashLength();
+  return ciphertext_size - std::min(ciphertext_size, GetHashLength());
 }
 
 size_t NullEncrypter::GetCiphertextSize(size_t plaintext_size) const {

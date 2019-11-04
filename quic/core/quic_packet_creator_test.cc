@@ -2167,6 +2167,75 @@ TEST_P(QuicPacketCreatorTest, SerializeCoalescedPacket) {
   }
 }
 
+TEST_P(QuicPacketCreatorTest, SoftMaxPacketLength) {
+  creator_.set_encryption_level(ENCRYPTION_FORWARD_SECURE);
+  QuicByteCount previous_max_packet_length = creator_.max_packet_length();
+  const size_t overhead =
+      GetPacketHeaderOverhead(client_framer_.transport_version()) +
+      QuicPacketCreator::MinPlaintextPacketSize(client_framer_.version()) +
+      GetEncryptionOverhead();
+  // Make sure a length which cannot accommodate header (includes header
+  // protection minimal length) gets rejected.
+  creator_.SetSoftMaxPacketLength(overhead - 1);
+  EXPECT_EQ(previous_max_packet_length, creator_.max_packet_length());
+
+  creator_.SetSoftMaxPacketLength(overhead);
+  EXPECT_EQ(overhead, creator_.max_packet_length());
+
+  // Verify creator has room for stream frame because max_packet_length_ gets
+  // restored.
+  ASSERT_TRUE(creator_.HasRoomForStreamFrame(GetNthClientInitiatedStreamId(1),
+                                             kMaxIetfVarInt, kMaxIetfVarInt));
+  EXPECT_EQ(previous_max_packet_length, creator_.max_packet_length());
+
+  // Same for message frame.
+  if (VersionSupportsMessageFrames(client_framer_.transport_version())) {
+    creator_.SetSoftMaxPacketLength(overhead);
+    // Verify GetCurrentLargestMessagePayload is based on the actual
+    // max_packet_length.
+    EXPECT_LT(1u, creator_.GetCurrentLargestMessagePayload());
+    EXPECT_EQ(overhead, creator_.max_packet_length());
+    ASSERT_TRUE(creator_.HasRoomForMessageFrame(
+        creator_.GetCurrentLargestMessagePayload()));
+    EXPECT_EQ(previous_max_packet_length, creator_.max_packet_length());
+  }
+
+  // Verify creator can consume crypto data because max_packet_length_ gets
+  // restored.
+  creator_.SetSoftMaxPacketLength(overhead);
+  EXPECT_EQ(overhead, creator_.max_packet_length());
+  std::string data = "crypto data";
+  MakeIOVector(data, &iov_);
+  QuicFrame frame;
+  if (!QuicVersionUsesCryptoFrames(client_framer_.transport_version())) {
+    ASSERT_TRUE(creator_.ConsumeDataToFillCurrentPacket(
+        QuicUtils::GetCryptoStreamId(client_framer_.transport_version()), &iov_,
+        1u, iov_.iov_len, 0u, kOffset, false, true, NOT_RETRANSMISSION,
+        &frame));
+    size_t bytes_consumed = frame.stream_frame.data_length;
+    EXPECT_LT(0u, bytes_consumed);
+  } else {
+    producer_.SaveCryptoData(ENCRYPTION_INITIAL, kOffset, data);
+    ASSERT_TRUE(creator_.ConsumeCryptoDataToFillCurrentPacket(
+        ENCRYPTION_INITIAL, data.length(), kOffset,
+        /*needs_full_padding=*/true, NOT_RETRANSMISSION, &frame));
+    size_t bytes_consumed = frame.crypto_frame->data_length;
+    EXPECT_LT(0u, bytes_consumed);
+  }
+  EXPECT_TRUE(creator_.HasPendingFrames());
+  EXPECT_CALL(delegate_, OnSerializedPacket(_))
+      .WillOnce(Invoke(this, &QuicPacketCreatorTest::SaveSerializedPacket));
+  creator_.FlushCurrentPacket();
+
+  // Verify ACK frame can be consumed.
+  creator_.SetSoftMaxPacketLength(overhead);
+  EXPECT_EQ(overhead, creator_.max_packet_length());
+  QuicAckFrame ack_frame(InitAckFrame(10u));
+  EXPECT_TRUE(
+      creator_.AddSavedFrame(QuicFrame(&ack_frame), NOT_RETRANSMISSION));
+  EXPECT_TRUE(creator_.HasPendingFrames());
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

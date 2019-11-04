@@ -124,6 +124,7 @@ QuicPacketCreator::QuicPacketCreator(QuicConnectionId server_connection_id,
       next_transmission_type_(NOT_RETRANSMISSION),
       flusher_attached_(false),
       fully_pad_crypto_handshake_packets_(true),
+      latched_hard_max_packet_length_(0),
       combine_generator_and_creator_(
           GetQuicReloadableFlag(quic_combine_generator_and_creator)),
       populate_nonretransmittable_frames_(
@@ -166,6 +167,25 @@ void QuicPacketCreator::SetMaxPacketLength(QuicByteCount length) {
   QUIC_BUG_IF(max_plaintext_size_ - PacketHeaderSize() <
               MinPlaintextPacketSize(framer_->version()))
       << "Attempted to set max packet length too small";
+}
+
+void QuicPacketCreator::SetSoftMaxPacketLength(QuicByteCount length) {
+  DCHECK(CanSetMaxPacketLength());
+  if (length > max_packet_length_) {
+    QUIC_BUG << ENDPOINT
+             << "Try to increase max_packet_length_ in "
+                "SetSoftMaxPacketLength, use SetMaxPacketLength instead.";
+    return;
+  }
+  if (framer_->GetMaxPlaintextSize(length) <
+      PacketHeaderSize() + MinPlaintextPacketSize(framer_->version())) {
+    QUIC_DLOG(INFO) << length << " is too small to fit packet header";
+    return;
+  }
+  QUIC_DVLOG(1) << "Setting soft max packet length to: " << length;
+  latched_hard_max_packet_length_ = max_packet_length_;
+  max_packet_length_ = length;
+  max_plaintext_size_ = framer_->GetMaxPlaintextSize(length);
 }
 
 // Stops serializing version of the protocol in packets sent after this call.
@@ -295,14 +315,28 @@ bool QuicPacketCreator::ConsumeDataToFillCurrentPacket(
 bool QuicPacketCreator::HasRoomForStreamFrame(QuicStreamId id,
                                               QuicStreamOffset offset,
                                               size_t data_size) {
-  return BytesFree() >
-         QuicFramer::GetMinStreamFrameSize(framer_->transport_version(), id,
-                                           offset, true, data_size);
+  const size_t min_stream_frame_size = QuicFramer::GetMinStreamFrameSize(
+      framer_->transport_version(), id, offset, /*last_frame_in_packet=*/true,
+      data_size);
+  if (BytesFree() > min_stream_frame_size) {
+    return true;
+  }
+  if (!RemoveSoftMaxPacketLength()) {
+    return false;
+  }
+  return BytesFree() > min_stream_frame_size;
 }
 
 bool QuicPacketCreator::HasRoomForMessageFrame(QuicByteCount length) {
-  return BytesFree() >= QuicFramer::GetMessageFrameSize(
-                            framer_->transport_version(), true, length);
+  const size_t message_frame_size = QuicFramer::GetMessageFrameSize(
+      framer_->transport_version(), /*last_frame_in_packet=*/true, length);
+  if (BytesFree() >= message_frame_size) {
+    return true;
+  }
+  if (!RemoveSoftMaxPacketLength()) {
+    return false;
+  }
+  return BytesFree() >= message_frame_size;
 }
 
 // TODO(fkastenholz): this method should not use constant values for
@@ -388,7 +422,8 @@ bool QuicPacketCreator::CreateCryptoFrame(EncryptionLevel level,
                                           QuicFrame* frame) {
   size_t min_frame_size =
       QuicFramer::GetMinCryptoFrameSize(write_length, offset);
-  if (BytesFree() <= min_frame_size) {
+  if (BytesFree() <= min_frame_size &&
+      (!RemoveSoftMaxPacketLength() || BytesFree() <= min_frame_size)) {
     return false;
   }
   size_t max_write_length = BytesFree() - min_frame_size;
@@ -423,6 +458,7 @@ void QuicPacketCreator::OnSerializedPacket() {
 
   SerializedPacket packet(std::move(packet_));
   ClearPacket();
+  RemoveSoftMaxPacketLength();
   delegate_->OnSerializedPacket(&packet);
 }
 
@@ -730,6 +766,7 @@ OwningSerializedPacketPointer
 QuicPacketCreator::SerializeConnectivityProbingPacket() {
   QUIC_BUG_IF(VersionHasIetfQuicFrames(framer_->transport_version()))
       << "Must not be version 99 to serialize padded ping connectivity probe";
+  RemoveSoftMaxPacketLength();
   QuicPacketHeader header;
   // FillPacketHeader increments packet_number_.
   FillPacketHeader(&header);
@@ -765,6 +802,7 @@ QuicPacketCreator::SerializePathChallengeConnectivityProbingPacket(
       << "Must be version 99 to serialize path challenge connectivity probe, "
          "is version "
       << framer_->transport_version();
+  RemoveSoftMaxPacketLength();
   QuicPacketHeader header;
   // FillPacketHeader increments packet_number_.
   FillPacketHeader(&header);
@@ -801,6 +839,7 @@ QuicPacketCreator::SerializePathResponseConnectivityProbingPacket(
       << "Must be version 99 to serialize path response connectivity probe, is "
          "version "
       << framer_->transport_version();
+  RemoveSoftMaxPacketLength();
   QuicPacketHeader header;
   // FillPacketHeader increments packet_number_.
   FillPacketHeader(&header);
@@ -1115,7 +1154,8 @@ QuicConsumedData QuicPacketCreator::ConsumeData(QuicStreamId id,
   // the slow path loop.
   bool run_fast_path =
       !has_handshake && state != FIN_AND_PADDING && !HasPendingFrames() &&
-      write_length - total_bytes_consumed > kMaxOutgoingPacketSize;
+      write_length - total_bytes_consumed > kMaxOutgoingPacketSize &&
+      latched_hard_max_packet_length_ == 0;
 
   while (!run_fast_path && delegate_->ShouldGeneratePacket(
                                HAS_RETRANSMITTABLE_DATA,
@@ -1154,7 +1194,8 @@ QuicConsumedData QuicPacketCreator::ConsumeData(QuicStreamId id,
 
     run_fast_path =
         !has_handshake && state != FIN_AND_PADDING && !HasPendingFrames() &&
-        write_length - total_bytes_consumed > kMaxOutgoingPacketSize;
+        write_length - total_bytes_consumed > kMaxOutgoingPacketSize &&
+        latched_hard_max_packet_length_ == 0;
   }
 
   if (run_fast_path) {
@@ -1449,6 +1490,12 @@ bool QuicPacketCreator::AddFrame(const QuicFrame& frame,
   size_t frame_len = framer_->GetSerializedFrameLength(
       frame, BytesFree(), queued_frames_.empty(),
       /* last_frame_in_packet= */ true, GetPacketNumberLength());
+  if (frame_len == 0 && RemoveSoftMaxPacketLength()) {
+    // Remove soft max_packet_length and retry.
+    frame_len = framer_->GetSerializedFrameLength(
+        frame, BytesFree(), queued_frames_.empty(),
+        /* last_frame_in_packet= */ true, GetPacketNumberLength());
+  }
   if (frame_len == 0) {
     // Current open packet is full.
     FlushCurrentPacket();
@@ -1525,6 +1572,21 @@ bool QuicPacketCreator::MaybeCoalesceStreamFrame(const QuicStreamFrame& frame) {
   if (debug_delegate_ != nullptr) {
     debug_delegate_->OnStreamFrameCoalesced(*candidate);
   }
+  return true;
+}
+
+bool QuicPacketCreator::RemoveSoftMaxPacketLength() {
+  if (latched_hard_max_packet_length_ == 0) {
+    return false;
+  }
+  if (!CanSetMaxPacketLength()) {
+    return false;
+  }
+  QUIC_DVLOG(1) << "Restoring max packet length to: "
+                << latched_hard_max_packet_length_;
+  SetMaxPacketLength(latched_hard_max_packet_length_);
+  // Reset latched_max_packet_length_.
+  latched_hard_max_packet_length_ = 0;
   return true;
 }
 
@@ -1639,8 +1701,12 @@ QuicPacketLength QuicPacketCreator::GetCurrentLargestMessagePayload() const {
       VARIABLE_LENGTH_INTEGER_LENGTH_0, 0, GetLengthLength());
   // This is the largest possible message payload when the length field is
   // omitted.
-  return max_plaintext_size_ -
-         std::min(max_plaintext_size_, packet_header_size + kQuicFrameTypeSize);
+  size_t max_plaintext_size =
+      latched_hard_max_packet_length_ == 0
+          ? max_plaintext_size_
+          : framer_->GetMaxPlaintextSize(latched_hard_max_packet_length_);
+  return max_plaintext_size -
+         std::min(max_plaintext_size, packet_header_size + kQuicFrameTypeSize);
 }
 
 QuicPacketLength QuicPacketCreator::GetGuaranteedLargestMessagePayload() const {
@@ -1669,9 +1735,13 @@ QuicPacketLength QuicPacketCreator::GetGuaranteedLargestMessagePayload() const {
       VARIABLE_LENGTH_INTEGER_LENGTH_0, 0, length_length);
   // This is the largest possible message payload when the length field is
   // omitted.
+  size_t max_plaintext_size =
+      latched_hard_max_packet_length_ == 0
+          ? max_plaintext_size_
+          : framer_->GetMaxPlaintextSize(latched_hard_max_packet_length_);
   const QuicPacketLength largest_payload =
-      max_plaintext_size_ -
-      std::min(max_plaintext_size_, packet_header_size + kQuicFrameTypeSize);
+      max_plaintext_size -
+      std::min(max_plaintext_size, packet_header_size + kQuicFrameTypeSize);
   // This must always be less than or equal to GetCurrentLargestMessagePayload.
   DCHECK_LE(largest_payload, GetCurrentLargestMessagePayload());
   return largest_payload;

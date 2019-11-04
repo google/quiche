@@ -168,7 +168,7 @@ size_t AeadBaseEncrypter::GetIVSize() const {
 }
 
 size_t AeadBaseEncrypter::GetMaxPlaintextSize(size_t ciphertext_size) const {
-  return ciphertext_size - auth_tag_size_;
+  return ciphertext_size - std::min(ciphertext_size, auth_tag_size_);
 }
 
 size_t AeadBaseEncrypter::GetCiphertextSize(size_t plaintext_size) const {

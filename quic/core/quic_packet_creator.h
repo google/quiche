@@ -270,6 +270,11 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // Sets the maximum packet length.
   void SetMaxPacketLength(QuicByteCount length);
 
+  // Set a soft maximum packet length in the creator. If a packet cannot be
+  // successfully created, creator will remove the soft limit and use the actual
+  // max packet length.
+  void SetSoftMaxPacketLength(QuicByteCount length);
+
   // Increases pending_padding_bytes by |size|. Pending padding will be sent by
   // MaybeAddPadding().
   void AddPendingPadding(QuicByteCount size);
@@ -476,6 +481,13 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // Returns true on success.
   bool MaybeCoalesceStreamFrame(const QuicStreamFrame& frame);
 
+  // Called to remove the soft max_packet_length and restores
+  // latched_hard_max_packet_length_ if the packet cannot accommodate a single
+  // frame. Returns true if the soft limit is successfully removed. Returns
+  // false if either there is no current soft limit or there are queued frames
+  // (such that the packet length cannot be changed).
+  bool RemoveSoftMaxPacketLength();
+
   // Returns true if a diversification nonce should be included in the current
   // packet's header.
   bool IncludeNonceInPublicHeader() const;
@@ -574,6 +586,11 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // when the out-most flusher attaches and gets cleared when the out-most
   // flusher detaches.
   QuicPacketNumber write_start_packet_number_;
+
+  // If not 0, this latches the actual max_packet_length when
+  // SetSoftMaxPacketLength is called and max_packet_length_ gets
+  // set to a soft value.
+  QuicByteCount latched_hard_max_packet_length_;
 
   // Latched value of quic_combine_generator_and_creator.
   const bool combine_generator_and_creator_;
