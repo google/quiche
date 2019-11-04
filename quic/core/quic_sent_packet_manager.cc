@@ -104,6 +104,7 @@ QuicSentPacketManager::QuicSentPacketManager(
       forward_secure_packet_acked_(false),
       skip_packet_number_for_pto_(false),
       always_include_max_ack_delay_for_pto_timeout_(true),
+      pto_exponential_backoff_start_point_(0),
       neuter_handshake_packets_once_(
           GetQuicReloadableFlag(quic_neuter_handshake_packets_once)) {
   SetSendAlgorithm(congestion_control_type);
@@ -150,12 +151,12 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
   if (GetQuicReloadableFlag(quic_enable_pto)) {
     if (config.HasClientSentConnectionOption(k2PTO, perspective)) {
       pto_enabled_ = true;
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_pto, 2, 5);
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_pto, 2, 7);
     }
     if (config.HasClientSentConnectionOption(k1PTO, perspective)) {
       pto_enabled_ = true;
       max_probe_packets_per_pto_ = 1;
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_pto, 1, 5);
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_pto, 1, 7);
     }
   }
 
@@ -171,10 +172,19 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
     skip_packet_number_for_pto_ = true;
   }
 
-  if (pto_enabled_ &&
-      config.HasClientSentConnectionOption(kPTOA, perspective)) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_pto, 5, 5);
-    always_include_max_ack_delay_for_pto_timeout_ = false;
+  if (pto_enabled_) {
+    if (config.HasClientSentConnectionOption(kPTOA, perspective)) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_pto, 5, 7);
+      always_include_max_ack_delay_for_pto_timeout_ = false;
+    }
+    if (config.HasClientSentConnectionOption(kPEB1, perspective)) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_pto, 6, 7);
+      StartExponentialBackoffAfterNthPto(1);
+    }
+    if (config.HasClientSentConnectionOption(kPEB2, perspective)) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_pto, 7, 7);
+      StartExponentialBackoffAfterNthPto(2);
+    }
   }
 
   // Configure congestion control.
@@ -800,6 +810,11 @@ void QuicSentPacketManager::EnableIetfPtoAndLossDetection() {
   uber_loss_algorithm_.SetLossDetectionType(kIetfLossDetection);
 }
 
+void QuicSentPacketManager::StartExponentialBackoffAfterNthPto(
+    size_t exponential_backoff_start_point) {
+  pto_exponential_backoff_start_point_ = exponential_backoff_start_point;
+}
+
 QuicSentPacketManager::RetransmissionTimeoutMode
 QuicSentPacketManager::GetRetransmissionMode() const {
   DCHECK(unacked_packets_.HasInFlightPackets() ||
@@ -1026,7 +1041,9 @@ const QuicTime::Delta QuicSentPacketManager::GetProbeTimeoutDelay() const {
       std::max(4 * rtt_stats_.mean_deviation(),
                QuicTime::Delta::FromMilliseconds(1)) +
       (ShouldAddMaxAckDelay() ? peer_max_ack_delay_ : QuicTime::Delta::Zero());
-  return pto_delay * (1 << consecutive_pto_count_);
+  return pto_delay * (1 << (consecutive_pto_count_ -
+                            std::min(consecutive_pto_count_,
+                                     pto_exponential_backoff_start_point_)));
 }
 
 QuicTime::Delta QuicSentPacketManager::GetSlowStartDuration() const {

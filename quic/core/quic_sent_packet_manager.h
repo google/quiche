@@ -383,6 +383,11 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // Also enable IETF loss detection.
   void EnableIetfPtoAndLossDetection();
 
+  // Called to set the start point of doing exponential backoff when calculating
+  // PTO timeout.
+  void StartExponentialBackoffAfterNthPto(
+      size_t exponential_backoff_start_point);
+
   bool supports_multiple_packet_number_spaces() const {
     return unacked_packets_.supports_multiple_packet_number_spaces();
   }
@@ -630,6 +635,11 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
 
   // If true, always include peer_max_ack_delay_ when calculating PTO timeout.
   bool always_include_max_ack_delay_for_pto_timeout_;
+
+  // When calculating PTO timeout, the start point of doing exponential backoff.
+  // For example, 0 : always do exponential backoff. n : do exponential backoff
+  // since nth PTO.
+  size_t pto_exponential_backoff_start_point_;
 
   // Latched value of quic_neuter_handshake_packets_once.
   const bool neuter_handshake_packets_once_;

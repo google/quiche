@@ -2882,6 +2882,121 @@ TEST_F(QuicSentPacketManagerTest, PtoTimeoutIncludesMaxAckDelay) {
             manager_.GetRetransmissionTime());
 }
 
+TEST_F(QuicSentPacketManagerTest, StartExponentialBackoffSince2ndPto) {
+  EnablePto(k2PTO);
+  QuicConfig config;
+  QuicTagVector options;
+  options.push_back(kPEB2);
+  QuicConfigPeer::SetReceivedConnectionOptions(&config, options);
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  EXPECT_CALL(*network_change_visitor_, OnCongestionChange());
+  manager_.SetFromConfig(config);
+
+  EXPECT_CALL(*send_algorithm_, PacingRate(_))
+      .WillRepeatedly(Return(QuicBandwidth::Zero()));
+  EXPECT_CALL(*send_algorithm_, GetCongestionWindow())
+      .WillRepeatedly(Return(10 * kDefaultTCPMSS));
+  RttStats* rtt_stats = const_cast<RttStats*>(manager_.GetRttStats());
+  rtt_stats->UpdateRtt(QuicTime::Delta::FromMilliseconds(100),
+                       QuicTime::Delta::Zero(), QuicTime::Zero());
+  QuicTime::Delta srtt = rtt_stats->smoothed_rtt();
+
+  SendDataPacket(1, ENCRYPTION_FORWARD_SECURE);
+  // Verify PTO is correctly set.
+  QuicTime::Delta expected_pto_delay =
+      srtt + 4 * rtt_stats->mean_deviation() +
+      QuicTime::Delta::FromMilliseconds(kDefaultDelayedAckTimeMs);
+  EXPECT_EQ(clock_.Now() + expected_pto_delay,
+            manager_.GetRetransmissionTime());
+
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(10));
+  SendDataPacket(2, ENCRYPTION_FORWARD_SECURE);
+  // Verify PTO is correctly set based on sent time of packet 2.
+  EXPECT_EQ(clock_.Now() + expected_pto_delay,
+            manager_.GetRetransmissionTime());
+  EXPECT_EQ(0u, stats_.pto_count);
+
+  // Invoke PTO.
+  clock_.AdvanceTime(expected_pto_delay);
+  manager_.OnRetransmissionTimeout();
+  EXPECT_EQ(QuicTime::Delta::Zero(), manager_.TimeUntilSend(clock_.Now()));
+  EXPECT_EQ(1u, stats_.pto_count);
+
+  // Verify two probe packets get sent.
+  EXPECT_CALL(notifier_, RetransmitFrames(_, _))
+      .Times(2)
+      .WillOnce(WithArgs<1>(Invoke([this](TransmissionType type) {
+        RetransmitDataPacket(3, type, ENCRYPTION_FORWARD_SECURE);
+      })))
+      .WillOnce(WithArgs<1>(Invoke([this](TransmissionType type) {
+        RetransmitDataPacket(4, type, ENCRYPTION_FORWARD_SECURE);
+      })));
+  manager_.MaybeSendProbePackets();
+  // Verify no exponential backoff.
+  EXPECT_EQ(clock_.Now() + expected_pto_delay,
+            manager_.GetRetransmissionTime());
+
+  // Invoke 2nd PTO.
+  clock_.AdvanceTime(expected_pto_delay);
+  manager_.OnRetransmissionTimeout();
+  EXPECT_EQ(QuicTime::Delta::Zero(), manager_.TimeUntilSend(clock_.Now()));
+  EXPECT_EQ(2u, stats_.pto_count);
+
+  // Verify two probe packets get sent.
+  EXPECT_CALL(notifier_, RetransmitFrames(_, _))
+      .Times(2)
+      .WillOnce(WithArgs<1>(Invoke([this](TransmissionType type) {
+        RetransmitDataPacket(5, type, ENCRYPTION_FORWARD_SECURE);
+      })))
+      .WillOnce(WithArgs<1>(Invoke([this](TransmissionType type) {
+        RetransmitDataPacket(6, type, ENCRYPTION_FORWARD_SECURE);
+      })));
+  manager_.MaybeSendProbePackets();
+  // Verify still no exponential backoff.
+  EXPECT_EQ(clock_.Now() + expected_pto_delay,
+            manager_.GetRetransmissionTime());
+
+  // Invoke 3rd PTO.
+  clock_.AdvanceTime(expected_pto_delay);
+  manager_.OnRetransmissionTimeout();
+  EXPECT_EQ(QuicTime::Delta::Zero(), manager_.TimeUntilSend(clock_.Now()));
+  EXPECT_EQ(3u, stats_.pto_count);
+
+  // Verify two probe packets get sent.
+  EXPECT_CALL(notifier_, RetransmitFrames(_, _))
+      .Times(2)
+      .WillOnce(WithArgs<1>(Invoke([this](TransmissionType type) {
+        RetransmitDataPacket(7, type, ENCRYPTION_FORWARD_SECURE);
+      })))
+      .WillOnce(WithArgs<1>(Invoke([this](TransmissionType type) {
+        RetransmitDataPacket(8, type, ENCRYPTION_FORWARD_SECURE);
+      })));
+  manager_.MaybeSendProbePackets();
+  // Verify exponential backoff starts.
+  EXPECT_EQ(clock_.Now() + expected_pto_delay * 2,
+            manager_.GetRetransmissionTime());
+
+  // Invoke 4th PTO.
+  clock_.AdvanceTime(expected_pto_delay * 2);
+  manager_.OnRetransmissionTimeout();
+  EXPECT_EQ(QuicTime::Delta::Zero(), manager_.TimeUntilSend(clock_.Now()));
+  EXPECT_EQ(4u, stats_.pto_count);
+
+  // Verify two probe packets get sent.
+  EXPECT_CALL(notifier_, RetransmitFrames(_, _))
+      .Times(2)
+      .WillOnce(WithArgs<1>(Invoke([this](TransmissionType type) {
+        RetransmitDataPacket(9, type, ENCRYPTION_FORWARD_SECURE);
+      })))
+      .WillOnce(WithArgs<1>(Invoke([this](TransmissionType type) {
+        RetransmitDataPacket(10, type, ENCRYPTION_FORWARD_SECURE);
+      })));
+  manager_.MaybeSendProbePackets();
+  // Verify exponential backoff continues.
+  EXPECT_EQ(clock_.Now() + expected_pto_delay * 4,
+            manager_.GetRetransmissionTime());
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

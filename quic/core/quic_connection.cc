@@ -444,11 +444,11 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
     }
     if (config.HasClientSentConnectionOption(k7PTO, perspective_)) {
       max_consecutive_ptos_ = 6;
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_pto, 3, 5);
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_pto, 3, 7);
     }
     if (config.HasClientSentConnectionOption(k8PTO, perspective_)) {
       max_consecutive_ptos_ = 7;
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_pto, 4, 5);
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_pto, 4, 7);
     }
   }
   if (config.HasClientSentConnectionOption(kNSTP, perspective_)) {
