@@ -105,6 +105,7 @@ QuicSentPacketManager::QuicSentPacketManager(
       skip_packet_number_for_pto_(false),
       always_include_max_ack_delay_for_pto_timeout_(true),
       pto_exponential_backoff_start_point_(0),
+      pto_rttvar_multiplier_(4),
       neuter_handshake_packets_once_(
           GetQuicReloadableFlag(quic_neuter_handshake_packets_once)) {
   SetSendAlgorithm(congestion_control_type);
@@ -151,12 +152,12 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
   if (GetQuicReloadableFlag(quic_enable_pto)) {
     if (config.HasClientSentConnectionOption(k2PTO, perspective)) {
       pto_enabled_ = true;
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_pto, 2, 7);
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_pto, 2, 8);
     }
     if (config.HasClientSentConnectionOption(k1PTO, perspective)) {
       pto_enabled_ = true;
       max_probe_packets_per_pto_ = 1;
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_pto, 1, 7);
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_pto, 1, 8);
     }
   }
 
@@ -174,16 +175,20 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
 
   if (pto_enabled_) {
     if (config.HasClientSentConnectionOption(kPTOA, perspective)) {
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_pto, 5, 7);
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_pto, 5, 8);
       always_include_max_ack_delay_for_pto_timeout_ = false;
     }
     if (config.HasClientSentConnectionOption(kPEB1, perspective)) {
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_pto, 6, 7);
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_pto, 6, 8);
       StartExponentialBackoffAfterNthPto(1);
     }
     if (config.HasClientSentConnectionOption(kPEB2, perspective)) {
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_pto, 7, 7);
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_pto, 7, 8);
       StartExponentialBackoffAfterNthPto(2);
+    }
+    if (config.HasClientSentConnectionOption(kPVS1, perspective)) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_pto, 8, 8);
+      pto_rttvar_multiplier_ = 2;
     }
   }
 
@@ -1045,7 +1050,7 @@ const QuicTime::Delta QuicSentPacketManager::GetProbeTimeoutDelay() const {
   }
   const QuicTime::Delta pto_delay =
       rtt_stats_.smoothed_rtt() +
-      std::max(4 * rtt_stats_.mean_deviation(),
+      std::max(pto_rttvar_multiplier_ * rtt_stats_.mean_deviation(),
                QuicTime::Delta::FromMilliseconds(1)) +
       (ShouldAddMaxAckDelay() ? peer_max_ack_delay_ : QuicTime::Delta::Zero());
   return pto_delay * (1 << (consecutive_pto_count_ -

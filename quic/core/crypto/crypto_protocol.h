@@ -207,6 +207,8 @@ const QuicTag kPEB1 = TAG('P', 'E', 'B', '1');   // Start exponential backoff
                                                  // since 1st PTO.
 const QuicTag kPEB2 = TAG('P', 'E', 'B', '2');   // Start exponential backoff
                                                  // since 2nd PTO.
+const QuicTag kPVS1 = TAG('P', 'V', 'S', '1');   // Use 2 * rttvar when
+                                                 // calculating PTO timeout.
 
 // Optional support of truncated Connection IDs.  If sent by a peer, the value
 // is the minimum number of bytes allowed for the connection ID sent to the
