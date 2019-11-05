@@ -9,7 +9,6 @@
 #include <memory>
 #include <utility>
 
-#include "net/third_party/quiche/src/common/platform/api/quiche_ptr_util.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
 
 using testing::Pair;
@@ -23,8 +22,8 @@ namespace test {
 TEST(LinkedHashMapTest, Move) {
   // Use unique_ptr as an example of a non-copyable type.
   SimpleLinkedHashMap<int, std::unique_ptr<int>> m;
-  m[2] = QuicheMakeUnique<int>(12);
-  m[3] = QuicheMakeUnique<int>(13);
+  m[2] = std::make_unique<int>(12);
+  m[3] = std::make_unique<int>(13);
   SimpleLinkedHashMap<int, std::unique_ptr<int>> n = std::move(m);
   EXPECT_THAT(n,
               UnorderedElementsAre(Pair(2, Pointee(12)), Pair(3, Pointee(13))));
