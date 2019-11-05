@@ -2,8 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Accumulates frames for the next packet until more frames no longer fit or
-// it's time to create a packet from them.
+// Responsible for creating packets on behalf of a QuicConnection.
+// Packets are serialized just-in-time. Stream data and control frames will be
+// requested from the Connection just-in-time. Frames are accumulated into
+// "current" packet until no more frames can fit, then current packet gets
+// serialized and passed to connection via OnSerializedPacket().
+//
+// Whether a packet should be serialized is determined by whether delegate is
+// writable. If the Delegate is not writable, then no operations will cause
+// a packet to be serialized.
 
 #ifndef QUICHE_QUIC_CORE_QUIC_PACKET_CREATOR_H_
 #define QUICHE_QUIC_CORE_QUIC_PACKET_CREATOR_H_
@@ -377,17 +384,11 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   bool PacketFlusherAttached() const;
 
   void set_fully_pad_crypto_handshake_packets(bool new_value) {
-    DCHECK(combine_generator_and_creator_);
     fully_pad_crypto_handshake_packets_ = new_value;
   }
 
   bool fully_pad_crypto_handshake_packets() const {
-    DCHECK(combine_generator_and_creator_);
     return fully_pad_crypto_handshake_packets_;
-  }
-
-  bool combine_generator_and_creator() const {
-    return combine_generator_and_creator_;
   }
 
   // Serialize a probing packet that uses IETF QUIC's PATH CHALLENGE frame. Also
@@ -591,9 +592,6 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // SetSoftMaxPacketLength is called and max_packet_length_ gets
   // set to a soft value.
   QuicByteCount latched_hard_max_packet_length_;
-
-  // Latched value of quic_combine_generator_and_creator.
-  const bool combine_generator_and_creator_;
 
   // Latched value of quic_populate_nonretransmittable_frames.
   const bool populate_nonretransmittable_frames_;

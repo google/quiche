@@ -9,7 +9,6 @@
 #include "net/third_party/quiche/src/quic/core/quic_received_packet_manager.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_framer_peer.h"
-#include "net/third_party/quiche/src/quic/test_tools/quic_packet_generator_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_sent_packet_manager_peer.h"
 
 namespace quic {
@@ -39,14 +38,7 @@ void QuicConnectionPeer::PopulateStopWaitingFrame(
 // static
 QuicPacketCreator* QuicConnectionPeer::GetPacketCreator(
     QuicConnection* connection) {
-  return QuicPacketGeneratorPeer::GetPacketCreator(
-      &connection->packet_generator_);
-}
-
-// static
-QuicPacketGenerator* QuicConnectionPeer::GetPacketGenerator(
-    QuicConnection* connection) {
-  return &connection->packet_generator_;
+  return &connection->packet_creator_;
 }
 
 // static

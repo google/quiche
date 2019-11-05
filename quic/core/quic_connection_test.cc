@@ -36,7 +36,6 @@
 #include "net/third_party/quiche/src/quic/test_tools/quic_connection_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_framer_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_packet_creator_peer.h"
-#include "net/third_party/quiche/src/quic/test_tools/quic_packet_generator_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_sent_packet_manager_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/simple_data_producer.h"
@@ -969,7 +968,6 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
                     Perspective::IS_CLIENT,
                     version()),
         creator_(QuicConnectionPeer::GetPacketCreator(&connection_)),
-        generator_(QuicConnectionPeer::GetPacketGenerator(&connection_)),
         manager_(QuicConnectionPeer::GetSentPacketManager(&connection_)),
         frame1_(0, false, 0, QuicStringPiece(data1)),
         frame2_(0, false, 3, QuicStringPiece(data2)),
@@ -1625,7 +1623,6 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
   std::unique_ptr<TestPacketWriter> writer_;
   TestConnection connection_;
   QuicPacketCreator* creator_;
-  QuicPacketGenerator* generator_;
   QuicSentPacketManager* manager_;
   StrictMock<MockQuicConnectionVisitor> visitor_;
 

@@ -125,14 +125,9 @@ QuicPacketCreator::QuicPacketCreator(QuicConnectionId server_connection_id,
       flusher_attached_(false),
       fully_pad_crypto_handshake_packets_(true),
       latched_hard_max_packet_length_(0),
-      combine_generator_and_creator_(
-          GetQuicReloadableFlag(quic_combine_generator_and_creator)),
       populate_nonretransmittable_frames_(
           GetQuicReloadableFlag(quic_populate_nonretransmittable_frames)) {
   SetMaxPacketLength(kDefaultMaxPacketSize);
-  if (combine_generator_and_creator_) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_combine_generator_and_creator);
-  }
   if (populate_nonretransmittable_frames_) {
     QUIC_RELOADABLE_FLAG_COUNT(quic_populate_nonretransmittable_frames);
   }
@@ -1098,7 +1093,6 @@ void QuicPacketCreator::SetRetryToken(QuicStringPiece retry_token) {
 
 bool QuicPacketCreator::ConsumeRetransmittableControlFrame(
     const QuicFrame& frame) {
-  DCHECK(combine_generator_and_creator_);
   QUIC_BUG_IF(IsControlFrame(frame.type) && !GetControlFrameId(frame))
       << "Adding a control frame with no control frame id: " << frame;
   DCHECK(QuicUtils::IsRetransmittableFrame(frame.type)) << frame;
@@ -1126,7 +1120,6 @@ QuicConsumedData QuicPacketCreator::ConsumeData(QuicStreamId id,
                                                 size_t write_length,
                                                 QuicStreamOffset offset,
                                                 StreamSendingState state) {
-  DCHECK(combine_generator_and_creator_);
   QUIC_BUG_IF(!flusher_attached_) << "Packet flusher is not attached when "
                                      "generator tries to write stream data.";
   bool has_handshake = QuicUtils::IsCryptoStreamId(transport_version(), id);
@@ -1218,7 +1211,6 @@ QuicConsumedData QuicPacketCreator::ConsumeDataFastPath(
     QuicStreamOffset offset,
     bool fin,
     size_t total_bytes_consumed) {
-  DCHECK(combine_generator_and_creator_);
   DCHECK(!QuicUtils::IsCryptoStreamId(transport_version(), id));
 
   while (total_bytes_consumed < write_length &&
@@ -1239,7 +1231,6 @@ QuicConsumedData QuicPacketCreator::ConsumeDataFastPath(
 size_t QuicPacketCreator::ConsumeCryptoData(EncryptionLevel level,
                                             size_t write_length,
                                             QuicStreamOffset offset) {
-  DCHECK(combine_generator_and_creator_);
   QUIC_BUG_IF(!flusher_attached_) << "Packet flusher is not attached when "
                                      "generator tries to write crypto data.";
   MaybeBundleAckOpportunistically();
@@ -1277,7 +1268,6 @@ size_t QuicPacketCreator::ConsumeCryptoData(EncryptionLevel level,
 }
 
 void QuicPacketCreator::GenerateMtuDiscoveryPacket(QuicByteCount target_mtu) {
-  DCHECK(combine_generator_and_creator_);
   // MTU discovery frames must be sent by themselves.
   if (!CanSetMaxPacketLength()) {
     QUIC_BUG << "MTU discovery packets should only be sent when no other "
@@ -1305,7 +1295,6 @@ void QuicPacketCreator::GenerateMtuDiscoveryPacket(QuicByteCount target_mtu) {
 }
 
 void QuicPacketCreator::MaybeBundleAckOpportunistically() {
-  DCHECK(combine_generator_and_creator_);
   if (has_ack()) {
     // Ack already queued, nothing to do.
     return;
@@ -1321,7 +1310,6 @@ void QuicPacketCreator::MaybeBundleAckOpportunistically() {
 }
 
 bool QuicPacketCreator::FlushAckFrame(const QuicFrames& frames) {
-  DCHECK(combine_generator_and_creator_);
   QUIC_BUG_IF(!flusher_attached_) << "Packet flusher is not attached when "
                                      "generator tries to send ACK frame.";
   for (const auto& frame : frames) {
@@ -1346,12 +1334,10 @@ bool QuicPacketCreator::FlushAckFrame(const QuicFrames& frames) {
 }
 
 void QuicPacketCreator::AddRandomPadding() {
-  DCHECK(combine_generator_and_creator_);
   AddPendingPadding(random_->RandUint64() % kMaxNumRandomPaddingBytes + 1);
 }
 
 void QuicPacketCreator::AttachPacketFlusher() {
-  DCHECK(combine_generator_and_creator_);
   flusher_attached_ = true;
   if (!write_start_packet_number_.IsInitialized()) {
     write_start_packet_number_ = NextSendingPacketNumber();
@@ -1359,7 +1345,6 @@ void QuicPacketCreator::AttachPacketFlusher() {
 }
 
 void QuicPacketCreator::Flush() {
-  DCHECK(combine_generator_and_creator_);
   FlushCurrentPacket();
   SendRemainingPendingPadding();
   flusher_attached_ = false;
@@ -1377,7 +1362,6 @@ void QuicPacketCreator::Flush() {
 }
 
 void QuicPacketCreator::SendRemainingPendingPadding() {
-  DCHECK(combine_generator_and_creator_);
   while (
       pending_padding_bytes() > 0 && !HasPendingFrames() &&
       delegate_->ShouldGeneratePacket(NO_RETRANSMITTABLE_DATA, NOT_HANDSHAKE)) {
@@ -1386,7 +1370,6 @@ void QuicPacketCreator::SendRemainingPendingPadding() {
 }
 
 void QuicPacketCreator::SetServerConnectionIdLength(uint32_t length) {
-  DCHECK(combine_generator_and_creator_);
   if (length == 0) {
     SetServerConnectionIdIncluded(CONNECTION_ID_ABSENT);
   } else {
@@ -1395,13 +1378,11 @@ void QuicPacketCreator::SetServerConnectionIdLength(uint32_t length) {
 }
 
 void QuicPacketCreator::SetTransmissionType(TransmissionType type) {
-  DCHECK(combine_generator_and_creator_);
   next_transmission_type_ = type;
 }
 
 MessageStatus QuicPacketCreator::AddMessageFrame(QuicMessageId message_id,
                                                  QuicMemSliceSpan message) {
-  DCHECK(combine_generator_and_creator_);
   QUIC_BUG_IF(!flusher_attached_) << "Packet flusher is not attached when "
                                      "generator tries to add message frame.";
   MaybeBundleAckOpportunistically();
@@ -1809,7 +1790,6 @@ QuicPacketNumber QuicPacketCreator::NextSendingPacketNumber() const {
 }
 
 bool QuicPacketCreator::PacketFlusherAttached() const {
-  DCHECK(combine_generator_and_creator_);
   return flusher_attached_;
 }
 

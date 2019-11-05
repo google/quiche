@@ -20,7 +20,6 @@ class QuicConnectionVisitorInterface;
 class QuicEncryptedPacket;
 class QuicFramer;
 class QuicPacketCreator;
-class QuicPacketGenerator;
 class QuicPacketWriter;
 class QuicSentPacketManager;
 class SendAlgorithmInterface;
@@ -42,8 +41,6 @@ class QuicConnectionPeer {
                                        QuicStopWaitingFrame* stop_waiting);
 
   static QuicPacketCreator* GetPacketCreator(QuicConnection* connection);
-
-  static QuicPacketGenerator* GetPacketGenerator(QuicConnection* connection);
 
   static QuicSentPacketManager* GetSentPacketManager(
       QuicConnection* connection);

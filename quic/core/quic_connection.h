@@ -37,7 +37,6 @@
 #include "net/third_party/quiche/src/quic/core/quic_mtu_discovery.h"
 #include "net/third_party/quiche/src/quic/core/quic_one_block_arena.h"
 #include "net/third_party/quiche/src/quic/core/quic_packet_creator.h"
-#include "net/third_party/quiche/src/quic/core/quic_packet_generator.h"
 #include "net/third_party/quiche/src/quic/core/quic_packet_writer.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_sent_packet_manager.h"
@@ -513,12 +512,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   void OnAuthenticatedIetfStatelessResetPacket(
       const QuicIetfStatelessResetPacket& packet) override;
 
-  // QuicPacketGenerator::DelegateInterface
+  // QuicPacketCreator::DelegateInterface
   bool ShouldGeneratePacket(HasRetransmittableData retransmittable,
                             IsHandshake handshake) override;
   const QuicFrames MaybeBundleAckOpportunistically() override;
-
-  // QuicPacketCreator::DelegateInterface
   char* GetPacketBuffer() override;
   void OnSerializedPacket(SerializedPacket* packet) override;
   void OnUnrecoverableError(QuicErrorCode error,
@@ -566,7 +563,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   }
   // Used in Chromium, but not internally.
   void set_creator_debug_delegate(QuicPacketCreator::DebugDelegate* visitor) {
-    packet_generator_.set_debug_delegate(visitor);
+    packet_creator_.set_debug_delegate(visitor);
   }
   const QuicSocketAddress& self_address() const { return self_address_; }
   const QuicSocketAddress& peer_address() const { return direct_peer_address_; }
@@ -784,9 +781,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   const QuicFramer& framer() const { return framer_; }
 
-  const QuicPacketGenerator& packet_generator() const {
-    return packet_generator_;
-  }
+  const QuicPacketCreator& packet_creator() const { return packet_creator_; }
 
   EncryptionLevel encryption_level() const { return encryption_level_; }
   EncryptionLevel last_decrypted_level() const {
@@ -811,11 +806,11 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // can only be set to false if there is some other mechanism of preventing
   // amplification attacks, such as ICE (plus its a non-standard quic).
   void set_fully_pad_crypto_handshake_packets(bool new_value) {
-    packet_generator_.set_fully_pad_crypto_handshake_packets(new_value);
+    packet_creator_.set_fully_pad_crypto_handshake_packets(new_value);
   }
 
   bool fully_pad_during_crypto_handshake() const {
-    return packet_generator_.fully_pad_crypto_handshake_packets();
+    return packet_creator_.fully_pad_crypto_handshake_packets();
   }
 
   size_t min_received_before_ack_decimation() const;
@@ -1344,7 +1339,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   QuicConnectionVisitorInterface* visitor_;
   QuicConnectionDebugVisitor* debug_visitor_;
 
-  QuicPacketGenerator packet_generator_;
+  QuicPacketCreator packet_creator_;
 
   // Network idle time before this connection is closed.
   QuicTime::Delta idle_network_timeout_;

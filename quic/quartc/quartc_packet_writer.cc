@@ -29,7 +29,7 @@ WriteResult QuartcPacketWriter::WritePacket(
       static_cast<QuartcPerPacketOptions*>(options);
   if (quartc_options && quartc_options->connection) {
     info.packet_number =
-        quartc_options->connection->packet_generator().packet_number();
+        quartc_options->connection->packet_creator().packet_number();
   }
   int bytes_written = packet_transport_->Write(buffer, buf_len, info);
   if (bytes_written <= 0) {
