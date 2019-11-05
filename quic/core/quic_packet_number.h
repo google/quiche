@@ -31,6 +31,11 @@ class QUIC_EXPORT_PRIVATE QuicPacketNumber {
         << "Use default constructor for uninitialized packet number";
   }
 
+  // The sentinel value representing an uninitialized packet number.
+  static constexpr uint64_t UninitializedPacketNumber() {
+    return std::numeric_limits<uint64_t>::max();
+  }
+
   // Packet number becomes uninitialized after calling this function.
   void Clear();
 
@@ -83,11 +88,6 @@ class QUIC_EXPORT_PRIVATE QuicPacketNumber {
                                            uint64_t delta);
   // REQUIRES: lhs >= rhs.
   friend inline uint64_t operator-(QuicPacketNumber lhs, QuicPacketNumber rhs);
-
-  // The sentinel value representing an uninitialized packet number.
-  static constexpr uint64_t UninitializedPacketNumber() {
-    return std::numeric_limits<uint64_t>::max();
-  }
 
   uint64_t packet_number_;
 };
