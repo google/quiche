@@ -73,6 +73,7 @@ class QUIC_NO_EXPORT QuicIntervalSet {
   struct QUIC_NO_EXPORT IntervalLess {
     bool operator()(const value_type& a, const value_type& b) const;
   };
+  // TODO(wub): Switch to absl::btree_set when it is available in Chromium.
   typedef std::set<value_type, IntervalLess> Set;
 
  public:
@@ -151,6 +152,49 @@ class QUIC_NO_EXPORT QuicIntervalSet {
 
   // TODO(wub): Similar to AddOptimizedForAppend, we can also have a
   // AddOptimizedForPrepend if there is a use case.
+
+  // Remove the first interval.
+  // REQUIRES: !Empty()
+  void PopFront() {
+    DCHECK(!Empty());
+    intervals_.erase(intervals_.begin());
+  }
+
+  // Trim all values that is smaller than |value|. Which means
+  // a) If all values in an interval is smaller than |value|, the entire
+  //    interval is removed.
+  // b) If some but not all values in an interval is smaller than |value|, the
+  //    min of that interval is raised to |value|.
+  // Returns true if some intervals are trimmed.
+  bool TrimLessThan(const T& value) {
+    // Number of intervals that are fully or partially trimmed.
+    size_t num_intervals_trimmed = 0;
+
+    while (!intervals_.empty()) {
+      const_iterator first_interval = intervals_.begin();
+      if (first_interval->min() >= value) {
+        break;
+      }
+
+      ++num_intervals_trimmed;
+
+      if (first_interval->max() <= value) {
+        // a) Trim the entire interval.
+        intervals_.erase(first_interval);
+        continue;
+      }
+
+      // b) Trim a prefix of the interval.
+      //
+      // Set does not allow in-place updates due to the potential of violating
+      // its ordering requirements. But increasing the min of the first interval
+      // will not break the ordering, hence the const_cast.
+      const_cast<value_type*>(&(*first_interval))->SetMin(value);
+      break;
+    }
+
+    return num_intervals_trimmed != 0;
+  }
 
   // Returns true if this QuicIntervalSet is empty.
   bool Empty() const { return intervals_.empty(); }

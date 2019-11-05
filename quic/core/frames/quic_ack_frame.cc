@@ -15,13 +15,6 @@ namespace {
 
 const QuicPacketCount kMaxPrintRange = 128;
 
-uint64_t PacketNumberIntervalLength(
-    const QuicInterval<QuicPacketNumber>& interval) {
-  if (interval.Empty()) {
-    return 0u;
-  }
-  return interval.max() - interval.min();
-}
 }  // namespace
 
 bool IsAwaitingPacket(const QuicAckFrame& ack_frame,
@@ -86,77 +79,8 @@ void PacketNumberQueue::Add(QuicPacketNumber packet_number) {
   if (!packet_number.IsInitialized()) {
     return;
   }
-  // Check if the deque is empty
-  if (packet_number_deque_.empty()) {
-    packet_number_deque_.push_front(
-        QuicInterval<QuicPacketNumber>(packet_number, packet_number + 1));
-    return;
-  }
-  QuicInterval<QuicPacketNumber> back = packet_number_deque_.back();
-
-  // Check for the typical case,
-  // when the next packet in order is acked
-  if (back.max() == packet_number) {
-    packet_number_deque_.back().SetMax(packet_number + 1);
-    return;
-  }
-  // Check if the next packet in order is skipped
-  if (back.max() < packet_number) {
-    packet_number_deque_.push_back(
-        QuicInterval<QuicPacketNumber>(packet_number, packet_number + 1));
-    return;
-  }
-
-  QuicInterval<QuicPacketNumber> front = packet_number_deque_.front();
-  // Check if the packet can be  popped on the front
-  if (front.min() > packet_number + 1) {
-    packet_number_deque_.push_front(
-        QuicInterval<QuicPacketNumber>(packet_number, packet_number + 1));
-    return;
-  }
-  if (front.min() == packet_number + 1) {
-    packet_number_deque_.front().SetMin(packet_number);
-    return;
-  }
-
-  int i = packet_number_deque_.size() - 1;
-  // Iterating through the queue backwards
-  // to find a proper place for the packet
-  while (i >= 0) {
-    QuicInterval<QuicPacketNumber> packet_interval = packet_number_deque_[i];
-    DCHECK(packet_interval.min() < packet_interval.max());
-    // Check if the packet is contained in an interval already
-    if (packet_interval.Contains(packet_number)) {
-      return;
-    }
-
-    // Check if the packet can extend an interval.
-    if (packet_interval.max() == packet_number) {
-      packet_number_deque_[i].SetMax(packet_number + 1);
-      return;
-    }
-    // Check if the packet can extend an interval
-    // and merge two intervals if needed.
-    // There is no need to merge an interval in the previous
-    // if statement, as all merges will happen here.
-    if (packet_interval.min() == packet_number + 1) {
-      packet_number_deque_[i].SetMin(packet_number);
-      if (i > 0 && packet_number == packet_number_deque_[i - 1].max()) {
-        packet_number_deque_[i - 1].SetMax(packet_interval.max());
-        packet_number_deque_.erase(packet_number_deque_.begin() + i);
-      }
-      return;
-    }
-
-    // Check if we need to make a new interval for the packet
-    if (packet_interval.max() < packet_number + 1) {
-      packet_number_deque_.insert(
-          packet_number_deque_.begin() + i + 1,
-          QuicInterval<QuicPacketNumber>(packet_number, packet_number + 1));
-      return;
-    }
-    i--;
-  }
+  packet_number_intervals_.AddOptimizedForAppend(packet_number,
+                                                 packet_number + 1);
 }
 
 void PacketNumberQueue::AddRange(QuicPacketNumber lower,
@@ -164,136 +88,93 @@ void PacketNumberQueue::AddRange(QuicPacketNumber lower,
   if (!lower.IsInitialized() || !higher.IsInitialized() || lower >= higher) {
     return;
   }
-  if (packet_number_deque_.empty()) {
-    packet_number_deque_.push_front(
-        QuicInterval<QuicPacketNumber>(lower, higher));
-    return;
-  }
-  QuicInterval<QuicPacketNumber> back = packet_number_deque_.back();
 
-  if (back.max() == lower) {
-    // Check for the typical case,
-    // when the next packet in order is acked
-    packet_number_deque_.back().SetMax(higher);
-    return;
-  }
-  if (back.max() < lower) {
-    // Check if the next packet in order is skipped
-    packet_number_deque_.push_back(
-        QuicInterval<QuicPacketNumber>(lower, higher));
-    return;
-  }
-  QuicInterval<QuicPacketNumber> front = packet_number_deque_.front();
-  // Check if the packets are being added in reverse order
-  if (front.min() == higher) {
-    packet_number_deque_.front().SetMin(lower);
-  } else if (front.min() > higher) {
-    packet_number_deque_.push_front(
-        QuicInterval<QuicPacketNumber>(lower, higher));
+  const auto new_interval = QuicInterval<QuicPacketNumber>(lower, higher);
 
-  } else {
+  if (!packet_number_intervals_.Empty() &&
+      packet_number_intervals_.SpanningInterval().Intersects(new_interval)) {
+    // TODO(wub): Remove this QUIC_BUG, or the AddRange method entirely.
     // Ranges must be above or below all existing ranges.
     QUIC_BUG << "AddRange only supports adding packets above or below the "
              << "current min:" << Min() << " and max:" << Max()
              << ", but adding [" << lower << "," << higher << ")";
+    return;
   }
+
+  packet_number_intervals_.AddOptimizedForAppend(new_interval);
 }
 
 bool PacketNumberQueue::RemoveUpTo(QuicPacketNumber higher) {
   if (!higher.IsInitialized() || Empty()) {
     return false;
   }
-  const QuicPacketNumber old_min = Min();
-  while (!packet_number_deque_.empty()) {
-    QuicInterval<QuicPacketNumber> front = packet_number_deque_.front();
-    if (front.max() < higher) {
-      packet_number_deque_.pop_front();
-    } else if (front.min() < higher && front.max() >= higher) {
-      packet_number_deque_.front().SetMin(higher);
-      if (front.max() == higher) {
-        packet_number_deque_.pop_front();
-      }
-      break;
-    } else {
-      break;
-    }
-  }
-
-  return Empty() || old_min != Min();
+  return packet_number_intervals_.TrimLessThan(higher);
 }
 
 void PacketNumberQueue::RemoveSmallestInterval() {
-  QUIC_BUG_IF(packet_number_deque_.size() < 2)
+  // TODO(wub): Move this QUIC_BUG to upper level.
+  QUIC_BUG_IF(packet_number_intervals_.Size() < 2)
       << (Empty() ? "No intervals to remove."
                   : "Can't remove the last interval.");
-  packet_number_deque_.pop_front();
+  packet_number_intervals_.PopFront();
 }
 
 void PacketNumberQueue::Clear() {
-  packet_number_deque_.clear();
+  packet_number_intervals_.Clear();
 }
 
 bool PacketNumberQueue::Contains(QuicPacketNumber packet_number) const {
-  if (!packet_number.IsInitialized() || packet_number_deque_.empty()) {
+  if (!packet_number.IsInitialized()) {
     return false;
   }
-  if (packet_number_deque_.front().min() > packet_number ||
-      packet_number_deque_.back().max() <= packet_number) {
-    return false;
-  }
-  for (QuicInterval<QuicPacketNumber> interval : packet_number_deque_) {
-    if (interval.Contains(packet_number)) {
-      return true;
-    }
-  }
-  return false;
+  return packet_number_intervals_.Contains(packet_number);
 }
 
 bool PacketNumberQueue::Empty() const {
-  return packet_number_deque_.empty();
+  return packet_number_intervals_.Empty();
 }
 
 QuicPacketNumber PacketNumberQueue::Min() const {
   DCHECK(!Empty());
-  return packet_number_deque_.front().min();
+  return packet_number_intervals_.begin()->min();
 }
 
 QuicPacketNumber PacketNumberQueue::Max() const {
   DCHECK(!Empty());
-  return packet_number_deque_.back().max() - 1;
+  return packet_number_intervals_.rbegin()->max() - 1;
 }
 
 QuicPacketCount PacketNumberQueue::NumPacketsSlow() const {
   QuicPacketCount n_packets = 0;
-  for (QuicInterval<QuicPacketNumber> interval : packet_number_deque_) {
-    n_packets += PacketNumberIntervalLength(interval);
+  for (const auto& interval : packet_number_intervals_) {
+    n_packets += interval.Length();
   }
   return n_packets;
 }
 
 size_t PacketNumberQueue::NumIntervals() const {
-  return packet_number_deque_.size();
+  return packet_number_intervals_.Size();
 }
 
 PacketNumberQueue::const_iterator PacketNumberQueue::begin() const {
-  return packet_number_deque_.begin();
+  return packet_number_intervals_.begin();
 }
 
 PacketNumberQueue::const_iterator PacketNumberQueue::end() const {
-  return packet_number_deque_.end();
+  return packet_number_intervals_.end();
 }
 
 PacketNumberQueue::const_reverse_iterator PacketNumberQueue::rbegin() const {
-  return packet_number_deque_.rbegin();
+  return packet_number_intervals_.rbegin();
 }
 
 PacketNumberQueue::const_reverse_iterator PacketNumberQueue::rend() const {
-  return packet_number_deque_.rend();
+  return packet_number_intervals_.rend();
 }
 
 QuicPacketCount PacketNumberQueue::LastIntervalLength() const {
   DCHECK(!Empty());
-  return PacketNumberIntervalLength(packet_number_deque_.back());
+  return packet_number_intervals_.rbegin()->Length();
 }
 
 // Largest min...max range for packet numbers where we print the numbers

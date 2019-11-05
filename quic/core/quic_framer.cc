@@ -148,6 +148,7 @@ uint64_t ClosestTo(uint64_t target, uint64_t a, uint64_t b) {
   return (Delta(target, a) < Delta(target, b)) ? a : b;
 }
 
+// TODO(wub): Remove this function & replace the callsites to interval.Length().
 uint64_t PacketNumberIntervalLength(
     const QuicInterval<QuicPacketNumber>& interval) {
   if (interval.Empty()) {

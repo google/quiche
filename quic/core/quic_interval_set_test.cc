@@ -191,6 +191,47 @@ TEST_F(QuicIntervalSetTest, AddOptimizedForAppend) {
   EXPECT_TRUE(Check(iset, 3, 100, 150, 199, 250, 251, 350));
 }
 
+TEST_F(QuicIntervalSetTest, PopFront) {
+  QuicIntervalSet<int> iset{{100, 200}, {400, 500}, {700, 800}};
+  EXPECT_TRUE(Check(iset, 3, 100, 200, 400, 500, 700, 800));
+
+  iset.PopFront();
+  EXPECT_TRUE(Check(iset, 2, 400, 500, 700, 800));
+
+  iset.PopFront();
+  EXPECT_TRUE(Check(iset, 1, 700, 800));
+
+  iset.PopFront();
+  EXPECT_TRUE(iset.Empty());
+}
+
+TEST_F(QuicIntervalSetTest, TrimLessThan) {
+  QuicIntervalSet<int> iset{{100, 200}, {400, 500}, {700, 800}};
+  EXPECT_TRUE(Check(iset, 3, 100, 200, 400, 500, 700, 800));
+
+  EXPECT_FALSE(iset.TrimLessThan(99));
+  EXPECT_FALSE(iset.TrimLessThan(100));
+  EXPECT_TRUE(Check(iset, 3, 100, 200, 400, 500, 700, 800));
+
+  EXPECT_TRUE(iset.TrimLessThan(101));
+  EXPECT_TRUE(Check(iset, 3, 101, 200, 400, 500, 700, 800));
+
+  EXPECT_TRUE(iset.TrimLessThan(199));
+  EXPECT_TRUE(Check(iset, 3, 199, 200, 400, 500, 700, 800));
+
+  EXPECT_TRUE(iset.TrimLessThan(450));
+  EXPECT_TRUE(Check(iset, 2, 450, 500, 700, 800));
+
+  EXPECT_TRUE(iset.TrimLessThan(500));
+  EXPECT_TRUE(Check(iset, 1, 700, 800));
+
+  EXPECT_TRUE(iset.TrimLessThan(801));
+  EXPECT_TRUE(iset.Empty());
+
+  EXPECT_FALSE(iset.TrimLessThan(900));
+  EXPECT_TRUE(iset.Empty());
+}
+
 TEST_F(QuicIntervalSetTest, QuicIntervalSetBasic) {
   // Test Add, Get, Contains and Find
   QuicIntervalSet<int> iset;

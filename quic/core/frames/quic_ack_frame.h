@@ -8,6 +8,7 @@
 #include <ostream>
 
 #include "net/third_party/quiche/src/quic/core/quic_interval.h"
+#include "net/third_party/quiche/src/quic/core/quic_interval_set.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
@@ -28,9 +29,8 @@ class QUIC_EXPORT_PRIVATE PacketNumberQueue {
   PacketNumberQueue& operator=(const PacketNumberQueue& other);
   PacketNumberQueue& operator=(PacketNumberQueue&& other);
 
-  typedef QuicDeque<QuicInterval<QuicPacketNumber>>::const_iterator
-      const_iterator;
-  typedef QuicDeque<QuicInterval<QuicPacketNumber>>::const_reverse_iterator
+  typedef QuicIntervalSet<QuicPacketNumber>::const_iterator const_iterator;
+  typedef QuicIntervalSet<QuicPacketNumber>::const_reverse_iterator
       const_reverse_iterator;
 
   // Adds |packet_number| to the set of packets in the queue.
@@ -38,6 +38,7 @@ class QUIC_EXPORT_PRIVATE PacketNumberQueue {
 
   // Adds packets between [lower, higher) to the set of packets in the queue. It
   // is undefined behavior to call this with |higher| < |lower|.
+  // NOTE(wub): Only used in tests as of Nov 2019.
   void AddRange(QuicPacketNumber lower, QuicPacketNumber higher);
 
   // Removes packets with values less than |higher| from the set of packets in
@@ -86,7 +87,7 @@ class QUIC_EXPORT_PRIVATE PacketNumberQueue {
       const PacketNumberQueue& q);
 
  private:
-  QuicDeque<QuicInterval<QuicPacketNumber>> packet_number_deque_;
+  QuicIntervalSet<QuicPacketNumber> packet_number_intervals_;
 };
 
 struct QUIC_EXPORT_PRIVATE QuicAckFrame {
