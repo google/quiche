@@ -382,7 +382,7 @@ TEST_P(QuicSpdyStreamTest, ProcessHeaderListWithFin) {
   EXPECT_EQ("", stream_->data());
   EXPECT_FALSE(stream_->header_list().empty());
   EXPECT_FALSE(stream_->IsDoneReading());
-  EXPECT_TRUE(stream_->HasFinalReceivedByteOffset());
+  EXPECT_TRUE(stream_->HasReceivedFinalOffset());
 }
 
 // A valid status code should be 3-digit integer. The first digit should be in

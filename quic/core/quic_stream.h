@@ -247,9 +247,7 @@ class QUIC_EXPORT_PRIVATE QuicStream
   // sent. If this is not true on deletion of the stream object, the session
   // must keep track of the stream's byte offset until a definitive final value
   // arrives.
-  bool HasFinalReceivedByteOffset() const {
-    return fin_received_ || rst_received_;
-  }
+  bool HasReceivedFinalOffset() const { return fin_received_ || rst_received_; }
 
   // Returns true if the stream has queued data waiting to write.
   bool HasBufferedData() const;

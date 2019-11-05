@@ -834,7 +834,7 @@ void QuicSession::CloseStreamInner(QuicStreamId stream_id, bool locally_reset) {
   // If we haven't received a FIN or RST for this stream, we need to keep track
   // of the how many bytes the stream's flow controller believes it has
   // received, for accurate connection level flow control accounting.
-  const bool had_fin_or_rst = stream->HasFinalReceivedByteOffset();
+  const bool had_fin_or_rst = stream->HasReceivedFinalOffset();
   if (!had_fin_or_rst) {
     InsertLocallyClosedStreamsHighestOffset(
         stream_id, stream->flow_controller()->highest_received_byte_offset());

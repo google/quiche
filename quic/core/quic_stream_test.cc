@@ -605,38 +605,38 @@ TEST_P(QuicStreamTest, StopReadingSendsFlowControl) {
 TEST_P(QuicStreamTest, FinalByteOffsetFromFin) {
   Initialize();
 
-  EXPECT_FALSE(stream_->HasFinalReceivedByteOffset());
+  EXPECT_FALSE(stream_->HasReceivedFinalOffset());
 
   QuicStreamFrame stream_frame_no_fin(stream_->id(), false, 1234, ".");
   stream_->OnStreamFrame(stream_frame_no_fin);
-  EXPECT_FALSE(stream_->HasFinalReceivedByteOffset());
+  EXPECT_FALSE(stream_->HasReceivedFinalOffset());
 
   QuicStreamFrame stream_frame_with_fin(stream_->id(), true, 1234, ".");
   stream_->OnStreamFrame(stream_frame_with_fin);
-  EXPECT_TRUE(stream_->HasFinalReceivedByteOffset());
+  EXPECT_TRUE(stream_->HasReceivedFinalOffset());
 }
 
 TEST_P(QuicStreamTest, FinalByteOffsetFromRst) {
   Initialize();
 
-  EXPECT_FALSE(stream_->HasFinalReceivedByteOffset());
+  EXPECT_FALSE(stream_->HasReceivedFinalOffset());
   QuicRstStreamFrame rst_frame(kInvalidControlFrameId, stream_->id(),
                                QUIC_STREAM_CANCELLED, 1234);
   stream_->OnStreamReset(rst_frame);
-  EXPECT_TRUE(stream_->HasFinalReceivedByteOffset());
+  EXPECT_TRUE(stream_->HasReceivedFinalOffset());
 }
 
 TEST_P(QuicStreamTest, InvalidFinalByteOffsetFromRst) {
   Initialize();
 
-  EXPECT_FALSE(stream_->HasFinalReceivedByteOffset());
+  EXPECT_FALSE(stream_->HasReceivedFinalOffset());
   QuicRstStreamFrame rst_frame(kInvalidControlFrameId, stream_->id(),
                                QUIC_STREAM_CANCELLED, 0xFFFFFFFFFFFF);
   // Stream should not accept the frame, and the connection should be closed.
   EXPECT_CALL(*connection_,
               CloseConnection(QUIC_FLOW_CONTROL_RECEIVED_TOO_MUCH_DATA, _, _));
   stream_->OnStreamReset(rst_frame);
-  EXPECT_TRUE(stream_->HasFinalReceivedByteOffset());
+  EXPECT_TRUE(stream_->HasReceivedFinalOffset());
   stream_->OnClose();
 }
 
@@ -649,7 +649,7 @@ TEST_P(QuicStreamTest, FinalByteOffsetFromZeroLengthStreamFrame) {
   // ignores such a stream frame.
   Initialize();
 
-  EXPECT_FALSE(stream_->HasFinalReceivedByteOffset());
+  EXPECT_FALSE(stream_->HasReceivedFinalOffset());
   const QuicStreamOffset kByteOffsetExceedingFlowControlWindow =
       kInitialSessionFlowControlWindowForTest + 1;
   const QuicStreamOffset current_stream_flow_control_offset =
@@ -667,7 +667,7 @@ TEST_P(QuicStreamTest, FinalByteOffsetFromZeroLengthStreamFrame) {
 
   EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(0);
   stream_->OnStreamFrame(zero_length_stream_frame_with_fin);
-  EXPECT_TRUE(stream_->HasFinalReceivedByteOffset());
+  EXPECT_TRUE(stream_->HasReceivedFinalOffset());
 
   // The flow control receive offset values should not have changed.
   EXPECT_EQ(
@@ -724,7 +724,7 @@ TEST_P(QuicStreamTest, SetDrainingIncomingOutgoing) {
   QuicStreamFrame stream_frame_with_fin(stream_->id(), true, 1234, ".");
   stream_->OnStreamFrame(stream_frame_with_fin);
   // The FIN has been received but not consumed.
-  EXPECT_TRUE(stream_->HasFinalReceivedByteOffset());
+  EXPECT_TRUE(stream_->HasReceivedFinalOffset());
   EXPECT_FALSE(QuicStreamPeer::read_side_closed(stream_));
   EXPECT_FALSE(stream_->reading_stopped());
 
@@ -763,7 +763,7 @@ TEST_P(QuicStreamTest, SetDrainingOutgoingIncoming) {
   QuicStreamFrame stream_frame_with_fin(stream_->id(), true, 1234, ".");
   stream_->OnStreamFrame(stream_frame_with_fin);
   // The FIN has been received but not consumed.
-  EXPECT_TRUE(stream_->HasFinalReceivedByteOffset());
+  EXPECT_TRUE(stream_->HasReceivedFinalOffset());
   EXPECT_FALSE(QuicStreamPeer::read_side_closed(stream_));
   EXPECT_FALSE(stream_->reading_stopped());
 
@@ -795,7 +795,7 @@ TEST_P(QuicStreamTest, EarlyResponseFinHandling) {
   QuicStreamFrame frame2(stream_->id(), true, 0, "End");
   stream_->OnStreamFrame(frame2);
   EXPECT_TRUE(stream_->fin_received());
-  EXPECT_TRUE(stream_->HasFinalReceivedByteOffset());
+  EXPECT_TRUE(stream_->HasReceivedFinalOffset());
 }
 
 TEST_P(QuicStreamTest, StreamWaitsForAcks) {
