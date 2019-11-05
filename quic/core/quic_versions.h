@@ -193,6 +193,9 @@ struct QUIC_EXPORT_PRIVATE ParsedQuicVersion {
   // i.e., server will send no more than FLAGS_quic_anti_amplification_factor
   // times received bytes until address can be validated.
   bool SupportsAntiAmplificationLimit() const;
+
+  // Returns true if this version can send coalesced packets.
+  bool CanSendCoalescedPackets() const;
 };
 
 QUIC_EXPORT_PRIVATE ParsedQuicVersion UnsupportedQuicVersion();

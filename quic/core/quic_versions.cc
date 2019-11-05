@@ -84,6 +84,11 @@ bool ParsedQuicVersion::SupportsAntiAmplificationLimit() const {
          handshake_protocol == PROTOCOL_TLS1_3;
 }
 
+bool ParsedQuicVersion::CanSendCoalescedPackets() const {
+  return QuicVersionHasLongHeaderLengths(transport_version) &&
+         handshake_protocol == PROTOCOL_TLS1_3;
+}
+
 bool VersionHasLengthPrefixedConnectionIds(
     QuicTransportVersion transport_version) {
   return transport_version > QUIC_VERSION_48;

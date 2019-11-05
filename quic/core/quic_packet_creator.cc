@@ -963,6 +963,7 @@ size_t QuicPacketCreator::SerializeCoalescedPacket(
     QUIC_BUG << "Try to serialize coalesced packet with pending frames";
     return 0;
   }
+  RemoveSoftMaxPacketLength();
   QUIC_BUG_IF(coalesced.length() == 0)
       << "Attempt to serialize empty coalesced packet";
   size_t packet_length = 0;
@@ -1512,7 +1513,8 @@ bool QuicPacketCreator::AddFrame(const QuicFrame& frame,
       packet_.has_crypto_handshake = IS_HANDSHAKE;
     }
   } else {
-    if (populate_nonretransmittable_frames_) {
+    if (populate_nonretransmittable_frames_ ||
+        framer_->version().CanSendCoalescedPackets()) {
       if (frame.type == PADDING_FRAME &&
           frame.padding_frame.num_padding_bytes == -1) {
         // Populate the actual length of full padding frame, such that one can
@@ -1601,6 +1603,25 @@ void QuicPacketCreator::MaybeAddPadding() {
 
   if (packet_.transmission_type == PROBING_RETRANSMISSION) {
     needs_full_padding_ = true;
+  }
+
+  // Packet coalescer pads INITIAL packets, so the creator should not.
+  if (framer_->version().CanSendCoalescedPackets() &&
+      (packet_.encryption_level == ENCRYPTION_INITIAL ||
+       packet_.encryption_level == ENCRYPTION_HANDSHAKE)) {
+    // TODO(fayang): MTU discovery packets should not ever be sent as
+    // ENCRYPTION_INITIAL or ENCRYPTION_HANDSHAKE.
+    bool is_mtu_discovery = false;
+    for (const auto& frame : packet_.nonretransmittable_frames) {
+      if (frame.type == MTU_DISCOVERY_FRAME) {
+        is_mtu_discovery = true;
+        break;
+      }
+    }
+    if (!is_mtu_discovery) {
+      // Do not add full padding if connection tries to coalesce packet.
+      needs_full_padding_ = false;
+    }
   }
 
   // Header protection requires a minimum plaintext packet size.

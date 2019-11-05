@@ -406,6 +406,10 @@ QUIC_EXPORT_PRIVATE void ClearSerializedPacket(
 // Allocates a new char[] of size |packet.encrypted_length| and copies in
 // |packet.encrypted_buffer|.
 QUIC_EXPORT_PRIVATE char* CopyBuffer(const SerializedPacket& packet);
+// Allocates a new char[] of size |encrypted_length| and copies in
+// |encrypted_buffer|.
+QUIC_EXPORT_PRIVATE char* CopyBuffer(const char* encrypted_buffer,
+                                     QuicPacketLength encrypted_length);
 
 struct QUIC_EXPORT_PRIVATE SerializedPacketDeleter {
   void operator()(SerializedPacket* packet) {

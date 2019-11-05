@@ -38,6 +38,10 @@ class QUIC_EXPORT_PRIVATE QuicCoalescedPacket {
     return initial_packet_.get();
   }
 
+  const QuicSocketAddress& self_address() const { return self_address_; }
+
+  const QuicSocketAddress& peer_address() const { return peer_address_; }
+
   QuicPacketLength length() const { return length_; }
 
   QuicPacketLength max_packet_length() const { return max_packet_length_; }

@@ -59,7 +59,9 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
     return true;
   }
 
-  void OnCoalescedPacket(const QuicEncryptedPacket& /*packet*/) override {}
+  void OnCoalescedPacket(const QuicEncryptedPacket& packet) override {
+    coalesced_packet_ = packet.Clone();
+  }
 
   void OnUndecryptablePacket(const QuicEncryptedPacket& /*packet*/,
                              EncryptionLevel /*decryption_level*/,
@@ -253,6 +255,9 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
     return version_negotiation_packet_.get();
   }
   EncryptionLevel last_decrypted_level() const { return last_decrypted_level_; }
+  const QuicEncryptedPacket* coalesced_packet() const {
+    return coalesced_packet_.get();
+  }
 
  private:
   QuicErrorCode error_;
@@ -284,6 +289,7 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
   std::vector<std::unique_ptr<std::string>> stream_data_;
   std::vector<std::unique_ptr<std::string>> crypto_data_;
   EncryptionLevel last_decrypted_level_;
+  std::unique_ptr<QuicEncryptedPacket> coalesced_packet_;
 };
 
 SimpleQuicFramer::SimpleQuicFramer()
@@ -402,6 +408,10 @@ SimpleQuicFramer::connection_close_frames() const {
 
 const std::vector<QuicPaddingFrame>& SimpleQuicFramer::padding_frames() const {
   return visitor_->padding_frames();
+}
+
+const QuicEncryptedPacket* SimpleQuicFramer::coalesced_packet() const {
+  return visitor_->coalesced_packet();
 }
 
 }  // namespace test

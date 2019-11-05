@@ -4,6 +4,7 @@
 
 #include "net/third_party/quiche/src/quic/core/quic_coalesced_packet.h"
 
+#include "net/third_party/quiche/src/quic/platform/api/quic_expect_bug.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 
@@ -65,8 +66,9 @@ TEST(QuicCoalescedPacketTest, MaybeCoalescePacket) {
   SerializedPacket packet6(QuicPacketNumber(6), PACKET_4BYTE_PACKET_NUMBER,
                            buffer, 100, false, false);
   packet6.encryption_level = ENCRYPTION_FORWARD_SECURE;
-  EXPECT_FALSE(coalesced.MaybeCoalescePacket(packet6, self_address,
-                                             peer_address, &allocator, 1000));
+  EXPECT_QUIC_BUG(coalesced.MaybeCoalescePacket(packet6, self_address,
+                                                peer_address, &allocator, 1000),
+                  "Max packet length changes in the middle of the write path");
   EXPECT_EQ(1500u, coalesced.max_packet_length());
   EXPECT_EQ(1000u, coalesced.length());
 }

@@ -51,6 +51,8 @@ std::string HistogramEnumString(WriteStatus enum_value) {
       return "ERROR";
     case WRITE_STATUS_MSG_TOO_BIG:
       return "MSG_TOO_BIG";
+    case WRITE_STATUS_FAILED_TO_COALESCE_PACKET:
+      return "WRITE_STATUS_FAILED_TO_COALESCE_PACKET";
     case WRITE_STATUS_NUM_VALUES:
       return "NUM_VALUES";
   }
@@ -521,6 +523,17 @@ std::string PacketNumberSpaceToString(PacketNumberSpace packet_number_space) {
     default:
       return QuicStrCat("Unknown(", static_cast<int>(packet_number_space), ")");
       break;
+  }
+}
+
+std::string SerializedPacketFateToString(SerializedPacketFate fate) {
+  switch (fate) {
+    RETURN_STRING_LITERAL(COALESCE);
+    RETURN_STRING_LITERAL(BUFFER);
+    RETURN_STRING_LITERAL(SEND_TO_WRITER);
+    RETURN_STRING_LITERAL(FAILED_TO_WRITE_COALESCED_PACKET);
+    default:
+      return QuicStrCat("Unknown(", static_cast<int>(fate), ")");
   }
 }
 

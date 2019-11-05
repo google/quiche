@@ -46,8 +46,7 @@ bool QuicCoalescedPacket::MaybeCoalescePacket(
       return false;
     }
     if (max_packet_length_ != current_max_packet_length) {
-      QUIC_DLOG(INFO)
-          << "Do not try to coalesce packet when max packet length changed.";
+      QUIC_BUG << "Max packet length changes in the middle of the write path";
       return false;
     }
     if (!encrypted_buffers_[packet.encryption_level].empty() ||
@@ -67,6 +66,9 @@ bool QuicCoalescedPacket::MaybeCoalescePacket(
                 << ", encrypted_length: " << packet.encrypted_length
                 << ", current length: " << length_
                 << ", max_packet_length: " << max_packet_length_;
+  if (length_ > 0) {
+    QUIC_CODE_COUNT(QUIC_SUCCESSFULLY_COALESCED_MULTIPLE_PACKETS);
+  }
   length_ += packet.encrypted_length;
   if (packet.encryption_level == ENCRYPTION_INITIAL) {
     // Save a copy of ENCRYPTION_INITIAL packet (excluding encrypted buffer, as

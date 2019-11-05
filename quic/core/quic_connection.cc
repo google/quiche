@@ -179,6 +179,17 @@ class ProcessUndecryptablePacketsAlarmDelegate : public QuicAlarm::Delegate {
   QuicConnection* connection_;
 };
 
+// When the clearer goes out of scope, the coalesced packet gets cleared.
+class ScopedCoalescedPacketClearer {
+ public:
+  explicit ScopedCoalescedPacketClearer(QuicCoalescedPacket* coalesced)
+      : coalesced_(coalesced) {}
+  ~ScopedCoalescedPacketClearer() { coalesced_->Clear(); }
+
+ private:
+  QuicCoalescedPacket* coalesced_;  // Unowned.
+};
+
 // Whether this incoming packet is allowed to replace our connection ID.
 bool PacketCanReplaceConnectionId(const QuicPacketHeader& header,
                                   Perspective perspective) {
@@ -327,7 +338,8 @@ QuicConnection::QuicConnection(
       bytes_sent_before_address_validation_(0),
       address_validated_(false),
       treat_queued_packets_as_sent_(
-          GetQuicReloadableFlag(quic_treat_queued_packets_as_sent)),
+          GetQuicReloadableFlag(quic_treat_queued_packets_as_sent) ||
+          version().CanSendCoalescedPackets()),
       mtu_discovery_v2_(GetQuicReloadableFlag(quic_mtu_discovery_v2)) {
   QUIC_DLOG(INFO) << ENDPOINT << "Created connection with server connection ID "
                   << server_connection_id
@@ -2197,7 +2209,8 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
                     ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return true;
   }
-  SerializedPacketFate fate = DeterminePacketFate();
+  SerializedPacketFate fate = DeterminePacketFate(
+      /*is_mtu_discovery=*/packet->encrypted_length > long_term_mtu_);
   // Termination packets are encrypted and saved, so don't exit early.
   const bool is_termination_packet = IsTerminationPacket(*packet);
   if (!treat_queued_packets_as_sent_ && HandleWriteBlocked() &&
@@ -2238,7 +2251,8 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
                         : " ack only ")
                 << ", encryption level: "
                 << EncryptionLevelToString(packet->encryption_level)
-                << ", encrypted length:" << encrypted_length;
+                << ", encrypted length:" << encrypted_length
+                << ", fate: " << SerializedPacketFateToString(fate);
   QUIC_DVLOG(2) << ENDPOINT << "packet(" << packet_number << "): " << std::endl
                 << QuicTextUtils::HexDump(QuicStringPiece(
                        packet->encrypted_buffer, encrypted_length));
@@ -2261,7 +2275,34 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
   WriteResult result(WRITE_STATUS_OK, encrypted_length);
   switch (fate) {
     case COALESCE:
-      DCHECK(false);
+      QUIC_BUG_IF(!version().CanSendCoalescedPackets());
+      if (!coalesced_packet_.MaybeCoalescePacket(
+              *packet, self_address(), peer_address(),
+              helper_->GetStreamSendBufferAllocator(),
+              packet_generator_.GetCurrentMaxPacketLength())) {
+        // Failed to coalesce packet, flush current coalesced packet.
+        if (!FlushCoalescedPacket()) {
+          // Failed to flush coalesced packet, write error has been handled.
+          return false;
+        }
+        if (!coalesced_packet_.MaybeCoalescePacket(
+                *packet, self_address(), peer_address(),
+                helper_->GetStreamSendBufferAllocator(),
+                packet_generator_.GetCurrentMaxPacketLength())) {
+          // Failed to coalesce packet even it is the only packet, raise a write
+          // error.
+          QUIC_DLOG(ERROR) << ENDPOINT << "Failed to coalesce packet";
+          result.error_code = WRITE_STATUS_FAILED_TO_COALESCE_PACKET;
+          break;
+        }
+      }
+      if (coalesced_packet_.length() < coalesced_packet_.max_packet_length()) {
+        QUIC_DVLOG(1) << ENDPOINT << "Trying to set soft max packet length to "
+                      << coalesced_packet_.max_packet_length() -
+                             coalesced_packet_.length();
+        packet_generator_.SetSoftMaxPacketLength(
+            coalesced_packet_.max_packet_length() - coalesced_packet_.length());
+      }
       break;
     case BUFFER:
       DCHECK(treat_queued_packets_as_sent_);
@@ -2275,6 +2316,11 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
                                     self_address().host(), peer_address(),
                                     per_packet_options_);
       break;
+    case FAILED_TO_WRITE_COALESCED_PACKET:
+      // Failed to send existing coalesced packet when determining packet fate,
+      // write error has been handled.
+      QUIC_BUG_IF(!version().CanSendCoalescedPackets());
+      return false;
     default:
       DCHECK(false);
       break;
@@ -2473,6 +2519,12 @@ void QuicConnection::OnWriteError(int error_code) {
 }
 
 char* QuicConnection::GetPacketBuffer() {
+  if (version().CanSendCoalescedPackets() &&
+      !sent_packet_manager_.forward_secure_packet_acked()) {
+    // Do not use writer's packet buffer for coalesced packets which may contain
+    // multiple QUIC packets.
+    return nullptr;
+  }
   return writer_->GetNextWriteLocation(self_address().host(), peer_address());
 }
 
@@ -2838,12 +2890,13 @@ void QuicConnection::MaybeProcessUndecryptablePackets() {
 
 void QuicConnection::QueueCoalescedPacket(const QuicEncryptedPacket& packet) {
   QUIC_DVLOG(1) << ENDPOINT << "Queueing coalesced packet.";
-  coalesced_packets_.push_back(packet.Clone());
+  received_coalesced_packets_.push_back(packet.Clone());
+  ++stats_.num_coalesced_packets_received;
 }
 
 void QuicConnection::MaybeProcessCoalescedPackets() {
   bool processed = false;
-  while (connected_ && !coalesced_packets_.empty()) {
+  while (connected_ && !received_coalesced_packets_.empty()) {
     // Making sure there are no pending frames when processing the next
     // coalesced packet because the queued ack frame may change.
     packet_generator_.FlushAllQueuedFrames();
@@ -2852,12 +2905,13 @@ void QuicConnection::MaybeProcessCoalescedPackets() {
     }
 
     std::unique_ptr<QuicEncryptedPacket> packet =
-        std::move(coalesced_packets_.front());
-    coalesced_packets_.pop_front();
+        std::move(received_coalesced_packets_.front());
+    received_coalesced_packets_.pop_front();
 
     QUIC_DVLOG(1) << ENDPOINT << "Processing coalesced packet";
     if (framer_.ProcessPacket(*packet)) {
       processed = true;
+      ++stats_.num_coalesced_packets_processed;
     } else {
       // If we are unable to decrypt this packet, it might be
       // because the CHLO or SHLO packet was lost.
@@ -2895,6 +2949,9 @@ void QuicConnection::SendConnectionClosePacket(QuicErrorCode error,
   if (!GetQuicReloadableFlag(quic_close_all_encryptions_levels)) {
     QUIC_DLOG(INFO) << ENDPOINT << "Sending connection close packet.";
     SetDefaultEncryptionLevel(GetConnectionCloseEncryptionLevel());
+    if (version().CanSendCoalescedPackets()) {
+      coalesced_packet_.Clear();
+    }
     ClearQueuedPackets();
     // If there was a packet write error, write the smallest close possible.
     ScopedPacketFlusher flusher(this);
@@ -2911,6 +2968,9 @@ void QuicConnection::SendConnectionClosePacket(QuicErrorCode error,
                                          framer_.current_received_frame_type());
     packet_generator_.ConsumeRetransmittableControlFrame(QuicFrame(frame));
     packet_generator_.FlushAllQueuedFrames();
+    if (version().CanSendCoalescedPackets()) {
+      FlushCoalescedPacket();
+    }
     ClearQueuedPackets();
     return;
   }
@@ -2926,6 +2986,9 @@ void QuicConnection::SendConnectionClosePacket(QuicErrorCode error,
     QUIC_DLOG(INFO) << ENDPOINT << "Sending connection close packet at level: "
                     << EncryptionLevelToString(level);
     SetDefaultEncryptionLevel(level);
+    if (version().CanSendCoalescedPackets()) {
+      coalesced_packet_.Clear();
+    }
     ClearQueuedPackets();
     // If there was a packet write error, write the smallest close possible.
     // When multiple packet number spaces are supported, an ACK frame will
@@ -2941,6 +3004,12 @@ void QuicConnection::SendConnectionClosePacket(QuicErrorCode error,
                                      framer_.current_received_frame_type());
     packet_generator_.ConsumeRetransmittableControlFrame(QuicFrame(frame));
     packet_generator_.FlushAllQueuedFrames();
+    if (!version().CanSendCoalescedPackets()) {
+      ClearQueuedPackets();
+    }
+  }
+  if (version().CanSendCoalescedPackets()) {
+    FlushCoalescedPacket();
     ClearQueuedPackets();
   }
   SetDefaultEncryptionLevel(current_encryption_level);
@@ -3269,6 +3338,9 @@ QuicConnection::ScopedPacketFlusher::~ScopedPacketFlusher() {
       }
     }
     connection_->packet_generator_.Flush();
+    if (connection_->version().CanSendCoalescedPackets()) {
+      connection_->FlushCoalescedPacket();
+    }
     connection_->FlushPackets();
     // Reset transmission type.
     connection_->SetTransmissionType(NOT_RETRANSMISSION);
@@ -3307,6 +3379,16 @@ QuicConnection::BufferedPacket::BufferedPacket(
     const QuicSocketAddress& self_address,
     const QuicSocketAddress& peer_address)
     : encrypted_buffer(CopyBuffer(packet), packet.encrypted_length),
+      self_address(self_address),
+      peer_address(peer_address) {}
+
+QuicConnection::BufferedPacket::BufferedPacket(
+    char* encrypted_buffer,
+    QuicPacketLength encrypted_length,
+    const QuicSocketAddress& self_address,
+    const QuicSocketAddress& peer_address)
+    : encrypted_buffer(CopyBuffer(encrypted_buffer, encrypted_length),
+                       encrypted_length),
       self_address(self_address),
       peer_address(peer_address) {}
 
@@ -3906,6 +3988,65 @@ void QuicConnection::SendAllPendingAcks() {
   visitor_->OnAckNeedsRetransmittableFrame();
 }
 
+bool QuicConnection::FlushCoalescedPacket() {
+  ScopedCoalescedPacketClearer clearer(&coalesced_packet_);
+  if (!version().CanSendCoalescedPackets()) {
+    QUIC_BUG_IF(coalesced_packet_.length() > 0);
+    return true;
+  }
+  if (coalesced_packet_.length() == 0) {
+    return true;
+  }
+  QUIC_DVLOG(1) << ENDPOINT << "Sending coalesced packet";
+  char buffer[kMaxOutgoingPacketSize];
+  const size_t length = packet_generator_.SerializeCoalescedPacket(
+      coalesced_packet_, buffer, coalesced_packet_.max_packet_length());
+  if (length == 0) {
+    return false;
+  }
+
+  if (!buffered_packets_.empty() || HandleWriteBlocked()) {
+    QUIC_DVLOG(1) << ENDPOINT
+                  << "Buffering coalesced packet of len: " << length;
+    buffered_packets_.emplace_back(buffer, length,
+                                   coalesced_packet_.self_address(),
+                                   coalesced_packet_.peer_address());
+    return true;
+  }
+
+  WriteResult result = writer_->WritePacket(
+      buffer, length, coalesced_packet_.self_address().host(),
+      coalesced_packet_.peer_address(), per_packet_options_);
+  if (IsWriteError(result.status)) {
+    OnWriteError(result.error_code);
+    return false;
+  }
+  if (IsWriteBlockedStatus(result.status)) {
+    visitor_->OnWriteBlocked();
+    if (result.status != WRITE_STATUS_BLOCKED_DATA_BUFFERED) {
+      QUIC_DVLOG(1) << ENDPOINT
+                    << "Buffering coalesced packet of len: " << length;
+      buffered_packets_.emplace_back(buffer, length,
+                                     coalesced_packet_.self_address(),
+                                     coalesced_packet_.peer_address());
+    }
+  }
+  // Account for added padding.
+  if (length > coalesced_packet_.length()) {
+    size_t padding_size = length - coalesced_packet_.length();
+    if (EnforceAntiAmplificationLimit()) {
+      bytes_sent_before_address_validation_ += padding_size;
+    }
+    stats_.bytes_sent += padding_size;
+    if (coalesced_packet_.initial_packet() != nullptr &&
+        coalesced_packet_.initial_packet()->transmission_type !=
+            NOT_RETRANSMISSION) {
+      stats_.bytes_retransmitted += padding_size;
+    }
+  }
+  return true;
+}
+
 void QuicConnection::MaybeEnableMultiplePacketNumberSpacesSupport() {
   if (version().handshake_protocol != PROTOCOL_TLS1_3) {
     return;
@@ -3972,9 +4113,23 @@ bool QuicConnection::LimitedByAmplificationFactor() const {
                  bytes_received_before_address_validation_;
 }
 
-QuicConnection::SerializedPacketFate QuicConnection::DeterminePacketFate() {
-  if (treat_queued_packets_as_sent_ &&
-      (!buffered_packets_.empty() || HandleWriteBlocked())) {
+SerializedPacketFate QuicConnection::DeterminePacketFate(
+    bool is_mtu_discovery) {
+  if (!treat_queued_packets_as_sent_) {
+    return SEND_TO_WRITER;
+  }
+  if (version().CanSendCoalescedPackets() &&
+      !sent_packet_manager_.forward_secure_packet_acked() &&
+      !is_mtu_discovery) {
+    // Before receiving ACK for any 1-RTT packets, always try to coalesce
+    // packet (except MTU discovery packet).
+    return COALESCE;
+  }
+  // Packet cannot be coalesced, flush existing coalesced packet.
+  if (version().CanSendCoalescedPackets() && !FlushCoalescedPacket()) {
+    return FAILED_TO_WRITE_COALESCED_PACKET;
+  }
+  if (!buffered_packets_.empty() || HandleWriteBlocked()) {
     return BUFFER;
   }
   return SEND_TO_WRITER;

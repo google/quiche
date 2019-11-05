@@ -109,6 +109,11 @@ struct QUIC_EXPORT_PRIVATE QuicConnectionStats {
 
   // Whether a RETRY packet was successfully processed.
   bool retry_packet_processed;
+
+  // Number of received coalesced packets.
+  uint64_t num_coalesced_packets_received;
+  // Number of successfully processed coalesced packets.
+  uint64_t num_coalesced_packets_processed;
 };
 
 }  // namespace quic

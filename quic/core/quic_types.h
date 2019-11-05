@@ -95,6 +95,7 @@ enum WriteStatus {
   // - Errors MUST be added after WRITE_STATUS_ERROR.
   WRITE_STATUS_ERROR,
   WRITE_STATUS_MSG_TOO_BIG,
+  WRITE_STATUS_FAILED_TO_COALESCE_PACKET,
   WRITE_STATUS_NUM_VALUES,
 };
 
@@ -666,6 +667,18 @@ enum AckResult {
                             // cannot be processed by the peer.
   PACKETS_ACKED_IN_WRONG_PACKET_NUMBER_SPACE,
 };
+
+// Indicates the fate of a serialized packet in WritePacket().
+enum SerializedPacketFate : uint8_t {
+  COALESCE,                          // Try to coalesce packet.
+  BUFFER,                            // Buffer packet in buffered_packets_.
+  SEND_TO_WRITER,                    // Send packet to writer.
+  FAILED_TO_WRITE_COALESCED_PACKET,  // Packet cannot be coalesced, error occurs
+                                     // when sending existing coalesced packet.
+};
+
+QUIC_EXPORT_PRIVATE std::string SerializedPacketFateToString(
+    SerializedPacketFate fate);
 
 // There are three different forms of CONNECTION_CLOSE.
 typedef enum QuicConnectionCloseType {

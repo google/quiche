@@ -48,7 +48,9 @@ QuicConnectionStats::QuicConnectionStats()
       blocked_frames_received(0),
       blocked_frames_sent(0),
       num_connectivity_probing_received(0),
-      retry_packet_processed(false) {}
+      retry_packet_processed(false),
+      num_coalesced_packets_received(0),
+      num_coalesced_packets_processed(0) {}
 
 QuicConnectionStats::QuicConnectionStats(const QuicConnectionStats& other) =
     default;
@@ -98,6 +100,9 @@ std::ostream& operator<<(std::ostream& os, const QuicConnectionStats& s) {
      << s.num_connectivity_probing_received;
   os << " retry_packet_processed: "
      << (s.retry_packet_processed ? "yes" : "no");
+  os << " num_coalesced_packets_received: " << s.num_coalesced_packets_received;
+  os << " num_coalesced_packets_processed: "
+     << s.num_coalesced_packets_processed;
   os << " }";
 
   return os;

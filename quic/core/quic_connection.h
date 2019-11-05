@@ -887,6 +887,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // or the one sent after an IETF Retry.
   void InstallInitialCrypters(QuicConnectionId connection_id);
 
+  bool treat_queued_packets_as_sent() const {
+    return treat_queued_packets_as_sent_;
+  }
+
  protected:
   // Calls cancel() on all the alarms owned by this connection.
   void CancelAllAlarms();
@@ -968,19 +972,16 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   typedef std::list<SerializedPacket> QueuedPacketList;
 
-  // Indicates the fate of a serialized packet in WritePacket().
-  enum SerializedPacketFate : uint8_t {
-    COALESCE,        // Try to coalesce packet.
-    BUFFER,          // Buffer packet in buffered_packets_.
-    SEND_TO_WRITER,  // Send packet to writer.
-  };
-
   // BufferedPacket stores necessary information (encrypted buffer and self/peer
   // addresses) of those packets which are serialized but failed to send because
   // socket is blocked. From unacked packet map and send algorithm's
   // perspective, buffered packets are treated as sent.
   struct QUIC_EXPORT_PRIVATE BufferedPacket {
     BufferedPacket(const SerializedPacket& packet,
+                   const QuicSocketAddress& self_address,
+                   const QuicSocketAddress& peer_address);
+    BufferedPacket(char* encrypted_buffer,
+                   QuicPacketLength encrypted_length,
                    const QuicSocketAddress& self_address,
                    const QuicSocketAddress& peer_address);
     BufferedPacket(const BufferedPacket& other) = delete;
@@ -1137,8 +1138,12 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // and flags.
   void MaybeEnableMultiplePacketNumberSpacesSupport();
 
-  // Returns packet fate when trying to write a packet.
-  SerializedPacketFate DeterminePacketFate();
+  // Returns packet fate when trying to write a packet via WritePacket().
+  SerializedPacketFate DeterminePacketFate(bool is_mtu_discovery);
+
+  // Serialize and send coalesced_packet. Returns false if serialization fails
+  // or the write causes errors, otherwise, returns true.
+  bool FlushCoalescedPacket();
 
   // Returns the encryption level the connection close packet should be sent at,
   // which is the highest encryption level that peer can guarantee to process.
@@ -1250,7 +1255,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // Collection of coalesced packets which were received while processing
   // the current packet.
-  QuicDeque<std::unique_ptr<QuicEncryptedPacket>> coalesced_packets_;
+  QuicDeque<std::unique_ptr<QuicEncryptedPacket>> received_coalesced_packets_;
 
   // Maximum number of undecryptable packets the connection will store.
   size_t max_undecryptable_packets_;
@@ -1502,6 +1507,11 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // perspective, those packets are considered sent. This is only used when
   // treat_queued_packets_as_sent_ is true.
   std::list<BufferedPacket> buffered_packets_;
+
+  // Used to coalesce packets of different encryption level into the same UDP
+  // datagram. Connection stops trying to coalesce packets if a forward secure
+  // packet gets acknowledged.
+  QuicCoalescedPacket coalesced_packet_;
 
   // Latched value of quic_treat_queued_packets_as_sent.
   const bool treat_queued_packets_as_sent_;

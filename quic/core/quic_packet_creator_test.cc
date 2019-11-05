@@ -539,8 +539,10 @@ TEST_P(QuicPacketCreatorTest, CryptoStreamFramePacketPadding) {
     // If there is not enough space in the packet to fit a padding frame
     // (1 byte) and to expand the stream frame (another 2 bytes) the packet
     // will not be padded.
-    if (bytes_free < 3 &&
-        !QuicVersionUsesCryptoFrames(client_framer_.transport_version())) {
+    // Padding is skipped when we try to send coalesced packets.
+    if ((bytes_free < 3 &&
+         !QuicVersionUsesCryptoFrames(client_framer_.transport_version())) ||
+        client_framer_.version().CanSendCoalescedPackets()) {
       EXPECT_EQ(kDefaultMaxPacketSize - bytes_free,
                 serialized_packet_.encrypted_length);
     } else {
@@ -2072,7 +2074,8 @@ TEST_P(QuicPacketCreatorTest, CoalesceStreamFrames) {
 }
 
 TEST_P(QuicPacketCreatorTest, SaveNonRetransmittableFrames) {
-  if (!GetQuicReloadableFlag(quic_populate_nonretransmittable_frames)) {
+  if (!GetQuicReloadableFlag(quic_populate_nonretransmittable_frames) &&
+      !client_framer_.version().CanSendCoalescedPackets()) {
     return;
   }
   QuicAckFrame ack_frame(InitAckFrame(1));

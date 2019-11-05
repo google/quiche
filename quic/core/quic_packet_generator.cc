@@ -522,6 +522,18 @@ void QuicPacketGenerator::SetClientConnectionId(
   packet_creator_.SetClientConnectionId(client_connection_id);
 }
 
+size_t QuicPacketGenerator::SerializeCoalescedPacket(
+    const QuicCoalescedPacket& coalesced,
+    char* buffer,
+    size_t buffer_len) {
+  return packet_creator_.SerializeCoalescedPacket(coalesced, buffer,
+                                                  buffer_len);
+}
+
+void QuicPacketGenerator::SetSoftMaxPacketLength(QuicByteCount length) {
+  packet_creator_.SetSoftMaxPacketLength(length);
+}
+
 void QuicPacketGenerator::set_fully_pad_crypto_handshake_packets(
     bool new_value) {
   if (packet_creator_.combine_generator_and_creator()) {

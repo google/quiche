@@ -211,6 +211,17 @@ class QUIC_EXPORT_PRIVATE QuicPacketGenerator {
   // Update the client connection ID used in outgoing packets.
   void SetClientConnectionId(QuicConnectionId client_connection_id);
 
+  // Serializes |coalesced| to provided |buffer|, returns coalesced packet
+  // length if serialization succeeds. Otherwise, returns 0.
+  size_t SerializeCoalescedPacket(const QuicCoalescedPacket& coalesced,
+                                  char* buffer,
+                                  size_t buffer_len);
+
+  // Set a soft maximum packet length in the creator. If a packet cannot be
+  // successfully created, creator will remove the soft limit and use the actual
+  // max packet length.
+  void SetSoftMaxPacketLength(QuicByteCount length);
+
   void set_debug_delegate(QuicPacketCreator::DebugDelegate* debug_delegate) {
     packet_creator_.set_debug_delegate(debug_delegate);
   }

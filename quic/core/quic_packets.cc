@@ -526,6 +526,13 @@ char* CopyBuffer(const SerializedPacket& packet) {
   return dst_buffer;
 }
 
+char* CopyBuffer(const char* encrypted_buffer,
+                 QuicPacketLength encrypted_length) {
+  char* dst_buffer = new char[encrypted_length];
+  memcpy(dst_buffer, encrypted_buffer, encrypted_length);
+  return dst_buffer;
+}
+
 ReceivedPacketInfo::ReceivedPacketInfo(const QuicSocketAddress& self_address,
                                        const QuicSocketAddress& peer_address,
                                        const QuicReceivedPacket& packet)
