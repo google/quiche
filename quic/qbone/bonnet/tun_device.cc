@@ -30,7 +30,9 @@ TunDevice::TunDevice(const string& interface_name,
       kernel_(*kernel) {}
 
 TunDevice::~TunDevice() {
-  Down();
+  if (!persist_) {
+    Down();
+  }
   CleanUpFileDescriptor();
 }
 
