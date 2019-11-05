@@ -119,7 +119,7 @@ enum QuicTransportVersion {
 };
 
 // IETF draft version most closely approximated by TLS + v99.
-static const int kQuicIetfDraftVersion = 23;
+static const int kQuicIetfDraftVersion = 24;
 
 // The crypto handshake protocols that can be used with QUIC.
 enum HandshakeProtocol {

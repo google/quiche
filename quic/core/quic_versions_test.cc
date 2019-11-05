@@ -464,7 +464,9 @@ TEST_F(QuicVersionsTest, AlpnForVersion) {
   EXPECT_EQ("h3-T049", AlpnForVersion(parsed_version_t049));
   EXPECT_EQ("h3-Q050", AlpnForVersion(parsed_version_q050));
   EXPECT_EQ("h3-T050", AlpnForVersion(parsed_version_t050));
-  EXPECT_EQ("h3-23", AlpnForVersion(parsed_version_t099));
+  EXPECT_EQ("h3-24", AlpnForVersion(parsed_version_t099));
+  static_assert(kQuicIetfDraftVersion == 24,
+                "ALPN does not match draft version");
 }
 
 TEST_F(QuicVersionsTest, QuicEnableVersion) {

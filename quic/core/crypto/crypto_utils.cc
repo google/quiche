@@ -109,8 +109,8 @@ void CryptoUtils::SetKeyAndIV(const EVP_MD* prf,
 
 namespace {
 
-static_assert(kQuicIetfDraftVersion == 23, "Salts do not match draft version");
-// Salt from https://tools.ietf.org/html/draft-ietf-quic-tls-23#section-5.2
+static_assert(kQuicIetfDraftVersion == 24, "Salts do not match draft version");
+// Salt from https://tools.ietf.org/html/draft-ietf-quic-tls-24#section-5.2
 const uint8_t kDraft23InitialSalt[] = {0xc3, 0xee, 0xf7, 0x12, 0xc7, 0x2e, 0xbb,
                                        0x5a, 0x11, 0xa7, 0xd2, 0x43, 0x2b, 0xb4,
                                        0x63, 0x65, 0xbe, 0xf9, 0xf5, 0x02};
