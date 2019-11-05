@@ -148,15 +148,6 @@ uint64_t ClosestTo(uint64_t target, uint64_t a, uint64_t b) {
   return (Delta(target, a) < Delta(target, b)) ? a : b;
 }
 
-// TODO(wub): Remove this function & replace the callsites to interval.Length().
-uint64_t PacketNumberIntervalLength(
-    const QuicInterval<QuicPacketNumber>& interval) {
-  if (interval.Empty()) {
-    return 0u;
-  }
-  return interval.max() - interval.min();
-}
-
 QuicPacketNumberLength ReadSequenceNumberLength(uint8_t flags) {
   switch (flags & PACKET_FLAGS_8BYTE_PACKET) {
     case PACKET_FLAGS_8BYTE_PACKET:
@@ -1699,12 +1690,11 @@ bool QuicFramer::ProcessIetfDataPacket(QuicDataReader* encrypted_reader,
         return true;
       }
       if (hp_removal_failed) {
-          const EncryptionLevel decryption_level = GetEncryptionLevel(*header);
-          const bool has_decryption_key =
-              decrypter_[decryption_level] != nullptr;
-          visitor_->OnUndecryptablePacket(
-              QuicEncryptedPacket(encrypted_reader->FullPayload()),
-              decryption_level, has_decryption_key);
+        const EncryptionLevel decryption_level = GetEncryptionLevel(*header);
+        const bool has_decryption_key = decrypter_[decryption_level] != nullptr;
+        visitor_->OnUndecryptablePacket(
+            QuicEncryptedPacket(encrypted_reader->FullPayload()),
+            decryption_level, has_decryption_key);
         set_detailed_error("Unable to decrypt header protection.");
         return RaiseError(QUIC_DECRYPTION_FAILURE);
       }
@@ -1763,12 +1753,12 @@ bool QuicFramer::ProcessIetfDataPacket(QuicDataReader* encrypted_reader,
       visitor_->OnAuthenticatedIetfStatelessResetPacket(packet);
       return true;
     }
-      const EncryptionLevel decryption_level = GetEncryptionLevel(*header);
-      const bool has_decryption_key = version_.KnowsWhichDecrypterToUse() &&
-                                      decrypter_[decryption_level] != nullptr;
-      visitor_->OnUndecryptablePacket(
-          QuicEncryptedPacket(encrypted_reader->FullPayload()),
-          decryption_level, has_decryption_key);
+    const EncryptionLevel decryption_level = GetEncryptionLevel(*header);
+    const bool has_decryption_key = version_.KnowsWhichDecrypterToUse() &&
+                                    decrypter_[decryption_level] != nullptr;
+    visitor_->OnUndecryptablePacket(
+        QuicEncryptedPacket(encrypted_reader->FullPayload()), decryption_level,
+        has_decryption_key);
     set_detailed_error("Unable to decrypt payload.");
     RecordDroppedPacketReason(DroppedPacketReason::DECRYPTION_FAILURE);
     return RaiseError(QUIC_DECRYPTION_FAILURE);
@@ -1850,13 +1840,13 @@ bool QuicFramer::ProcessDataPacket(QuicDataReader* encrypted_reader,
   EncryptionLevel decrypted_level;
   if (!DecryptPayload(encrypted, associated_data, *header, decrypted_buffer,
                       buffer_length, &decrypted_length, &decrypted_level)) {
-      const EncryptionLevel decryption_level = decrypter_level_;
-      // This version uses trial decryption so we always report to our visitor
-      // that we are not certain we have the correct decryption key.
-      const bool has_decryption_key = false;
-      visitor_->OnUndecryptablePacket(
-          QuicEncryptedPacket(encrypted_reader->FullPayload()),
-          decryption_level, has_decryption_key);
+    const EncryptionLevel decryption_level = decrypter_level_;
+    // This version uses trial decryption so we always report to our visitor
+    // that we are not certain we have the correct decryption key.
+    const bool has_decryption_key = false;
+    visitor_->OnUndecryptablePacket(
+        QuicEncryptedPacket(encrypted_reader->FullPayload()), decryption_level,
+        has_decryption_key);
     RecordDroppedPacketReason(DroppedPacketReason::DECRYPTION_FAILURE);
     set_detailed_error("Unable to decrypt payload.");
     return RaiseError(QUIC_DECRYPTION_FAILURE);
@@ -2346,7 +2336,7 @@ QuicFramer::AckFrameInfo QuicFramer::GetAckFrameInfo(
   new_ack_info.first_block_length = frame.packets.LastIntervalLength();
   auto itr = frame.packets.rbegin();
   QuicPacketNumber previous_start = itr->min();
-  new_ack_info.max_block_length = PacketNumberIntervalLength(*itr);
+  new_ack_info.max_block_length = itr->Length();
   ++itr;
 
   // Don't do any more work after getting information for 256 ACK blocks; any
@@ -2359,8 +2349,8 @@ QuicFramer::AckFrameInfo QuicFramer::GetAckFrameInfo(
     new_ack_info.num_ack_blocks +=
         (total_gap + std::numeric_limits<uint8_t>::max() - 1) /
         std::numeric_limits<uint8_t>::max();
-    new_ack_info.max_block_length = std::max(
-        new_ack_info.max_block_length, PacketNumberIntervalLength(interval));
+    new_ack_info.max_block_length =
+        std::max(new_ack_info.max_block_length, interval.Length());
   }
   return new_ack_info;
 }
@@ -5190,8 +5180,8 @@ bool QuicFramer::AppendAckFrameAndTypeByte(const QuicAckFrame& frame,
           total_gap -
           (num_encoded_gaps - 1) * std::numeric_limits<uint8_t>::max();
       // Append the final ACK block with a non-empty size.
-      if (!AppendAckBlock(last_gap, ack_block_length,
-                          PacketNumberIntervalLength(interval), writer)) {
+      if (!AppendAckBlock(last_gap, ack_block_length, interval.Length(),
+                          writer)) {
         return false;
       }
       ++num_ack_blocks_written;
