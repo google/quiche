@@ -134,9 +134,6 @@ class QuicMemoryCacheBackend : public QuicSimpleServerBackend {
   // 'response'.
   void AddDefaultResponse(QuicBackendResponse* response);
 
-  // |cache_cirectory| can be generated using `wget -p --save-headers <url>`.
-  void InitializeFromDirectory(const std::string& cache_directory);
-
   // Once called, URLs which have a numeric path will send a dynamically
   // generated response of that many bytes.
   void GenerateDynamicResponses();
