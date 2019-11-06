@@ -376,30 +376,27 @@ TEST_F(QuicFramesTest, AddInterval) {
   EXPECT_EQ(QuicPacketNumber(1u), ack_frame1.packets.Min());
   EXPECT_EQ(QuicPacketNumber(99u), ack_frame1.packets.Max());
 
-  std::vector<QuicInterval<QuicPacketNumber>> expected_intervals;
-  expected_intervals.emplace_back(QuicInterval<QuicPacketNumber>(
-      QuicPacketNumber(1), QuicPacketNumber(10)));
-  expected_intervals.emplace_back(QuicInterval<QuicPacketNumber>(
-      QuicPacketNumber(50), QuicPacketNumber(100)));
+  std::vector<QuicInterval<QuicPacketNumber>> expected_intervals{
+      {QuicPacketNumber(1), QuicPacketNumber(10)},
+      {QuicPacketNumber(50), QuicPacketNumber(100)},
+  };
 
   const std::vector<QuicInterval<QuicPacketNumber>> actual_intervals(
       ack_frame1.packets.begin(), ack_frame1.packets.end());
 
   EXPECT_EQ(expected_intervals, actual_intervals);
 
-  // Ensure adding a range within the existing ranges fails.
-  EXPECT_QUIC_BUG(
-      ack_frame1.packets.AddRange(QuicPacketNumber(20), QuicPacketNumber(30)),
-      "");
+  // Add a range in the middle.
+  ack_frame1.packets.AddRange(QuicPacketNumber(20), QuicPacketNumber(30));
 
   const std::vector<QuicInterval<QuicPacketNumber>> actual_intervals2(
       ack_frame1.packets.begin(), ack_frame1.packets.end());
 
-  std::vector<QuicInterval<QuicPacketNumber>> expected_intervals2;
-  expected_intervals2.emplace_back(QuicInterval<QuicPacketNumber>(
-      QuicPacketNumber(1), QuicPacketNumber(10)));
-  expected_intervals2.emplace_back(QuicInterval<QuicPacketNumber>(
-      QuicPacketNumber(50), QuicPacketNumber(100)));
+  std::vector<QuicInterval<QuicPacketNumber>> expected_intervals2{
+      {QuicPacketNumber(1), QuicPacketNumber(10)},
+      {QuicPacketNumber(20), QuicPacketNumber(30)},
+      {QuicPacketNumber(50), QuicPacketNumber(100)},
+  };
 
   EXPECT_EQ(expected_intervals2.size(), ack_frame1.packets.NumIntervals());
   EXPECT_EQ(expected_intervals2, actual_intervals2);
@@ -415,17 +412,13 @@ TEST_F(QuicFramesTest, AddInterval) {
   const std::vector<QuicInterval<QuicPacketNumber>> actual_intervals8(
       ack_frame2.packets.begin(), ack_frame2.packets.end());
 
-  std::vector<QuicInterval<QuicPacketNumber>> expected_intervals8;
-  expected_intervals8.emplace_back(QuicInterval<QuicPacketNumber>(
-      QuicPacketNumber(10), QuicPacketNumber(15)));
-  expected_intervals8.emplace_back(QuicInterval<QuicPacketNumber>(
-      QuicPacketNumber(20), QuicPacketNumber(25)));
-  expected_intervals8.emplace_back(QuicInterval<QuicPacketNumber>(
-      QuicPacketNumber(40), QuicPacketNumber(45)));
-  expected_intervals8.emplace_back(QuicInterval<QuicPacketNumber>(
-      QuicPacketNumber(60), QuicPacketNumber(65)));
-  expected_intervals8.emplace_back(QuicInterval<QuicPacketNumber>(
-      QuicPacketNumber(80), QuicPacketNumber(85)));
+  std::vector<QuicInterval<QuicPacketNumber>> expected_intervals8{
+      {QuicPacketNumber(10), QuicPacketNumber(15)},
+      {QuicPacketNumber(20), QuicPacketNumber(25)},
+      {QuicPacketNumber(40), QuicPacketNumber(45)},
+      {QuicPacketNumber(60), QuicPacketNumber(65)},
+      {QuicPacketNumber(80), QuicPacketNumber(85)},
+  };
 
   EXPECT_EQ(expected_intervals8, actual_intervals8);
 }

@@ -36,8 +36,8 @@ class QUIC_EXPORT_PRIVATE PacketNumberQueue {
   // Adds |packet_number| to the set of packets in the queue.
   void Add(QuicPacketNumber packet_number);
 
-  // Adds packets between [lower, higher) to the set of packets in the queue. It
-  // is undefined behavior to call this with |higher| < |lower|.
+  // Adds packets between [lower, higher) to the set of packets in the queue.
+  // No-op if |higher| < |lower|.
   // NOTE(wub): Only used in tests as of Nov 2019.
   void AddRange(QuicPacketNumber lower, QuicPacketNumber higher);
 

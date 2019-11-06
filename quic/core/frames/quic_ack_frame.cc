@@ -89,19 +89,7 @@ void PacketNumberQueue::AddRange(QuicPacketNumber lower,
     return;
   }
 
-  const auto new_interval = QuicInterval<QuicPacketNumber>(lower, higher);
-
-  if (!packet_number_intervals_.Empty() &&
-      packet_number_intervals_.SpanningInterval().Intersects(new_interval)) {
-    // TODO(wub): Remove this QUIC_BUG, or the AddRange method entirely.
-    // Ranges must be above or below all existing ranges.
-    QUIC_BUG << "AddRange only supports adding packets above or below the "
-             << "current min:" << Min() << " and max:" << Max()
-             << ", but adding [" << lower << "," << higher << ")";
-    return;
-  }
-
-  packet_number_intervals_.AddOptimizedForAppend(new_interval);
+  packet_number_intervals_.AddOptimizedForAppend(lower, higher);
 }
 
 bool PacketNumberQueue::RemoveUpTo(QuicPacketNumber higher) {
