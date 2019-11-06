@@ -70,7 +70,6 @@ class TestStream : public QuicStream {
   using QuicStream::OnClose;
   using QuicStream::WriteMemSlices;
   using QuicStream::WriteOrBufferData;
-  using QuicStream::WritevData;
 
  private:
   std::string data_;

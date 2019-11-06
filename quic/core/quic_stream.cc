@@ -671,64 +671,6 @@ void QuicStream::MaybeSendBlocked() {
   }
 }
 
-QuicConsumedData QuicStream::WritevData(const struct iovec* iov,
-                                        int iov_count,
-                                        bool fin) {
-  if (write_side_closed_) {
-    QUIC_DLOG(ERROR) << ENDPOINT << "Stream " << id()
-                     << "attempting to write when the write side is closed";
-    if (type_ == READ_UNIDIRECTIONAL) {
-      CloseConnectionWithDetails(
-          QUIC_TRY_TO_WRITE_DATA_ON_READ_UNIDIRECTIONAL_STREAM,
-          "Try to send data on read unidirectional stream");
-    }
-    return QuicConsumedData(0, false);
-  }
-
-  // How much data was provided.
-  size_t write_length = 0;
-  if (iov != nullptr) {
-    for (int i = 0; i < iov_count; ++i) {
-      write_length += iov[i].iov_len;
-    }
-  }
-
-  QuicConsumedData consumed_data(0, false);
-  if (fin_buffered_) {
-    QUIC_BUG << "Fin already buffered";
-    return consumed_data;
-  }
-
-  if (kMaxStreamLength - send_buffer_.stream_offset() < write_length) {
-    QUIC_BUG << "Write too many data via stream " << id_;
-    CloseConnectionWithDetails(
-        QUIC_STREAM_LENGTH_OVERFLOW,
-        QuicStrCat("Write too many data via stream ", id_));
-    return consumed_data;
-  }
-
-  bool had_buffered_data = HasBufferedData();
-  if (CanWriteNewData()) {
-    // Save all data if buffered data size is below low water mark.
-    consumed_data.bytes_consumed = write_length;
-    if (consumed_data.bytes_consumed > 0) {
-      QuicStreamOffset offset = send_buffer_.stream_offset();
-      send_buffer_.SaveStreamData(iov, iov_count, 0, write_length);
-      OnDataBuffered(offset, write_length, nullptr);
-    }
-  }
-  consumed_data.fin_consumed =
-      consumed_data.bytes_consumed == write_length && fin;
-  fin_buffered_ = consumed_data.fin_consumed;
-
-  if (!had_buffered_data && (HasBufferedData() || fin_buffered_)) {
-    // Write data if there is no buffered data before.
-    WriteBufferedData();
-  }
-
-  return consumed_data;
-}
-
 QuicConsumedData QuicStream::WriteMemSlices(QuicMemSliceSpan span, bool fin) {
   QuicConsumedData consumed_data(0, false);
   if (span.empty() && !fin) {

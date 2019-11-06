@@ -354,16 +354,6 @@ class QUIC_EXPORT_PRIVATE QuicStream
   bool is_static() const { return is_static_; }
 
  protected:
-  // Sends as many bytes in the first |count| buffers of |iov| to the connection
-  // as the connection will consume. If FIN is consumed, the write side is
-  // immediately closed.
-  // Returns the number of bytes consumed by the connection.
-  // Please note: Returned consumed data is the amount of data saved in send
-  // buffer. The data is not necessarily consumed by the connection. So write
-  // side is closed when FIN is sent.
-  // TODO(fayang): Let WritevData return boolean.
-  QuicConsumedData WritevData(const struct iovec* iov, int iov_count, bool fin);
-
   // Close the read side of the socket.  May cause the stream to be closed.
   // Subclasses and consumers should use StopReading to terminate reading early
   // if expecting a FIN. Can be used directly by subclasses if not expecting a

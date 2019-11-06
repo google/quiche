@@ -135,7 +135,6 @@ class TestStream : public QuicStream {
   using QuicStream::CloseReadSide;
   using QuicStream::CloseWriteSide;
   using QuicStream::WriteMemSlices;
-  using QuicStream::WritevData;
 
   void OnDataAvailable() override {}
 
