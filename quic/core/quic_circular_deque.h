@@ -10,6 +10,7 @@
 #include <iterator>
 #include <memory>
 #include <ostream>
+#include <type_traits>
 
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
@@ -206,10 +207,11 @@ class QUIC_NO_EXPORT QuicCircularDeque {
     resize(count);
   }
 
-  template <class InputIt,
-            typename = std::enable_if_t<std::is_base_of_v<
-                std::input_iterator_tag,
-                typename std::iterator_traits<InputIt>::iterator_category>>>
+  template <
+      class InputIt,
+      typename = std::enable_if_t<std::is_base_of<
+          std::input_iterator_tag,
+          typename std::iterator_traits<InputIt>::iterator_category>::value>>
   QuicCircularDeque(InputIt first,
                     InputIt last,
                     const Allocator& alloc = allocator_type())
@@ -288,10 +290,11 @@ class QUIC_NO_EXPORT QuicCircularDeque {
     }
   }
 
-  template <class InputIt,
-            typename = std::enable_if_t<std::is_base_of_v<
-                std::input_iterator_tag,
-                typename std::iterator_traits<InputIt>::iterator_category>>>
+  template <
+      class InputIt,
+      typename = std::enable_if_t<std::is_base_of<
+          std::input_iterator_tag,
+          typename std::iterator_traits<InputIt>::iterator_category>::value>>
   void assign(InputIt first, InputIt last) {
     AssignRange(first, last);
   }
@@ -495,15 +498,16 @@ class QUIC_NO_EXPORT QuicCircularDeque {
     }
   }
 
-  template <typename InputIt,
-            typename = std::enable_if_t<std::is_base_of_v<
-                std::input_iterator_tag,
-                typename std::iterator_traits<InputIt>::iterator_category>>>
+  template <
+      typename InputIt,
+      typename = std::enable_if_t<std::is_base_of<
+          std::input_iterator_tag,
+          typename std::iterator_traits<InputIt>::iterator_category>::value>>
   void AssignRange(InputIt first, InputIt last) {
     ClearRetainCapacity();
-    if constexpr (std::is_base_of_v<std::random_access_iterator_tag,
-                                    typename std::iterator_traits<
-                                        InputIt>::iterator_category>) {
+    if (std::is_base_of<
+            std::random_access_iterator_tag,
+            typename std::iterator_traits<InputIt>::iterator_category>::value) {
       reserve(std::distance(first, last));
     }
     for (; first != last; ++first) {
@@ -576,26 +580,43 @@ class QUIC_NO_EXPORT QuicCircularDeque {
     end_ = num_elements;
   }
 
-  void RelocateUnwrappedRange(size_type begin,
-                              size_type end,
-                              pointer dest) const {
+  template <typename T_ = T>
+  typename std::enable_if<std::is_trivially_copyable<T_>::value, void>::type
+  RelocateUnwrappedRange(size_type begin, size_type end, pointer dest) const {
     DCHECK_LE(begin, end) << "begin:" << begin << ", end:" << end;
-    if constexpr (std::is_trivially_copyable_v<T>) {
-      memcpy(dest, index_to_address(begin), sizeof(T) * (end - begin));
-      DestroyRange(begin, end);
-    } else {
-      pointer src = index_to_address(begin);
-      pointer src_end = index_to_address(end);
-      while (src != src_end) {
-        if constexpr (std::is_move_constructible_v<T>) {
-          new (dest) T(std::move(*src));
-        } else {
-          new (dest) T(*src);
-        }
-        DestroyByAddress(src);
-        ++dest;
-        ++src;
-      }
+    memcpy(dest, index_to_address(begin), sizeof(T) * (end - begin));
+    DestroyRange(begin, end);
+  }
+
+  template <typename T_ = T>
+  typename std::enable_if<!std::is_trivially_copyable<T_>::value &&
+                              std::is_move_constructible<T_>::value,
+                          void>::type
+  RelocateUnwrappedRange(size_type begin, size_type end, pointer dest) const {
+    DCHECK_LE(begin, end) << "begin:" << begin << ", end:" << end;
+    pointer src = index_to_address(begin);
+    pointer src_end = index_to_address(end);
+    while (src != src_end) {
+      new (dest) T(std::move(*src));
+      DestroyByAddress(src);
+      ++dest;
+      ++src;
+    }
+  }
+
+  template <typename T_ = T>
+  typename std::enable_if<!std::is_trivially_copyable<T_>::value &&
+                              !std::is_move_constructible<T_>::value,
+                          void>::type
+  RelocateUnwrappedRange(size_type begin, size_type end, pointer dest) const {
+    DCHECK_LE(begin, end) << "begin:" << begin << ", end:" << end;
+    pointer src = index_to_address(begin);
+    pointer src_end = index_to_address(end);
+    while (src != src_end) {
+      new (dest) T(*src);
+      DestroyByAddress(src);
+      ++dest;
+      ++src;
     }
   }
 
@@ -618,7 +639,7 @@ class QUIC_NO_EXPORT QuicCircularDeque {
   }
 
   void DestroyRange(size_type begin, size_type end) const {
-    if constexpr (std::is_trivially_destructible_v<T>) {
+    if (std::is_trivially_destructible<T>::value) {
       return;
     }
     if (end >= begin) {
@@ -642,7 +663,7 @@ class QUIC_NO_EXPORT QuicCircularDeque {
   }
 
   void DestroyByAddress(pointer address) const {
-    if constexpr (std::is_trivially_destructible_v<T>) {
+    if (std::is_trivially_destructible<T>::value) {
       return;
     }
     address->~T();

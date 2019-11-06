@@ -197,7 +197,7 @@ TEST(QuicCircularDeque, Assign) {
   EXPECT_LT(1u, dq3.get_allocator().allocate_count());
 
   // Copy assignment
-  dq3 = dq3;
+  dq3 = *&dq3;
   EXPECT_THAT(dq3, ElementsAre(3, 3, 3, 3, 3));
 
   QuicCircularDeque<
@@ -580,8 +580,8 @@ TEST(QuicCircularDeque, RelocateNonTriviallyCopyable) {
   {
     // Move construct in Relocate.
     typedef std::unique_ptr<Foo> MoveConstructible;
-    ASSERT_FALSE(std::is_trivially_copyable_v<MoveConstructible>);
-    ASSERT_TRUE(std::is_move_constructible_v<MoveConstructible>);
+    ASSERT_FALSE(std::is_trivially_copyable<MoveConstructible>::value);
+    ASSERT_TRUE(std::is_move_constructible<MoveConstructible>::value);
     QuicCircularDeque<MoveConstructible, 3,
                       CountingAllocator<MoveConstructible>>
         dq1;
@@ -601,8 +601,8 @@ TEST(QuicCircularDeque, RelocateNonTriviallyCopyable) {
   {
     // Copy construct in Relocate.
     typedef Foo NonMoveConstructible;
-    ASSERT_FALSE(std::is_trivially_copyable_v<NonMoveConstructible>);
-    ASSERT_FALSE(std::is_move_constructible_v<NonMoveConstructible>);
+    ASSERT_FALSE(std::is_trivially_copyable<NonMoveConstructible>::value);
+    ASSERT_FALSE(std::is_move_constructible<NonMoveConstructible>::value);
     QuicCircularDeque<NonMoveConstructible, 3,
                       CountingAllocator<NonMoveConstructible>>
         dq2;
