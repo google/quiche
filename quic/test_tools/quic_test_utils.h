@@ -948,6 +948,7 @@ class MockSendAlgorithm : public SendAlgorithmInterface {
   MOCK_CONST_METHOD0(GetCongestionControlType, CongestionControlType());
   MOCK_METHOD3(AdjustNetworkParameters,
                void(QuicBandwidth, QuicTime::Delta, bool));
+  MOCK_METHOD1(AdjustNetworkParameters, void(const NetworkParams&));
   MOCK_METHOD1(OnApplicationLimited, void(QuicByteCount));
 };
 

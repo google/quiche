@@ -324,6 +324,11 @@ void BbrSender::SetFromConfig(const QuicConfig& config,
   }
 }
 
+void BbrSender::AdjustNetworkParameters(const NetworkParams& params) {
+  AdjustNetworkParameters(params.bandwidth, params.rtt,
+                          params.allow_cwnd_to_decrease);
+}
+
 void BbrSender::AdjustNetworkParameters(QuicBandwidth bandwidth,
                                         QuicTime::Delta rtt,
                                         bool allow_cwnd_to_decrease) {

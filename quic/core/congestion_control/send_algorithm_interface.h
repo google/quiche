@@ -31,6 +31,20 @@ class RttStats;
 
 class QUIC_EXPORT_PRIVATE SendAlgorithmInterface {
  public:
+  // Network Params for AdjustNetworkParameters.
+  struct QUIC_NO_EXPORT NetworkParams {
+    NetworkParams()
+        : bandwidth(QuicBandwidth::Zero()),
+          rtt(QuicTime::Delta::Zero()),
+          allow_cwnd_to_decrease(false) {}
+    NetworkParams(NetworkParams&& params) = default;
+    NetworkParams& operator=(NetworkParams&& params) = default;
+
+    QuicBandwidth bandwidth;
+    QuicTime::Delta rtt;
+    bool allow_cwnd_to_decrease;
+  };
+
   static SendAlgorithmInterface* Create(
       const QuicClock* clock,
       const RttStats* rtt_stats,
@@ -115,6 +129,9 @@ class QUIC_EXPORT_PRIVATE SendAlgorithmInterface {
   // Notifies the congestion control algorithm of an external network
   // measurement or prediction.  Either |bandwidth| or |rtt| may be zero if no
   // sample is available.
+  virtual void AdjustNetworkParameters(const NetworkParams& params) = 0;
+  // TODO(b/143891040): Replace old interface with the new one that uses
+  // NetworkParams.
   virtual void AdjustNetworkParameters(QuicBandwidth bandwidth,
                                        QuicTime::Delta rtt,
                                        bool allow_cwnd_to_decrease) = 0;

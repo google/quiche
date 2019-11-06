@@ -114,6 +114,11 @@ const Limits<QuicByteCount>& Bbr2Sender::cwnd_limits() const {
   return params_.cwnd_limits;
 }
 
+void Bbr2Sender::AdjustNetworkParameters(const NetworkParams& params) {
+  AdjustNetworkParameters(params.bandwidth, params.rtt,
+                          params.allow_cwnd_to_decrease);
+}
+
 void Bbr2Sender::AdjustNetworkParameters(QuicBandwidth bandwidth,
                                          QuicTime::Delta rtt,
                                          bool allow_cwnd_to_decrease) {

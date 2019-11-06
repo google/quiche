@@ -312,6 +312,12 @@ void QuicSentPacketManager::ResumeConnectionState(
 }
 
 void QuicSentPacketManager::AdjustNetworkParameters(
+    const SendAlgorithmInterface::NetworkParams& params) {
+  AdjustNetworkParameters(params.bandwidth, params.rtt,
+                          params.allow_cwnd_to_decrease);
+}
+
+void QuicSentPacketManager::AdjustNetworkParameters(
     QuicBandwidth bandwidth,
     QuicTime::Delta rtt,
     bool allow_cwnd_to_decrease) {

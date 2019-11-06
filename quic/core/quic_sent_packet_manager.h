@@ -151,6 +151,8 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   void AdjustNetworkParameters(QuicBandwidth bandwidth,
                                QuicTime::Delta rtt,
                                bool allow_cwnd_to_decrease);
+  void AdjustNetworkParameters(
+      const SendAlgorithmInterface::NetworkParams& params);
 
   // Retransmits the oldest pending packet there is still a tail loss probe
   // pending.  Invoked after OnRetransmissionTimeout.

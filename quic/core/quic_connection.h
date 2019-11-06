@@ -362,6 +362,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // Allows the client to adjust network parameters based on external
   // information.
+  void AdjustNetworkParameters(
+      const SendAlgorithmInterface::NetworkParams& params);
   void AdjustNetworkParameters(QuicBandwidth bandwidth,
                                QuicTime::Delta rtt,
                                bool allow_cwnd_to_decrease);

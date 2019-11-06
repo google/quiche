@@ -46,6 +46,7 @@ class QUIC_EXPORT_PRIVATE TcpCubicSenderBytes : public SendAlgorithmInterface {
   // Start implementation of SendAlgorithmInterface.
   void SetFromConfig(const QuicConfig& config,
                      Perspective perspective) override;
+  void AdjustNetworkParameters(const NetworkParams& params) override;
   void AdjustNetworkParameters(QuicBandwidth bandwidth,
                                QuicTime::Delta rtt,
                                bool allow_cwnd_to_decrease) override;

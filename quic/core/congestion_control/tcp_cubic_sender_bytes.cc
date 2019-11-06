@@ -105,6 +105,10 @@ void TcpCubicSenderBytes::SetFromConfig(const QuicConfig& config,
   }
 }
 
+void TcpCubicSenderBytes::AdjustNetworkParameters(const NetworkParams& params) {
+  AdjustNetworkParameters(params.bandwidth, params.rtt,
+                          params.allow_cwnd_to_decrease);
+}
 void TcpCubicSenderBytes::AdjustNetworkParameters(
     QuicBandwidth bandwidth,
     QuicTime::Delta rtt,
