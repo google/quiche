@@ -5,6 +5,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_packet_creator.h"
 
 #include <cstdint>
+#include <limits>
 #include <memory>
 #include <ostream>
 #include <string>
@@ -2188,8 +2189,9 @@ TEST_P(QuicPacketCreatorTest, SoftMaxPacketLength) {
 
   // Verify creator has room for stream frame because max_packet_length_ gets
   // restored.
-  ASSERT_TRUE(creator_.HasRoomForStreamFrame(GetNthClientInitiatedStreamId(1),
-                                             kMaxIetfVarInt, kMaxIetfVarInt));
+  ASSERT_TRUE(creator_.HasRoomForStreamFrame(
+      GetNthClientInitiatedStreamId(1), kMaxIetfVarInt,
+      std::numeric_limits<uint32_t>::max()));
   EXPECT_EQ(previous_max_packet_length, creator_.max_packet_length());
 
   // Same for message frame.
