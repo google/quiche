@@ -209,7 +209,9 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // the peer. Returns true if |frame| is consumed, false otherwise.
   virtual bool WriteControlFrame(const QuicFrame& frame);
 
-  // Called by streams when they want to close the stream in both directions.
+  // Close the stream in both directions.
+  // TODO(renjietang): rename this method as it sends both RST_STREAM and
+  // STOP_SENDING in IETF QUIC.
   virtual void SendRstStream(QuicStreamId id,
                              QuicRstStreamErrorCode error,
                              QuicStreamOffset bytes_written);

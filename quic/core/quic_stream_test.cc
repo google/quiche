@@ -1577,27 +1577,6 @@ TEST_P(QuicStreamTest, OnStreamResetReadOrReadWrite) {
   }
 }
 
-// Test that receiving a STOP_SENDING just closes the write side of the stream.
-// If not V99, the test is a noop (no STOP_SENDING in Google QUIC).
-TEST_P(QuicStreamTest, OnStopSendingReadOrReadWrite) {
-  Initialize();
-  if (!VersionHasIetfQuicFrames(connection_->transport_version())) {
-    return;
-  }
-
-  EXPECT_FALSE(stream_->write_side_closed());
-  EXPECT_FALSE(QuicStreamPeer::read_side_closed(stream_));
-
-  // Simulate receipt of a STOP_SENDING.
-  stream_->OnStopSending(123);
-
-  // Should close just the read side.
-  EXPECT_FALSE(QuicStreamPeer::read_side_closed(stream_));
-  // TODO(b/142425843): Currently no action is taken upon receiving stop
-  // sending. Need to figure out what to do and turn on this expectation.
-  // EXPECT_TRUE(stream_->write_side_closed());
-}
-
 // SendOnlyRstStream must only send a RESET_STREAM (no bundled STOP_SENDING).
 TEST_P(QuicStreamTest, SendOnlyRstStream) {
   Initialize();
@@ -1615,10 +1594,6 @@ TEST_P(QuicStreamTest, SendOnlyRstStream) {
                                       QUIC_BAD_APPLICATION_PAYLOAD,
                                       stream_->stream_bytes_written(),
                                       /*close_write_side_only=*/true);
-
-  // ResetStreamOnly should just close the write side.
-  EXPECT_FALSE(QuicStreamPeer::read_side_closed(stream_));
-  EXPECT_TRUE(stream_->write_side_closed());
 }
 
 TEST_P(QuicStreamTest, WindowUpdateForReadOnlyStream) {

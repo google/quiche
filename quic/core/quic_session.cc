@@ -272,6 +272,8 @@ void QuicSession::OnStopSendingFrame(const QuicStopSendingFrame& frame) {
       static_cast<quic::QuicRstStreamErrorCode>(frame.application_error_code),
       stream->stream_bytes_written(),
       /*close_write_side_only=*/true);
+  stream->set_rst_sent(true);
+  stream->CloseWriteSide();
 }
 
 void QuicSession::PendingStreamOnRstStream(const QuicRstStreamFrame& frame) {
@@ -715,26 +717,6 @@ void QuicSession::SendRstStreamInner(QuicStreamId id,
 
   if (!close_write_side_only) {
     CloseStreamInner(id, true);
-    return;
-  }
-  DCHECK(VersionHasIetfQuicFrames(transport_version()));
-
-  StreamMap::iterator it = stream_map_.find(id);
-  if (it != stream_map_.end()) {
-    if (it->second->is_static()) {
-      QUIC_DVLOG(1) << ENDPOINT
-                    << "Try to send rst for a static stream, id: " << id
-                    << " Closing connection";
-      connection()->CloseConnection(
-          QUIC_INVALID_STREAM_ID, "Sending rst for a static stream",
-          ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
-      return;
-    }
-    QuicStream* stream = it->second.get();
-    if (stream) {
-      stream->set_rst_sent(true);
-      stream->CloseWriteSide();
-    }
   }
 }
 
