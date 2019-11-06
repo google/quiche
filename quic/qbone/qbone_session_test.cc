@@ -12,6 +12,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test_loopback.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
+#include "net/third_party/quiche/src/quic/qbone/platform/icmp_packet.h"
 #include "net/third_party/quiche/src/quic/qbone/qbone_client_session.h"
 #include "net/third_party/quiche/src/quic/qbone/qbone_constants.h"
 #include "net/third_party/quiche/src/quic/qbone/qbone_control_placeholder.pb.h"
@@ -353,6 +354,23 @@ class QboneSessionTest : public QuicTest {
     runner_.Run();
   }
 
+  void ExpectICMPTooBigResponse(const std::vector<string>& written_packets,
+                                const int mtu,
+                                const string& packet) {
+    auto* header = reinterpret_cast<const ip6_hdr*>(packet.data());
+    icmp6_hdr icmp_header{};
+    icmp_header.icmp6_type = ICMP6_PACKET_TOO_BIG;
+    icmp_header.icmp6_mtu = mtu;
+
+    string expected;
+    CreateIcmpPacket(header->ip6_dst, header->ip6_src, icmp_header, packet,
+                     [&expected](QuicStringPiece icmp_packet) {
+                       expected = string(icmp_packet);
+                     });
+
+    EXPECT_THAT(written_packets, Contains(expected));
+  }
+
   // Test handshake establishment and sending/receiving of data for two
   // directions.
   void TestStreamConnection(bool use_messages) {
@@ -395,7 +413,14 @@ class QboneSessionTest : public QuicTest {
     QUIC_LOG(INFO) << "Sending server -> client long data";
     server_peer_->ProcessPacketFromNetwork(TestPacketIn(long_data));
     runner_.Run();
-    EXPECT_THAT(client_writer_->data(), Contains(TestPacketOut(long_data)));
+    if (use_messages) {
+      ExpectICMPTooBigResponse(
+          server_writer_->data(),
+          server_peer_->connection()->GetGuaranteedLargestMessagePayload(),
+          TestPacketOut(long_data));
+    } else {
+      EXPECT_THAT(client_writer_->data(), Contains(TestPacketOut(long_data)));
+    }
     EXPECT_THAT(server_writer_->data(),
                 Not(Contains(TestPacketOut(long_data))));
     EXPECT_EQ(0u, server_peer_->GetNumActiveStreams());
@@ -404,11 +429,22 @@ class QboneSessionTest : public QuicTest {
     QUIC_LOG(INFO) << "Sending client -> server long data";
     client_peer_->ProcessPacketFromNetwork(TestPacketIn(long_data));
     runner_.Run();
-    EXPECT_THAT(server_writer_->data(), Contains(TestPacketOut(long_data)));
+    if (use_messages) {
+      ExpectICMPTooBigResponse(
+          client_writer_->data(),
+          client_peer_->connection()->GetGuaranteedLargestMessagePayload(),
+          TestPacketIn(long_data));
+    } else {
+      EXPECT_THAT(server_writer_->data(), Contains(TestPacketOut(long_data)));
+    }
     EXPECT_THAT(client_peer_->GetNumSentClientHellos(), Eq(2));
     EXPECT_THAT(client_peer_->GetNumReceivedServerConfigUpdates(), Eq(0));
-    EXPECT_THAT(client_peer_->GetNumStreamedPackets(), Eq(1));
-    EXPECT_THAT(server_peer_->GetNumStreamedPackets(), Eq(1));
+
+    if (!use_messages) {
+      EXPECT_THAT(client_peer_->GetNumStreamedPackets(), Eq(1));
+      EXPECT_THAT(server_peer_->GetNumStreamedPackets(), Eq(1));
+    }
+
     if (use_messages) {
       EXPECT_THAT(client_peer_->GetNumEphemeralPackets(), Eq(0));
       EXPECT_THAT(server_peer_->GetNumEphemeralPackets(), Eq(0));
