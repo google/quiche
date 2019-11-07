@@ -16,17 +16,11 @@ class QuicSimpleClientStream : public QuicSpdyClientStream {
                          StreamType type,
                          bool drop_response_body)
       : QuicSpdyClientStream(id, session, type),
-        drop_response_body_(drop_response_body),
-        last_stop_sending_code_(0) {}
+        drop_response_body_(drop_response_body) {}
   void OnBodyAvailable() override;
-  void OnStopSending(uint16_t code) override;
 
-  uint16_t last_stop_sending_code() { return last_stop_sending_code_; }
  private:
   const bool drop_response_body_;
-  // Application code value that was in the most recently received
-  // STOP_SENDING frame for this stream.
-  uint16_t last_stop_sending_code_;
 };
 
 }  // namespace quic

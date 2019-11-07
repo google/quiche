@@ -136,9 +136,6 @@ class QUIC_EXPORT_PRIVATE QuicStream
 
   virtual ~QuicStream();
 
-  // Not in use currently.
-  void SetFromConfig();
-
   // QuicStreamSequencer::StreamInterface implementation.
   QuicStreamId id() const override { return id_; }
   // Called by the stream subclass after it has consumed the final incoming
@@ -338,12 +335,6 @@ class QUIC_EXPORT_PRIVATE QuicStream
   // understanding the connection's QUIC version and knowing whether it can call
   // this method or not.
   void SendStopSending(uint16_t code);
-
-  // Invoked when QUIC receives a STOP_SENDING frame for this stream, informing
-  // the application that the peer has sent a STOP_SENDING. The default
-  // implementation is a noop. Is to be overridden by the application-specific
-  // QuicStream class.
-  virtual void OnStopSending(uint16_t code);
 
   // Close the write side of the socket.  Further writes will fail.
   // Can be called by the subclass or internally.

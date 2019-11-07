@@ -374,7 +374,6 @@ QuicStream::QuicStream(QuicStreamId id,
     set_fin_sent(true);
     CloseWriteSide();
   }
-  SetFromConfig();
   if (type_ != CRYPTO) {
     session_->RegisterStreamPriority(id, is_static_, precedence_);
   }
@@ -392,8 +391,6 @@ QuicStream::~QuicStream() {
     session_->UnregisterStreamPriority(id(), is_static_);
   }
 }
-
-void QuicStream::SetFromConfig() {}
 
 void QuicStream::OnStreamFrame(const QuicStreamFrame& frame) {
   DCHECK_EQ(frame.stream_id, id_);
@@ -1198,7 +1195,5 @@ void QuicStream::SendStopSending(uint16_t code) {
   }
   session_->SendStopSending(code, id_);
 }
-
-void QuicStream::OnStopSending(uint16_t /*code*/) {}
 
 }  // namespace quic

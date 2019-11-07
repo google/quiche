@@ -4059,7 +4059,8 @@ TEST_P(EndToEndTest, SimpleStopSendingTest) {
   ASSERT_NE(nullptr, client_stream);
   // Make sure we have the correct stream
   EXPECT_EQ(stream_id, client_stream->id());
-  EXPECT_EQ(kStopSendingTestCode, client_stream->last_stop_sending_code());
+  EXPECT_EQ(kStopSendingTestCode,
+            static_cast<uint16_t>(client_stream->stream_error()));
 }
 
 TEST_P(EndToEndTest, SimpleStopSendingRstStreamTest) {

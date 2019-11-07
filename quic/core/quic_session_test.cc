@@ -143,7 +143,6 @@ class TestStream : public QuicStream {
                bool(QuicStreamOffset, QuicByteCount, bool));
 
   MOCK_CONST_METHOD0(HasPendingRetransmission, bool());
-  MOCK_METHOD1(OnStopSending, void(uint16_t code));
 };
 
 class TestSession : public QuicSession {
@@ -2698,7 +2697,6 @@ TEST_P(QuicSessionTestServer, OnStopSendingInputValidStream) {
 
   QuicStreamId stream_id = stream->id();
   QuicStopSendingFrame frame(1, stream_id, 123);
-  EXPECT_CALL(*stream, OnStopSending(123));
   // Expect a reset to come back out.
   EXPECT_CALL(*connection_, SendControlFrame(_));
   EXPECT_CALL(
@@ -2706,8 +2704,7 @@ TEST_P(QuicSessionTestServer, OnStopSendingInputValidStream) {
       OnStreamReset(stream_id, static_cast<QuicRstStreamErrorCode>(123)));
   EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(0);
   session_.OnStopSendingFrame(frame);
-  // When the STOP_SENDING is received, the node generates a RST_STREAM,
-  // which closes the stream in the write direction. Ensure this.
+
   EXPECT_FALSE(QuicStreamPeer::read_side_closed(stream));
   EXPECT_TRUE(stream->write_side_closed());
 }

@@ -263,8 +263,6 @@ void QuicSession::OnStopSendingFrame(const QuicStopSendingFrame& frame) {
     return;
   }
 
-  stream->OnStopSending(frame.application_error_code);
-
   stream->set_stream_error(
       static_cast<QuicRstStreamErrorCode>(frame.application_error_code));
   SendRstStreamInner(

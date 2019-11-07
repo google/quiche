@@ -26,8 +26,4 @@ void QuicSimpleClientStream::OnBodyAvailable() {
   }
 }
 
-void QuicSimpleClientStream::OnStopSending(uint16_t code) {
-  last_stop_sending_code_ = code;
-}
-
 }  // namespace quic
