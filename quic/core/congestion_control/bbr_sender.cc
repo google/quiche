@@ -332,7 +332,9 @@ void BbrSender::AdjustNetworkParameters(const NetworkParams& params) {
 void BbrSender::AdjustNetworkParameters(QuicBandwidth bandwidth,
                                         QuicTime::Delta rtt,
                                         bool allow_cwnd_to_decrease) {
-  if (!bandwidth.IsZero()) {
+  if (GetQuicReloadableFlag(quic_bbr_donot_inject_bandwidth)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_bbr_donot_inject_bandwidth);
+  } else if (!bandwidth.IsZero()) {
     max_bandwidth_.Update(bandwidth, round_trip_count_);
   }
   if (!rtt.IsZero() && (min_rtt_ > rtt || min_rtt_.IsZero())) {
@@ -346,10 +348,13 @@ void BbrSender::AdjustNetworkParameters(QuicBandwidth bandwidth,
                                    3);
       return;
     }
-    const QuicByteCount new_cwnd =
-        std::max(kMinInitialCongestionWindow * kDefaultTCPMSS,
-                 std::min(kMaxInitialCongestionWindow * kDefaultTCPMSS,
-                          bandwidth * rtt_stats_->SmoothedOrInitialRtt()));
+    const QuicByteCount new_cwnd = std::max(
+        kMinInitialCongestionWindow * kDefaultTCPMSS,
+        std::min(
+            kMaxInitialCongestionWindow * kDefaultTCPMSS,
+            bandwidth * (GetQuicReloadableFlag(quic_bbr_donot_inject_bandwidth)
+                             ? GetMinRtt()
+                             : rtt_stats_->SmoothedOrInitialRtt())));
     if (!rtt_stats_->smoothed_rtt().IsZero()) {
       QUIC_CODE_COUNT(quic_smoothed_rtt_available);
     } else if (rtt_stats_->initial_rtt() !=

@@ -1251,8 +1251,15 @@ TEST_F(BbrSenderTest, ResumeConnectionState) {
 
   bbr_sender_.connection()->AdjustNetworkParameters(kTestLinkBandwidth,
                                                     kTestRtt, false);
-  EXPECT_EQ(kTestLinkBandwidth, sender_->ExportDebugState().max_bandwidth);
-  EXPECT_EQ(kTestLinkBandwidth, sender_->BandwidthEstimate());
+  if (!GetQuicReloadableFlag(quic_bbr_donot_inject_bandwidth)) {
+    EXPECT_EQ(kTestLinkBandwidth, sender_->ExportDebugState().max_bandwidth);
+    EXPECT_EQ(kTestLinkBandwidth, sender_->BandwidthEstimate());
+  }
+  EXPECT_EQ(kTestLinkBandwidth * kTestRtt,
+            sender_->ExportDebugState().congestion_window);
+  if (GetQuicReloadableFlag(quic_bbr_fix_pacing_rate)) {
+    EXPECT_EQ(kTestLinkBandwidth, sender_->PacingRate(/*bytes_in_flight=*/0));
+  }
   EXPECT_APPROX_EQ(kTestRtt, sender_->ExportDebugState().min_rtt, 0.01f);
 
   DriveOutOfStartup();
@@ -1327,8 +1334,10 @@ TEST_F(BbrSenderTest, RecalculatePacingRateOnCwndChange1RTT) {
   // Bootstrap cwnd.
   bbr_sender_.connection()->AdjustNetworkParameters(
       kTestLinkBandwidth, QuicTime::Delta::Zero(), false);
-  EXPECT_EQ(kTestLinkBandwidth, sender_->ExportDebugState().max_bandwidth);
-  EXPECT_EQ(kTestLinkBandwidth, sender_->BandwidthEstimate());
+  if (!GetQuicReloadableFlag(quic_bbr_donot_inject_bandwidth)) {
+    EXPECT_EQ(kTestLinkBandwidth, sender_->ExportDebugState().max_bandwidth);
+    EXPECT_EQ(kTestLinkBandwidth, sender_->BandwidthEstimate());
+  }
   EXPECT_LT(previous_cwnd, sender_->ExportDebugState().congestion_window);
 
   if (GetQuicReloadableFlag(quic_bbr_fix_pacing_rate)) {
@@ -1354,8 +1363,10 @@ TEST_F(BbrSenderTest, RecalculatePacingRateOnCwndChange0RTT) {
   // Bootstrap cwnd.
   bbr_sender_.connection()->AdjustNetworkParameters(
       kTestLinkBandwidth, QuicTime::Delta::Zero(), false);
-  EXPECT_EQ(kTestLinkBandwidth, sender_->ExportDebugState().max_bandwidth);
-  EXPECT_EQ(kTestLinkBandwidth, sender_->BandwidthEstimate());
+  if (!GetQuicReloadableFlag(quic_bbr_donot_inject_bandwidth)) {
+    EXPECT_EQ(kTestLinkBandwidth, sender_->ExportDebugState().max_bandwidth);
+    EXPECT_EQ(kTestLinkBandwidth, sender_->BandwidthEstimate());
+  }
   EXPECT_LT(kInitialCongestionWindowPackets * kDefaultTCPMSS,
             sender_->ExportDebugState().congestion_window);
   // No Rtt sample is available.
