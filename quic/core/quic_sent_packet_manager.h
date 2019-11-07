@@ -646,7 +646,7 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // The multiplier of rttvar when calculating PTO timeout.
   int pto_rttvar_multiplier_;
 
-  // Latched value of quic_neuter_handshake_packets_once.
+  // Latched value of quic_neuter_handshake_packets_once2.
   const bool neuter_handshake_packets_once_;
 };
 

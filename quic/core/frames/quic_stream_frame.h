@@ -33,6 +33,8 @@ struct QUIC_EXPORT_PRIVATE QuicStreamFrame
 
   bool operator==(const QuicStreamFrame& rhs) const;
 
+  bool operator!=(const QuicStreamFrame& rhs) const;
+
   bool fin;
   QuicPacketLength data_length;
   QuicStreamId stream_id;

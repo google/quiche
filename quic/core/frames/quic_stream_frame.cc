@@ -49,4 +49,8 @@ bool QuicStreamFrame::operator==(const QuicStreamFrame& rhs) const {
          offset == rhs.offset;
 }
 
+bool QuicStreamFrame::operator!=(const QuicStreamFrame& rhs) const {
+  return !(*this == rhs);
+}
+
 }  // namespace quic

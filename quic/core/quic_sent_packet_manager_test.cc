@@ -1125,9 +1125,9 @@ TEST_F(QuicSentPacketManagerTest,
 
   // Now neuter all unacked unencrypted packets, which occurs when the
   // connection goes forward secure.
-  manager_.NeuterUnencryptedPackets();
   EXPECT_CALL(notifier_, HasUnackedCryptoData()).WillRepeatedly(Return(false));
   EXPECT_CALL(notifier_, IsFrameOutstanding(_)).WillRepeatedly(Return(false));
+  manager_.NeuterUnencryptedPackets();
   EXPECT_FALSE(manager_.HasUnackedCryptoPackets());
   uint64_t unacked[] = {1, 2, 3};
   VerifyUnackedPackets(unacked, QUIC_ARRAYSIZE(unacked));
@@ -3053,6 +3053,58 @@ TEST_F(QuicSentPacketManagerTest, PtoTimeoutRttVarMultiple) {
       QuicTime::Delta::FromMilliseconds(kDefaultDelayedAckTimeMs);
   EXPECT_EQ(clock_.Now() + expected_pto_delay,
             manager_.GetRetransmissionTime());
+}
+
+// Regression test for b/143962153
+TEST_F(QuicSentPacketManagerTest, RtoNotInFlightPacket) {
+  QuicSentPacketManagerPeer::SetMaxTailLossProbes(&manager_, 2);
+  // Send SHLO.
+  QuicStreamFrame crypto_frame(1, false, 0, QuicStringPiece());
+  SendCryptoPacket(1);
+  // Send data packet.
+  SendDataPacket(2, ENCRYPTION_FORWARD_SECURE);
+
+  // Successfully decrypt a forward secure packet.
+  if (GetQuicReloadableFlag(quic_neuter_handshake_packets_once2)) {
+    EXPECT_CALL(notifier_, OnFrameAcked(_, _, _)).Times(1);
+  } else {
+    EXPECT_CALL(notifier_, OnFrameAcked(_, _, _)).Times(0);
+  }
+  manager_.SetHandshakeConfirmed();
+
+  // 1st TLP.
+  manager_.OnRetransmissionTimeout();
+  EXPECT_CALL(notifier_, RetransmitFrames(_, _))
+      .WillOnce(WithArgs<1>(Invoke([this](TransmissionType type) {
+        RetransmitDataPacket(3, type, ENCRYPTION_FORWARD_SECURE);
+      })));
+  manager_.MaybeRetransmitTailLossProbe();
+
+  // 2nd TLP.
+  manager_.OnRetransmissionTimeout();
+  EXPECT_CALL(notifier_, RetransmitFrames(_, _))
+      .WillOnce(WithArgs<1>(Invoke([this](TransmissionType type) {
+        RetransmitDataPacket(4, type, ENCRYPTION_FORWARD_SECURE);
+      })));
+  manager_.MaybeRetransmitTailLossProbe();
+
+  // RTO retransmits SHLO although it is not in flight.
+  size_t num_rto_packets = 2;
+  if (GetQuicReloadableFlag(quic_neuter_handshake_packets_once2)) {
+    num_rto_packets = 1;
+  }
+  EXPECT_CALL(notifier_, RetransmitFrames(_, _))
+      .Times(num_rto_packets)
+      .WillOnce(
+          WithArgs<0>(Invoke([this, &crypto_frame](const QuicFrames& frames) {
+            EXPECT_EQ(1u, frames.size());
+            if (GetQuicReloadableFlag(quic_neuter_handshake_packets_once2)) {
+              EXPECT_NE(crypto_frame, frames[0].stream_frame);
+            } else {
+              EXPECT_EQ(crypto_frame, frames[0].stream_frame);
+            }
+          })));
+  manager_.OnRetransmissionTimeout();
 }
 
 }  // namespace

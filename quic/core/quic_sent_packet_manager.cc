@@ -107,7 +107,7 @@ QuicSentPacketManager::QuicSentPacketManager(
       pto_exponential_backoff_start_point_(0),
       pto_rttvar_multiplier_(4),
       neuter_handshake_packets_once_(
-          GetQuicReloadableFlag(quic_neuter_handshake_packets_once)) {
+          GetQuicReloadableFlag(quic_neuter_handshake_packets_once2)) {
   SetSendAlgorithm(congestion_control_type);
 }
 
@@ -342,7 +342,7 @@ void QuicSentPacketManager::AdjustNetworkParameters(
 void QuicSentPacketManager::SetHandshakeConfirmed() {
   if (!neuter_handshake_packets_once_ || !handshake_confirmed_) {
     if (neuter_handshake_packets_once_) {
-      QUIC_RELOADABLE_FLAG_COUNT(quic_neuter_handshake_packets_once);
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_neuter_handshake_packets_once2, 1, 3);
     }
     handshake_confirmed_ = true;
     NeuterHandshakePackets();
@@ -454,7 +454,7 @@ void QuicSentPacketManager::RetransmitUnackedPackets(
 
 void QuicSentPacketManager::NeuterUnencryptedPackets() {
   QuicPacketNumber packet_number = unacked_packets_.GetLeastUnacked();
-  for (QuicUnackedPacketMap::const_iterator it = unacked_packets_.begin();
+  for (QuicUnackedPacketMap::iterator it = unacked_packets_.begin();
        it != unacked_packets_.end(); ++it, ++packet_number) {
     if (!it->retransmittable_frames.empty() &&
         it->encryption_level == ENCRYPTION_INITIAL) {
@@ -462,18 +462,31 @@ void QuicSentPacketManager::NeuterUnencryptedPackets() {
       // will be sent. The data has been abandoned in the cryto stream. Remove
       // it from in flight.
       unacked_packets_.RemoveFromInFlight(packet_number);
+      if (neuter_handshake_packets_once_) {
+        QUIC_RELOADABLE_FLAG_COUNT_N(quic_neuter_handshake_packets_once2, 2, 3);
+        it->state = NEUTERED;
+        DCHECK(!unacked_packets_.HasRetransmittableFrames(*it));
+      }
     }
   }
 }
 
 void QuicSentPacketManager::NeuterHandshakePackets() {
   QuicPacketNumber packet_number = unacked_packets_.GetLeastUnacked();
-  for (QuicUnackedPacketMap::const_iterator it = unacked_packets_.begin();
+  for (QuicUnackedPacketMap::iterator it = unacked_packets_.begin();
        it != unacked_packets_.end(); ++it, ++packet_number) {
     if (!it->retransmittable_frames.empty() &&
         unacked_packets_.GetPacketNumberSpace(it->encryption_level) ==
             HANDSHAKE_DATA) {
       unacked_packets_.RemoveFromInFlight(packet_number);
+      if (neuter_handshake_packets_once_) {
+        // Notify session that the data has been delivered (but do not notify
+        // send algorithm).
+        QUIC_RELOADABLE_FLAG_COUNT_N(quic_neuter_handshake_packets_once2, 3, 3);
+        it->state = NEUTERED;
+        unacked_packets_.NotifyFramesAcked(*it, QuicTime::Delta::Zero(),
+                                           QuicTime::Zero());
+      }
     }
   }
 }
@@ -765,6 +778,7 @@ void QuicSentPacketManager::RetransmitRtoPackets() {
     if (it->state == OUTSTANDING &&
         unacked_packets_.HasRetransmittableFrames(*it) &&
         pending_timer_transmission_count_ < max_rto_packets_) {
+      DCHECK(!neuter_handshake_packets_once_ || it->in_flight);
       retransmissions.push_back(packet_number);
       ++pending_timer_transmission_count_;
     }
@@ -797,6 +811,7 @@ void QuicSentPacketManager::MaybeSendProbePackets() {
        it != unacked_packets_.end(); ++it, ++packet_number) {
     if (it->state == OUTSTANDING &&
         unacked_packets_.HasRetransmittableFrames(*it)) {
+      DCHECK(!neuter_handshake_packets_once_ || it->in_flight);
       probing_packets.push_back(packet_number);
       if (probing_packets.size() == pending_timer_transmission_count_) {
         break;

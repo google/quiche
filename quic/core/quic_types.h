@@ -446,7 +446,7 @@ enum StreamSendingState {
 };
 
 enum SentPacketState : uint8_t {
-  // The packet has been sent and waiting to be acked.
+  // The packet is in flight and waiting to be acked.
   OUTSTANDING,
   FIRST_PACKET_STATE = OUTSTANDING,
   // The packet was never sent.
@@ -455,6 +455,8 @@ enum SentPacketState : uint8_t {
   ACKED,
   // This packet is not expected to be acked.
   UNACKABLE,
+  // This packet has been delivered or unneeded.
+  NEUTERED,
 
   // States below are corresponding to retransmission types in TransmissionType.
 

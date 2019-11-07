@@ -126,8 +126,13 @@ void SimpleSessionNotifier::WriteOrBufferPing() {
 }
 
 void SimpleSessionNotifier::NeuterUnencryptedData() {
-  // TODO(nharper): Handle CRYPTO frame case.
   if (QuicVersionUsesCryptoFrames(connection_->transport_version())) {
+    for (const auto& interval : crypto_bytes_transferred_[ENCRYPTION_INITIAL]) {
+      QuicCryptoFrame crypto_frame(ENCRYPTION_INITIAL, interval.min(),
+                                   interval.max() - interval.min());
+      OnFrameAcked(QuicFrame(&crypto_frame), QuicTime::Delta::Zero(),
+                   QuicTime::Zero());
+    }
     return;
   }
   for (const auto& interval : crypto_bytes_transferred_[ENCRYPTION_INITIAL]) {
