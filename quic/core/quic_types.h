@@ -607,6 +607,9 @@ enum MessageStatus {
                                   // reaches an invalid state.
 };
 
+QUIC_EXPORT_PRIVATE std::string MessageStatusToString(
+    MessageStatus message_status);
+
 // Used to return the result of SendMessage calls
 struct QUIC_EXPORT_PRIVATE MessageResult {
   MessageResult(MessageStatus status, QuicMessageId message_id);
@@ -615,10 +618,16 @@ struct QUIC_EXPORT_PRIVATE MessageResult {
     return status == other.status && message_id == other.message_id;
   }
 
+  QUIC_EXPORT_PRIVATE friend std::ostream& operator<<(std::ostream& os,
+                                                      const MessageResult& mr);
+
   MessageStatus status;
   // Only valid when status is MESSAGE_STATUS_SUCCESS.
   QuicMessageId message_id;
 };
+
+QUIC_EXPORT_PRIVATE std::string MessageResultToString(
+    MessageResult message_result);
 
 enum WriteStreamDataResult {
   WRITE_SUCCESS,

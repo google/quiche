@@ -515,6 +515,33 @@ std::string QuicLongHeaderTypeToString(QuicLongHeaderType type) {
   }
 }
 
+std::string MessageStatusToString(MessageStatus message_status) {
+  switch (message_status) {
+    RETURN_STRING_LITERAL(MESSAGE_STATUS_SUCCESS);
+    RETURN_STRING_LITERAL(MESSAGE_STATUS_ENCRYPTION_NOT_ESTABLISHED);
+    RETURN_STRING_LITERAL(MESSAGE_STATUS_UNSUPPORTED);
+    RETURN_STRING_LITERAL(MESSAGE_STATUS_BLOCKED);
+    RETURN_STRING_LITERAL(MESSAGE_STATUS_TOO_LARGE);
+    RETURN_STRING_LITERAL(MESSAGE_STATUS_INTERNAL_ERROR);
+    default:
+      return QuicStrCat("Unknown(", static_cast<int>(message_status), ")");
+      break;
+  }
+}
+
+std::string MessageResultToString(MessageResult message_result) {
+  if (message_result.status != MESSAGE_STATUS_SUCCESS) {
+    return QuicStrCat("{", MessageStatusToString(message_result.status), "}");
+  }
+  return QuicStrCat("{MESSAGE_STATUS_SUCCESS,id=", message_result.message_id,
+                    "}");
+}
+
+std::ostream& operator<<(std::ostream& os, const MessageResult& mr) {
+  os << MessageResultToString(mr);
+  return os;
+}
+
 std::string PacketNumberSpaceToString(PacketNumberSpace packet_number_space) {
   switch (packet_number_space) {
     RETURN_STRING_LITERAL(INITIAL_DATA);
