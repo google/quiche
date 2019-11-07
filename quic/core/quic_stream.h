@@ -489,10 +489,6 @@ class QUIC_EXPORT_PRIVATE QuicStream
   // True if this stream has received a RST_STREAM frame.
   bool rst_received_;
 
-  // Tracks if the session this stream is running under was created by a
-  // server or a client.
-  Perspective perspective_;
-
   QuicOptional<QuicFlowController> flow_controller_;
 
   // The connection level flow controller. Not owned.

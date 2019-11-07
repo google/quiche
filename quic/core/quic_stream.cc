@@ -22,7 +22,7 @@ using spdy::SpdyPriority;
 namespace quic {
 
 #define ENDPOINT \
-  (perspective_ == Perspective::IS_SERVER ? "Server: " : "Client: ")
+  (session_->perspective() == Perspective::IS_SERVER ? "Server: " : "Client: ")
 
 namespace {
 
@@ -351,7 +351,6 @@ QuicStream::QuicStream(QuicStreamId id,
       fin_received_(fin_received),
       rst_sent_(false),
       rst_received_(false),
-      perspective_(session_->perspective()),
       flow_controller_(std::move(flow_controller)),
       connection_flow_controller_(connection_flow_controller),
       stream_contributes_to_connection_flow_control_(true),
@@ -365,7 +364,7 @@ QuicStream::QuicStream(QuicStreamId id,
       type_(VersionHasIetfQuicFrames(session->transport_version()) &&
                     type != CRYPTO
                 ? QuicUtils::GetStreamType(id_,
-                                           perspective_,
+                                           session->perspective(),
                                            session->IsIncomingStream(id_))
                 : type) {
   if (type_ == WRITE_UNIDIRECTIONAL) {
