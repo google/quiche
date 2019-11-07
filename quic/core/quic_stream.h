@@ -416,9 +416,6 @@ class QUIC_EXPORT_PRIVATE QuicStream
              QuicOptional<QuicFlowController> flow_controller,
              QuicFlowController* connection_flow_controller);
 
-  // Subclasses and consumers should use reading_stopped.
-  bool read_side_closed() const { return read_side_closed_; }
-
   // Calls MaybeSendBlocked on the stream's flow controller and the connection
   // level flow controller.  If the stream is flow control blocked by the
   // connection-level flow controller but not by the stream-level flow

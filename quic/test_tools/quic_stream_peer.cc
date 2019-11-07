@@ -29,7 +29,7 @@ void QuicStreamPeer::SetStreamBytesWritten(
 
 // static
 bool QuicStreamPeer::read_side_closed(QuicStream* stream) {
-  return stream->read_side_closed();
+  return stream->read_side_closed_;
 }
 
 // static
