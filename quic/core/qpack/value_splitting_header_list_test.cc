@@ -60,10 +60,16 @@ TEST(ValueSplittingHeaderListTest, Comparison) {
         EXPECT_FALSE(it1 == it2);
         EXPECT_TRUE(it1 != it2);
       }
-      ++it2;
+      if (j < kEnd - 1) {
+        ASSERT_NE(it2, headers.end());
+        ++it2;
+      }
     }
 
-    ++it1;
+    if (i < kEnd - 1) {
+      ASSERT_NE(it1, headers.end());
+      ++it1;
+    }
   }
 }
 
