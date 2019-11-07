@@ -151,17 +151,25 @@ class QUIC_NO_EXPORT QuicCircularDeque {
     basic_iterator(const QuicCircularDeque* deque, size_type index)
         : deque_(deque), index_(index) {}
 
-    void Increment() { index_ = deque_->index_next(index_); }
+    void Increment() {
+      DCHECK_LE(ExternalPosition() + 1, deque_->size());
+      index_ = deque_->index_next(index_);
+    }
 
-    void Decrement() { index_ = deque_->index_prev(index_); }
+    void Decrement() {
+      DCHECK_GE(ExternalPosition(), 1);
+      index_ = deque_->index_prev(index_);
+    }
 
     void IncrementBy(difference_type delta) {
-      if (delta == 0) {
-        return;
+      if (delta >= 0) {
+        // After increment we are before or at end().
+        DCHECK_LE(ExternalPosition() + delta, deque_->size());
+      } else {
+        // After decrement we are after or at begin().
+        DCHECK_GE(ExternalPosition(), -delta);
       }
-
-      index_ = (deque_->begin_ + ExternalPosition() + delta) %
-               deque_->data_capacity();
+      index_ = deque_->index_increment_by(index_, delta);
     }
 
     size_type ExternalPosition() const {
@@ -415,11 +423,29 @@ class QUIC_NO_EXPORT QuicCircularDeque {
     MaybeShrinkCapacity();
   }
 
+  size_type pop_front_n(size_type count) {
+    size_type num_elements_to_pop = std::min(count, size());
+    size_type new_begin = index_increment_by(begin_, num_elements_to_pop);
+    DestroyRange(begin_, new_begin);
+    begin_ = new_begin;
+    MaybeShrinkCapacity();
+    return num_elements_to_pop;
+  }
+
   void pop_back() {
     DCHECK(!empty());
     end_ = index_prev(end_);
     DestroyByIndex(end_);
     MaybeShrinkCapacity();
+  }
+
+  size_type pop_back_n(size_type count) {
+    size_type num_elements_to_pop = std::min(count, size());
+    size_type new_end = index_increment_by(end_, -num_elements_to_pop);
+    DestroyRange(new_end, end_);
+    end_ = new_end;
+    MaybeShrinkCapacity();
+    return num_elements_to_pop;
   }
 
   void swap(QuicCircularDeque& other) {
@@ -681,6 +707,15 @@ class QUIC_NO_EXPORT QuicCircularDeque {
 
   size_type index_next(size_type index) const {
     return index == data_capacity() - 1 ? 0 : index + 1;
+  }
+
+  size_type index_increment_by(size_type index, difference_type delta) const {
+    if (delta == 0) {
+      return index;
+    }
+
+    DCHECK_LT(std::abs(delta), data_capacity());
+    return (index + data_capacity() + delta) % data_capacity();
   }
 
   // Empty base-class optimization: bundle storage for our allocator together

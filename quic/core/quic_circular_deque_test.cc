@@ -660,6 +660,41 @@ TEST(QuicCircularDeque, PushPop) {
     ASSERT_GT(&dq1.front(), &dq1.back());
     // dq1 destructs with wrapped data.
   }
+
+  {  // Pop n elements from front.
+    QuicCircularDeque<Foo, 4, CountingAllocator<Foo>> dq2(5);
+    for (size_t i = 0; i < dq2.size(); ++i) {
+      dq2[i].Set(i + 1);
+    }
+    EXPECT_THAT(dq2, ElementsAre(Foo(1), Foo(2), Foo(3), Foo(4), Foo(5)));
+
+    EXPECT_EQ(2u, dq2.pop_front_n(2));
+    EXPECT_THAT(dq2, ElementsAre(Foo(3), Foo(4), Foo(5)));
+
+    EXPECT_EQ(3u, dq2.pop_front_n(100));
+    EXPECT_TRUE(dq2.empty());
+  }
+
+  {  // Pop n elements from back.
+    QuicCircularDeque<Foo, 4, CountingAllocator<Foo>> dq3(6);
+    for (size_t i = 0; i < dq3.size(); ++i) {
+      dq3[i].Set(i + 1);
+    }
+    EXPECT_THAT(dq3,
+                ElementsAre(Foo(1), Foo(2), Foo(3), Foo(4), Foo(5), Foo(6)));
+
+    ShiftRight(&dq3, true);
+    ShiftRight(&dq3, true);
+    ShiftRight(&dq3, true);
+    EXPECT_THAT(dq3,
+                ElementsAre(Foo(4), Foo(5), Foo(6), Foo(1), Foo(2), Foo(3)));
+
+    EXPECT_EQ(2u, dq3.pop_back_n(2));
+    EXPECT_THAT(dq3, ElementsAre(Foo(4), Foo(5), Foo(6), Foo(1)));
+
+    EXPECT_EQ(2u, dq3.pop_back_n(2));
+    EXPECT_THAT(dq3, ElementsAre(Foo(4), Foo(5)));
+  }
 }
 
 TEST(QuicCircularDeque, Allocation) {
