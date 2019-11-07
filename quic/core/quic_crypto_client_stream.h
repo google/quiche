@@ -35,6 +35,13 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientStreamBase : public QuicCryptoStream {
   // than the number of round-trips needed for the handshake.
   virtual int num_sent_client_hellos() const = 0;
 
+  // Returns true if the handshake performed was a resumption instead of a full
+  // handshake. Resumption only makes sense for TLS handshakes - there is no
+  // concept of resumption for QUIC crypto even though it supports a 0-RTT
+  // handshake. This function only returns valid results once the handshake is
+  // complete.
+  virtual bool IsResumption() const = 0;
+
   // The number of server config update messages received by the
   // client.  Does not count update messages that were received prior
   // to handshake confirmation.
@@ -78,6 +85,13 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientStream
     // have been sent. If the handshake has completed then this is one greater
     // than the number of round-trips needed for the handshake.
     virtual int num_sent_client_hellos() const = 0;
+
+    // Returns true if the handshake performed was a resumption instead of a
+    // full handshake. Resumption only makes sense for TLS handshakes - there is
+    // no concept of resumption for QUIC crypto even though it supports a 0-RTT
+    // handshake. This function only returns valid results once the handshake is
+    // complete.
+    virtual bool IsResumption() const = 0;
 
     // The number of server config update messages received by the
     // client.  Does not count update messages that were received prior
@@ -137,6 +151,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientStream
   // From QuicCryptoClientStreamBase
   bool CryptoConnect() override;
   int num_sent_client_hellos() const override;
+  bool IsResumption() const override;
 
   int num_scup_messages_received() const override;
 

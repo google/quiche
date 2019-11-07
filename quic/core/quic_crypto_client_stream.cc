@@ -63,6 +63,10 @@ int QuicCryptoClientStream::num_sent_client_hellos() const {
   return handshaker_->num_sent_client_hellos();
 }
 
+bool QuicCryptoClientStream::IsResumption() const {
+  return handshaker_->IsResumption();
+}
+
 int QuicCryptoClientStream::num_scup_messages_received() const {
   return handshaker_->num_scup_messages_received();
 }

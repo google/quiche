@@ -197,6 +197,12 @@ int TlsClientHandshaker::num_sent_client_hellos() const {
   return 0;
 }
 
+bool TlsClientHandshaker::IsResumption() const {
+  QUIC_BUG_IF(!handshake_confirmed_);
+  // We don't support resumption (yet).
+  return false;
+}
+
 int TlsClientHandshaker::num_scup_messages_received() const {
   // SCUP messages aren't sent or received when using the TLS handshake.
   return 0;

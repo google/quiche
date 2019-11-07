@@ -116,6 +116,13 @@ int QuicCryptoClientHandshaker::num_sent_client_hellos() const {
   return num_client_hellos_;
 }
 
+bool QuicCryptoClientHandshaker::IsResumption() const {
+  QUIC_BUG_IF(!handshake_confirmed_);
+  // While 0-RTT handshakes could be considered to be like resumption, QUIC
+  // Crypto doesn't have the same notion of a resumption like TLS does.
+  return false;
+}
+
 int QuicCryptoClientHandshaker::num_scup_messages_received() const {
   return num_scup_messages_received_;
 }

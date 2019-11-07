@@ -37,6 +37,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientHandshaker
   // From QuicCryptoClientStream::HandshakerDelegate
   bool CryptoConnect() override;
   int num_sent_client_hellos() const override;
+  bool IsResumption() const override;
   int num_scup_messages_received() const override;
   std::string chlo_hash() const override;
   bool encryption_established() const override;

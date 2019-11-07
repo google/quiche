@@ -93,6 +93,7 @@ TEST_F(QuicCryptoClientStreamTest, ConnectedAfterSHLO) {
   CompleteCryptoHandshake();
   EXPECT_TRUE(stream()->encryption_established());
   EXPECT_TRUE(stream()->handshake_confirmed());
+  EXPECT_FALSE(stream()->IsResumption());
 }
 
 TEST_F(QuicCryptoClientStreamTest, ConnectedAfterTlsHandshake) {
@@ -109,6 +110,7 @@ TEST_F(QuicCryptoClientStreamTest, ConnectedAfterTlsHandshake) {
   EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
   EXPECT_TRUE(stream()->encryption_established());
   EXPECT_TRUE(stream()->handshake_confirmed());
+  EXPECT_FALSE(stream()->IsResumption());
 }
 
 TEST_F(QuicCryptoClientStreamTest,
