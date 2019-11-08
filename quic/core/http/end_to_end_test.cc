@@ -687,17 +687,12 @@ TEST_P(EndToEndTestWithTls, SendAndReceiveCoalescedPackets) {
   }
   EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
   EXPECT_EQ("200", client_->response_headers()->find(":status")->second);
-  // Verify both endpoints successfully process coalesced packets.
+  // Verify client successfully processes coalesced packets.
   QuicConnectionStats client_stats = GetClientConnection()->GetStats();
   EXPECT_LT(0u, client_stats.num_coalesced_packets_received);
   EXPECT_EQ(client_stats.num_coalesced_packets_processed,
             client_stats.num_coalesced_packets_received);
-  server_thread_->Pause();
-  QuicConnectionStats server_stats = GetServerConnection()->GetStats();
-  EXPECT_LT(0u, server_stats.num_coalesced_packets_received);
-  EXPECT_EQ(server_stats.num_coalesced_packets_processed,
-            server_stats.num_coalesced_packets_received);
-  server_thread_->Resume();
+  // TODO(fayang): verify server successfully processes coalesced packets.
 }
 
 // Simple transaction, but set a non-default ack delay at the client
