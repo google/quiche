@@ -894,10 +894,16 @@ void QuicSession::OnFinalByteOffsetReceived(
 }
 
 bool QuicSession::IsEncryptionEstablished() const {
+  if (GetCryptoStream() == nullptr) {
+    return false;
+  }
   return GetCryptoStream()->encryption_established();
 }
 
 bool QuicSession::IsCryptoHandshakeConfirmed() const {
+  if (GetCryptoStream() == nullptr) {
+    return false;
+  }
   return GetCryptoStream()->handshake_confirmed();
 }
 
