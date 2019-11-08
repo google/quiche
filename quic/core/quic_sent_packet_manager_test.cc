@@ -3095,15 +3095,14 @@ TEST_F(QuicSentPacketManagerTest, RtoNotInFlightPacket) {
   }
   EXPECT_CALL(notifier_, RetransmitFrames(_, _))
       .Times(num_rto_packets)
-      .WillOnce(
-          WithArgs<0>(Invoke([this, &crypto_frame](const QuicFrames& frames) {
-            EXPECT_EQ(1u, frames.size());
-            if (GetQuicReloadableFlag(quic_neuter_handshake_packets_once2)) {
-              EXPECT_NE(crypto_frame, frames[0].stream_frame);
-            } else {
-              EXPECT_EQ(crypto_frame, frames[0].stream_frame);
-            }
-          })));
+      .WillOnce(WithArgs<0>(Invoke([&crypto_frame](const QuicFrames& frames) {
+        EXPECT_EQ(1u, frames.size());
+        if (GetQuicReloadableFlag(quic_neuter_handshake_packets_once2)) {
+          EXPECT_NE(crypto_frame, frames[0].stream_frame);
+        } else {
+          EXPECT_EQ(crypto_frame, frames[0].stream_frame);
+        }
+      })));
   manager_.OnRetransmissionTimeout();
 }
 
