@@ -1221,6 +1221,19 @@ QuicConsumedData QuicPacketCreator::ConsumeDataFastPath(
     CreateAndSerializeStreamFrame(id, write_length, total_bytes_consumed,
                                   offset + total_bytes_consumed, fin,
                                   next_transmission_type_, &bytes_consumed);
+    if (GetQuicReloadableFlag(
+            quic_close_connection_on_failed_consume_data_fast_path)) {
+      QUIC_RELOADABLE_FLAG_COUNT(
+          quic_close_connection_on_failed_consume_data_fast_path);
+      if (bytes_consumed == 0) {
+        const std::string error_details =
+            "Failed in CreateAndSerializeStreamFrame.";
+        QUIC_BUG << error_details;
+        delegate_->OnUnrecoverableError(QUIC_FAILED_TO_SERIALIZE_PACKET,
+                                        error_details);
+        break;
+      }
+    }
     total_bytes_consumed += bytes_consumed;
   }
 
