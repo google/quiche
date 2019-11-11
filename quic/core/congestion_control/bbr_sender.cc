@@ -894,6 +894,7 @@ void BbrSender::CalculateRecoveryWindow(QuicByteCount bytes_acked,
   recovery_window_ = std::max(
       recovery_window_, unacked_packets_->bytes_in_flight() + bytes_acked);
   if (GetQuicReloadableFlag(quic_bbr_one_mss_conservation)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_bbr_one_mss_conservation);
     recovery_window_ =
         std::max(recovery_window_,
                  unacked_packets_->bytes_in_flight() + kMaxSegmentSize);
