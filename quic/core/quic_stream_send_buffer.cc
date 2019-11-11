@@ -9,6 +9,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_stream_send_buffer.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
@@ -95,6 +96,8 @@ void QuicStreamSendBuffer::OnStreamDataConsumed(size_t bytes_consumed) {
 bool QuicStreamSendBuffer::WriteStreamData(QuicStreamOffset offset,
                                            QuicByteCount data_length,
                                            QuicDataWriter* writer) {
+  // TODO(renjietang): Remove this variable once quic_coalesce_stream_frames_2
+  // is deprecated.
   bool write_index_hit = false;
   QuicDeque<BufferedSlice>::iterator slice_it =
       write_index_ == -1
@@ -134,15 +137,33 @@ bool QuicStreamSendBuffer::WriteStreamData(QuicStreamOffset offset,
     offset += copy_length;
     data_length -= copy_length;
 
-    if (write_index_hit && copy_length == available_bytes_in_slice) {
+    if (GetQuicRestartFlag(quic_coalesce_stream_frames_2)) {
+      QUIC_RESTART_FLAG_COUNT_N(quic_coalesce_stream_frames_2, 2, 3);
+      if (write_index_ != -1) {
+        QuicDeque<BufferedSlice>::const_iterator index_slice =
+            buffered_slices_.begin() + write_index_;
+        if (index_slice->offset == slice_it->offset &&
+            copy_length == available_bytes_in_slice) {
+          // The slice pointed by write_index has been fully written, advance
+          // write index.
+          ++write_index_;
+        }
+      }
+    } else if (write_index_hit && copy_length == available_bytes_in_slice) {
       // Finished writing all data in current slice, advance write index for
       // next write.
       ++write_index_;
     }
   }
 
-  if (write_index_hit &&
-      static_cast<size_t>(write_index_) == buffered_slices_.size()) {
+  if (GetQuicRestartFlag(quic_coalesce_stream_frames_2)) {
+    QUIC_RESTART_FLAG_COUNT_N(quic_coalesce_stream_frames_2, 3, 3);
+    if (write_index_ != -1 &&
+        static_cast<size_t>(write_index_) == buffered_slices_.size()) {
+      write_index_ = -1;
+    }
+  } else if (write_index_hit &&
+             static_cast<size_t>(write_index_) == buffered_slices_.size()) {
     // Already write to the end off buffer.
     QUIC_DVLOG(2) << "Finish writing out all buffered data.";
     write_index_ = -1;

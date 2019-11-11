@@ -1999,7 +1999,7 @@ TEST_P(QuicPacketCreatorTest, CoalesceStreamFrames) {
   if (!GetParam().version_serialization) {
     creator_.StopSendingVersion();
   }
-  SetQuicReloadableFlag(quic_coalesce_stream_frames, true);
+  SetQuicRestartFlag(quic_coalesce_stream_frames_2, true);
   const size_t max_plaintext_size =
       client_framer_.GetMaxPlaintextSize(creator_.max_packet_length());
   EXPECT_FALSE(creator_.HasPendingFrames());

@@ -1475,10 +1475,10 @@ bool QuicPacketCreator::AddFrame(const QuicFrame& frame,
     return false;
   }
 
-  if (GetQuicReloadableFlag(quic_coalesce_stream_frames) &&
+  if (GetQuicRestartFlag(quic_coalesce_stream_frames_2) &&
       frame.type == STREAM_FRAME &&
       MaybeCoalesceStreamFrame(frame.stream_frame)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_coalesce_stream_frames);
+    QUIC_RESTART_FLAG_COUNT_N(quic_coalesce_stream_frames_2, 1, 3);
     return true;
   }
 
