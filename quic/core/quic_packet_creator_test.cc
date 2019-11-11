@@ -2998,9 +2998,6 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest, ConsumeDataLargeSendAckFalse) {
 }
 
 TEST_F(QuicPacketCreatorMultiplePacketsTest, ConsumeDataLargeSendAckTrue) {
-  if (VersionHasIetfInvariantHeader(framer_.transport_version())) {
-    return;
-  }
   delegate_.SetCanNotWrite();
   delegate_.SetCanWriteAnything();
 
