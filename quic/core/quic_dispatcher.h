@@ -314,11 +314,6 @@ class QUIC_NO_EXPORT QuicDispatcher
   // connection ID according to the packet's size.
   void MaybeResetPacketsWithNoVersion(const ReceivedPacketInfo& packet_info);
 
-  void set_new_sessions_allowed_per_event_loop(
-      int16_t new_sessions_allowed_per_event_loop) {
-    new_sessions_allowed_per_event_loop_ = new_sessions_allowed_per_event_loop;
-  }
-
   const QuicConfig* config_;
 
   const QuicCryptoServerConfig* crypto_config_;
