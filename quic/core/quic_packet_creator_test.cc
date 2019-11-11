@@ -313,7 +313,7 @@ TEST_P(QuicPacketCreatorTest, SerializeFrames) {
     if (level != ENCRYPTION_INITIAL && level != ENCRYPTION_HANDSHAKE) {
       frames_.push_back(
           QuicFrame(QuicStreamFrame(stream_id, false, 0u, QuicStringPiece())));
-      if (!GetQuicReloadableFlag(quic_coalesce_stream_frames)) {
+      if (!GetQuicRestartFlag(quic_coalesce_stream_frames_2)) {
         frames_.push_back(
             QuicFrame(QuicStreamFrame(stream_id, true, 0u, QuicStringPiece())));
       }
@@ -339,7 +339,7 @@ TEST_P(QuicPacketCreatorTest, SerializeFrames) {
           .WillOnce(Return(true));
       if (level != ENCRYPTION_INITIAL && level != ENCRYPTION_HANDSHAKE) {
         EXPECT_CALL(framer_visitor_, OnStreamFrame(_));
-        if (!GetQuicReloadableFlag(quic_coalesce_stream_frames)) {
+        if (!GetQuicRestartFlag(quic_coalesce_stream_frames_2)) {
           EXPECT_CALL(framer_visitor_, OnStreamFrame(_));
         }
       }
@@ -2822,7 +2822,7 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest, ConsumeData_BatchOperations) {
 
   PacketContents contents;
   contents.num_stream_frames =
-      GetQuicReloadableFlag(quic_coalesce_stream_frames) ? 1 : 2;
+      GetQuicRestartFlag(quic_coalesce_stream_frames_2) ? 1 : 2;
   CheckPacketContains(contents, 0);
 }
 
