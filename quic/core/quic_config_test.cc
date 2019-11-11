@@ -21,6 +21,8 @@ namespace quic {
 namespace test {
 namespace {
 
+const uint32_t kMaxPacketSizeForTest = 1234;
+
 class QuicConfigTest : public QuicTestWithParam<QuicTransportVersion> {
  protected:
   QuicConfig config_;
@@ -47,6 +49,8 @@ TEST_P(QuicConfigTest, SetDefaults) {
   EXPECT_FALSE(
       config_.HasReceivedInitialMaxStreamDataBytesOutgoingBidirectional());
   EXPECT_FALSE(config_.HasReceivedInitialMaxStreamDataBytesUnidirectional());
+  EXPECT_EQ(kMaxIncomingPacketSize, config_.GetMaxPacketSizeToSend());
+  EXPECT_FALSE(config_.HasReceivedMaxPacketSize());
 }
 
 TEST_P(QuicConfigTest, AutoSetIetfFlowControl) {
@@ -391,6 +395,7 @@ TEST_P(QuicConfigTest, FillTransportParams) {
       3 * kMinimumFlowControlSendWindow);
   config_.SetInitialMaxStreamDataBytesUnidirectionalToSend(
       4 * kMinimumFlowControlSendWindow);
+  config_.SetMaxPacketSizeToSend(kMaxPacketSizeForTest);
 
   TransportParameters params;
   config_.FillTransportParameters(&params);
@@ -404,6 +409,8 @@ TEST_P(QuicConfigTest, FillTransportParams) {
 
   EXPECT_EQ(static_cast<uint64_t>(kMaximumIdleTimeoutSecs * 1000),
             params.idle_timeout_milliseconds.value());
+
+  EXPECT_EQ(kMaxPacketSizeForTest, params.max_packet_size.value());
 }
 
 TEST_P(QuicConfigTest, ProcessTransportParametersServer) {
@@ -415,6 +422,7 @@ TEST_P(QuicConfigTest, ProcessTransportParametersServer) {
       3 * kMinimumFlowControlSendWindow);
   params.initial_max_stream_data_uni.set_value(4 *
                                                kMinimumFlowControlSendWindow);
+  params.max_packet_size.set_value(kMaxPacketSizeForTest);
 
   std::string error_details;
   EXPECT_EQ(QUIC_NO_ERROR,
@@ -433,6 +441,9 @@ TEST_P(QuicConfigTest, ProcessTransportParametersServer) {
   ASSERT_TRUE(config_.HasReceivedInitialMaxStreamDataBytesUnidirectional());
   EXPECT_EQ(4 * kMinimumFlowControlSendWindow,
             config_.ReceivedInitialMaxStreamDataBytesUnidirectional());
+
+  ASSERT_TRUE(config_.HasReceivedMaxPacketSize());
+  EXPECT_EQ(kMaxPacketSizeForTest, config_.ReceivedMaxPacketSize());
 }
 
 }  // namespace

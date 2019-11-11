@@ -420,7 +420,8 @@ QuicConfig::QuicConfig()
       stateless_reset_token_(kSRST, PRESENCE_OPTIONAL),
       max_incoming_unidirectional_streams_(kMIUS, PRESENCE_OPTIONAL),
       max_ack_delay_ms_(kMAD, PRESENCE_OPTIONAL),
-      ack_delay_exponent_(kADE, PRESENCE_OPTIONAL) {
+      ack_delay_exponent_(kADE, PRESENCE_OPTIONAL),
+      max_packet_size_(0, PRESENCE_OPTIONAL) {
   SetDefaults();
 }
 
@@ -577,6 +578,22 @@ bool QuicConfig::HasReceivedAckDelayExponent() const {
 
 uint32_t QuicConfig::ReceivedAckDelayExponent() const {
   return ack_delay_exponent_.GetReceivedValue();
+}
+
+void QuicConfig::SetMaxPacketSizeToSend(uint32_t max_packet_size) {
+  max_packet_size_.SetSendValue(max_packet_size);
+}
+
+uint32_t QuicConfig::GetMaxPacketSizeToSend() const {
+  return max_packet_size_.GetSendValue();
+}
+
+bool QuicConfig::HasReceivedMaxPacketSize() const {
+  return max_packet_size_.HasReceivedValue();
+}
+
+uint32_t QuicConfig::ReceivedMaxPacketSize() const {
+  return max_packet_size_.GetReceivedValue();
 }
 
 bool QuicConfig::HasSetBytesForConnectionIdToSend() const {
@@ -806,6 +823,7 @@ void QuicConfig::SetDefaults() {
   SetMaxAckDelayToSendMs(kDefaultDelayedAckTimeMs);
   SetSupportMaxHeaderListSize();
   SetAckDelayExponentToSend(kDefaultAckDelayExponent);
+  SetMaxPacketSizeToSend(kMaxIncomingPacketSize);
 }
 
 void QuicConfig::ToHandshakeMessage(
@@ -921,7 +939,7 @@ bool QuicConfig::FillTransportParameters(TransportParameters* params) const {
             sizeof(stateless_reset_token));
   }
 
-  params->max_packet_size.set_value(kMaxIncomingPacketSize);
+  params->max_packet_size.set_value(GetMaxPacketSizeToSend());
   params->initial_max_data.set_value(
       GetInitialSessionFlowControlWindowToSend());
   // The max stream data bidirectional transport parameters can be either local
@@ -1008,10 +1026,13 @@ QuicErrorCode QuicConfig::ProcessTransportParameters(
     stateless_reset_token_.SetReceivedValue(stateless_reset_token);
   }
 
-  if (params.max_packet_size.value() < kMaxOutgoingPacketSize) {
-    // TODO(dschinazi) act on this.
-    QUIC_DLOG(ERROR) << "Ignoring peer's requested max packet size of "
-                     << params.max_packet_size.value();
+  if (params.max_packet_size.IsValid()) {
+    max_packet_size_.SetReceivedValue(params.max_packet_size.value());
+    if (ReceivedMaxPacketSize() < kMaxOutgoingPacketSize) {
+      // TODO(dschinazi) act on this.
+      QUIC_DLOG(ERROR) << "Ignoring peer's requested max packet size of "
+                       << ReceivedMaxPacketSize();
+    }
   }
 
   initial_session_flow_control_window_bytes_.SetReceivedValue(

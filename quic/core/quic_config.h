@@ -456,6 +456,12 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   bool HasReceivedAckDelayExponent() const;
   uint32_t ReceivedAckDelayExponent() const;
 
+  // IETF QUIC max_packet_size transport parameter.
+  void SetMaxPacketSizeToSend(uint32_t max_packet_size);
+  uint32_t GetMaxPacketSizeToSend() const;
+  bool HasReceivedMaxPacketSize() const;
+  uint32_t ReceivedMaxPacketSize() const;
+
   bool negotiated() const;
 
   void SetCreateSessionTagIndicators(QuicTagVector tags);
@@ -572,6 +578,9 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   // deserializing the frame); the received exponent is the value the peer uses
   // to serialize frames and this node uses to deserialize them.
   QuicFixedUint32 ack_delay_exponent_;
+
+  // max_packet_size IEFT QUIC transport parameter.
+  QuicFixedUint32 max_packet_size_;
 
   // Custom transport parameters that can be sent and received in the TLS
   // handshake.
