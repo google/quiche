@@ -37,14 +37,16 @@ QuicSpdyClientBase::QuicSpdyClientBase(
     QuicConnectionHelperInterface* helper,
     QuicAlarmFactory* alarm_factory,
     std::unique_ptr<NetworkHelper> network_helper,
-    std::unique_ptr<ProofVerifier> proof_verifier)
+    std::unique_ptr<ProofVerifier> proof_verifier,
+    std::unique_ptr<SessionCache> session_cache)
     : QuicClientBase(server_id,
                      supported_versions,
                      config,
                      helper,
                      alarm_factory,
                      std::move(network_helper),
-                     std::move(proof_verifier)),
+                     std::move(proof_verifier),
+                     std::move(session_cache)),
       store_response_(false),
       latest_response_code_(-1),
       max_allowed_push_id_(0),

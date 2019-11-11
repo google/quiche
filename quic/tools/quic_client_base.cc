@@ -23,12 +23,13 @@ QuicClientBase::QuicClientBase(
     QuicConnectionHelperInterface* helper,
     QuicAlarmFactory* alarm_factory,
     std::unique_ptr<NetworkHelper> network_helper,
-    std::unique_ptr<ProofVerifier> proof_verifier)
+    std::unique_ptr<ProofVerifier> proof_verifier,
+    std::unique_ptr<SessionCache> session_cache)
     : server_id_(server_id),
       initialized_(false),
       local_port_(0),
       config_(config),
-      crypto_config_(std::move(proof_verifier)),
+      crypto_config_(std::move(proof_verifier), std::move(session_cache)),
       helper_(helper),
       alarm_factory_(alarm_factory),
       supported_versions_(supported_versions),

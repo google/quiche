@@ -13,6 +13,8 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_system_event_loop.h"
 #include "net/quic/platform/impl/quic_epoll_clock.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_connection_peer.h"
+#include "net/third_party/quiche/src/quic/test_tools/quic_session_peer.h"
+#include "net/third_party/quiche/src/quic/test_tools/simple_session_cache.h"
 #include "net/third_party/quiche/src/quic/tools/fake_proof_verifier.h"
 #include "net/third_party/quiche/src/quic/tools/quic_client.h"
 #include "net/third_party/quiche/src/quic/tools/quic_url.h"
@@ -36,6 +38,8 @@ enum class Feature {
   kStreamData,
   // The connection close procedcure completes with a zero error code.
   kConnectionClose,
+  // The connection was established using TLS resumption.
+  kResumption,
   // A RETRY packet was successfully processed.
   kRetry,
 
@@ -58,12 +62,33 @@ char MatrixLetter(Feature f) {
       return 'D';
     case Feature::kConnectionClose:
       return 'C';
-    case Feature::kHttp3:
-      return '3';
+    case Feature::kResumption:
+      return 'R';
     case Feature::kRetry:
       return 'S';
     case Feature::kRebinding:
       return 'B';
+    case Feature::kHttp3:
+      return '3';
+  }
+}
+
+// Attempts a resumption using |client| by disconnecting and reconnecting. If
+// resumption is successful, |features| is modified to add Feature::kResumption
+// to it, otherwise it is left unmodified.
+void AttemptResumption(QuicClient* client, std::set<Feature>* features) {
+  client->Disconnect();
+  if (!client->Initialize()) {
+    QUIC_LOG(ERROR) << "Failed to reinitialize client";
+    return;
+  }
+  if (!client->Connect() || !client->session()->IsCryptoHandshakeConfirmed()) {
+    return;
+  }
+  if (static_cast<QuicCryptoClientStream*>(
+          test::QuicSessionPeer::GetMutableCryptoStream(client->session()))
+          ->IsResumption()) {
+    features->insert(Feature::kResumption);
   }
 }
 
@@ -80,10 +105,12 @@ std::set<Feature> AttemptRequest(QuicSocketAddress addr,
 
   std::set<Feature> features;
   auto proof_verifier = std::make_unique<FakeProofVerifier>();
+  auto session_cache = std::make_unique<test::SimpleSessionCache>();
   QuicEpollServer epoll_server;
   QuicEpollClock epoll_clock(&epoll_server);
   auto client = std::make_unique<QuicClient>(
-      addr, server_id, versions, &epoll_server, std::move(proof_verifier));
+      addr, server_id, versions, &epoll_server, std::move(proof_verifier),
+      std::move(session_cache));
   if (!client->Initialize()) {
     QUIC_LOG(ERROR) << "Failed to initialize client";
     return features;
@@ -188,6 +215,7 @@ std::set<Feature> AttemptRequest(QuicSocketAddress addr,
       client->epoll_network_helper()->RunEventLoop();
       if (epoll_clock.Now() - close_start_time >= close_timeout) {
         QUIC_LOG(ERROR) << "Timed out waiting for connection close";
+        AttemptResumption(client.get(), &features);
         return features;
       }
     }
@@ -201,6 +229,7 @@ std::set<Feature> AttemptRequest(QuicSocketAddress addr,
     }
   }
 
+  AttemptResumption(client.get(), &features);
   return features;
 }
 

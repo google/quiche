@@ -23,6 +23,7 @@ namespace quic {
 
 class ProofVerifier;
 class QuicServerId;
+class SessionCache;
 
 class QuicSpdyClientBase : public QuicClientBase,
                            public QuicClientPushPromiseIndex::Delegate,
@@ -69,7 +70,8 @@ class QuicSpdyClientBase : public QuicClientBase,
                      QuicConnectionHelperInterface* helper,
                      QuicAlarmFactory* alarm_factory,
                      std::unique_ptr<NetworkHelper> network_helper,
-                     std::unique_ptr<ProofVerifier> proof_verifier);
+                     std::unique_ptr<ProofVerifier> proof_verifier,
+                     std::unique_ptr<SessionCache> session_cache);
   QuicSpdyClientBase(const QuicSpdyClientBase&) = delete;
   QuicSpdyClientBase& operator=(const QuicSpdyClientBase&) = delete;
 
