@@ -22,6 +22,7 @@
 #include "net/third_party/quiche/src/quic/test_tools/quic_stream_sequencer_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/simple_quic_framer.h"
+#include "net/third_party/quiche/src/quic/test_tools/simple_session_cache.h"
 
 using testing::_;
 
@@ -37,7 +38,10 @@ class QuicCryptoClientStreamTest : public QuicTest {
   QuicCryptoClientStreamTest()
       : supported_versions_(AllSupportedVersions()),
         server_id_(kServerHostname, kServerPort, false),
-        crypto_config_(crypto_test_utils::ProofVerifierForTesting()) {
+        crypto_config_(crypto_test_utils::ProofVerifierForTesting(),
+                       std::make_unique<test::SimpleSessionCache>()),
+        server_crypto_config_(
+            crypto_test_utils::CryptoServerConfigForTesting()) {
     CreateConnection();
   }
 
@@ -56,6 +60,17 @@ class QuicCryptoClientStreamTest : public QuicTest {
             {AlpnForVersion(connection_->version())})));
   }
 
+  void UseTlsHandshake() {
+    SetQuicReloadableFlag(quic_supports_tls_handshake, true);
+    supported_versions_.clear();
+    for (ParsedQuicVersion version : AllSupportedVersions()) {
+      if (version.handshake_protocol != PROTOCOL_TLS1_3) {
+        continue;
+      }
+      supported_versions_.push_back(version);
+    }
+  }
+
   void CompleteCryptoHandshake() {
     if (stream()->handshake_protocol() != PROTOCOL_TLS1_3) {
       EXPECT_CALL(*session_, OnProofValid(testing::_));
@@ -65,8 +80,8 @@ class QuicCryptoClientStreamTest : public QuicTest {
     stream()->CryptoConnect();
     QuicConfig config;
     crypto_test_utils::HandshakeWithFakeServer(
-        &config, &server_helper_, &alarm_factory_, connection_, stream(),
-        AlpnForVersion(connection_->version()));
+        &config, &server_crypto_config_, &server_helper_, &alarm_factory_,
+        connection_, stream(), AlpnForVersion(connection_->version()));
   }
 
   QuicCryptoClientStream* stream() {
@@ -82,6 +97,7 @@ class QuicCryptoClientStreamTest : public QuicTest {
   QuicServerId server_id_;
   CryptoHandshakeMessage message_;
   QuicCryptoClientConfig crypto_config_;
+  QuicCryptoServerConfig server_crypto_config_;
 };
 
 TEST_F(QuicCryptoClientStreamTest, NotInitiallyConected) {
@@ -97,14 +113,7 @@ TEST_F(QuicCryptoClientStreamTest, ConnectedAfterSHLO) {
 }
 
 TEST_F(QuicCryptoClientStreamTest, ConnectedAfterTlsHandshake) {
-  SetQuicReloadableFlag(quic_supports_tls_handshake, true);
-  supported_versions_.clear();
-  for (ParsedQuicVersion version : AllSupportedVersions()) {
-    if (version.handshake_protocol != PROTOCOL_TLS1_3) {
-      continue;
-    }
-    supported_versions_.push_back(version);
-  }
+  UseTlsHandshake();
   CreateConnection();
   CompleteCryptoHandshake();
   EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
@@ -115,25 +124,42 @@ TEST_F(QuicCryptoClientStreamTest, ConnectedAfterTlsHandshake) {
 
 TEST_F(QuicCryptoClientStreamTest,
        ProofVerifyDetailsAvailableAfterTlsHandshake) {
-  SetQuicReloadableFlag(quic_supports_tls_handshake, true);
-  supported_versions_.clear();
-  for (ParsedQuicVersion version : AllSupportedVersions()) {
-    if (version.handshake_protocol != PROTOCOL_TLS1_3) {
-      continue;
-    }
-    supported_versions_.push_back(version);
-  }
+  UseTlsHandshake();
   CreateConnection();
 
   EXPECT_CALL(*session_, OnProofVerifyDetailsAvailable(testing::_));
   stream()->CryptoConnect();
   QuicConfig config;
   crypto_test_utils::HandshakeWithFakeServer(
-      &config, &server_helper_, &alarm_factory_, connection_, stream(),
-      AlpnForVersion(connection_->version()));
+      &config, &server_crypto_config_, &server_helper_, &alarm_factory_,
+      connection_, stream(), AlpnForVersion(connection_->version()));
   EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
   EXPECT_TRUE(stream()->encryption_established());
   EXPECT_TRUE(stream()->handshake_confirmed());
+}
+
+TEST_F(QuicCryptoClientStreamTest, TlsResumption) {
+  UseTlsHandshake();
+  // Enable resumption on the server:
+  SSL_CTX_clear_options(server_crypto_config_.ssl_ctx(), SSL_OP_NO_TICKET);
+  CreateConnection();
+
+  // Finish establishing the first connection:
+  CompleteCryptoHandshake();
+
+  EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
+  EXPECT_TRUE(stream()->encryption_established());
+  EXPECT_TRUE(stream()->handshake_confirmed());
+  EXPECT_FALSE(stream()->IsResumption());
+
+  // Create a second connection
+  CreateConnection();
+  CompleteCryptoHandshake();
+
+  EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
+  EXPECT_TRUE(stream()->encryption_established());
+  EXPECT_TRUE(stream()->handshake_confirmed());
+  EXPECT_TRUE(stream()->IsResumption());
 }
 
 TEST_F(QuicCryptoClientStreamTest, MessageAfterHandshake) {

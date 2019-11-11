@@ -24,14 +24,12 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
       public QuicCryptoClientStream::HandshakerDelegate,
       public TlsClientConnection::Delegate {
  public:
-  TlsClientHandshaker(QuicCryptoStream* stream,
+  TlsClientHandshaker(const QuicServerId& server_id,
+                      QuicCryptoStream* stream,
                       QuicSession* session,
-                      const QuicServerId& server_id,
-                      ProofVerifier* proof_verifier,
-                      SSL_CTX* ssl_ctx,
                       std::unique_ptr<ProofVerifyContext> verify_context,
-                      QuicCryptoClientStream::ProofHandler* proof_handler,
-                      const std::string& user_agent_id);
+                      QuicCryptoClientConfig* crypto_config,
+                      QuicCryptoClientStream::ProofHandler* proof_handler);
   TlsClientHandshaker(const TlsClientHandshaker&) = delete;
   TlsClientHandshaker& operator=(const TlsClientHandshaker&) = delete;
 
@@ -101,6 +99,8 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
   bool ProcessTransportParameters(std::string* error_details);
   void FinishHandshake();
 
+  void InsertSession(bssl::UniquePtr<SSL_SESSION> session) override;
+
   QuicServerId server_id_;
 
   // Objects used for verifying the server's certificate chain.
@@ -112,6 +112,10 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
   // OnProofVerifyDetailsAvailable callback to use for notifying the result of
   // certificate verification.
   QuicCryptoClientStream::ProofHandler* proof_handler_;
+
+  // Used for session resumption. |session_cache_| is owned by the
+  // QuicCryptoClientConfig passed into TlsClientHandshaker's constructor.
+  SessionCache* session_cache_;
 
   std::string user_agent_id_;
 

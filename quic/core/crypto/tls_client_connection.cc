@@ -19,6 +19,11 @@ bssl::UniquePtr<SSL_CTX> TlsClientConnection::CreateSslCtx() {
   // certificate after the connection is complete. We need to re-verify on
   // resumption in case of expiration or revocation/distrust.
   SSL_CTX_set_custom_verify(ssl_ctx.get(), SSL_VERIFY_PEER, &VerifyCallback);
+
+  // Configure session caching.
+  SSL_CTX_set_session_cache_mode(
+      ssl_ctx.get(), SSL_SESS_CACHE_CLIENT | SSL_SESS_CACHE_NO_INTERNAL);
+  SSL_CTX_sess_set_new_cb(ssl_ctx.get(), NewSessionCallback);
   return ssl_ctx;
 }
 
@@ -28,6 +33,13 @@ enum ssl_verify_result_t TlsClientConnection::VerifyCallback(
     uint8_t* out_alert) {
   return static_cast<TlsClientConnection*>(ConnectionFromSsl(ssl))
       ->delegate_->VerifyCert(out_alert);
+}
+
+// static
+int TlsClientConnection::NewSessionCallback(SSL* ssl, SSL_SESSION* session) {
+  static_cast<TlsClientConnection*>(ConnectionFromSsl(ssl))
+      ->delegate_->InsertSession(bssl::UniquePtr<SSL_SESSION>(session));
+  return 1;
 }
 
 }  // namespace quic

@@ -223,17 +223,15 @@ class TestQuicCryptoClientStream : public TestQuicCryptoStream {
  public:
   explicit TestQuicCryptoClientStream(QuicSession* session)
       : TestQuicCryptoStream(session),
-        proof_verifier_(new FakeProofVerifier),
-        ssl_ctx_(TlsClientConnection::CreateSslCtx()),
+        crypto_config_(std::make_unique<FakeProofVerifier>(),
+                       /*session_cache*/ nullptr),
         handshaker_(new TlsClientHandshaker(
+            QuicServerId("test.example.com", 443, false),
             this,
             session,
-            QuicServerId("test.example.com", 443, false),
-            proof_verifier_.get(),
-            ssl_ctx_.get(),
             crypto_test_utils::ProofVerifyContextForTesting(),
-            &proof_handler_,
-            "quic-tester")) {}
+            &crypto_config_,
+            &proof_handler_)) {}
 
   ~TestQuicCryptoClientStream() override = default;
 
@@ -244,13 +242,12 @@ class TestQuicCryptoClientStream : public TestQuicCryptoStream {
   bool CryptoConnect() { return handshaker_->CryptoConnect(); }
 
   FakeProofVerifier* GetFakeProofVerifier() const {
-    return proof_verifier_.get();
+    return static_cast<FakeProofVerifier*>(crypto_config_.proof_verifier());
   }
 
  private:
-  std::unique_ptr<FakeProofVerifier> proof_verifier_;
   MockProofHandler proof_handler_;
-  bssl::UniquePtr<SSL_CTX> ssl_ctx_;
+  QuicCryptoClientConfig crypto_config_;
   std::unique_ptr<TlsClientHandshaker> handshaker_;
 };
 

@@ -43,22 +43,21 @@ void TlsClientHandshaker::ProofVerifierCallbackImpl::Cancel() {
 }
 
 TlsClientHandshaker::TlsClientHandshaker(
+    const QuicServerId& server_id,
     QuicCryptoStream* stream,
     QuicSession* session,
-    const QuicServerId& server_id,
-    ProofVerifier* proof_verifier,
-    SSL_CTX* ssl_ctx,
     std::unique_ptr<ProofVerifyContext> verify_context,
-    QuicCryptoClientStream::ProofHandler* proof_handler,
-    const std::string& user_agent_id)
-    : TlsHandshaker(stream, session, ssl_ctx),
+    QuicCryptoClientConfig* crypto_config,
+    QuicCryptoClientStream::ProofHandler* proof_handler)
+    : TlsHandshaker(stream, session, crypto_config->ssl_ctx()),
       server_id_(server_id),
-      proof_verifier_(proof_verifier),
+      proof_verifier_(crypto_config->proof_verifier()),
       verify_context_(std::move(verify_context)),
       proof_handler_(proof_handler),
-      user_agent_id_(user_agent_id),
+      session_cache_(crypto_config->session_cache()),
+      user_agent_id_(crypto_config->user_agent_id()),
       crypto_negotiated_params_(new QuicCryptoNegotiatedParameters),
-      tls_connection_(ssl_ctx, this) {}
+      tls_connection_(crypto_config->ssl_ctx(), this) {}
 
 TlsClientHandshaker::~TlsClientHandshaker() {
   if (proof_verify_callback_) {
@@ -85,6 +84,15 @@ bool TlsClientHandshaker::CryptoConnect() {
     CloseConnection(QUIC_HANDSHAKE_FAILED,
                     "Client failed to set Transport Parameters");
     return false;
+  }
+
+  // Set a session to resume, if there is one.
+  if (session_cache_) {
+    std::unique_ptr<QuicResumptionState> cached_state =
+        session_cache_->Lookup(server_id_, SSL_get_SSL_CTX(ssl()));
+    if (cached_state) {
+      SSL_set_session(ssl(), cached_state->tls_session.get());
+    }
   }
 
   // Start the handshake.
@@ -199,8 +207,7 @@ int TlsClientHandshaker::num_sent_client_hellos() const {
 
 bool TlsClientHandshaker::IsResumption() const {
   QUIC_BUG_IF(!handshake_confirmed_);
-  // We don't support resumption (yet).
-  return false;
+  return SSL_session_reused(ssl()) == 1;
 }
 
 int TlsClientHandshaker::num_scup_messages_received() const {
@@ -246,7 +253,10 @@ void TlsClientHandshaker::AdvanceHandshake() {
     return;
   }
   if (state_ == STATE_HANDSHAKE_COMPLETE) {
-    // TODO(nharper): Handle post-handshake messages.
+    int rv = SSL_process_quic_post_handshake(ssl());
+    if (rv != 1) {
+      CloseConnection(QUIC_HANDSHAKE_FAILED, "Unexpected post-handshake data");
+    }
     return;
   }
 
@@ -392,6 +402,16 @@ enum ssl_verify_result_t TlsClientHandshaker::VerifyCert(uint8_t* out_alert) {
                      << cert_verify_error_details_;
       return ssl_verify_invalid;
   }
+}
+
+void TlsClientHandshaker::InsertSession(bssl::UniquePtr<SSL_SESSION> session) {
+  if (session_cache_ == nullptr) {
+    QUIC_DVLOG(1) << "No session cache, not inserting a session";
+    return;
+  }
+  auto cache_state = std::make_unique<QuicResumptionState>();
+  cache_state->tls_session = std::move(session);
+  session_cache_->Insert(server_id_, std::move(cache_state));
 }
 
 }  // namespace quic

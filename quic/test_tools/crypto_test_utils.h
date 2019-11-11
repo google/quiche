@@ -64,8 +64,13 @@ struct FakeClientOptions {
   bool only_tls_versions = false;
 };
 
+// Returns a QuicCryptoServerConfig that is in a reasonable configuration to
+// pass into HandshakeWithFakeServer.
+QuicCryptoServerConfig CryptoServerConfigForTesting();
+
 // returns: the number of client hellos that the client sent.
 int HandshakeWithFakeServer(QuicConfig* server_quic_config,
+                            QuicCryptoServerConfig* crypto_config,
                             MockQuicConnectionHelper* helper,
                             MockAlarmFactory* alarm_factory,
                             PacketSavingConnection* client_conn,

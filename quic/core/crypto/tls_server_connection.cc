@@ -16,6 +16,7 @@ bssl::UniquePtr<SSL_CTX> TlsServerConnection::CreateSslCtx() {
   SSL_CTX_set_tlsext_servername_callback(ssl_ctx.get(),
                                          &SelectCertificateCallback);
   SSL_CTX_set_alpn_select_cb(ssl_ctx.get(), &SelectAlpnCallback, nullptr);
+  SSL_CTX_set_options(ssl_ctx.get(), SSL_OP_NO_TICKET);
   return ssl_ctx;
 }
 

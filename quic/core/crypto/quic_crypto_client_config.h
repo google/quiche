@@ -12,8 +12,10 @@
 #include <vector>
 
 #include "third_party/boringssl/src/include/openssl/base.h"
+#include "third_party/boringssl/src/include/openssl/ssl.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_handshake.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
+#include "net/third_party/quiche/src/quic/core/crypto/transport_parameters.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_server_id.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
@@ -26,6 +28,53 @@ class CryptoHandshakeMessage;
 class ProofVerifier;
 class ProofVerifyDetails;
 class QuicRandom;
+
+// QuicResumptionState stores the state a client needs for performing connection
+// resumption.
+struct QUIC_EXPORT_PRIVATE QuicResumptionState {
+  // |tls_session| holds the cryptographic state necessary for a resumption. It
+  // includes the ALPN negotiated on the connection where the ticket was
+  // received.
+  bssl::UniquePtr<SSL_SESSION> tls_session;
+
+  // If the application using QUIC doesn't support 0-RTT handshakes or the
+  // client didn't receive a 0-RTT capable session ticket from the server,
+  // |transport_params| will be null. Otherwise, it will contain the transport
+  // parameters received from the server on the original connection.
+  std::unique_ptr<TransportParameters> transport_params;
+
+  // If |transport_params| is null, then |application_state| is ignored and
+  // should be empty. |application_state| contains serialized state that the
+  // client received from the server at the application layer that the client
+  // needs to remember when performing a 0-RTT handshake.
+  std::vector<uint8_t> application_state;
+};
+
+// SessionCache is an interface for managing storing and retrieving
+// QuicResumptionState structs.
+class QUIC_EXPORT_PRIVATE SessionCache {
+ public:
+  virtual ~SessionCache() {}
+
+  // Inserts |state| into the cache, keyed by |server_id|. Insert is called
+  // after a session ticket is received. If the session ticket is valid for
+  // 0-RTT, there may be a delay between its receipt and the call to Insert
+  // while waiting for application state for |state|.
+  //
+  // Insert may be called multiple times per connection. SessionCache
+  // implementations should support storing multiple entries per server ID.
+  virtual void Insert(const QuicServerId& server_id,
+                      std::unique_ptr<QuicResumptionState> state) = 0;
+
+  // Lookup is called once at the beginning of each TLS handshake to potentially
+  // provide the saved state both for the TLS handshake and for sending 0-RTT
+  // data (if supported). Lookup may return a nullptr. Implementations should
+  // delete cache entries after returning them in Lookup so that session tickets
+  // are used only once.
+  virtual std::unique_ptr<QuicResumptionState> Lookup(
+      const QuicServerId& server_id,
+      const SSL_CTX* ctx) = 0;
+};
 
 // QuicCryptoClientConfig contains crypto-related configuration settings for a
 // client. Note that this object isn't thread-safe. It's designed to be used on
@@ -203,8 +252,11 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
     virtual bool Matches(const QuicServerId& server_id) const = 0;
   };
 
+  // DEPRECATED: Use the constructor below instead.
   explicit QuicCryptoClientConfig(
       std::unique_ptr<ProofVerifier> proof_verifier);
+  QuicCryptoClientConfig(std::unique_ptr<ProofVerifier> proof_verifier,
+                         std::unique_ptr<SessionCache> session_cache);
   QuicCryptoClientConfig(const QuicCryptoClientConfig&) = delete;
   QuicCryptoClientConfig& operator=(const QuicCryptoClientConfig&) = delete;
   ~QuicCryptoClientConfig();
@@ -309,7 +361,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
       std::string* error_details);
 
   ProofVerifier* proof_verifier() const;
-
+  SessionCache* session_cache() const;
   SSL_CTX* ssl_ctx() const;
 
   // Initialize the CachedState from |canonical_crypto_config| for the
@@ -388,6 +440,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
   std::vector<std::string> canonical_suffixes_;
 
   std::unique_ptr<ProofVerifier> proof_verifier_;
+  std::unique_ptr<SessionCache> session_cache_;
   bssl::UniquePtr<SSL_CTX> ssl_ctx_;
 
   // The |user_agent_id_| passed in QUIC's CHLO message.
