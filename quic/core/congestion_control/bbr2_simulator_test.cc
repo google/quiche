@@ -135,9 +135,13 @@ class Bbr2DefaultTopologyTest : public Bbr2SimulatorTest {
   ~Bbr2DefaultTopologyTest() {
     const auto* test_info =
         ::testing::UnitTest::GetInstance()->current_test_info();
+    const Bbr2Sender::DebugState& debug_state = sender_->ExportDebugState();
     QUIC_LOG(INFO) << "Bbr2DefaultTopologyTest." << test_info->name()
                    << " completed at simulated time: "
-                   << SimulatedNow().ToDebuggingValue() / 1e6 << " sec.";
+                   << SimulatedNow().ToDebuggingValue() / 1e6
+                   << " sec. packet loss:"
+                   << sender_loss_rate_in_packets() * 100
+                   << "%, bw_hi:" << debug_state.bandwidth_hi;
   }
 
   Bbr2Sender* SetupBbr2Sender(simulator::QuicEndpoint* endpoint) {
@@ -771,7 +775,17 @@ class Bbr2MultiSenderTest : public Bbr2SimulatorTest {
         ::testing::UnitTest::GetInstance()->current_test_info();
     QUIC_LOG(INFO) << "Bbr2MultiSenderTest." << test_info->name()
                    << " completed at simulated time: "
-                   << SimulatedNow().ToDebuggingValue() / 1e6 << " sec.";
+                   << SimulatedNow().ToDebuggingValue() / 1e6
+                   << " sec. Per sender stats:";
+    for (size_t i = 0; i < sender_endpoints_.size(); ++i) {
+      QUIC_LOG(INFO) << "sender[" << i << "]: "
+                     << sender_connection(i)
+                            ->sent_packet_manager()
+                            .GetSendAlgorithm()
+                            ->GetCongestionControlType()
+                     << ", packet_loss:"
+                     << 100.0 * sender_loss_rate_in_packets(i) << "%";
+    }
   }
 
   Bbr2Sender* SetupBbr2Sender(simulator::QuicEndpoint* endpoint) {
@@ -837,6 +851,19 @@ class Bbr2MultiSenderTest : public Bbr2SimulatorTest {
   }
 
   QuicTime SimulatedNow() const { return simulator_.GetClock()->Now(); }
+
+  QuicConnection* sender_connection(size_t which) {
+    return sender_endpoints_[which]->connection();
+  }
+
+  const QuicConnectionStats& sender_connection_stats(size_t which) {
+    return sender_connection(which)->GetStats();
+  }
+
+  float sender_loss_rate_in_packets(size_t which) {
+    return static_cast<float>(sender_connection_stats(which).packets_lost) /
+           sender_connection_stats(which).packets_sent;
+  }
 
   simulator::Simulator simulator_;
   std::vector<std::unique_ptr<simulator::QuicEndpoint>> sender_endpoints_;
