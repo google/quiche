@@ -163,6 +163,7 @@ bool QpackProgressiveDecoder::DoIndexedHeaderFieldInstruction() {
       return false;
     }
 
+    header_table_->set_dynamic_table_entry_referenced();
     handler_->OnHeaderDecoded(entry->name(), entry->value());
     return true;
   }
@@ -202,6 +203,7 @@ bool QpackProgressiveDecoder::DoIndexedHeaderFieldPostBaseInstruction() {
     return false;
   }
 
+  header_table_->set_dynamic_table_entry_referenced();
   handler_->OnHeaderDecoded(entry->name(), entry->value());
   return true;
 }
@@ -231,6 +233,7 @@ bool QpackProgressiveDecoder::DoLiteralHeaderFieldNameReferenceInstruction() {
       return false;
     }
 
+    header_table_->set_dynamic_table_entry_referenced();
     handler_->OnHeaderDecoded(entry->name(), instruction_decoder_.value());
     return true;
   }
@@ -270,6 +273,7 @@ bool QpackProgressiveDecoder::DoLiteralHeaderFieldPostBaseInstruction() {
     return false;
   }
 
+  header_table_->set_dynamic_table_entry_referenced();
   handler_->OnHeaderDecoded(entry->name(), instruction_decoder_.value());
   return true;
 }

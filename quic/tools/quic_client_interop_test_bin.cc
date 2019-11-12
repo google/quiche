@@ -50,6 +50,9 @@ enum class Feature {
   // Third row of features (H3 tests)
   // An H3 transaction succeeded.
   kHttp3,
+  // One or both endpoints insert entries into dynamic table and subsequenly
+  // reference them from header blocks.
+  kDynamicEntryReferenced,
 };
 
 char MatrixLetter(Feature f) {
@@ -70,6 +73,8 @@ char MatrixLetter(Feature f) {
       return 'B';
     case Feature::kHttp3:
       return '3';
+    case Feature::kDynamicEntryReferenced:
+      return 'd';
   }
 }
 
@@ -181,6 +186,10 @@ std::set<Feature> AttemptRequest(QuicSocketAddress addr,
   if (client->latest_response_code() != -1) {
     features.insert(Feature::kHttp3);
 
+    if (client->client_session()->dynamic_table_entry_referenced()) {
+      features.insert(Feature::kDynamicEntryReferenced);
+    }
+
     if (attempt_rebind) {
       // Now make a second request after switching to a different client port.
       if (client->ChangeEphemeralPort()) {
@@ -200,6 +209,10 @@ std::set<Feature> AttemptRequest(QuicSocketAddress addr,
           }
         }
         features.insert(Feature::kRebinding);
+
+        if (client->client_session()->dynamic_table_entry_referenced()) {
+          features.insert(Feature::kDynamicEntryReferenced);
+        }
       } else {
         QUIC_LOG(ERROR) << "Failed to change ephemeral port";
       }

@@ -266,6 +266,14 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
                                                  QuicByteCount compressed,
                                                  QuicByteCount uncompressed);
 
+  // True if any dynamic table entries have been referenced from either a sent
+  // or received header block.  Used for stats.
+  bool dynamic_table_entry_referenced() const {
+    return (qpack_encoder_ &&
+            qpack_encoder_->dynamic_table_entry_referenced()) ||
+           (qpack_decoder_ && qpack_decoder_->dynamic_table_entry_referenced());
+  }
+
  protected:
   // Override CreateIncomingStream(), CreateOutgoingBidirectionalStream() and
   // CreateOutgoingUnidirectionalStream() with QuicSpdyStream return type to

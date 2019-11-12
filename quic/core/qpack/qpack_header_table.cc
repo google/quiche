@@ -17,7 +17,8 @@ QpackHeaderTable::QpackHeaderTable()
       dynamic_table_capacity_(0),
       maximum_dynamic_table_capacity_(0),
       max_entries_(0),
-      dropped_entry_count_(0) {}
+      dropped_entry_count_(0),
+      dynamic_table_entry_referenced_(false) {}
 
 QpackHeaderTable::~QpackHeaderTable() {
   for (auto& entry : observers_) {

@@ -88,6 +88,11 @@ class QUIC_EXPORT_PRIVATE QpackEncoder
     return &decoder_stream_receiver_;
   }
 
+  // True if any dynamic table entries have been referenced from a header block.
+  bool dynamic_table_entry_referenced() const {
+    return header_table_.dynamic_table_entry_referenced();
+  }
+
  private:
   friend class test::QpackEncoderPeer;
 

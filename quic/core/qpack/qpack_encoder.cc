@@ -131,6 +131,7 @@ QpackEncoder::Instructions QpackEncoder::FirstPassEncode(
             instructions.push_back(
                 EncodeIndexedHeaderField(is_static, index, referred_indices));
             smallest_blocking_index = std::min(smallest_blocking_index, index);
+            header_table_.set_dynamic_table_entry_referenced();
 
             break;
           }
@@ -151,6 +152,7 @@ QpackEncoder::Instructions QpackEncoder::FirstPassEncode(
             instructions.push_back(EncodeIndexedHeaderField(
                 is_static, entry->InsertionIndex(), referred_indices));
             smallest_blocking_index = std::min(smallest_blocking_index, index);
+            header_table_.set_dynamic_table_entry_referenced();
 
             break;
           }
@@ -208,6 +210,7 @@ QpackEncoder::Instructions QpackEncoder::FirstPassEncode(
           instructions.push_back(EncodeIndexedHeaderField(
               is_static, entry->InsertionIndex(), referred_indices));
           smallest_blocking_index = std::min(smallest_blocking_index, index);
+          header_table_.set_dynamic_table_entry_referenced();
 
           break;
         }
@@ -218,6 +221,7 @@ QpackEncoder::Instructions QpackEncoder::FirstPassEncode(
           instructions.push_back(EncodeLiteralHeaderFieldWithNameReference(
               is_static, index, value, referred_indices));
           smallest_blocking_index = std::min(smallest_blocking_index, index);
+          header_table_.set_dynamic_table_entry_referenced();
 
           break;
         }
