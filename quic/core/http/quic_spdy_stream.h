@@ -211,8 +211,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   // will be available.
   bool IsClosed() { return sequencer()->IsClosed(); }
 
-  using QuicStream::CloseWriteSide;
-
   // QpackDecodedHeadersAccumulator::Visitor implementation.
   void OnHeadersDecoded(QuicHeaderList headers) override;
   void OnHeaderDecodingError() override;
