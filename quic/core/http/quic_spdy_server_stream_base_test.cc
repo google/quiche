@@ -31,6 +31,7 @@ class QuicSpdyServerStreamBaseTest : public QuicTest {
       : session_(new MockQuicConnection(&helper_,
                                         &alarm_factory_,
                                         Perspective::IS_SERVER)) {
+    session_.Initialize();
     stream_ =
         new TestQuicSpdyServerStream(GetNthClientInitiatedBidirectionalStreamId(
                                          session_.transport_version(), 0),

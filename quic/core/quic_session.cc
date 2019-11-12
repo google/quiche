@@ -9,6 +9,7 @@
 #include <utility>
 
 #include "net/third_party/quiche/src/quic/core/quic_connection.h"
+#include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
 #include "net/third_party/quiche/src/quic/core/quic_flow_controller.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
@@ -263,6 +264,8 @@ void QuicSession::OnStopSendingFrame(const QuicStopSendingFrame& frame) {
     return;
   }
 
+  stream->OnStopSending(frame.application_error_code);
+
   stream->set_stream_error(
       static_cast<QuicRstStreamErrorCode>(frame.application_error_code));
   SendRstStreamInner(
@@ -298,6 +301,16 @@ void QuicSession::OnRstStream(const QuicRstStreamFrame& frame) {
   if (stream_id == QuicUtils::GetInvalidStreamId(transport_version())) {
     connection()->CloseConnection(
         QUIC_INVALID_STREAM_ID, "Received data for an invalid stream",
+        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    return;
+  }
+
+  if (VersionHasIetfQuicFrames(transport_version()) &&
+      QuicUtils::GetStreamType(stream_id, perspective(),
+                               IsIncomingStream(stream_id)) ==
+          WRITE_UNIDIRECTIONAL) {
+    connection()->CloseConnection(
+        QUIC_INVALID_STREAM_ID, "Received RESET_STREAM for a write-only stream",
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return;
   }
@@ -690,21 +703,23 @@ void QuicSession::SendRstStreamInner(QuicStreamId id,
                                      bool close_write_side_only) {
   if (connection()->connected()) {
     // Only send if still connected.
-    if (close_write_side_only) {
-      DCHECK(VersionHasIetfQuicFrames(transport_version()));
-      // Send a RST_STREAM frame.
-      control_frame_manager_.WriteOrBufferRstStream(id, error, bytes_written);
-    } else {
+    if (VersionHasIetfQuicFrames(transport_version())) {
       // Send a RST_STREAM frame plus, if version 99, an IETF
       // QUIC STOP_SENDING frame. Both sre sent to emulate
       // the two-way close that Google QUIC's RST_STREAM does.
-      if (VersionHasIetfQuicFrames(transport_version())) {
-        QuicConnection::ScopedPacketFlusher flusher(connection());
-        control_frame_manager_.WriteOrBufferRstStream(id, error, bytes_written);
-        control_frame_manager_.WriteOrBufferStopSending(error, id);
-      } else {
+      QuicConnection::ScopedPacketFlusher flusher(connection());
+      if (QuicUtils::GetStreamType(id, perspective(), IsIncomingStream(id)) !=
+          READ_UNIDIRECTIONAL) {
         control_frame_manager_.WriteOrBufferRstStream(id, error, bytes_written);
       }
+      if (!close_write_side_only &&
+          QuicUtils::GetStreamType(id, perspective(), IsIncomingStream(id)) !=
+              WRITE_UNIDIRECTIONAL) {
+        control_frame_manager_.WriteOrBufferStopSending(error, id);
+      }
+    } else {
+      DCHECK(!close_write_side_only);
+      control_frame_manager_.WriteOrBufferRstStream(id, error, bytes_written);
     }
     connection_->OnStreamReset(id, error);
   }

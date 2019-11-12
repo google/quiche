@@ -389,24 +389,33 @@ class QuicSessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
   }
 
   void CloseStream(QuicStreamId id) {
-    if (VersionHasIetfQuicFrames(session_.transport_version()) &&
-        QuicUtils::GetStreamType(id, session_.perspective(),
-                                 session_.IsIncomingStream(id)) ==
-            READ_UNIDIRECTIONAL) {
-      // Verify reset is not sent for READ_UNIDIRECTIONAL streams.
-      EXPECT_CALL(*connection_, SendControlFrame(_)).Times(0);
-      EXPECT_CALL(*connection_, OnStreamReset(_, _)).Times(0);
-    } else {
-      // Verify reset IS sent for BIDIRECTIONAL streams.
-      if (VersionHasIetfQuicFrames(session_.transport_version())) {
-        // Once for the RST_STREAM, Once for the STOP_SENDING
+    if (VersionHasIetfQuicFrames(transport_version())) {
+      if (QuicUtils::GetStreamType(id, session_.perspective(),
+                                   session_.IsIncomingStream(id)) ==
+          READ_UNIDIRECTIONAL) {
+        // Verify reset is not sent for READ_UNIDIRECTIONAL streams.
+        EXPECT_CALL(*connection_, SendControlFrame(_)).Times(0);
+        EXPECT_CALL(*connection_, OnStreamReset(_, _)).Times(0);
+      } else if (QuicUtils::GetStreamType(id, session_.perspective(),
+                                          session_.IsIncomingStream(id)) ==
+                 WRITE_UNIDIRECTIONAL) {
+        // Verify RESET_STREAM but not STOP_SENDING is sent for write-only
+        // stream.
+        EXPECT_CALL(*connection_, SendControlFrame(_))
+            .Times(1)
+            .WillOnce(Invoke(&ClearControlFrame));
+        EXPECT_CALL(*connection_, OnStreamReset(id, _));
+      } else {
+        // Verify RESET_STREAM and STOP_SENDING are sent for BIDIRECTIONAL
+        // streams.
         EXPECT_CALL(*connection_, SendControlFrame(_))
             .Times(2)
             .WillRepeatedly(Invoke(&ClearControlFrame));
-      } else {
-        EXPECT_CALL(*connection_, SendControlFrame(_))
-            .WillOnce(Invoke(&ClearControlFrame));
+        EXPECT_CALL(*connection_, OnStreamReset(id, _));
       }
+    } else {
+      EXPECT_CALL(*connection_, SendControlFrame(_))
+          .WillOnce(Invoke(&ClearControlFrame));
       EXPECT_CALL(*connection_, OnStreamReset(id, _));
     }
     session_.CloseStream(id);
@@ -2751,6 +2760,41 @@ TEST_P(QuicSessionTestServer, StreamFrameReceivedAfterFin) {
                 CloseConnection(QUIC_STREAM_DATA_BEYOND_CLOSE_OFFSET, _, _));
   }
   session_.OnStreamFrame(frame1);
+}
+
+TEST_P(QuicSessionTestServer, ResetForIETFStreamTypes) {
+  if (!VersionHasIetfQuicFrames(transport_version())) {
+    return;
+  }
+
+  QuicStreamId read_only = GetNthClientInitiatedUnidirectionalId(0);
+  EXPECT_CALL(*connection_, SendControlFrame(_)).Times(0);
+  EXPECT_CALL(*connection_, OnStreamReset(read_only, _));
+  session_.SendRstStreamInner(read_only, QUIC_STREAM_CANCELLED, 0,
+                              /*close_write_side_only = */ true);
+
+  EXPECT_CALL(*connection_, SendControlFrame(_))
+      .Times(1)
+      .WillOnce(Invoke(&ClearControlFrame));
+  EXPECT_CALL(*connection_, OnStreamReset(read_only, _));
+  session_.SendRstStreamInner(read_only, QUIC_STREAM_CANCELLED, 0,
+                              /*close_write_side_only = */ false);
+
+  QuicStreamId write_only = GetNthServerInitiatedUnidirectionalId(0);
+  EXPECT_CALL(*connection_, SendControlFrame(_))
+      .Times(1)
+      .WillOnce(Invoke(&ClearControlFrame));
+  EXPECT_CALL(*connection_, OnStreamReset(write_only, _));
+  session_.SendRstStreamInner(write_only, QUIC_STREAM_CANCELLED, 0,
+                              /*close_write_side_only = */ false);
+
+  QuicStreamId bidirectional = GetNthClientInitiatedBidirectionalId(0);
+  EXPECT_CALL(*connection_, SendControlFrame(_))
+      .Times(2)
+      .WillRepeatedly(Invoke(&ClearControlFrame));
+  EXPECT_CALL(*connection_, OnStreamReset(bidirectional, _));
+  session_.SendRstStreamInner(bidirectional, QUIC_STREAM_CANCELLED, 0,
+                              /*close_write_side_only = */ false);
 }
 
 // A client test class that can be used when the automatic configuration is not
