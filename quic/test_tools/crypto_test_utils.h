@@ -66,7 +66,7 @@ struct FakeClientOptions {
 
 // Returns a QuicCryptoServerConfig that is in a reasonable configuration to
 // pass into HandshakeWithFakeServer.
-QuicCryptoServerConfig CryptoServerConfigForTesting();
+std::unique_ptr<QuicCryptoServerConfig> CryptoServerConfigForTesting();
 
 // returns: the number of client hellos that the client sent.
 int HandshakeWithFakeServer(QuicConfig* server_quic_config,

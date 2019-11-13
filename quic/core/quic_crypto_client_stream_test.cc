@@ -82,7 +82,7 @@ class QuicCryptoClientStreamTest : public QuicTest {
     stream()->CryptoConnect();
     QuicConfig config;
     crypto_test_utils::HandshakeWithFakeServer(
-        &config, &server_crypto_config_, &server_helper_, &alarm_factory_,
+        &config, server_crypto_config_.get(), &server_helper_, &alarm_factory_,
         connection_, stream(), AlpnForVersion(connection_->version()));
   }
 
@@ -99,7 +99,7 @@ class QuicCryptoClientStreamTest : public QuicTest {
   QuicServerId server_id_;
   CryptoHandshakeMessage message_;
   QuicCryptoClientConfig crypto_config_;
-  QuicCryptoServerConfig server_crypto_config_;
+  std::unique_ptr<QuicCryptoServerConfig> server_crypto_config_;
 };
 
 TEST_F(QuicCryptoClientStreamTest, NotInitiallyConected) {
@@ -133,7 +133,7 @@ TEST_F(QuicCryptoClientStreamTest,
   stream()->CryptoConnect();
   QuicConfig config;
   crypto_test_utils::HandshakeWithFakeServer(
-      &config, &server_crypto_config_, &server_helper_, &alarm_factory_,
+      &config, server_crypto_config_.get(), &server_helper_, &alarm_factory_,
       connection_, stream(), AlpnForVersion(connection_->version()));
   EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
   EXPECT_TRUE(stream()->encryption_established());
@@ -143,7 +143,7 @@ TEST_F(QuicCryptoClientStreamTest,
 TEST_F(QuicCryptoClientStreamTest, TlsResumption) {
   UseTlsHandshake();
   // Enable resumption on the server:
-  SSL_CTX_clear_options(server_crypto_config_.ssl_ctx(), SSL_OP_NO_TICKET);
+  SSL_CTX_clear_options(server_crypto_config_->ssl_ctx(), SSL_OP_NO_TICKET);
   CreateConnection();
 
   // Finish establishing the first connection:

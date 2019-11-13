@@ -166,11 +166,11 @@ class QuicSpdyClientSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
       config.SetMaxIncomingBidirectionalStreamsToSend(
           server_max_incoming_streams);
     }
-    QuicCryptoServerConfig crypto_config =
+    std::unique_ptr<QuicCryptoServerConfig> crypto_config =
         crypto_test_utils::CryptoServerConfigForTesting();
     crypto_test_utils::HandshakeWithFakeServer(
-        &config, &crypto_config, &helper_, &alarm_factory_, connection_, stream,
-        AlpnForVersion(connection_->version()));
+        &config, crypto_config.get(), &helper_, &alarm_factory_, connection_,
+        stream, AlpnForVersion(connection_->version()));
   }
 
   QuicCryptoClientConfig crypto_config_;

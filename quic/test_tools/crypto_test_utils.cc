@@ -209,8 +209,8 @@ class FullChloGenerator {
 
 }  // namespace
 
-QuicCryptoServerConfig CryptoServerConfigForTesting() {
-  return QuicCryptoServerConfig(
+std::unique_ptr<QuicCryptoServerConfig> CryptoServerConfigForTesting() {
+  return std::make_unique<QuicCryptoServerConfig>(
       QuicCryptoServerConfig::TESTING, QuicRandom::GetInstance(),
       ProofSourceForTesting(), KeyExchangeSource::Default());
 }

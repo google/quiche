@@ -76,11 +76,11 @@ class QuicTransportClientSessionTest : public QuicTest {
   void Connect() {
     session_->CryptoConnect();
     QuicConfig server_config = DefaultQuicConfig();
-    QuicCryptoServerConfig crypto_config =
-        crypto_test_utils::CryptoServerConfigForTesting();
+    std::unique_ptr<QuicCryptoServerConfig> crypto_config(
+        crypto_test_utils::CryptoServerConfigForTesting());
     crypto_test_utils::HandshakeWithFakeServer(
-        &server_config, &crypto_config, &helper_, &alarm_factory_, &connection_,
-        crypto_stream_, QuicTransportAlpn());
+        &server_config, crypto_config.get(), &helper_, &alarm_factory_,
+        &connection_, crypto_stream_, QuicTransportAlpn());
   }
 
   MockAlarmFactory alarm_factory_;
