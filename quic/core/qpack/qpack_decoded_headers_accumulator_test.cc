@@ -38,14 +38,14 @@ const uint64_t kMaximumBlockedStreams = 1;
 // Header Acknowledgement decoder stream instruction with stream_id = 1.
 const char* const kHeaderAcknowledgement = "\x81";
 
-}  // anonymous namespace
-
 class MockVisitor : public QpackDecodedHeadersAccumulator::Visitor {
  public:
   ~MockVisitor() override = default;
   MOCK_METHOD1(OnHeadersDecoded, void(QuicHeaderList headers));
   MOCK_METHOD1(OnHeaderDecodingError, void(QuicStringPiece error_message));
 };
+
+}  // anonymous namespace
 
 class QpackDecodedHeadersAccumulatorTest : public QuicTest {
  protected:
