@@ -325,13 +325,9 @@ void BbrSender::SetFromConfig(const QuicConfig& config,
 }
 
 void BbrSender::AdjustNetworkParameters(const NetworkParams& params) {
-  AdjustNetworkParameters(params.bandwidth, params.rtt,
-                          params.allow_cwnd_to_decrease);
-}
+  const QuicBandwidth& bandwidth = params.bandwidth;
+  const QuicTime::Delta& rtt = params.rtt;
 
-void BbrSender::AdjustNetworkParameters(QuicBandwidth bandwidth,
-                                        QuicTime::Delta rtt,
-                                        bool allow_cwnd_to_decrease) {
   if (GetQuicReloadableFlag(quic_bbr_donot_inject_bandwidth)) {
     QUIC_RELOADABLE_FLAG_COUNT(quic_bbr_donot_inject_bandwidth);
   } else if (!bandwidth.IsZero()) {
@@ -340,12 +336,10 @@ void BbrSender::AdjustNetworkParameters(QuicBandwidth bandwidth,
   if (!rtt.IsZero() && (min_rtt_ > rtt || min_rtt_.IsZero())) {
     min_rtt_ = rtt;
   }
-  if (GetQuicReloadableFlag(quic_fix_bbr_cwnd_in_bandwidth_resumption) &&
-      mode_ == STARTUP) {
+
+  if (params.quic_fix_bbr_cwnd_in_bandwidth_resumption && mode_ == STARTUP) {
     if (bandwidth.IsZero()) {
       // Ignore bad bandwidth samples.
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_fix_bbr_cwnd_in_bandwidth_resumption, 3,
-                                   3);
       return;
     }
     const QuicByteCount new_cwnd = std::max(
@@ -363,14 +357,7 @@ void BbrSender::AdjustNetworkParameters(QuicBandwidth bandwidth,
     } else {
       QUIC_CODE_COUNT(quic_default_initial_rtt);
     }
-    if (new_cwnd > congestion_window_) {
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_fix_bbr_cwnd_in_bandwidth_resumption, 1,
-                                   3);
-    } else {
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_fix_bbr_cwnd_in_bandwidth_resumption, 2,
-                                   3);
-    }
-    if (new_cwnd < congestion_window_ && !allow_cwnd_to_decrease) {
+    if (new_cwnd < congestion_window_ && !params.allow_cwnd_to_decrease) {
       // Only decrease cwnd if allow_cwnd_to_decrease is true.
       return;
     }
@@ -382,8 +369,7 @@ void BbrSender::AdjustNetworkParameters(QuicBandwidth bandwidth,
       set_high_cwnd_gain(kDerivedHighCWNDGain);
     }
     congestion_window_ = new_cwnd;
-    if (GetQuicReloadableFlag(quic_bbr_fix_pacing_rate)) {
-      QUIC_RELOADABLE_FLAG_COUNT(quic_bbr_fix_pacing_rate);
+    if (params.quic_bbr_fix_pacing_rate) {
       // Pace at the rate of new_cwnd / RTT.
       QuicBandwidth new_pacing_rate =
           QuicBandwidth::FromBytesAndTimeDelta(congestion_window_, GetMinRtt());

@@ -106,18 +106,10 @@ void TcpCubicSenderBytes::SetFromConfig(const QuicConfig& config,
 }
 
 void TcpCubicSenderBytes::AdjustNetworkParameters(const NetworkParams& params) {
-  AdjustNetworkParameters(params.bandwidth, params.rtt,
-                          params.allow_cwnd_to_decrease);
-}
-void TcpCubicSenderBytes::AdjustNetworkParameters(
-    QuicBandwidth bandwidth,
-    QuicTime::Delta rtt,
-    bool /*allow_cwnd_to_decrease*/) {
-  if (bandwidth.IsZero() || rtt.IsZero()) {
+  if (params.bandwidth.IsZero() || params.rtt.IsZero()) {
     return;
   }
-
-  SetCongestionWindowFromBandwidthAndRtt(bandwidth, rtt);
+  SetCongestionWindowFromBandwidthAndRtt(params.bandwidth, params.rtt);
 }
 
 float TcpCubicSenderBytes::RenoBeta() const {

@@ -1249,8 +1249,9 @@ TEST_F(BbrSenderTest, SimpleCompetition) {
 TEST_F(BbrSenderTest, ResumeConnectionState) {
   CreateDefaultSetup();
 
-  bbr_sender_.connection()->AdjustNetworkParameters(kTestLinkBandwidth,
-                                                    kTestRtt, false);
+  bbr_sender_.connection()->AdjustNetworkParameters(
+      SendAlgorithmInterface::NetworkParams(kTestLinkBandwidth, kTestRtt,
+                                            false));
   if (!GetQuicReloadableFlag(quic_bbr_donot_inject_bandwidth)) {
     EXPECT_EQ(kTestLinkBandwidth, sender_->ExportDebugState().max_bandwidth);
     EXPECT_EQ(kTestLinkBandwidth, sender_->BandwidthEstimate());
@@ -1333,7 +1334,8 @@ TEST_F(BbrSenderTest, RecalculatePacingRateOnCwndChange1RTT) {
 
   // Bootstrap cwnd.
   bbr_sender_.connection()->AdjustNetworkParameters(
-      kTestLinkBandwidth, QuicTime::Delta::Zero(), false);
+      SendAlgorithmInterface::NetworkParams(kTestLinkBandwidth,
+                                            QuicTime::Delta::Zero(), false));
   if (!GetQuicReloadableFlag(quic_bbr_donot_inject_bandwidth)) {
     EXPECT_EQ(kTestLinkBandwidth, sender_->ExportDebugState().max_bandwidth);
     EXPECT_EQ(kTestLinkBandwidth, sender_->BandwidthEstimate());
@@ -1362,7 +1364,8 @@ TEST_F(BbrSenderTest, RecalculatePacingRateOnCwndChange0RTT) {
 
   // Bootstrap cwnd.
   bbr_sender_.connection()->AdjustNetworkParameters(
-      kTestLinkBandwidth, QuicTime::Delta::Zero(), false);
+      SendAlgorithmInterface::NetworkParams(kTestLinkBandwidth,
+                                            QuicTime::Delta::Zero(), false));
   if (!GetQuicReloadableFlag(quic_bbr_donot_inject_bandwidth)) {
     EXPECT_EQ(kTestLinkBandwidth, sender_->ExportDebugState().max_bandwidth);
     EXPECT_EQ(kTestLinkBandwidth, sender_->BandwidthEstimate());

@@ -2205,8 +2205,12 @@ TEST_F(QuicSentPacketManagerTest, ResumeConnectionState) {
   CachedNetworkParameters cached_network_params;
   cached_network_params.set_min_rtt_ms(kRtt.ToMilliseconds());
 
-  EXPECT_CALL(*send_algorithm_,
-              AdjustNetworkParameters(QuicBandwidth::Zero(), kRtt, false));
+  SendAlgorithmInterface::NetworkParams params;
+  params.bandwidth = QuicBandwidth::Zero();
+  params.allow_cwnd_to_decrease = false;
+  params.rtt = kRtt;
+
+  EXPECT_CALL(*send_algorithm_, AdjustNetworkParameters(params));
   EXPECT_CALL(*send_algorithm_, GetCongestionWindow())
       .Times(testing::AnyNumber());
   manager_.ResumeConnectionState(cached_network_params, false);

@@ -509,13 +509,6 @@ void QuicConnection::AdjustNetworkParameters(
   sent_packet_manager_.AdjustNetworkParameters(params);
 }
 
-void QuicConnection::AdjustNetworkParameters(QuicBandwidth bandwidth,
-                                             QuicTime::Delta rtt,
-                                             bool allow_cwnd_to_decrease) {
-  sent_packet_manager_.AdjustNetworkParameters(bandwidth, rtt,
-                                               allow_cwnd_to_decrease);
-}
-
 QuicBandwidth QuicConnection::MaxPacingRate() const {
   return sent_packet_manager_.MaxPacingRate();
 }

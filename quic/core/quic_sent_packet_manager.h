@@ -148,9 +148,6 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
 
   // Notify the sent packet manager of an external network measurement or
   // prediction for either |bandwidth| or |rtt|; either can be empty.
-  void AdjustNetworkParameters(QuicBandwidth bandwidth,
-                               QuicTime::Delta rtt,
-                               bool allow_cwnd_to_decrease);
   void AdjustNetworkParameters(
       const SendAlgorithmInterface::NetworkParams& params);
 

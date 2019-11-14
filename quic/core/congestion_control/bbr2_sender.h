@@ -48,9 +48,6 @@ class QUIC_EXPORT_PRIVATE Bbr2Sender final : public SendAlgorithmInterface {
                      Perspective perspective) override;
 
   void AdjustNetworkParameters(const NetworkParams& params) override;
-  void AdjustNetworkParameters(QuicBandwidth bandwidth,
-                               QuicTime::Delta rtt,
-                               bool allow_cwnd_to_decrease) override;
 
   void SetInitialCongestionWindowInPackets(
       QuicPacketCount congestion_window) override;

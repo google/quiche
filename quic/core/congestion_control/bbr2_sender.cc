@@ -115,14 +115,7 @@ const Limits<QuicByteCount>& Bbr2Sender::cwnd_limits() const {
 }
 
 void Bbr2Sender::AdjustNetworkParameters(const NetworkParams& params) {
-  AdjustNetworkParameters(params.bandwidth, params.rtt,
-                          params.allow_cwnd_to_decrease);
-}
-
-void Bbr2Sender::AdjustNetworkParameters(QuicBandwidth bandwidth,
-                                         QuicTime::Delta rtt,
-                                         bool allow_cwnd_to_decrease) {
-  model_.UpdateNetworkParameters(bandwidth, rtt);
+  model_.UpdateNetworkParameters(params.bandwidth, params.rtt);
 
   if (mode_ == Bbr2Mode::STARTUP) {
     const QuicByteCount prior_cwnd = cwnd_;
@@ -132,7 +125,7 @@ void Bbr2Sender::AdjustNetworkParameters(QuicBandwidth bandwidth,
     // we are reducing the number of updates needed to arrive at the target.
     cwnd_ = model_.BDP(model_.BandwidthEstimate());
     UpdateCongestionWindow(0);
-    if (!allow_cwnd_to_decrease) {
+    if (!params.allow_cwnd_to_decrease) {
       cwnd_ = std::max(cwnd_, prior_cwnd);
     }
   }

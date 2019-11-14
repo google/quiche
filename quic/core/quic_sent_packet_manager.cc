@@ -308,19 +308,17 @@ void QuicSentPacketManager::ResumeConnectionState(
           : cached_network_params.bandwidth_estimate_bytes_per_second());
   QuicTime::Delta rtt =
       QuicTime::Delta::FromMilliseconds(cached_network_params.min_rtt_ms());
-  AdjustNetworkParameters(bandwidth, rtt, /*allow_cwnd_to_decrease=*/false);
+  // This calls the old AdjustNetworkParameters interface, and fills certain
+  // fields in SendAlgorithmInterface::NetworkParams
+  // (e.g., quic_bbr_fix_pacing_rate) using GFE flags.
+  AdjustNetworkParameters(SendAlgorithmInterface::NetworkParams(
+      bandwidth, rtt, /*allow_cwnd_to_decrease = */ false));
 }
 
 void QuicSentPacketManager::AdjustNetworkParameters(
     const SendAlgorithmInterface::NetworkParams& params) {
-  AdjustNetworkParameters(params.bandwidth, params.rtt,
-                          params.allow_cwnd_to_decrease);
-}
-
-void QuicSentPacketManager::AdjustNetworkParameters(
-    QuicBandwidth bandwidth,
-    QuicTime::Delta rtt,
-    bool allow_cwnd_to_decrease) {
+  const QuicBandwidth& bandwidth = params.bandwidth;
+  const QuicTime::Delta& rtt = params.rtt;
   if (!rtt.IsZero()) {
     SetInitialRtt(rtt);
   }
@@ -330,8 +328,7 @@ void QuicSentPacketManager::AdjustNetworkParameters(
     QUIC_RELOADABLE_FLAG_COUNT(quic_conservative_bursts);
     pacing_sender_.SetBurstTokens(kConservativeUnpacedBurst);
   }
-  send_algorithm_->AdjustNetworkParameters(bandwidth, rtt,
-                                           allow_cwnd_to_decrease);
+  send_algorithm_->AdjustNetworkParameters(params);
   if (debug_delegate_ != nullptr) {
     debug_delegate_->OnAdjustNetworkParameters(
         bandwidth, rtt.IsZero() ? rtt_stats_.SmoothedOrInitialRtt() : rtt,
