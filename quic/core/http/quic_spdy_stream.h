@@ -213,7 +213,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
 
   // QpackDecodedHeadersAccumulator::Visitor implementation.
   void OnHeadersDecoded(QuicHeaderList headers) override;
-  void OnHeaderDecodingError() override;
+  void OnHeaderDecodingError(QuicStringPiece error_message) override;
 
  protected:
   // Called when the received headers are too large. By default this will
@@ -264,9 +264,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   bool OnUnknownFrameStart(uint64_t frame_type, QuicByteCount header_length);
   bool OnUnknownFramePayload(QuicStringPiece payload);
   bool OnUnknownFrameEnd();
-
-  // Called internally when headers are decoded.
-  void ProcessDecodedHeaders(const QuicHeaderList& headers);
 
   // Given the interval marked by [|offset|, |offset| + |data_length|), return
   // the number of frame header bytes contained in it.

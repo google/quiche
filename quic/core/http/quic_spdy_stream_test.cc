@@ -1840,11 +1840,10 @@ TEST_P(QuicSpdyStreamTest, MalformedHeadersStopHttpDecoder) {
 
   EXPECT_CALL(
       *connection_,
-      CloseConnection(
-          QUIC_QPACK_DECOMPRESSION_FAILED,
-          MatchesRegex("Error decompressing header block on stream \\d+: "
-                       "Incomplete header block."),
-          _))
+      CloseConnection(QUIC_QPACK_DECOMPRESSION_FAILED,
+                      MatchesRegex("Error decoding headers on stream \\d+: "
+                                   "Incomplete header block."),
+                      _))
       .WillOnce(
           (Invoke([this](QuicErrorCode error, const std::string& error_details,
                          ConnectionCloseBehavior connection_close_behavior) {
@@ -1994,11 +1993,10 @@ TEST_P(QuicSpdyStreamTest, AsyncErrorDecodingHeaders) {
 
   EXPECT_CALL(
       *connection_,
-      CloseConnection(
-          QUIC_QPACK_DECOMPRESSION_FAILED,
-          MatchesRegex("Error during async decoding of headers on stream \\d+: "
-                       "Required Insert Count too large."),
-          ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET));
+      CloseConnection(QUIC_QPACK_DECOMPRESSION_FAILED,
+                      MatchesRegex("Error decoding headers on stream \\d+: "
+                                   "Required Insert Count too large."),
+                      ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET));
 
   // Deliver two dynamic table entries to decoder
   // to trigger decoding of header block.
@@ -2054,13 +2052,12 @@ TEST_P(QuicSpdyStreamTest, AsyncErrorDecodingTrailers) {
   // Insert Count value advertised in the header block prefix.
   EXPECT_FALSE(stream_->trailers_decompressed());
 
-  EXPECT_CALL(*connection_,
-              CloseConnection(
-                  QUIC_QPACK_DECOMPRESSION_FAILED,
-                  MatchesRegex(
-                      "Error during async decoding of trailers on stream \\d+: "
-                      "Required Insert Count too large."),
-                  ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET));
+  EXPECT_CALL(
+      *connection_,
+      CloseConnection(QUIC_QPACK_DECOMPRESSION_FAILED,
+                      MatchesRegex("Error decoding trailers on stream \\d+: "
+                                   "Required Insert Count too large."),
+                      ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET));
 
   // Deliver second dynamic table entry to decoder
   // to trigger decoding of trailing header block.

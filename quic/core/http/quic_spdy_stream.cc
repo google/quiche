@@ -537,20 +537,40 @@ void QuicSpdyStream::OnStreamHeaderList(bool fin,
 }
 
 void QuicSpdyStream::OnHeadersDecoded(QuicHeaderList headers) {
-  blocked_on_decoding_headers_ = false;
-  ProcessDecodedHeaders(headers);
-  // Continue decoding HTTP/3 frames.
-  OnDataAvailable();
+  qpack_decoded_headers_accumulator_.reset();
+
+  QuicSpdySession::LogHeaderCompressionRatioHistogram(
+      /* using_qpack = */ true,
+      /* is_sent = */ false, headers.compressed_header_bytes(),
+      headers.uncompressed_header_bytes());
+
+  if (spdy_session_->promised_stream_id() ==
+      QuicUtils::GetInvalidStreamId(session()->transport_version())) {
+    const QuicByteCount frame_length = headers_decompressed_
+                                           ? trailers_payload_length_
+                                           : headers_payload_length_;
+    OnStreamHeaderList(/* fin = */ false, frame_length, headers);
+  } else {
+    spdy_session_->OnHeaderList(headers);
+  }
+
+  if (blocked_on_decoding_headers_) {
+    blocked_on_decoding_headers_ = false;
+    // Continue decoding HTTP/3 frames.
+    OnDataAvailable();
+  }
 }
 
-void QuicSpdyStream::OnHeaderDecodingError() {
+void QuicSpdyStream::OnHeaderDecodingError(QuicStringPiece error_message) {
+  qpack_decoded_headers_accumulator_.reset();
+
   // TODO(b/124216424): Use HTTP_EXCESSIVE_LOAD instead if indicated by
   // |qpack_decoded_headers_accumulator_|.
-  std::string error_message = QuicStrCat(
-      "Error during async decoding of ",
-      headers_decompressed_ ? "trailers" : "headers", " on stream ", id(), ": ",
-      qpack_decoded_headers_accumulator_->error_message());
-  CloseConnectionWithDetails(QUIC_QPACK_DECOMPRESSION_FAILED, error_message);
+  std::string connection_close_error_message = QuicStrCat(
+      "Error decoding ", headers_decompressed_ ? "trailers" : "headers",
+      " on stream ", id(), ": ", error_message);
+  CloseConnectionWithDetails(QUIC_QPACK_DECOMPRESSION_FAILED,
+                             connection_close_error_message);
 }
 
 void QuicSpdyStream::OnHeadersTooLarge() {
@@ -898,42 +918,26 @@ bool QuicSpdyStream::OnHeadersFramePayload(QuicStringPiece payload) {
     headers_payload_length_ += payload.length();
   }
 
-  const bool success = qpack_decoded_headers_accumulator_->Decode(payload);
-
+  qpack_decoded_headers_accumulator_->Decode(payload);
   sequencer()->MarkConsumed(body_manager_.OnNonBody(payload.size()));
 
-  if (!success) {
-    std::string error_message =
-        QuicStrCat("Error decompressing header block on stream ", id(), ": ",
-                   qpack_decoded_headers_accumulator_->error_message());
-    CloseConnectionWithDetails(QUIC_QPACK_DECOMPRESSION_FAILED, error_message);
-    return false;
-  }
-  return true;
+  // |qpack_decoded_headers_accumulator_| is reset if an error is detected.
+  return qpack_decoded_headers_accumulator_ != nullptr;
 }
 
 bool QuicSpdyStream::OnHeadersFrameEnd() {
   DCHECK(VersionUsesHttp3(transport_version()));
   DCHECK(qpack_decoded_headers_accumulator_);
 
-  auto result = qpack_decoded_headers_accumulator_->EndHeaderBlock();
+  qpack_decoded_headers_accumulator_->EndHeaderBlock();
 
-  if (result == QpackDecodedHeadersAccumulator::Status::kError) {
-    std::string error_message =
-        QuicStrCat("Error decompressing header block on stream ", id(), ": ",
-                   qpack_decoded_headers_accumulator_->error_message());
-    CloseConnectionWithDetails(QUIC_QPACK_DECOMPRESSION_FAILED, error_message);
-    return false;
-  }
-
-  if (result == QpackDecodedHeadersAccumulator::Status::kBlocked) {
+  // If decoding is complete or an error is detected, then
+  // |qpack_decoded_headers_accumulator_| is already reset.
+  if (qpack_decoded_headers_accumulator_) {
     blocked_on_decoding_headers_ = true;
     return false;
   }
 
-  DCHECK(result == QpackDecodedHeadersAccumulator::Status::kSuccess);
-
-  ProcessDecodedHeaders(qpack_decoded_headers_accumulator_->quic_header_list());
   return !sequencer()->IsClosed() && !reading_stopped();
 }
 
@@ -994,24 +998,6 @@ bool QuicSpdyStream::OnUnknownFramePayload(QuicStringPiece payload) {
 
 bool QuicSpdyStream::OnUnknownFrameEnd() {
   return true;
-}
-
-void QuicSpdyStream::ProcessDecodedHeaders(const QuicHeaderList& headers) {
-  QuicSpdySession::LogHeaderCompressionRatioHistogram(
-      /* using_qpack = */ true,
-      /* is_sent = */ false, headers.compressed_header_bytes(),
-      headers.uncompressed_header_bytes());
-
-  if (spdy_session_->promised_stream_id() ==
-      QuicUtils::GetInvalidStreamId(session()->transport_version())) {
-    const QuicByteCount frame_length = headers_decompressed_
-                                           ? trailers_payload_length_
-                                           : headers_payload_length_;
-    OnStreamHeaderList(/* fin = */ false, frame_length, headers);
-  } else {
-    spdy_session_->OnHeaderList(headers);
-  }
-  qpack_decoded_headers_accumulator_.reset();
 }
 
 size_t QuicSpdyStream::WriteHeadersImpl(

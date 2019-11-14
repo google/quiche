@@ -273,33 +273,13 @@ class VerifyingDecoder : public QpackDecodedHeadersAccumulator::Visitor {
     visitor_->OnHeaderBlockDecoded(stream_id_);
   }
 
-  void OnHeaderDecodingError() override {
-    CHECK(false) << accumulator_.error_message();
+  void OnHeaderDecodingError(QuicStringPiece error_message) override {
+    CHECK(false) << error_message;
   }
 
-  void Decode(QuicStringPiece data) {
-    const bool success = accumulator_.Decode(data);
-    CHECK(success) << accumulator_.error_message();
-  }
+  void Decode(QuicStringPiece data) { accumulator_.Decode(data); }
 
-  void EndHeaderBlock() {
-    QpackDecodedHeadersAccumulator::Status status =
-        accumulator_.EndHeaderBlock();
-
-    CHECK(status != QpackDecodedHeadersAccumulator::Status::kError)
-        << accumulator_.error_message();
-
-    if (status == QpackDecodedHeadersAccumulator::Status::kBlocked) {
-      return;
-    }
-
-    CHECK(status == QpackDecodedHeadersAccumulator::Status::kSuccess);
-
-    // Compare resulting header list to original.
-    CHECK(expected_header_list_ == accumulator_.quic_header_list());
-    // Might destroy |this|.
-    visitor_->OnHeaderBlockDecoded(stream_id_);
-  }
+  void EndHeaderBlock() { accumulator_.EndHeaderBlock(); }
 
  private:
   QuicStreamId stream_id_;

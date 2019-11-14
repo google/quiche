@@ -780,16 +780,15 @@ TEST_P(QpackDecoderTest, BlockedDecodingUnblockedBeforeEndOfHeaderBlock) {
                // entry with relative index 0, absolute index 0.
       "d1"));  // Static table entry with index 17.
 
+  // Set dynamic table capacity to 1024.
+  DecodeEncoderStreamData(QuicTextUtils::HexDecode("3fe107"));
+
   // Add literal entry with name "foo" and value "bar".  Decoding is now
   // unblocked because dynamic table Insert Count reached the Required Insert
   // Count of the header block.  |handler_| methods are called immediately for
   // the already consumed part of the header block.
   EXPECT_CALL(handler_, OnHeaderDecoded(Eq("foo"), Eq("bar")));
   EXPECT_CALL(handler_, OnHeaderDecoded(Eq(":method"), Eq("GET")));
-
-  // Set dynamic table capacity to 1024.
-  DecodeEncoderStreamData(QuicTextUtils::HexDecode("3fe107"));
-  // Add literal entry with name "foo" and value "bar".
   DecodeEncoderStreamData(QuicTextUtils::HexDecode("6294e703626172"));
   Mock::VerifyAndClearExpectations(&handler_);
 
@@ -807,6 +806,29 @@ TEST_P(QpackDecoderTest, BlockedDecodingUnblockedBeforeEndOfHeaderBlock) {
   EXPECT_CALL(decoder_stream_sender_delegate_,
               WriteStreamData(Eq(kHeaderAcknowledgement)));
   EndDecoding();
+}
+
+// Regression test for https://crbug.com/1024263.
+TEST_P(QpackDecoderTest,
+       BlockedDecodingUnblockedAndErrorBeforeEndOfHeaderBlock) {
+  StartDecoding();
+  DecodeData(QuicTextUtils::HexDecode(
+      "0200"   // Required Insert Count 1 and Delta Base 0.
+               // Base is 1 + 0 = 1.
+      "80"     // Indexed Header Field instruction addressing dynamic table
+               // entry with relative index 0, absolute index 0.
+      "81"));  // Relative index 1 is equal to Base, therefore invalid.
+
+  // Set dynamic table capacity to 1024.
+  DecodeEncoderStreamData(QuicTextUtils::HexDecode("3fe107"));
+
+  // Add literal entry with name "foo" and value "bar".  Decoding is now
+  // unblocked because dynamic table Insert Count reached the Required Insert
+  // Count of the header block.  |handler_| methods are called immediately for
+  // the already consumed part of the header block.
+  EXPECT_CALL(handler_, OnHeaderDecoded(Eq("foo"), Eq("bar")));
+  EXPECT_CALL(handler_, OnDecodingErrorDetected(Eq("Invalid relative index.")));
+  DecodeEncoderStreamData(QuicTextUtils::HexDecode("6294e703626172"));
 }
 
 // Make sure that Required Insert Count is compared to Insert Count,

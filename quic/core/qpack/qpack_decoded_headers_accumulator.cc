@@ -18,7 +18,6 @@ QpackDecodedHeadersAccumulator::QpackDecodedHeadersAccumulator(
       uncompressed_header_bytes_(0),
       compressed_header_bytes_(0),
       headers_decoded_(false),
-      blocked_(false),
       error_detected_(false) {
   quic_header_list_.set_max_header_list_size(max_header_list_size);
   quic_header_list_.OnHeaderBlockStart();
@@ -40,9 +39,8 @@ void QpackDecodedHeadersAccumulator::OnDecodingCompleted() {
   quic_header_list_.OnHeaderBlockEnd(uncompressed_header_bytes_,
                                      compressed_header_bytes_);
 
-  if (blocked_) {
-    visitor_->OnHeadersDecoded(quic_header_list_);
-  }
+  // Might destroy |this|.
+  visitor_->OnHeadersDecoded(std::move(quic_header_list_));
 }
 
 void QpackDecodedHeadersAccumulator::OnDecodingErrorDetected(
@@ -51,51 +49,24 @@ void QpackDecodedHeadersAccumulator::OnDecodingErrorDetected(
   DCHECK(!headers_decoded_);
 
   error_detected_ = true;
-  // Copy error message to ensure it remains valid for the lifetime of |this|.
-  error_message_.assign(error_message.data(), error_message.size());
-
-  if (blocked_) {
-    visitor_->OnHeaderDecodingError();
-  }
+  // Might destroy |this|.
+  visitor_->OnHeaderDecodingError(error_message);
 }
 
-bool QpackDecodedHeadersAccumulator::Decode(QuicStringPiece data) {
+void QpackDecodedHeadersAccumulator::Decode(QuicStringPiece data) {
   DCHECK(!error_detected_);
 
   compressed_header_bytes_ += data.size();
+  // Might destroy |this|.
   decoder_->Decode(data);
-
-  return !error_detected_;
 }
 
-QpackDecodedHeadersAccumulator::Status
-QpackDecodedHeadersAccumulator::EndHeaderBlock() {
+void QpackDecodedHeadersAccumulator::EndHeaderBlock() {
   DCHECK(!error_detected_);
   DCHECK(!headers_decoded_);
 
+  // Might destroy |this|.
   decoder_->EndHeaderBlock();
-
-  if (error_detected_) {
-    DCHECK(!headers_decoded_);
-    return Status::kError;
-  }
-
-  if (headers_decoded_) {
-    return Status::kSuccess;
-  }
-
-  blocked_ = true;
-  return Status::kBlocked;
-}
-
-const QuicHeaderList& QpackDecodedHeadersAccumulator::quic_header_list() const {
-  DCHECK(!error_detected_);
-  return quic_header_list_;
-}
-
-QuicStringPiece QpackDecodedHeadersAccumulator::error_message() const {
-  DCHECK(error_detected_);
-  return error_message_;
 }
 
 }  // namespace quic
