@@ -157,17 +157,18 @@ class QUIC_NO_EXPORT QuicCircularDeque {
     }
 
     void Decrement() {
-      DCHECK_GE(ExternalPosition(), 1);
+      DCHECK_GE(ExternalPosition(), 1u);
       index_ = deque_->index_prev(index_);
     }
 
     void IncrementBy(difference_type delta) {
       if (delta >= 0) {
         // After increment we are before or at end().
-        DCHECK_LE(ExternalPosition() + delta, deque_->size());
+        DCHECK_LE(static_cast<size_type>(ExternalPosition() + delta),
+                  deque_->size());
       } else {
         // After decrement we are after or at begin().
-        DCHECK_GE(ExternalPosition(), -delta);
+        DCHECK_GE(ExternalPosition(), static_cast<size_type>(-delta));
       }
       index_ = deque_->index_increment_by(index_, delta);
     }
@@ -714,7 +715,7 @@ class QUIC_NO_EXPORT QuicCircularDeque {
       return index;
     }
 
-    DCHECK_LT(std::abs(delta), data_capacity());
+    DCHECK_LT(static_cast<size_type>(std::abs(delta)), data_capacity());
     return (index + data_capacity() + delta) % data_capacity();
   }
 

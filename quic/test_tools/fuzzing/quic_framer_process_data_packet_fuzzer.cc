@@ -3,9 +3,9 @@
 // found in the LICENSE file.
 
 #include <fuzzer/FuzzedDataProvider.h>
-#include <cstdint>
-
 #include <algorithm>
+#include <cstdint>
+#include <string>
 
 #include "net/third_party/quiche/src/quic/core/crypto/null_decrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/null_encrypter.h"
@@ -87,7 +87,7 @@ QuicSelfContainedPacketHeader ConsumeQuicPacketHeader(
 
   header.form = ConsumePacketHeaderFormat(provider, header.version);
 
-  const string cid_bytes =
+  const std::string cid_bytes =
       provider->ConsumeBytesAsString(kQuicDefaultConnectionIdLength);
   if (receiver_perspective == Perspective::IS_SERVER) {
     header.destination_connection_id =
