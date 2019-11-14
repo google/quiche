@@ -1739,11 +1739,13 @@ TEST_P(EndToEndTestWithTls, MaxIncomingDynamicStreamsLimitRespected) {
   ASSERT_TRUE(Initialize());
   if (VersionHasIetfQuicFrames(
           GetParam().negotiated_version.transport_version)) {
-    // Do not run this test for /IETF QUIC. Note that the test needs
-    // to be here, after calling Initialize(), because all tests end up calling
-    // EndToEndTest::TearDown(), which asserts that Initialize has been called
-    // and then proceeds to tear things down -- which fails if they are not
-    // properly set up.
+    // Do not run this test for /IETF QUIC. This test relies on the fact that
+    // Google QUIC allows a small number of additional streams beyond the
+    // negotiated limit, which is not supported in IETF QUIC. Note that the test
+    // needs to be here, after calling Initialize(), because all tests end up
+    // calling EndToEndTest::TearDown(), which asserts that Initialize has been
+    // called and then proceeds to tear things down -- which fails if they are
+    // not properly set up.
     return;
   }
   EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
