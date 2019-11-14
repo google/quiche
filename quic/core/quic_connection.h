@@ -303,6 +303,9 @@ class QUIC_EXPORT_PRIVATE QuicConnectionDebugVisitor
 
   // Called when a MaxStreamsFrame has been parsed.
   virtual void OnMaxStreamsFrame(const QuicMaxStreamsFrame& /*frame*/) {}
+
+  // Called when |count| packet numbers have been skipped.
+  virtual void OnNPacketNumbersSkipped(QuicPacketCount /*count*/) {}
 };
 
 class QUIC_EXPORT_PRIVATE QuicConnectionHelperInterface {

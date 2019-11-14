@@ -2684,9 +2684,15 @@ void QuicConnection::OnRetransmissionTimeout() {
       sent_packet_manager_.pending_timer_transmission_count() == 1) {
     // Skip a packet number when a single PTO packet is sent to elicit an
     // immediate ACK.
+    const QuicPacketCount num_packet_numbers_to_skip = 1;
     packet_creator_.SkipNPacketNumbers(
-        1, sent_packet_manager_.GetLeastUnacked(),
+        num_packet_numbers_to_skip, sent_packet_manager_.GetLeastUnacked(),
         sent_packet_manager_.EstimateMaxPacketsInFlight(max_packet_length()));
+    if (GetQuicReloadableFlag(quic_on_packet_numbers_skipped) &&
+        debug_visitor_ != nullptr) {
+      QUIC_RELOADABLE_FLAG_COUNT(quic_on_packet_numbers_skipped);
+      debug_visitor_->OnNPacketNumbersSkipped(num_packet_numbers_to_skip);
+    }
   }
   WriteIfNotBlocked();
 
