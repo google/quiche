@@ -271,10 +271,13 @@ enum QuicIetfFrameType : uint8_t {
   IETF_CONNECTION_CLOSE = 0x1c,
   IETF_APPLICATION_CLOSE = 0x1d,
 
-  // MESSAGE frame type is not yet determined, use 0x2x temporarily to give
-  // stream frame some wiggle room.
+  // The MESSAGE frame type has not yet been fully standardized.
+  // QUIC versions starting with 46 and before 99 use 0x20-0x21.
+  // IETF QUIC (v99) uses 0x30-0x31, see draft-pauly-quic-datagram.
   IETF_EXTENSION_MESSAGE_NO_LENGTH = 0x20,
   IETF_EXTENSION_MESSAGE = 0x21,
+  IETF_EXTENSION_MESSAGE_NO_LENGTH_V99 = 0x30,
+  IETF_EXTENSION_MESSAGE_V99 = 0x31,
 };
 QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                              const QuicIetfFrameType& c);

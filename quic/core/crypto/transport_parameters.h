@@ -168,6 +168,10 @@ struct QUIC_EXPORT_PRIVATE TransportParameters {
   // to store.
   IntegerParameter active_connection_id_limit;
 
+  // Indicates support for the DATAGRAM frame and the maximum frame size that
+  // the sender accepts. See draft-pauly-quic-datagram.
+  IntegerParameter max_datagram_frame_size;
+
   // Transport parameters used by Google QUIC but not IETF QUIC. This is
   // serialized into a TransportParameter struct with a TransportParameterId of
   // kGoogleQuicParamId.

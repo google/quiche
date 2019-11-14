@@ -421,7 +421,8 @@ QuicConfig::QuicConfig()
       max_incoming_unidirectional_streams_(kMIUS, PRESENCE_OPTIONAL),
       max_ack_delay_ms_(kMAD, PRESENCE_OPTIONAL),
       ack_delay_exponent_(kADE, PRESENCE_OPTIONAL),
-      max_packet_size_(0, PRESENCE_OPTIONAL) {
+      max_packet_size_(0, PRESENCE_OPTIONAL),
+      max_datagram_frame_size_(0, PRESENCE_OPTIONAL) {
   SetDefaults();
 }
 
@@ -594,6 +595,23 @@ bool QuicConfig::HasReceivedMaxPacketSize() const {
 
 uint32_t QuicConfig::ReceivedMaxPacketSize() const {
   return max_packet_size_.GetReceivedValue();
+}
+
+void QuicConfig::SetMaxDatagramFrameSizeToSend(
+    uint32_t max_datagram_frame_size) {
+  max_datagram_frame_size_.SetSendValue(max_datagram_frame_size);
+}
+
+uint32_t QuicConfig::GetMaxDatagramFrameSizeToSend() const {
+  return max_datagram_frame_size_.GetSendValue();
+}
+
+bool QuicConfig::HasReceivedMaxDatagramFrameSize() const {
+  return max_datagram_frame_size_.HasReceivedValue();
+}
+
+uint32_t QuicConfig::ReceivedMaxDatagramFrameSize() const {
+  return max_datagram_frame_size_.GetReceivedValue();
 }
 
 bool QuicConfig::HasSetBytesForConnectionIdToSend() const {
@@ -824,6 +842,7 @@ void QuicConfig::SetDefaults() {
   SetSupportMaxHeaderListSize();
   SetAckDelayExponentToSend(kDefaultAckDelayExponent);
   SetMaxPacketSizeToSend(kMaxIncomingPacketSize);
+  SetMaxDatagramFrameSizeToSend(kMaxAcceptedDatagramFrameSize);
 }
 
 void QuicConfig::ToHandshakeMessage(
@@ -940,6 +959,7 @@ bool QuicConfig::FillTransportParameters(TransportParameters* params) const {
   }
 
   params->max_packet_size.set_value(GetMaxPacketSizeToSend());
+  params->max_datagram_frame_size.set_value(GetMaxDatagramFrameSizeToSend());
   params->initial_max_data.set_value(
       GetInitialSessionFlowControlWindowToSend());
   // The max stream data bidirectional transport parameters can be either local
@@ -1033,6 +1053,12 @@ QuicErrorCode QuicConfig::ProcessTransportParameters(
       QUIC_DLOG(ERROR) << "Ignoring peer's requested max packet size of "
                        << ReceivedMaxPacketSize();
     }
+  }
+
+  if (params.max_datagram_frame_size.IsValid()) {
+    max_datagram_frame_size_.SetReceivedValue(
+        params.max_datagram_frame_size.value());
+    // TODO(dschinazi) act on this.
   }
 
   initial_session_flow_control_window_bytes_.SetReceivedValue(

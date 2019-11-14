@@ -462,6 +462,12 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   bool HasReceivedMaxPacketSize() const;
   uint32_t ReceivedMaxPacketSize() const;
 
+  // IETF QUIC max_datagram_frame_size transport parameter.
+  void SetMaxDatagramFrameSizeToSend(uint32_t max_datagram_frame_size);
+  uint32_t GetMaxDatagramFrameSizeToSend() const;
+  bool HasReceivedMaxDatagramFrameSize() const;
+  uint32_t ReceivedMaxDatagramFrameSize() const;
+
   bool negotiated() const;
 
   void SetCreateSessionTagIndicators(QuicTagVector tags);
@@ -579,8 +585,11 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   // to serialize frames and this node uses to deserialize them.
   QuicFixedUint32 ack_delay_exponent_;
 
-  // max_packet_size IEFT QUIC transport parameter.
+  // max_packet_size IETF QUIC transport parameter.
   QuicFixedUint32 max_packet_size_;
+
+  // max_datagram_frame_size IETF QUIC transport parameter.
+  QuicFixedUint32 max_datagram_frame_size_;
 
   // Custom transport parameters that can be sent and received in the TLS
   // handshake.

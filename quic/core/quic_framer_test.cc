@@ -365,9 +365,9 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
     message_frames_.push_back(
         std::make_unique<QuicMessageFrame>(frame.data, frame.message_length));
     if (VersionHasIetfQuicFrames(transport_version_)) {
-      EXPECT_TRUE(IETF_EXTENSION_MESSAGE_NO_LENGTH ==
+      EXPECT_TRUE(IETF_EXTENSION_MESSAGE_NO_LENGTH_V99 ==
                       framer_->current_received_frame_type() ||
-                  IETF_EXTENSION_MESSAGE ==
+                  IETF_EXTENSION_MESSAGE_V99 ==
                       framer_->current_received_frame_type());
     } else {
       EXPECT_EQ(0u, framer_->current_received_frame_type());
@@ -5086,7 +5086,7 @@ TEST_P(QuicFramerTest, PingFrame) {
 }
 
 TEST_P(QuicFramerTest, MessageFrame) {
-  if (framer_.transport_version() <= QUIC_VERSION_43) {
+  if (!VersionSupportsMessageFrames(framer_.transport_version())) {
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
@@ -5117,10 +5117,40 @@ TEST_P(QuicFramerTest, MessageFrame) {
         {{},
          {'m', 'e', 's', 's', 'a', 'g', 'e', '2'}},
    };
+  PacketFragments packet99 = {
+       // type (short header, 4 byte packet number)
+       {"",
+        {0x43}},
+       // connection_id
+       {"",
+        {0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10}},
+       // packet number
+       {"",
+        {0x12, 0x34, 0x56, 0x78}},
+       // message frame type.
+       {"",
+        { 0x31 }},
+       // message length
+       {"Unable to read message length",
+        {0x07}},
+       // message data
+       {"Unable to read message data",
+        {'m', 'e', 's', 's', 'a', 'g', 'e'}},
+        // message frame no length.
+        {"",
+         { 0x30 }},
+        // message data
+        {{},
+         {'m', 'e', 's', 's', 'a', 'g', 'e', '2'}},
+   };
   // clang-format on
 
-  std::unique_ptr<QuicEncryptedPacket> encrypted(
-      AssemblePacketFromFragments(packet46));
+  std::unique_ptr<QuicEncryptedPacket> encrypted;
+  if (VersionHasIetfQuicFrames(framer_.transport_version())) {
+    encrypted = AssemblePacketFromFragments(packet99);
+  } else {
+    encrypted = AssemblePacketFromFragments(packet46);
+  }
   EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
 
   EXPECT_THAT(framer_.error(), IsQuicNoError());
@@ -5133,7 +5163,11 @@ TEST_P(QuicFramerTest, MessageFrame) {
   EXPECT_EQ(7u, visitor_.message_frames_[0]->message_length);
   EXPECT_EQ(8u, visitor_.message_frames_[1]->message_length);
 
-  CheckFramingBoundaries(packet46, QUIC_INVALID_MESSAGE_DATA);
+  if (VersionHasIetfQuicFrames(framer_.transport_version())) {
+    CheckFramingBoundaries(packet99, QUIC_INVALID_MESSAGE_DATA);
+  } else {
+    CheckFramingBoundaries(packet46, QUIC_INVALID_MESSAGE_DATA);
+  }
 }
 
 TEST_P(QuicFramerTest, PublicResetPacketV33) {
@@ -8442,7 +8476,7 @@ TEST_P(QuicFramerTest, BuildPingPacket) {
 }
 
 TEST_P(QuicFramerTest, BuildMessagePacket) {
-  if (framer_.transport_version() <= QUIC_VERSION_43) {
+  if (!VersionSupportsMessageFrames(framer_.transport_version())) {
     return;
   }
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
@@ -8487,13 +8521,13 @@ TEST_P(QuicFramerTest, BuildMessagePacket) {
     0x12, 0x34, 0x56, 0x78,
 
     // frame type (IETF_MESSAGE frame)
-    0x21,
+    0x31,
     // Length
     0x07,
     // Message Data
     'm', 'e', 's', 's', 'a', 'g', 'e',
     // frame type (message frame no length)
-    0x20,
+    0x30,
     // Message Data
     'm', 'e', 's', 's', 'a', 'g', 'e', '2'
   };

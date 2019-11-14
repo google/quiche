@@ -3226,12 +3226,12 @@ bool QuicFramer::ProcessIetfFrameData(QuicDataReader* reader,
           }
           break;
         }
-        case IETF_EXTENSION_MESSAGE_NO_LENGTH:
+        case IETF_EXTENSION_MESSAGE_NO_LENGTH_V99:
           QUIC_FALLTHROUGH_INTENDED;
-        case IETF_EXTENSION_MESSAGE: {
+        case IETF_EXTENSION_MESSAGE_V99: {
           QuicMessageFrame message_frame;
           if (!ProcessMessageFrame(
-                  reader, frame_type == IETF_EXTENSION_MESSAGE_NO_LENGTH,
+                  reader, frame_type == IETF_EXTENSION_MESSAGE_NO_LENGTH_V99,
                   &message_frame)) {
             return RaiseError(QUIC_INVALID_MESSAGE_DATA);
           }
@@ -5559,8 +5559,14 @@ bool QuicFramer::AppendPaddingFrame(const QuicPaddingFrame& frame,
 bool QuicFramer::AppendMessageFrameAndTypeByte(const QuicMessageFrame& frame,
                                                bool last_frame_in_packet,
                                                QuicDataWriter* writer) {
-  uint8_t type_byte = last_frame_in_packet ? IETF_EXTENSION_MESSAGE_NO_LENGTH
-                                           : IETF_EXTENSION_MESSAGE;
+  uint8_t type_byte;
+  if (VersionHasIetfQuicFrames(version_.transport_version)) {
+    type_byte = last_frame_in_packet ? IETF_EXTENSION_MESSAGE_NO_LENGTH_V99
+                                     : IETF_EXTENSION_MESSAGE_V99;
+  } else {
+    type_byte = last_frame_in_packet ? IETF_EXTENSION_MESSAGE_NO_LENGTH
+                                     : IETF_EXTENSION_MESSAGE;
+  }
   if (!writer->WriteUInt8(type_byte)) {
     return false;
   }

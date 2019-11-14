@@ -47,6 +47,9 @@ const QuicByteCount kMaxIncomingPacketSize = kMaxV4PacketSize;
 const QuicByteCount kMaxOutgoingPacketSize = kMaxV6PacketSize;
 // ETH_MAX_MTU - MAX(sizeof(iphdr), sizeof(ip6_hdr)) - sizeof(udphdr).
 const QuicByteCount kMaxGsoPacketSize = 65535 - 40 - 8;
+// The maximal IETF DATAGRAM frame size we'll accept. Choosing 2^16 ensures
+// that it is greater than the biggest frame we could ever fit in a QUIC packet.
+const QuicByteCount kMaxAcceptedDatagramFrameSize = 65536;
 // Default maximum packet size used in the Linux TCP implementation.
 // Used in QUIC for congestion window computations in bytes.
 const QuicByteCount kDefaultTCPMSS = 1460;

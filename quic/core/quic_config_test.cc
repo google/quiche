@@ -22,6 +22,7 @@ namespace test {
 namespace {
 
 const uint32_t kMaxPacketSizeForTest = 1234;
+const uint32_t kMaxDatagramFrameSizeForTest = 1333;
 
 class QuicConfigTest : public QuicTestWithParam<QuicTransportVersion> {
  protected:
@@ -396,6 +397,7 @@ TEST_P(QuicConfigTest, FillTransportParams) {
   config_.SetInitialMaxStreamDataBytesUnidirectionalToSend(
       4 * kMinimumFlowControlSendWindow);
   config_.SetMaxPacketSizeToSend(kMaxPacketSizeForTest);
+  config_.SetMaxDatagramFrameSizeToSend(kMaxDatagramFrameSizeForTest);
 
   TransportParameters params;
   config_.FillTransportParameters(&params);
@@ -411,6 +413,8 @@ TEST_P(QuicConfigTest, FillTransportParams) {
             params.idle_timeout_milliseconds.value());
 
   EXPECT_EQ(kMaxPacketSizeForTest, params.max_packet_size.value());
+  EXPECT_EQ(kMaxDatagramFrameSizeForTest,
+            params.max_datagram_frame_size.value());
 }
 
 TEST_P(QuicConfigTest, ProcessTransportParametersServer) {
@@ -423,6 +427,7 @@ TEST_P(QuicConfigTest, ProcessTransportParametersServer) {
   params.initial_max_stream_data_uni.set_value(4 *
                                                kMinimumFlowControlSendWindow);
   params.max_packet_size.set_value(kMaxPacketSizeForTest);
+  params.max_datagram_frame_size.set_value(kMaxDatagramFrameSizeForTest);
 
   std::string error_details;
   EXPECT_EQ(QUIC_NO_ERROR,
@@ -444,6 +449,11 @@ TEST_P(QuicConfigTest, ProcessTransportParametersServer) {
 
   ASSERT_TRUE(config_.HasReceivedMaxPacketSize());
   EXPECT_EQ(kMaxPacketSizeForTest, config_.ReceivedMaxPacketSize());
+
+  ASSERT_TRUE(config_.HasReceivedMaxDatagramFrameSize());
+  EXPECT_EQ(kMaxDatagramFrameSizeForTest,
+            config_.ReceivedMaxDatagramFrameSize());
+
   EXPECT_FALSE(config_.DisableConnectionMigration());
 }
 
