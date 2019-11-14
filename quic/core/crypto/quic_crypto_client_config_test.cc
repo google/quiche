@@ -115,11 +115,9 @@ TEST_F(QuicCryptoClientConfigTest, CachedState_ServerDesignatedConnectionId) {
 TEST_F(QuicCryptoClientConfigTest, CachedState_ServerIdConsumedBeforeSet) {
   QuicCryptoClientConfig::CachedState state;
   EXPECT_FALSE(state.has_server_designated_connection_id());
-#if GTEST_HAS_DEATH_TEST && !defined(NDEBUG)
-  EXPECT_DEBUG_DEATH(state.GetNextServerDesignatedConnectionId(),
-                     "Attempting to consume a connection id "
-                     "that was never designated.");
-#endif  // GTEST_HAS_DEATH_TEST && !defined(NDEBUG)
+  EXPECT_QUIC_DEBUG_DEATH(state.GetNextServerDesignatedConnectionId(),
+                          "Attempting to consume a connection id "
+                          "that was never designated.");
 }
 
 TEST_F(QuicCryptoClientConfigTest, CachedState_ServerNonce) {
@@ -156,11 +154,9 @@ TEST_F(QuicCryptoClientConfigTest, CachedState_ServerNonce) {
 TEST_F(QuicCryptoClientConfigTest, CachedState_ServerNonceConsumedBeforeSet) {
   QuicCryptoClientConfig::CachedState state;
   EXPECT_FALSE(state.has_server_nonce());
-#if GTEST_HAS_DEATH_TEST && !defined(NDEBUG)
-  EXPECT_DEBUG_DEATH(state.GetNextServerNonce(),
-                     "Attempting to consume a server nonce "
-                     "that was never designated.");
-#endif  // GTEST_HAS_DEATH_TEST && !defined(NDEBUG)
+  EXPECT_QUIC_DEBUG_DEATH(state.GetNextServerNonce(),
+                          "Attempting to consume a server nonce "
+                          "that was never designated.");
 }
 
 TEST_F(QuicCryptoClientConfigTest, CachedState_InitializeFrom) {

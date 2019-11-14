@@ -23,6 +23,9 @@ using ScopedEnvironmentForThreads = ScopedEnvironmentForThreadsImpl;
 
 inline std::string QuicGetTestMemoryCachePath() {
   return QuicGetTestMemoryCachePathImpl();
+
+#define EXPECT_QUIC_DEBUG_DEATH(condition, message) \
+  EXPECT_QUIC_DEBUG_DEATH_IMPL(condition, message)
 }
 
 #endif  // QUICHE_QUIC_PLATFORM_API_QUIC_TEST_H_

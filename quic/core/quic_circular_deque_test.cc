@@ -119,10 +119,10 @@ TEST(QuicCircularDeque, Empty) {
   EXPECT_TRUE(dq.empty());
   EXPECT_EQ(0u, dq.size());
 
-  EXPECT_DEBUG_DEATH(dq.front(), "");
-  EXPECT_DEBUG_DEATH(dq.back(), "");
-  EXPECT_DEBUG_DEATH(dq.at(0), "");
-  EXPECT_DEBUG_DEATH(dq[0], "");
+  EXPECT_QUIC_DEBUG_DEATH(dq.front(), "");
+  EXPECT_QUIC_DEBUG_DEATH(dq.back(), "");
+  EXPECT_QUIC_DEBUG_DEATH(dq.at(0), "");
+  EXPECT_QUIC_DEBUG_DEATH(dq[0], "");
 }
 
 TEST(QuicCircularDeque, Constructor) {
@@ -784,9 +784,7 @@ TEST(QuicCircularDeque, Swap) {
   dq5.assign(dq6.begin(), dq6.end());
   EXPECT_THAT(dq5, ElementsAre(4));
 
-#if GTEST_HAS_DEATH_TEST && !defined(NDEBUG)
   // Undefined behavior to swap between two containers with unequal allocators.
-  EXPECT_DEBUG_DEATH(swap(dq5, dq6), "Undefined swap behavior");
-#endif
+  EXPECT_QUIC_DEBUG_DEATH(swap(dq5, dq6), "Undefined swap behavior");
 }
 }  // namespace
