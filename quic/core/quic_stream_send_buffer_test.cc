@@ -137,8 +137,10 @@ TEST_F(QuicStreamSendBufferTest,
   // Write new data.
   if (!GetQuicRestartFlag(quic_coalesce_stream_frames_2)) {
     EXPECT_EQ(1, QuicStreamSendBufferPeer::write_index(&send_buffer_));
+#if GTEST_HAS_DEATH_TEST && !defined(NDEBUG)
     EXPECT_DEBUG_DEATH(send_buffer_.WriteStreamData(2048, 50, &writer),
                        "Tried to write data out of sequence.");
+#endif
   } else {
     EXPECT_EQ(2, QuicStreamSendBufferPeer::write_index(&send_buffer_));
     ASSERT_TRUE(send_buffer_.WriteStreamData(2048, 50, &writer));
