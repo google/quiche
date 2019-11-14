@@ -444,6 +444,16 @@ TEST_P(QuicConfigTest, ProcessTransportParametersServer) {
 
   ASSERT_TRUE(config_.HasReceivedMaxPacketSize());
   EXPECT_EQ(kMaxPacketSizeForTest, config_.ReceivedMaxPacketSize());
+  EXPECT_FALSE(config_.DisableConnectionMigration());
+}
+
+TEST_P(QuicConfigTest, DisableMigrationTransportParameter) {
+  TransportParameters params;
+  params.disable_migration = true;
+  std::string error_details;
+  EXPECT_EQ(QUIC_NO_ERROR,
+            config_.ProcessTransportParameters(params, SERVER, &error_details));
+  EXPECT_TRUE(config_.DisableConnectionMigration());
 }
 
 }  // namespace

@@ -1069,8 +1069,9 @@ QuicErrorCode QuicConfig::ProcessTransportParameters(
   if (params.ack_delay_exponent.IsValid()) {
     ack_delay_exponent_.SetReceivedValue(params.ack_delay_exponent.value());
   }
-  connection_migration_disabled_.SetReceivedValue(
-      params.disable_migration ? 1u : 0u);
+  if (params.disable_migration) {
+    connection_migration_disabled_.SetReceivedValue(1u);
+  }
 
   if (params.preferred_address != nullptr) {
     if (params.preferred_address->ipv6_socket_address.port() != 0) {
