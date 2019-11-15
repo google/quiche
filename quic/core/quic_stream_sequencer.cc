@@ -35,7 +35,9 @@ QuicStreamSequencer::QuicStreamSequencer(StreamInterface* quic_stream)
       ignore_read_data_(false),
       level_triggered_(false),
       stop_reading_when_level_triggered_(
-          GetQuicReloadableFlag(quic_stop_reading_when_level_triggered)) {
+          GetQuicReloadableFlag(quic_stop_reading_when_level_triggered)),
+      close_connection_and_discard_data_on_wrong_offset_(GetQuicReloadableFlag(
+          quic_close_connection_and_discard_data_on_wrong_offset)) {
   if (stop_reading_when_level_triggered_) {
     QUIC_RELOADABLE_FLAG_COUNT(quic_stop_reading_when_level_triggered);
   }
@@ -54,8 +56,9 @@ void QuicStreamSequencer::OnStreamFrame(const QuicStreamFrame& frame) {
     if (data_len == 0) {
       return;
     }
-    if (GetQuicReloadableFlag(quic_no_stream_data_after_reset)) {
-      QUIC_RELOADABLE_FLAG_COUNT(quic_no_stream_data_after_reset);
+    if (close_connection_and_discard_data_on_wrong_offset_) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(
+          quic_close_connection_and_discard_data_on_wrong_offset, 1, 3);
       if (!should_process_data) {
         return;
       }
@@ -130,11 +133,12 @@ bool QuicStreamSequencer::CloseStreamAtOffset(QuicStreamOffset offset) {
 
   // If there is a scheduled close, the new offset should match it.
   if (close_offset_ != kMaxOffset && offset != close_offset_) {
-    if (!GetQuicReloadableFlag(quic_no_decrease_in_final_offset)) {
+    if (!close_connection_and_discard_data_on_wrong_offset_) {
       stream_->Reset(QUIC_MULTIPLE_TERMINATION_OFFSETS);
       return false;
     }
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_no_decrease_in_final_offset, 1, 2);
+    QUIC_RELOADABLE_FLAG_COUNT_N(
+        quic_close_connection_and_discard_data_on_wrong_offset, 2, 3);
     stream_->CloseConnectionWithDetails(
         QUIC_STREAM_SEQUENCER_INVALID_STATE,
         QuicStrCat("Stream ", stream_->id(),
@@ -145,16 +149,16 @@ bool QuicStreamSequencer::CloseStreamAtOffset(QuicStreamOffset offset) {
 
   // The final offset should be no less than the highest offset that is
   // received.
-  if (GetQuicReloadableFlag(quic_no_decrease_in_final_offset)) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_no_decrease_in_final_offset, 2, 2);
-    if (offset < highest_offset_) {
-      stream_->CloseConnectionWithDetails(
-          QUIC_STREAM_SEQUENCER_INVALID_STATE,
-          QuicStrCat(
-              "Stream ", stream_->id(), " received fin with offset: ", offset,
-              ", which reduces current highest offset: ", highest_offset_));
-      return false;
-    }
+  if (close_connection_and_discard_data_on_wrong_offset_ &&
+      offset < highest_offset_) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(
+        quic_close_connection_and_discard_data_on_wrong_offset, 3, 3);
+    stream_->CloseConnectionWithDetails(
+        QUIC_STREAM_SEQUENCER_INVALID_STATE,
+        QuicStrCat(
+            "Stream ", stream_->id(), " received fin with offset: ", offset,
+            ", which reduces current highest offset: ", highest_offset_));
+    return false;
   }
 
   close_offset_ = offset;

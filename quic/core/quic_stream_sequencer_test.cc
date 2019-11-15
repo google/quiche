@@ -375,7 +375,8 @@ TEST_F(QuicStreamSequencerTest, MultipleOffsets) {
   OnFinFrame(3, "");
   EXPECT_EQ(3u, QuicStreamSequencerPeer::GetCloseOffset(sequencer_.get()));
 
-  if (!GetQuicReloadableFlag(quic_no_decrease_in_final_offset)) {
+  if (!GetQuicReloadableFlag(
+          quic_close_connection_and_discard_data_on_wrong_offset)) {
     EXPECT_CALL(stream_, Reset(QUIC_MULTIPLE_TERMINATION_OFFSETS));
   } else {
     EXPECT_CALL(stream_, CloseConnectionWithDetails(
@@ -760,15 +761,14 @@ TEST_F(QuicStreamSequencerTest, StopReadingWithLevelTriggered) {
 
 // Regression test for https://crbug.com/992486.
 TEST_F(QuicStreamSequencerTest, CorruptFinFrames) {
-  SetQuicReloadableFlag(quic_no_stream_data_after_reset, true);
-  if (!GetQuicReloadableFlag(quic_no_decrease_in_final_offset)) {
-    EXPECT_CALL(stream_, Reset(QUIC_MULTIPLE_TERMINATION_OFFSETS));
-  } else {
-    EXPECT_CALL(stream_, CloseConnectionWithDetails(
-                             QUIC_STREAM_SEQUENCER_INVALID_STATE,
-                             "Stream 1 received new final offset: 1, which is "
-                             "different from close offset: 2"));
+  if (!GetQuicReloadableFlag(
+          quic_close_connection_and_discard_data_on_wrong_offset)) {
+    return;
   }
+  EXPECT_CALL(stream_, CloseConnectionWithDetails(
+                           QUIC_STREAM_SEQUENCER_INVALID_STATE,
+                           "Stream 1 received new final offset: 1, which is "
+                           "different from close offset: 2"));
 
   OnFinFrame(2u, "");
   OnFinFrame(0u, "a");
@@ -777,7 +777,10 @@ TEST_F(QuicStreamSequencerTest, CorruptFinFrames) {
 
 // Regression test for crbug.com/1015693
 TEST_F(QuicStreamSequencerTest, ReceiveFinLessThanHighestOffset) {
-  SetQuicReloadableFlag(quic_no_decrease_in_final_offset, true);
+  if (!GetQuicReloadableFlag(
+          quic_close_connection_and_discard_data_on_wrong_offset)) {
+    return;
+  }
   EXPECT_CALL(stream_, OnDataAvailable()).Times(1);
   EXPECT_CALL(stream_, CloseConnectionWithDetails(
                            QUIC_STREAM_SEQUENCER_INVALID_STATE,
