@@ -15,6 +15,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
 #include "net/third_party/quiche/src/quic/core/quic_packet_number.h"
 #include "net/third_party/quiche/src/quic/core/quic_time.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 
 namespace quic {
@@ -512,7 +513,7 @@ struct QUIC_EXPORT_PRIVATE AckedPacket {
 };
 
 // A vector of acked packets.
-typedef std::vector<AckedPacket> AckedPacketVector;
+typedef QuicInlinedVector<AckedPacket, 2> AckedPacketVector;
 
 // Information about a newly lost packet.
 struct QUIC_EXPORT_PRIVATE LostPacket {
@@ -529,7 +530,7 @@ struct QUIC_EXPORT_PRIVATE LostPacket {
 };
 
 // A vector of lost packets.
-typedef std::vector<LostPacket> LostPacketVector;
+typedef QuicInlinedVector<LostPacket, 2> LostPacketVector;
 
 enum QuicIetfTransportErrorCodes : uint64_t {
   NO_IETF_QUIC_ERROR = 0x0,

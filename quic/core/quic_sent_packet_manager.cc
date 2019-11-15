@@ -1185,7 +1185,7 @@ AckResult QuicSentPacketManager::OnAckFrameEnd(
     EncryptionLevel ack_decrypted_level) {
   QuicByteCount prior_bytes_in_flight = unacked_packets_.bytes_in_flight();
   // Reverse packets_acked_ so that it is in ascending order.
-  reverse(packets_acked_.begin(), packets_acked_.end());
+  std::reverse(packets_acked_.begin(), packets_acked_.end());
   for (AckedPacket& acked_packet : packets_acked_) {
     QuicTransmissionInfo* info =
         unacked_packets_.GetMutableTransmissionInfo(acked_packet.packet_number);
