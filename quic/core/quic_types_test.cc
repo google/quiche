@@ -13,9 +13,9 @@ namespace quic {
 namespace test {
 namespace {
 
-class QuicUtilsTest : public QuicTest {};
+class QuicTypesTest : public QuicTest {};
 
-TEST_F(QuicUtilsTest, QuicIetfTransportErrorCodeString) {
+TEST_F(QuicTypesTest, QuicIetfTransportErrorCodeString) {
   // QuicIetfTransportErrorCode out of bound.
   for (quic::QuicErrorCode error = quic::QUIC_ENCRYPTION_FAILURE;
        error < quic::QUIC_LAST_ERROR;
