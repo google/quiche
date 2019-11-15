@@ -1023,7 +1023,7 @@ TEST_F(Bbr2MultiSenderTest, Bbr2VsBbr1) {
   ASSERT_TRUE(simulator_result);
 }
 
-TEST_F(Bbr2MultiSenderTest, Bbr2VsReno) {
+TEST_F(Bbr2MultiSenderTest, QUIC_SLOW_TEST(Bbr2VsReno)) {
   SetupTcpSender(sender_endpoints_[1].get(), /*reno=*/true);
 
   MultiSenderTopologyParams params;
@@ -1054,7 +1054,7 @@ TEST_F(Bbr2MultiSenderTest, Bbr2VsReno) {
   ASSERT_TRUE(simulator_result);
 }
 
-TEST_F(Bbr2MultiSenderTest, Bbr2VsCubic) {
+TEST_F(Bbr2MultiSenderTest, QUIC_SLOW_TEST(Bbr2VsCubic)) {
   SetupTcpSender(sender_endpoints_[1].get(), /*reno=*/false);
 
   MultiSenderTopologyParams params;
