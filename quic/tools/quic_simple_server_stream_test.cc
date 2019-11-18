@@ -193,7 +193,6 @@ class QuicSimpleServerStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
     header_list_.OnHeader(":authority", "www.google.com");
     header_list_.OnHeader(":path", "/");
     header_list_.OnHeader(":method", "POST");
-    header_list_.OnHeader(":version", "HTTP/1.1");
     header_list_.OnHeader("content-length", "11");
 
     header_list_.OnHeaderBlockEnd(128, 128);
@@ -345,10 +344,8 @@ TEST_P(QuicSimpleServerStreamTest, SendResponseWithIllegalResponseStatus) {
   spdy::SpdyHeaderBlock* request_headers = stream_->mutable_headers();
   (*request_headers)[":path"] = "/bar";
   (*request_headers)[":authority"] = "www.google.com";
-  (*request_headers)[":version"] = "HTTP/1.1";
   (*request_headers)[":method"] = "GET";
 
-  response_headers_[":version"] = "HTTP/1.1";
   // HTTP/2 only supports integer responsecode, so "200 OK" is illegal.
   response_headers_[":status"] = "200 OK";
   response_headers_["content-length"] = "5";
@@ -379,10 +376,8 @@ TEST_P(QuicSimpleServerStreamTest, SendResponseWithIllegalResponseStatus2) {
   spdy::SpdyHeaderBlock* request_headers = stream_->mutable_headers();
   (*request_headers)[":path"] = "/bar";
   (*request_headers)[":authority"] = "www.google.com";
-  (*request_headers)[":version"] = "HTTP/1.1";
   (*request_headers)[":method"] = "GET";
 
-  response_headers_[":version"] = "HTTP/1.1";
   // HTTP/2 only supports 3-digit-integer, so "+200" is illegal.
   response_headers_[":status"] = "+200";
   response_headers_["content-length"] = "5";
@@ -422,10 +417,8 @@ TEST_P(QuicSimpleServerStreamTest, SendPushResponseWith404Response) {
   spdy::SpdyHeaderBlock* request_headers = promised_stream->mutable_headers();
   (*request_headers)[":path"] = "/bar";
   (*request_headers)[":authority"] = "www.google.com";
-  (*request_headers)[":version"] = "HTTP/1.1";
   (*request_headers)[":method"] = "GET";
 
-  response_headers_[":version"] = "HTTP/1.1";
   response_headers_[":status"] = "404";
   response_headers_["content-length"] = "8";
   std::string body = "NotFound";
@@ -445,10 +438,8 @@ TEST_P(QuicSimpleServerStreamTest, SendResponseWithValidHeaders) {
   spdy::SpdyHeaderBlock* request_headers = stream_->mutable_headers();
   (*request_headers)[":path"] = "/bar";
   (*request_headers)[":authority"] = "www.google.com";
-  (*request_headers)[":version"] = "HTTP/1.1";
   (*request_headers)[":method"] = "GET";
 
-  response_headers_[":version"] = "HTTP/1.1";
   response_headers_[":status"] = "200";
   response_headers_["content-length"] = "5";
   std::string body = "Yummm";
@@ -495,7 +486,6 @@ TEST_P(QuicSimpleServerStreamTest, SendResponseWithPushResources) {
   spdy::SpdyHeaderBlock* request_headers = stream_->mutable_headers();
   (*request_headers)[":path"] = request_path;
   (*request_headers)[":authority"] = host;
-  (*request_headers)[":version"] = "HTTP/1.1";
   (*request_headers)[":method"] = "GET";
 
   stream_->set_fin_received(true);
@@ -546,10 +536,8 @@ TEST_P(QuicSimpleServerStreamTest, PushResponseOnServerInitiatedStream) {
   spdy::SpdyHeaderBlock headers;
   headers[":path"] = kPath;
   headers[":authority"] = kHost;
-  headers[":version"] = "HTTP/1.1";
   headers[":method"] = "GET";
 
-  response_headers_[":version"] = "HTTP/1.1";
   response_headers_[":status"] = "200";
   response_headers_["content-length"] = "5";
   const std::string kBody = "Hello";

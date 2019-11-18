@@ -59,7 +59,6 @@ TEST_F(QuicMemoryCacheBackendTest, AddResponse) {
   const std::string kResponseBody("hello response");
 
   spdy::SpdyHeaderBlock response_headers;
-  response_headers[":version"] = "HTTP/1.1";
   response_headers[":status"] = "200";
   response_headers["content-length"] =
       QuicTextUtils::Uint64ToString(kResponseBody.size());
@@ -123,7 +122,6 @@ TEST_F(QuicMemoryCacheBackendTest, DefaultResponse) {
 
   // Add a default response.
   spdy::SpdyHeaderBlock response_headers;
-  response_headers[":version"] = "HTTP/1.1";
   response_headers[":status"] = "200";
   response_headers["content-length"] = "0";
   Response* default_response = new Response;
@@ -164,7 +162,6 @@ TEST_F(QuicMemoryCacheBackendTest, AddSimpleResponseWithServerPushResources) {
     std::string body =
         QuicStrCat("This is server push response body for ", path);
     spdy::SpdyHeaderBlock response_headers;
-    response_headers[":version"] = "HTTP/1.1";
     response_headers[":status"] = "200";
     response_headers["content-length"] =
         QuicTextUtils::Uint64ToString(body.size());
@@ -203,7 +200,6 @@ TEST_F(QuicMemoryCacheBackendTest, GetServerPushResourcesAndPushResponses) {
     QuicUrl resource_url(url);
     std::string body = "This is server push response body for " + path;
     spdy::SpdyHeaderBlock response_headers;
-    response_headers[":version"] = "HTTP/1.1";
     response_headers[":status"] = push_response_status[i];
     response_headers["content-length"] =
         QuicTextUtils::Uint64ToString(body.size());

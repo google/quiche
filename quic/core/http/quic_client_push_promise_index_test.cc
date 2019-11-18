@@ -60,7 +60,6 @@ class QuicClientPushPromiseIndexTest : public QuicTest {
                   url_) {
     request_[":path"] = "/bar";
     request_[":authority"] = "www.google.com";
-    request_[":version"] = "HTTP/1.1";
     request_[":method"] = "GET";
     request_[":scheme"] = "https";
     url_ = SpdyServerPushUtils::GetPromisedUrlFromHeaders(request_);

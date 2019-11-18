@@ -89,7 +89,6 @@ class QuicClientPromisedInfoTest : public QuicTest {
 
     push_promise_[":path"] = "/bar";
     push_promise_[":authority"] = "www.google.com";
-    push_promise_[":version"] = "HTTP/1.1";
     push_promise_[":method"] = "GET";
     push_promise_[":scheme"] = "https";
 

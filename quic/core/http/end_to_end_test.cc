@@ -3120,7 +3120,6 @@ TEST_P(EndToEndTestWithTls, Trailers) {
 
   SpdyHeaderBlock headers;
   headers[":status"] = "200";
-  headers[":version"] = "HTTP/1.1";
   headers["content-length"] = QuicTextUtils::Uint64ToString(kBody.size());
 
   SpdyHeaderBlock trailers;
@@ -3174,7 +3173,6 @@ class EndToEndTestServerPush : public EndToEndTest {
               ? large_resource
               : QuicStrCat("This is server push response body for ", url);
       SpdyHeaderBlock response_headers;
-      response_headers[":version"] = "HTTP/1.1";
       response_headers[":status"] = "200";
       response_headers["content-length"] =
           QuicTextUtils::Uint64ToString(body.size());

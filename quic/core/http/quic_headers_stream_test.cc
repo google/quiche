@@ -199,7 +199,6 @@ class QuicHeadersStreamTest : public QuicTestWithParam<TestParams> {
     QuicSpdySessionPeer::SetMaxInboundHeaderListSize(&session_, 256 * 1024);
     session_.Initialize();
     headers_stream_ = QuicSpdySessionPeer::GetHeadersStream(&session_);
-    headers_[":version"] = "HTTP/1.1";
     headers_[":status"] = "200 Ok";
     headers_["content-length"] = "11";
     framer_ = std::unique_ptr<SpdyFramer>(

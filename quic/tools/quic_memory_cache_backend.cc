@@ -289,7 +289,6 @@ void QuicMemoryCacheBackend::GenerateDynamicResponses() {
   QuicWriterMutexLock lock(&response_mutex_);
   // Add a generate bytes response.
   spdy::SpdyHeaderBlock response_headers;
-  response_headers[":version"] = "HTTP/1.1";
   response_headers[":status"] = "200";
   generate_bytes_response_ = std::make_unique<QuicBackendResponse>();
   generate_bytes_response_->set_headers(std::move(response_headers));
