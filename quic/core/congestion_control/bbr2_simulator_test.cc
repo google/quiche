@@ -418,7 +418,7 @@ TEST_F(Bbr2DefaultTopologyTest, SimpleTransferAckDecimation) {
 }
 
 // Test Bbr2's reaction to a 100x bandwidth decrease during a transfer.
-TEST_F(Bbr2DefaultTopologyTest, BandwidthDecrease) {
+TEST_F(Bbr2DefaultTopologyTest, QUIC_SLOW_TEST(BandwidthDecrease)) {
   DefaultTopologyParams params;
   params.local_link.bandwidth = QuicBandwidth::FromKBitsPerSecond(15000);
   params.test_link.bandwidth = QuicBandwidth::FromKBitsPerSecond(10000);
@@ -447,7 +447,7 @@ TEST_F(Bbr2DefaultTopologyTest, BandwidthDecrease) {
 }
 
 // Test Bbr2's reaction to a 100x bandwidth increase during a transfer.
-TEST_F(Bbr2DefaultTopologyTest, BandwidthIncrease) {
+TEST_F(Bbr2DefaultTopologyTest, QUIC_SLOW_TEST(BandwidthIncrease)) {
   DefaultTopologyParams params;
   params.local_link.bandwidth = QuicBandwidth::FromKBitsPerSecond(15000);
   params.test_link.bandwidth = QuicBandwidth::FromKBitsPerSecond(100);
@@ -907,7 +907,7 @@ TEST_F(Bbr2MultiSenderTest, Bbr2VsBbr2) {
   ASSERT_TRUE(simulator_result);
 }
 
-TEST_F(Bbr2MultiSenderTest, MultipleBbr2s) {
+TEST_F(Bbr2MultiSenderTest, QUIC_SLOW_TEST(MultipleBbr2s)) {
   const int kTotalNumSenders = 6;
   for (int i = 1; i < kTotalNumSenders; ++i) {
     SetupBbr2Sender(sender_endpoints_[i].get());
