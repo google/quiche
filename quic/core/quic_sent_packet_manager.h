@@ -151,8 +151,9 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
     return pacing_sender_.max_pacing_rate();
   }
 
-  // Set handshake_confirmed_ to true and neuter packets in HANDSHAKE packet
-  // number space.
+  // Called to mark the handshake state complete, and all handshake packets are
+  // neutered.
+  // TODO(fayang): Rename this function to OnHandshakeComplete.
   void SetHandshakeConfirmed();
 
   // Requests retransmission of all unacked packets of |retransmission_type|.
@@ -363,7 +364,7 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
     return largest_packet_peer_knows_is_acked_;
   }
 
-  bool handshake_confirmed() const { return handshake_confirmed_; }
+  HandshakeState handshake_state() const { return handshake_state_; }
 
   size_t pending_timer_transmission_count() const {
     return pending_timer_transmission_count_;
@@ -413,10 +414,6 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   bool pto_enabled() const { return pto_enabled_; }
 
   bool handshake_mode_disabled() const { return handshake_mode_disabled_; }
-
-  bool forward_secure_packet_acked() const {
-    return forward_secure_packet_acked_;
-  }
 
   bool skip_packet_number_for_pto() const {
     return skip_packet_number_for_pto_;
@@ -598,11 +595,8 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // Calls into |send_algorithm_| for the underlying congestion control.
   PacingSender pacing_sender_;
 
-  // Set to true after the crypto handshake has successfully completed. After
-  // this is true we no longer use HANDSHAKE_MODE, and further frames sent on
-  // the crypto stream (i.e. SCUP messages) are treated like normal
-  // retransmittable frames.
-  bool handshake_confirmed_;
+  // Indicates current handshake state.
+  HandshakeState handshake_state_;
 
   // Records bandwidth from server to client in normal operation, over periods
   // of time with no loss events.
@@ -643,10 +637,6 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
 
   // True if HANDSHAKE mode has been disabled.
   bool handshake_mode_disabled_;
-
-  // True if an acknowledgment has been received for a sent
-  // ENCRYPTION_FORWARD_SECURE packet.
-  bool forward_secure_packet_acked_;
 
   // If true, skip packet number before sending the last PTO retransmission.
   bool skip_packet_number_for_pto_;

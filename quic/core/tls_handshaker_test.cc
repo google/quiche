@@ -331,8 +331,8 @@ class TlsHandshakerTest : public QuicTest {
     EXPECT_TRUE(client_stream_->encryption_established());
     EXPECT_TRUE(server_stream_->handshake_confirmed());
     EXPECT_TRUE(server_stream_->encryption_established());
-    EXPECT_TRUE(client_conn_->IsHandshakeConfirmed());
-    EXPECT_TRUE(server_conn_->IsHandshakeConfirmed());
+    EXPECT_TRUE(client_conn_->IsHandshakeComplete());
+    EXPECT_TRUE(server_conn_->IsHandshakeComplete());
 
     const auto& client_crypto_params =
         client_stream_->crypto_negotiated_params();
@@ -367,8 +367,8 @@ class TlsHandshakerTest : public QuicTest {
 };
 
 TEST_F(TlsHandshakerTest, CryptoHandshake) {
-  EXPECT_FALSE(client_conn_->IsHandshakeConfirmed());
-  EXPECT_FALSE(server_conn_->IsHandshakeConfirmed());
+  EXPECT_FALSE(client_conn_->IsHandshakeComplete());
+  EXPECT_FALSE(server_conn_->IsHandshakeComplete());
 
   EXPECT_CALL(*client_conn_, CloseConnection(_, _, _)).Times(0);
   EXPECT_CALL(*server_conn_, CloseConnection(_, _, _)).Times(0);

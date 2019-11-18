@@ -672,7 +672,7 @@ class TestConnection : public QuicConnection {
     if (!QuicUtils::IsCryptoStreamId(transport_version(), id) &&
         this->encryption_level() == ENCRYPTION_INITIAL) {
       this->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
-      if (perspective() == Perspective::IS_CLIENT && !IsHandshakeConfirmed()) {
+      if (perspective() == Perspective::IS_CLIENT && !IsHandshakeComplete()) {
         OnHandshakeComplete();
       }
       if (version().SupportsAntiAmplificationLimit()) {

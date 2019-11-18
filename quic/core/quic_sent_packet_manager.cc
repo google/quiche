@@ -92,7 +92,7 @@ QuicSentPacketManager::QuicSentPacketManager(
       min_rto_timeout_(
           QuicTime::Delta::FromMilliseconds(kMinRetransmissionTimeMs)),
       largest_mtu_acked_(0),
-      handshake_confirmed_(false),
+      handshake_state_(HANDSHAKE_START),
       peer_max_ack_delay_(
           QuicTime::Delta::FromMilliseconds(kDefaultDelayedAckTimeMs)),
       rtt_updated_(false),
@@ -101,7 +101,6 @@ QuicSentPacketManager::QuicSentPacketManager(
       max_probe_packets_per_pto_(2),
       consecutive_pto_count_(0),
       handshake_mode_disabled_(false),
-      forward_secure_packet_acked_(false),
       skip_packet_number_for_pto_(false),
       always_include_max_ack_delay_for_pto_timeout_(true),
       pto_exponential_backoff_start_point_(0),
@@ -337,11 +336,12 @@ void QuicSentPacketManager::AdjustNetworkParameters(
 }
 
 void QuicSentPacketManager::SetHandshakeConfirmed() {
-  if (!neuter_handshake_packets_once_ || !handshake_confirmed_) {
+  if (!neuter_handshake_packets_once_ ||
+      handshake_state_ < HANDSHAKE_COMPLETE) {
     if (neuter_handshake_packets_once_) {
       QUIC_RELOADABLE_FLAG_COUNT_N(quic_neuter_handshake_packets_once2, 1, 3);
     }
-    handshake_confirmed_ = true;
+    handshake_state_ = HANDSHAKE_COMPLETE;
     NeuterHandshakePackets();
   }
 }
@@ -670,7 +670,7 @@ bool QuicSentPacketManager::OnPacketSent(
 QuicSentPacketManager::RetransmissionTimeoutMode
 QuicSentPacketManager::OnRetransmissionTimeout() {
   DCHECK(unacked_packets_.HasInFlightPackets() ||
-         (handshake_mode_disabled_ && !handshake_confirmed_));
+         (handshake_mode_disabled_ && handshake_state_ < HANDSHAKE_COMPLETE));
   DCHECK_EQ(0u, pending_timer_transmission_count_);
   // Handshake retransmission, timer based loss detection, TLP, and RTO are
   // implemented with a single alarm. The handshake alarm is set when the
@@ -848,8 +848,8 @@ void QuicSentPacketManager::StartExponentialBackoffAfterNthPto(
 QuicSentPacketManager::RetransmissionTimeoutMode
 QuicSentPacketManager::GetRetransmissionMode() const {
   DCHECK(unacked_packets_.HasInFlightPackets() ||
-         (handshake_mode_disabled_ && !handshake_confirmed_));
-  if (!handshake_mode_disabled_ && !handshake_confirmed_ &&
+         (handshake_mode_disabled_ && handshake_state_ < HANDSHAKE_COMPLETE));
+  if (!handshake_mode_disabled_ && handshake_state_ < HANDSHAKE_COMPLETE &&
       unacked_packets_.HasPendingCryptoPackets()) {
     return HANDSHAKE_MODE;
   }
@@ -934,7 +934,7 @@ QuicTime::Delta QuicSentPacketManager::TimeUntilSend(QuicTime now) const {
 
 const QuicTime QuicSentPacketManager::GetRetransmissionTime() const {
   if (!unacked_packets_.HasInFlightPackets() &&
-      (!handshake_mode_disabled_ || handshake_confirmed_ ||
+      (!handshake_mode_disabled_ || handshake_state_ >= HANDSHAKE_COMPLETE ||
        unacked_packets_.perspective() == Perspective::IS_SERVER)) {
     // Do not set the timer if there is nothing in flight. However, to avoid
     // handshake deadlock due to anti-amplification limit, client needs to set
@@ -1225,7 +1225,7 @@ AckResult QuicSentPacketManager::OnAckFrameEnd(
     }
     last_ack_frame_.packets.Add(acked_packet.packet_number);
     if (info->encryption_level == ENCRYPTION_FORWARD_SECURE) {
-      forward_secure_packet_acked_ = true;
+      handshake_state_ = HANDSHAKE_CONFIRMED;
     }
     largest_packet_peer_knows_is_acked_.UpdateMax(info->largest_acked);
     if (supports_multiple_packet_number_spaces()) {

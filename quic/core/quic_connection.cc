@@ -2508,7 +2508,8 @@ void QuicConnection::OnWriteError(int error_code) {
 
 char* QuicConnection::GetPacketBuffer() {
   if (version().CanSendCoalescedPackets() &&
-      !sent_packet_manager_.forward_secure_packet_acked()) {
+      sent_packet_manager_.handshake_state() <
+          QuicSentPacketManager::HANDSHAKE_CONFIRMED) {
     // Do not use writer's packet buffer for coalesced packets which may contain
     // multiple QUIC packets.
     return nullptr;
@@ -2658,7 +2659,7 @@ void QuicConnection::OnPathDegradingTimeout() {
 void QuicConnection::OnRetransmissionTimeout() {
   DCHECK(!sent_packet_manager_.unacked_packets().empty() ||
          (sent_packet_manager_.handshake_mode_disabled() &&
-          !sent_packet_manager_.handshake_confirmed()));
+          !IsHandshakeComplete()));
   const QuicPacketNumber previous_created_packet_number =
       packet_creator_.packet_number();
   if (close_connection_after_five_rtos_ &&
@@ -3702,7 +3703,7 @@ void QuicConnection::MaybeSendProbingRetransmissions() {
   DCHECK(fill_up_link_during_probing_);
 
   // Don't send probing retransmissions until the handshake has completed.
-  if (!sent_packet_manager_.handshake_confirmed() ||
+  if (!IsHandshakeComplete() ||
       sent_packet_manager().HasUnackedCryptoPackets()) {
     return;
   }
@@ -3898,7 +3899,7 @@ EncryptionLevel QuicConnection::GetConnectionCloseEncryptionLevel() const {
   if (perspective_ == Perspective::IS_CLIENT) {
     return encryption_level_;
   }
-  if (sent_packet_manager_.handshake_confirmed()) {
+  if (IsHandshakeComplete()) {
     // A forward secure packet has been received.
     QUIC_BUG_IF(encryption_level_ != ENCRYPTION_FORWARD_SECURE)
         << ENDPOINT << "Unexpected connection close encryption level "
@@ -4113,7 +4114,8 @@ SerializedPacketFate QuicConnection::DeterminePacketFate(
     return SEND_TO_WRITER;
   }
   if (version().CanSendCoalescedPackets() &&
-      !sent_packet_manager_.forward_secure_packet_acked() &&
+      sent_packet_manager_.handshake_state() <
+          QuicSentPacketManager::HANDSHAKE_CONFIRMED &&
       !is_mtu_discovery) {
     // Before receiving ACK for any 1-RTT packets, always try to coalesce
     // packet (except MTU discovery packet).

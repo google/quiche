@@ -2758,7 +2758,8 @@ TEST_F(QuicSentPacketManagerTest, DisableHandshakeModeServer) {
 }
 
 TEST_F(QuicSentPacketManagerTest, ForwardSecurePacketAcked) {
-  EXPECT_FALSE(manager_.forward_secure_packet_acked());
+  EXPECT_LT(manager_.handshake_state(),
+            QuicSentPacketManager::HANDSHAKE_CONFIRMED);
   SendDataPacket(1, ENCRYPTION_INITIAL);
   // Ack packet 1.
   ExpectAck(1);
@@ -2768,7 +2769,8 @@ TEST_F(QuicSentPacketManagerTest, ForwardSecurePacketAcked) {
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
             manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
                                    ENCRYPTION_INITIAL));
-  EXPECT_FALSE(manager_.forward_secure_packet_acked());
+  EXPECT_LT(manager_.handshake_state(),
+            QuicSentPacketManager::HANDSHAKE_CONFIRMED);
 
   SendDataPacket(2, ENCRYPTION_ZERO_RTT);
   // Ack packet 2.
@@ -2779,7 +2781,8 @@ TEST_F(QuicSentPacketManagerTest, ForwardSecurePacketAcked) {
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
             manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(2),
                                    ENCRYPTION_FORWARD_SECURE));
-  EXPECT_FALSE(manager_.forward_secure_packet_acked());
+  EXPECT_LT(manager_.handshake_state(),
+            QuicSentPacketManager::HANDSHAKE_CONFIRMED);
 
   SendDataPacket(3, ENCRYPTION_FORWARD_SECURE);
   // Ack packet 3.
@@ -2790,7 +2793,8 @@ TEST_F(QuicSentPacketManagerTest, ForwardSecurePacketAcked) {
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
             manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(3),
                                    ENCRYPTION_FORWARD_SECURE));
-  EXPECT_TRUE(manager_.forward_secure_packet_acked());
+  EXPECT_EQ(manager_.handshake_state(),
+            QuicSentPacketManager::HANDSHAKE_CONFIRMED);
 }
 
 TEST_F(QuicSentPacketManagerTest, PtoTimeoutIncludesMaxAckDelay) {

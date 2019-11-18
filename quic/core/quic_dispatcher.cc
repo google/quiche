@@ -578,7 +578,7 @@ void QuicDispatcher::CleanUpSession(SessionMap::iterator it,
       !connection->termination_packets()->empty()) {
     action = QuicTimeWaitListManager::SEND_TERMINATION_PACKETS;
   } else {
-    if (!connection->IsHandshakeConfirmed()) {
+    if (!connection->IsHandshakeComplete()) {
       if (!VersionHasIetfInvariantHeader(connection->transport_version())) {
         QUIC_CODE_COUNT(gquic_add_to_time_wait_list_with_handshake_failed);
       } else {
