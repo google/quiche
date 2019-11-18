@@ -135,6 +135,8 @@ TEST_F(SimpleSessionNotifierTest, WriteOrBufferPing) {
 
 TEST_F(SimpleSessionNotifierTest, NeuterUnencryptedData) {
   if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
+    // This test writes crypto data through crypto streams. It won't work when
+    // crypto frames are used instead.
     return;
   }
   InSequence s;
@@ -175,6 +177,8 @@ TEST_F(SimpleSessionNotifierTest, NeuterUnencryptedData) {
 
 TEST_F(SimpleSessionNotifierTest, OnCanWrite) {
   if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
+    // This test writes crypto data through crypto streams. It won't work when
+    // crypto frames are used instead.
     return;
   }
   InSequence s;
