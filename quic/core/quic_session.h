@@ -199,6 +199,10 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // callback.
   MessageResult SendMessage(QuicMemSliceSpan message);
 
+  // Same as above SendMessage, except caller can specify if the given |message|
+  // should be flushed even if the underlying connection is deemed unwritable.
+  MessageResult SendMessage(QuicMemSliceSpan message, bool flush);
+
   // Called when message with |message_id| gets acked.
   virtual void OnMessageAcked(QuicMessageId message_id,
                               QuicTime receive_timestamp);

@@ -534,7 +534,8 @@ class MockQuicConnection : public QuicConnection {
 
   MOCK_METHOD2(OnStreamReset, void(QuicStreamId, QuicRstStreamErrorCode));
   MOCK_METHOD1(SendControlFrame, bool(const QuicFrame& frame));
-  MOCK_METHOD2(SendMessage, MessageStatus(QuicMessageId, QuicMemSliceSpan));
+  MOCK_METHOD3(SendMessage,
+               MessageStatus(QuicMessageId, QuicMemSliceSpan, bool));
   MOCK_METHOD3(OnConnectionClosed,
                void(QuicErrorCode error,
                     const std::string& error_details,

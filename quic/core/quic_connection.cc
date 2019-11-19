@@ -3864,7 +3864,8 @@ void QuicConnection::ResetAckStates() {
 }
 
 MessageStatus QuicConnection::SendMessage(QuicMessageId message_id,
-                                          QuicMemSliceSpan message) {
+                                          QuicMemSliceSpan message,
+                                          bool flush) {
   if (!VersionSupportsMessageFrames(transport_version())) {
     QUIC_BUG << "MESSAGE frame is not supported for version "
              << transport_version();
@@ -3873,7 +3874,7 @@ MessageStatus QuicConnection::SendMessage(QuicMessageId message_id,
   if (message.total_length() > GetCurrentLargestMessagePayload()) {
     return MESSAGE_STATUS_TOO_LARGE;
   }
-  if (!CanWrite(HAS_RETRANSMITTABLE_DATA)) {
+  if (!connected_ || (!flush && !CanWrite(HAS_RETRANSMITTABLE_DATA))) {
     return MESSAGE_STATUS_BLOCKED;
   }
   ScopedPacketFlusher flusher(this);

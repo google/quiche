@@ -8737,33 +8737,36 @@ TEST_P(QuicConnectionTest, SendMessage) {
     // get sent, one contains stream frame, and the other only contains the
     // message frame.
     EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(2);
-    EXPECT_EQ(
-        MESSAGE_STATUS_SUCCESS,
-        connection_.SendMessage(
-            1, MakeSpan(connection_.helper()->GetStreamSendBufferAllocator(),
-                        QuicStringPiece(
-                            message_data.data(),
-                            connection_.GetCurrentLargestMessagePayload()),
-                        &storage)));
+    EXPECT_EQ(MESSAGE_STATUS_SUCCESS,
+              connection_.SendMessage(
+                  1,
+                  MakeSpan(connection_.helper()->GetStreamSendBufferAllocator(),
+                           QuicStringPiece(
+                               message_data.data(),
+                               connection_.GetCurrentLargestMessagePayload()),
+                           &storage),
+                  false));
   }
   // Fail to send a message if connection is congestion control blocked.
   EXPECT_CALL(*send_algorithm_, CanSend(_)).WillOnce(Return(false));
-  EXPECT_EQ(
-      MESSAGE_STATUS_BLOCKED,
-      connection_.SendMessage(
-          2, MakeSpan(connection_.helper()->GetStreamSendBufferAllocator(),
-                      "message", &storage)));
+  EXPECT_EQ(MESSAGE_STATUS_BLOCKED,
+            connection_.SendMessage(
+                2,
+                MakeSpan(connection_.helper()->GetStreamSendBufferAllocator(),
+                         "message", &storage),
+                false));
 
   // Always fail to send a message which cannot fit into one packet.
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
-  EXPECT_EQ(
-      MESSAGE_STATUS_TOO_LARGE,
-      connection_.SendMessage(
-          3, MakeSpan(connection_.helper()->GetStreamSendBufferAllocator(),
-                      QuicStringPiece(
-                          message_data.data(),
-                          connection_.GetCurrentLargestMessagePayload() + 1),
-                      &storage)));
+  EXPECT_EQ(MESSAGE_STATUS_TOO_LARGE,
+            connection_.SendMessage(
+                3,
+                MakeSpan(connection_.helper()->GetStreamSendBufferAllocator(),
+                         QuicStringPiece(
+                             message_data.data(),
+                             connection_.GetCurrentLargestMessagePayload() + 1),
+                         &storage),
+                false));
 }
 
 // Test to check that the path challenge/path response logic works

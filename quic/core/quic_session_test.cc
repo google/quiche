@@ -2343,21 +2343,21 @@ TEST_P(QuicSessionTestServer, SendMessage) {
   EXPECT_TRUE(session_.IsCryptoHandshakeConfirmed());
 
   QuicStringPiece message;
-  EXPECT_CALL(*connection_, SendMessage(1, _))
+  EXPECT_CALL(*connection_, SendMessage(1, _, false))
       .WillOnce(Return(MESSAGE_STATUS_SUCCESS));
   EXPECT_EQ(MessageResult(MESSAGE_STATUS_SUCCESS, 1),
             session_.SendMessage(
                 MakeSpan(connection_->helper()->GetStreamSendBufferAllocator(),
                          message, &storage)));
   // Verify message_id increases.
-  EXPECT_CALL(*connection_, SendMessage(2, _))
+  EXPECT_CALL(*connection_, SendMessage(2, _, false))
       .WillOnce(Return(MESSAGE_STATUS_TOO_LARGE));
   EXPECT_EQ(MessageResult(MESSAGE_STATUS_TOO_LARGE, 0),
             session_.SendMessage(
                 MakeSpan(connection_->helper()->GetStreamSendBufferAllocator(),
                          message, &storage)));
   // Verify unsent message does not consume a message_id.
-  EXPECT_CALL(*connection_, SendMessage(2, _))
+  EXPECT_CALL(*connection_, SendMessage(2, _, false))
       .WillOnce(Return(MESSAGE_STATUS_SUCCESS));
   EXPECT_EQ(MessageResult(MESSAGE_STATUS_SUCCESS, 2),
             session_.SendMessage(

@@ -141,7 +141,7 @@ void QboneSessionBase::SendPacketToPeer(QuicStringPiece packet) {
     QuicMemSlice slice(connection()->helper()->GetStreamSendBufferAllocator(),
                        packet.size());
     memcpy(const_cast<char*>(slice.data()), packet.data(), packet.size());
-    switch (SendMessage(QuicMemSliceSpan(&slice)).status) {
+    switch (SendMessage(QuicMemSliceSpan(&slice), /*flush=*/true).status) {
       case MESSAGE_STATUS_SUCCESS:
         break;
       case MESSAGE_STATUS_TOO_LARGE: {

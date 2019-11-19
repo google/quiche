@@ -1894,11 +1894,15 @@ void QuicSession::SetTransmissionType(TransmissionType type) {
 }
 
 MessageResult QuicSession::SendMessage(QuicMemSliceSpan message) {
+  return SendMessage(message, /*flush=*/false);
+}
+
+MessageResult QuicSession::SendMessage(QuicMemSliceSpan message, bool flush) {
   if (!IsEncryptionEstablished()) {
     return {MESSAGE_STATUS_ENCRYPTION_NOT_ESTABLISHED, 0};
   }
   MessageStatus result =
-      connection_->SendMessage(last_message_id_ + 1, message);
+      connection_->SendMessage(last_message_id_ + 1, message, flush);
   if (result == MESSAGE_STATUS_SUCCESS) {
     return {result, ++last_message_id_};
   }

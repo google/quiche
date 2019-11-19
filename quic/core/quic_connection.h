@@ -758,8 +758,11 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   void SetTransmissionType(TransmissionType type);
 
   // Tries to send |message| and returns the message status.
+  // If |flush| is false, this will return a MESSAGE_STATUS_BLOCKED
+  // when the connection is deemed unwritable.
   virtual MessageStatus SendMessage(QuicMessageId message_id,
-                                    QuicMemSliceSpan message);
+                                    QuicMemSliceSpan message,
+                                    bool flush);
 
   // Returns the largest payload that will fit into a single MESSAGE frame.
   // Because overhead can vary during a connection, this method should be
