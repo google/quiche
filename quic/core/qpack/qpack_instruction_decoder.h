@@ -33,11 +33,15 @@ class QUIC_EXPORT_PRIVATE QpackInstructionDecoder {
     // Returns true if decoded fields are valid.
     // Returns false otherwise, in which case QpackInstructionDecoder stops
     // decoding: Delegate methods will not be called, and Decode() must not be
-    // called.
+    // called.  Implementations are allowed to destroy the
+    // QpackInstructionDecoder instance synchronously if OnInstructionDecoded()
+    // returns false.
     virtual bool OnInstructionDecoded(const QpackInstruction* instruction) = 0;
 
     // Called by QpackInstructionDecoder if an error has occurred.
     // No more data is processed afterwards.
+    // Implementations are allowed to destroy the QpackInstructionDecoder
+    // instance synchronously.
     virtual void OnError(QuicStringPiece error_message) = 0;
   };
 
@@ -48,8 +52,9 @@ class QUIC_EXPORT_PRIVATE QpackInstructionDecoder {
   QpackInstructionDecoder& operator=(const QpackInstructionDecoder&) = delete;
 
   // Provide a data fragment to decode.  Must not be called after an error has
-  // occurred.  Must not be called with empty |data|.
-  void Decode(QuicStringPiece data);
+  // occurred.  Must not be called with empty |data|.  Return true on success,
+  // false on error (in which case Delegate::OnError() is called synchronously).
+  bool Decode(QuicStringPiece data);
 
   // Returns true if no decoding has taken place yet or if the last instruction
   // has been entirely parsed.
@@ -84,18 +89,19 @@ class QUIC_EXPORT_PRIVATE QpackInstructionDecoder {
     kReadStringDone
   };
 
-  // One method for each state.  Some take input data and return the number of
-  // octets processed.  Some take input data but do have void return type
-  // because they not consume any bytes.  Some do not take any arguments because
-  // they only change internal state.
-  void DoStartInstruction(QuicStringPiece data);
-  void DoStartField();
-  void DoReadBit(QuicStringPiece data);
-  size_t DoVarintStart(QuicStringPiece data);
-  size_t DoVarintResume(QuicStringPiece data);
-  void DoVarintDone();
-  size_t DoReadString(QuicStringPiece data);
-  void DoReadStringDone();
+  // One method for each state.  They each return true on success, false on
+  // error (in which case |this| might already be destroyed).  Some take input
+  // data and set |*bytes_consumed| to the number of octets processed.  Some
+  // take input data but do not consume any bytes.  Some do not take any
+  // arguments because they only change internal state.
+  bool DoStartInstruction(QuicStringPiece data);
+  bool DoStartField();
+  bool DoReadBit(QuicStringPiece data);
+  bool DoVarintStart(QuicStringPiece data, size_t* bytes_consumed);
+  bool DoVarintResume(QuicStringPiece data, size_t* bytes_consumed);
+  bool DoVarintDone();
+  bool DoReadString(QuicStringPiece data, size_t* bytes_consumed);
+  bool DoReadStringDone();
 
   // Identify instruction based on opcode encoded in |byte|.
   // Returns a pointer to an element of |*language_|.
@@ -127,8 +133,8 @@ class QUIC_EXPORT_PRIVATE QpackInstructionDecoder {
   // Decoder instance for decoding Huffman encoded strings.
   http2::HpackHuffmanDecoder huffman_decoder_;
 
-  // True if a decoding error has been detected either by
-  // QpackInstructionDecoder or by Delegate.
+  // True if a decoding error has been detected by QpackInstructionDecoder.
+  // Only used in DCHECKs.
   bool error_detected_;
 
   // Decoding state.

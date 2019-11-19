@@ -15,6 +15,7 @@
 using ::testing::_;
 using ::testing::Eq;
 using ::testing::Expectation;
+using ::testing::Invoke;
 using ::testing::Return;
 using ::testing::StrictMock;
 using ::testing::Values;
@@ -64,36 +65,52 @@ class MockDelegate : public QpackInstructionDecoder::Delegate {
 };
 
 class QpackInstructionDecoderTest : public QuicTestWithParam<FragmentMode> {
- public:
+ protected:
   QpackInstructionDecoderTest()
-      : decoder_(TestLanguage(), &delegate_), fragment_mode_(GetParam()) {}
+      : decoder_(std::make_unique<QpackInstructionDecoder>(TestLanguage(),
+                                                           &delegate_)),
+        fragment_mode_(GetParam()) {}
   ~QpackInstructionDecoderTest() override = default;
 
- protected:
+  void SetUp() override {
+    // Destroy QpackInstructionDecoder on error to test that it does not crash.
+    // See https://crbug.com/1025209.
+    ON_CALL(delegate_, OnError(_))
+        .WillByDefault(Invoke(
+            [this](QuicStringPiece /* error_message */) { decoder_.reset(); }));
+  }
+
   // Decode one full instruction with fragment sizes dictated by
   // |fragment_mode_|.
-  // Verifies that AtInstructionBoundary() returns true before and after the
+  // Assumes that |data| is a single complete instruction, and accordingly
+  // verifies that AtInstructionBoundary() returns true before and after the
   // instruction, and returns false while decoding is in progress.
+  // Assumes that delegate methods destroy |decoder_| if they return false.
   void DecodeInstruction(QuicStringPiece data) {
-    EXPECT_TRUE(decoder_.AtInstructionBoundary());
+    EXPECT_TRUE(decoder_->AtInstructionBoundary());
 
     FragmentSizeGenerator fragment_size_generator =
         FragmentModeToFragmentSizeGenerator(fragment_mode_);
 
     while (!data.empty()) {
       size_t fragment_size = std::min(fragment_size_generator(), data.size());
-      decoder_.Decode(data.substr(0, fragment_size));
+      bool success = decoder_->Decode(data.substr(0, fragment_size));
+      if (!decoder_) {
+        EXPECT_FALSE(success);
+        return;
+      }
+      EXPECT_TRUE(success);
       data = data.substr(fragment_size);
       if (!data.empty()) {
-        EXPECT_FALSE(decoder_.AtInstructionBoundary());
+        EXPECT_FALSE(decoder_->AtInstructionBoundary());
       }
     }
 
-    EXPECT_TRUE(decoder_.AtInstructionBoundary());
+    EXPECT_TRUE(decoder_->AtInstructionBoundary());
   }
 
   StrictMock<MockDelegate> delegate_;
-  QpackInstructionDecoder decoder_;
+  std::unique_ptr<QpackInstructionDecoder> decoder_;
 
  private:
   const FragmentMode fragment_mode_;
@@ -108,60 +125,82 @@ TEST_P(QpackInstructionDecoderTest, SBitAndVarint2) {
   EXPECT_CALL(delegate_, OnInstructionDecoded(TestInstruction1()));
   DecodeInstruction(QuicTextUtils::HexDecode("7f01ff65"));
 
-  EXPECT_TRUE(decoder_.s_bit());
-  EXPECT_EQ(64u, decoder_.varint());
-  EXPECT_EQ(356u, decoder_.varint2());
+  EXPECT_TRUE(decoder_->s_bit());
+  EXPECT_EQ(64u, decoder_->varint());
+  EXPECT_EQ(356u, decoder_->varint2());
 
   EXPECT_CALL(delegate_, OnInstructionDecoded(TestInstruction1()));
   DecodeInstruction(QuicTextUtils::HexDecode("05c8"));
 
-  EXPECT_FALSE(decoder_.s_bit());
-  EXPECT_EQ(5u, decoder_.varint());
-  EXPECT_EQ(200u, decoder_.varint2());
+  EXPECT_FALSE(decoder_->s_bit());
+  EXPECT_EQ(5u, decoder_->varint());
+  EXPECT_EQ(200u, decoder_->varint2());
 }
 
 TEST_P(QpackInstructionDecoderTest, NameAndValue) {
   EXPECT_CALL(delegate_, OnInstructionDecoded(TestInstruction2()));
   DecodeInstruction(QuicTextUtils::HexDecode("83666f6f03626172"));
 
-  EXPECT_EQ("foo", decoder_.name());
-  EXPECT_EQ("bar", decoder_.value());
+  EXPECT_EQ("foo", decoder_->name());
+  EXPECT_EQ("bar", decoder_->value());
 
   EXPECT_CALL(delegate_, OnInstructionDecoded(TestInstruction2()));
   DecodeInstruction(QuicTextUtils::HexDecode("8000"));
 
-  EXPECT_EQ("", decoder_.name());
-  EXPECT_EQ("", decoder_.value());
+  EXPECT_EQ("", decoder_->name());
+  EXPECT_EQ("", decoder_->value());
 
   EXPECT_CALL(delegate_, OnInstructionDecoded(TestInstruction2()));
   DecodeInstruction(QuicTextUtils::HexDecode("c294e7838c767f"));
 
-  EXPECT_EQ("foo", decoder_.name());
-  EXPECT_EQ("bar", decoder_.value());
+  EXPECT_EQ("foo", decoder_->name());
+  EXPECT_EQ("bar", decoder_->value());
 }
 
 TEST_P(QpackInstructionDecoderTest, InvalidHuffmanEncoding) {
   EXPECT_CALL(delegate_, OnError(Eq("Error in Huffman-encoded string.")));
-  decoder_.Decode(QuicTextUtils::HexDecode("c1ff"));
+  DecodeInstruction(QuicTextUtils::HexDecode("c1ff"));
 }
 
 TEST_P(QpackInstructionDecoderTest, InvalidVarintEncoding) {
   EXPECT_CALL(delegate_, OnError(Eq("Encoded integer too large.")));
-  decoder_.Decode(QuicTextUtils::HexDecode("ffffffffffffffffffffff"));
+  DecodeInstruction(QuicTextUtils::HexDecode("ffffffffffffffffffffff"));
 }
 
 TEST_P(QpackInstructionDecoderTest, DelegateSignalsError) {
   // First instruction is valid.
   Expectation first_call =
       EXPECT_CALL(delegate_, OnInstructionDecoded(TestInstruction1()))
-          .WillOnce(Return(true));
+          .WillOnce(Invoke(
+              [this](const QpackInstruction * /* instruction */) -> bool {
+                EXPECT_EQ(1u, decoder_->varint());
+                return true;
+              }));
+
   // Second instruction is invalid.  Decoding must halt.
   EXPECT_CALL(delegate_, OnInstructionDecoded(TestInstruction1()))
       .After(first_call)
-      .WillOnce(Return(false));
-  decoder_.Decode(QuicTextUtils::HexDecode("01000200030004000500"));
+      .WillOnce(
+          Invoke([this](const QpackInstruction * /* instruction */) -> bool {
+            EXPECT_EQ(2u, decoder_->varint());
+            return false;
+          }));
 
-  EXPECT_EQ(2u, decoder_.varint());
+  EXPECT_FALSE(
+      decoder_->Decode(QuicTextUtils::HexDecode("01000200030004000500")));
+}
+
+// QpackInstructionDecoder must not crash if it is destroyed from a
+// Delegate::OnInstructionDecoded() call as long as it returns false.
+TEST_P(QpackInstructionDecoderTest, DelegateSignalsErrorAndDestroysDecoder) {
+  EXPECT_CALL(delegate_, OnInstructionDecoded(TestInstruction1()))
+      .WillOnce(
+          Invoke([this](const QpackInstruction * /* instruction */) -> bool {
+            EXPECT_EQ(1u, decoder_->varint());
+            decoder_.reset();
+            return false;
+          }));
+  DecodeInstruction(QuicTextUtils::HexDecode("0100"));
 }
 
 }  // namespace

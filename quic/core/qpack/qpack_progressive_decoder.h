@@ -44,7 +44,8 @@ class QUIC_EXPORT_PRIVATE QpackProgressiveDecoder
     virtual void OnDecodingCompleted() = 0;
 
     // Called when a decoding error has occurred.  No other methods will be
-    // called afterwards.
+    // called afterwards.  Implementations are allowed to destroy
+    // the QpackProgressiveDecoder instance synchronously.
     virtual void OnDecodingErrorDetected(QuicStringPiece error_message) = 0;
   };
 

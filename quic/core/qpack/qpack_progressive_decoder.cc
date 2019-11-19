@@ -57,10 +57,12 @@ void QpackProgressiveDecoder::Decode(QuicStringPiece data) {
   while (!prefix_decoded_) {
     DCHECK(!blocked_);
 
-    prefix_decoder_->Decode(data.substr(0, 1));
-    if (error_detected_) {
+    if (!prefix_decoder_->Decode(data.substr(0, 1))) {
       return;
     }
+
+    // |prefix_decoder_->Decode()| must return false if an error is detected.
+    DCHECK(!error_detected_);
 
     data = data.substr(1);
     if (data.empty()) {
@@ -115,19 +117,27 @@ void QpackProgressiveDecoder::OnError(QuicStringPiece error_message) {
   DCHECK(!error_detected_);
 
   error_detected_ = true;
+  // Might destroy |this|.
   handler_->OnDecodingErrorDetected(error_message);
 }
 
 void QpackProgressiveDecoder::OnInsertCountReachedThreshold() {
   DCHECK(blocked_);
 
-  if (!buffer_.empty()) {
-    instruction_decoder_.Decode(buffer_);
-    buffer_.clear();
-  }
-
+  // Clear |blocked_| before calling instruction_decoder_.Decode() below,
+  // because that might destroy |this| and ~QpackProgressiveDecoder() needs to
+  // know not to call UnregisterObserver().
   blocked_ = false;
   enforcer_->OnStreamUnblocked(stream_id_);
+
+  if (!buffer_.empty()) {
+    std::string buffer(std::move(buffer_));
+    buffer_.clear();
+    if (!instruction_decoder_.Decode(buffer)) {
+      // |this| might be destroyed.
+      return;
+    }
+  }
 
   if (!decoding_) {
     FinishDecoding();

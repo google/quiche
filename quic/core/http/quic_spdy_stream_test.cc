@@ -2004,6 +2004,35 @@ TEST_P(QuicSpdyStreamTest, AsyncErrorDecodingHeaders) {
   session_->qpack_decoder()->OnInsertWithoutNameReference("foo", "bar");
 }
 
+// Regression test for https://crbug.com/1024263 and for
+// https://crbug.com/1025209#c11.
+TEST_P(QuicSpdyStreamTest, BlockedHeaderDecodingUnblockedWithBufferedError) {
+  if (!UsesHttp3()) {
+    return;
+  }
+
+  Initialize(kShouldProcessData);
+  session_->qpack_decoder()->OnSetDynamicTableCapacity(1024);
+
+  // Relative index 2 is invalid because it is larger than or equal to the Base.
+  std::string headers = HeadersFrame(QuicTextUtils::HexDecode("020082"));
+  stream_->OnStreamFrame(QuicStreamFrame(stream_->id(), false, 0, headers));
+
+  // Decoding is blocked.
+  EXPECT_FALSE(stream_->headers_decompressed());
+
+  EXPECT_CALL(
+      *connection_,
+      CloseConnection(QUIC_QPACK_DECOMPRESSION_FAILED,
+                      MatchesRegex("Error decoding headers on stream \\d+: "
+                                   "Invalid relative index."),
+                      ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET));
+
+  // Deliver one dynamic table entry to decoder
+  // to trigger decoding of header block.
+  session_->qpack_decoder()->OnInsertWithoutNameReference("foo", "bar");
+}
+
 TEST_P(QuicSpdyStreamTest, AsyncErrorDecodingTrailers) {
   if (!UsesHttp3()) {
     return;

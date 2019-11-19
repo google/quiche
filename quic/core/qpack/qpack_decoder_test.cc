@@ -13,7 +13,9 @@
 #include "net/third_party/quiche/src/quic/test_tools/qpack/qpack_test_utils.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_header_block.h"
 
+using ::testing::_;
 using ::testing::Eq;
+using ::testing::Invoke;
 using ::testing::Mock;
 using ::testing::Sequence;
 using ::testing::StrictMock;
@@ -42,6 +44,15 @@ class QpackDecoderTest : public QuicTestWithParam<FragmentMode> {
 
   ~QpackDecoderTest() override = default;
 
+  void SetUp() override {
+    // Destroy QpackProgressiveDecoder on error to test that it does not crash.
+    // See https://crbug.com/1025209.
+    ON_CALL(handler_, OnDecodingErrorDetected(_))
+        .WillByDefault(Invoke([this](QuicStringPiece /* error_message */) {
+          progressive_decoder_.reset();
+        }));
+  }
+
   void DecodeEncoderStreamData(QuicStringPiece data) {
     qpack_decoder_.encoder_stream_receiver()->Decode(data);
   }
@@ -61,7 +72,7 @@ class QpackDecoderTest : public QuicTestWithParam<FragmentMode> {
   void DecodeData(QuicStringPiece data) {
     auto fragment_size_generator =
         FragmentModeToFragmentSizeGenerator(fragment_mode_);
-    while (!data.empty()) {
+    while (progressive_decoder_ && !data.empty()) {
       size_t fragment_size = std::min(fragment_size_generator(), data.size());
       progressive_decoder_->Decode(data.substr(0, fragment_size));
       data = data.substr(fragment_size);
@@ -70,9 +81,11 @@ class QpackDecoderTest : public QuicTestWithParam<FragmentMode> {
 
   // Signal end of header block to QpackProgressiveDecoder.
   void EndDecoding() {
-    progressive_decoder_->EndHeaderBlock();
-    // |progressive_decoder_| is kept alive so that it can
-    // handle callbacks later in case of blocked decoding.
+    if (progressive_decoder_) {
+      progressive_decoder_->EndHeaderBlock();
+    }
+    // If no error was detected, |*progressive_decoder_| is kept alive so that
+    // it can handle callbacks later in case of blocked decoding.
   }
 
   // Decode an entire header block.
@@ -103,6 +116,18 @@ TEST_P(QpackDecoderTest, NoPrefix) {
 
   // Header Data Prefix is at least two bytes long.
   DecodeHeaderBlock(QuicTextUtils::HexDecode("00"));
+}
+
+// Regression test for https://1025209: QpackProgressiveDecoder must not crash
+// in Decode() if it is destroyed by handler_.OnDecodingErrorDetected().
+TEST_P(QpackDecoderTest, InvalidPrefix) {
+  StartDecoding();
+
+  EXPECT_CALL(handler_,
+              OnDecodingErrorDetected(Eq("Encoded integer too large.")));
+
+  // Encoded Required Insert Count in Header Data Prefix is too large.
+  DecodeData(QuicTextUtils::HexDecode("ffffffffffffffffffffffffffff"));
 }
 
 TEST_P(QpackDecoderTest, EmptyHeaderBlock) {
