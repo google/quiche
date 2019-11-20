@@ -176,7 +176,7 @@ class StatelessConnectionTerminator {
         framer_.transport_version(), error_code, error_details,
         /*transport_close_frame_type=*/0);
 
-    if (!creator_.AddSavedFrame(QuicFrame(frame), NOT_RETRANSMISSION)) {
+    if (!creator_.AddFrame(QuicFrame(frame), NOT_RETRANSMISSION)) {
       QUIC_BUG << "Unable to add frame to an empty packet";
       delete frame;
       return;

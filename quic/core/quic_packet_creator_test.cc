@@ -1464,8 +1464,7 @@ TEST_P(QuicPacketCreatorTest, AddFrameAndFlush) {
   // Add a variety of frame types and then a padding frame.
   QuicAckFrame ack_frame(InitAckFrame(10u));
   EXPECT_CALL(debug, OnFrameAddedToPacket(_));
-  EXPECT_TRUE(
-      creator_.AddSavedFrame(QuicFrame(&ack_frame), NOT_RETRANSMISSION));
+  EXPECT_TRUE(creator_.AddFrame(QuicFrame(&ack_frame), NOT_RETRANSMISSION));
   EXPECT_TRUE(creator_.HasPendingFrames());
   EXPECT_FALSE(creator_.HasPendingStreamFramesOfStream(stream_id));
 
@@ -1482,16 +1481,14 @@ TEST_P(QuicPacketCreatorTest, AddFrameAndFlush) {
 
   QuicPaddingFrame padding_frame;
   EXPECT_CALL(debug, OnFrameAddedToPacket(_));
-  EXPECT_TRUE(
-      creator_.AddSavedFrame(QuicFrame(padding_frame), NOT_RETRANSMISSION));
+  EXPECT_TRUE(creator_.AddFrame(QuicFrame(padding_frame), NOT_RETRANSMISSION));
   EXPECT_TRUE(creator_.HasPendingFrames());
   EXPECT_EQ(0u, creator_.BytesFree());
 
   // Packet is full. Creator will flush.
   EXPECT_CALL(delegate_, OnSerializedPacket(_))
       .WillOnce(Invoke(this, &QuicPacketCreatorTest::SaveSerializedPacket));
-  EXPECT_FALSE(
-      creator_.AddSavedFrame(QuicFrame(&ack_frame), NOT_RETRANSMISSION));
+  EXPECT_FALSE(creator_.AddFrame(QuicFrame(&ack_frame), NOT_RETRANSMISSION));
 
   // Ensure the packet is successfully created.
   ASSERT_TRUE(serialized_packet_.encrypted_buffer);
@@ -1600,7 +1597,7 @@ TEST_P(QuicPacketCreatorTest, AddUnencryptedStreamDataClosesConnection) {
   QuicStreamFrame stream_frame(GetNthClientInitiatedStreamId(0),
                                /*fin=*/false, 0u, QuicStringPiece());
   EXPECT_QUIC_BUG(
-      creator_.AddSavedFrame(QuicFrame(stream_frame), NOT_RETRANSMISSION),
+      creator_.AddFrame(QuicFrame(stream_frame), NOT_RETRANSMISSION),
       "Cannot send stream data with level: ENCRYPTION_INITIAL");
 }
 
@@ -1615,7 +1612,7 @@ TEST_P(QuicPacketCreatorTest, SendStreamDataWithEncryptionHandshake) {
   QuicStreamFrame stream_frame(GetNthClientInitiatedStreamId(0),
                                /*fin=*/false, 0u, QuicStringPiece());
   EXPECT_QUIC_BUG(
-      creator_.AddSavedFrame(QuicFrame(stream_frame), NOT_RETRANSMISSION),
+      creator_.AddFrame(QuicFrame(stream_frame), NOT_RETRANSMISSION),
       "Cannot send stream data with level: ENCRYPTION_HANDSHAKE");
 }
 
@@ -1791,20 +1788,19 @@ TEST_P(QuicPacketCreatorTest, AddMessageFrame) {
   std::string message(creator_.GetCurrentLargestMessagePayload(), 'a');
   QuicMessageFrame* message_frame =
       new QuicMessageFrame(1, MakeSpan(&allocator_, message, &storage));
-  EXPECT_TRUE(
-      creator_.AddSavedFrame(QuicFrame(message_frame), NOT_RETRANSMISSION));
+  EXPECT_TRUE(creator_.AddFrame(QuicFrame(message_frame), NOT_RETRANSMISSION));
   EXPECT_TRUE(creator_.HasPendingFrames());
   creator_.FlushCurrentPacket();
 
   QuicMessageFrame* frame2 =
       new QuicMessageFrame(2, MakeSpan(&allocator_, "message", &storage));
-  EXPECT_TRUE(creator_.AddSavedFrame(QuicFrame(frame2), NOT_RETRANSMISSION));
+  EXPECT_TRUE(creator_.AddFrame(QuicFrame(frame2), NOT_RETRANSMISSION));
   EXPECT_TRUE(creator_.HasPendingFrames());
   // Verify if a new frame is added, 1 byte message length will be added.
   EXPECT_EQ(1u, creator_.ExpansionOnNewFrame());
   QuicMessageFrame* frame3 =
       new QuicMessageFrame(3, MakeSpan(&allocator_, "message2", &storage));
-  EXPECT_TRUE(creator_.AddSavedFrame(QuicFrame(frame3), NOT_RETRANSMISSION));
+  EXPECT_TRUE(creator_.AddFrame(QuicFrame(frame3), NOT_RETRANSMISSION));
   EXPECT_EQ(1u, creator_.ExpansionOnNewFrame());
   creator_.FlushCurrentPacket();
 
@@ -1817,14 +1813,14 @@ TEST_P(QuicPacketCreatorTest, AddMessageFrame) {
       NOT_RETRANSMISSION, &frame));
   QuicMessageFrame* frame4 =
       new QuicMessageFrame(4, MakeSpan(&allocator_, "message", &storage));
-  EXPECT_TRUE(creator_.AddSavedFrame(QuicFrame(frame4), NOT_RETRANSMISSION));
+  EXPECT_TRUE(creator_.AddFrame(QuicFrame(frame4), NOT_RETRANSMISSION));
   EXPECT_TRUE(creator_.HasPendingFrames());
   // Verify there is not enough room for largest payload.
   EXPECT_FALSE(creator_.HasRoomForMessageFrame(
       creator_.GetCurrentLargestMessagePayload()));
   // Add largest message will causes the flush of the stream frame.
   QuicMessageFrame frame5(5, MakeSpan(&allocator_, message, &storage));
-  EXPECT_FALSE(creator_.AddSavedFrame(QuicFrame(&frame5), NOT_RETRANSMISSION));
+  EXPECT_FALSE(creator_.AddFrame(QuicFrame(&frame5), NOT_RETRANSMISSION));
   EXPECT_FALSE(creator_.HasPendingFrames());
 }
 
@@ -1847,7 +1843,7 @@ TEST_P(QuicPacketCreatorTest, MessageFrameConsumption) {
           0, MakeSpan(&allocator_,
                       QuicStringPiece(message_buffer.data(), message_size),
                       &storage));
-      EXPECT_TRUE(creator_.AddSavedFrame(QuicFrame(frame), NOT_RETRANSMISSION));
+      EXPECT_TRUE(creator_.AddFrame(QuicFrame(frame), NOT_RETRANSMISSION));
       EXPECT_TRUE(creator_.HasPendingFrames());
 
       size_t expansion_bytes = message_size >= 64 ? 2 : 1;
@@ -1908,13 +1904,13 @@ TEST_P(QuicPacketCreatorTest, PacketTransmissionType) {
   EXPECT_CALL(delegate_, OnSerializedPacket(_))
       .WillOnce(Invoke(this, &QuicPacketCreatorTest::SaveSerializedPacket));
 
-  EXPECT_TRUE(creator_.AddSavedFrame(ack_frame, LOSS_RETRANSMISSION));
+  EXPECT_TRUE(creator_.AddFrame(ack_frame, LOSS_RETRANSMISSION));
   ASSERT_FALSE(serialized_packet_.encrypted_buffer);
 
-  EXPECT_TRUE(creator_.AddSavedFrame(stream_frame, RTO_RETRANSMISSION));
+  EXPECT_TRUE(creator_.AddFrame(stream_frame, RTO_RETRANSMISSION));
   ASSERT_FALSE(serialized_packet_.encrypted_buffer);
 
-  EXPECT_TRUE(creator_.AddSavedFrame(padding_frame, TLP_RETRANSMISSION));
+  EXPECT_TRUE(creator_.AddFrame(padding_frame, TLP_RETRANSMISSION));
   creator_.FlushCurrentPacket();
   ASSERT_TRUE(serialized_packet_.encrypted_buffer);
 
@@ -2237,8 +2233,7 @@ TEST_P(QuicPacketCreatorTest, SoftMaxPacketLength) {
   creator_.SetSoftMaxPacketLength(overhead);
   EXPECT_EQ(overhead, creator_.max_packet_length());
   QuicAckFrame ack_frame(InitAckFrame(10u));
-  EXPECT_TRUE(
-      creator_.AddSavedFrame(QuicFrame(&ack_frame), NOT_RETRANSMISSION));
+  EXPECT_TRUE(creator_.AddFrame(QuicFrame(&ack_frame), NOT_RETRANSMISSION));
   EXPECT_TRUE(creator_.HasPendingFrames());
 }
 

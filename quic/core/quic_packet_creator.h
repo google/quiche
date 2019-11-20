@@ -195,8 +195,7 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // Tries to add |frame| to the packet creator's list of frames to be
   // serialized. If the frame does not fit into the current packet, flushes the
   // packet and returns false.
-  bool AddSavedFrame(const QuicFrame& frame,
-                     TransmissionType transmission_type);
+  bool AddFrame(const QuicFrame& frame, TransmissionType transmission_type);
 
   // Identical to AddSavedFrame, but allows the frame to be padded.
   bool AddPaddedSavedFrame(const QuicFrame& frame,
@@ -445,11 +444,6 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
                          QuicFrame* frame);
 
   void FillPacketHeader(QuicPacketHeader* header);
-
-  // Adds a |frame| if there is space and returns false and flushes all pending
-  // frames if there isn't room.
-  bool AddFrame(const QuicFrame& frame,
-                TransmissionType transmission_type);
 
   // Adds a padding frame to the current packet (if there is space) when (1)
   // current packet needs full padding or (2) there are pending paddings.

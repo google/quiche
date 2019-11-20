@@ -675,11 +675,6 @@ size_t QuicPacketCreator::PacketSize() {
   return packet_size_;
 }
 
-bool QuicPacketCreator::AddSavedFrame(const QuicFrame& frame,
-                                      TransmissionType transmission_type) {
-  return AddFrame(frame, transmission_type);
-}
-
 bool QuicPacketCreator::AddPaddedSavedFrame(
     const QuicFrame& frame,
     TransmissionType transmission_type) {
@@ -1098,7 +1093,7 @@ bool QuicPacketCreator::ConsumeRetransmittableControlFrame(
   DCHECK(QuicUtils::IsRetransmittableFrame(frame.type)) << frame;
   MaybeBundleAckOpportunistically();
   if (HasPendingFrames()) {
-    if (AddSavedFrame(frame, next_transmission_type_)) {
+    if (AddFrame(frame, next_transmission_type_)) {
       // There is pending frames and current frame fits.
       return true;
     }
@@ -1110,7 +1105,7 @@ bool QuicPacketCreator::ConsumeRetransmittableControlFrame(
     // Do not check congestion window for ping or connection close frames.
     return false;
   }
-  const bool success = AddSavedFrame(frame, next_transmission_type_);
+  const bool success = AddFrame(frame, next_transmission_type_);
   QUIC_BUG_IF(!success) << "Failed to add frame:" << frame
                         << " transmission_type:" << next_transmission_type_;
   return success;
@@ -1328,7 +1323,7 @@ bool QuicPacketCreator::FlushAckFrame(const QuicFrames& frames) {
   for (const auto& frame : frames) {
     DCHECK(frame.type == ACK_FRAME || frame.type == STOP_WAITING_FRAME);
     if (HasPendingFrames()) {
-      if (AddSavedFrame(frame, next_transmission_type_)) {
+      if (AddFrame(frame, next_transmission_type_)) {
         // There is pending frames and current frame fits.
         continue;
       }
@@ -1340,7 +1335,7 @@ bool QuicPacketCreator::FlushAckFrame(const QuicFrames& frames) {
                                          NOT_HANDSHAKE)) {
       return false;
     }
-    const bool success = AddSavedFrame(frame, next_transmission_type_);
+    const bool success = AddFrame(frame, next_transmission_type_);
     QUIC_BUG_IF(!success) << "Failed to flush " << frame;
   }
   return true;
@@ -1407,7 +1402,7 @@ MessageStatus QuicPacketCreator::AddMessageFrame(QuicMessageId message_id,
     FlushCurrentPacket();
   }
   QuicMessageFrame* frame = new QuicMessageFrame(message_id, message);
-  const bool success = AddSavedFrame(QuicFrame(frame), next_transmission_type_);
+  const bool success = AddFrame(QuicFrame(frame), next_transmission_type_);
   if (!success) {
     QUIC_BUG << "Failed to send message " << message_id;
     delete frame;
