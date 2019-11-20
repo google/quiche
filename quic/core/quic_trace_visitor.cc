@@ -6,7 +6,7 @@
 
 #include <string>
 
-#include "net/third_party/quiche/src/quic/platform/api/quic_endian.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_endian.h"
 
 namespace quic {
 
@@ -265,7 +265,8 @@ void QuicTraceVisitor::OnWindowUpdateFrame(const QuicWindowUpdateFrame& frame,
 
 void QuicTraceVisitor::OnSuccessfulVersionNegotiation(
     const ParsedQuicVersion& version) {
-  uint32_t tag = QuicEndian::HostToNet32(CreateQuicVersionLabel(version));
+  uint32_t tag =
+      quiche::QuicheEndian::HostToNet32(CreateQuicVersionLabel(version));
   std::string binary_tag(reinterpret_cast<const char*>(&tag), sizeof(tag));
   trace_.set_protocol_version(binary_tag);
 }

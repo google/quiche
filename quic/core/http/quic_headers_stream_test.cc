@@ -25,6 +25,7 @@
 #include "net/third_party/quiche/src/quic/test_tools/quic_spdy_session_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_stream_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_endian.h"
 #include "net/third_party/quiche/src/spdy/core/http2_frame_decoder_adapter.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_alt_svc_wire_format.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
@@ -226,7 +227,7 @@ class QuicHeadersStreamTest : public QuicTestWithParam<TestParams> {
 
   QuicConsumedData SaveIov(size_t write_length) {
     char* buf = new char[write_length];
-    QuicDataWriter writer(write_length, buf, NETWORK_BYTE_ORDER);
+    QuicDataWriter writer(write_length, buf, quiche::NETWORK_BYTE_ORDER);
     headers_stream_->WriteStreamData(headers_stream_->stream_bytes_written(),
                                      write_length, &writer);
     saved_data_.append(buf, write_length);

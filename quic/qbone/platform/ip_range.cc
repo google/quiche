@@ -4,7 +4,7 @@
 
 #include "net/third_party/quiche/src/quic/qbone/platform/ip_range.h"
 
-#include "net/third_party/quiche/src/quic/platform/api/quic_endian.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_endian.h"
 
 namespace quic {
 
@@ -23,9 +23,9 @@ QuicIpAddress TruncateToLength(const QuicIpAddress& input,
     }
     uint32_t raw_address =
         *reinterpret_cast<const uint32_t*>(input.ToPackedString().data());
-    raw_address = QuicEndian::NetToHost32(raw_address);
+    raw_address = quiche::QuicheEndian::NetToHost32(raw_address);
     raw_address &= ~0U << (kIPv4Size - *prefix_length);
-    raw_address = QuicEndian::HostToNet32(raw_address);
+    raw_address = quiche::QuicheEndian::HostToNet32(raw_address);
     output.FromPackedString(reinterpret_cast<const char*>(&raw_address),
                             sizeof(raw_address));
     return output;
@@ -42,16 +42,16 @@ QuicIpAddress TruncateToLength(const QuicIpAddress& input,
     // out.
     // The endianess between raw_address[0] and raw_address[1] is handled
     // explicitly by handling lower and higher bytes separately.
-    raw_address[0] = QuicEndian::NetToHost64(raw_address[0]);
-    raw_address[1] = QuicEndian::NetToHost64(raw_address[1]);
+    raw_address[0] = quiche::QuicheEndian::NetToHost64(raw_address[0]);
+    raw_address[1] = quiche::QuicheEndian::NetToHost64(raw_address[1]);
     if (*prefix_length <= kIPv6Size / 2) {
       raw_address[0] &= ~uint64_t{0} << (kIPv6Size / 2 - *prefix_length);
       raw_address[1] = 0;
     } else {
       raw_address[1] &= ~uint64_t{0} << (kIPv6Size - *prefix_length);
     }
-    raw_address[0] = QuicEndian::HostToNet64(raw_address[0]);
-    raw_address[1] = QuicEndian::HostToNet64(raw_address[1]);
+    raw_address[0] = quiche::QuicheEndian::HostToNet64(raw_address[0]);
+    raw_address[1] = quiche::QuicheEndian::HostToNet64(raw_address[1]);
     output.FromPackedString(reinterpret_cast<const char*>(raw_address),
                             sizeof(raw_address));
     return output;

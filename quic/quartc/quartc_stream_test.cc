@@ -27,7 +27,6 @@
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/core/quic_write_blocked_list.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_clock.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_endian.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ip_address.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
@@ -36,6 +35,7 @@
 #include "net/third_party/quiche/src/quic/quartc/quartc_factory.h"
 #include "net/third_party/quiche/src/quic/test_tools/mock_clock.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_endian.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
 
 namespace quic {
@@ -73,7 +73,7 @@ class MockQuicSession : public QuicSession {
     // WritevData does not pass down a iovec, data is saved in stream before
     // data is consumed. Retrieve data from stream.
     char* buf = new char[write_length];
-    QuicDataWriter writer(write_length, buf, NETWORK_BYTE_ORDER);
+    QuicDataWriter writer(write_length, buf, quiche::NETWORK_BYTE_ORDER);
     if (write_length > 0) {
       stream->WriteStreamData(offset, write_length, &writer);
     }

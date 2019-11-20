@@ -15,6 +15,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_endian.h"
 
 namespace quic {
 namespace test {
@@ -25,20 +26,22 @@ char* AsChars(unsigned char* data) {
 }
 
 struct TestParams {
-  explicit TestParams(Endianness endianness) : endianness(endianness) {}
+  explicit TestParams(quiche::Endianness endianness) : endianness(endianness) {}
 
-  Endianness endianness;
+  quiche::Endianness endianness;
 };
 
 // Used by ::testing::PrintToStringParamName().
 std::string PrintToString(const TestParams& p) {
-  return QuicStrCat((p.endianness == NETWORK_BYTE_ORDER ? "Network" : "Host"),
-                    "ByteOrder");
+  return QuicStrCat(
+      (p.endianness == quiche::NETWORK_BYTE_ORDER ? "Network" : "Host"),
+      "ByteOrder");
 }
 
 std::vector<TestParams> GetTestParams() {
   std::vector<TestParams> params;
-  for (Endianness endianness : {NETWORK_BYTE_ORDER, HOST_BYTE_ORDER}) {
+  for (quiche::Endianness endianness :
+       {quiche::NETWORK_BYTE_ORDER, quiche::HOST_BYTE_ORDER}) {
     params.push_back(TestParams(endianness));
   }
   return params;
@@ -135,8 +138,8 @@ TEST_P(QuicDataWriterTest, WriteUFloat16) {
     QuicDataWriter writer(2, buffer, GetParam().endianness);
     EXPECT_TRUE(writer.WriteUFloat16(test_cases[i].decoded));
     uint16_t result = *reinterpret_cast<uint16_t*>(writer.data());
-    if (GetParam().endianness == NETWORK_BYTE_ORDER) {
-      result = QuicEndian::HostToNet16(result);
+    if (GetParam().endianness == quiche::NETWORK_BYTE_ORDER) {
+      result = quiche::QuicheEndian::HostToNet16(result);
     }
     EXPECT_EQ(test_cases[i].encoded, result);
   }
@@ -196,8 +199,8 @@ TEST_P(QuicDataWriterTest, ReadUFloat16) {
 
   for (int i = 0; i < num_test_cases; ++i) {
     uint16_t encoded_ufloat = test_cases[i].encoded;
-    if (GetParam().endianness == NETWORK_BYTE_ORDER) {
-      encoded_ufloat = QuicEndian::HostToNet16(encoded_ufloat);
+    if (GetParam().endianness == quiche::NETWORK_BYTE_ORDER) {
+      encoded_ufloat = quiche::QuicheEndian::HostToNet16(encoded_ufloat);
     }
     QuicDataReader reader(reinterpret_cast<char*>(&encoded_ufloat), 2,
                           GetParam().endianness);
@@ -213,8 +216,8 @@ TEST_P(QuicDataWriterTest, RoundTripUFloat16) {
   for (uint16_t i = 1; i < 0xFFFF; ++i) {
     // Read the two bytes.
     uint16_t read_number = i;
-    if (GetParam().endianness == NETWORK_BYTE_ORDER) {
-      read_number = QuicEndian::HostToNet16(read_number);
+    if (GetParam().endianness == quiche::NETWORK_BYTE_ORDER) {
+      read_number = quiche::QuicheEndian::HostToNet16(read_number);
     }
     QuicDataReader reader(reinterpret_cast<char*>(&read_number), 2,
                           GetParam().endianness);
@@ -243,10 +246,10 @@ TEST_P(QuicDataWriterTest, RoundTripUFloat16) {
     uint16_t encoded1 = *reinterpret_cast<uint16_t*>(writer.data());
     uint16_t encoded2 = *reinterpret_cast<uint16_t*>(writer.data() + 2);
     uint16_t encoded3 = *reinterpret_cast<uint16_t*>(writer.data() + 4);
-    if (GetParam().endianness == NETWORK_BYTE_ORDER) {
-      encoded1 = QuicEndian::NetToHost16(encoded1);
-      encoded2 = QuicEndian::NetToHost16(encoded2);
-      encoded3 = QuicEndian::NetToHost16(encoded3);
+    if (GetParam().endianness == quiche::NETWORK_BYTE_ORDER) {
+      encoded1 = quiche::QuicheEndian::NetToHost16(encoded1);
+      encoded2 = quiche::QuicheEndian::NetToHost16(encoded2);
+      encoded3 = quiche::QuicheEndian::NetToHost16(encoded3);
     }
     EXPECT_EQ(i - 1, encoded1);
     // Check roundtrip.
@@ -384,8 +387,8 @@ TEST_P(QuicDataWriterTest, Write16BitUnsignedIntegers) {
     writer.WriteUInt16(in_memory16);
     test::CompareCharArraysWithHexError(
         "uint16_t", buffer16, 2,
-        GetParam().endianness == NETWORK_BYTE_ORDER ? big_endian16
-                                                    : little_endian16,
+        GetParam().endianness == quiche::NETWORK_BYTE_ORDER ? big_endian16
+                                                            : little_endian16,
         2);
 
     uint16_t read_number16;
@@ -400,8 +403,8 @@ TEST_P(QuicDataWriterTest, Write16BitUnsignedIntegers) {
     writer.WriteBytesToUInt64(2, in_memory16);
     test::CompareCharArraysWithHexError(
         "uint16_t", buffer16, 2,
-        GetParam().endianness == NETWORK_BYTE_ORDER ? big_endian16
-                                                    : little_endian16,
+        GetParam().endianness == quiche::NETWORK_BYTE_ORDER ? big_endian16
+                                                            : little_endian16,
         2);
 
     uint64_t read_number16;
@@ -420,8 +423,8 @@ TEST_P(QuicDataWriterTest, Write24BitUnsignedIntegers) {
   writer.WriteBytesToUInt64(3, in_memory24);
   test::CompareCharArraysWithHexError(
       "uint24", buffer24, 3,
-      GetParam().endianness == NETWORK_BYTE_ORDER ? big_endian24
-                                                  : little_endian24,
+      GetParam().endianness == quiche::NETWORK_BYTE_ORDER ? big_endian24
+                                                          : little_endian24,
       3);
 
   uint64_t read_number24;
@@ -440,8 +443,8 @@ TEST_P(QuicDataWriterTest, Write32BitUnsignedIntegers) {
     writer.WriteUInt32(in_memory32);
     test::CompareCharArraysWithHexError(
         "uint32_t", buffer32, 4,
-        GetParam().endianness == NETWORK_BYTE_ORDER ? big_endian32
-                                                    : little_endian32,
+        GetParam().endianness == quiche::NETWORK_BYTE_ORDER ? big_endian32
+                                                            : little_endian32,
         4);
 
     uint32_t read_number32;
@@ -456,8 +459,8 @@ TEST_P(QuicDataWriterTest, Write32BitUnsignedIntegers) {
     writer.WriteBytesToUInt64(4, in_memory32);
     test::CompareCharArraysWithHexError(
         "uint32_t", buffer32, 4,
-        GetParam().endianness == NETWORK_BYTE_ORDER ? big_endian32
-                                                    : little_endian32,
+        GetParam().endianness == quiche::NETWORK_BYTE_ORDER ? big_endian32
+                                                            : little_endian32,
         4);
 
     uint64_t read_number32;
@@ -476,8 +479,8 @@ TEST_P(QuicDataWriterTest, Write40BitUnsignedIntegers) {
   writer.WriteBytesToUInt64(5, in_memory40);
   test::CompareCharArraysWithHexError(
       "uint40", buffer40, 5,
-      GetParam().endianness == NETWORK_BYTE_ORDER ? big_endian40
-                                                  : little_endian40,
+      GetParam().endianness == quiche::NETWORK_BYTE_ORDER ? big_endian40
+                                                          : little_endian40,
       5);
 
   uint64_t read_number40;
@@ -495,8 +498,8 @@ TEST_P(QuicDataWriterTest, Write48BitUnsignedIntegers) {
   writer.WriteBytesToUInt64(6, in_memory48);
   test::CompareCharArraysWithHexError(
       "uint48", buffer48, 6,
-      GetParam().endianness == NETWORK_BYTE_ORDER ? big_endian48
-                                                  : little_endian48,
+      GetParam().endianness == quiche::NETWORK_BYTE_ORDER ? big_endian48
+                                                          : little_endian48,
       6);
 
   uint64_t read_number48;
@@ -514,8 +517,8 @@ TEST_P(QuicDataWriterTest, Write56BitUnsignedIntegers) {
   writer.WriteBytesToUInt64(7, in_memory56);
   test::CompareCharArraysWithHexError(
       "uint56", buffer56, 7,
-      GetParam().endianness == NETWORK_BYTE_ORDER ? big_endian56
-                                                  : little_endian56,
+      GetParam().endianness == quiche::NETWORK_BYTE_ORDER ? big_endian56
+                                                          : little_endian56,
       7);
 
   uint64_t read_number56;
@@ -535,8 +538,9 @@ TEST_P(QuicDataWriterTest, Write64BitUnsignedIntegers) {
   writer.WriteBytesToUInt64(8, in_memory64);
   test::CompareCharArraysWithHexError(
       "uint64_t", buffer64, 8,
-      GetParam().endianness == NETWORK_BYTE_ORDER ? AsChars(big_endian64)
-                                                  : AsChars(little_endian64),
+      GetParam().endianness == quiche::NETWORK_BYTE_ORDER
+          ? AsChars(big_endian64)
+          : AsChars(little_endian64),
       8);
 
   uint64_t read_number64;
@@ -548,8 +552,9 @@ TEST_P(QuicDataWriterTest, Write64BitUnsignedIntegers) {
   writer2.WriteUInt64(in_memory64);
   test::CompareCharArraysWithHexError(
       "uint64_t", buffer64, 8,
-      GetParam().endianness == NETWORK_BYTE_ORDER ? AsChars(big_endian64)
-                                                  : AsChars(little_endian64),
+      GetParam().endianness == quiche::NETWORK_BYTE_ORDER
+          ? AsChars(big_endian64)
+          : AsChars(little_endian64),
       8);
   read_number64 = 0u;
   QuicDataReader reader2(buffer64, 8, GetParam().endianness);
@@ -674,7 +679,8 @@ bool EncodeDecodeValue(uint64_t value_in, char* buffer, size_t size_of_buffer) {
   // make a writer. Note that for IETF encoding
   // we do not care about endianness... It's always big-endian,
   // but the c'tor expects to be told what endianness is in force...
-  QuicDataWriter writer(size_of_buffer, buffer, Endianness::NETWORK_BYTE_ORDER);
+  QuicDataWriter writer(size_of_buffer, buffer,
+                        quiche::Endianness::NETWORK_BYTE_ORDER);
 
   // Try to write the value.
   if (writer.WriteVarInt62(value_in) != true) {
@@ -699,7 +705,7 @@ bool EncodeDecodeValue(uint64_t value_in, char* buffer, size_t size_of_buffer) {
 
   // set up a reader, just the length we've used, no more, no less.
   QuicDataReader reader(buffer, expected_length,
-                        Endianness::NETWORK_BYTE_ORDER);
+                        quiche::Endianness::NETWORK_BYTE_ORDER);
   uint64_t value_out;
 
   if (reader.ReadVarInt62(&value_out) == false) {
@@ -721,7 +727,7 @@ TEST_P(QuicDataWriterTest, VarInt8Layout) {
   // are always encoded big endian...
   memset(buffer, 0, sizeof(buffer));
   QuicDataWriter writer(sizeof(buffer), static_cast<char*>(buffer),
-                        Endianness::NETWORK_BYTE_ORDER);
+                        quiche::Endianness::NETWORK_BYTE_ORDER);
   EXPECT_TRUE(writer.WriteVarInt62(UINT64_C(0x3142f3e4d5c6b7a8)));
   EXPECT_EQ(static_cast<unsigned char>(*(writer.data() + 0)),
             (0x31 + 0xc0));  // 0xc0 for encoding
@@ -743,7 +749,7 @@ TEST_P(QuicDataWriterTest, VarInt4Layout) {
   // are always encoded big endian...
   memset(buffer, 0, sizeof(buffer));
   QuicDataWriter writer(sizeof(buffer), static_cast<char*>(buffer),
-                        Endianness::NETWORK_BYTE_ORDER);
+                        quiche::Endianness::NETWORK_BYTE_ORDER);
   EXPECT_TRUE(writer.WriteVarInt62(0x3243f4e5));
   EXPECT_EQ(static_cast<unsigned char>(*(writer.data() + 0)),
             (0x32 + 0x80));  // 0x80 for encoding
@@ -761,7 +767,7 @@ TEST_P(QuicDataWriterTest, VarInt2Layout) {
   // are always encoded big endian...
   memset(buffer, 0, sizeof(buffer));
   QuicDataWriter writer(sizeof(buffer), static_cast<char*>(buffer),
-                        Endianness::NETWORK_BYTE_ORDER);
+                        quiche::Endianness::NETWORK_BYTE_ORDER);
   EXPECT_TRUE(writer.WriteVarInt62(0x3647));
   EXPECT_EQ(static_cast<unsigned char>(*(writer.data() + 0)),
             (0x36 + 0x40));  // 0x40 for encoding
@@ -777,7 +783,7 @@ TEST_P(QuicDataWriterTest, VarInt1Layout) {
   // is correct. Bytes are always encoded big endian...
   memset(buffer, 0, sizeof(buffer));
   QuicDataWriter writer(sizeof(buffer), static_cast<char*>(buffer),
-                        Endianness::NETWORK_BYTE_ORDER);
+                        quiche::Endianness::NETWORK_BYTE_ORDER);
   EXPECT_TRUE(writer.WriteVarInt62(0x3f));
   EXPECT_EQ(static_cast<unsigned char>(*(writer.data() + 0)), 0x3f);
 }
@@ -883,7 +889,7 @@ TEST_P(QuicDataWriterTest, MultiVarInt8) {
   char buffer[8 * kMultiVarCount];
   memset(buffer, 0, sizeof(buffer));
   QuicDataWriter writer(sizeof(buffer), static_cast<char*>(buffer),
-                        Endianness::NETWORK_BYTE_ORDER);
+                        quiche::Endianness::NETWORK_BYTE_ORDER);
   // Put N values into the buffer. Adding i to the value ensures that
   // each value is different so we can detect if we overwrite values,
   // or read the same value over and over.
@@ -897,7 +903,8 @@ TEST_P(QuicDataWriterTest, MultiVarInt8) {
 
   // Now we should be able to read out the N values that were
   // successfully encoded.
-  QuicDataReader reader(buffer, sizeof(buffer), Endianness::NETWORK_BYTE_ORDER);
+  QuicDataReader reader(buffer, sizeof(buffer),
+                        quiche::Endianness::NETWORK_BYTE_ORDER);
   for (int i = 0; i < kMultiVarCount; i++) {
     EXPECT_TRUE(reader.ReadVarInt62(&test_val));
     EXPECT_EQ(test_val, (UINT64_C(0x3142f3e4d5c6b7a8) + i));
@@ -912,7 +919,7 @@ TEST_P(QuicDataWriterTest, MultiVarInt4) {
   char buffer[4 * kMultiVarCount];
   memset(buffer, 0, sizeof(buffer));
   QuicDataWriter writer(sizeof(buffer), static_cast<char*>(buffer),
-                        Endianness::NETWORK_BYTE_ORDER);
+                        quiche::Endianness::NETWORK_BYTE_ORDER);
   // Put N values into the buffer. Adding i to the value ensures that
   // each value is different so we can detect if we overwrite values,
   // or read the same value over and over.
@@ -926,7 +933,8 @@ TEST_P(QuicDataWriterTest, MultiVarInt4) {
 
   // Now we should be able to read out the N values that were
   // successfully encoded.
-  QuicDataReader reader(buffer, sizeof(buffer), Endianness::NETWORK_BYTE_ORDER);
+  QuicDataReader reader(buffer, sizeof(buffer),
+                        quiche::Endianness::NETWORK_BYTE_ORDER);
   for (int i = 0; i < kMultiVarCount; i++) {
     EXPECT_TRUE(reader.ReadVarInt62(&test_val));
     EXPECT_EQ(test_val, (UINT64_C(0x3142f3e4) + i));
@@ -941,7 +949,7 @@ TEST_P(QuicDataWriterTest, MultiVarInt2) {
   char buffer[2 * kMultiVarCount];
   memset(buffer, 0, sizeof(buffer));
   QuicDataWriter writer(sizeof(buffer), static_cast<char*>(buffer),
-                        Endianness::NETWORK_BYTE_ORDER);
+                        quiche::Endianness::NETWORK_BYTE_ORDER);
   // Put N values into the buffer. Adding i to the value ensures that
   // each value is different so we can detect if we overwrite values,
   // or read the same value over and over.
@@ -955,7 +963,8 @@ TEST_P(QuicDataWriterTest, MultiVarInt2) {
 
   // Now we should be able to read out the N values that were
   // successfully encoded.
-  QuicDataReader reader(buffer, sizeof(buffer), Endianness::NETWORK_BYTE_ORDER);
+  QuicDataReader reader(buffer, sizeof(buffer),
+                        quiche::Endianness::NETWORK_BYTE_ORDER);
   for (int i = 0; i < kMultiVarCount; i++) {
     EXPECT_TRUE(reader.ReadVarInt62(&test_val));
     EXPECT_EQ(test_val, (UINT64_C(0x3142) + i));
@@ -970,7 +979,7 @@ TEST_P(QuicDataWriterTest, MultiVarInt1) {
   char buffer[1 * kMultiVarCount];
   memset(buffer, 0, sizeof(buffer));
   QuicDataWriter writer(sizeof(buffer), static_cast<char*>(buffer),
-                        Endianness::NETWORK_BYTE_ORDER);
+                        quiche::Endianness::NETWORK_BYTE_ORDER);
   // Put N values into the buffer. Adding i to the value ensures that
   // each value is different so we can detect if we overwrite values,
   // or read the same value over and over. &0xf ensures we do not
@@ -985,7 +994,8 @@ TEST_P(QuicDataWriterTest, MultiVarInt1) {
 
   // Now we should be able to read out the N values that were
   // successfully encoded.
-  QuicDataReader reader(buffer, sizeof(buffer), Endianness::NETWORK_BYTE_ORDER);
+  QuicDataReader reader(buffer, sizeof(buffer),
+                        quiche::Endianness::NETWORK_BYTE_ORDER);
   for (int i = 0; i < kMultiVarCount; i++) {
     EXPECT_TRUE(reader.ReadVarInt62(&test_val));
     EXPECT_EQ(test_val, (UINT64_C(0x30) + (i & 0xf)));
@@ -999,7 +1009,7 @@ TEST_P(QuicDataWriterTest, VarIntFixedLength) {
   char buffer[90];
   memset(buffer, 0, sizeof(buffer));
   QuicDataWriter writer(sizeof(buffer), static_cast<char*>(buffer),
-                        Endianness::NETWORK_BYTE_ORDER);
+                        quiche::Endianness::NETWORK_BYTE_ORDER);
 
   writer.WriteVarInt62(1, VARIABLE_LENGTH_INTEGER_LENGTH_1);
   writer.WriteVarInt62(1, VARIABLE_LENGTH_INTEGER_LENGTH_2);
@@ -1027,7 +1037,8 @@ TEST_P(QuicDataWriterTest, VarIntFixedLength) {
 
   writer.WriteVarInt62(1073741824, VARIABLE_LENGTH_INTEGER_LENGTH_8);
 
-  QuicDataReader reader(buffer, sizeof(buffer), Endianness::NETWORK_BYTE_ORDER);
+  QuicDataReader reader(buffer, sizeof(buffer),
+                        quiche::Endianness::NETWORK_BYTE_ORDER);
 
   uint64_t test_val = 0;
   for (int i = 0; i < 4; ++i) {
@@ -1071,10 +1082,11 @@ void EncodeDecodeStreamId(uint64_t value_in, bool expected_decode_result) {
 
   // Encode the given Stream ID.
   QuicDataWriter writer(sizeof(buffer), static_cast<char*>(buffer),
-                        Endianness::NETWORK_BYTE_ORDER);
+                        quiche::Endianness::NETWORK_BYTE_ORDER);
   EXPECT_TRUE(writer.WriteVarInt62(value_in));
 
-  QuicDataReader reader(buffer, sizeof(buffer), Endianness::NETWORK_BYTE_ORDER);
+  QuicDataReader reader(buffer, sizeof(buffer),
+                        quiche::Endianness::NETWORK_BYTE_ORDER);
   QuicStreamId received_stream_id;
   bool read_result = reader.ReadVarIntU32(&received_stream_id);
   EXPECT_EQ(expected_decode_result, read_result);
@@ -1124,28 +1136,28 @@ TEST_P(QuicDataWriterTest, WriteRandomBytes) {
 TEST_P(QuicDataWriterTest, PeekVarInt62Length) {
   // In range [0, 63], variable length should be 1 byte.
   char buffer[20];
-  QuicDataWriter writer(20, buffer, NETWORK_BYTE_ORDER);
+  QuicDataWriter writer(20, buffer, quiche::NETWORK_BYTE_ORDER);
   EXPECT_TRUE(writer.WriteVarInt62(50));
-  QuicDataReader reader(buffer, 20, NETWORK_BYTE_ORDER);
+  QuicDataReader reader(buffer, 20, quiche::NETWORK_BYTE_ORDER);
   EXPECT_EQ(1, reader.PeekVarInt62Length());
   // In range (63-16383], variable length should be 2 byte2.
   char buffer2[20];
-  QuicDataWriter writer2(20, buffer2, NETWORK_BYTE_ORDER);
+  QuicDataWriter writer2(20, buffer2, quiche::NETWORK_BYTE_ORDER);
   EXPECT_TRUE(writer2.WriteVarInt62(100));
-  QuicDataReader reader2(buffer2, 20, NETWORK_BYTE_ORDER);
+  QuicDataReader reader2(buffer2, 20, quiche::NETWORK_BYTE_ORDER);
   EXPECT_EQ(2, reader2.PeekVarInt62Length());
   // In range (16383, 1073741823], variable length should be 4 bytes.
   char buffer3[20];
-  QuicDataWriter writer3(20, buffer3, NETWORK_BYTE_ORDER);
+  QuicDataWriter writer3(20, buffer3, quiche::NETWORK_BYTE_ORDER);
   EXPECT_TRUE(writer3.WriteVarInt62(20000));
-  QuicDataReader reader3(buffer3, 20, NETWORK_BYTE_ORDER);
+  QuicDataReader reader3(buffer3, 20, quiche::NETWORK_BYTE_ORDER);
   EXPECT_EQ(4, reader3.PeekVarInt62Length());
   // In range (1073741823, 4611686018427387903], variable length should be 8
   // bytes.
   char buffer4[20];
-  QuicDataWriter writer4(20, buffer4, NETWORK_BYTE_ORDER);
+  QuicDataWriter writer4(20, buffer4, quiche::NETWORK_BYTE_ORDER);
   EXPECT_TRUE(writer4.WriteVarInt62(2000000000));
-  QuicDataReader reader4(buffer4, 20, NETWORK_BYTE_ORDER);
+  QuicDataReader reader4(buffer4, 20, quiche::NETWORK_BYTE_ORDER);
   EXPECT_EQ(8, reader4.PeekVarInt62Length());
 }
 
@@ -1171,7 +1183,7 @@ TEST_P(QuicDataWriterTest, ValidU32) {
   char buffer[1024];
   memset(buffer, 0, sizeof(buffer));
   QuicDataWriter writer(sizeof(buffer), static_cast<char*>(buffer),
-                        Endianness::NETWORK_BYTE_ORDER);
+                        quiche::Endianness::NETWORK_BYTE_ORDER);
   QuicDataReader reader(buffer, sizeof(buffer));
   const QuicStreamCount write_stream_count = 0xffeeddcc;
   EXPECT_TRUE(writer.WriteVarInt62(write_stream_count));
@@ -1184,7 +1196,7 @@ TEST_P(QuicDataWriterTest, InvalidU32) {
   char buffer[1024];
   memset(buffer, 0, sizeof(buffer));
   QuicDataWriter writer(sizeof(buffer), static_cast<char*>(buffer),
-                        Endianness::NETWORK_BYTE_ORDER);
+                        quiche::Endianness::NETWORK_BYTE_ORDER);
   QuicDataReader reader(buffer, sizeof(buffer));
   EXPECT_TRUE(writer.WriteVarInt62(UINT64_C(0x1ffeeddcc)));
   QuicStreamCount read_stream_count = 123456;

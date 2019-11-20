@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 #include "net/third_party/quiche/src/quic/qbone/platform/internet_checksum.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_endian.h"
 
 namespace quic {
 

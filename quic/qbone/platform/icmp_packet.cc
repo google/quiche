@@ -5,8 +5,9 @@
 #include "net/third_party/quiche/src/quic/qbone/platform/icmp_packet.h"
 
 #include <netinet/ip6.h>
-#include "net/third_party/quiche/src/quic/platform/api/quic_endian.h"
+
 #include "net/third_party/quiche/src/quic/qbone/platform/internet_checksum.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_endian.h"
 
 namespace quic {
 namespace {
@@ -46,7 +47,8 @@ void CreateIcmpPacket(in6_addr src,
   // Set version to 6.
   icmp_packet.ip_header.ip6_vfc = 0x6 << 4;
   // Set the payload size, protocol and TTL.
-  icmp_packet.ip_header.ip6_plen = QuicEndian::HostToNet16(payload_size);
+  icmp_packet.ip_header.ip6_plen =
+      quiche::QuicheEndian::HostToNet16(payload_size);
   icmp_packet.ip_header.ip6_nxt = IPPROTO_ICMPV6;
   icmp_packet.ip_header.ip6_hops = kIcmpTtl;
   // Set the source address to the specified self IP.
@@ -58,7 +60,7 @@ void CreateIcmpPacket(in6_addr src,
   icmp_packet.icmp_header.icmp6_cksum = 0;
 
   IPv6PseudoHeader pseudo_header{};
-  pseudo_header.payload_size = QuicEndian::HostToNet32(payload_size);
+  pseudo_header.payload_size = quiche::QuicheEndian::HostToNet32(payload_size);
 
   InternetChecksum checksum;
   // Pseudoheader.

@@ -12,13 +12,16 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_endian.h"
 
 namespace quic {
 
 QuicDataWriter::QuicDataWriter(size_t size, char* buffer)
-    : QuicDataWriter(size, buffer, NETWORK_BYTE_ORDER) {}
+    : QuicDataWriter(size, buffer, quiche::NETWORK_BYTE_ORDER) {}
 
-QuicDataWriter::QuicDataWriter(size_t size, char* buffer, Endianness endianness)
+QuicDataWriter::QuicDataWriter(size_t size,
+                               char* buffer,
+                               quiche::Endianness endianness)
     : buffer_(buffer), capacity_(size), length_(0), endianness_(endianness) {}
 
 QuicDataWriter::~QuicDataWriter() {}
@@ -32,22 +35,22 @@ bool QuicDataWriter::WriteUInt8(uint8_t value) {
 }
 
 bool QuicDataWriter::WriteUInt16(uint16_t value) {
-  if (endianness_ == NETWORK_BYTE_ORDER) {
-    value = QuicEndian::HostToNet16(value);
+  if (endianness_ == quiche::NETWORK_BYTE_ORDER) {
+    value = quiche::QuicheEndian::HostToNet16(value);
   }
   return WriteBytes(&value, sizeof(value));
 }
 
 bool QuicDataWriter::WriteUInt32(uint32_t value) {
-  if (endianness_ == NETWORK_BYTE_ORDER) {
-    value = QuicEndian::HostToNet32(value);
+  if (endianness_ == quiche::NETWORK_BYTE_ORDER) {
+    value = quiche::QuicheEndian::HostToNet32(value);
   }
   return WriteBytes(&value, sizeof(value));
 }
 
 bool QuicDataWriter::WriteUInt64(uint64_t value) {
-  if (endianness_ == NETWORK_BYTE_ORDER) {
-    value = QuicEndian::HostToNet64(value);
+  if (endianness_ == quiche::NETWORK_BYTE_ORDER) {
+    value = quiche::QuicheEndian::HostToNet64(value);
   }
   return WriteBytes(&value, sizeof(value));
 }
@@ -56,11 +59,11 @@ bool QuicDataWriter::WriteBytesToUInt64(size_t num_bytes, uint64_t value) {
   if (num_bytes > sizeof(value)) {
     return false;
   }
-  if (endianness_ == HOST_BYTE_ORDER) {
+  if (endianness_ == quiche::HOST_BYTE_ORDER) {
     return WriteBytes(&value, num_bytes);
   }
 
-  value = QuicEndian::HostToNet64(value);
+  value = quiche::QuicheEndian::HostToNet64(value);
   return WriteBytes(reinterpret_cast<char*>(&value) + sizeof(value) - num_bytes,
                     num_bytes);
 }
@@ -101,8 +104,8 @@ bool QuicDataWriter::WriteUFloat16(uint64_t value) {
     result = static_cast<uint16_t>(value + (exponent << kUFloat16MantissaBits));
   }
 
-  if (endianness_ == NETWORK_BYTE_ORDER) {
-    result = QuicEndian::HostToNet16(result);
+  if (endianness_ == quiche::NETWORK_BYTE_ORDER) {
+    result = quiche::QuicheEndian::HostToNet16(result);
   }
   return WriteBytes(&result, sizeof(result));
 }
@@ -227,7 +230,7 @@ bool QuicDataWriter::Seek(size_t length) {
 // Low-level optimization is useful here because this function will be
 // called frequently, leading to outsize benefits.
 bool QuicDataWriter::WriteVarInt62(uint64_t value) {
-  DCHECK_EQ(endianness_, NETWORK_BYTE_ORDER);
+  DCHECK_EQ(endianness_, quiche::NETWORK_BYTE_ORDER);
 
   size_t remaining = capacity_ - length_;
   char* next = buffer_ + length_;
@@ -298,7 +301,7 @@ bool QuicDataWriter::WriteVarInt62(uint64_t value) {
 bool QuicDataWriter::WriteVarInt62(
     uint64_t value,
     QuicVariableLengthIntegerLength write_length) {
-  DCHECK_EQ(endianness_, NETWORK_BYTE_ORDER);
+  DCHECK_EQ(endianness_, quiche::NETWORK_BYTE_ORDER);
 
   size_t remaining = capacity_ - length_;
   if (remaining < write_length) {

@@ -7,11 +7,11 @@
 #include <cstring>
 
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_endian.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/qbone/platform/icmp_packet.h"
 #include "net/third_party/quiche/src/quic/qbone/platform/internet_checksum.h"
 #include "net/third_party/quiche/src/quic/qbone/platform/tcp_packet.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_endian.h"
 
 namespace {
 
@@ -171,7 +171,7 @@ QbonePacketProcessor::ProcessingResult QbonePacketProcessor::ProcessIPv6Header(
 
   // Check payload size.
   const size_t declared_payload_size =
-      QuicEndian::NetToHost16(header->ip6_plen);
+      quiche::QuicheEndian::NetToHost16(header->ip6_plen);
   const size_t actual_payload_size = packet->size() - kIPv6HeaderSize;
   if (declared_payload_size != actual_payload_size) {
     QUIC_DVLOG(1)

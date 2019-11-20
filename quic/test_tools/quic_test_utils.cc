@@ -22,12 +22,12 @@
 #include "net/third_party/quiche/src/quic/core/quic_packet_creator.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_endian.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/test_tools/crypto_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_config_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_connection_peer.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_endian.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_frame_builder.h"
 
 using testing::_;
@@ -44,14 +44,14 @@ QuicConnectionId TestConnectionId() {
 
 QuicConnectionId TestConnectionId(uint64_t connection_number) {
   const uint64_t connection_id64_net =
-      QuicEndian::HostToNet64(connection_number);
+      quiche::QuicheEndian::HostToNet64(connection_number);
   return QuicConnectionId(reinterpret_cast<const char*>(&connection_id64_net),
                           sizeof(connection_id64_net));
 }
 
 QuicConnectionId TestConnectionIdNineBytesLong(uint64_t connection_number) {
   const uint64_t connection_number_net =
-      QuicEndian::HostToNet64(connection_number);
+      quiche::QuicheEndian::HostToNet64(connection_number);
   char connection_id_bytes[9] = {};
   static_assert(
       sizeof(connection_id_bytes) == 1 + sizeof(connection_number_net),
@@ -67,7 +67,7 @@ uint64_t TestConnectionIdToUInt64(QuicConnectionId connection_id) {
   memcpy(&connection_id64_net, connection_id.data(),
          std::min<size_t>(static_cast<size_t>(connection_id.length()),
                           sizeof(connection_id64_net)));
-  return QuicEndian::NetToHost64(connection_id64_net);
+  return quiche::QuicheEndian::NetToHost64(connection_id64_net);
 }
 
 QuicAckFrame InitAckFrame(const std::vector<QuicAckBlock>& ack_blocks) {
@@ -576,7 +576,7 @@ QuicConsumedData MockQuicSession::ConsumeData(QuicStream* stream,
                                               StreamSendingState state) {
   if (write_length > 0) {
     auto buf = std::make_unique<char[]>(write_length);
-    QuicDataWriter writer(write_length, buf.get(), HOST_BYTE_ORDER);
+    QuicDataWriter writer(write_length, buf.get(), quiche::HOST_BYTE_ORDER);
     stream->WriteStreamData(offset, write_length, &writer);
   } else {
     DCHECK(state != NO_FIN);

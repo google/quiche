@@ -12,10 +12,10 @@
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_utils.h"
 #include "net/third_party/quiche/src/quic/core/quic_socket_address_coder.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_endian.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_map_util.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_endian.h"
 
 namespace quic {
 
@@ -73,14 +73,15 @@ void CryptoHandshakeMessage::SetVersionVector(
   QuicVersionLabelVector version_labels;
   for (ParsedQuicVersion version : versions) {
     version_labels.push_back(
-        QuicEndian::HostToNet32(CreateQuicVersionLabel(version)));
+        quiche::QuicheEndian::HostToNet32(CreateQuicVersionLabel(version)));
   }
   SetVector(tag, version_labels);
 }
 
 void CryptoHandshakeMessage::SetVersion(QuicTag tag,
                                         ParsedQuicVersion version) {
-  SetValue(tag, QuicEndian::HostToNet32(CreateQuicVersionLabel(version)));
+  SetValue(tag,
+           quiche::QuicheEndian::HostToNet32(CreateQuicVersionLabel(version)));
 }
 
 void CryptoHandshakeMessage::SetStringPiece(QuicTag tag,
@@ -128,7 +129,7 @@ QuicErrorCode CryptoHandshakeMessage::GetVersionLabelList(
   }
 
   for (size_t i = 0; i < out->size(); ++i) {
-    (*out)[i] = QuicEndian::HostToNet32((*out)[i]);
+    (*out)[i] = quiche::QuicheEndian::HostToNet32((*out)[i]);
   }
 
   return QUIC_NO_ERROR;
@@ -142,7 +143,7 @@ QuicErrorCode CryptoHandshakeMessage::GetVersionLabel(
     return error;
   }
 
-  *out = QuicEndian::HostToNet32(*out);
+  *out = quiche::QuicheEndian::HostToNet32(*out);
   return QUIC_NO_ERROR;
 }
 

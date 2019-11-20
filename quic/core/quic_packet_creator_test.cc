@@ -229,7 +229,7 @@ class QuicPacketCreatorTest : public QuicTestWithParam<TestParams> {
     EXPECT_EQ(STREAM_FRAME, frame.type);
     EXPECT_EQ(stream_id, frame.stream_frame.stream_id);
     char buf[kMaxOutgoingPacketSize];
-    QuicDataWriter writer(kMaxOutgoingPacketSize, buf, HOST_BYTE_ORDER);
+    QuicDataWriter writer(kMaxOutgoingPacketSize, buf, quiche::HOST_BYTE_ORDER);
     if (frame.stream_frame.data_length > 0) {
       producer_.WriteStreamData(stream_id, frame.stream_frame.offset,
                                 frame.stream_frame.data_length, &writer);

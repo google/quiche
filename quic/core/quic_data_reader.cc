@@ -9,18 +9,19 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_endian.h"
 
 namespace quic {
 
 QuicDataReader::QuicDataReader(QuicStringPiece data)
-    : QuicDataReader(data.data(), data.length(), NETWORK_BYTE_ORDER) {}
+    : QuicDataReader(data.data(), data.length(), quiche::NETWORK_BYTE_ORDER) {}
 
 QuicDataReader::QuicDataReader(const char* data, const size_t len)
-    : QuicDataReader(data, len, NETWORK_BYTE_ORDER) {}
+    : QuicDataReader(data, len, quiche::NETWORK_BYTE_ORDER) {}
 
 QuicDataReader::QuicDataReader(const char* data,
                                const size_t len,
-                               Endianness endianness)
+                               quiche::Endianness endianness)
     : data_(data), len_(len), pos_(0), endianness_(endianness) {}
 
 bool QuicDataReader::ReadUInt8(uint8_t* result) {
@@ -31,8 +32,8 @@ bool QuicDataReader::ReadUInt16(uint16_t* result) {
   if (!ReadBytes(result, sizeof(*result))) {
     return false;
   }
-  if (endianness_ == NETWORK_BYTE_ORDER) {
-    *result = QuicEndian::NetToHost16(*result);
+  if (endianness_ == quiche::NETWORK_BYTE_ORDER) {
+    *result = quiche::QuicheEndian::NetToHost16(*result);
   }
   return true;
 }
@@ -41,8 +42,8 @@ bool QuicDataReader::ReadUInt32(uint32_t* result) {
   if (!ReadBytes(result, sizeof(*result))) {
     return false;
   }
-  if (endianness_ == NETWORK_BYTE_ORDER) {
-    *result = QuicEndian::NetToHost32(*result);
+  if (endianness_ == quiche::NETWORK_BYTE_ORDER) {
+    *result = quiche::QuicheEndian::NetToHost32(*result);
   }
   return true;
 }
@@ -51,8 +52,8 @@ bool QuicDataReader::ReadUInt64(uint64_t* result) {
   if (!ReadBytes(result, sizeof(*result))) {
     return false;
   }
-  if (endianness_ == NETWORK_BYTE_ORDER) {
-    *result = QuicEndian::NetToHost64(*result);
+  if (endianness_ == quiche::NETWORK_BYTE_ORDER) {
+    *result = quiche::QuicheEndian::NetToHost64(*result);
   }
   return true;
 }
@@ -62,7 +63,7 @@ bool QuicDataReader::ReadBytesToUInt64(size_t num_bytes, uint64_t* result) {
   if (num_bytes > sizeof(*result)) {
     return false;
   }
-  if (endianness_ == HOST_BYTE_ORDER) {
+  if (endianness_ == quiche::HOST_BYTE_ORDER) {
     return ReadBytes(result, num_bytes);
   }
 
@@ -70,7 +71,7 @@ bool QuicDataReader::ReadBytesToUInt64(size_t num_bytes, uint64_t* result) {
                  num_bytes)) {
     return false;
   }
-  *result = QuicEndian::NetToHost64(*result);
+  *result = quiche::QuicheEndian::NetToHost64(*result);
   return true;
 }
 
@@ -217,7 +218,7 @@ bool QuicDataReader::IsDoneReading() const {
 }
 
 QuicVariableLengthIntegerLength QuicDataReader::PeekVarInt62Length() {
-  DCHECK_EQ(endianness_, NETWORK_BYTE_ORDER);
+  DCHECK_EQ(endianness_, quiche::NETWORK_BYTE_ORDER);
   const unsigned char* next =
       reinterpret_cast<const unsigned char*>(data_ + pos_);
   if (BytesRemaining() == 0) {
@@ -275,7 +276,7 @@ uint8_t QuicDataReader::PeekByte() const {
 // Low-level optimization is useful here because this function will be
 // called frequently, leading to outsize benefits.
 bool QuicDataReader::ReadVarInt62(uint64_t* result) {
-  DCHECK_EQ(endianness_, NETWORK_BYTE_ORDER);
+  DCHECK_EQ(endianness_, quiche::NETWORK_BYTE_ORDER);
 
   size_t remaining = BytesRemaining();
   const unsigned char* next =

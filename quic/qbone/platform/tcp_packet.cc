@@ -6,9 +6,9 @@
 
 #include <netinet/ip6.h>
 
-#include "net/third_party/quiche/src/quic/platform/api/quic_endian.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/qbone/platform/internet_checksum.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_endian.h"
 
 namespace quic {
 namespace {
@@ -45,8 +45,8 @@ void CreateTcpResetPacket(
   if (QUIC_PREDICT_FALSE(ip6_header->ip6_nxt != IPPROTO_TCP)) {
     return;
   }
-  if (QUIC_PREDICT_FALSE(QuicEndian::NetToHost16(ip6_header->ip6_plen) <
-                         sizeof(tcphdr))) {
+  if (QUIC_PREDICT_FALSE(quiche::QuicheEndian::NetToHost16(
+                             ip6_header->ip6_plen) < sizeof(tcphdr))) {
     return;
   }
   auto* tcp_header = reinterpret_cast<const tcphdr*>(ip6_header + 1);
@@ -60,7 +60,8 @@ void CreateTcpResetPacket(
   // Set version to 6.
   tcp_packet.ip_header.ip6_vfc = 0x6 << 4;
   // Set the payload size, protocol and TTL.
-  tcp_packet.ip_header.ip6_plen = QuicEndian::HostToNet16(payload_size);
+  tcp_packet.ip_header.ip6_plen =
+      quiche::QuicheEndian::HostToNet16(payload_size);
   tcp_packet.ip_header.ip6_nxt = IPPROTO_TCP;
   tcp_packet.ip_header.ip6_hops = kTcpTtl;
   // Since the TCP RST is impersonating the endpoint, flip the source and
@@ -98,12 +99,12 @@ void CreateTcpResetPacket(
     // the sum of the sequence number and segment length of the incoming segment
     tcp_packet.tcp_header.ack = 1;
     tcp_packet.tcp_header.seq = 0;
-    tcp_packet.tcp_header.ack_seq =
-        QuicEndian::HostToNet32(QuicEndian::NetToHost32(tcp_header->seq) + 1);
+    tcp_packet.tcp_header.ack_seq = quiche::QuicheEndian::HostToNet32(
+        quiche::QuicheEndian::NetToHost32(tcp_header->seq) + 1);
   }
 
   TCPv6PseudoHeader pseudo_header{};
-  pseudo_header.payload_size = QuicEndian::HostToNet32(payload_size);
+  pseudo_header.payload_size = quiche::QuicheEndian::HostToNet32(payload_size);
 
   InternetChecksum checksum;
   // Pseudoheader.

@@ -31,11 +31,11 @@
 #include <utility>
 
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_endian.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_file_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/qpack/qpack_test_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_endian.h"
 
 namespace quic {
 
@@ -142,11 +142,11 @@ bool QpackOfflineDecoder::DecodeHeaderBlocksFromFile(
       return false;
     }
 
-    uint64_t stream_id = QuicEndian::NetToHost64(
+    uint64_t stream_id = quiche::QuicheEndian::NetToHost64(
         *reinterpret_cast<const uint64_t*>(input_data.data()));
     input_data = input_data.substr(sizeof(uint64_t));
 
-    uint32_t length = QuicEndian::NetToHost32(
+    uint32_t length = quiche::QuicheEndian::NetToHost32(
         *reinterpret_cast<const uint32_t*>(input_data.data()));
     input_data = input_data.substr(sizeof(uint32_t));
 

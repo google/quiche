@@ -15,6 +15,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_endian.h"
 
 namespace quic {
 
@@ -117,7 +118,8 @@ bool CryptoFramer::HasTag(QuicTag tag) const {
 }
 
 void CryptoFramer::ForceHandshake() {
-  QuicDataReader reader(buffer_.data(), buffer_.length(), HOST_BYTE_ORDER);
+  QuicDataReader reader(buffer_.data(), buffer_.length(),
+                        quiche::HOST_BYTE_ORDER);
   for (const std::pair<QuicTag, size_t>& item : tags_and_lengths_) {
     QuicStringPiece value;
     if (reader.BytesRemaining() < item.second) {
@@ -156,7 +158,7 @@ std::unique_ptr<QuicData> CryptoFramer::ConstructHandshakeMessage(
   }
 
   std::unique_ptr<char[]> buffer(new char[len]);
-  QuicDataWriter writer(len, buffer.get(), HOST_BYTE_ORDER);
+  QuicDataWriter writer(len, buffer.get(), quiche::HOST_BYTE_ORDER);
   if (!writer.WriteTag(message.tag())) {
     DCHECK(false) << "Failed to write message tag.";
     return nullptr;
@@ -244,7 +246,8 @@ void CryptoFramer::Clear() {
 QuicErrorCode CryptoFramer::Process(QuicStringPiece input) {
   // Add this data to the buffer.
   buffer_.append(input.data(), input.length());
-  QuicDataReader reader(buffer_.data(), buffer_.length(), HOST_BYTE_ORDER);
+  QuicDataReader reader(buffer_.data(), buffer_.length(),
+                        quiche::HOST_BYTE_ORDER);
 
   switch (state_) {
     case STATE_READING_TAG:

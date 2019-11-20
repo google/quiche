@@ -30,6 +30,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_endian.h"
 
 namespace quic {
 
@@ -299,7 +300,7 @@ bool CryptoUtils::DeriveKeys(const ParsedQuicVersion& version,
 
     psk_premaster_secret = std::make_unique<char[]>(psk_premaster_secret_size);
     QuicDataWriter writer(psk_premaster_secret_size, psk_premaster_secret.get(),
-                          HOST_BYTE_ORDER);
+                          quiche::HOST_BYTE_ORDER);
 
     if (!writer.WriteStringPiece(label) || !writer.WriteUInt8(0) ||
         !writer.WriteStringPiece(pre_shared_key) ||

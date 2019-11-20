@@ -11,11 +11,11 @@
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_endian.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_endian.h"
 
 namespace quic {
 namespace {
@@ -324,7 +324,7 @@ QuicVersionLabel QuicVersionToQuicVersionLabel(
 }
 
 std::string QuicVersionLabelToString(QuicVersionLabel version_label) {
-  return QuicTagToString(QuicEndian::HostToNet32(version_label));
+  return QuicTagToString(quiche::QuicheEndian::HostToNet32(version_label));
 }
 
 std::string QuicVersionLabelVectorToString(
