@@ -154,10 +154,6 @@ class QUIC_EXPORT_PRIVATE QuicDataReader {
   // DOES NOT forward the internal iterator.
   uint8_t PeekByte() const;
 
-  void set_endianness(quiche::Endianness endianness) {
-    endianness_ = endianness;
-  }
-
   // Read an IETF-encoded Variable Length Integer and place the result
   // in |*result|.
   // Returns true if it works, false if not. The only error is that
