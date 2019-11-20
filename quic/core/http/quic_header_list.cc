@@ -14,7 +14,7 @@
 namespace quic {
 
 QuicHeaderList::QuicHeaderList()
-    : max_header_list_size_(std::numeric_limits<uint64_t>::max()),
+    : max_header_list_size_(std::numeric_limits<size_t>::max()),
       current_header_list_size_(0),
       uncompressed_header_bytes_(0),
       compressed_header_bytes_(0) {}
