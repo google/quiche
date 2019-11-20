@@ -534,8 +534,6 @@ spdy::SpdyHeaderBlock GenerateHeaderList(QuicFuzzedDataProvider* provider) {
 // Splits |*header_list| header values along '\0' or ';' separators.
 QuicHeaderList SplitHeaderList(const spdy::SpdyHeaderBlock& header_list) {
   QuicHeaderList split_header_list;
-  split_header_list.set_max_header_list_size(
-      std::numeric_limits<size_t>::max());
   split_header_list.OnHeaderBlockStart();
 
   size_t total_size = 0;

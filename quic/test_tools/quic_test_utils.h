@@ -1190,8 +1190,6 @@ void ExpectApproxEq(T expected, T actual, float relative_margin) {
 template <typename T>
 QuicHeaderList AsHeaderList(const T& container) {
   QuicHeaderList l;
-  // No need to enforce header list size limits again in this handler.
-  l.set_max_header_list_size(UINT_MAX);
   l.OnHeaderBlockStart();
   size_t total_size = 0;
   for (auto p : container) {

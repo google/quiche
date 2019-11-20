@@ -4,6 +4,7 @@
 
 #include "net/third_party/quiche/src/quic/core/http/quic_header_list.h"
 
+#include <limits>
 #include <string>
 
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
@@ -13,7 +14,7 @@
 namespace quic {
 
 QuicHeaderList::QuicHeaderList()
-    : max_header_list_size_(kDefaultMaxUncompressedHeaderSize),
+    : max_header_list_size_(std::numeric_limits<uint64_t>::max()),
       current_header_list_size_(0),
       uncompressed_header_bytes_(0),
       compressed_header_bytes_(0) {}
