@@ -773,14 +773,14 @@ class TestConnection : public QuicConnection {
   }
 
   // Enable path MTU discovery.  Assumes that the test is performed from the
-  // client perspective and the higher value of MTU target is used.
+  // server perspective and the higher value of MTU target is used.
   void EnablePathMtuDiscovery(MockSendAlgorithm* send_algorithm) {
-    ASSERT_EQ(Perspective::IS_CLIENT, perspective());
+    ASSERT_EQ(Perspective::IS_SERVER, perspective());
 
     QuicConfig config;
     QuicTagVector connection_options;
     connection_options.push_back(kMTUH);
-    config.SetConnectionOptionsToSend(connection_options);
+    config.SetInitialReceivedConnectionOptions(connection_options);
     EXPECT_CALL(*send_algorithm, SetFromConfig(_, _));
     SetFromConfig(config);
 
@@ -1116,7 +1116,10 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     QuicFrames frames;
     frames.push_back(QuicFrame(frame));
     QuicPacketCreatorPeer::SetSendVersionInPacket(
-        &peer_creator_, connection_.perspective() == Perspective::IS_SERVER);
+        &peer_creator_,
+        QuicPacketCreatorPeer::GetEncryptionLevel(&peer_creator_) <
+                ENCRYPTION_FORWARD_SECURE &&
+            connection_.perspective() == Perspective::IS_SERVER);
 
     char buffer[kMaxOutgoingPacketSize];
     SerializedPacket serialized_packet =
@@ -1606,6 +1609,25 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
       // TODO(fkastenholz): when the extracted error code CL lands,
       // need to test that extracted==expected.
     }
+  }
+
+  void MtuDiscoveryTestInit() {
+    set_perspective(Perspective::IS_SERVER);
+    QuicConnectionPeer::SetNegotiatedVersion(&connection_);
+    QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
+    connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+    peer_creator_.set_encryption_level(ENCRYPTION_FORWARD_SECURE);
+    // QuicFramer::GetMaxPlaintextSize uses the smallest max plaintext size
+    // across all encrypters. The initial encrypter used with IETF QUIC has a
+    // 16-byte overhead, while the NullEncrypter used throughout this test has a
+    // 12-byte overhead. This test tests behavior that relies on computing the
+    // packet size correctly, so by unsetting the initial encrypter, we avoid
+    // having a mismatch between the overheads for the encrypters used. In
+    // non-test scenarios all encrypters used for a given connection have the
+    // same overhead, either 12 bytes for ones using Google QUIC crypto, or 16
+    // bytes for ones using TLS.
+    connection_.SetEncrypter(ENCRYPTION_INITIAL, nullptr);
+    EXPECT_TRUE(connection_.connected());
   }
 
   QuicConnectionId connection_id_;
@@ -4805,10 +4827,7 @@ TEST_P(QuicConnectionTest, ReducedPingTimeout) {
 // Tests whether sending an MTU discovery packet to peer successfully causes the
 // maximum packet size to increase.
 TEST_P(QuicConnectionTest, SendMtuDiscoveryPacket) {
-  if (connection_.SupportsMultiplePacketNumberSpaces()) {
-    return;
-  }
-  EXPECT_TRUE(connection_.connected());
+  MtuDiscoveryTestInit();
 
   // Send an MTU probe.
   const size_t new_mtu = kDefaultMaxPacketSize + 100;
@@ -4818,17 +4837,6 @@ TEST_P(QuicConnectionTest, SendMtuDiscoveryPacket) {
   connection_.SendMtuDiscoveryPacket(new_mtu);
   EXPECT_EQ(new_mtu, mtu_probe_size);
   EXPECT_EQ(QuicPacketNumber(1u), creator_->packet_number());
-
-  // QuicFramer::GetMaxPlaintextSize uses the smallest max plaintext size across
-  // all encrypters. The initial encrypter used with IETF QUIC has a 16-byte
-  // overhead, while the NullEncrypter used throughout this test has a 12-byte
-  // overhead. This test tests behavior that relies on computing the packet size
-  // correctly, so by unsetting the initial encrypter, we avoid having a
-  // mismatch between the overheads for the encrypters used. In non-test
-  // scenarios all encrypters used for a given connection have the same
-  // overhead, either 12 bytes for ones using Google QUIC crypto, or 16 bytes
-  // for ones using TLS.
-  connection_.SetEncrypter(ENCRYPTION_INITIAL, nullptr);
 
   // Send more than MTU worth of data.  No acknowledgement was received so far,
   // so the MTU should be at its old value.
@@ -4844,7 +4852,6 @@ TEST_P(QuicConnectionTest, SendMtuDiscoveryPacket) {
 
   // Acknowledge all packets so far.
   QuicAckFrame probe_ack = InitAckFrame(3);
-  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
   ProcessAckPacket(&probe_ack);
   EXPECT_EQ(new_mtu, connection_.max_packet_length());
@@ -4858,7 +4865,7 @@ TEST_P(QuicConnectionTest, SendMtuDiscoveryPacket) {
 // Tests whether MTU discovery does not happen when it is not explicitly enabled
 // by the connection options.
 TEST_P(QuicConnectionTest, MtuDiscoveryDisabled) {
-  EXPECT_TRUE(connection_.connected());
+  MtuDiscoveryTestInit();
 
   const QuicPacketCount packets_between_probes_base = 10;
   set_packets_between_probes_base(packets_between_probes_base);
@@ -4874,18 +4881,7 @@ TEST_P(QuicConnectionTest, MtuDiscoveryDisabled) {
 // Tests whether MTU discovery works when all probes are acknowledged on the
 // first try.
 TEST_P(QuicConnectionTest, MtuDiscoveryEnabled) {
-  EXPECT_TRUE(connection_.connected());
-
-  // QuicFramer::GetMaxPlaintextSize uses the smallest max plaintext size across
-  // all encrypters. The initial encrypter used with IETF QUIC has a 16-byte
-  // overhead, while the NullEncrypter used throughout this test has a 12-byte
-  // overhead. This test tests behavior that relies on computing the packet size
-  // correctly, so by unsetting the initial encrypter, we avoid having a
-  // mismatch between the overheads for the encrypters used. In non-test
-  // scenarios all encrypters used for a given connection have the same
-  // overhead, either 12 bytes for ones using Google QUIC crypto, or 16 bytes
-  // for ones using TLS.
-  connection_.SetEncrypter(ENCRYPTION_INITIAL, nullptr);
+  MtuDiscoveryTestInit();
 
   const QuicPacketCount packets_between_probes_base = 5;
   set_packets_between_probes_base(packets_between_probes_base);
@@ -4919,7 +4915,6 @@ TEST_P(QuicConnectionTest, MtuDiscoveryEnabled) {
 
   // Acknowledge all packets sent so far.
   QuicAckFrame probe_ack = InitAckFrame(probe_packet_number);
-  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _))
       .Times(AnyNumber());
   ProcessAckPacket(&probe_ack);
@@ -4976,9 +4971,7 @@ TEST_P(QuicConnectionTest, MtuDiscoveryEnabled) {
 // Simulate the case where the first attempt to send a probe is write blocked,
 // and after unblock, the second attempt returns a MSG_TOO_BIG error.
 TEST_P(QuicConnectionTest, MtuDiscoveryWriteBlocked) {
-  EXPECT_TRUE(connection_.connected());
-
-  connection_.SetEncrypter(ENCRYPTION_INITIAL, nullptr);
+  MtuDiscoveryTestInit();
 
   const QuicPacketCount packets_between_probes_base = 5;
   set_packets_between_probes_base(packets_between_probes_base);
@@ -5018,7 +5011,7 @@ TEST_P(QuicConnectionTest, MtuDiscoveryWriteBlocked) {
 // Tests whether MTU discovery works correctly when the probes never get
 // acknowledged.
 TEST_P(QuicConnectionTest, MtuDiscoveryFailed) {
-  EXPECT_TRUE(connection_.connected());
+  MtuDiscoveryTestInit();
 
   // Lower the number of probes between packets in order to make the test go
   // much faster.
@@ -5038,8 +5031,6 @@ TEST_P(QuicConnectionTest, MtuDiscoveryFailed) {
   const QuicPacketCount number_of_packets =
       packets_between_probes_base * (1 << (kMtuDiscoveryAttempts + 1));
   std::vector<QuicPacketNumber> mtu_discovery_packets;
-  // Called by the first ack.
-  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   // Called on many acks.
   EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _))
       .Times(AnyNumber());
@@ -5103,18 +5094,7 @@ TEST_P(QuicConnectionTest, MtuDiscoverySecondProbeFailed) {
   if (!GetQuicReloadableFlag(quic_mtu_discovery_v2)) {
     return;
   }
-  EXPECT_TRUE(connection_.connected());
-
-  // QuicFramer::GetMaxPlaintextSize uses the smallest max plaintext size across
-  // all encrypters. The initial encrypter used with IETF QUIC has a 16-byte
-  // overhead, while the NullEncrypter used throughout this test has a 12-byte
-  // overhead. This test tests behavior that relies on computing the packet size
-  // correctly, so by unsetting the initial encrypter, we avoid having a
-  // mismatch between the overheads for the encrypters used. In non-test
-  // scenarios all encrypters used for a given connection have the same
-  // overhead, either 12 bytes for ones using Google QUIC crypto, or 16 bytes
-  // for ones using TLS.
-  connection_.SetEncrypter(ENCRYPTION_INITIAL, nullptr);
+  MtuDiscoveryTestInit();
 
   const QuicPacketCount packets_between_probes_base = 5;
   set_packets_between_probes_base(packets_between_probes_base);
@@ -5145,7 +5125,6 @@ TEST_P(QuicConnectionTest, MtuDiscoverySecondProbeFailed) {
 
   // Acknowledge all packets sent so far.
   QuicAckFrame first_ack = InitAckFrame(probe_packet_number);
-  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _))
       .Times(AnyNumber());
   ProcessAckPacket(&first_ack);
@@ -5203,18 +5182,7 @@ TEST_P(QuicConnectionTest, MtuDiscoverySecondProbeFailed) {
 // Tests whether MTU discovery works when the writer has a limit on how large a
 // packet can be.
 TEST_P(QuicConnectionTest, MtuDiscoveryWriterLimited) {
-  EXPECT_TRUE(connection_.connected());
-
-  // QuicFramer::GetMaxPlaintextSize uses the smallest max plaintext size across
-  // all encrypters. The initial encrypter used with IETF QUIC has a 16-byte
-  // overhead, while the NullEncrypter used throughout this test has a 12-byte
-  // overhead. This test tests behavior that relies on computing the packet size
-  // correctly, so by unsetting the initial encrypter, we avoid having a
-  // mismatch between the overheads for the encrypters used. In non-test
-  // scenarios all encrypters used for a given connection have the same
-  // overhead, either 12 bytes for ones using Google QUIC crypto, or 16 bytes
-  // for ones using TLS.
-  connection_.SetEncrypter(ENCRYPTION_INITIAL, nullptr);
+  MtuDiscoveryTestInit();
 
   const QuicByteCount mtu_limit = kMtuDiscoveryTargetPacketSizeHigh - 1;
   writer_->set_max_packet_size(mtu_limit);
@@ -5251,7 +5219,6 @@ TEST_P(QuicConnectionTest, MtuDiscoveryWriterLimited) {
 
   // Acknowledge all packets sent so far.
   QuicAckFrame probe_ack = InitAckFrame(probe_sequence_number);
-  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _))
       .Times(AnyNumber());
   ProcessAckPacket(&probe_ack);
@@ -5307,7 +5274,7 @@ TEST_P(QuicConnectionTest, MtuDiscoveryWriterLimited) {
 // Tests whether MTU discovery works when the writer returns an error despite
 // advertising higher packet length.
 TEST_P(QuicConnectionTest, MtuDiscoveryWriterFailed) {
-  EXPECT_TRUE(connection_.connected());
+  MtuDiscoveryTestInit();
 
   const QuicByteCount mtu_limit = kMtuDiscoveryTargetPacketSizeHigh - 1;
   const QuicByteCount initial_mtu = connection_.max_packet_length();
@@ -5344,7 +5311,6 @@ TEST_P(QuicConnectionTest, MtuDiscoveryWriterFailed) {
   // Acknowledge all packets sent so far, except for the lost probe.
   QuicAckFrame probe_ack =
       ConstructAckFrame(creator_->packet_number(), probe_number);
-  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
   ProcessAckPacket(&probe_ack);
   EXPECT_EQ(initial_mtu, connection_.max_packet_length());
@@ -5360,7 +5326,7 @@ TEST_P(QuicConnectionTest, MtuDiscoveryWriterFailed) {
 }
 
 TEST_P(QuicConnectionTest, NoMtuDiscoveryAfterConnectionClosed) {
-  EXPECT_TRUE(connection_.connected());
+  MtuDiscoveryTestInit();
 
   const QuicPacketCount packets_between_probes_base = 10;
   set_packets_between_probes_base(packets_between_probes_base);

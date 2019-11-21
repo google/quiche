@@ -697,7 +697,8 @@ void QuicPacketCreator::SerializePacket(char* encrypted_buffer,
   MaybeAddPadding();
 
   QUIC_DVLOG(2) << ENDPOINT << "Serializing packet " << header
-                << QuicFramesToString(queued_frames_);
+                << QuicFramesToString(queued_frames_) << " at encryption_level "
+                << EncryptionLevelToString(packet_.encryption_level);
 
   DCHECK_GE(max_plaintext_size_, packet_size_);
   // Use the packet_size_ instead of the buffer size to ensure smaller

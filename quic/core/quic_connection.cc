@@ -426,12 +426,13 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
   }
   max_undecryptable_packets_ = config.max_undecryptable_packets();
 
-  if (config.HasClientSentConnectionOption(kMTUH, perspective_)) {
+  if (config.HasClientRequestedIndependentOption(kMTUH, perspective_)) {
     SetMtuDiscoveryTarget(kMtuDiscoveryTargetPacketSizeHigh);
   }
-  if (config.HasClientSentConnectionOption(kMTUL, perspective_)) {
+  if (config.HasClientRequestedIndependentOption(kMTUL, perspective_)) {
     SetMtuDiscoveryTarget(kMtuDiscoveryTargetPacketSizeLow);
   }
+
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnSetFromConfig(config);
   }
@@ -952,7 +953,11 @@ bool QuicConnection::OnAckFrameStart(QuicPacketNumber largest_acked,
       largest_acked > GetLargestSentPacket()) {
     QUIC_DLOG(WARNING) << ENDPOINT
                        << "Peer's observed unsent packet:" << largest_acked
-                       << " vs " << GetLargestSentPacket();
+                       << " vs " << GetLargestSentPacket()
+                       << ". SupportsMultiplePacketNumberSpaces():"
+                       << SupportsMultiplePacketNumberSpaces()
+                       << ", last_decrypted_packet_level_:"
+                       << last_decrypted_packet_level_;
     // We got an ack for data we have not sent.
     CloseConnection(QUIC_INVALID_ACK_DATA, "Largest observed too high.",
                     ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
@@ -3416,6 +3421,7 @@ bool QuicConnection::IsTerminationPacket(const SerializedPacket& packet) {
 }
 
 void QuicConnection::SetMtuDiscoveryTarget(QuicByteCount target) {
+  QUIC_DVLOG(2) << ENDPOINT << "SetMtuDiscoveryTarget: " << target;
   if (mtu_discovery_v2_) {
     mtu_discoverer_.Disable();
     mtu_discoverer_.Enable(max_packet_length(),
