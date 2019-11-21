@@ -546,13 +546,11 @@ size_t QuicFramer::GetWindowUpdateFrameSize(
   }
   if (frame.stream_id == QuicUtils::GetInvalidStreamId(version)) {
     // Frame would be a MAX DATA frame, which has only a Maximum Data field.
-    return kQuicFrameTypeSize +
-           QuicDataWriter::GetVarInt62Len(frame.byte_offset);
+    return kQuicFrameTypeSize + QuicDataWriter::GetVarInt62Len(frame.max_data);
   }
   // Frame would be MAX STREAM DATA, has Maximum Stream Data and Stream ID
   // fields.
-  return kQuicFrameTypeSize +
-         QuicDataWriter::GetVarInt62Len(frame.byte_offset) +
+  return kQuicFrameTypeSize + QuicDataWriter::GetVarInt62Len(frame.max_data) +
          QuicDataWriter::GetVarInt62Len(frame.stream_id);
 }
 
@@ -3921,7 +3919,7 @@ bool QuicFramer::ProcessWindowUpdateFrame(QuicDataReader* reader,
     return false;
   }
 
-  if (!reader->ReadUInt64(&frame->byte_offset)) {
+  if (!reader->ReadUInt64(&frame->max_data)) {
     set_detailed_error("Unable to read window byte_offset.");
     return false;
   }
@@ -5521,7 +5519,7 @@ bool QuicFramer::AppendWindowUpdateFrame(const QuicWindowUpdateFrame& frame,
   if (!writer->WriteUInt32(stream_id)) {
     return false;
   }
-  if (!writer->WriteUInt64(frame.byte_offset)) {
+  if (!writer->WriteUInt64(frame.max_data)) {
     return false;
   }
   return true;
@@ -5826,7 +5824,7 @@ bool QuicFramer::AppendStopSendingFrame(
 // Append/process IETF-Format MAX_DATA Frame
 bool QuicFramer::AppendMaxDataFrame(const QuicWindowUpdateFrame& frame,
                                     QuicDataWriter* writer) {
-  if (!writer->WriteVarInt62(frame.byte_offset)) {
+  if (!writer->WriteVarInt62(frame.max_data)) {
     set_detailed_error("Can not write MAX_DATA byte-offset");
     return false;
   }
@@ -5836,7 +5834,7 @@ bool QuicFramer::AppendMaxDataFrame(const QuicWindowUpdateFrame& frame,
 bool QuicFramer::ProcessMaxDataFrame(QuicDataReader* reader,
                                      QuicWindowUpdateFrame* frame) {
   frame->stream_id = QuicUtils::GetInvalidStreamId(transport_version());
-  if (!reader->ReadVarInt62(&frame->byte_offset)) {
+  if (!reader->ReadVarInt62(&frame->max_data)) {
     set_detailed_error("Can not read MAX_DATA byte-offset");
     return false;
   }
@@ -5850,7 +5848,7 @@ bool QuicFramer::AppendMaxStreamDataFrame(const QuicWindowUpdateFrame& frame,
     set_detailed_error("Can not write MAX_STREAM_DATA stream id");
     return false;
   }
-  if (!writer->WriteVarInt62(frame.byte_offset)) {
+  if (!writer->WriteVarInt62(frame.max_data)) {
     set_detailed_error("Can not write MAX_STREAM_DATA byte-offset");
     return false;
   }
@@ -5863,7 +5861,7 @@ bool QuicFramer::ProcessMaxStreamDataFrame(QuicDataReader* reader,
     set_detailed_error("Can not read MAX_STREAM_DATA stream id");
     return false;
   }
-  if (!reader->ReadVarInt62(&frame->byte_offset)) {
+  if (!reader->ReadVarInt62(&frame->max_data)) {
     set_detailed_error("Can not read MAX_STREAM_DATA byte-count");
     return false;
   }

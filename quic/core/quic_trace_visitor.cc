@@ -171,7 +171,7 @@ void QuicTraceVisitor::PopulateFrameInfo(const QuicFrame& frame,
 
       quic_trace::FlowControlInfo* info =
           frame_record->mutable_flow_control_info();
-      info->set_max_data(frame.window_update_frame->byte_offset);
+      info->set_max_data(frame.window_update_frame->max_data);
       if (!is_connection) {
         info->set_stream_id(frame.window_update_frame->stream_id);
       }

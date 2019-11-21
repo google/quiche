@@ -454,9 +454,9 @@ void QuicSession::OnWindowUpdateFrame(const QuicWindowUpdateFrame& frame) {
     // individual stream.
     QUIC_DVLOG(1) << ENDPOINT
                   << "Received connection level flow control window "
-                     "update with byte offset: "
-                  << frame.byte_offset;
-    flow_controller_.UpdateSendWindowOffset(frame.byte_offset);
+                     "update with max data: "
+                  << frame.max_data;
+    flow_controller_.UpdateSendWindowOffset(frame.max_data);
     return;
   }
 

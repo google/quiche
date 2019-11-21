@@ -517,9 +517,8 @@ TEST_P(QuicStreamTest, StreamFlowControlMultipleWindowUpdates) {
   QuicWindowUpdateFrame window_update_1(kInvalidControlFrameId, stream_->id(),
                                         kMinimumFlowControlSendWindow + 5);
   stream_->OnWindowUpdateFrame(window_update_1);
-  EXPECT_EQ(
-      window_update_1.byte_offset,
-      QuicFlowControllerPeer::SendWindowOffset(stream_->flow_controller()));
+  EXPECT_EQ(window_update_1.max_data, QuicFlowControllerPeer::SendWindowOffset(
+                                          stream_->flow_controller()));
 
   // Now send a few more WINDOW_UPDATES and make sure that only the largest is
   // remembered.
@@ -532,9 +531,8 @@ TEST_P(QuicStreamTest, StreamFlowControlMultipleWindowUpdates) {
   stream_->OnWindowUpdateFrame(window_update_2);
   stream_->OnWindowUpdateFrame(window_update_3);
   stream_->OnWindowUpdateFrame(window_update_4);
-  EXPECT_EQ(
-      window_update_3.byte_offset,
-      QuicFlowControllerPeer::SendWindowOffset(stream_->flow_controller()));
+  EXPECT_EQ(window_update_3.max_data, QuicFlowControllerPeer::SendWindowOffset(
+                                          stream_->flow_controller()));
 }
 
 TEST_P(QuicStreamTest, FrameStats) {

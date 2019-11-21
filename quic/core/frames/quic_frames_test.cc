@@ -204,9 +204,9 @@ TEST_F(QuicFramesTest, WindowUpdateFrameToString) {
   EXPECT_EQ(3u, GetControlFrameId(frame));
   std::ostringstream stream;
   window_update.stream_id = 1;
-  window_update.byte_offset = 2;
+  window_update.max_data = 2;
   stream << window_update;
-  EXPECT_EQ("{ control_frame_id: 3, stream_id: 1, byte_offset: 2 }\n",
+  EXPECT_EQ("{ control_frame_id: 3, stream_id: 1, max_data: 2 }\n",
             stream.str());
   EXPECT_TRUE(IsControlFrame(frame.type));
 }

@@ -7093,7 +7093,7 @@ TEST_P(QuicConnectionTest, WindowUpdate) {
 
   QuicWindowUpdateFrame window_update;
   window_update.stream_id = 3;
-  window_update.byte_offset = 1234;
+  window_update.max_data = 1234;
   EXPECT_CALL(visitor_, OnWindowUpdateFrame(_));
   ProcessFramePacket(QuicFrame(&window_update));
 }
@@ -7383,7 +7383,7 @@ TEST_P(QuicConnectionTest, WindowUpdateInstigateAcks) {
   // Send a WINDOW_UPDATE frame.
   QuicWindowUpdateFrame window_update;
   window_update.stream_id = 3;
-  window_update.byte_offset = 1234;
+  window_update.max_data = 1234;
   EXPECT_CALL(visitor_, OnWindowUpdateFrame(_));
   ProcessFramePacket(QuicFrame(&window_update));
 

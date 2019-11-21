@@ -4836,7 +4836,7 @@ TEST_P(QuicFramerTest, WindowUpdateFrame) {
       PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
 
   EXPECT_EQ(kStreamId, visitor_.window_update_frame_.stream_id);
-  EXPECT_EQ(kStreamOffset, visitor_.window_update_frame_.byte_offset);
+  EXPECT_EQ(kStreamOffset, visitor_.window_update_frame_.max_data);
 
   CheckFramingBoundaries(fragments, QUIC_INVALID_WINDOW_UPDATE_DATA);
 }
@@ -4880,7 +4880,7 @@ TEST_P(QuicFramerTest, MaxDataFrame) {
 
   EXPECT_EQ(QuicUtils::GetInvalidStreamId(framer_.transport_version()),
             visitor_.window_update_frame_.stream_id);
-  EXPECT_EQ(kStreamOffset, visitor_.window_update_frame_.byte_offset);
+  EXPECT_EQ(kStreamOffset, visitor_.window_update_frame_.max_data);
 
   CheckFramingBoundaries(packet99, QUIC_INVALID_MAX_DATA_FRAME_DATA);
 }
@@ -4926,7 +4926,7 @@ TEST_P(QuicFramerTest, MaxStreamDataFrame) {
       PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
 
   EXPECT_EQ(kStreamId, visitor_.window_update_frame_.stream_id);
-  EXPECT_EQ(kStreamOffset, visitor_.window_update_frame_.byte_offset);
+  EXPECT_EQ(kStreamOffset, visitor_.window_update_frame_.max_data);
 
   CheckFramingBoundaries(packet99, QUIC_INVALID_MAX_STREAM_DATA_FRAME_DATA);
 }
@@ -8165,7 +8165,7 @@ TEST_P(QuicFramerTest, BuildWindowUpdatePacket) {
 
   QuicWindowUpdateFrame window_update_frame;
   window_update_frame.stream_id = kStreamId;
-  window_update_frame.byte_offset = 0x1122334455667788;
+  window_update_frame.max_data = 0x1122334455667788;
 
   QuicFrames frames = {QuicFrame(&window_update_frame)};
 
@@ -8253,7 +8253,7 @@ TEST_P(QuicFramerTest, BuildMaxStreamDataPacket) {
 
   QuicWindowUpdateFrame window_update_frame;
   window_update_frame.stream_id = kStreamId;
-  window_update_frame.byte_offset = 0x1122334455667788;
+  window_update_frame.max_data = 0x1122334455667788;
 
   QuicFrames frames = {QuicFrame(&window_update_frame)};
 
@@ -8299,7 +8299,7 @@ TEST_P(QuicFramerTest, BuildMaxDataPacket) {
   QuicWindowUpdateFrame window_update_frame;
   window_update_frame.stream_id =
       QuicUtils::GetInvalidStreamId(framer_.transport_version());
-  window_update_frame.byte_offset = 0x1122334455667788;
+  window_update_frame.max_data = 0x1122334455667788;
 
   QuicFrames frames = {QuicFrame(&window_update_frame)};
 

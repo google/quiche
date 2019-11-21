@@ -12,15 +12,13 @@
 namespace quic {
 
 // Flow control updates per-stream and at the connection level.
-// Based on SPDY's WINDOW_UPDATE frame, but uses an absolute byte offset rather
-// than a window delta.
-// TODO(rjshade): A possible future optimization is to make stream_id and
-//                byte_offset variable length, similar to stream frames.
+// Based on SPDY's WINDOW_UPDATE frame, but uses an absolute max data bytes
+// rather than a window delta.
 struct QUIC_EXPORT_PRIVATE QuicWindowUpdateFrame {
   QuicWindowUpdateFrame();
   QuicWindowUpdateFrame(QuicControlFrameId control_frame_id,
                         QuicStreamId stream_id,
-                        QuicStreamOffset byte_offset);
+                        QuicByteCount max_data);
 
   friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
       std::ostream& os,
@@ -34,13 +32,9 @@ struct QUIC_EXPORT_PRIVATE QuicWindowUpdateFrame {
   // connection rather than a specific stream.
   QuicStreamId stream_id;
 
-  // Byte offset in the stream or connection. The receiver of this frame must
-  // not send data which would result in this offset being exceeded.
-  //
-  // TODO(fkastenholz): Rename this to max_data and change the type to
-  // QuicByteCount because the IETF defines this as the "maximum
-  // amount of data that can be sent".
-  QuicStreamOffset byte_offset;
+  // Maximum data allowed in the stream or connection. The receiver of this
+  // frame must not send data which would exceedes this restriction.
+  QuicByteCount max_data;
 };
 
 }  // namespace quic

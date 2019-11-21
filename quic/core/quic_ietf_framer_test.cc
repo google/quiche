@@ -1224,8 +1224,8 @@ TEST_F(QuicIetfFramerTest, MaxDataFrame) {
         QuicFramerPeer::ProcessMaxDataFrame(&framer_, &reader, &receive_frame));
 
     // Now check that the received data equals the sent data.
-    EXPECT_EQ(transmit_frame.byte_offset, window_size);
-    EXPECT_EQ(transmit_frame.byte_offset, receive_frame.byte_offset);
+    EXPECT_EQ(transmit_frame.max_data, window_size);
+    EXPECT_EQ(transmit_frame.max_data, receive_frame.max_data);
     EXPECT_EQ(QuicUtils::GetInvalidStreamId(framer_.transport_version()),
               receive_frame.stream_id);
   }
@@ -1266,8 +1266,8 @@ TEST_F(QuicIetfFramerTest, MaxStreamDataFrame) {
                                                             &receive_frame));
 
       // Now check that received data and sent data are equal.
-      EXPECT_EQ(transmit_frame.byte_offset, window_size);
-      EXPECT_EQ(transmit_frame.byte_offset, receive_frame.byte_offset);
+      EXPECT_EQ(transmit_frame.max_data, window_size);
+      EXPECT_EQ(transmit_frame.max_data, receive_frame.max_data);
       EXPECT_EQ(stream_id, receive_frame.stream_id);
       EXPECT_EQ(transmit_frame.stream_id, receive_frame.stream_id);
     }

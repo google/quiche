@@ -816,7 +816,7 @@ void QuicStream::OnWindowUpdateFrame(const QuicWindowUpdateFrame& frame) {
     return;
   }
 
-  if (flow_controller_->UpdateSendWindowOffset(frame.byte_offset)) {
+  if (flow_controller_->UpdateSendWindowOffset(frame.max_data)) {
     // Let session unblock this stream.
     session_->MarkConnectionLevelWriteBlocked(id_);
   }
