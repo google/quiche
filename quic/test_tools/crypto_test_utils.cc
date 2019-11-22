@@ -234,6 +234,7 @@ int HandshakeWithFakeServer(QuicConfig* server_quic_config,
   TestQuicSpdyServerSession server_session(
       server_conn, *server_quic_config, client_conn->supported_versions(),
       crypto_config, &compressed_certs_cache);
+  server_session.Initialize();
   server_session.OnSuccessfulVersionNegotiation(
       client_conn->supported_versions().front());
   EXPECT_CALL(*server_session.helper(),

@@ -652,7 +652,6 @@ TestQuicSpdyServerSession::TestQuicSpdyServerSession(
                             &helper_,
                             crypto_config,
                             compressed_certs_cache) {
-  Initialize();
   ON_CALL(helper_, CanAcceptClientHello(_, _, _, _, _))
       .WillByDefault(testing::Return(true));
 }
@@ -1181,6 +1180,7 @@ void CreateServerSessionForTest(
   *server_session = new TestQuicSpdyServerSession(
       *server_connection, DefaultQuicConfig(), supported_versions,
       server_crypto_config, compressed_certs_cache);
+  (*server_session)->Initialize();
 
   // We advance the clock initially because the default time is zero and the
   // strike register worries that we've just overflowed a uint32_t time.
