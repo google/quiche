@@ -8,9 +8,9 @@
 #include <list>
 
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_decoder.h"
-#include "net/third_party/quiche/src/quic/core/qpack/qpack_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 #include "net/third_party/quiche/src/quic/test_tools/qpack/qpack_decoder_test_utils.h"
+#include "net/third_party/quiche/src/quic/test_tools/qpack/qpack_test_utils.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_header_block.h"
 
 namespace quic {
@@ -71,7 +71,7 @@ class QpackOfflineDecoder : public QpackDecoder::EncoderStreamErrorDelegate {
                            spdy::SpdyHeaderBlock expected_header_list);
 
   bool encoder_stream_error_detected_;
-  NoopQpackStreamSenderDelegate decoder_stream_sender_delegate_;
+  test::NoopQpackStreamSenderDelegate decoder_stream_sender_delegate_;
   std::unique_ptr<QpackDecoder> qpack_decoder_;
 
   // Objects necessary for decoding, one list element for each header block.

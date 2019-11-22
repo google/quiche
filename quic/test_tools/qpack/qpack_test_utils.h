@@ -34,6 +34,13 @@ class MockQpackStreamSenderDelegate : public QpackStreamSenderDelegate {
   MOCK_METHOD1(WriteStreamData, void(QuicStringPiece data));
 };
 
+class NoopQpackStreamSenderDelegate : public QpackStreamSenderDelegate {
+ public:
+  ~NoopQpackStreamSenderDelegate() override = default;
+
+  void WriteStreamData(QuicStringPiece /*data*/) override {}
+};
+
 }  // namespace test
 }  // namespace quic
 

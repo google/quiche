@@ -42,6 +42,7 @@
 #include "net/third_party/quiche/src/quic/test_tools/packet_dropping_test_writer.h"
 #include "net/third_party/quiche/src/quic/test_tools/packet_reordering_writer.h"
 #include "net/third_party/quiche/src/quic/test_tools/qpack/qpack_encoder_test_utils.h"
+#include "net/third_party/quiche/src/quic/test_tools/qpack/qpack_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_client_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_config_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_connection_peer.h"
