@@ -1309,11 +1309,11 @@ TEST_F(BbrSenderTest, StartupStats) {
   EXPECT_THAT(stats.slowstart_bytes_sent, AllOf(Ge(100000u), Le(1000000u)));
   EXPECT_LE(stats.slowstart_packets_lost, 10u);
   EXPECT_LE(stats.slowstart_bytes_lost, 10000u);
-  EXPECT_THAT(stats.slowstart_duration,
+  EXPECT_FALSE(stats.slowstart_duration.IsRunning());
+  EXPECT_THAT(stats.slowstart_duration.GetTotalElapsedTime(),
               AllOf(Ge(QuicTime::Delta::FromMilliseconds(500)),
                     Le(QuicTime::Delta::FromMilliseconds(1500))));
-  EXPECT_EQ(QuicTime::Zero(), stats.slowstart_start_time);
-  EXPECT_EQ(stats.slowstart_duration,
+  EXPECT_EQ(stats.slowstart_duration.GetTotalElapsedTime(),
             QuicConnectionPeer::GetSentPacketManager(bbr_sender_.connection())
                 ->GetSlowStartDuration());
 }

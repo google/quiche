@@ -30,7 +30,7 @@ class QUIC_EXPORT_PRIVATE Bbr2Sender final : public SendAlgorithmInterface {
              QuicPacketCount initial_cwnd_in_packets,
              QuicPacketCount max_cwnd_in_packets,
              QuicRandom* random,
-             QuicConnectionStats* /*stats*/);
+             QuicConnectionStats* stats);
 
   ~Bbr2Sender() override = default;
 
@@ -157,6 +157,7 @@ class QUIC_EXPORT_PRIVATE Bbr2Sender final : public SendAlgorithmInterface {
   const RttStats* const rtt_stats_;
   const QuicUnackedPacketMap* const unacked_packets_;
   QuicRandom* random_;
+  QuicConnectionStats* connection_stats_;
 
   const Bbr2Params params_;
 

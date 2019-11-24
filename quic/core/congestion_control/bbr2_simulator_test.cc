@@ -24,6 +24,10 @@
 #include "net/third_party/quiche/src/quic/test_tools/simulator/switch.h"
 #include "net/third_party/quiche/src/quic/test_tools/simulator/traffic_policer.h"
 
+using testing::AllOf;
+using testing::Ge;
+using testing::Le;
+
 namespace quic {
 
 using CyclePhase = Bbr2ProbeBwMode::CyclePhase;
@@ -674,6 +678,25 @@ TEST_F(Bbr2DefaultTopologyTest, SenderPoliced) {
   // TODO(wub): Fix (long-term) bandwidth overestimation in policer mode, then
   // reduce the loss rate upper bound.
   EXPECT_LE(sender_loss_rate_in_packets(), 0.30);
+}
+
+// TODO(wub): Add other slowstart stats to BBRv2.
+TEST_F(Bbr2DefaultTopologyTest, StartupStats) {
+  DefaultTopologyParams params;
+  CreateNetwork(params);
+
+  DriveOutOfStartup(params);
+  ASSERT_FALSE(sender_->InSlowStart());
+
+  const QuicConnectionStats& stats = sender_connection_stats();
+  EXPECT_EQ(1u, stats.slowstart_count);
+  EXPECT_FALSE(stats.slowstart_duration.IsRunning());
+  EXPECT_THAT(stats.slowstart_duration.GetTotalElapsedTime(),
+              AllOf(Ge(QuicTime::Delta::FromMilliseconds(500)),
+                    Le(QuicTime::Delta::FromMilliseconds(1500))));
+  EXPECT_EQ(stats.slowstart_duration.GetTotalElapsedTime(),
+            QuicConnectionPeer::GetSentPacketManager(sender_connection())
+                ->GetSlowStartDuration());
 }
 
 // All Bbr2MultiSenderTests uses the following network topology:

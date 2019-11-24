@@ -12,15 +12,28 @@
 namespace quic {
 
 Bbr2StartupMode::Bbr2StartupMode(const Bbr2Sender* sender,
-                                 Bbr2NetworkModel* model)
+                                 Bbr2NetworkModel* model,
+                                 QuicTime now)
     : Bbr2ModeBase(sender, model),
       full_bandwidth_reached_(false),
       full_bandwidth_baseline_(QuicBandwidth::Zero()),
       rounds_without_bandwidth_growth_(0),
-      loss_events_in_round_(0) {}
+      loss_events_in_round_(0) {
+  // Clear some startup stats if |sender_->connection_stats_| has been used by
+  // another sender, which happens e.g. when QuicConnection switch send
+  // algorithms.
+  sender_->connection_stats_->slowstart_count = 1;
+  sender_->connection_stats_->slowstart_duration = QuicTimeAccumulator();
+  sender_->connection_stats_->slowstart_duration.Start(now);
+}
 
 void Bbr2StartupMode::Enter(const Bbr2CongestionEvent& /*congestion_event*/) {
   QUIC_BUG << "Bbr2StartupMode::Enter should not be called";
+}
+
+void Bbr2StartupMode::Leave(const Bbr2CongestionEvent& congestion_event) {
+  sender_->connection_stats_->slowstart_duration.Stop(
+      congestion_event.event_time);
 }
 
 Bbr2Mode Bbr2StartupMode::OnCongestionEvent(

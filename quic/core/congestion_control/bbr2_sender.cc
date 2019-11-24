@@ -57,11 +57,12 @@ Bbr2Sender::Bbr2Sender(QuicTime now,
                        QuicPacketCount initial_cwnd_in_packets,
                        QuicPacketCount max_cwnd_in_packets,
                        QuicRandom* random,
-                       QuicConnectionStats* /*stats*/)
+                       QuicConnectionStats* stats)
     : mode_(Bbr2Mode::STARTUP),
       rtt_stats_(rtt_stats),
       unacked_packets_(unacked_packets),
       random_(random),
+      connection_stats_(stats),
       params_(kDefaultMinimumCongestionWindow,
               max_cwnd_in_packets * kDefaultTCPMSS),
       model_(&params_,
@@ -75,7 +76,7 @@ Bbr2Sender::Bbr2Sender(QuicTime now,
       pacing_rate_(kInitialPacingGain * QuicBandwidth::FromBytesAndTimeDelta(
                                             cwnd_,
                                             rtt_stats->SmoothedOrInitialRtt())),
-      startup_(this, &model_),
+      startup_(this, &model_, now),
       drain_(this, &model_),
       probe_bw_(this, &model_),
       probe_rtt_(this, &model_),
@@ -168,6 +169,7 @@ void Bbr2Sender::OnCongestionEvent(bool /*rtt_updated*/,
 
     QUIC_DVLOG(2) << this << " Mode change:  " << mode_ << " ==> " << next_mode
                   << "  @ " << event_time;
+    BBR2_MODE_DISPATCH(Leave(congestion_event));
     mode_ = next_mode;
     BBR2_MODE_DISPATCH(Enter(congestion_event));
     --mode_changes_allowed;

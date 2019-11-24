@@ -11,6 +11,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_bandwidth.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_time.h"
+#include "net/third_party/quiche/src/quic/core/quic_time_accumulator.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 
 namespace quic {
@@ -60,10 +61,8 @@ struct QUIC_EXPORT_PRIVATE QuicConnectionStats {
   QuicPacketCount slowstart_packets_lost;
   // Number of bytes lost exiting slow start.
   QuicByteCount slowstart_bytes_lost;
-  // Time spent in COMPLETED slow start phases.
-  QuicTime::Delta slowstart_duration;
-  // Start time of the last slow start phase.
-  QuicTime slowstart_start_time;
+  // Time spent in slow start. Populated for BBRv1 and BBRv2.
+  QuicTimeAccumulator slowstart_duration;
 
   QuicPacketCount packets_dropped;  // Duplicate or less than least unacked.
 

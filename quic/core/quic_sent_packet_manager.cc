@@ -1077,16 +1077,12 @@ const QuicTime::Delta QuicSentPacketManager::GetProbeTimeoutDelay() const {
 }
 
 QuicTime::Delta QuicSentPacketManager::GetSlowStartDuration() const {
-  if (send_algorithm_->GetCongestionControlType() != kBBR) {
-    return QuicTime::Delta::Infinite();
+  if (send_algorithm_->GetCongestionControlType() == kBBR ||
+      send_algorithm_->GetCongestionControlType() == kBBRv2) {
+    return stats_->slowstart_duration.GetTotalElapsedTime(
+        clock_->ApproximateNow());
   }
-
-  if (!send_algorithm_->InSlowStart()) {
-    return stats_->slowstart_duration;
-  }
-
-  return clock_->ApproximateNow() - stats_->slowstart_start_time +
-         stats_->slowstart_duration;
+  return QuicTime::Delta::Infinite();
 }
 
 std::string QuicSentPacketManager::GetDebugState() const {

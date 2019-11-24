@@ -26,8 +26,6 @@ QuicConnectionStats::QuicConnectionStats()
       slowstart_bytes_sent(0),
       slowstart_packets_lost(0),
       slowstart_bytes_lost(0),
-      slowstart_duration(QuicTime::Delta::Zero()),
-      slowstart_start_time(QuicTime::Zero()),
       packets_dropped(0),
       undecryptable_packets_received_before_handshake_complete(0),
       crypto_retransmit_count(0),

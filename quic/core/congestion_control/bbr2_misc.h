@@ -473,7 +473,9 @@ class QUIC_EXPORT_PRIVATE Bbr2ModeBase {
 
   virtual ~Bbr2ModeBase() = default;
 
+  // Called when entering/leaving this mode.
   virtual void Enter(const Bbr2CongestionEvent& congestion_event) = 0;
+  virtual void Leave(const Bbr2CongestionEvent& congestion_event) = 0;
 
   virtual Bbr2Mode OnCongestionEvent(
       QuicByteCount prior_in_flight,
