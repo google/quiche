@@ -145,9 +145,7 @@ QuicTransportSimpleServerSession::QuicTransportSimpleServerSession(
       connection_(connection),
       owns_connection_(owns_connection),
       mode_(mode),
-      accepted_origins_(accepted_origins) {
-  Initialize();
-}
+      accepted_origins_(accepted_origins) {}
 
 QuicTransportSimpleServerSession::~QuicTransportSimpleServerSession() {
   if (owns_connection_) {

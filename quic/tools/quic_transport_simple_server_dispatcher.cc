@@ -43,10 +43,13 @@ QuicSession* QuicTransportSimpleServerDispatcher::CreateQuicSession(
       server_connection_id, peer_address, helper(), alarm_factory(), writer(),
       /*owns_writer=*/false, Perspective::IS_SERVER,
       ParsedQuicVersionVector{version});
-  return new QuicTransportSimpleServerSession(
-      connection.release(), /*owns_connection=*/true, this, config(),
-      GetSupportedVersions(), crypto_config(), compressed_certs_cache(), mode_,
-      accepted_origins_);
+  QuicTransportSimpleServerSession* session =
+      new QuicTransportSimpleServerSession(
+          connection.release(), /*owns_connection=*/true, this, config(),
+          GetSupportedVersions(), crypto_config(), compressed_certs_cache(),
+          mode_, accepted_origins_);
+  session->Initialize();
+  return session;
 }
 
 }  // namespace quic
