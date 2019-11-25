@@ -1035,6 +1035,8 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     EXPECT_CALL(*send_algorithm_, BandwidthEstimate())
         .Times(AnyNumber())
         .WillRepeatedly(Return(QuicBandwidth::Zero()));
+    EXPECT_CALL(*send_algorithm_, PopulateConnectionStats(_))
+        .Times(AnyNumber());
     EXPECT_CALL(*send_algorithm_, InSlowStart()).Times(AnyNumber());
     EXPECT_CALL(*send_algorithm_, InRecovery()).Times(AnyNumber());
     EXPECT_CALL(*send_algorithm_, OnApplicationLimited(_)).Times(AnyNumber());

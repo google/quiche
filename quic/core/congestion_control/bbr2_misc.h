@@ -331,6 +331,10 @@ class QUIC_EXPORT_PRIVATE Bbr2NetworkModel {
     return bandwidth_sampler_.max_ack_height();
   }
 
+  uint64_t num_ack_aggregation_epochs() const {
+    return bandwidth_sampler_.num_ack_aggregation_epochs();
+  }
+
   bool MaybeExpireMinRtt(const Bbr2CongestionEvent& congestion_event);
 
   QuicBandwidth BandwidthEstimate() const {

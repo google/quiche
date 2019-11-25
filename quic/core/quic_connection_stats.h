@@ -113,6 +113,9 @@ struct QUIC_EXPORT_PRIVATE QuicConnectionStats {
   uint64_t num_coalesced_packets_received;
   // Number of successfully processed coalesced packets.
   uint64_t num_coalesced_packets_processed;
+  // Number of ack aggregation epochs. For the same number of bytes acked, the
+  // smaller this value, the more ack aggregation is going on.
+  uint64_t num_ack_aggregation_epochs;
 };
 
 }  // namespace quic

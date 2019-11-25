@@ -168,6 +168,9 @@ class QUIC_EXPORT_PRIVATE SendAlgorithmInterface {
   // such cases, it should use the internal state it uses for congestion control
   // for that.
   virtual void OnApplicationLimited(QuicByteCount bytes_in_flight) = 0;
+
+  // Called before connection close to collect stats.
+  virtual void PopulateConnectionStats(QuicConnectionStats* stats) const = 0;
 };
 
 }  // namespace quic

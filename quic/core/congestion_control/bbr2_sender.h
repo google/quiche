@@ -87,6 +87,8 @@ class QUIC_EXPORT_PRIVATE Bbr2Sender final : public SendAlgorithmInterface {
   std::string GetDebugState() const override;
 
   void OnApplicationLimited(QuicByteCount bytes_in_flight) override;
+
+  void PopulateConnectionStats(QuicConnectionStats* stats) const override;
   // End implementation of SendAlgorithmInterface.
 
   const Bbr2Params& Params() const { return params_; }

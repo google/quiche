@@ -551,6 +551,7 @@ TEST_F(MaxAckHeightTrackerTest, VeryAggregatedLargeAck) {
 
   AggregationEpisode(bandwidth_ * 20, QuicTime::Delta::FromMilliseconds(6),
                      1200, false);
+  EXPECT_EQ(2u, tracker_.num_ack_aggregation_epochs());
 }
 
 TEST_F(MaxAckHeightTrackerTest, VeryAggregatedSmallAcks) {
@@ -562,6 +563,7 @@ TEST_F(MaxAckHeightTrackerTest, VeryAggregatedSmallAcks) {
 
   AggregationEpisode(bandwidth_ * 20, QuicTime::Delta::FromMilliseconds(6), 300,
                      false);
+  EXPECT_EQ(2u, tracker_.num_ack_aggregation_epochs());
 }
 
 TEST_F(MaxAckHeightTrackerTest, SomewhatAggregatedLargeAck) {
@@ -573,6 +575,7 @@ TEST_F(MaxAckHeightTrackerTest, SomewhatAggregatedLargeAck) {
 
   AggregationEpisode(bandwidth_ * 2, QuicTime::Delta::FromMilliseconds(50),
                      1000, false);
+  EXPECT_EQ(2u, tracker_.num_ack_aggregation_epochs());
 }
 
 TEST_F(MaxAckHeightTrackerTest, SomewhatAggregatedSmallAcks) {
@@ -584,11 +587,13 @@ TEST_F(MaxAckHeightTrackerTest, SomewhatAggregatedSmallAcks) {
 
   AggregationEpisode(bandwidth_ * 2, QuicTime::Delta::FromMilliseconds(50), 100,
                      false);
+  EXPECT_EQ(2u, tracker_.num_ack_aggregation_epochs());
 }
 
 TEST_F(MaxAckHeightTrackerTest, NotAggregated) {
   AggregationEpisode(bandwidth_, QuicTime::Delta::FromMilliseconds(100), 100,
                      true);
+  EXPECT_LT(2u, tracker_.num_ack_aggregation_epochs());
 }
 
 }  // namespace test

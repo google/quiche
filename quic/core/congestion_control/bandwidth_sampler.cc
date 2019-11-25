@@ -21,6 +21,7 @@ QuicByteCount MaxAckHeightTracker::Update(QuicBandwidth bandwidth_estimate,
   if (aggregation_epoch_start_time_ == QuicTime::Zero()) {
     aggregation_epoch_bytes_ = bytes_acked;
     aggregation_epoch_start_time_ = ack_time;
+    ++num_ack_aggregation_epochs_;
     return 0;
   }
 
@@ -36,6 +37,7 @@ QuicByteCount MaxAckHeightTracker::Update(QuicBandwidth bandwidth_estimate,
     // Reset to start measuring a new aggregation epoch.
     aggregation_epoch_bytes_ = bytes_acked;
     aggregation_epoch_start_time_ = ack_time;
+    ++num_ack_aggregation_epochs_;
     return 0;
   }
 

@@ -905,6 +905,10 @@ void BbrSender::OnApplicationLimited(QuicByteCount bytes_in_flight) {
                 << last_sent_packet_ << ", CWND: " << GetCongestionWindow();
 }
 
+void BbrSender::PopulateConnectionStats(QuicConnectionStats* stats) const {
+  stats->num_ack_aggregation_epochs = sampler_.num_ack_aggregation_epochs();
+}
+
 BbrSender::DebugState BbrSender::ExportDebugState() const {
   return DebugState(*this);
 }

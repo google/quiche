@@ -48,7 +48,8 @@ QuicConnectionStats::QuicConnectionStats()
       num_connectivity_probing_received(0),
       retry_packet_processed(false),
       num_coalesced_packets_received(0),
-      num_coalesced_packets_processed(0) {}
+      num_coalesced_packets_processed(0),
+      num_ack_aggregation_epochs(0) {}
 
 QuicConnectionStats::QuicConnectionStats(const QuicConnectionStats& other) =
     default;
@@ -101,6 +102,7 @@ std::ostream& operator<<(std::ostream& os, const QuicConnectionStats& s) {
   os << " num_coalesced_packets_received: " << s.num_coalesced_packets_received;
   os << " num_coalesced_packets_processed: "
      << s.num_coalesced_packets_processed;
+  os << " num_ack_aggregation_epochs: " << s.num_ack_aggregation_epochs;
   os << " }";
 
   return os;

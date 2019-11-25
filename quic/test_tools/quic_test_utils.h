@@ -951,6 +951,7 @@ class MockSendAlgorithm : public SendAlgorithmInterface {
                void(QuicBandwidth, QuicTime::Delta, bool));
   MOCK_METHOD1(AdjustNetworkParameters, void(const NetworkParams&));
   MOCK_METHOD1(OnApplicationLimited, void(QuicByteCount));
+  MOCK_CONST_METHOD1(PopulateConnectionStats, void(QuicConnectionStats*));
 };
 
 class MockLossAlgorithm : public LossDetectionInterface {

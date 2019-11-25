@@ -311,6 +311,10 @@ void Bbr2Sender::OnApplicationLimited(QuicByteCount bytes_in_flight) {
                 << ", CWND: " << GetCongestionWindow();
 }
 
+void Bbr2Sender::PopulateConnectionStats(QuicConnectionStats* stats) const {
+  stats->num_ack_aggregation_epochs = model_.num_ack_aggregation_epochs();
+}
+
 bool Bbr2Sender::ShouldSendProbingPacket() const {
   // TODO(wub): Implement ShouldSendProbingPacket properly.
   if (!BBR2_MODE_DISPATCH(IsProbingForBandwidth())) {
