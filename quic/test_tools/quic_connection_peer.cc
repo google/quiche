@@ -296,6 +296,11 @@ void QuicConnectionPeer::SetMaxTrackedPackets(
 // static
 void QuicConnectionPeer::SetNegotiatedVersion(QuicConnection* connection) {
   connection->version_negotiated_ = true;
+  if (connection->perspective() == Perspective::IS_SERVER &&
+      !QuicFramerPeer::infer_packet_header_type_from_version(
+          &connection->framer_)) {
+    connection->framer_.InferPacketHeaderTypeFromVersion();
+  }
 }
 
 // static

@@ -895,6 +895,13 @@ class QUIC_EXPORT_PRIVATE QuicConnection
     return treat_queued_packets_as_sent_;
   }
 
+  // Called when version is considered negotiated.
+  void OnSuccessfulVersionNegotiation();
+
+  bool quic_version_negotiated_by_default_at_server() const {
+    return quic_version_negotiated_by_default_at_server_;
+  }
+
  protected:
   // Calls cancel() on all the alarms owned by this connection.
   void CancelAllAlarms();
@@ -1373,6 +1380,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   QuicSentPacketManager sent_packet_manager_;
 
   // Indicates whether connection version has been negotiated.
+  // Always true for server connections.
   bool version_negotiated_;
 
   // Tracks if the connection was created by the server or the client.
@@ -1524,6 +1532,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   const bool mtu_discovery_v2_;
   // Only used if quic_mtu_discovery_v2 is true.
   QuicConnectionMtuDiscoverer mtu_discoverer_;
+
+  // Latched value of quic_version_negotiated_by_default_at_server.
+  const bool quic_version_negotiated_by_default_at_server_;
 };
 
 }  // namespace quic

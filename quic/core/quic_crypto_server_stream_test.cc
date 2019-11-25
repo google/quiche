@@ -100,8 +100,10 @@ class QuicCryptoServerStreamTest : public QuicTestWithParam<bool> {
     crypto_test_utils::SetupCryptoServerConfigForTest(
         server_connection_->clock(), server_connection_->random_generator(),
         &server_crypto_config_);
-    server_session_->GetMutableCryptoStream()->OnSuccessfulVersionNegotiation(
-        supported_versions_.front());
+    if (!GetQuicReloadableFlag(quic_version_negotiated_by_default_at_server)) {
+      server_session_->GetMutableCryptoStream()->OnSuccessfulVersionNegotiation(
+          supported_versions_.front());
+    }
   }
 
   QuicCryptoServerStream* server_stream() {

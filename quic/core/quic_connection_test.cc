@@ -1047,6 +1047,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     EXPECT_CALL(visitor_, OnCongestionWindowChange(_)).Times(AnyNumber());
     EXPECT_CALL(visitor_, OnPacketReceived(_, _, _)).Times(AnyNumber());
     EXPECT_CALL(visitor_, OnForwardProgressConfirmed()).Times(AnyNumber());
+    EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_)).Times(AnyNumber());
 
     EXPECT_CALL(*loss_algorithm_, GetLossTimeout())
         .WillRepeatedly(Return(QuicTime::Zero()));
@@ -1551,6 +1552,10 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     connection_.set_perspective(perspective);
     if (perspective == Perspective::IS_SERVER) {
       connection_.set_can_truncate_connection_ids(true);
+      QuicConnectionPeer::SetNegotiatedVersion(&connection_);
+      if (GetQuicReloadableFlag(quic_version_negotiated_by_default_at_server)) {
+        connection_.OnSuccessfulVersionNegotiation();
+      }
     }
     QuicFramerPeer::SetPerspective(&peer_framer_,
                                    QuicUtils::InvertPerspective(perspective));
@@ -1613,7 +1618,6 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
 
   void MtuDiscoveryTestInit() {
     set_perspective(Perspective::IS_SERVER);
-    QuicConnectionPeer::SetNegotiatedVersion(&connection_);
     QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
     connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
     peer_creator_.set_encryption_level(ENCRYPTION_FORWARD_SECURE);
@@ -1729,8 +1733,6 @@ TEST_P(QuicConnectionTest, SelfAddressChangeAtClient) {
 }
 
 TEST_P(QuicConnectionTest, SelfAddressChangeAtServer) {
-  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
-
   set_perspective(Perspective::IS_SERVER);
   QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
 
@@ -1760,8 +1762,6 @@ TEST_P(QuicConnectionTest, SelfAddressChangeAtServer) {
 }
 
 TEST_P(QuicConnectionTest, AllowSelfAddressChangeToMappedIpv4AddressAtServer) {
-  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
-
   set_perspective(Perspective::IS_SERVER);
   QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
 
@@ -1795,7 +1795,6 @@ TEST_P(QuicConnectionTest, AllowSelfAddressChangeToMappedIpv4AddressAtServer) {
 }
 
 TEST_P(QuicConnectionTest, ClientAddressChangeAndPacketReordered) {
-  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   set_perspective(Perspective::IS_SERVER);
   QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
 
@@ -1834,7 +1833,6 @@ TEST_P(QuicConnectionTest, ClientAddressChangeAndPacketReordered) {
 }
 
 TEST_P(QuicConnectionTest, PeerAddressChangeAtServer) {
-  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   set_perspective(Perspective::IS_SERVER);
   QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
   EXPECT_EQ(Perspective::IS_SERVER, connection_.perspective());
@@ -1872,7 +1870,6 @@ TEST_P(QuicConnectionTest, PeerAddressChangeAtServer) {
 }
 
 TEST_P(QuicConnectionTest, EffectivePeerAddressChangeAtServer) {
-  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   set_perspective(Perspective::IS_SERVER);
   QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
   EXPECT_EQ(Perspective::IS_SERVER, connection_.perspective());
@@ -1958,7 +1955,6 @@ TEST_P(QuicConnectionTest, EffectivePeerAddressChangeAtServer) {
 }
 
 TEST_P(QuicConnectionTest, ReceivePaddedPingAtServer) {
-  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   set_perspective(Perspective::IS_SERVER);
   QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
   EXPECT_EQ(Perspective::IS_SERVER, connection_.perspective());
@@ -2083,7 +2079,6 @@ TEST_P(QuicConnectionTest, DiscardQueuedPacketsAfterConnectionClose) {
 }
 
 TEST_P(QuicConnectionTest, ReceiveConnectivityProbingAtServer) {
-  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   set_perspective(Perspective::IS_SERVER);
   QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
   EXPECT_EQ(Perspective::IS_SERVER, connection_.perspective());
@@ -2142,7 +2137,6 @@ TEST_P(QuicConnectionTest, ReceiveConnectivityProbingAtServer) {
 }
 
 TEST_P(QuicConnectionTest, ReceiveReorderedConnectivityProbingAtServer) {
-  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   set_perspective(Perspective::IS_SERVER);
   QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
   EXPECT_EQ(Perspective::IS_SERVER, connection_.perspective());
@@ -2199,7 +2193,6 @@ TEST_P(QuicConnectionTest, ReceiveReorderedConnectivityProbingAtServer) {
 }
 
 TEST_P(QuicConnectionTest, MigrateAfterProbingAtServer) {
-  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   set_perspective(Perspective::IS_SERVER);
   QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
   EXPECT_EQ(Perspective::IS_SERVER, connection_.perspective());
@@ -2400,8 +2393,6 @@ TEST_P(QuicConnectionTest, SmallerServerMaxPacketSize) {
 }
 
 TEST_P(QuicConnectionTest, IncreaseServerMaxPacketSize) {
-  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
-
   set_perspective(Perspective::IS_SERVER);
   connection_.SetMaxPacketLength(1000);
 
@@ -2446,8 +2437,6 @@ TEST_P(QuicConnectionTest, IncreaseServerMaxPacketSize) {
 }
 
 TEST_P(QuicConnectionTest, IncreaseServerMaxPacketSizeWhileWriterLimited) {
-  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
-
   const QuicByteCount lower_max_packet_size = 1240;
   writer_->set_max_packet_size(lower_max_packet_size);
   set_perspective(Perspective::IS_SERVER);
@@ -7870,7 +7859,6 @@ TEST_P(QuicConnectionTest, NoPathDegradingOnServer) {
 
   // Ack data.
   clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(5));
-  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
   QuicAckFrame frame =
       InitAckFrame({{QuicPacketNumber(1u), QuicPacketNumber(2u)}});
@@ -7905,8 +7893,6 @@ TEST_P(QuicConnectionTest, MultipleCallsToCloseConnection) {
 }
 
 TEST_P(QuicConnectionTest, ServerReceivesChloOnNonCryptoStream) {
-  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
-
   set_perspective(Perspective::IS_SERVER);
   QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
 
@@ -8855,7 +8841,6 @@ TEST_P(QuicConnectionTest, StopProcessingGQuicPacketInIetfQuicConnection) {
         0u, QuicStringPiece()));
     EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
   }
-  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   ProcessFramePacketWithAddresses(frame, kSelfAddress, kPeerAddress);
 
   // Let connection process a Google QUIC packet.
@@ -9128,7 +9113,6 @@ TEST_P(QuicConnectionTest, UpdateClientConnectionIdFromFirstPacket) {
   if (!framer_.version().SupportsClientConnectionIds()) {
     return;
   }
-  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   set_perspective(Perspective::IS_SERVER);
   QuicPacketHeader header = ConstructPacketHeader(1, ENCRYPTION_INITIAL);
   header.source_connection_id = TestConnectionId(0x33);
@@ -9569,7 +9553,6 @@ TEST_P(QuicConnectionTest, AntiAmplificationLimit) {
   if (!connection_.version().SupportsAntiAmplificationLimit()) {
     return;
   }
-  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(AnyNumber());
 
   set_perspective(Perspective::IS_SERVER);

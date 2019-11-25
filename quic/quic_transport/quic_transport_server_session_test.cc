@@ -72,7 +72,9 @@ class QuicTransportServerSessionTest : public QuicTest {
     session_->Initialize();
     crypto_stream_ = static_cast<QuicCryptoServerStream*>(
         session_->GetMutableCryptoStream());
-    crypto_stream_->OnSuccessfulVersionNegotiation(GetVersions()[0]);
+    if (!GetQuicReloadableFlag(quic_version_negotiated_by_default_at_server)) {
+      crypto_stream_->OnSuccessfulVersionNegotiation(GetVersions()[0]);
+    }
   }
 
   void Connect() {

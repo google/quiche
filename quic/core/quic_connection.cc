@@ -336,7 +336,9 @@ QuicConnection::QuicConnection(
       treat_queued_packets_as_sent_(
           GetQuicReloadableFlag(quic_treat_queued_packets_as_sent) ||
           version().CanSendCoalescedPackets()),
-      mtu_discovery_v2_(GetQuicReloadableFlag(quic_mtu_discovery_v2)) {
+      mtu_discovery_v2_(GetQuicReloadableFlag(quic_mtu_discovery_v2)),
+      quic_version_negotiated_by_default_at_server_(
+          GetQuicReloadableFlag(quic_version_negotiated_by_default_at_server)) {
   QUIC_DLOG(INFO) << ENDPOINT << "Created connection with server connection ID "
                   << server_connection_id
                   << " and version: " << ParsedQuicVersionToString(version());
@@ -370,6 +372,13 @@ QuicConnection::QuicConnection(
   DCHECK(perspective_ == Perspective::IS_CLIENT ||
          supported_versions.size() == 1);
   InstallInitialCrypters(server_connection_id_);
+
+  if (quic_version_negotiated_by_default_at_server() &&
+      perspective_ == Perspective::IS_SERVER) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_version_negotiated_by_default_at_server);
+    version_negotiated_ = true;
+    framer_.InferPacketHeaderTypeFromVersion();
+  }
 }
 
 void QuicConnection::InstallInitialCrypters(QuicConnectionId connection_id) {
@@ -759,30 +768,39 @@ bool QuicConnection::OnUnauthenticatedHeader(const QuicPacketHeader& header) {
     return false;
   }
 
-  if (!version_negotiated_ && perspective_ == Perspective::IS_SERVER) {
-    if (!header.version_flag) {
-      // Packets should have the version flag till version negotiation is
-      // done.
-      std::string error_details =
-          QuicStrCat(ENDPOINT, "Packet ", header.packet_number.ToUint64(),
-                     " without version flag before version negotiated.");
-      QUIC_DLOG(WARNING) << error_details;
-      CloseConnection(QUIC_INVALID_VERSION, error_details,
-                      ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
-      return false;
-    } else {
-      DCHECK_EQ(header.version, version());
-      version_negotiated_ = true;
-      framer_.InferPacketHeaderTypeFromVersion();
-      visitor_->OnSuccessfulVersionNegotiation(version());
-      if (debug_visitor_ != nullptr) {
-        debug_visitor_->OnSuccessfulVersionNegotiation(version());
+  if (!quic_version_negotiated_by_default_at_server()) {
+    if (!version_negotiated_ && perspective_ == Perspective::IS_SERVER) {
+      if (!header.version_flag) {
+        // Packets should have the version flag till version negotiation is
+        // done.
+        std::string error_details =
+            QuicStrCat(ENDPOINT, "Packet ", header.packet_number.ToUint64(),
+                       " without version flag before version negotiated.");
+        QUIC_DLOG(WARNING) << error_details;
+        CloseConnection(QUIC_INVALID_VERSION, error_details,
+                        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+        return false;
+      } else {
+        DCHECK_EQ(header.version, version());
+        version_negotiated_ = true;
+        framer_.InferPacketHeaderTypeFromVersion();
+        visitor_->OnSuccessfulVersionNegotiation(version());
+        if (debug_visitor_ != nullptr) {
+          debug_visitor_->OnSuccessfulVersionNegotiation(version());
+        }
       }
+      DCHECK(version_negotiated_);
     }
-    DCHECK(version_negotiated_);
   }
 
   return true;
+}
+
+void QuicConnection::OnSuccessfulVersionNegotiation() {
+  visitor_->OnSuccessfulVersionNegotiation(version());
+  if (debug_visitor_ != nullptr) {
+    debug_visitor_->OnSuccessfulVersionNegotiation(version());
+  }
 }
 
 void QuicConnection::OnDecryptedPacket(EncryptionLevel level) {
@@ -1959,10 +1977,7 @@ bool QuicConnection::ProcessValidatedPacket(const QuicPacketHeader& header) {
         packet_creator_.StopSendingVersion();
       }
       version_negotiated_ = true;
-      visitor_->OnSuccessfulVersionNegotiation(version());
-      if (debug_visitor_ != nullptr) {
-        debug_visitor_->OnSuccessfulVersionNegotiation(version());
-      }
+      OnSuccessfulVersionNegotiation();
     }
   }
 

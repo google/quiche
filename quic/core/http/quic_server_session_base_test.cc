@@ -152,8 +152,10 @@ class QuicServerSessionBaseTest : public QuicTestWithParam<ParsedQuicVersion> {
         QuicCryptoServerConfig::ConfigOptions());
     SetQuicReloadableFlag(quic_supports_tls_handshake, true);
     session_->Initialize();
-    QuicSessionPeer::GetMutableCryptoStream(session_.get())
-        ->OnSuccessfulVersionNegotiation(supported_versions.front());
+    if (!GetQuicReloadableFlag(quic_version_negotiated_by_default_at_server)) {
+      QuicSessionPeer::GetMutableCryptoStream(session_.get())
+          ->OnSuccessfulVersionNegotiation(supported_versions.front());
+    }
     QuicConfigPeer::SetReceivedInitialSessionFlowControlWindow(
         session_->config(), kMinimumFlowControlSendWindow);
     session_->OnConfigNegotiated();

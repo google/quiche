@@ -187,6 +187,10 @@ class QuicFramerPeer {
       uint64_t current_received_frame_type) {
     framer->current_received_frame_type_ = current_received_frame_type;
   }
+
+  static bool infer_packet_header_type_from_version(QuicFramer* framer) {
+    return framer->infer_packet_header_type_from_version_;
+  }
 };
 
 }  // namespace test
