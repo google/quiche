@@ -48,6 +48,8 @@ Bbr2Mode Bbr2ProbeBwMode::OnCongestionEvent(
     }
   }
 
+  bool switch_to_probe_rtt = false;
+
   if (cycle_.phase == CyclePhase::PROBE_UP) {
     UpdateProbeUp(prior_in_flight, congestion_event);
   } else if (cycle_.phase == CyclePhase::PROBE_DOWN) {
@@ -55,7 +57,7 @@ Bbr2Mode Bbr2ProbeBwMode::OnCongestionEvent(
     // Maybe transition to PROBE_RTT at the end of this cycle.
     if (cycle_.phase != CyclePhase::PROBE_DOWN &&
         model_->MaybeExpireMinRtt(congestion_event)) {
-      return Bbr2Mode::PROBE_RTT;
+      switch_to_probe_rtt = true;
     }
   } else if (cycle_.phase == CyclePhase::PROBE_CRUISE) {
     UpdateProbeCruise(congestion_event);
@@ -63,10 +65,14 @@ Bbr2Mode Bbr2ProbeBwMode::OnCongestionEvent(
     UpdateProbeRefill(congestion_event);
   }
 
-  model_->set_pacing_gain(PacingGainForPhase(cycle_.phase));
-  model_->set_cwnd_gain(Params().probe_bw_cwnd_gain);
+  // Do not need to set the gains if switching to PROBE_RTT, they will be set
+  // when Bbr2ProbeRttMode::Enter is called.
+  if (!switch_to_probe_rtt) {
+    model_->set_pacing_gain(PacingGainForPhase(cycle_.phase));
+    model_->set_cwnd_gain(Params().probe_bw_cwnd_gain);
+  }
 
-  return Bbr2Mode::PROBE_BW;
+  return switch_to_probe_rtt ? Bbr2Mode::PROBE_RTT : Bbr2Mode::PROBE_BW;
 }
 
 Limits<QuicByteCount> Bbr2ProbeBwMode::GetCwndLimits() const {
