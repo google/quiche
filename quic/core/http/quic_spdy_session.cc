@@ -299,7 +299,6 @@ class QuicSpdySession::SpdyFramerVisitor
     }
   }
 
- private:
   QuicSpdySession* session_;
   QuicHeaderList header_list_;
 };
