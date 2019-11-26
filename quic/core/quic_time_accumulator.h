@@ -13,11 +13,14 @@ namespace quic {
 
 // QuicTimeAccumulator accumulates elapsed times between Start(s) and Stop(s).
 class QUIC_EXPORT_PRIVATE QuicTimeAccumulator {
-  static constexpr QuicTime kNotRunningSentinel = QuicTime::Infinite();
+  // TODO(wub): Switch to a data member called kNotRunningSentinel after c++17.
+  static constexpr QuicTime NotRunningSentinel() {
+    return QuicTime::Infinite();
+  }
 
  public:
   // True if Started and not Stopped.
-  bool IsRunning() const { return last_start_time_ != kNotRunningSentinel; }
+  bool IsRunning() const { return last_start_time_ != NotRunningSentinel(); }
 
   void Start(QuicTime now) {
     DCHECK(!IsRunning());
@@ -30,7 +33,7 @@ class QUIC_EXPORT_PRIVATE QuicTimeAccumulator {
     if (now > last_start_time_) {
       total_elapsed_ = total_elapsed_ + (now - last_start_time_);
     }
-    last_start_time_ = kNotRunningSentinel;
+    last_start_time_ = NotRunningSentinel();
     DCHECK(!IsRunning());
   }
 
@@ -58,7 +61,7 @@ class QUIC_EXPORT_PRIVATE QuicTimeAccumulator {
   // |           |      |           |
   // |___________|  +   |___________|  =   |total_elapsed_|
   QuicTime::Delta total_elapsed_ = QuicTime::Delta::Zero();
-  QuicTime last_start_time_ = kNotRunningSentinel;
+  QuicTime last_start_time_ = NotRunningSentinel();
 };
 
 }  // namespace quic
