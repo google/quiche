@@ -668,6 +668,12 @@ class MockQuicSession : public QuicSession {
                                       QuicStreamOffset offset,
                                       StreamSendingState state);
 
+  void ReallySendRstStream(QuicStreamId id,
+                           QuicRstStreamErrorCode error,
+                           QuicStreamOffset bytes_written) {
+    QuicSession::SendRstStream(id, error, bytes_written);
+  }
+
  private:
   std::unique_ptr<QuicCryptoStream> crypto_stream_;
 };

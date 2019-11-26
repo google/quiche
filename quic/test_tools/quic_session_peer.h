@@ -79,11 +79,6 @@ class QuicSessionPeer {
       QuicSession* session);
   static QuicStreamIdManager* v99_unidirectional_stream_id_manager(
       QuicSession* session);
-  static void SendRstStreamInner(QuicSession* session,
-                                 QuicStreamId id,
-                                 QuicRstStreamErrorCode error,
-                                 QuicStreamOffset bytes_written,
-                                 bool close_write_side_only);
   static PendingStream* GetPendingStream(QuicSession* session,
                                          QuicStreamId stream_id);
   static void set_is_configured(QuicSession* session, bool value);

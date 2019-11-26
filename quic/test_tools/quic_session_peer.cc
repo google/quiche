@@ -226,15 +226,6 @@ QuicStreamIdManager* QuicSessionPeer::v99_unidirectional_stream_id_manager(
 }
 
 // static
-void QuicSessionPeer::SendRstStreamInner(QuicSession* session,
-                                         QuicStreamId id,
-                                         QuicRstStreamErrorCode error,
-                                         QuicStreamOffset bytes_written,
-                                         bool close_write_side_only) {
-  session->SendRstStreamInner(id, error, bytes_written, close_write_side_only);
-}
-
-// static
 PendingStream* QuicSessionPeer::GetPendingStream(QuicSession* session,
                                                  QuicStreamId stream_id) {
   auto it = session->pending_stream_map_.find(stream_id);

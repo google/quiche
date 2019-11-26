@@ -248,11 +248,6 @@ void QuicSession::OnStopSendingFrame(const QuicStopSendingFrame& frame) {
     return;
   }
 
-  // Get the QuicStream for this stream. Ignore the STOP_SENDING
-  // if the QuicStream pointer is NULL
-  // QUESTION(fkastenholz): IS THIS THE RIGHT THING TO DO? (that is, this would
-  // happen IFF there was an entry in the map, but the pointer is null. sounds
-  // more like a deep programming error rather than a simple protocol problem).
   QuicStream* stream = it->second.get();
   if (stream == nullptr) {
     QUIC_BUG << ENDPOINT
@@ -275,11 +270,15 @@ void QuicSession::OnStopSendingFrame(const QuicStopSendingFrame& frame) {
 
   stream->set_stream_error(
       static_cast<QuicRstStreamErrorCode>(frame.application_error_code));
-  SendRstStreamInner(
-      stream->id(),
-      static_cast<quic::QuicRstStreamErrorCode>(frame.application_error_code),
-      stream->stream_bytes_written(),
-      /*close_write_side_only=*/true);
+  if (connection()->connected()) {
+    MaybeSendRstStreamFrame(
+        stream->id(),
+        static_cast<quic::QuicRstStreamErrorCode>(frame.application_error_code),
+        stream->stream_bytes_written());
+    connection_->OnStreamReset(stream->id(),
+                               static_cast<quic::QuicRstStreamErrorCode>(
+                                   frame.application_error_code));
+  }
   stream->set_rst_sent(true);
   stream->CloseWriteSide();
 }
@@ -701,7 +700,24 @@ bool QuicSession::WriteControlFrame(const QuicFrame& frame) {
 void QuicSession::SendRstStream(QuicStreamId id,
                                 QuicRstStreamErrorCode error,
                                 QuicStreamOffset bytes_written) {
-  SendRstStreamInner(id, error, bytes_written, /*close_write_side_only=*/false);
+  if (!GetQuicReloadableFlag(quic_delete_send_rst_stream_inner)) {
+    SendRstStreamInner(id, error, bytes_written, false);
+    return;
+  }
+  QUIC_RELOADABLE_FLAG_COUNT(quic_delete_send_rst_stream_inner);
+  if (connection()->connected()) {
+    QuicConnection::ScopedPacketFlusher flusher(connection());
+    MaybeSendRstStreamFrame(id, error, bytes_written);
+    MaybeSendStopSendingFrame(id, error);
+
+    connection_->OnStreamReset(id, error);
+  }
+
+  if (error != QUIC_STREAM_NO_ERROR && QuicContainsKey(zombie_streams_, id)) {
+    OnStreamDoneWaitingForAcks(id);
+    return;
+  }
+  CloseStreamInner(id, true);
 }
 
 void QuicSession::SendRstStreamInner(QuicStreamId id,
@@ -737,6 +753,27 @@ void QuicSession::SendRstStreamInner(QuicStreamId id,
 
   if (!close_write_side_only) {
     CloseStreamInner(id, true);
+  }
+}
+
+void QuicSession::MaybeSendRstStreamFrame(QuicStreamId id,
+                                          QuicRstStreamErrorCode error,
+                                          QuicStreamOffset bytes_written) {
+  DCHECK(connection()->connected());
+  if (!VersionHasIetfQuicFrames(transport_version()) ||
+      QuicUtils::GetStreamType(id, perspective(), IsIncomingStream(id)) !=
+          READ_UNIDIRECTIONAL) {
+    control_frame_manager_.WriteOrBufferRstStream(id, error, bytes_written);
+  }
+}
+
+void QuicSession::MaybeSendStopSendingFrame(QuicStreamId id,
+                                            QuicRstStreamErrorCode error) {
+  DCHECK(connection()->connected());
+  if (VersionHasIetfQuicFrames(transport_version()) &&
+      QuicUtils::GetStreamType(id, perspective(), IsIncomingStream(id)) !=
+          WRITE_UNIDIRECTIONAL) {
+    control_frame_manager_.WriteOrBufferStopSending(error, id);
   }
 }
 

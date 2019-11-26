@@ -671,6 +671,14 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // stream.
   void PendingStreamOnRstStream(const QuicRstStreamFrame& frame);
 
+  // Does actual work of sending RESET_STREAM, if the stream type allows.
+  void MaybeSendRstStreamFrame(QuicStreamId id,
+                               QuicRstStreamErrorCode error,
+                               QuicStreamOffset bytes_written);
+
+  // Sends a STOP_SENDING frame if the stream type allows.
+  void MaybeSendStopSendingFrame(QuicStreamId id, QuicRstStreamErrorCode error);
+
   // Keep track of highest received byte offset of locally closed streams, while
   // waiting for a definitive final highest offset from the peer.
   std::map<QuicStreamId, QuicStreamOffset>

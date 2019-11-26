@@ -2768,33 +2768,26 @@ TEST_P(QuicSessionTestServer, ResetForIETFStreamTypes) {
   }
 
   QuicStreamId read_only = GetNthClientInitiatedUnidirectionalId(0);
-  EXPECT_CALL(*connection_, SendControlFrame(_)).Times(0);
-  EXPECT_CALL(*connection_, OnStreamReset(read_only, _));
-  session_.SendRstStreamInner(read_only, QUIC_STREAM_CANCELLED, 0,
-                              /*close_write_side_only = */ true);
 
   EXPECT_CALL(*connection_, SendControlFrame(_))
       .Times(1)
       .WillOnce(Invoke(&ClearControlFrame));
   EXPECT_CALL(*connection_, OnStreamReset(read_only, _));
-  session_.SendRstStreamInner(read_only, QUIC_STREAM_CANCELLED, 0,
-                              /*close_write_side_only = */ false);
+  session_.SendRstStream(read_only, QUIC_STREAM_CANCELLED, 0);
 
   QuicStreamId write_only = GetNthServerInitiatedUnidirectionalId(0);
   EXPECT_CALL(*connection_, SendControlFrame(_))
       .Times(1)
       .WillOnce(Invoke(&ClearControlFrame));
   EXPECT_CALL(*connection_, OnStreamReset(write_only, _));
-  session_.SendRstStreamInner(write_only, QUIC_STREAM_CANCELLED, 0,
-                              /*close_write_side_only = */ false);
+  session_.SendRstStream(write_only, QUIC_STREAM_CANCELLED, 0);
 
   QuicStreamId bidirectional = GetNthClientInitiatedBidirectionalId(0);
   EXPECT_CALL(*connection_, SendControlFrame(_))
       .Times(2)
       .WillRepeatedly(Invoke(&ClearControlFrame));
   EXPECT_CALL(*connection_, OnStreamReset(bidirectional, _));
-  session_.SendRstStreamInner(bidirectional, QUIC_STREAM_CANCELLED, 0,
-                              /*close_write_side_only = */ false);
+  session_.SendRstStream(bidirectional, QUIC_STREAM_CANCELLED, 0);
 }
 
 // A client test class that can be used when the automatic configuration is not

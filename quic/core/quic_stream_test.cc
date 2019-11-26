@@ -912,10 +912,8 @@ TEST_P(QuicStreamTest, CancelStream) {
       .WillRepeatedly(Invoke(&ClearControlFrame));
   EXPECT_CALL(*session_, SendRstStream(stream_->id(), QUIC_STREAM_CANCELLED, 9))
       .WillOnce(InvokeWithoutArgs([this]() {
-        return QuicSessionPeer::SendRstStreamInner(
-            session_.get(), stream_->id(), QUIC_STREAM_CANCELLED,
-            stream_->stream_bytes_written(),
-            /*close_write_side_only=*/false);
+        session_->ReallySendRstStream(stream_->id(), QUIC_STREAM_CANCELLED,
+                                      stream_->stream_bytes_written());
       }));
 
   stream_->Reset(QUIC_STREAM_CANCELLED);
@@ -1572,25 +1570,6 @@ TEST_P(QuicStreamTest, OnStreamResetReadOrReadWrite) {
     EXPECT_TRUE(stream_->write_side_closed());
     EXPECT_TRUE(QuicStreamPeer::read_side_closed(stream_));
   }
-}
-
-// SendOnlyRstStream must only send a RESET_STREAM (no bundled STOP_SENDING).
-TEST_P(QuicStreamTest, SendOnlyRstStream) {
-  Initialize();
-  if (!VersionHasIetfQuicFrames(connection_->transport_version())) {
-    return;
-  }
-
-  EXPECT_CALL(*connection_,
-              OnStreamReset(stream_->id(), QUIC_BAD_APPLICATION_PAYLOAD));
-  EXPECT_CALL(*connection_, SendControlFrame(_))
-      .Times(1)
-      .WillOnce(Invoke(this, &QuicStreamTest::ClearResetStreamFrame));
-
-  QuicSessionPeer::SendRstStreamInner(session_.get(), stream_->id(),
-                                      QUIC_BAD_APPLICATION_PAYLOAD,
-                                      stream_->stream_bytes_written(),
-                                      /*close_write_side_only=*/true);
 }
 
 TEST_P(QuicStreamTest, WindowUpdateForReadOnlyStream) {
