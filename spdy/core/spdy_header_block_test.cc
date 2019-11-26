@@ -177,6 +177,21 @@ TEST(SpdyHeaderBlockTest, AppendHeaders) {
   EXPECT_EQ("singleton", block["h4"]);
 }
 
+// This test demonstrates that the SpdyHeaderBlock data structure does not place
+// any limitations on the characters present in the header names.
+TEST(SpdyHeaderBlockTest, UpperCaseNames) {
+  SpdyHeaderBlock block;
+  block["Foo"] = "foo";
+  block.AppendValueOrAddHeader("Foo", "bar");
+  EXPECT_EQ(block.end(), block.find("foo"));
+  EXPECT_EQ(Pair("Foo", std::string("foo\0bar", 7)), *block.find("Foo"));
+
+  // The map is case sensitive, so both "Foo" and "foo" can be present.
+  block.AppendValueOrAddHeader("foo", "baz");
+  EXPECT_THAT(block, ElementsAre(Pair("Foo", std::string("foo\0bar", 7)),
+                                 Pair("foo", "baz")));
+}
+
 TEST(JoinTest, JoinEmpty) {
   std::vector<SpdyStringPiece> empty;
   SpdyStringPiece separator = ", ";
