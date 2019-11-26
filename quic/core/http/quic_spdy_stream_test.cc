@@ -1862,6 +1862,48 @@ TEST_P(QuicSpdyStreamTest, MalformedHeadersStopHttpDecoder) {
   stream_->OnStreamFrame(frame);
 }
 
+// Regression test for https://crbug.com/1027895: a HEADERS frame triggers an
+// error in QuicSpdyStream::OnHeadersFramePayload().  This closes the
+// connection, freeing the buffer of QuicStreamSequencer.  Therefore
+// QuicStreamSequencer::MarkConsumed() must not be called from
+// QuicSpdyStream::OnHeadersFramePayload().
+TEST_P(QuicSpdyStreamTest, DoNotMarkConsumedAfterQpackDecodingError) {
+  if (!UsesHttp3()) {
+    return;
+  }
+
+  Initialize(kShouldProcessData);
+  connection_->AdvanceTime(QuicTime::Delta::FromSeconds(1));
+
+  testing::InSequence s;
+  EXPECT_CALL(
+      *connection_,
+      CloseConnection(QUIC_QPACK_DECOMPRESSION_FAILED,
+                      MatchesRegex("Error decoding headers on stream \\d+: "
+                                   "Invalid relative index."),
+                      _))
+      .WillOnce(
+          (Invoke([this](QuicErrorCode error, const std::string& error_details,
+                         ConnectionCloseBehavior connection_close_behavior) {
+            connection_->ReallyCloseConnection(error, error_details,
+                                               connection_close_behavior);
+          })));
+  EXPECT_CALL(*connection_, SendConnectionClosePacket(_, _));
+  EXPECT_CALL(*session_, OnConnectionClosed(_, _))
+      .WillOnce(Invoke([this](const QuicConnectionCloseFrame& frame,
+                              ConnectionCloseSource source) {
+        session_->ReallyOnConnectionClosed(frame, source);
+      }));
+  EXPECT_CALL(*session_, SendRstStream(stream_->id(), _, _));
+  EXPECT_CALL(*session_, SendRstStream(stream2_->id(), _, _));
+
+  // Invalid headers: Required Insert Count is zero, but the header block
+  // contains a dynamic table reference.
+  std::string headers = HeadersFrame(QuicTextUtils::HexDecode("000080"));
+  QuicStreamFrame frame(stream_->id(), false, 0, headers);
+  stream_->OnStreamFrame(frame);
+}
+
 TEST_P(QuicSpdyStreamTest, ImmediateHeaderDecodingWithDynamicTableEntries) {
   if (!UsesHttp3()) {
     return;

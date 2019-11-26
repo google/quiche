@@ -919,10 +919,14 @@ bool QuicSpdyStream::OnHeadersFramePayload(QuicStringPiece payload) {
   }
 
   qpack_decoded_headers_accumulator_->Decode(payload);
-  sequencer()->MarkConsumed(body_manager_.OnNonBody(payload.size()));
 
   // |qpack_decoded_headers_accumulator_| is reset if an error is detected.
-  return qpack_decoded_headers_accumulator_ != nullptr;
+  if (!qpack_decoded_headers_accumulator_) {
+    return false;
+  }
+
+  sequencer()->MarkConsumed(body_manager_.OnNonBody(payload.size()));
+  return true;
 }
 
 bool QuicSpdyStream::OnHeadersFrameEnd() {
