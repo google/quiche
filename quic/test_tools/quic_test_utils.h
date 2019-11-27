@@ -414,6 +414,7 @@ class MockQuicConnectionVisitor : public QuicConnectionVisitorInterface {
   MOCK_METHOD1(OnStreamsBlockedFrame,
                bool(const QuicStreamsBlockedFrame& frame));
   MOCK_METHOD1(OnStopSendingFrame, void(const QuicStopSendingFrame& frame));
+  MOCK_METHOD1(OnPacketDecrypted, void(EncryptionLevel));
 };
 
 class MockQuicConnectionHelper : public QuicConnectionHelperInterface {
@@ -689,6 +690,7 @@ class MockQuicCryptoStream : public QuicCryptoStream {
   const QuicCryptoNegotiatedParameters& crypto_negotiated_params()
       const override;
   CryptoMessageParser* crypto_message_parser() override;
+  void OnPacketDecrypted(EncryptionLevel /*level*/) override {}
 
  private:
   QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> params_;

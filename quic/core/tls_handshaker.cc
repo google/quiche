@@ -16,7 +16,7 @@ namespace quic {
 TlsHandshaker::TlsHandshaker(QuicCryptoStream* stream,
                              QuicSession* session,
                              SSL_CTX* /*ssl_ctx*/)
-    : stream_(stream), session_(session) {
+    : stream_(stream), session_(session), delegate_(session) {
   QUIC_BUG_IF(!GetQuicReloadableFlag(quic_supports_tls_handshake))
       << "Attempted to create TLS handshaker when TLS is disabled";
 }
@@ -64,32 +64,22 @@ const EVP_MD* TlsHandshaker::Prf() {
       SSL_CIPHER_get_prf_nid(SSL_get_pending_cipher(ssl())));
 }
 
-std::unique_ptr<QuicEncrypter> TlsHandshaker::CreateEncrypter(
-    const std::vector<uint8_t>& pp_secret) {
-  std::unique_ptr<QuicEncrypter> encrypter =
-      QuicEncrypter::CreateFromCipherSuite(
-          SSL_CIPHER_get_id(SSL_get_pending_cipher(ssl())));
-  CryptoUtils::SetKeyAndIV(Prf(), pp_secret, encrypter.get());
-  return encrypter;
-}
-
-std::unique_ptr<QuicDecrypter> TlsHandshaker::CreateDecrypter(
-    const std::vector<uint8_t>& pp_secret) {
-  std::unique_ptr<QuicDecrypter> decrypter =
-      QuicDecrypter::CreateFromCipherSuite(
-          SSL_CIPHER_get_id(SSL_get_pending_cipher(ssl())));
-  CryptoUtils::SetKeyAndIV(Prf(), pp_secret, decrypter.get());
-  return decrypter;
-}
-
 void TlsHandshaker::SetEncryptionSecret(
     EncryptionLevel level,
     const std::vector<uint8_t>& read_secret,
     const std::vector<uint8_t>& write_secret) {
-  std::unique_ptr<QuicEncrypter> encrypter = CreateEncrypter(write_secret);
-  session()->connection()->SetEncrypter(level, std::move(encrypter));
-  std::unique_ptr<QuicDecrypter> decrypter = CreateDecrypter(read_secret);
-  session()->connection()->InstallDecrypter(level, std::move(decrypter));
+  std::unique_ptr<QuicEncrypter> encrypter =
+      QuicEncrypter::CreateFromCipherSuite(
+          SSL_CIPHER_get_id(SSL_get_pending_cipher(ssl())));
+  CryptoUtils::SetKeyAndIV(Prf(), write_secret, encrypter.get());
+  std::unique_ptr<QuicDecrypter> decrypter =
+      QuicDecrypter::CreateFromCipherSuite(
+          SSL_CIPHER_get_id(SSL_get_pending_cipher(ssl())));
+  CryptoUtils::SetKeyAndIV(Prf(), read_secret, decrypter.get());
+  delegate_->OnNewKeysAvailable(level, std::move(decrypter),
+                                /*set_alternative_decrypter=*/false,
+                                /*latch_once_used=*/false,
+                                std::move(encrypter));
 }
 
 void TlsHandshaker::WriteMessage(EncryptionLevel level, QuicStringPiece data) {

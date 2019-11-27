@@ -132,6 +132,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientHandshaker
   QuicCryptoClientStream* stream_;
 
   QuicSession* session_;
+  HandshakerDelegateInterface* delegate_;
 
   State next_state_;
   // num_client_hellos_ contains the number of client hello messages that this

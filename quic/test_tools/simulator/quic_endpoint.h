@@ -82,6 +82,7 @@ class QuicEndpoint : public QuicEndpointBase,
     return true;
   }
   void OnStopSendingFrame(const QuicStopSendingFrame& /*frame*/) override {}
+  void OnPacketDecrypted(EncryptionLevel /*level*/) override {}
 
   // End QuicConnectionVisitorInterface implementation.
 

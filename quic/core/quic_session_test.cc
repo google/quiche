@@ -87,9 +87,14 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
     }
     EXPECT_THAT(error, IsQuicNoError());
     session()->OnConfigNegotiated();
-    session()->connection()->SetDefaultEncryptionLevel(
-        ENCRYPTION_FORWARD_SECURE);
-    session()->OnCryptoHandshakeEvent(QuicSession::HANDSHAKE_CONFIRMED);
+    if (session()->use_handshake_delegate()) {
+      session()->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+      session()->DiscardOldEncryptionKey(ENCRYPTION_INITIAL);
+    } else {
+      session()->connection()->SetDefaultEncryptionLevel(
+          ENCRYPTION_FORWARD_SECURE);
+      session()->OnCryptoHandshakeEvent(QuicSession::HANDSHAKE_CONFIRMED);
+    }
   }
 
   // QuicCryptoStream implementation
@@ -104,6 +109,7 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
   CryptoMessageParser* crypto_message_parser() override {
     return QuicCryptoHandshaker::crypto_message_parser();
   }
+  void OnPacketDecrypted(EncryptionLevel /*level*/) override {}
 
   MOCK_METHOD0(OnCanWrite, void());
   bool HasPendingCryptoRetransmission() const override { return false; }

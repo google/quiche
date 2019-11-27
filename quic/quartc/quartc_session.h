@@ -74,6 +74,7 @@ class QuartcSession : public QuicSession,
   }
 
   void OnCryptoHandshakeEvent(CryptoHandshakeEvent event) override;
+  void SetDefaultEncryptionLevel(EncryptionLevel level) override;
 
   // QuicConnectionVisitorInterface overrides.
   void OnCongestionWindowChange(QuicTime now) override;

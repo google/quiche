@@ -245,8 +245,13 @@ class QuicSpdyStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
       EXPECT_CALL(*session_, WritevData(qpack_encoder_stream,
                                         qpack_encoder_stream->id(), 1, 0, _));
     }
-    static_cast<QuicSession*>(session_.get())
-        ->OnCryptoHandshakeEvent(QuicSession::ENCRYPTION_ESTABLISHED);
+    if (session_->use_handshake_delegate()) {
+      static_cast<QuicSession*>(session_.get())
+          ->SetDefaultEncryptionLevel(ENCRYPTION_ZERO_RTT);
+    } else {
+      static_cast<QuicSession*>(session_.get())
+          ->OnCryptoHandshakeEvent(QuicSession::ENCRYPTION_ESTABLISHED);
+    }
   }
 
   QuicHeaderList ProcessHeaders(bool fin, const SpdyHeaderBlock& headers) {

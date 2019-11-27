@@ -56,6 +56,7 @@ QuicCryptoClientHandshaker::QuicCryptoClientHandshaker(
     : QuicCryptoHandshaker(stream, session),
       stream_(stream),
       session_(session),
+      delegate_(session),
       next_state_(STATE_IDLE),
       num_client_hellos_(0),
       crypto_config_(crypto_config),
@@ -317,6 +318,17 @@ void QuicCryptoClientHandshaker::DoSendCHLO(
       crypto_config_->pad_full_hello());
   SendHandshakeMessage(out);
   // Be prepared to decrypt with the new server write key.
+  if (session()->use_handshake_delegate()) {
+    delegate_->OnNewKeysAvailable(
+        ENCRYPTION_ZERO_RTT,
+        std::move(crypto_negotiated_params_->initial_crypters.decrypter),
+        /*set_alternative_decrypter=*/true,
+        /*latch_once_used=*/true,
+        std::move(crypto_negotiated_params_->initial_crypters.encrypter));
+    encryption_established_ = true;
+    delegate_->SetDefaultEncryptionLevel(ENCRYPTION_ZERO_RTT);
+    return;
+  }
   if (session()->connection()->version().KnowsWhichDecrypterToUse()) {
     session()->connection()->InstallDecrypter(
         ENCRYPTION_ZERO_RTT,
@@ -376,7 +388,11 @@ void QuicCryptoClientHandshaker::DoReceiveREJ(
 
   // Receipt of a REJ message means that the server received the CHLO
   // so we can cancel and retransmissions.
-  session()->NeuterUnencryptedData();
+  if (session()->use_handshake_delegate()) {
+    delegate_->NeuterUnencryptedData();
+  } else {
+    session()->NeuterUnencryptedData();
+  }
 
   std::string error_details;
   QuicErrorCode error = crypto_config_->ProcessRejection(
@@ -536,6 +552,18 @@ void QuicCryptoClientHandshaker::DoReceiveSHLO(
   // has been floated that the server shouldn't send packets encrypted
   // with the FORWARD_SECURE key until it receives a FORWARD_SECURE
   // packet from the client.
+  if (session()->use_handshake_delegate()) {
+    delegate_->OnNewKeysAvailable(
+        ENCRYPTION_FORWARD_SECURE, std::move(crypters->decrypter),
+        /*set_alternative_decrypter=*/true,
+        /*latch_once_used=*/false, std::move(crypters->encrypter));
+    handshake_confirmed_ = true;
+    delegate_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+    delegate_->DiscardOldEncryptionKey(ENCRYPTION_INITIAL);
+    delegate_->NeuterHandshakeData();
+    return;
+  }
+
   if (session()->connection()->version().KnowsWhichDecrypterToUse()) {
     session()->connection()->InstallDecrypter(ENCRYPTION_FORWARD_SECURE,
                                               std::move(crypters->decrypter));

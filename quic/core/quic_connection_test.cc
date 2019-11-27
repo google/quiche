@@ -1041,6 +1041,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     EXPECT_CALL(*send_algorithm_, InRecovery()).Times(AnyNumber());
     EXPECT_CALL(*send_algorithm_, OnApplicationLimited(_)).Times(AnyNumber());
     EXPECT_CALL(visitor_, WillingAndAbleToWrite()).Times(AnyNumber());
+    EXPECT_CALL(visitor_, OnPacketDecrypted(_)).Times(AnyNumber());
     EXPECT_CALL(visitor_, HasPendingHandshake()).Times(AnyNumber());
     EXPECT_CALL(visitor_, OnCanWrite())
         .WillRepeatedly(Invoke(&notifier_, &SimpleSessionNotifier::OnCanWrite));

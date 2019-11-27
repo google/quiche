@@ -630,6 +630,11 @@ void QuicSpdySession::OnCryptoHandshakeEvent(CryptoHandshakeEvent event) {
   SendInitialData();
 }
 
+void QuicSpdySession::SetDefaultEncryptionLevel(quic::EncryptionLevel level) {
+  QuicSession::SetDefaultEncryptionLevel(level);
+  SendInitialData();
+}
+
 // True if there are open HTTP requests.
 bool QuicSpdySession::ShouldKeepConnectionAlive() const {
   if (!VersionUsesHttp3(transport_version())) {

@@ -161,6 +161,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientStream
   const QuicCryptoNegotiatedParameters& crypto_negotiated_params()
       const override;
   CryptoMessageParser* crypto_message_parser() override;
+  void OnPacketDecrypted(EncryptionLevel /*level*/) override {}
   size_t BufferSizeLimitForLevel(EncryptionLevel level) const override;
 
   std::string chlo_hash() const;

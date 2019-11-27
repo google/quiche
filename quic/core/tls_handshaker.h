@@ -61,17 +61,13 @@ class QUIC_EXPORT_PRIVATE TlsHandshaker : public TlsConnection::Delegate,
   // Returns the PRF used by the cipher suite negotiated in the TLS handshake.
   const EVP_MD* Prf();
 
-  std::unique_ptr<QuicEncrypter> CreateEncrypter(
-      const std::vector<uint8_t>& pp_secret);
-  std::unique_ptr<QuicDecrypter> CreateDecrypter(
-      const std::vector<uint8_t>& pp_secret);
-
   virtual const TlsConnection* tls_connection() const = 0;
 
   SSL* ssl() const { return tls_connection()->ssl(); }
 
   QuicCryptoStream* stream() { return stream_; }
   QuicSession* session() { return session_; }
+  HandshakerDelegateInterface* delegate() { return delegate_; }
 
   // SetEncryptionSecret provides the encryption secret to use at a particular
   // encryption level. The secrets provided here are the ones from the TLS 1.3
@@ -100,6 +96,7 @@ class QUIC_EXPORT_PRIVATE TlsHandshaker : public TlsConnection::Delegate,
  private:
   QuicCryptoStream* stream_;
   QuicSession* session_;
+  HandshakerDelegateInterface* delegate_;
 
   QuicErrorCode parser_error_ = QUIC_NO_ERROR;
   std::string parser_error_detail_;

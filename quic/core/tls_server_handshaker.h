@@ -46,6 +46,7 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
   bool ZeroRttAttempted() const override;
   void SetPreviousCachedNetworkParams(
       CachedNetworkParameters cached_network_params) override;
+  void OnPacketDecrypted(EncryptionLevel level) override;
   bool ShouldSendExpectCTHeader() const override;
 
   // From QuicCryptoServerStream::HandshakerDelegate and TlsHandshaker
@@ -101,6 +102,7 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
     STATE_LISTENING,
     STATE_SIGNATURE_PENDING,
     STATE_SIGNATURE_COMPLETE,
+    STATE_ENCRYPTION_HANDSHAKE_DATA_PROCESSED,
     STATE_HANDSHAKE_COMPLETE,
     STATE_CONNECTION_CLOSED,
   };

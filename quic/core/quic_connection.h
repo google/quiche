@@ -165,6 +165,9 @@ class QUIC_EXPORT_PRIVATE QuicConnectionVisitorInterface {
 
   // Called when a STOP_SENDING frame has been received.
   virtual void OnStopSendingFrame(const QuicStopSendingFrame& frame) = 0;
+
+  // Called when a packet of encryption |level| has been successfully decrypted.
+  virtual void OnPacketDecrypted(EncryptionLevel level) = 0;
 };
 
 // Interface which gets callbacks from the QuicConnection at interesting
@@ -902,6 +905,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
     return quic_version_negotiated_by_default_at_server_;
   }
 
+  bool use_handshake_delegate() const { return use_handshake_delegate_; }
+
  protected:
   // Calls cancel() on all the alarms owned by this connection.
   void CancelAllAlarms();
@@ -1535,6 +1540,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // Latched value of quic_version_negotiated_by_default_at_server.
   const bool quic_version_negotiated_by_default_at_server_;
+
+  // Latched value of quic_use_handshaker_delegate.
+  const bool use_handshake_delegate_;
 };
 
 }  // namespace quic

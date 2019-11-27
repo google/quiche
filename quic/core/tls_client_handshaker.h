@@ -50,6 +50,9 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
   CryptoMessageParser* crypto_message_parser() override;
   size_t BufferSizeLimitForLevel(EncryptionLevel level) const override;
 
+  // Override to drop initial keys if trying to write ENCRYPTION_HANDSHAKE data.
+  void WriteMessage(EncryptionLevel level, QuicStringPiece data) override;
+
   void AllowEmptyAlpnForTests() { allow_empty_alpn_for_tests_ = true; }
 
  protected:
@@ -90,6 +93,7 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
     STATE_IDLE,
     STATE_HANDSHAKE_RUNNING,
     STATE_CERT_VERIFY_PENDING,
+    STATE_ENCRYPTION_HANDSHAKE_DATA_SENT,
     STATE_HANDSHAKE_COMPLETE,
     STATE_CONNECTION_CLOSED,
   } state_ = STATE_IDLE;

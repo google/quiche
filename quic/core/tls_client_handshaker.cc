@@ -333,9 +333,9 @@ void TlsClientHandshaker::FinishHandshake() {
   QUIC_DLOG(INFO) << "Client: server selected ALPN: '" << received_alpn_string
                   << "'";
 
-  session()->connection()->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   encryption_established_ = true;
   handshake_confirmed_ = true;
+  delegate()->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
 
   // Fill crypto_negotiated_params_:
   const SSL_CIPHER* cipher = SSL_get_current_cipher(ssl());
@@ -345,10 +345,9 @@ void TlsClientHandshaker::FinishHandshake() {
   crypto_negotiated_params_->key_exchange_group = SSL_get_curve_id(ssl());
   crypto_negotiated_params_->peer_signature_algorithm =
       SSL_get_peer_signature_algorithm(ssl());
-
-  session()->OnCryptoHandshakeEvent(QuicSession::ENCRYPTION_ESTABLISHED);
-  session()->OnCryptoHandshakeEvent(QuicSession::HANDSHAKE_CONFIRMED);
-  session()->connection()->OnHandshakeComplete();
+  // TODO(fayang): Replace this with DiscardOldKeys(ENCRYPTION_HANDSHAKE) when
+  // handshake key discarding settles down.
+  delegate()->NeuterHandshakeData();
 }
 
 enum ssl_verify_result_t TlsClientHandshaker::VerifyCert(uint8_t* out_alert) {
@@ -412,6 +411,17 @@ void TlsClientHandshaker::InsertSession(bssl::UniquePtr<SSL_SESSION> session) {
   auto cache_state = std::make_unique<QuicResumptionState>();
   cache_state->tls_session = std::move(session);
   session_cache_->Insert(server_id_, std::move(cache_state));
+}
+
+void TlsClientHandshaker::WriteMessage(EncryptionLevel level,
+                                       QuicStringPiece data) {
+  if (level == ENCRYPTION_HANDSHAKE &&
+      state_ < STATE_ENCRYPTION_HANDSHAKE_DATA_SENT) {
+    state_ = STATE_ENCRYPTION_HANDSHAKE_DATA_SENT;
+    delegate()->DiscardOldEncryptionKey(ENCRYPTION_INITIAL);
+    delegate()->DiscardOldDecryptionKey(ENCRYPTION_INITIAL);
+  }
+  TlsHandshaker::WriteMessage(level, data);
 }
 
 }  // namespace quic

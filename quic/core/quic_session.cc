@@ -283,6 +283,10 @@ void QuicSession::OnStopSendingFrame(const QuicStopSendingFrame& frame) {
   stream->CloseWriteSide();
 }
 
+void QuicSession::OnPacketDecrypted(EncryptionLevel level) {
+  GetMutableCryptoStream()->OnPacketDecrypted(level);
+}
+
 void QuicSession::PendingStreamOnRstStream(const QuicRstStreamFrame& frame) {
   DCHECK(VersionUsesHttp3(transport_version()));
   QuicStreamId stream_id = frame.stream_id;
@@ -1269,6 +1273,7 @@ void QuicSession::OnNewSessionFlowControlWindow(QuicStreamOffset new_window) {
 }
 
 void QuicSession::OnCryptoHandshakeEvent(CryptoHandshakeEvent event) {
+  DCHECK(!use_handshake_delegate());
   switch (event) {
     case ENCRYPTION_ESTABLISHED:
       // Retransmit originally packets that were sent, since they can't be
@@ -1289,6 +1294,93 @@ void QuicSession::OnCryptoHandshakeEvent(CryptoHandshakeEvent event) {
     default:
       QUIC_LOG(ERROR) << ENDPOINT << "Got unknown handshake event: " << event;
   }
+}
+
+void QuicSession::OnNewKeysAvailable(EncryptionLevel level,
+                                     std::unique_ptr<QuicDecrypter> decrypter,
+                                     bool set_alternative_decrypter,
+                                     bool latch_once_used,
+                                     std::unique_ptr<QuicEncrypter> encrypter) {
+  DCHECK(use_handshake_delegate());
+  // Install new keys.
+  connection()->SetEncrypter(level, std::move(encrypter));
+  if (connection()->version().KnowsWhichDecrypterToUse()) {
+    connection()->InstallDecrypter(level, std::move(decrypter));
+    return;
+  }
+  if (set_alternative_decrypter) {
+    connection()->SetAlternativeDecrypter(level, std::move(decrypter),
+                                          latch_once_used);
+    return;
+  }
+  connection()->SetDecrypter(level, std::move(decrypter));
+}
+
+void QuicSession::SetDefaultEncryptionLevel(EncryptionLevel level) {
+  DCHECK(use_handshake_delegate());
+  QUIC_DVLOG(1) << ENDPOINT << "Set default encryption level to "
+                << EncryptionLevelToString(level);
+  connection()->SetDefaultEncryptionLevel(level);
+
+  switch (level) {
+    case ENCRYPTION_INITIAL:
+      break;
+    case ENCRYPTION_ZERO_RTT:
+      // Retransmit old 0-RTT data (if any) with the new 0-RTT keys, since they
+      // can't be decrypted by the peer.
+      connection_->RetransmitUnackedPackets(ALL_INITIAL_RETRANSMISSION);
+      // Given any streams blocked by encryption a chance to write.
+      OnCanWrite();
+      break;
+    case ENCRYPTION_HANDSHAKE:
+      break;
+    case ENCRYPTION_FORWARD_SECURE:
+      QUIC_BUG_IF(!config_.negotiated())
+          << ENDPOINT << "Handshake confirmed without parameter negotiation.";
+      break;
+    default:
+      QUIC_BUG << "Unknown encryption level: "
+               << EncryptionLevelToString(level);
+  }
+}
+
+void QuicSession::DiscardOldDecryptionKey(EncryptionLevel level) {
+  DCHECK(use_handshake_delegate());
+  if (!connection()->version().KnowsWhichDecrypterToUse()) {
+    // TODO(fayang): actually discard keys.
+    return;
+  }
+  connection()->RemoveDecrypter(level);
+}
+
+void QuicSession::DiscardOldEncryptionKey(EncryptionLevel level) {
+  DCHECK(use_handshake_delegate());
+  QUIC_DVLOG(1) << ENDPOINT << "Discard keys of "
+                << EncryptionLevelToString(level);
+  // TODO(fayang): actually discard keys.
+  switch (level) {
+    case ENCRYPTION_INITIAL:
+      NeuterUnencryptedData();
+      break;
+    case ENCRYPTION_HANDSHAKE:
+      DCHECK(false);
+      // TODO(fayang): implement this when handshake keys discarding settles
+      // down.
+      break;
+    case ENCRYPTION_ZERO_RTT:
+      break;
+    case ENCRYPTION_FORWARD_SECURE:
+      QUIC_BUG << "Tries to drop 1-RTT keys";
+      break;
+    default:
+      QUIC_BUG << "Unknown encryption level: "
+               << EncryptionLevelToString(level);
+  }
+}
+
+void QuicSession::NeuterHandshakeData() {
+  DCHECK(use_handshake_delegate());
+  connection()->OnHandshakeComplete();
 }
 
 void QuicSession::OnCryptoHandshakeMessageSent(

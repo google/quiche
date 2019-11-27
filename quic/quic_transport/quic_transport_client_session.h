@@ -81,6 +81,7 @@ class QUIC_EXPORT_PRIVATE QuicTransportClientSession
   }
 
   void OnCryptoHandshakeEvent(CryptoHandshakeEvent event) override;
+  void SetDefaultEncryptionLevel(EncryptionLevel level) override;
 
   // Return the earliest incoming stream that has been received by the session
   // but has not been accepted.  Returns nullptr if there are no incoming

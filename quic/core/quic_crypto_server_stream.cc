@@ -111,6 +111,10 @@ CryptoMessageParser* QuicCryptoServerStream::crypto_message_parser() {
   return handshaker()->crypto_message_parser();
 }
 
+void QuicCryptoServerStream::OnPacketDecrypted(EncryptionLevel level) {
+  handshaker()->OnPacketDecrypted(level);
+}
+
 size_t QuicCryptoServerStream::BufferSizeLimitForLevel(
     EncryptionLevel level) const {
   return handshaker()->BufferSizeLimitForLevel(level);

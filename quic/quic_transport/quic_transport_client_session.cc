@@ -88,6 +88,14 @@ void QuicTransportClientSession::OnCryptoHandshakeEvent(
   SendClientIndication();
 }
 
+void QuicTransportClientSession::SetDefaultEncryptionLevel(
+    EncryptionLevel level) {
+  QuicSession::SetDefaultEncryptionLevel(level);
+  if (level == ENCRYPTION_FORWARD_SECURE) {
+    SendClientIndication();
+  }
+}
+
 QuicTransportStream*
 QuicTransportClientSession::AcceptIncomingBidirectionalStream() {
   if (incoming_bidirectional_streams_.empty()) {

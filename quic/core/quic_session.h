@@ -14,6 +14,7 @@
 #include <string>
 #include <vector>
 
+#include "net/third_party/quiche/src/quic/core/handshaker_delegate_interface.h"
 #include "net/third_party/quiche/src/quic/core/legacy_quic_stream_id_manager.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection.h"
 #include "net/third_party/quiche/src/quic/core/quic_control_frame_manager.h"
@@ -46,7 +47,8 @@ class QUIC_EXPORT_PRIVATE QuicSession
     : public QuicConnectionVisitorInterface,
       public SessionNotifierInterface,
       public QuicStreamFrameDataProducer,
-      public QuicStreamIdManager::DelegateInterface {
+      public QuicStreamIdManager::DelegateInterface,
+      public HandshakerDelegateInterface {
  public:
   // An interface from the session to the entity owning the session.
   // This lets the session notify its owner (the Dispatcher) when the connection
@@ -128,6 +130,7 @@ class QUIC_EXPORT_PRIVATE QuicSession
   bool OnMaxStreamsFrame(const QuicMaxStreamsFrame& frame) override;
   bool OnStreamsBlockedFrame(const QuicStreamsBlockedFrame& frame) override;
   void OnStopSendingFrame(const QuicStopSendingFrame& frame) override;
+  void OnPacketDecrypted(EncryptionLevel level) override;
 
   // QuicStreamFrameDataProducer
   WriteStreamDataResult WriteStreamData(QuicStreamId id,
@@ -256,6 +259,18 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // Servers will simply call it once with HANDSHAKE_CONFIRMED.
   virtual void OnCryptoHandshakeEvent(CryptoHandshakeEvent event);
 
+  // From HandshakerDelegateInterface
+  void OnNewKeysAvailable(EncryptionLevel level,
+                          std::unique_ptr<QuicDecrypter> decrypter,
+                          bool set_alternative_decrypter,
+                          bool latch_once_used,
+                          std::unique_ptr<QuicEncrypter> encrypter) override;
+  void SetDefaultEncryptionLevel(EncryptionLevel level) override;
+  void DiscardOldDecryptionKey(EncryptionLevel level) override;
+  void DiscardOldEncryptionKey(EncryptionLevel level) override;
+  void NeuterUnencryptedData() override;
+  void NeuterHandshakeData() override;
+
   // Called by the QuicCryptoStream when a handshake message is sent.
   virtual void OnCryptoHandshakeMessageSent(
       const CryptoHandshakeMessage& message);
@@ -337,9 +352,6 @@ class QUIC_EXPORT_PRIVATE QuicSession
 
   // Called when stream |id| is newly waiting for acks.
   void OnStreamWaitingForAcks(QuicStreamId id);
-
-  // Called to cancel retransmission of unencypted crypto stream data.
-  void NeuterUnencryptedData();
 
   // Returns true if the session has data to be sent, either queued in the
   // connection, or in a write-blocked stream.
@@ -451,6 +463,10 @@ class QUIC_EXPORT_PRIVATE QuicSession
 
   bool use_http2_priority_write_scheduler() const {
     return use_http2_priority_write_scheduler_;
+  }
+
+  bool use_handshake_delegate() const {
+    return connection_->use_handshake_delegate();
   }
 
   bool is_configured() const { return is_configured_; }

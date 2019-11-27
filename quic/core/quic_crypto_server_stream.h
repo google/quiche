@@ -98,6 +98,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerStream
     virtual bool ZeroRttAttempted() const = 0;
     virtual void SetPreviousCachedNetworkParams(
         CachedNetworkParameters cached_network_params) = 0;
+    virtual void OnPacketDecrypted(EncryptionLevel level) = 0;
 
     // NOTE: Indicating that the Expect-CT header should be sent here presents a
     // layering violation to some extent. The Expect-CT header only applies to
@@ -176,6 +177,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerStream
   const QuicCryptoNegotiatedParameters& crypto_negotiated_params()
       const override;
   CryptoMessageParser* crypto_message_parser() override;
+  void OnPacketDecrypted(EncryptionLevel level) override;
   size_t BufferSizeLimitForLevel(EncryptionLevel level) const override;
   void OnSuccessfulVersionNegotiation(
       const ParsedQuicVersion& version) override;

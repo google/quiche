@@ -175,6 +175,36 @@ void QuartcSession::OnCryptoHandshakeEvent(CryptoHandshakeEvent event) {
   }
 }
 
+void QuartcSession::SetDefaultEncryptionLevel(EncryptionLevel level) {
+  QuicSession::SetDefaultEncryptionLevel(level);
+  switch (level) {
+    case ENCRYPTION_INITIAL:
+      break;
+    case ENCRYPTION_ZERO_RTT:
+      if (connection()->perspective() == Perspective::IS_CLIENT) {
+        DCHECK(IsEncryptionEstablished());
+        DCHECK(session_delegate_);
+        session_delegate_->OnConnectionWritable();
+      }
+      break;
+    case ENCRYPTION_HANDSHAKE:
+      break;
+    case ENCRYPTION_FORWARD_SECURE:
+      // On the server, handshake confirmed is the first time when you can start
+      // writing packets.
+      DCHECK(IsEncryptionEstablished());
+      DCHECK(IsCryptoHandshakeConfirmed());
+
+      DCHECK(session_delegate_);
+      session_delegate_->OnConnectionWritable();
+      session_delegate_->OnCryptoHandshakeComplete();
+      break;
+    default:
+      QUIC_BUG << "Unknown encryption level: "
+               << EncryptionLevelToString(level);
+  }
+}
+
 void QuartcSession::CancelStream(QuicStreamId stream_id) {
   ResetStream(stream_id, QuicRstStreamErrorCode::QUIC_STREAM_CANCELLED);
 }

@@ -338,7 +338,10 @@ QuicConnection::QuicConnection(
           version().CanSendCoalescedPackets()),
       mtu_discovery_v2_(GetQuicReloadableFlag(quic_mtu_discovery_v2)),
       quic_version_negotiated_by_default_at_server_(
-          GetQuicReloadableFlag(quic_version_negotiated_by_default_at_server)) {
+          GetQuicReloadableFlag(quic_version_negotiated_by_default_at_server)),
+      use_handshake_delegate_(
+          GetQuicReloadableFlag(quic_use_handshaker_delegate) ||
+          version().handshake_protocol == PROTOCOL_TLS1_3) {
   QUIC_DLOG(INFO) << ENDPOINT << "Created connection with server connection ID "
                   << server_connection_id
                   << " and version: " << ParsedQuicVersionToString(version());
@@ -348,6 +351,9 @@ QuicConnection::QuicConnection(
       << "QuicConnection: attempted to use server connection ID "
       << server_connection_id << " which is invalid with version "
       << QuicVersionToString(transport_version());
+  if (use_handshake_delegate_) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_use_handshaker_delegate);
+  }
 
   framer_.set_visitor(this);
   stats_.connection_creation_time = clock_->ApproximateNow();
@@ -810,6 +816,11 @@ void QuicConnection::OnDecryptedPacket(EncryptionLevel level) {
       last_decrypted_packet_level_ >= ENCRYPTION_HANDSHAKE) {
     // Address is validated by successfully processing a HANDSHAKE packet.
     address_validated_ = true;
+  }
+
+  if (use_handshake_delegate_) {
+    visitor_->OnPacketDecrypted(level);
+    return;
   }
 
   // Once the server receives a forward secure packet, the handshake is

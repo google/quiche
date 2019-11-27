@@ -177,6 +177,8 @@ class TestQuicCryptoStream : public QuicCryptoStream {
     pending_writes_.push_back(std::make_pair(std::string(data), level));
   }
 
+  void OnPacketDecrypted(EncryptionLevel /*level*/) override {}
+
   const std::vector<std::pair<std::string, EncryptionLevel>>& pending_writes() {
     return pending_writes_;
   }
@@ -267,6 +269,10 @@ class TestQuicCryptoServerStream : public TestQuicCryptoStream {
 
   void CancelOutstandingCallbacks() {
     handshaker_->CancelOutstandingCallbacks();
+  }
+
+  void OnPacketDecrypted(EncryptionLevel level) override {
+    handshaker_->OnPacketDecrypted(level);
   }
 
   TlsHandshaker* handshaker() const override { return handshaker_.get(); }
@@ -372,12 +378,6 @@ TEST_F(TlsHandshakerTest, CryptoHandshake) {
 
   EXPECT_CALL(*client_conn_, CloseConnection(_, _, _)).Times(0);
   EXPECT_CALL(*server_conn_, CloseConnection(_, _, _)).Times(0);
-  EXPECT_CALL(client_session_,
-              OnCryptoHandshakeEvent(QuicSession::ENCRYPTION_ESTABLISHED));
-  EXPECT_CALL(client_session_,
-              OnCryptoHandshakeEvent(QuicSession::HANDSHAKE_CONFIRMED));
-  EXPECT_CALL(server_session_,
-              OnCryptoHandshakeEvent(QuicSession::HANDSHAKE_CONFIRMED));
   EXPECT_CALL(client_stream_->proof_handler(), OnProofVerifyDetailsAvailable);
   client_stream_->CryptoConnect();
   ExchangeHandshakeMessages(client_stream_, server_stream_);
@@ -558,12 +558,6 @@ TEST_F(TlsHandshakerTest, ServerRequiresCustomALPN) {
 TEST_F(TlsHandshakerTest, CustomALPNNegotiation) {
   EXPECT_CALL(*client_conn_, CloseConnection(_, _, _)).Times(0);
   EXPECT_CALL(*server_conn_, CloseConnection(_, _, _)).Times(0);
-  EXPECT_CALL(client_session_,
-              OnCryptoHandshakeEvent(QuicSession::ENCRYPTION_ESTABLISHED));
-  EXPECT_CALL(client_session_,
-              OnCryptoHandshakeEvent(QuicSession::HANDSHAKE_CONFIRMED));
-  EXPECT_CALL(server_session_,
-              OnCryptoHandshakeEvent(QuicSession::HANDSHAKE_CONFIRMED));
 
   const std::string kTestAlpn = "A Custom ALPN Value";
   const std::vector<std::string> kTestAlpns(

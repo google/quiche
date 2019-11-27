@@ -54,6 +54,7 @@ QuicCryptoServerHandshaker::QuicCryptoServerHandshaker(
     : QuicCryptoHandshaker(stream, session),
       stream_(stream),
       session_(session),
+      delegate_(session),
       crypto_config_(crypto_config),
       compressed_certs_cache_(compressed_certs_cache),
       signed_config_(new QuicSignedServerConfig),
@@ -197,27 +198,52 @@ void QuicCryptoServerHandshaker::
   // write key.
   //
   // NOTE: the SHLO will be encrypted with the new server write key.
-  session()->connection()->SetEncrypter(
-      ENCRYPTION_ZERO_RTT,
-      std::move(crypto_negotiated_params_->initial_crypters.encrypter));
-  session()->connection()->SetDefaultEncryptionLevel(ENCRYPTION_ZERO_RTT);
-  // Set the decrypter immediately so that we no longer accept unencrypted
-  // packets.
-  if (session()->connection()->version().KnowsWhichDecrypterToUse()) {
-    session()->connection()->InstallDecrypter(
+  if (session()->use_handshake_delegate()) {
+    delegate_->OnNewKeysAvailable(
         ENCRYPTION_ZERO_RTT,
-        std::move(crypto_negotiated_params_->initial_crypters.decrypter));
-    session()->connection()->RemoveDecrypter(ENCRYPTION_INITIAL);
+        std::move(crypto_negotiated_params_->initial_crypters.decrypter),
+        /*set_alternative_decrypter=*/false,
+        /*latch_once_used=*/false,
+        std::move(crypto_negotiated_params_->initial_crypters.encrypter));
+    delegate_->SetDefaultEncryptionLevel(ENCRYPTION_ZERO_RTT);
+    delegate_->DiscardOldDecryptionKey(ENCRYPTION_INITIAL);
   } else {
-    session()->connection()->SetDecrypter(
+    session()->connection()->SetEncrypter(
         ENCRYPTION_ZERO_RTT,
-        std::move(crypto_negotiated_params_->initial_crypters.decrypter));
+        std::move(crypto_negotiated_params_->initial_crypters.encrypter));
+    session()->connection()->SetDefaultEncryptionLevel(ENCRYPTION_ZERO_RTT);
+    // Set the decrypter immediately so that we no longer accept unencrypted
+    // packets.
+    if (session()->connection()->version().KnowsWhichDecrypterToUse()) {
+      session()->connection()->InstallDecrypter(
+          ENCRYPTION_ZERO_RTT,
+          std::move(crypto_negotiated_params_->initial_crypters.decrypter));
+      session()->connection()->RemoveDecrypter(ENCRYPTION_INITIAL);
+    } else {
+      session()->connection()->SetDecrypter(
+          ENCRYPTION_ZERO_RTT,
+          std::move(crypto_negotiated_params_->initial_crypters.decrypter));
+    }
   }
   session()->connection()->SetDiversificationNonce(*diversification_nonce);
 
   session()->connection()->set_fully_pad_crypto_handshake_packets(
       crypto_config_->pad_shlo());
   SendHandshakeMessage(*reply);
+  if (session()->use_handshake_delegate()) {
+    delegate_->OnNewKeysAvailable(
+        ENCRYPTION_FORWARD_SECURE,
+        std::move(crypto_negotiated_params_->forward_secure_crypters.decrypter),
+        /*set_alternative_decrypter=*/true,
+        /*latch_once_used=*/false,
+        std::move(
+            crypto_negotiated_params_->forward_secure_crypters.encrypter));
+    encryption_established_ = true;
+    handshake_confirmed_ = true;
+    delegate_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+    delegate_->DiscardOldEncryptionKey(ENCRYPTION_INITIAL);
+    return;
+  }
 
   session()->connection()->SetEncrypter(
       ENCRYPTION_FORWARD_SECURE,
@@ -334,6 +360,12 @@ void QuicCryptoServerHandshaker::SetPreviousCachedNetworkParams(
     CachedNetworkParameters cached_network_params) {
   previous_cached_network_params_.reset(
       new CachedNetworkParameters(cached_network_params));
+}
+
+void QuicCryptoServerHandshaker::OnPacketDecrypted(EncryptionLevel level) {
+  if (level == ENCRYPTION_FORWARD_SECURE) {
+    delegate_->NeuterHandshakeData();
+  }
 }
 
 bool QuicCryptoServerHandshaker::ShouldSendExpectCTHeader() const {

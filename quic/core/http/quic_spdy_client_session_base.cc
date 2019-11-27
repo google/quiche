@@ -48,6 +48,15 @@ void QuicSpdyClientSessionBase::OnCryptoHandshakeEvent(
   }
 }
 
+void QuicSpdyClientSessionBase::SetDefaultEncryptionLevel(
+    quic::EncryptionLevel level) {
+  QuicSpdySession::SetDefaultEncryptionLevel(level);
+  if (level == ENCRYPTION_FORWARD_SECURE && max_allowed_push_id() > 0 &&
+      VersionUsesHttp3(transport_version())) {
+    SendMaxPushId();
+  }
+}
+
 void QuicSpdyClientSessionBase::OnInitialHeadersComplete(
     QuicStreamId stream_id,
     const SpdyHeaderBlock& response_headers) {
