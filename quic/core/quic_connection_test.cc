@@ -337,6 +337,7 @@ class TestPacketWriter : public QuicPacketWriter {
         final_bytes_of_previous_packet_(0),
         use_tagging_decrypter_(false),
         packets_write_attempts_(0),
+        connection_close_packets_(0),
         clock_(clock),
         write_pause_time_delta_(QuicTime::Delta::Zero()),
         max_packet_size_(kMaxOutgoingPacketSize),
@@ -405,7 +406,9 @@ class TestPacketWriter : public QuicPacketWriter {
 
     last_packet_size_ = packet.length();
     last_packet_header_ = framer_.header();
-
+    if (!framer_.connection_close_frames().empty()) {
+      ++connection_close_packets_;
+    }
     if (!write_pause_time_delta_.IsZero()) {
       clock_->AdvanceTime(write_pause_time_delta_);
     }
@@ -553,6 +556,10 @@ class TestPacketWriter : public QuicPacketWriter {
 
   uint32_t packets_write_attempts() { return packets_write_attempts_; }
 
+  uint32_t connection_close_packets() const {
+    return connection_close_packets_;
+  }
+
   void Reset() { framer_.Reset(); }
 
   void SetSupportedVersions(const ParsedQuicVersionVector& versions) {
@@ -586,6 +593,7 @@ class TestPacketWriter : public QuicPacketWriter {
   uint32_t final_bytes_of_previous_packet_;
   bool use_tagging_decrypter_;
   uint32_t packets_write_attempts_;
+  uint32_t connection_close_packets_;
   MockClock* clock_;
   // If non-zero, the clock will pause during WritePacket for this amount of
   // time.
@@ -8044,7 +8052,7 @@ TEST_P(QuicConnectionTest, SendDataWhenApplicationLimited) {
   ProcessAckPacket(&ack);
 }
 
-TEST_P(QuicConnectionTest, DonotForceSendingAckOnPacketTooLarge) {
+TEST_P(QuicConnectionTest, DoNotForceSendingAckOnPacketTooLarge) {
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   // Send an ack by simulating delayed ack alarm firing.
   ProcessPacket(1);
@@ -8055,11 +8063,72 @@ TEST_P(QuicConnectionTest, DonotForceSendingAckOnPacketTooLarge) {
   EXPECT_CALL(visitor_, OnConnectionClosed(_, _));
   SimulateNextPacketTooLarge();
   connection_.SendStreamDataWithString(3, "foo", 0, NO_FIN);
-  EXPECT_EQ(1u, writer_->frame_count());
-  EXPECT_FALSE(writer_->connection_close_frames().empty());
+  EXPECT_EQ(1u, writer_->connection_close_frames().size());
   // Ack frame is not bundled in connection close packet.
   EXPECT_TRUE(writer_->ack_frames().empty());
+  if (writer_->padding_frames().empty()) {
+    EXPECT_EQ(1u, writer_->frame_count());
+  } else {
+    EXPECT_EQ(2u, writer_->frame_count());
+  }
+
   TestConnectionCloseQuicErrorCode(QUIC_PACKET_WRITE_ERROR);
+}
+
+TEST_P(QuicConnectionTest, CloseConnectionAllLevels) {
+  SetQuicReloadableFlag(quic_close_all_encryptions_levels2, true);
+
+  EXPECT_CALL(visitor_, OnConnectionClosed(_, _));
+  const QuicErrorCode kQuicErrorCode = QUIC_INTERNAL_ERROR;
+  connection_.CloseConnection(
+      kQuicErrorCode, "Some random error message",
+      ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+
+  EXPECT_EQ(2u, QuicConnectionPeer::GetNumEncryptionLevels(&connection_));
+
+  TestConnectionCloseQuicErrorCode(kQuicErrorCode);
+  EXPECT_EQ(1u, writer_->connection_close_frames().size());
+
+  if (!connection_.version().CanSendCoalescedPackets()) {
+    // Each connection close packet should be sent in distinct UDP packets.
+    EXPECT_EQ(QuicConnectionPeer::GetNumEncryptionLevels(&connection_),
+              writer_->connection_close_packets());
+    EXPECT_EQ(QuicConnectionPeer::GetNumEncryptionLevels(&connection_),
+              writer_->packets_write_attempts());
+    return;
+  }
+
+  // A single UDP packet should be sent with multiple connection close packets
+  // coalesced together.
+  EXPECT_EQ(1u, writer_->packets_write_attempts());
+
+  // Only the first packet has been processed yet.
+  EXPECT_EQ(1u, writer_->connection_close_packets());
+
+  // ProcessPacket resets the visitor and frees the coalesced packet.
+  ASSERT_TRUE(writer_->coalesced_packet() != nullptr);
+  auto packet = writer_->coalesced_packet()->Clone();
+  writer_->framer()->ProcessPacket(*packet);
+  EXPECT_EQ(1u, writer_->connection_close_packets());
+  ASSERT_TRUE(writer_->coalesced_packet() == nullptr);
+}
+
+TEST_P(QuicConnectionTest, CloseConnectionOneLevel) {
+  SetQuicReloadableFlag(quic_close_all_encryptions_levels2, false);
+
+  EXPECT_CALL(visitor_, OnConnectionClosed(_, _));
+  const QuicErrorCode kQuicErrorCode = QUIC_INTERNAL_ERROR;
+  connection_.CloseConnection(
+      kQuicErrorCode, "Some random error message",
+      ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+
+  EXPECT_EQ(2u, QuicConnectionPeer::GetNumEncryptionLevels(&connection_));
+
+  TestConnectionCloseQuicErrorCode(kQuicErrorCode);
+  EXPECT_EQ(1u, writer_->connection_close_frames().size());
+  EXPECT_EQ(1u, writer_->connection_close_packets());
+  EXPECT_EQ(1u, writer_->packets_write_attempts());
+  ASSERT_TRUE(writer_->coalesced_packet() == nullptr);
 }
 
 // Regression test for b/63620844.

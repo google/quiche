@@ -333,5 +333,18 @@ void QuicConnectionPeer::SendConnectionClosePacket(QuicConnection* connection,
   connection->SendConnectionClosePacket(error, details);
 }
 
+// static
+size_t QuicConnectionPeer::GetNumEncryptionLevels(QuicConnection* connection) {
+  size_t count = 0;
+  for (EncryptionLevel level :
+       {ENCRYPTION_INITIAL, ENCRYPTION_HANDSHAKE, ENCRYPTION_ZERO_RTT,
+        ENCRYPTION_FORWARD_SECURE}) {
+    if (connection->framer_.HasEncrypterOfEncryptionLevel(level)) {
+      ++count;
+    }
+  }
+  return count;
+}
+
 }  // namespace test
 }  // namespace quic

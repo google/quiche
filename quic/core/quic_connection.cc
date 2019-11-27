@@ -2964,7 +2964,7 @@ void QuicConnection::CloseConnection(
 
 void QuicConnection::SendConnectionClosePacket(QuicErrorCode error,
                                                const std::string& details) {
-  if (!GetQuicReloadableFlag(quic_close_all_encryptions_levels)) {
+  if (!GetQuicReloadableFlag(quic_close_all_encryptions_levels2)) {
     QUIC_DLOG(INFO) << ENDPOINT << "Sending connection close packet.";
     SetDefaultEncryptionLevel(GetConnectionCloseEncryptionLevel());
     if (version().CanSendCoalescedPackets()) {
@@ -2994,7 +2994,15 @@ void QuicConnection::SendConnectionClosePacket(QuicErrorCode error,
   }
   const EncryptionLevel current_encryption_level = encryption_level_;
   ScopedPacketFlusher flusher(this);
-  QUIC_RELOADABLE_FLAG_COUNT(quic_close_all_encryptions_levels);
+  QUIC_RELOADABLE_FLAG_COUNT(quic_close_all_encryptions_levels2);
+
+  // Now that the connection is being closed, discard any unsent packets
+  // so the only packets to be sent will be connection close packets.
+  if (version().CanSendCoalescedPackets()) {
+    coalesced_packet_.Clear();
+  }
+  ClearQueuedPackets();
+
   for (EncryptionLevel level :
        {ENCRYPTION_INITIAL, ENCRYPTION_HANDSHAKE, ENCRYPTION_ZERO_RTT,
         ENCRYPTION_FORWARD_SECURE}) {
@@ -3004,10 +3012,6 @@ void QuicConnection::SendConnectionClosePacket(QuicErrorCode error,
     QUIC_DLOG(INFO) << ENDPOINT << "Sending connection close packet at level: "
                     << EncryptionLevelToString(level);
     SetDefaultEncryptionLevel(level);
-    if (version().CanSendCoalescedPackets()) {
-      coalesced_packet_.Clear();
-    }
-    ClearQueuedPackets();
     // If there was a packet write error, write the smallest close possible.
     // When multiple packet number spaces are supported, an ACK frame will
     // be bundled by the ScopedPacketFlusher. Otherwise, an ACK must be sent
@@ -3022,14 +3026,13 @@ void QuicConnection::SendConnectionClosePacket(QuicErrorCode error,
                                      framer_.current_received_frame_type());
     packet_creator_.ConsumeRetransmittableControlFrame(QuicFrame(frame));
     packet_creator_.FlushCurrentPacket();
-    if (!version().CanSendCoalescedPackets()) {
-      ClearQueuedPackets();
-    }
   }
   if (version().CanSendCoalescedPackets()) {
     FlushCoalescedPacket();
-    ClearQueuedPackets();
   }
+  // Since the connection is closing, if the connection close packets were not
+  // sent, then they should be discarded.
+  ClearQueuedPackets();
   SetDefaultEncryptionLevel(current_encryption_level);
 }
 

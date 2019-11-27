@@ -133,6 +133,8 @@ class QuicConnectionPeer {
   static void SendConnectionClosePacket(QuicConnection* connection,
                                         QuicErrorCode error,
                                         const std::string& details);
+
+  static size_t GetNumEncryptionLevels(QuicConnection* connection);
 };
 
 }  // namespace test
