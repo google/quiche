@@ -38,6 +38,9 @@
 #include "net/third_party/quiche/src/common/platform/api/quiche_endian.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
 
+using ::quic::test::IsQuicStreamNoError;
+using ::quic::test::IsStreamError;
+
 namespace quic {
 
 namespace {
@@ -419,7 +422,7 @@ TEST_F(QuartcStreamTest, TestCancelOnLossDisabled) {
   stream_->OnCanWrite();
 
   EXPECT_EQ("Foo barFoo bar", write_buffer_);
-  EXPECT_EQ(stream_->stream_error(), QUIC_STREAM_NO_ERROR);
+  EXPECT_THAT(stream_->stream_error(), IsQuicStreamNoError());
 }
 
 TEST_F(QuartcStreamTest, TestCancelOnLossEnabled) {
@@ -436,7 +439,7 @@ TEST_F(QuartcStreamTest, TestCancelOnLossEnabled) {
   stream_->OnCanWrite();
 
   EXPECT_EQ("Foo bar", write_buffer_);
-  EXPECT_EQ(stream_->stream_error(), QUIC_STREAM_CANCELLED);
+  EXPECT_THAT(stream_->stream_error(), IsStreamError(QUIC_STREAM_CANCELLED));
 }
 
 TEST_F(QuartcStreamTest, MaxRetransmissionsAbsent) {
@@ -456,7 +459,7 @@ TEST_F(QuartcStreamTest, MaxRetransmissionsAbsent) {
   stream_->OnCanWrite();
 
   EXPECT_EQ("Foo barFoo bar", write_buffer_);
-  EXPECT_EQ(stream_->stream_error(), QUIC_STREAM_NO_ERROR);
+  EXPECT_THAT(stream_->stream_error(), IsQuicStreamNoError());
 }
 
 TEST_F(QuartcStreamTest, MaxRetransmissionsSet) {
@@ -483,7 +486,7 @@ TEST_F(QuartcStreamTest, MaxRetransmissionsSet) {
   stream_->OnCanWrite();
 
   EXPECT_EQ("Foo barFoo barFoo bar", write_buffer_);
-  EXPECT_EQ(stream_->stream_error(), QUIC_STREAM_CANCELLED);
+  EXPECT_THAT(stream_->stream_error(), IsStreamError(QUIC_STREAM_CANCELLED));
 }
 
 TEST_F(QuartcStreamTest, MaxRetransmissionsDisjointFrames) {
@@ -542,7 +545,7 @@ TEST_F(QuartcStreamTest, MaxRetransmissionsOverlappingFrames) {
   stream_->OnCanWrite();
 
   EXPECT_EQ("Foo barFoo  bar", write_buffer_);
-  EXPECT_EQ(stream_->stream_error(), QUIC_STREAM_CANCELLED);
+  EXPECT_THAT(stream_->stream_error(), IsStreamError(QUIC_STREAM_CANCELLED));
 }
 
 TEST_F(QuartcStreamTest, MaxRetransmissionsWithAckedFrame) {
@@ -579,7 +582,7 @@ TEST_F(QuartcStreamTest, MaxRetransmissionsWithAckedFrame) {
 
   // QuartcStream should be cancelled, but it stopped tracking the lost bytes
   // after they were acked, so it's not.
-  EXPECT_EQ(stream_->stream_error(), QUIC_STREAM_NO_ERROR);
+  EXPECT_THAT(stream_->stream_error(), IsQuicStreamNoError());
 }
 
 TEST_F(QuartcStreamTest, TestBytesPendingRetransmission) {
@@ -605,7 +608,7 @@ TEST_F(QuartcStreamTest, TestBytesPendingRetransmission) {
   EXPECT_EQ(mock_stream_delegate_->last_bytes_pending_retransmission(), 0u);
 
   EXPECT_EQ("Foo barFoo bar", write_buffer_);
-  EXPECT_EQ(stream_->stream_error(), QUIC_STREAM_NO_ERROR);
+  EXPECT_THAT(stream_->stream_error(), IsQuicStreamNoError());
 }
 
 TEST_F(QuartcStreamTest, TestBytesPendingRetransmissionWithCancelOnLoss) {
@@ -631,7 +634,7 @@ TEST_F(QuartcStreamTest, TestBytesPendingRetransmissionWithCancelOnLoss) {
   EXPECT_EQ(mock_stream_delegate_->last_bytes_pending_retransmission(), 0u);
 
   EXPECT_EQ("Foo bar", write_buffer_);
-  EXPECT_EQ(stream_->stream_error(), QUIC_STREAM_CANCELLED);
+  EXPECT_THAT(stream_->stream_error(), IsStreamError(QUIC_STREAM_CANCELLED));
 }
 
 }  // namespace

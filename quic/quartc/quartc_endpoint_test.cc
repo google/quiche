@@ -11,6 +11,7 @@
 #include "net/third_party/quiche/src/quic/quartc/quartc_crypto_helpers.h"
 #include "net/third_party/quiche/src/quic/quartc/quartc_fakes.h"
 #include "net/third_party/quiche/src/quic/quartc/simulated_packet_transport.h"
+#include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/simulator/link.h"
 #include "net/third_party/quiche/src/quic/test_tools/simulator/simulator.h"
 
@@ -195,7 +196,8 @@ TEST_F(QuartcEndpointTest,
     return client_endpoint_delegate_.session() != nullptr &&
            client_endpoint_delegate_.session()->error() != QUIC_NO_ERROR;
   }));
-  EXPECT_EQ(client_endpoint_delegate_.session()->error(), QUIC_INVALID_VERSION);
+  EXPECT_THAT(client_endpoint_delegate_.session()->error(),
+              test::IsError(QUIC_INVALID_VERSION));
 }
 
 // Tests that the client endpoint can create a new session in order to continue

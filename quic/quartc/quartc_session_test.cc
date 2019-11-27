@@ -20,6 +20,7 @@
 #include "net/third_party/quiche/src/quic/quartc/quartc_packet_writer.h"
 #include "net/third_party/quiche/src/quic/quartc/simulated_packet_transport.h"
 #include "net/third_party/quiche/src/quic/test_tools/mock_clock.h"
+#include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/simulator/packet_filter.h"
 #include "net/third_party/quiche/src/quic/test_tools/simulator/simulator.h"
 
@@ -543,10 +544,10 @@ TEST_F(QuartcSessionTest, StreamRetransmissionDisabled) {
 
   EXPECT_TRUE(client_peer_->IsClosedStream(stream_id));
   EXPECT_TRUE(server_peer_->IsClosedStream(stream_id));
-  EXPECT_EQ(client_stream_delegate_->stream_error(stream_id),
-            QUIC_STREAM_CANCELLED);
-  EXPECT_EQ(server_stream_delegate_->stream_error(stream_id),
-            QUIC_STREAM_CANCELLED);
+  EXPECT_THAT(client_stream_delegate_->stream_error(stream_id),
+              test::IsStreamError(QUIC_STREAM_CANCELLED));
+  EXPECT_THAT(server_stream_delegate_->stream_error(stream_id),
+              test::IsStreamError(QUIC_STREAM_CANCELLED));
 }
 
 TEST_F(QuartcSessionTest, LostDatagramNotifications) {

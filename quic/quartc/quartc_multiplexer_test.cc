@@ -23,6 +23,7 @@
 #include "net/third_party/quiche/src/quic/quartc/quartc_session.h"
 #include "net/third_party/quiche/src/quic/quartc/quartc_stream.h"
 #include "net/third_party/quiche/src/quic/quartc/simulated_packet_transport.h"
+#include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/simulator/link.h"
 #include "net/third_party/quiche/src/quic/test_tools/simulator/simulator.h"
 
@@ -468,8 +469,10 @@ TEST_F(QuartcMultiplexerTest, CloseEvent) {
   Connect();
   Disconnect();
 
-  EXPECT_EQ(client_session_delegate_.error(), QUIC_CONNECTION_CANCELLED);
-  EXPECT_EQ(server_session_delegate_.error(), QUIC_CONNECTION_CANCELLED);
+  EXPECT_THAT(client_session_delegate_.error(),
+              test::IsError(QUIC_CONNECTION_CANCELLED));
+  EXPECT_THAT(server_session_delegate_.error(),
+              test::IsError(QUIC_CONNECTION_CANCELLED));
 }
 
 TEST_F(QuartcMultiplexerTest, CongestionEvent) {
