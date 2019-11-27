@@ -364,7 +364,7 @@ TEST_P(QuicSpdyStreamTest, ProcessTooLargeHeaderList) {
   stream_->OnStreamHeaderList(false, 1 << 20, headers);
 
   if (!UsesHttp3()) {
-    EXPECT_EQ(QUIC_HEADERS_TOO_LARGE, stream_->stream_error());
+    EXPECT_THAT(stream_->stream_error(), IsStreamError(QUIC_HEADERS_TOO_LARGE));
   }
 }
 

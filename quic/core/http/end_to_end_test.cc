@@ -1642,8 +1642,9 @@ TEST_P(EndToEndTest, InvalidStream) {
       session, GetNthServerInitiatedBidirectionalId(0));
 
   client_->SendCustomSynchronousRequest(headers, body);
-  EXPECT_EQ(QUIC_STREAM_CONNECTION_ERROR, client_->stream_error());
-  EXPECT_EQ(QUIC_INVALID_STREAM_ID, client_->connection_error());
+  EXPECT_THAT(client_->stream_error(),
+              IsStreamError(QUIC_STREAM_CONNECTION_ERROR));
+  EXPECT_THAT(client_->connection_error(), IsError(QUIC_INVALID_STREAM_ID));
 }
 
 // Test that if the server will close the connection if the client attempts
@@ -1668,11 +1669,11 @@ TEST_P(EndToEndTest, LargeHeaders) {
                            ->client_session()
                            ->connection()
                            ->transport_version())) {
-    EXPECT_EQ(QUIC_HEADERS_STREAM_DATA_DECOMPRESS_FAILURE,
-              client_->connection_error());
+    EXPECT_THAT(client_->connection_error(),
+                IsError(QUIC_HEADERS_STREAM_DATA_DECOMPRESS_FAILURE));
   } else {
-    EXPECT_EQ(QUIC_HEADERS_TOO_LARGE, client_->stream_error());
-    EXPECT_EQ(QUIC_NO_ERROR, client_->connection_error());
+    EXPECT_THAT(client_->stream_error(), IsStreamError(QUIC_HEADERS_TOO_LARGE));
+    EXPECT_THAT(client_->connection_error(), IsQuicNoError());
   }
 }
 
@@ -1693,8 +1694,8 @@ TEST_P(EndToEndTest, EarlyResponseWithQuicStreamNoError) {
   client_->SendCustomSynchronousRequest(headers, large_body);
   EXPECT_EQ("bad", client_->response_body());
   EXPECT_EQ("500", client_->response_headers()->find(":status")->second);
-  EXPECT_EQ(QUIC_STREAM_NO_ERROR, client_->stream_error());
-  EXPECT_EQ(QUIC_NO_ERROR, client_->connection_error());
+  EXPECT_THAT(client_->stream_error(), IsQuicStreamNoError());
+  EXPECT_THAT(client_->connection_error(), IsQuicNoError());
 }
 
 // TODO(rch): this test seems to cause net_unittests timeouts :|
@@ -1771,8 +1772,8 @@ TEST_P(EndToEndTestWithTls, MaxIncomingDynamicStreamsLimitRespected) {
   client_->WaitForResponse();
 
   EXPECT_TRUE(client_->connected());
-  EXPECT_EQ(QUIC_REFUSED_STREAM, client_->stream_error());
-  EXPECT_EQ(QUIC_NO_ERROR, client_->connection_error());
+  EXPECT_THAT(client_->stream_error(), IsStreamError(QUIC_REFUSED_STREAM));
+  EXPECT_THAT(client_->connection_error(), IsQuicNoError());
 }
 
 TEST_P(EndToEndTest, SetIndependentMaxIncomingDynamicStreamsLimits) {
@@ -2106,7 +2107,7 @@ TEST_P(EndToEndTestWithTls, StreamCancelErrorTest) {
   }
   // It should be completely fine to RST a stream before any data has been
   // received for that stream.
-  EXPECT_EQ(QUIC_NO_ERROR, client_->connection_error());
+  EXPECT_THAT(client_->connection_error(), IsQuicNoError());
 }
 
 TEST_P(EndToEndTest, ConnectionMigrationClientIPChanged) {
@@ -2620,7 +2621,7 @@ TEST_P(EndToEndTestWithTls, ServerSendPublicReset) {
   // The request should fail.
   EXPECT_EQ("", client_->SendSynchronousRequest("/foo"));
   EXPECT_TRUE(client_->response_headers()->empty());
-  EXPECT_EQ(QUIC_PUBLIC_RESET, client_->connection_error());
+  EXPECT_THAT(client_->connection_error(), IsError(QUIC_PUBLIC_RESET));
 }
 
 // Send a public reset from the server for a different connection ID.
@@ -2666,7 +2667,7 @@ TEST_P(EndToEndTestWithTls, ServerSendPublicResetWithDifferentConnectionId) {
     // ID.
     EXPECT_EQ("", client_->SendSynchronousRequest("/foo"));
     EXPECT_TRUE(client_->response_headers()->empty());
-    EXPECT_EQ(QUIC_PUBLIC_RESET, client_->connection_error());
+    EXPECT_THAT(client_->connection_error(), IsError(QUIC_PUBLIC_RESET));
     return;
   }
   // The connection should be unaffected.
@@ -2761,8 +2762,8 @@ TEST_P(EndToEndTestWithTls, BadPacketHeaderTruncated) {
   server_thread_->Pause();
   QuicDispatcher* dispatcher =
       QuicServerPeer::GetDispatcher(server_thread_->server());
-  EXPECT_EQ(QUIC_INVALID_PACKET_HEADER,
-            QuicDispatcherPeer::GetAndClearLastError(dispatcher));
+  EXPECT_THAT(QuicDispatcherPeer::GetAndClearLastError(dispatcher),
+              IsError(QUIC_INVALID_PACKET_HEADER));
   server_thread_->Resume();
 
   // The connection should not be terminated.
@@ -2812,8 +2813,8 @@ TEST_P(EndToEndTestWithTls, BadPacketHeaderFlags) {
   server_thread_->Pause();
   QuicDispatcher* dispatcher =
       QuicServerPeer::GetDispatcher(server_thread_->server());
-  EXPECT_EQ(QUIC_INVALID_PACKET_HEADER,
-            QuicDispatcherPeer::GetAndClearLastError(dispatcher));
+  EXPECT_THAT(QuicDispatcherPeer::GetAndClearLastError(dispatcher),
+              IsError(QUIC_INVALID_PACKET_HEADER));
   server_thread_->Resume();
 
   // The connection should not be terminated.
@@ -2850,8 +2851,8 @@ TEST_P(EndToEndTestWithTls, BadEncryptedData) {
   server_thread_->Pause();
   QuicDispatcher* dispatcher =
       QuicServerPeer::GetDispatcher(server_thread_->server());
-  EXPECT_EQ(QUIC_NO_ERROR,
-            QuicDispatcherPeer::GetAndClearLastError(dispatcher));
+  EXPECT_THAT(QuicDispatcherPeer::GetAndClearLastError(dispatcher),
+              IsQuicNoError());
   server_thread_->Resume();
 
   // The connection should not be terminated.
@@ -3569,8 +3570,8 @@ TEST_P(EndToEndTest, WayTooLongRequestHeaders) {
 
   client_->SendMessage(headers, "");
   client_->WaitForResponse();
-  EXPECT_EQ(QUIC_HEADERS_STREAM_DATA_DECOMPRESS_FAILURE,
-            client_->connection_error());
+  EXPECT_THAT(client_->connection_error(),
+              IsError(QUIC_HEADERS_STREAM_DATA_DECOMPRESS_FAILURE));
 }
 
 class WindowUpdateObserver : public QuicConnectionDebugVisitor {
@@ -3647,7 +3648,7 @@ TEST_P(EndToEndTest,
 
   client_.reset(CreateQuicClient(client_writer_));
   EXPECT_EQ("", client_->SendSynchronousRequest("/foo"));
-  EXPECT_EQ(QUIC_HANDSHAKE_FAILED, client_->connection_error());
+  EXPECT_THAT(client_->connection_error(), IsError(QUIC_HANDSHAKE_FAILED));
 }
 
 // Regression test for b/116200989.
@@ -3684,7 +3685,7 @@ TEST_P(EndToEndTest,
   // Second, a /big_response request with big response should fail.
   EXPECT_LT(client_->SendSynchronousRequest("/big_response").length(),
             kBigResponseBodySize);
-  EXPECT_EQ(QUIC_PUBLIC_RESET, client_->connection_error());
+  EXPECT_THAT(client_->connection_error(), IsError(QUIC_PUBLIC_RESET));
 }
 
 // Regression test of b/70782529.
@@ -3756,7 +3757,7 @@ TEST_P(EndToEndTest, QUIC_TEST_DISABLED_IN_CHROME(PreSharedKeyMismatch)) {
   //    return whether it is successful.
   ASSERT_FALSE(Initialize() &&
                client_->client()->WaitForCryptoHandshakeConfirmed());
-  EXPECT_EQ(QUIC_HANDSHAKE_TIMEOUT, client_->connection_error());
+  EXPECT_THAT(client_->connection_error(), IsError(QUIC_HANDSHAKE_TIMEOUT));
 }
 
 // TODO: reenable once we have a way to make this run faster.
@@ -3768,7 +3769,7 @@ TEST_P(EndToEndTest, QUIC_TEST_DISABLED_IN_CHROME(PreSharedKeyNoClient)) {
   pre_shared_key_server_ = "foobar";
   ASSERT_FALSE(Initialize() &&
                client_->client()->WaitForCryptoHandshakeConfirmed());
-  EXPECT_EQ(QUIC_HANDSHAKE_TIMEOUT, client_->connection_error());
+  EXPECT_THAT(client_->connection_error(), IsError(QUIC_HANDSHAKE_TIMEOUT));
 }
 
 // TODO: reenable once we have a way to make this run faster.
@@ -3780,7 +3781,7 @@ TEST_P(EndToEndTest, QUIC_TEST_DISABLED_IN_CHROME(PreSharedKeyNoServer)) {
   pre_shared_key_client_ = "foobar";
   ASSERT_FALSE(Initialize() &&
                client_->client()->WaitForCryptoHandshakeConfirmed());
-  EXPECT_EQ(QUIC_HANDSHAKE_TIMEOUT, client_->connection_error());
+  EXPECT_THAT(client_->connection_error(), IsError(QUIC_HANDSHAKE_TIMEOUT));
 }
 
 TEST_P(EndToEndTest, RequestAndStreamRstInOnePacket) {
@@ -3815,7 +3816,7 @@ TEST_P(EndToEndTest, RequestAndStreamRstInOnePacket) {
   client_->WaitForDelayedAcks();
 
   // The real expectation is the test does not crash or timeout.
-  EXPECT_EQ(QUIC_NO_ERROR, client_->connection_error());
+  EXPECT_THAT(client_->connection_error(), IsQuicNoError());
 }
 
 TEST_P(EndToEndTest, ResetStreamOnTtlExpires) {
@@ -3832,7 +3833,7 @@ TEST_P(EndToEndTest, ResetStreamOnTtlExpires) {
   std::string body(1024 * 1024, 'a');
   stream->WriteOrBufferBody(body, true);
   client_->WaitForResponse();
-  EXPECT_EQ(QUIC_STREAM_TTL_EXPIRED, client_->stream_error());
+  EXPECT_THAT(client_->stream_error(), IsStreamError(QUIC_STREAM_TTL_EXPIRED));
 }
 
 TEST_P(EndToEndTest, SendMessages) {
@@ -3899,7 +3900,7 @@ TEST_P(EndToEndTest, SendMessages) {
                         client_session->GetCurrentLargestMessagePayload() + 1),
                     &storage))
                 .status);
-  EXPECT_EQ(QUIC_NO_ERROR, client_->connection_error());
+  EXPECT_THAT(client_->connection_error(), IsQuicNoError());
 }
 
 class EndToEndPacketReorderingTest : public EndToEndTest {
@@ -4048,7 +4049,7 @@ TEST_P(EndToEndTest, SimpleStopSendingTest) {
   client_->WaitForDelayedAcks();
 
   // The real expectation is the test does not crash or timeout.
-  EXPECT_EQ(QUIC_NO_ERROR, client_->connection_error());
+  EXPECT_THAT(client_->connection_error(), IsQuicNoError());
   // And that the stop-sending code is received.
   QuicSimpleClientStream* client_stream =
       static_cast<QuicSimpleClientStream*>(client_->latest_created_stream());
@@ -4139,7 +4140,7 @@ TEST_P(EndToEndTest, ZeroRttProtectedConnectionClose) {
   EXPECT_EQ("", client_->SendSynchronousRequest("/foo"));
   // Verify ZERO_RTT_PROTECTED connection close is successfully processed by
   // client which switches to FORWARD_SECURE.
-  EXPECT_EQ(QUIC_PACKET_WRITE_ERROR, client_->connection_error());
+  EXPECT_THAT(client_->connection_error(), IsError(QUIC_PACKET_WRITE_ERROR));
 }
 
 class BadShloPacketWriter2 : public QuicPacketWriterWrapper {
@@ -4197,7 +4198,7 @@ TEST_P(EndToEndTest, ForwardSecureConnectionClose) {
   EXPECT_EQ("", client_->SendSynchronousRequest("/foo"));
   // Verify ZERO_RTT_PROTECTED connection close is successfully processed by
   // client.
-  EXPECT_EQ(QUIC_PACKET_WRITE_ERROR, client_->connection_error());
+  EXPECT_THAT(client_->connection_error(), IsError(QUIC_PACKET_WRITE_ERROR));
 }
 
 // Test that the stream id manager closes the connection if a stream
@@ -4227,8 +4228,9 @@ TEST_P(EndToEndTest, TooBigStreamIdClosesConnection) {
   QuicSessionPeer::SetNextOutgoingBidirectionalStreamId(
       session, GetNthClientInitiatedBidirectionalId(max_number_of_streams + 1));
   client_->SendCustomSynchronousRequest(headers, body);
-  EXPECT_EQ(QUIC_STREAM_CONNECTION_ERROR, client_->stream_error());
-  EXPECT_EQ(QUIC_INVALID_STREAM_ID, GetClientSession()->error());
+  EXPECT_THAT(client_->stream_error(),
+              IsStreamError(QUIC_STREAM_CONNECTION_ERROR));
+  EXPECT_THAT(GetClientSession()->error(), IsError(QUIC_INVALID_STREAM_ID));
   EXPECT_EQ(IETF_QUIC_TRANSPORT_CONNECTION_CLOSE,
             GetClientSession()->close_type());
   EXPECT_TRUE(

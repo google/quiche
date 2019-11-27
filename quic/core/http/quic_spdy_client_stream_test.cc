@@ -112,7 +112,8 @@ TEST_P(QuicSpdyClientStreamTest, TestReceivingIllegalResponseStatusCode) {
   auto headers = AsHeaderList(headers_);
   stream_->OnStreamHeaderList(false, headers.uncompressed_header_bytes(),
                               headers);
-  EXPECT_EQ(QUIC_BAD_APPLICATION_PAYLOAD, stream_->stream_error());
+  EXPECT_THAT(stream_->stream_error(),
+              IsStreamError(QUIC_BAD_APPLICATION_PAYLOAD));
 }
 
 TEST_P(QuicSpdyClientStreamTest, TestFraming) {
@@ -172,7 +173,7 @@ TEST_P(QuicSpdyClientStreamTest,
   stream_->OnStreamHeaderList(false, headers.uncompressed_header_bytes(),
                               headers);
   // The headers should parse successfully.
-  EXPECT_EQ(QUIC_STREAM_NO_ERROR, stream_->stream_error());
+  EXPECT_THAT(stream_->stream_error(), IsQuicStreamNoError());
   EXPECT_EQ("200", stream_->response_headers().find(":status")->second);
   EXPECT_EQ(200, stream_->response_code());
   std::unique_ptr<char[]> buffer;

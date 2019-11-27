@@ -97,7 +97,7 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
       error =
           session()->config()->ProcessPeerHello(msg, CLIENT, &error_details);
     }
-    EXPECT_EQ(QUIC_NO_ERROR, error);
+    EXPECT_THAT(error, IsQuicNoError());
     session()->OnConfigNegotiated();
     session()->connection()->SetDefaultEncryptionLevel(
         ENCRYPTION_FORWARD_SECURE);
