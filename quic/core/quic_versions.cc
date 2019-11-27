@@ -27,10 +27,6 @@ QuicVersionLabel MakeVersionLabel(char a, char b, char c, char d) {
 }
 
 QuicVersionLabel CreateRandomVersionLabelForNegotiation() {
-  if (!GetQuicReloadableFlag(quic_version_negotiation_grease)) {
-    return MakeVersionLabel(0xda, 0x5a, 0x3a, 0x3a);
-  }
-  QUIC_RELOADABLE_FLAG_COUNT_N(quic_version_negotiation_grease, 2, 2);
   QuicVersionLabel result;
   if (!GetQuicFlag(FLAGS_quic_disable_version_negotiation_grease_randomness)) {
     QuicRandom::GetInstance()->RandBytes(&result, sizeof(result));

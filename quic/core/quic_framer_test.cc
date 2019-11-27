@@ -6532,7 +6532,6 @@ TEST_P(QuicFramerTest, CryptoFrame) {
 }
 
 TEST_P(QuicFramerTest, BuildVersionNegotiationPacket) {
-  SetQuicReloadableFlag(quic_version_negotiation_grease, true);
   SetQuicFlag(FLAGS_quic_disable_version_negotiation_grease_randomness, true);
   // clang-format off
   unsigned char packet[] = {
@@ -6599,7 +6598,6 @@ TEST_P(QuicFramerTest, BuildVersionNegotiationPacketWithClientConnectionId) {
     return;
   }
 
-  SetQuicReloadableFlag(quic_version_negotiation_grease, true);
   SetQuicFlag(FLAGS_quic_disable_version_negotiation_grease_randomness, true);
 
   // clang-format off

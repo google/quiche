@@ -1255,33 +1255,26 @@ std::unique_ptr<QuicEncryptedPacket> QuicFramer::BuildVersionNegotiationPacket(
     bool use_length_prefix,
     const ParsedQuicVersionVector& versions) {
   ParsedQuicVersionVector wire_versions = versions;
-  if (!GetQuicReloadableFlag(quic_version_negotiation_grease)) {
-    if (wire_versions.empty()) {
-      wire_versions = {QuicVersionReservedForNegotiation()};
-    }
+  // Add a version reserved for negotiation as suggested by the
+  // "Using Reserved Versions" section of draft-ietf-quic-transport.
+  if (wire_versions.empty()) {
+    // Ensure that version negotiation packets we send have at least two
+    // versions. This guarantees that, under all circumstances, all QUIC
+    // packets we send are at least 14 bytes long.
+    wire_versions = {QuicVersionReservedForNegotiation(),
+                     QuicVersionReservedForNegotiation()};
   } else {
-    // Add a version reserved for negotiation as suggested by the
-    // "Using Reserved Versions" section of draft-ietf-quic-transport.
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_version_negotiation_grease, 1, 2);
-    if (wire_versions.empty()) {
-      // Ensure that version negotiation packets we send have at least two
-      // versions. This guarantees that, under all circumstances, all QUIC
-      // packets we send are at least 14 bytes long.
-      wire_versions = {QuicVersionReservedForNegotiation(),
-                       QuicVersionReservedForNegotiation()};
-    } else {
-      // This is not uniformely distributed but is acceptable since no security
-      // depends on this randomness.
-      size_t version_index = 0;
-      const bool disable_randomness =
-          GetQuicFlag(FLAGS_quic_disable_version_negotiation_grease_randomness);
-      if (!disable_randomness) {
-        version_index = QuicRandom::GetInstance()->RandUint64() %
-                        (wire_versions.size() + 1);
-      }
-      wire_versions.insert(wire_versions.begin() + version_index,
-                           QuicVersionReservedForNegotiation());
+    // This is not uniformely distributed but is acceptable since no security
+    // depends on this randomness.
+    size_t version_index = 0;
+    const bool disable_randomness =
+        GetQuicFlag(FLAGS_quic_disable_version_negotiation_grease_randomness);
+    if (!disable_randomness) {
+      version_index =
+          QuicRandom::GetInstance()->RandUint64() % (wire_versions.size() + 1);
     }
+    wire_versions.insert(wire_versions.begin() + version_index,
+                         QuicVersionReservedForNegotiation());
   }
   if (ietf_quic) {
     return BuildIetfVersionNegotiationPacket(
