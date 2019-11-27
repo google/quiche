@@ -596,10 +596,8 @@ void QuicSpdySession::SendInitialData() {
   }
   QuicConnection::ScopedPacketFlusher flusher(connection());
   send_control_stream_->MaybeSendSettingsFrame();
-  // TODO(renjietang): Remove this once stream id manager can take dynamically
-  // created HTTP/3 unidirectional streams.
-  qpack_encoder_send_stream_->MaybeSendStreamType();
   qpack_decoder_send_stream_->MaybeSendStreamType();
+  qpack_encoder_send_stream_->MaybeSendStreamType();
 }
 
 QpackEncoder* QuicSpdySession::qpack_encoder() {
