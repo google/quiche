@@ -226,10 +226,10 @@ TEST_F(QuicTransportIntegrationTest, OriginMismatch) {
   EXPECT_FALSE(server_->session()->IsSessionReady());
   EXPECT_FALSE(client_->session()->connection()->connected());
   EXPECT_FALSE(server_->session()->connection()->connected());
-  EXPECT_EQ(client_->session()->error(),
-            QUIC_TRANSPORT_INVALID_CLIENT_INDICATION);
-  EXPECT_EQ(server_->session()->error(),
-            QUIC_TRANSPORT_INVALID_CLIENT_INDICATION);
+  EXPECT_THAT(client_->session()->error(),
+              IsError(QUIC_TRANSPORT_INVALID_CLIENT_INDICATION));
+  EXPECT_THAT(server_->session()->error(),
+              IsError(QUIC_TRANSPORT_INVALID_CLIENT_INDICATION));
 }
 
 TEST_F(QuicTransportIntegrationTest, SendOutgoingStreams) {
