@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_QUIC_CORE_QPACK_QPACK_CONSTANTS_H_
-#define QUICHE_QUIC_CORE_QPACK_QPACK_CONSTANTS_H_
+#ifndef QUICHE_QUIC_CORE_QPACK_QPACK_INSTRUCTIONS_H_
+#define QUICHE_QUIC_CORE_QPACK_QPACK_INSTRUCTIONS_H_
 
 #include <cstdint>
 #include <string>
@@ -204,4 +204,4 @@ class QUIC_EXPORT_PRIVATE QpackInstructionWithValues {
 
 }  // namespace quic
 
-#endif  // QUICHE_QUIC_CORE_QPACK_QPACK_CONSTANTS_H_
+#endif  // QUICHE_QUIC_CORE_QPACK_QPACK_INSTRUCTIONS_H_

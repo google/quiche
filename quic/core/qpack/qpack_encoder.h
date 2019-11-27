@@ -11,10 +11,10 @@
 #include <vector>
 
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_blocking_manager.h"
-#include "net/third_party/quiche/src/quic/core/qpack/qpack_constants.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_decoder_stream_receiver.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_encoder_stream_sender.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_header_table.h"
+#include "net/third_party/quiche/src/quic/core/qpack/qpack_instructions.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_exported_stats.h"
