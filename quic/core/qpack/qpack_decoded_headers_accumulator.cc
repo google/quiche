@@ -8,6 +8,12 @@
 
 namespace quic {
 
+namespace {
+
+size_t kHeaderFieldSizeOverhead = 32;
+
+}
+
 QpackDecodedHeadersAccumulator::QpackDecodedHeadersAccumulator(
     QuicStreamId id,
     QpackDecoder* qpack_decoder,
@@ -15,11 +21,13 @@ QpackDecodedHeadersAccumulator::QpackDecodedHeadersAccumulator(
     size_t max_header_list_size)
     : decoder_(qpack_decoder->CreateProgressiveDecoder(id, this)),
       visitor_(visitor),
-      uncompressed_header_bytes_(0),
+      max_header_list_size_(max_header_list_size),
+      uncompressed_header_bytes_including_overhead_(0),
+      uncompressed_header_bytes_without_overhead_(0),
       compressed_header_bytes_(0),
+      header_list_size_limit_exceeded_(false),
       headers_decoded_(false),
       error_detected_(false) {
-  quic_header_list_.set_max_header_list_size(max_header_list_size);
   quic_header_list_.OnHeaderBlockStart();
 }
 
@@ -27,8 +35,21 @@ void QpackDecodedHeadersAccumulator::OnHeaderDecoded(QuicStringPiece name,
                                                      QuicStringPiece value) {
   DCHECK(!error_detected_);
 
-  uncompressed_header_bytes_ += name.size() + value.size();
-  quic_header_list_.OnHeader(name, value);
+  uncompressed_header_bytes_without_overhead_ += name.size() + value.size();
+
+  if (header_list_size_limit_exceeded_) {
+    return;
+  }
+
+  uncompressed_header_bytes_including_overhead_ +=
+      name.size() + value.size() + kHeaderFieldSizeOverhead;
+
+  if (uncompressed_header_bytes_including_overhead_ > max_header_list_size_) {
+    header_list_size_limit_exceeded_ = true;
+    quic_header_list_.Clear();
+  } else {
+    quic_header_list_.OnHeader(name, value);
+  }
 }
 
 void QpackDecodedHeadersAccumulator::OnDecodingCompleted() {
@@ -36,8 +57,9 @@ void QpackDecodedHeadersAccumulator::OnDecodingCompleted() {
   DCHECK(!error_detected_);
 
   headers_decoded_ = true;
-  quic_header_list_.OnHeaderBlockEnd(uncompressed_header_bytes_,
-                                     compressed_header_bytes_);
+
+  quic_header_list_.OnHeaderBlockEnd(
+      uncompressed_header_bytes_without_overhead_, compressed_header_bytes_);
 
   // Might destroy |this|.
   visitor_->OnHeadersDecoded(std::move(quic_header_list_));

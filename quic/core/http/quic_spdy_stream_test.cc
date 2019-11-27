@@ -346,26 +346,36 @@ TEST_P(QuicSpdyStreamTest, ProcessHeaderList) {
 TEST_P(QuicSpdyStreamTest, ProcessTooLargeHeaderList) {
   Initialize(kShouldProcessData);
 
-  QuicHeaderList headers;
-  stream_->OnStreamHeadersPriority(
-      spdy::SpdyStreamPrecedence(kV3HighestPriority));
+  if (!UsesHttp3()) {
+    QuicHeaderList headers;
+    stream_->OnStreamHeadersPriority(
+        spdy::SpdyStreamPrecedence(kV3HighestPriority));
 
-  if (UsesHttp3()) {
-    EXPECT_CALL(
-        *connection_,
-        CloseConnection(
-            QUIC_HEADERS_STREAM_DATA_DECOMPRESS_FAILURE,
-            MatchesRegex("Too large headers received on stream \\d+"), _));
-  } else {
     EXPECT_CALL(*session_,
                 SendRstStream(stream_->id(), QUIC_HEADERS_TOO_LARGE, 0));
-  }
+    stream_->OnStreamHeaderList(false, 1 << 20, headers);
 
-  stream_->OnStreamHeaderList(false, 1 << 20, headers);
-
-  if (!UsesHttp3()) {
     EXPECT_THAT(stream_->stream_error(), IsStreamError(QUIC_HEADERS_TOO_LARGE));
+
+    return;
   }
+
+  // Header list size includes 32 bytes for overhead per header field.
+  session_->set_max_inbound_header_list_size(40);
+  std::string headers =
+      HeadersFrame({std::make_pair("foo", "too long headers")});
+
+  QuicStreamFrame frame(stream_->id(), false, 0, headers);
+
+  EXPECT_CALL(
+      *connection_,
+      CloseConnection(QUIC_HEADERS_STREAM_DATA_DECOMPRESS_FAILURE,
+                      MatchesRegex("Too large headers received on stream \\d+"),
+                      _));
+
+  stream_->OnStreamFrame(frame);
+
+  EXPECT_TRUE(stream_->header_list().empty());
 }
 
 TEST_P(QuicSpdyStreamTest, ProcessHeaderListWithFin) {

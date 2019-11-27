@@ -193,6 +193,7 @@ QuicSpdyStream::QuicSpdyStream(QuicStreamId id,
       visitor_(nullptr),
       blocked_on_decoding_headers_(false),
       headers_decompressed_(false),
+      header_list_size_limit_exceeded_(false),
       headers_payload_length_(0),
       trailers_payload_length_(0),
       trailers_decompressed_(false),
@@ -227,6 +228,7 @@ QuicSpdyStream::QuicSpdyStream(PendingStream* pending,
       visitor_(nullptr),
       blocked_on_decoding_headers_(false),
       headers_decompressed_(false),
+      header_list_size_limit_exceeded_(false),
       headers_payload_length_(0),
       trailers_payload_length_(0),
       trailers_decompressed_(false),
@@ -517,13 +519,13 @@ void QuicSpdyStream::OnStreamHeaderList(bool fin,
                                         size_t frame_len,
                                         const QuicHeaderList& header_list) {
   // TODO(b/134706391): remove |fin| argument.
-  // The headers list avoid infinite buffering by clearing the headers list
-  // if the current headers are too large. So if the list is empty here
-  // then the headers list must have been too large, and the stream should
-  // be reset.
-  // TODO(rch): Use an explicit "headers too large" signal. An empty header list
-  // might be acceptable if it corresponds to a trailing header frame.
-  if (header_list.empty()) {
+  // When using Google QUIC, an empty header list indicates that the size limit
+  // has been exceeded.
+  // When using IETF QUIC, there is an explicit signal from
+  // QpackDecodedHeadersAccumulator.
+  if ((VersionUsesHttp3(transport_version()) &&
+       header_list_size_limit_exceeded_) ||
+      (!VersionUsesHttp3(transport_version()) && header_list.empty())) {
     OnHeadersTooLarge();
     if (IsDoneReading()) {
       return;
@@ -537,6 +539,8 @@ void QuicSpdyStream::OnStreamHeaderList(bool fin,
 }
 
 void QuicSpdyStream::OnHeadersDecoded(QuicHeaderList headers) {
+  header_list_size_limit_exceeded_ =
+      qpack_decoded_headers_accumulator_->header_list_size_limit_exceeded();
   qpack_decoded_headers_accumulator_.reset();
 
   QuicSpdySession::LogHeaderCompressionRatioHistogram(
@@ -564,8 +568,6 @@ void QuicSpdyStream::OnHeadersDecoded(QuicHeaderList headers) {
 void QuicSpdyStream::OnHeaderDecodingError(QuicStringPiece error_message) {
   qpack_decoded_headers_accumulator_.reset();
 
-  // TODO(b/124216424): Use HTTP_EXCESSIVE_LOAD instead if indicated by
-  // |qpack_decoded_headers_accumulator_|.
   std::string connection_close_error_message = QuicStrCat(
       "Error decoding ", headers_decompressed_ ? "trailers" : "headers",
       " on stream ", id(), ": ", error_message);
@@ -575,7 +577,8 @@ void QuicSpdyStream::OnHeaderDecodingError(QuicStringPiece error_message) {
 
 void QuicSpdyStream::OnHeadersTooLarge() {
   if (VersionUsesHttp3(transport_version())) {
-    // TODO(124216424): Use HTTP_EXCESSIVE_LOAD error code.
+    // TODO(b/124216424): Reset stream with H3_REQUEST_CANCELLED (if client)
+    // or with H3_REQUEST_REJECTED (if server).
     std::string error_message =
         QuicStrCat("Too large headers received on stream ", id());
     CloseConnectionWithDetails(QUIC_HEADERS_STREAM_DATA_DECOMPRESS_FAILURE,

@@ -281,6 +281,9 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   bool blocked_on_decoding_headers_;
   // True if the headers have been completely decompressed.
   bool headers_decompressed_;
+  // True if uncompressed headers or trailers exceed maximum allowed size
+  // advertised to peer via SETTINGS_MAX_HEADER_LIST_SIZE.
+  bool header_list_size_limit_exceeded_;
   // Contains a copy of the decompressed header (name, value) pairs until they
   // are consumed via Readv.
   QuicHeaderList header_list_;

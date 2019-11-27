@@ -34,7 +34,12 @@ class QUIC_EXPORT_PRIVATE QpackDecodedHeadersAccumulator
    public:
     virtual ~Visitor() = default;
 
-    // Called when headers are successfully decoded.
+    // Called when headers are successfully decoded.  If header list size
+    // exceeds the limit specified via |max_header_list_size| in
+    // QpackDecodedHeadersAccumulator constructor, then |headers| will be empty,
+    // but will still have the correct compressed and uncompressed size
+    // information.  However, header_list_size_limit_exceeded() is recommended
+    // instead of headers.empty() to check whether header size exceeds limit.
     virtual void OnHeadersDecoded(QuicHeaderList headers) = 0;
 
     // Called when an error has occurred.
@@ -63,15 +68,37 @@ class QUIC_EXPORT_PRIVATE QpackDecodedHeadersAccumulator
   // Must not be called more that once.
   void EndHeaderBlock();
 
+  // Returns true if the uncompressed size of the header list, including an
+  // overhead for each header field, exceeds |max_header_list_size| passed in
+  // the constructor.
+  bool header_list_size_limit_exceeded() const {
+    return header_list_size_limit_exceeded_;
+  }
+
  private:
   std::unique_ptr<QpackProgressiveDecoder> decoder_;
   Visitor* visitor_;
+  // Maximum header list size including overhead.
+  size_t max_header_list_size_;
+  // Uncompressed header list size including overhead, for enforcing the limit.
+  size_t uncompressed_header_bytes_including_overhead_;
   QuicHeaderList quic_header_list_;
-  size_t uncompressed_header_bytes_;
+  // Uncompressed header list size with overhead,
+  // for passing in to QuicHeaderList::OnHeaderBlockEnd().
+  size_t uncompressed_header_bytes_without_overhead_;
+  // Compressed header list size
+  // for passing in to QuicHeaderList::OnHeaderBlockEnd().
   size_t compressed_header_bytes_;
+
+  // True if the header size limit has been exceeded.
+  // Input data is still fed to QpackProgressiveDecoder.
+  bool header_list_size_limit_exceeded_;
+
+  // The following two members are only used for DCHECKs.
+
   // True if headers have been completedly and successfully decoded.
   bool headers_decoded_;
-  // An error is detected during decoding.
+  // True if an error has been detected during decoding.
   bool error_detected_;
 };
 

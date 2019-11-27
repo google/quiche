@@ -91,6 +91,7 @@ TEST_F(QpackDecodedHeadersAccumulatorTest, EmptyHeaderList) {
   QuicHeaderList header_list;
   EXPECT_CALL(visitor_, OnHeadersDecoded(_)).WillOnce(SaveArg<0>(&header_list));
   accumulator_.EndHeaderBlock();
+  EXPECT_FALSE(accumulator_.header_list_size_limit_exceeded());
 
   EXPECT_EQ(0u, header_list.uncompressed_header_bytes());
   EXPECT_EQ(encoded_data.size(), header_list.compressed_header_bytes());
@@ -120,6 +121,7 @@ TEST_F(QpackDecodedHeadersAccumulatorTest, Success) {
   QuicHeaderList header_list;
   EXPECT_CALL(visitor_, OnHeadersDecoded(_)).WillOnce(SaveArg<0>(&header_list));
   accumulator_.EndHeaderBlock();
+  EXPECT_FALSE(accumulator_.header_list_size_limit_exceeded());
 
   EXPECT_THAT(header_list, ElementsAre(Pair("foo", "bar")));
   EXPECT_EQ(strlen("foo") + strlen("bar"),
@@ -127,25 +129,49 @@ TEST_F(QpackDecodedHeadersAccumulatorTest, Success) {
   EXPECT_EQ(encoded_data.size(), header_list.compressed_header_bytes());
 }
 
-TEST_F(QpackDecodedHeadersAccumulatorTest, ExceedingLimit) {
+// Test that Decode() calls are not ignored after header list limit is exceeded,
+// otherwise decoding could fail with "incomplete header block" error.
+TEST_F(QpackDecodedHeadersAccumulatorTest, ExceedLimitThenSplitInstruction) {
   // Total length of header list exceeds kMaxHeaderListSize.
-  std::string encoded_data(QuicTextUtils::HexDecode(
+  accumulator_.Decode(QuicTextUtils::HexDecode(
       "0000"                                      // header block prefix
       "26666f6f626172"                            // header key: "foobar"
       "7d61616161616161616161616161616161616161"  // header value: 'a' 125 times
       "616161616161616161616161616161616161616161616161616161616161616161616161"
       "616161616161616161616161616161616161616161616161616161616161616161616161"
-      "61616161616161616161616161616161616161616161616161616161616161616161"));
-  accumulator_.Decode(encoded_data);
+      "61616161616161616161616161616161616161616161616161616161616161616161"
+      "ff"));  // first byte of a two-byte long Indexed Header Field instruction
+  accumulator_.Decode(QuicTextUtils::HexDecode(
+      "0f"  // second byte of a two-byte long Indexed Header Field instruction
+      ));
 
-  QuicHeaderList header_list;
-  EXPECT_CALL(visitor_, OnHeadersDecoded(_)).WillOnce(SaveArg<0>(&header_list));
+  EXPECT_CALL(visitor_, OnHeadersDecoded(_));
+  accumulator_.EndHeaderBlock();
+  EXPECT_TRUE(accumulator_.header_list_size_limit_exceeded());
+}
+
+// Test that header list limit enforcement works with blocked encoding.
+TEST_F(QpackDecodedHeadersAccumulatorTest, ExceedLimitBlocked) {
+  // Total length of header list exceeds kMaxHeaderListSize.
+  accumulator_.Decode(QuicTextUtils::HexDecode(
+      "0200"            // header block prefix
+      "80"              // reference to dynamic table entry not yet received
+      "26666f6f626172"  // header key: "foobar"
+      "7d61616161616161616161616161616161616161"  // header value: 'a' 125 times
+      "616161616161616161616161616161616161616161616161616161616161616161616161"
+      "616161616161616161616161616161616161616161616161616161616161616161616161"
+      "61616161616161616161616161616161616161616161616161616161616161616161"));
   accumulator_.EndHeaderBlock();
 
-  // QuicHeaderList signals header list over limit by clearing it.
-  EXPECT_EQ(0u, header_list.uncompressed_header_bytes());
-  EXPECT_EQ(0u, header_list.compressed_header_bytes());
-  EXPECT_TRUE(header_list.empty());
+  // Set dynamic table capacity.
+  qpack_decoder_.OnSetDynamicTableCapacity(kMaxDynamicTableCapacity);
+  // Adding dynamic table entry unblocks decoding.
+  EXPECT_CALL(decoder_stream_sender_delegate_,
+              WriteStreamData(Eq(kHeaderAcknowledgement)));
+
+  EXPECT_CALL(visitor_, OnHeadersDecoded(_));
+  qpack_decoder_.OnInsertWithoutNameReference("foo", "bar");
+  EXPECT_TRUE(accumulator_.header_list_size_limit_exceeded());
 }
 
 TEST_F(QpackDecodedHeadersAccumulatorTest, BlockedDecoding) {
@@ -164,6 +190,7 @@ TEST_F(QpackDecodedHeadersAccumulatorTest, BlockedDecoding) {
   EXPECT_CALL(visitor_, OnHeadersDecoded(_)).WillOnce(SaveArg<0>(&header_list));
   qpack_decoder_.OnInsertWithoutNameReference("foo", "bar");
 
+  EXPECT_FALSE(accumulator_.header_list_size_limit_exceeded());
   EXPECT_THAT(header_list, ElementsAre(Pair("foo", "bar")));
   EXPECT_EQ(strlen("foo") + strlen("bar"),
             header_list.uncompressed_header_bytes());
@@ -188,6 +215,7 @@ TEST_F(QpackDecodedHeadersAccumulatorTest,
   QuicHeaderList header_list;
   EXPECT_CALL(visitor_, OnHeadersDecoded(_)).WillOnce(SaveArg<0>(&header_list));
   accumulator_.EndHeaderBlock();
+  EXPECT_FALSE(accumulator_.header_list_size_limit_exceeded());
 
   EXPECT_THAT(header_list, ElementsAre(Pair("foo", "bar"), Pair("foo", "bar")));
 }
