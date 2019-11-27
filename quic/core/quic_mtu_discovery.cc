@@ -77,10 +77,8 @@ QuicPacketLength QuicConnectionMtuDiscoverer::GetUpdatedMtuProbeSize(
     // The next probe packet is as big as the previous one. Assuming the
     // previous one exceeded MTU, we need to decrease the probe packet length.
     max_probe_length_ = probe_packet_length;
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_mtu_discovery_v2, 1, 3);
   } else {
     DCHECK_GT(probe_packet_length, last_probe_length_);
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_mtu_discovery_v2, 2, 3);
   }
   last_probe_length_ = next_probe_packet_length();
 
@@ -125,7 +123,6 @@ void QuicConnectionMtuDiscoverer::OnMaxPacketLengthUpdated(
 
   DCHECK_EQ(old_value, min_probe_length_);
   min_probe_length_ = new_value;
-  QUIC_RELOADABLE_FLAG_COUNT_N(quic_mtu_discovery_v2, 3, 3);
 }
 
 std::ostream& operator<<(std::ostream& os,

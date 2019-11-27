@@ -747,8 +747,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   virtual void SendConnectivityProbingResponsePacket(
       const QuicSocketAddress& peer_address);
 
-  // Sends an MTU discovery packet of size |mtu_discovery_target_| and updates
-  // the MTU discovery alarm.
+  // Sends an MTU discovery packet and updates the MTU discovery alarm.
   void DiscoverMtu();
 
   // Sets the session notifier on the SentPacketManager.
@@ -1409,18 +1408,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // version negotiation packet.
   ParsedQuicVersionVector server_supported_versions_;
 
-  // The size of the packet we are targeting while doing path MTU discovery.
-  QuicByteCount mtu_discovery_target_;
-
   // The number of MTU probes already sent.
   size_t mtu_probe_count_;
-
-  // The number of packets between MTU probes.
-  QuicPacketCount packets_between_mtu_probes_;
-
-  // The packet number of the packet after which the next MTU probe will be
-  // sent.
-  QuicPacketNumber next_mtu_probe_at_;
 
   // The value of the MTU regularly used by the connection. This is different
   // from the value returned by max_packet_size(), as max_packet_size() returns
@@ -1533,9 +1522,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Latched value of quic_treat_queued_packets_as_sent.
   const bool treat_queued_packets_as_sent_;
 
-  // Latched value of quic_mtu_discovery_v2.
-  const bool mtu_discovery_v2_;
-  // Only used if quic_mtu_discovery_v2 is true.
   QuicConnectionMtuDiscoverer mtu_discoverer_;
 
   // Latched value of quic_version_negotiated_by_default_at_server.

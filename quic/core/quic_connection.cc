@@ -308,10 +308,7 @@ QuicConnection::QuicConnection(
       perspective_(perspective),
       connected_(true),
       can_truncate_connection_ids_(perspective == Perspective::IS_SERVER),
-      mtu_discovery_target_(0),
       mtu_probe_count_(0),
-      packets_between_mtu_probes_(kPacketsBetweenMtuProbesBase),
-      next_mtu_probe_at_(kPacketsBetweenMtuProbesBase),
       largest_received_packet_size_(0),
       write_error_occurred_(false),
       no_stop_waiting_frames_(
@@ -336,7 +333,6 @@ QuicConnection::QuicConnection(
       treat_queued_packets_as_sent_(
           GetQuicReloadableFlag(quic_treat_queued_packets_as_sent) ||
           version().CanSendCoalescedPackets()),
-      mtu_discovery_v2_(GetQuicReloadableFlag(quic_mtu_discovery_v2)),
       quic_version_negotiated_by_default_at_server_(
           GetQuicReloadableFlag(quic_version_negotiated_by_default_at_server)),
       use_handshake_delegate_(
@@ -2376,17 +2372,13 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
   // In some cases, an MTU probe can cause EMSGSIZE. This indicates that the
   // MTU discovery is permanently unsuccessful.
   if (IsMsgTooBig(result) && looks_like_mtu_probe) {
-    if (mtu_discovery_v2_) {
-      // When MSG_TOO_BIG is returned, the system typically knows what the
-      // actual MTU is, so there is no need to probe further.
-      // TODO(wub): Reduce max packet size to a safe default, or the actual MTU.
-      QUIC_DVLOG(1) << ENDPOINT << " MTU probe packet too big, size:"
-                    << packet->encrypted_length
-                    << ", long_term_mtu_:" << long_term_mtu_;
-      mtu_discoverer_.Disable();
-    } else {
-      mtu_discovery_target_ = 0;
-    }
+    // When MSG_TOO_BIG is returned, the system typically knows what the
+    // actual MTU is, so there is no need to probe further.
+    // TODO(wub): Reduce max packet size to a safe default, or the actual MTU.
+    QUIC_DVLOG(1) << ENDPOINT << " MTU probe packet too big, size:"
+                  << packet->encrypted_length
+                  << ", long_term_mtu_:" << long_term_mtu_;
+    mtu_discoverer_.Disable();
     mtu_discovery_alarm_->Cancel();
     // The write failed, but the writer is not blocked, so return true.
     return true;
@@ -2612,10 +2604,8 @@ void QuicConnection::OnPathMtuIncreased(QuicPacketLength packet_size) {
   if (packet_size > max_packet_length()) {
     const QuicByteCount old_max_packet_length = max_packet_length();
     SetMaxPacketLength(packet_size);
-    if (mtu_discovery_v2_) {
-      mtu_discoverer_.OnMaxPacketLengthUpdated(old_max_packet_length,
-                                               max_packet_length());
-    }
+    mtu_discoverer_.OnMaxPacketLengthUpdated(old_max_packet_length,
+                                             max_packet_length());
   }
 }
 
@@ -3279,35 +3269,11 @@ void QuicConnection::SetPathDegradingAlarm() {
 }
 
 void QuicConnection::MaybeSetMtuAlarm(QuicPacketNumber sent_packet_number) {
-  if (mtu_discovery_v2_) {
-    if (mtu_discovery_alarm_->IsSet() ||
-        !mtu_discoverer_.ShouldProbeMtu(sent_packet_number)) {
-      return;
-    }
-    mtu_discovery_alarm_->Set(clock_->ApproximateNow());
+  if (mtu_discovery_alarm_->IsSet() ||
+      !mtu_discoverer_.ShouldProbeMtu(sent_packet_number)) {
     return;
   }
-
-  // Do not set the alarm if the target size is less than the current size.
-  // This covers the case when |mtu_discovery_target_| is at its default value,
-  // zero.
-  if (mtu_discovery_target_ <= max_packet_length()) {
-    return;
-  }
-
-  if (mtu_probe_count_ >= kMtuDiscoveryAttempts) {
-    return;
-  }
-
-  if (mtu_discovery_alarm_->IsSet()) {
-    return;
-  }
-
-  if (sent_packet_number >= next_mtu_probe_at_) {
-    // Use an alarm to send the MTU probe to ensure that no ScopedPacketFlushers
-    // are active.
-    mtu_discovery_alarm_->Set(clock_->ApproximateNow());
-  }
+  mtu_discovery_alarm_->Set(clock_->ApproximateNow());
 }
 
 void QuicConnection::MaybeSetAckAlarmTo(QuicTime time) {
@@ -3450,13 +3416,8 @@ bool QuicConnection::IsTerminationPacket(const SerializedPacket& packet) {
 
 void QuicConnection::SetMtuDiscoveryTarget(QuicByteCount target) {
   QUIC_DVLOG(2) << ENDPOINT << "SetMtuDiscoveryTarget: " << target;
-  if (mtu_discovery_v2_) {
-    mtu_discoverer_.Disable();
-    mtu_discoverer_.Enable(max_packet_length(),
-                           GetLimitedMaxPacketSize(target));
-  } else {
-    mtu_discovery_target_ = GetLimitedMaxPacketSize(target);
-  }
+  mtu_discoverer_.Disable();
+  mtu_discoverer_.Enable(max_packet_length(), GetLimitedMaxPacketSize(target));
 }
 
 QuicByteCount QuicConnection::GetLimitedMaxPacketSize(
@@ -3625,35 +3586,13 @@ bool QuicConnection::SendGenericPathProbePacket(
 void QuicConnection::DiscoverMtu() {
   DCHECK(!mtu_discovery_alarm_->IsSet());
 
-  if (mtu_discovery_v2_) {
-    const QuicPacketNumber largest_sent_packet =
-        sent_packet_manager_.GetLargestSentPacket();
-    if (mtu_discoverer_.ShouldProbeMtu(largest_sent_packet)) {
-      ++mtu_probe_count_;
-      SendMtuDiscoveryPacket(
-          mtu_discoverer_.GetUpdatedMtuProbeSize(largest_sent_packet));
-    }
-    DCHECK(!mtu_discovery_alarm_->IsSet());
-    return;
+  const QuicPacketNumber largest_sent_packet =
+      sent_packet_manager_.GetLargestSentPacket();
+  if (mtu_discoverer_.ShouldProbeMtu(largest_sent_packet)) {
+    ++mtu_probe_count_;
+    SendMtuDiscoveryPacket(
+        mtu_discoverer_.GetUpdatedMtuProbeSize(largest_sent_packet));
   }
-
-  // Check if the MTU has been already increased.
-  if (mtu_discovery_target_ <= max_packet_length()) {
-    return;
-  }
-
-  // Calculate the packet number of the next probe *before* sending the current
-  // one.  Otherwise, when SendMtuDiscoveryPacket() is called,
-  // MaybeSetMtuAlarm() will not realize that the probe has been just sent, and
-  // will reschedule this probe again.
-  packets_between_mtu_probes_ *= 2;
-  next_mtu_probe_at_ = sent_packet_manager_.GetLargestSentPacket() +
-                       packets_between_mtu_probes_ + 1;
-  ++mtu_probe_count_;
-
-  QUIC_DVLOG(2) << "Sending a path MTU discovery packet #" << mtu_probe_count_;
-  SendMtuDiscoveryPacket(mtu_discovery_target_);
-
   DCHECK(!mtu_discovery_alarm_->IsSet());
 }
 

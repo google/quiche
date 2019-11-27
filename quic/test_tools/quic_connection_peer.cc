@@ -212,22 +212,7 @@ QuicConnectionStats* QuicConnectionPeer::GetStats(QuicConnection* connection) {
 // static
 QuicPacketCount QuicConnectionPeer::GetPacketsBetweenMtuProbes(
     QuicConnection* connection) {
-  if (connection->mtu_discovery_v2_) {
-    return connection->mtu_discoverer_.packets_between_probes();
-  }
-  return connection->packets_between_mtu_probes_;
-}
-
-// static
-void QuicConnectionPeer::SetPacketsBetweenMtuProbes(QuicConnection* connection,
-                                                    QuicPacketCount packets) {
-  connection->packets_between_mtu_probes_ = packets;
-}
-
-// static
-void QuicConnectionPeer::SetNextMtuProbeAt(QuicConnection* connection,
-                                           QuicPacketNumber number) {
-  connection->next_mtu_probe_at_ = number;
+  return connection->mtu_discoverer_.packets_between_probes();
 }
 
 // static

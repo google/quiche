@@ -102,10 +102,6 @@ class QuicConnectionPeer {
 
   static QuicPacketCount GetPacketsBetweenMtuProbes(QuicConnection* connection);
 
-  static void SetPacketsBetweenMtuProbes(QuicConnection* connection,
-                                         QuicPacketCount packets);
-  static void SetNextMtuProbeAt(QuicConnection* connection,
-                                QuicPacketNumber number);
   static void ReInitializeMtuDiscoverer(
       QuicConnection* connection,
       QuicPacketCount packets_between_probes_base,

@@ -1566,16 +1566,9 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
 
   void set_packets_between_probes_base(
       const QuicPacketCount packets_between_probes_base) {
-    if (GetQuicReloadableFlag(quic_mtu_discovery_v2)) {
-      QuicConnectionPeer::ReInitializeMtuDiscoverer(
-          &connection_, packets_between_probes_base,
-          QuicPacketNumber(packets_between_probes_base));
-    } else {
-      QuicConnectionPeer::SetPacketsBetweenMtuProbes(
-          &connection_, packets_between_probes_base);
-      QuicConnectionPeer::SetNextMtuProbeAt(
-          &connection_, QuicPacketNumber(packets_between_probes_base));
-    }
+    QuicConnectionPeer::ReInitializeMtuDiscoverer(
+        &connection_, packets_between_probes_base,
+        QuicPacketNumber(packets_between_probes_base));
   }
 
   bool IsDefaultTestConfiguration() {
@@ -4894,12 +4887,9 @@ TEST_P(QuicConnectionTest, MtuDiscoveryEnabled) {
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
       .WillOnce(SaveArg<3>(&probe_size));
   connection_.GetMtuDiscoveryAlarm()->Fire();
-  if (GetQuicReloadableFlag(quic_mtu_discovery_v2)) {
-    EXPECT_THAT(probe_size, InRange(connection_.max_packet_length(),
-                                    kMtuDiscoveryTargetPacketSizeHigh));
-  } else {
-    EXPECT_EQ(kMtuDiscoveryTargetPacketSizeHigh, probe_size);
-  }
+
+  EXPECT_THAT(probe_size, InRange(connection_.max_packet_length(),
+                                  kMtuDiscoveryTargetPacketSizeHigh));
 
   const QuicPacketNumber probe_packet_number =
       FirstSendingPacketNumber() + packets_between_probes_base;
@@ -4914,17 +4904,6 @@ TEST_P(QuicConnectionTest, MtuDiscoveryEnabled) {
   EXPECT_EQ(0u, connection_.GetBytesInFlight());
 
   EXPECT_EQ(1u, connection_.mtu_probe_count());
-
-  if (!GetQuicReloadableFlag(quic_mtu_discovery_v2)) {
-    // Send more packets, and ensure that none of them sets the alarm.
-    for (QuicPacketCount i = 0; i < 4 * packets_between_probes_base; i++) {
-      SendStreamDataToPeer(3, ".", packets_between_probes_base + i, NO_FIN,
-                           nullptr);
-      ASSERT_FALSE(connection_.GetMtuDiscoveryAlarm()->IsSet());
-    }
-
-    return;
-  }
 
   QuicStreamOffset stream_offset = packets_between_probes_base;
   for (size_t num_probes = 1; num_probes < kMtuDiscoveryAttempts;
@@ -5083,9 +5062,6 @@ TEST_P(QuicConnectionTest, MtuDiscoveryFailed) {
 
 // Probe 3 times, the first one succeeds, then fails, then succeeds again.
 TEST_P(QuicConnectionTest, MtuDiscoverySecondProbeFailed) {
-  if (!GetQuicReloadableFlag(quic_mtu_discovery_v2)) {
-    return;
-  }
   MtuDiscoveryTestInit();
 
   const QuicPacketCount packets_between_probes_base = 5;
@@ -5198,12 +5174,8 @@ TEST_P(QuicConnectionTest, MtuDiscoveryWriterLimited) {
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
       .WillOnce(SaveArg<3>(&probe_size));
   connection_.GetMtuDiscoveryAlarm()->Fire();
-  if (GetQuicReloadableFlag(quic_mtu_discovery_v2)) {
-    EXPECT_THAT(probe_size,
-                InRange(connection_.max_packet_length(), mtu_limit));
-  } else {
-    EXPECT_EQ(mtu_limit, probe_size);
-  }
+
+  EXPECT_THAT(probe_size, InRange(connection_.max_packet_length(), mtu_limit));
 
   const QuicPacketNumber probe_sequence_number =
       FirstSendingPacketNumber() + packets_between_probes_base;
@@ -5218,17 +5190,6 @@ TEST_P(QuicConnectionTest, MtuDiscoveryWriterLimited) {
   EXPECT_EQ(0u, connection_.GetBytesInFlight());
 
   EXPECT_EQ(1u, connection_.mtu_probe_count());
-
-  if (!GetQuicReloadableFlag(quic_mtu_discovery_v2)) {
-    // Send more packets, and ensure that none of them sets the alarm.
-    for (QuicPacketCount i = 0; i < 4 * packets_between_probes_base; i++) {
-      SendStreamDataToPeer(3, ".", packets_between_probes_base + i, NO_FIN,
-                           nullptr);
-      ASSERT_FALSE(connection_.GetMtuDiscoveryAlarm()->IsSet());
-    }
-
-    return;
-  }
 
   QuicStreamOffset stream_offset = packets_between_probes_base;
   for (size_t num_probes = 1; num_probes < kMtuDiscoveryAttempts;
