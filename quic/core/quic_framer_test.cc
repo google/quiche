@@ -5312,7 +5312,7 @@ TEST_P(QuicFramerTest, PublicResetPacketWithTrailingJunk) {
 
   QuicEncryptedPacket encrypted(AsChars(packet), QUIC_ARRAYSIZE(packet), false);
   EXPECT_FALSE(framer_.ProcessPacket(encrypted));
-  ASSERT_EQ(QUIC_INVALID_PUBLIC_RST_PACKET, framer_.error());
+  ASSERT_THAT(framer_.error(), IsError(QUIC_INVALID_PUBLIC_RST_PACKET));
   EXPECT_EQ("Unable to read reset message.", framer_.detailed_error());
 }
 
@@ -11146,7 +11146,7 @@ TEST_P(QuicFramerTest, IetfFrameTypeEncodingErrorKnown2Bytes) {
 
   EXPECT_FALSE(framer_.ProcessPacket(*encrypted));
 
-  EXPECT_EQ(IETF_QUIC_PROTOCOL_VIOLATION, framer_.error());
+  EXPECT_THAT(framer_.error(), IsError(IETF_QUIC_PROTOCOL_VIOLATION));
   EXPECT_EQ("Frame type not minimally encoded.", framer_.detailed_error());
 }
 
@@ -11179,7 +11179,7 @@ TEST_P(QuicFramerTest, IetfFrameTypeEncodingErrorKnown4Bytes) {
 
   EXPECT_FALSE(framer_.ProcessPacket(*encrypted));
 
-  EXPECT_EQ(IETF_QUIC_PROTOCOL_VIOLATION, framer_.error());
+  EXPECT_THAT(framer_.error(), IsError(IETF_QUIC_PROTOCOL_VIOLATION));
   EXPECT_EQ("Frame type not minimally encoded.", framer_.detailed_error());
 }
 
@@ -11211,7 +11211,7 @@ TEST_P(QuicFramerTest, IetfFrameTypeEncodingErrorKnown8Bytes) {
 
   EXPECT_FALSE(framer_.ProcessPacket(*encrypted));
 
-  EXPECT_EQ(IETF_QUIC_PROTOCOL_VIOLATION, framer_.error());
+  EXPECT_THAT(framer_.error(), IsError(IETF_QUIC_PROTOCOL_VIOLATION));
   EXPECT_EQ("Frame type not minimally encoded.", framer_.detailed_error());
 }
 
@@ -11615,7 +11615,7 @@ TEST_P(QuicFramerTest, IetfFrameTypeEncodingErrorKnown2BytesAllTypes) {
 
     EXPECT_FALSE(framer_.ProcessPacket(*encrypted));
 
-    EXPECT_EQ(IETF_QUIC_PROTOCOL_VIOLATION, framer_.error());
+    EXPECT_THAT(framer_.error(), IsError(IETF_QUIC_PROTOCOL_VIOLATION));
     EXPECT_EQ("Frame type not minimally encoded.", framer_.detailed_error());
   }
 }

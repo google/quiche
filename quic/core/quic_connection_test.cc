@@ -1523,8 +1523,8 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     EXPECT_FALSE(QuicConnectionPeer::GetConnectionClosePacket(&connection_) ==
                  nullptr);
     EXPECT_EQ(1, connection_close_frame_count_);
-    EXPECT_EQ(QUIC_INVALID_ACK_DATA,
-              saved_connection_close_frame_.quic_error_code);
+    EXPECT_THAT(saved_connection_close_frame_.quic_error_code,
+                IsError(QUIC_INVALID_ACK_DATA));
   }
 
   void BlockOnNextWrite() {
@@ -3834,8 +3834,8 @@ TEST_P(QuicConnectionTest, DoNotAddToWriteBlockedListAfterDisconnect) {
     writer_->SetWriteBlocked();
   }
   EXPECT_EQ(1, connection_close_frame_count_);
-  EXPECT_EQ(QUIC_PEER_GOING_AWAY,
-            saved_connection_close_frame_.quic_error_code);
+  EXPECT_THAT(saved_connection_close_frame_.quic_error_code,
+              IsError(QUIC_PEER_GOING_AWAY));
 }
 
 TEST_P(QuicConnectionTest, AddToWriteBlockedListIfBlockedOnFlushPackets) {
@@ -5490,7 +5490,7 @@ TEST_P(QuicConnectionTest, NewTimeoutAfterSendSilentClose) {
   client_config.ToHandshakeMessage(&msg, connection_.transport_version());
   const QuicErrorCode error =
       config.ProcessPeerHello(msg, CLIENT, &error_details);
-  EXPECT_EQ(QUIC_NO_ERROR, error);
+  EXPECT_THAT(error, IsQuicNoError());
 
   connection_.SetFromConfig(config);
   EXPECT_TRUE(QuicConnectionPeer::IsSilentCloseEnabled(&connection_));
@@ -5539,8 +5539,8 @@ TEST_P(QuicConnectionTest, NewTimeoutAfterSendSilentClose) {
   EXPECT_FALSE(connection_.GetTimeoutAlarm()->IsSet());
   EXPECT_FALSE(connection_.connected());
   EXPECT_EQ(1, connection_close_frame_count_);
-  EXPECT_EQ(QUIC_NETWORK_IDLE_TIMEOUT,
-            saved_connection_close_frame_.quic_error_code);
+  EXPECT_THAT(saved_connection_close_frame_.quic_error_code,
+              IsError(QUIC_NETWORK_IDLE_TIMEOUT));
 }
 
 TEST_P(QuicConnectionTest, TimeoutAfterSendSilentCloseAndTLP) {
@@ -5567,7 +5567,7 @@ TEST_P(QuicConnectionTest, TimeoutAfterSendSilentCloseAndTLP) {
   client_config.ToHandshakeMessage(&msg, connection_.transport_version());
   const QuicErrorCode error =
       config.ProcessPeerHello(msg, CLIENT, &error_details);
-  EXPECT_EQ(QUIC_NO_ERROR, error);
+  EXPECT_THAT(error, IsQuicNoError());
 
   connection_.SetFromConfig(config);
   EXPECT_TRUE(QuicConnectionPeer::IsSilentCloseEnabled(&connection_));
@@ -5624,7 +5624,7 @@ TEST_P(QuicConnectionTest, TimeoutAfterSendSilentCloseWithOpenStreams) {
   client_config.ToHandshakeMessage(&msg, connection_.transport_version());
   const QuicErrorCode error =
       config.ProcessPeerHello(msg, CLIENT, &error_details);
-  EXPECT_EQ(QUIC_NO_ERROR, error);
+  EXPECT_THAT(error, IsQuicNoError());
 
   connection_.SetFromConfig(config);
   EXPECT_TRUE(QuicConnectionPeer::IsSilentCloseEnabled(&connection_));
@@ -6911,8 +6911,8 @@ TEST_P(QuicConnectionTest, NoAckSentForClose) {
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
   ProcessClosePacket(2);
   EXPECT_EQ(1, connection_close_frame_count_);
-  EXPECT_EQ(QUIC_PEER_GOING_AWAY,
-            saved_connection_close_frame_.quic_error_code);
+  EXPECT_THAT(saved_connection_close_frame_.quic_error_code,
+              IsError(QUIC_PEER_GOING_AWAY));
 }
 
 TEST_P(QuicConnectionTest, SendWhenDisconnected) {
@@ -6930,8 +6930,8 @@ TEST_P(QuicConnectionTest, SendWhenDisconnected) {
   connection_.SendPacket(ENCRYPTION_INITIAL, 1, std::move(packet),
                          HAS_RETRANSMITTABLE_DATA, false, false);
   EXPECT_EQ(1, connection_close_frame_count_);
-  EXPECT_EQ(QUIC_PEER_GOING_AWAY,
-            saved_connection_close_frame_.quic_error_code);
+  EXPECT_THAT(saved_connection_close_frame_.quic_error_code,
+              IsError(QUIC_PEER_GOING_AWAY));
 }
 
 TEST_P(QuicConnectionTest, SendConnectivityProbingWhenDisconnected) {
@@ -6956,8 +6956,8 @@ TEST_P(QuicConnectionTest, SendConnectivityProbingWhenDisconnected) {
                   "Not sending connectivity probing packet as connection is "
                   "disconnected.");
   EXPECT_EQ(1, connection_close_frame_count_);
-  EXPECT_EQ(QUIC_PEER_GOING_AWAY,
-            saved_connection_close_frame_.quic_error_code);
+  EXPECT_THAT(saved_connection_close_frame_.quic_error_code,
+              IsError(QUIC_PEER_GOING_AWAY));
 }
 
 TEST_P(QuicConnectionTest, WriteBlockedAfterClientSendsConnectivityProbe) {
@@ -7038,7 +7038,8 @@ TEST_P(QuicConnectionTest, PublicReset) {
       .WillOnce(Invoke(this, &QuicConnectionTest::SaveConnectionCloseFrame));
   connection_.ProcessUdpPacket(kSelfAddress, kPeerAddress, *received);
   EXPECT_EQ(1, connection_close_frame_count_);
-  EXPECT_EQ(QUIC_PUBLIC_RESET, saved_connection_close_frame_.quic_error_code);
+  EXPECT_THAT(saved_connection_close_frame_.quic_error_code,
+              IsError(QUIC_PUBLIC_RESET));
 }
 
 TEST_P(QuicConnectionTest, IetfStatelessReset) {
@@ -7060,7 +7061,8 @@ TEST_P(QuicConnectionTest, IetfStatelessReset) {
       .WillOnce(Invoke(this, &QuicConnectionTest::SaveConnectionCloseFrame));
   connection_.ProcessUdpPacket(kSelfAddress, kPeerAddress, *received);
   EXPECT_EQ(1, connection_close_frame_count_);
-  EXPECT_EQ(QUIC_PUBLIC_RESET, saved_connection_close_frame_.quic_error_code);
+  EXPECT_THAT(saved_connection_close_frame_.quic_error_code,
+              IsError(QUIC_PUBLIC_RESET));
 }
 
 TEST_P(QuicConnectionTest, GoAway) {
@@ -7142,8 +7144,8 @@ TEST_P(QuicConnectionTest, ClientHandlesVersionNegotiation) {
   connection_.ProcessUdpPacket(kSelfAddress, kPeerAddress, *received);
   EXPECT_FALSE(connection_.connected());
   EXPECT_EQ(1, connection_close_frame_count_);
-  EXPECT_EQ(QUIC_INVALID_VERSION,
-            saved_connection_close_frame_.quic_error_code);
+  EXPECT_THAT(saved_connection_close_frame_.quic_error_code,
+              IsError(QUIC_INVALID_VERSION));
 }
 
 TEST_P(QuicConnectionTest, BadVersionNegotiation) {
@@ -7161,8 +7163,8 @@ TEST_P(QuicConnectionTest, BadVersionNegotiation) {
       ConstructReceivedPacket(*encrypted, QuicTime::Zero()));
   connection_.ProcessUdpPacket(kSelfAddress, kPeerAddress, *received);
   EXPECT_EQ(1, connection_close_frame_count_);
-  EXPECT_EQ(QUIC_INVALID_VERSION_NEGOTIATION_PACKET,
-            saved_connection_close_frame_.quic_error_code);
+  EXPECT_THAT(saved_connection_close_frame_.quic_error_code,
+              IsError(QUIC_INVALID_VERSION_NEGOTIATION_PACKET));
 }
 
 TEST_P(QuicConnectionTest, CheckSendStats) {
@@ -7267,8 +7269,8 @@ TEST_P(QuicConnectionTest, ProcessFramesIfPacketClosedConnection) {
       kSelfAddress, kPeerAddress,
       QuicReceivedPacket(buffer, encrypted_length, QuicTime::Zero(), false));
   EXPECT_EQ(1, connection_close_frame_count_);
-  EXPECT_EQ(QUIC_PEER_GOING_AWAY,
-            saved_connection_close_frame_.extracted_error_code);
+  EXPECT_THAT(saved_connection_close_frame_.extracted_error_code,
+              IsError(QUIC_PEER_GOING_AWAY));
 }
 
 TEST_P(QuicConnectionTest, SelectMutualVersion) {
@@ -7511,8 +7513,8 @@ TEST_P(QuicConnectionTest, SendingUnencryptedStreamDataFails) {
                   "Cannot send stream data with level: ENCRYPTION_INITIAL");
   EXPECT_FALSE(connection_.connected());
   EXPECT_EQ(1, connection_close_frame_count_);
-  EXPECT_EQ(QUIC_ATTEMPT_TO_SEND_UNENCRYPTED_STREAM_DATA,
-            saved_connection_close_frame_.quic_error_code);
+  EXPECT_THAT(saved_connection_close_frame_.quic_error_code,
+              IsError(QUIC_ATTEMPT_TO_SEND_UNENCRYPTED_STREAM_DATA));
 }
 
 TEST_P(QuicConnectionTest, SetRetransmissionAlarmForCryptoPacket) {
@@ -8672,8 +8674,8 @@ TEST_P(QuicConnectionTest, WriteBlockedWithInvalidAck) {
     EXPECT_EQ(0, connection_close_frame_count_);
   } else {
     EXPECT_EQ(1, connection_close_frame_count_);
-    EXPECT_EQ(QUIC_INVALID_ACK_DATA,
-              saved_connection_close_frame_.quic_error_code);
+    EXPECT_THAT(saved_connection_close_frame_.quic_error_code,
+                IsError(QUIC_INVALID_ACK_DATA));
   }
 }
 

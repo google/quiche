@@ -110,15 +110,15 @@ TEST_F(QuicStreamSequencerBufferTest, ClearOnEmpty) {
 TEST_F(QuicStreamSequencerBufferTest, OnStreamData0length) {
   QuicErrorCode error =
       buffer_->OnStreamData(800, "", &written_, &error_details_);
-  EXPECT_EQ(error, QUIC_EMPTY_STREAM_FRAME_NO_FIN);
+  EXPECT_THAT(error, IsError(QUIC_EMPTY_STREAM_FRAME_NO_FIN));
   EXPECT_TRUE(helper_->CheckBufferInvariants());
 }
 
 TEST_F(QuicStreamSequencerBufferTest, OnStreamDataWithinBlock) {
   EXPECT_FALSE(helper_->IsBufferAllocated());
   std::string source(1024, 'a');
-  EXPECT_EQ(QUIC_NO_ERROR,
-            buffer_->OnStreamData(800, source, &written_, &error_details_));
+  EXPECT_THAT(buffer_->OnStreamData(800, source, &written_, &error_details_),
+              IsQuicNoError());
   BufferBlock* block_ptr = helper_->GetBlock(0);
   for (size_t i = 0; i < source.size(); ++i) {
     ASSERT_EQ('a', block_ptr->buffer[helper_->GetInBlockOffset(800) + i]);
@@ -135,8 +135,8 @@ TEST_F(QuicStreamSequencerBufferTest, OnStreamDataWithinBlock) {
 TEST_F(QuicStreamSequencerBufferTest, Move) {
   EXPECT_FALSE(helper_->IsBufferAllocated());
   std::string source(1024, 'a');
-  EXPECT_EQ(QUIC_NO_ERROR,
-            buffer_->OnStreamData(800, source, &written_, &error_details_));
+  EXPECT_THAT(buffer_->OnStreamData(800, source, &written_, &error_details_),
+              IsQuicNoError());
   BufferBlock* block_ptr = helper_->GetBlock(0);
   for (size_t i = 0; i < source.size(); ++i) {
     ASSERT_EQ('a', block_ptr->buffer[helper_->GetInBlockOffset(800) + i]);
@@ -160,8 +160,8 @@ TEST_F(QuicStreamSequencerBufferTest, OnStreamDataInvalidSource) {
   // Pass in an invalid source, expects to return error.
   QuicStringPiece source;
   source = QuicStringPiece(nullptr, 1024);
-  EXPECT_EQ(QUIC_STREAM_SEQUENCER_INVALID_STATE,
-            buffer_->OnStreamData(800, source, &written_, &error_details_));
+  EXPECT_THAT(buffer_->OnStreamData(800, source, &written_, &error_details_),
+              IsError(QUIC_STREAM_SEQUENCER_INVALID_STATE));
   EXPECT_EQ(0u, error_details_.find(QuicStrCat(
                     "QuicStreamSequencerBuffer error: OnStreamData() "
                     "dest == nullptr: ",
@@ -171,13 +171,13 @@ TEST_F(QuicStreamSequencerBufferTest, OnStreamDataInvalidSource) {
 TEST_F(QuicStreamSequencerBufferTest, OnStreamDataWithOverlap) {
   std::string source(1024, 'a');
   // Write something into [800, 1824)
-  EXPECT_EQ(QUIC_NO_ERROR,
-            buffer_->OnStreamData(800, source, &written_, &error_details_));
+  EXPECT_THAT(buffer_->OnStreamData(800, source, &written_, &error_details_),
+              IsQuicNoError());
   // Try to write to [0, 1024) and [1024, 2048).
-  EXPECT_EQ(QUIC_NO_ERROR,
-            buffer_->OnStreamData(0, source, &written_, &error_details_));
-  EXPECT_EQ(QUIC_NO_ERROR,
-            buffer_->OnStreamData(1024, source, &written_, &error_details_));
+  EXPECT_THAT(buffer_->OnStreamData(0, source, &written_, &error_details_),
+              IsQuicNoError());
+  EXPECT_THAT(buffer_->OnStreamData(1024, source, &written_, &error_details_),
+              IsQuicNoError());
 }
 
 TEST_F(QuicStreamSequencerBufferTest,
@@ -188,31 +188,31 @@ TEST_F(QuicStreamSequencerBufferTest,
   source = std::string(800, 'b');
   std::string one_byte = "c";
   // Write [1, 801).
-  EXPECT_EQ(QUIC_NO_ERROR,
-            buffer_->OnStreamData(1, source, &written_, &error_details_));
+  EXPECT_THAT(buffer_->OnStreamData(1, source, &written_, &error_details_),
+              IsQuicNoError());
   // Write [0, 800).
-  EXPECT_EQ(QUIC_NO_ERROR,
-            buffer_->OnStreamData(0, source, &written_, &error_details_));
+  EXPECT_THAT(buffer_->OnStreamData(0, source, &written_, &error_details_),
+              IsQuicNoError());
   // Write [1823, 1824).
-  EXPECT_EQ(QUIC_NO_ERROR,
-            buffer_->OnStreamData(1823, one_byte, &written_, &error_details_));
+  EXPECT_THAT(buffer_->OnStreamData(1823, one_byte, &written_, &error_details_),
+              IsQuicNoError());
   EXPECT_EQ(0u, written_);
   // write one byte to [1824, 1825)
-  EXPECT_EQ(QUIC_NO_ERROR,
-            buffer_->OnStreamData(1824, one_byte, &written_, &error_details_));
+  EXPECT_THAT(buffer_->OnStreamData(1824, one_byte, &written_, &error_details_),
+              IsQuicNoError());
   EXPECT_TRUE(helper_->CheckBufferInvariants());
 }
 
 TEST_F(QuicStreamSequencerBufferTest, OnStreamDataWithoutOverlap) {
   std::string source(1024, 'a');
   // Write something into [800, 1824).
-  EXPECT_EQ(QUIC_NO_ERROR,
-            buffer_->OnStreamData(800, source, &written_, &error_details_));
+  EXPECT_THAT(buffer_->OnStreamData(800, source, &written_, &error_details_),
+              IsQuicNoError());
   source = std::string(100, 'b');
   // Write something into [kBlockSizeBytes * 2 - 20, kBlockSizeBytes * 2 + 80).
-  EXPECT_EQ(QUIC_NO_ERROR,
-            buffer_->OnStreamData(kBlockSizeBytes * 2 - 20, source, &written_,
-                                  &error_details_));
+  EXPECT_THAT(buffer_->OnStreamData(kBlockSizeBytes * 2 - 20, source, &written_,
+                                    &error_details_),
+              IsQuicNoError());
   EXPECT_EQ(3, helper_->IntervalSize());
   EXPECT_EQ(1024u + 100u, buffer_->BytesBuffered());
   EXPECT_TRUE(helper_->CheckBufferInvariants());
@@ -229,20 +229,20 @@ TEST_F(QuicStreamSequencerBufferTest, OnStreamDataInLongStreamWithOverlap) {
   std::string source(kBytesToWrite, 'a');
   // Frame [2^32 + 500, 2^32 + 600).
   QuicStreamOffset offset = pow(2, 32) + 500;
-  EXPECT_EQ(QUIC_NO_ERROR,
-            buffer_->OnStreamData(offset, source, &written_, &error_details_));
+  EXPECT_THAT(buffer_->OnStreamData(offset, source, &written_, &error_details_),
+              IsQuicNoError());
   EXPECT_EQ(2, helper_->IntervalSize());
 
   // Frame [2^32 + 700, 2^32 + 800).
   offset = pow(2, 32) + 700;
-  EXPECT_EQ(QUIC_NO_ERROR,
-            buffer_->OnStreamData(offset, source, &written_, &error_details_));
+  EXPECT_THAT(buffer_->OnStreamData(offset, source, &written_, &error_details_),
+              IsQuicNoError());
   EXPECT_EQ(3, helper_->IntervalSize());
 
   // Another frame [2^32 + 300, 2^32 + 400).
   offset = pow(2, 32) + 300;
-  EXPECT_EQ(QUIC_NO_ERROR,
-            buffer_->OnStreamData(offset, source, &written_, &error_details_));
+  EXPECT_THAT(buffer_->OnStreamData(offset, source, &written_, &error_details_),
+              IsQuicNoError());
   EXPECT_EQ(4, helper_->IntervalSize());
 }
 
@@ -250,9 +250,9 @@ TEST_F(QuicStreamSequencerBufferTest, OnStreamDataTillEnd) {
   // Write 50 bytes to the end.
   const size_t kBytesToWrite = 50;
   std::string source(kBytesToWrite, 'a');
-  EXPECT_EQ(QUIC_NO_ERROR,
-            buffer_->OnStreamData(max_capacity_bytes_ - kBytesToWrite, source,
-                                  &written_, &error_details_));
+  EXPECT_THAT(buffer_->OnStreamData(max_capacity_bytes_ - kBytesToWrite, source,
+                                    &written_, &error_details_),
+              IsQuicNoError());
   EXPECT_EQ(50u, buffer_->BytesBuffered());
   EXPECT_TRUE(helper_->CheckBufferInvariants());
 }
@@ -261,42 +261,42 @@ TEST_F(QuicStreamSequencerBufferTest, OnStreamDataTillEndCorner) {
   // Write 1 byte to the end.
   const size_t kBytesToWrite = 1;
   std::string source(kBytesToWrite, 'a');
-  EXPECT_EQ(QUIC_NO_ERROR,
-            buffer_->OnStreamData(max_capacity_bytes_ - kBytesToWrite, source,
-                                  &written_, &error_details_));
+  EXPECT_THAT(buffer_->OnStreamData(max_capacity_bytes_ - kBytesToWrite, source,
+                                    &written_, &error_details_),
+              IsQuicNoError());
   EXPECT_EQ(1u, buffer_->BytesBuffered());
   EXPECT_TRUE(helper_->CheckBufferInvariants());
 }
 
 TEST_F(QuicStreamSequencerBufferTest, OnStreamDataBeyondCapacity) {
   std::string source(60, 'a');
-  EXPECT_EQ(QUIC_INTERNAL_ERROR,
-            buffer_->OnStreamData(max_capacity_bytes_ - 50, source, &written_,
-                                  &error_details_));
+  EXPECT_THAT(buffer_->OnStreamData(max_capacity_bytes_ - 50, source, &written_,
+                                    &error_details_),
+              IsError(QUIC_INTERNAL_ERROR));
   EXPECT_TRUE(helper_->CheckBufferInvariants());
 
   source = "b";
-  EXPECT_EQ(QUIC_INTERNAL_ERROR,
-            buffer_->OnStreamData(max_capacity_bytes_, source, &written_,
-                                  &error_details_));
+  EXPECT_THAT(buffer_->OnStreamData(max_capacity_bytes_, source, &written_,
+                                    &error_details_),
+              IsError(QUIC_INTERNAL_ERROR));
   EXPECT_TRUE(helper_->CheckBufferInvariants());
 
-  EXPECT_EQ(QUIC_INTERNAL_ERROR,
-            buffer_->OnStreamData(max_capacity_bytes_ * 1000, source, &written_,
-                                  &error_details_));
+  EXPECT_THAT(buffer_->OnStreamData(max_capacity_bytes_ * 1000, source,
+                                    &written_, &error_details_),
+              IsError(QUIC_INTERNAL_ERROR));
   EXPECT_TRUE(helper_->CheckBufferInvariants());
 
   // Disallow current_gap != gaps_.end()
-  EXPECT_EQ(QUIC_INTERNAL_ERROR,
-            buffer_->OnStreamData(static_cast<QuicStreamOffset>(-1), source,
-                                  &written_, &error_details_));
+  EXPECT_THAT(buffer_->OnStreamData(static_cast<QuicStreamOffset>(-1), source,
+                                    &written_, &error_details_),
+              IsError(QUIC_INTERNAL_ERROR));
   EXPECT_TRUE(helper_->CheckBufferInvariants());
 
   // Disallow offset + size overflow
   source = "bbb";
-  EXPECT_EQ(QUIC_INTERNAL_ERROR,
-            buffer_->OnStreamData(static_cast<QuicStreamOffset>(-2), source,
-                                  &written_, &error_details_));
+  EXPECT_THAT(buffer_->OnStreamData(static_cast<QuicStreamOffset>(-2), source,
+                                    &written_, &error_details_),
+              IsError(QUIC_INTERNAL_ERROR));
   EXPECT_TRUE(helper_->CheckBufferInvariants());
   EXPECT_EQ(0u, buffer_->BytesBuffered());
 }
@@ -314,7 +314,8 @@ TEST_F(QuicStreamSequencerBufferTest, Readv100Bytes) {
   char dest[120];
   iovec iovecs[3]{iovec{dest, 40}, iovec{dest + 40, 40}, iovec{dest + 80, 40}};
   size_t read;
-  EXPECT_EQ(QUIC_NO_ERROR, buffer_->Readv(iovecs, 3, &read, &error_details_));
+  EXPECT_THAT(buffer_->Readv(iovecs, 3, &read, &error_details_),
+              IsQuicNoError());
   QUIC_LOG(ERROR) << error_details_;
   EXPECT_EQ(100u, read);
   EXPECT_EQ(100u, buffer_->BytesConsumed());
@@ -335,7 +336,8 @@ TEST_F(QuicStreamSequencerBufferTest, ReadvAcrossBlocks) {
     std::fill(dest, dest + 512, 0);
     iovec iovecs[2]{iovec{dest, 256}, iovec{dest + 256, 256}};
     size_t read;
-    EXPECT_EQ(QUIC_NO_ERROR, buffer_->Readv(iovecs, 2, &read, &error_details_));
+    EXPECT_THAT(buffer_->Readv(iovecs, 2, &read, &error_details_),
+                IsQuicNoError());
   }
   // The last read only reads the rest 50 bytes in 2nd block.
   EXPECT_EQ(std::string(50, 'a'), std::string(dest, 50));
@@ -353,7 +355,7 @@ TEST_F(QuicStreamSequencerBufferTest, ClearAfterRead) {
   char dest[512]{0};
   const iovec iov{dest, 512};
   size_t read;
-  EXPECT_EQ(QUIC_NO_ERROR, buffer_->Readv(&iov, 1, &read, &error_details_));
+  EXPECT_THAT(buffer_->Readv(&iov, 1, &read, &error_details_), IsQuicNoError());
   // Clear() should make buffer empty while preserving BytesConsumed()
   buffer_->Clear();
   EXPECT_TRUE(buffer_->Empty());
@@ -369,14 +371,15 @@ TEST_F(QuicStreamSequencerBufferTest,
   char dest[512]{0};
   const iovec iov{dest, 512};
   size_t read;
-  EXPECT_EQ(QUIC_NO_ERROR, buffer_->Readv(&iov, 1, &read, &error_details_));
+  EXPECT_THAT(buffer_->Readv(&iov, 1, &read, &error_details_), IsQuicNoError());
   EXPECT_EQ(source.size(), written_);
 
   // Write more than half block size of bytes in the last block with 'b', which
   // will wrap to the beginning and reaches the full capacity.
   source = std::string(0.5 * kBlockSizeBytes + 512, 'b');
-  EXPECT_EQ(QUIC_NO_ERROR, buffer_->OnStreamData(2 * kBlockSizeBytes, source,
-                                                 &written_, &error_details_));
+  EXPECT_THAT(buffer_->OnStreamData(2 * kBlockSizeBytes, source, &written_,
+                                    &error_details_),
+              IsQuicNoError());
   EXPECT_EQ(source.size(), written_);
   EXPECT_TRUE(helper_->CheckBufferInvariants());
 }
@@ -390,14 +393,14 @@ TEST_F(QuicStreamSequencerBufferTest,
   char dest[512]{0};
   const iovec iov{dest, 512};
   size_t read;
-  EXPECT_EQ(QUIC_NO_ERROR, buffer_->Readv(&iov, 1, &read, &error_details_));
+  EXPECT_THAT(buffer_->Readv(&iov, 1, &read, &error_details_), IsQuicNoError());
 
   // Try to write from [max_capacity_bytes_ - 0.5 * kBlockSizeBytes,
   // max_capacity_bytes_ +  512 + 1). But last bytes exceeds current capacity.
   source = std::string(0.5 * kBlockSizeBytes + 512 + 1, 'b');
-  EXPECT_EQ(QUIC_INTERNAL_ERROR,
-            buffer_->OnStreamData(2 * kBlockSizeBytes, source, &written_,
-                                  &error_details_));
+  EXPECT_THAT(buffer_->OnStreamData(2 * kBlockSizeBytes, source, &written_,
+                                    &error_details_),
+              IsError(QUIC_INTERNAL_ERROR));
   EXPECT_TRUE(helper_->CheckBufferInvariants());
 }
 
@@ -409,7 +412,7 @@ TEST_F(QuicStreamSequencerBufferTest, ReadvAcrossLastBlock) {
   char dest[512]{0};
   const iovec iov{dest, 512};
   size_t read;
-  EXPECT_EQ(QUIC_NO_ERROR, buffer_->Readv(&iov, 1, &read, &error_details_));
+  EXPECT_THAT(buffer_->Readv(&iov, 1, &read, &error_details_), IsQuicNoError());
   source = std::string(256, 'b');
   buffer_->OnStreamData(max_capacity_bytes_, source, &written_,
                         &error_details_);
@@ -419,7 +422,8 @@ TEST_F(QuicStreamSequencerBufferTest, ReadvAcrossLastBlock) {
   std::unique_ptr<char[]> dest1{new char[max_capacity_bytes_]};
   dest1[0] = 0;
   const iovec iov1{dest1.get(), max_capacity_bytes_};
-  EXPECT_EQ(QUIC_NO_ERROR, buffer_->Readv(&iov1, 1, &read, &error_details_));
+  EXPECT_THAT(buffer_->Readv(&iov1, 1, &read, &error_details_),
+              IsQuicNoError());
   EXPECT_EQ(max_capacity_bytes_ - 512 + 256, read);
   EXPECT_EQ(max_capacity_bytes_ + 256, buffer_->BytesConsumed());
   EXPECT_TRUE(buffer_->Empty());
@@ -430,7 +434,7 @@ TEST_F(QuicStreamSequencerBufferTest, ReadvEmpty) {
   char dest[512]{0};
   iovec iov{dest, 512};
   size_t read;
-  EXPECT_EQ(QUIC_NO_ERROR, buffer_->Readv(&iov, 1, &read, &error_details_));
+  EXPECT_THAT(buffer_->Readv(&iov, 1, &read, &error_details_), IsQuicNoError());
   EXPECT_EQ(0u, read);
   EXPECT_TRUE(helper_->CheckBufferInvariants());
 }
@@ -452,7 +456,8 @@ TEST_F(QuicStreamSequencerBufferTest, ReleaseWholeBuffer) {
   char dest[120];
   iovec iovecs[3]{iovec{dest, 40}, iovec{dest + 40, 40}, iovec{dest + 80, 40}};
   size_t read;
-  EXPECT_EQ(QUIC_NO_ERROR, buffer_->Readv(iovecs, 3, &read, &error_details_));
+  EXPECT_THAT(buffer_->Readv(iovecs, 3, &read, &error_details_),
+              IsQuicNoError());
   EXPECT_EQ(100u, read);
   EXPECT_EQ(100u, buffer_->BytesConsumed());
   EXPECT_TRUE(helper_->CheckBufferInvariants());
@@ -847,7 +852,7 @@ TEST_F(QuicStreamSequencerBufferTest, TooManyGaps) {
 
     QuicStreamOffset last_straw = 2 * kMaxNumGapsAllowed - 1;
     if (begin == last_straw) {
-      EXPECT_EQ(QUIC_TOO_MANY_STREAM_DATA_INTERVALS, rs);
+      EXPECT_THAT(rs, IsError(QUIC_TOO_MANY_STREAM_DATA_INTERVALS));
       EXPECT_EQ("Too many data intervals received for this stream.",
                 error_details_);
       break;
@@ -982,9 +987,9 @@ TEST_F(QuicStreamSequencerBufferRandomIOTest, RandomWriteAndReadv) {
           num_to_read += dest_iov[i].iov_len;
         }
         size_t actually_read;
-        EXPECT_EQ(QUIC_NO_ERROR,
-                  buffer_->Readv(dest_iov, kNumReads, &actually_read,
-                                 &error_details_));
+        EXPECT_THAT(buffer_->Readv(dest_iov, kNumReads, &actually_read,
+                                   &error_details_),
+                    IsQuicNoError());
         ASSERT_LE(actually_read, num_to_read);
         QUIC_DVLOG(1) << " read from offset: " << total_bytes_read_
                       << " size: " << num_to_read

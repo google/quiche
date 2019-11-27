@@ -822,7 +822,7 @@ TEST_F(QuicIetfFramerTest, ConnectionClose) {
 
   // Now check that received == sent
   EXPECT_EQ(sent_frame.quic_error_code, sink_frame.quic_error_code);
-  EXPECT_EQ(sink_frame.quic_error_code, QUIC_NO_ERROR);
+  EXPECT_THAT(sink_frame.quic_error_code, IsQuicNoError());
   EXPECT_EQ(sink_frame.error_details, test_string);
   EXPECT_EQ(sink_frame.close_type, sent_frame.close_type);
   EXPECT_EQ(sent_frame.close_type, IETF_QUIC_TRANSPORT_CONNECTION_CLOSE);

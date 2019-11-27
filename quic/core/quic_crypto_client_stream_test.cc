@@ -389,14 +389,14 @@ TEST_F(QuicCryptoClientStreamTest, PreferredVersion) {
   // Verify preferred version is the highest version that session supports, and
   // is different from connection's version.
   QuicVersionLabel client_version_label;
-  EXPECT_EQ(QUIC_NO_ERROR,
-            session_->sent_crypto_handshake_messages()[0].GetVersionLabel(
-                kVER, &client_version_label));
+  EXPECT_THAT(session_->sent_crypto_handshake_messages()[0].GetVersionLabel(
+                  kVER, &client_version_label),
+              IsQuicNoError());
   EXPECT_EQ(CreateQuicVersionLabel(supported_versions_[0]),
             client_version_label);
-  EXPECT_EQ(QUIC_NO_ERROR,
-            session_->sent_crypto_handshake_messages()[1].GetVersionLabel(
-                kVER, &client_version_label));
+  EXPECT_THAT(session_->sent_crypto_handshake_messages()[1].GetVersionLabel(
+                  kVER, &client_version_label),
+              IsQuicNoError());
   EXPECT_EQ(CreateQuicVersionLabel(supported_versions_[0]),
             client_version_label);
   EXPECT_NE(CreateQuicVersionLabel(connection_->version()),
