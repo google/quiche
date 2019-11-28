@@ -2522,6 +2522,43 @@ TEST_P(QuicSpdyStreamTest, StopProcessingIfConnectionClosed) {
   EXPECT_EQ(0u, stream_->sequencer()->NumBytesConsumed());
 }
 
+// Stream Cancellation instruction is sent on QPACK decoder stream
+// when stream is reset.
+TEST_P(QuicSpdyStreamTest, StreamCancellationWhenStreamReset) {
+  if (!UsesHttp3()) {
+    return;
+  }
+
+  Initialize(kShouldProcessData);
+
+  auto qpack_decoder_stream =
+      QuicSpdySessionPeer::GetQpackDecoderSendStream(session_.get());
+  EXPECT_CALL(*session_, WritevData(qpack_decoder_stream,
+                                    qpack_decoder_stream->id(), 1, 1, _));
+  EXPECT_CALL(*session_,
+              SendRstStream(stream_->id(), QUIC_STREAM_CANCELLED, 0));
+
+  stream_->Reset(QUIC_STREAM_CANCELLED);
+}
+
+// Stream Cancellation instruction is sent on QPACK decoder stream
+// when RESET_STREAM frame is received.
+TEST_P(QuicSpdyStreamTest, StreamCancellationOnResetReceived) {
+  if (!UsesHttp3()) {
+    return;
+  }
+
+  Initialize(kShouldProcessData);
+
+  auto qpack_decoder_stream =
+      QuicSpdySessionPeer::GetQpackDecoderSendStream(session_.get());
+  EXPECT_CALL(*session_, WritevData(qpack_decoder_stream,
+                                    qpack_decoder_stream->id(), 1, 1, _));
+
+  stream_->OnStreamReset(QuicRstStreamFrame(
+      kInvalidControlFrameId, stream_->id(), QUIC_STREAM_CANCELLED, 0));
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

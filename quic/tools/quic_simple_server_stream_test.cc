@@ -633,6 +633,16 @@ TEST_P(QuicSimpleServerStreamTest,
   EXPECT_FALSE(stream_->reading_stopped());
 
   EXPECT_CALL(session_, SendRstStream(_, QUIC_STREAM_NO_ERROR, _)).Times(0);
+  if (VersionUsesHttp3(connection_->transport_version())) {
+    // Unidirectional stream type and then a Stream Cancellation instruction is
+    // sent on the QPACK decoder stream.  Ignore these writes without any
+    // assumption on their number or size.
+    auto* qpack_decoder_stream =
+        QuicSpdySessionPeer::GetQpackDecoderSendStream(&session_);
+    EXPECT_CALL(session_, WritevData(qpack_decoder_stream,
+                                     qpack_decoder_stream->id(), _, _, _))
+        .Times(AnyNumber());
+  }
   EXPECT_CALL(session_, SendRstStream(_, QUIC_RST_ACKNOWLEDGEMENT, _)).Times(1);
   QuicRstStreamFrame rst_frame(kInvalidControlFrameId, stream_->id(),
                                QUIC_STREAM_CANCELLED, 1234);

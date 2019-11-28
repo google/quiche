@@ -102,6 +102,8 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   // QUIC_STREAM_NO_ERROR.
   void OnStreamReset(const QuicRstStreamFrame& frame) override;
 
+  void Reset(QuicRstStreamErrorCode error) override;
+
   // Called by the sequencer when new data is available. Decodes the data and
   // calls OnBodyAvailable() to pass to the upper layer.
   void OnDataAvailable() override;

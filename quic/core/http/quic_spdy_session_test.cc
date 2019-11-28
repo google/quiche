@@ -32,6 +32,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/qpack/qpack_encoder_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/qpack/qpack_header_table_peer.h"
+#include "net/third_party/quiche/src/quic/test_tools/qpack/qpack_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_config_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_connection_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_flow_controller_peer.h"
@@ -2025,6 +2026,14 @@ TEST_P(QuicSpdySessionTestServer, OnStreamFrameLost) {
 }
 
 TEST_P(QuicSpdySessionTestServer, DonotRetransmitDataOfClosedStreams) {
+  // Resetting a stream will send a QPACK Stream Cancellation instruction on the
+  // decoder stream.  For simplicity, ignore writes on this stream.
+  NoopQpackStreamSenderDelegate qpack_stream_sender_delegate;
+  if (VersionUsesHttp3(transport_version())) {
+    session_.qpack_decoder()->set_qpack_stream_sender_delegate(
+        &qpack_stream_sender_delegate);
+  }
+
   InSequence s;
 
   TestStream* stream2 = session_.CreateOutgoingBidirectionalStream();

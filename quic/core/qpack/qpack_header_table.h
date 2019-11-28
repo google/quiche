@@ -98,6 +98,11 @@ class QUIC_EXPORT_PRIVATE QpackHeaderTable {
   // This method must only be called at most once.
   void SetMaximumDynamicTableCapacity(uint64_t maximum_dynamic_table_capacity);
 
+  // Get |maximum_dynamic_table_capacity_|.
+  uint64_t maximum_dynamic_table_capacity() const {
+    return maximum_dynamic_table_capacity_;
+  }
+
   // Register an observer to be notified when inserted_entry_count() reaches
   // |required_insert_count|.  After the notification, |observer| automatically
   // gets unregistered.  Each observer must only be registered at most once.
