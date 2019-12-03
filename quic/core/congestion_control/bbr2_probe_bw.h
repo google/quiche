@@ -11,6 +11,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_time.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 
 namespace quic {
 
@@ -121,6 +122,10 @@ class QUIC_EXPORT_PRIVATE Bbr2ProbeBwMode final : public Bbr2ModeBase {
 
   bool last_cycle_probed_too_high_;
   bool last_cycle_stopped_risky_probe_;
+
+  // Latched value of --quic_bbr2_exit_probe_bw_down_after_one_rtt.
+  const bool exit_probe_down_after_one_rtt_ =
+      GetQuicReloadableFlag(quic_bbr2_exit_probe_bw_down_after_one_rtt);
 };
 
 QUIC_EXPORT_PRIVATE std::ostream& operator<<(
