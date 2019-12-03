@@ -232,10 +232,15 @@ class QuicSpdyStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
       auto send_control_stream =
           QuicSpdySessionPeer::GetSendControlStream(session_.get());
       // The control stream will write 3 times, including stream type, settings
-      // frame, priority for headers.
+      // frame and max push id, priority for headers.
+      int num_control_stream_writes = 2;
+      if (session_->perspective() == Perspective::IS_CLIENT) {
+        // The control stream also writes the max push id frame.
+        num_control_stream_writes++;
+      }
       EXPECT_CALL(*session_, WritevData(send_control_stream,
                                         send_control_stream->id(), _, _, _))
-          .Times(2);
+          .Times(num_control_stream_writes);
       auto qpack_decoder_stream =
           QuicSpdySessionPeer::GetQpackDecoderSendStream(session_.get());
       EXPECT_CALL(*session_, WritevData(qpack_decoder_stream,
@@ -1279,7 +1284,8 @@ TEST_P(QuicSpdyStreamTest, ClientWritesPriority) {
         .Times(4);
     auto send_control_stream =
         QuicSpdySessionPeer::GetSendControlStream(session_.get());
-    // The control stream will write priority for headers.
+    // The control stream will write priority for headers as well as
+    // the settings/max_push_id.
     EXPECT_CALL(*session_, WritevData(send_control_stream,
                                       send_control_stream->id(), _, _, _))
         .Times(1);

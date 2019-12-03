@@ -50,10 +50,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdyClientSessionBase
 
   void OnConfigNegotiated() override;
 
-  // Override base class to set FEC policy before any data is sent by client.
-  void OnCryptoHandshakeEvent(CryptoHandshakeEvent event) override;
-  void SetDefaultEncryptionLevel(quic::EncryptionLevel level) override;
-
   // Called by |headers_stream_| when push promise headers have been
   // completely received.
   void OnPromiseHeaderList(QuicStreamId stream_id,

@@ -349,7 +349,8 @@ QuicSpdySession::QuicSpdySession(
       destruction_indicator_(123456789),
       debug_visitor_(nullptr),
       http3_goaway_received_(false),
-      http3_goaway_sent_(false) {
+      http3_goaway_sent_(false),
+      http3_max_push_id_sent_(false) {
   h2_deframer_.set_visitor(spdy_framer_visitor_.get());
   h2_deframer_.set_debug_visitor(spdy_framer_visitor_.get());
   spdy_framer_.set_debug_visitor(spdy_framer_visitor_.get());
@@ -598,6 +599,10 @@ void QuicSpdySession::SendInitialData() {
   send_control_stream_->MaybeSendSettingsFrame();
   qpack_decoder_send_stream_->MaybeSendStreamType();
   qpack_encoder_send_stream_->MaybeSendStreamType();
+  if (perspective() == Perspective::IS_CLIENT && !http3_max_push_id_sent_) {
+    SendMaxPushId();
+    http3_max_push_id_sent_ = true;
+  }
 }
 
 QpackEncoder* QuicSpdySession::qpack_encoder() {

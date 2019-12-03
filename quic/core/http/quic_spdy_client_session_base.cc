@@ -39,24 +39,6 @@ void QuicSpdyClientSessionBase::OnConfigNegotiated() {
   QuicSpdySession::OnConfigNegotiated();
 }
 
-void QuicSpdyClientSessionBase::OnCryptoHandshakeEvent(
-    CryptoHandshakeEvent event) {
-  QuicSpdySession::OnCryptoHandshakeEvent(event);
-  if (event == HANDSHAKE_CONFIRMED && max_allowed_push_id() > 0 &&
-      VersionUsesHttp3(transport_version())) {
-    SendMaxPushId();
-  }
-}
-
-void QuicSpdyClientSessionBase::SetDefaultEncryptionLevel(
-    quic::EncryptionLevel level) {
-  QuicSpdySession::SetDefaultEncryptionLevel(level);
-  if (level == ENCRYPTION_FORWARD_SECURE && max_allowed_push_id() > 0 &&
-      VersionUsesHttp3(transport_version())) {
-    SendMaxPushId();
-  }
-}
-
 void QuicSpdyClientSessionBase::OnInitialHeadersComplete(
     QuicStreamId stream_id,
     const SpdyHeaderBlock& response_headers) {
