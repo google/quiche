@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <memory>
 
+#include "url/gurl.h"
 #include "url/origin.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_crypto_client_config.h"
 #include "net/third_party/quiche/src/quic/core/quic_config.h"
@@ -47,7 +48,7 @@ class QUIC_EXPORT_PRIVATE QuicTransportClientSession
                              Visitor* owner,
                              const QuicConfig& config,
                              const ParsedQuicVersionVector& supported_versions,
-                             const QuicServerId& server_id,
+                             const GURL& url,
                              QuicCryptoClientConfig* crypto_config,
                              url::Origin origin,
                              ClientVisitor* visitor);
@@ -116,6 +117,7 @@ class QUIC_EXPORT_PRIVATE QuicTransportClientSession
   void SendClientIndication();
 
   std::unique_ptr<QuicCryptoClientStream> crypto_stream_;
+  GURL url_;
   url::Origin origin_;
   ClientVisitor* visitor_;  // not owned
   bool client_indication_sent_ = false;

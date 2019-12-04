@@ -43,7 +43,7 @@ QuicTransportClientSession::QuicTransportClientSession(
     Visitor* owner,
     const QuicConfig& config,
     const ParsedQuicVersionVector& supported_versions,
-    const QuicServerId& server_id,
+    const GURL& url,
     QuicCryptoClientConfig* crypto_config,
     url::Origin origin,
     ClientVisitor* visitor)
@@ -52,6 +52,7 @@ QuicTransportClientSession::QuicTransportClientSession(
                   config,
                   supported_versions,
                   /*num_expected_unidirectional_static_streams*/ 0),
+      url_(url),
       origin_(origin),
       visitor_(visitor) {
   for (const ParsedQuicVersion& version : supported_versions) {
@@ -61,8 +62,9 @@ QuicTransportClientSession::QuicTransportClientSession(
   // ProofHandler API is not used by TLS 1.3.
   static DummyProofHandler* proof_handler = new DummyProofHandler();
   crypto_stream_ = std::make_unique<QuicCryptoClientStream>(
-      server_id, this, crypto_config->proof_verifier()->CreateDefaultContext(),
-      crypto_config, proof_handler);
+      QuicServerId(url.host(), url.EffectiveIntPort()), this,
+      crypto_config->proof_verifier()->CreateDefaultContext(), crypto_config,
+      proof_handler);
 }
 
 QuicStream* QuicTransportClientSession::CreateIncomingStream(QuicStreamId id) {
@@ -153,16 +155,40 @@ std::string QuicTransportClientSession::SerializeClientIndication() {
   QUIC_DLOG(INFO) << "Sending client indication with origin "
                   << serialized_origin;
 
-  std::string buffer;
-  buffer.resize(/* key */ sizeof(QuicTransportClientIndicationKeys) +
-                /* length */ sizeof(uint16_t) + serialized_origin.size());
-  QuicDataWriter writer(buffer.size(), &buffer[0]);
-  writer.WriteUInt16(
-      static_cast<uint16_t>(QuicTransportClientIndicationKeys::kOrigin));
-  writer.WriteUInt16(serialized_origin.size());
-  writer.WriteStringPiece(serialized_origin);
+  std::string path = url_.PathForRequest();
+  if (path.size() > std::numeric_limits<uint16_t>::max()) {
+    connection()->CloseConnection(
+        QUIC_TRANSPORT_INVALID_CLIENT_INDICATION, "Requested URL path too long",
+        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    return "";
+  }
 
-  buffer.resize(writer.length());
+  constexpr size_t kPrefixSize =
+      sizeof(QuicTransportClientIndicationKeys) + sizeof(uint16_t);
+  const size_t buffer_size =
+      2 * kPrefixSize + serialized_origin.size() + path.size();
+  if (buffer_size > std::numeric_limits<uint16_t>::max()) {
+    connection()->CloseConnection(
+        QUIC_TRANSPORT_INVALID_CLIENT_INDICATION,
+        "Client indication size limit exceeded",
+        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    return "";
+  }
+
+  std::string buffer;
+  buffer.resize(buffer_size);
+  QuicDataWriter writer(buffer.size(), &buffer[0]);
+  bool success =
+      writer.WriteUInt16(
+          static_cast<uint16_t>(QuicTransportClientIndicationKeys::kOrigin)) &&
+      writer.WriteUInt16(serialized_origin.size()) &&
+      writer.WriteStringPiece(serialized_origin) &&
+      writer.WriteUInt16(
+          static_cast<uint16_t>(QuicTransportClientIndicationKeys::kPath)) &&
+      writer.WriteUInt16(path.size()) && writer.WriteStringPiece(path);
+  QUIC_BUG_IF(!success) << "Failed to serialize client indication";
+  QUIC_BUG_IF(writer.length() != buffer.length())
+      << "Serialized client indication has length different from expected";
   return buffer;
 }
 

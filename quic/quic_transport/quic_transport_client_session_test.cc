@@ -30,8 +30,6 @@ using testing::_;
 using testing::ElementsAre;
 
 const char* kTestOrigin = "https://test-origin.test";
-constexpr char kTestOriginClientIndication[] =
-    "\0\0\0\x18https://test-origin.test";
 url::Origin GetTestOrigin() {
   GURL origin_url(kTestOrigin);
   return url::Origin::Create(origin_url);
@@ -58,15 +56,15 @@ class QuicTransportClientSessionTest : public QuicTest {
                     &alarm_factory_,
                     Perspective::IS_CLIENT,
                     GetVersions()),
-        server_id_("test.example.com", 443),
         crypto_config_(crypto_test_utils::ProofVerifierForTesting()) {
     SetQuicReloadableFlag(quic_supports_tls_handshake, true);
-    CreateSession(GetTestOrigin());
+    CreateSession(GetTestOrigin(), "");
   }
 
-  void CreateSession(url::Origin origin) {
+  void CreateSession(url::Origin origin, std::string url_suffix) {
     session_ = std::make_unique<QuicTransportClientSession>(
-        &connection_, nullptr, DefaultQuicConfig(), GetVersions(), server_id_,
+        &connection_, nullptr, DefaultQuicConfig(), GetVersions(),
+        GURL("quic-transport://test.example.com:50000" + url_suffix),
         &crypto_config_, origin, &visitor_);
     session_->Initialize();
     crypto_stream_ = static_cast<QuicCryptoClientStream*>(
@@ -87,7 +85,6 @@ class QuicTransportClientSessionTest : public QuicTest {
   MockQuicConnectionHelper helper_;
 
   PacketSavingConnection connection_;
-  QuicServerId server_id_;
   QuicCryptoClientConfig crypto_config_;
   MockClientVisitor visitor_;
   std::unique_ptr<QuicTransportClientSession> session_;
@@ -99,6 +96,39 @@ TEST_F(QuicTransportClientSessionTest, HasValidAlpn) {
 }
 
 TEST_F(QuicTransportClientSessionTest, SuccessfulConnection) {
+  constexpr char kTestOriginClientIndication[] =
+      "\0\0"                      // key (0x0000, origin)
+      "\0\x18"                    // length
+      "https://test-origin.test"  // value
+      "\0\x01"                    // key (0x0001, path)
+      "\0\x01"                    // length
+      "/";                        // value
+
+  Connect();
+  EXPECT_TRUE(session_->IsSessionReady());
+
+  QuicStream* client_indication_stream =
+      QuicSessionPeer::zombie_streams(session_.get())[ClientIndicationStream()]
+          .get();
+  ASSERT_TRUE(client_indication_stream != nullptr);
+  const std::string client_indication = DataInStream(client_indication_stream);
+  const std::string expected_client_indication{
+      kTestOriginClientIndication,
+      QUIC_ARRAYSIZE(kTestOriginClientIndication) - 1};
+  EXPECT_EQ(client_indication, expected_client_indication);
+}
+
+TEST_F(QuicTransportClientSessionTest, SuccessfulConnectionWithPath) {
+  constexpr char kSuffix[] = "/foo/bar?hello=world#not-sent";
+  constexpr char kTestOriginClientIndication[] =
+      "\0\0"                      // key (0x0000, origin)
+      "\0\x18"                    // length
+      "https://test-origin.test"  // value
+      "\0\x01"                    // key (0x0001, path)
+      "\0\x14"                    // length
+      "/foo/bar?hello=world";     // value
+
+  CreateSession(GetTestOrigin(), kSuffix);
   Connect();
   EXPECT_TRUE(session_->IsSessionReady());
 
@@ -117,7 +147,7 @@ TEST_F(QuicTransportClientSessionTest, OriginTooLong) {
   std::string long_string(68000, 'a');
   GURL bad_origin_url{"https://" + long_string + ".example/"};
   EXPECT_TRUE(bad_origin_url.is_valid());
-  CreateSession(url::Origin::Create(bad_origin_url));
+  CreateSession(url::Origin::Create(bad_origin_url), "");
 
   EXPECT_QUIC_BUG(Connect(), "Client origin too long");
 }

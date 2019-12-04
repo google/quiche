@@ -80,7 +80,7 @@ class QuicTransportClientEndpoint : public QuicTransportEndpointBase {
                  nullptr,
                  DefaultQuicConfig(),
                  GetVersions(),
-                 QuicServerId("test.example.com", 443),
+                 GURL("quic-transport://test.example.com:50000"),
                  &crypto_config_,
                  origin,
                  &visitor_) {

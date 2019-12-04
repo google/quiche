@@ -29,6 +29,7 @@ QUIC_EXPORT_PRIVATE constexpr QuicByteCount ClientIndicationMaxSize() {
 // The keys of the fields in the client indication.
 enum class QuicTransportClientIndicationKeys : uint16_t {
   kOrigin = 0x0000,
+  kPath = 0x0001,
 };
 
 }  // namespace quic
