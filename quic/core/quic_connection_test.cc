@@ -2034,21 +2034,8 @@ TEST_P(QuicConnectionTest, WriteOutOfOrderQueuedPackets) {
   writer_->SetWritable();
   connection_.SendConnectivityProbingPacket(writer_.get(),
                                             connection_.peer_address());
-  if (connection_.treat_queued_packets_as_sent()) {
-    EXPECT_CALL(visitor_, OnConnectionClosed(_, _)).Times(0);
-    connection_.OnCanWrite();
-    return;
-  }
-  EXPECT_CALL(visitor_,
-              OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF));
-  EXPECT_QUIC_BUG(connection_.OnCanWrite(),
-                  "Attempt to write packet:1 after:2");
-  EXPECT_FALSE(connection_.connected());
-  TestConnectionCloseQuicErrorCode(QUIC_INTERNAL_ERROR);
-  const std::vector<QuicConnectionCloseFrame>& connection_close_frames =
-      writer_->connection_close_frames();
-  EXPECT_EQ("Packet written out of order.",
-            connection_close_frames[0].error_details);
+  EXPECT_CALL(visitor_, OnConnectionClosed(_, _)).Times(0);
+  connection_.OnCanWrite();
 }
 
 TEST_P(QuicConnectionTest, DiscardQueuedPacketsAfterConnectionClose) {
@@ -2070,12 +2057,8 @@ TEST_P(QuicConnectionTest, DiscardQueuedPacketsAfterConnectionClose) {
   connection_.SendStreamDataWithString(/*id=*/2, "foo", 0, NO_FIN);
 
   EXPECT_FALSE(connection_.connected());
-  if (connection_.treat_queued_packets_as_sent()) {
-    // No need to buffer packets.
-    EXPECT_EQ(0u, connection_.NumQueuedPackets());
-  } else {
-    EXPECT_EQ(1u, connection_.NumQueuedPackets());
-  }
+  // No need to buffer packets.
+  EXPECT_EQ(0u, connection_.NumQueuedPackets());
 
   EXPECT_EQ(0u, connection_.GetStats().packets_discarded);
   connection_.OnCanWrite();
@@ -3371,11 +3354,7 @@ TEST_P(QuicConnectionTest, SendQueuedPacketForQuicRstStreamNoError) {
   BlockOnNextWrite();
 
   QuicStreamId stream_id = 2;
-  if (connection_.treat_queued_packets_as_sent()) {
-    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
-  } else {
-    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
-  }
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
   connection_.SendStreamDataWithString(stream_id, "foo", 0, NO_FIN);
 
   // Now that there is a queued packet, reset the stream.
@@ -3383,13 +3362,7 @@ TEST_P(QuicConnectionTest, SendQueuedPacketForQuicRstStreamNoError) {
 
   // Unblock the connection and verify that the RST_STREAM is sent and the data
   // packet is sent.
-  if (connection_.treat_queued_packets_as_sent()) {
-    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
-        .Times(AtLeast(1));
-  } else {
-    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
-        .Times(AtLeast(2));
-  }
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(AtLeast(1));
   writer_->SetWritable();
   connection_.OnCanWrite();
   size_t padding_frame_count = writer_->padding_frames().size();
@@ -3588,12 +3561,8 @@ TEST_P(QuicConnectionTest, RetransmitAckedPacket) {
   EXPECT_CALL(*loss_algorithm_, DetectLosses(_, _, _, _, _, _))
       .WillOnce(SetArgPointee<5>(lost_packets));
   EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
-  if (connection_.treat_queued_packets_as_sent()) {
-    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, QuicPacketNumber(4), _, _))
-        .Times(1);
-  } else {
-    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
-  }
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, QuicPacketNumber(4), _, _))
+      .Times(1);
   ProcessAckPacket(&nack_two);
   EXPECT_EQ(1u, connection_.NumQueuedPackets());
 
@@ -3603,15 +3572,8 @@ TEST_P(QuicConnectionTest, RetransmitAckedPacket) {
   QuicAckFrame ack_all = InitAckFrame(3);
   ProcessAckPacket(&ack_all);
 
-  if (connection_.treat_queued_packets_as_sent()) {
-    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, QuicPacketNumber(4), _, _))
-        .Times(0);
-  } else {
-    // Unblock the socket and attempt to send the queued packets. We will always
-    // send the retransmission.
-    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, QuicPacketNumber(4), _, _))
-        .Times(1);
-  }
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, QuicPacketNumber(4), _, _))
+      .Times(0);
 
   writer_->SetWritable();
   connection_.OnCanWrite();
@@ -3662,11 +3624,7 @@ TEST_P(QuicConnectionTest, QueueAfterTwoRTOs) {
   // Block the writer and ensure they're queued.
   BlockOnNextWrite();
   clock_.AdvanceTime(DefaultRetransmissionTime());
-  if (connection_.treat_queued_packets_as_sent()) {
-    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(2);
-  } else {
-    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
-  }
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(2);
   connection_.GetRetransmissionAlarm()->Fire();
   EXPECT_TRUE(connection_.HasQueuedData());
 
@@ -3674,12 +3632,7 @@ TEST_P(QuicConnectionTest, QueueAfterTwoRTOs) {
   writer_->SetWritable();
   clock_.AdvanceTime(QuicTime::Delta::FromMicroseconds(
       2 * DefaultRetransmissionTime().ToMicroseconds()));
-  if (connection_.treat_queued_packets_as_sent()) {
-    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(2);
-  } else {
-    // 2 RTOs + 1 TLP, which is buggy.
-    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(3);
-  }
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(2);
   connection_.GetRetransmissionAlarm()->Fire();
   connection_.OnCanWrite();
 }
@@ -3699,36 +3652,20 @@ TEST_P(QuicConnectionTest, WriteBlockedBufferedThenSent) {
 TEST_P(QuicConnectionTest, WriteBlockedThenSent) {
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
   BlockOnNextWrite();
-  if (connection_.treat_queued_packets_as_sent()) {
-    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
-  } else {
-    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
-  }
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
   connection_.SendStreamDataWithString(1, "foo", 0, NO_FIN);
-  if (connection_.treat_queued_packets_as_sent()) {
-    EXPECT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
-  } else {
-    EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
-  }
+  EXPECT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
   EXPECT_EQ(1u, connection_.NumQueuedPackets());
 
   // The second packet should also be queued, in order to ensure packets are
   // never sent out of order.
   writer_->SetWritable();
-  if (connection_.treat_queued_packets_as_sent()) {
-    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
-  } else {
-    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
-  }
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
   connection_.SendStreamDataWithString(1, "foo", 0, NO_FIN);
   EXPECT_EQ(2u, connection_.NumQueuedPackets());
 
   // Now both are sent in order when we unblock.
-  if (connection_.treat_queued_packets_as_sent()) {
-    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
-  } else {
-    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(2);
-  }
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
   connection_.OnCanWrite();
   EXPECT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
   EXPECT_EQ(0u, connection_.NumQueuedPackets());
@@ -4299,11 +4236,7 @@ TEST_P(QuicConnectionTest,
   // Simulate the retransmission alarm firing and the socket blocking.
   BlockOnNextWrite();
   clock_.AdvanceTime(DefaultRetransmissionTime());
-  if (connection_.treat_queued_packets_as_sent()) {
-    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
-  } else {
-    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
-  }
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
   connection_.GetRetransmissionAlarm()->Fire();
   EXPECT_EQ(1u, connection_.NumQueuedPackets());
 
@@ -4453,26 +4386,13 @@ TEST_P(QuicConnectionTest, Buffer100NonDecryptablePacketsThenKeyChange) {
 
 TEST_P(QuicConnectionTest, SetRTOAfterWritingToSocket) {
   BlockOnNextWrite();
-  if (connection_.treat_queued_packets_as_sent()) {
-    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
-  } else {
-    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
-  }
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
   connection_.SendStreamDataWithString(1, "foo", 0, NO_FIN);
-  if (connection_.treat_queued_packets_as_sent()) {
-    EXPECT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
-  } else {
-    // Make sure that RTO is not started when the packet is queued.
-    EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
-  }
+  EXPECT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
 
   // Test that RTO is started once we write to the socket.
   writer_->SetWritable();
-  if (connection_.treat_queued_packets_as_sent()) {
-    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
-  } else {
-    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
-  }
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
   connection_.OnCanWrite();
   EXPECT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
 }
@@ -4969,9 +4889,7 @@ TEST_P(QuicConnectionTest, MtuDiscoveryWriteBlocked) {
   SendStreamDataToPeer(3, "!", packets_between_probes_base - 1, NO_FIN,
                        nullptr);
   ASSERT_TRUE(connection_.GetMtuDiscoveryAlarm()->IsSet());
-  if (GetQuicReloadableFlag(quic_treat_queued_packets_as_sent)) {
-    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _));
-  }
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _));
   BlockOnNextWrite();
   EXPECT_EQ(0u, connection_.NumQueuedPackets());
   connection_.GetMtuDiscoveryAlarm()->Fire();
@@ -7982,11 +7900,7 @@ TEST_P(QuicConnectionTest, NotBecomeApplicationLimitedDueToWriteBlock) {
   EXPECT_CALL(visitor_, WillingAndAbleToWrite()).WillRepeatedly(Return(true));
   BlockOnNextWrite();
 
-  if (connection_.treat_queued_packets_as_sent()) {
-    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
-  } else {
-    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
-  }
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
   connection_.SendStreamData3();
 
   // Now unblock the writer, become congestion control blocked,
@@ -7994,11 +7908,7 @@ TEST_P(QuicConnectionTest, NotBecomeApplicationLimitedDueToWriteBlock) {
   writer_->SetWritable();
   CongestionBlockWrites();
   EXPECT_CALL(visitor_, WillingAndAbleToWrite()).WillRepeatedly(Return(false));
-  if (connection_.treat_queued_packets_as_sent()) {
-    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
-  } else {
-    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
-  }
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
   EXPECT_CALL(*send_algorithm_, OnApplicationLimited(_)).Times(1);
   connection_.OnCanWrite();
 }
@@ -8682,32 +8592,15 @@ TEST_P(QuicConnectionTest, ValidStatelessResetToken) {
 
 TEST_P(QuicConnectionTest, WriteBlockedWithInvalidAck) {
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
-  if (connection_.treat_queued_packets_as_sent()) {
-    EXPECT_CALL(visitor_, OnConnectionClosed(_, _)).Times(0);
-  } else {
-    EXPECT_CALL(visitor_, OnConnectionClosed(_, _))
-        .WillOnce(Invoke(this, &QuicConnectionTest::SaveConnectionCloseFrame));
-  }
+  EXPECT_CALL(visitor_, OnConnectionClosed(_, _)).Times(0);
   BlockOnNextWrite();
-  if (connection_.treat_queued_packets_as_sent()) {
-    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
-  } else {
-    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
-  }
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
   connection_.SendStreamDataWithString(5, "foo", 0, FIN);
   // This causes connection to be closed because packet 1 has not been sent yet.
   QuicAckFrame frame = InitAckFrame(1);
-  if (connection_.treat_queued_packets_as_sent()) {
-    EXPECT_CALL(*send_algorithm_, OnCongestionEvent(_, _, _, _, _));
-  }
+  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(_, _, _, _, _));
   ProcessAckPacket(1, &frame);
-  if (connection_.treat_queued_packets_as_sent()) {
-    EXPECT_EQ(0, connection_close_frame_count_);
-  } else {
-    EXPECT_EQ(1, connection_close_frame_count_);
-    EXPECT_THAT(saved_connection_close_frame_.quic_error_code,
-                IsError(QUIC_INVALID_ACK_DATA));
-  }
+  EXPECT_EQ(0, connection_close_frame_count_);
 }
 
 TEST_P(QuicConnectionTest, SendMessage) {
@@ -9361,11 +9254,7 @@ TEST_P(QuicConnectionTest, TlpAndWriteBlocked) {
   EXPECT_CALL(visitor_, OnWriteBlocked()).Times(AtLeast(1));
   SendRstStream(stream_id, QUIC_ERROR_PROCESSING_STREAM, 3);
 
-  if (connection_.treat_queued_packets_as_sent()) {
-    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
-  } else {
-    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
-  }
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
   // Retransmission timer fires in TLP mode.
   connection_.GetRetransmissionAlarm()->Fire();
   // Verify one packets is forced flushed when writer is blocked.

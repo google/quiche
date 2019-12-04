@@ -330,9 +330,6 @@ QuicConnection::QuicConnection(
       bytes_received_before_address_validation_(0),
       bytes_sent_before_address_validation_(0),
       address_validated_(false),
-      treat_queued_packets_as_sent_(
-          GetQuicReloadableFlag(quic_treat_queued_packets_as_sent) ||
-          version().CanSendCoalescedPackets()),
       quic_version_negotiated_by_default_at_server_(
           GetQuicReloadableFlag(quic_version_negotiated_by_default_at_server)),
       use_handshake_delegate_(
@@ -403,15 +400,6 @@ QuicConnection::~QuicConnection() {
 }
 
 void QuicConnection::ClearQueuedPackets() {
-  for (auto it = queued_packets_.begin(); it != queued_packets_.end(); ++it) {
-    // Delete the buffer before calling ClearSerializedPacket, which sets
-    // encrypted_buffer to nullptr.
-    DCHECK(!treat_queued_packets_as_sent_);
-    delete[] it->encrypted_buffer;
-    ClearSerializedPacket(&(*it));
-  }
-  queued_packets_.clear();
-
   buffered_packets_.clear();
 }
 
@@ -1686,28 +1674,6 @@ void QuicConnection::OnStreamReset(QuicStreamId id,
     ScopedPacketFlusher flusher(this);
     packet_creator_.FlushCurrentPacket();
   }
-
-  // Remove all queued packets which only contain data for the reset stream.
-  // TODO(fayang): consider removing this because it should be rarely executed.
-  auto packet_iterator = queued_packets_.begin();
-  while (packet_iterator != queued_packets_.end()) {
-    QuicFrames* retransmittable_frames =
-        &packet_iterator->retransmittable_frames;
-    if (retransmittable_frames->empty()) {
-      ++packet_iterator;
-      continue;
-    }
-    // NOTE THAT RemoveFramesForStream removes only STREAM frames
-    // for the specified stream.
-    RemoveFramesForStream(retransmittable_frames, id);
-    if (!retransmittable_frames->empty()) {
-      ++packet_iterator;
-      continue;
-    }
-    delete[] packet_iterator->encrypted_buffer;
-    ClearSerializedPacket(&(*packet_iterator));
-    packet_iterator = queued_packets_.erase(packet_iterator);
-  }
   // TODO(ianswett): Consider checking for 3 RTOs when the last stream is
   // cancelled as well.
 }
@@ -2033,37 +1999,9 @@ void QuicConnection::WriteQueuedPackets() {
   }
 
   QUIC_CLIENT_HISTOGRAM_COUNTS("QuicSession.NumQueuedPacketsBeforeWrite",
-                               queued_packets_.size(), 1, 1000, 50, "");
-  while (!queued_packets_.empty()) {
-    DCHECK(!treat_queued_packets_as_sent_);
-    // WritePacket() can potentially clear all queued packets, so we need to
-    // save the first queued packet to a local variable before calling it.
-    SerializedPacket packet(std::move(queued_packets_.front()));
-    queued_packets_.pop_front();
-
-    const bool write_result = WritePacket(&packet);
-
-    if (connected_ && !write_result) {
-      // Write failed but connection is open, re-insert |packet| into the
-      // front of the queue, it will be retried later.
-      queued_packets_.emplace_front(std::move(packet));
-      break;
-    }
-
-    delete[] packet.encrypted_buffer;
-    ClearSerializedPacket(&packet);
-    if (!connected_) {
-      DCHECK(queued_packets_.empty()) << "Queued packets should have been "
-                                         "cleared while closing connection";
-      break;
-    }
-
-    // Continue to send the next packet in queue.
-  }
+                               buffered_packets_.size(), 1, 1000, 50, "");
 
   while (!buffered_packets_.empty()) {
-    DCHECK(treat_queued_packets_as_sent_);
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_treat_queued_packets_as_sent, 1, 3);
     if (HandleWriteBlocked()) {
       break;
     }
@@ -2221,7 +2159,7 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
     QUIC_BUG << "Attempt to write packet:" << packet->packet_number
              << " after:" << sent_packet_manager_.GetLargestSentPacket();
     QUIC_CLIENT_HISTOGRAM_COUNTS("QuicSession.NumQueuedPacketsAtOutOfOrder",
-                                 queued_packets_.size(), 1, 1000, 50, "");
+                                 buffered_packets_.size(), 1, 1000, 50, "");
     CloseConnection(QUIC_INTERNAL_ERROR, "Packet written out of order.",
                     ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return true;
@@ -2230,13 +2168,7 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
       /*is_mtu_discovery=*/packet->encrypted_length > long_term_mtu_);
   // Termination packets are encrypted and saved, so don't exit early.
   const bool is_termination_packet = IsTerminationPacket(*packet);
-  if (!treat_queued_packets_as_sent_ && HandleWriteBlocked() &&
-      !is_termination_packet) {
-    return false;
-  }
-
   QuicPacketNumber packet_number = packet->packet_number;
-
   QuicPacketLength encrypted_length = packet->encrypted_length;
   // Termination packets are eventually owned by TimeWaitListManager.
   // Others are deleted at the end of this call.
@@ -2249,11 +2181,6 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
     char* buffer_copy = CopyBuffer(*packet);
     termination_packets_->emplace_back(
         new QuicEncryptedPacket(buffer_copy, encrypted_length, true));
-    // This assures we won't try to write *forced* packets when blocked.
-    // Return true to stop processing.
-    if (!treat_queued_packets_as_sent_ && HandleWriteBlocked()) {
-      return true;
-    }
   }
 
   const bool looks_like_mtu_probe = packet->retransmittable_frames.empty() &&
@@ -2322,8 +2249,6 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
       }
       break;
     case BUFFER:
-      DCHECK(treat_queued_packets_as_sent_);
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_treat_queued_packets_as_sent, 2, 3);
       QUIC_DVLOG(1) << ENDPOINT << "Adding packet: " << packet->packet_number
                     << " to buffered packets";
       buffered_packets_.emplace_back(*packet, self_address(), peer_address());
@@ -2358,14 +2283,9 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
     // duplicate packet being sent.  The helper must call OnCanWrite
     // when the write completes, and OnWriteError if an error occurs.
     if (result.status != WRITE_STATUS_BLOCKED_DATA_BUFFERED) {
-      if (treat_queued_packets_as_sent_) {
-        QUIC_RELOADABLE_FLAG_COUNT_N(quic_treat_queued_packets_as_sent, 3, 3);
-        QUIC_DVLOG(1) << ENDPOINT << "Adding packet: " << packet->packet_number
-                      << " to buffered packets";
-        buffered_packets_.emplace_back(*packet, self_address(), peer_address());
-      } else {
-        return false;
-      }
+      QUIC_DVLOG(1) << ENDPOINT << "Adding packet: " << packet->packet_number
+                    << " to buffered packets";
+      buffered_packets_.emplace_back(*packet, self_address(), peer_address());
     }
   }
 
@@ -2626,17 +2546,7 @@ void QuicConnection::SendOrQueuePacket(SerializedPacket* packet) {
     QUIC_BUG << "packet.encrypted_buffer == nullptr in to SendOrQueuePacket";
     return;
   }
-  // If there are already queued packets, queue this one immediately to ensure
-  // it's written in sequence number order.
-  if (!queued_packets_.empty() || !WritePacket(packet)) {
-    if (!treat_queued_packets_as_sent_) {
-      // Take ownership of the underlying encrypted packet.
-      packet->encrypted_buffer = CopyBuffer(*packet);
-      queued_packets_.push_back(*packet);
-      packet->retransmittable_frames.clear();
-    }
-  }
-
+  WritePacket(packet);
   ClearSerializedPacket(packet);
 }
 
@@ -3089,15 +2999,14 @@ void QuicConnection::SetMaxPacketLength(QuicByteCount length) {
 }
 
 bool QuicConnection::HasQueuedData() const {
-  return pending_version_negotiation_packet_ || !queued_packets_.empty() ||
+  return pending_version_negotiation_packet_ ||
          packet_creator_.HasPendingFrames() || !buffered_packets_.empty();
 }
 
 bool QuicConnection::CanWriteStreamData() {
   // Don't write stream data if there are negotiation or queued data packets
   // to send. Otherwise, continue and bundle as many frames as possible.
-  if (pending_version_negotiation_packet_ || !queued_packets_.empty() ||
-      !buffered_packets_.empty()) {
+  if (pending_version_negotiation_packet_ || !buffered_packets_.empty()) {
     return false;
   }
 
@@ -3700,9 +3609,8 @@ void QuicConnection::CheckIfApplicationLimited() {
     return;
   }
 
-  bool application_limited = queued_packets_.empty() &&
-                             buffered_packets_.empty() &&
-                             !visitor_->WillingAndAbleToWrite();
+  bool application_limited =
+      buffered_packets_.empty() && !visitor_->WillingAndAbleToWrite();
 
   if (!application_limited) {
     return;
@@ -4087,9 +3995,6 @@ bool QuicConnection::LimitedByAmplificationFactor() const {
 
 SerializedPacketFate QuicConnection::DeterminePacketFate(
     bool is_mtu_discovery) {
-  if (!treat_queued_packets_as_sent_) {
-    return SEND_TO_WRITER;
-  }
   if (version().CanSendCoalescedPackets() &&
       sent_packet_manager_.handshake_state() <
           QuicSentPacketManager::HANDSHAKE_CONFIRMED &&

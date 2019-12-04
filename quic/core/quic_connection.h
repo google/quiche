@@ -599,12 +599,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   }
 
   // Testing only.
-  size_t NumQueuedPackets() const {
-    if (treat_queued_packets_as_sent_) {
-      return buffered_packets_.size();
-    }
-    return queued_packets_.size();
-  }
+  size_t NumQueuedPackets() const { return buffered_packets_.size(); }
 
   // Returns true if the underlying UDP socket is writable, there is
   // no queued data and the connection is not congestion-control
@@ -892,10 +887,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // |connection_id| as the first client-sent destination connection ID,
   // or the one sent after an IETF Retry.
   void InstallInitialCrypters(QuicConnectionId connection_id);
-
-  bool treat_queued_packets_as_sent() const {
-    return treat_queued_packets_as_sent_;
-  }
 
   // Called when version is considered negotiated.
   void OnSuccessfulVersionNegotiation();
@@ -1285,15 +1276,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   bool send_ietf_version_negotiation_packet_;
   bool send_version_negotiation_packet_with_prefixed_lengths_;
 
-  // When packets could not be sent because the socket was not writable,
-  // they are added to this list.  All corresponding frames are in
-  // unacked_packets_ if they are to be retransmitted.  Packets encrypted_buffer
-  // fields are owned by the QueuedPacketList, in order to ensure they outlast
-  // the original scope of the SerializedPacket.
-  // TODO(fayang): Remove this when deprecating
-  // quic_treat_queued_packets_as_sent.
-  QueuedPacketList queued_packets_;
-
   // Contains the connection close packets if the connection has been closed.
   std::unique_ptr<std::vector<std::unique_ptr<QuicEncryptedPacket>>>
       termination_packets_;
@@ -1510,17 +1492,13 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Used to store content of packets which cannot be sent because of write
   // blocked. Packets' encrypted buffers are copied and owned by
   // buffered_packets_. From unacked_packet_map (and congestion control)'s
-  // perspective, those packets are considered sent. This is only used when
-  // treat_queued_packets_as_sent_ is true.
+  // perspective, those packets are considered sent.
   std::list<BufferedPacket> buffered_packets_;
 
   // Used to coalesce packets of different encryption level into the same UDP
   // datagram. Connection stops trying to coalesce packets if a forward secure
   // packet gets acknowledged.
   QuicCoalescedPacket coalesced_packet_;
-
-  // Latched value of quic_treat_queued_packets_as_sent.
-  const bool treat_queued_packets_as_sent_;
 
   QuicConnectionMtuDiscoverer mtu_discoverer_;
 
