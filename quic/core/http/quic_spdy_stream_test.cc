@@ -2531,7 +2531,8 @@ TEST_P(QuicSpdyStreamTest, StopProcessingIfConnectionClosed) {
 
 // Stream Cancellation instruction is sent on QPACK decoder stream
 // when stream is reset.
-TEST_P(QuicSpdyStreamTest, StreamCancellationWhenStreamReset) {
+// TODO(b/145684124) Re-enable.
+TEST_P(QuicSpdyStreamTest, DISABLED_StreamCancellationWhenStreamReset) {
   if (!UsesHttp3()) {
     return;
   }
@@ -2550,7 +2551,8 @@ TEST_P(QuicSpdyStreamTest, StreamCancellationWhenStreamReset) {
 
 // Stream Cancellation instruction is sent on QPACK decoder stream
 // when RESET_STREAM frame is received.
-TEST_P(QuicSpdyStreamTest, StreamCancellationOnResetReceived) {
+// TODO(b/145684124) Re-enable.
+TEST_P(QuicSpdyStreamTest, DISABLED_StreamCancellationOnResetReceived) {
   if (!UsesHttp3()) {
     return;
   }

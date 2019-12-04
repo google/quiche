@@ -680,10 +680,7 @@ void QuicSpdyStream::OnPriorityFrame(
 
 void QuicSpdyStream::OnStreamReset(const QuicRstStreamFrame& frame) {
   if (frame.error_code != QUIC_STREAM_NO_ERROR) {
-    if (VersionUsesHttp3(transport_version()) && !fin_received() &&
-        spdy_session_->qpack_decoder()) {
-      spdy_session_->qpack_decoder()->OnStreamReset(id());
-    }
+    // TODO(b/145684124) Call QpackDecoder::OnStreamReset().
 
     QuicStream::OnStreamReset(frame);
     return;
@@ -698,10 +695,7 @@ void QuicSpdyStream::OnStreamReset(const QuicRstStreamFrame& frame) {
 }
 
 void QuicSpdyStream::Reset(QuicRstStreamErrorCode error) {
-  if (VersionUsesHttp3(transport_version()) && !fin_received() &&
-      spdy_session_->qpack_decoder()) {
-    spdy_session_->qpack_decoder()->OnStreamReset(id());
-  }
+  // TODO(b/145684124) Call QpackDecoder::OnStreamReset().
 
   QuicStream::Reset(error);
 }
