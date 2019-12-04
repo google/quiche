@@ -597,12 +597,13 @@ void QuicSpdySession::SendInitialData() {
   }
   QuicConnection::ScopedPacketFlusher flusher(connection());
   send_control_stream_->MaybeSendSettingsFrame();
-  qpack_decoder_send_stream_->MaybeSendStreamType();
-  qpack_encoder_send_stream_->MaybeSendStreamType();
-  if (perspective() == Perspective::IS_CLIENT && !http3_max_push_id_sent_) {
+  if (GetQuicReloadableFlag(quic_send_max_push_id_with_settings) &&
+      perspective() == Perspective::IS_CLIENT && !http3_max_push_id_sent_) {
     SendMaxPushId();
     http3_max_push_id_sent_ = true;
   }
+  qpack_decoder_send_stream_->MaybeSendStreamType();
+  qpack_encoder_send_stream_->MaybeSendStreamType();
 }
 
 QpackEncoder* QuicSpdySession::qpack_encoder() {
