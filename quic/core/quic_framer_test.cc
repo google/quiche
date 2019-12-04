@@ -13867,6 +13867,42 @@ TEST_P(QuicFramerTest, TestExtendedErrorCodeParser) {
   EXPECT_EQ("", frame.error_details);
 }
 
+// Regression test for crbug/1029636.
+TEST_P(QuicFramerTest, OverlyLargeAckDelay) {
+  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+    return;
+  }
+  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
+  // clang-format off
+  unsigned char packet99[] = {
+    // type (short header, 4 byte packet number)
+    0x43,
+    // connection_id
+    0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+    // packet number
+    0x12, 0x34, 0x56, 0x78,
+
+    // frame type (IETF_ACK frame)
+    0x02,
+    // largest acked
+    kVarInt62FourBytes + 0x12, 0x34, 0x56, 0x78,
+    // ack delay time.
+    kVarInt62EightBytes + 0x31, 0x00, 0x00, 0x00, 0xF3, 0xA0, 0x81, 0xE0,
+    // Nr. of additional ack blocks
+    kVarInt62OneByte + 0x00,
+    // first ack block length.
+    kVarInt62FourBytes + 0x12, 0x34, 0x56, 0x77,
+  };
+  // clang-format on
+
+  framer_.ProcessPacket(
+      QuicEncryptedPacket(AsChars(packet99), QUIC_ARRAYSIZE(packet99), false));
+  ASSERT_EQ(1u, visitor_.ack_frames_.size());
+  // Verify ack_delay_time is set correctly.
+  EXPECT_EQ(QuicTime::Delta::Infinite(),
+            visitor_.ack_frames_[0]->ack_delay_time);
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

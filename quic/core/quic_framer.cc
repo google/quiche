@@ -3656,7 +3656,7 @@ bool QuicFramer::ProcessIetfAckFrame(QuicDataReader* reader,
     return false;
   }
 
-  if (ack_delay_time_in_us == kVarInt62MaxValue) {
+  if (ack_delay_time_in_us >= (kVarInt62MaxValue >> peer_ack_delay_exponent_)) {
     ack_frame->ack_delay_time = QuicTime::Delta::Infinite();
   } else {
     ack_delay_time_in_us = (ack_delay_time_in_us << peer_ack_delay_exponent_);
