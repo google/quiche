@@ -684,23 +684,14 @@ TEST_F(QuicDispatcherTest, NoVersionPacketToTimeWaitListManager) {
   // list manager.
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, QuicStringPiece("hq"), _))
       .Times(0);
-  if (GetQuicReloadableFlag(quic_reject_unprocessable_packets_statelessly)) {
-    EXPECT_CALL(*time_wait_list_manager_,
-                ProcessPacket(_, _, connection_id, _, _))
-        .Times(0);
-    EXPECT_CALL(*time_wait_list_manager_,
-                AddConnectionIdToTimeWait(_, _, _, _, _))
-        .Times(0);
-    EXPECT_CALL(*time_wait_list_manager_, SendPublicReset(_, _, _, _, _))
-        .Times(1);
-  } else {
-    EXPECT_CALL(*time_wait_list_manager_,
-                ProcessPacket(_, _, connection_id, _, _))
-        .Times(1);
-    EXPECT_CALL(*time_wait_list_manager_,
-                AddConnectionIdToTimeWait(_, _, _, _, _))
-        .Times(1);
-  }
+  EXPECT_CALL(*time_wait_list_manager_,
+              ProcessPacket(_, _, connection_id, _, _))
+      .Times(0);
+  EXPECT_CALL(*time_wait_list_manager_,
+              AddConnectionIdToTimeWait(_, _, _, _, _))
+      .Times(0);
+  EXPECT_CALL(*time_wait_list_manager_, SendPublicReset(_, _, _, _, _))
+      .Times(1);
   ProcessPacket(client_address, connection_id, false, SerializeCHLO());
 }
 
@@ -714,29 +705,16 @@ TEST_F(QuicDispatcherTest,
   char valid_size_packet[23] = {0x70, 0xa7, 0x02, 0x6c};
   QuicReceivedPacket packet2(valid_size_packet, 23, QuicTime::Zero());
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _)).Times(0);
-  if (GetQuicReloadableFlag(quic_reject_unprocessable_packets_statelessly)) {
-    EXPECT_CALL(*time_wait_list_manager_, ProcessPacket(_, _, _, _, _))
-        .Times(0);
-    EXPECT_CALL(*time_wait_list_manager_,
-                AddConnectionIdToTimeWait(_, _, _, _, _))
-        .Times(0);
-  } else {
-    EXPECT_CALL(*time_wait_list_manager_, ProcessPacket(_, _, _, _, _))
-        .Times(2);
-    EXPECT_CALL(*time_wait_list_manager_,
-                AddConnectionIdToTimeWait(_, _, _, _, _))
-        .Times(2);
-  }
-  if (GetQuicReloadableFlag(quic_reject_unprocessable_packets_statelessly)) {
-    // Verify small packet is silently dropped.
-    EXPECT_CALL(*time_wait_list_manager_, SendPublicReset(_, _, _, _, _))
-        .Times(0);
-  }
+  EXPECT_CALL(*time_wait_list_manager_, ProcessPacket(_, _, _, _, _)).Times(0);
+  EXPECT_CALL(*time_wait_list_manager_,
+              AddConnectionIdToTimeWait(_, _, _, _, _))
+      .Times(0);
+  // Verify small packet is silently dropped.
+  EXPECT_CALL(*time_wait_list_manager_, SendPublicReset(_, _, _, _, _))
+      .Times(0);
   dispatcher_->ProcessPacket(server_address_, client_address, packet);
-  if (GetQuicReloadableFlag(quic_reject_unprocessable_packets_statelessly)) {
-    EXPECT_CALL(*time_wait_list_manager_, SendPublicReset(_, _, _, _, _))
-        .Times(1);
-  }
+  EXPECT_CALL(*time_wait_list_manager_, SendPublicReset(_, _, _, _, _))
+      .Times(1);
   dispatcher_->ProcessPacket(server_address_, client_address, packet2);
 }
 

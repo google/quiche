@@ -556,12 +556,8 @@ QuicDispatcher::QuicPacketFate QuicDispatcher::ValidityChecks(
     QUIC_DLOG(INFO)
         << "Packet without version arrived for unknown connection ID "
         << packet_info.destination_connection_id;
-    if (GetQuicReloadableFlag(quic_reject_unprocessable_packets_statelessly)) {
-      QUIC_RELOADABLE_FLAG_COUNT(quic_reject_unprocessable_packets_statelessly);
-      MaybeResetPacketsWithNoVersion(packet_info);
-      return kFateDrop;
-    }
-    return kFateTimeWait;
+    MaybeResetPacketsWithNoVersion(packet_info);
+    return kFateDrop;
   }
 
   // Let the connection parse and validate packet number.
