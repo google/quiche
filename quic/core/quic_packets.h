@@ -379,8 +379,7 @@ struct QUIC_EXPORT_PRIVATE SerializedPacket {
   QuicPacketNumber packet_number;
   QuicPacketNumberLength packet_number_length;
   EncryptionLevel encryption_level;
-  // TODO(fayang): Remove has_ack and has_stop_waiting when deprecating
-  // quic_populate_nonretransmittable_frames.
+  // TODO(fayang): Remove has_ack and has_stop_waiting.
   bool has_ack;
   bool has_stop_waiting;
   TransmissionType transmission_type;

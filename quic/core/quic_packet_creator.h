@@ -586,9 +586,6 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // SetSoftMaxPacketLength is called and max_packet_length_ gets
   // set to a soft value.
   QuicByteCount latched_hard_max_packet_length_;
-
-  // Latched value of quic_populate_nonretransmittable_frames.
-  const bool populate_nonretransmittable_frames_;
 };
 
 }  // namespace quic

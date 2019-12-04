@@ -2072,10 +2072,6 @@ TEST_P(QuicPacketCreatorTest, CoalesceStreamFrames) {
 }
 
 TEST_P(QuicPacketCreatorTest, SaveNonRetransmittableFrames) {
-  if (!GetQuicReloadableFlag(quic_populate_nonretransmittable_frames) &&
-      !client_framer_.version().CanSendCoalescedPackets()) {
-    return;
-  }
   QuicAckFrame ack_frame(InitAckFrame(1));
   frames_.push_back(QuicFrame(&ack_frame));
   frames_.push_back(QuicFrame(QuicPaddingFrame(-1)));
@@ -2099,9 +2095,6 @@ TEST_P(QuicPacketCreatorTest, SaveNonRetransmittableFrames) {
 }
 
 TEST_P(QuicPacketCreatorTest, SerializeCoalescedPacket) {
-  if (!GetQuicReloadableFlag(quic_populate_nonretransmittable_frames)) {
-    return;
-  }
   QuicCoalescedPacket coalesced;
   SimpleBufferAllocator allocator;
   QuicSocketAddress self_address(QuicIpAddress::Loopback4(), 1);

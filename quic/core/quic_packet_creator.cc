@@ -124,13 +124,8 @@ QuicPacketCreator::QuicPacketCreator(QuicConnectionId server_connection_id,
       next_transmission_type_(NOT_RETRANSMISSION),
       flusher_attached_(false),
       fully_pad_crypto_handshake_packets_(true),
-      latched_hard_max_packet_length_(0),
-      populate_nonretransmittable_frames_(
-          GetQuicReloadableFlag(quic_populate_nonretransmittable_frames)) {
+      latched_hard_max_packet_length_(0) {
   SetMaxPacketLength(kDefaultMaxPacketSize);
-  if (populate_nonretransmittable_frames_) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_populate_nonretransmittable_frames);
-  }
 }
 
 QuicPacketCreator::~QuicPacketCreator() {
@@ -1503,17 +1498,14 @@ bool QuicPacketCreator::AddFrame(const QuicFrame& frame,
       packet_.has_crypto_handshake = IS_HANDSHAKE;
     }
   } else {
-    if (populate_nonretransmittable_frames_ ||
-        framer_->version().CanSendCoalescedPackets()) {
-      if (frame.type == PADDING_FRAME &&
-          frame.padding_frame.num_padding_bytes == -1) {
-        // Populate the actual length of full padding frame, such that one can
-        // know how much padding is actually added.
-        packet_.nonretransmittable_frames.push_back(
-            QuicFrame(QuicPaddingFrame(frame_len)));
-      } else {
-        packet_.nonretransmittable_frames.push_back(frame);
-      }
+    if (frame.type == PADDING_FRAME &&
+        frame.padding_frame.num_padding_bytes == -1) {
+      // Populate the actual length of full padding frame, such that one can
+      // know how much padding is actually added.
+      packet_.nonretransmittable_frames.push_back(
+          QuicFrame(QuicPaddingFrame(frame_len)));
+    } else {
+      packet_.nonretransmittable_frames.push_back(frame);
     }
     queued_frames_.push_back(frame);
   }
