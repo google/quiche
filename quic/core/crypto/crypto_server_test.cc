@@ -324,7 +324,7 @@ class CryptoServerTest : public QuicTestWithParam<TestParams> {
     QuicTagVector reject_reasons;
     static_assert(sizeof(QuicTag) == sizeof(uint32_t), "header out of sync");
     QuicErrorCode error_code = out_.GetTaglist(kRREJ, &reject_reasons);
-    ASSERT_EQ(QUIC_NO_ERROR, error_code);
+    ASSERT_THAT(error_code, IsQuicNoError());
 
     EXPECT_EQ(expected_count, reject_reasons.size());
     for (size_t i = 0; i < reject_reasons.size(); ++i) {

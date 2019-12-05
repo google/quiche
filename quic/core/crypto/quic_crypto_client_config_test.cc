@@ -186,7 +186,7 @@ TEST_F(QuicCryptoClientConfigTest, InchoateChlo) {
                                  /* demand_x509_proof= */ true, params, &msg);
 
   QuicVersionLabel cver;
-  EXPECT_EQ(QUIC_NO_ERROR, msg.GetVersionLabel(kVER, &cver));
+  EXPECT_THAT(msg.GetVersionLabel(kVER, &cver), IsQuicNoError());
   EXPECT_EQ(CreateQuicVersionLabel(QuicVersionMax()), cver);
   QuicStringPiece proof_nonce;
   EXPECT_TRUE(msg.GetStringPiece(kNONP, &proof_nonce));
@@ -241,7 +241,7 @@ TEST_F(QuicCryptoClientConfigTest, InchoateChloSecure) {
                                  /* demand_x509_proof= */ true, params, &msg);
 
   QuicTag pdmd;
-  EXPECT_EQ(QUIC_NO_ERROR, msg.GetUint32(kPDMD, &pdmd));
+  EXPECT_THAT(msg.GetUint32(kPDMD, &pdmd), IsQuicNoError());
   EXPECT_EQ(kX509, pdmd);
   QuicStringPiece scid;
   EXPECT_FALSE(msg.GetStringPiece(kSCID, &scid));
@@ -316,7 +316,7 @@ TEST_F(QuicCryptoClientConfigTest, FillClientHello) {
 
   // Verify that the version label has been set correctly in the CHLO.
   QuicVersionLabel cver;
-  EXPECT_EQ(QUIC_NO_ERROR, chlo.GetVersionLabel(kVER, &cver));
+  EXPECT_THAT(chlo.GetVersionLabel(kVER, &cver), IsQuicNoError());
   EXPECT_EQ(CreateQuicVersionLabel(QuicVersionMax()), cver);
 }
 
@@ -337,7 +337,7 @@ TEST_F(QuicCryptoClientConfigTest, FillClientHelloNoPadding) {
 
   // Verify that the version label has been set correctly in the CHLO.
   QuicVersionLabel cver;
-  EXPECT_EQ(QUIC_NO_ERROR, chlo.GetVersionLabel(kVER, &cver));
+  EXPECT_THAT(chlo.GetVersionLabel(kVER, &cver), IsQuicNoError());
   EXPECT_EQ(CreateQuicVersionLabel(QuicVersionMax()), cver);
   EXPECT_EQ(chlo.minimum_size(), 1u);
 }
@@ -363,10 +363,10 @@ TEST_F(QuicCryptoClientConfigTest, ProcessServerDowngradeAttack) {
       new QuicCryptoNegotiatedParameters);
   std::string error;
   QuicCryptoClientConfig config(crypto_test_utils::ProofVerifierForTesting());
-  EXPECT_EQ(QUIC_VERSION_NEGOTIATION_MISMATCH,
-            config.ProcessServerHello(
-                msg, EmptyQuicConnectionId(), supported_versions.front(),
-                supported_versions, &cached, out_params, &error));
+  EXPECT_THAT(config.ProcessServerHello(
+                  msg, EmptyQuicConnectionId(), supported_versions.front(),
+                  supported_versions, &cached, out_params, &error),
+              IsError(QUIC_VERSION_NEGOTIATION_MISMATCH));
   EXPECT_THAT(error, StartsWith("Downgrade attack detected: ServerVersions"));
 }
 
@@ -526,10 +526,10 @@ TEST_F(QuicCryptoClientConfigTest, ProcessReject) {
       new QuicCryptoNegotiatedParameters);
   std::string error;
   QuicCryptoClientConfig config(crypto_test_utils::ProofVerifierForTesting());
-  EXPECT_EQ(QUIC_NO_ERROR,
-            config.ProcessRejection(rej, QuicWallTime::FromUNIXSeconds(0),
-                                    AllSupportedTransportVersions().front(), "",
-                                    &cached, out_params, &error));
+  EXPECT_THAT(config.ProcessRejection(rej, QuicWallTime::FromUNIXSeconds(0),
+                                      AllSupportedTransportVersions().front(),
+                                      "", &cached, out_params, &error),
+              IsQuicNoError());
   EXPECT_FALSE(cached.has_server_designated_connection_id());
   EXPECT_FALSE(cached.has_server_nonce());
 }
@@ -547,10 +547,10 @@ TEST_F(QuicCryptoClientConfigTest, ProcessRejectWithLongTTL) {
       new QuicCryptoNegotiatedParameters);
   std::string error;
   QuicCryptoClientConfig config(crypto_test_utils::ProofVerifierForTesting());
-  EXPECT_EQ(QUIC_NO_ERROR,
-            config.ProcessRejection(rej, QuicWallTime::FromUNIXSeconds(0),
-                                    AllSupportedTransportVersions().front(), "",
-                                    &cached, out_params, &error));
+  EXPECT_THAT(config.ProcessRejection(rej, QuicWallTime::FromUNIXSeconds(0),
+                                      AllSupportedTransportVersions().front(),
+                                      "", &cached, out_params, &error),
+              IsQuicNoError());
   cached.SetProofValid();
   EXPECT_FALSE(cached.IsComplete(QuicWallTime::FromUNIXSeconds(long_ttl)));
   EXPECT_FALSE(
@@ -574,10 +574,10 @@ TEST_F(QuicCryptoClientConfigTest, ServerNonceinSHLO) {
   QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> out_params(
       new QuicCryptoNegotiatedParameters);
   std::string error_details;
-  EXPECT_EQ(QUIC_INVALID_CRYPTO_MESSAGE_PARAMETER,
-            config.ProcessServerHello(msg, EmptyQuicConnectionId(), version,
-                                      supported_versions, &cached, out_params,
-                                      &error_details));
+  EXPECT_THAT(config.ProcessServerHello(msg, EmptyQuicConnectionId(), version,
+                                        supported_versions, &cached, out_params,
+                                        &error_details),
+              IsError(QUIC_INVALID_CRYPTO_MESSAGE_PARAMETER));
   EXPECT_EQ("server hello missing server nonce", error_details);
 }
 

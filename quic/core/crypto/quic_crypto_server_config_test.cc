@@ -22,6 +22,7 @@
 #include "net/third_party/quiche/src/quic/test_tools/crypto_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/mock_clock.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_crypto_server_config_peer.h"
+#include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 
 namespace quic {
 namespace test {
@@ -52,7 +53,7 @@ TEST_F(QuicCryptoServerConfigTest, ServerConfig) {
   // The default configuration should have AES-GCM and at least one ChaCha20
   // cipher.
   QuicTagVector aead;
-  ASSERT_EQ(QUIC_NO_ERROR, message->GetTaglist(kAEAD, &aead));
+  ASSERT_THAT(message->GetTaglist(kAEAD, &aead), IsQuicNoError());
   EXPECT_THAT(aead, ::testing::Contains(kAESG));
   EXPECT_LE(1u, aead.size());
 }

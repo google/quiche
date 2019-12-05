@@ -380,7 +380,7 @@ TEST(CryptoFramerTest, ProcessInputTagsOutOfOrder) {
 
   EXPECT_FALSE(framer.ProcessInput(
       QuicStringPiece(AsChars(input), QUIC_ARRAYSIZE(input))));
-  EXPECT_EQ(QUIC_CRYPTO_TAGS_OUT_OF_ORDER, framer.error());
+  EXPECT_THAT(framer.error(), IsError(QUIC_CRYPTO_TAGS_OUT_OF_ORDER));
   EXPECT_EQ(1, visitor.error_count_);
 }
 
@@ -408,7 +408,7 @@ TEST(CryptoFramerTest, ProcessEndOffsetsOutOfOrder) {
 
   EXPECT_FALSE(framer.ProcessInput(
       QuicStringPiece(AsChars(input), QUIC_ARRAYSIZE(input))));
-  EXPECT_EQ(QUIC_CRYPTO_TAGS_OUT_OF_ORDER, framer.error());
+  EXPECT_THAT(framer.error(), IsError(QUIC_CRYPTO_TAGS_OUT_OF_ORDER));
   EXPECT_EQ(1, visitor.error_count_);
 }
 
@@ -428,7 +428,7 @@ TEST(CryptoFramerTest, ProcessInputTooManyEntries) {
 
   EXPECT_FALSE(framer.ProcessInput(
       QuicStringPiece(AsChars(input), QUIC_ARRAYSIZE(input))));
-  EXPECT_EQ(QUIC_CRYPTO_TOO_MANY_ENTRIES, framer.error());
+  EXPECT_THAT(framer.error(), IsError(QUIC_CRYPTO_TOO_MANY_ENTRIES));
   EXPECT_EQ(1, visitor.error_count_);
 }
 

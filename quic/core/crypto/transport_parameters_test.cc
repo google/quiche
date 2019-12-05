@@ -648,8 +648,8 @@ TEST_F(TransportParametersTest, CryptoHandshakeMessageRoundtrip) {
   EXPECT_TRUE(new_params.google_quic_params->GetStringPiece(42, &test_string));
   EXPECT_EQ(test_string, kTestString);
   uint32_t test_value;
-  EXPECT_EQ(new_params.google_quic_params->GetUint32(1337, &test_value),
-            QUIC_NO_ERROR);
+  EXPECT_THAT(new_params.google_quic_params->GetUint32(1337, &test_value),
+              IsQuicNoError());
   EXPECT_EQ(test_value, kTestValue);
   EXPECT_EQ(kFakeVersionLabel, new_params.version);
   EXPECT_EQ(kFakeMaxPacketSize, new_params.max_packet_size.value());
