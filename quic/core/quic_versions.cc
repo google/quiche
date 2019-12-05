@@ -214,8 +214,10 @@ ParsedQuicVersionVector AllSupportedVersions() {
   for (HandshakeProtocol protocol : kSupportedHandshakeProtocols) {
     for (QuicTransportVersion version : kSupportedTransportVersions) {
       if (protocol == PROTOCOL_TLS1_3 &&
-          !QuicVersionUsesCryptoFrames(version)) {
+          (!QuicVersionUsesCryptoFrames(version) ||
+           version <= QUIC_VERSION_49)) {
         // The TLS handshake is only deployable if CRYPTO frames are also used.
+        // We explicitly removed support for T048 and T049 to reduce test load.
         continue;
       }
       supported_versions.push_back(ParsedQuicVersion(protocol, version));

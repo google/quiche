@@ -148,12 +148,6 @@ TEST_F(QuicVersionsTest, ParseQuicVersionString) {
 
   // Test a TLS version:
   SetQuicReloadableFlag(quic_supports_tls_handshake, true);
-  EXPECT_EQ(ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_43),
-            ParseQuicVersionString("T043"));
-  EXPECT_EQ(ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_46),
-            ParseQuicVersionString("T046"));
-  EXPECT_EQ(ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_48),
-            ParseQuicVersionString("T048"));
   EXPECT_EQ(ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_50),
             ParseQuicVersionString("T050"));
 }
@@ -173,15 +167,6 @@ TEST_F(QuicVersionsTest, CreateQuicVersionLabel) {
                 ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_50)));
 
   // Test a TLS version:
-  EXPECT_EQ(MakeVersionLabel('T', '0', '4', '3'),
-            CreateQuicVersionLabel(
-                ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_43)));
-  EXPECT_EQ(MakeVersionLabel('T', '0', '4', '6'),
-            CreateQuicVersionLabel(
-                ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_46)));
-  EXPECT_EQ(MakeVersionLabel('T', '0', '4', '8'),
-            CreateQuicVersionLabel(
-                ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_48)));
   EXPECT_EQ(MakeVersionLabel('T', '0', '5', '0'),
             CreateQuicVersionLabel(
                 ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_50)));
@@ -396,12 +381,8 @@ TEST_F(QuicVersionsTest, AlpnForVersion) {
                 "Supported versions out of sync");
   ParsedQuicVersion parsed_version_q048 =
       ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_48);
-  ParsedQuicVersion parsed_version_t048 =
-      ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_48);
   ParsedQuicVersion parsed_version_q049 =
       ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_49);
-  ParsedQuicVersion parsed_version_t049 =
-      ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_49);
   ParsedQuicVersion parsed_version_q050 =
       ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_50);
   ParsedQuicVersion parsed_version_t050 =
@@ -410,9 +391,7 @@ TEST_F(QuicVersionsTest, AlpnForVersion) {
       ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_99);
 
   EXPECT_EQ("h3-Q048", AlpnForVersion(parsed_version_q048));
-  EXPECT_EQ("h3-T048", AlpnForVersion(parsed_version_t048));
   EXPECT_EQ("h3-Q049", AlpnForVersion(parsed_version_q049));
-  EXPECT_EQ("h3-T049", AlpnForVersion(parsed_version_t049));
   EXPECT_EQ("h3-Q050", AlpnForVersion(parsed_version_q050));
   EXPECT_EQ("h3-T050", AlpnForVersion(parsed_version_t050));
   EXPECT_EQ("h3-24", AlpnForVersion(parsed_version_t099));

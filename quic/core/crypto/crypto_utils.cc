@@ -119,14 +119,6 @@ const uint8_t kDraft23InitialSalt[] = {0xc3, 0xee, 0xf7, 0x12, 0xc7, 0x2e, 0xbb,
 // Salts used by deployed versions of QUIC. When introducing a new version,
 // generate a new salt by running `openssl rand -hex 20`.
 
-// Salt to use for initial obfuscators in version T048.
-const uint8_t kT048Salt[] = {0x1f, 0x89, 0xf6, 0xe7, 0xc2, 0x18, 0xf4,
-                             0x2e, 0x6c, 0xe1, 0x9e, 0x91, 0xb2, 0x23,
-                             0xbb, 0x4c, 0x47, 0xc9, 0x12, 0xff};
-// Salt to use for initial obfuscators in version T049.
-const uint8_t kT049Salt[] = {0x69, 0xe5, 0x79, 0x2a, 0x41, 0xd0, 0xa2,
-                             0x9c, 0xf9, 0xbc, 0x5c, 0x04, 0x5a, 0xeb,
-                             0xcf, 0xeb, 0x51, 0xf6, 0x9f, 0x22};
 // Salt to use for initial obfuscators in version Q050.
 const uint8_t kQ050Salt[] = {0x50, 0x45, 0x74, 0xef, 0xd0, 0x66, 0xfe,
                              0x2f, 0x9d, 0x94, 0x5c, 0xfc, 0xdb, 0xd3,
@@ -166,12 +158,6 @@ const uint8_t* InitialSaltForVersion(const ParsedQuicVersion& version,
       break;
     case PROTOCOL_TLS1_3:
       switch (version.transport_version) {
-        case QUIC_VERSION_48:
-          *out_len = QUIC_ARRAYSIZE(kT048Salt);
-          return kT048Salt;
-        case QUIC_VERSION_49:
-          *out_len = QUIC_ARRAYSIZE(kT049Salt);
-          return kT049Salt;
         case QUIC_VERSION_50:
           *out_len = QUIC_ARRAYSIZE(kT050Salt);
           return kT050Salt;
