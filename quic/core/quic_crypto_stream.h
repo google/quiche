@@ -5,6 +5,7 @@
 #ifndef QUICHE_QUIC_CORE_QUIC_CRYPTO_STREAM_H_
 #define QUICHE_QUIC_CORE_QUIC_CRYPTO_STREAM_H_
 
+#include <array>
 #include <cstddef>
 #include <string>
 
@@ -178,7 +179,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoStream : public QuicStream {
 
   // Keeps state for data sent/received in CRYPTO frames at each encryption
   // level.
-  CryptoSubstream substreams_[NUM_ENCRYPTION_LEVELS];
+  std::array<CryptoSubstream, NUM_ENCRYPTION_LEVELS> substreams_;
 };
 
 }  // namespace quic

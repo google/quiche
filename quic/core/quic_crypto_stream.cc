@@ -33,10 +33,10 @@ QuicCryptoStream::QuicCryptoStream(QuicSession* session)
           QuicVersionUsesCryptoFrames(session->transport_version())
               ? CRYPTO
               : BIDIRECTIONAL),
-      substreams_{{this, ENCRYPTION_INITIAL},
-                  {this, ENCRYPTION_HANDSHAKE},
-                  {this, ENCRYPTION_ZERO_RTT},
-                  {this, ENCRYPTION_FORWARD_SECURE}} {
+      substreams_{{{this, ENCRYPTION_INITIAL},
+                   {this, ENCRYPTION_HANDSHAKE},
+                   {this, ENCRYPTION_ZERO_RTT},
+                   {this, ENCRYPTION_FORWARD_SECURE}}} {
   // The crypto stream is exempt from connection level flow control.
   DisableConnectionFlowControlForThisStream();
 }
