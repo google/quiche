@@ -262,10 +262,6 @@ ParsedQuicVersionVector FilterSupportedVersions(
       if (GetQuicReloadableFlag(quic_enable_version_99)) {
         filtered_versions.push_back(version);
       }
-    } else if (version.transport_version == QUIC_VERSION_50) {
-      if (GetQuicReloadableFlag(quic_enable_version_50)) {
-        filtered_versions.push_back(version);
-      }
     } else {
       filtered_versions.push_back(version);
     }
@@ -466,9 +462,6 @@ void QuicEnableVersion(ParsedQuicVersion parsed_version) {
                 "Supported versions out of sync");
   if (parsed_version.transport_version == QUIC_VERSION_99) {
     SetQuicReloadableFlag(quic_enable_version_99, true);
-  }
-  if (parsed_version.transport_version == QUIC_VERSION_50) {
-    SetQuicReloadableFlag(quic_enable_version_50, true);
   }
 }
 

@@ -43,8 +43,6 @@ class QUIC_EXPORT_PRIVATE QuicVersionManager {
   // Cached value of reloadable flags.
   // quic_enable_version_99 flag
   bool enable_version_99_;
-  // quic_enable_version_50 flag
-  bool enable_version_50_;
   // quic_supports_tls_handshake flag
   bool enable_tls_;
 

@@ -16,7 +16,6 @@ namespace quic {
 QuicVersionManager::QuicVersionManager(
     ParsedQuicVersionVector supported_versions)
     : enable_version_99_(GetQuicReloadableFlag(quic_enable_version_99)),
-      enable_version_50_(GetQuicReloadableFlag(quic_enable_version_50)),
       enable_tls_(GetQuicReloadableFlag(quic_supports_tls_handshake)),
       allowed_supported_versions_(std::move(supported_versions)) {
   static_assert(QUIC_ARRAYSIZE(kSupportedTransportVersions) == 6u,
@@ -41,10 +40,8 @@ void QuicVersionManager::MaybeRefilterSupportedVersions() {
   static_assert(QUIC_ARRAYSIZE(kSupportedTransportVersions) == 6u,
                 "Supported versions out of sync");
   if (enable_version_99_ != GetQuicReloadableFlag(quic_enable_version_99) ||
-      enable_version_50_ != GetQuicReloadableFlag(quic_enable_version_50) ||
       enable_tls_ != GetQuicReloadableFlag(quic_supports_tls_handshake)) {
     enable_version_99_ = GetQuicReloadableFlag(quic_enable_version_99);
-    enable_version_50_ = GetQuicReloadableFlag(quic_enable_version_50);
     enable_tls_ = GetQuicReloadableFlag(quic_supports_tls_handshake);
     RefilterSupportedVersions();
   }

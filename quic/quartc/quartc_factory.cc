@@ -63,9 +63,6 @@ void ConfigureGlobalQuicSettings() {
   // Fixes behavior of StopReading() with level-triggered stream sequencers.
   SetQuicReloadableFlag(quic_stop_reading_when_level_triggered, true);
 
-  // Enable version 50 to be compatible with the latest version of Chrome.
-  SetQuicReloadableFlag(quic_enable_version_50, true);
-
   // Ensure that we don't drop data because QUIC streams refuse to buffer it.
   // TODO(b/120099046):  Replace this with correct handling of WriteMemSlices().
   SetQuicFlag(FLAGS_quic_buffered_data_threshold,
@@ -95,7 +92,7 @@ QuicConfig CreateQuicConfig(const QuartcSessionConfig& quartc_session_config) {
 
   // In exoblaze this may return false. DCHECK to avoid problems caused by
   // incorrect flags configuration.
-  DCHECK(GetQuicReloadableFlag(quic_enable_version_50))
+  DCHECK(GetQuicReloadableFlag(quic_stop_reading_when_level_triggered))
       << "Your build does not support quic reloadable flags and shouldn't "
          "place Quartc calls";
 

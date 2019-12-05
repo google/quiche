@@ -865,7 +865,6 @@ TEST_F(QuicDispatcherTest, ProcessPacketWithZeroPort) {
 
 TEST_F(QuicDispatcherTest, ProcessPacketWithInvalidShortInitialConnectionId) {
   // Enable a version that supports connection IDs of length different than 8.
-  SetQuicReloadableFlag(quic_enable_version_50, true);
   CreateTimeWaitListManager();
 
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
@@ -911,7 +910,6 @@ TEST_F(QuicDispatcherTest, OKSeqNoPacketProcessed) {
 TEST_F(QuicDispatcherTest, SupportedTransportVersionsChangeInFlight) {
   static_assert(QUIC_ARRAYSIZE(kSupportedTransportVersions) == 6u,
                 "Supported versions out of sync");
-  SetQuicReloadableFlag(quic_enable_version_50, true);
   SetQuicReloadableFlag(quic_enable_version_99, true);
 
   VerifyVersionNotSupported(QuicVersionReservedForNegotiation());
@@ -920,15 +918,15 @@ TEST_F(QuicDispatcherTest, SupportedTransportVersionsChangeInFlight) {
                                            QuicVersionMin().transport_version));
   VerifyVersionSupported(QuicVersionMax());
 
-  // Turn off version 50.
-  SetQuicReloadableFlag(quic_enable_version_50, false);
+  // Turn off version 99.
+  SetQuicReloadableFlag(quic_enable_version_99, false);
   VerifyVersionNotSupported(
-      ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_50));
+      ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_99));
 
-  // Turn on version 50.
-  SetQuicReloadableFlag(quic_enable_version_50, true);
+  // Turn on version 99.
+  SetQuicReloadableFlag(quic_enable_version_99, true);
   VerifyVersionSupported(
-      ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_50));
+      ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_99));
 }
 
 TEST_F(QuicDispatcherTest, RejectDeprecatedVersionsWithVersionNegotiation) {
