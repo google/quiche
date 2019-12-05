@@ -622,9 +622,9 @@ QuicSpdyStream* QuicSpdySession::GetSpdyDataStream(
     const QuicStreamId stream_id) {
   QuicStream* stream = GetOrCreateStream(stream_id);
   if (stream && stream->is_static()) {
-    QUIC_BUG << "GetSpdyDataStream returns static stream";
+    QUIC_BUG << "GetSpdyDataStream returns static stream " << stream_id;
     connection()->CloseConnection(
-        QUIC_INVALID_STREAM_ID, "stream is static",
+        QUIC_INVALID_STREAM_ID, QuicStrCat("stream ", stream_id, " is static"),
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return nullptr;
   }
