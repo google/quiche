@@ -34,13 +34,15 @@ class QUIC_EXPORT_PRIVATE QpackDecodedHeadersAccumulator
    public:
     virtual ~Visitor() = default;
 
-    // Called when headers are successfully decoded.  If header list size
-    // exceeds the limit specified via |max_header_list_size| in
-    // QpackDecodedHeadersAccumulator constructor, then |headers| will be empty,
-    // but will still have the correct compressed and uncompressed size
-    // information.  However, header_list_size_limit_exceeded() is recommended
-    // instead of headers.empty() to check whether header size exceeds limit.
-    virtual void OnHeadersDecoded(QuicHeaderList headers) = 0;
+    // Called when headers are successfully decoded.  If the uncompressed header
+    // list size including an overhead for each header field exceeds the limit
+    // specified via |max_header_list_size| in QpackDecodedHeadersAccumulator
+    // constructor, then |header_list_size_limit_exceeded| will be true, and
+    // |headers| will be empty but will still have the correct compressed and
+    // uncompressed size
+    // information.
+    virtual void OnHeadersDecoded(QuicHeaderList headers,
+                                  bool header_list_size_limit_exceeded) = 0;
 
     // Called when an error has occurred.
     virtual void OnHeaderDecodingError(QuicStringPiece error_message) = 0;
@@ -67,13 +69,6 @@ class QUIC_EXPORT_PRIVATE QpackDecodedHeadersAccumulator
   // Must not be called if an error has been detected.
   // Must not be called more that once.
   void EndHeaderBlock();
-
-  // Returns true if the uncompressed size of the header list, including an
-  // overhead for each header field, exceeds |max_header_list_size| passed in
-  // the constructor.
-  bool header_list_size_limit_exceeded() const {
-    return header_list_size_limit_exceeded_;
-  }
 
  private:
   std::unique_ptr<QpackProgressiveDecoder> decoder_;

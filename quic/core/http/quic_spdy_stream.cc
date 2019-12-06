@@ -538,9 +538,9 @@ void QuicSpdyStream::OnStreamHeaderList(bool fin,
   }
 }
 
-void QuicSpdyStream::OnHeadersDecoded(QuicHeaderList headers) {
-  header_list_size_limit_exceeded_ =
-      qpack_decoded_headers_accumulator_->header_list_size_limit_exceeded();
+void QuicSpdyStream::OnHeadersDecoded(QuicHeaderList headers,
+                                      bool header_list_size_limit_exceeded) {
+  header_list_size_limit_exceeded_ = header_list_size_limit_exceeded;
   qpack_decoded_headers_accumulator_.reset();
 
   QuicSpdySession::LogHeaderCompressionRatioHistogram(

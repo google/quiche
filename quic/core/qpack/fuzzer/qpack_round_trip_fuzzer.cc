@@ -264,8 +264,10 @@ class VerifyingDecoder : public QpackDecodedHeadersAccumulator::Visitor {
   virtual ~VerifyingDecoder() = default;
 
   // QpackDecodedHeadersAccumulator::Visitor implementation.
-  void OnHeadersDecoded(QuicHeaderList headers) override {
+  void OnHeadersDecoded(QuicHeaderList headers,
+                        bool header_list_size_limit_exceeded) override {
     // Verify headers.
+    CHECK(!header_list_size_limit_exceeded);
     CHECK(expected_header_list_ == headers);
 
     // Might destroy |this|.

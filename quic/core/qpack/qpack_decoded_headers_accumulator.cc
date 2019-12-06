@@ -62,7 +62,8 @@ void QpackDecodedHeadersAccumulator::OnDecodingCompleted() {
       uncompressed_header_bytes_without_overhead_, compressed_header_bytes_);
 
   // Might destroy |this|.
-  visitor_->OnHeadersDecoded(std::move(quic_header_list_));
+  visitor_->OnHeadersDecoded(std::move(quic_header_list_),
+                             header_list_size_limit_exceeded_);
 }
 
 void QpackDecodedHeadersAccumulator::OnDecodingErrorDetected(
