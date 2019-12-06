@@ -21,8 +21,7 @@ QuicTraceInterceptor::QuicTraceInterceptor(QuicStringPiece identifier)
 
 QuicTraceInterceptor::~QuicTraceInterceptor() {
   if (trace_visitor_) {
-    QuicRecordTestOutput(identifier_,
-                         trace_visitor_->trace()->SerializeAsString());
+    QuicRecordTrace(identifier_, trace_visitor_->trace()->SerializeAsString());
   }
 }
 

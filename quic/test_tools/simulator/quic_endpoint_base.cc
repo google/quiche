@@ -76,8 +76,7 @@ QuicEndpointBase::~QuicEndpointBase() {
 
     std::string identifier =
         QuicStrCat(perspective_prefix, connection_->connection_id().ToString());
-    QuicRecordTestOutput(identifier,
-                         trace_visitor_->trace()->SerializeAsString());
+    QuicRecordTrace(identifier, trace_visitor_->trace()->SerializeAsString());
   }
 }
 

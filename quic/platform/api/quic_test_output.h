@@ -10,15 +10,15 @@
 
 namespace quic {
 
-// Records a QUIC test output file into a directory specified by QUIC_TRACE_DIR
-// environment variable.  Assumes that it's called from a unit test.
+// Records a QUIC trace file(.qtr) into a directory specified by the
+// QUIC_TEST_OUTPUT_DIR environment variable.  Assumes that it's called from a
+// unit test.
 //
 // The |identifier| is a human-readable identifier that will be combined with
-// the name of the unit test and a timestamp.  |data| is the test output data
-// that is being recorded into the file.
-inline void QuicRecordTestOutput(QuicStringPiece identifier,
-                                 QuicStringPiece data) {
-  QuicRecordTestOutputImpl(identifier, data);
+// the name of the unit test and a timestamp.  |data| is the serialized
+// quic_trace.Trace protobuf that is being recorded into the file.
+inline void QuicRecordTrace(QuicStringPiece identifier, QuicStringPiece data) {
+  QuicRecordTraceImpl(identifier, data);
 }
 
 }  // namespace quic
