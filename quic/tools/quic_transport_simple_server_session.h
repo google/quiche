@@ -45,7 +45,6 @@ class QuicTransportSimpleServerSession
       const ParsedQuicVersionVector& supported_versions,
       const QuicCryptoServerConfig* crypto_config,
       QuicCompressedCertsCache* compressed_certs_cache,
-      Mode mode,
       std::vector<url::Origin> accepted_origins);
   ~QuicTransportSimpleServerSession();
 

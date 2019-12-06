@@ -70,7 +70,8 @@ class QuicTransportClientEndpoint : public QuicTransportEndpointBase {
   QuicTransportClientEndpoint(Simulator* simulator,
                               const std::string& name,
                               const std::string& peer_name,
-                              url::Origin origin)
+                              url::Origin origin,
+                              const std::string& path)
       : QuicTransportEndpointBase(simulator,
                                   name,
                                   peer_name,
@@ -80,7 +81,7 @@ class QuicTransportClientEndpoint : public QuicTransportEndpointBase {
                  nullptr,
                  DefaultQuicConfig(),
                  GetVersions(),
-                 GURL("quic-transport://test.example.com:50000"),
+                 GURL("quic-transport://test.example.com:50000" + path),
                  &crypto_config_,
                  origin,
                  &visitor_) {
@@ -101,7 +102,6 @@ class QuicTransportServerEndpoint : public QuicTransportEndpointBase {
   QuicTransportServerEndpoint(Simulator* simulator,
                               const std::string& name,
                               const std::string& peer_name,
-                              QuicTransportSimpleServerSession::Mode mode,
                               std::vector<url::Origin> accepted_origins)
       : QuicTransportEndpointBase(simulator,
                                   name,
@@ -120,7 +120,6 @@ class QuicTransportServerEndpoint : public QuicTransportEndpointBase {
                  GetVersions(),
                  &crypto_config_,
                  &compressed_certs_cache_,
-                 mode,
                  accepted_origins) {
     session_.Initialize();
   }
@@ -161,11 +160,11 @@ class QuicTransportIntegrationTest : public QuicTest {
   QuicTransportIntegrationTest()
       : switch_(&simulator_, "Switch", 8, 2 * kBdp) {}
 
-  void CreateDefaultEndpoints(QuicTransportSimpleServerSession::Mode mode) {
+  void CreateDefaultEndpoints(const std::string& path) {
     client_ = std::make_unique<QuicTransportClientEndpoint>(
-        &simulator_, "Client", "Server", GetTestOrigin());
+        &simulator_, "Client", "Server", GetTestOrigin(), path);
     server_ = std::make_unique<QuicTransportServerEndpoint>(
-        &simulator_, "Server", "Client", mode, accepted_origins_);
+        &simulator_, "Server", "Client", accepted_origins_);
   }
 
   void WireUpEndpoints() {
@@ -206,7 +205,7 @@ class QuicTransportIntegrationTest : public QuicTest {
 };
 
 TEST_F(QuicTransportIntegrationTest, SuccessfulHandshake) {
-  CreateDefaultEndpoints(QuicTransportSimpleServerSession::DISCARD);
+  CreateDefaultEndpoints("/discard");
   WireUpEndpoints();
   RunHandshake();
   EXPECT_TRUE(client_->session()->IsSessionReady());
@@ -215,7 +214,7 @@ TEST_F(QuicTransportIntegrationTest, SuccessfulHandshake) {
 
 TEST_F(QuicTransportIntegrationTest, OriginMismatch) {
   accepted_origins_ = {url::Origin::Create(GURL{"https://wrong-origin.test"})};
-  CreateDefaultEndpoints(QuicTransportSimpleServerSession::DISCARD);
+  CreateDefaultEndpoints("/discard");
   WireUpEndpoints();
   RunHandshake();
   // Wait until the client receives CONNECTION_CLOSE.
@@ -233,7 +232,7 @@ TEST_F(QuicTransportIntegrationTest, OriginMismatch) {
 }
 
 TEST_F(QuicTransportIntegrationTest, SendOutgoingStreams) {
-  CreateDefaultEndpoints(QuicTransportSimpleServerSession::DISCARD);
+  CreateDefaultEndpoints("/discard");
   WireUpEndpoints();
   RunHandshake();
 
@@ -259,7 +258,7 @@ TEST_F(QuicTransportIntegrationTest, SendOutgoingStreams) {
 }
 
 TEST_F(QuicTransportIntegrationTest, EchoBidirectionalStreams) {
-  CreateDefaultEndpoints(QuicTransportSimpleServerSession::ECHO);
+  CreateDefaultEndpoints("/echo");
   WireUpEndpoints();
   RunHandshake();
 
@@ -281,7 +280,7 @@ TEST_F(QuicTransportIntegrationTest, EchoBidirectionalStreams) {
 }
 
 TEST_F(QuicTransportIntegrationTest, EchoUnidirectionalStreams) {
-  CreateDefaultEndpoints(QuicTransportSimpleServerSession::ECHO);
+  CreateDefaultEndpoints("/echo");
   WireUpEndpoints();
   RunHandshake();
 

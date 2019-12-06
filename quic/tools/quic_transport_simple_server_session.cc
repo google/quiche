@@ -133,7 +133,6 @@ QuicTransportSimpleServerSession::QuicTransportSimpleServerSession(
     const ParsedQuicVersionVector& supported_versions,
     const QuicCryptoServerConfig* crypto_config,
     QuicCompressedCertsCache* compressed_certs_cache,
-    Mode mode,
     std::vector<url::Origin> accepted_origins)
     : QuicTransportServerSession(connection,
                                  owner,
@@ -144,7 +143,7 @@ QuicTransportSimpleServerSession::QuicTransportSimpleServerSession(
                                  this),
       connection_(connection),
       owns_connection_(owns_connection),
-      mode_(mode),
+      mode_(DISCARD),
       accepted_origins_(accepted_origins) {}
 
 QuicTransportSimpleServerSession::~QuicTransportSimpleServerSession() {
@@ -203,8 +202,17 @@ bool QuicTransportSimpleServerSession::CheckOrigin(url::Origin origin) {
 }
 
 bool QuicTransportSimpleServerSession::ProcessPath(const GURL& url) {
-  QUIC_DLOG(INFO) << "Path requested: " << url;
-  return true;
+  if (url.path() == "/discard") {
+    mode_ = DISCARD;
+    return true;
+  }
+  if (url.path() == "/echo") {
+    mode_ = ECHO;
+    return true;
+  }
+
+  QUIC_DLOG(WARNING) << "Unknown path requested: " << url.path();
+  return false;
 }
 
 void QuicTransportSimpleServerSession::MaybeEchoStreamsBack() {

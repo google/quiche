@@ -23,7 +23,6 @@ class QuicTransportSimpleServerDispatcher : public QuicDispatcher {
       std::unique_ptr<QuicCryptoServerStream::Helper> session_helper,
       std::unique_ptr<QuicAlarmFactory> alarm_factory,
       uint8_t expected_server_connection_id_length,
-      QuicTransportSimpleServerSession::Mode mode,
       std::vector<url::Origin> accepted_origins);
 
  protected:
@@ -32,7 +31,6 @@ class QuicTransportSimpleServerDispatcher : public QuicDispatcher {
                                  QuicStringPiece alpn,
                                  const ParsedQuicVersion& version) override;
 
-  QuicTransportSimpleServerSession::Mode mode_;
   std::vector<url::Origin> accepted_origins_;
 };
 

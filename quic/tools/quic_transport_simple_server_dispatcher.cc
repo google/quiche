@@ -22,7 +22,6 @@ QuicTransportSimpleServerDispatcher::QuicTransportSimpleServerDispatcher(
     std::unique_ptr<QuicCryptoServerStream::Helper> session_helper,
     std::unique_ptr<QuicAlarmFactory> alarm_factory,
     uint8_t expected_server_connection_id_length,
-    QuicTransportSimpleServerSession::Mode mode,
     std::vector<url::Origin> accepted_origins)
     : QuicDispatcher(config,
                      crypto_config,
@@ -31,7 +30,6 @@ QuicTransportSimpleServerDispatcher::QuicTransportSimpleServerDispatcher(
                      std::move(session_helper),
                      std::move(alarm_factory),
                      expected_server_connection_id_length),
-      mode_(mode),
       accepted_origins_(accepted_origins) {}
 
 QuicSession* QuicTransportSimpleServerDispatcher::CreateQuicSession(
@@ -47,7 +45,7 @@ QuicSession* QuicTransportSimpleServerDispatcher::CreateQuicSession(
       new QuicTransportSimpleServerSession(
           connection.release(), /*owns_connection=*/true, this, config(),
           GetSupportedVersions(), crypto_config(), compressed_certs_cache(),
-          mode_, accepted_origins_);
+          accepted_origins_);
   session->Initialize();
   return session;
 }
