@@ -28,7 +28,7 @@ class QbonePacketProcessor {
  public:
   enum class Direction {
     // Packet is going from the QBONE client into the network behind the QBONE.
-    FROM_CLIENT = 0,
+    FROM_OFF_NETWORK = 0,
     // Packet is going from the network begin QBONE to the client.
     FROM_NETWORK = 1
   };

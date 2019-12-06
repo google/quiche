@@ -80,7 +80,7 @@ void QboneServerSession::ProcessPacketFromNetwork(QuicStringPiece packet) {
 void QboneServerSession::ProcessPacketFromPeer(QuicStringPiece packet) {
   string buffer = string(packet);
   processor_.ProcessPacket(&buffer,
-                           QbonePacketProcessor::Direction::FROM_CLIENT);
+                           QbonePacketProcessor::Direction::FROM_OFF_NETWORK);
 }
 
 void QboneServerSession::SendPacketToClient(QuicStringPiece packet) {

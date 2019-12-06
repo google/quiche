@@ -75,7 +75,7 @@ void QbonePacketProcessor::ProcessPacket(string* packet, Direction direction) {
   switch (result) {
     case ProcessingResult::OK:
       switch (direction) {
-        case Direction::FROM_CLIENT:
+        case Direction::FROM_OFF_NETWORK:
           output_->SendPacketToNetwork(*packet);
           break;
         case Direction::FROM_NETWORK:
@@ -184,7 +184,7 @@ QbonePacketProcessor::ProcessingResult QbonePacketProcessor::ProcessIPv6Header(
   uint8_t address_reject_code;
   bool ip_parse_result;
   switch (direction) {
-    case Direction::FROM_CLIENT:
+    case Direction::FROM_OFF_NETWORK:
       // Expect the source IP to match the client.
       ip_parse_result = address_to_check.FromPackedString(
           reinterpret_cast<const char*>(&header->ip6_src),
@@ -257,7 +257,7 @@ void QbonePacketProcessor::SendTcpReset(QuicStringPiece original_packet,
 void QbonePacketProcessor::SendResponse(Direction original_direction,
                                         QuicStringPiece packet) {
   switch (original_direction) {
-    case Direction::FROM_CLIENT:
+    case Direction::FROM_OFF_NETWORK:
       output_->SendPacketToClient(packet);
       break;
     case Direction::FROM_NETWORK:
