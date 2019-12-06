@@ -1505,7 +1505,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Latched value of quic_version_negotiated_by_default_at_server.
   const bool quic_version_negotiated_by_default_at_server_;
 
-  // Latched value of quic_use_handshaker_delegate.
+  // Latched value of quic_use_handshaker_delegate2.
   const bool use_handshake_delegate_;
 };
 

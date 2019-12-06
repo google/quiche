@@ -1326,11 +1326,13 @@ void QuicSession::SetDefaultEncryptionLevel(EncryptionLevel level) {
     case ENCRYPTION_INITIAL:
       break;
     case ENCRYPTION_ZERO_RTT:
-      // Retransmit old 0-RTT data (if any) with the new 0-RTT keys, since they
-      // can't be decrypted by the peer.
-      connection_->RetransmitUnackedPackets(ALL_INITIAL_RETRANSMISSION);
-      // Given any streams blocked by encryption a chance to write.
-      OnCanWrite();
+      if (perspective() == Perspective::IS_CLIENT) {
+        // Retransmit old 0-RTT data (if any) with the new 0-RTT keys, since
+        // they can't be decrypted by the server.
+        connection_->RetransmitUnackedPackets(ALL_INITIAL_RETRANSMISSION);
+        // Given any streams blocked by encryption a chance to write.
+        OnCanWrite();
+      }
       break;
     case ENCRYPTION_HANDSHAKE:
       break;

@@ -223,7 +223,10 @@ class QuicSpdyStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
     QuicConfigPeer::SetReceivedMaxIncomingUnidirectionalStreams(
         session_->config(), 10);
     session_->OnConfigNegotiated();
-    EXPECT_CALL(*connection_, OnCanWrite());
+    if (!session_->use_handshake_delegate() ||
+        session_->perspective() == Perspective::IS_CLIENT) {
+      EXPECT_CALL(*connection_, OnCanWrite());
+    }
     if (UsesHttp3()) {
       // In this case, TestStream::WriteHeadersImpl() does not prevent writes.
       // Six writes include priority for headers, headers frame header, headers
