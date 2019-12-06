@@ -19,25 +19,33 @@ TEST_F(QuicVersionManagerTest, QuicVersionManager) {
   static_assert(QUIC_ARRAYSIZE(kSupportedTransportVersions) == 6u,
                 "Supported versions out of sync");
   SetQuicReloadableFlag(quic_enable_version_99, false);
+  SetQuicReloadableFlag(quic_supports_tls_handshake, false);
   QuicVersionManager manager(AllSupportedVersions());
 
-  EXPECT_EQ(FilterSupportedTransportVersions(AllSupportedTransportVersions()),
-            manager.GetSupportedTransportVersions());
+  ParsedQuicVersionVector expected_parsed_versions;
+  expected_parsed_versions.push_back(
+      ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_50));
+  expected_parsed_versions.push_back(
+      ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_49));
+  expected_parsed_versions.push_back(
+      ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_48));
+  expected_parsed_versions.push_back(
+      ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_46));
+  expected_parsed_versions.push_back(
+      ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_43));
 
-  EXPECT_EQ(QuicTransportVersionVector({QUIC_VERSION_50, QUIC_VERSION_49,
-                                        QUIC_VERSION_48, QUIC_VERSION_46,
-                                        QUIC_VERSION_43}),
-            manager.GetSupportedTransportVersions());
+  EXPECT_EQ(expected_parsed_versions, manager.GetSupportedVersions());
+
+  EXPECT_EQ(FilterSupportedVersions(AllSupportedVersions()),
+            manager.GetSupportedVersions());
 
   SetQuicReloadableFlag(quic_enable_version_99, true);
-  EXPECT_EQ(QuicTransportVersionVector({QUIC_VERSION_99, QUIC_VERSION_50,
-                                        QUIC_VERSION_49, QUIC_VERSION_48,
-                                        QUIC_VERSION_46, QUIC_VERSION_43}),
-            manager.GetSupportedTransportVersions());
-
-  // Ensure that all versions are now supported.
-  EXPECT_EQ(FilterSupportedTransportVersions(AllSupportedTransportVersions()),
-            manager.GetSupportedTransportVersions());
+  expected_parsed_versions.insert(
+      expected_parsed_versions.begin(),
+      ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_99));
+  EXPECT_EQ(expected_parsed_versions, manager.GetSupportedVersions());
+  EXPECT_EQ(FilterSupportedVersions(AllSupportedVersions()),
+            manager.GetSupportedVersions());
 }
 
 }  // namespace

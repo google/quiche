@@ -236,20 +236,10 @@ QUIC_EXPORT_PRIVATE QuicTransportVersionVector AllSupportedTransportVersions();
 // kSupportedTransportVersions and kSupportedHandshakeProtocols.
 QUIC_EXPORT_PRIVATE ParsedQuicVersionVector AllSupportedVersions();
 
-// Returns a vector of QUIC versions from kSupportedTransportVersions which
-// exclude any versions which are disabled by flags.
-QUIC_EXPORT_PRIVATE QuicTransportVersionVector
-CurrentSupportedTransportVersions();
-
 // Returns a vector of QUIC versions that is the cartesian product of
 // kSupportedTransportVersions and kSupportedHandshakeProtocols, with any
 // versions disabled by flags excluded.
 QUIC_EXPORT_PRIVATE ParsedQuicVersionVector CurrentSupportedVersions();
-
-// Returns a vector of QUIC versions from |versions| which exclude any versions
-// which are disabled by flags.
-QUIC_EXPORT_PRIVATE QuicTransportVersionVector
-FilterSupportedTransportVersions(QuicTransportVersionVector versions);
 
 // Returns a vector of QUIC versions from |versions| which exclude any versions
 // which are disabled by flags.

@@ -226,29 +226,8 @@ ParsedQuicVersionVector AllSupportedVersions() {
   return supported_versions;
 }
 
-// TODO(nharper): Remove this function when it is no longer in use.
-QuicTransportVersionVector CurrentSupportedTransportVersions() {
-  return FilterSupportedTransportVersions(AllSupportedTransportVersions());
-}
-
 ParsedQuicVersionVector CurrentSupportedVersions() {
   return FilterSupportedVersions(AllSupportedVersions());
-}
-
-// TODO(nharper): Remove this function when it is no longer in use.
-QuicTransportVersionVector FilterSupportedTransportVersions(
-    QuicTransportVersionVector versions) {
-  ParsedQuicVersionVector parsed_versions;
-  for (QuicTransportVersion version : versions) {
-    parsed_versions.push_back(ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, version));
-  }
-  ParsedQuicVersionVector filtered_parsed_versions =
-      FilterSupportedVersions(parsed_versions);
-  QuicTransportVersionVector filtered_versions;
-  for (ParsedQuicVersion version : filtered_parsed_versions) {
-    filtered_versions.push_back(version.transport_version);
-  }
-  return filtered_versions;
 }
 
 ParsedQuicVersionVector FilterSupportedVersions(

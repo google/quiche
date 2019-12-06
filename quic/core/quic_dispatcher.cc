@@ -239,6 +239,8 @@ QuicDispatcher::QuicDispatcher(
       expected_server_connection_id_length_(
           expected_server_connection_id_length),
       should_update_expected_server_connection_id_length_(false) {
+  QUIC_BUG_IF(GetSupportedVersions().empty())
+      << "Trying to create dispatcher without any supported versions";
   QUIC_DLOG(INFO) << "Created QuicDispatcher with versions: "
                   << ParsedQuicVersionVectorToString(GetSupportedVersions());
 }
