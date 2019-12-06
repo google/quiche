@@ -202,6 +202,11 @@ bool QuicTransportSimpleServerSession::CheckOrigin(url::Origin origin) {
   return false;
 }
 
+bool QuicTransportSimpleServerSession::ProcessPath(const GURL& url) {
+  QUIC_DLOG(INFO) << "Path requested: " << url;
+  return true;
+}
+
 void QuicTransportSimpleServerSession::MaybeEchoStreamsBack() {
   while (!streams_to_echo_back_.empty() &&
          CanOpenNextOutgoingUnidirectionalStream()) {

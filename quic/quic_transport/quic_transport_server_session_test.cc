@@ -36,7 +36,12 @@ using testing::SaveArg;
 
 constexpr char kTestOrigin[] = "https://test-origin.test";
 constexpr char kTestOriginClientIndication[] =
-    "\0\0\0\x18https://test-origin.test";
+    "\0\0"                      // key (0x0000, origin)
+    "\0\x18"                    // length
+    "https://test-origin.test"  // value
+    "\0\x01"                    // key (0x0001, path)
+    "\0\x05"                    // length
+    "/test";                    // value
 const url::Origin GetTestOrigin() {
   return url::Origin::Create(GURL(kTestOrigin));
 }
@@ -75,6 +80,8 @@ class QuicTransportServerSessionTest : public QuicTest {
     if (!GetQuicReloadableFlag(quic_version_negotiated_by_default_at_server)) {
       crypto_stream_->OnSuccessfulVersionNegotiation(GetVersions()[0]);
     }
+    ON_CALL(visitor_, ProcessPath(_))
+        .WillByDefault(DoAll(SaveArg<0>(&path_), Return(true)));
   }
 
   void Connect() {
@@ -101,6 +108,20 @@ class QuicTransportServerSessionTest : public QuicTest {
                                             QuicStringPiece()));
   }
 
+  void ReceiveIndicationWithPath(QuicStringPiece path) {
+    constexpr char kTestOriginClientIndicationPrefix[] =
+        "\0\0"                      // key (0x0000, origin)
+        "\0\x18"                    // length
+        "https://test-origin.test"  // value
+        "\0\x01";                   // key (0x0001, path)
+    std::string indication{kTestOriginClientIndicationPrefix,
+                           sizeof(kTestOriginClientIndicationPrefix) - 1};
+    indication.push_back(static_cast<char>(path.size() >> 8));
+    indication.push_back(static_cast<char>(path.size() & 0xff));
+    indication += std::string{path};
+    ReceiveIndication(indication);
+  }
+
  protected:
   MockAlarmFactory alarm_factory_;
   MockQuicConnectionHelper helper_;
@@ -109,8 +130,9 @@ class QuicTransportServerSessionTest : public QuicTest {
   QuicCryptoServerConfig crypto_config_;
   std::unique_ptr<QuicTransportServerSession> session_;
   QuicCompressedCertsCache compressed_certs_cache_;
-  testing::StrictMock<MockServerVisitor> visitor_;
+  testing::NiceMock<MockServerVisitor> visitor_;
   QuicCryptoServerStream* crypto_stream_;
+  GURL path_;
 };
 
 TEST_F(QuicTransportServerSessionTest, SuccessfulHandshake) {
@@ -122,6 +144,7 @@ TEST_F(QuicTransportServerSessionTest, SuccessfulHandshake) {
   ReceiveIndication(GetTestOriginClientIndication());
   EXPECT_TRUE(session_->IsSessionReady());
   EXPECT_EQ(origin, GetTestOrigin());
+  EXPECT_EQ(path_.path(), "/test");
 }
 
 TEST_F(QuicTransportServerSessionTest, PiecewiseClientIndication) {
@@ -228,6 +251,41 @@ TEST_F(QuicTransportServerSessionTest, InvalidOrigin) {
       connection_,
       CloseConnection(_, HasSubstr("Unable to parse the specified origin"), _));
   ReceiveIndication(kEmptyOriginIndication);
+  EXPECT_FALSE(session_->IsSessionReady());
+}
+
+TEST_F(QuicTransportServerSessionTest, PathWithQuery) {
+  Connect();
+  EXPECT_CALL(visitor_, CheckOrigin(_)).WillOnce(Return(true));
+  ReceiveIndicationWithPath("/test?foo=bar");
+  EXPECT_TRUE(session_->IsSessionReady());
+  EXPECT_EQ(path_.path(), "/test");
+  EXPECT_EQ(path_.query(), "foo=bar");
+}
+
+TEST_F(QuicTransportServerSessionTest, PathNormalization) {
+  Connect();
+  EXPECT_CALL(visitor_, CheckOrigin(_)).WillOnce(Return(true));
+  ReceiveIndicationWithPath("/foo/../bar");
+  EXPECT_TRUE(session_->IsSessionReady());
+  EXPECT_EQ(path_.path(), "/bar");
+}
+
+TEST_F(QuicTransportServerSessionTest, EmptyPath) {
+  Connect();
+  EXPECT_CALL(visitor_, CheckOrigin(_)).WillOnce(Return(true));
+  EXPECT_CALL(connection_,
+              CloseConnection(_, HasSubstr("Path must begin with a '/'"), _));
+  ReceiveIndicationWithPath("");
+  EXPECT_FALSE(session_->IsSessionReady());
+}
+
+TEST_F(QuicTransportServerSessionTest, UnprefixedPath) {
+  Connect();
+  EXPECT_CALL(visitor_, CheckOrigin(_)).WillOnce(Return(true));
+  EXPECT_CALL(connection_,
+              CloseConnection(_, HasSubstr("Path must begin with a '/'"), _));
+  ReceiveIndicationWithPath("test");
   EXPECT_FALSE(session_->IsSessionReady());
 }
 

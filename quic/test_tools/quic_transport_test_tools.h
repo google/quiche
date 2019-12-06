@@ -21,6 +21,7 @@ class MockClientVisitor : public QuicTransportClientSession::ClientVisitor {
 class MockServerVisitor : public QuicTransportServerSession::ServerVisitor {
  public:
   MOCK_METHOD1(CheckOrigin, bool(url::Origin));
+  MOCK_METHOD1(ProcessPath, bool(const GURL&));
 };
 
 class MockStreamVisitor : public QuicTransportStream::Visitor {

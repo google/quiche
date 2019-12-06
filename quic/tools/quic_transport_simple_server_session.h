@@ -13,6 +13,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 #include "net/third_party/quiche/src/quic/quic_transport/quic_transport_server_session.h"
 #include "net/third_party/quiche/src/quic/quic_transport/quic_transport_stream.h"
 
@@ -51,6 +52,7 @@ class QuicTransportSimpleServerSession
   void OnIncomingDataStream(QuicTransportStream* stream) override;
   void OnCanCreateNewOutgoingStream(bool unidirectional) override;
   bool CheckOrigin(url::Origin origin) override;
+  bool ProcessPath(const GURL& url) override;
 
   void EchoStreamBack(const std::string& data) {
     streams_to_echo_back_.push_back(data);

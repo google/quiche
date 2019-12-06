@@ -5,6 +5,7 @@
 #ifndef QUICHE_QUIC_QUIC_TRANSPORT_QUIC_TRANSPORT_SERVER_SESSION_H_
 #define QUICHE_QUIC_QUIC_TRANSPORT_QUIC_TRANSPORT_SERVER_SESSION_H_
 
+#include "url/gurl.h"
 #include "url/origin.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection.h"
 #include "net/third_party/quiche/src/quic/core/quic_crypto_server_stream.h"
@@ -25,7 +26,14 @@ class QUIC_EXPORT_PRIVATE QuicTransportServerSession
    public:
     virtual ~ServerVisitor() {}
 
+    // Allows the server to decide whether the specified origin is allowed to
+    // connect to it.
     virtual bool CheckOrigin(url::Origin origin) = 0;
+
+    // Indicates that the server received a path parameter from the client.  The
+    // path parameter is parsed, and can be retrived from url.path() and
+    // url.query().  If this method returns false, the connection is closed.
+    virtual bool ProcessPath(const GURL& url) = 0;
   };
 
   QuicTransportServerSession(QuicConnection* connection,
@@ -89,6 +97,9 @@ class QUIC_EXPORT_PRIVATE QuicTransportServerSession
    private:
     void Error(const std::string& error_message);
     void ParseError(QuicStringPiece error_message);
+
+    // Processes the path portion of the client indication.
+    bool ProcessPath(QuicStringPiece path);
 
     QuicTransportServerSession* session_;
     QuicDataReader reader_;

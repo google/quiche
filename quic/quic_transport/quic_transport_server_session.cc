@@ -4,9 +4,12 @@
 
 #include "net/third_party/quiche/src/quic/quic_transport/quic_transport_server_session.h"
 
+#include <algorithm>
 #include <memory>
+#include <string>
 
 #include "url/gurl.h"
+#include "url/url_constants.h"
 #include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
 #include "net/third_party/quiche/src/quic/core/quic_stream.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
@@ -28,6 +31,7 @@ class QuicTransportServerCryptoHelper : public QuicCryptoServerStream::Helper {
     return true;
   }
 };
+
 }  // namespace
 
 QuicTransportServerSession::QuicTransportServerSession(
@@ -96,6 +100,7 @@ void QuicTransportServerSession::ClientIndication::OnDataAvailable() {
 
 bool QuicTransportServerSession::ClientIndicationParser::Parse() {
   bool origin_received = false;
+  bool path_received = false;
   while (!reader_.IsDoneReading()) {
     uint16_t key;
     if (!reader_.ReadUInt16(&key)) {
@@ -127,6 +132,14 @@ bool QuicTransportServerSession::ClientIndicationParser::Parse() {
         break;
       }
 
+      case QuicTransportClientIndicationKeys::kPath: {
+        if (!ProcessPath(value)) {
+          return false;
+        }
+        path_received = true;
+        break;
+      }
+
       default:
         QUIC_DLOG(INFO) << "Unknown client indication key: " << key;
         break;
@@ -137,7 +150,37 @@ bool QuicTransportServerSession::ClientIndicationParser::Parse() {
     Error("No origin received");
     return false;
   }
+  if (!path_received) {
+    Error("No path received");
+    return false;
+  }
 
+  return true;
+}
+
+bool QuicTransportServerSession::ClientIndicationParser::ProcessPath(
+    QuicStringPiece path) {
+  if (path.empty() || path[0] != '/') {
+    // https://tools.ietf.org/html/draft-vvv-webtransport-quic-01#section-3.2.2
+    Error("Path must begin with a '/'");
+    return false;
+  }
+
+  // TODO(b/145674008): use the SNI value from the handshake instead of the IP
+  // address.
+  std::string url_text =
+      QuicStrCat(url::kQuicTransportScheme, url::kStandardSchemeSeparator,
+                 session_->self_address().ToString(), path);
+  GURL url{url_text};
+  if (!url.is_valid()) {
+    Error("Invalid path specified");
+    return false;
+  }
+
+  if (!session_->visitor_->ProcessPath(url)) {
+    Error("Specified path rejected");
+    return false;
+  }
   return true;
 }
 
