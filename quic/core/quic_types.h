@@ -404,6 +404,16 @@ enum LossDetectionType : uint8_t {
   kIetfLossDetection,  // IETF style loss detection.
 };
 
+// TODO(fayang): Remove this when deprecating
+// quic_default_on_ietf_loss_detection.
+inline LossDetectionType GetDefaultLossDetectionType() {
+  if (GetQuicRestartFlag(quic_default_on_ietf_loss_detection)) {
+    QUIC_RESTART_FLAG_COUNT(quic_default_on_ietf_loss_detection);
+    return kIetfLossDetection;
+  }
+  return kNack;
+}
+
 // EncryptionLevel enumerates the stages of encryption that a QUIC connection
 // progresses through. When retransmitting a packet, the encryption level needs
 // to be specified so that it is retransmitted at a level which the peer can

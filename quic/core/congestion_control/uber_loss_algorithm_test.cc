@@ -115,7 +115,12 @@ TEST_F(UberLossAlgorithmTest, ScenarioB) {
       APPLICATION_DATA, QuicPacketNumber(4));
   // No packet loss by acking 4.
   VerifyLosses(4, packets_acked_, std::vector<uint64_t>{});
-  EXPECT_EQ(QuicTime::Zero(), loss_algorithm_.GetLossTimeout());
+  if (GetQuicRestartFlag(quic_default_on_ietf_loss_detection)) {
+    EXPECT_EQ(clock_.Now() + 1.25 * rtt_stats_.smoothed_rtt(),
+              loss_algorithm_.GetLossTimeout());
+  } else {
+    EXPECT_EQ(QuicTime::Zero(), loss_algorithm_.GetLossTimeout());
+  }
 
   // Acking 6 causes 3 to be detected loss.
   AckPackets({6});

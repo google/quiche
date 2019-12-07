@@ -138,7 +138,12 @@ TEST_F(GeneralLossAlgorithmTest, NackRetransmit1PacketSingleAck) {
   packets_acked.push_back(AckedPacket(
       QuicPacketNumber(4), kMaxOutgoingPacketSize, QuicTime::Zero()));
   VerifyLosses(4, packets_acked, {1});
-  EXPECT_EQ(QuicTime::Zero(), loss_algorithm_.GetLossTimeout());
+  if (GetQuicRestartFlag(quic_default_on_ietf_loss_detection)) {
+    EXPECT_EQ(clock_.Now() + 1.25 * rtt_stats_.smoothed_rtt(),
+              loss_algorithm_.GetLossTimeout());
+  } else {
+    EXPECT_EQ(QuicTime::Zero(), loss_algorithm_.GetLossTimeout());
+  }
 }
 
 TEST_F(GeneralLossAlgorithmTest, EarlyRetransmit1Packet) {
@@ -264,6 +269,9 @@ TEST_F(GeneralLossAlgorithmTest, AlwaysLosePacketSent1RTTEarlier) {
 
 // NoFack loss detection tests.
 TEST_F(GeneralLossAlgorithmTest, LazyFackNackRetransmit1Packet) {
+  if (GetQuicRestartFlag(quic_default_on_ietf_loss_detection)) {
+    return;
+  }
   loss_algorithm_.SetLossDetectionType(kLazyFack);
   const size_t kNumSentPackets = 5;
   // Transmit 5 packets.
@@ -295,6 +303,9 @@ TEST_F(GeneralLossAlgorithmTest, LazyFackNackRetransmit1Packet) {
 // unacknowledged data.
 TEST_F(GeneralLossAlgorithmTest,
        LazyFackNoNackRetransmit1PacketWith1StretchAck) {
+  if (GetQuicRestartFlag(quic_default_on_ietf_loss_detection)) {
+    return;
+  }
   loss_algorithm_.SetLossDetectionType(kLazyFack);
   const size_t kNumSentPackets = 10;
   // Transmit 10 packets.
@@ -326,6 +337,9 @@ TEST_F(GeneralLossAlgorithmTest,
 
 // Ack a packet 3 packets ahead does not cause a retransmit.
 TEST_F(GeneralLossAlgorithmTest, LazyFackNackRetransmit1PacketSingleAck) {
+  if (GetQuicRestartFlag(quic_default_on_ietf_loss_detection)) {
+    return;
+  }
   loss_algorithm_.SetLossDetectionType(kLazyFack);
   const size_t kNumSentPackets = 10;
   // Transmit 10 packets.
@@ -351,6 +365,9 @@ TEST_F(GeneralLossAlgorithmTest, LazyFackNackRetransmit1PacketSingleAck) {
 
 // Time-based loss detection tests.
 TEST_F(GeneralLossAlgorithmTest, NoLossFor500Nacks) {
+  if (GetQuicRestartFlag(quic_default_on_ietf_loss_detection)) {
+    return;
+  }
   loss_algorithm_.SetLossDetectionType(kTime);
   const size_t kNumSentPackets = 5;
   // Transmit 5 packets.
@@ -370,6 +387,9 @@ TEST_F(GeneralLossAlgorithmTest, NoLossFor500Nacks) {
 }
 
 TEST_F(GeneralLossAlgorithmTest, NoLossUntilTimeout) {
+  if (GetQuicRestartFlag(quic_default_on_ietf_loss_detection)) {
+    return;
+  }
   loss_algorithm_.SetLossDetectionType(kTime);
   const size_t kNumSentPackets = 10;
   // Transmit 10 packets at 1/10th an RTT interval.
@@ -396,6 +416,9 @@ TEST_F(GeneralLossAlgorithmTest, NoLossUntilTimeout) {
 }
 
 TEST_F(GeneralLossAlgorithmTest, NoLossWithoutNack) {
+  if (GetQuicRestartFlag(quic_default_on_ietf_loss_detection)) {
+    return;
+  }
   loss_algorithm_.SetLossDetectionType(kTime);
   const size_t kNumSentPackets = 10;
   // Transmit 10 packets at 1/10th an RTT interval.
@@ -423,6 +446,9 @@ TEST_F(GeneralLossAlgorithmTest, NoLossWithoutNack) {
 }
 
 TEST_F(GeneralLossAlgorithmTest, MultipleLossesAtOnce) {
+  if (GetQuicRestartFlag(quic_default_on_ietf_loss_detection)) {
+    return;
+  }
   loss_algorithm_.SetLossDetectionType(kTime);
   const size_t kNumSentPackets = 10;
   // Transmit 10 packets at once and then go forward an RTT.
@@ -448,6 +474,9 @@ TEST_F(GeneralLossAlgorithmTest, MultipleLossesAtOnce) {
 }
 
 TEST_F(GeneralLossAlgorithmTest, NoSpuriousLossesFromLargeReordering) {
+  if (GetQuicRestartFlag(quic_default_on_ietf_loss_detection)) {
+    return;
+  }
   loss_algorithm_.SetLossDetectionType(kTime);
   const size_t kNumSentPackets = 10;
   // Transmit 10 packets at once and then go forward an RTT.
@@ -482,6 +511,9 @@ TEST_F(GeneralLossAlgorithmTest, NoSpuriousLossesFromLargeReordering) {
 }
 
 TEST_F(GeneralLossAlgorithmTest, IncreaseThresholdUponSpuriousLoss) {
+  if (GetQuicRestartFlag(quic_default_on_ietf_loss_detection)) {
+    return;
+  }
   loss_algorithm_.SetLossDetectionType(kAdaptiveTime);
   EXPECT_EQ(4, loss_algorithm_.reordering_shift());
   const size_t kNumSentPackets = 10;
@@ -563,7 +595,7 @@ TEST_F(GeneralLossAlgorithmTest, IncreaseTimeThresholdUponSpuriousLoss) {
 }
 
 TEST_F(GeneralLossAlgorithmTest, IncreaseReorderingThresholdUponSpuriousLoss) {
-  loss_algorithm_.enable_adaptive_reordering_threshold();
+  loss_algorithm_.set_use_adaptive_reordering_threshold(true);
   for (size_t i = 1; i <= 4; ++i) {
     SendDataPacket(i);
   }
@@ -627,6 +659,7 @@ TEST_F(GeneralLossAlgorithmTest, IncreaseReorderingThresholdUponSpuriousLoss) {
 
 TEST_F(GeneralLossAlgorithmTest, DefaultIetfLossDetection) {
   loss_algorithm_.SetLossDetectionType(kIetfLossDetection);
+  loss_algorithm_.set_reordering_shift(kDefaultIetfLossDelayShift);
   for (size_t i = 1; i <= 6; ++i) {
     SendDataPacket(i);
   }

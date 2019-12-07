@@ -303,7 +303,7 @@ QuicConnection::QuicConnection(
                            random_generator_,
                            &stats_,
                            GetDefaultCongestionControlType(),
-                           kNack),
+                           GetDefaultLossDetectionType()),
       version_negotiated_(false),
       perspective_(perspective),
       connected_(true),

@@ -248,6 +248,9 @@ const int kInitialRttMs = 100;
 // packet is lost due to early retransmission by time based loss detection.
 static const int kDefaultLossDelayShift = 2;
 
+// Default fraction (1/8) of an RTT when doing IETF loss detection.
+static const int kDefaultIetfLossDelayShift = 3;
+
 // Maximum number of retransmittable packets received before sending an ack.
 const QuicPacketCount kDefaultRetransmittablePacketsBeforeAck = 2;
 // Wait for up to 10 retransmittable packets before sending an ack.

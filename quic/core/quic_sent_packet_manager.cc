@@ -250,29 +250,41 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
     use_new_rto_ = true;
   }
   // Configure loss detection.
-  if (config.HasClientRequestedIndependentOption(kTIME, perspective)) {
-    uber_loss_algorithm_.SetLossDetectionType(kTime);
-  }
-  if (config.HasClientRequestedIndependentOption(kATIM, perspective)) {
-    uber_loss_algorithm_.SetLossDetectionType(kAdaptiveTime);
-  }
-  if (config.HasClientRequestedIndependentOption(kLFAK, perspective)) {
-    uber_loss_algorithm_.SetLossDetectionType(kLazyFack);
+  if (!GetQuicRestartFlag(quic_default_on_ietf_loss_detection)) {
+    if (config.HasClientRequestedIndependentOption(kTIME, perspective)) {
+      uber_loss_algorithm_.SetLossDetectionType(kTime);
+    }
+    if (config.HasClientRequestedIndependentOption(kATIM, perspective)) {
+      uber_loss_algorithm_.SetLossDetectionType(kAdaptiveTime);
+    }
+    if (config.HasClientRequestedIndependentOption(kLFAK, perspective)) {
+      uber_loss_algorithm_.SetLossDetectionType(kLazyFack);
+    }
   }
   if (GetQuicReloadableFlag(quic_enable_ietf_loss_detection)) {
     if (config.HasClientRequestedIndependentOption(kILD0, perspective)) {
       QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_ietf_loss_detection, 1, 5);
       uber_loss_algorithm_.SetLossDetectionType(kIetfLossDetection);
+      if (GetQuicRestartFlag(quic_default_on_ietf_loss_detection)) {
+        uber_loss_algorithm_.SetReorderingShift(kDefaultIetfLossDelayShift);
+        uber_loss_algorithm_.DisableAdaptiveReorderingThreshold();
+      }
     }
     if (config.HasClientRequestedIndependentOption(kILD1, perspective)) {
       QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_ietf_loss_detection, 2, 5);
       uber_loss_algorithm_.SetLossDetectionType(kIetfLossDetection);
       uber_loss_algorithm_.SetReorderingShift(kDefaultLossDelayShift);
+      if (GetQuicRestartFlag(quic_default_on_ietf_loss_detection)) {
+        uber_loss_algorithm_.DisableAdaptiveReorderingThreshold();
+      }
     }
     if (config.HasClientRequestedIndependentOption(kILD2, perspective)) {
       QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_ietf_loss_detection, 3, 5);
       uber_loss_algorithm_.SetLossDetectionType(kIetfLossDetection);
       uber_loss_algorithm_.EnableAdaptiveReorderingThreshold();
+      if (GetQuicRestartFlag(quic_default_on_ietf_loss_detection)) {
+        uber_loss_algorithm_.SetReorderingShift(kDefaultIetfLossDelayShift);
+      }
     }
     if (config.HasClientRequestedIndependentOption(kILD3, perspective)) {
       QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_ietf_loss_detection, 4, 5);

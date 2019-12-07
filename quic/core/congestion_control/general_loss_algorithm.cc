@@ -18,15 +18,20 @@ namespace {
 // regardless of SRTT.  Half of the minimum TLP, since the loss algorithm only
 // triggers when a nack has been receieved for the packet.
 static const size_t kMinLossDelayMs = 5;
-
-// Default fraction (1/8) of an RTT when doing IETF loss detection.
-static const int kDefaultIetfLossDelayShift = 3;
 // Default fraction (1/16) of an RTT when doing adaptive loss detection.
 static const int kDefaultAdaptiveLossDelayShift = 4;
 
 }  // namespace
 
-GeneralLossAlgorithm::GeneralLossAlgorithm() : GeneralLossAlgorithm(kNack) {}
+GeneralLossAlgorithm::GeneralLossAlgorithm()
+    : GeneralLossAlgorithm(GetDefaultLossDetectionType()) {
+  if (GetQuicRestartFlag(quic_default_on_ietf_loss_detection)) {
+    // TODO(fayang): Change defaults in GeneralLossAlgorithm(LossDetectionType
+    // loss_type) when deprecating quic_default_on_ietf_loss_detection.
+    set_reordering_shift(kDefaultLossDelayShift);
+    set_use_adaptive_reordering_threshold(true);
+  }
+}
 
 GeneralLossAlgorithm::GeneralLossAlgorithm(LossDetectionType loss_type)
     : loss_detection_timeout_(QuicTime::Zero()),
@@ -39,12 +44,16 @@ GeneralLossAlgorithm::GeneralLossAlgorithm(LossDetectionType loss_type)
 }
 
 void GeneralLossAlgorithm::SetLossDetectionType(LossDetectionType loss_type) {
+  DCHECK(!GetQuicRestartFlag(quic_default_on_ietf_loss_detection) ||
+         loss_type == kIetfLossDetection);
   loss_detection_timeout_ = QuicTime::Zero();
   loss_type_ = loss_type;
   if (loss_type == kAdaptiveTime) {
     reordering_shift_ = kDefaultAdaptiveLossDelayShift;
   } else if (loss_type == kIetfLossDetection) {
-    reordering_shift_ = kDefaultIetfLossDelayShift;
+    if (!GetQuicRestartFlag(quic_default_on_ietf_loss_detection)) {
+      reordering_shift_ = kDefaultIetfLossDelayShift;
+    }
   } else {
     reordering_shift_ = kDefaultLossDelayShift;
   }

@@ -8,7 +8,8 @@
 
 namespace quic {
 
-UberLossAlgorithm::UberLossAlgorithm() : UberLossAlgorithm(kNack) {}
+UberLossAlgorithm::UberLossAlgorithm()
+    : UberLossAlgorithm(GetDefaultLossDetectionType()) {}
 
 UberLossAlgorithm::UberLossAlgorithm(LossDetectionType loss_type)
     : loss_type_(loss_type) {
@@ -89,7 +90,13 @@ void UberLossAlgorithm::SetReorderingShift(int reordering_shift) {
 
 void UberLossAlgorithm::EnableAdaptiveReorderingThreshold() {
   for (int8_t i = INITIAL_DATA; i < NUM_PACKET_NUMBER_SPACES; ++i) {
-    general_loss_algorithms_[i].enable_adaptive_reordering_threshold();
+    general_loss_algorithms_[i].set_use_adaptive_reordering_threshold(true);
+  }
+}
+
+void UberLossAlgorithm::DisableAdaptiveReorderingThreshold() {
+  for (int8_t i = INITIAL_DATA; i < NUM_PACKET_NUMBER_SPACES; ++i) {
+    general_loss_algorithms_[i].set_use_adaptive_reordering_threshold(false);
   }
 }
 

@@ -66,8 +66,8 @@ class QUIC_EXPORT_PRIVATE GeneralLossAlgorithm : public LossDetectionInterface {
     return use_adaptive_reordering_threshold_;
   }
 
-  void enable_adaptive_reordering_threshold() {
-    use_adaptive_reordering_threshold_ = true;
+  void set_use_adaptive_reordering_threshold(bool value) {
+    use_adaptive_reordering_threshold_ = value;
   }
 
   bool use_adaptive_time_threshold() const {
@@ -78,6 +78,8 @@ class QUIC_EXPORT_PRIVATE GeneralLossAlgorithm : public LossDetectionInterface {
 
  private:
   QuicTime loss_detection_timeout_;
+  // TODO(fayang): remove loss_type_ when deprecating
+  // quic_default_on_ietf_loss_detection.
   LossDetectionType loss_type_;
   // Fraction of a max(SRTT, latest_rtt) to permit reordering before declaring
   // loss.  Fraction calculated by shifting max(SRTT, latest_rtt) to the right
