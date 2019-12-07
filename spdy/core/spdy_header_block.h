@@ -133,8 +133,6 @@ class SPDY_EXPORT_PRIVATE SpdyHeaderBlock {
   };
   typedef iterator const_iterator;
 
-  class ValueProxy;
-
   SpdyHeaderBlock();
   SpdyHeaderBlock(const SpdyHeaderBlock& other) = delete;
   SpdyHeaderBlock(SpdyHeaderBlock&& other);
@@ -151,15 +149,15 @@ class SPDY_EXPORT_PRIVATE SpdyHeaderBlock {
   // keys and values.
   std::string DebugString() const;
 
-  iterator begin() { return iterator(block_.begin()); }
-  iterator end() { return iterator(block_.end()); }
-  const_iterator begin() const { return const_iterator(block_.begin()); }
-  const_iterator end() const { return const_iterator(block_.end()); }
-  bool empty() const { return block_.empty(); }
-  size_t size() const { return block_.size(); }
-  iterator find(SpdyStringPiece key) { return iterator(block_.find(key)); }
+  iterator begin() { return iterator(map_.begin()); }
+  iterator end() { return iterator(map_.end()); }
+  const_iterator begin() const { return const_iterator(map_.begin()); }
+  const_iterator end() const { return const_iterator(map_.end()); }
+  bool empty() const { return map_.empty(); }
+  size_t size() const { return map_.size(); }
+  iterator find(SpdyStringPiece key) { return iterator(map_.find(key)); }
   const_iterator find(SpdyStringPiece key) const {
-    return const_iterator(block_.find(key));
+    return const_iterator(map_.find(key));
   }
   void erase(SpdyStringPiece key);
 
@@ -178,9 +176,6 @@ class SPDY_EXPORT_PRIVATE SpdyHeaderBlock {
   // If there is no such key, a new header with the key and value is added.
   void AppendValueOrAddHeader(const SpdyStringPiece key,
                               const SpdyStringPiece value);
-
-  // Allows either lookup or mutation of the value associated with a key.
-  SPDY_MUST_USE_RESULT ValueProxy operator[](const SpdyStringPiece key);
 
   // This object provides automatic conversions that allow SpdyHeaderBlock to be
   // nearly a drop-in replacement for
@@ -207,19 +202,20 @@ class SPDY_EXPORT_PRIVATE SpdyHeaderBlock {
     friend class SpdyHeaderBlock;
     friend class test::ValueProxyPeer;
 
-    ValueProxy(SpdyHeaderBlock::MapType* block,
-               SpdyHeaderBlock::Storage* storage,
+    ValueProxy(SpdyHeaderBlock* block,
                SpdyHeaderBlock::MapType::iterator lookup_result,
                const SpdyStringPiece key,
                size_t* spdy_header_block_value_size);
 
-    SpdyHeaderBlock::MapType* block_;
-    SpdyHeaderBlock::Storage* storage_;
+    SpdyHeaderBlock* block_;
     SpdyHeaderBlock::MapType::iterator lookup_result_;
     SpdyStringPiece key_;
     size_t* spdy_header_block_value_size_;
     bool valid_;
   };
+
+  // Allows either lookup or mutation of the value associated with a key.
+  SPDY_MUST_USE_RESULT ValueProxy operator[](const SpdyStringPiece key);
 
   // Returns the estimate of dynamically allocated memory in bytes.
   size_t EstimateMemoryUsage() const;
@@ -234,9 +230,9 @@ class SPDY_EXPORT_PRIVATE SpdyHeaderBlock {
   SpdyStringPiece WriteKey(const SpdyStringPiece key);
   size_t bytes_allocated() const;
 
-  // SpdyStringPieces held by |block_| point to memory owned by |*storage_|.
-  // |storage_| might be nullptr as long as |block_| is empty.
-  MapType block_;
+  // SpdyStringPieces held by |map_| point to memory owned by |*storage_|.
+  // |storage_| might be nullptr as long as |map_| is empty.
+  MapType map_;
   std::unique_ptr<Storage> storage_;
 
   size_t key_size_ = 0;
