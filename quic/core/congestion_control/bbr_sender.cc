@@ -270,12 +270,14 @@ void BbrSender::SetFromConfig(const QuicConfig& config,
   }
   if (GetQuicReloadableFlag(quic_bbr_startup_rate_reduction) &&
       config.HasClientRequestedIndependentOption(kBBS4, perspective)) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr_startup_rate_reduction, 1, 2);
     rate_based_startup_ = true;
     // Hits 1.25x pacing multiplier when ~2/3 CWND is lost.
     startup_rate_reduction_multiplier_ = 1;
   }
   if (GetQuicReloadableFlag(quic_bbr_startup_rate_reduction) &&
       config.HasClientRequestedIndependentOption(kBBS5, perspective)) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr_startup_rate_reduction, 2, 2);
     rate_based_startup_ = true;
     // Hits 1.25x pacing multiplier when ~1/3 CWND is lost.
     startup_rate_reduction_multiplier_ = 2;
