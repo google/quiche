@@ -422,11 +422,6 @@ void QuicStream::OnStreamFrame(const QuicStreamFrame& frame) {
   }
 
   if (frame.offset + frame.data_length > sequencer_.close_offset()) {
-    if (!GetQuicReloadableFlag(quic_close_connection_on_wrong_offset)) {
-      Reset(QUIC_DATA_AFTER_CLOSE_OFFSET);
-      return;
-    }
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_close_connection_on_wrong_offset, 1, 2);
     CloseConnectionWithDetails(
         QUIC_STREAM_DATA_BEYOND_CLOSE_OFFSET,
         QuicStrCat(
@@ -490,20 +485,17 @@ void QuicStream::OnStreamReset(const QuicRstStreamFrame& frame) {
     return;
   }
 
-  if (GetQuicReloadableFlag(quic_close_connection_on_wrong_offset)) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_close_connection_on_wrong_offset, 2, 2);
-    const QuicStreamOffset kMaxOffset =
-        std::numeric_limits<QuicStreamOffset>::max();
-    if (sequencer()->close_offset() != kMaxOffset &&
-        frame.byte_offset != sequencer()->close_offset()) {
-      CloseConnectionWithDetails(
-          QUIC_STREAM_MULTIPLE_OFFSET,
-          QuicStrCat("Stream ", id_,
-                     " received new final offset: ", frame.byte_offset,
-                     ", which is different from close offset: ",
-                     sequencer_.close_offset()));
-      return;
-    }
+  const QuicStreamOffset kMaxOffset =
+      std::numeric_limits<QuicStreamOffset>::max();
+  if (sequencer()->close_offset() != kMaxOffset &&
+      frame.byte_offset != sequencer()->close_offset()) {
+    CloseConnectionWithDetails(
+        QUIC_STREAM_MULTIPLE_OFFSET,
+        QuicStrCat("Stream ", id_,
+                   " received new final offset: ", frame.byte_offset,
+                   ", which is different from close offset: ",
+                   sequencer_.close_offset()));
+    return;
   }
 
   MaybeIncreaseHighestReceivedOffset(frame.byte_offset);

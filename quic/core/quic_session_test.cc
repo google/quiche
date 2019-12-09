@@ -2757,14 +2757,8 @@ TEST_P(QuicSessionTestServer, StreamFrameReceivedAfterFin) {
   session_.OnStreamFrame(frame);
 
   QuicStreamFrame frame1(stream->id(), false, 1, ",");
-  if (!GetQuicReloadableFlag(quic_close_connection_on_wrong_offset)) {
-    EXPECT_CALL(*connection_, SendControlFrame(_));
-    EXPECT_CALL(*connection_,
-                OnStreamReset(stream->id(), QUIC_DATA_AFTER_CLOSE_OFFSET));
-  } else {
-    EXPECT_CALL(*connection_,
-                CloseConnection(QUIC_STREAM_DATA_BEYOND_CLOSE_OFFSET, _, _));
-  }
+  EXPECT_CALL(*connection_,
+              CloseConnection(QUIC_STREAM_DATA_BEYOND_CLOSE_OFFSET, _, _));
   session_.OnStreamFrame(frame1);
 }
 

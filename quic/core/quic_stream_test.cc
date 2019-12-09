@@ -1589,7 +1589,6 @@ TEST_P(QuicStreamTest, WindowUpdateForReadOnlyStream) {
 }
 
 TEST_P(QuicStreamTest, RstStreamFrameChangesCloseOffset) {
-  SetQuicReloadableFlag(quic_close_connection_on_wrong_offset, true);
   Initialize();
 
   QuicStreamFrame stream_frame(stream_->id(), true, 0, "abc");
