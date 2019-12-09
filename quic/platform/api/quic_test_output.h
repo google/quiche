@@ -10,6 +10,18 @@
 
 namespace quic {
 
+// Save |data| into ${QUIC_TEST_OUTPUT_DIR}/filename. If a file with the same
+// path already exists, overwrite it.
+inline void QuicSaveTestOutput(QuicStringPiece filename, QuicStringPiece data) {
+  QuicSaveTestOutputImpl(filename, data);
+}
+
+// Load the content of ${QUIC_TEST_OUTPUT_DIR}/filename into |*data|.
+// Return whether it is successfully loaded.
+inline bool QuicLoadTestOutput(QuicStringPiece filename, std::string* data) {
+  return QuicLoadTestOutputImpl(filename, data);
+}
+
 // Records a QUIC trace file(.qtr) into a directory specified by the
 // QUIC_TEST_OUTPUT_DIR environment variable.  Assumes that it's called from a
 // unit test.

@@ -20,6 +20,8 @@
 #include "net/third_party/quiche/src/quic/test_tools/quic_connection_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_sent_packet_manager_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
+#include "net/third_party/quiche/src/quic/test_tools/send_algorithm_test_result.pb.h"
+#include "net/third_party/quiche/src/quic/test_tools/send_algorithm_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/simulator/quic_endpoint.h"
 #include "net/third_party/quiche/src/quic/test_tools/simulator/simulator.h"
 #include "net/third_party/quiche/src/quic/test_tools/simulator/switch.h"
@@ -27,6 +29,14 @@
 using testing::AllOf;
 using testing::Ge;
 using testing::Le;
+
+DEFINE_QUIC_COMMAND_LINE_FLAG(
+    std::string,
+    quic_bbr_test_regression_mode,
+    "",
+    "One of a) 'record' to record test result (one file per test), or "
+    "b) 'regress' to regress against recorded results, or "
+    "c) <anything else> for non-regression mode.");
 
 namespace quic {
 namespace test {
@@ -101,10 +111,30 @@ class BbrSenderTest : public QuicTest {
 
     clock_ = simulator_.GetClock();
     simulator_.set_random_generator(&random_);
+  }
 
-    uint64_t seed = QuicRandom::GetInstance()->RandUint64();
-    random_.set_seed(seed);
-    QUIC_LOG(INFO) << "BbrSenderTest simulator set up.  Seed: " << seed;
+  void SetUp() override {
+    if (GetQuicFlag(FLAGS_quic_bbr_test_regression_mode) == "regress") {
+      SendAlgorithmTestResult expected;
+      ASSERT_TRUE(LoadSendAlgorithmTestResult(&expected));
+      random_seed_ = expected.random_seed();
+    } else {
+      random_seed_ = QuicRandom::GetInstance()->RandUint64();
+    }
+    random_.set_seed(random_seed_);
+    QUIC_LOG(INFO) << "BbrSenderTest simulator set up.  Seed: " << random_seed_;
+  }
+
+  ~BbrSenderTest() {
+    const std::string regression_mode =
+        GetQuicFlag(FLAGS_quic_bbr_test_regression_mode);
+    const QuicTime::Delta simulated_duration = clock_->Now() - QuicTime::Zero();
+    if (regression_mode == "record") {
+      RecordSendAlgorithmTestResult(random_seed_,
+                                    simulated_duration.ToMicroseconds());
+    } else if (regression_mode == "regress") {
+      CompareSendAlgorithmTestResult(simulated_duration.ToMicroseconds());
+    }
   }
 
   simulator::Simulator simulator_;
@@ -118,6 +148,7 @@ class BbrSenderTest : public QuicTest {
   std::unique_ptr<simulator::SymmetricLink> competing_sender_link_;
   std::unique_ptr<simulator::SymmetricLink> receiver_link_;
 
+  uint64_t random_seed_;
   SimpleRandom random_;
 
   // Owned by different components of the connection.
