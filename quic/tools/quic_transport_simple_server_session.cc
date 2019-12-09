@@ -141,14 +141,13 @@ QuicTransportSimpleServerSession::QuicTransportSimpleServerSession(
                                  crypto_config,
                                  compressed_certs_cache,
                                  this),
-      connection_(connection),
       owns_connection_(owns_connection),
       mode_(DISCARD),
       accepted_origins_(accepted_origins) {}
 
 QuicTransportSimpleServerSession::~QuicTransportSimpleServerSession() {
   if (owns_connection_) {
-    delete connection_;
+    delete connection();
   }
 }
 

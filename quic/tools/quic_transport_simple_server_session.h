@@ -61,7 +61,6 @@ class QuicTransportSimpleServerSession
  private:
   void MaybeEchoStreamsBack();
 
-  QuicConnection* connection_;
   const bool owns_connection_;
   Mode mode_;
   std::vector<url::Origin> accepted_origins_;
