@@ -25,9 +25,6 @@ namespace {
 // large header blocks.
 const size_t kInitialMapBuckets = 11;
 
-// SpdyHeaderBlock::Storage allocates blocks of this size by default.
-const size_t kDefaultStorageBlockSize = 2048;
-
 const char kCookieKey[] = "cookie";
 const char kNullSeparator = 0;
 
@@ -42,62 +39,7 @@ SpdyStringPiece SeparatorForKey(SpdyStringPiece key) {
 
 }  // namespace
 
-// This class provides a backing store for SpdyStringPieces. It previously used
-// custom allocation logic, but now uses an UnsafeArena instead. It has the
-// property that SpdyStringPieces that refer to data in Storage are never
-// invalidated until the Storage is deleted or Clear() is called.
-//
-// Write operations always append to the last block. If there is not enough
-// space to perform the write, a new block is allocated, and any unused space
-// is wasted.
-class SpdyHeaderBlock::Storage {
- public:
-  Storage() : arena_(kDefaultStorageBlockSize) {}
-  Storage(const Storage&) = delete;
-  Storage& operator=(const Storage&) = delete;
-
-  SpdyStringPiece Write(const SpdyStringPiece s) {
-    return SpdyStringPiece(arena_.Memdup(s.data(), s.size()), s.size());
-  }
-
-  // If |s| points to the most recent allocation from arena_, the arena will
-  // reclaim the memory. Otherwise, this method is a no-op.
-  void Rewind(const SpdyStringPiece s) {
-    arena_.Free(const_cast<char*>(s.data()), s.size());
-  }
-
-  void Clear() { arena_.Reset(); }
-
-  // Given a list of fragments and a separator, writes the fragments joined by
-  // the separator to a contiguous region of memory. Returns a SpdyStringPiece
-  // pointing to the region of memory.
-  SpdyStringPiece WriteFragments(const std::vector<SpdyStringPiece>& fragments,
-                                 SpdyStringPiece separator) {
-    if (fragments.empty()) {
-      return SpdyStringPiece();
-    }
-    size_t total_size = separator.size() * (fragments.size() - 1);
-    for (const auto fragment : fragments) {
-      total_size += fragment.size();
-    }
-    char* dst = arena_.Alloc(total_size);
-    size_t written = Join(dst, fragments, separator);
-    DCHECK_EQ(written, total_size);
-    return SpdyStringPiece(dst, total_size);
-  }
-
-  size_t bytes_allocated() const { return arena_.status().bytes_allocated(); }
-
-  // TODO(xunjieli): https://crbug.com/669108. Merge this with bytes_allocated()
-  size_t EstimateMemoryUsage() const {
-    return arena_.status().bytes_allocated();
-  }
-
- private:
-  SpdyUnsafeArena arena_;
-};
-
-SpdyHeaderBlock::HeaderValue::HeaderValue(Storage* storage,
+SpdyHeaderBlock::HeaderValue::HeaderValue(SpdyHeaderStorage* storage,
                                           SpdyStringPiece key,
                                           SpdyStringPiece initial_value)
     : storage_(storage),
@@ -186,8 +128,8 @@ SpdyHeaderBlock::ValueProxy& SpdyHeaderBlock::ValueProxy::operator=(
 
 SpdyHeaderBlock::ValueProxy::~ValueProxy() {
   // If the ValueProxy is destroyed while lookup_result_ == block_->end(),
-  // the assignment operator was never used, and the block's Storage can
-  // reclaim the memory used by the key. This makes lookup-only access to
+  // the assignment operator was never used, and the block's SpdyHeaderStorage
+  // can reclaim the memory used by the key. This makes lookup-only access to
   // SpdyHeaderBlock through operator[] memory-neutral.
   if (valid_ && lookup_result_ == block_->map_.end()) {
     block_->GetStorage()->Rewind(key_);
@@ -197,7 +139,7 @@ SpdyHeaderBlock::ValueProxy::~ValueProxy() {
 SpdyHeaderBlock::ValueProxy& SpdyHeaderBlock::ValueProxy::operator=(
     const SpdyStringPiece value) {
   *spdy_header_block_value_size_ += value.size();
-  Storage* storage = block_->GetStorage();
+  SpdyHeaderStorage* storage = block_->GetStorage();
   if (lookup_result_ == block_->map_.end()) {
     SPDY_DVLOG(1) << "Inserting: (" << key_ << ", " << value << ")";
     lookup_result_ =
@@ -300,7 +242,7 @@ void SpdyHeaderBlock::insert(const SpdyHeaderBlock::value_type& value) {
     SPDY_DVLOG(1) << "Updating key: " << iter->first
                   << " with value: " << value.second;
     value_size_ -= iter->second.SizeEstimate();
-    auto* storage = GetStorage();
+    SpdyHeaderStorage* storage = GetStorage();
     iter->second =
         HeaderValue(storage, iter->first, storage->Write(value.second));
   }
@@ -350,14 +292,14 @@ size_t SpdyHeaderBlock::EstimateMemoryUsage() const {
 void SpdyHeaderBlock::AppendHeader(const SpdyStringPiece key,
                                    const SpdyStringPiece value) {
   auto backed_key = WriteKey(key);
-  auto* storage = GetStorage();
+  SpdyHeaderStorage* storage = GetStorage();
   map_.emplace(std::make_pair(
       backed_key, HeaderValue(storage, backed_key, storage->Write(value))));
 }
 
-SpdyHeaderBlock::Storage* SpdyHeaderBlock::GetStorage() {
+SpdyHeaderStorage* SpdyHeaderBlock::GetStorage() {
   if (storage_ == nullptr) {
-    storage_ = std::make_unique<Storage>();
+    storage_ = std::make_unique<SpdyHeaderStorage>();
   }
   return storage_.get();
 }
@@ -373,25 +315,6 @@ size_t SpdyHeaderBlock::bytes_allocated() const {
   } else {
     return storage_->bytes_allocated();
   }
-}
-
-size_t Join(char* dst,
-            const std::vector<SpdyStringPiece>& fragments,
-            SpdyStringPiece separator) {
-  if (fragments.empty()) {
-    return 0;
-  }
-  auto* original_dst = dst;
-  auto it = fragments.begin();
-  memcpy(dst, it->data(), it->size());
-  dst += it->size();
-  for (++it; it != fragments.end(); ++it) {
-    memcpy(dst, separator.data(), separator.size());
-    dst += separator.size();
-    memcpy(dst, it->data(), it->size());
-    dst += it->size();
-  }
-  return dst - original_dst;
 }
 
 }  // namespace spdy

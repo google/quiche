@@ -13,6 +13,7 @@
 #include <utility>
 #include <vector>
 
+#include "net/third_party/quiche/src/spdy/core/spdy_header_storage.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_containers.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_export.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_macros.h"
@@ -38,13 +39,11 @@ class ValueProxyPeer;
 // It's expected that keys are rarely deleted from a SpdyHeaderBlock.
 class SPDY_EXPORT_PRIVATE SpdyHeaderBlock {
  private:
-  class Storage;
-
   // Stores a list of value fragments that can be joined later with a
   // key-dependent separator.
   class SPDY_EXPORT_PRIVATE HeaderValue {
    public:
-    HeaderValue(Storage* storage,
+    HeaderValue(SpdyHeaderStorage* storage,
                 SpdyStringPiece key,
                 SpdyStringPiece initial_value);
 
@@ -73,7 +72,7 @@ class SPDY_EXPORT_PRIVATE SpdyHeaderBlock {
     // fragments and separators.
     SpdyStringPiece ConsolidatedValue() const;
 
-    mutable Storage* storage_;
+    mutable SpdyHeaderStorage* storage_;
     mutable std::vector<SpdyStringPiece> fragments_;
     // The first element is the key; the second is the consolidated value.
     mutable std::pair<SpdyStringPiece, SpdyStringPiece> pair_;
@@ -180,7 +179,7 @@ class SPDY_EXPORT_PRIVATE SpdyHeaderBlock {
   // This object provides automatic conversions that allow SpdyHeaderBlock to be
   // nearly a drop-in replacement for
   // SpdyLinkedHashMap<std::string, std::string>.
-  // It reads data from or writes data to a SpdyHeaderBlock::Storage.
+  // It reads data from or writes data to a SpdyHeaderStorage.
   class SPDY_EXPORT_PRIVATE ValueProxy {
    public:
     ~ValueProxy();
@@ -226,24 +225,18 @@ class SPDY_EXPORT_PRIVATE SpdyHeaderBlock {
   friend class test::SpdyHeaderBlockPeer;
 
   void AppendHeader(const SpdyStringPiece key, const SpdyStringPiece value);
-  Storage* GetStorage();
+  SpdyHeaderStorage* GetStorage();
   SpdyStringPiece WriteKey(const SpdyStringPiece key);
   size_t bytes_allocated() const;
 
   // SpdyStringPieces held by |map_| point to memory owned by |*storage_|.
   // |storage_| might be nullptr as long as |map_| is empty.
   MapType map_;
-  std::unique_ptr<Storage> storage_;
+  std::unique_ptr<SpdyHeaderStorage> storage_;
 
   size_t key_size_ = 0;
   size_t value_size_ = 0;
 };
-
-// Writes |fragments| to |dst|, joined by |separator|. |dst| must be large
-// enough to hold the result. Returns the number of bytes written.
-SPDY_EXPORT_PRIVATE size_t Join(char* dst,
-                                const std::vector<SpdyStringPiece>& fragments,
-                                SpdyStringPiece separator);
 
 }  // namespace spdy
 
