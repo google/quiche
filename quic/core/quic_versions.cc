@@ -176,13 +176,8 @@ ParsedQuicVersion ParseQuicVersionString(std::string version_string) {
         PROTOCOL_QUIC_CRYPTO,
         static_cast<QuicTransportVersion>(quic_version_number));
   }
-
-  std::vector<HandshakeProtocol> protocols = {PROTOCOL_QUIC_CRYPTO};
-  if (GetQuicReloadableFlag(quic_supports_tls_handshake)) {
-    protocols.push_back(PROTOCOL_TLS1_3);
-  }
   for (QuicTransportVersion version : kSupportedTransportVersions) {
-    for (HandshakeProtocol handshake : protocols) {
+    for (HandshakeProtocol handshake : kSupportedHandshakeProtocols) {
       const ParsedQuicVersion parsed_version =
           ParsedQuicVersion(handshake, version);
       if (version_string == ParsedQuicVersionToString(parsed_version)) {
@@ -191,7 +186,7 @@ ParsedQuicVersion ParseQuicVersionString(std::string version_string) {
     }
   }
   // Still recognize T099 even if flag quic_ietf_draft_version has been changed.
-  if (GetQuicReloadableFlag(quic_supports_tls_handshake) &&
+  if (GetQuicReloadableFlag(quic_enable_version_t099) &&
       version_string == "T099") {
     return ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_99);
   }
@@ -235,12 +230,40 @@ ParsedQuicVersionVector FilterSupportedVersions(
   ParsedQuicVersionVector filtered_versions;
   filtered_versions.reserve(versions.size());
   for (ParsedQuicVersion version : versions) {
-    if (version.handshake_protocol == PROTOCOL_TLS1_3 &&
-        !GetQuicReloadableFlag(quic_supports_tls_handshake)) {
-      continue;
-    }
     if (version.transport_version == QUIC_VERSION_99) {
-      if (GetQuicReloadableFlag(quic_enable_version_99)) {
+      if (version.handshake_protocol == PROTOCOL_QUIC_CRYPTO) {
+        if (GetQuicReloadableFlag(quic_enable_version_q099)) {
+          filtered_versions.push_back(version);
+        }
+      } else {
+        if (GetQuicReloadableFlag(quic_enable_version_t099)) {
+          filtered_versions.push_back(version);
+        }
+      }
+    } else if (version.transport_version == QUIC_VERSION_50) {
+      if (version.handshake_protocol == PROTOCOL_QUIC_CRYPTO) {
+        if (!GetQuicReloadableFlag(quic_disable_version_q050)) {
+          filtered_versions.push_back(version);
+        }
+      } else {
+        if (GetQuicReloadableFlag(quic_enable_version_t050)) {
+          filtered_versions.push_back(version);
+        }
+      }
+    } else if (version.transport_version == QUIC_VERSION_49) {
+      if (!GetQuicReloadableFlag(quic_disable_version_q049)) {
+        filtered_versions.push_back(version);
+      }
+    } else if (version.transport_version == QUIC_VERSION_48) {
+      if (!GetQuicReloadableFlag(quic_disable_version_q048)) {
+        filtered_versions.push_back(version);
+      }
+    } else if (version.transport_version == QUIC_VERSION_46) {
+      if (!GetQuicReloadableFlag(quic_disable_version_q046)) {
+        filtered_versions.push_back(version);
+      }
+    } else if (version.transport_version == QUIC_VERSION_43) {
+      if (!GetQuicReloadableFlag(quic_disable_version_q043)) {
         filtered_versions.push_back(version);
       }
     } else {
@@ -432,17 +455,31 @@ std::string AlpnForVersion(ParsedQuicVersion parsed_version) {
 
 void QuicVersionInitializeSupportForIetfDraft() {
   // Enable necessary flags.
-  SetQuicReloadableFlag(quic_supports_tls_handshake, true);
 }
 
 void QuicEnableVersion(ParsedQuicVersion parsed_version) {
-  if (parsed_version.handshake_protocol == PROTOCOL_TLS1_3) {
-    SetQuicReloadableFlag(quic_supports_tls_handshake, true);
-  }
   static_assert(QUIC_ARRAYSIZE(kSupportedTransportVersions) == 6u,
                 "Supported versions out of sync");
   if (parsed_version.transport_version == QUIC_VERSION_99) {
-    SetQuicReloadableFlag(quic_enable_version_99, true);
+    if (parsed_version.handshake_protocol == PROTOCOL_QUIC_CRYPTO) {
+      SetQuicReloadableFlag(quic_enable_version_q099, true);
+    } else {
+      SetQuicReloadableFlag(quic_enable_version_t099, true);
+    }
+  } else if (parsed_version.transport_version == QUIC_VERSION_50) {
+    if (parsed_version.handshake_protocol == PROTOCOL_QUIC_CRYPTO) {
+      SetQuicReloadableFlag(quic_disable_version_q050, false);
+    } else {
+      SetQuicReloadableFlag(quic_enable_version_t050, true);
+    }
+  } else if (parsed_version.transport_version == QUIC_VERSION_49) {
+    SetQuicReloadableFlag(quic_disable_version_q049, false);
+  } else if (parsed_version.transport_version == QUIC_VERSION_48) {
+    SetQuicReloadableFlag(quic_disable_version_q048, false);
+  } else if (parsed_version.transport_version == QUIC_VERSION_46) {
+    SetQuicReloadableFlag(quic_disable_version_q046, false);
+  } else if (parsed_version.transport_version == QUIC_VERSION_43) {
+    SetQuicReloadableFlag(quic_disable_version_q043, false);
   }
 }
 

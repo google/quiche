@@ -199,8 +199,10 @@ class QuartcMultiplexerTest : public QuicTest {
             simulator_.GetRandomGenerator(),
             &server_multiplexer_,
             quic::QuartcSessionConfig())) {
+    quic::test::QuicEnableDefaultEnabledVersions();
     // TODO(b/134175506): Remove when IETF QUIC supports receive timestamps.
-    SetQuicReloadableFlag(quic_enable_version_99, false);
+    SetQuicReloadableFlag(quic_enable_version_q099, false);
+    SetQuicReloadableFlag(quic_enable_version_t099, false);
   }
 
   void Connect() {

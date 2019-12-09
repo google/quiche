@@ -21,7 +21,10 @@ using testing::StrictMock;
 class LegacyQuicStreamIdManagerTest : public QuicTest {
  protected:
   void Initialize(Perspective perspective) {
-    SetQuicReloadableFlag(quic_enable_version_99, false);
+    // LegacyQuicStreamIdManager is only used for versions < 99.
+    // TODO(b/145768765) parameterize this test by version.
+    SetQuicReloadableFlag(quic_enable_version_q099, false);
+    SetQuicReloadableFlag(quic_enable_version_t099, false);
     connection_ = new MockQuicConnection(
         &helper_, &alarm_factory_, perspective,
         ParsedVersionOfIndex(CurrentSupportedVersions(), 0));

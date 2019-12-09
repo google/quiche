@@ -128,7 +128,6 @@ std::string PrintToString(const TestParams& p) {
 
 // Constructs various test permutations.
 std::vector<TestParams> GetTestParams(bool use_tls_handshake) {
-  QuicFlagSaver flags;
   // Divide the versions into buckets in which the intra-frame format
   // is compatible. When clients encounter QUIC version negotiation
   // they simply retransmit all packets using the new version's
@@ -137,7 +136,6 @@ std::vector<TestParams> GetTestParams(bool use_tls_handshake) {
   // handshake protocol). So these tests need to ensure that clients are never
   // attempting to do 0-RTT across incompatible versions. Chromium only
   // supports a single version at a time anyway. :)
-  SetQuicReloadableFlag(quic_supports_tls_handshake, use_tls_handshake);
   ParsedQuicVersionVector all_supported_versions =
       FilterSupportedVersions(AllSupportedVersions());
 
@@ -150,6 +148,9 @@ std::vector<TestParams> GetTestParams(bool use_tls_handshake) {
   ParsedQuicVersionVector version_buckets[3];
 
   for (const ParsedQuicVersion& version : all_supported_versions) {
+    if (!use_tls_handshake && version.handshake_protocol == PROTOCOL_TLS1_3) {
+      continue;
+    }
     if (!QuicVersionUsesCryptoFrames(version.transport_version)) {
       version_buckets[0].push_back(version);
     } else if (version.handshake_protocol == PROTOCOL_QUIC_CRYPTO) {
@@ -247,7 +248,6 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
         stream_factory_(nullptr),
         support_server_push_(false),
         expected_server_connection_id_length_(kQuicDefaultConnectionIdLength) {
-    SetQuicReloadableFlag(quic_supports_tls_handshake, true);
     client_supported_versions_ = GetParam().client_supported_versions;
     server_supported_versions_ = GetParam().server_supported_versions;
     negotiated_version_ = GetParam().negotiated_version;

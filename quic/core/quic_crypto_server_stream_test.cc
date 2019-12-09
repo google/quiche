@@ -203,7 +203,6 @@ TEST_P(QuicCryptoServerStreamTest, ConnectedAfterCHLO) {
 }
 
 TEST_P(QuicCryptoServerStreamTest, ConnectedAfterTlsHandshake) {
-  SetQuicReloadableFlag(quic_supports_tls_handshake, true);
   client_options_.only_tls_versions = true;
   supported_versions_.clear();
   for (QuicTransportVersion transport_version :

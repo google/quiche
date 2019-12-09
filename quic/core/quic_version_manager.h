@@ -41,10 +41,22 @@ class QUIC_EXPORT_PRIVATE QuicVersionManager {
 
  private:
   // Cached value of reloadable flags.
-  // quic_enable_version_99 flag
-  bool enable_version_99_;
-  // quic_supports_tls_handshake flag
-  bool enable_tls_;
+  // quic_enable_version_q099 flag
+  bool enable_version_q099_;
+  // quic_enable_version_t099 flag
+  bool enable_version_t099_;
+  // quic_disable_version_q050 flag
+  bool disable_version_q050_;
+  // quic_enable_version_t050 flag
+  bool enable_version_t050_;
+  // quic_disable_version_q049 flag
+  bool disable_version_q049_;
+  // quic_disable_version_q048 flag
+  bool disable_version_q048_;
+  // quic_disable_version_q046 flag
+  bool disable_version_q046_;
+  // quic_disable_version_q043 flag
+  bool disable_version_q043_;
 
   // The list of versions that may be supported.
   ParsedQuicVersionVector allowed_supported_versions_;

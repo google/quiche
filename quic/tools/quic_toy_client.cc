@@ -192,10 +192,6 @@ int QuicToyClient::SendRequestsAndPrintResponses(
     quic::QuicEnableVersion(versions[0]);
 
   } else if (!quic_version_string.empty()) {
-    if (quic_version_string[0] == 'T') {
-      // ParseQuicVersionString checks quic_supports_tls_handshake.
-      SetQuicReloadableFlag(quic_supports_tls_handshake, true);
-    }
     quic::ParsedQuicVersion parsed_quic_version =
         quic::ParseQuicVersionString(quic_version_string);
     if (parsed_quic_version.transport_version ==

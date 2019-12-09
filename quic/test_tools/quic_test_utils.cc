@@ -828,6 +828,21 @@ QuicTransportVersion QuicTransportVersionMin() {
   return AllSupportedTransportVersions().back();
 }
 
+void QuicEnableDefaultEnabledVersions() {
+  if (!GetQuicReloadableFlag(quic_testonly_default_false)) {
+    // If quic_testonly_default_false is false, then we are not in a mode where
+    // all flags have been flipped to true.
+    return;
+  }
+  static_assert(QUIC_ARRAYSIZE(kSupportedTransportVersions) == 6u,
+                "Supported versions out of sync");
+  SetQuicReloadableFlag(quic_disable_version_q050, false);
+  SetQuicReloadableFlag(quic_disable_version_q049, false);
+  SetQuicReloadableFlag(quic_disable_version_q048, false);
+  SetQuicReloadableFlag(quic_disable_version_q046, false);
+  SetQuicReloadableFlag(quic_disable_version_q043, false);
+}
+
 QuicEncryptedPacket* ConstructEncryptedPacket(
     QuicConnectionId destination_connection_id,
     QuicConnectionId source_connection_id,

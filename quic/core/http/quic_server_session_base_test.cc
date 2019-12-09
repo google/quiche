@@ -150,7 +150,6 @@ class QuicServerSessionBaseTest : public QuicTestWithParam<ParsedQuicVersion> {
     handshake_message_ = crypto_config_.AddDefaultConfig(
         QuicRandom::GetInstance(), &clock,
         QuicCryptoServerConfig::ConfigOptions());
-    SetQuicReloadableFlag(quic_supports_tls_handshake, true);
     session_->Initialize();
     if (!GetQuicReloadableFlag(quic_version_negotiated_by_default_at_server)) {
       QuicSessionPeer::GetMutableCryptoStream(session_.get())

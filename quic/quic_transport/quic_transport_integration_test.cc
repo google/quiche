@@ -60,8 +60,6 @@ class QuicTransportEndpointBase : public QuicEndpointBase {
         simulator, simulator->GetAlarmFactory(), &writer_,
         /*owns_writer=*/false, perspective, GetVersions());
     connection_->SetSelfAddress(simulator::GetAddressFromName(name));
-
-    SetQuicReloadableFlag(quic_supports_tls_handshake, true);
   }
 };
 

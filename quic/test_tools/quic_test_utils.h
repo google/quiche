@@ -71,6 +71,9 @@ QuicTransportVersion QuicTransportVersionMax();
 // TODO(nharper): Remove this function when it is no longer used.
 QuicTransportVersion QuicTransportVersionMin();
 
+// Ensures that not all versions are disabled when all flags are set to true.
+void QuicEnableDefaultEnabledVersions();
+
 // Create an encrypted packet for testing.
 // If versions == nullptr, uses &AllSupportedVersions().
 // Note that the packet is encrypted with NullEncrypter, so to decrypt the

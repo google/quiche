@@ -67,7 +67,6 @@ class QuicTransportServerSessionTest : public QuicTest {
                        KeyExchangeSource::Default()),
         compressed_certs_cache_(
             QuicCompressedCertsCache::kQuicCompressedCertsCacheSize) {
-    SetQuicReloadableFlag(quic_supports_tls_handshake, true);
     connection_.AdvanceTime(QuicTime::Delta::FromSeconds(100000));
     crypto_test_utils::SetupCryptoServerConfigForTest(
         helper_.GetClock(), helper_.GetRandomGenerator(), &crypto_config_);

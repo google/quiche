@@ -57,7 +57,6 @@ class QuicTransportClientSessionTest : public QuicTest {
                     Perspective::IS_CLIENT,
                     GetVersions()),
         crypto_config_(crypto_test_utils::ProofVerifierForTesting()) {
-    SetQuicReloadableFlag(quic_supports_tls_handshake, true);
     CreateSession(GetTestOrigin(), "");
   }
 

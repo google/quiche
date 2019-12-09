@@ -17,8 +17,6 @@ TlsHandshaker::TlsHandshaker(QuicCryptoStream* stream,
                              QuicSession* session,
                              SSL_CTX* /*ssl_ctx*/)
     : stream_(stream), session_(session), delegate_(session) {
-  QUIC_BUG_IF(!GetQuicReloadableFlag(quic_supports_tls_handshake))
-      << "Attempted to create TLS handshaker when TLS is disabled";
 }
 
 TlsHandshaker::~TlsHandshaker() {}

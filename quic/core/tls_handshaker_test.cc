@@ -309,7 +309,6 @@ class TlsHandshakerTest : public QuicTest {
             {ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_99)})),
         client_session_(client_conn_, /*create_mock_crypto_stream=*/false),
         server_session_(server_conn_, /*create_mock_crypto_stream=*/false) {
-    SetQuicReloadableFlag(quic_supports_tls_handshake, true);
     client_stream_ = new TestQuicCryptoClientStream(&client_session_);
     client_session_.SetCryptoStream(client_stream_);
     server_stream_ =

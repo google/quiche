@@ -919,7 +919,6 @@ std::string PrintToString(const TestParams& p) {
 // Constructs various test permutations.
 std::vector<TestParams> GetTestParams() {
   QuicFlagSaver flags;
-  SetQuicReloadableFlag(quic_supports_tls_handshake, true);
   std::vector<TestParams> params;
   ParsedQuicVersionVector all_supported_versions = AllSupportedVersions();
   for (size_t i = 0; i < all_supported_versions.size(); ++i) {
@@ -985,7 +984,6 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
         notifier_(&connection_),
         connection_close_frame_count_(0) {
     QUIC_DVLOG(2) << "QuicConnectionTest(" << PrintToString(GetParam()) << ")";
-    SetQuicReloadableFlag(quic_supports_tls_handshake, true);
     connection_.set_defer_send_in_response_to_packets(GetParam().ack_response ==
                                                       AckResponse::kDefer);
     framer_.SetInitialObfuscators(TestConnectionId());

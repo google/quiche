@@ -415,12 +415,10 @@ class QuicDispatcherTest : public QuicTest {
 };
 
 TEST_F(QuicDispatcherTest, TlsClientHelloCreatesSession) {
-  if (!QuicVersionUsesCryptoFrames(
-          CurrentSupportedVersions().front().transport_version)) {
-    // TLS is only supported in versions with crypto frames.
+  if (CurrentSupportedVersions().front().handshake_protocol !=
+      PROTOCOL_TLS1_3) {
     return;
   }
-  SetQuicReloadableFlag(quic_supports_tls_handshake, true);
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
 
   EXPECT_CALL(*dispatcher_,
@@ -438,12 +436,9 @@ TEST_F(QuicDispatcherTest, TlsClientHelloCreatesSession) {
   EXPECT_CALL(*dispatcher_,
               ShouldCreateOrBufferPacketForConnection(
                   ReceivedPacketInfoConnectionIdEquals(TestConnectionId(1))));
-  ProcessPacket(
-      client_address, TestConnectionId(1), true,
-      ParsedQuicVersion(PROTOCOL_TLS1_3,
-                        CurrentSupportedVersions().front().transport_version),
-      SerializeCHLO(), true, CONNECTION_ID_PRESENT, PACKET_4BYTE_PACKET_NUMBER,
-      1);
+  ProcessPacket(client_address, TestConnectionId(1), true,
+                CurrentSupportedVersions().front(), SerializeCHLO(), true,
+                CONNECTION_ID_PRESENT, PACKET_4BYTE_PACKET_NUMBER, 1);
 }
 
 TEST_F(QuicDispatcherTest, ProcessPackets) {
@@ -907,24 +902,26 @@ TEST_F(QuicDispatcherTest, OKSeqNoPacketProcessed) {
                 QuicDispatcher::kMaxReasonableInitialPacketNumber);
 }
 
-TEST_F(QuicDispatcherTest, SupportedTransportVersionsChangeInFlight) {
-  static_assert(QUIC_ARRAYSIZE(kSupportedTransportVersions) == 6u,
-                "Supported versions out of sync");
-  SetQuicReloadableFlag(quic_enable_version_99, true);
+TEST_F(QuicDispatcherTest, VersionsChangeInFlight) {
+  for (ParsedQuicVersion version : AllSupportedVersions()) {
+    QuicEnableVersion(version);
+  }
+  ASSERT_EQ(AllSupportedVersions(), CurrentSupportedVersions());
 
   VerifyVersionNotSupported(QuicVersionReservedForNegotiation());
 
   VerifyVersionSupported(ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO,
                                            QuicVersionMin().transport_version));
-  VerifyVersionSupported(QuicVersionMax());
+  VerifyVersionSupported(ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO,
+                                           QuicVersionMax().transport_version));
 
-  // Turn off version 99.
-  SetQuicReloadableFlag(quic_enable_version_99, false);
+  // Turn off version Q099.
+  SetQuicReloadableFlag(quic_enable_version_q099, false);
   VerifyVersionNotSupported(
       ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_99));
 
-  // Turn on version 99.
-  SetQuicReloadableFlag(quic_enable_version_99, true);
+  // Turn on version Q099.
+  SetQuicReloadableFlag(quic_enable_version_q099, true);
   VerifyVersionSupported(
       ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_99));
 }
@@ -1251,7 +1248,7 @@ TEST_F(QuicDispatcherTest, DoNotProcessSmallPacket) {
 }
 
 TEST_F(QuicDispatcherTest, ProcessSmallCoalescedPacket) {
-  SetQuicReloadableFlag(quic_enable_version_99, true);
+  SetQuicReloadableFlag(quic_enable_version_q099, true);
   CreateTimeWaitListManager();
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
 
@@ -2063,9 +2060,10 @@ TEST_F(BufferedPacketStoreTest, ReceiveCHLOForBufferedConnection) {
 
 // Regression test for b/117874922.
 TEST_F(BufferedPacketStoreTest, ProcessBufferedChloWithDifferentVersion) {
-  // Turn off version 99, such that the preferred version is not supported by
-  // the server.
-  SetQuicReloadableFlag(quic_enable_version_99, false);
+  // Turn off versions Q099 and T099, such that the preferred version is not
+  // supported by the server.
+  SetQuicReloadableFlag(quic_enable_version_q099, false);
+  SetQuicReloadableFlag(quic_enable_version_t099, false);
   uint64_t last_connection_id = kMaxNumSessionsToCreate + 5;
   ParsedQuicVersionVector supported_versions = CurrentSupportedVersions();
   for (uint64_t conn_id = 1; conn_id <= last_connection_id; ++conn_id) {

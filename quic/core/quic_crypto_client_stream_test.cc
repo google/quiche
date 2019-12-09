@@ -61,7 +61,6 @@ class QuicCryptoClientStreamTest : public QuicTest {
   }
 
   void UseTlsHandshake() {
-    SetQuicReloadableFlag(quic_supports_tls_handshake, true);
     supported_versions_.clear();
     for (ParsedQuicVersion version : AllSupportedVersions()) {
       if (version.handshake_protocol != PROTOCOL_TLS1_3) {

@@ -18,8 +18,14 @@ class QuicVersionManagerTest : public QuicTest {};
 TEST_F(QuicVersionManagerTest, QuicVersionManager) {
   static_assert(QUIC_ARRAYSIZE(kSupportedTransportVersions) == 6u,
                 "Supported versions out of sync");
-  SetQuicReloadableFlag(quic_enable_version_99, false);
-  SetQuicReloadableFlag(quic_supports_tls_handshake, false);
+  SetQuicReloadableFlag(quic_enable_version_q099, false);
+  SetQuicReloadableFlag(quic_enable_version_t099, false);
+  SetQuicReloadableFlag(quic_enable_version_t050, false);
+  SetQuicReloadableFlag(quic_disable_version_q050, false);
+  SetQuicReloadableFlag(quic_disable_version_q049, false);
+  SetQuicReloadableFlag(quic_disable_version_q048, false);
+  SetQuicReloadableFlag(quic_disable_version_q046, false);
+  SetQuicReloadableFlag(quic_disable_version_q043, false);
   QuicVersionManager manager(AllSupportedVersions());
 
   ParsedQuicVersionVector expected_parsed_versions;
@@ -39,10 +45,24 @@ TEST_F(QuicVersionManagerTest, QuicVersionManager) {
   EXPECT_EQ(FilterSupportedVersions(AllSupportedVersions()),
             manager.GetSupportedVersions());
 
-  SetQuicReloadableFlag(quic_enable_version_99, true);
+  SetQuicReloadableFlag(quic_enable_version_q099, true);
   expected_parsed_versions.insert(
       expected_parsed_versions.begin(),
       ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_99));
+  EXPECT_EQ(expected_parsed_versions, manager.GetSupportedVersions());
+  EXPECT_EQ(FilterSupportedVersions(AllSupportedVersions()),
+            manager.GetSupportedVersions());
+
+  SetQuicReloadableFlag(quic_enable_version_t099, true);
+  expected_parsed_versions.push_back(
+      ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_99));
+  EXPECT_EQ(expected_parsed_versions, manager.GetSupportedVersions());
+  EXPECT_EQ(FilterSupportedVersions(AllSupportedVersions()),
+            manager.GetSupportedVersions());
+
+  SetQuicReloadableFlag(quic_enable_version_t050, true);
+  expected_parsed_versions.push_back(
+      ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_50));
   EXPECT_EQ(expected_parsed_versions, manager.GetSupportedVersions());
   EXPECT_EQ(FilterSupportedVersions(AllSupportedVersions()),
             manager.GetSupportedVersions());

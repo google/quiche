@@ -49,7 +49,11 @@ class QuartcEndpointTest : public QuicTest {
             simulator_.GetRandomGenerator(),
             &client_endpoint_delegate_,
             QuartcSessionConfig(),
-            /*serialized_server_config=*/"")) {}
+            /*serialized_server_config=*/"")) {
+    // Make sure these versions are enabled since some tests use them.
+    SetQuicReloadableFlag(quic_disable_version_q043, false);
+    SetQuicReloadableFlag(quic_disable_version_q046, false);
+  }
 
   simulator::Simulator simulator_;
 
