@@ -16,6 +16,11 @@ namespace {
 size_t kDefaultBlockSize = 2048;
 const char kTestString[] = "This is a decently long test string.";
 
+TEST(SpdySimpleArenaTest, NoAllocationOnConstruction) {
+  SpdySimpleArena arena(kDefaultBlockSize);
+  EXPECT_EQ(0, arena.status().bytes_allocated());
+}
+
 TEST(SpdySimpleArenaTest, Memdup) {
   SpdySimpleArena arena(kDefaultBlockSize);
   const size_t length = strlen(kTestString);

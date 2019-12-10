@@ -1,9 +1,9 @@
 #ifndef QUICHE_SPDY_CORE_SPDY_HEADER_STORAGE_H_
 #define QUICHE_SPDY_CORE_SPDY_HEADER_STORAGE_H_
 
+#include "net/third_party/quiche/src/spdy/core/spdy_simple_arena.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_export.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_piece.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_unsafe_arena.h"
 
 namespace spdy {
 
@@ -19,6 +19,7 @@ namespace spdy {
 class SPDY_EXPORT_PRIVATE SpdyHeaderStorage {
  public:
   SpdyHeaderStorage();
+
   SpdyHeaderStorage(const SpdyHeaderStorage&) = delete;
   SpdyHeaderStorage& operator=(const SpdyHeaderStorage&) = delete;
 
@@ -41,7 +42,7 @@ class SPDY_EXPORT_PRIVATE SpdyHeaderStorage {
   size_t EstimateMemoryUsage() const { return bytes_allocated(); }
 
  private:
-  SpdyUnsafeArena arena_;
+  SpdySimpleArena arena_;
 };
 
 // Writes |fragments| to |dst|, joined by |separator|. |dst| must be large
