@@ -336,19 +336,37 @@ TEST_P(HpackEncoderTest, EncodingWithoutCompression) {
   ExpectNonIndexedLiteral(":path", "/index.html");
   ExpectNonIndexedLiteral("cookie", "foo=bar");
   ExpectNonIndexedLiteral("cookie", "baz=bing");
-  ExpectNonIndexedLiteral("hello", "goodbye");
+  if (use_incremental_) {
+    // BUG: encodes as a \0-delimited value. Should be separate entries.
+    ExpectNonIndexedLiteral("hello", std::string("goodbye\0aloha", 13));
+  } else {
+    ExpectNonIndexedLiteral("hello", "goodbye");
+    ExpectNonIndexedLiteral("hello", "aloha");
+  }
 
   SpdyHeaderBlock headers;
   headers[":path"] = "/index.html";
   headers["cookie"] = "foo=bar; baz=bing";
   headers["hello"] = "goodbye";
+  headers.AppendValueOrAddHeader("hello", "aloha");
 
   CompareWithExpectedEncoding(headers);
 
-  EXPECT_THAT(
-      headers_observed_,
-      ElementsAre(Pair(":path", "/index.html"), Pair("cookie", "foo=bar"),
-                  Pair("cookie", "baz=bing"), Pair("hello", "goodbye")));
+  if (use_incremental_) {
+    // BUG: value for "hello" encodes as \0-delimited. Should be separate
+    // entries.
+    EXPECT_THAT(
+        headers_observed_,
+        ElementsAre(Pair(":path", "/index.html"), Pair("cookie", "foo=bar"),
+                    Pair("cookie", "baz=bing"),
+                    Pair("hello", std::string("goodbye\0aloha", 13))));
+  } else {
+    EXPECT_THAT(
+        headers_observed_,
+        ElementsAre(Pair(":path", "/index.html"), Pair("cookie", "foo=bar"),
+                    Pair("cookie", "baz=bing"), Pair("hello", "goodbye"),
+                    Pair("hello", "aloha")));
+  }
 }
 
 TEST_P(HpackEncoderTest, MultipleEncodingPasses) {
