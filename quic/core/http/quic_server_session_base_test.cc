@@ -65,7 +65,7 @@ class TestServerSession : public QuicServerSessionBase {
                               compressed_certs_cache),
         quic_simple_server_backend_(quic_simple_server_backend) {}
 
-  ~TestServerSession() override { delete connection(); }
+  ~TestServerSession() override { DeleteConnection(); }
 
  protected:
   QuicSpdyStream* CreateIncomingStream(QuicStreamId id) override {

@@ -193,7 +193,7 @@ class TestSession : public QuicSpdySession {
         std::make_unique<NullEncrypter>(connection->perspective()));
   }
 
-  ~TestSession() override { delete connection(); }
+  ~TestSession() override { DeleteConnection(); }
 
   TestCryptoStream* GetMutableCryptoStream() override {
     return &crypto_stream_;

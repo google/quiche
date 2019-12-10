@@ -553,7 +553,7 @@ MockQuicSession::MockQuicSession(QuicConnection* connection,
 }
 
 MockQuicSession::~MockQuicSession() {
-  delete connection();
+  DeleteConnection();
 }
 
 QuicCryptoStream* MockQuicSession::GetMutableCryptoStream() {
@@ -624,7 +624,7 @@ MockQuicSpdySession::MockQuicSpdySession(QuicConnection* connection,
 }
 
 MockQuicSpdySession::~MockQuicSpdySession() {
-  delete connection();
+  DeleteConnection();
 }
 
 QuicCryptoStream* MockQuicSpdySession::GetMutableCryptoStream() {
@@ -657,7 +657,7 @@ TestQuicSpdyServerSession::TestQuicSpdyServerSession(
 }
 
 TestQuicSpdyServerSession::~TestQuicSpdyServerSession() {
-  delete connection();
+  DeleteConnection();
 }
 
 QuicCryptoServerStreamBase*

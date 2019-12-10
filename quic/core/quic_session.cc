@@ -1615,6 +1615,13 @@ QuicStreamId QuicSession::GetLargestPeerCreatedStreamId(
   return v99_streamid_manager_.GetLargestPeerCreatedStreamId(unidirectional);
 }
 
+void QuicSession::DeleteConnection() {
+  if (connection_) {
+    delete connection_;
+    connection_ = nullptr;
+  }
+}
+
 bool QuicSession::IsClosedStream(QuicStreamId id) {
   DCHECK_NE(QuicUtils::GetInvalidStreamId(transport_version()), id);
   if (IsOpenStream(id)) {

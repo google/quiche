@@ -85,7 +85,7 @@ class QboneClientSessionWithConnection : public QboneClientSession {
  public:
   using QboneClientSession::QboneClientSession;
 
-  ~QboneClientSessionWithConnection() override { delete connection(); }
+  ~QboneClientSessionWithConnection() override { DeleteConnection(); }
 };
 
 // Takes ownership of |connection|.

@@ -39,7 +39,7 @@ QuicSimpleServerSession::QuicSimpleServerSession(
 }
 
 QuicSimpleServerSession::~QuicSimpleServerSession() {
-  delete connection();
+  DeleteConnection();
 }
 
 QuicCryptoServerStreamBase*

@@ -626,6 +626,10 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // indicated by |unidirectional|.
   QuicStreamId GetLargestPeerCreatedStreamId(bool unidirectional) const;
 
+  // Deletes the connection and sets it to nullptr, so calling it mulitiple
+  // times is safe.
+  void DeleteConnection();
+
  private:
   friend class test::QuicSessionPeer;
 

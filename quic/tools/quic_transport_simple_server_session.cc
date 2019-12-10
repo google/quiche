@@ -147,7 +147,7 @@ QuicTransportSimpleServerSession::QuicTransportSimpleServerSession(
 
 QuicTransportSimpleServerSession::~QuicTransportSimpleServerSession() {
   if (owns_connection_) {
-    delete connection();
+    DeleteConnection();
   }
 }
 
