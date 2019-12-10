@@ -37,6 +37,10 @@ class QUIC_EXPORT_PRIVATE QuicTransportClientSession
    public:
     virtual ~ClientVisitor() {}
 
+    // Notifies the visitor when the client indication has been sent and the
+    // connection is ready to exchange application data.
+    virtual void OnSessionReady() = 0;
+
     // Notifies the visitor when a new stream has been received.  The stream in
     // question can be retrieved using AcceptIncomingBidirectionalStream() or
     // AcceptIncomingUnidirectionalStream().
@@ -56,6 +60,8 @@ class QUIC_EXPORT_PRIVATE QuicTransportClientSession
   std::vector<std::string> GetAlpnsToOffer() const override {
     return std::vector<std::string>({QuicTransportAlpn()});
   }
+  void OnAlpnSelected(QuicStringPiece alpn) override;
+  bool alpn_received() const { return alpn_received_; }
 
   void CryptoConnect() { crypto_stream_->CryptoConnect(); }
 
@@ -121,6 +127,7 @@ class QUIC_EXPORT_PRIVATE QuicTransportClientSession
   url::Origin origin_;
   ClientVisitor* visitor_;  // not owned
   bool client_indication_sent_ = false;
+  bool alpn_received_ = false;
   bool ready_ = false;
 
   // Contains all of the streams that has been received by the session but have

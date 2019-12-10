@@ -67,6 +67,19 @@ QuicTransportClientSession::QuicTransportClientSession(
       proof_handler);
 }
 
+void QuicTransportClientSession::OnAlpnSelected(QuicStringPiece alpn) {
+  // Defense in-depth: ensure the ALPN selected is the desired one.
+  if (alpn != QuicTransportAlpn()) {
+    QUIC_BUG << "QuicTransport negotiated non-QuicTransport ALPN: " << alpn;
+    connection()->CloseConnection(
+        QUIC_INTERNAL_ERROR, "QuicTransport negotiated non-QuicTransport ALPN",
+        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    return;
+  }
+
+  alpn_received_ = true;
+}
+
 QuicStream* QuicTransportClientSession::CreateIncomingStream(QuicStreamId id) {
   QUIC_DVLOG(1) << "Creating incoming QuicTransport stream " << id;
   QuicTransportStream* stream = CreateStream(id);
@@ -222,12 +235,24 @@ void QuicTransportClientSession::SendClientIndication() {
                                        /*fin=*/true, nullptr);
   client_indication_sent_ = true;
 
+  // Defense in depth: never set the ready bit unless ALPN has been confirmed.
+  if (!alpn_received_) {
+    QUIC_BUG << "ALPN confirmation missing after handshake complete";
+    connection()->CloseConnection(
+        QUIC_INTERNAL_ERROR,
+        "ALPN confirmation missing after handshake complete",
+        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    return;
+  }
+
   // Don't set the ready bit if we closed the connection due to any error
   // beforehand.
   if (!connection()->connected()) {
     return;
   }
+
   ready_ = true;
+  visitor_->OnSessionReady();
 }
 
 }  // namespace quic

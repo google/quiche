@@ -103,6 +103,7 @@ TEST_F(QuicTransportClientSessionTest, SuccessfulConnection) {
       "\0\x01"                    // length
       "/";                        // value
 
+  EXPECT_CALL(visitor_, OnSessionReady());
   Connect();
   EXPECT_TRUE(session_->IsSessionReady());
 

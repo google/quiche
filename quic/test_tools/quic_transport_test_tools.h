@@ -14,6 +14,7 @@ namespace test {
 
 class MockClientVisitor : public QuicTransportClientSession::ClientVisitor {
  public:
+  MOCK_METHOD0(OnSessionReady, void());
   MOCK_METHOD0(OnIncomingBidirectionalStreamAvailable, void());
   MOCK_METHOD0(OnIncomingUnidirectionalStreamAvailable, void());
 };
