@@ -8,7 +8,6 @@
 #include <stddef.h>
 
 #include <list>
-#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
@@ -50,6 +49,8 @@ class SPDY_EXPORT_PRIVATE SpdyHeaderBlock {
     // Moves are allowed.
     HeaderValue(HeaderValue&& other);
     HeaderValue& operator=(HeaderValue&& other);
+
+    void set_storage(SpdyHeaderStorage* storage);
 
     // Copies are not.
     HeaderValue(const HeaderValue& other) = delete;
@@ -225,14 +226,12 @@ class SPDY_EXPORT_PRIVATE SpdyHeaderBlock {
   friend class test::SpdyHeaderBlockPeer;
 
   void AppendHeader(const SpdyStringPiece key, const SpdyStringPiece value);
-  SpdyHeaderStorage* GetStorage();
   SpdyStringPiece WriteKey(const SpdyStringPiece key);
   size_t bytes_allocated() const;
 
-  // SpdyStringPieces held by |map_| point to memory owned by |*storage_|.
-  // |storage_| might be nullptr as long as |map_| is empty.
+  // SpdyStringPieces held by |map_| point to memory owned by |storage_|.
   MapType map_;
-  std::unique_ptr<SpdyHeaderStorage> storage_;
+  SpdyHeaderStorage storage_;
 
   size_t key_size_ = 0;
   size_t value_size_ = 0;

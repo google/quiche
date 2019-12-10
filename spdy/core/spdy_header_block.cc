@@ -12,7 +12,6 @@
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_estimate_memory_usage.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_logging.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_utils.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_unsafe_arena.h"
 
 namespace spdy {
 namespace {
@@ -63,6 +62,10 @@ SpdyHeaderBlock::HeaderValue& SpdyHeaderBlock::HeaderValue::operator=(
   size_ = other.size_;
   separator_size_ = other.separator_size_;
   return *this;
+}
+
+void SpdyHeaderBlock::HeaderValue::set_storage(SpdyHeaderStorage* storage) {
+  storage_ = storage;
 }
 
 SpdyHeaderBlock::HeaderValue::~HeaderValue() = default;
@@ -132,14 +135,14 @@ SpdyHeaderBlock::ValueProxy::~ValueProxy() {
   // can reclaim the memory used by the key. This makes lookup-only access to
   // SpdyHeaderBlock through operator[] memory-neutral.
   if (valid_ && lookup_result_ == block_->map_.end()) {
-    block_->GetStorage()->Rewind(key_);
+    block_->storage_.Rewind(key_);
   }
 }
 
 SpdyHeaderBlock::ValueProxy& SpdyHeaderBlock::ValueProxy::operator=(
     const SpdyStringPiece value) {
   *spdy_header_block_value_size_ += value.size();
-  SpdyHeaderStorage* storage = block_->GetStorage();
+  SpdyHeaderStorage* storage = &block_->storage_;
   if (lookup_result_ == block_->map_.end()) {
     SPDY_DVLOG(1) << "Inserting: (" << key_ << ", " << value << ")";
     lookup_result_ =
@@ -168,7 +171,10 @@ SpdyHeaderBlock::SpdyHeaderBlock() : map_(kInitialMapBuckets) {}
 SpdyHeaderBlock::SpdyHeaderBlock(SpdyHeaderBlock&& other)
     : map_(kInitialMapBuckets) {
   map_.swap(other.map_);
-  storage_.swap(other.storage_);
+  storage_ = std::move(other.storage_);
+  for (auto& p : map_) {
+    p.second.set_storage(&storage_);
+  }
   key_size_ = other.key_size_;
   value_size_ = other.value_size_;
 }
@@ -177,7 +183,10 @@ SpdyHeaderBlock::~SpdyHeaderBlock() = default;
 
 SpdyHeaderBlock& SpdyHeaderBlock::operator=(SpdyHeaderBlock&& other) {
   map_.swap(other.map_);
-  storage_.swap(other.storage_);
+  storage_ = std::move(other.storage_);
+  for (auto& p : map_) {
+    p.second.set_storage(&storage_);
+  }
   key_size_ = other.key_size_;
   value_size_ = other.value_size_;
   return *this;
@@ -226,7 +235,7 @@ void SpdyHeaderBlock::clear() {
   key_size_ = 0;
   value_size_ = 0;
   map_.clear();
-  storage_.reset();
+  storage_.Clear();
 }
 
 void SpdyHeaderBlock::insert(const SpdyHeaderBlock::value_type& value) {
@@ -242,9 +251,8 @@ void SpdyHeaderBlock::insert(const SpdyHeaderBlock::value_type& value) {
     SPDY_DVLOG(1) << "Updating key: " << iter->first
                   << " with value: " << value.second;
     value_size_ -= iter->second.SizeEstimate();
-    SpdyHeaderStorage* storage = GetStorage();
     iter->second =
-        HeaderValue(storage, iter->first, storage->Write(value.second));
+        HeaderValue(&storage_, iter->first, storage_.Write(value.second));
   }
 }
 
@@ -280,7 +288,7 @@ void SpdyHeaderBlock::AppendValueOrAddHeader(const SpdyStringPiece key,
   SPDY_DVLOG(1) << "Updating key: " << iter->first
                 << "; appending value: " << value;
   value_size_ += SeparatorForKey(key).size();
-  iter->second.Append(GetStorage()->Write(value));
+  iter->second.Append(storage_.Write(value));
 }
 
 size_t SpdyHeaderBlock::EstimateMemoryUsage() const {
@@ -292,29 +300,17 @@ size_t SpdyHeaderBlock::EstimateMemoryUsage() const {
 void SpdyHeaderBlock::AppendHeader(const SpdyStringPiece key,
                                    const SpdyStringPiece value) {
   auto backed_key = WriteKey(key);
-  SpdyHeaderStorage* storage = GetStorage();
   map_.emplace(std::make_pair(
-      backed_key, HeaderValue(storage, backed_key, storage->Write(value))));
-}
-
-SpdyHeaderStorage* SpdyHeaderBlock::GetStorage() {
-  if (storage_ == nullptr) {
-    storage_ = std::make_unique<SpdyHeaderStorage>();
-  }
-  return storage_.get();
+      backed_key, HeaderValue(&storage_, backed_key, storage_.Write(value))));
 }
 
 SpdyStringPiece SpdyHeaderBlock::WriteKey(const SpdyStringPiece key) {
   key_size_ += key.size();
-  return GetStorage()->Write(key);
+  return storage_.Write(key);
 }
 
 size_t SpdyHeaderBlock::bytes_allocated() const {
-  if (storage_ == nullptr) {
-    return 0;
-  } else {
-    return storage_->bytes_allocated();
-  }
+  return storage_.bytes_allocated();
 }
 
 }  // namespace spdy

@@ -118,6 +118,13 @@ TEST(SpdyHeaderBlockTest, Equality) {
   EXPECT_NE(block1, block2);
 }
 
+SpdyHeaderBlock ReturnTestHeaderBlock() {
+  SpdyHeaderBlock block;
+  block["foo"] = "bar";
+  block.insert(std::make_pair("foo2", "baz"));
+  return block;
+}
+
 // Test that certain methods do not crash on moved-from instances.
 TEST(SpdyHeaderBlockTest, MovedFromIsValid) {
   SpdyHeaderBlock block1;
@@ -139,6 +146,11 @@ TEST(SpdyHeaderBlockTest, MovedFromIsValid) {
 
   block1["foo"] = "bar";
   EXPECT_THAT(block1, ElementsAre(Pair("foo", "bar")));
+
+  SpdyHeaderBlock block5 = ReturnTestHeaderBlock();
+  block5.AppendValueOrAddHeader("foo", "bar2");
+  EXPECT_THAT(block5, ElementsAre(Pair("foo", std::string("bar\0bar2", 8)),
+                                  Pair("foo2", "baz")));
 }
 
 // This test verifies that headers can be appended to no matter how they were

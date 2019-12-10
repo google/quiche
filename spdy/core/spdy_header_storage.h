@@ -23,6 +23,9 @@ class SPDY_EXPORT_PRIVATE SpdyHeaderStorage {
   SpdyHeaderStorage(const SpdyHeaderStorage&) = delete;
   SpdyHeaderStorage& operator=(const SpdyHeaderStorage&) = delete;
 
+  SpdyHeaderStorage(SpdyHeaderStorage&& other) = default;
+  SpdyHeaderStorage& operator=(SpdyHeaderStorage&& other) = default;
+
   SpdyStringPiece Write(SpdyStringPiece s);
 
   // If |s| points to the most recent allocation from arena_, the arena will
