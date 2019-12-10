@@ -39,6 +39,8 @@ std::vector<TestParams> GetTestParams() {
   std::vector<TestParams> params;
   for (ParsedQuicVersion version : AllSupportedVersions()) {
     for (auto perspective : {Perspective::IS_CLIENT, Perspective::IS_SERVER}) {
+      // LegacyQuicStreamIdManager is only used when IETF QUIC frames are not
+      // presented.
       if (!VersionHasIetfQuicFrames(version.transport_version)) {
         params.push_back(TestParams(version, perspective));
       }
@@ -50,8 +52,7 @@ std::vector<TestParams> GetTestParams() {
 class LegacyQuicStreamIdManagerTest : public QuicTestWithParam<TestParams> {
  public:
   LegacyQuicStreamIdManagerTest()
-      : transport_version_(GetParam().version.transport_version),
-        manager_(GetParam().perspective,
+      : manager_(GetParam().perspective,
                  GetParam().version.transport_version,
                  kDefaultMaxStreamsPerConnection,
                  kDefaultMaxStreamsPerConnection) {}
@@ -59,19 +60,17 @@ class LegacyQuicStreamIdManagerTest : public QuicTestWithParam<TestParams> {
  protected:
   QuicStreamId GetNthPeerInitiatedId(int n) {
     if (GetParam().perspective == Perspective::IS_SERVER) {
-      return QuicUtils::GetFirstBidirectionalStreamId(transport_version_,
-                                                      Perspective::IS_CLIENT) +
+      return QuicUtils::GetFirstBidirectionalStreamId(
+                 GetParam().version.transport_version, Perspective::IS_CLIENT) +
              2 * n;
     } else {
       return 2 + 2 * n;
     }
   }
 
-  QuicTransportVersion transport_version_;
   LegacyQuicStreamIdManager manager_;
 };
 
-// LegacyQuicStreamIdManager is only used for versions < 99.
 INSTANTIATE_TEST_SUITE_P(Tests,
                          LegacyQuicStreamIdManagerTest,
                          ::testing::ValuesIn(GetTestParams()),
