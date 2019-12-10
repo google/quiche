@@ -59,7 +59,8 @@ QuicSession::QuicSession(
       visitor_(owner),
       write_blocked_streams_(connection->transport_version()),
       config_(config),
-      stream_id_manager_(this,
+      stream_id_manager_(perspective(),
+                         connection->transport_version(),
                          kDefaultMaxStreamsPerConnection,
                          config_.GetMaxIncomingBidirectionalStreamsToSend()),
       v99_streamid_manager_(
@@ -131,6 +132,16 @@ void QuicSession::Initialize() {
 
 QuicSession::~QuicSession() {
   QUIC_LOG_IF(WARNING, !zombie_streams_.empty()) << "Still have zombie streams";
+  QUIC_LOG_IF(WARNING, num_locally_closed_incoming_streams_highest_offset() >
+                           stream_id_manager_.max_open_incoming_streams())
+      << "Surprisingly high number of locally closed peer initiated streams"
+         "still waiting for final byte offset: "
+      << num_locally_closed_incoming_streams_highest_offset();
+  QUIC_LOG_IF(WARNING, GetNumLocallyClosedOutgoingStreamsHighestOffset() >
+                           stream_id_manager_.max_open_outgoing_streams())
+      << "Surprisingly high number of locally closed self initiated streams"
+         "still waiting for final byte offset: "
+      << GetNumLocallyClosedOutgoingStreamsHighestOffset();
 }
 
 void QuicSession::PendingStreamOnStreamFrame(const QuicStreamFrame& frame) {
@@ -1551,7 +1562,15 @@ bool QuicSession::MaybeIncreaseLargestPeerStreamId(
   if (VersionHasIetfQuicFrames(transport_version())) {
     return v99_streamid_manager_.MaybeIncreaseLargestPeerStreamId(stream_id);
   }
-  return stream_id_manager_.MaybeIncreaseLargestPeerStreamId(stream_id);
+  if (!stream_id_manager_.MaybeIncreaseLargestPeerStreamId(stream_id)) {
+    connection()->CloseConnection(
+        QUIC_TOO_MANY_AVAILABLE_STREAMS,
+        QuicStrCat(stream_id, " exceeds available streams ",
+                   stream_id_manager_.MaxAvailableStreams()),
+        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    return false;
+  }
+  return true;
 }
 
 bool QuicSession::ShouldYield(QuicStreamId stream_id) {

@@ -5,6 +5,8 @@
 #define QUICHE_QUIC_CORE_LEGACY_QUIC_STREAM_ID_MANAGER_H_
 
 #include "net/third_party/quiche/src/quic/core/quic_stream_id_manager.h"
+#include "net/third_party/quiche/src/quic/core/quic_types.h"
+#include "net/third_party/quiche/src/quic/core/quic_versions.h"
 
 namespace quic {
 
@@ -19,7 +21,8 @@ class QuicSession;
 // next outgoing stream ID) and 2) can a new incoming stream be opened.
 class QUIC_EXPORT_PRIVATE LegacyQuicStreamIdManager {
  public:
-  LegacyQuicStreamIdManager(QuicSession* session,
+  LegacyQuicStreamIdManager(Perspective perspective,
+                            QuicTransportVersion transport_version,
                             size_t max_open_outgoing_streams,
                             size_t max_open_incoming_streams);
 
@@ -32,6 +35,8 @@ class QUIC_EXPORT_PRIVATE LegacyQuicStreamIdManager {
   // Returns true if a new incoming stream can be opened.
   bool CanOpenIncomingStream(size_t current_num_open_incoming_streams) const;
 
+  // Returns false when increasing the largest created stream id to |id| would
+  // violate the limit, so the connection should be closed.
   bool MaybeIncreaseLargestPeerStreamId(const QuicStreamId id);
 
   // Returns true if |id| is still available.
@@ -75,13 +80,13 @@ class QUIC_EXPORT_PRIVATE LegacyQuicStreamIdManager {
     return largest_peer_created_stream_id_;
   }
 
+  size_t GetNumAvailableStreams() const;
+
  private:
   friend class test::QuicSessionPeer;
 
-  size_t GetNumAvailableStreams() const;
-
-  // Not owned.
-  QuicSession* session_;
+  const Perspective perspective_;
+  const QuicTransportVersion transport_version_;
 
   // The maximum number of outgoing streams this connection can open.
   size_t max_open_outgoing_streams_;
