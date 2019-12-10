@@ -6,6 +6,7 @@
 
 #include <utility>
 
+#include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
@@ -19,68 +20,89 @@ namespace {
 using testing::_;
 using testing::StrictMock;
 
-class LegacyQuicStreamIdManagerTest : public QuicTest {
- public:
-  LegacyQuicStreamIdManagerTest(Perspective perspective,
-                                QuicTransportVersion transport_version)
-      : transport_version_(transport_version),
-        manager_(perspective,
-                 transport_version,
-                 kDefaultMaxStreamsPerConnection,
-                 kDefaultMaxStreamsPerConnection) {
-    // LegacyQuicStreamIdManager is only used for versions < 99.
-    // TODO(b/145768765) parameterize this test by version.
-    SetQuicReloadableFlag(quic_enable_version_q099, false);
-    SetQuicReloadableFlag(quic_enable_version_t099, false);
+struct TestParams {
+  TestParams(ParsedQuicVersion version, Perspective perspective)
+      : version(version), perspective(perspective) {}
+
+  ParsedQuicVersion version;
+  Perspective perspective;
+};
+
+// Used by ::testing::PrintToStringParamName().
+std::string PrintToString(const TestParams& p) {
+  return QuicStrCat(
+      ParsedQuicVersionToString(p.version),
+      (p.perspective == Perspective::IS_CLIENT ? "Client" : "Server"));
+}
+
+std::vector<TestParams> GetTestParams() {
+  std::vector<TestParams> params;
+  for (ParsedQuicVersion version : AllSupportedVersions()) {
+    for (auto perspective : {Perspective::IS_CLIENT, Perspective::IS_SERVER}) {
+      if (!VersionHasIetfQuicFrames(version.transport_version)) {
+        params.push_back(TestParams(version, perspective));
+      }
+    }
   }
+  return params;
+}
+
+class LegacyQuicStreamIdManagerTest : public QuicTestWithParam<TestParams> {
+ public:
+  LegacyQuicStreamIdManagerTest()
+      : transport_version_(GetParam().version.transport_version),
+        manager_(GetParam().perspective,
+                 GetParam().version.transport_version,
+                 kDefaultMaxStreamsPerConnection,
+                 kDefaultMaxStreamsPerConnection) {}
 
  protected:
-  QuicStreamId GetNthClientInitiatedId(int n) {
-    return QuicUtils::GetFirstBidirectionalStreamId(transport_version_,
-                                                    Perspective::IS_CLIENT) +
-           2 * n;
+  QuicStreamId GetNthPeerInitiatedId(int n) {
+    if (GetParam().perspective == Perspective::IS_SERVER) {
+      return QuicUtils::GetFirstBidirectionalStreamId(transport_version_,
+                                                      Perspective::IS_CLIENT) +
+             2 * n;
+    } else {
+      return 2 + 2 * n;
+    }
   }
-
-  QuicStreamId GetNthServerInitiatedId(int n) { return 2 + 2 * n; }
 
   QuicTransportVersion transport_version_;
   LegacyQuicStreamIdManager manager_;
 };
 
-class LegacyQuicStreamIdManagerTestServer
-    : public LegacyQuicStreamIdManagerTest {
- protected:
-  LegacyQuicStreamIdManagerTestServer()
-      : LegacyQuicStreamIdManagerTest(Perspective::IS_SERVER,
-                                      QuicTransportVersion::QUIC_VERSION_46) {}
-};
+// LegacyQuicStreamIdManager is only used for versions < 99.
+INSTANTIATE_TEST_SUITE_P(Tests,
+                         LegacyQuicStreamIdManagerTest,
+                         ::testing::ValuesIn(GetTestParams()),
+                         ::testing::PrintToStringParamName());
 
-TEST_F(LegacyQuicStreamIdManagerTestServer, CanOpenNextOutgoingStream) {
+TEST_P(LegacyQuicStreamIdManagerTest, CanOpenNextOutgoingStream) {
   EXPECT_TRUE(manager_.CanOpenNextOutgoingStream(
       manager_.max_open_outgoing_streams() - 1));
   EXPECT_FALSE(
       manager_.CanOpenNextOutgoingStream(manager_.max_open_outgoing_streams()));
 }
 
-TEST_F(LegacyQuicStreamIdManagerTestServer, CanOpenIncomingStream) {
+TEST_P(LegacyQuicStreamIdManagerTest, CanOpenIncomingStream) {
   EXPECT_TRUE(
       manager_.CanOpenIncomingStream(manager_.max_open_incoming_streams() - 1));
   EXPECT_FALSE(
       manager_.CanOpenIncomingStream(manager_.max_open_incoming_streams()));
 }
 
-TEST_F(LegacyQuicStreamIdManagerTestServer, AvailableStreams) {
+TEST_P(LegacyQuicStreamIdManagerTest, AvailableStreams) {
   ASSERT_TRUE(
-      manager_.MaybeIncreaseLargestPeerStreamId(GetNthClientInitiatedId(3)));
-  EXPECT_TRUE(manager_.IsAvailableStream(GetNthClientInitiatedId(1)));
-  EXPECT_TRUE(manager_.IsAvailableStream(GetNthClientInitiatedId(2)));
+      manager_.MaybeIncreaseLargestPeerStreamId(GetNthPeerInitiatedId(3)));
+  EXPECT_TRUE(manager_.IsAvailableStream(GetNthPeerInitiatedId(1)));
+  EXPECT_TRUE(manager_.IsAvailableStream(GetNthPeerInitiatedId(2)));
   ASSERT_TRUE(
-      manager_.MaybeIncreaseLargestPeerStreamId(GetNthClientInitiatedId(2)));
+      manager_.MaybeIncreaseLargestPeerStreamId(GetNthPeerInitiatedId(2)));
   ASSERT_TRUE(
-      manager_.MaybeIncreaseLargestPeerStreamId(GetNthClientInitiatedId(1)));
+      manager_.MaybeIncreaseLargestPeerStreamId(GetNthPeerInitiatedId(1)));
 }
 
-TEST_F(LegacyQuicStreamIdManagerTestServer, MaxAvailableStreams) {
+TEST_P(LegacyQuicStreamIdManagerTest, MaxAvailableStreams) {
   // Test that the server closes the connection if a client makes too many data
   // streams available.  The server accepts slightly more than the negotiated
   // stream limit to deal with rare cases where a client FIN/RST is lost.
@@ -94,11 +116,11 @@ TEST_F(LegacyQuicStreamIdManagerTestServer, MaxAvailableStreams) {
   EXPECT_LE(10 * kMaxStreamsForTest, kAvailableStreamLimit);
 
   EXPECT_TRUE(
-      manager_.MaybeIncreaseLargestPeerStreamId(GetNthClientInitiatedId(0)));
+      manager_.MaybeIncreaseLargestPeerStreamId(GetNthPeerInitiatedId(0)));
 
   // Establish available streams up to the server's limit.
   const int kLimitingStreamId =
-      GetNthClientInitiatedId(kAvailableStreamLimit + 1);
+      GetNthPeerInitiatedId(kAvailableStreamLimit + 1);
   // This exceeds the stream limit. In versions other than 99
   // this is allowed. Version 99 hews to the IETF spec and does
   // not allow it.
@@ -110,54 +132,38 @@ TEST_F(LegacyQuicStreamIdManagerTestServer, MaxAvailableStreams) {
       manager_.MaybeIncreaseLargestPeerStreamId(kLimitingStreamId + 2 * 2));
 }
 
-TEST_F(LegacyQuicStreamIdManagerTestServer, MaximumAvailableOpenedStreams) {
-  QuicStreamId stream_id = GetNthClientInitiatedId(0);
+TEST_P(LegacyQuicStreamIdManagerTest, MaximumAvailableOpenedStreams) {
+  QuicStreamId stream_id = GetNthPeerInitiatedId(0);
   EXPECT_TRUE(manager_.MaybeIncreaseLargestPeerStreamId(stream_id));
 
   EXPECT_TRUE(manager_.MaybeIncreaseLargestPeerStreamId(
       stream_id + 2 * (manager_.max_open_incoming_streams() - 1)));
 }
 
-TEST_F(LegacyQuicStreamIdManagerTestServer, TooManyAvailableStreams) {
-  QuicStreamId stream_id = GetNthClientInitiatedId(0);
+TEST_P(LegacyQuicStreamIdManagerTest, TooManyAvailableStreams) {
+  QuicStreamId stream_id = GetNthPeerInitiatedId(0);
   EXPECT_TRUE(manager_.MaybeIncreaseLargestPeerStreamId(stream_id));
 
   // A stream ID which is too large to create.
   QuicStreamId stream_id2 =
-      GetNthClientInitiatedId(2 * manager_.MaxAvailableStreams() + 4);
+      GetNthPeerInitiatedId(2 * manager_.MaxAvailableStreams() + 4);
   EXPECT_FALSE(manager_.MaybeIncreaseLargestPeerStreamId(stream_id2));
 }
 
-TEST_F(LegacyQuicStreamIdManagerTestServer, ManyAvailableStreams) {
+TEST_P(LegacyQuicStreamIdManagerTest, ManyAvailableStreams) {
   // When max_open_streams_ is 200, should be able to create 200 streams
   // out-of-order, that is, creating the one with the largest stream ID first.
   manager_.set_max_open_incoming_streams(200);
-  QuicStreamId stream_id = GetNthClientInitiatedId(0);
+  QuicStreamId stream_id = GetNthPeerInitiatedId(0);
   EXPECT_TRUE(manager_.MaybeIncreaseLargestPeerStreamId(stream_id));
 
   // Create the largest stream ID of a threatened total of 200 streams.
   // GetNth... starts at 0, so for 200 streams, get the 199th.
   EXPECT_TRUE(
-      manager_.MaybeIncreaseLargestPeerStreamId(GetNthClientInitiatedId(199)));
+      manager_.MaybeIncreaseLargestPeerStreamId(GetNthPeerInitiatedId(199)));
 }
 
-TEST_F(LegacyQuicStreamIdManagerTestServer,
-       TestMaxIncomingAndOutgoingStreamsAllowed) {
-  EXPECT_EQ(manager_.max_open_incoming_streams(),
-            kDefaultMaxStreamsPerConnection);
-  EXPECT_EQ(manager_.max_open_outgoing_streams(),
-            kDefaultMaxStreamsPerConnection);
-}
-
-class LegacyQuicStreamIdManagerTestClient
-    : public LegacyQuicStreamIdManagerTest {
- protected:
-  LegacyQuicStreamIdManagerTestClient()
-      : LegacyQuicStreamIdManagerTest(Perspective::IS_CLIENT,
-                                      QuicTransportVersion::QUIC_VERSION_46) {}
-};
-
-TEST_F(LegacyQuicStreamIdManagerTestClient,
+TEST_P(LegacyQuicStreamIdManagerTest,
        TestMaxIncomingAndOutgoingStreamsAllowed) {
   EXPECT_EQ(manager_.max_open_incoming_streams(),
             kDefaultMaxStreamsPerConnection);
