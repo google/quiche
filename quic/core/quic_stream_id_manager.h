@@ -58,7 +58,6 @@ class QUIC_EXPORT_PRIVATE QuicStreamIdManager {
                       bool unidirectional,
                       Perspective perspective,
                       QuicTransportVersion transport_version,
-                      QuicStreamCount num_expected_static_streams,
                       QuicStreamCount max_allowed_outgoing_streams,
                       QuicStreamCount max_allowed_incoming_streams);
 
@@ -212,9 +211,6 @@ class QUIC_EXPORT_PRIVATE QuicStreamIdManager {
 
   // Transport version used for this manager.
   const QuicTransportVersion transport_version_;
-
-  // Number of expected static streams.
-  const QuicStreamCount num_expected_static_streams_;
 
   // True if the config has been negotiated_;
   bool is_config_negotiated_;

@@ -24,14 +24,12 @@ QuicStreamIdManager::QuicStreamIdManager(
     bool unidirectional,
     Perspective perspective,
     QuicTransportVersion transport_version,
-    QuicStreamCount num_expected_static_streams,
     QuicStreamCount max_allowed_outgoing_streams,
     QuicStreamCount max_allowed_incoming_streams)
     : delegate_(delegate),
       unidirectional_(unidirectional),
       perspective_(perspective),
       transport_version_(transport_version),
-      num_expected_static_streams_(num_expected_static_streams),
       is_config_negotiated_(false),
       outgoing_max_streams_(max_allowed_outgoing_streams),
       next_outgoing_stream_id_(GetFirstOutgoingStreamId()),
@@ -96,16 +94,6 @@ bool QuicStreamIdManager::OnStreamsBlockedFrame(
 // Used when configuration has been done and we have an initial
 // maximum stream count from the peer.
 bool QuicStreamIdManager::SetMaxOpenOutgoingStreams(size_t max_open_streams) {
-  if (max_open_streams < num_expected_static_streams_) {
-    QUIC_DLOG(ERROR) << "Received max streams " << max_open_streams << " < "
-                     << num_expected_static_streams_;
-    delegate_->OnError(QUIC_MAX_STREAMS_ERROR,
-                       unidirectional_
-                           ? "New unidirectional stream limit is too low."
-                           : "New bidirectional stream limit is too low.");
-
-    return false;
-  }
   if (using_default_max_streams_) {
     // This is the first MAX_STREAMS/transport negotiation we've received. Treat
     // this a bit differently than later ones. The difference is that

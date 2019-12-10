@@ -33,7 +33,6 @@ class UberQuicStreamIdManagerTest : public QuicTestWithParam<Perspective> {
       : manager_(perspective(),
                  version(),
                  &delegate_,
-                 /*num_expected_unidirectional_static_streams=*/0,
                  kDefaultMaxStreamsPerConnection,
                  kDefaultMaxStreamsPerConnection,
                  kDefaultMaxStreamsPerConnection,

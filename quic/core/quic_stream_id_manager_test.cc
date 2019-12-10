@@ -63,7 +63,6 @@ class QuicStreamIdManagerTest : public QuicTestWithParam<TestParams> {
                            IsUnidirectional(),
                            perspective(),
                            transport_version(),
-                           0,
                            kDefaultMaxStreamsPerConnection,
                            kDefaultMaxStreamsPerConnection) {
     DCHECK(VersionHasIetfQuicFrames(transport_version()));

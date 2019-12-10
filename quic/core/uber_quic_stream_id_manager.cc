@@ -13,7 +13,6 @@ UberQuicStreamIdManager::UberQuicStreamIdManager(
     Perspective perspective,
     ParsedQuicVersion version,
     QuicStreamIdManager::DelegateInterface* delegate,
-    QuicStreamCount num_expected_unidirectiona_static_streams,
     QuicStreamCount max_open_outgoing_bidirectional_streams,
     QuicStreamCount max_open_outgoing_unidirectional_streams,
     QuicStreamCount max_open_incoming_bidirectional_streams,
@@ -22,7 +21,6 @@ UberQuicStreamIdManager::UberQuicStreamIdManager(
                                        /*unidirectional=*/false,
                                        perspective,
                                        version.transport_version,
-                                       0,
                                        max_open_outgoing_bidirectional_streams,
                                        max_open_incoming_bidirectional_streams),
       unidirectional_stream_id_manager_(
@@ -30,7 +28,6 @@ UberQuicStreamIdManager::UberQuicStreamIdManager(
           /*unidirectional=*/true,
           perspective,
           version.transport_version,
-          num_expected_unidirectiona_static_streams,
           max_open_outgoing_unidirectional_streams,
           max_open_incoming_unidirectional_streams) {}
 
