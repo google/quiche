@@ -282,7 +282,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   virtual QuicSpdyStream* CreateOutgoingBidirectionalStream() = 0;
   virtual QuicSpdyStream* CreateOutgoingUnidirectionalStream() = 0;
 
-  QuicSpdyStream* GetSpdyDataStream(const QuicStreamId stream_id);
+  QuicSpdyStream* GetOrCreateSpdyDataStream(const QuicStreamId stream_id);
 
   // If an incoming stream can be created, return true.
   virtual bool ShouldCreateIncomingStream(QuicStreamId id) = 0;
@@ -441,7 +441,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // If the endpoint has sent HTTP/3 GOAWAY frame.
   bool http3_goaway_sent_;
 
-  // If the sendpoint has sent the initial HTTP/3 MAX_PUSH_ID frame.
+  // If the endpoint has sent the initial HTTP/3 MAX_PUSH_ID frame.
   bool http3_max_push_id_sent_;
 };
 

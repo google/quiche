@@ -433,7 +433,7 @@ void QuicSpdySession::OnEncoderStreamError(QuicStringPiece error_message) {
 void QuicSpdySession::OnStreamHeadersPriority(
     QuicStreamId stream_id,
     const spdy::SpdyStreamPrecedence& precedence) {
-  QuicSpdyStream* stream = GetSpdyDataStream(stream_id);
+  QuicSpdyStream* stream = GetOrCreateSpdyDataStream(stream_id);
   if (!stream) {
     // It's quite possible to receive headers after a stream has been reset.
     return;
@@ -451,7 +451,7 @@ void QuicSpdySession::OnStreamHeaderList(QuicStreamId stream_id,
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return;
   }
-  QuicSpdyStream* stream = GetSpdyDataStream(stream_id);
+  QuicSpdyStream* stream = GetOrCreateSpdyDataStream(stream_id);
   if (stream == nullptr) {
     // The stream no longer exists, but trailing headers may contain the final
     // byte offset necessary for flow control and open stream accounting.
@@ -483,7 +483,7 @@ void QuicSpdySession::OnStreamHeaderList(QuicStreamId stream_id,
 void QuicSpdySession::OnPriorityFrame(
     QuicStreamId stream_id,
     const spdy::SpdyStreamPrecedence& precedence) {
-  QuicSpdyStream* stream = GetSpdyDataStream(stream_id);
+  QuicSpdyStream* stream = GetOrCreateSpdyDataStream(stream_id);
   if (!stream) {
     // It's quite possible to receive a PRIORITY frame after a stream has been
     // reset.
@@ -591,7 +591,7 @@ void QuicSpdySession::WritePushPromise(QuicStreamId original_stream_id,
   PushPromiseFrame frame;
   frame.push_id = promised_stream_id;
   frame.headers = encoded_headers;
-  QuicSpdyStream* stream = GetSpdyDataStream(original_stream_id);
+  QuicSpdyStream* stream = GetOrCreateSpdyDataStream(original_stream_id);
   stream->WritePushPromise(frame);
 }
 
@@ -622,11 +622,11 @@ QpackDecoder* QuicSpdySession::qpack_decoder() {
   return qpack_decoder_.get();
 }
 
-QuicSpdyStream* QuicSpdySession::GetSpdyDataStream(
+QuicSpdyStream* QuicSpdySession::GetOrCreateSpdyDataStream(
     const QuicStreamId stream_id) {
   QuicStream* stream = GetOrCreateStream(stream_id);
   if (stream && stream->is_static()) {
-    QUIC_BUG << "GetSpdyDataStream returns static stream " << stream_id;
+    QUIC_BUG << "GetOrCreateSpdyDataStream returns static stream " << stream_id;
     connection()->CloseConnection(
         QUIC_INVALID_STREAM_ID, QuicStrCat("stream ", stream_id, " is static"),
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);

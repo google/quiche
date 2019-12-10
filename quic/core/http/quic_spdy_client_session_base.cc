@@ -94,7 +94,7 @@ void QuicSpdyClientSessionBase::OnPromiseHeaderList(
   }
   largest_promised_stream_id_ = promised_stream_id;
 
-  QuicSpdyStream* stream = GetSpdyDataStream(stream_id);
+  QuicSpdyStream* stream = GetOrCreateSpdyDataStream(stream_id);
   if (!stream) {
     // It's quite possible to receive headers after a stream has been reset.
     return;
