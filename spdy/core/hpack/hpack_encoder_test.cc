@@ -9,8 +9,8 @@
 
 #include "net/third_party/quiche/src/http2/test_tools/http2_random.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_huffman_table.h"
+#include "net/third_party/quiche/src/spdy/core/spdy_simple_arena.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_test.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_unsafe_arena.h"
 
 namespace spdy {
 
@@ -201,7 +201,7 @@ class HpackEncoderTest : public ::testing::TestWithParam<bool> {
   const HpackEntry* cookie_a_;
   const HpackEntry* cookie_c_;
 
-  SpdyUnsafeArena headers_storage_;
+  SpdySimpleArena headers_storage_;
   std::vector<std::pair<SpdyStringPiece, SpdyStringPiece>> headers_observed_;
 
   HpackOutputStream expected_;
