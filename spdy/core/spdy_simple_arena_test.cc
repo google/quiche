@@ -18,7 +18,7 @@ const char kTestString[] = "This is a decently long test string.";
 
 TEST(SpdySimpleArenaTest, NoAllocationOnConstruction) {
   SpdySimpleArena arena(kDefaultBlockSize);
-  EXPECT_EQ(0, arena.status().bytes_allocated());
+  EXPECT_EQ(0u, arena.status().bytes_allocated());
 }
 
 TEST(SpdySimpleArenaTest, Memdup) {
