@@ -222,16 +222,6 @@ bool QuicServerSessionBase::ShouldCreateOutgoingBidirectionalStream() {
     return false;
   }
 
-  if (!GetQuicReloadableFlag(quic_use_common_stream_check) &&
-      !VersionHasIetfQuicFrames(transport_version())) {
-    if (GetNumOpenOutgoingStreams() >=
-        stream_id_manager().max_open_outgoing_streams()) {
-      QUIC_VLOG(1) << "No more streams should be created. "
-                   << "Already " << GetNumOpenOutgoingStreams() << " open.";
-      return false;
-    }
-  }
-  QUIC_RELOADABLE_FLAG_COUNT_N(quic_use_common_stream_check, 2, 2);
   return CanOpenNextOutgoingBidirectionalStream();
 }
 
@@ -255,7 +245,7 @@ bool QuicServerSessionBase::ShouldCreateOutgoingUnidirectionalStream() {
       return false;
     }
   }
-
+  QUIC_RELOADABLE_FLAG_COUNT(quic_use_common_stream_check);
   return CanOpenNextOutgoingUnidirectionalStream();
 }
 

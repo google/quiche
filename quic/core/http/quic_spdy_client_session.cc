@@ -56,27 +56,11 @@ bool QuicSpdyClientSession::ShouldCreateOutgoingBidirectionalStream() {
   bool goaway_received = VersionUsesHttp3(transport_version())
                              ? http3_goaway_received()
                              : QuicSession::goaway_received();
-  if (!GetQuicReloadableFlag(quic_use_common_stream_check) &&
-      !VersionHasIetfQuicFrames(transport_version())) {
-    if (GetNumOpenOutgoingStreams() >=
-        stream_id_manager().max_open_outgoing_streams()) {
-      QUIC_DLOG(INFO) << "Failed to create a new outgoing stream. "
-                      << "Already " << GetNumOpenOutgoingStreams() << " open.";
-      return false;
-    }
-    if (goaway_received && respect_goaway_) {
-      QUIC_DLOG(INFO) << "Failed to create a new outgoing stream. "
-                      << "Already received goaway.";
-      return false;
-    }
-    return true;
-  }
   if (goaway_received && respect_goaway_) {
     QUIC_DLOG(INFO) << "Failed to create a new outgoing stream. "
                     << "Already received goaway.";
     return false;
   }
-  QUIC_RELOADABLE_FLAG_COUNT_N(quic_use_common_stream_check, 1, 2);
   return CanOpenNextOutgoingBidirectionalStream();
 }
 
