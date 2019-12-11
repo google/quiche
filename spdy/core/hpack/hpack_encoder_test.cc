@@ -307,6 +307,13 @@ TEST_P(HpackEncoderTest, CookieHeaderIsCrumbled) {
   CompareWithExpectedEncoding(headers);
 }
 
+TEST_P(HpackEncoderTest, MultiValuedHeadersNotCrumbled) {
+  ExpectIndexedLiteral("foo", "bar, baz");
+  SpdyHeaderBlock headers;
+  headers["foo"] = "bar, baz";
+  CompareWithExpectedEncoding(headers);
+}
+
 TEST_P(HpackEncoderTest, StringsDynamicallySelectHuffmanCoding) {
   // Compactable string. Uses Huffman coding.
   peer_.EmitString("feedbeef");
@@ -343,12 +350,14 @@ TEST_P(HpackEncoderTest, EncodingWithoutCompression) {
     ExpectNonIndexedLiteral("hello", "goodbye");
     ExpectNonIndexedLiteral("hello", "aloha");
   }
+  ExpectNonIndexedLiteral("multivalue", "value1, value2");
 
   SpdyHeaderBlock headers;
   headers[":path"] = "/index.html";
   headers["cookie"] = "foo=bar; baz=bing";
   headers["hello"] = "goodbye";
   headers.AppendValueOrAddHeader("hello", "aloha");
+  headers["multivalue"] = "value1, value2";
 
   CompareWithExpectedEncoding(headers);
 
@@ -359,13 +368,15 @@ TEST_P(HpackEncoderTest, EncodingWithoutCompression) {
         headers_observed_,
         ElementsAre(Pair(":path", "/index.html"), Pair("cookie", "foo=bar"),
                     Pair("cookie", "baz=bing"),
-                    Pair("hello", std::string("goodbye\0aloha", 13))));
+                    Pair("hello", std::string("goodbye\0aloha", 13)),
+                    Pair("multivalue", "value1, value2")));
   } else {
     EXPECT_THAT(
         headers_observed_,
         ElementsAre(Pair(":path", "/index.html"), Pair("cookie", "foo=bar"),
                     Pair("cookie", "baz=bing"), Pair("hello", "goodbye"),
-                    Pair("hello", "aloha")));
+                    Pair("hello", "aloha"),
+                    Pair("multivalue", "value1, value2")));
   }
 }
 
