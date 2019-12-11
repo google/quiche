@@ -5,7 +5,7 @@
 #include "net/third_party/quiche/src/quic/test_tools/simulator/alarm_factory.h"
 
 #include "net/third_party/quiche/src/quic/core/quic_alarm.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 
 namespace quic {
 namespace simulator {
@@ -58,7 +58,7 @@ AlarmFactory::~AlarmFactory() {}
 
 std::string AlarmFactory::GetNewAlarmName() {
   ++counter_;
-  return QuicStringPrintf("%s (alarm %i)", name_.c_str(), counter_);
+  return quiche::QuicheStringPrintf("%s (alarm %i)", name_.c_str(), counter_);
 }
 
 QuicAlarm* AlarmFactory::CreateAlarm(QuicAlarm::Delegate* delegate) {

@@ -5,8 +5,8 @@
 #include <cinttypes>
 #include <utility>
 
-#include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
 #include "net/third_party/quiche/src/quic/test_tools/simulator/switch.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 
 namespace quic {
 namespace simulator {
@@ -17,8 +17,8 @@ Switch::Switch(Simulator* simulator,
                QuicByteCount queue_capacity) {
   for (size_t port_number = 1; port_number <= port_count; port_number++) {
     ports_.emplace_back(simulator,
-                        QuicStrCat(name, " (port ", port_number, ")"), this,
-                        port_number, queue_capacity);
+                        quiche::QuicheStrCat(name, " (port ", port_number, ")"),
+                        this, port_number, queue_capacity);
   }
 }
 
@@ -34,7 +34,7 @@ Switch::Port::Port(Simulator* simulator,
       port_number_(port_number),
       connected_(false),
       queue_(simulator,
-             QuicStringPrintf("%s (queue)", name.c_str()),
+             quiche::QuicheStringPrintf("%s (queue)", name.c_str()),
              queue_capacity) {}
 
 void Switch::Port::AcceptPacket(std::unique_ptr<Packet> packet) {

@@ -4,8 +4,8 @@
 
 #include "net/third_party/quiche/src/quic/test_tools/simulator/link.h"
 
-#include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
 #include "net/third_party/quiche/src/quic/test_tools/simulator/simulator.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 
 namespace quic {
 namespace simulator {
@@ -96,12 +96,12 @@ SymmetricLink::SymmetricLink(Simulator* simulator,
                              QuicBandwidth bandwidth,
                              QuicTime::Delta propagation_delay)
     : a_to_b_link_(simulator,
-                   QuicStringPrintf("%s (A-to-B)", name.c_str()),
+                   quiche::QuicheStringPrintf("%s (A-to-B)", name.c_str()),
                    sink_b,
                    bandwidth,
                    propagation_delay),
       b_to_a_link_(simulator,
-                   QuicStringPrintf("%s (B-to-A)", name.c_str()),
+                   quiche::QuicheStringPrintf("%s (B-to-A)", name.c_str()),
                    sink_a,
                    bandwidth,
                    propagation_delay) {}
@@ -111,9 +111,9 @@ SymmetricLink::SymmetricLink(Endpoint* endpoint_a,
                              QuicBandwidth bandwidth,
                              QuicTime::Delta propagation_delay)
     : SymmetricLink(endpoint_a->simulator(),
-                    QuicStringPrintf("Link [%s]<->[%s]",
-                                     endpoint_a->name().c_str(),
-                                     endpoint_b->name().c_str()),
+                    quiche::QuicheStringPrintf("Link [%s]<->[%s]",
+                                               endpoint_a->name().c_str(),
+                                               endpoint_b->name().c_str()),
                     endpoint_a->GetRxPort(),
                     endpoint_b->GetRxPort(),
                     bandwidth,

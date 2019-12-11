@@ -8,9 +8,9 @@
 #include <string>
 
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_encoder.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/qpack/qpack_test_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_header_block.h"
 
 namespace quic {
@@ -22,7 +22,7 @@ class NoopDecoderStreamErrorDelegate
  public:
   ~NoopDecoderStreamErrorDelegate() override = default;
 
-  void OnDecoderStreamError(QuicStringPiece error_message) override;
+  void OnDecoderStreamError(quiche::QuicheStringPiece error_message) override;
 };
 
 // Mock QpackEncoder::DecoderStreamErrorDelegate implementation.
@@ -31,7 +31,8 @@ class MockDecoderStreamErrorDelegate
  public:
   ~MockDecoderStreamErrorDelegate() override = default;
 
-  MOCK_METHOD1(OnDecoderStreamError, void(QuicStringPiece error_message));
+  MOCK_METHOD1(OnDecoderStreamError,
+               void(quiche::QuicheStringPiece error_message));
 };
 
 }  // namespace test

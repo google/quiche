@@ -9,9 +9,9 @@
 
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_decoder.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_progressive_decoder.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/qpack/qpack_test_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_header_block.h"
 
 namespace quic {
@@ -23,7 +23,7 @@ class NoopEncoderStreamErrorDelegate
  public:
   ~NoopEncoderStreamErrorDelegate() override = default;
 
-  void OnEncoderStreamError(QuicStringPiece error_message) override;
+  void OnEncoderStreamError(quiche::QuicheStringPiece error_message) override;
 };
 
 // Mock QpackDecoder::EncoderStreamErrorDelegate implementation.
@@ -32,7 +32,8 @@ class MockEncoderStreamErrorDelegate
  public:
   ~MockEncoderStreamErrorDelegate() override = default;
 
-  MOCK_METHOD1(OnEncoderStreamError, void(QuicStringPiece error_message));
+  MOCK_METHOD1(OnEncoderStreamError,
+               void(quiche::QuicheStringPiece error_message));
 };
 
 // HeadersHandlerInterface implementation that collects decoded headers
@@ -44,9 +45,11 @@ class TestHeadersHandler
   ~TestHeadersHandler() override = default;
 
   // HeadersHandlerInterface implementation:
-  void OnHeaderDecoded(QuicStringPiece name, QuicStringPiece value) override;
+  void OnHeaderDecoded(quiche::QuicheStringPiece name,
+                       quiche::QuicheStringPiece value) override;
   void OnDecodingCompleted() override;
-  void OnDecodingErrorDetected(QuicStringPiece error_message) override;
+  void OnDecodingErrorDetected(
+      quiche::QuicheStringPiece error_message) override;
 
   // Release decoded header list.  Must only be called if decoding is complete
   // and no errors have been detected.
@@ -72,9 +75,11 @@ class MockHeadersHandler
   ~MockHeadersHandler() override = default;
 
   MOCK_METHOD2(OnHeaderDecoded,
-               void(QuicStringPiece name, QuicStringPiece value));
+               void(quiche::QuicheStringPiece name,
+                    quiche::QuicheStringPiece value));
   MOCK_METHOD0(OnDecodingCompleted, void());
-  MOCK_METHOD1(OnDecodingErrorDetected, void(QuicStringPiece error_message));
+  MOCK_METHOD1(OnDecodingErrorDetected,
+               void(quiche::QuicheStringPiece error_message));
 };
 
 class NoOpHeadersHandler
@@ -82,10 +87,11 @@ class NoOpHeadersHandler
  public:
   ~NoOpHeadersHandler() override = default;
 
-  void OnHeaderDecoded(QuicStringPiece /*name*/,
-                       QuicStringPiece /*value*/) override {}
+  void OnHeaderDecoded(quiche::QuicheStringPiece /*name*/,
+                       quiche::QuicheStringPiece /*value*/) override {}
   void OnDecodingCompleted() override {}
-  void OnDecodingErrorDetected(QuicStringPiece /*error_message*/) override {}
+  void OnDecodingErrorDetected(
+      quiche::QuicheStringPiece /*error_message*/) override {}
 };
 
 void QpackDecode(
@@ -95,7 +101,7 @@ void QpackDecode(
     QpackStreamSenderDelegate* decoder_stream_sender_delegate,
     QpackProgressiveDecoder::HeadersHandlerInterface* handler,
     const FragmentSizeGenerator& fragment_size_generator,
-    QuicStringPiece data);
+    quiche::QuicheStringPiece data);
 
 }  // namespace test
 }  // namespace quic

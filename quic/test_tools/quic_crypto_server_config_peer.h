@@ -6,7 +6,7 @@
 #define QUICHE_QUIC_TEST_TOOLS_QUIC_CRYPTO_SERVER_CONFIG_PEER_H_
 
 #include "net/third_party/quiche/src/quic/core/crypto/quic_crypto_server_config.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 namespace test {
@@ -43,14 +43,14 @@ class QuicCryptoServerConfigPeer {
   // Attempts to validate the tokens in |tokens|.
   HandshakeFailureReason ValidateSourceAddressTokens(
       std::string config_id,
-      QuicStringPiece tokens,
+      quiche::QuicheStringPiece tokens,
       const QuicIpAddress& ip,
       QuicWallTime now,
       CachedNetworkParameters* cached_network_params);
 
   // Attempts to validate the single source address token in |token|.
   HandshakeFailureReason ValidateSingleSourceAddressToken(
-      QuicStringPiece token,
+      quiche::QuicheStringPiece token,
       const QuicIpAddress& ip,
       QuicWallTime now);
 

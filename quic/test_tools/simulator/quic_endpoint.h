@@ -17,6 +17,7 @@
 #include "net/third_party/quiche/src/quic/test_tools/simulator/link.h"
 #include "net/third_party/quiche/src/quic/test_tools/simulator/queue.h"
 #include "net/third_party/quiche/src/quic/test_tools/simulator/quic_endpoint_base.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 namespace simulator {
@@ -58,7 +59,7 @@ class QuicEndpoint : public QuicEndpointBase,
   void OnBlockedFrame(const QuicBlockedFrame& /*frame*/) override {}
   void OnRstStream(const QuicRstStreamFrame& /*frame*/) override {}
   void OnGoAway(const QuicGoAwayFrame& /*frame*/) override {}
-  void OnMessageReceived(QuicStringPiece /*message*/) override {}
+  void OnMessageReceived(quiche::QuicheStringPiece /*message*/) override {}
   void OnConnectionClosed(const QuicConnectionCloseFrame& /*frame*/,
                           ConnectionCloseSource /*source*/) override {}
   void OnWriteBlocked() override {}

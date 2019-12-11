@@ -10,6 +10,7 @@
 
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_stream_sender_delegate.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 namespace test {
@@ -31,14 +32,14 @@ class MockQpackStreamSenderDelegate : public QpackStreamSenderDelegate {
  public:
   ~MockQpackStreamSenderDelegate() override = default;
 
-  MOCK_METHOD1(WriteStreamData, void(QuicStringPiece data));
+  MOCK_METHOD1(WriteStreamData, void(quiche::QuicheStringPiece data));
 };
 
 class NoopQpackStreamSenderDelegate : public QpackStreamSenderDelegate {
  public:
   ~NoopQpackStreamSenderDelegate() override = default;
 
-  void WriteStreamData(QuicStringPiece /*data*/) override {}
+  void WriteStreamData(quiche::QuicheStringPiece /*data*/) override {}
 };
 
 }  // namespace test

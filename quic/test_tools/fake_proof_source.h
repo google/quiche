@@ -10,7 +10,7 @@
 #include <vector>
 
 #include "net/third_party/quiche/src/quic/core/crypto/proof_source.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 namespace test {
@@ -35,7 +35,7 @@ class FakeProofSource : public ProofSource {
                 const std::string& hostname,
                 const std::string& server_config,
                 QuicTransportVersion transport_version,
-                QuicStringPiece chlo_hash,
+                quiche::QuicheStringPiece chlo_hash,
                 std::unique_ptr<ProofSource::Callback> callback) override;
   QuicReferenceCountedPointer<Chain> GetCertChain(
       const QuicSocketAddress& server_address,
@@ -44,7 +44,7 @@ class FakeProofSource : public ProofSource {
       const QuicSocketAddress& server_address,
       const std::string& hostname,
       uint16_t signature_algorithm,
-      QuicStringPiece in,
+      quiche::QuicheStringPiece in,
       std::unique_ptr<ProofSource::SignatureCallback> callback) override;
 
   // Get the number of callbacks which are pending
@@ -92,7 +92,7 @@ class FakeProofSource : public ProofSource {
     ComputeSignatureOp(const QuicSocketAddress& server_address,
                        std::string hostname,
                        uint16_t sig_alg,
-                       QuicStringPiece in,
+                       quiche::QuicheStringPiece in,
                        std::unique_ptr<ProofSource::SignatureCallback> callback,
                        ProofSource* delegate);
     ~ComputeSignatureOp() override;

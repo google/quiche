@@ -33,9 +33,10 @@
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_file_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/qpack/qpack_test_utils.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_endian.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 namespace quic {
 
@@ -43,8 +44,8 @@ QpackOfflineDecoder::QpackOfflineDecoder()
     : encoder_stream_error_detected_(false) {}
 
 bool QpackOfflineDecoder::DecodeAndVerifyOfflineData(
-    QuicStringPiece input_filename,
-    QuicStringPiece expected_headers_filename) {
+    quiche::QuicheStringPiece input_filename,
+    quiche::QuicheStringPiece expected_headers_filename) {
   if (!ParseInputFilename(input_filename)) {
     QUIC_LOG(ERROR) << "Error parsing input filename " << input_filename;
     return false;
@@ -65,13 +66,15 @@ bool QpackOfflineDecoder::DecodeAndVerifyOfflineData(
   return true;
 }
 
-void QpackOfflineDecoder::OnEncoderStreamError(QuicStringPiece error_message) {
+void QpackOfflineDecoder::OnEncoderStreamError(
+    quiche::QuicheStringPiece error_message) {
   QUIC_LOG(ERROR) << "Encoder stream error: " << error_message;
   encoder_stream_error_detected_ = true;
 }
 
-bool QpackOfflineDecoder::ParseInputFilename(QuicStringPiece input_filename) {
-  auto pieces = QuicTextUtils::Split(input_filename, '.');
+bool QpackOfflineDecoder::ParseInputFilename(
+    quiche::QuicheStringPiece input_filename) {
+  auto pieces = quiche::QuicheTextUtils::Split(input_filename, '.');
 
   if (pieces.size() < 3) {
     QUIC_LOG(ERROR) << "Not enough fields in input filename " << input_filename;
@@ -97,7 +100,8 @@ bool QpackOfflineDecoder::ParseInputFilename(QuicStringPiece input_filename) {
 
   // Maximum allowed number of blocked streams.
   uint64_t max_blocked_streams = 0;
-  if (!QuicTextUtils::StringToUint64(*piece_it, &max_blocked_streams)) {
+  if (!quiche::QuicheTextUtils::StringToUint64(*piece_it,
+                                               &max_blocked_streams)) {
     QUIC_LOG(ERROR) << "Error parsing part of input filename \"" << *piece_it
                     << "\" as an integer.";
     return false;
@@ -107,8 +111,8 @@ bool QpackOfflineDecoder::ParseInputFilename(QuicStringPiece input_filename) {
 
   // Maximum Dynamic Table Capacity in bytes
   uint64_t maximum_dynamic_table_capacity = 0;
-  if (!QuicTextUtils::StringToUint64(*piece_it,
-                                     &maximum_dynamic_table_capacity)) {
+  if (!quiche::QuicheTextUtils::StringToUint64(
+          *piece_it, &maximum_dynamic_table_capacity)) {
     QUIC_LOG(ERROR) << "Error parsing part of input filename \"" << *piece_it
                     << "\" as an integer.";
     return false;
@@ -128,12 +132,12 @@ bool QpackOfflineDecoder::ParseInputFilename(QuicStringPiece input_filename) {
 }
 
 bool QpackOfflineDecoder::DecodeHeaderBlocksFromFile(
-    QuicStringPiece input_filename) {
-  // Store data in |input_data_storage|; use a QuicStringPiece to efficiently
-  // keep track of remaining portion yet to be decoded.
+    quiche::QuicheStringPiece input_filename) {
+  // Store data in |input_data_storage|; use a quiche::QuicheStringPiece to
+  // efficiently keep track of remaining portion yet to be decoded.
   std::string input_data_storage;
   ReadFileContents(input_filename, &input_data_storage);
-  QuicStringPiece input_data(input_data_storage);
+  quiche::QuicheStringPiece input_data(input_data_storage);
 
   while (!input_data.empty()) {
     // Parse stream_id and length.
@@ -156,7 +160,7 @@ bool QpackOfflineDecoder::DecodeHeaderBlocksFromFile(
     }
 
     // Parse data.
-    QuicStringPiece data = input_data.substr(0, length);
+    quiche::QuicheStringPiece data = input_data.substr(0, length);
     input_data = input_data.substr(length);
 
     // Process data.
@@ -224,12 +228,14 @@ bool QpackOfflineDecoder::DecodeHeaderBlocksFromFile(
 }
 
 bool QpackOfflineDecoder::VerifyDecodedHeaderLists(
-    QuicStringPiece expected_headers_filename) {
-  // Store data in |expected_headers_data_storage|; use a QuicStringPiece to
-  // efficiently keep track of remaining portion yet to be decoded.
+    quiche::QuicheStringPiece expected_headers_filename) {
+  // Store data in |expected_headers_data_storage|; use a
+  // quiche::QuicheStringPiece to efficiently keep track of remaining portion
+  // yet to be decoded.
   std::string expected_headers_data_storage;
   ReadFileContents(expected_headers_filename, &expected_headers_data_storage);
-  QuicStringPiece expected_headers_data(expected_headers_data_storage);
+  quiche::QuicheStringPiece expected_headers_data(
+      expected_headers_data_storage);
 
   while (!decoded_header_lists_.empty()) {
     spdy::SpdyHeaderBlock decoded_header_list =
@@ -262,13 +268,14 @@ bool QpackOfflineDecoder::VerifyDecodedHeaderLists(
 }
 
 bool QpackOfflineDecoder::ReadNextExpectedHeaderList(
-    QuicStringPiece* expected_headers_data,
+    quiche::QuicheStringPiece* expected_headers_data,
     spdy::SpdyHeaderBlock* expected_header_list) {
   while (true) {
-    QuicStringPiece::size_type endline = expected_headers_data->find('\n');
+    quiche::QuicheStringPiece::size_type endline =
+        expected_headers_data->find('\n');
 
     // Even last header list must be followed by an empty line.
-    if (endline == QuicStringPiece::npos) {
+    if (endline == quiche::QuicheStringPiece::npos) {
       QUIC_LOG(ERROR) << "Unexpected end of expected header list file.";
       return false;
     }
@@ -279,8 +286,9 @@ bool QpackOfflineDecoder::ReadNextExpectedHeaderList(
       return true;
     }
 
-    QuicStringPiece header_field = expected_headers_data->substr(0, endline);
-    auto pieces = QuicTextUtils::Split(header_field, '\t');
+    quiche::QuicheStringPiece header_field =
+        expected_headers_data->substr(0, endline);
+    auto pieces = quiche::QuicheTextUtils::Split(header_field, '\t');
 
     if (pieces.size() != 2) {
       QUIC_LOG(ERROR) << "Header key and value must be separated by TAB.";
@@ -308,9 +316,9 @@ bool QpackOfflineDecoder::CompareHeaderBlocks(
   const char* kPseudoHeaderPrefix = ":";
   for (spdy::SpdyHeaderBlock::iterator decoded_it = decoded_header_list.begin();
        decoded_it != decoded_header_list.end();) {
-    const QuicStringPiece key = decoded_it->first;
+    const quiche::QuicheStringPiece key = decoded_it->first;
     if (key != kContentLength &&
-        !QuicTextUtils::StartsWith(key, kPseudoHeaderPrefix)) {
+        !quiche::QuicheTextUtils::StartsWith(key, kPseudoHeaderPrefix)) {
       ++decoded_it;
       continue;
     }

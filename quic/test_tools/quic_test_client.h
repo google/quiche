@@ -16,9 +16,9 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_epoll.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_map_util.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/tools/quic_client.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -127,19 +127,19 @@ class QuicTestClient : public QuicSpdyStream::Visitor,
   // Sends a request containing |headers| and |body| and returns the number of
   // bytes sent (the size of the serialized request headers and body).
   ssize_t SendMessage(const spdy::SpdyHeaderBlock& headers,
-                      QuicStringPiece body);
+                      quiche::QuicheStringPiece body);
   // Sends a request containing |headers| and |body| with the fin bit set to
   // |fin| and returns the number of bytes sent (the size of the serialized
   // request headers and body).
   ssize_t SendMessage(const spdy::SpdyHeaderBlock& headers,
-                      QuicStringPiece body,
+                      quiche::QuicheStringPiece body,
                       bool fin);
   // Sends a request containing |headers| and |body| with the fin bit set to
   // |fin| and returns the number of bytes sent (the size of the serialized
   // request headers and body). If |flush| is true, will wait for the message to
   // be flushed before returning.
   ssize_t SendMessage(const spdy::SpdyHeaderBlock& headers,
-                      QuicStringPiece body,
+                      quiche::QuicheStringPiece body,
                       bool fin,
                       bool flush);
   // Sends a request containing |headers| and |body|, waits for the response,
@@ -249,7 +249,7 @@ class QuicTestClient : public QuicSpdyStream::Visitor,
   // null, only the body will be sent on the stream.
   ssize_t GetOrCreateStreamAndSendRequest(
       const spdy::SpdyHeaderBlock* headers,
-      QuicStringPiece body,
+      quiche::QuicheStringPiece body,
       bool fin,
       QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener);
 
@@ -324,7 +324,7 @@ class QuicTestClient : public QuicSpdyStream::Visitor,
    public:
     TestClientDataToResend(
         std::unique_ptr<spdy::SpdyHeaderBlock> headers,
-        QuicStringPiece body,
+        quiche::QuicheStringPiece body,
         bool fin,
         QuicTestClient* test_client,
         QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener);

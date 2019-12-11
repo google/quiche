@@ -9,18 +9,19 @@
 #include <utility>
 
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 namespace test {
 
 void NoopEncoderStreamErrorDelegate::OnEncoderStreamError(
-    QuicStringPiece /*error_message*/) {}
+    quiche::QuicheStringPiece /*error_message*/) {}
 
 TestHeadersHandler::TestHeadersHandler()
     : decoding_completed_(false), decoding_error_detected_(false) {}
 
-void TestHeadersHandler::OnHeaderDecoded(QuicStringPiece name,
-                                         QuicStringPiece value) {
+void TestHeadersHandler::OnHeaderDecoded(quiche::QuicheStringPiece name,
+                                         quiche::QuicheStringPiece value) {
   ASSERT_FALSE(decoding_completed_);
   ASSERT_FALSE(decoding_error_detected_);
 
@@ -35,7 +36,7 @@ void TestHeadersHandler::OnDecodingCompleted() {
 }
 
 void TestHeadersHandler::OnDecodingErrorDetected(
-    QuicStringPiece error_message) {
+    quiche::QuicheStringPiece error_message) {
   ASSERT_FALSE(decoding_completed_);
   ASSERT_FALSE(decoding_error_detected_);
 
@@ -70,7 +71,7 @@ void QpackDecode(
     QpackStreamSenderDelegate* decoder_stream_sender_delegate,
     QpackProgressiveDecoder::HeadersHandlerInterface* handler,
     const FragmentSizeGenerator& fragment_size_generator,
-    QuicStringPiece data) {
+    quiche::QuicheStringPiece data) {
   QpackDecoder decoder(maximum_dynamic_table_capacity, maximum_blocked_streams,
                        encoder_stream_error_delegate);
   decoder.set_qpack_stream_sender_delegate(decoder_stream_sender_delegate);

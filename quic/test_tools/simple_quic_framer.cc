@@ -10,7 +10,7 @@
 #include "net/third_party/quiche/src/quic/core/crypto/quic_decrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_encrypter.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 namespace test {
@@ -41,7 +41,7 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
 
   void OnRetryPacket(QuicConnectionId /*original_connection_id*/,
                      QuicConnectionId /*new_connection_id*/,
-                     QuicStringPiece /*retry_token*/) override {}
+                     quiche::QuicheStringPiece /*retry_token*/) override {}
 
   bool OnUnauthenticatedPublicHeader(
       const QuicPacketHeader& /*header*/) override {
@@ -75,7 +75,7 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
     // TODO(ianswett): A pointer isn't necessary with emplace_back.
     stream_frames_.push_back(std::make_unique<QuicStreamFrame>(
         frame.stream_id, frame.fin, frame.offset,
-        QuicStringPiece(*string_data)));
+        quiche::QuicheStringPiece(*string_data)));
     return true;
   }
 
@@ -85,7 +85,7 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
         new std::string(frame.data_buffer, frame.data_length);
     crypto_data_.push_back(QuicWrapUnique(string_data));
     crypto_frames_.push_back(std::make_unique<QuicCryptoFrame>(
-        frame.level, frame.offset, QuicStringPiece(*string_data)));
+        frame.level, frame.offset, quiche::QuicheStringPiece(*string_data)));
     return true;
   }
 

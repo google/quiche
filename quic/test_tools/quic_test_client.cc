@@ -20,7 +20,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_stack_trace.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/crypto_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_client_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_connection_peer.h"
@@ -28,6 +27,8 @@
 #include "net/third_party/quiche/src/quic/test_tools/quic_spdy_stream_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 #include "net/third_party/quiche/src/quic/tools/quic_url.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 namespace quic {
 namespace test {
@@ -48,7 +49,7 @@ class RecordingProofVerifier : public ProofVerifier {
       const uint16_t port,
       const std::string& server_config,
       QuicTransportVersion transport_version,
-      QuicStringPiece chlo_hash,
+      quiche::QuicheStringPiece chlo_hash,
       const std::vector<std::string>& certs,
       const std::string& cert_sct,
       const std::string& signature,
@@ -399,7 +400,7 @@ void QuicTestClient::SendRequestsAndWaitForResponses(
 
 ssize_t QuicTestClient::GetOrCreateStreamAndSendRequest(
     const spdy::SpdyHeaderBlock* headers,
-    QuicStringPiece body,
+    quiche::QuicheStringPiece body,
     bool fin,
     QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener) {
   if (headers) {
@@ -443,18 +444,18 @@ ssize_t QuicTestClient::GetOrCreateStreamAndSendRequest(
 }
 
 ssize_t QuicTestClient::SendMessage(const spdy::SpdyHeaderBlock& headers,
-                                    QuicStringPiece body) {
+                                    quiche::QuicheStringPiece body) {
   return SendMessage(headers, body, /*fin=*/true);
 }
 
 ssize_t QuicTestClient::SendMessage(const spdy::SpdyHeaderBlock& headers,
-                                    QuicStringPiece body,
+                                    quiche::QuicheStringPiece body,
                                     bool fin) {
   return SendMessage(headers, body, fin, /*flush=*/true);
 }
 
 ssize_t QuicTestClient::SendMessage(const spdy::SpdyHeaderBlock& headers,
-                                    QuicStringPiece body,
+                                    quiche::QuicheStringPiece body,
                                     bool fin,
                                     bool flush) {
   // Always force creation of a stream for SendMessage.
@@ -476,7 +477,8 @@ ssize_t QuicTestClient::SendData(
     const std::string& data,
     bool last_data,
     QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener) {
-  return GetOrCreateStreamAndSendRequest(nullptr, QuicStringPiece(data),
+  return GetOrCreateStreamAndSendRequest(nullptr,
+                                         quiche::QuicheStringPiece(data),
                                          last_data, std::move(ack_listener));
 }
 
@@ -845,7 +847,7 @@ void QuicTestClient::WaitForWriteToFlush() {
 
 QuicTestClient::TestClientDataToResend::TestClientDataToResend(
     std::unique_ptr<spdy::SpdyHeaderBlock> headers,
-    QuicStringPiece body,
+    quiche::QuicheStringPiece body,
     bool fin,
     QuicTestClient* test_client,
     QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener)
@@ -901,8 +903,8 @@ bool QuicTestClient::PopulateHeaderBlockFromUrl(
     const std::string& uri,
     spdy::SpdyHeaderBlock* headers) {
   std::string url;
-  if (QuicTextUtils::StartsWith(uri, "https://") ||
-      QuicTextUtils::StartsWith(uri, "http://")) {
+  if (quiche::QuicheTextUtils::StartsWith(uri, "https://") ||
+      quiche::QuicheTextUtils::StartsWith(uri, "http://")) {
     url = uri;
   } else if (uri[0] == '/') {
     url = "https://" + client_->server_id().host() + uri;

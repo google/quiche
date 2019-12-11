@@ -12,6 +12,7 @@
 #include "net/third_party/quiche/src/quic/tools/quic_simple_crypto_server_stream_helper.h"
 #include "net/third_party/quiche/src/quic/tools/quic_simple_dispatcher.h"
 #include "net/third_party/quiche/src/quic/tools/quic_simple_server_session.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -95,7 +96,7 @@ class QuicTestDispatcher : public QuicSimpleDispatcher {
   QuicServerSessionBase* CreateQuicSession(
       QuicConnectionId id,
       const QuicSocketAddress& client,
-      QuicStringPiece alpn,
+      quiche::QuicheStringPiece alpn,
       const ParsedQuicVersion& version) override {
     QuicReaderMutexLock lock(&factory_lock_);
     if (session_factory_ == nullptr && stream_factory_ == nullptr &&

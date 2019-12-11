@@ -28,6 +28,7 @@
 #include "net/third_party/quiche/src/quic/test_tools/quic_config_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_connection_peer.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_endian.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_frame_builder.h"
 
 using testing::_;
@@ -160,7 +161,7 @@ std::unique_ptr<QuicPacket> BuildUnsizedDataPacket(
       header.length_length);
 }
 
-std::string Sha1Hash(QuicStringPiece data) {
+std::string Sha1Hash(quiche::QuicheStringPiece data) {
   char buffer[SHA_DIGEST_LENGTH];
   SHA1(reinterpret_cast<const uint8_t*>(data.data()), data.size(),
        reinterpret_cast<uint8_t*>(buffer));
@@ -955,7 +956,7 @@ QuicEncryptedPacket* ConstructEncryptedPacket(
   if (!QuicVersionUsesCryptoFrames(version.transport_version)) {
     QuicFrame frame(
         QuicStreamFrame(QuicUtils::GetCryptoStreamId(version.transport_version),
-                        false, 0, QuicStringPiece(data)));
+                        false, 0, quiche::QuicheStringPiece(data)));
     frames.push_back(frame);
   } else {
     QuicFrame frame(new QuicCryptoFrame(level, 0, data));
@@ -1023,7 +1024,8 @@ QuicEncryptedPacket* ConstructMisFramedEncryptedPacket(
     header.retry_token_length_length = VARIABLE_LENGTH_INTEGER_LENGTH_1;
     header.length_length = VARIABLE_LENGTH_INTEGER_LENGTH_2;
   }
-  QuicFrame frame(QuicStreamFrame(1, false, 0, QuicStringPiece(data)));
+  QuicFrame frame(
+      QuicStreamFrame(1, false, 0, quiche::QuicheStringPiece(data)));
   QuicFrames frames;
   frames.push_back(frame);
   QuicFramer framer({version}, QuicTime::Zero(), perspective,
@@ -1249,7 +1251,7 @@ StreamType DetermineStreamType(QuicStreamId id,
 }
 
 QuicMemSliceSpan MakeSpan(QuicBufferAllocator* allocator,
-                          QuicStringPiece message_data,
+                          quiche::QuicheStringPiece message_data,
                           QuicMemSliceStorage* storage) {
   if (message_data.length() == 0) {
     *storage =

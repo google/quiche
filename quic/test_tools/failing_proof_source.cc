@@ -4,6 +4,8 @@
 
 #include "net/third_party/quiche/src/quic/test_tools/failing_proof_source.h"
 
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
+
 namespace quic {
 namespace test {
 
@@ -11,7 +13,7 @@ void FailingProofSource::GetProof(const QuicSocketAddress& /*server_address*/,
                                   const std::string& /*hostname*/,
                                   const std::string& /*server_config*/,
                                   QuicTransportVersion /*transport_version*/,
-                                  QuicStringPiece /*chlo_hash*/,
+                                  quiche::QuicheStringPiece /*chlo_hash*/,
                                   std::unique_ptr<Callback> callback) {
   callback->Run(false, nullptr, QuicCryptoProof(), nullptr);
 }
@@ -26,7 +28,7 @@ void FailingProofSource::ComputeTlsSignature(
     const QuicSocketAddress& /*server_address*/,
     const std::string& /*hostname*/,
     uint16_t /*signature_algorithm*/,
-    QuicStringPiece /*in*/,
+    quiche::QuicheStringPiece /*in*/,
     std::unique_ptr<SignatureCallback> callback) {
   callback->Run(false, "");
 }

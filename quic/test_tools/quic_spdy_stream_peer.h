@@ -8,7 +8,6 @@
 #include "net/third_party/quiche/src/quic/core/quic_ack_listener_interface.h"
 #include "net/third_party/quiche/src/quic/core/quic_interval_set.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 
 namespace quic {
 

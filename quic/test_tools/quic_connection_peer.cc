@@ -10,6 +10,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_framer_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_sent_packet_manager_peer.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 namespace test {
@@ -99,8 +100,9 @@ void QuicConnectionPeer::SwapCrypters(QuicConnection* connection,
 }
 
 // static
-void QuicConnectionPeer::SetCurrentPacket(QuicConnection* connection,
-                                          QuicStringPiece current_packet) {
+void QuicConnectionPeer::SetCurrentPacket(
+    QuicConnection* connection,
+    quiche::QuicheStringPiece current_packet) {
   connection->current_packet_data_ = current_packet.data();
   connection->last_size_ = current_packet.size();
 }

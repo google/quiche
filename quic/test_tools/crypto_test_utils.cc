@@ -32,12 +32,13 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_connection_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_framer_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_stream_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/simple_quic_framer.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 namespace quic {
 namespace test {
@@ -175,15 +176,15 @@ class FullChloGenerator {
     EXPECT_THAT(rej->tag(), testing::Eq(kREJ));
 
     QUIC_VLOG(1) << "Extract valid STK and SCID from\n" << rej->DebugString();
-    QuicStringPiece srct;
+    quiche::QuicheStringPiece srct;
     ASSERT_TRUE(rej->GetStringPiece(kSourceAddressTokenTag, &srct));
 
-    QuicStringPiece scfg;
+    quiche::QuicheStringPiece scfg;
     ASSERT_TRUE(rej->GetStringPiece(kSCFG, &scfg));
     std::unique_ptr<CryptoHandshakeMessage> server_config(
         CryptoFramer::ParseMessage(scfg));
 
-    QuicStringPiece scid;
+    quiche::QuicheStringPiece scid;
     ASSERT_TRUE(server_config->GetStringPiece(kSCID, &scid));
 
     *out_ = result_->client_hello;
@@ -246,9 +247,10 @@ int HandshakeWithFakeServer(QuicConfig* server_quic_config,
   EXPECT_CALL(*server_conn, OnCanWrite()).Times(testing::AnyNumber());
   EXPECT_CALL(*client_conn, OnCanWrite()).Times(testing::AnyNumber());
   EXPECT_CALL(server_session, SelectAlpn(_))
-      .WillRepeatedly([alpn](const std::vector<QuicStringPiece>& alpns) {
-        return std::find(alpns.cbegin(), alpns.cend(), alpn);
-      });
+      .WillRepeatedly(
+          [alpn](const std::vector<quiche::QuicheStringPiece>& alpns) {
+            return std::find(alpns.cbegin(), alpns.cend(), alpn);
+          });
 
   // The client's handshake must have been started already.
   CHECK_NE(0u, client_conn->encrypted_packets_.size());
@@ -437,23 +439,26 @@ uint64_t LeafCertHashForTesting() {
 
 class MockCommonCertSets : public CommonCertSets {
  public:
-  MockCommonCertSets(QuicStringPiece cert, uint64_t hash, uint32_t index)
+  MockCommonCertSets(quiche::QuicheStringPiece cert,
+                     uint64_t hash,
+                     uint32_t index)
       : cert_(cert), hash_(hash), index_(index) {}
 
-  QuicStringPiece GetCommonHashes() const override {
+  quiche::QuicheStringPiece GetCommonHashes() const override {
     QUIC_BUG << "not implemented";
-    return QuicStringPiece();
+    return quiche::QuicheStringPiece();
   }
 
-  QuicStringPiece GetCert(uint64_t hash, uint32_t index) const override {
+  quiche::QuicheStringPiece GetCert(uint64_t hash,
+                                    uint32_t index) const override {
     if (hash == hash_ && index == index_) {
       return cert_;
     }
-    return QuicStringPiece();
+    return quiche::QuicheStringPiece();
   }
 
-  bool MatchCert(QuicStringPiece cert,
-                 QuicStringPiece common_set_hashes,
+  bool MatchCert(quiche::QuicheStringPiece cert,
+                 quiche::QuicheStringPiece common_set_hashes,
                  uint64_t* out_hash,
                  uint32_t* out_index) const override {
     if (cert != cert_) {
@@ -488,7 +493,7 @@ class MockCommonCertSets : public CommonCertSets {
   const uint32_t index_;
 };
 
-CommonCertSets* MockCommonCertSets(QuicStringPiece cert,
+CommonCertSets* MockCommonCertSets(quiche::QuicheStringPiece cert,
                                    uint64_t hash,
                                    uint32_t index) {
   return new class MockCommonCertSets(cert, hash, index);
@@ -549,10 +554,10 @@ void CompareCrypters(const QuicEncrypter* encrypter,
                   << decrypter;
     return;
   }
-  QuicStringPiece encrypter_key = encrypter->GetKey();
-  QuicStringPiece encrypter_iv = encrypter->GetNoncePrefix();
-  QuicStringPiece decrypter_key = decrypter->GetKey();
-  QuicStringPiece decrypter_iv = decrypter->GetNoncePrefix();
+  quiche::QuicheStringPiece encrypter_key = encrypter->GetKey();
+  quiche::QuicheStringPiece encrypter_iv = encrypter->GetNoncePrefix();
+  quiche::QuicheStringPiece decrypter_key = decrypter->GetKey();
+  quiche::QuicheStringPiece decrypter_iv = decrypter->GetNoncePrefix();
   CompareCharArraysWithHexError(label + " key", encrypter_key.data(),
                                 encrypter_key.length(), decrypter_key.data(),
                                 decrypter_key.length());
@@ -592,9 +597,9 @@ void CompareClientAndServerKeys(QuicCryptoClientStream* client,
     }
   }
 
-  QuicStringPiece client_subkey_secret =
+  quiche::QuicheStringPiece client_subkey_secret =
       client->crypto_negotiated_params().subkey_secret;
-  QuicStringPiece server_subkey_secret =
+  quiche::QuicheStringPiece server_subkey_secret =
       server->crypto_negotiated_params().subkey_secret;
   CompareCharArraysWithHexError("subkey secret", client_subkey_secret.data(),
                                 client_subkey_secret.length(),
@@ -674,8 +679,8 @@ CryptoHandshakeMessage CreateCHLO(
     size_t value_len = value.length();
     if (value_len > 0 && value[0] == '#') {
       // This is ascii encoded hex.
-      std::string hex_value =
-          QuicTextUtils::HexDecode(QuicStringPiece(&value[1]));
+      std::string hex_value = quiche::QuicheTextUtils::HexDecode(
+          quiche::QuicheStringPiece(&value[1]));
       msg.SetStringPiece(quic_tag, hex_value);
       continue;
     }
@@ -759,7 +764,8 @@ void MovePackets(PacketSavingConnection* source_conn,
   }
   *inout_packet_index = index;
 
-  QuicConnectionPeer::SetCurrentPacket(dest_conn, QuicStringPiece(nullptr, 0));
+  QuicConnectionPeer::SetCurrentPacket(dest_conn,
+                                       quiche::QuicheStringPiece(nullptr, 0));
 }
 
 CryptoHandshakeMessage GenerateDefaultInchoateCHLO(
@@ -791,18 +797,19 @@ std::string GenerateClientNonceHex(const QuicClock* clock,
   primary_config.set_primary_time(clock->WallNow().ToUNIXSeconds());
   std::unique_ptr<CryptoHandshakeMessage> msg =
       crypto_config->AddConfig(primary_config, clock->WallNow());
-  QuicStringPiece orbit;
+  quiche::QuicheStringPiece orbit;
   CHECK(msg->GetStringPiece(kORBT, &orbit));
   std::string nonce;
   CryptoUtils::GenerateNonce(clock->WallNow(), QuicRandom::GetInstance(), orbit,
                              &nonce);
-  return ("#" + QuicTextUtils::HexEncode(nonce));
+  return ("#" + quiche::QuicheTextUtils::HexEncode(nonce));
 }
 
 std::string GenerateClientPublicValuesHex() {
   char public_value[32];
   memset(public_value, 42, sizeof(public_value));
-  return ("#" + QuicTextUtils::HexEncode(public_value, sizeof(public_value)));
+  return ("#" + quiche::QuicheTextUtils::HexEncode(public_value,
+                                                   sizeof(public_value)));
 }
 
 void GenerateFullCHLO(const CryptoHandshakeMessage& inchoate_chlo,

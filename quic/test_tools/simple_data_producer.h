@@ -9,6 +9,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_stream_frame_data_producer.h"
 #include "net/third_party/quiche/src/quic/core/quic_stream_send_buffer.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -35,7 +36,7 @@ class SimpleDataProducer : public QuicStreamFrameDataProducer {
 
   void SaveCryptoData(EncryptionLevel level,
                       QuicStreamOffset offset,
-                      QuicStringPiece data);
+                      quiche::QuicheStringPiece data);
 
   // QuicStreamFrameDataProducer
   WriteStreamDataResult WriteStreamData(QuicStreamId id,
@@ -62,7 +63,7 @@ class SimpleDataProducer : public QuicStreamFrameDataProducer {
 
   using CryptoBufferMap =
       QuicUnorderedMap<std::pair<EncryptionLevel, QuicStreamOffset>,
-                       QuicStringPiece,
+                       quiche::QuicheStringPiece,
                        PairHash>;
 
   SimpleBufferAllocator allocator_;
