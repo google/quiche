@@ -6,7 +6,7 @@
 
 #include "net/third_party/quiche/src/quic/core/quic_constants.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 namespace quic {
 
@@ -25,7 +25,7 @@ QuicPathChallengeFrame::~QuicPathChallengeFrame() {}
 std::ostream& operator<<(std::ostream& os,
                          const QuicPathChallengeFrame& frame) {
   os << "{ control_frame_id: " << frame.control_frame_id << ", data: "
-     << QuicTextUtils::HexEncode(
+     << quiche::QuicheTextUtils::HexEncode(
             reinterpret_cast<const char*>(frame.data_buffer.data()),
             frame.data_buffer.size())
      << " }\n";

@@ -6,7 +6,7 @@
 
 #include "net/third_party/quiche/src/quic/core/quic_constants.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 namespace quic {
 
@@ -19,7 +19,7 @@ QuicNewTokenFrame::QuicNewTokenFrame(QuicControlFrameId control_frame_id,
 
 std::ostream& operator<<(std::ostream& os, const QuicNewTokenFrame& s) {
   os << "{ control_frame_id: " << s.control_frame_id
-     << ", token: " << QuicTextUtils::HexEncode(s.token) << " }\n";
+     << ", token: " << quiche::QuicheTextUtils::HexEncode(s.token) << " }\n";
   return os;
 }
 

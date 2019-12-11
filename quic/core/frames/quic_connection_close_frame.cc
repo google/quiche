@@ -7,7 +7,6 @@
 #include <memory>
 
 #include "net/third_party/quiche/src/quic/core/quic_constants.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
 
 namespace quic {
 QuicConnectionCloseFrame::QuicConnectionCloseFrame()
