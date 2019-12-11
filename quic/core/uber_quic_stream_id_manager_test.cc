@@ -62,7 +62,6 @@ class UberQuicStreamIdManagerTest : public QuicTestWithParam<Perspective> {
            kV99StreamIdIncrement * n;
   }
 
-  // TODO(fkastenholz): Existing tests can use these helper functions.
   QuicStreamId GetNthPeerInitiatedBidirectionalStreamId(int n) {
     return ((GetParam() == Perspective::IS_SERVER)
                 ? GetNthClientInitiatedBidirectionalId(n)
@@ -110,17 +109,10 @@ INSTANTIATE_TEST_SUITE_P(Tests,
                          ::testing::PrintToStringParamName());
 
 TEST_P(UberQuicStreamIdManagerTest, Initialization) {
-  if (perspective() == Perspective::IS_SERVER) {
-    EXPECT_EQ(GetNthServerInitiatedBidirectionalId(0),
-              manager_.next_outgoing_bidirectional_stream_id());
-    EXPECT_EQ(GetNthServerInitiatedUnidirectionalId(0),
-              manager_.next_outgoing_unidirectional_stream_id());
-  } else {
-    EXPECT_EQ(GetNthClientInitiatedBidirectionalId(0),
-              manager_.next_outgoing_bidirectional_stream_id());
-    EXPECT_EQ(GetNthClientInitiatedUnidirectionalId(0),
-              manager_.next_outgoing_unidirectional_stream_id());
-  }
+  EXPECT_EQ(GetNthSelfInitiatedBidirectionalStreamId(0),
+            manager_.next_outgoing_bidirectional_stream_id());
+  EXPECT_EQ(GetNthSelfInitiatedUnidirectionalStreamId(0),
+            manager_.next_outgoing_unidirectional_stream_id());
 }
 
 TEST_P(UberQuicStreamIdManagerTest, SetMaxOpenOutgoingStreams) {
@@ -190,57 +182,30 @@ TEST_P(UberQuicStreamIdManagerTest, SetMaxOpenIncomingStreams) {
 }
 
 TEST_P(UberQuicStreamIdManagerTest, GetNextOutgoingStreamId) {
-  if (perspective() == Perspective::IS_SERVER) {
-    EXPECT_EQ(GetNthServerInitiatedBidirectionalId(0),
-              manager_.GetNextOutgoingBidirectionalStreamId());
-    EXPECT_EQ(GetNthServerInitiatedBidirectionalId(1),
-              manager_.GetNextOutgoingBidirectionalStreamId());
-    EXPECT_EQ(GetNthServerInitiatedUnidirectionalId(0),
-              manager_.GetNextOutgoingUnidirectionalStreamId());
-    EXPECT_EQ(GetNthServerInitiatedUnidirectionalId(1),
-              manager_.GetNextOutgoingUnidirectionalStreamId());
-  } else {
-    EXPECT_EQ(GetNthClientInitiatedBidirectionalId(0),
-              manager_.GetNextOutgoingBidirectionalStreamId());
-    EXPECT_EQ(GetNthClientInitiatedBidirectionalId(1),
-              manager_.GetNextOutgoingBidirectionalStreamId());
-    EXPECT_EQ(GetNthClientInitiatedUnidirectionalId(0),
-              manager_.GetNextOutgoingUnidirectionalStreamId());
-    EXPECT_EQ(GetNthClientInitiatedUnidirectionalId(1),
-              manager_.GetNextOutgoingUnidirectionalStreamId());
-  }
+  EXPECT_EQ(GetNthSelfInitiatedBidirectionalStreamId(0),
+            manager_.GetNextOutgoingBidirectionalStreamId());
+  EXPECT_EQ(GetNthSelfInitiatedBidirectionalStreamId(1),
+            manager_.GetNextOutgoingBidirectionalStreamId());
+  EXPECT_EQ(GetNthSelfInitiatedUnidirectionalStreamId(0),
+            manager_.GetNextOutgoingUnidirectionalStreamId());
+  EXPECT_EQ(GetNthSelfInitiatedUnidirectionalStreamId(1),
+            manager_.GetNextOutgoingUnidirectionalStreamId());
 }
 
 TEST_P(UberQuicStreamIdManagerTest, AvailableStreams) {
-  if (perspective() == Perspective::IS_SERVER) {
-    EXPECT_TRUE(manager_.MaybeIncreaseLargestPeerStreamId(
-        GetNthClientInitiatedBidirectionalId(3)));
-    EXPECT_TRUE(
-        manager_.IsAvailableStream(GetNthClientInitiatedBidirectionalId(1)));
-    EXPECT_TRUE(
-        manager_.IsAvailableStream(GetNthClientInitiatedBidirectionalId(2)));
+  EXPECT_TRUE(manager_.MaybeIncreaseLargestPeerStreamId(
+      GetNthPeerInitiatedBidirectionalStreamId(3)));
+  EXPECT_TRUE(
+      manager_.IsAvailableStream(GetNthPeerInitiatedBidirectionalStreamId(1)));
+  EXPECT_TRUE(
+      manager_.IsAvailableStream(GetNthPeerInitiatedBidirectionalStreamId(2)));
 
-    EXPECT_TRUE(manager_.MaybeIncreaseLargestPeerStreamId(
-        GetNthClientInitiatedUnidirectionalId(3)));
-    EXPECT_TRUE(
-        manager_.IsAvailableStream(GetNthClientInitiatedUnidirectionalId(1)));
-    EXPECT_TRUE(
-        manager_.IsAvailableStream(GetNthClientInitiatedUnidirectionalId(2)));
-  } else {
-    EXPECT_TRUE(manager_.MaybeIncreaseLargestPeerStreamId(
-        GetNthServerInitiatedBidirectionalId(3)));
-    EXPECT_TRUE(
-        manager_.IsAvailableStream(GetNthServerInitiatedBidirectionalId(1)));
-    EXPECT_TRUE(
-        manager_.IsAvailableStream(GetNthServerInitiatedBidirectionalId(2)));
-
-    EXPECT_TRUE(manager_.MaybeIncreaseLargestPeerStreamId(
-        GetNthServerInitiatedUnidirectionalId(3)));
-    EXPECT_TRUE(
-        manager_.IsAvailableStream(GetNthServerInitiatedUnidirectionalId(1)));
-    EXPECT_TRUE(
-        manager_.IsAvailableStream(GetNthServerInitiatedUnidirectionalId(2)));
-  }
+  EXPECT_TRUE(manager_.MaybeIncreaseLargestPeerStreamId(
+      GetNthPeerInitiatedUnidirectionalStreamId(3)));
+  EXPECT_TRUE(
+      manager_.IsAvailableStream(GetNthPeerInitiatedUnidirectionalStreamId(1)));
+  EXPECT_TRUE(
+      manager_.IsAvailableStream(GetNthPeerInitiatedUnidirectionalStreamId(2)));
 }
 
 TEST_P(UberQuicStreamIdManagerTest, MaybeIncreaseLargestPeerStreamId) {
@@ -343,25 +308,14 @@ TEST_P(UberQuicStreamIdManagerTest, OnStreamsBlockedFrame) {
 }
 
 TEST_P(UberQuicStreamIdManagerTest, IsIncomingStream) {
-  if (perspective() == Perspective::IS_SERVER) {
-    EXPECT_TRUE(
-        manager_.IsIncomingStream(GetNthClientInitiatedBidirectionalId(0)));
-    EXPECT_TRUE(
-        manager_.IsIncomingStream(GetNthClientInitiatedUnidirectionalId(0)));
-    EXPECT_FALSE(
-        manager_.IsIncomingStream(GetNthServerInitiatedBidirectionalId(0)));
-    EXPECT_FALSE(
-        manager_.IsIncomingStream(GetNthServerInitiatedUnidirectionalId(0)));
-  } else {
-    EXPECT_FALSE(
-        manager_.IsIncomingStream(GetNthClientInitiatedBidirectionalId(0)));
-    EXPECT_FALSE(
-        manager_.IsIncomingStream(GetNthClientInitiatedUnidirectionalId(0)));
-    EXPECT_TRUE(
-        manager_.IsIncomingStream(GetNthServerInitiatedBidirectionalId(0)));
-    EXPECT_TRUE(
-        manager_.IsIncomingStream(GetNthServerInitiatedUnidirectionalId(0)));
-  }
+  EXPECT_TRUE(
+      manager_.IsIncomingStream(GetNthPeerInitiatedBidirectionalStreamId(0)));
+  EXPECT_TRUE(
+      manager_.IsIncomingStream(GetNthPeerInitiatedUnidirectionalStreamId(0)));
+  EXPECT_FALSE(
+      manager_.IsIncomingStream(GetNthSelfInitiatedBidirectionalStreamId(0)));
+  EXPECT_FALSE(
+      manager_.IsIncomingStream(GetNthSelfInitiatedUnidirectionalStreamId(0)));
 }
 
 TEST_P(UberQuicStreamIdManagerTest, SetMaxOpenOutgoingStreamsPlusFrame) {
