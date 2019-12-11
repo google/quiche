@@ -10,7 +10,7 @@
 
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_instructions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -52,7 +52,8 @@ class QUIC_EXPORT_PRIVATE QpackInstructionEncoder {
   void DoStartField();
   void DoSBit(bool s_bit);
   void DoVarintEncode(uint64_t varint, uint64_t varint2, std::string* output);
-  void DoStartString(QuicStringPiece name, QuicStringPiece value);
+  void DoStartString(quiche::QuicheStringPiece name,
+                     quiche::QuicheStringPiece value);
   void DoWriteString(std::string* output);
 
 
@@ -63,7 +64,7 @@ class QUIC_EXPORT_PRIVATE QpackInstructionEncoder {
   // If Huffman encoding is used, points to a substring of
   // |huffman_encoded_string_|.
   // Otherwise points to a substring of |name_| or |value_|.
-  QuicStringPiece string_to_write_;
+  quiche::QuicheStringPiece string_to_write_;
 
   // Storage for a single byte that contains multiple fields, that is, multiple
   // states are writing it.

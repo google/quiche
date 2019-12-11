@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "net/third_party/quiche/src/quic/core/qpack/value_splitting_header_list.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 namespace {
@@ -36,7 +37,7 @@ bool ValueSplittingHeaderList::const_iterator::operator!=(
 
 const ValueSplittingHeaderList::const_iterator&
 ValueSplittingHeaderList::const_iterator::operator++() {
-  if (value_end_ == QuicStringPiece::npos) {
+  if (value_end_ == quiche::QuicheStringPiece::npos) {
     // This was the last frament within |*header_list_iterator_|,
     // move on to the next header element of |header_list_|.
     ++header_list_iterator_;
@@ -60,14 +61,15 @@ const ValueSplittingHeaderList::value_type*
 }
 
 void ValueSplittingHeaderList::const_iterator::UpdateHeaderField() {
-  DCHECK(value_start_ != QuicStringPiece::npos);
+  DCHECK(value_start_ != quiche::QuicheStringPiece::npos);
 
   if (header_list_iterator_ == header_list_->end()) {
     return;
   }
 
-  const QuicStringPiece name = header_list_iterator_->first;
-  const QuicStringPiece original_value = header_list_iterator_->second;
+  const quiche::QuicheStringPiece name = header_list_iterator_->first;
+  const quiche::QuicheStringPiece original_value =
+      header_list_iterator_->second;
 
   if (name == kCookieKey) {
     value_end_ = original_value.find(kCookieSeparator, value_start_);
@@ -75,12 +77,12 @@ void ValueSplittingHeaderList::const_iterator::UpdateHeaderField() {
     value_end_ = original_value.find(kNonCookieSeparator, value_start_);
   }
 
-  const QuicStringPiece value =
+  const quiche::QuicheStringPiece value =
       original_value.substr(value_start_, value_end_ - value_start_);
   header_field_ = std::make_pair(name, value);
 
   // Skip character after ';' separator if it is a space.
-  if (name == kCookieKey && value_end_ != QuicStringPiece::npos &&
+  if (name == kCookieKey && value_end_ != quiche::QuicheStringPiece::npos &&
       value_end_ + 1 < original_value.size() &&
       original_value[value_end_ + 1] == kOptionalSpaceAfterCookieSeparator) {
     ++value_end_;

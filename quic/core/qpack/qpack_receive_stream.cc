@@ -5,6 +5,7 @@
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_receive_stream.h"
 
 #include "net/third_party/quiche/src/quic/core/quic_session.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 QpackReceiveStream::QpackReceiveStream(PendingStream* pending,
@@ -25,7 +26,7 @@ void QpackReceiveStream::OnDataAvailable() {
   while (!reading_stopped() && sequencer()->GetReadableRegion(&iov)) {
     DCHECK(!sequencer()->IsClosed());
 
-    receiver_->Decode(QuicStringPiece(
+    receiver_->Decode(quiche::QuicheStringPiece(
         reinterpret_cast<const char*>(iov.iov_base), iov.iov_len));
     sequencer()->MarkConsumed(iov.iov_len);
   }

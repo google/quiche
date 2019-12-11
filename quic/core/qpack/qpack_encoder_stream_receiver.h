@@ -11,7 +11,7 @@
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_instruction_decoder.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_stream_receiver.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -29,16 +29,17 @@ class QUIC_EXPORT_PRIVATE QpackEncoderStreamReceiver
     // 5.2.1. Insert With Name Reference
     virtual void OnInsertWithNameReference(bool is_static,
                                            uint64_t name_index,
-                                           QuicStringPiece value) = 0;
+                                           quiche::QuicheStringPiece value) = 0;
     // 5.2.2. Insert Without Name Reference
-    virtual void OnInsertWithoutNameReference(QuicStringPiece name,
-                                              QuicStringPiece value) = 0;
+    virtual void OnInsertWithoutNameReference(
+        quiche::QuicheStringPiece name,
+        quiche::QuicheStringPiece value) = 0;
     // 5.2.3. Duplicate
     virtual void OnDuplicate(uint64_t index) = 0;
     // 5.2.4. Set Dynamic Table Capacity
     virtual void OnSetDynamicTableCapacity(uint64_t capacity) = 0;
     // Decoding error
-    virtual void OnErrorDetected(QuicStringPiece error_message) = 0;
+    virtual void OnErrorDetected(quiche::QuicheStringPiece error_message) = 0;
   };
 
   explicit QpackEncoderStreamReceiver(Delegate* delegate);
@@ -52,11 +53,11 @@ class QUIC_EXPORT_PRIVATE QpackEncoderStreamReceiver
   // Decode data and call appropriate Delegate method after each decoded
   // instruction.  Once an error occurs, Delegate::OnErrorDetected() is called,
   // and all further data is ignored.
-  void Decode(QuicStringPiece data) override;
+  void Decode(quiche::QuicheStringPiece data) override;
 
   // QpackInstructionDecoder::Delegate implementation.
   bool OnInstructionDecoded(const QpackInstruction* instruction) override;
-  void OnError(QuicStringPiece error_message) override;
+  void OnError(quiche::QuicheStringPiece error_message) override;
 
  private:
   QpackInstructionDecoder instruction_decoder_;

@@ -7,6 +7,7 @@
 #include <limits>
 
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -203,7 +204,7 @@ const QpackLanguage* QpackRequestStreamLanguage() {
 QpackInstructionWithValues QpackInstructionWithValues::InsertWithNameReference(
     bool is_static,
     uint64_t name_index,
-    QuicStringPiece value) {
+    quiche::QuicheStringPiece value) {
   QpackInstructionWithValues instruction_with_values;
   instruction_with_values.instruction_ = InsertWithNameReferenceInstruction();
   instruction_with_values.s_bit_ = is_static;
@@ -215,8 +216,9 @@ QpackInstructionWithValues QpackInstructionWithValues::InsertWithNameReference(
 
 // static
 QpackInstructionWithValues
-QpackInstructionWithValues::InsertWithoutNameReference(QuicStringPiece name,
-                                                       QuicStringPiece value) {
+QpackInstructionWithValues::InsertWithoutNameReference(
+    quiche::QuicheStringPiece name,
+    quiche::QuicheStringPiece value) {
   QpackInstructionWithValues instruction_with_values;
   instruction_with_values.instruction_ =
       InsertWithoutNameReferenceInstruction();
@@ -305,7 +307,7 @@ QpackInstructionWithValues
 QpackInstructionWithValues::LiteralHeaderFieldNameReference(
     bool is_static,
     uint64_t index,
-    QuicStringPiece value) {
+    quiche::QuicheStringPiece value) {
   QpackInstructionWithValues instruction_with_values;
   instruction_with_values.instruction_ =
       QpackLiteralHeaderFieldNameReferenceInstruction();
@@ -318,8 +320,8 @@ QpackInstructionWithValues::LiteralHeaderFieldNameReference(
 
 // static
 QpackInstructionWithValues QpackInstructionWithValues::LiteralHeaderField(
-    QuicStringPiece name,
-    QuicStringPiece value) {
+    quiche::QuicheStringPiece name,
+    quiche::QuicheStringPiece value) {
   QpackInstructionWithValues instruction_with_values;
   instruction_with_values.instruction_ = QpackLiteralHeaderFieldInstruction();
   instruction_with_values.name_ = name;

@@ -6,7 +6,8 @@
 
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 namespace quic {
 namespace test {
@@ -36,12 +37,12 @@ class QpackInstructionWithValuesPeer {
   }
 
   static void set_name(QpackInstructionWithValues* instruction_with_values,
-                       QuicStringPiece name) {
+                       quiche::QuicheStringPiece name) {
     instruction_with_values->name_ = name;
   }
 
   static void set_value(QpackInstructionWithValues* instruction_with_values,
-                        QuicStringPiece value) {
+                        quiche::QuicheStringPiece value) {
     instruction_with_values->value_ = value;
   }
 };
@@ -61,9 +62,12 @@ class QpackInstructionEncoderTest : public QuicTest {
 
   // Compare substring appended to |output_| since last EncodedSegmentMatches()
   // call against hex-encoded argument.
-  bool EncodedSegmentMatches(QuicStringPiece hex_encoded_expected_substring) {
-    auto recently_encoded = QuicStringPiece(output_).substr(verified_position_);
-    auto expected = QuicTextUtils::HexDecode(hex_encoded_expected_substring);
+  bool EncodedSegmentMatches(
+      quiche::QuicheStringPiece hex_encoded_expected_substring) {
+    auto recently_encoded =
+        quiche::QuicheStringPiece(output_).substr(verified_position_);
+    auto expected =
+        quiche::QuicheTextUtils::HexDecode(hex_encoded_expected_substring);
     verified_position_ = output_.size();
     return recently_encoded == expected;
   }

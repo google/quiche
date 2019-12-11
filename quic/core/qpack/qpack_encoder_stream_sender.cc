@@ -10,6 +10,7 @@
 
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_instructions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -18,7 +19,7 @@ QpackEncoderStreamSender::QpackEncoderStreamSender() : delegate_(nullptr) {}
 void QpackEncoderStreamSender::SendInsertWithNameReference(
     bool is_static,
     uint64_t name_index,
-    QuicStringPiece value) {
+    quiche::QuicheStringPiece value) {
   instruction_encoder_.Encode(
       QpackInstructionWithValues::InsertWithNameReference(is_static, name_index,
                                                           value),
@@ -26,8 +27,8 @@ void QpackEncoderStreamSender::SendInsertWithNameReference(
 }
 
 void QpackEncoderStreamSender::SendInsertWithoutNameReference(
-    QuicStringPiece name,
-    QuicStringPiece value) {
+    quiche::QuicheStringPiece name,
+    quiche::QuicheStringPiece value) {
   instruction_encoder_.Encode(
       QpackInstructionWithValues::InsertWithoutNameReference(name, value),
       &buffer_);

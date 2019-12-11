@@ -9,6 +9,7 @@
 
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -32,7 +33,7 @@ QpackInstructionDecoder::QpackInstructionDecoder(const QpackLanguage* language,
       error_detected_(false),
       state_(State::kStartInstruction) {}
 
-bool QpackInstructionDecoder::Decode(QuicStringPiece data) {
+bool QpackInstructionDecoder::Decode(quiche::QuicheStringPiece data) {
   DCHECK(!data.empty());
   DCHECK(!error_detected_);
 
@@ -76,8 +77,8 @@ bool QpackInstructionDecoder::Decode(QuicStringPiece data) {
 
     DCHECK_LE(bytes_consumed, data.size());
 
-    data = QuicStringPiece(data.data() + bytes_consumed,
-                           data.size() - bytes_consumed);
+    data = quiche::QuicheStringPiece(data.data() + bytes_consumed,
+                                     data.size() - bytes_consumed);
 
     // Stop processing if no more data but next state would require it.
     if (data.empty() && (state_ != State::kStartField) &&
@@ -93,7 +94,8 @@ bool QpackInstructionDecoder::AtInstructionBoundary() const {
   return state_ == State::kStartInstruction;
 }
 
-bool QpackInstructionDecoder::DoStartInstruction(QuicStringPiece data) {
+bool QpackInstructionDecoder::DoStartInstruction(
+    quiche::QuicheStringPiece data) {
   DCHECK(!data.empty());
 
   instruction_ = LookupOpcode(data[0]);
@@ -131,7 +133,7 @@ bool QpackInstructionDecoder::DoStartField() {
   }
 }
 
-bool QpackInstructionDecoder::DoReadBit(QuicStringPiece data) {
+bool QpackInstructionDecoder::DoReadBit(quiche::QuicheStringPiece data) {
   DCHECK(!data.empty());
 
   switch (field_->type) {
@@ -161,7 +163,7 @@ bool QpackInstructionDecoder::DoReadBit(QuicStringPiece data) {
   }
 }
 
-bool QpackInstructionDecoder::DoVarintStart(QuicStringPiece data,
+bool QpackInstructionDecoder::DoVarintStart(quiche::QuicheStringPiece data,
                                             size_t* bytes_consumed) {
   DCHECK(!data.empty());
   DCHECK(field_->type == QpackInstructionFieldType::kVarint ||
@@ -190,7 +192,7 @@ bool QpackInstructionDecoder::DoVarintStart(QuicStringPiece data,
   }
 }
 
-bool QpackInstructionDecoder::DoVarintResume(QuicStringPiece data,
+bool QpackInstructionDecoder::DoVarintResume(quiche::QuicheStringPiece data,
                                              size_t* bytes_consumed) {
   DCHECK(!data.empty());
   DCHECK(field_->type == QpackInstructionFieldType::kVarint ||
@@ -263,7 +265,7 @@ bool QpackInstructionDecoder::DoVarintDone() {
   return true;
 }
 
-bool QpackInstructionDecoder::DoReadString(QuicStringPiece data,
+bool QpackInstructionDecoder::DoReadString(quiche::QuicheStringPiece data,
                                            size_t* bytes_consumed) {
   DCHECK(!data.empty());
   DCHECK(field_->type == QpackInstructionFieldType::kName ||
@@ -321,7 +323,7 @@ const QpackInstruction* QpackInstructionDecoder::LookupOpcode(
   return nullptr;
 }
 
-void QpackInstructionDecoder::OnError(QuicStringPiece error_message) {
+void QpackInstructionDecoder::OnError(quiche::QuicheStringPiece error_message) {
   DCHECK(!error_detected_);
 
   error_detected_ = true;

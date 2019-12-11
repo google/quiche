@@ -5,11 +5,11 @@
 #include <string>
 #include <tuple>
 
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/qpack/qpack_decoder_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/qpack/qpack_encoder_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/qpack/qpack_test_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_header_block.h"
 
 using ::testing::Values;
@@ -126,7 +126,7 @@ TEST_P(QpackRoundTripTest, StaticTable) {
 
 TEST_P(QpackRoundTripTest, ValueHasNullCharacter) {
   spdy::SpdyHeaderBlock header_list;
-  header_list["foo"] = QuicStringPiece("bar\0bar\0baz", 11);
+  header_list["foo"] = quiche::QuicheStringPiece("bar\0bar\0baz", 11);
 
   spdy::SpdyHeaderBlock output = EncodeThenDecode(header_list);
   EXPECT_EQ(header_list, output);

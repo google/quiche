@@ -9,7 +9,7 @@
 
 #include "net/third_party/quiche/src/quic/platform/api/quic_fuzzed_data_provider.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 namespace test {
@@ -24,12 +24,14 @@ class NoOpDelegate : public QpackEncoderStreamReceiver::Delegate {
 
   void OnInsertWithNameReference(bool /*is_static*/,
                                  uint64_t /*name_index*/,
-                                 QuicStringPiece /*value*/) override {}
-  void OnInsertWithoutNameReference(QuicStringPiece /*name*/,
-                                    QuicStringPiece /*value*/) override {}
+                                 quiche::QuicheStringPiece /*value*/) override {
+  }
+  void OnInsertWithoutNameReference(
+      quiche::QuicheStringPiece /*name*/,
+      quiche::QuicheStringPiece /*value*/) override {}
   void OnDuplicate(uint64_t /*index*/) override {}
   void OnSetDynamicTableCapacity(uint64_t /*capacity*/) override {}
-  void OnErrorDetected(QuicStringPiece /*error_message*/) override {
+  void OnErrorDetected(quiche::QuicheStringPiece /*error_message*/) override {
     error_detected_ = true;
   }
 

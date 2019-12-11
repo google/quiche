@@ -14,7 +14,7 @@
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_instruction_decoder.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -32,8 +32,8 @@ class QUIC_EXPORT_PRIVATE QpackProgressiveDecoder
 
     // Called when a new header name-value pair is decoded.  Multiple values for
     // a given name will be emitted as multiple calls to OnHeader.
-    virtual void OnHeaderDecoded(QuicStringPiece name,
-                                 QuicStringPiece value) = 0;
+    virtual void OnHeaderDecoded(quiche::QuicheStringPiece name,
+                                 quiche::QuicheStringPiece value) = 0;
 
     // Called when the header block is completely decoded.
     // Indicates the total number of bytes in this block.
@@ -46,7 +46,8 @@ class QUIC_EXPORT_PRIVATE QpackProgressiveDecoder
     // Called when a decoding error has occurred.  No other methods will be
     // called afterwards.  Implementations are allowed to destroy
     // the QpackProgressiveDecoder instance synchronously.
-    virtual void OnDecodingErrorDetected(QuicStringPiece error_message) = 0;
+    virtual void OnDecodingErrorDetected(
+        quiche::QuicheStringPiece error_message) = 0;
   };
 
   // Interface for keeping track of blocked streams for the purpose of enforcing
@@ -89,7 +90,7 @@ class QUIC_EXPORT_PRIVATE QpackProgressiveDecoder
   ~QpackProgressiveDecoder() override;
 
   // Provide a data fragment to decode.
-  void Decode(QuicStringPiece data);
+  void Decode(quiche::QuicheStringPiece data);
 
   // Signal that the entire header block has been received and passed in
   // through Decode().  No methods must be called afterwards.
@@ -97,7 +98,7 @@ class QUIC_EXPORT_PRIVATE QpackProgressiveDecoder
 
   // QpackInstructionDecoder::Delegate implementation.
   bool OnInstructionDecoded(const QpackInstruction* instruction) override;
-  void OnError(QuicStringPiece error_message) override;
+  void OnError(quiche::QuicheStringPiece error_message) override;
 
   // QpackHeaderTable::Observer implementation.
   void OnInsertCountReachedThreshold() override;

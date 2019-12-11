@@ -8,6 +8,7 @@
 
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_index_conversions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -69,7 +70,7 @@ void QpackDecoder::OnDecodingCompleted(QuicStreamId stream_id,
 
 void QpackDecoder::OnInsertWithNameReference(bool is_static,
                                              uint64_t name_index,
-                                             QuicStringPiece value) {
+                                             quiche::QuicheStringPiece value) {
   if (is_static) {
     auto entry = header_table_.LookupEntry(/* is_static = */ true, name_index);
     if (!entry) {
@@ -108,8 +109,9 @@ void QpackDecoder::OnInsertWithNameReference(bool is_static,
   }
 }
 
-void QpackDecoder::OnInsertWithoutNameReference(QuicStringPiece name,
-                                                QuicStringPiece value) {
+void QpackDecoder::OnInsertWithoutNameReference(
+    quiche::QuicheStringPiece name,
+    quiche::QuicheStringPiece value) {
   const QpackEntry* entry = header_table_.InsertEntry(name, value);
   if (!entry) {
     encoder_stream_error_delegate_->OnEncoderStreamError(
@@ -147,7 +149,7 @@ void QpackDecoder::OnSetDynamicTableCapacity(uint64_t capacity) {
   }
 }
 
-void QpackDecoder::OnErrorDetected(QuicStringPiece error_message) {
+void QpackDecoder::OnErrorDetected(quiche::QuicheStringPiece error_message) {
   encoder_stream_error_delegate_->OnEncoderStreamError(error_message);
 }
 

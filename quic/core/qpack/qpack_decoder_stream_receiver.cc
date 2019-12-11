@@ -7,6 +7,7 @@
 #include "net/third_party/quiche/src/http2/decoder/decode_buffer.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_status.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_instructions.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -17,7 +18,7 @@ QpackDecoderStreamReceiver::QpackDecoderStreamReceiver(Delegate* delegate)
   DCHECK(delegate_);
 }
 
-void QpackDecoderStreamReceiver::Decode(QuicStringPiece data) {
+void QpackDecoderStreamReceiver::Decode(quiche::QuicheStringPiece data) {
   if (data.empty() || error_detected_) {
     return;
   }
@@ -42,7 +43,8 @@ bool QpackDecoderStreamReceiver::OnInstructionDecoded(
   return true;
 }
 
-void QpackDecoderStreamReceiver::OnError(QuicStringPiece error_message) {
+void QpackDecoderStreamReceiver::OnError(
+    quiche::QuicheStringPiece error_message) {
   DCHECK(!error_detected_);
 
   error_detected_ = true;

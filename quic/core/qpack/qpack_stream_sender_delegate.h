@@ -6,7 +6,7 @@
 #define QUICHE_QUIC_CORE_QPACK_QPACK_STREAM_SENDER_DELEGATE_H_
 
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -16,7 +16,7 @@ class QUIC_EXPORT_PRIVATE QpackStreamSenderDelegate {
   virtual ~QpackStreamSenderDelegate() = default;
 
   // Write data on the unidirectional stream.
-  virtual void WriteStreamData(QuicStringPiece data) = 0;
+  virtual void WriteStreamData(quiche::QuicheStringPiece data) = 0;
 };
 
 }  // namespace quic

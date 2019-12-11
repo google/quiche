@@ -9,7 +9,6 @@
 
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_encoder_stream_sender.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_fuzzed_data_provider.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 #include "net/third_party/quiche/src/quic/test_tools/qpack/qpack_encoder_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/qpack/qpack_test_utils.h"
 

@@ -13,7 +13,7 @@
 #include "net/third_party/quiche/src/http2/hpack/varint/hpack_varint_decoder.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_instructions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -42,7 +42,7 @@ class QUIC_EXPORT_PRIVATE QpackInstructionDecoder {
     // No more data is processed afterwards.
     // Implementations are allowed to destroy the QpackInstructionDecoder
     // instance synchronously.
-    virtual void OnError(QuicStringPiece error_message) = 0;
+    virtual void OnError(quiche::QuicheStringPiece error_message) = 0;
   };
 
   // Both |*language| and |*delegate| must outlive this object.
@@ -54,7 +54,7 @@ class QUIC_EXPORT_PRIVATE QpackInstructionDecoder {
   // Provide a data fragment to decode.  Must not be called after an error has
   // occurred.  Must not be called with empty |data|.  Return true on success,
   // false on error (in which case Delegate::OnError() is called synchronously).
-  bool Decode(QuicStringPiece data);
+  bool Decode(quiche::QuicheStringPiece data);
 
   // Returns true if no decoding has taken place yet or if the last instruction
   // has been entirely parsed.
@@ -94,13 +94,13 @@ class QUIC_EXPORT_PRIVATE QpackInstructionDecoder {
   // data and set |*bytes_consumed| to the number of octets processed.  Some
   // take input data but do not consume any bytes.  Some do not take any
   // arguments because they only change internal state.
-  bool DoStartInstruction(QuicStringPiece data);
+  bool DoStartInstruction(quiche::QuicheStringPiece data);
   bool DoStartField();
-  bool DoReadBit(QuicStringPiece data);
-  bool DoVarintStart(QuicStringPiece data, size_t* bytes_consumed);
-  bool DoVarintResume(QuicStringPiece data, size_t* bytes_consumed);
+  bool DoReadBit(quiche::QuicheStringPiece data);
+  bool DoVarintStart(quiche::QuicheStringPiece data, size_t* bytes_consumed);
+  bool DoVarintResume(quiche::QuicheStringPiece data, size_t* bytes_consumed);
   bool DoVarintDone();
-  bool DoReadString(QuicStringPiece data, size_t* bytes_consumed);
+  bool DoReadString(quiche::QuicheStringPiece data, size_t* bytes_consumed);
   bool DoReadStringDone();
 
   // Identify instruction based on opcode encoded in |byte|.
@@ -108,7 +108,7 @@ class QUIC_EXPORT_PRIVATE QpackInstructionDecoder {
   const QpackInstruction* LookupOpcode(uint8_t byte) const;
 
   // Stops decoding and calls Delegate::OnError().
-  void OnError(QuicStringPiece error_message);
+  void OnError(quiche::QuicheStringPiece error_message);
 
   // Describes the language used for decoding.
   const QpackLanguage* const language_;

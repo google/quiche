@@ -12,7 +12,7 @@
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_progressive_decoder.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -45,7 +45,8 @@ class QUIC_EXPORT_PRIVATE QpackDecodedHeadersAccumulator
                                   bool header_list_size_limit_exceeded) = 0;
 
     // Called when an error has occurred.
-    virtual void OnHeaderDecodingError(QuicStringPiece error_message) = 0;
+    virtual void OnHeaderDecodingError(
+        quiche::QuicheStringPiece error_message) = 0;
   };
 
   QpackDecodedHeadersAccumulator(QuicStreamId id,
@@ -56,14 +57,16 @@ class QUIC_EXPORT_PRIVATE QpackDecodedHeadersAccumulator
 
   // QpackProgressiveDecoder::HeadersHandlerInterface implementation.
   // These methods should only be called by |decoder_|.
-  void OnHeaderDecoded(QuicStringPiece name, QuicStringPiece value) override;
+  void OnHeaderDecoded(quiche::QuicheStringPiece name,
+                       quiche::QuicheStringPiece value) override;
   void OnDecodingCompleted() override;
-  void OnDecodingErrorDetected(QuicStringPiece error_message) override;
+  void OnDecodingErrorDetected(
+      quiche::QuicheStringPiece error_message) override;
 
   // Decode payload data.
   // Must not be called if an error has been detected.
   // Must not be called after EndHeaderBlock().
-  void Decode(QuicStringPiece data);
+  void Decode(quiche::QuicheStringPiece data);
 
   // Signal end of HEADERS frame.
   // Must not be called if an error has been detected.

@@ -18,6 +18,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_fuzzed_data_provider.h"
 #include "net/third_party/quiche/src/quic/test_tools/qpack/qpack_decoder_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/qpack/qpack_encoder_peer.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_header_block.h"
 
 namespace quic {
@@ -63,7 +64,8 @@ class EncodingEndpoint {
    public:
     ~CrashingDecoderStreamErrorDelegate() override = default;
 
-    void OnDecoderStreamError(QuicStringPiece error_message) override {
+    void OnDecoderStreamError(
+        quiche::QuicheStringPiece error_message) override {
       CHECK(false) << error_message;
     }
   };
@@ -90,7 +92,7 @@ class DelayedHeaderBlockTransmitter {
     virtual void OnHeaderBlockStart(QuicStreamId stream_id) = 0;
     // Called when part or all of a header block is transmitted.
     virtual void OnHeaderBlockFragment(QuicStreamId stream_id,
-                                       QuicStringPiece data) = 0;
+                                       quiche::QuicheStringPiece data) = 0;
     // Called when transmission of a header block is complete.
     virtual void OnHeaderBlockEnd(QuicStreamId stream_id) = 0;
   };
@@ -203,16 +205,19 @@ class DelayedHeaderBlockTransmitter {
 
     size_t RemainingLength() const { return data_.length() - offset_; }
 
-    QuicStringPiece Consume(size_t length) {
+    quiche::QuicheStringPiece Consume(size_t length) {
       DCHECK_NE(0u, length);
       DCHECK_LE(length, RemainingLength());
 
-      QuicStringPiece consumed = QuicStringPiece(&data_[offset_], length);
+      quiche::QuicheStringPiece consumed =
+          quiche::QuicheStringPiece(&data_[offset_], length);
       offset_ += length;
       return consumed;
     }
 
-    QuicStringPiece ConsumeRemaining() { return Consume(RemainingLength()); }
+    quiche::QuicheStringPiece ConsumeRemaining() {
+      return Consume(RemainingLength());
+    }
 
    private:
     // Complete header block.
@@ -274,11 +279,11 @@ class VerifyingDecoder : public QpackDecodedHeadersAccumulator::Visitor {
     visitor_->OnHeaderBlockDecoded(stream_id_);
   }
 
-  void OnHeaderDecodingError(QuicStringPiece error_message) override {
+  void OnHeaderDecodingError(quiche::QuicheStringPiece error_message) override {
     CHECK(false) << error_message;
   }
 
-  void Decode(QuicStringPiece data) { accumulator_.Decode(data); }
+  void Decode(quiche::QuicheStringPiece data) { accumulator_.Decode(data); }
 
   void EndHeaderBlock() { accumulator_.EndHeaderBlock(); }
 
@@ -357,7 +362,7 @@ class DecodingEndpoint : public DelayedHeaderBlockTransmitter::Visitor,
   }
 
   void OnHeaderBlockFragment(QuicStreamId stream_id,
-                             QuicStringPiece data) override {
+                             quiche::QuicheStringPiece data) override {
     auto it = verifying_decoders_.find(stream_id);
     CHECK(it != verifying_decoders_.end());
     it->second->Decode(data);
@@ -376,7 +381,8 @@ class DecodingEndpoint : public DelayedHeaderBlockTransmitter::Visitor,
    public:
     ~CrashingEncoderStreamErrorDelegate() override = default;
 
-    void OnEncoderStreamError(QuicStringPiece error_message) override {
+    void OnEncoderStreamError(
+        quiche::QuicheStringPiece error_message) override {
       CHECK(false) << error_message;
     }
   };
@@ -406,7 +412,7 @@ class DelayedStreamDataTransmitter : public QpackStreamSenderDelegate {
   ~DelayedStreamDataTransmitter() { CHECK(stream_data.empty()); }
 
   // QpackStreamSenderDelegate implementation.
-  void WriteStreamData(QuicStringPiece data) override {
+  void WriteStreamData(quiche::QuicheStringPiece data) override {
     stream_data.push(std::string(data.data(), data.size()));
   }
 

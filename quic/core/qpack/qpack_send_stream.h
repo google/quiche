@@ -10,7 +10,7 @@
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_stream_sender_delegate.h"
 #include "net/third_party/quiche/src/quic/core/quic_stream.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -40,7 +40,7 @@ class QUIC_EXPORT_PRIVATE QpackSendStream : public QuicStream,
 
   // Writes the instructions to peer. The stream type will be sent
   // before the first instruction so that the peer can open an qpack stream.
-  void WriteStreamData(QuicStringPiece data) override;
+  void WriteStreamData(quiche::QuicheStringPiece data) override;
 
   // TODO(b/112770235): Remove this method once QuicStreamIdManager supports
   // creating HTTP/3 unidirectional streams dynamically.

@@ -6,6 +6,7 @@
 
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_static_table.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -50,8 +51,8 @@ const QpackEntry* QpackHeaderTable::LookupEntry(bool is_static,
 }
 
 QpackHeaderTable::MatchType QpackHeaderTable::FindHeaderField(
-    QuicStringPiece name,
-    QuicStringPiece value,
+    quiche::QuicheStringPiece name,
+    quiche::QuicheStringPiece value,
     bool* is_static,
     uint64_t* index) const {
   QpackEntry query(name, value);
@@ -95,8 +96,9 @@ QpackHeaderTable::MatchType QpackHeaderTable::FindHeaderField(
   return MatchType::kNoMatch;
 }
 
-const QpackEntry* QpackHeaderTable::InsertEntry(QuicStringPiece name,
-                                                QuicStringPiece value) {
+const QpackEntry* QpackHeaderTable::InsertEntry(
+    quiche::QuicheStringPiece name,
+    quiche::QuicheStringPiece value) {
   const uint64_t entry_size = QpackEntry::Size(name, value);
   if (entry_size > dynamic_table_capacity_) {
     return nullptr;

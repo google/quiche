@@ -18,7 +18,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_exported_stats.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace spdy {
 
@@ -45,7 +45,8 @@ class QUIC_EXPORT_PRIVATE QpackEncoder
    public:
     virtual ~DecoderStreamErrorDelegate() {}
 
-    virtual void OnDecoderStreamError(QuicStringPiece error_message) = 0;
+    virtual void OnDecoderStreamError(
+        quiche::QuicheStringPiece error_message) = 0;
   };
 
   QpackEncoder(DecoderStreamErrorDelegate* decoder_stream_error_delegate);
@@ -77,7 +78,7 @@ class QUIC_EXPORT_PRIVATE QpackEncoder
   void OnInsertCountIncrement(uint64_t increment) override;
   void OnHeaderAcknowledgement(QuicStreamId stream_id) override;
   void OnStreamCancellation(QuicStreamId stream_id) override;
-  void OnErrorDetected(QuicStringPiece error_message) override;
+  void OnErrorDetected(quiche::QuicheStringPiece error_message) override;
 
   // delegate must be set if dynamic table capacity is not zero.
   void set_qpack_stream_sender_delegate(QpackStreamSenderDelegate* delegate) {
@@ -110,13 +111,13 @@ class QUIC_EXPORT_PRIVATE QpackEncoder
   static QpackInstructionWithValues EncodeLiteralHeaderFieldWithNameReference(
       bool is_static,
       uint64_t index,
-      QuicStringPiece value,
+      quiche::QuicheStringPiece value,
       QpackBlockingManager::IndexSet* referred_indices);
 
   // Generate literal header field instruction.
   static QpackInstructionWithValues EncodeLiteralHeaderField(
-      QuicStringPiece name,
-      QuicStringPiece value);
+      quiche::QuicheStringPiece name,
+      quiche::QuicheStringPiece value);
 
   // Performs first pass of two-pass encoding: represent each header field in
   // |*header_list| as a reference to an existing entry, the name of an existing
@@ -127,8 +128,8 @@ class QUIC_EXPORT_PRIVATE QpackEncoder
   // sets |*encoder_stream_sent_byte_count| to the number of bytes sent on the
   // encoder stream to insert dynamic table entries.  Returns list of header
   // field representations, with all dynamic table entries referred to with
-  // absolute indices.  Returned Instructions object may have QuicStringPieces
-  // pointing to strings owned by |*header_list|.
+  // absolute indices.  Returned Instructions object may have
+  // quiche::QuicheStringPieces pointing to strings owned by |*header_list|.
   Instructions FirstPassEncode(QuicStreamId stream_id,
                                const spdy::SpdyHeaderBlock& header_list,
                                QpackBlockingManager::IndexSet* referred_indices,

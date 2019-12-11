@@ -9,6 +9,7 @@
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_static_table.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_entry.h"
 
 using ::testing::Mock;
@@ -39,8 +40,8 @@ class QpackHeaderTableTest : public QuicTest {
 
   void ExpectEntryAtIndex(bool is_static,
                           uint64_t index,
-                          QuicStringPiece expected_name,
-                          QuicStringPiece expected_value) const {
+                          quiche::QuicheStringPiece expected_name,
+                          quiche::QuicheStringPiece expected_value) const {
     const auto* entry = table_.LookupEntry(is_static, index);
     ASSERT_TRUE(entry);
     EXPECT_EQ(expected_name, entry->name());
@@ -51,8 +52,8 @@ class QpackHeaderTableTest : public QuicTest {
     EXPECT_FALSE(table_.LookupEntry(is_static, index));
   }
 
-  void ExpectMatch(QuicStringPiece name,
-                   QuicStringPiece value,
+  void ExpectMatch(quiche::QuicheStringPiece name,
+                   quiche::QuicheStringPiece value,
                    QpackHeaderTable::MatchType expected_match_type,
                    bool expected_is_static,
                    uint64_t expected_index) const {
@@ -69,7 +70,8 @@ class QpackHeaderTableTest : public QuicTest {
     EXPECT_EQ(expected_index, index) << name << ": " << value;
   }
 
-  void ExpectNoMatch(QuicStringPiece name, QuicStringPiece value) const {
+  void ExpectNoMatch(quiche::QuicheStringPiece name,
+                     quiche::QuicheStringPiece value) const {
     bool is_static = false;
     uint64_t index = 0;
 
@@ -80,11 +82,13 @@ class QpackHeaderTableTest : public QuicTest {
         << name << ": " << value;
   }
 
-  void InsertEntry(QuicStringPiece name, QuicStringPiece value) {
+  void InsertEntry(quiche::QuicheStringPiece name,
+                   quiche::QuicheStringPiece value) {
     EXPECT_TRUE(table_.InsertEntry(name, value));
   }
 
-  void ExpectToFailInsertingEntry(QuicStringPiece name, QuicStringPiece value) {
+  void ExpectToFailInsertingEntry(quiche::QuicheStringPiece name,
+                                  quiche::QuicheStringPiece value) {
     EXPECT_FALSE(table_.InsertEntry(name, value));
   }
 

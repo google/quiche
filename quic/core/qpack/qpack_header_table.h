@@ -11,7 +11,7 @@
 #include <vector>
 
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_entry.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_header_table.h"
 
@@ -70,15 +70,16 @@ class QUIC_EXPORT_PRIVATE QpackHeaderTable {
   // Returns the absolute index of an entry with matching name and value if such
   // exists, otherwise one with matching name is such exists.  |index| is zero
   // based for both the static and the dynamic table.
-  MatchType FindHeaderField(QuicStringPiece name,
-                            QuicStringPiece value,
+  MatchType FindHeaderField(quiche::QuicheStringPiece name,
+                            quiche::QuicheStringPiece value,
                             bool* is_static,
                             uint64_t* index) const;
 
   // Insert (name, value) into the dynamic table.  May evict entries.  Returns a
   // pointer to the inserted owned entry on success.  Returns nullptr if entry
   // is larger than the capacity of the dynamic table.
-  const QpackEntry* InsertEntry(QuicStringPiece name, QuicStringPiece value);
+  const QpackEntry* InsertEntry(quiche::QuicheStringPiece name,
+                                quiche::QuicheStringPiece value);
 
   // Returns the size of the largest entry that could be inserted into the
   // dynamic table without evicting entry |index|.  |index| might be larger than

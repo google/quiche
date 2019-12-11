@@ -9,8 +9,9 @@
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_instructions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/qpack/qpack_test_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 using ::testing::_;
 using ::testing::Eq;
@@ -61,7 +62,7 @@ class MockDelegate : public QpackInstructionDecoder::Delegate {
   ~MockDelegate() override = default;
 
   MOCK_METHOD1(OnInstructionDecoded, bool(const QpackInstruction* instruction));
-  MOCK_METHOD1(OnError, void(QuicStringPiece error_message));
+  MOCK_METHOD1(OnError, void(quiche::QuicheStringPiece error_message));
 };
 
 class QpackInstructionDecoderTest : public QuicTestWithParam<FragmentMode> {
@@ -76,8 +77,10 @@ class QpackInstructionDecoderTest : public QuicTestWithParam<FragmentMode> {
     // Destroy QpackInstructionDecoder on error to test that it does not crash.
     // See https://crbug.com/1025209.
     ON_CALL(delegate_, OnError(_))
-        .WillByDefault(Invoke(
-            [this](QuicStringPiece /* error_message */) { decoder_.reset(); }));
+        .WillByDefault(
+            Invoke([this](quiche::QuicheStringPiece /* error_message */) {
+              decoder_.reset();
+            }));
   }
 
   // Decode one full instruction with fragment sizes dictated by
@@ -86,7 +89,7 @@ class QpackInstructionDecoderTest : public QuicTestWithParam<FragmentMode> {
   // verifies that AtInstructionBoundary() returns true before and after the
   // instruction, and returns false while decoding is in progress.
   // Assumes that delegate methods destroy |decoder_| if they return false.
-  void DecodeInstruction(QuicStringPiece data) {
+  void DecodeInstruction(quiche::QuicheStringPiece data) {
     EXPECT_TRUE(decoder_->AtInstructionBoundary());
 
     FragmentSizeGenerator fragment_size_generator =
@@ -123,14 +126,14 @@ INSTANTIATE_TEST_SUITE_P(All,
 
 TEST_P(QpackInstructionDecoderTest, SBitAndVarint2) {
   EXPECT_CALL(delegate_, OnInstructionDecoded(TestInstruction1()));
-  DecodeInstruction(QuicTextUtils::HexDecode("7f01ff65"));
+  DecodeInstruction(quiche::QuicheTextUtils::HexDecode("7f01ff65"));
 
   EXPECT_TRUE(decoder_->s_bit());
   EXPECT_EQ(64u, decoder_->varint());
   EXPECT_EQ(356u, decoder_->varint2());
 
   EXPECT_CALL(delegate_, OnInstructionDecoded(TestInstruction1()));
-  DecodeInstruction(QuicTextUtils::HexDecode("05c8"));
+  DecodeInstruction(quiche::QuicheTextUtils::HexDecode("05c8"));
 
   EXPECT_FALSE(decoder_->s_bit());
   EXPECT_EQ(5u, decoder_->varint());
@@ -139,19 +142,19 @@ TEST_P(QpackInstructionDecoderTest, SBitAndVarint2) {
 
 TEST_P(QpackInstructionDecoderTest, NameAndValue) {
   EXPECT_CALL(delegate_, OnInstructionDecoded(TestInstruction2()));
-  DecodeInstruction(QuicTextUtils::HexDecode("83666f6f03626172"));
+  DecodeInstruction(quiche::QuicheTextUtils::HexDecode("83666f6f03626172"));
 
   EXPECT_EQ("foo", decoder_->name());
   EXPECT_EQ("bar", decoder_->value());
 
   EXPECT_CALL(delegate_, OnInstructionDecoded(TestInstruction2()));
-  DecodeInstruction(QuicTextUtils::HexDecode("8000"));
+  DecodeInstruction(quiche::QuicheTextUtils::HexDecode("8000"));
 
   EXPECT_EQ("", decoder_->name());
   EXPECT_EQ("", decoder_->value());
 
   EXPECT_CALL(delegate_, OnInstructionDecoded(TestInstruction2()));
-  DecodeInstruction(QuicTextUtils::HexDecode("c294e7838c767f"));
+  DecodeInstruction(quiche::QuicheTextUtils::HexDecode("c294e7838c767f"));
 
   EXPECT_EQ("foo", decoder_->name());
   EXPECT_EQ("bar", decoder_->value());
@@ -159,12 +162,13 @@ TEST_P(QpackInstructionDecoderTest, NameAndValue) {
 
 TEST_P(QpackInstructionDecoderTest, InvalidHuffmanEncoding) {
   EXPECT_CALL(delegate_, OnError(Eq("Error in Huffman-encoded string.")));
-  DecodeInstruction(QuicTextUtils::HexDecode("c1ff"));
+  DecodeInstruction(quiche::QuicheTextUtils::HexDecode("c1ff"));
 }
 
 TEST_P(QpackInstructionDecoderTest, InvalidVarintEncoding) {
   EXPECT_CALL(delegate_, OnError(Eq("Encoded integer too large.")));
-  DecodeInstruction(QuicTextUtils::HexDecode("ffffffffffffffffffffff"));
+  DecodeInstruction(
+      quiche::QuicheTextUtils::HexDecode("ffffffffffffffffffffff"));
 }
 
 TEST_P(QpackInstructionDecoderTest, DelegateSignalsError) {
@@ -186,8 +190,8 @@ TEST_P(QpackInstructionDecoderTest, DelegateSignalsError) {
             return false;
           }));
 
-  EXPECT_FALSE(
-      decoder_->Decode(QuicTextUtils::HexDecode("01000200030004000500")));
+  EXPECT_FALSE(decoder_->Decode(
+      quiche::QuicheTextUtils::HexDecode("01000200030004000500")));
 }
 
 // QpackInstructionDecoder must not crash if it is destroyed from a
@@ -200,7 +204,7 @@ TEST_P(QpackInstructionDecoderTest, DelegateSignalsErrorAndDestroysDecoder) {
             decoder_.reset();
             return false;
           }));
-  DecodeInstruction(QuicTextUtils::HexDecode("0100"));
+  DecodeInstruction(quiche::QuicheTextUtils::HexDecode("0100"));
 }
 
 }  // namespace
