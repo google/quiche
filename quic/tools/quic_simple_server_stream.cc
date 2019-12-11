@@ -14,8 +14,9 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_map_util.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
 #include "net/third_party/quiche/src/quic/tools/quic_simple_server_session.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
 
 using spdy::SpdyHeaderBlock;
@@ -265,14 +266,15 @@ void QuicSimpleServerStream::OnResponseBackendComplete(
   if (response->response_type() == QuicBackendResponse::GENERATE_BYTES) {
     QUIC_DVLOG(1) << "Stream " << id() << " sending a generate bytes response.";
     std::string path = request_headers_[":path"].as_string().substr(1);
-    if (!QuicTextUtils::StringToUint64(path, &generate_bytes_length_)) {
+    if (!quiche::QuicheTextUtils::StringToUint64(path,
+                                                 &generate_bytes_length_)) {
       QUIC_LOG(ERROR) << "Path is not a number.";
       SendNotFoundResponse();
       return;
     }
     SpdyHeaderBlock headers = response->headers().Clone();
     headers["content-length"] =
-        QuicTextUtils::Uint64ToString(generate_bytes_length_);
+        quiche::QuicheTextUtils::Uint64ToString(generate_bytes_length_);
 
     WriteHeaders(std::move(headers), false, nullptr);
 
@@ -307,7 +309,7 @@ void QuicSimpleServerStream::SendNotFoundResponse() {
   SpdyHeaderBlock headers;
   headers[":status"] = "404";
   headers["content-length"] =
-      QuicTextUtils::Uint64ToString(strlen(kNotFoundResponseBody));
+      quiche::QuicheTextUtils::Uint64ToString(strlen(kNotFoundResponseBody));
   SendHeadersAndBody(std::move(headers), kNotFoundResponseBody);
 }
 
@@ -321,16 +323,16 @@ void QuicSimpleServerStream::SendErrorResponse(int resp_code) {
   if (resp_code <= 0) {
     headers[":status"] = "500";
   } else {
-    headers[":status"] = QuicTextUtils::Uint64ToString(resp_code);
+    headers[":status"] = quiche::QuicheTextUtils::Uint64ToString(resp_code);
   }
   headers["content-length"] =
-      QuicTextUtils::Uint64ToString(strlen(kErrorResponseBody));
+      quiche::QuicheTextUtils::Uint64ToString(strlen(kErrorResponseBody));
   SendHeadersAndBody(std::move(headers), kErrorResponseBody);
 }
 
 void QuicSimpleServerStream::SendIncompleteResponse(
     SpdyHeaderBlock response_headers,
-    QuicStringPiece body) {
+    quiche::QuicheStringPiece body) {
   QUIC_DLOG(INFO) << "Stream " << id() << " writing headers (fin = false) : "
                   << response_headers.DebugString();
   WriteHeaders(std::move(response_headers), /*fin=*/false, nullptr);
@@ -344,14 +346,14 @@ void QuicSimpleServerStream::SendIncompleteResponse(
 
 void QuicSimpleServerStream::SendHeadersAndBody(
     SpdyHeaderBlock response_headers,
-    QuicStringPiece body) {
+    quiche::QuicheStringPiece body) {
   SendHeadersAndBodyAndTrailers(std::move(response_headers), body,
                                 SpdyHeaderBlock());
 }
 
 void QuicSimpleServerStream::SendHeadersAndBodyAndTrailers(
     SpdyHeaderBlock response_headers,
-    QuicStringPiece body,
+    quiche::QuicheStringPiece body,
     SpdyHeaderBlock response_trailers) {
   // Send the headers, with a FIN if there's nothing else to send.
   bool send_fin = (body.empty() && response_trailers.empty());

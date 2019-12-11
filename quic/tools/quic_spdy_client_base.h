@@ -16,8 +16,8 @@
 #include "net/third_party/quiche/src/quic/core/http/quic_spdy_client_stream.h"
 #include "net/third_party/quiche/src/quic/core/quic_config.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 #include "net/third_party/quiche/src/quic/tools/quic_client_base.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -47,7 +47,7 @@ class QuicSpdyClientBase : public QuicClientBase,
    public:
     // |headers| may be null, since it's possible to send data without headers.
     QuicDataToResend(std::unique_ptr<spdy::SpdyHeaderBlock> headers,
-                     QuicStringPiece body,
+                     quiche::QuicheStringPiece body,
                      bool fin);
     QuicDataToResend(const QuicDataToResend&) = delete;
     QuicDataToResend& operator=(const QuicDataToResend&) = delete;
@@ -60,7 +60,7 @@ class QuicSpdyClientBase : public QuicClientBase,
 
    protected:
     std::unique_ptr<spdy::SpdyHeaderBlock> headers_;
-    QuicStringPiece body_;
+    quiche::QuicheStringPiece body_;
     bool fin_;
   };
 
@@ -86,12 +86,12 @@ class QuicSpdyClientBase : public QuicClientBase,
 
   // Sends an HTTP request and does not wait for response before returning.
   void SendRequest(const spdy::SpdyHeaderBlock& headers,
-                   QuicStringPiece body,
+                   quiche::QuicheStringPiece body,
                    bool fin);
 
   // Sends an HTTP request and waits for response before returning.
   void SendRequestAndWaitForResponse(const spdy::SpdyHeaderBlock& headers,
-                                     QuicStringPiece body,
+                                     quiche::QuicheStringPiece body,
                                      bool fin);
 
   // Sends a request simple GET for each URL in |url_list|, and then waits for
@@ -159,7 +159,7 @@ class QuicSpdyClientBase : public QuicClientBase,
   void ResendSavedData() override;
 
   void AddPromiseDataToResend(const spdy::SpdyHeaderBlock& headers,
-                              QuicStringPiece body,
+                              quiche::QuicheStringPiece body,
                               bool fin);
   bool HasActiveRequests() override;
 
@@ -168,7 +168,7 @@ class QuicSpdyClientBase : public QuicClientBase,
   class ClientQuicDataToResend : public QuicDataToResend {
    public:
     ClientQuicDataToResend(std::unique_ptr<spdy::SpdyHeaderBlock> headers,
-                           QuicStringPiece body,
+                           quiche::QuicheStringPiece body,
                            bool fin,
                            QuicSpdyClientBase* client)
         : QuicDataToResend(std::move(headers), body, fin), client_(client) {
@@ -187,7 +187,7 @@ class QuicSpdyClientBase : public QuicClientBase,
   };
 
   void SendRequestInternal(spdy::SpdyHeaderBlock sanitized_headers,
-                           QuicStringPiece body,
+                           quiche::QuicheStringPiece body,
                            bool fin);
 
   // Index of pending promised streams. Must outlive |session_|.

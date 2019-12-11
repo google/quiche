@@ -18,6 +18,7 @@
 #include "net/third_party/quiche/src/quic/tools/fake_proof_verifier.h"
 #include "net/third_party/quiche/src/quic/tools/quic_client.h"
 #include "net/third_party/quiche/src/quic/tools/quic_url.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 
 DEFINE_QUIC_COMMAND_LINE_FLAG(std::string,
                               host,
@@ -252,13 +253,14 @@ std::set<Feature> ServerSupport(std::string host, int port) {
   QuicEnableVersion(ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_99));
 
   // Build the client, and try to connect.
-  QuicSocketAddress addr = tools::LookupAddress(host, QuicStrCat(port));
+  QuicSocketAddress addr =
+      tools::LookupAddress(host, quiche::QuicheStrCat(port));
   if (!addr.IsInitialized()) {
     QUIC_LOG(ERROR) << "Failed to resolve " << host;
     return std::set<Feature>();
   }
   QuicServerId server_id(host, port, false);
-  std::string authority = QuicStrCat(host, ":", port);
+  std::string authority = quiche::QuicheStrCat(host, ":", port);
 
   return AttemptRequest(addr, authority, server_id,
                         /*test_version_negotiation=*/true,

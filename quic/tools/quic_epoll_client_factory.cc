@@ -13,6 +13,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_server_id.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
 #include "net/third_party/quiche/src/quic/tools/quic_client.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 
 namespace quic {
 
@@ -23,7 +24,7 @@ std::unique_ptr<QuicSpdyClientBase> QuicEpollClientFactory::CreateClient(
     ParsedQuicVersionVector versions,
     std::unique_ptr<ProofVerifier> verifier) {
   QuicSocketAddress addr =
-      tools::LookupAddress(host_for_lookup, QuicStrCat(port));
+      tools::LookupAddress(host_for_lookup, quiche::QuicheStrCat(port));
   if (!addr.IsInitialized()) {
     QUIC_LOG(ERROR) << "Unable to resolve address: " << host_for_lookup;
     return nullptr;

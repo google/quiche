@@ -13,10 +13,10 @@
 #include "net/third_party/quiche/src/quic/core/http/spdy_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_mutex.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 #include "net/third_party/quiche/src/quic/tools/quic_backend_response.h"
 #include "net/third_party/quiche/src/quic/tools/quic_simple_server_backend.h"
 #include "net/third_party/quiche/src/quic/tools/quic_url.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_framer.h"
 
 namespace quic {
@@ -40,34 +40,36 @@ class QuicMemoryCacheBackend : public QuicSimpleServerBackend {
     void Read();
 
     // |base| is |file_name_| with |cache_directory| prefix stripped.
-    void SetHostPathFromBase(QuicStringPiece base);
+    void SetHostPathFromBase(quiche::QuicheStringPiece base);
 
     const std::string& file_name() { return file_name_; }
 
-    QuicStringPiece host() { return host_; }
+    quiche::QuicheStringPiece host() { return host_; }
 
-    QuicStringPiece path() { return path_; }
+    quiche::QuicheStringPiece path() { return path_; }
 
     const spdy::SpdyHeaderBlock& spdy_headers() { return spdy_headers_; }
 
-    QuicStringPiece body() { return body_; }
+    quiche::QuicheStringPiece body() { return body_; }
 
-    const std::vector<QuicStringPiece>& push_urls() { return push_urls_; }
+    const std::vector<quiche::QuicheStringPiece>& push_urls() {
+      return push_urls_;
+    }
 
    protected:
     void HandleXOriginalUrl();
-    QuicStringPiece RemoveScheme(QuicStringPiece url);
+    quiche::QuicheStringPiece RemoveScheme(quiche::QuicheStringPiece url);
 
     std::string file_name_;
     std::string file_contents_;
-    QuicStringPiece body_;
+    quiche::QuicheStringPiece body_;
     spdy::SpdyHeaderBlock spdy_headers_;
-    QuicStringPiece x_original_url_;
-    std::vector<QuicStringPiece> push_urls_;
+    quiche::QuicheStringPiece x_original_url_;
+    std::vector<quiche::QuicheStringPiece> push_urls_;
 
    private:
-    QuicStringPiece host_;
-    QuicStringPiece path_;
+    quiche::QuicheStringPiece host_;
+    quiche::QuicheStringPiece path_;
   };
 
   QuicMemoryCacheBackend();
@@ -77,57 +79,57 @@ class QuicMemoryCacheBackend : public QuicSimpleServerBackend {
 
   // Retrieve a response from this cache for a given host and path..
   // If no appropriate response exists, nullptr is returned.
-  const QuicBackendResponse* GetResponse(QuicStringPiece host,
-                                         QuicStringPiece path) const;
+  const QuicBackendResponse* GetResponse(quiche::QuicheStringPiece host,
+                                         quiche::QuicheStringPiece path) const;
 
   // Adds a simple response to the cache.  The response headers will
   // only contain the "content-length" header with the length of |body|.
-  void AddSimpleResponse(QuicStringPiece host,
-                         QuicStringPiece path,
+  void AddSimpleResponse(quiche::QuicheStringPiece host,
+                         quiche::QuicheStringPiece path,
                          int response_code,
-                         QuicStringPiece body);
+                         quiche::QuicheStringPiece body);
 
   // Add a simple response to the cache as AddSimpleResponse() does, and add
   // some server push resources(resource path, corresponding response status and
   // path) associated with it.
   // Push resource implicitly come from the same host.
   void AddSimpleResponseWithServerPushResources(
-      QuicStringPiece host,
-      QuicStringPiece path,
+      quiche::QuicheStringPiece host,
+      quiche::QuicheStringPiece path,
       int response_code,
-      QuicStringPiece body,
+      quiche::QuicheStringPiece body,
       std::list<QuicBackendResponse::ServerPushInfo> push_resources);
 
   // Add a response to the cache.
-  void AddResponse(QuicStringPiece host,
-                   QuicStringPiece path,
+  void AddResponse(quiche::QuicheStringPiece host,
+                   quiche::QuicheStringPiece path,
                    spdy::SpdyHeaderBlock response_headers,
-                   QuicStringPiece response_body);
+                   quiche::QuicheStringPiece response_body);
 
   // Add a response, with trailers, to the cache.
-  void AddResponse(QuicStringPiece host,
-                   QuicStringPiece path,
+  void AddResponse(quiche::QuicheStringPiece host,
+                   quiche::QuicheStringPiece path,
                    spdy::SpdyHeaderBlock response_headers,
-                   QuicStringPiece response_body,
+                   quiche::QuicheStringPiece response_body,
                    spdy::SpdyHeaderBlock response_trailers);
 
   // Simulate a special behavior at a particular path.
   void AddSpecialResponse(
-      QuicStringPiece host,
-      QuicStringPiece path,
+      quiche::QuicheStringPiece host,
+      quiche::QuicheStringPiece path,
       QuicBackendResponse::SpecialResponseType response_type);
 
   void AddSpecialResponse(
-      QuicStringPiece host,
-      QuicStringPiece path,
+      quiche::QuicheStringPiece host,
+      quiche::QuicheStringPiece path,
       spdy::SpdyHeaderBlock response_headers,
-      QuicStringPiece response_body,
+      quiche::QuicheStringPiece response_body,
       QuicBackendResponse::SpecialResponseType response_type);
 
-  void AddStopSendingResponse(QuicStringPiece host,
-                              QuicStringPiece path,
+  void AddStopSendingResponse(quiche::QuicheStringPiece host,
+                              quiche::QuicheStringPiece path,
                               spdy::SpdyHeaderBlock response_headers,
-                              QuicStringPiece response_body,
+                              quiche::QuicheStringPiece response_body,
                               uint16_t stop_sending_code);
 
   // Sets a default response in case of cache misses.  Takes ownership of
@@ -154,21 +156,22 @@ class QuicMemoryCacheBackend : public QuicSimpleServerBackend {
       QuicSimpleServerBackend::RequestHandler* quic_server_stream) override;
 
  private:
-  void AddResponseImpl(QuicStringPiece host,
-                       QuicStringPiece path,
+  void AddResponseImpl(quiche::QuicheStringPiece host,
+                       quiche::QuicheStringPiece path,
                        QuicBackendResponse::SpecialResponseType response_type,
                        spdy::SpdyHeaderBlock response_headers,
-                       QuicStringPiece response_body,
+                       quiche::QuicheStringPiece response_body,
                        spdy::SpdyHeaderBlock response_trailers,
                        uint16_t stop_sending_code);
 
-  std::string GetKey(QuicStringPiece host, QuicStringPiece path) const;
+  std::string GetKey(quiche::QuicheStringPiece host,
+                     quiche::QuicheStringPiece path) const;
 
   // Add some server push urls with given responses for specified
   // request if these push resources are not associated with this request yet.
   void MaybeAddServerPushResources(
-      QuicStringPiece request_host,
-      QuicStringPiece request_path,
+      quiche::QuicheStringPiece request_host,
+      quiche::QuicheStringPiece request_path,
       std::list<QuicBackendResponse::ServerPushInfo> push_resources);
 
   // Check if push resource(push_host/push_path) associated with given request

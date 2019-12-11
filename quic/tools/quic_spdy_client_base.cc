@@ -11,7 +11,8 @@
 #include "net/third_party/quiche/src/quic/core/quic_server_id.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 using spdy::SpdyHeaderBlock;
 
@@ -24,7 +25,7 @@ void QuicSpdyClientBase::ClientQuicDataToResend::Resend() {
 
 QuicSpdyClientBase::QuicDataToResend::QuicDataToResend(
     std::unique_ptr<SpdyHeaderBlock> headers,
-    QuicStringPiece body,
+    quiche::QuicheStringPiece body,
     bool fin)
     : headers_(std::move(headers)), body_(body), fin_(fin) {}
 
@@ -90,8 +91,8 @@ void QuicSpdyClientBase::OnClose(QuicSpdyStream* stream) {
     auto status = response_headers.find(":status");
     if (status == response_headers.end()) {
       QUIC_LOG(ERROR) << "Missing :status response header";
-    } else if (!QuicTextUtils::StringToInt(status->second,
-                                           &latest_response_code_)) {
+    } else if (!quiche::QuicheTextUtils::StringToInt(status->second,
+                                                     &latest_response_code_)) {
       QUIC_LOG(ERROR) << "Invalid :status response header: " << status->second;
     }
     latest_response_headers_ = response_headers.DebugString();
@@ -113,13 +114,13 @@ std::unique_ptr<QuicSession> QuicSpdyClientBase::CreateQuicClientSession(
 }
 
 void QuicSpdyClientBase::SendRequest(const SpdyHeaderBlock& headers,
-                                     QuicStringPiece body,
+                                     quiche::QuicheStringPiece body,
                                      bool fin) {
   if (GetQuicFlag(FLAGS_quic_client_convert_http_header_name_to_lowercase)) {
     QUIC_CODE_COUNT(quic_client_convert_http_header_name_to_lowercase);
     SpdyHeaderBlock sanitized_headers;
     for (const auto& p : headers) {
-      sanitized_headers[QuicTextUtils::ToLower(p.first)] = p.second;
+      sanitized_headers[quiche::QuicheTextUtils::ToLower(p.first)] = p.second;
     }
 
     SendRequestInternal(std::move(sanitized_headers), body, fin);
@@ -129,7 +130,7 @@ void QuicSpdyClientBase::SendRequest(const SpdyHeaderBlock& headers,
 }
 
 void QuicSpdyClientBase::SendRequestInternal(SpdyHeaderBlock sanitized_headers,
-                                             QuicStringPiece body,
+                                             quiche::QuicheStringPiece body,
                                              bool fin) {
   QuicClientPushPromiseIndex::TryHandle* handle;
   QuicAsyncStatus rv =
@@ -153,7 +154,7 @@ void QuicSpdyClientBase::SendRequestInternal(SpdyHeaderBlock sanitized_headers,
 
 void QuicSpdyClientBase::SendRequestAndWaitForResponse(
     const SpdyHeaderBlock& headers,
-    QuicStringPiece body,
+    quiche::QuicheStringPiece body,
     bool fin) {
   SendRequest(headers, body, fin);
   while (WaitForEvents()) {
@@ -217,7 +218,7 @@ void QuicSpdyClientBase::ResendSavedData() {
 }
 
 void QuicSpdyClientBase::AddPromiseDataToResend(const SpdyHeaderBlock& headers,
-                                                QuicStringPiece body,
+                                                quiche::QuicheStringPiece body,
                                                 bool fin) {
   std::unique_ptr<SpdyHeaderBlock> new_headers(
       new SpdyHeaderBlock(headers.Clone()));

@@ -11,7 +11,8 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_file_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_map_util.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 using spdy::kV3LowestPriority;
 using spdy::SpdyHeaderBlock;
@@ -39,7 +40,7 @@ void QuicMemoryCacheBackend::ResourceFile::Read() {
     if (file_contents_[pos - 1] == '\r') {
       len -= 1;
     }
-    QuicStringPiece line(file_contents_.data() + start, len);
+    quiche::QuicheStringPiece line(file_contents_.data() + start, len);
     start = pos + 1;
     // Headers end with an empty line.
     if (line.empty()) {
@@ -63,7 +64,8 @@ void QuicMemoryCacheBackend::ResourceFile::Read() {
       return;
     }
     spdy_headers_.AppendValueOrAddHeader(
-        QuicTextUtils::ToLower(line.substr(0, pos)), line.substr(pos + 2));
+        quiche::QuicheTextUtils::ToLower(line.substr(0, pos)),
+        line.substr(pos + 2));
   }
 
   // The connection header is prohibited in HTTP/2.
@@ -81,26 +83,27 @@ void QuicMemoryCacheBackend::ResourceFile::Read() {
   // stuff as described in https://w3c.github.io/preload/.
   it = spdy_headers_.find("x-push-url");
   if (it != spdy_headers_.end()) {
-    QuicStringPiece push_urls = it->second;
+    quiche::QuicheStringPiece push_urls = it->second;
     size_t start = 0;
     while (start < push_urls.length()) {
       size_t pos = push_urls.find('\0', start);
       if (pos == std::string::npos) {
-        push_urls_.push_back(QuicStringPiece(push_urls.data() + start,
-                                             push_urls.length() - start));
+        push_urls_.push_back(quiche::QuicheStringPiece(
+            push_urls.data() + start, push_urls.length() - start));
         break;
       }
-      push_urls_.push_back(QuicStringPiece(push_urls.data() + start, pos));
+      push_urls_.push_back(
+          quiche::QuicheStringPiece(push_urls.data() + start, pos));
       start += pos + 1;
     }
   }
 
-  body_ = QuicStringPiece(file_contents_.data() + start,
-                          file_contents_.size() - start);
+  body_ = quiche::QuicheStringPiece(file_contents_.data() + start,
+                                    file_contents_.size() - start);
 }
 
 void QuicMemoryCacheBackend::ResourceFile::SetHostPathFromBase(
-    QuicStringPiece base) {
+    quiche::QuicheStringPiece base) {
   size_t path_start = base.find_first_of('/');
   DCHECK_LT(0UL, path_start);
   host_ = base.substr(0, path_start);
@@ -112,34 +115,35 @@ void QuicMemoryCacheBackend::ResourceFile::SetHostPathFromBase(
   }
 }
 
-QuicStringPiece QuicMemoryCacheBackend::ResourceFile::RemoveScheme(
-    QuicStringPiece url) {
-  if (QuicTextUtils::StartsWith(url, "https://")) {
+quiche::QuicheStringPiece QuicMemoryCacheBackend::ResourceFile::RemoveScheme(
+    quiche::QuicheStringPiece url) {
+  if (quiche::QuicheTextUtils::StartsWith(url, "https://")) {
     url.remove_prefix(8);
-  } else if (QuicTextUtils::StartsWith(url, "http://")) {
+  } else if (quiche::QuicheTextUtils::StartsWith(url, "http://")) {
     url.remove_prefix(7);
   }
   return url;
 }
 
 void QuicMemoryCacheBackend::ResourceFile::HandleXOriginalUrl() {
-  QuicStringPiece url(x_original_url_);
+  quiche::QuicheStringPiece url(x_original_url_);
   // Remove the protocol so we can add it below.
   url = RemoveScheme(url);
   SetHostPathFromBase(url);
 }
 
 const QuicBackendResponse* QuicMemoryCacheBackend::GetResponse(
-    QuicStringPiece host,
-    QuicStringPiece path) const {
+    quiche::QuicheStringPiece host,
+    quiche::QuicheStringPiece path) const {
   QuicWriterMutexLock lock(&response_mutex_);
 
   auto it = responses_.find(GetKey(host, path));
   if (it == responses_.end()) {
     uint64_t ignored = 0;
     if (generate_bytes_response_) {
-      if (QuicTextUtils::StringToUint64(
-              QuicStringPiece(path.data() + 1, path.size() - 1), &ignored)) {
+      if (quiche::QuicheTextUtils::StringToUint64(
+              quiche::QuicheStringPiece(path.data() + 1, path.size() - 1),
+              &ignored)) {
         // The actual parsed length is ignored here and will be recomputed
         // by the caller.
         return generate_bytes_response_.get();
@@ -158,22 +162,23 @@ const QuicBackendResponse* QuicMemoryCacheBackend::GetResponse(
 typedef QuicBackendResponse::ServerPushInfo ServerPushInfo;
 typedef QuicBackendResponse::SpecialResponseType SpecialResponseType;
 
-void QuicMemoryCacheBackend::AddSimpleResponse(QuicStringPiece host,
-                                               QuicStringPiece path,
+void QuicMemoryCacheBackend::AddSimpleResponse(quiche::QuicheStringPiece host,
+                                               quiche::QuicheStringPiece path,
                                                int response_code,
-                                               QuicStringPiece body) {
+                                               quiche::QuicheStringPiece body) {
   SpdyHeaderBlock response_headers;
-  response_headers[":status"] = QuicTextUtils::Uint64ToString(response_code);
+  response_headers[":status"] =
+      quiche::QuicheTextUtils::Uint64ToString(response_code);
   response_headers["content-length"] =
-      QuicTextUtils::Uint64ToString(body.length());
+      quiche::QuicheTextUtils::Uint64ToString(body.length());
   AddResponse(host, path, std::move(response_headers), body);
 }
 
 void QuicMemoryCacheBackend::AddSimpleResponseWithServerPushResources(
-    QuicStringPiece host,
-    QuicStringPiece path,
+    quiche::QuicheStringPiece host,
+    quiche::QuicheStringPiece path,
     int response_code,
-    QuicStringPiece body,
+    quiche::QuicheStringPiece body,
     std::list<ServerPushInfo> push_resources) {
   AddSimpleResponse(host, path, response_code, body);
   MaybeAddServerPushResources(host, path, push_resources);
@@ -184,48 +189,50 @@ void QuicMemoryCacheBackend::AddDefaultResponse(QuicBackendResponse* response) {
   default_response_.reset(response);
 }
 
-void QuicMemoryCacheBackend::AddResponse(QuicStringPiece host,
-                                         QuicStringPiece path,
-                                         SpdyHeaderBlock response_headers,
-                                         QuicStringPiece response_body) {
+void QuicMemoryCacheBackend::AddResponse(
+    quiche::QuicheStringPiece host,
+    quiche::QuicheStringPiece path,
+    SpdyHeaderBlock response_headers,
+    quiche::QuicheStringPiece response_body) {
   AddResponseImpl(host, path, QuicBackendResponse::REGULAR_RESPONSE,
                   std::move(response_headers), response_body, SpdyHeaderBlock(),
                   0);
 }
 
-void QuicMemoryCacheBackend::AddResponse(QuicStringPiece host,
-                                         QuicStringPiece path,
-                                         SpdyHeaderBlock response_headers,
-                                         QuicStringPiece response_body,
-                                         SpdyHeaderBlock response_trailers) {
+void QuicMemoryCacheBackend::AddResponse(
+    quiche::QuicheStringPiece host,
+    quiche::QuicheStringPiece path,
+    SpdyHeaderBlock response_headers,
+    quiche::QuicheStringPiece response_body,
+    SpdyHeaderBlock response_trailers) {
   AddResponseImpl(host, path, QuicBackendResponse::REGULAR_RESPONSE,
                   std::move(response_headers), response_body,
                   std::move(response_trailers), 0);
 }
 
 void QuicMemoryCacheBackend::AddSpecialResponse(
-    QuicStringPiece host,
-    QuicStringPiece path,
+    quiche::QuicheStringPiece host,
+    quiche::QuicheStringPiece path,
     SpecialResponseType response_type) {
   AddResponseImpl(host, path, response_type, SpdyHeaderBlock(), "",
                   SpdyHeaderBlock(), 0);
 }
 
 void QuicMemoryCacheBackend::AddSpecialResponse(
-    QuicStringPiece host,
-    QuicStringPiece path,
+    quiche::QuicheStringPiece host,
+    quiche::QuicheStringPiece path,
     spdy::SpdyHeaderBlock response_headers,
-    QuicStringPiece response_body,
+    quiche::QuicheStringPiece response_body,
     SpecialResponseType response_type) {
   AddResponseImpl(host, path, response_type, std::move(response_headers),
                   response_body, SpdyHeaderBlock(), 0);
 }
 
 void QuicMemoryCacheBackend::AddStopSendingResponse(
-    QuicStringPiece host,
-    QuicStringPiece path,
+    quiche::QuicheStringPiece host,
+    quiche::QuicheStringPiece path,
     spdy::SpdyHeaderBlock response_headers,
-    QuicStringPiece response_body,
+    quiche::QuicheStringPiece response_body,
     uint16_t stop_sending_code) {
   AddResponseImpl(host, path, SpecialResponseType::STOP_SENDING,
                   std::move(response_headers), response_body, SpdyHeaderBlock(),
@@ -249,7 +256,7 @@ bool QuicMemoryCacheBackend::InitializeBackend(
     std::unique_ptr<ResourceFile> resource_file(new ResourceFile(filename));
 
     // Tease apart filename into host and path.
-    QuicStringPiece base(resource_file->file_name());
+    quiche::QuicheStringPiece base(resource_file->file_name());
     base.remove_prefix(cache_directory.length());
     if (base[0] == '/') {
       base.remove_prefix(1);
@@ -346,13 +353,14 @@ QuicMemoryCacheBackend::~QuicMemoryCacheBackend() {
   }
 }
 
-void QuicMemoryCacheBackend::AddResponseImpl(QuicStringPiece host,
-                                             QuicStringPiece path,
-                                             SpecialResponseType response_type,
-                                             SpdyHeaderBlock response_headers,
-                                             QuicStringPiece response_body,
-                                             SpdyHeaderBlock response_trailers,
-                                             uint16_t stop_sending_code) {
+void QuicMemoryCacheBackend::AddResponseImpl(
+    quiche::QuicheStringPiece host,
+    quiche::QuicheStringPiece path,
+    SpecialResponseType response_type,
+    SpdyHeaderBlock response_headers,
+    quiche::QuicheStringPiece response_body,
+    SpdyHeaderBlock response_trailers,
+    uint16_t stop_sending_code) {
   QuicWriterMutexLock lock(&response_mutex_);
 
   DCHECK(!host.empty()) << "Host must be populated, e.g. \"www.google.com\"";
@@ -371,8 +379,9 @@ void QuicMemoryCacheBackend::AddResponseImpl(QuicStringPiece host,
   responses_[key] = std::move(new_response);
 }
 
-std::string QuicMemoryCacheBackend::GetKey(QuicStringPiece host,
-                                           QuicStringPiece path) const {
+std::string QuicMemoryCacheBackend::GetKey(
+    quiche::QuicheStringPiece host,
+    quiche::QuicheStringPiece path) const {
   std::string host_string = std::string(host);
   size_t port = host_string.find(':');
   if (port != std::string::npos)
@@ -381,8 +390,8 @@ std::string QuicMemoryCacheBackend::GetKey(QuicStringPiece host,
 }
 
 void QuicMemoryCacheBackend::MaybeAddServerPushResources(
-    QuicStringPiece request_host,
-    QuicStringPiece request_path,
+    quiche::QuicheStringPiece request_host,
+    quiche::QuicheStringPiece request_path,
     std::list<ServerPushInfo> push_resources) {
   std::string request_url = GetKey(request_host, request_path);
 
@@ -412,7 +421,7 @@ void QuicMemoryCacheBackend::MaybeAddServerPushResources(
     }
     if (!found_existing_response) {
       // Add a server push response to responses map, if it is not in the map.
-      QuicStringPiece body = push_resource.body;
+      quiche::QuicheStringPiece body = push_resource.body;
       QUIC_DVLOG(1) << "Add response for push resource: host " << host
                     << " path " << path;
       AddResponse(host, path, push_resource.headers.Clone(), body);

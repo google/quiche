@@ -23,6 +23,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
 #include "net/third_party/quiche/src/quic/tools/quic_simple_server_backend.h"
 #include "net/third_party/quiche/src/quic/tools/quic_spdy_server_base.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -79,7 +80,7 @@ class QuicServer : public QuicSpdyServerBase,
     crypto_config_.set_chlo_multiplier(multiplier);
   }
 
-  void SetPreSharedKey(QuicStringPiece key) {
+  void SetPreSharedKey(quiche::QuicheStringPiece key) {
     crypto_config_.set_pre_shared_key(key);
   }
 

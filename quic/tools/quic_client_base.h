@@ -17,7 +17,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_config.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_macros.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -209,7 +209,7 @@ class QuicClientBase {
 
   bool initialized() const { return initialized_; }
 
-  void SetPreSharedKey(QuicStringPiece key) {
+  void SetPreSharedKey(quiche::QuicheStringPiece key) {
     crypto_config_.set_pre_shared_key(key);
   }
 

@@ -5,6 +5,7 @@
 #include "net/third_party/quiche/src/quic/tools/quic_simple_dispatcher.h"
 
 #include "net/third_party/quiche/src/quic/tools/quic_simple_server_session.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -50,7 +51,7 @@ void QuicSimpleDispatcher::OnRstStreamReceived(
 QuicServerSessionBase* QuicSimpleDispatcher::CreateQuicSession(
     QuicConnectionId connection_id,
     const QuicSocketAddress& client_address,
-    QuicStringPiece /*alpn*/,
+    quiche::QuicheStringPiece /*alpn*/,
     const ParsedQuicVersion& version) {
   // The QuicServerSessionBase takes ownership of |connection| below.
   QuicConnection* connection = new QuicConnection(

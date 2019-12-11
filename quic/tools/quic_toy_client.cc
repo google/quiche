@@ -54,18 +54,17 @@
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_default_proof_providers.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_system_event_loop.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
 #include "net/third_party/quiche/src/quic/tools/fake_proof_verifier.h"
 #include "net/third_party/quiche/src/quic/tools/quic_url.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 namespace {
 
-using quic::QuicStringPiece;
-using quic::QuicTextUtils;
 using quic::QuicUrl;
+using quiche::QuicheStringPiece;
+using quiche::QuicheTextUtils;
 
 }  // namespace
 
@@ -253,7 +252,7 @@ int QuicToyClient::SendRequestsAndPrintResponses(
   if (!GetQuicFlag(FLAGS_body_hex).empty()) {
     DCHECK(GetQuicFlag(FLAGS_body).empty())
         << "Only set one of --body and --body_hex.";
-    body = QuicTextUtils::HexDecode(GetQuicFlag(FLAGS_body_hex));
+    body = QuicheTextUtils::HexDecode(GetQuicFlag(FLAGS_body_hex));
   }
 
   // Construct a GET or POST request for supplied URL.
@@ -265,14 +264,14 @@ int QuicToyClient::SendRequestsAndPrintResponses(
 
   // Append any additional headers supplied on the command line.
   const std::string headers = GetQuicFlag(FLAGS_headers);
-  for (QuicStringPiece sp : QuicTextUtils::Split(headers, ';')) {
-    QuicTextUtils::RemoveLeadingAndTrailingWhitespace(&sp);
+  for (QuicheStringPiece sp : QuicheTextUtils::Split(headers, ';')) {
+    QuicheTextUtils::RemoveLeadingAndTrailingWhitespace(&sp);
     if (sp.empty()) {
       continue;
     }
-    std::vector<QuicStringPiece> kv = QuicTextUtils::Split(sp, ':');
-    QuicTextUtils::RemoveLeadingAndTrailingWhitespace(&kv[0]);
-    QuicTextUtils::RemoveLeadingAndTrailingWhitespace(&kv[1]);
+    std::vector<QuicheStringPiece> kv = QuicheTextUtils::Split(sp, ':');
+    QuicheTextUtils::RemoveLeadingAndTrailingWhitespace(&kv[0]);
+    QuicheTextUtils::RemoveLeadingAndTrailingWhitespace(&kv[1]);
     header_block[kv[0]] = kv[1];
   }
 
@@ -290,8 +289,8 @@ int QuicToyClient::SendRequestsAndPrintResponses(
       if (!GetQuicFlag(FLAGS_body_hex).empty()) {
         // Print the user provided hex, rather than binary body.
         std::cout << "body:\n"
-                  << QuicTextUtils::HexDump(
-                         QuicTextUtils::HexDecode(GetQuicFlag(FLAGS_body_hex)))
+                  << QuicheTextUtils::HexDump(QuicheTextUtils::HexDecode(
+                         GetQuicFlag(FLAGS_body_hex)))
                   << std::endl;
       } else {
         std::cout << "body: " << body << std::endl;
@@ -311,7 +310,7 @@ int QuicToyClient::SendRequestsAndPrintResponses(
       if (!GetQuicFlag(FLAGS_body_hex).empty()) {
         // Assume response is binary data.
         std::cout << "body:\n"
-                  << QuicTextUtils::HexDump(response_body) << std::endl;
+                  << QuicheTextUtils::HexDump(response_body) << std::endl;
       } else {
         std::cout << "body: " << response_body << std::endl;
       }

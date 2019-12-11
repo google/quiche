@@ -8,6 +8,7 @@
 #include "url/origin.h"
 #include "net/third_party/quiche/src/quic/core/quic_dispatcher.h"
 #include "net/third_party/quiche/src/quic/tools/quic_transport_simple_server_session.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -28,7 +29,7 @@ class QuicTransportSimpleServerDispatcher : public QuicDispatcher {
  protected:
   QuicSession* CreateQuicSession(QuicConnectionId server_connection_id,
                                  const QuicSocketAddress& peer_address,
-                                 QuicStringPiece alpn,
+                                 quiche::QuicheStringPiece alpn,
                                  const ParsedQuicVersion& version) override;
 
   std::vector<url::Origin> accepted_origins_;

@@ -11,6 +11,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/tools/quic_transport_simple_server_session.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -35,7 +36,7 @@ QuicTransportSimpleServerDispatcher::QuicTransportSimpleServerDispatcher(
 QuicSession* QuicTransportSimpleServerDispatcher::CreateQuicSession(
     QuicConnectionId server_connection_id,
     const QuicSocketAddress& peer_address,
-    QuicStringPiece /*alpn*/,
+    quiche::QuicheStringPiece /*alpn*/,
     const ParsedQuicVersion& version) {
   auto connection = std::make_unique<QuicConnection>(
       server_connection_id, peer_address, helper(), alarm_factory(), writer(),

@@ -31,7 +31,8 @@
 #include "net/third_party/quiche/src/quic/core/quic_framer.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 DEFINE_QUIC_COMMAND_LINE_FLAG(std::string,
                               quic_version,
@@ -64,7 +65,7 @@ class QuicPacketPrinter : public QuicFramerVisitorInterface {
   }
   void OnRetryPacket(QuicConnectionId /*original_connection_id*/,
                      QuicConnectionId /*new_connection_id*/,
-                     QuicStringPiece /*retry_token*/) override {
+                     quiche::QuicheStringPiece /*retry_token*/) override {
     std::cerr << "OnRetryPacket\n";
   }
   bool OnUnauthenticatedPublicHeader(
@@ -96,14 +97,16 @@ class QuicPacketPrinter : public QuicFramerVisitorInterface {
   bool OnStreamFrame(const QuicStreamFrame& frame) override {
     std::cerr << "OnStreamFrame: " << frame;
     std::cerr << "         data: { "
-              << QuicTextUtils::HexEncode(frame.data_buffer, frame.data_length)
+              << quiche::QuicheTextUtils::HexEncode(frame.data_buffer,
+                                                    frame.data_length)
               << " }\n";
     return true;
   }
   bool OnCryptoFrame(const QuicCryptoFrame& frame) override {
     std::cerr << "OnCryptoFrame: " << frame;
     std::cerr << "         data: { "
-              << QuicTextUtils::HexEncode(frame.data_buffer, frame.data_length)
+              << quiche::QuicheTextUtils::HexEncode(frame.data_buffer,
+                                                    frame.data_length)
               << " }\n";
     return true;
   }
@@ -235,7 +238,7 @@ int main(int argc, char* argv[]) {
     quic::QuicPrintCommandLineFlagHelp(usage);
     return 1;
   }
-  std::string hex = quic::QuicTextUtils::HexDecode(args[1]);
+  std::string hex = quiche::QuicheTextUtils::HexDecode(args[1]);
   quic::ParsedQuicVersionVector versions = quic::AllSupportedVersions();
   // Fake a time since we're not actually generating acks.
   quic::QuicTime start(quic::QuicTime::Zero());

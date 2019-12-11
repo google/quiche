@@ -4,22 +4,24 @@
 
 #include "net/third_party/quiche/src/quic/tools/quic_url.h"
 
-#include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
 static constexpr size_t kMaxHostNameLength = 256;
 
-QuicUrl::QuicUrl(QuicStringPiece url) : url_(static_cast<std::string>(url)) {}
+QuicUrl::QuicUrl(quiche::QuicheStringPiece url)
+    : url_(static_cast<std::string>(url)) {}
 
-QuicUrl::QuicUrl(QuicStringPiece url, QuicStringPiece default_scheme)
+QuicUrl::QuicUrl(quiche::QuicheStringPiece url,
+                 quiche::QuicheStringPiece default_scheme)
     : QuicUrl(url) {
   if (url_.has_scheme()) {
     return;
   }
 
-  url_ = GURL(QuicStrCat(default_scheme, "://", url));
+  url_ = GURL(quiche::QuicheStrCat(default_scheme, "://", url));
 }
 
 std::string QuicUrl::ToString() const {
@@ -51,7 +53,7 @@ std::string QuicUrl::HostPort() const {
   if (port == url::PORT_UNSPECIFIED) {
     return host;
   }
-  return QuicStrCat(host, ":", port);
+  return quiche::QuicheStrCat(host, ":", port);
 }
 
 std::string QuicUrl::PathParamsQuery() const {
