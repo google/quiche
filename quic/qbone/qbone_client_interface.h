@@ -7,7 +7,7 @@
 
 #include <cstdint>
 
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -17,7 +17,7 @@ class QboneClientInterface {
   virtual ~QboneClientInterface() {}
   // Accepts a given packet from the network and sends the packet down to the
   // QBONE connection.
-  virtual void ProcessPacketFromNetwork(QuicStringPiece packet) = 0;
+  virtual void ProcessPacketFromNetwork(quiche::QuicheStringPiece packet) = 0;
 };
 
 }  // namespace quic

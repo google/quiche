@@ -9,7 +9,8 @@
 #include <cstdint>
 
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 namespace quic {
 namespace {
@@ -84,13 +85,13 @@ TEST(IcmpPacketTest, CreatedPacketMatchesReference) {
   icmp_header.icmp6_id = 0x82cb;
   icmp_header.icmp6_seq = 0x0100;
 
-  QuicStringPiece message_body = QuicStringPiece(
+  quiche::QuicheStringPiece message_body = quiche::QuicheStringPiece(
       reinterpret_cast<const char*>(kReferenceICMPMessageBody), 56);
-  QuicStringPiece expected_packet =
-      QuicStringPiece(reinterpret_cast<const char*>(kReferenceICMPPacket), 104);
+  quiche::QuicheStringPiece expected_packet = quiche::QuicheStringPiece(
+      reinterpret_cast<const char*>(kReferenceICMPPacket), 104);
   CreateIcmpPacket(src_addr, dst_addr, icmp_header, message_body,
-                   [&expected_packet](QuicStringPiece packet) {
-                     QUIC_LOG(INFO) << QuicTextUtils::HexDump(packet);
+                   [&expected_packet](quiche::QuicheStringPiece packet) {
+                     QUIC_LOG(INFO) << quiche::QuicheTextUtils::HexDump(packet);
                      ASSERT_EQ(packet, expected_packet);
                    });
 }
@@ -113,13 +114,13 @@ TEST(IcmpPacketTest, NonZeroChecksumIsIgnored) {
   // Set the checksum to a bogus value
   icmp_header.icmp6_cksum = 0x1234;
 
-  QuicStringPiece message_body = QuicStringPiece(
+  quiche::QuicheStringPiece message_body = quiche::QuicheStringPiece(
       reinterpret_cast<const char*>(kReferenceICMPMessageBody), 56);
-  QuicStringPiece expected_packet =
-      QuicStringPiece(reinterpret_cast<const char*>(kReferenceICMPPacket), 104);
+  quiche::QuicheStringPiece expected_packet = quiche::QuicheStringPiece(
+      reinterpret_cast<const char*>(kReferenceICMPPacket), 104);
   CreateIcmpPacket(src_addr, dst_addr, icmp_header, message_body,
-                   [&expected_packet](QuicStringPiece packet) {
-                     QUIC_LOG(INFO) << QuicTextUtils::HexDump(packet);
+                   [&expected_packet](quiche::QuicheStringPiece packet) {
+                     QUIC_LOG(INFO) << quiche::QuicheTextUtils::HexDump(packet);
                      ASSERT_EQ(packet, expected_packet);
                    });
 }

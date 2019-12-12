@@ -7,6 +7,7 @@
 
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/qbone/qbone_packet_processor.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -14,8 +15,8 @@ class MockPacketProcessorOutput : public QbonePacketProcessor::OutputInterface {
  public:
   MockPacketProcessorOutput() {}
 
-  MOCK_METHOD1(SendPacketToClient, void(QuicStringPiece));
-  MOCK_METHOD1(SendPacketToNetwork, void(QuicStringPiece));
+  MOCK_METHOD1(SendPacketToClient, void(quiche::QuicheStringPiece));
+  MOCK_METHOD1(SendPacketToNetwork, void(quiche::QuicheStringPiece));
 };
 
 class MockPacketProcessorStats : public QbonePacketProcessor::StatsInterface {

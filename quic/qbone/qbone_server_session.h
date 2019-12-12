@@ -13,6 +13,7 @@
 #include "net/third_party/quiche/src/quic/qbone/qbone_packet_processor.h"
 #include "net/third_party/quiche/src/quic/qbone/qbone_packet_writer.h"
 #include "net/third_party/quiche/src/quic/qbone/qbone_session_base.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -51,12 +52,12 @@ class QUIC_EXPORT_PRIVATE QboneServerSession
 
   virtual bool SendClientRequest(const QboneClientRequest& request);
 
-  void ProcessPacketFromNetwork(QuicStringPiece packet) override;
-  void ProcessPacketFromPeer(QuicStringPiece packet) override;
+  void ProcessPacketFromNetwork(quiche::QuicheStringPiece packet) override;
+  void ProcessPacketFromPeer(quiche::QuicheStringPiece packet) override;
 
   // QbonePacketProcessor::OutputInterface implementation.
-  void SendPacketToClient(QuicStringPiece packet) override;
-  void SendPacketToNetwork(QuicStringPiece packet) override;
+  void SendPacketToClient(quiche::QuicheStringPiece packet) override;
+  void SendPacketToNetwork(quiche::QuicheStringPiece packet) override;
 
   // QbonePacketProcessor::StatsInterface implementation.
   void OnPacketForwarded(QbonePacketProcessor::Direction direction) override {}

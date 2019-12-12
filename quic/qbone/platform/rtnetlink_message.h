@@ -15,7 +15,6 @@
 #include <vector>
 
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
 
 namespace quic {
 

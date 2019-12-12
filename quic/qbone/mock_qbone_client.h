@@ -7,12 +7,14 @@
 
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/qbone/qbone_client_interface.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
 class MockQboneClient : public QboneClientInterface {
  public:
-  MOCK_METHOD1(ProcessPacketFromNetwork, void(QuicStringPiece packet));
+  MOCK_METHOD1(ProcessPacketFromNetwork,
+               void(quiche::QuicheStringPiece packet));
 };
 
 }  // namespace quic

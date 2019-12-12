@@ -16,6 +16,7 @@
 #include "net/third_party/quiche/src/quic/qbone/qbone_session_base.h"
 #include "net/third_party/quiche/src/quic/test_tools/mock_clock.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
 
 namespace quic {
@@ -84,8 +85,8 @@ class MockQuicSession : public QboneSessionBase {
     return nullptr;
   }
 
-  MOCK_METHOD1(ProcessPacketFromPeer, void(QuicStringPiece));
-  MOCK_METHOD1(ProcessPacketFromNetwork, void(QuicStringPiece));
+  MOCK_METHOD1(ProcessPacketFromPeer, void(quiche::QuicheStringPiece));
+  MOCK_METHOD1(ProcessPacketFromNetwork, void(quiche::QuicheStringPiece));
 
  private:
   // Whether data is written to write_buffer_.

@@ -9,6 +9,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/qbone/platform/internet_checksum.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_endian.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 namespace {
@@ -30,8 +31,8 @@ struct TCPv6PseudoHeader {
 }  // namespace
 
 void CreateTcpResetPacket(
-    quic::QuicStringPiece original_packet,
-    const std::function<void(quic::QuicStringPiece)>& cb) {
+    quiche::QuicheStringPiece original_packet,
+    const std::function<void(quiche::QuicheStringPiece)>& cb) {
   // By the time this method is called, original_packet should be fairly
   // strongly validated. However, it's better to be more paranoid than not, so
   // here are a bunch of very obvious checks.
@@ -120,7 +121,7 @@ void CreateTcpResetPacket(
 
   const char* packet = reinterpret_cast<char*>(&tcp_packet);
 
-  cb(QuicStringPiece(packet, sizeof(tcp_packet)));
+  cb(quiche::QuicheStringPiece(packet, sizeof(tcp_packet)));
 }
 
 }  // namespace quic

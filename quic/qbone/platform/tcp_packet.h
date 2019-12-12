@@ -11,14 +11,15 @@
 #include <functional>
 
 #include "net/third_party/quiche/src/quic/platform/api/quic_ip_address.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
 // Creates an TCPv6 RST packet, returning a packed string representation of the
 // packet to |cb|.
-void CreateTcpResetPacket(quic::QuicStringPiece original_packet,
-                          const std::function<void(quic::QuicStringPiece)>& cb);
+void CreateTcpResetPacket(
+    quiche::QuicheStringPiece original_packet,
+    const std::function<void(quiche::QuicheStringPiece)>& cb);
 
 }  // namespace quic
 

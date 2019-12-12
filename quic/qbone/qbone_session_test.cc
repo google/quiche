@@ -11,7 +11,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_port_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test_loopback.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
 #include "net/third_party/quiche/src/quic/qbone/platform/icmp_packet.h"
 #include "net/third_party/quiche/src/quic/qbone/qbone_client_session.h"
 #include "net/third_party/quiche/src/quic/qbone/qbone_constants.h"
@@ -22,6 +21,8 @@
 #include "net/third_party/quiche/src/quic/test_tools/quic_connection_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_session_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 namespace quic {
 namespace test {
@@ -54,7 +55,7 @@ class FakeProofSource : public ProofSource {
                 const string& hostname,
                 const string& server_config,
                 QuicTransportVersion transport_version,
-                QuicStringPiece chlo_hash,
+                quiche::QuicheStringPiece chlo_hash,
                 std::unique_ptr<Callback> callback) override {
     QuicReferenceCountedPointer<ProofSource::Chain> chain =
         GetCertChain(server_address, hostname);
@@ -82,7 +83,7 @@ class FakeProofSource : public ProofSource {
       const QuicSocketAddress& server_address,
       const string& hostname,
       uint16_t signature_algorithm,
-      QuicStringPiece in,
+      quiche::QuicheStringPiece in,
       std::unique_ptr<SignatureCallback> callback) override {
     callback->Run(true, "Signature");
   }
@@ -104,7 +105,7 @@ class FakeProofVerifier : public ProofVerifier {
       const uint16_t port,
       const string& server_config,
       QuicTransportVersion transport_version,
-      QuicStringPiece chlo_hash,
+      quiche::QuicheStringPiece chlo_hash,
       const std::vector<string>& certs,
       const string& cert_sct,
       const string& signature,
@@ -364,7 +365,7 @@ class QboneSessionTest : public QuicTest {
 
     string expected;
     CreateIcmpPacket(header->ip6_dst, header->ip6_src, icmp_header, packet,
-                     [&expected](QuicStringPiece icmp_packet) {
+                     [&expected](quiche::QuicheStringPiece icmp_packet) {
                        expected = string(icmp_packet);
                      });
 

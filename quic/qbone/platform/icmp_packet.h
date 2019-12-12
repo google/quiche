@@ -11,7 +11,7 @@
 #include <functional>
 
 #include "net/third_party/quiche/src/quic/platform/api/quic_ip_address.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -21,8 +21,8 @@ namespace quic {
 void CreateIcmpPacket(in6_addr src,
                       in6_addr dst,
                       const icmp6_hdr& icmp_header,
-                      quic::QuicStringPiece body,
-                      const std::function<void(quic::QuicStringPiece)>& cb);
+                      quiche::QuicheStringPiece body,
+                      const std::function<void(quiche::QuicheStringPiece)>& cb);
 
 }  // namespace quic
 

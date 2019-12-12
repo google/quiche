@@ -11,6 +11,7 @@
 #include "net/third_party/quiche/src/quic/qbone/qbone_control_stream.h"
 #include "net/third_party/quiche/src/quic/qbone/qbone_packet_writer.h"
 #include "net/third_party/quiche/src/quic/qbone/qbone_session_base.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -41,8 +42,8 @@ class QUIC_EXPORT_PRIVATE QboneClientSession
 
   bool SendServerRequest(const QboneServerRequest& request);
 
-  void ProcessPacketFromNetwork(QuicStringPiece packet) override;
-  void ProcessPacketFromPeer(QuicStringPiece packet) override;
+  void ProcessPacketFromNetwork(quiche::QuicheStringPiece packet) override;
+  void ProcessPacketFromPeer(quiche::QuicheStringPiece packet) override;
 
   // Returns true if there are active requests on this session.
   bool HasActiveRequests() const;

@@ -6,7 +6,7 @@
 
 #include <utility>
 
-#include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 
 namespace quic {
 
@@ -29,7 +29,8 @@ bool TunDevicePacketExchanger::WritePacket(const char* packet,
                                            string* error) {
   *blocked = false;
   if (fd_ < 0) {
-    *error = QuicStrCat("Invalid file descriptor of the TUN device: ", fd_);
+    *error = quiche::QuicheStrCat("Invalid file descriptor of the TUN device: ",
+                                  fd_);
     stats_->OnWriteError(error);
     return false;
   }
@@ -40,7 +41,8 @@ bool TunDevicePacketExchanger::WritePacket(const char* packet,
       // The tunnel is blocked. Note that this does not mean the receive buffer
       // of a TCP connection is filled. This simply means the TUN device itself
       // is blocked on handing packets to the rest part of the kernel.
-      *error = QuicStrCat("Write to the TUN device was blocked: ", errno);
+      *error =
+          quiche::QuicheStrCat("Write to the TUN device was blocked: ", errno);
       *blocked = true;
       stats_->OnWriteError(error);
     }
@@ -55,7 +57,8 @@ std::unique_ptr<QuicData> TunDevicePacketExchanger::ReadPacket(bool* blocked,
                                                                string* error) {
   *blocked = false;
   if (fd_ < 0) {
-    *error = QuicStrCat("Invalid file descriptor of the TUN device: ", fd_);
+    *error = quiche::QuicheStrCat("Invalid file descriptor of the TUN device: ",
+                                  fd_);
     stats_->OnReadError(error);
     return nullptr;
   }
@@ -67,7 +70,8 @@ std::unique_ptr<QuicData> TunDevicePacketExchanger::ReadPacket(bool* blocked,
   // is no end of file. Therefore 0 also indicates error.
   if (result <= 0) {
     if (errno == EAGAIN || errno == EWOULDBLOCK) {
-      *error = QuicStrCat("Read from the TUN device was blocked: ", errno);
+      *error =
+          quiche::QuicheStrCat("Read from the TUN device was blocked: ", errno);
       *blocked = true;
       stats_->OnReadError(error);
     }

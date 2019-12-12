@@ -14,6 +14,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_exported_stats.h"
 #include "net/third_party/quiche/src/quic/qbone/platform/icmp_packet.h"
 #include "net/third_party/quiche/src/quic/qbone/qbone_constants.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -79,14 +80,14 @@ void QboneSessionBase::OnStreamFrame(const QuicStreamFrame& frame) {
   if (frame.offset == 0 && frame.fin && frame.data_length > 0) {
     ++num_ephemeral_packets_;
     ProcessPacketFromPeer(
-        QuicStringPiece(frame.data_buffer, frame.data_length));
+        quiche::QuicheStringPiece(frame.data_buffer, frame.data_length));
     flow_controller()->AddBytesConsumed(frame.data_length);
     return;
   }
   QuicSession::OnStreamFrame(frame);
 }
 
-void QboneSessionBase::OnMessageReceived(QuicStringPiece message) {
+void QboneSessionBase::OnMessageReceived(quiche::QuicheStringPiece message) {
   ++num_message_packets_;
   ProcessPacketFromPeer(message);
 }
@@ -131,7 +132,7 @@ QuicStream* QboneSessionBase::ActivateDataStream(
   return raw;
 }
 
-void QboneSessionBase::SendPacketToPeer(QuicStringPiece packet) {
+void QboneSessionBase::SendPacketToPeer(quiche::QuicheStringPiece packet) {
   if (crypto_stream_ == nullptr) {
     QUIC_BUG << "Attempting to send packet before encryption established";
     return;
@@ -156,7 +157,7 @@ void QboneSessionBase::SendPacketToPeer(QuicStringPiece packet) {
             connection()->GetGuaranteedLargestMessagePayload();
 
         CreateIcmpPacket(header->ip6_dst, header->ip6_src, icmp_header, packet,
-                         [this](QuicStringPiece icmp_packet) {
+                         [this](quiche::QuicheStringPiece icmp_packet) {
                            writer_->WritePacketToNetwork(icmp_packet.data(),
                                                          icmp_packet.size());
                          });

@@ -27,8 +27,8 @@ class MockQboneServerSession : public QboneServerSession {
 
   MOCK_METHOD1(SendClientRequest, bool(const QboneClientRequest&));
 
-  MOCK_METHOD1(ProcessPacketFromNetwork, void(QuicStringPiece));
-  MOCK_METHOD1(ProcessPacketFromPeer, void(QuicStringPiece));
+  MOCK_METHOD1(ProcessPacketFromNetwork, void(quiche::QuicheStringPiece));
+  MOCK_METHOD1(ProcessPacketFromPeer, void(quiche::QuicheStringPiece));
 };
 
 }  // namespace quic

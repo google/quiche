@@ -13,6 +13,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/qbone/qbone_packet_writer.h"
 #include "net/third_party/quiche/src/quic/qbone/qbone_stream.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -36,10 +37,10 @@ class QUIC_EXPORT_PRIVATE QboneSessionBase : public QuicSession {
   // This will check if the packet is wholly contained.
   void OnStreamFrame(const QuicStreamFrame& frame) override;
   // Called whenever a MESSAGE frame is received.
-  void OnMessageReceived(QuicStringPiece message) override;
+  void OnMessageReceived(quiche::QuicheStringPiece message) override;
 
-  virtual void ProcessPacketFromNetwork(QuicStringPiece packet) = 0;
-  virtual void ProcessPacketFromPeer(QuicStringPiece packet) = 0;
+  virtual void ProcessPacketFromNetwork(quiche::QuicheStringPiece packet) = 0;
+  virtual void ProcessPacketFromPeer(quiche::QuicheStringPiece packet) = 0;
 
   // Returns the number of qbone network packets that were received
   // that fit into a single QuicStreamFrame and elided the creation of
@@ -88,7 +89,7 @@ class QUIC_EXPORT_PRIVATE QboneSessionBase : public QuicSession {
   // packet. This function will return true if a stream was created
   // and the packet sent. It will return false if the stream could not
   // be created.
-  void SendPacketToPeer(QuicStringPiece packet);
+  void SendPacketToPeer(quiche::QuicheStringPiece packet);
 
   QbonePacketWriter* writer_;
 

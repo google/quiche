@@ -10,6 +10,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/qbone/qbone_constants.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -71,23 +72,25 @@ bool QboneServerSession::SendClientRequest(const QboneClientRequest& request) {
   return control_stream_->SendRequest(request);
 }
 
-void QboneServerSession::ProcessPacketFromNetwork(QuicStringPiece packet) {
+void QboneServerSession::ProcessPacketFromNetwork(
+    quiche::QuicheStringPiece packet) {
   string buffer = string(packet);
   processor_.ProcessPacket(&buffer,
                            QbonePacketProcessor::Direction::FROM_NETWORK);
 }
 
-void QboneServerSession::ProcessPacketFromPeer(QuicStringPiece packet) {
+void QboneServerSession::ProcessPacketFromPeer(
+    quiche::QuicheStringPiece packet) {
   string buffer = string(packet);
   processor_.ProcessPacket(&buffer,
                            QbonePacketProcessor::Direction::FROM_OFF_NETWORK);
 }
 
-void QboneServerSession::SendPacketToClient(QuicStringPiece packet) {
+void QboneServerSession::SendPacketToClient(quiche::QuicheStringPiece packet) {
   SendPacketToPeer(packet);
 }
 
-void QboneServerSession::SendPacketToNetwork(QuicStringPiece packet) {
+void QboneServerSession::SendPacketToNetwork(quiche::QuicheStringPiece packet) {
   DCHECK(writer_ != nullptr);
   writer_->WritePacketToNetwork(packet.data(), packet.size());
 }

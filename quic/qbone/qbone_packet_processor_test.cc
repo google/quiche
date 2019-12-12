@@ -8,6 +8,7 @@
 
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/qbone/qbone_packet_processor_test_tools.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 namespace {
@@ -100,15 +101,15 @@ static const char kReferenceClientSubnetPacketData[] = {
 
 // clang-format on
 
-static const QuicStringPiece kReferenceClientPacket(
+static const quiche::QuicheStringPiece kReferenceClientPacket(
     kReferenceClientPacketData,
     arraysize(kReferenceClientPacketData));
 
-static const QuicStringPiece kReferenceNetworkPacket(
+static const quiche::QuicheStringPiece kReferenceNetworkPacket(
     kReferenceNetworkPacketData,
     arraysize(kReferenceNetworkPacketData));
 
-static const QuicStringPiece kReferenceClientSubnetPacket(
+static const quiche::QuicheStringPiece kReferenceClientSubnetPacket(
     kReferenceClientSubnetPacketData,
     arraysize(kReferenceClientSubnetPacketData));
 
@@ -126,8 +127,8 @@ class MockPacketFilter : public QbonePacketProcessor::Filter {
  public:
   MOCK_METHOD5(FilterPacket,
                ProcessingResult(Direction,
-                                QuicStringPiece,
-                                QuicStringPiece,
+                                quiche::QuicheStringPiece,
+                                quiche::QuicheStringPiece,
                                 icmp6_hdr*,
                                 OutputInterface*));
 };
@@ -144,12 +145,12 @@ class QbonePacketProcessorTest : public QuicTest {
         &stats_);
   }
 
-  void SendPacketFromClient(QuicStringPiece packet) {
+  void SendPacketFromClient(quiche::QuicheStringPiece packet) {
     string packet_buffer(packet.data(), packet.size());
     processor_->ProcessPacket(&packet_buffer, Direction::FROM_OFF_NETWORK);
   }
 
-  void SendPacketFromNetwork(QuicStringPiece packet) {
+  void SendPacketFromNetwork(quiche::QuicheStringPiece packet) {
     string packet_buffer(packet.data(), packet.size());
     processor_->ProcessPacket(&packet_buffer, Direction::FROM_NETWORK);
   }
@@ -246,8 +247,8 @@ class TestFilter : public QbonePacketProcessor::Filter {
   TestFilter(QuicIpAddress client_ip, QuicIpAddress network_ip)
       : client_ip_(client_ip), network_ip_(network_ip) {}
   ProcessingResult FilterPacket(Direction direction,
-                                QuicStringPiece full_packet,
-                                QuicStringPiece payload,
+                                quiche::QuicheStringPiece full_packet,
+                                quiche::QuicheStringPiece payload,
                                 icmp6_hdr* icmp_header,
                                 OutputInterface* output) override {
     EXPECT_EQ(kIPv6HeaderSize, full_packet.size() - payload.size());

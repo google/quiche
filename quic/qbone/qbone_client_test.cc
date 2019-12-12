@@ -26,6 +26,7 @@
 #include "net/third_party/quiche/src/quic/test_tools/server_thread.h"
 #include "net/third_party/quiche/src/quic/tools/quic_memory_cache_backend.h"
 #include "net/third_party/quiche/src/quic/tools/quic_server.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 namespace test {
@@ -108,7 +109,7 @@ class QuicQboneDispatcher : public QuicDispatcher {
   QuicSession* CreateQuicSession(
       QuicConnectionId id,
       const QuicSocketAddress& client,
-      QuicStringPiece alpn,
+      quiche::QuicheStringPiece alpn,
       const quic::ParsedQuicVersion& version) override {
     CHECK_EQ(alpn, "qbone");
     QuicConnection* connection =
