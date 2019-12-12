@@ -103,12 +103,12 @@ void QuicMemoryCacheBackend::ResourceFile::SetHostPathFromBase(
     QuicStringPiece base) {
   size_t path_start = base.find_first_of('/');
   DCHECK_LT(0UL, path_start);
-  host_ = base.substr(0, path_start);
+  host_ = base.substr(0, path_start).as_string();
   size_t query_start = base.find_first_of(',');
   if (query_start > 0) {
-    path_ = base.substr(path_start, query_start - 1);
+    path_ = base.substr(path_start, query_start - 1).as_string();
   } else {
-    path_ = base.substr(path_start);
+    path_ = base.substr(path_start).as_string();
   }
 }
 

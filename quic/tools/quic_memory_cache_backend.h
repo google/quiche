@@ -54,7 +54,7 @@ class QuicMemoryCacheBackend : public QuicSimpleServerBackend {
 
     const std::vector<QuicStringPiece>& push_urls() { return push_urls_; }
 
-   protected:
+   private:
     void HandleXOriginalUrl();
     QuicStringPiece RemoveScheme(QuicStringPiece url);
 
@@ -64,10 +64,8 @@ class QuicMemoryCacheBackend : public QuicSimpleServerBackend {
     spdy::SpdyHeaderBlock spdy_headers_;
     QuicStringPiece x_original_url_;
     std::vector<QuicStringPiece> push_urls_;
-
-   private:
-    QuicStringPiece host_;
-    QuicStringPiece path_;
+    std::string host_;
+    std::string path_;
   };
 
   QuicMemoryCacheBackend();
