@@ -789,6 +789,33 @@ TEST_F(QuicSentPacketManagerTest, RttWithInfiniteDelta) {
   EXPECT_EQ(expected_rtt, manager_.GetRttStats()->latest_rtt());
 }
 
+TEST_F(QuicSentPacketManagerTest, RttWithDeltaExceedingLimit) {
+  // Initialize min and smoothed rtt to 10ms.
+  RttStats* rtt_stats = const_cast<RttStats*>(manager_.GetRttStats());
+  rtt_stats->UpdateRtt(QuicTime::Delta::FromMilliseconds(10),
+                       QuicTime::Delta::Zero(), QuicTime::Zero());
+
+  QuicTime::Delta send_delta = QuicTime::Delta::FromMilliseconds(100);
+  QuicTime::Delta ack_delay =
+      QuicTime::Delta::FromMilliseconds(5) + manager_.peer_max_ack_delay();
+  ASSERT_GT(send_delta - rtt_stats->min_rtt(), ack_delay);
+  SendDataPacket(1);
+  clock_.AdvanceTime(send_delta);
+
+  ExpectAck(1);
+  manager_.OnAckFrameStart(QuicPacketNumber(1), ack_delay, clock_.Now());
+  manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(2));
+  EXPECT_EQ(PACKETS_NEWLY_ACKED,
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
+                                   ENCRYPTION_FORWARD_SECURE));
+
+  QuicTime::Delta expected_rtt_sample =
+      GetQuicReloadableFlag(quic_sanitize_ack_delay)
+          ? send_delta - manager_.peer_max_ack_delay()
+          : send_delta - ack_delay;
+  EXPECT_EQ(expected_rtt_sample, manager_.GetRttStats()->latest_rtt());
+}
+
 TEST_F(QuicSentPacketManagerTest, RttZeroDelta) {
   // Expect that the RTT is the time between send and receive since the
   // ack_delay_time is zero.
@@ -1610,7 +1637,7 @@ TEST_F(QuicSentPacketManagerTest, GetTransmissionTimeSpuriousRTO) {
   // original value and OnRetransmissionTimeout is not called or reverted.
   uint64_t acked[] = {1, 2};
   ExpectAcksAndLosses(true, acked, QUIC_ARRAYSIZE(acked), nullptr, 0);
-  manager_.OnAckFrameStart(QuicPacketNumber(2), QuicTime::Delta::Infinite(),
+  manager_.OnAckFrameStart(QuicPacketNumber(2), QuicTime::Delta::Zero(),
                            clock_.Now());
   manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(3));
   EXPECT_EQ(PACKETS_NEWLY_ACKED,

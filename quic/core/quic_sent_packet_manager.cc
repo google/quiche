@@ -106,7 +106,8 @@ QuicSentPacketManager::QuicSentPacketManager(
       pto_exponential_backoff_start_point_(0),
       pto_rttvar_multiplier_(4),
       neuter_handshake_packets_once_(
-          GetQuicReloadableFlag(quic_neuter_handshake_packets_once2)) {
+          GetQuicReloadableFlag(quic_neuter_handshake_packets_once2)),
+      sanitize_ack_delay_(GetQuicReloadableFlag(quic_sanitize_ack_delay)) {
   SetSendAlgorithm(congestion_control_type);
 }
 
@@ -1132,6 +1133,10 @@ void QuicSentPacketManager::OnAckFrameStart(QuicPacketNumber largest_acked,
                                             QuicTime ack_receive_time) {
   DCHECK(packets_acked_.empty());
   DCHECK_LE(largest_acked, unacked_packets_.largest_sent_packet());
+  if (sanitize_ack_delay_ && ack_delay_time > peer_max_ack_delay()) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_sanitize_ack_delay);
+    ack_delay_time = peer_max_ack_delay();
+  }
   rtt_updated_ =
       MaybeUpdateRTT(largest_acked, ack_delay_time, ack_receive_time);
   last_ack_frame_.ack_delay_time = ack_delay_time;

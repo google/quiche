@@ -654,6 +654,9 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
 
   // Latched value of quic_neuter_handshake_packets_once2.
   const bool neuter_handshake_packets_once_;
+
+  // Latched value of quic_sanitize_ack_delay.
+  const bool sanitize_ack_delay_;
 };
 
 }  // namespace quic
