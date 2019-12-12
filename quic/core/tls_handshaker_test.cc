@@ -17,6 +17,7 @@
 #include "net/third_party/quiche/src/quic/test_tools/fake_proof_source.h"
 #include "net/third_party/quiche/src/quic/test_tools/mock_quic_session_visitor.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
+#include "net/third_party/quiche/src/quic/tools/fake_proof_verifier.h"
 
 namespace quic {
 namespace test {
@@ -26,9 +27,9 @@ using ::testing::_;
 using ::testing::ElementsAreArray;
 using ::testing::Return;
 
-class FakeProofVerifier : public ProofVerifier {
+class TestProofVerifier : public ProofVerifier {
  public:
-  FakeProofVerifier()
+  TestProofVerifier()
       : verifier_(crypto_test_utils::ProofVerifierForTesting()) {}
 
   QuicAsyncStatus VerifyProof(
@@ -118,7 +119,7 @@ class FakeProofVerifier : public ProofVerifier {
           delegate_(delegate) {}
 
     void Run() {
-      // FakeProofVerifier depends on crypto_test_utils::ProofVerifierForTesting
+      // TestProofVerifier depends on crypto_test_utils::ProofVerifierForTesting
       // running synchronously. It passes a FailingProofVerifierCallback and
       // runs the original callback after asserting that the verification ran
       // synchronously.
@@ -224,11 +225,18 @@ class MockProofHandler : public QuicCryptoClientStream::ProofHandler {
 class TestQuicCryptoClientStream : public TestQuicCryptoStream {
  public:
   explicit TestQuicCryptoClientStream(QuicSession* session)
+      : TestQuicCryptoClientStream(session,
+                                   QuicServerId("test.example.com", 443),
+                                   std::make_unique<TestProofVerifier>()) {}
+
+  TestQuicCryptoClientStream(QuicSession* session,
+                             const QuicServerId& server_id,
+                             std::unique_ptr<ProofVerifier> proof_verifier)
       : TestQuicCryptoStream(session),
-        crypto_config_(std::make_unique<FakeProofVerifier>(),
+        crypto_config_(std::move(proof_verifier),
                        /*session_cache*/ nullptr),
         handshaker_(new TlsClientHandshaker(
-            QuicServerId("test.example.com", 443, false),
+            server_id,
             this,
             session,
             crypto_test_utils::ProofVerifyContextForTesting(),
@@ -243,8 +251,8 @@ class TestQuicCryptoClientStream : public TestQuicCryptoStream {
 
   bool CryptoConnect() { return handshaker_->CryptoConnect(); }
 
-  FakeProofVerifier* GetFakeProofVerifier() const {
-    return static_cast<FakeProofVerifier*>(crypto_config_.proof_verifier());
+  TestProofVerifier* GetTestProofVerifier() const {
+    return static_cast<TestProofVerifier*>(crypto_config_.proof_verifier());
   }
 
  private:
@@ -425,9 +433,9 @@ TEST_F(TlsHandshakerTest, CancelPendingProofSource) {
 TEST_F(TlsHandshakerTest, HandshakeWithAsyncProofVerifier) {
   EXPECT_CALL(*client_conn_, CloseConnection(_, _, _)).Times(0);
   EXPECT_CALL(*server_conn_, CloseConnection(_, _, _)).Times(0);
-  // Enable FakeProofVerifier to capture call to VerifyCertChain and run it
+  // Enable TestProofVerifier to capture call to VerifyCertChain and run it
   // asynchronously.
-  FakeProofVerifier* proof_verifier = client_stream_->GetFakeProofVerifier();
+  TestProofVerifier* proof_verifier = client_stream_->GetTestProofVerifier();
   proof_verifier->Activate();
 
   EXPECT_CALL(client_stream_->proof_handler(), OnProofVerifyDetailsAvailable);
@@ -442,6 +450,34 @@ TEST_F(TlsHandshakerTest, HandshakeWithAsyncProofVerifier) {
   ExchangeHandshakeMessages(client_stream_, server_stream_);
 
   ExpectHandshakeSuccessful();
+}
+
+TEST_F(TlsHandshakerTest, ClientSendsNoSNI) {
+  // Create a new client stream (and handshaker) with an empty server hostname.
+  client_stream_ =
+      new TestQuicCryptoClientStream(&client_session_, QuicServerId("", 443),
+                                     std::make_unique<FakeProofVerifier>());
+  client_session_.SetCryptoStream(client_stream_);
+
+  EXPECT_CALL(*client_conn_, CloseConnection(_, _, _)).Times(0);
+  EXPECT_CALL(*server_conn_, CloseConnection(_, _, _)).Times(0);
+  EXPECT_CALL(client_stream_->proof_handler(), OnProofVerifyDetailsAvailable);
+  client_stream_->CryptoConnect();
+  ExchangeHandshakeMessages(client_stream_, server_stream_);
+
+  ExpectHandshakeSuccessful();
+  EXPECT_EQ(server_stream_->crypto_negotiated_params().sni, "");
+}
+
+TEST_F(TlsHandshakerTest, ServerExtractSNI) {
+  EXPECT_CALL(*client_conn_, CloseConnection(_, _, _)).Times(0);
+  EXPECT_CALL(*server_conn_, CloseConnection(_, _, _)).Times(0);
+  EXPECT_CALL(client_stream_->proof_handler(), OnProofVerifyDetailsAvailable);
+  client_stream_->CryptoConnect();
+  ExchangeHandshakeMessages(client_stream_, server_stream_);
+  ExpectHandshakeSuccessful();
+
+  EXPECT_EQ(server_stream_->crypto_negotiated_params().sni, "test.example.com");
 }
 
 TEST_F(TlsHandshakerTest, ClientConnectionClosedOnTlsError) {

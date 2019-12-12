@@ -68,9 +68,10 @@ TlsClientHandshaker::~TlsClientHandshaker() {
 bool TlsClientHandshaker::CryptoConnect() {
   state_ = STATE_HANDSHAKE_RUNNING;
 
-  // Configure the SSL to be a client.
+  // Set the SNI to send, if any.
   SSL_set_connect_state(ssl());
-  if (SSL_set_tlsext_host_name(ssl(), server_id_.host().c_str()) != 1) {
+  if (!server_id_.host().empty() &&
+      SSL_set_tlsext_host_name(ssl(), server_id_.host().c_str()) != 1) {
     return false;
   }
 
