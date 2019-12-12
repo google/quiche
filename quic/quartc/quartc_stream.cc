@@ -14,7 +14,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_stream_sequencer_buffer.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_reference_counted.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -157,7 +157,7 @@ QuicStreamOffset QuartcStream::ReadOffset() {
 }
 
 void QuartcStream::FinishWriting() {
-  WriteOrBufferData(QuicStringPiece(nullptr, 0), true, nullptr);
+  WriteOrBufferData(quiche::QuicheStringPiece(nullptr, 0), true, nullptr);
 }
 
 void QuartcStream::SetDelegate(Delegate* delegate) {

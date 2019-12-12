@@ -7,7 +7,7 @@
 #include <utility>
 
 #include "net/third_party/quiche/src/quic/platform/api/quic_mem_slice_storage.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 namespace test {
@@ -100,7 +100,7 @@ void QuartcPeer::OnConnectionClosed(const QuicConnectionCloseFrame& frame,
   SetEnabled(false);
 }
 
-void QuartcPeer::OnMessageReceived(QuicStringPiece message) {
+void QuartcPeer::OnMessageReceived(quiche::QuicheStringPiece message) {
   ReceivedMessage received;
   received.receive_time = clock_->Now();
 

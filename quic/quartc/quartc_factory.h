@@ -10,6 +10,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_simple_buffer_allocator.h"
 #include "net/third_party/quiche/src/quic/quartc/quartc_packet_writer.h"
 #include "net/third_party/quiche/src/quic/quartc/quartc_session.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -43,7 +44,7 @@ std::unique_ptr<QuartcSession> CreateQuartcClientSession(
     QuicAlarmFactory* alarm_factory,
     QuicConnectionHelperInterface* connection_helper,
     const ParsedQuicVersionVector& supported_versions,
-    QuicStringPiece server_crypto_config,
+    quiche::QuicheStringPiece server_crypto_config,
     QuartcPacketTransport* packet_transport);
 
 // Configures global settings, such as supported quic versions.

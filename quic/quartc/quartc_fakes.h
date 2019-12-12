@@ -13,6 +13,7 @@
 #include "net/third_party/quiche/src/quic/quartc/quartc_endpoint.h"
 #include "net/third_party/quiche/src/quic/quartc/quartc_session.h"
 #include "net/third_party/quiche/src/quic/quartc/quartc_stream.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -54,7 +55,7 @@ class FakeQuartcEndpointDelegate : public QuartcEndpoint::Delegate {
     last_incoming_stream_->SetDelegate(stream_delegate_);
   }
 
-  void OnMessageReceived(QuicStringPiece message) override {
+  void OnMessageReceived(quiche::QuicheStringPiece message) override {
     incoming_messages_.emplace_back(message);
   }
 

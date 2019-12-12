@@ -23,6 +23,8 @@
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/simulator/packet_filter.h"
 #include "net/third_party/quiche/src/quic/test_tools/simulator/simulator.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -41,7 +43,8 @@ constexpr QuicTime::Delta kPropagationDelayAndABit =
 
 static QuicByteCount kDefaultMaxPacketSize = 1200;
 
-test::QuicTestMemSliceVector CreateMemSliceVector(QuicStringPiece data) {
+test::QuicTestMemSliceVector CreateMemSliceVector(
+    quiche::QuicheStringPiece data) {
   return test::QuicTestMemSliceVector(
       {std::pair<char*, size_t>(const_cast<char*>(data.data()), data.size())});
 }
@@ -248,8 +251,8 @@ class QuartcSessionTest : public QuicTest {
     std::vector<int64_t> sent_datagram_ids;
     int64_t current_datagram_id = 0;
     while (peer_sending->send_message_queue_size() < queue_size) {
-      sent_messages.push_back(
-          QuicStrCat("Sending message, index=", sent_messages.size()));
+      sent_messages.push_back(quiche::QuicheStrCat("Sending message, index=",
+                                                   sent_messages.size()));
       ASSERT_TRUE(peer_sending->SendOrQueueMessage(
           CreateMemSliceVector(sent_messages.back()).span(),
           current_datagram_id));

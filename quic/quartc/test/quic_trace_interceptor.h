@@ -10,10 +10,10 @@
 #include "net/third_party/quiche/src/quic/core/quic_connection.h"
 #include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
 #include "net/third_party/quiche/src/quic/core/quic_trace_visitor.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 #include "net/third_party/quiche/src/quic/quartc/quartc_endpoint.h"
 #include "net/third_party/quiche/src/quic/quartc/quartc_session.h"
 #include "net/third_party/quiche/src/quic/quartc/test/bidi_test_runner.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 namespace test {
@@ -23,7 +23,7 @@ class QuicTraceInterceptor : public QuartcEndpointInterceptor {
   // Creates a trace visitor that records its output using the given identifier.
   // |identifier| is combined with the test name and timestamp to form a
   // filename for the trace.
-  explicit QuicTraceInterceptor(QuicStringPiece identifier);
+  explicit QuicTraceInterceptor(quiche::QuicheStringPiece identifier);
   ~QuicTraceInterceptor() override;
 
   // QuartcEndpointIntercept overrides.
@@ -36,7 +36,7 @@ class QuicTraceInterceptor : public QuartcEndpointInterceptor {
                                  QuicTime::Delta latest_rtt) override;
   void OnConnectionClosed(const QuicConnectionCloseFrame& frame,
                           ConnectionCloseSource source) override;
-  void OnMessageReceived(QuicStringPiece message) override;
+  void OnMessageReceived(quiche::QuicheStringPiece message) override;
   void OnMessageSent(int64_t datagram_id) override;
   void OnMessageAcked(int64_t datagram_id, QuicTime receive_timestamp) override;
   void OnMessageLost(int64_t datagram_id) override;

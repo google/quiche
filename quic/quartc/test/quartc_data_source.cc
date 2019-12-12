@@ -6,6 +6,7 @@
 
 #include "net/third_party/quiche/src/quic/core/quic_data_reader.h"
 #include "net/third_party/quiche/src/quic/core/quic_data_writer.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 namespace test {
@@ -24,7 +25,7 @@ class SendAlarmDelegate : public QuicAlarm::Delegate {
 
 }  // namespace
 
-bool ParsedQuartcDataFrame::Parse(QuicStringPiece data,
+bool ParsedQuartcDataFrame::Parse(quiche::QuicheStringPiece data,
                                   ParsedQuartcDataFrame* out) {
   QuicDataReader reader(data.data(), data.size());
 
@@ -42,7 +43,7 @@ bool ParsedQuartcDataFrame::Parse(QuicStringPiece data,
   if (!reader.ReadUInt64(&time_bits)) {
     return false;
   }
-  QuicStringPiece payload = reader.ReadRemainingPayload();
+  quiche::QuicheStringPiece payload = reader.ReadRemainingPayload();
 
   out->source_id = source_id;
   out->sequence_number = sequence_number;

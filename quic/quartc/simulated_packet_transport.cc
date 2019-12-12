@@ -6,7 +6,7 @@
 
 #include <utility>
 
-#include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 
 namespace quic {
 namespace simulator {
@@ -19,7 +19,7 @@ SimulatedQuartcPacketTransport::SimulatedQuartcPacketTransport(
     : Endpoint(simulator, name),
       peer_name_(peer_name),
       egress_queue_(simulator,
-                    QuicStringPrintf("%s (TX Queue)", name.c_str()),
+                    quiche::QuicheStringPrintf("%s (TX Queue)", name.c_str()),
                     queue_capacity) {
   egress_queue_.set_listener_interface(this);
 }

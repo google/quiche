@@ -11,10 +11,10 @@
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_mem_slice_span.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 #include "net/third_party/quiche/src/quic/quartc/quartc_endpoint.h"
 #include "net/third_party/quiche/src/quic/quartc/quartc_session.h"
 #include "net/third_party/quiche/src/quic/quartc/quartc_stream.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -104,7 +104,7 @@ class QuartcReceiveChannel {
 
   // Called when a message is recieved by this channel.
   virtual void OnMessageReceived(uint64_t channel_id,
-                                 QuicStringPiece message) = 0;
+                                 quiche::QuicheStringPiece message) = 0;
 };
 
 // Delegate for session-wide events.
@@ -159,7 +159,7 @@ class QuartcMultiplexer : public QuartcEndpoint::Delegate,
                                  QuicTime::Delta latest_rtt) override;
   void OnConnectionClosed(const QuicConnectionCloseFrame& frame,
                           ConnectionCloseSource source) override;
-  void OnMessageReceived(QuicStringPiece message) override;
+  void OnMessageReceived(quiche::QuicheStringPiece message) override;
   void OnMessageSent(int64_t datagram_id) override;
   void OnMessageAcked(int64_t datagram_id, QuicTime receive_timestamp) override;
   void OnMessageLost(int64_t datagram_id) override;

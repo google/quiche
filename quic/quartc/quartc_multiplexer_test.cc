@@ -14,7 +14,6 @@
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test_mem_slice_vector.h"
 #include "net/third_party/quiche/src/quic/quartc/counting_packet_filter.h"
@@ -26,6 +25,8 @@
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/simulator/link.h"
 #include "net/third_party/quiche/src/quic/test_tools/simulator/simulator.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 namespace {
@@ -126,7 +127,7 @@ class FakeReceiveDelegate : public QuartcReceiveChannel,
   }
 
   void OnMessageReceived(uint64_t channel_id,
-                         QuicStringPiece message) override {
+                         quiche::QuicheStringPiece message) override {
     messages_received_.emplace_back(channel_id, message);
   }
 
@@ -267,7 +268,7 @@ TEST_F(QuartcMultiplexerTest, MultiplexMessages) {
   std::vector<testing::Matcher<std::pair<int64_t, QuicTime>>> ack_matchers_1;
   std::vector<testing::Matcher<std::pair<int64_t, QuicTime>>> ack_matchers_2;
   for (int i = 0; i < num_messages; ++i) {
-    messages_1.emplace_back(1, QuicStrCat("message for 1: ", i));
+    messages_1.emplace_back(1, quiche::QuicheStrCat("message for 1: ", i));
     test::QuicTestMemSliceVector slice_1(
         {std::make_pair(const_cast<char*>(messages_1.back().second.data()),
                         messages_1.back().second.size())});
@@ -275,7 +276,7 @@ TEST_F(QuartcMultiplexerTest, MultiplexMessages) {
     messages_sent_1.push_back(i);
     ack_matchers_1.push_back(Pair(i, Gt(QuicTime::Zero())));
 
-    messages_2.emplace_back(2, QuicStrCat("message for 2: ", i));
+    messages_2.emplace_back(2, quiche::QuicheStrCat("message for 2: ", i));
     test::QuicTestMemSliceVector slice_2(
         {std::make_pair(const_cast<char*>(messages_2.back().second.data()),
                         messages_2.back().second.size())});
@@ -324,7 +325,7 @@ TEST_F(QuartcMultiplexerTest, MultiplexStreams) {
   std::vector<std::pair<uint64_t, std::string>> messages_2;
   messages_2.reserve(num_messages);
   for (int i = 0; i < num_messages; ++i) {
-    messages_1.emplace_back(1, QuicStrCat("message for 1: ", i));
+    messages_1.emplace_back(1, quiche::QuicheStrCat("message for 1: ", i));
     test::QuicTestMemSliceVector slice_1(
         {std::make_pair(const_cast<char*>(messages_1.back().second.data()),
                         messages_1.back().second.size())});
@@ -333,7 +334,7 @@ TEST_F(QuartcMultiplexerTest, MultiplexStreams) {
     stream_1->SetDelegate(&fake_send_stream_delegate);
     stream_1->WriteMemSlices(slice_1.span(), /*fin=*/true);
 
-    messages_2.emplace_back(2, QuicStrCat("message for 2: ", i));
+    messages_2.emplace_back(2, quiche::QuicheStrCat("message for 2: ", i));
     test::QuicTestMemSliceVector slice_2(
         {std::make_pair(const_cast<char*>(messages_2.back().second.data()),
                         messages_2.back().second.size())});
@@ -386,14 +387,14 @@ TEST_F(QuartcMultiplexerTest, MultiplexLostDatagrams) {
   std::vector<int64_t> messages_sent_1;
   std::vector<int64_t> messages_sent_2;
   for (int i = 0; i < num_messages; ++i) {
-    messages_1.emplace_back(1, QuicStrCat("message for 1: ", i));
+    messages_1.emplace_back(1, quiche::QuicheStrCat("message for 1: ", i));
     test::QuicTestMemSliceVector slice_1(
         {std::make_pair(const_cast<char*>(messages_1.back().second.data()),
                         messages_1.back().second.size())});
     send_channel_1->SendOrQueueMessage(slice_1.span(), i);
     messages_sent_1.push_back(i);
 
-    messages_2.emplace_back(2, QuicStrCat("message for 2: ", i));
+    messages_2.emplace_back(2, quiche::QuicheStrCat("message for 2: ", i));
     test::QuicTestMemSliceVector slice_2(
         {std::make_pair(const_cast<char*>(messages_2.back().second.data()),
                         messages_2.back().second.size())});
@@ -406,7 +407,8 @@ TEST_F(QuartcMultiplexerTest, MultiplexLostDatagrams) {
   // Now send something retransmittable to prompt loss detection.
   // If we never send anything retransmittable, we will never get acks, and
   // never detect losses.
-  messages_1.emplace_back(1, QuicStrCat("message for 1: ", num_messages));
+  messages_1.emplace_back(
+      1, quiche::QuicheStrCat("message for 1: ", num_messages));
   test::QuicTestMemSliceVector slice(
       {std::make_pair(const_cast<char*>(messages_1.back().second.data()),
                       messages_1.back().second.size())});
@@ -449,7 +451,7 @@ TEST_F(QuartcMultiplexerTest, UnregisterReceiveChannel) {
   std::vector<int64_t> messages_sent;
   std::vector<testing::Matcher<std::pair<int64_t, QuicTime>>> ack_matchers;
   for (int i = 0; i < num_messages; ++i) {
-    messages.emplace_back(1, QuicStrCat("message for 1: ", i));
+    messages.emplace_back(1, quiche::QuicheStrCat("message for 1: ", i));
     test::QuicTestMemSliceVector slice(
         {std::make_pair(const_cast<char*>(messages.back().second.data()),
                         messages.back().second.size())});

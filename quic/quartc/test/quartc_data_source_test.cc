@@ -9,6 +9,7 @@
 
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/simulator/simulator.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 namespace test {
@@ -26,7 +27,7 @@ class FakeDelegate : public QuartcDataSource::Delegate {
 
 void FakeDelegate::OnDataProduced(const char* data, size_t length) {
   ParsedQuartcDataFrame frame;
-  QuicStringPiece message(data, length);
+  quiche::QuicheStringPiece message(data, length);
   if (ParsedQuartcDataFrame::Parse(message, &frame)) {
     frames_.push_back(frame);
   } else {

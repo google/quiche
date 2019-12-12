@@ -10,11 +10,11 @@
 #include "net/third_party/quiche/src/quic/core/quic_alarm_factory.h"
 #include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_clock.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 #include "net/third_party/quiche/src/quic/quartc/quartc_connection_helper.h"
 #include "net/third_party/quiche/src/quic/quartc/quartc_crypto_helpers.h"
 #include "net/third_party/quiche/src/quic/quartc/quartc_dispatcher.h"
 #include "net/third_party/quiche/src/quic/quartc/quartc_factory.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -62,7 +62,7 @@ class QuartcClientEndpoint : public QuartcEndpoint,
       QuicRandom* random,
       QuartcEndpoint::Delegate* delegate,
       const QuartcSessionConfig& config,
-      QuicStringPiece serialized_server_config,
+      quiche::QuicheStringPiece serialized_server_config,
       std::unique_ptr<QuicVersionManager> version_manager = nullptr);
 
   void Connect(QuartcPacketTransport* packet_transport) override;
@@ -76,7 +76,7 @@ class QuartcClientEndpoint : public QuartcEndpoint,
                                  QuicTime::Delta latest_rtt) override;
   void OnConnectionClosed(const QuicConnectionCloseFrame& frame,
                           ConnectionCloseSource source) override;
-  void OnMessageReceived(QuicStringPiece message) override;
+  void OnMessageReceived(quiche::QuicheStringPiece message) override;
   void OnMessageSent(int64_t datagram_id) override;
   void OnMessageAcked(int64_t datagram_id, QuicTime receive_timestamp) override;
   void OnMessageLost(int64_t datagram_id) override;
@@ -164,7 +164,7 @@ class QuartcServerEndpoint : public QuartcEndpoint,
 
   // Accessor to retrieve the server crypto config.  May only be called after
   // Connect().
-  QuicStringPiece server_crypto_config() const {
+  quiche::QuicheStringPiece server_crypto_config() const {
     return crypto_config_.serialized_crypto_config;
   }
 

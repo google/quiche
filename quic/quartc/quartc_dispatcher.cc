@@ -7,6 +7,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/quartc/quartc_factory.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -52,7 +53,7 @@ QuartcDispatcher::~QuartcDispatcher() {
 QuartcSession* QuartcDispatcher::CreateQuicSession(
     QuicConnectionId connection_id,
     const QuicSocketAddress& client_address,
-    QuicStringPiece /*alpn*/,
+    quiche::QuicheStringPiece /*alpn*/,
     const ParsedQuicVersion& version) {
   // Make our expected connection ID non-mutable since we have a connection.
   SetShouldUpdateExpectedServerConnectionIdLength(false);

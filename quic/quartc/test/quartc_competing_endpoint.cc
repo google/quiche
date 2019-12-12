@@ -6,7 +6,7 @@
 
 #include <utility>
 
-#include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 
 namespace quic {
 namespace test {
@@ -19,7 +19,7 @@ QuartcCompetingEndpoint::QuartcCompetingEndpoint(
     const std::string& peer_name,
     Perspective perspective,
     QuicConnectionId connection_id)
-    : Actor(simulator, QuicStrCat(name, " actor")),
+    : Actor(simulator, quiche::QuicheStrCat(name, " actor")),
       send_interval_(send_interval),
       bytes_per_interval_(bytes_per_interval),
       endpoint_(std::make_unique<simulator::QuicEndpoint>(simulator,

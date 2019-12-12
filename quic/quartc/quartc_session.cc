@@ -11,6 +11,7 @@
 #include "net/third_party/quiche/src/quic/core/tls_server_handshaker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_mem_slice_storage.h"
 #include "net/third_party/quiche/src/quic/quartc/quartc_crypto_helpers.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 namespace {
@@ -276,7 +277,7 @@ void QuartcSession::OnTransportReceived(const char* data, size_t data_len) {
                    packet);
 }
 
-void QuartcSession::OnMessageReceived(QuicStringPiece message) {
+void QuartcSession::OnMessageReceived(quiche::QuicheStringPiece message) {
   session_delegate_->OnMessageReceived(message);
 }
 
@@ -363,7 +364,7 @@ QuartcClientSession::QuartcClientSession(
     const QuicClock* clock,
     std::unique_ptr<QuartcPacketWriter> packet_writer,
     std::unique_ptr<QuicCryptoClientConfig> client_crypto_config,
-    QuicStringPiece server_crypto_config)
+    quiche::QuicheStringPiece server_crypto_config)
     : QuartcSession(std::move(connection),
                     /*visitor=*/nullptr,
                     config,

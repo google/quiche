@@ -18,6 +18,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_mem_slice_storage.h"
 #include "net/third_party/quiche/src/quic/quartc/quartc_packet_writer.h"
 #include "net/third_party/quiche/src/quic/quartc/quartc_stream.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -139,7 +140,7 @@ class QuartcSession : public QuicSession,
                                     ConnectionCloseSource source) = 0;
 
     // Called when message (sent as SendMessage) is received.
-    virtual void OnMessageReceived(QuicStringPiece message) = 0;
+    virtual void OnMessageReceived(quiche::QuicheStringPiece message) = 0;
 
     // Called when message is sent to QUIC.
     //
@@ -179,7 +180,7 @@ class QuartcSession : public QuicSession,
   // QuicConnection.
   void OnTransportReceived(const char* data, size_t data_len) override;
 
-  void OnMessageReceived(QuicStringPiece message) override;
+  void OnMessageReceived(quiche::QuicheStringPiece message) override;
 
   // Called when message with |message_id| gets acked.
   void OnMessageAcked(QuicMessageId message_id,
@@ -256,7 +257,7 @@ class QuartcClientSession : public QuartcSession,
       const QuicClock* clock,
       std::unique_ptr<QuartcPacketWriter> packet_writer,
       std::unique_ptr<QuicCryptoClientConfig> client_crypto_config,
-      QuicStringPiece server_crypto_config);
+      quiche::QuicheStringPiece server_crypto_config);
   QuartcClientSession(const QuartcClientSession&) = delete;
   QuartcClientSession& operator=(const QuartcClientSession&) = delete;
 

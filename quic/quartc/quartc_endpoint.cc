@@ -11,6 +11,7 @@
 #include "net/third_party/quiche/src/quic/quartc/quartc_connection_helper.h"
 #include "net/third_party/quiche/src/quic/quartc/quartc_crypto_helpers.h"
 #include "net/third_party/quiche/src/quic/quartc/quartc_dispatcher.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -52,7 +53,7 @@ QuartcClientEndpoint::QuartcClientEndpoint(
     QuicRandom* random,
     QuartcEndpoint::Delegate* delegate,
     const QuartcSessionConfig& config,
-    QuicStringPiece serialized_server_config,
+    quiche::QuicheStringPiece serialized_server_config,
     std::unique_ptr<QuicVersionManager> version_manager)
     : alarm_factory_(alarm_factory),
       clock_(clock),
@@ -127,7 +128,8 @@ void QuartcClientEndpoint::OnConnectionClosed(
   delegate_->OnConnectionClosed(frame, source);
 }
 
-void QuartcClientEndpoint::OnMessageReceived(QuicStringPiece message) {
+void QuartcClientEndpoint::OnMessageReceived(
+    quiche::QuicheStringPiece message) {
   delegate_->OnMessageReceived(message);
 }
 
