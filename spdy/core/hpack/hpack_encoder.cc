@@ -281,6 +281,7 @@ void HpackEncoder::GatherRepresentation(const Representation& header_field,
 class HpackEncoder::Encoderator : public ProgressiveEncoder {
  public:
   Encoderator(const SpdyHeaderBlock& header_set, HpackEncoder* encoder);
+  Encoderator(const Representations& representations, HpackEncoder* encoder);
 
   // Encoderator is neither copyable nor movable.
   Encoderator(const Encoderator&) = delete;
@@ -328,6 +329,25 @@ HpackEncoder::Encoderator::Encoderator(const SpdyHeaderBlock& header_set,
   encoder_->MaybeEmitTableSize();
 }
 
+HpackEncoder::Encoderator::Encoderator(const Representations& representations,
+                                       HpackEncoder* encoder)
+    : encoder_(encoder), has_next_(true) {
+  for (const auto& header : representations) {
+    if (header.first == "cookie") {
+      CookieToCrumbs(header, &regular_headers_);
+    } else if (!header.first.empty() &&
+               header.first[0] == kPseudoHeaderPrefix) {
+      pseudo_headers_.push_back(header);
+    } else {
+      regular_headers_.push_back(header);
+    }
+  }
+  header_it_ = std::make_unique<RepresentationIterator>(pseudo_headers_,
+                                                        regular_headers_);
+
+  encoder_->MaybeEmitTableSize();
+}
+
 void HpackEncoder::Encoderator::Next(size_t max_encoded_bytes,
                                      std::string* output) {
   SPDY_BUG_IF(!has_next_)
@@ -361,6 +381,11 @@ void HpackEncoder::Encoderator::Next(size_t max_encoded_bytes,
 std::unique_ptr<HpackEncoder::ProgressiveEncoder> HpackEncoder::EncodeHeaderSet(
     const SpdyHeaderBlock& header_set) {
   return std::make_unique<Encoderator>(header_set, this);
+}
+
+std::unique_ptr<HpackEncoder::ProgressiveEncoder>
+HpackEncoder::EncodeRepresentations(const Representations& representations) {
+  return std::make_unique<Encoderator>(representations, this);
 }
 
 }  // namespace spdy

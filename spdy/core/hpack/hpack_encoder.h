@@ -71,6 +71,12 @@ class SPDY_EXPORT_PRIVATE HpackEncoder {
   // SpdyHeaderBlock and this object.
   std::unique_ptr<ProgressiveEncoder> EncodeHeaderSet(
       const SpdyHeaderBlock& header_set);
+  // Returns a ProgressiveEncoder which must be outlived by this HpackEncoder.
+  // The encoder will not attempt to split any \0-delimited values in
+  // |representations|. If such splitting is desired, it must be performed by
+  // the caller when constructing the list of representations.
+  std::unique_ptr<ProgressiveEncoder> EncodeRepresentations(
+      const Representations& representations);
 
   // Called upon a change to SETTINGS_HEADER_TABLE_SIZE. Specifically, this
   // is to be called after receiving (and sending an acknowledgement for) a

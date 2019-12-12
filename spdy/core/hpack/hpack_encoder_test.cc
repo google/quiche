@@ -71,13 +71,8 @@ class HpackEncoderPeer {
   // non-incremental encoding path.
   static bool EncodeHeaderSet(HpackEncoder* encoder,
                               const SpdyHeaderBlock& header_set,
-                              std::string* output,
-                              bool use_incremental) {
-    if (use_incremental) {
-      return EncodeIncremental(encoder, header_set, output);
-    } else {
-      return encoder->EncodeHeaderSet(header_set, output);
-    }
+                              std::string* output) {
+    return encoder->EncodeHeaderSet(header_set, output);
   }
 
   static bool EncodeIncremental(HpackEncoder* encoder,
@@ -85,6 +80,23 @@ class HpackEncoderPeer {
                                 std::string* output) {
     std::unique_ptr<HpackEncoder::ProgressiveEncoder> encoderator =
         encoder->EncodeHeaderSet(header_set);
+    std::string output_buffer;
+    http2::test::Http2Random random;
+    encoderator->Next(random.UniformInRange(0, 16), &output_buffer);
+    while (encoderator->HasNext()) {
+      std::string second_buffer;
+      encoderator->Next(random.UniformInRange(0, 16), &second_buffer);
+      output_buffer.append(second_buffer);
+    }
+    *output = std::move(output_buffer);
+    return true;
+  }
+
+  static bool EncodeRepresentations(HpackEncoder* encoder,
+                                    const Representations& representations,
+                                    std::string* output) {
+    std::unique_ptr<HpackEncoder::ProgressiveEncoder> encoderator =
+        encoder->EncodeRepresentations(representations);
     std::string output_buffer;
     http2::test::Http2Random random;
     encoderator->Next(random.UniformInRange(0, 16), &output_buffer);
@@ -108,19 +120,23 @@ namespace {
 using testing::ElementsAre;
 using testing::Pair;
 
-class HpackEncoderTest : public ::testing::TestWithParam<bool> {
+enum EncodeStrategy {
+  kDefault,
+  kIncremental,
+  kRepresentations,
+};
+
+class HpackEncoderTestBase : public ::testing::Test {
  protected:
   typedef test::HpackEncoderPeer::Representations Representations;
 
-  HpackEncoderTest()
+  HpackEncoderTestBase()
       : encoder_(ObtainHpackHuffmanTable()),
         peer_(&encoder_),
         static_(peer_.table()->GetByIndex(1)),
         headers_storage_(1024 /* block size */) {}
 
   void SetUp() override {
-    use_incremental_ = GetParam();
-
     // Populate dynamic entries into the table fixture. For simplicity each
     // entry has name.size() + value.size() == 10.
     key_1_ = peer_.table()->TryAddEntry("key1", "value1");
@@ -181,11 +197,37 @@ class HpackEncoderTest : public ::testing::TestWithParam<bool> {
     expected_.AppendPrefix(kHeaderTableSizeUpdateOpcode);
     expected_.AppendUint32(size);
   }
+  Representations MakeRepresentations(const SpdyHeaderBlock& header_set) {
+    Representations r;
+    for (const auto& header : header_set) {
+      r.push_back(header);
+    }
+    return r;
+  }
   void CompareWithExpectedEncoding(const SpdyHeaderBlock& header_set) {
     std::string expected_out, actual_out;
     expected_.TakeString(&expected_out);
-    EXPECT_TRUE(test::HpackEncoderPeer::EncodeHeaderSet(
-        &encoder_, header_set, &actual_out, use_incremental_));
+    switch (strategy_) {
+      case kDefault:
+        EXPECT_TRUE(test::HpackEncoderPeer::EncodeHeaderSet(
+            &encoder_, header_set, &actual_out));
+        break;
+      case kIncremental:
+        EXPECT_TRUE(test::HpackEncoderPeer::EncodeIncremental(
+            &encoder_, header_set, &actual_out));
+        break;
+      case kRepresentations:
+        EXPECT_TRUE(test::HpackEncoderPeer::EncodeRepresentations(
+            &encoder_, MakeRepresentations(header_set), &actual_out));
+        break;
+    }
+    EXPECT_EQ(expected_out, actual_out);
+  }
+  void CompareWithExpectedEncoding(const Representations& representations) {
+    std::string expected_out, actual_out;
+    expected_.TakeString(&expected_out);
+    EXPECT_TRUE(test::HpackEncoderPeer::EncodeRepresentations(
+        &encoder_, representations, &actual_out));
     EXPECT_EQ(expected_out, actual_out);
   }
   size_t IndexOf(const HpackEntry* entry) {
@@ -205,12 +247,53 @@ class HpackEncoderTest : public ::testing::TestWithParam<bool> {
   std::vector<std::pair<SpdyStringPiece, SpdyStringPiece>> headers_observed_;
 
   HpackOutputStream expected_;
-  bool use_incremental_;
+  EncodeStrategy strategy_ = kDefault;
+};
+
+TEST_F(HpackEncoderTestBase, EncodeRepresentations) {
+  encoder_.SetHeaderListener(
+      [this](SpdyStringPiece name, SpdyStringPiece value) {
+        this->SaveHeaders(name, value);
+      });
+  const std::vector<std::pair<SpdyStringPiece, SpdyStringPiece>> header_list = {
+      {"cookie", "val1; val2;val3"},
+      {":path", "/home"},
+      {"accept", "text/html, text/plain,application/xml"},
+      {"cookie", "val4"},
+      {"withnul", SpdyStringPiece("one\0two", 7)}};
+  ExpectNonIndexedLiteral(":path", "/home");
+  ExpectIndexedLiteral(peer_.table()->GetByName("cookie"), "val1");
+  ExpectIndexedLiteral(peer_.table()->GetByName("cookie"), "val2");
+  ExpectIndexedLiteral(peer_.table()->GetByName("cookie"), "val3");
+  ExpectIndexedLiteral(peer_.table()->GetByName("accept"),
+                       "text/html, text/plain,application/xml");
+  ExpectIndexedLiteral(peer_.table()->GetByName("cookie"), "val4");
+  ExpectIndexedLiteral("withnul", SpdyStringPiece("one\0two", 7));
+
+  CompareWithExpectedEncoding(header_list);
+  EXPECT_THAT(
+      headers_observed_,
+      ElementsAre(Pair(":path", "/home"), Pair("cookie", "val1"),
+                  Pair("cookie", "val2"), Pair("cookie", "val3"),
+                  Pair("accept", "text/html, text/plain,application/xml"),
+                  Pair("cookie", "val4"),
+                  Pair("withnul", std::string("one\0two", 7))));
+}
+
+class HpackEncoderTest : public HpackEncoderTestBase,
+                         public ::testing::WithParamInterface<EncodeStrategy> {
+ protected:
+  void SetUp() override {
+    strategy_ = GetParam();
+    HpackEncoderTestBase::SetUp();
+  }
 };
 
 INSTANTIATE_TEST_SUITE_P(HpackEncoderTests,
                          HpackEncoderTest,
-                         ::testing::Bool());
+                         ::testing::Values(kDefault,
+                                           kIncremental,
+                                           kRepresentations));
 
 TEST_P(HpackEncoderTest, SingleDynamicIndex) {
   encoder_.SetHeaderListener(
@@ -343,7 +426,7 @@ TEST_P(HpackEncoderTest, EncodingWithoutCompression) {
   ExpectNonIndexedLiteral(":path", "/index.html");
   ExpectNonIndexedLiteral("cookie", "foo=bar");
   ExpectNonIndexedLiteral("cookie", "baz=bing");
-  if (use_incremental_) {
+  if (strategy_ != kDefault) {
     // BUG: encodes as a \0-delimited value. Should be separate entries.
     ExpectNonIndexedLiteral("hello", std::string("goodbye\0aloha", 13));
   } else {
@@ -361,7 +444,7 @@ TEST_P(HpackEncoderTest, EncodingWithoutCompression) {
 
   CompareWithExpectedEncoding(headers);
 
-  if (use_incremental_) {
+  if (strategy_ != kDefault) {
     // BUG: value for "hello" encodes as \0-delimited. Should be separate
     // entries.
     EXPECT_THAT(
@@ -536,6 +619,11 @@ TEST_P(HpackEncoderTest, DecomposeRepresentation) {
 // Test that encoded headers do not have \0-delimited multiple values, as this
 // became disallowed in HTTP/2 draft-14.
 TEST_P(HpackEncoderTest, CrumbleNullByteDelimitedValue) {
+  if (strategy_ == kRepresentations) {
+    // When HpackEncoder is asked to encode a list of Representations, the
+    // caller must crumble null-delimited values.
+    return;
+  }
   SpdyHeaderBlock headers;
   // A header field to be crumbled: "spam: foo\0bar".
   headers["spam"] = std::string("foo\0bar", 7);
