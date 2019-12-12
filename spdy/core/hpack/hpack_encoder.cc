@@ -271,12 +271,6 @@ void HpackEncoder::DecomposeRepresentation(const Representation& header_field,
   }
 }
 
-// static
-void HpackEncoder::GatherRepresentation(const Representation& header_field,
-                                        Representations* out) {
-  out->push_back(std::make_pair(header_field.first, header_field.second));
-}
-
 // Iteratively encodes a SpdyHeaderBlock.
 class HpackEncoder::Encoderator : public ProgressiveEncoder {
  public:
@@ -306,7 +300,6 @@ HpackEncoder::Encoderator::Encoderator(const SpdyHeaderBlock& header_set,
                                        HpackEncoder* encoder)
     : encoder_(encoder), has_next_(true) {
   // Separate header set into pseudo-headers and regular headers.
-  const bool use_compression = encoder_->enable_compression_;
   bool found_cookie = false;
   for (const auto& header : header_set) {
     if (!found_cookie && header.first == "cookie") {
@@ -316,11 +309,9 @@ HpackEncoder::Encoderator::Encoderator(const SpdyHeaderBlock& header_set,
       CookieToCrumbs(header, &regular_headers_);
     } else if (!header.first.empty() &&
                header.first[0] == kPseudoHeaderPrefix) {
-      use_compression ? DecomposeRepresentation(header, &pseudo_headers_)
-                      : GatherRepresentation(header, &pseudo_headers_);
+      DecomposeRepresentation(header, &pseudo_headers_);
     } else {
-      use_compression ? DecomposeRepresentation(header, &regular_headers_)
-                      : GatherRepresentation(header, &regular_headers_);
+      DecomposeRepresentation(header, &regular_headers_);
     }
   }
   header_it_ = std::make_unique<RepresentationIterator>(pseudo_headers_,

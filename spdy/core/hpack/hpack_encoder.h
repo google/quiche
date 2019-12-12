@@ -137,10 +137,6 @@ class SPDY_EXPORT_PRIVATE HpackEncoder {
   static void DecomposeRepresentation(const Representation& header_field,
                                       Representations* out);
 
-  // Gathers headers without crumbling. Used when compression is not enabled.
-  static void GatherRepresentation(const Representation& header_field,
-                                   Representations* out);
-
   HpackHeaderTable header_table_;
   HpackOutputStream output_stream_;
 

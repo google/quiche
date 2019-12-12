@@ -426,8 +426,7 @@ TEST_P(HpackEncoderTest, EncodingWithoutCompression) {
   ExpectNonIndexedLiteral(":path", "/index.html");
   ExpectNonIndexedLiteral("cookie", "foo=bar");
   ExpectNonIndexedLiteral("cookie", "baz=bing");
-  if (strategy_ != kDefault) {
-    // BUG: encodes as a \0-delimited value. Should be separate entries.
+  if (strategy_ == kRepresentations) {
     ExpectNonIndexedLiteral("hello", std::string("goodbye\0aloha", 13));
   } else {
     ExpectNonIndexedLiteral("hello", "goodbye");
@@ -444,9 +443,7 @@ TEST_P(HpackEncoderTest, EncodingWithoutCompression) {
 
   CompareWithExpectedEncoding(headers);
 
-  if (strategy_ != kDefault) {
-    // BUG: value for "hello" encodes as \0-delimited. Should be separate
-    // entries.
+  if (strategy_ == kRepresentations) {
     EXPECT_THAT(
         headers_observed_,
         ElementsAre(Pair(":path", "/index.html"), Pair("cookie", "foo=bar"),
