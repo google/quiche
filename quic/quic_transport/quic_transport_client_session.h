@@ -21,10 +21,10 @@
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 #include "net/third_party/quiche/src/quic/quic_transport/quic_transport_protocol.h"
 #include "net/third_party/quiche/src/quic/quic_transport/quic_transport_session_interface.h"
 #include "net/third_party/quiche/src/quic/quic_transport/quic_transport_stream.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -60,7 +60,7 @@ class QUIC_EXPORT_PRIVATE QuicTransportClientSession
   std::vector<std::string> GetAlpnsToOffer() const override {
     return std::vector<std::string>({QuicTransportAlpn()});
   }
-  void OnAlpnSelected(QuicStringPiece alpn) override;
+  void OnAlpnSelected(quiche::QuicheStringPiece alpn) override;
   bool alpn_received() const { return alpn_received_; }
 
   void CryptoConnect() { crypto_stream_->CryptoConnect(); }

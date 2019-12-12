@@ -8,7 +8,7 @@
 
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -49,7 +49,7 @@ size_t QuicTransportStream::Read(std::string* output) {
   return bytes_read;
 }
 
-bool QuicTransportStream::Write(QuicStringPiece data) {
+bool QuicTransportStream::Write(quiche::QuicheStringPiece data) {
   if (!CanWrite()) {
     return false;
   }
@@ -64,7 +64,7 @@ bool QuicTransportStream::SendFin() {
     return false;
   }
 
-  WriteOrBufferData(QuicStringPiece(), /*fin=*/true, nullptr);
+  WriteOrBufferData(quiche::QuicheStringPiece(), /*fin=*/true, nullptr);
   return true;
 }
 

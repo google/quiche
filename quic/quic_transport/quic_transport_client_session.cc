@@ -18,10 +18,9 @@
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
 #include "net/third_party/quiche/src/quic/quic_transport/quic_transport_protocol.h"
 #include "net/third_party/quiche/src/quic/quic_transport/quic_transport_stream.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -67,7 +66,8 @@ QuicTransportClientSession::QuicTransportClientSession(
       proof_handler);
 }
 
-void QuicTransportClientSession::OnAlpnSelected(QuicStringPiece alpn) {
+void QuicTransportClientSession::OnAlpnSelected(
+    quiche::QuicheStringPiece alpn) {
   // Defense in-depth: ensure the ALPN selected is the desired one.
   if (alpn != QuicTransportAlpn()) {
     QUIC_BUG << "QuicTransport negotiated non-QuicTransport ALPN: " << alpn;

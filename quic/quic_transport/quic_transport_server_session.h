@@ -10,10 +10,10 @@
 #include "net/third_party/quiche/src/quic/core/quic_connection.h"
 #include "net/third_party/quiche/src/quic/core/quic_crypto_server_stream.h"
 #include "net/third_party/quiche/src/quic/core/quic_session.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 #include "net/third_party/quiche/src/quic/quic_transport/quic_transport_protocol.h"
 #include "net/third_party/quiche/src/quic/quic_transport/quic_transport_session_interface.h"
 #include "net/third_party/quiche/src/quic/quic_transport/quic_transport_stream.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -44,8 +44,8 @@ class QUIC_EXPORT_PRIVATE QuicTransportServerSession
                              QuicCompressedCertsCache* compressed_certs_cache,
                              ServerVisitor* visitor);
 
-  std::vector<QuicStringPiece>::const_iterator SelectAlpn(
-      const std::vector<QuicStringPiece>& alpns) const override {
+  std::vector<quiche::QuicheStringPiece>::const_iterator SelectAlpn(
+      const std::vector<quiche::QuicheStringPiece>& alpns) const override {
     return std::find(alpns.cbegin(), alpns.cend(), QuicTransportAlpn());
   }
 
@@ -86,7 +86,7 @@ class QUIC_EXPORT_PRIVATE QuicTransportServerSession
   class QUIC_EXPORT_PRIVATE ClientIndicationParser {
    public:
     ClientIndicationParser(QuicTransportServerSession* session,
-                           QuicStringPiece indication)
+                           quiche::QuicheStringPiece indication)
         : session_(session), reader_(indication) {}
 
     // Parses the specified indication.  Automatically closes the connection
@@ -96,10 +96,10 @@ class QUIC_EXPORT_PRIVATE QuicTransportServerSession
 
    private:
     void Error(const std::string& error_message);
-    void ParseError(QuicStringPiece error_message);
+    void ParseError(quiche::QuicheStringPiece error_message);
 
     // Processes the path portion of the client indication.
-    bool ProcessPath(QuicStringPiece path);
+    bool ProcessPath(quiche::QuicheStringPiece path);
 
     QuicTransportServerSession* session_;
     QuicDataReader reader_;
@@ -107,7 +107,7 @@ class QUIC_EXPORT_PRIVATE QuicTransportServerSession
 
   // Parses and processes the client indication as described in
   // https://vasilvv.github.io/webtransport/draft-vvv-webtransport-quic.html#rfc.section.3.2
-  void ProcessClientIndication(QuicStringPiece indication);
+  void ProcessClientIndication(quiche::QuicheStringPiece indication);
 
   virtual void OnIncomingDataStream(QuicTransportStream* /*stream*/) {}
 
