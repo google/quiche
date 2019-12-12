@@ -8,6 +8,7 @@
 #include <map>
 #include <string>
 
+#include "net/third_party/quiche/src/quic/core/quic_packet_number.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 
 namespace quic {
@@ -165,6 +166,29 @@ TEST_F(PacketNumberIndexedQueueTest, FailToRemoveElementsTwice) {
   ASSERT_TRUE(queue_.Remove(QuicPacketNumber(1001)));
   ASSERT_FALSE(queue_.Remove(QuicPacketNumber(1001)));
   ASSERT_FALSE(queue_.Remove(QuicPacketNumber(1001)));
+}
+
+TEST_F(PacketNumberIndexedQueueTest, RemoveUpTo) {
+  queue_.Emplace(QuicPacketNumber(1001), "one");
+  queue_.Emplace(QuicPacketNumber(2001), "two");
+  EXPECT_EQ(QuicPacketNumber(1001u), queue_.first_packet());
+  EXPECT_EQ(2u, queue_.number_of_present_entries());
+
+  queue_.RemoveUpTo(QuicPacketNumber(1001));
+  EXPECT_EQ(QuicPacketNumber(1001u), queue_.first_packet());
+  EXPECT_EQ(2u, queue_.number_of_present_entries());
+
+  queue_.RemoveUpTo(QuicPacketNumber(1100));
+  EXPECT_EQ(QuicPacketNumber(1100u), queue_.first_packet());
+  EXPECT_EQ(1u, queue_.number_of_present_entries());
+
+  queue_.RemoveUpTo(QuicPacketNumber(2001));
+  EXPECT_EQ(QuicPacketNumber(2001u), queue_.first_packet());
+  EXPECT_EQ(1u, queue_.number_of_present_entries());
+
+  queue_.RemoveUpTo(QuicPacketNumber(2002));
+  EXPECT_FALSE(queue_.first_packet().IsInitialized());
+  EXPECT_EQ(0u, queue_.number_of_present_entries());
 }
 
 TEST_F(PacketNumberIndexedQueueTest, ConstGetter) {

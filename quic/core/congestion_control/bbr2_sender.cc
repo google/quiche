@@ -150,6 +150,7 @@ void Bbr2Sender::OnCongestionEvent(bool /*rtt_updated*/,
                 << " prior_cwnd:" << cwnd_ << "  @ " << event_time;
   Bbr2CongestionEvent congestion_event;
   congestion_event.prior_cwnd = cwnd_;
+  congestion_event.prior_bytes_in_flight = prior_in_flight;
   congestion_event.is_probing_for_bandwidth =
       BBR2_MODE_DISPATCH(IsProbingForBandwidth());
 
@@ -193,7 +194,7 @@ void Bbr2Sender::OnCongestionEvent(bool /*rtt_updated*/,
       << this << " END CongestionEvent(acked:" << acked_packets
       << ", lost:" << lost_packets.size() << ") "
       << ", Mode:" << mode_ << ", RttCount:" << model_.RoundTripCount()
-      << ", BytesInFlight:" << model_.bytes_in_flight()
+      << ", BytesInFlight:" << congestion_event.bytes_in_flight
       << ", PacingRate:" << PacingRate(0) << ", CWND:" << GetCongestionWindow()
       << ", PacingGain:" << model_.pacing_gain()
       << ", CwndGain:" << model_.cwnd_gain()
@@ -274,7 +275,7 @@ void Bbr2Sender::OnPacketSent(QuicTime sent_time,
                               HasRetransmittableData is_retransmittable) {
   QUIC_DVLOG(3) << this << " OnPacketSent: pkn:" << packet_number
                 << ", bytes:" << bytes << ", cwnd:" << cwnd_
-                << ", inflight:" << model_.bytes_in_flight() + bytes
+                << ", inflight:" << bytes_in_flight + bytes
                 << ", total_sent:" << model_.total_bytes_sent() + bytes
                 << ", total_acked:" << model_.total_bytes_acked()
                 << ", total_lost:" << model_.total_bytes_lost() << "  @ "
@@ -327,7 +328,7 @@ bool Bbr2Sender::ShouldSendProbingPacket() const {
   if (flexible_app_limited_) {
     const bool is_pipe_sufficiently_full = IsPipeSufficientlyFull();
     QUIC_DVLOG(3) << this << " CWND: " << GetCongestionWindow()
-                  << ", inflight: " << model_.bytes_in_flight()
+                  << ", inflight: " << unacked_packets_->bytes_in_flight()
                   << ", pacing_rate: " << PacingRate(0)
                   << ", flexible_app_limited_: true, ShouldSendProbingPacket: "
                   << !is_pipe_sufficiently_full;
@@ -338,20 +339,20 @@ bool Bbr2Sender::ShouldSendProbingPacket() const {
 }
 
 bool Bbr2Sender::IsPipeSufficientlyFull() const {
+  QuicByteCount bytes_in_flight = unacked_packets_->bytes_in_flight();
   // See if we need more bytes in flight to see more bandwidth.
   if (mode_ == Bbr2Mode::STARTUP) {
     // STARTUP exits if it doesn't observe a 25% bandwidth increase, so the CWND
     // must be more than 25% above the target.
-    return model_.bytes_in_flight() >= GetTargetCongestionWindow(1.5);
+    return bytes_in_flight >= GetTargetCongestionWindow(1.5);
   }
   if (model_.pacing_gain() > 1) {
     // Super-unity PROBE_BW doesn't exit until 1.25 * BDP is achieved.
-    return model_.bytes_in_flight() >=
-           GetTargetCongestionWindow(model_.pacing_gain());
+    return bytes_in_flight >= GetTargetCongestionWindow(model_.pacing_gain());
   }
   // If bytes_in_flight are above the target congestion window, it should be
   // possible to observe the same or more bandwidth if it's available.
-  return model_.bytes_in_flight() >= GetTargetCongestionWindow(1.1);
+  return bytes_in_flight >= GetTargetCongestionWindow(1.1);
 }
 
 std::string Bbr2Sender::GetDebugState() const {

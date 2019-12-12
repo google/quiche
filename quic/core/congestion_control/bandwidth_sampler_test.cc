@@ -85,7 +85,7 @@ class BandwidthSamplerTest : public QuicTest {
         sampler_, QuicPacketNumber(packet_number));
     bytes_in_flight_ -= size;
     SendTimeState send_time_state =
-        sampler_.OnPacketLost(QuicPacketNumber(packet_number));
+        sampler_.OnPacketLost(QuicPacketNumber(packet_number), size);
     EXPECT_TRUE(send_time_state.is_valid);
     return send_time_state;
   }
@@ -132,6 +132,9 @@ TEST_F(BandwidthSamplerTest, SendAndWait) {
     clock_.AdvanceTime(time_between_packets);
     QuicBandwidth current_sample = AckPacket(i);
     EXPECT_EQ(expected_bandwidth, current_sample);
+  }
+  if (sampler_.remove_packets_once_per_congestion_event()) {
+    sampler_.RemoveObsoletePackets(QuicPacketNumber(25));
   }
   EXPECT_EQ(0u, BandwidthSamplerPeer::GetNumberOfTrackedPackets(sampler_));
   EXPECT_EQ(0u, bytes_in_flight_);
@@ -211,6 +214,9 @@ TEST_F(BandwidthSamplerTest, SendPaced) {
     EXPECT_EQ(expected_bandwidth, last_bandwidth);
     clock_.AdvanceTime(time_between_packets);
   }
+  if (sampler_.remove_packets_once_per_congestion_event()) {
+    sampler_.RemoveObsoletePackets(QuicPacketNumber(41));
+  }
   EXPECT_EQ(0u, BandwidthSamplerPeer::GetNumberOfTrackedPackets(sampler_));
   EXPECT_EQ(0u, bytes_in_flight_);
 }
@@ -250,6 +256,9 @@ TEST_F(BandwidthSamplerTest, SendWithLosses) {
       LosePacket(i);
     }
     clock_.AdvanceTime(time_between_packets);
+  }
+  if (sampler_.remove_packets_once_per_congestion_event()) {
+    sampler_.RemoveObsoletePackets(QuicPacketNumber(41));
   }
   EXPECT_EQ(0u, BandwidthSamplerPeer::GetNumberOfTrackedPackets(sampler_));
   EXPECT_EQ(0u, bytes_in_flight_);
@@ -299,6 +308,9 @@ TEST_F(BandwidthSamplerTest, NotCongestionControlled) {
     clock_.AdvanceTime(time_between_packets);
   }
 
+  if (sampler_.remove_packets_once_per_congestion_event()) {
+    sampler_.RemoveObsoletePackets(QuicPacketNumber(41));
+  }
   // Since only congestion controlled packets are entered into the map, it has
   // to be empty at this point.
   EXPECT_EQ(0u, BandwidthSamplerPeer::GetNumberOfTrackedPackets(sampler_));
@@ -327,6 +339,9 @@ TEST_F(BandwidthSamplerTest, CompressedAck) {
     clock_.AdvanceTime(ridiculously_small_time_delta);
   }
   EXPECT_EQ(expected_bandwidth, last_bandwidth);
+  if (sampler_.remove_packets_once_per_congestion_event()) {
+    sampler_.RemoveObsoletePackets(QuicPacketNumber(41));
+  }
   EXPECT_EQ(0u, BandwidthSamplerPeer::GetNumberOfTrackedPackets(sampler_));
   EXPECT_EQ(0u, bytes_in_flight_);
 }
@@ -355,6 +370,9 @@ TEST_F(BandwidthSamplerTest, ReorderedAck) {
     last_bandwidth = AckPacket(i);
     EXPECT_EQ(expected_bandwidth, last_bandwidth);
     clock_.AdvanceTime(time_between_packets);
+  }
+  if (sampler_.remove_packets_once_per_congestion_event()) {
+    sampler_.RemoveObsoletePackets(QuicPacketNumber(61));
   }
   EXPECT_EQ(0u, BandwidthSamplerPeer::GetNumberOfTrackedPackets(sampler_));
   EXPECT_EQ(0u, bytes_in_flight_);
@@ -406,6 +424,9 @@ TEST_F(BandwidthSamplerTest, AppLimited) {
     clock_.AdvanceTime(time_between_packets);
   }
 
+  if (sampler_.remove_packets_once_per_congestion_event()) {
+    sampler_.RemoveObsoletePackets(QuicPacketNumber(81));
+  }
   EXPECT_EQ(0u, BandwidthSamplerPeer::GetNumberOfTrackedPackets(sampler_));
   EXPECT_EQ(0u, bytes_in_flight_);
 }
@@ -458,9 +479,15 @@ TEST_F(BandwidthSamplerTest, RemoveObsoletePackets) {
   EXPECT_EQ(5u, BandwidthSamplerPeer::GetNumberOfTrackedPackets(sampler_));
   sampler_.RemoveObsoletePackets(QuicPacketNumber(4));
   EXPECT_EQ(2u, BandwidthSamplerPeer::GetNumberOfTrackedPackets(sampler_));
-  sampler_.OnPacketLost(QuicPacketNumber(4));
+  sampler_.OnPacketLost(QuicPacketNumber(4), kRegularPacketSize);
+  if (sampler_.remove_packets_once_per_congestion_event()) {
+    sampler_.RemoveObsoletePackets(QuicPacketNumber(5));
+  }
   EXPECT_EQ(1u, BandwidthSamplerPeer::GetNumberOfTrackedPackets(sampler_));
   AckPacket(5);
+  if (sampler_.remove_packets_once_per_congestion_event()) {
+    sampler_.RemoveObsoletePackets(QuicPacketNumber(6));
+  }
   EXPECT_EQ(0u, BandwidthSamplerPeer::GetNumberOfTrackedPackets(sampler_));
 }
 

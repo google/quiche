@@ -64,7 +64,12 @@ BandwidthSampler::BandwidthSampler(
       max_tracked_packets_(GetQuicFlag(FLAGS_quic_max_tracked_packet_count)),
       unacked_packet_map_(unacked_packet_map),
       max_ack_height_tracker_(max_height_tracker_window_length),
-      total_bytes_acked_after_last_ack_event_(0) {}
+      total_bytes_acked_after_last_ack_event_(0) {
+  if (remove_packets_once_per_congestion_event_) {
+    QUIC_RELOADABLE_FLAG_COUNT(
+        quic_bw_sampler_remove_packets_once_per_congestion_event);
+  }
+}
 
 BandwidthSampler::~BandwidthSampler() {}
 
@@ -115,8 +120,8 @@ void BandwidthSampler::OnPacketSent(
     }
   }
 
-  bool success =
-      connection_state_map_.Emplace(packet_number, sent_time, bytes, *this);
+  bool success = connection_state_map_.Emplace(packet_number, sent_time, bytes,
+                                               bytes_in_flight, *this);
   QUIC_BUG_IF(!success) << "BandwidthSampler failed to insert the packet "
                            "into the map, most likely because it's already "
                            "in it.";
@@ -149,7 +154,9 @@ BandwidthSample BandwidthSampler::OnPacketAcknowledged(
   }
   BandwidthSample sample =
       OnPacketAcknowledgedInner(ack_time, packet_number, *sent_packet_pointer);
-  connection_state_map_.Remove(packet_number);
+  if (!remove_packets_once_per_congestion_event_) {
+    connection_state_map_.Remove(packet_number);
+  }
   return sample;
 }
 
@@ -220,16 +227,27 @@ BandwidthSample BandwidthSampler::OnPacketAcknowledgedInner(
   return sample;
 }
 
-SendTimeState BandwidthSampler::OnPacketLost(QuicPacketNumber packet_number) {
+SendTimeState BandwidthSampler::OnPacketLost(QuicPacketNumber packet_number,
+                                             QuicPacketLength bytes_lost) {
   // TODO(vasilvv): see the comment for the case of missing packets in
   // BandwidthSampler::OnPacketAcknowledged on why this does not raise a
   // QUIC_BUG when removal fails.
   SendTimeState send_time_state;
-  send_time_state.is_valid = connection_state_map_.Remove(
-      packet_number, [&](const ConnectionStateOnSentPacket& sent_packet) {
-        total_bytes_lost_ += sent_packet.size;
-        SentPacketToSendTimeState(sent_packet, &send_time_state);
-      });
+
+  if (remove_packets_once_per_congestion_event_) {
+    total_bytes_lost_ += bytes_lost;
+    ConnectionStateOnSentPacket* sent_packet_pointer =
+        connection_state_map_.GetEntry(packet_number);
+    if (sent_packet_pointer != nullptr) {
+      SentPacketToSendTimeState(*sent_packet_pointer, &send_time_state);
+    }
+  } else {
+    send_time_state.is_valid = connection_state_map_.Remove(
+        packet_number, [&](const ConnectionStateOnSentPacket& sent_packet) {
+          total_bytes_lost_ += sent_packet.size;
+          SentPacketToSendTimeState(sent_packet, &send_time_state);
+        });
+  }
   return send_time_state;
 }
 
@@ -251,6 +269,10 @@ void BandwidthSampler::RemoveObsoletePackets(QuicPacketNumber least_unacked) {
   // QuicSentPacketManager::RetransmitCryptoPackets retransmits a crypto packet,
   // the packet is removed from QuicUnackedPacketMap's inflight, but is not
   // marked as acked or lost in the BandwidthSampler.
+  if (remove_packets_once_per_congestion_event_) {
+    connection_state_map_.RemoveUpTo(least_unacked);
+    return;
+  }
   while (!connection_state_map_.IsEmpty() &&
          connection_state_map_.first_packet() < least_unacked) {
     connection_state_map_.Remove(

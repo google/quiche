@@ -495,7 +495,7 @@ void BbrSender::EnterProbeBandwidthMode(QuicTime now) {
 
 void BbrSender::DiscardLostPackets(const LostPacketVector& lost_packets) {
   for (const LostPacket& packet : lost_packets) {
-    sampler_.OnPacketLost(packet.packet_number);
+    sampler_.OnPacketLost(packet.packet_number, packet.bytes_lost);
     if (mode_ == STARTUP) {
       if (stats_) {
         ++stats_->slowstart_packets_lost;

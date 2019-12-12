@@ -228,6 +228,9 @@ struct QUIC_EXPORT_PRIVATE Bbr2CongestionEvent {
   // The congestion window prior to the processing of the ack/loss events.
   QuicByteCount prior_cwnd;
 
+  // Total bytes inflight before the processing of the ack/loss events.
+  QuicByteCount prior_bytes_in_flight = 0;
+
   // Total bytes inflight after the processing of the ack/loss events.
   QuicByteCount bytes_in_flight = 0;
 
@@ -367,6 +370,7 @@ class QUIC_EXPORT_PRIVATE Bbr2NetworkModel {
   }
 
   QuicByteCount bytes_in_flight() const {
+    DCHECK(!bandwidth_sampler_.remove_packets_once_per_congestion_event());
     return total_bytes_sent() - total_bytes_acked() - total_bytes_lost();
   }
 
@@ -500,6 +504,9 @@ class QUIC_EXPORT_PRIVATE Bbr2ModeBase {
 QUIC_EXPORT_PRIVATE inline QuicByteCount BytesInFlight(
     const SendTimeState& send_state) {
   DCHECK(send_state.is_valid);
+  if (send_state.bytes_in_flight != 0) {
+    return send_state.bytes_in_flight;
+  }
   return send_state.total_bytes_sent - send_state.total_bytes_acked -
          send_state.total_bytes_lost;
 }

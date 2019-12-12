@@ -34,6 +34,8 @@ namespace quic {
 // just two entries will cause it to consume all of the memory available.
 // Because of that, it is not a general-purpose container and should not be used
 // as one.
+// TODO(wub): Update the comments when deprecating
+// --quic_bw_sampler_remove_packets_once_per_congestion_event.
 template <typename T>
 class QUIC_NO_EXPORT PacketNumberIndexedQueue {
  public:
@@ -59,6 +61,9 @@ class QUIC_NO_EXPORT PacketNumberIndexedQueue {
   // before removing it.
   template <typename Function>
   bool Remove(QuicPacketNumber packet_number, Function f);
+
+  // Remove up to, but not including |packet_number|.
+  void RemoveUpTo(QuicPacketNumber packet_number);
 
   bool IsEmpty() const { return number_of_present_entries_ == 0; }
 
@@ -87,6 +92,9 @@ class QUIC_NO_EXPORT PacketNumberIndexedQueue {
  private:
   // Wrapper around T used to mark whether the entry is actually in the map.
   struct QUIC_NO_EXPORT EntryWrapper : T {
+    // NOTE(wub): When quic_bw_sampler_remove_packets_once_per_congestion_event
+    // is enabled, |present| is false if and only if this is a placeholder entry
+    // for holes in the parent's |entries|.
     bool present;
 
     EntryWrapper() : present(false) {}
@@ -106,6 +114,9 @@ class QUIC_NO_EXPORT PacketNumberIndexedQueue {
   }
 
   QuicDeque<EntryWrapper> entries_;
+  // NOTE(wub): When --quic_bw_sampler_remove_packets_once_per_congestion_event
+  // is enabled, |number_of_present_entries_| only represents number of holes,
+  // which does not include number of acked or lost packets.
   size_t number_of_present_entries_;
   QuicPacketNumber first_packet_;
 };
@@ -186,6 +197,21 @@ bool PacketNumberIndexedQueue<T>::Remove(QuicPacketNumber packet_number,
     Cleanup();
   }
   return true;
+}
+
+template <typename T>
+void PacketNumberIndexedQueue<T>::RemoveUpTo(QuicPacketNumber packet_number) {
+  while (!entries_.empty() && first_packet_.IsInitialized() &&
+         first_packet_ < packet_number) {
+    if (entries_.front().present) {
+      number_of_present_entries_--;
+    }
+    entries_.pop_front();
+    first_packet_++;
+  }
+  if (entries_.empty()) {
+    first_packet_.Clear();
+  }
 }
 
 template <typename T>

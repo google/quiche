@@ -156,18 +156,35 @@ void Bbr2NetworkModel::OnCongestionEventStart(
   }
 
   for (const LostPacket& packet : lost_packets) {
-    const SendTimeState send_time_state =
-        bandwidth_sampler_.OnPacketLost(packet.packet_number);
+    const SendTimeState send_time_state = bandwidth_sampler_.OnPacketLost(
+        packet.packet_number, packet.bytes_lost);
     if (send_time_state.is_valid) {
       congestion_event->last_lost_sample = {packet.packet_number,
                                             send_time_state};
     }
   }
 
-  congestion_event->bytes_in_flight = bytes_in_flight();
+  if (!bandwidth_sampler_.remove_packets_once_per_congestion_event()) {
+    congestion_event->bytes_in_flight = bytes_in_flight();
+  }
 
   congestion_event->bytes_acked = total_bytes_acked() - prior_bytes_acked;
   congestion_event->bytes_lost = total_bytes_lost() - prior_bytes_lost;
+  if (bandwidth_sampler_.remove_packets_once_per_congestion_event()) {
+    if (congestion_event->prior_bytes_in_flight >=
+        congestion_event->bytes_acked + congestion_event->bytes_lost) {
+      congestion_event->bytes_in_flight =
+          congestion_event->prior_bytes_in_flight -
+          congestion_event->bytes_acked - congestion_event->bytes_lost;
+    } else {
+      QUIC_LOG_FIRST_N(ERROR, 1)
+          << "prior_bytes_in_flight:" << congestion_event->prior_bytes_in_flight
+          << " is smaller than the sum of bytes_acked:"
+          << congestion_event->bytes_acked
+          << " and bytes_lost:" << congestion_event->bytes_lost;
+      congestion_event->bytes_in_flight = 0;
+    }
+  }
   bytes_lost_in_round_ += congestion_event->bytes_lost;
 
   bandwidth_sampler_.OnAckEventEnd(BandwidthEstimate(), RoundTripCount());
