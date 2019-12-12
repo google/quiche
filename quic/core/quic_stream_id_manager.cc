@@ -69,8 +69,6 @@ bool QuicStreamIdManager::OnStreamsBlockedFrame(
     const QuicStreamsBlockedFrame& frame) {
   // Ensure that the frame has the correct directionality.
   DCHECK_EQ(frame.unidirectional, unidirectional_);
-  QUIC_CODE_COUNT_N(quic_streams_blocked_received, 2, 2);
-
   if (frame.stream_count > incoming_advertised_max_streams_) {
     // Peer thinks it can send more streams that we've told it.
     // This is a protocol error.

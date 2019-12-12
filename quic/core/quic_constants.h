@@ -223,7 +223,6 @@ const QuicByteCount kMaxStreamLength = (UINT64_C(1) << 62) - 1;
 const uint64_t kMaxIetfVarInt = UINT64_C(0x3fffffffffffffff);
 
 // The maximum stream id value that is supported - (2^32)-1
-// TODO(fkastenholz): Should update this to 64 bits for IETF Quic.
 const QuicStreamId kMaxQuicStreamId = 0xffffffff;
 
 // The maximum value that can be stored in a 32-bit QuicStreamCount.

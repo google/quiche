@@ -329,17 +329,6 @@ bool QuicPacketCreator::HasRoomForMessageFrame(QuicByteCount length) {
   return BytesFree() >= message_frame_size;
 }
 
-// TODO(fkastenholz): this method should not use constant values for
-// the last-frame-in-packet and data-length parameters to
-// GetMinStreamFrameSize.  Proper values should be plumbed in from
-// higher up. This was left this way for now for a few reasons. First,
-// higher up calls to StreamFramePacketOverhead() do not always know
-// this information, leading to a cascade of changes and B) the
-// higher-up software does not always loop, calling
-// StreamFramePacketOverhead() once for every packet -- eg there is
-// a test in quic_connection_test that calls it once and assumes that
-// the value is the same for all packets.
-
 // static
 size_t QuicPacketCreator::StreamFramePacketOverhead(
     QuicTransportVersion version,
@@ -357,21 +346,10 @@ size_t QuicPacketCreator::StreamFramePacketOverhead(
                              packet_number_length, retry_token_length_length, 0,
                              length_length) +
 
-         // Assumes this is a packet with a single stream frame in it. Since
-         // last_frame_in_packet is set true, the size of the length field is
-         // not included in the calculation. This is OK because in other places
-         // in the code, the logic adds back 2 (the size of the Google QUIC
-         // length) when a frame is not the last frame of the packet. This is
-         // also acceptable for IETF Quic; even though the length field could be
-         // 8 bytes long, in practice it will not be longer than 2 bytes (enough
-         // to encode 16K).  A length that would be encoded in 2 bytes (0xfff)
-         // is passed just for cleanliness.
-         //
-         // TODO(fkastenholz): This is very hacky and feels brittle. Ideally we
-         // would calculate the correct lengths at the correct time, based on
-         // the state at that time/place.
+         // Assumes a packet with a single stream frame, which omits the length,
+         // causing the data length argument to be ignored.
          QuicFramer::GetMinStreamFrameSize(version, 1u, offset, true,
-                                           kMaxOutgoingPacketSize);
+                                           kMaxOutgoingPacketSize /* unused */);
 }
 
 void QuicPacketCreator::CreateStreamFrame(QuicStreamId id,

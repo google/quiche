@@ -3024,8 +3024,6 @@ bool QuicFramer::ProcessIetfFrameData(QuicDataReader* reader,
           if (!ProcessMaxDataFrame(reader, &frame)) {
             return RaiseError(QUIC_INVALID_MAX_DATA_FRAME_DATA);
           }
-          // TODO(fkastenholz): Or should we create a new visitor function,
-          // OnMaxDataFrame()?
           QUIC_DVLOG(2) << ENDPOINT << "Processing IETF max data frame "
                         << frame;
           if (!visitor_->OnWindowUpdateFrame(frame)) {
@@ -3040,8 +3038,6 @@ bool QuicFramer::ProcessIetfFrameData(QuicDataReader* reader,
           if (!ProcessMaxStreamDataFrame(reader, &frame)) {
             return RaiseError(QUIC_INVALID_MAX_STREAM_DATA_FRAME_DATA);
           }
-          // TODO(fkastenholz): Or should we create a new visitor function,
-          // OnMaxStreamDataFrame()?
           QUIC_DVLOG(2) << ENDPOINT << "Processing IETF max stream data frame "
                         << frame;
           if (!visitor_->OnWindowUpdateFrame(frame)) {
@@ -3113,7 +3109,6 @@ bool QuicFramer::ProcessIetfFrameData(QuicDataReader* reader,
           if (!ProcessStreamsBlockedFrame(reader, &frame, frame_type)) {
             return RaiseError(QUIC_STREAMS_BLOCKED_DATA);
           }
-          QUIC_CODE_COUNT_N(quic_streams_blocked_received, 1, 2);
           QUIC_DVLOG(2) << ENDPOINT << "Processing IETF streams blocked frame "
                         << frame;
           if (!visitor_->OnStreamsBlockedFrame(frame)) {
@@ -5944,9 +5939,6 @@ bool QuicFramer::ProcessStreamsBlockedFrame(QuicDataReader* reader,
     return false;
   }
   frame->unidirectional = (frame_type == IETF_STREAMS_BLOCKED_UNIDIRECTIONAL);
-
-  // TODO(fkastenholz): handle properly when the STREAMS_BLOCKED
-  // frame is implemented and passed up to the stream ID manager.
   if (frame->stream_count >
       QuicUtils::GetMaxStreamCount(
           (frame_type == IETF_STREAMS_BLOCKED_UNIDIRECTIONAL),

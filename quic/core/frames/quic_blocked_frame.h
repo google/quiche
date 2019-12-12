@@ -30,13 +30,9 @@ struct QUIC_EXPORT_PRIVATE QuicBlockedFrame {
   // and non-zero when sent.
   QuicControlFrameId control_frame_id;
 
-  // The stream this frame applies to.  0 is a special case meaning the overall
-  // connection rather than a specific stream.
-  //
-  // For IETF QUIC, the stream_id controls whether an IETF QUIC
-  // BLOCKED or STREAM_BLOCKED frame is generated.
-  // If stream_id is 0 then a BLOCKED frame is generated and transmitted,
-  // if non-0, a STREAM_BLOCKED.
+  // 0 is a special case meaning the connection is blocked, rather than a
+  // stream.  So stream_id 0 corresponds to a BLOCKED frame and non-0
+  // corresponds to a STREAM_BLOCKED.
   // TODO(fkastenholz): This should be converted to use
   // QuicUtils::GetInvalidStreamId to get the correct invalid stream id value
   // and not rely on 0.

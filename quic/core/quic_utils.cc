@@ -572,18 +572,10 @@ QuicUint128 QuicUtils::GenerateStatelessResetToken(
       QuicStringPiece(connection_id.data(), connection_id.length()));
 }
 
-// Returns the maximum value that a stream count may have, taking into account
-// the fact that bidirectional, client initiated, streams have one fewer stream
-// available than the others. This is because the old crypto streams, with ID ==
-// 0 are not included in the count.
-// The version is not included in the call, nor does the method take the version
-// into account, because this is called only from code used for IETF QUIC.
-// TODO(fkastenholz): Remove this method and replace calls to it with direct
-// references to kMaxQuicStreamIdCount when streamid 0 becomes a normal stream
-// id.
 // static
 QuicStreamCount QuicUtils::GetMaxStreamCount(bool unidirectional,
                                              Perspective perspective) {
+  // gQUIC uses one client initiated bidi stream for the crypto stream.
   if (!unidirectional && perspective == Perspective::IS_CLIENT) {
     return kMaxQuicStreamCount >> 2;
   }
