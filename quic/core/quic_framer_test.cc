@@ -467,8 +467,8 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
   bool OnBlockedFrame(const QuicBlockedFrame& frame) override {
     blocked_frame_ = frame;
     if (VersionHasIetfQuicFrames(transport_version_)) {
-      EXPECT_TRUE(IETF_BLOCKED == framer_->current_received_frame_type() ||
-                  IETF_STREAM_BLOCKED ==
+      EXPECT_TRUE(IETF_DATA_BLOCKED == framer_->current_received_frame_type() ||
+                  IETF_STREAM_DATA_BLOCKED ==
                       framer_->current_received_frame_type());
     } else {
       EXPECT_EQ(0u, framer_->current_received_frame_type());
@@ -8384,7 +8384,7 @@ TEST_P(QuicFramerTest, BuildBlockedPacket) {
     // packet number
     0x12, 0x34, 0x56, 0x78,
 
-    // frame type (IETF_BLOCKED frame)
+    // frame type (IETF_DATA_BLOCKED frame)
     0x14,
     // Offset
     kVarInt62EightBytes + 0x3a, 0x98, 0xFE, 0xDC, 0x32, 0x10, 0x76, 0x54
@@ -9352,7 +9352,7 @@ TEST_P(QuicFramerTest, IetfBlockedFrame) {
       // packet number
       {"",
        {0x12, 0x34, 0x9A, 0xBC}},
-      // frame type (IETF_BLOCKED)
+      // frame type (IETF_DATA_BLOCKED)
       {"",
        {0x14}},
       // blocked offset
@@ -9402,7 +9402,7 @@ TEST_P(QuicFramerTest, BuildIetfBlockedPacket) {
     // packet number
     0x12, 0x34, 0x56, 0x78,
 
-    // frame type (IETF_BLOCKED)
+    // frame type (IETF_DATA_BLOCKED)
     0x14,
     // Offset
     kVarInt62EightBytes + 0x3a, 0x98, 0xFE, 0xDC, 0x32, 0x10, 0x76, 0x54
@@ -9435,7 +9435,7 @@ TEST_P(QuicFramerTest, IetfStreamBlockedFrame) {
       // packet number
       {"",
        {0x12, 0x34, 0x9A, 0xBC}},
-      // frame type (IETF_STREAM_BLOCKED)
+      // frame type (IETF_STREAM_DATA_BLOCKED)
       {"",
        {0x15}},
       // blocked offset
@@ -9488,7 +9488,7 @@ TEST_P(QuicFramerTest, BuildIetfStreamBlockedPacket) {
     // packet number
     0x12, 0x34, 0x56, 0x78,
 
-    // frame type (IETF_STREAM_BLOCKED)
+    // frame type (IETF_STREAM_DATA_BLOCKED)
     0x15,
     // Stream ID
     kVarInt62FourBytes + 0x01, 0x02, 0x03, 0x04,

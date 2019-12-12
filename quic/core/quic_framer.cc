@@ -3075,7 +3075,7 @@ bool QuicFramer::ProcessIetfFrameData(QuicDataReader* reader,
           }
           break;
         }
-        case IETF_BLOCKED: {
+        case IETF_DATA_BLOCKED: {
           QuicBlockedFrame frame;
           if (!ProcessIetfBlockedFrame(reader, &frame)) {
             return RaiseError(QUIC_INVALID_BLOCKED_DATA);
@@ -3089,7 +3089,7 @@ bool QuicFramer::ProcessIetfFrameData(QuicDataReader* reader,
           }
           break;
         }
-        case IETF_STREAM_BLOCKED: {
+        case IETF_STREAM_DATA_BLOCKED: {
           QuicBlockedFrame frame;
           if (!ProcessStreamBlockedFrame(reader, &frame)) {
             return RaiseError(QUIC_INVALID_STREAM_BLOCKED_DATA);
@@ -4749,9 +4749,9 @@ bool QuicFramer::AppendIetfTypeByte(const QuicFrame& frame,
     case BLOCKED_FRAME:
       if (frame.blocked_frame->stream_id ==
           QuicUtils::GetInvalidStreamId(transport_version())) {
-        type_byte = IETF_BLOCKED;
+        type_byte = IETF_DATA_BLOCKED;
       } else {
-        type_byte = IETF_STREAM_BLOCKED;
+        type_byte = IETF_STREAM_DATA_BLOCKED;
       }
       break;
     case STOP_WAITING_FRAME:

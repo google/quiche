@@ -255,10 +255,8 @@ enum QuicIetfFrameType : uint8_t {
   IETF_MAX_STREAM_DATA = 0x11,
   IETF_MAX_STREAMS_BIDIRECTIONAL = 0x12,
   IETF_MAX_STREAMS_UNIDIRECTIONAL = 0x13,
-  IETF_BLOCKED = 0x14,  // TODO(fkastenholz): Should, eventually, be renamed to
-                        // IETF_DATA_BLOCKED
-  IETF_STREAM_BLOCKED = 0x15,  // TODO(fkastenholz): Should, eventually, be
-                               // renamed to IETF_STREAM_DATA_BLOCKED
+  IETF_DATA_BLOCKED = 0x14,
+  IETF_STREAM_DATA_BLOCKED = 0x15,
   IETF_STREAMS_BLOCKED_BIDIRECTIONAL = 0x16,
   IETF_STREAMS_BLOCKED_UNIDIRECTIONAL = 0x17,
   IETF_NEW_CONNECTION_ID = 0x18,
