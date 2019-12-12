@@ -277,7 +277,7 @@ TEST_F(HpackEncoderTestBase, EncodeRepresentations) {
                   Pair("cookie", "val2"), Pair("cookie", "val3"),
                   Pair("accept", "text/html, text/plain,application/xml"),
                   Pair("cookie", "val4"),
-                  Pair("withnul", std::string("one\0two", 7))));
+                  Pair("withnul", SpdyStringPiece("one\0two", 7))));
 }
 
 class HpackEncoderTest : public HpackEncoderTestBase,
