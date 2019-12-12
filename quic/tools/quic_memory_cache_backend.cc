@@ -236,23 +236,31 @@ QuicMemoryCacheBackend::QuicMemoryCacheBackend() : cache_initialized_(false) {}
 
 bool QuicMemoryCacheBackend::InitializeBackend(
     const std::string& cache_directory) {
+  LOG(INFO) << __FUNCTION__;
   if (cache_directory.empty()) {
     QUIC_BUG << "cache_directory must not be empty.";
     return false;
   }
-  QUIC_LOG(INFO)
+  LOG(INFO)
       << "Attempting to initialize QuicMemoryCacheBackend from directory: "
       << cache_directory;
   std::vector<std::string> files = ReadFileContents(cache_directory);
+  LOG(INFO) << "files.size():" << files.size();
   std::list<std::unique_ptr<ResourceFile>> resource_files;
   for (const auto& filename : files) {
     std::unique_ptr<ResourceFile> resource_file(new ResourceFile(filename));
 
     // Tease apart filename into host and path.
-    QuicStringPiece base(resource_file->file_name());
-    base.remove_prefix(cache_directory.length());
+    std::string base(resource_file->file_name());
+    for (size_t i = 0; i < base.length(); ++i) {
+      if (base[i] == '\\') {
+        base[i] = '/';
+      }
+    }
+    LOG(INFO) << base;
+    base.erase(0, cache_directory.length());
     if (base[0] == '/') {
-      base.remove_prefix(1);
+      base.erase(0, 1);
     }
 
     resource_file->SetHostPathFromBase(base);

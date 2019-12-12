@@ -10,6 +10,10 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
 #include "net/third_party/quiche/src/quic/tools/quic_backend_response.h"
 
+#include "base/files/scoped_temp_dir.h"
+#include "base/files/file_enumerator.h"
+#include "base/files/file_util.h"
+
 namespace quic {
 namespace test {
 
@@ -17,6 +21,38 @@ namespace {
 typedef QuicBackendResponse Response;
 typedef QuicBackendResponse::ServerPushInfo ServerPushInfo;
 }  // namespace
+
+using testing::ElementsAre;
+using testing::IsEmpty;
+using base::FilePath;
+using base::ScopedTempDir;
+using base::FileEnumerator;
+using base::circular_deque;
+
+const FilePath::StringType kEmptyPattern;
+
+const std::vector<FileEnumerator::FolderSearchPolicy> kFolderSearchPolicies{
+    FileEnumerator::FolderSearchPolicy::MATCH_ONLY,
+    FileEnumerator::FolderSearchPolicy::ALL};
+
+circular_deque<FilePath> RunEnumerator(
+    const FilePath& root_path,
+    bool recursive,
+    int file_type,
+    const FilePath::StringType& pattern,
+    FileEnumerator::FolderSearchPolicy folder_search_policy) {
+  circular_deque<FilePath> rv;
+  FileEnumerator enumerator(root_path, recursive, file_type, pattern,
+                            folder_search_policy);
+  for (auto file = enumerator.Next(); !file.empty(); file = enumerator.Next())
+    rv.emplace_back(std::move(file));
+  return rv;
+}
+
+bool CreateDummyFile(const FilePath& path) {
+  return WriteFile(path, "42", sizeof("42")) == sizeof("42");
+}
+
 
 class QuicMemoryCacheBackendTest : public QuicTest {
  protected:
@@ -33,6 +69,49 @@ class QuicMemoryCacheBackendTest : public QuicTest {
 
   QuicMemoryCacheBackend cache_;
 };
+
+TEST(FileEnumerator, FileInSubfolder) {
+  FilePath directory(FilePath::FromUTF8Unsafe(QuicGetTestMemoryCachePath()));
+
+  for (auto policy : kFolderSearchPolicies) {
+    auto files = RunEnumerator(directory, true, FileEnumerator::FILES,
+                               kEmptyPattern, policy);
+    EXPECT_FALSE(files.empty());
+
+    files = RunEnumerator(directory, false, FileEnumerator::FILES,
+                          kEmptyPattern, policy);
+    EXPECT_THAT(files, IsEmpty());
+  }
+
+  FilePath directory2(FilePath::FromUTF8Unsafe(QuicGetTestMemoryCachePath() + "/test.example.com"));
+
+  for (auto policy : kFolderSearchPolicies) {
+    auto files = RunEnumerator(directory2, true, FileEnumerator::FILES,
+                               kEmptyPattern, policy);
+    EXPECT_FALSE(files.empty());
+  }
+}
+
+TEST(FileEnumerator, FileInSubfolderReal) {
+  ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+
+  const FilePath subdir = temp_dir.GetPath().AppendASCII("subdir");
+  ASSERT_TRUE(CreateDirectory(subdir));
+
+  const FilePath file = subdir.AppendASCII("test.txt");
+  ASSERT_TRUE(CreateDummyFile(file));
+
+  for (auto policy : kFolderSearchPolicies) {
+    auto files = RunEnumerator(temp_dir.GetPath(), true, FileEnumerator::FILES,
+                               kEmptyPattern, policy);
+    EXPECT_THAT(files, ElementsAre(file));
+
+    files = RunEnumerator(temp_dir.GetPath(), false, FileEnumerator::FILES,
+                          kEmptyPattern, policy);
+    EXPECT_THAT(files, IsEmpty());
+  }
+}
 
 TEST_F(QuicMemoryCacheBackendTest, GetResponseNoMatch) {
   const Response* response =
