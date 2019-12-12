@@ -33,7 +33,8 @@ QuicTransportSimpleServerDispatcher::QuicTransportSimpleServerDispatcher(
                      expected_server_connection_id_length),
       accepted_origins_(accepted_origins) {}
 
-QuicSession* QuicTransportSimpleServerDispatcher::CreateQuicSession(
+std::unique_ptr<QuicSession>
+QuicTransportSimpleServerDispatcher::CreateQuicSession(
     QuicConnectionId server_connection_id,
     const QuicSocketAddress& peer_address,
     quiche::QuicheStringPiece /*alpn*/,
@@ -42,11 +43,10 @@ QuicSession* QuicTransportSimpleServerDispatcher::CreateQuicSession(
       server_connection_id, peer_address, helper(), alarm_factory(), writer(),
       /*owns_writer=*/false, Perspective::IS_SERVER,
       ParsedQuicVersionVector{version});
-  QuicTransportSimpleServerSession* session =
-      new QuicTransportSimpleServerSession(
-          connection.release(), /*owns_connection=*/true, this, config(),
-          GetSupportedVersions(), crypto_config(), compressed_certs_cache(),
-          accepted_origins_);
+  auto session = std::make_unique<QuicTransportSimpleServerSession>(
+      connection.release(), /*owns_connection=*/true, this, config(),
+      GetSupportedVersions(), crypto_config(), compressed_certs_cache(),
+      accepted_origins_);
   session->Initialize();
   return session;
 }

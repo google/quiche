@@ -138,10 +138,11 @@ class QUIC_NO_EXPORT QuicDispatcher
   virtual bool HasChlosBuffered() const;
 
  protected:
-  virtual QuicSession* CreateQuicSession(QuicConnectionId server_connection_id,
-                                         const QuicSocketAddress& peer_address,
-                                         QuicStringPiece alpn,
-                                         const ParsedQuicVersion& version) = 0;
+  virtual std::unique_ptr<QuicSession> CreateQuicSession(
+      QuicConnectionId server_connection_id,
+      const QuicSocketAddress& peer_address,
+      QuicStringPiece alpn,
+      const ParsedQuicVersion& version) = 0;
 
   // Tries to validate and dispatch packet based on available information.
   // Returns true if packet is dropped or successfully dispatched (e.g.,

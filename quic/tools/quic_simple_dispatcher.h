@@ -31,7 +31,7 @@ class QuicSimpleDispatcher : public QuicDispatcher {
   void OnRstStreamReceived(const QuicRstStreamFrame& frame) override;
 
  protected:
-  QuicServerSessionBase* CreateQuicSession(
+  std::unique_ptr<QuicSession> CreateQuicSession(
       QuicConnectionId connection_id,
       const QuicSocketAddress& client_address,
       quiche::QuicheStringPiece alpn,

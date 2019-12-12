@@ -27,10 +27,11 @@ class QuicTransportSimpleServerDispatcher : public QuicDispatcher {
       std::vector<url::Origin> accepted_origins);
 
  protected:
-  QuicSession* CreateQuicSession(QuicConnectionId server_connection_id,
-                                 const QuicSocketAddress& peer_address,
-                                 quiche::QuicheStringPiece alpn,
-                                 const ParsedQuicVersion& version) override;
+  std::unique_ptr<QuicSession> CreateQuicSession(
+      QuicConnectionId server_connection_id,
+      const QuicSocketAddress& peer_address,
+      quiche::QuicheStringPiece alpn,
+      const ParsedQuicVersion& version) override;
 
   std::vector<url::Origin> accepted_origins_;
 };

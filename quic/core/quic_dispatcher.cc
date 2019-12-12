@@ -823,7 +823,7 @@ void QuicDispatcher::ProcessBufferedChlos(size_t max_connections_to_create) {
     QuicConnectionId original_connection_id = server_connection_id;
     server_connection_id = MaybeReplaceServerConnectionId(server_connection_id,
                                                           packet_list.version);
-    QuicSession* session =
+    std::unique_ptr<QuicSession> session =
         CreateQuicSession(server_connection_id, packets.front().peer_address,
                           packet_list.alpn, packet_list.version);
     if (original_connection_id != server_connection_id) {
@@ -832,12 +832,12 @@ void QuicDispatcher::ProcessBufferedChlos(size_t max_connections_to_create) {
     }
     QUIC_DLOG(INFO) << "Created new session for " << server_connection_id;
 
-    DCHECK(session_map_.find(server_connection_id) == session_map_.end())
-        << "Tried to add session map existing entry " << server_connection_id;
-
-    session_map_.insert(
-        std::make_pair(server_connection_id, QuicWrapUnique(session)));
-    DeliverPacketsToSession(packets, session);
+    auto insertion_result = session_map_.insert(
+        std::make_pair(server_connection_id, std::move(session)));
+    QUIC_BUG_IF(!insertion_result.second)
+        << "Tried to add a session to session_map with existing connection id: "
+        << server_connection_id;
+    DeliverPacketsToSession(packets, insertion_result.first->second.get());
   }
 }
 
@@ -931,7 +931,7 @@ void QuicDispatcher::ProcessChlo(const std::string& alpn,
   packet_info->destination_connection_id = MaybeReplaceServerConnectionId(
       original_connection_id, packet_info->version);
   // Creates a new session and process all buffered packets for this connection.
-  QuicSession* session =
+  std::unique_ptr<QuicSession> session =
       CreateQuicSession(packet_info->destination_connection_id,
                         packet_info->peer_address, alpn, packet_info->version);
   if (original_connection_id != packet_info->destination_connection_id) {
@@ -941,23 +941,22 @@ void QuicDispatcher::ProcessChlo(const std::string& alpn,
   QUIC_DLOG(INFO) << "Created new session for "
                   << packet_info->destination_connection_id;
 
-  DCHECK(session_map_.find(packet_info->destination_connection_id) ==
-         session_map_.end())
-      << "Tried to add session map existing entry "
+  auto insertion_result = session_map_.insert(std::make_pair(
+      packet_info->destination_connection_id, std::move(session)));
+  QUIC_BUG_IF(!insertion_result.second)
+      << "Tried to add a session to session_map with existing connection id: "
       << packet_info->destination_connection_id;
-
-  session_map_.insert(std::make_pair(packet_info->destination_connection_id,
-                                     QuicWrapUnique(session)));
+  QuicSession* session_ptr = insertion_result.first->second.get();
   std::list<BufferedPacket> packets =
       buffered_packets_.DeliverPackets(packet_info->destination_connection_id)
           .buffered_packets;
   // Process CHLO at first.
-  session->ProcessUdpPacket(packet_info->self_address,
-                            packet_info->peer_address, packet_info->packet);
+  session_ptr->ProcessUdpPacket(packet_info->self_address,
+                                packet_info->peer_address, packet_info->packet);
   // Deliver queued-up packets in the same order as they arrived.
   // Do this even when flag is off because there might be still some packets
   // buffered in the store before flag is turned off.
-  DeliverPacketsToSession(packets, session);
+  DeliverPacketsToSession(packets, session_ptr);
   --new_sessions_allowed_per_event_loop_;
 }
 

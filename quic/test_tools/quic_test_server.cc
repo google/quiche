@@ -93,7 +93,7 @@ class QuicTestDispatcher : public QuicSimpleDispatcher {
         stream_factory_(nullptr),
         crypto_stream_factory_(nullptr) {}
 
-  QuicServerSessionBase* CreateQuicSession(
+  std::unique_ptr<QuicSession> CreateQuicSession(
       QuicConnectionId id,
       const QuicSocketAddress& client,
       quiche::QuicheStringPiece alpn,
@@ -108,9 +108,9 @@ class QuicTestDispatcher : public QuicSimpleDispatcher {
                            /* owns_writer= */ false, Perspective::IS_SERVER,
                            ParsedQuicVersionVector{version});
 
-    QuicServerSessionBase* session = nullptr;
+    std::unique_ptr<QuicServerSessionBase> session;
     if (stream_factory_ != nullptr || crypto_stream_factory_ != nullptr) {
-      session = new CustomStreamSession(
+      session = std::make_unique<CustomStreamSession>(
           config(), GetSupportedVersions(), connection, this, session_helper(),
           crypto_config(), compressed_certs_cache(), stream_factory_,
           crypto_stream_factory_, server_backend());

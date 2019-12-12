@@ -106,7 +106,7 @@ class QuicQboneDispatcher : public QuicDispatcher {
                        kQuicDefaultConnectionIdLength),
         writer_(writer) {}
 
-  QuicSession* CreateQuicSession(
+  std::unique_ptr<QuicSession> CreateQuicSession(
       QuicConnectionId id,
       const QuicSocketAddress& client,
       quiche::QuicheStringPiece alpn,
@@ -117,7 +117,7 @@ class QuicQboneDispatcher : public QuicDispatcher {
                            /* owns_writer= */ false, Perspective::IS_SERVER,
                            ParsedQuicVersionVector{version});
     // The connection owning wrapper owns the connection created.
-    QboneServerSession* session = new ConnectionOwningQboneServerSession(
+    auto session = std::make_unique<ConnectionOwningQboneServerSession>(
         GetSupportedVersions(), connection, this, config(), crypto_config(),
         compressed_certs_cache(), writer_);
     session->Initialize();

@@ -50,7 +50,7 @@ QuartcDispatcher::~QuartcDispatcher() {
   packet_writer_->SetPacketTransportDelegate(nullptr);
 }
 
-QuartcSession* QuartcDispatcher::CreateQuicSession(
+std::unique_ptr<QuicSession> QuartcDispatcher::CreateQuicSession(
     QuicConnectionId connection_id,
     const QuicSocketAddress& client_address,
     quiche::QuicheStringPiece /*alpn*/,
@@ -60,11 +60,11 @@ QuartcSession* QuartcDispatcher::CreateQuicSession(
   std::unique_ptr<QuicConnection> connection = CreateQuicConnection(
       connection_id, client_address, helper(), alarm_factory(), writer(),
       Perspective::IS_SERVER, ParsedQuicVersionVector{version});
-  QuartcSession* session = new QuartcServerSession(
+  auto session = std::make_unique<QuartcServerSession>(
       std::move(connection), /*visitor=*/this, config(), GetSupportedVersions(),
       helper()->GetClock(), crypto_config(), compressed_certs_cache(),
       session_helper());
-  delegate_->OnSessionCreated(session);
+  delegate_->OnSessionCreated(session.get());
   return session;
 }
 

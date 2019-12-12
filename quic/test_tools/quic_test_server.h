@@ -27,7 +27,7 @@ class QuicTestServer : public QuicServer {
     virtual ~SessionFactory() {}
 
     // Returns a new session owned by the caller.
-    virtual QuicServerSessionBase* CreateSession(
+    virtual std::unique_ptr<QuicServerSessionBase> CreateSession(
         const QuicConfig& config,
         QuicConnection* connection,
         QuicSession::Visitor* visitor,
