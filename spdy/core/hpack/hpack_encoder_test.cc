@@ -448,7 +448,7 @@ TEST_P(HpackEncoderTest, EncodingWithoutCompression) {
         headers_observed_,
         ElementsAre(Pair(":path", "/index.html"), Pair("cookie", "foo=bar"),
                     Pair("cookie", "baz=bing"),
-                    Pair("hello", std::string("goodbye\0aloha", 13)),
+                    Pair("hello", SpdyStringPiece("goodbye\0aloha", 13)),
                     Pair("multivalue", "value1, value2")));
   } else {
     EXPECT_THAT(
