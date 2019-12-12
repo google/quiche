@@ -35,6 +35,7 @@ class TunDevice : public TunDeviceInterface {
   TunDevice(const string& interface_name,
             int mtu,
             bool persist,
+            bool setup_tun,
             KernelInterface* kernel);
 
   ~TunDevice() override;
@@ -72,6 +73,7 @@ class TunDevice : public TunDeviceInterface {
   const string interface_name_;
   const int mtu_;
   const bool persist_;
+  const bool setup_tun_;
   int file_descriptor_;
   KernelInterface& kernel_;
   bool is_interface_up_ = false;

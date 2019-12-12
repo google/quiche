@@ -22,10 +22,12 @@ const int kInvalidFd = -1;
 TunDevice::TunDevice(const string& interface_name,
                      int mtu,
                      bool persist,
+                     bool setup_tun,
                      KernelInterface* kernel)
     : interface_name_(interface_name),
       mtu_(mtu),
       persist_(persist),
+      setup_tun_(setup_tun),
       file_descriptor_(kInvalidFd),
       kernel_(*kernel) {}
 
@@ -56,7 +58,7 @@ bool TunDevice::Init() {
 // TODO(pengg): might be better to use netlink socket, once we have a library to
 // use
 bool TunDevice::Up() {
-  if (!is_interface_up_) {
+  if (setup_tun_ && !is_interface_up_) {
     struct ifreq if_request;
     memset(&if_request, 0, sizeof(if_request));
     // copy does not zero-terminate the result string, but we've memset the
@@ -75,7 +77,7 @@ bool TunDevice::Up() {
 // TODO(pengg): might be better to use netlink socket, once we have a library to
 // use
 bool TunDevice::Down() {
-  if (is_interface_up_) {
+  if (setup_tun_ && is_interface_up_) {
     struct ifreq if_request;
     memset(&if_request, 0, sizeof(if_request));
     // copy does not zero-terminate the result string, but we've memset the
@@ -145,6 +147,10 @@ bool TunDevice::OpenDevice() {
 // TODO(pengg): might be better to use netlink socket, once we have a library to
 // use
 bool TunDevice::ConfigureInterface() {
+  if (!setup_tun_) {
+    return true;
+  }
+
   struct ifreq if_request;
   memset(&if_request, 0, sizeof(if_request));
   // copy does not zero-terminate the result string, but we've memset the entire
