@@ -104,14 +104,15 @@ void QuicMemoryCacheBackend::ResourceFile::Read() {
 
 void QuicMemoryCacheBackend::ResourceFile::SetHostPathFromBase(
     quiche::QuicheStringPiece base) {
+  DCHECK(base[0] != '/') << base;
   size_t path_start = base.find_first_of('/');
-  DCHECK_LT(0UL, path_start);
-  host_ = base.substr(0, path_start);
+  DCHECK(path_start != quiche::QuicheStringPiece::npos) << base;
+  host_ = std::string(base.substr(0, path_start));
   size_t query_start = base.find_first_of(',');
   if (query_start > 0) {
-    path_ = base.substr(path_start, query_start - 1);
+    path_ = std::string(base.substr(path_start, query_start - 1));
   } else {
-    path_ = base.substr(path_start);
+    path_ = std::string(base.substr(path_start));
   }
 }
 
@@ -127,9 +128,7 @@ quiche::QuicheStringPiece QuicMemoryCacheBackend::ResourceFile::RemoveScheme(
 
 void QuicMemoryCacheBackend::ResourceFile::HandleXOriginalUrl() {
   quiche::QuicheStringPiece url(x_original_url_);
-  // Remove the protocol so we can add it below.
-  url = RemoveScheme(url);
-  SetHostPathFromBase(url);
+  SetHostPathFromBase(RemoveScheme(url));
 }
 
 const QuicBackendResponse* QuicMemoryCacheBackend::GetResponse(
@@ -256,10 +255,16 @@ bool QuicMemoryCacheBackend::InitializeBackend(
     std::unique_ptr<ResourceFile> resource_file(new ResourceFile(filename));
 
     // Tease apart filename into host and path.
-    quiche::QuicheStringPiece base(resource_file->file_name());
-    base.remove_prefix(cache_directory.length());
+    std::string base(resource_file->file_name());
+    // Transform windows path separators to URL path separators.
+    for (size_t i = 0; i < base.length(); ++i) {
+      if (base[i] == '\\') {
+        base[i] = '/';
+      }
+    }
+    base.erase(0, cache_directory.length());
     if (base[0] == '/') {
-      base.remove_prefix(1);
+      base.erase(0, 1);
     }
 
     resource_file->SetHostPathFromBase(base);

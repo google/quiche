@@ -66,8 +66,8 @@ class QuicMemoryCacheBackend : public QuicSimpleServerBackend {
     spdy::SpdyHeaderBlock spdy_headers_;
     quiche::QuicheStringPiece x_original_url_;
     std::vector<quiche::QuicheStringPiece> push_urls_;
-    quiche::QuicheStringPiece host_;
-    quiche::QuicheStringPiece path_;
+    std::string host_;
+    std::string path_;
   };
 
   QuicMemoryCacheBackend();
