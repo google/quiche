@@ -13,7 +13,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_client_stats.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 
 namespace quic {
 
@@ -250,8 +250,9 @@ void QuicCryptoClientHandshaker::DoSendCHLO(
   if (num_client_hellos_ >= QuicCryptoClientStream::kMaxClientHellos) {
     stream_->CloseConnectionWithDetails(
         QUIC_CRYPTO_TOO_MANY_REJECTS,
-        QuicStrCat("More than ", QuicCryptoClientStream::kMaxClientHellos,
-                   " rejects"));
+        quiche::QuicheStrCat("More than ",
+                             QuicCryptoClientStream::kMaxClientHellos,
+                             " rejects"));
     return;
   }
   num_client_hellos_++;

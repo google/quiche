@@ -11,8 +11,9 @@
 #include "net/third_party/quiche/src/quic/core/quic_constants.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_endian.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -110,7 +111,7 @@ bool QuicDataWriter::WriteUFloat16(uint64_t value) {
   return WriteBytes(&result, sizeof(result));
 }
 
-bool QuicDataWriter::WriteStringPiece16(QuicStringPiece val) {
+bool QuicDataWriter::WriteStringPiece16(quiche::QuicheStringPiece val) {
   if (val.size() > std::numeric_limits<uint16_t>::max()) {
     return false;
   }
@@ -120,7 +121,7 @@ bool QuicDataWriter::WriteStringPiece16(QuicStringPiece val) {
   return WriteBytes(val.data(), val.size());
 }
 
-bool QuicDataWriter::WriteStringPiece(QuicStringPiece val) {
+bool QuicDataWriter::WriteStringPiece(quiche::QuicheStringPiece val) {
   return WriteBytes(val.data(), val.size());
 }
 
@@ -353,7 +354,7 @@ QuicVariableLengthIntegerLength QuicDataWriter::GetVarInt62Len(uint64_t value) {
 }
 
 bool QuicDataWriter::WriteStringPieceVarInt62(
-    const QuicStringPiece& string_piece) {
+    const quiche::QuicheStringPiece& string_piece) {
   if (!WriteVarInt62(string_piece.size())) {
     return false;
   }
@@ -366,7 +367,8 @@ bool QuicDataWriter::WriteStringPieceVarInt62(
 }
 
 std::string QuicDataWriter::DebugString() const {
-  return QuicStrCat(" { capacity: ", capacity_, ", length: ", length_, " }");
+  return quiche::QuicheStrCat(" { capacity: ", capacity_, ", length: ", length_,
+                              " }");
 }
 
 }  // namespace quic

@@ -19,8 +19,8 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -80,10 +80,10 @@ void QuicStreamSequencer::OnFrameData(QuicStreamOffset byte_offset,
   size_t bytes_written;
   std::string error_details;
   QuicErrorCode result = buffered_frames_.OnStreamData(
-      byte_offset, QuicStringPiece(data_buffer, data_len), &bytes_written,
-      &error_details);
+      byte_offset, quiche::QuicheStringPiece(data_buffer, data_len),
+      &bytes_written, &error_details);
   if (result != QUIC_NO_ERROR) {
-    std::string details = QuicStrCat(
+    std::string details = quiche::QuicheStrCat(
         "Stream ", stream_->id(), ": ", QuicErrorCodeToString(result), ": ",
         error_details,
         "\nPeer Address: ", stream_->PeerAddressOfLatestPacket().ToString());
@@ -141,9 +141,9 @@ bool QuicStreamSequencer::CloseStreamAtOffset(QuicStreamOffset offset) {
         quic_close_connection_and_discard_data_on_wrong_offset, 2, 3);
     stream_->CloseConnectionWithDetails(
         QUIC_STREAM_SEQUENCER_INVALID_STATE,
-        QuicStrCat("Stream ", stream_->id(),
-                   " received new final offset: ", offset,
-                   ", which is different from close offset: ", close_offset_));
+        quiche::QuicheStrCat(
+            "Stream ", stream_->id(), " received new final offset: ", offset,
+            ", which is different from close offset: ", close_offset_));
     return false;
   }
 
@@ -155,7 +155,7 @@ bool QuicStreamSequencer::CloseStreamAtOffset(QuicStreamOffset offset) {
         quic_close_connection_and_discard_data_on_wrong_offset, 3, 3);
     stream_->CloseConnectionWithDetails(
         QUIC_STREAM_SEQUENCER_INVALID_STATE,
-        QuicStrCat(
+        quiche::QuicheStrCat(
             "Stream ", stream_->id(), " received fin with offset: ", offset,
             ", which reduces current highest offset: ", highest_offset_));
     return false;
@@ -221,7 +221,7 @@ int QuicStreamSequencer::Readv(const struct iovec* iov, size_t iov_len) {
       buffered_frames_.Readv(iov, iov_len, &bytes_read, &error_details);
   if (read_error != QUIC_NO_ERROR) {
     std::string details =
-        QuicStrCat("Stream ", stream_->id(), ": ", error_details);
+        quiche::QuicheStrCat("Stream ", stream_->id(), ": ", error_details);
     stream_->CloseConnectionWithDetails(read_error, details);
     return static_cast<int>(bytes_read);
   }
@@ -304,7 +304,7 @@ QuicStreamOffset QuicStreamSequencer::NumBytesConsumed() const {
 
 const std::string QuicStreamSequencer::DebugString() const {
   // clang-format off
-  return QuicStrCat("QuicStreamSequencer:",
+  return quiche::QuicheStrCat("QuicStreamSequencer:",
                 "\n  bytes buffered: ", NumBytesBuffered(),
                 "\n  bytes consumed: ", NumBytesConsumed(),
                 "\n  has bytes to read: ", HasBytesToRead() ? "true" : "false",

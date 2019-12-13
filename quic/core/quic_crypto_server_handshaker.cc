@@ -9,7 +9,8 @@
 
 #include "third_party/boringssl/src/include/openssl/sha.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 namespace quic {
 
@@ -325,8 +326,8 @@ void QuicCryptoServerHandshaker::FinishSendServerConfigUpdate(
                 << message.DebugString();
   if (!QuicVersionUsesCryptoFrames(transport_version())) {
     const QuicData& data = message.GetSerialized();
-    stream_->WriteOrBufferData(QuicStringPiece(data.data(), data.length()),
-                               false, nullptr);
+    stream_->WriteOrBufferData(
+        quiche::QuicheStringPiece(data.data(), data.length()), false, nullptr);
   } else {
     SendHandshakeMessage(message);
   }
@@ -384,7 +385,7 @@ bool QuicCryptoServerHandshaker::GetBase64SHA256ClientChannelID(
   SHA256(reinterpret_cast<const uint8_t*>(channel_id.data()), channel_id.size(),
          digest);
 
-  QuicTextUtils::Base64Encode(digest, QUIC_ARRAYSIZE(digest), output);
+  quiche::QuicheTextUtils::Base64Encode(digest, QUIC_ARRAYSIZE(digest), output);
   return true;
 }
 
@@ -430,7 +431,7 @@ void QuicCryptoServerHandshaker::ProcessClientHello(
 
   if (num_handshake_messages_ == 1) {
     // Client attempts zero RTT handshake by sending a non-inchoate CHLO.
-    QuicStringPiece public_value;
+    quiche::QuicheStringPiece public_value;
     zero_rtt_attempted_ = message.GetStringPiece(kPUBS, &public_value);
   }
 

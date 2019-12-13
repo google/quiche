@@ -12,7 +12,8 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 namespace {
@@ -67,7 +68,7 @@ bool QuicStreamSequencerBuffer::RetireBlock(size_t idx) {
 
 QuicErrorCode QuicStreamSequencerBuffer::OnStreamData(
     QuicStreamOffset starting_offset,
-    QuicStringPiece data,
+    quiche::QuicheStringPiece data,
     size_t* const bytes_buffered,
     std::string* error_details) {
   *bytes_buffered = 0;
@@ -134,7 +135,7 @@ QuicErrorCode QuicStreamSequencerBuffer::OnStreamData(
 }
 
 bool QuicStreamSequencerBuffer::CopyStreamData(QuicStreamOffset offset,
-                                               QuicStringPiece data,
+                                               quiche::QuicheStringPiece data,
                                                size_t* bytes_copy,
                                                std::string* error_details) {
   *bytes_copy = 0;
@@ -168,7 +169,7 @@ bool QuicStreamSequencerBuffer::CopyStreamData(QuicStreamOffset offset,
     }
 
     if (write_block_num >= blocks_count_) {
-      *error_details = QuicStrCat(
+      *error_details = quiche::QuicheStrCat(
           "QuicStreamSequencerBuffer error: OnStreamData() exceed array bounds."
           "write offset = ",
           offset, " write_block_num = ", write_block_num,
@@ -193,7 +194,7 @@ bool QuicStreamSequencerBuffer::CopyStreamData(QuicStreamOffset offset,
                   << " length: " << bytes_to_copy;
 
     if (dest == nullptr || source == nullptr) {
-      *error_details = QuicStrCat(
+      *error_details = quiche::QuicheStrCat(
           "QuicStreamSequencerBuffer error: OnStreamData()"
           " dest == nullptr: ",
           (dest == nullptr), " source == nullptr: ", (source == nullptr),
@@ -230,7 +231,7 @@ QuicErrorCode QuicStreamSequencerBuffer::Readv(const iovec* dest_iov,
           std::min<size_t>(bytes_available_in_block, dest_remaining);
       DCHECK_GT(bytes_to_copy, 0u);
       if (blocks_[block_idx] == nullptr || dest == nullptr) {
-        *error_details = QuicStrCat(
+        *error_details = quiche::QuicheStrCat(
             "QuicStreamSequencerBuffer error:"
             " Readv() dest == nullptr: ",
             (dest == nullptr), " blocks_[", block_idx,
@@ -255,7 +256,7 @@ QuicErrorCode QuicStreamSequencerBuffer::Readv(const iovec* dest_iov,
       if (bytes_to_copy == bytes_available_in_block) {
         bool retire_successfully = RetireBlockIfEmpty(block_idx);
         if (!retire_successfully) {
-          *error_details = QuicStrCat(
+          *error_details = quiche::QuicheStrCat(
               "QuicStreamSequencerBuffer error: fail to retire block ",
               block_idx,
               " as the block is already released, total_bytes_read_ = ",

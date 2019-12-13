@@ -27,9 +27,9 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_server_stats.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 namespace quic {
 namespace {
@@ -1047,16 +1047,16 @@ QuicVariableLengthIntegerLength QuicPacketCreator::GetRetryTokenLengthLength()
   return VARIABLE_LENGTH_INTEGER_LENGTH_0;
 }
 
-QuicStringPiece QuicPacketCreator::GetRetryToken() const {
+quiche::QuicheStringPiece QuicPacketCreator::GetRetryToken() const {
   if (QuicVersionHasLongHeaderLengths(framer_->transport_version()) &&
       HasIetfLongHeader() &&
       EncryptionlevelToLongHeaderType(packet_.encryption_level) == INITIAL) {
     return retry_token_;
   }
-  return QuicStringPiece();
+  return quiche::QuicheStringPiece();
 }
 
-void QuicPacketCreator::SetRetryToken(QuicStringPiece retry_token) {
+void QuicPacketCreator::SetRetryToken(quiche::QuicheStringPiece retry_token) {
   retry_token_ = std::string(retry_token);
 }
 
@@ -1436,8 +1436,8 @@ bool QuicPacketCreator::AddFrame(const QuicFrame& frame,
       (packet_.encryption_level == ENCRYPTION_INITIAL ||
        packet_.encryption_level == ENCRYPTION_HANDSHAKE)) {
     const std::string error_details =
-        QuicStrCat("Cannot send stream data with level: ",
-                   EncryptionLevelToString(packet_.encryption_level));
+        quiche::QuicheStrCat("Cannot send stream data with level: ",
+                             EncryptionLevelToString(packet_.encryption_level));
     QUIC_BUG << error_details;
     delegate_->OnUnrecoverableError(
         QUIC_ATTEMPT_TO_SEND_UNENCRYPTED_STREAM_DATA, error_details);

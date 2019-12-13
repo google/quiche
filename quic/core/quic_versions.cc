@@ -14,8 +14,8 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_endian.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 namespace quic {
 namespace {
@@ -170,7 +170,8 @@ ParsedQuicVersion ParseQuicVersionString(std::string version_string) {
     return UnsupportedQuicVersion();
   }
   int quic_version_number = 0;
-  if (QuicTextUtils::StringToInt(version_string, &quic_version_number) &&
+  if (quiche::QuicheTextUtils::StringToInt(version_string,
+                                           &quic_version_number) &&
       quic_version_number > 0) {
     return ParsedQuicVersion(
         PROTOCOL_QUIC_CRYPTO,
@@ -448,7 +449,8 @@ ParsedQuicVersion QuicVersionReservedForNegotiation() {
 std::string AlpnForVersion(ParsedQuicVersion parsed_version) {
   if (parsed_version.handshake_protocol == PROTOCOL_TLS1_3 &&
       parsed_version.transport_version == QUIC_VERSION_99) {
-    return "h3-" + QuicTextUtils::Uint64ToString(kQuicIetfDraftVersion);
+    return "h3-" +
+           quiche::QuicheTextUtils::Uint64ToString(kQuicIetfDraftVersion);
   }
   return "h3-" + ParsedQuicVersionToString(parsed_version);
 }

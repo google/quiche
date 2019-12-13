@@ -31,6 +31,7 @@
 #include "net/third_party/quiche/src/quic/test_tools/quic_stream_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_stream_sequencer_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 using testing::_;
 using testing::AnyNumber;
@@ -288,8 +289,9 @@ TEST_P(QuicStreamTest, NoBlockingIfNoDataOrFin) {
 
   // Write no data and no fin.  If we consume nothing we should not be write
   // blocked.
-  EXPECT_QUIC_BUG(stream_->WriteOrBufferData(QuicStringPiece(), false, nullptr),
-                  "");
+  EXPECT_QUIC_BUG(
+      stream_->WriteOrBufferData(quiche::QuicheStringPiece(), false, nullptr),
+      "");
   EXPECT_FALSE(HasWriteBlockedStreams());
 }
 
@@ -303,7 +305,8 @@ TEST_P(QuicStreamTest, BlockIfOnlySomeDataConsumed) {
         return MockQuicSession::ConsumeData(stream_, stream_->id(), 1u, 0u,
                                             NO_FIN);
       }));
-  stream_->WriteOrBufferData(QuicStringPiece(kData1, 2), false, nullptr);
+  stream_->WriteOrBufferData(quiche::QuicheStringPiece(kData1, 2), false,
+                             nullptr);
   EXPECT_TRUE(session_->HasUnackedStreamData());
   ASSERT_EQ(1u, write_blocked_list_->NumBlockedStreams());
   EXPECT_EQ(1u, stream_->BufferedDataBytes());
@@ -321,7 +324,8 @@ TEST_P(QuicStreamTest, BlockIfFinNotConsumedWithData) {
         return MockQuicSession::ConsumeData(stream_, stream_->id(), 2u, 0u,
                                             NO_FIN);
       }));
-  stream_->WriteOrBufferData(QuicStringPiece(kData1, 2), true, nullptr);
+  stream_->WriteOrBufferData(quiche::QuicheStringPiece(kData1, 2), true,
+                             nullptr);
   EXPECT_TRUE(session_->HasUnackedStreamData());
   ASSERT_EQ(1u, write_blocked_list_->NumBlockedStreams());
 }
@@ -333,7 +337,7 @@ TEST_P(QuicStreamTest, BlockIfSoloFinNotConsumed) {
   // as the fin was not consumed.
   EXPECT_CALL(*session_, WritevData(stream_, kTestStreamId, _, _, _))
       .WillOnce(Return(QuicConsumedData(0, false)));
-  stream_->WriteOrBufferData(QuicStringPiece(), true, nullptr);
+  stream_->WriteOrBufferData(quiche::QuicheStringPiece(), true, nullptr);
   ASSERT_EQ(1u, write_blocked_list_->NumBlockedStreams());
 }
 
@@ -345,7 +349,8 @@ TEST_P(QuicStreamTest, CloseOnPartialWrite) {
   // crash with an unknown stream.
   EXPECT_CALL(*session_, WritevData(stream_, kTestStreamId, _, _, _))
       .WillOnce(Invoke(this, &QuicStreamTest::CloseStreamOnWriteError));
-  stream_->WriteOrBufferData(QuicStringPiece(kData1, 2), false, nullptr);
+  stream_->WriteOrBufferData(quiche::QuicheStringPiece(kData1, 2), false,
+                             nullptr);
   ASSERT_EQ(0u, write_blocked_list_->NumBlockedStreams());
 }
 
@@ -440,7 +445,8 @@ TEST_P(QuicStreamTest, RstAlwaysSentIfNoFinSent) {
         return MockQuicSession::ConsumeData(stream_, stream_->id(), 1u, 0u,
                                             NO_FIN);
       }));
-  stream_->WriteOrBufferData(QuicStringPiece(kData1, 1), false, nullptr);
+  stream_->WriteOrBufferData(quiche::QuicheStringPiece(kData1, 1), false,
+                             nullptr);
   EXPECT_TRUE(session_->HasUnackedStreamData());
   EXPECT_FALSE(fin_sent());
   EXPECT_FALSE(rst_sent());
@@ -468,7 +474,8 @@ TEST_P(QuicStreamTest, RstNotSentIfFinSent) {
         return MockQuicSession::ConsumeData(stream_, stream_->id(), 1u, 0u,
                                             FIN);
       }));
-  stream_->WriteOrBufferData(QuicStringPiece(kData1, 1), true, nullptr);
+  stream_->WriteOrBufferData(quiche::QuicheStringPiece(kData1, 1), true,
+                             nullptr);
   EXPECT_TRUE(fin_sent());
   EXPECT_FALSE(rst_sent());
 
@@ -659,7 +666,7 @@ TEST_P(QuicStreamTest, FinalByteOffsetFromZeroLengthStreamFrame) {
             current_connection_flow_control_offset);
   QuicStreamFrame zero_length_stream_frame_with_fin(
       stream_->id(), /*fin=*/true, kByteOffsetExceedingFlowControlWindow,
-      QuicStringPiece());
+      quiche::QuicheStringPiece());
   EXPECT_EQ(0, zero_length_stream_frame_with_fin.data_length);
 
   EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(0);
@@ -708,9 +715,10 @@ TEST_P(QuicStreamTest, StreamTooLong) {
   EXPECT_CALL(*connection_, CloseConnection(QUIC_STREAM_LENGTH_OVERFLOW, _, _))
       .Times(1);
   QuicStreamFrame stream_frame(stream_->id(), false, kMaxStreamLength, ".");
-  EXPECT_QUIC_PEER_BUG(stream_->OnStreamFrame(stream_frame),
-                       QuicStrCat("Receive stream frame on stream ",
-                                  stream_->id(), " reaches max stream length"));
+  EXPECT_QUIC_PEER_BUG(
+      stream_->OnStreamFrame(stream_frame),
+      quiche::QuicheStrCat("Receive stream frame on stream ", stream_->id(),
+                           " reaches max stream length"));
 }
 
 TEST_P(QuicStreamTest, SetDrainingIncomingOutgoing) {
@@ -733,7 +741,8 @@ TEST_P(QuicStreamTest, SetDrainingIncomingOutgoing) {
         return MockQuicSession::ConsumeData(stream_, stream_->id(), 2u, 0u,
                                             FIN);
       }));
-  stream_->WriteOrBufferData(QuicStringPiece(kData1, 2), true, nullptr);
+  stream_->WriteOrBufferData(quiche::QuicheStringPiece(kData1, 2), true,
+                             nullptr);
   EXPECT_TRUE(stream_->write_side_closed());
 
   EXPECT_EQ(1u, QuicSessionPeer::GetDrainingStreams(session_.get())
@@ -751,7 +760,8 @@ TEST_P(QuicStreamTest, SetDrainingOutgoingIncoming) {
         return MockQuicSession::ConsumeData(stream_, stream_->id(), 2u, 0u,
                                             FIN);
       }));
-  stream_->WriteOrBufferData(QuicStringPiece(kData1, 2), true, nullptr);
+  stream_->WriteOrBufferData(quiche::QuicheStringPiece(kData1, 2), true,
+                             nullptr);
   EXPECT_TRUE(stream_->write_side_closed());
 
   EXPECT_EQ(1u, session_->GetNumOpenIncomingStreams());

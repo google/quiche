@@ -22,7 +22,8 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_server_stats.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_stack_trace.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 using spdy::SpdyPriority;
 
@@ -367,7 +368,7 @@ void QuicSession::OnGoAway(const QuicGoAwayFrame& /*frame*/) {
   goaway_received_ = true;
 }
 
-void QuicSession::OnMessageReceived(QuicStringPiece message) {
+void QuicSession::OnMessageReceived(quiche::QuicheStringPiece message) {
   QUIC_DVLOG(1) << ENDPOINT << "Received message, length: " << message.length()
                 << ", " << message;
 }
@@ -1573,8 +1574,8 @@ bool QuicSession::MaybeIncreaseLargestPeerStreamId(
   if (!stream_id_manager_.MaybeIncreaseLargestPeerStreamId(stream_id)) {
     connection()->CloseConnection(
         QUIC_TOO_MANY_AVAILABLE_STREAMS,
-        QuicStrCat(stream_id, " exceeds available streams ",
-                   stream_id_manager_.MaxAvailableStreams()),
+        quiche::QuicheStrCat(stream_id, " exceeds available streams ",
+                             stream_id_manager_.MaxAvailableStreams()),
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return false;
   }
@@ -2145,13 +2146,13 @@ size_t QuicSession::max_open_incoming_unidirectional_streams() const {
   return stream_id_manager_.max_open_incoming_streams();
 }
 
-std::vector<QuicStringPiece>::const_iterator QuicSession::SelectAlpn(
-    const std::vector<QuicStringPiece>& alpns) const {
+std::vector<quiche::QuicheStringPiece>::const_iterator QuicSession::SelectAlpn(
+    const std::vector<quiche::QuicheStringPiece>& alpns) const {
   const std::string alpn = AlpnForVersion(connection()->version());
   return std::find(alpns.cbegin(), alpns.cend(), alpn);
 }
 
-void QuicSession::OnAlpnSelected(QuicStringPiece alpn) {
+void QuicSession::OnAlpnSelected(quiche::QuicheStringPiece alpn) {
   QUIC_DLOG(INFO) << (perspective() == Perspective::IS_SERVER ? "Server: "
                                                               : "Client: ")
                   << "ALPN selected: " << alpn;

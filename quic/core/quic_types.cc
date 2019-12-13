@@ -7,7 +7,7 @@
 #include <cstdint>
 
 #include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 
 namespace quic {
 
@@ -80,7 +80,7 @@ MessageResult::MessageResult(MessageStatus status, QuicMessageId message_id)
 
 std::string QuicIetfTransportErrorCodeString(QuicIetfTransportErrorCodes c) {
   if (static_cast<uint16_t>(c) >= 0xff00u) {
-    return QuicStrCat("Private value: ", static_cast<uint16_t>(c));
+    return quiche::QuicheStrCat("Private value: ", static_cast<uint16_t>(c));
   }
 
   switch (c) {
@@ -97,8 +97,8 @@ std::string QuicIetfTransportErrorCodeString(QuicIetfTransportErrorCodes c) {
     RETURN_STRING_LITERAL(PROTOCOL_VIOLATION);
     RETURN_STRING_LITERAL(INVALID_MIGRATION);
     default:
-      return QuicStrCat("Unknown Transport Error Code Value: ",
-                        static_cast<uint16_t>(c));
+      return quiche::QuicheStrCat("Unknown Transport Error Code Value: ",
+                                  static_cast<uint16_t>(c));
   }
 }
 
@@ -465,7 +465,7 @@ std::string QuicIetfFrameTypeString(QuicIetfFrameType t) {
     RETURN_STRING_LITERAL(IETF_EXTENSION_MESSAGE_NO_LENGTH_V99);
     RETURN_STRING_LITERAL(IETF_EXTENSION_MESSAGE_V99);
     default:
-      return QuicStrCat("Private value (", t, ")");
+      return quiche::QuicheStrCat("Private value (", t, ")");
   }
 }
 std::ostream& operator<<(std::ostream& os, const QuicIetfFrameType& c) {
@@ -489,7 +489,8 @@ std::string TransmissionTypeToString(TransmissionType transmission_type) {
       if (transmission_type == LAST_TRANSMISSION_TYPE + 1) {
         return "INVALID_TRANSMISSION_TYPE";
       }
-      return QuicStrCat("Unknown(", static_cast<int>(transmission_type), ")");
+      return quiche::QuicheStrCat("Unknown(",
+                                  static_cast<int>(transmission_type), ")");
       break;
   }
 }
@@ -500,7 +501,7 @@ std::string PacketHeaderFormatToString(PacketHeaderFormat format) {
     RETURN_STRING_LITERAL(IETF_QUIC_SHORT_HEADER_PACKET);
     RETURN_STRING_LITERAL(GOOGLE_QUIC_PACKET);
     default:
-      return QuicStrCat("Unknown (", static_cast<int>(format), ")");
+      return quiche::QuicheStrCat("Unknown (", static_cast<int>(format), ")");
   }
 }
 
@@ -513,7 +514,7 @@ std::string QuicLongHeaderTypeToString(QuicLongHeaderType type) {
     RETURN_STRING_LITERAL(RETRY);
     RETURN_STRING_LITERAL(INVALID_PACKET_TYPE);
     default:
-      return QuicStrCat("Unknown (", static_cast<int>(type), ")");
+      return quiche::QuicheStrCat("Unknown (", static_cast<int>(type), ")");
   }
 }
 
@@ -526,17 +527,19 @@ std::string MessageStatusToString(MessageStatus message_status) {
     RETURN_STRING_LITERAL(MESSAGE_STATUS_TOO_LARGE);
     RETURN_STRING_LITERAL(MESSAGE_STATUS_INTERNAL_ERROR);
     default:
-      return QuicStrCat("Unknown(", static_cast<int>(message_status), ")");
+      return quiche::QuicheStrCat("Unknown(", static_cast<int>(message_status),
+                                  ")");
       break;
   }
 }
 
 std::string MessageResultToString(MessageResult message_result) {
   if (message_result.status != MESSAGE_STATUS_SUCCESS) {
-    return QuicStrCat("{", MessageStatusToString(message_result.status), "}");
+    return quiche::QuicheStrCat(
+        "{", MessageStatusToString(message_result.status), "}");
   }
-  return QuicStrCat("{MESSAGE_STATUS_SUCCESS,id=", message_result.message_id,
-                    "}");
+  return quiche::QuicheStrCat(
+      "{MESSAGE_STATUS_SUCCESS,id=", message_result.message_id, "}");
 }
 
 std::ostream& operator<<(std::ostream& os, const MessageResult& mr) {
@@ -550,7 +553,8 @@ std::string PacketNumberSpaceToString(PacketNumberSpace packet_number_space) {
     RETURN_STRING_LITERAL(HANDSHAKE_DATA);
     RETURN_STRING_LITERAL(APPLICATION_DATA);
     default:
-      return QuicStrCat("Unknown(", static_cast<int>(packet_number_space), ")");
+      return quiche::QuicheStrCat("Unknown(",
+                                  static_cast<int>(packet_number_space), ")");
       break;
   }
 }
@@ -562,7 +566,7 @@ std::string SerializedPacketFateToString(SerializedPacketFate fate) {
     RETURN_STRING_LITERAL(SEND_TO_WRITER);
     RETURN_STRING_LITERAL(FAILED_TO_WRITE_COALESCED_PACKET);
     default:
-      return QuicStrCat("Unknown(", static_cast<int>(fate), ")");
+      return quiche::QuicheStrCat("Unknown(", static_cast<int>(fate), ")");
   }
 }
 
@@ -573,7 +577,7 @@ std::string EncryptionLevelToString(EncryptionLevel level) {
     RETURN_STRING_LITERAL(ENCRYPTION_ZERO_RTT);
     RETURN_STRING_LITERAL(ENCRYPTION_FORWARD_SECURE);
     default:
-      return QuicStrCat("Unknown(", static_cast<int>(level), ")");
+      return quiche::QuicheStrCat("Unknown(", static_cast<int>(level), ")");
       break;
   }
 }
@@ -584,7 +588,7 @@ std::string QuicConnectionCloseTypeString(QuicConnectionCloseType type) {
     RETURN_STRING_LITERAL(IETF_QUIC_TRANSPORT_CONNECTION_CLOSE);
     RETURN_STRING_LITERAL(IETF_QUIC_APPLICATION_CONNECTION_CLOSE);
     default:
-      return QuicStrCat("Unknown(", static_cast<int>(type), ")");
+      return quiche::QuicheStrCat("Unknown(", static_cast<int>(type), ")");
       break;
   }
 }

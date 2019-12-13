@@ -17,10 +17,10 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_expect_bug.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_stream_sequencer_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 using testing::_;
 using testing::AnyNumber;
@@ -123,7 +123,7 @@ class QuicStreamSequencerTest : public QuicTest {
     return true;
   }
 
-  bool VerifyIovec(const iovec& iovec, QuicStringPiece expected) {
+  bool VerifyIovec(const iovec& iovec, quiche::QuicheStringPiece expected) {
     if (iovec.iov_len != expected.length()) {
       QUIC_LOG(ERROR) << "Invalid length: " << iovec.iov_len << " vs "
                       << expected.length();
@@ -613,10 +613,10 @@ TEST_F(QuicStreamSequencerTest, OverlappingFramesReceived) {
   // overlapping byte ranges - if they do, we close the connection.
   QuicStreamId id = 1;
 
-  QuicStreamFrame frame1(id, false, 1, QuicStringPiece("hello"));
+  QuicStreamFrame frame1(id, false, 1, quiche::QuicheStringPiece("hello"));
   sequencer_->OnStreamFrame(frame1);
 
-  QuicStreamFrame frame2(id, false, 2, QuicStringPiece("hello"));
+  QuicStreamFrame frame2(id, false, 2, quiche::QuicheStringPiece("hello"));
   EXPECT_CALL(stream_,
               CloseConnectionWithDetails(QUIC_OVERLAPPING_STREAM_DATA, _))
       .Times(0);
@@ -649,7 +649,7 @@ TEST_F(QuicStreamSequencerTest, DataAvailableOnOverlappingFrames) {
   EXPECT_EQ(0u, sequencer_->NumBytesBuffered());
 
   // Received [1498, 1503).
-  QuicStreamFrame frame3(id, false, 1498, QuicStringPiece("hello"));
+  QuicStreamFrame frame3(id, false, 1498, quiche::QuicheStringPiece("hello"));
   EXPECT_CALL(stream_, OnDataAvailable());
   sequencer_->OnStreamFrame(frame3);
   EXPECT_CALL(stream_, AddBytesConsumed(3));
@@ -658,7 +658,7 @@ TEST_F(QuicStreamSequencerTest, DataAvailableOnOverlappingFrames) {
   EXPECT_EQ(0u, sequencer_->NumBytesBuffered());
 
   // Received [1000, 1005).
-  QuicStreamFrame frame4(id, false, 1000, QuicStringPiece("hello"));
+  QuicStreamFrame frame4(id, false, 1000, quiche::QuicheStringPiece("hello"));
   EXPECT_CALL(stream_, OnDataAvailable()).Times(0);
   sequencer_->OnStreamFrame(frame4);
   EXPECT_EQ(1503u, sequencer_->NumBytesConsumed());

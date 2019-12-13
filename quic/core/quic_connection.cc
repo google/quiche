@@ -34,9 +34,10 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_map_util.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_utils.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 namespace quic {
 
@@ -606,7 +607,7 @@ void QuicConnection::OnVersionNegotiationPacket(
   }
 
   if (QuicContainsValue(packet.versions, version())) {
-    const std::string error_details = QuicStrCat(
+    const std::string error_details = quiche::QuicheStrCat(
         "Server already supports client's version ",
         ParsedQuicVersionToString(version()),
         " and should have accepted the connection instead of sending {",
@@ -620,7 +621,7 @@ void QuicConnection::OnVersionNegotiationPacket(
   server_supported_versions_ = packet.versions;
   CloseConnection(
       QUIC_INVALID_VERSION,
-      QuicStrCat(
+      quiche::QuicheStrCat(
           "Client may support one of the versions in the server's list, but "
           "it's going to close the connection anyway. Supported versions: {",
           ParsedQuicVersionVectorToString(framer_.supported_versions()),
@@ -632,18 +633,18 @@ void QuicConnection::OnVersionNegotiationPacket(
 // Handles retry for client connection.
 void QuicConnection::OnRetryPacket(QuicConnectionId original_connection_id,
                                    QuicConnectionId new_connection_id,
-                                   QuicStringPiece retry_token) {
+                                   quiche::QuicheStringPiece retry_token) {
   DCHECK_EQ(Perspective::IS_CLIENT, perspective_);
   if (original_connection_id != server_connection_id_) {
     QUIC_DLOG(ERROR) << "Ignoring RETRY with original connection ID "
                      << original_connection_id << " not matching expected "
                      << server_connection_id_ << " token "
-                     << QuicTextUtils::HexEncode(retry_token);
+                     << quiche::QuicheTextUtils::HexEncode(retry_token);
     return;
   }
   if (retry_has_been_parsed_) {
     QUIC_DLOG(ERROR) << "Ignoring non-first RETRY with token "
-                     << QuicTextUtils::HexEncode(retry_token);
+                     << quiche::QuicheTextUtils::HexEncode(retry_token);
     return;
   }
   retry_has_been_parsed_ = true;
@@ -651,7 +652,7 @@ void QuicConnection::OnRetryPacket(QuicConnectionId original_connection_id,
   QUIC_DLOG(INFO) << "Received RETRY, replacing connection ID "
                   << server_connection_id_ << " with " << new_connection_id
                   << ", received token "
-                  << QuicTextUtils::HexEncode(retry_token);
+                  << quiche::QuicheTextUtils::HexEncode(retry_token);
   server_connection_id_ = new_connection_id;
   packet_creator_.SetServerConnectionId(server_connection_id_);
   packet_creator_.SetRetryToken(retry_token);
@@ -763,9 +764,9 @@ bool QuicConnection::OnUnauthenticatedHeader(const QuicPacketHeader& header) {
       if (!header.version_flag) {
         // Packets should have the version flag till version negotiation is
         // done.
-        std::string error_details =
-            QuicStrCat(ENDPOINT, "Packet ", header.packet_number.ToUint64(),
-                       " without version flag before version negotiated.");
+        std::string error_details = quiche::QuicheStrCat(
+            ENDPOINT, "Packet ", header.packet_number.ToUint64(),
+            " without version flag before version negotiated.");
         QUIC_DLOG(WARNING) << error_details;
         CloseConnection(QUIC_INVALID_VERSION, error_details,
                         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
@@ -1349,7 +1350,7 @@ bool QuicConnection::OnMessageFrame(const QuicMessageFrame& frame) {
     debug_visitor_->OnMessageFrame(frame);
   }
   visitor_->OnMessageReceived(
-      QuicStringPiece(frame.data, frame.message_length));
+      quiche::QuicheStringPiece(frame.data, frame.message_length));
   should_last_packet_instigate_acks_ = true;
   return connected_;
 }
@@ -1501,12 +1502,12 @@ void QuicConnection::CloseIfTooManyOutstandingSentPackets() {
           sent_packet_manager_.GetLeastUnacked() + max_tracked_packets_) {
     CloseConnection(
         QUIC_TOO_MANY_OUTSTANDING_SENT_PACKETS,
-        QuicStrCat("More than ", max_tracked_packets_,
-                   " outstanding, least_unacked: ",
-                   sent_packet_manager_.GetLeastUnacked().ToUint64(),
-                   ", packets_processed: ", stats_.packets_processed,
-                   ", last_decrypted_packet_level: ",
-                   EncryptionLevelToString(last_decrypted_packet_level_)),
+        quiche::QuicheStrCat(
+            "More than ", max_tracked_packets_, " outstanding, least_unacked: ",
+            sent_packet_manager_.GetLeastUnacked().ToUint64(),
+            ", packets_processed: ", stats_.packets_processed,
+            ", last_decrypted_packet_level: ",
+            EncryptionLevelToString(last_decrypted_packet_level_)),
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
   }
 }
@@ -1576,7 +1577,7 @@ void QuicConnection::SendVersionNegotiationPacket(bool ietf_quic,
   QUIC_DVLOG(2) << ENDPOINT << "Sending version negotiation packet: {"
                 << ParsedQuicVersionVectorToString(framer_.supported_versions())
                 << "}, " << (ietf_quic ? "" : "!") << "ietf_quic:" << std::endl
-                << QuicTextUtils::HexDump(QuicStringPiece(
+                << quiche::QuicheTextUtils::HexDump(quiche::QuicheStringPiece(
                        version_packet->data(), version_packet->length()));
   WriteResult result = writer_->WritePacket(
       version_packet->data(), version_packet->length(), self_address().host(),
@@ -1753,8 +1754,8 @@ void QuicConnection::ProcessUdpPacket(const QuicSocketAddress& self_address,
   }
   QUIC_DVLOG(2) << ENDPOINT << "Received encrypted " << packet.length()
                 << " bytes:" << std::endl
-                << QuicTextUtils::HexDump(
-                       QuicStringPiece(packet.data(), packet.length()));
+                << quiche::QuicheTextUtils::HexDump(quiche::QuicheStringPiece(
+                       packet.data(), packet.length()));
   QUIC_BUG_IF(current_packet_data_ != nullptr)
       << "ProcessUdpPacket must not be called while processing a packet.";
   if (debug_visitor_ != nullptr) {
@@ -2198,7 +2199,7 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
                 << ", encrypted length:" << encrypted_length
                 << ", fate: " << SerializedPacketFateToString(fate);
   QUIC_DVLOG(2) << ENDPOINT << "packet(" << packet_number << "): " << std::endl
-                << QuicTextUtils::HexDump(QuicStringPiece(
+                << quiche::QuicheTextUtils::HexDump(quiche::QuicheStringPiece(
                        packet->encrypted_buffer, encrypted_length));
 
   // Measure the RTT from before the write begins to avoid underestimating the
@@ -2430,7 +2431,7 @@ void QuicConnection::OnWriteError(int error_code) {
   }
   write_error_occurred_ = true;
 
-  const std::string error_details = QuicStrCat(
+  const std::string error_details = quiche::QuicheStrCat(
       "Write failed with error: ", error_code, " (", strerror(error_code), ")");
   QUIC_LOG_FIRST_N(ERROR, 2) << ENDPOINT << error_details;
   switch (error_code) {
@@ -2605,8 +2606,8 @@ void QuicConnection::OnRetransmissionTimeout() {
   if (sent_packet_manager_.pto_enabled() && max_consecutive_ptos_ > 0 &&
       sent_packet_manager_.GetConsecutivePtoCount() >= max_consecutive_ptos_) {
     CloseConnection(QUIC_TOO_MANY_RTOS,
-                    QuicStrCat(max_consecutive_ptos_ + 1,
-                               "consecutive retransmission timeouts"),
+                    quiche::QuicheStrCat(max_consecutive_ptos_ + 1,
+                                         "consecutive retransmission timeouts"),
                     ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return;
   }
@@ -3450,9 +3451,9 @@ bool QuicConnection::SendGenericPathProbePacket(
   QUIC_DVLOG(2) << ENDPOINT
                 << "Sending path probe packet for server connection ID "
                 << server_connection_id_ << std::endl
-                << QuicTextUtils::HexDump(
-                       QuicStringPiece(probing_packet->encrypted_buffer,
-                                       probing_packet->encrypted_length));
+                << quiche::QuicheTextUtils::HexDump(quiche::QuicheStringPiece(
+                       probing_packet->encrypted_buffer,
+                       probing_packet->encrypted_length));
   WriteResult result = probing_writer->WritePacket(
       probing_packet->encrypted_buffer, probing_packet->encrypted_length,
       self_address().host(), peer_address, per_packet_options_);
@@ -3553,11 +3554,11 @@ bool QuicConnection::ack_frame_updated() const {
   return uber_received_packet_manager_.IsAckFrameUpdated();
 }
 
-QuicStringPiece QuicConnection::GetCurrentPacket() {
+quiche::QuicheStringPiece QuicConnection::GetCurrentPacket() {
   if (current_packet_data_ == nullptr) {
-    return QuicStringPiece();
+    return quiche::QuicheStringPiece();
   }
-  return QuicStringPiece(current_packet_data_, last_size_);
+  return quiche::QuicheStringPiece(current_packet_data_, last_size_);
 }
 
 bool QuicConnection::MaybeConsiderAsMemoryCorruption(

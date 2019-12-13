@@ -9,7 +9,7 @@
 #include <limits>
 #include <string>
 
-#include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 
 namespace quic {
 
@@ -22,12 +22,12 @@ std::string QuicTime::Delta::ToDebuggingValue() const {
   // For debugging purposes, always display the value with the highest precision
   // available.
   if (absolute_value > one_s && absolute_value % one_s == 0) {
-    return QuicStringPrintf("%" PRId64 "s", time_offset_ / one_s);
+    return quiche::QuicheStringPrintf("%" PRId64 "s", time_offset_ / one_s);
   }
   if (absolute_value > one_ms && absolute_value % one_ms == 0) {
-    return QuicStringPrintf("%" PRId64 "ms", time_offset_ / one_ms);
+    return quiche::QuicheStringPrintf("%" PRId64 "ms", time_offset_ / one_ms);
   }
-  return QuicStringPrintf("%" PRId64 "us", time_offset_);
+  return quiche::QuicheStringPrintf("%" PRId64 "us", time_offset_);
 }
 
 uint64_t QuicWallTime::ToUNIXSeconds() const {

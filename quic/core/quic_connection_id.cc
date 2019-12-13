@@ -17,8 +17,8 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_endian.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 namespace quic {
 
@@ -152,7 +152,7 @@ std::string QuicConnectionId::ToString() const {
   if (IsEmpty()) {
     return std::string("0");
   }
-  return QuicTextUtils::HexEncode(data(), length_);
+  return quiche::QuicheTextUtils::HexEncode(data(), length_);
 }
 
 std::ostream& operator<<(std::ostream& os, const QuicConnectionId& v) {

@@ -11,6 +11,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 namespace test {
@@ -99,7 +100,7 @@ TEST_F(QuicUtilsTest, ReferenceTest) {
     data[i] = i % 255;
   }
   EXPECT_EQ(IncrementalHashReference(data.data(), data.size()),
-            QuicUtils::FNV1a_128_Hash(QuicStringPiece(
+            QuicUtils::FNV1a_128_Hash(quiche::QuicheStringPiece(
                 reinterpret_cast<const char*>(data.data()), data.size())));
 }
 

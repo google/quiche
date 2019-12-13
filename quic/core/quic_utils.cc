@@ -20,6 +20,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_prefetch.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_uint128.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_endian.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 namespace {
@@ -34,7 +35,8 @@ namespace {
 #endif
 
 #ifdef QUIC_UTIL_HAS_UINT128
-QuicUint128 IncrementalHashFast(QuicUint128 uhash, QuicStringPiece data) {
+QuicUint128 IncrementalHashFast(QuicUint128 uhash,
+                                quiche::QuicheStringPiece data) {
   // This code ends up faster than the naive implementation for 2 reasons:
   // 1. QuicUint128 is sufficiently complicated that the compiler
   //    cannot transform the multiplication by kPrime into a shift-multiply-add;
@@ -57,7 +59,8 @@ QuicUint128 IncrementalHashFast(QuicUint128 uhash, QuicStringPiece data) {
 
 #ifndef QUIC_UTIL_HAS_UINT128
 // Slow implementation of IncrementalHash. In practice, only used by Chromium.
-QuicUint128 IncrementalHashSlow(QuicUint128 hash, QuicStringPiece data) {
+QuicUint128 IncrementalHashSlow(QuicUint128 hash,
+                                quiche::QuicheStringPiece data) {
   // kPrime = 309485009821345068724781371
   static const QuicUint128 kPrime = MakeQuicUint128(16777216, 315);
   const uint8_t* octets = reinterpret_cast<const uint8_t*>(data.data());
@@ -69,7 +72,7 @@ QuicUint128 IncrementalHashSlow(QuicUint128 hash, QuicStringPiece data) {
 }
 #endif
 
-QuicUint128 IncrementalHash(QuicUint128 hash, QuicStringPiece data) {
+QuicUint128 IncrementalHash(QuicUint128 hash, quiche::QuicheStringPiece data) {
 #ifdef QUIC_UTIL_HAS_UINT128
   return IncrementalHashFast(hash, data);
 #else
@@ -80,7 +83,7 @@ QuicUint128 IncrementalHash(QuicUint128 hash, QuicStringPiece data) {
 }  // namespace
 
 // static
-uint64_t QuicUtils::FNV1a_64_Hash(QuicStringPiece data) {
+uint64_t QuicUtils::FNV1a_64_Hash(quiche::QuicheStringPiece data) {
   static const uint64_t kOffset = UINT64_C(14695981039346656037);
   static const uint64_t kPrime = UINT64_C(1099511628211);
 
@@ -97,20 +100,21 @@ uint64_t QuicUtils::FNV1a_64_Hash(QuicStringPiece data) {
 }
 
 // static
-QuicUint128 QuicUtils::FNV1a_128_Hash(QuicStringPiece data) {
-  return FNV1a_128_Hash_Three(data, QuicStringPiece(), QuicStringPiece());
+QuicUint128 QuicUtils::FNV1a_128_Hash(quiche::QuicheStringPiece data) {
+  return FNV1a_128_Hash_Three(data, quiche::QuicheStringPiece(),
+                              quiche::QuicheStringPiece());
 }
 
 // static
-QuicUint128 QuicUtils::FNV1a_128_Hash_Two(QuicStringPiece data1,
-                                          QuicStringPiece data2) {
-  return FNV1a_128_Hash_Three(data1, data2, QuicStringPiece());
+QuicUint128 QuicUtils::FNV1a_128_Hash_Two(quiche::QuicheStringPiece data1,
+                                          quiche::QuicheStringPiece data2) {
+  return FNV1a_128_Hash_Three(data1, data2, quiche::QuicheStringPiece());
 }
 
 // static
-QuicUint128 QuicUtils::FNV1a_128_Hash_Three(QuicStringPiece data1,
-                                            QuicStringPiece data2,
-                                            QuicStringPiece data3) {
+QuicUint128 QuicUtils::FNV1a_128_Hash_Three(quiche::QuicheStringPiece data1,
+                                            quiche::QuicheStringPiece data2,
+                                            quiche::QuicheStringPiece data3) {
   // The two constants are defined as part of the hash algorithm.
   // see http://www.isthe.com/chongo/tech/comp/fnv/
   // kOffset = 144066263297769815596495629667062367629
@@ -281,7 +285,7 @@ void QuicUtils::CopyToBuffer(const struct iovec* iov,
 }
 
 // static
-struct iovec QuicUtils::MakeIovec(QuicStringPiece data) {
+struct iovec QuicUtils::MakeIovec(quiche::QuicheStringPiece data) {
   struct iovec iov = {const_cast<char*>(data.data()),
                       static_cast<size_t>(data.size())};
   return iov;
@@ -478,7 +482,7 @@ QuicStreamId QuicUtils::GetFirstUnidirectionalStreamId(
 QuicConnectionId QuicUtils::CreateReplacementConnectionId(
     QuicConnectionId connection_id) {
   const uint64_t connection_id_hash = FNV1a_64_Hash(
-      QuicStringPiece(connection_id.data(), connection_id.length()));
+      quiche::QuicheStringPiece(connection_id.data(), connection_id.length()));
   return QuicConnectionId(reinterpret_cast<const char*>(&connection_id_hash),
                           sizeof(connection_id_hash));
 }
@@ -569,7 +573,7 @@ bool QuicUtils::IsConnectionIdValidForVersion(
 QuicUint128 QuicUtils::GenerateStatelessResetToken(
     QuicConnectionId connection_id) {
   return FNV1a_128_Hash(
-      QuicStringPiece(connection_id.data(), connection_id.length()));
+      quiche::QuicheStringPiece(connection_id.data(), connection_id.length()));
 }
 
 // static

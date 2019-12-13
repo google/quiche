@@ -14,7 +14,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -113,7 +113,8 @@ void QuicCryptoStream::OnDataAvailableInSequencer(
     EncryptionLevel level) {
   struct iovec iov;
   while (sequencer->GetReadableRegion(&iov)) {
-    QuicStringPiece data(static_cast<char*>(iov.iov_base), iov.iov_len);
+    quiche::QuicheStringPiece data(static_cast<char*>(iov.iov_base),
+                                   iov.iov_len);
     if (!crypto_message_parser()->ProcessInput(data, level)) {
       CloseConnectionWithDetails(crypto_message_parser()->error(),
                                  crypto_message_parser()->error_detail());
@@ -130,8 +131,8 @@ void QuicCryptoStream::OnDataAvailableInSequencer(
   }
 }
 
-bool QuicCryptoStream::ExportKeyingMaterial(QuicStringPiece label,
-                                            QuicStringPiece context,
+bool QuicCryptoStream::ExportKeyingMaterial(quiche::QuicheStringPiece label,
+                                            quiche::QuicheStringPiece context,
                                             size_t result_len,
                                             std::string* result) const {
   if (!handshake_confirmed()) {
@@ -145,7 +146,7 @@ bool QuicCryptoStream::ExportKeyingMaterial(QuicStringPiece label,
 }
 
 void QuicCryptoStream::WriteCryptoData(EncryptionLevel level,
-                                       QuicStringPiece data) {
+                                       quiche::QuicheStringPiece data) {
   if (!QuicVersionUsesCryptoFrames(session()->transport_version())) {
     // The QUIC crypto handshake takes care of setting the appropriate
     // encryption level before writing data. Since that is the only handshake

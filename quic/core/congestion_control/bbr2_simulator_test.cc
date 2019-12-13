@@ -25,6 +25,7 @@
 #include "net/third_party/quiche/src/quic/test_tools/simulator/simulator.h"
 #include "net/third_party/quiche/src/quic/test_tools/simulator/switch.h"
 #include "net/third_party/quiche/src/quic/test_tools/simulator/traffic_policer.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 
 using testing::AllOf;
 using testing::Ge;
@@ -804,8 +805,8 @@ class Bbr2MultiSenderTest : public Bbr2SimulatorTest {
     uint64_t first_connection_id = 42;
     std::vector<simulator::QuicEndpointBase*> receiver_endpoint_pointers;
     for (size_t i = 0; i < MultiSenderTopologyParams::kNumLocalLinks; ++i) {
-      std::string sender_name = QuicStrCat("Sender", i + 1);
-      std::string receiver_name = QuicStrCat("Receiver", i + 1);
+      std::string sender_name = quiche::QuicheStrCat("Sender", i + 1);
+      std::string receiver_name = quiche::QuicheStrCat("Receiver", i + 1);
       sender_endpoints_.push_back(std::make_unique<simulator::QuicEndpoint>(
           &simulator_, sender_name, receiver_name, Perspective::IS_CLIENT,
           TestConnectionId(first_connection_id + i)));

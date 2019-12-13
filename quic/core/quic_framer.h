@@ -17,7 +17,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -97,7 +97,7 @@ class QUIC_EXPORT_PRIVATE QuicFramerVisitorInterface {
   // parsed.
   virtual void OnRetryPacket(QuicConnectionId original_connection_id,
                              QuicConnectionId new_connection_id,
-                             QuicStringPiece retry_token) = 0;
+                             quiche::QuicheStringPiece retry_token) = 0;
 
   // Called when all fields except packet number has been parsed, but has not
   // been authenticated. If it returns false, framing for this packet will
@@ -368,7 +368,7 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
 
   // Returns the associated data from the encrypted packet |encrypted| as a
   // stringpiece.
-  static QuicStringPiece GetAssociatedDataFromEncryptedPacket(
+  static quiche::QuicheStringPiece GetAssociatedDataFromEncryptedPacket(
       QuicTransportVersion version,
       const QuicEncryptedPacket& encrypted,
       QuicConnectionIdLength destination_connection_id_length,
@@ -397,7 +397,7 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
       QuicConnectionId* source_connection_id,
       QuicLongHeaderType* long_packet_type,
       QuicVariableLengthIntegerLength* retry_token_length_length,
-      QuicStringPiece* retry_token,
+      quiche::QuicheStringPiece* retry_token,
       std::string* detailed_error);
 
   // Parses the unencryoted fields in |packet| and stores them in the other
@@ -415,7 +415,7 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
       QuicConnectionId* destination_connection_id,
       QuicConnectionId* source_connection_id,
       bool* retry_token_present,
-      QuicStringPiece* retry_token,
+      quiche::QuicheStringPiece* retry_token,
       std::string* detailed_error);
 
   // Serializes a packet containing |frames| into |buffer|.
@@ -780,8 +780,8 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
                            bool no_message_length,
                            QuicMessageFrame* frame);
 
-  bool DecryptPayload(QuicStringPiece encrypted,
-                      QuicStringPiece associated_data,
+  bool DecryptPayload(quiche::QuicheStringPiece encrypted,
+                      quiche::QuicheStringPiece associated_data,
                       const QuicPacketHeader& header,
                       char* decrypted_buffer,
                       size_t buffer_length,

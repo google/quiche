@@ -14,6 +14,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_crypto_stream.h"
 #include "net/third_party/quiche/src/quic/core/tls_handshaker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -51,7 +52,8 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
   size_t BufferSizeLimitForLevel(EncryptionLevel level) const override;
 
   // Override to drop initial keys if trying to write ENCRYPTION_HANDSHAKE data.
-  void WriteMessage(EncryptionLevel level, QuicStringPiece data) override;
+  void WriteMessage(EncryptionLevel level,
+                    quiche::QuicheStringPiece data) override;
 
   void AllowEmptyAlpnForTests() { allow_empty_alpn_for_tests_ = true; }
 

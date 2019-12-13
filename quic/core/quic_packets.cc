@@ -12,10 +12,10 @@
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_utils.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 namespace quic {
 
@@ -185,7 +185,7 @@ QuicPacketHeader::QuicPacketHeader()
       long_packet_type(INITIAL),
       possible_stateless_reset_token(0),
       retry_token_length_length(VARIABLE_LENGTH_INTEGER_LENGTH_0),
-      retry_token(QuicStringPiece()),
+      retry_token(quiche::QuicheStringPiece()),
       length_length(VARIABLE_LENGTH_INTEGER_LENGTH_0),
       remaining_packet_length(0) {}
 
@@ -259,8 +259,8 @@ std::ostream& operator<<(std::ostream& os, const QuicPacketHeader& header) {
   }
   if (header.nonce != nullptr) {
     os << ", diversification_nonce: "
-       << QuicTextUtils::HexEncode(
-              QuicStringPiece(header.nonce->data(), header.nonce->size()));
+       << quiche::QuicheTextUtils::HexEncode(quiche::QuicheStringPiece(
+              header.nonce->data(), header.nonce->size()));
   }
   os << ", packet_number: " << header.packet_number << " }\n";
   return os;
@@ -272,7 +272,7 @@ QuicData::QuicData(const char* buffer, size_t length)
 QuicData::QuicData(const char* buffer, size_t length, bool owns_buffer)
     : buffer_(buffer), length_(length), owns_buffer_(owns_buffer) {}
 
-QuicData::QuicData(QuicStringPiece packet_data)
+QuicData::QuicData(quiche::QuicheStringPiece packet_data)
     : buffer_(packet_data.data()),
       length_(packet_data.length()),
       owns_buffer_(false) {}
@@ -331,7 +331,7 @@ QuicEncryptedPacket::QuicEncryptedPacket(const char* buffer,
                                          bool owns_buffer)
     : QuicData(buffer, length, owns_buffer) {}
 
-QuicEncryptedPacket::QuicEncryptedPacket(QuicStringPiece data)
+QuicEncryptedPacket::QuicEncryptedPacket(quiche::QuicheStringPiece data)
     : QuicData(data) {}
 
 std::unique_ptr<QuicEncryptedPacket> QuicEncryptedPacket::Clone() const {
@@ -422,8 +422,9 @@ std::ostream& operator<<(std::ostream& os, const QuicReceivedPacket& s) {
   return os;
 }
 
-QuicStringPiece QuicPacket::AssociatedData(QuicTransportVersion version) const {
-  return QuicStringPiece(
+quiche::QuicheStringPiece QuicPacket::AssociatedData(
+    QuicTransportVersion version) const {
+  return quiche::QuicheStringPiece(
       data(),
       GetStartOfEncryptedData(version, destination_connection_id_length_,
                               source_connection_id_length_, includes_version_,
@@ -432,13 +433,14 @@ QuicStringPiece QuicPacket::AssociatedData(QuicTransportVersion version) const {
                               retry_token_length_, length_length_));
 }
 
-QuicStringPiece QuicPacket::Plaintext(QuicTransportVersion version) const {
+quiche::QuicheStringPiece QuicPacket::Plaintext(
+    QuicTransportVersion version) const {
   const size_t start_of_encrypted_data = GetStartOfEncryptedData(
       version, destination_connection_id_length_, source_connection_id_length_,
       includes_version_, includes_diversification_nonce_, packet_number_length_,
       retry_token_length_length_, retry_token_length_, length_length_);
-  return QuicStringPiece(data() + start_of_encrypted_data,
-                         length() - start_of_encrypted_data);
+  return quiche::QuicheStringPiece(data() + start_of_encrypted_data,
+                                   length() - start_of_encrypted_data);
 }
 
 SerializedPacket::SerializedPacket(QuicPacketNumber packet_number,
@@ -551,11 +553,11 @@ ReceivedPacketInfo::ReceivedPacketInfo(const QuicSocketAddress& self_address,
 ReceivedPacketInfo::~ReceivedPacketInfo() {}
 
 std::string ReceivedPacketInfo::ToString() const {
-  std::string output =
-      QuicStrCat("{ self_address: ", self_address.ToString(),
-                 ", peer_address: ", peer_address.ToString(),
-                 ", packet_length: ", packet.length(),
-                 ", header_format: ", form, ", version_flag: ", version_flag);
+  std::string output = quiche::QuicheStrCat(
+      "{ self_address: ", self_address.ToString(),
+      ", peer_address: ", peer_address.ToString(),
+      ", packet_length: ", packet.length(), ", header_format: ", form,
+      ", version_flag: ", version_flag);
   if (version_flag) {
     QuicStrAppend(&output, ", version: ", ParsedQuicVersionToString(version));
   }

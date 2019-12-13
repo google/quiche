@@ -6,8 +6,8 @@
 
 #include <cstdint>
 
-#include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 
 namespace quic {
 namespace test {
@@ -23,10 +23,10 @@ TEST_F(QuicTypesTest, QuicIetfTransportErrorCodeString) {
     QuicErrorCodeToIetfMapping mapping =
         QuicErrorCodeToTransportErrorCode(error);
     if (mapping.is_transport_close_) {
-      EXPECT_EQ(
-          QuicIetfTransportErrorCodeString(mapping.transport_error_code_),
-          QuicStrCat("Unknown Transport Error Code Value: ",
-                     static_cast<uint16_t>(mapping.transport_error_code_)));
+      EXPECT_EQ(QuicIetfTransportErrorCodeString(mapping.transport_error_code_),
+                quiche::QuicheStrCat(
+                    "Unknown Transport Error Code Value: ",
+                    static_cast<uint16_t>(mapping.transport_error_code_)));
     }
   }
 }

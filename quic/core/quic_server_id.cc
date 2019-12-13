@@ -8,7 +8,6 @@
 #include <tuple>
 
 #include "net/third_party/quiche/src/quic/platform/api/quic_estimate_memory_usage.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
 
 namespace quic {
 

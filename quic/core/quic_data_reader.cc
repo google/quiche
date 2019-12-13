@@ -8,12 +8,13 @@
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_endian.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
-QuicDataReader::QuicDataReader(QuicStringPiece data)
+QuicDataReader::QuicDataReader(quiche::QuicheStringPiece data)
     : QuicDataReader(data.data(), data.length(), quiche::NETWORK_BYTE_ORDER) {}
 
 QuicDataReader::QuicDataReader(const char* data, const size_t len)
@@ -108,7 +109,7 @@ bool QuicDataReader::ReadUFloat16(uint64_t* result) {
   return true;
 }
 
-bool QuicDataReader::ReadStringPiece16(QuicStringPiece* result) {
+bool QuicDataReader::ReadStringPiece16(quiche::QuicheStringPiece* result) {
   // Read resultant length.
   uint16_t result_len;
   if (!ReadUInt16(&result_len)) {
@@ -119,7 +120,8 @@ bool QuicDataReader::ReadStringPiece16(QuicStringPiece* result) {
   return ReadStringPiece(result, result_len);
 }
 
-bool QuicDataReader::ReadStringPiece(QuicStringPiece* result, size_t size) {
+bool QuicDataReader::ReadStringPiece(quiche::QuicheStringPiece* result,
+                                     size_t size) {
   // Make sure that we have enough data to read.
   if (!CanRead(size)) {
     OnFailure();
@@ -127,7 +129,7 @@ bool QuicDataReader::ReadStringPiece(QuicStringPiece* result, size_t size) {
   }
 
   // Set result.
-  *result = QuicStringPiece(data_ + pos_, size);
+  *result = quiche::QuicheStringPiece(data_ + pos_, size);
 
   // Iterate.
   pos_ += size;
@@ -174,18 +176,18 @@ bool QuicDataReader::ReadTag(uint32_t* tag) {
   return ReadBytes(tag, sizeof(*tag));
 }
 
-QuicStringPiece QuicDataReader::ReadRemainingPayload() {
-  QuicStringPiece payload = PeekRemainingPayload();
+quiche::QuicheStringPiece QuicDataReader::ReadRemainingPayload() {
+  quiche::QuicheStringPiece payload = PeekRemainingPayload();
   pos_ = len_;
   return payload;
 }
 
-QuicStringPiece QuicDataReader::PeekRemainingPayload() const {
-  return QuicStringPiece(data_ + pos_, len_ - pos_);
+quiche::QuicheStringPiece QuicDataReader::PeekRemainingPayload() const {
+  return quiche::QuicheStringPiece(data_ + pos_, len_ - pos_);
 }
 
-QuicStringPiece QuicDataReader::FullPayload() const {
-  return QuicStringPiece(data_, len_);
+quiche::QuicheStringPiece QuicDataReader::FullPayload() const {
+  return quiche::QuicheStringPiece(data_, len_);
 }
 
 bool QuicDataReader::ReadBytes(void* result, size_t size) {
@@ -343,7 +345,7 @@ bool QuicDataReader::ReadVarIntU32(uint32_t* result) {
 }
 
 std::string QuicDataReader::DebugString() const {
-  return QuicStrCat(" { length: ", len_, ", position: ", pos_, " }");
+  return quiche::QuicheStrCat(" { length: ", len_, ", position: ", pos_, " }");
 }
 
 #undef ENDPOINT  // undef for jumbo builds

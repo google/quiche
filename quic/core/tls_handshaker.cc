@@ -10,6 +10,7 @@
 #include "net/third_party/quiche/src/quic/core/tls_client_handshaker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -21,7 +22,8 @@ TlsHandshaker::TlsHandshaker(QuicCryptoStream* stream,
 
 TlsHandshaker::~TlsHandshaker() {}
 
-bool TlsHandshaker::ProcessInput(QuicStringPiece input, EncryptionLevel level) {
+bool TlsHandshaker::ProcessInput(quiche::QuicheStringPiece input,
+                                 EncryptionLevel level) {
   if (parser_error_ != QUIC_NO_ERROR) {
     return false;
   }
@@ -80,7 +82,8 @@ void TlsHandshaker::SetEncryptionSecret(
                                 std::move(encrypter));
 }
 
-void TlsHandshaker::WriteMessage(EncryptionLevel level, QuicStringPiece data) {
+void TlsHandshaker::WriteMessage(EncryptionLevel level,
+                                 quiche::QuicheStringPiece data) {
   stream_->WriteCryptoData(level, data);
 }
 

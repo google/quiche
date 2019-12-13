@@ -15,7 +15,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_stream.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -60,13 +60,14 @@ class QUIC_EXPORT_PRIVATE QuicCryptoStream : public QuicStream {
   // dependent on |label|, |context|, and the stream's negotiated subkey secret.
   // Returns false if the handshake has not been confirmed or the parameters are
   // invalid (e.g. |label| contains null bytes); returns true on success.
-  bool ExportKeyingMaterial(QuicStringPiece label,
-                            QuicStringPiece context,
+  bool ExportKeyingMaterial(quiche::QuicheStringPiece label,
+                            quiche::QuicheStringPiece context,
                             size_t result_len,
                             std::string* result) const;
 
   // Writes |data| to the QuicStream at level |level|.
-  virtual void WriteCryptoData(EncryptionLevel level, QuicStringPiece data);
+  virtual void WriteCryptoData(EncryptionLevel level,
+                               quiche::QuicheStringPiece data);
 
   // Returns true once an encrypter has been set for the connection.
   virtual bool encryption_established() const = 0;

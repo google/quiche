@@ -12,7 +12,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 
 namespace quic {
 
@@ -260,10 +260,10 @@ bool QuicStreamIdManager::MaybeIncreaseLargestPeerStreamId(
                     << "Failed to create a new incoming stream with id:"
                     << stream_id << ", reaching MAX_STREAMS limit: "
                     << incoming_advertised_max_streams_ << ".";
-    delegate_->OnError(
-        QUIC_INVALID_STREAM_ID,
-        QuicStrCat("Stream id ", stream_id, " would exceed stream count limit ",
-                   incoming_advertised_max_streams_));
+    delegate_->OnError(QUIC_INVALID_STREAM_ID,
+                       quiche::QuicheStrCat("Stream id ", stream_id,
+                                            " would exceed stream count limit ",
+                                            incoming_advertised_max_streams_));
     return false;
   }
 

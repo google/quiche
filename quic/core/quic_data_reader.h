@@ -10,8 +10,8 @@
 
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_endian.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -33,7 +33,7 @@ class QUIC_EXPORT_PRIVATE QuicDataReader {
  public:
   // Constructs a reader using NETWORK_BYTE_ORDER endianness.
   // Caller must provide an underlying buffer to work on.
-  explicit QuicDataReader(QuicStringPiece data);
+  explicit QuicDataReader(quiche::QuicheStringPiece data);
   // Constructs a reader using NETWORK_BYTE_ORDER endianness.
   // Caller must provide an underlying buffer to work on.
   QuicDataReader(const char* data, const size_t len);
@@ -72,13 +72,13 @@ class QUIC_EXPORT_PRIVATE QuicDataReader {
   //
   // Forwards the internal iterator on success.
   // Returns true on success, false otherwise.
-  bool ReadStringPiece16(QuicStringPiece* result);
+  bool ReadStringPiece16(quiche::QuicheStringPiece* result);
 
   // Reads a given number of bytes into the given buffer. The buffer
   // must be of adequate size.
   // Forwards the internal iterator on success.
   // Returns true on success, false otherwise.
-  bool ReadStringPiece(QuicStringPiece* result, size_t len);
+  bool ReadStringPiece(quiche::QuicheStringPiece* result, size_t len);
 
   // Reads connection ID into the given output parameter.
   // Forwards the internal iterator on success.
@@ -96,29 +96,29 @@ class QUIC_EXPORT_PRIVATE QuicDataReader {
   // endian.
   bool ReadTag(uint32_t* tag);
 
-  // Returns the remaining payload as a QuicStringPiece.
+  // Returns the remaining payload as a quiche::QuicheStringPiece.
   //
   // NOTE: Does not copy but rather references strings in the underlying buffer.
   // This should be kept in mind when handling memory management!
   //
   // Forwards the internal iterator.
-  QuicStringPiece ReadRemainingPayload();
+  quiche::QuicheStringPiece ReadRemainingPayload();
 
-  // Returns the remaining payload as a QuicStringPiece.
+  // Returns the remaining payload as a quiche::QuicheStringPiece.
   //
   // NOTE: Does not copy but rather references strings in the underlying buffer.
   // This should be kept in mind when handling memory management!
   //
   // DOES NOT forward the internal iterator.
-  QuicStringPiece PeekRemainingPayload() const;
+  quiche::QuicheStringPiece PeekRemainingPayload() const;
 
-  // Returns the entire payload as a QuicStringPiece.
+  // Returns the entire payload as a quiche::QuicheStringPiece.
   //
   // NOTE: Does not copy but rather references strings in the underlying buffer.
   // This should be kept in mind when handling memory management!
   //
   // DOES NOT forward the internal iterator.
-  QuicStringPiece FullPayload() const;
+  quiche::QuicheStringPiece FullPayload() const;
 
   // Reads a given number of bytes into the given buffer. The buffer
   // must be of adequate size.

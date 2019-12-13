@@ -14,7 +14,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 
 namespace quic {
 
@@ -25,7 +25,7 @@ std::string QuicFlowController::LogLabel() {
   if (is_connection_flow_controller_) {
     return "connection";
   }
-  return QuicStrCat("stream ", id_);
+  return quiche::QuicheStrCat("stream ", id_);
 }
 
 QuicFlowController::QuicFlowController(
@@ -99,8 +99,8 @@ void QuicFlowController::AddBytesSent(QuicByteCount bytes_sent) {
     // This is an error on our side, close the connection as soon as possible.
     connection_->CloseConnection(
         QUIC_FLOW_CONTROL_SENT_TOO_MUCH_DATA,
-        QuicStrCat(send_window_offset_ - (bytes_sent_ + bytes_sent),
-                   "bytes over send window offset"),
+        quiche::QuicheStrCat(send_window_offset_ - (bytes_sent_ + bytes_sent),
+                             "bytes over send window offset"),
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return;
   }

@@ -15,6 +15,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_crypto_stream.h"
 #include "net/third_party/quiche/src/quic/core/tls_handshaker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -74,11 +75,12 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
                  uint8_t* out_len,
                  const uint8_t* in,
                  unsigned in_len) override;
-  ssl_private_key_result_t PrivateKeySign(uint8_t* out,
-                                          size_t* out_len,
-                                          size_t max_out,
-                                          uint16_t sig_alg,
-                                          QuicStringPiece in) override;
+  ssl_private_key_result_t PrivateKeySign(
+      uint8_t* out,
+      size_t* out_len,
+      size_t max_out,
+      uint16_t sig_alg,
+      quiche::QuicheStringPiece in) override;
   ssl_private_key_result_t PrivateKeyComplete(uint8_t* out,
                                               size_t* out_len,
                                               size_t max_out) override;

@@ -11,6 +11,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_expect_bug.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_stream_id_manager_peer.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 
 using testing::_;
 using testing::StrictMock;
@@ -40,7 +41,7 @@ struct TestParams {
 
 // Used by ::testing::PrintToStringParamName().
 std::string PrintToString(const TestParams& p) {
-  return QuicStrCat(
+  return quiche::QuicheStrCat(
       (p.perspective == Perspective::IS_CLIENT ? "Client" : "Server"),
       (p.is_unidirectional ? "Unidirectional" : "Bidirectional"));
 }
@@ -228,7 +229,7 @@ TEST_P(QuicStreamIdManagerTest, IsIncomingStreamIdValidAtLimit) {
 TEST_P(QuicStreamIdManagerTest, IsIncomingStreamIdInValidAboveLimit) {
   QuicStreamId stream_id =
       GetNthIncomingStreamId(stream_id_manager_.incoming_actual_max_streams());
-  std::string error_details = QuicStrCat(
+  std::string error_details = quiche::QuicheStrCat(
       "Stream id ", stream_id, " would exceed stream count limit 100");
   EXPECT_CALL(delegate_, OnError(QUIC_INVALID_STREAM_ID, error_details));
   EXPECT_FALSE(stream_id_manager_.MaybeIncreaseLargestPeerStreamId(stream_id));
@@ -613,7 +614,7 @@ TEST_P(QuicStreamIdManagerTest, AvailableStreams) {
 TEST_P(QuicStreamIdManagerTest, ExtremeMaybeIncreaseLargestPeerStreamId) {
   QuicStreamId too_big_stream_id = GetNthIncomingStreamId(
       stream_id_manager_.incoming_actual_max_streams() + 20);
-  std::string error_details = QuicStrCat(
+  std::string error_details = quiche::QuicheStrCat(
       "Stream id ", too_big_stream_id, " would exceed stream count limit 100");
 
   EXPECT_CALL(delegate_, OnError(QUIC_INVALID_STREAM_ID, error_details));

@@ -18,8 +18,8 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_iovec.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_uint128.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -29,22 +29,22 @@ class QUIC_EXPORT_PRIVATE QuicUtils {
 
   // Returns the 64 bit FNV1a hash of the data.  See
   // http://www.isthe.com/chongo/tech/comp/fnv/index.html#FNV-param
-  static uint64_t FNV1a_64_Hash(QuicStringPiece data);
+  static uint64_t FNV1a_64_Hash(quiche::QuicheStringPiece data);
 
   // Returns the 128 bit FNV1a hash of the data.  See
   // http://www.isthe.com/chongo/tech/comp/fnv/index.html#FNV-param
-  static QuicUint128 FNV1a_128_Hash(QuicStringPiece data);
+  static QuicUint128 FNV1a_128_Hash(quiche::QuicheStringPiece data);
 
   // Returns the 128 bit FNV1a hash of the two sequences of data.  See
   // http://www.isthe.com/chongo/tech/comp/fnv/index.html#FNV-param
-  static QuicUint128 FNV1a_128_Hash_Two(QuicStringPiece data1,
-                                        QuicStringPiece data2);
+  static QuicUint128 FNV1a_128_Hash_Two(quiche::QuicheStringPiece data1,
+                                        quiche::QuicheStringPiece data2);
 
   // Returns the 128 bit FNV1a hash of the three sequences of data.  See
   // http://www.isthe.com/chongo/tech/comp/fnv/index.html#FNV-param
-  static QuicUint128 FNV1a_128_Hash_Three(QuicStringPiece data1,
-                                          QuicStringPiece data2,
-                                          QuicStringPiece data3);
+  static QuicUint128 FNV1a_128_Hash_Three(quiche::QuicheStringPiece data1,
+                                          quiche::QuicheStringPiece data2,
+                                          quiche::QuicheStringPiece data3);
 
   // SerializeUint128 writes the first 96 bits of |v| in little-endian form
   // to |out|.
@@ -78,7 +78,7 @@ class QUIC_EXPORT_PRIVATE QuicUtils {
                            char* buffer);
 
   // Creates an iovec pointing to the same data as |data|.
-  static struct iovec MakeIovec(QuicStringPiece data);
+  static struct iovec MakeIovec(quiche::QuicheStringPiece data);
 
   // Returns the opposite Perspective of the |perspective| passed in.
   static constexpr Perspective InvertPerspective(Perspective perspective) {

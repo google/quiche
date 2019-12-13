@@ -18,6 +18,7 @@
 #include "net/third_party/quiche/src/quic/test_tools/mock_quic_session_visitor.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 #include "net/third_party/quiche/src/quic/tools/fake_proof_verifier.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 namespace test {
@@ -37,7 +38,7 @@ class TestProofVerifier : public ProofVerifier {
       const uint16_t port,
       const std::string& server_config,
       QuicTransportVersion quic_version,
-      QuicStringPiece chlo_hash,
+      quiche::QuicheStringPiece chlo_hash,
       const std::vector<std::string>& certs,
       const std::string& cert_sct,
       const std::string& signature,
@@ -174,7 +175,8 @@ class TestQuicCryptoStream : public QuicCryptoStream {
     return handshaker()->crypto_message_parser();
   }
 
-  void WriteCryptoData(EncryptionLevel level, QuicStringPiece data) override {
+  void WriteCryptoData(EncryptionLevel level,
+                       quiche::QuicheStringPiece data) override {
     pending_writes_.push_back(std::make_pair(std::string(data), level));
   }
 
@@ -334,7 +336,8 @@ class TlsHandshakerTest : public QuicTest {
         .WillByDefault(Return(std::vector<std::string>({default_alpn})));
     ON_CALL(server_session_, SelectAlpn(_))
         .WillByDefault(
-            [default_alpn](const std::vector<QuicStringPiece>& alpns) {
+            [default_alpn](
+                const std::vector<quiche::QuicheStringPiece>& alpns) {
               return std::find(alpns.begin(), alpns.end(), default_alpn);
             });
   }
@@ -493,8 +496,8 @@ TEST_F(TlsHandshakerTest, ClientConnectionClosedOnTlsError) {
   };
   server_stream_->WriteCryptoData(
       ENCRYPTION_INITIAL,
-      QuicStringPiece(bogus_handshake_message,
-                      QUIC_ARRAYSIZE(bogus_handshake_message)));
+      quiche::QuicheStringPiece(bogus_handshake_message,
+                                QUIC_ARRAYSIZE(bogus_handshake_message)));
   server_stream_->SendCryptoMessagesToPeer(client_stream_);
 
   EXPECT_FALSE(client_stream_->handshake_confirmed());
@@ -511,8 +514,8 @@ TEST_F(TlsHandshakerTest, ServerConnectionClosedOnTlsError) {
   };
   client_stream_->WriteCryptoData(
       ENCRYPTION_INITIAL,
-      QuicStringPiece(bogus_handshake_message,
-                      QUIC_ARRAYSIZE(bogus_handshake_message)));
+      quiche::QuicheStringPiece(bogus_handshake_message,
+                                QUIC_ARRAYSIZE(bogus_handshake_message)));
   client_stream_->SendCryptoMessagesToPeer(server_stream_);
 
   EXPECT_FALSE(server_stream_->handshake_confirmed());
@@ -573,9 +576,10 @@ TEST_F(TlsHandshakerTest, ClientSendingTooManyALPNs) {
 TEST_F(TlsHandshakerTest, ServerRequiresCustomALPN) {
   const std::string kTestAlpn = "An ALPN That Client Did Not Offer";
   EXPECT_CALL(server_session_, SelectAlpn(_))
-      .WillOnce([kTestAlpn](const std::vector<QuicStringPiece>& alpns) {
-        return std::find(alpns.cbegin(), alpns.cend(), kTestAlpn);
-      });
+      .WillOnce(
+          [kTestAlpn](const std::vector<quiche::QuicheStringPiece>& alpns) {
+            return std::find(alpns.cbegin(), alpns.cend(), kTestAlpn);
+          });
   EXPECT_CALL(*client_conn_, CloseConnection(QUIC_HANDSHAKE_FAILED,
                                              "Server did not select ALPN", _));
   EXPECT_CALL(*server_conn_,
@@ -600,13 +604,15 @@ TEST_F(TlsHandshakerTest, CustomALPNNegotiation) {
   EXPECT_CALL(client_session_, GetAlpnsToOffer())
       .WillRepeatedly(Return(kTestAlpns));
   EXPECT_CALL(server_session_, SelectAlpn(_))
-      .WillOnce(
-          [kTestAlpn, kTestAlpns](const std::vector<QuicStringPiece>& alpns) {
-            EXPECT_THAT(alpns, ElementsAreArray(kTestAlpns));
-            return std::find(alpns.cbegin(), alpns.cend(), kTestAlpn);
-          });
-  EXPECT_CALL(client_session_, OnAlpnSelected(QuicStringPiece(kTestAlpn)));
-  EXPECT_CALL(server_session_, OnAlpnSelected(QuicStringPiece(kTestAlpn)));
+      .WillOnce([kTestAlpn, kTestAlpns](
+                    const std::vector<quiche::QuicheStringPiece>& alpns) {
+        EXPECT_THAT(alpns, ElementsAreArray(kTestAlpns));
+        return std::find(alpns.cbegin(), alpns.cend(), kTestAlpn);
+      });
+  EXPECT_CALL(client_session_,
+              OnAlpnSelected(quiche::QuicheStringPiece(kTestAlpn)));
+  EXPECT_CALL(server_session_,
+              OnAlpnSelected(quiche::QuicheStringPiece(kTestAlpn)));
   client_stream_->CryptoConnect();
   ExchangeHandshakeMessages(client_stream_, server_stream_);
 

@@ -7,14 +7,16 @@
 #include <cinttypes>
 #include <string>
 
-#include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
 std::string QuicBandwidth::ToDebuggingValue() const {
   if (bits_per_second_ < 80000) {
-    return QuicStringPrintf("%" PRId64 " bits/s (%" PRId64 " bytes/s)",
-                            bits_per_second_, bits_per_second_ / 8);
+    return quiche::QuicheStringPrintf("%" PRId64 " bits/s (%" PRId64
+                                      " bytes/s)",
+                                      bits_per_second_, bits_per_second_ / 8);
   }
 
   double divisor;
@@ -32,9 +34,9 @@ std::string QuicBandwidth::ToDebuggingValue() const {
 
   double bits_per_second_with_unit = bits_per_second_ / divisor;
   double bytes_per_second_with_unit = bits_per_second_with_unit / 8;
-  return QuicStringPrintf("%.2f %cbits/s (%.2f %cbytes/s)",
-                          bits_per_second_with_unit, unit,
-                          bytes_per_second_with_unit, unit);
+  return quiche::QuicheStringPrintf("%.2f %cbits/s (%.2f %cbytes/s)",
+                                    bits_per_second_with_unit, unit,
+                                    bytes_per_second_with_unit, unit);
 }
 
 }  // namespace quic

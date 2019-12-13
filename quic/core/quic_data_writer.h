@@ -10,8 +10,8 @@
 
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_endian.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -80,7 +80,7 @@ class QUIC_EXPORT_PRIVATE QuicDataWriter {
 
   // Writes a string piece as a consecutive length/content pair. The
   // length is VarInt62 encoded.
-  bool WriteStringPieceVarInt62(const QuicStringPiece& string_piece);
+  bool WriteStringPieceVarInt62(const quiche::QuicheStringPiece& string_piece);
 
   // Utility function to return the number of bytes needed to encode
   // the given value using IETF VarInt62 encoding. Returns the number
@@ -96,8 +96,8 @@ class QUIC_EXPORT_PRIVATE QuicDataWriter {
   // clamped to the maximum representable (kUFloat16MaxValue). Values that can
   // not be represented directly are rounded down.
   bool WriteUFloat16(uint64_t value);
-  bool WriteStringPiece(QuicStringPiece val);
-  bool WriteStringPiece16(QuicStringPiece val);
+  bool WriteStringPiece(quiche::QuicheStringPiece val);
+  bool WriteStringPiece16(quiche::QuicheStringPiece val);
   bool WriteBytes(const void* data, size_t data_len);
   bool WriteRepeatedByte(uint8_t byte, size_t count);
   // Fills the remaining buffer with null characters.

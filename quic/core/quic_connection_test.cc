@@ -27,8 +27,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_reference_counted.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/mock_clock.h"
 #include "net/third_party/quiche/src/quic/test_tools/mock_random.h"
@@ -41,6 +39,8 @@
 #include "net/third_party/quiche/src/quic/test_tools/simple_data_producer.h"
 #include "net/third_party/quiche/src/quic/test_tools/simple_quic_framer.h"
 #include "net/third_party/quiche/src/quic/test_tools/simple_session_notifier.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 using testing::_;
 using testing::AnyNumber;
@@ -117,19 +117,21 @@ class TaggingEncrypter : public QuicEncrypter {
   ~TaggingEncrypter() override {}
 
   // QuicEncrypter interface.
-  bool SetKey(QuicStringPiece /*key*/) override { return true; }
+  bool SetKey(quiche::QuicheStringPiece /*key*/) override { return true; }
 
-  bool SetNoncePrefix(QuicStringPiece /*nonce_prefix*/) override {
+  bool SetNoncePrefix(quiche::QuicheStringPiece /*nonce_prefix*/) override {
     return true;
   }
 
-  bool SetIV(QuicStringPiece /*iv*/) override { return true; }
+  bool SetIV(quiche::QuicheStringPiece /*iv*/) override { return true; }
 
-  bool SetHeaderProtectionKey(QuicStringPiece /*key*/) override { return true; }
+  bool SetHeaderProtectionKey(quiche::QuicheStringPiece /*key*/) override {
+    return true;
+  }
 
   bool EncryptPacket(uint64_t /*packet_number*/,
-                     QuicStringPiece /*associated_data*/,
-                     QuicStringPiece plaintext,
+                     quiche::QuicheStringPiece /*associated_data*/,
+                     quiche::QuicheStringPiece plaintext,
                      char* output,
                      size_t* output_length,
                      size_t max_output_length) override {
@@ -146,7 +148,7 @@ class TaggingEncrypter : public QuicEncrypter {
   }
 
   std::string GenerateHeaderProtectionMask(
-      QuicStringPiece /*sample*/) override {
+      quiche::QuicheStringPiece /*sample*/) override {
     return std::string(5, 0);
   }
 
@@ -162,9 +164,13 @@ class TaggingEncrypter : public QuicEncrypter {
     return plaintext_size + kTagSize;
   }
 
-  QuicStringPiece GetKey() const override { return QuicStringPiece(); }
+  quiche::QuicheStringPiece GetKey() const override {
+    return quiche::QuicheStringPiece();
+  }
 
-  QuicStringPiece GetNoncePrefix() const override { return QuicStringPiece(); }
+  quiche::QuicheStringPiece GetNoncePrefix() const override {
+    return quiche::QuicheStringPiece();
+  }
 
  private:
   enum {
@@ -181,17 +187,19 @@ class TaggingDecrypter : public QuicDecrypter {
   ~TaggingDecrypter() override {}
 
   // QuicDecrypter interface
-  bool SetKey(QuicStringPiece /*key*/) override { return true; }
+  bool SetKey(quiche::QuicheStringPiece /*key*/) override { return true; }
 
-  bool SetNoncePrefix(QuicStringPiece /*nonce_prefix*/) override {
+  bool SetNoncePrefix(quiche::QuicheStringPiece /*nonce_prefix*/) override {
     return true;
   }
 
-  bool SetIV(QuicStringPiece /*iv*/) override { return true; }
+  bool SetIV(quiche::QuicheStringPiece /*iv*/) override { return true; }
 
-  bool SetHeaderProtectionKey(QuicStringPiece /*key*/) override { return true; }
+  bool SetHeaderProtectionKey(quiche::QuicheStringPiece /*key*/) override {
+    return true;
+  }
 
-  bool SetPreliminaryKey(QuicStringPiece /*key*/) override {
+  bool SetPreliminaryKey(quiche::QuicheStringPiece /*key*/) override {
     QUIC_BUG << "should not be called";
     return false;
   }
@@ -201,8 +209,8 @@ class TaggingDecrypter : public QuicDecrypter {
   }
 
   bool DecryptPacket(uint64_t /*packet_number*/,
-                     QuicStringPiece /*associated_data*/,
-                     QuicStringPiece ciphertext,
+                     quiche::QuicheStringPiece /*associated_data*/,
+                     quiche::QuicheStringPiece ciphertext,
                      char* output,
                      size_t* output_length,
                      size_t /*max_output_length*/) override {
@@ -225,13 +233,17 @@ class TaggingDecrypter : public QuicDecrypter {
   size_t GetKeySize() const override { return 0; }
   size_t GetNoncePrefixSize() const override { return 0; }
   size_t GetIVSize() const override { return 0; }
-  QuicStringPiece GetKey() const override { return QuicStringPiece(); }
-  QuicStringPiece GetNoncePrefix() const override { return QuicStringPiece(); }
+  quiche::QuicheStringPiece GetKey() const override {
+    return quiche::QuicheStringPiece();
+  }
+  quiche::QuicheStringPiece GetNoncePrefix() const override {
+    return quiche::QuicheStringPiece();
+  }
   // Use a distinct value starting with 0xFFFFFF, which is never used by TLS.
   uint32_t cipher_id() const override { return 0xFFFFFFF0; }
 
  protected:
-  virtual uint8_t GetTag(QuicStringPiece ciphertext) {
+  virtual uint8_t GetTag(quiche::QuicheStringPiece ciphertext) {
     return ciphertext.data()[ciphertext.size() - 1];
   }
 
@@ -240,7 +252,7 @@ class TaggingDecrypter : public QuicDecrypter {
     kTagSize = 12,
   };
 
-  bool CheckTag(QuicStringPiece ciphertext, uint8_t tag) {
+  bool CheckTag(quiche::QuicheStringPiece ciphertext, uint8_t tag) {
     for (size_t i = ciphertext.size() - kTagSize; i < ciphertext.size(); i++) {
       if (ciphertext.data()[i] != tag) {
         return false;
@@ -259,7 +271,9 @@ class StrictTaggingDecrypter : public TaggingDecrypter {
   ~StrictTaggingDecrypter() override {}
 
   // TaggingQuicDecrypter
-  uint8_t GetTag(QuicStringPiece /*ciphertext*/) override { return tag_; }
+  uint8_t GetTag(quiche::QuicheStringPiece /*ciphertext*/) override {
+    return tag_;
+  }
 
   // Use a distinct value starting with 0xFFFFFF, which is never used by TLS.
   uint32_t cipher_id() const override { return 0xFFFFFFF1; }
@@ -673,7 +687,7 @@ class TestConnection : public QuicConnection {
   }
 
   QuicConsumedData SendStreamDataWithString(QuicStreamId id,
-                                            QuicStringPiece data,
+                                            quiche::QuicheStringPiece data,
                                             QuicStreamOffset offset,
                                             StreamSendingState state) {
     ScopedPacketFlusher flusher(this);
@@ -694,7 +708,7 @@ class TestConnection : public QuicConnection {
 
   QuicConsumedData SendApplicationDataAtLevel(EncryptionLevel encryption_level,
                                               QuicStreamId id,
-                                              QuicStringPiece data,
+                                              quiche::QuicheStringPiece data,
                                               QuicStreamOffset offset,
                                               StreamSendingState state) {
     ScopedPacketFlusher flusher(this);
@@ -731,7 +745,7 @@ class TestConnection : public QuicConnection {
   // tests for some cases for this stream.
   QuicConsumedData SendCryptoStreamData() {
     QuicStreamOffset offset = 0;
-    QuicStringPiece data("chlo");
+    quiche::QuicheStringPiece data("chlo");
     if (!QuicVersionUsesCryptoFrames(transport_version())) {
       return SendCryptoDataWithString(data, offset);
     }
@@ -747,7 +761,7 @@ class TestConnection : public QuicConnection {
     return QuicConsumedData(bytes_written, /*fin_consumed*/ false);
   }
 
-  QuicConsumedData SendCryptoDataWithString(QuicStringPiece data,
+  QuicConsumedData SendCryptoDataWithString(quiche::QuicheStringPiece data,
                                             QuicStreamOffset offset) {
     if (!QuicVersionUsesCryptoFrames(transport_version())) {
       return SendStreamDataWithString(
@@ -910,7 +924,7 @@ struct TestParams {
 
 // Used by ::testing::PrintToStringParamName().
 std::string PrintToString(const TestParams& p) {
-  return QuicStrCat(
+  return quiche::QuicheStrCat(
       ParsedQuicVersionToString(p.version), "_",
       (p.ack_response == AckResponse::kDefer ? "defer" : "immediate"), "_",
       (p.no_stop_waiting ? "No" : ""), "StopWaiting");
@@ -976,9 +990,9 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
                     version()),
         creator_(QuicConnectionPeer::GetPacketCreator(&connection_)),
         manager_(QuicConnectionPeer::GetSentPacketManager(&connection_)),
-        frame1_(0, false, 0, QuicStringPiece(data1)),
-        frame2_(0, false, 3, QuicStringPiece(data2)),
-        crypto_frame_(ENCRYPTION_INITIAL, 0, QuicStringPiece(data1)),
+        frame1_(0, false, 0, quiche::QuicheStringPiece(data1)),
+        frame2_(0, false, 3, quiche::QuicheStringPiece(data2)),
+        crypto_frame_(ENCRYPTION_INITIAL, 0, quiche::QuicheStringPiece(data1)),
         packet_number_length_(PACKET_4BYTE_PACKET_NUMBER),
         connection_id_included_(CONNECTION_ID_PRESENT),
         notifier_(&connection_),
@@ -1307,7 +1321,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
   }
 
   QuicByteCount SendStreamDataToPeer(QuicStreamId id,
-                                     QuicStringPiece data,
+                                     quiche::QuicheStringPiece data,
                                      QuicStreamOffset offset,
                                      StreamSendingState state,
                                      QuicPacketNumber* last_packet) {
@@ -1717,7 +1731,7 @@ TEST_P(QuicConnectionTest, SelfAddressChangeAtClient) {
   } else {
     frame = QuicFrame(QuicStreamFrame(
         QuicUtils::GetCryptoStreamId(connection_.transport_version()), false,
-        0u, QuicStringPiece()));
+        0u, quiche::QuicheStringPiece()));
     EXPECT_CALL(visitor_, OnStreamFrame(_));
   }
   ProcessFramePacketWithAddresses(frame, kSelfAddress, kPeerAddress);
@@ -1748,7 +1762,7 @@ TEST_P(QuicConnectionTest, SelfAddressChangeAtServer) {
   } else {
     frame = QuicFrame(QuicStreamFrame(
         QuicUtils::GetCryptoStreamId(connection_.transport_version()), false,
-        0u, QuicStringPiece()));
+        0u, quiche::QuicheStringPiece()));
     EXPECT_CALL(visitor_, OnStreamFrame(_));
   }
   ProcessFramePacketWithAddresses(frame, kSelfAddress, kPeerAddress);
@@ -1777,7 +1791,7 @@ TEST_P(QuicConnectionTest, AllowSelfAddressChangeToMappedIpv4AddressAtServer) {
   } else {
     frame = QuicFrame(QuicStreamFrame(
         QuicUtils::GetCryptoStreamId(connection_.transport_version()), false,
-        0u, QuicStringPiece()));
+        0u, quiche::QuicheStringPiece()));
     EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(3);
   }
   QuicIpAddress host;
@@ -1786,8 +1800,8 @@ TEST_P(QuicConnectionTest, AllowSelfAddressChangeToMappedIpv4AddressAtServer) {
   ProcessFramePacketWithAddresses(frame, self_address1, kPeerAddress);
   // Cause self_address change to mapped Ipv4 address.
   QuicIpAddress host2;
-  host2.FromString(
-      QuicStrCat("::ffff:", connection_.self_address().host().ToString()));
+  host2.FromString(quiche::QuicheStrCat(
+      "::ffff:", connection_.self_address().host().ToString()));
   QuicSocketAddress self_address2(host2, connection_.self_address().port());
   ProcessFramePacketWithAddresses(frame, self_address2, kPeerAddress);
   EXPECT_TRUE(connection_.connected());
@@ -1814,7 +1828,7 @@ TEST_P(QuicConnectionTest, ClientAddressChangeAndPacketReordered) {
   } else {
     frame = QuicFrame(QuicStreamFrame(
         QuicUtils::GetCryptoStreamId(connection_.transport_version()), false,
-        0u, QuicStringPiece()));
+        0u, quiche::QuicheStringPiece()));
     EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
   }
   QuicPacketCreatorPeer::SetPacketNumber(&peer_creator_, 5);
@@ -1854,7 +1868,7 @@ TEST_P(QuicConnectionTest, PeerAddressChangeAtServer) {
   } else {
     frame = QuicFrame(QuicStreamFrame(
         QuicUtils::GetCryptoStreamId(connection_.transport_version()), false,
-        0u, QuicStringPiece()));
+        0u, quiche::QuicheStringPiece()));
     EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
   }
   ProcessFramePacketWithAddresses(frame, kSelfAddress, kPeerAddress);
@@ -1893,7 +1907,7 @@ TEST_P(QuicConnectionTest, EffectivePeerAddressChangeAtServer) {
   } else {
     frame = QuicFrame(QuicStreamFrame(
         QuicUtils::GetCryptoStreamId(connection_.transport_version()), false,
-        0u, QuicStringPiece()));
+        0u, quiche::QuicheStringPiece()));
     EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
   }
   ProcessFramePacketWithAddresses(frame, kSelfAddress, kPeerAddress);
@@ -1976,7 +1990,7 @@ TEST_P(QuicConnectionTest, ReceivePaddedPingAtServer) {
   } else {
     frame = QuicFrame(QuicStreamFrame(
         QuicUtils::GetCryptoStreamId(connection_.transport_version()), false,
-        0u, QuicStringPiece()));
+        0u, quiche::QuicheStringPiece()));
     EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
   }
   ProcessFramePacketWithAddresses(frame, kSelfAddress, kPeerAddress);
@@ -2083,7 +2097,7 @@ TEST_P(QuicConnectionTest, ReceiveConnectivityProbingAtServer) {
   } else {
     frame = QuicFrame(QuicStreamFrame(
         QuicUtils::GetCryptoStreamId(connection_.transport_version()), false,
-        0u, QuicStringPiece()));
+        0u, quiche::QuicheStringPiece()));
     EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
   }
   ProcessFramePacketWithAddresses(frame, kSelfAddress, kPeerAddress);
@@ -2141,7 +2155,7 @@ TEST_P(QuicConnectionTest, ReceiveReorderedConnectivityProbingAtServer) {
   } else {
     frame = QuicFrame(QuicStreamFrame(
         QuicUtils::GetCryptoStreamId(connection_.transport_version()), false,
-        0u, QuicStringPiece()));
+        0u, quiche::QuicheStringPiece()));
     EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
   }
   QuicPacketCreatorPeer::SetPacketNumber(&peer_creator_, 5);
@@ -2197,7 +2211,7 @@ TEST_P(QuicConnectionTest, MigrateAfterProbingAtServer) {
   } else {
     frame = QuicFrame(QuicStreamFrame(
         QuicUtils::GetCryptoStreamId(connection_.transport_version()), false,
-        0u, QuicStringPiece()));
+        0u, quiche::QuicheStringPiece()));
     EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
   }
   ProcessFramePacketWithAddresses(frame, kSelfAddress, kPeerAddress);
@@ -2250,7 +2264,7 @@ TEST_P(QuicConnectionTest, ReceivePaddedPingAtClient) {
   } else {
     frame = QuicFrame(QuicStreamFrame(
         QuicUtils::GetCryptoStreamId(connection_.transport_version()), false,
-        0u, QuicStringPiece()));
+        0u, quiche::QuicheStringPiece()));
     EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
   }
   ProcessFramePacketWithAddresses(frame, kSelfAddress, kPeerAddress);
@@ -2297,7 +2311,7 @@ TEST_P(QuicConnectionTest, ReceiveConnectivityProbingAtClient) {
   } else {
     frame = QuicFrame(QuicStreamFrame(
         QuicUtils::GetCryptoStreamId(connection_.transport_version()), false,
-        0u, QuicStringPiece()));
+        0u, quiche::QuicheStringPiece()));
     EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
   }
   ProcessFramePacketWithAddresses(frame, kSelfAddress, kPeerAddress);
@@ -2347,7 +2361,7 @@ TEST_P(QuicConnectionTest, PeerAddressChangeAtClient) {
   } else {
     frame = QuicFrame(QuicStreamFrame(
         QuicUtils::GetCryptoStreamId(connection_.transport_version()), false,
-        0u, QuicStringPiece()));
+        0u, quiche::QuicheStringPiece()));
     EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
   }
   ProcessFramePacketWithAddresses(frame, kSelfAddress, kPeerAddress);
@@ -3175,7 +3189,8 @@ TEST_P(QuicConnectionTest, FramePackingSendv) {
   EXPECT_EQ(0u, writer_->padding_frames().size());
   QuicStreamFrame* frame = writer_->stream_frames()[0].get();
   EXPECT_EQ(stream_id, frame->stream_id);
-  EXPECT_EQ("ABCDEF", QuicStringPiece(frame->data_buffer, frame->data_length));
+  EXPECT_EQ("ABCDEF",
+            quiche::QuicheStringPiece(frame->data_buffer, frame->data_length));
 }
 
 TEST_P(QuicConnectionTest, FramePackingSendvQueued) {
@@ -8606,7 +8621,7 @@ TEST_P(QuicConnectionTest, SendMessage) {
     return;
   }
   std::string message(connection_.GetCurrentLargestMessagePayload() * 2, 'a');
-  QuicStringPiece message_data(message);
+  quiche::QuicheStringPiece message_data(message);
   QuicMemSliceStorage storage(nullptr, 0, nullptr, 0);
   {
     QuicConnection::ScopedPacketFlusher flusher(&connection_);
@@ -8619,7 +8634,7 @@ TEST_P(QuicConnectionTest, SendMessage) {
               connection_.SendMessage(
                   1,
                   MakeSpan(connection_.helper()->GetStreamSendBufferAllocator(),
-                           QuicStringPiece(
+                           quiche::QuicheStringPiece(
                                message_data.data(),
                                connection_.GetCurrentLargestMessagePayload()),
                            &storage),
@@ -8640,7 +8655,7 @@ TEST_P(QuicConnectionTest, SendMessage) {
             connection_.SendMessage(
                 3,
                 MakeSpan(connection_.helper()->GetStreamSendBufferAllocator(),
-                         QuicStringPiece(
+                         quiche::QuicheStringPiece(
                              message_data.data(),
                              connection_.GetCurrentLargestMessagePayload() + 1),
                          &storage),
@@ -8764,7 +8779,7 @@ TEST_P(QuicConnectionTest, StopProcessingGQuicPacketInIetfQuicConnection) {
   } else {
     frame = QuicFrame(QuicStreamFrame(
         QuicUtils::GetCryptoStreamId(connection_.transport_version()), false,
-        0u, QuicStringPiece()));
+        0u, quiche::QuicheStringPiece()));
     EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
   }
   ProcessFramePacketWithAddresses(frame, kSelfAddress, kPeerAddress);
@@ -9085,7 +9100,7 @@ TEST_P(QuicConnectionTest, CheckConnectedBeforeFlush) {
   } else {
     frame = QuicFrame(QuicStreamFrame(
         QuicUtils::GetCryptoStreamId(connection_.transport_version()), false,
-        0u, QuicStringPiece()));
+        0u, quiche::QuicheStringPiece()));
     EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
   }
   ProcessFramePacketWithAddresses(frame, kSelfAddress, kPeerAddress);

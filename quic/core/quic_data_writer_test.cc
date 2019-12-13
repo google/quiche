@@ -16,6 +16,8 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_endian.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 namespace test {
@@ -33,7 +35,7 @@ struct TestParams {
 
 // Used by ::testing::PrintToStringParamName().
 std::string PrintToString(const TestParams& p) {
-  return QuicStrCat(
+  return quiche::QuicheStrCat(
       (p.endianness == quiche::NETWORK_BYTE_ORDER ? "Network" : "Host"),
       "ByteOrder");
 }
@@ -1172,8 +1174,9 @@ TEST_P(QuicDataWriterTest, InvalidConnectionIdLengthRead) {
   bool ok;
   EXPECT_QUIC_BUG(
       ok = reader.ReadConnectionId(&connection_id, bad_connection_id_length),
-      QuicStrCat("Attempted to read connection ID with length too high ",
-                 static_cast<int>(bad_connection_id_length)));
+      quiche::QuicheStrCat(
+          "Attempted to read connection ID with length too high ",
+          static_cast<int>(bad_connection_id_length)));
   EXPECT_FALSE(ok);
 }
 
@@ -1255,22 +1258,24 @@ TEST_P(QuicDataWriterTest, PayloadReads) {
   test::CompareCharArraysWithHexError(
       "first read", first_read_buffer, sizeof(first_read_buffer),
       expected_first_read, sizeof(expected_first_read));
-  QuicStringPiece peeked_remaining_payload = reader.PeekRemainingPayload();
+  quiche::QuicheStringPiece peeked_remaining_payload =
+      reader.PeekRemainingPayload();
   test::CompareCharArraysWithHexError(
       "peeked_remaining_payload", peeked_remaining_payload.data(),
       peeked_remaining_payload.length(), expected_remaining,
       sizeof(expected_remaining));
-  QuicStringPiece full_payload = reader.FullPayload();
+  quiche::QuicheStringPiece full_payload = reader.FullPayload();
   test::CompareCharArraysWithHexError("full_payload", full_payload.data(),
                                       full_payload.length(), buffer,
                                       sizeof(buffer));
-  QuicStringPiece read_remaining_payload = reader.ReadRemainingPayload();
+  quiche::QuicheStringPiece read_remaining_payload =
+      reader.ReadRemainingPayload();
   test::CompareCharArraysWithHexError(
       "read_remaining_payload", read_remaining_payload.data(),
       read_remaining_payload.length(), expected_remaining,
       sizeof(expected_remaining));
   EXPECT_TRUE(reader.IsDoneReading());
-  QuicStringPiece full_payload2 = reader.FullPayload();
+  quiche::QuicheStringPiece full_payload2 = reader.FullPayload();
   test::CompareCharArraysWithHexError("full_payload2", full_payload2.data(),
                                       full_payload2.length(), buffer,
                                       sizeof(buffer));

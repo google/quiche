@@ -32,6 +32,7 @@
 #include "net/third_party/quiche/src/quic/test_tools/fake_proof_source.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_crypto_server_config_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 class QuicConnection;
@@ -92,11 +93,12 @@ class QuicCryptoServerStreamTest : public QuicTestWithParam<bool> {
     EXPECT_CALL(*server_session_->helper(), CanAcceptClientHello(_, _, _, _, _))
         .Times(testing::AnyNumber());
     EXPECT_CALL(*server_session_, SelectAlpn(_))
-        .WillRepeatedly([this](const std::vector<QuicStringPiece>& alpns) {
-          return std::find(
-              alpns.cbegin(), alpns.cend(),
-              AlpnForVersion(server_session_->connection()->version()));
-        });
+        .WillRepeatedly(
+            [this](const std::vector<quiche::QuicheStringPiece>& alpns) {
+              return std::find(
+                  alpns.cbegin(), alpns.cend(),
+                  AlpnForVersion(server_session_->connection()->version()));
+            });
     crypto_test_utils::SetupCryptoServerConfigForTest(
         server_connection_->clock(), server_connection_->random_generator(),
         &server_crypto_config_);
